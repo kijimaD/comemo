@@ -1,34 +1,14 @@
-commit 407bf0ca67200463cdd451937623078e0240335e
-Author: Alexander Klauer <Alexander.Klauer@googlemail.com>
-Date:   Mon Jun 29 16:02:07 2020 +0000
+commit 0fe79aad0ff800f8df3136d018e0a8b64c614d61
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Tue Feb 4 12:32:58 2020 +0000
 
-    reflect: add parentheses to properly bind <- in ChanOf’s string
+    doc/go1.14: add missing slashes
     
-    Adds parentheses so as to properly bind <- to the right most
-    channel.
-    This meant that previously given:
+    This saves a redirect and makes the document more consistent.
     
-       ChanOf(<-chan T)
-    
-    it would mistakenly try to look up the type as
-    
-        chan <-chan T
-    
-    instead of
-    
-        chan (<-chan T)
-    
-    Fixes #39897
-    
-    Change-Id: I8564916055f5fadde3382e41fe8820a1071e5f13
-    GitHub-Last-Rev: f8f2abe8d4c9e3d1414c89cadca8a16ce5cdeab9
-    GitHub-Pull-Request: golang/go#39898
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240280
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I67840f5dc05dffd8893a055618eb202b682a0ebc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217698
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/all_test.go | 16 ++++++++++++++++
- src/reflect/type.go     | 12 ++++++++++--
- 2 files changed, 26 insertions(+), 2 deletions(-)
+ doc/go1.14.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

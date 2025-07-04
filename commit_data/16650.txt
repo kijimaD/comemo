@@ -1,17 +1,157 @@
-commit fa7e46c88481b06420191460e47d9c9c512a1f94
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 26 13:14:11 2013 -0700
+commit 8b9c1a224be4100b44df9c83aabcf6ec4a8f7832
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 26 14:31:12 2013 -0400
 
-    crypto/sha512: provide top-level Sum512 and Sum384 functions
-    Makes it easy to ask the simple question, what is the hash of this data?
-    Also fix the commentary and prints in Sum256.
+    cmd/go: proper rebuild of affected packages during go test
     
-    R=golang-dev, rsc
+    With this CL, go test -short -cover std successfully builds and
+    runs all the standard package tests. The tests that look a file
+    line numbers (log and runtime/debug) fail, because cover is
+    not inserting //line directives. Everything else passes.
+    
+    ok      cmd/api 0.038s  coverage: 66.6% of statements
+    ?       cmd/cgo [no test files]
+    ok      cmd/fix 0.043s  coverage: 27.2% of statements
+    ok      cmd/go  0.063s  coverage: 2.4% of statements
+    ?       cmd/godoc       [no test files]
+    ok      cmd/gofmt       0.085s  coverage: 61.3% of statements
+    ?       cmd/yacc        [no test files]
+    ok      archive/tar     0.023s  coverage: 74.2% of statements
+    ok      archive/zip     0.075s  coverage: 71.8% of statements
+    ok      bufio   0.149s  coverage: 88.2% of statements
+    ok      bytes   0.135s  coverage: 90.4% of statements
+    ok      compress/bzip2  0.087s  coverage: 85.1% of statements
+    ok      compress/flate  0.632s  coverage: 79.3% of statements
+    ok      compress/gzip   0.027s  coverage: 76.7% of statements
+    ok      compress/lzw    0.141s  coverage: 71.2% of statements
+    ok      compress/zlib   1.123s  coverage: 77.2% of statements
+    ok      container/heap  0.020s  coverage: 85.8% of statements
+    ok      container/list  0.021s  coverage: 92.5% of statements
+    ok      container/ring  0.030s  coverage: 86.5% of statements
+    ?       crypto  [no test files]
+    ok      crypto/aes      0.054s  coverage: 54.3% of statements
+    ok      crypto/cipher   0.027s  coverage: 68.8% of statements
+    ok      crypto/des      0.041s  coverage: 83.8% of statements
+    ok      crypto/dsa      0.027s  coverage: 33.1% of statements
+    ok      crypto/ecdsa    0.048s  coverage: 48.7% of statements
+    ok      crypto/elliptic 0.030s  coverage: 91.6% of statements
+    ok      crypto/hmac     0.019s  coverage: 83.3% of statements
+    ok      crypto/md5      0.020s  coverage: 78.7% of statements
+    ok      crypto/rand     0.057s  coverage: 20.8% of statements
+    ok      crypto/rc4      0.092s  coverage: 70.8% of statements
+    ok      crypto/rsa      0.261s  coverage: 80.8% of statements
+    ok      crypto/sha1     0.019s  coverage: 83.9% of statements
+    ok      crypto/sha256   0.021s  coverage: 89.0% of statements
+    ok      crypto/sha512   0.023s  coverage: 88.7% of statements
+    ok      crypto/subtle   0.027s  coverage: 83.9% of statements
+    ok      crypto/tls      0.833s  coverage: 79.7% of statements
+    ok      crypto/x509     0.961s  coverage: 74.9% of statements
+    ?       crypto/x509/pkix        [no test files]
+    ok      database/sql    0.033s  coverage: 75.0% of statements
+    ok      database/sql/driver     0.020s  coverage: 46.2% of statements
+    ok      debug/dwarf     0.023s  coverage: 71.5% of statements
+    ok      debug/elf       0.035s  coverage: 58.2% of statements
+    ok      debug/gosym     0.022s  coverage: 1.8% of statements
+    ok      debug/macho     0.023s  coverage: 63.7% of statements
+    ok      debug/pe        0.024s  coverage: 50.5% of statements
+    ok      encoding/ascii85        0.021s  coverage: 89.7% of statements
+    ok      encoding/asn1   0.022s  coverage: 77.9% of statements
+    ok      encoding/base32 0.022s  coverage: 91.4% of statements
+    ok      encoding/base64 0.020s  coverage: 90.7% of statements
+    ok      encoding/binary 0.022s  coverage: 66.2% of statements
+    ok      encoding/csv    0.022s  coverage: 88.5% of statements
+    ok      encoding/gob    0.064s  coverage: 82.2% of statements
+    ok      encoding/hex    0.019s  coverage: 86.3% of statements
+    ok      encoding/json   0.047s  coverage: 77.3% of statements
+    ok      encoding/pem    0.026s  coverage: 80.5% of statements
+    ok      encoding/xml    0.039s  coverage: 85.0% of statements
+    ok      errors  0.022s  coverage: 100.0% of statements
+    ok      expvar  0.048s  coverage: 72.0% of statements
+    ok      flag    0.019s  coverage: 86.9% of statements
+    ok      fmt     0.062s  coverage: 91.2% of statements
+    ok      go/ast  0.028s  coverage: 46.3% of statements
+    ok      go/build        0.190s  coverage: 75.4% of statements
+    ok      go/doc  0.095s  coverage: 76.7% of statements
+    ok      go/format       0.036s  coverage: 79.8% of statements
+    ok      go/parser       0.075s  coverage: 82.0% of statements
+    ok      go/printer      0.733s  coverage: 88.6% of statements
+    ok      go/scanner      0.031s  coverage: 86.5% of statements
+    ok      go/token        0.062s  coverage: 79.7% of statements
+    ?       hash    [no test files]
+    ok      hash/adler32    0.029s  coverage: 49.0% of statements
+    ok      hash/crc32      0.020s  coverage: 64.2% of statements
+    ok      hash/crc64      0.021s  coverage: 53.5% of statements
+    ok      hash/fnv        0.018s  coverage: 75.5% of statements
+    ok      html    0.022s  coverage: 4.5% of statements
+    ok      html/template   0.087s  coverage: 83.9% of statements
+    ok      image   0.108s  coverage: 67.1% of statements
+    ok      image/color     0.026s  coverage: 20.1% of statements
+    ok      image/draw      0.049s  coverage: 69.6% of statements
+    ok      image/gif       0.019s  coverage: 65.2% of statements
+    ok      image/jpeg      0.197s  coverage: 78.6% of statements
+    ok      image/png       0.055s  coverage: 56.5% of statements
+    ok      index/suffixarray       0.027s  coverage: 82.4% of statements
+    ok      io      0.037s  coverage: 83.4% of statements
+    ok      io/ioutil       0.022s  coverage: 70.1% of statements
+    FAIL    log     0.020s
+    ok      log/syslog      2.063s  coverage: 71.1% of statements
+    ok      math    0.023s  coverage: 76.5% of statements
+    ok      math/big        0.235s  coverage: 79.2% of statements
+    ok      math/cmplx      0.020s  coverage: 66.5% of statements
+    ok      math/rand       0.031s  coverage: 69.9% of statements
+    ok      mime    0.022s  coverage: 83.0% of statements
+    ok      mime/multipart  0.389s  coverage: 76.1% of statements
+    ok      net     2.219s  coverage: 58.0% of statements
+    ok      net/http        4.744s  coverage: 82.9% of statements
+    ok      net/http/cgi    0.593s  coverage: 68.5% of statements
+    ok      net/http/cookiejar      0.038s  coverage: 90.3% of statements
+    ok      net/http/fcgi   0.047s  coverage: 37.6% of statements
+    ok      net/http/httptest       0.068s  coverage: 68.9% of statements
+    ok      net/http/httputil       0.058s  coverage: 52.8% of statements
+    ?       net/http/pprof  [no test files]
+    ok      net/mail        0.025s  coverage: 80.3% of statements
+    ok      net/rpc 0.063s  coverage: 71.5% of statements
+    ok      net/rpc/jsonrpc 0.047s  coverage: 81.3% of statements
+    ok      net/smtp        0.032s  coverage: 74.1% of statements
+    ok      net/textproto   0.023s  coverage: 66.0% of statements
+    ok      net/url 0.020s  coverage: 78.2% of statements
+    ok      os      4.729s  coverage: 73.3% of statements
+    ok      os/exec 39.620s coverage: 65.1% of statements
+    ok      os/signal       0.541s  coverage: 89.9% of statements
+    ok      os/user 0.022s  coverage: 62.2% of statements
+    ok      path    0.018s  coverage: 90.8% of statements
+    ok      path/filepath   10.834s coverage: 88.4% of statements
+    ok      reflect 0.055s  coverage: 83.2% of statements
+    ok      regexp  0.084s  coverage: 75.5% of statements
+    ok      regexp/syntax   0.547s  coverage: 85.2% of statements
+    ok      runtime 4.755s  coverage: 75.9% of statements
+    ?       runtime/cgo     [no test files]
+    FAIL    runtime/debug   0.018s
+    ok      runtime/pprof   0.368s  coverage: 8.5% of statements
+    ?       runtime/race    [no test files]
+    ok      sort    0.059s  coverage: 97.7% of statements
+    ok      strconv 0.315s  coverage: 95.6% of statements
+    ok      strings 0.147s  coverage: 96.1% of statements
+    ok      sync    0.083s  coverage: 56.7% of statements
+    ok      sync/atomic     0.035s  coverage: 0.0% of statements
+    ok      syscall 0.043s  coverage: 24.0% of statements
+    ok      testing 0.018s  coverage: 24.0% of statements
+    ?       testing/iotest  [no test files]
+    ok      testing/quick   0.062s  coverage: 83.2% of statements
+    ok      text/scanner    0.020s  coverage: 91.5% of statements
+    ok      text/tabwriter  0.021s  coverage: 90.4% of statements
+    ok      text/template   0.052s  coverage: 81.1% of statements
+    ok      text/template/parse     0.024s  coverage: 86.1% of statements
+    ok      time    2.431s  coverage: 88.8% of statements
+    ok      unicode 0.024s  coverage: 92.1% of statements
+    ok      unicode/utf16   0.017s  coverage: 97.3% of statements
+    ok      unicode/utf8    0.019s  coverage: 97.4% of statements
+    ?       unsafe  [no test files]
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/10630043
+    https://golang.org/cl/10586043
 
- src/pkg/crypto/sha256/sha256.go      |  2 +-
- src/pkg/crypto/sha256/sha256_test.go |  2 +-
- src/pkg/crypto/sha512/sha512.go      | 30 +++++++++++++++++++++++++++---
- src/pkg/crypto/sha512/sha512_test.go |  8 ++++++++
- 4 files changed, 37 insertions(+), 5 deletions(-)
+ src/cmd/go/build.go |  8 +++--
+ src/cmd/go/test.go  | 92 ++++++++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 76 insertions(+), 24 deletions(-)

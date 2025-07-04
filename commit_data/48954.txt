@@ -1,19 +1,15 @@
-commit 32acceb359717e434ceb48681426b377b722d11e
-Author: Baokun Lee <bk@golangcn.org>
-Date:   Mon Dec 20 14:02:00 2021 +0800
+commit 7d0e9e6e74b45cf658257363151a79baf030033f
+Author: uji <ujiprog@gmail.com>
+Date:   Wed Jun 30 00:06:23 2021 +0900
 
-    internal/poll: clear completed Buffers to permit earlier collection
+    image/gif: fix typo in the comment (io.ReadByte -> io.ByteReader)
     
-    Updates #45163
+    Fixes #46967
     
-    Change-Id: I73a6f22715550e0e8b83fbd3ebec72ef019f153f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373374
-    Run-TryBot: Lee Baokun <bk@golangcn.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I66e69c70b74e904623e8ca854562d255692b2143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331649
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
 
- src/internal/poll/fd.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/image/gif/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

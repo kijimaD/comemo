@@ -1,16 +1,18 @@
-commit afc2c45f05ad1091f1176f37ba90fb813b2776be
-Author: Burcu Dogan <jbd@google.com>
-Date:   Sat Nov 28 11:47:07 2015 -0600
+commit 9deb940d2481396944f090dd9f205f2d5b3d94ee
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 22 01:28:09 2015 -0700
 
-    net/http: define File as an io.Seeker
+    compress/flate: detect truncated streams
     
-    Fixes #13421.
+    Reader failed to detect truncated streams since calls to
+    io.ReadFull did not check if the error is io.EOF.
     
-    Change-Id: Ic0fc0d0a8e86d2be23db12ddd1a8a8105e26ee56
-    Reviewed-on: https://go-review.googlesource.com/17250
+    Change-Id: I0634e0d8de1ab04e8f93242c27a9f89e57743e87
+    Reviewed-on: https://go-review.googlesource.com/14833
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Burcu Dogan <jbd@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/fs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/flate/flate_test.go | 17 +++++++++++++++++
+ src/compress/flate/inflate.go    |  6 ++++++
+ 2 files changed, 23 insertions(+)

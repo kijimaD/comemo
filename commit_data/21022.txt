@@ -1,12 +1,16 @@
-commit 895e4b8550c0e6f0ff95e61e6b793e99ac99f9ab
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Dec 18 19:47:29 2014 -0500
+commit ec7f33300f7fb35ad30e37399126b61b4ca8052a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 6 20:08:00 2014 -0500
 
-    compress/bzip2: s/repeat_power/repeatPower/
+    cmd/internal/objfile: add Disasm
     
-    Change-Id: I64c8c247acd5d134b2f17ed7aab0a035d7710679
-    Reviewed-on: https://go-review.googlesource.com/1804
-    Reviewed-by: Minux Ma <minux@golang.org>
+    This was missing from CL 167320043.
+    Happy to apply comments in a followup.
+    TBR to fix build.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/171260043
 
- src/compress/bzip2/bzip2.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/internal/objfile/disasm.go | 243 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 243 insertions(+)

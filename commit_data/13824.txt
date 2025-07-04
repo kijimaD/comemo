@@ -1,15 +1,16 @@
-commit ca75fdf972fa3db7385241eda83691dd7ec3fc17
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 14 12:06:21 2012 -0400
+commit db3c800d19a394d76531f001dbb09e13a6630712
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 14 12:53:30 2012 +1000
 
-    cmd/go: treat all commands in exp/ as tools
+    misc/dashboard/builder: use c:\ as default buildroot on windows
     
-    Nothing in exp should get installed directly in bin,
-    at least not by default.
+    We have some tests (misc/cgo/test) that are disabled only because
+    they will fail to run on go builder - see issue 3358 for details.
+    This change will allow us to enable these tests.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6497138
+    https://golang.org/cl/6493118
 
- src/cmd/go/pkg.go | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ misc/dashboard/builder/main.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

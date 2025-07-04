@@ -1,22 +1,16 @@
-commit f3f29d1dea525f48995c1693c609f5e67c046893
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon May 22 17:17:39 2017 +1000
+commit 5f3281139d2173f4d742aaf3ed9ba57a93b46737
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 13:42:55 2017 +0100
 
-    os/exec: ignore some pipe write errors on windows
+    go/types: remove unused field parameter
     
-    This change is windows version of CL 12152.
-    It also extends test to cover scenarios reported on issue #20445.
-    Some source files copied and renamed to make code clearer.
+    Found by github.com/mvdan/unparam.
     
-    Fixes #20445
-    
-    Change-Id: Idd2f636f27c6bd5cfe98017ba2df911358263382
-    Reviewed-on: https://go-review.googlesource.com/43910
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ie26e963176eb7afb35d16fed5cbca6530f7731c3
+    Reviewed-on: https://go-review.googlesource.com/37832
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/exec_test.go                    | 38 ++++++++++++++++++++---------
- src/os/exec/{exec_posix.go => exec_unix.go} |  2 +-
- src/os/exec/exec_windows.go                 | 23 +++++++++++++++++
- 3 files changed, 51 insertions(+), 12 deletions(-)
+ src/go/types/typexpr.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

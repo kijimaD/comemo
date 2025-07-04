@@ -1,18 +1,22 @@
-commit a12661329b81675267303602bf16493608ec7bed
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue May 13 09:53:03 2014 +0400
+commit 30b8af98c0d9ab172842feebf38d1a7ef00a6afa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 13 01:09:38 2014 -0400
 
-    runtime: fix triggering of forced GC
-    mstats.last_gc is unix time now, it is compared with abstract monotonic time.
-    On my machine GC is forced every 5 mins regardless of last_gc.
+    runtime: handle decommit failure gracefully on Windows
     
-    LGTM=rsc
-    R=golang-codereviews
-    CC=golang-codereviews, iant, rsc
-    https://golang.org/cl/91350045
+    I have no test case for this at tip.
+    The original report included a program crashing at revision 88ac7297d2fa.
+    I tested this code at that revision and it does fix the crash.
+    However, at tip the reported code no longer crashes, presumably
+    because some allocation patterns have changed. I believe the
+    bug is still present at tip and that this code still fixes it.
+    
+    Fixes #7143.
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/96300046
 
- src/pkg/runtime/mgc0.c    |  4 +---
- src/pkg/runtime/mheap.c   |  7 ++++---
- src/pkg/runtime/runtime.h |  3 ++-
- src/pkg/runtime/time.goc  | 10 ++++++++++
- 4 files changed, 17 insertions(+), 7 deletions(-)
+ src/pkg/runtime/mem_windows.c | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)

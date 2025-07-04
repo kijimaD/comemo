@@ -1,17 +1,22 @@
-commit 6f3f2d0ab825ee1ab77d62766828b6c191f92622
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Apr 29 14:43:10 2014 -0400
+commit fee51f45ab37c77ad8b7967b091ddf19d4e259a3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 29 08:53:38 2014 -0400
 
-    run.bash: skip -static cgo test if -static linking isn't possible.
-    Some system doesn't have libc.a available.
+    cmd/cgo: for gccgo add #define to cgo_export.h for expected name
     
-    While we're at here, also export GOROOT in run.bash, so that
-    one doesn't need to set GOROOT to run run.bash.
+    For gccgo we rename exported functions so that the compiler
+    will make them visible.  This CL adds a #define so that C
+    functions that #include "cgo_export.h" can use the expected
+    names of the function.
     
-    LGTM=iant
-    R=iant
+    The test for this is the existing issue6833 test in
+    misc/cgo/test.  Without this CL it fails when using
+    -compiler=gccgo.
+    
+    LGTM=minux.ma, rsc
+    R=golang-codereviews, gobot, rsc, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/99870043
+    https://golang.org/cl/91830046
 
- src/run.bash | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/cgo/out.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

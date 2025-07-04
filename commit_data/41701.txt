@@ -1,27 +1,19 @@
-commit 287d67e3dd3972b1d1006b06e0d57929540a1591
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 20 09:59:53 2020 -0700
+commit b282efa0221f6298f1e407ba947c5a7bc8f58871
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 21 12:44:42 2019 -0700
 
-    cmd/compile: indexed loads/stores can't be faultOnNilArg0
+    cmd/compile: recognize reflect.{Slice,String}Header for -d=checkptr
     
-    Because of the index, these ops can't guarantee faulting if arg0 is nil.
+    Avoids false positive pointer arithmetic panic.
     
-    Clean up the PPC64 index ops - they can't take a sym or an offset.
+    Fixes #35027.
     
-    Noticed while debugging #37881. I don't think it is the cause, but I guess
-    there is a chance.
-    Update #37881
-    
-    Change-Id: Ic22925250bf7b1ba64e3cea1a65638bc4bab390c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224457
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Idd008caaab25fcf739327ac50a021b835ef13def
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202560
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go        |   2 -
- src/cmd/compile/internal/ssa/gen/386Ops.go   |  30 +--
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  12 +-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  42 +--
- src/cmd/compile/internal/ssa/opGen.go        | 387 +++++++++++----------------
- src/cmd/compile/internal/ssa/rewritePPC64.go | 168 ++++--------
- 6 files changed, 255 insertions(+), 386 deletions(-)
+ src/cmd/compile/internal/gc/walk.go |  4 ++++
+ test/fixedbugs/issue35027.go        | 23 +++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)

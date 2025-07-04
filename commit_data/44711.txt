@@ -1,36 +1,27 @@
-commit 7e00049b5545cac8705d6df1e337c5ddc70e65e4
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Mar 15 12:40:34 2021 -0400
+commit 4220d670844e15f78041a9fa7dea1c2a89a9b139
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 5 10:26:57 2020 -0400
 
-    cmd/go: only add a 'go' directive to the main module when the go.mod file will be written
+    cmd/compile: make GOSSAHASH package-sensitive, also append to log files
     
-    Then, write the 'go.mod' file with that version before further
-    processing. That way, if the command errors out due to a change in
-    behavior, the reason for the change in behavior will be visible in the
-    file diffs.
+    Turns out if your failure is in a function with a name like "Reset()"
+    there will be a lot of hits on the same hashcode.  Adding package sensitivity
+    solves this problem.
     
-    If the 'go.mod' file cannot be written (due to -mod=readonly or
-    -mod=vendor), assume Go 1.11 instead of the current Go release.
-    (cmd/go has added 'go' directives automatically, including in 'go mod
-    init', since Go 1.12.)
+    In additionm, it turned out that in the case that a logfile was specified
+    for the GOSSAHASH logging, that it was opened in create mode, which meant
+    that multiple compiler invocations would reset the file to zero length.
+    Opening in append mode works better; the automated harness
+    (github.com/dr2chase/gossahash) takes care of truncating the file before use.
     
-    For #44976
-    
-    Change-Id: If9d4af557366f134f40ce4c5638688ba3bab8380
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302051
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I5601bc280faa94cbd507d302448831849db6c842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246937
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.17.html                                    |  12 +++
- src/cmd/go/internal/modload/build.go               |   8 +-
- src/cmd/go/internal/modload/init.go                | 107 ++++++++++++++-------
- src/cmd/go/internal/modload/modfile.go             |   5 +-
- src/cmd/go/internal/work/gc.go                     |  14 ++-
- src/cmd/go/testdata/script/embed.txt               |   1 +
- .../go/testdata/script/mod_go_version_missing.txt  |  97 +++++++++++++++++++
- src/cmd/go/testdata/script/mod_outside.txt         |  14 +++
- src/cmd/go/testdata/script/mod_test.txt            |   2 +
- 9 files changed, 219 insertions(+), 41 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go          | 6 +++++-
+ src/cmd/compile/internal/ssa/config.go      | 3 +++
+ src/cmd/compile/internal/ssa/export_test.go | 4 ++++
+ src/cmd/compile/internal/ssa/func.go        | 5 +++--
+ 4 files changed, 15 insertions(+), 3 deletions(-)

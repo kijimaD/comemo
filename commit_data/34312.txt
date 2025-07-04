@@ -1,14 +1,31 @@
-commit 669676b7b318cc6239179980f5bfa140437dd5d5
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Sun Feb 18 15:45:24 2018 +0200
+commit 38a3c2cfe95cef0e4f101cfb82c5586a9db4cbd8
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 10 14:41:57 2017 -0400
 
-    text/template: fix the documentation of the block action
+    cmd/cover: preserve compiler directives in floating comments
     
-    Fixes #23520
+    Previously, cover printed directives (//go: comments) near the top of
+    the file unless they were in doc comments. However, directives
+    frequently apply to specific definitions, and they are not written in
+    doc comments to prevent godoc from printing them. Moving all
+    directives to the top of the file affected semantics of tests.
     
-    Change-Id: Ia834819f3260691a1a0181034ef4b4b945965688
-    Reviewed-on: https://go-review.googlesource.com/94761
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    With this change, directives are kept together with the following
+    top-level declarations. Only directives that occur after all top-level
+    declarations are moved.
+    
+    Fixes #22022
+    
+    Change-Id: Ic5c61c4d3969996e4ed5abccba0989163789254c
+    Reviewed-on: https://go-review.googlesource.com/69630
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/text/template/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/nacl/testzip.proto              |   3 +
+ src/cmd/cover/cover.go               | 125 ++++++++++++++++++++++------------
+ src/cmd/cover/cover_test.go          | 128 ++++++++++++++++++++++++++++++++++-
+ src/cmd/cover/doc.go                 |   4 ++
+ src/cmd/cover/testdata/directives.go |  40 +++++++++++
+ 5 files changed, 253 insertions(+), 47 deletions(-)

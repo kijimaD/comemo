@@ -1,18 +1,36 @@
-commit d4b0bd28eef0a212930fb196230171a9f11e5ec4
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Nov 8 17:17:15 2024 -0800
+commit 8b727f856ebc812225f2a68c3b284dfabf6472a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 14 09:52:44 2023 -0400
 
-    internal/runtime/maps: don't copy indirect key/elem when growing maps
+    cmd/compile, go/types: typechecking of range over int, func
     
-    We can reuse the same indirect storage when growing, so we don't
-    need an additional allocation.
+    Add type-checking logic for range over integers and functions,
+    behind GOEXPERIMENT=range.
     
-    Change-Id: I57adb406becfbec648188ec66f4bb2e94d4b9cab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625902
+    For proposal #61405 (but behind a GOEXPERIMENT).
+    For #61717.
+    
+    Change-Id: Ibf78cf381798b450dbe05eb922df82af2b009403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510537
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/runtime/maps/map.go   |  8 +------
- src/internal/runtime/maps/table.go | 49 ++++++++++++++++----------------------
- 2 files changed, 21 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go   |  19 ++
+ src/cmd/compile/internal/types2/stdlib_test.go  |   3 +
+ src/cmd/compile/internal/types2/stmt.go         | 139 ++++++++----
+ src/go/build/deps_test.go                       |   8 +-
+ src/go/types/check_test.go                      |  19 ++
+ src/go/types/stdlib_test.go                     |   3 +
+ src/go/types/stmt.go                            | 268 +++++++++++++++---------
+ src/internal/goexperiment/exp_newinliner_off.go |   4 -
+ src/internal/goexperiment/exp_newinliner_on.go  |   4 -
+ src/internal/goexperiment/exp_range_off.go      |   9 +
+ src/internal/goexperiment/exp_range_on.go       |   9 +
+ src/internal/goexperiment/flags.go              |   3 +
+ src/internal/types/errors/codes.go              |   8 +-
+ src/internal/types/testdata/check/stmt0.go      |  12 +-
+ src/internal/types/testdata/spec/range.go       | 157 ++++++++++++++
+ test/range2.go                                  |  24 +++
+ 16 files changed, 523 insertions(+), 166 deletions(-)

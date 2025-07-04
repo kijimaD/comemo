@@ -1,25 +1,23 @@
-commit 583fddf3bc85802869ce2d286fe8b32cc6728bc8
-Author: Kshitij Saraogi <kshitijsaraogi@gmail.com>
-Date:   Mon Mar 4 16:29:25 2019 +0530
+commit bb3bf5bb538df67d3939974854c99608be21e135
+Author: Akhil Indurti <aindurti@gmail.com>
+Date:   Thu Jul 26 23:46:38 2018 -0400
 
-    net/http: remove discrepancies between the MIME Sniffing Spec and its implementation
+    internal/cpu: expose ARM feature flags for FMA
     
-    The change fixes the following deviations between the existing implementation and the Spec:
-    1. Using pattern instead of "mask" for assertion and iteration in the Pattern Matching Algorithm.
-    2. Rename "image/vnd.microsoft.icon" to "image/x-icon" and add another signature for the same.
-    3. Using named strings instead of hexadecimal representation in "application/zip" and "application/x-rar-compressed".
-    4. Reordering "sniffSignatures" in accordance with the Spec section "Identifying a resource with an unknown MIME type".
+    This change exposes feature flags needed to implement an FMA intrinsic
+    on ARM CPUs via auxv's HWCAP bits. Specifically, it exposes HasVFPv4 to
+    detect if an ARM processor has the fourth version of the vector floating
+    point unit. The relevant instruction for this CL is VFMA, emitted in Go
+    as FMULAD.
     
-    In addition to the above fixes, unit tests for Image MIME type group are added.
+    Updates #26630.
     
-    Fixes #30570
-    
-    Change-Id: I97d2ae22b426c3c57bf8efd2ed9396c0be983688
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165277
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ibbc04fb24c2b4d994f93762360f1a37bc6d83ff7
+    Reviewed-on: https://go-review.googlesource.com/c/126315
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/net/http/sniff.go      | 110 ++++++++++++++++++++++++++++++---------------
- src/net/http/sniff_test.go |   6 +++
- 2 files changed, 80 insertions(+), 36 deletions(-)
+ src/internal/cpu/cpu.go     | 1 +
+ src/internal/cpu/cpu_arm.go | 3 +++
+ 2 files changed, 4 insertions(+)

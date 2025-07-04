@@ -1,17 +1,18 @@
-commit 9073af247d602dff4633710adf90c8b3c1869c45
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 11 11:06:32 2016 -0500
+commit 097a581dc0d97efac1dfbe5d79819bbf6bf681a7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 27 07:20:10 2016 -0700
 
-    encoding/json: document what happens to MarshalText's result
+    runtime: simplify signalstack by dropping nil as argument
     
-    Fixes #17743.
+    Change the two calls to signalstack(nil) to inline the code
+    instead (it's two lines).
     
-    Change-Id: Ib5afb6248bb060f2ad8dd3d5f78e95271af62a57
-    Reviewed-on: https://go-review.googlesource.com/33135
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ie92a05494f924f279e40ac159f1b677fda18f281
+    Reviewed-on: https://go-review.googlesource.com/29854
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
-    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/encode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/os_netbsd.go   |  3 ++-
+ src/runtime/signal_unix.go | 14 ++++----------
+ 2 files changed, 6 insertions(+), 11 deletions(-)

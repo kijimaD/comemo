@@ -1,17 +1,18 @@
-commit e4ed92a355cebc399dc34d33a556f656fa5c7690
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Thu Jun 29 16:06:19 2023 +0300
+commit e0ec1d6770879518af726b6cd8693dab3390db24
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Aug 25 03:03:35 2022 +0800
 
-    os, syscall: update unreachable link about =C: envs
+    runtime: convert forcegcstate.idle to internal atomic type
     
-    Change-Id: I185dec133599f9c69fda7563697bbc33e433fb78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507135
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Note that this changes a few unsynchronized operations of forcegcstate.idle to synchronized operations.
+    
+    Updates #53821
+    
+    Change-Id: I041654cc84a188fad45e2df7abce3a434f9a1f15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425361
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/os/env_test.go         | 2 +-
- src/syscall/env_windows.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/proc.go     | 8 ++++----
+ src/runtime/runtime2.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

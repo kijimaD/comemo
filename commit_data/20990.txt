@@ -1,14 +1,17 @@
-commit 8655f04d8e21884ab69c89eb760df2e31245af91
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Dec 16 12:16:25 2014 +1100
+commit 182ec4395eff228673377127b8b8b69911e7762a
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Nov 3 13:41:03 2014 -0500
 
-    doc: propose $GOPATH as $HOME/work, not $HOME/go
+    misc/cgo/test: fix freebsd test failure by moving test to its own package.
     
-    Related to issue #9228
+    (The assertion depends on a per-package gensym counter whose
+    value varies based on what else is in the package.)
     
-    Change-Id: I0819e657f6393788754d1412f9c2126a170d4cf1
-    Reviewed-on: https://go-review.googlesource.com/1577
-    Reviewed-by: Rob Pike <r@golang.org>
+    LGTM=khr
+    R=khr, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169930043
 
- doc/code.html | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ misc/cgo/test/issue9026.go           | 30 +++---------------------------
+ misc/cgo/test/issue9026/issue9026.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 27 deletions(-)

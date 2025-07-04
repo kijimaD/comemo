@@ -1,21 +1,22 @@
-commit 462aa7ec7b854f5a1bb4f633cb439eb67bced625
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 13 18:14:52 2016 +0000
+commit 8f5fb95db6573f132bcfd0b3f9541faa84058fa0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Mar 6 13:04:52 2016 +1100
 
-    encoding/json: update docs to not use misuse the term "object"
+    cmd/compile/internal/gc: assert size of important types
     
-    In JSON terminology, "object" is a collect of key/value pairs. But a
-    JSON object is only one type of JSON value (others are string, number,
-    array, true, false, null).
+    Add tests to ensure that the size of important types don't change
+    unexpectedly.
     
-    This updates the Go docs (at least the public godoc) to not use
-    "object" when we mean any JSON value.
+    Skip the test on nacl platforms because of their unusual padding
+    requirements.
     
-    Change-Id: Ieb1c456c703693714d63d9d09d306f4d9e8f4597
-    Reviewed-on: https://go-review.googlesource.com/22003
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Iddb127a99499e089a309b721f5073356c0da8b24
+    Reviewed-on: https://go-review.googlesource.com/20285
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/decode.go |  2 +-
- src/encoding/json/encode.go | 12 ++++++------
- src/encoding/json/stream.go |  8 ++++----
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/sizeof_test.go | 43 ++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/sizeof_test.go        | 40 +++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+)

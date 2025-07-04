@@ -1,18 +1,12 @@
-commit f41b43a02431baab166d06b8b4c41467d9cc88e4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 17 16:06:40 2013 -0700
+commit 667303f158a80eb1297bad90cc65576e83260305
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 17 11:57:00 2013 -0700
 
-    net/url: fix regression when serializing relative URLs
+    runtime: correct parameter name in MCentral_AllocList comment
     
-    Only add a slash to path if it's a separator between
-    a host and path.
-    
-    Fixes #6609
-    
-    R=golang-dev, dsymonds, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/14815043
+    https://golang.org/cl/14792043
 
- src/pkg/net/url/url.go      | 2 +-
- src/pkg/net/url/url_test.go | 8 ++++++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mcentral.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

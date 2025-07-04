@@ -1,35 +1,53 @@
-commit 12befc3ce3f44d500174d2b4a0aa524feb74e16b
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Nov 17 15:32:45 2020 -0800
+commit ca384f76296af68b874cf9305a78ca5269c20956
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Jan 13 12:46:34 2022 +0000
 
-    cmd/compile: improve scheduling pass
+    cmd/go: avoid rebuilding itself in TestMain
     
-    Convert the scheduling pass from scheduling backwards to scheduling forwards.
+    An extra "go build" was happening, for the sake of -tags=testgo,
+    which would insert some extra behavior into ./internal/work.
     
-    Forward scheduling makes it easier to prioritize scheduling values as
-    soon as they are ready, which is important for things like nil checks,
-    select ops, etc.
+    Instead, reuse the test binary as cmd/go directly,
+    by calling the main func when a special env var is set.
+    We still duplicate the test binary into testBin,
+    because we need a "go" executable in that directory for $PATH.
     
-    Forward scheduling is also quite a bit clearer. It was originally
-    backwards because computing uses is tricky, but I found a way to do it
-    simply and with n lg n complexity. The new scheme also makes it easy
-    to add new scheduling edges if needed.
+    Finally, the special behavior is instead inserted via TestMain.
     
-    Fixes #42673
-    Update #56568
+    The numbers below represent how long it takes to run zero tests,
+    measured via:
     
-    Change-Id: Ibbb38c52d191f50ce7a94f8c1cbd3cd9b614ea8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270940
+            benchcmd GoTestNothing go test -run=-
+    
+    That is, the time it takes to run the first test is reduced by half.
+    Note that these numbers are on a warm build cache,
+    so if the -tags=testgo build were to be done from scratch,
+    the speed-up would be significantly more noticeable.
+    
+            name           old time/op         new time/op         delta
+            GoTestNothing          830ms ± 2%          380ms ± 7%  -54.23%  (p=0.008 n=5+5)
+    
+            name           old user-time/op    new user-time/op    delta
+            GoTestNothing          1.64s ± 1%          0.82s ± 3%  -50.24%  (p=0.008 n=5+5)
+    
+            name           old sys-time/op     new sys-time/op     delta
+            GoTestNothing          306ms ± 7%          159ms ±28%  -48.15%  (p=0.008 n=5+5)
+    
+            name           old peak-RSS-bytes  new peak-RSS-bytes  delta
+            GoTestNothing          173MB ± 1%          147MB ± 1%  -14.96%  (p=0.008 n=5+5)
+    
+    Change-Id: I1f8fc71269a7b45bc5b82b7228e13f56589d44c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378294
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go  |   2 +-
- src/cmd/compile/internal/ssa/_gen/S390XOps.go    |   4 +-
- src/cmd/compile/internal/ssa/debug_lines_test.go |   2 +-
- src/cmd/compile/internal/ssa/opGen.go            |   6 +-
- src/cmd/compile/internal/ssa/schedule.go         | 381 ++++++++---------------
- src/cmd/compile/internal/ssagen/ssa.go           |   3 +-
- test/nilptr3.go                                  |   7 +
- 7 files changed, 143 insertions(+), 262 deletions(-)
+ src/cmd/go/export_test.go          |  7 ++++
+ src/cmd/go/go_test.go              | 78 ++++++++++++++++++++++++++++++++------
+ src/cmd/go/internal/work/build.go  |  2 +-
+ src/cmd/go/internal/work/exec.go   | 22 +++++------
+ src/cmd/go/internal/work/gc.go     |  4 +-
+ src/cmd/go/internal/work/testgo.go | 48 -----------------------
+ src/cmd/go/script_test.go          |  1 +
+ 7 files changed, 89 insertions(+), 73 deletions(-)

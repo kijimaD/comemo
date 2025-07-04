@@ -1,25 +1,12 @@
-commit c3954dd5da820306dff6bbd73a7801d9739b038f
-Author: Gwenael Treguier <gwenn.kahz@gmail.com>
-Date:   Sat Mar 10 15:21:44 2012 -0800
+commit 959d0c7ac0091513fc1a2e53834d027430122ee8
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Sat Mar 10 15:13:34 2012 -0800
 
-    database/sql: ensure Stmts are correctly closed.
-    
-    To make sure that there is no resource leak,
-    I suggest to fix the 'fakedb' driver such as it fails when any
-    Stmt is not closed.
-    First, add a check in fakeConn.Close().
-    Then, fix all missing Stmt.Close()/Rows.Close().
-    I am not sure that the strategy choose in fakeConn.Prepare/prepare* is ok.
-    The weak point in this patch is the change in Tx.Query:
-      - Tests pass without this change,
-      - I found it by manually analyzing the code,
-      - I just try to make Tx.Query look like DB.Query.
+    doc: fix typo in contribute.html
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5759050
+    https://golang.org/cl/5795050
 
- src/pkg/database/sql/fakedb_test.go | 15 +++++++++++++++
- src/pkg/database/sql/sql.go         |  8 +++++---
- src/pkg/database/sql/sql_test.go    |  9 ++++++++-
- 3 files changed, 28 insertions(+), 4 deletions(-)
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

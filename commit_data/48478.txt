@@ -1,36 +1,19 @@
-commit adae6ec542c3287ffe643093a0f61c9871f4e238
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 21 10:06:48 2022 -0700
+commit ae26b451136a20cb29ac171b1b0dee6ccd06e6eb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 13 12:40:21 2021 -0400
 
-    cmd/compile: replace Type.OrigSym with Type.OrigType
+    [dev.typeparams] cmd/compile/abi-internal.md: specify ARM64 register-based ABI
     
-    First law of cmd/compile frontend development: thou shalt not rely on
-    types.Sym.
+    The ABI is similar to the AMD64 ABI, just uses different
+    registers and stack layout. The stack layout is compatible with
+    the current stack-based ABI0.
     
-    This CL replaces Type.OrigSym with Type.OrigType, which semantically
-    matches what all of the uses within the frontend actually care about,
-    and avoids using types.Sym, which invariably leads to mistakes because
-    symbol scoping in the frontend doesn't work how anyone intuitively
-    expects it to.
+    To be implemented in Go 1.18.
     
-    Fixes #51765.
-    
-    Change-Id: I4affe6ee0718103ce5006ab68aa7e1bb0cac6881
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394274
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If9c5e664574947f959d3427e3bed769e05d2d673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319829
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/noder/decl.go          |  4 ++--
- src/cmd/compile/internal/noder/stencil.go       | 14 ++++++--------
- src/cmd/compile/internal/noder/types.go         |  2 +-
- src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
- src/cmd/compile/internal/typecheck/crawler.go   | 14 +++++++-------
- src/cmd/compile/internal/typecheck/iexport.go   |  4 ++--
- src/cmd/compile/internal/typecheck/iimport.go   | 10 +++++-----
- src/cmd/compile/internal/typecheck/subr.go      |  6 +++---
- src/cmd/compile/internal/types/type.go          | 10 +++++-----
- test/typeparam/issue51765.go                    | 15 +++++++++++++++
- 10 files changed, 47 insertions(+), 34 deletions(-)
+ src/cmd/compile/abi-internal.md | 122 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 122 insertions(+)

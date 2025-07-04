@@ -1,47 +1,20 @@
-commit 38c4a7370670e6b73cbae192c7d3079c90203832
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Aug 15 21:53:37 2019 +0100
+commit 2693b424662580c3f4fc65e43474e4db0f9c5cf5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 24 16:59:34 2019 -0700
 
-    cmd/asm: add s390x branch-on-count instructions
+    cmd/compile: don't initialize blank struct fields
     
-    The branch-on-count instructions on s390x decrement the input
-    register and then compare its value to 0. If not equal the branch
-    is taken.
+    We already skipped blank field initialization in non-global contexts.
+    This change makes the global context treatment match.
     
-    These instructions are useful for implementing loops with a set
-    number of iterations (which might be in a register).
+    Fixes #31546
     
-    For example, this for loop:
-    
-            for i := 0; i < n; i++ {
-                    ... // i is not used or modified in the loop
-            }
-    
-    Could be implemented using this assembly:
-    
-            MOVD  Rn, Ri
-    loop:
-            ...
-            BRCTG Ri, loop
-    
-    Note that i will count down from n in the assembly whereas in the
-    original for loop it counted up to n which is why we can't use i
-    in the loop.
-    
-    These instructions will only be used in hand-written codegen and
-    assembly for now since SSA blocks cannot currently modify values.
-    We could look into this in the future though.
-    
-    Change-Id: Iaab93b8aa2699513b825439b8ea20d8fe2ea1ee6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199977
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I40acce49b0a9deb351ae0da098f4c114e425ec63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173723
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/asm/internal/arch/s390x.go        |  2 ++
- src/cmd/asm/internal/asm/testdata/s390x.s |  3 +++
- src/cmd/compile/internal/s390x/ggen.go    | 12 ++++--------
- src/cmd/internal/obj/s390x/a.out.go       |  4 ++++
- src/cmd/internal/obj/s390x/anames.go      |  2 ++
- src/cmd/internal/obj/s390x/asmz.go        | 19 +++++++++++++++++++
- 6 files changed, 34 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go |  3 +++
+ test/fixedbugs/issue31546.go         | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

@@ -1,31 +1,16 @@
-commit 1c08c728dceeb63f6df915831bd0584be1517e00
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 2 21:15:41 2016 -0400
+commit 4cf95fda64d76ca044319fd0a292ad3a77c1da0b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 10 14:05:51 2016 -0700
 
-    cmd/go: fix coverage in xtest of cgo package
+    encoding/hex: fix example function name
     
-    Cover-annotated cgo-rebuilt package for xtest was
-    not linked into package graph and so not being rebuilt.
-    Link into package graph.
+    Found by vet.
     
-    Fixes #13625.
-    
-    Change-Id: I685f7276f92bbc85fbc4b389111c83d9fe517637
-    Reviewed-on: https://go-review.googlesource.com/32614
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I556d87f853a734002f779b04ba5a3588a3117106
+    Reviewed-on: https://go-review.googlesource.com/28958
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                            | 15 ++++++++++-----
- src/cmd/go/test.go                               |  2 +-
- src/cmd/go/testdata/{ => src}/cgocover/p.go      |  0
- src/cmd/go/testdata/{ => src}/cgocover/p_test.go |  0
- src/cmd/go/testdata/src/cgocover2/p.go           | 19 +++++++++++++++++++
- src/cmd/go/testdata/src/cgocover2/x_test.go      | 10 ++++++++++
- src/cmd/go/testdata/src/cgocover3/p.go           | 19 +++++++++++++++++++
- src/cmd/go/testdata/src/cgocover3/p_test.go      |  1 +
- src/cmd/go/testdata/src/cgocover3/x_test.go      | 10 ++++++++++
- src/cmd/go/testdata/src/cgocover4/notcgo.go      |  1 +
- src/cmd/go/testdata/src/cgocover4/p.go           | 19 +++++++++++++++++++
- src/cmd/go/testdata/src/cgocover4/x_test.go      | 10 ++++++++++
- 12 files changed, 100 insertions(+), 6 deletions(-)
+ src/encoding/hex/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

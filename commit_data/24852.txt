@@ -1,12 +1,23 @@
-commit b28eeea136ec106a012be8b4278cb06203328c08
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Nov 12 14:52:01 2015 -0500
+commit 3c37a61455118b1811c78bba18ed63ce97ff99ac
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 11:54:21 2015 +0000
 
-    cmd/dist: copy textflag.h for runtime/internal/* too
+    cmd/compile/internal: slice/map literals janitoring
     
-    Change-Id: I22216df83898e560cfe6d97344f05e3678c2db99
-    Reviewed-on: https://go-review.googlesource.com/16872
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Simplify slice/map literal expressions.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
+    Checked that the result can still be compiled with Go 1.4.
+    
+    Change-Id: I5c58801c20919618d2ad52b8e2380d53df2783f1
+    Reviewed-on: https://go-review.googlesource.com/13831
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/galign.go | 6 +++---
+ src/cmd/compile/internal/arm/galign.go   | 6 +++---
+ src/cmd/compile/internal/arm64/galign.go | 6 +++---
+ src/cmd/compile/internal/ppc64/galign.go | 6 +++---
+ src/cmd/compile/internal/x86/galign.go   | 6 +++---
+ 5 files changed, 15 insertions(+), 15 deletions(-)

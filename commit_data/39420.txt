@@ -1,16 +1,17 @@
-commit 851616d291160325dc820378671733e46411bd56
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 21 15:03:57 2019 -0400
+commit 58bf401293bd1de3740613f586b5b970dc991d39
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 27 14:23:29 2018 -1000
 
-    cmd/go/testdata: update addmod.go to work with the mainline go command
+    time: reject tzdata with no zones
     
-    Updates #32715
+    Fixes #29437
     
-    Change-Id: I4ea41d7bd1a2daeba8cebb283aaa096b6c3d4533
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183401
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ice0a03a543e564d66651bfdfce5cd32ebaa35926
+    Reviewed-on: https://go-review.googlesource.com/c/155746
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/testdata/addmod.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/time/zoneinfo_read.go | 8 +++++++-
+ src/time/zoneinfo_test.go | 9 +++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

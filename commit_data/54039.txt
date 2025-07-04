@@ -1,28 +1,28 @@
-commit 9049d77dbeb3e5fb3134e88fd5686438f054cb2f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 15 18:07:51 2023 -0400
+commit 00bee6d9a4c3ed6168350fc6551043ff7a1895f2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 16 10:41:15 2022 +0700
 
-    cmd/go: skip gccgo_link_c when cross-compiling
+    cmd/compile/internal/typebits: relax alignment check
     
-    I don't understand the rationale given in
-    https://git.alpinelinux.org/aports/commit/community/go/tests-unset-GCCGO.patch?id=a10e9a5e48507198e26a8cf19709e4059da4c79f,
-    but I suspect that it may be working around test failures when
-    cross-compiling, since we have a lot of other gccgo tests that need to
-    skip in that circumstance.
+    Now we have 8-byte alignment types on 32-bit system, so in some rare
+    case, e.g, generated wrapper for embedded interface, the function
+    argument may need more than 4 byte alignment. We could pad somehow, but
+    this is a rare case which makes it hard to ensure that we've got it right.
     
-    Alternatively, that may just be a stale patch working around #53815.
-    I can't fine any issue filed against the Go project for this patch,
-    so it's hard to be sure.
+    So relaxing the check for argument and return value region of the stack.
     
-    Either way, adding this skip should make the test more robust.
+    Fixes #54991
     
-    For #62053.
-    
-    Change-Id: I44dbe9a5a24c0e2d3f22fbe6ca995160a36b2606
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520056
+    Change-Id: I34986e17a920254392a39439ad3dcb323da2ea8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431098
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/go/testdata/script/gccgo_link_c.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/liveness/plive.go    |  6 +++---
+ src/cmd/compile/internal/typebits/typebits.go | 15 +++++++++++---
+ test/fixedbugs/issue54991.go                  | 29 +++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 6 deletions(-)

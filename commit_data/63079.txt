@@ -1,0 +1,20 @@
+commit ff9da9bcd579a08cf9ca62620c5956676ac28586
+Author: khr@golang.org <khr@golang.org>
+Date:   Tue May 20 08:42:24 2025 -0700
+
+    cmd/dist: pass GO_GCFLAGS to cpuN runtime tests
+    
+    We want gcflags, which control builder type (e.g. noopt) to be used
+    for these tests also.
+    
+    Should fix noopt and maybe other builders.
+    
+    Change-Id: Iad34beab51714f0c38989ec0fc8778cf79087f72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674455
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go | 1 +
+ 1 file changed, 1 insertion(+)

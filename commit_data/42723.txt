@@ -1,27 +1,19 @@
-commit e6d0bd2b8951bde6f0ac6421f20e18efc7ba0cdb
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Feb 19 16:37:48 2020 +0000
+commit dff55c1f7605294568ae7e00b09ef8935dbedf3b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Feb 6 14:14:03 2020 -0500
 
-    runtime: clean up old mcentral code
+    doc: move doc/modules.md to x/website
     
-    This change deletes the old mcentral implementation from the code base
-    and the newMCentralImpl feature flag along with it.
+    Moved /doc/modules.md from GOROOT to x/website. The corresponding
+    change in x/website is CL 218239. See explanation there.
     
-    Updates #37487.
+    Updates #33637
     
-    Change-Id: Ibca8f722665f0865051f649ffe699cbdbfdcfcf2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221184
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I329935624e6e264873bc68b6487405a63d3e7030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218240
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/lockrank.go    |  16 +--
- src/runtime/malloc.go      |   8 +-
- src/runtime/mcache.go      |   6 +-
- src/runtime/mcentral.go    | 239 +--------------------------------------------
- src/runtime/mgc.go         |  10 +-
- src/runtime/mgcsweep.go    | 237 ++------------------------------------------
- src/runtime/mgcsweepbuf.go | 138 --------------------------
- src/runtime/mheap.go       |  36 +------
- 8 files changed, 25 insertions(+), 665 deletions(-)
+ doc/modules.md | 1337 --------------------------------------------------------
+ 1 file changed, 1337 deletions(-)

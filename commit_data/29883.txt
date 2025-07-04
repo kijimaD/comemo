@@ -1,23 +1,12 @@
-commit 9719ca9c0e6fdda273cd178e6cce6b88d738518e
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Wed Dec 28 14:24:08 2016 -0500
+commit 0cc400f0e7e73e1ee870d803b8faf1904c0c9ec3
+Author: Alex Carol <alex.carol.c@gmail.com>
+Date:   Sun Oct 16 00:26:39 2016 +0200
 
-    cmd/go: fix two formatting issues in documentation of testing flags
+    net/rpc: add missing import to rpc server documentation
     
-    Remove unneeded second colon.
-    
-    Remove unneeded space at the beginning of a line (before a tab).
-    
-    Regenerate alldocs.go with mkalldocs.sh.
-    
-    Updates https://golang.org/cl/28783.
-    Updates https://golang.org/cl/29650.
-    Fixes #18448.
-    
-    Change-Id: I1830136a2b760827d4cec565744807a0fd147584
-    Reviewed-on: https://go-review.googlesource.com/34718
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Idca6115181960eed7a955027ee77a02decb4e7f2
+    Reviewed-on: https://go-review.googlesource.com/31179
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go | 4 ++--
- src/cmd/go/test.go    | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/net/rpc/server.go | 2 ++
+ 1 file changed, 2 insertions(+)

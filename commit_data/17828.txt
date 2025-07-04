@@ -1,12 +1,12 @@
-commit 580ea8b5fdea04f0bcfc809a6545a7ebced8c358
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Tue Oct 22 12:35:04 2013 -0400
+commit 72d40a4bd9fed9524f7a1ae25d6586e966c5fdcc
+Author: Bill Neubauer <wcn@golang.org>
+Date:   Tue Oct 22 16:43:32 2013 +0400
 
-    misc/emacs: handle empty "import ()" in go-goto-imports
+    go/build: document the go1.2 build tag
     
-    R=adonovan
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/14454058
+    https://golang.org/cl/14930046
 
- misc/emacs/go-mode.el | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/go/build/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

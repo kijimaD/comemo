@@ -1,17 +1,14 @@
-commit 012917afba1dfe62b37acf8f5087b98c11f64f25
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 8 15:53:47 2015 +1000
+commit 71cc675572654c4e22e10150a909c3ab048233cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 28 18:17:38 2015 -0700
 
-    doc: document the machine-independent changes to the assembler
+    math/big: implement fmt.Formatter-compatible (*Float).Format
     
-    The architecture-specific details will be updated and expanded in
-    a subsequent CL (or series thereof).
-    
-    Update #10096
-    
-    Change-Id: I59c6be1fcc123fe8626ce2130e6ffe71152c87af
-    Reviewed-on: https://go-review.googlesource.com/11954
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I22fdba8ecaecf4e9201b845e65d982cac09f254a
+    Reviewed-on: https://go-review.googlesource.com/10499
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/asm.html | 161 ++++++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 137 insertions(+), 24 deletions(-)
+ src/math/big/floatconv_test.go    | 141 ++++++++++++++++++++++++++++++++++++++
+ src/math/big/floatexample_test.go |   8 +--
+ src/math/big/ftoa.go              |  98 +++++++++++++++++++++++++-
+ 3 files changed, 240 insertions(+), 7 deletions(-)

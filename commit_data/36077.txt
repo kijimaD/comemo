@@ -1,29 +1,25 @@
-commit 269a93823c68ca4ac7e7f9e60b0dc3731fc9f6b9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 18 13:23:17 2018 -0400
+commit 321bd8c93b451b3028bc32096e73e719b5e3cfd3
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Apr 2 01:39:03 2018 +0200
 
-    cmd/go: convert final module tests to scripts
+    cmd/compile: in prove, simplify logic of branch pushing
     
-    Change-Id: Iba68b3aaf4a132bd4ca44edf4912a46549d2ef8f
-    Reviewed-on: https://go-review.googlesource.com/124700
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    prove used a complex logic when trying to prove branch conditions:
+    tryPushBranch() was sometimes leaving a checkpoint on the factsTable,
+    sometimes not, and the caller was supposed to check the return value
+    to know what to do.
+    
+    Since we're going to make the prove descend logic a little bit more
+    complex by adding also induction variables, simplify the tryPushBranch
+    logic, by removing any factsTable checkpoint handling from it.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Idfb1703df8a455f612f93158328b36c461560781
+    Reviewed-on: https://go-review.googlesource.com/104035
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/mod_test.go                             | 573 ---------------------
- src/cmd/go/proxy_test.go                           |   2 +
- src/cmd/go/script_test.go                          | 225 ++++++--
- src/cmd/go/testdata/mod/mod_sync.txt               |  57 ++
- src/cmd/go/testdata/script/README                  |  10 +
- src/cmd/go/testdata/script/mod_convert_dep.txt     |   9 +
- src/cmd/go/testdata/script/mod_convert_git.txt     |  10 +
- src/cmd/go/testdata/script/mod_convert_glide.txt   |   9 +
- .../go/testdata/script/mod_convert_glockfile.txt   |   9 +
- src/cmd/go/testdata/script/mod_convert_godeps.txt  |  10 +
- src/cmd/go/testdata/script/mod_convert_tsv.txt     |   9 +
- .../go/testdata/script/mod_convert_vendor_conf.txt |   9 +
- .../go/testdata/script/mod_convert_vendor_json.txt |  10 +
- .../script/mod_convert_vendor_manifest.txt         |  10 +
- .../go/testdata/script/mod_convert_vendor_yml.txt  |   9 +
- src/cmd/go/testdata/script/mod_edit.txt            | 131 +++++
- src/cmd/go/testdata/script/mod_find.txt            |  87 ++++
- src/cmd/go/testdata/script/mod_vendor.txt          | 224 ++++++++
- 18 files changed, 800 insertions(+), 603 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 50 ++++++++++++-----------------------
+ 1 file changed, 17 insertions(+), 33 deletions(-)

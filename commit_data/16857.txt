@@ -1,12 +1,12 @@
-commit a0935cc97983c3d3e4b2be896ecc0d92572a02c0
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jul 24 17:48:13 2013 +0900
+commit f652bc4acf623e5b68792b47ed1e1e3509c45e15
+Author: Andrew Bonventre <andybons@chromium.org>
+Date:   Wed Jul 24 12:41:52 2013 +1000
 
-    runtime: fix throw message in netpoll
+    doc/go1.2.txt: document new functions/types added to image/gif and image/draw.
     
-    R=dvyukov, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11761043
+    https://golang.org/cl/11492045
 
- src/pkg/runtime/netpoll.goc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.2.txt | 3 +++
+ 1 file changed, 3 insertions(+)

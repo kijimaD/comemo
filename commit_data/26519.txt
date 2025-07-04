@@ -1,16 +1,15 @@
-commit edb19aa1cdc5a712d85c77a76b90f69bd9a2b673
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Thu Mar 24 22:46:10 2016 +0530
+commit 25abe96214911fed68c5a66562bf524768e2a92a
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Jan 31 21:18:55 2016 -0600
 
-    cmd/go: stat the archive file only when executing the commands
+    [dev.ssa] cmd/compile: regenerate code
     
-    Fixes #14944
+    These changes were left out of the 1cc5789df9 commit.
     
-    Change-Id: I73e0997cb6ebaeced1045b0ddadac893319bd78f
-    Reviewed-on: https://go-review.googlesource.com/21065
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id7f49973da281a567b69228dbaea31846b82b4af
+    Reviewed-on: https://go-review.googlesource.com/19105
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/build.go   |  6 ++++--
- src/cmd/go/go_test.go | 21 +++++++++++++++++++++
- 2 files changed, 25 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 112 +++++++++++++--------------
+ 1 file changed, 56 insertions(+), 56 deletions(-)

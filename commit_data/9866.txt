@@ -1,16 +1,12 @@
-commit 305f167b017f83a243754f800cbf37cbc37558f6
+commit 351e1d57450509d35c08884e19f3e7a80f234243
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 5 12:27:23 2011 -0400
+Date:   Wed Oct 5 12:08:41 2011 -0400
 
-    misc/emacs: fix indent bug
+    codereview: fix for Mercurial 1.9.2
     
-    Must use case-sensitive search to identify keywords.
-    
-    Fixes #2287.
-    
-    R=bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5182043
+    https://golang.org/cl/5127052
 
- misc/emacs/go-mode.el | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/codereview/codereview.py | 52 ++++++++++++++++++++++++++++++--------------
+ 1 file changed, 36 insertions(+), 16 deletions(-)

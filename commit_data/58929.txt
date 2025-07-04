@@ -1,31 +1,31 @@
-commit a053e79024f56a2a64728b1287509e880fad203e
-Author: Mark Wakefield <mark.a.wakefield@gmail.com>
-Date:   Thu Jan 2 19:18:01 2025 +0000
+commit 8c45dddd5de44a5c2f469d80195f8347d7baa41c
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Jan 23 00:42:58 2024 +0000
 
-    net/http: support TCP half-close when HTTP is upgraded in ReverseProxy
+    reflect: delete TODO pass safe to packEface don't need to copy if safe==true
     
-    This CL propagates closing the write stream from either side of the
-    reverse proxy and ensures the proxy waits for both copy-to and the
-    copy-from the backend to complete.
+    valueInterface not copy result in the follow incorrect behavior
+    w1.  x := ValueOf(&v).Elem()
+    r1.  iface := Value.Interface()
+    w2.  x.Set() or x.SetT()
     
-    The new unit test checks communication through the reverse proxy when
-    the backend or frontend closes either the read or write streams.
-    That closing the write stream is propagated through the proxy from
-    either the backend or the frontend. That closing the read stream is
-    not propagated through the proxy.
+    The write operation of W2 will be observed by the read operation of r1,
+    but the existing behavior is not.
     
-    Fixes #35892
+    The valueInterface in deepValueEqual can, in theory, pass safe==true to not copy the object,
+    but there is no benchmark to indicate that the memory allocation has changed,
+    maybe we don't actually need safe==true here.
     
-    Change-Id: I83ce377df66a0f17b9ba2b53caf9e4991a95f6a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637939
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Auto-Submit: Sean Liao <sean@liao.dev>
+    Change-Id: I55c423fd50adac8822a7fdbfe67af89ee223eace
+    GitHub-Last-Rev: 4a6386709817f3ea6055711dd39d2694d58b3043
+    GitHub-Pull-Request: golang/go#64618
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548436
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Matej Kramny <matejkramny@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/net/http/httputil/reverseproxy.go      |  38 +++++++-
- src/net/http/httputil/reverseproxy_test.go | 144 +++++++++++++++++++++++++++++
- src/net/http/transport.go                  |   7 ++
- 3 files changed, 184 insertions(+), 5 deletions(-)
+ src/reflect/value.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,18 +1,29 @@
-commit 66f0d35f7145ca8d4e45b04292f44831d6610b3b
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Sep 8 19:03:37 2021 -0400
+commit e4f293d85306cb89da3c134ce432e330e289447e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Dec 25 00:34:32 2020 -0800
 
-    go/types: reduce number of delayed functions
+    [dev.regabi] cmd/compile: fix OCALLMETH desugaring
     
-    This is a port of CL 348018 to go/types. It differs from that CL due to
-    the way that field lists are represented in go/ast.
+    During walkCall, there's a half-hearted attempt at rewriting OCALLMETH
+    expressions into regular function calls by moving the receiver
+    argument into n.Args with the rest of the arguments. But the way it
+    does this leaves the AST in an inconsistent state (an ODOTMETH node
+    with no X expression), and leaves a lot of duplicate work for the rest
+    of the backend to deal with.
     
-    Change-Id: Ib5a0243b44d0bf9e95d039f624c668f8c329f8fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348691
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    By simply rewriting OCALLMETH expressions into proper OCALLFUNC
+    expressions, we eliminate a ton of unnecessary code duplication during
+    SSA construction and avoid creation of invalid method-typed variables.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I4d5c5f90a79f8994059b2d0ae472182e08096c0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280294
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/types/decl.go | 40 ++++++++++++++++++++--------------------
- 1 file changed, 20 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  3 +-
+ src/cmd/compile/internal/ssagen/ssa.go          | 59 +++----------------------
+ src/cmd/compile/internal/typecheck/dcl.go       |  3 ++
+ src/cmd/compile/internal/walk/expr.go           | 26 +++++------
+ 4 files changed, 24 insertions(+), 67 deletions(-)

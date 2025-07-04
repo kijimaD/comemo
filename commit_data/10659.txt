@@ -1,23 +1,21 @@
-commit ef65feda2afd3644c884c630d628e46b06082e4c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Dec 8 12:07:21 2011 +1100
+commit 2fa987b6cd135fb9a337a55b02cf073956fcae56
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 7 16:11:17 2011 -0800
 
-    syscall: return error, not uintptr, when function returns error
+    doc/go1: map deletion
+    This CL is in part a proposal for how to write these sections:
+    - Brief discussion of change
+    - No attempt to analyze the thinking about it
+    - Old code
+    - New code, runnable if possible
+    - How to update old programs
     
-    R=rsc
+    R=golang-dev, remyoudompheng, gri, adg
     CC=golang-dev
-    https://golang.org/cl/5450119
+    https://golang.org/cl/5454044
 
- src/pkg/exp/wingui/gui.go                 | 27 ++++++-----
- src/pkg/exp/wingui/winapi.go              | 20 ++++----
- src/pkg/exp/wingui/zwinapi.go             | 80 ++++++++++++-------------------
- src/pkg/mime/type_windows.go              | 10 ++--
- src/pkg/net/fd_windows.go                 |  4 +-
- src/pkg/net/interface_windows.go          |  4 +-
- src/pkg/net/lookup_windows.go             | 10 ++--
- src/pkg/syscall/dll_windows.go            | 15 ------
- src/pkg/syscall/mksyscall_windows.pl      |  5 ++
- src/pkg/syscall/syscall_windows.go        | 70 +++++++++++++++------------
- src/pkg/syscall/zsyscall_windows_386.go   | 60 +++++++++++++++--------
- src/pkg/syscall/zsyscall_windows_amd64.go | 60 +++++++++++++++--------
- 12 files changed, 193 insertions(+), 172 deletions(-)
+ doc/go1.html     | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+ doc/go1.tmpl     | 51 ++++++++++++++++++++++++++++++++++++++++++++++++---
+ doc/progs/go1.go | 22 ++++++++++++++++++++++
+ doc/progs/run    |  3 +++
+ 4 files changed, 123 insertions(+), 6 deletions(-)

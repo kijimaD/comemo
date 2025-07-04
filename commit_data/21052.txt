@@ -1,12 +1,25 @@
-commit b68c0aec20776e85b8d71fc32ab788cec8979e4b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 22 13:59:17 2014 -0800
+commit 0185ba76edce85d2bc5d3da63091774039326dcd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 01:28:26 2014 -0500
 
-    go/build: fix test on Windows
+    [dev.cc] liblink: resolve bss vs other conflict regardless of order found
     
-    Change-Id: Icba46194bcbfd86b512eef2599242c715ad4e7d3
-    Reviewed-on: https://go-review.googlesource.com/2041
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    If the linker finds the same name given a BSS and a non-BSS
+    symbol, the assumption is that the non-BSS symbol is the
+    true one, and the BSS symbol is just the best Go can do toward
+    an "extern" declaration. This has always been the case,
+    as long as the object files were read in the right order.
+    
+    The old code worked when the BSS symbol is found before
+    the non-BSS symbol. This CL adds equivalent logic for when
+    the non-BSS symbol is found before the BSS symbol.
+    This comes up when Go must refer to symbols defined in
+    host object files.
+    
+    LGTM=r
+    R=r
+    CC=austin, golang-codereviews, iant, khr
+    https://golang.org/cl/171480043
 
- src/go/build/build_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/liblink/objfile.c | 33 ++++++++++++++++++++++++---------
+ 1 file changed, 24 insertions(+), 9 deletions(-)

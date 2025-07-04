@@ -1,18 +1,17 @@
-commit 897dcdb5ecc001fac328c53806f8a1dbf2e8c3fd
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Mar 29 23:34:37 2016 -0700
+commit 18aefe9c194dc1a649386def050c1e6a245f9115
+Author: Austin Clements <austin@google.com>
+Date:   Sun Feb 14 23:53:19 2016 -0500
 
-    debug/elf: deflake file_test.go
+    doc: fix non-possessive "'s"
     
-    It is valid for io.Reader to return (n, io.EOF) where n is positive.
-    The unit test should not fail if io.EOF is returned when read until
-    the end.
+    Currently we use "Section's" as the plural of the debug/elf Section
+    struct. Change this to "Sections" because it's not possessive and
+    doesn't seem to fall in to any special cases were the apostrophe is
+    acceptable.
     
-    Change-Id: I7b918e3cc03db8b90c8aa58f4c0f7806a1d4af7e
-    Reviewed-on: https://go-review.googlesource.com/21307
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id5d3abbd748502a67ead3f483182ee7729db94a2
+    Reviewed-on: https://go-review.googlesource.com/19505
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/debug/elf/file_test.go | 2 +-
+ doc/go1.6.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

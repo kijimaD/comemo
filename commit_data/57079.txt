@@ -1,30 +1,18 @@
-commit 1985c0ccf9ef0736aeb79ef548689aa935fa5c4c
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Apr 22 14:17:35 2024 -0400
+commit f6e0dcc4742ed413c1dacba28a60b919186e636d
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Thu Jun 15 09:34:22 2023 -0700
 
-    cmd/compile,runtime: disable swissmap fast variants
+    slices: add sort benchmark for sorted strings
     
-    Temporary measure to reduce the required MVP code.
+    For #60777
     
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
-    Change-Id: I44dc8acd0dc8280c6beb40451998e84bc85c238a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580915
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I424535ce6454156c61af2f299228630ee304d165
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503815
     Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/walk/walk.go |  26 +-
- src/reflect/map_swiss.go              |   6 +-
- src/runtime/map_fast32_swiss.go       | 447 +-------------------------------
- src/runtime/map_fast64_swiss.go       | 455 +-------------------------------
- src/runtime/map_faststr_swiss.go      | 471 +---------------------------------
- test/codegen/maps.go                  |   5 +
- test/live.go                          |  20 --
- test/live_noswiss.go                  |  42 +++
- test/live_regabi.go                   |  21 --
- test/live_regabi_noswiss.go           |  38 +++
- test/live_regabi_swiss.go             |  40 +++
- test/live_swiss.go                    |  44 ++++
- 12 files changed, 200 insertions(+), 1415 deletions(-)
+ src/slices/sort_benchmark_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

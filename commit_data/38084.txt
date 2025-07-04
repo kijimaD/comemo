@@ -1,23 +1,24 @@
-commit 068a832a7e176121a2c0767d55e774f10705c72b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 5 22:52:03 2019 -0800
+commit d398dbdfc38838b63e39cd8ee2c9d30a09b5989f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 9 15:25:10 2018 -0400
 
-    time: read 64-bit data if available
+    runtime: eliminate gcBlackenPromptly mode
     
-    Also store 64-bit data in lib/time/zoneinfo.zip.
+    Now that there is no mark 2 phase, gcBlackenPromptly is no longer
+    used.
     
-    The comments argue that we don't need the 64-bit data until 2037 or
-    2106, but that turns out not to be the case. We also need them for
-    dates before December 13, 1901, which is time.Unix(-0x80000000, 0).
+    Updates #26903. This is a follow-up to eliminating mark 2.
     
-    Fixes #30099
-    
-    Change-Id: Ib8c9efb29b7b3c08531ae69912c588209d6320e9
-    Reviewed-on: https://go-review.googlesource.com/c/161202
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib9c534f21b36b8416fcf3cab667f186167b827f8
+    Reviewed-on: https://go-review.googlesource.com/c/134319
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- lib/time/update.bash      |  13 -------
- lib/time/zoneinfo.zip     | Bin 365447 -> 788764 bytes
- src/time/zoneinfo_read.go |  96 ++++++++++++++++++++++++++++++++++++++++------
- src/time/zoneinfo_test.go |  21 ++++++++++
- 4 files changed, 105 insertions(+), 25 deletions(-)
+ src/runtime/mgc.go     | 26 --------------------------
+ src/runtime/mgcmark.go | 20 +++-----------------
+ src/runtime/mgcwork.go |  3 ---
+ src/runtime/mheap.go   |  3 ---
+ src/runtime/mwbbuf.go  |  4 ++--
+ src/runtime/stack.go   |  3 ---
+ 6 files changed, 5 insertions(+), 54 deletions(-)

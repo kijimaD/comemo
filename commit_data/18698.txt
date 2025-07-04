@@ -1,18 +1,13 @@
-commit 0c6e4b9660171034052f9f85c734ddb13023100e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Mar 1 11:13:29 2014 +1100
+commit 1f0a1f4c8dd67ec1cb144bdca177dfed18eb3d6e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 28 13:27:36 2014 -0800
 
-    runtime: small Native Client fixes
+    net/http: de-flake ConnState test
     
-    cgocall.c: define the CBARGS macro for GOARCH_amd64p32. I don't think the value of this macro will ever be used under nacl/amd64p32 but it is required to compile even if cgo is not used.
-    
-    hashmap.goc: amd64p32 uses 32bit words.
-    
-    LGTM=iant
-    R=rsc, iant
+    LGTM=josharian
+    R=golang-codereviews, josharian
     CC=golang-codereviews
-    https://golang.org/cl/69960044
+    https://golang.org/cl/70270043
 
- src/pkg/runtime/cgocall.c   | 6 ++++++
- src/pkg/runtime/hashmap.goc | 3 +++
- 2 files changed, 9 insertions(+)
+ src/pkg/net/http/serve_test.go | 37 ++++++++++++-------------------------
+ 1 file changed, 12 insertions(+), 25 deletions(-)

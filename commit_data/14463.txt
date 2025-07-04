@@ -1,12 +1,14 @@
-commit 747dda9767d3da479900ad180b11a73f78f0412e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Nov 25 10:02:57 2012 +1100
+commit 9017765a8296238020e848addc0c0dc672f974f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 24 11:25:17 2012 -0800
 
-    net: do not start io if deadline has passed
+    cmd/go: fix typo in comment
     
-    R=golang-dev, mikioh.mikioh, minux.ma, bradfitz
+    Fixes #4432.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6851098
+    https://golang.org/cl/6858064
 
- src/pkg/net/fd_windows.go | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ src/cmd/go/get.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,24 @@
-commit 3e514a0103a7e335c70104435555229f51e4d9ae
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 8 09:47:46 2022 -0800
+commit 8ab7064e33667f17b8d23b5db63468199c3eac02
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 27 02:31:23 2021 -0400
 
-    spec: explicitly define integer, floating-point, and complex types
+    cmd/go: use a real Go version in the go.mod files in TestScript/mod_readonly
     
-    The terms "integer type", "floating-point type", and "complex type"
-    are used frequently in the spec but are not explicitly (only indirectly)
-    defined.
+    For some reason, the go.mod file added to this test in CL 147281 lists
+    'go 1.20' instead of the version that was actually current when the
+    go.mod file was added.
     
-    Slightly rephrased the section on numeric types and introduce these
-    terms explicitly. Add links to this section.
+    That causes the test's behavior to change under lazy loading, because
+    1.20 is above the threshold to trigger lazy-loading invariants (1.17).
     
-    Change-Id: I3fb888933bece047da8b356b684c855618e9aee4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384157
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    For #36460
+    
+    Change-Id: I92400996cb051ab30e99bfffafd91ff32a1e7087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314049
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go_spec.html | 38 +++++++++++++++++++++-----------------
- 1 file changed, 21 insertions(+), 17 deletions(-)
+ src/cmd/go/testdata/script/mod_readonly.txt | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

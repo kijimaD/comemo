@@ -1,16 +1,15 @@
-commit e0b0f62d96b37dd78811159d6ddd9819f374d603
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed May 23 11:36:24 2012 +0800
+commit 50e5951374bfea2c363c2181198980ca152bcf36
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 23 13:05:05 2012 +1000
 
-    cmd/ld: fix Linux/ARM build
-            CL 5823055 removed a line introduced in Linux/ARM cgo support.
-            Because readsym() now returns nil for "$a", "$d" mapping symbols,
-            no matter the settings of `needSym', we still have to guard against
-            them in ldelf().
+    syscall: implement SetsockoptLinger for windows
     
-    R=golang-dev, dave, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6220073
+    https://golang.org/cl/6225048
 
- src/cmd/ld/ldelf.c | 3 +++
- 1 file changed, 3 insertions(+)
+ api/next.txt                              |  2 ++
+ src/pkg/syscall/syscall_windows.go        | 22 ++++++++++++++++++++--
+ src/pkg/syscall/zsyscall_windows_386.go   | 27 ++++++++++++++++++++-------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 27 ++++++++++++++++++++-------
+ 4 files changed, 62 insertions(+), 16 deletions(-)

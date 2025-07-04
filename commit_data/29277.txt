@@ -1,25 +1,43 @@
-commit 032d150bd4a812eee9c3ea017f0d3acc8c484325
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Oct 31 17:34:42 2016 -0700
+commit e10286aeda6b1412f8f64734412bff74836637f9
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Sep 6 08:09:27 2016 +0900
 
-    encoding/json: marshal with null when RawMessage is nil
+    bytes: make IndexRune faster
     
-    This CL expands upon a change made in (http://golang.org/cl/21811)
-    to ensure that a nil RawMessage gets serialized as "null" instead of
-    being a nil slice.
+    re-implement IndexRune by IndexByte and Index which are well optimized
+    to get performance gain.
     
-    The added check only triggers when the RawMessage is nil. We do not
-    handle the case when the RawMessage is non-nil, but empty.
+    name                  old time/op   new time/op     delta
+    IndexRune/10-4         53.2ns ± 1%     29.1ns ± 1%    -45.32%  (p=0.008 n=5+5)
+    IndexRune/32-4          191ns ± 1%       27ns ± 1%    -85.75%  (p=0.008 n=5+5)
+    IndexRune/4K-4         23.5µs ± 1%      1.0µs ± 1%    -95.77%  (p=0.008 n=5+5)
+    IndexRune/4M-4         23.8ms ± 0%      1.0ms ± 2%    -95.90%  (p=0.008 n=5+5)
+    IndexRune/64M-4         384ms ± 1%       15ms ± 1%    -95.98%  (p=0.008 n=5+5)
+    IndexRuneASCII/10-4    61.5ns ± 0%     10.3ns ± 4%    -83.17%  (p=0.008 n=5+5)
+    IndexRuneASCII/32-4     203ns ± 0%       11ns ± 5%    -94.68%  (p=0.008 n=5+5)
+    IndexRuneASCII/4K-4    23.4µs ± 0%      0.3µs ± 2%    -98.60%  (p=0.008 n=5+5)
+    IndexRuneASCII/4M-4    24.0ms ± 1%      0.3ms ± 1%    -98.60%  (p=0.008 n=5+5)
+    IndexRuneASCII/64M-4    386ms ± 2%        6ms ± 1%    -98.57%  (p=0.008 n=5+5)
     
-    Fixes #17704
-    Updates #14493
+    name                  old speed     new speed       delta
+    IndexRune/10-4        188MB/s ± 1%    344MB/s ± 1%    +82.91%  (p=0.008 n=5+5)
+    IndexRune/32-4        167MB/s ± 0%   1175MB/s ± 1%   +603.52%  (p=0.008 n=5+5)
+    IndexRune/4K-4        174MB/s ± 1%   4117MB/s ± 1%  +2262.71%  (p=0.008 n=5+5)
+    IndexRune/4M-4        176MB/s ± 0%   4299MB/s ± 2%  +2340.46%  (p=0.008 n=5+5)
+    IndexRune/64M-4       175MB/s ± 1%   4354MB/s ± 1%  +2388.57%  (p=0.008 n=5+5)
+    IndexRuneASCII/10-4   163MB/s ± 0%    968MB/s ± 4%   +494.66%  (p=0.008 n=5+5)
+    IndexRuneASCII/32-4   157MB/s ± 0%   2974MB/s ± 4%  +1788.59%  (p=0.008 n=5+5)
+    IndexRuneASCII/4K-4   175MB/s ± 0%  12481MB/s ± 2%  +7027.71%  (p=0.008 n=5+5)
+    IndexRuneASCII/4M-4   175MB/s ± 1%  12510MB/s ± 1%  +7061.15%  (p=0.008 n=5+5)
+    IndexRuneASCII/64M-4  174MB/s ± 2%  12143MB/s ± 1%  +6881.70%  (p=0.008 n=5+5)
     
-    Change-Id: I0fbebcdd81f7466c5b78c94953afc897f162ceb4
-    Reviewed-on: https://go-review.googlesource.com/32472
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0632eadb83937c2a9daa7f0ce79df1dee64f992e
+    Reviewed-on: https://go-review.googlesource.com/28537
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/encode_test.go | 130 +++++++++++++++++++++++++++++----------
- src/encoding/json/stream.go      |   3 +
- 2 files changed, 100 insertions(+), 33 deletions(-)
+ src/bytes/bytes.go       | 12 +++++------
+ src/bytes/bytes_amd64.go |  2 ++
+ src/bytes/bytes_test.go  | 52 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 7 deletions(-)

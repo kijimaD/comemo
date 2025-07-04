@@ -1,16 +1,18 @@
-commit ab4af52a9b3f821a96daa5fcbf86ac1fed4343a3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 21 13:26:40 2014 +0200
+commit fdc047fbe5b71e8b6233d8d51466fad249af3577
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 8 13:22:31 2014 +1100
 
-    time: panic with a more helpful error on use of invalid Timer
+    cmd/go: add ImportComment to Package struct
     
-    Fixes #8721
+    It seems reasonable that people might want to look up the
+    ImportComment with "go list".
     
-    LGTM=rsc
-    R=r, rsc
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/155620045
+    https://golang.org/cl/143600043
 
- src/time/sleep.go      |  6 ++++++
- src/time/sleep_test.go | 21 +++++++++++++++++++++
- 2 files changed, 27 insertions(+)
+ src/cmd/go/doc.go  | 39 ++++++++++++++++++++-------------------
+ src/cmd/go/list.go | 39 ++++++++++++++++++++-------------------
+ src/cmd/go/pkg.go  | 22 ++++++++++++----------
+ 3 files changed, 52 insertions(+), 48 deletions(-)

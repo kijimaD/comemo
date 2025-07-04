@@ -1,14 +1,17 @@
-commit 11d16dc53545438067fef0103c10eae126c11535
-Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
-Date:   Fri Feb 1 10:02:23 2013 -0800
+commit d4cfe28885317c16a4db0ffde30f30a79b063da8
+Author: Miek Gieben <miek@miek.nl>
+Date:   Fri Feb 1 08:44:45 2013 -0800
 
-    reflect: document that Value.Slice panics on an unaddressable array.
+    sort: add Reverse as a function
     
-    Fixes #4736.
+    This updates: https://golang.org/cl/6909059/
+    Fixes #4511.
     
-    R=rsc
+    R=minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7239045
+    https://golang.org/cl/6932054
 
- src/pkg/reflect/value.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/sort/example_test.go |  7 +++++++
+ src/pkg/sort/sort.go         | 16 ++++++++++++++++
+ src/pkg/sort/sort_test.go    | 17 +++++++++++++++++
+ 3 files changed, 40 insertions(+)

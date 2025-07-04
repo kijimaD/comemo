@@ -1,43 +1,32 @@
-commit 7b30a2d268ccb56221d0d8b149300548ce0308e1
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Mar 29 01:19:50 2020 +0700
+commit 60586034713cc94477868fb6911f34cfcc6a1ba4
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 27 14:34:05 2019 -0400
 
-    cmd/compile: make isSmallMakeSlice checks slice cap only
+    runtime: only shrink stacks at synchronous safe points
     
-    If slice cap is not set, it will be equal to slice len. So
-    isSmallMakeSlice only needs to check whether slice cap is constant.
+    We're about to introduce asynchronous safe points, where we won't have
+    precise pointer maps for all stack frames. That's okay for scanning
+    the stack (conservatively), but not for shrinking the stack.
     
-    While at it, also add test to make sure panicmakeslicecap is called
-    when make slice contains invalid non-constant len.
+    Hence, this CL prepares for this by only shrinking the stack as part
+    of the stack scan if the goroutine is stopped at a synchronous safe
+    point. Otherwise, it queues up the stack shrink for the next
+    synchronous safe point.
     
-    For this benchmark:
+    We already have one condition under which we can't shrink the stack
+    for very similar reasons: syscalls. Currently, we just give up on
+    shrinking the stack if it's in a syscall. But with this mechanism, we
+    defer that stack shrink until the next synchronous safe point.
     
-    func BenchmarkMakeSliceNonConstantLen(b *testing.B) {
-            len := 1
-            for i := 0; i < b.N; i++ {
-                    s := make([]int, len, 2)
-                    _ = s
+    For #10958, #24543.
     
-            }
-    }
-    
-    Result compare with parent:
-    
-    name                        old time/op  new time/op  delta
-    MakeSliceNonConstantLen-12  18.4ns ± 1%   0.2ns ± 2%  -98.66%  (p=0.008 n=5+5)
-    
-    Fixes #37975
-    
-    Change-Id: I4bc926361bc2ffeab4cfaa888ef0a30cbc3b80e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226278
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ifa1dec6f33fdf30f9067be2ce3f7ab8a7f62ce38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201438
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         |  1 +
- src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
- src/cmd/compile/internal/gc/walk.go            | 18 +++++++--
- test/escape_slice.go                           | 22 +++++++----
- test/fixedbugs/issue37975.go                   | 54 ++++++++++++++++++++++++++
- 5 files changed, 86 insertions(+), 10 deletions(-)
+ src/runtime/mgcmark.go  | 13 +++++++++++--
+ src/runtime/runtime2.go | 13 ++++++++-----
+ src/runtime/stack.go    | 43 ++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 51 insertions(+), 18 deletions(-)

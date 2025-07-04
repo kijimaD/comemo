@@ -1,14 +1,20 @@
-commit a547ad6ac0d7cb83198b1144ae0e87442b746fd9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 10 11:27:29 2013 -0700
+commit d5fbad0de86169d996fcb136cb6c1e57a3649c43
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 10 13:17:21 2013 -0400
 
-    cmd/go: report real package in errors for go get with wildcard
+    cmd/go: better error for shadowed directories in GOPATH
     
-    Fixes #5054.
+    Fixes #5774.
     
-    R=golang-dev, rsc
+    R=golang-dev, adg, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13609043
+    https://golang.org/cl/9164043
 
- src/cmd/go/get.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/go/build.go                               |  6 ++++-
+ src/cmd/go/pkg.go                                 | 20 ++++++++-------
+ src/cmd/go/test.bash                              | 31 +++++++++++++++++++++++
+ src/cmd/go/testdata/shadow/root1/src/foo/foo.go   |  1 +
+ src/cmd/go/testdata/shadow/root1/src/math/math.go |  1 +
+ src/cmd/go/testdata/shadow/root2/src/foo/foo.go   |  1 +
+ src/pkg/go/build/build.go                         | 25 ++++++++++--------
+ 7 files changed, 64 insertions(+), 21 deletions(-)

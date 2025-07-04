@@ -1,19 +1,24 @@
-commit 34665c63ff39b83dcc5d3ca6400c19ee737ac988
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 28 21:29:19 2020 -0400
+commit b0da26a668fd6d4e351a00ca76695c5a233e84a2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 17 20:41:59 2020 -0400
 
-    cmd/go/internal/mvs: omit modules at version "none" in BuildList and Req
+    cmd/link: stop checking reflect.Value.Call in deadcode pass
     
-    For #37438
+    In the linker's deadcode pass, we need to keep a method live if
+    it can be reached through reflection. We do this by marking all
+    exported method live if reflect.Value.Method or
+    reflect.Type.Method is used. Currently we also check for
+    reflect.Value.Call, which is unnecessary because in order to call
+    a method through reflection, the method must be obtained through
+    reflect.Value.Method or reflect.Type.Method, which we already
+    check.
     
-    Change-Id: Icb28035ae4027aa09d8959d4ac2f4b94a6c843a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266339
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Per discussion in https://groups.google.com/d/msg/golang-dev/eG9It63-Bxg/_bnoVy-eAwAJ
+    Thanks Brad, Russ, and Ian for bringing this up.
+    
+    Change-Id: I8e9529a224bb898dbf5752674cc9d155db386c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228792
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/mvs/mvs.go      | 7 ++++++-
- src/cmd/go/internal/mvs/mvs_test.go | 7 +++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/deadcode2.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

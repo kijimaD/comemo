@@ -1,16 +1,27 @@
-commit 2889332edfb90d70827fa714b0fa40a28b0621b5
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Mon Dec 17 11:06:30 2018 +0700
+commit 49be65eeba37a3d29a8a33379794e7a84df6cca1
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:24:32 2018 +0200
 
-    net/http: make TimeoutHandler's ResponseWriter implement Pusher
+    syscall: change solaris files to libc files
     
-    Fixes #29193
+    AIX and Solaris both requires libc to make any syscalls and their
+    implementation is really similar.
+    Therefore, Solaris files reused by AIX have their name changed to *_libc.
     
-    Change-Id: I03088205e51036abbc861ab5b7d141327b0429ae
-    Reviewed-on: https://go-review.googlesource.com/c/154383
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    exec_libc.go is also adapted to AIX.
+    
+    Updates: #25893
+    
+    Change-Id: I50d1d7b964831637013d5e64799187cd9565c42b
+    Reviewed-on: https://go-review.googlesource.com/c/138719
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/server.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/runtime/syscall_solaris.go                     |  7 +++
+ src/syscall/asm_solaris_amd64.s                    |  4 ++
+ src/syscall/{exec_solaris.go => exec_libc.go}      | 23 +++++++---
+ src/syscall/exec_unix.go                           | 12 +++---
+ src/syscall/mkall.sh                               | 13 +++++-
+ .../{mksyscall_solaris.pl => mksyscall_libc.pl}    | 50 +++++++++++++++++++---
+ 6 files changed, 89 insertions(+), 20 deletions(-)

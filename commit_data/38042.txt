@@ -1,22 +1,14 @@
-commit 42a82ce1a7051b3a2762bff73b6eda4797e0fd4b
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Jan 24 17:27:23 2019 +0000
+commit 4ba4c5ae795f30f167faef7c15dba3e32afc53d0
+Author: esell <eujon.sellers@gmail.com>
+Date:   Thu Aug 30 12:22:53 2018 -0600
 
-    math/bits: optimize Reverse32 and Reverse64
+    net/http: add http.NotFoundHandler example
     
-    Use ReverseBytes32 and ReverseBytes64 to speed up these functions.
-    The byte reversal functions are intrinsics on most platforms and
-    generally compile to a single instruction.
-    
-    name       old time/op  new time/op  delta
-    Reverse32  2.41ns ± 1%  1.94ns ± 3%  -19.60%  (p=0.000 n=20+19)
-    Reverse64  3.85ns ± 1%  2.56ns ± 1%  -33.32%  (p=0.000 n=17+19)
-    
-    Change-Id: I160bf59a0c7bd5db94114803ec5a59fae448f096
-    Reviewed-on: https://go-review.googlesource.com/c/159358
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I6a69c7a5b829a967d75e1c79210a4906c0d8f505
+    Reviewed-on: https://go-review.googlesource.com/132276
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/bits/bits.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/net/http/example_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

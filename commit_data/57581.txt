@@ -1,23 +1,24 @@
-commit 89228ca439b7ecfc4fa6641e79bb3119e600e519
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Oct 1 13:12:39 2024 -0400
+commit f4e6815652cf3c4803001dd9ab7f0d7f125a466c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 16 21:16:29 2023 -0700
 
-    runtime/pprof: add context to short stack panic
+    cmd/compile/internal/noder: remove inlined closure naming hack
     
-    Over the years we've had various bugs in pprof stack handling resulting
-    in appendLocsForStack crashing because stk is too short for a cached
-    location. i.e., the cached location claims several inlined frames. Those
-    should always appear together in stk. If some frames are missing from
-    stk, appendLocsForStack.
+    I previously used a clumsy hack to copy Closgen back and forth while
+    inlining, to handle when an inlined function contains closures, which
+    need to each be uniquely numbered.
     
-    If we find this case, replace the slice out of bounds panic with an
-    explicit panic that contains more context.
+    The real solution was to name the closures using r.inlCaller, rather
+    than r.curfn. This CL adds a helper method to do exactly this.
     
-    Change-Id: I52725a689baf42b8db627ce3e1bc6c654ef245d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617135
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I510553b5d7a8f6581ea1d21604e834fd6338cb06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520339
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/pprof/proto.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/noder/reader.go | 37 +++++++++++++++++++-------------
+ test/closure3.dir/main.go                |  8 +++----
+ 2 files changed, 26 insertions(+), 19 deletions(-)

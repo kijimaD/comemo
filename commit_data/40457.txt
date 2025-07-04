@@ -1,16 +1,25 @@
-commit 5c6db9a76ffe8ab9bf3bfc42dfb2dd51d89b7228
-Author: Aditya Harindar <aditya.harindar@gmail.com>
-Date:   Mon Oct 28 08:14:47 2019 +0000
+commit cefc0bbc9011baa62a8284d61452ba33245e8455
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Thu May 9 11:24:30 2019 +0800
 
-    doc/articles: format error string as per go style
+    cmd/go/internal/renameio: allow write file with the specified permissions
     
-    First letter of an error string should not be capitalized, as prescribed in the [wiki](https://github.com/golang/go/wiki/Errors).
+    Now renameio package creates file use ioutil.TempFile, which calls
+    OpenFile with mode 0600, we should support creates a file with given
+    permission bits.
     
-    Change-Id: Iea1413f19b5240d3bef79f216094d210b54bdb62
-    GitHub-Last-Rev: d8e167107122b603c4f647d722537668ad1c680d
-    GitHub-Pull-Request: golang/go#35203
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203797
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #31871
+    
+    Change-Id: I0436e9f7081f2fce18bf9f3b14d55b02d4d995fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175958
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/articles/wiki/final-noclosure.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/cache/cache.go            |  2 +-
+ src/cmd/go/internal/modfetch/cache.go         |  4 +--
+ src/cmd/go/internal/modfetch/fetch.go         |  4 +--
+ src/cmd/go/internal/modload/init.go           |  2 +-
+ src/cmd/go/internal/renameio/renameio.go      | 26 ++++++++++++----
+ src/cmd/go/internal/renameio/renameio_test.go | 44 +++++++++++++++++++++++++++
+ 6 files changed, 70 insertions(+), 12 deletions(-)

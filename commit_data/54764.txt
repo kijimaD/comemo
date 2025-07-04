@@ -1,25 +1,49 @@
-commit 3de6033d0e8022dffee85bd9537f90b1a5ba5e30
-Author: F Y <x1f604@gmail.com>
-Date:   Tue Oct 17 21:59:17 2023 +0000
+commit da564d0006e2cc286fecb3cec94ed143a2667866
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Sep 19 12:19:38 2022 +0200
 
-    syscall: stop counting trailing NUL for abstract addresses starting with NUL
+    runtime,cmd/internal/obj/x86: use TEB TLS slots on windows/amd64
     
-    Changes trailing-NUL-counting behavior for abstract addresses
-    starting with the NUL character to be the same as abstract
-    addresses starting with the @ character.
+    This CL redesign how we get the TLS pointer on windows/amd64.
     
-    For #63579.
+    We were previously reading it from the [TEB] arbitrary data slot,
+    located at 0x28(GS), which can only hold 1 TLS pointer.
     
-    Change-Id: I206e4d0d808396998cb7d92a9e26dda854cb1248
-    GitHub-Last-Rev: 0ff0a9c938a4b57cdc30b1c4f0c058108a241df8
-    GitHub-Pull-Request: golang/go#63580
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535776
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    With this CL, we will read the TLS pointer from the TEB TLS slot array,
+    located at 0x1480(GS). The TLS slot array can hold multiple
+    TLS pointers, up to 64, so multiple Go runtimes running on the
+    same thread can coexists with different TLS.
+    
+    Each new TLS slot has to be allocated via [TlsAlloc],
+    which returns the slot index. This index can then be used to get the
+    slot offset from GS with the following formula: 0x1480 + index*8
+    
+    The slot index is fixed per Go runtime, so we can store it
+    in runtime.tls_g and use it latter on to read/update the TLS pointer.
+    
+    Loading the TLS pointer requires the following asm instructions:
+    
+      MOVQ runtime.tls_g, AX
+      MOVQ AX(GS), AX
+    
+    Notice that this approach is also implemented on windows/arm64.
+    
+    [TEB]: https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
+    [TlsAlloc]: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-tlsalloc
+    
+    Updates #22192
+    
+    Change-Id: Idea7119fd76a3cd083979a4d57ed64b552fa101b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431775
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/syscall/syscall_linux.go   | 3 ++-
- src/syscall/syscall_solaris.go | 3 ++-
- src/syscall/syscall_windows.go | 3 ++-
- 3 files changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go    | 20 +++---------------
+ src/cmd/internal/obj/x86/obj6.go    | 21 +++++++++++++++++--
+ src/runtime/asm_amd64.s             | 13 +++++++++---
+ src/runtime/cgo/gcc_windows_amd64.c |  6 ++++--
+ src/runtime/sys_windows_amd64.s     | 41 +++++++++++++++++++++++++++++++++----
+ 5 files changed, 73 insertions(+), 28 deletions(-)

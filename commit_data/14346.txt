@@ -1,15 +1,17 @@
-commit c208a3a263648a5f2a363b3af801a9d1522be03b
+commit 7c0cbbfa186c10a6538e54f0cb6c5aba089fab8c
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Nov 7 23:09:01 2012 +0100
+Date:   Wed Nov 7 21:36:15 2012 +0100
 
-    cmd/gc: fix internal compiler error with broken structs.
+    cmd/6g, cmd/8g: mark used registers in indirect addressing.
     
-    Fixes #4359.
+    Fixes #4094.
+    Fixes #4353.
     
-    R=golang-dev, daniel.morsing, rsc
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6834043
+    https://golang.org/cl/6810090
 
- src/cmd/gc/typecheck.c      |  2 +-
- test/fixedbugs/issue4359.go | 19 +++++++++++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/6g/reg.c            | 10 ++++++++++
+ src/cmd/8g/reg.c            | 10 ++++++++++
+ test/fixedbugs/issue4353.go | 19 +++++++++++++++++++
+ 3 files changed, 39 insertions(+)

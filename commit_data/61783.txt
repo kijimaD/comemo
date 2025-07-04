@@ -1,0 +1,48 @@
+commit 4b7f7cd87dfcbc17861c908b20a6101e5915ef59
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 21 21:21:58 2024 +0100
+
+    crypto/tls: implement X25519MLKEM768
+    
+    This makes three related changes that work particularly well together
+    and would require significant extra work to do separately: it replaces
+    X25519Kyber768Draft00 with X25519MLKEM768, it makes CurvePreferences
+    ordering crypto/tls-selected, and applies a preference to PQ key
+    exchange methods over key shares (to mitigate downgrades).
+    
+    TestHandshakeServerUnsupportedKeyShare was removed because we are not
+    rejecting unsupported key shares anymore (nor do we select them, and
+    rejecting them actively is a MAY). It would have been nice to keep the
+    test to check we still continue successfully, but testClientHelloFailure
+    is broken in the face of any server-side behavior which requires writing
+    any other messages back to the client, or reading them.
+    
+    Updates #69985
+    Fixes #69393
+    
+    Change-Id: I58de76f5b8742a9bd4543fd7907c48e038507b19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630775
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/69985.txt                             |  2 +
+ doc/godebug.md                                 |  5 ++
+ doc/next/6-stdlib/99-minor/crypto/tls/69985.md |  2 +
+ src/crypto/tls/bogo_config.json                | 13 +++-
+ src/crypto/tls/bogo_shim_test.go               |  9 +--
+ src/crypto/tls/common.go                       | 62 +++++++++---------
+ src/crypto/tls/common_string.go                |  6 +-
+ src/crypto/tls/defaults.go                     |  9 +--
+ src/crypto/tls/fips_test.go                    |  5 +-
+ src/crypto/tls/handshake_client.go             | 25 +++++---
+ src/crypto/tls/handshake_client_tls13.go       | 29 +++++----
+ src/crypto/tls/handshake_server.go             |  2 +-
+ src/crypto/tls/handshake_server_test.go        | 16 -----
+ src/crypto/tls/handshake_server_tls13.go       | 87 ++++++++++++++++----------
+ src/crypto/tls/key_schedule.go                 | 36 +----------
+ src/crypto/tls/key_schedule_test.go            | 19 ------
+ src/crypto/tls/tls_test.go                     | 63 +++++++++++--------
+ src/internal/godebugs/table.go                 |  2 +-
+ 18 files changed, 186 insertions(+), 206 deletions(-)

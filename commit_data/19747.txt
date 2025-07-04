@@ -1,18 +1,16 @@
-commit 055dfc204c7b2c8eae1603b09fe71deb73f0e627
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 16 19:26:36 2014 -0400
+commit 3b1b84069956bc8f21be37c563d0ba8da93a87d1
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Jul 16 13:06:11 2014 -0700
 
-    liblink: fix precedence bug in pcdata comparison
+    strconv: fix handling of BOMs in CanBackquote
     
-    As written, the ! applies before the &1.
-    This would crash writing out missing pcdata tables
-    if we ever used non-contiguous IDs in a function.
-    We don't, but fix anyway.
+    A byte order mark  (BOM) cannot be backquoted.
     
-    LGTM=iant, minux
-    R=minux, iant
+    LGTM=r
+    R=golang-codereviews, gobot, r
     CC=golang-codereviews
-    https://golang.org/cl/117810047
+    https://golang.org/cl/112310043
 
- src/liblink/pcln.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/strconv/quote.go      | 5 ++++-
+ src/pkg/strconv/quote_test.go | 4 ++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

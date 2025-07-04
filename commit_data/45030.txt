@@ -1,18 +1,50 @@
-commit 19034fa855783d78cc4c40d3708bcc01a8900a1d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 8 16:47:13 2021 -0400
+commit 989ab8a7d67c4111d71bd3a8bb2acbe38e16ff5b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 11 12:14:06 2020 -0400
 
-    cmd/objdump: update test with register ABI
+    runtime: drop nosplit from primary lockrank functions
     
-    With register ABI, the disassembly of the function may not
-    contain a "movq" instruction (which used to be e.g. storing
-    arguments to stack). Look for "jmp" instruction instead. This is
-    also in consistent with the test for Go assembly syntax.
+    acquireLockRank and releaseLockRank are called from nosplit context, and
+    thus must be nosplit.
     
-    Change-Id: Ifc9e48bbc4f85c4e4aace5981b3a0f8ae925f6d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308652
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    lockWithRank, unlockWithRank, and lockWithRankMayAcquire are called from
+    spittable context, and thus don't strictly need to be nosplit.
+    
+    The stated reasoning for making these functions nosplit is to avoid
+    re-entrant calls due to a stack split on function entry taking a lock.
+    There are two potential issues at play here:
+    
+    1. A stack split on function entry adds a new lock ordering edge before
+       we (a) take lock l, or (b) release lock l.
+    
+    2. A stack split in a child call (such as to lock2) introduces a new
+       lock ordering edge _in the wrong order_ because e.g., in the case of
+       lockWithRank, we've noted that l is taken, but the stack split in
+       lock2 actually takes stack split locks _before_ l is actually locked.
+    
+    (1) is indeed avoided by marking these functions nosplit, but this is
+    really just a bit of duct tape that generally has no effect overall. Any
+    earlier call can have a stack split and introduce the same new edge.
+    This includes lock/unlock which are not nosplit!
+    
+    I began this CL as a change to extend nosplit to lock and unlock to try
+    to make this mitigation more effective, but I've realized that as long
+    as there is a _single_ nosplit call between a lock and unlock, we can
+    end up with the edge. There seems to be few enough cases without any
+    calls that is does not seem worth the extra cognitive load to extend
+    nosplit throughout all of the locking functions.
+    
+    (2) is a real issue which would cause incorrect ordering, but it is
+    already handled by switching to the system stack before recording the
+    lock ordering. Adding / removing nosplit has no effect on this issue.
+    
+    Change-Id: I94fbd21b2bf928dbf1bf71aabb6788fc0a012829
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254367
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/objdump/objdump_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/lockrank_off.go | 10 ++--------
+ src/runtime/lockrank_on.go  | 26 +++++++++++++++++---------
+ 2 files changed, 19 insertions(+), 17 deletions(-)

@@ -1,14 +1,18 @@
-commit ae027f52fe73bcfd70143244d2a558e4c865013f
+commit 08ee2661f27a30a1267f474fed67e468535f28ae
 Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Aug 6 00:27:14 2014 -0400
+Date:   Wed Aug 6 00:25:41 2014 -0400
 
-    cmd/cc, cmd/gc: set ctxt->debugvlog with debug['v']
+    liblink: support big-endian properly
     
     LGTM=rsc
     R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/118610043
+    https://golang.org/cl/115300044
 
- src/cmd/cc/lex.c | 1 +
- src/cmd/gc/lex.c | 1 +
- 2 files changed, 2 insertions(+)
+ include/link.h     |  8 +++++++-
+ src/liblink/ld.c   | 31 +++++++++++++++++++++++--------
+ src/liblink/obj5.c |  1 +
+ src/liblink/obj6.c |  2 ++
+ src/liblink/obj8.c |  1 +
+ src/liblink/sym.c  |  2 +-
+ 6 files changed, 35 insertions(+), 10 deletions(-)

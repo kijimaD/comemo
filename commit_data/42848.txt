@@ -1,24 +1,16 @@
-commit 3b20d484fbb7a4f64881002f8a63eca42f0e7c29
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Aug 18 22:29:22 2020 -0400
+commit f9c51e353fd8b5d5e8bc27979bcfccd647e54b21
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 20 12:05:08 2020 -0800
 
-    go/types: fix missing Importer for TestBenchmark
+    time: remove unnecessary trailing slash from "/etc/"
     
-    TestBenchmark is broken due to lack of a Config.Importer, but
-    unfortunately fails silently due to an unchecked error.
+    Fixes #36640
     
-    Fix the importer and check the error. Also improve the output to include
-    allocation stats.
-    
-    Finally, don't run TestBenchmark on go/types by default. If the
-    benchmark is being used during a refactoring of go/types itself, results
-    for go/types will not be comparable.
-    
-    Change-Id: Ib6bdb6807403b3ec99762f535e2496c94bd9b6e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249517
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I2049b572347da1cb967f5a3f2bc342b310216435
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215519
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/self_test.go | 25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ src/time/zoneinfo_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

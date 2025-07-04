@@ -1,32 +1,17 @@
-commit 2f63afdc7afbf0af957f4dd5f60279711602b53c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 1 01:53:26 2012 +0900
+commit c86e03975ce6fd0fcf7dcf35e8110057234170ab
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 31 11:22:47 2012 -0500
 
-    net: ListenMulticastUDP to listen concurrently across multiple listeners
+    crypto/tls: better error message when connecting to SSLv3 servers.
     
-    This CL introduces new function ListenMulticastUDP to fix
-    multicast UDP listening across multiple listeners issue,
-    to replace old multicast methods JoinGroup and LeaveGroup
-    on UDPConn.
+    We support SSLv3 as a server but not as a client (and we don't want to
+    support it as a client). This change fixes the error message when
+    connecting to an SSLv3 server since SSLv3 support on the server side
+    made mutualVersion accept SSLv3.
     
-    This CL also enables multicast testing by default.
-    
-    Fixes #2730.
-    
-    R=rsc, paul.a.lalonde, fullung, devon.odell
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5562048
+    https://golang.org/cl/5545073
 
- doc/go1.html                   |  9 +++-
- doc/go1.tmpl                   |  9 +++-
- src/pkg/net/multicast_test.go  | 76 ++++++++++++---------------------
- src/pkg/net/sock.go            | 11 ++++-
- src/pkg/net/sock_bsd.go        | 24 +++++++++++
- src/pkg/net/sock_linux.go      | 24 +++++++++++
- src/pkg/net/sock_windows.go    | 24 +++++++++++
- src/pkg/net/sockopt_bsd.go     | 36 ++++++++++++----
- src/pkg/net/sockopt_linux.go   | 26 +++++++++---
- src/pkg/net/sockopt_windows.go | 20 ++++++---
- src/pkg/net/udpsock_plan9.go   | 22 +++-------
- src/pkg/net/udpsock_posix.go   | 96 ++++++++++++++++++++++++++++++------------
- 12 files changed, 259 insertions(+), 118 deletions(-)
+ src/pkg/crypto/tls/handshake_client.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

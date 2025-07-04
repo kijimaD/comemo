@@ -1,22 +1,14 @@
-commit 8bbd80063b986e106ab35727e483be8bdcfd9f5b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Dec 31 13:25:52 2014 -0800
+commit 0e8fed098c164a832fbe9541a6d3c7bb952c9b0c
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 18 09:54:50 2014 -0500
 
-    cmd/go: put user ldflags at the end of the linker invocation
+    [dev.cc] runtime: two missed references to "M stack"
     
-    If the user provided a key but no value via -ldflag -X,
-    another linker flag was used as the value.
-    
-    Placing the user's flags at the end avoids this problem.
-    It also provides the user the opportunity to
-    override existing linker flags.
-    
-    Fixes #8810.
-    
-    Change-Id: I96f4190713dc9a9c29142e56658446fba7fb6bc8
-    Reviewed-on: https://go-review.googlesource.com/2242
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/177940043
 
- src/cmd/go/build.go | 5 ++---
- test/linkx_run.go   | 9 +++++++++
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ src/runtime/asm_amd64p32.s | 2 +-
+ src/runtime/panic.go       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

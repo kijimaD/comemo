@@ -1,31 +1,53 @@
-commit e5060c7f7524bf32e07f62d2593aae8d280725e5
-Author: David Chase <drchase@google.com>
-Date:   Wed May 20 15:16:34 2015 -0400
+commit 02e69c4b536a46f2aef4aa127092fa167ada296e
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Thu Apr 16 14:59:22 2015 -0400
 
-    cmd/internal/gc: move check for large-hence-heap-allocated types into escape analysis
+    crypto/tls: add support for Certificate Transparency
     
-    Before this change, the check for too-large arrays (and other large
-    types) occurred after escape analysis.  If the data moved off stack
-    and onto the heap contained any pointers, it would therefore escape,
-    but because the too-large check occurred after escape analysis this
-    would not be recorded and a stack pointer would leak to the heap
-    (see the modified escape_array.go for an example).
+    This change adds support for serving and receiving Signed Certificate
+    Timestamps as described in RFC 6962.
     
-    Some of these appear to remain, in calls to typecheck from within walk.
+    The server is now capable of serving SCTs listed in the Certificate
+    structure. The client now asks for SCTs and, if any are received,
+    they are exposed in the ConnectionState structure.
     
-    Also corrected a few comments in escape_array.go about "BAD"
-    analysis that is now done correctly.
+    Fixes #10201
     
-    Enhanced to move aditional EscNone-but-large-so-heap checks into esc.c.
-    
-    Change-Id: I770c111baff28a9ed5f8beb601cf09dacc561b83
-    Reviewed-on: https://go-review.googlesource.com/10268
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib3adae98cb4f173bc85cec04d2bdd3aa0fec70bb
+    Reviewed-on: https://go-review.googlesource.com/8988
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Jonathan Rudenberg <jonathan@titanous.com>
 
- src/cmd/compile/internal/gc/esc.go  | 13 ++++++++
- src/cmd/compile/internal/gc/lex.go  |  6 ++--
- src/cmd/compile/internal/gc/pgen.go | 19 ------------
- src/cmd/compile/internal/gc/walk.go | 24 ++++++++++++--
- test/escape5.go                     |  7 ++---
- test/escape_array.go                | 62 +++++++++++++++++++++++++++++++++----
- 6 files changed, 96 insertions(+), 35 deletions(-)
+ src/crypto/tls/common.go                           |  23 ++--
+ src/crypto/tls/conn.go                             |   4 +-
+ src/crypto/tls/handshake_client.go                 |   2 +
+ src/crypto/tls/handshake_client_test.go            |  61 ++++++++++-
+ src/crypto/tls/handshake_messages.go               |  82 ++++++++++++++
+ src/crypto/tls/handshake_messages_test.go          |  11 ++
+ src/crypto/tls/handshake_server.go                 |   3 +
+ src/crypto/tls/handshake_server_test.go            |  38 ++++++-
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  |  97 ++++++++---------
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  57 +++++-----
+ .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    |  93 ++++++++--------
+ .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  55 +++++-----
+ .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |  75 ++++++-------
+ .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  75 ++++++-------
+ src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  37 +++----
+ .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  77 +++++++-------
+ .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  75 ++++++-------
+ src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  37 +++----
+ src/crypto/tls/testdata/Client-TLSv12-ALPN         |  66 ++++++------
+ src/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch |  69 ++++++------
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 104 +++++++++---------
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  57 +++++-----
+ .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  87 +++++++--------
+ .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 100 ++++++++---------
+ .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  55 +++++-----
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  77 +++++++-------
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  69 ++++++------
+ .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  69 ++++++------
+ .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  75 ++++++-------
+ src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  37 +++----
+ src/crypto/tls/testdata/Client-TLSv12-SCT          | 118 +++++++++++++++++++++
+ 31 files changed, 1106 insertions(+), 779 deletions(-)

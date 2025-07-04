@@ -1,50 +1,45 @@
-commit 2addbf3f2a91e2caa0903c79a44d722e9bcd913d
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Fri Sep 16 12:16:00 2022 +0200
+commit c76893d0da115a63374982196384f78fff224d55
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 8 19:09:07 2021 +0100
 
-    cmd/compile: make isConstDelta compute delta for 8 and 16 bit arithmetic
+    crypto/elliptic: refactor P-224 field implementation
     
-    Use the delta for computing min and max values. This elides a few bounds checks:
+    Improved readability, replaced constant time bit masked operations with
+    named functions, added comments. The behavior of every function should
+    be unchanged.
     
-    compilecmp linux/amd64:
+    The largest change is the logic that in p224Contract checks if the value
+    is greater than or equal to p. Instead of a lot of error-prone masking,
+    we run a throwaway subtraction chain and look at the final borrow bit.
     
-    regexp/syntax
-    regexp/syntax.Op.String 271 -> 249  (-8.12%)
+    We could also not throw away the subtraction chain output and do a
+    constant time select instead of another masked subtraction, but we'd
+    still have to fix any underflows (because these are unsaturated limbs
+    and they underflow at 2^32 instead of 2^28). That's similar but
+    different from the carry-down chain we do elsewhere in that function
+    (which does undeflow fixing and borrow at the same time). I thought
+    having both variations in the same function would be confusing. Here's
+    how it would look like.
     
-    compress/bzip2
-    compress/bzip2.(*reader).readBlock 2991 -> 2973  (-0.60%)
+            var b uint32
+            var outMinusP p224FieldElement
+            for i := 0; i < len(out); i++ {
+                    outMinusP[i], b = bits.Sub32(out[i], p224P[i], b)
+            }
+            for i := 0; i < 3; i++ {
+                    mask := maskIfNegative(outMinusP[i])
+                    outMinusP[i] += (1 << 28) & mask
+                    // Note we DON'T borrow here, because it happened above.
+            }
+            for i := 0; i < len(out); i++ {
+                    out[i] = select32(b, out[i], outMinusP[i])
+            }
     
-    cmd/internal/objabi
-    cmd/internal/objabi.RelocType.String 240 -> 220  (-8.33%)
-    
-    cmd/vendor/golang.org/x/arch/ppc64/ppc64asm
-    cmd/vendor/golang.org/x/arch/ppc64/ppc64asm.CondReg.String 421 -> 400  (-4.99%)
-    cmd/vendor/golang.org/x/arch/ppc64/ppc64asm.gnuArg changed
-    cmd/vendor/golang.org/x/arch/ppc64/ppc64asm.plan9Arg 1868 -> 1836  (-1.71%)
-    
-    cmd/internal/objfile
-    cmd/internal/objfile.(*machoFile).symbols 1457 -> 1423  (-2.33%)
-    cmd/internal/objfile.loadPETable changed
-    
-    cmd/internal/obj/wasm
-    cmd/internal/obj/wasm.assemble changed
-    
-    cmd/internal/obj/ppc64
-    cmd/internal/obj/ppc64.type_vsrdbi changed
-    cmd/internal/obj/ppc64.type_vmsumcud changed
-    
-    cmd/link/internal/loadpe
-    cmd/link/internal/loadpe.Load 10634 -> 10602  (-0.30%)
-    cmd/link/internal/loadpe.(*peLoaderState).readpesym changed
-    
-    Change-Id: I439facd13e3d2695abadfe1d3f7faebfd0d7df74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431237
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I00932e8f171eff7f441b45666dccfd219ecbbc50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326311
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Julie Qiu <julie@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ src/crypto/elliptic/p224.go      | 221 ++++++++++++++++-----------------------
+ src/crypto/elliptic/p224_test.go |   4 +-
+ 2 files changed, 91 insertions(+), 134 deletions(-)

@@ -1,23 +1,23 @@
-commit 7a82b6a9e1ad6ace91e53011744ffefdbf5843bc
-Author: 1911860538 <alxps1911@gmail.com>
-Date:   Wed Apr 9 22:28:56 2025 +0000
+commit 2fb5ef889bf86dfb25880cf087a3e02f7100df29
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:01 2024 -0500
 
-    net/http: initialize Value with File length in cloneMultipartForm
+    runtime: use timer.lock in modtimer
     
-    Improve the initialization of the Value map in cloneMultipartForm by
-    utilizing the length of the File map to optimize memory allocation.
+    Continue using timer.lock to simplify timer operations.
     
-    Change-Id: I97ba9e19b2718a75c270e6df21306f4c82656c71
-    GitHub-Last-Rev: a9683ba9a7cbb20213766fba8d9096b4f8591d86
-    GitHub-Pull-Request: golang/go#69943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621235
-    Reviewed-by: Christian Ekrem <christianekrem@gmail.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Note the removal of a previous potential deadlock.
+    (Explained at new line 325, there was a lock inversion
+    between individual timer locks and the 'timers' lock.)
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I8c9be00d13c6acd171a8aa2882a4fc844498f754
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564125
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/net/http/clone.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/time.go | 93 +++++++++++++++++------------------------------------
+ 1 file changed, 30 insertions(+), 63 deletions(-)

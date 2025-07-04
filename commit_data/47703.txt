@@ -1,28 +1,36 @@
-commit f8a8a73096a4d36ce7d35e9643db89e669bbee1f
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Dec 5 22:18:04 2021 -0500
+commit 8462169b5a6c37e024ca5d49a823d4ce95e90e23
+Author: David Chase <drchase@google.com>
+Date:   Tue Apr 6 18:39:15 2021 -0400
 
-    go/types, types2: unexport NewTypeList
+    cmd/compile: pre-spill pointers in aggregate-typed register args
     
-    NewTypeList was not part of the go/types API proposal, and was left in
-    by accident. It also shouldn't be necessary, so remove it.
+    There's a problem in liveness, where liveness of any
+    part of an aggregate keeps the whole aggregate alive,
+    but the not-live parts don't get spilled.  The GC
+    can observe those live-but-not-spilled slots, which
+    can contain junk.
     
-    Updates #47916
+    A better fix is to change liveness to work
+    pointer-by-pointer, but that is also a riskier,
+    trickier fix.
     
-    Change-Id: I4db3ccf036ccfb708ecf2c176ea4921fe68089a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369475
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    To avoid this, in the case of
+    
+    (1) an aggregate input parameter
+    (2) containing pointers
+    (3) passed in registers
+    
+    pre-spill the pointers.
+    
+    Updates #40724.
+    
+    Change-Id: I6beb8e0a353b1ae3c68c16072f56698061922c04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307909
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html                                | 4 +---
- src/cmd/compile/internal/types2/check.go       | 2 +-
- src/cmd/compile/internal/types2/instantiate.go | 2 +-
- src/cmd/compile/internal/types2/typelists.go   | 4 ++--
- src/cmd/compile/internal/types2/typexpr.go     | 4 ++--
- src/go/types/check.go                          | 2 +-
- src/go/types/instantiate.go                    | 2 +-
- src/go/types/typelists.go                      | 4 ++--
- src/go/types/typexpr.go                        | 4 ++--
- 9 files changed, 13 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 14 ++++++---
+ test/abi/part_live.go                  | 48 ++++++++++++++++++++++++++++++
+ test/abi/part_live_2.go                | 53 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 111 insertions(+), 4 deletions(-)

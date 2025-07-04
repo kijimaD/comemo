@@ -1,12 +1,12 @@
-commit 5f54c807f16541ea19bb08cebcd2f77886d6d0cc
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Mar 5 14:53:29 2011 -0500
+commit 5db0a8b9ef6c050323fa398374cf56617e21358d
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Sat Mar 5 14:44:05 2011 -0500
 
-    build: avoid calling gomake wrapper in recursive make
+    http: fixed race condition in persist.go
     
-    R=golang-dev, rsc
+    R=rsc, bradfitzgo, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4243058
+    https://golang.org/cl/4266042
 
- src/Make.common | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/persist.go | 94 ++++++++++++++++++++++++++++---------------------
+ 1 file changed, 54 insertions(+), 40 deletions(-)

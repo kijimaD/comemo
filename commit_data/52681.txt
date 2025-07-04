@@ -1,25 +1,19 @@
-commit d240226fe5aa94a41f1bdd481e71b88d2a987272
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Apr 14 14:07:37 2023 -0400
+commit 89533024b011bcf41d6de295a5dfb1ad73486abf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 17 16:26:49 2022 -0400
 
-    cmd/compile: rework marking of dead hidden closure functions
+    vendor: revert stray edit from CL 406835
     
-    This patch generalizes the code in the inliner that marks unreferenced
-    hidden closure functions as dead. Rather than doing the marking on the
-    fly (previous approach), this new approach does a single pass at the
-    end of inlining, which catches more dead functions.
+    In reviewing CL 406835, I missed that one of the edited files was in
+    src/vendor. This change reverts that file, fixing the failing
+    moddeps test on the longtest builders.
     
-    Fixes #59638.
-    Updates #59404.
-    Updates #59547.
-    
-    Change-Id: I54fd63e9e37c9123b08a3e7def7d1989919bba91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484859
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Id04b45c3379cf6c17b333444eb7be1301ffcb5f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406895
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 95 +++++++++++++++++++++-------------
- test/fixedbugs/issue59638.go           | 65 +++++++++++++++++++++++
- 2 files changed, 124 insertions(+), 36 deletions(-)
+ src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

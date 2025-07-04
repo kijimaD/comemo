@@ -1,94 +1,82 @@
-commit 30aa701fec9fad07180ca45958cf552b193a4d3a
+commit 6ab6c49fce6968f200ad5381cb9348e159e51099
 Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 8 15:40:58 2011 -0800
+Date:   Tue Nov 8 15:38:47 2011 -0800
 
-    renaming_2: gofix -r go1pkgrename src/pkg/[a-l]*
+    renaming_1: hand-edited files for go 1 renaming
+    This contains the files that required handiwork, mostly
+    Makefiles with updated TARGs, plus the two packages
+    with modified package names.
+    html/template/doc.go needs a separate edit pass.
+    test/fixedbugs/bug358.go is not legal go so gofix fails on it.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5358041
+    https://golang.org/cl/5340050
 
- src/pkg/archive/zip/writer_test.go                  | 2 +-
- src/pkg/bufio/bufio.go                              | 2 +-
- src/pkg/bufio/bufio_test.go                         | 2 +-
- src/pkg/bytes/buffer.go                             | 2 +-
- src/pkg/bytes/buffer_test.go                        | 4 ++--
- src/pkg/bytes/bytes.go                              | 2 +-
- src/pkg/bytes/bytes_test.go                         | 2 +-
- src/pkg/crypto/dsa/dsa.go                           | 2 +-
- src/pkg/crypto/dsa/dsa_test.go                      | 2 +-
- src/pkg/crypto/ecdsa/ecdsa.go                       | 2 +-
- src/pkg/crypto/ecdsa/ecdsa_test.go                  | 2 +-
- src/pkg/crypto/elliptic/elliptic.go                 | 2 +-
- src/pkg/crypto/elliptic/elliptic_test.go            | 2 +-
- src/pkg/crypto/ocsp/ocsp.go                         | 2 +-
- src/pkg/crypto/openpgp/elgamal/elgamal.go           | 2 +-
- src/pkg/crypto/openpgp/elgamal/elgamal_test.go      | 2 +-
- src/pkg/crypto/openpgp/packet/encrypted_key.go      | 2 +-
- src/pkg/crypto/openpgp/packet/encrypted_key_test.go | 2 +-
- src/pkg/crypto/openpgp/packet/packet.go             | 2 +-
- src/pkg/crypto/openpgp/packet/private_key.go        | 2 +-
- src/pkg/crypto/openpgp/packet/public_key.go         | 2 +-
- src/pkg/crypto/rand/util.go                         | 2 +-
- src/pkg/crypto/rsa/pkcs1v15.go                      | 2 +-
- src/pkg/crypto/rsa/pkcs1v15_test.go                 | 2 +-
- src/pkg/crypto/rsa/rsa.go                           | 2 +-
- src/pkg/crypto/rsa/rsa_test.go                      | 2 +-
- src/pkg/crypto/tls/generate_cert.go                 | 2 +-
- src/pkg/crypto/tls/handshake_messages_test.go       | 2 +-
- src/pkg/crypto/tls/handshake_server_test.go         | 2 +-
- src/pkg/crypto/tls/key_agreement.go                 | 2 +-
- src/pkg/crypto/x509/pkcs1.go                        | 4 ++--
- src/pkg/crypto/x509/pkix/pkix.go                    | 4 ++--
- src/pkg/crypto/x509/x509.go                         | 4 ++--
- src/pkg/crypto/x509/x509_test.go                    | 4 ++--
- src/pkg/encoding/asn1/asn1.go                       | 2 +-
- src/pkg/encoding/asn1/marshal.go                    | 2 +-
- src/pkg/encoding/csv/writer.go                      | 2 +-
- src/pkg/encoding/gob/dump.go                        | 2 +-
- src/pkg/encoding/gob/type.go                        | 2 +-
- src/pkg/encoding/json/decode.go                     | 4 ++--
- src/pkg/encoding/json/encode.go                     | 2 +-
- src/pkg/encoding/json/scanner_test.go               | 2 +-
- src/pkg/encoding/xml/read.go                        | 2 +-
- src/pkg/encoding/xml/xml.go                         | 2 +-
- src/pkg/exp/ebnf/ebnf.go                            | 4 ++--
- src/pkg/exp/ebnf/parser.go                          | 2 +-
- src/pkg/exp/norm/composition.go                     | 2 +-
- src/pkg/exp/norm/input.go                           | 2 +-
- src/pkg/exp/norm/maketables.go                      | 2 +-
- src/pkg/exp/norm/normalize.go                       | 2 +-
- src/pkg/exp/norm/normregtest.go                     | 4 ++--
- src/pkg/exp/norm/trie_test.go                       | 2 +-
- src/pkg/exp/norm/triegen.go                         | 2 +-
- src/pkg/exp/spdy/read.go                            | 2 +-
- src/pkg/exp/spdy/spdy_test.go                       | 2 +-
- src/pkg/exp/spdy/types.go                           | 2 +-
- src/pkg/exp/spdy/write.go                           | 2 +-
- src/pkg/exp/ssh/client.go                           | 2 +-
- src/pkg/exp/ssh/common.go                           | 2 +-
- src/pkg/exp/ssh/messages.go                         | 2 +-
- src/pkg/exp/ssh/messages_test.go                    | 4 ++--
- src/pkg/exp/ssh/server.go                           | 2 +-
- src/pkg/exp/types/const.go                          | 2 +-
- src/pkg/exp/types/gcimporter.go                     | 4 ++--
- src/pkg/exp/types/gcimporter_test.go                | 2 +-
- src/pkg/expvar/expvar.go                            | 4 ++--
- src/pkg/expvar/expvar_test.go                       | 2 +-
- src/pkg/fmt/format.go                               | 2 +-
- src/pkg/fmt/print.go                                | 2 +-
- src/pkg/fmt/scan.go                                 | 2 +-
- src/pkg/fmt/scan_test.go                            | 2 +-
- src/pkg/go/ast/ast.go                               | 2 +-
- src/pkg/go/build/build.go                           | 2 +-
- src/pkg/go/build/build_test.go                      | 2 +-
- src/pkg/go/doc/comment.go                           | 2 +-
- src/pkg/go/doc/example.go                           | 2 +-
- src/pkg/go/printer/printer.go                       | 2 +-
- src/pkg/go/scanner/scanner.go                       | 2 +-
- src/pkg/go/token/serialize.go                       | 2 +-
- src/pkg/html/entity_test.go                         | 2 +-
- src/pkg/html/escape.go                              | 2 +-
- src/pkg/image/jpeg/writer_test.go                   | 2 +-
- src/pkg/index/suffixarray/suffixarray_test.go       | 2 +-
- 83 files changed, 94 insertions(+), 94 deletions(-)
+ doc/effective_go.html                 |  9 +++---
+ doc/effective_go.tmpl                 |  2 +-
+ src/pkg/deps.bash                     | 59 -----------------------------------
+ src/pkg/encoding/asn1/Makefile        |  2 +-
+ src/pkg/encoding/csv/Makefile         |  2 +-
+ src/pkg/encoding/gob/Makefile         |  2 +-
+ src/pkg/encoding/json/Makefile        |  2 +-
+ src/pkg/encoding/xml/Makefile         |  2 +-
+ src/pkg/html/template/Makefile        |  2 +-
+ src/pkg/html/template/attr.go         |  2 +-
+ src/pkg/html/template/clone.go        |  4 +--
+ src/pkg/html/template/clone_test.go   |  6 ++--
+ src/pkg/html/template/content.go      |  2 +-
+ src/pkg/html/template/content_test.go |  2 +-
+ src/pkg/html/template/context.go      |  2 +-
+ src/pkg/html/template/css.go          |  4 +--
+ src/pkg/html/template/css_test.go     |  2 +-
+ src/pkg/html/template/doc.go          |  7 +++--
+ src/pkg/html/template/error.go        |  2 +-
+ src/pkg/html/template/escape.go       |  6 ++--
+ src/pkg/html/template/escape_test.go  | 10 +++---
+ src/pkg/html/template/html.go         |  4 +--
+ src/pkg/html/template/html_test.go    |  2 +-
+ src/pkg/html/template/js.go           |  6 ++--
+ src/pkg/html/template/js_test.go      |  2 +-
+ src/pkg/html/template/template.go     |  4 +--
+ src/pkg/html/template/transition.go   |  2 +-
+ src/pkg/html/template/url.go          |  2 +-
+ src/pkg/html/template/url_test.go     |  2 +-
+ src/pkg/log/syslog/Makefile           |  2 +-
+ src/pkg/math/big/Makefile             |  2 +-
+ src/pkg/math/cmplx/Makefile           |  2 +-
+ src/pkg/math/cmplx/abs.go             |  4 +--
+ src/pkg/math/cmplx/asin.go            |  2 +-
+ src/pkg/math/cmplx/cmath_test.go      |  2 +-
+ src/pkg/math/cmplx/conj.go            |  2 +-
+ src/pkg/math/cmplx/exp.go             |  2 +-
+ src/pkg/math/cmplx/isinf.go           |  2 +-
+ src/pkg/math/cmplx/isnan.go           |  2 +-
+ src/pkg/math/cmplx/log.go             |  2 +-
+ src/pkg/math/cmplx/phase.go           |  2 +-
+ src/pkg/math/cmplx/polar.go           |  2 +-
+ src/pkg/math/cmplx/pow.go             |  2 +-
+ src/pkg/math/cmplx/rect.go            |  2 +-
+ src/pkg/math/cmplx/sin.go             |  2 +-
+ src/pkg/math/cmplx/sqrt.go            |  2 +-
+ src/pkg/math/cmplx/tan.go             |  2 +-
+ src/pkg/math/rand/Makefile            |  2 +-
+ src/pkg/net/http/Makefile             |  2 +-
+ src/pkg/net/http/cgi/Makefile         |  2 +-
+ src/pkg/net/http/fcgi/Makefile        |  2 +-
+ src/pkg/net/http/httptest/Makefile    |  2 +-
+ src/pkg/net/http/pprof/Makefile       |  2 +-
+ src/pkg/net/mail/Makefile             |  2 +-
+ src/pkg/net/rpc/Makefile              |  2 +-
+ src/pkg/net/rpc/jsonrpc/Makefile      |  2 +-
+ src/pkg/net/smtp/Makefile             |  2 +-
+ src/pkg/net/url/Makefile              |  2 +-
+ src/pkg/os/exec/Makefile              |  2 +-
+ src/pkg/text/scanner/Makefile         |  2 +-
+ src/pkg/text/tabwriter/Makefile       |  2 +-
+ src/pkg/text/template/Makefile        |  2 +-
+ src/pkg/text/template/parse/Makefile  |  2 +-
+ src/pkg/unicode/utf16/Makefile        |  2 +-
+ src/pkg/unicode/utf8/Makefile         |  2 +-
+ test/fixedbugs/bug358.go              |  2 +-
+ 66 files changed, 87 insertions(+), 144 deletions(-)

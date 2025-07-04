@@ -1,26 +1,39 @@
-commit 4fea5935f5f03b5037c792f8d5f5aa4cba90f1d6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 31 15:12:53 2022 -0800
+commit 768a39975d8851f1c309b163a8eb4b7a5388aa24
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 23 01:13:50 2021 -0400
 
-    go/types, types2: disallow real, imag, complex on type parameters
+    cmd/go/internal/modload: remove the addedModuleFor map
     
-    We can type-check these fine but the API implications are unclear.
+    At one point this map checked for infinite loops during package iteration.
+    The last write to the map was mistakenly removed in CL 251445.
     
-    Fixes #50912.
-    For #50937.
+    However, looking at the code before that change, the map-based
+    termination strategy was never quite right to begin with: it checked
+    whether we had ever added any module for the given package, not
+    whether we had already added the module being proposed right now. (For
+    packages within nested modules, we could try adding multiple different
+    modules for a given package without looping.)
     
-    Change-Id: If29bbb4a257ff6a85e3bfcd4755fd8f90c80fb87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382116
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Moreover, the "looping trying to add package" failure message was only
+    marginally helpful. Users are capable of noticing that an invocation
+    of the 'go' command is taking too long, and will report a bug for an
+    infinite loop just as readily as a "looping trying to add package"
+    error.
+    
+    We could try to add this tracking back in, but it's no substitute for
+    a proper proof of convergence, and the code is simpler without it.
+    Instead I'm going to add a proper proof of convergence — or, barring
+    that, a more accurate and useful check for failure to converge. In the
+    meantime, this invariantly-empty map isn't doing anybody any good.
+    
+    For #36460
+    
+    Change-Id: I2c111d4b4bf59159af0d7e62d1c0ef4ce0a43a71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312929
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go        | 18 +++++++++-----
- .../types2/testdata/fixedbugs/issue50912.go2       | 19 ++++++++++++++
- src/go/types/builtins.go                           | 29 +++++++++++++++++-----
- src/go/types/testdata/fixedbugs/issue50912.go2     | 19 ++++++++++++++
- test/typeparam/absdiff2.go                         | 20 +++++++++++++--
- test/typeparam/absdiff3.go                         | 20 +++++++++++++--
- test/typeparam/absdiffimp2.dir/a.go                | 20 +++++++++++++--
- 7 files changed, 127 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/modload/load.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

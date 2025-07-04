@@ -1,21 +1,19 @@
-commit f4f1ba2b1ebb76d4277cd775215ccd12994ffb40
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Aug 3 21:47:26 2012 +0200
+commit 3f34248a7712e451b4217aa135e9236e93ece964
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 3 15:27:35 2012 -0400
 
-    cmd/gc: accept switches on comparable arrays.
+    cmd/ld: add PT_PAX_FLAGS ELF header
     
-    The compiler is incorrectly rejecting switches on arrays of
-    comparable types. It also doesn't catch incomparable structs
-    when typechecking the switch, leading to unreadable errors
-    during typechecking of the generated code.
+    PAX systems are Linux systems that are more paranoid about memory permissions.
+    These flags tell them to relax when running Go binaries.
     
-    Fixes #3894.
+    Fixes #47.
     
-    R=rsc
-    CC=gobot, golang-dev, r, remy
-    https://golang.org/cl/6442074
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/6326054
 
- src/cmd/gc/swt.c | 10 +++++++---
- test/switch.go   | 32 ++++++++++++++++++++++++++++++++
- test/switch3.go  | 11 +++++++++++
- 3 files changed, 50 insertions(+), 3 deletions(-)
+ src/cmd/6l/asm.c | 5 +++++
+ src/cmd/8l/asm.c | 5 +++++
+ src/cmd/ld/elf.h | 1 +
+ 3 files changed, 11 insertions(+)

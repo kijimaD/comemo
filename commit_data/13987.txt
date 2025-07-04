@@ -1,16 +1,14 @@
-commit 9a3bc51c8119cde353da5c304b4c52f348ad7c46
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Sep 29 23:23:56 2012 +0800
+commit 0c494718afb00c4885638658e07f65ed0bc1c5e3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 28 15:55:38 2012 -0700
 
-    test/fixedbugs/bug454.go: add a test for CL 6564052
-       Also mention that ignoring second blank identifier of range is required by the spec in the code.
+    go spec: arguments for append may overlap
     
-       Fixes #4173.
+    Fixes #4142.
     
-    R=daniel.morsing, remyoudompheng, r
+    R=rsc, r, iant, ken, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6594043
+    https://golang.org/cl/6567062
 
- src/cmd/gc/range.c       |  6 +++++-
- test/fixedbugs/bug454.go | 21 +++++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

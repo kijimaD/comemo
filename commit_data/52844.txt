@@ -1,22 +1,14 @@
-commit 72ba91902a39abb47ee9681319d517d4413e3b65
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 26 17:44:24 2023 -0700
+commit 7271a0a287fdd765f29c193163b0f1305edb6205
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 6 15:45:00 2022 -0400
 
-    io/fs: add FormatFileInfo and FormatDirEntry functions
+    doc/go1.19: gc requires -p=importpath
     
-    For #54451
+    For #51400
     
-    Change-Id: I3214066f77b1398ac1f2786ea035c83f32f0a826
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489555
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I07a805147a6aa0923331f3f940a9e6e5553cbea9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410676
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- api/next/54451.txt       |   2 +
- src/io/fs/format.go      |  76 +++++++++++++++++++++++++++++
- src/io/fs/format_test.go | 123 +++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 201 insertions(+)
+ doc/go1.19.html | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

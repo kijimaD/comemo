@@ -1,23 +1,44 @@
-commit fdc076ce762326fc19ef1b6de01da6ce50f55926
-Author: Andy Nitschke <anitschk@mathworks.com>
-Date:   Tue Jun 10 11:09:35 2025 -0400
+commit 774d5b366ce43ed7e304ea3917e353112df9daf7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 26 15:58:35 2024 -0400
 
-    net/http: fix RoundTrip context cancellation for js/wasm
+    make.bash: avoid ksh bug in nogoenv
     
-    The existing js/wasm implementation of RoundTrip calls abort() on the
-    fetch() call when the context is canceled but does not wait for for the
-    resulting promise to be rejected. The result is the failure callback for the
-    promise will be called at some later point in time when the promise
-    rejection is handled. In some case this callback may be called after the Go
-    program has exited resulting in "Go program has already exited" errors.
+    ksh handles make.bash surprisingly well and is a smaller
+    supply chain attack surface, so it's reasonable to want
+    to use "ksh make.bash" to build Go.
     
-    Fixes #57098
+    The only place where ksh and bash disagree in running
+    make.bash is an arguable bug in ksh that
     
-    Change-Id: Ia37fd22cb9f667dbb0805ff5db0ceb8fdba7246b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/680937
-    Reviewed-by: Damien Neil <dneil@google.com>
+            X=Y foo
+    
+    accidentally changes the real value of X following that
+    command when foo is a shell function. (It correctly preserves
+    the original value of X when foo is a command being invoked.)
+    
+    More specifically,
+    
+            GOROOT=$GOROOT_BOOTSTRAP nogoenv foo
+    
+    incorrectly changes $GOROOT in the rest of the script.
+    
+    CL 580020 suggested using a subshell, but subshells
+    historically have lost "set -e", so we'd have to use (...) || exit 1.
+    Instead of that, this CL refactors nogoenv into bootstrapenv,
+    putting it in charge of changing $GOROOT the same way it
+    changes all the other environment variables.
+    
+    This CL also updates make.rc for parallelism.
+    It does not bother updating make.bat: that part is already
+    a bit different, and attempting to change it is all risk, no reward.
+    
+    Change-Id: I5923a6fb5016a3862363363859365d1cd4f61a1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582076
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eric Grosse <grosse@gmail.com>
 
- src/net/http/roundtrip_js.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/make.bash | 11 ++++++-----
+ src/make.rc   | 11 ++++++-----
+ 2 files changed, 12 insertions(+), 10 deletions(-)

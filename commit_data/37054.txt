@@ -1,14 +1,15 @@
-commit ddf83eeb2359f28f81bce78a6d4521852d5e6dfe
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 22 11:21:38 2018 -0700
+commit 75fdeaa801bc64b8b720433a868e1be197d03eaf
+Author: Thomas Bruyelle <thomas.bruyelle@gmail.com>
+Date:   Fri Jun 22 11:16:40 2018 +0200
 
-    cmd/compile: s/eqtype/types.Identical/ (fix build)
+    net/http: fix test assertion
     
-    TBR=khr
+    Logf doesn't make the test fail, so the test was always OK.
     
-    Change-Id: Ia5a08f1acd9f37c466829754990733330264f546
-    Reviewed-on: https://go-review.googlesource.com/c/143758
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7c10ee74ff7e5d28cbd3a35e185093cb9f349470
+    Reviewed-on: https://go-review.googlesource.com/120496
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 2 +-
+ src/net/http/transfer_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,26 @@
-commit 527ffebb2c9fe432a0ef0aa0c2449d83cd8a23cb
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sun Apr 10 12:49:40 2016 +0200
+commit 188e3d251507adb1b2910b49a091c7ba594819b6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 26 14:28:48 2016 -0800
 
-    internal/trace: fix a typo in error message
+    cmd/compile: change Func.{Enter,Exit} from NodeList to slice
     
-    Change-Id: Id79eaa6d49dae80c334c7243b0a5bbcdcb9397d3
-    Reviewed-on: https://go-review.googlesource.com/21758
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Introduces a new types Nodes that can be used to replace NodeList.
+    
+    Update #14473.
+    
+    Change-Id: Id77c5dcae0cbeb898ba12dd46bd400aad408871c
+    Reviewed-on: https://go-review.googlesource.com/19969
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/trace/parser.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/cgen.go      |  2 +-
+ src/cmd/compile/internal/gc/closure.go   | 25 +++++++-------
+ src/cmd/compile/internal/gc/fmt.go       | 32 ++++++++++++++++++
+ src/cmd/compile/internal/gc/gen.go       |  6 ++++
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go  | 22 ++++++++++---
+ src/cmd/compile/internal/gc/syntax.go    | 56 ++++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/typecheck.go |  6 ++++
+ src/cmd/compile/internal/gc/walk.go      | 50 +++++++++++++++-------------
+ 9 files changed, 157 insertions(+), 44 deletions(-)

@@ -1,12 +1,25 @@
-commit 8d73781f8b530ab27dd665314b2ca74e772a148e
+commit df68a61c9e214deeff8affd3a6120747336010ba
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 14 11:48:23 2011 -0700
+Date:   Thu Jul 14 11:34:53 2011 -0700
 
-    godoc: fix build (add Makefile change)
+    godoc: support for file systems stored in .zip files
     
-    R=bradfitz
+    Instead of serving files of the underlying OS file system,
+    a .zip file may be provided to godoc containing the files
+    to serve; for instance:
+    
+       godoc -http=:6060 -zip=go.zip
+    
+    using a .zip file created from a clean tree as follows:
+    
+       zip -r go.zip $GOROOT
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4733041
+    https://golang.org/cl/4670053
 
- src/cmd/godoc/Makefile | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/godoc/doc.go        |   2 +
+ src/cmd/godoc/filesystem.go |  20 ++++-
+ src/cmd/godoc/main.go       |  19 ++++-
+ src/cmd/godoc/zip.go        | 199 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 233 insertions(+), 7 deletions(-)

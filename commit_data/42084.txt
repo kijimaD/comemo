@@ -1,38 +1,18 @@
-commit 681ba4307781a1f1581bda3c52255186e4b79546
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 21 15:59:11 2020 -0700
+commit b4245ea54432bcdc92dc5e0e84b07408f5ee5479
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Nov 7 15:17:42 2019 -0500
 
-    cmd/compile: move fixVariadicCall from walk to order
+    [dev.link] cmd/link: use mmapped data for macho host objs
     
-    This CL moves fixVariadicCall from mid-Walk of function calls to
-    early-Order, in preparation for moving it even earlier in the future.
+    Move all the reads from macho host objects to mmapped data.
     
-    Notably, rewriting variadic calls this early introduces two
-    compilation output changes:
-    
-    1. Previously, Order visited the ODDDARG before the rest of the
-    arguments list, whereas the natural time to visit it is at the end of
-    the list (as we visit arguments left-to-right, and the ... argument is
-    the rightmost one). Changing this ordering permutes the autotmp
-    allocation order, which in turn permutes autotmp naming and stack
-    offsets.
-    
-    2. Previously, Walk separately walked all of the variadic arguments
-    before walking the entire slice literal, whereas the more natural
-    thing to do is just walk the entire slice literal. This triggers
-    slightly different code paths for composite literal construction in
-    some cases.
-    
-    Neither of these have semantic impact. They simply mean we're now
-    compiling f(a,b,c) the same way as we were already compiling
-    f([]T{a,b,c}...).
-    
-    Change-Id: I40ccc5725697a116370111ebe746b2639562fe87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229601
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9904f148feab6ef972d814a93964bcad04207b13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205841
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/order.go | 29 ++++++++++++++++-------------
- src/cmd/compile/internal/gc/walk.go  | 15 +++++----------
- 2 files changed, 21 insertions(+), 23 deletions(-)
+ src/cmd/link/internal/amd64/asm.go         |  9 +++
+ src/cmd/link/internal/loadmacho/ldmacho.go | 32 +++++------
+ src/go/build/deps_test.go                  | 90 +++++++++++++++---------------
+ 3 files changed, 69 insertions(+), 62 deletions(-)

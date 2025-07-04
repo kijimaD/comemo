@@ -1,13 +1,16 @@
-commit 969dc7626b16445d95477ff3fb08bc999ec98a32
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 9 07:12:20 2014 +1000
+commit e79bab30a58e5d74ae2f6f0a2c7e5b789c8b219a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 8 14:55:12 2014 -0400
 
-    doc/go1.3.html: Performance, plus some library details
+    encoding/xml: unmarshal into interfaces
     
-    LGTM=dvyukov, iant, rsc
-    R=golang-codereviews, dvyukov, iant, rsc
+    Fixes #6836.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc, r, mike
     CC=golang-codereviews
-    https://golang.org/cl/85250043
+    https://golang.org/cl/33140043
 
- doc/go1.3.html | 120 +++++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 96 insertions(+), 24 deletions(-)
+ src/pkg/encoding/xml/read.go      |  9 +++++++++
+ src/pkg/encoding/xml/read_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

@@ -1,22 +1,24 @@
-commit 4b23b50fb440f8df0d5da7d8c6550f5fc3cb3529
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Apr 23 14:38:05 2015 +1200
+commit b2a1fb74f4a15f97ab5a94861e1e78226077e477
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 7 11:04:01 2015 -0700
 
-    cmd/internal/obj: Delete Link.Symmorestack
+    cmd/api: update api checker to use go/types from std repo
     
-    This started out as trying to remove Bool2int calls, which it does a bit, but
-    mostly it ended up being removing the Link.Symmorestack array which seemed a
-    pointless bit of caching.
+    The old code checked out a specific version of go/types from the
+    x/tools repo. With go/types being part of the std repo, this is
+    not necessary anymore.
     
-    Change-Id: I91a51eb08cb4b08f3f9f093b575306499267b67a
-    Reviewed-on: https://go-review.googlesource.com/9239
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Also, for the same reason, the api tool is now built like any
+    other regular command. There's no need to build it for each run.
+    Removed the respective +build tags.
+    
+    Change-Id: I5088e4867223d676957084c24651ec05452ac495
+    Reviewed-on: https://go-review.googlesource.com/8564
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go   | 13 +++++--------
- src/cmd/internal/obj/arm64/obj7.go | 13 +++++--------
- src/cmd/internal/obj/link.go       |  1 -
- src/cmd/internal/obj/ppc64/obj9.go | 13 +++++--------
- src/cmd/internal/obj/x86/obj6.go   | 12 +++++-------
- 5 files changed, 20 insertions(+), 32 deletions(-)
+ src/cmd/api/goapi.go      |  31 +++++----
+ src/cmd/api/goapi_test.go |  13 +++-
+ src/cmd/api/run.go        | 166 +---------------------------------------------
+ 3 files changed, 28 insertions(+), 182 deletions(-)

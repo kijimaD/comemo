@@ -1,25 +1,17 @@
-commit e8adc393327c92525902d38a34af7f2a24e78e25
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Wed Apr 2 20:30:37 2025 +0000
+commit 2b72395eadcc46120b27b9689bed84338de5141c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 24 00:36:26 2024 -0800
 
-    cmd/go: fix GOAUTH parsing for trailing slash
+    cmd/compile/internal/noder: add method wrapper comments
     
-    We were treating a url with a trailing slash differently than one
-    without. This CL treats them the same.
+    Add commentary explaining why and how we create method wrappers.
     
-    Additionally this fixes a bug in the way we iteratively try different
-    prefixes. We were only trying the host url but this change now tries all
-    different prefixes.
-    
-    Fixes: #71889
-    Change-Id: I5d5f43000ae0e18ea8682050037253aff75ec142
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662435
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Idf35a77d0483f24c2163e11f5e001fd5536cca63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558395
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
 
- src/cmd/go/alldocs.go                 |  2 +-
- src/cmd/go/internal/auth/auth.go      |  9 +++++++--
- src/cmd/go/internal/auth/auth_test.go | 17 +++++++++++++++++
- src/cmd/go/internal/help/helpdoc.go   |  2 +-
- 4 files changed, 26 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 56 +++++++++++++++++++++++++++++++-
+ 1 file changed, 55 insertions(+), 1 deletion(-)

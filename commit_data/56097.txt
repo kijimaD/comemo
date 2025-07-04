@@ -1,40 +1,25 @@
-commit 7c89ad6a80020e3654129183c528054921899650
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Mar 27 14:24:10 2024 +0100
+commit 63a08e61bd5ac5132ed160351933622443c16b58
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Apr 10 11:08:25 2023 +0700
 
-    os: support relative paths in fixLongPath
+    cmd/compile: teach prove about bitwise OR operation
     
-    (This CL takes the tests and some ideas from the abandoned CL 263538).
+    For now, only apply the rule if either of arguments are constants. That
+    would catch a lot of real user code, without slowing down the compiler
+    with code generated for string comparison (experience in CL 410336).
     
-    fixLongPath is used on Windows to process all path names
-    before syscalls to switch them to extended-length format
-    (with prefix \\?\) to workaround a historical limit
-    of 260-ish characters.
+    Updates #57959
+    Fixes #45928
     
-    This CL updates fixLongPath to convert relative paths to absolute
-    paths if the working directory plus the relative path exceeds
-    MAX_PATH. This is necessary because the Windows API does not
-    support extended-length paths for relative paths.
-    
-    This CL also adds support for fixing device paths (\\.\-prefixed),
-    which were not previously normalized.
-    
-    Fixes #41734
-    Fixes #21782
-    Fixes #36375
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-amd64-race,gotip-windows-arm64
-    Co-authored-by: Giovanni Bajo <rasky@develer.com>
-    Change-Id: I63cfb79f3ae6b9d42e07deac435b730d97a6f492
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574695
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ie2e830d6d0d71cda3947818b22c2775bd94f7971
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483359
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/os/export_windows_test.go |   2 +-
- src/os/file.go                |   5 ++
- src/os/file_windows.go        |  13 ++-
- src/os/path_windows.go        |  74 ++++++++++++++----
- src/os/path_windows_test.go   | 178 ++++++++++++++++++++++++++++++++++--------
- 5 files changed, 221 insertions(+), 51 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 8 ++++++++
+ test/prove.go                         | 5 +++++
+ 2 files changed, 13 insertions(+)

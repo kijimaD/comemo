@@ -1,21 +1,21 @@
-commit 44e92e11c74fdb9ac016c65b319afa49737871ea
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 28 20:35:24 2022 -0800
+commit 7b768d43d0f0e3e734369496bb1caa409d4bd0bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 17:23:35 2021 -0700
 
-    cmd/compile: move unified IR's reader2 into importer package
+    math: replace float32/64 extrema with exact expressions
     
-    This keeps cmd/compile/internal/importer similar to how
-    go/internal/gcimporter will work after unified IR support is added in
-    a subsequent CL.
+    Follow-up on https://golang.org/cl/315170.
     
-    Change-Id: Id3c000f3a13a54a725602552c6b3191d1affb184
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388614
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Updates #44057.
+    Updates #44058.
+    
+    Change-Id: I0b071e8ee7a1c97aae2436945cc9583cde3b40b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315969
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/importer/support.go       | 15 +++++
- .../{noder/reader2.go => importer/ureader.go}      | 78 +++++++++++-----------
- src/cmd/compile/internal/noder/unified.go          |  3 +-
- 3 files changed, 56 insertions(+), 40 deletions(-)
+ api/except.txt    | 1 +
+ src/math/const.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 4 deletions(-)

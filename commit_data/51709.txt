@@ -1,17 +1,22 @@
-commit e38cb25b331f59a6a5e1ec8527aac9964a45f567
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 18 14:59:04 2023 -0800
+commit d1820f748f8d63da8ef602e53d1db224f072be8f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 05:43:40 2022 -0800
 
-    go/types: generate instantiate.go
+    test: add test case for #51521
     
-    Change-Id: Iad8b78bbf52eb2b0de05471bfd5a5506dc45e055
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461693
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    The test case is already working with unified IR, so add it to make
+    sure we don't regress while finishing unified IR's support for
+    dictionaries.
+    
+    Updates #51521.
+    
+    Change-Id: Ib7c8bf9612d30cd552e8e631fd0d487dcb177f14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390356
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/types/generator.go   | 32 +++++++++++++++++++++++++++++---
- src/go/types/instantiate.go |  2 ++
- 2 files changed, 31 insertions(+), 3 deletions(-)
+ test/run.go                  |  3 ++-
+ test/typeparam/issue51521.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

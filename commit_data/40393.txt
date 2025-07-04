@@ -1,18 +1,27 @@
-commit 20bba866d3aaeba728c78ff24c940b98441c791b
-Author: Rohan Verma <hello@rohanverma.net>
-Date:   Wed Oct 23 22:12:27 2019 +0000
+commit 50a1d89ab2b193e7583da32be551e6074e1e7f9a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 18:47:32 2019 -0400
 
-    doc/play: match the hello world snippet in x/website
+    fmt: rename buffer.WriteByte to writeByte
     
-    Fixes #35099
+    Renaming the method makes clear, both to readers and to vet,
+    that this method is not the implementation of io.ByteWriter.
     
-    Change-Id: Ieaf3174540087bd20443b38703ef88d9f9638052
-    GitHub-Last-Rev: 12973bc66f39caebb4156396de3b9df670bf12b5
-    GitHub-Pull-Request: golang/go#35123
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202998
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
+    
+    For #31916.
+    
+    Change-Id: I79da062ca6469b62a6b9e284c6cf2413c7425249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176109
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/play/hello.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/vet/all/whitelist/all.txt |   3 +-
+ src/fmt/errors.go                 |  14 +--
+ src/fmt/format.go                 |  16 ++--
+ src/fmt/print.go                  | 182 +++++++++++++++++++-------------------
+ src/fmt/scan.go                   |  14 +--
+ 5 files changed, 114 insertions(+), 115 deletions(-)

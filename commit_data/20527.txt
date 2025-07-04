@@ -1,29 +1,16 @@
-commit 3c94b1d305967d260b31ec3fdda51b705db752cd
+commit 03ff0dd4d1db99e786ae3efa6e417141394d6d0f
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 24 19:04:06 2014 -0400
+Date:   Tue Sep 16 11:36:40 2014 -0400
 
-    runtime: more NOPTR
+    [dev.garbage] create new branch
     
-    Fixes linux builds (_vdso); may fix others.
-    I can at least cross-compile cmd/go for every
-    implemented system now.
+    This branch is for Rick Hudson's work on concurrent collection,
+    targeted to land at the beginning of the 1.5 cycle.
     
-    TBR=iant
+    LGTM=rlh
+    R=rlh
     CC=golang-codereviews
-    https://golang.org/cl/142630043
+    https://golang.org/cl/138510043
 
- src/runtime/mem_plan9.c         | 1 +
- src/runtime/rt0_linux_386.s     | 2 +-
- src/runtime/rt0_linux_arm.s     | 2 +-
- src/runtime/rt0_plan9_386.s     | 8 ++++----
- src/runtime/rt0_plan9_amd64.s   | 8 ++++----
- src/runtime/rt0_solaris_amd64.s | 2 +-
- src/runtime/sys_dragonfly_386.s | 2 +-
- src/runtime/sys_freebsd_386.s   | 2 +-
- src/runtime/sys_netbsd_386.s    | 2 +-
- src/runtime/sys_openbsd_386.s   | 2 +-
- src/runtime/sys_windows_386.s   | 2 +-
- src/runtime/sys_windows_amd64.s | 2 +-
- src/sync/atomic/asm_arm.s       | 2 +-
- src/sync/atomic/asm_linux_arm.s | 2 +-
- 14 files changed, 20 insertions(+), 19 deletions(-)
+ dev.garbage | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

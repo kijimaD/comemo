@@ -1,29 +1,17 @@
-commit d164776615f75105c6f988900d798a0f476c4668
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Apr 2 10:43:47 2025 +0200
+commit 8b94733bc7c648da47ec312476f22d48785be277
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Fri Feb 23 01:07:08 2024 +0000
 
-    internal/poll: simplify execIO
+    encoding/xml: remove unnecessary fmt.Sprintf call
     
-    execIO has multiple return paths and multiple places where error is
-    mangled. This CL simplifies the function by just having one return
-    path.
-    
-    Some more tests have been added to ensure that the error handling
-    is done correctly.
-    
-    Updates #19098.
-    
-    Change-Id: Ida0b1e85d4d123914054306e5bef8da94408b91c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662215
+    Change-Id: Iba6014340d8b697a3a26b35e8d5a702ccf332e10
+    GitHub-Last-Rev: ef60463c7b98c2bdabe6d04e0f86947b7f395765
+    GitHub-Pull-Request: golang/go#65872
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565841
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/internal/poll/export_windows_test.go           |  17 --
- src/internal/poll/fd_windows.go                    | 205 +++++++++------------
- src/internal/poll/fd_windows_test.go               | 158 ++++++++--------
- src/internal/poll/sendfile_windows.go              |   2 +-
- .../syscall/windows/nonblocking_windows.go         |  21 +++
- src/internal/syscall/windows/syscall_windows.go    |   3 +
- 6 files changed, 191 insertions(+), 215 deletions(-)
+ src/encoding/xml/marshal_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

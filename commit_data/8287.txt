@@ -1,55 +1,19 @@
-commit 16381b145e606729332793cade647d8eb76c042b
+commit 6af887ec0303ade5ef5fde72fba5c28f72907685
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 2 09:17:46 2011 -0700
+Date:   Mon May 2 09:16:31 2011 -0700
 
-    go/token: faster FileSet.Position implementation
+    go spec: restricted expressions may still be parenthesized
     
-    - added a cache for last file looked up: avoids binary
-      search if the file matches
+    No language change.
     
-    - don't look up extra line info if not present
-      (it is almost never present)
+    - added a few examples with parentheses
+    - added a corresponding sentence to assignments
+      (this explicitly permits: (_) = 0, currently allowed by 6g,
+      gofmt, but marked as an error by gccgo).
     
-    - inline one critical binary search call (inlining
-      provides almost 30% improvement in this case)
-    
-    Together, these changes make the go/printer benchmark
-    more than twice as fast (53% improvement). gofmt also
-    sped up by about the same amount.
-    
-    Also: removed an unused internal field from FileSet.
-    
-    Measurements (always best of 5 runs):
-    
-    * original:
-      printer.BenchmarkPrint     5    238354200 ns/op (100%)
-    
-    * using last file cache:
-      printer.BenchmarkPrint    10    201796600 ns/op (85%)
-    
-    * avoiding lookup of extra line info:
-      printer.BenchmarkPrint    10    157072700 ns/op (66%)
-    
-    * inlining a critical binary search call:
-      printer.BenchmarkPrint    10    111523500 ns/op (47%)
-    
-    gofmt (always best of 3 runs):
-    
-    * before:
-      time gofmt -l src misc
-      real  0m33.316s
-      user  0m31.298s
-      sys   0m0.319s
-    
-    * after:
-      time gofmt -l src misc
-      real  0m15.889s
-      user  0m14.596s
-      sys   0m0.224s
-    
-    R=r, dfc, bradfitz, rsc1
+    R=rsc, r, iant
     CC=golang-dev
-    https://golang.org/cl/4433086
+    https://golang.org/cl/4446071
 
- src/pkg/go/token/position.go | 52 ++++++++++++++++++++++++++++++++------------
- 1 file changed, 38 insertions(+), 14 deletions(-)
+ doc/go_spec.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

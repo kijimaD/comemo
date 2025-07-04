@@ -1,24 +1,35 @@
-commit c20eb96e6b990b455c73204a15489656106b1342
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 11 09:51:17 2019 -0400
+commit 4d23cbc67100c1ce50b7d4fcc67e50091f92eb5b
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Mar 23 15:25:42 2019 +0100
 
-    cmd/go/internal/modload: add an Unwrap method on ImportMissingError
+    cmd/compile: add sign-extension operators on wasm
     
-    Jay suggested this in CL 189780, and it seems semantically correct.
+    This change adds the GOWASM option "signext" to enable
+    the generation of experimental sign-extension operators.
     
-    As far as I can tell this has no impact one way or the other right
-    now, but might prevent confusion (or at least give us more experience
-    with error handling!) in future changes.
+    The feature is in phase 4 of the WebAssembly proposal process:
+    https://github.com/WebAssembly/meetings/blob/master/process/phases.md
     
-    Updates #30748
-    Updates #28459
-    Updates #30322
+    More information on the feature can be found at:
+    https://github.com/WebAssembly/sign-extension-ops/blob/master/proposals/sign-extension-ops/Overview.md
     
-    Change-Id: I5d7e9a08ea141628ed6a8fd03c62d0d3c2edf2bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194817
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6b30069390a8699fbecd9fb4d1d61e13c59b0333
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168882
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modload/import.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/install-source.html                     |  2 +-
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  3 ++
+ src/cmd/compile/internal/ssa/gen/WasmOps.go |  4 ++
+ src/cmd/compile/internal/ssa/opGen.go       | 42 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 72 +++++++++++++++++++++++++++++
+ src/cmd/compile/internal/wasm/ssa.go        |  5 +-
+ src/cmd/go/alldocs.go                       |  3 ++
+ src/cmd/go/internal/help/helpdoc.go         |  3 ++
+ src/cmd/internal/obj/wasm/a.out.go          |  7 ++-
+ src/cmd/internal/obj/wasm/anames.go         |  6 +++
+ src/cmd/internal/obj/wasm/wasmobj.go        |  2 +-
+ src/cmd/internal/objabi/util.go             |  9 ++--
+ 12 files changed, 151 insertions(+), 7 deletions(-)

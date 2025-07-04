@@ -1,21 +1,33 @@
-commit c591d82ea99b70b251a51cefd11ddc42ff004ce6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 4 10:24:05 2022 -0700
+commit 229b90931312aa1686f4bace25d1f40f896884ad
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Nov 10 11:39:18 2021 -0800
 
-    cmd/compile/internal/syntax: better error message for erroneous method declaration
+    cmd/compile: don't do Resolve on OKEY identifiers during import
     
-    Also make error recovery slightly more robust in this case.
+    For generic functions, we can export untransformed OKEY nodes, and the
+    key identifier is written as an ONONAME. But in this case, we do not
+    want to call Resolve() on the identifier, since we may resolve to a
+    global type (as happens in this issue) or other global symbol with the
+    same name, if it exists. We just want to keep the key identifier as an
+    Ident node.
     
-    Fixes #56022.
+    To solve this, I added an extra bool when exporting an ONONAME entry,
+    which indicates if this entry is for a key or for a global (external)
+    symbol. When the bool is true (this is for a key), we avoid calling
+    Resolve().
     
-    Change-Id: I1c01c1465adb48c71367d037b6f0e3fe56f68ec9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438540
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #49497
+    
+    Change-Id: Ic8fa93d37bcad2110e0e0d060080b733e07e35d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363074
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go          | 22 +++++++++++-----------
- .../compile/internal/syntax/testdata/issue56022.go | 10 ++++++++++
- 2 files changed, 21 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go |  6 +++++-
+ src/cmd/compile/internal/typecheck/iimport.go |  8 +++++++-
+ test/typeparam/issue49497.dir/a.go            | 26 ++++++++++++++++++++++++++
+ test/typeparam/issue49497.dir/main.go         | 11 +++++++++++
+ test/typeparam/issue49497.go                  |  7 +++++++
+ 5 files changed, 56 insertions(+), 2 deletions(-)

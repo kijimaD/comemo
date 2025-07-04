@@ -1,20 +1,29 @@
-commit 0362f5ba14e15c4fcc607f9f462c3f02fb11ff52
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Sep 18 02:34:09 2022 +1000
+commit ca8b31920a23541dda56bc76d3ddcaef3c3c0866
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 13 09:51:55 2022 -0400
 
-    cmd/dist,internal/platform: add openbsd/riscv64 port
+    cmd/api: make check pickier about api/*.txt
     
-    Updates #55999
+    We don't have a formatter for these files, so check here that
+    they are in the right form to allow 'cat next/*.txt >go1.X.txt'
+    at the end of each cycle.
     
-    Change-Id: I3c07f776919e36e4c1fdc5346f7622e5901a2902
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518624
+    Fix the api files that the check finds.
+    
+    Change-Id: I0c5e4ab11751c7d0afce32503131d487313f41c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431335
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Aaron Bieber <deftly@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/cmd/dist/build.go            | 8 +++++---
- src/internal/platform/zosarch.go | 2 ++
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ api/next/42537.txt   |  2 +-
+ api/next/43620.txt   |  2 +-
+ api/next/45899.txt   |  2 +-
+ api/next/46746.txt   |  2 +-
+ api/next/50429.txt   |  2 +-
+ api/next/51896.txt   |  2 +-
+ api/next/53482.txt   |  4 ++--
+ src/cmd/api/goapi.go | 43 +++++++++++++++++++++++++++++++++----------
+ 8 files changed, 41 insertions(+), 18 deletions(-)

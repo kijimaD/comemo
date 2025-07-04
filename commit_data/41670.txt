@@ -1,22 +1,25 @@
-commit 0c0e8f224d5724e317952f77d215a752a3a7b7d9
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Mar 16 20:08:00 2020 -0400
+commit 46aa8354fa57ab5a4fb133898baf18aafbeb2e88
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 17 16:31:19 2019 -0700
 
-    runtime: don't send preemption signal if there is a signal pending
+    cmd/compile: only escape unsafe.Pointer conversions when -d=checkptr=2
     
-    If multiple threads call preemptone to preempt the same M, it may
-    send many signals to the same M such that it hardly make
-    progress, causing live-lock problem. Only send a signal if there
-    isn't already one pending.
+    Escaping all unsafe.Pointer conversions for -d=checkptr seems like it
+    might be a little too aggressive to enable for -race/-msan mode, since
+    at least some tests are written to expect unsafe.Pointer conversions
+    to not affect escape analysis.
     
-    Fixes #37741.
+    So instead only enable that functionality behind -d=checkptr=2.
     
-    Change-Id: Id94adb0b95acbd18b23abe637a8dcd81ab41b452
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223737
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #22218.
+    Updates #34959.
+    
+    Change-Id: I2f0a774ea5961dabec29bc5b8ebe387a1b90d27b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201840
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime2.go    |  4 ++++
- src/runtime/signal_unix.go | 10 +++++++++-
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/escape.go | 4 ++--
+ src/cmd/compile/internal/gc/main.go   | 5 +++++
+ src/cmd/compile/internal/gc/walk.go   | 9 +++++----
+ 3 files changed, 12 insertions(+), 6 deletions(-)

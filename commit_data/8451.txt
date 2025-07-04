@@ -1,22 +1,17 @@
-commit bf73ca88a67eb0abc4ce711f261d093466021025
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 20 11:51:31 2011 -0700
+commit 5107041df72194e12aee6c6d68f2088c859c41b7
+Author: Alexander Orlov <alexander.orlov@loxal.net>
+Date:   Fri May 20 11:03:33 2011 -0700
 
-    syscall: sendfile
+    misc: syntax highlighting support on IntelliJ IDEA
     
-    R=iant
+    Go keywords from Vim's syntax configuration file were used.
+    Issue Tracker Reference: http://code.google.com/p/go/issues/detail?id=1850
+    
+    Fixes #1850.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4553051
+    https://golang.org/cl/4547054
 
- src/pkg/syscall/syscall_darwin.go       | 5 +++++
- src/pkg/syscall/syscall_freebsd.go      | 5 +++++
- src/pkg/syscall/syscall_linux.go        | 1 -
- src/pkg/syscall/syscall_linux_386.go    | 1 +
- src/pkg/syscall/syscall_linux_amd64.go  | 1 +
- src/pkg/syscall/syscall_linux_arm.go    | 1 +
- src/pkg/syscall/syscall_plan9.go        | 5 +++++
- src/pkg/syscall/syscall_windows.go      | 5 +++++
- src/pkg/syscall/zsyscall_linux_386.go   | 9 +++++++++
- src/pkg/syscall/zsyscall_linux_amd64.go | 9 +++++++++
- src/pkg/syscall/zsyscall_linux_arm.go   | 9 +++++++++
- 11 files changed, 50 insertions(+), 1 deletion(-)
+ misc/IntelliJIDEA/Go.xml | 98 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 98 insertions(+)

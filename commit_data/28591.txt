@@ -1,27 +1,31 @@
-commit dd748cf3141d45eeeedcb9b88aa11e47b16a0008
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 29 15:43:10 2016 -0700
+commit 225ef76c250fc9ab9794fd723952209e2ff440aa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jun 1 06:41:08 2016 -0400
 
-    cmd/compile: make Afunclit the default/only behavior for Naddr
+    [dev.ssa] cmd/compile: fix scheduling of tuple ops
     
-    Naddr used to translate PFUNC Nodes into references to the function
-    literal wrapper, and then Afunclit could be used to rewrite it to
-    reference the function text itself. But now everywhere we use Naddr on
-    PFUNC Nodes, we immediately call Afunclit anyway. So just merge
-    Afunclit's behavior into Naddr.
+    We want tuple-reading ops immediately follow tuple-generating op, so
+    that tuple values will not be spilled/copied.
     
-    Passes toolstash/buildall.
+    The mechanism introduced in the previous CL cannot really avoid tuples
+    interleaving. In this CL we always emit tuple and their selectors together.
+    Maybe remove the tuple scores if it does not help on performance (todo).
     
-    Change-Id: If2ca6d7f314c1a0711df9b8209aace16ba4b8bc0
-    Reviewed-on: https://go-review.googlesource.com/30073
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Also let tighten not move tuple-reading ops across blocks.
+    
+    In the previous CL a special case of regenerating flags with tuple-reading
+    pseudo-op is added, but it did not cover end-of-block case. This is fixed
+    in this CL and the condition is generalized.
+    
+    Progress on SSA backend for ARM. Still not complete.
+    
+    Updates #15365.
+    
+    Change-Id: I8980b34e7a64eb98153540e9e19a3782e20406ff
+    Reviewed-on: https://go-review.googlesource.com/23792
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/arm/ggen.go    |  4 +---
- src/cmd/compile/internal/arm64/ggen.go  |  4 +---
- src/cmd/compile/internal/gc/gsubr.go    | 14 +-------------
- src/cmd/compile/internal/gc/pgen.go     |  1 -
- src/cmd/compile/internal/mips64/ggen.go |  4 +---
- src/cmd/compile/internal/ppc64/ggen.go  |  4 +---
- 6 files changed, 5 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/ssa/flagalloc.go | 29 ++++++++++++++++++-----------
+ src/cmd/compile/internal/ssa/schedule.go  | 27 ++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/tighten.go   |  5 ++++-
+ 3 files changed, 48 insertions(+), 13 deletions(-)

@@ -1,33 +1,24 @@
-commit ff5cf4ced3f1681ec972cd954d4b476f87616fe3
-Author: YunQiang Su <syq@debian.org>
-Date:   Sat Jun 20 14:04:54 2020 +0000
+commit 4b09c8ad6fb9d30b9c3417b5364809ff0006749d
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jul 8 09:40:33 2020 -0400
 
-    cmd/link,debug/elf: mips32, add .gnu.attributes and .MIPS.abiflags sections
+    crypto: fix PKCS space in docs
     
-    MIPS32 uses .gnu.attributes and .MIPS.abiflags sections to mark FP ABI
-    the object is using, and the kernel will set the correct FP mode for it.
-    
-    Currrently Go doesn't generate these 2 sections. If we link object
-    without these 2 sections togather FPXX objects, the result will be FPXX,
-    which is wrong:
-       FP32 + FPXX -> FP32
-       FPXX + FP64 -> FP64
-       FP32 + FP64 -> reject
-    
-    These 2 sections is also needed to support FPXX and FP64 in future.
-    
-    More details about FP32/FPXX/FP64 are explained in:
-        https://web.archive.org/web/20180828210612/https://dmz-portal.mips.com/wiki/MIPS_O32_ABI_-_FR0_and_FR1_Interlinking
-    
-    Fixes #39677
-    
-    Change-Id: Ia34e7461dee38a4f575dd8ace609988744512ac1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239217
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Meng Zhuo <mzh@golangcn.org>
+    Change-Id: Iee53acb963a889410f8c6daaa9a7841f1b12c6fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241497
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/link/internal/ld/elf.go | 145 ++++++++++++++++++++++++++++++++++++++++
- src/debug/elf/elf.go            |   2 +
- 2 files changed, 147 insertions(+)
+ src/crypto/crypto.go            |  2 +-
+ src/crypto/rsa/example_test.go  |  2 +-
+ src/crypto/rsa/pkcs1v15.go      | 14 +++++++-------
+ src/crypto/rsa/rsa.go           | 14 +++++++-------
+ src/crypto/tls/auth.go          |  4 ++--
+ src/crypto/tls/key_agreement.go |  2 +-
+ src/crypto/tls/tls.go           |  2 +-
+ src/crypto/tls/tls_test.go      |  4 ++--
+ src/crypto/x509/pkcs1.go        | 12 ++++++------
+ src/crypto/x509/pkcs8.go        |  6 +++---
+ src/crypto/x509/x509.go         |  2 +-
+ 11 files changed, 32 insertions(+), 32 deletions(-)

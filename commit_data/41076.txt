@@ -1,23 +1,26 @@
-commit c399afef61dadbc9deb2d5bc0cb8227200af00b9
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Dec 30 15:47:54 2019 -0500
+commit 85f3ca74882703042bcc2f17353eda192d649920
+Author: William Poussier <william.poussier@gmail.com>
+Date:   Sun Sep 1 15:38:31 2019 +0000
 
-    cmd/go: convert TestCoverageImportMainLoop and TestGoTestMain
+    encoding/json: fix panic for nil instances of TextMarshaler in map keys
     
-    Convert these two tests to the script framework.
+    This change adds a a check in the encodeWithString.resolve method
+    to ensure that a reflect.Value with kind Ptr is not nil before
+    the type assertion to TextMarshaler.
     
-    Updates #17751
-    Updates #36320
+    If the value is nil, the method returns a nil error, and the map key
+    encodes to an empty string.
     
-    Change-Id: I9cc14360fab949dab91f9e5e667be85002ef5926
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212811
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes #33675
+    
+    Change-Id: I0a04cf690ae67006f6a9c5f8cbb4cc99d236bca8
+    GitHub-Last-Rev: 6c987c90846f854e21814dbfb3a073605ec8a94c
+    GitHub-Pull-Request: golang/go#33700
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190697
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/go_test.go                              | 26 ----------------------
- .../go/testdata/script/cover_import_main_loop.txt  | 22 ++++++++++++++++++
- .../test_main_twice.txt}                           |  7 ++++++
- src/cmd/go/testdata/src/importmain/ismain/main.go  |  5 -----
- src/cmd/go/testdata/src/importmain/test/test.go    |  1 -
- .../go/testdata/src/importmain/test/test_test.go   |  6 -----
- 6 files changed, 29 insertions(+), 38 deletions(-)
+ src/encoding/json/encode.go      |  3 +++
+ src/encoding/json/encode_test.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+)

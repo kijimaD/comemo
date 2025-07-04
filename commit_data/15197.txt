@@ -1,14 +1,12 @@
-commit 0a22018d461d7999df3af40cefb6ace17dfe79c0
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 11 07:46:39 2013 -0500
+commit 66c96f1abc6e6fc944b07305e975d497a61ff83e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 11 17:59:52 2013 +1100
 
-    spec: reject top-level init names
+    container/list: add package example
     
-    Fixes #4586.
-    
-    R=golang-dev, remyoudompheng, r
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7307082
+    https://golang.org/cl/7306078
 
- doc/go_spec.html | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/container/list/example_test.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

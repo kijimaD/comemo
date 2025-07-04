@@ -1,13 +1,12 @@
-commit 99021b767f991bba547c282f173f63cf997b58c3
-Author: Herbert Georg Fischer <herbert.fischer@gmail.com>
-Date:   Fri Mar 15 13:43:10 2013 -0700
+commit 92c153d5f4fcc6aac88916f4b21186f8428fdc26
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Mar 15 16:07:52 2013 -0400
 
-    doc: explain why cmd/go uses https for repositories and how to work around it
-    Fixes #3418.
+    runtime: scan the type of an interface value
     
-    R=golang-dev, r
-    CC=adg, golang-dev
-    https://golang.org/cl/7712045
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7744047
 
- doc/go_faq.html | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/pkg/runtime/mgc0.c | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)

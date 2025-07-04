@@ -1,12 +1,12 @@
-commit ab08eac5b78c05672a1bcdc5012f9f9384f86fba
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Tue Mar 19 19:57:15 2013 +0100
+commit d8714ca49f974d6117b443bfe90c0cc3511dc138
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Tue Mar 19 14:47:41 2013 -0400
 
-    runtime: optimize calls to addroot()
+    unicode: modify a comment to the convention format.
     
-    R=golang-dev, rsc
-    CC=dvyukov, golang-dev
-    https://golang.org/cl/7879043
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/7869043
 
- src/pkg/runtime/mgc0.c | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/unicode/letter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

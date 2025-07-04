@@ -1,17 +1,22 @@
-commit e002cf4df7fcd9925916ed78df7ed2a49031ed2e
-Author: George Looshch <looshch@loosh.ch>
-Date:   Sat Jan 15 21:43:05 2022 +0200
+commit a893682d83760a9f9bb6f5d543b907ee6467cc6e
+Author: Ian Mckay <iann0036@gmail.com>
+Date:   Thu Apr 29 06:30:44 2021 +0000
 
-    strings: fix typo in comment
+    net/url: add Values.Has
     
-    Remove unnecessary whitespace in noescape comment
+    Adds a method within Values for detecting whether a query parameter is set.
     
-    Fixes #50634
+    Fixes #45100
     
-    Change-Id: I1c8d16c020b05678577d349470fac7e7ab8a10b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378815
+    Change-Id: I6bb49417e8547e11cc7e8d55c5211d24ee436ec1
+    GitHub-Last-Rev: 0b27cdab9024b93bad1eab9941aff8928a29fa76
+    GitHub-Pull-Request: golang/go#45835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314850
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Cherry Zhang <cherryyz@google.com>
 
- src/strings/builder.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/net/url/url.go      |  6 ++++++
+ src/net/url/url_test.go | 18 +++++++++++++++---
+ 2 files changed, 21 insertions(+), 3 deletions(-)

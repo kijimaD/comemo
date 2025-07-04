@@ -1,17 +1,26 @@
-commit a032f74bf0b40a94669159e7d7e96722eb76199b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 5 21:53:30 2017 -0500
+commit ffb4708d1bcf4a391ecf293b01695565c1b7cd04
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Sat Sep 9 00:22:29 2017 +0100
 
-    crypto/x509/pkix: remove references to fmt.Stringer in String method docs
+    math: fix Abs, Copysign and Signbit benchmarks
     
-    String method comments should explain what they do,
-    not that they are attempting to implement fmt.Stringer.
+    CL 62250 makes constant folding a bit more aggressive and these
+    benchmarks were optimized away. This CL adds some indirection to
+    the function arguments to stop them being folded.
     
-    Change-Id: If51dd1ff2f0c2f9ef9dca569bfa0c3914be2e8fe
-    Reviewed-on: https://go-review.googlesource.com/82081
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    The Copysign benchmark is a bit faster because I've left one
+    argument as a constant and it can be partially folded.
+    
+                         old           CL 62250     this CL
+    Copysign             1.24ns ± 0%   0.34ns ± 2%  1.02ns ± 2%
+    Abs                  0.67ns ± 0%   0.35ns ± 3%  0.67ns ± 0%
+    Signbit              0.87ns ± 0%   0.35ns ± 2%  0.87ns ± 1%
+    
+    Change-Id: I9604465a87d7aa29f4bd6009839c8ee354be3cd7
+    Reviewed-on: https://go-review.googlesource.com/62450
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/pkix/pkix.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/math/all_test.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

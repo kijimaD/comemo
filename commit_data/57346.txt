@@ -1,30 +1,21 @@
-commit c541aabfc3d104c71a139e4d3599c220a5c6d019
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 4 18:32:07 2024 +0700
+commit 17d67ed0c904871bb2738ec7d1ed7831924c9aaf
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Sat Jul 29 17:00:35 2023 +0000
 
-    cmd: remove notsha256 package
+    debug/buildinfo: read full data segment to lookup buildinfo magic
     
-    All of its usages were removed in CL 610596.
+    Fixes #61644
     
-    Updates #51940
-    Updates #64751
-    
-    Change-Id: I72a0ea4bd44a2f671e032bffa1facf84822a90f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610599
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I7d40c33e65221994bb6865d22dd0994545603ba8
+    GitHub-Last-Rev: aca92afcbdef2dd191ed0e5c61da29d3b1cb0698
+    GitHub-Pull-Request: golang/go#61649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514075
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/dist/buildtool.go                         |   4 +-
- src/cmd/internal/notsha256/sha256.go              | 141 -------
- src/cmd/internal/notsha256/sha256_test.go         | 175 ---------
- src/cmd/internal/notsha256/sha256block.go         | 128 ------
- src/cmd/internal/notsha256/sha256block_386.s      | 285 --------------
- src/cmd/internal/notsha256/sha256block_amd64.go   |   9 -
- src/cmd/internal/notsha256/sha256block_amd64.s    | 426 --------------------
- src/cmd/internal/notsha256/sha256block_decl.go    |  10 -
- src/cmd/internal/notsha256/sha256block_generic.go |  11 -
- src/cmd/internal/notsha256/sha256block_ppc64x.s   | 459 ----------------------
- 10 files changed, 1 insertion(+), 1647 deletions(-)
+ src/debug/buildinfo/buildinfo.go | 49 +++++++++++++++++++++-------------------
+ 1 file changed, 26 insertions(+), 23 deletions(-)

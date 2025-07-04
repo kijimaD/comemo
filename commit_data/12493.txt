@@ -1,17 +1,15 @@
-commit 90010f8f6351256113368130a4040da78e1fe401
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Mar 8 06:23:56 2012 +0800
+commit 5c4d6ebb118bc541647b9b15af5a19502570d0dd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Mar 7 23:15:55 2012 +0100
 
-    build: re-enable some broken tests in run.bash
-            Updates #2982.
+    cmd/go: support -compiler for go list, fix isStale for gccgo.
     
-    R=rsc, rsc
+    Fixes #3228.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5759064
+    https://golang.org/cl/5784044
 
- .hgignore                   |  4 ++--
- src/run.bash                | 29 +++++++++--------------------
- test/bench/go1/Makefile     |  5 -----
- test/bench/go1/dummy.go     |  3 ---
- test/bench/go1/gzip_test.go | 10 ++--------
- 5 files changed, 13 insertions(+), 38 deletions(-)
+ src/cmd/go/list.go | 1 +
+ src/cmd/go/pkg.go  | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)

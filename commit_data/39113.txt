@@ -1,19 +1,21 @@
-commit ef4666eccedd457b33baa5b7d4bff95680e60741
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 10 11:13:06 2019 -0400
+commit abd1dde1f717f86f94774ce9ab56053947f2d175
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Mon Dec 31 15:03:33 2018 -0800
 
-    runtime: fix windows-amd64-2012 build
+    cmd/compile: fix no-op instruction used by s390x
     
-    I forgot that in Go assembly, x+16(SP) is not the same as 16(SP).
-    The former is the virtual stack pointer (one word below FP on x86)
-    while the latter is the actual stack pointer.
+    CL 152537 introduced a new use for ginsnop, the arch-dependent
+    routine that generates nops. The previous s390x nop clobbered flags.
+    It turns out the previous uses of this nop did not require flags
+    to be preserved, but the new use does.
     
-    Change-Id: Ibb7012bb97261949f5e1a0dc70869d9a6f50aa99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176557
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Use a real nop: the 4-byte preferred nop.
+    
+    Fixes #29453
+    
+    Change-Id: I95310dfdd831932e26f5d5b6608324687f4c3162
+    Reviewed-on: https://go-review.googlesource.com/c/155926
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/runtime/os_windows.go       | 3 ++-
- src/runtime/sys_windows_amd64.s | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/s390x/ggen.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

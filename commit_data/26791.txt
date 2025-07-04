@@ -1,17 +1,16 @@
-commit d22357ce9dc650a69e78b37a6b25be1ee0b8b26c
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Apr 7 15:31:49 2016 -0400
+commit 90fea9d09ac9876147c7223884a09357c3418ed2
+Author: Derek Shockey <derek.shockey@gmail.com>
+Date:   Tue Feb 23 21:17:25 2016 -0800
 
-    cmd/compile: cleanup -dynlink/-shared support check
+    misc/git: Fix non-literal period in pre-commit grep
     
-    Moves the list of architectures that support shared libraries into
-    a function. Also adds s390x to that list.
+    Looks like this was intended to match a literal period to restrict
+    this to `.go` files, but in POSIX grep, the unescaped period matches
+    any character.
     
-    Change-Id: I99c8a9f6cd4816ce3d53abaabaf8d002e25e6b28
-    Reviewed-on: https://go-review.googlesource.com/21661
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Change-Id: I20e00323baa9e9631792eff5035966297665bbee
+    Reviewed-on: https://go-review.googlesource.com/19880
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ misc/git/pre-commit | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

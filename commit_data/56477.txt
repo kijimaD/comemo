@@ -1,20 +1,19 @@
-commit 0222a028f19d9f497cf407bcf07f3ec56a032bdb
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed May 1 15:03:34 2024 -0500
+commit 3d80d57c31fcaaa505791c9aa68eebc5deb6ad46
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 19 13:47:53 2023 -0400
 
-    cmd/compile/internal/ssa: combine more shift and masking on PPC64
+    reflect: prepare fieldnames for moving to abi/type.go
     
-    Investigating binaries, these patterns seem to show up frequently.
-    
-    Change-Id: I987251e4070e35c25e98da321e444ccaa1526912
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583302
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ia8e88029d29a1210dc7a321578e61336e235f35a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487555
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  13 ++
- src/cmd/compile/internal/ssa/rewrite.go       |  50 ++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 176 ++++++++++++++++++++++++++
- test/codegen/shift.go                         |  23 +++-
- 4 files changed, 261 insertions(+), 1 deletion(-)
+ src/internal/reflectlite/reflect_mirror_test.go |   2 +
+ src/reflect/abi.go                              |   6 +-
+ src/reflect/export_test.go                      |   8 +-
+ src/reflect/type.go                             | 481 +++++++++---------------
+ src/reflect/value.go                            |  60 +--
+ 5 files changed, 216 insertions(+), 341 deletions(-)

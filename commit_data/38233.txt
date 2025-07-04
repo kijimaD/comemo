@@ -1,20 +1,17 @@
-commit 94cbfc2f7f6b375426381c81d8efe78b12e058c3
-Author: Johan Brandhorst <johan.brandhorst@gmail.com>
-Date:   Sun Mar 3 20:16:13 2019 +0000
+commit d82e51a11973714708ddc7f9f055ae8ea3d509f1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 12 10:54:06 2018 +0200
 
-    net/http: support configuring redirect fetch option
+    internal/poll: add FD.Fsync on aix
     
-    Adds a magic header value that is translated to the
-    Fetch API redirect option, following existing practices.
+    Follow-up for CL 138717. This fixes the build of the os package on
+    aix.
     
-    Updates #26769
-    
-    Change-Id: Iaf1c9f710de63ea941a360b73f1b4bb725331a35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164666
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Change-Id: I879b9360e71837ab622ae3a7b6144782cf5a9ce7
+    Reviewed-on: https://go-review.googlesource.com/c/141797
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/roundtrip_js.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/internal/poll/fd_fsync_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

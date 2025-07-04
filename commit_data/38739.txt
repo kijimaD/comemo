@@ -1,21 +1,19 @@
-commit ee64b35531a841ab4dbe41c17390214f9dea654f
-Author: OkamotoYuki <okamoto.yuki.0130@gmail.com>
-Date:   Sun Mar 10 02:38:12 2019 +0000
+commit 55c55dda1fa8f9351d992e4a05e94f8cb38f59a0
+Author: Vladimir Kovpak <cn007b@gmail.com>
+Date:   Tue Nov 20 09:08:11 2018 +0000
 
-    cmd/go/internal/test: pass default timeout to test programs if not given from command line
+    regexp: use backquotes for all regular expression examples
     
-    Make 'go test' command to pass the default timeout (10m) to test programs if the value is not given from command line.
+    This commit performs replace double quote to backquote,
+    so now all examples looks consistent.
     
-    Fixes #28147
-    
-    Change-Id: I7856e452224a51a92da03bab8e3a0f9d7c41d32a
-    GitHub-Last-Rev: 66f9a6f90e9ffe7c58d5c1fe32af84e16ea74ab8
-    GitHub-Pull-Request: golang/go#30545
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164963
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I8cf760ce1bdeff9619a88e531161b9516385241b
+    GitHub-Last-Rev: e3e636cebbf41528b8a73f9a3fe5afa10876f964
+    GitHub-Pull-Request: golang/go#28879
+    Reviewed-on: https://go-review.googlesource.com/c/150397
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/test/test.go            | 15 ++++++++++++---
- src/cmd/go/testdata/script/test_timeout.txt | 21 +++++++++++++++++++++
- 2 files changed, 33 insertions(+), 3 deletions(-)
+ src/regexp/example_test.go | 42 +++++++++++++++++++++---------------------
+ 1 file changed, 21 insertions(+), 21 deletions(-)

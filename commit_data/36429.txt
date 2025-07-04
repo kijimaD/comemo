@@ -1,19 +1,25 @@
-commit 0a519401651f46a098c5c295943cc1c48e53a48c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 6 22:57:35 2018 -0700
+commit 6b55407d2f342b9c291740f777b718a229690164
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Apr 25 23:04:36 2018 -0700
 
-    runtime: make TestGcSys actually test something
+    cmd/vet: remove "only" from error message
     
-    The workthegc function was being inlined, and the slice did not
-    escape, so there was no memory allocation. Use a sink variable to
-    force memory allocation, at least for now.
+    If the vetted function supplies zero arguments, previously you would
+    get an error message like this:
     
-    Fixes #23343
+        Printf format %v reads arg #1, but call has only 0 args
     
-    Change-Id: I02f4618e343c8b6cb552cb4e9f272e112785f7cf
-    Reviewed-on: https://go-review.googlesource.com/122576
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    "has only 0 args" is an odd construction, and "has 0 args" sounds
+    better. Getting rid of "only" in all cases simplifies the code and
+    reads just as well.
+    
+    Change-Id: I4706dfe4a75f13bf4db9c0650e459ca676710752
+    Reviewed-on: https://go-review.googlesource.com/109457
+    Run-TryBot: Kevin Burke <kev@inburke.com>
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/testdata/testprog/gc.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/vet/print.go          |  2 +-
+ src/cmd/vet/testdata/print.go | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,29 +1,18 @@
-commit 804d03281c04096fca7f73dc33d1d62e09a86892
-Author: Nikhil Benesch <nikhil.benesch@gmail.com>
-Date:   Tue Apr 3 00:35:46 2018 -0400
+commit 644787c337f7fde20a0676f843bb12378c8f885e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Nov 17 10:01:06 2017 +0000
 
-    cmd/go: rebuild as needed when vetting test packages
+    cmd/compile: delete temporary files when test finishes
     
-    If A's external test package imports B, which imports A, and A's
-    internal test code adds something to A that invalidates anything in A's
-    export data, then we need to build B against the test-augmented version
-    of A before using it to build A's external test package.
+    I noticed some files prefixed with ssa_fg_tmp in the /tmp folder of
+    the s390x builder. runGenTest (a helper for TestGenFlowGraph) wasn't
+    deleting its temporary files. The distinct prefix made this easy to
+    figure out.
     
-    https://golang.org/cl/92215 taught 'go test' to do this rebuilding
-    properly, but 'go vet' was not taught the same trick when it learned to
-    vet test packages in https://golang.org/cl/87636. This commit moves the
-    necessary logic into the load.TestPackagesFor function so it can be
-    shared by 'go test' and 'go vet'.
-    
-    Fixes #23701.
-    
-    Change-Id: I1086d447eca02933af53de693384eac99a08d9bd
-    Reviewed-on: https://go-review.googlesource.com/104315
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If0d608aaad04a414e74e29f027ec9443c626e4eb
+    Reviewed-on: https://go-review.googlesource.com/78475
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go            |  3 ++-
- src/cmd/go/internal/load/pkg.go  | 53 ++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/internal/test/test.go | 50 -------------------------------------
- 3 files changed, 55 insertions(+), 51 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

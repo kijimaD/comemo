@@ -1,30 +1,21 @@
-commit 86cd6c2ee5c5e4c5b5edf4ea8d1c85f80d9706a8
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Tue Oct 1 18:39:29 2019 +0300
+commit 755b50952c9571202322bf63a42254ea8ea5655c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 17 08:32:33 2019 -0400
 
-    text/template/parse: use strings.Builder in Chain and List nodes
+    cmd/compile/internal/ssa: skip TestNexting/gdb-dbg-i22558
     
-    This CL is a continuation of 198078. Benchmark output:
+    This test fails frequently in the longtest builder, and the failures
+    on the build dashboard have masked two other regressions so far.
+    Let's skip it until it can be fixed.
     
-    benchmark                     old ns/op     new ns/op     delta
-    BenchmarkParseLarge-8         24759165      24516563      -0.98%
-    BenchmarkVariableString-8     115           115           +0.00%
-    BenchmarkListString-8         924           680           -26.41%
+    Updates #31263
     
-    benchmark                     old allocs     new allocs     delta
-    BenchmarkVariableString-8     3              3              +0.00%
-    BenchmarkListString-8         14             13             -7.14%
-    
-    benchmark                     old bytes     new bytes     delta
-    BenchmarkVariableString-8     72            72            +0.00%
-    BenchmarkListString-8         512           424           -17.19%
-    
-    Change-Id: I9ec48fe4832437c556a5fa94d4cbf6e29e28d944
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198080
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I82bae216ebc3c5fd395c27c72c196334a130af7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172423
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/text/template/parse/node.go       | 20 ++++++++++++--------
- src/text/template/parse/parse_test.go | 22 +++++++++++++++++++---
- 2 files changed, 31 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/ssa/debug_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

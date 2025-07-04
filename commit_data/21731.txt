@@ -1,21 +1,14 @@
-commit 4100f7d95c0b51bc366103f91c9c9cad223c4168
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 24 14:28:49 2015 -0800
+commit 79807793748cd845685bb2a81ed0fdf2559f1684
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 29 13:45:56 2015 +0100
 
-    cmd/go: make asm the first assembler
+    cmd/pack: make a test less disk-intensive in short mode
     
-    verifyAsm is still on, but this CL changes the order to asm then 6a.
-    Before, it was 6a then asm, but that meant that any bugs in asm
-    for bad input would be prevented from happening because 6a would
-    catch them. Now asm gets first crack, as it must.
+    Fixes #9656
     
-    Also implement the -trimpath flag in asm. It's necessary and trivial.
-    
-    Change-Id: Ifb2ab870de1aa1b53dec76a78ac697a0d36fa80a
-    Reviewed-on: https://go-review.googlesource.com/5850
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1158636683492ef12eeafb12e257d205026adc3f
+    Reviewed-on: https://go-review.googlesource.com/3175
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/asm/internal/flags/flags.go | 2 +-
- src/cmd/asm/main.go                 | 1 +
- src/cmd/go/build.go                 | 6 +++---
- 3 files changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/pack/pack_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

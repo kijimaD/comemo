@@ -1,29 +1,29 @@
-commit 073247f11fa0202e916820aa71044dcca11f4c7c
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Sat Mar 18 15:09:40 2017 +0100
+commit f8b4123613a2cb0c453726033a03a1968205ccae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 10 16:19:14 2017 -0800
 
-    cmd/link: export specialized variants of runtime._type to debug_info
+    [dev.typealias] spec: use term 'embedded field' rather than 'anonymous field'
     
-    The reflect package can be used to create new types at runtime, these
-    types will have runtime._type entries describing them but no entry in
-    debug_info (obviously).
+    First steps towards defining type aliases in the spec.
+    This is a nomenclature clarification, not a language change.
     
-    A debugger that wanted to print the value of variables with such types
-    will have to read the runtime._type directly, however the
-    "specializations" of runtime._type (runtime.slicetype, runtime.maptype,
-    etc) are not exported to debug_info, besides runtime.interfacetype.
+    The spec used all three terms 'embedded type', 'anonymous field',
+    and 'embedded field'. Users where using the terms inconsistently.
     
-    All those types (i.e. runtime.slicetype, runtime.maptype, etc) should
-    be exported to debug_info so that debuggers don't have to hard-code
-    their description.
+    The notion of an 'anonymous' field was always misleading since they
+    always had a de-facto name. With type aliases that name becomes even
+    more important because we may have different names for the same type.
     
-    Fixes #19602
+    Use the term 'embedded field' consistently and remove competing
+    terminology.
     
-    Change-Id: I086d523a4421a4ed964e16bc3c2274319a98b45b
-    Reviewed-on: https://go-review.googlesource.com/38350
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    For #18130.
+    
+    Change-Id: I2083bbc85788cab0b2e2cb1ff58b2f979491f001
+    Reviewed-on: https://go-review.googlesource.com/35108
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go      | 18 +++++--
- src/cmd/link/internal/ld/dwarf_test.go | 90 ++++++++++++++++++++++++++++++++++
- 2 files changed, 104 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 50 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

@@ -1,28 +1,17 @@
-commit 3ffd29fb2cfeee77c7f58fcae3496665695eb938
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 3 12:44:20 2014 -0400
+commit e6f21be3f48802f18013a7e95bb3850882ab96e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 24 16:55:39 2014 -0700
 
-    cmd/cc, runtime: disallow structs without tags
+    net/http: support https_proxy in ProxyFromEnvironment
     
-    Structs without tags have no unique name to use in the
-    Go definitions generated from the C types.
-    This caused issue 8812, fixed by CL 149260043.
-    Avoid future problems by requiring struct tags.
+    Fixes #6181
     
-    Update runtime as needed.
-    (There is no other C code in the tree.)
-    
-    LGTM=bradfitz, iant
-    R=golang-codereviews, bradfitz, dave, iant
-    CC=golang-codereviews, khr, r
-    https://golang.org/cl/150360043
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/148980043
 
- src/cmd/cc/cc.y                |    1 +
- src/cmd/cc/y.tab.c             | 1147 ++++++++++++++++------------------------
- src/cmd/cc/y.tab.h             |   68 +--
- src/runtime/malloc.h           |    6 +-
- src/runtime/os_plan9.h         |    2 +-
- src/runtime/proc.c             |    2 +-
- src/runtime/runtime.h          |    4 +-
- src/runtime/vdso_linux_amd64.c |   20 +-
- 8 files changed, 495 insertions(+), 755 deletions(-)
+ src/net/http/export_test.go    |  1 +
+ src/net/http/transport.go      | 11 ++++++++++-
+ src/net/http/transport_test.go | 33 ++++++++++++++++++++++++++++-----
+ 3 files changed, 39 insertions(+), 6 deletions(-)

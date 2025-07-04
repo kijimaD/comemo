@@ -1,21 +1,20 @@
-commit e153905a7bc59265ddbe9054eac11bc5f9706d3e
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Feb 27 10:29:24 2023 -0500
+commit a5f801f39d8c9d4df2edfd6ffd9171b9216445d1
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Mar 27 03:07:30 2022 +0200
 
-    cmd/link: revert CL 467715 in favor of better fix
+    crypto/elliptic: delete outdated fuzz test
     
-    This patch backs out CL 467715 (written to fix 58425), now that we
-    have a better fix for the "relocation doesn't fit" problem in the
-    trampoline generation phase (send in a previous CL).
+    It had not been doing anything since CL 233939, because the Params
+    method was getting upgraded to the assembly one. We could make it use
+    genericParamsForCurve, but really we need lower-level, targeted Go 1.18
+    fuzz targets in nistec now.
     
-    Updates #58428.
-    Updates #58425.
-    
-    Change-Id: Ib0d966fed00bd04db7ed85aa4e9132382b979a44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471596
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I5b198a309aa90ecef9c04aaa6c107d5c0a41a44b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396254
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/link/internal/ld/data.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/elliptic/fuzz_test.go | 53 ----------------------------------------
+ 1 file changed, 53 deletions(-)

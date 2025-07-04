@@ -1,18 +1,27 @@
-commit 665def2c11bb49749b075d612e98b6db293266a7
-Author: Eric Chiang <ericchiang@google.com>
-Date:   Thu Nov 12 19:13:02 2020 -0800
+commit 25e9417b9807bc6166b127f698d145ce060cd23f
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu May 7 10:06:28 2020 -0400
 
-    encoding/asn1: document unmarshaling behavior for IMPLICIT string fields
+    [dev.link] cmd/link: convert Asmb2 path to loader APIs for Elf/AMD64
     
-    Fixes #42570.
+    This patch converts the linker's Asmb2 phase to use loader APIs
+    for AMD64 (other architectures to be converted in a subsequent
+    patch).
     
-    Change-Id: I73e339cdebe1720c141861a12e28a94cef13c75b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269798
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Katie Hockman <katie@golang.org>
+    Change-Id: I5a9aa9b03769cabc1a22b982f48fd113213d7bcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233338
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/encoding/asn1/asn1.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/link/internal/amd64/asm.go  |   8 +-
+ src/cmd/link/internal/ld/data.go    |   5 +
+ src/cmd/link/internal/ld/dwarf.go   |  22 +-
+ src/cmd/link/internal/ld/dwarf2.go  |  14 +-
+ src/cmd/link/internal/ld/elf.go     | 117 ++++----
+ src/cmd/link/internal/ld/elf2.go    | 585 ++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go     |  39 +--
+ src/cmd/link/internal/ld/lib2.go    |  51 ++++
+ src/cmd/link/internal/ld/main.go    |   2 +-
+ src/cmd/link/internal/ld/symtab.go  | 155 ++++++----
+ src/cmd/link/internal/ld/symtab2.go | 166 ++++++++++
+ 11 files changed, 1004 insertions(+), 160 deletions(-)

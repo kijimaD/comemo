@@ -1,23 +1,22 @@
-commit 24c52ee57046f5e58ce6db158b0efad02ced6606
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 08:19:35 2017 -0700
+commit af59742d0f6abe96eb5d68151b4d2ccb45d5ed89
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Feb 7 10:57:33 2017 -0500
 
-    cmd/compile: move typepkg to package types
+    net/http: don't modify Request in StripPrefix
     
-    Response to code review feedback on CL 40693.
+    As of https://golang.org/cl/21530, rules are updated to state
+    that Handlers shouldn't modify the provided Request. This change
+    updates StripPrefix to follow that rule.
     
-    It is now only accessible by types.TypePkgLookup.
+    Resolves #18952.
     
-    Passes toolstash-check.
-    
-    Change-Id: I0c422c1a271f97467ae38de53af9dc33f4b31bdb
-    Reviewed-on: https://go-review.googlesource.com/41304
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I29bbb580722e871131fa75a97e6e038ec64fdfcd
+    Reviewed-on: https://go-review.googlesource.com/36483
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/go.go      |  2 --
- src/cmd/compile/internal/gc/main.go    |  2 --
- src/cmd/compile/internal/gc/reflect.go | 10 +++++-----
- src/cmd/compile/internal/types/pkg.go  |  7 +++++++
- 4 files changed, 12 insertions(+), 9 deletions(-)
+ src/net/http/serve_test.go | 10 ++++++++++
+ src/net/http/server.go     |  8 ++++++--
+ 2 files changed, 16 insertions(+), 2 deletions(-)

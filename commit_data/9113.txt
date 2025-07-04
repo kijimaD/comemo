@@ -1,12 +1,15 @@
-commit 92c6061b5cc214fb7863c1af11cb8581ecb97769
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 18 12:30:10 2011 -0400
+commit 3745716bc3940f471137bf06fbe8c042257a43d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 18 09:04:48 2011 -0700
 
-    5l: assume Linux binary, not Plan 9
+    http: let FileServer work when path doesn't begin with a slash
     
-    R=bradfitz
+    ... as when it's over-stripped with StripPrefix.
+    
+    R=golang-dev, andybalholm, rsc
     CC=golang-dev
-    https://golang.org/cl/4767042
+    https://golang.org/cl/4759052
 
- src/cmd/5l/obj.c | 14 ++------------
- 1 file changed, 2 insertions(+), 12 deletions(-)
+ src/pkg/http/fs.go      |  7 ++++++-
+ src/pkg/http/fs_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

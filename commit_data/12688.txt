@@ -1,13 +1,12 @@
-commit c58163c572bec64b5a7a658a2b658e6de412cd0c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 20 13:35:31 2012 +1100
+commit 7905faaee2ee5ebd628856b05f22b9e1264b7b92
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 20 10:57:54 2012 +0900
 
-    misc/dashboard: remove remnants of package dashboard
+    net: drop unnecessary type assertions and fix leak in test
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5847070
+    https://golang.org/cl/5847064
 
- misc/dashboard/godashboard/project.html | 1 +
- misc/dashboard/godashboard/project.py   | 6 ------
- 2 files changed, 1 insertion(+), 6 deletions(-)
+ src/pkg/net/unicast_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

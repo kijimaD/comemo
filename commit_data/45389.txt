@@ -1,37 +1,19 @@
-commit 4a7effa418b4644abc5142e35228e26c6a52a50a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 27 17:19:42 2021 -0400
+commit 4ce9ea52c9ac48f85fba1233b6e7d563f89dff8b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 22 23:59:00 2020 +1100
 
-    cmd/compile: mark R12 clobbered for special calls
+    strconv: fix Eisel-Lemire for negative zero
     
-    In external linking mode the external linker may insert
-    trampolines, which use R12 as a scratch register. So a call could
-    potentially clobber R12 if the target is laid out too far. Mark
-    R12 clobbered.
+    This is somewhat academic (and no tests failed before this commit),
+    since func atof64 only calls func eiselLemire when func atof64exact
+    fails, and func atof64exact doesn't fail when parsing positive or
+    negative zeroes. But it's still worth fixing.
     
-    Also, we will use R12 for trampolines in the Go linker as well.
-    
-    CL 310731 updated the generated rewrite files so imports are
-    grouped, but the generator was not updated to do so. Grouped
-    imports are nice. But as those are generated files, for
-    simplicity and my laziness, just regenerate with the current
-    generator (which makes imports not grouped).
-    
-    Change-Id: Iddb741ff7314a291ade5fbffc7d315f555808409
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314453
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ibe6ef4c8fd96827673b711d5456003fbc447e39c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264140
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARMOps.go     | 11 ++++++-----
- src/cmd/compile/internal/ssa/opGen.go          |  8 ++++----
- src/cmd/compile/internal/ssa/rewrite386.go     |  6 ++----
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 10 ++++------
- src/cmd/compile/internal/ssa/rewriteARM.go     |  6 ++----
- src/cmd/compile/internal/ssa/rewritePPC64.go   |  8 +++-----
- src/cmd/compile/internal/ssa/rewriteRISCV64.go |  6 ++----
- src/cmd/compile/internal/ssa/rewriteS390X.go   |  8 +++-----
- src/cmd/compile/internal/ssa/rewriteWasm.go    |  8 +++-----
- src/cmd/compile/internal/ssa/rewritegeneric.go |  6 ++----
- 10 files changed, 31 insertions(+), 46 deletions(-)
+ src/strconv/eisel_lemire.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

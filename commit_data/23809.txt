@@ -1,17 +1,28 @@
-commit 37a097519facb21c29af821cbdfffbf9d48c045b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 29 17:36:26 2015 -0700
+commit 85b333dbf8a367bfd4f6d946c92096d21c61111f
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Tue Jun 9 14:36:05 2015 -0700
 
-    spec: be precise about rune/string literals and comments
+    cmd/go: force-overwrite destination files when installing cgo headers
     
-    See #10248 for details.
+    Fixes #11131
     
-    Fixes #10248.
+    When running 'go install -buildmode=c-shared', under the circumstances
+    described in issue #11131, the install command would fail trying to
+    install cgo headers if they have already been installed (by a previous
+    call to 'go install -buildmode=c-shared').
     
-    Change-Id: I373545b2dca5d1da1c7149eb0a8f6c6dd8071a4c
-    Reviewed-on: https://go-review.googlesource.com/10503
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Since it's safe to overwrite said headers (according to iant@), this CL
+    introduces a parameter to builder's 'copy' and 'move' functions that,
+    if set to 'true', would force the overwriting of already installed
+    files.
+    
+    This parameter value is set to 'true' only when installing cgo headers,
+    for now.
+    
+    Change-Id: I5bda17ee757066a8e5d2b39f2e8f3a389eb1e4a2
+    Reviewed-on: https://go-review.googlesource.com/10870
+    Run-TryBot: Srdjan Petrovic <spetrovic@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 48 ++++++++++++++++++++++++------------------------
- 1 file changed, 24 insertions(+), 24 deletions(-)
+ src/cmd/go/build.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

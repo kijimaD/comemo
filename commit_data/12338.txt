@@ -1,12 +1,15 @@
-commit a142ed99d525d93b91f9f3ea6ef9b7e03a1a88ae
+commit 5aea33742a946b177590d44e6942ff781a18f111
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Mar 3 04:47:42 2012 +0800
+Date:   Sat Mar 3 04:14:31 2012 +0800
 
-    fix build for FreeBSD/amd64
+    ld: allow more -L options
+            Dynamically allocate the libdir array, so we won't need to bother it again.
+            Enhances CL 5727043.
     
-    R=rsc, golang-dev, iant
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5732043
+    https://golang.org/cl/5731043
 
- src/cmd/ld/lib.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/ld/lib.c | 21 ++++++++++++++++-----
+ src/cmd/ld/lib.h |  2 +-
+ 2 files changed, 17 insertions(+), 6 deletions(-)

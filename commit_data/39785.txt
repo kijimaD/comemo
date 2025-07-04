@@ -1,23 +1,14 @@
-commit a71967e4c5aa34f274b8b9aff915f14ac00e7ee8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 30 15:59:16 2019 -0700
+commit af7b7571c4575748cf8cb2ffe683e97286666e1c
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:58:42 2019 +0100
 
-    cmd/compile: replace copytype to setUnderlying
+    cmd/dist: enable cgo for aix/ppc64
     
-    While here, change the params to be easier to understand: "t" is now
-    always the type being updated, and "underlying" is now used to
-    represent the underlying type.
-    
-    Updates #33658.
-    
-    Change-Id: Iabb64414ca3abaa8c780e4c9093e0c77b76fabf9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192724
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I78be2b0b857d1ea2fb0b6906eb5afd796580f52d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164019
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/iimport.go   |  2 +-
- src/cmd/compile/internal/gc/typecheck.go | 36 +++++++++++++++-----------------
- src/cmd/compile/internal/types/type.go   |  2 +-
- 3 files changed, 19 insertions(+), 21 deletions(-)
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

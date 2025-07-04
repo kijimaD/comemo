@@ -1,0 +1,39 @@
+commit 6c25cf1c5fc063cc9ea27aa850ef0c4345f3a5b4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 10 12:00:10 2024 -0500
+
+    cmd/internal/objfile: break out dissassemblers to another package
+    
+    Currently, cmd/internal/objfile provides dissassembly routines for
+    various architectures, which depend on dissassemblers from x/arch.
+    cmd/internal/objfile is imported in tools that need dissassembly
+    (objdump, pprof) and tools that don't need dissassembly (nm,
+    addr2line). Adding/improving disassembly support for more
+    architectures can cause binary size increase, and for some tools
+    (nm, addr2line) it is not necessary.
+    
+    This CL breaks out dissassembly routines to a different package,
+    which is only imported in tools that need dissassembly. Other
+    tools can depend on cmd/internal/objfile without the disassembly
+    code from x/arch.
+    
+    This reduces binary sizes for those tools. On darwin/arm64,
+    
+                                     old         new
+    cmd/addr2line                  4554418     3648882   -20%
+    cmd/addr2line (-ldflags=-w)    3464626     2641650   -24%
+    cmd/nm                         4503874     3616722   -20%
+    cmd/nm (-ldflags=-w)           3430594     2609490   -24%
+    
+    For #70699.
+    
+    Change-Id: Ie45d5d5c5500c5f3882e8b3c4e6eb81f0d815292
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634916
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/{objfile => disasm}/disasm.go | 28 ++++++++++++++------------
+ src/cmd/internal/objfile/objfile.go            | 10 +++++----
+ src/cmd/objdump/main.go                        |  3 ++-
+ src/cmd/pprof/pprof.go                         |  9 +++++----
+ 4 files changed, 28 insertions(+), 22 deletions(-)

@@ -1,15 +1,27 @@
-commit 9417ff55c35e0a1623af2a05c6e714c660ad6b4f
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Jun 7 16:24:52 2018 -0400
+commit 99843e22e81045ba5e6776095a2cb3ef5704c70e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 22 10:43:35 2018 -0800
 
-    crypto/tls: expand docs on client-side session ticket support
+    go/types: type-check embedded methods in correct scope (regression)
     
-    Users are sometimes confused why session tickets are not enabled even if
-    SessionTicketsDisabled is false.
+    Change https://go-review.googlesource.com/79575 fixed the computation
+    of recursive method sets by separating the method set computation from
+    type computation. However, it didn't track an embedded method's scope
+    and as a result, some methods' signatures were typed in the wrong
+    context.
     
-    Change-Id: I3b783d2cf3eed693a3ad6acb40a8003db7e0b648
-    Reviewed-on: https://go-review.googlesource.com/117255
-    Reviewed-by: Adam Langley <agl@golang.org>
+    This change tracks embedded methods together with their scope and
+    uses that scope for the correct context setup when typing those
+    method signatures.
+    
+    Fixes #23914.
+    
+    Change-Id: If3677dceddb43e9db2f9fb3c7a4a87d2531fbc2a
+    Reviewed-on: https://go-review.googlesource.com/96376
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/crypto/tls/common.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/go/types/interfaces.go             | 21 ++++++++++++---------
+ src/go/types/testdata/importdecl1a.src | 11 +++++++++++
+ src/go/types/testdata/importdecl1b.src |  4 ++++
+ src/go/types/typexpr.go                | 13 +++++++++----
+ 4 files changed, 36 insertions(+), 13 deletions(-)

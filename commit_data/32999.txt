@@ -1,20 +1,16 @@
-commit da4d740fc84bfbbfe24956725f864fecdc89002d
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Fri Oct 6 18:04:10 2017 +0200
+commit 7c02beb96a601001091c91a9cf0fe4cb6ce459a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 22 16:28:11 2017 -0700
 
-    cmd/link/internal/loadmacho: reduce scope of local declarations
+    go/types: prevent crash in type cycles involving non-type expressions
     
-    Move some local declarations closer to their use, reducing their
-    respective lifetimes, also improve few error messages.
-    Follow up of CL 67370.
+    Fixes #18643.
     
-    Updates #22095
-    
-    Change-Id: I6131159ae8de571015ef5459b33d5c186e543a37
-    Reviewed-on: https://go-review.googlesource.com/69110
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I36dca943d552a178a71094ff883b0319fe03d130
+    Reviewed-on: https://go-review.googlesource.com/46467
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/loadmacho/ldmacho.go | 137 ++++++++++++-----------------
- 1 file changed, 56 insertions(+), 81 deletions(-)
+ src/go/types/expr.go             | 22 ++++++++++++++++++++++
+ src/go/types/testdata/cycles.src | 11 ++++++++++-
+ 2 files changed, 32 insertions(+), 1 deletion(-)

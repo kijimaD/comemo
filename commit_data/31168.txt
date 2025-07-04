@@ -1,17 +1,30 @@
-commit 16db1892d32bffdcc636665ba0325142b3c7ad72
-Author: Mostyn Bramley-Moore <mostyn@antipode.se>
-Date:   Mon Apr 17 21:32:21 2017 +0200
+commit d9e6835b1d0ac90d82c62e33a2aa0daf602940b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 11:49:16 2017 -0500
 
-    syscall: make TestFcntlFlock more robust
+    cmd/go: break a few dependencies
     
-    Avoid the use of constant absolute temp files in tests.  This could
-    produce flaky results, for example on multiuser development machines.
+    This CL makes a few naming changes to break dependencies
+    between different parts of the go command, to make it easier
+    to split into different packages.
     
-    Change-Id: Ia76157a0660fbe294bb31a46ded886cea5deec97
-    Reviewed-on: https://go-review.googlesource.com/40916
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This is the first CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I69a98b9ea48e61b1e1cda95273d29860b525415f
+    Reviewed-on: https://go-review.googlesource.com/36129
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/syscall/syscall_unix_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go | 77 ++++++++++++++++++++++++++++-------------------------
+ src/cmd/go/main.go  | 66 ++++++++++++++++++++++++++-------------------
+ src/cmd/go/pkg.go   | 24 ++++++++---------
+ src/cmd/go/test.go  | 28 +++++++++----------
+ 4 files changed, 105 insertions(+), 90 deletions(-)

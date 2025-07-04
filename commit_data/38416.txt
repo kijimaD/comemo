@@ -1,25 +1,15 @@
-commit 47e42cdadc4abeb28ff21930bfe22210dcb9abd4
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Tue Mar 12 23:40:03 2019 +0100
+commit bc4a10d16ca8582eaa92e5b834616df55c777503
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 26 20:20:03 2018 -0700
 
-    misc/wasm: add workaround for missed timeout events
+    cmd/compile/internal/gc: remove toolstash hacks
     
-    TryBot is sometimes running into deadlocks on js/wasm. We haven't been
-    able to reproduce them yet. This workaround is an experiment to resolve
-    these deadlocks by retrying a missed timeout event.
-    
-    A timeout event is scheduled by Go to be woken by JavaScript after a
-    certain amount of time. The checkTimeouts function then checks which
-    notes to wake by comparing their deadline to nanotime. If this
-    check fails erroneously then the note may stay asleep forever, causing
-    a deadlock. This may or may not be the reason of the observed
-    deadlocks.
-    
-    Updates #28975.
-    
-    Change-Id: I46b9d4069307142914f0e7b3acd4e65578319f0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167119
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I221f77075a25e934e20b41307758a89c19169e05
+    Reviewed-on: https://go-review.googlesource.com/c/145201
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/wasm/wasm_exec.js | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/iexport.go | 1 -
+ src/cmd/compile/internal/gc/iimport.go | 3 ---
+ 2 files changed, 4 deletions(-)

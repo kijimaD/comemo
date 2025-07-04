@@ -1,21 +1,55 @@
-commit 289a8719ce4a84cec0ed4e47037da0e82d67dcb8
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sun Jun 4 12:11:19 2017 +0900
+commit 48de5a85fbc452bfc3af7422cd8aba0fab132d3d
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Feb 16 16:14:16 2017 +0100
 
-    cmd/cgo: unwrap typedef-chains before type checking
+    net/http: import updated idna package and adjust request.go
     
-    clang can emit some dwarf.VoidType which are wrapped by multiple
-    dwarf.TypedefType. We need to unwrap those before further processing.
+    Custom logic from request.go has been removed.
     
-    Fixes #20129
+    Created by running: “go run gen.go -core” from x/text
+    at fc7fa097411d30e6708badff276c4c164425590c.
     
-    Change-Id: I671ce6aef2dc7b55f1a02aec5f9789ac1b369643
-    Reviewed-on: https://go-review.googlesource.com/44772
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes golang/go#17268
+    
+    Change-Id: Ie440d6ae30288352283d303e5126e5837f11bece
+    Reviewed-on: https://go-review.googlesource.com/37111
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue20129.go | 33 +++++++++++++++++++++++++++++++++
- src/cmd/cgo/gcc.go          |  2 +-
- 3 files changed, 35 insertions(+), 1 deletion(-)
+ src/net/http/request.go                            |   19 +-
+ src/vendor/golang_org/x/net/idna/idna.go           |  672 ++-
+ src/vendor/golang_org/x/net/idna/idna_test.go      |   43 -
+ src/vendor/golang_org/x/net/idna/punycode.go       |   23 +-
+ src/vendor/golang_org/x/net/idna/tables.go         | 4479 ++++++++++++++++++++
+ src/vendor/golang_org/x/net/idna/trie.go           |   72 +
+ src/vendor/golang_org/x/net/idna/trieval.go        |  116 +
+ .../golang_org/x/text/secure/bidirule/bidirule.go  |  344 ++
+ src/vendor/golang_org/x/text/secure/doc.go         |    8 +
+ .../golang_org/x/text/transform/examples_test.go   |   39 +
+ .../golang_org/x/text/transform/transform.go       |    4 +-
+ src/vendor/golang_org/x/text/unicode/bidi/bidi.go  |  198 +
+ .../golang_org/x/text/unicode/bidi/bracket.go      |  337 ++
+ src/vendor/golang_org/x/text/unicode/bidi/core.go  | 1060 +++++
+ .../golang_org/x/text/unicode/bidi/example_test.go |  185 +
+ src/vendor/golang_org/x/text/unicode/bidi/prop.go  |  208 +
+ .../golang_org/x/text/unicode/bidi/tables.go       | 1781 ++++++++
+ .../golang_org/x/text/unicode/bidi/trieval.go      |   62 +
+ src/vendor/golang_org/x/text/unicode/doc.go        |   10 +
+ .../golang_org/x/text/unicode/norm/composition.go  |    2 +
+ .../x/text/unicode/norm/example_iter_test.go       |   84 +
+ .../golang_org/x/text/unicode/norm/example_test.go |   29 +
+ .../golang_org/x/text/unicode/norm/forminfo.go     |   51 +-
+ src/vendor/golang_org/x/text/unicode/norm/input.go |    2 +
+ src/vendor/golang_org/x/text/unicode/norm/iter.go  |    2 +
+ .../golang_org/x/text/unicode/norm/normalize.go    |    7 +-
+ .../golang_org/x/text/unicode/norm/readwriter.go   |    2 +
+ .../golang_org/x/text/unicode/norm/tables.go       | 1022 ++---
+ .../golang_org/x/text/unicode/norm/transform.go    |    2 +
+ src/vendor/golang_org/x/text/unicode/norm/trie.go  |    2 +
+ src/vendor/golang_org/x/text/width/kind_string.go  |   16 -
+ src/vendor/golang_org/x/text/width/tables.go       | 1284 ------
+ src/vendor/golang_org/x/text/width/transform.go    |  239 --
+ src/vendor/golang_org/x/text/width/trieval.go      |   30 -
+ src/vendor/golang_org/x/text/width/width.go        |  206 -
+ 35 files changed, 10232 insertions(+), 2408 deletions(-)

@@ -1,18 +1,19 @@
-commit 862fb86c6e2b84dc08c65d3692e7758bcc120ba8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Oct 11 18:23:30 2017 +1100
+commit 79e1505e3b328e3623bd2e0c563fac65ac771612
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed Jun 21 00:35:18 2017 -0600
 
-    internal/poll: only call SetFileCompletionNotificationModes for sockets
+    reflect: match MakeMapWithSize docs about initial capacity with spec
     
-    CL 36799 made SetFileCompletionNotificationModes to be called for
-    file handles. I don't think it is correct. Revert that change.
+    Following the spec clarification in CL 40393, copy that text
+    to reflect docs to state that the initial capacity of MakeMapWithSize
+    is a hint/approximate.
     
-    Fixes #22024
-    Fixes #22207
+    Fixes #19903
     
-    Change-Id: I26260e8a727131cffbf60958d79eca2457495554
-    Reviewed-on: https://go-review.googlesource.com/69871
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6b3315b8183cafaa61fbb2839a4e42b76fd71544
+    Reviewed-on: https://go-review.googlesource.com/46270
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/internal/poll/fd_windows.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/value.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

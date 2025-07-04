@@ -1,16 +1,12 @@
-commit 5158147e24a4626d14971fdda38d71db4a975a04
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 13 18:08:33 2015 -0700
+commit 95ab84a34f67742b59227e6c7b45d287071d87b0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 16 18:18:13 2015 +0900
 
-    debug/elf: support reading debug info from 32-bit PPC objects
+    runtime: fix accidentally exported OpenBSD constants
     
-    Fixes #10118.
-    
-    Change-Id: I4a2e6748db609c6eed1d68c824b81c59bd7b875c
-    Reviewed-on: https://go-review.googlesource.com/7590
+    Change-Id: I2de63668a1c0152cc329df55c2d6d014e8183158
+    Reviewed-on: https://go-review.googlesource.com/4943
     Reviewed-by: Minux Ma <minux@golang.org>
 
- src/debug/elf/file.go                              |  42 +++++++++++++++++++++
- src/debug/elf/file_test.go                         |   6 +++
- .../elf/testdata/go-relocation-test-gcc5-ppc.obj   | Bin 0 -> 2356 bytes
- 3 files changed, 48 insertions(+)
+ src/runtime/os1_openbsd.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

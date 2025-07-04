@@ -1,12 +1,16 @@
-commit e085a891f05e78908c1a2541119e32e03fe21922
-Author: Sergey Frolov <sfrolov@google.com>
-Date:   Tue May 30 12:53:11 2017 -0400
+commit 2acd3fa8f134dafd34a1789177950474b256a74a
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Apr 7 08:31:52 2017 +0200
 
-    crypto/tls: split clientHandshake into multiple methods
+    cmd/compile: reduce switch cases in evconst
     
-    Change-Id: I23bfaa7e03a21aad4e85baa3bf52bb00c09b75d0
-    Reviewed-on: https://go-review.googlesource.com/44354
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reduces the number of cases that need to be tested and
+    reduces size of the evconst function by 101 bytes.
+    
+    Change-Id: Ie56055a89d0dadd311fb940b51c488fc003694b9
+    Reviewed-on: https://go-review.googlesource.com/39950
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/tls/handshake_client.go | 157 +++++++++++++++++++++++--------------
- 1 file changed, 98 insertions(+), 59 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 78 ++++++++++++++++--------------------
+ 1 file changed, 35 insertions(+), 43 deletions(-)

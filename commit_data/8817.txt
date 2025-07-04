@@ -1,12 +1,109 @@
-commit 5dfdccf2b0d499881b9453eb4a1e8b91a3f1e706
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 22 11:33:30 2011 -0700
+commit 712fb6dcd31ec4f861e402c99f25991ed39f8da5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 22 10:52:47 2011 -0700
 
-    Fix Windows build; ErrorString->NewError
+    os.Error API: don't export os.ErrorString, use os.NewError consistently
     
-    R=golang-dev, gri
+    This is a core API change.
+    
+    1) gofix misc src
+    2) Manual adjustments to the following files under src/pkg:
+       gob/decode.go
+       rpc/client.go
+       os/error.go
+       io/io.go
+       bufio/bufio.go
+       http/request.go
+       websocket/client.go
+    as well as:
+       src/cmd/gofix/testdata/*.go.in (reverted)
+       test/fixedbugs/bug243.go
+    3) Implemented gofix patch (oserrorstring.go) and test case (oserrorstring_test.go)
+    
+    Compiles and runs all tests.
+    
+    R=r, rsc, gri
     CC=golang-dev
-    https://golang.org/cl/4634080
+    https://golang.org/cl/4607052
 
- src/pkg/os/exec_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go                            |  4 +-
+ src/cmd/gofix/Makefile                        |  1 +
+ src/cmd/gofix/oserrorstring.go                | 75 +++++++++++++++++++++++++++
+ src/cmd/gofix/oserrorstring_test.go           | 57 ++++++++++++++++++++
+ src/cmd/gofix/testdata/reflect.decoder.go.out |  6 +--
+ src/cmd/gofix/testdata/reflect.encoder.go.out |  2 +-
+ src/cmd/gofix/testdata/reflect.export.go.out  | 12 ++---
+ src/cmd/gofix/testdata/reflect.print.go.out   |  2 +-
+ src/cmd/gofix/testdata/reflect.read.go.out    |  4 +-
+ src/cmd/gofix/testdata/reflect.scan.go.out    |  8 +--
+ src/cmd/gofix/testdata/reflect.type.go.out    |  4 +-
+ src/cmd/goinstall/download.go                 |  8 +--
+ src/cmd/goinstall/main.go                     |  2 +-
+ src/cmd/gotype/gotype.go                      |  2 +-
+ src/pkg/archive/tar/reader.go                 |  2 +-
+ src/pkg/big/int.go                            |  6 +--
+ src/pkg/big/nat.go                            |  4 +-
+ src/pkg/big/rat.go                            | 10 ++--
+ src/pkg/bufio/bufio.go                        |  4 +-
+ src/pkg/bytes/buffer.go                       |  4 +-
+ src/pkg/compress/gzip/gunzip.go               |  4 +-
+ src/pkg/compress/zlib/reader.go               |  6 +--
+ src/pkg/crypto/cast5/cast5.go                 |  2 +-
+ src/pkg/crypto/dsa/dsa.go                     |  4 +-
+ src/pkg/crypto/openpgp/elgamal/elgamal.go     |  4 +-
+ src/pkg/crypto/rsa/pkcs1v15.go                |  4 +-
+ src/pkg/crypto/rsa/rsa.go                     | 10 ++--
+ src/pkg/crypto/tls/conn.go                    |  4 +-
+ src/pkg/crypto/tls/handshake_client.go        |  6 +--
+ src/pkg/crypto/tls/handshake_server.go        |  6 +--
+ src/pkg/crypto/tls/key_agreement.go           | 20 +++----
+ src/pkg/crypto/tls/tls.go                     |  8 +--
+ src/pkg/crypto/x509/verify_test.go            |  2 +-
+ src/pkg/crypto/x509/x509.go                   | 14 ++---
+ src/pkg/debug/elf/file.go                     | 24 ++++-----
+ src/pkg/exec/lp_plan9.go                      |  2 +-
+ src/pkg/exec/lp_unix.go                       |  2 +-
+ src/pkg/exec/lp_windows.go                    |  2 +-
+ src/pkg/fmt/print.go                          |  2 +-
+ src/pkg/fmt/scan.go                           |  8 +--
+ src/pkg/fmt/scan_test.go                      |  4 +-
+ src/pkg/go/build/dir.go                       |  2 +-
+ src/pkg/go/parser/interface.go                |  2 +-
+ src/pkg/go/types/exportdata.go                |  8 +--
+ src/pkg/go/types/gcimporter.go                |  4 +-
+ src/pkg/gob/codec_test.go                     |  2 +-
+ src/pkg/gob/decode.go                         | 38 +++++++-------
+ src/pkg/gob/decoder.go                        |  8 +--
+ src/pkg/gob/encoder.go                        |  2 +-
+ src/pkg/gob/gobencdec_test.go                 |  8 +--
+ src/pkg/gob/type.go                           |  4 +-
+ src/pkg/http/client.go                        |  4 +-
+ src/pkg/http/fs.go                            |  2 +-
+ src/pkg/http/request.go                       |  8 +--
+ src/pkg/http/transport.go                     |  6 +--
+ src/pkg/http/url.go                           |  8 +--
+ src/pkg/image/gif/reader.go                   |  2 +-
+ src/pkg/io/io.go                              |  4 +-
+ src/pkg/mail/message.go                       | 30 +++++------
+ src/pkg/net/fd_darwin.go                      |  2 +-
+ src/pkg/net/iprawsock.go                      |  2 +-
+ src/pkg/net/net.go                            |  2 +-
+ src/pkg/net/udpsock.go                        |  2 +-
+ src/pkg/netchan/common.go                     |  4 +-
+ src/pkg/netchan/export.go                     | 12 ++---
+ src/pkg/netchan/import.go                     |  8 +--
+ src/pkg/os/error.go                           | 13 ++---
+ src/pkg/rand/rand_test.go                     |  4 +-
+ src/pkg/rpc/client.go                         |  8 +--
+ src/pkg/rpc/jsonrpc/all_test.go               |  2 +-
+ src/pkg/rpc/server.go                         | 14 ++---
+ src/pkg/rpc/server_test.go                    |  2 +-
+ src/pkg/strconv/atoi.go                       |  2 +-
+ src/pkg/strings/reader.go                     |  4 +-
+ src/pkg/syslog/syslog_unix.go                 |  2 +-
+ src/pkg/time/format.go                        |  2 +-
+ src/pkg/time/tick.go                          |  2 +-
+ src/pkg/websocket/client.go                   |  6 ++-
+ src/pkg/xml/read.go                           |  4 +-
+ test/fixedbugs/bug243.go                      |  3 +-
+ 80 files changed, 367 insertions(+), 230 deletions(-)

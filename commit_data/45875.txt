@@ -1,20 +1,136 @@
-commit a1d27269d698d684497d0dc61c968a1c2dbe00b3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Jun 19 03:35:15 2021 -0700
+commit 18573aea3cc5098c5c27e357e15c507a05de5599
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 16 00:59:30 2020 -0500
 
-    cmd/go: prep for 'go env' refactoring
+    [dev.regabi] cmd/compile: clean up flag handling [generated]
     
-    This CL refactors code a little to make it easier to add GOEXPERIMENT
-    support in the future.
+    The flag values have grown fairly haphazard, with no organization
+    or even common naming convention. This CL moves all flag values
+    into the Flag struct (formerly misnamed Debug), except for a few
+    that live in Ctxt fields instead.
     
-    Change-Id: I87903056f7863049e58be72047b2b8a60a213baf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329654
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    This CL is entirely automated changes.
+    A followup CL will make a few manual cleanups, leaving this CL
+    completely automated and easier to regenerate during merge
+    conflicts.
+    
+    Cleaning up flags is necessary because the printing routines
+    look at some of them, and the printing routines need to move
+    out of package gc to a new package shared by gc and any
+    other packages that split out of gc.
+    
+    [git-generate]
+    
+    cd src/cmd/compile/internal/gc
+    rf '
+            mv Debug Flag
+            mv DebugFlags Flags
+            mv Flags.e Flags.LowerE
+            mv Flags.h Flags.LowerH
+            mv Flags.j Flags.LowerJ
+            mv Flags.l Flags.LowerL
+            mv Flags.m Flags.LowerM
+            mv Flags.r Flags.LowerR
+            mv Flags.w Flags.LowerW
+            mv Flags.P Flags.Percent
+            mv compiling_runtime Flag.CompilingRuntime
+            mv compiling_std Flag.Std
+            mv localimport Flag.D
+            mv asmhdr Flag.AsmHdr
+            mv buildid Flag.BuildID
+            mv nBackendWorkers Flag.LowerC
+            mv pure_go Flag.Complete
+            mv debugstr Flag.LowerD
+            mv flagDWARF Flag.Dwarf
+            mv genDwarfInline Flag.GenDwarfInl
+            mv flag_installsuffix Flag.InstallSuffix
+            mv flag_lang Flag.Lang
+            mv linkobj Flag.LinkObj
+            mv debuglive Flag.Live
+            mv flag_msan Flag.MSan
+            mv nolocalimports Flag.NoLocalImports
+            mv outfile Flag.LowerO
+            mv myimportpath Ctxt.Pkgpath
+            mv writearchive Flag.Pack
+            mv flag_race Flag.Race
+            mv spectre Flag.Spectre
+            mv trace Flag.LowerT
+            mv pathPrefix Flag.TrimPath
+            mv Debug_vlog Ctxt.Debugvlog
+            mv use_writebarrier Flag.WB
+            mv Main.flag_shared Flag.Shared
+            mv Main.flag_dynlink Flag.Dynlink
+            mv Main.goversion Flag.GoVersion
+            mv Main.symabisPath Flag.SymABIs
+            mv cpuprofile Flag.CPUProfile
+            mv memprofile Flag.MemProfile
+            mv traceprofile Flag.TraceProfile
+            mv blockprofile Flag.BlockProfile
+            mv mutexprofile Flag.MutexProfile
+            mv benchfile Flag.Bench
+            mv Main.smallFrames Flag.SmallFrames
+            mv Main.jsonLogOpt Flag.JSON
+    
+            add Flag:$ \
+                    Cfg struct{}
+            mv embedCfg Flag.Cfg.Embed
+            mv idirs Flag.Cfg.ImportDirs
+            mv importMap Flag.Cfg.ImportMap
+            mv packageFile Flag.Cfg.PackageFile
+            mv spectreIndex Flag.Cfg.SpectreIndex
+    
+            mv addidir addImportDir
+    
+            mv main.go:/Wasm/-0,/ssaDump/-3 ParseFlags
+    
+            mv usage Flag Flags ParseFlags \
+                    concurrentFlagOk concurrentBackendAllowed \
+                    addImportDir addImportMap \
+                    readImportCfg readEmbedCfg \
+                    flag.go
+    
+            # Remove //go:generate line copied from main.go
+            # along with two self-assignments from the merge.
+            rm flag.go:/go:generate/-+ \
+                    flag.go:/Ctxt.Pkgpath = Ctxt.Pkgpath/-+ \
+                    flag.go:/Ctxt.Debugvlog = Ctxt.Debugvlog/-+
+    '
+    
+    Change-Id: I10431c15fe7d9f48024d53141d4224d957dbf334
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271667
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/envcmd/env.go        | 210 +++++++++++++++++--------------
- src/cmd/go/main.go                       |  64 +++++-----
- src/cmd/go/testdata/script/env_unset.txt |  23 ++++
- 3 files changed, 170 insertions(+), 127 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       |   8 +-
+ src/cmd/compile/internal/gc/closure.go   |   4 +-
+ src/cmd/compile/internal/gc/dcl.go       |   2 +-
+ src/cmd/compile/internal/gc/dwinl.go     |   2 +-
+ src/cmd/compile/internal/gc/embed.go     |  39 +--
+ src/cmd/compile/internal/gc/esc.go       |  18 +-
+ src/cmd/compile/internal/gc/escape.go    |  32 +-
+ src/cmd/compile/internal/gc/export.go    |  16 +-
+ src/cmd/compile/internal/gc/flag.go      | 516 +++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/go.go        |  53 +---
+ src/cmd/compile/internal/gc/gsubr.go     |   8 +-
+ src/cmd/compile/internal/gc/iimport.go   |   4 +-
+ src/cmd/compile/internal/gc/inl.go       |  50 +--
+ src/cmd/compile/internal/gc/main.go      | 512 +++---------------------------
+ src/cmd/compile/internal/gc/noder.go     |  18 +-
+ src/cmd/compile/internal/gc/obj.go       |  14 +-
+ src/cmd/compile/internal/gc/order.go     |   4 +-
+ src/cmd/compile/internal/gc/pgen.go      |  17 +-
+ src/cmd/compile/internal/gc/plive.go     |   8 +-
+ src/cmd/compile/internal/gc/print.go     |  18 +-
+ src/cmd/compile/internal/gc/racewalk.go  |   8 +-
+ src/cmd/compile/internal/gc/range.go     |   4 +-
+ src/cmd/compile/internal/gc/reflect.go   |  16 +-
+ src/cmd/compile/internal/gc/select.go    |   6 +-
+ src/cmd/compile/internal/gc/sinit.go     |   2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  44 +--
+ src/cmd/compile/internal/gc/subr.go      |   8 +-
+ src/cmd/compile/internal/gc/syntax.go    |   6 +-
+ src/cmd/compile/internal/gc/typecheck.go |  21 +-
+ src/cmd/compile/internal/gc/util.go      |  25 +-
+ src/cmd/compile/internal/gc/walk.go      |  26 +-
+ 31 files changed, 752 insertions(+), 757 deletions(-)

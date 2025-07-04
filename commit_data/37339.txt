@@ -1,15 +1,18 @@
-commit f58b02a29c395b5ec28bb548b1fd3ca18e2b3a4f
-Author: Ainar Garipov <gugl.zadolbal@gmail.com>
-Date:   Sun Nov 11 12:19:20 2018 +0300
+commit c54bc3448390d4ae4495d6d2c03c9dd4111b08f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 18 21:37:56 2018 +0000
 
-    go/build: remove superfluous continues
+    net/http: deflake TestClientTimeoutKillsConn_AfterHeaders
     
-    This cleanup was proposed in CL 148937. The branch is already ended with
-    a continue, so remove continues from subbranches and use an else-if.
+    It was flaky on slower machines.
     
-    Change-Id: Iaf6eb57afc84e25862f99a342f5824e315bcdcb7
-    Reviewed-on: https://go-review.googlesource.com/c/148922
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Per report at https://github.com/golang/go/issues/23399#issuecomment-405792381
+    
+    Change-Id: I7cab02821f78b5ce02ea51089d7eb51723f9705f
+    Reviewed-on: https://go-review.googlesource.com/124835
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/read_test.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/net/http/transport_test.go | 44 ++++++++++++++++++++++++++----------------
+ 1 file changed, 27 insertions(+), 17 deletions(-)

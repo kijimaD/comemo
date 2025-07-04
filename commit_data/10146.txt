@@ -1,38 +1,25 @@
-commit 604e10c34d359f6522b076e488dccd7b075f4bc7
+commit 03f163c7f22bfaab69a56d48160b0a184ce6bf54
 Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Sat Oct 29 10:51:59 2011 +1100
+Date:   Fri Oct 28 16:04:58 2011 +1100
 
-    html: adjust bookmark in "adoption agency" algorithm
+    html: don't run "adoption agency" on elements that aren't in scope.
     
-    In the adoption agency algorithm, the formatting element is sometimes
-    removed from the list of active formatting elements and reinserted at a later index.
-    In that case, the bookmark showing where it is to be reinserted needs to be moved,
-    so that its position relative to its neighbors remains the same
-    (and also so that it doesn't become out of bounds).
+    Pass tests1.dat, test 55:
+    <!DOCTYPE html><font><table></font></table></font>
     
-    Pass tests1.dat, test 70:
-    <DIV> abc <B> def <I> ghi <P> jkl </B>
-    
+    | <!DOCTYPE html>
     | <html>
     |   <head>
     |   <body>
-    |     <div>
-    |       " abc "
-    |       <b>
-    |         " def "
-    |         <i>
-    |           " ghi "
-    |       <i>
-    |         <p>
-    |           <b>
-    |             " jkl "
+    |     <font>
+    |       <table>
     
-    Also pass tests through test 76:
-    <test attribute---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->
+    Also pass tests through test 69:
+    <DIV> abc <B> def <I> ghi <P> jkl
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5322052
+    https://golang.org/cl/5309074
 
  src/pkg/html/parse.go      | 4 ++++
  src/pkg/html/parse_test.go | 2 +-

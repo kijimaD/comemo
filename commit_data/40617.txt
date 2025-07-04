@@ -1,23 +1,22 @@
-commit 1bd974eeb7238f1f8c09e037a86988d1d2b1e33a
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed Nov 6 13:41:56 2019 +0100
+commit 26a5f6a32e76e977d4d937140991bf70b5e27161
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 13:57:47 2019 -0400
 
-    cmd/link/internal/ld: omit bitcode-incompatible flags on iOS simulator
+    runtime: fix scattered non-tab indentation in assembly
     
-    The -Wl,-headerpad, -Wl,-no_pie, -Wl,-pagezero_size flags are
-    incompatible with the bitcode-related flags used for iOS.
-    
-    We already omitted the flags on darwin/arm and darwin/arm64; this change
-    omits the flags on all platforms != macOS so that building for the iOS
-    simulator works.
-    
-    Updates #32963
-    
-    Change-Id: Ic9af0daf01608f5ae0f70858e3045e399de7e95b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205340
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6940a4c747f2da871263afa6a4e3386395d5cf54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180839
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/asm_386.s         |  8 ++++----
+ src/runtime/asm_ppc64x.s      |  8 ++++----
+ src/runtime/asm_s390x.s       |  4 ++--
+ src/runtime/memclr_arm64.s    |  8 ++++----
+ src/runtime/memmove_arm64.s   | 10 +++++-----
+ src/runtime/race_arm64.s      |  2 +-
+ src/runtime/race_ppc64le.s    | 12 ++++++------
+ src/runtime/rt0_linux_mipsx.s |  2 +-
+ src/runtime/sys_aix_ppc64.s   |  2 +-
+ src/runtime/tls_arm.s         |  2 +-
+ 10 files changed, 29 insertions(+), 29 deletions(-)

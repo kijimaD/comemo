@@ -1,35 +1,12 @@
-commit c8d07295c55863c0246c2db3181eada3c9f4d63b
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue May 1 10:48:19 2018 +0200
+commit d009679d42c3a77fffabde7684e2c1b9c0befe94
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Feb 14 00:27:10 2018 -0500
 
-    cmd/link,runtime: move syscalls to libc on iOS
+    github: add a Pull Request template
     
-    This CL is the darwin/arm and darwin/arm64 equivalent to CL 108679,
-    110215, 110437, 110438, 111258, 110655.
-    
-    Updates #17490
-    
-    Change-Id: Ia95b27b38f9c3535012c566f17a44b4ed26b9db6
-    Reviewed-on: https://go-review.googlesource.com/111015
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I02938b2435e3a98efea7ee5545a6f8f5f6f794b4
+    Reviewed-on: https://go-review.googlesource.com/93915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/arm/asm.go           |   4 +
- src/cmd/link/internal/arm64/asm.go         |  19 +-
- src/cmd/vet/all/whitelist/darwin_arm.txt   |   1 -
- src/cmd/vet/all/whitelist/darwin_arm64.txt |   3 -
- src/runtime/asm_arm.s                      |   7 +-
- src/runtime/asm_arm64.s                    |   8 +-
- src/runtime/defs_darwin_arm.go             |   5 +
- src/runtime/defs_darwin_arm64.go           |   5 +
- src/runtime/mmap.go                        |   3 +-
- src/runtime/os_darwin.go                   |   2 -
- src/runtime/os_darwin_raw.go               | 593 -----------------------------
- src/runtime/proc.go                        |   4 +-
- src/runtime/stubs2.go                      |   3 +-
- src/runtime/stubs4.go                      |   9 -
- src/runtime/sys_darwin.go                  |   2 -
- src/runtime/sys_darwin_arm.s               | 328 ++++++----------
- src/runtime/sys_darwin_arm64.s             | 290 ++++++--------
- src/runtime/vlrt.go                        |   6 +-
- 18 files changed, 290 insertions(+), 1002 deletions(-)
+ .github/PULL_REQUEST_TEMPLATE.md | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

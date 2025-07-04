@@ -1,14 +1,19 @@
-commit 04e0a7622c6f0f55c6a8cc4f16f7877b743ac5bb
+commit 49543695c56486d6a941e55520b37a9d098d3379
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 27 14:14:50 2017 -0500
+Date:   Thu Oct 20 15:05:51 2016 -0400
 
-    hash/crc32: use sub-benchmarks
+    flag: arrange for FlagSet.Usage to be non-nil by default
     
-    Change-Id: Iae68a097a6897f1616f94fdc3548837ef200e66f
-    Reviewed-on: https://go-review.googlesource.com/36541
+    This allows callers to invoke f.Usage() themselves and get the default
+    usage handler instead of a panic (from calling a nil function).
+    
+    Fixes #16955.
+    
+    Change-Id: Ie337fd9e1f85daf78c5eae7b5c41d5ad8c1f89bf
+    Reviewed-on: https://go-review.googlesource.com/31576
     Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/hash/crc32/crc32_test.go | 81 ++++++++++++--------------------------------
- 1 file changed, 21 insertions(+), 60 deletions(-)
+ src/flag/export_test.go |  1 +
+ src/flag/flag.go        | 21 +++++++++++++++------
+ 2 files changed, 16 insertions(+), 6 deletions(-)

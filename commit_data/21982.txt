@@ -1,23 +1,17 @@
-commit 4b981ed3e66a3093089b5b333bd7f1d85a92aaf3
+commit bf2d611a85c9f5084b28390bb6b78c9e49ea53a0
 Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 11 12:48:42 2015 -0700
+Date:   Mon Feb 16 19:50:35 2015 -0800
 
-    cmd/internal/obj/*: go generate the slice of Anames strings
+    [dev.cc] cmd/internal/obj/arm: delete trailing space from AND instruction
     
-    Add cmd/internal/obj/stringer.go to do the generation and update
-    the architecture packages to use it to maintain the Anames tables.
+    The tools have been fixed to not do this, but verifyAsm depends on this
+    being fixed.
     
-    Change-Id: I9c6d4def1bf21624668396d70c17973d0db11fbc
-    Reviewed-on: https://go-review.googlesource.com/7430
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    TBR=rsc
+    
+    Change-Id: Ia8968cc803b3498dfa2f98188c6ed1cf2e11c66d
+    Reviewed-on: https://go-review.googlesource.com/4962
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/obj/arm/5.out.go                  |   2 +
- src/cmd/internal/obj/arm/anames.go                 | 108 ++++++++
- src/cmd/internal/obj/arm/anames5.go                | 108 +-------
- src/cmd/internal/obj/ppc64/9.out.go                |   2 +-
- src/cmd/internal/obj/ppc64/anames.go               | 300 +++++++++++++++++++++
- src/cmd/internal/obj/ppc64/anames9.go              | 296 --------------------
- src/cmd/internal/obj/stringer.go                   | 104 +++++++
- src/cmd/internal/obj/x86/6.out.go                  |   2 +
- src/cmd/internal/obj/x86/{anames6.go => anames.go} |   6 +-
- 9 files changed, 524 insertions(+), 404 deletions(-)
+ src/cmd/internal/obj/arm/anames5.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

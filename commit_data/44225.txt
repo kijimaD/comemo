@@ -1,23 +1,24 @@
-commit 1901853098bbe25a1bbedc0ee53c6658d754151e
-Author: Changkun Ou <hi@changkun.de>
-Date:   Sun Feb 7 17:31:12 2021 +0100
+commit 6851a55f28ae88f4c9809b241d737fe65a977dd3
+Author: Than McIntosh <thanm@google.com>
+Date:   Sun May 17 14:36:55 2020 -0400
 
-    runtime/metrics: fix panic in readingAllMetric example
+    cmd/compile: add test case for issue 38068
     
-    medianBucket can return if the total is greater than thresh.
-    However, if a histogram has no counts, total and thresh
-    will both be zero and cause panic.
+    New test case for issue 38068, which deals with build reproducibility:
+    do a pair of compilations, the first with the concurrent back end
+    turned on, and the second with -c=1, then check to make sure we get
+    the same output (using a test case that triggers late inlining into
+    wrapper methods).
     
-    Adding an equal sign to prevent the potential panic.
+    Updates #38068.
     
-    Fixes #44148
-    
-    Change-Id: Ifb8a781990f490d142ae7c035b4e01d6a07ae04d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/290171
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I4afaf78898706a66985f09d18f6f6f29876c9017
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234417
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/metrics/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../compile/internal/gc/reproduciblebuilds_test.go | 50 ++++++++++++++++
+ .../gc/testdata/reproducible/issue38068.go         | 70 ++++++++++++++++++++++
+ 2 files changed, 120 insertions(+)

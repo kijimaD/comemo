@@ -1,20 +1,35 @@
-commit 9f7ea616742f8d58ecc140afcb0fa53bcb84fe9b
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Aug 26 11:39:47 2016 -0400
+commit 8dda1c4c08adf8b2107dec1c0d70d24443269ccd
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed Mar 2 12:15:02 2016 -0500
 
-    math: optimize Ceil, Floor and Trunc on s390x
+    [dev.garbage] runtime: remove heapBitsSweepSpan
     
-    Use the FIDBR instruction to round floating-point numbers to integers.
+    Prior to this CL the sweep phase was responsible for locating
+    all objects that were about to be freed and calling a function
+    to process the object. This was done by the function
+    heapBitsSweepSpan. Part of processing included calls to
+    tracefree and msanfree as well as counting how many objects
+    were freed.
     
-    name   old time/op  new time/op  delta
-    Ceil   14.1ns ± 0%   3.0ns ± 0%  -78.89%  (p=0.000 n=10+10)
-    Floor  6.42ns ± 0%  3.03ns ± 0%  -52.80%  (p=0.000 n=10+10)
-    Trunc  6.67ns ± 0%  3.03ns ± 0%  -54.57%   (p=0.000 n=10+9)
+    The calls to tracefree and msanfree have been moved into the
+    gcmalloc routine and called when the object is about to be
+    reallocated. The counting of free objects has been optimized
+    using an array based popcnt algorithm and if all the objects
+    in a span are free then span is freed.
     
-    Change-Id: I3b416f6d0bccaaa9b547de86356471365862399c
-    Reviewed-on: https://go-review.googlesource.com/27827
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Similarly the code to locate the next free object has been
+    optimized to use an array based ctz (count trailing zero).
+    Various hot paths in the allocation logic have been optimized.
+    
+    At this point the garbage benchmark is within 3% of the 1.6
+    release.
+    
+    Change-Id: I00643c442e2ada1685c010c3447e4ea8537d2dfa
+    Reviewed-on: https://go-review.googlesource.com/20201
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/math/floor_s390x.s | 26 ++++++++++++++++++++++++++
- src/math/stubs_s390x.s |  9 ---------
- 2 files changed, 26 insertions(+), 9 deletions(-)
+ src/runtime/malloc.go   |  59 ++++++++++-
+ src/runtime/mbitmap.go  | 258 +++++++++++++++++++++++-------------------------
+ src/runtime/mgcsweep.go |  40 ++------
+ src/runtime/mheap.go    |  12 ++-
+ 4 files changed, 191 insertions(+), 178 deletions(-)

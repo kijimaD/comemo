@@ -1,35 +1,13 @@
-commit 4a18e0edd94d156ebbccead44b553e2a436df5f5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Dec 17 13:49:34 2013 +1100
+commit e962f8f1c6f69845130374cb040dd0284f78a943
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 16 20:05:48 2013 -0500
 
-    math/rand: minor optimization to Perm
+    misc/vim: use shiftwidth() instead of &sw if available.
+    Fixes #6841.
     
-    Instead of writing out 0..n and then reading it
-    back, just use i when it is needed.
-    
-    Wikipedia calls this the "inside-out" implementation:
-    http://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
-    
-    This yields identical values to the previous
-    implementation, given the same seed. (Note that the
-    output from Example_rand is unchanged.)
-    
-    2.8 GHz Intel Core i7, results very stable:
-    
-    benchmark          old ns/op    new ns/op    delta
-    BenchmarkPerm3           138          136   -1.45%
-    BenchmarkPerm30          825          803   -2.67%
-    
-    Stock Raspberry Pi, minimum improvement out of three runs:
-    
-    benchmark          old ns/op    new ns/op    delta
-    BenchmarkPerm3          5774         5664   -1.91%
-    BenchmarkPerm30        32582        29381   -9.82%
-    
-    R=golang-dev, dave, mtj, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/21030043
+    https://golang.org/cl/43010044
 
- src/pkg/math/rand/rand.go      |  6 ++----
- src/pkg/math/rand/rand_test.go | 14 ++++++++++++++
- 2 files changed, 16 insertions(+), 4 deletions(-)
+ misc/vim/indent/go.vim | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

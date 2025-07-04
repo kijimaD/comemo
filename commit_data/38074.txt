@@ -1,20 +1,14 @@
-commit ef954a03eb9d4e8d19e1024db088095110e19a0b
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Feb 8 17:57:46 2019 +0100
+commit 9ec5d9c15b8dcb30d06805504477ac602f4e0385
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Sun Sep 30 17:54:22 2018 +0530
 
-    bytes: hoist error creation out of function
+    net/http: document Header.Set canonicalizes the header key
     
-    generating frame information in errors will cause this
-    function to no longer be inlined.
+    Fixes #27923
     
-    Updates #29934.
-    
-    Change-Id: I1d7bc11707f1872d7315f627bfb9a12afa41e358
-    Reviewed-on: https://go-review.googlesource.com/c/161760
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia902a1966beeae56e43265fc5ed987555fa834b6
+    Reviewed-on: https://go-review.googlesource.com/138677
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bytes/buffer.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/net/http/header.go | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

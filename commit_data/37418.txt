@@ -1,34 +1,21 @@
-commit 8f4bc468a7f5846149d7f0b51633c6fea3861515
-Author: Leigh McCulloch <leigh@mcchouse.com>
-Date:   Fri Nov 16 02:20:58 2018 +0000
+commit 5ad0a524d23b9b69c8c3caddbdf2dfe235c4d725
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Jul 28 10:16:40 2018 +0200
 
-    testing: add example to package doc
+    cmd/go: uses SID of group Guests to test ACL
     
-    The package doc for the testing package doesn't have a simple
-    example demonstrating how to write a test with an expectation. The doc
-    has simple examples for benchmarks, examples, and skipping, and it would be
-    useful for people new to writing tests in Go.
+    The test TestACL failed when ran on a Windows set
+    up in another language as the "Guest" account
+    name is translated. The SID of the group of Guests
+    always exist and is used instead.
     
-    Also moved the skip example further down because it references tests and
-    benchmarks but benchmarks haven't been discussed in detail until the
-    next section. Skip is also a less used feature and it seems misplaced to
-    sit so high up in the package documentation. As an example, Skip is used
-    570 times the Go code repository which is significantly less than Error
-    and Fatal that are used 23,303 times.
+    Fixes #26658
     
-    Also changed 'sample' to 'simple' in other places in the package documentation
-    to keep the language used consistent when describing the small examples.
-    
-    Fixes #27839
-    
-    Change-Id: Ie01a3751986ee61adf2a2f2eda59cc182342baa7
-    GitHub-Last-Rev: 7357bfdcd29ed1dc1719c9436b5d5420020610ee
-    GitHub-Pull-Request: golang/go#27840
-    Reviewed-on: https://go-review.googlesource.com/c/137175
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia885d08a9e50563787e389c2d2dc2547881a2943
+    Reviewed-on: https://go-review.googlesource.com/126598
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/testing/testing.go | 24 ++++++++++++++++++------
- 1 file changed, 18 insertions(+), 6 deletions(-)
+ src/cmd/go/go_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

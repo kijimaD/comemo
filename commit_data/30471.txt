@@ -1,15 +1,16 @@
-commit 466a8915e3274c8b33d82c68c187bd6c5653d80e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 1 13:40:24 2017 -0800
+commit f335fcf0fc297b9d1318fb21fa608a7ebc751b3e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Nov 1 04:18:26 2015 -0500
 
-    net/smtp: skip flaky TestTLSClient on freebsd/amd64
+    syscall: add Getexecname on Solaris for os.Executable
     
-    Updates #19229
-    
-    Change-Id: Ibe1ea090ac064c7eb5abd225214ab43744bafbc4
-    Reviewed-on: https://go-review.googlesource.com/37653
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Icd77ccbfe6a31117a11effb949b5826950df75a9
+    Reviewed-on: https://go-review.googlesource.com/16550
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/smtp/smtp_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/syscall/syscall_solaris.go        | 15 +++++++++++++++
+ src/syscall/zsyscall_solaris_amd64.go | 14 +++++++++++++-
+ 2 files changed, 28 insertions(+), 1 deletion(-)

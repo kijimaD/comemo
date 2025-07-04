@@ -1,16 +1,28 @@
-commit 40e24a942bce7b10e23a7282e673ac8a758ca378
-Author: Jinwook Jeong <vustthat@gmail.com>
-Date:   Mon Nov 1 23:46:47 2021 +0900
+commit 2422c5eae5dc6539b4b7657ef7bfe58a65acb61d
+Author: Colin Arnott <colin@urandom.co.uk>
+Date:   Thu Jul 9 07:06:46 2020 +0000
 
-    regexp: fix typo in the overview
+    sync/atomic: add (*Value).Swap and (*Value).CompareAndSwap
     
-    Correct the slice expression in the description of Index functions.
+    The functions SwapPointer and CompareAndSwapPointer can be used to
+    interact with unsafe.Pointer, however generally it is prefered to work
+    with Value, due to its safer interface. As such, they have been added
+    along with glue logic to maintain invariants Value guarantees.
     
-    Change-Id: I97a1b670c4c7e600d858f6550b647f677ef90b41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360058
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    To meet these guarantees, the current implementation duplicates much of
+    the Store function. Some of this is due to inexperience with concurrency
+    and desire for correctness, but the lack of generic programming
+    functionality does not help.
+    
+    Fixes #39351
+    
+    Change-Id: I1aa394b1e70944736ac1e19de49fe861e1e46fba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241678
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/regexp/regexp.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/sync/atomic/value.go      | 129 +++++++++++++++++++++++++++++++++++----
+ src/sync/atomic/value_test.go | 139 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 257 insertions(+), 11 deletions(-)

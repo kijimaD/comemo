@@ -1,23 +1,52 @@
-commit ba10a38ed0cf05082e488ed58b68483820024e91
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Mon Sep 30 18:01:10 2024 +0000
+commit ff47dd1d665d30d5f3d26f031192afebb4422c3c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 15 16:45:52 2023 -0700
 
-    runtime, internal/syscall/unix: mark getrandom vDSO as non-escaping
+    cmd/compile/internal/escape: optimize indirect closure calls
     
-    Updates #66779
-    Updates #69577
+    This CL extends escape analysis in two ways.
     
-    Change-Id: I0dea5a30aab87aaa443e7e6646c1d07aa865ac1c
-    GitHub-Last-Rev: 1cea46deb345369346efb2cb320fae1644466322
-    GitHub-Pull-Request: golang/go#69719
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616696
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    First, we already optimize directly called closures. For example,
+    given:
+    
+            var x int  // already stack allocated today
+            p := func() *int { return &x }()
+    
+    we don't need to move x to the heap, because we can statically track
+    where &x flows. This CL extends the same idea to work for indirectly
+    called closures too, as long as we know everywhere that they're
+    called. For example:
+    
+            var x int  // stack allocated after this CL
+            f := func() *int { return &x }
+            p := f()
+    
+    This will allow a subsequent CL to move the generation of go/defer
+    wrappers earlier.
+    
+    Second, this CL adds tracking to detect when pointer values flow to
+    the pointee operand of an indirect assignment statement (i.e., flows
+    to p in "*p = x") or to builtins that modify memory (append, copy,
+    clear). This isn't utilized in the current CL, but a subsequent CL
+    will make use of it to better optimize string->[]byte conversions.
+    
+    Updates #2205.
+    
+    Change-Id: I610f9c531e135129c947684833e288ce64406f35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520259
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/internal/syscall/unix/getrandom.go | 1 +
- src/runtime/vgetrandom_linux.go        | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/compile/internal/escape/assign.go |   8 +-
+ src/cmd/compile/internal/escape/call.go   |  49 ++++++++----
+ src/cmd/compile/internal/escape/escape.go |  53 +++++++++++--
+ src/cmd/compile/internal/escape/graph.go  |  52 +++++++++++--
+ src/cmd/compile/internal/escape/leaks.go  |  54 ++++++++-----
+ src/cmd/compile/internal/escape/solve.go  | 123 +++++++++++++++++++-----------
+ src/cmd/compile/internal/ir/func.go       |   6 +-
+ test/escape_closure.go                    |  14 ++++
+ test/inline_big.go                        |   6 +-
+ 9 files changed, 268 insertions(+), 97 deletions(-)

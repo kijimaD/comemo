@@ -1,15 +1,22 @@
-commit 1a0ea1a08b26f25d3795ca46e4a831a8ca4859ad
-Author: Guilherme Souza <32180229+gqgs@users.noreply.github.com>
-Date:   Tue May 11 21:37:56 2021 +0000
+commit 07e4f0fd4b0f215cdfa7d6ea50f3e6402762a1a9
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Oct 29 15:31:16 2020 -0700
 
-    runtime: fix typo in proc.go
+    cmd/compile: fmt improvements for AST nodes and some comments on AST nodes
     
-    Change-Id: I12c0befc5772a5c902a55aeb06a30ec7a34a3bd6
-    GitHub-Last-Rev: 7d41e1bcb9f6304e1b868701740279e845c99a66
-    GitHub-Pull-Request: golang/go#46112
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319053
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Changed fmt.go to print out some extra information for various kinds of
+    Nodes. This includes some extra (small) info in the %j (jconv) output,
+    and some missing sections (such as Dcls and the body of a closure) in
+    nodedump().
+    
+    Also, added some extra doc comments for a few Node types in syntax.go
+    
+    Change-Id: I2ec7184e2abe0d5fbe3fb5a2506da7c7b06f2fb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266437
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go    | 29 +++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/syntax.go | 25 +++++++++++++++++--------
+ 2 files changed, 46 insertions(+), 8 deletions(-)

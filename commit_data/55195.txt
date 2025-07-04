@@ -1,37 +1,22 @@
-commit 285ef16b3872faccb877abaef5e481a630acdaf2
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Nov 7 10:47:56 2023 -0800
+commit 5454834f011c019ca32d844d26d469cd47f407ad
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Jan 12 19:37:18 2023 +0800
 
-    net/http: limit chunked data overhead
+    cmd/internal/obj/riscv: add check for invalid shift amount input
     
-    The chunked transfer encoding adds some overhead to
-    the content transferred. When writing one byte per
-    chunk, for example, there are five bytes of overhead
-    per byte of data transferred: "1\r\nX\r\n" to send "X".
+    Current RISCV64 assembler do not check the invalid shift amount. This CL
+    adds the check to avoid generating invalid instructions.
     
-    Chunks may include "chunk extensions",
-    which we skip over and do not use.
-    For example: "1;chunk extension here\r\nX\r\n".
+    Fixes #57755
     
-    A malicious sender can use chunk extensions to add
-    about 4k of overhead per byte of data.
-    (The maximum chunk header line size we will accept.)
-    
-    Track the amount of overhead read in chunked data,
-    and produce an error if it seems excessive.
-    
-    Fixes #64433
-    Fixes CVE-2023-39326
-    
-    Change-Id: I40f8d70eb6f9575fb43f506eb19132ccedafcf39
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/2076135
-    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547335
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If33877605e161baefd98c50db1f71641ca057507
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461755
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
 
- src/net/http/internal/chunked.go      | 34 ++++++++++++++++----
- src/net/http/internal/chunked_test.go | 59 +++++++++++++++++++++++++++++++++++
- 2 files changed, 87 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscv64error.s | 12 ++++++++++++
+ src/cmd/internal/obj/riscv/obj.go                | 10 ++++++++++
+ 2 files changed, 22 insertions(+)

@@ -1,35 +1,26 @@
-commit 0e85fd7561de869add933801c531bf25dee9561c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 29 02:11:10 2020 -0700
+commit a3e965ce8addeb6a0b690069522a0487f68ee316
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 11 12:12:41 2020 -0400
 
-    cmd/compile: report type loop for invalid recursive types
+    [dev.link] cmd/link: convert doelf to new style
     
-    Similar to how we report initialization loops in initorder.go and type
-    alias loops in typecheck.go, this CL updates align.go to warn about
-    invalid recursive types. The code is based on the loop code from
-    initorder.go, with minimal changes to adapt from detecting
-    variable/function initialization loops to detecting type declaration
-    loops.
-    
-    Thanks to Cuong Manh Le for investigating this, helping come up with
-    test cases, and exploring solutions.
-    
-    Fixes #41575
-    Updates #41669.
-    
-    Change-Id: Idb2cb8c5e1d645e62900e178fcb50af33e1700a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258177
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I448fe632ae73ddcb79c05793c96f48e358060305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222977
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/align.go | 98 ++++++++++++++++++++++++++++++++----
- src/cmd/compile/internal/gc/subr.go  | 10 ++++
- test/fixedbugs/bug195.go             | 16 +++---
- test/fixedbugs/issue22904.go         |  4 +-
- test/fixedbugs/issue23823.go         |  3 +-
- test/fixedbugs/issue41575.go         | 36 +++++++++++++
- 6 files changed, 147 insertions(+), 20 deletions(-)
+ src/cmd/link/internal/amd64/asm.go            |  15 +-
+ src/cmd/link/internal/arm/asm.go              |  11 +-
+ src/cmd/link/internal/arm64/asm.go            |  30 +--
+ src/cmd/link/internal/ld/dwarf2.go            |  11 +-
+ src/cmd/link/internal/ld/elf.go               | 339 ++++++++++++++------------
+ src/cmd/link/internal/ld/lib.go               |   2 +-
+ src/cmd/link/internal/ld/main.go              |   4 +-
+ src/cmd/link/internal/ld/target.go            |   8 +
+ src/cmd/link/internal/loader/symbolbuilder.go |  32 ++-
+ src/cmd/link/internal/mips/asm.go             |   3 +-
+ src/cmd/link/internal/mips64/asm.go           |   3 +-
+ src/cmd/link/internal/ppc64/asm.go            |  10 +-
+ src/cmd/link/internal/riscv64/asm.go          |   3 +-
+ src/cmd/link/internal/s390x/asm.go            |  13 +-
+ src/cmd/link/internal/x86/asm.go              |  15 +-
+ 15 files changed, 280 insertions(+), 219 deletions(-)

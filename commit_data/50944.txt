@@ -1,17 +1,18 @@
-commit 35e54da99640110845086d30ba0b8f69a3ebd3c2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 18 13:33:32 2022 -0700
+commit 5d5f2b1e201fe9f3b641109ccd91b3ceae4cf460
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 20:04:14 2021 -0500
 
-    go/types, types2: simplify test setup in a couple of places (cleanup)
+    go/types: remove unneccesary tests in implements and lookup
     
-    Change-Id: I4e7a0ffad49f1c3b50520648d66f18dd4c9bde55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443779
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    This is a port of CL 363838 from types2 to go/types.
+    
+    Change-Id: I03f4da86ea38209a73f567cc5d84e7afd08883ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364935
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/issues_test.go | 16 ++--------------
- src/go/types/issues_test.go                    | 16 ++--------------
- 2 files changed, 4 insertions(+), 28 deletions(-)
+ src/go/types/instantiate.go | 6 ------
+ src/go/types/lookup.go      | 6 +-----
+ 2 files changed, 1 insertion(+), 11 deletions(-)

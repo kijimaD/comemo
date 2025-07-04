@@ -1,16 +1,43 @@
-commit bdd7bb5526d5ba6a3471ce03ae953bb6d793b501
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Fri Apr 19 16:35:24 2019 +0700
+commit 47dc92824613e8cb8435457c8b60ba6da671737d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 16 10:42:58 2018 -0400
 
-    cmd/compile: remove unused func nodfltconst
+    cmd/go/internal/lockedfile: add package and support library
     
-    Its only usage was removed in golang.org/cl/103860
+    lockedfile.File passes through to os.File, with Open, Create, and OpenFile
+    functions that mimic the corresponding os functions but acquire locks
+    automatically, releasing them when the file is closed.
     
-    Change-Id: I2a230b9475b0aadf3892b89f5e4ee6d4c5b70394
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172917
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    lockedfile.Sentinel is a simplified wrapper around lockedfile.OpenFile for the
+    common use-case of files that signal the status of idempotent tasks.
+    
+    lockedfile.Mutex is a Mutex-like synchronization primitive implemented in terms
+    of file locks.
+    
+    lockedfile.Read is like ioutil.Read, but obtains a read-lock.
+    
+    lockedfile.Write is like ioutil.Write, but obtains a write-lock and can be used
+    for read-only files with idempotent contents.
+    
+    Updates #26794
+    
+    Change-Id: I50f7132c71d2727862eed54411f3f27e1af55cad
+    Reviewed-on: https://go-review.googlesource.com/c/145178
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 6 ------
- 1 file changed, 6 deletions(-)
+ .../lockedfile/internal/filelock/filelock.go       |  98 ++++++++++
+ .../lockedfile/internal/filelock/filelock_other.go |  36 ++++
+ .../lockedfile/internal/filelock/filelock_plan9.go |  38 ++++
+ .../internal/filelock/filelock_solaris.go          | 157 ++++++++++++++++
+ .../lockedfile/internal/filelock/filelock_test.go  | 206 +++++++++++++++++++++
+ .../lockedfile/internal/filelock/filelock_unix.go  |  44 +++++
+ .../internal/filelock/filelock_windows.go          |  66 +++++++
+ src/cmd/go/internal/lockedfile/lockedfile.go       | 122 ++++++++++++
+ .../go/internal/lockedfile/lockedfile_filelock.go  |  63 +++++++
+ src/cmd/go/internal/lockedfile/lockedfile_plan9.go |  93 ++++++++++
+ src/cmd/go/internal/lockedfile/lockedfile_test.go  | 174 +++++++++++++++++
+ src/cmd/go/internal/lockedfile/mutex.go            |  60 ++++++
+ src/cmd/go/testdata/script/mod_patterns.txt        |  10 +
+ 13 files changed, 1167 insertions(+)

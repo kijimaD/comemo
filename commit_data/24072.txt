@@ -1,18 +1,12 @@
-commit 8286f18b94fe92d056fe0112b2e48f2409f49628
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sun Aug 23 13:59:00 2015 +0000
+commit 71832ff489fdca6f41fe5f5bc8ca56976c7fc5aa
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 3 11:11:42 2015 -0700
 
-    debug/elf: map/slice literals janitoring
+    math/rand: improve NewZipf documentation
     
-    Simplify slice/map literal expressions.
-    Caught with gofmt -d -s, fixed with gofmt -w -s
-    Reformatted some expressions to improve readability.
-    
-    Change-Id: Iaf123e6bd49162ec45c59297ad3b002ca59443bc
-    Reviewed-on: https://go-review.googlesource.com/13850
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I78f0f9ac33db153c4a0d7f9866da20ebcd3d3639
+    Reviewed-on: https://go-review.googlesource.com/11872
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/debug/elf/file_test.go | 159 +++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 148 insertions(+), 11 deletions(-)
+ src/math/rand/zipf.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

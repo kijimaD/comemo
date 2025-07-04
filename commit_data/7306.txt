@@ -1,14 +1,12 @@
-commit e6a934a1d9258a6990724774995770d9bb5fea4b
-Author: Eoghan Sherry <ejsherry@gmail.com>
-Date:   Tue Feb 1 12:12:42 2011 -0500
+commit e71d8a2fe44f1e8e85186669922438407636af0c
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 1 11:49:33 2011 -0500
 
-    6g: fix registerization of temporaries
+    6l: add comment to CMOV* relocation
     
-    Use correct range in allocated register test.
-    
-    R=rsc, ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4073049
+    https://golang.org/cl/4042045
 
- src/cmd/6g/gsubr.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/6l/asm.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

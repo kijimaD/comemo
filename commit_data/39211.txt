@@ -1,12 +1,18 @@
-commit d0aca5759e22dc00c06474c9123fb21129f6272b
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Tue May 21 21:18:23 2019 +0700
+commit 8c10ce164f5b0244f3e08424c13666801b7c5973
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 24 18:36:00 2019 -0800
 
-    cmd/compile: fix doc typo in ssa.go
+    cmd/go: mention that binary packages are going away
     
-    Change-Id: Ie299a5eca6f6a7c5a37c00ff0de7ce322450375b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178123
+    Updates #28152
+    Fixes #29927
+    
+    Change-Id: Iea692c90074d057a1733e98bca3928e8f3569585
+    Reviewed-on: https://go-review.googlesource.com/c/159557
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/alldocs.go               | 16 ++++++++--------
+ src/cmd/go/internal/help/helpdoc.go | 16 ++++++++--------
+ 2 files changed, 16 insertions(+), 16 deletions(-)

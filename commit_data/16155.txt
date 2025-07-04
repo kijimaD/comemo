@@ -1,14 +1,18 @@
-commit bb195f67938c9f32985d3b2c231f3d43c4ef83f8
+commit 5fd708c000e50bac6091662c53c79a469a43071a
 Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 10 14:05:34 2013 -0700
+Date:   Wed Apr 10 13:05:34 2013 -0700
 
-    fmt: tweak the explanation of Stringer to be more correct and less specific
-    The String method is called whenever the printing operation wants a string,
-    not just for %s and %v.
+    encoding/json: different decision on tags and shadowing
+    If there are no tags, the rules are the same as before.
+    If there is a tagged field, choose it if there is exactly one
+    at the top level of all fields.
+    More tests. The old tests were clearly inadequate, since
+    they all pass as is. The new tests only work with the new code.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/8638043
+    https://golang.org/cl/8617044
 
- src/pkg/fmt/print.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/encoding/json/encode.go      | 42 +++++++++++++++-----------
+ src/pkg/encoding/json/encode_test.go | 58 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 81 insertions(+), 19 deletions(-)

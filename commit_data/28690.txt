@@ -1,22 +1,31 @@
-commit eee727d0855b9e78f9df87e08d57b1d7f264876c
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Tue Sep 13 13:21:23 2016 -0700
+commit a2a4db7375204c22898559d3b96a748c6df96294
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Jun 28 12:31:02 2016 +0200
 
-    cmd/go: note when some Go files were ignored on no-Go-files errors
+    unicode: upgrade to version 9.0.0
     
-    It is pretty confusing when there are Go files ignored for mismatching
-    build tags and similar and we output "no buildable Go files" without
-    giving any other information about some Go files have been ignored.
+    Changes beyond generated tables:
+    - Now supports aliases to handle deprecated
+      property classes.
+    - Some Mongolian letters are now modifiers.
     
-    Fixes #17008.
+    Other changes:
+    - strconv: newly generated table to be in sync
+    - regexp/syntax: updated maxFold
     
-    Change-Id: I1766ee86a9a7a72f6694deae3f73b47bfc9d0be5
-    Reviewed-on: https://go-review.googlesource.com/29113
-    Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #16191
+    
+    Change-Id: I56bdf21ee2f775f2a82d0465b3772faf5c24cb61
+    Reviewed-on: https://go-review.googlesource.com/24496
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/build.go                    | 11 ++++++++---
- src/go/build/build_test.go               | 11 +++++++++++
- src/go/build/testdata/ignored/ignored.go |  3 +++
- 3 files changed, 22 insertions(+), 3 deletions(-)
+ api/except.txt             |   1 +
+ api/go1.7.txt              |   9 +
+ src/regexp/syntax/parse.go |   2 +-
+ src/strconv/isprint.go     |  82 +++++---
+ src/unicode/letter_test.go |   2 +-
+ src/unicode/maketables.go  |  17 +-
+ src/unicode/script_test.go |  10 +-
+ src/unicode/tables.go      | 487 +++++++++++++++++++++++++++++++++++----------
+ 8 files changed, 473 insertions(+), 137 deletions(-)

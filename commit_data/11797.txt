@@ -1,17 +1,15 @@
-commit 12fab9d122def141e76aa718d18d6b3be1de6a0d
+commit 896f0c61c8fbdaf4f6fa6007da8c03bbb818d85d
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 10 23:20:00 2012 -0500
+Date:   Fri Feb 10 23:10:45 2012 -0500
 
-    gc: add test case for issue 1743
+    gc: diagnose init loop involving func
     
-    Fixes #1743.
-    (Actually was fixed earlier, but now we have proof.)
+    Fixes #2295.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/5649064
+    https://golang.org/cl/5655057
 
- test/fixedbugs/bug414.dir/main.go | 18 ++++++++++++++++++
- test/fixedbugs/bug414.dir/p1.go   | 21 +++++++++++++++++++++
- test/fixedbugs/bug414.go          |  7 +++++++
- 3 files changed, 46 insertions(+)
+ src/cmd/gc/sinit.c       |  4 ++--
+ test/fixedbugs/bug413.go | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

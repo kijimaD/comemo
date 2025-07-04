@@ -1,23 +1,32 @@
-commit 4ae25ff1405f9d6b25f40141f42196e8f142f207
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 11 17:57:58 2019 -0700
+commit 2d41444ad0c1540f064695a9a4678dda6c0d2a51
+Author: zdjones <zachj1@gmail.com>
+Date:   Sat Mar 30 17:28:05 2019 +0000
 
-    os/signal: split up sleeps waiting for signal
+    cmd/compile: make prove learn index >= 0 from successful bounds checks
     
-    Try to deflake TestNohup.
+    When branching at a bounds check for indexing or slicing ops, prove currently
+    only learns from the upper bound. On the positive branch, we currently learn
+    i < len(a) (or i <= len(a)) in both the signed and unsigned domains.
     
-    The kernel will deliver a signal as a thread returns from a syscall.
-    If the only active thread is sleeping, and the system is busy,
-    the kernel may not get around to waking up a thread to catch the signal.
-    Try splitting up the sleep, to give the kernel another change to deliver.
+    This CL makes prove also learn from the lower bound. Specifically, on the
+    positive branch from index or slicing ops, prove will now ALSO learn i >= 0 in
+    the signed domain (this fact is of no value in the unsigned domain).
     
-    I don't know if this will help, but it seems worth a try.
+    The substantive change itself is only an additional call to addRestrictions,
+    though I've also inverted the nested switch statements around that call for the
+    sake of clarity.
     
-    Fixes #33174
+    This CL removes 92 bounds checks from std and cmd. It passes all tests and
+    shows no deltas on compilecmp.
     
-    Change-Id: I34b3240af706501ab8538cb25c4846d1d30d7691
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194879
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #28885
+    
+    Change-Id: I13eccc36e640eb599fa6dc5aa3be3c7d7abd2d9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170121
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/os/signal/signal_test.go | 34 +++++++++++++++++++++++++---------
- 1 file changed, 25 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 48 +++++++++++++++++++++--------------
+ test/prove.go                         | 10 ++++++++
+ 2 files changed, 39 insertions(+), 19 deletions(-)

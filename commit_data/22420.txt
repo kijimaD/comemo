@@ -1,20 +1,42 @@
-commit 35bda67d87fa5a7f24313bcd1803bcc6834ac078
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Thu Dec 18 17:18:06 2014 +1300
+commit 8b3670ffc6491ee54245e27f99b2415fbb1287d5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 6 12:02:24 2015 -0800
 
-    time: add Time.AppendFormat
+    cmd/internal/gc: remove namebuf variable
     
-    This is a version of Time.Format that doesn't require allocation.
+    namebuf was a global char buffer in the C version of gc, which was
+    useful for providing common storage for constructing symbol and file
+    names.  However, now that it's just a global Go string and the string
+    data is dynamically allocated anyway, it doesn't serve any purpose
+    except to force extra write barriers everytime it's assigned to.
     
-    This is an updated version of 0af302f50745b93e90a4507993a555d246acef45
-    submitted by @bradfitz which was later rolled back.
+    Also, introduce Lookupf(fmt, args...) as shorthand for
+    Lookup(fmt.Sprintf(fmt, args...)), which was a very common pattern for
+    using namebuf.
     
-    Fixes #5192
-    Updates #5195
+    Passes "go build -toolexec 'toolstash -cmp' -a std".
     
-    Change-Id: I4e6255bee1cf3914a6cc8d9d2a881cfeb273c08e
-    Reviewed-on: https://go-review.googlesource.com/1760
-    Reviewed-by: Rob Pike <r@golang.org>
+    Notably, this CL shrinks 6g's text section by ~15kB:
+    
+    $ size toolstash/6g tool/linux_amd64/6g
+       text    data     bss     dec     hex filename
+    4600805  605968  342988 5549761  54aec1 toolstash/6g
+    4585547  605968  342956 5534471  547307 tool/linux_amd64/6g
+    
+    Change-Id: I98abb44fc7f43a2e2e48425cc9f215cd0be37442
+    Reviewed-on: https://go-review.googlesource.com/7080
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/format.go | 27 +++++++++++++++++----------
- 1 file changed, 17 insertions(+), 10 deletions(-)
+ src/cmd/internal/gc/closure.go | 17 ++++-------
+ src/cmd/internal/gc/dcl.go     |  7 ++---
+ src/cmd/internal/gc/gen.go     |  4 +--
+ src/cmd/internal/gc/go.go      |  2 --
+ src/cmd/internal/gc/init.go    | 16 +++-------
+ src/cmd/internal/gc/inl.go     |  9 ++----
+ src/cmd/internal/gc/lex.go     | 67 +++++++++++++++++++-----------------------
+ src/cmd/internal/gc/obj.go     | 15 +++++-----
+ src/cmd/internal/gc/pgen.go    |  3 +-
+ src/cmd/internal/gc/sinit.go   |  3 +-
+ src/cmd/internal/gc/subr.go    |  4 +++
+ src/cmd/internal/gc/walk.go    | 18 +++++++-----
+ 12 files changed, 70 insertions(+), 95 deletions(-)

@@ -1,22 +1,19 @@
-commit 3075ffc93e962792ddf43b2a528ef19b1577ffb7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 26 15:17:27 2021 -0700
+commit f858c221270addffaceb668196caf7fd8ceb0019
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 6 15:15:44 2020 -0500
 
-    os: deflake TestFdReadRace
+    cmd/go/internal/modget: fix a typo introduced in CL 263267
     
-    The test would hang if the call to Fd set the pipe to be non-blocking
-    before the Read entered the first read system call. Avoid that problem
-    by writing data to the pipe to wake up the read.
+    Updates #37438
     
-    For #24481
-    Fixes #44818
-    
-    Change-Id: I0b798874c7b81e7308a38ebbf657efc4392ffacd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322893
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I78f377afd73dad75aed219836725a27fbaa5b69c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268117
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dan Peterson <dpiddy@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/os/pipe_test.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/go/alldocs.go             | 4 ++--
+ src/cmd/go/internal/modget/get.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

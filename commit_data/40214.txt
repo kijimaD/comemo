@@ -1,16 +1,24 @@
-commit d189bdd6846f1b7569d71cdcd5eeb77931f5c570
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Oct 11 08:58:52 2019 -0400
+commit 6c04c26c651ba48a0671f5295e605b0c37ba6599
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Apr 27 02:35:42 2019 +1000
 
-    internal/reflectlite: skip TestMirrorWithReflect reflect package source is unavailable
+    syscall: add support for openbsd/arm64
     
-    Fixes #34847
+    Generated on OpenBSD 6.5.
     
-    Change-Id: Ibb58c8820cdab8b9f3755fcfba754ad0c9ca982f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200657
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Updates #31656
+    
+    Change-Id: I0a7ddeee42d982ecbc226e82dec983c63e6c836d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174120
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
 
- src/internal/reflectlite/reflect_mirror_test.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/syscall/asm_openbsd_arm64.s       |  124 +++
+ src/syscall/mkall.sh                  |   10 +
+ src/syscall/syscall_openbsd_arm64.go  |   38 +
+ src/syscall/zerrors_openbsd_arm64.go  | 1675 +++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_arm64.go | 1300 +++++++++++++++++++++++++
+ src/syscall/zsysnum_openbsd_arm64.go  |  215 +++++
+ src/syscall/ztypes_openbsd_arm64.go   |  443 +++++++++
+ 7 files changed, 3805 insertions(+)

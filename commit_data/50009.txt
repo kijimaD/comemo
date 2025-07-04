@@ -1,35 +1,27 @@
-commit f15761b50bb3a2d1bae9b97f147b2d660e2e4853
-Author: Ludi Rehak <ludi317@gmail.com>
-Date:   Sat Jun 25 13:27:11 2022 -0700
+commit a80cbc25bddfa1e6be76cf539ae9276d41b5108f
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 24 14:55:06 2021 -0700
 
-    runtime: fix formula for computing number of padding bytes
+    runtime: elide instantiated types in tracebacks
     
-    In order to prevent false sharing of cache lines, structs are
-    padded with some number of bytes. These bytes are unused, serving
-    only to make the size of the struct a multiple of the size of the
-    cache line.
+    They tend to be things like ".shape.int" which are noisy, if not
+    otherwise confusing.
     
-    The current calculation of how much to pad is an overestimation,
-    when the struct size is already a multiple of the cache line size
-    without padding. For these cases, no padding is necessary, and
-    the size of the inner pad field should be 0. The bug is that the
-    pad field is sized to a whole 'nother cache line, wasting space.
+    It would be nice to somehow print the real instantiations here, but that
+    requires keeping track of the dictionary argument so the instantiating
+    types could be found. One day, maybe, but not today.
     
-    Here is the current formula that can never return 0:
-    cpu.CacheLinePadSize - unsafe.Sizeof(myStruct{})%cpu.CacheLinePadSize
+    Fixes #48578
     
-    This change simply mods that calculation by cpu.CacheLinePadSize,
-    so that 0 will be returned instead of cpu.CacheLinePadSize.
-    
-    Change-Id: I26a2b287171bf47a3b9121873b2722f728381b5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414214
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0968d24e110b6d47c9468c45372a6979575a8d29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352118
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/runtime/mheap.go | 2 +-
- src/runtime/stack.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/pcln.go              | 30 +++++++++++++++++++++++++--
+ src/cmd/link/internal/loader/loader.go        | 16 --------------
+ src/cmd/link/internal/loader/symbolbuilder.go | 10 +++++++++
+ 3 files changed, 38 insertions(+), 18 deletions(-)

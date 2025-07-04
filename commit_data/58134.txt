@@ -1,25 +1,27 @@
-commit e75e5246a97b696ab60208b6dfe1318a92e5e659
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Jul 27 13:58:25 2024 +0200
+commit e47cab13a5acfb99ed6e62eeb51772af94c5f526
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 4 09:29:48 2023 -0400
 
-    crypto/internal/nistec: drop endianness swap assembly
+    cmd/go: fix objdir for run actions for -cover no-test packages
     
-    It has negligible performance impact now that we have compiler
-    intrinsics, and removing it helps slightly narrow the gap between
-    the assembly and Go implementations.
+    As of CL 495447 we now synthesize coverage data (including coverage
+    profiles) for packages that have no tests, if they are included in a
+    "go test -cover" run. The code that set up the "run" actions for such
+    tests wasn't setting the objdir for the action, which meant that the
+    coverage profile temp file fragment ("_cover_.out") was being created
+    in the dir where the test was run, and in addition the same fragment
+    could be written to by more than one package (which could lead to a
+    corrupted file). This CL updates the code to properly set the objdir,
+    and to create the dir when needed.
     
-    Change-Id: Ia02807a973b567952c659bb4868632a73ff3c143
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627939
+    Updates #24570.
+    Fixes #63356.
+    
+    Change-Id: Iffe131cf50f07ce91085b816a039308e0ca84776
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532555
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- .../nistec/_asm/{p256_asm_amd64.go => p256_asm.go} | 82 +---------------------
- src/crypto/internal/nistec/p256_asm.go             | 42 +++++++----
- src/crypto/internal/nistec/p256_asm_amd64.s        | 32 +--------
- src/crypto/internal/nistec/p256_asm_arm64.s        | 29 --------
- src/crypto/internal/nistec/p256_asm_ppc64le.s      | 44 ------------
- src/crypto/internal/nistec/p256_asm_s390x.s        | 38 ----------
- 6 files changed, 32 insertions(+), 235 deletions(-)
+ src/cmd/go/internal/test/test.go                   |   7 +
+ .../script/cover_coverprofile_multipkg.txt         | 193 +++++++++++++++++++++
+ 2 files changed, 200 insertions(+)

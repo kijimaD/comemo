@@ -1,19 +1,15 @@
-commit f6a163177f858c7158ddca55671f1cd0782b9221
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 10 19:35:01 2018 -0800
+commit d58f3e6fea4e4540ad54caf9e141fe213c87d710
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 31 21:05:26 2018 +0000
 
-    cmd/cover: simplify and correct isValidIdentifier
+    net/http: add test showing that ReverseProxy HTTP/2 bidi streaming works
     
-    Per comment on CL 120316.
-    
-    Updates #25280
-    
-    Change-Id: I7d078de4030bd10934468e04ff696a34749bd454
-    Reviewed-on: https://go-review.googlesource.com/c/153500
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8361ae33c785e45e3ccc7e9bc2732c887eeb41c4
+    Reviewed-on: https://go-review.googlesource.com/127015
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/cover/cover.go | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ src/net/http/clientserver_test.go | 67 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 67 insertions(+)

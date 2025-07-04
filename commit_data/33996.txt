@@ -1,14 +1,20 @@
-commit 6631f22776ab56f306bd00d44bc2e3b8d0b90585
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Thu Jan 11 09:58:16 2018 +0900
+commit 9f7fd893dc455339233a8e081f5fb5e2c51e7b5d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Sep 23 22:00:53 2017 -0700
 
-    net/http: avoid for-loop if possible
+    os: don't refer directly to Sysfd in epipecheck
     
-    Change-Id: I01900c3a2ebdda8c90d0585f179a39ee890c417f
-    Reviewed-on: https://go-review.googlesource.com/87336
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Instead record in the File whether it is stdout/stderr. This avoids a
+    race between a call to epipecheck and closing the file.
+    
+    Fixes #21994
+    
+    Change-Id: Ic3d552ffa83402136276bcb5029ec3e6691042c2
+    Reviewed-on: https://go-review.googlesource.com/65750
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/http/server.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/os/file_unix.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

@@ -1,14 +1,15 @@
-commit ad50f6b2139d4d505a853415e6d9c346176f685d
-Author: Jan Mercl <0xjnml@gmail.com>
-Date:   Fri Aug 23 10:40:01 2013 -0500
+commit e18ed3c111cfeeb6dd6664e9f47cb4a6f935befd
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 24 01:32:01 2013 +1000
 
-    doc: correct a minor go_mem.html mistake
+    cmd/5l,cmd/8l: unbreak arm and 386 linkers
     
-    Fixes #6227
+    Add dragonflydynld to 5l and 8l so that they compile again.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13183043
+    https://golang.org/cl/12739048
 
- doc/go_mem.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5l/asm.c | 1 +
+ src/cmd/8l/asm.c | 1 +
+ 2 files changed, 2 insertions(+)

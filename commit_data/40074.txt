@@ -1,20 +1,26 @@
-commit c19b7b23e55f5fdb33a6c280cf1af29eb54d456f
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Sep 28 20:29:11 2019 +0200
+commit 94e720059f902339699b8bf7b2b10897311b50f8
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Tue Aug 21 19:30:30 2018 +0900
 
-    doc: remove double mention of custom workspace
+    net/http: introduce DialerAndTLSConfigSupportsHTTP2 in Transport
     
-    In the GOPATH section of the 'How To Write Go Code' document, it is
-    mentioned two times in the span of a few lines that one can set GOPATH
-    to a custom workspace path. The two paragraphs say basically the same
-    thing, and they both link to golang.org/wiki/SettingGOPATH, so I'm
-    quite sure the duplication is not intentional.
+    Even when a custom TLS config or custom dialer is specified,
+    enables HTTP/2 if DialerAndTLSConfigSupportsHTTP2 is true.
+    By this change, avoid automatically enabling HTTP/2 if DialContext is set.
     
-    This change deletes the second occurrence.
+    This change also ensures that DefaultTransport still automatically
+    enable HTTP/2 as discussed in #14391.
     
-    Change-Id: I16f8bb8657041a23ed272eacf9adbc5637e8e34a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197839
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Updates #14391
+    Fixes #27011
+    
+    Change-Id: Icc46416810bee61dbd65ebc96468335030b80573
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/130256
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/code.html | 5 -----
- 1 file changed, 5 deletions(-)
+ src/net/http/transport.go      | 18 +++++++++++++-----
+ src/net/http/transport_test.go | 14 ++++++++++++++
+ 2 files changed, 27 insertions(+), 5 deletions(-)

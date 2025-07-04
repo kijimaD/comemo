@@ -1,16 +1,14 @@
-commit 16ce2f9369fd76334880a3883ca1def77d41c7e3
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Thu Feb 2 14:08:48 2012 -0500
+commit cdabb3d315691187f2f3c2ce74e8adee2c544002
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 2 11:04:09 2012 -0800
 
-    os: Process.handle use syscall.Handle
+    test: add import test that caused an incorrect gccgo error
     
-    R=golang-dev, alex.brainman, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5605050
+    https://golang.org/cl/5622048
 
- src/pkg/os/exec.go              | 4 ++--
- src/pkg/os/exec_windows.go      | 6 +++---
- src/pkg/syscall/exec_plan9.go   | 2 +-
- src/pkg/syscall/exec_unix.go    | 2 +-
- src/pkg/syscall/exec_windows.go | 4 ++--
- 5 files changed, 9 insertions(+), 9 deletions(-)
+ test/fixedbugs/bug404.dir/one.go | 19 +++++++++++++++++++
+ test/fixedbugs/bug404.dir/two.go | 12 ++++++++++++
+ test/fixedbugs/bug404.go         |  7 +++++++
+ 3 files changed, 38 insertions(+)

@@ -1,12 +1,12 @@
-commit 6ec6f1ef62e94bd7f443374c2c1fdfbd67e90c32
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Jul 12 16:17:02 2011 +1000
+commit 1002e82ffff48d06f542be5f1881f673952251b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 12 01:39:09 2011 -0400
 
-    image/draw: add benchmarks.
+    doc: document r58.1
     
-    R=r
+    R=adg, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4695043
+    https://golang.org/cl/4700041
 
- src/pkg/image/draw/bench_test.go | 206 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 206 insertions(+)
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

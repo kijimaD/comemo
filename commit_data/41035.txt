@@ -1,12 +1,20 @@
-commit 73b657e96e498e0b6314e6054795f81400de4afc
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 2 15:23:26 2020 -0500
+commit 2393d1614736eb3ece950d6dd70883120237e209
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 28 12:56:26 2019 -0700
 
-    doc/go1.14: mention sync.Mutex changes
+    cmd/compile: handle infinite loops in shortcircuit pass
     
-    Change-Id: Icd92d115e5d7f00b2100598baf2522ebebcdb223
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213125
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The newly upgraded shortcircuit pass attempted to remove infinite loops.
+    Stop doing that.
+    
+    Fixes #33903
+    
+    Change-Id: I0fc9c1b5f2427e54ce650806602ef5e3ad65aca5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192144
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.14.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/compile/internal/ssa/shortcircuit.go | 10 ++++++++--
+ test/fixedbugs/issue33903.go                 | 16 ++++++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

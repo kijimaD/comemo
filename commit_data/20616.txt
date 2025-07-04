@@ -1,13 +1,20 @@
-commit 714461740cafdcdc16e675f761544022dc25c723
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Oct 2 16:15:36 2014 +1000
+commit 54111a5893cf3a1de6f79729832c3ad9bb1a193b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 24 14:33:30 2014 -0700
 
-    run.bat: comment text properly
+    fmt: document and fix the handling of precision for strings and byte slices
+    Previous behavior was undocumented and inconsistent. Now it is documented
+    and consistent and measures the input size, since that makes more sense
+    when talking about %q and %x. For %s the change has no effect.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Fixes #8151.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/153830044
+    https://golang.org/cl/144540044
 
- src/run.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/fmt/doc.go      | 20 ++++++++++++--------
+ src/fmt/fmt_test.go |  7 +++++++
+ src/fmt/format.go   |  6 ++++++
+ 3 files changed, 25 insertions(+), 8 deletions(-)

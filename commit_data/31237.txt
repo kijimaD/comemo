@@ -1,23 +1,16 @@
-commit f3f3f0d6d509bfaf30b55c0679cff366b50b7eae
-Author: Samuel Tan <samueltan@google.com>
-Date:   Thu Apr 13 10:57:04 2017 -0700
+commit 8cf1766930269ea09a4234cc42570abcf425355f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 6 18:18:49 2017 -0800
 
-    html/template: ignore case when handling type attribute in script element
+    cmd/compile/internal/ssa: use *obj.LSym in ExternSymbol
     
-    Convert the parsed attribute name to lowercase before checking its value in
-    the HTML parser state machine. This ensures that the type attribute in
-    the script element is handled in a case-sensitive manner, just like all
-    other attribute names.
-    
-    Fixes #19965
-    
-    Change-Id: I806d8c62aada2c3b5b4328aff75f217ea60cb339
-    Reviewed-on: https://go-review.googlesource.com/40650
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I713120f90fd1d2df6698c40622ccac6eae907919
+    Reviewed-on: https://go-review.googlesource.com/36423
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/html/template/attr.go        | 3 +--
- src/html/template/escape_test.go | 5 +++++
- src/html/template/transition.go  | 2 +-
- 3 files changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/fmt_test.go           |  1 -
+ src/cmd/compile/internal/gc/ssa.go    | 21 +++++++--------------
+ src/cmd/compile/internal/ssa/value.go |  5 +++--
+ 3 files changed, 10 insertions(+), 17 deletions(-)

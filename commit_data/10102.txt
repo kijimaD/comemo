@@ -1,18 +1,17 @@
-commit cfa036ae3adffb56a2d93a074b97025a16519463
+commit 4911622055d1bcc88182a0c3292115e33c299814
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 22:22:42 2011 -0700
+Date:   Tue Oct 25 22:22:26 2011 -0700
 
-    old/regexp, old/template, template: use rune
+    exp/template/html: use rune
     
     Nothing terribly interesting here.
     
-    R=r, gri
+    R=mikesamuel, nigeltao, r
     CC=golang-dev
-    https://golang.org/cl/5308042
+    https://golang.org/cl/5307044
 
- src/pkg/old/regexp/regexp.go  | 48 +++++++++++++++++++++----------------------
- src/pkg/old/template/parse.go |  6 +++---
- src/pkg/template/exec_test.go |  2 +-
- src/pkg/template/funcs.go     | 14 ++++++-------
- src/pkg/template/parse/lex.go | 16 +++++++--------
- 5 files changed, 43 insertions(+), 43 deletions(-)
+ src/pkg/exp/template/html/css.go      | 40 +++++++++++++++++------------------
+ src/pkg/exp/template/html/css_test.go |  6 +++---
+ src/pkg/exp/template/html/html.go     |  2 +-
+ src/pkg/exp/template/html/js.go       | 16 +++++++-------
+ 4 files changed, 32 insertions(+), 32 deletions(-)

@@ -1,23 +1,19 @@
-commit 28e549dec3954b36d0c83442be913d8709d7e5ae
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Sep 12 12:33:24 2020 -0400
+commit f4ddc00345af8ffc77fabe2f6f21d570288159c1
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 17 13:27:11 2020 -0700
 
-    runtime: use sigaltstack on macOS/ARM64
+    runtime: don't report a pointer alignment error for pointer-free base type
     
-    Currently we don't use sigaltstack on darwin/arm64, as is not
-    supported on iOS. However, it is supported on macOS. Use it.
-    (iOS remains unchanged.)
+    Fixes #37298
     
-    Change-Id: Icc154c5e2edf2dbdc8ca68741ad9157fc15a72ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256917
-    Trust: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I8ba9c8b106e16cea7dd25473c7390b0f2ba9a1a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223781
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/sigaltstack.go       |  2 +-
- src/cmd/internal/obj/arm64/obj7.go |  2 +-
- src/runtime/mkpreempt.go           |  7 ++-----
- src/runtime/os_darwin.go           |  8 ++++----
- src/runtime/preempt_arm64.s        |  3 ---
- src/runtime/stack.go               |  2 +-
- src/runtime/sys_darwin_arm64.s     | 22 ++++++++++++++++++----
- 7 files changed, 27 insertions(+), 19 deletions(-)
+ src/runtime/checkptr.go                   |  4 +++-
+ src/runtime/checkptr_test.go              |  9 ++++++++-
+ src/runtime/testdata/testprog/checkptr.go | 11 +++++++++--
+ 3 files changed, 20 insertions(+), 4 deletions(-)

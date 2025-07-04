@@ -1,40 +1,28 @@
-commit 6c13a1db2ebe146fec7cc7261146ca0e8420f011
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 3 16:58:34 2016 -0700
+commit 3c6ed76da2feb45f8fba9177e9d6e0f19671353b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Jun 24 11:09:48 2016 -0400
 
-    runtime: don't call cgocallback from signal handler
+    reflect: avoid lock for some NumMethod()==0 cases
     
-    Calling cgocallback from a signal handler can fail when using the race
-    detector. Calling cgocallback will lead to a call to newextram which
-    will call oneNewExtraM which will call racegostart. The racegostart
-    function will set up some race detector data structures, and doing that
-    will sometimes call the C memory allocator. If we are running the signal
-    handler from a signal that interrupted the C memory allocator, we will
-    crash or hang.
+    The encoding/json package uses NumMethod()==0 as a fast check for
+    interface satisfaction. In the case when a type has no methods at
+    all, we don't need to grab the RWMutex.
     
-    Instead, change the signal handler code to call needm and dropm. The
-    needm function will grab allocated m and g structures and initialize the
-    g to use the current stack--the signal stack. That is all we need to
-    safely call code that allocates memory and checks whether it needs to
-    split the stack. This may temporarily leave us with no m available to
-    run a cgo callback, but that is OK in this case since the code we call
-    will quickly either crash or call dropm to return the m.
+    Improves JSON decoding benchmark on linux/amd64:
     
-    Implementing this required changing some of the setSignalstackSP
-    functions to avoid a write barrier. These functions never need a write
-    barrier but in some cases generated one anyhow because on some systems
-    the ss_sp field is a pointer.
+            name           old time/op    new time/op    delta
+            CodeDecoder-8    44.2ms ± 2%    40.6ms ± 1%  -8.11%  (p=0.000 n=10+10)
     
-    Change-Id: I3893f47c3a66278f85eab7f94c1ab11d4f3be133
-    Reviewed-on: https://go-review.googlesource.com/30218
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+            name           old speed      new speed      delta
+            CodeDecoder-8  43.9MB/s ± 2%  47.8MB/s ± 1%  +8.82%  (p=0.000 n=10+10)
+    
+    For #16117
+    
+    Change-Id: Id717e7fcd2f41b7d51d50c26ac167af45bae3747
+    Reviewed-on: https://go-review.googlesource.com/24433
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/crash_cgo_test.go               |  29 ++++++++
- src/runtime/os3_solaris.go                  |   2 +-
- src/runtime/os_darwin.go                    |   2 +-
- src/runtime/os_linux.go                     |   2 +-
- src/runtime/signal_unix.go                  |  16 +++--
- src/runtime/testdata/testprogcgo/racesig.go | 102 ++++++++++++++++++++++++++++
- 6 files changed, 143 insertions(+), 10 deletions(-)
+ src/reflect/type.go | 3 +++
+ 1 file changed, 3 insertions(+)

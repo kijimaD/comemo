@@ -1,30 +1,22 @@
-commit 830ee4792e52cc8c7c0a4d54259f55fa3629271a
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Mar 20 15:26:46 2020 +0000
+commit 0050c079d5a50e441aa32d0da5338687890194ef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 17:38:26 2019 -0700
 
-    cmd/compile: declare runtime bit func aliases after math/bits intrinsics
+    runtime, syscall, time: prepare for adding timers to P's
     
-    Currently runtime/internal/sys bit-manipulation functions are aliased to
-    math/bits functions, which are intrinsified. Unfortunately these aliases
-    are declared before the intrinsified versions are generated, resulting
-    in the generic version of the code being copied over.
+    Add new fields to runtime.timer, and adjust the various timer
+    functions in preparation for adding timers to P's. This continues to
+    use the old timer code.
     
-    This change moves the aliases for bit operations in runtime/internal/sys
-    after the addF calls to generate those intrinsics in SSA, so that the
-    intrinsified SSA representation of those functions actually get copied
-    over.
+    Updates #6239
+    Updates #27707
     
-    This should improve the overall performance of the runtime (especially
-    the page allocator) since these bit operations will actually be
-    intrinsified now.
-    
-    Change-Id: I4377da13f9a7bb6aee608e50df0297148bf8f806
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224437
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I9adb3814f657e083ec5e22736c4b5b52b77b6a3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171829
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/runtime/time.go | 138 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/time/sleep.go   |  13 +++--
+ 2 files changed, 143 insertions(+), 8 deletions(-)

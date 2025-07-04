@@ -1,15 +1,20 @@
-commit 0f26608ebcfbe08aaf1ba2f3b0592cc5ce1feec1
+commit 189d4ff7762f73b7602dd5a7d8451dccc3eb9764
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 5 14:35:13 2011 -0500
+Date:   Wed Jan 5 14:35:07 2011 -0500
 
-    io: fix Copyn EOF handling
+    syscall: correct Linux Splice definition
     
-    Fixes #1383.
+    Fixes #1376.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/3821044
+    https://golang.org/cl/3869042
 
- src/pkg/io/io.go      |  7 ++++++-
- src/pkg/io/io_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 1 deletion(-)
+ src/pkg/syscall/syscall_linux.go        |  1 -
+ src/pkg/syscall/syscall_linux_386.go    |  1 +
+ src/pkg/syscall/syscall_linux_amd64.go  |  1 +
+ src/pkg/syscall/syscall_linux_arm.go    |  1 +
+ src/pkg/syscall/zsyscall_linux_386.go   | 18 +++++++++---------
+ src/pkg/syscall/zsyscall_linux_amd64.go | 18 +++++++++---------
+ src/pkg/syscall/zsyscall_linux_arm.go   | 28 ++++++++++++++--------------
+ 7 files changed, 35 insertions(+), 33 deletions(-)

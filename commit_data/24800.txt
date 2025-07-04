@@ -1,21 +1,17 @@
-commit f32f2954fbabbb29ce1f7d25c223a9ce25e1e317
-Author: Austin Clements <austin@google.com>
-Date:   Tue Nov 10 15:24:59 2015 -0500
+commit 21e6a055c125022d1a10a6d57f5910cef5d2cb6d
+Author: Todd Neal <todd@tneal.org>
+Date:   Sat Aug 29 12:51:04 2015 -0500
 
-    runtime: never allocate new M when jumping time forward
+    [dev.ssa] cmd/compile: schedule values dependent on the control later
     
-    When we're jumping time forward, it means everyone is asleep, so there
-    should always be an M available. Furthermore, this causes both
-    allocation and write barriers in contexts that may be running without
-    a P (such as in sysmon).
+    To reduce the number of spills, give any non-phi values whose argument
+    is the control the same priority as the control.
     
-    Hence, replace this allocation with a throw.
+    With mask.bash, this reduces regenerated flags from 603 to 240.
     
-    Updates #10600.
-    
-    Change-Id: I2cee70d5db828d0044082878995949edb25dda5f
-    Reviewed-on: https://go-review.googlesource.com/16815
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I26883d69e80357c56b343428fb528102b3f26e7a
+    Reviewed-on: https://go-review.googlesource.com/14042
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

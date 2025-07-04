@@ -1,13 +1,12 @@
-commit 1887907fee0b51502a3ef10a63a96543d5dd3e23
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sun Oct 16 20:50:11 2011 +1100
+commit 1135fc397801c04ab68822978d88ee66de48d52c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Oct 16 10:49:24 2011 +0300
 
-    html: tokenize "a < b" as one whole text token.
+    runtime: fix crash if user sets MemProfileRate=0
     
-    R=andybalholm
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5284042
+    https://golang.org/cl/5284044
 
- src/pkg/html/token.go      |  47 ++++++++++++++------
- src/pkg/html/token_test.go | 104 ++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 128 insertions(+), 23 deletions(-)
+ src/pkg/runtime/malloc.goc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

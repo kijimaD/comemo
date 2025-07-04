@@ -1,21 +1,21 @@
-commit d55f52882656122869b6b409be783bfb5a2fd2fb
-Author: David R. Jenni <david.r.jenni@gmail.com>
-Date:   Fri Feb 10 19:25:58 2017 +0100
+commit 761443edd56832cc1b62f9193f157ca822dfa09e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 31 21:18:00 2016 -0700
 
-    cmd/compile: silence superfluous assignment error message
+    cmd/compile: On a runtime.KeepAlive call, keep whole variable alive
     
-    Avoid printing a second error message when a field of an undefined
-    variable is accessed.
+    We generate an OpKeepAlive for the idata portion of the interface
+    for a runtime.KeepAlive call.  But given such an op, we need to keep
+    the entire containing variable alive, not just the range that was
+    passed to the OpKeepAlive operation.
     
-    Fixes #8440.
+    Fixes #17710
     
-    Change-Id: I3fe0b11fa3423cec3871cb01b5951efa8ea7451a
-    Reviewed-on: https://go-review.googlesource.com/36751
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I90de66ec8065e22fb09bcf9722999ddda289ae6e
+    Reviewed-on: https://go-review.googlesource.com/32477
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/gc/typecheck.go |  4 ++--
- test/fixedbugs/issue14010.go             |  2 +-
- test/fixedbugs/issue8440.go              | 11 +++++++++++
- 3 files changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go |  9 +++++----
+ test/fixedbugs/issue17710.go       | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 4 deletions(-)

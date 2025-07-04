@@ -1,20 +1,14 @@
-commit 32002079083e533e11209824bd9e3a797169d1c4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 28 20:03:41 2017 +0000
+commit b3a8beb9d1eb7bd28b22e3a26f65c6025017d7a3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 17 17:09:07 2017 -0700
 
-    doc: document the state of NetBSD in the Go 1.9 release notes
+    cmd/compile: minor cleanup in debug code
     
-    Updates #20836
-    Updates #19339
-    Updates #19652
-    Updates #20835
-    Updates #16511
-    Updates #10166
-    Updates #8574
-    
-    Change-Id: If9a7f560489f1a8d628dafab227925bd8989326e
-    Reviewed-on: https://go-review.googlesource.com/47036
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9885606801b9c8fcb62c16d0856025c4e83e658b
+    Reviewed-on: https://go-review.googlesource.com/38650
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.9.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/ssa/func.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

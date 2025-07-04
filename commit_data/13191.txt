@@ -1,22 +1,16 @@
-commit 6dbaa206fbe7345fac181ec3d91a4157d5532fbd
+commit 95ae5c180efbeb7c086da2f62a6bccc49d7a8b76
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 29 14:02:29 2012 -0400
+Date:   Tue May 29 13:33:37 2012 -0400
 
-    runtime: replace runtime·rnd function with ROUND macro
+    exp/types: disable test
     
-    It's sad to introduce a new macro, but rnd shows up consistently
-    in profiles, and the function call overwhelms the two arithmetic
-    instructions it performs.
+    It's broken and seems to be exp/types's fault.
     
-    R=r
+    Update #3682.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6260051
+    https://golang.org/cl/6243068
 
- src/cmd/gc/reflect.c      | 32 ++++++++++++++++++++------------
- src/pkg/runtime/chan.c    | 20 ++++++++++----------
- src/pkg/runtime/hashmap.c | 22 +++++++++++-----------
- src/pkg/runtime/iface.c   |  8 ++++----
- src/pkg/runtime/print.c   | 18 +++++++++---------
- src/pkg/runtime/runtime.c | 13 -------------
- src/pkg/runtime/runtime.h |  2 +-
- 7 files changed, 55 insertions(+), 60 deletions(-)
+ src/pkg/exp/types/gcimporter_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

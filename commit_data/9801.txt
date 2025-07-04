@@ -1,16 +1,18 @@
-commit a8a18f6566dd4af3335a587d10cec77f6c5a3e90
+commit 1fa87ada553ec8b9d4e520fe715faa3f9d391a5c
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 26 18:32:51 2011 -0400
+Date:   Mon Sep 26 18:32:16 2011 -0400
 
-    strings: add EqualFold
+    codereview: extra repo sanity check
     
-    Case-insensitive strcmp without using ToLower.
-    (Using ToLower is not always correct, and it allocates.)
+    Also work around Mercurial issue 3023.
+    
+    If anyone has local changes in their repo (due to
+    patch queues or whatever) stop them from leaking
+    into the main repository.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5143044
+    https://golang.org/cl/5144043
 
- src/pkg/strings/strings.go      |  54 ++++++++++++++++++++
- src/pkg/strings/strings_test.go | 107 ++++++++++++++++++++++------------------
- 2 files changed, 112 insertions(+), 49 deletions(-)
+ lib/codereview/codereview.py | 54 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 38 insertions(+), 16 deletions(-)

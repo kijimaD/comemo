@@ -1,19 +1,14 @@
-commit f4ddc00345af8ffc77fabe2f6f21d570288159c1
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 17 13:27:11 2020 -0700
+commit 65a4dc9c183d37920291ef5ca2e30242a6af2677
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 18 16:58:47 2019 +0000
 
-    runtime: don't report a pointer alignment error for pointer-free base type
+    doc/go1.14: announce upcoming removal of darwin/386 port
     
-    Fixes #37298
+    Fixes #34749
     
-    Change-Id: I8ba9c8b106e16cea7dd25473c7390b0f2ba9a1a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223781
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id97afc189ea387fc0fdd044140e30096594e185a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202018
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/checkptr.go                   |  4 +++-
- src/runtime/checkptr_test.go              |  9 ++++++++-
- src/runtime/testdata/testprog/checkptr.go | 11 +++++++++--
- 3 files changed, 20 insertions(+), 4 deletions(-)
+ doc/go1.14.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

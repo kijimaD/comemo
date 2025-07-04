@@ -1,32 +1,65 @@
-commit 6ecd5f750454665f789e3d557548bb5a65ad5c3a
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Sat Sep 9 13:41:35 2023 +0000
+commit e252dcf9d38ce9192bccacb7e33867cbfbd22b6c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 18 12:01:18 2022 -0400
 
-    runtime/internal/atomic: add wasm And/Or operators
+    runtime: always keep global reference to mp until mexit completes
     
-    In the WebAssembly version of these operators we avoid using
-    a CAS loop since the Go wasm implementation is single-threaded.
+    Ms are allocated via standard heap allocation (`new(m)`), which means we
+    must keep them alive (i.e., reachable by the GC) until we are completely
+    done using them.
     
-    A new test file has been added that has build tags in order to
-    only test this feature on implemented architectures.
+    Ms are primarily reachable through runtime.allm. However, runtime.mexit
+    drops the M from allm fairly early, long before it is done using the M
+    structure. If that was the last reference to the M, it is now at risk of
+    being freed by the GC and used for some other allocation, leading to
+    memory corruption.
     
-    This is part of a series of CLs aimed to add the primitives
-    for And/Or atomic operations that will be used by the public
-    sync/atomic apis.
+    Ms with a Go-allocated stack coincidentally already keep a reference to
+    the M in sched.freem, so that the stack can be freed lazily. This
+    reference has the side effect of keeping this Ms reachable. However, Ms
+    with an OS stack skip this and are at risk of corruption.
     
-    For #61395
+    Fix this lifetime by extending sched.freem use to all Ms, with the value
+    of mp.freeWait determining whether the stack needs to be freed or not.
     
-    Change-Id: Ic67ffefc9cfb626915ea86b6b21b500117710327
-    GitHub-Last-Rev: bbec3a5f356c55185af0357b929e76a9dfac230e
-    GitHub-Pull-Request: golang/go#62517
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526656
-    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Fixes #56243.
+    
+    Change-Id: Ic0c01684775f5646970df507111c9abaac0ba52e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443716
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/internal/atomic/atomic_andor_test.go | 169 +++++++++++++++++++++++
- src/runtime/internal/atomic/atomic_wasm.go       |  48 +++++++
- 2 files changed, 217 insertions(+)
+ src/runtime/os3_solaris.go         |  3 ++-
+ src/runtime/os_aix.go              |  3 ++-
+ src/runtime/os_js.go               |  3 ++-
+ src/runtime/os_openbsd_syscall2.go |  5 ++--
+ src/runtime/os_plan9.go            |  2 +-
+ src/runtime/os_windows.go          |  2 +-
+ src/runtime/proc.go                | 48 ++++++++++++++++++++++----------------
+ src/runtime/runtime2.go            |  9 ++++++-
+ src/runtime/stubs2.go              |  9 ++++---
+ src/runtime/sys_darwin.go          |  3 ++-
+ src/runtime/sys_dragonfly_amd64.s  |  2 +-
+ src/runtime/sys_freebsd_386.s      |  2 +-
+ src/runtime/sys_freebsd_amd64.s    |  2 +-
+ src/runtime/sys_freebsd_arm.s      |  2 +-
+ src/runtime/sys_freebsd_arm64.s    |  2 +-
+ src/runtime/sys_freebsd_riscv64.s  |  2 +-
+ src/runtime/sys_linux_386.s        |  2 +-
+ src/runtime/sys_linux_amd64.s      |  2 +-
+ src/runtime/sys_linux_arm.s        |  2 +-
+ src/runtime/sys_linux_arm64.s      |  2 +-
+ src/runtime/sys_linux_loong64.s    |  2 +-
+ src/runtime/sys_linux_mips64x.s    |  2 +-
+ src/runtime/sys_linux_mipsx.s      |  2 +-
+ src/runtime/sys_linux_ppc64x.s     |  2 +-
+ src/runtime/sys_linux_riscv64.s    |  2 +-
+ src/runtime/sys_linux_s390x.s      |  2 +-
+ src/runtime/sys_netbsd_386.s       |  2 +-
+ src/runtime/sys_netbsd_amd64.s     |  2 +-
+ src/runtime/sys_netbsd_arm.s       |  2 +-
+ src/runtime/sys_netbsd_arm64.s     |  2 +-
+ src/runtime/sys_openbsd2.go        |  3 ++-
+ src/runtime/sys_openbsd_mips64.s   |  2 +-
+ 32 files changed, 78 insertions(+), 54 deletions(-)

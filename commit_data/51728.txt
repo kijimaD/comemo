@@ -1,32 +1,19 @@
-commit bb5ff5342d31723ecf245e8e53b79bce23b88839
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Mon Oct 3 18:08:29 2022 +0200
+commit 7fd9564fcd3715a2aaf2bf4df1096f71ff40ef15
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 22 14:43:41 2022 -0500
 
-    cmd/compile: make loopbce handle 8, 16 and 32 bit induction variables
+    cmd/compile: allow fieldtrack of unexported fields
     
-    Compute limits and increment values for all integer widths.
-    Resolves 2 TODO's in loopbce.go
+    The fieldtrack support is experimental and used mainly inside Google,
+    where we have included this change for years. No reason not to make
+    it in the public copy.
     
-    compilecmp linux/amd64:
-    
-    compress/flate
-    compress/flate.(*huffmanEncoder).bitCounts 1235 -> 1207  (-2.27%)
-    
-    cmd/internal/obj/wasm
-    cmd/internal/obj/wasm.assemble 7443 -> 7303  (-1.88%)
-    cmd/internal/obj/wasm.assemble.func1 165 -> 138  (-16.36%)
-    
-    cmd/link/internal/ld
-    cmd/link/internal/ld.(*Link).findfunctab.func1 1646 -> 1627  (-1.15%)
-    
-    Change-Id: I2d79b7376eb67d6bcc8fdaf0c197c11e631562d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435258
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I5233e4e775ccce60a17098c007aed8c82a0425d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387355
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/loopbce.go | 49 ++++++++++++++++++---------------
- test/loopbce.go                         | 24 ++++++++++++++++
- 2 files changed, 51 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/walk/expr.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,20 +1,33 @@
-commit 59af53d681845a8b0be2a728ca1b59aee5ad9ea6
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Thu Apr 7 23:22:30 2016 -0700
+commit 0ccabe2e0b42a2602e0f37ce28d5368aa811f530
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Thu Oct 29 11:14:05 2015 +0100
 
-    bytes: add ContainsRune
+    testing/quick: generate more map and slice states
     
-    Make package bytes consistent with strings
-    by adding missing function ContainsRune.
+    This change adds support in testing/quick to generate maps and slices
+    in additional states:
     
-    Fixes #15189
+      (1.) nil maps
     
-    Change-Id: Ie09080b389e55bbe070c57aa3bd134053a805423
-    Reviewed-on: https://go-review.googlesource.com/21710
-    Run-TryBot: Rob Pike <r@golang.org>
+      (2.) nil slices
+    
+      (3.) empty slice occupancy: `len(s) == 0 && s != nil`
+    
+      (4.) partial slice occupancy: `len(s) < cap(s) && s != nil`
+    
+      (5.) full slice occupancy: `len(s) == cap(s) && s != nil`
+    
+    Prior to this, only #5 was ever generated, thereby not sufficiently
+    exercising all of the fuzzable code path outcomes.
+    
+    This change depends on https://go-review.googlesource.com/#/c/17499/.
+    
+    Change-Id: I9343c475cefbd72ffc5237281826465c25872206
+    Reviewed-on: https://go-review.googlesource.com/16470
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/bytes/bytes.go      |  5 +++++
- src/bytes/bytes_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 29 insertions(+)
+ src/testing/quick/quick.go      | 47 +++++++++++++++++++++++++----------------
+ src/testing/quick/quick_test.go | 17 ---------------
+ 2 files changed, 29 insertions(+), 35 deletions(-)

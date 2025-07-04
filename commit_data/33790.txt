@@ -1,23 +1,12 @@
-commit 9d70b3ae04316c5753435dddee54fe7373502e09
-Author: Keith Randall <khr@google.com>
-Date:   Mon Dec 4 13:30:13 2017 -0800
+commit 44f7fd030fc0110b7fe727038a72bf6a0646be6f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 8 06:03:46 2017 -0700
 
-    cmd/compile: fix noopt builder, weird append case
+    math/rand: change http to https in comment
     
-    Turn off append-to-itself optimization if optimizations are turned off.
-    
-    This optimization triggered a bug when doing
-      s = append(s, s)
-    where we write to the leftmost s before reading the rightmost s.
-    
-    Update #17039
-    
-    Change-Id: I21996532d20a75db6ec8d49db50cb157a1360b80
-    Reviewed-on: https://go-review.googlesource.com/81816
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I19c1b0e1b238dda82e69bd47459528ed06b55840
+    Reviewed-on: https://go-review.googlesource.com/62310
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/rand/rand.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

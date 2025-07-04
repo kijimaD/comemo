@@ -1,19 +1,23 @@
-commit 1a7a85359e5ba055e1f6f3de9ea839749f958237
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Aug 3 03:09:13 2024 +1000
+commit a0f816e4bfb12b433deba2fe930fcbde36ca6ff7
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Jun 27 16:54:44 2023 +0200
 
-    cmd/compile/internal/ssagen: add initial test coverage for intrinsics
+    internal/fuzz: pass handle to temporary file instead of the path
     
-    Add basic test coverage for the intrinisic table - this at least allows
-    us to tell if intrinsics are added or removed unexpectedly. Code
-    generation changes resulting from intrinsics is not covered and is
-    left for test/codegen and others.
+    This CL partially reverts CL 297034. Inheritable handles are not
+    inherited by all workers thanks to using AdditionalInheritedHandles,
+    which explicitly specifies which handles to inherit by each worker.
     
-    Change-Id: I3d538708b90cd04d3f449945e0fd9388097d683e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605475
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    This CL doesn't fix any bug, it's more of a cleanup, but also makes
+    the code more robust and more similar to its Unix counterpart.
+    
+    Change-Id: I24c2d7f69dfb839a1aeb5858088d8f38b022f702
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506535
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssagen/intrinsics_test.go | 1258 ++++++++++++++++++++
- 1 file changed, 1258 insertions(+)
+ src/internal/fuzz/sys_windows.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

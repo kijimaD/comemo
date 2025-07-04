@@ -1,0 +1,37 @@
+commit a524b8725374e4ebbb7fe3da85f407ee24141d51
+Author: Damien Neil <dneil@google.com>
+Date:   Tue May 14 09:55:11 2024 -0700
+
+    net/http: avoid panic when writing 100-continue after handler done
+    
+    When a request contains an "Expect: 100-continue" header,
+    the first read from the request body causes the server to
+    write a 100-continue status.
+    
+    This write caused a panic when performed after the server handler
+    has exited. Disable the write when cleaning up after a handler
+    exits.
+    
+    This also fixes a bug where an implicit 100-continue could be
+    sent after a call to WriteHeader has sent a non-1xx header.
+    
+    This change drops tracking of whether we've written a
+    100-continue or not in response.wroteContinue. This tracking
+    was used to determine whether we should consume the remaining
+    request body in chunkWriter.writeHeader, but the discard-the-body
+    path was only taken when the body was already consumed.
+    (If the body is not consumed, we set closeAfterReply, and we
+    don't consume the remaining body when closeAfterReply is set.
+    If the body is consumed, then we may attempt to discard the
+    remaining body, but there is obviously no body remaining.)
+    
+    Fixes #53808
+    
+    Change-Id: I3542df26ad6cdfe93b50a45ae2d6e7ef031e46fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/net/http/serve_test.go | 76 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 50 +++++++++++++++++-------------
+ 2 files changed, 105 insertions(+), 21 deletions(-)

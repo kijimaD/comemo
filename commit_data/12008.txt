@@ -1,20 +1,16 @@
-commit 710d0540e27f57b2589552965418b95b88187fa7
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Feb 17 11:29:34 2012 -0500
+commit fc444ebac1521b4f36a70c0e1b19c2e78cf5520f
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri Feb 17 11:21:46 2012 -0500
 
-    cmd/dist: make dir check in defaulttarg() more robust
+    8a, 8l: add EMMS instruction
     
-    1, strip last path separator from $GOROOT
-       The user might define GOROOT=/path/to/go/, but then the dir
-       check in defaulttarg() will always complain the current dir
-       is not within $GOROOT/src/.
-    2, resolve symlinks in the default goroot
-       Or if getcwd() returns a fully-resolved path, the check in
-       defaulttarg() will always fail.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5649073
+    https://golang.org/cl/5673081
 
- src/cmd/dist/build.c | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
+ src/cmd/8a/lex.c              | 1 +
+ src/cmd/8l/8.out.h            | 2 ++
+ src/cmd/8l/optab.c            | 2 ++
+ src/libmach/8db.c             | 1 +
+ src/pkg/sync/atomic/asm_386.s | 6 ++----
+ 5 files changed, 8 insertions(+), 4 deletions(-)

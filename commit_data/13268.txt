@@ -1,14 +1,15 @@
-commit 3238705f0cd7266e20b5d55d8659069c4c702aad
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jun 5 00:55:45 2012 +1000
+commit 062b6094139edb8345c2f6ba82f8fe129ccaaf62
+Author: Ryan Barrett <ryanb@google.com>
+Date:   Mon Jun 4 10:36:24 2012 -0400
 
-          doc: mention 'hg update default' in contribution guidelines
+    misc/emacs: make compilation-mode's next-error understand test failure output.
     
-    Fixes #3634.
+    specifically, adds a go-test element to compilation-error-regexp-alist[-alist].
+    Fixes #3629.
     
-    R=golang-dev, bsiegert, rsc
-    CC=golang-dev
-    https://golang.org/cl/6270047
+    R=golang-dev, rsc, sameer
+    CC=golang-dev, jba
+    https://golang.org/cl/6197091
 
- doc/contribute.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ misc/emacs/go-mode.el | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

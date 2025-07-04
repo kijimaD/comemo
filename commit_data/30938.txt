@@ -1,32 +1,39 @@
-commit eee85fc5a1071c8c7d8d804e898da6394ffbdec3
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 1 13:58:22 2017 -0500
+commit d296c3235d47ab1a0e5077dfcfbc3e14854e38c5
+Author: Kirill Smelkov <kirr@nexedi.com>
+Date:   Tue Dec 20 12:02:39 2016 +0300
 
-    runtime: snapshot heap profile during mark termination
+    io: fix PipeWriter.Close to wake up Writes
     
-    Currently we snapshot the heap profile just *after* mark termination
-    starts the world because it's a relatively expensive operation.
-    However, this means any alloc or free events that happen between
-    starting the world and snapshotting the heap profile can be accounted
-    to the wrong cycle. In the worst case, a free can be accounted to the
-    cycle before the alloc; if the heap is small, this can result
-    temporarily in a negative "in use" count in the profile.
+    Since commit cc62bed0 (CL 994043) the pipe deadlock when doing
+    Read+Close or Write+Close on same end was fixed, alas with test for
+    Read+Close case only.
     
-    Fix this without making STW more expensive by using a global heap
-    profile cycle counter. This lets us split up the operation into a two
-    parts: 1) a super-cheap snapshot operation that simply increments the
-    global cycle counter during STW, and 2) a more expensive cleanup
-    operation we can do after starting the world that frees up a slot in
-    all buckets for use by the next heap profile cycle.
+    Then commit 6d6f3381 (CL 4252057) made a thinko: in the writer path
+    p.werr is checked for != nil and then err is set but there is no break
+    from waiting loop unlike break is there in similar condition for reader.
+    Together with having only Read+Close case tested that made it to leave
+    reintroduced Write+Close deadlock unnoticed.
     
-    Fixes #19311.
+    Fix it.
     
-    Change-Id: I6bdafabf111c48b3d26fe2d91267f7bef0bd4270
-    Reviewed-on: https://go-review.googlesource.com/37714
-    Run-TryBot: Austin Clements <austin@google.com>
+    Implicitly this also fixes net.Pipe to conform to semantic of net.Conn
+    interface where Close is documented to unblock any blocked Read or Write
+    operations.
+    
+    No test added to net/ since net.Pipe tests are "Assuming that the
+    underlying io.Pipe implementation is solid and we're just testing the
+    net wrapping". The test added in this patch should be enough to cover
+    the breakage.
+    
+    Fixes #18401
+    Updates #18170
+    
+    Change-Id: I9e9460b3fd7d220bbe60b726accf86f352aed8d4
+    Reviewed-on: https://go-review.googlesource.com/34637
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go   |  33 +++++++------
- src/runtime/mprof.go | 130 +++++++++++++++++++++++++++++++++++++--------------
- 2 files changed, 115 insertions(+), 48 deletions(-)
+ src/io/pipe.go      |  1 +
+ src/io/pipe_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+)

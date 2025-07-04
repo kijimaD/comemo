@@ -1,23 +1,27 @@
-commit 3360be4a1160658153c1f2643acc99452c977339
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 16 14:41:44 2023 -0700
+commit 17d7983b29ba633708a9d7b18f90ab5bc029502d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 14:06:10 2022 -0400
 
-    cmd/compile: fix extraneous diff in generated files
+    time: fix quickcheck test to avoid wraparounds
     
-    Looks like CL 475735 contained a not-quite-up-to-date version
-    of the generated file. Maybe ABSFL was in an earlier version of the CL
-    and was removed before checkin without regenerating the generated file?
+    When we call time.Unix(s, ns), the internal representation is
+    s + 62135596800,  where 62135596800 is the number of
+    seconds from Jan 1 1 to Jan 1 1970.
     
-    In any case, update the generated file. Shouldn't cause a problem, as
-    that field isn't used in x86/ssa.go.
+    If quickcheck generates numbers too close to 2^63,
+    the addition can wraparound to make a very negative
+    internal 64-bit value. Wraparounds are not guarded
+    against, since they would not arise in any reasonable program,
+    so just avoid testing near them.
     
-    Change-Id: I3f0b7d41081ba3ce2cdcae385fea16b37d7de81b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477096
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #52409.
+    
+    Change-Id: Id466c8a34a49055ab26f2687a6b2b657cb64bed6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402177
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/opGen.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/time/time_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

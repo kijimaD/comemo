@@ -1,33 +1,19 @@
-commit 703a9baf5c210ac3955ddaa9df1efcdb2786ab1d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 6 22:17:50 2017 +0000
+commit 7ee43faf78f3b0c97c315c28f13dd802047af0c8
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 13 11:35:39 2017 +1100
 
-    builtin: use type aliases for rune and byte
+    runtime: remove sizeToClass
     
-    As motivated by https://golang.org/design/18130-type-alias which says:
+    CL 32219 added precomputed sizeclass tables.
     
-    https://github.com/golang/proposal/blob/master/design/18130-type-alias.md#relationship-to-byte-and-rune
+    Remove the unused sizeToClass method which was previously only
+    called from initSizes.
     
-    > The language specification already defines byte as an alias for
-    > uint8 and similarly rune as an alias for int32, using the word alias
-    > as an informal term. It is a goal that the new type declaration
-    > semantics not introduce a different meaning for alias. That is, it
-    > should be possible to describe the existing meanings of byte and
-    > uint8 by saying that they behave as if predefined by:
-    >
-    >     type byte = uint8
-    >     type rune = int32
-    
-    So, do that. Seems to work.
-    
-    Updates #18130
-    
-    Change-Id: I0740bab3f8fb23e946f3542fdbe819007a99465a
-    Reviewed-on: https://go-review.googlesource.com/45017
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I907bf9ed78430ecfaabbec7fca77ef2375010081
+    Reviewed-on: https://go-review.googlesource.com/38113
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/builtin/builtin.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/msize.go | 22 ----------------------
+ 1 file changed, 22 deletions(-)

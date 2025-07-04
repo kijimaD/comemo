@@ -1,15 +1,16 @@
-commit 48e482ef0c23032affce7998e985dee6fcda14bc
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 12 23:23:10 2019 +0700
+commit b3e2da629abc5a569a6bfa09f8077f57791ac857
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 28 16:32:09 2019 -0700
 
-    cmd/compile: do not mark export for send only chan
+    cmd/internal/src: fix a few typos in documentation
     
-    No changes in compilebench, pass toolstash-check.
+    Noticed while reading recent commits.
     
-    Change-Id: I2688f7b45af0eaa0cf3b38e726bce6e68c20f69c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195077
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibcd500b0ea5732364124572a17b374402d715090
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170059
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/internal/src/pos.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

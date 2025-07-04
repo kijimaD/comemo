@@ -1,28 +1,15 @@
-commit 2da8a16cbcd5fc6fc04e1fd8a157cfa21f6d18bc
-Author: Ben Burkert <ben@benburkert.com>
-Date:   Thu Oct 19 10:29:23 2017 -0700
+commit ace7ce1025402a9a47f70e72ac60a5932b22199f
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Thu Jul 20 08:16:36 2017 -0700
 
-    net/http: ignore response body when forbidden by status code
+    sync: update Map documentation with usage rule of thumb
     
-    A 1XX, 204, or 304 response may not include a response body according
-    to RFC 7230, section 3.3.3. If a buggy server returns a 204 or 304
-    response with a body that is chunked encoded, the invalid body is
-    currently made readable in the Response. This can lead to data races due
-    to the transport connection's read loop which does not wait for the body
-    EOF when the response status is 204 or 304.
+    As per bcmills’s lightning talk at GopherCon 2017:
+    https://github.com/gophercon/2017-talks/tree/master/lightningtalks/BryanCMills-AnOverviewOfSyncMap
     
-    The correct behavior is to ignore the body on a 204 or 304 response, and
-    treat the body data as the beginning of the next request on the
-    connection.
-    
-    Updates #22330.
-    
-    Change-Id: I89a457ceb783b6f66136d5bf9be0a9b0a04fa955
-    Reviewed-on: https://go-review.googlesource.com/71910
-    Reviewed-by: Tom Bergan <tombergan@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Change-Id: I12dd0daa608af175d110298780f32c6dc5e1e0a0
+    Reviewed-on: https://go-review.googlesource.com/50310
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/http/transfer.go       |  2 +-
- src/net/http/transport_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/sync/map.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

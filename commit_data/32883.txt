@@ -1,16 +1,26 @@
-commit b3cae37464b6acb7a6676da667d292f353143954
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Thu Sep 28 10:56:05 2017 +0530
+commit b0d592c3c9a356b661c2d6bb958528f2761d821e
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat Jun 10 22:02:53 2017 -0700
 
-    doc: fix minor capitalization typo
+    database/sql: prevent race on Rows close with Tx Rollback
     
-    Updated page to Page to match with the sample code
+    In addition to adding a guard to the Rows close, add a var
+    in the fakeConn that gets read and written to on each
+    operation, simulating writing or reading from the server.
     
-    Fixes #21773
+    TestConcurrency/TxStmt* tests have been commented out
+    as they now fail after checking for races on the fakeConn.
+    See issue #20646 for more information.
     
-    Change-Id: Ia884a22fd587860c7a6148103b2b474425e45284
-    Reviewed-on: https://go-review.googlesource.com/66790
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #20622
+    
+    Change-Id: I80b36ea33d776e5b4968be1683ff8c61728ee1ea
+    Reviewed-on: https://go-review.googlesource.com/45275
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/articles/wiki/index.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/database/sql/fakedb_test.go | 18 ++++++++++
+ src/database/sql/sql.go         |  4 ++-
+ src/database/sql/sql_test.go    | 75 +++++++++++++++++++++++++++++++++++------
+ 3 files changed, 85 insertions(+), 12 deletions(-)

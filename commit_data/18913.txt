@@ -1,15 +1,16 @@
-commit 0c8415699e0a790551b2f6964efac2569a997bfd
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 21 08:37:27 2014 +1100
+commit ea7d801130636601bf0fb0d9c15e1f19dff8805d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Mar 20 22:22:07 2014 +0100
 
-    doc/effective_go.html: fix typo
-    Prose referred to 'b', code used 'buf'.
-    Fixes #7601.
+    reflect: correct alignment of call arguments on amd64p32.
     
-    LGTM=dominik.honnef
-    R=golang-codereviews, dominik.honnef
+    Changes adapted from original CL 15680044.
+    
+    LGTM=iant
+    R=rsc, iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/78470043
+    https://golang.org/cl/76150044
 
- doc/effective_go.html | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/reflect/type.go  | 33 ++++++++++++++++++++++++---------
+ src/pkg/reflect/value.go | 24 ++++++++++++++++++------
+ 2 files changed, 42 insertions(+), 15 deletions(-)

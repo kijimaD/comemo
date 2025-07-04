@@ -1,20 +1,12 @@
-commit d46953c9f61ee9fe9852be86bf7bae02e1b82e36
-Author: crvv <crvv.mail@gmail.com>
-Date:   Tue Jul 18 14:37:01 2017 +0800
+commit 868bb5d2f28909fa88c7d467aac655d014e50893
+Author: James Neve <jamesoneve@gmail.com>
+Date:   Thu Apr 20 18:26:05 2017 +0900
 
-    math: fix inaccurate result of Exp(1)
+    doc: escape some HTML in Effective Go code examples
     
-    The existing implementation is translated from C, which uses a
-    polynomial coefficient very close to 1/6. If the function uses
-    1/6 as this coeffient, the result of Exp(1) will be more accurate.
-    And this change doesn't introduce more error to Exp function.
-    
-    Fixes #20319
-    
-    Change-Id: I94c236a18cf95570ebb69f7fb99884b0d7cf5f6e
-    Reviewed-on: https://go-review.googlesource.com/49294
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I4204e268c7220a50ceb270432067850ec2b5af80
+    Reviewed-on: https://go-review.googlesource.com/41230
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/all_test.go | 2 ++
- src/math/exp.go      | 4 ++--
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

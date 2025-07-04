@@ -1,24 +1,29 @@
-commit 939b561a6e36d9b3854d860a80c24dc80f01f6be
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 9 16:55:08 2021 -0600
+commit d91d0762c7757c12c7d5f9e2ae3f170d5bd7ba84
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 20 14:22:30 2020 -0700
 
-    cmd/internal/obj: reorg ppc64 MOV* optab entries and remove unused classes
+    runtime/debug: provide Addr method for errors from SetPanicOnFault
     
-    C_LECON and C_SECON classifications are not generated on ppc64, however
-    there are many optab entries which match against them. Remove them to
-    resolve their related TODOs.
+    When we're building a panic that's triggered by a memory fault when
+    SetPanicOnFault has been called, include an Addr method. This
+    method reports the address at which the fault occurred.
     
-    Likewise, reorder the optab entries for better readability.
+    Fixes #37023
     
-    Change-Id: I894a209a148014e5aa438b7303e7fbdda4727c4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307429
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    RELNOTE=yes
+    
+    Change-Id: Idff144587d6b75070fdc861a36efec76f4ec7384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249677
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/ppc64/a.out.go   |  6 +--
- src/cmd/internal/obj/ppc64/anames9.go |  2 -
- src/cmd/internal/obj/ppc64/asm9.go    | 97 +++++++++++++++++------------------
- 3 files changed, 48 insertions(+), 57 deletions(-)
+ src/runtime/debug/garbage.go    |  5 +++++
+ src/runtime/debug/panic_test.go | 46 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/error.go            | 20 ++++++++++++++++++
+ src/runtime/os_plan9.go         |  5 ++++-
+ src/runtime/panic.go            |  5 +++++
+ src/runtime/signal_unix.go      |  4 ++--
+ src/runtime/signal_windows.go   |  5 ++++-
+ 7 files changed, 86 insertions(+), 4 deletions(-)

@@ -1,18 +1,20 @@
-commit 0d453232db9c4eeea5faa7dd171b95a59619f160
-Author: Paul Cacheux <paul.cacheux@datadoghq.com>
-Date:   Fri Dec 6 14:06:36 2024 +0100
+commit 11677d983e873459b1cdded7be534a9edf3b6eac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 31 16:13:21 2023 -0700
 
-    cmd/internal/goobj: add missing symbol align field in top level doc
+    go/types, types2: enable range over int w/o need for goexperiment
     
-    Fix the documentation of the symbol's align field that is present in the
-    code but not in the top level documentation
+    For #61405.
     
-    Change-Id: I753f2379b22487899ceee8ebc9c2e659d74ea986
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633777
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I047ec31bc36b1707799ffef25506070613477d1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538718
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/internal/goobj/objfile.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/types2/stmt.go       |  2 +-
+ src/go/types/stmt.go                          |  2 +-
+ src/internal/types/testdata/spec/range_int.go | 65 +++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 2 deletions(-)

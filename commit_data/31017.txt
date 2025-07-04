@@ -1,31 +1,19 @@
-commit 99683483d6a0dadd07140fc609135baf0ba0ef8e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 6 10:29:29 2017 -0700
+commit 0724aa813fe485684e5eac15c2a317d9d8482f82
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 11 11:36:07 2017 -0500
 
-    cmd/internal/obj: unify creation of numeric literal syms
+    crypto/dsa: gofmt
     
-    This is a straightforward refactoring,
-    to reduce the scope of upcoming changes.
+    Somehow this file didn't get gofmted after the last change, which
+    interferes with merges.
     
-    The symbol size and AttrLocal=true was not
-    set universally, but it appears not to matter,
-    since toolstash -cmp is happy.
-    
-    Passes toolstash-check -all.
-    
-    Change-Id: I7f8392f939592d3a1bc6f61dec992f5661f42fca
-    Reviewed-on: https://go-review.googlesource.com/39791
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I965cfdbf27a01124a6ed300be9687ff84f68f9a1
+    Reviewed-on: https://go-review.googlesource.com/35064
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Adam Langley <agl@chromium.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/fmt_test.go         |  2 --
- src/cmd/compile/internal/x86/ssa.go | 14 ++++++--------
- src/cmd/internal/obj/arm/obj5.go    | 12 ++----------
- src/cmd/internal/obj/arm64/obj7.go  | 20 +++++---------------
- src/cmd/internal/obj/mips/obj0.go   | 22 ++++++----------------
- src/cmd/internal/obj/ppc64/obj9.go  | 23 ++++-------------------
- src/cmd/internal/obj/s390x/objz.go  | 26 ++++++--------------------
- src/cmd/internal/obj/sym.go         | 28 ++++++++++++++++++++++++++++
- src/cmd/internal/obj/x86/obj6.go    | 14 +++-----------
- 9 files changed, 60 insertions(+), 101 deletions(-)
+ src/crypto/dsa/dsa_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

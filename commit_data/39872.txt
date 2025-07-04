@@ -1,29 +1,19 @@
-commit 04867cd89121d9738fb16e8f299a9263a91282eb
-Author: Aofei Sheng <aofei@aofeisheng.com>
-Date:   Thu Aug 22 05:23:41 2019 +0800
+commit 4dce6dbb1e3269211e9dafb6a406035696993574
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 27 15:50:36 2019 -0700
 
-    cmd/go/internal/modconv: use modules to examine instead of using only direct source control entries
+    math/big: temporarily disable buggy shlVU assembly for arm64
     
-    Since modules now support parsing multiple forms of versions (including
-    commit hash and source control tag), I think modconv.ConvertLegacyConfig
-    no longer needs modfetch.ImportRepoRev. So I suggest that we use modules
-    to convert legacy config instead of using VCS directly. By doing this,
-    we can make the module proxy participate in the conversion process and
-    benefit from it (such as speeding up "go mod init" or breaking through
-    the firewall).
+    This addresses the failures we have seen in #31084. The correct
+    fix is to find the actual bug in the assembly code.
     
-    And since modconv.ConvertLegacyConfig is the only caller of
-    modfetch.ImportRepoRev, I think modfetch.ImportRepoRev can be removed.
+    Updates #31084.
     
-    Fixes #33767
-    
-    Change-Id: Ic79b14fa805ed297ca1735a8498cfed2a5ddeec2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191218
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I437780c53d0c4423d742e2e3b650b899ce845372
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169721
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modconv/convert.go      | 11 +++---
- src/cmd/go/internal/modfetch/repo.go        | 56 -----------------------------
- src/cmd/go/testdata/script/mod_init_dep.txt | 11 +++---
- 3 files changed, 14 insertions(+), 64 deletions(-)
+ src/math/big/arith_arm64.s | 4 ++++
+ 1 file changed, 4 insertions(+)

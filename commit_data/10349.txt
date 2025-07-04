@@ -1,18 +1,13 @@
-commit 90c5070000d1db22409dd5b97b3a3bb777021b03
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Fri Nov 11 16:41:37 2011 -0500
+commit 6d9c02aea3e902633ca62b220686580705bdcaf8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 14:56:49 2011 -0500
 
-    build: fix check for selinux's allow_execstack on Fedora 16
+    6a, 8a: allow $(-1) for consistency with $1, $(1), $-1.
     
-    Fedora 16 mounts selinux at /sys/fs/selinux, instead of the
-    traditional /selinux.  Check both locations for the selinux
-    filesystem in make.bash
-    
-    Fixes #2448.
-    
-    R=golang-dev, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5373077
+    https://golang.org/cl/5373074
 
- src/make.bash | 31 ++++++++++++++++++-------------
- 1 file changed, 18 insertions(+), 13 deletions(-)
+ src/cmd/6a/a.y | 6 ++++++
+ src/cmd/8a/a.y | 6 ++++++
+ 2 files changed, 12 insertions(+)

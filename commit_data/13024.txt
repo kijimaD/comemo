@@ -1,18 +1,22 @@
-commit 5cffce611a9fb698cbe8f3ab7b24429f269b5d6d
+commit 452a9e452b8a88de95b343e13107782aa26c1ed2
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri May 4 18:20:09 2012 +0800
+Date:   Fri May 4 18:14:26 2012 +0800
 
-    runtime: cgo support for Linux/ARM
-            Part 2 of CL 5601044 (cgo: Linux/ARM support)
+    cmd/5l, cmd/ld: dynamic linking library support
+            Part 1 of CL 5601044 (cgo: Linux/ARM support)
+            Limitation: doesn't support thumb library yet.
     
-    R=dave, rsc
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/5989057
+    https://golang.org/cl/5991065
 
- src/pkg/runtime/asm_arm.s           | 133 +++++++++++++++++++++++++++++++++---
- src/pkg/runtime/cgo/gcc_arm.S       |  58 +++++++++++++++-
- src/pkg/runtime/cgo/gcc_linux_arm.c |  95 +++++++++++++++++++++++++-
- src/pkg/runtime/cgocall.c           |   6 ++
- src/pkg/runtime/signal_linux_arm.c  |   3 +
- src/pkg/runtime/sys_linux_arm.s     |  10 ++-
- 6 files changed, 291 insertions(+), 14 deletions(-)
+ src/cmd/5l/5.out.h |   6 +
+ src/cmd/5l/asm.c   | 411 +++++++++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/5l/l.h     |   1 +
+ src/cmd/5l/obj.c   |   6 +-
+ src/cmd/5l/pass.c  |   4 +-
+ src/cmd/5l/span.c  |  41 +++---
+ src/cmd/ld/data.c  |   2 +-
+ src/cmd/ld/elf.h   |   2 +
+ src/cmd/ld/ldelf.c |  35 +++--
+ 9 files changed, 450 insertions(+), 58 deletions(-)

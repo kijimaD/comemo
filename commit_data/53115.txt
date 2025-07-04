@@ -1,22 +1,28 @@
-commit 38ae922b9baca192bd750d0bc9089a9aecea7082
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Thu May 18 17:44:16 2023 -0400
+commit bf2ef26be3593d24487311576d85ec601185fbf4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 11 15:12:06 2022 -0400
 
-    doc: add TODOs to go1.21
+    cmd/go: in script tests, avoid checking non-main packages for staleness
     
-    Generated with relnote. I did my best to put things where they made
-    sense, but some weren't obvious, like the Unicode upgrade and backward
-    compatibility stuff.
+    Non-main packages in module mode should not be installed to
+    GOPATH/pkg, but due to #37015 they were installed there anyway.
+    Lacking a proper install location, 'go install' becomes a no-op
+    for non-main packages in module mode.
     
-    For #58645.
+    This change switches the 'go install' commands in the test_fuzz_cache
+    and build_overlay tests to instead use 'go build', using the '-x' flag
+    to check for compile commands instead of querying 'go list' about
+    staleness.
     
-    Change-Id: Ic3cd9ef32cec7591ace4d2df1da40e4afd97d083
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496316
-    Auto-Submit: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    For #37015.
+    
+    Change-Id: I56d80cf2a43efb6163c62082c86cd3e4f0ff73c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417095
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.21.html | 602 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 601 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/build_overlay.txt   | 20 ++++++++++++--------
+ src/cmd/go/testdata/script/test_fuzz_cache.txt | 11 ++++-------
+ 2 files changed, 16 insertions(+), 15 deletions(-)

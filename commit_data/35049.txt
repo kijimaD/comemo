@@ -1,15 +1,24 @@
-commit c6bbfbe708467a8d2f4f978a7ca2e417b21551c0
-Author: Zheng Dayu <davidzheng23@gmail.com>
-Date:   Wed Apr 18 17:28:34 2018 +0800
+commit 95fab851fc1a88e64d7c016d53af25a349c4c888
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 7 19:51:08 2017 +0000
 
-    text/template: improve comment example in doc
+    net/http: deflake TestServerCancelsReadTimeoutWhenIdle
     
-    Make comment example consistent with its description.
-    Fixes #24767
+    I can reproduce with a very short timeout (fractions of a millisecond)
+    combined with -race.
     
-    Change-Id: Icff54b489040b1ce66c644a21343c6576304cf75
-    Reviewed-on: https://go-review.googlesource.com/107663
-    Reviewed-by: Rob Pike <r@golang.org>
+    But given that this is inherently sensitive to actual time, add a
+    testing mechanism to retry with increasingly large times to compensate
+    for busy buidlers. This also means the test is usually faster now,
+    too, since we can start with smaller durations.
+    
+    Fixes #19608
+    
+    Change-Id: I3a222464720195849da768e9801eb7b43baa4aeb
+    Reviewed-on: https://go-review.googlesource.com/82595
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/doc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/serve_test.go | 70 ++++++++++++++++++++++++++++++----------------
+ 1 file changed, 46 insertions(+), 24 deletions(-)

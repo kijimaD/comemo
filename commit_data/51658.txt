@@ -1,16 +1,16 @@
-commit 1c2c225d6f84ba9c29a4be4767412dc6935053c2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 17 16:27:56 2023 -0800
+commit 40e24a942bce7b10e23a7282e673ac8a758ca378
+Author: Jinwook Jeong <vustthat@gmail.com>
+Date:   Mon Nov 1 23:46:47 2021 +0900
 
-    go/types, types2: factor out type parameter renaming (cleanup)
+    regexp: fix typo in the overview
     
-    Change-Id: I2d7e32ee2496d391f334ad9956e8d37c53f9be98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461687
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Correct the slice expression in the description of Index functions.
+    
+    Change-Id: I97a1b670c4c7e600d858f6550b647f677ef90b41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360058
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/types2/infer.go | 94 +++++++++++++++++---------------
- 1 file changed, 49 insertions(+), 45 deletions(-)
+ src/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

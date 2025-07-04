@@ -1,13 +1,14 @@
-commit 15c1ab646daab5813c406355311dd89573e0c011
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 19 15:56:42 2014 -0500
+commit e6f5debd0c020ef3d6a07b9328084af40e899a36
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 19 11:42:34 2014 -0800
 
-    api: update next.txt
+    cmd/pack: use log.SetPrefix to make log calls more compact and consistent
+    Taking my own advice from a review of addr2line.
     
-    LGTM=bradfitz
-    R=bradfitz
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/66160043
+    https://golang.org/cl/65950044
 
- api/next.txt | 62 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 62 insertions(+)
+ src/cmd/pack/pack.go | 35 ++++++++++++++++++-----------------
+ 1 file changed, 18 insertions(+), 17 deletions(-)

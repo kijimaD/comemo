@@ -1,12 +1,14 @@
-commit 73151700b4cd946627d8969b02672828e23b2f47
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 13 16:57:05 2016 -0800
+commit e1fc292500aa70c265937aebad00ac010031cbaf
+Author: James Clarke <jrtc27@jrtc27.com>
+Date:   Tue Oct 11 19:08:45 2016 +0100
 
-    cmd/link: improve -X doc wording
+    debug/elf: add sparc64 relocations
     
-    Change-Id: I9329738ec5dd6c12f72eea7de413d66617b7b5c2
-    Reviewed-on: https://go-review.googlesource.com/34373
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I1a2504ad9ca8607588d2d366598115fe360435b5
+    Reviewed-on: https://go-review.googlesource.com/30870
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/debug/elf/file.go                              |  47 +++++++++++++++++++++
+ src/debug/elf/file_test.go                         |  19 +++++++++
+ .../testdata/go-relocation-test-gcc620-sparc64.obj | Bin 0 -> 5952 bytes
+ 3 files changed, 66 insertions(+)

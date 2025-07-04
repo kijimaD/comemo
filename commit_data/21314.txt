@@ -1,30 +1,19 @@
-commit 4e7f06511ae6e5116be5223a865a3cfd2ebc6b9f
-Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
-Date:   Mon Jan 5 11:19:50 2015 +0000
+commit e4c2229e4c174a258499bde8f8f2729a4afc4c96
+Author: Ben Burkert <ben@benburkert.com>
+Date:   Sun Dec 21 13:31:23 2014 -0800
 
-    crypto/x509: Authority Key Identifier must be included in all CRLs issued
+    encoding/pem: eliminate allocations for newlines during encoding
     
-    According to RFC5280 the authority key identifier extension MUST included in all
-    CRLs issued. This patch includes the authority key identifier extension when the
-    Subject Key Identifier is present in the signing certificate.
+    benchmark           old MB/s     new MB/s     speedup
+    BenchmarkEncode     243.20       279.89       1.15x
     
-    RFC5280 states:
+    benchmark           old allocs     new allocs     delta
+    BenchmarkEncode     1370           4              -99.71%
     
-    "The authority key identifier extension provides a means of identifying the
-    public key corresponding to the private key used to sign a CRL.  The
-    identification can be based on either the key identifier (the subject key
-    identifier in the CRL signer's certificate) or the issuer name and serial
-    number.  This extension is especially useful where an issuer has more than one
-    signing key, either due to multiple concurrent key pairs or due to changeover."
-    
-    Conforming CRL issuers MUST use the key identifier method, and MUST include this
-    extension in all CRLs issued."
-    
-    This CL has been discussed at: http://golang.org/cl/177760043
-    
-    Change-Id: I9bf50521908bfe777ea2398f154c13e8c90d14ad
-    Reviewed-on: https://go-review.googlesource.com/2258
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I3920bcc04b6dd89efa5da89db5594d4434426d74
+    Reviewed-on: https://go-review.googlesource.com/1924
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/x509.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/encoding/pem/pem.go      |  8 +++++---
+ src/encoding/pem/pem_test.go | 19 +++++++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

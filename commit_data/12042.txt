@@ -1,48 +1,20 @@
-commit fc0dc040954b7a8479c978ff06fe6ea4219d1542
-Author: Rob Pike <r@golang.org>
-Date:   Sun Feb 19 13:19:43 2012 +1100
+commit 126d475a4311c5c34f380a11941dbeeac39145fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 18 21:07:08 2012 -0500
 
-    test: [a-c]: add introductory comments to tests
-    Very few of the compiler regression tests include a comment
-    saying waht they do. Many are obvious, some are anything but.
-    I've started with a-c in the top directory. More will follow once
-    we agree on the approach, correctness, and thoroughness here.
-    zerodivide.go sneaked in too.
+    gc: drop ideal bool
     
-    R=rsc, r
+    R=golang-dev, ken2
     CC=golang-dev
-    https://golang.org/cl/5656100
+    https://golang.org/cl/5674098
 
- test/235.go        | 3 +++
- test/alias.go      | 5 +++--
- test/alias1.go     | 4 ++--
- test/append.go     | 2 +-
- test/args.go       | 2 ++
- test/assign.go     | 3 +++
- test/assign1.go    | 3 +++
- test/bigalg.go     | 2 ++
- test/bigmap.go     | 2 ++
- test/blank.go      | 2 ++
- test/blank1.go     | 3 +++
- test/chancap.go    | 2 ++
- test/char_lit.go   | 4 +++-
- test/char_lit1.go  | 3 +++
- test/closure.go    | 2 ++
- test/cmp.go        | 2 ++
- test/cmp6.go       | 3 +++
- test/cmplx.go      | 3 +++
- test/complit.go    | 2 ++
- test/complit1.go   | 3 +++
- test/compos.go     | 2 ++
- test/const.go      | 2 ++
- test/const1.go     | 3 +++
- test/const2.go     | 3 +++
- test/const3.go     | 2 ++
- test/convert.go    | 2 ++
- test/convert1.go   | 3 +++
- test/convert3.go   | 3 +++
- test/convlit.go    | 7 ++++---
- test/convlit1.go   | 3 +++
- test/copy.go       | 2 +-
- test/zerodivide.go | 2 ++
- 32 files changed, 79 insertions(+), 10 deletions(-)
+ src/cmd/gc/const.c       | 7 +++----
+ src/cmd/gc/export.c      | 2 +-
+ src/cmd/gc/fmt.c         | 4 ++--
+ src/cmd/gc/go.h          | 1 -
+ src/cmd/gc/lex.c         | 5 ++---
+ src/cmd/gc/subr.c        | 4 ++--
+ test/fixedbugs/bug285.go | 1 -
+ test/named.go            | 4 +---
+ test/named1.go           | 4 ++--
+ 9 files changed, 13 insertions(+), 19 deletions(-)

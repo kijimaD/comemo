@@ -1,27 +1,18 @@
-commit 502b6057d2a30b284a3889e4439b47289244382b
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 20 14:12:56 2022 -0400
+commit 5402b4376c0c51a31ea9c5ccf16b449a6ab3e79f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 16 15:00:47 2021 -0700
 
-    runtime: add mayAcquire annotation for trace.lock
+    spec: fix incorrect type in a shift example
     
-    Now that we've moved the trace locks to the leaf of the lock graph, we
-    can safely annotate that any trace event may acquire trace.lock even
-    if dynamically it turns out a particular event doesn't need to flush
-    and acquire this lock.
+    Thanks to @bodar (Github) for finding this.
     
-    This reveals a new edge where we can trace while holding the mheap
-    lock, so we add this to the lock graph.
+    Fixes #48422.
     
-    For #53789.
-    Updates #53979.
-    
-    Change-Id: I13e2f6cd1b621cca4bed0cc13ef12e64d05c89a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418720
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I031c3d82a02db1d204e2b86b494d89784d37f073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350409
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/lockrank.go   |  4 ++--
- src/runtime/mklockrank.go |  1 +
- src/runtime/trace.go      | 15 +++++++++++++++
- 3 files changed, 18 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

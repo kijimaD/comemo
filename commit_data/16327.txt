@@ -1,12 +1,12 @@
-commit fad27ec5d4fa7aa271aab205a200adfcc28c3495
+commit 28f74608b5ab87cce5e19d91de915649bf4d0865
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri May 17 17:26:44 2013 +1000
+Date:   Fri May 17 13:37:30 2013 +1000
 
-    os: clarify windows read console code
+    runtime: do not mark os memory as executable on windows
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz, khr
     CC=golang-dev
-    https://golang.org/cl/9458043
+    https://golang.org/cl/9235046
 
- src/pkg/os/file_windows.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/runtime/mem_windows.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

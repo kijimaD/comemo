@@ -1,15 +1,18 @@
-commit 0951939fd9e4a6bc83f23c42e8ddff02b29c997e
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Wed Jul 15 22:04:57 2020 -0600
+commit 8f14f33f96d35416786d65664ca731ae75d1c733
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 27 23:55:30 2020 +1100
 
-    doc/go1.15: add release notes for math/cmplx
+    cmd/compile/internal/ssa/gen: avoid importing internal riscv64 packages
     
-    Updates #37419
+    Duplicate the register definitions and names to avoid importing the
+    cmd/internal/obj/riscv64 package. This makes it possible to build compiler rules
+    with a stable Go tool chain.
     
-    Change-Id: Id7c9aba518c826c1a6fccbbf82210072bd3346f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242903
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #36663
+    
+    Change-Id: I09116a97bb037ca1bc00073306a82bb88862b1e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216518
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.15.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 40 +++++++++++++++++++++-----
+ 1 file changed, 33 insertions(+), 7 deletions(-)

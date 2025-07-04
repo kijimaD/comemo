@@ -1,23 +1,36 @@
-commit cbcef91a1054dedaa97ce07874281ac842838ac8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 20 13:32:04 2023 -0700
+commit 1f0547c4ec4fe18d46192d8c670190111b1d3d79
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 09:02:52 2022 -0400
 
-    go/types: remove Checker.useLHS - not needed
+    [dev.boringcrypto] cmd/go: pass dependency syso to cgo too
     
-    We can just use Checker.use, as long as we take care of blank (_)
-    identifiers that may appear of the LHS of assignments. It's ok to
-    "use" non-blank variables in case of an error, even on the LHS.
+    Proposal #42477 asked for a way to apply conditional build tags
+    to syso files (which have no source code to hold //go:build lines).
     
-    This makes this code match the types2 implementation.
+    We ended up suggesting that the standard answer should be to
+    put the syso in its own package and then import that package from
+    a source file that is itself conditionally compiled.
     
-    Change-Id: Ied9b9802ecb63912631bbde1dc6993ae855a691b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477895
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    A followup comment on that issue pointed out a problem that I did
+    not understand until I tried to use this approach myself: the cgo
+    build fails by default, because the link step only uses syso files from
+    the current package. You have to override this explicitly by arranging
+    to pass a “ignore unresolved symbols” flag to the host linker.
+    Many users will not know how to do this.
+    (I don't know how to do this off the top of my head.)
+    
+    If we want users to use this approach, we should make it work better.
+    This CL does that, by including the syso files from dependencies of
+    the current package in the link step.
+    
+    For #51940.
+    
+    Change-Id: I53a0371b2df17e39a000a645b7686daa6a98722d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402596
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/go/types/assignments.go |  6 +++---
- src/go/types/call.go        | 43 ++++++++-----------------------------------
- 2 files changed, 11 insertions(+), 38 deletions(-)
+ src/cmd/go/internal/work/exec.go              | 22 ++++++++++-
+ src/cmd/go/testdata/script/link_syso_deps.txt | 54 +++++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+), 1 deletion(-)

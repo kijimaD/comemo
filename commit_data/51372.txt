@@ -1,25 +1,25 @@
-commit f64c2a2ce5dc859315047184e310879dcf747d53
-Author: Gabor Tanz <gabor.tanz@swisscom.com>
-Date:   Fri Nov 18 07:59:03 2022 +0000
+commit 3e45eb3ce1f28ccb6e4150b6c2c09ca8568874e6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Dec 7 15:59:14 2021 -0500
 
-    crypto/tls: add CertificateVerificationError to tls handshake
+    runtime: do not inherit labels on system goroutines
     
-    Fixes #48152
+    GC background mark worker goroutines are created when the first GC is
+    triggered (or next GC after GOMAXPROCS increases). Since the GC can be
+    triggered from a user goroutine, those workers will inherit any pprof
+    labels from the user goroutine.
     
-    Change-Id: I503f088edeb5574fd5eb5905bff7c3c23b2bc8fc
-    GitHub-Last-Rev: 2b0e982f3f6bca33062b0bbd64ed1804801e2c13
-    GitHub-Pull-Request: golang/go#56686
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449336
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    That isn't meaningful, so avoid it by excluding system goroutines from
+    inheriting labels.
+    
+    Fixes #50032
+    
+    Change-Id: Ib425ae561a3466007ff5deec86b9c51829ab5507
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369983
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- api/next/48152.txt                 |  5 +++++
- src/crypto/tls/common.go           | 15 +++++++++++++++
- src/crypto/tls/handshake_client.go |  2 +-
- src/crypto/tls/handshake_server.go |  2 +-
- src/net/http/transport_test.go     |  2 +-
- 5 files changed, 23 insertions(+), 3 deletions(-)
+ src/runtime/proc.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

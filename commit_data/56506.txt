@@ -1,17 +1,20 @@
-commit 643ad42d5c9bb3b079238997afb3c006ba7d1128
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu May 16 10:51:49 2024 -0400
+commit e2500be54947186d82c7f4bd93468fdff8a23837
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu May 11 17:27:02 2023 +0000
 
-    cmd/go/internal/envcmd: fix showing GODEBUG env value
+    net: don't treat unknown sources as dns when there is a dns source
     
-    It was accidently dropped in CL 563137
-    
-    For #34208
-    
-    Change-Id: I0aea93fda6260f07bc662dea92d1eabb26f82ca0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586095
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: I3a6c3a804604b1e74a1ea6b66ab2c932a0ac973a
+    GitHub-Last-Rev: ea5403549a51a29a2799674d74425b480253d2f1
+    GitHub-Pull-Request: golang/go#60025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493236
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/envcmd/env.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/conf.go      | 34 ++++++++++++++++++++++++----------
+ src/net/conf_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 10 deletions(-)

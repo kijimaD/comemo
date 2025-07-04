@@ -1,43 +1,17 @@
-commit e0df11d57e7bffa9af6cad8b480fac37bc59fbf1
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 18 16:52:31 2014 +0400
+commit 160b2461b66c13f1014243f06a401bb1477b46dc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 12 15:28:45 2014 -0700
 
-    runtime: implement transfer cache
-    Currently we do the following dance after sweeping a span:
-    1. lock mcentral
-    2. remove the span from a list
-    3. unlock mcentral
-    4. unmark span
-    5. lock mheap
-    6. insert the span into heap
-    7. unlock mheap
-    8. lock mcentral
-    9. observe empty list
-    10. unlock mcentral
-    11. lock mheap
-    12. grab the span
-    13. unlock mheap
-    14. mark span
-    15. lock mcentral
-    16. insert the span into empty list
-    17. unlock mcentral
+    syscall: freeze the package
+    Add a clause to the doc comment for the package and a
+    paragraph in the compatibility document explaining the
+    situation.
     
-    This change short-circuits this sequence to nothing,
-    that is, we just cache and use the span after sweeping.
-    
-    This gives us functionality similar (even better) to tcmalloc's transfer cache.
-    
-    benchmark            old ns/op     new ns/op     delta
-    BenchmarkMalloc8     22.2          19.5          -12.16%
-    BenchmarkMalloc16    31.0          26.6          -14.19%
-    
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, rlh, rsc
-    https://golang.org/cl/119550043
+    LGTM=bradfitz, adg, rsc
+    R=golang-codereviews, adg, bradfitz, minux, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/129820043
 
- src/pkg/runtime/malloc.h   |  4 +--
- src/pkg/runtime/mcentral.c | 86 ++++++++++++++++++++++++++--------------------
- src/pkg/runtime/mgc0.c     | 12 ++++---
- src/pkg/runtime/mheap.c    |  2 +-
- 4 files changed, 59 insertions(+), 45 deletions(-)
+ doc/go1compat.html         | 14 ++++++++++++++
+ src/pkg/syscall/syscall.go |  7 +++++++
+ 2 files changed, 21 insertions(+)

@@ -1,21 +1,15 @@
-commit 1334b794b74c535b0971ea51c940faa6b26fe184
+commit 1cf3f501ad522a874cffefc9db234d57fbec4396
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 20 12:10:53 2013 -0500
+Date:   Fri Dec 20 10:53:50 2013 -0500
 
-    libmach: remove old object file readers
+    codereview: switch defaultcc to golang-codereviews
     
-    These no longer work; removing them makes other refactoring easier.
-    The code for pack P being deleted in this CL does not work either.
-    I created issue 6989 to track restoring this functionality (probably not
-    until pack is written in Go).
+    See this thread for background:
+    https://groups.google.com/forum/#!topic/golang-dev/xG7vPi21r8g
     
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/44300043
+    R=golang-codereviews, gobot, golang-dev, dsymonds
+    CC=golang-codereviews, golang-dev
+    https://golang.org/cl/44450043
 
- src/cmd/pack/ar.c  | 107 +-----------------
- src/libmach/5obj.c | 171 -----------------------------
- src/libmach/6obj.c | 173 -----------------------------
- src/libmach/8obj.c | 170 ----------------------------
- src/libmach/obj.c  | 316 -----------------------------------------------------
- 5 files changed, 4 insertions(+), 933 deletions(-)
+ lib/codereview/codereview.cfg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

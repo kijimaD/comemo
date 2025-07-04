@@ -1,17 +1,31 @@
-commit 7b47f9a5f2092dcbc1546304f1f1b739883fa4c4
-Author: Michael Schaller <misch@google.com>
-Date:   Fri Mar 12 12:12:48 2021 +0000
+commit 1b86bdbdc3991c13c6ed156100a5f4918fdd9c6b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 14 17:44:22 2020 -0400
 
-    cmd/compile: mention that -m can be increased or given multiple times
+    cmd/test2json: do not emit a final Action if the result is not known
     
-    -m can be increased or it can be given up to 4 times to increase the verbosity of the printed optimization decisions: https://github.com/golang/go/search?q=LowerM
+    If we are parsing a test output, and the test does not end in the
+    usual PASS or FAIL line (say, because it panicked), then we need the
+    exit status of the test binary in order to determine whether the test
+    passed or failed. If we don't have that status available, we shouldn't
+    guess arbitrarily — instead, we should omit the final "pass" or "fail"
+    action entirely.
     
-    Change-Id: I0cc304385be052664fad455ff075846a3a63f298
-    GitHub-Last-Rev: 140f08529024dd17c5ca1cbad52dd1d17c6126c0
-    GitHub-Pull-Request: golang/go#44857
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299709
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    (In practice, we nearly always DO have the final status, such as when
+    running 'go test' or 'go tool test2json some.exe'.)
+    
+    Fixes #40132
+    
+    Change-Id: Iae482577361a6033395fe4a05d746b980e18c3de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248624
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/doc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/test/test.go                   |   8 +-
+ src/cmd/go/testdata/script/test_json_exit.txt      | 102 +++++++++++++++++++++
+ src/cmd/internal/test2json/test2json.go            |  44 +++++----
+ .../internal/test2json/testdata/benchshort.json    |   1 -
+ src/cmd/internal/test2json/testdata/empty.json     |   1 -
+ src/cmd/test2json/main.go                          |   6 +-
+ 6 files changed, 139 insertions(+), 23 deletions(-)

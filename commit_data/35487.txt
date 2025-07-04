@@ -1,20 +1,20 @@
-commit 391a963bbafd6f67bb95ece5d131d782ffd7a680
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Tue May 22 18:00:39 2018 -0400
+commit 4de468621a54bc7816ae978a55cb347b6f60352d
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 4 11:02:59 2017 -0500
 
-    cmd/compile: clean up debug info generation logging
+    runtime: use spanOf* more widely
     
-    Remove the unexpected function, which is a lot less relevant now that
-    the generation basically can't detect invalid states, and make sure no
-    logging appears without -d locationlists=2.
+    The logic in the spanOf* functions is open-coded in a lot of places
+    right now. Replace these with calls to the spanOf* functions.
     
-    Updates #25404
-    
-    Change-Id: If3522df5a7397f2e7b43cb808936e319132132b6
-    Reviewed-on: https://go-review.googlesource.com/114007
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Change-Id: I3cc996aceb9a529b60fea7ec6fef22008c012978
+    Reviewed-on: https://go-review.googlesource.com/85880
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/ssa/debug.go | 44 +++++++++++++++++------------------
- 1 file changed, 22 insertions(+), 22 deletions(-)
+ src/runtime/cgocheck.go |  4 +---
+ src/runtime/mbitmap.go  | 13 +++----------
+ src/runtime/mgcmark.go  |  7 ++-----
+ src/runtime/mheap.go    | 31 ++++++++++++++-----------------
+ 4 files changed, 20 insertions(+), 35 deletions(-)

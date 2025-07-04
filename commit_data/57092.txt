@@ -1,21 +1,17 @@
-commit 1f0c044d60211e435dc58844127544dd3ecb6a41
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 5 11:54:51 2024 -0700
+commit 9ece9a7ac9befbb8ee8f2241063a2389b730cdaf
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Jun 16 12:20:41 2023 -0500
 
-    test: add test that caused gofrontend to crash
+    cmd/cgo/internal/testshared: disable gccgo tests on PPC64
     
-    Apparently people don't tend to pass untyped constant expressions
-    to panic.
+    Disable PPC64 gccgo tests until issue #60798 is fixed in gcc.
     
-    For #68734
-    
-    Change-Id: I6fff8137a0f001391de9e61860b67026a9db08c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603096
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4d330e3d0ab6d4174ee6d8ff2cbedf53c8c4e3d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504095
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- test/fixedbugs/issue68734.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/cgo/internal/testshared/shared_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

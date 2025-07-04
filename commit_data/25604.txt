@@ -1,19 +1,31 @@
-commit c7754c8f54a1ace5fc0a8e36df809c713d2623d6
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Jan 14 16:36:43 2016 -0500
+commit 4f19cb7011ade4a647b6429ecc33f96ec4603e61
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 08:48:19 2015 -0400
 
-    net: add timeout to DNS requests sent by TestSpecialDomainName
+    syscall: added support for linux/mips64{,le}
     
-    The timeout means that TestSpecialDomainName will not hang if
-    the DNS server does not respond to the request.
+    Syscall getdents64 is relatively new in linux/mips64, only since kernel
+    version 3.10. To support older kernel, syscall getdents is used for
+    mips64.
     
-    Fixes #13939
-    
-    Change-Id: I46e30bbd3c11b6c560656134e704331cf6f8af3f
-    Reviewed-on: https://go-review.googlesource.com/18661
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I892b05dff7d93e7ddb0d700abd6a5e6d4084ab4c
+    Reviewed-on: https://go-review.googlesource.com/14449
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/dnsclient_unix_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/asm_linux_mips64x.s       | 104 +++++++++++++++++
+ src/syscall/syscall_linux.go          |   2 +-
+ src/syscall/syscall_linux_386.go      |   5 +-
+ src/syscall/syscall_linux_amd64.go    |   5 +-
+ src/syscall/syscall_linux_arm.go      |   5 +-
+ src/syscall/syscall_linux_arm64.go    |   5 +-
+ src/syscall/syscall_linux_mips64x.go  | 210 ++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_linux_ppc64x.go   |   5 +-
+ src/syscall/types_linux.go            |   2 +
+ src/syscall/zsyscall_linux_386.go     |   2 +-
+ src/syscall/zsyscall_linux_amd64.go   |   2 +-
+ src/syscall/zsyscall_linux_arm.go     |   2 +-
+ src/syscall/zsyscall_linux_arm64.go   |   2 +-
+ src/syscall/zsyscall_linux_ppc64.go   |   2 +-
+ src/syscall/zsyscall_linux_ppc64le.go |   2 +-
+ 15 files changed, 343 insertions(+), 12 deletions(-)

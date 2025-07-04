@@ -1,26 +1,22 @@
-commit 91b8b130dda2c3a5933baee439e3fed1098e8318
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 24 16:18:02 2020 -0400
+commit 220150ff3c03a0d2618093689ab129ab5ea7dc7b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 21:54:58 2019 -0700
 
-    test: make runindir tests pass regardless of whether module mode is in use
+    runtime: add new adjusttimers function
     
-    The "runindir" tests used "go run", but relied on relative imports
-    (which are not supported by "go run" in module mode). Instead, such
-    tests must use fully-qualified imports, which require either a go.mod
-    file (in module mode) or that the package be in an appropriate
-    subdirectory of GOPATH/src (in GOPATH mode).
+    The adjusttimers function is where we check the adjustTimers field in
+    the P struct to see if we need to resort the heap. We walk forward in
+    the heap and find and resort timers that have been modified, until we
+    find all the timers that were modified to run earlier. Along the way
+    we remove deleted timers.
     
-    To set up such a directory, we use yet another copy of the same
-    overlayDir function currently found in the misc subdirectory of this
-    repository.
+    Updates #27707
     
-    Fixes #33912
-    Updates #30228
-    
-    Change-Id: If3d7ea2f7942ba496d98aaaf24a90bcdcf4df9f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225205
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1cba7fe77b8112b7e9a9dba80b5dfb08fcc7c568
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171877
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- test/fixedbugs/issue29612.dir/main.go |   4 +-
- test/run.go                           | 137 +++++++++++++++++++++++++---------
- 2 files changed, 104 insertions(+), 37 deletions(-)
+ src/runtime/time.go | 115 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 112 insertions(+), 3 deletions(-)

@@ -1,21 +1,27 @@
-commit 795d95d6ba3f92091f55af81f8ee840048fb2499
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Dec 4 19:22:51 2024 +0000
+commit 25a59decd58d67edb1f0d15c899ecb27c7ebb3d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 30 13:51:04 2023 -0700
 
-    doc/next: add release notes for runtime and sync
+    go/types, types2: more concise error if conversion fails due to integer overflow
     
-    Also, move the weak package heading to the end; it currently overlaps
-    with 1-osroot.md in the sort order.
+    This change brings the error message for this case back in line
+    with the pre-Go1.18 error message.
     
-    For #68545.
+    Fixes #63563.
     
-    Change-Id: Ia26ae511eaab7c8762e42d1593ac2197d25bbadb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633599
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I3c6587d420907b34ee8a5f295ecb231e9f008380
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538058
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- doc/next/4-runtime.md                      | 16 ++++++++++++++++
- doc/next/6-stdlib/{1-weak.md => 6-weak.md} |  0
- doc/next/6-stdlib/99-minor/sync/70683.md   |  5 +++++
- 3 files changed, 21 insertions(+)
+ src/cmd/compile/internal/types2/conversions.go     | 15 +++++++-
+ src/go/types/conversions.go                        | 15 +++++++-
+ src/internal/types/testdata/check/const1.go        | 44 +++++++++++-----------
+ src/internal/types/testdata/check/constdecl.go     |  2 +-
+ src/internal/types/testdata/check/expr0.go         |  2 +-
+ .../types/testdata/fixedbugs/issue63563.go         | 37 ++++++++++++++++++
+ 6 files changed, 89 insertions(+), 26 deletions(-)

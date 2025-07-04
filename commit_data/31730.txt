@@ -1,28 +1,36 @@
-commit f425f549573e5017861216d62ccb22ee37b68004
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 6 15:08:59 2017 -0700
+commit b71ed4edc6a5663caac434f9c2bea47dbc37db15
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Mar 11 08:48:56 2017 +0100
 
-    runtime: intercept munmap as we do mmap
+    strconv: fix performance regression in integer formatting on 32bit platforms
     
-    For cgo programs on linux-amd64 we call the C function mmap.
-    This supports programs such as the C memory sanitizer that need to
-    intercept all calls to mmap. It turns out that there are programs that
-    intercept both mmap and munmap, or that at least expect that if they
-    intercept mmap, they also intercept munmap. So, if we permit mmap
-    to be intercepted, also permit munmap to be intercepted.
+    Some of the changes in CL golang.org/cl/38071/ assumed that / and %
+    could always be combined to use only one DIV instruction. However,
+    this is not the case for 64bit operands on a 32bit platform which use
+    seperate runtime functions to calculate division and modulo.
     
-    No test, as it requires two odd things: a C program that intercepts
-    mmap and munmap, and a Go program that calls munmap.
+    This CL restores the original optimizations that help on 32bit platforms
+    with negligible impact on 64bit platforms.
     
-    Change-Id: Iec33f47d59f70dbb7463fd12d30728c24cd4face
-    Reviewed-on: https://go-review.googlesource.com/45016
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    386:
+    name          old time/op  new time/op  delta
+    FormatInt-2   6.06µs ± 0%  6.02µs ± 0%  -0.70%  (p=0.000 n=20+20)
+    AppendInt-2   4.98µs ± 0%  4.98µs ± 0%    ~     (p=0.747 n=18+18)
+    FormatUint-2  1.93µs ± 0%  1.85µs ± 0%  -4.19%  (p=0.000 n=20+20)
+    AppendUint-2  1.71µs ± 0%  1.64µs ± 0%  -3.68%  (p=0.000 n=20+20)
+    
+    amd64:
+    name          old time/op  new time/op  delta
+    FormatInt-2   2.41µs ± 0%  2.41µs ± 0%  -0.09%  (p=0.010 n=18+18)
+    AppendInt-2   1.77µs ± 0%  1.77µs ± 0%  +0.08%  (p=0.000 n=18+18)
+    FormatUint-2   653ns ± 1%   653ns ± 0%    ~     (p=0.178 n=20+20)
+    AppendUint-2   514ns ± 0%   513ns ± 0%  -0.13%  (p=0.000 n=20+17)
+    
+    Change-Id: I574a18e54fb41b25fbe51ce696e7a8765abc79a6
+    Reviewed-on: https://go-review.googlesource.com/38051
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/cgo/gcc_mmap.c    | 14 ++++++++++++++
- src/runtime/cgo/mmap.go       |  9 +++++++++
- src/runtime/cgo_mmap.go       | 20 ++++++++++++++++++++
- src/runtime/mmap.go           |  3 +++
- src/runtime/stubs2.go         |  2 --
- src/runtime/sys_linux_amd64.s | 15 ++++++++++++++-
- 6 files changed, 60 insertions(+), 3 deletions(-)
+ src/strconv/itoa.go | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

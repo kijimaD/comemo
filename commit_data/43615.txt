@@ -1,45 +1,15 @@
-commit 25d28ec55aded46e0be9c2298f24287d296a9e47
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 8 17:13:16 2020 -0400
+commit ab3bd2c15fb5f58f9d41feaa65a42579aca91fdc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 14 15:16:09 2020 -0700
 
-    cmd/go: add //go:embed support
+    cmd/compile: make AlgKind a stringer
     
-    The final piece of //go:embed support: have the go command stitch
-    together parsing in go/build, low-level data initialization in cmd/compile,
-    and the new data structures in package embed, to make the //go:embed
-    feature actually function.
-    
-    And test, now that all the pieces are available to work together.
-    
-    For #41191.
-    (Issue not fixed: still need to add a tool for use by Bazel.)
-    
-    Change-Id: Ib1d198345c3b4d557d340f292eda13b984b65d65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243945
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Johan Brandhorst <johan.brandhorst@gmail.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
+    Change-Id: I4a4b866d9233b8369e5ca913a9dd576b323b8f3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228421
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/internal/fsys/fsys.go                   |   6 +-
- src/cmd/go/internal/fsys/fsys_test.go              |   2 +-
- src/cmd/go/internal/list/list.go                   |   2 +
- src/cmd/go/internal/load/pkg.go                    | 202 ++++++++++++++++++++-
- src/cmd/go/internal/load/test.go                   |  27 +++
- src/cmd/go/internal/work/exec.go                   |  31 +++-
- src/cmd/go/internal/work/gc.go                     |   8 +-
- src/cmd/go/internal/work/gccgo.go                  |   2 +-
- src/cmd/go/testdata/script/embed.txt               |  72 ++++++++
- src/embed/internal/embedtest/concurrency.txt       |   1 +
- src/embed/internal/embedtest/embed_test.go         | 103 +++++++++++
- src/embed/internal/embedtest/embedx_test.go        | 106 +++++++++++
- src/embed/internal/embedtest/testdata/ascii.txt    |  25 +++
- src/embed/internal/embedtest/testdata/glass.txt    |   1 +
- src/embed/internal/embedtest/testdata/hello.txt    |   1 +
- src/embed/internal/embedtest/testdata/i/i18n.txt   |   1 +
- .../internal/embedtest/testdata/i/j/k/k8s.txt      |   1 +
- src/embed/internal/embedtest/testdata/ken.txt      |   1 +
- 18 files changed, 575 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/alg.go            |  2 ++
+ src/cmd/compile/internal/gc/algkind_string.go | 48 +++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)

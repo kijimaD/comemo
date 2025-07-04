@@ -1,22 +1,15 @@
-commit 6407b3c80ea7051f01615097afc60da671a688e8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Oct 20 12:44:00 2017 +1100
+commit 788aa88cd0c63b75d49a54592e2a467c6183256f
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu May 25 15:34:05 2017 -0400
 
-    os: simplify windows Pipe
+    [dev.debug] cmd/compile: keep float names in the Names list
     
-    windows version of Pipe function is implemented by calling
-    syscall.Pipe which returns handles inheritable by client process,
-    and then adjusting returned handles with syscall.CloseOnExec.
+    Fix an oversight in decompose that caused floats to be missing from the
+    Names list.
     
-    Just create non-inheritable handles in the first place.
-    Now that we don't have a race window in the code, drop use
-    of syscall.ForkLock.
-    
-    Change-Id: Ie325da7c2397b5995db4a5ddb0117e2ce1745187
-    Reviewed-on: https://go-review.googlesource.com/72010
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5db9c9498e9a4421742389eb929752fdac873b38
+    Reviewed-on: https://go-review.googlesource.com/50877
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/os/file_windows.go | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/decompose.go | 1 +
+ 1 file changed, 1 insertion(+)

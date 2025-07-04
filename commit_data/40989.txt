@@ -1,19 +1,17 @@
-commit 1475b9709013db2c1bb25583729529db1e549312
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Dec 12 16:41:24 2019 -0500
+commit 6a73e94c10b9c2a3162722f0eb4584dc6445cae5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 23 00:15:40 2019 +0700
 
-    runtime: fix off-by-1 error on address ranges
+    cmd/compile: remove gc.eqtype in comments
     
-    When growing the address ranges, the new length is the old length + 1.
+    golang.org/cl/143180 changed gc.eqtype to types.Identical, but gc.eqtype
+    is still mentioned in some comments. Remove them and update comments to
+    mention new functions instead.
     
-    Fixes #36113.
-    
-    Change-Id: I1b425f78e473cfa3cbdfe6113e166663f41fc9f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211157
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6c5eece5221f524556ee55db80de0e4bdfaf166e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191357
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mpagealloc_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mranges.go         |  2 +-
- 2 files changed, 50 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/order.go   | 2 +-
+ src/cmd/compile/internal/types/type.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

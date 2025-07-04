@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 33902: eda703ac799906135869e9890f325c5ffdf49502
+# Index 33902: 9f025cbdebcc80fe3ea7621755561483453c2fa2
 
 echo "🚀 Generating explanation for commit 33902..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 33902
-- **コミットハッシュ**: eda703ac799906135869e9890f325c5ffdf49502
-- **GitHub URL**: https://github.com/golang/go/commit/eda703ac799906135869e9890f325c5ffdf49502
+- **コミットハッシュ**: 9f025cbdebcc80fe3ea7621755561483453c2fa2
+- **GitHub URL**: https://github.com/golang/go/commit/9f025cbdebcc80fe3ea7621755561483453c2fa2
 
 ### 章構成
 

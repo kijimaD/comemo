@@ -1,25 +1,17 @@
-commit bd749504b825677ecc0b8c0f4df785f074719051
+commit 7751883379621d8ecbf7e4920af0a81c31f2c078
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 30 11:09:48 2023 -0800
+Date:   Wed Mar 16 14:09:56 2022 -0700
 
-    go/types, types2: further simplify unification
+    go/types, types2: ensure we have a fully resolved type in validType
     
-    Allocate all handles up-front: in a correct program, all type parameters
-    must be resolved and thus eventually will get a handle.
-    Also, sharing of handles caused by unified type parameters is rare and
-    so it's ok to not optimize for that case (and delay handle allocation).
+    This addresses a situation where Named.fromRHS is nil which
+    is causing validType to panic when the debug flag is set.
     
-    This removes a (premature) optimization whis further simplifies
-    unification.
-    
-    Change-Id: Ie1259b86ea5e966538667ab9557676e9be9f6364
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463989
+    Change-Id: Ie1af3f4d412efc2ce2ee7707af5375ed130a1f2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393436
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/unify.go | 34 ++++++++------------------------
- src/go/types/unify.go                    | 34 ++++++++------------------------
- 2 files changed, 16 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/types2/validtype.go | 3 ++-
+ src/go/types/validtype.go                    | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

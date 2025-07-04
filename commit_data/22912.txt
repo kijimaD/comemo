@@ -1,14 +1,17 @@
-commit e9827f62018b87482e647dd88aecdedb24c94680
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 6 13:19:30 2015 -0700
+commit 7e7d55f888736d8dd8881852be8056cd43739291
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Apr 15 13:03:24 2015 +1000
 
-    testing: document that Log and Logf always print in benchmarks
+    image/png: reject multiple tRNS chunks.
     
-    Fixes #10713.
+    http://www.w3.org/TR/PNG/#5ChunkOrdering disallows them.
     
-    Change-Id: Ifdafc340ae3bba751236f0482246c568346a569c
-    Reviewed-on: https://go-review.googlesource.com/9763
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #10423
+    
+    Change-Id: I3399ce53dc8b41b1b5f0b906a5912e6efd80418f
+    Reviewed-on: https://go-review.googlesource.com/8905
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/testing/testing.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/image/png/reader.go      | 18 +++++++++-----
+ src/image/png/reader_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 6 deletions(-)

@@ -1,41 +1,30 @@
-commit d973bb107e9142cf17e4a7f2666a71ed2d457e91
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Oct 11 11:12:38 2021 +0100
+commit 5d7dc53888c3c91ef4122d584a064bc24b6f7540
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 2 18:20:16 2021 -0500
 
-    encoding/gob: follow documented io.EOF semantics
+    [dev.regabi] cmd/compile, runtime: reserve R14 as g registers on AMD64
     
-    The docs say:
+    This is a proof-of-concept change for using the g register on
+    AMD64. getg is now lowered to R14 in the new ABI. The g register
+    is not yet used in all places where it can be used (e.g. stack
+    bounds check, runtime assembly code).
     
-            If the input is at EOF, Decode returns io.EOF and does not modify e.
-    
-    However, the added test fails:
-    
-            --- FAIL: TestDecodePartial (0.00s)
-                    encoder_test.go:1263: 31/81: expected io.ErrUnexpectedEOF: EOF
-                    encoder_test.go:1263: 51/81: expected io.ErrUnexpectedEOF: EOF
-    
-    In particular, the decoder would return io.EOF after reading a valid
-    message for a type specification, and then hit EOF before reading a data
-    item message.
-    
-    Fix that by only allowing a Decode call to return io.EOF if the reader
-    hits EOF immediately, without successfully reading any message.
-    Otherwise, hitting EOF is an ErrUnexpectedEOF, like in other cases.
-    
-    Also fix a net/rpc test that, coincidentally, expected an io.EOF
-    as an error when feeding bad non-zero data to a gob decoder.
-    An io.ErrUnexpectedEOF is clearly better in that scenario.
-    
-    Fixes #48905.
-    
-    Change-Id: Ied6a0d8ac8377f89646319a18c0380c4f2b09b85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354972
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I10123ddf38e31782cf58bafcdff170aee0ff0d1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289196
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/encoding/gob/decoder.go      |  9 ++++++
- src/encoding/gob/encoder_test.go | 63 ++++++++++++++++++++++++++++++++++++++++
- src/net/rpc/client_test.go       |  4 +--
- 3 files changed, 74 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |   63 +-
+ src/cmd/compile/internal/ssa/config.go       |    3 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |    2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   42 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |    1 +
+ src/cmd/compile/internal/ssa/opGen.go        | 2014 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |   20 +-
+ src/runtime/asm_amd64.s                      |   35 +-
+ src/runtime/race_amd64.s                     |    7 +-
+ src/runtime/sys_linux_amd64.s                |    1 +
+ 10 files changed, 1113 insertions(+), 1075 deletions(-)

@@ -1,13 +1,20 @@
-commit 5fca39967de70e78e0a1a4060d2e8feee77393d1
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 8 13:33:39 2015 -0400
+commit 58125ffe73ccae5c625d31a02194aa571ac34939
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Feb 16 18:41:56 2015 +0300
 
-    cmd/dist: show reason for command failure
+    runtime/race: update race runtime to rev 229396
     
-    Change-Id: I9fb5c1c11a750766ae2d9532869d5ab26f1cf9cf
-    Reviewed-on: https://go-review.googlesource.com/7624
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fixes #9720
+    Fixes #8053
+    Fixes https://code.google.com/p/thread-sanitizer/issues/detail?id=89
+    
+    Change-Id: I7d598e53de86586bb9702d8e9276a4d6aece2dfc
+    Reviewed-on: https://go-review.googlesource.com/4950
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/util.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/race/README                  |   2 +-
+ src/runtime/race/race_darwin_amd64.syso  | Bin 278328 -> 314000 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 294224 -> 316816 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 298064 -> 330232 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 292311 -> 331489 bytes
+ 5 files changed, 1 insertion(+), 1 deletion(-)

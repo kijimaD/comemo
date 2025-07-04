@@ -1,18 +1,29 @@
-commit f172a28f24664d95611b5943f78c6a2c1cc6efbd
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Dec 15 12:03:47 2015 +1100
+commit b60c8203eac32eb0d0b11751ba8f85b2f5eada81
+Author: acanino <anthony.canino1@gmail.com>
+Date:   Sat Oct 10 21:35:22 2015 -0400
 
-    net: include both ipv4 and ipv6 netsh output in TestInterfacesWithNetsh
+    cmd/compile: "invalid variable name x in type switch", where x is a name of a constant
     
-    Also include test for interface state (up or down).
+    Small fix: looks like a short variable declaration with a type switch
+    checks to make sure the variable used had valid shape (ONAME, OTYPE, or
+    ONONAME) and rejects everything else. Then a new variable is declared.
+    If the symbol contained in the declaration was a named OLITERAL (still a
+    valid identifier obviously) it would be rejected, even though a new
+    variable would have been declared.
     
-    Updates #13606
+    Fix adds this case to the check.
     
-    Change-Id: I03538d65525ddd9c2d0254761861c2df7fc5bd5a
-    Reviewed-on: https://go-review.googlesource.com/17850
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Added a test case from issue12413.
+    
+    Fixes #12413
+    
+    Change-Id: I150dadafa8ee5612c867d58031027f2dca8c6ebc
+    Reviewed-on: https://go-review.googlesource.com/15760
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/net_windows_test.go | 86 +++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 76 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/go.y |  2 +-
+ src/cmd/compile/internal/gc/y.go |  2 +-
+ test/fixedbugs/issue12413.go     | 19 +++++++++++++++++++
+ 3 files changed, 21 insertions(+), 2 deletions(-)

@@ -1,51 +1,21 @@
-commit 74e88dfdeebef392d52d3f792e2071b058c1e231
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 2 20:17:20 2015 -0800
+commit afac4f0a403ec0742d68330c3f3bb97be6b187bc
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Sun Feb 8 07:42:10 2015 -0800
 
-    cmd/internal/obj: switch to one global Aconv
+    os: embed "sleep 1" within the test binary itself.
     
-    Aconv is the pretty-printer for instruction opcodes like AMOVQ.
-    There was one for each architecture.
-    Make the space of A names have a different region for each architecture,
-    much as we did for the registers, so a single global Aconv function can
-    do the work. Each architecture registers its region as a slice of names
-    at a given offset.
+    This is an alternative to http://golang.org/cl/4150,
+    and is motivated by a review comment on that CL.
     
-    The global names like CALL and JMP are now defined only once.
+    testKillProcess() tries to build and run the Go equivalent
+    for "sleep 1". This doesn't work for testing cross compilers
+    since the Go compiler is not available on the targets. This
+    change embeds the "sleep 1" functionality within the "os.test"
+    binary itself.
     
-    The A values are used for indexing tables, so make it easy to do the
-    indexing by making the offset maskable.
-    
-    Remove a bunch of now-duplicated architecture-specific code.
-    
-    Change-Id: Ib15647b7145a1c089e21e36543691a19e146b60e
-    Reviewed-on: https://go-review.googlesource.com/6620
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6bad513deaa6c9e2704e70319098eb4983f1bb23
+    Reviewed-on: https://go-review.googlesource.com/4190
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/5g/peep.go                    |   4 +-
- src/cmd/9g/peep.go                    |   2 +-
- src/cmd/9g/prog.go                    |   2 +-
- src/cmd/asm/internal/arch/arch.go     |  34 ++-
- src/cmd/asm/internal/asm/asm.go       |  22 +-
- src/cmd/internal/obj/arm/5.out.go     |   2 +-
- src/cmd/internal/obj/arm/anames5.go   |  23 +-
- src/cmd/internal/obj/arm/asm5.go      | 141 ++++-----
- src/cmd/internal/obj/arm/list5.go     |  50 +---
- src/cmd/internal/obj/i386/8.out.go    |   2 +-
- src/cmd/internal/obj/i386/anames8.go  |  23 +-
- src/cmd/internal/obj/i386/asm8.go     | 149 +++++-----
- src/cmd/internal/obj/i386/list8.go    |  13 +-
- src/cmd/internal/obj/link.go          |  30 +-
- src/cmd/internal/obj/ppc64/9.out.go   |   2 +-
- src/cmd/internal/obj/ppc64/anames9.go |  26 +-
- src/cmd/internal/obj/ppc64/asm9.go    | 522 +++++++++++++++++-----------------
- src/cmd/internal/obj/ppc64/list9.go   |  25 +-
- src/cmd/internal/obj/util.go          |  65 +++++
- src/cmd/internal/obj/x86/6.out.go     |   2 +-
- src/cmd/internal/obj/x86/anames6.go   |  23 +-
- src/cmd/internal/obj/x86/asm6.go      |  10 +-
- src/cmd/internal/obj/x86/list6.go     |  13 +-
- src/cmd/internal/obj/x86/obj6.go      |  10 +-
- 24 files changed, 565 insertions(+), 630 deletions(-)
+ src/os/os_test.go | 46 ++++++++++++----------------------------------
+ 1 file changed, 12 insertions(+), 34 deletions(-)

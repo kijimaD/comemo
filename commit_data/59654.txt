@@ -1,24 +1,69 @@
-commit d54703c94ae906a5e851ae95909b6eb2f0314e19
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed May 21 14:49:40 2025 -0400
+commit 5879bf7e38ac49e2e0caddd11cd4ddd4a4782437
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Feb 26 19:51:31 2024 +0000
 
-    runtime: use DontUpdate testprog for DontUpdate test
+    runtime: emit trace stacks for more goroutines in each generation
     
-    This is a typo in CL 670497. The test is using the wrong testprog
-    function.
+    This change adds a new event, GoStatusStack, which is like GoStatus but
+    also carries a stack ID. The purpose of this event is to emit stacks in
+    more places, in particular for goroutines that may never emit a
+    stack-bearing event in a whole generation.
     
-    The testprog also needs to assert that GOMAXPROCS doesn't change, not
-    that it is equal to NumCPU, for the GOMAXPROCS=4 case.
+    This CL targets one specific case: goroutines that were blocked or in a
+    syscall the entire generation. This particular case is handled at the
+    point that we scribble down the goroutine's status before the generation
+    transition. That way, when we're finishing up the generation and
+    emitting events for any goroutines we scribbled down, we have an
+    accurate stack for those goroutines ready to go, and we emit a
+    GoStatusStack instead of a GoStatus event. There's a small drawback with
+    the way we scribble down the stack though: we immediately register it in
+    the stack table instead of tracking the PCs. This means that if a
+    goroutine does run and emit a trace event in between when we scribbled
+    down its stack and the end of the generation, we will have recorded a
+    stack that never actually gets referenced in the trace. This case should
+    be rare.
     
-    For #73193.
+    There are two remaining cases where we could emit stacks for goroutines
+    but we don't.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
-    Change-Id: I6a6a636cab6936aa8519e3553b70ab6641ca8010
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675097
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    One is goroutines that get unblocked but either never run, or run and
+    never block within a generation. We could take a stack trace at the
+    point of unblocking the goroutine, if we're emitting a GoStatus event
+    for it, but unfortunately we don't own the stack at that point. We could
+    obtain ownership by grabbing its _Gscan bit, but that seems a little
+    risky, since we could hold up the goroutine emitting the event for a
+    while. Something to consider for the future.
+    
+    The other remaining case is a goroutine that was runnable when tracing
+    started and began running, but then ran until the end of the generation
+    without getting preempted or blocking. The main issue here is that
+    although the goroutine will have a GoStatus event, it'll only have a
+    GoStart event for it which doesn't emit a stack trace. This case is
+    rare, but still certainly possible. I believe the only way to resolve it
+    is to emit a GoStatusStack event instead of a GoStatus event for a
+    goroutine that we're emitting GoStart for. This case is a bit easier
+    than the last one because at the point of emitting GoStart, we have
+    ownership of the goroutine's stack.
+    
+    We may consider dealing with these in the future, but for now, this CL
+    captures a fairly large class of goroutines, so is worth it on its own.
+    
+    Fixes #65634.
+    
+    Change-Id: Ief3b6df5848b426e7ee6794e98dc7ef5f37ab2d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567076
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/gomaxprocs_windows_test.go              | 2 +-
- src/runtime/testdata/testprog/gomaxprocs_windows.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/internal/trace/v2/base.go              | 14 ++++--
+ src/internal/trace/v2/event.go             |  3 +-
+ src/internal/trace/v2/event/go122/event.go |  9 ++++
+ src/internal/trace/v2/oldtrace.go          | 69 +++++++++++++++---------------
+ src/internal/trace/v2/order.go             |  3 ++
+ src/runtime/trace2.go                      |  4 +-
+ src/runtime/trace2event.go                 |  7 ++-
+ src/runtime/trace2runtime.go               |  5 ++-
+ src/runtime/trace2stack.go                 | 46 +++++++++++++-------
+ src/runtime/trace2status.go                |  8 +++-
+ 10 files changed, 109 insertions(+), 59 deletions(-)

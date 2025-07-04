@@ -1,39 +1,14 @@
-commit c02f3b86b482c9ae794694d46bc797f2728df578
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 20 10:19:43 2019 -0500
+commit 55e23cb1fe18c6784b573a44bce4c798a1983c2f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 2 13:17:59 2019 -0700
 
-    misc/cgo/testcarchive: avoid writing to GOROOT in tests
+    doc/go1.13: mention confusion between keep-alive timeout and deadline
     
-    Also add a -testwork flag to facilitate debugging the test itself.
+    Updates #31449
     
-    Three of the tests of this package invoked 'go install -i
-    -buildmode=c-archive' in order to generate an archive as well as
-    multiple C header files.
-    
-    Unfortunately, the behavior of the '-i' flag is inappropriately broad
-    for this use-case: it not only generates the library and header files
-    (as desired), but also attempts to install a number of (unnecessary)
-    archive files for transitive dependencies to
-    GOROOT/pkg/$GOOS_$GOARCH_shared, which may not be writable — for
-    example, if GOROOT is owned by the root user but the test is being run
-    by a non-root user.
-    
-    Instead, for now we generate the header files for transitive dependencies
-    separately by running 'go tool cgo -exportheader'.
-    
-    In the future, we should consider how to improve the ergonomics for
-    generating transitive header files without coupling that to
-    unnecessary library installation.
-    
-    Updates #28387
-    Updates #30316
-    Updates #35715
-    
-    Change-Id: I3d483f84e22058561efe740aa4885fc3f26137b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208117
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4d7075b20cd8171bc792e40b388f4215264a3317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188819
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 239 ++++++++++++++++++++++-----------
- 1 file changed, 157 insertions(+), 82 deletions(-)
+ doc/go1.13.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

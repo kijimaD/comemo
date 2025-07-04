@@ -1,19 +1,17 @@
-commit 66795e8ba101fc20916196db6d343b0d927e7dd5
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Sep 19 02:02:21 2014 +0000
+commit bcd36e8857729f6f3306ab22c26e582f1d2f2932
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 11 16:53:34 2014 -0700
 
-    runtime: fix GOARM<7 build
+    runtime: make gostringnocopy update maxstring
     
-    Update #8690
+    Fixes #8706
     
-    If liblink determines that the host doesn't support TLS it replaces the MRC call with a BL runtime.tls_read_fallback. The problem is save_g doesn't expect anyone to make any BL calls and hasn't setup its own link register properly so when runtime.tls_read_fallback returns the LR points to save_g, not save_g's caller so the RET at the end of the function turns into an infinite loop.
-    
-    This fix is only a proof of concept, I think the real fix should go into liblink as its MRC substitution is not as transparent as expected.
-    
-    LGTM=rsc
-    R=rsc, minux
+    LGTM=josharian
+    R=josharian
     CC=golang-codereviews
-    https://golang.org/cl/143050043
+    https://golang.org/cl/143880043
 
- src/runtime/tls_arm.s | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/runtime/export_test.go |  3 +++
+ src/runtime/string.c       |  7 ++++++-
+ src/runtime/string_test.go | 13 +++++++++++++
+ 3 files changed, 22 insertions(+), 1 deletion(-)

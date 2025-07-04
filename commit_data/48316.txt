@@ -1,24 +1,21 @@
-commit 6e63be7b69aab25ac66029e7dfec47303d3b7505
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 7 14:48:28 2022 -0800
+commit bdb804466568c79e488a7b16f6ffd045f2dc6dfa
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 6 16:16:19 2021 -0400
 
-    spec: document that type inference doesn't apply to generic types
+    cmd/link: don't include arginfo symbols in symbol table
     
-    Type inference for types was always a "nice to have" feature.
-    Given the under-appreciated complexity of making it work in all
-    cases, and the fact that we don't have a good understanding of
-    how it might affect readability of generic code, require explicit
-    type arguments for generic types.
+    We recently add arginfo symbols for traceback argument metadata.
+    Like other metadata symbols (GC bitmaps, opendefer info, etc.),
+    skip arginfo symbols for symbol table as well.
     
-    This matches the current implementation.
+    Fixes #45971.
     
-    Change-Id: Ie7ff6293d3fbea92ddc54c46285a4cabece7fe01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390577
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I7a126b75f70ec88e2170e9a274d968762c7bce56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317769
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go_spec.html | 61 +++++++++++++++++++++++++++-----------------------------
- 1 file changed, 29 insertions(+), 32 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

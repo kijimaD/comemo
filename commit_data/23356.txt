@@ -1,12 +1,45 @@
-commit a3b9797baa487224c5d5e1878057ec31e1f0df88
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 15 13:35:56 2015 -0400
+commit 2d9a50b97f762637627436b6ed153242e43874fb
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Fri May 8 16:38:08 2015 +0000
 
-    runtime: gofmt
+    html: simplify and optimize escape/unescape
     
-    Change-Id: I539bdc438f694610a7cd373f7e1451171737cfb3
-    Reviewed-on: https://go-review.googlesource.com/11084
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The html package uses some specific code to escape special characters.
+    Actually, the strings.Replacer can be used instead, and is much more
+    efficient. The converse operation is more complex but can still be
+    slightly optimized.
+    
+    Credits to Ken Bloom (kabloom@google.com), who first submitted a
+    similar patch at https://codereview.appspot.com/141930043
+    
+    Added benchmarks and slightly optimized UnescapeString.
+    
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkEscape-4           118713        19825         -83.30%
+    BenchmarkEscapeNone-4       87653         3784          -95.68%
+    BenchmarkUnescape-4         24888         23417         -5.91%
+    BenchmarkUnescapeNone-4     14423         157           -98.91%
+    
+    benchmark                   old allocs     new allocs     delta
+    BenchmarkEscape-4           9              2              -77.78%
+    BenchmarkEscapeNone-4       0              0              +0.00%
+    BenchmarkUnescape-4         2              2              +0.00%
+    BenchmarkUnescapeNone-4     0              0              +0.00%
+    
+    benchmark                   old bytes     new bytes     delta
+    BenchmarkEscape-4           24800         12288         -50.45%
+    BenchmarkEscapeNone-4       0             0             +0.00%
+    BenchmarkUnescape-4         10240         10240         +0.00%
+    BenchmarkUnescapeNone-4     0             0             +0.00%
+    
+    Fixes #8697
+    
+    Change-Id: I208261ed7cbe9b3dee6317851f8c0cf15528bce4
+    Reviewed-on: https://go-review.googlesource.com/9808
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/malloc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/html/escape.go      | 57 ++++++++++---------------------------------------
+ src/html/escape_test.go | 40 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 50 insertions(+), 47 deletions(-)

@@ -1,20 +1,31 @@
-commit 9627180f0f1f016307f4987cec6594baf90d64ae
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Oct 25 23:11:10 2018 +0200
+commit 1a27f048ad25f151d2a17ce7f2d73d0d2dbe94cf
+Author: David Chase <drchase@google.com>
+Date:   Thu Jun 28 16:22:21 2018 -0400
 
-    misc/wasm: improve detection of Node.js
+    cmd/compile: make OpAddr depend on VarDef in storeOrder
     
-    This commit adds a check of "process.title" to detect Node.js.
+    Given a carefully constructed input, writebarrier would
+    split a block with the OpAddr in the first half and the
+    VarDef in the second half which ultimately leads to a
+    compiler crash because the scheduler is no longer able
+    to put them in the proper order.
     
-    The web app bundler Parcel sets "process" to an empty object. This
-    incorrectly got detected as Node.js, even though the script was
-    running in a browser.
+    To fix, recognize the implicit dependence of OpAddr on
+    the VarDef of the same symbol if any exists.
     
-    Fixes #28364.
+    This fix was chosen over making OpAddr take a memory
+    operand to make the dependence explicit, because this
+    change is less invasive at this late part of the 1.11
+    release cycle.
     
-    Change-Id: Iecac7f8fc3cc4ac7ddb42dd43c5385681a3282de
-    Reviewed-on: https://go-review.googlesource.com/c/144658
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #26105.
+    
+    Change-Id: I9b65460673af3af41740ef877d2fca91acd336bc
+    Reviewed-on: https://go-review.googlesource.com/121436
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/wasm/wasm_exec.js | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go | 22 +++++++++++++++++++++-
+ test/fixedbugs/issue26105.go             | 25 +++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)

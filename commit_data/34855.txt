@@ -1,22 +1,14 @@
-commit a7bb8d3eb8ffd99fc6728dd1b27152cebbb45dc4
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Apr 6 05:00:25 2018 +1000
+commit 4fbf54fa0a4532753d2aac880e6d91202899a54e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Nov 17 10:03:55 2017 -0500
 
-    runtime: fix/improve exitThread on openbsd
+    cmd/compile: fix comment that -N does not disable escape analysis
     
-    OpenBSD's __threxit syscall takes a pointer to a 32-bit value that will be
-    zeroed immediately before the thread exits. Make use of this instead of
-    zeroing freeWait from the exitThread assembly and using hacks like switching
-    to a static stack, so this works on 386.
+    -N does not disable escape analysis. Remove the outdated comment.
     
-    Change-Id: I3ec5ead82b6496404834d148f713794d5d9da723
-    Reviewed-on: https://go-review.googlesource.com/105055
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I96978b3afd51324b7b4f8035cf4417fb2eac4ebc
+    Reviewed-on: https://go-review.googlesource.com/79015
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/sys_openbsd_386.s   |  9 ---------
- src/runtime/sys_openbsd_amd64.s |  5 +----
- src/runtime/sys_openbsd_arm.s   | 10 +---------
- 3 files changed, 2 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 6 ------
+ 1 file changed, 6 deletions(-)

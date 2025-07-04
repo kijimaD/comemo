@@ -1,17 +1,14 @@
-commit f17cd880895863e2c13396296819d0dce81fa43f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 30 14:53:53 2015 -0800
+commit 43ce5c0306c952f69fd54273fd136f838ecb83cc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 30 12:37:54 2014 +1100
 
-    math/big: split float conversion routines and tests into separate files
+    log: update doc comment
     
-    No other functional changes.
+    Fixes #9448.
     
-    Change-Id: I7e0bb7452c6a265535297ec7ce6a629f1aff695c
-    Reviewed-on: https://go-review.googlesource.com/3674
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I8e1d676688d9e9b2fa3519ebc530905f574a1b3e
+    Reviewed-on: https://go-review.googlesource.com/2088
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/float.go          | 245 ---------------------------------------
- src/math/big/float_test.go     | 101 ----------------
- src/math/big/floatconv.go      | 256 +++++++++++++++++++++++++++++++++++++++++
- src/math/big/floatconv_test.go | 111 ++++++++++++++++++
- 4 files changed, 367 insertions(+), 346 deletions(-)
+ src/log/log.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

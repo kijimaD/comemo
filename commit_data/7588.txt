@@ -1,15 +1,17 @@
-commit a3ef19825c5d798f18eb62e7fe326fa33bfceafa
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 28 14:55:27 2011 -0500
+commit b00f7310f3d9b38a4989ff89a2c60865ac106b1c
+Author: Chris Dollin <ehog.hedge@gmail.com>
+Date:   Mon Feb 28 14:09:04 2011 -0500
 
-    build: move $GOBIN ahead of /bin, /usr/bin in build $PATH
+    xml: permit nested directives
     
-    Otherwise if there is an installed /usr/bin/6g the build
-    will use that one instead of the one it builds.
+    Return <!DOCTYPE ...> with nested directives as one big token.
     
-    R=r
+    Fixes #1549.
+    
+    R=niemeyer, rsc
     CC=golang-dev
-    https://golang.org/cl/4249045
+    https://golang.org/cl/4216050
 
- src/env.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/xml/xml.go      | 23 +++++++++++++++++++++--
+ src/pkg/xml/xml_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 2 deletions(-)

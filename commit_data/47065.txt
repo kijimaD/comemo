@@ -1,16 +1,20 @@
-commit 6a7eb56cd1837b961ea815105235a3fd96fda94b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 26 13:55:53 2021 -0700
+commit ab331c0254d4462dde6640ec9b00fecc828f4162
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Feb 14 19:43:31 2021 +0100
 
-    cmd/compile/internal/types2: remove unused position computation (cleanup)
+    runtime/cgo: use correct lean and mean macro
     
-    The position computation was needed for type list support.
-    With that gone, we don't need this code anymore.
+    WIN64_LEAN_AND_MEAN is not the correct macro to use and doesn't ever
+    exist.
     
-    Change-Id: I3f36b3d108a1fae9947fd259d4892e0287cb78ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358701
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I32a5523cc0f7cc3f3a4d022071cf81f88db39aa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291634
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/types2/union.go | 20 ++++----------------
- 1 file changed, 4 insertions(+), 16 deletions(-)
+ src/runtime/cgo/gcc_libinit_windows.c | 2 +-
+ src/runtime/cgo/gcc_windows_amd64.c   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

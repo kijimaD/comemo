@@ -1,14 +1,22 @@
-commit dbe9ab69d946be2c324430c8ed7717276780b533
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jun 24 07:23:40 2015 -0700
+commit 9c44a41dd56660b7685da61bf1efb00cc7c1e198
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 15 16:10:00 2015 -0400
 
-    cmd/compile/internal/gc: make sure nonzero-sized objects have nonzero alignment
+    runtime: disallow preemption during startTheWorld
     
-    See issue #11354.
+    Currently, startTheWorld clears preemptoff for the current M before
+    starting the world. A few callers increment m.locks around
+    startTheWorld, presumably to prevent preemption any time during
+    starting the world. This is almost certainly pointless (none of the
+    other callers do this), but there's no harm in making startTheWorld
+    keep preemption disabled until it's all done, which definitely lets us
+    drop these m.locks manipulations.
     
-    Change-Id: I6817d499e6c02e4a9c83f80bc66a2bee368a69ec
-    Reviewed-on: https://go-review.googlesource.com/11406
+    Change-Id: I8a93658abd0c72276c9bafa3d2c7848a65b4691a
+    Reviewed-on: https://go-review.googlesource.com/10155
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/align.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/heapdump.go | 2 --
+ src/runtime/mstats.go   | 2 --
+ src/runtime/proc1.go    | 2 +-
+ 3 files changed, 1 insertion(+), 5 deletions(-)

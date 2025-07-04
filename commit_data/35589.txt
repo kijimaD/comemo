@@ -1,19 +1,24 @@
-commit d6c3b0a56d8c81c221b0adf69ae351f7cd467854
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 1 10:16:08 2018 -0700
+commit 7113d3a512b17d1acea0904a2e5590fdfbd388bb
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Feb 22 13:55:01 2018 +0000
 
-    runtime: don't crash holding locks on racy timer access
+    cmd/compile: fix FP accuracy issue introduced by FMA optimization on ARM64
     
-    If we run into data corruption due to the program accessing timers in
-    a racy way, do a normal panic rather than a hard crash with "panic
-    holding locks". The hope is to make the problem less confusing for users.
+    Two ARM64 rules are added to avoid FP accuracy issue, which causes
+    build failure.
+    https://build.golang.org/log/1360f5c9ef3f37968216350283c1013e9681725d
     
-    Fixes #25686
+    fixes #24033
     
-    Change-Id: I863417adf21f7f8c088675b67a3acf49a0cdef41
-    Reviewed-on: https://go-review.googlesource.com/115815
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I9b74b584ab5cc53fa49476de275dc549adf97610
+    Reviewed-on: https://go-review.googlesource.com/96355
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/time.go   | 74 +++++++++++++++++++++++++++++++++++++++++++--------
- src/time/time_test.go | 37 ++++++++++++++++++++++++++
- 2 files changed, 100 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        |  2 ++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 28 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 10 ++++------
+ 5 files changed, 38 insertions(+), 8 deletions(-)

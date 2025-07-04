@@ -1,14 +1,12 @@
-commit 8bd0109dd078800a0d1b3827b58ba1369530424e
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Sat Feb 11 20:02:50 2012 -0800
+commit 5b663057b79fdc3354dd5aa210bb6a729b2610ec
+Author: Bjorn Tipling <bjorn.tipling@gmail.com>
+Date:   Sun Feb 12 12:18:00 2012 +1100
 
-    build: get rid of deps.bash
+    html/template: Added more explicit wording about examples and documentation.
     
-    It doesn't work anymore and it's not used.
-    
-    R=golang-dev, mikioh.mikioh
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/5652073
+    https://golang.org/cl/5654062
 
- src/pkg/deps.bash | 54 ------------------------------------------------------
- 1 file changed, 54 deletions(-)
+ src/pkg/html/template/doc.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

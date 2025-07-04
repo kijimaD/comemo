@@ -1,29 +1,43 @@
-commit 88cfad0c89014f364e3309e7ee6c4e0d3d382685
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Nov 20 19:12:58 2024 +0000
+commit 7e1713e93c626f7026d1de09258f03748c726e79
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Sep 11 02:03:10 2021 +1000
 
-    runtime: explicitly keep handle alive during getOrAddWeakHandle
+    cmd/link/internal/ld: assign temporary addresses to per-package text
     
-    getOrAddWeakHandle is very careful about keeping its input alive across
-    the operation, but not very careful about keeping the heap-allocated
-    handle it creates alive. In fact, there's a window in this function
-    where it is *only* visible via the special. Specifically, the window of
-    time between when the handle is stored in the special and when the
-    special actually becomes visible to the GC.
+    If trampolines may be required, the current text addressing second
+    pass resets all assigned addresses, before assigning addresses and
+    laying down trampolines in a linear fashion. However, this approach
+    means that intra-package calls are to a symbol that has not yet
+    been assigned an address, when the symbol is ahead of the current
+    function.
     
-    (If we fail to add the special because it already exists, that case is
-    fine. We don't even use the same handle value, but the one we obtain
-    from the attached GC-visible special, *and* we return that value, so it
-    remains live.)
+    In the case of RISC-V the JAL instruction is limited to +/-1MiB.
+    As such, if a call is to a symbol with no address currently assigned,
+    we have to assume that a trampoline will be required. During the
+    relocation phase we can fix up and avoid trampolines in some cases,
+    however this results in unused trampolines that are still present
+    in the binary (since removing them would change text addresses).
     
-    Fixes #70455.
+    In order to significantly reduce the number of unused trampolines,
+    assign temporary addresses to functions within the same package,
+    based on the maximum number of trampolines that may be required by
+    a function. This allows for better decisions to be made regarding
+    the requirement for intra-package trampolines, as we reset the
+    addressing for a function, assign its final address and lay down
+    any resulting trampolines.
     
-    Change-Id: Iadaff0cfb93bcaf61ba2b05be7fa0519c481de82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630315
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    This results in ~2,300 unused trampolines being removed from the
+    Go binary and ~5,600 unused trampolines being removed from the
+    compile binary, on linux/riscv64.
+    
+    Change-Id: I8a9cf035dea82e1e1e66ae5b1093dce78e4ff0d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349650
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/mheap.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go    | 87 ++++++++++++++++++++++++++-----------
+ src/cmd/link/internal/ld/ld_test.go | 68 +++++++++++++++++++++++++++++
+ 2 files changed, 130 insertions(+), 25 deletions(-)

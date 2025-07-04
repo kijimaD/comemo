@@ -1,0 +1,31 @@
+commit 3b6aa03c127ac9600ed17bd27ae94088b741846e
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu May 30 14:00:40 2024 -0700
+
+    os: RemoveAll: fix error returned
+    
+    When unlink fails, it is not yet known if the argument is a directory or not.
+    Since CL 588495, we figure out if it's a directory when trying to open
+    it (and, for a directory, return the original unlink error).
+    
+    The (very minor) issue is, in case of a symlink, a different error is
+    returned -- usually it's ELOOP, but some systems use other values. Let's
+    account for that error code, too.
+    
+    This is a followup to CL 588495.
+    
+    Change-Id: I4ee10fe9b57f045fbca02f13e5c9ea16972803bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589376
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/syscall/unix/constants.go       |  5 +++++
+ src/internal/syscall/unix/nofollow_bsd.go    | 14 ++++++++++++++
+ src/internal/syscall/unix/nofollow_netbsd.go | 10 ++++++++++
+ src/internal/syscall/unix/nofollow_posix.go  | 22 ++++++++++++++++++++++
+ src/os/removeall_at.go                       |  2 +-
+ 5 files changed, 52 insertions(+), 1 deletion(-)

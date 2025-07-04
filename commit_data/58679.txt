@@ -1,28 +1,18 @@
-commit ee8db080c8ca99bae0288f4cf19110cdfb179e35
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Thu Dec 19 14:02:05 2024 -0500
+commit 636c6e350dfc89c164f3e26aee85b241faf06ae0
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 28 13:09:42 2023 -0800
 
-    crypto/internal/fips140test: add KAS-ECC-SSC ACVP tests
+    doc: release notes for GOARM hardfloat/softfloat change
     
-    Adds ACVP test coverage for the Sp800-56Ar3 KAS-ECC-SSC algorithm based
-    on the NIST spec:
+    See CL 514907
     
-      https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-ssc-ecc.html
-    
-    There's no acvp_test.config.json update for this algorithm as one test
-    type type requires random key generation and can't be separated from the
-    test type that doesn't, making it a bad fit for static data testing.
-    
-    Updates #69642
-    
-    Change-Id: I3b6538fad1c1e5c8b14b638ff3b933f11e98f75a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637916
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ieba2d7737115c66990b0ea7629033e787a99be93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545655
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ludi Rehak <ludi317@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- .../internal/fips140test/acvp_capabilities.json    |  4 +-
- src/crypto/internal/fips140test/acvp_test.go       | 47 ++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 1 deletion(-)
+ doc/go1.22.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,12 +1,13 @@
-commit 8bf0bc2754a4e168268a4d90a18f10063ab8c8c8
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 3 11:55:33 2011 -0800
+commit 9d3db4b62ef1ac60070853abf1ae5d3f759c04ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 3 14:54:01 2011 -0500
 
-    fmt: document %%
+    gotest: enable unit tests for cmd directories
     
-    R=rsc, gri
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4130044
+    https://golang.org/cl/4001056
 
- src/pkg/fmt/doc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/Make.cmd          | 19 +++++++++++++++++++
+ src/cmd/gotest/gotest | 46 ++++++++++++++++++++++++++++++----------------
+ 2 files changed, 49 insertions(+), 16 deletions(-)

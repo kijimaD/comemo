@@ -1,29 +1,26 @@
-commit d59926ec7e5bf709265afc17680ef720e9110696
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 30 13:28:56 2023 -0400
+commit 1513e57b704056b794f0706362fa3c949f2972a4
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 19 13:20:21 2022 -0700
 
-    cmd/go: scan $PATH to find version list in NewerToolchain
+    net/http/httputil: add X-Forwarded-{Host,Proto} headers in ReverseProxy
     
-    NewerToolchain needs a list of candidate toolchains.
-    Currently it always consults the module version list, using the network.
-    When GOTOOLCHAIN=path, it should probably not do this,
-    both because =path implies we don't want to use the network
-    and because not every released version will be in $PATH.
-    Instead, scan $PATH to find the available versions.
+    X-Forwarded-Host contains the original request's host.
     
-    For #57001.
+    X-Forwarded-Proto contains "http" or "https", depending on whether the
+    original request was made on a TLS-secured connection.
     
-    Change-Id: I478612c88d1504704a3f53fcfc73d8d4eedae493
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499296
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Setting either header to nil in Director disables adding the header,
+    same as for X-Forwarded-For.
+    
+    Fixes #50465.
+    
+    Change-Id: If8ed1f48d83f8ea0389c53519bc7994cb53891db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407414
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/toolchain/path_none.go      | 21 +++++++
- src/cmd/go/internal/toolchain/path_plan9.go     | 29 +++++++++
- src/cmd/go/internal/toolchain/path_unix.go      | 46 +++++++++++++++
- src/cmd/go/internal/toolchain/path_windows.go   | 78 +++++++++++++++++++++++++
- src/cmd/go/internal/toolchain/toolchain.go      | 53 ++++++++++++++++-
- src/cmd/go/testdata/script/gotoolchain_path.txt | 51 +++++++++++-----
- 6 files changed, 261 insertions(+), 17 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 26 ++++++++++---
+ src/net/http/httputil/reverseproxy_test.go | 61 +++++++++++++++++++++++++-----
+ 2 files changed, 72 insertions(+), 15 deletions(-)

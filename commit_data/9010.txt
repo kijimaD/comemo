@@ -1,25 +1,15 @@
-commit 1722ec22cd6a34dcef717cc242e3e1ac24366069
+commit d53385fd0c986c33c60e4d6fce6b39b6bd779a72
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 11 15:59:27 2011 -0700
+Date:   Mon Jul 11 15:47:42 2011 -0700
 
-    cgi: close stdout reader pipe when finished
+    os: don't permit Process.Signal after a successful Wait
     
-    This causes the child, if still writing, to get an error or
-    SIGPIPE and most likely exit so our subsequent wait can
-    finish.
-    
-    A more guaranteed fix would be putting a time limit on the
-    child's overall execution, but this fixes the problem
-    I was having.
-    
-    Fixes #2059
-    
-    R=rsc
+    R=dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/4675081
+    https://golang.org/cl/4689043
 
- src/pkg/exec/exec.go               |  6 ++-
- src/pkg/http/cgi/host.go           |  1 +
- src/pkg/http/cgi/host_test.go      | 76 +++++++++++++++++++++++++++++++++++++-
- src/pkg/http/cgi/testdata/test.cgi |  8 ++++
- 4 files changed, 87 insertions(+), 4 deletions(-)
+ src/pkg/os/exec.go         | 3 ++-
+ src/pkg/os/exec_unix.go    | 6 ++++++
+ src/pkg/os/exec_windows.go | 4 ++++
+ src/pkg/os/os_test.go      | 9 ++++++++-
+ 4 files changed, 20 insertions(+), 2 deletions(-)

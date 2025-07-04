@@ -1,14 +1,12 @@
-commit 68576506d6c241fe445eba5e25fb8830e4135915
+commit 7e5dc928a4ad95eb062afa19616de8104d32a458
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 4 01:39:29 2012 -0500
+Date:   Sat Feb 4 01:37:30 2012 -0500
 
-    cmd/dist: add BSD gohostos cases
-    
-    Should fix FreeBSD build.
+    path/filepath: disable broken tests
     
     TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5629050
+    https://golang.org/cl/5625050
 
- src/cmd/dist/unix.c | 6 ++++++
+ src/pkg/path/filepath/path_test.go | 6 ++++++
  1 file changed, 6 insertions(+)

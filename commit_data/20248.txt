@@ -1,13 +1,19 @@
-commit a19e638db27d6e03c9f0c0220a547f7ebd9e599a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Sep 1 23:06:22 2014 -0400
+commit 43d4f93c91587323d6141dcd4cbcccb0ee8bfab3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 27 18:01:17 2014 -0700
 
-    runtime/pprof: adjust cpuHogger so that tests pass on windows builders
+    cmd/{addr2line,objdump}: fix finding pclntab and symtab for pe and plan9obj
     
-    LGTM=rsc
-    R=dvyukov, rsc
+    Broken by 8b5fc7c59d05.
+    
+    Update #8092
+    
+    LGTM=iant, alex.brainman
+    R=rsc, iant, alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/140110043
+    https://golang.org/cl/138770043
 
- src/pkg/runtime/pprof/pprof_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/internal/objfile/pe.go       | 17 +++++++++++++----
+ src/cmd/internal/objfile/plan9obj.go | 17 +++++++++++++----
+ src/cmd/objdump/main.go              | 34 ++++++++++++++++++++++++++--------
+ 3 files changed, 52 insertions(+), 16 deletions(-)

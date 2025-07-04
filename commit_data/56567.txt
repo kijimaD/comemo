@@ -1,17 +1,36 @@
-commit 0bc684a994c47a079cd7ead2016cc77db0a3d36c
-Author: Austin Clements <austin@google.com>
-Date:   Tue May 21 10:24:59 2024 -0400
+commit b3d1cce3eb26a08420d803df872721bfd370e3ed
+Author: David Chase <drchase@google.com>
+Date:   Wed May 10 19:29:18 2023 -0400
 
-    runtime: push vdsoClockgettimeSym linkname on linux/arm64
+    cmd/compile: add more information to the bisect-verbose report
     
-    Updates #67401.
+    running on cmd/compile/internal/testdata/inlines now shows:
+    ```
+    --- change set #1 (enabling changes causes failure)
+    b/b.go:16:6: loop variable i now per-iteration (loop inlined into b/b.go:10)
+    b/b.go:16:6: loop variable i now per-iteration
+    ./b/b.go:16:6: loop variable b.i now per-iteration (loop inlined into a/a.go:18)
+    ./b/b.go:16:6: loop variable b.i now per-iteration (loop inlined into ./main.go:37)
+    ./b/b.go:16:6: loop variable b.i now per-iteration (loop inlined into ./main.go:38)
+    ---
+    ```
+    and
+    ```
+    --- change set #2 (enabling changes causes failure)
+    ./main.go:27:6: loop variable i now per-iteration
+    ./main.go:27:6: loop variable i now per-iteration (loop inlined into ./main.go:35)
+    ---
+    ```
     
-    Change-Id: I491ad443673193db4f921346539ca5e41afad2ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586896
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Florian Zenker <floriank@google.com>
+    Still unsure about the utility of mentioning the inlined occurrence, but better
+    than mysteriously repeating the line over and over again.
+    
+    Change-Id: I357f5d419ab4928fa316f4612eec3b75e7f8ac34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494296
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/runtime/{badlinkname_linux_amd64.go => badlinkname_linux.go} | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/loopvar/loopvar.go      | 20 ++++++++++++++++++--
+ src/cmd/compile/internal/loopvar/loopvar_test.go | 11 ++++++++---
+ 2 files changed, 26 insertions(+), 5 deletions(-)

@@ -1,12 +1,12 @@
-commit 413fbed34194e4ff0da2a088fa589b33cae7e941
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Sep 21 20:20:26 2012 +0200
+commit b16c41bed703522e54f0c48b5b3f2ee0cd38c0d1
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Sep 21 12:25:55 2012 -0400
 
-    cmd/6g: cosmetic improvements to regopt debugging.
+    runtime: fix typos in comments
     
-    R=rsc, golang-dev
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6528044
+    https://golang.org/cl/6554043
 
- src/cmd/6g/reg.c | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/pkg/runtime/hashmap.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,36 +1,22 @@
-commit f0bbb5c45023782c064c6241ba85897a3a3a2e18
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Feb 23 03:55:54 2015 -0500
+commit 4ce4d8b2c4ffb0378a246b26815e9e27d077670a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Jan 28 08:42:20 2015 +0300
 
-    runtime/pprof: make TestBlockProfile more robust
+    cmd/gc: allocate stack buffer for ORUNESTR
     
-    It's using debug mode of pprof.writeBlock, so the output actually goes
-    through text/tabwriter. It is possible that tabwriter expands each tab
-    into multiple tabs in certain cases.
+    If result of string(i) does not escape,
+    allocate a [4]byte temp on stack for it.
     
-    For example, this output has been observed on the new arm64 port:
-    10073805 1 @ 0x1088ec 0xd1b8c 0xd0628 0xb68c0 0x867f4
-    #       0x1088ec        sync.(*Cond).Wait+0xfc                          /home/minux/go.git/src/sync/cond.go:63
-    #       0xd1b8c         runtime/pprof_test.blockCond+0x22c              /home/minux/go.git/src/runtime/pprof/pprof_test.go:454
-    #       0xd0628         runtime/pprof_test.TestBlockProfile+0x1b8       /home/minux/go.git/src/runtime/pprof/pprof_test.go:359
-    #       0xb68c0         testing.tRunner+0x140                           /home/minux/go.git/src/testing/testing.go:447
-    
-    10069965 1 @ 0x14008 0xd1390 0xd0628 0xb68c0 0x867f4
-    #       0x14008 runtime.chansend1+0x48                          /home/minux/go.git/src/runtime/chan.go:76
-    #       0xd1390 runtime/pprof_test.blockChanSend+0x100          /home/minux/go.git/src/runtime/pprof/pprof_test.go:396
-    #       0xd0628 runtime/pprof_test.TestBlockProfile+0x1b8       /home/minux/go.git/src/runtime/pprof/pprof_test.go:359
-    #       0xb68c0 testing.tRunner+0x140                           /home/minux/go.git/src/testing/testing.go:447
-    
-    10069706 1 @ 0x108e0c 0xd193c 0xd0628 0xb68c0 0x867f4
-    #       0x108e0c        sync.(*Mutex).Lock+0x19c                        /home/minux/go.git/src/sync/mutex.go:67
-    #       0xd193c         runtime/pprof_test.blockMutex+0xbc              /home/minux/go.git/src/runtime/pprof/pprof_test.go:441
-    #       0xd0628         runtime/pprof_test.TestBlockProfile+0x1b8       /home/minux/go.git/src/runtime/pprof/pprof_test.go:359
-    #       0xb68c0         testing.tRunner+0x140                           /home/minux/go.git/src/testing/testing.go:447
-    
-    Change-Id: I3bef778c5fe01a894cfdc526fdc5fecb873b8ade
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/5554
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: If31ce9447982929d5b3b963fd0830efae4247c37
+    Reviewed-on: https://go-review.googlesource.com/3411
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/pprof/pprof_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/builtin.c       |  2 +-
+ src/cmd/gc/esc.c           |  3 +++
+ src/cmd/gc/runtime.go      |  2 +-
+ src/cmd/gc/walk.c          | 11 ++++++++---
+ src/runtime/string.go      | 11 +++++++++--
+ src/runtime/string_test.go | 35 +++++++++++++++++++++++++++++++++++
+ test/escape2.go            | 21 +++++++++++++++++++++
+ test/escape2n.go           | 21 +++++++++++++++++++++
+ 8 files changed, 99 insertions(+), 7 deletions(-)

@@ -1,14 +1,12 @@
-commit d3f9aa47e5bc8e95234279d8b0aed6f54bb98d81
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 15 18:12:42 2012 -0800
+commit e9016bb8a7e5cf173556c51a173ae04f91da168a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 16 13:08:35 2012 +1100
 
-    cmd/go: fix 'go help'
-    It depended on old behavior of functions in structs.
-    Solved by adding a boolean method to check .Run != nil.
+    go/ast: return Examples in name order
     
-    R=golang-dev, adg, r, rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5674062
+    https://golang.org/cl/5673061
 
- src/cmd/go/main.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/pkg/go/ast/example.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

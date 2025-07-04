@@ -1,17 +1,20 @@
-commit c3fa6f4ddc4a79f436e842742ae735e617f8522e
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Aug 14 17:26:22 2017 +0900
+commit 6266b0f08f46de10abfb3d27748bdf1fdebcbba2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Apr 14 15:06:03 2017 +0200
 
-    debug/macho: make Type implements fmt.(Go)Stringer interfaces
+    cmd/compile: add test for Issue 12536
     
-    Fixes #21436
+    The fixedbugs/issue12536.go file was erroneously deleted just before
+    committing the patch that fixed the issue (CL 14400).
     
-    Change-Id: I56f43e2852696c28edbcc772a54125a9a9c32497
-    Reviewed-on: https://go-review.googlesource.com/55262
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    That's an easy test and there's a small reproducer in the issue, add
+    it back.
+    
+    Updates #12536
+    
+    Change-Id: Ib7b0cd245588299e9a5469e1d75805fd0261ce1a
+    Reviewed-on: https://go-review.googlesource.com/40712
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/macho/file_test.go |  9 +++++++++
- src/debug/macho/macho.go     | 10 ++++++++++
- 2 files changed, 19 insertions(+)
+ test/fixedbugs/issue12536.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

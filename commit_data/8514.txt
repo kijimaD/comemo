@@ -1,15 +1,16 @@
-commit cb96d98b0629ee7c5ab9a5d0865565972460bd1c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri May 27 17:02:24 2011 +1000
+commit 2386808ee9075fd10dd16f6f282779562bf6cef0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 27 16:07:30 2011 +1000
 
-    os: another attempt to handle OpenFile flag parameter properly on Windows
+    doc: put Release History link on 'Documentation' page
+    Also put Weekly Snapshot History link on 'Contributing' page
     
-    Fixes #1791.
+    Fixes #1885.
     
-    R=rsc, r, r, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4551046
+    https://golang.org/cl/4559049
 
- src/pkg/os/os_test.go              | 10 +++++++++-
- src/pkg/syscall/syscall_windows.go | 17 +++++++----------
- 2 files changed, 16 insertions(+), 11 deletions(-)
+ doc/contrib.html | 5 ++++-
+ doc/docs.html    | 3 +++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

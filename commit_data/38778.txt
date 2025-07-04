@@ -1,21 +1,30 @@
-commit 2a931bad4e4d7eabdb685b6dc74406373ad6e7e4
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Wed Apr 17 01:19:54 2019 +0900
+commit eb6c433eb38d9a0e9ecfcc1604f9ff8e035768f6
+Author: Keith Randall <khr@google.com>
+Date:   Mon Nov 26 15:58:03 2018 -0800
 
-    net/http: rename DialerAndTLSConfigSupportsHTTP2 to ForceAttemptHTTP2
+    cmd/compile: don't convert non-Go-constants to OLITERALs
     
-    Transport.DialerAndTLSConfigSupportsHTTP2 was added just earlier
-    in CL 130256 but we thought of a better name moments after submitting.
-    ForceAttemptHTTP2 is shorter, more direct, and doesn't constrain what
-    we can use it with in the future.
+    Don't convert values that aren't Go constants, like
+    uintptr(unsafe.Pointer(nil)), to a literal constant. This avoids
+    assuming they are constants for things like indexing, array sizes,
+    case duplication, etc.
     
-    Updates #14391
-    Updates #27011
+    Also, nil is an allowed duplicate in switches. CTNILs aren't Go constants.
     
-    Change-Id: Ie5fc71bafcbcaa1941b5d49f748b6d710503d477
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172299
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #28078
+    Fixes #28079
+    
+    Change-Id: I9ab8af47098651ea09ef10481787eae2ae2fb445
+    Reviewed-on: https://go-review.googlesource.com/c/151320
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go      | 18 +++++++++---------
- src/net/http/transport_test.go |  4 ++--
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/const.go     |  2 +-
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ test/fixedbugs/issue28078.go             | 34 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue28079a.go            | 20 +++++++++++++++++++
+ test/fixedbugs/issue28079b.go            | 17 ++++++++++++++++
+ test/fixedbugs/issue28079c.go            | 15 ++++++++++++++
+ 7 files changed, 91 insertions(+), 5 deletions(-)

@@ -1,32 +1,15 @@
-commit 70c107c68dca7d57a24b35dd81420fb889aa1031
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 19 15:49:31 2016 -0400
+commit d1a19235212d62843c17dc4f7c61d46bb1bf56ff
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 27 12:09:38 2016 +1000
 
-    runtime: add deletion barriers on gobuf.ctxt
+    doc/faq: explain the meaning of "runtime"
     
-    gobuf.ctxt is set to nil from many places in assembly code and these
-    assignments require write barriers with the hybrid barrier.
+    This truly is a common point of confusion that deserves
+    explanation in the FAQ.
     
-    Conveniently, in most of these places ctxt should already be nil, in
-    which case we don't need the barrier. This commit changes these places
-    to assert that ctxt is already nil.
-    
-    gogo is more complicated, since ctxt may not already be nil. For gogo,
-    we manually perform the write barrier if ctxt is not nil.
-    
-    Updates #17503.
-    
-    Change-Id: I9d75e27c75a1b7f8b715ad112fc5d45ffa856d30
-    Reviewed-on: https://go-review.googlesource.com/31764
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie624e31a2042ca99626fe7570d9c8c075aae6a84
+    Reviewed-on: https://go-review.googlesource.com/28275
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_386.s      | 26 +++++++++++++++++++++++---
- src/runtime/asm_amd64.s    | 26 +++++++++++++++++++++++---
- src/runtime/asm_amd64p32.s | 20 ++++++++++++++++++--
- src/runtime/asm_arm.s      | 28 +++++++++++++++++++++++++---
- src/runtime/asm_arm64.s    | 26 +++++++++++++++++++++++---
- src/runtime/asm_mips64x.s  | 25 +++++++++++++++++++++----
- src/runtime/asm_ppc64x.s   | 26 +++++++++++++++++++++++---
- src/runtime/asm_s390x.s    | 25 +++++++++++++++++++++----
- src/runtime/runtime2.go    |  9 +++++++++
- 9 files changed, 186 insertions(+), 25 deletions(-)
+ doc/go_faq.html | 23 ++++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)

@@ -1,14 +1,19 @@
-commit e35b5b25d976efb7c00b871cac452b84193e6179
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Oct 25 16:48:07 2021 -0400
+commit a8942d2cffd80c68febe1c908a0eb464d2f5bb40
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 17:01:35 2021 -0500
 
-    cmd/compile: fix typo in comment in CL 358435
+    runtime/pprof: disable TestMorestack on darwin/arm64
     
-    Change-Id: I0d8128668fc7a80b29aabc58dbc9a2929b889ec9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358614
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Something is weird about darwin and TestMorestack,
+    but it is only manifesting on arm64 and race+amd64.
+    Disable for now.
+    
+    Change-Id: I5862372fdd0b5ffae802fdefb65b2aa04e266fcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294409
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/pprof/pprof_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

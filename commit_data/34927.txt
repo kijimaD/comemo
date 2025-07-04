@@ -1,17 +1,20 @@
-commit 51533fdac6157c4abb546619bf05530821557539
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Apr 11 10:50:09 2018 +0200
+commit be67e269b4a4161f4276e2619c5019a26e94541c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 22 11:10:47 2017 -0500
 
-    cmd/go: document GOTOOLDIR environment variable
+    archive/zip: replace Writer.Comment field with SetComment method
     
-    Also, make the variables list sorted.
+    A method is more in keeping with the rest of the Writer API and
+    incidentally allows the comment error to be reported earlier.
     
-    Fixes #24794
+    Fixes #22737.
     
-    Change-Id: I55f77004b00391875d26df8e55e54d79cef168dc
-    Reviewed-on: https://go-review.googlesource.com/106255
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1eee2103a0720c76d0c394ccd6541e6219996dc0
+    Reviewed-on: https://go-review.googlesource.com/79415
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/go/alldocs.go               | 10 +++++++---
- src/cmd/go/internal/help/helpdoc.go | 10 +++++++---
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ src/archive/zip/writer.go      | 22 +++++++++++++---------
+ src/archive/zip/writer_test.go | 11 ++++++++++-
+ 2 files changed, 23 insertions(+), 10 deletions(-)

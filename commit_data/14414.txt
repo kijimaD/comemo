@@ -1,14 +1,13 @@
-commit 0d0eff71652a0b8fcbfe678763d88eb142a544f9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 15 11:46:00 2012 -0800
+commit c590db2b8b9d72492d5a5269f19a105e9614369b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 15 10:42:39 2012 -0800
 
-    os: add FileMode.IsRegular
+    sudo.bash: diagnose when the go tool is not in $PATH
+    Fixes #4386.
     
-    API change.
-    
-    R=golang-dev, r, iant, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6844048
+    https://golang.org/cl/6854050
 
- src/pkg/os/types.go | 6 ++++++
+ src/sudo.bash | 6 ++++++
  1 file changed, 6 insertions(+)

@@ -1,18 +1,14 @@
-commit e5c9358fe2ff1d0c1e9a76e5e5d0e7d65c308da6
+commit 4208fcdcd40f0359e117d850dc180bda7fea3f92
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 27 13:15:24 2017 -0700
+Date:   Mon Feb 20 22:57:45 2017 -0800
 
-    cmd/compile: move writebarrier pass after dse
+    runtime: use standard linux/mipsx clone variable names
     
-    This avoids generating writeBarrier.enabled
-    blocks for dead stores.
-    
-    Change-Id: Ib11d8e2ba952f3f1f01d16776e40a7200a7683cf
-    Reviewed-on: https://go-review.googlesource.com/42012
+    Change-Id: I62118e197190af1d11a89921d5769101ce6d2257
+    Reviewed-on: https://go-review.googlesource.com/37306
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go |  2 +-
- test/writebarrier.go                    | 39 +++++++++++++++++++++------------
- 2 files changed, 26 insertions(+), 15 deletions(-)
+ src/runtime/sys_linux_mipsx.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

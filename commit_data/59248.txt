@@ -1,23 +1,20 @@
-commit 8054d2da5bdbaf154b258d8d2fd24025a809b0de
-Author: zhi.wang <zhi.wang@kunlun-inc.com>
-Date:   Sun Apr 6 13:08:57 2025 +0000
+commit 629a6f5ae0b3a7b69608bd469ea7bf425768f748
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 21 15:08:21 2024 -0800
 
-    strconv: use switch for '+'/'-' prefix handling
+    go/types: generate initorder.go from types2 source
     
-    Follow the approach used in strconv's readFloat, decimal.set, and Atoi,
-    where leading '+' and '-' are handled using a switch for clarity and
-    consistency.
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 320 LOC.
     
-    Change-Id: I41eff34ce90b5ac43fcdbc0bb88910d6d5fb4d39
-    GitHub-Last-Rev: 0c9d2efb5a828515fa00afdba8c436aa31fb0e53
-    GitHub-Pull-Request: golang/go#73185
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663257
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib797e86dd4abd3a9fe614787103f0e5cebd5e4ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565838
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/strconv/atof.go | 26 ++++++++++++++------------
- src/strconv/atoi.go |  7 ++++---
- 2 files changed, 18 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/types2/initorder.go | 4 ++--
+ src/go/types/generate_test.go                | 1 +
+ src/go/types/initorder.go                    | 2 ++
+ 3 files changed, 5 insertions(+), 2 deletions(-)

@@ -1,15 +1,18 @@
-commit 7d4cb4d63f8a0039d5c4ecdfcc03c5de231ecfd4
+commit f85600859dbe0ebad85f997f158f8e0224a3c02f
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 21 06:48:41 2014 -0700
+Date:   Tue May 20 21:36:50 2014 -0700
 
-    database/sql/driver: correct method name in comment
+    cmd/ld: really import runtime/cgo for external link
     
-    Fixes #8061.
+    Fixes #8032.
     
-    LGTM=crawshaw
-    R=golang-codereviews, crawshaw
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/93520046
+    https://golang.org/cl/95580043
 
- src/pkg/database/sql/driver/driver.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/nocgo/nocgo.go      | 22 ++++++++++++++++++++++
+ misc/cgo/nocgo/nocgo_test.go | 14 ++++++++++++++
+ src/cmd/ld/lib.c             |  2 ++
+ src/run.bash                 |  3 +++
+ 4 files changed, 41 insertions(+)

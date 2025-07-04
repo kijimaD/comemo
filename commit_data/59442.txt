@@ -1,128 +1,23 @@
-commit c9d0fad5cbeb8ec60c7b21bb48f101e835241274
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Sat Apr 19 12:31:26 2025 +0200
+commit 4a1038fa52db57cee23a76fd2ea86247eff42f29
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 13:50:37 2024 +0000
 
-    cmd/compile: add 2 phiopt cases
+    Revert "net/url: consider an empty base Path as equivalent to / in JoinPath"
     
-    Add 2 more cases:
+    This reverts commit a46285f8c2389b92952c1484daacfccf70a17047 (CL 469935).
     
-    if a { x = value } else { x = a } => x = a && value
-    if a { x = a } else { x = value } => x = a || value
+    Reason for revert: This breaks a variety of code inside Google
+    that seem representative of possible external real-world usage.
     
-    AND case goes from:
+    If we roll this forward again we should include a GODEBUG like
+    urljoinpathslash=0 to go back to the old behavior.
     
-    00006 (8)       TESTB   AX, AX
-    00007 (8)       JNE     9
-    00008 (13)      MOVL    AX, BX
-    00009 (13)      MOVL    BX, AX
-    00010 (13)      RET
-    
-    to:
-    
-    00006 (13)      ANDL    BX, AX
-    00007 (13)      RET
-    
-    OR goes from:
-    
-    00006 (19)      TESTB   AX, AX
-    00007 (19)      JNE     9
-    00008 (24)      MOVL    BX, AX
-    00009 (24)      RET
-    
-    to:
-    
-    00006 (24)      ORL     BX, AX
-    00007 (24)      RET
-    
-    compilecmp linux/amd64:
-    
-    runtime
-    runtime.lock2 847 -> 869  (+2.60%)
-    runtime.addspecial 542 -> 517  (-4.61%)
-    runtime.tracebackPCs changed
-    runtime.scanstack changed
-    runtime.mallocinit changed
-    runtime.traceback2 2238 -> 2206  (-1.43%)
-    
-    runtime [cmd/compile]
-    runtime.lock2 860 -> 882  (+2.56%)
-    runtime.scanstack changed
-    runtime.addspecial 542 -> 517  (-4.61%)
-    runtime.traceback2 2238 -> 2206  (-1.43%)
-    runtime.lockWithRank 870 -> 890  (+2.30%)
-    runtime.tracebackPCs changed
-    runtime.mallocinit changed
-    
-    strconv
-    strconv.ryuFtoaFixed32 changed
-    strconv.ryuFtoaFixed64 639 -> 638  (-0.16%)
-    strconv.readFloat changed
-    strconv.ryuFtoaShortest changed
-    
-    strings
-    strings.(*Replacer).build changed
-    
-    strconv [cmd/compile]
-    strconv.readFloat changed
-    strconv.ryuFtoaFixed64 639 -> 638  (-0.16%)
-    strconv.ryuFtoaFixed32 changed
-    strconv.ryuFtoaShortest changed
-    
-    strings [cmd/compile]
-    strings.(*Replacer).build changed
-    
-    regexp
-    regexp.makeOnePass.func1 changed
-    
-    regexp [cmd/compile]
-    regexp.makeOnePass.func1 changed
-    
-    encoding/json
-    encoding/json.indirect changed
-    
-    database/sql
-    database/sql.driverArgsConnLocked changed
-    
-    vendor/golang.org/x/text/unicode/norm
-    vendor/golang.org/x/text/unicode/norm.Form.transform changed
-    
-    go/doc/comment
-    go/doc/comment.parseSpans changed
-    
-    internal/diff
-    internal/diff.tgs changed
-    
-    log/slog
-    log/slog.(*handleState).appendNonBuiltIns 1898 -> 1877  (-1.11%)
-    
-    testing/fstest
-    testing/fstest.(*fsTester).checkGlob changed
-    
-    runtime/pprof
-    runtime/pprof.(*profileBuilder).build changed
-    
-    cmd/internal/dwarf
-    cmd/internal/dwarf.isEmptyInlinedCall 254 -> 244  (-3.94%)
-    
-    go/printer
-    go/printer.keepTypeColumn 302 -> 270  (-10.60%)
-    go/printer.(*printer).binaryExpr changed
-    
-    cmd/compile/internal/syntax
-    cmd/compile/internal/syntax.(*scanner).rune changed
-    cmd/compile/internal/syntax.(*scanner).number 2137 -> 2153  (+0.75%)
-    
-    Change-Id: I7f95f54b03a35d0b616c40f38b415a7feb71be73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666835
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
-    TryBot-Bypass: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6cd8e9888a0c088669dc5634418372252289e074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571655
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/phiopt.go | 27 +++++++++++++++++++++++++++
- test/codegen/bool.go                   | 24 ++++++++++++++++++++++++
- test/phiopt.go                         | 22 ++++++++++++++++++++++
- 3 files changed, 73 insertions(+)
+ src/net/url/url.go      |   7 +-
+ src/net/url/url_test.go | 180 +++++++++++++++++++-----------------------------
+ 2 files changed, 73 insertions(+), 114 deletions(-)

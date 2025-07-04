@@ -1,23 +1,17 @@
-commit a023f3c8f3de3f6992d494e8c7fdd7e622f94682
-Author: Rob Pike <r@golang.org>
-Date:   Mon May 14 13:53:08 2018 +1000
+commit c10e61424f9c17c2972a438287ff9ac90d6b55a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 7 04:28:49 2018 +0000
 
-    doc/contribute.html: clean up HTML and formatting
+    strconv: detect invalid UTF-8 in the Unquote fast path
     
-    Mostly just formatting and minor cleanup:
+    Fixes #23685
     
-    - regularize HTML (add </p> etc.)
-    - remove all errors caught by tidy
-    - start all sentences on new line for easy editing
-    
-    Some wording changes, but there will be more to come.
-    It seemed there were already enough edits to send it out.
-    
-    Update #24487
-    
-    Change-Id: I613ce206b1e8e3e522ecb0bbcd2acb11c4ff5bae
-    Reviewed-on: https://go-review.googlesource.com/113015
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3625bd01f860077ee0976df9e3dfb66754804bcd
+    Reviewed-on: https://go-review.googlesource.com/92535
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/contribute.html | 382 +++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 241 insertions(+), 141 deletions(-)
+ src/strconv/quote.go      |  4 +++-
+ src/strconv/quote_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

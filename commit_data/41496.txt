@@ -1,18 +1,53 @@
-commit 117826903a526c4d31c628f1a302c1d4799c1666
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 27 11:11:48 2020 -0800
+commit 6ec4c71eef730d56169255515fea3490c8a32650
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue Sep 17 07:29:31 2019 -0700
 
-    flag: update comment to refer to Output, not out
+    cmd/compile: add SSA rules for s390x compare-and-branch instructions
     
-    The out method was renamed to Output in CL 70391 for #17628 and #21888.
+    This commit adds SSA rules for the s390x combined compare-and-branch
+    instructions. These have a shorter encoding than separate compare
+    and branch instructions and they also don't clobber the condition
+    code (a.k.a. flag register) reducing pressure on the flag allocator.
     
-    Fixes #37514
+    I have deleted the 'loop_test.go' file and replaced it with a new
+    codegen test which performs a wider range of checks.
     
-    Change-Id: I99be47b5030ccbbf10a056df9fcc3c97cb99b015
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221383
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Object sizes from compilebench:
+    
+    name                      old object-bytes  new object-bytes  delta
+    Template                        562kB ± 0%        561kB ± 0%   -0.28%  (p=0.000 n=10+10)
+    Unicode                         217kB ± 0%        217kB ± 0%   -0.17%  (p=0.000 n=10+10)
+    GoTypes                        2.03MB ± 0%       2.02MB ± 0%   -0.59%  (p=0.000 n=10+10)
+    Compiler                       8.16MB ± 0%       8.11MB ± 0%   -0.62%  (p=0.000 n=10+10)
+    SSA                            27.4MB ± 0%       27.0MB ± 0%   -1.45%  (p=0.000 n=10+10)
+    Flate                           356kB ± 0%        356kB ± 0%   -0.12%  (p=0.000 n=10+10)
+    GoParser                        438kB ± 0%        436kB ± 0%   -0.51%  (p=0.000 n=10+10)
+    Reflect                        1.37MB ± 0%       1.37MB ± 0%   -0.42%  (p=0.000 n=10+10)
+    Tar                             485kB ± 0%        483kB ± 0%   -0.39%  (p=0.000 n=10+10)
+    XML                             630kB ± 0%        621kB ± 0%   -1.45%  (p=0.000 n=10+10)
+    [Geo mean]                     1.14MB            1.13MB        -0.60%
+    
+    name                      old text-bytes    new text-bytes    delta
+    HelloSize                       763kB ± 0%        754kB ± 0%   -1.30%  (p=0.000 n=10+10)
+    CmdGoSize                      10.7MB ± 0%       10.6MB ± 0%   -0.91%  (p=0.000 n=10+10)
+    [Geo mean]                     2.86MB            2.82MB        -1.10%
+    
+    Change-Id: Ibca55d9c0aa1254aee69433731ab5d26a43a7c18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198037
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/flag/flag.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/s390x/ssa.go        |   98 ++-
+ src/cmd/compile/internal/ssa/block.go        |   16 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |   95 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |   35 +-
+ src/cmd/compile/internal/ssa/gen/main.go     |   14 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |   24 +-
+ src/cmd/compile/internal/ssa/loop_test.go    |   83 --
+ src/cmd/compile/internal/ssa/opGen.go        |   27 +-
+ src/cmd/compile/internal/ssa/rewrite.go      |   10 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 1219 +++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/sizeof_test.go  |    2 +-
+ test/codegen/compare_and_branch.go           |  154 ++++
+ 12 files changed, 1606 insertions(+), 171 deletions(-)

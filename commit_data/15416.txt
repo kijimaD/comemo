@@ -1,21 +1,15 @@
-commit a656f82071c1631ed0aae5c403cf948fc06b52ce
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Mon Feb 25 15:58:23 2013 -0500
+commit 1a01ffd386add6c1e11642c44c4009bd8ffcdd3d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 26 03:14:59 2013 +0800
 
-    runtime: precise garbage collection of channels
+    cmd/gc: fix mkbuiltin (gc -A always write all symbols to export section)
+    Regenerate cmd/gc/builtin.c.
+    Fixes #4908.
     
-    This changeset adds a mostly-precise garbage collection of channels.
-    The garbage collection support code in the linker isn't recognizing
-    channel types yet.
-    
-    Fixes issue http://stackoverflow.com/questions/14712586/memory-consumption-skyrocket
-    
-    R=dvyukov, rsc, bradfitz
-    CC=dave, golang-dev, minux.ma, remyoudompheng
-    https://golang.org/cl/7307086
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7383053
 
- src/pkg/runtime/chan.c    |  5 +++++
- src/pkg/runtime/malloc.h  |  1 +
- src/pkg/runtime/mgc0.c    | 33 +++++++++++++++++++++++++++++++++
- src/pkg/runtime/runtime.h |  1 +
- 4 files changed, 40 insertions(+)
+ src/cmd/gc/builtin.c | 217 +++++++++++++++++++++++++--------------------------
+ src/cmd/gc/export.c  |   3 +-
+ 2 files changed, 110 insertions(+), 110 deletions(-)

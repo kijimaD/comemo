@@ -1,15 +1,22 @@
-commit 0403181a880d25427d35316fcf0ea9a89fc9e40d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Jul 23 12:36:34 2014 +1000
+commit 65e2b6f8474f032be3dbc17a7f8ffe60c2ca6b15
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 22 12:10:18 2014 +0400
 
-    syscall: allow for mksyscall_windows.go to be used outside of syscall
+    cmd/ld: mark hostobj sections as containing no pointers
+    Currently they are scanned conservatively.
+    But there is no reason to scan them. C world must not contain
+    pointers into Go heap. Moreover, we don't have enough information
+    to emit write barriers nor update pointers there in future.
+    The immediate need is that it breaks the new GC because
+    these are weird symbols as if with pointers but not necessary
+    pointer aligned.
     
-    Fixes #8398.
-    
-    LGTM=chines
-    R=golang-codereviews, chines, josharian
-    CC=golang-codereviews
-    https://golang.org/cl/114140043
+    LGTM=rsc
+    R=golang-codereviews, rlh, rsc
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/117000043
 
- src/pkg/syscall/mksyscall_windows.go | 57 ++++++++++++++++++++++++++++--------
- 1 file changed, 45 insertions(+), 12 deletions(-)
+ src/cmd/ld/ldelf.c   | 4 ++--
+ src/cmd/ld/ldmacho.c | 4 ++--
+ src/cmd/ld/ldpe.c    | 6 +++---
+ 3 files changed, 7 insertions(+), 7 deletions(-)

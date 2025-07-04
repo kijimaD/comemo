@@ -1,14 +1,13 @@
-commit edf1c038e327f6432286aa3036d0434ea8f53907
+commit 7e8a369426e80801eb6fcdfce94f6fc35746ee79
 Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 16 17:05:43 2012 +1100
+Date:   Wed Feb 15 21:23:58 2012 -0800
 
-    os: remove use of _test
-    Part of issue 2573.
+    exp/inotify: remove use of _test
+    Fixes #2573.
     
-    R=dsymonds, golang-dev
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5674064
+    https://golang.org/cl/5676063
 
- src/pkg/os/os_test.go   | 15 +++++++--------
- src/pkg/os/path_test.go | 29 ++++++++++++++++-------------
- 2 files changed, 23 insertions(+), 21 deletions(-)
+ src/pkg/exp/inotify/inotify_linux_test.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

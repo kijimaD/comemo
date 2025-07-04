@@ -1,12 +1,14 @@
-commit ba9cb9dcf748081c10c5c13e01bab3fb1c4bc93a
+commit 18f7c0a3f6f39af5cd2db484dbf0817fbfb526d5
 Author: Rob Pike <r@golang.org>
-Date:   Wed Dec 21 12:06:20 2011 -0800
+Date:   Wed Dec 21 11:46:42 2011 -0800
 
-    doc/progs/run: go1 prints output; fix test
+    path/filepath.Rel: document that the returned path is always relative
     
-    R=golang-dev, adg
+    Fixes #2593.
+    
+    R=rsc, alex.brainman, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5502060
+    https://golang.org/cl/5500052
 
- doc/progs/run | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/path/filepath/path.go | 2 ++
+ 1 file changed, 2 insertions(+)

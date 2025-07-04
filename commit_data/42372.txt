@@ -1,18 +1,21 @@
-commit 6d6e4827c0b8ce302f7815ab565617f4593c5b46
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Mon May 4 17:37:10 2020 +0100
+commit 76d2f6cc6245d0e8876c29881570d218838c1068
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 6 15:02:28 2019 -0500
 
-    testing: return unique directory inside same base root for TempDir
+    cmd/go: include cfg.BuildModReason in 'import lookup disabled' errors
     
-    We use a single parent directory for all temporary directories
-    created by a test so they're all kept together.
+    This location was missed in CL 204521.
     
-    Fixes #38850
+    Updates #33326
+    Updates #33848
     
-    Change-Id: If8edae10c5136efcbcf6fd632487d198b9e3a868
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231958
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0ece6d9b37548d8abb54f79c69be5548a0428c76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210341
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/testing/testing.go      | 10 +++++++++-
- src/testing/testing_test.go |  8 ++++++--
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modload/import.go              | 13 +++++++------
+ src/cmd/go/testdata/script/mod_list_e_readonly.txt |  2 +-
+ src/cmd/go/testdata/script/mod_readonly.txt        |  3 ++-
+ 3 files changed, 10 insertions(+), 8 deletions(-)

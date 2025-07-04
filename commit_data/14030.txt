@@ -1,12 +1,13 @@
-commit 16bea49ede776bd781515546e9a3df22c3dcfe06
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Sat Oct 6 13:56:12 2012 +0800
+commit 3a4e156ae1789970d37e8e53b053c2e0c8ab2465
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Oct 5 23:30:49 2012 +0200
 
-    cmd/cc: map C int to int32 in Go defs
+    cmd/5g: fix out of registers in nested calls, add compiler torture test.
     
-    R=golang-dev, minux.ma, rsc
-    CC=golang-dev
-    https://golang.org/cl/6621052
+    R=golang-dev, dave, daniel.morsing, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6586072
 
- src/cmd/cc/godefs.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/5g/cgen.c |  24 +++++---
+ test/torture.go   | 171 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 188 insertions(+), 7 deletions(-)

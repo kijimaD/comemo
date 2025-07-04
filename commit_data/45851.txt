@@ -1,30 +1,27 @@
-commit 761edf71f64bb2ef949ceb588822c47d2e1cc6ac
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 16 16:33:29 2021 -0400
+commit c767d73227704ba4e22e366e89d1885f52d4b6cc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Nov 13 18:33:19 2020 -0800
 
-    cmd/internal/moddeps: use a temporary directory for GOMODCACHE if needed
+    [dev.regabi] cmd/compile: remove CTRUNE
     
-    CL 328770 should be sufficient to fix the specific failure in the
-    report, but when attempting to reproduce it I noticed a related
-    failure mode, triggered by the environment variables set in
-    src/run.bash.
+    Since CL 255217, we've been able to rely on types.UntypedRune to
+    identify untyped rune literals, rather than needing Mpint.Rune /
+    CTRUNE. This makes way for switching to using go/constant, which
+    doesn't have a separate notion of rune constants distinct from integer
+    constants.
     
-    The failure mode is currently masked on the Go project builders due to
-    the lack of any 'longtest' builder running as a non-root user
-    (#10719).
+    Passes toolstash-check.
     
-    It is also masked from Go contributors running 'run.bash' locally
-    because 'run.bash' does not actually run all of the tests unless
-    GO_TEST_SHORT=0 is set in the environment (#29266, #46054).
-    
-    Fixes #46695
-    
-    Change-Id: I272c09dae462734590dce59b3d3c5b6d3f733c92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/328771
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I319861f4758aeea17345c101b167cb307e706a0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272652
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/moddeps/moddeps_test.go | 33 ++++++++++++++++++++++++++++++--
- 1 file changed, 31 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go     | 86 ++++++++++++--------------------
+ src/cmd/compile/internal/gc/fmt.go       | 55 ++++++++++----------
+ src/cmd/compile/internal/gc/iimport.go   |  1 -
+ src/cmd/compile/internal/gc/mpint.go     |  5 +-
+ src/cmd/compile/internal/gc/noder.go     |  4 +-
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go      |  5 +-
+ 7 files changed, 71 insertions(+), 87 deletions(-)

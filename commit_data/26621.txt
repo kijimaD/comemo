@@ -1,34 +1,16 @@
-commit a62ae9f62fcfca02075b70e6e0aa757f4fd8f5ec
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 30 16:41:18 2016 +1100
+commit 3ddfaa5653cfc5c8663319d017a5fb4de97814f4
+Author: Benoit Sigoure <tsunanet@gmail.com>
+Date:   Fri Feb 5 17:18:46 2016 -0800
 
-    crypto/x509: add SystemCertPool, refactor system cert pool loading
+    cmd/gofmt: Ignore file not found errors.
     
-    This exports the system cert pool.
+    gofmt prints an error to stderr when a file is deleted during its
+    `filepath.Walk()', which can happen in builds that change the tree
+    concurrently with gofmt running.
     
-    The system cert loading was refactored to let it be run multiple times
-    (so callers get a copy, and can't mutate global state), and also to
-    not discard errors.
-    
-    SystemCertPool returns an error on Windows. Maybe it's fixable later,
-    but so far we haven't used it, since the system verifies TLS.
-    
-    Fixes #13335
-    
-    Change-Id: I3dfb4656a373f241bae8529076d24c5f532f113c
-    Reviewed-on: https://go-review.googlesource.com/21293
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ia1aa4804f6bc2172baf061c093e16fe56a3ee50c
+    Reviewed-on: https://go-review.googlesource.com/19301
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/cert_pool.go           | 24 ++++++++++++++++++------
- src/crypto/x509/root.go                |  9 +++++++--
- src/crypto/x509/root_cgo_darwin.go     | 12 ++++++++----
- src/crypto/x509/root_darwin_arm_gen.go |  7 ++++---
- src/crypto/x509/root_darwin_armx.go    |  7 ++++---
- src/crypto/x509/root_nocgo_darwin.go   |  4 ++--
- src/crypto/x509/root_plan9.go          | 18 +++++++++++-------
- src/crypto/x509/root_unix.go           | 23 +++++++++++++++--------
- src/crypto/x509/root_windows.go        |  3 +--
- src/crypto/x509/verify.go              | 14 ++++++++++----
- 10 files changed, 80 insertions(+), 41 deletions(-)
+ src/cmd/gofmt/gofmt.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,20 +1,22 @@
-commit 9f78c3cb0400c2df143bd0ae124a911f911eaf36
-Author: shaoliming <shaojacobi@gmail.com>
-Date:   Wed Oct 5 01:35:25 2022 +0000
+commit d5a5a13ad987db9bcdda8c6cecb84ed8583ea68d
+Author: Changkun Ou <hi@changkun.de>
+Date:   Mon Jul 26 10:56:30 2021 +0200
 
-    cmd/internal/obj/arm64: add missing operand register in GNU assembly
+    sync: clarify the validity to call Map methods inside Range
     
-    Fixes #55832
+    This change clarifies that calling all Map methods inside the callback
+    of Range is allowed. For further assurance, a nested range call test
+    is also added.
     
-    Change-Id: Ib20279d47c1ca9a383a3c85bb41ca4f550bb0a33
-    GitHub-Last-Rev: 10af77a2f21397899f69938e6d98bb34b33bfddf
-    GitHub-Pull-Request: golang/go#55838
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/433575
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #46399
+    
+    Change-Id: I0a766a5c1470e6b573ec35df1ccd62b2e46f1561
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337389
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/arm64/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/sync/map.go      |  5 +++--
+ src/sync/map_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 2 deletions(-)

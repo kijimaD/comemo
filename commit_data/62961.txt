@@ -1,0 +1,23 @@
+commit 3f7c0cc73cc32f7db88c9f347a1911a8506808ad
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 5 16:59:17 2025 -0400
+
+    internal/testhash: move cryptotest.TestHash to shared package
+    
+    This test helper can test any hash.Hash, not just crypto hashes. Move
+    it to $GOROOT/src/internal/testhash so both crypto and hash can use
+    it.
+    
+    For #69521
+    
+    Change-Id: Iac086cca513d5c03936e35d1ab55b8636f4652f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670178
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/cryptotest/hash.go | 167 +----------------------------
+ src/go/build/deps_test.go              |   5 +-
+ src/internal/testhash/hash.go          | 189 +++++++++++++++++++++++++++++++++
+ 3 files changed, 196 insertions(+), 165 deletions(-)

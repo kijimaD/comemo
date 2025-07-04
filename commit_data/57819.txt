@@ -1,32 +1,23 @@
-commit 89d7f031720c999e8226cd9624cc2c531f8477e3
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Oct 24 00:56:07 2024 +1100
+commit 1d84b02b228cbd35660e168d26fd2801daed08fe
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Wed May 17 17:33:15 2023 +0300
 
-    cmd/internal/obj/riscv: update RISC-V instruction table
+    runtime: introduce nextslicecap
     
-    Regenerate RISC-V instruction table from the riscv-opcodes repository,
-    due to various changes and shuffling upstream.
+    This allows to reuse the slice cap computation across
+    specialized growslice funcs.
     
-    This has been changed to remove pseudo-instructions, since Go only
-    needs the instruction encodings and including the pseudo-instructions
-    is creating unnecessary complications (for example, the inclusion
-    of ANOP and ARET, as well as strangely named aliases such as
-    AJALPSEUDO/AJALRPSEUDO). Remove pseudo-instructions that are not
-    currently supported by the assembler and add specific handling for
-    RDCYCLE, RDTIME and RDINSTRET, which were previously implemented
-    via the instruction encodings.
+    Updates #49480
     
-    Change-Id: I78be4506ba6b627eba1f321406081a63bab5b2e6
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616116
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ie075d9c3075659ea14c11d51a9cd4ed46aa0e961
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495876
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Egon Elbre <egonelbre@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/riscv/anames.go | 23 +++++----------------
- src/cmd/internal/obj/riscv/cpu.go    | 36 ++++++++------------------------
- src/cmd/internal/obj/riscv/inst.go   | 40 ------------------------------------
- src/cmd/internal/obj/riscv/obj.go    | 35 +++++++++++++++++++++++--------
- 4 files changed, 40 insertions(+), 94 deletions(-)
+ src/cmd/compile/internal/test/inl_test.go |  1 +
+ src/runtime/slice.go                      | 67 +++++++++++++++++--------------
+ 2 files changed, 37 insertions(+), 31 deletions(-)

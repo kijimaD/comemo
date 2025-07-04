@@ -1,18 +1,17 @@
-commit 5bf8c0cf09ee5c7e5a37ab90afcce154ab716a97
-Author: Daman Arora <aroradaman@gmail.com>
-Date:   Thu May 30 19:37:37 2024 +0000
+commit e1e10e6ef44f83b64350ff301512472b03ad176c
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue May 23 12:37:13 2023 -0400
 
-    internal/poll: update WaitWrite comment
+    go/types, types2: require CGO for TestIssue59944
     
-    Change-Id: Id2999d95f344b3e30d98682aac5da630d808ce2d
-    GitHub-Last-Rev: 69c207f51c63349ee1cf34f0b96bcd03a1e33e2c
-    GitHub-Pull-Request: golang/go#67732
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589396
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    This test is failing on the nocgo builder.
+    
+    Change-Id: I9426ce77907956e4654fd437ad20e3af664e83ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497436
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/poll/fd_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/issues_test.go | 8 ++------
+ src/go/types/issues_test.go                    | 8 ++------
+ 2 files changed, 4 insertions(+), 12 deletions(-)

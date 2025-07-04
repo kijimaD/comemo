@@ -1,19 +1,42 @@
-commit 973befe714d43ebb3f04a583cc136ffe8909b344
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Mar 30 17:35:46 2024 +0700
+commit e21d126ee13031e0fb621e4ec66ae1be403e2d36
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Jan 12 18:29:28 2023 +0000
 
-    cmd/compile: check ODEREF for safe lhs in assignment during static init
+    go/printer: reuse go/token.FileSet.PositionFor calls in setPos
     
-    For #66585
+    setPos is called for most nodes, and in a number of cases,
+    the position is already the same.
+    PositionFor is a relatively expensive call,
+    as it needs to "unpack" a token.Pos into a token.Position.
     
-    Change-Id: Iddc407e3ef4c3b6ecf5173963b66b3e65e43c92d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/575336
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    If we can tell that the position is the same in a cheap way,
+    we can then avoid calling setPos and PositionFor.
+    Luckily, we can get the position's offset within the file,
+    and it doesn't involve the relatively expensive unpacking.
+    
+            name          old time/op    new time/op    delta
+            PrintFile-16    4.79ms ± 1%    4.36ms ± 1%  -8.88%  (p=0.008 n=5+5)
+    
+            name          old speed      new speed      delta
+            PrintFile-16  10.8MB/s ± 1%  11.9MB/s ± 1%  +9.73%  (p=0.008 n=5+5)
+    
+            name          old alloc/op   new alloc/op   delta
+            PrintFile-16     106kB ± 1%     106kB ± 1%    ~     (p=0.167 n=5+5)
+    
+            name          old allocs/op  new allocs/op  delta
+            PrintFile-16     2.42k ± 0%     2.42k ± 0%    ~     (all equal)
+    
+    This does assume that the positions of a node being printed are all
+    within a file, as go/token.Position.Offset is relative to each file.
+    This seems like a perfectly fine assumption to make right now,
+    as the largest node which can be printed is an *ast.File.
+    
+    Change-Id: I2ae55f507ba8ba9f280898c9c8e01c994d9b2a26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461739
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/staticinit/sched.go |  8 +++++++-
- test/codegen/issue66585.go                   | 24 ++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 1 deletion(-)
+ src/go/printer/printer.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

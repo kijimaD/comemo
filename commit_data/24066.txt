@@ -1,18 +1,15 @@
-commit b1eec186f282f3852cb5e35c1726374507a3321b
-Author: Rob Pike <r@golang.org>
-Date:   Sun Aug 23 17:45:58 2015 +1000
+commit 1b96091a050d605b900f83e1a28b660729400799
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jul 2 14:35:23 2015 +0200
 
-    fmt: in Scanf, %c can scan a space, so don't skip spaces at %c
+    internal/trace: add comment for stable sort
     
-    In short, %c should just give you the next rune, period.
-    Apparently this is the design. I use the term loosely.
+    As per comments in cl/11834.
     
-    Fixes #12275
-    
-    Change-Id: I6f30bed442c0e88eac2244d465c7d151b29cf393
-    Reviewed-on: https://go-review.googlesource.com/13821
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I285536b882fa9496e15d77d0d4c16ee913aca581
+    Reviewed-on: https://go-review.googlesource.com/11861
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/scan.go      | 13 +++++++++----
- src/fmt/scan_test.go | 11 +++++++----
- 2 files changed, 16 insertions(+), 8 deletions(-)
+ src/internal/trace/parser.go | 2 ++
+ 1 file changed, 2 insertions(+)

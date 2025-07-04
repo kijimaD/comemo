@@ -1,19 +1,21 @@
-commit 7e987b7b332fb21b56418351ce942d892f07481b
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Jan 31 20:29:21 2019 -0500
+commit 56dc1795e756767adb373a5bc151c9c820152025
+Author: Roberto Selbach <roberto@selbach.ca>
+Date:   Mon Aug 27 15:57:32 2018 +0000
 
-    reflect: eliminate write barrier for copying result in callReflect
+    cmd/go/internal/modfetch: stop cutting the last character of versions
     
-    We are copying the results to uninitialized stack space. Write
-    barrier is not needed.
+    When a zip archive for a module contains an unexpected file, the error
+    message removes the last character in the version number, e.g. an invalid
+    archive for "somemod@v1.2.3" would generate the following error:
+    "zip for somemod@1.2. has unexpected file..."
     
-    Fixes #30041.
-    
-    Change-Id: Ia91d74dbafd96dc2bd92de0cb479808991dda03e
-    Reviewed-on: https://go-review.googlesource.com/c/160737
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I366622df16a71fa7467a4bc62cb696e3e83a2942
+    GitHub-Last-Rev: f172283bcdffd45b485b1e8fd99795eb93fef726
+    GitHub-Pull-Request: golang/go#27279
+    Reviewed-on: https://go-review.googlesource.com/131635
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/reflect/value.go         |  5 ++--
- test/fixedbugs/issue30041.go | 63 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 66 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modfetch/fetch.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

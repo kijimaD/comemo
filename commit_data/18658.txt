@@ -1,13 +1,21 @@
-commit e6c66a90791cf6f599cf94749c94b0e3e68dfd8a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 26 07:38:13 2014 -0800
+commit 373466380586b04b8a9163938a8daf3f5cb9dd45
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Feb 26 13:20:36 2014 +1100
 
-    include: fix comment in link.h
+    runtime: use monotonic clock for openbsd/386 and openbsd/amd64 timers
     
-    LGTM=dave, rsc
-    R=rsc, dave
+    Switch nanotime to a monotonic clock on openbsd/386 and openbsd/amd64.
+    Also use a monotonic clock when for thrsleep, since the sleep duration
+    is based on the value returned from nanotime.
+    
+    Update #6007
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/68960044
+    https://golang.org/cl/68460044
 
- include/link.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/os_openbsd.c        | 2 +-
+ src/pkg/runtime/sys_openbsd_386.s   | 4 +++-
+ src/pkg/runtime/sys_openbsd_amd64.s | 4 +++-
+ 3 files changed, 7 insertions(+), 3 deletions(-)

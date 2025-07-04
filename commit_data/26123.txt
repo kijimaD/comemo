@@ -1,23 +1,19 @@
-commit e28a890d5e91dfa5d0eaeed6bb1b18d9398dfe2e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 7 22:54:46 2016 -0800
+commit 66fcf5672902678ca28e54a1a49c8b44d3a0395e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 17:56:46 2015 +0000
 
-    cmd/compile: remove nodesOrNodeListPtr outside of syntax.go
+    net/http: update bundled http2, add tests reading response Body after Close
     
-    Passes toolstash -cmp.
+    Updates to golang.org/x/net/http2 git rev 28273ec9 for
+    https://golang.org/cl/17937
     
-    Update #14473.
+    Fixes #13648
     
-    Change-Id: I2620374b79c61b1e48467b98afe2d7d3beef878b
-    Reviewed-on: https://go-review.googlesource.com/20354
+    Change-Id: I27c77524b2e4a172c5f8be08f6fbb0f2e2e4b200
+    Reviewed-on: https://go-review.googlesource.com/17938
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/closure.go  |   6 +-
- src/cmd/compile/internal/gc/racewalk.go |  26 +--
- src/cmd/compile/internal/gc/select.go   |   9 +-
- src/cmd/compile/internal/gc/sinit.go    |  60 +++----
- src/cmd/compile/internal/gc/subr.go     |  17 +-
- src/cmd/compile/internal/gc/swt.go      |   4 +-
- src/cmd/compile/internal/gc/syntax.go   |  12 ++
- src/cmd/compile/internal/gc/walk.go     | 292 +++++++++++++++-----------------
- 8 files changed, 214 insertions(+), 212 deletions(-)
+ src/net/http/clientserver_test.go | 22 ++++++++++++++
+ src/net/http/h2_bundle.go         | 64 ++++++++++++++++++++++++++++-----------
+ 2 files changed, 68 insertions(+), 18 deletions(-)

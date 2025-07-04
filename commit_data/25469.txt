@@ -1,15 +1,16 @@
-commit dba926d7a37bd6b3d740c132e8d6346214b6355c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 14:33:25 2016 -0500
+commit ebafc80ebaa8d7e67ba72642eed67c0adfc0c0c3
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Nov 3 09:36:53 2015 +1300
 
-    go/build: allow @ in #cgo directives for OS X
+    cmd/link: remove duplicate symtab entry for global functions
     
-    Fixes #13720.
+    golang.org/cl/16436 added a local symbol for every global function, but also
+    added a duplicate entry for the global symbol. Surprisingly this hasn't caused
+    any noticeable problems, but it's still wrong.
     
-    Change-Id: I2e48454696f37db419370630f913590c435cd9f0
-    Reviewed-on: https://go-review.googlesource.com/18331
+    Change-Id: Icd3906760f8aaf7bef31ffd4f2d866d73d36dc2c
+    Reviewed-on: https://go-review.googlesource.com/16581
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/go/build/build.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/symtab.go | 1 +
+ 1 file changed, 1 insertion(+)

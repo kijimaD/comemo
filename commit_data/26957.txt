@@ -1,23 +1,26 @@
-commit 7f52b43954d75aa0c444d57b9d0eb7ff36eb3dd0
-Author: Conrad Irwin <conrad.irwin@gmail.com>
-Date:   Fri Feb 19 10:12:44 2016 -0800
+commit 3375974e0d64f2d8105cb5f6ca4a44790506f8ad
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Mar 3 22:37:14 2016 -0800
 
-    net/mail: allow utf-8 in ParseAddress
+    cmd/link/internal/ld: don't panic on short buildid
     
-    The existing implementation correctly supported RFC 5322, this
-    change adds support for UTF-8 while parsing as specified by
-    RFC 6532. The serialization code is unchanged, so emails created
-    by go remain compatible with very legacy systems.
+    When the linker was written in C, command line arguments were passed
+    around as null-terminated byte arrays which encouraged checking
+    characters one at a time. In Go, that can easily lead to
+    out-of-bounds panics.
     
-    Fixes #14260
+    Use the more idiomatic strings.HasPrefix when checking cmd/link's -B
+    argument to avoid the panic, and replace the manual hex decode with
+    use of the encoding/hex package.
     
-    Change-Id: Ib57e510f5834d273605e1892679f2df19ea931b1
-    Reviewed-on: https://go-review.googlesource.com/19687
+    Fixes #14636
+    
+    Change-Id: I45f765bbd8cf796fee1a9a3496178bf76b117827
+    Reviewed-on: https://go-review.googlesource.com/20211
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alexandre Cesaro <alexandre.cesaro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/mail/message.go      | 164 ++++++++++++++++++++++++-------------------
- src/net/mail/message_test.go |  54 +++++++++++++-
- 2 files changed, 144 insertions(+), 74 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 44 ++++++++++++++---------------------------
+ test/fixedbugs/issue14636.go    | 43 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 29 deletions(-)

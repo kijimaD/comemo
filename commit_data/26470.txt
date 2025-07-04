@@ -1,83 +1,15 @@
-commit 53efe1e121e68feadcce00d1f7b1978dbbd1d1c7
-Author: Klaus Post <klauspost@gmail.com>
-Date:   Mon Mar 21 10:21:55 2016 +0100
+commit 1d901f55bd9d6ee12bc4692cd60a6a2311366799
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 11:50:51 2016 -0500
 
-    compress/flate: rework matching algorithm
+    cmd/compile: remove -h spam
     
-    This changes how matching is done in deflate algorithm.
+    This debugging print crept into an earlier CL of mine.
     
-    The major change is that we do not look for matches that are only
-    3 bytes in length, matches must be 4 bytes at least.
-    Contrary to what you would expect this actually improves the
-    compresion ratio, since 3 literal bytes will often be shorter
-    than a match after huffman encoding.
-    This varies a bit by source, but is most often the case when the
-    source is "easy" to compress.
-    
-    Second of all, a "stronger" hash is used. The hash is similar to
-    the hashing function used by Snappy.
-    
-    Overall, the speed impact is biggest on higher compression levels.
-    I intend to replace the "speed" compression level, which can be
-    seen in CL 21021.
-    
-    The built-in benchmark using "digits" is slower at level 1.
-    I see this as an exception, since "digits" is a special type
-    of data, where you have low entropy (numbers 0->9), but no
-    significant matches. Again, CL 20021 fixes that case.
-    
-    NewWriterDict is also made considerably faster, by not running data
-    through the entire encoder. This is not reflected by the benchmark.
-    
-    Overall, the speed impact is biggest on higher compression levels.
-    I intend to replace the "speed" compression level.
-    
-    COMPARED to tip/master:
-    name                       old time/op    new time/op     delta
-    EncodeDigitsSpeed1e4-4        401µs ± 1%      345µs ± 2%   -13.95%
-    EncodeDigitsSpeed1e5-4       3.19ms ± 1%     4.27ms ± 3%   +33.96%
-    EncodeDigitsSpeed1e6-4       27.7ms ± 4%     43.8ms ± 3%   +58.00%
-    EncodeDigitsDefault1e4-4      641µs ± 0%      403µs ± 1%   -37.15%
-    EncodeDigitsDefault1e5-4     13.8ms ± 1%      6.4ms ± 3%   -53.73%
-    EncodeDigitsDefault1e6-4      162ms ± 1%       64ms ± 2%   -60.51%
-    EncodeDigitsCompress1e4-4     627µs ± 1%      405µs ± 2%   -35.45%
-    EncodeDigitsCompress1e5-4    13.9ms ± 0%      6.3ms ± 2%   -54.46%
-    EncodeDigitsCompress1e6-4     159ms ± 1%       64ms ± 0%   -59.91%
-    EncodeTwainSpeed1e4-4         433µs ± 4%      331µs ± 1%   -23.53%
-    EncodeTwainSpeed1e5-4        2.82ms ± 1%     3.08ms ± 0%    +9.10%
-    EncodeTwainSpeed1e6-4        28.1ms ± 2%     28.8ms ± 0%    +2.82%
-    EncodeTwainDefault1e4-4       695µs ± 4%      474µs ± 1%   -31.78%
-    EncodeTwainDefault1e5-4      11.8ms ± 0%      7.4ms ± 0%   -37.31%
-    EncodeTwainDefault1e6-4       128ms ± 0%       75ms ± 0%   -40.93%
-    EncodeTwainCompress1e4-4      719µs ± 3%      480µs ± 0%   -33.27%
-    EncodeTwainCompress1e5-4     15.0ms ± 3%      8.2ms ± 2%   -45.55%
-    EncodeTwainCompress1e6-4      170ms ± 0%       85ms ± 1%   -49.99%
-    
-    name                       old speed      new speed       delta
-    EncodeDigitsSpeed1e4-4     25.0MB/s ± 1%   29.0MB/s ± 2%   +16.24%
-    EncodeDigitsSpeed1e5-4     31.4MB/s ± 1%   23.4MB/s ± 3%   -25.34%
-    EncodeDigitsSpeed1e6-4     36.1MB/s ± 4%   22.8MB/s ± 3%   -36.74%
-    EncodeDigitsDefault1e4-4   15.6MB/s ± 0%   24.8MB/s ± 1%   +59.11%
-    EncodeDigitsDefault1e5-4   7.27MB/s ± 1%  15.72MB/s ± 3%  +116.23%
-    EncodeDigitsDefault1e6-4   6.16MB/s ± 0%  15.60MB/s ± 2%  +153.25%
-    EncodeDigitsCompress1e4-4  15.9MB/s ± 1%   24.7MB/s ± 2%   +54.97%
-    EncodeDigitsCompress1e5-4  7.19MB/s ± 0%  15.78MB/s ± 2%  +119.62%
-    EncodeDigitsCompress1e6-4  6.27MB/s ± 1%  15.65MB/s ± 0%  +149.52%
-    EncodeTwainSpeed1e4-4      23.1MB/s ± 4%   30.2MB/s ± 1%   +30.68%
-    EncodeTwainSpeed1e5-4      35.4MB/s ± 1%   32.5MB/s ± 0%    -8.34%
-    EncodeTwainSpeed1e6-4      35.6MB/s ± 2%   34.7MB/s ± 0%    -2.77%
-    EncodeTwainDefault1e4-4    14.4MB/s ± 4%   21.1MB/s ± 1%   +46.48%
-    EncodeTwainDefault1e5-4    8.49MB/s ± 0%  13.55MB/s ± 0%   +59.50%
-    EncodeTwainDefault1e6-4    7.83MB/s ± 0%  13.25MB/s ± 0%   +69.19%
-    EncodeTwainCompress1e4-4   13.9MB/s ± 3%   20.8MB/s ± 0%   +49.83%
-    EncodeTwainCompress1e5-4   6.65MB/s ± 3%  12.20MB/s ± 2%   +83.51%
-    EncodeTwainCompress1e6-4   5.88MB/s ± 0%  11.76MB/s ± 1%  +100.06%
-    
-    Change-Id: I724e33c1dd3e3a6a1b0a68e094baa959352baf32
-    Reviewed-on: https://go-review.googlesource.com/20929
-    Run-TryBot: Nigel Tao <nigeltao@golang.org>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: If6e8609e69a60aec50c06889c2d98a8b8a4bd02b
+    Reviewed-on: https://go-review.googlesource.com/18971
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/compress/flate/deflate.go      | 237 ++++++++++++++++++++++++-------------
- src/compress/flate/deflate_test.go |  63 +++++++++-
- 2 files changed, 210 insertions(+), 90 deletions(-)
+ src/cmd/compile/internal/gc/gen.go | 3 ---
+ 1 file changed, 3 deletions(-)

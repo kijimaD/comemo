@@ -1,12 +1,23 @@
-commit 76a1cb5a009d919f4f57e5cdf4ff46d9633fe118
+commit 0e3514eaac009cbb4cb54e00979df357da234b7e
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Feb 11 11:51:12 2012 +0900
+Date:   Sat Feb 11 11:50:51 2012 +0900
 
-    net: fix comment, make use of listenerBacklog
+    net: enable SO_REUSEADDR, SO_REUSEPORT options on stream, multicast listeners only
     
-    R=golang-dev, rsc
+    This CL changes default SOL_SOCKET settings to mitigate connect
+    failure on OpenBSD or similar platforms which support randomized
+    transport protocol port number assignment.
+    
+    Fixes #2830.
+    
+    R=rsc, jsing
     CC=golang-dev
-    https://golang.org/cl/5653056
+    https://golang.org/cl/5648044
 
- src/pkg/net/dial_test.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/net/sock_bsd.go        |  5 +++++
+ src/pkg/net/sock_linux.go      |  5 +++++
+ src/pkg/net/sock_windows.go    |  5 +++++
+ src/pkg/net/sockopt_bsd.go     | 35 ++++++++++++++++-------------------
+ src/pkg/net/sockopt_linux.go   | 19 ++++++++-----------
+ src/pkg/net/sockopt_windows.go |  8 +++++---
+ 6 files changed, 44 insertions(+), 33 deletions(-)

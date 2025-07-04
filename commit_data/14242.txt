@@ -1,18 +1,15 @@
-commit 78a6f7524109d5c183e09767e44037ae7e5b0c96
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Oct 30 23:58:43 2012 +0800
+commit 71d9e956a00e95f734f633056882475832d534f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 30 13:12:59 2012 +0100
 
-    cmd/ld: handle weak symbols
-    compiler_rt introduces a weak and hidden symbol compilerrt_abort_impl
-    into our pre-linked _all.o object, we have to handle it.
+    cmd/api: handle contexts re-converging
     
-    Fixes #4273.
+    Fixes #4303
     
-    R=iant, rsc, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6783050
+    https://golang.org/cl/6816058
 
- misc/cgo/test/issue4273.c  | 10 ++++++++++
- misc/cgo/test/issue4273b.c | 11 +++++++++++
- src/cmd/ld/ldelf.c         |  7 +++++++
- 3 files changed, 28 insertions(+)
+ src/cmd/api/goapi.go      | 35 +++++++++++++++++++++++++----------
+ src/cmd/api/goapi_test.go | 21 ++++++++++++++++++---
+ 2 files changed, 43 insertions(+), 13 deletions(-)

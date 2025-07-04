@@ -1,19 +1,14 @@
-commit 71de83b73375f13db91d93a84edf555be569bea5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 28 12:22:24 2012 -0700
+commit 8357dc90152ff27670fd9dd880a455802e5abc7a
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Wed Jun 27 18:21:48 2012 -0500
 
-    go spec: clean up section on selectors
+    syscall: add missing argument type
     
-    - point out difference between selectors and qualified identifiers
-    - differentiate between illegal selectors and run-time panics
-    - use "indirect" as opposed to "dereference" consistently
-    - add extra links
+    And update implementation location comment.
     
-    Fixes #3779.
-    
-    R=r, rsc, iant, ken
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/6326059
+    https://golang.org/cl/6352046
 
- doc/go_spec.html | 48 +++++++++++++++++++++++++++++++-----------------
- 1 file changed, 31 insertions(+), 17 deletions(-)
+ src/pkg/syscall/dll_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

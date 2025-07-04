@@ -1,22 +1,16 @@
-commit ef504623783c0920f7084ae4b7d6bf32c34599b5
-Author: Sanjay Menakuru <balasanjay@gmail.com>
-Date:   Sun Aug 24 20:27:00 2014 -0700
+commit a7295523336cd5af59e50442071471402f3966c9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 15 17:47:02 2014 -0700
 
-    runtime,runtime/debug: Converted some functions from goc to Go.
+    crypto/x509: SystemRootsError style tweaks, document in Verify
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=dvyukov, golang-codereviews
-    https://golang.org/cl/131010044
+    In retrospect this should've been a variable instead of a type,
+    but oh well.
+    
+    LGTM=agl
+    R=agl
+    CC=golang-codereviews
+    https://golang.org/cl/129250044
 
- src/pkg/runtime/debug/garbage.go | 16 +++++----------
- src/pkg/runtime/debug/stubs.go   | 20 +++++++++++++++++++
- src/pkg/runtime/debug/stubs.s    | 21 ++++++++++++++++++++
- src/pkg/runtime/malloc.h         |  2 +-
- src/pkg/runtime/mgc0.c           | 10 +++++++---
- src/pkg/runtime/proc.c           | 10 +++++++---
- src/pkg/runtime/rdebug.go        | 42 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/rdebug.goc       | 27 --------------------------
- src/pkg/runtime/runtime.h        |  2 +-
- src/pkg/runtime/stubs.go         |  2 ++
- 10 files changed, 106 insertions(+), 46 deletions(-)
+ src/pkg/crypto/x509/verify.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

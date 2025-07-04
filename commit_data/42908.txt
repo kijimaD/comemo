@@ -1,25 +1,17 @@
-commit 721819e7bad078ac350bdebebb28793e13081e82
-Author: Changkun Ou <hi@changkun.us>
-Date:   Fri Aug 28 12:13:37 2020 +0200
+commit 58ba0f9dcd6c8a94ad59609a370805902ebffd79
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Tue Feb 25 22:07:40 2020 +0800
 
-    testing: make TempDir idempotent for both Cleanup and Benchmark
+    runtime: fix file permission
     
-    Ensures that calling TempDir() in either of Cleanup or Benchmark
-    doesn't cause test failures which were previously caused by the
-    created directory having been deleted after the first run, yet
-    we prevented the recreation of the directory due to our selection
-    of concurrency primitive sync.Once. This change recreates the
-    temporary directory if it doesn't exist, regardless of how
-    many times Cleanup and Benchmark are invoked.
+    Remove executable flag of .s files.
     
-    Fixes #41062
-    
-    Change-Id: I925d9f7207d7c369a193d1e17da7a59a586244a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251297
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I8ba0c758b3650238643da50fbfe8f6cd07458f1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220878
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/testing/testing.go      | 26 ++++++++++++++++++++------
- src/testing/testing_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 6 deletions(-)
+ src/runtime/memclr_riscv64.s  | 0
+ src/runtime/memmove_riscv64.s | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)

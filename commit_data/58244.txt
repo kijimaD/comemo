@@ -1,15 +1,20 @@
-commit c0bccdd2fd2a26c34b30ec93e64fa1ebe704dc10
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 21 15:22:39 2024 -0800
+commit 91bb19a59ac41bfa52245cd390ead6ee0058417f
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Sep 20 00:01:26 2023 +0800
 
-    go/parser: fix typo in tracing output (make trace match function)
+    cmd/internal/obj/arm64: replace the migrated url address
     
-    Change-Id: Ia79c7c8c4245b1ff8221296bc47bcba257e153e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630895
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I36a0f0989d37bef45ea8778da799b56a7e9a0c30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529515
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/parser/parser.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/arm64/a.out.go | 2 +-
+ src/cmd/internal/obj/arm64/asm7.go  | 2 +-
+ src/cmd/internal/obj/arm64/list7.go | 2 +-
+ src/cmd/internal/obj/arm64/obj7.go  | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

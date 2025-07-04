@@ -1,12 +1,15 @@
-commit e5a7ab8550e3725a52301586e8e99ee9845de91d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Dec 10 14:30:52 2013 +0900
+commit 4f2cfdc7f44f26548be4a84414a8e21985b3e441
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 9 23:25:49 2013 -0500
 
-    net: fix nits found by go tool vet
+    crypto/rand: support generation of 2-5 bit primes, also document the error return for Prime
+    Fixes #6849.
+    Fixes #6867.
     
-    R=golang-dev, dave, adg
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/27430043
+    https://golang.org/cl/35870043
 
- src/pkg/net/net_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/crypto/rand/util.go      |  8 +++++---
+ src/pkg/crypto/rand/util_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 3 deletions(-)

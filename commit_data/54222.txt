@@ -1,18 +1,19 @@
-commit 59abd0e88b4aecad099f21d00afbb50a78edc4c5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 25 16:41:17 2023 -0700
+commit 2b45aebe145d24686df152d77f82713592c47b91
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Sep 27 16:06:13 2022 +0800
 
-    doc/go1.22: mention new #cgo directives
+    net/http: using strings.CutPrefix replace strings.HasPrefix and strings.TrimPrefix
     
-    For #56378
-    
-    Change-Id: I0c9c662c6d765cad6f7bf17fdd648db8d73e429b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522937
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Change-Id: I0b7b6e4e9d2539e4fcb5c08430ba5a74733fad3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435136
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
 
- doc/go1.22.html | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/net/http/cgi/child.go   | 6 ++++--
+ src/net/http/pprof/pprof.go | 3 +--
+ src/net/http/server.go      | 4 ++--
+ 3 files changed, 7 insertions(+), 6 deletions(-)

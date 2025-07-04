@@ -1,14 +1,17 @@
-commit 7936ab58f7feb25f8c9b367585886d9872a17ad3
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Wed Sep 26 21:10:29 2012 +0200
+commit 452f40f8e04dfea421af21378c8579464ac66e5e
+Author: Jonathan Feinberg <feinberg@google.com>
+Date:   Wed Sep 26 14:39:31 2012 -0400
 
-    cmd/gc: Don't calculate second value in range if it is blank.
+    doc: add important info for would-be go contributors.
     
-    Low hanging fruit optimization. Will remove an expensive copy if the range variable is an array.
+    Link to the "installing from source" docs instead of the "installing" docs.
     
-    R=golang-dev, rsc
+    Remind would-be hacker to switch to the default branch from the release branch.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6564052
+    https://golang.org/cl/6559043
 
- src/cmd/gc/range.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/contribute.html     |  2 +-
+ doc/install-source.html | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

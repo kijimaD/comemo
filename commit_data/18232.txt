@@ -1,14 +1,14 @@
-commit 47dc18313684383ea2432b57f34e353db0593a4d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jan 14 07:36:38 2014 +0900
+commit 5ce3e6a1efd834189057002e6b28180dee5657d4
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Mon Jan 13 13:57:38 2014 -0800
 
-    net: fix incorrect internal IPv6 address representation in test
+    syscall: add syscall.Termios on freebsd/{386,amd64}
     
-    Also fixes a dialgoogle test glitch after issue 6628 fix.
-    
-    R=golang-codereviews, r
+    R=golang-codereviews, bradfitz, mg
     CC=golang-codereviews
-    https://golang.org/cl/50660044
+    https://golang.org/cl/51580044
 
- src/pkg/net/dialgoogle_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/types_freebsd.go        |  5 +++++
+ src/pkg/syscall/ztypes_freebsd_386.go   | 10 ++++++++++
+ src/pkg/syscall/ztypes_freebsd_amd64.go | 10 ++++++++++
+ 3 files changed, 25 insertions(+)

@@ -1,12 +1,16 @@
-commit aee4f42a2bab915f617ff9d1be51b1514af2a50f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 20 19:46:12 2015 -0700
+commit 06ef022ba33a19d99ba86aff17c1c31a511c2481
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 10 14:40:47 2015 -0700
 
-    doc: add missing preposition in go1.5.html
+    cmd/go: add some parallelism to the testsuite
     
-    Change-Id: I2f855b9ad1676b3c4efedd764ce99e21c104a4ec
-    Reviewed-on: https://go-review.googlesource.com/12446
-    Reviewed-by: Rob Pike <r@golang.org>
+    As these tests were originally in bash, they are not designed to be
+    particularly hermetic.  This CL adds various protective mechanisms to
+    try to catch cases where the tests can not run in parallel.
+    
+    Change-Id: I983bf7b6ffba04eda58b4939eb89b0bdfcda8eff
+    Reviewed-on: https://go-review.googlesource.com/10911
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go1.5.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 57 insertions(+), 1 deletion(-)

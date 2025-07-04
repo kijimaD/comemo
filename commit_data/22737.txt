@@ -1,49 +1,16 @@
-commit 0f0bc0f0160baa04086135fb0e41252311054c33
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 24 10:50:18 2015 -0400
+commit 35b3db253c4c43912b2cb3cc85594b9c1be03895
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Apr 4 01:11:10 2015 +0900
 
-    cmd/internal/gc: use MOV R0, R1 instead of LEA 0(R0), R1 in Agen
+    net: add lookup IP hook for testing
     
-    Minor code generation optimization I've been meaning to do
-    for a while and noticed while working on the emitted write
-    barrier code. Using MOV lets the compiler and maybe the
-    processor do copy propagation.
+    This change adds testHookLookIP to enable to inject DNS name to IP
+    address mappings for Happ{y,yish,ier} Eyeballs dial testing.
     
-    name                                       old                     new          delta
-    BenchmarkBinaryTree17              17.9s × (0.99,1.01)     18.0s × (0.99,1.01)  ~
-    BenchmarkFannkuch11                4.42s × (1.00,1.00)     4.36s × (1.00,1.00)  -1.39%
-    BenchmarkFmtFprintfEmpty           118ns × (0.96,1.02)     120ns × (0.99,1.06)  ~
-    BenchmarkFmtFprintfString          486ns × (0.99,1.01)     480ns × (0.99,1.01)  -1.34%
-    BenchmarkFmtFprintfInt             457ns × (0.99,1.01)     451ns × (0.99,1.01)  -1.31%
-    BenchmarkFmtFprintfIntInt          768ns × (1.00,1.01)     766ns × (0.99,1.01)  ~
-    BenchmarkFmtFprintfPrefixedInt     584ns × (0.99,1.03)     569ns × (0.99,1.01)  -2.57%
-    BenchmarkFmtFprintfFloat           739ns × (0.99,1.00)     728ns × (1.00,1.01)  -1.49%
-    BenchmarkFmtManyArgs              2.77µs × (1.00,1.00)    2.81µs × (1.00,1.01)  +1.53%
-    BenchmarkGobDecode                39.3ms × (0.99,1.01)    39.4ms × (0.99,1.01)  ~
-    BenchmarkGobEncode                39.4ms × (0.99,1.00)    39.4ms × (0.99,1.00)  ~
-    BenchmarkGzip                      661ms × (0.99,1.01)     660ms × (1.00,1.01)  ~
-    BenchmarkGunzip                    142ms × (1.00,1.00)     143ms × (1.00,1.00)  +0.20%
-    BenchmarkHTTPClientServer          133µs × (0.98,1.01)     132µs × (0.99,1.01)  ~
-    BenchmarkJSONEncode               56.5ms × (0.99,1.01)    57.1ms × (0.99,1.01)  +0.94%
-    BenchmarkJSONDecode                143ms × (1.00,1.00)     138ms × (1.00,1.01)  -3.22%
-    BenchmarkMandelbrot200            6.01ms × (1.00,1.00)    6.02ms × (1.00,1.00)  ~
-    BenchmarkGoParse                  9.63ms × (0.94,1.07)    9.79ms × (0.92,1.07)  ~
-    BenchmarkRegexpMatchEasy0_32       210ns × (1.00,1.00)     210ns × (1.00,1.01)  ~
-    BenchmarkRegexpMatchEasy0_1K       596ns × (0.99,1.01)     593ns × (0.99,1.01)  ~
-    BenchmarkRegexpMatchEasy1_32       184ns × (0.99,1.01)     182ns × (0.99,1.01)  ~
-    BenchmarkRegexpMatchEasy1_1K      1.01µs × (0.99,1.01)    1.01µs × (1.00,1.01)  ~
-    BenchmarkRegexpMatchMedium_32      327ns × (1.00,1.01)     331ns × (1.00,1.00)  +1.22%
-    BenchmarkRegexpMatchMedium_1K     93.0µs × (1.00,1.02)    92.6µs × (1.00,1.01)  ~
-    BenchmarkRegexpMatchHard_32       4.76µs × (0.95,1.01)    4.58µs × (0.99,1.05)  ~
-    BenchmarkRegexpMatchHard_1K        136µs × (1.00,1.01)     136µs × (1.00,1.01)  ~
-    BenchmarkRevcomp                   892ms × (1.00,1.01)     900ms × (0.99,1.06)  ~
-    BenchmarkTemplate                  175ms × (0.99,1.00)     171ms × (1.00,1.01)  -2.36%
-    BenchmarkTimeParse                 638ns × (1.00,1.00)     637ns × (1.00,1.00)  ~
-    BenchmarkTimeFormat                772ns × (1.00,1.00)     742ns × (1.00,1.00)  -3.95%
-    
-    Change-Id: I6504e310cb9cf48a73d539c478b4dbcacde208b2
-    Reviewed-on: https://go-review.googlesource.com/9308
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I8ac04a594e1e2bd77909528df0552889914a7790
+    Reviewed-on: https://go-review.googlesource.com/8399
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/gc/cgen.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/net/hook.go   | 7 +++++++
+ src/net/lookup.go | 4 ++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)

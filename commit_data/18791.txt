@@ -1,17 +1,18 @@
-commit 22c668a810ac31b83d70e9f430000a94627215b2
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 7 13:24:14 2014 +1100
+commit 6ffd2351618b5c61a78ac9d78779868627dfd358
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 6 17:11:13 2014 -0800
 
-    encoding/gob: document that Decode returns EOF at EOF
+    spec: clarify when constant slice indices must be in range
     
-    Just commentary describing existing behavior, no code changes.
+    This documents the status quo for most implementations,
+    with one exception: gc generates a run-time error for
+    constant but out-of-range indices when slicing a constant
+    string. See issue 7200 for a detailed discussion.
     
-    Fixes #7033.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=r
+    R=r, rsc, iant, ken
     CC=golang-codereviews
-    https://golang.org/cl/71860043
+    https://golang.org/cl/72160044
 
- src/pkg/encoding/gob/decoder.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

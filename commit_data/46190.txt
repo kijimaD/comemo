@@ -1,30 +1,20 @@
-commit 4f0dedca7141afafbc01be96097570de2da2bdcc
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 24 14:50:05 2021 -0700
+commit f8930a241301b9922beef925e4ca685f8c3e95a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 11:30:18 2020 -0800
 
-    cmd/compile: fix parameterized interfaces
+    [dev.typeparams] cmd/compile/internal/types2: report invalid ... in conversions
     
-    type I[T any] interface{}
+    This fixes the bug below for types2.
     
-    This is an interface, but it has a type parameter.
-    We need to distinguish that from an interface that is not parameterized.
+    Updates #43124.
     
-    That means when doing type substitution on an interface with
-    parameters, we need to make a new one.
-    
-    Same for non-empty interfaces. Even if the type parameter is not
-    used in any method, we sill need to make a new type.
-    
-    Similar case to tstruct, above.
-    
-    Change-Id: I23ad9f21d2c4ef675bf3f7d84899d9e4919d05e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344578
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ic1962d41f321d8a08992d8529625bc133e526b0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278012
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go | 15 +++++--
- test/typeparam/eface.go                    | 71 ++++++++++++++++++++++++++++++
- 2 files changed, 83 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/call.go                  |  4 ++++
+ src/cmd/compile/internal/types2/fixedbugs/issue43124.src | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+)

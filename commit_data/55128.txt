@@ -1,57 +1,18 @@
-commit e6b76bfc4675eae8d1e4c7e8dc28897339b13824
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 28 09:37:47 2023 -0400
+commit 145dd38471fe5e14b8a77f5f466b70ab49c9a62b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 14 14:44:21 2023 -0500
 
-    testing: simplify concurrency and cleanup logic
+    archive/tar, archive/zip: document ErrInsecurePath and GODEBUG setting
     
-    While investigating #60083, I found a couple of bugs (notably #61034)
-    that had slipped through code review in part because the concurrency
-    patterns used in the testing package were too complex for me to fully
-    reason about. This change adjusts those patterns to be more in line
-    with current idioms, and to reduce the number of special cases that
-    depend on details that should be orthogonal. (For example: the details
-    of how we invoke the Cleanup functions should not depend on whether
-    the test happened to run any parallel subtests.)
+    These are mentioned in the release notes but not the actual doc comments.
+    Nothing should exist only in release notes.
     
-    In the process, this change fixes a handful of bugs:
-    
-    - Concurrent calls to Run (explicitly allowed by TestParallelSub)
-      could previously drive the testcontext.running count negative,
-      causing the number of running parallel tests to exceed the -parallel
-      flag.
-    
-    - The -failfast flag now takes effect immediately on failure. It no
-      longer delays until the test finishes, and no longer misses failures
-      during cleanup (fixing #61034).
-    
-    - If a Cleanup function calls runtime.Goexit (typically via t.FailNow)
-      during a panic, Cleanup functions from its parent tests are no
-      longer skipped and buffered logs from its parent tests are now
-      flushed.
-    
-    - The time reported for a test with subtests now includes the time spent
-      running those subtests, regardless of whether they are parallel.
-      (Previously, non-parallel subtests were included but parallel subtests
-      were not.)
-    
-    - Calls to (*B).Run in iterations after the first are now diagnosed
-      with a panic. (This diagnoses badly-behaved benchmarks: if Run is
-      called during the first iteration, no subsequent iterations are
-      supposed to occur.)
-    
-    Fixes #61034.
-    
-    Change-Id: I3797f6ef5210a3d2d5d6c2710d3f35c0219b02ea
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506755
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I8d10f25a2c9b2677231929ba3f393af9034b777b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462195
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/internal/test/callback_windows.go |   4 +-
- src/testing/benchmark.go                      |  94 +++---
- src/testing/fuzz.go                           | 199 +++++++------
- src/testing/panic_test.go                     |  85 +++---
- src/testing/sub_test.go                       | 131 ++------
- src/testing/testing.go                        | 412 +++++++++++++-------------
- 6 files changed, 431 insertions(+), 494 deletions(-)
+ src/archive/tar/reader.go | 8 +++++++-
+ src/archive/zip/reader.go | 8 ++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

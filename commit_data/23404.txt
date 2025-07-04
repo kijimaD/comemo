@@ -1,17 +1,18 @@
-commit 3cc7b27383c4f5814984a00c995182e632ca6de8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 17 17:02:40 2015 -0700
+commit 5ed4bb6db111d31a2c8625fe122de0ed7f1a9cbd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 12 15:51:22 2015 -0400
 
-    go/internal/gccgoimporter: enable tests on Plan9
+    cmd/5g: fix build
     
-    Work-around issue #11265 and re-enable tests for Plan9.
+    The line in cgen.go was lost during the ginscmp CL.
+    The ggen.go change is not strictly necessary, but
+    it makes the 5g -S output for x[0] match what it said
+    before the ginscmp CL.
     
-    Change-Id: I3aabb674a149b8eb936f948dd4cda5fd81454646
-    Reviewed-on: https://go-review.googlesource.com/11194
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5890a9ec1ac69a38509416eda5aea13b8b12b94a
+    Reviewed-on: https://go-review.googlesource.com/9929
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/internal/gccgoimporter/gccgoinstallation_test.go | 4 ----
- src/go/internal/gccgoimporter/importer.go               | 6 ++++++
- src/go/internal/gccgoimporter/importer_test.go          | 4 ----
- 3 files changed, 6 insertions(+), 8 deletions(-)
+ src/cmd/5g/ggen.go          | 22 +++++++++++++++-------
+ src/cmd/internal/gc/cgen.go |  1 +
+ 2 files changed, 16 insertions(+), 7 deletions(-)

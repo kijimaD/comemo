@@ -1,13 +1,25 @@
-commit 644b2dafc2885d0780605fa66061431fef55645a
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Mar 2 21:06:09 2018 +0100
+commit 0758d2b9da81f45c758d028570782194db92f6be
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 17 15:10:59 2017 -0400
 
-    test/codegen: add copyright headers to new codegen files
+    [release-branch.go1.9] cmd/go: clean up x.exe properly in TestImportMain
     
-    Change-Id: I9fe6572d1043ef9ee09c0925059ded554ad24c6b
-    Reviewed-on: https://go-review.googlesource.com/98215
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    More generally I'm concerned about these tests using
+    $GOROOT/src/cmd/go as scratch space, especially
+    combined wtih tg.parallel() - it's easy to believe some other
+    test might inadvertently also try to write x.exe about the
+    same time. This CL only solves the "didn't clean up x.exe"
+    problem and leaves for another day the "probably shouldn't
+    write to cmd/go at all" problem.
+    
+    Fixes #22266.
+    
+    Change-Id: I651534d70e2d360138e0373fb4a316081872550b
+    Reviewed-on: https://go-review.googlesource.com/71410
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/71530
 
- test/codegen/bits.go   | 4 ++++
- test/codegen/rotate.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

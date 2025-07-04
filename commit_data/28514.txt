@@ -1,42 +1,12 @@
-commit ab552aa3b69deb208b38677880e86aa41c3a9e47
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 23 17:54:51 2016 -0700
+commit c52dff0727c58cb7a6e768d91d15e3eaafcb420a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue May 31 12:42:34 2016 -0700
 
-    runtime: unify some signal handling functions
+    doc/go1.7.html: make RFC an actual link
     
-    Unify the OS-specific versions of msigsave, msigrestore, sigblock,
-    updatesigmask, and unblocksig into single versions in signal_unix.go.
-    To do this, make sigprocmask work the same way on all systems, which
-    required adding a definition of sigprocmask for linux and openbsd.
-    Also add a single OS-specific function sigmaskToSigset.
-    
-    Change-Id: I7cbf75131dddb57eeefe648ef845b0791404f785
-    Reviewed-on: https://go-review.googlesource.com/29689
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I5e8dad0c2534b5c3654cf0a0b51a38186d627a3c
+    Reviewed-on: https://go-review.googlesource.com/23582
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os3_solaris.go      | 29 ++++------------------
- src/runtime/os_darwin.go        | 27 +++------------------
- src/runtime/os_dragonfly.go     | 29 ++++------------------
- src/runtime/os_freebsd.go       | 29 ++++------------------
- src/runtime/os_linux.go         | 44 ++++++++--------------------------
- src/runtime/os_linux_generic.go |  8 +++++--
- src/runtime/os_linux_mips64x.go |  8 +++++--
- src/runtime/os_linux_s390x.go   |  6 +++--
- src/runtime/os_netbsd.go        | 31 ++++--------------------
- src/runtime/os_openbsd.go       | 51 ++++++++++++++++-----------------------
- src/runtime/signal_unix.go      | 53 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/sys_linux_386.s     |  2 +-
- src/runtime/sys_linux_amd64.s   |  2 +-
- src/runtime/sys_linux_arm.s     |  2 +-
- src/runtime/sys_linux_arm64.s   |  2 +-
- src/runtime/sys_linux_mips64x.s |  2 +-
- src/runtime/sys_linux_ppc64x.s  |  2 +-
- src/runtime/sys_linux_s390x.s   |  2 +-
- src/runtime/sys_netbsd_amd64.s  |  2 +-
- src/runtime/sys_netbsd_arm.s    |  2 +-
- src/runtime/sys_openbsd_386.s   |  2 +-
- src/runtime/sys_openbsd_amd64.s |  4 ++--
- src/runtime/sys_openbsd_arm.s   |  4 ++--
- 23 files changed, 134 insertions(+), 209 deletions(-)
+ doc/go1.7.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

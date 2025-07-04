@@ -1,15 +1,16 @@
-commit 4edcbe0d40ec54e92cf7e8d662e11635e173b933
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 15 11:41:12 2014 -0700
+commit 444b928405444dcba8c0c008f44e8d21b9402547
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 12 07:13:52 2014 -0700
 
-    fmt: fix size returned on fast path of ReadRune
-    Fixes #8512.
+    run.bash: run misc/cgo/testgodefs/test.bash
+    
+    misc/cgo/testgodefs was added by revision d1cf884a594f, but not
+    add to run.bash.
     
     LGTM=iant
-    R=golang-codereviews, iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/130090043
+    https://golang.org/cl/129760044
 
- src/pkg/fmt/scan.go      |  1 +
- src/pkg/fmt/scan_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+)
+ src/run.bash | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

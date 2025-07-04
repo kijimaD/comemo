@@ -1,27 +1,19 @@
-commit 353bba37df54adcefde7faf41edc34d2bfa5f978
-Author: Lubomir I. Ivanov (VMware) <neolit123@gmail.com>
-Date:   Wed Apr 25 20:57:19 2018 +0000
+commit 43bf63fce1abad1d5fe673e2c869e4d32f62885e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 3 11:27:26 2018 -0800
 
-    os/exec: fix Win32 tests missing 'chcp'
+    cmd/go, testing: test names don't have to be alphanumeric
     
-    '%SystemRoot%/System32/chcp.com' is a tool on Windows that
-    is used to change the active code page in the console.
+    In func TestXxxx(*testing.T) the Xxxx can be anything that can appear
+    in an identifier, but can't start with a lowercase letter. Clarify the docs.
     
-    'go test os/exec' can fail with:
-    "'chcp' is not recognized as an internal or external command"
+    Fixes #23322
     
-    The test uses a custom PATH variable but does not include
-    '%SystemRoot%/System32'. Always append that to PATH.
-    
-    Updates #24709
-    
-    Change-Id: I1ab83b326072e3f0086b391b836234bcfd8a1fb7
-    GitHub-Last-Rev: fb930529bb0673cdec921df5a2821c4b41de745e
-    GitHub-Pull-Request: golang/go#25088
-    Reviewed-on: https://go-review.googlesource.com/109361
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5c297916981f7e3890ee955d12bc7422a75488e2
+    Reviewed-on: https://go-review.googlesource.com/86001
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/exec/lp_windows_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/alldocs.go            | 14 +++++++-------
+ src/cmd/go/internal/test/test.go | 14 +++++++-------
+ src/testing/testing.go           |  4 ++--
+ 3 files changed, 16 insertions(+), 16 deletions(-)

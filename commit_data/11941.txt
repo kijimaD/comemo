@@ -1,15 +1,28 @@
-commit 9578839d60fb0d49130d6689091573aa390f85a0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 16 09:27:26 2012 +1100
+commit 47afa4dba53c0528b7a9b06a44dd14529ad955d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 15 12:25:37 2012 -0800
 
-    net/http: fix race in sendfile test
+    go/printer: don't lose relevant parentheses when rewriting selector expressions
     
-    Whoops. Consume the body of the first request
-    before making the subsequent /quit request.
+    Also: Simplified handling of selector expressions. As a result, complicated
+    multi-line expressions containing selectors and calls/indices with arguments
+    broken accross lines don't get indented the same way as before, but the change
+    is minimal (see tests) and there's no such code in the std library. It seems
+    a worthwhile compromise given the much simpler code.
     
-    R=golang-dev, untheoretic
+    Applied gofmt -w $GOROOT/src $GOROOT/misc .
+    
+    Fixes #1847.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5674054
+    https://golang.org/cl/5675062
 
- src/pkg/net/http/fs_test.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ misc/dashboard/builder/main.go                 |  2 +-
+ src/cmd/gofmt/gofmt_test.go                    |  1 +
+ src/cmd/gofmt/testdata/rewrite4.golden         | 74 +++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/rewrite4.input          | 74 +++++++++++++++++++++++++
+ src/pkg/go/printer/nodes.go                    | 75 ++++----------------------
+ src/pkg/go/printer/testdata/expressions.golden |  6 +--
+ src/pkg/go/printer/testdata/expressions.raw    |  6 +--
+ 7 files changed, 166 insertions(+), 72 deletions(-)

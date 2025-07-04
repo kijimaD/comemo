@@ -1,30 +1,29 @@
-commit 4891a3b66c482b42fdc74ae382e0cf4817d0fda2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 22 23:48:51 2019 -0400
+commit 897e0807c30a7b1860c15d4c05d68907fbba9262
+Author: bill_ofarrell <billo@ca.ibm.com>
+Date:   Tue Oct 30 22:45:51 2018 -0400
 
-    cmd/internal/objabi: expand -trimpath syntax
+    crypto/elliptic: utilize faster z14 multiply/square instructions (when available)
     
-    This CL affects the low-level -trimpath flag provided
-    by both cmd/asm and cmd/compile. Previously, the flag
-    took the name of a single directory that would be trimmed
-    from recorded paths in the resulting object file.
-    This CL makes the flag take a semicolon-separated list of paths.
-    Further, each path can now end in an optional "=>replacement"
-    to specify what to replace that leading path prefix with,
-    instead of only dropping it.
+    In the s390x assembly implementation of NIST P-256 curve, utilize faster multiply/square
+    instructions introduced in the z14. These new instructions are designed for crypto
+    and are constant time. The algorithm is unchanged except for faster
+    multiplication when run on a z14 or later. On z13, the original mutiplication
+    (also constant time) is used.
     
-    A followup CL will add a mode to cmd/go that uses this
-    richer -trimpath to build binaries that do not contain any
-    local path names.
+    P-256 performance is critical in many applications, such as Blockchain.
     
-    For #16860.
+    name            old time      new time     delta
+    BaseMultP256    24396 ns/op   21564 ns/op  1.13x
+    ScalarMultP256  87546 ns/op   72813 ns/op. 1.20x
     
-    Change-Id: I246811750f37607c7f7a8fbecd56c5475ebe1ea5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173344
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I7e6d8b420fac56d5f9cc13c9423e2080df854bac
+    Reviewed-on: https://go-review.googlesource.com/c/146022
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
 
- src/cmd/internal/objabi/line.go      | 54 ++++++++++++++++++++++++++++--------
- src/cmd/internal/objabi/line_test.go | 50 +++++++++++++++++++++++++++++++++
- 2 files changed, 93 insertions(+), 11 deletions(-)
+ src/crypto/elliptic/p256_asm_s390x.s | 550 ++++++++++++++++++++++++++++++++---
+ src/crypto/elliptic/p256_s390x.go    |  34 ++-
+ src/internal/cpu/cpu.go              |   1 +
+ src/internal/cpu/cpu_s390x.go        |   7 +
+ 4 files changed, 551 insertions(+), 41 deletions(-)

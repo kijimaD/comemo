@@ -1,16 +1,16 @@
-commit 8e6a8d9e282a6f9aeab5635c75c223129f5ab61f
-Author: maronghe <loganma0209@gmail.com>
-Date:   Wed Apr 1 07:15:49 2020 +0000
+commit 3706cd85d37ec554821393eb49cb3c88edf9308a
+Author: Vivek V <iamvivekv96@gmail.com>
+Date:   Fri Oct 25 07:14:18 2019 +0000
 
-    runtime: fix typo in loadFactor comment
+    debug/dwarf: call strings.EqualFold instead of calling Lower twice
     
-    Fixes #38174
-    
-    Change-Id: Iacdbbcd0b4586302daf082e59d833b7aa58b1a6a
-    GitHub-Last-Rev: f0c96819ebb9928879a03957244f2de655708cbb
-    GitHub-Pull-Request: golang/go#38191
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226758
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I8dcb425c37a067277549ba3bda6a21206459890a
+    GitHub-Last-Rev: dc51b9b425ca51cd0a4ac494d4c7a3c0e2306951
+    GitHub-Pull-Request: golang/go#35132
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203097
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/map.go | 2 +-
+ src/debug/dwarf/line.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

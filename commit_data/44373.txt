@@ -1,37 +1,23 @@
-commit d2911d76127deaa08644979cec7d990559f0aa54
+commit 3dec253783e1211989102ac6abd34cddbf8ba0e6
 Author: Keith Randall <khr@golang.org>
-Date:   Wed Dec 9 14:59:40 2020 -0800
+Date:   Thu Jun 18 12:51:35 2020 -0700
 
-    cmd/compile: fold MOV*nop and MOV*const
+    reflect: zero stack slots before writing to them with write barriers
     
-    MOV*nop and MOV*reg seem superfluous. They are there to keep type
-    information around that would otherwise get thrown away. Not sure
-    what we need it for. I think our compiler needs a normalization of
-    how types are represented in SSA, especially after lowering.
+    reflect.assignTo writes to the target using write barriers. Make sure
+    that the memory it is writing to is zeroed, so the write barrier does
+    not read pointers from uninitialized memory.
     
-    MOV*nop gets in the way of some optimization rules firing, like for
-    load combining.
+    Fixes #39541
     
-    For now, just fold MOV*nop and MOV*const. It's certainly safe to
-    do that, as the type info on the MOV*const isn't ever useful.
-    
-    R=go1.17
-    
-    Change-Id: I3630a80afc2455a8e9cd9fde10c7abe05ddc3767
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276792
-    Trust: Keith Randall <khr@golang.org>
+    Change-Id: Ia64b2cacc193bffd0c1396bbce1dfb8182d4905b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238760
     Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules     |  4 ++++
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  4 ++++
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |  4 ++++
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  4 ++++
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++++
- src/cmd/compile/internal/ssa/rewriteARM.go     | 17 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 17 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteMIPS.go    | 17 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 17 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 17 +++++++++++++++++
- 10 files changed, 105 insertions(+)
+ src/reflect/type.go          |  1 +
+ src/reflect/value.go         |  8 ++++++++
+ src/runtime/stack.go         |  1 +
+ test/fixedbugs/issue39541.go | 33 +++++++++++++++++++++++++++++++++
+ 4 files changed, 43 insertions(+)

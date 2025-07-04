@@ -1,13 +1,14 @@
-commit 88cbe09202d54b6cd3f4d8c0fa8b50e13c7372cf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 24 21:05:12 2015 -0800
+commit 56ba3fb765bbdc0d32b8e3a75e8fcdd23507d447
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 19 14:54:53 2015 +1100
 
-    math/big: permit passing of an *Int to Float.Int to avoid allocation
+    log: add SetOutput method on Logger
     
-    Change-Id: I50e83248357928e56c94b88a8764de828f4f5c76
-    Reviewed-on: https://go-review.googlesource.com/5890
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #9629
+    
+    Change-Id: I66091003b97742ca6d857fe51d609833ab727216
+    Reviewed-on: https://go-review.googlesource.com/3023
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/float.go      | 26 +++++++++++++++++---------
- src/math/big/float_test.go | 13 +++++++++++--
- 2 files changed, 28 insertions(+), 11 deletions(-)
+ src/log/log.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,72 +1,21 @@
-commit b1a48af7e8ee87cc46e1bbb07f81ac4853e0f27b
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Mar 31 12:20:15 2020 +0100
+commit 4e3d58009a1ba08e41dd1ec33691120a76a06af9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 26 21:16:43 2019 +0000
 
-    encoding/json: properly encode strings with ",string" again
+    runtime: reset scavenge address in scavengeAll
     
-    golang.org/cl/193604 fixed one bug when one encodes a string with the
-    ",string" option: if SetEscapeHTML(false) is used, we should not be
-    using HTML escaping for the inner string encoding. The CL correctly
-    fixed that.
+    Currently scavengeAll (which is called by debug.FreeOSMemory) doesn't
+    reset the scavenge address before scavenging, meaning it could miss
+    large portions of the heap. Fix this by reseting the address before
+    scavenging, which will ensure it is able to walk over the entire heap.
     
-    The CL also tried to speed up this edge case. By avoiding an entire new
-    call to Marshal, the new Issue34127 benchmark reduced its time/op by
-    45%, and lowered the allocs/op from 3 to 2.
+    Fixes #35858.
     
-    However, that last optimization wasn't correct:
-    
-            Since Go 1.2 every string can be marshaled to JSON without error
-            even if it contains invalid UTF-8 byte sequences. Therefore
-            there is no need to use Marshal again for the only reason of
-            enclosing the string in double quotes.
-    
-    JSON string encoding isn't just about adding quotes and taking care of
-    invalid UTF-8. We also need to escape some characters, like tabs and
-    newlines.
-    
-    The new code failed to do that. The bug resulted in the added test case
-    failing to roundtrip properly; before our fix here, we'd see an error:
-    
-            invalid use of ,string struct tag, trying to unmarshal "\"\b\f\n\r\t\"\\\"" into string
-    
-    If you pay close attention, you'll notice that the special characters
-    like tab and newline are only encoded once, not twice. When decoding
-    with the ",string" option, the outer string decode works, but the inner
-    string decode fails, as we are now decoding a JSON string with unescaped
-    special characters.
-    
-    The fix we apply here isn't to go back to Marshal, as that would
-    re-introduce the bug with SetEscapeHTML(false). Instead, we can use a
-    new encode state from the pool - it results in minimal performance
-    impact, and even reduces allocs/op further. The performance impact seems
-    fair, given that we need to check the entire string for characters that
-    need to be escaped.
-    
-            name          old time/op    new time/op    delta
-            Issue34127-8    89.7ns ± 2%   100.8ns ± 1%  +12.27%  (p=0.000 n=8+8)
-    
-            name          old alloc/op   new alloc/op   delta
-            Issue34127-8     40.0B ± 0%     32.0B ± 0%  -20.00%  (p=0.000 n=8+8)
-    
-            name          old allocs/op  new allocs/op  delta
-            Issue34127-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=8+8)
-    
-    Instead of adding another standalone test, we convert an existing
-    "string tag" test to be table-based, and add another test case there.
-    
-    One test case from the original CL also had to be amended, due to the
-    same problem - when escaping '<' due to SetEscapeHTML(true), we need to
-    end up with double escaping, since we're using ",string".
-    
-    Fixes #38173.
-    
-    Change-Id: I2b0df9e4f1d3452fff74fe910e189c930dde4b5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226498
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I4a7408050b8e134318ff94428f98cb96a1795aa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208960
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/encoding/json/encode.go      | 11 ++---
- src/encoding/json/encode_test.go | 87 ++++++++++++++++++++++++++--------------
- src/encoding/json/stream_test.go |  8 ++--
- 3 files changed, 69 insertions(+), 37 deletions(-)
+ src/runtime/mheap.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,23 +1,21 @@
-commit 24cff0f0444793be81062684c478a3f7ca955499
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sat Jun 12 12:34:40 2021 +0200
+commit 0123c9b32165302deb200683b4f855d572a934b6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 09:09:15 2020 -0800
 
-    cmd/go, misc/cgo: skip test if no .edata
+    [dev.typeparams] cmd/compile/internal/types2: report an error for invalid constant values
     
-    Clang does not produce binaries with an .edata section, even when it
-    exports symbols properly, so just skip this binutils-specific test for
-    that case. Later we can rewrite these tests entirely to do something
-    more robust.
+    This is https://golang.org/cl/271377 ported to types2.
     
-    Updates #46719.
+    Updates #42695.
     
-    Change-Id: I864b3c2d91e66800c55454ae11d4ab1623693d14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327549
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I475bdcaeace5b0e87d4476a6d660996534289666
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271520
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/testcshared/cshared_test.go |  2 +-
- src/cmd/go/go_test.go                | 10 +---------
- 2 files changed, 2 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/expr.go                 |  6 +++++-
+ .../compile/internal/types2/fixedbugs/issue42695.src    | 17 +++++++++++++++++
+ src/cmd/compile/internal/types2/operand.go              |  8 +++++++-
+ 3 files changed, 29 insertions(+), 2 deletions(-)

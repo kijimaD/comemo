@@ -1,22 +1,27 @@
-commit ed834853ad8224611f44a3c467e00a22df341d91
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 17 14:12:34 2021 -0400
+commit e1047302bdbfcac0f2331ebd5f6126a8b3c3b9b3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 23 00:15:40 2020 -0800
 
-    cmd/go: replace a TODO with an explanatory comment
+    [dev.regabi] cmd/compile/internal/types: add pos/sym/typ params to NewField
     
-    I left a TODO to decide whether to add 'go get' arguments as indirect
-    (as we have in the past), or to make them direct. I considered both
-    options, and decided to keep the indirect default because it is easier
-    (and less invasive) for users to fix.
+    These are almost always set, so might as well expect callers to
+    provide them. They're also all required by go/types's corresponding
+    New{Field,Func,Param,Var} functions, so this eases API compatibility.
     
-    Updates #45979
+    Passes toolstash-check.
     
-    Change-Id: I1f23a88db59a01bdd9e6fe48c2fffc8a3b55145a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/328971
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ib3fa355d4961243cd285b41915e87652ae2c22f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272386
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/testdata/script/mod_get_lazy_indirect.txt | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/align.go    |  7 ++----
+ src/cmd/compile/internal/gc/closure.go  |  5 ++---
+ src/cmd/compile/internal/gc/dcl.go      | 39 +++++----------------------------
+ src/cmd/compile/internal/gc/iimport.go  | 28 +++++------------------
+ src/cmd/compile/internal/gc/reflect.go  | 12 ++++------
+ src/cmd/compile/internal/gc/universe.go | 17 +++++++-------
+ src/cmd/compile/internal/types/type.go  | 11 ++++++++--
+ 7 files changed, 37 insertions(+), 82 deletions(-)

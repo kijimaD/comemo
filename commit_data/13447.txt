@@ -1,19 +1,23 @@
-commit f83a47cbb9eae6d609019c1ac1a1950f63629e0d
-Author: Matthew William Jibson <matt.jibson@gmail.com>
-Date:   Sun Jul 8 11:57:04 2012 +1000
+commit 34b10d7482b4a83cf066c313a201503126393293
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Fri Jul 6 15:00:18 2012 +1000
 
-    doc: various "the the" and other typos
+    cmd/dist: Make verbose messages print to stderr
     
-    R=golang-dev, adg
+    Made the following changes:
+     - Export errprintf() from all three OS-specific modules
+     - Added errprintf() to a.h
+     - Moved errprintf() in windows.c under xprintf(), since they are so similar
+     - Replaced all instances of xprintf() with errprintf() where a vflag check is done
+    Fixes #3788.
+    
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/6355076
+    https://golang.org/cl/6346056
 
- doc/articles/json_and_go.html           | 4 ++--
- doc/go_spec.html                        | 2 +-
- src/pkg/go/doc/testdata/error2.1.golden | 2 +-
- src/pkg/go/doc/testdata/error2.go       | 2 +-
- src/pkg/math/remainder.go               | 2 +-
- src/pkg/net/http/fs.go                  | 2 +-
- src/pkg/text/tabwriter/tabwriter.go     | 2 +-
- src/pkg/text/template/funcs.go          | 2 +-
- 8 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/dist/a.h       |  1 +
+ src/cmd/dist/build.c   | 14 +++++++-------
+ src/cmd/dist/plan9.c   | 17 ++++++++++++++---
+ src/cmd/dist/unix.c    | 19 +++++++++++++++----
+ src/cmd/dist/windows.c | 38 +++++++++++++++++++-------------------
+ 5 files changed, 56 insertions(+), 33 deletions(-)

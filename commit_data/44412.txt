@@ -1,27 +1,23 @@
-commit ff614b13d90961f55b1058bd798c6d4e92d3939c
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Thu Feb 25 01:29:58 2021 +0100
+commit 12c01f7698cd257b7d2e4795b0f8a971ec8533b6
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jun 26 16:38:40 2020 -0700
 
-    runtime: subtract one from ip when determining abort
+    runtime: ensure arenaBaseOffset makes it into DWARF (for viewcore)
     
-    On windows/arm, the abort is given from one byte off of the function
-    address, perhaps because Windows wants to simulate x86/amd64 modes, or
-    because it's jumping from thumb mode. This is not the case with
-    windows/arm64, though.
+    This constant does not make it into DWARF because it is an ideal
+    constant larger than maxint (1<<63-1). DWARF has no way to represent
+    signed values that large. Define a different typed constant that
+    is unsigned and so can represent this constant properly.
     
-    This prevents a failure in the builders with the TestAbort test:
+    Viewcore needs this constant to interrogate the heap data structures.
+    In addition, the sign of arenaBaseOffset changed in 1.15, and providing
+    a new name lets viewcore detect the sign change easily.
     
-        crash_test.go:727: output contains BAD:
-            panic: runtime error: invalid memory address or nil pointer dereference [recovered]
-                    panic: BAD: recovered from abort
-            [signal 0xc0000005 code=0x0 addr=0x0 pc=0x6a5721]
-    
-    Change-Id: I8939c60611863cc0c325e179a772601acea9fd4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296153
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4274a2f6e79ebbf1411e85d64758fac1672fb96b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240198
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/signal_windows.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go | 2 ++
+ 1 file changed, 2 insertions(+)

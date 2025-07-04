@@ -1,12 +1,12 @@
-commit 5d05c7800e0dccf0f05b49c13ce5120e0d070e53
-Author: Jingcheng Zhang <diogin@gmail.com>
-Date:   Sun Oct 21 20:32:43 2012 -0400
+commit 80c4eac6379bc43b339a67f47c2559aa71119eec
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Oct 22 11:15:17 2012 +1100
 
-    runtime: sizeclass in MSpan should be int32.
+    go/build: document the behavior of multiple build constraints.
     
-    R=golang-dev, minux.ma, dave, rsc
+    R=rsc, pkleiweg
     CC=golang-dev
-    https://golang.org/cl/6643046
+    https://golang.org/cl/6725052
 
- src/pkg/runtime/malloc.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/build/doc.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

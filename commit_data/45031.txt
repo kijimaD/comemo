@@ -1,30 +1,62 @@
-commit d25c4fbe05e88580ce0a5cadc67e1c0ee27a2d1c
+commit 74c3b508ec8bc5643ba0e6a45f2b399d3c7a34ba
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 8 18:32:00 2021 -0400
+Date:   Fri Sep 25 13:24:08 2020 -0400
 
-    test: do not run softfloat test with regabiargs
+    vendor, cmd/vendor: update vendored x/sys and x/net
     
-    Softfloat mode with register ABI is not implemented yet. In
-    particular, we did not rewrite the float types in AuxCalls to
-    integer types, so arguments are still passed in floating point
-    registers, which do not exist in softfloat mode. To make it work
-    I think we may want to reorder softfloat pass with expand_calls
-    pass. We also need to rewrite the OpArgFloatRegs for the spilling
-    of non-SSA-able arguments, which may involve renumbering interger
-    arguments. Maybe in softfloat mode we want to just define the
-    ABI with 0 float registers. They are not fundamentally hard, but
-    may be not worth doing for the moment, as we don't use softfloat
-    mode on AMD64 anyway.
+    Pick up GOOS=ios changes.
     
-    Run the test with noregabiargs. Also in the compiler reject
-    -d=softfloat if regabiargs is enabled.
+    This is done by
     
-    Change-Id: I8cc0c2cfa88a138bc1338ed8710670245f1bd2cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308710
+    cd $GOROOT/src
+    go get -d golang.org/x/net@latest
+    go mod tidy
+    go mod vendor
+    go get -d golang.org/x/sys@latest
+    go mod tidy
+    go mod vendor
+    cd $GOROOT/src/cmd
+    go get -d golang.org/x/sys@latest
+    go mod tidy
+    go mod vendor
+    
+    Updates #38485.
+    
+    Change-Id: Ic2b54febb1f851814c9d76c4b55a8837ac4779f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257618
     Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 3 +++
- test/fixedbugs/issue28688.go        | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 ++--
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |  1 +
+ .../golang.org/x/sys/unix/sockcmsg_unix_other.go   |  2 +-
+ .../vendor/golang.org/x/sys/unix/syscall_bsd.go    |  2 +-
+ .../golang.org/x/sys/unix/syscall_illumos.go       |  2 +-
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  | 25 +++++++++++++++++++
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  1 +
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |  2 ++
+ .../x/sys/unix/zerrors_linux_mips64le.go           |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |  2 ++
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |  2 ++
+ .../x/sys/unix/zsyscall_illumos_amd64.go           |  2 +-
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   | 15 ++++++++++++
+ src/cmd/vendor/modules.txt                         |  2 +-
+ src/go.mod                                         |  4 ++--
+ src/go.sum                                         |  8 +++----
+ src/vendor/golang.org/x/net/nettest/nettest.go     |  6 ++---
+ src/vendor/golang.org/x/net/route/address.go       |  2 +-
+ src/vendor/golang.org/x/net/route/route_classic.go |  2 +-
+ .../x/net/route/syscall_go1_11_darwin.go           | 28 ----------------------
+ src/vendor/golang.org/x/sys/cpu/cpu_arm64.go       |  2 +-
+ src/vendor/modules.txt                             |  4 ++--
+ 32 files changed, 90 insertions(+), 50 deletions(-)

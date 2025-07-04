@@ -1,39 +1,39 @@
-commit bfebf9ea8071683af608b8bf291fc7d8365d501b
+commit c3b5db895b11ba28bc1546f37178efcb057ab3f0
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 26 17:03:31 2014 -0400
+Date:   Thu Sep 18 14:49:24 2014 -0400
 
-    cmd/yacc: fix parsing of character tokens
+    runtime: delete panicstring; move its checks into gopanic
     
-    From issue 7967 I learned:
+    In Go 1.3 the runtime called panicstring to report errors like
+    divide by zero or memory faults. Now we call panic (gopanic)
+    with pre-allocated error values. That new path is missing the
+    checking that panicstring did, so add it there.
     
-    1) yacc accepts either 'x' or "x" to mean token value 0x78
-    2) yacc also accepts 'xyz' and "XYZ" to mean token value 0x78
+    The only call to panicstring left is in cnew, which is problematic
+    because if it fails, probably the heap is corrupt. In that case,
+    calling panicstring creates a new errorCString (no allocation there),
+    but then panic tries to print it, invoking errorCString.Error, which
+    does a string concatenation (allocating), which then dies.
+    Replace that one panicstring with a throw: cnew is for allocating
+    runtime data structures and should never ask for an inappropriate
+    amount of memory.
     
-    Use strconv.Unquote to simplify the handling of quoted
-    strings and check that each has only one rune.
+    With panicstring gone, delete newErrorCString, errorCString.
+    While we're here, delete newErrorString, not called by anyone.
+    (It can't be: that would be C code calling Go code that might
+    block or grow the stack.)
     
-    Although this does clean things up, it makes 'x' and "x"
-    treated as different internally (now they are stored as
-    `'x'` and `"x"`; before they were both ` x`). Grammars that
-    use both interchangeably will now die with an error
-    similar to the one from issue 7967:
+    Found while debugging a malloc corruption.
+    This resulted in 'panic during panic' instead of a more useful message.
     
-            yacc bug -- cannot have 2 different Ts with same value
-                    "+" and '+'
-    
-    The echoing of the quotes should make clear what is going on.
-    
-    The other semantic change caused by using strconv.Unquote
-    is that '\"' and "\'" are no longer valid. Like in Go, they must be
-    spelled without the backslash: '"' and "'".
-    
-    On the other hand, now yacc and Go agree about what character
-    and string literals mean.
-    
-    LGTM=r
-    R=r
+    LGTM=khr
+    R=khr
     CC=golang-codereviews
-    https://golang.org/cl/149110043
+    https://golang.org/cl/138290045
 
- src/cmd/yacc/yacc.go | 76 +++++++++-------------------------------------------
- 1 file changed, 13 insertions(+), 63 deletions(-)
+ src/runtime/error.go  | 22 -------------------
+ src/runtime/malloc.c  |  2 +-
+ src/runtime/panic.go  | 59 +++++++++++++++++++++++++--------------------------
+ src/runtime/proc.c    |  7 ------
+ src/runtime/runtime.h |  3 ---
+ 5 files changed, 30 insertions(+), 63 deletions(-)

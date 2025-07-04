@@ -1,17 +1,22 @@
-commit e7a9ca0a53db4b4f357b5d3caaef65e44ce08a90
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 23 16:45:37 2023 -0700
+commit 3ea3d0e8a7f4e2bfa96535aafb6bd802d2907808
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 3 15:14:25 2022 +0700
 
-    cmd/compile: enable printing of error URLs by default
+    cmd/compile: correct alignment of atomic.Int64
     
-    Change-Id: Ib4094c70b8aa5e818f9f017c59d464d4c178169d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497716
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Same as CL 417555, but for cmd/compile.
+    
+    Fixes #54220
+    
+    Change-Id: I4cc6deaf0a87c952f636888b4ab73f81a44bfebd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420975
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/base/flag.go    | 1 +
- src/cmd/internal/testdir/testdir_test.go | 6 +++---
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/sizes.go  | 11 +++++++++++
+ src/cmd/compile/internal/types2/sizes.go |  4 ++--
+ test/fixedbugs/issue54220.go             | 26 ++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 2 deletions(-)

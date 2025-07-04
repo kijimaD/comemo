@@ -1,33 +1,26 @@
-commit 971f59399fd7a53dc0744a949084080c85b3c62b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 20 07:28:37 2023 +0000
+commit 0202ad0b3a2bfddf9f3eafb94e19d5a0fa3d1f31
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 9 09:49:32 2023 -0800
 
-    cmd/trace/v2: add thread-oriented mode for v2 traces
+    cmd/compile: prevent IsNewObject from taking quadratic time
     
-    This is a nice-to-have that's now straightforward to do with the new
-    trace format. This change adds a new query variable passed to the
-    /trace endpoint called "view," which indicates the type of view to
-    use. It is orthogonal with task-related views.
+    As part of IsNewObject, we need to go from the SelectN[0] use of
+    a call to the SelectN[1] use of a call. The current code does this
+    by just looking through the block. If the block is very large,
+    this ends up taking quadratic time.
     
-    Unfortunately a goroutine-based view isn't included because it's too
-    likely to cause the browser tab to crash.
+    Instead, prepopulate a map from call -> SelectN[1] user of that call.
+    That lets us find the SelectN[1] user in constant time.
     
-    For #60773.
-    For #63960.
+    Fixes #57657
     
-    Change-Id: Ifbcb8f2d58ffd425819bdb09c586819cb786478d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543695
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ie2e0b660af5c080314f4f17ba2838510a1147f9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461080
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/trace/main.go                     |   4 +-
- src/cmd/trace/v2/gstate.go                |  23 +++-
- src/cmd/trace/v2/jsontrace.go             |   6 +
- src/cmd/trace/v2/jsontrace_test.go        |   2 +-
- src/cmd/trace/v2/main.go                  |   8 +-
- src/cmd/trace/v2/threadgen.go             | 201 ++++++++++++++++++++++++++++++
- src/internal/trace/traceviewer/emitter.go |   1 +
- src/internal/trace/traceviewer/http.go    |  46 +++++--
- src/internal/trace/traceviewer/mmu.go     |   2 +-
- 9 files changed, 273 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/ssa/writebarrier.go | 38 ++++++++++++++++++----------
+ 1 file changed, 24 insertions(+), 14 deletions(-)

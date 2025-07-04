@@ -1,16 +1,29 @@
-commit 787362327fbc2ec010659cd9067cc899cc15203c
-Author: cuishuang <imcusg@gmail.com>
-Date:   Sun May 18 16:28:13 2025 +0800
+commit 71d84ee7b4e42ea9f35f409f169bebd44a360331
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Apr 13 07:01:44 2024 +0000
 
-    io/fs: add examples for Glob,ReadFile and ValidPath
+    net: add Unwrap to *DNSError
     
-    Change-Id: I8451179bc0fa88b7e60afbc6fd9e06a22a94f3aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673835
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #63116
+    
+    Change-Id: Iab8c415555ab85097be6d2d133b3349c5219a23b
+    GitHub-Last-Rev: 8a8177b9af5509ebbaa701b06c79126aae7510a8
+    GitHub-Pull-Request: golang/go#63348
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532217
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/io/fs/example_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 81 insertions(+)
+ api/next/63116.txt                      |  2 ++
+ doc/next/6-stdlib/99-minor/net/63116.md |  3 ++
+ src/net/cgo_unix.go                     | 30 ++++++-----------
+ src/net/dnsclient_unix.go               | 60 +++++++++++----------------------
+ src/net/dnsclient_unix_test.go          | 20 +++++------
+ src/net/lookup.go                       | 27 ++++-----------
+ src/net/lookup_plan9.go                 |  4 +--
+ src/net/lookup_test.go                  | 28 +++++++++++++++
+ src/net/lookup_windows.go               | 51 +++++++++-------------------
+ src/net/net.go                          | 53 ++++++++++++++++++++++++++++-
+ 10 files changed, 147 insertions(+), 131 deletions(-)

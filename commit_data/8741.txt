@@ -1,15 +1,13 @@
-commit 832e87500ebb2d20da00d2930283521f366e3b0e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Jun 16 13:35:27 2011 +1000
+commit 9555ea7a5b80acdfedaca22717b8716f59fcf570
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 16 11:45:16 2011 +1000
 
-    go/build: support building cgo packages on non intel platforms
+    image/draw: add an Op argument to Draw.
     
-    See https://golang.org/cl/4572045/
-    
-    R=adg, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4627041
+    https://golang.org/cl/4622041
 
- src/pkg/go/build/build.go      | 11 +++++++----
- src/pkg/go/build/build_test.go |  7 -------
- 2 files changed, 7 insertions(+), 11 deletions(-)
+ src/pkg/image/draw/draw.go      | 6 +++---
+ src/pkg/image/draw/draw_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

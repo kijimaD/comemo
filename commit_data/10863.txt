@@ -1,12 +1,28 @@
-commit 3f216c1b5d4a612f31098d23f4e47e37de8ae7a0
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Dec 19 12:37:39 2011 +1100
+commit 18e844147693b0346dc813fbc05a8beb7a210f2f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Dec 19 12:20:00 2011 +1100
 
-    dashboard: hide build status column (package builder is out of action)
+    html: handle text nodes in foreign content.
     
-    R=golang-dev, dsymonds
+    Passes tests10.dat, test 6:
+    <!DOCTYPE html><body><table><svg><g>foo</g></svg></table>
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <svg svg>
+    |       <svg g>
+    |         "foo"
+    |     <table>
+    
+    Also pass tests through test 12:
+    <!DOCTYPE html><body><table><caption><svg><g>foo</g><g>bar</g></svg><p>baz</caption></table>
+    
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/5489080
+    https://golang.org/cl/5495061
 
- misc/dashboard/godashboard/package.html | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/html/parse.go      | 11 +++++++++++
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

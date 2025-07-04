@@ -1,24 +1,32 @@
-commit 718dc025e7b2cdef26c6a5f3d5c2645885ef44a5
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 17 11:19:53 2024 +1100
+commit f98dd299103f66b86bbef402a63a0c6f8fc8b11e
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Sep 27 13:13:10 2022 -0500
 
-    fmt: clear width and precision when recovering formatting object from the pool
+    cmd/compile: rework unbounded shift lowering on PPC64
     
-    Probably a day 1 oversight, and almost always inconsequential, but
-    there is evidence of occasional trouble. There is no reason not to
-    clear them.
+    This reduces unbounded shift latency by one cycle, and may
+    generate less instructions in some cases.
     
-    I tried and failed to write a test to catch this, but the change should
-    be harmless and is all but certain to fix the problem.
+    When there is a choice whether to use doubleword or word shifts, use
+    doubleword shifts. Doubleword shifts have fewer hardware scheduling
+    restrictions across P8/P9/P10.
     
-    Fixes #61913
+    Likewise, rework the shift sequence to allow the compare/shift/overshift
+    values to compute in parallel, then choose the correct value.
     
-    Change-Id: I0f7bbb4ab2780d8999d3ff7a35255dc07fb5c7e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556215
-    Run-TryBot: Rob Pike <r@golang.org>
+    Some ANDCCconst rules also need reworked to ensure they simplify when
+    used for their flag value. This commonly occurs when prove fails to
+    identify a bounded shift (e.g foo32<<uint(x&31)).
+    
+    Change-Id: Ifc6ff4a865d68675e57745056db414b0eb6f2d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442597
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/fmt/format.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  102 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 1623 +++++++++++++------------
+ src/cmd/compile/internal/test/shift_test.go   |   89 ++
+ 3 files changed, 953 insertions(+), 861 deletions(-)

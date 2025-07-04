@@ -1,19 +1,38 @@
-commit 0c86b999c35ed199bc7aa001affb1d5d186c9e73
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 14 12:00:23 2021 -0800
+commit ef3a41c0ffbc794aa56ac08ea09341200ae9a39a
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 12 17:18:05 2020 -0400
 
-    cmd/test2json: document passing -test.paniconexit0
+    [dev.link] cmd/link: rename adddynrel2 back to adddynrel
     
-    For #29062
-    Fixes #43263
+    Minor renaming cleanup to get rid of a couple of old sym.Symbol
+    adddynrel helpers and rename the current crop of adddynrel2
+    methods/functions back to adddynrel.
     
-    Change-Id: I160197c94cc4f936967cc22c82cec01663a14fe6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283873
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I67e76decff84d603ef765f3b6a0cd78c7f3743ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233523
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/testdata/script/test_exit.txt | 17 +++++++++++++++++
- src/cmd/test2json/main.go                |  6 +++++-
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go   | 2 +-
+ src/cmd/link/internal/amd64/obj.go   | 2 +-
+ src/cmd/link/internal/arm/asm.go     | 2 +-
+ src/cmd/link/internal/arm/obj.go     | 2 +-
+ src/cmd/link/internal/arm64/asm.go   | 2 +-
+ src/cmd/link/internal/arm64/obj.go   | 2 +-
+ src/cmd/link/internal/ld/data.go     | 6 +++---
+ src/cmd/link/internal/ld/lib.go      | 3 +--
+ src/cmd/link/internal/ld/xcoff.go    | 2 +-
+ src/cmd/link/internal/mips/asm.go    | 6 ------
+ src/cmd/link/internal/mips/obj.go    | 1 -
+ src/cmd/link/internal/mips64/asm.go  | 6 ------
+ src/cmd/link/internal/mips64/obj.go  | 1 -
+ src/cmd/link/internal/ppc64/asm.go   | 8 ++++----
+ src/cmd/link/internal/ppc64/obj.go   | 2 +-
+ src/cmd/link/internal/riscv64/asm.go | 9 ---------
+ src/cmd/link/internal/riscv64/obj.go | 1 -
+ src/cmd/link/internal/s390x/asm.go   | 2 +-
+ src/cmd/link/internal/s390x/obj.go   | 2 +-
+ src/cmd/link/internal/x86/asm.go     | 2 +-
+ src/cmd/link/internal/x86/obj.go     | 2 +-
+ 21 files changed, 20 insertions(+), 45 deletions(-)

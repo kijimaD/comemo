@@ -1,13 +1,12 @@
-commit abd5bd7d54b1b5e1631dacb3733a44d2cf39d37d
+commit e37792191f41764ca33dc26c445494bc1475136b
 Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Jan 22 18:53:18 2012 -0800
+Date:   Sun Jan 22 18:52:38 2012 -0800
 
-    go/doc: add more test cases
+    go/doc: set Type.Name field
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5571043
+    https://golang.org/cl/5569043
 
- src/pkg/go/doc/testdata/c.go  | 62 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/go/doc/testdata/c.out | 48 +++++++++++++++++++++++++++++++++
- 2 files changed, 110 insertions(+)
+ src/pkg/go/doc/reader.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

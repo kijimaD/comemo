@@ -1,16 +1,28 @@
-commit 13a5958db328a74f863d8391f453a81ae326fd31
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 11 13:40:37 2014 -0800
+commit 517f4a96837e345609aca6f5bdf1fbeb92c70647
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 11 11:41:25 2014 -0800
 
-    go/parser: check presence of 2nd and 3rd index in 3-index slice
+    archive/zip: re-use flate.Writers when writing compressed files
     
-    Fixes #7305.
+    Prevents a ton of garbage. (Noticed this when writing large
+    Camlistore zip archives to Amazon Glacier)
     
-    LGTM=adonovan
-    R=bradfitz, adonovan
+    Note that the Closer part of the io.WriteCloser is never given
+    to users. It's an internal detail of the package.
+    
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkCompressedZipGarbage     42884123      40732373      -5.02%
+    
+    benchmark                         old allocs     new allocs     delta
+    BenchmarkCompressedZipGarbage     204            149            -26.96%
+    
+    benchmark                         old bytes     new bytes     delta
+    BenchmarkCompressedZipGarbage     4397576       66744         -98.48%
+    
+    LGTM=adg, rsc
+    R=adg, rsc
     CC=golang-codereviews
-    https://golang.org/cl/58950045
+    https://golang.org/cl/54300053
 
- src/pkg/go/parser/parser.go     | 25 +++++++++++++++++++++----
- src/pkg/go/parser/short_test.go |  6 +++++-
- 2 files changed, 26 insertions(+), 5 deletions(-)
+ src/pkg/archive/zip/register.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 40 insertions(+), 1 deletion(-)

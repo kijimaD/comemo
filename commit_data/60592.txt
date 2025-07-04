@@ -1,0 +1,18 @@
+commit 2ca1ae8e09a9f821d4bc04c06b18114eafdea12f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 31 20:35:47 2024 -0700
+
+    os: clarify Rename docs for renaming to a directory
+    
+    Fixes #68690
+    
+    Change-Id: Iebc27d5f385d787e568550a863f59f16c7a79fd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602178
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/file.go | 1 +
+ 1 file changed, 1 insertion(+)

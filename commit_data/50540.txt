@@ -1,23 +1,28 @@
-commit 38cecb22903415b34991ce76efe725f47aaf21a3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 16 13:11:49 2022 -0700
+commit 82f902ae8e2b7f7eff0cdb087e47e939cc296a62
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Mon Nov 1 06:42:01 2021 +0100
 
-    test: add regress test for issue 55101
+    strings: align Clone output with string([]byte(""))
     
-    This test case already works with GOEXPERIMENT=unified, and it never
-    worked with Go 1.18 or Go 1.19. So this CL simply adds a regress test
-    to make sure it continues working.
+    Add a comment how strings of length 0 are treated and
+    that they always will result in the return of a string
+    equal to the constant string "".
     
-    Fixes #55101.
+    The previous implementation would return a string header that uses
+    runtime.zerobase as the backing array pointer while the string constant
+    "" has 0 as pointer value.
     
-    Change-Id: I7e06bfdc136ce124f65cdcf02d20a1050b841d42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431455
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Using 0 has the backing array pointer is also the behaviour of
+    string([]byte(input)) which makes the new behaviour a better drop in
+    replacement.
+    
+    Change-Id: Ic5460e9494b6708edbdfa4361e878d50db54ba10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360255
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/internal/gcimporter/gcimporter_test.go |  1 +
- test/run.go                                   |  1 +
- test/typeparam/issue55101.go                  | 16 ++++++++++++++++
- 3 files changed, 18 insertions(+)
+ src/strings/clone.go      |  5 +++++
+ src/strings/clone_test.go | 11 ++++++++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)

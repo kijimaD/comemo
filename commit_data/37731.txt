@@ -1,20 +1,12 @@
-commit 9a3c1a1bc8ec81925925d6699577ff7812be3d58
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Nov 23 15:12:04 2018 +0100
+commit e897d43c37c353a35f211384058475a5093f1adf
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Aug 23 14:31:32 2018 -0400
 
-    cmd/link: move XCOFF data addresses to an unreachable segment
+    doc/go1.11: remove draft status
     
-    This commit move data addresses to 0x200000000 for XCOFF executables.
-    .data and .bss must always be position-independent on AIX. This
-    modification allows to detect more easily if they aren't, as segfault
-    will be triggered.
-    
-    Change-Id: Ied7a5b72b9f4ff9f870a1626cf07c48110635e62
-    Reviewed-on: https://go-review.googlesource.com/c/151040
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3f99083b7d8ab06482c2c22eafda8b0141a872bd
+    Reviewed-on: https://go-review.googlesource.com/131076
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/data.go  |  5 +++++
- src/cmd/link/internal/ld/xcoff.go | 36 +++++++++++++++---------------------
- 2 files changed, 20 insertions(+), 21 deletions(-)
+ doc/go1.11.html | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

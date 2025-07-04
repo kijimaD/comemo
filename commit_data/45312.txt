@@ -1,21 +1,19 @@
-commit c3e2ed711ce1e5758e5d01a26d74445813de2857
-Author: Sean Liao <seankhliao@gmail.com>
-Date:   Tue Feb 2 18:08:50 2021 +0100
+commit 6ff16fe3ee46f8e35c18226d04bd38a396eb4175
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 19 15:47:40 2020 -0700
 
-    cmd/go: use builtin version and reexec for env
+    [dev.typeparams] cmd/compile/internal/syntax: add utility functions for testing
     
-    Skip execing for version (most reliable) and attempt to reexec
-    for env, falling back to the go in GOROOT
+    Preparation step for types2 package.
     
-    Fixes #43981
-    
-    Change-Id: I17fb84d36036807274eecca3d4f64b3add9b9483
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288693
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I8f9557b1a48ad570ba38aac7b720e639218dc6a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263623
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/bug/bug.go     |  8 ++++++--
- src/cmd/go/testdata/script/bug.txt | 14 +++++++++++++-
- 2 files changed, 19 insertions(+), 3 deletions(-)
+ src/cmd/compile/fmtmap_test.go                  |  1 +
+ src/cmd/compile/internal/syntax/testing.go      | 72 +++++++++++++++++++++++++
+ src/cmd/compile/internal/syntax/testing_test.go | 45 ++++++++++++++++
+ 3 files changed, 118 insertions(+)

@@ -1,15 +1,27 @@
-commit 49894be7b10c4d24c77b4aba46a72bca0a43d06c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu May 7 19:10:29 2015 +0900
+commit 029c7bbdfeeccd537a78796f5095157b6eb5f454
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sat Apr 18 08:14:08 2015 +1200
 
-    net: document that ListenMulticastUDP is for simple applications
+    cmd/internal/gc, cmd/internal/ld, cmd/internal/obj: teach compiler about local symbols
     
-    Also mentions golang.org/x/net/ipv4 and golang.org/x/net/ipv6.
+    This lets us avoid loading string constants via the GOT and (together with
+    http://golang.org/cl/9102) results in the fannkuch benchmark having very similar
+    register usage with -dynlink as without.
     
-    Change-Id: I653deac7a5e2b129237655a72d6c91207f1b1685
-    Reviewed-on: https://go-review.googlesource.com/9779
+    Change-Id: Ic3892b399074982b76773c3e547cfbba5dabb6f9
+    Reviewed-on: https://go-review.googlesource.com/9103
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/net/udpsock_plan9.go | 17 ++++++++++++-----
- src/net/udpsock_posix.go | 29 ++++++++++++++++++-----------
- 2 files changed, 30 insertions(+), 16 deletions(-)
+ src/cmd/6g/prog.go               |  2 +-
+ src/cmd/internal/gc/gsubr.go     |  6 +++++-
+ src/cmd/internal/gc/obj.go       |  4 ++--
+ src/cmd/internal/gc/pgen.go      |  2 +-
+ src/cmd/internal/gc/reflect.go   |  6 +++---
+ src/cmd/internal/ld/objfile.go   |  9 +++++++--
+ src/cmd/internal/ld/symtab.go    | 10 +---------
+ src/cmd/internal/obj/link.go     | 32 ++++++++++++++++++++------------
+ src/cmd/internal/obj/objfile.go  |  6 +++++-
+ src/cmd/internal/obj/textflag.go |  3 +++
+ src/cmd/internal/obj/x86/obj6.go | 12 +++++++-----
+ 11 files changed, 55 insertions(+), 37 deletions(-)

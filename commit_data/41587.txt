@@ -1,22 +1,17 @@
-commit 2818a11b1824ca52803a3a335354970fbccfcf2e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 6 17:18:16 2020 -0500
+commit b649bdc7f3c99c5288c91a1ce148efadd86e19a4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 14 12:16:52 2019 -0700
 
-    cmd/go/internal/modload: factor smaller files out of load.go and init.go
+    cmd/compile: remove period from "not allowed in runtime" errors
     
-    No semantic changes intended: just structural cleanup.
+    We don't punctuate compiler diagnostics.
     
-    Updates #36460
-    
-    Change-Id: I405bc2572d3ff00f595dae645e673a11e01621ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222340
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I19e1f30fbf04f0d1bfe6648fae26beaf3a06ee92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201077
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/init.go    | 226 ---------------------
- src/cmd/go/internal/modload/load.go    | 355 ---------------------------------
- src/cmd/go/internal/modload/modfile.go | 164 +++++++++++++++
- src/cmd/go/internal/modload/mvs.go     | 253 +++++++++++++++++++++++
- src/cmd/go/internal/modload/vendor.go  | 217 ++++++++++++++++++++
- 5 files changed, 634 insertions(+), 581 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 2 +-
+ src/cmd/compile/internal/gc/esc.go     | 2 +-
+ src/cmd/compile/internal/gc/walk.go    | 2 +-
+ test/fixedbugs/issue14999.go           | 6 +++---
+ 4 files changed, 6 insertions(+), 6 deletions(-)

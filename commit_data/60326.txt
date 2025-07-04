@@ -1,0 +1,25 @@
+commit 4cf2b02548e7c85d57b35a23c7fda96b44f2cbfc
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 20 16:09:10 2024 -0700
+
+    misc/ios: rework exec wrapper to only support simulator
+    
+    This updates the tools used to execute Go binaries on the Apple iOS
+    Simulator to (a) work with newer arm64 macOS, (b) remove support
+    for running binaries on physical devices, and (c) remove the reliance on
+    LLDB and third-party Python packages. This makes the wrapper somewhat
+    simpler, and easier to understand and maintain. Additionally
+    clangwrap.sh is updated to reflect dropping support for targeting
+    physical devices.
+    
+    This smoothes out the path for #66360.
+    
+    Change-Id: I769127e65f5e8c6c727841168890fd8557fb0e1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573175
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/ios/clangwrap.sh   |  19 +-
+ misc/ios/go_ios_exec.go | 569 +-----------------------------------------------
+ 2 files changed, 23 insertions(+), 565 deletions(-)

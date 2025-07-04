@@ -1,22 +1,23 @@
-commit b08156cd874d9534776cd9ece8f6f4ab092a68a5
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 7 11:27:01 2014 -0500
+commit e31a1ce109e0ddd0efba95fc724a8b424a27824d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 7 15:33:44 2014 +1100
 
-    runtime: fix memory leak in runfinq
+    cmd/gc, cmd/5g, cmd/6g, cmd/8g: introduce linkarchinit and add amd64p32 support
     
-    One reason the sync.Pool finalizer test can fail is that
-    this function's ef1 contains uninitialized data that just
-    happens to point at some of the old pool. I've seen this cause
-    retention of a single pool cache line (32 elements) on arm.
+    Replaces CL 70000043.
     
-    Really we need liveness information for C functions, but
-    for now we can be more careful about data in long-lived
-    C functions that block.
+    Introduce linkarchinit() from cmd/ld.
     
-    LGTM=bradfitz, dvyukov
-    R=golang-codereviews, bradfitz, dvyukov
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/72490043
+    For cmd/6g, switch to the amd64p32 linker model if we are building under nacl/amd64p32.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/71330045
 
- src/pkg/runtime/mgc0.c | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ src/cmd/5g/galign.c |  5 +++++
+ src/cmd/6g/galign.c |  7 +++++++
+ src/cmd/8g/galign.c |  5 +++++
+ src/cmd/gc/go.h     |  1 +
+ src/cmd/gc/lex.c    | 14 +++++++-------
+ 5 files changed, 25 insertions(+), 7 deletions(-)

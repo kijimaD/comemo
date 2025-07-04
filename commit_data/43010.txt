@@ -1,25 +1,23 @@
-commit 7f24142b7b289df7e98ed3e1ccd673824dd1d0ee
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 16 22:15:13 2020 +0200
+commit a908e09a34fff3c47efab69857d27bf6965b948a
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Feb 14 08:34:31 2020 +1100
 
-    syscall, cmd/go/internal/lockedfile/internal/filelock: add and use Flock on illumos
+    runtime: deflake CGO traceback tests
     
-    Copy the syscall wrapper from golang.org/x/sys/unix CL 255377 to provide
-    Flock on illumos and switch cmd/go/internal/lockedfile/internal/filelock
-    to use it.
+    The CGO traceback function is called whenever CGO code is executing and
+    a signal is received. This occurs much more frequently now SIGURG
+    is used for preemption.
     
-    Fixes #35618
+    Disable signal preemption to significantly increase the likelihood that
+    a signal results in a profile sample during the test.
     
-    Change-Id: I876a2b782329a988fa85361fb1ea58eb6f329af1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255258
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Updates #37201
+    
+    Change-Id: Icb1a33ab0754d1a74882a4ee265b4026abe30bdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219417
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../lockedfile/internal/filelock/filelock_fcntl.go |  2 +-
- .../lockedfile/internal/filelock/filelock_test.go  |  2 +-
- .../lockedfile/internal/filelock/filelock_unix.go  |  2 +-
- src/syscall/syscall_illumos.go                     | 25 ++++++++++++++++++++++
- src/syscall/types_illumos_amd64.go                 | 17 +++++++++++++++
- 5 files changed, 45 insertions(+), 3 deletions(-)
+ src/runtime/crash_cgo_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

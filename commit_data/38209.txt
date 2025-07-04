@@ -1,19 +1,30 @@
-commit 0dc62565401eba11bf9aec127c6c9f5aa4ecf1c9
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Mar 3 18:33:34 2019 +0100
+commit 294d16c9c58187492baf1fd8bac034b5fecbf0ba
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 10 11:50:49 2018 +1100
 
-    doc: fix bad lib/time link in 1.12 release notes
+    cmd/doc: add a -src flag to show original source
     
-    There's a "lib/time" sub-section in the Go 1.12 relase notes that
-    points to a non-existent golang.org/pkg/lib/time page.
+    It's long-desired but was blocked by #26835. That is now fixed, so
+    it's easy. When -src is off, we behave as before. But with -src
+    set, initialize the go/doc package to preserve the original AST and
+    things flow very easily.
     
-    The note is about a change in the tz database in the src/lib/time
-    directory, but the section's title (and the link) should probably just
-    refer to the time package.
+    With -src, since you're seeing inside the package source anyway it
+    shows unexported fields and constants: you see the original source.
+    But you still need -u to ask about them.
     
-    Change-Id: Ibf9dacd710e72886f14ad0b7415fea1e8d25b83a
-    Reviewed-on: https://go-review.googlesource.com/c/164977
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #18807
+    
+    Change-Id: I473e90323b4eff0735360274dc0d2d9dba16ff8b
+    Reviewed-on: https://go-review.googlesource.com/c/140959
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.12.html | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/doc/doc_test.go        | 149 ++++++++++++++++++++++++++++-------------
+ src/cmd/doc/main.go            |   5 ++
+ src/cmd/doc/pkg.go             |  21 +++---
+ src/cmd/doc/testdata/pkg.go    |   8 ++-
+ src/cmd/go/alldocs.go          |   7 ++
+ src/cmd/go/internal/doc/doc.go |   7 ++
+ 6 files changed, 141 insertions(+), 56 deletions(-)

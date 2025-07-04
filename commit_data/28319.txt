@@ -1,17 +1,18 @@
-commit b8eb5b53eadd10ed8c84b94a46301a3fc3715282
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Sep 11 23:29:25 2016 +0200
+commit 2699da180967e5d5dab2cc64deeca4680bf2b2fb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 13 14:26:30 2016 +1000
 
-    net: make lookupPort case-insensitive on Plan 9
+    time: set Local.name on windows
     
-    The CL 28951 added TestLookupPort_Minimal, which was failing
-    on Plan 9, because lookupPort was not case-insensitive.
+    Local.String() returns "Local" on every OS, but windows.
+    Change windows code to do like others.
     
-    Change-Id: Ic80dd29dad4ffd1c84c2590e3d5d0e588ab2e6c2
-    Reviewed-on: https://go-review.googlesource.com/29051
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Updates #15568
+    
+    Change-Id: I7a4d2713d940e2a01cff9d7f5cefc89def07546a
+    Reviewed-on: https://go-review.googlesource.com/23078
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/time/zoneinfo_test.go    | 9 +++++++++
+ src/time/zoneinfo_windows.go | 2 ++
+ 2 files changed, 11 insertions(+)

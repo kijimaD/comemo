@@ -1,35 +1,26 @@
-commit 48db2c01b42d959f2d8fa0c24d853bdb6100cf8a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 26 06:56:39 2018 +0000
+commit 366681cc06357cfdca91c18eff059e11e5470383
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Nov 7 11:34:35 2017 +0000
 
-    all: use strings.Builder instead of bytes.Buffer where appropriate
+    cmd/vet: don't warn on escaped newlines in Println
     
-    I grepped for "bytes.Buffer" and "buf.String" and mostly ignored test
-    files. I skipped a few on purpose and probably missed a few others,
-    but otherwise I think this should be most of them.
+    The old code only worked for double-quoted strings, and only checked
+    that the end of the literal value was \n". This worked most of the time,
+    except for some strings like "foo\\n", which doesn't actually translate
+    into a trailing newline when unquoted.
     
-    Updates #18990
+    To fix this, unquote the string first and look for a real newline at the
+    end of it. Ignore errors, as we don't have anything to do with string
+    literals using back quotes.
     
-    Change-Id: I5a6ae4296b87b416d8da02d7bfaf981d8cc14774
-    Reviewed-on: https://go-review.googlesource.com/102479
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #22613.
+    
+    Change-Id: I7cf96916dd578b7068216c2051ec2622cce0b740
+    Reviewed-on: https://go-review.googlesource.com/76194
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/archive/tar/writer.go       |  3 +--
- src/cmd/cover/html.go           |  3 ++-
- src/expvar/expvar.go            |  4 +--
- src/go/types/methodset.go       |  4 +--
- src/mime/encodedword.go         | 56 +++++++++++++----------------------------
- src/mime/mediatype.go           |  7 +++---
- src/net/http/cookie.go          | 12 +++------
- src/net/http/httptest/server.go |  4 +--
- src/net/mail/message.go         |  3 +--
- src/net/url/url.go              | 10 ++++----
- src/regexp/onepass.go           |  4 +--
- src/regexp/syntax/parse_test.go |  6 ++---
- src/regexp/syntax/prog.go       | 14 +++++------
- src/regexp/syntax/regexp.go     |  7 +++---
- src/testing/example.go          |  3 +--
- src/testing/testing.go          |  2 +-
- 16 files changed, 56 insertions(+), 86 deletions(-)
+ src/cmd/vet/print.go          | 5 +++--
+ src/cmd/vet/testdata/print.go | 5 +++++
+ 2 files changed, 8 insertions(+), 2 deletions(-)

@@ -1,17 +1,19 @@
-commit 405c269b858941c46e35fb9a92b45aa75c61561c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 29 18:21:32 2022 -0700
+commit b602daea1b94a8a578bafdc6ef6336c07fe63300
+Author: korzhao <korzhao95@gmail.com>
+Date:   Mon Aug 30 17:09:51 2021 +0800
 
-    go/types, types2: re-enable a couple of commented out tests
+    cmd/compile: fix error when revcType is ptr in selectorExpr
     
-    Change-Id: Ibb27012b18fc0f0f9f9ef74cc120e7ef981e6d43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415156
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Fixes #48056
+    
+    Change-Id: I13ca4caadbabf02084f66ab28b4cf0c4a3705370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346049
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- .../internal/types2/testdata/fixedbugs/issue39634.go        | 13 +++++--------
- src/go/types/testdata/fixedbugs/issue39634.go               | 13 +++++--------
- 2 files changed, 10 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/noder/expr.go |  2 +-
+ test/typeparam/issue48056.go           | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

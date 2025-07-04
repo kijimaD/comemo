@@ -1,13 +1,37 @@
-commit 0c247bf41b51b8528e592cdbeffbd237def72f69
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 18 17:01:55 2015 +1000
+commit e5febf957f5be9d3325c2d851bff6ec7c55e4662
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 13 12:41:56 2015 -0700
 
-    math/big: refine Fibonacci example
+    net/http: flush request body chunks in Transport
     
-    Change-Id: Id9e8c3f89e021b9f389ab3c8403e6a8450fa9f5f
-    Reviewed-on: https://go-review.googlesource.com/11231
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    The Transport's writer to the remote server is wrapped in a
+    bufio.Writer to suppress many small writes while writing headers and
+    trailers. However, when writing the request body, the buffering may get
+    in the way if the request body is arriving slowly.
+    
+    Because the io.Copy from the Request.Body to the writer is already
+    buffered, the outer bufio.Writer is unnecessary and prevents small
+    Request.Body.Reads from going to the server right away. (and the
+    io.Reader contract does say to return when you've got something,
+    instead of blocking waiting for more). After the body is finished, the
+    Transport's bufio.Writer is still used for any trailers following.
+    
+    A previous attempted fix for this made the chunk writer always flush
+    if the underlying type was a bufio.Writer, but that is not quite
+    correct. This CL instead makes it opt-in by using a private sentinel
+    type (wrapping a *bufio.Writer) to the chunk writer that requests
+    Flushes after each chunk body (the chunk header & chunk body are still
+    buffered together into one write).
+    
+    Fixes #6574
+    
+    Change-Id: Icefcdf17130c9e285c80b69af295bfd3e72c3a70
+    Reviewed-on: https://go-review.googlesource.com/10021
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/example_test.go | 38 +++++++++++++++++---------------------
- 1 file changed, 17 insertions(+), 21 deletions(-)
+ src/net/http/internal/chunked.go | 17 ++++++-
+ src/net/http/transfer.go         |  5 ++
+ src/net/http/transport_test.go   | 99 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 119 insertions(+), 2 deletions(-)

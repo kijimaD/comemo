@@ -1,12 +1,14 @@
-commit bb4a490928aeb1b6d6cc50954da141b3cf0cacde
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 22 15:39:53 2012 -0500
+commit 213997a7302c07f74d35ab0510e80f0ed1c2ff22
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 22 15:35:41 2012 -0500
 
-    builder: reuse existing workspace if possible
+    net: delete debugging print
     
-    R=golang-dev, bradfitz, rsc
+    Fixes #3030.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5690069
+    https://golang.org/cl/5689071
 
- misc/dashboard/builder/main.go | 22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
+ src/pkg/net/fd.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,12 +1,16 @@
-commit 368f0ee6c4dc60b314dffbb63f5eab0ad62185d2
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Jun 11 16:44:08 2015 -0400
+commit f97f876125f72f543a14f57fb6570dee6bfa2c6f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 6 19:25:04 2015 -0700
 
-    go/types: add Example of API usage
+    net: disable failing ICMP test for now
     
-    Change-Id: I9d3253b80508d733053789d6cb9645e029bf52e4
-    Reviewed-on: https://go-review.googlesource.com/10927
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    To be fixed later.
+    
+    Updates #10730
+    
+    Change-Id: Icac19f48c9e035dce192c97943b77b60411a3ea2
+    Reviewed-on: https://go-review.googlesource.com/9797
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/go/types/example_test.go | 307 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 307 insertions(+)
+ src/net/file_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

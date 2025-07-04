@@ -1,13 +1,19 @@
-commit c063e342f823040faeccee8c5c7c6f1b11fb730d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jan 7 09:36:52 2016 +0900
+commit 0ca4488cc1b91caef2667b6b58ff1562d44a2c74
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 2 16:59:39 2015 -0500
 
-    net/http, net/http/httputil: fix nits found by vet
+    runtime: change p.runq from []*g to []guintptr
     
-    Change-Id: Idf02428591f61dc58f654fdaf0e3a55f8b8a1060
-    Reviewed-on: https://go-review.googlesource.com/18350
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This eliminates many write barriers in the scheduler code that are
+    unnecessary and will interfere with upcoming changes where the garbage
+    collector will have to invoke run queue functions in contexts that
+    must not have write barriers.
+    
+    Change-Id: I702d0ac99cfd00ffff406e7362917db6a43e7e55
+    Reviewed-on: https://go-review.googlesource.com/16556
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/net/http/httputil/reverseproxy_test.go | 2 +-
- src/net/http/serve_test.go                 | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/proc.go     | 14 +++++++-------
+ src/runtime/runtime2.go |  2 +-
+ 2 files changed, 8 insertions(+), 8 deletions(-)

@@ -1,24 +1,30 @@
-commit 4140da7b57f944cc16324496adcc5a41d7a987ed
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Apr 4 13:07:24 2016 -0400
+commit 42f07ff2679d38a03522db3ccd488f4cc230c8c2
+Author: Ross Light <light@google.com>
+Date:   Thu Feb 4 15:39:00 2016 -0800
 
-    cmd/link, cmd/compile: typelink sorting in linker
+    os/user: add LookupGroup, LookupGroupId, and User.GroupIds functions
     
-    Instead of writing out the type almost twice in the symbol name,
-    teach the linker how to sort typelink symbols by their contents.
+    As part of local testing with a large group member list, I discovered
+    that the lookup functions don't resize their buffer if they receive
+    ERANGE.  I fixed this as a side-effect of this CL.
     
-    This ~halves the size of typelink symbol names, which helps very
-    large (6KB) names like those mentioned in #15104.
+    Thanks to @andrenth for the original CL.
     
-    This does not increase the total sorting work done by the linker,
-    and makes it possible to use shorter symbol names for types. See
-    the follow-on CL 21583.
+    Fixes #2617
     
-    Change-Id: Ie5807565ed07d31bc477d20f60e4c0b47144f337
-    Reviewed-on: https://go-review.googlesource.com/21457
+    Change-Id: Ie6aae2fe0a89eae5cce85786869a8acaa665ffe9
+    Reviewed-on: https://go-review.googlesource.com/19235
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 11 +----------
- src/cmd/link/internal/ld/data.go       |  8 ++++++++
- src/cmd/link/internal/ld/decodesym.go  | 12 ++++++++++++
- 3 files changed, 21 insertions(+), 10 deletions(-)
+ src/os/user/lookup.go         |  21 +++-
+ src/os/user/lookup_android.go |  38 ++++++
+ src/os/user/lookup_plan9.go   |  20 ++-
+ src/os/user/lookup_stubs.go   |  32 +++--
+ src/os/user/lookup_unix.go    | 278 +++++++++++++++++++++++++++++++++++-------
+ src/os/user/lookup_windows.go |  21 +++-
+ src/os/user/user.go           |  36 +++++-
+ src/os/user/user_test.go      |  64 +++++++++-
+ 8 files changed, 437 insertions(+), 73 deletions(-)

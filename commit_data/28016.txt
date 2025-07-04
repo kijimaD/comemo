@@ -1,17 +1,21 @@
-commit ee333b4b7482873e24d39c5c0b3ea1f7ea4ebdcc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 22 15:56:27 2016 -0700
+commit 0b6332eb54767f916926ae39516ddaed87b26edb
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 25 16:24:11 2016 -0400
 
-    cmd/compile: don't Fatal when printing -m debug information
+    cmd/compile: fix another bug in dominator computation
     
-    Some FmtSharp export formatting flag support was removed with
-    commit b4e9f70. Don't panic if FmtSharp is set, just ignore it.
+    Here, "fix" means "replace".  The new dominator computation
+    is the "simple" algorithm from Lengauer and Tarjan's TOPLAS
+    paper, with minimal changes.
     
-    Fixes #16820.
+    Also included is a test that tweaks the fixed error.
     
-    Change-Id: Ie0c3d3774bd55002f6d2781b1212d070f083e6b2
-    Reviewed-on: https://go-review.googlesource.com/27556
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0abdf53d5d64df1e67e4e62f55e88957045cd63b
+    Reviewed-on: https://go-review.googlesource.com/22401
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/dom.go      | 279 ++++++++++++-------------------
+ src/cmd/compile/internal/ssa/dom_test.go | 165 ++++++++++++++----
+ 2 files changed, 241 insertions(+), 203 deletions(-)

@@ -1,47 +1,20 @@
-commit 2f2c5e41e7728cae99abd14e8bd5ffcfebf9df8e
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Mon Jan 30 17:27:42 2023 +0000
+commit ac3efc83e6747c3e7e56250774332cec5d2862f4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Mar 22 16:38:13 2022 -0400
 
-    cmd/go/internal/par: use generic Cache
+    cmd/link: write output in temp dir in TestUnlinkableObj
     
-    Using generics here makes the code easier to understand,
-    as the contract is clearly specified. It also makes the
-    code a little more concise, as it's easy to write a wrapper
-    for the cache that adds an error value, meaning that
-    a bunch of auxilliary types no longer need to be defined
-    for this common case.
+    For unlinkable object the link will fail, but it opens the output
+    file in writable mode first then delete it on failure. This fails
+    if the current directory is not writable. Write to the temporary
+    directory instead.
     
-    The load.cachingRepo code has been changed to use a separate
-    cache for each key-value type combination, which seems a bit less
-    sleazy, but might have some knock-on effect on memory usage,
-    and could easily be changed back if desired.
-    
-    Because there's no longer an unambiguous way to find out
-    whether there's an entry in the cache, the Cache.Get method
-    now returns a bool as well as the value itself.
-    
-    Change-Id: I28443125bab0b3720cc95d750e72d28e9b96257d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463843
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: roger peppe <rogpeppe@gmail.com>
+    Change-Id: Iefd73b5cc8efdc0f11b12edc0920169a8ad3f37c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394755
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/load/pkg.go              | 76 +++++++++++---------------
- src/cmd/go/internal/modfetch/cache.go        | 82 ++++++++++++----------------
- src/cmd/go/internal/modfetch/codehost/git.go | 39 +++++--------
- src/cmd/go/internal/modfetch/codehost/vcs.go | 25 ++++-----
- src/cmd/go/internal/modfetch/fetch.go        | 40 +++++---------
- src/cmd/go/internal/modfetch/repo.go         | 14 ++---
- src/cmd/go/internal/modget/get.go            | 26 ++++-----
- src/cmd/go/internal/modindex/read.go         | 42 +++++---------
- src/cmd/go/internal/modindex/scan.go         |  3 -
- src/cmd/go/internal/modload/build.go         |  2 +-
- src/cmd/go/internal/modload/buildlist.go     | 23 +++-----
- src/cmd/go/internal/modload/import.go        | 27 ++++-----
- src/cmd/go/internal/modload/load.go          | 16 +++---
- src/cmd/go/internal/modload/modfile.go       | 39 ++++---------
- src/cmd/go/internal/par/work.go              | 67 +++++++++++++++++------
- src/cmd/go/internal/par/work_test.go         | 10 ++--
- src/cmd/go/proxy_test.go                     | 32 +++++------
- 17 files changed, 241 insertions(+), 322 deletions(-)
+ src/cmd/link/link_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

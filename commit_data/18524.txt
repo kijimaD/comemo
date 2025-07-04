@@ -1,18 +1,14 @@
-commit e71d147750dc4dce115c5614fc96877aa08da596
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Feb 14 13:20:41 2014 +0400
+commit 6a9b98888e63d511c1008e01bbe826caf8c697c9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Feb 14 00:38:55 2014 -0500
 
-    runtime: fix mem profile when both large and small objects are allocated at the same stack
-    Currently small and large (size>rate) objects are merged into a single entry.
-    But rate adjusting is required only for small objects.
-    As a result pprof either incorrectly adjusts large objects
-    or does not adjust small objects.
-    With this change objects of different sizes are stored in different buckets.
+    cmd/go: hide the "TERM" environment variable from "go env"
+    It's implementation detail.
     
     LGTM=rsc
-    R=golang-codereviews, gobot, rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/59220049
+    https://golang.org/cl/63690043
 
- src/pkg/runtime/mprof.goc | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+ src/cmd/go/env.go | 22 ++++++++++------------
+ 1 file changed, 10 insertions(+), 12 deletions(-)

@@ -1,0 +1,21 @@
+commit 8524931a2cdc6a57afdf6f4b3375cb261c2557da
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Feb 9 09:45:55 2024 -0800
+
+    crypto/x509: reject serial numbers longer than 20 octets
+    
+    Updates #65085
+    
+    Change-Id: I8e5fb6c77c54f07247b30afea9fe8c548bf6d0be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562975
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/godebug.md                 |  5 +++++
+ src/crypto/x509/parser.go      | 24 +++++++++++++++++++++++-
+ src/crypto/x509/x509_test.go   | 23 +++++++++++++++++++++++
+ src/internal/godebugs/table.go |  1 +
+ src/runtime/metrics/doc.go     |  5 +++++
+ 5 files changed, 57 insertions(+), 1 deletion(-)

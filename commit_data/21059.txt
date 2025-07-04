@@ -1,21 +1,27 @@
-commit 326ceeabc46db98cccfbde80fde562c0fb3325c3
-Author: Austin Clements <austin@google.com>
-Date:   Wed Dec 17 12:13:47 2014 -0500
+commit fee9e47559cac5ad31a36747627431742ac079d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:05:19 2014 -0500
 
-    cmd/ld: add a text generation pass
+    [dev.cc] runtime: convert header files to Go
     
-    This will be used by ppc64 to add call stubs to the .text section.
-    ARM needs a similar pass to generate veneers for arm->thumb
-    transitions.
+    The conversion was done with an automated tool and then
+    modified only as necessary to make it compile and run.
     
-    Change-Id: Iaee74036e60643a56fab15b564718f359c5910eb
-    Reviewed-on: https://go-review.googlesource.com/2004
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
+    
+    LGTM=r
+    R=r, austin
+    CC=dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/167550043
 
- src/cmd/5l/asm.c  | 5 +++++
- src/cmd/6l/asm.c  | 5 +++++
- src/cmd/8l/asm.c  | 5 +++++
- src/cmd/9l/asm.c  | 5 +++++
- src/cmd/ld/lib.h  | 1 +
- src/cmd/ld/pobj.c | 1 +
- 6 files changed, 22 insertions(+)
+ src/runtime/chan.h       |   68 ---
+ src/runtime/chan1.go     |   61 +++
+ src/runtime/funcdata.h   |   10 +-
+ src/runtime/runtime.h    | 1130 ----------------------------------------------
+ src/runtime/runtime2.go  |  610 +++++++++++++++++++++++++
+ src/runtime/type.go      |   99 ++++
+ src/runtime/type.h       |  113 -----
+ src/runtime/typekind.h   |   12 +-
+ src/runtime/typekind1.go |   39 ++
+ 9 files changed, 821 insertions(+), 1321 deletions(-)

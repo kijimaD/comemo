@@ -1,15 +1,23 @@
-commit de20cec9c94ae1c29830cbb288f19bdf5fd961df
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Wed Aug 24 14:55:03 2011 -0700
+commit 42687d6ce4632cdb7ca428c16cad7c1b2db77263
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 24 16:47:32 2011 -0400
 
-    big: fix nat.scan bug
+    gc: simplify escape analysis recursion
     
-    Scanning "0" with detected base did not actually set the nat to 0.
+    Merge escassign(N, x), escassign(x, N), escexpr(n), and escstmt(n) into esc(n).
     
-    R=gri
+    1. Renaming
+    https://golang.org/cl/4917050/diff2/1:2001/src/cmd/gc/esc.c
+    
+    2. Merging.
+    https://golang.org/cl/4917050/diff2/2001:4001/src/cmd/gc/esc.c
+    
+    3. Simplify esccall.
+    https://golang.org/cl/4917050/diff2/4001:5002/src/cmd/gc/esc.c
+    
+    R=lvd
     CC=golang-dev
-    https://golang.org/cl/4923050
+    https://golang.org/cl/4917050
 
- src/pkg/big/int_test.go | 3 +++
- src/pkg/big/nat.go      | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/gc/esc.c | 548 ++++++++++++++++++++++---------------------------------
+ 1 file changed, 218 insertions(+), 330 deletions(-)

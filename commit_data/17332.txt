@@ -1,13 +1,23 @@
-commit a3695fb2273d458974a02bc19f1606f10e6ff388
-Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 20 11:14:45 2013 +1000
+commit ca2d32b46d7ac60efe63cc310a0261292afffe20
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Aug 19 14:16:55 2013 -0700
 
-    api: update next.txt, except.txt
+    undo CL 12785045 / 71ce80dc4195
     
-    R=golang-dev, bradfitz
+    This has broken the 32-bit builds.
+    
+    ««« original CL description
+    cmd/gc, runtime: use type information to scan interface values
+    
+    R=golang-dev, rsc, dvyukov
     CC=golang-dev
-    https://golang.org/cl/12926046
+    https://golang.org/cl/12785045
+    »»»
+    
+    R=khr, golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/13010045
 
- api/except.txt |  1 +
- api/next.txt   | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+)
+ src/cmd/gc/pgen.c      |  1 +
+ src/pkg/runtime/mgc0.c | 54 ++++++++++----------------------------------------
+ 2 files changed, 12 insertions(+), 43 deletions(-)

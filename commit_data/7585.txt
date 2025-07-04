@@ -1,13 +1,18 @@
-commit dd51f3537f50d645f58b4a737d6dcef036cfea73
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Feb 28 10:21:19 2011 -0500
+commit 582fd17e11a25f7e1410a5e1dc9057b409f9b4e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 27 23:32:42 2011 -0500
 
-    syscall: regenerate zerrors_freebsd_amd64.go
+    runtime: idle goroutine
     
-    R=golang-dev, rsc
+    This functionality might be used in environments
+    where programs are limited to a single thread,
+    to simulate a select-driven network server.  It is
+    not exposed via the standard runtime API.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4248043
+    https://golang.org/cl/4254041
 
- src/pkg/syscall/zerrors_freebsd_amd64.go | 1 -
- src/pkg/syscall/zsysnum_freebsd_amd64.go | 2 +-
- 2 files changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/runtime/proc.c    | 28 ++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h |  2 ++
+ 2 files changed, 30 insertions(+)

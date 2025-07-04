@@ -1,17 +1,18 @@
-commit 3fd491747247e95d00e24feccd1568b9e7eb37b4
-Author: Hollow Man <hollowman@hollowman.ml>
-Date:   Fri Nov 20 16:44:15 2020 +0000
+commit a3374fa0f8ffe27d3a1e118b75b484ce56c7af2e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 26 13:02:32 2020 -0700
 
-    doc: fix misspelling of “initialization” in diagnostics.html
+    cmd/compile: convert more generic rules to typed aux
     
-    initilization -> initialization
+    Passes toolstash-check.
     
-    Change-Id: Ie5edd30559941f2d044280d8d586c2c2692d5b69
-    GitHub-Last-Rev: 7495a8c7227bc9c574c93861e5fedc1bada0397c
-    GitHub-Pull-Request: golang/go#42749
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272026
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I07d79d809babfeda883a49f0b21ab27ede5381cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230211
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/diagnostics.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  64 +++---
+ src/cmd/compile/internal/ssa/magic.go          |   7 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 274 ++++++++++++-------------
+ 3 files changed, 176 insertions(+), 169 deletions(-)

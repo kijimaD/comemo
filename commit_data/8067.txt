@@ -1,20 +1,13 @@
-commit 1d26908d3f625e7bb932fb297e50857f6af224cc
+commit da8c5e7239d7c1e7238605c2b7f9a954dd8a2997
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 13 16:18:09 2011 -0400
+Date:   Wed Apr 13 16:17:49 2011 -0400
 
-    build: use gcc -Werror
+    os/inotify: use _test for test files, not _obj
     
-    Better to fix the warnings that we find.
-    
-    R=iant
+    R=golang-dev, r, iant2
     CC=golang-dev
-    https://golang.org/cl/4406042
+    https://golang.org/cl/4408043
 
- src/cmd/5c/peep.c | 4 ++--
- src/cmd/5c/txt.c  | 4 ++++
- src/cmd/6c/peep.c | 4 ++--
- src/cmd/6c/txt.c  | 6 ++++--
- src/cmd/8c/peep.c | 2 +-
- src/cmd/8c/txt.c  | 4 ++++
- src/quietgcc.bash | 7 +------
- 7 files changed, 18 insertions(+), 13 deletions(-)
+ src/pkg/os/inotify/inotify_linux.go      | 2 +-
+ src/pkg/os/inotify/inotify_linux_test.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

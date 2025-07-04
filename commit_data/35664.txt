@@ -1,21 +1,30 @@
-commit 29b631e6f4fb3729cf4b369bcf47316f0d426845
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jun 11 14:41:58 2018 +0200
+commit a379b7d9acd69cd4a23eec7d7409084e15f8ace0
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Feb 28 14:29:27 2018 +0000
 
-    net: update file read position after sendfile syscall
+    syscall: reduce redundant getwd tracking in Plan 9
     
-    On dragonfly, freebsd and solaris the sendfile syscall does not update
-    the read position of the source fd. Update it after sendfile so
-    successive calls start at the correct position.
+    In Plan 9, each M is implemented as a separate OS process with
+    its own working directory.  To keep the wd consistent across
+    goroutines (or rescheduling of the same goroutine), CL 6350
+    introduced a Fixwd procedure which checks using getwd and calls
+    chdir if necessary before any syscall operating on a pathname.
     
-    Fixes #25809
+    This wd checking will not be necessary if the pathname is absolute
+    (starts with '/' or '#').  Getwd is a fairly expensive operation
+    in Plan 9 (implemented by opening "." and calling Fd2path on the
+    file descriptor).  Eliminating the redundant getwd calls can
+    significantly reduce overhead for common operations like
+    "dist test --list" which perform many syscalls on absolute pathnames.
     
-    Change-Id: Iaac79f89704b75b8038d4bb60eaf793a262cdd8f
-    Reviewed-on: https://go-review.googlesource.com/117895
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #9428.
+    
+    Change-Id: I13fd9380779de27b0ac2f2b488229778d6839255
+    Reviewed-on: https://go-review.googlesource.com/97675
+    Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
 
- src/net/sendfile_test.go     | 6 ------
- src/net/sendfile_unix_alt.go | 6 ++++++
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/syscall/pwd_plan9.go     | 10 ++++++++++
+ src/syscall/syscall_plan9.go | 16 ++++++++--------
+ 2 files changed, 18 insertions(+), 8 deletions(-)

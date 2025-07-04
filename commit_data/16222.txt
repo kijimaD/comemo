@@ -1,15 +1,18 @@
-commit 73417e4098f59b3b03e7b3287427be6e47d9f56e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Apr 24 08:32:11 2013 +0900
+commit 7bec1a6033d92e140a255c1093d587c3927e1ab9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 24 04:46:14 2013 +0800
 
-    net: add missing File method document
+    all: fix typos
     
-    R=golang-dev, bradfitz, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8698049
+    https://golang.org/cl/8896045
 
- src/pkg/net/tcpsock_plan9.go  | 4 ++++
- src/pkg/net/tcpsock_posix.go  | 4 ++++
- src/pkg/net/unixsock_plan9.go | 4 ++++
- src/pkg/net/unixsock_posix.go | 4 ++++
- 4 files changed, 16 insertions(+)
+ doc/articles/image_package.html | 4 ++--
+ doc/codewalk/urlpoll.go         | 2 +-
+ doc/devel/weekly.html           | 4 ++--
+ src/pkg/net/http/serve_test.go  | 2 +-
+ src/pkg/net/http/server.go      | 2 +-
+ src/pkg/runtime/chan.c          | 2 +-
+ src/pkg/runtime/os_darwin.c     | 2 +-
+ 7 files changed, 9 insertions(+), 9 deletions(-)

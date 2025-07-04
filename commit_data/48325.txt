@@ -1,26 +1,44 @@
-commit 085ef537c4a2c57d373e72f4a110d9fae9a287be
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 8 14:54:53 2022 +0100
+commit b211fe005860db3ceff5fd56af9951d6d1f44325
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 7 14:14:39 2021 -0700
 
-    os, internal/syscall/unix: consolidate Pipe implementations
+    cmd/compile: remove bit operations that modify memory directly
     
-    All platforms with the pipe2 syscall now provide syscall.Pipe2.  Use it
-    to implement os.Pipe.
+    These operations (BT{S,R,C}{Q,L}modify) are quite a bit slower than
+    other ways of doing the same thing.
     
-    This also allows to drop the illumos-specific wrapper in
-    internal/sys/unix.
+    Without the BTxmodify operations, there are two fallback ways the compiler
+    performs these operations: AND/OR/XOR operations directly on memory, or
+    load-BTx-write sequences. The compiler kinda chooses one arbitrarily
+    depending on rewrite rule application order. Currently, it uses
+    load-BTx-write for the Const benchmarks and AND/OR/XOR directly to memory
+    for the non-Const benchmarks. TBD, someone might investigate which of
+    the two fallback strategies is really better. For now, they are both
+    better than BTx ops.
     
-    Change-Id: Ieb712a1498e86a389bad261e4e97c61c11d4bdd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390715
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Matt Layher <mdlayher@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    name              old time/op  new time/op  delta
+    BitSet-8          1.09µs ± 2%  0.64µs ± 5%  -41.60%  (p=0.000 n=9+10)
+    BitClear-8        1.15µs ± 3%  0.68µs ± 6%  -41.00%  (p=0.000 n=10+10)
+    BitToggle-8       1.18µs ± 4%  0.73µs ± 2%  -38.36%  (p=0.000 n=10+8)
+    BitSetConst-8     37.0ns ± 7%  25.8ns ± 2%  -30.24%  (p=0.000 n=10+10)
+    BitClearConst-8   30.7ns ± 2%  25.0ns ±12%  -18.46%  (p=0.000 n=10+10)
+    BitToggleConst-8  36.9ns ± 1%  23.8ns ± 3%  -35.46%  (p=0.000 n=9+10)
+    
+    Fixes #45790
+    Update #45242
+    
+    Change-Id: Ie33a72dc139f261af82db15d446cd0855afb4e59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318149
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ben Shi <powerman1st@163.com>
 
- src/internal/syscall/unix/pipe2_illumos.go | 34 ------------------------------
- src/os/pipe2_illumos.go                    | 25 ----------------------
- src/os/{pipe2_bsd.go => pipe2_unix.go}     |  4 ++--
- src/os/pipe_linux.go                       | 20 ------------------
- src/os/{pipe_bsd.go => pipe_unix.go}       |  2 +-
- 5 files changed, 3 insertions(+), 82 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |    4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   56 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   19 -
+ src/cmd/compile/internal/ssa/opGen.go        |  186 ----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1221 +-------------------------
+ src/cmd/compile/internal/test/bench_test.go  |   60 ++
+ test/codegen/bits.go                         |   12 -
+ 7 files changed, 127 insertions(+), 1431 deletions(-)

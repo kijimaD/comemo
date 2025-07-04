@@ -1,18 +1,15 @@
-commit 8d51c330122a88a7f6644580c6907ca634357f16
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Mar 9 18:14:00 2013 -0800
+commit 18f926aab3dca78d8e617c5c8923eb3acf5630ea
+Author: Steve McCoy <mccoyst@gmail.com>
+Date:   Sat Mar 9 14:51:57 2013 -0800
 
-    net: evaluate the timeout dial opt's deadline at dial time
+    cgo: enable external linking mode on FreeBSD amd64.
     
-    Previously it was evaluated once, so re-using the timeout option
-    repeatedly would always generate the same deadine.
+    Tested on FreeBSD 9.1 amd64, per rsc's instructions at
+    https://groups.google.com/d/topic/golang-dev/HjRTLvRsJXo/discussion .
     
-    Also switch to doing just one pass over the options, making
-    the private interface actually useful.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, lucio.dere, devon.odell, rsc
     CC=golang-dev
-    https://golang.org/cl/7608045
+    https://golang.org/cl/7664044
 
- src/pkg/net/dial.go | 88 ++++++++++++++++++++++++++++-------------------------
- 1 file changed, 47 insertions(+), 41 deletions(-)
+ src/cmd/6l/obj.c | 1 +
+ 1 file changed, 1 insertion(+)

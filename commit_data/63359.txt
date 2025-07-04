@@ -1,0 +1,15 @@
+commit 27ad1f50135c6de20c2afd593cdd17f47c2388e0
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 26 14:36:14 2025 -0700
+
+    internal/abi: fix comment on NonEmptyInterface
+    
+    Change-Id: Ia3f4e844049caf11ae67d1bd6dd48350f51c532f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684375
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/abi/iface.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

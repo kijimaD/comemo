@@ -1,17 +1,14 @@
-commit 84bb2547fb81f00c563e3cbe0f310307980d7408
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Mar 26 23:06:20 2012 -0400
+commit 603a44c50f8028500ff012de2549313cfcbc96c6
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Tue Mar 27 14:03:46 2012 +1100
 
-    runtime: restore deadlock detection in the simplest case.
+    doc: fix concurrency patterns rawhtml generation
     
-    Fixes #3342.
+    The Makefile target was broken due to the rename of the HTML file.
     
-    R=iant, r, dave, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5844051
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5918045
 
- src/pkg/runtime/mheap.c  |  3 +++
- src/pkg/runtime/proc.c   | 19 ++++++++++++++-----
- test/fixedbugs/bug429.go | 13 +++++++++++++
- test/golden.out          |  3 +++
- 4 files changed, 33 insertions(+), 5 deletions(-)
+ doc/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

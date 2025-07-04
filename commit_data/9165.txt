@@ -1,15 +1,45 @@
-commit 22853098a9a3139260b6d0efcd95a825999807b0
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 21 14:10:39 2011 -0400
+commit 6b2ec065871019d07dcbe6ca527fbd4c600e1c19
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 21 13:57:13 2011 -0400
 
-    gc: select functions are no longer special
+    runtime: faster select
     
-    R=ken2
+    Make selectsend() accept pointer to the element,
+    it makes it possible to make Scase fixed-size
+    and allocate/free Select, all Scase's and all SudoG at once.
+    As a consequence SudoG freelist die out.
+    
+    benchmark                       old,ns/op  new,ns/op
+    BenchmarkSelectUncontended           1080        558
+    BenchmarkSelectUncontended-2          675        264
+    BenchmarkSelectUncontended-4          459        205
+    BenchmarkSelectContended             1086        560
+    BenchmarkSelectContended-2           1775       1672
+    BenchmarkSelectContended-4           2668       2149
+    (on Intel Q6600, 4 cores, 2.4GHz)
+    
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkSelectUncontended         517.00       326.00  -36.94%
+    BenchmarkSelectUncontended-2       281.00       166.00  -40.93%
+    BenchmarkSelectUncontended-4       250.00        83.10  -66.76%
+    BenchmarkSelectUncontended-8       107.00        47.40  -55.70%
+    BenchmarkSelectUncontended-16       67.80        41.30  -39.09%
+    BenchmarkSelectContended           513.00       325.00  -36.65%
+    BenchmarkSelectContended-2         699.00       628.00  -10.16%
+    BenchmarkSelectContended-4        1085.00      1092.00   +0.65%
+    BenchmarkSelectContended-8        3253.00      2477.00  -23.85%
+    BenchmarkSelectContended-16       5313.00      5116.00   -3.71%
+    (on Intel E5620, 8 HT cores, 2.4 GHz)
+    
+    R=rsc, ken
     CC=golang-dev
-    https://golang.org/cl/4794049
+    https://golang.org/cl/4811041
 
- src/cmd/gc/go.h        |  1 -
- src/cmd/gc/subr.c      | 23 -----------------------
- src/cmd/gc/walk.c      | 11 -----------
- src/pkg/runtime/chan.c | 12 ++++++++++++
- 4 files changed, 12 insertions(+), 35 deletions(-)
+ src/cmd/gc/builtin.c.boot |   2 +-
+ src/cmd/gc/go.h           |   1 +
+ src/cmd/gc/runtime.go     |   2 +-
+ src/cmd/gc/select.c       |   7 +-
+ src/cmd/gc/subr.c         |  37 ++++++--
+ src/cmd/ld/dwarf.c        |   1 -
+ src/pkg/runtime/chan.c    | 236 +++++++++++++++++-----------------------------
+ 7 files changed, 124 insertions(+), 162 deletions(-)

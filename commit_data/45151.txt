@@ -1,17 +1,18 @@
-commit d27bb8ba2ecf18b2d69d4eb72080a17ebff09f64
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Wed Apr 14 12:45:42 2021 +0200
+commit 470829d474fb5ae1125c81bdfb10375373c881d5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Oct 7 13:42:49 2020 -0400
 
-    go/build: replace os.Setenv with T.Setenv
+    doc/go1.16: document GO386=387 and GO386=softfloat
     
-    Updates #45448
+    Also add a few more TODOs as found by the relnote command.
+    It's an incomplete list due to #41849.
     
-    Change-Id: I4d8e5d7e57818355ef2bc33b57ddf9c8b8da3e62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310030
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    For #40700.
+    
+    Change-Id: Id17a9be86d3338e1fcb281d26e7298ff26e92864
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260337
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/build/build_test.go | 27 +++++++++------------------
- 1 file changed, 9 insertions(+), 18 deletions(-)
+ doc/go1.16.html | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

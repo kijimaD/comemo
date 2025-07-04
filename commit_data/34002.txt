@@ -1,15 +1,31 @@
-commit 8554fd6e7dbfc76805ca48b71765879eeb6fb64d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 11 17:37:16 2018 -0800
+commit 45395b5ad6d59f418cbe8b93950c9bae6e6f2196
+Author: griesemer <gri@golang.org>
+Date:   Fri Sep 22 16:24:25 2017 +0200
 
-    cmd/compile: document reserved import paths
+    go/types: don't accept incorrect shift expression arguments
     
-    Fixes #20708.
+    Under certain circumstances involving shifts, go/types didn't verify
+    that untyped constant values were representable by the relevant type,
+    leading to the acceptance of incorrect programs (see the issue).
     
-    Change-Id: I2db450947b64b8b5af3822c7fbcc3e99746ae9d7
-    Reviewed-on: https://go-review.googlesource.com/87496
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixing this code exposed another problem with int-to-string conversions
+    which suddenly failed because now the type-checker complained that a
+    (constant) integer argument wasn't representable as a string. Fixed that
+    as well.
+    
+    Added many additional tests covering the various scenarious.
+    
+    Found two cmd/compile bugs in the process (#21979, #21981) and filed
+    a go/types TODO (#21982).
+    
+    Fixes #21727.
+    
+    Change-Id: If443ee0230979cd7d45d2fc669e623648caa70da
+    Reviewed-on: https://go-review.googlesource.com/65370
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/subr.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/go/types/api_test.go         | 18 ++++++++++++++----
+ src/go/types/conversions.go      | 17 +++++++++++++++--
+ src/go/types/expr.go             | 28 +++++++++++++++++++---------
+ src/go/types/testdata/shifts.src |  9 +++++++++
+ 4 files changed, 57 insertions(+), 15 deletions(-)

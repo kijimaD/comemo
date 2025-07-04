@@ -1,20 +1,17 @@
-commit 99bc53f5e819c2d2d49f2a56c488898085be3982
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Feb 14 00:10:10 2023 +0700
+commit f1b5c048d7b7589a5b3ae423114baf27b3456021
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Feb 14 19:28:20 2022 +0000
 
-    doc: add clear builtin to spec
+    runtime/internal/atomic: add Bool
     
-    Fixes #56351
+    This change adds the Bool type, a convenient wrapper around Uint8 for
+    atomic bool values.
     
-    Change-Id: Ia87bf594553b7d0464b591106840f849571c5f39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467755
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I86127d6f213b730d6999db5718ca1a5af0c5b538
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393395
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- doc/go_spec.html | 38 +++++++++++++++++++++++++++++++++++---
- 1 file changed, 35 insertions(+), 3 deletions(-)
+ src/runtime/internal/atomic/types.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

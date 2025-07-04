@@ -1,37 +1,15 @@
-commit 3a0fbfab57b133f4703cc7693a2af745570785ba
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Feb 5 16:08:29 2015 +0300
+commit c39d6692306e479ebd9282f1195206abdd424853
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Jan 25 19:01:58 2015 -0500
 
-    cmd/gc: generate simpler names for closures
+    archive/tar: set Header.Mode in example
     
-    Fixes #8291
+    Creating a tar containing files with 0000 permission bits is
+    not going to be useful.
     
-    There were several complaints about closure names in the issue tracker.
-    The first problem is that you see names like net/http.func·001
-    in profiles, traces, etc. And there is no way to figure out what
-    is that function.
-    Another issue is non-US-ascii symbols. All programs out there
-    should accept UTF-8. But unfortunately it is not true in reality.
-    For example, less does not render middle dot properly.
-    
-    This change prepends outer function name to closure name and
-    replaces middle dot with dot. Now names look like:
-    
-    main.glob.func1
-    main.glob.func2
-    main.glob.func2.1
-    main.init.1
-    main.init.1.func1
-    main.init.1.func1.1
-    main.main.func1
-    main.main.func1.1
-    
-    Change-Id: I725726af88f2ad3ced2e3450f0f06bf459fd91c0
-    Reviewed-on: https://go-review.googlesource.com/3964
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie489c2891c335d32270b18f37b0e32ecdca536a6
+    Reviewed-on: https://go-review.googlesource.com/3271
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gc/closure.c | 61 ++++++++++++++++++++++++++++++++++++++++++++--------
- src/cmd/gc/go.h      |  2 ++
- src/cmd/gc/init.c    | 11 +++++-----
- src/cmd/gc/pgen.c    |  2 +-
- 4 files changed, 60 insertions(+), 16 deletions(-)
+ src/archive/tar/example_test.go | 1 +
+ 1 file changed, 1 insertion(+)

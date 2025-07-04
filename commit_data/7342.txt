@@ -1,18 +1,16 @@
-commit 34336bd9f382512bda42711526031a6d94bd01df
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Feb 2 22:37:40 2011 -0500
+commit cf63e34b1dfe25f4a9f1d21294891bbe96d6540d
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Wed Feb 2 22:36:54 2011 -0500
 
-    cgo: fix _cgo_run timestamp file order
+    gc: correct rounding of denormal constants
     
-    The timestamp file is being created before cgo
-    runs, which means errors will not prevent it
-    from being created and thus will cause the
-    build to break by rendering the rule up-to-date
-    when it isn't.
+    Fixes #1463.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4001049
+    https://golang.org/cl/4079060
 
- src/Make.pkg | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/mparith3.c        | 27 ++++++++++++++++++++-------
+ src/pkg/strconv/ftoa_test.go |  3 +--
+ test/fixedbugs/bug321.go     | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 9 deletions(-)

@@ -1,18 +1,45 @@
-commit 521393e7e05cd9272ae6023387fa92839d72eb4f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jul 27 13:57:12 2020 -0400
+commit a1103dcc27b9c85800624367ebb89ef46d4307af
+Author: codesoap <codesoap@mailbox.org>
+Date:   Wed Feb 26 17:36:01 2020 +0000
 
-    cmd/go/internal/modget: move MVS code to a separate file
+    encoding/json: consolidate the isSpace function
     
-    For #36460
+    The new code is easier to read, and practically equivalent in terms of
+    performance.
     
-    Change-Id: Ie81c03df18c6987527da765d5f6575556340cb01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249877
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+            name                  old time/op    new time/op    delta
+            CodeUnmarshal-2          166ms ± 1%     166ms ± 1%    ~     (p=0.863 n=11+10)
+            CodeUnmarshalReuse-2     139ms ± 1%     139ms ± 1%    ~     (p=0.050 n=10+12)
+            UnmarshalString-2       1.08µs ± 1%    1.07µs ± 1%  -0.64%  (p=0.001 n=10+11)
+            UnmarshalFloat64-2      1.01µs ± 1%    1.01µs ± 1%    ~     (p=0.280 n=12+11)
+            UnmarshalInt64-2         850ns ± 0%     851ns ± 0%    ~     (p=0.455 n=11+12)
+    
+            name                  old speed      new speed      delta
+            CodeUnmarshal-2       11.7MB/s ± 1%  11.7MB/s ± 1%    ~     (p=0.904 n=11+10)
+            CodeUnmarshalReuse-2  14.0MB/s ± 1%  14.0MB/s ± 1%  +0.40%  (p=0.041 n=10+12)
+    
+            name                  old alloc/op   new alloc/op   delta
+            CodeUnmarshal-2         3.28MB ± 0%    3.28MB ± 0%    ~     (p=0.907 n=10+11)
+            CodeUnmarshalReuse-2    2.19MB ± 0%    2.19MB ± 0%    ~     (p=0.306 n=12+12)
+            UnmarshalString-2         192B ± 0%      192B ± 0%    ~     (all equal)
+            UnmarshalFloat64-2        180B ± 0%      180B ± 0%    ~     (all equal)
+            UnmarshalInt64-2          176B ± 0%      176B ± 0%    ~     (all equal)
+    
+            name                  old allocs/op  new allocs/op  delta
+            CodeUnmarshal-2          92.7k ± 0%     92.7k ± 0%    ~     (all equal)
+            CodeUnmarshalReuse-2     80.4k ± 0%     80.4k ± 0%    ~     (all equal)
+            UnmarshalString-2         2.00 ± 0%      2.00 ± 0%    ~     (all equal)
+            UnmarshalFloat64-2        2.00 ± 0%      2.00 ± 0%    ~     (all equal)
+            UnmarshalInt64-2          1.00 ± 0%      1.00 ± 0%    ~     (all equal)
+    
+    Change-Id: I6d5a48c624d436551409a17c21542e26d29e26b3
+    GitHub-Last-Rev: 7d81961688b5ee3a7e4718188c0eaf3413521f97
+    GitHub-Pull-Request: golang/go#37385
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220581
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modget/get.go | 188 +----------------------------------
- src/cmd/go/internal/modget/mvs.go | 202 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 203 insertions(+), 187 deletions(-)
+ src/encoding/json/scanner.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,18 +1,19 @@
-commit f4fe89108c42bde3978fda8b826acbcd77db6076
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 16 02:58:23 2020 +1100
+commit daeb5efb20a561ffc865f94163e836b68eee4193
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 22 12:47:05 2019 -0700
 
-    test: re-enable atomic intrinsic related tests on riscv64
+    runtime: somewhat better checkptr error messages
     
-    riscv64 now has atomic intrinsics, so re-enable the atomic intrinsic tests.
+    They're still lacking in details, but at least better than being
+    printed as raw interface values.
     
-    Fixes #36765
+    Updates #22218.
     
-    Change-Id: I838f27570a94d7fa5774c43f1ca5f4df2ca104cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223560
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4fd813253afdd6455c0c9b5a05c61659805abad1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202677
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/inline_sync.go      | 5 +----
- test/intrinsic_atomic.go | 2 +-
- 2 files changed, 2 insertions(+), 5 deletions(-)
+ src/runtime/checkptr.go | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)

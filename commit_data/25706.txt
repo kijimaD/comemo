@@ -1,33 +1,30 @@
-commit 125f52dfa8ce6df0380b0bdc66effb8afd697bda
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 1 22:16:42 2016 +0000
+commit f9357cdec1235168590283abe027e501633755a5
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 16 14:37:59 2015 -0500
 
-    net/http: update bundled http2, fix Transport memory leak
+    runtime: check for updated arena_end overflow
     
-    Updates x/net/http2 to git rev 644ffc for three CLs since the last update:
+    Currently, if an allocation is large enough that arena_end + size
+    overflows (which is not hard to do on 32-bit), we go ahead and call
+    sysReserve with the impossible base and length and depend on this to
+    either directly fail because the kernel can't possibly fulfill the
+    requested mapping (causing mheap.sysAlloc to return nil) or to succeed
+    with a mapping at some other address which will then be rejected as
+    outside the arena.
     
-    http2: don't add *Response to activeRes in Transport on Headers.END_STREAM
-    https://golang.org/cl/19134
+    In order to make this less subtle, less dependent on the kernel
+    getting all of this right, and to eliminate the hopeless system call,
+    add an explicit overflow check.
     
-    http2: add mechanism to send undeclared Trailers mid handler
-    https://golang.org/cl/19131
+    Updates #13143. This real issue has been fixed by 0de59c2, but this is
+    a belt-and-suspenders improvement on top of that. It was uncovered by
+    my symbolic modeling of that bug.
     
-    http2: remove unused variable
-    https://golang.org/cl/18936
-    
-    The first in the list above is the main fix that's necessary. The
-    other are two are in the git history but along for the cmd/bundle
-    ride. The middle CL is well-tested, small (mostly comments),
-    non-tricky, and almost never seen (since nobody really uses Trailers).
-    The final CL is just deleting an unused global variable.
-    
-    Fixes #14084 again (with more tests)
-    
-    Change-Id: Iac51350acee9c51d32bf7779d57e9d5a5482b928
-    Reviewed-on: https://go-review.googlesource.com/19135
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I85fa868a33286fdcc23cdd7cdf86b19abf1cb2d1
+    Reviewed-on: https://go-review.googlesource.com/16961
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/clientserver_test.go | 12 ++++---
- src/net/http/h2_bundle.go         | 67 ++++++++++++++++++++++++++++++++++++---
- 2 files changed, 71 insertions(+), 8 deletions(-)
+ src/runtime/malloc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

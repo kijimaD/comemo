@@ -1,37 +1,20 @@
-commit b70244ff7a043786c211775b68259de6104ff91c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Feb 24 00:27:34 2025 +1100
+commit 027853627d08ca41c8e4758a11d622e9f43d2562
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Feb 20 08:53:57 2024 -0800
 
-    cmd/compile: intrinsify math/bits.Len on riscv64
+    crypto/x509: remove bad generate statement
     
-    For riscv64/rva22u64 and above, we can intrinsify math/bits.Len using the
-    CLZ/CLZW machine instructions.
+    CL488855 added a broken go:generate statement, which referenced a
+    file which didn't exist. Remove the statement.
     
-    On a StarFive VisionFive 2 with GORISCV64=rva22u64:
+    The generator is in the commit message for CL488855, if it is ever
+    actually needed.
     
-                     │   clz.b.1   │               clz.b.2               │
-                     │   sec/op    │   sec/op     vs base                │
-    LeadingZeros-4     28.89n ± 0%   12.08n ± 0%  -58.19% (p=0.000 n=10)
-    LeadingZeros8-4    18.79n ± 0%   14.76n ± 0%  -21.45% (p=0.000 n=10)
-    LeadingZeros16-4   25.27n ± 0%   14.76n ± 0%  -41.59% (p=0.000 n=10)
-    LeadingZeros32-4   25.12n ± 0%   12.08n ± 0%  -51.92% (p=0.000 n=10)
-    LeadingZeros64-4   25.89n ± 0%   12.08n ± 0%  -53.35% (p=0.000 n=10)
-    geomean            24.55n        13.09n       -46.70%
-    
-    Change-Id: I0dda684713dbdf5336af393f5ccbdae861c4f694
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652321
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Change-Id: I6b18d5b4f38f82b27681b9b758e9642543aa6e43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565435
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/cmd/compile/internal/riscv64/ssa.go            |  2 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules    |  6 ++
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go    |  2 +
- src/cmd/compile/internal/ssa/opGen.go              | 28 ++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go     | 74 +++++++++++++++++++
- src/cmd/compile/internal/ssagen/intrinsics.go      | 24 +++++++
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  7 ++
- test/codegen/mathbits.go                           | 83 ++++++++++++++--------
- 8 files changed, 195 insertions(+), 31 deletions(-)
+ src/crypto/x509/platform_test.go | 2 --
+ 1 file changed, 2 deletions(-)

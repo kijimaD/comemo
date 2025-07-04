@@ -1,15 +1,15 @@
-commit a7e473be95d02b754e120f4616520c263c4a5268
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Mon Oct 31 12:59:06 2011 -0700
+commit 739c442e42312ee843f4736d10f73f9c7d292226
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Oct 31 14:26:05 2011 -0400
 
-    time: add RFC1123 with numeric timezone format
+    math: Improved accuracy for Sin and Cos.
     
-    Fixes #841.
+    Fixes #1564.
     
-    R=rsc, r
+    R=rsc, dchest
     CC=golang-dev
-    https://golang.org/cl/5322058
+    https://golang.org/cl/5320056
 
- src/pkg/time/format.go    | 12 ++++++------
- src/pkg/time/time_test.go |  3 +++
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ src/pkg/math/all_test.go |   6 +-
+ src/pkg/math/sin.go      | 238 +++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 201 insertions(+), 43 deletions(-)

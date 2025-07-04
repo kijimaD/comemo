@@ -1,18 +1,17 @@
-commit 5b1c6efb314f1426c22a7ba9c5983f41b28e76a7
-Author: Ibrahim AshShohail <ibra.sho@gmail.com>
-Date:   Tue Jan 24 22:20:04 2017 +0300
+commit f6f3aef53f7ef6085ea14b6147b2478848778709
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Oct 20 15:22:46 2016 -0400
 
-    cmd/pprof: remove redundant URLs from error messages in fetch.FetchURL
+    go/build: reserve GOOS=zos for IBM z/OS
     
-    Errors from http.Client already includes the URL in the message.
+    Closes #17528.
     
-    Fixes #18754
-    
-    Change-Id: I65fc25a8f3aa6a2d4627aac3fb47eed8d3c4151a
-    Reviewed-on: https://go-review.googlesource.com/35650
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2ba55ad4e41077808f882ed67a0549f0a00e25d0
+    Reviewed-on: https://go-review.googlesource.com/31596
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/pprof/internal/fetch/fetch.go | 2 +-
+ src/go/build/syslist.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,14 @@
-commit 50fe459ce2726952964e8d2093b589680614f5e9
+commit 8b8cd0e4c4005a709ac6d2203e1efbd397da5125
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 20 12:50:35 2011 -0500
+Date:   Thu Jan 20 12:50:27 2011 -0500
 
-    6g: fix uint64(uintptr(unsafe.Pointer(&x)))
+    http: follow relative redirect in Get
     
-    Fixes #1417.
+    Fixes #1431.
     
-    R=ken2
+    R=bradfitz, dangabrad
     CC=golang-dev
-    https://golang.org/cl/4079042
+    https://golang.org/cl/4077042
 
- src/cmd/6g/cgen.c        |  3 ---
- test/fixedbugs/bug319.go | 22 ++++++++++++++++++++++
- 2 files changed, 22 insertions(+), 3 deletions(-)
+ src/pkg/http/client.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

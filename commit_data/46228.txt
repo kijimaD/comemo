@@ -1,24 +1,26 @@
-commit ded10d75a908b584331d01c9c0eaf1cfcb951cac
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 30 17:18:07 2021 -0700
+commit 08b5091d03621527d57da7e1ab30584dee167e6d
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat Nov 28 18:09:21 2020 +0800
 
-    cmd/compile/internal/types2: remove superfluous ordinaryType calls
+    net: close connection in localServer teardown
     
-    The value types in type assertions and type switches cannot be
-    constraint types (if there are, an error was reported earlier),
-    so there is no need to check again that they are not constraint
-    types.
+    The transponder sets up a deferred close on accepted connections which
+    is fine after the client reads all data. However there are no mutexes
+    nor channels to block the transponder from closing. If the scheduler
+    runs close before the client read, it will cause an EOF failure.
     
-    This permits merging the ordinaryType call with varType, which
-    is the only place where it's needed.
+    Fixes #42720
     
-    Change-Id: I44a852377b3dddf53692f764e588801fb3d3c0a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346291
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ic21b476c5efc9265a80a2c6f8484efdb5af66405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273672
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/types2/expr.go                     |  1 -
- src/cmd/compile/internal/types2/stmt.go                     |  1 -
- .../internal/types2/testdata/fixedbugs/issue42758.go2       |  2 +-
- src/cmd/compile/internal/types2/typexpr.go                  | 13 +++++--------
- 4 files changed, 6 insertions(+), 11 deletions(-)
+ src/net/conn_test.go       |  2 +-
+ src/net/mockserver_test.go | 12 +++++++++---
+ src/net/protoconn_test.go  |  2 +-
+ src/net/server_test.go     |  4 ++--
+ src/net/tcpsock_test.go    |  2 +-
+ 5 files changed, 14 insertions(+), 8 deletions(-)

@@ -1,45 +1,12 @@
-commit 6081a9f7e631895b4c29d60269b6f159c338d919
-Author: David Chase <drchase@google.com>
-Date:   Mon Dec 17 17:23:42 2018 -0500
+commit dd7d6c261f586bdffdda78cff23aeda8b3dba6cc
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 9 09:27:54 2019 +0700
 
-    cmd/compile: index line number tables by source file to improve sparsity
+    debug/gosym: remove outdated comment
     
-    This reduces allocations and also resolves some
-    lurking inliner/inlinee line-number match problems.
-    However, it does add about 1.5% to compile time.
-    
-    This fixes compiler OOMs seen compiling some large protobuf-
-    derived inputs.  For compiling the compiler itself,
-    
-    compilebench -pkg cmd/compile/internal/ssa -memprofile withcl.prof
-    
-    the numberlines-related memory consumption is reduced from 129MB
-    to 29MB (about a 5% overall reduction in allocation).
-    
-    Additionally modified after going over changes with Austin
-    to remove unused code (nobody called size()) and correct
-    the cache-clearing code.
-    
-    I've attempted to speed this up by not using maps, and have
-    not succeeded.  I'd rather get correct code in now, speed it
-    up later if I can.
-    
-    Updates #27739.
-    Fixes #29279.
-    
-    Change-Id: I098005de4e45196a5f5b10c0886a49f88e9f8fd5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/154617
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2bba13064c8d21ded41499c6ec225ef83d1a533e
+    Reviewed-on: https://go-review.googlesource.com/c/156997
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/biasedsparsemap.go |   8 +-
- src/cmd/compile/internal/ssa/deadcode.go        |  13 ++-
- src/cmd/compile/internal/ssa/func.go            |  10 +-
- src/cmd/compile/internal/ssa/func_test.go       |   2 +-
- src/cmd/compile/internal/ssa/nilcheck.go        |  20 ++--
- src/cmd/compile/internal/ssa/numberlines.go     |  34 ++++---
- src/cmd/compile/internal/ssa/rewrite.go         |   8 +-
- src/cmd/compile/internal/ssa/xposmap.go         | 116 ++++++++++++++++++++++++
- src/cmd/internal/src/xpos.go                    |   8 ++
- 9 files changed, 175 insertions(+), 44 deletions(-)
+ src/debug/gosym/symtab.go | 5 -----
+ 1 file changed, 5 deletions(-)

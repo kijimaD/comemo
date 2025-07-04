@@ -1,26 +1,27 @@
-commit 18131ec8dc0db3992509f08649ae34063f00823a
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Oct 9 10:48:07 2024 +0200
+commit c513a61988a6d6f9778f50676681348364ccdfee
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Jul 21 09:51:42 2023 +0000
 
-    syscall: simplify O_TRUNC handling on Windows
+    net: use avoidDNS for search suffixes
     
-    The current implementation of O_TRUNC in syscall.Open on Windows is
-    prone to TOCTOU issues, as it opens the file twice if the first open
-    detects that the file doesn't exist. The file could
-    be created in between the two open calls, leading to the creation
-    of a new file with the undesired readonly attribute.
+    The go resolver shouldn't attempt to query .onion domains, but
+    the restriction was not restricted for search domains.
     
-    This CL implements O_TRUNC by just calling CreateFile once without
-    taking O_TRUNCATE into account, and then using Ftruncate if O_TRUNC is
-    set to truncate the file.
+    Also before this change query for "sth.onion" would
+    not be suffixed with any search domain (for "go.dev" search
+    domain, it should query fine the "std.onion.go.dev" domain).
     
-    Updates #38225.
-    
-    Change-Id: Ic3ad1bab75c9a1c16f99c8c5bed867c5dbc3a23b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618836
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I0f3e1387e0d59721381695f94586e3743603c30e
+    GitHub-Last-Rev: 7e8ec44078529353c18c8fe34e5207014ce1e685
+    GitHub-Pull-Request: golang/go#60678
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501701
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/syscall_windows.go | 42 +++++++++++++++++-------------------------
- 1 file changed, 17 insertions(+), 25 deletions(-)
+ src/net/dnsclient_unix.go      | 16 ++++++++--------
+ src/net/dnsclient_unix_test.go | 16 +++++++++++++++-
+ 2 files changed, 23 insertions(+), 9 deletions(-)

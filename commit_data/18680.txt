@@ -1,29 +1,17 @@
-commit 28cc8aa89eb1830c71c8cf5c39f7ce4a0ceb4899
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 27 11:35:53 2014 -0800
+commit 08706f19b4ec98d91f08c331d43e8e8553bb30c3
+Author: William Orr <will@worrbase.com>
+Date:   Thu Feb 27 10:13:41 2014 -0800
 
-    go/printer: measure lines/construct in generated output rather than incoming source
+    syscall: add mlock, munlock, mlockall, munlockall and mprotect to OSX
     
-    No change to $GOROOT/src, misc formatting.
+    Fixes #7415
     
-    Nice side-effect: almost 3% faster runs because it's much faster to compute
-    line number differences in the generated output than the incoming source.
-    
-    Benchmark run, best of 5 runs, before and after:
-    BenchmarkPrint       200          12347587 ns/op
-    BenchmarkPrint       200          11999061 ns/op
-    
-    Fixes #4504.
-    
-    LGTM=adonovan
-    R=golang-codereviews, adonovan
+    LGTM=bradfitz
+    R=bradfitz, iant
     CC=golang-codereviews
-    https://golang.org/cl/69260045
+    https://golang.org/cl/68980043
 
- src/pkg/go/printer/nodes.go                     | 56 +++++++++++--------------
- src/pkg/go/printer/printer.go                   | 43 +++++++++++++++----
- src/pkg/go/printer/testdata/comments2.golden    |  1 +
- src/pkg/go/printer/testdata/comments2.input     |  1 +
- src/pkg/go/printer/testdata/declarations.golden | 15 +++++++
- src/pkg/go/printer/testdata/declarations.input  | 18 ++++++++
- 6 files changed, 94 insertions(+), 40 deletions(-)
+ src/pkg/syscall/syscall_darwin.go        |  5 +++
+ src/pkg/syscall/zsyscall_darwin_386.go   | 68 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_darwin_amd64.go | 68 ++++++++++++++++++++++++++++++++
+ 3 files changed, 141 insertions(+)

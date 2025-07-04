@@ -1,19 +1,13 @@
-commit fd7ff2049512b3a900004e3e3c83e45263f93d13
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 6 18:44:14 2014 +0400
+commit 6f6db49de6dbc842ff4114939e6200af7213872d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 6 01:44:04 2014 -0500
 
-    net/http: make TestUseProxy repeatable
-    Currently it fails on second and subsequent runs (when using -cpu=1,2,4) as:
-    --- FAIL: TestUseProxy-4 (0.00 seconds)
-    proxy_test.go:109: useProxy(barbaz.net) = true, want false
-    proxy_test.go:109: useProxy(foobar.com) = true, want false
-    proxy_test.go:109: useProxy(www.foobar.com) = true, want false
+    api: update next.txt
     
     LGTM=bradfitz
-    R=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/71940044
+    https://golang.org/cl/71950043
 
- src/pkg/net/http/proxy_test.go     | 15 +++++++++------
- src/pkg/net/http/transport_test.go |  5 +----
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ api/next.txt | 618 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 618 insertions(+)

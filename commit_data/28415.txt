@@ -1,41 +1,29 @@
-commit eced6754c2f2ce98cb5bacbdbfcbbaa4a6a69d53
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Aug 25 21:58:45 2016 -0400
+commit 12610236375e2e981e370508548f3d51920df7e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 23 12:21:57 2016 -0400
 
-    cmd/link: -buildmode=plugin support for linux
+    encoding/json: additional tests and fixes for []typedByte encoding/decoding
     
-    This CL contains several linker changes to support creating plugins.
+    CL 19725 changed the encoding of []typedByte to look for
+    typedByte.MarshalJSON and typedByte.MarshalText.
+    Previously it was handled like []byte, producing a base64 encoding of the underlying byte data.
     
-    It collects the exported plugin symbols provided by the compiler and
-    includes them in the moduledata.
+    CL 19725 forgot to look for (*typedByte).MarshalJSON and (*typedByte).MarshalText,
+    as the marshaling of other slices would. Add test and fix for those.
     
-    It treats a binary as being dynamically linked if it imports the plugin
-    package. This lets the dynamic linker de-duplicate symbols.
+    This CL also adds tests that the decoder can handle both the old and new encodings.
+    (This was true even in Go 1.6, which is the only reason we can consider this
+    not an incompatible change.)
     
-    Change-Id: I099b6f38dda26306eba5c41dbe7862f5a5918d95
-    Reviewed-on: https://go-review.googlesource.com/27820
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For #13783.
+    
+    Change-Id: I7cab8b6c0154a7f2d09335b7fa23173bcf856c37
+    Reviewed-on: https://go-review.googlesource.com/23294
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/link/internal/amd64/asm.go   |  5 +++-
- src/cmd/link/internal/amd64/obj.go   |  4 ---
- src/cmd/link/internal/arm/asm.go     |  5 +++-
- src/cmd/link/internal/arm/obj.go     |  4 ---
- src/cmd/link/internal/arm64/obj.go   |  4 ---
- src/cmd/link/internal/ld/data.go     |  2 +-
- src/cmd/link/internal/ld/deadcode.go | 10 +++++++
- src/cmd/link/internal/ld/elf.go      |  2 +-
- src/cmd/link/internal/ld/go.go       |  2 +-
- src/cmd/link/internal/ld/lib.go      | 53 +++++++++++++++++++++++++-----------
- src/cmd/link/internal/ld/link.go     |  2 ++
- src/cmd/link/internal/ld/main.go     |  9 ++++--
- src/cmd/link/internal/ld/objfile.go  |  2 +-
- src/cmd/link/internal/ld/sym.go      | 15 ++++++++++
- src/cmd/link/internal/ld/symtab.go   | 16 +++++++++++
- src/cmd/link/internal/s390x/obj.go   |  4 ---
- src/cmd/link/internal/x86/asm.go     |  7 +++--
- src/cmd/link/internal/x86/obj.go     |  7 -----
- src/runtime/plugin.go                | 13 +++++++++
- src/runtime/symtab.go                |  2 ++
- 20 files changed, 119 insertions(+), 49 deletions(-)
+ src/encoding/json/decode_test.go | 212 +++++++++++++++++++++++++++++++++++++--
+ src/encoding/json/encode.go      |   9 +-
+ 2 files changed, 208 insertions(+), 13 deletions(-)

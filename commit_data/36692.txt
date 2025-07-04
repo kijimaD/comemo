@@ -1,36 +1,26 @@
-commit a0f5d5f8830e578892c47f7704e6a2616273aac1
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Mon Sep 10 15:36:59 2018 +0200
+commit 64a832debe1b6bd4002430d65d9447e6e410366e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun May 20 16:02:35 2018 +0100
 
-    cmd/link: fix DWARF refs so that they always point to the typedef entry
+    cmd/trace: fix a few bugs found by staticcheck
     
-    For types defined as:
+    First, the regions sort was buggy, as its last comparison was
+    ineffective.
     
-    type typename struct { ... }
+    Second, the insyscall and insyscallRuntime fields were unsigned, so the
+    check for them being negative was pointless. Make them signed instead,
+    to also prevent the possibility of underflows when decreasing numbers
+    that might realistically be 0.
     
-    the linker produces two DIEs: (1) a DW_TAG_structure_type DIE and (2) a
-    DW_TAG_typedef_type DIE having (1) as its type attribute.
+    Third, the color constants were all untyped strings except the first
+    one. Be consistent with their typing.
     
-    All subsequent references to 'typename' should use the
-    DW_TAG_typedef_type DIE, not the DW_TAG_structure_type. Mostly this is
-    true but sometimes one reference will use the DW_TAG_structure_type
-    directly. In particular, this happens to the 'first' reference to the
-    type in question (where 'first' means whatever happens first in the way
-    the linker scans its symbols).
-    
-    This isn't only true of struct types: pointer types, array types, etc.
-    can also be affected.
-    
-    This fix solves the problem by always returning the typedef DIE in
-    newtype, when one is created.
-    
-    Fixes #27614
-    
-    Change-Id: Ia65b4a1d8c2b752e33a4ebdb74ccd92faa69526e
-    Reviewed-on: https://go-review.googlesource.com/134555
+    Change-Id: I4eb8d08028ed92589493c2a4b9cc5a88d83f769b
+    Reviewed-on: https://go-review.googlesource.com/113895
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/ld/dwarf.go      |  29 +++++----
- src/cmd/link/internal/ld/dwarf_test.go | 114 +++++++++++++++++++++++++++++++++
- 2 files changed, 131 insertions(+), 12 deletions(-)
+ src/cmd/trace/annotations.go |  2 +-
+ src/cmd/trace/trace.go       | 74 ++++++++++++++++++++++----------------------
+ 2 files changed, 38 insertions(+), 38 deletions(-)

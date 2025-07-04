@@ -1,22 +1,20 @@
-commit e2b30e900064373bce2f4ba4d3917df3de99ac69
-Author: Salman Aljammaz <s@0x65.net>
-Date:   Sun Aug 21 16:59:56 2016 +0100
+commit 45522a6a93efe0fd487f6875f2b104d772a26469
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 21 11:44:05 2016 +1000
 
-    net/http: prepend ./ to directory list hrefs in FileServer
+    debug/pe: introduce Section.Relocs
     
-    Certain browsers (Chrome 53, Safari 9.1.2, Firefox 46) won't correctly
-    follow a directory listing's links if the file name begins with a run
-    of characters then a colon, e.g. "foo:bar". Probably mistaking it for
-    a URI. However, they are happy to follow "./foo:bar", so this change
-    prepends "./" to all link hrefs in the directory listing of
-    FileServer.
+    cmd/link reads PE object files when building programs with cgo.
+    cmd/link accesses object relocations. Add new Section.Relocs that
+    provides similar functionality in debug/pe.
     
-    Change-Id: I60ee8e1ebac73cbd3a3ac0f23e80fdf52e3dc352
-    Reviewed-on: https://go-review.googlesource.com/27440
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #15345
+    
+    Change-Id: I34de91b7f18cf1c9e4cdb3aedd685486a625ac92
+    Reviewed-on: https://go-review.googlesource.com/22332
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/net/http/fs.go      |  2 +-
- src/net/http/fs_test.go | 10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/debug/pe/file.go    |  8 ++++++++
+ src/debug/pe/section.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

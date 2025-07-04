@@ -1,22 +1,17 @@
-commit fe67a21625ee811897077b32d4e75566ef74c6c4
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Dec 6 10:22:09 2022 -0500
+commit f524a2baa4aca9e603fbf3891951b53b497dc0a1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 8 13:11:09 2022 -0800
 
-    cmd/link: pass -Wl,--no-insert-timestamp to external linker on windows
+    builtin: clarify that interface types do not implement comparable
     
-    Pass -Wl,--no-insert-timestamp to the external linker on windows, so
-    as to suppress generation of the PE file header data/time stamp. This
-    is in order to make it possible to get reproducible CGO builds on
-    windows (note that we already zero the timestamp field in question for
-    internal linkage).
+    Fixes #51083
     
-    Updates #35006.
-    
-    Change-Id: I3d69cf1fd32e099bd9bb4b0431a4c5f43e4b08f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455535
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ic9207ae4104b06749925186e0eb4f18edf1b5007
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384235
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/builtin/builtin.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

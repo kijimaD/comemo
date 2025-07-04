@@ -1,16 +1,19 @@
-commit e81b7315927d025a1eb3933542211b899880b982
-Author: Eli Bendersky <eliben@google.com>
-Date:   Wed Jul 31 13:42:16 2019 -0700
+commit 958e212db799e609b2a8df51cdd85c9341e7a404
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Thu Jan 17 16:20:51 2019 +0100
 
-    encoding/json: clarify Marshal behavior for string keys of maps
+    syscall: fix hang when using Unshareflags: CLONE_NEWUSER with uid/gid mapping (linux)
     
-    This is a documentation-only change.
+    Note that this particular combination of properties still fails (EPERM), but it
+    no longer hangs.
     
-    Fixes #28827
+    Updates #29789
     
-    Change-Id: Ife9ab997809048784f35872b09905bc209a05eff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188417
+    Change-Id: I29b15b85a25a7acd7ae89ffc5fed074bcdfe0a12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/158297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/encode.go | 2 +-
+ src/syscall/exec_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

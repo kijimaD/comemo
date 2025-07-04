@@ -1,21 +1,15 @@
-commit d18167fefea5e77388dbc1e323e8527b58494185
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 26 12:38:47 2015 -0700
+commit 759b9c3b80da47a8db59f015bfca551a2a15ae18
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 17 00:29:56 2015 -0700
 
-    runtime: fix tiny allocator
+    [dev.ssa] cmd/compile: add likely annotations to blocks in html
     
-    When a new tiny block is allocated because we're allocating an object
-    that won't fit into the current block, mallocgc saves the new block if
-    it has more space leftover than the old block.  However, the logic for
-    this was subtly broken in golang.org/cl/2814, resulting in never
-    saving (or consequently reusing) a tiny block.
+    This was missing from CL 13472
+    due to a badly synced client.
     
-    Change-Id: Ib5f6769451fb82877ddeefe75dfe79ed4a04fd40
-    Reviewed-on: https://go-review.googlesource.com/16330
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If59fc669125dd1caa335dacfbf0f8dbd7b074312
+    Reviewed-on: https://go-review.googlesource.com/13639
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/malloc.go      |  2 +-
- src/runtime/malloc_test.go | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/html.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

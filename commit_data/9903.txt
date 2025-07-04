@@ -1,12 +1,12 @@
-commit 39b6fb7a19ff6384a55fdec25e1a816817b8b7ed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 7 08:54:02 2011 -0700
+commit b5260364b1e9176417a577796ebe8f0a9f37f8b0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 7 22:53:12 2011 +0900
 
-    go/token: remove obsolete comment (cleanup)
+    net: add File method to IPConn
     
-    R=r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5235042
+    https://golang.org/cl/5237041
 
- src/pkg/go/token/position.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/pkg/net/iprawsock_posix.go | 5 +++++
+ 1 file changed, 5 insertions(+)

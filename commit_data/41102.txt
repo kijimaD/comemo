@@ -1,20 +1,59 @@
-commit e6bbe967edef58073918ffd197e44d1559c90737
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 10 10:10:32 2020 -0800
+commit 36f30ba289e31df033d100b2adb4eaf557f05a34
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue Aug 6 15:22:51 2019 -0700
 
-    runtime: don't skip timer when adjustTimers sees a modified timer
+    cmd/compile,runtime: generate hash functions only for types which are map keys
     
-    When adjustTimers sees a timerModifiedEarlier or timerModifiedLater,
-    it removes it from the heap, leaving a new timer at that position
-    in the heap. We were accidentally skipping that new timer in our loop.
-    In some unlikely cases this could cause adjustTimers to look at more
-    timers than necessary.
+    Right now we generate hash functions for all types, just in case they
+    are used as map keys. That's a lot of wasted effort and binary size
+    for types which will never be used as a map key. Instead, generate
+    hash functions only for types that we know are map keys.
     
-    Change-Id: Ic71e54c175ab7d86a7fa46f1497aca71ed1c43cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214338
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Just doing that is a bit too simple, since maps with an interface type
+    as a key might have to hash any concrete key type that implements that
+    interface. So for that case, implement hashing of such types at
+    runtime (instead of with generated code). It will be slower, but only
+    for maps with interface types as keys, and maybe only a bit slower as
+    the aeshash time probably dominates the dispatch time.
+    
+    Reorg where we keep the equals and hash functions. Move the hash function
+    from the key type to the map type, saving a field in every non-map type.
+    That leaves only one function in the alg structure, so get rid of that and
+    just keep the equal function in the type descriptor itself.
+    
+    cmd/go now has 10 generated hash functions, instead of 504. Makes
+    cmd/go 1.0% smaller. Update #6853.
+    
+    Speed on non-interface keys is unchanged. Speed on interface keys
+    is ~20% slower:
+    
+    name                  old time/op  new time/op  delta
+    MapInterfaceString-8  23.0ns ±21%  27.6ns ±14%  +20.01%  (p=0.002 n=10+10)
+    MapInterfacePtr-8     19.4ns ±16%  23.7ns ± 7%  +22.48%   (p=0.000 n=10+8)
+    
+    Change-Id: I7c2e42292a46b5d4e288aaec4029bdbb01089263
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191198
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/time.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/alg.go             | 178 +++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/builtin.go         |  85 +++++++-----
+ src/cmd/compile/internal/gc/builtin/runtime.go |  23 ++++
+ src/cmd/compile/internal/gc/reflect.go         | 104 +++------------
+ src/cmd/compile/internal/types/sym.go          |   3 -
+ src/cmd/link/internal/ld/decodesym.go          |   2 +-
+ src/cmd/link/internal/ld/xcoff.go              |  32 -----
+ src/reflect/type.go                            |  94 +++++--------
+ src/reflect/value.go                           |   3 +
+ src/runtime/alg.go                             | 121 +++++++++++------
+ src/runtime/chan.go                            |   2 +-
+ src/runtime/map.go                             |  57 +++-----
+ src/runtime/map_benchmark_test.go              |  30 +++++
+ src/runtime/map_fast32.go                      |  18 +--
+ src/runtime/map_fast64.go                      |  18 +--
+ src/runtime/map_faststr.go                     |  14 +-
+ src/runtime/map_test.go                        |  71 +++++++++-
+ src/runtime/type.go                            |  31 +++--
+ test/recover2.go                               |   2 +-
+ 19 files changed, 540 insertions(+), 348 deletions(-)

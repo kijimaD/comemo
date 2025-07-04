@@ -1,18 +1,14 @@
-commit b65ab889ab7f4eb69a75de5f774faf386aaf8380
-Author: Iskander Sharipov <quasilyte@gmail.com>
-Date:   Tue Feb 5 13:29:29 2019 +0300
+commit bf70ba07014c15e0b58a308080aa568c8a35f532
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Sep 19 12:46:09 2018 +0530
 
-    net/rpc: fix args order in strings.Contains call
+    go/build: clarify that there are no build tags for minor releases
     
-    The old code looks suspicious and is fragile.
-    It would fail if error messages were not totally the same.
-    Swapped the arguments order to fix that.
+    Fixes #26458
     
-    Change-Id: Id5df7242fb9224d0090245286ef8986ebb15e921
-    Reviewed-on: https://go-review.googlesource.com/c/161157
-    Run-TryBot: Iskander Sharipov <quasilyte@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: If932718ca8a2b230ab52495c1a7a82d86ab1325b
+    Reviewed-on: https://go-review.googlesource.com/136215
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/rpc/client_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/doc.go | 3 +++
+ 1 file changed, 3 insertions(+)

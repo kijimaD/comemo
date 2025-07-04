@@ -1,18 +1,27 @@
-commit 711ef8bc725037e95ad78ce61b8679fdd2657897
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Jun 13 14:13:01 2023 +0000
+commit 9a9aad449fddb1d3f66e6200d2c6c63a0eed63a4
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 8 17:06:29 2021 -0700
 
-    internal/xcoff: remove blank lines after final return statements
+    text/template: compare reflect.Value instances differently
     
-    Change-Id: I869ebcd9a134d0010e419dc51b6f91eddeaa0bbd
-    GitHub-Last-Rev: 0fc44edaeafcc2042e0fe57c8c41b4f60d4c478c
-    GitHub-Pull-Request: golang/go#60764
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502835
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    To avoid false positives from the reflectvaluecompare checker #43993
+    
+    Use v.IsValid() instead of
+    
+    var zero reflect.Value
+    v != zero
+    
+    Also avoid comparing directly with the singleton reflect.Value
+    representing a missing value. Detect the missing value by type instead.
+    
+    Change-Id: I3a00d63cf61c077e7c7ae816474aa1f032be325b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308769
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/xcoff/ar.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/text/template/exec.go  | 14 ++++++++++----
+ src/text/template/funcs.go |  2 +-
+ 2 files changed, 11 insertions(+), 5 deletions(-)

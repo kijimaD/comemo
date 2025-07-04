@@ -1,16 +1,16 @@
-commit 2b59b15f6b7e6fa6ac725367acff5aef7c666e36
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Wed Sep 21 23:11:28 2016 -0700
+commit 1a42d8fbd6fdce1ef9122c2c4c60833eee9cefa0
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 08:08:47 2016 -0400
 
-    encoding/json: example on MarshalJSON, UnmarshalJSON
+    cmd/link: allow internal PIE linking
     
-    Updates #16360.
+    Part of adding PIE internal linking on linux/amd64.
     
-    Change-Id: I5bf13d3367e68c5d8435f6ef2161d5a74cc747a7
-    Reviewed-on: https://go-review.googlesource.com/29611
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    Change-Id: I5ce01d1974e5d4b1a8cbcc8b08157477631d8d24
+    Reviewed-on: https://go-review.googlesource.com/28543
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/example_marshaling_test.go | 73 ++++++++++++++++++++++++++++
- 1 file changed, 73 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

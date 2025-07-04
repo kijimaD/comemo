@@ -1,32 +1,17 @@
-commit a80e53ec43d6ab925bb34d62dd8597a4227af363
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Sep 19 09:13:47 2021 -0700
+commit 66c27093d0df8be8a75b1ae35fe4ab2003fe028e
+Author: Ikko Ashimine <eltociear@gmail.com>
+Date:   Sat Feb 13 02:45:51 2021 +0000
 
-    cmd/compile: support new fully-inst types referenced during inlining
+    cmd/link: fix typo in link_test.go
     
-    Modify the phase for creating needed function/method instantiations and
-    modifying functions to use those instantiations, so that the phase is
-    self-contained and can be called again after inlining. This is to deal
-    with the issue that inlining may reveal new fully-instantiated types
-    whose methods must be instantiated.
+    specfic -> specific
     
-    With this change, we have an extra phase for instantiation after
-    inlining, to take care of the new fully-instantiated types that have
-    shown up during inlining. We call inline.InlineCalls() for any new
-    instantiated functions that are created.
-    
-    Change-Id: I4ddf0b1907e5f1f7d45891db7876455a99381133
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352870
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
+    Change-Id: Icad0f70c77c866a1031a2929b90fef61fe92aaee
+    GitHub-Last-Rev: f66b56491c0125f58c47f7f39410e0aeef2539be
+    GitHub-Pull-Request: golang/go#44246
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291829
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/main.go        |   5 +
- src/cmd/compile/internal/noder/irgen.go    |  32 +-
- src/cmd/compile/internal/noder/stencil.go  | 454 ++++++++++++++++-------------
- src/cmd/compile/internal/typecheck/subr.go |  11 +-
- test/typeparam/geninline.dir/a.go          |  56 ++++
- test/typeparam/geninline.dir/main.go       |  16 +
- test/typeparam/geninline.go                |   7 +
- 7 files changed, 356 insertions(+), 225 deletions(-)
+ src/cmd/link/link_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

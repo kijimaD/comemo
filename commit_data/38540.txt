@@ -1,22 +1,27 @@
-commit 24f846e21240f6d6ab2ca23fe319230b7d7f8168
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 22 14:51:33 2019 -0700
+commit 52ee654b25970a0b8c0ce9d2c8eda604df2026bb
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 8 18:15:32 2017 -0400
 
-    runtime: skip wb call in growslice when unnecessary
+    internal/trace: use banding to optimize MMU computation
     
-    Instrumenting make.bash reveals that almost half (49.54%)
-    of the >16 million calls to growslice for
-    pointer-containing slices are
-    growing from an empty to a non-empty slice.
+    This further optimizes MMU construction by first computing a
+    low-resolution summary of the utilization curve. This "band" summary
+    lets us compute the worst-possible window starting in each of these
+    low-resolution bands (even without knowing where in the band the
+    window falls). This in turn lets us compute precise minimum mutator
+    utilization only in the worst low-resolution bands until we can show
+    that any remaining bands can't possibly contain a worse window.
     
-    In that case, there is no need to call the write barrier,
-    which does some work before discovering that no pointers need shading.
+    This slows down MMU construction for small traces, but these are
+    reasonably fast to compute either way. For large traces (e.g.,
+    150,000+ utilization changes) it's significantly faster.
     
-    Change-Id: Ide741468d8dee7ad43ea0bfbea6ccdf680030a0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168959
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ie66454e71f3fb06be3f6173b6d91ad75c61bda48
+    Reviewed-on: https://go-review.googlesource.com/c/60792
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/runtime/slice.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/deps_test.go      |   2 +-
+ src/internal/traceparser/gc.go | 182 ++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 179 insertions(+), 5 deletions(-)

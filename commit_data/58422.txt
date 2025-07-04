@@ -1,17 +1,28 @@
-commit 6aa46eb75005c87ab4d44d989e1688362991c731
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Dec 17 20:47:17 2024 +0100
+commit 74350dd603a3480e1402a6ec98608ccb11246fb1
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 21 13:47:05 2023 -0400
 
-    crypto/tls: normalize spelling of "ClientHello" in comments
+    cmd/compile/internal/inline/inlheur: remove pkg-level call site table
     
-    Change-Id: I2b62fb37ae390c42682354eaa2a9d03159563b6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637179
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Remove the global package-level call site table; no need to have this
+    around since we can just iterate over the function-level tables where
+    needed, saving a bit of memory. No change in inliner or heuristics
+    functionality.
+    
+    Change-Id: I319a56cb766178e98b7eebc7c577a0336828ce0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530576
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/tls/common.go           | 4 ++--
- src/crypto/tls/handshake_client.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/inline/inl.go             |  2 +-
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 44 ++++++++++------------
+ .../inline/inlheur/analyze_func_callsites.go       | 14 +++----
+ .../internal/inline/inlheur/analyze_func_flags.go  | 10 ++---
+ .../internal/inline/inlheur/analyze_func_params.go |  4 +-
+ .../inline/inlheur/analyze_func_returns.go         |  6 +--
+ .../compile/internal/inline/inlheur/callsite.go    | 21 +++++------
+ .../internal/inline/inlheur/funcprops_test.go      | 30 +++++++--------
+ .../inline/inlheur/score_callresult_uses.go        | 14 +++----
+ src/cmd/compile/internal/inline/inlheur/scoring.go |  9 +++--
+ .../compile/internal/inline/inlheur/serialize.go   | 32 ++++++++--------
+ 11 files changed, 90 insertions(+), 96 deletions(-)

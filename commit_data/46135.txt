@@ -1,45 +1,20 @@
-commit 8157960d7f4a89807c71b3427a0363a23fd43ca9
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Mon Aug 23 11:34:51 2021 +0200
+commit 0c4944066411c5570ad9e7b66ae414f409d5d826
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 00:04:54 2020 -0500
 
-    all: replace runtime SSE2 detection with GO386 setting
+    [dev.regabi] cmd/compile: arrange for walkstmt, walkexpr, to return from switch cases
     
-    When GO386=sse2 we can assume sse2 to be present without
-    a runtime check. If GO386=softfloat is set we can avoid
-    the usage of SSE2 even if detected.
+    Ending them in a returning switch makes it safe for each case
+    to do an appropriate type assertion.
     
-    This might cause a memcpy, memclr and bytealg slowdown of Go
-    binaries compiled with softfloat on machines that support
-    SSE2. Such setups are rare and should use GO386=sse2 instead
-    if performance matters.
+    Passes buildall w/ toolstash -cmp.
     
-    On targets that support SSE2 we avoid the runtime overhead of
-    dynamic cpu feature dispatch.
-    
-    The removal of runtime sse2 checks also allows to simplify
-    internal/cpu further by removing handling of the required
-    feature option as a followup after this CL.
-    
-    Change-Id: I90a853a8853a405cb665497c6d1a86556947ba17
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344350
-    Trust: Martin Möhrmann <martin@golang.org>
-    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    Change-Id: I55d8f0a555006104164d84d27822aa8c5ad68515
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275882
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/work/gc.go     |  5 +++++
- src/internal/bytealg/bytealg.go    |  1 -
- src/internal/bytealg/compare_386.s |  5 +++--
- src/internal/bytealg/equal_386.s   |  5 +++--
- src/internal/cpu/cpu.go            |  1 -
- src/internal/cpu/cpu_386.go        |  7 -------
- src/internal/cpu/cpu_amd64.go      |  7 -------
- src/internal/cpu/cpu_x86.go        |  6 +-----
- src/internal/cpu/cpu_x86_test.go   | 18 ------------------
- src/runtime/asm_386.s              |  5 +++--
- src/runtime/cpuflags.go            |  1 -
- src/runtime/memclr_386.s           |  5 +++--
- src/runtime/memmove_386.s          |  5 +++--
- src/runtime/mkpreempt.go           | 10 ++++++----
- src/runtime/preempt_386.s          | 10 ++++------
- 15 files changed, 31 insertions(+), 60 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 392 +++++++++++++++++++-----------------
+ 1 file changed, 205 insertions(+), 187 deletions(-)

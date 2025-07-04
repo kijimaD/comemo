@@ -1,15 +1,12 @@
-commit 749b391c55b0139910d86ac0f8a0c42957e01d1c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 21:32:47 2015 -0400
+commit 24de40a8461a48f814c1bd37a1a6b911c922366f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 5 08:11:34 2015 -0700
 
-    encoding/json: document and test overwrite of slice, map during Unmarshal
+    cmd/dist: add more logging details when go list std cmd fails
     
-    Fixes #8837.
-    
-    Change-Id: Iaaecbb0b324004cb74b16b764126b01315e6a16e
-    Reviewed-on: https://go-review.googlesource.com/12209
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I12e6990b46ea9c733a5718dc5ca67f1fcd2dec66
+    Reviewed-on: https://go-review.googlesource.com/10754
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/decode.go      | 7 +++++++
- src/encoding/json/decode_test.go | 9 +++++++++
- 2 files changed, 16 insertions(+)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

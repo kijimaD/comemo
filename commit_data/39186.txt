@@ -1,14 +1,14 @@
-commit 29f14f058d2ad7ebce4a6bbcd1909c0e1986eaaa
-Author: Joey <22430354@qq.com>
-Date:   Fri May 17 04:26:16 2019 +0000
+commit 33caf3be833ba1fe9b74aa4c314f5b82bb696b86
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 17 14:49:30 2019 -0800
 
-    runtime: remove redundant "//"
+    math/big: document that Rat.SetString accepts _decimal_ float representations
     
-    Change-Id: I44af6cd8baa8fcd2a666429467fae4bed5f21fa0
-    GitHub-Last-Rev: d0c9722f082114b356de55fc79ce138ede019636
-    GitHub-Pull-Request: golang/go#32052
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177277
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Updates #29799.
+    
+    Change-Id: I267c2c3ba3964e96903954affc248d0c52c4916c
+    Reviewed-on: https://go-review.googlesource.com/c/158397
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/math/big/ratconv.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

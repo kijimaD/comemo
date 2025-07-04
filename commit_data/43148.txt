@@ -1,20 +1,25 @@
-commit f811663f0483b05bb9986ce648bb653564217c6e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Sep 29 10:23:07 2020 -0400
+commit a6ae6d35e6145cd271dc3775827579d9c8f62df6
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 12 11:04:36 2020 -0400
 
-    cmd/go: test more commands in mod_build_info_error
+    [dev.link] cmd/link: remove unnecessary file processing from writelines
     
-    For #26909
-    For #41688
+    The linker DWARF-gen's line table writing routine contains a loop that
+    walks all abstract function DIEs looking for files that aren't
+    referenced in concrete function DIEs. Turns out this loop is no longer
+    necessary, most likely because the compiler emits an explicit DWARF
+    file table into the object file.
     
-    Change-Id: I22f28d426ce499fce6f0f1295dbde425998042aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258219
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    This patch removes the offending loop. This is a prelude to some
+    additional work that will hopefully get rid of file renumbering in
+    writelines altogether (still WIP).
+    
+    Change-Id: I3b3a9acce1bae7dda878ab6de2d3436de302712e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223145
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/testdata/script/mod_build_info_err.txt | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 34 +++-------------------------------
+ 1 file changed, 3 insertions(+), 31 deletions(-)

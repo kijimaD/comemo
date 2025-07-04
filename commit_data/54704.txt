@@ -1,21 +1,42 @@
-commit 0700bcfa2e997118f82c6c441406e4ff0a573571
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Oct 14 00:54:45 2023 +0800
+commit db259cdd80eff527e8f344d678031c516167d258
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 11 17:17:54 2022 -0500
 
-    hash: add available godoc link
+    cmd/go: cache compiler flag info
     
-    Change-Id: Ieb43f28400e9ded3dc7e57f27f6d7514b14cc66d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535083
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    When you run 'go env' or any command that needs to consider
+    what the default gcc flags are (such as 'go list net' or
+    'go list <any package with net as a dependency>'),
+    the go command runs gcc (or clang) a few times to see what
+    flags are available.
+    
+    These runs can be quite expensive on some systems, particularly
+    Macs that seem to need to occasionally cache something before
+    gcc/clang can execute quickly.
+    
+    To fix this, cache the derived information about gcc under a cache
+    key derived from the size and modification time of the compiler binary.
+    This is not foolproof, but it should be good enough.
+    
+    % go install cmd/go
+    % time go env >/dev/null
+            0.22 real         0.01 user         0.01 sys
+    % time go env >/dev/null
+            0.03 real         0.01 user         0.01 sys
+    %
+    
+    Fixes #50982.
+    
+    Change-Id: Iba7955dd10f610f2793e1accbd2d06922f928faa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392454
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/hash/adler32/adler32.go |  4 ++--
- src/hash/crc32/crc32.go     | 22 +++++++++++-----------
- src/hash/crc64/crc64.go     | 10 +++++-----
- src/hash/fnv/fnv.go         | 12 ++++++------
- src/hash/hash.go            |  6 +++---
- src/hash/maphash/maphash.go | 28 ++++++++++++++--------------
- 6 files changed, 41 insertions(+), 41 deletions(-)
+ src/cmd/go/internal/envcmd/env.go        |   1 +
+ src/cmd/go/internal/work/action.go       |  11 +-
+ src/cmd/go/internal/work/buildid.go      |  34 +++---
+ src/cmd/go/internal/work/exec.go         | 186 ++++++++++++++++++++++++++-----
+ src/cmd/go/testdata/script/env_cache.txt |   5 +
+ 5 files changed, 189 insertions(+), 48 deletions(-)

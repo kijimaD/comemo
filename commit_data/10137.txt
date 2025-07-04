@@ -1,13 +1,19 @@
-commit 134d6e4fc4b6ef31f292f2f69c3af8f94dd9f987
+commit 2b0c49f2e56df2b739981ae3e6069f74a776297c
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 19:39:40 2011 -0700
+Date:   Thu Oct 27 19:39:25 2011 -0700
 
-    go/build: avoid os.Error in tests
+    go/doc: remove os.NewError anti-heuristic
+    
+    It will be obsolete when error happens.
+    
+    Submitting this now will make the error transition earlier,
+    at the cost of making a locally-built godoc viewing
+    /pkg/syscall or /pkg/os have some functions appear
+    under the Error type as constructors.
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5308061
+    https://golang.org/cl/5305067
 
- src/pkg/go/build/build_test.go      | 2 +-
- src/pkg/go/build/pkgtest/pkgtest.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/go/doc/doc.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

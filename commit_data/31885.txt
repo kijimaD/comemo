@@ -1,19 +1,21 @@
-commit b3301865a025fda72b8d327fad4461bb7bf68600
-Author: Michael Hendricks <michael@ndrix.org>
-Date:   Wed Jun 21 21:28:41 2017 -0500
+commit 0b4e8d00fe6267550e7e11149f6cd992e6edd04d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 21 20:58:00 2017 -0700
 
-    os: run more of TestExecutable on OpenBSD
+    cmd/compile: pass an explicit position to namedAuto
     
-    On OpenBSD, Executable relies on Args[0].  Removing the forgery on
-    that OS allows the rest of the test to run.
+    To enable this, inline the call to nod and simplify.
+    Eliminates a reference to lineno from the backend.
     
-    See #19453
+    Passes toolstash-check -all.
     
-    Change-Id: Idf99f86894de5c702893791bc3684f8665f4019d
-    Reviewed-on: https://go-review.googlesource.com/46398
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #15756
+    
+    Change-Id: I9c4bd77d10d727aa8f5e6c6bb16b0e05de165631
+    Reviewed-on: https://go-review.googlesource.com/38441
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/executable_test.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 37 +++++++++++++++++++++----------------
+ 1 file changed, 21 insertions(+), 16 deletions(-)

@@ -1,22 +1,18 @@
-commit f23c37f67ac1388b7d073f78d9061bfe806a1b2f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 5 11:05:10 2015 -0700
+commit 4b71660c5b84a2c47f206145a9913f4418330b59
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 29 12:48:33 2015 -0400
 
-    net: remove imports of strconv
+    runtime: always capture GC phase transition times
     
-    The net package already has support for limited uses of the strconv
-    package.  Despite this, a few uses of strconv have crept in over time.
-    Remove them and use the existing net support instead.
+    Currently we only capture GC phase transition times if
+    debug.gctrace>0, but we're about to compute GC CPU utilization
+    regardless of whether debug.gctrace is set, so we need these
+    regardless of debug.gctrace.
     
-    Change-Id: Icdb4bdaa8e1197f1119a96cddcf548ed4a551b74
-    Reviewed-on: https://go-review.googlesource.com/15400
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If3acf16505a43d416e9a99753206f03287180660
+    Reviewed-on: https://go-review.googlesource.com/12843
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/go/build/deps_test.go      | 4 ++--
- src/net/conf.go                | 3 +--
- src/net/dnsclient_unix.go      | 3 +--
- src/net/lookup_windows_test.go | 5 ++---
- src/net/tcpsockopt_plan9.go    | 3 +--
- 5 files changed, 7 insertions(+), 11 deletions(-)
+ src/runtime/mgc.go | 45 +++++++++++++++------------------------------
+ 1 file changed, 15 insertions(+), 30 deletions(-)

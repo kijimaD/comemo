@@ -1,18 +1,22 @@
-commit 4b30a40d8856cc3f6c8f629a9f825feeaf9848af
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Oct 28 14:15:13 2024 -0700
+commit e7fbd28a4dbf92721f040dfb2c877153333054d1
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Fri Sep 1 14:59:27 2023 -0700
 
-    strings,bytes: use result of copy in subsequent slicing
+    syscall: inline TestUseCgroupFDHelper
     
-    This can get rid of a bounds check.
-    Followup to CL 622240.
+    This way, the test case is self-contained, and the test output no longer
+    has useless lines related to TestUseCgroupFDHelper.
     
-    Change-Id: I9d0a2c0408b8d274c46136d32d7a5fb09b4aad1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622955
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I575a03b678c8c08a87353f6dc00c35a90ec561ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525196
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/bytes/buffer.go   | 4 ++--
- src/runtime/string.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/syscall/exec_linux_test.go | 28 +++++++++++++---------------
+ 1 file changed, 13 insertions(+), 15 deletions(-)

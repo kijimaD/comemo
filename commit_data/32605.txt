@@ -1,27 +1,24 @@
-commit d349fa25dfe2a86c01620f8b049c5e78e46759f3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 30 14:17:24 2017 -0700
+commit 4b2f7b4b51180424c4e84b50d99e1fba5b6f3e89
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Apr 28 10:55:41 2017 +0000
 
-    cmd/compile: fix and improve struct field reflect information
+    cmd/asm: fix operand order of ARM's MULA instruction
     
-    The previous logic was overly complicated, generated suboptimally
-    encoded struct type descriptors, and mishandled embeddings of
-    predeclared universal types.
+    As discussion in issue #19141, the addend should be the third
+    argument of MULA. This patch fixes it in both the front end
+    and the back end of the assembler. And also tests are added to
+    the encoding test.
     
-    Fixes #21122.
-    Fixes #21353.
-    Fixes #21696.
-    Fixes #21702.
-    Updates #21357.
+    Fixes #19141
     
-    Change-Id: If34761fa6dbe4af2af59dee501e7f30845320376
-    Reviewed-on: https://go-review.googlesource.com/60410
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idbc6f338b8fdfcad97a135f27a98c5b375b27d43
+    Reviewed-on: https://go-review.googlesource.com/42028
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/reflect.go | 50 +++++++------------
- src/reflect/all_test.go                | 88 ++++++++++++++++++++++++++++++++++
- src/reflect/type.go                    | 21 ++------
- src/runtime/type.go                    |  6 +--
- 4 files changed, 111 insertions(+), 54 deletions(-)
+ src/cmd/asm/internal/asm/asm.go         |  8 ++++----
+ src/cmd/asm/internal/asm/testdata/arm.s |  2 ++
+ src/cmd/internal/obj/arm/asm5.go        | 10 ++++------
+ src/cmd/internal/obj/util.go            |  2 +-
+ 4 files changed, 11 insertions(+), 11 deletions(-)

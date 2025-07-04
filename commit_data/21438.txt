@@ -1,18 +1,22 @@
-commit 826fa06189f9cb86871aac66934b45a859e3b3a6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Feb 2 21:09:23 2015 +0900
+commit bcadab9349f8e4a6fb38b26c6afea6ab150c5ee8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 29 10:05:57 2014 -0500
 
-    net: case insensitivity of DNS labels in built-in stub resolver
+    cmd/gc, runtime: rename writebarrierfat to typedmemmove
     
-    This change adds support for case insensitivity of DNS labels to
-    built-in DNS stub resolver as described in RFC 4343.
+    Preparation for replacing many memmove calls in runtime
+    with typedmemmove, which is a clearer description of what
+    the routine is doing.
     
-    Fixes #9215.
+    For the same reason, rename writebarriercopy to typedslicecopy.
     
-    Change-Id: Ia752fe71866a3bfa3ea08371985b799d419ddea3
-    Reviewed-on: https://go-review.googlesource.com/3685
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6f23bef2c2215509fefba175b16908f76dc7538c
+    Reviewed-on: https://go-review.googlesource.com/2276
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/dnsclient.go   | 22 +++++++++++++++++++++-
- src/net/dnsmsg_test.go | 26 ++++++++++++++++----------
- 2 files changed, 37 insertions(+), 11 deletions(-)
+ src/cmd/gc/builtin.c  |  4 ++--
+ src/cmd/gc/runtime.go |  4 ++--
+ src/cmd/gc/walk.c     |  6 +++---
+ src/runtime/mgc0.go   | 10 +++++-----
+ src/runtime/slice.go  |  2 +-
+ 5 files changed, 13 insertions(+), 13 deletions(-)

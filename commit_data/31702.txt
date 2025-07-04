@@ -1,29 +1,21 @@
-commit a86362e07fb9e83f1ce15592764b4bb5751fe1e9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 1 17:51:02 2017 -0700
+commit 67d69f899ce0fcd3d7aee0a07554fb84770020c0
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 8 16:31:02 2017 -0800
 
-    go/printer: don't emit unnecessary //line directives before empty lines
+    cmd/compile: set base register of spill/restore to SP
     
-    1) Split atLineBegin into its two components: writing of // line directives
-    and writing of indentation (no functionality changes).
+    Previously the base register was unset, which lead to the disassembler
+    using "FP" instead of "SP" as the base register.  That lead to some
+    confusion as to what the difference betweeen the two was.
+    Be consistent and always use SP.
     
-    2) Don't call writeLineDirective at the beginning of a line if we're
-    writing white space - it's not necessary. This is the bug fix.
+    Fixes #19458
     
-    3) Move testing of the SourcePos mode out of writeLineDirective and
-    into the (single) caller. Clearer and more efficient.
-    
-    (Instead of these 3 changes one could also have simply called the
-    original atLineBegin with position p.out rather than p.pos. This
-    would have caused atLineBegin to not write a line directive.
-    Factoring the code seemed like a cleaner and more direct approach.)
-    
-    Fixes #5945.
-    
-    Change-Id: Ia8710806b6d3d4e5044116b142c036a4ab5a1764
-    Reviewed-on: https://go-review.googlesource.com/44651
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ie8f8ee54653bd202c0cf6fbf1d350e3c8c8b67a0
+    Reviewed-on: https://go-review.googlesource.com/37971
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/printer/printer.go      | 28 ++++++++++++++---------
- src/go/printer/printer_test.go | 51 ++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 66 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 1 +
+ 1 file changed, 1 insertion(+)

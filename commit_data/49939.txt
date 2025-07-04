@@ -1,20 +1,26 @@
-commit 2a0327b8fd2771ca6e8caf8f17307606046270fe
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Aug 12 10:49:13 2022 -0700
+commit ccf140f3d79248f5dc5e326b0d2942aa4ba70b98
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Sep 14 12:40:10 2021 -0700
 
-    net: reenable TestLookupLongTXT
+    internal/fuzz: allocate memory for mutated strings
     
-    This test was disabled for flakiness.
-    The underlying code has been rewritten.
-    Reenabling the test to see if it has been fixed.
+    Rather than directly pointing at the underlying scratch slice, allocate
+    memory for strings. This prevents mutation of previous values we've
+    passed to the fuzz function, which may be retained by something that
+    expects them to be immutable.
     
-    Fixes #22857.
+    Fixes golang/go#48308
     
-    Change-Id: If488ee5f4692cdf4ed534b8f08b4a54b80a60943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423454
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: Iee9bed1a536fdc4188180e8e7c1c722f641271d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351312
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/lookup_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/internal/fuzz/mutator.go      |  7 +------
+ src/internal/fuzz/mutator_test.go | 16 ++++++++++++++++
+ src/testing/fuzz.go               |  5 ++++-
+ 3 files changed, 21 insertions(+), 7 deletions(-)

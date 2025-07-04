@@ -1,0 +1,18 @@
+commit 5d626c49ec0b43c1703d16967f0351eae13e7cb8
+Author: yaxum62 <yaxum62@gmail.com>
+Date:   Thu Jan 2 20:49:07 2025 +0000
+
+    spec: fix a dead link
+    
+    Change-Id: If99aa8073cc0e7fe36d3775c635eaaab230fcd04
+    GitHub-Last-Rev: 06dbd990c72ee0e9c08254addd5ce669bfbe1883
+    GitHub-Pull-Request: golang/go#71083
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638638
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,14 @@
-commit d2b77bb194b8377c1b1ba5826960f1e63f13a51a
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu Dec 1 17:35:43 2011 -0200
+commit 744fb52102642382d09968d8bc0fe4090af20360
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 11:23:39 2011 -0800
 
-    os: add ModeType constant to mask file type bits
+    os: be consistent with receiver names for godoc TOC alignment
     
-    This covers the lack of IsRegular comfortably:
-    
-        if stat.Mode()&os.ModeType == 0 { ... }
-    
-    R=golang-dev, r, rsc, r, gustavo
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5440075
+    https://golang.org/cl/5449056
 
- src/pkg/os/types.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/os/file.go       | 50 ++++++++++++++++++++++++------------------------
+ src/pkg/os/file_posix.go |  6 +++---
+ src/pkg/os/file_unix.go  | 24 +++++++++++------------
+ 3 files changed, 40 insertions(+), 40 deletions(-)

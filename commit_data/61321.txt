@@ -1,0 +1,32 @@
+commit fdfb3067a8a27a7491c3b0f6eddedbd467495329
+Author: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+Date:   Wed Sep 11 09:44:16 2024 -0500
+
+    cmd/internal/obj/ppc64: support for extended  mnemonics of BC
+    
+    BGT, BLT, BLE, BGE, BNE, BVS, BVC, and BEQ support by assembler. This will simplify the usage of BC constructs like
+    BC 12, 30, LR    <=>  BEQ CR7, LR
+    BC 12, 2, LR     <=>  BEQ CR0, LR
+    BC 12, 0, target  <=>  BLT CR0, target
+    BC 12, 2, target  <=>  BEQ CR0, target
+    BC 12, 5, target  <=>  BGT CR1, target
+    BC 12, 30, target <=>  BEQ CR7, target
+    BC 4, 6, target   <=>  BNE CR1, target
+    BC 4, 5, target   <=>  BLE CR1, target
+    code cleanup based on the above additions.
+    
+    Change-Id: I02fdb212b6fe3f85ce447e05f4d42118c9ce63b5
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9,gotip-linux-ppc64le_power10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  9 +++++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 45 +++++++++++++++++++++++++++++++
+ src/internal/bytealg/compare_ppc64x.s     | 10 +++----
+ src/runtime/memclr_ppc64x.s               |  6 ++---
+ src/runtime/memmove_ppc64x.s              | 28 +++++++++----------
+ 5 files changed, 76 insertions(+), 22 deletions(-)

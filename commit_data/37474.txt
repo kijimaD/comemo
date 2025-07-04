@@ -1,16 +1,14 @@
-commit bb3b24bffc4f50c64504c1c5f899aad0281a449a
-Author: Rob Pike <r@golang.org>
-Date:   Mon Nov 26 15:58:56 2018 +1100
+commit db810b6e394c38a0bd0eb52c3475d0fbc08469f8
+Author: Phil Pearl <philip.j.r.pearl@gmail.com>
+Date:   Wed Jun 20 20:40:33 2018 +0100
 
-    fmt: update formatting example for maps
+    crypto/ecdsa: add a package level example
     
-    Now that maps are printed in deterministic order, the map example
-    can have multiple keys without breaking the build.
-    
-    Change-Id: Iccec0cd76a3d41c75d8d4eb768ec0ac09ad9f2ad
-    Reviewed-on: https://go-review.googlesource.com/c/151218
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4063d5ec4ac45561b94472b528583be564981912
+    Reviewed-on: https://go-review.googlesource.com/120144
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/fmt/example_test.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/crypto/ecdsa/example_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

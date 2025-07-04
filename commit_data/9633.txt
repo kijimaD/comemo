@@ -1,12 +1,17 @@
-commit e7af22a64eec799ba9bfab2c1d269b99bee2fe5d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 8 10:08:49 2011 -0400
+commit cf0d8c0941308da40e54df73c16bffd1552a495d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 8 11:58:48 2011 +0400
 
-    codereview: Mercurial 1.9 fix for hg diff @nnn
+    sync/atomic: add 64-bit Load and Store
     
-    R=golang-dev, adg
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4969063
+    https://golang.org/cl/4977054
 
- lib/codereview/codereview.py | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/pkg/sync/atomic/asm_386.s       |  28 ++++
+ src/pkg/sync/atomic/asm_amd64.s     |  18 +++
+ src/pkg/sync/atomic/asm_arm.s       |  24 ++++
+ src/pkg/sync/atomic/asm_linux_arm.s |  12 ++
+ src/pkg/sync/atomic/atomic_test.go  | 279 ++++++++++++++++++++++++++++++++++--
+ src/pkg/sync/atomic/doc.go          |  14 +-
+ 6 files changed, 362 insertions(+), 13 deletions(-)

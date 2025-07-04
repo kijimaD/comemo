@@ -1,22 +1,18 @@
-commit 41660d0086b302654fce0c948b84e464095398a1
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Nov 16 09:23:46 2018 -0500
+commit 9cde8048ad88587d90274ecbe9083326d56b6758
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 24 20:02:26 2018 -0400
 
-    cmd/vet: fix two failing test cases
+    cmd/go: document in 'go help mod' that people should use 'go get'
     
-    Select linux/arm64 for the asm test.
+    We're starting to see tutorials that assume
+    'go mod' is the only module-related command.
     
-    Disable the cgo test for now.
-    Will fix properly in a follow-up.
-    Filed Issue 28829 to track it.
+    Fixes #26597.
     
-    Updates #28829
-    
-    Change-Id: Ic05f619700b06e91c43f8c150b089b8e77d92c85
-    Reviewed-on: https://go-review.googlesource.com/c/149937
-    Run-TryBot: Alan Donovan <adonovan@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I44701f29f89fc67086f96307afbdb4659bb63873
+    Reviewed-on: https://go-review.googlesource.com/125935
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/vet/vet_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/go/alldocs.go             | 5 +++++
+ src/cmd/go/internal/modcmd/mod.go | 5 +++++
+ 2 files changed, 10 insertions(+)

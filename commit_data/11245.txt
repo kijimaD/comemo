@@ -1,15 +1,15 @@
-commit 7d418aeed2f93014d2717da36dd08376e3fe2bf9
+commit b39c883e292a39a0ac05507b5d79d89cc7328836
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 18 19:05:44 2012 -0800
+Date:   Wed Jan 18 19:05:15 2012 -0800
 
-    syscall: add Unix method to TimeSpec, TimeVal
+    encoding/json: allow / and % in tag names
     
-    Fixes #2534
+    Fixes #2718
     
-    R=golang-dev, dave, alex.brainman
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5554057
+    https://golang.org/cl/5532095
 
- src/pkg/syscall/syscall.go         | 8 ++++++++
- src/pkg/syscall/syscall_windows.go | 7 +++++++
- 2 files changed, 15 insertions(+)
+ src/pkg/encoding/json/encode.go      | 9 +++++++--
+ src/pkg/encoding/json/tagkey_test.go | 7 ++++++-
+ 2 files changed, 13 insertions(+), 3 deletions(-)

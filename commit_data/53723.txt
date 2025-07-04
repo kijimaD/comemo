@@ -1,34 +1,17 @@
-commit ac81156bce3ff4bfdcf983cf21acb6830a450a4b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jun 8 12:19:54 2023 -0400
+commit 301ca7513f427f6511fb67cc0385151403cd1729
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Aug 26 10:41:32 2022 +0800
 
-    cmd/link: handle dynamic import variables on Darwin
+    runtime: convert worldIsStopped to atomic type
     
-    Currently, on darwin, we only support cgo_dynamic_import for
-    functions, but not variables, as we don't need it before.
-    mach_task_self_ is a variable defined in the system library, which
-    can be used to e.g. access the process's memory mappings via the
-    mach API. The C header defines a macro mach_task_self(), which
-    refers to the variable. To use mach_task_self_ (in pure-Go
-    programs) we need to access it in Go.
+    For #53821
     
-    This CL handles cgo_dynamic_import for variables in the linker,
-    loading its address via the GOT. (Currently only on Darwin, as
-    we only need it there.)
-    
-    For #50891.
-    
-    Change-Id: Idf64fa88ba2f2381443a1ed0b42b14b581843493
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501855
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I246b65ddb1171d2cab42f98092c64f20ecef392a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425778
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/link/internal/amd64/asm.go               | 23 ++++++++++++++++
- src/cmd/link/internal/arm64/asm.go               | 34 ++++++++++++++++++++++++
- src/cmd/link/link_test.go                        | 30 +++++++++++++++++++++
- src/cmd/link/testdata/dynimportvar/asm/a.go      | 15 +++++++++++
- src/cmd/link/testdata/dynimportvar/asm/a_amd64.s | 11 ++++++++
- src/cmd/link/testdata/dynimportvar/asm/a_arm64.s | 11 ++++++++
- src/cmd/link/testdata/dynimportvar/main.go       | 32 ++++++++++++++++++++++
- 7 files changed, 156 insertions(+)
+ src/runtime/lockrank_on.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

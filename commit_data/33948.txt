@@ -1,18 +1,18 @@
-commit 100bd43f5ca7537ceba1ac8bb0e883fe870efefd
-Author: Brad Burch <brad.burch@gmail.com>
-Date:   Thu Jan 4 00:42:10 2018 -0600
+commit 475df0ebccaf0871c86b2c0b55ee841aede324b7
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Sep 12 13:53:55 2017 -0500
 
-    crypto/tls: optional "certificate_status" with OCSP
+    cmd/compile/internal/gc: better inliner diagnostics
     
-    Follows the wording in RFC4366 more precisely which allows a server
-    to optionally return a "certificate_status" when responding to a
-    client hello containing "status_request" extension.
+    When debugging inliner with -m -m print cost of complex functions,
+    instead of simple "function too complex". This helps to understand,
+    how close to inlining is this particular function.
     
-    fixes #8549
-    
-    Change-Id: Ib02dc9f972da185b25554568fe6f8bc411d9c0b7
-    Reviewed-on: https://go-review.googlesource.com/86115
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I6871f69b5b914d23fd0b43a24d7c6fc928f4b716
+    Reviewed-on: https://go-review.googlesource.com/63330
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/handshake_client.go | 32 ++++++++++++++++++++------------
- 1 file changed, 20 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

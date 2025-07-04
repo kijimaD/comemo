@@ -1,13 +1,15 @@
-commit 37323fe05e1f142ba81bc5071a2d23517fd7de95
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat May 17 06:54:05 2014 +0900
+commit 2a627da326089dcbe9e77cdc30a3a823a1c6689a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 16 12:20:03 2014 -0700
 
-    doc/go1.3.html: update the state of supported platforms
+    spec: clarify that newlines are kept in raw string literals
+    
+    Fixes #8007.
     
     LGTM=r
-    R=golang-codereviews, aram, 0intro, gobot, r
+    R=gri, r
     CC=golang-codereviews
-    https://golang.org/cl/100490044
+    https://golang.org/cl/91510044
 
- doc/go1.3.html | 65 ++++++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 41 insertions(+), 24 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

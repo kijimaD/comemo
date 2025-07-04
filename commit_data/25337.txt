@@ -1,18 +1,20 @@
-commit 0cb68acea2e82f6e071804d4d890271103f83c7b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 17 01:38:14 2015 -0500
+commit 3c1712db0bd3aa360ad08d9a8e57f6f9b64df6a4
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Wed Oct 21 00:39:27 2015 +0800
 
-    cmd/go: respect umask when creating executables
+    cmd/vet: fix shadow assignment check with complex rhs
     
-    Also update many call sites where I forgot that the permission
-    argument is going to be masked by umask.
+    This change fixes shadow assignment check in cases when RHS is not an identifier
+    or a type assertion.
     
-    Fixes #12692.
+    Fixes #12188
     
-    Change-Id: I52b315b06236122ca020950447863fa396b68abd
-    Reviewed-on: https://go-review.googlesource.com/17950
+    Change-Id: I0940df8d9c237ab8b8d3272eb6895e676c75c115
+    Reviewed-on: https://go-review.googlesource.com/16038
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/build.go        | 36 +++++++++++++++++++++++++++---------
- src/cmd/go/go_unix_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 9 deletions(-)
+ src/cmd/vet/shadow.go          | 2 ++
+ src/cmd/vet/testdata/shadow.go | 7 ++++++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

@@ -1,39 +1,25 @@
-commit f51c55bfc382443b61ca3257c1ffea59eee2559f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 19 16:09:35 2023 -0700
+commit ee0e40aaef3dc5c6fb8612dd80622e02fc4b574f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 7 23:12:53 2022 +0700
 
-    runtime: adjust netpollWaiters after goroutines are ready
+    reflect: use cgo.Incomplete instead of go:notinheap in tests
     
-    The runtime was adjusting netpollWaiters before the waiting
-    goroutines were marked as ready. This could cause the scheduler
-    to report a deadlock because there were no goroutines ready to run.
-    Keeping netpollWaiters non-zero ensures that at least one goroutine
-    will call netpoll(-1) from findRunnable.
+    go:notinheap will be replaced by runtime/internal/sys.NotInHeap, and for
+    longer term, we want to restrict all of its usages inside the runtime
+    package only.
     
-    This does mean that if a program has network activity for a while
-    and then never has it again, and also has no timers, then we can leave
-    an M stranded in a call to netpoll from which it will never return.
-    At least this won't be a common case. And it's not new; this has been
-    a potential problem for some time.
+    Updates #46731
     
-    Fixes #61454
-    
-    Change-Id: I17c7f891c2bb1262fda12c6929664e64686463c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511455
+    Change-Id: I267adc2a19f0dc8a1ed29b5b4aeec1a7dc7318d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421880
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/netpoll.go         | 58 ++++++++++++++++++++++++++++++++----------
- src/runtime/netpoll_aix.go     | 11 ++++----
- src/runtime/netpoll_epoll.go   | 11 ++++----
- src/runtime/netpoll_fake.go    |  4 +--
- src/runtime/netpoll_kqueue.go  | 11 ++++----
- src/runtime/netpoll_solaris.go | 11 ++++----
- src/runtime/netpoll_stub.go    | 12 ++++++---
- src/runtime/netpoll_wasip1.go  | 11 ++++----
- src/runtime/netpoll_windows.go | 15 ++++++-----
- src/runtime/proc.go            | 22 ++++++++++------
- 10 files changed, 107 insertions(+), 59 deletions(-)
+ src/reflect/all_test.go  | 22 ----------------------
+ src/reflect/deepequal.go |  6 +++---
+ src/reflect/nih_test.go  | 38 ++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go     |  4 ++--
+ 4 files changed, 43 insertions(+), 27 deletions(-)

@@ -1,14 +1,16 @@
-commit a411b104f0a32f7c859d63c4fbd46919c2036910
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 25 08:29:46 2013 -0800
+commit cd81db82995a7e91c1c0184ad6afc1b4d8354471
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 25 23:05:40 2013 +0900
 
-    go/parser: more precise comment
+    net: make use of testing.B.Skip and reflect.DeepEqual in test
     
-    See also CL 7383051 for details.
+    This CL addresses the comments on CL 7368046 that I've overlooked.
     
-    R=adonovan, bradfitz
+    Update #4866.
+    
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7378063
+    https://golang.org/cl/7369052
 
- src/pkg/go/parser/parser.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/net/interface_test.go | 33 ++++++++++++---------------------
+ 1 file changed, 12 insertions(+), 21 deletions(-)

@@ -1,23 +1,49 @@
-commit 79594ee95a4b91c894f00e2562ba12e7f803191b
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 15 14:54:24 2017 -0800
+commit 5d95de207211a2fc6241daa7f8a0797f013850ed
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 30 21:10:49 2017 +0000
 
-    runtime: buffered write barrier for arm64
+    cmd/link: remove SysArch global variable
     
-    Updates #22460.
+    For #22095
     
-    Change-Id: I5f8fbece9545840f5fc4c9834e2050b0920776f0
-    Reviewed-on: https://go-review.googlesource.com/92699
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I9d1f0d93f8fd701a24af826dc903eea2bc235de2
+    Reviewed-on: https://go-review.googlesource.com/67317
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/arm64/ssa.go        |  5 ++
- src/cmd/compile/internal/gc/main.go          |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  5 ++
- src/cmd/compile/internal/ssa/opGen.go        | 15 +++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 20 ++++++
- src/cmd/vet/all/whitelist/arm64.txt          |  2 +
- src/runtime/asm_arm64.s                      | 99 ++++++++++++++++++++++++++++
- 8 files changed, 150 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go    |  15 ++--
+ src/cmd/link/internal/amd64/obj.go    |  72 ++++++++++---------
+ src/cmd/link/internal/arm/asm.go      |  49 ++++++-------
+ src/cmd/link/internal/arm/obj.go      |  63 ++++++++--------
+ src/cmd/link/internal/arm64/asm.go    |   9 +--
+ src/cmd/link/internal/arm64/obj.go    |  61 ++++++++--------
+ src/cmd/link/internal/ld/config.go    |   4 +-
+ src/cmd/link/internal/ld/data.go      | 106 +++++++++++++--------------
+ src/cmd/link/internal/ld/deadcode.go  |   6 +-
+ src/cmd/link/internal/ld/decodesym.go | 132 +++++++++++++++++-----------------
+ src/cmd/link/internal/ld/dwarf.go     |  76 ++++++++++----------
+ src/cmd/link/internal/ld/elf.go       |  88 +++++++++++------------
+ src/cmd/link/internal/ld/ldelf.go     |   8 +--
+ src/cmd/link/internal/ld/ldmacho.go   |  14 ++--
+ src/cmd/link/internal/ld/ldpe.go      |   2 +-
+ src/cmd/link/internal/ld/lib.go       |  51 +++++++------
+ src/cmd/link/internal/ld/link.go      |   6 +-
+ src/cmd/link/internal/ld/macho.go     |  74 +++++++++----------
+ src/cmd/link/internal/ld/main.go      |   7 +-
+ src/cmd/link/internal/ld/pcln.go      |  34 ++++-----
+ src/cmd/link/internal/ld/pe.go        |  30 ++++----
+ src/cmd/link/internal/ld/symtab.go    |   6 +-
+ src/cmd/link/internal/ld/typelink.go  |   2 +-
+ src/cmd/link/internal/mips/asm.go     |  17 ++---
+ src/cmd/link/internal/mips/obj.go     |  82 ++++++++++-----------
+ src/cmd/link/internal/mips64/asm.go   |  10 +--
+ src/cmd/link/internal/mips64/obj.go   |  77 ++++++++++----------
+ src/cmd/link/internal/ppc64/asm.go    |  19 ++---
+ src/cmd/link/internal/ppc64/obj.go    |  86 +++++++++++-----------
+ src/cmd/link/internal/s390x/asm.go    |   3 +-
+ src/cmd/link/internal/s390x/obj.go    |  62 ++++++++--------
+ src/cmd/link/internal/x86/asm.go      |  15 ++--
+ src/cmd/link/internal/x86/obj.go      |  68 +++++++++---------
+ src/cmd/link/main.go                  |  24 ++++---
+ 34 files changed, 702 insertions(+), 676 deletions(-)

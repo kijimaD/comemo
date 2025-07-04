@@ -1,30 +1,33 @@
-commit 672729ebbd15e0b0dfac1ba22e35e92557215e1a
-Author: Ian Gudger <igudger@google.com>
-Date:   Wed Nov 22 17:12:30 2017 -0800
+commit 6de53832ae7678f18e1b4077134764b11687992d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Nov 2 10:22:19 2017 +0100
 
-    net: use golang.org/x/net/dns/dnsmessage for DNS resolution
+    cmd/dist: fix bad LC_TIME assumption in 'date' invocation
     
-    Vendors golang.org/x/net/dns/dnsmessage from x/net git rev
-    892bf7b0c6e2f93b51166bf3882e50277fa5afc6
+    With GOBUILDTIMELOGFILE set, make.bash logs the starting time using
     
-    Updates #16218
-    Updates #21160
+      $ echo $(date) > file
     
-    Change-Id: Ic4e8f3c3d83c2936354ec14c5be93b0d2b42dd91
-    Reviewed-on: https://go-review.googlesource.com/37879
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    and expects to be able to read the date back with
+    
+      time.Parse(time.UnixDate)
+    
+    but in some locales the default date format is not the same as
+    time.UnixDate; for example on LC_TIME="en_GB.UTF-8"
+    
+      $ locale date_fmt
+      %a %e %b %H:%M:%S %Z %Y
+    
+    Fix this by setting LC_TIME=C before the date command invocation.
+    
+    Fixes #22541
+    
+    Change-Id: I59bf944bb868e2acdd816c7e35134780cdbfc6a6
+    Reviewed-on: https://go-review.googlesource.com/75370
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/build/deps_test.go                          |    2 +-
- src/net/dnsclient.go                               |   70 +-
- src/net/dnsclient_test.go                          |   48 -
- src/net/dnsclient_unix.go                          |  417 ++--
- src/net/dnsclient_unix_test.go                     |  617 +++---
- src/net/dnsmsg.go                                  |  884 ---------
- src/net/dnsmsg_test.go                             |  481 -----
- src/net/lookup_unix.go                             |  174 +-
- .../x/net/dns/dnsmessage/example_test.go           |  132 ++
- .../golang_org/x/net/dns/dnsmessage/message.go     | 2095 ++++++++++++++++++++
- .../x/net/dns/dnsmessage/message_test.go           | 1115 +++++++++++
- 11 files changed, 4164 insertions(+), 1871 deletions(-)
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

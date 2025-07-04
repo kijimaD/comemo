@@ -1,25 +1,28 @@
-commit 9b9de261bd66333885adb7b36f1dd133d00cfe13
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Apr 24 16:51:20 2024 -0400
+commit f00e947cdf5cdac794d571c87a81ea8878a6fe4f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Apr 23 12:25:47 2023 -0700
 
-    go/types: add Alias.Rhs
+    runtime: add raceFiniLock to lock ranking
     
-    This method returns the type on the right-hand side of an
-    alias declaration such as type L = R.
+    Also preserve the PC/SP in reentersyscall when doing lock ranking.
+    The test is TestDestructorCallbackRace with the staticlockranking
+    experiment enabled.
     
-    Fixes #66559
+    For #59711
     
-    Change-Id: I396f2d999680ad251f47cdde20856ae20fc1c40a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581615
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I87ac1d121ec0d399de369666834891ab9e7d11b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487955
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- api/next/66559.txt                           |  1 +
- doc/next/6-stdlib/99-minor/go/types/66559.md |  3 +++
- src/cmd/compile/internal/types2/alias.go     |  8 +++-----
- src/cmd/compile/internal/types2/api.go       |  7 -------
- src/cmd/compile/internal/types2/api_test.go  | 17 +++++++++++++++++
- src/go/types/alias.go                        |  8 +++-----
- src/go/types/api_test.go                     | 18 ++++++++++++++++++
- 7 files changed, 45 insertions(+), 17 deletions(-)
+ src/runtime/lockrank.go     |  3 +++
+ src/runtime/lockrank_off.go |  2 ++
+ src/runtime/lockrank_on.go  | 10 ++++++++--
+ src/runtime/mklockrank.go   |  2 ++
+ src/runtime/proc.go         |  6 ++++++
+ src/runtime/race.go         |  4 ++--
+ 6 files changed, 23 insertions(+), 4 deletions(-)

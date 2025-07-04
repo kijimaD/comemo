@@ -1,18 +1,13 @@
-commit eef42f928db025ef11973cdb6a2e6dee49ad4b5e
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Thu Apr 5 00:31:34 2018 +0300
+commit c36033a379a4907fb75309416ffcf2904e613ab9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 20 11:42:27 2017 -0500
 
-    cmd/internal/obj/x86: make AsmBuf receiver name consistent
+    [dev.boringcrypto] misc/boring: add go1.9.2b4 release
     
-    Fixes golint receiver name complaints.
-    
-    We can't go with "a" name as it sometimes is used for obj.Addr args.
-    
-    Change-Id: I66556f4e3dc42cfaaa4db3ed7772fa6756ea9a9b
-    Reviewed-on: https://go-review.googlesource.com/104796
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I45398a3e672ce4f318b6e1875f489672456be1f5
+    Reviewed-on: https://go-review.googlesource.com/78795
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 802 +++++++++++++++++++--------------------
- 1 file changed, 401 insertions(+), 401 deletions(-)
+ misc/boring/RELEASES | 2 ++
+ 1 file changed, 2 insertions(+)

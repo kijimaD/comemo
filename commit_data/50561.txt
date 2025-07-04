@@ -1,25 +1,32 @@
-commit 9c916c79011f3af98b5670eb2ba55349ba904522
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Jun 15 17:29:25 2022 -0700
+commit 3ee426aefa519b0b2f814a834f5026481c187946
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Jan 5 17:52:43 2021 +0800
 
-    fmt: rely on utf8.AppendRune
+    cmd/dist: add asan tests in misc/cgo/testsanitizers package
     
-    This is both simpler and more performant.
-    The need for fmt.fmtC to manually check for utf8.MaxRune
-    is subtle to avoid overflow when converting uint64 to rune,
-    so a test case was added to exercise this edge case.
+    Add asan tests to check the use of Go with -asan option.
     
-    Change-Id: I0f2e6cce91dcd4cc6b88190c29807ca1c58e999d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412335
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Currenly, the address sanitizer in Go only checks for error
+    memory access to heap objects.
+    
+    TODO: Enable check for error memory access to global objects.
+    
+    Updates #44853.
+    
+    Change-Id: I83579f229f117b5684a369fc8f365f4dea140648
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298615
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/fmt/fmt_test.go |  1 +
- src/fmt/format.go   |  5 +++--
- src/fmt/print.go    | 13 +------------
- 3 files changed, 5 insertions(+), 14 deletions(-)
+ misc/cgo/testsanitizers/asan_test.go               | 66 ++++++++++++++++++++++
+ misc/cgo/testsanitizers/cc_test.go                 | 14 +++++
+ misc/cgo/testsanitizers/testdata/asan1_fail.go     | 28 +++++++++
+ misc/cgo/testsanitizers/testdata/asan2_fail.go     | 34 +++++++++++
+ misc/cgo/testsanitizers/testdata/asan3_fail.go     | 23 ++++++++
+ misc/cgo/testsanitizers/testdata/asan4_fail.go     | 22 ++++++++
+ .../testsanitizers/testdata/asan_useAfterReturn.go | 26 +++++++++
+ src/cmd/internal/sys/supported.go                  |  1 +
+ 8 files changed, 214 insertions(+)

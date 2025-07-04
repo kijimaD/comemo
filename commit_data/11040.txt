@@ -1,12 +1,14 @@
-commit e36acdfb56474be234b9c2cd4b88b7af30d1b99f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 5 18:40:17 2012 -0800
+commit a3baccefd6851acc77beadd645d5b0278146fe1d
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu Jan 5 18:38:01 2012 -0800
 
-    sort: eliminate extra Len() call
+    various: fix prints
     
-    R=golang-dev, dsymonds
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5521052
+    https://golang.org/cl/5516049
 
- src/pkg/sort/sort.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/app/build/notify.go | 2 +-
+ src/cmd/gotest/gotest.go           | 2 +-
+ src/pkg/fmt/fmt_test.go            | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

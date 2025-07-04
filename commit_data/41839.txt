@@ -1,26 +1,15 @@
-commit c4f875e84e6ce3c09045fd00b72e4bb830d3e40e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Apr 3 10:42:55 2020 -0400
+commit 18e9cdc70e8da645302d96bab905e902f9cc776a
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Mon Oct 21 15:48:23 2019 +0900
 
-    cmd/go: report original module path in error parsing replaced go.mod
+    cmd/link: use filepath.Clean rather than path.Clean
     
-    MVS reports an error when a go.mod file declares a module path that
-    doesn't match the path it was required with. If the module is a
-    replacement, its declared path may be the original path (preferred) or
-    the replacement path.
+    pname already translated package path into a file path on for statement.
+    Use same as filepath.Clean rather than path.Clean.
     
-    This CL makes the reported error a little more clear: the "required as"
-    path should be the original required path, not the replacement path.
-    
-    Fixes #38220
-    
-    Change-Id: I08b50a100679a447c8803cca1d1b32bc115ec1b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227097
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I9782e2396313abc39ac55e3fdcec8f53bcaff84e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202377
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/modload/mvs.go                 |  2 +-
- .../go/testdata/mod/example.com_quote_v1.5.2.txt   |  9 +++++++++
- .../testdata/script/mod_load_replace_mismatch.txt  | 23 ++++++++++++++++++++++
- 3 files changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/ld.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

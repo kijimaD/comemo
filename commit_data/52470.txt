@@ -1,43 +1,24 @@
-commit 8890c3a05f7bf62f455ad2f81a644ba5cae005d8
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Fri Mar 24 22:44:01 2023 -0700
+commit a6a49d128bbd67051c2246fbb9abae85c8601a5d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 17:49:32 2022 -0700
 
-    all: add wasip1 definitions
+    cmd/compile: remove ir.Name.Ntype
     
-    Add wasip1 GOOS definitions to the compiler and build
-    definitions.
+    No longer needed now that IR construction uses types2.
     
-    Co-authored-by: Richard Musiol <neelance@gmail.com>
-    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
-    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
-    Co-authored-by: Evan Phoenix <evan@phx.io>
-    Change-Id: I087e7ff4205a34187bbca18b1693ad911ddd1219
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479616
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Change-Id: If8b7aff80cd8472be7d87fd3a36da911a5df163c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403839
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/dist/build.go                |  2 ++
- src/cmd/go/internal/imports/build.go |  1 +
- src/cmd/internal/objabi/head.go      |  5 +++++
- src/go/build/syslist.go              |  1 +
- src/internal/goos/zgoos_aix.go       |  1 +
- src/internal/goos/zgoos_android.go   |  1 +
- src/internal/goos/zgoos_darwin.go    |  1 +
- src/internal/goos/zgoos_dragonfly.go |  1 +
- src/internal/goos/zgoos_freebsd.go   |  1 +
- src/internal/goos/zgoos_hurd.go      |  1 +
- src/internal/goos/zgoos_illumos.go   |  1 +
- src/internal/goos/zgoos_ios.go       |  1 +
- src/internal/goos/zgoos_js.go        |  1 +
- src/internal/goos/zgoos_linux.go     |  1 +
- src/internal/goos/zgoos_netbsd.go    |  1 +
- src/internal/goos/zgoos_openbsd.go   |  1 +
- src/internal/goos/zgoos_plan9.go     |  1 +
- src/internal/goos/zgoos_solaris.go   |  1 +
- src/internal/goos/zgoos_wasip1.go    | 26 ++++++++++++++++++++++++++
- src/internal/goos/zgoos_windows.go   |  1 +
- src/internal/goos/zgoos_zos.go       |  1 +
- 21 files changed, 51 insertions(+)
+ src/cmd/compile/internal/inline/inl.go     |  9 ---------
+ src/cmd/compile/internal/ir/fmt.go         | 10 ----------
+ src/cmd/compile/internal/ir/name.go        |  1 -
+ src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/noder/reader.go   |  4 ----
+ src/cmd/compile/internal/typecheck/dcl.go  | 19 ++++++++-----------
+ src/cmd/compile/internal/typecheck/func.go |  5 +----
+ src/cmd/compile/internal/typecheck/type.go |  2 +-
+ 8 files changed, 11 insertions(+), 41 deletions(-)

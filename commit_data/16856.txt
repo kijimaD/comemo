@@ -1,13 +1,12 @@
-commit cefdb9c286e6dfdeb966df1517879bdc5f8c4452
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 23 22:59:32 2013 -0400
+commit ac94c06d1e57fb4e41b547ce7652a6d698cfcf17
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 24 10:54:33 2013 +1000
 
-    runtime: fix windows build
+    doc/go1.2.txt: document new function unicode.In
     
-    TBR=golang-dev
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/11595045
+    https://golang.org/cl/11745044
 
- src/pkg/runtime/asm_386.s   | 2 +-
- src/pkg/runtime/asm_amd64.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

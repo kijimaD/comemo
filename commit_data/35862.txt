@@ -1,34 +1,25 @@
-commit 52e782a2d6e83065e394d127ea5df20e4aaaa8af
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 20 16:25:41 2018 -0400
+commit 523f2ea77b8845700d302fc69f6c34ac296af55d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Mar 14 13:36:31 2018 +0100
 
-    runtime: initialize g0 stack bounds on Windows to full stack
+    runtime: don't use floating point in findnull on Plan 9
     
-    Currently, we allocate 1MB or 2MB thread stacks on Windows, but in
-    non-cgo binaries still set the g0 stack bounds assuming only 64k is
-    available. While this is fine in pure Go binaries, a non-cgo Go binary
-    on Windows can use the syscall package to call arbitrary DLLs, which
-    may call back into Go. If a DLL function uses more than 64k of stack
-    and then calls back into Go, the Go runtime will believe that it's out
-    of stack space and crash.
+    In CL 98015, findnull was rewritten so it uses bytes.IndexByte.
     
-    Fix this by plumbing the correct stack size into the g0 stacks of
-    non-cgo binaries. Cgo binaries already use the correct size because
-    their g0 stack sizes are set by a different code path.
+    This broke the build on plan9/amd64 because the implementation
+    of bytes.IndexByte on AMD64 relies on SSE instructions while
+    floating point instructions are not allowed in the note handler.
     
-    Fixes #20975.
+    This change fixes findnull by using the former implementation
+    on Plan 9, so it doesn't use bytes.IndexByte.
     
-    Change-Id: Id6fb559cfe1e1ea0dfac56d4654865c20dccf68d
-    Reviewed-on: https://go-review.googlesource.com/120195
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #24387.
+    
+    Change-Id: I084d1a44d38d9f77a6c1ad492773f0a98226be16
+    Reviewed-on: https://go-review.googlesource.com/100577
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/pe.go      |  4 ++--
- src/runtime/cgo/gcc_windows_386.c   |  2 +-
- src/runtime/cgo/gcc_windows_amd64.c |  2 +-
- src/runtime/os_windows.go           | 19 ++++++++++++++++---
- src/runtime/sys_windows_386.s       |  3 ++-
- src/runtime/sys_windows_amd64.s     |  3 ++-
- 6 files changed, 24 insertions(+), 9 deletions(-)
+ src/runtime/string.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,26 +1,16 @@
-commit 6f08e89ec3280bf6577c2bdb01243cbeeb1a259d
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Aug 4 13:24:37 2020 -0400
+commit 68b55ab51319ec71fe3f00266f9c467f34c824b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 30 11:34:24 2020 -0800
 
-    cmd/go: fix error stacks when there are scanner errors
+    doc/go1.14: fix minor typo (update release notes)
     
-    After golang.org/cl/228784 setLoadPackageDataError tries to decide whether an
-    error is caused by an imported package or an importing package by examining the
-    error itself to decide. Ideally, the errors themselves would belong to a
-    specific interface or some other property to make it unambiguous that they
-    were import errors. Since they don't, setLoadPackageDataError just checked
-    for nogoerrors and classified all other errors as import errors. But
-    it missed scanner errors which are also "caused" by the imported
-    package.
+    Follow-up on https://golang.org/cl/216200/2/doc/go1.14.html#423 .
     
-    Fixes #40544
+    Updates #36878.
     
-    Change-Id: I39159bfdc286bee73697decd07b8aa9451f2db06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246717
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I693a9eb05c6f1f42721a92fda46a4f3449defa24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217100
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go               | 29 +++++++++++++++------------
- src/cmd/go/testdata/script/list_err_stack.txt | 27 +++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 13 deletions(-)
+ doc/go1.14.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

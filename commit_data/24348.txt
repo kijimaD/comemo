@@ -1,17 +1,18 @@
-commit 646401bdf05e611f85f36b00b00fd28639181061
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Sep 15 16:59:20 2015 +1000
+commit eb248c4df2c2850d49b9656f6aa1e3d1d67af61b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 23 22:40:30 2015 -0700
 
-    os: add check for ERROR_BAD_NETPATH in windows IsNotExist
+    runtime: require gdb version 7.9 for gdb test
     
-    Otherwise IsNotExist does not account for not existent servers and shares.
+    Issue 11214 reports problems with older versions of gdb.  It does work
+    with gdb 7.9 on my Ubuntu Trusty system, so take that as the minimum
+    required version.
     
-    Fixes #12374
+    Fixes #11214.
     
-    Change-Id: I37f6850198f91dcb02a4a917b793339d7e30e934
-    Reviewed-on: https://go-review.googlesource.com/14579
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I61b732895506575be7af595f81fc1bcf696f58c2
+    Reviewed-on: https://go-review.googlesource.com/12626
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/error_windows.go   |  3 +++
- src/os/os_windows_test.go | 20 ++++++++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/runtime/runtime-gdb_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

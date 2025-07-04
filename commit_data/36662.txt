@@ -1,19 +1,50 @@
-commit 16687a3bbfa27280d16eaa89e72833b7d7579a79
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Sep 13 13:16:46 2018 +0100
+commit 3fb3ca083c650b933919d3b6a45268fce339ac38
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Tue May 15 19:09:49 2018 +0300
 
-    cmd/compile: skip float32 constant folding test on 387 builder
+    mime: do a pre-allocation in encodeWord
     
-    The 387 unit always quietens float64 and float32 signaling NaNs,
-    even when just loading and storing them. This makes it difficult
-    to propagate such values in the compiler. This is a hard problem
-    to fix and it is also very obscure.
+    The preallocated memory size is comparable to bytes.Buffer bootstraping
+    array length (bytes.Buffer was used before rewrite to strings.Builder).
     
-    Updates #27516.
+    Without preallocation, encodeWord does more than one allocation for
+    almost any possible input.
     
-    Change-Id: I03d88e31f14c86fa682fcea4b6d1fba18968aee8
-    Reviewed-on: https://go-review.googlesource.com/135195
+    The regression happens because bytes.Buffer did a 80-bytes allocation
+    at the beginning of encodeWord while strings.Builder did several
+    smaller allocations (started with cap=0).
+    
+    Comparison with reported regression:
+    
+      name           old time/op    new time/op    delta
+      QEncodeWord-4     781ns ± 1%     593ns ± 1%  -24.08%  (p=0.008 n=5+5)
+    
+      name           old alloc/op   new alloc/op   delta
+      QEncodeWord-4      152B ± 0%       80B ± 0%  -47.37%  (p=0.008 n=5+5)
+    
+      name           old allocs/op  new allocs/op  delta
+      QEncodeWord-4      5.00 ± 0%      2.00 ± 0%  -60.00%  (p=0.008 n=5+5)
+    
+    Comparison with buffer solution (like before strings.Builder, but
+    without sync pool for buffer re-using):
+    
+      name           old time/op    new time/op    delta
+      QEncodeWord-4     595ns ± 1%     593ns ± 1%     ~     (p=0.460 n=5+5)
+    
+      name           old alloc/op   new alloc/op   delta
+      QEncodeWord-4      160B ± 0%       80B ± 0%  -50.00%  (p=0.008 n=5+5)
+    
+      name           old allocs/op  new allocs/op  delta
+      QEncodeWord-4      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    
+    We avoid allocation in buf.String(), as expected.
+    
+    Fixes #25379
+    
+    Change-Id: I19763f0e593a27390c1a549b86ce6507b489046b
+    Reviewed-on: https://go-review.googlesource.com/113235
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/float_test.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/mime/encodedword.go | 4 ++++
+ 1 file changed, 4 insertions(+)

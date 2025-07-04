@@ -1,17 +1,29 @@
-commit f766b68023c7fa4076d61824d631b3fe2cc697d2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 30 14:00:07 2019 -0400
+commit 6a64efc25004175e198e75191e215a7b1a08a2fa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Dec 25 19:36:25 2018 -0500
 
-    cmd/asm: accept TEXT f+0(SB) in -gensymabis mode
+    cmd/compile: fix MIPS SGTconst-with-shift rules
     
-    f+0(SB) is a non-standard but acceptable alias for f(SB).
+    (SGTconst [c] (SRLconst _ [d])) && 0 <= int32(c) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= int32(c) -> (MOVWconst [1])
     
-    Fixes #30968.
+    This rule is problematic. 1<<(32-uint32(d)) <= int32(c) meant to
+    say that it is true if c is greater than the largest possible
+    value of the right shift. But when d==1, 1<<(32-1) is negative
+    and results in the wrong comparison.
     
-    Change-Id: I499ccee4d3ff3ab4e47f75d99407aace858e59aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174537
-    Reviewed-by: Austin Clements <austin@google.com>
+    Rewrite the rules in a more direct way.
+    
+    Fixes #29402.
+    
+    Change-Id: I5940fc9538d9bc3a4bcae8aa34672867540dc60e
+    Reviewed-on: https://go-review.googlesource.com/c/155798
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/asm/operand_test.go |  9 +++++----
- src/cmd/asm/internal/asm/parse.go        | 13 ++++++++++---
- 2 files changed, 15 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/MIPS.rules   |  4 ++--
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteMIPS.go   |  8 ++++----
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go |  8 ++++----
+ test/fixedbugs/issue29402.go                  | 23 +++++++++++++++++++++++
+ 5 files changed, 35 insertions(+), 12 deletions(-)

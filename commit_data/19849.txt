@@ -1,24 +1,14 @@
-commit 1329d044cf57520704a7a09281a901147abf84cc
+commit d703ac338e86cefc1219e47a4055e66fb392cc21
 Author: Keith Randall <khr@golang.org>
-Date:   Wed Jul 30 11:02:40 2014 -0700
+Date:   Wed Jul 30 09:18:00 2014 -0700
 
-    runtime: fix stack memory test
+    runtime: fix freebsd build.  Assignment is int32* on 32 bit
+    machines and int64* on 64 bit machines.
     
-    Stand-alone this test is fine.  Run together with
-    others, however, the stack used can actually go
-    negative because other tests are freeing stack
-    during its execution.
-    
-    This behavior is new with the new stack allocator.
-    The old allocator never returned (min-sized) stacks.
-    
-    This test is fairly poor - it needs to run in
-    isolation to be accurate.  Maybe we should delete it.
-    
-    LGTM=r
-    R=r
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/119330044
+    https://golang.org/cl/117330044
 
- src/pkg/runtime/stack_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/os_freebsd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

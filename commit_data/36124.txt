@@ -1,23 +1,15 @@
-commit bd98a81dc27a740f4c4192cc8799884da62c4bad
-Author: David Wimmer <davidlwimmer@gmail.com>
-Date:   Wed Jul 25 19:16:07 2018 +0000
+commit 8e351ae3043bf7c7bbe3911496df40ae6a9582d1
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Apr 5 16:15:52 2018 -0400
 
-    syscall: implement pipe() on linux/mips
+    cmd/trace: include taskless spans in /usertasks.
     
-    Change the Pipe() function to use the pipe() syscall (which has a unique
-    calling convention on linux/mips) instead of using pipe2(). This allows
-    it work on kernels <2.6.27 when pipe2() was introduced.
-    
-    Change-Id: I65dfbd2a02b64e777a8eb13013d718e356521be6
-    GitHub-Last-Rev: c483a06168387c2cf151b6419e4e16576fab640a
-    GitHub-Pull-Request: golang/go#26608
-    Reviewed-on: https://go-review.googlesource.com/125915
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id4e3407ba497a018d5ace92813ba8e9653d0ac7d
+    Reviewed-on: https://go-review.googlesource.com/104976
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Vladimir Stefanovic <vladimir.stefanovic@mips.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/syscall_linux_mipsx.go   |  7 +++----
- src/syscall/zsyscall_linux_mips.go   | 12 ++++++++++++
- src/syscall/zsyscall_linux_mipsle.go | 12 ++++++++++++
- 3 files changed, 27 insertions(+), 4 deletions(-)
+ src/cmd/trace/annotations.go      | 17 +++++++++--------
+ src/cmd/trace/annotations_test.go | 24 +++++++++++++++++++++---
+ 2 files changed, 30 insertions(+), 11 deletions(-)

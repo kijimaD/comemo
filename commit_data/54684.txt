@@ -1,33 +1,34 @@
-commit 655155d0a7ac39062e8234f4286ed1fcf99fb176
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 6 12:20:19 2023 -0700
+commit 821e31042a47a9f65529c16f76b392428329c20b
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Nov 9 19:53:15 2022 +0800
 
-    cmd/compile, runtime/internal/atomic: add lwsync for false ppc64 cas
+    all: add missing copyright header
     
-    This CL changes ppc64 atomic compare-and-swap (cas). Before this CL,
-    if the cas failed--if the value in memory was not the value expected
-    by the cas call--the atomic function would not synchronize memory.
-    
-    In the note code in runtime/lock_sema.go, used on BSD systems,
-    notesleep and notetsleep first try a cas on the key. If that cas fails,
-    something has already called notewakeup, and the sleep completes.
-    However, because the cas did not synchronize memory on failure,
-    this meant that notesleep/notetsleep could return to a core that was
-    unable to see the memory changes that the notewakeup was reporting.
-    
-    Fixes #30189
-    Fixes #63384
-    
-    Change-Id: I9b921de5c1c09b10a37df6b3206b9003c3f32986
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533118
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Change-Id: Ia5a090953d324f0f8aa9c1808c88125ad5eb6f98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448955
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go       | 22 ++++++++++++----------
- src/runtime/internal/atomic/atomic_ppc64x.s |  2 ++
- 2 files changed, 14 insertions(+), 10 deletions(-)
+ src/cmd/api/testdata/src/pkg/p1/p1.go            | 4 ++++
+ src/cmd/api/testdata/src/pkg/p2/p2.go            | 4 ++++
+ src/cmd/api/testdata/src/pkg/p3/p3.go            | 4 ++++
+ src/cmd/compile/internal/compare/compare_test.go | 4 ++++
+ src/cmd/compile/internal/ssa/fuse_test.go        | 4 ++++
+ src/cmd/compile/internal/ssa/stmtlines_test.go   | 4 ++++
+ src/cmd/dist/quoted.go                           | 4 ++++
+ src/cmd/go/internal/fsys/fsys.go                 | 4 ++++
+ src/cmd/go/internal/fsys/fsys_test.go            | 4 ++++
+ src/cmd/go/internal/load/pkg_test.go             | 4 ++++
+ src/cmd/go/internal/modindex/scan.go             | 4 ++++
+ src/cmd/internal/obj/x86/obj6_test.go            | 4 ++++
+ src/internal/goos/nonunix.go                     | 4 ++++
+ src/internal/goos/unix.go                        | 4 ++++
+ src/internal/profile/proto_test.go               | 4 ++++
+ src/path/filepath/symlink_unix.go                | 4 ++++
+ src/reflect/internal/example1/example.go         | 4 ++++
+ src/reflect/internal/example2/example.go         | 4 ++++
+ src/syscall/const_plan9.go                       | 4 ++++
+ 19 files changed, 76 insertions(+)

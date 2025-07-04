@@ -1,19 +1,54 @@
-commit 72f0976ac45fcb7f3fd6d47a3ac5c96a78edd59d
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 19:37:04 2021 -0500
+commit ada77d23ae001a8c3feac28a44dec0be578a1c48
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 14:54:19 2021 -0700
 
-    go/types: better position for "3-index slice of string" error
+    cmd/compile/internal/types2: review of examples test
     
-    This is a port of CL 363670 from types2 to go/types.
+    The only changes between (equivalent, and reviewed) go/types/examples directory
+    are in examples/types.go2. The go/types/examples/types.go2 file should be updated
+    accordingly.
     
-    Change-Id: I2ac3a5f86bb4eafddd2854e193083b2b737e29b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364901
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    $ f=examples/types.go2; diff $f $HOME/goroot/src/go/types/$f
+    1d0
+    < // UNREVIEWED
+    109c108
+    < var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR unexpected \[ */ int]
+    ---
+    > var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR expected ';' */ int]
+    147a147,154
+    > // We accept parenthesized embedded struct fields so we can distinguish between
+    > // a named field with a parenthesized type foo (T) and an embedded parameterized
+    > // type (foo(T)), similarly to interface embedding.
+    > // They still need to be valid embedded types after the parentheses are stripped
+    > // (i.e., in contrast to interfaces, we cannot embed a struct literal). The name
+    > // of the embedded field is derived as before, after stripping parentheses.
+    > // (7/14/2020: See comment above. We probably will revert this generalized ability
+    > // if we go with [] for type parameters.)
+    149,152c156,158
+    <       ( /* ERROR cannot parenthesize */ int8)
+    <       ( /* ERROR cannot parenthesize */ *int16)
+    <       *( /* ERROR cannot parenthesize */ int32)
+    <       List[int]
+    ---
+    >       int8
+    >       *int16
+    >       *List[int]
+    155,156c161
+    <       * /* ERROR int16 redeclared */ int16
+    <       List /* ERROR List redeclared */ [int]
+    ---
+    >       * /* ERROR List redeclared */ List[int]
+    280a286
+    >
+    
+    The actual changes are removing the "// UNREVIEWED" markers.
+    
+    Change-Id: I8a80fa11f3c84f9a403c690b537973a53e1adc2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304250
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/index.go                      | 6 +++++-
- src/go/types/testdata/check/expr3.src      | 4 ++--
- src/go/types/testdata/check/typeparams.go2 | 4 ++--
- 3 files changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/examples/functions.go2 | 1 -
+ src/cmd/compile/internal/types2/examples/methods.go2   | 1 -
+ src/cmd/compile/internal/types2/examples/types.go2     | 1 -
+ 3 files changed, 3 deletions(-)

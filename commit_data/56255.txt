@@ -1,26 +1,29 @@
-commit ef2f3391da20e4aca689033045c0d00fddd0b190
-Author: khr@golang.org <khr@golang.org>
-Date:   Mon Apr 15 17:52:20 2024 -0700
+commit 9027e5d2b486906f1fce862be295defe44cea213
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 20 13:56:20 2023 -0400
 
-    runtime: make it harder to find collisions in the 64-bit fallback hash
+    os/user: skip tests that invoke Current if it returns an expected error
     
-    Currently the first argument to mix() can be set by an attacker, as it
-    is just the input bytes xored by some constants. That lets an attacker
-    set the value being multipled by to 0. That can lead to lots of
-    collisions. To fix, xor the first argument with the process-wide seed,
-    so the magic collision-generating value isn't a constant known to the
-    attacker.  (Maybe there's a timing attack that could figure out the
-    process-wide seed, but that's a much harder attack.)
+    Today Current may fail if the binary is not built with cgo
+    and USER and/or HOME is not set in the environment.
+    That should not cause the test to fail.
     
-    Fixes #66841
+    After this change,
     
-    Change-Id: I33e073c78355d1cee08660de52074e6ccc38b426
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579115
-    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+            GOCACHE=$(go env GOCACHE) CGO_ENABLED=0 USER= HOME= go test os/user
+    
+    now passes on linux/amd64.
+    
+    For #59583.
+    
+    Change-Id: Id290cd1088051e930d73f0dd554177124796e8f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487015
     Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/hash64.go    | 14 +++++++-------
- src/runtime/hash_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 7 deletions(-)
+ src/os/user/cgo_user_test.go | 11 +++++++++++
+ src/os/user/user_test.go     | 42 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 48 insertions(+), 5 deletions(-)

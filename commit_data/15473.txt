@@ -1,13 +1,18 @@
-commit fbec8347cbdccbaafdde7e59631485731d0da153
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 27 14:42:53 2013 -0800
+commit 877153f04aef18d25757ad3bf4b097460c7c4699
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Feb 27 17:00:02 2013 -0500
 
-    doc/effective_go.html: use correct name in Interface Checks section
-    Fixes #4897.
+    exp/ssa: fix *bsd breakage.
     
-    R=golang-dev, adg
+    Use portable ReadDirent, not linux Getdents.
+    
+    R=gri
+    TBR=gri
     CC=golang-dev
-    https://golang.org/cl/7377061
+    https://golang.org/cl/7405051
 
- doc/effective_go.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/exp/ssa/interp/external.go         | 2 +-
+ src/pkg/exp/ssa/interp/external_plan9.go   | 6 +++---
+ src/pkg/exp/ssa/interp/external_unix.go    | 6 +++---
+ src/pkg/exp/ssa/interp/external_windows.go | 6 +++---
+ 4 files changed, 10 insertions(+), 10 deletions(-)

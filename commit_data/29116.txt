@@ -1,26 +1,14 @@
-commit 829aa6732a47db75dbb649837fa888030659ccf9
-Author: Ben Burkert <ben@benburkert.com>
-Date:   Mon Oct 17 14:47:48 2016 -0700
+commit a656390b6986c3d559873b64683aa3454a151115
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 21:01:17 2016 -0700
 
-    crypto/tls: add CloseWrite method to Conn
+    spec: clarify text on init functions
     
-    The CloseWrite method sends a close_notify alert record to the other
-    side of the connection. This record indicates that the sender has
-    finished sending on the connection. Unlike the Close method, the sender
-    may still read from the connection until it recieves a close_notify
-    record (or the underlying connection is closed). This is analogous to a
-    TCP half-close.
+    For #16874.
     
-    This is a rework of CL 25159 with fixes for the unstable test.
-    
-    Updates #8579
-    
-    Change-Id: I47608d2f82a88baff07a90fd64c280ed16a60d5e
-    Reviewed-on: https://go-review.googlesource.com/31318
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e13f582297606e506d805755a6cfc1f3d4306a2
+    Reviewed-on: https://go-review.googlesource.com/27817
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/tls/conn.go     |  44 ++++++++++++++++++-
- src/crypto/tls/tls_test.go | 107 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 149 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

@@ -1,20 +1,17 @@
-commit 05d8a33b37682e4a58477dea4cb5c6bc298d9d25
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Oct 7 17:59:58 2024 +0200
+commit e094e80f65f77bf83e2962dc5150915711f2166d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 16 12:30:10 2023 -0400
 
-    crypto/rand: skip TestAllocations if optimizations are off
+    runtime: add self-check mode to cache in pcvalue
     
-    Without optimizations escape analysis can't do as much.
+    This would have helped with debugging the failures caused by CL 515276.
     
-    Updates #66779
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-noopt
-    Change-Id: I9ccd1b995c62427ceebd9ce5c98170dbf4a93e8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618275
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Id641949d8bcd763de7f93778ad9bd3fdde95dcb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520062
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/crypto/rand/rand_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/symtab.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

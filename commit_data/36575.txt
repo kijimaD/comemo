@@ -1,18 +1,24 @@
-commit db3f52db8edfa51c76d1e3e1a417d46b85528132
-Author: Leigh McCulloch <leighmcc@gmail.com>
-Date:   Sun Sep 2 16:53:03 2018 +0000
+commit cc0aaff40e02192356ccb65d8acf571d12f74a95
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 7 18:10:39 2018 -0400
 
-    go/types: correct misspelling in function doc
+    cmd/compile: fix Wasm rule file name
     
-    The indirectType function comment uses the phrase 'layed out'. In the
-    context of that phrase, where something is being placed or sprawled,
-    the word should be 'laid'. 'Layed' is a misspelling of 'laid'.
+    The rule generator expects the rule file name matches the arch's
+    name defined in
+    https://go.googlesource.com/go/+/b1df8d6ffa2c4c5be567934bd44432fff8f3c4a7/src/cmd/compile/internal/ssa/gen/WASMOps.go#197
     
-    Change-Id: I05ecb97637276e2252c47e92a0bd678130714889
-    GitHub-Last-Rev: 6ee67371b42c12ceaf4c6c245319748008ac7e7b
-    GitHub-Pull-Request: golang/go#27444
-    Reviewed-on: https://go-review.googlesource.com/132779
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Rename the file to match. Also rename WASMOps.go for consistency.
+    
+    Fixes #25282.
+    
+    Change-Id: I35c4bb2659fe67650933eb0ebf95778974511385
+    Reviewed-on: https://go-review.googlesource.com/111975
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/typexpr.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/{WASM.rules => Wasm.rules} | 0
+ src/cmd/compile/internal/ssa/gen/{WASMOps.go => WasmOps.go} | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)

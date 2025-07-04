@@ -1,6 +1,6 @@
-commit 849b54a2f9e8a2db6693406a46a0dae78a48341d
+commit 00cb627b8791082f7abc69dd78eb36fa3e05063f
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Aug 10 15:36:27 2011 +0200
+Date:   Wed Aug 10 15:34:12 2011 +0200
 
     exp/norm: added trie lookup code and associated tests.
     - triegen.go: Factored out trie generation code from maketables.go
@@ -15,5 +15,12 @@ Date:   Wed Aug 10 15:36:27 2011 +0200
     CC=golang-dev
     https://golang.org/cl/4844053
 
- src/pkg/exp/norm/tables.go | 7214 +++++++++++++++++++-------------------------
- 1 file changed, 3122 insertions(+), 4092 deletions(-)
+ .hgignore                          |   1 +
+ src/pkg/exp/norm/Makefile          |  17 ++-
+ src/pkg/exp/norm/maketables.go     | 186 +++--------------------------
+ src/pkg/exp/norm/maketesttables.go |  42 +++++++
+ src/pkg/exp/norm/trie.go           | 234 +++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/norm/trie_test.go      | 107 +++++++++++++++++
+ src/pkg/exp/norm/triedata_test.go  |  61 ++++++++++
+ src/pkg/exp/norm/triegen.go        | 210 +++++++++++++++++++++++++++++++++
+ 8 files changed, 683 insertions(+), 175 deletions(-)

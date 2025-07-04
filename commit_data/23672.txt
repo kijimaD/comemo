@@ -1,19 +1,21 @@
-commit 0c72eeb121702cc0a820976138cc01dd1a475895
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Thu Jun 18 12:37:26 2015 +0200
+commit 2db587c0297224b9c525da0ed452502a4d2e0345
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Sun May 10 04:22:11 2015 +0900
 
-    net/http: do not allow space or slash in Host headers
+    encoding/xml: Reset the parent stack before printing a chardata or comment field in a struct
     
-    A malformed Host header can result in a malformed HTTP request.
-    Clean them to avoid this.
+    This CL resets the parent stack when printing a character or comment field struct.
+    In the case of XML elements, the previous parents stack must be considered. However,
+    charadata or comment fields can't be printed in other fields so it seems required to reset
+    the parent stack each time a chardata or comment field is printed.
     
-    Updates #11206. We may come back and make this stricter for 1.6.
+    Fixes #5072
     
-    Change-Id: I23c7d821cd9dbf66c3c15d26750f305e3672d984
-    Reviewed-on: https://go-review.googlesource.com/11241
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I84f61c9bfce94133cd0c076c11211b9be5b4b1ac
+    Reviewed-on: https://go-review.googlesource.com/9910
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
 
- src/net/http/http_test.go    | 17 +++++++++++++++++
- src/net/http/request.go      | 32 +++++++++++++++++++++++++++-----
- src/net/http/request_test.go | 18 ++++++++++++++++++
- 3 files changed, 62 insertions(+), 5 deletions(-)
+ src/encoding/xml/marshal.go      |  6 ++++++
+ src/encoding/xml/marshal_test.go | 18 ++++++++++++++++++
+ 2 files changed, 24 insertions(+)

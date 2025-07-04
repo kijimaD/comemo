@@ -1,17 +1,14 @@
-commit 0141c92a5331c9aa7c1ac35f54bb3082a38520a3
+commit f1cc0f44e384ff33179a2cc6d19369237cdc64cd
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 9 11:32:16 2013 -0800
+Date:   Wed Jan 9 11:31:32 2013 -0800
 
-    go/printer, gofmt: don't print unneeded parentheses around parameter types
+    spec: clarify short variable declaration corner cases
     
-    Fixes #4624.
+    Fixes #4612.
     
-    R=rsc
+    R=rsc, iant, ken, r
     CC=golang-dev
-    https://golang.org/cl/7058052
+    https://golang.org/cl/7076043
 
- src/pkg/go/printer/nodes.go                     | 11 +++++++++--
- src/pkg/go/printer/printer.go                   |  2 +-
- src/pkg/go/printer/testdata/declarations.golden | 25 +++++++++++++++++++++++++
- src/pkg/go/printer/testdata/declarations.input  | 25 +++++++++++++++++++++++++
- 4 files changed, 60 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

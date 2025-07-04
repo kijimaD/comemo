@@ -1,27 +1,20 @@
-commit 500675a7c8c72bd6b1054a7eb4daaf61970f5ad7
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Sat Dec 21 15:54:34 2024 -0500
+commit ba0dd3b328d16e0e66a6fcb8be5fda266d965ea2
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Nov 6 14:27:32 2023 +0000
 
-    cmd/compile: load map length with the right type
+    cmd/go/internal/modload: avoid calling strings.HasPrefix twice in *MainModuleSet.DirImportPath
     
-    len(map) is lowered to loading the first field of the map
-    structure, which is the length. Currently it is a load of an int.
-    With the old map, the first field is indeed an int. With Swiss
-    map, however, it is a uint64. On big-endian 32-bit machine,
-    loading an (32-bit) int from a uint64 would load just the high
-    bits, which are (probably) all 0. Change to a load with the proper
-    type.
+    Since TrimPrefix uses HasPrefix internally.
     
-    Fixes #70248.
-    
-    Change-Id: I39cf2d1e6658dac5a8de25c858e1580e2a14b894
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638375
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ifadb99dd9192578056636adacaccc9d88a1c1f32
+    GitHub-Last-Rev: 74bcfff3fb5eaee281796ccb5bc84c6941d44615
+    GitHub-Pull-Request: golang/go#63893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539096
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 13 +++++++++----
- src/internal/runtime/maps/map.go       |  1 +
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/modload/load.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

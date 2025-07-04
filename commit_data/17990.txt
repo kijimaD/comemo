@@ -1,23 +1,12 @@
-commit 62baae6e57ca9271fc9a4269958d474aa398cc00
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Dec 16 12:35:25 2013 +1100
+commit 22a7b3442ee621bd8b73d5b4ccdfcfd7b62ca8b0
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Dec 15 17:51:03 2013 -0500
 
-    unicode/utf16: add explicit test for decoding invalid runes.
+    doc/articles/wiki: remove GNU make dependency
     
-    The EncodeRune test exercises DecodeRune, but only for runes that it can encode. Add an explicit test for invalid utf16 surrogate pairs.
-    
-    Bonus: coverage is now 100%
-    
-    unicode/utf16/utf16.go: IsSurrogate     100.0%
-    unicode/utf16/utf16.go: DecodeRune      100.0%
-    unicode/utf16/utf16.go: EncodeRune      100.0%
-    unicode/utf16/utf16.go: Encode          100.0%
-    unicode/utf16/utf16.go: Decode          100.0%
-    total:                  (statements)    100.0%
-    
-    R=golang-dev, r
+    R=golang-dev, adg, minux.ma
     CC=golang-dev
-    https://golang.org/cl/39150044
+    https://golang.org/cl/38410043
 
- src/pkg/unicode/utf16/utf16_test.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ doc/articles/wiki/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

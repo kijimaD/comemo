@@ -1,116 +1,16 @@
-commit 67faca7d9c54b367aee5fdeef2d5dd609fcf99d0
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Nov 2 14:09:24 2015 -0500
+commit cb5bca8e8af619a5a6548e5d1a2b2aa0c9accc25
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Jul 9 15:42:02 2015 -0700
 
-    runtime: break atomics out into package runtime/internal/atomic
+    crypto/tls: reject ServerHellos with empty ALPN protocols.
     
-    This change breaks out most of the atomics functions in the runtime
-    into package runtime/internal/atomic. It adds some basic support
-    in the toolchain for runtime packages, and also modifies linux/arm
-    atomics to remove the dependency on the runtime's mutex. The mutexes
-    have been replaced with spinlocks.
+    https://tools.ietf.org/html/rfc7301#section-3.1 specifies that a
+    ProtocolName may not be empty. This change enforces this for ServerHello
+    messages—it's already enforced for ClientHello messages.
     
-    all trybots are happy!
-    In addition to the trybots, I've tested on the darwin/arm64 builder,
-    on the darwin/arm builder, and on a ppc64le machine.
-    
-    Change-Id: I6698c8e3cf3834f55ce5824059f44d00dc8e3c2f
-    Reviewed-on: https://go-review.googlesource.com/14204
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic5a5be6bebf07fba90a3cabd10b07ab7b4337f53
+    Reviewed-on: https://go-review.googlesource.com/12003
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../internal/gc/builtin/runtime_internal_atomic.go |   3 +
- src/cmd/compile/internal/gc/go.y                   |   4 +-
- src/cmd/compile/internal/gc/racewalk.go            |   2 +-
- src/cmd/compile/internal/gc/reflect.go             |   4 +-
- src/cmd/compile/internal/gc/y.go                   | 528 +++++++++++----------
- src/cmd/dist/deps.go                               | 103 ++--
- src/cmd/go/build.go                                |   2 +-
- src/cmd/go/pkg.go                                  |   4 +-
- src/go/build/deps_test.go                          |   8 +-
- src/runtime/asm_386.s                              | 150 ------
- src/runtime/asm_amd64.s                            | 138 ------
- src/runtime/asm_amd64p32.s                         | 139 ------
- src/runtime/asm_arm.s                              |  57 ---
- src/runtime/asm_arm64.s                            |  46 +-
- src/runtime/asm_ppc64x.s                           | 208 --------
- src/runtime/atomic_arm.go                          | 165 -------
- src/runtime/atomic_arm64.s                         | 108 -----
- src/runtime/atomic_pointer.go                      |  11 +-
- src/runtime/atomic_ppc64x.go                       |  57 ---
- src/runtime/atomic_ppc64x.s                        |  33 --
- src/runtime/chan.go                                |  11 +-
- src/runtime/cpuprof.go                             |  13 +-
- src/runtime/debug.go                               |   7 +-
- src/runtime/export_test.go                         |   7 +-
- src/runtime/hashmap.go                             |  19 +-
- src/runtime/hashmap_fast.go                        |  33 +-
- src/runtime/iface.go                               |   9 +-
- src/runtime/internal/atomic/arch1_386.go           |   9 +
- src/runtime/internal/atomic/arch1_amd64.go         |   9 +
- src/runtime/internal/atomic/arch1_amd64p32.go      |  14 +
- src/runtime/internal/atomic/arch1_arm.go           |   9 +
- src/runtime/internal/atomic/arch1_arm64.go         |   9 +
- src/runtime/internal/atomic/arch1_ppc64.go         |   9 +
- src/runtime/internal/atomic/arch1_ppc64le.go       |   9 +
- src/runtime/internal/atomic/asm.s                  |   8 +
- src/runtime/internal/atomic/asm_386.s              | 166 +++++++
- src/runtime/internal/atomic/asm_amd64.s            | 150 ++++++
- src/runtime/internal/atomic/asm_amd64p32.s         | 150 ++++++
- src/runtime/internal/atomic/asm_arm.s              |  71 +++
- src/runtime/internal/atomic/asm_arm64.s            |  58 +++
- src/runtime/internal/atomic/asm_ppc64x.s           | 225 +++++++++
- src/runtime/{ => internal/atomic}/atomic_386.go    |  39 +-
- src/runtime/{ => internal/atomic}/atomic_amd64x.go |  32 +-
- src/runtime/internal/atomic/atomic_arm.go          | 180 +++++++
- src/runtime/{ => internal/atomic}/atomic_arm64.go  |  39 +-
- src/runtime/internal/atomic/atomic_arm64.s         | 113 +++++
- src/runtime/internal/atomic/atomic_ppc64x.go       |  56 +++
- src/runtime/internal/atomic/atomic_ppc64x.s        |  40 ++
- src/runtime/{ => internal/atomic}/atomic_test.go   |  15 +-
- src/runtime/internal/atomic/stubs.go               |  35 ++
- src/runtime/internal/atomic/sys_darwin_arm.s       |  11 +
- src/runtime/internal/atomic/sys_freebsd_arm.s      |  19 +
- src/runtime/internal/atomic/sys_linux_arm.s        |  42 ++
- src/runtime/internal/atomic/sys_nacl_arm.s         |  16 +
- src/runtime/internal/atomic/sys_netbsd_arm.s       |  21 +
- src/runtime/internal/atomic/sys_openbsd_arm.s      |  11 +
- src/runtime/internal/atomic/textflag.h             |  30 ++
- src/runtime/lfstack.go                             |  15 +-
- src/runtime/lock_futex.go                          |  27 +-
- src/runtime/lock_sema.go                           |  33 +-
- src/runtime/mbitmap.go                             |  23 +-
- src/runtime/mcentral.go                            |  10 +-
- src/runtime/mfinal.go                              |   7 +-
- src/runtime/mgc.go                                 |  53 ++-
- src/runtime/mgcmark.go                             |  37 +-
- src/runtime/mgcsweep.go                            |  23 +-
- src/runtime/mgcwork.go                             |  15 +-
- src/runtime/mheap.go                               |  11 +-
- src/runtime/mprof.go                               |   7 +-
- src/runtime/mstats.go                              |  13 +-
- src/runtime/netpoll.go                             |  17 +-
- src/runtime/os1_netbsd.go                          |  11 +-
- src/runtime/os1_openbsd.go                         |  11 +-
- src/runtime/os1_plan9.go                           |   7 +-
- src/runtime/os1_windows.go                         |  11 +-
- src/runtime/panic.go                               |   9 +-
- src/runtime/parfor.go                              |  30 +-
- src/runtime/proc.go                                | 171 +++----
- src/runtime/runtime.go                             |   9 +-
- src/runtime/runtime1.go                            |  31 +-
- src/runtime/runtime2.go                            |   7 +-
- src/runtime/sema.go                                |  21 +-
- src/runtime/sigqueue.go                            |  21 +-
- src/runtime/stack.go                               |   7 +-
- src/runtime/string.go                              |   5 +-
- src/runtime/stubs.go                               |  36 --
- src/runtime/sys_darwin_arm.s                       |   6 -
- src/runtime/sys_freebsd_arm.s                      |  14 -
- src/runtime/sys_linux_arm.s                        |  29 --
- src/runtime/sys_nacl_arm.s                         |  15 -
- src/runtime/sys_netbsd_arm.s                       |  14 -
- src/runtime/sys_openbsd_arm.s                      |   7 -
- src/runtime/trace.go                               |  13 +-
- src/sync/atomic/asm_linux_arm.s                    |   2 +-
- 94 files changed, 2302 insertions(+), 1940 deletions(-)
+ src/crypto/tls/handshake_messages.go | 4 ++++
+ 1 file changed, 4 insertions(+)

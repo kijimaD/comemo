@@ -1,26 +1,16 @@
-commit 93d7d1685ee9e9f296e20f6c712796e54602e891
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jul 23 20:17:40 2020 +0000
+commit 3c8101c7e4b80794c6c61acf7477fee136f8c79e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 28 14:29:28 2019 -0700
 
-    runtime: load gcControllerState.scanWork atomically in revise
+    cmd/compile: use optimized slice zeroing in deadcode
     
-    gcControllerState.scanWork's docs state that it must be accessed
-    atomically during a GC cycle, but gcControllerState.revise does not do
-    this (even when called with the heap lock held).
+    Minor cleanup. Passes toolstash-check.
     
-    This change makes it so that gcControllerState.revise accesses scanWork
-    atomically and explicitly.
-    
-    Note that we don't update gcControllerState.revise's erroneous doc
-    comment here because this change isn't about revise's guarantees, just
-    about heap_scan. The comment is updated in a later change.
-    
-    Change-Id: Iafc3ad214e517190bfd8a219896d23da19f7659d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246961
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I97a027c4ca49ded593e9c7989e9e091ab9336fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227318
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mgc.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/deadcode.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

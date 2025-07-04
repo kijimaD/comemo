@@ -1,14 +1,22 @@
-commit 866317af5e28e397ca8fd6f6fb6fddeb17e82817
+commit 5e41fe0e45c66bf7359988551a321137e2ddfe89
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 5 22:47:35 2012 -0500
+Date:   Mon Mar 5 22:47:23 2012 -0500
 
-    cmd/godoc: fixes
+    build: use run.go for running tests
     
-    These appear to have been left out of the CL I submitted earlier.
+    Also, tweak run.go to use no more than 2x the
+    number of CPUs, and only one on ARM.
     
-    R=golang-dev, r
+    53.85u 13.33s 53.69r     ./run
+    50.68u 12.13s 18.85r     go run run.go
+    
+    Fixes #2833.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5759043
+    https://golang.org/cl/5754047
 
- src/cmd/godoc/main.go | 26 +++++++++++++++++---------
- 1 file changed, 17 insertions(+), 9 deletions(-)
+ src/run.bash | 2 +-
+ src/run.bat  | 9 ++++++++-
+ test/run.go  | 7 +++++--
+ 3 files changed, 14 insertions(+), 4 deletions(-)

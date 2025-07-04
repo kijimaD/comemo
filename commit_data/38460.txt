@@ -1,19 +1,24 @@
-commit b3cfb0b3228ada12eaea404784739f51e1671652
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Feb 27 15:45:18 2019 +0100
+commit 56b7c61c5e88e684c1bdb3b9ae61dadbeda96fd0
+Author: Keith Randall <khr@google.com>
+Date:   Tue Oct 30 10:56:02 2018 -0700
 
-    os/user: allow build on aix/ppc64 with cgo
+    strings: declare IndexByte as noescape
     
-    This commit adds C support for os/user package for aix/ppc64.
+    This lets []byte->string conversions which are used as arguments to
+    strings.IndexByte and friends have their backing store allocated on
+    the stack.
     
-    Updates #30563
+    It only prevents allocation when the string is small enough (32
+    bytes), so it isn't perfect. But reusing the []byte backing store
+    directly requires a bunch more compiler analysis (see #2205 and
+    related issues).
     
-    Change-Id: Id07646998a7243b1335b85b5d4fe5bc4114e2a88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164039
-    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #25864.
+    
+    Change-Id: Ie52430422196e3c91e5529d6e56a8435ced1fc4c
+    Reviewed-on: https://go-review.googlesource.com/c/146018
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/user/listgroups_aix.go | 13 +++++++++++++
- src/os/user/user_test.go      |  3 +++
- 2 files changed, 16 insertions(+)
+ src/runtime/string_test.go  | 28 ++++++++++++++++++++++++++++
+ src/strings/strings_decl.go |  2 ++
+ 2 files changed, 30 insertions(+)

@@ -1,14 +1,23 @@
-commit f248cd3a0753ce02928525268d9c7d1fcceffee0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 15 17:55:58 2019 -0700
+commit c6d493937e7047057a9833661d6d20ce72f904b4
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 13 18:38:49 2018 -0500
 
-    runtime: print more information when testCgoPprof fails
+    cmd/go: more cross-package references from internal/syscall/unix
     
-    Change-Id: I820dae0303959096f0c434b7e69ecb3bf070df09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172197
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    On some platforms, assembly in internal/syscall/unix references
+    unexported runtime symbols. Catch these references so the compiler can
+    generate the necessary ABI wrappers.
+    
+    Fixes #28769.
+    Updates #27539.
+    
+    Change-Id: I118eebfb8b3d907b4c3562198e6afb49854f5827
+    Reviewed-on: https://go-review.googlesource.com/c/149817
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Clément Chigot <clement.chigot@atos.net>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/crash_cgo_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/gc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

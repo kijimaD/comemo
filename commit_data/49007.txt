@@ -1,40 +1,26 @@
-commit 7cf32686667fe2de869ddab3ede647e34be9209e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 3 10:49:56 2022 -0700
+commit 501725032cb8e0fd5ef75b50f949dda09ce4b441
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jul 6 09:38:58 2021 -0700
 
-    go/parser: parser to accept ~x as unary expression
+    [dev.typeparams] cmd/compile: handle derived types that are converted to interfaces
     
-    This is a port of CL 402255 from the syntax package to go/parser
-    with adjustments because of the different AST structure.
+    Up to this point, we were only handling typeparams that were converted
+    to empty or non-empty interfaces. But we have a dictionary entry for
+    each derived type (i.e. type derived from typeparams) as well. So, when
+    doing a conversion, look for the source type in both the type params and
+    derived types of the generic info, and then use the appropriate
+    dictionary entry.
     
-    Accept ~x as ordinary unary expression in the parser but recognize
-    such expressions as invalid in the type checker.
+    Added some cases to ifaceconv.go (e.g. converting []T to an empty
+    interface).
     
-    This change opens the door to recognizing complex type constraint
-    literals such as `*E|~int` in `[P *E|~int]` and parse them correctly
-    instead of reporting a parse error because `P*E|~int` syntactically
-    looks like an incorrect array length expression (binary expression
-    where the RHS of | is an invalid unary expression ~int).
-    
-    As a result, the parser is more forgiving with expressions but the
-    type checker will reject invalid uses as before.
-    
-    We could pass extra information into the binary/unary expression
-    parse functions to prevent the use of ~ in invalid situations but
-    it doesn't seem worth the trouble. In fact it may be advantageous
-    to allow a more liberal expression syntax especially in the presence
-    of errors (better parser synchronization after an error).
-    
-    Preparation for fixing #52559.
-    
-    Change-Id: I48562cf40ccf5f14c20fcd92c40a0303b2d8b2b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403696
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I7bbad0128bec20ccccd93ae1d65c1ffd44ca79a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333011
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/parser/parser.go                       |  2 +-
- src/go/parser/testdata/typeset.go2            | 27 ++++++++++++---------------
- src/go/types/expr.go                          |  6 ++++++
- src/go/types/testdata/check/expr0.go          |  7 +++++++
- src/go/types/testdata/fixedbugs/issue49482.go |  5 +----
- 5 files changed, 27 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 60 +++++++++++++++++--------------
+ test/typeparam/ifaceconv.go               | 18 ++++++++++
+ 2 files changed, 52 insertions(+), 26 deletions(-)

@@ -1,12 +1,24 @@
-commit 92c153d5f4fcc6aac88916f4b21186f8428fdc26
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Mar 15 16:07:52 2013 -0400
+commit 615f289209d08316da2c609f843bd20201ce2275
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 15 15:24:13 2013 -0400
 
-    runtime: scan the type of an interface value
+    cmd/gc: ensure unique parameter and result names in function types
     
-    R=golang-dev, rsc, bradfitz
+    In addition to fixing the bug, the check is now linear instead of quadratic.
+    
+    Fixes #4469.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7744047
+    https://golang.org/cl/7773047
 
- src/pkg/runtime/mgc0.c | 28 +++++++++++++++++++---------
- 1 file changed, 19 insertions(+), 9 deletions(-)
+ src/cmd/gc/dcl.c         | 36 ++++++++++++++++++++++++------------
+ src/cmd/gc/go.h          |  1 +
+ test/fixedbugs/bug040.go |  2 +-
+ test/fixedbugs/bug342.go |  6 +-----
+ test/fixedbugs/bug412.go |  4 ++--
+ test/fixedbugs/bug469.go | 13 -------------
+ test/func1.go            |  2 +-
+ test/funcdup.go          | 27 +++++++++++++++++++++++++++
+ test/funcdup2.go         | 17 +++++++++++++++++
+ 9 files changed, 74 insertions(+), 34 deletions(-)

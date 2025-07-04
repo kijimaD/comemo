@@ -1,22 +1,17 @@
-commit 57076b8e6edb6ee19b86ab349b8f7a85819e0085
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Apr 24 08:27:04 2019 -0400
+commit 352f1b77c40e2f2c0711244481e1cc25ae423830
+Author: komuW <komuw05@gmail.com>
+Date:   Wed Dec 5 05:39:18 2018 +0000
 
-    test: new test for issue 31637
+    doc/go1.11: add note about go run supporting for go run pkg or go run .
     
-    This pair of packages caused a crash in gollvm, due to a glitch in the
-    way the front end handles empty/non-name parameters for functions that
-    are inline candidates.
+    Fixes golang/go#27047
     
-    Updates #31637.
-    
-    Change-Id: I571c0658a00974dd36025e571638c0c836a3cdfd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173617
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0dd40201fc03e87fbc674b47bdf9315f1783d6c2
+    GitHub-Last-Rev: f28ab6234ade814c4bc09e26417c424c843ad57b
+    GitHub-Pull-Request: golang/go#27048
+    Reviewed-on: https://go-review.googlesource.com/c/129696
+    Reviewed-by: komu wairagu <komuw05@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- test/fixedbugs/issue31637.dir/a.go | 15 +++++++++++++++
- test/fixedbugs/issue31637.dir/b.go | 19 +++++++++++++++++++
- test/fixedbugs/issue31637.go       | 11 +++++++++++
- 3 files changed, 45 insertions(+)
+ doc/go1.11.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

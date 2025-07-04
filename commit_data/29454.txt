@@ -1,17 +1,49 @@
-commit b188b4cc110261a004674df5a4e209cc4894d314
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 9 15:29:41 2016 -0800
+commit b265d51789ea7ccf68787ebb30a2cdf03cc9d4fe
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 15 13:29:17 2016 -0700
 
-    cmd/gofmt: don't eat source if -w fails
+    test,cmd/compile: remove _ssa file suffix
     
-    Write output to a temp file first and only upon success
-    rename that file to source file name.
+    Everything is SSA now.
     
-    Fixes #8984.
+    Update #16357
     
-    Change-Id: Ie40e49d2a4eb3c9462fe769ccbf055b4366eceb0
-    Reviewed-on: https://go-review.googlesource.com/33018
+    Change-Id: I436dbe367b863ee81a3695a7d653ba4bfc5b0f6c
+    Reviewed-on: https://go-review.googlesource.com/29232
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/gofmt/gofmt.go | 34 +++++++++++++++++++++++++++++++++-
- 1 file changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa_test.go            | 46 +++++++++++-----------
+ .../gc/testdata/{addressed_ssa.go => addressed.go} |  0
+ .../gc/testdata/{append_ssa.go => append.go}       |  0
+ .../gc/testdata/{arith_ssa.go => arith.go}         |  0
+ .../{arithBoundary_ssa.go => arithBoundary.go}     |  0
+ .../testdata/{arithConst_ssa.go => arithConst.go}  |  0
+ .../gc/testdata/{array_ssa.go => array.go}         |  0
+ .../gc/testdata/{assert_ssa.go => assert.go}       |  0
+ .../gc/testdata/{break_ssa.go => break.go}         |  0
+ .../internal/gc/testdata/{chan_ssa.go => chan.go}  |  0
+ .../gc/testdata/{closure_ssa.go => closure.go}     |  0
+ .../internal/gc/testdata/{cmp_ssa.go => cmp.go}    |  0
+ .../gc/testdata/{compound_ssa.go => compound.go}   |  0
+ .../internal/gc/testdata/{copy_ssa.go => copy.go}  |  0
+ .../internal/gc/testdata/{ctl_ssa.go => ctl.go}    |  0
+ .../{deferNoReturn_ssa.go => deferNoReturn.go}     |  0
+ .../gc/testdata/{divbyzero_ssa.go => divbyzero.go} |  0
+ .../internal/gc/testdata/{fp_ssa.go => fp.go}      |  0
+ .../internal/gc/testdata/gen/arithBoundaryGen.go   |  4 +-
+ .../internal/gc/testdata/gen/arithConstGen.go      |  4 +-
+ .../compile/internal/gc/testdata/gen/copyGen.go    |  4 +-
+ .../compile/internal/gc/testdata/gen/zeroGen.go    |  4 +-
+ .../gc/testdata/{loadstore_ssa.go => loadstore.go} |  0
+ .../internal/gc/testdata/{map_ssa.go => map.go}    |  0
+ .../internal/gc/testdata/{phi_ssa.go => phi.go}    |  0
+ .../gc/testdata/{regalloc_ssa.go => regalloc.go}   |  0
+ .../gc/testdata/{short_ssa.go => short.go}         |  0
+ .../gc/testdata/{string_ssa.go => string.go}       |  0
+ .../gc/testdata/{unsafe_ssa.go => unsafe.go}       |  0
+ .../internal/gc/testdata/{zero_ssa.go => zero.go}  |  0
+ test/{live_ssa.go => live.go}                      |  0
+ test/{nilptr3_ssa.go => nilptr3.go}                |  0
+ 32 files changed, 31 insertions(+), 31 deletions(-)

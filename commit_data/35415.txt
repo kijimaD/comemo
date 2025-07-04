@@ -1,24 +1,25 @@
-commit 1771edb5904524deb6ef0c846e5357fd35c756fb
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu May 17 12:33:01 2018 +0200
+commit 331092c58f35d798ed92b04cb57c503c8ef3ad31
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jan 10 17:31:25 2018 +0100
 
-    misc/wasm: make wasm_exec.js more flexible
+    math/big: fix %s verbs in Float tests error messages
     
-    This commit improves wasm_exec.js to give more control to the
-    code that uses this helper:
-    - Allow to load and run more than one Go program at the same time.
-    - Move WebAssembly.instantiate out of wasm_exec.js so the caller
-      can optimize for load-time performance, e.g. by using
-      instantiateStreaming.
-    - Allow caller to provide argv, env and exit callback.
+    Fatalf calls in two Float tests use the %s verb with Floats values,
+    which is not allowed and results in failure messages that look like
+    this:
     
-    Updates #18892
+        float_test.go:1385: i = 0, prec = 1, ToZero:
+                         %!s(*big.Float=1) [0]
+                    /    %!s(*big.Float=1) [0]
+                    =    %!s(*big.Float=0.0625)
+                    want %!s(*big.Float=1)
     
-    Change-Id: Ib582e6f43848c0118ea5c89f2e24b371c45c2050
-    Reviewed-on: https://go-review.googlesource.com/113515
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Switch to %v.
+    
+    Change-Id: Ifdc80bf19c91ca1b190f6551a6d0a51b42ed5919
+    Reviewed-on: https://go-review.googlesource.com/87199
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/wasm/wasm_exec.html |  28 +++++--
- misc/wasm/wasm_exec.js   | 186 ++++++++++++++++++++++-------------------------
- 2 files changed, 107 insertions(+), 107 deletions(-)
+ src/math/big/float_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

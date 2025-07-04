@@ -1,37 +1,28 @@
-commit ac766e37182f36cd0a3247e44a4143d2d2132e42
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 2 16:58:38 2020 +0000
+commit 75e79adaf94a3f883bd2d88467ee7c72ea18c0a3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 20 11:32:05 2020 -0400
 
-    runtime: make getMCache inlineable
+    cmd/api: limit concurrent 'go list' calls to GOMAXPROCS
     
-    This change moves the responsibility of throwing if an mcache is not
-    available to the caller, because the inlining cost of throw is set very
-    high in the compiler. Even if it was reduced down to the cost of a usual
-    function call, it would still be too expensive, so just move it out.
+    Each invocation of 'go list' may consume a significant quantity of
+    system resources, including buffers for reading files and RAM for the
+    runtime's memory footprint.
+    Very small builders may even hit swap as a result of that load,
+    further exacerbating resource contention.
     
-    This choice also makes sense in the context of #42339 since we're going
-    to have to handle the case where we don't have an mcache to update stats
-    in a few contexts anyhow.
+    To avoid overloading small builders, restrict 'go list' calls to
+    runtime.GOMAXPROCS as it is set at the first call to loadImports.
     
-    Also, add getMCache to the list of functions that should be inlined to
-    prevent future regressions.
+    This also somewhat improves running time even on larger machines: on
+    my workstation, this change reduces the wall time for 'go test
+    cmd/api' by around 100ms.
     
-    getMCache is called on the allocation fast path and because its not
-    inlined actually causes a significant regression (~10%) in some
-    microbenchmarks.
+    Updates #38537
     
-    Fixes #42305.
-    
-    Change-Id: I64ac5e4f26b730bd4435ea1069a4a50f55411ced
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267157
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I968e0f961a8f1d84c27e1ab8b621b9670dcfd448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228998
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go |  1 +
- src/runtime/malloc.go                   |  9 ++++++++-
- src/runtime/mcache.go                   |  7 ++-----
- src/runtime/mgcscavenge.go              |  3 +++
- src/runtime/mheap.go                    | 12 ++++++++++++
- 5 files changed, 26 insertions(+), 6 deletions(-)
+ src/cmd/api/goapi.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

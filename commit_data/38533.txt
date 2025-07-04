@@ -1,24 +1,17 @@
-commit fbd74a8922434ada5871a875598b58cbca4ff0d6
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Mar 22 15:24:36 2019 -0400
+commit 6fe8ee78e9b4870ebc1de2b5cfd6170a78a56c00
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 2 22:21:23 2018 -0700
 
-    test: support -ldflags for "rundir" tests, new -P option
+    cmd/compile/internal/gc: remove isforw predicate table (cleanup)
     
-    For "rundir" tests, allow users to add in linker flags as well as
-    compiler flags, e.g.
+    Was only ever filled with one Etype (TFORW) and only used
+    in one place. Easier to just check for TFORW.
     
-    // rundir -m -ldflags -w
-    
-    The directive above will pass "-m" to the compiler on each package compilation
-    and "-w" to the linker for the final link.
-    
-    In addition, if "-P" is specified with 'rundir', then for each compile
-    pass in "-p <X>" to set the packagepath explicitly, which is closer to
-    how the compiler is run by 'go build'.
-    
-    Change-Id: I04720011a89d1bd8dcb4f2ccb4af1d74f6a01da1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168977
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Icc96da3a22b0af1d7e60bc5841c744916c53341e
+    Reviewed-on: https://go-review.googlesource.com/c/147285
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- test/run.go | 56 +++++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 43 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/go.go       | 1 -
+ src/cmd/compile/internal/gc/reflect.go  | 2 +-
+ src/cmd/compile/internal/gc/universe.go | 2 --
+ 3 files changed, 1 insertion(+), 4 deletions(-)

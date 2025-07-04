@@ -1,22 +1,18 @@
-commit 504b8d15d656e1085dd0a741e294113dcc2bde9a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 9 02:49:07 2017 +0000
+commit 604455a46c3dac17422d9ca941848dbf7ae116b9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 15 11:27:26 2017 -0700
 
-    net/http: regenerate http2 bundle with bundle fixes to include comments
+    cmd/compile: ensure TESTQconst AuxInt is in range
     
-    The golang.org/x/tools/cmd/bundle tool previously had a bug where it
-    dropped some comments.
+    Fixes #19555
     
-    This regenerates it with the fixed version (https://golang.org/cl/45117).
-    
-    (Upstream is still git rev 3470a06c1, from https://golang.org/cl/44331)
-    
-    Updates #20548
-    
-    Change-Id: Ic5d9208a0c8f7facdb7b315c6acab66ace34c0a9
-    Reviewed-on: https://go-review.googlesource.com/45158
-    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7aa0551a90f6bb630c0ba721f3525a8a9cf793fd
+    Reviewed-on: https://go-review.googlesource.com/38164
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/h2_bundle.go | 949 ++++++++++++++++++++++++++++++++++------------
- 1 file changed, 711 insertions(+), 238 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  8 +++----
+ test/fixedbugs/issue19555.go                 | 36 ++++++++++++++++++++++++++++
+ 3 files changed, 42 insertions(+), 6 deletions(-)

@@ -1,14 +1,30 @@
-commit 506386fd370cd627c7f2475979860f8cb8cdbe65
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Nov 7 15:55:26 2017 -0800
+commit 75cb22cb2f316d320e88293470c7c1bd8e0243a8
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Aug 8 08:14:24 2017 +0000
 
-    cmd/compile: optimize noding of long summation expressions
+    cmd/internal/obj/arm: support new arm instructions
     
-    Fixes #16394.
+    There are two changes in this CL.
     
-    Change-Id: I7108c9e8e67d86678bdb6015f0862e5c92bcf911
-    Reviewed-on: https://go-review.googlesource.com/76450
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    1. Add new forms of MOVH/MOVHS/MOVHU.
+       MOVHS R0<<0(R1), R2   // ldrsh
+       MOVH  R0<<0(R1), R2   // ldrsh
+       MOVHU R0<<0(R1), R2   // ldrh
+       MOVHS R2, R5<<0(R1)   // strh
+       MOVH  R2, R5<<0(R1)   // strh
+       MOVHU R2, R5<<0(R1)   // strh
+    
+    2. Simpify "MVN $0xffffffaa, Rn" to "MOVW $0x55, Rn".
+       It is originally assembled to two instructions.
+       "MOVW offset(PC), R11"
+       "MVN R11, Rn"
+    
+    Change-Id: I8e863dcfb2bd8f21a04c5d627fa7beec0afe65fb
+    Reviewed-on: https://go-review.googlesource.com/53690
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/noder.go | 79 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 79 insertions(+)
+ src/cmd/asm/internal/asm/testdata/arm.s | 28 +++++++++++++++++++--
+ src/cmd/internal/obj/arm/asm5.go        | 44 +++++++++++++++++++++++++++++++--
+ 2 files changed, 68 insertions(+), 4 deletions(-)

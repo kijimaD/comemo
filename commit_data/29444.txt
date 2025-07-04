@@ -1,21 +1,25 @@
-commit 2925427a47f41622f28f84889ad7aade27581144
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 8 01:06:06 2016 +0000
+commit df2b63f09be280544e58c8d17fe34c863521ed10
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 20:07:13 2016 -0700
 
-    os: on Windows, don't fix long paths that aren't long
+    cmd/compile: unwrap fewer CONVNOPs in staticassign
     
-    Notably, don't allocate.
+    staticassign unwraps all CONVNOPs.
+    However, in the included test, we need the
+    CONVNOP for everything to typecheck.
+    Stop unwrapping unnecessarily.
     
-    Follow-up to https://golang.org/cl/32451 which added long path
-    cleaning.
+    The code we generate for this example is
+    suboptimal, but that's not new; see #17113.
     
-    Updates #3358
+    Fixes #17111.
     
-    Change-Id: I89c59cbd660d0a030f31b6acd070fa9f3250683b
-    Reviewed-on: https://go-review.googlesource.com/32886
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I29532787a074a6fe19a5cc53271eb9c84bf1b576
+    Reviewed-on: https://go-review.googlesource.com/29213
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/path_windows.go      | 32 +++++++++++++++++++++++---------
- src/os/path_windows_test.go | 37 +++++++++++++++++++++++++++----------
- 2 files changed, 50 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go |  2 +-
+ test/fixedbugs/issue17111.go         | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

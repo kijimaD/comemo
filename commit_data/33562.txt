@@ -1,32 +1,21 @@
-commit a265f2e90eb928ab773ecabf48aefb11b188296d
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Oct 29 21:04:01 2017 +0000
+commit 75fbc8a3d00cf310a5f67aae946fbc346dbb725d
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Wed Aug 23 11:49:22 2017 -0700
 
-    go/printer: indent lone comments in composite lits
+    syscall: skip some exec tests in container
     
-    If a composite literal contains any comments on their own lines without
-    any elements, the printer would unindent the comments.
+    For those tests there won't be enough permissions in containers.
+    I decided to go this way instead of just skipping os.IsPermission errors because
+    many of those tests were specifically written to check false positive permission
+    errors.
     
-    The comments in this edge case are written when the closing '}' is
-    written. Indent and outdent first so that the indentation is
-    interspersed before the comment is written.
+    Fixes #21379
     
-    Also note that the go/printer golden tests don't show the exact same
-    behaviour that gofmt does. Added a TODO to figure this out in a separate
-    CL.
-    
-    While at it, ensure that the tree conforms to gofmt. The changes are
-    unrelated to this indentation fix, however.
-    
-    Fixes #22355.
-    
-    Change-Id: I5ac25ac6de95a236f1e123479127cc4dd71e93fe
-    Reviewed-on: https://go-review.googlesource.com/74232
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ie25e1d6d47f85bb6b570352638440f3ac1e18e03
+    Reviewed-on: https://go-review.googlesource.com/58170
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/printer/nodes.go                 |  4 +++-
- src/go/printer/testdata/comments.golden | 28 ++++++++++++++++++++++++++++
- src/go/printer/testdata/comments.input  | 28 ++++++++++++++++++++++++++++
- src/math/big/int.go                     |  2 --
- 4 files changed, 59 insertions(+), 3 deletions(-)
+ src/syscall/exec_linux_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

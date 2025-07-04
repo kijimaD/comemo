@@ -1,23 +1,25 @@
-commit 3cbfcaa4ba898faba516fbb9f3debf4ceac1a557
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 2 18:46:02 2016 -0400
+commit 4b17b152a3a3d238669c93b31de34e87c2855f6e
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sat Aug 20 21:09:53 2016 -0400
 
-    runtime: make mspan.isFree do what's on the tin
+    hash/crc32: fix optimized s390x implementation
     
-    Currently mspan.isFree technically returns whether the object was not
-    allocated *during this cycle*. Fix it so it actually returns whether
-    or not the object is allocated so the method is more generally useful
-    (especially for debugging).
+    The code wasn't checking to see if the data was still >= 64 bytes
+    long after aligning it.
     
-    It has one caller, which is carefully written to be insensitive to
-    this distinction, but this lets us simplify this caller.
+    Aligning the data is an optimization and we don't actually need
+    to do it. In fact for smaller sizes it slows things down due to
+    the overhead of calling the generic function. Therefore for now
+    I have simply removed the alignment stage. I have also added a
+    check into the assembly to deliberately trigger a segmentation
+    fault if the data is too short.
     
-    Change-Id: I9d79cf784a56015e434961733093c1d8d03fc091
-    Reviewed-on: https://go-review.googlesource.com/30145
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Fixes #16779.
+    
+    Change-Id: Ic01636d775efc5ec97689f050991cee04ce8fe73
+    Reviewed-on: https://go-review.googlesource.com/27409
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/heapdump.go | 2 +-
- src/runtime/mbitmap.go  | 4 ++++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/hash/crc32/crc32_s390x.go | 35 ++++++++---------------------------
+ src/hash/crc32/crc32_s390x.s  |  7 +++++++
+ 2 files changed, 15 insertions(+), 27 deletions(-)

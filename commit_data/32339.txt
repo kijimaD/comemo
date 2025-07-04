@@ -1,21 +1,22 @@
-commit b6296426a065b85d4c1abbc7012dd633c33bb3c2
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Aug 16 23:52:16 2017 +0200
+commit 0c0c94a9dcf90fbb48343d5a02787758d64e306d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 18 16:41:19 2017 -0400
 
-    runtime: avoid zeroing hmap fields in makemap twice
+    runtime/pprof: fix period information
     
-    Stack allocated hmap structs are explicitly zeroed before being
-    passed by pointer to makemap.
+    The period recorded in CPU profiles is in nanoseconds, but was being
+    computed incorrectly as hz * 1000. As a result, many absolute times
+    displayed by pprof were incorrect.
     
-    Heap allocated hmap structs are created with newobject
-    which also zeroes on allocation.
+    Fix this by computing the period correctly.
     
-    Therefore, setting the hmap fields to 0 or nil is redundant
-    since they will have been zeroed when hmap was allocated.
-    
-    Change-Id: I5fc55b75e9dc5ba69f5e3588d6c746f53b45ba66
-    Reviewed-on: https://go-review.googlesource.com/56291
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6fadd6d8ad3e57f31e8cc7a25a24fcaec510d8d4
+    Reviewed-on: https://go-review.googlesource.com/40995
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/hashmap.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/runtime/pprof/proto.go      | 4 +++-
+ src/runtime/pprof/proto_test.go | 4 ++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

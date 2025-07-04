@@ -1,15 +1,46 @@
-commit 93471a139085fb58b0416e109ba32a927ccf5719
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 25 15:24:14 2017 -0700
+commit eb6adc27d56687970dd8a49794ca85acc4cf9097
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 16 17:42:32 2017 -0500
 
-    cmd/compile: merge tempnamel into tempAt
+    encoding/xml: replace tinfoMap RWMutex with sync.Map
     
-    Passes toolstash-check.
+    This simplifies the code a bit and provides a modest speedup for
+    Marshal with many CPUs.
     
-    Change-Id: I01ed1c04be5a23756742d461f13f1e587ea7ecb8
-    Reviewed-on: https://go-review.googlesource.com/59610
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    updates #17973
+    updates #18177
+    
+    name          old time/op    new time/op    delta
+    Marshal         15.8µs ± 1%    15.9µs ± 1%   +0.67%  (p=0.021 n=8+7)
+    Marshal-6       5.76µs ±11%    5.17µs ± 2%  -10.36%  (p=0.002 n=8+8)
+    Marshal-48      9.88µs ± 5%    7.31µs ± 6%  -26.04%  (p=0.000 n=8+8)
+    Unmarshal       44.7µs ± 3%    45.1µs ± 5%     ~     (p=0.645 n=8+8)
+    Unmarshal-6     12.1µs ± 7%    11.8µs ± 8%     ~     (p=0.442 n=8+8)
+    Unmarshal-48    18.7µs ± 3%    18.2µs ± 4%     ~     (p=0.054 n=7+8)
+    
+    name          old alloc/op   new alloc/op   delta
+    Marshal         5.78kB ± 0%    5.78kB ± 0%     ~     (all equal)
+    Marshal-6       5.78kB ± 0%    5.78kB ± 0%     ~     (all equal)
+    Marshal-48      5.78kB ± 0%    5.78kB ± 0%     ~     (all equal)
+    Unmarshal       8.58kB ± 0%    8.58kB ± 0%     ~     (all equal)
+    Unmarshal-6     8.58kB ± 0%    8.58kB ± 0%     ~     (all equal)
+    Unmarshal-48    8.58kB ± 0%    8.58kB ± 0%     ~     (p=1.000 n=8+8)
+    
+    name          old allocs/op  new allocs/op  delta
+    Marshal           23.0 ± 0%      23.0 ± 0%     ~     (all equal)
+    Marshal-6         23.0 ± 0%      23.0 ± 0%     ~     (all equal)
+    Marshal-48        23.0 ± 0%      23.0 ± 0%     ~     (all equal)
+    Unmarshal          189 ± 0%       189 ± 0%     ~     (all equal)
+    Unmarshal-6        189 ± 0%       189 ± 0%     ~     (all equal)
+    Unmarshal-48       189 ± 0%       189 ± 0%     ~     (all equal)
+    
+    https://perf.golang.org/search?q=upload:20170427.5
+    
+    Change-Id: I4ee95a99540d3e4e47e056fff18357efd2cd340a
+    Reviewed-on: https://go-review.googlesource.com/41991
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/gen.go | 16 ++++------------
- 1 file changed, 4 insertions(+), 12 deletions(-)
+ src/encoding/xml/typeinfo.go | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

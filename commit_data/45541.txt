@@ -1,19 +1,27 @@
-commit cb0658e624e33ca3e96036dbdd48b1282acb189d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 4 15:07:37 2021 -0700
+commit d4c1ad882973e407ff85b977f4ce5b9435451190
+Author: Tzu-Chiao Yeh <su3g4284zo6y7@gmail.com>
+Date:   Mon Aug 24 22:04:17 2020 +0800
 
-    go/types: expose more API under -tags=typeparams
+    database/sql: fix tx stmt deadlock when rollback
     
-    Updates #44933.
+    Tx acquires tx.closemu W-lock and then acquires stmt.closemu.W-lock
+    to fully close the transaction and associated prepared statement.
+    Stmt query and execution run in reverse ways - acquires
+    stmt.closemu.R-lock and then acquires tx.closemu.R-lock to grab tx
+    connection, which may cause deadlock.
     
-    Change-Id: I0c4c2a54f67b47771f4fa59f11c47fa7b0dde799
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317029
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Prevent the lock is held around tx.closePrepared to ensure no
+    deadlock happens.
+    
+    Fixes #40985
+    
+    Change-Id: If53909822b87bce11861a6e3035ecb9476d2cd17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250178
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/go/types/api_typeparams.go | 19 ++++++++++++++++++-
- 1 file changed, 18 insertions(+), 1 deletion(-)
+ src/database/sql/sql.go      | 14 +++++++-------
+ src/database/sql/sql_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 7 deletions(-)

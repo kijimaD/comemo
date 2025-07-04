@@ -1,20 +1,20 @@
-commit 7e7b16c9723d946031803d46baac91dc1fa80812
-Author: Dan Peterson <danp@danp.net>
-Date:   Thu Dec 21 13:58:00 2023 -0400
+commit 780db9a63d73f26dd9614b67e6129b55e854a174
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 20 19:31:40 2022 -0500
 
-    doc: fill out net/http.Request.PathValue,SetPathValue section
+    cmd/link: add debug print in hostobjCopy
     
-    And add a missing code tag wrap elsewhere.
+    In external linking mode, when the external linker fails to handle
+    something in a host object file, it usually reports the name of
+    the host object which is a copied file named 000NNN.o. This is
+    often not helpful to determine what file it is. Add some debug
+    print so at least in -v mode it is more helpful.
     
-    Updates #61410
-    Updates #61422
-    
-    Change-Id: I70a9c4ecaf4056af2e88d777b8db892a45dfcb9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/552195
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dan Peterson <danp@danp.net>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Ibe762bff6a25640d16ee0dc082736ba5161b7522
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458735
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.22.html | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

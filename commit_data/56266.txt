@@ -1,30 +1,45 @@
-commit a088e230d4e7892b15851babe161bbd1766738a1
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 4 04:51:24 2024 +0000
+commit 0f099a4bc569e32fbddefb8e3de6b59cf6d1959d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 14:01:05 2023 -0400
 
-    unique: add unique package and implement Make/Handle
+    runtime, cmd: rationalize StackLimit and StackGuard
     
-    This change adds the unique package for canonicalizing values, as
-    described by the proposal in #62483.
+    The current definitions of StackLimit and StackGuard only indirectly
+    specify the NOSPLIT stack limit and duplicate a literal constant
+    (928). Currently, they define the stack guard delta, and from there
+    compute the NOSPLIT limit.
     
-    Fixes #62483.
+    Rationalize these by defining a new constant, abi.StackNosplitBase,
+    which consolidates and directly specifies the NOSPLIT stack limit (in
+    the default case). From this we then compute the stack guard delta,
+    inverting the relationship between these two constants. While we're
+    here, we rename StackLimit to StackNosplit to make it clearer what's
+    being limited.
     
-    Change-Id: I1dc3d34ec12351cb4dc3838a8ea29a5368d59e99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574355
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    This change does not affect the values of these constants in the
+    default configuration. It does slightly change how
+    StackGuardMultiplier values other than 1 affect the constants, but
+    this multiplier is a pretty rough heuristic anyway.
+    
+                        before after
+    stackNosplit           800   800
+    _StackGuard            928   928
+    stackNosplit -race    1728  1600
+    _StackGuard -race     1856  1728
+    
+    For #59670.
+    
+    Change-Id: Ia94094c5e47897e7c088d24b4a5e33f5c2768db5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486976
+    Auto-Submit: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/62483.txt                         |   3 +
- doc/next/6-stdlib/2-unique.md              |  13 +++
- doc/next/6-stdlib/99-minor/unique/62483.md |   1 +
- src/go/build/deps_test.go                  |   3 +
- src/go/doc/comment/std.go                  |   1 +
- src/runtime/mgc.go                         |  23 +++-
- src/unique/clone.go                        | 100 +++++++++++++++++
- src/unique/clone_test.go                   |  37 ++++++
- src/unique/doc.go                          |   9 ++
- src/unique/handle.go                       | 174 +++++++++++++++++++++++++++++
- src/unique/handle_bench_test.go            |  63 +++++++++++
- src/unique/handle_test.go                  | 111 ++++++++++++++++++
- 12 files changed, 537 insertions(+), 1 deletion(-)
+ src/cmd/internal/objabi/stack.go       | 15 +++------------
+ src/cmd/link/internal/ld/stackcheck.go |  2 +-
+ src/internal/abi/stack.go              |  8 ++++++++
+ src/runtime/preempt.go                 |  2 +-
+ src/runtime/stack.go                   | 19 +++++++++----------
+ test/nosplit.go                        | 13 +++----------
+ 6 files changed, 25 insertions(+), 34 deletions(-)

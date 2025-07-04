@@ -1,14 +1,28 @@
-commit 6cf7918e7335041bd7d40be4c6e976a044cc000c
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Tue Feb 7 11:01:51 2017 -0800
+commit d89b70d43357e7f016331356014253647af02971
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 25 16:25:57 2016 -0700
 
-    runtime/pprof: clarify CPU profile's captured during the lifetime of the prog
+    cmd/compile: slightly regularize interface method types
     
-    Fixes #18504.
+    Use a single *struct{} type instance rather than reconstructing one
+    for every declared/imported interface method. Minor allocations win:
     
-    Change-Id: I3716fc58fc98472eea15ce3617aee3890670c276
-    Reviewed-on: https://go-review.googlesource.com/36430
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    name       old alloc/op    new alloc/op    delta
+    Template      41.8MB ± 0%     41.7MB ± 0%  -0.10%         (p=0.000 n=9+10)
+    Unicode       34.2MB ± 0%     34.2MB ± 0%    ~           (p=0.971 n=10+10)
+    GoTypes        123MB ± 0%      122MB ± 0%  -0.03%         (p=0.000 n=9+10)
+    Compiler       495MB ± 0%      495MB ± 0%  -0.01%        (p=0.000 n=10+10)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        409k ± 0%       408k ± 0%  -0.13%        (p=0.000 n=10+10)
+    Unicode         354k ± 0%       354k ± 0%    ~           (p=0.516 n=10+10)
+    GoTypes        1.22M ± 0%      1.22M ± 0%  -0.03%        (p=0.009 n=10+10)
+    Compiler       4.43M ± 0%      4.43M ± 0%  -0.02%        (p=0.000 n=10+10)
+    
+    Change-Id: Id3a4ca3dd09112bb96ccc982b06c9e79f661d31f
+    Reviewed-on: https://go-review.googlesource.com/32051
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/pprof/pprof.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go      | 30 +++++++++++++-----------------
+ src/cmd/compile/internal/gc/universe.go | 22 +++-------------------
+ 2 files changed, 16 insertions(+), 36 deletions(-)

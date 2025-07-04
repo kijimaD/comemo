@@ -1,15 +1,26 @@
-commit 3ac17f86be1bb9b6a7cfde2b1dcef88bc5c2c1a6
-Author: Hana Kim <hakim@google.com>
-Date:   Wed Mar 28 15:22:26 2018 -0400
+commit bd926e1c65557870d152c42265af7533981fae8a
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Sun Nov 12 22:19:11 2017 +0000
 
-    cmd/trace: make span tables pretty
+    crypto, hash: document marshal/unmarshal implementation
     
-    Mostly same as golang.org/cl/102156, except the parts that
-    deal with different data types.
+    Unless you go back and read the hash package documentation, it's
+    not clear that all the hash packages implement marshaling and
+    unmarshaling. Document the behaviour specifically in each package
+    that implements it as it this is hidden behaviour and easy to miss.
     
-    Change-Id: I061b858b73898725e3bf175ed022c2e3e55fc485
-    Reviewed-on: https://go-review.googlesource.com/103158
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Id9d3508909362f1a3e53872d0319298359e50a94
+    Reviewed-on: https://go-review.googlesource.com/77251
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/trace/annotations.go | 160 +++++++++++++++++++++++++++++++++++--------
- 1 file changed, 131 insertions(+), 29 deletions(-)
+ src/crypto/hmac/hmac.go     |  3 +++
+ src/crypto/md5/md5.go       |  4 +++-
+ src/crypto/sha1/sha1.go     |  4 +++-
+ src/crypto/sha256/sha256.go |  5 ++++-
+ src/crypto/sha512/sha512.go |  4 ++++
+ src/hash/adler32/adler32.go |  7 +++++--
+ src/hash/crc32/crc32.go     | 16 ++++++++++------
+ src/hash/crc64/crc64.go     |  8 +++++---
+ src/hash/fnv/fnv.go         |  4 ++++
+ 9 files changed, 41 insertions(+), 14 deletions(-)

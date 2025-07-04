@@ -1,14 +1,14 @@
-commit 7e27625e2556e6caedd35043247c98ecf819edba
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 4 14:27:39 2015 -0400
+commit 6f42b6166ae2c0cd775d24aa82548fb8637004b5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 1 09:36:18 2015 -0700
 
-    cmd/go, cmd/link: use "Go" not "GO" as ELF note identifier
+    test: fix nosplit test for noopt build
     
-    Change-Id: I038e892725836ab7718f7638e8ad5712953f2cb5
-    Reviewed-on: https://go-review.googlesource.com/10704
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Noopt builds get a larger stack guard.  This test must take that into account.
+    
+    Change-Id: I1b5cbafdbbfee8c369ae1bebd0b900524ebf0d7d
+    Reviewed-on: https://go-review.googlesource.com/9610
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testshared/shared_test.go | 2 +-
- src/cmd/go/build.go                | 2 +-
- src/cmd/link/internal/ld/elf.go    | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ test/nosplit.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

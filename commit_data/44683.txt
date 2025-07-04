@@ -1,18 +1,17 @@
-commit 26c32de7c9a6bb54d0144d1cc2f00cc334778cac
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 12 11:26:51 2021 -0500
+commit d3a411b6debccb665da3497e7fa597c9a5ff16f1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 12 12:09:35 2020 -0700
 
-    cmd/go/internal/modcmd: in 'go mod tidy', suspend go.mod writes until tidy
+    internal/poll: treat copy_file_range EOPNOTSUPP as not-handled
     
-    For #36460
+    Fixes #40731
     
-    Change-Id: Ia8633f37aec8c7ed532bf7278867251e5e2a4285
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301370
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I3e29878d597318acf5edcc38497aa2624f72be35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248258
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/go/internal/modcmd/tidy.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/internal/poll/copy_file_range_linux.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

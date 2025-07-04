@@ -1,26 +1,21 @@
-commit 5e70b132c22d10e556b3840626a50ecf1dcad35f
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Tue Jul 10 00:44:21 2018 -0400
+commit 6f47fa2d6c6b2d4fdfc5b3a98fa8e3cd8469ca16
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Mar 23 17:53:26 2018 +0300
 
-    cmd/pprof: disable readline UI support for TERM=dumb
+    runtime: fix AT_HWCAP auxv parsing on freebsd
     
-    In general, dumb terminal indicates terminal with limited capability.
-    It may provide no support for special character sequences, e.g., no
-    handling of ANSI escape sequences. Its input/output handling behavior
-    may deviate from what's described in termios or terminfo. E.g., in
-    the shell in emacs, even after successfully setting the terminal to
-    raw mode, the terminal behaves as if it's still operating in canonical
-    mode since emacs is doing input processing first.
+    AT_HWCAP is not available on FreeBSD-11.1-RELEASE or earlier and the wrong const was used.
+    Use the correct value, and initialize hwcap with ^uint32(0) inorder not to fail the VFP tests.
     
-    Readline support can be broken in various ways in dumb terminal mode,
-    so we want to disable readline or advanced UI features. The easiest
-    way to detect dumb terminal is to check the environment variable "TERM".
+    Fixes #24507.
     
-    Fixes #26254
-    
-    Change-Id: I6b652eb555bc03b84405aae08b0b25d111fbb8b0
-    Reviewed-on: https://go-review.googlesource.com/122879
+    Change-Id: I5c3eed57bb53bf992b7de0eec88ea959806306b9
+    Reviewed-on: https://go-review.googlesource.com/102355
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/pprof/readlineui.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/os_freebsd.go     | 2 +-
+ src/runtime/os_freebsd_arm.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

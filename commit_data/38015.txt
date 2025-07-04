@@ -1,34 +1,21 @@
-commit a00611f58d5322899c45c63758e43d2a2c5a2a11
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 21 16:18:28 2019 -0500
+commit 36a3d4f3fea7bbb22be061fbe830420990cd3ecf
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Tue Sep 25 15:33:49 2018 +0100
 
-    misc/cgo/testcshared: fix tests in module mode
+    image: avoid sharing test images between tests and benchmarks
     
-    Updates #30228
+    CL 136796 introduced benchmarks and refactored tests to use a
+    common list of test images. The tests now fail when run with
+    count > 2 since they rely on a fresh image each run.
     
-    Change-Id: Ie9dca7c64be8dff729be98cb6190236287afd23e
-    Reviewed-on: https://go-review.googlesource.com/c/163213
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fix this by changing the list of test images to a list of test
+    image generator functions.
+    
+    Change-Id: I5884c6bccba5e29bf84ee546fa501bc258379f42
+    Reviewed-on: https://go-review.googlesource.com/137295
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcshared/cshared_test.go               | 144 +++++++++++----------
- misc/cgo/testcshared/overlaydir_test.go            |  81 ++++++++++++
- .../{src => testdata}/go2c2go/go/shlib.go          |   0
- .../testcshared/{src => testdata}/go2c2go/m1/c.c   |   0
- .../{src => testdata}/go2c2go/m1/main.go           |   0
- .../{src => testdata}/go2c2go/m2/main.go           |   0
- .../testcshared/{src => testdata}/libgo/libgo.go   |   2 +-
- .../testcshared/{src => testdata}/libgo2/dup2.go   |   0
- .../testcshared/{src => testdata}/libgo2/dup3.go   |   0
- .../testcshared/{src => testdata}/libgo2/libgo2.go |   0
- .../testcshared/{src => testdata}/libgo4/libgo4.go |   0
- .../testcshared/{src => testdata}/libgo5/libgo5.go |   0
- misc/cgo/testcshared/{ => testdata}/main0.c        |   0
- misc/cgo/testcshared/{ => testdata}/main1.c        |   0
- misc/cgo/testcshared/{ => testdata}/main2.c        |   0
- misc/cgo/testcshared/{ => testdata}/main3.c        |   0
- misc/cgo/testcshared/{ => testdata}/main4.c        |   0
- misc/cgo/testcshared/{ => testdata}/main5.c        |   0
- misc/cgo/testcshared/{src => testdata}/p/p.go      |   0
- src/cmd/dist/test.go                               |   2 +-
- 20 files changed, 160 insertions(+), 69 deletions(-)
+ src/image/image_test.go | 38 ++++++++++++++++++++++----------------
+ 1 file changed, 22 insertions(+), 16 deletions(-)

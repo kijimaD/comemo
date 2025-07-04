@@ -1,25 +1,16 @@
-commit 95149147d86ad33a82a5d0115bbb9c623cd7cade
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 5 12:13:48 2019 -0500
+commit 0c75eb824ca7ca41970c2265ad1bccb82bbb408f
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Mon Jun 3 15:57:43 2019 +0700
 
-    cmd/compile: do not skip TestFormats on short builders
+    runtime: fix sigpipe do not check SIGPIPE was ignored
     
-    TestFormats adds ~3s of running time to the test, which may be
-    slightly annoying in an edit/compile/test cycle but is negligible in a
-    TryBot run.
+    Fixes #32386
     
-    The test keeps regressing in the longtest builders, requiring a manual
-    fix. Instead, run it even in short mode on the builders, so that
-    TryBot runs will detect regressions ahead of time.
-    
-    Updates #34907
-    Updates #33915
-    Updates #28621
-    
-    Change-Id: I6f9bf0f2ca929a743438310b86d85d8673c720bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205440
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I29ad4113b02264336eebe7865895f07ef386f450
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180177
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/fmt_test.go | 2 +-
+ src/runtime/signal_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

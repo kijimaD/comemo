@@ -1,13 +1,17 @@
-commit bb843c0b2ffaaca6b2f18a54cd30b9d1b10c7eb7
+commit aac1eabcee45a338f5b2e493cb2e3a0f153cb931
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 4 20:29:58 2014 -0700
+Date:   Mon Aug 4 19:50:49 2014 -0700
 
-    runtime: remove unused enum maxround
+    test: add test for function type in function literal
     
-    LGTM=minux, dave
-    R=golang-codereviews, minux, dave
+    The gccgo compiler used to fail this test.  This was the root
+    cause of http://gcc.gnu.org/PR61308 .  The fix for the gccgo
+    compiler is https://golang.org/cl/122020043 .
+    
+    LGTM=dave, bradfitz
+    R=golang-codereviews, dave, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/122030043
+    https://golang.org/cl/121200043
 
- src/pkg/runtime/runtime.c | 4 ----
- 1 file changed, 4 deletions(-)
+ test/fixedbugs/bug489.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

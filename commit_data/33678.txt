@@ -1,20 +1,16 @@
-commit b72678f37f2087ebf515bf6927bdd102723b28bf
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Nov 23 12:46:18 2017 +0100
+commit 176cd48e574817bbb912c139396324c187b31279
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue Aug 29 05:10:17 2017 +0100
 
-    net: skip TestLookupLongTXT on Plan 9
+    runtime: fix memhash64 on big endian systems
     
-    CL 79555 added TestLookupLongTXT. However, this test is
-    failing on Plan 9, because the DNS resolver (ndb/dns)
-    only returns a single TXT record.
+    Fixes #21677.
     
-    Updates #22857.
-    
-    Change-Id: I33cdc63a3d3de4d1c7f2684934316c44992fb9e2
-    Reviewed-on: https://go-review.googlesource.com/79695
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: I869dee5f43df5d87d86922681726297e3024c562
+    Reviewed-on: https://go-review.googlesource.com/59810
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/lookup_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/hash64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

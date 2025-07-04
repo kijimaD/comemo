@@ -1,17 +1,23 @@
-commit 092dd4bed26a9e241d629c94734ded2c2cb2f2bd
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Feb 27 09:22:02 2014 +0100
+commit e5f01aee04dc6313c85dab78305adf499e1f7bfa
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Feb 27 08:07:50 2014 +0100
 
-    runtime: fix build on Plan 9
+    cmd/gc: do not nop-convert equivalent but different interface types.
     
-    warning: src/pkg/runtime/mem_plan9.c:72 param declared and not used: n
-    src/pkg/runtime/mem_plan9.c:73 name not declared: nbytes
-    src/pkg/runtime/mem_plan9.c:73 bad in naddr: NAME nbytes<>+0(SB)
+    The cached computed interface tables are indexed by the interface
+    types, not by the unnamed underlying interfaces
     
-    LGTM=minux.ma, bradfitz
-    R=khr, minux.ma, bradfitz
+    To preserve the invariants expected by interface comparison, an
+    itab generated for an interface type must not be used for a value
+    of a different interface type even if the representation is identical.
+    
+    Fixes #7207.
+    
+    LGTM=rsc
+    R=rsc, iant, khr
     CC=golang-codereviews
-    https://golang.org/cl/69360043
+    https://golang.org/cl/69210044
 
- src/pkg/runtime/mem_plan9.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/subr.c |  6 ++++--
+ test/cmp.go       | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 2 deletions(-)

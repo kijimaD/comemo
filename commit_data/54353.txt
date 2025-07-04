@@ -1,21 +1,40 @@
-commit 1d538f198dd3da072d00e3dca70c28c40bbde87e
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Sep 7 11:09:10 2023 +0200
+commit 6688efd5df1ef82dbe5d1f47b4c9bf4321a44126
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 16:21:35 2022 -0700
 
-    runtime: support nil libcall.args when calling stdcall on Windows
+    cmd/compile/internal/types2: use internal/types/errors instead of local error codes
     
-    Having to pass a dummy pointer to the libcall.args field is a bit
-    annoying. This change allows nil to be passed instead.
-    
-    windows/arm and windows/arm64 already support nil libcall.args.
-    
-    Change-Id: I07a2bdb7d1f76b13d125397ff5177337c43536a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526016
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: If9b5c2c5d1b89146250bcd19965797baab315876
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439564
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/os_windows.go       |  2 +-
- src/runtime/sys_windows_386.s   | 10 ++++++++--
- src/runtime/sys_windows_amd64.s |  6 ++++++
- 3 files changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go |   33 +-
+ src/cmd/compile/internal/types2/builtins.go    |   71 +-
+ src/cmd/compile/internal/types2/call.go        |   41 +-
+ src/cmd/compile/internal/types2/check.go       |    5 +-
+ src/cmd/compile/internal/types2/conversions.go |    5 +-
+ src/cmd/compile/internal/types2/decl.go        |   25 +-
+ src/cmd/compile/internal/types2/errorcodes.go  | 1423 ------------------------
+ src/cmd/compile/internal/types2/errors.go      |   13 +-
+ src/cmd/compile/internal/types2/expr.go        |  139 +--
+ src/cmd/compile/internal/types2/index.go       |   27 +-
+ src/cmd/compile/internal/types2/infer.go       |   11 +-
+ src/cmd/compile/internal/types2/initorder.go   |    5 +-
+ src/cmd/compile/internal/types2/instantiate.go |    3 +-
+ src/cmd/compile/internal/types2/interface.go   |    7 +-
+ src/cmd/compile/internal/types2/labels.go      |   17 +-
+ src/cmd/compile/internal/types2/mono.go        |    3 +-
+ src/cmd/compile/internal/types2/operand.go     |   21 +-
+ src/cmd/compile/internal/types2/resolver.go    |   31 +-
+ src/cmd/compile/internal/types2/signature.go   |   19 +-
+ src/cmd/compile/internal/types2/stmt.go        |   71 +-
+ src/cmd/compile/internal/types2/struct.go      |   11 +-
+ src/cmd/compile/internal/types2/typeset.go     |    7 +-
+ src/cmd/compile/internal/types2/typexpr.go     |   49 +-
+ src/cmd/compile/internal/types2/union.go       |   23 +-
+ src/cmd/dist/buildtool.go                      |    1 +
+ 25 files changed, 333 insertions(+), 1728 deletions(-)

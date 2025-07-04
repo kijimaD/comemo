@@ -1,26 +1,20 @@
-commit edfeea01be331b8737697d4d74737d7888d7dd6f
-Author: muyizixiu <muyizixiu@gmail.com>
-Date:   Wed Aug 17 01:51:01 2022 +0000
+commit 5ee32ff2527b64197f2eb09bc45e73e61c9c1ac3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 21 16:05:57 2021 -0400
 
-    net/http: return ErrNoCookie from Request.Cookie when name is ""
+    cmd/go: proceed with GOPATH unset if the command doesn't use it
     
-    Request.Cookie(name string) will return the first cookie
-    when cookie name is "". Since readCookies in
-    file net/http/cookie.go at line 247 return all cookies
-    when second parameter is a empty string.
+    For #43938
     
-    To fix it, Return ErrNoCookie from Request.Cookie(""),
-    instead of the first cookie in the request.
-    
-    Fixes #53181
-    
-    Change-Id: Ie623ca4c53da64ef7623a7863292a2d771f76832
-    GitHub-Last-Rev: 01098cd5dbcc8d65e9c0893e0586601584e5f8b9
-    GitHub-Pull-Request: golang/go#53183
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409754
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I0937b9bb6de3d29d7242ee61f053d4803277dc0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351329
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/http/request.go      |  3 +++
- src/net/http/request_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+)
+ src/cmd/go/internal/modfetch/cache.go         |  2 +-
+ src/cmd/go/internal/modload/init.go           | 17 +++++++++++------
+ src/cmd/go/testdata/script/mod_gomodcache.txt | 13 ++++++++++---
+ src/cmd/go/testdata/script/mod_no_gopath.txt  | 15 +++++++++++++++
+ 4 files changed, 37 insertions(+), 10 deletions(-)

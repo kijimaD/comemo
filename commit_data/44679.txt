@@ -1,15 +1,27 @@
-commit 15f16706fb93a0720decd175ad2147be96a8e1e4
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sun Mar 14 13:19:12 2021 +0800
+commit 98a0071a5363e307c2e284034f810378de3883dd
+Author: Andrew Ekstedt <andrew.ekstedt@gmail.com>
+Date:   Fri Jul 24 12:48:30 2020 -0700
 
-    internal/poll: eliminate the redundant type conversions of FD.Sysfd
+    path,path/filepath: add Join examples with ".." components
     
-    Change-Id: Ib75662f717320510319c696520e645f54eec97f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301569
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    People sometimes expect Join to trim .. components from its arguments
+    before joining, and are surprised that it doesn't. This is bad if they
+    were relying on that assumed behaviour to prevent directory traversal
+    attacks.
+    
+    While a careful reading of the documentation for Join and Clean
+    might dispel this notion, it is not obvious at first glance.
+    
+    Add a case to the examples to nudge people in the right direction.
+    
+    Updates #40373
+    
+    Change-Id: Ib5792c12ba1000811a0c0eb77048196d0b26da60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249177
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/internal/poll/sendfile_bsd.go     | 2 +-
- src/internal/poll/sendfile_linux.go   | 2 +-
- src/internal/poll/sendfile_solaris.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/path/example_test.go               | 5 +++++
+ src/path/filepath/example_unix_test.go | 4 ++++
+ 2 files changed, 9 insertions(+)

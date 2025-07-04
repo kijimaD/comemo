@@ -1,0 +1,25 @@
+commit 1bfbefa1593638dc9ff78e4d2959c865cb1c66a6
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 6 11:13:19 2025 +0100
+
+    make.bat: pass through all arguments to "dist bootstrap"
+    
+    nolocal is (almost) no longer needed after CL 647115. If we remove it,
+    then we can pass through all arguments to the Go command, which is
+    useful for running tests with additional flags, like -json or -v.
+    
+    This CL also updates all.bat to use "go tool dist" instead of
+    "%GOTOOLDIR%/dist", as %GOTOOLDIR% is no longer set after making
+    make.bat uncoditionally set nolocal.
+    
+    Change-Id: I97dc687faa5686d023f7d7d2b96637295995fe67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647117
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/all.bat  |  4 ++--
+ src/make.bat | 39 +--------------------------------------
+ src/race.bat |  2 +-
+ 3 files changed, 4 insertions(+), 41 deletions(-)

@@ -1,41 +1,15 @@
-commit f2dc50b48d011d4d585d09d5e6bed350894add3d
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Fri Nov 4 09:50:20 2011 -0400
+commit 39fcca60cb5a13d2836d5d92cf1ed9aea07f6366
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Nov 4 23:45:38 2011 +1100
 
-    html,bzip2,sql: rename Error methods that return error to Err
+    template: format error with pointer receiver.
     
-    There are three classes of methods/functions called Error:
+    This is a continuation of 982d70c6d5d6.
     
-    a) The Error method in the just introduced error interface
-    b) Error methods that create or report errors (http.Error, etc)
-    c) Error methods that return errors previously associated with
-       the receiver (Tokenizer.Error, rows.Error, etc).
-    
-    This CL introduces the convention that methods in case (c)
-    should be named Err.
-    
-    The reasoning for the change is:
-    
-    - The change differentiates the two kinds of APIs based on
-      names rather than just on signature, unloading Error a bit
-    - Err is closer to the err variable name that is so commonly
-      used with the intent of verifying an error
-    - Err is shorter and thus more convenient to be used often
-      on error verifications, such as in iterators following the
-      convention of the sql package.
-    
-    R=bradfitz, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5327064
+    https://golang.org/cl/5348042
 
- src/cmd/gofix/Makefile               |  1 +
- src/cmd/gofix/fix.go                 |  2 +-
- src/cmd/gofix/htmlerr.go             | 47 ++++++++++++++++++++++++++++++++++++
- src/cmd/gofix/htmlerr_test.go        | 39 ++++++++++++++++++++++++++++++
- src/pkg/compress/bzip2/bit_reader.go |  4 +--
- src/pkg/compress/bzip2/bzip2.go      |  4 +--
- src/pkg/exp/sql/sql.go               |  6 ++---
- src/pkg/html/parse.go                |  2 +-
- src/pkg/html/token.go                |  4 +--
- src/pkg/html/token_test.go           | 10 ++++----
- 10 files changed, 103 insertions(+), 16 deletions(-)
+ src/pkg/text/template/exec.go      |  2 +-
+ src/pkg/text/template/exec_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

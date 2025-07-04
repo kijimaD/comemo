@@ -1,17 +1,16 @@
-commit 2fc0ebb623e2859094ad3f41e61325df0c2163f8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 16 12:17:27 2021 -0400
+commit 2f4368c174f616b6623e66ca4c84e701d209fa4f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 14:10:24 2020 -0400
 
-    cmd/go/internal/modload: when outside a module, set cfg.BuildMod based on allowMissingModuleImports
+    cmd/fix: rename confusing boolean
     
-    For #36460
+    ("truth" says nothing about what is true.
+    This boolean tracks whether the file was fixed.)
     
-    Change-Id: I50c7018a6841bba1a8c6f8f8eca150df1f685526
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310789
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I29bb80c4fad3ca7f2ae96e50e16f6cde484b374f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240556
+    Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modload/init.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/fix/gotypes.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

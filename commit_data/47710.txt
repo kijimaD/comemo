@@ -1,18 +1,17 @@
-commit 1c4cf50e113f402eb6986a2007cd9c820b1bb69f
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Thu Dec 2 13:41:37 2021 -0500
+commit 5d5f779db40528faa82e16c361691864dc80975b
+Author: ianwoolf <btw515wolf2@gmail.com>
+Date:   Wed Apr 7 13:42:22 2021 +0800
 
-    doc/go1.18: add docs for js.Wrapper's removal
+    net/http: replace os.MkdirTemp with T.TempDir
     
-    CL 356430
-    
-    Updates #47694
-    
-    Change-Id: I802cd50f2827caa0549c25685c0b1bb8dfc40968
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368799
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Updates: #45402
+    Change-Id: Ia61f422d058bf57fc3688abc25597d6cc1692c51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307653
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- doc/go1.18.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/filetransport_test.go | 6 ++----
+ src/net/http/fs_test.go            | 6 +-----
+ 2 files changed, 3 insertions(+), 9 deletions(-)

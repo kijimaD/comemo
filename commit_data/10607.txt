@@ -1,15 +1,16 @@
-commit 263c955f2fff2016b5ff77d787d8e1b50555930a
+commit 2c0072217ae83a3fbb91a0acd51dc998d2b71d8e
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Dec 5 16:44:10 2011 +1100
+Date:   Mon Dec 5 16:22:14 2011 +1100
 
-    gobuilder: use new dashboard protocol
-    gobuilder: -commit mode for packages
-    gobuilder: cripple -package mode temporarily
+    misc/dashboard: init handler for bootstrapping
+    misc/dashboard: support unauthenticated GETs
+    misc/dashboard: add ?nukeonly=1 option to /buildtest
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5450092
+    https://golang.org/cl/5450091
 
- misc/dashboard/builder/http.go | 151 +++++++++++++++++++++++++----------------
- misc/dashboard/builder/main.go |  95 ++++++++++++++++++--------
- 2 files changed, 158 insertions(+), 88 deletions(-)
+ misc/dashboard/app/app.yaml       |  4 +--
+ misc/dashboard/app/build/build.go | 51 +++++++++++++++++++++++++++++++++------
+ misc/dashboard/app/build/test.go  |  6 ++++-
+ 3 files changed, 51 insertions(+), 10 deletions(-)

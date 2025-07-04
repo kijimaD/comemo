@@ -1,13 +1,16 @@
-commit 8985c091e4a83eef27ed2a474e1dd34eae43db3a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 31 10:20:36 2014 -0700
+commit f4de59e234bfa7fb2a3a86764f390b09d4249a9b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Oct 17 21:28:47 2014 +0400
 
-    net/http: add missing newline in list of leaked goroutines
+    runtime/pprof: fix memory profiler test
+    Don't use cmd/pprof as it is not necessary installed
+    and does not work on nacl and plan9.
+    Instead just look at the raw profile.
     
-    LGTM=bradfitz
-    R=bradfitz
+    LGTM=crawshaw, rsc
+    R=golang-codereviews, crawshaw, 0intro, rsc
     CC=golang-codereviews
-    https://golang.org/cl/168860044
+    https://golang.org/cl/159010043
 
- src/net/http/main_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/pprof/mprof_test.go | 90 ++++++++++-------------------------------
+ 1 file changed, 21 insertions(+), 69 deletions(-)

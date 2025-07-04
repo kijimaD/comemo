@@ -1,29 +1,24 @@
-commit 479501c14c9d36e27727bc4b4294d57c5ddc29d0
-Author: Austin Clements <austin@google.com>
-Date:   Sat Apr 16 18:27:38 2016 -0400
+commit 33fd4535a408aa863e6f0c7196291ae2a583644f
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Tue Mar 8 21:53:33 2016 +0100
 
-    runtime: count black allocations toward scan work
+    cmd/compile: use range construct
     
-    Currently we count black allocations toward the scannable heap size,
-    but not toward the scan work we've done so far. This is clearly
-    inconsistent (we have, in effect, scanned these allocations and since
-    they're already black, we're not going to scan them again). Worse, it
-    means we don't count black allocations toward the scannable heap size
-    as of the *next* GC because this is based on the amount of scan work
-    we did in this cycle.
+    so the code is more readable.
     
-    Fix this by counting black allocations as scan work. Currently the GC
-    spends very little time in allocate-black mode, so this probably
-    hasn't been a problem, but this will become important when we switch
-    to always allocating black.
+    Also use n[i] = val instead of n = append(n, val),
+    because this avoids a function call to append.
     
-    Change-Id: If6ff693b070c385b65b6ecbbbbf76283a0f9d990
-    Reviewed-on: https://go-review.googlesource.com/22119
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    NOTE: compiles, but I had trouble running toolstash -cmp and need sleep
+    now.
+    
+    @Ian this might save you some grunt work :-)
+    
+    Change-Id: I2a4c70396c58905f7d5aabf83f3020f11dea0e89
+    Reviewed-on: https://go-review.googlesource.com/20430
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/malloc.go  | 8 +++++---
- src/runtime/mgc.go     | 9 +++++++--
- src/runtime/mgcmark.go | 4 +++-
- 3 files changed, 15 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

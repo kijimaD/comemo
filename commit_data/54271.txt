@@ -1,25 +1,24 @@
-commit a756cc0967c240820b491fa6412cfe6bd7b4bf8b
-Author: Davis Goodin <dagood@microsoft.com>
-Date:   Tue Aug 29 12:39:58 2023 -0500
+commit c9a62b7e711f5c1f1a73e0c3a5b6a2e5b67033e2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 30 12:46:40 2022 -0400
 
-    cmd/go: add missing str imports to fix addmod and savedir
+    os/exec: recombine goroutinePipes and userPipes
     
-    The addmod.go and savedir.go testdata generation tools were missing the
-    "cmd/go/internal/str" import, causing them to fail to build. This change
-    adds the imports.
+    This change undoes CL 401894, because on further consideration
+    it turns out not to be needed.
     
-    This makes progress on the work to use Join functions rather than path
-    manipulation using the path separator:
-    https://go-review.googlesource.com/c/go/+/463178
+    This also makes (*Cmd).closeDescriptors a free function, since it does
+    not actually use the receiver in any way and is not needed to satisfy
+    any interfaces.
     
-    Change-Id: Ia70253afc0a351c646e672bd4178a8738e4e69cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524155
+    For #50436.
+    
+    Change-Id: I7915265b0e6398ed5a34fae0c12873ab08a14194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437175
     Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/testdata/addmod.go  | 1 +
- src/cmd/go/testdata/savedir.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/os/exec/exec.go | 40 +++++++++++++++-------------------------
+ 1 file changed, 15 insertions(+), 25 deletions(-)

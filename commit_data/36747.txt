@@ -1,21 +1,20 @@
-commit 1058aecf611fc85365f87733f8588ef1cd31c8cd
-Author: Ingo Oeser <nightlyone@googlemail.com>
-Date:   Wed Sep 12 01:16:29 2018 +0200
+commit 645d4726f0f36c3aec9c864f47411a74c20ebc70
+Author: Adam Medzinski <adam.medzinski@gmail.com>
+Date:   Fri May 18 16:54:30 2018 +0200
 
-    net/http: configure http2 transport only once
+    net: add example for net.UDPConn.WriteTo function
     
-    it looks like we should abort trying to configure the http2 transport
-    again, once it has been configured already.
+    The current documentation of the WriteTo function is very poor and it
+    is difficult to deduce how to use it correctly. A good example will
+    make things much easier.
     
-    Otherwise there will be no effect of these checks and changes, as they
-    will be overridden later again and the disable logic below will have no
-    effect, too.
+    Fixes #25456
     
-    So it really looks like we just forgot a return statement here.
-    
-    Change-Id: Ic99b3bbc662a4e1e1bdbde77681bd1ae597255ad
-    Reviewed-on: https://go-review.googlesource.com/134795
+    Change-Id: Ibf0c0e153afae8f3e0d7d765d0dc9bcbfd69bfb1
+    Reviewed-on: https://go-review.googlesource.com/113775
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/example_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

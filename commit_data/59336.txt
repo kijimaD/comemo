@@ -1,20 +1,31 @@
-commit a204ed53d907c3b325e3c2bdd6f847a8f97e90d9
-Author: 1911860538 <alxps1911@gmail.com>
-Date:   Fri Apr 18 14:11:29 2025 +0000
+commit b09ac10badb169828240a3b0bfaa4a428eaca969
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 28 16:07:27 2024 +0100
 
-    net: simplify readProtocols via sync.OnceFunc
+    os: don't normalize volumes to drive letters in os.Readlink
     
-    In this case, using sync.OnceFunc is a better choice.
+    This CL updates os.Readlink so it no longer tries to normalize volumes
+    to drive letters, which was not always even possible.
     
-    Change-Id: I52d27b9741265c90300a04a03537020e1aaaaaa7
-    GitHub-Last-Rev: a281daea255f1508a9042e8c8c7eb7ca1cef2430
-    GitHub-Pull-Request: golang/go#73434
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666635
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    This behavior is controlled by the `winreadlinkvolume` setting.
+    For Go 1.23, it defaults to `winreadlinkvolume=1`.
+    Previous versions default to `winreadlinkvolume=0`.
+    
+    Fixes #63703.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: Icd6fabbc8f0b78e23a82eef8db89940e89e9222d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567735
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
 
- src/net/lookup_unix.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ doc/godebug.md                                    |   6 +
+ doc/next/6-stdlib/99-minor/os/63703.md            |  11 ++
+ doc/next/6-stdlib/99-minor/path/filepath/63703.md |   6 +
+ src/internal/godebugs/table.go                    |   1 +
+ src/os/file_windows.go                            |  10 +-
+ src/os/os_windows_test.go                         | 210 ++++++++++++----------
+ src/path/filepath/path_windows_test.go            |  14 +-
+ src/runtime/metrics/doc.go                        |   4 +
+ 8 files changed, 160 insertions(+), 102 deletions(-)

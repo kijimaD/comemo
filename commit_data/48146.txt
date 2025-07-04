@@ -1,17 +1,20 @@
-commit 0a9d6a31b1e8799e11cb055687fbbe4536590994
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 11 11:48:47 2022 -0500
+commit 414af503d7ec20cdfd6df23d5dee733401644ba3
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 28 10:07:18 2021 -0400
 
-    runtime: update TestGdbBacktrace skips for known GDB bugs
+    go/types: fix type inference
     
-    Fixes #50838
+    This is a 1:1 port of CL 311651 to go/types.
     
-    Change-Id: Ib7e7563cd63d85a508984e4162eda38232b250d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385175
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I9d91b45cc5fa7ce686d6a91d4dde274d9f80e0d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314595
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/runtime-gdb_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/go/types/fixedbugs/issue44799.go2 |  1 -
+ src/go/types/fixedbugs/issue45548.go2 | 13 +++++++++++++
+ src/go/types/infer.go                 | 19 +++++++++++++++++++
+ src/go/types/unify.go                 | 17 +++++++++++++++++
+ 4 files changed, 49 insertions(+), 1 deletion(-)

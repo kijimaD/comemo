@@ -1,16 +1,21 @@
-commit fa3f484800415662cc741bbb8968ebb72896e20a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 24 11:39:48 2016 -0700
+commit 0373128318f0a64ea0c8e1a156d69d2cacbd2591
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 31 10:30:04 2016 +1100
 
-    encoding/csv: clarify that this package supports RFC 4180
+    cmd/compile/internal/gc: don't iterate over field list twice
     
-    The intent of this comment is to reduce the number of issues opened
-    against the package to add support for new kinds of CSV formats, such as
-    issues #3150, #8458, #12372, #12755.
+    In tostruct0 and tofunargs we take a list of nodes, transform them into
+    a slice of Fields, set the fields on a type, then use the IterFields
+    iterator to iterate over the list again to see if any of them are
+    broken.
     
-    Change-Id: I452c0b748e4ca9ebde3e6cea188bf7774372148e
-    Reviewed-on: https://go-review.googlesource.com/23401
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    As we know the slice of fielde-we just created it-we can combine these two
+    interations into one pass over the fields.
+    
+    Change-Id: I8b04c90fb32fd6c3b1752cfc607128a634ee06c5
+    Reviewed-on: https://go-review.googlesource.com/21350
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/csv/reader.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/dcl.go | 17 +++++------------
+ 1 file changed, 5 insertions(+), 12 deletions(-)

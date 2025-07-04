@@ -1,28 +1,21 @@
-commit f76fc28c6b31f28783b94596d6328450202c903a
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Feb 8 14:28:18 2023 +0100
+commit 884e75fa53529321352a18538fe9e02fd485c49a
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Sat Feb 12 17:03:19 2022 +0800
 
-    runtime: use explicit NOFRAME on netbsd/amd64
+    reflect: fix the collision of variable name and package name
     
-    This CL marks some netbsd assembly functions as NOFRAME to avoid
-    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
-    without stack were also marked as NOFRAME.
+    The return value "abi" of func "funcLayout" is the same as package
+    "internal/abi", which currently works fine, but it is more reliable to
+    avoid conflicts.
     
-    While here, and thanks to CL 466355, `asm_netbsd_amd64.s` can
-    be deleted in favor of `asm9_unix2_amd64.s`, which makes better
-    use of the frame pointer.
-    
-    Updates #58378
-    
-    Change-Id: Iff554b664ec25f2bb6ec198c0f684590b359c383
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466396
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I83715dd79beff7cb3fc25747fef186dc0e2dfa8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385414
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/internal/obj/x86/obj6.go |  2 +-
- src/runtime/sys_netbsd_amd64.s   | 10 ++++------
- src/syscall/asm9_unix2_amd64.s   |  4 ++--
- src/syscall/asm_netbsd_amd64.s   | 43 ----------------------------------------
- 4 files changed, 7 insertions(+), 52 deletions(-)
+ src/reflect/makefunc.go | 16 ++++++++--------
+ src/reflect/type.go     | 20 ++++++++++----------
+ src/reflect/value.go    | 24 ++++++++++++------------
+ 3 files changed, 30 insertions(+), 30 deletions(-)

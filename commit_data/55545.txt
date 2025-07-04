@@ -1,20 +1,25 @@
-commit 1400b268529f1bbacde83b3dc022fec0b196846b
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Mon Feb 5 20:49:16 2024 +0800
+commit 51225f6fc648ba3e833f3493700c2996a816bdaa
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Wed Sep 28 14:44:56 2022 -0400
 
-    test/codegen: add float max/min codegen test
+    runtime: record parent goroutine ID, and print it in stack traces
     
-    As CL 514596 and CL 514775 adds hardware implement of float
-    max/min, we should add codegen test for these two CL.
+    Fixes #38651
     
-    Change-Id: I347331032fe9f67a2e6fdb5d3cfe20203296b81c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561295
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id46d684ee80e208c018791a06c26f304670ed159
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435337
+    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
+    Reviewed-by: Ethan Reesor <ethan.reesor@gmail.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- test/codegen/floats.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/runtime/export_test.go    |  4 ++++
+ src/runtime/proc.go           |  1 +
+ src/runtime/proc_test.go      |  5 ++++-
+ src/runtime/runtime2.go       |  1 +
+ src/runtime/sizeof_test.go    |  2 +-
+ src/runtime/traceback.go      | 14 ++++++++++----
+ src/runtime/traceback_test.go | 23 +++++++++++++++++++++++
+ 7 files changed, 44 insertions(+), 6 deletions(-)

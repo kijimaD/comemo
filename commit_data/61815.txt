@@ -1,0 +1,23 @@
+commit caee788a48f19814bd778c1bd2422cb6f60ad810
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Nov 27 11:34:09 2024 -0500
+
+    doc/next: organize 9-todo.md items by category
+    
+    Most items that need to be done are tracked in release-blocking issues,
+    but a few are not. Make it easier to understand and track their status.
+    
+    For #68545.
+    
+    Change-Id: I1cb31e67d2d868a82ee592c9adb31bc5dd558d67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632195
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/next/2-language.md      |  1 +
+ doc/next/3-tools.md         |  2 +-
+ doc/next/6-stdlib/5-sha3.md |  1 +
+ doc/next/9-todo.md          | 79 ++++++++++++++++++++++-----------------------
+ 4 files changed, 42 insertions(+), 41 deletions(-)

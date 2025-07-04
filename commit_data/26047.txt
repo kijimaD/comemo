@@ -1,26 +1,17 @@
-commit a162d11540365fc54ab0db7ad8e449e7094a7beb
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Mar 4 13:15:40 2016 +1100
+commit 9b1068ad2f6b1520ac1a0ad199d0161cdd0e98af
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 20 22:52:11 2015 +0000
 
-    cmd/compile: post CL 20089 cleanups
+    net/http/httputil: make DumpRequest use Request.RequestURI when available
     
-    This CL addresses some issues noted during CL 20089.
+    Fixes #10912
     
-    Change-Id: I4e91a8077c07a571ccc9c004278672eb951c5104
-    Reviewed-on: https://go-review.googlesource.com/20181
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Change-Id: If04e3205d5cc43ebfd6864bc59340c8697cbc0af
+    Reviewed-on: https://go-review.googlesource.com/17592
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/peep.go  | 19 +++++--------------
- src/cmd/compile/internal/arm/ggen.go    |  2 +-
- src/cmd/compile/internal/arm/peep.go    | 29 +++++++++++++----------------
- src/cmd/compile/internal/arm64/ggen.go  |  8 ++++----
- src/cmd/compile/internal/arm64/peep.go  |  4 +---
- src/cmd/compile/internal/gc/pgen.go     |  6 ------
- src/cmd/compile/internal/mips64/ggen.go |  6 +++---
- src/cmd/compile/internal/mips64/peep.go |  4 +---
- src/cmd/compile/internal/ppc64/ggen.go  |  6 +++---
- src/cmd/compile/internal/ppc64/peep.go  |  4 +---
- 10 files changed, 32 insertions(+), 56 deletions(-)
+ src/net/http/httputil/dump.go      | 28 +++++++++++++++++++++-------
+ src/net/http/httputil/dump_test.go | 17 +++++++++++++++++
+ 2 files changed, 38 insertions(+), 7 deletions(-)

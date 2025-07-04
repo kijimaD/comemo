@@ -1,16 +1,16 @@
-commit daf9308066a71802ed723ba96459afe2558c62d9
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 27 23:58:49 2014 -0400
+commit eeb87c3660932cb0dcc6db2e3784a66b6d06a82a
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue May 27 23:58:03 2014 -0400
 
-    cmd/gc: fix infinite loop in nil check removal
+    cmd/go: do not miss an error if import path contains "cmd/something"
     
-    Fixes #8076.
+    Fixes #7638
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=rsc
+    R=rsc, adg, robert.hencke, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/93610043
+    https://golang.org/cl/89280043
 
- src/cmd/gc/popt.c           | 10 +++++++++-
- test/fixedbugs/issue8076.go | 17 +++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ src/cmd/go/get.go | 4 ++++
+ src/cmd/go/pkg.go | 2 ++
+ 2 files changed, 6 insertions(+)

@@ -1,18 +1,16 @@
-commit b9ebc675b31303cb22da5aa39ef7cbd208d83010
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 15 15:19:31 2017 -0500
+commit b8c9ef9f09f213739815745b2ea52c45f2c1a6de
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Jul 31 17:28:35 2017 -0700
 
-    database/sql/driver: document that Execer, Queryer need not be implemented
+    [release-branch.go1.9] doc: add go1.9 to golang.org/project
     
-    CL 21663 allowed drivers to implement ExecerContext without
-    also implementing Execer, and similarly QueryerContext without
-    Queryer, but it did not make that clear in the documentation.
+    Pre-emptive. Go 1.9 is expected to be released in August.
     
-    This CL updates the documentation.
-    
-    Change-Id: I9a4accaac32edfe255fe7c0b0907d4c1014322b4
-    Reviewed-on: https://go-review.googlesource.com/78129
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: I0f58c012c4110bf490022dc2c1d69c0988d73bfa
+    Reviewed-on: https://go-review.googlesource.com/52351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/58730
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/database/sql/driver/driver.go | 30 ++++++++++++++++--------------
- 1 file changed, 16 insertions(+), 14 deletions(-)
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

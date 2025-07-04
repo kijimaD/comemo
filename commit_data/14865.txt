@@ -1,15 +1,20 @@
-commit 20130f141f869b3fa81a9bcdecd78c59b898459e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 11 14:46:49 2013 -0800
+commit 578f24d5321401b9bb8686fa5e968c8bc63b89f6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 11 22:42:55 2013 +0100
 
-    database/sql: document args, add a couple examples
+    test: add rotate.go and fixedbugs/bug313
     
-    Fixes #3460
+    Update #4139.
     
-    R=golang-dev, alex.brainman
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7096046
+    https://golang.org/cl/7094047
 
- src/pkg/database/sql/example_test.go | 45 ++++++++++++++++++++++++++++++++++++
- src/pkg/database/sql/sql.go          |  1 +
- 2 files changed, 46 insertions(+)
+ test/fixedbugs/bug313.go |  5 +----
+ test/rotate.go           | 15 +++++----------
+ test/rotate0.go          | 12 ++++++++++++
+ test/rotate1.go          | 12 ++++++++++++
+ test/rotate2.go          | 12 ++++++++++++
+ test/rotate3.go          | 12 ++++++++++++
+ test/run.go              |  2 --
+ 7 files changed, 54 insertions(+), 16 deletions(-)

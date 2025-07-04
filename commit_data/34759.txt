@@ -1,20 +1,49 @@
-commit 9761a162f066911a76fb7b45c383490ca3bcdcc8
+commit a158382b1c9c0b95a7d41865a405736be6bc585f
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 29 06:31:38 2018 -0700
+Date:   Fri Nov 10 09:48:39 2017 -0800
 
-    cmd/go: don't try to initialize cover profile for go test -c
+    runtime: call amd64 VDSO entry points on large stack
     
-    Using go test -c makes you responsible for managing and merging the
-    coverage profile yourself.
+    If the Linux kernel was built with CONFIG_OPTIMIZE_INLINING=n and was
+    built with hardening options turned on, GCC will insert a stack probe
+    in the VDSO function that requires a full page of stack space.
+    The stack probe can corrupt memory if another thread is using it.
+    Avoid sporadic crashes by calling the VDSO on the g0 or gsignal stack.
     
-    Fixes #24588
+    While we're at it, align the stack as C code expects. We've been
+    getting away with a misaligned stack, but it's possible that the VDSO
+    code will change in the future to break that assumption.
     
-    Change-Id: I2037a91ceb904f9f35d76c7b5e5fae6bcbed4e46
-    Reviewed-on: https://go-review.googlesource.com/103395
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Benchmarks show a 11% hit on time.Now, but it's only 6ns.
+    
+    name                      old time/op  new time/op  delta
+    AfterFunc-12              1.66ms ± 0%  1.66ms ± 1%     ~     (p=0.905 n=9+10)
+    After-12                  1.90ms ± 6%  1.86ms ± 0%   -2.05%  (p=0.012 n=10+8)
+    Stop-12                    113µs ± 3%   115µs ± 2%   +1.60%  (p=0.017 n=9+10)
+    SimultaneousAfterFunc-12   145µs ± 1%   144µs ± 0%   -0.68%  (p=0.002 n=10+8)
+    StartStop-12              39.5µs ± 3%  40.4µs ± 5%   +2.19%  (p=0.023 n=10+10)
+    Reset-12                  10.2µs ± 0%  10.4µs ± 0%   +2.45%  (p=0.000 n=10+9)
+    Sleep-12                   190µs ± 1%   190µs ± 1%     ~     (p=0.971 n=10+10)
+    Ticker-12                 4.68ms ± 2%  4.64ms ± 2%   -0.83%  (p=0.043 n=9+10)
+    Now-12                    48.4ns ±11%  54.0ns ±11%  +11.42%  (p=0.017 n=10+10)
+    NowUnixNano-12            48.5ns ±13%  56.9ns ± 8%  +17.30%  (p=0.000 n=10+10)
+    Format-12                  489ns ±11%   504ns ± 6%     ~     (p=0.289 n=10+10)
+    FormatNow-12               436ns ±23%   480ns ±13%  +10.25%  (p=0.026 n=9+10)
+    MarshalJSON-12             656ns ±14%   587ns ±24%     ~     (p=0.063 n=10+10)
+    MarshalText-12             647ns ± 7%   638ns ± 9%     ~     (p=0.516 n=10+10)
+    Parse-12                   348ns ± 8%   328ns ± 9%   -5.66%  (p=0.030 n=10+10)
+    ParseDuration-12           136ns ± 9%   140ns ±11%     ~     (p=0.425 n=10+10)
+    Hour-12                   14.8ns ± 6%  15.6ns ±11%     ~     (p=0.085 n=10+10)
+    Second-12                 14.0ns ± 6%  14.3ns ±12%     ~     (p=0.443 n=10+10)
+    Year-12                   32.4ns ±11%  33.4ns ± 6%     ~     (p=0.492 n=10+10)
+    Day-12                    41.5ns ± 9%  42.3ns ±12%     ~     (p=0.239 n=10+10)
+    
+    Fixes #20427
+    
+    Change-Id: Ia395cbb863215f4499b8e7ef95f4b99f51090911
+    Reviewed-on: https://go-review.googlesource.com/76990
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/go_test.go             | 11 +++++++++++
- src/cmd/go/internal/test/cover.go |  2 +-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/runtime/sys_linux_386.s   | 53 ++++++++++++++++++++++++++++++++++------
+ src/runtime/sys_linux_amd64.s | 57 +++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 95 insertions(+), 15 deletions(-)

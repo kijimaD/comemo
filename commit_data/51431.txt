@@ -1,25 +1,26 @@
-commit 1fbfc2f6eba6cc88a8fb0ae8e83afe80553f65df
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 22 15:31:06 2022 -0500
+commit ad345c265916bbf6c646865e4642eafce6d39e78
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jan 19 16:54:41 2022 -0500
 
-    cmd/go: fix the DefaultCC check if CC is an absolute file missing an extension on Windows
+    math/big: prevent overflow in (*Rat).SetString
     
-    This undoes the code (but not test) change from CL 451219, which turns
-    out to be slightly harmful on Windows (because it doesn't resolve the
-    file extension for an absolute CC path) and unnecessary elsewhere
-    (because calling LookPath on a fully-resolved executable path already
-    stats¹ that path before returning it).
+    Credit to rsc@ for the original patch.
     
-    ¹https://cs.opensource.google/go/go/+/refs/tags/go1.19.3:src/os/exec/lp_unix.go;l=46;drc=027855e8d86f461b50946b006ea032d4b4a7d817
+    Thanks to the OSS-Fuzz project for discovering this
+    issue and to Emmanuel Odeke (@odeke_et) for reporting it.
     
-    Change-Id: If8c5ba59cbcc9fc289e9325afb9ccdadf374b102
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452777
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Fixes #50699
+    Fixes CVE-2022-23772
+    
+    Change-Id: I590395a3d55689625390cf1e58f5f40623b26ee5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379537
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Julie Qiu <julie@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go | 9 +--------
- src/cmd/go/scriptconds_test.go | 2 +-
- 2 files changed, 2 insertions(+), 9 deletions(-)
+ src/math/big/ratconv.go      | 5 +++++
+ src/math/big/ratconv_test.go | 1 +
+ 2 files changed, 6 insertions(+)

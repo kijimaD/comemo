@@ -1,17 +1,28 @@
-commit c5fed5bb246b794993cc32bfc22a1a202e385bc5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Feb 12 21:11:16 2017 -0800
+commit d70b0fe6c4d1b1369b742ea5b7d4e6f0c50ffdcb
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 28 11:14:07 2016 -0400
 
-    cmd/compile: cull some dead arch-specific Ops
+    runtime: fix preemption of root marking jobs
     
-    Change-Id: Iee7daa5b91b7896ce857321e307f2ee47b7f095f
-    Reviewed-on: https://go-review.googlesource.com/36906
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    The current logic in gcDrain conflates non-blocking with preemptible
+    draining for root jobs. As a result, if you do a non-blocking (but
+    *not* preemptible) drain, like dedicated workers do, the root job
+    drain will stop if preempted and fall through to heap marking jobs,
+    which won't stop until it fails to get a heap marking job.
+    
+    This commit fixes the condition on root marking jobs so they only stop
+    when preempted if the drain is preemptible.
+    
+    Coincidentally, this also fixes a nil pointer dereference if we call
+    gcDrain with gcDrainNoBlock and without a user G, since it tries to
+    get the preempt flag from the nil user G. This combination never
+    happens right now, but will in the future.
+    
+    Change-Id: Ia910ec20a9b46237f7926969144a33b1b4a7b2f9
+    Reviewed-on: https://go-review.googlesource.com/32291
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go      | 2 --
- src/cmd/compile/internal/gc/opnames.go  | 7 -------
- src/cmd/compile/internal/gc/racewalk.go | 5 -----
- src/cmd/compile/internal/gc/syntax.go   | 7 -------
- 4 files changed, 21 deletions(-)
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

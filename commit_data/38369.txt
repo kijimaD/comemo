@@ -1,19 +1,26 @@
-commit 334e7509179ba5ca2271ee028052dc1d34b21bcf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 12 14:43:22 2019 -0400
+commit bcc3447be56271a28484a8c8c9d71326355d13a5
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Oct 11 15:13:22 2018 +0100
 
-    cmd: ensure that GOPATH is always valid in subprocesses that execute 'go build'
+    cmd/go: use os.UserCacheDir for the default GOCACHE
     
-    GOPATH/pkg contains, among other things, the module cache (and associated lockfiles).
+    This piece of code predates the addition of os.UserCacheDir, and it
+    looks like os.UserCacheDir was based on this piece of code.
     
-    Fixes #30776
+    The two behaved exactly the same, minus cmd/go's addition of AppData for
+    Windows XP in CL 87675. However, Go 1.11 dropped support for Windows XP,
+    so we can safely ignore that change now.
     
-    Change-Id: I305cb3c0daab8cedd2e6ad235d4733f66af18723
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167082
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    The only tweaks necessary are to return "off" if an error is
+    encountered, and to disable warnings if we're using "/.cache".
+    
+    Change-Id: Ia00577d4575ce4870f7fb103eafaa4d2b630743e
+    Reviewed-on: https://go-review.googlesource.com/c/141538
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/cover/cover_test.go                 | 1 +
- src/cmd/internal/obj/x86/issue19518_test.go | 3 ++-
- src/cmd/internal/obj/x86/obj6_test.go       | 3 ++-
- src/cmd/link/link_test.go                   | 3 ++-
- 4 files changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/cache/default.go | 60 ++++++++----------------------------
+ 1 file changed, 13 insertions(+), 47 deletions(-)

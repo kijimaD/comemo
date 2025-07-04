@@ -1,15 +1,19 @@
-commit 772decbc809ff29bd254f3d80f13e25443d80fc5
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Sun Oct 21 17:02:10 2012 -0400
+commit a7a3fe72386df56d6bf6cd83fe346e1c72cf998a
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sun Oct 21 19:22:51 2012 +0200
 
-    reflect: make Index and Slice accept strings
+    cmd/gc: Friendlier errors on oversized arrays.
     
-    Fixes #3284.
+    Someone new to the language may not know the connection between ints and arrays, which was the only thing that the previous error told you anything about.
     
-    R=golang-dev, r, rsc
+    Fixes #4256.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6643043
+    https://golang.org/cl/6739048
 
- src/pkg/reflect/all_test.go | 24 +++++++++++++++++++++++-
- src/pkg/reflect/value.go    | 28 ++++++++++++++++++++++++++--
- 2 files changed, 49 insertions(+), 3 deletions(-)
+ src/cmd/gc/const.c       | 40 +++++++++++++++++++++++++++++++---------
+ src/cmd/gc/go.h          |  3 ++-
+ src/cmd/gc/typecheck.c   |  6 ++++--
+ test/fixedbugs/bug255.go |  2 +-
+ 4 files changed, 38 insertions(+), 13 deletions(-)

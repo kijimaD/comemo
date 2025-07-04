@@ -1,15 +1,17 @@
-commit f239196b9e1c0d58ab2067630bd1db7210eb7f6a
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 4 09:49:33 2016 -0700
+commit 153d31da1629facdc855ad0e4e91369ec2124ac7
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Jun 19 17:30:29 2016 -0700
 
-    cmd/compile: remove duplicate statement list function
+    doc/go1.7.html: net/http RFC 2616 conformation + timeoutHandler on empty body
     
-    Probably a holdover from linked list vs. slice.
+    - Mention RFC 2616 conformation in which the server now only sends one
+    "Transfer-Encoding" header when "chunked" is explicitly set.
+    - Mention that a timeout handler now sends a 200 status code on
+    encountering an empty response body instead of sending back 0.
     
-    Change-Id: Ib2540b08ef0ae48707d44a5d57bc23f8d65c760d
-    Reviewed-on: https://go-review.googlesource.com/30256
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id45e2867390f7e679ab40d7a66db1f7b9d92ce17
+    Reviewed-on: https://go-review.googlesource.com/24250
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 22 ++++++++--------------
- 1 file changed, 8 insertions(+), 14 deletions(-)
+ doc/go1.7.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

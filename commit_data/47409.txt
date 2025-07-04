@@ -1,18 +1,20 @@
-commit 47b3ab5ede452a88c2da4c5eaf092b2d707d2ff4
+commit 72d98df88e3cbbbe482f7d421c6fd5cbd84423b4
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 10 16:57:14 2021 -0500
+Date:   Mon Mar 15 16:48:51 2021 -0400
 
-    doc/go1.18: add a release note for 'go mod vendor -o'
+    cmd/go: bail out from script tests earlier when a timeout occurs
     
-    For #47327
+    (I needed this to debug an accidental infinite-recursion I introduced
+    while revising CL 293689.)
     
-    Change-Id: I50418c0d017c4e90a2c13d26945ee639079e4e33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363174
+    Fixes #38768
+    
+    Change-Id: I306122f15b5bbd2fc5e836b32fd4dd5992ea891e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302052
     Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Paschalis Tsilias <paschalistsilias@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.18.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/go/script_test.go | 132 +++++++++++++++++++++++++---------------------
+ 1 file changed, 71 insertions(+), 61 deletions(-)

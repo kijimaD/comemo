@@ -1,21 +1,40 @@
-commit f916d93e415068e0ec286249f96e6164ad822731
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 18 16:19:12 2024 +0100
+commit 5351bcf8225747f0ef39afc44c0499822992ed11
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Sep 27 11:53:30 2023 +0200
 
-    crypto/cipher: add NewGCMWithRandomNonce
+    syscall: simplify and optimize environment block creation on Windows
     
-    Fixes #69981
+    createEnvBlock currently allocates multiple times: at least one to
+    convert the slice of strings into a NULL separated slice of bytes, and
+    then again to encode it as UTF-16. The logic to do so is also quite
+    complex.
     
-    Change-Id: I0cad11f5d7673304c5a6d85fc598ddc27ab93738
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629175
+    This CL simplifies the logic by allocating only once by encoding the
+    slice of strings into UTF-16 directly using utf16.AppendRune.
+    
+    goos: windows
+    goarch: amd64
+    pkg: syscall
+    cpu: Intel(R) Core(TM) i7-10850H CPU @ 2.70GHz
+                      │   old.txt    │               new.txt               │
+                      │    sec/op    │   sec/op     vs base                │
+    CreateEnvBlock-12   37.92µ ± 24%   21.36µ ± 8%  -43.66% (p=0.000 n=10)
+    
+                      │    old.txt    │               new.txt                │
+                      │     B/op      │     B/op      vs base                │
+    CreateEnvBlock-12   109.12Ki ± 0%   26.62Ki ± 0%  -75.60% (p=0.000 n=10)
+    
+                      │  old.txt   │              new.txt               │
+                      │ allocs/op  │ allocs/op   vs base                │
+    CreateEnvBlock-12   4.000 ± 0%   1.000 ± 0%  -75.00% (p=0.000 n=10)
+    
+    Change-Id: If35f62c3926b486d5253a9ae23a33b979b2f02c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531355
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- api/next/69981.txt                                |   1 +
- doc/next/6-stdlib/99-minor/crypto/cipher/69981.md |   3 +
- src/crypto/cipher/gcm.go                          | 117 ++++++++++++++++++++++
- src/crypto/cipher/gcm_test.go                     |   9 ++
- src/crypto/internal/cryptotest/aead.go            |  26 ++++-
- 5 files changed, 151 insertions(+), 5 deletions(-)
+ src/syscall/exec_windows.go | 26 ++++++++++++--------------
+ 1 file changed, 12 insertions(+), 14 deletions(-)

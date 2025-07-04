@@ -1,28 +1,22 @@
-commit d8f90ce0f8119bf593efb6fb91825de5b61fcda7
-Author: Abirdcfly <fp544037857@gmail.com>
-Date:   Thu Aug 18 13:18:11 2022 +0800
+commit 4dd5f0994f2e2079582876db4af1cba95fe3b6c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 13 15:40:11 2021 -0700
 
-    all: remove duplicate "the" words in comments
+    constraints: new package
     
-    Following CL 424454, using command
+    The constraint packages defined a set of useful constraints to be used
+    with type parameters.
     
-       rg --multiline " the\s{1,}the " *
-       rg --multiline " the\s{1,}//\s{1,}the " *
+    Fixes #45458
     
-    all the words "the" that are repeated in comments are found.
-    
-    Change-Id: I60b769b98f04c927b4c228e10f37faf190964069
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423836
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Id4f4e6c55debb90e6b10ea0dbe2319be1e888746
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349709
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/schedule.go  | 2 +-
- src/cmd/internal/obj/ppc64/doc.go         | 2 +-
- src/cmd/link/internal/ld/outbuf_darwin.go | 2 +-
- src/crypto/tls/common.go                  | 2 +-
- src/net/http/httputil/reverseproxy.go     | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ src/constraints/constraints.go      |  65 +++++++++++++++
+ src/constraints/constraints_test.go | 155 ++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go           |   2 +-
+ 3 files changed, 221 insertions(+), 1 deletion(-)

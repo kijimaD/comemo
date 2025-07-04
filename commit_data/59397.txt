@@ -1,24 +1,29 @@
-commit 1cc624fd6265abe16de78e9cd84272435156aa72
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Feb 12 23:40:58 2025 +1100
+commit f82a3616a9fbf593ee40a956b3c7f8d85e81a12f
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Mar 8 09:34:00 2024 -0800
 
-    cmd/internal/obj/riscv: add support for vector permutation instructions
+    all: update golang.org/x/net
     
-    Add support for vector permutation instructions to the RISC-V assembler.
-    This includes integer scalar move, floating point scalar move, slide up
-    and slide down, register gather, compression and whole vector register
-    move instructions.
+    Commands run (in both src and src/cmd):
+            go get golang.org/x/net@master
+            go mod tidy
+            go mod vendor
     
-    Change-Id: I1da9f393091504fd81714006355725b8b9ecadea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646780
+    For #24135
+    
+    Change-Id: I88084d174c15a65350be1b43e27de619dc6d4dd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570156
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: 胡玮文 <huww98@outlook.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s        | 45 +++++++++++++
- src/cmd/asm/internal/asm/testdata/riscv64error.s   | 12 ++++
- .../asm/internal/asm/testdata/riscv64validation.s  | 28 ++++++++
- src/cmd/internal/obj/riscv/obj.go                  | 77 +++++++++++++++++++++-
- 4 files changed, 159 insertions(+), 3 deletions(-)
+ src/cmd/go.mod                                             |  2 +-
+ src/cmd/go.sum                                             |  4 ++--
+ src/cmd/vendor/modules.txt                                 |  2 +-
+ src/go.mod                                                 |  4 ++--
+ src/go.sum                                                 |  8 ++++----
+ .../golang.org/x/crypto/internal/poly1305/sum_ppc64le.s    | 14 ++++++--------
+ src/vendor/golang.org/x/net/dns/dnsmessage/message.go      | 10 +---------
+ src/vendor/golang.org/x/net/http/httpproxy/proxy.go        |  5 +----
+ src/vendor/modules.txt                                     |  4 ++--
+ 9 files changed, 20 insertions(+), 33 deletions(-)

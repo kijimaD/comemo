@@ -1,18 +1,21 @@
-commit f32e0c30e4a002cda2dbb5e628a7f1047e304e01
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Aug 1 20:22:13 2023 +0000
+commit b71ca76065823af0908ff469f603c0b38a7c4177
+Author: Sasha Melentyev <sasha@melentyev.io>
+Date:   Sat Sep 3 20:08:12 2022 +0000
 
-    encoding/json: replace "between or" with "between and" in comment
+    debug/buildinfo: remove redundant type conversion
     
-    Change-Id: Id19a15f9367de10e08a9ec22a8cb50c58d517906
-    GitHub-Last-Rev: f413d71c9ad0f2efc0b4811c7188cc2caa9c1de0
-    GitHub-Pull-Request: golang/go#61701
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514976
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia8ffc9a17646ad2c74f633610aaf34fef006c023
+    GitHub-Last-Rev: 6ab0d107393c9bdfeaed5c539efb452942c00394
+    GitHub-Pull-Request: golang/go#54856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428235
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/encoding/json/encode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/debug/buildinfo/buildinfo.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

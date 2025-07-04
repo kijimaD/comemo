@@ -1,34 +1,27 @@
-commit 3a778ff50f7091b8a64875c8ed95bfaacf3d334c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Jan 22 09:47:59 2021 -0500
+commit daf70d6c1688a1ba1699c933b3c3f04d6f2f73d9
+Author: David Chase <drchase@google.com>
+Date:   Fri May 1 17:30:33 2020 -0400
 
-    runtime: check for g0 stack last in signal handler
+    cmd/go: remove GOAMD64 environment variable
     
-    In the signal handler, we adjust gsingal's stack to the stack
-    where the signal is delivered. TSAN may deliver signals to the
-    g0 stack, so we have a special case for the g0 stack. However,
-    we don't have very good accuracy in determining the g0 stack's
-    bounds, as it is system allocated and we don't know where it is
-    exactly. If g0.stack.lo is too low, the condition may be
-    triggered incorrectly, where we thought the signal is delivered to
-    the g0 stack but it is actually not. In this case, as the stack
-    bounds is actually wrong, when the stack grows, it may go below
-    the (inaccurate) lower bound, causing "morestack on gsignal"
-    crash.
+    This removes the GOAMD64 environment variable and its documentation.
+    The value is instead supplied by a compiled-in constant.
     
-    Check for g0 stack last to avoid this situation. There could still
-    be false positives, but for those cases we'll crash either way.
+    Note that function alignment is also dependent on the value of
+    the (removed) flag; it is 32 for aligned jumps, 16 if not.
+    When the flag-dependent logic is removed, it will be 32.
     
-    (If we could in some way determine the g0 stack bounds accurately,
-    this would not matter (but probably doesn't hurt).)
+    Updates #35881.
     
-    Fixes #43853.
-    
-    Change-Id: I759717c5aa2b0deb83ffb23e57b7625a6b249ee8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285772
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ic41c0b9833d2e8a31fa3ce8067d92aa2f165bf72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231600
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/proc.go        |  5 +++++
- src/runtime/signal_unix.go | 30 +++++++++++++++++-------------
- 2 files changed, 22 insertions(+), 13 deletions(-)
+ src/cmd/dist/build.go               | 11 -----------
+ src/cmd/dist/buildruntime.go        |  2 --
+ src/cmd/go/alldocs.go               |  3 ---
+ src/cmd/go/internal/cfg/cfg.go      |  3 ---
+ src/cmd/go/internal/help/helpdoc.go |  3 ---
+ src/cmd/internal/objabi/util.go     | 11 ++++-------
+ src/internal/cfg/cfg.go             |  1 -
+ 7 files changed, 4 insertions(+), 30 deletions(-)

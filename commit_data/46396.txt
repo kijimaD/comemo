@@ -1,25 +1,21 @@
-commit e1c3f2158fe3129fb44cc92423cfa41e7b6d472c
-Author: korzhao <korzhao95@gmail.com>
-Date:   Sun Aug 29 05:21:17 2021 +0800
+commit c98548e1109e9fbe29ef2a8c7c275b241aaacd3b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 21:10:16 2020 -0800
 
-    time: propagate "," separator for fractional seconds into Format
+    [dev.regabi] cmd/compile: merge ascompatee, ascompatee1, and reorder3
     
-    In CL 300996 that fixed issue #6189, we made Parse recognize
-    "," as a separator for fractional seconds.
-    However, we didn't modify Format to propagate the separator
-    verbatim from Parse. Without this change, we break prior
-    functionality that relied on a comma being used in Format.
+    These functions are interelated and have arbitrarily overlapping
+    responsibilities. By joining them together, we simplify the code and
+    remove some redundancy.
     
-    Fixes #48037
+    Passes toolstash -cmp.
     
-    Change-Id: I6565a25e8657ca3747a58b25acba58f27cdcddc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345438
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7c42cb7171b3006bc790199be3fd0991e6e985f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280438
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/time/format.go      | 50 ++++++++++++++++++++++++++++++++++++++-----------
- src/time/format_test.go | 20 ++++++++++++++++++++
- 2 files changed, 59 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/walk/assign.go | 104 ++++++++++----------------------
+ 1 file changed, 32 insertions(+), 72 deletions(-)

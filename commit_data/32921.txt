@@ -1,24 +1,15 @@
-commit 630d176e7d5e42e21d176d1b9d48de0e03e7cec8
-Author: Florian Uekermann <florian@uekermann.me>
-Date:   Fri Sep 29 17:12:58 2017 +0200
+commit e2160cc5713e4954b67ec4eabdb893d2880e10a0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 06:16:49 2017 +0000
 
-    time: enable ZONEINFO tzdata file support and error reporting
+    sync: make another attempt at clarifying RWMutex double RLock rules
     
-    Loading location data from tzdata files was only supported
-    from default paths on android. This change enables support on
-    all OS via the ZONEINFO environment variable and reduces the
-    amount of android specific code significantly.
-    Furthermore, unsuccessful calls to LoadLocation now return the
-    first error encountered, including errors from attempting to
-    load a location from the source specified by ZONEINFO.
-    Errors indicating that the source or location was not found are
-    ignored until all possible sources have been traversed.
+    Updates #15418 (the original bug, fixed by https://golang.org/cl/23570)
+    Fixes #19460 (round two)
     
-    Change-Id: I45bc23b92253c9447f12f95f3ca29a7e613ed995
-    Reviewed-on: https://go-review.googlesource.com/67170
+    Change-Id: Iac4447daabb56e3b470046c489c22d588c20163e
+    Reviewed-on: https://go-review.googlesource.com/45697
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/zoneinfo.go         | 13 ++++----
- src/time/zoneinfo_android.go | 55 ----------------------------------
- src/time/zoneinfo_read.go    | 71 ++++++++++++++++++++++++++++++++++----------
- 3 files changed, 62 insertions(+), 77 deletions(-)
+ src/sync/rwmutex.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

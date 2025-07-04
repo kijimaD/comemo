@@ -1,39 +1,24 @@
-commit a50c434308d474212557b7fa73583d68d09bd60d
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Sep 1 09:23:49 2022 -0500
+commit c6e82e5808f4fb6da0fcc9754e29a220451a0dfd
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Mon Oct 25 17:54:11 2021 +0800
 
-    cmd/asm: improve argument to obj.Prog assignment on PPC64
+    cmd/compile: fix inlining labeled switch statements
     
-    These can be simplified with the knowledge of how arguments are
-    assigned to obj.Prog objects on PPC64. If the argument is not
-    a register type, the Reg argument (a2 in optab) of obj.Prog is
-    not used, and those arguments are placed into RestArgs (a3, a4, a5
-    in optab).
+    CL 357649 fixes inlining labeled FOR/RANGE loops,
+    we should do same translation for inlined SWITCH's label
     
-    This relaxes the special case handling enforced by IsPPC64RLD and
-    IsPPC64ISEL. Instead, arguments are assigned as noted above, and
-    incorrect usage of such opcodes is checked by optab rules, not by
-    the assembler front-end.
+    Fixes #49145
     
-    Likewise, add support for handling 6 argument opcodes, these do
-    not exist today, but will be added with ISA 3.1 (Power10).
-    
-    Finally, to maintain backwards compatibility, some 4-arg opcodes
-    whose middle arguments are a register and immediate, could swap
-    these arguments and generate identical machine code. This likely
-    wasn't intended, but is possible. These are explicitly fixed up
-    in the backend, and the asm tests are extended to check these.
-    
-    Change-Id: I5f8190212427dfe8e6f062185bfefb5fa4fd0e75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427516
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I9a6f365f57e974271a1eb279b38e81f9b5148788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358315
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/asm/internal/arch/ppc64.go        | 22 ----------
- src/cmd/asm/internal/asm/asm.go           | 67 +++++++++++--------------------
- src/cmd/asm/internal/asm/testdata/ppc64.s |  7 ++++
- src/cmd/internal/obj/ppc64/obj9.go        | 16 +++++++-
- 4 files changed, 45 insertions(+), 67 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 14 ++++++++++----
+ test/fixedbugs/issue49145.go           | 27 +++++++++++++++++++++++++++
+ test/fixedbugs/issue49145.out          |  3 +++
+ 3 files changed, 40 insertions(+), 4 deletions(-)

@@ -1,38 +1,21 @@
-commit 123a6328b7bd31ed6725d9412913fed6a4436aad
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jul 11 15:34:26 2022 -0400
+commit 2d98a4b4bcd11f58356b183865f73e984294dbd3
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 17:49:53 2021 -0400
 
-    internal/trace: don't report regions on system goroutines
+    go/types: use a typeWriter to write types (cleanup)
     
-    If a goroutine is started within a user region, internal/trace assigns
-    the child goroutine a nameless region for its entire lifetime which is
-    assosciated the same task as the parent's region.
+    This is a port of CL 345890 to go/types.
     
-    This is not strictly necessary: a child goroutine is not necessarily
-    related to the task unless it performs some task operation (in which
-    case it will be associated with the task through the standard means).
-    
-    However, it can be quite handy to see child goroutines within a region,
-    which may be child worker goroutines that you simply didn't perform task
-    operations on.
-    
-    If the first GC occurs during a region, the GC worker goroutines will
-    also inherit a child region. We know for sure that these aren't related
-    to the task, so filter them out from the region list.
-    
-    Note that we can't exclude system goroutines from setting activeRegions
-    in EvGoCreate handling, because we don't know the goroutine start
-    function name until the first EvGoStart.
-    
-    Fixes #53784.
-    
-    Change-Id: Ic83d84e23858a8400a76d1ae2f1418ef49951178
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416858
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I98162deaf044b2194b05dc51e6948e227216fc4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346554
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/trace/trace.go           |  8 +-------
- src/internal/trace/goroutines.go | 37 ++++++++++++++++++++++++++++---------
- src/runtime/traceback.go         |  2 +-
- 3 files changed, 30 insertions(+), 17 deletions(-)
+ src/go/types/object.go     |   2 +-
+ src/go/types/subst.go      |   7 +-
+ src/go/types/typelists.go  |   4 +-
+ src/go/types/typestring.go | 211 +++++++++++++++++++++++----------------------
+ src/go/types/unify.go      |  13 +--
+ 5 files changed, 121 insertions(+), 116 deletions(-)

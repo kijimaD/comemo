@@ -1,33 +1,18 @@
-commit 819087624072fe8ca5914668e837d18eb231f04e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 18 20:41:14 2022 -0700
+commit feb330dcdd86146f5c9b4e09d30e19fc920f78f4
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 20:22:32 2021 -0500
 
-    go/types, types2: replace typecheck with mustTypecheck almost everywhere (cleanup)
+    go/types: add test for imported constraints pre-1.18
     
-    Replace even in places where before we have a specific error message
-    or different control-flow (except in TestTypeString or TestObjectString)
-    because failing to type-check in virtually all cases represents an error
-    in the test itself.
+    This is a port of CL 363834 from types2 to go/types.
     
-    Change-Id: I9f1e6d25bddd92c168353409b281b5a3f29a747c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443915
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I32583ead4bce626e0761f4c327678050404a15c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364937
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go        | 49 +++++++---------------
- .../compile/internal/types2/instantiate_test.go    | 25 +++--------
- src/cmd/compile/internal/types2/issues_test.go     | 12 ++----
- src/cmd/compile/internal/types2/named_test.go      |  5 +--
- src/cmd/compile/internal/types2/sizes_test.go      | 10 ++---
- src/cmd/compile/internal/types2/typestring_test.go |  4 +-
- src/go/types/api_test.go                           | 49 +++++++---------------
- src/go/types/instantiate_test.go                   | 25 +++--------
- src/go/types/issues_test.go                        | 10 +----
- src/go/types/methodset_test.go                     |  6 +--
- src/go/types/named_test.go                         |  5 +--
- src/go/types/sizes_test.go                         | 11 ++---
- src/go/types/typestring_test.go                    |  4 +-
- 13 files changed, 60 insertions(+), 155 deletions(-)
+ src/go/types/check_test.go                     | 17 +++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue47818.go2 |  4 +++-
+ 2 files changed, 20 insertions(+), 1 deletion(-)

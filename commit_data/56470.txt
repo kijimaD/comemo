@@ -1,15 +1,27 @@
-commit 7ba8a23b675098128da686b4384526208e51d128
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue May 14 13:48:21 2024 +0200
+commit d9a61be73f73d4c7a49a5432ccb15cf8443fe279
+Author: David Chase <drchase@google.com>
+Date:   Mon Jan 23 17:34:18 2023 -0500
 
-    syscall: use internal/byteorder
+    internal/abi: common up Method, Imethod, UncommonType types
     
-    Change-Id: I798729a6095494e9d0bd18d6b7d4372910056218
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585117
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    was two commits, the first contained a lot of intermediate work,
+    better this way.
+    
+    Change-Id: I7c5b79ef78b21a85828c8aaf9baeae86bb144db7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463118
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/syscall/dirent.go | 21 +++++++--------------
- 1 file changed, 7 insertions(+), 14 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go       |   2 +-
+ src/cmd/link/internal/ld/dwarf_test.go  |   1 -
+ src/internal/reflectlite/export_test.go |   4 +-
+ src/internal/reflectlite/type.go        |  64 ++++---------
+ src/reflect/export_test.go              |   4 +-
+ src/reflect/type.go                     | 154 +++++++++++++-------------------
+ src/reflect/value.go                    |  14 +--
+ src/runtime/heapdump.go                 |   4 +-
+ src/runtime/iface.go                    |  18 ++--
+ src/runtime/type.go                     |  36 ++------
+ 10 files changed, 107 insertions(+), 194 deletions(-)

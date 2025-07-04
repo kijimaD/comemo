@@ -1,14 +1,16 @@
-commit 5ac186975c8a792a4504060001df12fa3ba2ba4e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 22 17:44:28 2012 -0700
+commit a99e9c5db51cdffdad6e561d456b54ffab03cd1f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 23 07:51:16 2012 +1100
 
-    doc/articles/c_go_cgo.html: correct "C" comment to mention #cgo
+    doc/articles: rename concurrency patterns article
+    The old name, automatically generated, was ludicrously verbose.
+    Also clean up an example to use time.Second.
     
-    Also fix invalid apostrophe characters.
-    
-    R=r, gri, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5874058
+    https://golang.org/cl/5876051
 
- doc/articles/c_go_cgo.html | 44 ++++++++++++++++++++++++++++++++------------
- 1 file changed, 32 insertions(+), 12 deletions(-)
+ ...ncy_patterns_timing_out_moving_on.html => concurrency_patterns.html} | 0
+ doc/docs.html                                                           | 2 +-
+ doc/progs/timeout1.go                                                   | 2 +-
+ 3 files changed, 2 insertions(+), 2 deletions(-)

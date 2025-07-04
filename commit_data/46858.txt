@@ -1,38 +1,22 @@
-commit 4186db6155ccd4cfcf71dee0bce566a097f49406
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Oct 4 11:56:12 2021 -0700
+commit c48d1503ba5d0f74bbc5cae5036bf225c6823a44
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 4 12:24:10 2021 -0500
 
-    cmd/compile: some fixes in type substituter for Instantiate
+    [dev.regabi] go/types: report unused packages in source order
     
-    In the case in (*TSubster).Type() that we were running into an
-    incomplete underlying type (TFORW), we should just be immediately
-    returning the type returned by ts.SubstForwFunc(forw), since that call
-    returns a proper type node, and has set up any remaining work that has
-    to be done when we get done with the current top-level type definition.
-    (For import, that function is doInst, which does an Instantiate of the
-    new substituted type, with the delayed part via deferredInstStack.) We
-    should not continue doing the later parts of (*TSubster).Type(), since
-    the underlying type may not yet have its methods filled in, etc.
+    This is a port of CL 287072 to go/types.
     
-    Also, in Instantiate(), we need to put the desired new type on
-    deferredInstStack, even if the base type node already exists, if the
-    type node is in TFORW state. This is now exactly the case when
-    Instantiate is called from (*TSubster).Type via doInst, since
-    (*TSubster).Type has already called NewIncompleteNamedType().
-    
-    Fixes #48716
-    Fixes #48889
-    
-    Change-Id: Icd6be5721c4ac75bf8869b8bbdeca50069d632ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355250
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I08f56995f0323c1f238d1b44703a481d393471d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289720
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/typecheck/iimport.go | 24 +++++++++--
- src/cmd/compile/internal/typecheck/subr.go    |  2 +-
- test/typeparam/issue48716.dir/a.go            | 51 +++++++++++++++++++++++
- test/typeparam/issue48716.dir/main.go         | 58 +++++++++++++++++++++++++++
- test/typeparam/issue48716.go                  |  7 ++++
- 5 files changed, 138 insertions(+), 4 deletions(-)
+ src/go/types/check.go                              | 36 ++++++------
+ src/go/types/resolver.go                           | 67 ++++++++++------------
+ src/go/types/testdata/importdecl0/importdecl0b.src |  2 +-
+ src/go/types/testdata/importdecl1/importdecl1b.src |  2 +-
+ src/go/types/typexpr.go                            |  8 +--
+ 5 files changed, 54 insertions(+), 61 deletions(-)

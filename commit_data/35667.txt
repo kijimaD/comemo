@@ -1,12 +1,17 @@
-commit 43a3cdf8c7ce08b5351cd4e8823c00f1fb125188
-Author: Suriyaa Sundararuban <suriyaasundararuban@gmail.com>
-Date:   Tue Jun 12 12:11:58 2018 +0000
+commit c1359db9cc3e3f84e45c5a899e2dac128ea74d50
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 27 15:39:42 2018 -0800
 
-    doc: use HTTPS for man.openbsd.org link in go1.7.html
+    go/types: fix empty interface optimization (minor performance bug)
     
-    Change-Id: I88855dfa3166e90386c90bf6220be0596dab3c0d
-    Reviewed-on: https://go-review.googlesource.com/118175
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The tests checking for empty interfaces so that they can be fast-
+    tracked in the code actually didn't test the right field and the
+    fast track code never executed. Doing it now.
+    
+    Change-Id: I58b2951efb3fb40b3366874c79fd653591ae0e99
+    Reviewed-on: https://go-review.googlesource.com/97519
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/go1.7.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/interfaces.go | 2 +-
+ src/go/types/typexpr.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,24 +1,13 @@
-commit 8aea9a00a838736189d4a9e381f916b0c3ceaf1d
-Author: Cristian Staretu <unclejacksons@gmail.com>
-Date:   Wed Jul 9 18:50:38 2014 +1000
+commit 107b8fc9e41cbe365d574f56518ca27e7d9a919d
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Tue Jul 8 18:41:07 2014 -0400
 
-    syscall: NetlinkRIB, avoid allocation in loop
+    run.bash: disable tests that don't (yet) like running off the host
     
-    NetlinkRIB is currently allocating a page sized slice of bytes in a
-    for loop and it's also calling Getpagesize() in the same for loop.
-    
-    This CL changes NetlinkRIB to preallocate the page sized slice of
-    bytes before reaching the for loop. This reduces memory allocations
-    and lowers the number of calls to Getpagesize() to 1 per NetlinkRIB
-    call.
-    
-    This CL reduces the allocated memory from 141.5 MB down to 52 MB in
-    a test.
-    
-    LGTM=crawshaw, dave
-    R=dave, dsymonds, crawshaw
-    CC=bradfitz, dsymonds, golang-codereviews
-    https://golang.org/cl/110920043
+    LGTM=bradfitz, minux
+    R=bradfitz, golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/110940043
 
- src/pkg/syscall/netlink_linux.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/run.bash | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

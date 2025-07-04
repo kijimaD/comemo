@@ -1,49 +1,22 @@
-commit faf882d1d427e8c8a9a1be00d8ddcab81d1e848e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 14 11:45:59 2016 +0100
+commit 40cf4ad0ef2232d65a85d35897ea11aab95e9ef4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 7 15:32:49 2016 -0700
 
-    net/http: make Server Handler's Request.Context be done on conn errors
+    all: fix "result not used" vet warnings
     
-    This CL changes how the http1 Server reads from the client.
+    For tests, assign to _.
+    For benchmarks, assign to a sink.
     
-    The goal of this change is to make the Request.Context given to Server
-    Handlers become done when the TCP connection dies (has seen any read
-    or write error). I didn't finish that for Go 1.7 when Context was
-    added to http package.
+    Updates #11041
     
-    We can't notice the peer disconnect unless we're blocked in a Read
-    call, though, and previously we were only doing read calls as needed,
-    when reading the body or the next request. One exception to that was
-    the old pre-context CloseNotifier mechanism.
-    
-    The implementation of CloseNotifier has always been tricky. The past
-    few releases have contained the complexity and moved the
-    reading-from-TCP-conn logic into the "connReader" type. This CL
-    extends connReader to make sure that it's always blocked in a Read
-    call, at least once the request body has been fully consumed.
-    
-    In the process, this deletes all the old CloseNotify code and unifies
-    it with the context cancelation code. The two notification mechanisms
-    are nearly identical, except the CloseNotify path always notifies on
-    the arrival of pipelined HTTP/1 requests. We might want to change that
-    in a subsequent commit. I left a TODO for that. For now there's no
-    change in behavior except that the context now cancels as it was
-    supposed to.
-    
-    As a bonus that fell out for free, a Handler can now use CloseNotifier
-    and Hijack together in the same request now.
-    
-    Fixes #15224 (make http1 Server always in a Read, like http2)
-    Fixes #15927 (cancel context when underlying connection closes)
-    Updates #9763 (CloseNotifier + Hijack)
-    
-    Change-Id: I972cf6ecbab7f1230efe8cc971e89f8e6e56196b
-    Reviewed-on: https://go-review.googlesource.com/31173
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I87c5543245c7bc74dceb38902f4551768dd37948
+    Reviewed-on: https://go-review.googlesource.com/27116
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/http.go       |   5 +
- src/net/http/serve_test.go |  12 +--
- src/net/http/server.go     | 249 +++++++++++++++++++++++++++++----------------
- 3 files changed, 170 insertions(+), 96 deletions(-)
+ src/math/big/decimal_test.go | 4 +++-
+ src/net/dnsmsg_test.go       | 4 ++--
+ src/net/ip_test.go           | 6 ++++--
+ src/time/time_test.go        | 2 +-
+ 4 files changed, 10 insertions(+), 6 deletions(-)

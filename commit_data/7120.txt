@@ -1,13 +1,14 @@
-commit a093f3d5a03b790de027da4ec0fd6c29144c4d52
-Author: Ken Thompson <ken@golang.org>
-Date:   Thu Jan 13 20:05:08 2011 -0800
+commit d9ffbc4b3d7f4bf4ba3b695bb8c9ffc04bd16c82
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 13 18:34:22 2011 -0800
 
-    fix tst instruction on arm to set overflow bit
+    godoc: remove tab before <pre>-formatted section
     
-    R=r
+    Fixes #1321.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4009041
+    https://golang.org/cl/4003042
 
- src/cmd/5g/cgen.c | 2 +-
- src/cmd/5l/asm.c  | 8 ++++----
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ lib/godoc/package.html | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

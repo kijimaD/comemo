@@ -1,12 +1,15 @@
-commit 9337dc9b5e4a79a071c8eb4879974955b19e3862
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Sep 16 10:29:53 2015 -0400
+commit 1c890076699a6c63eaf1c19985dbe891ce7314a7
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Tue Jun 23 23:18:35 2015 +0200
 
-    runtime/debug: more explicit Stack docs
+    strconv: add examples to package
     
-    Change-Id: I81a7f22be827519b5290b4acbcba357680cad3c4
-    Reviewed-on: https://go-review.googlesource.com/14605
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I69a2b6a99a53c875162be8a7d86455559cd74504
+    Reviewed-on: https://go-review.googlesource.com/11371
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/debug/stack.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/strconv/atof.go               |   2 -
+ src/strconv/doc.go                |  57 +++++++
+ src/strconv/example_test.go       | 338 ++++++++++++++++++++++++++++++++++++++
+ src/strconv/quote_example_test.go |  35 ----
+ 4 files changed, 395 insertions(+), 37 deletions(-)

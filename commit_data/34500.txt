@@ -1,51 +1,54 @@
-commit 93b0261d0a5e1981679b11b3429226258f925551
-Author: Hana Kim <hakim@google.com>
-Date:   Tue Feb 6 14:56:30 2018 -0500
+commit e9079a69f34365e99a4787f2e2e463cab8429a66
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 26 12:21:16 2017 -0400
 
-    cmd/trace: force GC occassionally
+    runtime: buffered write barrier implementation
     
-    to return memory to the OS after completing potentially
-    large operations.
+    This implements runtime support for buffered write barriers on amd64.
+    The buffered write barrier has a fast path that simply enqueues
+    pointers in a per-P buffer. Unlike the current write barrier, this
+    fast path is *not* a normal Go call and does not require the compiler
+    to spill general-purpose registers or put arguments on the stack. When
+    the buffer fills up, the write barrier takes the slow path, which
+    spills all general purpose registers and flushes the buffer. We don't
+    allow safe-points or stack splits while this frame is active, so it
+    doesn't matter that we have no type information for the spilled
+    registers in this frame.
     
-    Update #21870
+    One minor complication is cgocheck=2 mode, which uses the write
+    barrier to detect Go pointers being written to non-Go memory. We
+    obviously can't buffer this, so instead we set the buffer to its
+    minimum size, forcing the write barrier into the slow path on every
+    call. For this specific case, we pass additional information as
+    arguments to the flush function. This also requires enabling the cgo
+    write barrier slightly later during runtime initialization, after Ps
+    (and the per-P write barrier buffers) have been initialized.
     
-    Sys went down to 3.7G
+    The code in this CL is not yet active. The next CL will modify the
+    compiler to generate calls to the new write barrier.
     
-    $ DEBUG_MEMORY_USAGE=1 go tool trace trace.out
+    This reduces the average cost of the write barrier by roughly a factor
+    of 4, which will pay for the cost of having it enabled more of the
+    time after we make the GC pacer less aggressive. (Benchmarks will be
+    in the next CL.)
     
-    2018/03/07 09:35:52 Parsing trace...
-    after parsing trace
-     Alloc: 3385754360 Bytes
-     Sys:   3662047864 Bytes
-     HeapReleased:  0 Bytes
-     HeapSys:       3488907264 Bytes
-     HeapInUse:     3426549760 Bytes
-     HeapAlloc:     3385754360 Bytes
-    Enter to continue...
-    2018/03/07 09:36:09 Splitting trace...
-    after spliting trace
-     Alloc: 3238309424 Bytes
-     Sys:   3684410168 Bytes
-     HeapReleased:  0 Bytes
-     HeapSys:       3488874496 Bytes
-     HeapInUse:     3266461696 Bytes
-     HeapAlloc:     3238309424 Bytes
-    Enter to continue...
-    2018/03/07 09:36:39 Opening browser. Trace viewer is listening on http://100.101.224.241:12345
+    Updates #14951.
+    Updates #22460.
     
-    after httpJsonTrace
-     Alloc: 3000633872 Bytes
-     Sys:   3693978424 Bytes
-     HeapReleased:  0 Bytes
-     HeapSys:       3488743424 Bytes
-     HeapInUse:     3030966272 Bytes
-     HeapAlloc:     3000633872 Bytes
-    Enter to continue...
-    
-    Change-Id: I56f64cae66c809cbfbad03fba7bd0d35494c1d04
-    Reviewed-on: https://go-review.googlesource.com/92376
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Change-Id: I396b5b0e2c5e5c4acfd761a3235fd15abadc6cb1
+    Reviewed-on: https://go-review.googlesource.com/73711
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/trace/main.go  | 3 +++
- src/cmd/trace/trace.go | 5 +++++
- 2 files changed, 8 insertions(+)
+ src/cmd/vet/all/whitelist/amd64.txt |   1 +
+ src/runtime/asm_amd64.s             |  89 +++++++++++++++
+ src/runtime/cgocheck.go             |   4 +
+ src/runtime/mgc.go                  |   1 +
+ src/runtime/mgcmark.go              |   3 +
+ src/runtime/mgcwork.go              |  33 ++++++
+ src/runtime/mwbbuf.go               | 216 ++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go                 |  17 +++
+ src/runtime/runtime1.go             |   7 --
+ src/runtime/runtime2.go             |   5 +
+ 10 files changed, 369 insertions(+), 7 deletions(-)

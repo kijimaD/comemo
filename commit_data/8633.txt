@@ -1,17 +1,19 @@
-commit 548e3d0342cfa31dc552ad45e683fc780c75a153
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 6 22:17:28 2011 +1000
+commit 60a4b5e4dbb86c04e42a7f012df724a816b3d65d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 6 19:53:44 2011 +1000
 
-    gobuilder: number of fixes
+    gc: enable building under clang/2.9
     
-    1) runLog to return err==nil if program runs, but returns exitcode!=0;
-    2) runLog to return err!=nil when fails to create log file;
-    3) print failed program name, not just "all.bash".
+    To build under clang, pass the path to clang in CC when
+    calling ./make.bash
     
-    R=golang-dev, adg
+    CC=/opt/llvm/llvm-2.9/bin/clang ./make.bash
+    
+    Credit goes to jmhodges for suggestions.
+    
+    R=jeff, r, ality
     CC=golang-dev
-    https://golang.org/cl/4532117
+    https://golang.org/cl/4527098
 
- misc/dashboard/builder/exec.go | 17 +++++++++--------
- misc/dashboard/builder/main.go |  2 +-
- 2 files changed, 10 insertions(+), 9 deletions(-)
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,20 @@
-commit 3791594e36e497e54bbf9262465742c6316d88f7
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jan 10 17:53:05 2020 -0500
+commit eb4e5defb41459703c82b50d456280870ee00cb2
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sat Sep 21 09:39:50 2019 -0400
 
-    cmd/go: convert TestBuildIDContainsArchModeEnv to the script framework
+    net/http: remove http2 connections when no longer cached
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    When the http2 transport returns a NoCachedConnError, the connection
+    must be removed from the idle list as well as the connections per host.
     
-    Updates #36320
-    Updates #17751
+    Fixes #34387
     
-    Change-Id: I69c69809fb1698c8198ef3ea00103a9acb7b6ce7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214387
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I7875c9c95e694a37a339bb04385243b49f9b20d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196665
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                              | 39 ----------------------
- .../go/testdata/script/build_cache_arch_mode.txt   | 27 +++++++++++++++
- 2 files changed, 27 insertions(+), 39 deletions(-)
+ src/net/http/transport.go      |  1 +
+ src/net/http/transport_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

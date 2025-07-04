@@ -1,25 +1,29 @@
-commit 2c1791b13b27dfc69adf2d19ecf9a180d089cd22
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue May 31 19:24:30 2016 +1200
+commit 74c0fea9e8a37ae08d4c08b71d27be94feb3332a
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Sat Apr 2 12:04:45 2016 -0300
 
-    cmd/link: suppress PIE whenever externally linking with a sanitizer
+    go/types: better error when assigning to struct field in map
     
-    golang.org/issue/15443 complained that a race-enabled PIE binary crashed at
-    startup, but other ways of linking in tsan (or other sanitizers) such as
+    Identify this assignment case and instead of the more general error
     
-     #cgo CFLAGS: -fsanitize=thread
-     #cgo LDFLAGS: -fsanitize=thread
+        prog.go:6: cannot assign to students["sally"].age (value of type int)
     
-    have the same problem. Pass -no-pie to the host linker (if supported) if any
-    -fsanitizer=foo cgo LDFLAG is seen when linking.
+    produce
     
-    Fixes #15887
+        prog.go:6: cannot directly assign to struct field students["sally"].age in map
     
-    Change-Id: Id799770f8d045f6f40fa8c463563937a5748d1a8
-    Reviewed-on: https://go-review.googlesource.com/23535
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    that explains why the assignment is not possible. Used ExprString
+    instead of String of operand since the type of the field is not relevant
+    to the error.
+    
+    Updates #13779.
+    
+    Change-Id: I581251145ae6336ddd181b9ddd77f657c51b5aff
+    Reviewed-on: https://go-review.googlesource.com/21463
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+ src/go/types/assignments.go     | 8 ++++++++
+ src/go/types/testdata/stmt0.src | 2 +-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

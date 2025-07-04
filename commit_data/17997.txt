@@ -1,12 +1,36 @@
-commit a8c54a8e9a781282c5ffc0e1ad2078b15fa32a44
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 16 09:57:41 2013 -0800
+commit 500547f28baf67923d77fb4d88c3744b335d4ad0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 16 12:52:11 2013 -0500
 
-    api: update next.txt
+    cmd/nm: reimplement in Go
     
-    R=golang-dev, minux.ma
+    The immediate goal is to support the new object file format,
+    which libmach (nm's support library) does not understand.
+    Rather than add code to libmach or reengineer liblink to
+    support this new use, just write it in Go.
+    
+    The C version of nm reads the Plan 9 symbol table stored in
+    Go binaries, now otherwise unused.
+    
+    This reimplementation uses the standard symbol table for
+    the corresponding file format instead, bringing us one step
+    closer to removing the Plan 9 symbol table from Go binaries.
+    
+    Tell cmd/dist not to build cmd/nm anymore.
+    Tell cmd/go to install cmd/nm in the tool directory.
+    
+    R=golang-dev, r, iant, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/42860043
+    https://golang.org/cl/40600043
 
- api/next.txt | 38 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 38 insertions(+)
+ src/cmd/dist/build.c |   4 +-
+ src/cmd/go/pkg.go    |   1 +
+ src/cmd/nm/Makefile  |   5 -
+ src/cmd/nm/doc.go    |  52 ++++---
+ src/cmd/nm/elf.go    |  54 +++++++
+ src/cmd/nm/goobj.go  |  68 +++++++++
+ src/cmd/nm/macho.go  |  69 +++++++++
+ src/cmd/nm/nm.c      | 401 ---------------------------------------------------
+ src/cmd/nm/nm.go     | 176 ++++++++++++++++++++++
+ src/cmd/nm/pe.go     |  54 +++++++
+ 10 files changed, 456 insertions(+), 428 deletions(-)

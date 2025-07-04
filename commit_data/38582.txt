@@ -1,34 +1,33 @@
-commit 9f6b21caeaba3362f3385e635054f94d7f0499f3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 27 12:15:47 2019 -0700
+commit c9762b8a7ec852d96ea040c28c5f65b1104ec844
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Nov 7 15:27:16 2018 -0800
 
-    cmd/compile: fix ICE from invalid operations on float/complex constants
+    syscall: move uses of Syscall to libSystem on darwin
     
-    Typechecking treats all untyped numbers as integers for the purposes
-    of validating operators. However, when I refactoring constant
-    operation evalution in golang.org/cl/139901, I mistakenly interpreted
-    that the only invalid case that needed to be preserved was % (modulo)
-    on floating-point values.
+    Miscellaneous additional conversions from raw syscalls
+    to using their libc equivalent.
     
-    This CL restores the other remaining cases that were dropped from that
-    CL. It also uses the phrasing "invalid operation" instead of "illegal
-    constant expression" for better consistency with the rest of
-    cmd/compile and with go/types.
+    Update #17490
     
-    Lastly, this CL extends setconst to recognize failed constant folding
-    (e.g., division by zero) so that we can properly mark those
-    expressions as broken rather than continuing forward with bogus values
-    that might lead to further spurious errors.
-    
-    Fixes #31060.
-    
-    Change-Id: I1ab6491371925e22bc8b95649f1a0eed010abca6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169719
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If9ab22cc1d676c1f20fb161ebf02b0c28f71585d
+    Reviewed-on: https://go-review.googlesource.com/c/148257
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 63 +++++++++++++++++++++++-------------
- test/const1.go                       |  2 +-
- test/fixedbugs/issue31060.go         | 30 +++++++++++++++++
- 3 files changed, 72 insertions(+), 23 deletions(-)
+ src/syscall/bpf_bsd.go               |   2 +-
+ src/syscall/bpf_darwin.go            | 185 +++++++++++++++++++++++++++++++++++
+ src/syscall/exec_unix.go             |   8 +-
+ src/syscall/flock.go                 |   2 +-
+ src/syscall/flock_darwin.go          |  13 +++
+ src/syscall/mkasm_darwin.go          |   9 +-
+ src/syscall/mksyscall.pl             |  22 +++--
+ src/syscall/syscall_darwin.go        |   8 +-
+ src/syscall/zsyscall_darwin_386.go   |  49 +++++++---
+ src/syscall/zsyscall_darwin_386.s    |   4 +-
+ src/syscall/zsyscall_darwin_amd64.go |  49 +++++++---
+ src/syscall/zsyscall_darwin_amd64.s  |   4 +-
+ src/syscall/zsyscall_darwin_arm.go   |  49 +++++++---
+ src/syscall/zsyscall_darwin_arm64.go |  49 +++++++---
+ 14 files changed, 378 insertions(+), 75 deletions(-)

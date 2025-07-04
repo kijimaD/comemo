@@ -1,15 +1,25 @@
-commit 0e1da61cfb6bf0ca87569f98b3d5c8893bde4cea
-Author: Michael Vetter <g.bluehut@gmail.com>
-Date:   Thu Mar 12 15:49:49 2015 +0100
+commit 545686857bc4c2e7a5306d97e5ef48f631d277bc
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 16 21:56:10 2015 -0500
 
-    doc/effective_go.html: add missing newline
+    runtime: fix GDB "info goroutines" for Go 1.5
     
-    When printing the type of the function there was no newline printed in
-    case of unexpected type.
+    "info goroutines" is failing because it hasn't kept up with changes in
+    the 1.5 runtime.  This fixes three issues preventing "info goroutines"
+    from working.  allg is no longer a linked list, so switch to using the
+    allgs slice.  The g struct's 'status' field is now called
+    'atomicstatus', so rename uses of 'status'.  Finally, this was trying
+    to parse str(pc) as an int, but str(pc) can return symbolic
+    information after the raw hex value; fix this by stripping everything
+    after the first space.
     
-    Change-Id: I5946413f0864f712a1b955f488b436793018e0e0
-    Reviewed-on: https://go-review.googlesource.com/7480
+    This also adds a test for "info goroutines" to runtime-gdb_test, which
+    was previously quite skeletal.
+    
+    Change-Id: I8ad83ee8640891cdd88ecd28dad31ed9b5833b7a
+    Reviewed-on: https://go-review.googlesource.com/4935
     Reviewed-by: Minux Ma <minux@golang.org>
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/runtime-gdb.py      | 40 ++++++++++++++++++++++++++++++++++------
+ src/runtime/runtime-gdb_test.go | 27 ++++++++++++++++++++++++---
+ 2 files changed, 58 insertions(+), 9 deletions(-)

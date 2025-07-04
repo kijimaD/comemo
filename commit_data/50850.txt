@@ -1,24 +1,16 @@
-commit ba8c94b5f255bf84d05cf90d3d66621ffd2e0fab
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Sep 5 03:03:35 2022 +1000
+commit 56e55a388986ed9c770a21e9c58df38e021b577b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 11 17:32:15 2021 -0800
 
-    cmd/compile: convert SLT/SLTU with constant into immediate form on riscv64
+    cmd/compile/internal/types2: remove a review comment in implicitTypeAndValue
     
-    Convert SLT/SLTU with a suitably valued constant into a SLTI/SLTIU instruction.
-    This can reduce instructions and avoid register loads. Now that we generate
-    more SLTI/SLTIU instructions, absorb these into branches when it makes sense
-    to do so.
+    Reviewed the code and simplified slightly. No semantic changes.
     
-    Removes more than 800 instructions from the Go binary on linux/riscv64.
-    
-    Change-Id: I42c4e00486697acd4da7669d441b5690795f18ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428499
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Change-Id: Ib785b912fbee97746324af87ac0c14a4bdb69477
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363440
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 19 +++---
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 78 +++++++++++++++++++++++++
- 2 files changed, 87 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/expr.go | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)

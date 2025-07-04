@@ -1,17 +1,14 @@
-commit 650e8de0a5fab5cfa32f83dd6d16cf4cfe950fae
+commit 68576506d6c241fe445eba5e25fb8830e4135915
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 4 01:46:46 2012 -0500
+Date:   Sat Feb 4 01:39:29 2012 -0500
 
-    cmd/dist: more build fixes
+    cmd/dist: add BSD gohostos cases
     
-    Flush stdout before writing to stderr, to avoid
-    reordering output.
-    
-    Allow amd64 from uname -m (FreeBSD).
+    Should fix FreeBSD build.
     
     TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5629051
+    https://golang.org/cl/5629050
 
- src/cmd/dist/unix.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/dist/unix.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,21 +1,17 @@
-commit e7ab1a5ba83cd013af24b011d9d3a88dc5b05c07
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 1 18:09:59 2021 +0000
+commit a65bc048bf388e399af9bcfd726cd0f11bba7c8e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 2 16:17:30 2020 -0700
 
-    runtime: create setGCPercent method for gcControllerState
+    cmd/go: use cmd/internal/pkgpath for gccgo pkgpath symbol
     
-    This change breaks out the computations done by setGCPercent into
-    a method on gcControllerState for easier testing later. It leaves behind
-    the global implementation details.
+    Fixes #37272
     
-    For #44167.
-    
-    Change-Id: I3b0cf1475b032fcd4ebbd01cf4e80de0b55ce7b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306602
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6554fd5e5400acb20c5a7e96b1d6cb1a1afb9871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259299
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/mgcpacer.go | 30 +++++++++++++++++++++---------
- 1 file changed, 21 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/work/gccgo.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

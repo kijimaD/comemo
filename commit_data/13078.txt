@@ -1,14 +1,12 @@
-commit ab708e357889a070247f8788c56680ff6684c142
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed May 16 14:54:48 2012 +1000
+commit 6f6bbdf9b7de15b68b52649be35cd8b62a2edb9d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 15 13:29:46 2012 -0700
 
-    doc/install: document minimum system requirements
-            Partly copied from CL 5685076.
+    test: add bug439, valid code that caused a gccgo crash
     
-    R=golang-dev, adg, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6112064
+    https://golang.org/cl/6198075
 
- doc/install.html | 26 ++++++++++++++++++++++++++
- doc/style.css    |  1 +
- 2 files changed, 27 insertions(+)
+ test/fixedbugs/bug439.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

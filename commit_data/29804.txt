@@ -1,22 +1,23 @@
-commit 10f3b090270a979dfbbb48be98973feac61dfc91
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 13 14:29:57 2016 -0800
+commit 35220534d5edbbbcd0eed59133bcfae54d140287
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Oct 10 18:23:56 2016 -0700
 
-    cmd/cgo: don't strip qualifiers from C void* pointer
+    archive/zip: only use Extended Timestamp on non-zero MS-DOS timestamps
     
-    Now that we try to handle qualifiers correctly (as of CL 33325), don't
-    strip them from a void* pointer. Otherwise we break a case like "const
-    void**", as the "const" qualifier is dropped and the resulting
-    "void**" triggers a warning from the C compiler.
+    We should preserve the fact that a roundtrip read on fields with the zero
+    value should remain the zero for those that are reasonable to stay that way.
+    If the zero value for a MS-DOS timestamp was used, then it is sensible for
+    that zero value to also be read back later.
     
-    Fixes #18298.
+    Fixes #17403
     
-    Change-Id: If51df1889b0f6a907715298c152e6d4584747acb
-    Reviewed-on: https://go-review.googlesource.com/34370
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I32c3915eab180e91ddd2499007374f7b85f0bd76
+    Reviewed-on: https://go-review.googlesource.com/30811
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/issue17537.go | 16 ++++++++++++++++
- src/cmd/cgo/gcc.go          |  9 +++++++++
- 2 files changed, 25 insertions(+)
+ src/archive/zip/struct.go   |  2 +-
+ src/archive/zip/writer.go   | 19 +++++++++++--------
+ src/archive/zip/zip_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 9 deletions(-)

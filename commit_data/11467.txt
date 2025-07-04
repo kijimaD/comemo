@@ -1,12 +1,16 @@
-commit 2d6c0116744df631e3df629055bb54dcc9e8a3e9
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 30 10:15:43 2012 -0800
+commit d59c88786dc3a27876c782e2639ade5feae520fc
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Jan 30 16:04:45 2012 -0200
 
-    make.bash: don't remove hgpatch
+    cmd/go: fix including of _cgo_export.h
     
-    R=golang-dev, rsc
+    This will add the temporary object directory into the lookup
+    path so that cgo-exported function declarations may be
+    included from C files.
+    
+    R=golang-dev, rogpeppe, rsc
     CC=golang-dev
-    https://golang.org/cl/5598046
+    https://golang.org/cl/5600043
 
- src/make.bash | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

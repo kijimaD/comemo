@@ -1,24 +1,19 @@
-commit 0004f34cefcdaad13a5131e3494fb2ff04877cd2
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Apr 10 08:26:43 2016 -0700
+commit f3f920ff8d69a639de05ce5af52ba1916878055a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 19 16:25:52 2016 +0900
 
-    cmd/compile: regalloc enforces 2-address instructions
+    crypto/tls: don't send IPv6 literals and absolute FQDNs as SNI values
     
-    Instead of being a hint, resultInArg0 is now enforced by regalloc.
-    This allows us to delete all the code from amd64/ssa.go which
-    deals with converting from a semantically three-address instruction
-    into some copies plus a two-address instruction.
+    This is a followup change to #13111 for filtering out IPv6 literals and
+    absolute FQDNs from being as the SNI values.
     
-    Change-Id: Id4f39a80be4b678718bfd42a229f9094ab6ecd7c
-    Reviewed-on: https://go-review.googlesource.com/21816
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Updates #13111.
+    Fixes #14404.
+    
+    Change-Id: I09ab8d2a9153d9a92147e57ca141f2e97ddcef6e
+    Reviewed-on: https://go-review.googlesource.com/19704
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        | 240 ++++----------------
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   6 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  28 +--
- src/cmd/compile/internal/ssa/gen/main.go     |   8 +-
- src/cmd/compile/internal/ssa/op.go           |   2 +-
- src/cmd/compile/internal/ssa/opGen.go        | 328 +++++++++++++--------------
- src/cmd/compile/internal/ssa/regalloc.go     |  47 +++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go |  47 ++++
- 8 files changed, 310 insertions(+), 396 deletions(-)
+ src/crypto/tls/handshake_client.go      | 30 +++++++++++++++------
+ src/crypto/tls/handshake_client_test.go | 47 +++++++++++++++++++++++++++------
+ 2 files changed, 61 insertions(+), 16 deletions(-)

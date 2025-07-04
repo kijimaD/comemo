@@ -1,16 +1,20 @@
-commit 083a26c7d2faa8194782856c6f4efce47703df01
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 14 16:18:58 2021 -0700
+commit 3f7b4d12075277f28427e6b57708258225841ecd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 7 14:39:47 2020 -0400
 
-    cmd/compile: propagate pragmas from generic function to stenciled implementation
+    cmd/internal/obj/arm64: only emit R_CALLIND relocations on calls
     
-    Change-Id: I28a1910890659aaa449ffd2a847cd4ced5a8600d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310211
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Don't emit it for jumps. In particular, not for the return
+    instruction, which is JMP (LR).
+    
+    Reduce some binary size and linker resources.
+    
+    Change-Id: Idb3242b86c5a137597fb8accb8aadfe0244c14cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260341
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/noder/stencil.go |  1 +
- test/typeparam/pragma.go                  | 19 +++++++++++++++++++
- 2 files changed, 20 insertions(+)
+ src/cmd/internal/obj/arm64/asm7.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

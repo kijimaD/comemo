@@ -1,22 +1,17 @@
-commit cf125a36d50397b1a1821304a33fd6fa7e3cf4cd
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Oct 27 14:49:51 2015 +1300
+commit 9c514e149c1d986c404460121c1a5fc01ab8356c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 21 12:24:33 2015 -0700
 
-    cmd/link: fix size of filetab slice
+    io: add WriteString support to MultiWriter
     
-    The linker writes the number of file symbols (Nhistfile) to the filetab slice
-    and then Nhistfile offsets -- which means the slice contains Nhistfile+1
-    entries, not just Nhistfile.
+    Fixes #11805
     
-    I think this bug has been around since at least 1.4 but it's easier to trigger
-    with shared libraries and a tiny binary that only has a couple of functions in
-    it -- try go install -buildmode=shared std && go run -linkshared test/fixedbugs/issue4388.go.
-    
-    Change-Id: I6c0f01f1e607b9b2b96872e37ffce81281911504
-    Reviewed-on: https://go-review.googlesource.com/16342
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I081e16b869dc706bd847ee645bb902bc671c123f
+    Reviewed-on: https://go-review.googlesource.com/12485
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/symtab.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/io/multi.go      | 24 ++++++++++++++++++++++++
+ src/io/multi_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 76 insertions(+), 1 deletion(-)

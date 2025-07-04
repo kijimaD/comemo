@@ -1,22 +1,44 @@
-commit b5bf2f068251355538b66d36cc787cf59ced55be
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue May 26 15:36:58 2020 -0400
+commit 9d78e75a0a55fd5ff3d68b4cba2f0395c4b5dc88
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 15 23:30:30 2019 +0000
 
-    crypto/x509: allow setting MaxPathLen to -1 without IsCA
+    runtime: track ranges of address space which are owned by the heap
     
-    This fixes a bug in CL 228777 which disallowed
-    a MaxPathLen of -1 without IsCA, even though the
-    x509.Certificate documentation indicates that
-    MaxPathLen of -1 is considered "unset".
+    This change adds a new inUse field to the allocator which tracks ranges
+    of addresses that are owned by the heap. It is updated on each heap
+    growth.
     
-    Updates #38216
+    These ranges are tracked in an array which is kept sorted. In practice
+    this array shouldn't exceed its initial allocation except in rare cases
+    and thus should be small (ideally exactly 1 element in size).
     
-    Change-Id: Ib7240e00408d060f27567be8b820d0eee239256f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235280
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    In a hypothetical worst-case scenario wherein we have a 1 TiB heap and 4
+    MiB arenas (note that the address ranges will never be at a smaller
+    granularity than an arena, since arenas are always allocated
+    contiguously), inUse would use at most 4 MiB of memory if the heap
+    mappings were completely discontiguous (highly unlikely) with an
+    additional 2 MiB leaked from previous allocations. Furthermore, the
+    copies that are done to keep the inUse array sorted will copy at most 4
+    MiB of memory in such a scenario, which, assuming a conservative copying
+    rate of 5 GiB/s, amounts to about 800µs.
+    
+    However, note that in practice:
+    1) Most 64-bit platforms have 64 MiB arenas.
+    2) The copies should incur little-to-no page faults, meaning a copy rate
+       closer to 25-50 GiB/s is expected.
+    3) Go heaps are almost always mostly contiguous.
+    
+    Updates #35514.
+    
+    Change-Id: I3ad07f1c2b5b9340acf59ecc3b9ae09e884814fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207757
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/x509/x509.go      |  2 +-
- src/crypto/x509/x509_test.go | 11 +++++++----
- 2 files changed, 8 insertions(+), 5 deletions(-)
+ src/runtime/export_test.go     |  16 ++++++
+ src/runtime/mpagealloc.go      |  20 +++++++
+ src/runtime/mpagealloc_test.go | 113 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/mranges.go         | 122 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 271 insertions(+)

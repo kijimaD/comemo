@@ -1,57 +1,21 @@
-commit a1616d4a3271e54d119221c2d263949fae1d4509
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 15 14:24:18 2014 -0400
+commit 28ddfb090c2824d60e30007cf171b5dc1e8935e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 2 13:02:25 2014 -0700
 
-    reflect: shorten value to 3 words
+    math/big: math.Exp should return result >= 0 for |m| > 0
     
-    scalar is no longer needed, now that
-    interfaces always hold pointers.
+    The documentation states that Exp(x, y, m)
+    computes x**y mod |m| for m != nil && m > 0.
+    In math.big, Mod is the Euclidean modulus,
+    which is always >= 0.
     
-    Comparing best of 5 with TurboBoost turned off,
-    on a 2012 Retina MacBook Pro Core i5.
-    Still not completely confident in these numbers,
-    but the gob and template improvements seem real.
+    Fixes #8822.
     
-    benchmark                       old ns/op   new ns/op   delta
-    BenchmarkBinaryTree17           3819892491  3803008185  -0.44%
-    BenchmarkFannkuch11             3623876405  3611776426  -0.33%
-    BenchmarkFmtFprintfEmpty        119         118         -0.84%
-    BenchmarkFmtFprintfString       294         292         -0.68%
-    BenchmarkFmtFprintfInt          310         304         -1.94%
-    BenchmarkFmtFprintfIntInt       513         507         -1.17%
-    BenchmarkFmtFprintfPrefixedInt  427         426         -0.23%
-    BenchmarkFmtFprintfFloat        562         554         -1.42%
-    BenchmarkFmtManyArgs            1873        1832        -2.19%
-    BenchmarkGobDecode              15824504    14746565    -6.81%
-    BenchmarkGobEncode              14347378    14208743    -0.97%
-    BenchmarkGzip                   537229271   537973492   +0.14%
-    BenchmarkGunzip                 134996775   135406149   +0.30%
-    BenchmarkHTTPClientServer       119065      116937      -1.79%
-    BenchmarkJSONEncode             29134359    28928099    -0.71%
-    BenchmarkJSONDecode             106867289   105770161   -1.03%
-    BenchmarkMandelbrot200          5798475     5791433     -0.12%
-    BenchmarkGoParse                5299169     5379201     +1.51%
-    BenchmarkRegexpMatchEasy0_32    195         195         +0.00%
-    BenchmarkRegexpMatchEasy0_1K    477         477         +0.00%
-    BenchmarkRegexpMatchEasy1_32    170         170         +0.00%
-    BenchmarkRegexpMatchEasy1_1K    1412        1397        -1.06%
-    BenchmarkRegexpMatchMedium_32   336         337         +0.30%
-    BenchmarkRegexpMatchMedium_1K   109025      108977      -0.04%
-    BenchmarkRegexpMatchHard_32     5854        5856        +0.03%
-    BenchmarkRegexpMatchHard_1K     184914      184748      -0.09%
-    BenchmarkRevcomp                829233526   836598734   +0.89%
-    BenchmarkTemplate               142055312   137016166   -3.55%
-    BenchmarkTimeParse              598         597         -0.17%
-    BenchmarkTimeFormat             564         568         +0.71%
-    
-    Fixes #7425.
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/158890043
+    LGTM=agl, r, rsc
+    R=agl, r, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/145650043
 
- src/reflect/makefunc.go |   6 +-
- src/reflect/type.go     |  10 +-
- src/reflect/value.go    | 365 +++++++++++-------------------------------------
- 3 files changed, 91 insertions(+), 290 deletions(-)
+ src/math/big/int.go      |  6 ++++++
+ src/math/big/int_test.go | 14 +++++++++++---
+ 2 files changed, 17 insertions(+), 3 deletions(-)

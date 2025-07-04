@@ -1,20 +1,27 @@
-commit 452bbfc179d6739a404aacc819ec66acc71fc55c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 19 00:01:31 2016 -0400
+commit 880c967ccd71013253a751452a83e6c6a0cf86df
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 13 18:12:21 2016 -0700
 
-    path/filepath: fix match of \\?\c:\* on Windows
+    runtime: minor string/rune optimizations
     
-    \\?\c:\ is a "root directory" that is not subject to further matching,
-    but the ? makes it look like a pattern, which was causing an
-    infinite recursion. Make sure the code understands the ? is not a pattern.
+    Eliminate a spill in concatstrings.
+    Provide bounds elim hints in runetochar.
+    No significant benchmark movement.
     
-    Fixes #15879.
+    Before:
+    "".runetochar t=1 size=412 args=0x28 locals=0x0
+    "".concatstrings t=1 size=736 args=0x30 locals=0x98
     
-    Change-Id: I3a4310bbc398bcae764b9f8859c875317345e757
-    Reviewed-on: https://go-review.googlesource.com/31460
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    After:
+    "".runetochar t=1 size=337 args=0x28 locals=0x0
+    "".concatstrings t=1 size=711 args=0x30 locals=0x90
+    
+    Change-Id: Icce646976cb20a223163b7e72a54761193ac17e3
+    Reviewed-on: https://go-review.googlesource.com/27460
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/path/filepath/match.go             | 18 +++++++++++-------
- src/path/filepath/path_windows.go      |  2 +-
- src/path/filepath/path_windows_test.go |  8 ++++++++
- 3 files changed, 20 insertions(+), 8 deletions(-)
+ src/runtime/rune.go   | 3 +++
+ src/runtime/string.go | 5 ++---
+ 2 files changed, 5 insertions(+), 3 deletions(-)

@@ -1,21 +1,14 @@
-commit e7e2b1c2b91320ef0ddf025d330061d56115dd53
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 10 10:36:47 2019 -0700
+commit ea9eddb3e77f69bc559b8d8e647cb6d3b0562b80
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 28 02:09:32 2019 +0000
 
-    cmd/compile: separate type and expression switch typechecking
+    net/http: fix typo in Response.Body field docs
     
-    While superficially type and expression switch handling seem similar
-    and that it would be worthwhile to unify typechecking them, it turns
-    out they're actually different enough that separately handling them is
-    fewer lines of code and easier to understand as well.
+    Fixes #31096
     
-    Passes toolstash-check.
-    
-    Change-Id: I357d6912dd580639b6001bccdb2e227ed83c6fe9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194566
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I5b36bfc6d18eb8c1bbf15abcd92b0e6559cda3c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169683
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/gc/swt.go | 305 ++++++++++++++++++-------------------
- 1 file changed, 147 insertions(+), 158 deletions(-)
+ src/net/http/response.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

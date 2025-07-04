@@ -1,12 +1,19 @@
-commit b5a8dcb0d2e8e2a58f0fdd9743eae9b3a2b39786
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 20 16:50:48 2019 -0700
+commit c81b830023d33b51384f14245bee195c65c1f7b8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 27 12:14:59 2019 -0500
 
-    doc/go1.13: document changes to gofmt, go/* libs, and fix entry for text/scanner
+    cmd/dist: execute misc/cgo/testso{,var} as regular tests, not host tests
     
-    Change-Id: I2230a97c681406f248b7f2fff45dd80a4b54a4b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183357
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    These tests use runtime.GOOS and runtime.GOARCH to determine whether
+    to run, so must be built and run using the destination's — not the
+    host's — GOOS and GOARCH.
+    
+    Updates #30228
+    
+    Change-Id: I6774dacd01c68b395fca8ca61f70d5879270af8a
+    Reviewed-on: https://go-review.googlesource.com/c/164117
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.13.html | 55 ++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 48 insertions(+), 7 deletions(-)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

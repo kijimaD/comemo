@@ -1,17 +1,17 @@
-commit b6e2d6b778aa63d10db72feb3b03fb0becac38da
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 17 12:00:12 2012 -0800
+commit c4c92ebeb656d059f88a2164f6ca9b136ce9fbf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 17 14:45:29 2012 -0500
 
-    go/doc: move Example code from go/ast to go/doc.
+    cmd/gc: fix comparison of struct with _ field
     
-    Fixes #3048.
+    Fixes #2989.
     
-    R=rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5672081
+    https://golang.org/cl/5674091
 
- src/cmd/dist/build.c               |  2 ++
- src/cmd/go/test.go                 |  3 ++-
- src/cmd/godoc/godoc.go             |  8 ++++----
- src/pkg/go/{ast => doc}/example.go | 17 +++++++++--------
- 4 files changed, 17 insertions(+), 13 deletions(-)
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/subr.c | 25 ++++++++++++++++++++-----
+ test/cmp.go       | 19 +++++++++++++++++++
+ test/cmp6.go      |  5 +++++
+ 4 files changed, 45 insertions(+), 5 deletions(-)

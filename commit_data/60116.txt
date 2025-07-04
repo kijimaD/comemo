@@ -1,0 +1,24 @@
+commit db13584baedce4909915cb4631555f6dbd7b8c38
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Feb 7 12:22:48 2024 -0800
+
+    crypto/x509: reject negative serial numbers
+    
+    There is only one trusted certificate I could find in the web pki which
+    has a negative serial number. Removing this exception seems reasonable.
+    
+    Updates #65085
+    
+    Change-Id: I55435b3d75479dcb41d523383e4ff7894a1496ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562343
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ doc/godebug.md                 |  5 +++++
+ src/crypto/x509/parser.go      | 19 ++++++++++++++-----
+ src/crypto/x509/x509_test.go   | 11 +++++------
+ src/internal/godebugs/table.go |  1 +
+ src/runtime/metrics/doc.go     |  5 +++++
+ 5 files changed, 30 insertions(+), 11 deletions(-)

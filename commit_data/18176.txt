@@ -1,20 +1,23 @@
-commit 78c16c9b16dc9c64d1ddad6db5afaab12e87e8f2
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Jan 6 16:11:58 2014 -0500
+commit 02a15e716519b71aca6b74a0a388b30e83892e08
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 6 10:43:56 2014 -0800
 
-    crypto/rsa: support unpadded signatures.
+    archive/zip: fix bug reading zip64 files
     
-    Usually when a message is signed it's first hashed because RSA has low
-    limits on the size of messages that it can sign. However, some
-    protocols sign short messages directly. This isn't a great idea because
-    the messages that can be signed suddenly depend on the size of the RSA
-    key, but several people on golang-nuts have requested support for
-    this and it's very easy to do.
+    ZIP64 Extra records are variably sized, but we weren't capping
+    our reading of the extra fields at its previously-declared
+    size.
     
-    R=golang-codereviews, rsc
+    No test because I don't know how to easily create such files
+    and don't feel like manually construction one.  But all
+    existing tests pass, and this is "obviously correct" (queue
+    laughter).
+    
+    Fixes #7069
+    
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/44400043
+    https://golang.org/cl/48150043
 
- src/pkg/crypto/rsa/pkcs1v15.go      | 12 ++++++++++--
- src/pkg/crypto/rsa/pkcs1v15_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 2 deletions(-)
+ src/pkg/archive/zip/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

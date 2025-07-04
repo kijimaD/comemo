@@ -1,20 +1,39 @@
-commit 54182ff54a687272dd7632c3a963e036ce03cb7c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Sep 10 01:34:35 2022 +0700
+commit 514ebaec358488d1dcf7253b9d05b4ad8c76c390
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Oct 22 15:59:15 2021 -0400
 
-    internal/syscall/windows: simplify unsafe.Slice usage
+    internal/fuzz: don't deflake coverage found while fuzzing
     
-    CL 428780 used unsafe.Slice instead of unsafeheader for simplifiying the
-    code. However, it can be even simpler, since "p" is already a *uin16,
-    the unsafe cast is not necessary.
+    Previously, the worker would attempt to deflake
+    an input that was reported to have caused new
+    coverage. The chances of a flake causing new
+    coverage seem pretty low to me, and even if it
+    was a flake that caused it, adding that input to
+    the cache doesn't seem like a bad thing. The
+    input is already going to be deflaked during
+    minimization anyway. If by some off-chance the
+    code is causing a lot of flaky coverage
+    increases, and the user doesn't want minimization
+    to occur, then setting -fuzzminimizetime=1x will
+    deflake in the way they want without minimizing.
+    This can be documented as needed.
     
-    Change-Id: Idc492b73518637997e85c0b33f8591bd19b7929f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429915
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    This fixes a bug where the mem.header().count
+    could have been one too large if an unrecoverable
+    crash occured while deflaking an input that
+    caused code coverage.
+    
+    Fixes #49047
+    
+    Change-Id: Ibdf893d7a89a46dd700702afb09e35623615390e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358094
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Julie Qiu <julie@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/syscall/windows/syscall_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../testdata/script/test_fuzz_mutator_repeat.txt   | 24 ++++++++++++++--------
+ src/internal/fuzz/worker.go                        | 17 +++------------
+ 2 files changed, 18 insertions(+), 23 deletions(-)

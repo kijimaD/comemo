@@ -1,0 +1,18 @@
+commit f57a3a7c047f16da76b0f7afbb6684dbad9be4ec
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 8 10:15:23 2025 +0100
+
+    crypto/mlkem: add example and improve docs
+    
+    Change-Id: I6a6a46565f9135d8f18bf219e5b76d5957df5ab0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641295
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/mlkem/example_test.go | 47 ++++++++++++++++++++++++++++++++++++++++
+ src/crypto/mlkem/mlkem1024.go    | 12 +++++-----
+ src/crypto/mlkem/mlkem768.go     | 15 +++++++------
+ 3 files changed, 60 insertions(+), 14 deletions(-)

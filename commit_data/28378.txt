@@ -1,29 +1,28 @@
-commit 150de948eeceac0ace02a0f93a9a7a1f7421d744
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sat Sep 10 22:44:00 2016 +0200
+commit 8357ec37ae6a7580e928dbabbb99dd6cf1958017
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 13 15:31:14 2016 -0400
 
-    cmd/compile: intrinsify slicebytetostringtmp when not instrumenting
+    [dev.ssa] cmd/compile: implement Zero, Move, Copy for SSA on ARM
     
-    when not instrumenting:
-    - Intrinsify uses of slicebytetostringtmp within the runtime package
-      in the ssa backend.
-    - Pass OARRAYBYTESTRTMP nodes to the compiler backends for lowering
-      instead of generating calls to slicebytetostringtmp.
+    Generate load/stores for small zeroing/move, DUFFZERO/DUFFCOPY for
+    medium zeroing/move, and loops for large zeroing/move.
     
-    name                    old time/op  new time/op  delta
-    ConcatStringAndBytes-4  27.9ns ± 2%  24.7ns ± 2%  -11.52%  (p=0.000 n=43+43)
+    cmd/compile/internal/gc/testdata/{copy_ssa.go,zero_ssa.go} tests
+    passed.
     
-    Fixes #17044
+    Progress on SSA backend for ARM. Still not complete. A few packages
+    in the standard library compile and tests passed, including
+    container/list, hash/crc32, unicode/utf8, etc.
     
-    Change-Id: I51ce9c3b93284ce526edd0234f094e98580faf2d
-    Reviewed-on: https://go-review.googlesource.com/29017
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #15365.
+    
+    Change-Id: Ieb4b68b44ee7de66bf7b68f5f33a605349fcc6fa
+    Reviewed-on: https://go-review.googlesource.com/23097
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go |  6 +++++-
- src/cmd/compile/internal/gc/ssa.go  | 34 ++++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/walk.go |  8 ++++++++
- src/runtime/string.go               | 23 +++++++++++++----------
- src/runtime/string_test.go          |  7 +++++++
- 5 files changed, 67 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go        |  72 +++++++
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  58 +++++
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |  87 +++++++-
+ src/cmd/compile/internal/ssa/opGen.go      |  52 +++++
+ src/cmd/compile/internal/ssa/rewriteARM.go | 333 +++++++++++++++++++++++++++++
+ 5 files changed, 593 insertions(+), 9 deletions(-)

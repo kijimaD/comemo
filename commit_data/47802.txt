@@ -1,17 +1,22 @@
-commit 9d0ca262bbfa5561910f75e7b7d937b615d69393
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 14 16:09:36 2021 -0800
+commit 33d99905daee9fc847ceb9e2a7e9a26427b7b41d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 11 12:07:33 2021 -0400
 
-    doc/go1.18: mention that embedding a type parameter is forbidden
+    cmd/compile: preserve name association when eliding copies in expand_calls
     
-    For #47694
+    If v is a Copy of x, we will rewrite v to x. If v has a name
+    associated to it, let the name associate to x.
     
-    Change-Id: Ibf38eabcb78abc563fcf77e2b566175a18c06fa3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372114
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Under register ABI, this helps associate in-register Arg values
+    to the parameters' names. (But does not address all cases.)
+    
+    Change-Id: I47c779e56c9d0823a88890497e32326bc0290f82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309330
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.18.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/ssa/expand_calls.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

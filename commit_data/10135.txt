@@ -1,14 +1,18 @@
-commit 7f91a39d3d520d99f988d7060237550f11b6ab18
+commit 6715551768cb3f5a6eadcabb197ada3f0ab77acf
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 19:38:57 2011 -0700
+Date:   Thu Oct 27 19:38:32 2011 -0700
 
-    encoding/binary: fix type in test
+    crypto/openpgp/error: use Error in names of error impl types
     
-    Was working only accidentally.
+    Will make gofix for error work better.
+    There is no other indication in this file that
+    these are actually error implementations.
     
-    R=golang-dev, bradfitz
+    (They are only used elsewhere.)
+    
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5303082
+    https://golang.org/cl/5305068
 
- src/pkg/encoding/binary/binary_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/openpgp/error/error.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

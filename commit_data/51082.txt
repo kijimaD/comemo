@@ -1,45 +1,22 @@
-commit 582a6c2db4dfb617e709b7c8d859ff548aee1b1a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Aug 25 12:19:06 2022 +0200
+commit 8da66a35cab2de4f7ce0215c47929be624eeb03d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Dec 2 19:05:27 2021 -0500
 
-    crypto/ecdh: update ECDH docs and add tests for edge cases
+    cmd/compile: set PPC64's MAXWIDTH as other architectures
     
-    Two edge cases that were mentioned in the docs are actually impossible:
+    PPC64's MAXWIDTH is set as 1<<60 whereas on other 64-bit
+    architetures it is set as 1<<50. Set to 1<<50 for consistency. The
+    toolchain cannot handle such large program anyway.
     
-      * For NIST curves, ECDH can't fail, since the zero scalar is rejected
-        by NewPrivateKey, the identity point is rejected by NewPublicKey,
-        and NIST curves are a prime-order group.
+    May fix PPC64 build.
     
-        Let's call the inputs to scalar multiplication k and P, and the
-        order of the group q. If k[P] is the identity, and also q[P] is the
-        identity by definition, then P's order is a divisor of q-k, because
-    
-            k[P] + [q-k]P = q[P] = I
-    
-        P's order is either 1 or q, and can only be a divisor of q-k if it's
-        1 (so P is the identity), or if k is zero.
-    
-      * For X25519, PrivateKey.PublicKey can't return the all-zero value,
-        since no value is equivalent to zero after clamping.
-    
-        Clamping unsets the lowest three bit, sets the second-to-highest
-        bit, and unsets the top bit; this means that a scalar equivalent to
-        zero needs to be a multiple of 8*q, and needs to be between 2**254
-        and 2**255-1, but 8*p > 2**255-1.
-    
-    Tests for other exotic edge cases such as non-canonical point encodings,
-    clamping, points on the twist, and low-order components are covered by
-    x/crypto/wycheproof.
-    
-    Change-Id: I731a878c58bd59aee5636211dc0f19ad8cfae9db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425463
+    Change-Id: Ic3972a089b2f14a96e4ded57ef218d763c924a6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368955
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/crypto/ecdh/ecdh.go      |  13 ++--
- src/crypto/ecdh/ecdh_test.go | 154 +++++++++++++++++++++++++++++++++++++++++++
- src/crypto/ecdh/nist.go      |  37 +++++++++--
- 3 files changed, 189 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ppc64/galign.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

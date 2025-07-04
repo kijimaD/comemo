@@ -1,0 +1,20 @@
+commit 619b419a4b1506bde1aa7e833898f2f67fd0e83e
+Author: apocelipes <seve3r@outlook.com>
+Date:   Sat May 4 10:17:30 2024 +0000
+
+    os: use stringslite.TrimSuffix
+    
+    Change-Id: Ie51a1550181c9478455c757fc82a88bc549ad687
+    GitHub-Last-Rev: 4b6ffd043b0f2acebb8d2477da17a4d1dfe708ed
+    GitHub-Pull-Request: golang/go#67153
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583095
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/executable_procfs.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

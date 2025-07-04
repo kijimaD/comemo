@@ -1,14 +1,14 @@
-commit 9b70c70ffb3f42d6f413bbff894621f8f1e4de05
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Mar 16 12:05:09 2012 -0400
+commit a4b2c5efbc259c7d23159d304f9cb4266cd64643
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 16 10:44:09 2012 -0400
 
-    cmd/go: add -fno-common by default on Darwin
-            Fixes part of issue 3253.
-            We still need to support scattered relocations though.
+    cmd/go: work around occasional ETXTBSY running cgo
     
-    R=golang-dev, bsiegert, rsc, iant
+    Fixes #3001.  (This time for sure!)
+    
+    R=golang-dev, r, fullung
     CC=golang-dev
-    https://golang.org/cl/5822050
+    https://golang.org/cl/5845044
 
- src/cmd/go/build.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/go/build.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 61 insertions(+), 8 deletions(-)

@@ -1,20 +1,18 @@
-commit 95d4e6158b4199e1eee957e2c8c934d2cb86c35e
-Author: hengwu0 <41297446+hengwu0@users.noreply.github.com>
-Date:   Tue Mar 5 01:24:35 2019 +0000
+commit da6c168378b4c1deb2a731356f1f438e4723b8a7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 10 21:39:50 2018 +0000
 
-    cmd/compile: fix mips64 instruction UNPREDICTABLE bug
+    net/http: flesh out Transport's HTTP/1 CONNECT+bidi support to match HTTP/2
     
-    Replace addu with a sll instruction with a definite behavior (sll will discard the upper 32 bits of the 64 bits, then do sign extensions, with certain behavior). It won't have any UNPREDICTABLE expectation.
+    Fixes #17227
     
-    Fixes #30459
-    
-    Change-Id: Id79085c28c5cc4f86939b4ef08ef4bff46077c45
-    GitHub-Last-Rev: 03569796a9a64ed6c7d56a5bca966fc62c89b4ff
-    GitHub-Pull-Request: golang/go#30461
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164758
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0f8964593d69623b85d5759f6276063ee62b2915
+    Reviewed-on: https://go-review.googlesource.com/c/123156
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/mips/asm0.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/net/http/request.go           |  3 ++
+ src/net/http/requestwrite_test.go | 32 +++++++++++++++++++
+ src/net/http/transfer.go          | 24 ++++++++++++++-
+ src/net/http/transport.go         |  9 ------
+ src/net/http/transport_test.go    | 65 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 123 insertions(+), 10 deletions(-)

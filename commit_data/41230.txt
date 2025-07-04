@@ -1,27 +1,22 @@
-commit f770366f6d910e4bf92a6f885908afe134d65b23
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 3 15:53:53 2020 -0800
+commit c1000c500cb4cec2991f8c1924cd5fff05279658
+Author: Lucas Bremgartner <lucas@bremis.ch>
+Date:   Mon Sep 16 19:46:12 2019 +0000
 
-    runtime: don't treat SIGURG as a bad signal
+    encoding/json: validate strings when decoding into Number
     
-    It's possible for the scheduler to try to preempt a goroutine running
-    on a thread created by C code just as the goroutine returns from Go code
-    to C code. If that happens, the goroutine will have a nil g,
-    which would normally cause us to enter the badsignal code.
-    The badsignal code will allocate an M, reset the signal handler,
-    and raise the signal. This is all wasted work for SIGURG,
-    as the default behavior is for the kernel to ignore the signal.
-    It also means that there is a period of time when preemption requests
-    are ignored, because the signal handler is reset to the default.
-    And, finally, it triggers a bug on 386 OpenBSD 6.2. So stop doing it.
-    No test because there is no real change in behavior (other than on OpenBSD),
-    the new code is just more efficient
+    Unmarshaling a string into a json.Number should first check that the string is a valid Number.
+    If not, we should fail without decoding it.
     
-    Fixes #36996
+    Fixes #14702
     
-    Change-Id: I8c1cb9bc09f5ef890cab567924417e2423fc71f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217617
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I286178e93df74ad63c0a852c3f3489577072cf47
+    GitHub-Last-Rev: fe69bb68eed06d056639f440d2daf4bb7c99013b
+    GitHub-Pull-Request: golang/go#34272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195045
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/signal_unix.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/encoding/json/decode.go      |  3 +++
+ src/encoding/json/decode_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

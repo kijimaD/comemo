@@ -1,0 +1,21 @@
+commit 9149876112facc113d77d2c65e1590184c57d0c2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Jun 12 10:19:28 2025 +0200
+
+    all: replace a few user-visible mentions of golang.org and godoc.org
+    
+    This change replaces a few user-visible mentions of golang.org and
+    godoc.org with go.dev and pkg.go.dev, respectively. Non-user-visible
+    mentions (e.g. in test scripts) were left untouched.
+    
+    Change-Id: I5d828edcd618b6c55243d0dfcadc6fa1ce9422ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681255
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/bug/bug.go       | 2 +-
+ src/cmd/go/internal/cache/default.go | 2 +-
+ src/os/exec/exec.go                  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,21 +1,22 @@
-commit 15a31bd9c8e4c7b2de092266ae34e1588dc35270
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 4 00:30:25 2019 -0400
+commit 689fae2d7861fe14032762479011f9e48562e1e0
+Author: Gergely Brautigam <skarlso777@gmail.com>
+Date:   Wed Nov 28 18:10:28 2018 +0000
 
-    cmd/link: apply R_DWARFFILEREF later
+    runtime: node ordering in mTreap; adjust code to reflect description.
     
-    Apply R_DWARFFILEREF relocations later, along with other
-    relocations, so that we don't modify symbols' contents before
-    they are written to the output buffer.
+    Adjust mTreap ordering logic to reflect the description of mTreap ordering.
+    Before it was using unsafe.Pointer in order to gather the base address of
+    a span. This has been changed to use base, which is the startAddress of a
+    span as the description is telling us in mgclarge.go.
     
-    This is in preparation for mmap'ing input files read-only.
+    Fixes: golang/go#28805
     
-    Change-Id: I8e9ffb2f05acf8f198589b8770f277beb3847541
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170740
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ib3cd94a0757e23d135b5d41830f38fc08bcf16a3
+    GitHub-Last-Rev: 93f749b6700b1e179de16607a18395d5e162ecc1
+    GitHub-Pull-Request: golang/go#28973
+    Reviewed-on: https://go-review.googlesource.com/c/151499
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/link/internal/ld/data.go  | 10 ++++------
- src/cmd/link/internal/ld/dwarf.go | 10 ++++++----
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ src/runtime/mgclarge.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

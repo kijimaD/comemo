@@ -1,16 +1,12 @@
-commit 3bd0b0a80dd78bacf814cbe51e427dac0fd231c3
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 15 00:20:36 2013 +0400
+commit 3a93626b49a762867ddedf1033c90747d479b7ec
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 15 05:07:35 2013 +0900
 
-    runtime: fix SetBlockProfileRate
-    It doughtily misses all possible corner cases.
-    In particular on machines with <1GHz processors,
-    SetBlockProfileRate(1) disables profiling.
-    Fixes #6114.
+    net: fix TestTCPLookup
     
-    R=golang-dev, bradfitz, rsc
+    R=golang-dev, dvyukov, dave
     CC=golang-dev
-    https://golang.org/cl/12936043
+    https://golang.org/cl/12766044
 
- src/pkg/runtime/mprof.goc | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/pkg/net/dnsclient_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

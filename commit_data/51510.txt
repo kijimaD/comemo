@@ -1,22 +1,45 @@
-commit 9e059630ad5b7f6ddd4cf4559cd111906776d5fb
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Sep 11 14:26:10 2022 -0700
+commit ef06a5f44a46dfaf601ca79717ffb00b3591d297
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Feb 8 14:49:30 2022 +0000
 
-    cmd/compile: clean up amd64 opcode comments
+    misc/reboot: don't use symlinks when copying GOROOT/src
     
-    Put comments about what operations do per block of related opcodes
-    instead of on each line. This is less repetitive and lets us be a bit
-    more verbose in our descriptions.
+    go:embed disallows using symlinked files by design.
+    crypto/elliptic is the first std package to use it as of CL 380475,
+    and unfortunately that broke the TestRepeatBootstrap long test.
     
-    Doesn't change the generated code at all.
+    The reason it uses symlinks is for speed; it wants to copy GOROOT/src,
+    but regular files aren't going to be modified in any way,
+    so a symlink, if supported, means not needing to copy the contents.
     
-    Change-Id: I98fbd4029df6537b10aac2113a00df121d0fca1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/433736
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Keith Randall <khr@google.com>
+    Replace the symlink attempt with hard links,
+    which will mean regular files remain as such, fixing go:embed.
+    It's worth noting that on many systems hard links won't work,
+    as the temporary filesystem tends to be separate,
+    but it doesn't hurt to try.
+    
+    In my system, where /tmp is tmpfs, the test now copies more bytes.
+    With the added Logf, I can see overlayDir goes from ~30ms to ~100ms.
+    This makes sense, as GOROOT/src currently weighs around 100MiB.
+    To alleviate that slow-down, stop copying testdata directories,
+    as they currently weigh around 20MiB and aren't needed for the test.
+    This gets overlayDir on my system down to an acceptable ~70ms.
+    
+    I briefly considered teaching overlayDir what files can be symlinks,
+    but that seemed fairly complex long-term, as any file could be embedded.
+    
+    While here, start using testing.T.TempDir and fs.WalkDir.
+    
+    For #50995.
+    
+    Change-Id: I17947e6bdee96237e1ca0606ad0b95e7c5987bc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383995
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 755 +++++++++++++++-----------
- 1 file changed, 433 insertions(+), 322 deletions(-)
+ misc/reboot/overlaydir_test.go | 15 +++++++++++----
+ misc/reboot/reboot_test.go     |  9 ++++-----
+ 2 files changed, 15 insertions(+), 9 deletions(-)

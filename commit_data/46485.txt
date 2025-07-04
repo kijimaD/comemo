@@ -1,25 +1,18 @@
-commit ac7c34767dd710643f5f5fea1720a18cc392b7f8
-Author: HowJMay <vulxj0j8j8@gmail.com>
-Date:   Thu Sep 16 18:22:06 2021 +0000
+commit b01fb2af9ed6a3b90dd89d548ceef38b4ec1fc94
+Author: DrGo <salah.mahmud@gmail.com>
+Date:   Mon Jan 4 11:26:46 2021 +0000
 
-    time: support fractional timezone minutes in MarshalBinary
+    testing/fstest: fix typo in error message
     
-    If the time is in 'LMT' and has fractional minute, then
-    `MarshalBinary()` and `UnmarshalBinary()` will encode/decode the time
-    in `timeBinaryVersionV2` in which the fractional minute is at
-    bit 15 and 16, and presented in seconds.
-    
-    Fixes #39616
-    
-    Change-Id: Ib762fb5fa26f54b1a8377a5dde0b994dd5a1236a
-    GitHub-Last-Rev: 455d7a2496ba67d4a82890b14d57000e1a8a1415
-    GitHub-Pull-Request: golang/go#40293
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243402
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iac59f5271c79c46b39733fdf0eb4bf9b0fc0bdca
+    GitHub-Last-Rev: 03f96e32a81d1516a9307b6578c930434783e3d3
+    GitHub-Pull-Request: golang/go#43450
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280953
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Carlos Amedee <carlos@golang.org>
 
- src/time/time.go      | 30 ++++++++++++++++++++++++------
- src/time/time_test.go | 32 +++++++++++++++++++++++++++++++-
- 2 files changed, 55 insertions(+), 7 deletions(-)
+ src/testing/fstest/testfs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,35 @@
-commit ef4a17bc8030d7d800db76a7a57c4fb9dd2360ed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 22 16:01:17 2015 -0700
+commit 8fa14ea8b4744576bd28073901154c15813e29de
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 15 10:02:19 2015 -0700
 
-    go/types: add missing test for constant shifts
+    cmd/internal/gc: unembed Name field
     
-    Port of https://go-review.googlesource.com/11344 to std repo.
+    This is an automated follow-up to CL 10120.
+    It was generated with a combination of eg and gofmt -r.
     
-    Fixes #11325.
+    No functional changes. Passes toolstash -cmp.
     
-    Change-Id: I634beaf77cbaeb09de50aa1410e8c53fc37b19df
-    Reviewed-on: https://go-review.googlesource.com/11317
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I0dc6d146372012b4cce9cc4064066daa6694eee6
+    Reviewed-on: https://go-review.googlesource.com/10144
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/expr.go             |  8 +++++++-
- src/go/types/testdata/shifts.src | 12 ++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/5g/ggen.go               |  2 +-
+ src/cmd/5g/gsubr.go              |  2 +-
+ src/cmd/6g/ggen.go               |  2 +-
+ src/cmd/7g/ggen.go               |  2 +-
+ src/cmd/8g/ggen.go               |  2 +-
+ src/cmd/8g/gsubr.go              |  2 +-
+ src/cmd/9g/ggen.go               |  2 +-
+ src/cmd/internal/gc/cgen.go      |  4 ++--
+ src/cmd/internal/gc/closure.go   | 28 ++++++++++++++--------------
+ src/cmd/internal/gc/esc.go       |  2 +-
+ src/cmd/internal/gc/gen.go       |  8 ++++----
+ src/cmd/internal/gc/gsubr.go     |  4 ++--
+ src/cmd/internal/gc/inl.go       | 22 +++++++++++-----------
+ src/cmd/internal/gc/pgen.go      |  4 ++--
+ src/cmd/internal/gc/plive.go     |  4 ++--
+ src/cmd/internal/gc/sinit.go     |  2 +-
+ src/cmd/internal/gc/syntax.go    |  2 +-
+ src/cmd/internal/gc/typecheck.go |  6 +++---
+ src/cmd/internal/gc/walk.go      |  2 +-
+ 19 files changed, 51 insertions(+), 51 deletions(-)

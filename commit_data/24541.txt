@@ -1,15 +1,14 @@
-commit 5d88323fa6c2c39891bf59d8674c338b0ed3902e
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Mon Oct 19 20:52:55 2015 +1100
+commit 3cfc34a555aad78cff2023eb00358e4d9a8f7940
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 4 13:44:01 2015 -0700
 
-    runtime: remove a redundant nil pointer check.
+    reflect: fix doc string
     
-    It appears this was made possible by commit 89f185f; before that, g was
-    not dereferenced above.
+    Fixes #12017.
     
-    Change-Id: I70bc571d924b36351392fd4c13d681e938cfb573
-    Reviewed-on: https://go-review.googlesource.com/16033
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I3dfcf9d0b62cae02eca1973383f0aad286a6ef4d
+    Reviewed-on: https://go-review.googlesource.com/13136
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/panic.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

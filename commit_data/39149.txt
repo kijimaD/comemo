@@ -1,16 +1,14 @@
-commit 40b433e6fb42f278943176269de549bf3e40faf0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 14 14:56:26 2019 +0000
+commit 1d2e548b428373461e92c7490edb49fc39df0c85
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 8 15:18:44 2019 -0800
 
-    net: check for canceled context before starting Windows DNS lookup
+    doc: go1.12: mention os.File.SyscallConn
     
-    Fixes #31950
+    Updates #24331
     
-    Change-Id: Id9bcd51a8b49523eeecbd0d8d527372a0b8d8760
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177038
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2d7c996bbe29d5b3922588e199a106eb722c02e6
+    Reviewed-on: https://go-review.googlesource.com/c/156839
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup_windows.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ doc/go1.12.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,25 +1,49 @@
-commit 0968d2d599189229145b1000cec55d9df47fbc98
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed May 20 13:51:53 2020 -0400
+commit d422f54619b5b6e6301eaa3e9f22cfa7b65063c8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 17 15:42:12 2020 -0700
 
-    cmd/go/internal/modget: clarify error for 'go get' without arguments
+    os, net: define and use os.ErrDeadlineExceeded
     
-    If the current directory doesn't contain a package, 'go get' will say
-    that without additional detail.
+    If an I/O operation fails because a deadline was exceeded,
+    return os.ErrDeadlineExceeded. We used to return poll.ErrTimeout,
+    an internal error, and told users to check the Timeout method.
+    However, there are other errors with a Timeout method that returns true,
+    notably syscall.ETIMEDOUT which is returned for a keep-alive timeout.
+    Checking errors.Is(err, os.ErrDeadlineExceeded) should permit code
+    to reliably tell why it failed.
     
-    If there were no arguments, errors will start with "go get:" instead
-    of "go get .:".
+    This change does not affect the handling of net.Dialer.Deadline,
+    nor does it change the handling of net.DialContext when the context
+    deadline is exceeded. Those cases continue to return an error
+    reported as "i/o timeout" for which Timeout is true, but that error
+    is not os.ErrDeadlineExceeded.
     
-    Fixes #39080
+    Fixes #31449
     
-    Change-Id: I47366f2a27bce17bd8b79344ad15b8b934a888c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234681
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Change-Id: I0323f42e944324c6f2578f00c3ac90c24fe81177
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228645
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/go/internal/modget/get.go      | 9 +++++++++
- src/cmd/go/internal/modget/query.go    | 6 +++++-
- src/cmd/go/testdata/script/mod_dot.txt | 6 +++++-
- 3 files changed, 19 insertions(+), 2 deletions(-)
+ doc/go1.15.html                      | 38 +++++++++++++++++++++++
+ src/internal/poll/fd.go              | 18 ++++++-----
+ src/internal/poll/fd_plan9.go        |  8 ++---
+ src/internal/poll/fd_poll_js.go      |  2 +-
+ src/internal/poll/fd_poll_runtime.go |  2 +-
+ src/internal/poll/fd_windows.go      |  2 +-
+ src/net/dial.go                      |  3 +-
+ src/net/dial_test.go                 |  5 ++--
+ src/net/dnsclient_unix_test.go       | 15 +++++-----
+ src/net/error_test.go                | 10 +++----
+ src/net/net.go                       | 41 ++++++++++++++++---------
+ src/net/pipe.go                      | 15 ++++------
+ src/net/rawconn_test.go              |  8 ++---
+ src/net/timeout_test.go              | 58 +++++++++++++++++++++++-------------
+ src/net/unixsock_test.go             |  4 +--
+ src/os/error.go                      | 20 +++++++++----
+ src/os/file.go                       | 10 ++++---
+ src/os/os_test.go                    | 12 ++++++++
+ src/os/os_unix_test.go               |  2 +-
+ src/os/timeout_test.go               | 31 ++++++++++---------
+ 20 files changed, 196 insertions(+), 108 deletions(-)

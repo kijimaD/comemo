@@ -1,176 +1,27 @@
-commit 46b88c9fbccad489aed53a77afa680792fff6eaa
+commit d99d5f7caa10b679f8509c22aafb35a51ab716ae
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 28 14:12:28 2017 -0700
+Date:   Tue Feb 28 10:29:58 2017 -0800
 
-    cmd/compile: change ssa.Type into *types.Type
+    cmd/vet: allow shifts by amounts calculated using unsafe
     
-    When package ssa was created, Type was in package gc.
-    To avoid circular dependencies, we used an interface (ssa.Type)
-    to represent type information in SSA.
+    The real world code that inspired this fix,
+    from runtime/pprof/map.go:
     
-    In the Go 1.9 cycle, gri extricated the Type type from package gc.
-    As a result, we can now use it in package ssa.
-    Now, instead of package types depending on package ssa,
-    it is the other way.
-    This is a more sensible dependency tree,
-    and helps compiler performance a bit.
+            // Compute hash of (stk, tag).
+            h := uintptr(0)
+            for _, x := range stk {
+                    h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1)))
+                    h += uintptr(x) * 41
+            }
+            h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1)))
+            h += uintptr(tag) * 41
     
-    Though this is a big CL, most of the changes are
-    mechanical and uninteresting.
-    
-    Interesting bits:
-    
-    * Add new singleton globals to package types for the special
-      SSA types Memory, Void, Invalid, Flags, and Int128.
-    * Add two new Types, TSSA for the special types,
-      and TTUPLE, for SSA tuple types.
-      ssa.MakeTuple is now types.NewTuple.
-    * Move type comparison result constants CMPlt, CMPeq, and CMPgt
-      to package types.
-    * We had picked the name "types" in our rules for the handy
-      list of types provided by ssa.Config. That conflicted with
-      the types package name, so change it to "typ".
-    * Update the type comparison routine to handle tuples and special
-      types inline.
-    * Teach gc/fmt.go how to print special types.
-    * We can now eliminate ElemTypes in favor of just Elem,
-      and probably also some other duplicated Type methods
-      designed to return ssa.Type instead of *types.Type.
-    * The ssa tests were using their own dummy types,
-      and they were not particularly careful about types in general.
-      Of necessity, this CL switches them to use *types.Type;
-      it does not make them more type-accurate.
-      Unfortunately, using types.Type means initializing a bit
-      of the types universe.
-      This is prime for refactoring and improvement.
-    
-    This shrinks ssa.Value; it now fits in a smaller size class
-    on 64 bit systems. This doesn't have a giant impact,
-    though, since most Values are preallocated in a chunk.
-    
-    name        old alloc/op      new alloc/op      delta
-    Template         37.9MB ± 0%       37.7MB ± 0%  -0.57%  (p=0.000 n=10+8)
-    Unicode          28.9MB ± 0%       28.7MB ± 0%  -0.52%  (p=0.000 n=10+10)
-    GoTypes           110MB ± 0%        109MB ± 0%  -0.88%  (p=0.000 n=10+10)
-    Flate            24.7MB ± 0%       24.6MB ± 0%  -0.66%  (p=0.000 n=10+10)
-    GoParser         31.1MB ± 0%       30.9MB ± 0%  -0.61%  (p=0.000 n=10+9)
-    Reflect          73.9MB ± 0%       73.4MB ± 0%  -0.62%  (p=0.000 n=10+8)
-    Tar              25.8MB ± 0%       25.6MB ± 0%  -0.77%  (p=0.000 n=9+10)
-    XML              41.2MB ± 0%       40.9MB ± 0%  -0.80%  (p=0.000 n=10+10)
-    [Geo mean]       40.5MB            40.3MB       -0.68%
-    
-    name        old allocs/op     new allocs/op     delta
-    Template           385k ± 0%         386k ± 0%    ~     (p=0.356 n=10+9)
-    Unicode            343k ± 1%         344k ± 0%    ~     (p=0.481 n=10+10)
-    GoTypes           1.16M ± 0%        1.16M ± 0%  -0.16%  (p=0.004 n=10+10)
-    Flate              238k ± 1%         238k ± 1%    ~     (p=0.853 n=10+10)
-    GoParser           320k ± 0%         320k ± 0%    ~     (p=0.720 n=10+9)
-    Reflect            957k ± 0%         957k ± 0%    ~     (p=0.460 n=10+8)
-    Tar                252k ± 0%         252k ± 0%    ~     (p=0.133 n=9+10)
-    XML                400k ± 0%         400k ± 0%    ~     (p=0.796 n=10+10)
-    [Geo mean]         428k              428k       -0.01%
-    
-    
-    Removing all the interface calls helps non-trivially with CPU, though.
-    
-    name        old time/op       new time/op       delta
-    Template          178ms ± 4%        173ms ± 3%  -2.90%  (p=0.000 n=94+96)
-    Unicode          85.0ms ± 4%       83.9ms ± 4%  -1.23%  (p=0.000 n=96+96)
-    GoTypes           543ms ± 3%        528ms ± 3%  -2.73%  (p=0.000 n=98+96)
-    Flate             116ms ± 3%        113ms ± 4%  -2.34%  (p=0.000 n=96+99)
-    GoParser          144ms ± 3%        140ms ± 4%  -2.80%  (p=0.000 n=99+97)
-    Reflect           344ms ± 3%        334ms ± 4%  -3.02%  (p=0.000 n=100+99)
-    Tar               106ms ± 5%        103ms ± 4%  -3.30%  (p=0.000 n=98+94)
-    XML               198ms ± 5%        192ms ± 4%  -2.88%  (p=0.000 n=92+95)
-    [Geo mean]        178ms             173ms       -2.65%
-    
-    name        old user-time/op  new user-time/op  delta
-    Template          229ms ± 5%        224ms ± 5%  -2.36%  (p=0.000 n=95+99)
-    Unicode           107ms ± 6%        106ms ± 5%  -1.13%  (p=0.001 n=93+95)
-    GoTypes           696ms ± 4%        679ms ± 4%  -2.45%  (p=0.000 n=97+99)
-    Flate             137ms ± 4%        134ms ± 5%  -2.66%  (p=0.000 n=99+96)
-    GoParser          176ms ± 5%        172ms ± 8%  -2.27%  (p=0.000 n=98+100)
-    Reflect           430ms ± 6%        411ms ± 5%  -4.46%  (p=0.000 n=100+92)
-    Tar               128ms ±13%        123ms ±13%  -4.21%  (p=0.000 n=100+100)
-    XML               239ms ± 6%        233ms ± 6%  -2.50%  (p=0.000 n=95+97)
-    [Geo mean]        220ms             213ms       -2.76%
-    
-    
-    Change-Id: I15c7d6268347f8358e75066dfdbd77db24e8d0c1
-    Reviewed-on: https://go-review.googlesource.com/42145
+    Change-Id: I99a95b97cba73811faedb0b9a1b9b54e9a1784a3
+    Reviewed-on: https://go-review.googlesource.com/37574
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmt_test.go                       |    3 +-
- src/cmd/compile/internal/amd64/ssa.go             |    7 +-
- src/cmd/compile/internal/arm/ssa.go               |    5 +-
- src/cmd/compile/internal/arm64/ssa.go             |    5 +-
- src/cmd/compile/internal/gc/fmt.go                |    6 +
- src/cmd/compile/internal/gc/phi.go                |    9 +-
- src/cmd/compile/internal/gc/plive.go              |    2 +-
- src/cmd/compile/internal/gc/ssa.go                |  234 +--
- src/cmd/compile/internal/mips/ssa.go              |    5 +-
- src/cmd/compile/internal/mips64/ssa.go            |    5 +-
- src/cmd/compile/internal/ppc64/ssa.go             |    5 +-
- src/cmd/compile/internal/s390x/ssa.go             |    7 +-
- src/cmd/compile/internal/ssa/config.go            |   51 +-
- src/cmd/compile/internal/ssa/copyelim_test.go     |    5 +-
- src/cmd/compile/internal/ssa/cse.go               |   23 +-
- src/cmd/compile/internal/ssa/cse_test.go          |   73 +-
- src/cmd/compile/internal/ssa/deadcode_test.go     |   19 +-
- src/cmd/compile/internal/ssa/deadstore.go         |    7 +-
- src/cmd/compile/internal/ssa/deadstore_test.go    |   63 +-
- src/cmd/compile/internal/ssa/decompose.go         |   26 +-
- src/cmd/compile/internal/ssa/dom_test.go          |   63 +-
- src/cmd/compile/internal/ssa/export_test.go       |  103 +-
- src/cmd/compile/internal/ssa/func.go              |   81 +-
- src/cmd/compile/internal/ssa/func_test.go         |  107 +-
- src/cmd/compile/internal/ssa/fuse_test.go         |   37 +-
- src/cmd/compile/internal/ssa/gen/386.rules        |   14 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules      |   52 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules        |   76 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules      |   24 +-
- src/cmd/compile/internal/ssa/gen/MIPS.rules       |  138 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules     |  190 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules      |  114 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules      |   18 +-
- src/cmd/compile/internal/ssa/gen/dec.rules        |   70 +-
- src/cmd/compile/internal/ssa/gen/dec64.rules      |  324 ++--
- src/cmd/compile/internal/ssa/gen/generic.rules    |  320 ++--
- src/cmd/compile/internal/ssa/gen/rulegen.go       |   22 +-
- src/cmd/compile/internal/ssa/location.go          |   11 +-
- src/cmd/compile/internal/ssa/loop_test.go         |   31 +-
- src/cmd/compile/internal/ssa/loopreschedchecks.go |   15 +-
- src/cmd/compile/internal/ssa/nilcheck_test.go     |  111 +-
- src/cmd/compile/internal/ssa/passbm_test.go       |   21 +-
- src/cmd/compile/internal/ssa/regalloc.go          |    7 +-
- src/cmd/compile/internal/ssa/regalloc_test.go     |   27 +-
- src/cmd/compile/internal/ssa/rewrite.go           |   19 +-
- src/cmd/compile/internal/ssa/rewrite386.go        |  356 ++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go      | 1414 +++++++--------
- src/cmd/compile/internal/ssa/rewriteARM.go        |  866 ++++-----
- src/cmd/compile/internal/ssa/rewriteARM64.go      | 1052 +++++------
- src/cmd/compile/internal/ssa/rewriteMIPS.go       | 1222 ++++++-------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go     | 1678 ++++++++---------
- src/cmd/compile/internal/ssa/rewritePPC64.go      | 1342 +++++++-------
- src/cmd/compile/internal/ssa/rewriteS390X.go      | 2012 +++++++++++----------
- src/cmd/compile/internal/ssa/rewritedec.go        |  120 +-
- src/cmd/compile/internal/ssa/rewritedec64.go      |  976 +++++-----
- src/cmd/compile/internal/ssa/rewritegeneric.go    |  758 ++++----
- src/cmd/compile/internal/ssa/schedule_test.go     |   39 +-
- src/cmd/compile/internal/ssa/shift_test.go        |   65 +-
- src/cmd/compile/internal/ssa/shortcircuit_test.go |   23 +-
- src/cmd/compile/internal/ssa/sizeof_test.go       |    2 +-
- src/cmd/compile/internal/ssa/stackalloc.go        |    9 +-
- src/cmd/compile/internal/ssa/type.go              |  201 --
- src/cmd/compile/internal/ssa/type_test.go         |  106 --
- src/cmd/compile/internal/ssa/value.go             |    3 +-
- src/cmd/compile/internal/ssa/writebarrier.go      |   35 +-
- src/cmd/compile/internal/ssa/writebarrier_test.go |   29 +-
- src/cmd/compile/internal/ssa/zcse.go              |    4 +-
- src/cmd/compile/internal/types/type.go            |  182 +-
- src/cmd/compile/internal/types/utils.go           |    2 +
- src/cmd/compile/internal/x86/387.go               |    3 +-
- src/cmd/compile/internal/x86/ssa.go               |    7 +-
- 71 files changed, 7489 insertions(+), 7572 deletions(-)
+ src/cmd/vet/shift.go          | 23 +++++++++++++++++++++++
+ src/cmd/vet/testdata/shift.go |  5 +++++
+ 2 files changed, 28 insertions(+)

@@ -1,14 +1,16 @@
-commit dcd613862bc51db8455ccd22c03336111afe6883
-Author: Cherry Zhang <lunaria21@gmail.com>
-Date:   Wed Apr 27 22:18:33 2016 -0400
+commit e4d489a85fd1825ddcc6c1ffda52fb9e75ad01b4
+Author: Christopher Nelson <nadiasvertex@gmail.com>
+Date:   Tue Mar 15 09:14:22 2016 -0400
 
-    cmd/link/internal/ld: force external linking for mips64x with cgo
+    cmd/go: fix TestShadowingLogic fails when GOROOT path has spaces
     
-    cgo internal linking is not supported yet (issue #14449).
+    Improve the test by also translating " " to "_".
     
-    Change-Id: Ic968916383d77b7f449db8f230c928a1e81939e0
-    Reviewed-on: https://go-review.googlesource.com/19807
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #14671.
+    
+    Change-Id: Ie5997934b93c7663d7b8432244fad47bb5d3ffbe
+    Reviewed-on: https://go-review.googlesource.com/20714
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

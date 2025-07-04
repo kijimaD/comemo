@@ -1,18 +1,20 @@
-commit 004dd3d742846f0c4c2fc94e483d407a5a3957a1
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Jun 20 08:21:14 2013 +0200
+commit 966e889687095f33239314d2e7e03c7f3ac3b0c3
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jun 19 16:46:53 2013 -0400
 
-    test: match gccgo error messages
+    crypto/tls: change advertised ciphersuite order.
     
-    R=iant, golang-dev
+    TLS clients send ciphersuites in preference order (most prefereable
+    first). This change alters the order so that ECDHE comes before plain
+    RSA, and RC4 comes before AES (because of the Lucky13 attack).
+    
+    This is unlikely to have much effect: as a server, the code uses the
+    client's ciphersuite order by default and, as a client, the non-Go
+    server probably imposes its order.
+    
+    R=golang-dev, r, raggi, jsing
     CC=golang-dev
-    https://golang.org/cl/10365052
+    https://golang.org/cl/10372045
 
- test/fixedbugs/bug205.go    | 6 +++---
- test/fixedbugs/bug459.go    | 2 +-
- test/fixedbugs/issue3783.go | 2 +-
- test/fixedbugs/issue3925.go | 4 ++--
- test/fixedbugs/issue4097.go | 2 +-
- test/fixedbugs/issue4458.go | 2 +-
- test/fixedbugs/issue4545.go | 4 ++--
- 7 files changed, 11 insertions(+), 11 deletions(-)
+ src/pkg/crypto/tls/cipher_suites.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

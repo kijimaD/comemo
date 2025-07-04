@@ -1,20 +1,14 @@
-commit ec4de31c5c4230dd70050c4c58def88e811b8fb5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 28 16:22:05 2018 -0500
+commit 015873c15348628ee871af7ab8f79c941870d6e2
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Sun Aug 12 16:00:58 2018 -0400
 
-    cmd/doc: treat any non-empty GOMOD as module mode
+    doc: update the primary security coordinator to filippo@
     
-    Previously, we were looking for the string go.mod specifically, but
-    the module-mode-outside-a-module logic added in CL 148517 sets GOMOD
-    to os.DevNull
+    Fixes #26876
     
-    Updates #28992
-    
-    Change-Id: I62a4baaa911a495350294d78bae96be3fe4866cb
-    Reviewed-on: https://go-review.googlesource.com/c/151617
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ibef4e305bead1432c6a02bc2507f8000c2f4b892
+    Reviewed-on: https://go-review.googlesource.com/129064
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/doc/dirs.go | 2 +-
+ doc/security.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,16 @@
-commit b6fb6673bc1d132025b75fb6d3928775d959a8e3
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Mar 1 09:31:30 2019 -0400
+commit 44c72957d6ea071bf3bef7460c88319b5c283b8b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 9 17:14:34 2018 -0400
 
-    fmt: refined tests for non-string error verbs
+    cmd/go/internal/mvs: document that BuildList is sorted
     
-    This is a refinement of CL 164557.
+    Updates #28102
     
-    Make it explicit in tests that using a non-string verb with
-    fmtError does not result in falling back to using fmt.Formatter.
-    
-    Change-Id: I6d090f31818eb7cc7668d7565b1449c91cd03a23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164701
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: Iee1ff64c7720108d6d26bfbff60ea51877093960
+    Reviewed-on: https://go-review.googlesource.com/c/140862
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/fmt/errors_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/go/internal/mvs/mvs.go | 1 +
+ 1 file changed, 1 insertion(+)

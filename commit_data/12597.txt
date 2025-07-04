@@ -1,15 +1,12 @@
-commit 82fc28c0f5a5af9fd18c0c49a65aa6a44ede1aa3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 12 20:27:27 2012 -0700
+commit 881907730f42ca72c475db5e007b1a50943f116d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 13 13:43:41 2012 +1100
 
-    go spec: fix inaccuracy in type identity definition
+    doc: update reference gopher
     
-    Pointed out by Steven Blenkinsop (steven099@gmail.com)
-    via golang-nuts.
-    
-    R=r, dsymonds
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5783087
+    https://golang.org/cl/5754094
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/gopher/ref.png | Bin 10536 -> 5895 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

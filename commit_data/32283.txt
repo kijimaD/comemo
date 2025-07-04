@@ -1,20 +1,28 @@
-commit b3465646ff15e2226a451c8183d8e6b8fef4b479
-Author: Filippo Valsorda <filippo@cloudflare.com>
-Date:   Fri Jun 2 12:33:50 2017 -0700
+commit af5c95117b26e22d942a12e15bdc8e25607f738c
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Apr 17 15:09:10 2017 +0300
 
-    crypto/tls: add BenchmarkHandshakeServer
+    sync: improve Pool performance
     
-    name                                       time/op
-    HandshakeServer/RSA-4                      1.10ms ± 0%
-    HandshakeServer/ECDHE-P256-RSA-4           1.23ms ± 1%
-    HandshakeServer/ECDHE-P256-ECDSA-P256-4     178µs ± 1%
-    HandshakeServer/ECDHE-X25519-ECDSA-P256-4   180µs ± 2%
-    HandshakeServer/ECDHE-P521-ECDSA-P521-4    19.8ms ± 1%
+    Rewrite indexLocal to achieve higher performance.
     
-    Change-Id: I6b2c79392995d259cfdfc5199be44cc7cc40e155
-    Reviewed-on: https://go-review.googlesource.com/44730
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Performance results on linux/amd64:
+    
+    name            old time/op  new time/op  delta
+    Pool-4          19.1ns ± 2%  10.1ns ± 1%  -47.15%  (p=0.000 n=10+8)
+    PoolOverflow-4  3.11µs ± 1%  2.10µs ± 2%  -32.66%  (p=0.000 n=10+10)
+    
+    Performance results on linux/386:
+    
+    name            old time/op  new time/op  delta
+    Pool-4          20.0ns ± 2%  13.1ns ± 1%  -34.59%  (p=0.000 n=10+9)
+    PoolOverflow-4  3.51µs ± 1%  2.49µs ± 0%  -28.99%  (p=0.000 n=10+8)
+    
+    Change-Id: I7d57a2d4cd47ec43d09ca1267bde2e3f05a9faa9
+    Reviewed-on: https://go-review.googlesource.com/40913
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/handshake_server_test.go | 87 +++++++++++++++++++++++++++++++++
- 1 file changed, 87 insertions(+)
+ src/sync/pool.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

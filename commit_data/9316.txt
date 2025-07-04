@@ -1,14 +1,19 @@
-commit 1adda4601aa9c28199f265d5826fd9c31ee73f64
+commit 7506ee75847f94a536d3defa854efe4b361379d7
 Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 9 17:07:29 2011 +1000
+Date:   Tue Aug 9 16:49:36 2011 +1000
 
-    exp/template: do not take address of interface variable to find methods.
-    Also allow struct values as "with" targets.
+    exp/template: remove reflect from the API
+    It means keeping two sets of maps, but things look cleaner from
+    the outside.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4809086
+    https://golang.org/cl/4839056
 
- src/pkg/exp/template/exec.go      |  8 +++++---
- src/pkg/exp/template/exec_test.go | 25 ++++++++++++++++---------
- 2 files changed, 21 insertions(+), 12 deletions(-)
+ src/pkg/exp/template/funcs.go            | 53 +++++++++++++++++++++-----------
+ src/pkg/exp/template/parse.go            | 24 +++++++++------
+ src/pkg/exp/template/parse/parse.go      | 21 ++++++-------
+ src/pkg/exp/template/parse/parse_test.go |  5 ++-
+ src/pkg/exp/template/parse/set.go        |  3 +-
+ src/pkg/exp/template/set.go              | 17 +++++-----
+ 6 files changed, 73 insertions(+), 50 deletions(-)

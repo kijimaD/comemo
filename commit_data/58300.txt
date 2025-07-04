@@ -1,17 +1,16 @@
-commit 2a93bd0d79484281b9706e2d66a0b21b42da66de
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 26 15:37:14 2024 -0800
+commit 37788b8b9eef420903006489360e64684e2c54a7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 6 11:31:56 2023 +0200
 
-    doc/next: document that crypto/rand.Read never fails
+    cmd/go: remove unused (*testgoData).runGit test helper
     
-    For #66821
+    It's unused since CL 518775.
     
-    Change-Id: Id9b640a57b9d4d1f9114769f607480b14961e7b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632036
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I81a4865d0c656ca2b968d51e52388c88e661a157
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537595
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/next/6-stdlib/99-minor/crypto/rand/66821.md | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/go/go_test.go | 25 -------------------------
+ 1 file changed, 25 deletions(-)

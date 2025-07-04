@@ -1,0 +1,20 @@
+commit 49eedfb4d07ab6c0d62041ba722dfe81e73d92ce
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 8 15:46:40 2024 -0700
+
+    net: use port 53 when checking for UDP routes
+    
+    Using port 9 is weird and at least once triggered a suspicious
+    activity alert.
+    
+    Fixes #67264
+    
+    Change-Id: If4179f054829c175b9f3a51c3bc2a3ca4afa74b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584416
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/addrselect.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

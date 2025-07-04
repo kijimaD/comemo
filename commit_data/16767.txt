@@ -1,12 +1,16 @@
-commit 0a86b4dab8a1b943c5f90fcff0c3c95902f30744
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 16 01:02:42 2013 +0400
+commit 9ebc5be39c5bad22ca0f97849d1ad475bacdc950
+Author: Andrew Bonventre <andybons@chromium.org>
+Date:   Mon Jul 15 10:57:01 2013 +1000
 
-    runtime: minor test cleanup
+    image/gif: add writer implementation
     
-    R=golang-dev, khr, rsc
+    R=r, nigeltao
     CC=golang-dev
-    https://golang.org/cl/11280043
+    https://golang.org/cl/10896043
 
- src/pkg/runtime/proc_test.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/pkg/go/build/deps_test.go             |   2 +-
+ src/pkg/image/gif/reader.go               |   2 +-
+ src/pkg/image/gif/writer.go               | 329 ++++++++++++++++++++++++++++++
+ src/pkg/image/gif/writer_test.go          | 204 ++++++++++++++++++
+ src/pkg/image/testdata/video-005.gray.gif | Bin 0 -> 14505 bytes
+ 5 files changed, 535 insertions(+), 2 deletions(-)

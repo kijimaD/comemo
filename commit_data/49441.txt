@@ -1,23 +1,21 @@
-commit 1292176bc98be4b7b9d24abec05e88b3dbd89e21
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jun 8 14:26:44 2022 -0400
+commit 9871726c72af7009aa73be33edfa06a8d9e5965e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 18 09:38:19 2021 -0700
 
-    cmd/go: clean paths before using them form index functions
+    reflect: add test for invalid conversion
     
-    We use str.TrimFilePathPrefix to trim the module root prefix and get the
-    relative path of each package in the module when scanning the module
-    and in the RelPath function.  Make sure to clean the path before
-    indexing and in RelPath to ensure that each path starts with that
-    prefix, because walk will clean the root path before joining each
-    subdirectory path to it.
+    Conversion between slices with different element types is not allowed.
+    Previously (1.8 <= goversion <= 1.16), this conversion was allowed
+    if the base types were from different packages and had identical names.
     
-    Change-Id: I1dc1eddbd42030eb6d5d8e76a8675f94216447c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411118
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Update #47785
+    
+    Change-Id: I359de5b6fe3ff35bdbf9ab5a13902a0f820cac66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343329
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modindex/read.go               |  3 +-
- .../script/list_replace_absolute_windows.txt       | 37 ++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ src/reflect/all_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

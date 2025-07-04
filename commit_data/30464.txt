@@ -1,17 +1,18 @@
-commit b2a2a6054a015eddad4043f55fa280aed0334607
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 28 17:40:33 2017 -0800
+commit 4cc83d49d2a69bb9d348cb32d71ca34651aec3b5
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Nov 7 11:50:48 2016 -0500
 
-    go/internal/srcimporter: report reimport of incomplete packages
+    cmd/dist: enable more cgo tests on ppc64le
     
-    See the issue below for details.
+    The tests all pass (for me at least) so I don't think there is any
+    reason not to enable them.
     
-    For #19337.
-    
-    Change-Id: I7637dcd4408f1bc4a9b3050a107aadb4de6f950b
-    Reviewed-on: https://go-review.googlesource.com/37620
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I96e71383e573273f442a849914cf6458ada14f82
+    Reviewed-on: https://go-review.googlesource.com/32855
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/internal/srcimporter/srcimporter.go      | 30 ++++++++++++++-----------
- src/go/internal/srcimporter/srcimporter_test.go | 16 +++++++++++++
- 2 files changed, 33 insertions(+), 13 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,30 +1,19 @@
-commit 088f953fd0e5aa99a9e4a92acdb9a6058480491c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Jul 7 11:06:05 2023 +0200
+commit cdb270cf0737a4752e5375b737eba83929f2b415
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Aug 23 19:27:49 2022 -0700
 
-    all: add a few more godoc links
+    reflect: fix stale Value.kind documentation
     
-    Over the past few months as I read the standard library's documentation
-    I kept finding spots where godoc links would have helped me.
-    I kept adding to a stash of changes to fix them up bit by bit.
+    The lowests fives bits are the kind, and the next five bits are attributes,
+    not the other way around.
     
-    The stash has grown big enough by now, and we're nearing a release,
-    so I think it's time to merge to avoid git conflicts or bit rot.
-    
-    Note that a few sentences are slightly reworded,
-    since "implements the Fooer interface" can just be "implements [Fooer]"
-    now that the link provides all the context needed to the user.
-    
-    Change-Id: I01c31d3d3ff066d06aeb44f545f8dd0fb9a8d998
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508395
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I5e1d13b195b766e99f66bb1227cc7f84e85dc49d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425185
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/encoding/json/decode.go | 16 +++++++-------
- src/encoding/json/encode.go | 12 +++++------
- src/io/io.go                | 21 +++++++++----------
- src/net/http/server.go      | 51 +++++++++++++++++++++------------------------
- src/path/path.go            |  2 +-
- 5 files changed, 49 insertions(+), 53 deletions(-)
+ src/reflect/value.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

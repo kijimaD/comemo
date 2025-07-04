@@ -1,19 +1,31 @@
-commit 612bb34af5299a33b0b5bdebc92a775153d72ebb
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue Oct 25 14:03:26 2022 +0800
+commit 8cdfe408bbd608c5129036e40f346d526049ffc4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 23 13:54:02 2021 -0800
 
-    cmd/internal/obj/arm64: remove AMOVBU from optab
+    cmd/compile/internal/types2: better error position for instantiation failure
     
-    The instruction format of MOVBU is the same with MOVB, this CL deletes
-    MOVBU from optab for simplicity.
+    - Thread type argument expressions (rather than posLists) through various
+    type-checker functions so we can provide a better error position.
     
-    Change-Id: Ib034d6c29dd9793cf3e6f9fa8abff0ed0d931d0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445295
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    - Adjust signatures that expect a syntax.Pos to accept a poser instead
+    to avoid gratuituous conversions from expressions to positions.
+    
+    - Rename targsx to xlist so we use xlist consistently for expression
+    lists.
+    
+    First step in providing a better error message for the issue below.
+    
+    For #49179.
+    
+    Change-Id: I8fc685a2ee4f5640f4abd35568ba32bcb34e9e84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366757
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 23 +----------------------
- 1 file changed, 1 insertion(+), 22 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        |  2 +-
+ src/cmd/compile/internal/types2/call.go            | 32 +++++++++-------------
+ src/cmd/compile/internal/types2/mono.go            |  6 ++--
+ .../types2/testdata/fixedbugs/issue39754.go2       |  4 +--
+ .../types2/testdata/fixedbugs/issue49179.go2       | 19 +++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go         | 20 +++++---------
+ 6 files changed, 44 insertions(+), 39 deletions(-)

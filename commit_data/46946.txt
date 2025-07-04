@@ -1,21 +1,18 @@
-commit a73c6cf762560b458eb938e4461cd8debc479fd9
+commit c2314babb8c21a352e7a0625963e9aed0f3890bd
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 18 17:31:23 2021 -0700
+Date:   Wed Feb 17 21:18:07 2021 -0800
 
-    cmd/compile/internal/types2: ensure named types are expanded after type-checking
+    [dev.typeparams] cmd/compile/internal/types: review of type.go
     
-    This is a clean port of CL 356490 from go/types to types2.
+    The changes between (equivalent, and reviewed) go/types/type.go
+    and type.go can be seen by comparing patchset 1 and 3. The actual
+    change is just removing the "// UNREVIEWED" marker and some
+    comment adjustments.
     
-    Fixes #48703.
-    Fixes #48974.
-    
-    Change-Id: I08c0db0b92250cbb043325541b21a577726b40ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356515
+    Change-Id: Ied0e2f942bc96a9fcae0466761cfaa60a87668db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293471
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/check.go           | 28 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/named.go           | 23 +++++++-----------
- .../types2/testdata/fixedbugs/issue48703.go2       | 27 +++++++++++++++++++++
- .../types2/testdata/fixedbugs/issue48974.go2       | 22 +++++++++++++++++
- 4 files changed, 85 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/types2/type.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

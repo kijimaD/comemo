@@ -1,32 +1,19 @@
-commit adc575e64c8a49c0a14a8a6b0480c5f9815bdb1a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 14 11:57:05 2024 -0500
+commit dd009b2f1a3a781c9c23c852402deb1039513d04
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sun Mar 12 16:02:19 2023 +0800
 
-    runtime: move per-P timers state into its own struct
+    runtime/internal/sys: remove 386 assembly code
     
-    Continuing conversion from C to Go, introduce type timers
-    encapsulating all timer heap state, with methods for operations.
-    This should at least be easier to think about, instead of having
-    these fields strewn through the P struct. It should also be easier
-    to test.
-    
-    I am skeptical about the pair of atomic int64 deadlines:
-    I think there are missed wakeups lurking.
-    Having the code in an abstracted API should make it easier
-    to reason through and fix if needed.
-    
-    [This is one CL in a refactoring stack making very small changes
-    in each step, so that any subtle bugs that we miss can be more
-    easily pinpointed to a small change.]
-    
-    Change-Id: If5ea3e0b946ca14076f44c85cbb4feb9eddb4f95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564132
-    Reviewed-by: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ia4f8638d626c30b91729caa0c58a96451c627f67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475736
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/proc.go     |  22 +--
- src/runtime/runtime2.go |  29 +---
- src/runtime/time.go     | 423 ++++++++++++++++++++++++++----------------------
- src/time/sleep.go       |   4 +-
- 4 files changed, 244 insertions(+), 234 deletions(-)
+ src/runtime/internal/sys/intrinsics.go        | 138 ++++++++++++++++++++++++-
+ src/runtime/internal/sys/intrinsics_386.s     |  43 --------
+ src/runtime/internal/sys/intrinsics_common.go | 141 --------------------------
+ src/runtime/internal/sys/intrinsics_stubs.go  |  11 --
+ 4 files changed, 134 insertions(+), 199 deletions(-)

@@ -1,19 +1,41 @@
-commit 98aa4968b7f7fbbac2baba99c508d72d4f4ce883
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Apr 11 16:47:53 2012 +0200
+commit d8e9b04ca6bc5f2f94f14002d5c184346b4e142c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 11 22:45:44 2012 +1000
 
-    exp/norm: exposed runeInfo type in API.
-    For completeness, we also expose the Canonical Combining Class of a rune.
-    This does not increase the data size.
+    runtime: add interface microbenchmarks
     
-    R=r
+    2011 Mac Mini, Core i5 @ 2.3Ghz
+    
+    BenchmarkConvT2E        50000000                40.4 ns/op
+    BenchmarkConvT2EBig     20000000               107 ns/op
+    BenchmarkConvT2I        100000000               28.9 ns/op
+    BenchmarkConvI2E        500000000                5.93 ns/op
+    BenchmarkConvI2I        100000000               19.0 ns/op
+    BenchmarkAssertE2T      100000000               14.1 ns/op
+    BenchmarkAssertE2TBig   100000000               17.8 ns/op
+    BenchmarkAssertE2I      100000000               21.3 ns/op
+    BenchmarkAssertI2T      100000000               14.3 ns/op
+    BenchmarkAssertI2I      100000000               20.8 ns/op
+    BenchmarkAssertI2E      500000000                5.58 ns/op
+    
+    Pandaboard, 2 x Omap4 @ 1.2Ghz
+    
+    BenchmarkConvT2E        10000000               215 ns/op
+    BenchmarkConvT2EBig      1000000              3697 ns/op
+    BenchmarkConvT2I         5000000               666 ns/op
+    BenchmarkConvI2E        50000000                42.4 ns/op
+    BenchmarkConvI2I         5000000               489 ns/op
+    BenchmarkAssertE2T      20000000                90.0 ns/op
+    BenchmarkAssertE2TBig   20000000                91.6 ns/op
+    BenchmarkAssertE2I       5000000               515 ns/op
+    BenchmarkAssertI2T      20000000               124 ns/op
+    BenchmarkAssertI2I       5000000               517 ns/op
+    BenchmarkAssertI2E      50000000                47.2 ns/op
+    BenchmarkAssertE2E      50000000                42.7 ns/op
+    
+    R=minux.ma, rsc, fullung, bsiegert, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5931043
+    https://golang.org/cl/5777048
 
- src/pkg/exp/norm/composition.go |  20 ++++----
- src/pkg/exp/norm/forminfo.go    | 104 +++++++++++++++++++++++++++++-----------
- src/pkg/exp/norm/iter.go        |  10 ++--
- src/pkg/exp/norm/maketables.go  |  14 +++++-
- src/pkg/exp/norm/normalize.go   |  28 +++++------
- src/pkg/exp/norm/tables.go      |  21 ++++----
- 6 files changed, 128 insertions(+), 69 deletions(-)
+ src/pkg/runtime/iface_test.go | 96 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 96 insertions(+)

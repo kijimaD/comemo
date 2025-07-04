@@ -1,18 +1,48 @@
-commit 9f75ecd5e12f2b9988086954933d610cd5647918
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 6 19:55:10 2016 +0000
+commit bba1ac4fd9d208892aa45e49eda215954008d2ee
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 27 02:02:30 2016 -0700
 
-    runtime/debug: don't run a GC when setting SetGCPercent negative
+    cmd/compile: stop adding implicit OKEY nodes
     
-    If the user is calling SetGCPercent(-1), they intend to disable GC.
-    They probably don't intend to run one. If they do, they can call
-    runtime.GC themselves.
+    Keys are uncommon in array and slice literals, and normalizing
+    OARRAYLIT and OSLICELIT nodes to always use OKEY ends up not reducing
+    complexity much. Instead, only create OKEY nodes to represent explicit
+    keys, and recalculate implicit keys when/where necessary.
     
-    Change-Id: I40ef40dfc7e15193df9ff26159cd30e56b666f73
-    Reviewed-on: https://go-review.googlesource.com/34013
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #15350.
+    
+    name       old time/op     new time/op     delta
+    Template       299ms ± 9%      299ms ±12%    ~           (p=0.694 n=28+30)
+    Unicode        165ms ± 7%      162ms ± 9%    ~           (p=0.084 n=27+27)
+    GoTypes        950ms ± 9%      963ms ± 5%    ~           (p=0.301 n=30+29)
+    Compiler       4.23s ± 7%      4.17s ± 7%    ~           (p=0.057 n=29+27)
+    
+    name       old user-ns/op  new user-ns/op  delta
+    Template        389M ±15%       400M ±12%    ~           (p=0.202 n=30+29)
+    Unicode         246M ±21%       232M ±22%  -5.76%        (p=0.006 n=28+29)
+    GoTypes        1.34G ± 8%      1.34G ± 7%    ~           (p=0.775 n=28+30)
+    Compiler       5.91G ± 6%      5.87G ± 7%    ~           (p=0.298 n=28+29)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      41.2MB ± 0%     41.2MB ± 0%    ~           (p=0.085 n=30+30)
+    Unicode       34.0MB ± 0%     31.5MB ± 0%  -7.28%        (p=0.000 n=30+29)
+    GoTypes        121MB ± 0%      121MB ± 0%    ~           (p=0.657 n=30+30)
+    Compiler       511MB ± 0%      511MB ± 0%  -0.01%        (p=0.001 n=29+29)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        390k ± 0%       390k ± 0%    ~           (p=0.225 n=30+29)
+    Unicode         318k ± 0%       293k ± 0%  -8.03%        (p=0.000 n=30+29)
+    GoTypes        1.16M ± 0%      1.16M ± 0%    ~           (p=0.745 n=30+30)
+    Compiler       4.35M ± 0%      4.35M ± 0%    ~           (p=0.105 n=30+30)
+    
+    Change-Id: I6310739a0bfdb54f1ab8a460b2c03615ad1ff5bc
+    Reviewed-on: https://go-review.googlesource.com/32221
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/debug/garbage.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/esc.go       | 19 ++++++++---
+ src/cmd/compile/internal/gc/sinit.go     | 58 +++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/syntax.go    |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 52 ++++++++++++----------------
+ 4 files changed, 71 insertions(+), 60 deletions(-)

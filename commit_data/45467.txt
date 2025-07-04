@@ -1,22 +1,21 @@
-commit eb71887b99fa656ed627c9c1d41319b9198979c8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 30 00:34:54 2021 -0400
+commit f77a9025f1e4bf4bb3e2b582d13cce5f19c1ca51
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 3 20:35:40 2020 +0000
 
-    cmd/go: prune go.mod and go.sum files from vendored dependencies
+    runtime: replace some memstats with consistent stats
     
-    Fixes #42970
+    This change replaces stacks_inuse, gcWorkBufInUse and
+    gcProgPtrScalarBitsInUse with their corresponding consistent stats. It
+    also adds checks to make sure the rest of the sharded stats line up with
+    existing stats in updatememstats.
     
-    Change-Id: I79246ef7fc16ae05c8e7b40ffb239a61f6415447
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315410
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I17d0bd181aedb5c55e09c8dff18cef5b2a3a14e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247038
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.17.html                                 | 10 ++++++-
- src/cmd/go/internal/modcmd/vendor.go            |  9 ++++++
- src/cmd/go/testdata/script/mod_vendor_gomod.txt | 38 +++++++++++++++++++++++++
- src/cmd/vendor/golang.org/x/term/go.mod         |  5 ----
- src/cmd/vendor/golang.org/x/term/go.sum         |  2 --
- src/cmd/vendor/golang.org/x/xerrors/go.mod      |  3 --
- 6 files changed, 56 insertions(+), 11 deletions(-)
+ src/runtime/mheap.go  | 18 ++-----------
+ src/runtime/mstats.go | 73 ++++++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 62 insertions(+), 29 deletions(-)

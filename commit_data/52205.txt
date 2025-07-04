@@ -1,20 +1,25 @@
-commit 99914db5eea927c7694276169585f1fff9e614c8
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Mar 7 08:37:31 2023 +0100
+commit 78bea702cd38ac5004a97f110e7f659336a04d57
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 14 15:04:34 2022 -0700
 
-    cmd/internal/objabi: regenerate RelocType stringer file
+    cmd/compile: turn jump tables off with -N
     
-    reloctype_strings.go is out-of-date since CL 462035, regenerate it.
+    The noopt builder is broken, because with -N we get two OpSB opcodes
+    (one for the function as a whole, one introduced by the jumptable
+    rewrite rule), and they fight each other for a register.
     
-    Found while working on CL 461737.
+    Without -N, the two OpSB get CSEd, so optimized builds are ok.
     
-    Change-Id: I5cf910ab14c3618d6653c87861a4d53d3c91feff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473875
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Maybe we fix regalloc to deal with this case, but it's simpler
+    (and maybe more correct?) to disable jump tables with -N.
+    
+    Change-Id: I75c87f12de6262955d1df787f47c53de976f8a5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400455
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/objabi/reloctype_string.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/walk/switch.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

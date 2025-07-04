@@ -1,26 +1,22 @@
-commit b851e51160bc8ed412e229152b430b75e7ce56f9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 11 21:51:09 2020 -0700
+commit f38a51069278054205ac2d6aa20b3968b1f5c06f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 17 09:57:42 2019 -0400
 
-    runtime: don't crash on mlock failure
+    os/exec: re-enable TestExtraFiles checks skipped on various OSes
     
-    Instead, note that mlock has failed, start trying the mitigation of
-    touching the signal stack before sending a preemption signal, and,
-    if the program crashes, mention the possible problem and a wiki page
-    describing the issue (https://golang.org/wiki/LinuxKernelSignalVectorBug).
+    The issues associated with these skipped checks are closed.
+    If they are working around unfixed bugs, the issues should remain open.
+    If they are working around unfixable properties of the system, the skips
+    should refer to those properties rather than closed issues.
     
-    Tested on a kernel in the buggy version range, but with the patch,
-    by using `ulimit -l 0`.
+    Updates #2603
+    Updates #3955
+    Updates #25628
     
-    Fixes #37436
-    
-    Change-Id: I072aadb2101496dffd655e442fa5c367dad46ce8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223121
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3491c69b2ef5bad0fb12001fe8f7e06b424883ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201718
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os_linux.go     | 15 +++++++++++++++
- src/runtime/os_linux_x86.go | 35 +++++++++++++++++++++++++++--------
- src/runtime/panic.go        | 10 ++++++++++
- 3 files changed, 52 insertions(+), 8 deletions(-)
+ src/os/exec/exec_test.go | 79 ++++++++++++++++++------------------------------
+ 1 file changed, 30 insertions(+), 49 deletions(-)

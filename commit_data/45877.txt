@@ -1,21 +1,33 @@
-commit 5385e2386b64b10960c1b40113ee7dae271c8369
-Author: Mia Zhu <CrystalZhu1025getu@gmail.com>
-Date:   Mon Jun 28 17:10:56 2021 +0000
+commit 259fd8adbb15f2a44433c7b8b40a35e97992b345
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 24 21:56:47 2020 -0800
 
-    runtime/internal/atomic: drop Cas64 pointer indirection in comments
+    [dev.regabi] cmd/compile: fix reporting of overflow
     
-    Change-Id: Ieff0065cbd81e045594ce12e10338b0666816d70
-    GitHub-Last-Rev: d842f5cb3e5d75f87957c068f6accc9d4a4ac224
-    GitHub-Pull-Request: golang/go#46949
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331309
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    In the previous CL, I had incorrectly removed one of the error
+    messages from issue20232.go, because I thought go/constant was just
+    handling it. But actually the compiler was panicking in nodlit,
+    because it didn't handle constant.Unknown. So this CL makes it leave
+    n.Type == nil for unknown constant.Values.
+    
+    While here, also address #42732 by making sure to report an error
+    message when origConst is called with an unknown constant.Value (as
+    can happen when multiplying two floating-point constants overflows).
+    
+    Finally, add OXOR and OBITNOT to the list of operations to report
+    errors about, since they're also constant expressions that can produce
+    a constant with a greater bit length than their operands.
+    
+    Fixes #42732.
+    
+    Change-Id: I4a538fbae9b3ac4c553d7de5625dc0c87d9acce3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272928
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/internal/atomic/atomic_amd64.s   | 2 +-
- src/runtime/internal/atomic/atomic_arm64.s   | 2 +-
- src/runtime/internal/atomic/atomic_mips64x.s | 2 +-
- src/runtime/internal/atomic/atomic_ppc64x.s  | 2 +-
- src/runtime/internal/atomic/atomic_riscv64.s | 3 ++-
- 5 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 45 +++++++++++++++++-------------------
+ test/const2.go                       | 11 +++++++++
+ test/fixedbugs/issue20232.go         |  5 ++--
+ 3 files changed, 35 insertions(+), 26 deletions(-)

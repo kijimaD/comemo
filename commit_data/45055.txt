@@ -1,37 +1,21 @@
-commit 1129a60f1c1e64147ca1133857c4571ce9b87a35
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 12 12:57:39 2021 -0800
+commit 79e681d2a291142aa0ac8297229e182b2d1a78ac
+Author: Chen.Zhidong <njutczd@gmail.com>
+Date:   Tue Sep 29 09:05:41 2020 +0000
 
-    cmd/compile: include typecheck information in export/import
+    crypto/tls: make config.Clone return nil if the source is nil
     
-    Include type information on exported function bodies, so that the
-    importer does not have to re-typecheck the body. This involves
-    including type information in the encoded output, as well as
-    avoiding some of the opcode rewriting and other changes that the
-    old exporter did assuming there would be a re-typechecking pass.
+    Fixes #40565
     
-    This CL could be considered a cleanup, but is more important than that
-    because it is an enabling change for generics. Without this CL, we'd
-    have to upgrade the current typechecker to understand generics. With
-    this CL, the current typechecker can mostly go away in favor of the
-    types2 typechecker.
-    
-    For now, inlining of functions that contain closures is turned off.
-    We will hopefully resolve this before freeze.
-    
-    Object files are only 0.07% bigger.
-    
-    Change-Id: I85c9da09f66bfdc910dc3e26abb2613a1831634d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301291
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: I13a67be193f8cd68df02b8729529e627a73d364b
+    GitHub-Last-Rev: b03d2c04fd88db909b40dfd7bd08fe13d8994ab9
+    GitHub-Pull-Request: golang/go#40566
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246637
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/escape/escape.go     |   2 +-
- src/cmd/compile/internal/inline/inl.go        |   6 +-
- src/cmd/compile/internal/typecheck/func.go    |  19 +-
- src/cmd/compile/internal/typecheck/iexport.go | 276 +++++++++++++++++--
- src/cmd/compile/internal/typecheck/iimport.go | 371 +++++++++++++++++++++-----
- test/closure3.dir/main.go                     |  44 +--
- test/inline.go                                |  22 +-
- 7 files changed, 618 insertions(+), 122 deletions(-)
+ src/crypto/tls/common.go   | 5 ++++-
+ src/crypto/tls/tls_test.go | 7 +++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

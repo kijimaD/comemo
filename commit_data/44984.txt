@@ -1,36 +1,18 @@
-commit 8462169b5a6c37e024ca5d49a823d4ce95e90e23
-Author: David Chase <drchase@google.com>
-Date:   Tue Apr 6 18:39:15 2021 -0400
+commit 23573d0ea225d4b93ccd2b946b1de121c3a6cee5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Sep 21 12:00:24 2020 +0700
 
-    cmd/compile: pre-spill pointers in aggregate-typed register args
+    cmd/compile: clearer error when non-bool used as "||" and "&&" operand
     
-    There's a problem in liveness, where liveness of any
-    part of an aggregate keeps the whole aggregate alive,
-    but the not-live parts don't get spilled.  The GC
-    can observe those live-but-not-spilled slots, which
-    can contain junk.
+    Fixes #41500
     
-    A better fix is to change liveness to work
-    pointer-by-pointer, but that is also a riskier,
-    trickier fix.
-    
-    To avoid this, in the case of
-    
-    (1) an aggregate input parameter
-    (2) containing pointers
-    (3) passed in registers
-    
-    pre-spill the pointers.
-    
-    Updates #40724.
-    
-    Change-Id: I6beb8e0a353b1ae3c68c16072f56698061922c04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307909
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I658d8921b7769b6e4288ca781cbdca5ff14a84ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255899
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 14 ++++++---
- test/abi/part_live.go                  | 48 ++++++++++++++++++++++++++++++
- test/abi/part_live_2.go                | 53 ++++++++++++++++++++++++++++++++++
- 3 files changed, 111 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 16 ++++++++++++++++
+ test/fixedbugs/issue41500.go             | 20 ++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

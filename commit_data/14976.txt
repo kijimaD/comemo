@@ -1,14 +1,24 @@
-commit 2e51f7828017db23fa18fc883c5d6a76abcc3b88
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Thu Jan 24 13:32:46 2013 +1100
+commit 249af5c85eb0ba05592ea3ffac71c4a2f824a216
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Thu Jan 24 01:20:17 2013 +0800
 
-    go/build: document blank line required after build constraints
+    crypto/x509: skip SystemRootsError test on Windows
     
-    Fixes #3539.
+    On Windows, crypto/x509 passes through to Windows's CryptoAPI
+    to verify certificate chains. This method can't produce a
+    SystemRootsError, so make sure we always skip the test on
+    Windows.
     
-    R=golang-dev, dave, adg
+    This is needed because testVerify is called in both
+    TestGoVerify and TestSystemVerify on Windows - one is for
+    testing the Go verifier, the other one is for testing the
+    CryptoAPI verifier. The orignal CL tried to sidestep
+    this issue by setting systemSkip to true, but that only
+    affected TestSystemVerify.
+    
+    R=golang-dev, agl, snaury, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7206049
+    https://golang.org/cl/7185043
 
- src/pkg/go/build/doc.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/crypto/x509/verify_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

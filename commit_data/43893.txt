@@ -1,15 +1,17 @@
-commit 4f42a9b76b2ca2c261a4afec986b9518a61626ee
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Nov 21 14:48:26 2020 +0800
+commit 183d25d9963107e6e4e86c49018ddd8871109d61
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 27 14:02:06 2020 -0400
 
-    net: add note about disabling loopback in ListenMulticastUDP()
+    [dev.link] cmd/link/internal/sym: remove SortSub
     
-    Fixes #41752
+    Remove SortSub; this function no longer referenced.
     
-    Change-Id: I83520d2303e5fd2e5f6329f092b40e73c13771a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271908
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ie0c78f5cd048a8f465f84ceeab30db57be5c05a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230457
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/udpsock.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/link/internal/sym/symbol.go | 74 -------------------------------------
+ 1 file changed, 74 deletions(-)

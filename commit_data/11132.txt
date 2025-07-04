@@ -1,18 +1,16 @@
-commit 6f77cd291419dcd70faf611ecc82dc50cc294552
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 11:32:28 2012 -0800
+commit 701f70abf6ac76fbd28c640ec49609090882f05a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 12 11:23:33 2012 -0800
 
-    strconv: fix round up corner case
+    sql: fix potential corruption in QueryRow.Scan into a *[]byte
     
-    Comment described the correct condition
-    but the code did not implement it.
+    Fixes #2622
     
-    Fixes #2625.
-    
-    R=remyoudompheng
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5530082
+    https://golang.org/cl/5533077
 
- src/pkg/strconv/ftoa.go      | 2 +-
- src/pkg/strconv/ftoa_test.go | 4 ++++
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/exp/sql/fakedb_test.go | 25 +++++++++++++++++++++++++
+ src/pkg/exp/sql/sql.go         | 32 +++++++++++++++++++++++++++-----
+ src/pkg/exp/sql/sql_test.go    | 18 ++++++++++++++----
+ 3 files changed, 66 insertions(+), 9 deletions(-)

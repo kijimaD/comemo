@@ -1,21 +1,16 @@
-commit 9df93e4d6d31674ee9ca7725bcf9dea2423d4aea
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Oct 13 13:18:03 2019 +0100
+commit f484e9699d9d18e578493dc0f9924ce2b56a42d9
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Aug 29 16:21:58 2019 -0700
 
-    doc: document atexit_sleep_ms flag in race_detector
+    runtime: use all 64 bits of hash seed on arm64
     
-    It was pointed out to me that the thread sanitizer library has many more
-    flags than the ones documented in this doc page. In particular, I was
-    able to make use of GORACE=atexit_sleep_ms=10 to reduce the amount that
-    'go test -race' will sleep before finishing.
+    Fixes #33960
     
-    I'm sure that this flag will be useful to others in the future, so add
-    it here. This is still not a complete list, but we can simply add useful
-    flags that work when we think they deserve a mention.
-    
-    Change-Id: If199d36fd80a0945af90055d110519e5dba27361
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200863
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I4f8cf65dcf4140a97e7b368572b31c171c453316
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192498
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/articles/race_detector.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/asm_arm64.s | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,16 +1,38 @@
-commit 5305bdedb0be18c0636d2b4a707bf08228909c27
+commit af18bce87cc7ee1ffc68f91abefa241ab209539e
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 9 19:00:42 2021 -0400
+Date:   Sun Sep 20 23:29:20 2020 -0400
 
-    test: do not run (another) softfloat test with regabiargs
+    cmd/link: consider interface conversions only in reachable code
     
-    I missed one in CL 308710.
+    The linker prunes methods that are not directly reachable if the
+    receiver type is never converted to interface. Currently, this
+    "never" is too strong: it is invalidated even if the interface
+    conversion is in an unreachable function. This CL improves it by
+    only considering interface conversions in reachable code. To do
+    that, we introduce a marker relocation R_USEIFACE, which marks
+    the target symbol as UsedInIface if the source symbol is reached.
     
-    Change-Id: Ia277eaba6982f4944992d1bee1e11775934b789f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309151
+    binary size    before      after
+    cmd/compile   18897528   18887400
+    cmd/go        13607372   13470652
+    
+    Change-Id: I66c6b69eeff9ae02d84d2e6f2bc7f1b29dd53910
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256797
     Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
 
- test/fixedbugs/issue26163.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go                |  8 ++-
+ src/cmd/compile/internal/gc/sinit.go               |  2 +-
+ src/cmd/compile/internal/gc/walk.go                | 15 +++--
+ src/cmd/internal/obj/s390x/asmz.go                 |  6 +-
+ src/cmd/internal/obj/wasm/wasmobj.go               |  2 +
+ src/cmd/internal/obj/x86/asm6.go                   |  7 ++-
+ src/cmd/internal/objabi/reloctype.go               |  5 ++
+ src/cmd/internal/objabi/reloctype_string.go        | 66 +++++++++++++++++++++-
+ src/cmd/link/internal/ld/data.go                   |  6 ++
+ src/cmd/link/internal/ld/deadcode.go               | 14 +++++
+ .../internal/ld/testdata/deadcode/ifacemethod.go   |  9 ++-
+ src/cmd/link/internal/loader/loader.go             |  1 +
+ src/cmd/link/internal/wasm/asm.go                  |  3 +
+ 13 files changed, 129 insertions(+), 15 deletions(-)

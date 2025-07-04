@@ -1,30 +1,24 @@
-commit 85902b6786bbe40b297cbbf823f489b07c654bbd
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu May 14 17:01:11 2020 +0800
+commit 0f99ab4e8629f205ea613e78122f6cfb3ec0561f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 17 01:27:11 2020 -0500
 
-    cmd/compile: convert rest ARM64.rules lines to typed aux mode
+    [dev.link] cmd/internal/goobj2: move NoSplit to symbol flag
     
-    This patch adds the ARM6464Bitfield auxInt to auxIntType() and
-    returns its Go type as "arm64Bitfield" type, which is defined
-    as int16 type.
+    Move NoSplit flag from FuncInfo to symbol flag, so this can be
+    accessed easily without reading the FuncInfo.
     
-    And the Go type of SymOff auxInt is int32, but some functions
-    (such as min(), areAdjacentOffsets() and read16/32/64(),etc.)
-    use SymOff as an input parameter and treat its type as int64,
-    this patch adds the type conversion for these rules.
+    The CFunc flag is never used. Remove.
     
-    Passes toolstash-check -all.
-    
-    Change-Id: Ib234b48d0a97ef244dd37878e06b5825316dd782
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234378
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I8bf4fcb2f209434bb90ccc4987a4c3f28f003323
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220058
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules   |    2 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  722 ++++---
- src/cmd/compile/internal/ssa/gen/rulegen.go  |    2 +
- src/cmd/compile/internal/ssa/op.go           |    6 +
- src/cmd/compile/internal/ssa/rewrite.go      |   16 +-
- src/cmd/compile/internal/ssa/rewriteARM.go   |   12 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 2704 +++++++++++++-------------
- src/cmd/compile/internal/ssa/value.go        |   11 +-
- 8 files changed, 1746 insertions(+), 1729 deletions(-)
+ src/cmd/internal/goobj/readnew.go      |  2 +-
+ src/cmd/internal/goobj2/funcinfo.go    |  7 -------
+ src/cmd/internal/goobj2/objfile.go     |  4 ++--
+ src/cmd/internal/obj/objfile2.go       | 13 ++++---------
+ src/cmd/link/internal/loader/loader.go |  7 ++++++-
+ 5 files changed, 13 insertions(+), 20 deletions(-)

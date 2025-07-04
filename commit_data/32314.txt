@@ -1,75 +1,36 @@
-commit a0453a180fc3555843185385e9d4ad9d57f1d36a
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Aug 14 11:44:09 2017 +0200
+commit 79c56addb680b04804e1c3553ba96760d0172d55
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 14 13:52:27 2017 -0400
 
-    cmd/compile: combine x*n + y*n into (x+y)*n
+    runtime: make sweep trace events encompass entire sweep loop
     
-    There are a few cases where this can be useful. Apart from the obvious
-    (and silly)
+    Currently, each individual span sweep emits a span to the trace. But
+    sweeps are generally done in loops until some condition is satisfied,
+    so this tracing is lower-level than anyone really wants any hides the
+    fact that no other work is being accomplished between adjacent sweep
+    events. This is also high overhead: enabling tracing significantly
+    impacts sweep latency.
     
-      100*n + 200*n
+    Replace this with instead tracing around the sweep loops used for
+    allocation. This is slightly tricky because sweep loops don't
+    generally know if any sweeping will happen in them. Hence, we make the
+    tracing lazy by recording in the P that we would like to start tracing
+    the sweep *if* one happens, and then only closing the sweep event if
+    we started it.
     
-    where we generate one IMUL instead of two, consider:
+    This does mean we don't get tracing on every sweep path, which are
+    legion. However, we get much more informative tracing on the paths
+    that block allocation, which are the paths that matter.
     
-      15*n + 31*n
-    
-    Currently, the compiler strength-reduces both imuls, generating:
-    
-        0x0000 00000        MOVQ    "".n+8(SP), AX
-            0x0005 00005    MOVQ    AX, CX
-            0x0008 00008    SHLQ    $4, AX
-            0x000c 00012    SUBQ    CX, AX
-            0x000f 00015    MOVQ    CX, DX
-            0x0012 00018    SHLQ    $5, CX
-            0x0016 00022    SUBQ    DX, CX
-            0x0019 00025    ADDQ    CX, AX
-            0x001c 00028    MOVQ    AX, "".~r1+16(SP)
-            0x0021 00033    RET
-    
-    But combining the imuls is both faster and shorter:
-    
-            0x0000 00000    MOVQ    "".n+8(SP), AX
-            0x0005 00005    IMULQ   $46, AX
-            0x0009 00009    MOVQ    AX, "".~r1+16(SP)
-            0x000e 00014    RET
-    
-    even without strength-reduction.
-    
-    Moreover, consider:
-    
-      5*n + 7*(n+1) + 11*(n+2)
-    
-    We already have a rule that rewrites 7(n+1) into 7n+7, so the
-    generated code (without imuls merging) looks like this:
-    
-            0x0000 00000    MOVQ    "".n+8(SP), AX
-            0x0005 00005    LEAQ    (AX)(AX*4), CX
-            0x0009 00009    MOVQ    AX, DX
-            0x000c 00012    NEGQ    AX
-            0x000f 00015    LEAQ    (AX)(DX*8), AX
-            0x0013 00019    ADDQ    CX, AX
-            0x0016 00022    LEAQ    (DX)(CX*2), CX
-            0x001a 00026    LEAQ    29(AX)(CX*1), AX
-            0x001f 00031    MOVQ    AX, "".~r1+16(SP)
-    
-    But with imuls merging, the 5n, 7n and 11n factors get merged, and the
-    generated code looks like this:
-    
-            0x0000 00000    MOVQ    "".n+8(SP), AX
-            0x0005 00005    IMULQ   $23, AX
-            0x0009 00009    ADDQ    $29, AX
-            0x000d 00013    MOVQ    AX, "".~r1+16(SP)
-            0x0012 00018    RET
-    
-    Which is both faster and shorter; that's also the exact same code that
-    clang and the intel c compiler generate for the above expression.
-    
-    Change-Id: Ib4d5503f05d2f2efe31a1be14e2fe6cac33730a9
-    Reviewed-on: https://go-review.googlesource.com/55143
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I73e14fbb250acb0c9d92e3648bddaa5e7d7e271c
+    Reviewed-on: https://go-review.googlesource.com/40810
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go        |   38 +
- src/cmd/compile/internal/ssa/gen/generic.rules |    6 +
- src/cmd/compile/internal/ssa/rewritegeneric.go | 1072 +++++++++++++++++++++++-
- test/mergemul.go                               |   81 ++
- 4 files changed, 1151 insertions(+), 46 deletions(-)
+ src/runtime/mcentral.go | 11 +++++++++++
+ src/runtime/mgcsweep.go | 13 +++++++++----
+ src/runtime/mheap.go    |  6 ++++++
+ src/runtime/runtime2.go |  5 +++++
+ src/runtime/trace.go    | 31 +++++++++++++++++++++++++++++--
+ 5 files changed, 60 insertions(+), 6 deletions(-)

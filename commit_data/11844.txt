@@ -1,21 +1,13 @@
-commit a52fb458dfd6fcf45256099ab6b03c45c065b621
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Feb 13 14:54:46 2012 +0100
+commit 7bd6ebb104acb150263774d7fa054c1f93c67806
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 13 23:39:56 2012 +1100
 
-    exp/norm: merged charinfo and decomposition tables. As a result only
-    one trie lookup per rune is needed. See forminfo.go for a description
-    of the new format.  Also included leading and trailing canonical
-    combining class in decomposition information.  This will often avoid
-    additional trie lookups.
+    spec: strings are more slices than arrays
+    Thanks to Aaron Kemp for noticing.
     
-    R=r, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5616071
+    https://golang.org/cl/5645097
 
- src/pkg/exp/norm/composition.go |     2 +-
- src/pkg/exp/norm/forminfo.go    |   105 +-
- src/pkg/exp/norm/input.go       |    29 +-
- src/pkg/exp/norm/maketables.go  |   171 +-
- src/pkg/exp/norm/normalize.go   |     2 +-
- src/pkg/exp/norm/tables.go      | 12154 +++++++++++++++++++-------------------
- 6 files changed, 6211 insertions(+), 6252 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

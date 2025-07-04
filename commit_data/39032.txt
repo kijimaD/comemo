@@ -1,20 +1,34 @@
-commit 59ea685ce96a696281e56badd80d2e5dd618b0b0
-Author: Paul Jolly <paul@myitcv.io>
-Date:   Fri May 3 20:46:52 2019 +0100
+commit 2d00007bdb996dc859ffb16b601e0f51bb72662c
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 17 20:57:34 2018 -0500
 
-    cmd/go: fix clang test break as a result of golang.org/cl/127495
+    runtime: flush on every write barrier while debugging
     
-    golang.org/cl/127495 incorrectly tested against environment specifc
-    details that do not form part of the script test conditions. This broke
-    the clang build.
+    Currently, we flush the write barrier buffer on every write barrier
+    once throwOnGCWork is set, but not during the mark completion
+    algorithm itself. As seen in recent failures like
     
-    Fix by removing the specific check; the existing checks are sufficient.
+      https://build.golang.org/log/317369853b803b4ee762b27653f367e1aa445ac1
     
-    Change-Id: Ic6ec873df9343c809968a08dd676e210046da5fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175179
-    Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    by the time we actually catch a late gcWork put, the write barrier
+    buffer is full-size again.
+    
+    As a result, we're probably not catching the actual problematic write
+    barrier, which is probably somewhere in the buffer.
+    
+    Fix this by using the gcWork pause generation to also keep the write
+    barrier buffer small between the mark completion flushes it and when
+    mark completion is done.
+    
+    For #27993.
+    
+    Change-Id: I77618169441d42a7d562fb2a998cfaa89891edb2
+    Reviewed-on: https://go-review.googlesource.com/c/154638
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/testdata/script/bug.txt | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/mgc.go    | 1 +
+ src/runtime/mwbbuf.go | 9 ++++++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

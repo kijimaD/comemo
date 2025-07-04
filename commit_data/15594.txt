@@ -1,18 +1,32 @@
-commit 8cf6e75e2ad03396e1cc05088b73dfe7753c8696
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 5 14:31:17 2013 -0800
+commit e0deb2ef7fe857b2541496197b0e5ad7882990f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 5 15:36:40 2013 -0500
 
-    cmd/vet: change some warnings to errors for consistency.
-    Fixes #4980.
+    undo CL 7301062 / 9742f722b558
     
-    R=golang-dev, rsc, dsymonds
+    broke arm garbage collector
+    
+    traceback_arm fails with a missing pc. It needs CL 7494043.
+    But that only makes the build break later, this time with
+    "invalid freelist". Roll back until it can be fixed correctly.
+    
+    ««« original CL description
+    runtime: restrict stack root scan to locals and arguments
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7479044
+    https://golang.org/cl/7301062
+    »»»
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7493044
 
- src/cmd/vet/doc.go       |  6 ++++++
- src/cmd/vet/main.go      | 15 ++++++++++-----
- src/cmd/vet/method.go    |  2 +-
- src/cmd/vet/print.go     |  2 +-
- src/cmd/vet/structtag.go |  4 ++--
- src/cmd/vet/taglit.go    |  2 +-
- 6 files changed, 21 insertions(+), 10 deletions(-)
+ src/pkg/runtime/mgc0.c          | 59 ++++++++++++++++++++---------------------
+ src/pkg/runtime/mprof.goc       |  2 +-
+ src/pkg/runtime/proc.c          |  2 +-
+ src/pkg/runtime/runtime.h       |  2 +-
+ src/pkg/runtime/sigqueue.goc    |  3 +--
+ src/pkg/runtime/traceback_arm.c | 29 +++++++-------------
+ src/pkg/runtime/traceback_x86.c | 37 ++++++++++----------------
+ 7 files changed, 57 insertions(+), 77 deletions(-)

@@ -1,29 +1,16 @@
-commit 6aee29648fce3af20507787035ae22d06d75d39b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 20 00:30:46 2014 -0400
+commit 661298358c4c84ffacbc266321227a9b6efc7a3b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon May 19 22:39:42 2014 -0400
 
-    runtime: switch default stack size back to 8kB
+    cmd/ld: abort if (32-bit) address relocation is negative on amd64.
+    Update #7980
+    This CL make the linker abort for the example program. For Go 1.4,
+    we need to find a general way to handle large memory model programs.
     
-    The move from 4kB to 8kB in Go 1.2 was to eliminate many stack split hot spots.
-    
-    The move back to 4kB was predicated on copying stacks eliminating
-    the potential for hot spots.
-    
-    Unfortunately, the fact that stacks do not copy 100% of the time means
-    that hot spots can still happen under the right conditions, and the slowdown
-    is worse now than it was in Go 1.2. There is a real program in issue 8030 that
-    sees about a 30x slowdown: it has a reflect call near the top of the stack
-    which inhibits any stack copying on that segment.
-    
-    Go back to 8kB until stack copying can be used 100% of the time.
-    
-    Fixes #8030.
-    
-    LGTM=khr, dave, iant
-    R=iant, khr, r, bradfitz, dave
+    LGTM=dave, josharian, iant
+    R=iant, dave, josharian
     CC=golang-codereviews
-    https://golang.org/cl/92540043
+    https://golang.org/cl/91500046
 
- doc/go1.3.html          | 7 -------
- src/pkg/runtime/stack.h | 2 +-
- 2 files changed, 1 insertion(+), 8 deletions(-)
+ src/cmd/ld/data.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

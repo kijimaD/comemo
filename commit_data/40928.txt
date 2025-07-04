@@ -1,19 +1,33 @@
-commit 709dbd28708eab97993ca06adea74be392c05c1c
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Dec 4 18:01:05 2019 -0500
+commit 66ff373911a87140319a6550e4e1b2c6043b1329
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Aug 23 14:40:20 2019 -0400
 
-    cmd/go: fix list_constraints test on non-amd64 platforms
+    cmd/vendor: update vendored x/arch repo to 8a70ba74b3a1
     
-    Test set GOOS to linux and darwin without setting GOARCH. darwin is
-    not a valid GOOS for all architectures we test.
+    Update vendored x/arch repo to pick up the fix of issue #33802.
     
-    Fixes #35976
+    This is done with the following commands:
     
-    Change-Id: I4da2ebcbf9ad52e07bcc1632b48fcfdbc49b1289
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209900
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    $ cd $GOROOT/src/cmd
+    $ go get -d golang.org/x/arch@latest
+    go: finding golang.org/x/arch latest
+    go: downloading golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+    go: extracting golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+    $ go mod tidy
+    $ go mod vendor
+    
+    Fixes #33802.
+    
+    Change-Id: I0a44f1d83d6f573124cea1f099378b1c851f3feb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191619
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/testdata/script/list_constraints.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go.mod                                        |  2 +-
+ src/cmd/go.sum                                        |  5 +++--
+ src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go | 16 ++++++++--------
+ src/cmd/vendor/modules.txt                            |  2 +-
+ 4 files changed, 13 insertions(+), 12 deletions(-)

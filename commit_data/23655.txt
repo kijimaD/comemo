@@ -1,20 +1,12 @@
-commit a74d030557ed952d8740440d88c412d597d485cc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 13 22:13:32 2015 -0700
+commit 107aab6c340a5ea90b7f50761f2c90e0d7e39032
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 3 16:28:45 2015 -0400
 
-    os/exec: fix plan9 build
+    doc/go1.5.txt: add note about internal
     
-    Fixes build from https://golang.org/cl/12152
-    
-    Plan 9 lacks syscall.EPIPE. I was misled by api/go1.txt and also
-    forgot to use the trybots. :(
-    
-    Change-Id: I4982fe969ad4a8724090cb03009bfb21780d8aa7
-    Reviewed-on: https://go-review.googlesource.com/12153
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6476284a2cf80d50bd0a57fd9a0de9bc74273c7e
+    Reviewed-on: https://go-review.googlesource.com/10680
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/exec/exec.go       | 14 ++++++--------
- src/os/exec/exec_posix.go | 24 ++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 8 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

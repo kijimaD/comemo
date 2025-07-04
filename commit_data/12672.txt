@@ -1,12 +1,16 @@
-commit 2b3fd37066694374d6ea6c6c6f2df8cad08410eb
-Author: Johan Euphrosine <proppy@google.com>
-Date:   Fri Mar 16 15:33:05 2012 -0700
+commit cf0cbfd21a925b39273454c030263b5f9dfab952
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 16 16:35:16 2012 -0400
 
-    godoc: use FormatText for formating code in html template.
+    cmd/go: don't add detail to errPrintedOutput
     
-    R=golang-dev, rsc, r, adg, gri, r
+    This makes the last error-reporting CL a bit less
+    aggressive.  errPrintedOutput is a sentinel value
+    that should not be wrapped.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5835046
+    https://golang.org/cl/5845052
 
- src/cmd/godoc/template.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

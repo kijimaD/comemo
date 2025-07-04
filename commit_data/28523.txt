@@ -1,16 +1,14 @@
-commit f05cd4cde5f7023b1db23b7499cf9b1a6f3ffdec
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Sep 25 12:37:00 2016 -0700
+commit 04acd625d7a1044c8ca78464f6727276577ffb3d
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Tue May 31 22:30:37 2016 +0100
 
-    runtime: simplify conditions testing g.paniconfault
+    context: fix typo in comments
     
-    Implement a comment by Ralph Corderoy on CL 29754.
-    
-    Change-Id: I22bbede211ddcb8a057f16b4f47d335a156cc8d2
-    Reviewed-on: https://go-review.googlesource.com/29756
+    Change-Id: I41310ec88c889fda79d80eaf4a742a1000284f60
+    Reviewed-on: https://go-review.googlesource.com/23591
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/signal_unix.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/context/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

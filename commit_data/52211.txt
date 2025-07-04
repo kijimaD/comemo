@@ -1,23 +1,32 @@
-commit 8b3961264120d188c3c9739370826e346d8748c2
-Author: Nikola Jokic <jokicnikola07@gmail.com>
-Date:   Mon Mar 6 09:52:12 2023 +0100
+commit ac01de5446ec92544768dabee3b0d1faf5f596d9
+Author: João Penteado <4219131+joaopenteado@users.noreply.github.com>
+Date:   Tue Nov 30 18:59:41 2021 +0000
 
-    debug/buildinfo: recognize macOS fat binary in go version
+    net/http: optimize StatusText implementation
     
-    buildinfo did not check for fat magic, which caused go version to report
-    unrecognized file format.
+    The current implementation, although more succinct, relies on a runtime
+    lookup to a "constant" unexported map (which also needs to be
+    initialized at runtime).
     
-    This change reads the fat file and passes the first arch file to machoExe.
+    The proposed implementation is able to be optimized by the compiler at
+    build-time, resulting in *much* more efficient instructions.
+    Additionally, unused string literals may even be removed altogether
+    from the generated binary in some cases.
     
-    Fixes #58796
+    This change is fully backwards-compatible behavior-wise with the
+    existing implementation.
     
-    Change-Id: I45cd26729352e46cc7ecfb13f2e9a8d96d62e0a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473615
+    Change-Id: I36450320aacff5b322195820552f2831d4fecd52
+    GitHub-Last-Rev: e2058f132ef7a193529d4b0e84329ac93e5d1dcb
+    GitHub-Pull-Request: golang/go#49811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367201
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/debug/buildinfo/buildinfo.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/net/http/response.go |   5 +-
+ src/net/http/server.go   |   4 +-
+ src/net/http/status.go   | 198 ++++++++++++++++++++++++++++++-----------------
+ 3 files changed, 132 insertions(+), 75 deletions(-)

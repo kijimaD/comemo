@@ -1,15 +1,19 @@
-commit 2940dd4bf416322011182a7f8d8d5706932db61f
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Mon Mar 17 11:58:02 2014 -0700
+commit d5f208c8746a92fa889b9a9121e0d40dcc1deced
+Author: Nathan John Youngman <nj@nathany.com>
+Date:   Mon Mar 17 09:35:04 2014 +1100
 
-    misc/bash/go: Add a completion rule for "go env".
+    doc: Revise Contribution Guidelines.
     
-    "env" is a valid go command. This patch is to make bash to autocomplete it.
+    Smooth out the setup process for new contributors.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    * Remove references $GOROOT (often not defined).
+    * Add a note for contributing to subrepositories.
+    * Emphasize that hg mail also uploads the latest copy.
+    
+    LGTM=adg
+    R=golang-codereviews, iant, adg
     CC=golang-codereviews
-    https://golang.org/cl/74660045
+    https://golang.org/cl/74370043
 
- misc/bash/go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/contribute.html | 53 +++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 31 insertions(+), 22 deletions(-)

@@ -1,16 +1,22 @@
-commit 08a87938bb95ae8859600be20a998fbb4b904915
-Author: David Chase <drchase@google.com>
-Date:   Mon Sep 30 11:10:36 2019 -0400
+commit 64e29f94e29ce6fa01537f639aec5fbea28a6a7f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 19 16:09:17 2019 +0000
 
-    cmd/compile: make nilcheck more careful about statement relocations
+    internal/goversion: add new package, move Go 1.x constant there out of go/build
     
-    The earlier code was picking nodes that were "poor choices" and
-    thus sometimes losing statements altogether.
+    Found by Josh, who says in the bug that it shrinks cmd/compile by 1.6 MB (6.5%).
     
-    Change-Id: Ibe5ed800ffbd3c926c0ab1bc10c77d72d3042e45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198478
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Fixes #31563
+    
+    Change-Id: I35127af539630e628a0a4f2273af519093536c38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172997
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/ssa/nilcheck.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dep_test.go | 26 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go     |  5 ++---
+ src/cmd/dist/buildtool.go               |  1 +
+ src/go/build/build.go                   | 18 +++++++++---------
+ src/go/build/deps_test.go               |  2 +-
+ src/internal/goversion/goversion.go     | 13 +++++++++++++
+ 6 files changed, 52 insertions(+), 13 deletions(-)

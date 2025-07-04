@@ -1,19 +1,22 @@
-commit 2ed96d0958a2efb0bb7a0b010fc152b557ce9844
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jan 23 14:28:04 2020 -0800
+commit 6b85fa80519615ae5fd58154277b47d77e5cf08b
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Oct 2 10:05:46 2019 +0200
 
-    cmd/compile: use ellipses in RISCV64 rules
+    runtime: iterate ms via allm linked list to avoid race
     
-    Also, explicitly zero AuxInt in some ops (like Div),
-    to make it clear why they do not use an ellipsis.
+    It's pointless to reach all ms via allgs, and doing so introduces a
+    race, since the m member of a g can change underneath it. Instead
+    iterate directly through the allm linked list.
     
-    Passes toolstash-check -all.
+    Updates: #31528
+    Updates: #34130
     
-    Change-Id: Iefd8891fca5d7be8aa1bb91eb1fe2c99c8bf9c88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217011
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I34b88402b44339b0a5b4cd76eafd0ce6e43e2be1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198417
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  190 +--
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 1502 ++++--------------------
- 2 files changed, 308 insertions(+), 1384 deletions(-)
+ src/runtime/os_windows.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

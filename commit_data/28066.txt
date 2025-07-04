@@ -1,34 +1,24 @@
-commit 14efaa0dc3d3ff5a3919c27297297ef0cd5bb625
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Aug 25 14:31:50 2016 -0400
+commit e4ac2d4acc8cb44df2107e3fa1067755feaaa005
+Author: Rick Hudson <rlh@golang.org>
+Date:   Tue Feb 16 17:16:43 2016 -0500
 
-    cmd/compile: qualify unexported fields of unnamed types
+    [dev.garbage] runtime: replace ref with allocCount
     
-    The compiler was canonicalizing unnamed types of the form
+    This is a renaming of the field ref to the
+    more appropriate allocCount. The field
+    holds the number of objects in the span
+    that are currently allocated. Some throws
+    strings were adjusted to more accurately
+    convey the meaning of allocCount.
     
-            struct { i int }
-    
-    across packages, even though an unexported field i should not be
-    accessible from other packages.
-    
-    The fix requires both qualifying the field name in the string used by
-    the compiler to distinguish the type, and ensuring the struct's pkgpath
-    is set in the rtype version of the data when the type being written is
-    not part of the localpkg.
-    
-    Fixes #16616
-    
-    Change-Id: Ibab160b8b5936dfa47b17dbfd48964a65586785b
-    Reviewed-on: https://go-review.googlesource.com/27791
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I10daf44e3e9cc24a10912638c7de3c1984ef8efe
+    Reviewed-on: https://go-review.googlesource.com/19518
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/fmt.go          |  5 ++++-
- src/cmd/compile/internal/gc/reflect.go      |  9 +++++++++
- test/fixedbugs/issue16616.dir/a.go          |  7 +++++++
- test/fixedbugs/issue16616.dir/b.go          | 14 ++++++++++++++
- test/fixedbugs/issue16616.dir/issue16616.go | 26 ++++++++++++++++++++++++++
- test/fixedbugs/issue16616.go                |  9 +++++++++
- 6 files changed, 69 insertions(+), 1 deletion(-)
+ src/runtime/malloc.go   | 10 +++++-----
+ src/runtime/mcache.go   |  4 ++--
+ src/runtime/mcentral.go | 16 ++++++++--------
+ src/runtime/mheap.go    | 14 +++++++-------
+ src/runtime/mstats.go   |  6 +++---
+ src/runtime/stack.go    | 12 ++++++------
+ 6 files changed, 31 insertions(+), 31 deletions(-)

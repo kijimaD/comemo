@@ -1,20 +1,17 @@
-commit c0e5485bd59827d6def05020b201133982a52790
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 25 14:09:02 2018 -0700
+commit d3026dd30ac8a5254ec2165938624397fdecf132
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Apr 5 13:40:51 2018 -0500
 
-    runtime: ignore GNU/Linux sigaction errors for signals 32 and 33
+    cmd/compile/internal/ssa: fix GO386=387 build
     
-    This avoids problems when running under QEMU. It seems that at least
-    some QEMU versions turn the sigaction implementation into a call to
-    the C library sigaction function. The C library function will reject
-    attempts to set the signal handler for signals 32 and 33. Ignore
-    errors in that case.
+    Don't generate FP ops with 1 operand in memory for 387.
     
-    Change-Id: Id443a9a32f6fb0ceef5c59a398e7ede30bf71646
-    Reviewed-on: https://go-review.googlesource.com/125955
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I23b49dfa2a1e60c8778c920230e64785a3ddfbd1
+    Reviewed-on: https://go-review.googlesource.com/105035
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os_linux.go | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules |  6 +--
+ src/cmd/compile/internal/ssa/rewrite386.go | 66 ++++++++++++++++++++----------
+ 2 files changed, 48 insertions(+), 24 deletions(-)

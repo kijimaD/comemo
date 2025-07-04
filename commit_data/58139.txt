@@ -1,63 +1,56 @@
-commit 2f35e1375e6706938d5a307f11388cad92afe288
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Nov 14 15:27:28 2024 +0100
+commit 008dabcd19b5c3f00083c6d4e6c306682bb1bcd0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 4 15:22:49 2023 -0700
 
-    crypto/internal/nistec: move to crypto/internal/fips/nistec
+    cmd/compile/internal/ir: tweak a couple names
     
-    For #69536
+    CallExpr.X -> CallExpr.Fun
     
-    Change-Id: Id9d76aefbbe1f7c957973380c6eaeb5bfb9de967
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627957
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
-    Commit-Queue: Filippo Valsorda <filippo@golang.org>
+    This consistent with go/ast and cmd/compile/internal/syntax.
+    
+    OPRINTN -> OPRINTLN
+    
+    This op represents the "println" builtin; might as well spell it the
+    same way.
+    
+    Change-Id: Iead1b007776658c717879cf0997b3c48028428f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532795
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/stmtlines_test.go     |  2 +-
- src/crypto/ecdh/nist.go                            |  2 +-
- src/crypto/ecdsa/ecdsa.go                          |  2 +-
- src/crypto/elliptic/nistec.go                      | 10 +--
- src/crypto/elliptic/nistec_p256.go                 |  2 +-
- src/crypto/internal/{ => fips}/nistec/_asm/go.mod  |  2 +-
- src/crypto/internal/{ => fips}/nistec/_asm/go.sum  |  0
- .../internal/{ => fips}/nistec/_asm/p256_asm.go    |  2 +-
- src/crypto/internal/fips/nistec/benchmark_test.go  | 71 ++++++++++++++++++++++
- .../internal/{ => fips}/nistec/fiat/Dockerfile     |  0
- src/crypto/internal/{ => fips}/nistec/fiat/README  |  0
- .../nistec/fiat/benchmark_test.go}                 |  2 +-
- .../internal/{ => fips}/nistec/fiat/generate.go    |  2 +-
- src/crypto/internal/{ => fips}/nistec/fiat/p224.go |  2 +-
- .../internal/{ => fips}/nistec/fiat/p224_fiat64.go |  0
- .../internal/{ => fips}/nistec/fiat/p224_invert.go |  0
- src/crypto/internal/{ => fips}/nistec/fiat/p256.go |  2 +-
- .../internal/{ => fips}/nistec/fiat/p256_fiat64.go |  0
- .../internal/{ => fips}/nistec/fiat/p256_invert.go |  0
- src/crypto/internal/{ => fips}/nistec/fiat/p384.go |  2 +-
- .../internal/{ => fips}/nistec/fiat/p384_fiat64.go |  0
- .../internal/{ => fips}/nistec/fiat/p384_invert.go |  0
- src/crypto/internal/{ => fips}/nistec/fiat/p521.go |  2 +-
- .../internal/{ => fips}/nistec/fiat/p521_fiat64.go |  0
- .../internal/{ => fips}/nistec/fiat/p521_invert.go |  0
- src/crypto/internal/{ => fips}/nistec/generate.go  |  4 +-
- src/crypto/internal/{ => fips}/nistec/nistec.go    |  2 +-
- src/crypto/internal/{ => fips}/nistec/p224.go      |  4 +-
- src/crypto/internal/{ => fips}/nistec/p224_sqrt.go |  2 +-
- src/crypto/internal/{ => fips}/nistec/p256.go      | 28 ++++-----
- src/crypto/internal/{ => fips}/nistec/p256_asm.go  | 20 +++---
- .../internal/{ => fips}/nistec/p256_asm_amd64.s    |  0
- .../internal/{ => fips}/nistec/p256_asm_arm64.s    |  0
- .../internal/{ => fips}/nistec/p256_asm_ppc64le.s  |  0
- .../internal/{ => fips}/nistec/p256_asm_s390x.s    |  0
- .../internal/{ => fips}/nistec/p256_asm_test.go    |  0
- .../internal/{ => fips}/nistec/p256_ordinv.go      |  0
- .../{ => fips}/nistec/p256_ordinv_noasm.go         |  0
- .../internal/{ => fips}/nistec/p256_table.go       |  0
- .../nistec/p256_table_test.go}                     |  2 +-
- src/crypto/internal/{ => fips}/nistec/p384.go      |  4 +-
- src/crypto/internal/{ => fips}/nistec/p521.go      |  4 +-
- .../nistec_ordinv_test.go}                         |  4 +-
- .../internal/{nistec => fipstest}/nistec_test.go   | 56 +----------------
- src/go/build/deps_test.go                          |  4 +-
- 45 files changed, 130 insertions(+), 109 deletions(-)
+ .../compile/internal/devirtualize/devirtualize.go  |  6 ++---
+ src/cmd/compile/internal/devirtualize/pgo.go       | 10 ++++----
+ src/cmd/compile/internal/escape/call.go            | 16 ++++++------
+ src/cmd/compile/internal/escape/stmt.go            |  2 +-
+ src/cmd/compile/internal/inline/inl.go             | 28 ++++++++++----------
+ .../inline/inlheur/analyze_func_callsites.go       |  2 +-
+ .../internal/inline/inlheur/analyze_func_flags.go  |  4 +--
+ .../internal/inline/inlheur/analyze_func_params.go |  6 ++---
+ .../inline/inlheur/analyze_func_returns.go         |  4 +--
+ .../inline/inlheur/score_callresult_uses.go        |  4 +--
+ src/cmd/compile/internal/ir/expr.go                |  6 ++---
+ src/cmd/compile/internal/ir/fmt.go                 |  8 +++---
+ src/cmd/compile/internal/ir/func.go                |  4 +--
+ src/cmd/compile/internal/ir/node.go                |  2 +-
+ src/cmd/compile/internal/ir/node_gen.go            | 10 ++++----
+ src/cmd/compile/internal/ir/op_string.go           |  2 +-
+ src/cmd/compile/internal/noder/reader.go           |  2 +-
+ src/cmd/compile/internal/pgo/irgraph.go            |  4 +--
+ src/cmd/compile/internal/reflectdata/reflect.go    |  2 +-
+ src/cmd/compile/internal/ssagen/nowb.go            |  4 +--
+ src/cmd/compile/internal/ssagen/ssa.go             | 30 +++++++++++-----------
+ src/cmd/compile/internal/typecheck/const.go        |  2 +-
+ src/cmd/compile/internal/typecheck/func.go         | 28 ++++++++++----------
+ src/cmd/compile/internal/typecheck/stmt.go         | 12 ++++-----
+ src/cmd/compile/internal/typecheck/typecheck.go    |  4 +--
+ src/cmd/compile/internal/typecheck/universe.go     |  2 +-
+ src/cmd/compile/internal/walk/assign.go            |  2 +-
+ src/cmd/compile/internal/walk/builtin.go           |  2 +-
+ src/cmd/compile/internal/walk/closure.go           |  4 +--
+ src/cmd/compile/internal/walk/expr.go              | 18 ++++++-------
+ src/cmd/compile/internal/walk/order.go             |  4 +--
+ src/cmd/compile/internal/walk/stmt.go              |  8 +++---
+ 32 files changed, 121 insertions(+), 121 deletions(-)

@@ -1,18 +1,31 @@
-commit e872807e2b7d74ba4ac474e697027a9318439d04
+commit 083d94f69c35b2244ea43738c1d28aa5d9e6d567
 Author: qmuntal <quimmuntal@gmail.com>
-Date:   Sat Dec 9 01:03:32 2023 +0100
+Date:   Fri Dec 23 13:22:00 2022 +0100
 
-    doc: document SEH changes
+    runtime: use explicit NOFRAME on windows/amd64
     
-    For #57302.
-    For #61422.
+    This CL marks non-leaf nosplit assembly functions as NOFRAME to avoid
+    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
     
-    Change-Id: Iee4e6600bf473eb982d0cb7330f7b2c1b48b9e13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548575
+    Updates #57302
+    Updates #40044
+    
+    Change-Id: Ia4d26f8420dcf2b54528969ffbf40a73f1315d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459395
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.22.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/internal/obj/x86/obj6.go |  3 +-
+ src/runtime/asm_amd64.s          | 64 ++++++++++++++++++++--------------------
+ src/runtime/cgo/asm_amd64.s      |  2 +-
+ src/runtime/duff_amd64.s         |  4 +--
+ src/runtime/mkduff.go            |  4 +--
+ src/runtime/race_amd64.s         | 28 +++++++++---------
+ src/runtime/rt0_windows_amd64.s  |  2 +-
+ src/runtime/sys_windows_amd64.s  |  6 ++--
+ src/runtime/wincallback.go       |  4 ++-
+ src/runtime/zcallback_windows.s  |  4 ++-
+ 10 files changed, 63 insertions(+), 58 deletions(-)

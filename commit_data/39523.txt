@@ -1,15 +1,18 @@
-commit 5bc46cb71215f445797fb55e2b4eee795ee1ca17
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Jul 14 19:08:57 2019 +0200
+commit 294edb272d5d145665bdf8b4254609eae0363a8d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 12:31:18 2019 -0800
 
-    doc/go1.13: remove 1.12 reference from 1.13 release notes
+    path/filepath: don't discard .. in EvalSymlinks
     
-    While it's true that CL 168479 was also backported to 1.12, this is
-    irrelevant for the Go1.13 release notes.
+    EvalSymlinks was mishandling cases like "/x/../../y" or "../../../x"
+    where there is an extra ".." that goes past the start of the path.
     
-    Change-Id: I044be69f8f2bc005f58a0d63db05129add15f674
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186138
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #30520
+    
+    Change-Id: I07525575f83009032fa1a99aa270c8d42007d276
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164762
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.13.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/path/filepath/path_test.go | 100 +++++++++++++++++++++++++++++++++++++++++
+ src/path/filepath/symlink.go   |  10 ++++-
+ 2 files changed, 109 insertions(+), 1 deletion(-)

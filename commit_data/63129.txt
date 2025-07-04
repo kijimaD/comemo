@@ -1,0 +1,23 @@
+commit 2a5ac1a993efc463efdce7996efd356dabf03a25
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 21 12:18:03 2025 -0400
+
+    cmd/doc: allow go doc -http without package in current directory
+    
+    go doc tries to find a package to display documentation for. In the case
+    that no package is provided, it uses "." just like go list does. So if
+    go doc -http is run without any arguments, it tries to show the
+    documentation for the package in the current directory. As a special
+    case, if no arguments are provided, allow no package to match the
+    current directory and just open the root pkgsite page.
+    
+    For #68106
+    
+    Change-Id: I6d65b160a838591db953fac630eced6b09106877
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675075
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/doc/main.go | 60 +++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 40 insertions(+), 20 deletions(-)

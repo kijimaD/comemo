@@ -1,26 +1,17 @@
-commit 61011de1af0bc6ab286c4722632719d3da2cf746
-Author: David Chase <drchase@google.com>
-Date:   Tue Nov 23 13:29:13 2021 -0500
+commit 5811605df9011ae415b25be70045ed7a302a5e37
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Apr 8 17:03:18 2021 -0400
 
-    cmd/compile: try to preserve IsStmt marks from OpConvert
+    cmd/go: fix mod_list_update_nolatest on windows
     
-    Note when a statement mark was not consumed during Prog
-    generation, and try to use it on a subsequent opcode so
-    that the statement marker will not be lost.
+    Fixes #45456
     
-    And a test.
-    
-    Fixes #49628.
-    
-    Change-Id: I03f7782a9809cc4a0a5870df92b3e182cf124554
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366694
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7d313d7fbe29813f2abb062b6feec43280c2d283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308653
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/debug_lines_test.go     | 19 +++++++++++++++++++
- src/cmd/compile/internal/ssa/testdata/convertline.go | 16 ++++++++++++++++
- src/cmd/compile/internal/ssagen/ssa.go               | 17 +++++++++++++++++
- 3 files changed, 52 insertions(+)
+ src/cmd/go/testdata/script/mod_list_update_nolatest.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,60 @@
-commit 6dfe0162a659d75bf83379dd03c040ae8666b9a5
+commit 70db440885fead4f0bb391d92e4e7f16b9c67389
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu May 17 04:22:44 2012 +0800
+Date:   Thu May 17 02:58:14 2012 +0800
 
-    misc/chrome/gophertool: lower CL number's lower bound and fix input focus on Mac
-    As our CL number could be as small as 152046, changed CL number's lower bound
-    to 150000. Hopefully our issue count won't reach 150000 any time soon.
-    Chrome on Mac OS X has very strange behavior regarding the focus, although we
-    force the focus to the input box on load, the page still come up with focus on
-    "issue". Set the tabindex of the input box as a workaround.
+    cmd/5c: re-enable regopt()
+            After CL 6185047, ./all.bash passed.
     
-    R=golang-dev, bradfitz
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkAppend                      5558         4894  -11.95%
+    BenchmarkAppendSpecialCase           5242         4572  -12.78%
+    BenchmarkSelectUncontended           3719         2821  -24.15%
+    BenchmarkSelectContended             3776         2832  -25.00%
+    BenchmarkSelectNonblock              1030         1089   +5.73%
+    BenchmarkChanUncontended              530          422  -20.38%
+    BenchmarkChanContended                534          444  -16.85%
+    BenchmarkChanSync                    1613         1492   -7.50%
+    BenchmarkChanProdCons0               1520         1351  -11.12%
+    BenchmarkChanProdCons10               785          668  -14.90%
+    BenchmarkChanProdCons100              564          473  -16.13%
+    BenchmarkChanProdConsWork0          11205        10337   -7.75%
+    BenchmarkChanProdConsWork10          9806         9567   -2.44%
+    BenchmarkChanProdConsWork100         9413         9398   -0.16%
+    BenchmarkChanCreation               11687         8715  -25.43%
+    BenchmarkChanSem                      553          453  -18.08%
+    BenchmarkCallClosure                   22           22   +0.44%
+    BenchmarkCallClosure1                  28           28   +0.71%
+    BenchmarkCallClosure2                2224         1668  -25.00%
+    BenchmarkCallClosure3                2217         1629  -26.52%
+    BenchmarkCallClosure4                2240         1684  -24.82%
+    BenchmarkComplex128DivNormal          930          912   -1.94%
+    BenchmarkComplex128DivNisNaN          862          866   +0.46%
+    BenchmarkComplex128DivDisNaN          849          852   +0.35%
+    BenchmarkComplex128DivNisInf          556          583   +4.86%
+    BenchmarkComplex128DivDisInf          522          512   -1.92%
+    BenchmarkConvT2E                      175          159   -9.14%
+    BenchmarkConvT2EBig                  2418         1823  -24.61%
+    BenchmarkConvT2I                      545          549   +0.73%
+    BenchmarkConvI2E                       35           32   -9.58%
+    BenchmarkConvI2I                      404          391   -3.22%
+    BenchmarkAssertE2T                     75           62  -16.25%
+    BenchmarkAssertE2TBig                  76           63  -16.80%
+    BenchmarkAssertE2I                    427          409   -4.22%
+    BenchmarkAssertI2T                     82           66  -20.29%
+    BenchmarkAssertI2I                    430          416   -3.26%
+    BenchmarkAssertI2E                     36           32  -12.50%
+    BenchmarkAssertE2E                     35           35   +0.57%
+    BenchmarkFinalizer                   3224         2941   -8.78%
+    BenchmarkFinalizerRun              117392        84772  -27.79%
+    BenchmarkStackGrowth                 5267         5930  +12.59%
+    BenchmarkSyscall                      191          167  -12.57%
+    BenchmarkSyscallWork                 9918         7713  -22.23%
+    BenchmarkIfaceCmp100                 1645         1652   +0.43%
+    BenchmarkIfaceCmpNil100              1433         1440   +0.49%
+    
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6212055
+    https://golang.org/cl/6202070
 
- misc/chrome/gophertool/gopher.js  | 2 +-
- misc/chrome/gophertool/popup.html | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/5c/reg.c | 7 -------
+ 1 file changed, 7 deletions(-)

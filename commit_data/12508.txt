@@ -1,25 +1,14 @@
-commit f3c39d8f2bff2c1c5dde404dc533ac0b38326645
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 7 21:28:50 2012 -0800
+commit c9836be112d4c9f7836c2adcfa2f7e941c8a1ecd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 16:10:55 2012 +1100
 
-    go/parser: avoid endless loop in case of internal error
+    doc: link to go1 and go1compat from docs index
     
-    Factored the error synchronization code into two functions
-    syncStmt and syncDecl. Because they may return w/o advancing
-    the scanner, there is potential for endless loops across
-    multiple parse functions; typically caused by an incorrect
-    token list in these functions (e.g., adding token.ELSE to
-    syncStmt will cause the parser to go into an endless loop
-    for test/syntax/semi7.go without this mechanism). This would
-    indicate a compiler bug, exposed only in an error situation
-    for very specific source files. Added a mechanism to force
-    scanner advance if an endless loop is detected. As a result,
-    error recovery will be less good in those cases, but the parser
-    reported a source error already and at least doesn't get stuck.
+    Fixes #3239.
     
-    R=rsc, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5784046
+    https://golang.org/cl/5782049
 
- src/pkg/go/parser/parser.go | 96 +++++++++++++++++++++++++++++++--------------
- 1 file changed, 66 insertions(+), 30 deletions(-)
+ doc/docs.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

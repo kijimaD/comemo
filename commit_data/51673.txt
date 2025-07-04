@@ -1,24 +1,20 @@
-commit 24a9d7bc1834d6a4019a965c759d2282fa029229
+commit eeb9f095dc13a6beed41db0e734b6ae1e97f15d1
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jan 10 10:38:18 2023 -0500
+Date:   Wed Mar 2 16:36:27 2022 -0500
 
-    cmd/go/internal/vcweb: simplify hgHandler cancellation
+    testing: include ERROR_SHARING_VIOLATION in Windows cleanup retries
     
-    This uses the new Cancel and WaitDelay fields of os/exec.Cmd
-    (added in #50436) to interrupt or kill the 'hg serve' command
-    when its incoming http.Request is canceled.
+    Fixes #51442
+    Updates #50051
     
-    This should keep the vcweb hg handler from getting stuck if 'hg serve'
-    hangs after the request either completes or is canceled.
-    
-    Fixes #57597 (maybe).
-    
-    Change-Id: I53cf58e8ab953fd48c0c37f596f99e885a036d9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460997
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1bfbc08c907077467fd50febbec6299a9b73af41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388916
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/vcweb/hg.go | 77 +++++++++++++++++++++--------------------
- 1 file changed, 39 insertions(+), 38 deletions(-)
+ src/testing/testing.go         |  2 +-
+ src/testing/testing_other.go   |  6 +++---
+ src/testing/testing_windows.go | 22 ++++++++++++++++++----
+ 3 files changed, 22 insertions(+), 8 deletions(-)

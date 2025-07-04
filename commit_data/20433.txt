@@ -1,33 +1,103 @@
-commit fc469314420f553906a283656ae39bafcf5af1b0
+commit 220a6de47eced55956eb8af8d643d4f5b67fd634
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 16 11:03:11 2014 -0400
+Date:   Mon Sep 8 00:06:45 2014 -0400
 
-    runtime: remove untyped allocation of ParFor
+    build: adjustments for move from src/pkg to src
     
-    Now it's two allocations. I don't see much downside to that,
-    since the two pieces were in different cache lines anyway.
+    This CL adjusts code referring to src/pkg to refer to src.
     
-    Rename 'conservative' to 'cgo_conservative_type' and make
-    clear that _cgo_allocate is the only allowed user.
+    Immediately after submitting this CL, I will submit
+    a change doing 'hg mv src/pkg/* src'.
+    That change will be too large to review with Rietveld
+    but will contain only the 'hg mv'.
     
-    This depends on CL 141490043, which removes the other
-    use of conservative (in defer).
+    This CL will break the build.
+    The followup 'hg mv' will fix it.
     
-    LGTM=dvyukov, iant
-    R=khr, dvyukov, iant
-    CC=golang-codereviews, rlh
-    https://golang.org/cl/139610043
+    For more about the move, see golang.org/s/go14nopkg.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/134570043
 
- misc/cgo/test/callback.go        |  5 ++++
- misc/cgo/test/callback_c_gc.c    | 49 ++++++++++++++++++++++++++++++++++++++++
- misc/cgo/test/callback_c_gccgo.c | 46 +++++++++++++++++++++++++++++++++++++
- misc/cgo/test/cgo_test.go        |  1 +
- misc/cgo/test/exports.go         |  6 +++++
- src/cmd/api/goapi.go             |  1 +
- src/runtime/cgocallback.go       |  2 +-
- src/runtime/malloc.c             |  8 -------
- src/runtime/malloc.h             |  1 -
- src/runtime/mgc0.go              |  9 --------
- src/runtime/parfor.c             | 13 -----------
- src/runtime/runtime.go           |  8 +++++++
- 12 files changed, 117 insertions(+), 32 deletions(-)
+ .hgignore                           |  12 +--
+ doc/articles/go_command.html        |   2 +-
+ doc/articles/race_detector.html     |  24 ++---
+ doc/contribute.html                 |  16 +--
+ doc/debugging_with_gdb.html         |  50 ++++-----
+ doc/effective_go.html               |   4 +-
+ doc/gccgo_contribute.html           |   2 +-
+ doc/go_faq.html                     |   4 +-
+ misc/android/go_android_exec.go     |   2 +-
+ misc/makerelease/makerelease.go     |   4 +-
+ src/androidtest.bash                |   3 +-
+ src/cmd/5a/a.y                      |   2 +-
+ src/cmd/5a/y.tab.c                  |   2 +-
+ src/cmd/5c/cgen.c                   |   2 +-
+ src/cmd/5g/cgen.c                   |   2 +-
+ src/cmd/5g/ggen.c                   |   2 +-
+ src/cmd/5g/gsubr.c                  |   4 +-
+ src/cmd/6a/a.y                      |   2 +-
+ src/cmd/6a/y.tab.c                  |   2 +-
+ src/cmd/6c/cgen.c                   |   2 +-
+ src/cmd/6c/sgen.c                   |   2 +-
+ src/cmd/6g/cgen.c                   |   2 +-
+ src/cmd/6g/ggen.c                   |   2 +-
+ src/cmd/6g/gsubr.c                  |   4 +-
+ src/cmd/8a/a.y                      |   2 +-
+ src/cmd/8a/y.tab.c                  |   2 +-
+ src/cmd/8c/cgen.c                   |   2 +-
+ src/cmd/8g/cgen.c                   |   2 +-
+ src/cmd/8g/ggen.c                   |   2 +-
+ src/cmd/8g/gsubr.c                  |   4 +-
+ src/cmd/api/goapi.go                |   2 +-
+ src/cmd/api/goapi_test.go           |   4 +-
+ src/cmd/cc/pgen.c                   |   2 +-
+ src/cmd/cgo/ast.go                  |   2 +-
+ src/cmd/dist/build.c                | 208 +++++++++++++++++++-----------------
+ src/cmd/dist/buildruntime.c         |   2 +-
+ src/cmd/dist/windows.c              |   2 +-
+ src/cmd/fix/fix.go                  |   2 +-
+ src/cmd/gc/md5.c                    |   2 +-
+ src/cmd/gc/pgen.c                   |   4 +-
+ src/cmd/gc/plive.c                  |   4 +-
+ src/cmd/gc/reflect.c                |  38 +++----
+ src/cmd/gc/select.c                 |   2 +-
+ src/cmd/gc/subr.c                   |   2 +-
+ src/cmd/gc/walk.c                   |   4 +-
+ src/cmd/go/build.go                 |  15 ++-
+ src/cmd/go/main.go                  |   4 +-
+ src/cmd/go/pkg.go                   |  15 +--
+ src/cmd/go/test.bash                |   6 +-
+ src/cmd/gofmt/doc.go                |   2 +-
+ src/cmd/ld/data.c                   |   2 +-
+ src/cmd/ld/decodesym.c              |   4 +-
+ src/cmd/ld/dwarf.c                  |   2 +-
+ src/cmd/ld/lib.c                    |   6 +-
+ src/cmd/ld/pcln.c                   |   2 +-
+ src/cmd/nm/nm_test.go               |   2 +-
+ src/liblink/asm5.c                  |   2 +-
+ src/liblink/asm6.c                  |   2 +-
+ src/liblink/asm8.c                  |   2 +-
+ src/liblink/obj5.c                  |   2 +-
+ src/liblink/obj6.c                  |   2 +-
+ src/liblink/obj8.c                  |   2 +-
+ src/liblink/sym.c                   |   2 +-
+ src/make.bash                       |   2 +-
+ src/make.rc                         |   2 +-
+ src/pkg/go/build/build.go           |  23 ++--
+ src/pkg/math/sqrt.go                |   2 +-
+ src/pkg/net/http/httptest/server.go |   2 +-
+ src/pkg/net/smtp/smtp_test.go       |   2 +-
+ src/pkg/reflect/type.go             |   2 +-
+ src/pkg/reflect/value.go            |   2 +-
+ src/pkg/runtime/Makefile            |   2 +-
+ src/pkg/runtime/debug/stack_test.go |  18 ++--
+ src/pkg/runtime/pprof/pprof_test.go |  42 ++++----
+ src/pkg/runtime/race/race.go        |   2 +-
+ src/pkg/runtime/runtime_test.go     |   2 +-
+ src/pkg/sync/atomic/race.s          |   2 +-
+ test/bench/garbage/parser.go        |   2 +-
+ test/stress/parsego.go              |   2 +-
+ 79 files changed, 309 insertions(+), 321 deletions(-)

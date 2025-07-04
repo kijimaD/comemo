@@ -1,22 +1,29 @@
-commit a52e4b9c7e8f5aae678596e0c198e67b3b2b1087
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 15 14:56:33 2021 -0800
+commit b8371d495bb291f61e4fa3ac1b84116c70ac1223
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Feb 11 19:10:10 2021 +0100
 
-    cmd/compile/internal/types2: use Identical to verify type identity in the Context map
+    runtime: support long paths without fixup on Windows 10 >= 1607
     
-    This is a clean port of CL 362798 from go/types to types2,
-    with an additional comment adjustment in types2 and go/types.
+    Windows 10 >= 1607 allows CreateFile and friends to use long paths if
+    bit 0x80 of the PEB's BitField member is set.
     
-    Change-Id: Ifa3d11f512f794f8ae2b6aca50b625a4a44672de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364135
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    In time this means we'll be able to entirely drop our long path hacks,
+    which have never really worked right (see bugs below). Until that point,
+    we'll simply have things working well on recent Windows.
+    
+    Updates #41734.
+    Updates #21782.
+    Updates #36375.
+    
+    Change-Id: I765de6ea4859dd4e4b8ca80af7f337994734118e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291291
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/types2/context.go     | 52 ++++++++++++++++++++------
- src/cmd/compile/internal/types2/instantiate.go |  4 +-
- src/cmd/compile/internal/types2/named.go       |  2 +-
- src/cmd/compile/internal/types2/predicates.go  | 17 +++++++++
- src/cmd/compile/internal/types2/subst.go       |  2 +-
- src/cmd/compile/internal/types2/typexpr.go     | 18 ++++-----
- src/go/types/typexpr.go                        |  2 +-
- 7 files changed, 72 insertions(+), 25 deletions(-)
+ src/os/export_windows_test.go |  1 +
+ src/os/path_windows.go        |  7 ++++
+ src/os/path_windows_test.go   | 23 ++++++++++
+ src/runtime/os_windows.go     | 97 ++++++++++++++++++++++++++++++++++++++-----
+ 4 files changed, 118 insertions(+), 10 deletions(-)

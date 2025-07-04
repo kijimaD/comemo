@@ -1,21 +1,15 @@
-commit a7bb393628cbd6c5934e4bc34a45e1f0eabc908e
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Jan 26 17:19:00 2015 +0300
+commit 1050c4197ad1cf3ffd1beff111f19d75fc274b3d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Dec 23 00:03:40 2014 -0500
 
-    cmd/gc: don't emit write barriers for *tmp if tmp=&PAUTO
+    runtime: add comments for blank import of "unsafe"
     
-    This is another case where we can say that the address refers to stack.
-    We create such temps for OSTRUCTLIT initialization.
-    
-    This eliminates a handful of write barriers today.
-    But this come up a prerequisite for another change (capturing vars by value),
-    otherwise we emit writebarriers in writebarrier itself when
-    capture writebarrier arguments by value.
-    
-    Change-Id: Ibba93acd0f5431c5a4c3d90ef1e622cb9a7ff50e
-    Reviewed-on: https://go-review.googlesource.com/3285
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iaad548ea90d3b70341a723450d5e4d4c2b88856f
+    Reviewed-on: https://go-review.googlesource.com/2063
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gc/typecheck.c |  3 +++
- src/cmd/gc/walk.c      | 12 +++++++++++-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/runtime/noasm.go            | 2 +-
+ src/runtime/os_android_arm.go   | 2 +-
+ src/runtime/os_windows.go       | 2 +-
+ src/runtime/syscall2_solaris.go | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

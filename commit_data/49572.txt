@@ -1,26 +1,26 @@
-commit 981d5947aff1551a1c0787664b77c4ac1e8f6c6a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 30 13:39:57 2022 -0400
+commit f29abccd8aaadf0297da3947909feca3c8ec31c9
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Thu Aug 26 16:20:33 2021 +0800
 
-    cmd/go: include module root in package index key
+    test: add test cases for issue47892.
     
-    The package index format includes the directory relative to the module
-    root. The module root for a given directory can change even if the
-    contents of the directory itself do not (by adding or removing a
-    go.mod file in some parent directory).
+    This issue has been fixed in https://golang.org/cl/345411
     
-    Thus, we need to invalidate the index for a package when its module
-    root location changes.
+    Fixes: #47892
     
-    Fixes #53586 (I think).
-    
-    Change-Id: I2d9f4de80e16bce75b3106a2bad4a11d8378d037
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415475
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I13dd3814650913da065e5f24a0c61d30adb0633a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345229
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/modindex/read.go      | 11 ++++++++---
- src/cmd/go/testdata/script/issue53586.txt | 18 ++++++++++++++++++
- 2 files changed, 26 insertions(+), 3 deletions(-)
+ test/typeparam/issue47892.dir/a.go     | 17 +++++++++++++++++
+ test/typeparam/issue47892.dir/main.go  | 21 +++++++++++++++++++++
+ test/typeparam/issue47892.go           |  7 +++++++
+ test/typeparam/issue47892b.dir/a.go    | 29 +++++++++++++++++++++++++++++
+ test/typeparam/issue47892b.dir/main.go | 17 +++++++++++++++++
+ test/typeparam/issue47892b.go          |  7 +++++++
+ 6 files changed, 98 insertions(+)

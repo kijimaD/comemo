@@ -1,13 +1,15 @@
-commit 3d2e57a312f8c7bcbfd98de6ff9aae7453497efc
+commit b66b22cdd4b4ea8c961746b17360921c8cc83b59
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 30 22:19:02 2011 -0400
+Date:   Wed Mar 30 22:12:30 2011 -0400
 
-    gopack: add P flag to remove prefix from filename information
+    fmt: remove uintptrGetter type checks
     
-    R=r, r2
+    This will make the fmt code easier to gofix
+    when the new reflect interface is ready.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4307047
+    https://golang.org/cl/4324043
 
- src/cmd/gopack/ar.c   | 169 ++++++++++++++++++++++++++++++++++++++++++++++----
- src/cmd/gopack/doc.go |   5 +-
- 2 files changed, 161 insertions(+), 13 deletions(-)
+ src/pkg/fmt/print.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

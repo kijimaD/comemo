@@ -1,19 +1,13 @@
-commit b89a9fff5eee0eab8cb98d3c6532a8613dfdf580
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Fri Mar 21 17:05:57 2014 -0700
+commit f182a6eec895a6d916ed61e9d6f50a84fd970e69
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Mar 21 18:13:23 2014 +0100
 
-    text/scanner: handle non-io.EOF errors
+    runtime: skip stack growth test in short mode
     
-    Currently Scan ignores an error returned from source if the number
-    of bytes source has read is 0.
-    
-    Fixes #7594.
-    
-    LGTM=gri
-    R=golang-codereviews, bradfitz, gri
+    LGTM=dvyukov
+    R=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/78120043
+    https://golang.org/cl/78410043
 
- src/pkg/text/scanner/scanner.go      |  6 +++---
- src/pkg/text/scanner/scanner_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 3 deletions(-)
+ src/pkg/runtime/stack_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

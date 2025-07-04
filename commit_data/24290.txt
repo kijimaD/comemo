@@ -1,36 +1,16 @@
-commit 2421c6e3df9d593e9cb9bce24df9132fc9cf83b7
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Sep 9 14:10:12 2015 +0300
+commit fc7f6d307a7e220506ad2798cd0610962208d26e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 21 12:47:22 2015 -0700
 
-    runtime: optimize duffzero for amd64.
+    cmd/dist: remove prints during test registration
     
-    Use MOVUPS to zero 16 bytes at a time.
+    dist test should not print (especially to stdout) during test
+    registration.  This confuses other tools interacting with dist using
+    dist test --list, etc.
     
-    results (haswell):
-    
-    name             old time/op  new time/op  delta
-    ClearFat8-48     0.62ns ± 2%  0.62ns ± 1%     ~     (p=0.085 n=20+15)
-    ClearFat12-48    0.93ns ± 2%  0.93ns ± 2%     ~     (p=0.757 n=19+19)
-    ClearFat16-48    1.23ns ± 1%  1.23ns ± 1%     ~     (p=0.896 n=19+17)
-    ClearFat24-48    1.85ns ± 2%  1.84ns ± 0%   -0.51%  (p=0.023 n=20+15)
-    ClearFat32-48    2.45ns ± 0%  2.46ns ± 2%     ~     (p=0.053 n=17+18)
-    ClearFat40-48    1.99ns ± 0%  0.92ns ± 2%  -53.54%  (p=0.000 n=19+20)
-    ClearFat48-48    2.15ns ± 1%  0.92ns ± 2%  -56.93%  (p=0.000 n=19+20)
-    ClearFat56-48    2.46ns ± 1%  1.23ns ± 0%  -49.98%  (p=0.000 n=19+14)
-    ClearFat64-48    2.76ns ± 0%  2.14ns ± 1%  -22.21%  (p=0.000 n=17+17)
-    ClearFat128-48   5.21ns ± 0%  3.99ns ± 0%  -23.46%  (p=0.000 n=17+19)
-    ClearFat256-48   10.3ns ± 4%   7.7ns ± 0%  -25.37%  (p=0.000 n=20+17)
-    ClearFat512-48   20.2ns ± 4%  15.0ns ± 1%  -25.58%  (p=0.000 n=20+17)
-    ClearFat1024-48  39.7ns ± 2%  29.7ns ± 0%  -25.05%  (p=0.000 n=19+19)
-    
-    Change-Id: I200401eec971b2dd2450c0651c51e378bd982405
-    Reviewed-on: https://go-review.googlesource.com/14408
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie4f82c13e49590c23a7a235d90ddbc4f5ed81e0b
+    Reviewed-on: https://go-review.googlesource.com/12487
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ggen.go | 305 ++++++++++++++++++++-------------
- src/cmd/compile/internal/amd64/prog.go |   2 +
- src/runtime/duff_amd64.s               | 286 +++++++++++--------------------
- src/runtime/mkduff.go                  |  17 +-
- 4 files changed, 288 insertions(+), 322 deletions(-)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

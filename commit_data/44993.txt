@@ -1,21 +1,19 @@
-commit b55d90052918024caf331b35b209e434e3b7d176
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Apr 7 00:06:06 2021 -0400
+commit 095f66f662ac73e2aafbc369c59fc3870eb9b86f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 18 14:15:56 2020 -0400
 
-    cmd/compile: correct argument area size for typedmemmove/typedmemclr
+    cmd/go/internal/modget: if building packages, only update go.mod if the build succeeds
     
-    When the write barrier pass emits typedmemmove/typedmemclr calls,
-    even the arguments are in registers, we still need to leave space
-    for the spill slots. Count that space. Otherwise when the callee
-    spills arguments it may clobber locals on the caller's frame.
+    Fixes #41315
     
-    Change-Id: I5326943427feaf66cab7658a5bef55b3baf5d345
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307824
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I5b18a0c2d1d72ff556a882e862b95133deb3ef98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255970
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/writebarrier.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/modget/get.go             | 29 +++++++++----------
+ src/cmd/go/testdata/script/mod_get_errors.txt | 41 +++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 15 deletions(-)

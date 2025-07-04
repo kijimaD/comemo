@@ -1,27 +1,18 @@
-commit b04e145248d5d3721a41d4bb26704fdb43caaf38
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 31 21:24:10 2016 -0700
+commit 34f048c9d9cfd839703f96834ec6bd0a500e4b00
+Author: David Chase <drchase@google.com>
+Date:   Sun Feb 28 15:58:17 2016 -0500
 
-    cmd/compile: fix naming of decomposed structs
+    [dev.ssa] cmd/compile: small optimization to prove using sdom tweak
     
-    When a struct is SSAable, we will name its component parts
-    by their field names.  For example,
-    type T struct {
-         a, b, c int
-    }
-    If we ever need to spill a variable x of type T, we will
-    spill its individual components to variables named x.a, x.b,
-    and x.c.
+    Exposed data already in sdom to avoid recreating it in prove.
     
-    Change-Id: I857286ff1f2597f2c4bbd7b4c0b936386fb37131
-    Reviewed-on: https://go-review.googlesource.com/21389
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I834c9c03ed8faeaee013e5a1b3f955908f0e0915
+    Reviewed-on: https://go-review.googlesource.com/19999
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
 
- src/cmd/compile/internal/gc/ssa.go          | 16 ++++++++-
- src/cmd/compile/internal/gc/type.go         |  3 ++
- src/cmd/compile/internal/ssa/config.go      |  1 +
- src/cmd/compile/internal/ssa/decompose.go   | 27 ++++++++++----
- src/cmd/compile/internal/ssa/export_test.go |  3 ++
- src/cmd/compile/internal/ssa/type.go        | 56 +++++++++++++++--------------
- src/cmd/compile/internal/ssa/type_test.go   | 49 ++++++++++++-------------
- 7 files changed, 97 insertions(+), 58 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go      | 10 +---------
+ src/cmd/compile/internal/ssa/sparsetree.go | 20 ++++++++++++++++++--
+ 2 files changed, 19 insertions(+), 11 deletions(-)

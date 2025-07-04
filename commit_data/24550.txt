@@ -1,17 +1,14 @@
-commit 3cd56b4dca8fefe769e384c8e696e9e3eaa40b39
-Author: Austin Clements <austin@google.com>
-Date:   Sat Oct 17 23:57:53 2015 -0400
+commit de641ef0c46d53c36949fdcd773d5b4f27174a57
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Aug 4 09:11:06 2015 +0200
 
-    runtime: combine gcResetGState and gcResetMarkState
+    doc/go1.5.html: update references to runtime/trace package
     
-    These functions are always called together and perform logically
-    related state resets, so combine them in to just gcResetMarkState.
+    Tracing functionality was moved from runtime/pprof to runtime/trace.
     
-    Fixes #11427.
-    
-    Change-Id: I06c17ef65f66186494887a767b3993126955b5fe
-    Reviewed-on: https://go-review.googlesource.com/16041
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I694e0f209d043c7ffecb113f1825175bf963dde3
+    Reviewed-on: https://go-review.googlesource.com/13074
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgc.go | 15 ++++-----------
- 1 file changed, 4 insertions(+), 11 deletions(-)
+ doc/go1.5.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

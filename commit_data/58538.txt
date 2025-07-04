@@ -1,18 +1,20 @@
-commit f70aa3824b637d69aaaa944b3e4691c1fbe6c0d4
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Thu Jan 23 19:35:34 2025 +0000
+commit 2184a76fb8e1aeb0eb2d5401828548a25f90beae
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Nov 2 22:15:25 2023 +0100
 
-    cmd/go: do not call base.fatal for an unset HOME for GOAUTH=netrc
+    embed: fix variable name in example
     
-    This CL silences errors caused by GOAUTH=netrc and HOME being unset.
-    Instead, we log the error if the -x flag is set.
+    Use variable 'mux' for an http.ServeMux, not 'mutex'.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: Ibd323769f3562c169ebf559e060e9afbb63047bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643917
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I58e9a8ebacbb61727ec4b8e4d0fd7f73e86ab381
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539515
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/internal/auth/auth.go            |  3 ++-
- src/cmd/go/testdata/script/goauth_netrc.txt | 13 +++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/embed/example_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

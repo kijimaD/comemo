@@ -1,31 +1,22 @@
-commit 39e59da76debbe98efdf6e2faa045b8c3804d742
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Aug 21 14:50:48 2018 -0500
+commit 73becbf9e242fdde41393c39094f7ec132c09e45
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 24 14:38:18 2018 -0700
 
-    net: use internal/bytealg insetad of linkname tricks
+    go/types: use correct (file) scopes when computing interface method sets
     
-    We are currently using go:linkname for some algorithms from
-    strings/bytes packages, to avoid importing strings/bytes.
-    But strings/bytes are just wrappers around internal/bytealg, so
-    we should use internal/bytealg directly.
+    This was already partially fixed by commit 99843e22e81
+    (https://go-review.googlesource.com/c/go/+/96376); but
+    we missed a couple of places where we also need to
+    propagate the scope.
     
-    Change-Id: I2836f779b88bf8876d5fa725043a6042bdda0390
-    Reviewed-on: https://go-review.googlesource.com/130515
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #25008.
+    
+    Change-Id: I041fa74d1f6d3b5a8edb922efa126ff1dacd7900
+    Reviewed-on: https://go-review.googlesource.com/109139
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/conf.go           |  5 +++--
- src/net/dnsconfig_unix.go |  3 ++-
- src/net/hosts.go          |  3 ++-
- src/net/ip.go             | 16 ++++++----------
- src/net/ipsock.go         | 11 ++++++-----
- src/net/ipsock_plan9.go   |  3 ++-
- src/net/lookup_plan9.go   |  9 +++++----
- src/net/lookup_unix.go    |  3 ++-
- src/net/nss.go            |  9 +++++----
- src/net/parse.go          | 24 ++++++------------------
- src/net/port_unix.go      |  7 +++++--
- src/net/sockopt_posix.go  |  3 ++-
- 12 files changed, 46 insertions(+), 50 deletions(-)
+ src/go/types/check_test.go            |  1 +
+ src/go/types/interfaces.go            | 14 +++++++-------
+ src/go/types/testdata/issue25008a.src | 15 +++++++++++++++
+ src/go/types/testdata/issue25008b.src |  9 +++++++++
+ 4 files changed, 32 insertions(+), 7 deletions(-)

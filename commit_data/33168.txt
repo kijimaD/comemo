@@ -1,23 +1,18 @@
-commit 52dd39965e78260145091226490ee5510ea34ced
-Author: griesemer <gri@golang.org>
-Date:   Wed Oct 18 15:31:42 2017 -0700
+commit f5eb8712f802463ec9b2356e3a9d95186163c7ac
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 20 13:47:57 2017 -0400
 
-    spec: clarify that each block has its own version of iota
+    misc/cgo/testsanitizers: add regression test for change 50251
     
-    Issue #15550 is clearly an esoteric case but the spec was silent
-    about it and we had diverging implementations. By making `iota`
-    and index that is relative to the respective constant declaration,
-    nested const declarations won't affect outer values of `iota`.
+    http://golang.org/cl/50251 fixed a regression under TSAN.
+    This change adds a minimal reproducer for the observed symptom.
     
-    cmd/compile and go/types already follow this semantics.
-    
-    Fixes #15550.
-    
-    Change-Id: If138189e3ea4373f8ba50ac6fb1d219b481f8698
-    Reviewed-on: https://go-review.googlesource.com/71750
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib9ad01b458b7fdec14d6c2fe3c243f9c64b3dcf2
+    Reviewed-on: https://go-review.googlesource.com/50371
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ misc/cgo/testsanitizers/test.bash |  1 +
+ misc/cgo/testsanitizers/tsan12.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

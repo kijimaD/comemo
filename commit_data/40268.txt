@@ -1,18 +1,18 @@
-commit f6c624a22ab0e548d3c95db68b2303fda271838f
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed Oct 16 13:57:08 2019 +0800
+commit a8d0047e473510db1b1a5e35c03fdf41a13b5733
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Tue Jan 15 18:53:44 2019 +0800
 
-    cmd/internal/obj/arm: remove NaCl related DATABUNDLE
+    cmd/go/internal/modcmd: allow mod download without go.mod
     
-    Updates golang/go#30439
+    Fixes #29522
     
-    Change-Id: Ieaf18b7cfd22a768eb1b7ac549ebc03637258876
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201377
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Change-Id: I48f3a945d24c23c7c7ef5c7f1fe5046b6b2898e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/157937
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/internal/obj/arm/a.out.go  |  3 ---
- src/cmd/internal/obj/arm/anames.go |  2 --
- src/cmd/internal/obj/arm/asm5.go   | 20 ++++----------------
- 3 files changed, 4 insertions(+), 21 deletions(-)
+ src/cmd/go/internal/modcmd/download.go      | 5 +++--
+ src/cmd/go/internal/modload/init.go         | 4 +++-
+ src/cmd/go/testdata/script/mod_download.txt | 7 +++++++
+ 3 files changed, 13 insertions(+), 3 deletions(-)

@@ -1,36 +1,27 @@
-commit 16e6cd9a4dc499db164624a048f25e2f382ac016
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 1 12:20:28 2018 -0400
+commit ca642bb326c9eccd880f242c76f1e494d98efbc0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 19 00:56:10 2018 -0400
 
-    cmd/compile: mark function Syms
+    cmd/go: warn about non-use of go.mod in legacy go get
     
-    In order to mark the obj.LSyms produced by the compiler with the
-    correct ABI, we need to know which types.Syms refer to function
-    symbols. This CL adds a flag to types.Syms to mark symbols for
-    functions, and sets this flag everywhere we create a PFUNC-class node,
-    and in the one place where we directly create function symbols without
-    always wrapping them in a PFUNC node (methodSym).
+    It's important for a smooth transition for non-module users
+    not to change operation in GOPATH/src by default in Go 1.11,
+    even if go.mod exists in a downloaded dependency.
     
-    We'll use this information to construct obj.LSyms with correct ABI
-    information.
+    Even so, users create go.mod and then are confused about
+    why 'go get' commands seem to behave oddly, when in fact
+    they are getting the old 'go get'.
     
-    For #27539.
+    Try to split the difference by printing a warning in 'go get'
+    when run in a tree that would normally be considered a
+    module if only it were outside GOPATH/src.
     
-    Change-Id: Ie3ac8bf3da013e449e78f6ca85546a055f275463
-    Reviewed-on: https://go-review.googlesource.com/c/147158
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I55a1cbef127f3f36de54a8d7b93e1fc64bf0a708
+    Reviewed-on: https://go-review.googlesource.com/124859
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/alg.go       | 1 +
- src/cmd/compile/internal/gc/dcl.go       | 9 ++++++++-
- src/cmd/compile/internal/gc/export.go    | 3 +++
- src/cmd/compile/internal/gc/iimport.go   | 1 +
- src/cmd/compile/internal/gc/main.go      | 5 +++++
- src/cmd/compile/internal/gc/ssa.go       | 1 +
- src/cmd/compile/internal/gc/subr.go      | 1 +
- src/cmd/compile/internal/gc/typecheck.go | 1 +
- src/cmd/compile/internal/gc/walk.go      | 1 +
- src/cmd/compile/internal/types/sym.go    | 3 +++
- 10 files changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/cfg/cfg.go                 |  5 +++++
+ src/cmd/go/internal/get/get.go                 |  5 +++++
+ src/cmd/go/internal/modload/init.go            |  3 +++
+ src/cmd/go/testdata/script/mod_get_warning.txt | 10 ++++++++++
+ 4 files changed, 23 insertions(+)

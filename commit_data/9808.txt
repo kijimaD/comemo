@@ -1,15 +1,15 @@
-commit 45301ba8c04cca3501d2324a7e30481e3ce022c0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 26 20:46:37 2011 -0700
+commit 9c643bb3fab4457c1a789e9aad75b5aaf7090753
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 26 18:23:21 2011 -0700
 
-    runtime: check for nil value pointer in select syncsend case
+    exp/norm: fix benchmark bug
     
-    Fixes #2309.
+    - don't use range over string to copy string bytes
+    - some code simplification
     
-    R=rsc, bradfitz
+    R=mpvl
     CC=golang-dev
-    https://golang.org/cl/5128053
+    https://golang.org/cl/5144044
 
- src/pkg/runtime/chan.c |  3 ++-
- test/chan/select7.go   | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 70 insertions(+), 1 deletion(-)
+ src/pkg/exp/norm/normalize_test.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

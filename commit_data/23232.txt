@@ -1,21 +1,17 @@
-commit 0f6da8923f2fcafdedc6fd64c6b2cfe1ecc6c97c
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 19 23:56:30 2015 -0400
+commit 5f69e739d3b01e657e27547641e8db74d2c2a862
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Apr 23 02:43:10 2015 -0400
 
-    cmd/internal/gc: add -buildid flag to write build ID into object file
+    runtime: adjust traceTickDiv for non-x86 architectures
     
-    The build ID is an opaque token supplied by the build system.
-    The compiler writes it out early in the Go export metadata
-    (the second line), in a way that does not bother existing readers.
+    Fixes #10554.
+    Fixes #10623.
     
-    The intent is that the go command can use this to store information
-    about the sources for the generated code, so that it can detect
-    stale packages even in cases (like removed files) where mtimes fail.
-    
-    Change-Id: Ib5082515d6cde8a07a8d4b5c69d1e8e4190cb5e1
-    Reviewed-on: https://go-review.googlesource.com/9153
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I90fbaa34e3d55c8758178f8d2e7fa41ff1194a1b
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/9247
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/gc/export.go |  3 +++
- src/cmd/compile/internal/gc/lex.go    | 12 +++++++-----
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ src/runtime/trace.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

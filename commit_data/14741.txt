@@ -1,15 +1,12 @@
-commit 43f2fc308b92cec6071a4af225af1dafd4d7ba54
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Dec 24 15:33:32 2012 +0400
+commit fcc5cf639ef110eb7e845f3782eb82d2c897d693
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 24 03:48:17 2012 +0800
 
-    runtime/race: make test driver print compilation errors
-    Currently it silently "succeeds" saying that it run 0 tests
-    if there are compilations errors.
-    With this change it fails and outputs the compilation error.
+    doc/articles/wiki/test.bash: suppress unnecessary output
     
-    R=golang-dev, remyoudompheng
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7002058
+    https://golang.org/cl/7000045
 
- src/pkg/runtime/race/race_test.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ doc/articles/wiki/test.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

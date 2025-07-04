@@ -1,30 +1,31 @@
-commit dbe56ff6c7a0162f318ed2dd7331c9de82e11d6d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 27 20:07:30 2022 -0700
+commit bfd74fd4228009bb9243c1836f9886ba1ad56e15
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 3 14:08:43 2021 -0700
 
-    go/types, types2: use "invalid operation: x rel y (cause)" for comparison error messages
+    net: remove the alloc from WriteMsgUDPAddrPort
     
-    Matches compiler behavior and is consistent with what we do with other
-    binary operations.
+    name                       old time/op    new time/op    delta
+    ReadWriteMsgUDPAddrPort-8    5.12µs ± 8%    4.59µs ± 3%  -10.19%  (p=0.000 n=10+9)
     
-    While at it, also use parentheses rather than a colon for a couple of
-    errors caused by not having a core type.
+    name                       old alloc/op   new alloc/op   delta
+    ReadWriteMsgUDPAddrPort-8     64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.000 n=10+10)
     
-    For #55326.
+    name                       old allocs/op  new allocs/op  delta
+    ReadWriteMsgUDPAddrPort-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
     
-    Change-Id: I0a5cec1a31ffda98d363e5528791965a1ccb5842
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435618
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: Idf540b2f9f8035660305a0ab1cfc3e162569db63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361257
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/expr.go             | 10 +++-------
- src/go/types/expr.go                                | 10 +++-------
- src/internal/types/testdata/check/expr2.go          |  8 ++++----
- src/internal/types/testdata/check/typeparams.go     |  6 +++---
- src/internal/types/testdata/fixedbugs/issue43671.go |  4 ++--
- src/internal/types/testdata/fixedbugs/issue51335.go |  4 ++--
- src/internal/types/testdata/fixedbugs/issue51472.go |  8 ++++----
- 7 files changed, 21 insertions(+), 29 deletions(-)
+ src/internal/poll/fd_unix.go        | 52 +++++++++++++++++++++++
+ src/internal/poll/fd_windows.go     | 84 ++++++++++++++++++++++++++++++-------
+ src/internal/syscall/unix/net.go    |  8 ++++
+ src/internal/syscall/unix/net_js.go |  8 ++++
+ src/net/fd_posix.go                 | 12 ++++++
+ src/net/net_fake.go                 |  8 ++++
+ src/net/udpsock_posix.go            |  6 +--
+ src/syscall/syscall_unix.go         | 16 +++++++
+ 8 files changed, 175 insertions(+), 19 deletions(-)

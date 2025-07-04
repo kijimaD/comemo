@@ -1,20 +1,23 @@
-commit 86deb459de6a309503aa445a7d686bd139354e5e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Feb 17 11:38:14 2021 +0700
+commit 1c95530b0d7f494df30e75ae3e3da315945457e4
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jun 16 10:03:48 2020 -0400
 
-    cmd/compile: remove selectnbrecv2
+    cmd: update golang.org/x/tools
     
-    Previous CL did remove selectnbrecv2 in runtime, the compiler now only
-    call selectnbrecv, so remove this. Make this as separated CL because it
-    adds much of noise to git stat.
+    This pulls in CL 235797.
     
-    Change-Id: I06e89c823c0403e9bd66f2633409c455a46d6e79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292891
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #39151
+    
+    Change-Id: I367cff2e9b432a778213501c42fb510c1514643f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238157
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/typecheck/builtin.go      | 197 ++++++++++-----------
- .../compile/internal/typecheck/builtin/runtime.go  |   1 -
- 2 files changed, 97 insertions(+), 101 deletions(-)
+ src/cmd/go.mod                                                   | 2 +-
+ src/cmd/go.sum                                                   | 4 ++--
+ src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go             | 9 +++++++++
+ .../x/tools/go/analysis/passes/stringintconv/string.go           | 2 +-
+ src/cmd/vendor/modules.txt                                       | 2 +-
+ 5 files changed, 14 insertions(+), 5 deletions(-)

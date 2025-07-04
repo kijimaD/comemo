@@ -1,17 +1,30 @@
-commit 58e8e26924ed113a8d5f4187c36ca6ef13f29fb2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 15 11:39:18 2021 -0500
+commit 1b736b3c19375f6ebd0d834c02316fb13700be27
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 6 19:25:28 2021 -0400
 
-    net: skip Lookup tests of external hosts on builders with flaky networks
+    runtime: consolidate "is sweep done" conditions
     
-    For #50191
+    The runtime currently has two different notions of sweep completion:
     
-    Change-Id: Ic1059127e756d69ea9b75cf5805669ec43fedd5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372216
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    1. All spans are either swept or have begun sweeping.
+    
+    2. The sweeper has *finished* sweeping all spans.
+    
+    Having both is confusing (it doesn't help that the documentation is
+    often unclear or wrong). Condition 2 is stronger and the theoretical
+    slight optimization that condition 1 could impact is never actually
+    useful. Hence, this CL consolidates both conditions down to condition 2.
+    
+    Updates #45315.
+    
+    Change-Id: I55c84d767d74eb31a004a5619eaba2e351162332
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307916
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/lookup_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/mgc.go      |  6 +++---
+ src/runtime/mgcsweep.go | 13 ++++++++-----
+ src/runtime/mheap.go    | 13 +++++++------
+ 3 files changed, 18 insertions(+), 14 deletions(-)

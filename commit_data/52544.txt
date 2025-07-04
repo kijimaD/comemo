@@ -1,43 +1,21 @@
-commit be50055eef0f460695adb8db2b130392dc367fe7
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Fri Mar 24 23:11:55 2023 -0700
+commit 3f43096f1549ea32229202618d9cd81a5761c697
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 9 13:23:10 2022 -0700
 
-    runtime: add remaining wasip1 files
+    go/doc/comment: don't crash if there are no words to wrap
     
-    Implements OS interactions and memory management.
+    Fixes #52783
     
-    For #58141
-    
-    Co-authored-by: Richard Musiol <neelance@gmail.com>
-    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
-    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
-    Co-authored-by: Evan Phoenix <evan@phx.io>
-    Change-Id: I876e7b033090c2fe2d76d2535bb63d52efa36185
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479618
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I12e3da40d49cd92776052bf19cb07ee8a07f3ee0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405215
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/internal/testenv/testenv.go |  18 +++
- src/runtime/lock_wasip1.go      | 107 +++++++++++++++++
- src/runtime/mem_js.go           |  19 +--
- src/runtime/mem_wasip1.go       |  13 +++
- src/runtime/mem_wasm.go         |  20 ++++
- src/runtime/netpoll.go          |   2 +-
- src/runtime/netpoll_fake.go     |   6 +-
- src/runtime/os_js.go            | 143 +----------------------
- src/runtime/os_wasip1.go        | 251 ++++++++++++++++++++++++++++++++++++++++
- src/runtime/os_wasm.go          | 152 ++++++++++++++++++++++++
- src/runtime/pprof/pprof_test.go |   6 +
- src/runtime/pprof/proto_test.go |   2 +-
- src/runtime/runtime_test.go     |   4 +-
- src/runtime/semasleep_test.go   |   2 +-
- src/runtime/stubs2.go           |   2 +-
- src/runtime/stubs3.go           |   2 +-
- src/runtime/sys_wasm.s          |   9 --
- src/runtime/timestub2.go        |   2 +-
- src/runtime/trace/trace_test.go |  10 +-
- 19 files changed, 588 insertions(+), 182 deletions(-)
+ src/go/doc/comment/testdata/crash1.txt | 16 ++++++++++++++++
+ src/go/doc/comment/text.go             |  2 +-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

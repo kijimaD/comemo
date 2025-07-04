@@ -1,17 +1,12 @@
-commit 9ebe384b71c8abffd64c50aa619fc4e4b9163261
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 3 14:51:49 2011 -0500
+commit da833474f57150a98d73c10df214a6364d475c5c
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Mar 3 11:26:53 2011 -0800
 
-    io/ioutil: add TempDir
+    testing: run GC before each benchmark run.
     
-    It's a little confusing that os.TempDir and ioutil.TempDir have
-    different meanings.  I don't know what to change the names to,
-    if anything.  At least they also have different signatures.
-    
-    R=golang-dev, bradfitzgo, r, gri
+    R=r, rh, gri, rsc
     CC=golang-dev
-    https://golang.org/cl/4247051
+    https://golang.org/cl/4237055
 
- src/pkg/io/ioutil/tempfile.go      | 32 ++++++++++++++++++++++++++++++++
- src/pkg/io/ioutil/tempfile_test.go | 24 ++++++++++++++++++++++--
- 2 files changed, 54 insertions(+), 2 deletions(-)
+ src/pkg/testing/benchmark.go | 4 ++++
+ 1 file changed, 4 insertions(+)

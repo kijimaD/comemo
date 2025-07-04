@@ -1,117 +1,18 @@
-commit c2ae5c7443fc8bda1d2b06390d4b439e81fb4b09
-Author: David Chase <drchase@google.com>
-Date:   Wed Feb 19 16:47:31 2025 -0500
+commit 26ba75fe5927a078695288da0efefba37b4a4d6e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 18 17:09:18 2023 -0800
 
-    cmd/compile, runtime: use PC of deferreturn for panic transfer
+    doc: document new iteration variable semantics in spec
     
-    this removes the old conditional-on-register-value
-    handshake from the deferproc/deferprocstack logic.
+    For #56010.
     
-    The "line" for the recovery-exit frame itself (not the defers
-    that it runs) is the closing brace of the function.
-    
-    Reduces code size slightly (e.g. go command is 0.2% smaller)
-    
-    Sample output showing effect of this change, also what sort of
-    code it requires to observe the effect:
-    ```
-    package main
-    
-    import "os"
-    
-    func main() {
-            g(len(os.Args) - 1)           // stack[0]
-    }
-    
-    var gi int
-    var pi *int = &gi
-    
-    //go:noinline
-    func g(i int) {
-            switch i {
-            case 0:
-                    defer func() {
-                            println("g0", i)
-                            q()                  // stack[2] if i == 0
-                    }()
-                    for j := *pi; j < 1; j++ {
-                            defer func() {
-                                    println("recover0", recover().(string))
-                            }()
-                    }
-            default:
-                    for j := *pi; j < 1; j++ {
-                            defer func() {
-                                    println("g1", i)
-                                    q()              // stack[2] if i == 1
-                            }()
-                    }
-                    defer func() {
-                            println("recover1", recover().(string))
-                    }()
-            }
-            p()
-    }                                // stack[1] (deferreturn)
-    
-    //go:noinline
-    func p() {
-            panic("p()")
-    }
-    
-    //go:noinline
-    func q() {
-            panic("q()")                 // stack[3]
-    }
-    
-    /* Sample output for "./foo foo":
-    recover1 p()
-    g1 1
-    panic: q()
-    
-    goroutine 1 [running]:
-    main.q()
-            .../main.go:46 +0x2c
-    main.g.func3()
-            .../main.go:29 +0x48
-    main.g(0x1?)
-            .../main.go:37 +0x68
-    main.main()
-            .../main.go:6 +0x28
-    */
-    ```
-    
-    Change-Id: Ie39ea62ecc244213500380ea06d44024cadc2317
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650795
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Icca987a03d80587dd0e901f596ff7788584893ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551095
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go           | 19 +---------
- src/cmd/compile/internal/arm/ssa.go             | 19 +---------
- src/cmd/compile/internal/arm64/ssa.go           | 19 +---------
- src/cmd/compile/internal/loong64/ssa.go         | 17 +--------
- src/cmd/compile/internal/mips/ssa.go            | 17 +--------
- src/cmd/compile/internal/mips64/ssa.go          | 17 +--------
- src/cmd/compile/internal/ppc64/ssa.go           | 21 +----------
- src/cmd/compile/internal/riscv64/ssa.go         | 17 +--------
- src/cmd/compile/internal/s390x/ssa.go           | 15 +-------
- src/cmd/compile/internal/ssa/_gen/genericOps.go | 22 ++++++------
- src/cmd/compile/internal/ssa/func.go            | 12 +++----
- src/cmd/compile/internal/ssagen/ssa.go          | 41 +++++++++++++++------
- src/cmd/compile/internal/wasm/ssa.go            | 14 +-------
- src/cmd/compile/internal/x86/ssa.go             | 19 +---------
- src/cmd/internal/obj/x86/obj6.go                |  3 ++
- src/cmd/link/internal/ld/pcln.go                | 16 ++++++++-
- src/runtime/asm_386.s                           |  4 ---
- src/runtime/asm_amd64.s                         |  5 ---
- src/runtime/asm_arm.s                           |  4 ---
- src/runtime/asm_arm64.s                         |  4 ---
- src/runtime/asm_loong64.s                       |  4 ---
- src/runtime/asm_mips64x.s                       |  4 ---
- src/runtime/asm_mipsx.s                         |  4 ---
- src/runtime/asm_ppc64x.s                        |  4 ---
- src/runtime/asm_riscv64.s                       |  5 ---
- src/runtime/asm_s390x.s                         |  4 ---
- src/runtime/asm_wasm.s                          |  4 ---
- src/runtime/panic.go                            | 48 ++++++++-----------------
- src/runtime/stubs.go                            |  7 ----
- 29 files changed, 90 insertions(+), 299 deletions(-)
+ doc/go_spec.html | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 51 insertions(+), 5 deletions(-)

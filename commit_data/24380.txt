@@ -1,23 +1,17 @@
-commit 82a9d90eda1e1aba06883727756c1e4a06abe772
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Sep 28 04:39:01 2015 +1000
+commit 00cf88e2c60076b5e5e2e07272cd1d188c183ea1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 02:19:57 2015 -0400
 
-    tests/fixedbugs: make test for issue11656 run known instruction
+    cmd/go: use hg repo for code.google.com shutdown check
     
-    As detailed in #11910, the current implementation attempts to execute an area
-    of memory with unknown content. If the memory is executable, the result is
-    unpredictable - instead, make the test deterministic by attempting to execute
-    an instruction that is known to trigger a trap on the given architecture.
+    svn dies due to not being able to validate the googlecode.com certificate.
+    hg does not even attempt to validate it.
     
-    The new implementation is written by iant@ and provided via #11910.
+    Fixes #11806.
     
-    Update issue #11910
-    
-    Change-Id: Ia698c36e0dd98a9d9d16a701f60f6748c6faf896
-    Reviewed-on: https://go-review.googlesource.com/15058
-    Run-TryBot: Joel Sing <jsing@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I84ced5aa84bb1e4a4cdb2254f2d08a64a1ef23f6
+    Reviewed-on: https://go-review.googlesource.com/12558
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue11656.go | 35 ++++++++++++++++++++++-------------
- 1 file changed, 22 insertions(+), 13 deletions(-)
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

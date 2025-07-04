@@ -1,55 +1,25 @@
-commit 0cb0f6d0902aff683de5535565e923c45f8d5a8a
+commit 662ff5421287e3738587a9eb01fa50e080e48582
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 31 14:11:32 2013 -0800
+Date:   Thu Jan 31 13:46:12 2013 -0800
 
-    cmd/ld: support for linking with host linker
+    io: guarantee err == nil for full reads in ReadFull and ReadAtLeast
     
-    A step toward a fix for issue 4069.
+    This is a backwards compatible API change that fixes broken code.
     
-    To allow linking with arbitrary host object files, add a linker mode
-    that can generate a host object file instead of an executable.
-    Then the host linker can be invoked to generate the final executable.
+    In Go 1.0, ReadFull(r, buf) could return either len(buf), nil or len(buf), non-nil.
+    Most code expects only the former, so do that and document the guarantee.
     
-    This CL adds a new -hostobj flag that instructs the linker to write
-    a host object file instead of an executable.
+    Code that was correct before is still correct.
+    Code that was incorrect before, by assuming the guarantee, is now correct too.
     
-    That is, this works:
+    The same applies to ReadAtLeast.
     
-            go tool 6g x.go
-            go tool 6l -hostobj -o x.o x.6
-            ld -e _rt0_amd64_linux x.o
-            ./a.out
+    Fixes #4544.
     
-    as does:
-    
-            go tool 8g x.go
-            go tool 8l -hostld ignored -o x.o x.8
-            ld -m elf_i386 -e _rt0_386_linux x.o
-            ./a.out
-    
-    Because 5l was never updated to use the standard relocation scheme,
-    it will take more work to get this working on ARM.
-    
-    This is a checkpoint of the basic functionality. It does not work
-    with cgo yet, and cgo is the main reason for the change.
-    The command-line interface will likely change too.
-    The gc linker has other information that needs to be returned to
-    the caller for use when invoking the host linker besides the single
-    object file.
-    
-    R=iant, iant
+    R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7060044
+    https://golang.org/cl/7235074
 
- src/cmd/5l/asm.c    |  34 ++++++++++
- src/cmd/6l/asm.c    |  34 ++++++++++
- src/cmd/6l/obj.c    |  10 +++
- src/cmd/8l/asm.c    |  32 +++++++++
- src/cmd/8l/obj.c    |  10 +++
- src/cmd/ld/data.c   |  22 +++++-
- src/cmd/ld/elf.c    | 191 +++++++++++++++++++++++++++++++++++++++++++++++++---
- src/cmd/ld/elf.h    |   1 +
- src/cmd/ld/lib.c    |  13 ++++
- src/cmd/ld/lib.h    |   4 ++
- src/cmd/ld/symtab.c |   2 +
- 11 files changed, 340 insertions(+), 13 deletions(-)
+ src/pkg/io/io.go      | 12 ++++++------
+ src/pkg/io/io_test.go | 27 ++++++++++++++++++++-------
+ 2 files changed, 26 insertions(+), 13 deletions(-)

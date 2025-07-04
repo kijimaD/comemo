@@ -1,13 +1,12 @@
-commit a67c69cbaee1e419b1950832afb295cc951b202e
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 20 10:22:41 2012 -0800
+commit 0a851754a0aaf2e3a203393696eb1a3e0c45c4f6
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jan 20 07:17:52 2012 -0800
 
-    goyacc: fix indexing bug when yydebug >= 2
-    Fixes #2701.
+    misc/xcode/go.xclangspec: fix typo
     
-    R=golang-dev, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5556070
+    https://golang.org/cl/5553049
 
- src/cmd/goyacc/goyacc.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ misc/xcode/go.xclangspec | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

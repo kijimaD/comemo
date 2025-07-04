@@ -1,43 +1,22 @@
-commit 2e9bb62bfed92ef24a6744fbdc3cf24eb672cd56
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Jun 21 21:27:09 2025 -0700
+commit 1ca31eac40c0400efc8211bc2483fd621264be11
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 23 14:39:23 2024 +0000
 
-    encoding/json/v2: reject unquoted dash as a JSON field name
+    cmd/link/internal/ld: revised bindnow/relro test for ELF
     
-    In this blog:
+    This patch re-enables the portion of the TestElfBindNow test that
+    verifies that selected sections are in a read-only segment. Turns out
+    we can't always check for read-only ".got" on all architectures (on
+    ppc64le for example ".got" will only turn up if there is CGO use), so
+    always look for readonly ".dynamic", but only look for readonly ".got"
+    if the section is present.
     
-            https://blog.trailofbits.com/2025/06/17/unexpected-security-footguns-in-gos-parsers/
+    Updates #45681.
     
-    the concern was raised that whenever "-" is combined with other options,
-    the "-" is intepreted as as a name, rather than an ignored field,
-    which may go contrary to user expectation.
-    
-    Static analysis demonstrates that there are ~2k instances of `json:"-,omitempty"
-    in the wild, where almost all of them intended for the field to be ignored.
-    
-    To prevent this footgun, reject any tags that has "-," as a prefix
-    and warn the user to choose one of the reasonable alternatives.
-    
-    The documentation of json/v2 already suggests `json:"'-'"`
-    as the recommended way to explicitly specify dash as the name.
-    See Example_fieldNames for example usages of the single-quoted literal.
-    
-    Update the v1 json documentation to suggest the same thing.
-    
-    Updates #71497
-    
-    Change-Id: I7687b6eecdf82a5d894d057c78a4a90af4f5a6e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/683175
+    Change-Id: I4687ae3cf9a81818268925e17700170ba34204a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581115
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/encoding/json/decode_test.go    | 21 +++++++++++++++++++++
- src/encoding/json/v2/fields.go      |  8 ++++++++
- src/encoding/json/v2/fields_test.go | 13 +++++++++++++
- src/encoding/json/v2_decode_test.go | 21 +++++++++++++++++++++
- src/encoding/json/v2_encode.go      |  7 +++++--
- 5 files changed, 68 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/elf_test.go | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)

@@ -1,26 +1,25 @@
-commit 3313b39bae9ee6b830fecaaaaa004de646f82e50
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue May 2 03:42:30 2023 +1000
+commit a0f05823e4953d137310de164b2544e41dd767d2
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Jul 14 19:40:23 2022 -0700
 
-    cmd/internal/obj/arm64: improve classification of loads and stores
+    syscall: fix skipping some tests on Linux
     
-    Currently, pool literals are added when they are not needed, namely
-    in the case where the offset is a 24 bit unsigned scaled immediate.
-    By improving the classification of loads and stores, we can avoid
-    generating unused pool literals. However, more importantly this
-    provides a basis for further improvement of the load and store
-    code generation.
+    The kernel knob /proc/sys/kernel/unprivileged_userns_clone is
+    only available in Debian (and Ubuntu) kernels, so if the tests
+    are run on e.g. Fedora, skipUnprivilegedUserClone() skips a lot
+    of tests.
     
-    Updates #59615
+    Modify it to treat ENOENT as "it should work".
     
-    Change-Id: Ia3bad1709314565a05894a76c434cca2fa4533c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512538
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: I959201ede139ede989cc8ab646c9bf51e0539ada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417694
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/obj/arm64/a.out.go   |   4 +-
- src/cmd/internal/obj/arm64/anames7.go |   2 +
- src/cmd/internal/obj/arm64/asm7.go    | 177 ++++++++++++++++++++++++++++------
- 3 files changed, 152 insertions(+), 31 deletions(-)
+ src/syscall/exec_linux_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,36 @@
+commit 6783377295e0878aa3ad821eefe3d7879064df6d
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Nov 22 12:34:11 2024 -0800
+
+    net/http: persist header stripping across repeated redirects
+    
+    When an HTTP redirect changes the host of a request, we drop
+    sensitive headers such as Authorization from the redirected request.
+    Fix a bug where a chain of redirects could result in sensitive
+    headers being sent to the wrong host:
+    
+      1. request to a.tld with Authorization header
+      2. a.tld redirects to b.tld
+      3. request to b.tld with no Authorization header
+      4. b.tld redirects to b.tld
+      3. request to b.tld with Authorization header restored
+    
+    Thanks to Kyle Seely for reporting this issue.
+    
+    For #70530
+    Fixes CVE-2024-45336
+    
+    Change-Id: Ia58a2e10d33d6b0cc7220935e771450e5c34de72
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1641
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Commit-Queue: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643095
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/net/http/client.go                     |  65 +++++++++--------
+ src/net/http/client_test.go                | 111 ++++++++++++++++++++---------
+ src/net/http/internal/testcert/testcert.go |  84 +++++++++++-----------
+ 3 files changed, 154 insertions(+), 106 deletions(-)

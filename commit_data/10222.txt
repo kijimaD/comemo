@@ -1,14 +1,12 @@
-commit d6ff3c11774bf36c797dcc6cd946819959766dc1
+commit 1738dc0e71b0a0356f5f88737c8b10d92b619063
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 3 12:07:47 2011 -0400
+Date:   Thu Nov 3 11:32:37 2011 -0400
 
-    gopack: do not look for Go metadata in non-Go objects
+    8a: fix IMULL grammar
     
-    Fixes #2333.
-    
-    R=r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5316075
+    https://golang.org/cl/5298091
 
- src/cmd/gopack/ar.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/8a/lex.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

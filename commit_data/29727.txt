@@ -1,22 +1,37 @@
-commit 130ad87ab7b02a87401246d4a5f0c3f00fc7d709
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 1 22:48:52 2016 -0800
+commit 30088ac9a391d8505a3e016f36aaa23170109f6f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 4 14:35:45 2016 -0700
 
-    cmd/link: don't overalign ELF reloc sections
+    cmd/compile: make CSE faster
     
-    Internal linking on an ELF system creates two reloc sections, which
-    must be adjacent. The default is to base section alignment on the
-    section size, but doing that for ELF reloc sections can introduce a
-    gap. Set the reloc section alignment explicitly to avoid that.
+    To refine a set of possibly equivalent values, the old CSE algorithm
+    picked one value, compared it against all the others, and made two sets
+    out of the results (the values that match the picked value and the
+    values that didn't).  Unfortunately, this leads to O(n^2) behavior. The
+    picked value ends up being equal to no other values, we make size 1 and
+    size n-1 sets, and then recurse on the size n-1 set.
     
-    Fixes #18044.
+    Instead, sort the set by the equivalence classes of its arguments.  Then
+    we just look for spots in the sorted list where the equivalence classes
+    of the arguments change.  This lets us do a multi-way split for O(n lg
+    n) time.
     
-    Change-Id: I8ccc131e60937d30c5f715a34c7803258833fc2f
-    Reviewed-on: https://go-review.googlesource.com/33872
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This change makes cmpDepth unnecessary.
+    
+    The refinement portion used to call the type comparator.  That is
+    unnecessary as the type was already part of the initial partition.
+    
+    Lowers time of 16361 from 8 sec to 3 sec.
+    Lowers time of 15112 from 282 sec to 20 sec. That's kind of unfair, as
+    CL 30257 changed it from 21 sec to 282 sec. But that CL fixed other bad
+    compile times (issue #17127) by large factors, so net still a big win.
+    
+    Fixes #15112
+    Fixes #16361
+    
+    Change-Id: I351ce111bae446608968c6d48710eeb6a3d8e527
+    Reviewed-on: https://go-review.googlesource.com/30354
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/cmd/go/go_test.go            | 9 +++++++++
- src/cmd/link/internal/ld/data.go | 7 +++++++
- 2 files changed, 16 insertions(+)
+ src/cmd/compile/internal/ssa/cse.go | 125 +++++++++++++++++++++---------------
+ 1 file changed, 73 insertions(+), 52 deletions(-)

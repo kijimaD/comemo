@@ -1,24 +1,26 @@
-commit b084073b53bfc4236d95819a3cc34dcbb4f15392
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Apr 6 21:55:19 2021 +0000
+commit f92c64045f5effd4339749b8ce3b63b88cfef4d4
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Sep 21 12:19:47 2020 +0200
 
-    reflect: refactor funcLayout tests
+    debug/dwarf: speed up SkipChildren for compilation units
     
-    This change refactors the existing funcLayout tests and sets them up to
-    support the new register ABI by explicitly setting the register counts
-    to zero. This allows the test to pass if GOEXPERIMENT=regabiargs is set.
+    For a common pattern of iterating only over top-level compilation units (CU)
+    Reader.SkipChildren has decode and meterialize all CU subentries just
+    to skip them, because DW_TAG_compile_unit does not have DW_AT_sibling.
+    However, CUs have total size encoded before the unit and we already parse them
+    and know all unit sizes.
+    Optimize Reader.SkipChildren to use that size when skipping CUs children.
     
-    A follow-up change will add tests for a non-zero register count.
+    This speeds up iteration over a 1.3GB object file from 7.5s to 0.73s.
     
-    For #40724.
-    
-    Change-Id: Ibbe061b4ed4fd70566eb38b9e6182dca32b81127
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307869
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2a8f00955159b4bd13571409f4817805f934cb69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256217
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/reflect/abi_test.go    |  54 +----------
- src/reflect/all_test.go    | 235 ++++++++++++++++++++++-----------------------
- src/reflect/export_test.go |  57 ++++++++---
- 3 files changed, 158 insertions(+), 188 deletions(-)
+ src/debug/dwarf/entry.go      | 21 +++++++++++++++++----
+ src/debug/dwarf/entry_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 4 deletions(-)

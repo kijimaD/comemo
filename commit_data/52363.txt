@@ -1,21 +1,38 @@
-commit 70d836debbaf660d41604761a839e28fa349a8f9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 20 11:47:28 2023 -0700
+commit e5407501cb5c43f9ba874fe5dad215435acbf5a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 09:03:35 2022 -0400
 
-    go.types, types2: factor out checking of LHS in variable assignment
+    [dev.boringcrypto] cmd: use notsha256 instead of md5, sha1, sha256
     
-    Step towards disentangling assignment checking functionality.
-    In preparation for reverse inference of function type arguments,
-    but independently helpful in better separating concerns in the code.
+    When we add GOEXPERIMENT=boringcrypto, the bootstrap process
+    will not converge if the compiler itself depends on the boringcrypto
+    cgo-based implementations of sha1 and sha256.
     
-    Change-Id: I9bac9d8005090c00d9ae6c5cfa13765aacce6b12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477855
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Using notsha256 avoids boringcrypto and makes bootstrap converge.
+    Removing md5 is not strictly necessary but it seemed worthwhile to
+    be consistent.
+    
+    For #51940.
+    
+    Change-Id: Iba649507e0964d1a49a1d16e463dd23c4e348f14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402595
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/assignments.go | 62 ++++++++++++++++----------
- src/go/types/assignments.go                    | 62 ++++++++++++++++----------
- 2 files changed, 78 insertions(+), 46 deletions(-)
+ src/cmd/cgo/main.go                           |  6 +++---
+ src/cmd/compile/internal/liveness/plive.go    |  4 ++--
+ src/cmd/compile/internal/ssa/func.go          |  4 ++--
+ src/cmd/compile/internal/ssa/print.go         |  9 +++++----
+ src/cmd/compile/internal/staticdata/data.go   |  8 ++++----
+ src/cmd/compile/internal/typecheck/iexport.go |  4 ++--
+ src/cmd/compile/internal/types/fmt.go         |  6 +++---
+ src/cmd/dist/buildtool.go                     |  1 +
+ src/cmd/internal/codesign/codesign.go         | 16 ++++++++++++----
+ src/cmd/internal/goobj/objfile.go             |  4 ++--
+ src/cmd/internal/obj/objfile.go               |  4 ++--
+ src/cmd/internal/obj/sym.go                   |  4 ++--
+ src/cmd/link/internal/ld/elf.go               |  6 +++---
+ src/cmd/link/internal/ld/lib.go               |  4 ++--
+ src/cmd/objdump/objdump_test.go               |  4 ++--
+ 15 files changed, 47 insertions(+), 37 deletions(-)

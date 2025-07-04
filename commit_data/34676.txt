@@ -1,34 +1,20 @@
-commit c6e69ec7f930191022f1369761a680eecc2e89f1
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Tue Mar 20 16:56:20 2018 -0400
+commit 86cd9c11764f16a2dcc551336e3aac7ad9f78d3c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 6 20:51:36 2017 -0800
 
-    cmd/vendor/.../pprof: refresh from upstream@a74ae6f
+    runtime: only call netpoll if netpollinited returns true
     
-    Merges updates listed in
-    https://github.com/google/pprof/compare/0e0e5b725...a74ae6f
+    This fixes a race on old Linux kernels, in which we might temporarily
+    set epfd to an invalid value other than -1. It's also the right thing
+    to do. No test because the problem only occurs on old kernels.
     
-    Update #24443
+    Fixes #22606
     
-    cmd/vendor/vendor.json was updated manually.
-    
-    Change-Id: I15d5fe82ac18263d4d54f5773cee0e197e93dd59
-    Reviewed-on: https://go-review.googlesource.com/101736
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Id84bdd6ae6d7c5d47c39e97b74da27576cb51a54
+    Reviewed-on: https://go-review.googlesource.com/76319
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- .../google/pprof/internal/binutils/addr2liner.go   |  25 +++++++++++------
- .../google/pprof/internal/binutils/binutils.go     |  11 ++++++--
- .../pprof/internal/binutils/binutils_test.go       |   4 +--
- .../pprof/internal/binutils/testdata/build_mac.sh  |  31 +++++++++++++++++++++
- .../pprof/internal/binutils/testdata/exe_mac_64    | Bin 0 -> 8648 bytes
- .../testdata/exe_mac_64.dSYM/Contents/Info.plist   |  20 +++++++++++++
- .../Contents/Resources/DWARF/exe_mac_64            | Bin 0 -> 8840 bytes
- .../pprof/internal/binutils/testdata/lib_mac_64    | Bin 0 -> 4496 bytes
- .../testdata/lib_mac_64.dSYM/Contents/Info.plist   |  20 +++++++++++++
- .../Contents/Resources/DWARF/lib_mac_64            | Bin 0 -> 8934 bytes
- .../google/pprof/internal/driver/driver.go         |   2 +-
- .../google/pprof/internal/driver/fetch.go          |   3 +-
- .../google/pprof/internal/driver/interactive.go    |   9 ++++--
- .../google/pprof/internal/elfexec/elfexec.go       |   2 +-
- .../google/pprof/third_party/svgpan/svgpan.go      |   2 +-
- src/cmd/vendor/vendor.json                         |   4 +--
- 16 files changed, 110 insertions(+), 23 deletions(-)
+ src/runtime/proc.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

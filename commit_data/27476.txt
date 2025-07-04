@@ -1,16 +1,17 @@
-commit cc0d8c86e3437c1eec697809bdc9b2bcc8e0ed92
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 20 18:13:49 2016 +0000
+commit aec8e14589edecfd9752255e742b88e15ee651f2
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Mar 20 18:12:32 2016 +0100
 
-    net/http: deflake TestTransportEventTrace_h2
+    fmt: fix padding for 0 precision 0 integer value formatting
     
-    Fixes #15765
+    Fixes #14924
     
-    Change-Id: Id0a89d90ef9d3fffa9af0affca8c10a26fe6b7bc
-    Reviewed-on: https://go-review.googlesource.com/23284
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I098ef973e2cad76a121704492758c2971a9b55f3
+    Reviewed-on: https://go-review.googlesource.com/20920
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/transport_test.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/fmt/fmt_test.go | 1 +
+ src/fmt/format.go   | 5 ++++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

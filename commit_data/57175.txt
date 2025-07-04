@@ -1,25 +1,33 @@
-commit dc5389d85930752dbd858e2e27c9bcbc30f47f74
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Aug 14 03:49:33 2024 +0000
+commit 5c154986094bcc2fb28909cc5f01c9ba1dd9ddd4
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Jul 4 13:39:41 2023 +0200
 
-    crypto,hash: add t.Helper calls to test helpers
+    os: support reading empty root directories on Windows
     
-    Use t.Helper to make the reported failure lines more helpful.
+    GetFileInformationByHandleEx can return `ERROR_FILE_NOT_FOUND` when no
+    files were found in a root directory, as per MS-FSA 2.1.5.6.3 [1].
     
-    Change-Id: I6593924b3892b2441a197aee4e05f71ea236d426
-    GitHub-Last-Rev: 2e020ea85cf44c6cc0e90cb919eb0d7bb5a1c315
-    GitHub-Pull-Request: golang/go#68843
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604755
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This error code should not be treated as an error, but rather as an
+    indication that no files were found, in which case `readdir` should
+    return an empty slice.
+    
+    This CL doesn't add any test as it is difficult to trigger this error
+    code. Empty root directories created using Windows utilities such as
+    `net use` always report at least the optional `.` and `..` entries.
+    A reproducer is provided in #61159, but it requires WinFSP to be
+    installed.
+    
+    Fixes #61159
+    
+    [1] https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsa/fa8194e0-53ec-413b-8315-e8fa85396fd8
+    
+    Change-Id: Id46452030f5355c292e5b0abbf5e22af434a84d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507775
+    Reviewed-by: Nick Craig-Wood <nickcw@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/dsa/dsa_test.go            | 1 +
- src/crypto/internal/hpke/hpke_test.go | 1 +
- src/crypto/tls/tls_test.go            | 1 +
- src/crypto/x509/boring_test.go        | 2 ++
- src/crypto/x509/oid_test.go           | 1 +
- src/crypto/x509/x509_test.go          | 2 ++
- src/hash/maphash/smhasher_test.go     | 5 +++++
- 7 files changed, 13 insertions(+)
+ src/os/dir_windows.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

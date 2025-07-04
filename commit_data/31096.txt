@@ -1,16 +1,134 @@
-commit eacfa592201208ad80003c2e32702c968070149c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 11 12:28:31 2017 -0700
+commit 47ce87877b1e2d4f34bb93fe6c7d88785b318cd5
+Merge: c47df7ae17 ec63158d71
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 1 09:35:27 2017 -0500
 
-    cmd/internal/obj: remove dead Link fields
+    all: merge dev.inline into master
     
-    These are unused after CLs 39922, 40252, 40370, 40371, and 40372.
-    
-    Change-Id: I76f9276c581067a8cb555de761550d960f6e39b8
-    Reviewed-on: https://go-review.googlesource.com/40404
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I7715581a04e513dcda9918e853fa6b1ddc703770
 
- src/cmd/internal/obj/link.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/asm/internal/asm/asm.go                   |   42 +-
+ src/cmd/asm/internal/asm/endtoend_test.go         |    6 +-
+ src/cmd/asm/internal/asm/parse.go                 |   15 +-
+ src/cmd/asm/internal/asm/pseudo_test.go           |    1 -
+ src/cmd/asm/internal/lex/input.go                 |   11 +-
+ src/cmd/asm/internal/lex/lex.go                   |   32 +-
+ src/cmd/asm/internal/lex/slice.go                 |   43 +-
+ src/cmd/asm/internal/lex/stack.go                 |   20 +-
+ src/cmd/asm/internal/lex/tokenizer.go             |   46 +-
+ src/cmd/asm/main.go                               |    3 +-
+ src/cmd/compile/fmt_test.go                       |    3 +-
+ src/cmd/compile/internal/amd64/ssa.go             |    8 +-
+ src/cmd/compile/internal/arm/ssa.go               |    8 +-
+ src/cmd/compile/internal/arm64/ssa.go             |    8 +-
+ src/cmd/compile/internal/gc/alg.go                |    4 +-
+ src/cmd/compile/internal/gc/align.go              |    4 +-
+ src/cmd/compile/internal/gc/asm_test.go           |    2 +-
+ src/cmd/compile/internal/gc/bexport.go            |    6 +-
+ src/cmd/compile/internal/gc/closure.go            |   14 +-
+ src/cmd/compile/internal/gc/const.go              |    7 +-
+ src/cmd/compile/internal/gc/dcl.go                |   38 +-
+ src/cmd/compile/internal/gc/esc.go                |   54 +-
+ src/cmd/compile/internal/gc/fmt.go                |    4 +-
+ src/cmd/compile/internal/gc/gen.go                |    2 +-
+ src/cmd/compile/internal/gc/go.go                 |   11 +-
+ src/cmd/compile/internal/gc/gsubr.go              |    8 +-
+ src/cmd/compile/internal/gc/init.go               |    3 +
+ src/cmd/compile/internal/gc/inl.go                |   15 +-
+ src/cmd/compile/internal/gc/lex.go                |   42 +-
+ src/cmd/compile/internal/gc/main.go               |  125 +--
+ src/cmd/compile/internal/gc/noder.go              |  193 ++--
+ src/cmd/compile/internal/gc/order.go              |    3 +-
+ src/cmd/compile/internal/gc/pgen.go               |    3 +-
+ src/cmd/compile/internal/gc/phi.go                |    7 +-
+ src/cmd/compile/internal/gc/plive.go              |    6 +-
+ src/cmd/compile/internal/gc/racewalk.go           |    3 +-
+ src/cmd/compile/internal/gc/sinit.go              |    4 +-
+ src/cmd/compile/internal/gc/sizeof_test.go        |   10 +-
+ src/cmd/compile/internal/gc/ssa.go                |  198 ++--
+ src/cmd/compile/internal/gc/subr.go               |  135 +--
+ src/cmd/compile/internal/gc/swt.go                |    2 +-
+ src/cmd/compile/internal/gc/syntax.go             |   23 +-
+ src/cmd/compile/internal/gc/type.go               |   17 +-
+ src/cmd/compile/internal/gc/typecheck.go          |   17 +-
+ src/cmd/compile/internal/gc/util.go               |    2 +-
+ src/cmd/compile/internal/gc/walk.go               |   10 +-
+ src/cmd/compile/internal/mips/ssa.go              |    8 +-
+ src/cmd/compile/internal/mips64/ssa.go            |    8 +-
+ src/cmd/compile/internal/ppc64/ssa.go             |    8 +-
+ src/cmd/compile/internal/s390x/ssa.go             |    8 +-
+ src/cmd/compile/internal/ssa/block.go             |    9 +-
+ src/cmd/compile/internal/ssa/checkbce.go          |    2 +-
+ src/cmd/compile/internal/ssa/compile.go           |    3 +-
+ src/cmd/compile/internal/ssa/config.go            |   29 +-
+ src/cmd/compile/internal/ssa/critical.go          |    8 +-
+ src/cmd/compile/internal/ssa/deadstore.go         |    4 +-
+ src/cmd/compile/internal/ssa/decompose.go         |   78 +-
+ src/cmd/compile/internal/ssa/export_test.go       |    7 +-
+ src/cmd/compile/internal/ssa/func.go              |  111 +-
+ src/cmd/compile/internal/ssa/func_test.go         |   11 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules    |    4 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go       |    2 +-
+ src/cmd/compile/internal/ssa/html.go              |    7 +-
+ src/cmd/compile/internal/ssa/likelyadjust.go      |    6 +-
+ src/cmd/compile/internal/ssa/loopbce.go           |   10 +-
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |   20 +-
+ src/cmd/compile/internal/ssa/nilcheck.go          |    8 +-
+ src/cmd/compile/internal/ssa/phielim.go           |    2 +-
+ src/cmd/compile/internal/ssa/phiopt.go            |   10 +-
+ src/cmd/compile/internal/ssa/print.go             |    2 +-
+ src/cmd/compile/internal/ssa/prove.go             |   24 +-
+ src/cmd/compile/internal/ssa/regalloc.go          |  141 +--
+ src/cmd/compile/internal/ssa/rewrite.go           |    2 +-
+ src/cmd/compile/internal/ssa/rewrite386.go        |  456 ++++----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      |  774 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM.go        |  812 +++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM64.go      | 1064 +++++++++---------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go       |  824 +++++++-------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go     | 1202 ++++++++++-----------
+ src/cmd/compile/internal/ssa/rewritePPC64.go      |  886 +++++++--------
+ src/cmd/compile/internal/ssa/rewriteS390X.go      | 1122 +++++++++----------
+ src/cmd/compile/internal/ssa/rewritedec.go        |   58 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go      |  692 ++++++------
+ src/cmd/compile/internal/ssa/rewritegeneric.go    |  486 ++++-----
+ src/cmd/compile/internal/ssa/schedule.go          |    4 +-
+ src/cmd/compile/internal/ssa/shortcircuit.go      |    4 +-
+ src/cmd/compile/internal/ssa/sizeof_test.go       |    4 +-
+ src/cmd/compile/internal/ssa/sparsemap.go         |    8 +-
+ src/cmd/compile/internal/ssa/stackalloc.go        |    7 +-
+ src/cmd/compile/internal/ssa/value.go             |    9 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |   55 +-
+ src/cmd/compile/internal/syntax/dumper_test.go    |    2 +-
+ src/cmd/compile/internal/syntax/nodes.go          |   29 +-
+ src/cmd/compile/internal/syntax/parser.go         |  109 +-
+ src/cmd/compile/internal/syntax/parser_test.go    |   57 +-
+ src/cmd/compile/internal/syntax/printer_test.go   |    4 +-
+ src/cmd/compile/internal/syntax/scanner.go        |  139 +--
+ src/cmd/compile/internal/syntax/scanner_test.go   |  121 ++-
+ src/cmd/compile/internal/syntax/source.go         |   84 +-
+ src/cmd/compile/internal/syntax/syntax.go         |   33 +-
+ src/cmd/compile/internal/x86/ssa.go               |    8 +-
+ src/cmd/dist/buildtool.go                         |    1 +
+ src/cmd/internal/obj/arm/asm5.go                  |    4 +-
+ src/cmd/internal/obj/arm/obj5.go                  |   16 +-
+ src/cmd/internal/obj/arm64/asm7.go                |    4 +-
+ src/cmd/internal/obj/arm64/obj7.go                |   16 +-
+ src/cmd/internal/obj/ld.go                        |    2 +-
+ src/cmd/internal/obj/line.go                      |  243 +----
+ src/cmd/internal/obj/line_test.go                 |   48 +-
+ src/cmd/internal/obj/link.go                      |    9 +-
+ src/cmd/internal/obj/mips/asm0.go                 |    4 +-
+ src/cmd/internal/obj/mips/obj0.go                 |   14 +-
+ src/cmd/internal/obj/pcln.go                      |    6 +-
+ src/cmd/internal/obj/ppc64/obj9.go                |   28 +-
+ src/cmd/internal/obj/s390x/objz.go                |    4 +-
+ src/cmd/internal/obj/sizeof_test.go               |    2 +-
+ src/cmd/internal/obj/sym.go                       |   24 +-
+ src/cmd/internal/obj/util.go                      |    6 +-
+ src/cmd/internal/obj/x86/obj6.go                  |    6 +-
+ src/cmd/internal/src/pos.go                       |  205 ++++
+ src/cmd/internal/src/pos_test.go                  |  134 +++
+ src/cmd/internal/src/xpos.go                      |   75 ++
+ src/cmd/internal/src/xpos_test.go                 |   67 ++
+ test/fixedbugs/issue11610.go                      |    2 +-
+ 124 files changed, 6082 insertions(+), 5641 deletions(-)

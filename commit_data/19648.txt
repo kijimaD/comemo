@@ -1,34 +1,18 @@
-commit a36348008c4acb493be8e4faf209a3818a11f0af
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue Jul 1 17:21:50 2014 -0400
+commit dddc8b193fdd548061bb9f77b9395e6417a97cb6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 1 10:40:27 2014 -0700
 
-    all: add GOOS=android
+    cmd/gofmt: fix gofmt -s for 3-index slices
     
-    As android and linux have significant overlap, and
-    because build tags are a poor way to represent an
-    OS target, this CL introduces an exception into
-    go/build: linux is treated as a synonym for android
-    when matching files.
+    3-index slices of the form s[:len(s):len(s)]
+    cannot be simplified to s[::len(s)].
     
-    http://golang.org/s/go14android
-    https://groups.google.com/forum/#!topic/golang-dev/P1ATVp1mun0
-    
-    LGTM=rsc, minux
-    R=golang-codereviews, mikioh.mikioh, dave, aram, minux, gobot, rsc, aram.h, elias.naur, iant
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/105270043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/108330043
 
- src/cmd/dist/build.c                 |  3 ++-
- src/cmd/dist/buildruntime.c          |  8 ++++++--
- src/liblink/sym.c                    |  1 +
- src/pkg/go/build/build.go            | 18 +++++++++++++++++-
- src/pkg/go/build/build_test.go       | 23 ++++++++++++++++-------
- src/pkg/go/build/doc.go              |  3 +++
- src/pkg/go/build/syslist.go          |  2 +-
- src/pkg/runtime/defs_android_arm.h   |  3 +++
- src/pkg/runtime/os_android.h         |  1 +
- src/pkg/runtime/rt0_android_arm.s    | 11 +++++++++++
- src/pkg/runtime/signal_android_386.h |  1 +
- src/pkg/runtime/signal_android_arm.h |  1 +
- src/pkg/runtime/signals_android.h    |  1 +
- 13 files changed, 64 insertions(+), 12 deletions(-)
+ src/cmd/gofmt/simplify.go             | 7 ++++---
+ src/cmd/gofmt/testdata/slices1.golden | 6 ++++++
+ src/cmd/gofmt/testdata/slices1.input  | 6 ++++++
+ 3 files changed, 16 insertions(+), 3 deletions(-)

@@ -1,13 +1,15 @@
-commit 15fe15a198ef15d925f9d32f38fd4bb5734e4802
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 10 14:51:16 2015 -0800
+commit ee3a1ff6fd11cd8fab3d3f416c85816af7bef4d1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 15 08:26:01 2015 -0800
 
-    math/big: add test cases for Float.Abs and Float.Neg
+    all: update old comments referencing *.goc files
     
-    Change-Id: Ic5f3864bc6d94d60b754e3ccf72b1d40c5c09117
-    Reviewed-on: https://go-review.googlesource.com/4510
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ibf05e55ffe3bb454809cd3450b790e44061511c7
+    Reviewed-on: https://go-review.googlesource.com/2890
     Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/big/float_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 47 insertions(+)
+ src/bytes/bytes_decl.go     | 2 +-
+ src/runtime/malloc2.go      | 4 ++--
+ src/runtime/noasm.go        | 1 -
+ src/syscall/exec_solaris.go | 2 +-
+ 4 files changed, 4 insertions(+), 5 deletions(-)

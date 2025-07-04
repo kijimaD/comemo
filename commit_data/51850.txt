@@ -1,31 +1,17 @@
-commit 4bca2b9583c3300acccc71983cec8b5d4fbbc356
+commit a682a5c711097378a72e6cf3d498832e813a14e8
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 30 12:09:33 2023 -0800
+Date:   Thu Mar 17 17:55:59 2022 -0700
 
-    cmd/link: rename ELF struct fields to remove "elf" prefix
+    sort: generate generic variants with E rather than Elem
     
-    While we're here rename setupplt to setupPLT.
+    For #51698
     
-    This is a pure naming change with no semantic change.
-    
-    Change-Id: Ib0312fb6568475b620dab7632438b4d25e4d9cc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463744
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ifc5bef2cc41b163644ac80ace7c1470c8a130467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393700
+    Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eli Bendersky‎ <eliben@golang.org>
 
- src/cmd/link/internal/amd64/obj.go   |  6 +++---
- src/cmd/link/internal/arm/obj.go     |  6 +++---
- src/cmd/link/internal/arm64/obj.go   |  6 +++---
- src/cmd/link/internal/ld/elf.go      | 16 ++++++++--------
- src/cmd/link/internal/ld/lib.go      |  2 +-
- src/cmd/link/internal/loong64/obj.go |  6 +++---
- src/cmd/link/internal/mips/obj.go    |  6 +++---
- src/cmd/link/internal/mips64/obj.go  |  6 +++---
- src/cmd/link/internal/ppc64/obj.go   |  6 +++---
- src/cmd/link/internal/riscv64/obj.go |  6 +++---
- src/cmd/link/internal/s390x/obj.go   |  6 +++---
- src/cmd/link/internal/x86/obj.go     |  6 +++---
- 12 files changed, 39 insertions(+), 39 deletions(-)
+ src/sort/gen_sort_variants.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

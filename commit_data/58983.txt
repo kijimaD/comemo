@@ -1,21 +1,23 @@
-commit c3950f84303ad05d0ae1ff734ced85ab803e658b
-Author: Gusted <postmaster@gusted.xyz>
-Date:   Sat Mar 8 17:30:06 2025 +0000
+commit f96d9a643202b9f28fad3756d0de8ac6b5c159dd
+Author: Jun10ng <zeonll@outlook.com>
+Date:   Sat Jan 27 11:53:43 2024 +0000
 
-    crypto/pbkdf2: fix code example for Key
+    runtime: reduce one STW when obtaining goroutine configuration file
     
-    The type for password is not `[]byte` (as it was in golang.org/x/crypto/pbkdf2), it is `string`.
+    Fixes #54014
     
-    Change-Id: I914a81a500a6d93f994b587814f26285aef7b96d
-    GitHub-Last-Rev: 5ec752e0def59c1058c649b4543f296467691813
-    GitHub-Pull-Request: golang/go#72746
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656115
+    Change-Id: If4ee2752008729e1ed4b767cfda52effdcec4959
+    GitHub-Last-Rev: 5ce300bf5128f842604d85d5f8749027c8e091c2
+    GitHub-Pull-Request: golang/go#58239
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464349
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/crypto/pbkdf2/pbkdf2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mprof.go       |  5 +++++
+ src/runtime/pprof/pprof.go | 11 ++++++++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)

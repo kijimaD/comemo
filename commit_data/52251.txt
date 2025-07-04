@@ -1,20 +1,22 @@
-commit 53c91f9205e2b61d972ab1eaf5c9716aabe10306
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 10 14:21:01 2023 -0500
+commit 8b364451e2e2f2f816ed877a4639d9342279f299
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Apr 18 11:02:26 2022 +0100
 
-    os: skip TestExecutableDeleted earlier when 'go build' is not supported
+    net/http: drop mimesniff for audio/basic
     
-    The test unconditionally calls testenv.GoToolPath, which will skip the
-    test anyway. Moving the skip earlier gets this test out of goroutine
-    dumps if the test process fails or times out, making it easier to
-    diagnose failures in the remaining tests.
+    The WHATWG Mime Sniffing Standard we follow dropped support for
+    .snd / audio/basic.
+    https://github.com/whatwg/mimesniff/issues/151
     
-    Change-Id: Ibd39546708a83b6f15616b2c4ae7af420e2401f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475455
+    Change-Id: Iae1bd8b29063b06b5b3909a944e12ead5974a526
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400754
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/os/executable_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/sniff.go | 5 -----
+ 1 file changed, 5 deletions(-)

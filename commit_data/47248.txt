@@ -1,25 +1,28 @@
-commit 5af93a2d1556226656f003f65ac1de034b8fb55f
-Author: Katie Hockman <katie@golang.org>
-Date:   Thu Nov 4 13:55:31 2021 -0400
+commit 39bdd41d03725878f1fd6f8b500ba6700f03bdad
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Tue Mar 2 11:54:36 2021 -0800
 
-    internal/fuzz: improve minimizing message
+    cmd/go/internal/modfetch/codehost: report git errors more accurately
     
-    In order to know the actual number of bytes
-    of the entire corpus entry, the coordinator
-    would likely need to unmarshal the bytes and
-    tally up the length. That's more work than it
-    is worth, so this change just clarifies that
-    the printed # of bytes is the length of the
-    entire file, not just the entry itself.
+    Previously, if you attempted to fetch a private repository, or your
+    Git/curl client failed for an unknown reason, codehost would return an
+    UnknownRevisionError, which reported that a given revision in go.mod
+    was "unknown". This is confusing to many users who can go look in
+    their browser for example and see that the commit-ish exists.
     
-    Fixes #48989
+    Instead check whether "git ls-remote" exited with an error, and if so,
+    return that instead of the UnknownRevision message.
     
-    Change-Id: I6fa0c0206a249cefdf6335040c560ec0c5a55b4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361414
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Fixes #42751.
+    
+    Change-Id: I0dbded878b2818280e61126a4493767d719ad577
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297950
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/internal/fuzz/fuzz.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/codehost/git.go       |  6 +++++
+ src/cmd/go/testdata/script/mod_get_private_vcs.txt | 30 ++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

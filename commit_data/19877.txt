@@ -1,14 +1,16 @@
-commit 9c0da2edfcceafadcbc94d1bd889318d778092c7
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 5 18:12:38 2014 +0400
+commit ab5d105ba99e72a4f04c80df3c81725fa18527c7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 4 20:40:44 2014 -0700
 
-    runtime/race: add tests for maps with big keys/vals
-    With the recent GC changes large objects are handled somewhat differently.
+    runtime: use memmove rather than memcopy in mgc0.c
     
-    LGTM=khr
-    R=khr
+    For consistency with other code, as that was the only use of
+    memcopy outside of alg.goc.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/114600043
+    https://golang.org/cl/122030044
 
- src/pkg/runtime/race/testdata/map_test.go | 93 +++++++++++++++++++++++++++++++
- 1 file changed, 93 insertions(+)
+ src/pkg/runtime/mgc0.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

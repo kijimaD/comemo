@@ -1,15 +1,16 @@
-commit 79682199ce56c9afa1edac6c61da3c7abb9393b7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 2 12:05:14 2013 -0700
+commit 15f276bc53e39e87f69c925773221c6bc45791b2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 2 09:35:30 2013 -0700
 
-    cmd/godoc: don't linkify index entries
+    sort: new example: programmatic sort by multiple keys
+    Demonstrates one way to sort a slice of structs according
+    to different sort criteria, done in sequence.
     
-    Fixes #5186.
+    One possible answer to a question that comes up often.
     
-    R=bradfitz
+    R=golang-dev, gri, bradfitz, adg, adg, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/8267044
+    https://golang.org/cl/8182044
 
- lib/godoc/package.html | 24 ++++++++++++------------
- src/cmd/godoc/godoc.go |  8 +++-----
- 2 files changed, 15 insertions(+), 17 deletions(-)
+ src/pkg/sort/example_multi_test.go | 132 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 132 insertions(+)

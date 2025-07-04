@@ -1,26 +1,24 @@
-commit cc3a3519af5b8b4cf26bf27133675776fdfcaeb9
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Feb 8 12:41:26 2022 -0500
+commit 5a40fab19fd615aa879e8f499a63e31d98257886
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 2 17:30:58 2021 -0400
 
-    cmd/link/internal/ld: revise recipe for ASLR enable on windows
+    [dev.typeparams] runtime, internal/bytealg: port performance-critical functions to register ABI on ARM64
     
-    When doing external linking on windows, the existing Go linker code
-    assumed that the external linker defaulted to "--no-dynamicbase" (if
-    no explicit option was given). This assumption doesn't hold for LLD,
-    which turns on "--dynamicbase" by default for 64-bit apps. Change the
-    linker to detect whether a more modern toolchain is in use and to
-    explicitly pass "--dynamicbase" either way , so as to take the
-    external linker default out of the equation. This also applies to the
-    "--high-entropy-va" option as well.
+    This CL ports a few performance-critical assembly functions to use
+    register arguments directly. This is similar to CL 308931 and
+    CL 310184.
     
-    Updates #35006.
-    
-    Change-Id: I3e12cf6d331c9d003e3d2bd566d45de5710588b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384156
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I6e30dfff17f76b8578ce8cfd51de21b66610fdb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324400
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 57 +++++++++++++++++++++++++++++++++--------
- 1 file changed, 47 insertions(+), 10 deletions(-)
+ src/internal/bytealg/compare_arm64.s | 113 ++++++++++++++++----------
+ src/internal/bytealg/equal_arm64.s   |  93 ++++++++++++++--------
+ src/runtime/asm_arm64.s              | 150 +++++++++++++++++++++++------------
+ src/runtime/memclr_arm64.s           |   4 +-
+ src/runtime/memmove_arm64.s          |   4 +-
+ 5 files changed, 233 insertions(+), 131 deletions(-)

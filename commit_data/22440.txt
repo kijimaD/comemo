@@ -1,14 +1,22 @@
-commit bbbbca78a6af43be8f2ff11f0b14ddc76f208786
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:38:45 2015 -0400
+commit 18d9ddc35c2159c30df3db4c2d47ef9d11b51e4f
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:11:41 2015 +0100
 
-    cmd/nm: skip fork test on darwin/arm64
+    cmd/asm: add support for ARM64
     
-    Just like darwin/arm.
+    Pre/post-index addressing modes with writeback use .W and .P
+    instruction suffixes, like on ARM.
     
-    Change-Id: Iabb6282f18548da43117ee60f7ad6e272502f09d
-    Reviewed-on: https://go-review.googlesource.com/8825
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Complex addressing modes are not supported yet.
+    
+    Change-Id: I537a1c3fe5b057c0812662677d0010bc8c468ffb
+    Reviewed-on: https://go-review.googlesource.com/7047
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/nm/nm_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/arch/arch.go        |  86 +++++++++++++++++++++++
+ src/cmd/asm/internal/arch/arm.go         |   8 ++-
+ src/cmd/asm/internal/arch/arm64.go       | 114 +++++++++++++++++++++++++++++++
+ src/cmd/asm/internal/asm/asm.go          |  43 +++++++++---
+ src/cmd/asm/internal/asm/operand_test.go |  52 ++++++++++++++
+ src/cmd/asm/internal/asm/parse.go        |   2 +-
+ 6 files changed, 291 insertions(+), 14 deletions(-)

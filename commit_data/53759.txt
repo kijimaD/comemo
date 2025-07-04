@@ -1,23 +1,28 @@
-commit 2eca0b1e1663d826893b6b1fd8bd89da98e65d1e
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Fri Jul 21 18:49:09 2023 +0000
+commit 1280ae7856d5226a7a4135621a6292240faa7657
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 15:45:35 2022 -0700
 
-    testing: enforce -skip in example tests
+    go/parser: leave checking of LHS in short var decls to type checker
     
-    The go test flag -skip had no effect in example tests.
+    Instead of checking at parse-time that the LHS of a short variable
+    declaration contains only identifiers, leave the check to the the
+    type checker which tests this already.
     
-    Fixes #61482
+    This removes a duplicate error and matches the behavior of the
+    syntax package.
     
-    Change-Id: I28dfddb88fef3fead2a3c74f9cb63a674a768231
-    GitHub-Last-Rev: e8c3c3460af906f4c7be7f7a8b4a4c60b71fcec1
-    GitHub-Pull-Request: golang/go#61491
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511837
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    For #54511.
+    
+    Change-Id: I4c68f2bd8a0e015133685f9308beb98e714a83fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426476
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/go/testdata/script/test_skip.txt | 10 ++++++++++
- src/testing/example.go                   | 10 +++-------
- 2 files changed, 13 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go     |  2 --
+ src/go/parser/parser.go                       | 20 ++------------------
+ src/go/parser/short_test.go                   |  1 -
+ src/go/types/testdata/fixedbugs/issue43087.go |  2 +-
+ 4 files changed, 3 insertions(+), 22 deletions(-)

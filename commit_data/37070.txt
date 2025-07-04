@@ -1,27 +1,20 @@
-commit b171b281386670713acf3d5a696b1f520b60798e
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 16:19:18 2018 +0200
+commit 50bd1c4d4eb4fac8ddeb5f063c099daccfb71b26
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Jun 25 14:26:53 2018 -0400
 
-    cmd/link: add new loading package for XCOFF files
+    os: have UserCacheDir return an error on failure
     
-    This commit adds the new package cmd/link/internal/loadxcoff.
+    Previously, it would return an empty string if it
+    could not determine the user's cache directory.
+    Return an error instead.
     
-    It also adds a new symbol kind in cmd/link/internal/sym package, which
-    aims to represent TOC entries for XCOFF files.
-    
-    cmd/dist is updated to add this new package and cmd/internal/xcoff during
-    the bootstrap.
-    
-    Updates: #25893
-    
-    Change-Id: I42b6578cf0ba4cc28ad4aa98122a91ab1d1bbf6e
-    Reviewed-on: https://go-review.googlesource.com/c/138728
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I74f00b1ad3858efa3fe2700c599271ebfe5764b6
+    Reviewed-on: https://go-review.googlesource.com/120757
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/buildtool.go                   |   1 +
- src/cmd/link/internal/loadxcoff/ldxcoff.go  | 225 ++++++++++++++++++++++++++++
- src/cmd/link/internal/sym/symkind.go        |   1 +
- src/cmd/link/internal/sym/symkind_string.go |   4 +-
- 4 files changed, 229 insertions(+), 2 deletions(-)
+ api/go1.11.txt |  2 +-
+ src/os/file.go | 15 +++++++++------
+ 2 files changed, 10 insertions(+), 7 deletions(-)

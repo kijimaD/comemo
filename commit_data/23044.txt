@@ -1,16 +1,17 @@
-commit d4ed30612c9eead7b1d59179cae5d468fb900f35
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 15 08:45:16 2015 -0700
+commit 91c80ce6c75b5b11dc3f888d4a1f34c7133f2341
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 13 17:06:22 2015 -0400
 
-    syscall: don't run fcntl child process test on iOS
+    runtime: make mcache.local_cachealloc a uintptr
     
-    Fixes darwin-arm{,64} builds.
-    Child processes aren't allowed on iOS.
+    This field used to decrease with sweeps (and potentially go
+    negative). Now it is always zero or positive, so change it to a
+    uintptr so it meshes better with other memory stats.
     
-    Change-Id: I9258ed4df757ec394ef6327dbda96f5b9705bcdd
-    Reviewed-on: https://go-review.googlesource.com/10142
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6a50a956ddc6077eeaf92011c51743cb69540a3c
+    Reviewed-on: https://go-review.googlesource.com/8899
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/syscall/syscall_unix_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/malloc.go | 2 +-
+ src/runtime/mcache.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

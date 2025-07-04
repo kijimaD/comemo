@@ -1,14 +1,13 @@
-commit 78cee46f3ac116590380f2e25c0910eb44112d90
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Dec 15 14:19:51 2012 +0900
+commit edc5d7ef2a66e989cc0befa4efbb8e115f05b64c
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Dec 14 12:04:08 2012 -0500
 
-    src: gofmt -w -s
+    A+C: Casey Marshall (individual CLA)
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6935059
+    https://golang.org/cl/6948050
 
- src/pkg/exp/locale/collate/colelem.go       | 2 +-
- src/pkg/runtime/race/testdata/map_test.go   | 4 ++--
- src/pkg/runtime/race/testdata/slice_test.go | 6 +++---
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

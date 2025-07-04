@@ -1,20 +1,21 @@
-commit 7dc62f3bda96359cc1904f4ea387f9a1c82c9f9d
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Jul 7 09:21:58 2023 +0700
+commit acabf87127fab93513df46811d5f473ef72905b1
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Aug 14 16:45:33 2022 +0800
 
-    test: add test cases for index value with range array clear
+    reflect: add Value.{Comparable,Equal}
     
-    Updates #61127
+    For #46746
     
-    Change-Id: I5fb032c990b64bb4f455a7c0345cfb556bf263bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508335
+    Change-Id: I879124974cdb55932cd9d07d3b384d49d5059857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423794
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- test/for.go | 22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ api/next/46746.txt      |   2 +
+ src/reflect/all_test.go | 363 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    |  86 ++++++++++++
+ 3 files changed, 451 insertions(+)

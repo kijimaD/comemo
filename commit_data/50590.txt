@@ -1,20 +1,37 @@
-commit eab78849fc24f890836d00c04b495e64d4fe4187
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 19 10:50:11 2022 +0200
+commit b24687394b55a93449e2be4e6892ead58ea9a10f
+Author: Jason7602 <jansonzhe@gmail.com>
+Date:   Tue Sep 14 21:38:19 2021 +0800
 
-    cmd/go/internal, go/build: remove unused errGoBuildWithoutBuild
+    archive/zip: don't panic on (*Reader).Open
     
-    Last use was removed by CL 240607.
+    Previously, opening a zip with (*Reader).Open could result in a panic if
+    the zip contained a file whose name was exclusively made up of slash
+    characters or ".." path elements.
     
-    Change-Id: Icfe9e477c6035823bd676a2ff28e1ac202dd991e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431662
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Open could also panic if passed the empty string directly as an argument.
+    
+    Now, any files in the zip whose name could not be made valid for
+    fs.FS.Open will be skipped, and no longer added to the fs.FS file list,
+    although they are still accessible through (*Reader).File.
+    
+    Note that it was already the case that a file could be accessible from
+    (*Reader).Open with a name different from the one in (*Reader).File, as
+    the former is the cleaned name, while the latter is the original one.
+    
+    Finally, made the actual panic site robust as a defense-in-depth measure.
+    
+    Fixes CVE-2021-41772
+    Fixes #48085
+    
+    Co-authored-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I6271a3f2892e7746f52e213b8eba9a1bba974678
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349770
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Julie Qiu <julie@golang.org>
 
- src/cmd/go/internal/imports/build.go  | 3 +--
- src/cmd/go/internal/modindex/build.go | 3 +--
- src/go/build/build.go                 | 3 +--
- 3 files changed, 3 insertions(+), 6 deletions(-)
+ src/archive/zip/reader.go      |  10 +++-
+ src/archive/zip/reader_test.go | 128 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 136 insertions(+), 2 deletions(-)

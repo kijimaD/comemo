@@ -1,51 +1,20 @@
-commit d42cd452dcca76819dd385a7775f8453d6255dbd
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Tue Nov 14 23:56:51 2023 +0800
+commit 0ff91e03dbb7ed169915b12793cbee9ca9798d4c
+Author: RenKanai <rk2904powr@gmail.com>
+Date:   Sun Mar 27 22:06:22 2022 +0900
 
-    net: add KeepAliveConfig and implement SetKeepAliveConfig
+    cmd/go: reject list when -find and -export are used together
     
-    Fixes #62254
-    Fixes #48622
+    Fixes #51952.
     
-    Change-Id: Ida598e7fa914c8737fdbc1c813bcd68adb5119c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542275
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If2cfc41d65373ca38cfb7b0396be8988d444eb5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396074
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- api/next/62254.txt                                 |  12 ++
- doc/next/6-stdlib/99-minor/net/62254.md            |   4 +
- .../99-minor/syscall (windows-386)/62254.md        |   1 +
- .../99-minor/syscall (windows-amd64)/62254.md      |   1 +
- src/net/dial.go                                    |  45 ++++-
- src/net/dial_test.go                               |  18 +-
- src/net/file_plan9.go                              |   2 +-
- src/net/file_unix.go                               |   2 +-
- src/net/hook.go                                    |   4 +-
- src/net/mockserver_test.go                         |   7 +-
- src/net/tcpconn_keepalive_conf_unix_test.go        | 102 +++++++++++
- src/net/tcpconn_keepalive_darwin_test.go           |  92 ++++++++++
- src/net/tcpconn_keepalive_dragonfly_test.go        |  92 ++++++++++
- src/net/tcpconn_keepalive_solaris_test.go          |  89 ++++++++++
- src/net/tcpconn_keepalive_test.go                  | 195 +++++++++++++++++++++
- src/net/tcpconn_keepalive_unix_test.go             |  92 ++++++++++
- src/net/tcpconn_keepalive_windows_test.go          |  33 ++++
- src/net/tcpsock.go                                 |  60 +++++--
- src/net/tcpsock_plan9.go                           |   4 +-
- src/net/tcpsock_posix.go                           |   4 +-
- src/net/tcpsock_test.go                            |   8 +-
- src/net/tcpsock_unix.go                            |  31 ++++
- src/net/tcpsock_windows.go                         |  26 +++
- src/net/tcpsockopt_darwin.go                       |  44 ++++-
- src/net/tcpsockopt_dragonfly.go                    |  38 +++-
- src/net/tcpsockopt_openbsd.go                      |  23 ++-
- src/net/tcpsockopt_plan9.go                        |  22 ++-
- src/net/tcpsockopt_solaris.go                      |  32 +++-
- src/net/tcpsockopt_stub.go                         |  10 +-
- src/net/tcpsockopt_unix.go                         |  37 +++-
- src/net/tcpsockopt_windows.go                      |  66 ++++++-
- src/syscall/types_windows.go                       |   1 +
- 32 files changed, 1131 insertions(+), 66 deletions(-)
+ src/cmd/go/alldocs.go            | 2 ++
+ src/cmd/go/internal/list/list.go | 5 +++++
+ 2 files changed, 7 insertions(+)

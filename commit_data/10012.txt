@@ -1,20 +1,15 @@
-commit df219d5197cb1e6fe3be7383466dfcf5d755b24f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 17 16:35:12 2011 -0700
+commit e40d6e066a58019f3256635bc19b86b1fe4e7b8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 18:49:02 2011 -0400
 
-    scanner: invalidate scanner.Position when no token is present
+    runtime: random offset for map iteration
     
-    scanner.Position is the position of the most recently
-    scanned token. Make sure it is invalid if there is no
-    token scanned and update corresponding comment. This
-    is particularly important when reporting errors.
-    
-    Fixes #2371.
-    
-    R=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5294041
+    https://golang.org/cl/5285042
 
- src/pkg/scanner/scanner.go      | 18 ++++++++++++++----
- src/pkg/scanner/scanner_test.go | 15 ++++++---------
- 2 files changed, 20 insertions(+), 13 deletions(-)
+ doc/go_spec.html          |  3 ++-
+ src/cmd/gc/go.h           | 18 ++++++++-------
+ src/pkg/runtime/hashmap.c | 59 +++++++++++++++++++++++++++++++++++++++--------
+ src/pkg/runtime/hashmap.h |  2 ++
+ 4 files changed, 63 insertions(+), 19 deletions(-)

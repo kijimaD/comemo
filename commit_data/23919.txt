@@ -1,23 +1,18 @@
-commit 4e15092006b105c92678b440167ae005bd8511eb
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Jul 29 19:36:55 2015 +1000
+commit 58d177c63e9e9e50df4341d9aa5518c87a3309d8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 23 06:23:04 2015 +1000
 
-    syscall: use fchownat(2) in place of lchown(2) for linux/arm64
+    cmd/asm: fix handling of negative shifts.
     
-    Fixes #11918
+    The change that "fixed" LSH was incorrect, and the fix for RSH was poor.
+    Make both use a correct, simple test: if the 64-bit value as a signed
+    integer is negative, it's an error.
     
-    Replace calls to lchown(2) with fchownat(2) for linux/arm64 as the former is not suppored.
+    Really fixes #11278.
     
-    This change has also landed on the x/sys repo as CL 12837.
-    
-    Change-Id: I58d4b144e051e36dd650ec9b7f3a02610ea943e5
-    Reviewed-on: https://go-review.googlesource.com/12833
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I72cca03d7ad0d64fd649fa33a9ead2f31bd2977b
+    Reviewed-on: https://go-review.googlesource.com/11325
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/syscall/syscall_linux_arm64.go  |  5 ++++-
- src/syscall/zsyscall_linux_arm64.go | 16 ----------------
- 2 files changed, 4 insertions(+), 17 deletions(-)
+ src/cmd/asm/internal/asm/parse.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

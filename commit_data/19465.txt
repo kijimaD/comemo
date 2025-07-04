@@ -1,16 +1,8 @@
-commit 89d46fed2c30b729b9100c1139a1793e10ad8b57
+commit 948b2c722b32d2bc63d6f326c80831801b0e06f7
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 29 13:47:31 2014 -0400
+Date:   Wed May 28 19:50:19 2014 -0400
 
     cmd/gc: fix x=x crash
-    
-    [Same as CL 102820043 except applied changes to 6g/gsubr.c
-    also to 5g/gsubr.c and 8g/gsubr.c. The problem I had last night
-    trying to do that was that 8g's copy of nodarg has different
-    (but equivalent) control flow and I was pasting the new code
-    into the wrong place.]
-    
-    Description from CL 102820043:
     
     The 'nodarg' function is used to obtain a Node*
     representing a function argument or result.
@@ -31,17 +23,15 @@ Date:   Thu May 29 13:47:31 2014 -0400
     
     Fixes #8097.
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, iant, khr, r
-    https://golang.org/cl/103750043
+    LGTM=r, khr
+    R=golang-codereviews, r, khr
+    CC=golang-codereviews, iant
+    https://golang.org/cl/102820043
 
  src/cmd/5g/cgen.c  |  8 ++++++++
- src/cmd/5g/gsubr.c |  9 +++++++++
  src/cmd/6g/cgen.c  |  7 +++++++
  src/cmd/6g/gsubr.c |  9 +++++++++
  src/cmd/8g/cgen.c  |  7 +++++++
- src/cmd/8g/gsubr.c |  9 +++++++++
  src/cmd/gc/walk.c  |  3 ++-
  test/live.go       | 26 ++++++++++++++++++++++++++
- 8 files changed, 77 insertions(+), 1 deletion(-)
+ 6 files changed, 59 insertions(+), 1 deletion(-)

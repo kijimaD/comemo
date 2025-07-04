@@ -1,20 +1,30 @@
-commit c04977fa76f43a6aee2ce73d5f6ba8e4b5ba77ea
-Author: Dmitri Goutnik <dgoutnik@gmail.com>
-Date:   Tue Jun 21 09:29:35 2022 -0500
+commit 3664950ef68089716b9f22062db66a347c7246d4
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Sep 21 18:15:25 2021 -0400
 
-    runtime: add symbolic constants for freebsd/amd64 syscalls
+    go/types: tweaks to ArgumentError to be more idiomatic
     
-    Brings freebsd/amd64 on par with other OSes/archs.
+    This CL makes a few changes to the new ArgumentError type to be more
+    idiomatic:
+     - Use a pointer receiver for methods.
+     - Export fields, similarly to Error. ArgumentError has a clear meaning
+       (an error associated with an index), so there is no need to hide its
+       representation.
+     - Add an Unwrap method to access the underlying error.
+     - Say explicitly that the error returned from Instantiate may wrap
+       *ArgumentError. There is no need to commit to an API that always
+       returns an error with dynamic type *ArgumentError.
     
-    Updates #53479
+    Updates #47916
     
-    Change-Id: I05164c887d776dd4a0ae51eafd4014042b782999
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413366
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ib1a43e921f247794e7155280ccbf5a6775ed3978
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351335
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/sys_freebsd_amd64.s | 106 +++++++++++++++++++++++++++-------------
- 1 file changed, 71 insertions(+), 35 deletions(-)
+ src/go/types/api.go         | 11 ++++-------
+ src/go/types/api_test.go    | 11 ++++++++---
+ src/go/types/instantiate.go |  6 +++---
+ 3 files changed, 15 insertions(+), 13 deletions(-)

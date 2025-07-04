@@ -1,23 +1,17 @@
-commit 8b3194ac8fd8436bf4bfd252de58ab81154f334d
-Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
-Date:   Mon Oct 17 14:17:46 2016 -0700
+commit 64214792e214bbacb8c00ffea92a7131e30fa59e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 8 15:59:00 2016 -0700
 
-    cmd/compile: fix code duplication in race-instrumentation
+    cmd/compile: allow unsafe.Pointer(nil) as static data
     
-    instrumentnode() accidentally copies parent's already-instrumented nodes
-    into child's Ninit block. This generates repeated code in race-instrumentation.
-    This case surfaces only when it duplicates inline-labels, because of
-    compile time error. In other cases, it silently generates incorrect
-    instrumented code. This change prevents it from doing so.
+    Fixes #16306
     
-    Fixes #17449.
-    
-    Change-Id: Icddf2198990442166307e176b7e20aa0cf6c171c
-    Reviewed-on: https://go-review.googlesource.com/31317
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If8e2f411fe9a5a5c198f10765fee7261ba8feaf2
+    Reviewed-on: https://go-review.googlesource.com/24836
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/racewalk.go | 39 ++++++++++-----------------------
- test/fixedbugs/issue17449.go            | 34 ++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go |  2 +-
+ test/fixedbugs/issue16306.go         | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

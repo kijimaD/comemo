@@ -1,0 +1,15 @@
+commit 29b1a6765fb5f124171d94f157b6d6c3b2687468
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 17 14:54:22 2024 -0700
+
+    net/http: document that Request.Clone does not deep copy Body
+    
+    Fixes #36095
+    
+    Change-Id: I94ae014b0ee45b4aeb38cb247e42cfc13f663ded
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/net/http/request.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,34 +1,16 @@
-commit 9d17e175e07a32f919e122faf617e09f9c9726da
-Author: Austin Clements <austin@google.com>
-Date:   Thu Aug 24 15:06:26 2017 -0400
+commit af7da9a53bcc33d521c374ff32a260e92c42a569
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 17:44:40 2017 -0700
 
-    runtime: capture runtimeInitTime after nanotime is initialized
+    cmd/compile: convert Node.Embedded into a flag
     
-    CL 36428 changed the way nanotime works so on Darwin and Windows it
-    now depends on runtime.startNano, which is computed at runtime.init
-    time. Unfortunately, the `runtimeInitTime = nanotime()` initialization
-    happened *before* runtime.init, so on these platforms runtimeInitTime
-    is set incorrectly. The one (and only) consequence of this is that the
-    start time printed in gctrace lines is bogus:
-    
-    gc 1 18446653480.186s 0%: 0.092+0.47+0.038 ms clock, 0.37+0.15/0.81/1.8+0.15 ms cpu, 4->4->1 MB, 5 MB goal, 8 P
-    
-    To fix this, this commit moves the runtimeInitTime initialization to
-    shortly after runtime.init, at which point nanotime is safe to use.
-    
-    This also requires changing the condition in newproc1 that currently
-    uses runtimeInitTime != 0 simply to detect whether or not the main M
-    has started. Since runtimeInitTime could genuinely be 0 now, this
-    introduces a separate flag to newproc1.
-    
-    Fixes #21554.
-    
-    Change-Id: Id874a4b912d3fa3d22f58d01b31ffb3548266d3b
-    Reviewed-on: https://go-review.googlesource.com/58690
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I30c59ba84dcacc3de39c42f94484b47bb7c36eba
+    Reviewed-on: https://go-review.googlesource.com/41792
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go    | 10 +++++++---
+ src/cmd/compile/internal/gc/fmt.go    |  4 ++--
+ src/cmd/compile/internal/gc/syntax.go |  4 +++-
+ 3 files changed, 12 insertions(+), 6 deletions(-)

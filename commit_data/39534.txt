@@ -1,18 +1,25 @@
-commit f518a96e009157c51f8ecf619032bbb7873228f9
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jul 17 18:55:18 2019 -0400
+commit a563f2f4177e6b3b897ae0a1c452e53ffc245638
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Nov 25 23:02:28 2018 +0000
 
-    cmd/go: document go get @upgrade behavior in release notes
+    encoding/hex: simplify encoder arithmetic
     
-    Fixes #33149
+    Two additions are faster than two multiplications and one addition. The
+    code seems simpler to me too, as it's more obvious that we advance two
+    destination bytes for each source byte.
     
-    Change-Id: If9ff24fea6d087b4047a9f6e50f99f449f9b1c52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186618
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    name            old time/op  new time/op  delta
+    Encode/256-8     374ns ± 0%   331ns ± 0%  -11.44%  (p=0.008 n=5+5)
+    Encode/1024-8   1.47µs ± 0%  1.29µs ± 0%  -11.89%  (p=0.004 n=6+5)
+    Encode/4096-8   5.85µs ± 1%  5.15µs ± 0%  -11.89%  (p=0.004 n=6+5)
+    Encode/16384-8  23.3µs ± 0%  20.6µs ± 0%  -11.68%  (p=0.004 n=6+5)
+    
+    Change-Id: Iabc63616c1d9fded55fa668ff41dd49efeaa2ea4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/151198
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
 
- doc/go1.13.html                   | 11 +++++++++++
- src/cmd/go/alldocs.go             | 11 +++++++----
- src/cmd/go/internal/modget/get.go | 11 +++++++----
- 3 files changed, 25 insertions(+), 8 deletions(-)
+ src/encoding/hex/hex.go      | 9 +++++----
+ src/encoding/hex/hex_test.go | 2 ++
+ 2 files changed, 7 insertions(+), 4 deletions(-)

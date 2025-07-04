@@ -1,19 +1,18 @@
-commit 87384801dce4ddb70a43aaf4b2f4eea549a7e047
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Aug 3 14:59:58 2022 -0400
+commit b5e33a50fe600314752b866980a9b2498f23a326
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 4 14:55:57 2021 -0700
 
-    cmd/asm: update package doc to describe "-p" option
+    reflect: rename MapIter method receiver variable from it to iter
     
-    Include a description of the assembler's "-p" command line option
-    in the package doc.
+    This is easier to use in documentation.
+    Adjust the existing documentation that worked around the unfortunate name.
     
-    Fixes #54215.
-    
-    Change-Id: I641abad573c37aa9447af6e8b84716093c2a2b70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420900
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ia4b7793ab94dfd7fb3968ee983be56cc38c30ec3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347769
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/doc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/reflect/value.go | 78 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 39 insertions(+), 39 deletions(-)

@@ -1,17 +1,15 @@
-commit e7538df7011e3767e9350655ea51edb894d61423
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Fri Mar 4 02:54:51 2016 +0900
+commit 952c2fd606fad19b930937ca0d5c5571d7f5d4cb
+Author: Ian Gudger <igudger@google.com>
+Date:   Thu Feb 18 11:29:05 2016 -0800
 
-    net/mail: throw error when multiple addresses are given to ParseAddress
+    net: fix packDomainName encoding of root and invalid names
     
-    Fixes #14610
+    Fixes #14372
     
-    Change-Id: I3e57dd60b531c1495ea3bc37ef707a1e4e644baa
-    Reviewed-on: https://go-review.googlesource.com/20180
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I40d594582639e87ef2574d37ac868e37ffaa17dc
+    Reviewed-on: https://go-review.googlesource.com/19623
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/mail/message.go      | 17 ++++++++++++++---
- src/net/mail/message_test.go | 22 ++++++++++++----------
- 2 files changed, 26 insertions(+), 13 deletions(-)
+ src/net/dnsmsg.go      | 36 +++++++++++++++++--
+ src/net/dnsmsg_test.go | 97 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 130 insertions(+), 3 deletions(-)

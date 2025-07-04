@@ -1,18 +1,20 @@
-commit db5f2b415399da9b653e68aa03f23ce661cc5339
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 23 17:30:02 2024 -0700
+commit 14f833f117dde3c370fb6cb47ce45a34c46eb2de
+Author: Nayef Ghattas <nayef.ghattas@datadoghq.com>
+Date:   Fri Apr 21 14:12:07 2023 +0200
 
-    spec: clarify when a range expression is evaluated
+    runtime/metrics: specify that bucket counts increase monotonically for histogram metrics
     
-    If the range expression is a numeric constant, the
-    range expression is also not evaluated.
+    Make it explicit in the documentation that the histogram metrics
+    are cumulative (i.e. each bucket count increases monotonically).
     
-    Change-Id: I97201e5c136d3d1a87ed1500b19b7199b30bc9ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581298
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I89119ba816ac46a63f36e607e695fad3695057ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487315
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/metrics/description.go |  6 ++++--
+ src/runtime/metrics/doc.go         | 17 ++++++++++-------
+ 2 files changed, 14 insertions(+), 9 deletions(-)

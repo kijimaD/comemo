@@ -1,29 +1,14 @@
-commit b65cb7f198836faf6605051b95bd60a169fa5e8b
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Jun 14 23:50:39 2016 -0400
+commit 824d8c10fe5e1026c15cbece41ee372b1fd333f3
+Author: Wisdom Omuya <deafgoat@gmail.com>
+Date:   Sat Apr 9 19:23:01 2016 -0400
 
-    cmd/vet: -lostcancel: check for discarded result of context.WithCancel
+    cmd/go: fix typo in findInternal documentation
     
-    The cfg subpackage builds a control flow graph of ast.Nodes.
-    The lostcancel module checks this graph to find paths, from a call to
-    WithCancel to a return statement, on which the cancel variable is
-    not used.  (A trivial case is simply assigning the cancel result to
-    the blank identifier.)
+    Fixes #15217
     
-    In a sample of 50,000 source files, the new check found 2068 blank
-    assignments and 118 return-before-cancel errors.  I manually inspected
-    20 of the latter and didn't find a single false positive among them.
-    
-    Change-Id: I84cd49445f9f8d04908b04881eb1496a96611205
-    Reviewed-on: https://go-review.googlesource.com/24150
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib8f7af714197fd209e743f61f28a5b07c04a7f5c
+    Reviewed-on: https://go-review.googlesource.com/21793
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/deadcode.go              |   2 +
- src/cmd/vet/doc.go                   |   9 +
- src/cmd/vet/internal/cfg/builder.go  | 510 +++++++++++++++++++++++++++++++++++
- src/cmd/vet/internal/cfg/cfg.go      | 142 ++++++++++
- src/cmd/vet/internal/cfg/cfg_test.go | 184 +++++++++++++
- src/cmd/vet/lostcancel.go            | 296 ++++++++++++++++++++
- src/cmd/vet/testdata/lostcancel.go   | 137 ++++++++++
- 7 files changed, 1280 insertions(+)
+ src/cmd/go/pkg.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

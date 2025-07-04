@@ -1,16 +1,23 @@
-commit 101d14e3b315e6990f02bef2044a7021a9ca9ea0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 17 14:04:37 2022 -0700
+commit 05819bc104c3021d20ad21aa685fb6b4db35ceb0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 14 23:14:22 2021 -0400
 
-    go/types, types2: use new flag mechanims to handle importC test
+    cmd/go/internal/modcmd: factor out a type for flags whose arguments are Go versions
     
-    Change-Id: I6f0cb850ee23184380c03a53c12425c350aa16e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393714
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    For #46141
+    Updates #45094
+    
+    Change-Id: I6553600c69273762a81795ef021c66f4e0872b6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321069
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/types2/check_test.go              |  5 +----
- src/cmd/compile/internal/types2/testdata/check/importC.src |  2 ++
- src/go/types/check_test.go                                 | 12 +++---------
- src/go/types/testdata/check/importC.src                    |  2 ++
- 4 files changed, 8 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/modcmd/edit.go              |  2 +-
+ src/cmd/go/internal/modcmd/tidy.go              | 42 +++++++++++++++++++------
+ src/cmd/go/internal/modload/init.go             | 10 +++---
+ src/cmd/go/internal/modload/load.go             |  4 +--
+ src/cmd/go/internal/modload/modfile.go          |  2 +-
+ src/cmd/go/testdata/script/mod_tidy_version.txt | 12 ++++++-
+ 6 files changed, 52 insertions(+), 20 deletions(-)

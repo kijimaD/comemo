@@ -1,0 +1,23 @@
+commit 113b25774ed8d1d915ae4e1adf9222865ccb0695
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Mon Mar 31 17:50:10 2025 +0000
+
+    cmd/compile: memcombine different size stores
+    
+    This CL implements the TODO in combineStores to allow combining
+    stores of different sizes, as long as the total size aligns to
+    2, 4, 8.
+    
+    Fixes #72832.
+    
+    Change-Id: I6d1d471335da90d851ad8f3b5a0cf10bdcfa17c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661855
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/memcombine.go | 175 +++++++++++++++++------------
+ test/codegen/issue72832.go                 |  41 +++++++
+ 2 files changed, 146 insertions(+), 70 deletions(-)

@@ -1,13 +1,12 @@
-commit 25f762c75b58e32747a9e29813b3bc3dc3d1cee9
-Author: Jos Visser <josv@google.com>
-Date:   Tue Jan 18 11:24:43 2011 -0500
+commit f49889d0c21767d7285fcfbba92f6659fbe4cb19
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 18 11:24:13 2011 -0500
 
-    expvar: add Float
+    C: add Jos Visser (Google CLA)
     
-    R=r, rsc, dsymonds
+    R=josv, r
     CC=golang-dev
-    https://golang.org/cl/4044041
+    https://golang.org/cl/4065041
 
- src/pkg/expvar/expvar.go      | 54 +++++++++++++++++++++++++++++++++++++++++--
- src/pkg/expvar/expvar_test.go | 42 +++++++++++++++++++++++++++++++++
- 2 files changed, 94 insertions(+), 2 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,17 +1,23 @@
-commit 97bc577812592c2bc40bd1f2bc0d78c5d8281ff6
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Jun 12 13:17:59 2024 -0400
+commit bfdd3bf3a5bce39fefe388a19f75dfd9a484ea21
+Author: Bryan Mills <bcmills@google.com>
+Date:   Wed May 24 17:16:33 2023 +0000
 
-    doc/next: improve description of proposal 61308
+    Revert "testing: only report subtest races once"
     
-    For #61308.
-    For #65614.
+    This reverts CL 494057.
     
-    Change-Id: I36b4f2392075d5a3fb9f53a28bd19b997e7be363
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592197
+    Reason for revert: test is failing on -race builders.
+    
+    Fixes #60393.
+    
+    Change-Id: If98238a12673aec597cf69aeead7bdf4782b4524
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497996
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- doc/next/6-stdlib/99-minor/reflect/61308.md | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/testing/benchmark.go    |   5 +-
+ src/testing/testing.go      |  64 ++++----------------------
+ src/testing/testing_test.go | 108 --------------------------------------------
+ 3 files changed, 13 insertions(+), 164 deletions(-)

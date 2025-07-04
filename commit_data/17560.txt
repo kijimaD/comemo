@@ -1,33 +1,21 @@
-commit 6624b708660460600041bf7391e4f03b13b6edef
+commit ce9ddd0eeec50d88950f0a51c44a071b3a92d7e9
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 14:35:08 2013 -0400
+Date:   Wed Sep 11 14:18:52 2013 -0400
 
-    undo CL 13632053 / dc7bfe0f022d
+    runtime: keep args and frame in struct Func
     
-    It was never going to last.
+    args is useful for printing tracebacks.
     
-    ««« original CL description
-    cmd/api: break the builds
+    frame is not necessary anymore, but we might some day
+    get back to functions where the frame size does not vary
+    by program counter, and if so we'll need it. Avoid needing
+    to introduce a new struct format later by keeping it now.
     
-    There is some question about whether the api tool is
-    running on Windows (see issue 6124), and now I'm
-    starting to question whether it runs on any of the builders,
-    since both darwin/amd64 and linux/amd64 are crashing for me
-    in the api tool due to a recent cgo-related change, and yet
-    the dashboard is happy.
+    Fixes #5907.
     
-    If the dashboard is still happy after this CL, we have a problem.
-    
-    Update #6124
-    
-    TBR=golang-dev
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13632053
-    »»»
-    
-    TBR=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/13474045
+    https://golang.org/cl/13632051
 
- src/cmd/api/goapi.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/runtime/runtime.h | 1 -
+ 1 file changed, 1 deletion(-)

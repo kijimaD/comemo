@@ -1,29 +1,17 @@
-commit f5f76471074c4f475404fb2488846b38f57f9720
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Mar 31 21:47:41 2021 +0000
+commit bb48f9925cf541e7b5f4bfafb9d008671c4ace47
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 20:19:55 2020 +1000
 
-    runtime: break out GC pacer into its own file
+    cmd/link: add support for openbsd/mips64
     
-    This change breaks out the GC pacer into its own file so that it'll be
-    easier to see the full implementation and change it. It also suggests an
-    obvious place to put tests (mgcpacer_test.go).
+    Update #40995
     
-    This includes all of gcControllerState, gcSetTriggerRatio, anything
-    related to GOGC, and all related globals and constants.
-    
-    This is almost a clean move, except that globals and constants are
-    formatted into blocks instead of having a separate "var" declaration for
-    each one.
-    
-    For #44167.
-    
-    Change-Id: I85aa84ce85c6cfbe0b33e8a3c91cbe9dc41de8cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306596
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I2cf9b85a960f479eaa59bf58081d03a0467bc2b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250582
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/mgc.go      | 720 -----------------------------------------------
- src/runtime/mgcpacer.go | 735 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 735 insertions(+), 720 deletions(-)
+ src/cmd/link/internal/mips64/obj.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

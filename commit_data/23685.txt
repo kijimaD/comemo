@@ -1,15 +1,12 @@
-commit 9adf684686bad7c6319080d0b1da8308a77b08c9
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 15:15:37 2015 -0400
+commit 09a3a092afc01bf411ed87bfd29adc25e0d0f250
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 4 15:49:43 2015 -0700
 
-    cmd/go: fix TestVendorRun when $GOROOT is inside a symlinked path
+    cmd/go: fix fmt.Errorf call sites (latent bug)
     
-    Fixes #11305.
-    
-    Change-Id: Icaa3a009aa4ab214c9aaf74f52c3e622fa266a9d
-    Reviewed-on: https://go-review.googlesource.com/12194
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4ff42113c5dda553d6f3d58f0e4836dce7c84710
+    Reviewed-on: https://go-review.googlesource.com/10730
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/go_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/note.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,36 +1,12 @@
-commit b6cf58d5b82898a2c92d50aead07163d5bc3c184
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 22 16:15:11 2017 -0500
+commit ce54a0c10a39e6735a44b50a9ccd58968700288b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:52:11 2017 +1000
 
-    net: fix LookupTXT of long records on Windows
+    cmd/link: introduce and use peFile.writeOptionalHeader
     
-    The response to a TXT lookup is a sequence of RRs,
-    each of which contains a sequence of string fragments.
-    
-    The correct handling of the response is to do:
-    
-        for each rr {
-            list = append(list, strings.Join(rr.fragments, ""))
-        }
-    
-    (like in at dnsRR_TXT.Walk, used on most platforms).
-    
-    The Windows code incorrectly does:
-    
-        for each rr {
-            list = append(list, rr.fragments...)
-        }
-    
-    This CL fixes it to concatenate fragments, as it must.
-    
-    Fixes #21472.
-    
-    Change-Id: I78cce96f172e5e90da9a212b0343457f6d5f92e8
-    Reviewed-on: https://go-review.googlesource.com/79555
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I27b33f2425281bc1790528ae514d99a468ad7fce
+    Reviewed-on: https://go-review.googlesource.com/59429
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/lookup_test.go    | 21 +++++++++++++++++++++
- src/net/lookup_windows.go |  5 +++--
- 2 files changed, 24 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 305 +++++++++++++++++------------------------
+ 1 file changed, 124 insertions(+), 181 deletions(-)

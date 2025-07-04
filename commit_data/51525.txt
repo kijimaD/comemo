@@ -1,24 +1,34 @@
-commit a3989632031c4282a6770e76516238368035d713
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 18 13:47:43 2022 -0700
+commit 9cec77ac11b012283e654b423cf85cf9976bedd9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 8 12:23:50 2022 -0500
 
-    go/internal/gcimporter: simplify unified IR importer
+    runtime/debug: replace (*BuildInfo).Marshal methods with Parse and String
     
-    CL 424854 changed the unified IR writer's handling of type
-    declarations to write the underlying type rather than the RHS type
-    expression's type. This in turn allows us to simplify the go/types
-    importer, because now there's no need to delay caling SetUnderlying.
+    Since a String method cannot return an error, escape fields that may
+    contain unsanitized values, and unescape them during parsing.
     
-    Fixes #57015.
+    Add a fuzz test to verify that calling the String method on any
+    BuildInfo returned by Parse produces a string that parses to the same
+    BuildInfo. (Note that this doesn't ensure that String always produces
+    a parseable input: we assume that a user constructing a BuildInfo
+    provides valid paths and versions, so we don't bother to escape those.
+    It also doesn't ensure that ParseBuildInfo accepts all inputs that
+    ought to be valid.)
     
-    Change-Id: I80caa61f6cad5b7f9d829939db733a66cfca621c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424876
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #51026
+    
+    Change-Id: Ida18010ce47622cfedb1494060f32bd7705df014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384154
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/go/internal/gcimporter/gcimporter_test.go     | 17 ++++++
- src/go/internal/gcimporter/testdata/issue57015.go | 16 ++++++
- src/go/internal/gcimporter/ureader.go             | 68 ++++++++---------------
- 3 files changed, 56 insertions(+), 45 deletions(-)
+ api/go1.18.txt                         |   4 +-
+ src/cmd/go/internal/load/pkg.go        |  15 ++--
+ src/cmd/go/internal/version/version.go |   9 +-
+ src/debug/buildinfo/buildinfo.go       |   4 +-
+ src/debug/buildinfo/buildinfo_test.go  |  10 +--
+ src/runtime/debug/mod.go               | 157 ++++++++++++++++++++++-----------
+ src/runtime/debug/mod_test.go          |  75 ++++++++++++++++
+ 7 files changed, 198 insertions(+), 76 deletions(-)

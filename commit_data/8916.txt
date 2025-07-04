@@ -1,14 +1,12 @@
-commit a809abafa55b6e2c1d2292575b066c1f5860adee
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 30 10:26:11 2011 -0400
+commit 054cf72b56d7fb6953acccf775e548cce685b31f
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jun 30 23:16:33 2011 +1000
 
-    govet: automate test
+    html: fix nesting when parsing a close tag.
     
-    R=golang-dev, r
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/4629084
+    https://golang.org/cl/4636067
 
- src/cmd/govet/Makefile |  3 +++
- src/cmd/govet/govet.go | 25 +++++++++++++------------
- src/pkg/Makefile       |  1 -
- 3 files changed, 16 insertions(+), 13 deletions(-)
+ src/pkg/html/parse.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,18 +1,20 @@
-commit 57fa1c7c949c5ea1efd756e2ed0c4442998690a9
-Author: Anthony Sottile <asottile@umich.edu>
-Date:   Sat Sep 9 21:38:51 2017 -0700
+commit 5088b64b07f7e8e93e3cdd3bd438c3b7e696eeae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 15 11:46:05 2017 -0700
 
-    cmd/cgo: treat simple C typedefs as go aliases
+    go/types: fewer spurious "declared but not used" follow-on errors
     
-    Fixes #21809
+    Mark variables as used even when they appear within an expression
+    context which we can't type-check; e.g., because the expression is
+    erroneous, or comes from an import "C" declaration.
     
-    Change-Id: Ic43077c6bea3c7cdc9611e74abf07b6deab70433
-    Reviewed-on: https://go-review.googlesource.com/62670
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #20358.
+    
+    Change-Id: Ib28cc78d3867c597c7a1ace54de09ada02f5b33a
+    Reviewed-on: https://go-review.googlesource.com/43500
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue21809.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/cgo/out.go          |  8 +++++++-
- 3 files changed, 53 insertions(+), 1 deletion(-)
+ src/go/types/call.go             |  4 +++-
+ src/go/types/expr.go             | 13 +++++++++++++
+ src/go/types/testdata/issues.src | 21 +++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 1 deletion(-)

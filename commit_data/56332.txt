@@ -1,26 +1,27 @@
-commit cf058730293ac95ce0df40db8068219fe21cbb8a
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sat Apr 27 08:04:28 2024 -0400
+commit 3c46d8f5119475adbadb6141acd463b910c1747b
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jan 17 11:33:28 2023 -0600
 
-    net/http: represent multi wildcards properly
+    cmd/link: load external ELF PPC64 objects which set st_other=1
     
-    The routing tree used for matching ServeMux patterns used the
-    key "*" to hold a child node for a multi-segment wildcard.
-    The problem is that "*" is a valid path segment, which confused
-    the matching algorithm: it would fetch the multi wildcard child
-    when looking for the literal child for "*".
+    This indicates the symbol does not use or preserve the TOC pointer in
+    R2. Likewise, it does not have a distinct local entry point. This
+    happens when gcc compiles an object with -mcpu=power10.
     
-    Eschew clever encodings. Use a separate field in the node to
-    represent the multi wildcard child.
+    Recycle the SymLocalentry field of a text symbol to pass through this
+    hint as the bogus value 1 (A valid offset must be a multiple of 4
+    bytes), and update the usage to check and generate errors further into
+    the linking process. This matches the behavior of st_other as used by
+    ELFv2.
     
-    Fixes #67067.
-    
-    Change-Id: I300ca08b8628f5367626cf41979f6c238ed8c831
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582115
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ic89ce17b57f400ab44213b21a3730a98c7cdf842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490295
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/request_test.go      |  8 ++++++++
- src/net/http/routing_tree.go      |  8 +++++---
- src/net/http/routing_tree_test.go | 11 +++++++++--
- 3 files changed, 22 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 12 ++++++++++--
+ src/cmd/link/internal/loader/loader.go |  3 +++
+ src/cmd/link/internal/ppc64/asm.go     | 12 ++++++++++--
+ 3 files changed, 23 insertions(+), 4 deletions(-)

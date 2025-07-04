@@ -1,29 +1,29 @@
-commit 41e6abdc61dd23ede4d3509aebf7b5a638f53712
+commit 2595fe7fb6f272f9204ca3ef0b0c55e66fb8d90f
 Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 4 10:43:11 2017 -0500
+Date:   Thu Jun 15 10:51:15 2017 -0400
 
-    runtime: replace mlookup and findObject with heapBitsForObject
+    runtime: don't start new threads from locked threads
     
-    These functions all serve essentially the same purpose. mlookup is
-    used in only one place and findObject in only three. Use
-    heapBitsForObject instead, which is the most optimized implementation.
+    Applications that need to manipulate kernel thread state are currently
+    on thin ice in Go: they can use LockOSThread to prevent other
+    goroutines from running on the manipulated thread, but Go may clone
+    this manipulated state into a new thread that's put into the runtime's
+    thread pool along with other threads.
     
-    (This may seem slightly silly because none of these uses care about
-    the heap bits, but we're about to split up the functionality of
-    heapBitsForObject anyway. At that point, findObject will rise from the
-    ashes.)
+    Fix this by never starting a new thread from a locked thread or a
+    thread that may have been started by C. Instead, the runtime starts a
+    "template thread" with a known-good state. If it then needs to start a
+    new thread but doesn't know that the current thread is in a good
+    state, it forwards the thread creation to the template thread.
     
-    Change-Id: I906468c972be095dd23cf2404a7d4434e802f250
-    Reviewed-on: https://go-review.googlesource.com/85877
+    Fixes #20676.
+    
+    Change-Id: I798137a56e04b7723d55997e9c5c085d1d910643
+    Reviewed-on: https://go-review.googlesource.com/46033
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/malloc_test.go |  2 +-
- src/runtime/mbitmap.go     |  7 +++---
- src/runtime/mcache.go      |  1 -
- src/runtime/mfinal.go      | 46 +++-------------------------------------
- src/runtime/mheap.go       | 53 ++--------------------------------------------
- src/runtime/mstats.go      |  4 +---
- src/runtime/race.go        |  6 +++---
- 7 files changed, 13 insertions(+), 106 deletions(-)
+ src/runtime/proc.go     | 117 ++++++++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/runtime2.go |   1 +
+ 2 files changed, 115 insertions(+), 3 deletions(-)

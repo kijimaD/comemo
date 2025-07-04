@@ -1,18 +1,38 @@
-commit 9deb940d2481396944f090dd9f205f2d5b3d94ee
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Sep 22 01:28:09 2015 -0700
+commit 8d31df18afd682b8440f3ea82033c01b144c65c8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 24 11:28:12 2015 -0700
 
-    compress/flate: detect truncated streams
+    [dev.ssa] cmd/compile: use string contents instead of offset from string header
     
-    Reader failed to detect truncated streams since calls to
-    io.ReadFull did not check if the error is io.EOF.
+    This generates more efficient code.
     
-    Change-Id: I0634e0d8de1ab04e8f93242c27a9f89e57743e87
-    Reviewed-on: https://go-review.googlesource.com/14833
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Before:
+    
+            0x003a 00058 (rr.go:7)  LEAQ    go.string.hdr."="(SB), BX
+            0x0041 00065 (rr.go:7)  LEAQ    16(BX), BP
+            0x0045 00069 (rr.go:7)  MOVQ    BP, 16(SP)
+    
+    After:
+    
+            0x003a 00058 (rr.go:7)  LEAQ    go.string."="(SB), BX
+            0x0041 00065 (rr.go:7)  MOVQ    BX, 16(SP)
+    
+    It also matches the existing backend
+    and is more robust to other changes,
+    such as CL 11698, which I believe broke
+    the current code.
+    
+    This CL fixes the encoding/base64 tests, as run with:
+    
+            GOGC=off GOSSAPKG=base64 go test -a encoding/base64
+    
+    Change-Id: I3c475bed1dd3335cc14e13309e11d23f0ed32c17
+    Reviewed-on: https://go-review.googlesource.com/12654
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/compress/flate/flate_test.go | 17 +++++++++++++++++
- src/compress/flate/inflate.go    |  6 ++++++
- 2 files changed, 23 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             | 10 ++++-----
+ src/cmd/compile/internal/ssa/config.go         |  6 ++----
+ src/cmd/compile/internal/ssa/export_test.go    |  2 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 28 +++++++++++---------------
+ 5 files changed, 21 insertions(+), 27 deletions(-)

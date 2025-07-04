@@ -1,26 +1,20 @@
-commit 9faef5a6540f56af0129610db8a55b443229075f
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Fri Oct 22 14:36:06 2021 +0800
+commit e18a8b4fb27df3ee04f7eb00c4f1ed77e5486ce8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 5 17:05:51 2021 -0400
 
-    cmd/compile,bytealg: change context register on riscv64
+    go/build: avoid duplicates in InvalidGoFiles
     
-    The register ABI will use X8-X23 (CL 356519),
-    this CL changes context register from X20(S4) to X26(S10) to meet the
-    prerequisite.
+    For #45827
+    For #39986
+    Updates #45999
     
-    Update #40724
-    
-    Change-Id: I93d51d22fe7b3ea5ceffe96dff93e3af60fbe7f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357974
-    Trust: mzh <mzh@golangcn.org>
-    Run-TryBot: mzh <mzh@golangcn.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0c919b6a2e56e7003b90425487eafe0f0eadc609
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317299
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/riscv64/ssa.go        | 2 +-
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 4 ++--
- src/cmd/compile/internal/ssa/opGen.go          | 4 ++--
- src/cmd/internal/obj/riscv/cpu.go              | 6 +++---
- src/internal/bytealg/equal_riscv64.s           | 2 +-
- 5 files changed, 9 insertions(+), 9 deletions(-)
+ src/go/build/build.go      | 36 +++++++++++++++++++++---------------
+ src/go/build/build_test.go | 18 ++++++++++++++++--
+ 2 files changed, 37 insertions(+), 17 deletions(-)

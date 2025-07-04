@@ -1,29 +1,16 @@
-commit 2333c6299f340a5f76a73a4fec6db23ffa388e97
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Sep 24 19:26:33 2020 -0700
+commit 38ad3baf0054e926136d8a2cfe6458f41b544841
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 9 21:33:35 2020 -0700
 
-    runtime: use old capacity to decide on append growth regime
+    cmd/cgo: always produce a parameter name for C code
     
-    We grow the backing store on append by 2x for small sizes and 1.25x
-    for large sizes. The threshold we use for picking the growth factor
-    used to depend on the old length, not the old capacity. That's kind of
-    unfortunate, because then doing append(s, 0, 0) and append(append(s,
-    0), 0) do different things. (If s has one more spot available, then
-    the former expression chooses its growth based on len(s) and the
-    latter on len(s)+1.)  If we instead use the old capacity, we get more
-    consistent behavior. (Both expressions use len(s)+1 == cap(s) to
-    decide.)
+    Updates #37746
     
-    Fixes #41239
-    
-    Change-Id: I40686471d256edd72ec92aef973a89b52e235d4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257338
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ib64abe3995f310cd50ede47b0d3d159572901000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222622
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/slice.go         |  2 +-
- test/fixedbugs/issue41239.go | 19 +++++++++++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/cgo/out.go | 4 ++++
+ 1 file changed, 4 insertions(+)

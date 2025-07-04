@@ -1,21 +1,20 @@
-commit f243584d297e183112cc97fcc09a9140961dc188
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 21 13:14:06 2013 -0700
+commit a00958aac6b4e39248b2604bb1224cc0dec015ae
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Jun 21 11:13:14 2013 +1000
 
-    go/*: support for slices with cap: s[:j:k] and s[i:j:k]
+    all: avoid leaking fds during tests
     
-    Experimental, per rsc's proposal.
+    trivial: it is not a serious problem to leak a fd in a short lived process, but it was obscuring my investigation of issue 5593.
     
-    R=rsc
+    R=golang-dev, iant, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10204043
+    https://golang.org/cl/10391043
 
- src/pkg/go/ast/ast.go                          |  1 +
- src/pkg/go/ast/walk.go                         |  3 +++
- src/pkg/go/parser/parser.go                    | 26 +++++++++++++++---------
- src/pkg/go/parser/short_test.go                | 10 +++++++++
- src/pkg/go/printer/nodes.go                    | 28 +++++++++++++++++---------
- src/pkg/go/printer/testdata/expressions.golden | 17 ++++++++++++++++
- src/pkg/go/printer/testdata/expressions.input  | 17 ++++++++++++++++
- src/pkg/go/printer/testdata/expressions.raw    | 17 ++++++++++++++++
- 8 files changed, 99 insertions(+), 20 deletions(-)
+ src/pkg/archive/tar/reader_test.go | 2 +-
+ src/pkg/archive/zip/reader_test.go | 1 +
+ src/pkg/debug/elf/file_test.go     | 1 +
+ src/pkg/log/syslog/syslog_test.go  | 2 ++
+ src/pkg/net/net_test.go            | 6 +++++-
+ src/pkg/net/parse_test.go          | 2 ++
+ src/pkg/os/os_test.go              | 3 +++
+ 7 files changed, 15 insertions(+), 2 deletions(-)

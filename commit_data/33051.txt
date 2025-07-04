@@ -1,23 +1,15 @@
-commit 0aef82aa4a301a7914e6a38d6e3d4722a6e1c547
-Author: Austin Clements <austin@google.com>
-Date:   Wed Aug 2 15:54:05 2017 -0400
+commit 8aee0b8b32c103da416369ebd16e2c07ad99badf
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Wed May 17 02:05:32 2017 -0700
 
-    runtime: make (Un)LockOSThread doc more prescriptive
+    syscall: add AmbientCaps to linux SysProcAttr
     
-    Right now users have to infer why they would want LockOSThread and
-    when it may or may not be appropriate to call UnlockOSThread. This
-    requires some understanding of Go's internal thread pool
-    implementation, which is unfortunate.
+    Fixes #19713
     
-    Improve the situation by making the documentation on these functions
-    more prescriptive so users can figure out when to use them even if
-    they don't know about the scheduler.
-    
-    Change-Id: Ide221791e37cb5106dd8a172f89fbc5b3b98fe32
-    Reviewed-on: https://go-review.googlesource.com/52871
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id1ca61b35bca2a4bea23dd64c7fb001a3a14fd88
+    Reviewed-on: https://go-review.googlesource.com/43512
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/syscall/exec_linux.go      |  22 ++++++
+ src/syscall/exec_linux_test.go | 159 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 181 insertions(+)

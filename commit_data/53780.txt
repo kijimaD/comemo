@@ -1,24 +1,20 @@
-commit c94f39a80e30f38c8a6e72f58c4cb63c1c106eb0
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 30 10:19:50 2023 -0700
+commit 202b7e7e76128f524142ac7d328fe8458a096dbf
+Author: RenKanai <rk2904powr@gmail.com>
+Date:   Thu Jun 9 01:42:26 2022 +0900
 
-    cmd/compile: simplify uninterruptable range check for write barriers
+    encoding/asn1: fix doc for BitString.At's return value
     
-    Make the load detection a bit clearer and more precise. In particular,
-    for architectures which have to materialize the address using a
-    separate instruction, we were using the address materialization
-    instruction, not the load itself.
+    Fixes #53287
     
-    Also apply the marking a bit less. We don't need to mark the load itself,
-    only the instructions after the load. And we don't need to mark the WBend
-    itself, only the instructions before it.
-    
-    Change-Id: Ie367a8023b003d5317b752d873bb385f931bb30e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499395
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If983ae34850d9b1b29764156a38628fa53897573
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411134
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Subham <sarkar.subhams2@gmail.com>
 
- src/cmd/compile/internal/liveness/plive.go | 43 +++++++++++++-----------------
- 1 file changed, 19 insertions(+), 24 deletions(-)
+ src/encoding/asn1/asn1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

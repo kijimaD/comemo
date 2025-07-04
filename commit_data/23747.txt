@@ -1,20 +1,12 @@
-commit e1ee31400a4258985647a6d699c7df56a81d7a98
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Jul 17 17:53:48 2015 -0700
+commit 93e57a22d5d3c9006b144ddfd9d675967fd810d0
+Author: Yongjian Xu <i3dmaster@gmail.com>
+Date:   Tue Jun 9 22:51:25 2015 -0700
 
-    internal/trace: fix fuzzer crashers
+    runtime: correct a drifted comment in referencing m->locked.
     
-    Fixes #11766
-    Fixes #11769
-    Fixes #11767
-    Fixes #11770
-    
-    Change-Id: I441382af58f60deb46dcdd70076763b2c47738d4
-    Reviewed-on: https://go-review.googlesource.com/12378
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ida4b98aa63e57594fa6fa0b8178106bac9b3cd19
+    Reviewed-on: https://go-review.googlesource.com/10837
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/internal/trace/parser.go      | 26 +++++++++++++++++++-------
- src/internal/trace/parser_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 7 deletions(-)
+ src/runtime/runtime2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

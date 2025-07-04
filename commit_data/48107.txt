@@ -1,27 +1,27 @@
-commit 275aedccd4f2beae82dbf96c94a6c1c9b365a647
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 8 15:07:21 2022 -0500
+commit 291eb0178f143b373a9bc4fbc4edaf3420175660
+Author: kumakichi <xyesan@gmail.com>
+Date:   Tue Apr 27 18:38:55 2021 +0000
 
-    runtime: skip TestGdbBacktrace flakes matching a known GDB internal error
+    go: various minor cleanups with the help of Goland
     
-    TestGdbBacktrace occasionally fails due to a GDB internal error.
-    We have observed the error on various linux builders since at least
-    October 2020, and it has been reported upstream at least twice.¹²
+        • fix some typos
+        • remove superfluous conversions/parentheses
+        • remove superfluous nil checks
     
-    Since the bug is external to the Go project and does not appear to be
-    fixed upstream, this failure mode can only add noise.
-    
-    ¹https://sourceware.org/bugzilla/show_bug.cgi?id=24628
-    ²https://sourceware.org/bugzilla/show_bug.cgi?id=28551
-    
-    Fixes #43068
-    
-    Change-Id: I6c92006a5d730f1c4df54b0307f080b3d643cc6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384234
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I428bf6a7be551b79270567047878c3076dd6f2ff
+    GitHub-Last-Rev: 3b1c7573cfdf89ac184fd6ae44bca4be78b0cd64
+    GitHub-Pull-Request: golang/go#45799
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314069
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
 
- src/runtime/runtime-gdb_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/go/internal/srcimporter/srcimporter.go | 2 +-
+ src/go/parser/error_test.go                | 2 +-
+ src/go/parser/parser.go                    | 2 +-
+ src/go/printer/printer.go                  | 2 +-
+ src/go/scanner/errors.go                   | 2 +-
+ src/go/scanner/scanner.go                  | 2 +-
+ src/go/types/infer.go                      | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,22 +1,17 @@
-commit 7f0757b3940799661ed31838c6a4b377b69d96f4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 25 08:46:00 2017 -0700
+commit 45356c1a082ae0e1f4233a8bc5644d60470e9e52
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Feb 8 19:47:23 2017 -0800
 
-    cmd/compile: make node.Likely a flag
+    time: add Duration.Truncate and Duration.Round
     
-    node.Likely may once have held -1/0/+1,
-    but it is now only 0/1.
+    Fixes #18996
     
-    With improved SSA heuristics,
-    it may someday go away entirely.
-    
-    Change-Id: I6451d17fd7fb47e67fea4d39df302b6db00ea57b
-    Reviewed-on: https://go-review.googlesource.com/41760
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0b0f7270960b368ce97ad4456f60bcc1fc2a8313
+    Reviewed-on: https://go-review.googlesource.com/36615
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/init.go   | 4 ++--
- src/cmd/compile/internal/gc/ssa.go    | 8 ++++++--
- src/cmd/compile/internal/gc/syntax.go | 4 +++-
- 3 files changed, 11 insertions(+), 5 deletions(-)
+ src/time/time.go      | 39 ++++++++++++++++++++++++++++++++++
+ src/time/time_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 98 insertions(+)

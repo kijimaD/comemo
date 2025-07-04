@@ -1,60 +1,17 @@
-commit 9b6ccb13233f2977c74c73ae836212c55d342d28
-Author: Péter Surányi <speter.go1@gmail.com>
-Date:   Fri Feb 6 21:44:39 2015 +0900
+commit 301ad790a2eef1962a97f9ccef5de8eff84c12fb
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Jan 10 17:53:13 2015 +0000
 
-    all: don't refer to code.google.com/p/go{,-wiki}/
+    cmd/gc: fix racewalk after writebarrierfat was renamed to typedmemmove
     
-    Only documentation / comment changes. Update references to
-    point to golang.org permalinks or go.googlesource.com/go.
-    References in historical release notes under doc are left as is.
+    Renaming the function broke the race detector since it looked for the
+    name, didn't find it anymore and didn't insert the necessary
+    instrumentation.
     
-    Change-Id: Icfc14e4998723e2c2d48f9877a91c5abef6794ea
-    Reviewed-on: https://go-review.googlesource.com/4060
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I11fed6e807cc35be5724d26af12ceff33ebf4f7b
+    Reviewed-on: https://go-review.googlesource.com/2661
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- doc/gccgo_contribute.html          | 4 ++--
- misc/cgo/test/cflags.go            | 2 +-
- misc/cgo/test/setgid_linux.go      | 2 +-
- misc/editors                       | 2 +-
- src/cmd/gc/subr.c                  | 2 +-
- src/compress/bzip2/bzip2_test.go   | 4 ++--
- src/compress/flate/deflate_test.go | 2 +-
- src/crypto/tls/handshake_server.go | 2 +-
- src/encoding/xml/read_test.go      | 2 +-
- src/html/template/clone_test.go    | 2 +-
- src/html/template/content_test.go  | 2 +-
- src/math/all_test.go               | 2 +-
- src/math/big/int_test.go           | 2 +-
- src/net/hosts_test.go              | 2 +-
- src/net/http/serve_test.go         | 4 ++--
- src/os/os_test.go                  | 2 +-
- src/path/filepath/path_test.go     | 2 +-
- src/runtime/compiler.go            | 2 +-
- src/runtime/malloc1.go             | 2 +-
- test/fixedbugs/bug214.go           | 2 +-
- test/fixedbugs/bug215.go           | 2 +-
- test/fixedbugs/bug216.go           | 2 +-
- test/fixedbugs/bug217.go           | 2 +-
- test/fixedbugs/bug218.go           | 2 +-
- test/fixedbugs/bug221.go           | 2 +-
- test/fixedbugs/bug264.go           | 2 +-
- test/fixedbugs/bug265.go           | 2 +-
- test/fixedbugs/bug269.go           | 2 +-
- test/fixedbugs/bug271.go           | 2 +-
- test/fixedbugs/bug272.go           | 2 +-
- test/fixedbugs/bug273.go           | 2 +-
- test/fixedbugs/bug274.go           | 2 +-
- test/fixedbugs/bug279.go           | 2 +-
- test/fixedbugs/bug280.go           | 2 +-
- test/fixedbugs/bug281.go           | 2 +-
- test/fixedbugs/bug283.go           | 2 +-
- test/fixedbugs/bug290.go           | 2 +-
- test/fixedbugs/bug291.go           | 2 +-
- test/fixedbugs/bug292.go           | 2 +-
- test/fixedbugs/bug293.go           | 2 +-
- test/fixedbugs/bug294.go           | 2 +-
- test/fixedbugs/bug301.go           | 2 +-
- test/fixedbugs/bug425.go           | 2 +-
- test/fixedbugs/bug427.go           | 2 +-
- test/fixedbugs/bug435.go           | 2 +-
- 45 files changed, 48 insertions(+), 48 deletions(-)
+ src/cmd/gc/racewalk.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

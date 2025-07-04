@@ -1,15 +1,24 @@
-commit 40504892c1720a3a36d82c492fd2302b7ccb870a
-Author: Wayne Zuo <wdvxdr1123@gmail.com>
-Date:   Sun Mar 27 15:12:39 2022 +0800
+commit b5f37faf3b0fa4c8ae24461bf99cdc0f1f583fa3
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 1 19:18:25 2021 -0400
 
-    cmd/compile: clean up arm64 32bit pointer in Reverse
+    [dev.typeparams] cmd/internal/goobj: add duffzero/duffcopy to builtin list
     
-    Change-Id: I0751270c0f656a501b389f2e2bb0e959d6f5a0e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396054
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    duffzero and duffcopy are commonly referenced functions. Add them
+    to builtin list, so they are referenced by index, not by name.
+    
+    Also change gcWriteBarrier to ABIInternal, which is changed in
+    CL 266638.
+    
+    Regenerate the file.
+    
+    Change-Id: If8550d9ed300ac2be930a7c58657a9cf1933ac1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324250
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/internal/goobj/builtinlist.go | 7 ++++++-
+ src/cmd/internal/goobj/mkbuiltin.go   | 4 +++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

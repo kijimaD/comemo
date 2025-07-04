@@ -1,15 +1,14 @@
-commit 3cdf8bae1a47948804d782ef5e8c4de38ea0ac9b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 8 10:04:17 2013 -0800
+commit 091d7210c7bbcc7497a48a41be091e1957d17717
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 11:25:21 2013 -0500
 
-    database/sql: fix Conn leak
+    runtime: make TestStackMem a little less flaky
     
-    Fixes #4902
+    Have seen failures with GOMAXPROCS=4 on Windows.
     
-    R=golang-dev, alex.brainman, r, google
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7579045
+    https://golang.org/cl/7626043
 
- src/pkg/database/sql/sql.go      |  1 +
- src/pkg/database/sql/sql_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ src/pkg/runtime/stack_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

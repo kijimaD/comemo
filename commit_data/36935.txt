@@ -1,29 +1,12 @@
-commit 23578f9d00bb0d6e92f18d7d6ea961d7c6c52260
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Mon Oct 1 23:37:00 2018 -0300
+commit 9ef9765c168c8561b98dc41c25eb8ae83abfcd7a
+Author: Suriyaa Sundararuban <suriyaasundararuban@gmail.com>
+Date:   Tue Jun 12 09:40:24 2018 +0000
 
-    cmd/compile: intrinsify TrailingZeros16, OnesCount{8,16} for ppc64x
+    .github: use HTTPS for Stack Overflow link in SUPPORT.md
     
-    This change implements TrailingZeros16, OnesCount8 and OnesCount16
-    as intrinsics for ppc64x.
-    
-    benchmark                       old ns/op     new ns/op     delta
-    BenchmarkTrailingZeros16-40     2.16          1.61          -25.46%
-    
-    benchmark                   old ns/op     new ns/op     delta
-    BenchmarkOnesCount-40       0.71          0.71          +0.00%
-    BenchmarkOnesCount8-40      0.93          0.69          -25.81%
-    BenchmarkOnesCount16-40     1.54          0.75          -51.30%
-    BenchmarkOnesCount32-40     0.75          0.74          -1.33%
-    BenchmarkOnesCount64-40     0.71          0.71          +0.00%
-    
-    Change-Id: I010fa9c0ef596a09362870d81193c633e70da637
-    Reviewed-on: https://go-review.googlesource.com/c/139137
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I4e339b7c359a7cdb0933f7624ce190086c9c3599
+    Reviewed-on: https://go-review.googlesource.com/118155
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/gc/ssa.go           |  6 ++--
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  4 ++-
- src/cmd/compile/internal/ssa/rewritePPC64.go | 54 ++++++++++++++++++++++++++--
- 3 files changed, 58 insertions(+), 6 deletions(-)
+ .github/SUPPORT.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,27 @@
-commit b177d8802c00271ad0547b929ad2038aee70199d
-Author: David Chase <drchase@google.com>
-Date:   Mon Jul 29 16:26:40 2019 -0400
+commit 916e861fd969e19e918e5b24c45a834c63dd8ee4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 18 12:19:26 2019 -0700
 
-    cmd/compile: print lines missing is_stmt if testing.Verbose()
+    cmd/compile: fix importing rewritten f(g()) calls
     
-    helpful for debugging failures to figure out which lines
-    disappeared to cause the failure.
+    golang.org/cl/166983 started serializing the Ninit field of OCALL
+    nodes within function inline bodies (necessary to fix a regression in
+    building crypto/ecdsa with -gcflags=-l=4), but this means the Ninit
+    field needs to be typechecked when the imported function body is used.
     
-    Change-Id: Id42b64a65f76eed47e01003f05346bc09cec27e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188019
-    Run-TryBot: David Chase <drchase@google.com>
+    It's unclear why this wasn't necessary for the crypto/ecdsa
+    regression.
+    
+    Fixes #30907.
+    
+    Change-Id: Id5f0bf3c4d17bbd6d5318913b859093c93a0a20c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168199
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/stmtlines_test.go | 21 +++++++++++++++++----
- 1 file changed, 17 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  1 +
+ test/fixedbugs/issue30907.dir/a.go       | 19 +++++++++++++++++++
+ test/fixedbugs/issue30907.dir/b.go       | 11 +++++++++++
+ test/fixedbugs/issue30907.go             |  7 +++++++
+ 4 files changed, 38 insertions(+)

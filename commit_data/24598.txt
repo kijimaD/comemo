@@ -1,14 +1,13 @@
-commit 7df8ba136c911542374186fe5bed603ca6e7e015
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 21 12:30:58 2015 -0700
+commit 9787ba43eeaebe2d61c701f27a5b50d095533b9b
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 10 13:40:28 2015 -0700
 
-    runtime: replace unsafe pointer arithmetic with array indexing
+    [dev.ssa] cmd/compile/internal/ssa: Update TODO list
     
-    Change-Id: I313819abebd4cda4a6c30fd0fd6f44cb1d09161f
-    Reviewed-on: https://go-review.googlesource.com/16167
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibcd4c6984c8728fd9ab76e0c7df555984deaf281
+    Reviewed-on: https://go-review.googlesource.com/13471
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mfinal.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/TODO        | 129 +++++++++++++++----------------
+ src/cmd/compile/internal/ssa/schedule.go |   2 +
+ 2 files changed, 66 insertions(+), 65 deletions(-)

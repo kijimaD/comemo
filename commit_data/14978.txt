@@ -1,13 +1,14 @@
-commit 018e89fa697a2c687b83de36e7ae5dcaff6ade49
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Thu Jan 24 20:46:33 2013 +1100
+commit 2e51f7828017db23fa18fc883c5d6a76abcc3b88
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Thu Jan 24 13:32:46 2013 +1100
 
-    doc/go_spec: remove extra space, align tags, and change a tab to a space.
+    go/build: document blank line required after build constraints
     
-    R=golang-dev, adg
+    Fixes #3539.
+    
+    R=golang-dev, dave, adg
     CC=golang-dev
-    https://golang.org/cl/7198048
+    https://golang.org/cl/7206049
 
- doc/go_faq.html  | 46 +++++++++++++++++++++++-----------------------
- doc/go_spec.html | 22 +++++++++++-----------
- 2 files changed, 34 insertions(+), 34 deletions(-)
+ src/pkg/go/build/doc.go | 3 +++
+ 1 file changed, 3 insertions(+)

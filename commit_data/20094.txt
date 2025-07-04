@@ -1,28 +1,17 @@
-commit 9a1e142bbc3209f8899a729ec857a1c8838bf9f4
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Aug 24 12:31:03 2014 +0400
+commit f9fdc887ae71ebcf26c980f2f15ace2efec94881
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Aug 15 13:15:24 2014 +1000
 
-    runtime: convert channel operations to Go, part 1 (chansend1).
+    [dev.power64] runtime: define page size on power64le systems to be 64k
     
-    LGTM=dvyukov
-    R=dvyukov, khr
+    Fixes #8495.
+    
+    CL 128260043 updated the definition of syscall.GetPageSize to report 64k for power64 and power64le. This CL cleans up the last place where the page size was defined as 4k.
+    
+    LGTM=minux
+    R=rsc, minux
     CC=golang-codereviews
-    https://golang.org/cl/127460044
+    https://golang.org/cl/123520043
 
- src/cmd/api/goapi.go                |   1 +
- src/cmd/gc/select.c                 |   1 +
- src/pkg/reflect/asm_386.s           |   2 +
- src/pkg/reflect/asm_amd64.s         |   2 +
- src/pkg/reflect/asm_amd64p32.s      |   2 +
- src/pkg/reflect/asm_arm.s           |   2 +
- src/pkg/runtime/chan.go             | 278 ++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/chan.goc            |  77 ----------
- src/pkg/runtime/chan.h              |  13 --
- src/pkg/runtime/chan_test.go        |  32 +++++
- src/pkg/runtime/mprof.goc           |  11 +-
- src/pkg/runtime/pprof/pprof_test.go |   2 +-
- src/pkg/runtime/proc.c              |   1 -
- src/pkg/runtime/runtime.h           |  15 +-
- src/pkg/runtime/stack.c             |  22 ++-
- src/pkg/runtime/stubs.go            |  12 ++
- 16 files changed, 378 insertions(+), 95 deletions(-)
+ src/pkg/runtime/arch_power64le.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

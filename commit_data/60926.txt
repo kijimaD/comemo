@@ -1,0 +1,46 @@
+commit af0c40311e2ee33ecd24971257606f42a49cf593
+Author: amusman <alexander.musman@gmail.com>
+Date:   Thu Apr 11 10:57:32 2024 +0300
+
+    cmd/compile: emit tail call wrappers when possible
+    
+    Use OTAILCALL in wrapper if the receiver and method are both pointers and it is
+    not going to be inlined, similar to how it is done in reflectdata.methodWrapper.
+    Currently tail call may be used for functions with identical argument types.
+    This change updates wrappers where both wrapper and the wrapped method's
+    receiver are pointers. In this case, we have the same signature for the
+    wrapper and the wrapped method (modulo the receiver's pointed-to types),
+    and do not need any local variables in the generated wrapper (on stack)
+    because the arguments are immediately passed to the wrapped method in place
+    (without need to move some value passed to other register or to change any
+    argument/return passed through stack). Thus, the wrapper does not need its
+    own stack frame.
+    
+    This applies to promoted methods, e.g. when we have some struct type U with
+    an embedded type *T and construct a wrapper like
+    func (recv *U) M(arg int) bool { return recv.T.M(i) }
+    
+    See also test/abi/method_wrapper.go for a running example.
+    
+    Code size difference measured with this change (tried for x86_64):
+    etcd binary:
+    .text section size: 21472251 -> 21432350 (0.2%)
+    total binary size:  32226640 -> 32191136 (0.1%)
+    
+    compile binary:
+    .text section size: 17419073 -> 17413929 (0.03%)
+    total binary size:  26744743 -> 26737567 (0.03%)
+    
+    Change-Id: I9bbe730568f6def21a8e61118a6b6f503d98049c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/base/debug.go             |  1 +
+ .../internal/inline/interleaved/interleaved.go     |  7 +++++-
+ src/cmd/compile/internal/noder/reader.go           | 19 ++++++++++----
+ test/tailcall.go                                   | 29 ++++++++++++++++++++++
+ 4 files changed, 50 insertions(+), 6 deletions(-)

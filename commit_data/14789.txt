@@ -1,12 +1,12 @@
-commit 89ec208ee8e2a9de6dc4f716f37eb41da4105a6d
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Jan 4 10:20:50 2013 -0500
+commit 17eafcd05da81f4333eed6760baa5315a3bff412
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 3 10:05:28 2013 -0800
 
-    runtime: introduce typedefs and delete struct keywords in mgc0.c
+    CONTRIBUTORS: add Matthew Dempsky (Google CLA)
     
-    R=rsc
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/7029055
+    https://golang.org/cl/7049043
 
- src/pkg/runtime/mgc0.c | 29 ++++++++++++++++-------------
- 1 file changed, 16 insertions(+), 13 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

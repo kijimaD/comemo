@@ -1,15 +1,21 @@
-commit 5e35954a8c3f8dff1d031161b9b5f73784d73a21
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 2 09:19:10 2017 -0400
+commit 8b68fafd1f74fce1cb9c085c979134f012d2b8fc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 19 17:12:57 2017 -0700
 
-    cmd/go: disable implicit $GOCACHE when clearing $HOME in test
+    cmd/compile: simplify walkprint
     
-    Change-Id: Ie9967c8aaf7cf2e90a442937df21b1218f7ae26f
-    Reviewed-on: https://go-review.googlesource.com/75472
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Superficial simplifications: reduce variable scope,
+    eliminate pointless temporaries, use a switch statement.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I6450493a0583a6ce8ec0461b66954cf1445a754f
+    Reviewed-on: https://go-review.googlesource.com/55095
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/go_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 53 +++++++++++++++----------------------
+ 1 file changed, 22 insertions(+), 31 deletions(-)

@@ -1,22 +1,22 @@
-commit 22d3da47818a884454ff2a9818edbae358b43e49
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Sep 30 14:37:05 2019 -0400
+commit 70ac1c2f3f0d39be8696aeda5c926d4879cccc18
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Wed Aug 1 01:49:55 2018 +0800
 
-    test: new testcase for gccgo compiler problem
+    cmd/go/internal/modconv: support convert replacements in Gopkg.lock
     
-    Test case with code that caused a gccgo error while emitting export
-    data for an inlinable function.
+    Fixes #24087.
+    Updates #26711.
     
-    Updates #34577.
-    
-    Change-Id: I28b598c4c893c77f4a76bb4f2d27e5b42f702992
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198057
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7fe6b21fd391253a19cb1d35709a061872ea7b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/126915
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- test/fixedbugs/issue34577.dir/a.go | 14 ++++++++++++++
- test/fixedbugs/issue34577.dir/b.go | 19 +++++++++++++++++++
- test/fixedbugs/issue34577.go       |  9 +++++++++
- 3 files changed, 42 insertions(+)
+ src/cmd/go/internal/modconv/convert.go           | 32 ++++++----
+ src/cmd/go/internal/modconv/dep.go               | 66 ++++++++++++++++++--
+ src/cmd/go/internal/modconv/modconv_test.go      |  3 +
+ src/cmd/go/internal/modconv/testdata/traefik.dep | 79 ++++++++++++++++++++++++
+ src/cmd/go/internal/modconv/testdata/traefik.out | 14 +++++
+ src/cmd/go/testdata/script/mod_init_dep.txt      | 23 +++++++
+ 6 files changed, 202 insertions(+), 15 deletions(-)

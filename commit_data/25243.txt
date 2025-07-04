@@ -1,20 +1,17 @@
-commit 85dd62d5dd507704671c129df8e7c669b7a9f356
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Dec 11 19:11:54 2015 -0800
+commit 2d823fdebf850a3e9cf2c8deb69a41def61ce499
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 13 00:29:44 2015 +0000
 
-    cmd/compile: add missing write barriers for return statements
+    net/http: ignore Transfer-Encoding for HTTP/1.0 responses
     
-    Copying return values to heap-escaped result parameters requires write
-    barriers.
+    Fixes #12785
     
-    Fixes #13587.
-    
-    Change-Id: Ifa04ff7fa4adcc6393acdd82e527beb8f2a00a8b
-    Reviewed-on: https://go-review.googlesource.com/17762
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iae4383889298c6a78b1ba41bd2cda70b0758fcba
+    Reviewed-on: https://go-review.googlesource.com/15737
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/walk.go |  3 +++
- test/fixedbugs/issue13587.go        | 19 +++++++++++++++++++
- 2 files changed, 22 insertions(+)
+ src/net/http/response_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go      | 32 ++++++++++++++++++----------
+ 2 files changed, 70 insertions(+), 11 deletions(-)

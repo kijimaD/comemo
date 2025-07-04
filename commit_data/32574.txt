@@ -1,17 +1,36 @@
-commit a9216a0ade61ae3c3a45f9cd358a8a38c5d241a5
-Author: Johnny Luo <johnnyluo1980@gmail.com>
-Date:   Sun Jul 16 10:39:11 2017 +1000
+commit 35cf3843a45d7ef774804bdbd32ece3916fe2bf1
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Apr 30 14:25:57 2017 -0400
 
-    net/url: make Parse+String round trip magnet URLs
+    cmd/{asm,compile}: avoid zeroAuto clobbering flags on s390x
     
-    Fixes #20054
+    This CL modifies how MOV[DWHB] instructions that store a constant to
+    memory are assembled to avoid them clobbering the condition code
+    (flags). It also modifies zeroAuto to use MOVD instructions instead of
+    CLEAR (which is assembled as XC).
     
-    Change-Id: I3c660ca0c56cdde2c2ac2f6a666d8531ab5588c5
-    Reviewed-on: https://go-review.googlesource.com/49050
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    MOV[DWHB]storeconst ops also no longer clobbers flags.
+    
+    Note: this CL modifies the assembler so that it can no longer handle
+    immediates outside the range of an int16 or offsets from SB, which
+    reflects what the machine instructions support. The compiler doesn't
+    need this capability any more and I don't think this affects any existing
+    assembly, but it is easy to workaround if it does.
+    
+    Fixes #20187.
+    
+    Change-Id: Ie54947ff38367bd6a19962bf1a6d0296a4accffb
+    Reviewed-on: https://go-review.googlesource.com/42179
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/net/url/url.go      |  4 +++-
- src/net/url/url_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s    |  12 ++-
+ src/cmd/compile/internal/s390x/ggen.go       |  23 +++--
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  31 +++---
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |   8 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   4 -
+ src/cmd/compile/internal/ssa/rewrite.go      |   5 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go |  61 ++++++------
+ src/cmd/internal/obj/s390x/asmz.go           | 136 +++++++++++----------------
+ 8 files changed, 135 insertions(+), 145 deletions(-)

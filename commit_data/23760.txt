@@ -1,15 +1,13 @@
-commit af8297da86a19d68ee442db8ec325be952e72ae2
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Jul 20 17:04:18 2015 -0700
+commit 239ec73e66b4c4706b2261082857d5afa5c53da9
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Jun 4 16:16:14 2015 -0700
 
-    go/internal/gccgoimporter: fix handling of "byte" and "rune" alias types
+    cmd/go: reject relative paths that don't start with a dot (.)
     
-    Fixes #11762.
-    
-    Change-Id: I0c7797a2dfdbbcf137bb287f854037a4a697c6e4
-    Reviewed-on: https://go-review.googlesource.com/12443
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Idc4a7fdb561ba5b3b52094d895deaf3fcdf475bf
+    Reviewed-on: https://go-review.googlesource.com/10716
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/go/internal/gccgoimporter/parser.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 12 +++++++++++-
+ src/cmd/go/main.go    |  2 +-
+ 2 files changed, 12 insertions(+), 2 deletions(-)

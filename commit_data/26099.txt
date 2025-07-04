@@ -1,27 +1,15 @@
-commit ff555f1159040e644332872c221daa308a7b9b82
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 7 08:35:45 2016 -0800
+commit be7544be237b279e45be73963e84ab59916b8ac2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 8 10:04:10 2015 -0500
 
-    mime/multipart: don't call Read on io.Reader after an error is seen
+    crypto/x509: handle CRLDistributionPoints without FullNames
     
-    The io.Reader contract makes no promises about how a Reader should
-    behave after it returns its first error. Usually the errors are
-    sticky, but they don't have to be. A regression in zlib.Reader (bug
-    accidentally relied on sticky errors.
+    Fixes #12910.
     
-    Minimal fix: wrap the user's provided Reader in a Reader which
-    guarantees stickiness. The minimal fix is less scary than touching
-    the multipart state machine.
-    
-    Fixes #14676
-    
-    Change-Id: I8dd8814b13ae5530824ae0e68529f788974264a5
-    Reviewed-on: https://go-review.googlesource.com/20297
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If446e5dce236483bbb898cc5959baf8371f05142
+    Reviewed-on: https://go-review.googlesource.com/17550
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/mime/multipart/formdata_test.go | 36 ++++++++++++++++++++++++++++++++++++
- src/mime/multipart/multipart.go     | 20 +++++++++++++++++++-
- 2 files changed, 55 insertions(+), 1 deletion(-)
+ src/crypto/x509/x509.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

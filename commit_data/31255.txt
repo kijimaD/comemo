@@ -1,40 +1,16 @@
-commit fc7b83d192e9d0a70f4fd3f0692b54ee21b70312
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 20 15:47:06 2017 -0700
+commit 92cdde016ab64416188113c72e5d6b5ade87e89f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 8 10:56:30 2017 -0800
 
-    cmd/compile: break up large value rewrite functions
+    go/constant: use new math/big.IsInt and isUint predicates
     
-    This makes the cmd/compile/internal/ssa package
-    compile much faster, and has no impact
-    on the speed of the compiler.
+    Slightly cleaner and more readable code.
     
-    The chunk size was selected empirically,
-    in that at chunk size 10, the object
-    file was smaller than at chunk size 5 or 20.
-    
-    name  old time/op       new time/op       delta
-    SSA         7.33s ± 5%        5.64s ± 1%  -23.10%  (p=0.000 n=10+10)
-    
-    name  old user-time/op  new user-time/op  delta
-    SSA         9.70s ± 1%        8.04s ± 2%  -17.17%  (p=0.000 n=9+10)
-    
-    name  old obj-bytes     new obj-bytes     delta
-    SSA         9.82M ± 0%        8.28M ± 0%  -15.67%  (p=0.000 n=10+10)
-    
-    Change-Id: Iab472905da3f0e82f3db2c93d06e2759abc9dd44
-    Reviewed-on: https://go-review.googlesource.com/41296
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I35263dbf338861b0a1bd62d59417b6a2c6a4e670
+    Reviewed-on: https://go-review.googlesource.com/36562
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go    |  124 +-
- src/cmd/compile/internal/ssa/rewrite386.go     | 1219 ++++++++-------
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 1935 +++++++++++++-----------
- src/cmd/compile/internal/ssa/rewriteARM.go     | 1487 +++++++++---------
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 1462 +++++++++---------
- src/cmd/compile/internal/ssa/rewriteMIPS.go    | 1011 +++++++------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 1142 +++++++-------
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 1180 ++++++++-------
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 1665 +++++++++++---------
- src/cmd/compile/internal/ssa/rewritedec.go     |   44 +-
- src/cmd/compile/internal/ssa/rewritedec64.go   |  228 +--
- src/cmd/compile/internal/ssa/rewritegeneric.go | 1020 +++++++------
- 12 files changed, 6686 insertions(+), 5831 deletions(-)
+ src/go/constant/value.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

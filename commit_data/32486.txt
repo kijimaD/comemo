@@ -1,18 +1,27 @@
-commit 2abef5976a5a7c761579b19e10680347968caef2
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Sun Aug 27 23:17:12 2017 -0400
+commit 1989921aef60c83e6f9127a8448fb5ede10e9acc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 26 14:49:58 2017 +1000
 
-    cmd/go/internal/load: fix IsMetaPackage function name in doc
+    os: do not report ModeDir for symlinks on windows
     
-    The IsMetaPackage function was made exported when it was moved from
-    cmd/go to cmd/go/internal/load in CL 36196. Its documentation wasn't
-    updated accordingly. This change fixes that, resolving a golint issue.
+    When using Lstat against symlinks that point to a directory,
+    the function returns FileInfo with both ModeDir and ModeSymlink set.
+    Change that to never set ModeDir if ModeSymlink is set.
     
-    Updates #18653.
+    Fixes #10424
+    Fixes #17540
+    Fixes #17541
     
-    Change-Id: Icf89461000754d0f09e6617b11c838e4c050d5a6
-    Reviewed-on: https://go-review.googlesource.com/59430
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: Iba280888aad108360b8c1f18180a24493fe7ad2b
+    Reviewed-on: https://go-review.googlesource.com/41830
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/load/search.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/tar/tar_test.go            |  4 ----
+ src/os/os_windows_test.go              | 14 ++++++++++++++
+ src/os/types_windows.go                |  8 ++++----
+ src/path/filepath/path_test.go         |  3 ---
+ src/path/filepath/path_windows_test.go |  2 --
+ 5 files changed, 18 insertions(+), 13 deletions(-)

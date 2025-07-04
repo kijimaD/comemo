@@ -1,0 +1,24 @@
+commit 5428570af7f668c840569a596cb1c23644f408cf
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 9 09:36:41 2024 -0700
+
+    cmd/compile: use call block instead of entry block for tail call expansion
+    
+    The expand-calls pass assumed that tail calls were always done in the
+    entry block. That used to be true, but with tail calls in wrappers
+    (enabled by CL 578235) and libfuzzer instrumentation, that is no
+    longer the case. Libfuzzer instrumentation adds an IF statement to the
+    start of the wrapper function.
+    
+    Fixes #69825
+    
+    Change-Id: I9ab7133691d8235f9df128be39bff154b0b8853b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619075
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go |  2 +-
+ test/fixedbugs/issue69825.go                 | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

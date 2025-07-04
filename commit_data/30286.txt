@@ -1,15 +1,16 @@
-commit 45a5f79c24677517270083eb56a931192c7e1e7e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 15 14:26:42 2017 -0800
+commit 5552d08b14b6a5099147934111a34f8362341ae2
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 29 13:53:22 2016 -0400
 
-    internal/poll: define PollDescriptor on plan9
+    cmd/go: test fixes dropped from CL 31821
     
-    Fixes #19114.
+    Because git.
     
-    Change-Id: I352add53d6ee8bf78792564225099f8537ac6b46
-    Reviewed-on: https://go-review.googlesource.com/37106
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Change-Id: Ia1e7c6ba0e8c4d47f993487d2483cbb213b465e5
+    Reviewed-on: https://go-review.googlesource.com/32351
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/fd_plan9.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/go_test.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

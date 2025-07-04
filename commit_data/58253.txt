@@ -1,17 +1,18 @@
-commit ff2cb4abb45c86c7fc1fbdf530a52ad226ef1318
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Nov 21 16:44:21 2024 -0800
+commit d1cb2483b70827f8f2f839fe7b0f140c910fc5b7
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Oct 13 13:07:28 2023 +0800
 
-    net/http: skip test which depends on h2_bundle.go update
+    database: add available godoc link
     
-    For #67816
-    
-    Change-Id: I9ba3a245d6b18758944ca5e206a15892b2aa6028
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630976
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I6150858f1186edc6cebd38ff166d57287fa430f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535078
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/http/transport_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/database/sql/driver/driver.go | 156 +++++++++----------
+ src/database/sql/driver/types.go  |  41 ++---
+ src/database/sql/sql.go           | 308 +++++++++++++++++++-------------------
+ 3 files changed, 253 insertions(+), 252 deletions(-)

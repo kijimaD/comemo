@@ -1,21 +1,17 @@
-commit 2978ebbc7b087f831826f2a802248b9565d99ca6
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Feb 4 23:38:45 2015 -0500
+commit 3c7bdd4d768444c349f6647b00465627d5ee1345
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jan 13 10:43:43 2015 +1100
 
-    cmd/5g, cmd/6g, cmd/8g, cmd/9g: clear Addr parameter in sudoaddable
+    crypto/x509: add cert SmartOS cert path
     
-    The Addr might be a stack variable with uninitialized fields.
+    Fix SmartOS build that was broken in 682922908f7.
     
-    Fixes #9777.
+    SmartOS pretends to be Ubuntu/Debian with respect to its SSL
+    certificate location.
     
-    Change-Id: I799786e3d8b2e17e069725bc66a076cf9ca11f93
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/3932
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5405c6472c8a1e812e472e7301bf6084c17549d6
+    Reviewed-on: https://go-review.googlesource.com/2704
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5g/gsubr.c | 2 ++
- src/cmd/6g/gsubr.c | 2 ++
- src/cmd/8g/gsubr.c | 2 +-
- src/cmd/9g/gsubr.c | 3 ++-
- 4 files changed, 7 insertions(+), 2 deletions(-)
+ src/crypto/x509/root_solaris.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

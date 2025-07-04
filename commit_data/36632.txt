@@ -1,78 +1,30 @@
-commit 9f2411894ba41d9032623cf637a62846397fec67
-Author: Ben Shi <powerman1st@163.com>
-Date:   Mon Sep 10 08:29:52 2018 +0000
+commit 903f095c1ae3cafc40855662c69722121c42e3a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 10 13:33:47 2018 -0700
 
-    cmd/compile: optimize arm's bit operation
+    go/types: adopt spec terminology, use 'embedded' rather then 'anonyous' field
     
-    BFC (Bit Field Clear) was introduced in ARMv7, which can simplify
-    ANDconst and BICconst. And this CL implements that optimization.
+    Commit f8b4123613a (https://go-review.googlesource.com/35108) adjusted
+    the spec to uniformly use 'embedded' rather than 'anonymous' for struct
+    embedded fields. Adjust go/types' internal terminology.
     
-    1. The total size of pkg/android_arm decreases about 3KB, excluding
-    cmd/compile/.
+    Provide an additional accessor Var.IsEmbedded().
     
-    2. There is no regression in the go1 benchmark result, and some
-    cases (FmtFprintfEmpty-4 and RegexpMatchMedium_32-4) even get
-    slight improvement.
+    This is essentially a rename of an internal field and adjustments of
+    documentation.
     
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              25.3s ± 1%     25.2s ± 1%    ~     (p=0.072 n=30+29)
-    Fannkuch11-4                13.3s ± 0%     13.3s ± 0%  +0.13%  (p=0.000 n=30+26)
-    FmtFprintfEmpty-4           407ns ± 0%     394ns ± 0%  -3.19%  (p=0.000 n=26+28)
-    FmtFprintfString-4          664ns ± 0%     662ns ± 0%  -0.22%  (p=0.000 n=30+30)
-    FmtFprintfInt-4             712ns ± 0%     706ns ± 0%  -0.79%  (p=0.000 n=30+30)
-    FmtFprintfIntInt-4         1.06µs ± 0%    1.05µs ± 0%  -0.38%  (p=0.000 n=30+30)
-    FmtFprintfPrefixedInt-4    1.16µs ± 0%    1.16µs ± 0%  -0.13%  (p=0.000 n=30+29)
-    FmtFprintfFloat-4          2.24µs ± 0%    2.23µs ± 0%  -0.51%  (p=0.000 n=29+21)
-    FmtManyArgs-4              4.09µs ± 0%    4.06µs ± 0%  -0.83%  (p=0.000 n=28+30)
-    GobDecode-4                55.0ms ± 5%    55.4ms ± 5%    ~     (p=0.307 n=30+30)
-    GobEncode-4                51.2ms ± 1%    51.9ms ± 1%  +1.23%  (p=0.000 n=29+30)
-    Gzip-4                      2.64s ± 0%     2.60s ± 0%  -1.35%  (p=0.000 n=30+29)
-    Gunzip-4                    309ms ± 0%     308ms ± 0%  -0.27%  (p=0.000 n=30+30)
-    HTTPClientServer-4         1.03ms ± 5%    1.02ms ± 4%    ~     (p=0.117 n=30+29)
-    JSONEncode-4                101ms ± 2%     101ms ± 2%    ~     (p=0.338 n=29+29)
-    JSONDecode-4                383ms ± 2%     382ms ± 2%    ~     (p=0.751 n=26+30)
-    Mandelbrot200-4            18.4ms ± 0%    18.4ms ± 0%  -0.10%  (p=0.000 n=29+29)
-    GoParse-4                  22.6ms ± 0%    22.5ms ± 0%  -0.39%  (p=0.000 n=30+30)
-    RegexpMatchEasy0_32-4       761ns ± 0%     750ns ± 0%  -1.47%  (p=0.000 n=26+29)
-    RegexpMatchEasy0_1K-4      4.33µs ± 0%    4.34µs ± 0%  +0.27%  (p=0.000 n=25+28)
-    RegexpMatchEasy1_32-4       809ns ± 0%     795ns ± 0%  -1.74%  (p=0.000 n=27+25)
-    RegexpMatchEasy1_1K-4      5.54µs ± 0%    5.53µs ± 0%  -0.18%  (p=0.000 n=29+29)
-    RegexpMatchMedium_32-4     1.11µs ± 0%    1.08µs ± 0%  -2.78%  (p=0.000 n=27+29)
-    RegexpMatchMedium_1K-4      255µs ± 0%     255µs ± 0%  -0.02%  (p=0.029 n=30+30)
-    RegexpMatchHard_32-4       14.7µs ± 0%    14.7µs ± 0%  -0.28%  (p=0.000 n=30+29)
-    RegexpMatchHard_1K-4        439µs ± 0%     439µs ± 0%    ~     (p=0.907 n=23+27)
-    Revcomp-4                  41.9ms ± 1%    41.9ms ± 1%    ~     (p=0.230 n=28+30)
-    Template-4                  522ms ± 1%     528ms ± 1%  +1.25%  (p=0.000 n=30+30)
-    TimeParse-4                3.34µs ± 0%    3.35µs ± 0%  +0.23%  (p=0.000 n=30+27)
-    TimeFormat-4               6.06µs ± 0%    6.13µs ± 0%  +1.08%  (p=0.000 n=29+29)
-    [Geo mean]                  384µs          382µs       -0.37%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4              14.0MB/s ± 5%  13.9MB/s ± 5%    ~     (p=0.308 n=30+30)
-    GobEncode-4              15.0MB/s ± 1%  14.8MB/s ± 1%  -1.22%  (p=0.000 n=29+30)
-    Gzip-4                   7.36MB/s ± 0%  7.46MB/s ± 0%  +1.35%  (p=0.000 n=30+30)
-    Gunzip-4                 62.8MB/s ± 0%  63.0MB/s ± 0%  +0.27%  (p=0.000 n=30+30)
-    JSONEncode-4             19.2MB/s ± 2%  19.2MB/s ± 2%    ~     (p=0.312 n=29+29)
-    JSONDecode-4             5.05MB/s ± 3%  5.08MB/s ± 2%    ~     (p=0.356 n=29+30)
-    GoParse-4                2.56MB/s ± 0%  2.57MB/s ± 0%  +0.39%  (p=0.000 n=23+27)
-    RegexpMatchEasy0_32-4    42.0MB/s ± 0%  42.6MB/s ± 0%  +1.50%  (p=0.000 n=26+28)
-    RegexpMatchEasy0_1K-4     236MB/s ± 0%   236MB/s ± 0%  -0.27%  (p=0.000 n=25+28)
-    RegexpMatchEasy1_32-4    39.6MB/s ± 0%  40.2MB/s ± 0%  +1.73%  (p=0.000 n=27+27)
-    RegexpMatchEasy1_1K-4     185MB/s ± 0%   185MB/s ± 0%  +0.18%  (p=0.000 n=29+29)
-    RegexpMatchMedium_32-4    900kB/s ± 0%   920kB/s ± 0%  +2.22%  (p=0.000 n=29+29)
-    RegexpMatchMedium_1K-4   4.02MB/s ± 0%  4.02MB/s ± 0%  +0.07%  (p=0.004 n=30+27)
-    RegexpMatchHard_32-4     2.17MB/s ± 0%  2.18MB/s ± 0%  +0.46%  (p=0.000 n=30+26)
-    RegexpMatchHard_1K-4     2.33MB/s ± 0%  2.33MB/s ± 0%    ~     (all equal)
-    Revcomp-4                60.6MB/s ± 1%  60.7MB/s ± 1%    ~     (p=0.207 n=28+30)
-    Template-4               3.72MB/s ± 1%  3.67MB/s ± 1%  -1.23%  (p=0.000 n=30+30)
-    [Geo mean]               12.9MB/s       12.9MB/s       +0.29%
-    
-    Change-Id: I07f497f8bb476c950dc555491d00c9066fb64a4e
-    Reviewed-on: https://go-review.googlesource.com/134232
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Icd07aa192bc5df7a2ee103185fa7e9c55e8f1ac3
+    Reviewed-on: https://go-review.googlesource.com/112716
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/arm/ssa.go | 49 +++++++++++++++++++++++++++++++++++--
- test/codegen/bits.go                |  7 ++++--
- 2 files changed, 52 insertions(+), 4 deletions(-)
+ src/go/types/api.go              |  6 +++---
+ src/go/types/lookup.go           |  4 ++--
+ src/go/types/methodset.go        |  2 +-
+ src/go/types/object.go           | 24 ++++++++++++++----------
+ src/go/types/predicates.go       |  4 ++--
+ src/go/types/testdata/decls0.src |  2 +-
+ src/go/types/type.go             |  2 +-
+ src/go/types/typestring.go       |  4 ++--
+ src/go/types/typexpr.go          | 22 +++++++++++-----------
+ 9 files changed, 37 insertions(+), 33 deletions(-)

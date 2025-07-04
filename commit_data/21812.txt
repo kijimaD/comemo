@@ -1,18 +1,21 @@
-commit 184eb0ac9e521715037094860089d756f214668f
+commit 7e3b30aea6d741cbc8718faae114ed99ebffa673
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 28 19:52:06 2015 -0500
+Date:   Thu Feb 5 05:29:26 2015 -0500
 
-    cmd/cc: delete lexbody, macbody
+    cmd/5a: prepare reglist correctly
     
-    These files were left behind for the C implementation of the assemblers.
-    They're no longer needed.
+    This was working when 5a was built on x86 because REG_R0 = 32,
+    and a 32-bit shift on x86 uses only the low 32 bits of the shift count.
     
-    This is the last of the cmd/cc directory.
+    On ARM, the shift clamping is different.
     
-    Change-Id: I9231b23c27fead5695000097aeb694824747677d
-    Reviewed-on: https://go-review.googlesource.com/6367
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Moving to Go will avoid these differing shift semantics.
+    I tripped over and fixed this bug in new5a the same way earlier tonight.
+    
+    Change-Id: Id56aa0bb1830ccf250960f843e0acb8a0409e87d
+    Reviewed-on: https://go-review.googlesource.com/3961
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/cc/lexbody | 736 ------------------------------------------------
- src/cmd/cc/macbody | 800 -----------------------------------------------------
- 2 files changed, 1536 deletions(-)
+ src/cmd/5a/a.y     |  20 ++++++--
+ src/cmd/5a/y.tab.c | 134 +++++++++++++++++++++++++++++------------------------
+ 2 files changed, 89 insertions(+), 65 deletions(-)

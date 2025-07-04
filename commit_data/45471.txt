@@ -1,20 +1,20 @@
-commit c3b2b0415666a1b2a3e00583a2f192ad2001f93e
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Jan 28 23:06:56 2021 +1100
+commit 07c3f65d53df7bb9f84bdbd2ab64c0ae12337e3e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 6 15:44:27 2020 +0000
 
-    runtime: switch openbsd/386 locking to libc
+    runtime,runtime/metrics: add heap object count metric
     
-    Switch openbsd/386 to locking via libc, rather than performing direct
-    system calls.
+    For #37112.
     
-    Update #36435
-    
-    Change-Id: I8198171e21f9acf28846ad723ea9ff48f7c8a69d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/287652
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Idd3dd5c84215ddd1ab05c2e76e848aa0a4d40fb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247043
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/os_openbsd_syscall1.go |  4 +--
- src/runtime/sys_openbsd1.go        |  4 +--
- src/runtime/sys_openbsd_386.s      | 59 +++++++++++++++++++++++++++-----------
- 3 files changed, 46 insertions(+), 21 deletions(-)
+ src/runtime/metrics.go             | 18 ++++++++++++++++--
+ src/runtime/metrics/description.go |  5 +++++
+ src/runtime/metrics/doc.go         |  3 +++
+ src/runtime/metrics_test.go        |  2 ++
+ 4 files changed, 26 insertions(+), 2 deletions(-)

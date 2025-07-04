@@ -1,0 +1,25 @@
+commit 56fb8350c835d1ccf0e6cdb8f753c85e2e0748a8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 01:58:50 2024 +0000
+
+    runtime: don't call span.heapBits in writeHeapBitsSmall
+    
+    For whatever reason, span.heapBits is kind of slow. It accounts for
+    about a quarter of the cost of writeHeapBitsSmall, which is absurd. We
+    get a nice speed improvement for small allocations by eliminating this
+    call.
+    
+                       │   before    │               after               │
+                       │   sec/op    │   sec/op     vs base              │
+    MallocTypeInfo16-4   29.47n ± 1%   27.02n ± 1%  -8.31% (p=0.002 n=6)
+    
+    Change-Id: I6270e26902e5a9254cf1503fac81c3c799c59d6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614255
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/malloc.go  | 10 ++++++++++
+ src/runtime/mbitmap.go | 15 +++++++++------
+ 2 files changed, 19 insertions(+), 6 deletions(-)

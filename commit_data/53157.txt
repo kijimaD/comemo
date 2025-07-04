@@ -1,21 +1,22 @@
-commit 49ad23a6d23d6cc1666c22e4bc215f25f717b569
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 19 16:58:37 2023 -0400
+commit 2d655fb15a50036547a6bf8f77608aab9fb31368
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 16 15:51:25 2022 -0700
 
-    cmd/dist: delete moved_goroot test
+    unsafe: document when Sizeof/Offsetof/Alignof are not constant
     
-    This test is largely obviated by the goroot_executable and
-    list_goroot_symlink cmd/go script tests. It's the last user of several
-    special-case features in cmd/dist and runs only under a fairly
-    constrained set of conditions (including only running on builders, not
-    locally). Delete it.
+    They are not constant if their arguments have types that are variable size.
     
-    Change-Id: Icc744e3f9f04813bfd0cad2ef3e88e42617ecf5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496519
+    Fixes #53921
+    
+    Change-Id: I2d46754c27f55a281331c099a11ea3cd85ec4e89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417917
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/dist/test.go | 44 --------------------------------------------
- 1 file changed, 44 deletions(-)
+ src/unsafe/unsafe.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

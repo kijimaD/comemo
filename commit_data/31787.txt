@@ -1,31 +1,17 @@
-commit 6914b0e3e3c4e3f2512bf4860c2ec2896f3d1f1f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Jun 10 20:08:18 2017 -0700
+commit dd9892e31b24a496865cea4db6cdca6d73142895
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Mar 15 21:28:29 2017 -0700
 
-    runtime, unicode: use consistent banner for generated code
+    cmd/compile: intrinsify math/bits.ReverseBytes
     
-    Per golang.org/s/generatedcode
+    Update #18616
     
-    Updates #nnn
-    
-    Change-Id: Ia7513ef6bd26c20b62b57b29f7770684a315d389
-    Reviewed-on: https://go-review.googlesource.com/45470
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0c2d643cbbeb131b4c9b12194697afa4af48e1d2
+    Reviewed-on: https://go-review.googlesource.com/38166
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/duff_386.s       | 2 +-
- src/runtime/duff_amd64.s     | 2 +-
- src/runtime/duff_arm.s       | 2 +-
- src/runtime/duff_arm64.s     | 2 +-
- src/runtime/duff_mips64x.s   | 2 +-
- src/runtime/duff_ppc64x.s    | 2 +-
- src/runtime/mkduff.go        | 2 +-
- src/runtime/mknacl.sh        | 2 +-
- src/runtime/mksizeclasses.go | 2 +-
- src/runtime/sizeclasses.go   | 2 +-
- src/runtime/syscall_nacl.h   | 2 +-
- src/unicode/maketables.go    | 4 ++--
- src/unicode/tables.go        | 4 ++--
- 13 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 64 +++++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/ssa.go      |  4 +++
+ 2 files changed, 65 insertions(+), 3 deletions(-)

@@ -1,20 +1,29 @@
-commit 09c9bced825593aedfd79af5c35916392f43113c
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Mon Sep 30 11:24:19 2019 +0200
+commit dbc17037815bdce5df3f355f2171c57804f7870e
+Author: jfbus <jf@bustarret.com>
+Date:   Tue Mar 26 18:21:53 2019 +0000
 
-    cmd/internal/obj/ppc64: Fix ADUFFxxxx generation on aix/ppc64
+    net: support single-request resolv.conf option in pure Go resolver
     
-    ADUFFCOPY and ADUFFZERO instructions weren't handled by rewriteToUseTOC.
-    These instructions are considered as a simple branch except with -dynlink
-    where they become an indirect call.
+    There is a DNS resolution issue in Kubernetes (UDP response packets get dropped due to a race in conntrack between the parallel A and AAAA queries, causing timeouts in DNS queries).
     
-    Fixes #34604
+    A workaround is to enable single-request / single-request-reopen in resolv.conf in order to use sequential A and AAAA queries instead of parallel queries.
     
-    Change-Id: I16ca6a152164966fb9cbf792219a8a39aad2b53b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197842
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    With this PR, the pure Go resolver searches for "single-request" and "single-request-reopen" in resolv.conf and send A and AAAA queries sequentially when found.
+    
+    Fixes #29644
+    
+    Change-Id: I906b3484008c1b9adf2e3e9241ea23767e29df59
+    GitHub-Last-Rev: d481acfb4c49d82fd474078b31a1a4697b57dadf
+    GitHub-Pull-Request: golang/go#29661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/157377
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/ppc64/obj9.go | 62 ++++++++++++++++++++++++++++++++++++--
- 1 file changed, 59 insertions(+), 3 deletions(-)
+ src/net/dnsclient_unix.go                          | 58 +++++++++++------
+ src/net/dnsclient_unix_test.go                     | 74 ++++++++++++++++++++++
+ src/net/dnsconfig_unix.go                          | 30 +++++----
+ src/net/dnsconfig_unix_test.go                     | 22 +++++++
+ src/net/testdata/single-request-reopen-resolv.conf |  1 +
+ src/net/testdata/single-request-resolv.conf        |  1 +
+ 6 files changed, 155 insertions(+), 31 deletions(-)

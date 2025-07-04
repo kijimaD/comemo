@@ -1,30 +1,25 @@
-commit ea08952aa2db17ce4c14d9f9cb0fab03380073a0
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Mon Aug 12 15:18:45 2024 +0800
+commit 7b625d1f65a6224968d8668c1ae1b0730dabb605
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 20 14:00:20 2023 -0700
 
-    cmd/internal/obj/loong64: add support for instructions BSTRPICK.{W/D} and BSTRINS.{W/D}
+    go/types, types2: make sure info recording is executed in test runs
     
-    Go asm syntax:
-            BSTRPICK{W/V}   $msb, RJ, $lsb, RD
-            BSTRINS{W/V}    $msb, RJ, $lsb, RD
+    Issue #61486 causes a compiler crash but is not detected when running
+    stand-alone type-checker tests because no types are recorded.
     
-    Equivalent platform assembler syntax:
-            bstrpick.{w/d}  rd, rj, $msb, $lsb
-            bstrins.{w/d}   rd, rj, $msb, $lsb
+    Set up Config.Info map with all maps when when running local tests
+    so that type/object recording code is executed during local tests.
     
-    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    For #61486.
     
-    Change-Id: I8b89b766ed22a96da7d8d5b2b2873382a49208de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604735
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I8eb40c8525dac3da65db0dc7e0e654842713b9a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511657
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/asm.go                 |  7 ++++
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 14 +++++++
- src/cmd/internal/obj/loong64/a.out.go           |  8 ++++
- src/cmd/internal/obj/loong64/anames.go          |  4 ++
- src/cmd/internal/obj/loong64/asm.go             | 52 +++++++++++++++++++++++++
- src/cmd/internal/obj/loong64/doc.go             |  8 +++-
- 6 files changed, 92 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/check_test.go | 12 +++++++++++-
+ src/go/types/check_test.go                    | 12 +++++++++++-
+ 2 files changed, 22 insertions(+), 2 deletions(-)

@@ -1,25 +1,17 @@
-commit 82517acae866d60a9754d44d004bfa159e656c07
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon May 10 14:52:22 2021 +0200
+commit 94b3fd06cb431358f45786246cd279c8bdb9370b
+Author: Michele Di Pede <michele.di.pede@gmail.com>
+Date:   Fri Oct 30 11:55:18 2020 +0100
 
-    net, runtime: drop macOS 10.12 skip conditions in tests
+    cmd/compile: code cleanup
     
-    Go 1.17 requires macOS 10.13 or later. Thus, drop the special cases for
-    the darwin-amd64-10_12 builder added in CL 202618.
-    
-    Updates #22019
-    Updates #23011
-    Updates #32919
-    
-    Change-Id: Idef11c213dfb25fd002b7cda6d425cf2e26a2e06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318329
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ibf68e663f29a5cb3b64a7d923c005c16da647769
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266537
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/dial_test.go      | 10 +---------
- src/net/server_test.go    |  7 -------
- src/runtime/crash_test.go |  8 --------
- 3 files changed, 1 insertion(+), 24 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go   |  9 ++++----
+ src/cmd/compile/internal/ssa/compile.go | 40 +++++++++++++++++----------------
+ src/cmd/compile/internal/x86/ssa.go     |  7 +++---
+ 3 files changed, 30 insertions(+), 26 deletions(-)

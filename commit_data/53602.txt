@@ -1,20 +1,16 @@
-commit b1f1fb2950814ae2b69e64537ecd96f13ae32627
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 21 11:14:34 2023 -0700
+commit a36a0c440e7b3cfd6ede8f1ab1981101e6db8d95
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Thu Jun 9 06:50:54 2022 +0200
 
-    go/types, types2: avoid spurious "declared and not used" error
+    cmd/compile: fix error message formatting in decomposeBuiltInPhi
     
-    Fixes #60906.
-    
-    Change-Id: Iba117b36041f72a54ce82cc914f8fa3b07a6fb2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504877
+    Change-Id: Ib2b2eb6bebb59134f671a79739ee1acaf32ed443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411217
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/cmd/compile/internal/types2/index.go            |  1 +
- src/go/types/index.go                               |  1 +
- src/internal/types/testdata/fixedbugs/issue60906.go | 11 +++++++++++
- 3 files changed, 13 insertions(+)
+ src/cmd/compile/internal/ssa/decompose.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

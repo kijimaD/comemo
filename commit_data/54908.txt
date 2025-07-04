@@ -1,25 +1,43 @@
-commit c9888bdfe2cdd85d14d7d184863d2e8bc42ff73c
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Oct 30 13:23:00 2023 -0700
+commit d7812ab38031ae524a731b4d2f19adcecd22c2f4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 12 14:01:15 2022 +0100
 
-    cmd/internal/obj/arm64: fix frame pointer restore in epilogue
+    crypto/internal/bigmod: move nat implementation out of crypto/rsa
     
-    For leaf but nonzero-frame functions.
+    This will let us reuse it in crypto/ecdsa for the NIST scalar fields.
     
-    Currently we're not restoring it properly. We also need to restore
-    it before popping the stack frame, so that the frame won't get
-    clobbered by a signal handler in the meantime.
+    The main change in API is around encoding and decoding. The SetBytes +
+    ExpandFor sequence was hacky: SetBytes could produce a bigger size than
+    the modulus if leading zeroes in the top byte overflowed the limb
+    boundary, so ExpandFor had to check for and tolerate that. Also, the
+    caller was responsible for checking that the overflow was actually all
+    zeroes (which we weren't doing, exposing a crasher in decryption and
+    signature verification) and then for checking that the result was less
+    than the modulus. Instead, make SetBytes take a modulus and return an
+    error if the value overflows. Same with Bytes: we were always allocating
+    based on Size before FillBytes anyway, so now Bytes takes a modulus.
+    Finally, SetBig was almost only used for moduli, so replaced
+    NewModulusFromNat and SetBig with NewModulusFromBig.
     
-    Fixes #63830
+    Moved the constant-time bitLen to math/big.Int.BitLen. It's slower, but
+    BitLen is primarily used in cryptographic code, so it's safer this way.
     
-    Needs a test, but I'm not at all sure how we would actually do that. Leaving for inspiration.
-    
-    Change-Id: I273a25f2a838f05a959c810145cccc5428eaf164
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538635
+    Change-Id: Ibaf7f36d80695578cb80484167d82ce1aa83832f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450055
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/internal/obj/arm64/obj7.go | 19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ src/crypto/{rsa => internal/bigmod}/nat.go | 211 +++++++--------
+ src/crypto/internal/bigmod/nat_test.go     | 412 +++++++++++++++++++++++++++++
+ src/crypto/rsa/nat_test.go                 | 384 ---------------------------
+ src/crypto/rsa/pkcs1v15.go                 |   7 +-
+ src/crypto/rsa/pss.go                      |  11 +-
+ src/crypto/rsa/rsa.go                      |  87 +++---
+ src/crypto/rsa/rsa_test.go                 |  21 ++
+ src/go/build/deps_test.go                  |   1 +
+ src/math/big/int.go                        |  12 +
+ src/math/big/nat.go                        |  15 +-
+ 10 files changed, 616 insertions(+), 545 deletions(-)

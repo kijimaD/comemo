@@ -1,30 +1,22 @@
-commit b6b144bf97744ead3ac51fd1b5648d2e31a8de0e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 4 15:01:29 2015 -0700
+commit 157f069873c0fe2310e628ffd679caffa6e68b4e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 10 15:07:08 2016 -0800
 
-    cmd/compile: don't generate algs for ... args
+    cmd/compile: call missing popdcl in various genxxx functions
     
-    Note that this is only safe because
-    the compiler generates multiple distinct
-    gc.Types. If we switch to having canonical
-    gc.Types, then this will need to be updated
-    to handle the case in which the user uses both
-    map[[n]T]S and also calls a function f(...T) with n arguments.
-    In that case, the runtime needs algs for [n]T, but this could
-    mark the sole [n]T type as Noalg. This is a general
-    problem with having a single bool to represent
-    whether alg generation is needed for a type.
+    Not calling popdcl doesn't have an impact on generated code but
+    the result is a growing (rather than empty) stack of symbols,
+    possibly causing more data to remain alive than necessary.
     
-    Cuts 17k off cmd/go and 13k off golang.org/x/tools/cmd/godoc,
-    approx 0.14% and 0.07% respectively.
+    Also: minor cleanups.
     
-    For #6853 and #9930
-    
-    Change-Id: Iccb6b9fd88ade5497d7090528a903816d340bf0a
-    Reviewed-on: https://go-review.googlesource.com/19770
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic4fdbcd8843637d69ab1aa15e896a7e6339bc990
+    Reviewed-on: https://go-review.googlesource.com/20554
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/alg.go    | 4 ++++
+ src/cmd/compile/internal/gc/go.go     | 9 +++++----
+ src/cmd/compile/internal/gc/parser.go | 4 ++--
+ src/cmd/compile/internal/gc/subr.go   | 2 ++
+ 4 files changed, 13 insertions(+), 6 deletions(-)

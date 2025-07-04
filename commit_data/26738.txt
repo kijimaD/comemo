@@ -1,16 +1,21 @@
-commit a2eded3421f144983c0ccb9e6c0a325fa1ba1f82
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Apr 5 23:09:39 2016 -0400
+commit f388b58540c2cc401dfa79e3d7b6a1846ac9a59f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 24 09:53:27 2016 -0800
 
-    runtime: get randomness from AT_RANDOM AUXV on linux/arm64
+    cmd/compile: reuseable cache of Prog structs
     
-    Fixes #15147.
+    Reuseable cache of Prog entries.
     
-    Change-Id: Ibfe46c747dea987787a51eb0c95ccd8c5f24f366
-    Reviewed-on: https://go-review.googlesource.com/21580
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Improves compiler speed by ~10%.
+    
+    Update #13646
+    
+    Change-Id: I01bd8606540d989ea8b8ba5131d1275ba380d976
+    Reviewed-on: https://go-review.googlesource.com/19868
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_linux_arm64.go | 26 ++++++++++++++++++++++++++
- src/runtime/vdso_none.go      |  1 +
- 2 files changed, 27 insertions(+)
+ src/cmd/internal/obj/link.go    |  4 ++++
+ src/cmd/internal/obj/objfile.go |  1 +
+ src/cmd/internal/obj/util.go    | 15 ++++++++++++++-
+ 3 files changed, 19 insertions(+), 1 deletion(-)

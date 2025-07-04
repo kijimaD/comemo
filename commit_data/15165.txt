@@ -1,12 +1,12 @@
-commit 6c54bf991680f937db8fb74e8da4b26a757e8242
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Feb 8 13:24:38 2013 +0800
+commit abbe111135e5410d0ea2f16d5c7f36e0c6e89cf9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 7 20:25:10 2013 -0800
 
-    runtime: fix build for Linux/ARM
+    C: add Jeremy Schlatter (Google CLA)
     
-    R=dave, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7299055
+    https://golang.org/cl/7307070
 
- src/pkg/runtime/traceback_arm.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

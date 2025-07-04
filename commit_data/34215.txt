@@ -1,18 +1,18 @@
-commit 981d0495b7ed6e1a5fb0fba818bdc2bf9d4b13fa
-Author: Austin Clements <austin@google.com>
-Date:   Sun Dec 3 18:08:57 2017 -0500
+commit 0c6fc0d711da590eafdfa4719ae322f84b49521d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Oct 6 15:59:44 2017 -0400
 
-    runtime: expand/update lfstack address space assumptions
+    debug/elf: add relocation constants
     
-    I was spelunking Linux's address space code and found that some of the
-    information about maximum virtual addresses in lfstack's comments was
-    out of date. This expands and updates the comment.
+    Compiled from various tables found around the internet.
     
-    Change-Id: I9f54b23e6b266b3c5cc20259a849231fb751f6e7
-    Reviewed-on: https://go-review.googlesource.com/85875
-    Run-TryBot: Austin Clements <austin@google.com>
+    Some of these are used by cmd/link.
+    
+    Change-Id: I258b25e694dbe91a61d675763f2c47ccc928fd70
+    Reviewed-on: https://go-review.googlesource.com/69012
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/lfstack_64bit.go | 21 +++++++++++++++------
- 1 file changed, 15 insertions(+), 6 deletions(-)
+ src/debug/elf/elf.go | 756 +++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 556 insertions(+), 200 deletions(-)

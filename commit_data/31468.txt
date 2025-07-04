@@ -1,26 +1,25 @@
-commit 00f827784b37babedcd7da53cdd5d657eb761dd3
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Mon May 1 20:35:08 2017 +0200
+commit 72a071c1da98458e9f7ccf1812b401903acf5b1d
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Feb 20 15:54:43 2017 -0500
 
-    misc/android: don't let the Android exec wrapper hang indefinitely
+    cmd/compile: rewrite pairs of shifts to extensions
     
-    On Android, the exec wrapper passes on output from adb to its parent
-    process by passing on os.Stderr and os.Stdout to adb. If the adb
-    process somehow hangs, it will keep stderr and stdout will open, in turn
-    blocking go test from ever returning from its cmd.Wait() even though
-    it has killed the exec wrapper process.
+    Replaces pairs of shifts with sign/zero extension where possible.
     
-    Break the short circuit by introducing a wrapper between adb and the
-    exec wrapper, preventing os/exec.Run from passing along the raw
-    file descriptors for os.Stdout and os.Stderr.
+    For example:
+    (uint64(x) << 32) >> 32 -> uint64(uint32(x))
     
-    (Hopefully) fixes occasional indefinite hangs on the Android builder.
+    Reduces the execution time of the following code by ~4.5% on s390x:
     
-    Change-Id: I1188211fbde79b4a66bf93ff8e9d0091abf34560
-    Reviewed-on: https://go-review.googlesource.com/42271
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    for i := 0; i < N; i++ {
+            x += (uint64(i)<<32)>>32
+    }
+    
+    Change-Id: Idb2d56f27e80a2e1366bc995922ad3fd958c51a7
+    Reviewed-on: https://go-review.googlesource.com/37292
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- misc/android/go_android_exec.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  16 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 348 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/shift_test.go     |  60 +++++
+ 3 files changed, 424 insertions(+)

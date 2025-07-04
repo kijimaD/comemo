@@ -1,15 +1,19 @@
-commit 8ca785621e7239b2f11ae2e02f00ef961241712f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Aug 22 10:40:01 2015 +0100
+commit fc2eee87edd1ffbe6afd3b742760d29ac3983d3b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 29 17:56:20 2015 -0700
 
-    mime: move examples to external test file
+    database/sql: make Register safe for concurrent use
     
-    Fixes #11257
+    Adding a mutex was easier than documenting it, and is consistent with
+    gob.
     
-    Change-Id: I3f75db47b0f8e877d81e3c2dcea01ff747b47685
-    Reviewed-on: https://go-review.googlesource.com/13779
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #9847
+    
+    Change-Id: Ifa94c17e7c11643add81b35431ef840b794d78b1
+    Reviewed-on: https://go-review.googlesource.com/11682
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/encodedword_test.go | 87 ---------------------------------------
- src/mime/example_test.go     | 98 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 98 insertions(+), 87 deletions(-)
+ src/database/sql/sql.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

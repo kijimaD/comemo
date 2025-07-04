@@ -1,22 +1,22 @@
-commit 803d18fc6c656c5410a62157de0328a669e1b56b
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jan 15 19:18:34 2021 -0500
+commit afd477f2baca9c66ab7fda5fe565174db30933a7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu May 14 14:52:17 2020 -0400
 
-    cmd/go: set Incomplete field on go list output if no files match embed
+    cmd: update golang.org/x/mod to v0.3.0 (same commit)
     
-    If no files match the embed pattern, the Error field will be set on
-    the package output by go list. Also set the Incomplete field for
-    consistency.
+    v0.3.0 is a tag on 859b3ef565e2, the version that was already being
+    used. This change is a no-op, except for letting us use a release
+    version instead of a pseudo-version.
     
-    Fixes #43727
+    For #36905
     
-    Change-Id: I5b4bb2a03a751269641a9bc4ef1d0fa0e37d46aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284257
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I70b8ce2a3f1451f5602c469501362d7a6a673b12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234002
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/load/pkg.go      | 1 +
- src/cmd/go/testdata/script/embed.txt | 2 ++
- 2 files changed, 3 insertions(+)
+ src/cmd/go.mod             | 2 +-
+ src/cmd/go.sum             | 4 ++--
+ src/cmd/vendor/modules.txt | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

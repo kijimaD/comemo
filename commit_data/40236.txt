@@ -1,25 +1,16 @@
-commit 9f4fb6815237f3e66057d175bd15cb167513de83
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Oct 12 16:58:01 2019 -0700
+commit 203b80ab8639ff9dc0710e22c2b33f2df861363b
+Author: Alex Myasoedov <msoedov@gmail.com>
+Date:   Sun Apr 28 15:43:46 2019 +0300
 
-    cmd/compile: remove PDISCARD class
+    strconv: Document ParseFloat's special cases
     
-    This pseudo-Class was previously used by the importer code to optimize
-    processing duplicate inline bodies, since we didn't actually care
-    about the declarations in those contexts.
+    Updates #30990
     
-    This functionality is no longer needed with indexed exports, since we
-    now only process function bodies as needed (and never more than once).
-    
-    Passes toolstash-check.
-    
-    Change-Id: I7eab0cb16925ab777079c2a20731dbcfd63cf195
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200899
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I968fb13251ab3796328089046a3f0fc5c7eb9df9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174204
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/class_string.go | 5 ++---
- src/cmd/compile/internal/gc/dcl.go          | 4 ----
- src/cmd/compile/internal/gc/go.go           | 9 +--------
- 3 files changed, 3 insertions(+), 15 deletions(-)
+ src/strconv/example_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

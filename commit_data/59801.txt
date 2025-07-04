@@ -1,44 +1,16 @@
-commit c6ac7362888c25dd1251adaa11e1503cf78ec26d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat Jun 14 02:45:08 2025 +0000
+commit e689118852c9c1841ee4c17aeeb3ec3a5242e9a2
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Apr 24 10:04:01 2024 -0700
 
-    runtime: prevent mutual deadlock between GC stopTheWorld and suspendG
+    crypto/tls: skip bogo suite on windows builders
     
-    Almost everywhere we stop the world we casGToWaitingForGC to prevent
-    mutual deadlock with the GC trying to scan our stack. This historically
-    was only necessary if we weren't stopping the world to change the GC
-    phase, because what we were worried about was mutual deadlock with mark
-    workers' use of suspendG. And, they were the only users of suspendG.
+    Updates #66913
     
-    In Go 1.22 this changed. The execution tracer began using suspendG, too.
-    This leads to the possibility of mutual deadlock between the execution
-    tracer and a goroutine trying to start or end the GC mark phase. The fix
-    is simple: make the stop-the-world calls for the GC also call
-    casGToWaitingForGC. This way, suspendG is guaranteed to make progress in
-    this circumstance, and once it completes, the stop-the-world can
-    complete as well.
-    
-    We can take this a step further, though, and move casGToWaitingForGC
-    into stopTheWorldWithSema, since there's no longer really a place we can
-    afford to skip this detail.
-    
-    While we're here, rename casGToWaitingForGC to casGToWaitingForSuspendG,
-    since the GC is now not the only potential source of mutual deadlock.
-    
-    Fixes #72740.
-    
-    Change-Id: I5e3739a463ef3e8173ad33c531e696e46260692f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/681501
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ie6bb262ee95593d23a93ef06656a561a7b1006ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581515
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/mgc.go         |  7 +++--
- src/runtime/mgcmark.go     |  4 +--
- src/runtime/proc.go        | 70 +++++++++++++++++++++++++++++-----------------
- src/runtime/runtime2.go    | 14 +++++-----
- src/runtime/stack.go       |  4 +--
- src/runtime/trace.go       |  2 +-
- src/runtime/tracestatus.go |  9 +++---
- 7 files changed, 65 insertions(+), 45 deletions(-)
+ src/crypto/tls/bogo_shim_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

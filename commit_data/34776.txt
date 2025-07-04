@@ -1,12 +1,16 @@
-commit 4468b0bac156b76b2a591b3aa3a0aa4dd60a0fce
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Sat Mar 31 04:19:06 2018 +0900
+commit 22671e734473d3cd088958a00826c1adf936032c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 13 21:20:23 2017 -0500
 
-    net/http: add function name to the beginning of comment
+    bytes: change ExampleReader_Len to use a non-ASCII string
     
-    Change-Id: I6f5a94cd8b6e8f7201202514ac0f9c78811c43bc
-    Reviewed-on: https://go-review.googlesource.com/103695
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This should help make clear that Len is not counting runes.
+    Also delete empty string, which doesn't add much.
+    
+    Change-Id: I1602352df1897fef6e855e9db0bababb8ab788ca
+    Reviewed-on: https://go-review.googlesource.com/78110
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/bytes/example_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

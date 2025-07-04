@@ -1,24 +1,29 @@
-commit 1adbb2bb9b256907eaf3f012d7f818765e6e2a2b
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Mon Dec 3 04:44:48 2018 +0000
+commit 4864decf04f3691045bc6f95effa9c6e2ba0ad33
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 14:47:31 2018 -0400
 
-    net/http: add StatusTooEarly (425)
+    cmd/go: remove go mod fix, add go help go.mod
     
-    StatusTooEarly can be returned to indicate that a server is unwilling
-    to accept early data as introduced in TLS 1.3.
-    The status code was specified in RFC 8470, section 5.2.
+    "go mod fix" does work already done by nearly every other go command.
+    It was also confusing why we had both "go mod fix" and "go mod tidy".
+    Delete "go mod fix".
     
-    Major supported browsers are:
-    - Firefox as of version 58
-      https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/425#Browser_compatibility
-    - Chromium as of version 73.0.3628.1
-      https://chromium.googlesource.com/chromium/src/+/58097ec3823e0f340ab5abfcaec1306e1d954c5a
+    The main reason we kept "go mod fix" this long was for the discussion
+    of automatic go.mod updates in its documentation, which is now moved
+    into a new "go help go.mod".
     
-    Change-Id: I3f62f4193bae198994d08fde7e92e0ccd080e59a
-    GitHub-Last-Rev: fa885040eaf80e0e33b571567108d8a9ded67801
-    GitHub-Pull-Request: golang/go#29073
-    Reviewed-on: https://go-review.googlesource.com/c/152118
+    Fixes #26831.
+    
+    Change-Id: Ic95ca8918449ab79791d27998e02eb3377ac7972
+    Reviewed-on: https://go-review.googlesource.com/129682
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/status.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/alldocs.go                         | 156 +++++++++++++++-----------
+ src/cmd/go/internal/modcmd/fix.go             |  65 -----------
+ src/cmd/go/internal/modcmd/mod.go             |   1 -
+ src/cmd/go/internal/modload/help.go           |  77 ++++++++++++-
+ src/cmd/go/main.go                            |   1 +
+ src/cmd/go/testdata/script/mod_get_commit.txt |   4 +-
+ 6 files changed, 163 insertions(+), 141 deletions(-)

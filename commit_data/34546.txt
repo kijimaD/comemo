@@ -1,16 +1,59 @@
-commit 709317138fb75724ff229f4a61a5c76a9003fdf0
-Author: Jean de Klerk <deklerk@google.com>
-Date:   Tue Feb 20 17:26:57 2018 -0800
+commit d58f4e9b7b503ed83641e2cd632a19011da6b50c
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Mon Jul 24 11:51:03 2017 -0400
 
-    cmd/go: briefly document test caching in go test -h output
+    runtime/trace: fix corrupted trace during StartTrace
     
-    Fixes #23971
+    Since Go1.8, different types of GC mark workers were annotated and the
+    annotation strings were recorded during StartTrace. This change fixes
+    two issues around the use of traceString from StartTrace here.
     
-    Change-Id: I073f278cc058aa15a23c0ea06292c02d50a3df21
-    Reviewed-on: https://go-review.googlesource.com/95582
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    1) "failed to parse trace: no consistent ordering of events possible"
+    
+    This issue is a result of a missing 'batch' event entry. For efficient
+    tracing, tracer maintains system allocated buffers and once a buffer
+    is full, it is Flushed out for writing. Moreover, tracing assumes all
+    the records in the same buffer (batch) are already ordered and implements
+    more optimization in encoding and defers the completing order
+    reconstruction till the trace parsing time. Thus, when a Flush happens
+    and a new buffer is used, the new buffer should contain an event to
+    indicate the start of a new batch. Before this CL, the batch entry was
+    written only by traceEvent only when the buffer position is 0 and
+    wasn't written when flush occurs during traceString.
+    
+    This CL fixes it by moving the batch entry write to the traceFlush.
+    
+    2) crash during tracing due to invalid memory access, or during parsing
+    due to duplicate string entries
+    
+    This issue is a result of memory allocation during traceString calls.
+    Execution tracer traces some memory allocation activities. Before this
+    CL, traceString took the buffer address (*traceBuf) and mutated the buffer.
+    If memory tracing occurs in the meantime from the same P, the allocation
+    tracing (traceEvent) will take the same buffer address through the pointer
+    to the buffer address (**traceBuf), and mutate the buffer.
+    
+    As a result, one of the followings can happen:
+     - the allocation record is overwritten by the following trace string
+       record (data loss)
+     - if buffer flush occurs during the allocation tracing, traceString
+       will attempt to write the string record to the old buffer and
+       eventually causes invalid memory access crash.
+     - or flush on the same buffer can occur twice (once from the memory
+       allocation, and once from the string record write), and in this case
+       the trace can contain the same data twice and the parse will complain
+       about duplicate string record entries.
+    
+    This CL fixes the second issue by making the traceString take
+    **traceBuf (*traceBufPtr).
+    
+    Change-Id: I24f629758625b38e1916fbfc7d7be6ea210586af
+    Reviewed-on: https://go-review.googlesource.com/50873
+    Run-TryBot: Austin Clements <austin@google.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/alldocs.go            | 6 ++++++
- src/cmd/go/internal/test/test.go | 6 ++++++
- 2 files changed, 12 insertions(+)
+ src/runtime/trace.go            | 77 ++++++++++++++++++++++++-----------------
+ src/runtime/trace/trace_test.go | 57 ++++++++++++++++++++++++++++++
+ 2 files changed, 103 insertions(+), 31 deletions(-)

@@ -1,14 +1,22 @@
-commit 4522efb7f1e9bb7242c9f82076d3db5461f8647b
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Jul 17 11:35:39 2017 +0200
+commit 3e4afe2307c3db0208bc33b06829ec00f8dd6f37
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 30 18:00:10 2017 -0700
 
-    time: fix 400 years offset in comment
+    syscall: skip test on TestUnshareMountNameSpace permission error
     
-    Fixes #21043
+    TestUnshareMountNameSpace fails on arm64 due to permission problems.
     
-    Change-Id: I12db4f67ddee80500ff323f84e8fa34511650e63
-    Reviewed-on: https://go-review.googlesource.com/49230
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Skip that test for now when permission problems are encountered, so we
+    don't regress elsewhere in the meantime.
+    
+    Updates #19698
+    
+    Change-Id: I9058928afa474b813652c9489f343b8957160a6c
+    Reviewed-on: https://go-review.googlesource.com/39052
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/time/time.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/exec_linux_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

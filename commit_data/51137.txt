@@ -1,33 +1,19 @@
-commit e7422b05915759a8e4a8f38382ffd4d38d4fa2ea
-Author: Dan Peterson <danp@danp.net>
-Date:   Sun Nov 6 17:03:00 2022 -0400
+commit 016e6ebb4264f4b46e505bb404953cdb410f63f2
+Author: Hana <hyangah@gmail.com>
+Date:   Tue Dec 7 17:50:50 2021 -0500
 
-    net: adjust build tags for darwin libc calls
+    cmd/go: fix references to old `go mod editwork`
     
-    Support for direct libc calls was added in CL 446178 but the build
-    tags weren't quite activating it when cgo was not enabled. Adjust them
-    and add a new supporting file for darwin.
+    That is replaced by `go work edit`.
     
-    This should use the new direct libc calls with both CGO_ENABLED=0 and
-    CGO_ENABLED=1 when building for darwin.
-    
-    Updates #12524
-    
-    Change-Id: Ieee4b298dee13f389ed3a63c0a4a3a18c9180163
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448020
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Dan Peterson <danp@danp.net>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I39996c7bea0182a18edf6a1f70b6616c74099a1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370139
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/net/cgo_bsd.go          | 2 +-
- src/net/cgo_darwin.go       | 9 +++++++++
- src/net/cgo_stub.go         | 2 +-
- src/net/cgo_unix.go         | 2 +-
- src/net/cgo_unix_syscall.go | 2 +-
- src/net/cgo_unix_test.go    | 2 +-
- src/net/netgo.go            | 4 ++--
- src/net/netgo_unix_test.go  | 2 +-
- 8 files changed, 17 insertions(+), 8 deletions(-)
+ src/cmd/go/alldocs.go                                | 10 +++++-----
+ src/cmd/go/internal/modload/init.go                  |  2 +-
+ src/cmd/go/internal/workcmd/edit.go                  | 10 +++++-----
+ src/cmd/go/internal/workcmd/init.go                  |  6 +++---
+ src/cmd/go/testdata/script/work_replace_conflict.txt |  2 +-
+ 5 files changed, 15 insertions(+), 15 deletions(-)

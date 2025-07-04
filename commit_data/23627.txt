@@ -1,31 +1,24 @@
-commit 6a90b1d62100bd9fa8a4c6d566b990609c1c9d76
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 10 05:20:20 2015 -0700
+commit 724f8298a80e151088cd5f9342632b6b407fed08
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 28 12:37:12 2015 -0400
 
-    runtime, cmd/go: fix tests to work when GOROOT_FINAL is set
+    runtime: avoid double-scanning of stacks
     
-    When GOROOT_FINAL is set when running all.bash, the tests are run
-    before the files are copied to GOROOT_FINAL.  The tests are run with
-    GOROOT set, so most work fine.  This fixes two cases that do not.
+    Currently there's a race between stopg scanning another G's stack and
+    the G reaching a preemption point and scanning its own stack. When
+    this race occurs, the G's stack is scanned twice. Currently this is
+    okay, so this race is benign.
     
-    In cmd/go/go_test.go we were explicitly removing GOROOT from the
-    environment, causing tests that did not themselves explicitly set
-    GOROOT to fail.  There was no need to explicitly remove GOROOT, so
-    don't do it.  If people choose to run "go test cmd/go" with a bad
-    GOROOT, that is their own lookout.
+    However, we will shortly be adding stack barriers during the first
+    stack scan, so scanning will no longer be idempotent. To prepare for
+    this, this change ensures that each stack is scanned only once during
+    each GC phase by checking the flag that indicates that the stack has
+    been scanned in this phase before scanning the stack.
     
-    In the runtime GDB test, the linker has told gdb to find the support
-    script in GOROOT_FINAL, which will fail.  Check for that case, and
-    skip the test when we see it.
-    
-    Fixes #11652.
-    
-    Change-Id: I4d3a32311e3973c30fd8a79551aaeab6789d0451
-    Reviewed-on: https://go-review.googlesource.com/12021
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id9f4d5e2e5b839bc3f200ec1723a4a12dd677ab4
+    Reviewed-on: https://go-review.googlesource.com/10458
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/go/go_test.go           |  1 -
- src/runtime/runtime-gdb_test.go | 10 ++++++++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/runtime/mgcmark.go | 3 +++
+ src/runtime/stack1.go  | 7 +++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

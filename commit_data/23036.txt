@@ -1,31 +1,18 @@
-commit 0112f6f6b605b17194175aa7cfe15b4054f862fc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 22 20:08:03 2015 -0700
+commit 4e9fc0df4837d6c786fd79344019b25ac4b06eea
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 17:56:14 2015 -0400
 
-    cmd/5g, etc: prepare to unexport gc.Mp*
+    runtime: implement GC scan work estimator
     
-    Remove all uses of Mp* outside of the gc package.
+    This implements tracking the scan work ratio of a GC cycle and using
+    this to estimate the scan work that will be required by the next GC
+    cycle. Currently this estimate is unused; it will be used to drive
+    mutator assists.
     
-    A subsequent, automated commit in the Go 1.6
-    cycle will unexport all Mp* functions and types.
-    
-    No functional changes. Passes toolstash -cmp.
-    
-    Change-Id: Ie1604cb5b84ffb30b47f4777d4235570f2c62709
-    Reviewed-on: https://go-review.googlesource.com/9263
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I8685b59d89cf1d83eddfc9b30d84da4e3a7f4b72
+    Reviewed-on: https://go-review.googlesource.com/8833
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/5g/cgen64.go         |  6 +++---
- src/cmd/5g/ggen.go           |  8 +++----
- src/cmd/5g/gsubr.go          |  6 +++---
- src/cmd/6g/ggen.go           |  6 +++---
- src/cmd/6g/gsubr.go          | 40 ++++++++++++++++------------------
- src/cmd/7g/ggen.go           |  6 +++---
- src/cmd/7g/gsubr.go          |  4 ++--
- src/cmd/8g/cgen64.go         | 11 +++++-----
- src/cmd/8g/ggen.go           |  6 +++---
- src/cmd/8g/gsubr.go          | 51 ++++++++++++++++++++++----------------------
- src/cmd/9g/ggen.go           |  6 +++---
- src/cmd/9g/gsubr.go          | 37 ++++++++++++++++----------------
- src/cmd/internal/gc/const.go | 28 ++++++++++++++++++++++++
- 13 files changed, 119 insertions(+), 96 deletions(-)
+ src/runtime/mgc.go    | 47 +++++++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/mstats.go |  6 ++++++
+ 2 files changed, 51 insertions(+), 2 deletions(-)

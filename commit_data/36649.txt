@@ -1,23 +1,20 @@
-commit a2a3dd00c934fa15ad880ee5fe1f64308cbc73a7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 12 21:30:09 2018 +0200
+commit b7f3c178a337b41c78a38dc3223304d69ec592f7
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Sun May 13 08:13:56 2018 +0100
 
-    os: add ModeCharDevice to ModeType
+    sync: deflake TestWaitGroupMisuse2
     
-    When masking FileInfo.Mode() from a character device with the ModeType
-    mask, ModeCharDevice cannot be recovered.
+    We need to yield to the runtime every now and again to avoid
+    deadlock. This doesn't show up on most machines because the test
+    only runs when you have 5 or more CPUs.
     
-    ModeCharDevice was added https://golang.org/cl/5531052, but nothing
-    indicates why it was omitted from ModeType. Add it now.
+    Fixes #20072.
     
-    Fixes #27640
-    
-    Change-Id: I52f56108b88b1b0a5bc6085c66c3c67e10600619
-    Reviewed-on: https://go-review.googlesource.com/135075
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ibf5ed370e919943395f3418487188df0b2be160b
+    Reviewed-on: https://go-review.googlesource.com/112978
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/except.txt  | 1 +
- src/os/types.go | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/sync/waitgroup_test.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

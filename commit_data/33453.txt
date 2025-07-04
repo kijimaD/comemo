@@ -1,20 +1,17 @@
-commit 1ca4768ecedb96fedc491cccbe969a2515ce950b
+commit fe02ba30f13b0316d3d410062b62e8412e20dbfc
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 5 19:35:14 2017 -0500
+Date:   Wed Aug 2 23:25:07 2017 -0400
 
-    cmd/dist, cmd/go: make GODEBUG=godebughash=1 ./make.bash work better
+    [dev.boringcrypto] crypto/rand: use BoringCrypto
     
-    The change in cmd/dist ignores debug output, instead of assuming
-    any output is from the template.
-    
-    The change in cmd/go makes the debug output show the package name
-    on every line, so that interlaced prints can be deinterlaced.
-    
-    Change-Id: Ic3d59ee0256271067cb9be2fde643a0e19405375
-    Reviewed-on: https://go-review.googlesource.com/76019
+    Change-Id: Ie630eff90f7fee9b359683930aec2daf96c1bdfe
+    Reviewed-on: https://go-review.googlesource.com/55473
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/dist/build.go            | 6 +++---
- src/cmd/go/internal/work/exec.go | 4 ++--
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/crypto/internal/boring/boring.go    |  4 ++++
+ src/crypto/internal/boring/notboring.go |  8 ++++++++
+ src/crypto/internal/boring/rand.go      | 25 +++++++++++++++++++++++++
+ src/crypto/rand/rand_unix.go            |  7 +++++++
+ 4 files changed, 44 insertions(+)

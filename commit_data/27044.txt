@@ -1,20 +1,15 @@
-commit 7e460e70d90295cf08ea627c0a0fff170aba5518
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Wed Apr 20 18:00:52 2016 +0200
+commit b050adeebddb269cfb57f2c84acef7430326b6d5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 9 11:30:24 2016 +1100
 
-    runtime: use type int to specify size for newarray
+    doc: use new Gerrit URL and mention our instance in CONTRIBUTING.md
     
-    Consistently use type int for the size argument of
-    runtime.newarray, runtime.reflect_unsafe_NewArray
-    and reflect.unsafe_NewArray.
+    Fixes #14662
     
-    Change-Id: Ic77bf2dde216c92ca8c49462f8eedc0385b6314e
-    Reviewed-on: https://go-review.googlesource.com/22311
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8f7d5e8d2dd8dc763e940e061b424427359246e7
+    Reviewed-on: https://go-review.googlesource.com/20462
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/chan.go    |  2 +-
- src/runtime/hashmap.go |  4 ++--
- src/runtime/malloc.go  | 10 +++++-----
- 3 files changed, 8 insertions(+), 8 deletions(-)
+ CONTRIBUTING.md     | 3 ++-
+ doc/contribute.html | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

@@ -1,18 +1,34 @@
-commit c51beb4342ac0ee2fe9c1a774eac15679a447122
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Sep 18 02:37:36 2022 +1000
+commit 55bd193575152ea09db3a0bd33f9dda49725d8f4
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jan 26 15:12:00 2023 -0500
 
-    cmd/dist,internal/platform,runtime: add cgo support for openbsd/riscv64 port
+    cmd/internal/obj: flag init functions in object file
     
-    Updates #55999
+    Introduce a flag in the object file indicating whether a given
+    function corresponds to a compiler-generated (not user-written) init
+    function, such as "os.init" or "syscall.init". Add code to the
+    compiler to fill in the correct value for the flag, and add support to
+    the loader package in the linker for testing the flag. The new loader
+    API is currently unused, but will be needed in the next CL in this
+    stack.
     
-    Change-Id: Ie9a030130713f3eaf789b91d9033be3335eb9d75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518630
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #2559.
+    Updates #36021.
+    Updates #14840.
+    
+    Change-Id: Iea7ad2adda487e4af7a44f062f9817977c53b394
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463855
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/build.go            | 2 +-
- src/internal/platform/zosarch.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/abi.go       | 3 +++
+ src/cmd/compile/internal/ir/func.go      | 3 +++
+ src/cmd/compile/internal/pkginit/init.go | 1 +
+ src/cmd/internal/goobj/objfile.go        | 2 ++
+ src/cmd/internal/obj/link.go             | 5 +++++
+ src/cmd/internal/obj/objfile.go          | 3 +++
+ src/cmd/internal/obj/plist.go            | 1 +
+ src/cmd/internal/obj/textflag.go         | 3 +++
+ src/cmd/link/internal/loader/loader.go   | 9 +++++++++
+ 9 files changed, 30 insertions(+)

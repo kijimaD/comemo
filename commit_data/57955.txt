@@ -1,17 +1,22 @@
-commit 4310502385ad5baca82071e81fc0490525f10eb1
-Author: Sean Liao <sean@liao.dev>
-Date:   Sat Jul 20 00:09:13 2024 +0100
+commit dc0d126e378d649976abd06497cea8c503ba3613
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 21:57:45 2023 -0700
 
-    testing/slogtest: reuse results obtained from previous call
+    cmd/compile/internal/abi: replace types.Object with *ir.Name
     
-    Fixes #67605
+    types.Object only exists to avoid a circular dependency between
+    package types and ir.
     
-    Change-Id: Ib48ddfabb93887c88bfca347ba2e5f3c4b4e90b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599836
+    Change-Id: I35196aff765d6977ca1e69fe482edbc987c381c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527340
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/testing/slogtest/slogtest.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/abi/abiutils.go | 10 +++++++---
+ src/cmd/compile/internal/liveness/arg.go |  4 ++--
+ src/cmd/compile/internal/ssa/debug.go    |  6 +++---
+ src/cmd/compile/internal/ssa/op.go       |  6 +-----
+ src/cmd/compile/internal/ssagen/ssa.go   |  6 +++---
+ 5 files changed, 16 insertions(+), 16 deletions(-)

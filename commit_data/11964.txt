@@ -1,14 +1,14 @@
-commit e8edf84d81e70b054bf6e69de1f00e2d035a11f7
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Feb 16 17:14:26 2012 +1100
+commit edf1c038e327f6432286aa3036d0434ea8f53907
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 16 17:05:43 2012 +1100
 
-    dashboard: tidy up 'top' link.
+    os: remove use of _test
+    Part of issue 2573.
     
-    The previous link worked, but was unnecessary and had a trailing "}".
-    
-    R=golang-dev, bradfitz
+    R=dsymonds, golang-dev
     CC=golang-dev
-    https://golang.org/cl/5674068
+    https://golang.org/cl/5674064
 
- misc/dashboard/app/build/ui.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/os/os_test.go   | 15 +++++++--------
+ src/pkg/os/path_test.go | 29 ++++++++++++++++-------------
+ 2 files changed, 23 insertions(+), 21 deletions(-)

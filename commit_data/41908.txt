@@ -1,18 +1,14 @@
-commit fced302aa15702056e0d4a264c80e74c462cdd22
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 4 16:33:54 2020 -0500
+commit 5b31021525905c13ff00df19ad9ea4982d835d15
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 31 22:24:04 2019 +0100
 
-    cmd/compile: change gc logging to report inline failure instead of success
+    os: gofmt
     
-    I've been experimenting with this, success is the wrong thing to report
-    even though it seems to log much less.
-    
-    Change-Id: I7c25a45d2f41e82b6c8dd8b0a56ba848c63fb21a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223298
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ie76303e403f0539bdfe14f6bb5f32896df916bce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204657
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/inl.go             | 20 ++++++++++++++++----
- src/cmd/compile/internal/logopt/logopt_test.go | 17 +++++++++++++----
- 2 files changed, 29 insertions(+), 8 deletions(-)
+ src/os/removeall_noat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

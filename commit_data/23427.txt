@@ -1,16 +1,26 @@
-commit 682ecea9a0370c017e004336931d36726d796e72
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Jun 19 08:26:02 2015 +1000
+commit dbf533a5460d7fcc7d7be77014fd74a8aff8c412
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 13 19:27:59 2015 -0700
 
-    image/gif: (temporarily) disable broken tests.
+    encoding/json: make BenchmarkSkipValue more stable
     
-    The compress/lzw encoder now rejects too-large input bytes, as of
-    https://go-review.googlesource.com/#/c/11227/, so we can't generate bad
-    GIFs programatically.
+    BenchmarkSkipValue was sensitive to the value of
+    b.N due to its significant startup cost.
     
-    Change-Id: I0b32ce8e1f1776cd6997869db61e687430464e45
-    Reviewed-on: https://go-review.googlesource.com/11270
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Two adjacent runs before this CL:
+    
+    BenchmarkSkipValue            50          21047499 ns/op          93.37 MB/s
+    BenchmarkSkipValue           100          17260554 ns/op         118.05 MB/s
+    
+    After this CL, using benchtime to recreate the
+    difference in b.N:
+    
+    BenchmarkSkipValue            50          15204797 ns/op         131.67 MB/s
+    BenchmarkSkipValue           100          15332319 ns/op         130.58 MB/s
+    
+    Change-Id: Iac86f86dd774d535302fa5e4c08f89f8da00be9e
+    Reviewed-on: https://go-review.googlesource.com/10053
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/image/gif/reader_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/encoding/json/scanner_test.go | 1 +
+ 1 file changed, 1 insertion(+)

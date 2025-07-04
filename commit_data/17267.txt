@@ -1,13 +1,17 @@
-commit ff86d222be18c5140a1457381ba1f46c9ab3af35
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 15 23:22:55 2013 +0900
+commit f195ae94caf21af5ed4409a3471de2821a6e0c81
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 15 14:32:10 2013 +0400
 
-    runtime: fix wrong syscall numbers on freebsd/386, openbsd/386
+    runtime: remove old preemption checks
+    runtime.gcwaiting checks are not needed anymore
     
-    R=golang-dev, jsing
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/12876044
+    https://golang.org/cl/12934043
 
- src/pkg/runtime/sys_freebsd_386.s | 4 ++--
- src/pkg/runtime/sys_openbsd_386.s | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/runtime/chan.c     | 11 -----------
+ src/pkg/runtime/hashmap.c  |  8 --------
+ src/pkg/runtime/malloc.goc |  2 --
+ src/pkg/runtime/proc.c     | 28 ++++++++++++++--------------
+ src/pkg/runtime/runtime.h  |  1 -
+ 5 files changed, 14 insertions(+), 36 deletions(-)

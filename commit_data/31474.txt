@@ -1,14 +1,26 @@
-commit b2c60b2b08ea9144041d43be0d7f890e38daa7b2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 2 17:41:24 2017 +0000
+commit b788fd80e68addd181983ca589d28bc1075f4a36
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 9 13:58:48 2017 -0500
 
-    api: update next.txt
+    runtime: new profile buffer implementation supporting label pointers
     
-    Change-Id: Ifbfd71a9c0d447e22c369c9d1209063b2a5c657b
-    Reviewed-on: https://go-review.googlesource.com/42490
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The existing CPU profiling buffer is a slice of uintptr, but we want to
+    start including profiling label data in the profiles, and those labels need
+    to be pointers in order to let them describe rich information.
+    
+    This CL implements a new profBuf type that holds both a slice of uint64
+    for data and a slice of unsafe.Pointer for profiling labels (aka tags).
+    Making the runtime use these buffers will happen in followup CLs.
+    
+    Change-Id: I9ff16b532d8edaf4ce0cbba1098229a561834efc
+    Reviewed-on: https://go-review.googlesource.com/36713
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- api/next.txt | 136 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 136 insertions(+)
+ src/runtime/export_test.go  |  23 ++
+ src/runtime/mbarrier.go     |   5 +
+ src/runtime/profbuf.go      | 548 ++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/profbuf_test.go | 182 +++++++++++++++
+ src/runtime/runtime2.go     |   7 +-
+ 5 files changed, 761 insertions(+), 4 deletions(-)

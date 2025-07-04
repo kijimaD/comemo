@@ -1,14 +1,15 @@
-commit b7cbfe6acee5cb41768a7c2d4fc63da2eea4614c
-Author: Francesc Campoy <campoy@golang.org>
-Date:   Mon Sep 24 13:05:47 2012 -0700
+commit c7e0b8baa69825d69a4abc6b7b22cf08fca5ae63
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 15:33:53 2012 -0400
 
-    testing: document -test.bench flag
+    regexp/syntax: define accepted syntax
     
-    Fixes #4080.
+    Update #3953.
     
-    R=rsc, adg
+    R=bradfitz, campoy
     CC=golang-dev
-    https://golang.org/cl/6553068
+    https://golang.org/cl/6543068
 
- src/pkg/testing/testing.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/regexp/syntax/doc.go   | 127 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/regexp/syntax/parse.go |   4 --
+ 2 files changed, 127 insertions(+), 4 deletions(-)

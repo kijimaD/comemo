@@ -1,92 +1,18 @@
-commit a5de54a8706cfddcd5f63f4be1bc501370a211d6
+commit e449b5705b4cffc29e9f24f6d24386d64dbd5dbb
 Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 24 12:28:18 2015 -0700
+Date:   Mon Apr 6 11:39:36 2015 -0700
 
-    cmd/go,cmd/doc: add "go doc"
+    encoding/gob: change panic into error for corrupt input
     
-    Add the new go doc command to the go command, installed in
-    the tool directory.
+    decBuffer.Drop is called using data provided by the user, don't
+    panic if it's bogus.
     
-    (Still to do: tests)
+    Fixes #10272.
     
-    Fix cmd/dist to remove old "package documentation" code that was
-    stopping it from including cmd/go/doc.go in the build.
-    
-    Implement the doc command. Here is the help info from "go help doc":
-    
-    ===
-    usage: go doc [-u] [package|[package.]symbol[.method]]
-    
-    Doc accepts at most one argument, indicating either a package, a symbol within a
-    package, or a method of a symbol.
-    
-            go doc
-            go doc <pkg>
-            go doc <sym>[.<method>]
-            go doc [<pkg>].<sym>[.<method>]
-    
-    Doc interprets the argument to see what it represents, determined by its syntax
-    and which packages and symbols are present in the source directories of GOROOT and
-    GOPATH.
-    
-    The first item in this list that succeeds is the one whose documentation is printed.
-    For packages, the order of scanning is determined by the file system, however the
-    GOROOT tree is always scanned before GOPATH.
-    
-    If there is no package specified or matched, the package in the current directory
-    is selected, so "go doc" shows the documentation for the current package and
-    "go doc Foo" shows the documentation for symbol Foo in the current package.
-    
-    Doc prints the documentation comments associated with the top-level item the
-    argument identifies (package, type, method) followed by a one-line summary of each
-    of the first-level items "under" that item (package-level declarations for a
-    package, methods for a type, etc.)
-    
-    The package paths must be either a qualified path or a proper suffix of a path
-    (see examples below). The go tool's usual package mechanism does not apply: package
-    path elements like . and ...  are not implemented by go doc.
-    
-    When matching symbols, lower-case letters match either case but upper-case letters
-    match exactly.
-    
-    Examples:
-            go doc
-                    Show documentation for current package.
-            go doc Foo
-                    Show documentation for Foo in the current package.
-                    (Foo starts with a capital letter so it cannot match a package path.)
-            go doc json
-                    Show documentation for the encoding/json package.
-            go doc json
-                    Shorthand for encoding/json assuming only one json package
-                    is present in the tree.
-            go doc json.Number (or go doc json.number)
-                    Show documentation and method summary for json.Number.
-            go doc json.Number.Int64 (or go doc json.number.int64)
-                    Show documentation for the Int64 method of json.Number.
-    
-    Flags:
-            -u
-                    Show documentation for unexported as well as exported
-                    symbols and methods.
-    
-    ===
-    
-    Still to do:
-    
-    Tests.
-    Disambiguation when there is both foo and Foo.
-    Flag for case-sensitive matching.
-    
-    Change-Id: I83d409a68688a5445f54297a7e7c745f749b9e66
-    Reviewed-on: https://go-review.googlesource.com/9227
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I913ae9c3c45cef509f2b8eb02d1efa87fbd52afa
+    Reviewed-on: https://go-review.googlesource.com/8496
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/build.go |  11 --
- src/cmd/doc/main.go   | 273 ++++++++++++++++++++++++++++++++++
- src/cmd/doc/pkg.go    | 398 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/alldocs.go |  60 ++++++++
- src/cmd/go/doc.go     |  69 +++++++++
- src/cmd/go/main.go    |   1 +
- src/cmd/go/pkg.go     |   1 +
- 7 files changed, 802 insertions(+), 11 deletions(-)
+ src/encoding/gob/decode.go       |  6 +++++-
+ src/encoding/gob/encoder_test.go | 14 ++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

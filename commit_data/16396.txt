@@ -1,14 +1,12 @@
-commit 598de87b0fa26dd13964c035e561f673d058baf5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 23 23:19:47 2013 -0700
+commit 9bdb7e196712d5d894602d7dc5b68eaeecc14924
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 23 17:57:28 2013 -0700
 
-    cmd/cgo: change GoStringN and GoBytes from intgo to int32
+    test/bench/shootout/timing.log: update to Go 1.1
     
-    Fixes build.
-    
-    R=golang-dev
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/9667047
+    https://golang.org/cl/9656045
 
- src/cmd/cgo/out.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ test/bench/shootout/timing.log | 91 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)

@@ -1,15 +1,24 @@
-commit 53d9b6fcf3d459c2e550238502b499c462983329
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 4 08:41:19 2013 +1000
+commit 5437eefa65e1e1b116a65a2c34aa376adc6410fe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Aug 3 11:36:47 2013 -0700
 
-    html/template: handle nils during indirection
+    libbio: add casts to remove -Wconversion warnings
     
-    Fixes #5982.
+    Update #5764
     
-    R=golang-dev, r
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/12387043
+    https://golang.org/cl/12388043
 
- src/pkg/html/template/content.go      |  6 ++++++
- src/pkg/html/template/content_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/libbio/bflush.c   |  2 +-
+ src/libbio/bgetc.c    |  4 ++--
+ src/libbio/bgetrune.c |  4 ++--
+ src/libbio/bprint.c   |  4 ++--
+ src/libbio/bputc.c    |  2 +-
+ src/libbio/bputrune.c |  4 ++--
+ src/libbio/brdline.c  | 16 ++++++++--------
+ src/libbio/brdstr.c   |  4 ++--
+ src/libbio/bread.c    |  8 ++++----
+ src/libbio/bseek.c    |  4 ++--
+ src/libbio/bwrite.c   |  6 +++---
+ 11 files changed, 29 insertions(+), 29 deletions(-)

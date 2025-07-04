@@ -1,0 +1,18 @@
+commit 4b767cf6fd31c8459378cb3298c46245202aea63
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 19 14:28:41 2024 -0700
+
+    os: simplify TestRemoveAllDot
+    
+    Use t.Chdir and t.TempDir to simplify test case code.
+    
+    Change-Id: If4de06d2373100ce53a5b8f6702d5f4866e3b23d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606897
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/os/removeall_test.go | 23 ++---------------------
+ 1 file changed, 2 insertions(+), 21 deletions(-)

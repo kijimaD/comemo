@@ -1,21 +1,19 @@
-commit 6fe7b434160c84cbac1157073a795ac6e9f30479
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Jul 5 15:32:31 2018 +0200
+commit 946af1b658c319d70e2a6f0d0d6aedc972c3acc6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 23 13:12:07 2018 -0700
 
-    misc/wasm: free up memory on exit
+    cmd/link: make sure we're hashing __.PKGDEF in genhash
     
-    Private fields of the Go class are not used any more after the program
-    has exited. Delete them to allow JavaScript's garbage collection to
-    clean up the WebAssembly instance.
+    This is currently always the case because loadobjfile complains if
+    it's not, but that will be changed soon.
     
-    Updates #26193.
+    Updates #24512.
     
-    Change-Id: I349784a49eaad0c22ceedd4f859df97132775537
-    Reviewed-on: https://go-review.googlesource.com/122296
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Change-Id: I262daca765932a0f4cea3fcc1cc80ca90de07a59
+    Reviewed-on: https://go-review.googlesource.com/102280
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Paul Jolly <paul@myitcv.org.uk>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/wasm/wasm_exec.js | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 4 ++++
+ 1 file changed, 4 insertions(+)

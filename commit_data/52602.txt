@@ -1,20 +1,20 @@
-commit ef82b4c94e10ea29acb90891d4ec8d4e7e892410
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun Apr 9 13:39:12 2023 +0200
+commit d6e6140c988e0b276fa5559190ede3494ea73cf0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 10 10:49:33 2022 -0400
 
-    os: adjust wait6/waitid comment for netbsd
+    cmd/compile: fix boolean comparison on RISCV64
     
-    CL 431855 changed (*Process).blockUntilWaitable on netbsd to use wait6
-    again.
+    Following CL 405114, for RISCV64.
     
-    Update #48789
+    May fix RISCV64 builds.
     
-    Change-Id: I948f5445a44ab2e82c02560480a2a244d2b5f473
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483396
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Updates #52788.
+    
+    Change-Id: Ifc34658703d1e8b97665e7b862060152e3005d71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405553
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/os/wait_unimp.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 47 ++++++++++++++++++++++++--
+ 2 files changed, 50 insertions(+), 3 deletions(-)

@@ -1,31 +1,16 @@
-commit 739fb752e3d546034b96d8cc9f2fded613040c98
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Apr 30 15:14:50 2025 -0400
+commit aa511b426d1c72c182cc1b797d3fa71cf47906f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 19:05:02 2024 -0500
 
-    runtime: don't restore from g0.sched in systemstack on arm64
+    time: disable TestLongAdjustTimers on android/ios
     
-    On arm64, systemstack restores the frame pointer from g0.sched to R29
-    prior to calling the callback. That doesn't really make any sense. The
-    frame pointer value in g0.sched is some arbitrary BP from a prior
-    context save, but that is not the caller of systemstack.
+    The simulators are too slow.
     
-    amd64 does not do this. In fact, it leaves BP completely unmodified so
-    frame pointer unwinders like gdb can walk through the systemstack frame
-    and continue traceback on the caller's stack. Unlike mcall, systemstack
-    always returns to the original goroutine, so that is safe.
-    
-    We should do the same on arm64.
-    
-    For #63630.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm64-longtest
-    Change-Id: I6a6a636c35d321dd5d7dc1c4d09e29b55b1ab621
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669236
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
+    Change-Id: I0aaf2304ad0881c74886ff3185c09614de2aae63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570236
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_arm64.s | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/time/tick_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

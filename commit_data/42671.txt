@@ -1,31 +1,14 @@
-commit 32a84c99e136ed5af0686dbedd31fd7dff40fb38
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Aug 8 07:58:04 2020 -0700
+commit c8a91ed24932be7248eefed58ade4bb978b62f55
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 16:38:15 2020 -0800
 
-    cmd/compile: fix live variable computation for deferreturn
+    doc/go1.14: mention changes to debug/dwarf
     
-    Taking the live variable set from the last return point is problematic.
-    See #40629 for details, but there may not be a return point, or it may
-    be before the final defer.
+    Updates #36878
     
-    Additionally, keeping track of the last call as a *Value doesn't quite
-    work. If it is dead-code eliminated, the storage for the Value is reused
-    for some other random instruction. Its live variable information,
-    if it is available at all, is wrong.
-    
-    Instead, just mark all the open-defer argument slots as live
-    throughout the function. (They are already zero-initialized.)
-    
-    Fixes #40629
-    
-    Change-Id: Ie456c7db3082d0de57eaa5234a0f32525a1cce13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247522
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: Icfbf9074c731d64198b4760e1902bbd09fcc1349
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217067
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/plive.go | 118 ++++++++---------------------------
- src/cmd/compile/internal/gc/ssa.go   |  19 +-----
- src/cmd/compile/internal/ssa/func.go |  11 +---
- test/fixedbugs/issue40629.go         |  69 ++++++++++++++++++++
- 4 files changed, 99 insertions(+), 118 deletions(-)
+ doc/go1.14.html | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

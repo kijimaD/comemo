@@ -1,14 +1,18 @@
-commit 2dde4f5d2906eab25625f6a260a2eb80be9ce572
+commit 016d0d0900bf9447b5ea4ada697ae64597a85daf
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 24 10:59:48 2012 -0700
+Date:   Thu May 24 10:56:35 2012 -0700
 
-    spec: clarify evaluation order of "i, x[i] = range ..."
+    godoc: correctly categorize interface methods, performance tuning
     
-    Part of fix for issue 3464.
+    - interface methods appeared under VarDecl in search results
+      (long-standing TODO)
     
-    R=golang-dev, rsc, mirtchovski, iant, r
+    - don't walk parts of AST which contain no indexable material
+      (minor performance tuning)
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6246045
+    https://golang.org/cl/6228047
 
- doc/go_spec.html | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/godoc/index.go | 84 ++++++++++++++++++++++----------------------------
+ 1 file changed, 36 insertions(+), 48 deletions(-)

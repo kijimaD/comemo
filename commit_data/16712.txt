@@ -1,14 +1,16 @@
-commit 47a89693e98dfe1e81be10fce769f992483746b3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jul 8 11:45:33 2013 +1000
+commit 3c3ce8e7fbe98a233cadbc59a05afdbbcacb0fe5
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Fri Jul 5 16:11:22 2013 +0200
 
-    misc/dist: clean files from GOPATH after building tour
+    cmd/6g, cmd/8g: prevent constant propagation of non-constant LEA.
     
-    Fixes #5503.
+    Fixes #5809.
     
-    R=golang-dev, r
+    R=golang-dev, dave, rsc, nigeltao
     CC=golang-dev
-    https://golang.org/cl/10989043
+    https://golang.org/cl/10785043
 
- misc/dist/bindist.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/6g/peep.c           |  1 +
+ src/cmd/8g/peep.c           |  1 +
+ test/fixedbugs/issue5809.go | 27 +++++++++++++++++++++++++++
+ 3 files changed, 29 insertions(+)

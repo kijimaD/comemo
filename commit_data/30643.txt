@@ -1,25 +1,25 @@
-commit b59a405656bbd79aefe3620553bee771628f9209
-Author: David Chase <drchase@google.com>
-Date:   Mon Mar 13 21:09:27 2017 +0000
+commit 277bcbbdcd26f2d64493e596238e34b47782f98e
+Author: Özgür Kesim <oec-go@kesim.org>
+Date:   Fri Oct 21 13:14:57 2016 +0200
 
-    Revert "cmd/compile: de-virtualize interface calls"
+    text/template: handle option missingkey=error consistently
     
-    This reverts commit 4e0c7c3f61475116c4ae8d11ef796819d9c404f0.
+    The existing implementation of text/template handles the option
+    "missingkey=error" in an inconsitent manner:  If the provided data is
+    a nil-interface, no error is returned (despite the fact that no key
+    can be found in it).
     
-    Reason for revert: The presence-of-optimization test program is fragile, breaks under noopt, and might break if the Go libraries are tweaked.  It needs to be (re)written without reference to other packages.
+    This patch makes text/template return an error if "missingkey=error"
+    is set and the provided data is a not a valid reflect.Value.
     
-    Change-Id: I3aaf1ab006a1a255f961a978e9c984341740e3c7
-    Reviewed-on: https://go-review.googlesource.com/38097
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #15356
+    
+    Change-Id: Ia0a83da48652ecfaf31f18bdbd78cb21dbca1164
+    Reviewed-on: https://go-review.googlesource.com/31638
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/main.go            |  4 --
- src/cmd/compile/internal/gc/reflect.go         | 82 +-------------------------
- src/cmd/compile/internal/gc/ssa.go             |  4 --
- src/cmd/compile/internal/gc/subr.go            | 10 +---
- src/cmd/compile/internal/ssa/config.go         |  6 --
- src/cmd/compile/internal/ssa/export_test.go    | 31 +++++-----
- src/cmd/compile/internal/ssa/gen/generic.rules |  7 ---
- src/cmd/compile/internal/ssa/rewrite.go        | 20 -------
- src/cmd/compile/internal/ssa/rewritegeneric.go | 48 ---------------
- test/devirt.go                                 | 64 --------------------
- 10 files changed, 17 insertions(+), 259 deletions(-)
+ src/text/template/exec.go      | 3 +++
+ src/text/template/exec_test.go | 6 ++++++
+ 2 files changed, 9 insertions(+)

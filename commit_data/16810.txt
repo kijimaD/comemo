@@ -1,18 +1,20 @@
-commit ef12bbfc9ddbb168fcd2ab0ad0bd364e40a1ab7f
+commit 249f807c39e96a30707f5005881b6c1b8e08077e
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 18 12:26:47 2013 -0400
+Date:   Thu Jul 18 12:19:38 2013 -0400
 
-    runtime: disable preemption during deferreturn
+    runtime: mark concatstring as variadic (fixes 386 build)
     
-    Deferreturn is synthesizing a new call frame.
-    It must not be interrupted between copying the args there
-    and fixing up the program counter, or else the stack will
-    be in an inconsistent state, one that will confuse the
-    garbage collector.
+    Windows was the only one seeing this bug reliably in the builder,
+    but it was easy to reproduce using 'GOGC=1 go test strconv'.
+    concatstring looked like it took only one string, but in fact it
+    takes a long list of strings. Add an explicit ... so that the traceback
+    will not use the "fixed" frame size and instead look at the
+    frame size metadata recorded by the caller.
     
-    R=golang-dev, dvyukov
+    R=golang-dev
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/11522043
+    https://golang.org/cl/11531043
 
- src/pkg/runtime/panic.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/pkg/runtime/string.goc | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

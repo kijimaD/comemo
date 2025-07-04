@@ -1,35 +1,20 @@
-commit edab07d09f1dcee58395602054ffb1cd03490dd8
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Sun Aug 15 15:53:05 2021 +0800
+commit 6a5f7e8498b7cd53bb5461fbf777aa83aea067a8
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 8 15:58:16 2021 -0700
 
-    cmd/dist: support dist tool for loong64
+    [dev.typeparams] cmd/compile: use dictionary entries for more conversion cases
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    This CL handles I(x) where I is an interface type and x has
+    typeparam type.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
-    
-    Updates #46229
-    
-    Change-Id: I61dca43680d8e5bd3198a38577450a53f405a987
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342307
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib99de2b741d588947f5e0164255f6365e98acd8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326189
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/dist/build.go     | 3 +++
- src/cmd/dist/buildtool.go | 2 ++
- src/cmd/dist/main.go      | 2 ++
- src/cmd/dist/test.go      | 4 ++--
- 4 files changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 79 +++++++++++++++++++++----------
+ test/typeparam/ifaceconv.go               |  9 +++-
+ 2 files changed, 62 insertions(+), 26 deletions(-)

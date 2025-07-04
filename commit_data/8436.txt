@@ -1,16 +1,13 @@
-commit e7db6d78a21f7c88542d477ff42a6dbfa254f962
-Author: Jonathan Allie <jonallie@google.com>
-Date:   Wed May 18 12:59:04 2011 -0700
+commit bda36cf3abbba9ce5163404b00cf55f192f59c21
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 18 11:34:19 2011 -0700
 
-        crypto/x509: add support for parsing and verifying DSA signatures
-    (DSA with SHA1, DSA with SHA256). Cleanup getSignatureFromOID
-    function.
+    fmt: fix minor documentation nits
     
-    R=agl, agl, rsc
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4530055
+    https://golang.org/cl/4556041
 
- CONTRIBUTORS                     |   1 +
- src/pkg/crypto/x509/x509.go      | 115 ++++++++++++++++++++++++++++++---------
- src/pkg/crypto/x509/x509_test.go |  24 ++++++++
- 3 files changed, 114 insertions(+), 26 deletions(-)
+ src/pkg/fmt/doc.go   | 2 +-
+ src/pkg/fmt/print.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

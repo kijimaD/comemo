@@ -1,18 +1,26 @@
-commit 5cc29ab95ecbbf3b7435b30e61d3e49c75c29539
-Author: Chris Manghane <cmang@golang.org>
-Date:   Tue Dec 9 07:16:38 2014 -0800
+commit 580cba42f4394a4ce477a8fc4984f77e2be6d613
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 14 14:50:00 2014 -0500
 
-    cmd/gc: logical operators should produce untyped bool for untyped
-    operands
+    [dev.cc] runtime: change set_sec to take int64
     
-    Fixes #6671 for cmd/gc.
+    Fixes build.
+    Tested that all these systems can make.bash.
     
-    Change-Id: I4907655b6e243960f2ceb544c63ea16513c7bd68
-    Reviewed-on: https://go-review.googlesource.com/1251
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    TBR=austin
+    CC=golang-codereviews
+    https://golang.org/cl/177770043
 
- src/cmd/gc/typecheck.c      |  9 ++++++++-
- test/fixedbugs/issue3924.go | 13 -------------
- test/fixedbugs/issue6671.go | 28 ++++++++++++++++++++++++++++
- 3 files changed, 36 insertions(+), 14 deletions(-)
+ src/runtime/defs_dragonfly_amd64.go | 4 ++--
+ src/runtime/defs_freebsd_386.go     | 4 ++--
+ src/runtime/defs_freebsd_amd64.go   | 4 ++--
+ src/runtime/defs_freebsd_arm.go     | 4 ++--
+ src/runtime/defs_linux_386.go       | 4 ++--
+ src/runtime/defs_linux_amd64.go     | 4 ++--
+ src/runtime/defs_linux_arm.go       | 4 ++--
+ src/runtime/defs_openbsd_386.go     | 4 ++--
+ src/runtime/defs_openbsd_amd64.go   | 4 ++--
+ src/runtime/os1_freebsd.go          | 2 +-
+ src/runtime/os1_linux.go            | 4 ++--
+ src/runtime/os1_openbsd.go          | 2 +-
+ 12 files changed, 22 insertions(+), 22 deletions(-)

@@ -1,18 +1,25 @@
-commit d727312cbfd7212950b12ec078030c62c83a9064
-Author: Austin Clements <austin@google.com>
-Date:   Tue Nov 10 20:12:37 2015 -0500
+commit e424d5968006167d5c99b3b9959e61950aa50cf8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Aug 31 13:38:13 2015 +1000
 
-    runtime: remove unused marking parfor
+    image/draw: optimize out some bounds checks.
     
-    The GC now handles the root marking jobs as part of general marking,
-    so work.markfor is no longer used.
+    We could undoubtedly squeeze even more out of these loops, and in the
+    long term, a better compiler would be smarter with bounds checks, but in
+    the short term, this small change is an easy win.
     
-    Change-Id: I6c3b23fed27e4e7ea6430d6ca7ba25ae4d04ed14
-    Reviewed-on: https://go-review.googlesource.com/16811
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkFillOver-8            1619470       1323192       -18.29%
+    BenchmarkCopyOver-8            1129369       1062787       -5.90%
+    BenchmarkGlyphOver-8           420070        378608        -9.87%
+    
+    On github.com/golang/freetype/truetype's BenchmarkDrawString:
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkDrawString-8     9561435       8807019       -7.89%
+    
+    Change-Id: Ib1c6271ac18bced85e0fb5ebf250dd57d7747e75
+    Reviewed-on: https://go-review.googlesource.com/14093
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgc.go     | 2 --
- src/runtime/mgcmark.go | 4 ++--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/image/draw/draw.go | 50 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

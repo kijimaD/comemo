@@ -1,17 +1,20 @@
-commit 033d885315dd67c509d6f7f12f3e3a26bb1ca127
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jun 10 17:02:44 2021 -0400
+commit 012efc67f280d7a68dd30a3150acd50cfa12985b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Nov 13 17:14:46 2020 -0500
 
-    doc/go1.17: document go run pkg@version
+    cmd/go/internal/modload: ignore selected version in checkRetractions
     
-    Fixes #46687
+    Fixes #42601
     
-    Change-Id: I6c311f15d3871a9824306b901fa0b81818ed2df8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326870
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I58d817ed34ccbd39591326c4bc23569f94028412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272006
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- doc/go1.17.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/go/internal/modload/modfile.go                |  6 +++---
+ .../mod/example.com_retract_incompatible_v1.0.0.txt   | 19 +++++++++++++++++++
+ ...e.com_retract_incompatible_v2.0.0+incompatible.txt |  9 +++++++++
+ .../go/testdata/script/mod_retract_incompatible.txt   | 15 +++++++++++++++
+ 4 files changed, 46 insertions(+), 3 deletions(-)

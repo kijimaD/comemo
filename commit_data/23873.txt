@@ -1,15 +1,18 @@
-commit 0229317d7665fc7195028f7dc7cd4e88d320e46a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 27 23:29:09 2015 -0700
+commit 526b5017133f193b8f82912936288f1ea767ffca
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue May 19 21:24:31 2015 -0400
 
-    runtime: don't define libc_getpid in os3_solaris.go
+    time: correct unrepresentable Unix time comment
     
-    The function is already defined between syscall_solaris.go and
-    syscall2_solaris.go.
+    It's easy for someone who wants a time bigger than any
+    valid time to reach for time.Unix(1<<63-1, 0), so it
+    makes sense to explicit say such value is not valid.
     
-    Change-Id: I034baf7c8531566bebfdbc5a4061352cbcc31449
-    Reviewed-on: https://go-review.googlesource.com/12773
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #10906 (again).
+    
+    Change-Id: If71e32472ae40d86c30e629b982406040a73c4c7
+    Reviewed-on: https://go-review.googlesource.com/10266
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/os3_solaris.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/time/time.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

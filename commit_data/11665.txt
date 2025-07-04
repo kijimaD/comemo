@@ -1,12 +1,14 @@
-commit 1f133e2b8ecfc2d26ed480eba266f1b86647dc5c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Feb 7 12:05:59 2012 +1100
+commit 97ef43721274dab8a88b60e362d37eea077b66be
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 7 11:00:13 2012 +1100
 
-    net: run TestDialTimeout on windows
+    path/filepath: repair and simplify the symlink test
+    I hate symlinks.
+    Fixes #2787.
     
-    R=golang-dev, rsc
-    CC=bradfitz, golang-dev, mikioh.mikioh
-    https://golang.org/cl/5616066
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5638043
 
- src/pkg/net/dial_test.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/path/filepath/path_test.go | 61 ++++++++++++++++++++------------------
+ 1 file changed, 32 insertions(+), 29 deletions(-)

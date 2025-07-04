@@ -1,15 +1,14 @@
-commit ca3ed9f3520de7998dcc009eca8d35eefec55412
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 13 14:56:40 2013 -0700
+commit c18af467fdec00d4369bc9b5a140ff1d043aab2e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 14 07:03:56 2013 +1000
 
-    database/sql: add a disabled broken test
+    encoding/binary: make Write work like Read
+    Use the fast path calculation to shorten the code.
+    No effect on benchmarks.
     
-    Update #6081
-    
-    R=golang-dev, gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12810043
+    https://golang.org/cl/12696046
 
- src/pkg/database/sql/sql.go      |  5 +++++
- src/pkg/database/sql/sql_test.go | 47 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+)
+ src/pkg/encoding/binary/binary.go | 198 +++++++++++++++++++-------------------
+ 1 file changed, 97 insertions(+), 101 deletions(-)

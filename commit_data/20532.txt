@@ -1,17 +1,13 @@
-commit e59ad69a44df7f00c5afab3716374f80d1bb47c7
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Sep 25 10:21:52 2014 +1000
+commit 15274e5c9bd5393f67a77200f0669ab00f2ab0ed
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 16 12:50:05 2014 -0700
 
-    net/http: allow double-quotes only on cookie values, not cookie
-    attribute values, a la RFC 6265 section 4.1.1 "Syntax".
+    runtime: make it clear that Goexit cannot be recover'd.
     
-    Fixes #7751.
-    
-    LGTM=dr.volker.dobler
-    R=dr.volker.dobler
-    CC=bradfitz, golang-codereviews
-    https://golang.org/cl/148890043
+    LGTM=r
+    R=r, bradfitz, khr
+    CC=golang-codereviews
+    https://golang.org/cl/136660044
 
- src/net/http/cookie.go      | 10 +++++-----
- src/net/http/cookie_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 5 deletions(-)
+ src/runtime/panic.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

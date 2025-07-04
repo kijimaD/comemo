@@ -1,17 +1,14 @@
-commit e9fef33dd8b33c0948c6e7cb202a7192af186edb
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 23 11:48:54 2012 +1100
+commit 5ac186975c8a792a4504060001df12fa3ba2ba4e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 22 17:44:28 2012 -0700
 
-    misc/dist: updates to installer script
+    doc/articles/c_go_cgo.html: correct "C" comment to mention #cgo
     
-    Now sets GOROOT.
+    Also fix invalid apostrophe characters.
     
-    Fixes #3287.
-    Fixes #3361.
-    
-    R=golang-dev
+    R=r, gri, adg
     CC=golang-dev
-    https://golang.org/cl/5877059
+    https://golang.org/cl/5874058
 
- misc/dist/windows/installer.wxs | 50 ++++++++++++++++++++---------------------
- 1 file changed, 25 insertions(+), 25 deletions(-)
+ doc/articles/c_go_cgo.html | 44 ++++++++++++++++++++++++++++++++------------
+ 1 file changed, 32 insertions(+), 12 deletions(-)

@@ -1,28 +1,17 @@
-commit 48d899dcdbed4534ed942f7ec2917cf86b18af22
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sun Feb 4 14:50:42 2024 +0800
+commit f8050362e8a1c3e8480b18c91dec3d703c04dbfe
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Feb 24 00:07:19 2023 +0100
 
-    net/http: reject requests with invalid Content-Length headers
+    net: inline ios check in tests
     
-    According to RFC 9110 and RFC 9112, invalid "Content-Length" headers
-    might involve request smuggling or response splitting, which could
-    also cause security failures. Currently, `net/http` ignores all
-    "Content-Length" headers when there is a "Transfer-Encoding" header and
-    forward the message anyway while other mainstream HTTP implementations
-    such as Apache Tomcat, Nginx, HAProxy, Node.js, Deno, Tornado, etc. reject
-    invalid Content-Length headers regardless of the presence of a
-    "Transfer-Encoding" header and only forward chunked-encoding messages
-    with either valid "Content-Length" headers or no "Content-Length" headers.
-    
-    Fixes #65505
-    
-    Change-Id: I73af2ee0785137e56c7546a4cce4a5c5c348dbc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561075
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I0d796d5eb05d823a18c609b2e76cc4d35da9d2b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470955
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/net/http/readrequest_test.go | 16 +++++++++++++++
- src/net/http/serve_test.go       |  6 ++++++
- src/net/http/transfer.go         | 42 ++++++++++++++++++++++------------------
- 3 files changed, 45 insertions(+), 19 deletions(-)
+ src/net/lookup_test.go   | 10 +++++-----
+ src/net/platform_test.go | 10 +---------
+ 2 files changed, 6 insertions(+), 14 deletions(-)

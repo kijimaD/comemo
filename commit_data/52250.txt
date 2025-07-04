@@ -1,36 +1,20 @@
-commit d12fe60004ae5e4024c8a93f4f7de7183bb61576
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 1 13:45:18 2023 +0000
+commit e49b80a754c3df1a82d089a16a46ea8946d5a00b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 20 12:05:30 2022 -0700
 
-    all: skip tests that fail on android/arm64
+    cmd/compile/internal/syntax: correct an error string
     
-    Many of the tests skipped platforms that build PIE binaries by
-    default, but (still) lack a central function to report which platforms
-    those are.
+    When we have an error in a function type used in an expression
+    we don't know until we see an opening { whether we have a function
+    literal or a function type. Use "function type" as context because
+    that's always correct in the specific error message.
     
-    Some of the tests assumed (but did not check for) internal linking
-    support, or invoked `go tool link` directly without properly
-    configuring the external linker.
-    
-    A few of the tests seem to be triggering latent bugs in the linker.
-    
-    For #58806.
-    For #58807.
-    For #58794.
-    
-    Change-Id: Ie4d06b1597f404590ad2abf978d4c363647407ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472455
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I9aad8fcddf31ae53daa53cebd2c2001f08eabde0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401316
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/link/elf_test.go               |  5 ++++-
- src/cmd/link/internal/ld/dwarf_test.go | 18 +++++++++++++-----
- src/cmd/link/internal/ld/ld_test.go    |  3 +++
- src/cmd/link/link_test.go              | 12 ++++++++++++
- src/cmd/nm/nm_test.go                  | 15 ++++++++++++++-
- src/cmd/pack/pack_test.go              |  5 +++++
- src/cmd/pprof/pprof_test.go            |  6 +++++-
- src/runtime/crash_cgo_test.go          |  3 +++
- 8 files changed, 59 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go              | 2 +-
+ src/cmd/compile/internal/syntax/testdata/issue48382.go | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

@@ -1,21 +1,32 @@
-commit 902b1f605908cc412e418ede6821fd8122979297
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Dec 30 23:53:27 2018 -0500
+commit ff468a43be1740890a0f3b64a6ab920ea92c2c17
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Fri Jul 27 19:32:17 2018 +0300
 
-    runtime/pprof: add a test for gccgo bug #29448
+    cmd/compile/internal/gc: better handling of self-assignments in esc.go
     
-    With gccgo, if a profiling signal arrives in certain time during
-    traceback, it may crash or hang. The fix is CL 156037 and
-    CL 156038.  This CL adds a test.
+    Teach escape analysis to recognize these assignment patterns
+    as not causing the src to leak:
     
-    Updates #29448.
+            val.x = val.y
+            val.x[i] = val.y[j]
+            val.x1.x2 = val.x1.y2
+            ... etc
     
-    Change-Id: Idb36af176b4865b8fb31a85cad185ed4c07ade0c
-    Reviewed-on: https://go-review.googlesource.com/c/156018
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Helps to avoid "leaking param" with assignments showed above.
+    The implementation is based on somewhat similiar xs=xs[a:b]
+    special case that is ignored by the escape analysis.
+    
+    We may figure out more generalized version of this,
+    but this one looks like a safe step into that direction.
+    
+    Updates #14858
+    
+    Change-Id: I6fe5bfedec9c03bdc1d7624883324a523bd11fde
+    Reviewed-on: https://go-review.googlesource.com/126395
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/pprof/pprof_test.go | 35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
+ src/cmd/compile/internal/gc/esc.go | 68 ++++++++++++++++++++++++++++++++++
+ test/escape_param.go               | 75 +++++++++++++++++++++++++++++++++++---
+ 2 files changed, 138 insertions(+), 5 deletions(-)

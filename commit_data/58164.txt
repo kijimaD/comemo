@@ -1,22 +1,30 @@
-commit 76e4efdc77861954969ce192966e1595c268d8c1
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Nov 19 10:42:11 2024 -0800
+commit 778880b00888066212864f95877c0febbebf7e69
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 5 11:11:51 2023 +0700
 
-    testing/synctest: add experimental synctest package
+    cmd/compile: fix typecheck range over negative integer
     
-    The testing/synctest package is experimental,
-    subject to change or removal,
-    and only present when GOEXPERIMENT=synctest.
+    Before range over integer, types2 leaves constant expression in RHS of
+    non-constant shift untyped, so idealType do the validation to ensure
+    that constant value must be an int >= 0.
     
-    Fixes #69687
+    With range over int, the range expression can also be left untyped, and
+    can be an negative integer, causing the validation false.
     
-    Change-Id: I6c79e7d1479a54bebcd2de754854c87bfd0a5fa1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629735
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Fixing this by relaxing the validation in idealType, and moving the
+    check to Unified IR reader.
+    
+    Fixes #63378
+    
+    Change-Id: I43042536c09afd98d52c5981adff5dbc5e7d882a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532835
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/build/deps_test.go          |  3 +-
- src/internal/goexperiment/flags.go |  3 ++
- src/internal/synctest/synctest.go  | 48 ++-------------------------
- src/testing/synctest/synctest.go   | 67 ++++++++++++++++++++++++++++++++++++++
- 4 files changed, 74 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go | 9 +++++----
+ src/cmd/compile/internal/noder/reader.go  | 7 +++++++
+ test/range3.go                            | 9 +++++++++
+ 3 files changed, 21 insertions(+), 4 deletions(-)

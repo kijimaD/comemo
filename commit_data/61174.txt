@@ -1,0 +1,36 @@
+commit db8c208cbd5e20c80c1587b0d9d4166d8238089d
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri Oct 11 03:22:00 2024 +0000
+
+    cmd/cgo,cmd/go: preallocate slices if they have known fixed capacities
+    
+    This allows for more efficient use of memory.
+    
+    Change-Id: I16f399a25c23b804e55289ca055fa83ea9862f16
+    GitHub-Last-Rev: 19bb96a7cf4d27c085cfdb074905c4bf34eb660d
+    GitHub-Pull-Request: golang/go#69841
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618960
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/cgo/ast.go                           | 2 +-
+ src/cmd/cgo/main.go                          | 2 +-
+ src/cmd/go/internal/base/path.go             | 2 +-
+ src/cmd/go/internal/envcmd/env.go            | 2 +-
+ src/cmd/go/internal/fsys/fsys.go             | 2 +-
+ src/cmd/go/internal/imports/scan.go          | 2 +-
+ src/cmd/go/internal/list/list.go             | 2 +-
+ src/cmd/go/internal/load/godebug.go          | 2 +-
+ src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
+ src/cmd/go/internal/modfetch/fetch.go        | 2 +-
+ src/cmd/go/internal/modget/get.go            | 5 +++--
+ src/cmd/go/internal/modload/init.go          | 9 +++++----
+ src/cmd/go/internal/run/run.go               | 2 +-
+ src/cmd/go/internal/search/search.go         | 7 ++++---
+ src/cmd/go/internal/vcweb/vcstest/vcstest.go | 2 +-
+ src/cmd/go/internal/work/action.go           | 2 +-
+ src/cmd/go/internal/work/gc.go               | 2 +-
+ src/cmd/go/internal/work/gccgo.go            | 2 +-
+ 18 files changed, 27 insertions(+), 24 deletions(-)

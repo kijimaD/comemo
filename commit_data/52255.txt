@@ -1,18 +1,30 @@
-commit b561ebab46124c3542ee2d67c68ca770b67cb8dc
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Aug 3 17:45:02 2022 +0800
+commit aa242555412c29f8af3da7d92067577c6b089c3a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 19 15:54:50 2022 -0400
 
-    cmd/internal/obj/loong64: remove invalid branch delay slots
+    os/exec: preserve original order of entries in dedupEnv
     
-    Change-Id: I222717771019f7aefa547971b2d94ef4677a42c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420979
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Once #50599 is implemented, the entries will be observable via the
+    Environ method. I find it confusing for later entries in the list to
+    jump arbitrarily far forward based on entries for the same key that no
+    longer exist.
+    
+    This also fixes the deduplication logic for the degenerate Windows
+    keys observed in #49886, which were previously deduplicated as empty
+    keys.
+    
+    (It does not do anything about the even-more-degenerate keys observed
+    in #52436.)
+    
+    For #50599.
+    
+    Change-Id: Ia7cd2200ec34ccc4b9d18631cb513194dc420c25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401339
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/obj/loong64/asm.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/os/exec/env_test.go | 16 ++++++++++++++--
+ src/os/exec/exec.go     | 39 +++++++++++++++++++++++++++++++--------
+ 2 files changed, 45 insertions(+), 10 deletions(-)

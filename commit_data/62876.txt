@@ -1,0 +1,23 @@
+commit 67e0681aef41cfd9794d3f7819450acd08a67905
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 22 15:14:17 2025 -0700
+
+    cmd/compile: put constant value on node inside parentheses
+    
+    That's where the unified IR writer expects it.
+    
+    Fixes #73476
+    
+    Change-Id: Ic22bd8dee5be5991e6d126ae3f6eccb2acdc0b19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667415
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/types2/range.go | 10 ++++++++++
+ src/go/types/range.go                    | 10 ++++++++++
+ test/fixedbugs/issue73476.go             | 17 +++++++++++++++++
+ test/fixedbugs/issue73476.out            |  4 ++++
+ 4 files changed, 41 insertions(+)

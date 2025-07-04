@@ -1,32 +1,18 @@
-commit 63ceff95fa7cc93dd848b503dedcef53b918cdc3
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Aug 31 21:34:23 2022 +0000
+commit 6afdf01e5385183bea4ba2661bb4088b32626b3d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 29 12:07:55 2021 -0400
 
-    runtime/metrics: add /sync/mutex/wait/total:seconds metric
+    cmd/go: make assertions more precise in TestScript/gcflags_patterns
     
-    This change adds a metric to the runtime/metrics package which tracks
-    total mutex wait time for sync.Mutex and sync.RWMutex. The purpose of
-    this metric is to be able to quickly get an idea of the total mutex wait
-    time.
+    This fixes a rare test flake observed in
+    https://build.golang.org/log/18e531785e7f8b3e6a6d5231787a9d8bdd4a60ea.
     
-    The implementation of this metric piggybacks off of the existing G
-    runnable tracking infrastructure, as well as the wait reason set on a G
-    when it goes into _Gwaiting.
-    
-    Fixes #49881.
-    
-    Change-Id: I4691abf64ac3574bec69b4d7d4428b1573130517
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427618
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0986752f5c1abc626070b9f8ecf34c629a15cd2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359735
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_test.go         |   8 +++
- src/runtime/metrics.go             |   6 ++
- src/runtime/metrics/description.go |   6 ++
- src/runtime/metrics/doc.go         |   7 ++
- src/runtime/metrics_test.go        | 127 ++++++++++++++++++++++++++++++++++++-
- src/runtime/proc.go                |  80 ++++++++++++++++-------
- src/runtime/runtime2.go            |  12 +++-
- 7 files changed, 221 insertions(+), 25 deletions(-)
+ src/cmd/go/testdata/script/gcflags_patterns.txt | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

@@ -1,91 +1,23 @@
-commit b94346e69bb01e1cd522ddfa9d09f41d9d4d3e98
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 26 12:26:02 2020 -0800
+commit 863424beb2ef735c273af87801bf56f252285889
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 28 01:20:36 2020 +0000
 
-    test: match gofrontend error messages
+    internal/goversion: update to 1.15
     
-    These changes match the following gofrontend error messages:
+    This is a second attempt at CL 230024, with
+    cmd/go/testdata/script/mod_retention.txt updated to perform a
+    version-independent comparison on the 'go' version added to a go.mod
+    file that lacks one.
     
-    blank1.go:16:1: error: may not define methods on non-local type
+    Fixes #38708
     
-    chan/perm.go:28:9: error: expected channel
-    chan/perm.go:29:11: error: left operand of ‘<-’ must be channel
-    chan/perm.go:69:9: error: argument must be channel
-    
-    complit1.go:25:16: error: attempt to slice object that is not array, slice, or string
-    complit1.go:26:16: error: attempt to slice object that is not array, slice, or string
-    complit1.go:27:17: error: attempt to slice object that is not array, slice, or string
-    complit1.go:49:41: error: may only omit types within composite literals of slice, array, or map type
-    complit1.go:50:14: error: expected struct, slice, array, or map type for composite literal
-    
-    convlit.go:24:9: error: invalid type conversion (cannot use type unsafe.Pointer as type string)
-    convlit.go:25:9: error: invalid type conversion (cannot use type unsafe.Pointer as type float64)
-    convlit.go:26:9: error: invalid type conversion (cannot use type unsafe.Pointer as type int)
-    
-    ddd1.go:63:9: error: invalid use of ‘...’ calling non-variadic function
-    
-    fixedbugs/bug176.go:12:18: error: index expression is not integer constant
-    
-    fixedbugs/bug332.go:17:10: error: use of undefined type ‘T’
-    
-    fixedbugs/issue4232.go:22:16: error: integer constant overflow
-    fixedbugs/issue4232.go:33:16: error: integer constant overflow
-    fixedbugs/issue4232.go:44:25: error: integer constant overflow
-    fixedbugs/issue4232.go:55:16: error: integer constant overflow
-    
-    fixedbugs/issue4458.go:19:14: error: type has no method ‘foo’
-    
-    fixedbugs/issue5172.go:24:14: error: too many expressions for struct
-    
-    init.go:17:9: error: reference to undefined name ‘runtime’
-    
-    initializerr.go:26:29: error: duplicate value for index 1
-    
-    interface/explicit.go:60:14: error: type assertion only valid for interface types
-    
-    label.go:64:9: error: reference to undefined label ‘go2’
-    
-    label1.go:18:97: error: continue statement not within for
-    label1.go:22:97: error: continue statement not within for
-    label1.go:106:89: error: continue statement not within for
-    label1.go:108:26: error: invalid continue label ‘on’
-    label1.go:111:118: error: break statement not within for or switch or select
-    label1.go:113:23: error: invalid break label ‘dance’
-    
-    map1.go:64:9: error: not enough arguments
-    map1.go:65:9: error: not enough arguments
-    map1.go:67:9: error: argument 1 must be a map
-    
-    method2.go:36:11: error: reference to undefined field or method ‘val’
-    method2.go:37:11: error: reference to undefined field or method ‘val’
-    method2.go:41:12: error: method requires pointer (use ‘(*T).g’)
-    
-    syntax/chan1.go:13:19: error: send statement used as value; use select for non-blocking send
-    syntax/chan1.go:17:11: error: send statement used as value; use select for non-blocking send
-    
-    Change-Id: I98047b60a376e3d2788836300f7fcac3f2c285cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273527
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I15dcd83b51ed5ec57946b419bcbaec41e85a46f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230382
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- test/blank1.go              |  2 +-
- test/chan/perm.go           |  6 +++---
- test/complit1.go            | 10 +++++-----
- test/convlit.go             |  6 +++---
- test/ddd1.go                |  2 +-
- test/fixedbugs/bug176.go    |  2 +-
- test/fixedbugs/bug332.go    |  2 +-
- test/fixedbugs/issue4232.go |  8 ++++----
- test/fixedbugs/issue4458.go |  2 +-
- test/fixedbugs/issue5172.go |  2 +-
- test/init.go                |  2 +-
- test/initializerr.go        |  2 +-
- test/interface/explicit.go  |  2 +-
- test/label.go               |  2 +-
- test/label1.go              | 12 ++++++------
- test/map1.go                |  8 ++++----
- test/method2.go             |  6 +++---
- test/syntax/chan1.go        |  4 ++--
- 18 files changed, 40 insertions(+), 40 deletions(-)
+ src/cmd/go/testdata/script/mod_retention.txt | 12 +++++++++++-
+ src/go/build/doc.go                          |  1 +
+ src/internal/goversion/goversion.go          |  2 +-
+ 3 files changed, 13 insertions(+), 2 deletions(-)

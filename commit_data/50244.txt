@@ -1,89 +1,19 @@
-commit 330282a3a96099894ac0b6daceee19a483c12bbd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 25 17:43:18 2022 -0700
+commit d90f0b920054e5e3fba981eea67fe092732a4376
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Oct 11 09:59:40 2021 -0400
 
-    cmd/compile/internal/types2: use go/types/testdata/check tests
+    cmd/compile/internal/types2: avoid duplicate errors for invalid bounds
     
-    Since the check tests are now identical between the two type checkers,
-    remove the local copy of the check tests and (for now) use the tests
-    in go/types/testdata/check instead. Eventually we may decide to move
-    all tests out of the type checker directories and place them in a
-    shared space (e.g. internal/types/testdata).
+    Resolve a TODO from an earlier CL: we should only check type parameter
+    bounds once in collectTypeParams.
     
-    For #54511.
-    
-    Change-Id: Id3a97593f6c705c5eda4566089ddc7aeb7b47337
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425736
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Icf6053ec359f8ac8143cf68ee2defd504f8f86e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355069
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/check_test.go      |   7 +-
- .../internal/types2/testdata/check/blank.go        |   5 -
- .../internal/types2/testdata/check/builtins0.go    | 956 --------------------
- .../internal/types2/testdata/check/builtins1.go    | 274 ------
- .../internal/types2/testdata/check/chans.go        |  62 --
- .../internal/types2/testdata/check/compliterals.go |  22 -
- .../internal/types2/testdata/check/const0.go       | 382 --------
- .../internal/types2/testdata/check/const1.go       | 334 -------
- .../internal/types2/testdata/check/constdecl.go    | 160 ----
- .../internal/types2/testdata/check/conversions0.go |  93 --
- .../internal/types2/testdata/check/conversions1.go | 313 -------
- .../internal/types2/testdata/check/cycles0.go      | 175 ----
- .../internal/types2/testdata/check/cycles1.go      |  77 --
- .../internal/types2/testdata/check/cycles2.go      |  98 --
- .../internal/types2/testdata/check/cycles3.go      |  60 --
- .../internal/types2/testdata/check/cycles4.go      | 121 ---
- .../internal/types2/testdata/check/cycles5.go      | 200 -----
- .../internal/types2/testdata/check/decls0.go       | 210 -----
- .../internal/types2/testdata/check/decls1.go       | 146 ---
- .../types2/testdata/check/decls2/decls2a.go        | 111 ---
- .../types2/testdata/check/decls2/decls2b.go        |  75 --
- .../internal/types2/testdata/check/decls3.go       | 309 -------
- .../internal/types2/testdata/check/decls4.go       | 199 -----
- .../internal/types2/testdata/check/decls5.go       |  10 -
- .../internal/types2/testdata/check/errors.go       |  66 --
- .../internal/types2/testdata/check/expr0.go        | 187 ----
- .../internal/types2/testdata/check/expr1.go        | 127 ---
- .../internal/types2/testdata/check/expr2.go        | 260 ------
- .../internal/types2/testdata/check/expr3.go        | 564 ------------
- .../types2/testdata/check/funcinference.go         | 104 ---
- .../internal/types2/testdata/check/go1_12.go       |  36 -
- .../internal/types2/testdata/check/go1_13.go       |  23 -
- .../internal/types2/testdata/check/go1_16.go       |  15 -
- .../internal/types2/testdata/check/go1_8.go        |  12 -
- .../internal/types2/testdata/check/gotos.go        | 560 ------------
- .../internal/types2/testdata/check/importC.go      |  56 --
- .../testdata/check/importdecl0/importdecl0a.go     |  53 --
- .../testdata/check/importdecl0/importdecl0b.go     |  30 -
- .../testdata/check/importdecl1/importdecl1a.go     |  22 -
- .../testdata/check/importdecl1/importdecl1b.go     |  11 -
- .../internal/types2/testdata/check/init0.go        | 106 ---
- .../internal/types2/testdata/check/init1.go        |  97 --
- .../internal/types2/testdata/check/init2.go        | 139 ---
- .../testdata/check/issue25008/issue25008a.go       |  15 -
- .../testdata/check/issue25008/issue25008b.go       |   9 -
- .../internal/types2/testdata/check/issues0.go      | 373 --------
- .../internal/types2/testdata/check/issues1.go      | 250 ------
- .../internal/types2/testdata/check/labels.go       | 207 -----
- .../internal/types2/testdata/check/linalg.go       |  82 --
- .../internal/types2/testdata/check/literals.go     | 111 ---
- .../internal/types2/testdata/check/main0.go        |   9 -
- .../internal/types2/testdata/check/main1.go        |   7 -
- .../compile/internal/types2/testdata/check/map0.go | 113 ---
- .../compile/internal/types2/testdata/check/map1.go | 146 ---
- .../internal/types2/testdata/check/methodsets.go   | 214 -----
- .../internal/types2/testdata/check/shifts.go       | 399 ---------
- .../internal/types2/testdata/check/slices.go       |  68 --
- .../internal/types2/testdata/check/stmt0.go        | 992 ---------------------
- .../internal/types2/testdata/check/stmt1.go        | 259 ------
- .../types2/testdata/check/typeinference.go         |  49 -
- .../internal/types2/testdata/check/typeinst0.go    |  62 --
- .../internal/types2/testdata/check/typeinst1.go    | 282 ------
- .../types2/testdata/check/typeinstcycles.go        |  11 -
- .../internal/types2/testdata/check/typeparams.go   | 508 -----------
- .../internal/types2/testdata/check/unions.go       |  66 --
- .../internal/types2/testdata/check/vardecl.go      | 215 -----
- 66 files changed, 5 insertions(+), 11309 deletions(-)
+ src/cmd/compile/internal/types2/decl.go                   | 15 ++++++++++-----
+ .../internal/types2/testdata/examples/typesets.go2        |  2 ++
+ 2 files changed, 12 insertions(+), 5 deletions(-)

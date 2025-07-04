@@ -1,22 +1,21 @@
-commit 85b5f86584686677c554b2538a7edee96d684aea
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 30 17:26:21 2022 -0700
+commit 246a5570bea7b60fa2c1f0e8d4bdca527dd7c224
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 3 21:58:32 2021 -0700
 
-    net: support error.Is of network errors and context errors
+    [dev.typeparams] cmd/compile: rename (types2.Inferred.)Targs to TArgs
     
-    Change timeouts to be Is(context.DeadlineExceeded) and cancelation to
-    be Is(context.Canceled).
+    This is consistent with Named.TArgs.
     
-    Fixes #51428
+    This is a straight-forward port of https://golang.org/cl/321289
+    plus the necessary compiler noder changes.
     
-    Change-Id: Ic580bd9da0f338e993fb79138875a78d99cc1a1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396877
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I50791e5abe0d7f294293bed65cebc8dde8bf8c06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325010
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go1.19.html       | 12 ++++++++++++
- src/net/error_test.go |  9 +++++++++
- src/net/net.go        | 23 +++++++++++++++++------
- 3 files changed, 38 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/expr.go      | 12 ++++++------
+ src/cmd/compile/internal/types2/api.go      |  2 +-
+ src/cmd/compile/internal/types2/api_test.go |  2 +-
+ src/cmd/compile/internal/types2/sanitize.go |  4 ++--
+ 4 files changed, 10 insertions(+), 10 deletions(-)

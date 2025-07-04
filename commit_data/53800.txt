@@ -1,22 +1,27 @@
-commit 68d50ca271ec160d8b1284b3aa294e876be1dc71
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Jul 21 13:49:06 2023 -0400
+commit 511cd9b8af10de9cad86be38a22e5eb2e5d4cd8d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 12 16:35:26 2022 -0400
 
-    cmd/dist: handle -json flag in runPending (minimal)
+    runtime: switch gp when jumping stacks during traceback
     
-    The -json flag is new to Go 1.21, but missed skips in runPending.
-    This CL adds minimal code to fix that. CL 512115 cleans up a bit.
+    Currently, when traceback jumps from the system stack to a user stack
+    (e.g., during profiling tracebacks), it leaves gp pointing at the g0.
+    This is currently harmless since it's only used during profiling, so
+    the code paths in gentraceback that care about gp aren't used, but
+    it's really confusing and would certainly break if _TraceJumpStack
+    were ever used in a context other than profiling.
     
-    For #37486.
-    Fixes (via backport) #61557.
+    Fix this by updating gp to point to the user g when we switch stacks.
     
-    Change-Id: I53e426c9a5585b2703f0ff6661a0470e1993f960
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512719
+    For #54466.
+    
+    Change-Id: I1541e004667a52e37671803ce45c91d8c5308830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424257
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go | 27 +++++++++++++++++++++++++--
- 1 file changed, 25 insertions(+), 2 deletions(-)
+ src/runtime/traceback.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

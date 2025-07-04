@@ -1,27 +1,29 @@
-commit 72ce9ba9cb640f1a2184389d1dc146d731882328
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Aug 29 09:40:50 2022 -0700
+commit 0a15e7851a0ea1ebe1523bb70a6cfe56488ea2ef
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 6 17:26:32 2021 -0500
 
-    crypto/tls: use certificate cache in client
+    runtime/pprof: assert that labelHog samples are always labeled
     
-    In verifyServerCertificate parse certificates using the global
-    certificate cache.
+    With https://golang.org/issue/50007 resolved, there are no known issues
+    with pprof labels remaining. Thus, the 10% allowed error in
+    TestLabelSystemstack should not be required.
     
-    This should signficiantly reduce memory usage in TLS clients which make
-    concurrent connections which reuse certificates (anywhere in the chain)
-    since there will only ever be one copy of the certificate at once.
+    Drop it in favor of an explicit assertion that all samples containing
+    labelHog are properly labeled.
     
-    Fixes #46035
+    This is no flaky in my local testing. It is possible that other bugs
+    will appear at larger testing scale, in which case this CL will be
+    reverted, but then at least we will be aware of additional failure
+    modes.
     
-    Change-Id: Icf5153d0ea3c14a0bdc8b26c794f21153bf95f85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426455
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    For #50007.
+    
+    Change-Id: I1ef530c303bd9a01af649b8b08d4b35505e8aada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369744
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/tls/cache.go            | 2 ++
- src/crypto/tls/conn.go             | 3 +++
- src/crypto/tls/handshake_client.go | 7 +++++--
- 3 files changed, 10 insertions(+), 2 deletions(-)
+ src/runtime/pprof/pprof_test.go | 68 +++++++++++++----------------------------
+ 1 file changed, 22 insertions(+), 46 deletions(-)

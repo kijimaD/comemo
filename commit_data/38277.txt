@@ -1,14 +1,22 @@
-commit c5babcc4852397b49ec43778d517ab59f5b10ef7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 26 15:52:23 2019 -0800
+commit 62c52a5ee19279a2151bdf178eee11b95c188a91
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 16 11:58:00 2018 -0700
 
-    runtime: align first persistentalloc chunk as requested
+    cmd/compile/internal/gc: simplify typechecking definitions
     
-    Change-Id: Ib391e019b1a7513d234fb1c8ff802efe8fa7c950
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/163859
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    There are only a handful of nodes that we need to pass to
+    typecheckdef (OLITERAL, ONAME, OTYPE, and ONONAME), but typecheck1
+    takes the awkward approach of calling typecheckdef on every node with
+    Sym != nil, and then excluding a long list of uninteresting Ops that
+    have a non-nil Sym.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I0271d2faff0208ad57ddc1f1a540a5fbed870234
+    Reviewed-on: https://go-review.googlesource.com/c/142657
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/malloc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/typecheck.go | 31 ++++++++++++++-----------------
+ 1 file changed, 14 insertions(+), 17 deletions(-)

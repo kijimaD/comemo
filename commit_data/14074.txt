@@ -1,12 +1,30 @@
-commit 236e79cab382bf3e702aa7d03b03903c36445053
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Oct 8 10:40:56 2012 +1100
+commit 46bce2ac277fc4639fb6b6f6c99f91ac6125ced8
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 23:22:01 2012 +0200
 
-    godoc: fetch jQuery via https
+    test: convert more tests to rundir/compiledir conventions
     
-    R=rsc, bradfitz
+    Update #4139.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6614064
+    https://golang.org/cl/6609051
 
- lib/godoc/godoc.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug191.dir/main.go  |  14 +++++
+ test/fixedbugs/bug191.go           |  16 ++----
+ test/fixedbugs/bug191.out          |   2 +
+ test/fixedbugs/bug382.dir/prog.go  |  13 +++++
+ test/fixedbugs/bug382.go           |  14 ++---
+ test/fixedbugs/bug424.dir/main.go  |  97 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/bug424.go           |  93 +-------------------------------
+ test/import2.dir/import2.go        |  42 +++++++++++++++
+ test/{ => import2.dir}/import3.go  |   5 --
+ test/import2.go                    |  43 ++-------------
+ test/import4.dir/empty.go          |  10 ++++
+ test/import4.dir/import4.go        |  24 +++++++++
+ test/import4.go                    |  22 +-------
+ test/{ => method4.dir}/method4a.go |   3 --
+ test/method4.dir/prog.go           | 104 ++++++++++++++++++++++++++++++++++++
+ test/method4.go                    | 105 +------------------------------------
+ test/run.go                        |  12 ++---
+ 17 files changed, 324 insertions(+), 295 deletions(-)

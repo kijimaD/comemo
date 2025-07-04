@@ -1,12 +1,12 @@
-commit 5cff1903ea07f0f7087be72379dded4a987ca589
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 20 12:42:50 2012 +1100
+commit 05e80cffc344167ccbc49f5b0c416e6372a4f796
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Feb 20 12:32:43 2012 +1100
 
-    FAQ: many small fixes and adjustments
+    godoc: fix tag mismatch validation errors
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5685048
+    https://golang.org/cl/5676099
 
- doc/go_faq.html | 46 ++++++++++++++++++++++++++++------------------
- 1 file changed, 28 insertions(+), 18 deletions(-)
+ lib/godoc/package.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

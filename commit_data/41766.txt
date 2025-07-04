@@ -1,25 +1,34 @@
-commit d22086ef5e921ee416e929d693f237971569869e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 26 23:10:32 2020 -0400
+commit 4412181e7c8b1bfb14b8907c634d61856b97f2de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 23 14:22:32 2019 -0700
 
-    cmd/go/internal/work: disallow testgo binary from installing to GOROOT
+    math/big: normalize unitialized denominators ASAP
     
-    Installing to GOROOT makes tests non-parallelizable, since each test
-    depends on the installed contents of GOROOT already being up-to-date
-    and may reasonably assume that those contents do not change over the
-    course of the test.
+    A Rat is represented via a quotient a/b where a and b are Int values.
+    To make it possible to use an uninitialized Rat value (with a and b
+    uninitialized and thus == 0), the implementation treats a 0 denominator
+    as 1.
     
-    Fixes #37573
-    Updates #30316
+    For each operation we check if the denominator is 0, and then treat
+    it as 1 (if necessary). Operations that create a new Rat result,
+    normalize that value such that a result denominator 1 is represened
+    as 0 again.
     
-    Change-Id: I2afe95ad11347bee3bb7c2d77a657db6d691cf05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225897
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    This CL changes this behavior slightly: 0 denominators are still
+    interpreted as 1, but whenever we (safely) can, we set an uninitialized
+    0 denominator to 1. This simplifies the code overall.
+    
+    Also: Improved some doc strings.
+    
+    Preparation for addressing issue #33792.
+    
+    Updates #33792.
+    
+    Change-Id: I3040587c8d0dad2e840022f96ca027d8470878a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202997
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go                         |  1 +
- src/cmd/go/internal/work/exec.go              | 49 +++++++++++++++++++++++----
- src/cmd/go/internal/work/testgo.go            | 33 +++++++++++++++++-
- src/cmd/go/script_test.go                     |  1 +
- src/cmd/go/testdata/script/README             |  1 +
- src/cmd/go/testdata/script/get_update_all.txt |  4 +--
- 6 files changed, 79 insertions(+), 10 deletions(-)
+ src/math/big/rat.go | 55 +++++++++++++++++++++++++++--------------------------
+ 1 file changed, 28 insertions(+), 27 deletions(-)

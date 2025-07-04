@@ -1,13 +1,12 @@
-commit faad40c745e6f2c4db673ae700c79745f98e77ae
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sat Oct 5 14:15:02 2013 +1000
+commit 15baf6b4ace720e7b2cfe5911d43aa9ede1a4f97
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 4 13:22:20 2013 -0700
 
-    A+C: add Marko Juhani Silokunnas (individual CLA).
+    runtime: remove 3 unused declarations.
     
-    R=golang-dev, adg
-    CC=golang-dev, mikioh.mikioh
-    https://golang.org/cl/14417043
+    R=golang-dev, cshapiro, iant
+    CC=golang-dev
+    https://golang.org/cl/14405043
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/traceback_x86.c | 3 ---
+ 1 file changed, 3 deletions(-)

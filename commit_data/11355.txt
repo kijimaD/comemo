@@ -1,12 +1,19 @@
-commit 565e140a16cb26fb878ee7554ca62c90ac9fa351
-Author: Ivan Krasin <krasin@golang.org>
-Date:   Tue Jan 24 13:52:45 2012 -0500
+commit da6d835b90a52d9f86aaf526903fb491b7bb41a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 24 08:32:43 2012 -0800
 
-    compress/flate: increase the length of hash table from 1<<15 to 1<<17. 0%-16% speedup.
+    crypto: rename some FooError to ErrFoo
     
-    R=rsc, imkrasin
+    Also, add an explicit error type when the right hand side is an unexported
+    function.
+    
+    R=golang-dev, gri, rogpeppe, agl, rsc
     CC=golang-dev
-    https://golang.org/cl/5569048
+    https://golang.org/cl/5564048
 
- src/pkg/compress/flate/deflate.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/dsa/dsa.go                                |  6 +++---
+ src/pkg/crypto/openpgp/errors/errors.go                  |  4 ++--
+ src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go |  2 +-
+ src/pkg/crypto/openpgp/read.go                           | 16 ++++++++--------
+ src/pkg/crypto/openpgp/read_test.go                      |  6 +++---
+ 5 files changed, 17 insertions(+), 17 deletions(-)

@@ -1,15 +1,13 @@
-commit 7b0bb48056a59d3829ee47ab853b282d38b1efd1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 6 13:00:54 2011 -0700
+commit 6732bd35266c0fa9fa7d88eef93d4fc344edf193
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 6 22:27:06 2011 +1000
 
-    json: fix test if rand returns 0.
+    exp/template: index function for arrays, slices, and maps.
     
-    Fixes test when run with gccgo using optimization, which
-    changes the order of the calls to rand.
-    
-    R=golang-dev, gri
+    R=golang-dev, adg, r
     CC=golang-dev
-    https://golang.org/cl/4639101
+    https://golang.org/cl/4643072
 
- src/pkg/json/scanner_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/exp/template/exec_test.go | 36 ++++++++++++++++++++++--------
+ src/pkg/exp/template/funcs.go     | 47 ++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 71 insertions(+), 12 deletions(-)

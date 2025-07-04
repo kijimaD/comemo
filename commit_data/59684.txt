@@ -1,38 +1,26 @@
-commit 5e6a868b28d3e7a71fa328c18ff5e93d72a1fb67
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed May 21 14:33:13 2025 -0400
+commit 3504da456591acf1b1ab479d4a5b2c91345a7f22
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 9 03:09:34 2024 +0000
 
-    cmd/compile, unique: model data flow of non-string pointers
+    internal/trace/v2: halve the memory footprint of TestGCStress
     
-    Currently, hash/maphash.Comparable escapes its parameter if it
-    contains non-string pointers, but does not escape strings or types
-    that contain strings but no other pointers. This is achieved by a
-    compiler intrinsic.
+    This test has been OOMing on 32-bit platforms for a bit. I suspect the
+    very high allocation rate is causing the program to outrun the GC in
+    some corner-case scenarios, especially on 32-bit Windows.
     
-    unique.Make does something similar: it stores its parameter to a
-    central map, with strings cloned. So from the escape analysis's
-    perspective, the non-string pointers are passed through, whereas
-    string pointers are not. We currently cannot model this type of
-    type-dependent data flow directly in Go. So we do this with a
-    compiler intrinsic. In fact, we can unify this and the intrinsic
-    above.
+    I don't have a strong grasp of what's going on yet, but lowering the
+    memory footprint should help with the flakiness. This shouldn't
+    represent a loss in test coverage, since we're still allocating and
+    assisting plenty (tracing the latter is a strong reason this test
+    exists).
     
-    Tests are from Jake Bailey's CL 671955 (thanks!).
+    For #66624.
     
-    Fixes #73680.
-    
-    Change-Id: Ia6a78e09dee39f8d9198a16758e4b5322ee2c56a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675156
+    Change-Id: Idd832cfc5cde04701386919df4490f201c71130a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577475
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Jake Bailey <jacob.b.bailey@gmail.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/escape/call.go | 12 ++++---
- src/cmd/compile/internal/inline/inl.go  | 17 +++++----
- src/cmd/compile/internal/walk/expr.go   |  4 +--
- src/hash/maphash/maphash.go             | 18 ++--------
- src/internal/abi/escape.go              | 32 +++++++++++++++++
- src/unique/clone.go                     |  2 +-
- src/unique/handle_test.go               |  6 ++--
- test/escape_unique.go                   | 62 +++++++++++++++++++++++++++++++++
- 8 files changed, 119 insertions(+), 34 deletions(-)
+ src/internal/trace/v2/testdata/testprog/gc-stress.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,29 +1,16 @@
-commit d85a3535fe9b8c85f8876fab7f8ea0c984ec38e9
+commit c1679286c3911befd94f1ddb4b29fbdd12301da9
 Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Nov 15 12:38:26 2017 -0800
+Date:   Sat Aug 26 02:12:56 2017 -0700
 
-    archive/zip: preserve old FileHeader.ModTime behavior
+    archive/tar: minor doc fixes
     
-    In order to avoid a regression where the date of the ModTime method
-    changed behavior, simply preserve the old behavior of determining
-    the date based on the legacy fields.
+    Use "file" consistently instead of "entry".
     
-    This ensures that anyone relying on ModTime before Go1.10 will have
-    the exact same behavior as before.
-    New users should use FileHeader.Modified instead.
-    
-    We keep the UTC coersion logic in SetModTime since some users
-    manually compute timezone offsets in order to have precise control
-    over the MS-DOS time field.
-    
-    Fixes #22738
-    
-    Change-Id: Ib18b6ebd863bcf645748e083357dce9bc788cdba
-    Reviewed-on: https://go-review.googlesource.com/78031
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia81c9665d0d956adb78f7fa49de40cdb87fba000
+    Reviewed-on: https://go-review.googlesource.com/60150
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/zip/struct.go | 8 ++------
- src/archive/zip/writer.go | 2 +-
- 2 files changed, 3 insertions(+), 7 deletions(-)
+ src/archive/tar/common.go | 9 ++++-----
+ src/archive/tar/reader.go | 8 ++++----
+ src/archive/tar/writer.go | 2 +-
+ 3 files changed, 9 insertions(+), 10 deletions(-)

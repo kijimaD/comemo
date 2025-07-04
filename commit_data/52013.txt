@@ -1,21 +1,21 @@
-commit 518889b35cb07f3e71963f2ccfc0f96ee26a51ce
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Feb 15 16:11:37 2023 -0800
+commit 109a18dce7ef8ecb2aa60cef25362ebd05661ea0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 30 18:47:11 2022 -0700
 
-    cmd/compile: ensure InitMem comes after Args
+    debug/elf: check for negative shoff and phoff fields
     
-    The debug info generation currently depends on this invariant.
+    No test because we could add an infinite number of tests of bogus data.
     
-    A small update to CL 468455.
+    For #47653
+    Fixes #52035
     
-    Update #58482
-    
-    Change-Id: Ica305d360d9af04036c604b6a65b683f7cb6e212
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468695
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Iec7e2fe23f2dd1cf14bad2475422f243f51028f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396880
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/schedule.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/debug/elf/file.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

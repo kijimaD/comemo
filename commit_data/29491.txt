@@ -1,18 +1,28 @@
-commit 8f215d8c1f90f2841df2ae319799e0bc22320751
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Nov 11 07:39:17 2016 -0800
+commit 6fe1febc867237fdf9ae40483044ed377144627f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 16 15:31:04 2016 -0700
 
-    cmd/vet/all: add bitwidths for mips and mipsle
+    cmd/internal/obj: replace AGLOBL with (*Link).Globl
     
-    cmd/vet/all still doesn't run for mips/mipsle,
-    because the rest of the toolchain doesn't yet
-    fully support it.
+    Replace the AGLOBL pseudo-op with a method to directly register an
+    LSym as a global. Similar to how we previously already replaced the
+    ADATA pseudo-op with directly writing out data bytes.
     
-    Change-Id: I1a86b0edddbdcd5f43e752208508d99da7aabbb3
-    Reviewed-on: https://go-review.googlesource.com/33134
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I3631af0a2ab5798152d0c26b833dc309dbec5772
+    Reviewed-on: https://go-review.googlesource.com/29366
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/all/main.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/asm/internal/asm/asm.go      | 12 +-----
+ src/cmd/compile/internal/gc/dcl.go   |  1 -
+ src/cmd/compile/internal/gc/gsubr.go | 79 ++++++------------------------------
+ src/cmd/compile/internal/gc/obj.go   |  1 -
+ src/cmd/compile/internal/gc/plive.go |  2 +-
+ src/cmd/internal/obj/link.go         |  1 -
+ src/cmd/internal/obj/plist.go        | 54 ++++++++++++------------
+ src/cmd/internal/obj/util.go         |  3 +-
+ src/cmd/internal/obj/x86/asm6.go     |  1 -
+ 9 files changed, 42 insertions(+), 112 deletions(-)

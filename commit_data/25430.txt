@@ -1,23 +1,14 @@
-commit ae8e55860b1c7cecd00ce70ed87539b56e360dae
+commit 8537ff8a397aae19dc16ab223a95153304894631
 Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Dec 23 15:33:55 2015 +1300
+Date:   Fri Sep 4 08:31:03 2015 +1200
 
-    cmd/go: special case shared library name when passed "$prefix/..."
+    runtime/cgo: export _cgo_reginit on ppc64x
     
-    Before golang.org/cl/13921, "go install -buildmode=shared prefix/..." created a
-    file called "libprefix.so", which was obviously a problem when prefix was
-    something like "." or "../".  However, now it expands the ... into all the
-    matched packages, joins them with -, which can clearly be a very long name
-    indeed. Because I plan to build shared libraries for Ubuntu by running commands
-    exactly like "go install -buildmode=shared prefix/...", this special cases this
-    to produce the old behaviour (but de-relativises prefix first).
+    This is needed to make external linking work.
     
-    Fixes #13714
-    
-    Change-Id: I4fd8d4934279f9a18cc70a13e4ef3e23f6abcb6e
-    Reviewed-on: https://go-review.googlesource.com/18114
+    Change-Id: I4cf7edb4ea318849cab92a697952f8745eed40c4
+    Reviewed-on: https://go-review.googlesource.com/14237
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/build.go    |  22 +++++++--
- src/cmd/go/pkg_test.go | 119 ++++++++++++++++++++++++++++---------------------
- 2 files changed, 87 insertions(+), 54 deletions(-)
+ src/runtime/cgo_ppc64x.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

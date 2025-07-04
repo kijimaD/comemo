@@ -1,0 +1,35 @@
+commit d8ad4af78bba1f4bf2bb1ce1ace2b62bc86540fd
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 4 03:44:40 2025 +1100
+
+    cmd/internal/disasm: correct instruction length handling for riscv64
+    
+    disasm_riscv64 currently always returns an instruction length of four,
+    which is not correct if compressed instructions are in use. Return the
+    length of the decoded instruction, defaulting to two bytes if the
+    instruction is unknown.
+    
+    With this change it is possible to correctly objdump a binary that is
+    written in C and includes compressed instructions:
+    
+    $ go tool objdump ./hello
+    TEXT _start(SB)
+      :0                    0x5b0                   ef002002                CALL 8(PC)
+      :0                    0x5b4                   aa87                    ADD X10, X0, X15
+      :0                    0x5b6                   17250000                AUIPC $2, X10
+      :0                    0x5ba                   033525a3                MOV -1486(X10), X10
+      :0                    0x5be                   8265                    MOV (X2), X11
+      :0                    0x5c0                   3000                    ADDI $8, X2, X12
+      ...
+    
+    Fixes #71102
+    
+    Change-Id: Ia99eb114a98c6d535de872ce8a526cd5e6203fff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639995
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/internal/disasm/disasm.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

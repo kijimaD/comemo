@@ -1,13 +1,13 @@
-commit ce51e1074995cf7f1369b26d059d5a86e7b82e98
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 28 09:41:30 2012 +1100
+commit 4fae9f794331eecc6106269f27b063aa060a5bfa
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Tue Feb 28 09:22:55 2012 +1100
 
-    archive/zip: use encoding/binary again, add readBuf helper
+    doc/go1: fix broken link
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5699097
+    https://golang.org/cl/5695072
 
- src/pkg/archive/zip/reader.go | 136 ++++++++++++++++++++++++------------------
- src/pkg/archive/zip/writer.go |  12 +---
- 2 files changed, 81 insertions(+), 67 deletions(-)
+ doc/go1.html | 2 +-
+ doc/go1.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

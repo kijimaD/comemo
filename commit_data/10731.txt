@@ -1,12 +1,12 @@
-commit 53c4d81b63984fb4fa1ec91024bc2477ef4e5d6e
+commit b2cf7b5f6b0bf3e3336ed2e7e7b41db026ce04ab
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Dec 13 10:47:51 2011 +1100
+Date:   Tue Dec 13 10:46:58 2011 +1100
 
-    env.bash: export CGO_ENABLED so cgo tests run
+    misc/cgo/test: fix after latest time changes
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5394042
+    https://golang.org/cl/5454047
 
- src/env.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/test/issue1560.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

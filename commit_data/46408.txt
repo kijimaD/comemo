@@ -1,17 +1,21 @@
-commit 5a4b9f9494bad1091f2f9cb777aed54293b647d3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jul 14 13:21:11 2021 -0700
+commit 098a6490b93f337ed3f13a7a18376ebb8175f2be
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Dec 27 11:11:11 2020 -0800
 
-    time: reference -tags=timetzdata in testing panic
+    [dev.regabi] cmd/compile: remove Declare in makepartialcall
     
-    This will spare anyone who hits it having to search for the workaround.
+    This is the only remaining late call to Declare. By changing it to use
+    Temp, we'll be able to move the legacy lexical scoping logic by moving
+    it to noder and iimport.
     
-    Change-Id: Iff0d449212f2675ac78e30ae5ffc8efb4d924088
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334611
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: Id7cf7a08e3138e50816f515fef3088785a10aaf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280513
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/time/internal_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/func.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

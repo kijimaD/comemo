@@ -1,14 +1,17 @@
-commit 64a0017d6e69f3a6ba11ad5ad35c66dc489e5cbf
+commit ae2131ab3b0ade61a3b21bfea013350a825ad45a
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 2 15:44:00 2013 -0500
+Date:   Wed Jan 2 15:34:28 2013 -0500
 
-    sync/atomic: document that users must deal with 64-bit alignment
+    cmd/gc: make redeclaration between import and func less confusing
     
-    Update #599.
+    Fixes #4510.
     
-    R=dvyukov, iant, minux.ma
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7001056
+    https://golang.org/cl/7001054
 
- src/pkg/sync/atomic/doc.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/gc/dcl.c                   | 20 +++++++++++++++++---
+ test/fixedbugs/issue4510.dir/f1.go |  9 +++++++++
+ test/fixedbugs/issue4510.dir/f2.go |  7 +++++++
+ test/fixedbugs/issue4510.go        |  7 +++++++
+ 4 files changed, 40 insertions(+), 3 deletions(-)

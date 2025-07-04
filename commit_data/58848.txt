@@ -1,17 +1,19 @@
-commit 2f036e1475f9d794451927d90c07d9f8c258db77
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Fri Feb 14 13:01:02 2025 -0500
+commit 988b718f4130ab5b3ce5a5774e1a58e83c92a163
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 26 21:17:04 2023 -0800
 
-    weak: test the use of runtime.AddCleanup
+    doc: fix typo in example in spec
     
-    This change adds a test case for runtime.AddCleanup.
+    Follow-up on CL 551095.
     
-    Updates #70907
+    For #56010.
     
-    Change-Id: I29cba9dc5b40cec8e610215974e61ee47e10d00f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649459
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I8913d6ca96c419c81683e88c6286b05ae1323416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552915
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/weak/pointer_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

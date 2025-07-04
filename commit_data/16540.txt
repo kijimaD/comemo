@@ -1,15 +1,26 @@
-commit 880d86976454d228d4b2d4cbfd264873a8bcab31
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jun 11 22:21:51 2013 +0200
+commit caefc5d0caa46f032f6929037371c24f4c7f9b47
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 11 09:35:10 2013 -0700
 
-    cmd/gc: compute initialization order for top-level blank vars too.
+    cmd/go: add coverage analysis
+    This feature is not yet ready for real use. The CL marks a bite-sized
+    piece that is ready for review. TODOs that remain:
+            provide control over output
+            produce output without setting -v
+            make work on reflect, sync and time packages
+                    (fail now due to link errors caused by inlining)
+            better documentation
+    Almost all packages work now, though, if clumsily; try:
+            go test -v -cover=count encoding/binary
     
-    Fixes #5244.
-    
-    R=golang-dev, rsc, iant, r, daniel.morsing
-    CC=golang-dev
-    https://golang.org/cl/8601044
+    R=rsc
+    CC=gobot, golang-dev, remyoudompheng
+    https://golang.org/cl/10050045
 
- src/cmd/gc/sinit.c          |  6 ++----
- test/fixedbugs/issue5244.go | 18 ++++++++++++++++++
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ src/cmd/go/build.go    |  32 +++++++++++++-
+ src/cmd/go/doc.go      |  12 ++++++
+ src/cmd/go/pkg.go      |  36 ++++++++++------
+ src/cmd/go/test.go     | 114 ++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/go/testflag.go |   8 ++++
+ src/cmd/go/tool.go     |   2 +-
+ 6 files changed, 184 insertions(+), 20 deletions(-)

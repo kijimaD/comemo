@@ -1,31 +1,16 @@
-commit aa9b3d70142afb75a510c2c92b8c387fce10b2c9
-Author: Sina Siadat <siadat@gmail.com>
-Date:   Fri Jun 17 21:02:59 2016 +0430
+commit 30172f1811a3e08487c6191d1923f8608a338496
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 27 14:30:01 2016 -0400
 
-    net/http: send Content-Range if no byte range overlaps
+    runtime: make {add,subtract}{b,1} nosplit
     
-    RFC 7233, section 4.4 says:
-    >>>
-    For byte ranges, failing to overlap the current extent means that the
-    first-byte-pos of all of the byte-range-spec values were greater than the
-    current length of the selected representation.  When this status code is
-    generated in response to a byte-range request, the sender SHOULD generate a
-    Content-Range header field specifying the current length of the selected
-    representation
-    <<<
+    These are used at the bottom level of various GC operations that must
+    not be preempted. To be on the safe side, mark them all nosplit.
     
-    Thus, we should send the Content-Range only if none of the ranges
-    overlap.
-    
-    Fixes #15798.
-    
-    Change-Id: Ic9a3e1b3a8730398b4bdff877a8f2fd2e30149e3
-    Reviewed-on: https://go-review.googlesource.com/24212
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8f7360e79c9852bd044df71413b8581ad764380c
+    Reviewed-on: https://go-review.googlesource.com/22504
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/fs.go         | 21 ++++++++++++++++++++-
- src/net/http/fs_test.go    | 33 +++++++++++++++++++++++++--------
- src/net/http/range_test.go |  2 +-
- 3 files changed, 46 insertions(+), 10 deletions(-)
+ src/runtime/mbitmap.go | 3 +++
+ 1 file changed, 3 insertions(+)

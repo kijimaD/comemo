@@ -1,15 +1,19 @@
-commit 16663a85ba0b2814c47f54ddfdcb45782e10dc42
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Mar 17 15:34:39 2017 +1100
+commit e2d5e54e504117e3f141b6c2ab52389aa04fdb79
+Author: Kaviraj <kavirajkanagaraj@gmail.com>
+Date:   Wed Nov 23 19:03:46 2016 +0530
 
-    image/png: decode Gray8 transparent images.
+    net: document that Header.Get key is case insensitive
     
-    Fixes #19553.
+    Document that key in Header.Get(key) is case insensitive in
+    http.Header, mail.Header, textproto.Header.
     
-    Change-Id: I414cb3b1c2dab20f41a7f4e7aba49c534ff19942
-    Reviewed-on: https://go-review.googlesource.com/38271
+    Fixes #18019
+    
+    Change-Id: Iba7932491e02e555190b6fce053088b580a853ef
+    Reviewed-on: https://go-review.googlesource.com/33530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/image/png/reader.go      | 16 ++++++++++--
- src/image/png/reader_test.go | 61 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 75 insertions(+), 2 deletions(-)
+ src/net/http/header.go      | 6 ++++--
+ src/net/mail/message.go     | 4 ++++
+ src/net/textproto/header.go | 4 +++-
+ 3 files changed, 11 insertions(+), 3 deletions(-)

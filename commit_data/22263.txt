@@ -1,21 +1,20 @@
-commit 102b80652f7876e9b78b6a3c0c69b530666b52a2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 27 12:00:07 2015 -0700
+commit ce1c9247b06800d6698d03dcd68498729f7bfddd
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 07:45:06 2015 -0500
 
-    cmd/internal/gc: make class uint8 throughout
+    time: zoneinfo support for darwin
     
-    This prevents conversion noise.
+    Roll forward of 54efdc596f7b. Better testing of the build on
+    darwin/amd64. There is still some variance between cmd/dist
+    and the Go tool for build tag handling.
     
-    No functional changes. Passes toolstash -cmp.
-    
-    Change-Id: I238adf28680f875217827931a689ce7f19a9b371
-    Reviewed-on: https://go-review.googlesource.com/8164
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I105669ae7f90c8c89b3839c04b182cff46be8dde
+    Reviewed-on: https://go-review.googlesource.com/6516
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/internal/gc/dcl.go      | 4 ++--
- src/cmd/internal/gc/export.go   | 2 +-
- src/cmd/internal/gc/go.go       | 6 +++---
- src/cmd/internal/gc/plive.go    | 4 ++--
- src/cmd/internal/gc/racewalk.go | 2 +-
- src/cmd/internal/gc/walk.go     | 4 ++--
- 6 files changed, 11 insertions(+), 11 deletions(-)
+ src/time/sleep_test.go    |  4 ++++
+ src/time/zoneinfo_ios.go  | 51 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_unix.go |  2 +-
+ 3 files changed, 56 insertions(+), 1 deletion(-)

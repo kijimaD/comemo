@@ -1,25 +1,22 @@
-commit 2043b3b47b3ca76d8ce44f05a77e48d2291b6fc6
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Oct 6 14:53:32 2021 -0700
+commit 13a741298377d30fc2b3fc51fa9aa52eed6d56e4
+Author: Dan Scales <danscales@google.com>
+Date:   Sat Jan 30 08:43:58 2021 -0800
 
-    cmd/compile,runtime: implement uint64->float32 correctly on 32-bit archs
+    [dev.typeparams] Parse a generic type arg for generic function call
     
-    The old way of implementing it, float32(float64(x)), involves 2 roundings
-    which can cause accuracy errors in some strange cases. Implement a runtime
-    version of [u]int64tofloat32 which only does one rounding.
+    Will now run "go tool compile -G=2 -W=2" on a simple generic function
+    with one type parameter and a call to that function with one explicit
+    type argument. Next change will handle multiple type arguments.
     
-    Fixes #48807
-    
-    Change-Id: Ie580be480bee4f3a479e58ef8dce23032f231704
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354429
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ia7d17ea2a02bf99bd50e673ac80ae4aad4c48440
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288432
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/typecheck/builtin.go      | 73 ++++++++++++----------
- .../compile/internal/typecheck/builtin/runtime.go  |  2 +
- src/cmd/compile/internal/walk/convert.go           |  4 +-
- src/runtime/float_test.go                          | 25 ++++++++
- src/runtime/vlrt.go                                | 30 +++++++++
- 5 files changed, 98 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/noder/expr.go    | 11 +++++-
+ src/cmd/compile/internal/noder/helpers.go | 62 ++++++++++++++++++++++++++-----
+ src/cmd/compile/internal/noder/irgen.go   |  1 +
+ src/cmd/compile/internal/noder/types.go   | 18 ++++++++-
+ 4 files changed, 80 insertions(+), 12 deletions(-)

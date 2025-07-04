@@ -1,14 +1,35 @@
-commit a15a01377226cfca48fb64f67fb535af1da4bf0e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jan 20 07:46:18 2019 -0800
+commit 43f54c8d2e3bddfc6ad7887286eb6564986cb6ad
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Sep 6 17:21:59 2018 -0700
 
-    cmd/cgo: print the right error if mangling detection gccgo fails
+    runtime: use tgkill for raise
     
-    Change-Id: I2324f6f51d2bf8a4ae1b139b3933bc78dfa75835
-    Reviewed-on: https://go-review.googlesource.com/c/158718
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    raise uses tkill to send a signal to the current thread. For this use,
+    tgkill is functionally equivalent to tkill expect that it also takes the
+    pid as the first argument.
+    
+    Using tgkill makes it simpler to run a Go program in a strict sandbox.
+    With kill and tgkill, the sandbox policy (e.g., seccomp) can prevent the
+    program from sending signals to other processes by checking that the
+    first argument == getpid().
+    
+    With tkill, the policy must whitelist all tids in the process, which is
+    effectively impossible given Go's dynamic thread creation.
+    
+    Fixes #27548
+    
+    Change-Id: I8ed282ef1f7215b02ef46de144493e36454029ea
+    Reviewed-on: https://go-review.googlesource.com/133975
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cgo/out.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/sys_linux_386.s     | 11 +++++++----
+ src/runtime/sys_linux_amd64.s   | 12 ++++++++----
+ src/runtime/sys_linux_arm.s     | 12 ++++++++----
+ src/runtime/sys_linux_arm64.s   | 12 ++++++++----
+ src/runtime/sys_linux_mips64x.s | 12 ++++++++----
+ src/runtime/sys_linux_mipsx.s   | 12 ++++++++----
+ src/runtime/sys_linux_ppc64x.s  | 11 +++++++----
+ src/runtime/sys_linux_s390x.s   | 12 ++++++++----
+ 8 files changed, 62 insertions(+), 32 deletions(-)

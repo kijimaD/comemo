@@ -1,28 +1,16 @@
-commit 1cafdfb63bb9b8825c5f4143d154bce3b82ed6a1
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 10 12:26:03 2025 -0400
+commit 6737f4cee52a19984a4d138a820326c8443a084d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Apr 22 18:45:39 2024 +0000
 
-    net/http: make the zero value of CrossOriginProtection work
+    runtime: set gp.syscallbp from entersyscallblock_handoff
     
-    Currently, CrossOriginProtection must be constructed by
-    NewCrossOriginProtection. If you try to use the zero value, most
-    methods will panic with a nil dereference.
+    This was an oversight and is causing a few failures, most notably on
+    Solaris and Illumos, but also occasionally on the Linux builders.
     
-    This CL makes CrossOriginProtection use on-demand initialization
-    instead, so the zero value has the same semantics as the value
-    currently returned by NewCrossOriginProtection. Now,
-    NewCrossOriginProtection just constructs the zero value.
-    
-    We keep NewCrossOriginProtection by analogy to NewServeMux.
-    
-    Updates #73626
-    Fixes #74089.
-    
-    Change-Id: Ia80183eb6bfdafb0e002271c0b25c2d6230a159a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/680396
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: I38bd28537ad01d955675f61f9b1d42b9ecdd1ef0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580875
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/http/csrf.go | 37 ++++++++++++++++++++++++++++---------
- 1 file changed, 28 insertions(+), 9 deletions(-)
+ src/runtime/proc.go | 1 +
+ 1 file changed, 1 insertion(+)

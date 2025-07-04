@@ -1,23 +1,17 @@
-commit 4aa7b142681dba2a1d76e59ecb5dc6923a192eb0
-Author: Kale Blankenship <kale@lemnisys.com>
-Date:   Sat Dec 17 20:40:29 2016 -0800
+commit 28279238004da8e83e3d652b4bcd14d6795c6148
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 21 13:44:29 2016 -0700
 
-    net/http: detect Comcast et al DNS and auto-skip DNS tests
+    cmd/compile: prevent ICE from misuse of [...]T arrays
     
-    Adds helper function to auto-skip tests when DNS returns
-    a successful response for a domain known not to exist.
+    Fixes #16428.
     
-    The error from `net.LookupHost` is intentionally ignored
-    because the DNS tests will fail anyway if there are issues
-    unrelated to NXDOMAIN responses.
-    
-    Fixes #17884
-    
-    Change-Id: I729391bd702218507561818668f791331295299e
-    Reviewed-on: https://go-review.googlesource.com/34516
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I78d37472e228402bb3c06d7ebd441952386fa38a
+    Reviewed-on: https://go-review.googlesource.com/31731
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/transport_test.go | 28 +++++++++++++++++++---------
- 1 file changed, 19 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 13 ++++++++-----
+ test/fixedbugs/issue16428.go             | 12 ++++++++++++
+ 2 files changed, 20 insertions(+), 5 deletions(-)

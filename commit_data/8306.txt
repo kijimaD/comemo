@@ -1,19 +1,15 @@
-commit 35a37f17355ed67b1192ce3e85e61e3eb2028f04
+commit 86e6a44112d91946cd973b1eb4f73c943ec8b152
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 3 10:39:11 2011 -0400
+Date:   Tue May 3 10:38:37 2011 -0400
 
-    codereview: add release branch support
+    reflect: allow unexported key in Value.MapIndex
     
-    Note that if you are working on the upcoming release
-    branch you have to point your extension path to a
-    copy of lib/codereview/codereview.py that won't change
-    as the repository flips between release-branch and default branch.
-    This warning should only apply to this one branch and only to rsc,
-    but you never know.
+    Fixes #1748.
     
-    R=adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4446076
+    https://golang.org/cl/4444087
 
- lib/codereview/codereview.py | 140 +++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 127 insertions(+), 13 deletions(-)
+ src/pkg/reflect/all_test.go | 18 ++++++++++++++++++
+ src/pkg/reflect/value.go    |  9 +++++++--
+ 2 files changed, 25 insertions(+), 2 deletions(-)

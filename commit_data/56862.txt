@@ -1,23 +1,18 @@
-commit f12ac5be7045efcde39025c32cc01a20a305012c
-Author: Darin Krauss <darinkrauss@gmail.com>
-Date:   Mon Jul 1 13:25:28 2024 -0400
+commit 13be9fa7f896b876775f964e167cdd44166438eb
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 26 10:10:01 2023 -0400
 
-    time: fix time zone parsing when format includes time zone seconds
+    doc: add release note on dead global map variable deletion
     
-    The current implementation fails to parse a time string with a "Z"
-    time zone using a time format that includes time zone seconds. This
-    fix correctly parses the "Z" time zone for any Z-base time format
-    that includes seconds (i.e. "Z070000" or "Z07:00:00").
+    Add a short release note blurb on linker dead-coding of global map
+    variables.
     
-    Fixes #68263
+    Updates #58645.
     
-    Change-Id: Idf8fa06b5f96383f050c4ffbd2bc5804fd408650
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595897
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ibfdd3e2b2b78517db4245b1d7eedd5e75a643b47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498575
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Than McIntosh <thanm@google.com>
 
- src/time/format.go      |  6 ++++--
- src/time/format_test.go | 17 +++++++++++++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ doc/go1.21.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

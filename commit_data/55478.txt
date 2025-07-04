@@ -1,18 +1,24 @@
-commit 0b1b6c1589215cde03c1492133e1e5314fc35de1
-Author: jeffery <superajun@gmail.com>
-Date:   Wed Jan 24 14:45:06 2024 +0000
+commit 48f4728211c1c4299728b6b3a04a6ddf997d9ec6
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Feb 9 11:31:57 2023 -0500
 
-    runtime: compute data and bss root work units in one loop
+    cmd/cgo: add -fno-stack-protector to CFLAGS (again)
     
-    Change-Id: Ia730ca244c83db925879de206809938aeb969cdd
-    GitHub-Last-Rev: 711b8b8b935552eea6136242821444e83fc23d38
-    GitHub-Pull-Request: golang/go#64349
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544478
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Add -fno-stack-protector back to the default set of CFLAGS for cgo, so
+    as to avoid problems with internal linking locating the library
+    containing the "__stack_chk_fail_local" support function that some
+    compilers emit (the specific archive can vary based on GOOS).
+    
+    Updates #52919.
+    Updates #54313.
+    Updates #57261.
+    Updates #58385.
+    
+    Change-Id: I4591bfb15501f04b7afe1fcd50c4fb93c86db63d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466935
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/mgcmark.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/runtime/cgo/cgo.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

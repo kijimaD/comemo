@@ -1,49 +1,32 @@
-commit 6dc9e31f5e86112737bb60e54b6f903929ca11d8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 13 14:41:42 2017 -0500
+commit 7124056f7e6f44faba822e4d96c18fde002b4566
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 24 11:46:06 2016 -0700
 
-    cmd/go: split out cmd/go/internal/base
+    cmd/internal/obj: drop Addr's Gotype field
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    The Gotype field is only used for ATYPE instructions. Instead of
+    specially storing the Go type symbol in From.Gotype, just store it in
+    To.Sym like any other 2-argument instruction would.
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
+    Modest reduction in allocations:
     
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
+    name       old alloc/op    new alloc/op    delta
+    Template      42.0MB ± 0%     41.8MB ± 0%  -0.40%         (p=0.000 n=9+10)
+    Unicode       34.3MB ± 0%     34.1MB ± 0%  -0.48%         (p=0.000 n=9+10)
+    GoTypes        122MB ± 0%      122MB ± 0%  -0.14%         (p=0.000 n=9+10)
+    Compiler       518MB ± 0%      518MB ± 0%  -0.04%         (p=0.000 n=9+10)
     
-    For #18653.
+    Passes toolstash -cmp.
     
-    Change-Id: I7c5dde6e7fe4f390e6607303b4d42535c674eac3
-    Reviewed-on: https://go-review.googlesource.com/36193
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I0e603266b5d7d4e405106a26369e22773a0d3a91
+    Reviewed-on: https://go-review.googlesource.com/31850
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/bug.go                                |   5 +-
- src/cmd/go/build.go                              | 143 +++++++++--------------
- src/cmd/go/clean.go                              |  15 +--
- src/cmd/go/doc.go                                |  11 +-
- src/cmd/go/env.go                                |   7 +-
- src/cmd/go/fix.go                                |   7 +-
- src/cmd/go/fmt.go                                |  14 ++-
- src/cmd/go/generate.go                           |  13 ++-
- src/cmd/go/get.go                                |  21 ++--
- src/cmd/go/help.go                               |  16 +--
- src/cmd/go/internal/base/base.go                 | 143 +++++++++++++++++++++++
- src/cmd/go/internal/base/path.go                 |  36 ++++++
- src/cmd/go/{ => internal/base}/signal.go         |  12 +-
- src/cmd/go/{ => internal/base}/signal_notunix.go |   8 +-
- src/cmd/go/{ => internal/base}/signal_unix.go    |   6 +-
- src/cmd/go/internal/base/tool.go                 |  53 +++++++++
- src/cmd/go/internal/cfg/cfg.go                   |   7 ++
- src/cmd/go/list.go                               |  11 +-
- src/cmd/go/main.go                               | 130 ++-------------------
- src/cmd/go/pkg.go                                |  31 +++--
- src/cmd/go/pkg_test.go                           |   3 +-
- src/cmd/go/run.go                                |  34 ++----
- src/cmd/go/test.go                               |  37 +++---
- src/cmd/go/testflag.go                           |  13 ++-
- src/cmd/go/tool.go                               |  63 +++-------
- src/cmd/go/version.go                            |   5 +-
- src/cmd/go/vet.go                                |   7 +-
- 27 files changed, 464 insertions(+), 387 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 4 +++-
+ src/cmd/internal/obj/link.go        | 1 -
+ src/cmd/internal/obj/plist.go       | 2 +-
+ src/cmd/internal/obj/sizeof_test.go | 4 ++--
+ src/cmd/internal/obj/util.go        | 3 ---
+ 5 files changed, 6 insertions(+), 8 deletions(-)

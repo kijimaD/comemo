@@ -1,18 +1,24 @@
-commit dd8bbc76c579767fb037b90cf7f49d8d41b7f3b0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Nov 15 10:43:37 2019 +0100
+commit a19c0ceda59b2223ca873b61f059c8ccb447fa80
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon Jul 8 20:33:42 2019 +0530
 
-    syscall: fix EpollEvent padding on mips64{,le}
+    Revert "go/parser: include more comments in a struct or interface"
     
-    Like on other 64-bit GOARCHes, EpollEvent needs padding before Fd for
-    mips64 and mips64le.
+    This reverts commit https://golang.org/cl/161177/.
     
-    Change-Id: I87773a1b305552ab4ed039623b40d2fff1f20d9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207298
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reason for revert: this led to non-contiguous comments spaced
+    by an empty line to be grouped into a single CommentGroup
+    
+    Fixes #32944
+    Updates #10858
+    
+    Change-Id: I5e16663b308c3b560496da8e66c33befdf9ed9dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185040
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/syscall/types_linux.go           | 3 ++-
- src/syscall/ztypes_linux_mips64.go   | 1 +
- src/syscall/ztypes_linux_mips64le.go | 1 +
- 3 files changed, 4 insertions(+), 1 deletion(-)
+ src/go/doc/testdata/issue10858.0.golden |  79 -------------------------
+ src/go/doc/testdata/issue10858.1.golden |  79 -------------------------
+ src/go/doc/testdata/issue10858.2.golden |  79 -------------------------
+ src/go/doc/testdata/issue10858.go       | 102 --------------------------------
+ src/go/parser/parser.go                 |  15 +----
+ 5 files changed, 1 insertion(+), 353 deletions(-)

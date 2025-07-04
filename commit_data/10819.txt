@@ -1,15 +1,13 @@
-commit 11b7c89b262c41ce53d4ac936fce13ae1488c5d0
+commit fb6ffd8f787f76e629db9cdbae3216a7522b75af
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 15 10:51:51 2011 -0800
+Date:   Thu Dec 15 10:51:32 2011 -0800
 
-    go spec: be precise about newlines
+    go/scanner: strip CRs from raw literals
     
-    Several places mentioned tokens spanning "multiple lines"
-    which is not a well-defined term in the spec; newline is.
-    
-    R=golang-dev, rsc, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5490046
+    https://golang.org/cl/5495049
 
- doc/go_spec.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/go/scanner/scanner.go      | 27 ++++++++++++++++++++++++---
+ src/pkg/go/scanner/scanner_test.go | 14 ++++++++++++--
+ 2 files changed, 36 insertions(+), 5 deletions(-)

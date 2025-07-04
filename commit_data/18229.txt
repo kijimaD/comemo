@@ -1,13 +1,23 @@
-commit a6a2707bf2a2108b7951d69ecf8bcfa5704523a2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 13 13:57:06 2014 -0800
+commit 11740e19a4cad2732a196c2eeb8cc990af258165
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 13 11:10:45 2014 -0800
 
-    C+A: add email alias for Michael Gehring
+    go/scanner: minimal non-terminated literals
     
-    R=golang-codereviews, gnirheg.leahcim
+    Consume as little as possible input when encountering
+    non-terminated rune, string, and raw string literals.
+    The old code consumed at least one extra character
+    which could lead to worse error recovery when parsing
+    erroneous sources.
+    
+    Also made error messages in those cases more consistent.
+    
+    Fixes #7091.
+    
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/51670043
+    https://golang.org/cl/50630043
 
- AUTHORS      | 2 +-
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/go/scanner/scanner.go      | 47 +++++++++++++-----------
+ src/pkg/go/scanner/scanner_test.go | 75 +++++++++++++++++++++-----------------
+ 2 files changed, 67 insertions(+), 55 deletions(-)

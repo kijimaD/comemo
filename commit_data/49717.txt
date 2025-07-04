@@ -1,16 +1,16 @@
-commit ddfd6394084f534bac3966d3a1736c15c665bd3a
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 19 16:15:03 2022 -0400
+commit da790cccc5da9486e5f45360a3b1b76a1a0aeaea
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Aug 21 09:06:25 2021 +0000
 
-    runtime: delete unused lock ranks
+    cmd/internal/obj/riscv: absorb rewriteMOV into instruction generation
     
-    For #53789.
+    Replace the now poorly named rewriteMOV function with a markRelocs function,
+    absorbing the MOV validation into the instruction generation code.
     
-    Change-Id: Ic7379afcfdcc47b541bac9b44b5bc6b43604fc0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418714
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I6ae94553f7f300862c40310343ef0be8f44a4b0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344459
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/lockrank.go | 55 +++++++++++--------------------------------------
- 1 file changed, 12 insertions(+), 43 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 122 ++++++++++++++++----------------------
+ 1 file changed, 52 insertions(+), 70 deletions(-)

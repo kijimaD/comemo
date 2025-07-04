@@ -1,22 +1,33 @@
-commit e81c624656e415626c7ac3a97768f5c2717979a4
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Jun 27 11:16:54 2025 +0200
+commit a81c8b3bf2697b86ac7d3d29d7c0fb71c0716a84
+Author: Koya IWAMURA <kiwamura0314@gmail.com>
+Date:   Wed Apr 24 01:16:08 2024 +0900
 
-    os: use minimal file permissions when opening parent directory in RemoveAll
+    net/url: improve URL.String performance
     
-    On Windows, the process might not have read permission on the parent
-    directory, but still can delete files in it. This change allows
-    RemoveAll to open the parent directory with minimal permissions, which
-    is sufficient for deleting child files.
+    URL.String performs memory allocation many times, but it can improve
+    performance by allocating memory that it clearly knows it needs.
+    This CL achieves 24.6% speedup, 18.3% memory reduction, and 46.7% fewer memory
+    allocations on existing benchmarks.
     
-    Fixes #74134.
+              │ string_old.txt │           string_new2.txt           │
+              │     sec/op     │   sec/op     vs base                │
+    String-16      3.622µ ± 5%   2.730µ ± 2%  -24.63% (p=0.000 n=10)
     
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-arm64
-    Change-Id: I5d5c5977caaebf6e0f93fb2313b0ceb346f70e05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/684515
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+              │ string_old.txt │           string_new2.txt            │
+              │      B/op      │     B/op      vs base                │
+    String-16     1.406Ki ± 0%   1.148Ki ± 0%  -18.33% (p=0.000 n=10)
+    
+              │ string_old.txt │          string_new2.txt           │
+              │   allocs/op    │ allocs/op   vs base                │
+    String-16       60.00 ± 0%   32.00 ± 0%  -46.67% (p=0.000 n=10)
+    
+    Change-Id: I70199be952eddc44134945077e52740e8921088f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581155
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
 
- src/os/removeall_at.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/net/url/url.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

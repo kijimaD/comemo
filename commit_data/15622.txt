@@ -1,15 +1,16 @@
-commit ae7aa345db7c08c15e621dd567b1666a674ffa1a
-Author: Tyler Bunnell <tylerbunnell@gmail.com>
-Date:   Thu Mar 7 19:06:19 2013 +0900
+commit 0b2caf27177e47b587df6ef4dce2df67ad3e4666
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 6 16:15:04 2013 -0800
 
-    cmd/fix: remove redundant 0 port
+    go/types: implement constant string(x) conversions
     
-    Fixes #4505.
+    Fixes #4982.
     
-    R=golang-dev, mikioh.mikioh
+    R=adonovan, r
     CC=golang-dev
-    https://golang.org/cl/7468043
+    https://golang.org/cl/7537043
 
- src/cmd/fix/netipv6zone.go      | 11 ++++++++---
- src/cmd/fix/netipv6zone_test.go |  6 ++++--
- 2 files changed, 12 insertions(+), 5 deletions(-)
+ src/pkg/go/types/conversions.go           | 29 ++++++++++++++++++++++++++---
+ src/pkg/go/types/operand.go               |  1 +
+ src/pkg/go/types/testdata/conversions.src | 26 ++++++++++++++++++++++----
+ 3 files changed, 49 insertions(+), 7 deletions(-)

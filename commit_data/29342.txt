@@ -1,18 +1,13 @@
-commit e83911d6fc05c0ccb11bd95cf60694f8aec1698a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Nov 2 18:16:51 2016 -0700
+commit ca993d679729dbf312530d15f0489a45d1b61eaa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 8 09:12:50 2016 -0700
 
-    cmd/vet/all: add s390x support
+    builtin: clarify that make(map[K]V, n) allocates space for n elements
     
-    Some of these whitelist entries could be
-    eliminated, e.g. by the addition of Go
-    declarations, but this is a start.
-    
-    Change-Id: I2fb3234cf05ebc6b161aacac2d4c15d810d50527
-    Reviewed-on: https://go-review.googlesource.com/32671
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Change-Id: Id6265b6093edaa4be2c59e4799351082f7228b5d
+    Reviewed-on: https://go-review.googlesource.com/28815
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/all/main.go             |  7 ++-----
- src/cmd/vet/all/whitelist/s390x.txt | 19 +++++++++++++++++++
- 2 files changed, 21 insertions(+), 5 deletions(-)
+ src/builtin/builtin.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

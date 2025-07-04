@@ -1,27 +1,18 @@
-commit 2a166c93a3d2a7ba73e129649b7b41b6c696e74a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 13 21:30:22 2017 -0500
+commit 9a9a0fcc0d0ba2a23549e3260fa70c6b631f38e9
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Thu May 11 16:44:33 2017 -0700
 
-    bytes, strings: restore O(1) behavior of IndexAny(s, "") and LastIndexAny(s, "")
+    cmd/vet: diagnose xml/json tag with space after comma
     
-    CL 65851 (bytes) and CL 65910 (strings) “improve[d] readability”
-    by removing the special case that bypassed the whole function body
-    when chars == "". In doing so, yes, the function was unindented a
-    level, which is nice, but the runtime of that case went from O(1) to O(n)
-    where n = len(s).
+    Fixes #19520
     
-    I don't know if anyone's code depends on the O(1) behavior in this case,
-    but quite possibly someone's does.
-    
-    This CL adds the special case back, with a comment to prevent future
-    deletions, and without reindenting each function body in full.
-    
-    Change-Id: I5aba33922b304dd1b8657e6d51d6c937a7f95c81
-    Reviewed-on: https://go-review.googlesource.com/78112
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib0a1f0f2429172d2781c9b6fbd21f9cb8da1b8ed
+    Reviewed-on: https://go-review.googlesource.com/43295
+    Run-TryBot: Francesc Campoy Flores <campoy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/bytes/bytes.go        | 8 ++++++++
- src/bytes/example_test.go | 2 +-
- src/strings/strings.go    | 8 ++++++++
- 3 files changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/vet/all/whitelist/all.txt | 25 +++++++++++++++++++++++++
+ src/cmd/vet/structtag.go          | 24 +++++++++++++++++++++++-
+ src/cmd/vet/testdata/structtag.go | 15 +++++++++++++++
+ 3 files changed, 63 insertions(+), 1 deletion(-)

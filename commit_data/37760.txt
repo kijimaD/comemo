@@ -1,33 +1,27 @@
-commit d0f8a7517ab0b33c8e3dd49294800dd6144e4cee
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Dec 7 00:07:43 2018 +0000
+commit dca709da1dd3fb1177c70288a4ec1bf1baa36a5b
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 31 16:00:10 2018 -0700
 
-    runtime: don't clear lockedExt on locked M when G exits
+    cmd/compile: move last compile tests to new test infrastructure
     
-    When a locked M has its G exit without calling UnlockOSThread, then
-    lockedExt on it was getting cleared. Unfortunately, this meant that
-    during P handoff, if a new M was started, it might get forked (on
-    most OSs besides Windows) from the locked M, which could have kernel
-    state attached to it.
+    R=go1.12
     
-    To solve this, just don't clear lockedExt. At the point where the
-    locked M has its G exit, it will also exit in accordance with the
-    LockOSThread API. So, we can safely assume that it's lockedExt state
-    will no longer be used. For the case of the main thread where it just
-    gets wedged instead of exiting, it's probably better for it to keep
-    the locked marker since it more accurately represents its state.
+    Fixes #26469
     
-    Fixed #28979.
-    
-    Change-Id: I7d3d71dd65bcb873e9758086d2cbcb9a06429b0f
-    Reviewed-on: https://go-review.googlesource.com/c/153078
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Idbba88ef60f15a0ec9a83c78541a4d4fb63e534a
+    Reviewed-on: https://go-review.googlesource.com/127116
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/proc.go                                |  5 +-
- src/runtime/proc_test.go                           |  6 ++
- src/runtime/testdata/testprog/gettid.go            | 29 -------
- src/runtime/testdata/testprog/lockosthread.go      | 99 ++++++++++++++++++++++
- src/runtime/testdata/testprog/syscalls.go          | 54 ++++++++++++
- .../testprog/{gettid_none.go => syscalls_none.go}  | 12 +++
- 6 files changed, 175 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/gc/ssa_test.go            | 54 -------------------
+ .../testdata/{addressed.go => addressed_test.go}   | 59 ++++++++++----------
+ .../gc/testdata/{append.go => append_test.go}      | 37 +++++--------
+ .../gc/testdata/{array.go => array_test.go}        | 62 +++++++++-------------
+ .../gc/testdata/{closure.go => closure_test.go}    | 20 +++----
+ .../gc/testdata/{dupLoad.go => dupLoad_test.go}    | 24 ++++-----
+ .../{namedReturn.go => namedReturn_test.go}        | 44 ++++++---------
+ .../internal/gc/testdata/{phi.go => phi_test.go}   | 12 ++---
+ src/cmd/compile/internal/gc/testdata/slice.go      | 50 -----------------
+ src/cmd/compile/internal/gc/testdata/slice_test.go | 46 ++++++++++++++++
+ .../testdata/{sqrt_const.go => sqrtConst_test.go}  | 19 ++-----
+ .../gc/testdata/{unsafe.go => unsafe_test.go}      | 35 ++++++------
+ 12 files changed, 175 insertions(+), 287 deletions(-)

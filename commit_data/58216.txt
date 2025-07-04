@@ -1,24 +1,21 @@
-commit f7b15264c8656cdda5db1364f30f813dabd743f4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 20 08:01:57 2024 -0500
+commit 0700bcfa2e997118f82c6c441406e4ff0a573571
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Oct 14 00:54:45 2023 +0800
 
-    cmd/dist: vet non-test packages in short mode
+    hash: add available godoc link
     
-    Pass all packages to go test, even if they don't have test files,
-    so that go test can still run vet.
-    
-    I just got burned by a vet error in a package without a test
-    showing up when I added an (unrelated) test.
-    There are not enough packages without tests to be worth
-    the "savings" of not letting the go command vet those packages.
-    
-    For #60463.
-    
-    Change-Id: Ib9258655151144dce6a51deeae73d651aa46cb2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630015
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ieb43f28400e9ded3dc7e57f27f6d7514b14cc66d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535083
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/test.go | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ src/hash/adler32/adler32.go |  4 ++--
+ src/hash/crc32/crc32.go     | 22 +++++++++++-----------
+ src/hash/crc64/crc64.go     | 10 +++++-----
+ src/hash/fnv/fnv.go         | 12 ++++++------
+ src/hash/hash.go            |  6 +++---
+ src/hash/maphash/maphash.go | 28 ++++++++++++++--------------
+ 6 files changed, 41 insertions(+), 41 deletions(-)

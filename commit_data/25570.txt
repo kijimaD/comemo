@@ -1,20 +1,22 @@
-commit 7ec55088108d97c66040434671921e6c6b590ff0
+commit 8f3f2ccac077c73249349e9cf975dcca7e803f6a
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 13 10:45:54 2016 -0800
+Date:   Tue Nov 3 17:15:30 2015 -0800
 
-    cmd/go: fix gccSupportsNoPie for old GCC's that don't exit 0
+    runtime: mark cgo callback results as written for msan
     
-    GCC 4.8 exits 1 on an unrecognized option, but GCC 4.4 and 4.5 exit 0.
-    I didn't check other versions, or try to figure out just when this
-    changed.
+    This is a fix for the -msan option when using cgo callbacks.  A cgo
+    callback works by writing out C code that puts a struct on the stack and
+    passes the address of that struct into Go.  The result parameters are
+    fields of the struct.  The Go code will write to the result parameters,
+    but the Go code thinks it is just writing into the Go stack, and
+    therefore won't call msanwrite.  This CL adds a call to msanwrite in the
+    cgo callback code so that the C knows that results were written.
     
-    Fixes #13937.
-    
-    Change-Id: If193e9053fbb535999c9bde99f430f465a8c7c57
-    Reviewed-on: https://go-review.googlesource.com/18597
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I80438dbd4561502bdee97fad3f02893a06880ee1
+    Reviewed-on: https://go-review.googlesource.com/16611
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/build.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testsanitizers/msan3.go  | 32 ++++++++++++++++++++++++++++++++
+ misc/cgo/testsanitizers/test.bash |  7 ++++++-
+ src/runtime/cgocall.go            |  7 +++++++
+ 3 files changed, 45 insertions(+), 1 deletion(-)

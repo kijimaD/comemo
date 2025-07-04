@@ -1,26 +1,14 @@
-commit 9d914015f83bbc414313d3ad48e4a594a99c7d6b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 6 04:37:19 2023 +0000
+commit 036696a2ea04a7be334b3f0442fcadcab2eeaf70
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 10:38:34 2022 -0500
 
-    internal/trace: implement MutatorUtilizationV2
+    doc/go1.20: finish most standard library TODOs
     
-    This change adds a new MutatorUtilization for traces for Go 1.22+.
-    
-    To facilitate testing, it also generates a short trace with the
-    gc-stress.go test program (shortening its duration to 10ms) and adds it
-    to the tests for the internal/trace/v2 package. Notably, we make sure
-    this trace has a GCMarkAssistActive event to test that codepath.
-    
-    For #63960.
-    For #60773.
-    
-    Change-Id: I2e61f545988677be716818e2a08641c54c4c201f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540256
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Id8f074b96d28ae37a3d2d2a52a2b80cc53cd1203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452760
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/go/build/deps_test.go                          |    6 +-
- src/internal/trace/gc.go                           |  276 +++
- src/internal/trace/gc_test.go                      |   87 +-
- .../trace/v2/testdata/tests/go122-gc-stress.test   | 2444 ++++++++++++++++++++
- 4 files changed, 2775 insertions(+), 38 deletions(-)
+ doc/go1.20.html      | 188 +++++++++++++++++++++++++--------------------------
+ src/reflect/value.go |   3 +-
+ 2 files changed, 94 insertions(+), 97 deletions(-)

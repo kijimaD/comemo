@@ -1,18 +1,20 @@
-commit 516c6b4085aa70552276ba5e15ed6da4497f0664
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Wed Mar 23 14:02:36 2016 +0200
+commit c736280e2250a9a873423f6c4923b6f4c1caf528
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Jan 14 00:38:48 2016 -0800
 
-    cmd/link: Clean up Pcln struct
+    archive/zip: clarify expectations of RegisterCompressor and RegisterDecompressor
     
-    Removes unnecessary fields from Pcln.
+    Clarify that Compressor and Decompressor callbacks must support being invoked
+    concurrently, but that the writer or reader returned need not be.
     
-    Change-Id: I175049ca749b510eedaf65162355bc4d7a93315e
-    Reviewed-on: https://go-review.googlesource.com/21041
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Updates #8359
+    
+    Change-Id: Ia407b581dd124185f165c25f5701018a8ce4357a
+    Reviewed-on: https://go-review.googlesource.com/18627
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go |  2 +-
- src/cmd/link/internal/ld/dwarf.go    |  2 +-
- src/cmd/link/internal/ld/link.go     |  4 ----
- src/cmd/link/internal/ld/objfile.go  |  3 ---
- src/cmd/link/internal/ld/pcln.go     | 18 +++++++++---------
- 5 files changed, 11 insertions(+), 18 deletions(-)
+ src/archive/zip/example_test.go | 17 +++--------------
+ src/archive/zip/reader.go       |  2 --
+ src/archive/zip/register.go     | 27 ++++++++++++++++-----------
+ 3 files changed, 19 insertions(+), 27 deletions(-)

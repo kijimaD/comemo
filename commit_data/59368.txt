@@ -1,27 +1,17 @@
-commit fb2c88147d0aab656b7a8ae109b3d1241de402ab
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Apr 23 10:30:39 2025 +0800
+commit c57b18b48f434c305679290ce05a42a46082c598
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 28 15:25:40 2024 -0500
 
-    cmd/internal/obj: add new assembly format for BFPT and BFPF on loong64
+    cmd/go: always include action mode in trace name
     
-    On loong64, BFPT and BFPF are mapped to the platform assembly as follows:
+    For actions with no package, the title "Executing action" is extremely
+    vague. Add the action mode so that there is some differentiation.
     
-       Go asm syntax:
-            BFPT   FCCx, offs21
-            BFPF   FCCx, offs21
-       Equivalent platform assembler syntax:
-            bcnez  cj, offs21
-            bceqz  cj, offs21
-    
-    If the condition register is not specified, it defaults to FCC0.
-    
-    Change-Id: I2cc3df62a9c55d4b5eb124789358983c6737319c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667456
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Change-Id: If6dcf81c7cd1f19a9532e56dd9f88abd1182ea97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567936
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 12 ++++++++----
- src/cmd/internal/obj/loong64/asm.go             |  7 +++++--
- 2 files changed, 13 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/work/exec.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

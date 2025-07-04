@@ -1,33 +1,22 @@
-commit 2d4ba2601b91e2e69712861c654e4ddaf4355f49
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 1 17:56:32 2021 +0000
+commit b064eb7e1bb1b138405b9c8da1d90c476a266ef5
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Sep 24 11:26:23 2020 -0400
 
-    runtime: move gcPercent and heapMinimum into gcControllerState
+    cmd/go: update go_windows_test to use test go binary
     
-    These variables are core to the pacer, and will be need to be non-global
-    for testing later.
+    Most of the cmd/go tests build the cmd/go binary and run that binary to
+    test it, but TestAbsolutePath used the GOROOT's cmd/go instead, which
+    makes debugging confusing and means that make.bash has to be run in each
+    iteration cycle. Update TestAbsolutePath to use the same go binary as
+    the rest of the cmd/go tests.
     
-    Partially generated via
-    
-    rf '
-        ex . {
-            gcPercent -> gcController.gcPercent
-            heapMinimum -> gcController.heapMinimum
-        }
-    '
-    
-    The only exception to this generation is usage of these variables
-    in gcControllerState methods.
-    
-    For #44167.
-    
-    Change-Id: I8b620b3061114f3a3c4b65006f715fd977b180a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306600
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ib4e8ae707b66f1f75ceb346b98358f5604fd28c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256979
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mgc.go      |  5 +++--
- src/runtime/mgcpacer.go | 58 ++++++++++++++++++++++++-------------------------
- 2 files changed, 32 insertions(+), 31 deletions(-)
+ src/cmd/go/go_windows_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

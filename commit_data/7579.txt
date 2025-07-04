@@ -1,15 +1,22 @@
-commit c833d2fd941c12a2f48fe10837584fe751353b1e
+commit 9ad9742157f8668c26879dce12bde94e3ad075ab
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 25 14:40:36 2011 -0500
+Date:   Fri Feb 25 14:29:55 2011 -0500
 
-    sync/atomic: make BUG comment godoc-compatible
+    runtime: use kernel-supplied cas on linux/arm
     
-    go/doc wants to see text after BUG(uid): on the same line
-    in order to treat it as an official bug comment.
+    Using the kernel-supplied compare-and-swap code
+    on linux/arm means that runtime doesn't have to care
+    whether this is GOARM=5 or GOARM=6 anymore.
     
-    R=gri
+    Fixes #1494.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4250043
+    https://golang.org/cl/4245043
 
- src/pkg/sync/atomic/doc.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/runtime/Makefile        |  3 --
+ src/pkg/runtime/arm/asm.s       | 31 +++++++++++++++++
+ src/pkg/runtime/arm/cas5.s      | 74 -----------------------------------------
+ src/pkg/runtime/arm/cas6.s      | 52 -----------------------------
+ src/pkg/runtime/linux/arm/sys.s | 18 ++++++++++
+ 5 files changed, 49 insertions(+), 129 deletions(-)

@@ -1,32 +1,21 @@
-commit bf94fc3ae387fc09929443393741919fac6727af
-Author: Hana Kim <hyangah@gmail.com>
-Date:   Mon Jan 14 11:13:34 2019 -0500
+commit 7a634034c89c653bccd451e417db7034b34402b7
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 25 09:18:48 2018 -0700
 
-    cmd/go: fix the default build output name for versioned binaries
+    cmd/compile: fix Mul->Mul64 intrinsic alias
     
-    `go build` has chosen the last element of the package import path
-    as the default output name when -o option is given. That caused
-    the output of a package build when the module root is the major
-    version component such as 'v2'.
+    The alias declaration needs to come after the function it is aliasing.
     
-    A similar issue involving `go install` was fixed in
-    https://golang.org/cl/128900. This CL refactors the logic added
-    with the change and makes it available as
-    internal/load.DefaultExecName.
+    It isn't a big deal in this case, as bits.Mul inlines and has as its
+    body bits.Mul64, so the desired code gets generated regardless.
+    The alias should only have an effect on inlining cost estimates
+    (for functions that call bits.Mul).
     
-    This CL makes 'go test' to choose the right default test binary
-    name when the tested package is in the module root. (E.g.,
-    instead of v2.test, choose pkg.test for the test of 'path/pkg/v2')
-    
-    Fixes #27283.
-    
-    Change-Id: I6905754f0906db46e3ce069552715f45356913ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/140863
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I0d814899ce7049a0fb36e8ce1ad5ababbaf6265f
+    Reviewed-on: https://go-review.googlesource.com/c/144597
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/go/internal/load/pkg.go                    | 71 ++++++++++++----------
- src/cmd/go/internal/test/test.go                   |  2 +-
- src/cmd/go/internal/work/build.go                  |  4 +-
- .../go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt   |  6 ++
- src/cmd/go/testdata/script/mod_build_versioned.txt | 16 +++++
- 5 files changed, 64 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,17 @@
-commit 84baf4162a96f360bd64e710a629d1f6753294bd
+commit cb2353deb74ecc1ca2105be44881c5d563a00fb8
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 12 15:40:56 2020 -0700
+Date:   Thu Dec 5 11:36:39 2019 -0800
 
-    doc/go1.15: document new bufio.ErrBadReadCount
+    doc/go1.14: preannounce dropping macOS 10.11 support
     
-    For #37419
-    For #38053
+    Go 1.14 will be the last to support macOS 10.11.
+    Go 1.15 will require macOS 10.12 (Sierra).
     
-    Change-Id: I206f360ff4957bc7edc3c35dfc814b7bd5ec440c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237739
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Updates #23011
+    
+    Change-Id: I8fff555e5b8fffe088e7e960e77fac9558cb74e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210137
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- doc/go1.15.html | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ doc/go1.14.html | 5 +++++
+ 1 file changed, 5 insertions(+)

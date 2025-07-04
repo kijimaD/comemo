@@ -1,21 +1,22 @@
-commit 706d84fca2b36fdf670a0d921e6a8a3b481eaa05
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Sep 14 21:01:04 2022 -0400
+commit 413672fc84e0ced7531cdc7cf0e5db32061e8194
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Apr 11 18:37:52 2021 +0000
 
-    cmd/link: suppress -no_pie deprecation warning on darwin
+    runtime: detangle sweeper pacing from GC pacing
     
-    Apparently the new darwin linker starts to emit a warning about
-    -no_pie deprecation. Maybe we want to switch to PIE by default.
-    For now, suppress the warning. This also makes it easier for
-    backporting to previous releases.
+    The sweeper's pacing state is global, so detangle it from the GC pacer's
+    state updates so that the GC pacer can be tested.
     
-    For #54482.
+    For #44167.
     
-    Change-Id: I1a3b74c237a9d00ec3b030fc3a9940a31e5cd37e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430937
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ibcea989cd435b73c5891f777d9f95f9604e03bd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309273
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/link/internal/ld/lib.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/runtime/mgc.go      |  1 +
+ src/runtime/mgcpacer.go | 35 +----------------------------------
+ src/runtime/mgcsweep.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+), 34 deletions(-)

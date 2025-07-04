@@ -1,40 +1,18 @@
-commit e5d2104582674c5f03871512f290be5d0620b6ad
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Jan 5 17:27:34 2017 +0100
+commit 3b689225751dd5a09569d94b787c01fb166c3e1d
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Mar 9 10:23:10 2017 +0100
 
-    cmd/cgo: show pos info in undefined name errors
+    misc/cgo/testcarchive: add missing header
     
-    For test.go:
+    write(2) is defined in unistd.h.
     
-            package main
+    For the iOS builder.
     
-            import (
-               "C"
-               "fmt"
-            )
-    
-            func main() {
-                     fmt.Println("Hello, world!")
-                     C.no_such_f()
-            }
-    
-    Before:
-    
-            could not determine kind of name for C.no_such_f
-    
-    After:
-    
-            ./test.go:10:2: could not determine kind of name for C.no_such_f
-    
-    Fixes #18452
-    
-    Change-Id: I49c136b7fa60fab25d2d5b905d440fe4d106e565
-    Reviewed-on: https://go-review.googlesource.com/34783
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I411ffe81988d8fbafffde89e4732a20af1a63325
+    Reviewed-on: https://go-review.googlesource.com/37962
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/errors/issue18452.go | 18 ++++++++++++++++++
- misc/cgo/errors/test.bash     |  1 +
- src/cmd/cgo/gcc.go            |  9 ++++++++-
- 3 files changed, 27 insertions(+), 1 deletion(-)
+ misc/cgo/testcarchive/main3.c | 1 +
+ 1 file changed, 1 insertion(+)

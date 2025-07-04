@@ -1,13 +1,14 @@
-commit 1d7faf91dfe6aaa5f43b74b19bc014937ea92337
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Feb 23 08:39:31 2013 +0400
+commit d31dd089e6aae3c4f8001c409657efa7701bca1c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Feb 23 11:57:51 2013 +1100
 
-    runtime: minor changes
-    to minimize diffs of new scheduler
+    testing: move Skip into *common
     
-    R=golang-dev, rsc
+    Move Skip and friends into *common so benchmarks can also be skipped.
+    
+    R=golang-dev, gustav.paul, rsc
     CC=golang-dev
-    https://golang.org/cl/7381048
+    https://golang.org/cl/7379046
 
- src/pkg/runtime/proc.c | 72 ++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 49 insertions(+), 23 deletions(-)
+ src/pkg/testing/testing.go | 80 +++++++++++++++++++++++-----------------------
+ 1 file changed, 40 insertions(+), 40 deletions(-)

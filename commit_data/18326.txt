@@ -1,17 +1,14 @@
-commit 15dcd671be2ea2c21bfdd27f031d5b40debdc73e
-Author: Michael Gehring <mg@ebfe.org>
-Date:   Wed Jan 22 10:39:10 2014 -0800
+commit b7b93a7154ea1b569019e9d993f21a52d8aeda14
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 22 13:30:12 2014 +0400
 
-    syscall: add syscall.Termios on dragonfly, openbsd
+    runtime: fix code formatting
+    Place && at the end of line.
+    Offset expression continuation.
     
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/55720043
+    https://golang.org/cl/55380044
 
- src/pkg/syscall/types_dragonfly.go        |  5 +++++
- src/pkg/syscall/types_openbsd.go          |  5 +++++
- src/pkg/syscall/ztypes_dragonfly_386.go   | 10 ++++++++++
- src/pkg/syscall/ztypes_dragonfly_amd64.go | 10 ++++++++++
- src/pkg/syscall/ztypes_openbsd_386.go     | 10 ++++++++++
- src/pkg/syscall/ztypes_openbsd_amd64.go   | 10 ++++++++++
- 6 files changed, 50 insertions(+)
+ src/pkg/runtime/msize.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

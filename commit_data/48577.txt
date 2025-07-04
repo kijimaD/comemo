@@ -1,24 +1,25 @@
-commit 83327b4ae41cf1ef17fb4df4dc395cf17efc6375
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Mar 29 18:30:06 2022 -0400
+commit d2b435117d3a1db612ad894125b8ab673a5a46ee
+Author: Zachary Burkett <zburkett@splitcubestudios.com>
+Date:   Sat May 29 19:54:10 2021 +0000
 
-    go/types: clarify that contexts do not guarantee deduplication
+    test: fix error check messages for 2 types2 tests
     
-    Documentation around the use of types.Context is unclear about whether
-    contexts guarantee deduplication of identical instances. Add explicit
-    disclaimers that this is not the case.
+    Many compiler tests fail with -G=3 due to changes in error message format.
+    This commit fixes two of these tests, to ensure I am on the right track in review.
     
-    Fixes golang/go#51680
+    Updates #46447
     
-    Change-Id: I6651587315d3cbf9e8d70a69d3e2ec5cedd00da5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396536
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I138956d536a1d48ca9198e6ddbfde13865bb5dd5
+    GitHub-Last-Rev: 0ed904b9fad5e6739fee02ab48c7bc66508d736b
+    GitHub-Pull-Request: golang/go#46445
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323314
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/context.go     | 7 ++++---
- src/cmd/compile/internal/types2/instantiate.go | 3 ++-
- src/go/types/context.go                        | 7 ++++---
- src/go/types/instantiate.go                    | 3 ++-
- 4 files changed, 12 insertions(+), 8 deletions(-)
+ test/complit1.go | 14 +++++++-------
+ test/ddd1.go     | 10 +++++-----
+ test/run.go      |  2 --
+ 3 files changed, 12 insertions(+), 14 deletions(-)

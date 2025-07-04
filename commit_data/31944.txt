@@ -1,26 +1,15 @@
-commit 3858349ec956b4abb052ba3191da16dc487c4ad4
-Author: Meir Fischer <meirfischer@gmail.com>
-Date:   Sun Jun 25 21:17:52 2017 -0400
+commit c026c37f33c6037dcf71e16a1e79f78f3b5165c4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 24 13:10:24 2017 -0700
 
-    testing: always ReadMemStats before first benchmark run
+    cmd/compile/internal/gc: remove unused parameter to importfile
     
-    If the only way the user indicates they want alloc stats shown
-    is via ReportAllocs, we don't know that until benchFunc is run.
-    Therefore, StopTimer's ReadMemStats will return incorrect data
-    for single cycle runs since there's no counterpart ReadMemStats from
-    StartTimer that initializes alloc stats.
-    
-    It appears that this bug was introduced by CL 46612,
-    "testing: only call ReadMemStats if necessary when benchmarking"
-    
-    Fixes #20590
-    
-    Change-Id: I3b5ef91677823f4b98011880a3be15423baf7e33
-    Reviewed-on: https://go-review.googlesource.com/46612
+    Change-Id: Icf69862554d0121ec24e3c162d5c48630a03b99a
+    Reviewed-on: https://go-review.googlesource.com/38583
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/testing/benchmark.go |  8 +++-----
- src/testing/sub_test.go  | 10 ++++++++++
- 2 files changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/main.go  | 2 +-
+ src/cmd/compile/internal/gc/noder.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

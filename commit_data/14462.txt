@@ -1,12 +1,20 @@
-commit 7afcae6bab0c8a9b19680a48389062f094ee41e6
-Author: Caine Tighe <arctanofyourface@gmail.com>
-Date:   Sun Nov 25 05:08:17 2012 +0800
+commit 5fa3aeb14d56f6af4d6ad3cc9c81a20775770911
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 23 22:15:26 2012 -0800
 
-    http/transport.go: trivial comment error.
+    net: check read and write deadlines before doing syscalls
     
-    R=golang-dev, bradfitz
+    Otherwise a fast sender or receiver can make sockets always
+    readable or writable, preventing deadline checks from ever
+    occuring.
+    
+    Update #4191 (fixes it with other CL, coming separately)
+    Fixes #4403
+    
+    R=golang-dev, alex.brainman, dave, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6856078
+    https://golang.org/cl/6851096
 
- src/pkg/net/http/transport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/fd_unix.go      |  36 ++++++++
+ src/pkg/net/timeout_test.go | 201 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 237 insertions(+)

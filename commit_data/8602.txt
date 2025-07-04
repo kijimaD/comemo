@@ -1,12 +1,14 @@
-commit 6c2b434820462f6b58c4cce397cc94dec2189c95
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jun 3 09:48:42 2011 +1000
+commit ce5c1cf0368a7b17254086ab00134e47137ee720
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 3 07:53:50 2011 +1000
 
-    doc: add Belarusian FAQ translation
+    fmt: fix bug in UnreadRune: must clear memory of previous
+    rune if input implements UnreadRune; otherwise the lookahead
+    will lie.
     
-    R=golang-dev, dchest
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4564057
+    https://golang.org/cl/4548082
 
- doc/docs.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/fmt/scan.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

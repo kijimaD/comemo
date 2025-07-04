@@ -1,43 +1,28 @@
-commit 8247da36621986a282c96b2abc236bbda2fdef41
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 17 12:12:59 2020 -0700
+commit 6e5652bebede2d53484a872f6d1dfeb498b0b50c
+Author: Changkun Ou <hi@changkun.us>
+Date:   Mon Feb 3 14:42:32 2020 +0100
 
-    cmd/compile,cmd/asm: simplify recording of branch targets
+    time: add Ticker.Reset
     
-    We currently use two fields to store the targets of branches.
-    Some phases use p.To.Val, some use p.Pcond. Rewrite so that
-    every branch instruction uses p.To.Val.
-    p.From.Val is also used in rare instances.
-    Introduce a Pool link for use by arm/arm64, instead of
-    repurposing Pcond.
+    This CL implements Ticker.Reset method in time package.
     
-    This is a cleanup CL in preparation for some stack frame CLs.
+    Benchmark:
+    name                 time/op
+    TickerReset-12       6.41µs ±10%
+    TickerResetNaive-12  95.7µs ±12%
     
-    Change-Id: I9055bf0a1d986aff421e47951a1dedc301c846f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243318
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #33184
+    
+    Change-Id: I12c651f81e452541bcbbc748b45f038aae1f8dae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217362
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go |  4 ++--
- src/cmd/compile/internal/gc/gsubr.go  |  2 +-
- src/cmd/compile/internal/gc/ssa.go    |  2 +-
- src/cmd/compile/internal/s390x/ssa.go |  4 ++--
- src/cmd/compile/internal/x86/ssa.go   |  4 ++--
- src/cmd/internal/obj/arm/asm5.go      | 16 ++++++++--------
- src/cmd/internal/obj/arm/obj5.go      | 10 +++++-----
- src/cmd/internal/obj/arm64/asm7.go    | 30 +++++++++++++++---------------
- src/cmd/internal/obj/arm64/obj7.go    | 16 ++++++++--------
- src/cmd/internal/obj/link.go          | 17 +++++++++++++++--
- src/cmd/internal/obj/mips/asm0.go     | 24 ++++++++++++------------
- src/cmd/internal/obj/mips/obj0.go     | 14 +++++++-------
- src/cmd/internal/obj/pass.go          | 17 +++++++----------
- src/cmd/internal/obj/ppc64/asm9.go    | 18 +++++++++---------
- src/cmd/internal/obj/ppc64/obj9.go    | 12 ++++++------
- src/cmd/internal/obj/riscv/obj.go     | 28 ++++++++++++++--------------
- src/cmd/internal/obj/s390x/asmz.go    | 18 +++++++++---------
- src/cmd/internal/obj/s390x/objz.go    | 10 +++++-----
- src/cmd/internal/obj/util.go          |  6 ++----
- src/cmd/internal/obj/x86/asm6.go      | 12 ++++++------
- src/cmd/internal/obj/x86/obj6.go      | 12 ++++++------
- 21 files changed, 142 insertions(+), 134 deletions(-)
+ api/next.txt          |  1 +
+ doc/go1.15.html       | 10 ++++++++++
+ src/runtime/time.go   |  8 +++++++-
+ src/time/sleep.go     |  1 +
+ src/time/tick.go      |  9 +++++++++
+ src/time/tick_test.go | 29 +++++++++++++++++++++++++++--
+ 6 files changed, 55 insertions(+), 3 deletions(-)

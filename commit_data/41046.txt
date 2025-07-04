@@ -1,17 +1,21 @@
-commit 6bcddae1af34d251b88fe134c1d3a8f4b4c7b0b6
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Jan 3 13:13:57 2020 -0500
+commit 5411953df50ce83ee8e23ca33a8a16335ad95cf2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 29 14:31:40 2019 -0700
 
-    cmd/go: clarify stderr behavior for 'go help mod download'
+    cmd/compile: avoid follow-on errors for literals with syntax errors
     
-    Fixes #36297
+    - only convert literal strings if there were no syntax errors
+      (some of the conversion routines exit if there is an error)
+    - mark nodes for literals with syntax errors to avoid follow-on
+      errors
+    - don't attempt to import packages whose path had syntax errors
     
-    Change-Id: I2623e9ee386644eddfa9a348ba368c5f1a81f893
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213134
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Fixes #32133.
+    
+    Change-Id: I1803ad48c65abfecf6f48ddff1e27eded5e282c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192437
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go                  | 4 +++-
- src/cmd/go/internal/modcmd/download.go | 4 +++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/noder.go | 57 +++++++++++++++++++++---------------
+ test/fixedbugs/issue32133.go         | 43 +++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 23 deletions(-)

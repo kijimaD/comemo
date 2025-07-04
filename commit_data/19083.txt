@@ -1,15 +1,21 @@
-commit a8787cd820fb39575efed14617dde2fb8131b354
-Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 10 05:45:18 2014 +1000
+commit 3d63ec240edfc596a8840f7a7e5218fa28e55c04
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Apr 9 12:28:27 2014 -0400
 
-    sync.Pool: better documentation
-    Explain what its purpose is and give examples of good and bad use.
-    Fixes #7167.
+    misc/emacs: ignore backquote in comment or string
     
-    LGTM=dvyukov, rsc
-    R=golang-codereviews, dvyukov, rsc
+    go-mode on Emacs 23 wrongly recognizes a backquote in a comment or
+    a string as a start of a raw string literal. Below is an example
+    that go-mode does not work well. This patch is to fix that issue.
+    
+      // `
+      var x = 1
+      // `
+    
+    LGTM=dominik.honnef
+    R=golang-codereviews, dominik.honnef, adonovan
     CC=golang-codereviews
-    https://golang.org/cl/85880044
+    https://golang.org/cl/84900043
 
- src/pkg/sync/pool.go | 42 +++++++++++++++++++++++++-----------------
- 1 file changed, 25 insertions(+), 17 deletions(-)
+ misc/emacs/go-mode.el | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

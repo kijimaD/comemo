@@ -1,25 +1,24 @@
-commit d0e255f259b106ecb6f4663bb179e0cbdc7b96cd
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Aug 5 11:36:20 2014 -0700
+commit c0fca138d17910d307b6bd4171c3125640e60591
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 5 11:31:32 2014 -0700
 
-    crypto/tls: add ALPN support.
+    spec: comma-ok expressions return untyped boolean 2nd result
     
-    Fixes #6736.
+    Technically a language change, this cleanup is a completely
+    backward compatible change that brings the boolean results
+    of comma-ok expressions in line with the boolean results of
+    comparisons: they are now all untyped booleans.
     
-    LGTM=mikioh.mikioh
-    R=bradfitz, mikioh.mikioh
+    The implementation effort should be minimal (less than a
+    handfull lines of code, depending how well factored the
+    implementation of comma-ok expressions is).
+    
+    Fixes #8189.
+    
+    LGTM=iant, r, rsc
+    R=r, rsc, iant, ken
     CC=golang-codereviews
-    https://golang.org/cl/108710046
+    https://golang.org/cl/112320045
 
- src/pkg/crypto/tls/common.go                       |   1 +
- src/pkg/crypto/tls/handshake_client.go             |  49 +++++++--
- src/pkg/crypto/tls/handshake_client_test.go        |  51 +++++++++
- src/pkg/crypto/tls/handshake_messages.go           |  98 ++++++++++++++++-
- src/pkg/crypto/tls/handshake_messages_test.go      |   5 +
- src/pkg/crypto/tls/handshake_server.go             |  22 ++--
- src/pkg/crypto/tls/handshake_server_test.go        |  61 ++++++++++-
- src/pkg/crypto/tls/testdata/Client-TLSv12-ALPN     |  97 ++++++++++++++++
- .../crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch |  95 ++++++++++++++++
- src/pkg/crypto/tls/testdata/Server-TLSv12-ALPN     | 122 +++++++++++++++++++++
- .../crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch | 121 ++++++++++++++++++++
- 11 files changed, 701 insertions(+), 21 deletions(-)
+ doc/go_spec.html | 25 ++++++++++---------------
+ 1 file changed, 10 insertions(+), 15 deletions(-)

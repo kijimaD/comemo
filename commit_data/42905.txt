@@ -1,19 +1,19 @@
-commit e61d17d3b9ccf4c3e8ac87add9d74da7afa76488
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 3 12:26:10 2020 -0400
+commit 185898064555ee55598c6496c264d2ded46ceca8
+Author: nu50218 <nu_ll@icloud.com>
+Date:   Tue Feb 25 14:16:07 2020 +0000
 
-    cmd/link: MACHOPLT is executable
+    cmd/go: fix typo in comment
     
-    The PLT stubs are executable. Put it together with executable
-    sections, instead of read-only data sections.
+    fix CompiledGoFIles to CompiledGoFiles.
     
-    Change-Id: I3818414aa0b87c6968c6c7eccce19b0db7c43193
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253018
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1f21c2254e716197cb65a877ba7468e3d7009c6f
+    GitHub-Last-Rev: 177aa1a4962b3a70642c7761f9ab99723f22bc3e
+    GitHub-Pull-Request: golang/go#37440
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220879
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/ld/data.go            |  2 +-
- src/cmd/link/internal/sym/symkind.go        |  2 +-
- src/cmd/link/internal/sym/symkind_string.go | 24 ++++++++++++------------
- 3 files changed, 14 insertions(+), 14 deletions(-)
+ src/cmd/go/internal/work/action.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,17 @@
-commit e6982fadd2b5b6a8172fca86cfd2e7158fdd0523
+commit ab9ec2e4014efce68da1e57b3def4f82db00c671
 Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 21 16:20:14 2015 +0000
+Date:   Mon Dec 15 10:51:31 2014 -0500
 
-    Revert "runtime: fix trigger for concurrent GC"
+    liblink: remove class from %#D formatter on 6l
     
-    This reverts commit 44529d939192c3034a04e2eff865d04ee51ae532.
+    This was a copy-paste error from 9l.  Besides incorrectly referring to
+    cnames9, 6l doesn't even use a->class, so simply remove this.
     
-    Change-Id: I7671e2cd6f6a476efffa16e8110500a98258c0c1
-    Reviewed-on: https://go-review.googlesource.com/3130
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #9320
+    
+    Change-Id: I0e3440c9dae1c3408eb795b3645f9f1dd8f50aed
+    Reviewed-on: https://go-review.googlesource.com/1516
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/malloc.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/liblink/list6.c | 2 --
+ 1 file changed, 2 deletions(-)

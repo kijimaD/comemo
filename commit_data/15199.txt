@@ -1,18 +1,14 @@
-commit 71c941b6f6c133dec3c632b373eaae458eb055e7
+commit 0a22018d461d7999df3af40cefb6ace17dfe79c0
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 11 07:48:14 2013 -0500
+Date:   Mon Feb 11 07:46:39 2013 -0500
 
-    spec: only require parens around ambiguous conversions
+    spec: reject top-level init names
     
-    This is documenting the status quo. The previous cleanup
-    added this language as an implementation restriction, but
-    at least for now it is really part of the language proper.
+    Fixes #4586.
     
-    Fixes #4605.
-    
-    R=golang-dev, r
+    R=golang-dev, remyoudompheng, r
     CC=golang-dev
-    https://golang.org/cl/7305071
+    https://golang.org/cl/7307082
 
- doc/go_spec.html | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ doc/go_spec.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

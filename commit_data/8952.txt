@@ -1,14 +1,12 @@
-commit a8e5db9449e10d150c285a3949c990cfe82dd55f
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 6 15:35:23 2011 +1000
+commit 9d5ed1744a794e2dbaa20ae241e944adb37854a4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 6 15:14:10 2011 +1000
 
-    maketables: update debugging data.
-    This is unused in the generation of the tables, but was incorrect if we ever needed it.
-    Also update the reference to the document.
+    exp/template: add missing dotNode case.
     
-    R=golang-dev, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4626097
+    https://golang.org/cl/4672044
 
- src/pkg/unicode/maketables.go | 38 +++++++++++++++++++-------------------
- 1 file changed, 19 insertions(+), 19 deletions(-)
+ src/pkg/exp/template/exec.go | 2 ++
+ 1 file changed, 2 insertions(+)

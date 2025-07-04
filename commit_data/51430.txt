@@ -1,55 +1,27 @@
-commit bb917bd1b212dc8fff3852fa164667cd06b9f653
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Nov 22 12:39:05 2022 -0500
+commit f5fe5a4524d5e5390238ae7f5abcaa4299b31a37
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Jan 26 20:50:51 2022 -0500
 
-    cmd/vendor: update vendored github.com/google/pprof for Go 1.20 release
+    go/types: update interface receivers after substituting
     
-    The Go 1.20 code freeze has recently started. This is a time to
-    update the vendored copy.
+    Interface method receivers are synthetic: they record either the
+    interface type or the the defined type for which they are the RHS of the
+    type declaration. When instantiating, we need to update these receivers
+    accordingly.
     
-    Done by
-            cd GOROOT/src/cmd
-            go get -d github.com/google/pprof@latest
-            go mod tidy
-            go mod vendor
+    Fixes #50839
     
-    For #36905.
-    
-    Change-Id: Iaec604c66ea8f4b7638a31bdb77d6dd56966e38a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452815
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Icd8e1a2817b0135059d25d034b01b0ff5207641f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381174
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../github.com/google/pprof/internal/driver/cli.go |   3 +-
- .../google/pprof/internal/driver/driver.go         |  25 +-
- .../google/pprof/internal/driver/fetch.go          |  21 +-
- .../google/pprof/internal/driver/html/common.css   |   1 +
- .../google/pprof/internal/driver/html/common.js    |  57 ++-
- .../google/pprof/internal/driver/html/header.html  |   1 +
- .../google/pprof/internal/driver/html/stacks.css   |  80 ++++
- .../google/pprof/internal/driver/html/stacks.html  |  32 ++
- .../google/pprof/internal/driver/html/stacks.js    | 524 +++++++++++++++++++++
- .../google/pprof/internal/driver/interactive.go    |   3 +-
- .../google/pprof/internal/driver/settings.go       |   5 +-
- .../google/pprof/internal/driver/stacks.go         |  58 +++
- .../google/pprof/internal/driver/tagroot.go        |   4 +
- .../google/pprof/internal/driver/webhtml.go        |   3 +
- .../google/pprof/internal/driver/webui.go          |  13 +-
- .../google/pprof/internal/report/package.go        |  17 +
- .../google/pprof/internal/report/shortnames.go     |  39 ++
- .../google/pprof/internal/report/stacks.go         | 194 ++++++++
- .../google/pprof/internal/symbolizer/symbolizer.go |   6 +-
- .../google/pprof/internal/transport/transport.go   |   4 +-
- .../github.com/google/pprof/profile/encode.go      |  76 +--
- .../github.com/google/pprof/profile/filter.go      |   4 +
- .../google/pprof/profile/legacy_profile.go         |   1 -
- .../github.com/google/pprof/profile/merge.go       | 257 ++++++++--
- .../github.com/google/pprof/profile/profile.go     |   5 +-
- .../github.com/google/pprof/profile/proto.go       |  19 +-
- .../github.com/google/pprof/profile/prune.go       |  26 +-
- src/cmd/vendor/modules.txt                         |   4 +-
- 30 files changed, 1357 insertions(+), 131 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 17 +++++++-
+ src/cmd/compile/internal/types2/named.go    | 23 +++++++++--
+ src/cmd/compile/internal/types2/subst.go    | 62 +++++++++++++++++++++++++++--
+ src/go/types/api_test.go                    | 17 +++++++-
+ src/go/types/named.go                       | 23 +++++++++--
+ src/go/types/subst.go                       | 62 +++++++++++++++++++++++++++--
+ 6 files changed, 188 insertions(+), 16 deletions(-)

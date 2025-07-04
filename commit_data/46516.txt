@@ -1,23 +1,32 @@
-commit cceadf8527bc941f641c212e446ff73072bcd500
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Sep 20 13:53:19 2021 -0500
+commit fa90aaca7d523eaf81c02b48a412cad4ebc57817
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jan 7 21:45:00 2021 +0700
 
-    cmd/compile/internal: add ABI register information for ppc64
+    cmd/compile: fix late expand_calls leaf type for OpStructSelect/OpArraySelect
     
-    This adds the defines for ABI registers on PPC64. Other changes
-    will need to be in place before they are enabled.
+    For the example in #43551, before late call expansion, the OpArg type is
+    decomposed to int64. But the late call expansion is currently decompose
+    it to "x.Key" instead.
     
-    Updates #40724
+    This CL make expand_calls decompose further for struct { 1-field type }
+    and array [1]elem.
     
-    Change-Id: Ia6ead140719eda9aa99b99c48afafff684c33039
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351110
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    This matches the previous rules for early decompose args:
+    
+    (StructSelect (StructMake1 x)) => x
+    (ArraySelect (ArrayMake1 x)) => x
+    
+    Fixes #43551
+    
+    Change-Id: I2f1ebe18cb81cb967f494331c3d237535d2859e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282332
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go        |  3 +++
- src/cmd/compile/internal/ssa/config.go       |  2 ++
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 22 ++++++++++++----------
- src/cmd/compile/internal/ssa/opGen.go        |  6 +++---
- 4 files changed, 20 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go |  3 ++-
+ test/fixedbugs/issue43551.dir/a.go           | 13 +++++++++++++
+ test/fixedbugs/issue43551.dir/b.go           | 14 ++++++++++++++
+ test/fixedbugs/issue43551.go                 |  7 +++++++
+ 4 files changed, 36 insertions(+), 1 deletion(-)

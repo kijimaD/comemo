@@ -1,21 +1,13 @@
-commit e97d677b4eaa6db4d70ae1d855d2cc5a4b0fdeff
+commit 10d1e55103c17f4b379729f2d6b40327cefea6be
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jul 22 23:02:27 2013 +0400
+Date:   Mon Jul 22 20:47:39 2013 +0400
 
-    runtime: introduce notetsleepg function
-    notetsleepg is the same as notetsleep, but is called on user g.
-    It includes entersyscall/exitsyscall and will help to avoid
-    split stack functions in syscall status.
+    runtime: allow stack split in body of closechan
+    This gives more space during the call to runtime.lock.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/11681043
+    https://golang.org/cl/11679043
 
- src/pkg/runtime/cpuprof.c    |  4 +---
- src/pkg/runtime/lock_futex.c | 13 +++++++++++++
- src/pkg/runtime/lock_sema.c  | 13 +++++++++++++
- src/pkg/runtime/mheap.c      |  8 ++------
- src/pkg/runtime/runtime.h    |  4 ++++
- src/pkg/runtime/sigqueue.goc |  4 +---
- src/pkg/runtime/time.goc     |  4 +---
- 7 files changed, 35 insertions(+), 15 deletions(-)
+ src/pkg/runtime/chan.c | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

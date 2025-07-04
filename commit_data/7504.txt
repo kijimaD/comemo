@@ -1,20 +1,20 @@
-commit afac1c26549eb134e27cf208ba44430e1f48a93f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 18 11:35:36 2011 -0500
+commit 193709736fd7d43c407bf73841fa6dbfca8fbbb3
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 18 11:31:10 2011 -0500
 
-    ld: drop rpath
+    crypto/rsa: left-pad OAEP results when needed.
     
-    Was required by old cgo but we don't
-    generate stub .so files anymore.
+    PKCS#1 v2.1 section 7.1.1 says that the result of an OAEP encryption
+    is "an octet string of length $k$". Since we didn't left-pad the
+    result it was previously possible for the result to be smaller when
+    the most-significant byte was zero.
     
-    Update #1527.
+    Fixes #1519.
     
-    R=iant
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4168056
+    https://golang.org/cl/4175059
 
- src/cmd/5l/obj.c   | 4 +---
- src/cmd/6l/obj.c   | 4 +---
- src/cmd/8l/obj.c   | 3 ---
- src/cmd/ld/macho.c | 7 -------
- 4 files changed, 2 insertions(+), 16 deletions(-)
+ src/pkg/crypto/rsa/rsa.go      | 8 ++++++++
+ src/pkg/crypto/rsa/rsa_test.go | 2 +-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

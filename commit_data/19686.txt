@@ -1,13 +1,13 @@
-commit 107b8fc9e41cbe365d574f56518ca27e7d9a919d
+commit b0589864dc4e267b75c2ec609985b01f4ec372eb
 Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue Jul 8 18:41:07 2014 -0400
+Date:   Tue Jul 8 17:04:18 2014 -0400
 
-    run.bash: disable tests that don't (yet) like running off the host
+    go/build: add android to the flock
     
-    LGTM=bradfitz, minux
-    R=bradfitz, golang-codereviews, minux
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/110940043
+    https://golang.org/cl/108450044
 
- src/run.bash | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/pkg/go/build/deps_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

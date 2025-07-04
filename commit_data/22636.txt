@@ -1,26 +1,37 @@
-commit e00e65638ac33c13d39b7b4225354e932256005b
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Tue Jan 27 10:04:11 2015 +0100
+commit 9e6f7aac28a33f805692e2c1b498fdbc576f853d
+Author: Austin Clements <austin@google.com>
+Date:   Sun Mar 29 10:20:54 2015 -0400
 
-    reflect: use arrayAt consistently
+    runtime: make "write barriers are not allowed" comments more precise
     
-    This change refactors reflect.Value to consistently use arrayAt when an element
-    of an array of bytes is indexed.
+    Currently, various functions are marked with the comment
     
-    This effectively replaces:
-     arr := unsafe.Pointer(...)
-     arri := unsafe.Pointer(uintptr(arr) + uintptr(i)*elementSize)
+      // May run without a P, so write barriers are not allowed.
     
-    with:
-     arr := unsafe.Pointer(...)
-     arri := arrayAt(arr, i, elementSize)
+    However, "running without a P" is ambiguous. We intended these to mean
+    that m.p may be nil (which is the condition checked by the write
+    barrier). The comment could also be taken to mean that a
+    stop-the-world may happen, which is not the case for these functions
+    because they run in situations where there is in fact a function on
+    the stack holding a P locally, it just isn't in m.p.
     
-    Change-Id: I53ffd0d6de693b43d5c10c0aa4cd6d4f5e95a1e3
-    Reviewed-on: https://go-review.googlesource.com/9183
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change these comments to state precisely what we mean, that m.p may be
+    nil.
+    
+    Change-Id: I4a4a1d26aebd455e5067540e13b9f96a7482146c
+    Reviewed-on: https://go-review.googlesource.com/8209
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/reflect/value.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/os1_darwin.go    | 2 +-
+ src/runtime/os1_dragonfly.go | 2 +-
+ src/runtime/os1_freebsd.go   | 2 +-
+ src/runtime/os1_linux.go     | 2 +-
+ src/runtime/os1_nacl.go      | 2 +-
+ src/runtime/os1_netbsd.go    | 2 +-
+ src/runtime/os1_openbsd.go   | 2 +-
+ src/runtime/os1_plan9.go     | 2 +-
+ src/runtime/os1_windows.go   | 2 +-
+ src/runtime/os3_solaris.go   | 2 +-
+ src/runtime/proc1.go         | 4 ++--
+ 11 files changed, 12 insertions(+), 12 deletions(-)

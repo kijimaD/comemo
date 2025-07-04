@@ -1,56 +1,30 @@
-commit 63deaf00ea6058d1422f0b435e475666cba5743e
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Mar 4 13:29:39 2024 -0500
+commit 949fdd9f0dc53c32dc6a5a46ad7a85032df28055
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Apr 3 10:01:43 2023 +0200
 
-    cmd/compile,cmd/preprofile: move logic to shared common package
+    cmd/link/internal/ld: don't set IMAGE_FILE_DEBUG_STRIPPED on PE binaries
     
-    The processing performed in cmd/preprofile is a simple version of the
-    same initial processing performed by cmd/compile/internal/pgo. Refactor
-    this processing into the new IR-independent cmd/internal/pgo package.
+    The IMAGE_FILE_DEBUG_STRIPPED characteristic is used to inform that
+    the debugging information have been removed from the PE files and moved
+    into a DBG file, but the Go linker doesn't generate DBG files.
     
-    Now cmd/preprofile and cmd/compile run the same code for initial
-    processing of a pprof profile, guaranteeing that they always stay in
-    sync.
+    Having this characteristic can confuse debugging tools, so better
+    don't set it.
     
-    Since it is now trivial, this CL makes one change to the serialization
-    format: the entries are ordered by weight. This allows us to avoid
-    sorting ByWeight on deserialization.
+    While here, remove also IMAGE_FILE_LINE_NUMS_STRIPPED, which is
+    deprecated and should be zero [1].
     
-    Impact on PGO parsing when compiling cmd/compile with PGO:
+    Fixes #59391
     
-    * Without preprocessing: PGO parsing ~13.7% of CPU time
-    * With preprocessing (unsorted): ~2.9% of CPU time (sorting ~1.7%)
-    * With preprocessing (sorted): ~1.3% of CPU time
+    [1] https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#characteristics
     
-    The remaining 1.3% of CPU time approximately breaks down as:
-    
-    * ~0.5% parsing the preprocessed profile
-    * ~0.7% building weighted IR call graph
-      * ~0.5% walking function IR to find direct calls
-      * ~0.2% performing lookups for indirect calls targets
-    
-    For #58102.
-    
-    Change-Id: Iaba425ea30b063ca195fb2f7b29342961c8a64c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569337
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia6b1dc3353bfa292a17c4bef17c9bac8dc95189a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481615
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/devirtualize/pgo_test.go  |  25 +-
- src/cmd/compile/internal/inline/inl.go             |  35 +--
- src/cmd/compile/internal/pgo/irgraph.go            | 296 ++-------------------
- .../pgo/devirtualize/devirt.pprof.node_map         |  62 ++---
- .../testdata/pgo/inline/inline_hot.pprof.node_map  |   8 +-
- src/cmd/dist/buildtool.go                          |   3 +-
- src/cmd/internal/pgo/deserialize.go                | 102 +++++++
- src/cmd/internal/pgo/pgo.go                        |  55 ++++
- src/cmd/internal/pgo/pprof.go                      | 140 ++++++++++
- src/cmd/internal/pgo/serialize.go                  |  79 ++++++
- src/cmd/internal/pgo/serialize_test.go             | 190 +++++++++++++
- .../testdata/fuzz/FuzzRoundTrip/12fcf136fcb7463c   |   2 +
- .../testdata/fuzz/FuzzRoundTrip/2055d314024c8d6c   |   2 +
- .../testdata/fuzz/FuzzRoundTrip/b615162315f7b72c   |   2 +
- .../testdata/fuzz/FuzzRoundTrip/fdc60117b431bbae   |   2 +
- src/cmd/preprofile/main.go                         | 125 ++-------
- 16 files changed, 685 insertions(+), 443 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

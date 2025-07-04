@@ -1,14 +1,22 @@
-commit d851c6d478fc68d88ac192ad9499726c9e393c8f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 23 15:14:26 2013 +1000
+commit c2b7fb3902b9069e24a79343bcad464941e54625
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Sun Sep 22 19:53:55 2013 -0700
 
-    doc: mention os/exec StdinPipe change in Go 1.2 doc
+    net/http: send correct time in Date header.
     
-    Fixes #6439.
+    Date header indicated that it contained GMT time,
+    however it actually sent local time. Fixed by
+    converting time to UTC.
     
-    R=r, minux.ma
+    Also fixes incorrect comment in appendTime().
+    
+    Regression since CL 9432046.
+    
+    R=golang-dev, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13478045
+    https://golang.org/cl/13386047
 
- doc/go1.2.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/pkg/net/http/export_test.go |  2 ++
+ src/pkg/net/http/serve_test.go  | 13 +++++++++++++
+ src/pkg/net/http/server.go      |  3 ++-
+ 3 files changed, 17 insertions(+), 1 deletion(-)

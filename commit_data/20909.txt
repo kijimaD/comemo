@@ -1,19 +1,16 @@
-commit e538770d4b58eef23bcac62324c42a0972a4e035
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 20 09:35:22 2014 -0800
+commit 456df7c282f984133a4e687e5cff1bcda0f180e4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 27 14:23:24 2014 -0700
 
-    go/parser: Use test-specific filesets to avoid races.
+    doc/go1.4.html: first pieces of release notes
+    Move the release notes into an HTML file.
+    Start writing the text.
     
-    Only affects test code.
-    
-    Fixes #9025.
-    Fixes #9130.
-    
-    LGTM=r, adonovan
-    R=adonovan, r
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, kamil.kisiel, tracey.brendan, rsc
     CC=golang-codereviews
-    https://golang.org/cl/180920043
+    https://golang.org/cl/161350043
 
- src/go/parser/error_test.go  | 27 +++++++++++++--------------
- src/go/parser/parser_test.go | 20 +++++++++-----------
- 2 files changed, 22 insertions(+), 25 deletions(-)
+ doc/go1.4.html | 256 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.4.txt  |  53 ------------
+ 2 files changed, 256 insertions(+), 53 deletions(-)

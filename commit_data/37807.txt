@@ -1,17 +1,24 @@
-commit 8962b71c4947cdc915ae6dd837e644e03d2e7435
-Author: Daniel Ingram <ingramds@appstate.edu>
-Date:   Sat Dec 22 22:11:25 2018 +0000
+commit dd9e81f678c74550dba7faefe3545d0839f28b65
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 18 10:19:35 2018 -0400
 
-    runtime: fix string formatting
+    cmd/link: move ElfType field in sym.Symbol to cold section
     
-    Change-Id: I87d0bc78a246e479d97b3f83cf77c1f701975413
-    GitHub-Last-Rev: 22cd684e08464f0e01f1cba2235443371dba3a5d
-    GitHub-Pull-Request: golang/go#29157
-    Reviewed-on: https://go-review.googlesource.com/c/153298
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    The sym.Symbol 'ElfType' field is used only for symbols corresponding
+    to things in imported shared libraries, hence is not needed in the
+    common case. Relocate it to sym.AuxSymbol so as to shrink the main
+    Symbol struct.
+    
+    Updates #26186
+    
+    Change-Id: I803efc561c31a0ca1d93eca434fda1c862a7b2c5
+    Reviewed-on: https://go-review.googlesource.com/125479
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/runtime-gdb.py | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go       |  2 +-
+ src/cmd/link/internal/ld/lib.go          |  2 +-
+ src/cmd/link/internal/ld/symtab.go       |  2 +-
+ src/cmd/link/internal/s390x/asm.go       |  2 +-
+ src/cmd/link/internal/sym/sizeof_test.go |  2 +-
+ src/cmd/link/internal/sym/symbol.go      | 41 ++++++++++++++++++++++----------
+ 6 files changed, 34 insertions(+), 17 deletions(-)

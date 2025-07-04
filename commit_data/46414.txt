@@ -1,19 +1,35 @@
-commit ad97d204f02c1f9ad0433e9178d6ce0f3fdb1f9f
-Author: Robert Findley <rfindley@google.com>
-Date:   Thu Sep 9 18:41:30 2021 -0400
+commit 3f370b75fb2f31754132271b2879929daa5f88fd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 28 15:40:19 2020 -0800
 
-    go/types: remove some unnecessary loading/expansion of Named types
+    [dev.regabi] cmd/compile: cleanup //go:generate directives
     
-    For Identical an u.nify, only type arguments and pointer identity is
-    needed.
+    During recent refactoring, we moved mkbuiltin.go to package typecheck,
+    but accidentally duplicated its //go:generate directive into a bunch
+    of other files/directories. This CL cleans up the unnecessary
+    duplicates.
     
-    Change-Id: Id4018d2a53044fa20fd26d28890f28b37b6d6d70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349409
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Also, update all of the stringer invocations to use an explicit file
+    name, and regenerate their files.
+    
+    Updates #43369.
+    
+    Change-Id: I4e493c1fff103d742de0a839d7a3375659270b50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280635
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
 
- src/go/types/predicates.go | 3 ---
- src/go/types/unify.go      | 3 ---
- 2 files changed, 6 deletions(-)
+ src/cmd/compile/internal/gc/main.go                |  2 -
+ src/cmd/compile/internal/ir/class_string.go        |  2 +-
+ src/cmd/compile/internal/ir/name.go                |  2 +-
+ src/cmd/compile/internal/ir/node.go                |  2 +-
+ src/cmd/compile/internal/ir/op_string.go           |  2 +-
+ src/cmd/compile/internal/noder/import.go           |  2 -
+ src/cmd/compile/internal/ssagen/abi.go             |  2 -
+ src/cmd/compile/internal/syntax/operator_string.go | 30 +++++++++++-
+ src/cmd/compile/internal/syntax/token_string.go    | 55 +++++++++++++++++++++-
+ src/cmd/compile/internal/syntax/tokens.go          |  4 +-
+ 10 files changed, 89 insertions(+), 14 deletions(-)

@@ -1,21 +1,28 @@
-commit d43ddc1f3fb25b4338433435caae7e6f4b3138a9
-Author: 90364136+butterfly1924@users.noreply.github.com <90364136+butterfly1924@users.noreply.github.com>
-Date:   Mon Jun 6 05:10:38 2022 +0000
+commit 41d991e4e1f3a9230cc3832a39dbf49ce9aa191f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 14 15:37:06 2021 -0700
 
-    strconv: fix typo in atof.go
+    cmd/internal/str: add utilities for quoting and splitting args
     
-    strings for 'NaN' -> string for 'NaN'
+    JoinAndQuoteFields does the inverse of SplitQuotedFields: it joins a
+    list of arguments with spaces into one string, quoting arguments that
+    contain spaces or quotes.
     
-    Change-Id: Ia415644a1b651e6ef9996ad24dd9708a60e57dfc
-    GitHub-Last-Rev: 877f1c3eb1dc885915ae75385c5d38ee6f5fd9b1
-    GitHub-Pull-Request: golang/go#53246
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410494
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    QuotedStringListFlag uses SplitQuotedFields and JoinAndQuoteFields
+    together to define new flags that accept lists of arguments.
+    
+    For golang/go#41400
+    
+    Change-Id: I4986b753cb5e6fabb5b489bf26aedab889f853f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334731
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341935
 
- src/strconv/atof.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/str/str.go      | 72 ++++++++++++++++++++++++++++++++++
+ src/cmd/internal/str/str_test.go | 83 +++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 154 insertions(+), 1 deletion(-)

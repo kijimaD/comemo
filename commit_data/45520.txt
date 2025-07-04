@@ -1,20 +1,21 @@
-commit 830e63a7a330577bfb51404f38beb1b47ceae6b6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat May 1 15:36:34 2021 +0200
+commit ff6ab114c9ed22b92b3e2c44bcdf5cbc04e33cdc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 27 11:40:00 2020 -0700
 
-    syscall: add //go:build lines to assembly files
+    [dev.typeparams] cmd/compile/internal/types: review of gccgosizes.go
     
-    Change-Id: Ie296af523d70def269f9fb2ae35dfd2893abb2d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315275
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Except for the package name, this file is unchanged from the go/types version.
+    
+    f=gccgosizes.go; diff $f ../../../../go/types/$f
+    8c8
+    < package types2
+    ---
+    > package types
+    
+    Change-Id: I23a8432f3e6f21eec8220f89a24df26e91ad41ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265697
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/syscall/asm9_unix1_amd64.s  | 5 +++--
- src/syscall/asm9_unix2_amd64.s  | 5 +++--
- src/syscall/asm_linux_mips64x.s | 1 +
- src/syscall/asm_linux_mipsx.s   | 1 +
- src/syscall/asm_linux_ppc64x.s  | 1 +
- src/syscall/asm_unix_386.s      | 5 +++--
- src/syscall/asm_unix_amd64.s    | 5 +++--
- 7 files changed, 15 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/gccgosizes.go | 1 -
+ 1 file changed, 1 deletion(-)

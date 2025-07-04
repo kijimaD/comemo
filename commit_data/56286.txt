@@ -1,23 +1,29 @@
-commit 3aad2d0765b9f652e1964a8261d6ef0035d9535f
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Apr 22 16:16:30 2024 -0500
+commit 5256f90c98cd19b983d35d2377b3fecfd966671e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 24 10:18:07 2023 -0400
 
-    cmd/internal/obj/ppc64: fix incorrect int to int64 conversion when checking MOVD opcodes
+    runtime: fix CgoRaceprof and CgoRaceSignal build failures
     
-    A type conversion from int to int64 was done in the wrong place causing
-    some MOVD $const, Rx operations to be incorrectly transformed on 32 bit
-    hosts cross-compiling for ppc64x.
+    TestRaceProf and TestRaceSignal were changed to run on all platforms
+    that support the race detector as of CL 487575, but the testprogcgo
+    source files needed to run the test rely on POSIX threads and were
+    still build-constrained to only linux/amd64 and freebsd/amd64.
     
-    Fixes #66955
+    Since the C test program appears to require only POSIX APIs, update
+    the constraint to build the source file on all Unix platforms, and
+    update the tests to skip on Windows.
     
-    Change-Id: I023ba267a8dac6d6bd22f8146c0d9d2d473bc5c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580796
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Joedian Reid <joedian@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This may slightly increase testprogcgo build time on Unix platforms
+    that do not support the race detector.
+    
+    Change-Id: I704dd496d475a3cd2e2da2a09c7d2e3bb8e96d02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488115
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s | 4 ++++
- src/cmd/internal/obj/ppc64/obj9.go        | 4 ++--
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/runtime/crash_cgo_test.go                | 11 +++++++++++
+ src/runtime/testdata/testprogcgo/raceprof.go |  4 ++--
+ src/runtime/testdata/testprogcgo/racesig.go  |  4 ++--
+ 3 files changed, 15 insertions(+), 4 deletions(-)

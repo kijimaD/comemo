@@ -1,0 +1,27 @@
+commit 721c04ae4ef8406f169f7e32d131a8667fc75a33
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 02:38:45 2024 +0000
+
+    runtime: optimize 8-byte allocation pointer data writing
+    
+    This change brings back a minor optimization lost in the Go 1.22 cycle
+    wherein the 8-byte pointer-ful span class spans would have the pointer
+    bitmap written ahead of time in bulk, because there's only one possible
+    pattern.
+    
+                      │   before    │               after               │
+                      │   sec/op    │   sec/op     vs base              │
+    MallocTypeInfo8-4   25.13n ± 1%   23.59n ± 2%  -6.15% (p=0.002 n=6)
+    
+    Change-Id: I135b84bb1d5b7e678b841b56430930bc73c0a038
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614256
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/arena.go    |  2 +-
+ src/runtime/mbitmap.go  | 23 ++++++++++++++---------
+ src/runtime/mcache.go   |  2 +-
+ src/runtime/mcentral.go |  2 +-
+ 4 files changed, 17 insertions(+), 12 deletions(-)

@@ -1,20 +1,21 @@
-commit 0b61dc4577c6958c852e99abf2c2a2cad2b186a2
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Aug 15 20:32:29 2021 -0400
+commit 5a3b6796cdb1833929805262b6f843c0e82fa7e1
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Dec 1 20:51:18 2020 -0800
 
-    go/types: remove unused gcCompatibilityMode flag (cleanup)
+    [dev.regabi] cmd/compile: remove extra typ field in Name struct
     
-    This is a port of CL 339831 to go/types.
+    Noticed the typ field was duplicated, since it is also in miniExpr inside Name.
     
-    gcCompatibilityMode is unused, and x/tools/go/types no longer exists, so
-    delete it.
+    Also clarified the comments for Func, now that it is actually the ODCLFUNC node.
     
-    Change-Id: I886d8c24b7aa6511934ac78549f07a88a18e950b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342429
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Ia483a0ad34bb409cd92c43d4ae0a6852f9e4f644
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274619
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/typestring.go | 98 +++++++---------------------------------------
- 1 file changed, 14 insertions(+), 84 deletions(-)
+ src/cmd/compile/internal/ir/func.go        | 15 ++++++++-------
+ src/cmd/compile/internal/ir/name.go        |  1 -
+ src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
+ 3 files changed, 9 insertions(+), 9 deletions(-)

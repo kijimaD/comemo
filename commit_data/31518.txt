@@ -1,14 +1,22 @@
-commit 096e2bffdf065dbaa4e5023d6b83ce694a37b949
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon May 8 16:40:49 2017 +1000
+commit 949f95e7a40715ad05015dc4cb039e78a5260ef8
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Nov 30 10:03:09 2016 -0800
 
-    cmd/go: run tests that require symlinks
+    os/user: add Go implementation of LookupGroup, LookupGroupId
     
-    Change-Id: I19a724ea4eb1ba0ff558721650c89a949e53b7c7
-    Reviewed-on: https://go-review.googlesource.com/42895
+    If cgo is not available, parse /etc/group in Go to find the name/gid
+    we need. This does not consult the Network Information System (NIS),
+    /etc/nsswitch.conf or any other libc extensions to /etc/group.
+    
+    Fixes #18102.
+    
+    Change-Id: I6ae4fe0e2c899396c45cdf243d5483113932657c
+    Reviewed-on: https://go-review.googlesource.com/33713
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 25 +++++--------------------
- 1 file changed, 5 insertions(+), 20 deletions(-)
+ src/os/user/lookup_stubs.go     |   8 ---
+ src/os/user/lookup_unix.go      |  99 ++++++++++++++++++++++++++++++++++
+ src/os/user/lookup_unix_test.go | 117 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 216 insertions(+), 8 deletions(-)

@@ -1,36 +1,33 @@
-commit 7bad00366b2e3e8440e8c870d8c53efaa8fe3811
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 6 17:06:02 2017 -0800
+commit 59b0e147603e4a3a6170b56e30383a94e157e37a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 16:04:41 2016 -0400
 
-    cmd/internal/obj: remove ATYPE
+    cmd/go: diagnose non-canonical import paths before compilation
     
-    In cmd/compile, we can directly construct obj.Auto to represent local
-    variables and attach them to the function's obj.LSym.
+    If we leave it for compilation sometimes the error appears first
+    in derived vendor paths, without any indication where they came from.
+    This is better.
     
-    In preparation for being able to emit more precise DWARF info based on
-    other compiler available information (e.g., lexical scoping).
+    $ go1.7 build canonical/d
+    cmd/go/testdata/src/canonical/a/a.go:3: non-canonical import path "canonical/a//vendor/c" (should be "canonical/a/vendor/c")
+    cmd/go/testdata/src/canonical/a/a.go:3: can't find import: "canonical/a//vendor/c"
     
-    Change-Id: I9c4225ec59306bec42552838493022e0e9d70228
-    Reviewed-on: https://go-review.googlesource.com/36420
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    $ go build canonical/d
+    package canonical/d
+            imports canonical/b
+            imports canonical/a/: non-canonical import path: "canonical/a/" should be "canonical/a"
+    $
+    
+    Fixes #16954.
+    
+    Change-Id: I315ccec92a00d98a08c139b3dc4e17dbc640edd0
+    Reviewed-on: https://go-review.googlesource.com/31668
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/cmd/compile/internal/amd64/prog.go  |  1 -
- src/cmd/compile/internal/arm/prog.go    |  1 -
- src/cmd/compile/internal/arm64/prog.go  |  1 -
- src/cmd/compile/internal/gc/gsubr.go    |  2 +-
- src/cmd/compile/internal/gc/pgen.go     | 40 +++++++++++++++++++++++----------
- src/cmd/compile/internal/gc/plive.go    |  4 +---
- src/cmd/compile/internal/mips/prog.go   |  1 -
- src/cmd/compile/internal/mips64/prog.go |  1 -
- src/cmd/compile/internal/ppc64/prog.go  |  1 -
- src/cmd/compile/internal/s390x/prog.go  |  1 -
- src/cmd/compile/internal/x86/prog.go    |  1 -
- src/cmd/internal/obj/arm/asm5.go        |  3 +--
- src/cmd/internal/obj/link.go            |  1 -
- src/cmd/internal/obj/plist.go           | 24 --------------------
- src/cmd/internal/obj/util.go            |  1 -
- src/cmd/internal/obj/x86/asm6.go        |  1 -
- 16 files changed, 31 insertions(+), 53 deletions(-)
+ src/cmd/go/go_test.go                             | 10 ++++++++++
+ src/cmd/go/pkg.go                                 | 17 +++++++++++++++++
+ src/cmd/go/testdata/src/canonical/a/a.go          |  3 +++
+ src/cmd/go/testdata/src/canonical/a/vendor/c/c.go |  1 +
+ src/cmd/go/testdata/src/canonical/b/b.go          |  3 +++
+ src/cmd/go/testdata/src/canonical/d/d.go          |  3 +++
+ 6 files changed, 37 insertions(+)

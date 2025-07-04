@@ -1,27 +1,18 @@
-commit 13f97ea4568b6b1720438347a914618a8bee07be
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 18 19:23:50 2016 -0400
+commit c93193aec0f33e901d6802e61c966286785f57ee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 11 18:09:34 2016 -0800
 
-    cmd/internal/obj/s390x: add s390x support
+    runtime: return errno value from Solaris mmap as expected
     
-    Based on the ppc64 port.
+    The code in mem_bsd.go expects that when mmap fails it will return a
+    positive errno value.  This fixes the Solaris implementation of mmap to
+    work as expected.
     
-    s390x supports 2, 4 and 6 byte instructions and Go assembly
-    instructions sometimes map to several s390x instructions. The
-    assembler loops until a fixed point is reached in order to use
-    branch instructions that can only handle a short offset in a
-    similar way to other ports.
-    
-    Change-Id: I4278bf46aca35a96ca9cea0857e6229643c9c1e3
-    Reviewed-on: https://go-review.googlesource.com/20942
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id1c34a9b916e8dc955ced90ea2f4af8321d92265
+    Reviewed-on: https://go-review.googlesource.com/19477
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/buildtool.go             |    1 +
- src/cmd/internal/obj/s390x/a.out.go   |  895 +++++++
- src/cmd/internal/obj/s390x/anames.go  |  650 +++++
- src/cmd/internal/obj/s390x/anamesz.go |   39 +
- src/cmd/internal/obj/s390x/asmz.go    | 4628 +++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/s390x/listz.go   |   73 +
- src/cmd/internal/obj/s390x/objz.go    | 1013 ++++++++
- src/cmd/internal/obj/s390x/vector.go  | 1061 ++++++++
- 8 files changed, 8360 insertions(+)
+ src/runtime/os3_solaris.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

@@ -1,20 +1,15 @@
-commit 3879f0abcd94598723d6c3024e5006b52b736b7b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 2 12:12:40 2014 -0400
+commit 3100088743190239846d758f6a7d83de5af0efb8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 1 12:16:03 2014 -0400
 
-    os: cut limited read to 1 GB
+    go/build: add go1.3 release tag
     
-    If systems actually read that much, using 2GB-1 will
-    result in misaligned subsequent reads. Use 1GB instead,
-    which will certainly keep reads aligned and which is
-    plenty large enough.
+    Fixes #7918
     
-    Update #7812.
-    
-    LGTM=bradfitz
-    R=bradfitz
+    LGTM=dave
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/94070044
+    https://golang.org/cl/91980043
 
- src/pkg/os/file_unix.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/go/build/build.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

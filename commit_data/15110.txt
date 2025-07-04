@@ -1,18 +1,17 @@
-commit 46d6f3c62f9f51ac349b90b2181627d5c1ed424b
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 3 13:08:23 2013 -0500
+commit 848d10f06cf327212d1ce7041c0eeae5fda317f1
+Author: Shivakumar GN <shivakumar.gn@gmail.com>
+Date:   Sun Feb 3 11:21:07 2013 -0500
 
-    cmd/go: update 'go get' help message
+    xml: omit newline at beginning of MarshalIndent output
     
-    It accepts all the build flags.
-    Say that instead of making a copy that will go stale.
+    (Still valid XML.)
     
-    Fixes #4742.
+    Fixes #3354.
     
-    R=golang-dev, minux.ma
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7229081
+    https://golang.org/cl/7288047
 
- src/cmd/go/doc.go | 8 ++++----
- src/cmd/go/get.go | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/encoding/xml/marshal.go      |  7 ++++++-
+ src/pkg/encoding/xml/marshal_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

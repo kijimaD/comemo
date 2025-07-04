@@ -1,16 +1,21 @@
-commit 12dc48fd54d4bfc0c25e2a96aa7fecfacb9087ca
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 27 17:28:36 2021 -0700
+commit d434c2338b11b9ecf19865e8ec3f2721706f29cf
+Author: zhengjianxun <zhuimengshaonian04@gmail.com>
+Date:   Tue Feb 23 03:12:56 2021 +0000
 
-    cmd/compile/internal/types2: export Structure function
+    runtime: clarify GC fractional mode description
     
-    For #48538.
+    nowdays, in runtime/mgc.go,we can see the comment descrition : The fractional worker is necessary when GOMAXPROCS*gcBackgroundUtilization is not an integer.
+    but it not true such as GOMAXPROCS=5.
+    in the implemet of startCycle() , Fractional Mode happend only when
+    GOMAXPROCS<=3 or GOMAXPROCS=6. so utilization can closest to 25%.
+    Fixes #44380
     
-    Change-Id: I258b0c8af5801692ad238e47397dde0b4e3c44c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359275
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: Id0dd6d9f37759c2c9231f164a013a014216dd442
+    GitHub-Last-Rev: 5910e76324b2fa908235c325c8b1edafca496256
+    GitHub-Pull-Request: golang/go#44381
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293630
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/types2/builtins.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/runtime/mgc.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

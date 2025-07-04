@@ -1,15 +1,12 @@
-commit c921d8f39d6da1afd1550787464d27f015412194
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 11 23:40:25 2016 +0000
+commit bd3d00e3109335bd66ec6dbede411c19f37df20f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 19 15:26:48 2016 -0700
 
-    context: document appropriate WithValue key type more
+    doc: mention KeepAlive & input args change
     
-    Fixes #17826
-    Updates #17302
-    
-    Change-Id: I7c1ebd965e679e7169a97e62d27ae3ede2473aa1
-    Reviewed-on: https://go-review.googlesource.com/33152
+    Change-Id: Icfb38f492ae71432858b7104fcba18a9ba835192
+    Reviewed-on: https://go-review.googlesource.com/29410
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/context/context.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

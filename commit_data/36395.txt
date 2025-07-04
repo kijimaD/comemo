@@ -1,33 +1,22 @@
-commit 2ce8411239212b80a0d266dc123bb5b1ec84d211
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Jun 24 13:42:59 2018 +0200
+commit 932794cbf1458f2b23c964c3a50488ff0d47ca75
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 16:02:58 2018 -0400
 
-    time: accept anything between -23 and 23 as offset namezone name
+    go/types: fix format errors
     
-    time.Parse currently rejects numeric timezones names with UTC offsets
-    bigger than +12, but this is incorrect: there's a +13 timezone and a
-    +14 timezone:
+    Found by pending CL to make cmd/vet auto-detect printf wrappers.
     
-      $ zdump Pacific/Kiritimati
-      Pacific/Kiritimati  Mon Jun 25 02:15:03 2018 +14
-    
-    For convenience, this cl changes the ranges of accepted offsets from
-    -14..+12 to -23..+23 (zero still excluded), i.e. every possible offset
-    that makes sense. We don't validate three-letter abbreviations for the
-    timezones names, so there's no need to be too strict on numeric names.
-    
-    This change also fixes a bug in the parseTimeZone, that is currently
-    unconditionally returning true (i.e. valid timezone), without checking
-    the value returned by parseSignedOffset.
-    
-    This fixes 5 of 17 time.Parse() failures listed in Issue #26032.
-    
-    Updates #26032
-    
-    Change-Id: I2f08ca9aa41ea4c6149ed35ed2dd8f23eeb42bff
-    Reviewed-on: https://go-review.googlesource.com/120558
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I1928a5bcd7885cdd950ce81b7d0ba07fbad3bf88
+    Reviewed-on: https://go-review.googlesource.com/109343
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/format.go      |  9 +++++----
- src/time/format_test.go | 14 ++++++++++++--
- 2 files changed, 17 insertions(+), 6 deletions(-)
+ src/go/types/builtins.go   | 4 ++--
+ src/go/types/call.go       | 4 ++--
+ src/go/types/check.go      | 2 +-
+ src/go/types/decl.go       | 2 +-
+ src/go/types/expr.go       | 2 +-
+ src/go/types/interfaces.go | 2 +-
+ src/go/types/typexpr.go    | 4 ++--
+ 7 files changed, 10 insertions(+), 10 deletions(-)

@@ -1,24 +1,25 @@
-commit 65306bcdae51195f32cc7cbfebfa2851b14a1163
-Author: Austin Clements <austin@google.com>
-Date:   Mon May 15 14:24:00 2023 -0400
+commit 84db00ffd1c0e11180fc433df1ef7521de37a49b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 30 13:30:48 2022 -0400
 
-    cmd/dist: refactor adding to the test list into a method
+    cmd/go: add a 'sleep' command for script tests
     
-    Currently, there are four places that add distTests to the
-    tester.tests list. That means we're already missing a few name
-    uniqueness checks, and we're about to start enforcing some more
-    requirements on tests that would be nice to have in one place. Hence,
-    to prepare for this, this CL refactors the process of adding to the
-    tester.tests list into a method. That also means we can trivially use
-    a map to check name uniqueness rather than an n^2 slice search.
+    Due to mtime skew we don't index mutable packages with an mtime
+    younger than 2 seconds. In order to test indexed packages reliably, we
+    want to be able to sleep long enough for the files in the package to be cached.
     
-    For #37486.
+    (As an alternative we could instead use os.Chtimes to fake old enough
+    timestamps, but sleeping keeps the tests more realistic.)
     
-    Change-Id: Ib7b64c7bbf65e5e870c4f4bfaca8c7f70983605c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495015
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    For #53586.
+    
+    Change-Id: I1873f47c55a72d928451593b8c989f0092a557db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415474
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/test.go | 195 ++++++++++++++++++++++++---------------------------
- 1 file changed, 92 insertions(+), 103 deletions(-)
+ src/cmd/go/script_test.go         | 16 ++++++++++++++++
+ src/cmd/go/testdata/script/README |  5 +++++
+ 2 files changed, 21 insertions(+)

@@ -1,23 +1,34 @@
-commit c61c29fe563134f752ea14e794d08031982145e8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 21 10:43:49 2019 -0400
+commit 49662bc6b02810389c66b6b24576f6a5b217d471
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Mar 5 20:44:29 2019 +0000
 
-    cmd/go: accept GOSUMDB=sum.golang.google.cn
+    all: simplify multiple for loops
     
-    This CL makes the go command understand that
-    GOSUMDB=sum.golang.google.cn should connect
-    to that domain but expect to find a checksum database
-    signed by sum.golang.org there.
+    If a for loop has a simple condition and begins with a simple
+    "if x { break; }"; we can simply add "!x" to the loop's condition.
     
-    The host sum.golang.google.cn is not yet completely
-    configured; we hope it will be available in a few weeks.
+    While at it, simplify a few assignments to use the common pattern
+    "x := staticDefault; if cond { x = otherValue(); }".
     
-    Change-Id: Ie0fc4323f0c7084dda59bd3b45fc406717fa16d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191137
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Finally, simplify a couple of var declarations.
+    
+    Change-Id: I413982c6abd32905adc85a9a666cb3819139c19f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165342
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go                 |  8 +++++---
- src/cmd/go/internal/modfetch/fetch.go |  8 +++++---
- src/cmd/go/internal/modfetch/sumdb.go | 12 +++++++++++-
- 3 files changed, 21 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go      | 4 +---
+ src/cmd/compile/internal/gc/reflect.go   | 4 +---
+ src/cmd/compile/internal/gc/walk.go      | 4 +---
+ src/cmd/compile/internal/ssa/schedule.go | 6 +-----
+ src/cmd/internal/obj/pass.go             | 5 +----
+ src/cmd/link/internal/ld/elf.go          | 4 +---
+ src/encoding/json/encode.go              | 3 +--
+ src/encoding/json/stream_test.go         | 2 +-
+ src/internal/reflectlite/type.go         | 5 +----
+ src/reflect/type.go                      | 5 +----
+ src/runtime/traceback.go                 | 5 +----
+ src/runtime/type.go                      | 5 +----
+ src/text/template/funcs.go               | 4 +---
+ 13 files changed, 13 insertions(+), 43 deletions(-)

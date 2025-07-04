@@ -1,15 +1,17 @@
-commit a19ab9d1ccb038df9e564f10d2f688499c864698
+commit 650e8de0a5fab5cfa32f83dd6d16cf4cfe950fae
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 4 02:01:58 2012 -0500
+Date:   Sat Feb 4 01:46:46 2012 -0500
 
-    cmd/dist: fix arm build
+    cmd/dist: more build fixes
     
-    5l does not use the whole set of ld files
-    like the other linkers do.
+    Flush stdout before writing to stderr, to avoid
+    reordering output.
+    
+    Allow amd64 from uname -m (FreeBSD).
     
     TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5629052
+    https://golang.org/cl/5629051
 
- src/cmd/dist/build.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/dist/unix.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

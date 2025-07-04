@@ -1,20 +1,20 @@
-commit c06eef27d754b0c4e112dbff1233e393a8362844
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed May 21 16:14:19 2025 -0400
+commit 08a7ab97baaa7f57f58701fd205dfdaf02aeea16
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 8 22:59:46 2024 +0000
 
-    runtime: skip TestTimePprof on sanitizers
+    runtime: factor out GC pause time CPU stats update
     
-    This test asserts there is no external code, but the sanitizer runtimes
-    are external code.
+    Currently this is done manually in two places. Replace these manual
+    updates with a method that also forces the caller to be mindful that the
+    number will be multiplied (and that it needs to be). This will make
+    follow-up changes simpler too.
     
-    Fixes #73783.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race
-    Change-Id: I6a6a636cf93b7950e3ea35e00ec2eaf89911d712
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675296
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I81ea844b47a40ff3470d23214b4b2fb5b71a4abe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570255
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/crash_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/mgc.go    | 12 ++++--------
+ src/runtime/mstats.go | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 8 deletions(-)

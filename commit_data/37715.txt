@@ -1,17 +1,21 @@
-commit e167587dd62a7e1d8683982e2b6eaa1c1cff9c67
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sun Dec 16 19:13:25 2018 +0530
+commit e34f660a52b810e7f4d4a186c7502324c67390ea
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Tue Jul 24 13:04:35 2018 +0300
 
-    go/doc: handle Examples with no body
+    cmd/compile: cache the value of environment variable GOSSAFUNC
     
-    Fixes #29271
+    Store the value of GOSSAFUNC in a global variable to avoid
+    multiple calls to os.Getenv from gc.buildssa and gc.mkinlcall1.
+    The latter is implemented in the CL 126606.
     
-    Change-Id: Iff6a16c659ad6ec1b4d9559fcbcd40196086c60e
-    Reviewed-on: https://go-review.googlesource.com/c/154380
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Updates #25942
+    
+    Change-Id: I58caaef2fee23694d80dc5a561a2e809bf077fa4
+    Reviewed-on: https://go-review.googlesource.com/126604
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/doc/example.go      |  3 +++
- src/go/doc/example_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+ src/cmd/compile/internal/gc/main.go | 2 ++
+ src/cmd/compile/internal/gc/ssa.go  | 7 +++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

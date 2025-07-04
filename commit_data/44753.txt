@@ -1,37 +1,14 @@
-commit 6ae3b70ef255cd7317764a12b7230f293683f2c5
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Mar 17 19:15:38 2021 -0400
+commit 6f561e65b16645fea771375d3af6d7896ab025e6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 26 23:18:41 2020 +0700
 
-    cmd/compile: add clobberdeadreg mode
+    cmd/fix: remove un-used code
     
-    When -clobberdeadreg flag is set, the compiler inserts code that
-    clobbers integer registers at call sites. This may be helpful for
-    debugging register ABI.
-    
-    Only implemented on AMD64 for now.
-    
-    Change-Id: Ia203d3f891c30fd95d0103489056fe01d63a2899
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302809
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ibbd9da6fd1f3219c9c6103d8f858347ab3a21210
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250857
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go             |  7 +++++
- src/cmd/compile/internal/arm/ssa.go               |  2 +-
- src/cmd/compile/internal/arm64/ssa.go             |  2 +-
- src/cmd/compile/internal/base/flag.go             |  1 +
- src/cmd/compile/internal/mips/ssa.go              |  2 +-
- src/cmd/compile/internal/mips64/ssa.go            |  2 +-
- src/cmd/compile/internal/ppc64/ssa.go             |  2 +-
- src/cmd/compile/internal/riscv64/ssa.go           |  3 +++
- src/cmd/compile/internal/s390x/ssa.go             |  2 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go    |  1 +
- src/cmd/compile/internal/ssa/opGen.go             |  6 +++++
- src/cmd/compile/internal/ssa/regalloc.go          | 31 +++++++++++++++++++++
- src/cmd/compile/internal/test/clobberdead_test.go | 10 ++++++-
- src/cmd/compile/internal/wasm/ssa.go              |  3 +++
- src/cmd/compile/internal/x86/ssa.go               |  2 ++
- src/runtime/sys_darwin_amd64.s                    |  2 +-
- test/codegen/clobberdeadreg.go                    | 33 +++++++++++++++++++++++
- 17 files changed, 103 insertions(+), 8 deletions(-)
+ src/cmd/fix/fix.go | 292 -----------------------------------------------------
+ 1 file changed, 292 deletions(-)

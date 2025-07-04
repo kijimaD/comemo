@@ -1,16 +1,24 @@
-commit 89ccd5795c5e41ef478eab3d4a292a836a7fe3ad
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 3 09:13:16 2016 -0400
+commit 6e87082d41f0267b39e6a1854d655b1d1c2f7541
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 9 18:06:56 2016 +0000
 
-    cmd/pprof: use correct default handler for Go programs
+    net/http: make Client copy headers on redirect
     
-    The original go tool pprof (written in Perl) got this right.
-    The Go rewrite never has, but should.
+    Copy all of the original request's headers on redirect, unless they're
+    sensitive. Only send sensitive ones to the same origin, or subdomains
+    thereof.
     
-    Change-Id: Ie1fc571214c61b1b5654a0bc90e15eb889adf059
-    Reviewed-on: https://go-review.googlesource.com/32617
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #4800
+    
+    Change-Id: Ie9fa75265c9d5e4c1012c028d31fd1fd74465712
+    Reviewed-on: https://go-review.googlesource.com/28930
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Francesc Campoy Flores <campoy@golang.org>
+    Reviewed-by: Ross Light <light@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/pprof/internal/driver/driver.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/net/http/client.go      |  61 +++++++++++++++++++++++++
+ src/net/http/client_test.go | 109 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/export_test.go |   2 +
+ 3 files changed, 172 insertions(+)

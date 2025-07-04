@@ -1,12 +1,14 @@
-commit ff991940f167030daec0e0342199f52a94e3e8fc
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 29 09:43:32 2015 +1000
+commit 3269683250ed47077d31ec3dcc2dad26214627ae
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jun 18 10:44:52 2015 +0900
 
-    doc: add json tokenizer to go1.5.html
+    os: skip TestStartProcess and TestHostname on android
     
-    Change-Id: I45d92fed757fa1866d5b80e53ed1af6712fa6741
-    Reviewed-on: https://go-review.googlesource.com/12782
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #11268.
+    
+    Change-Id: Ib0cabd1c1806e884df9e40f6a9a1cdecf2f76823
+    Reviewed-on: https://go-review.googlesource.com/11223
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- doc/go1.5.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/os/os_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

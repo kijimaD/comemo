@@ -1,35 +1,16 @@
-commit 36c164ec9c8597ec3507bb4aa9390603e9d29f7a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 27 18:28:29 2016 +0000
+commit 5799973c3e25545ac0e7d20f32a1453531c69399
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 3 11:33:37 2016 +1000
 
-    vendor: add golang.org/x/text/unicode/norm + x/test/width for IDNA support
+    cmd/go: fix staleness test for releases, also deflake it
     
-    Add golang.org/x/text/unicode/norm from x/text git rev a7c02369.
+    Fixes #15933
     
-    Needed by net/http for IDNA normalization.
-    
-    Updates #13835
-    
-    Change-Id: I8b024e179d573f2b093c209a4b9e4f71f7d4a1f2
-    Reviewed-on: https://go-review.googlesource.com/29859
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2cd6365e6d0ca1cafdc812fbfaaa55aa64b2b289
+    Reviewed-on: https://go-review.googlesource.com/23731
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- .../golang_org/x/text/transform/transform.go       |  705 ++
- .../golang_org/x/text/unicode/norm/composition.go  |  514 ++
- .../golang_org/x/text/unicode/norm/forminfo.go     |  256 +
- src/vendor/golang_org/x/text/unicode/norm/input.go |  105 +
- src/vendor/golang_org/x/text/unicode/norm/iter.go  |  450 ++
- .../golang_org/x/text/unicode/norm/normalize.go    |  608 ++
- .../golang_org/x/text/unicode/norm/readwriter.go   |  126 +
- .../golang_org/x/text/unicode/norm/tables.go       | 7627 ++++++++++++++++++++
- .../golang_org/x/text/unicode/norm/transform.go    |   88 +
- src/vendor/golang_org/x/text/unicode/norm/trie.go  |   54 +
- .../golang_org/x/text/unicode/norm/triegen.go      |  117 +
- src/vendor/golang_org/x/text/width/kind_string.go  |   16 +
- src/vendor/golang_org/x/text/width/tables.go       | 1284 ++++
- src/vendor/golang_org/x/text/width/transform.go    |  239 +
- src/vendor/golang_org/x/text/width/trieval.go      |   30 +
- src/vendor/golang_org/x/text/width/width.go        |  206 +
- 16 files changed, 12425 insertions(+)
+ src/cmd/go/go_test.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

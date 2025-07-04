@@ -1,12 +1,26 @@
-commit 2086f3503e40305da650ac200913a8535c0317ab
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Mar 12 18:19:06 2018 -0400
+commit a8def0bbbccb0e856e96ec35b0ebd68e1783042c
+Author: Tom Bergan <tombergan@google.com>
+Date:   Wed Nov 1 13:04:43 2017 -0700
 
-    C: add Filippo Valsorda's @golang.org email
+    net/http: update bundled http2
     
-    Change-Id: I3758a4350b600af304b2cff7ad59c7368a01ab5c
-    Reviewed-on: https://go-review.googlesource.com/100215
+    Updates http2 to x/net/http2 git rev c73622c77280
+    
+    http2: always delay closing the connection after sending GOAWAY
+    https://golang.org/cl/71372
+    
+    http2: Discard data reads on HEAD requests
+    https://golang.org/cl/72551
+    
+    Fixes #18701
+    Fixes #22376
+    
+    Change-Id: I2460cec64848992fff21790868b5fb8c91f050f2
+    Reviewed-on: https://go-review.googlesource.com/75210
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/h2_bundle.go | 56 ++++++++++++++++++++++++++++-------------------
+ 1 file changed, 33 insertions(+), 23 deletions(-)

@@ -1,17 +1,24 @@
-commit 0ff2b33ea0cdd6358010bd484ba3159f740a45df
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 6 12:47:32 2023 -0500
+commit 620399ef0d1390a8f7e7061a45d5304ed087889a
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jan 20 14:03:43 2023 -0500
 
-    cmd/go: avoid hard-coding runtime dependencies in TestNewReleaseRebuildsStalePackagesInGOPATH
+    internal/coverage/decodemeta: fix coding error in func literal handling
     
-    Fixes #64583.
+    Fix a coding error in coverage meta-data decoding in the method
+    decodemeta.CoverageMetaDataDecoder.ReadFunc. The code was not
+    unconditionally assigning the "function literal" field of the
+    coverage.FuncDesc object passed in, resulting in bad values depending
+    on what the state of the field happened to be in the object.
     
-    Change-Id: Idbe50fe77f6030f2402ac436abe6710cb1183730
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547995
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #57942.
+    
+    Change-Id: I6dfd7d7f7af6004f05c622f9a7116e9f6018cf4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462955
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/go_test.go | 26 ++++++++++++--------------
- 1 file changed, 12 insertions(+), 14 deletions(-)
+ src/cmd/covdata/dump.go                      |  1 +
+ src/internal/coverage/decodemeta/decode.go   |  4 +-
+ src/internal/coverage/test/roundtrip_test.go | 55 ++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+), 3 deletions(-)

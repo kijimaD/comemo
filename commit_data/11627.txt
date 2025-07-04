@@ -1,12 +1,12 @@
-commit c06bd52a2e5a38125635b770b5ddad2cb3ce6909
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Feb 5 15:16:39 2012 +1100
+commit cdfd5b2bede93497f4c74fa0959c3d6c8445fd57
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Feb 5 14:50:38 2012 +1100
 
-    cmd/dist: fix bug in bsubst
+    build: fix sudo.bash.
     
-    R=golang-dev, r, dsymonds, akumar
+    R=rsc, balasanjay, rsc
     CC=golang-dev
-    https://golang.org/cl/5624054
+    https://golang.org/cl/5630051
 
- src/cmd/dist/buf.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/sudo.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

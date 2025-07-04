@@ -1,25 +1,22 @@
-commit 13aa235ae0b441989f6ac3cb5ea953836dcdfdde
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Nov 30 09:50:05 2018 -0500
+commit 974d5364a643e107c4dea1df20293c67c32bfc04
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 10 20:05:44 2018 -0400
 
-    go/internal/gccgoimporter: fix bug reading V1 export data
+    cmd/go: ignore import "C" files in module loader in non-cgo mode
     
-    Fix a bug in the reading of elderly export data. In such export data
-    when reading type information it's possible to encounter a named type N1
-    defined as a typedef of some other named type N2 at a point when the
-    underying type of N1 has not yet been finalized. Handle this case by
-    generating a fixup, then process fixups at the end of parsing to
-    set the correct underlying type.
+    Obviously, including files that import "C" when cgo is disabled is wrong.
+    The package load step correctly excludes them and finds no files at all,
+    which then causes a failure.
     
-    Fixes #29006.
+    Fixes #26927.
     
-    Change-Id: I6a505c897bd95eb161ee04637bb6eebad9f20d52
-    Reviewed-on: https://go-review.googlesource.com/c/151997
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I00e6d6450e783d467d20bde99e91240ecb0db837
+    Reviewed-on: https://go-review.googlesource.com/129062
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/go/internal/gccgoimporter/importer_test.go     |   1 +
- src/go/internal/gccgoimporter/parser.go            |  38 ++++++++++++++++++++-
- .../internal/gccgoimporter/testdata/v1reflect.gox  | Bin 0 -> 10872 bytes
- 3 files changed, 38 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/imports/scan.go         | 7 +++++++
+ src/cmd/go/testdata/script/mod_patterns.txt | 4 ++++
+ 2 files changed, 11 insertions(+)

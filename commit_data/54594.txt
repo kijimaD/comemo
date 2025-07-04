@@ -1,25 +1,45 @@
-commit 340a4f55c4afac5b74c8df8365decb0c0237d710
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Nov 16 17:32:08 2022 -0500
+commit 582a6c2db4dfb617e709b7c8d859ff548aee1b1a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Aug 25 12:19:06 2022 +0200
 
-    runtime: use smaller fields for mspan.freeindex and nelems
+    crypto/ecdh: update ECDH docs and add tests for edge cases
     
-    mspan.freeindex and nelems can fit into uint16 for all possible
-    values. Use uint16 instead of uintptr.
+    Two edge cases that were mentioned in the docs are actually impossible:
     
-    Change-Id: Ifce20751e81d5022be1f6b5cbb5fbe4fd1728b1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451359
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+      * For NIST curves, ECDH can't fail, since the zero scalar is rejected
+        by NewPrivateKey, the identity point is rejected by NewPublicKey,
+        and NIST curves are a prime-order group.
+    
+        Let's call the inputs to scalar multiplication k and P, and the
+        order of the group q. If k[P] is the identity, and also q[P] is the
+        identity by definition, then P's order is a divisor of q-k, because
+    
+            k[P] + [q-k]P = q[P] = I
+    
+        P's order is either 1 or q, and can only be a divisor of q-k if it's
+        1 (so P is the identity), or if k is zero.
+    
+      * For X25519, PrivateKey.PublicKey can't return the all-zero value,
+        since no value is equivalent to zero after clamping.
+    
+        Clamping unsets the lowest three bit, sets the second-to-highest
+        bit, and unsets the top bit; this means that a scalar equivalent to
+        zero needs to be a multiple of 8*q, and needs to be between 2**254
+        and 2**255-1, but 8*p > 2**255-1.
+    
+    Tests for other exotic edge cases such as non-canonical point encodings,
+    clamping, points on the twist, and low-order components are covered by
+    x/crypto/wycheproof.
+    
+    Change-Id: I731a878c58bd59aee5636211dc0f19ad8cfae9db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425463
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/export_test.go |  2 +-
- src/runtime/heapdump.go    |  4 ++--
- src/runtime/malloc.go      | 10 +++++-----
- src/runtime/mbitmap.go     | 12 ++++++------
- src/runtime/mcache.go      |  6 +++---
- src/runtime/mcentral.go    |  2 +-
- src/runtime/mgcsweep.go    | 16 ++++++++--------
- src/runtime/mheap.go       | 25 ++++++++++++-------------
- src/runtime/pinner.go      |  4 ++--
- 9 files changed, 40 insertions(+), 41 deletions(-)
+ src/crypto/ecdh/ecdh.go      |  13 ++--
+ src/crypto/ecdh/ecdh_test.go | 154 +++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/ecdh/nist.go      |  37 +++++++++--
+ 3 files changed, 189 insertions(+), 15 deletions(-)

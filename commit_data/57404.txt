@@ -1,21 +1,26 @@
-commit 8f2486d2e03e26ea9bc5f680c1a5795256459b7b
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 4 18:59:49 2024 -0700
+commit a0c02df519afdb921288df9e57efcd4a7fdb735a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Aug 4 16:30:40 2023 -0400
 
-    cmd/internal: use t.TempDir in tests
+    runtime/pprof: correct field alignment in machVMRegionBasicInfoData
     
-    Change-Id: I3d4c66793afa3769a8450e2d65093a0f9115596e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611043
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    The type machVMRegionBasicInfoData is generated from C type
+    vm_region_basic_info_data_64_t, which is a packed struct with a
+    64-bit field at offset 20. We cannot use uint64 as the field type
+    in the Go struct, as that will be aligned at offset 24, which does
+    not match the C struct. Change back to [8]byte (which is what the
+    cgo command generates), but keep the name Offset.
+    
+    Updates #61707.
+    Updates #50891.
+    
+    Change-Id: I2932328d7f9dfe9d79cff89752666c794d4d3788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516156
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/goobj/objfile_test.go      |  8 ++------
- src/cmd/internal/obj/loong64/asm_test.go    |  6 +-----
- src/cmd/internal/obj/objfile_test.go        |  8 ++------
- src/cmd/internal/obj/ppc64/asm_test.go      | 24 ++++++------------------
- src/cmd/internal/obj/riscv/asm_test.go      | 24 ++++--------------------
- src/cmd/internal/obj/x86/obj6_test.go       |  6 +-----
- src/cmd/internal/obj/x86/pcrelative_test.go |  8 ++------
- 7 files changed, 18 insertions(+), 66 deletions(-)
+ src/runtime/pprof/defs_darwin_amd64.go | 2 +-
+ src/runtime/pprof/defs_darwin_arm64.go | 2 +-
+ src/runtime/pprof/vminfo_darwin.go     | 7 ++++++-
+ 3 files changed, 8 insertions(+), 3 deletions(-)

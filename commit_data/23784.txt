@@ -1,12 +1,27 @@
-commit 4230c73f5584bdb6e2de19f934fd0195f4a487df
-Author: Hari haran <hariharan.uno@gmail.com>
-Date:   Wed Jul 22 16:30:32 2015 +0530
+commit 22829bd76635d39a87a98bca9d2aa7bc85c27cd1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 30 07:33:16 2015 +0900
 
-    doc: add line break in install-source.html
+    net: don't return non-nil interface values as Source, Addr in OpError
     
-    Change-Id: I8633a005da7d0c34a5f074fbd979c8e0fc1fba37
-    Reviewed-on: https://go-review.googlesource.com/12505
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #10992.
+    
+    Change-Id: Ia376e4de118993b43e5813da57ab25fea8122048
+    Reviewed-on: https://go-review.googlesource.com/10476
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/install-source.html | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/error_test.go      | 96 +++++++++++++++++++++++++++++++++++++++++++---
+ src/net/iprawsock.go       |  7 ++++
+ src/net/iprawsock_plan9.go |  8 ++--
+ src/net/iprawsock_posix.go | 30 +++++++--------
+ src/net/ipsock_plan9.go    | 18 +++++++++
+ src/net/tcpsock.go         |  7 ++++
+ src/net/tcpsock_plan9.go   |  6 +--
+ src/net/tcpsock_posix.go   |  8 ++--
+ src/net/udpsock.go         |  7 ++++
+ src/net/udpsock_plan9.go   | 14 +++----
+ src/net/udpsock_posix.go   | 28 +++++++-------
+ src/net/unixsock.go        | 11 ++++++
+ src/net/unixsock_plan9.go  | 10 ++---
+ src/net/unixsock_posix.go  | 34 ++++++++--------
+ 14 files changed, 208 insertions(+), 76 deletions(-)

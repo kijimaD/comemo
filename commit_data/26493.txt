@@ -1,17 +1,22 @@
-commit 44532f1a9defb9cc4f48e74a7fa1ffd1dfa67022
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Mar 24 01:55:42 2016 +0100
+commit b460d1d52ffe911828dee58352d3cebbe04d5f30
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 27 13:18:35 2016 -0800
 
-    runtime: fix inconsistency in slice.go
+    cmd/internal/obj/x86: skip test when GOHOSTARCH is set
     
-    Fixes #14938.
+    It's causing the darwin-386 builder to fail with:
     
-    Additionally some simplifications along the way.
+    --- FAIL: TestDynlink (0.07s)
+        obj6_test.go:118: error exit status 3 output go tool: no such tool "asm"
+    FAIL
+    FAIL    cmd/internal/obj/x86    0.073s
     
-    Change-Id: I2c5fb7e32dcc6fab68fff36a49cb72e715756abe
-    Reviewed-on: https://go-review.googlesource.com/21046
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    So skip it for now. It's tested in enough other places.
+    
+    Change-Id: I9a98ad7b8be807005750112d892ac6c676c17dd5
+    Reviewed-on: https://go-review.googlesource.com/18989
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/slice.go | 21 +++++++++------------
- 1 file changed, 9 insertions(+), 12 deletions(-)
+ src/cmd/internal/obj/x86/obj6_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

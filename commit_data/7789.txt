@@ -1,14 +1,15 @@
-commit 5dd0869bf52f713d88eaa77e028d762a8e132800
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 17 09:11:08 2011 +1100
+commit a93f70c21ab47d0b014b190a0f779f4060565dca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 16 14:32:35 2011 -0700
 
-    codereview: permit CLs of the form weekly.DATE
-    gobuilder: recognize CLs of the form weekly.DATE
+    http: add NewProxyClientConn
     
-    R=rsc, r
+    This just returns a ClientConn suitable for writing
+    proxy requests.  To be used in Transport.
+    
+    R=rsc, petar-m
     CC=golang-dev
-    https://golang.org/cl/4282052
+    https://golang.org/cl/4290052
 
- lib/codereview/codereview.py   | 2 +-
- misc/dashboard/builder/main.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/http/persist.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

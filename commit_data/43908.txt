@@ -1,29 +1,17 @@
-commit 7fca39aa05ad3c60abac1ae51ae9847dfbe017d6
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Nov 21 17:43:16 2020 -0500
+commit 7250dd25400dbe1d38124f04ff5bd5a03f0c8e1c
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Apr 28 22:33:02 2020 +1000
 
-    cmd/internal/buildid: exclude Mach-O code signature in hash calculation
+    image/jpeg: accept "\xff\x00" before a RST marker
     
-    The code signature contains hashes of the entire file (except the
-    signature itself), including the buildid. Therefore, the buildid
-    cannot depend on the signature. Otherwise updating buildid will
-    invalidate the signature, and vice versa. As we cannot change the
-    code-signing algorithm, we can only change buildid calculation.
+    Fixes #28717
     
-    This CL changes the buildid calculation to exclude the Mach-O
-    code signature. So updating code signature after stamping the
-    buildid will not invalidate the buildid.
-    
-    Updates #38485, #42684.
-    
-    Change-Id: I8a9e2e25ca9dc00d9556d13b81652f43bbf6a084
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272255
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I0a1e4ef1583fff89b6f46ef647fb6e4499bdf999
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230122
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/buildid/buildid_test.go | 31 ++++++++++++++++++++
- src/cmd/internal/buildid/rewrite.go      | 50 ++++++++++++++++++++++++++++++++
- 2 files changed, 81 insertions(+)
+ src/image/jpeg/reader_test.go | 170 ++++++++++++++++++++++++++++++++++++++++++
+ src/image/jpeg/scan.go        |  19 +++++
+ 2 files changed, 189 insertions(+)

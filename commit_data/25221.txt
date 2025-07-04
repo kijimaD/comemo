@@ -1,20 +1,12 @@
-commit 732e2cd7461107b314ba23da10ca1e24a22885d2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 9 17:22:48 2015 -0800
+commit 3271250ec46a9c20ec46c78b992a2bcd742376c2
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 4 21:34:27 2015 -0400
 
-    cmd/compile: don't truncate tiny float constants to 0 in error messages
+    runtime: fix comment for gcAssistAlloc
     
-    Fixes #13559.
-    
-    Change-Id: I6fe8b5083192e8eb6c1b3ca1919fde81a00ccb7e
-    Reviewed-on: https://go-review.googlesource.com/17695
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I312e56e95d8ef8ae036d16444ab1e2df1285845d
+    Reviewed-on: https://go-review.googlesource.com/15403
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/mparith3.go | 27 ++++++----
- test/fixedbugs/issue11326.go            | 16 +++---
- test/fixedbugs/issue11590.go            |  2 +-
- test/fixedbugs/issue13471.go            | 22 ++++----
- test/fixedbugs/issue13559.go            | 89 +++++++++++++++++++++++++++++++++
- 5 files changed, 127 insertions(+), 29 deletions(-)
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

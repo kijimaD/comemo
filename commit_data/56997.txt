@@ -1,22 +1,17 @@
-commit 8173a29aaa670a7b958f05a96a74933ee3ec4469
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Jul 28 20:12:59 2024 +0700
+commit 1aaf1b219a44feaeaa1d737b5ea82202e9dbd5de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 2 09:29:07 2023 -0700
 
-    test: add open-coded defer tests for too many exits path
+    spec: clarify min/max rules for numeric arguments (exclude NaNs)
     
-    Add test cases that will disable open-coded defer when there are too
-    many exits path, even though number of defer statements are not greater
-    than 8.
+    Fixes #60570.
     
-    Updates #14939
-    Updates #34481
-    
-    Change-Id: If5af0e107ffc30043bc2902063f8c9b131a8bca4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601635
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I7ef834731ea26ceee5ec9b7438fdd8323aaf828e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500416
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- test/defererrcheck.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 54 insertions(+)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

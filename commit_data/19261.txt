@@ -1,16 +1,17 @@
-commit 61fac6845a6c35253397c66bcc71a309f59d8c70
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Wed Apr 30 13:03:38 2014 -0400
+commit 70f6c430248d57d40bef52fbd8c2c03c72badc16
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Apr 30 11:30:36 2014 -0400
 
-    cmd/go: test: clean up all temporary directories
+    time: MeST is a time zone name
     
-    go test may call builder.init() multiple times which will create a new work directory.  The cleanup needs to hoist the current work directory.
-    Fixes #7904.
+    Not only ChST but also MeST (America/Metlakatla) is a zone
+    name containing a lower case letter.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=robert.hencke, r
+    R=golang-codereviews, robert.hencke, bradfitz, r
     CC=golang-codereviews
-    https://golang.org/cl/95900044
+    https://golang.org/cl/99910043
 
- src/cmd/go/build.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/time/format.go      | 4 ++--
+ src/pkg/time/format_test.go | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)

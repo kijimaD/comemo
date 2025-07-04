@@ -1,19 +1,20 @@
-commit aeea5bacbf79fb945edbeac6cd7630dd70c4d9ce
-Author: korzhao <korzhao95@gmail.com>
-Date:   Sat Sep 25 15:29:52 2021 +0800
+commit 9135795891a0a297dbbfb66b726b249712f47927
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jan 13 17:08:38 2021 -0500
 
-    test/typeparam: add a test case for issue48617
+    cmd/go/internal/load: report positions for embed errors
     
-    For #48617
+    Fixes #43469
+    Fixes #43632
     
-    Change-Id: I6c00b7912c441ac323a0adede63b7d4a9ae6f92d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351858
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I862bb9da8bc3e4f15635bc33fd7cb5f12b917d71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283638
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- test/typeparam/issue48617.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/cmd/go/internal/load/pkg.go      | 63 +++++++++++++++++++++++++++---------
+ src/cmd/go/internal/load/test.go     |  4 +++
+ src/cmd/go/testdata/script/embed.txt | 17 +++++++---
+ 3 files changed, 64 insertions(+), 20 deletions(-)

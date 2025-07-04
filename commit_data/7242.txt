@@ -1,30 +1,12 @@
-commit add4e167e3e32ca050a1986a877924d14e52fdc7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 26 14:56:52 2011 +1000
+commit b7949035d67e7d9a016ccb8744c36f19c63e34f3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 26 09:50:15 2011 +1100
 
-    doc/codelab/wiki: update to work with template changes, add to run.bash
+    runtime: fix windows build
     
-    Fixes #1444.
-    
-    R=rsc, r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/3979045
+    https://golang.org/cl/4052046
 
- doc/codelab/wiki/edit.html              |   6 +-
- doc/codelab/wiki/final-noclosure.go     |  22 +++---
- doc/codelab/wiki/final-noerror.go       |  18 ++---
- doc/codelab/wiki/final-parsetemplate.go |  22 +++---
- doc/codelab/wiki/final-template.go      |  22 +++---
- doc/codelab/wiki/final.go               |  22 +++---
- doc/codelab/wiki/htmlify.go             |   2 +-
- doc/codelab/wiki/index.html             | 117 ++++++++++++++++----------------
- doc/codelab/wiki/notemplate.go          |  22 +++---
- doc/codelab/wiki/part1-noerror.go       |  20 +++---
- doc/codelab/wiki/part1.go               |  20 +++---
- doc/codelab/wiki/part2.go               |  18 ++---
- doc/codelab/wiki/srcextract.go          |   6 +-
- doc/codelab/wiki/test_edit.good         |   2 +-
- doc/codelab/wiki/view.html              |   6 +-
- doc/codelab/wiki/wiki.html              |  56 +++++++--------
- src/run.bash                            |   3 +
- 17 files changed, 194 insertions(+), 190 deletions(-)
+ src/pkg/runtime/windows/thread.c | 2 --
+ 1 file changed, 2 deletions(-)

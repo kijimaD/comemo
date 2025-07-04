@@ -1,15 +1,17 @@
-commit 23c9db657ea7c7552cb8e00debce945b97d61116
-Author: Awn <awn@cryptolosophy.io>
-Date:   Mon Jul 3 01:36:52 2017 +0100
+commit 61043d467115365dbbc0937510c9b91fa4a28f1d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 21 09:51:35 2017 -0700
 
-    archive/tar: remove useless type conversions
+    runtime: use add in mapdelete*
     
-    Change-Id: I259a6ed6a1abc63d2dc39eca7e85f94cf38001cc
-    Reviewed-on: https://go-review.googlesource.com/47342
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This better matches the style of the rest of the runtime.
+    
+    Change-Id: I6abb755df50eb3d9086678629c0d184177e1981f
+    Reviewed-on: https://go-review.googlesource.com/57610
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/archive/tar/format.go  | 2 +-
- src/archive/tar/strconv.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/hashmap.go      | 2 +-
+ src/runtime/hashmap_fast.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,24 +1,14 @@
-commit 57b22c51162035a52fdf09f043b1fed63faa28bc
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Dec 26 15:03:12 2019 -0500
+commit 9f85668a6528aa77a377aa39ba0d83e76301efcc
+Author: OlgaVlPetrova <OVPpetrova@gmail.com>
+Date:   Sat Oct 13 14:38:21 2018 +0300
 
-    cmd/go: parallellize more test cases
+    cmd/compile/internal/ssa: simplify `s = s <op> x` to `s <op>= x`
     
-    Sprinkle in some more calls to tg.Parallel in the cmd/go
-    tests. These are the easy cases that don't operate in the
-    testdata directory.
-    
-    I think the best thing to do for those tests that do operate
-    in testdata is to use the script tests. They're easier to
-    read and write, and jump into t.Parallel immediately.
-    
-    Updates #17751
-    
-    Change-Id: If8aeb8129cfdc0a9aa91f5a540f179790077fce5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212618
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I366b89e35d194ca2a7eb97a8253497bd3fc2af94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/142019
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/go_test.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/redblack32_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

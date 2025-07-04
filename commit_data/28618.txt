@@ -1,36 +1,20 @@
-commit 22a2bdfedb95612984cec3141924953b88a607b7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 17 14:29:00 2016 +0000
+commit 0deb49f9c09d15bf0e4c5ec843bd374f9a377e97
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 13 11:55:30 2016 -0700
 
-    sort: add Slice, SliceStable, and SliceIsSorted
+    cmd/go: include .syso files even if CGO_ENABLED=0
     
-    Add helpers for sorting slices.
+    A .syso file may include information that should go into the object file
+    that is not object code, and should be included even if not using cgo.
+    The example in the issue is a Windows manifest file.
     
-    Slice sorts slices:
+    Fixes #16050.
     
-        sort.Slice(s, func(i, j int) bool {
-            if s[i].Foo != s[j].Foo {
-                return s[i].Foo < s[j].Foo
-            }
-            return s[i].Bar < s[j].Bar
-        })
-    
-    SliceStable is the same, but does a stable sort.
-    
-    SliceIsSorted reports whether a slice is already sorted.
-    
-    Fixes #16721
-    
-    Change-Id: I346530af1c5dee148ea9be85946fe08f23ae53e7
-    Reviewed-on: https://go-review.googlesource.com/27321
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1f4f3f80bb007e84d153ca2d26e5919213ea4f8d
+    Reviewed-on: https://go-review.googlesource.com/24032
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/dist/deps.go      |  12 +--
- src/go/build/deps_test.go |   2 +-
- src/sort/genzfunc.go      | 122 +++++++++++++++++++++
- src/sort/sort.go          |  68 ++++++++++--
- src/sort/sort_test.go     |  74 ++++++++++---
- src/sort/zfuncversion.go  | 265 ++++++++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 518 insertions(+), 25 deletions(-)
+ src/cmd/go/go_test.go | 22 ++++++++++++++++++++++
+ src/cmd/go/pkg.go     |  3 ++-
+ 2 files changed, 24 insertions(+), 1 deletion(-)

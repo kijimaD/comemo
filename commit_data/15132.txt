@@ -1,17 +1,18 @@
-commit 92e4645f31c6a766207ce5095b9629f5e77adad5
+commit 022504b3ab62a4d35aad13c58382bd0a7168805b
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 4 13:55:38 2013 -0800
+Date:   Mon Feb 4 13:52:45 2013 -0800
 
-    net/http: add Next Protocol Negotation upgrade support to the Server
+    net/http: fix when server deadlines get extended
     
-    This provides the mechanism to connect SPDY support to the http
-    package, without pulling SPDY into the standard library.
+    Deadlines should be extended at the beginning of
+    a request, not at the beginning of a connection.
     
-    R=rsc, agl, mikioh.mikioh
+    Fixes #4676
+    
+    R=golang-dev, fullung, patrick.allen.higgins, adg
     CC=golang-dev
-    https://golang.org/cl/7287045
+    https://golang.org/cl/7220076
 
- src/pkg/net/http/httptest/server.go |  19 ++++--
- src/pkg/net/http/npn_test.go        | 118 ++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/server.go          |  80 +++++++++++++++++++++---
- 3 files changed, 204 insertions(+), 13 deletions(-)
+ src/pkg/net/http/serve_test.go | 44 ++++++++++++++++++++++++------------------
+ src/pkg/net/http/server.go     | 22 +++++++++++++++------
+ 2 files changed, 41 insertions(+), 25 deletions(-)

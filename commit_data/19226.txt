@@ -1,27 +1,14 @@
-commit 13ea1fd233465bc5dd410c8c64c8120ab249ab69
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 25 06:44:51 2014 -0700
+commit 59d7aa32ca3dd83533f2078a27c17b7babd501b2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 22 21:12:15 2014 -0700
 
-    net/http, strings, bytes: fix http race, revert part of Reader behavior change
+    math/cmpx: change space to tab in the Pow docs for better formatting
+    Godoc makes it look better this way; before, it all ran together into nonsense.
     
-    I fixed this data race regression in two ways: in net/http itself, and also
-    partially reverting the change from https://golang.org/cl/77580046 .
-    Previously a Read from a strings.Reader or bytes.Reader returning 0 bytes
-    would not be a memory write. After 77580046 it was. This reverts that back
-    in case others depended on that. Also adds tests.
-    
-    Fixes #7856
-    
-    LGTM=ruiu, iant
-    R=iant, ruiu
-    CC=golang-codereviews, gri
-    https://golang.org/cl/94740044
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/90400045
 
- src/pkg/bytes/reader.go         |  2 +-
- src/pkg/bytes/reader_test.go    | 23 ++++++++++++++++++++++-
- src/pkg/net/http/serve_test.go  | 33 +++++++++++++++++++++++++++++++++
- src/pkg/net/http/server.go      | 15 +++++++++++----
- src/pkg/strings/reader.go       |  2 +-
- src/pkg/strings/reader_test.go  | 21 +++++++++++++++++++++
- src/pkg/strings/strings_test.go |  2 +-
- 7 files changed, 90 insertions(+), 8 deletions(-)
+ src/pkg/math/cmplx/pow.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

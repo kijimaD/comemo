@@ -1,28 +1,12 @@
-commit cf8434fa3119d14abbc7f1ecec61f0cc947dfac4
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Wed Mar 6 14:35:29 2013 -0500
+commit 5f07125cb9333e002a7ddd99a37c1db7645ebd9b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 6 10:08:48 2013 -0800
 
-    misc/emacs: Add compatibility for GNU Emacs 23 and XEmacs >=21.5.32
+    effective_go.html: round 3 of minor edits.
     
-    This CL adds compatibility for GNU Emacs 23 (fixing fontification
-    issues) and XEmacs >=21.5.32 (fixing a lot of issues). Earlier
-    versions of XEmacs will not be supported because they do not
-    support POSIX character classes. Because of that, we also make use
-    of a lot of functions that were added in 21.5.32.
-    
-    A known and currently unfixable issue with XEmacs is that go-mode
-    will not always fontify identifiers that use unicode correctly.
-    
-    All changes for XEmacs are annotated in the diff.
-    
-    Note: go--position-bytes is not currently used anywhere, but will
-    be in a future CL.
-    
-    Fixes #4927.
-    
-    R=golang-dev, adonovan, cw, patrick.allen.higgins, sameer
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7456051
+    https://golang.org/cl/7489044
 
- misc/emacs/go-mode.el | 135 +++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 107 insertions(+), 28 deletions(-)
+ doc/effective_go.html | 96 ++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 61 insertions(+), 35 deletions(-)

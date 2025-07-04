@@ -1,16 +1,13 @@
-commit f22f40532ecfac5eaba9cebe0cbef4efeb9de146
+commit 3890ce0ed51cbce606e7479b80bf4b187d502d5c
 Author: Rob Pike <r@golang.org>
-Date:   Sun Jun 19 15:30:54 2011 +1000
+Date:   Sun Jun 19 14:56:25 2011 +1000
 
-    Make.ccmd: another build fix.
-    It's sad to think there are environments where compiling against a library
-    isn't enough information for the the linker to decide that you need that
-    library.
+    Make.ccmd: fix build - libraries in wrong order.
     TBR=jdpoirier
     
     R=jdpoirier
     CC=golang-dev
-    https://golang.org/cl/4646047
+    https://golang.org/cl/4648045
 
  src/Make.ccmd | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

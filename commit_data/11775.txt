@@ -1,14 +1,14 @@
-commit 62b328ed1914f9650675af52156254454b4fc4e5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Feb 10 16:29:50 2012 +1100
+commit 08e11187e6dd06c2a9a478c6138685683f935c47
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 10 16:03:24 2012 +1100
 
-    all.bat: report error code back to the gobuilder
+    debug/macho: dropped monstrous URL from package comment
     
-    not sure that it will work, but.
+    Relax. It's still in macho.go.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5649051
+    https://golang.org/cl/5653054
 
- src/all.bat | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/debug/macho/file.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,15 +1,12 @@
-commit 92ea9fa108d608a4bd46dc4f51e251e99a2964c5
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 13 13:12:58 2013 -0700
+commit b9ddb0d8b3d18c1c2a79eae686fe20fe36c707cb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 13 16:40:10 2013 +0400
 
-    cmd/go: change to use struct in go test -cover
-    Go tool half of https://golang.org/cl/10271044
+    runtime: fix bug introduced in cl/10256043
     
-    R=golang-dev, gri
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/10272043
+    https://golang.org/cl/10260043
 
- src/cmd/go/build.go | 9 ++++-----
- src/cmd/go/pkg.go   | 5 ++---
- src/cmd/go/test.go  | 7 +++----
- 3 files changed, 9 insertions(+), 12 deletions(-)
+ src/pkg/runtime/malloc.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,25 @@
-commit 202e6153f54e2a2b0d3a51cd0d69754f1ce60580
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Wed Mar 5 14:10:22 2014 -0500
+commit 4e7049bb848e2e7de7ee8c187cf272ca0c0d5a38
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Mar 6 00:09:09 2014 +1100
 
-    cmd/dist: respect system CFLAGS/LDFLAGS
+    syscall: regenerate z-files for dragonfly
     
-    Update #6882.
+    Regenerate z-files for DragonFly BSD 3.6.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    F_DUP_FD_CLOEXEC is now supported, so remove the zero value constant
+    from types_dragonfly.go so that we use the generated value from the
+    z-files.
+    
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/69860055
+    https://golang.org/cl/70080047
 
- src/cmd/dist/build.c | 30 +++++++++++++++++++++++++++---
- 1 file changed, 27 insertions(+), 3 deletions(-)
+ src/pkg/syscall/types_dragonfly.go         | 4 ----
+ src/pkg/syscall/zerrors_dragonfly_386.go   | 5 ++++-
+ src/pkg/syscall/zerrors_dragonfly_amd64.go | 5 ++++-
+ src/pkg/syscall/zsysnum_dragonfly_386.go   | 5 ++---
+ src/pkg/syscall/zsysnum_dragonfly_amd64.go | 5 ++---
+ src/pkg/syscall/ztypes_dragonfly_386.go    | 4 ----
+ src/pkg/syscall/ztypes_dragonfly_amd64.go  | 4 ----
+ 7 files changed, 12 insertions(+), 20 deletions(-)

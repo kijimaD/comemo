@@ -1,16 +1,12 @@
-commit c81293ada7184e5fed6aee632bbf9129a9a7f370
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Mon Oct 8 16:36:45 2012 +0200
+commit d5b570cdb105d8ea3c6a86c603949d3a9de647f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Oct 7 18:16:04 2012 -0700
 
-    test: Make run.go's errorcheck behave like testlib.
+    fix build: use temporary variable to avoid compiler error
     
-    testlib will complain about any unmatched errors left in errorchecks while run.go will not.
-    
-    Fixes #4141.
-    
-    R=golang-dev, minux.ma, remyoudompheng, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6614060
+    https://golang.org/cl/6612066
 
- test/run.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/pkg/exp/types/staging/types_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

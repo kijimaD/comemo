@@ -1,21 +1,17 @@
-commit fcff7226f3aa4e92302a9475d23c254ff6dccedb
+commit 489e4882ef0df15f208e41915cedc1ceb2cc75fd
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 30 12:04:46 2022 +0700
+Date:   Tue Mar 22 20:57:19 2022 +0700
 
-    cmd/compile: use runtime hash func for known types
+    cmd/compile: remove typecheck.FuncBody
     
-    Those functions are defined in package runtime already, so just use them
-    instead of creating ONAME nodes with nil Func.
+    CL 388535 removed the only usage of this function.
     
-    Change-Id: If29814a5254793c578c15b70f9c194b7414911d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436959
+    Change-Id: Ie5a61cce75b03d83162f62989fe52388b069c9bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394576
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/reflectdata/alg.go        |  20 +--
- .../compile/internal/typecheck/_builtin/runtime.go |  14 +--
- src/cmd/compile/internal/typecheck/builtin.go      | 137 +++++++++++----------
- 3 files changed, 89 insertions(+), 82 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go | 11 -----------
+ 1 file changed, 11 deletions(-)

@@ -1,13 +1,21 @@
-commit 229a8ce639f6c729700ad19321705b654890b502
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 14 18:08:19 2018 -0800
+commit bb0bfd002ada7e3eb9198d4287b32c2fed6e8da6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 5 17:36:13 2017 +1100
 
-    doc: remove draft notice from Go 1.10 release notes
+    cmd/dist, cmd/link, cmd/go: make c-shared work on windows
     
-    Change-Id: I063b556b59ecb8a8f4a3f121c32982b90eee2d74
-    Reviewed-on: https://go-review.googlesource.com/94159
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Thanks to Christopher Nelson for spearheading the effort.
+    
+    Fixes #11058
+    
+    Change-Id: Icafabac8dc697626ff1bd943cc577b0b1cc6b349
+    Reviewed-on: https://go-review.googlesource.com/69091
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.10.html | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/cmd/dist/test.go              |  3 ++-
+ src/cmd/go/internal/work/build.go | 11 +++++++++--
+ src/cmd/internal/obj/x86/asm6.go  |  2 +-
+ src/cmd/link/internal/ld/lib.go   | 11 +++++++----
+ 4 files changed, 19 insertions(+), 8 deletions(-)

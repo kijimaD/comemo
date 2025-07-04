@@ -1,33 +1,29 @@
-commit 44e48c7e6cb0aceccae6535b218748d9f312fc89
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed May 1 13:42:46 2024 +0000
+commit 53279a6af372e3708afe8eaf618d56ee98edf045
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Thu Apr 27 21:39:57 2023 -0700
 
-    hash/maphash: parallel run test
+    internal/testenv: probe for symlink on wasip1
     
-    This is a reapplication of CL 564576.
+    Certain WASI runtimes do not support generic symlinks, and
+    instead return permission errors when they are attempted.
+    Perform a runtime probe of symlink support in hasSymlink
+    on wasip1 to determine whether the runtime supports
+    generic symlinks.
     
-    This reduces the go test hash/maphash time
-    by more than half.
+    Also perform the same probe on android.
     
-    After investigation it was confirmed that
-    the original CL would cause OOM when 32-bit machine.
+    For #59583
     
-    This CL add testenv.ParallelOn64Bit for tests
-    that can be parallel on 64-bit machines,
-    it is not parallel on 32-bit machines,
-    because CL 564995 require the same API.
-    
-    Change-Id: I1b7feaa07716cb3f55db4671653348fabf2396b0
-    GitHub-Last-Rev: 28277255587f6a1b92b9bf1848e1f53adaca64dc
-    GitHub-Pull-Request: golang/go#66359
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572195
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iae5b704e670650d38ee350a5a98f99dcce8b5b28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490115
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    TryBot-Bypass: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/hash/maphash/smhasher_test.go | 13 +++++++++++++
- src/internal/testenv/testenv.go   | 11 +++++++++++
- 2 files changed, 24 insertions(+)
+ src/internal/testenv/testenv.go         |  2 +-
+ src/internal/testenv/testenv_notunix.go |  3 ++-
+ src/internal/testenv/testenv_notwin.go  | 28 +++++++++++++++++++++++++++-
+ 3 files changed, 30 insertions(+), 3 deletions(-)

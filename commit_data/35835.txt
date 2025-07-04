@@ -1,24 +1,15 @@
-commit 0d52c144a2564fbd5b755cd06759ab7d6870c85b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 28 00:05:46 2018 -0400
+commit f7ac70a56604033e2b1abc921d3f0f6afc85a7b3
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 10 23:51:05 2018 +0100
 
-    cmd/vet: fix ironic misuse of fmt.Sprintf
+    test: move rotate tests to top-level testsuite.
     
-    Move badf helper into top-level function so that prints from buildtag.go
-    are once again themselves printf-format-checked by vet.
-    Also, fix implementation, which was missing a ... in the Sprintf call and
-    produced messages like:
+    Remove old tests from asm_test.
     
-    /Users/rsc/x_test.go:1: +build comment must appear before package clause and be followed by a blank line%!(EXTRA []interface {}=[])
-    
-    These were introduced in CL 111415.
-    
-    Change-Id: I000af3a4e01dc99fc79c9146aa68a71dace1460f
-    Reviewed-on: https://go-review.googlesource.com/121300
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib408ec7faa60068bddecf709b93ce308e0ef665a
+    Reviewed-on: https://go-review.googlesource.com/100075
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/vet/buildtag.go                   | 23 +++++++++++------------
- src/cmd/vet/testdata/buildtag/buildtag.go |  2 +-
- 2 files changed, 12 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 334 --------------------------------
+ test/codegen/rotate.go                  | 149 +++++++++++++-
+ 2 files changed, 142 insertions(+), 341 deletions(-)

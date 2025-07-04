@@ -1,30 +1,17 @@
-commit 38dc177d3ac5b5a8cb6b7f9039144cbe8bd58036
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Mon Mar 25 10:31:30 2019 +0100
+commit 9c772522ea365be6a916d428a981969befedad7f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Nov 6 19:43:55 2018 +0100
 
-    runtime: create library startup for aix/ppc64
+    cmd/compile: add new format to known_formats
     
-    As .init_array section aren't available on AIX, the Go runtime
-    initialization is made with gcc constructor attribute.
-    However, as cgo tool is building a binary in order to get imported
-    C symbols, Go symbols imported for this initilization must be ignored.
-    -Wl,-berok is mandatory otherwize ld will fail to create this binary,
-    _rt0_aix_ppc64_lib and runtime_rt0_go aren't defined in runtime/cgo.
-    These two symbols must also be ignored when creating _cgo_import.go.
+    This change fixes a TestFormat failure in fmt_test by adding a
+    recently introduced new known format (%q for syntax.Error).
     
-    Change-Id: Icf2e0282f5b50de5fa82007439a428e6147efef1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169118
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #28621
+    
+    Change-Id: I026ec88c334549a957a692c1652a860c57e23dae
+    Reviewed-on: https://go-review.googlesource.com/c/147837
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cgo/out.go                   |   6 ++
- src/cmd/go/internal/work/security.go |   1 +
- src/runtime/cgo/callbacks_aix.go     |   1 +
- src/runtime/cgo/cgo.go               |   1 +
- src/runtime/cgo/gcc_aix_ppc64.c      |  16 ++++
- src/runtime/os2_aix.go               | 100 +++++++++++++++++++----
- src/runtime/os_aix.go                |  68 +++++++++++++++-
- src/runtime/rt0_aix_ppc64.s          | 150 +++++++++++++++++++++++++++++++++++
- src/runtime/symtab.go                |   3 +
- src/runtime/sys_aix_ppc64.s          | 104 ++++++++++++++++++------
- 10 files changed, 409 insertions(+), 41 deletions(-)
+ src/cmd/compile/fmt_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,14 +1,13 @@
-commit 6af069f3e1b64b89cd3f77b486af3d15cc8a4d8c
+commit 96da953d86130b1d9779538c2a09d3b58e69c0f1
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Apr 4 00:03:42 2012 +0800
+Date:   Wed Apr 4 00:00:26 2012 +0800
 
-    5a, 6a, 8a: take GOROOT_FINAL into consideration
+    godoc: update appinit.go, apply !appengine build constrain to main.go
     
-    R=golang-dev, rsc
+    R=adg, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5940052
+    https://golang.org/cl/5969063
 
- src/cmd/5a/lex.c | 33 ++++++++++++++++++++++++++++++++-
- src/cmd/6a/lex.c | 32 ++++++++++++++++++++++++++++++++
- src/cmd/8a/lex.c | 32 ++++++++++++++++++++++++++++++++
- 3 files changed, 96 insertions(+), 1 deletion(-)
+ src/cmd/godoc/appinit.go | 7 +++++--
+ src/cmd/godoc/main.go    | 2 ++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

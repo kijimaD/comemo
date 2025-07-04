@@ -1,12 +1,22 @@
-commit d0b2467966861e12d9c91043d52f3d7d114117d0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 13 16:40:39 2017 -0800
+commit e8eec3fbdbfae1723c8302d23514faeb833ea8f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 6 22:01:50 2017 -0400
 
-    go/types: remove TODOs from API that cannot be changed (cleanup)
+    [dev.boringcrypto] cmd/compile: refine BoringCrypto kludge
     
-    Change-Id: I4e357a250b2f9cfbf780b05c5f54805682b19a62
-    Reviewed-on: https://go-review.googlesource.com/83935
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Did not consider these fields being embedded or adopted
+    into structs defined in other packages, but that's possible too.
+    Refine the import path check to account for that.
+    
+    Fixes 'go test -short golang.org/x/crypto/ssh' but also
+    adds a new test in internal/boring for the same problem.
+    
+    Change-Id: Ied2d04fe2b0ac3b0a34f07bc8dfc50fc203abb9f
+    Reviewed-on: https://go-review.googlesource.com/62152
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/go/types/type.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go |  9 ++++++-
+ src/internal/boringtest/boring.go      |  8 ++++++
+ src/internal/boringtest/boring_test.go | 47 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 63 insertions(+), 1 deletion(-)

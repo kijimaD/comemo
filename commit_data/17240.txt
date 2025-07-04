@@ -1,25 +1,15 @@
-commit 54bdfc007f78d448642d3b2c73a63f41f4c245f9
+commit 7e886740d1c4b62bf7aea2a71048be432aeff945
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 14 14:58:28 2013 -0400
+Date:   Wed Aug 14 14:56:07 2013 -0400
 
-    encoding/xml: add, support Marshaler interface
+    encoding/json: support encoding.TextMarshaler, encoding.TextUnmarshaler
     
-    See golang.org/s/go12xml for design.
-    
-    Repeat of CL 12603044, which was submitted accidentally
-    and then rolled back.
-    
-    Fixes #2771.
-    Fixes #4169.
-    Fixes #5975.
-    Fixes #6125.
-    
-    R=golang-dev
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12919043
+    https://golang.org/cl/12703043
 
- api/go1.1.txt                        |   1 -
- api/go1.txt                          |   7 -
- src/pkg/encoding/xml/marshal.go      | 459 ++++++++++++++++++++++++++++-------
- src/pkg/encoding/xml/marshal_test.go |  34 +++
- 4 files changed, 404 insertions(+), 97 deletions(-)
+ src/pkg/encoding/json/decode.go      |  66 ++++++++++++++----
+ src/pkg/encoding/json/decode_test.go |  46 ++++++++++++-
+ src/pkg/encoding/json/encode.go      | 130 +++++++++++++++++++++++++++++++++--
+ src/pkg/encoding/json/encode_test.go |  99 ++++++++++++++++++++++++--
+ 4 files changed, 315 insertions(+), 26 deletions(-)

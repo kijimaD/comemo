@@ -1,22 +1,17 @@
-commit bf67a7b9b12f0f35c46aa39de65f7c67bfb5238c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 25 15:41:49 2012 -0500
+commit cf09a9d3bfbdf82ba67419b7efbf188651786271
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 25 12:31:06 2012 -0800
 
-    build: fix build
+    net/http: disabled test for Transport race / deadlock bug
     
-    I said rm, but not hg rm.
-    I never was good at Simon says.
+    The real fix for Issue 2616 is in
+    https://golang.org/cl/5532057, to be submitted
+    following this CL, without the test there which doesn't work
+    reliably. This one seems to.
     
-    TBR=bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5574066
+    https://golang.org/cl/5569063
 
- src/pkg/net/dict/Makefile   |   7 -
- src/pkg/net/dict/dict.go    | 210 ------------------------
- src/pkg/patch/Makefile      |  14 --
- src/pkg/patch/apply.go      |  54 ------
- src/pkg/patch/git.go        | 121 --------------
- src/pkg/patch/patch.go      | 321 ------------------------------------
- src/pkg/patch/patch_test.go | 390 --------------------------------------------
- src/pkg/patch/textdiff.go   | 179 --------------------
- 8 files changed, 1296 deletions(-)
+ src/pkg/net/http/transport_test.go | 60 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 60 insertions(+)

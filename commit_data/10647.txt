@@ -1,14 +1,13 @@
-commit e97a55810f4956f08a9738fa6a51dabdfece57c1
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Wed Dec 7 15:00:38 2011 -0500
+commit c3480878c48927622021ad9a7835c5c1fca22942
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 7 15:00:32 2011 -0500
 
-    godoc: <pre> must not occur inside <p>
-    Fixes #2532
+    A+C: Olivier Duperray, Taru Karttunen (individual CLA)
     
-    R=golang-dev, dr.volker.dobler, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5450115
+    https://golang.org/cl/5451121
 
- lib/godoc/example.html | 4 ++--
- lib/godoc/package.html | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 2 ++
+ 2 files changed, 4 insertions(+)

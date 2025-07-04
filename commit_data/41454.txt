@@ -1,21 +1,14 @@
-commit ee46f135a92c982d1dfcfd742729df372d70a69c
-Author: TennyZhuang <zty0826@gmail.com>
-Date:   Wed Jan 29 11:47:49 2020 +0800
+commit 43a4c61e125d184a8c9dac2d55cfa4ae31153fe8
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 5 00:00:38 2019 +0700
 
-    cmd/compile: output cost while inlining function with Debug['m'] > 1
+    cmd/compile: update comment in order.go to refer new methods/functions
     
-    The existing implementation outputs inline cost iff function cannot be inlined with Debug['m'] > 1, the cost info is also useful if the function is inlineable.
-    
-    Fixes #36780
-    
-    Change-Id: Ic96f6baf96aee25fb4b33d31d4d644dc2310e536
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216778
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I2d6b73ae7447e4bdeffcdac90f7422a9280666e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198678
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/inl.go | 2 +-
- test/fixedbugs/issue24651a.go      | 2 +-
- test/fixedbugs/issue24651b.go      | 4 ++--
- test/inline_big.go                 | 4 ++--
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

@@ -1,13 +1,12 @@
-commit 1e85f41fd512d570b04f87d906d44e456f1c2108
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 28 11:51:34 2011 -0500
+commit 7606079d9f54351e0aff78da804ce72814475446
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 28 11:47:23 2011 -0500
 
-    http: fix sniffing bug causing short writes
+    CONTRIBUTORS: add Maxim Pimenov (Google CLA)
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5442045
+    https://golang.org/cl/5443047
 
- src/pkg/net/http/server.go     |  2 +-
- src/pkg/net/http/sniff_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

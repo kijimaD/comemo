@@ -1,136 +1,21 @@
-commit 644ddaa842696506832fc55cad67d2490be20d14
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu May 10 05:58:16 2018 +0000
+commit b59b42cee8c1ca209dafd952da872fd493b77405
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 16 20:32:05 2018 +1000
 
-    cmd/internal/obj/arm64: encode large constants into MOVZ/MOVN and MOVK instructions
+    doc: update Usage section of the FAQ
     
-    Current assembler gets large constants from constant pool, this CL
-    gets rid of the pool by using MOVZ/MOVN and MOVK to load large
-    constants.
+    This is close to a complete rewrite, as the content was pretty old.
     
-    This CL changes the assembler behavior as follows.
+    The CL includes links to the Wiki for information about companies
+    using Go, a new section about IDEs and editors¹, and a restatement
+    of the foreign function interface story. It also modernizes and
+    expands a little on the use of Go inside Google.
     
-    1. go assembly  1, MOVD $0x1111222233334444, R1
-                    2, MOVD $0x1111ffff1111ffff, R1
-       previous version: MOVD 0x9a4, R1 (loads constant from pool).
-       optimized version: 1, MOVD $0x4444, R1; MOVK $(0x3333<<16), R1; MOVK $(0x2222<<32), R1;
-       MOVK $(0x1111<<48), R1. 2, MOVN $(0xeeee<<16), R1; MOVK $(0x1111<<48), R1.
+    ¹ Ed is the standard editor.
     
-    Add test cases, and below are binary size comparison and bechmark results.
-    
-    1. Binary size before/after
-    binary                 size change
-    pkg/linux_arm64        +25.4KB
-    pkg/tool/linux_arm64   -2.9KB
-    go                     -2KB
-    gofmt                  no change
-    
-    2. compiler benchmark.
-    name       old time/op       new time/op       delta
-    Template         574ms ±21%        577ms ±14%     ~     (p=0.853 n=10+10)
-    Unicode          327ms ±29%        353ms ±23%     ~     (p=0.360 n=10+8)
-    GoTypes          1.97s ± 8%        2.04s ±11%     ~     (p=0.143 n=10+10)
-    Compiler         9.13s ± 9%        9.25s ± 8%     ~     (p=0.684 n=10+10)
-    SSA              29.2s ± 5%        27.0s ± 4%   -7.40%  (p=0.000 n=10+10)
-    Flate            402ms ±40%        308ms ± 6%  -23.29%  (p=0.004 n=10+10)
-    GoParser         470ms ±26%        382ms ±10%  -18.82%  (p=0.000 n=9+10)
-    Reflect          1.36s ±16%        1.17s ± 7%  -13.92%  (p=0.001 n=9+10)
-    Tar              561ms ±19%        466ms ±15%  -17.08%  (p=0.000 n=9+10)
-    XML              745ms ±20%        679ms ±20%     ~     (p=0.123 n=10+10)
-    StdCmd           35.5s ± 6%        37.2s ± 3%   +4.81%  (p=0.001 n=9+8)
-    
-    name       old user-time/op  new user-time/op  delta
-    Template         625ms ±14%        660ms ±18%     ~     (p=0.343 n=10+10)
-    Unicode          355ms ±10%        373ms ±20%     ~     (p=0.346 n=9+10)
-    GoTypes          2.39s ± 8%        2.37s ± 5%     ~     (p=0.897 n=10+10)
-    Compiler         11.1s ± 4%        11.4s ± 2%   +2.63%  (p=0.010 n=10+9)
-    SSA              35.4s ± 3%        34.9s ± 2%     ~     (p=0.113 n=10+9)
-    Flate            402ms ±13%        371ms ±30%     ~     (p=0.089 n=10+9)
-    GoParser         513ms ± 8%        489ms ±24%   -4.76%  (p=0.039 n=9+9)
-    Reflect          1.52s ±12%        1.41s ± 5%   -7.32%  (p=0.001 n=9+10)
-    Tar              607ms ±10%        558ms ± 8%   -7.96%  (p=0.009 n=9+10)
-    XML              828ms ±10%        789ms ±12%     ~     (p=0.059 n=10+10)
-    
-    name       old text-bytes    new text-bytes    delta
-    HelloSize        714kB ± 0%        712kB ± 0%   -0.23%  (p=0.000 n=10+10)
-    CmdGoSize       8.26MB ± 0%       8.25MB ± 0%   -0.14%  (p=0.000 n=10+10)
-    
-    name       old data-bytes    new data-bytes    delta
-    HelloSize       10.5kB ± 0%       10.5kB ± 0%     ~     (all equal)
-    CmdGoSize        258kB ± 0%        258kB ± 0%     ~     (all equal)
-    
-    name       old bss-bytes     new bss-bytes     delta
-    HelloSize        125kB ± 0%        125kB ± 0%     ~     (all equal)
-    CmdGoSize        146kB ± 0%        146kB ± 0%     ~     (all equal)
-    
-    name       old exe-bytes     new exe-bytes     delta
-    HelloSize       1.18MB ± 0%       1.18MB ± 0%     ~     (all equal)
-    CmdGoSize       11.2MB ± 0%       11.2MB ± 0%   -0.13%  (p=0.000 n=10+10)
-    
-    3. go1 benckmark.
-    name                   old time/op    new time/op    delta
-    BinaryTree17              6.60s ±18%     7.36s ±22%    ~     (p=0.222 n=5+5)
-    Fannkuch11                4.04s ± 0%     4.05s ± 0%    ~     (p=0.421 n=5+5)
-    FmtFprintfEmpty          91.8ns ±14%    91.2ns ± 9%    ~     (p=0.667 n=5+5)
-    FmtFprintfString          145ns ± 0%     151ns ± 6%    ~     (p=0.397 n=4+5)
-    FmtFprintfInt             169ns ± 0%     176ns ± 5%  +4.14%  (p=0.016 n=4+5)
-    FmtFprintfIntInt          229ns ± 2%     243ns ± 6%    ~     (p=0.143 n=5+5)
-    FmtFprintfPrefixedInt     343ns ± 0%     350ns ± 3%  +1.92%  (p=0.048 n=5+5)
-    FmtFprintfFloat           400ns ± 3%     394ns ± 3%    ~     (p=0.063 n=5+5)
-    FmtManyArgs              1.04µs ± 0%    1.05µs ± 0%  +1.62%  (p=0.029 n=4+4)
-    GobDecode                13.9ms ± 4%    13.9ms ± 5%    ~     (p=1.000 n=5+5)
-    GobEncode                10.6ms ± 4%    10.6ms ± 5%    ~     (p=0.421 n=5+5)
-    Gzip                      567ms ± 1%     563ms ± 4%    ~     (p=0.548 n=5+5)
-    Gunzip                   60.2ms ± 1%    60.4ms ± 0%    ~     (p=0.056 n=5+5)
-    HTTPClientServer          114µs ± 4%     108µs ± 7%    ~     (p=0.095 n=5+5)
-    JSONEncode               18.4ms ± 2%    17.8ms ± 2%  -3.06%  (p=0.016 n=5+5)
-    JSONDecode                105ms ± 1%     103ms ± 2%    ~     (p=0.056 n=5+5)
-    Mandelbrot200            5.48ms ± 0%    5.49ms ± 0%    ~     (p=0.841 n=5+5)
-    GoParse                  6.05ms ± 1%    6.05ms ± 2%    ~     (p=1.000 n=5+5)
-    RegexpMatchEasy0_32       143ns ± 1%     146ns ± 4%  +2.10%  (p=0.048 n=4+5)
-    RegexpMatchEasy0_1K       499ns ± 1%     492ns ± 2%    ~     (p=0.079 n=5+5)
-    RegexpMatchEasy1_32       137ns ± 0%     136ns ± 1%  -0.73%  (p=0.016 n=4+5)
-    RegexpMatchEasy1_1K       826ns ± 4%     823ns ± 2%    ~     (p=0.841 n=5+5)
-    RegexpMatchMedium_32      224ns ± 5%     233ns ± 8%    ~     (p=0.119 n=5+5)
-    RegexpMatchMedium_1K     59.6µs ± 0%    59.3µs ± 1%  -0.66%  (p=0.016 n=4+5)
-    RegexpMatchHard_32       3.29µs ± 3%    3.26µs ± 1%    ~     (p=0.889 n=5+5)
-    RegexpMatchHard_1K       98.8µs ± 2%    99.0µs ± 0%    ~     (p=0.690 n=5+5)
-    Revcomp                   1.02s ± 1%     1.01s ± 1%    ~     (p=0.095 n=5+5)
-    Template                  135ms ± 5%     131ms ± 1%    ~     (p=0.151 n=5+5)
-    TimeParse                 591ns ± 0%     593ns ± 0%  +0.20%  (p=0.048 n=5+5)
-    TimeFormat                655ns ± 2%     607ns ± 0%  -7.42%  (p=0.016 n=5+4)
-    [Geo mean]               93.5µs         93.8µs       +0.23%
-    
-    name                   old speed      new speed      delta
-    GobDecode              55.1MB/s ± 4%  55.1MB/s ± 4%    ~     (p=1.000 n=5+5)
-    GobEncode              72.4MB/s ± 4%  72.3MB/s ± 5%    ~     (p=0.421 n=5+5)
-    Gzip                   34.2MB/s ± 1%  34.5MB/s ± 4%    ~     (p=0.548 n=5+5)
-    Gunzip                  322MB/s ± 1%   321MB/s ± 0%    ~     (p=0.056 n=5+5)
-    JSONEncode              106MB/s ± 2%   109MB/s ± 2%  +3.16%  (p=0.016 n=5+5)
-    JSONDecode             18.5MB/s ± 1%  18.8MB/s ± 2%    ~     (p=0.056 n=5+5)
-    GoParse                9.57MB/s ± 1%  9.57MB/s ± 2%    ~     (p=0.952 n=5+5)
-    RegexpMatchEasy0_32     223MB/s ± 1%   221MB/s ± 0%  -1.10%  (p=0.029 n=4+4)
-    RegexpMatchEasy0_1K    2.05GB/s ± 1%  2.08GB/s ± 2%    ~     (p=0.095 n=5+5)
-    RegexpMatchEasy1_32     232MB/s ± 0%   234MB/s ± 1%  +0.76%  (p=0.016 n=4+5)
-    RegexpMatchEasy1_1K    1.24GB/s ± 4%  1.24GB/s ± 2%    ~     (p=0.841 n=5+5)
-    RegexpMatchMedium_32   4.45MB/s ± 5%  4.20MB/s ± 1%  -5.63%  (p=0.000 n=5+4)
-    RegexpMatchMedium_1K   17.2MB/s ± 0%  17.3MB/s ± 1%  +0.66%  (p=0.016 n=4+5)
-    RegexpMatchHard_32     9.73MB/s ± 3%  9.83MB/s ± 1%    ~     (p=0.889 n=5+5)
-    RegexpMatchHard_1K     10.4MB/s ± 2%  10.3MB/s ± 0%    ~     (p=0.635 n=5+5)
-    Revcomp                 249MB/s ± 1%   252MB/s ± 1%    ~     (p=0.095 n=5+5)
-    Template               14.4MB/s ± 4%  14.8MB/s ± 1%    ~     (p=0.151 n=5+5)
-    [Geo mean]             62.1MB/s       62.3MB/s       +0.34%
-    
-    Fixes #10108
-    
-    Change-Id: I79038f3c4c2ff874c136053d1a2b1c8a5a9cfac5
-    Reviewed-on: https://go-review.googlesource.com/c/118796
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5e54aafa53d00d86297b2691960a376b40f6225b
+    Reviewed-on: https://go-review.googlesource.com/123922
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s |  21 ++
- src/cmd/internal/obj/arm64/a.out.go       |   2 +
- src/cmd/internal/obj/arm64/anames7.go     |   2 +
- src/cmd/internal/obj/arm64/asm7.go        | 339 ++++++++++++++++++++++++++----
- 4 files changed, 323 insertions(+), 41 deletions(-)
+ doc/go_faq.html | 105 +++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 88 insertions(+), 17 deletions(-)

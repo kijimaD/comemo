@@ -1,19 +1,31 @@
-commit bfe0cbdc50cbc6a632d1e5ebbdcc625d69451935
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 19 15:38:59 2016 -0700
+commit 39214275d6dd89f91ee2b5162698777a97cd6e72
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 6 18:06:09 2016 -0800
 
-    cmd/compile,runtime: pass elem type to {make,grow}slice
+    cmd/compile: cache const nil, iface, slice, and ""
     
-    No point in passing the slice type to these functions.
-    All they need is the element type.  One less indirection,
-    maybe a few less []T type descriptors in the binary.
+    name      old time/op    new time/op    delta
+    Template     441ms ± 4%     446ms ± 4%  +1.23%  (p=0.048 n=22+25)
+    GoTypes      1.51s ± 2%     1.51s ± 2%    ~     (p=0.224 n=25+25)
+    Compiler     5.59s ± 1%     5.57s ± 2%  -0.38%  (p=0.019 n=24+24)
     
-    Change-Id: Ib0b83b5f14ca21d995ecc199ce8ac00c4eb375e6
-    Reviewed-on: https://go-review.googlesource.com/22275
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    name      old alloc/op   new alloc/op   delta
+    Template    85.6MB ± 0%    85.6MB ± 0%  -0.11%  (p=0.000 n=25+24)
+    GoTypes      307MB ± 0%     305MB ± 0%  -0.45%  (p=0.000 n=25+25)
+    Compiler    1.06GB ± 0%    1.06GB ± 0%  -0.34%  (p=0.000 n=25+25)
+    
+    name      old allocs/op  new allocs/op  delta
+    Template     1.10M ± 0%     1.10M ± 0%  -0.03%  (p=0.001 n=25+24)
+    GoTypes      3.36M ± 0%     3.35M ± 0%  -0.13%  (p=0.000 n=25+25)
+    Compiler     13.0M ± 0%     13.0M ± 0%  -0.12%  (p=0.000 n=25+24)
+    
+    Change-Id: I7fc18acbc3b1588aececef9692e24a0bd3dba974
+    Reviewed-on: https://go-review.googlesource.com/20295
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go |  2 +-
- src/cmd/compile/internal/gc/ssa.go  |  2 +-
- src/cmd/compile/internal/gc/walk.go |  8 ++++----
- src/runtime/slice.go                | 16 +++++++---------
- 4 files changed, 13 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go   | 27 ++++++++++++--------
+ src/cmd/compile/internal/ssa/TODO    |  1 -
+ src/cmd/compile/internal/ssa/func.go | 49 +++++++++++++++++++++++++++++-------
+ 3 files changed, 57 insertions(+), 20 deletions(-)

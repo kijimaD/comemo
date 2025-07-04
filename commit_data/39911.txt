@@ -1,23 +1,25 @@
-commit aa680c0c49b55722a72ad3772e590cd2f9af541d
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Sep 13 13:58:58 2019 -0400
+commit 7b62e984d941c753e7fb20f8b59a49acf62c88a7
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Sun Mar 31 15:23:07 2019 +0100
 
-    cmd/go: don't include package dir in cache key when -trimpath is set
+    runtime: always mask shift amount regardless of architecture
     
-    The '-trimpath' flag tells 'go build' to trim any paths from the
-    output files that are tied to the current workspace or toolchain. When
-    this flag is set, we do not need to include the package directory in
-    the text hashed to construct the action ID for each package.
+    Currently the shift amount is only masked on x86. Change it so it
+    is masked on all architectures. In the worst case we generate a
+    couple of extra instructions to perform the masking and in the best
+    case we can elide overflow checks.
     
-    Fixes #33772
+    This particular shift could also be replaced with a rotate
+    instruction during optimization which would remove both the masking
+    instructions and overflow checks on all architectures.
     
-    Change-Id: I20b902d2f58019709b15864ca79aa0d9255ae707
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195318
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Fixes #31165.
+    
+    Change-Id: I16b7a8800b4ba8813dc83735dfc59564e661d3b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170122
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/exec.go              |  8 ++++----
- src/cmd/go/script_test.go                     | 20 ++++++++++++++----
- src/cmd/go/testdata/script/build_trimpath.txt | 29 ++++++++++++++++++++++++---
- 3 files changed, 46 insertions(+), 11 deletions(-)
+ src/runtime/map.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

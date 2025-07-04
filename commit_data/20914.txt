@@ -1,18 +1,13 @@
-commit 7c1e33033ddc2370c468b0f3087d5a584dfd2c7e
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 1 07:52:09 2014 -0800
+commit e71c9cbe260941bfb322c69e4a4f10b4323a228e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 28 10:18:44 2014 +1100
 
-    reflect: Fix reflect.funcLayout.  The GC bitmap has two bits per
-    pointer, not one.
+    html/template: fix build after encoding/js escaping change
     
-    Fixes #9179
-    
-    LGTM=iant, rsc
-    R=golang-codereviews, iant, rsc
+    TBR=rsc
+    R=golang-codereviews
     CC=golang-codereviews
-    https://golang.org/cl/182160043
+    https://golang.org/cl/159590043
 
- src/reflect/all_test.go    | 101 +++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/export_test.go |  19 +++++++++
- src/reflect/type.go        |   4 +-
- 3 files changed, 122 insertions(+), 2 deletions(-)
+ src/html/template/js_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

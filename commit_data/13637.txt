@@ -1,12 +1,15 @@
-commit 1ac397f4b93e37f75f8c747a0167b5b2018b2d40
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Aug 16 20:19:54 2012 +1000
+commit b04c890a89e00f52c11ccccf4c76db389ef57d16
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Aug 15 16:53:06 2012 -0700
 
-    misc/cgo/test: remove unused Makefile
+    cmd/gc: Don't claim type assertion would help when it wont.
     
-    R=golang-dev, minux.ma, iant
+    Fixes #3465.
+    
+    R=golang-dev, rsc, remyoudompheng, iant
     CC=golang-dev
-    https://golang.org/cl/6459091
+    https://golang.org/cl/6448097
 
- misc/cgo/test/Makefile | 48 ------------------------------------------------
- 1 file changed, 48 deletions(-)
+ src/cmd/gc/subr.c          | 2 +-
+ test/interface/explicit.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,16 +1,15 @@
-commit f5d024a74695510fcb0890807849ec95253a56cd
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Jan 9 12:54:31 2012 -0800
+commit 793768e9d550d15f6b07eac7e587a090ffad0d41
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Mon Jan 9 12:52:03 2012 -0800
 
-    text/template: handle panic values that are not errors.
+    encoding/gob: fix panic when decoding []byte to incompatible slice types
     
-    The recover code assumes that the panic() argument was
-    an error, but it is usually a simple string.
-    Fixes #2663.
+    Fixes #2662.
     
-    R=golang-dev, r, r, gri
-    CC=golang-dev, remy
-    https://golang.org/cl/5527046
+    R=golang-dev, rogpeppe, r, r
+    CC=golang-dev, r, rogpeppe
+    https://golang.org/cl/5515050
 
- src/pkg/text/template/exec.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/encoding/gob/decode.go       | 6 +++---
+ src/pkg/encoding/gob/encoder_test.go | 8 ++++++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

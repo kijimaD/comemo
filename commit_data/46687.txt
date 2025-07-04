@@ -1,17 +1,22 @@
-commit 8b2f583ad141b1123b26a75202ead2d4eaf143ef
-Author: wangyuntao <ytcoode@gmail.com>
-Date:   Sat Jul 10 04:11:22 2021 +0000
+commit d7e71c01ad1c8edd568380ce9276c265dfd3635b
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Thu Jan 21 15:24:38 2021 +0800
 
-    cmd/compile: correct comment: walkSwitch -> walkSelect
+    [dev.regabi] cmd/compile: replace ir.Name map with ir.NameSet for dwarf
     
-    fix typo
+    Same as CL 284897, but for dwarf.
     
-    Change-Id: Ie2470e494ba95eed067ad42677520b35b383555f
-    GitHub-Last-Rev: 831f1973194f55b435dcdc6ef30290848228a114
-    GitHub-Pull-Request: golang/go#47117
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/333789
+    Passes toolstash -cmp.
+    
+    Fixes #43819
+    
+    Change-Id: Icbe43aa2e3cb96e6a6c318523c643247da8e4c74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284899
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
+    Trust: Baokun Lee <bk@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ir/stmt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

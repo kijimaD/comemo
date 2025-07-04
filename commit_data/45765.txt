@@ -1,17 +1,26 @@
-commit c20bcb64882d1134770683d663ee9f82fea715e6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Jun 7 16:24:40 2021 -0700
+commit c7233dd063cd8bf24460b280e3929458e64f4315
+Author: Kai Lüke <kai@kinvolk.io>
+Date:   Mon Nov 16 12:05:13 2020 +0000
 
-    runtime: remove out-of-date comments about frame skipping
+    cmd/go: permit wrongly rejected -Wl,-O... linker flags
     
-    skipPleaseUseCallersFrames was removed in CL 152537.
+    A typo caused the validation rule to check against -WL,-O... which is
+    not a regular flag because the L should be lowercase as in the other
+    rules. This caused valid linker flags to be rejected and people had to
+    work around this by filtering their default flags that include, e.g.,
+    -Wl,-O1 for a simple link optimization.
+    Fix the typo that wrongly rejected -Wl,-O... but allowed a non-existing
+    -WL,-O flag.
     
-    Change-Id: Ide47feec85a33a6fb6882e16baf9e21492521640
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325949
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia3bf730f16f5ad98a39d7f17159de17b44075462
+    GitHub-Last-Rev: 2ec7f2a2b92c9c76e707a71f6c5273aa1d512006
+    GitHub-Pull-Request: golang/go#42631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270278
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/runtime/traceback.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/go/internal/work/security.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

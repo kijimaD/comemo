@@ -1,22 +1,13 @@
-commit a0dbbeae6785ed7fd15feb4feb4975eded83c191
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 21 11:46:53 2014 +0400
+commit 372b5cebe7ba84218fdc724b2f17279a53293836
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 13 01:22:34 2014 -0400
 
-    runtime: fix deadlock when gctrace
-    Calling ReadMemStats which does stoptheworld on m0 holding locks
-    was not a good idea.
-    Stoptheworld holding locks is a recipe for deadlocks (added check for this).
-    Stoptheworld on g0 may or may not work (added check for this as well).
-    As far as I understand scavenger will print incorrect numbers now,
-    as stack usage is not subtracted from heap. But it's better than deadlocking.
+    [dev.power64] cmd/9g: use loops to do memmove in sgen()
     
-    LGTM=khr
-    R=golang-codereviews, rsc, khr
-    CC=golang-codereviews, rlh
-    https://golang.org/cl/124670043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/128130044
 
- src/pkg/runtime/heapdump.c | 2 +-
- src/pkg/runtime/malloc.go  | 6 ++++++
- src/pkg/runtime/mheap.c    | 8 ++++----
- src/pkg/runtime/proc.c     | 8 ++++++++
- 4 files changed, 19 insertions(+), 5 deletions(-)
+ src/cmd/9g/cgen.c | 39 +++++++++++++++++++++------------------
+ 1 file changed, 21 insertions(+), 18 deletions(-)

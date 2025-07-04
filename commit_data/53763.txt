@@ -1,42 +1,22 @@
-commit 89a457844f2b39794f9a8c16f008d3825f1ab455
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed May 17 14:04:25 2023 -0400
+commit cb357835d9c62232e70f7bf0eb7b105a2901bd1a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 16:40:31 2022 -0700
 
-    cmd/go: add support for vendoring in workspace mode
+    cmd/compile/internal/types2: match go/types error for invalid instantiations
     
-    In most cases this change removes assumptions that there is a single
-    main module in vendor mode and iterates over the workspace modules
-    when doing checks. The go mod vendor command will now, if in workspace
-    mode, create a vendor directory in the same directory as the go.work
-    file, containing the packages (and modules in modules.txt) loaded from
-    the workspace. When reassembling the module graph from the vendor
-    directory, an edges are added from each of the main modules to their
-    requirements, plus additionally to a fake 'vendor/modules.txt' module
-    with edges to all the modules listed in vendor/modules.txt.
+    Also: add a missing test.
     
-    For #60056
+    For #54511.
     
-    Change-Id: I4a485bb39836e7ab35cdc7726229191c6599903e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495801
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ie9828c6ba5186feb5a79db0d58beb2cda2beae56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426478
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/alldocs.go                              |  22 +++
- src/cmd/go/internal/modcmd/vendor.go               |  88 ++++++---
- src/cmd/go/internal/modload/buildlist.go           |  31 +++-
- src/cmd/go/internal/modload/import.go              |  43 +++--
- src/cmd/go/internal/modload/init.go                | 155 +++++++++++-----
- src/cmd/go/internal/modload/load.go                |  11 +-
- src/cmd/go/internal/modload/modfile.go             |  25 ++-
- src/cmd/go/internal/modload/search.go              |  11 +-
- src/cmd/go/internal/modload/vendor.go              | 129 +++++++++----
- src/cmd/go/internal/workcmd/vendor.go              |  55 ++++++
- src/cmd/go/internal/workcmd/work.go                |   1 +
- src/cmd/go/testdata/script/work.txt                |   2 +-
- src/cmd/go/testdata/script/work_vendor_empty.txt   |  16 ++
- .../script/work_vendor_main_module_replaced.txt    |  46 +++++
- .../script/work_vendor_modules_txt_consistent.txt  | 135 ++++++++++++++
- src/cmd/go/testdata/script/work_vendor_prune.txt   | 115 ++++++++++++
- .../go/testdata/script/work_vendor_prune_all.txt   | 200 +++++++++++++++++++++
- 17 files changed, 936 insertions(+), 149 deletions(-)
+ src/cmd/compile/internal/types2/signature.go          |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue48827.go  | 19 +++++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go            | 16 +++++++++++-----
+ 3 files changed, 31 insertions(+), 6 deletions(-)

@@ -1,25 +1,28 @@
-commit 483d6d99256b3c486e0c99106e232b4909938328
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri May 31 22:00:42 2019 +1000
+commit 810809ebc2e2c834da9656e4b52bb3a7d6089502
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Mar 9 02:30:35 2019 +0100
 
-    archive/zip: remove unused special case
+    misc/android: copy less from GOROOT to the device
     
-    This removes a special case that was added to fix issue #10956, but that
-    was never actually effective. The code in the test case still fails to
-    read, so perhaps the zip64 support added in CL 6463050 inadvertently
-    caught this particular case.
+    The android emulator builders is running out of space after CL 165797
+    copied most of GOROOT to the device.
+    The pkg directory is by far the largest, so only include what seems
+    necessary to build the x/ repositories: pkg/android_$GOARCH and
+    pkg/tool/android_$GOARCH.
     
-    It's possible that the original theorized bug still exists, but I'm not
-    convinced it was ever fixed.
+    While here, rename the device root directory to match the exec
+    wrapper name and make sure the deferred cleanups actually run before
+    os.Exit.
     
-    Update #28700
+    Hopefully fixes the emulator builders.
     
-    Change-Id: I4854de616364510f64a6def30b308686563f8dbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179757
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #23824
+    
+    Change-Id: I4d1e3ab2c89fd1e5818503d323ddb87f073094da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166397
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/zip/reader.go      |  4 ----
- src/archive/zip/reader_test.go | 12 +++++++-----
- 2 files changed, 7 insertions(+), 9 deletions(-)
+ misc/android/go_android_exec.go | 147 ++++++++++++++++++++++++++++------------
+ 1 file changed, 103 insertions(+), 44 deletions(-)

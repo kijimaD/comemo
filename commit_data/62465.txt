@@ -1,0 +1,61 @@
+commit 6ba91df153dfe955f38e326c18ee38999571837b
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue Dec 31 21:02:47 2024 +0800
+
+    math: implement func archExp and archExp2 in assembly on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: math
+    cpu: Loongson-3A6000 @ 2500.00MHz
+            |  bench.old  |              bench.new              |
+            |   sec/op    |   sec/op     vs base                |
+    Exp       26.30n ± 0%   12.93n ± 0%  -50.85% (p=0.000 n=10)
+    ExpGo     26.86n ± 0%   26.92n ± 0%   +0.22% (p=0.000 n=10)
+    Expm1     16.76n ± 0%   16.75n ± 0%        ~ (p=0.060 n=10)
+    Exp2      23.05n ± 0%   12.12n ± 0%  -47.42% (p=0.000 n=10)
+    Exp2Go    23.41n ± 0%   23.47n ± 0%   +0.28% (p=0.000 n=10)
+    geomean   22.97n        17.54n       -23.64%
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/cmplx
+    cpu: Loongson-3A6000 @ 2500.00MHz
+        |  bench.old  |              bench.new              |
+        |   sec/op    |   sec/op     vs base                |
+    Exp   51.32n ± 0%   35.41n ± 0%  -30.99% (p=0.000 n=10)
+    
+    goos: linux
+    goarch: loong64
+    pkg: math
+    cpu: Loongson-3A5000 @ 2500.00MHz
+            |  bench.old  |              bench.new              |
+            |   sec/op    |   sec/op     vs base                |
+    Exp       50.27n ± 0%   48.75n ± 1%   -3.01% (p=0.000 n=10)
+    ExpGo     50.72n ± 0%   50.44n ± 0%   -0.55% (p=0.000 n=10)
+    Expm1     28.40n ± 0%   28.32n ± 0%        ~ (p=0.360 n=10)
+    Exp2      50.09n ± 0%   21.49n ± 1%  -57.10% (p=0.000 n=10)
+    Exp2Go    50.05n ± 0%   49.69n ± 0%   -0.72% (p=0.000 n=10)
+    geomean   44.85n        37.52n       -16.35%
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/cmplx
+    cpu: Loongson-3A5000 @ 2500.00MHz
+        |  bench.old  |              bench.new              |
+        |   sec/op    |   sec/op     vs base                |
+    Exp   88.56n ± 0%   67.29n ± 0%  -24.03% (p=0.000 n=10)
+    
+    Change-Id: I89e456d26fc075d83335ee4a31227d2aface5714
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653935
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/math/exp2_asm.go   |   2 +-
+ src/math/exp2_noasm.go |   2 +-
+ src/math/exp_asm.go    |   2 +-
+ src/math/exp_loong64.s | 236 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/exp_noasm.go  |   2 +-
+ 5 files changed, 240 insertions(+), 4 deletions(-)

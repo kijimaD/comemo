@@ -1,64 +1,91 @@
-commit 3e38b7f2465a6ab476cb0e184f2b2abee1a6e76f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Aug 10 19:22:44 2013 -0700
+commit 7910cd68b55c445f2babae683aea97ba20daffbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 9 23:10:58 2013 -0400
 
-    net/http: simplify server, use bufio Reader.Reset and Writer.Reset
+    cmd/gc: zero pointers on entry to function
     
-    Update #5100
-    Update #6086
+    On entry to a function, zero the results and zero the pointer
+    section of the local variables.
     
-    Remove switchReader, switchWriter, switchReaderPair,
-    switchWriterPair, etc.
+    This is an intermediate step on the way to precise collection
+    of Go frames.
     
-    Now it only maintains pools of bufio Readers and Writers, but
-    uses Reset instead of working around all their
-    previously-associated state.
+    This can incur a significant (up to 30%) slowdown, but it also ensures
+    that the garbage collector never looks at a word in a Go frame
+    and sees a stale pointer value that could cause a space leak.
+    (C frames and assembly frames are still possibly problematic.)
     
-    Compared to before the bufio Reset change, it's the same number of
-    allocations, and also faster:
+    This CL is required to start making collection of interface values
+    as precise as collection of pointer values are today.
+    Since we have to dereference the interface type to understand
+    whether the value is a pointer, it is critical that the type field be
+    initialized.
     
-    benchmark                                   old ns/op    new ns/op    delta
-    BenchmarkClientServer                          111218       109828   -1.25%
-    BenchmarkClientServerParallel4                  70580        70013   -0.80%
-    BenchmarkClientServerParallel64                 72636        68919   -5.12%
-    BenchmarkServer                                139858       137068   -1.99%
-    BenchmarkServerFakeConnNoKeepAlive              14619        14314   -2.09%
-    BenchmarkServerFakeConnWithKeepAlive            12390        11361   -8.31%
-    BenchmarkServerFakeConnWithKeepAliveLite         7630         7306   -4.25%
-    BenchmarkServerHandlerTypeLen                    9688         9342   -3.57%
-    BenchmarkServerHandlerNoLen                      8700         8470   -2.64%
-    BenchmarkServerHandlerNoType                     9255         8949   -3.31%
-    BenchmarkServerHandlerNoHeader                   7058         6806   -3.57%
+    A future CL by Carl will make the garbage collection pointer
+    bitmaps context-sensitive. At that point it will be possible to
+    remove most of the zeroing. The only values that will still need
+    zeroing are values whose addresses escape the block scoping
+    of the function but do not escape to the heap.
     
-    benchmark                                  old allocs   new allocs    delta
-    BenchmarkClientServer                              61           61    0.00%
-    BenchmarkClientServerParallel4                     61           61    0.00%
-    BenchmarkClientServerParallel64                    61           61    0.00%
-    BenchmarkServer                                    16           16    0.00%
-    BenchmarkServerFakeConnNoKeepAlive                 24           24    0.00%
-    BenchmarkServerFakeConnWithKeepAlive               19           19    0.00%
-    BenchmarkServerFakeConnWithKeepAliveLite            9            9    0.00%
-    BenchmarkServerHandlerTypeLen                      17           17    0.00%
-    BenchmarkServerHandlerNoLen                        14           14    0.00%
-    BenchmarkServerHandlerNoType                       15           15    0.00%
-    BenchmarkServerHandlerNoHeader                      9            9    0.00%
+    benchmark                         old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17            4420289180   4331060459   -2.02%
+    BenchmarkFannkuch11              3442469663   3277706251   -4.79%
+    BenchmarkFmtFprintfEmpty                100          142  +42.00%
+    BenchmarkFmtFprintfString               262          310  +18.32%
+    BenchmarkFmtFprintfInt                  213          281  +31.92%
+    BenchmarkFmtFprintfIntInt               355          431  +21.41%
+    BenchmarkFmtFprintfPrefixedInt          321          383  +19.31%
+    BenchmarkFmtFprintfFloat                444          533  +20.05%
+    BenchmarkFmtManyArgs                   1380         1559  +12.97%
+    BenchmarkGobDecode                 10240054     11794915  +15.18%
+    BenchmarkGobEncode                 17350274     19970478  +15.10%
+    BenchmarkGzip                     455179460    460699139   +1.21%
+    BenchmarkGunzip                   114271814    119291574   +4.39%
+    BenchmarkHTTPClientServer             89051        89894   +0.95%
+    BenchmarkJSONEncode                40486799     52691558  +30.15%
+    BenchmarkJSONDecode                94193361    112428781  +19.36%
+    BenchmarkMandelbrot200              4747060      4748043   +0.02%
+    BenchmarkGoParse                    6363798      6675098   +4.89%
+    BenchmarkRegexpMatchEasy0_32            129          171  +32.56%
+    BenchmarkRegexpMatchEasy0_1K            365          395   +8.22%
+    BenchmarkRegexpMatchEasy1_32            106          152  +43.40%
+    BenchmarkRegexpMatchEasy1_1K            952         1245  +30.78%
+    BenchmarkRegexpMatchMedium_32           198          283  +42.93%
+    BenchmarkRegexpMatchMedium_1K         79006       101097  +27.96%
+    BenchmarkRegexpMatchHard_32            3478         5115  +47.07%
+    BenchmarkRegexpMatchHard_1K          110245       163582  +48.38%
+    BenchmarkRevcomp                  777384355    793270857   +2.04%
+    BenchmarkTemplate                 136713089    157093609  +14.91%
+    BenchmarkTimeParse                     1511         1761  +16.55%
+    BenchmarkTimeFormat                     535          850  +58.88%
     
-    benchmark                                   old bytes    new bytes    delta
-    BenchmarkClientServer                            6988         6985   -0.04%
-    BenchmarkClientServerParallel4                   6979         6985    0.09%
-    BenchmarkClientServerParallel64                  7002         7019    0.24%
-    BenchmarkServer                                  1846         1848    0.11%
-    BenchmarkServerFakeConnNoKeepAlive               2420         2412   -0.33%
-    BenchmarkServerFakeConnWithKeepAlive             2126         2129    0.14%
-    BenchmarkServerFakeConnWithKeepAliveLite          989          990    0.10%
-    BenchmarkServerHandlerTypeLen                    1818         1819    0.06%
-    BenchmarkServerHandlerNoLen                      1775         1777    0.11%
-    BenchmarkServerHandlerNoType                     1783         1785    0.11%
-    BenchmarkServerHandlerNoHeader                    989          990    0.10%
+    benchmark                          old MB/s     new MB/s  speedup
+    BenchmarkGobDecode                    74.95        65.07    0.87x
+    BenchmarkGobEncode                    44.24        38.43    0.87x
+    BenchmarkGzip                         42.63        42.12    0.99x
+    BenchmarkGunzip                      169.81       162.67    0.96x
+    BenchmarkJSONEncode                   47.93        36.83    0.77x
+    BenchmarkJSONDecode                   20.60        17.26    0.84x
+    BenchmarkGoParse                       9.10         8.68    0.95x
+    BenchmarkRegexpMatchEasy0_32         247.24       186.31    0.75x
+    BenchmarkRegexpMatchEasy0_1K        2799.20      2591.93    0.93x
+    BenchmarkRegexpMatchEasy1_32         299.31       210.44    0.70x
+    BenchmarkRegexpMatchEasy1_1K        1074.71       822.45    0.77x
+    BenchmarkRegexpMatchMedium_32          5.04         3.53    0.70x
+    BenchmarkRegexpMatchMedium_1K         12.96        10.13    0.78x
+    BenchmarkRegexpMatchHard_32            9.20         6.26    0.68x
+    BenchmarkRegexpMatchHard_1K            9.29         6.26    0.67x
+    BenchmarkRevcomp                     326.95       320.40    0.98x
+    BenchmarkTemplate                     14.19        12.35    0.87x
     
-    R=golang-dev, r
+    R=cshapiro
     CC=golang-dev
-    https://golang.org/cl/12708046
+    https://golang.org/cl/12616045
 
- src/pkg/net/http/server.go | 81 ++++++++++++++--------------------------------
- 1 file changed, 24 insertions(+), 57 deletions(-)
+ src/cmd/5g/ggen.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/6g/ggen.c | 45 ++++++++++++++++++++++++++++++++++++++--
+ src/cmd/8g/ggen.c | 45 ++++++++++++++++++++++++++++++++++++++--
+ src/cmd/gc/go.h   |  2 +-
+ src/cmd/gc/pgen.c | 20 ++++++++++--------
+ src/cmd/gc/walk.c |  4 +++-
+ 6 files changed, 161 insertions(+), 17 deletions(-)

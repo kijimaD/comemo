@@ -1,25 +1,45 @@
-commit 21c71d77887733c02a7ae31b65b1b12041485ee5
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Fri Feb 10 13:17:20 2017 -0600
+commit 9c066bab643a0224decdd71813096e0d1df0624c
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 28 13:33:57 2016 -0400
 
-    cmd/compile/internal/ssa: combine load + op on AMD64
+    cmd/compile: mark temps with new AutoTemp flag, and use it.
     
-    On AMD64 Most operation can have one operand in memory.
-    Combine load and dependand operation into one new operation,
-    where possible. I've seen no significant performance changes on go1,
-    but this allows to remove ~1.8kb code from go tool. And in math package
-    I see e. g.:
+    This is an extension of
+    https://go-review.googlesource.com/c/31662/
+    to mark all the temporaries, not just the ssa-generated ones.
     
-    Remainder-6            70.0ns ± 0%   64.6ns ± 0%   -7.76%  (p=0.000 n=9+1
-    Change-Id: I88b8602b1d55da8ba548a34eb7da4b25d59a297e
-    Reviewed-on: https://go-review.googlesource.com/36793
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Before-and-after ls -l `go tool -n compile` shows a 3%
+    reduction in size (or rather, a prior 3% inflation for
+    failing to filter temps out properly.)
+    
+    Replaced name-dependent "is it a temp?" tests with calls to
+    *Node.IsAutoTmp(), which depends on AutoTemp.  Also replace
+    calls to istemp(n) with n.IsAutoTmp(), to reduce duplication
+    and clean up function name space.  Generated temporaries
+    now come with a "." prefix to avoid (apparently harmless)
+    clashes with legal Go variable names.
+    
+    Fixes #17644.
+    Fixes #17240.
+    
+    Change-Id: If1417f29c79a7275d7303ddf859b51472890fd43
+    Reviewed-on: https://go-review.googlesource.com/32255
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go        |  13 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  31 ++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  20 +
- src/cmd/compile/internal/ssa/opGen.go        | 298 ++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 798 +++++++++++++++++++++++++++
- 5 files changed, 1160 insertions(+)
+ src/cmd/compile/internal/gc/gen.go       |  11 ++-
+ src/cmd/compile/internal/gc/order.go     |  19 +---
+ src/cmd/compile/internal/gc/pgen.go      |   3 +
+ src/cmd/compile/internal/gc/racewalk.go  |   2 +-
+ src/cmd/compile/internal/gc/ssa.go       |   6 +-
+ src/cmd/compile/internal/gc/syntax.go    |  10 ++
+ src/cmd/compile/internal/gc/typecheck.go |   2 +-
+ src/cmd/compile/internal/gc/walk.go      |   2 +-
+ src/cmd/internal/dwarf/dwarf.go          |   4 -
+ test/fixedbugs/issue15747.go             |   6 +-
+ test/live.go                             | 160 +++++++++++++++----------------
+ test/live2.go                            |  10 +-
+ test/live_syscall.go                     |   4 +-
+ test/uintptrescapes2.go                  |   4 +-
+ 14 files changed, 125 insertions(+), 118 deletions(-)

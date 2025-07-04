@@ -1,22 +1,13 @@
-commit 65834685d3df3e6219cbf3ab471a13fa997c5b98
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 8 17:41:57 2013 +0400
+commit b4f370ca57ca440506998bdb5f51f13e4243eea5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 8 13:26:39 2013 +1000
 
-    runtime: use GetQueuedCompletionStatusEx on windows if available
-    GetQueuedCompletionStatusEx allows to dequeue a batch of completion
-    notifications, which is more efficient than dequeueing one by one.
+    regexp/syntax: make it clearer that \b and \B are ASCII-defined
+    Fixes #5896.
     
-    benchmark                           old ns/op    new ns/op    delta
-    BenchmarkClientServerParallel4         100605        90945   -9.60%
-    BenchmarkClientServerParallel4-2        90225        74504  -17.42%
-    
-    R=golang-dev, alex.brainman
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12436044
+    https://golang.org/cl/12645043
 
- src/pkg/runtime/netpoll.goc       |   6 +++
- src/pkg/runtime/netpoll_windows.c | 100 ++++++++++++++++++++++++++------------
- src/pkg/runtime/os_windows.c      |   3 ++
- src/pkg/runtime/os_windows.h      |   1 +
- src/pkg/runtime/runtime.h         |   1 +
- 5 files changed, 79 insertions(+), 32 deletions(-)
+ src/pkg/regexp/syntax/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

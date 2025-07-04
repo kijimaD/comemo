@@ -1,20 +1,19 @@
-commit f8dc4f20f8f8cb2ac8ee14b15ed4bf5201b61e81
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Nov 13 12:59:07 2016 -0800
+commit f964810025ae58b623798a1944c39c06266fb45d
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Mon Sep 19 20:36:45 2016 -0700
 
-    Revert "cmd/vet: ignore printf failures in cmd"
+    net/http/httptrace: fix bad tracing example
     
-    This reverts commit f15915af4effbbe6895ae69be02d22ac016927d5.
+    Tracing happens at the http.Trace level. Fix the example to demostrate
+    tracing in the lifecycle of a RoundTrip.
     
-    CL 32851 fixed cmd/vet's handling of fmt.Formatter.
+    Updates #17152.
     
-    Updates #17057.
-    
-    Change-Id: I3409100d16037645946fe7fe78fbb173e1648494
-    Reviewed-on: https://go-review.googlesource.com/33166
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic7d7bcc550176189206185482e8962dbf1504ff1
+    Reviewed-on: https://go-review.googlesource.com/29431
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/all/main.go | 9 ---------
- 1 file changed, 9 deletions(-)
+ src/net/http/httptrace/example_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

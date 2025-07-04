@@ -1,25 +1,24 @@
-commit a94347a05c74de989c9eb92d759ebc14eb12e021
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 14 10:55:06 2023 -0400
+commit 4e6f90fecd377777b08a151e1712b6d9180630de
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Oct 21 09:19:47 2022 -0500
 
-    cmd/compile: implement range over integer
+    cmd/internal/obj/ppc64: generate big uint32 values in register
     
-    Add compiler implementation of range over integers.
-    This is only reachable if GOEXPERIMENT=range is set,
-    because otherwise type checking will fail.
+    When using "MOVD $const, Rx", any 32b constant can be generated in
+    register quickly. Avoid transforming big uint32 values into a load.
     
-    For proposal #61405 (but behind a GOEXPERIMENT).
-    For #61717.
+    And, fix the instance in runtime.usleep where I discovered this.
     
-    Change-Id: I4e35a73c5df1ac57f61ffb54033a433967e5be51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/510538
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I46e156d7edf200f85b5b61162f00223c0ad81fe2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444815
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/noder/writer.go | 26 +-------------
- src/cmd/compile/internal/types2/stmt.go  |  6 ++++
- src/cmd/compile/internal/walk/order.go   | 11 +++---
- src/cmd/compile/internal/walk/range.go   | 24 ++++++++++---
- test/range3.go                           | 58 ++++++++++++++++++++++++++++++++
- 5 files changed, 91 insertions(+), 34 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 5 +++++
+ src/cmd/internal/obj/ppc64/obj9.go        | 7 +++++--
+ src/runtime/sys_linux_ppc64x.s            | 3 +--
+ 3 files changed, 11 insertions(+), 4 deletions(-)

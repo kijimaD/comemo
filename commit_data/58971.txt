@@ -1,24 +1,18 @@
-commit 232dfd226bb09b03d2218055d5c8c2c6b2c67ac2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 4 09:51:41 2025 -0800
+commit b6d1eb750f274d5637e5eb63f6e03706798f0444
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 25 20:29:32 2024 -0800
 
-    go/types, types2: rename errorCause to typeError
+    cmd/api: include type arguments in API
     
-    Change-Id: Ib8a63cdaa12dacb5223318a7166fe3dfdac71a45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654655
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    T[A] and T[B] are different types, but we were writing them both as
+    just "T". Reported by Russ.
+    
+    Change-Id: I27db35946b6d3a1fad6c56c785fa6d850ad71d00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558716
     Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/types2/call.go       |  4 ++--
- src/cmd/compile/internal/types2/expr.go       | 10 +++++-----
- src/cmd/compile/internal/types2/predicates.go | 14 +++++++-------
- src/cmd/compile/internal/types2/stmt.go       |  4 ++--
- src/cmd/compile/internal/types2/under.go      | 28 +++++++++++++--------------
- src/go/types/call.go                          |  4 ++--
- src/go/types/expr.go                          | 10 +++++-----
- src/go/types/predicates.go                    | 14 +++++++-------
- src/go/types/stmt.go                          |  4 ++--
- src/go/types/under.go                         | 28 +++++++++++++--------------
- 10 files changed, 60 insertions(+), 60 deletions(-)
+ src/cmd/api/main_test.go                   | 10 ++++++++++
+ src/cmd/api/testdata/src/pkg/p4/golden.txt |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

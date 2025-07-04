@@ -1,14 +1,13 @@
-commit c8ef6776e49d5dddd7d328fee2dde522197f2cdc
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 15 16:40:48 2014 -0700
+commit b9f5dce4fc05ab89fcf695f2236dfdbef697cde2
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Apr 16 00:48:21 2014 +0200
 
-    doc/install.html: FreeBSD 8 and higher only are supported
-    Fixes #7188
+    net/http: skip TestTransportClosesBodyOnError on Plan 9
     
-    LGTM=adg
-    R=golang-codereviews, adg
+    LGTM=rsc
+    R=bradfitz, rsc
     CC=golang-codereviews
-    https://golang.org/cl/88280044
+    https://golang.org/cl/87800044
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/transport_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,23 +1,17 @@
-commit b3cfb24f8d19e402b5f03f28777af2a27dd65658
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Wed Nov 15 08:23:23 2023 -0500
+commit 40a0986959167e7b82ae16a35a5dd2a347609eff
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 1 12:16:57 2023 -0800
 
-    doc/README.md: explain new release note system
+    cmd/compile/internal/types: remove misleading comment
     
-    This is the first CL in a sequence that adds support
-    for generating release notes from fragments.
+    The runtime's knowledge of these constants was removed in CL 261364.
     
-    The actual generator will live elsewhere, in x/build.
-    This repo will hold the content and some validity
-    checks.
-    
-    For #64169.
-    
-    Change-Id: Iaa8d9ad96393ab9433170b3cfa47334837f3f691
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542515
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I65e5a5ab084c6301eee1c9791bc76df9b824e466
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463754
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/README.md | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/cmd/compile/internal/types/alg.go | 1 -
+ 1 file changed, 1 deletion(-)

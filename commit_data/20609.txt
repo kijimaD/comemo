@@ -1,15 +1,11 @@
-commit 5edff3270479962ca67769947eb66adbe75e7fb4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 1 13:19:40 2014 -0700
+commit 50c9d6345915dfacf6d09bf40d21161e77be987a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 15:10:54 2014 -0400
 
-    testing: clearer comment
+    doc/go1.4.txt: document that C sources in non-cgo packages are no longer allowed
     
-    Fixes #8797.
-    
-    LGTM=r
-    R=r
     CC=golang-codereviews
-    https://golang.org/cl/146680043
+    https://golang.org/cl/145890046
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

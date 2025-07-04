@@ -1,15 +1,16 @@
-commit 71cc445cf92dd3014e8b382809ed1b9c077e7973
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 23 16:11:46 2016 -0800
+commit 08ab43eca244e7bec0228c17d93a7cde17b20f7f
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Fri Nov 6 23:27:01 2015 +0530
 
-    cmd/cgo: recognize known C typedefs as types
+    cmd/pprof: exit with non-zero status code on error
     
-    Fixes #14483.
+    Set the status code in case of error.
     
-    Change-Id: I0cddfe27fd8d00ba85659d0b618410e39ebf45cb
-    Reviewed-on: https://go-review.googlesource.com/19860
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #11510
+    
+    Change-Id: If461c30a1f6d2275539f33a2eabd7b19bbfa411d
+    Reviewed-on: https://go-review.googlesource.com/16718
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/errors/ptr.go | 10 ++++++++++
- src/cmd/cgo/gcc.go     | 11 +++++++----
- 2 files changed, 17 insertions(+), 4 deletions(-)
+ src/cmd/pprof/pprof.go | 1 +
+ 1 file changed, 1 insertion(+)

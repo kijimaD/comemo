@@ -1,26 +1,23 @@
-commit 6c67dd90f7734f86f0118005930f2520ef08392d
+commit fd21b9f8b5fbec92d5a332b91e2eedce6a2a9ad4
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Aug 24 20:28:29 2014 -0400
+Date:   Fri Aug 15 15:22:33 2014 -0400
 
-    runtime: remove some overuse of uintptr/unsafe.Pointer
+    [dev.power64] runtime: make all bitmaps arrays of bytes
     
-    Now 'go vet runtime' only shows:
+    The "simpler faster garbage collector" is full of little-endian assumptions.
+    Instead of trying to correct all the mistakes, just give in and make
+    everything use bytes.
     
-            malloc.go:200: possible misuse of unsafe.Pointer
-            malloc.go:214: possible misuse of unsafe.Pointer
-            malloc.go:250: possible misuse of unsafe.Pointer
-            stubs.go:167: possible misuse of unsafe.Pointer
-    
-    Those are all unavoidable.
-    
-    LGTM=josharian
-    R=golang-codereviews, dvyukov, josharian
-    CC=dave, golang-codereviews
-    https://golang.org/cl/135730043
+    LGTM=minux
+    R=minux
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/124400043
 
- src/pkg/runtime/error.go  |  2 +-
- src/pkg/runtime/string.go |  4 +--
- src/pkg/runtime/stubs.go  |  3 +-
- src/pkg/runtime/symtab.c  | 26 +++++++++++------
- src/pkg/runtime/symtab.go | 71 +++++++++++++++++++++--------------------------
- 5 files changed, 55 insertions(+), 51 deletions(-)
+ src/cmd/gc/plive.c         |  6 +++++-
+ src/pkg/runtime/heapdump.c | 14 ++++++-------
+ src/pkg/runtime/malloc.go  |  9 ++++----
+ src/pkg/runtime/malloc.h   |  4 ++--
+ src/pkg/runtime/mgc0.c     | 51 ++++++++++++++++++++++++++--------------------
+ src/pkg/runtime/mgc0.h     |  7 +++++++
+ src/pkg/runtime/stack.c    |  6 +++---
+ 7 files changed, 58 insertions(+), 39 deletions(-)

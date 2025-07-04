@@ -1,16 +1,27 @@
-commit 7f806c1052aa919c1c195a5b2223626beab2495c
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Apr 25 19:59:01 2025 +0800
+commit 754f870381ef5e2c60c0edd4f902e7063ffb4452
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Sep 17 21:46:35 2023 +0100
 
-    runtime, internal/fuzz: optimize build tag combination on loong64
+    crypto/tls,regexp: remove always-nil error results
     
-    Change-Id: I971b789beb08e0c6b11169fd5547a8d4ab74fab5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668155
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    These were harmless, but added unnecessary verbosity to the code.
+    This can happen as a result of refactors: for example,
+    the method sessionState used to return errors in some cases.
+    
+    Change-Id: I4e6dacc01ae6a49b528c672979f95cbb86795a85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528995
+    Reviewed-by: Leo Isla <islaleo93@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Olivier Mengué <olivier.mengue@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
 
- src/internal/fuzz/counters_supported.go   | 2 +-
- src/internal/fuzz/counters_unsupported.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/tls/handshake_client.go       | 5 +----
+ src/crypto/tls/handshake_client_tls13.go | 6 +-----
+ src/crypto/tls/handshake_server.go       | 6 ++----
+ src/crypto/tls/handshake_server_tls13.go | 9 +++------
+ src/crypto/tls/ticket.go                 | 4 ++--
+ src/regexp/syntax/parse.go               | 8 ++------
+ 6 files changed, 11 insertions(+), 27 deletions(-)

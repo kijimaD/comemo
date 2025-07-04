@@ -1,15 +1,42 @@
-commit 5fdadffe3d20be9de491835c4351dee5dc81c42c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 14 02:32:25 2024 -0500
+commit d98f74b31eab9308c8c6e9d4a0ad6c04d5dac65a
+Author: Xianmiao Qu <cooper.qu@linux.alibaba.com>
+Date:   Sat Sep 30 16:12:34 2023 +0800
 
-    cmd/dist: add FIPS snapshot build tests
+    cmd/compile/internal: intrinsify publicationBarrier on riscv64
     
-    Check that all the FIPS zips build.
+    This enables publicationBarrier to be used as an intrinsic
+    on riscv64, optimizing the required function call and return
+    instructions for invoking the "runtime.publicationBarrier"
+    function.
     
-    Change-Id: Iec22d9295178f95862060e57a8ac9ed657f69943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629197
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    This function is called by mallocgc. The benchmark results for malloc tested on Lichee-Pi-4A(TH1520, RISC-V 2.0G C910 x4) are as follows.
+    
+    goos: linux
+    goarch: riscv64
+    pkg: runtime
+                        │   old.txt   │              new.txt               │
+                        │   sec/op    │   sec/op     vs base               │
+    Malloc8-4             92.78n ± 1%   90.77n ± 1%  -2.17% (p=0.001 n=10)
+    Malloc16-4            156.5n ± 1%   151.7n ± 2%  -3.10% (p=0.000 n=10)
+    MallocTypeInfo8-4     131.7n ± 1%   130.6n ± 2%       ~ (p=0.165 n=10)
+    MallocTypeInfo16-4    186.5n ± 2%   186.2n ± 1%       ~ (p=0.956 n=10)
+    MallocLargeStruct-4   1.345µ ± 1%   1.355µ ± 1%       ~ (p=0.093 n=10)
+    geomean               216.9n        214.5n       -1.10%
+    
+    
+    Change-Id: Ieab6c02309614bac5c1b12b5ee3311f988ff644d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531719
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/cmd/dist/test.go | 40 ++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 38 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/riscv64/ssa.go         | 4 ++++
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 3 +++
+ src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go | 3 +++
+ src/cmd/compile/internal/ssa/opGen.go           | 8 ++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 3 +++
+ src/cmd/compile/internal/ssagen/ssa.go          | 2 +-
+ 6 files changed, 22 insertions(+), 1 deletion(-)

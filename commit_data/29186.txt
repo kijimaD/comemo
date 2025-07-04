@@ -1,58 +1,14 @@
-commit 87e48c5afdcf5e01bb2b7f51b7643e8901f4b7f9
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 17 18:41:56 2016 -0400
+commit 4710e16d34354a555cc6ebe54c6855bf5502fcbf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 13:50:03 2016 -0700
 
-    runtime, cmd/compile: rename memclr -> memclrNoHeapPointers
+    cmd/compile: cleanup addmethod
     
-    Since barrier-less memclr is only safe in very narrow circumstances,
-    this commit renames memclr to avoid accidentally calling memclr on
-    typed memory. This can cause subtle, non-deterministic bugs, so it's
-    worth some effort to prevent. In the near term, this will also prevent
-    bugs creeping in from any concurrent CLs that add calls to memclr; if
-    this happens, whichever patch hits master second will fail to compile.
-    
-    This also adds the other new memclr variants to the compiler's
-    builtin.go to minimize the churn on that binary blob. We'll use these
-    in future commits.
-    
-    Updates #17503.
-    
-    Change-Id: I00eead049f5bd35ca107ea525966831f3d1ed9ca
-    Reviewed-on: https://go-review.googlesource.com/31369
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Icb1671187d70edd962e2bda2cc45771b17a8e770
+    Reviewed-on: https://go-review.googlesource.com/28175
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 139 +++++++++++++------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
- src/cmd/compile/internal/gc/range.go           |   8 +-
- src/reflect/value.go                           |   8 +-
- src/runtime/alg.go                             |   6 --
- src/runtime/asm_amd64p32.s                     |   2 +-
- src/runtime/export_test.go                     |   6 +-
- src/runtime/hashmap.go                         |   2 +-
- src/runtime/heapdump.go                        |   2 +-
- src/runtime/malloc.go                          |   2 +-
- src/runtime/mbarrier.go                        |  10 +-
- src/runtime/mbitmap.go                         |   4 +-
- src/runtime/mem_plan9.go                       |  10 +-
- src/runtime/memclr_386.s                       |   4 +-
- src/runtime/memclr_amd64.s                     |   4 +-
- src/runtime/memclr_arm.s                       |   2 +-
- src/runtime/memclr_arm64.s                     |   4 +-
- src/runtime/memclr_mips64x.s                   |   4 +-
- src/runtime/memclr_plan9_386.s                 |   4 +-
- src/runtime/memclr_plan9_amd64.s               |   4 +-
- src/runtime/memclr_ppc64x.s                    |   4 +-
- src/runtime/memclr_s390x.s                     |   4 +-
- src/runtime/mfixalloc.go                       |   2 +-
- src/runtime/mheap.go                           |   4 +-
- src/runtime/os3_solaris.go                     |   6 +-
- src/runtime/proc.go                            |   2 +-
- src/runtime/slice.go                           |   2 +-
- src/runtime/stack.go                           |   2 +-
- src/runtime/string.go                          |   4 +-
- src/runtime/stubs.go                           |  22 ++--
- src/runtime/sys_windows_386.s                  |   4 +-
- src/runtime/sys_windows_amd64.s                |   4 +-
- src/runtime/write_err_android.go               |   4 +-
- 33 files changed, 154 insertions(+), 139 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go | 71 +++++++++++++++-----------------------
+ 1 file changed, 28 insertions(+), 43 deletions(-)

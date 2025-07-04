@@ -1,17 +1,12 @@
-commit c31bcd13909edb53621c3dc47aa987365247df8d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 8 21:50:35 2019 -0500
+commit fafc92d4a6756c00683513a21a8f055b01595792
+Author: Andrew <andybons@golang.org>
+Date:   Mon Jun 24 10:11:26 2019 -0400
 
-    runtime/pprof: skip checks for inlined functions when inlining is disabled
+    doc/go1.13: remove bytes TODO since it does not require a release note
     
-    Fixes #35463
-    
-    Change-Id: I29af27b77cc651395c20570943847729ff12586c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206297
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8c19c6df6fec74dcc8c3bfdc667576ea00e86ec1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183617
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/pprof/mprof_test.go |  6 ++++++
- src/runtime/pprof/pprof_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+)
+ doc/go1.13.html | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,27 +1,23 @@
-commit 1bdf1c3024d75a3c4913d031d55257b311f0133f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 9 11:19:26 2016 -0700
+commit d481ffc1afeae8852caa3452a0e23b1cd90d1e10
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 6 18:54:17 2016 -0700
 
-    cmd/cgo: fix use of unsafe argument in new deferred function
+    cmd/compile, cmd/link: eliminate uses of ArchFamily in error messages
     
-    The combination of https://golang.org/cl/23650 and
-    https://golang.org/cl/23675 did not work--they were tested separately
-    but not together.
+    Two of these error messages are already dead code: cmd/compile.main
+    and cmd/link.main already switch on $GOARCH, ensuring it must be a
+    prefix of the sys.Arch.Family.
     
-    The problem was that 23650 introduced deferred argument checking, and
-    the deferred function loses the type that 23675 started requiring. The
-    fix is to go back to using an empty interface type in a deferred
-    argument check.
+    The error message about uncompiled Go source files can be just be
+    simplified: anyone who's manually constructing Go object file archives
+    probably knows what tool to use to compile Go source files.
     
-    No new test required--fixes broken build.
-    
-    Change-Id: I5ea023c5aed71d70e57b11c4551242d3ef25986d
-    Reviewed-on: https://go-review.googlesource.com/23961
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia4a67c0a1d1158379c127c91e909226d3367f3c2
+    Reviewed-on: https://go-review.googlesource.com/21626
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cgo/gcc.go  | 28 +++++++++++++++++++++-------
- src/cmd/cgo/main.go |  5 ++++-
- src/cmd/cgo/out.go  |  8 +++++++-
- 3 files changed, 32 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 9 +--------
+ src/cmd/link/internal/ld/lib.go     | 7 ++-----
+ 2 files changed, 3 insertions(+), 13 deletions(-)

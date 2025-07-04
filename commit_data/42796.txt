@@ -1,41 +1,13 @@
-commit d556c251a1f1506f68e1e4064c3537948ff667a3
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu May 28 18:11:52 2020 +0800
+commit 715e8bbe636ae9aa7365ff8415dcbf1b5f57b009
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 6 13:14:03 2020 -0800
 
-    cmd/compile: add more generic rewrite rules to reassociate (op (op y C) x|C)
+    cmd/compile: factor out opIsCommutative from commute1
     
-    With this patch, opt pass can expose more obvious constant-folding
-    opportunites.
-    
-    Example:
-    func test(i int) int {return (i+8)-(i+4)}
-    
-    The previous version:
-      MOVD  "".i(FP), R0
-      ADD   $8, R0, R1
-      ADD   $4, R0, R0
-      SUB   R0, R1, R0
-      MOVD  R0, "".~r1+8(FP)
-      RET   (R30)
-    
-    The optimized version:
-      MOVD  $4, R0
-      MOVD  R0, "".~r1+8(FP)
-      RET   (R30)
-    
-    This patch removes some existing reassociation rules, such as "x+(z-C)",
-    because the current generic rewrite rules will canonicalize "x-const"
-    to "x+(-const)", making "x+(z-C)" equal to "x+(z+(-C))".
-    
-    This patch also adds test cases.
-    
-    Change-Id: I857108ba0b5fcc18a879eeab38e2551bc4277797
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237137
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I989a66c98dcca8168e35dd9834fc1365e0a1d881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213697
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  54 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 816 +++++++++++++++----------
- test/codegen/arithmetic.go                     |  31 +-
- 3 files changed, 545 insertions(+), 356 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 44 ++++++++++++++++-------------
+ 1 file changed, 24 insertions(+), 20 deletions(-)

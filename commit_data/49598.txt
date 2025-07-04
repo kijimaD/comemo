@@ -1,36 +1,36 @@
-commit 8ac58de1857637f372a00ea16ab5497193b784a6
-Author: Aaron Gable <aaron@letsencrypt.org>
-Date:   Wed Jul 6 16:59:03 2022 -0700
+commit 37da45d05a50419b44dcb444d280af31e5344f8e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Aug 6 16:15:48 2021 -0700
 
-    crypto/x509: populate Number and AKI of parsed CRLs
+    [dev.fuzz] internal/fuzz: count -fuzzminimizetime toward -fuzztime
     
-    The x509.RevocationList type has two fields which correspond to
-    extensions, rather than native fields, of the underlying ASN.1 CRL:
-    the .Number field corresponds to the crlNumber extension, and
-    the .AuthorityKeyId field corresponds to the authorityKeyIdentifier
-    extension.
+    Previously, when -fuzztime was given a number of executions like
+    -fuzztime=100x, this was a count for each minimization independent of
+    -fuzztime. Since there is no bound on the number of minimizations,
+    this was not a meaningful limit.
     
-    The x509.CreateRevocationList() function uses these fields to populate
-    their respective extensions in the resulting CRL. However, the
-    x509.ParseRevocationList() function does not perform the reverse
-    operation: the fields retain their zero-values even after parsing a CRL
-    which contains the relevant extensions.
+    With this change, executions of the fuzz function during minimization
+    count toward the -fuzztime global limit. Executions are further
+    limited by -fuzzminimizetime.
     
-    Add code which populates these fields when parsing their extensions.
-    Add assertions to the existing tests to confirm that the values are
-    populated appropriately.
+    This change also counts executions during the coverage-only run and
+    reports errors for those executions.
     
-    Fixes #53726
+    There is no change when -fuzztime specifies a duration or when
+    -fuzztime is not set.
     
-    Change-Id: Ie5b71081e53034e0b5b9ff3c122065c62f15cf23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416354
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ibcf1b1982f28b28f6625283aa03ce66d4de0a26d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342994
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/crypto/x509/parser.go    | 17 +++++++++++++----
- src/crypto/x509/x509.go      |  7 +++++--
- src/crypto/x509/x509_test.go | 13 +++++++++++++
- 3 files changed, 31 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_deadline.txt  |   2 +-
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt  |  17 ++-
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt  |   4 +-
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  |  30 ++---
+ src/internal/fuzz/fuzz.go                          | 133 ++++++++++++++++-----
+ src/internal/fuzz/worker.go                        |  49 +++++---
+ 6 files changed, 162 insertions(+), 73 deletions(-)

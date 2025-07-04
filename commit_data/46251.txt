@@ -1,20 +1,32 @@
-commit 36ac2214fadc64f33f5e8c4076d123ba4e40a665
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Aug 31 18:26:16 2021 -0400
+commit 846740c17fe3f65fe4c004e07a7550cba7c028fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 18:45:58 2020 -0500
 
-    go/types: remove superfluous ordinaryType calls
+    [dev.regabi] cmd/compile: cleanup for concrete types - ssa
     
-    This is a port of CL 346291 to go/types.
+    An automated rewrite will add concrete type assertions after
+    a test of n.Op(), when n can be safely type-asserted
+    (meaning, n is not reassigned a different type, n is not reassigned
+    and then used outside the scope of the type assertion,
+    and so on).
     
-    Change-Id: I8f864aca5cdb4037bc27a81cde1597430b9a48db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346559
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This sequence of CLs handles the code that the automated
+    rewrite does not: adding specific types to function arguments,
+    adjusting code not to call n.Left() etc when n may have multiple
+    representations, and so on.
+    
+    This CL focuses on ssa.go.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Iefacc7104dd9469e3c574149791ab0bff29f7fee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277923
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/expr.go                           |  1 -
- src/go/types/stmt.go                           |  1 -
- src/go/types/testdata/fixedbugs/issue42758.go2 |  2 +-
- src/go/types/typexpr.go                        | 19 +++++++------------
- 4 files changed, 8 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/inl.go   |   4 +-
+ src/cmd/compile/internal/gc/phi.go   |   8 +-
+ src/cmd/compile/internal/gc/plive.go |  10 +-
+ src/cmd/compile/internal/gc/ssa.go   | 374 ++++++++++++++++++++---------------
+ src/cmd/compile/internal/gc/walk.go  |   2 +-
+ 5 files changed, 229 insertions(+), 169 deletions(-)

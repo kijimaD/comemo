@@ -1,24 +1,16 @@
-commit 15a54d627ca7a0bdf45a3d1862b35a892024cacc
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Nov 9 11:35:52 2021 -0500
+commit 59e012991a31dcf65a0ec79f99b7f4234f46cf2d
+Author: Josh Deprez <DrJosh9000@users.noreply.github.com>
+Date:   Tue Nov 10 21:27:04 2020 +0000
 
-    runtime: add upper half and carry bit with zero
+    net/http: note that "HTTP/2" is invalid for ParseHTTPVersion
     
-    https://golang.org/cl/246763 accidentally changed this from upper + 0 +
-    carry to upper + old vdsoSP + carry.
-    
-    The old value of vdsoPC is usually zero, so this typically works.
-    However, the reentrant case will have a non-zero value, resulting in a
-    bogus returned time.
-    
-    Fixes #49481
-    
-    Change-Id: I0110b84277bf911804cb0ff8097aebf1b7eb100a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362674
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ieba05dea892ec9855a63b80e456bcf9188eef855
+    GitHub-Last-Rev: 5f7663ac4aaecb01a27a04309277240fd15759c9
+    GitHub-Pull-Request: golang/go#41806
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259758
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Damien Neil <dneil@google.com>
 
- src/runtime/sys_linux_arm.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/request.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

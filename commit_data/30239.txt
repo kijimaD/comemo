@@ -1,28 +1,18 @@
-commit 5a303aa1e96b669051a18bdc44465396a45037ea
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Fri Feb 10 09:22:35 2017 -0500
+commit 13558c41ffa29d0af80e7e06d08af8eb0f0055fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 20:13:33 2016 -0400
 
-    syscall: delete the "use" function and calls in non-generated files.
+    net: only remove Unix domain socket file on the first call to Close
     
-    Delete use stub from asm.s, leaving only a dummy file.
-    Deleting the file causes Windows build to fail.
+    Fixes #17131.
     
-    Fixes #16607
-    
-    Change-Id: Ic5a55e042e588f1e1bc6605a3d309d1eabdeb288
-    Reviewed-on: https://go-review.googlesource.com/36716
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I60b381687746fadce12ef18a190cbe3f435172f2
+    Reviewed-on: https://go-review.googlesource.com/32098
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/syscall/asm.s                  |  7 +++----
- src/syscall/dll_windows.go         |  1 -
- src/syscall/syscall.go             | 10 ----------
- src/syscall/syscall_darwin.go      |  2 --
- src/syscall/syscall_dragonfly.go   |  1 -
- src/syscall/syscall_freebsd.go     |  1 -
- src/syscall/syscall_linux.go       |  2 --
- src/syscall/syscall_linux_386.go   |  1 -
- src/syscall/syscall_linux_arm.go   |  1 -
- src/syscall/syscall_linux_mipsx.go |  2 --
- src/syscall/syscall_linux_s390x.go |  1 -
- src/syscall/syscall_plan9.go       |  2 --
- 12 files changed, 3 insertions(+), 28 deletions(-)
+ src/net/unixsock.go       |  8 +++++---
+ src/net/unixsock_posix.go |  9 ++++++---
+ src/net/unixsock_test.go  | 12 ++++++++++++
+ 3 files changed, 23 insertions(+), 6 deletions(-)

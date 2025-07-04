@@ -1,0 +1,40 @@
+commit 18bbcffc46ce9d681190562f9430cd6727978254
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Dec 5 21:52:49 2024 +0000
+
+    all: update vendored dependencies [generated]
+    
+    The Go 1.24 RC is due for next week. This is a time to once again update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
+    
+    For #36905.
+    
+    [git-generate]
+    go install golang.org/x/build/cmd/updatestd@latest
+    go install golang.org/x/tools/cmd/bundle@latest
+    updatestd -goroot=$(pwd) -branch=master
+    
+    Change-Id: If4fd03a18590ff3b6e701a9698370c57c69979c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634041
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go.mod                                     | 14 ++---
+ src/cmd/go.sum                                     | 28 +++++-----
+ .../golang.org/x/sys/unix/ztypes_darwin_amd64.go   | 60 ++++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_darwin_arm64.go   | 60 ++++++++++++++++++++++
+ .../tools/go/analysis/passes/buildtag/buildtag.go  | 25 +++------
+ .../x/tools/go/analysis/passes/printf/printf.go    |  3 ++
+ .../x/tools/internal/analysisinternal/analysis.go  | 22 +++++---
+ .../x/tools/internal/versions/constraint.go        | 13 -----
+ .../x/tools/internal/versions/constraint_go121.go  | 14 -----
+ src/cmd/vendor/modules.txt                         | 14 ++---
+ src/go.mod                                         |  8 +--
+ src/go.sum                                         | 16 +++---
+ src/net/http/h2_bundle.go                          | 46 +++++++++++++----
+ src/vendor/golang.org/x/net/route/address.go       | 18 ++++---
+ src/vendor/modules.txt                             |  8 +--
+ 15 files changed, 236 insertions(+), 113 deletions(-)

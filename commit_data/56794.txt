@@ -1,29 +1,27 @@
-commit 7bfc82429c4067664d9645c70323cd76ee0496c0
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Mar 28 09:17:27 2023 -0400
+commit 2a8969cb365a5539b8652d5ac1588aaef78d3e16
+Author: Paul Jolly <paul@myitcv.io>
+Date:   Wed May 24 05:51:09 2023 +0100
 
-    cmd/link: use path from "cc --print-prog-name ar" for c-archive buildmode
+    fmt: correct documentation for Formatter
     
-    [This is a roll-forward of CL 479775, which had to be rolled back due
-    to bad interactions with the wrappers used by the ios-arm64-corellium
-    builder. ios-arm64-corellium is no longer being maintained AFAICT,
-    meaning that it should be ok to move ahead with this patch again].
+    Before this CL, the documentation for Formatter suggested that
+    implementers of Format(f State, verb rune) could use Fprint(f) or
+    Sprint(f) to generate output. The Sprint(f) suggestion however is
+    invalid.
     
-    When external linking with -buildmode=c-archive, the Go linker
-    eventually invokes the "ar" tool to create the final archive library.
-    Prior to this patch, if the '-extar' flag was not in use, we would
-    just run "ar". This works well in most cases but breaks down if we're
-    doing cross-compilation targeting Windows (macos system "ar"
-    apparently doesn't create the windows symdef section correctly). To
-    fix the problem, capture the output of "cc --print-prog-name ar" and
-    invoke "ar" using the path returned by that command.
+    Fix that by simply suggesting Sprint() alongside Fprint(f).
     
-    Fixes #59221.
+    Fixes #60358
     
-    Change-Id: Ie367541b23641266a6f48ac68adf971501bff9fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592375
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I024e996f6360b812968ef2cd5073cb4c223459e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497379
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/lib.go | 39 +++++++++++++++++++++++----------------
- 1 file changed, 23 insertions(+), 16 deletions(-)
+ src/fmt/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

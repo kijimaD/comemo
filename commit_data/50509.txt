@@ -1,25 +1,22 @@
-commit 0a1118b8a172e64247ce44fcaa7483f24d834c18
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 12 15:51:32 2022 -0700
+commit 903f313d8b6e85c031fc5918273ff4800fa9f952
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Oct 29 17:58:42 2021 +0000
 
-    go/types, types2: allow (string...) signature with NewSignatureType
+    runtime: fix unclosed GCSweepStart trace event
     
-    Includes cases where the core type of the variadic parameter is
-    a slice or bytestring. Permits a client to create the signature
-    for various instantiations of append.
+    CL 333389 erroneously moved traceGCSweepDone inside the sl.valid block
+    that it introduced in mcentral.cacheSpan, when it should have left it
+    outside that scope, because the trace event is created unconditionally
+    at the top of the method.
     
-    Fixes #55030.
+    Fixes #49231.
     
-    Change-Id: I0f4983eb00c088cbe1d87954ee0b2df0ccc3bc49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430455
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: If719c05063d4f4d330a320da6dc00d1e9d8102e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359775
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/issues_test.go | 37 ++++++++++++++++++++++++++
- src/cmd/compile/internal/types2/signature.go   | 15 +++++++----
- src/go/types/issues_test.go                    | 37 ++++++++++++++++++++++++++
- src/go/types/signature.go                      | 11 +++++---
- 4 files changed, 91 insertions(+), 9 deletions(-)
+ src/runtime/mcentral.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,41 +1,21 @@
-commit 2cc17bc5f205345ae215806266343d0bb013a861
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Nov 23 16:56:23 2018 +0000
+commit 039c2081d1178f90a8fa2f4e6958693129f8de33
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 9 22:04:58 2018 -0500
 
-    encoding/json: speed up tokenization of literals
+    crypto/tls: set ServerName and unset TLSUnique in ConnectionState in TLS 1.3
     
-    Decoder.Decode and Unmarshal actually scan the input bytes twice - the
-    first time to check for syntax errors and the length of the value, and
-    the second to perform the decoding.
+    Fix a couple overlooked ConnectionState fields noticed by net/http
+    tests, and add a test in crypto/tls. Spun off CL 147638 to keep that one
+    cleanly about enabling TLS 1.3.
     
-    It's in the second scan that we actually tokenize the bytes. Since
-    syntax errors aren't a possibility, we can take shortcuts.
-    
-    In particular, literals such as quoted strings are very common in JSON,
-    so we can avoid a lot of work by special casing them.
-    
-    name                  old time/op    new time/op    delta
-    CodeDecoder-8           10.3ms ± 1%     9.1ms ± 0%  -11.89%  (p=0.002 n=6+6)
-    UnicodeDecoder-8         342ns ± 0%     283ns ± 0%  -17.25%  (p=0.000 n=6+5)
-    DecoderStream-8          239ns ± 0%     230ns ± 0%   -3.90%  (p=0.000 n=6+5)
-    CodeUnmarshal-8         11.0ms ± 0%     9.8ms ± 0%  -11.45%  (p=0.002 n=6+6)
-    CodeUnmarshalReuse-8    10.3ms ± 0%     9.0ms ± 0%  -12.72%  (p=0.004 n=5+6)
-    UnmarshalString-8        104ns ± 0%      92ns ± 0%  -11.35%  (p=0.002 n=6+6)
-    UnmarshalFloat64-8      93.2ns ± 0%    87.6ns ± 0%   -6.01%  (p=0.010 n=6+4)
-    UnmarshalInt64-8        74.5ns ± 0%    71.5ns ± 0%   -3.91%  (p=0.000 n=5+6)
-    
-    name                  old speed      new speed      delta
-    CodeDecoder-8          189MB/s ± 1%   214MB/s ± 0%  +13.50%  (p=0.002 n=6+6)
-    UnicodeDecoder-8      40.9MB/s ± 0%  49.5MB/s ± 0%  +20.96%  (p=0.002 n=6+6)
-    CodeUnmarshal-8        176MB/s ± 0%   199MB/s ± 0%  +12.93%  (p=0.002 n=6+6)
-    
-    Updates #28923.
-    
-    Change-Id: I7a5e2aef51bd4ddf2004aad24210f6f50e01eaeb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/151042
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I9a6c2e68d64518a44be2a5d7b0b7b8d78c98c95d
+    Reviewed-on: https://go-review.googlesource.com/c/148900
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/decode.go | 54 +++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 50 insertions(+), 4 deletions(-)
+ src/crypto/tls/common.go                 |   6 +-
+ src/crypto/tls/conn.go                   |   2 +-
+ src/crypto/tls/handshake_server_tls13.go |   1 +
+ src/crypto/tls/tls_test.go               | 116 +++++++++++++++++++++++++++++++
+ 4 files changed, 121 insertions(+), 4 deletions(-)

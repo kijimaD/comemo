@@ -1,23 +1,34 @@
-commit 81ed1354e8fef60cac1f7043d723d9d38c9ce174
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Aug 29 09:32:34 2022 -0700
+commit cf1ec173603f950aaccb549602ed0fee57e6b709
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Dec 6 16:30:19 2021 -0800
 
-    crypto/tls: add a certificate cache implementation
+    cmd/compile: deal with unsatisfiable type assertion in some instantiations
     
-    Adds a BoringSSL CRYPTO_BUFFER_POOL style reference counted intern
-    table for x509.Certificates. This can be used to significantly reduce
-    the amount of memory used by TLS clients when certificates are reused
-    across connections.
+    Deal with case where a certain instantiation of a generic
+    function/method leads to an unsatisfiable type assertion or type case.
+    In that case, the compiler was causing a fatal error while trying to
+    create an impossible itab for the dictionary. To deal with that case,
+    allow ITabLsym() to create a dummy itab even when the concrete type
+    doesn't implement the interface. This dummy itab is analogous to the
+    "negative" itabs created on-the-fly by the runtime.
     
-    Updates #46035
+    We will use the dummy itab in type asserts and type switches in
+    instantiations that use that dictionary entry. Since the dummy itab can
+    never be used for any real value at runtime (since the concrete type
+    doesn't implement the interface), there will always be a failure for the
+    corresponding type assertion or a non-match for the corresponding
+    type-switch case.
     
-    Change-Id: I8d7af3bc659a93c5d524990d14e5254212ae70f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426454
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Fixes #50002
+    
+    Change-Id: I1df05b1019533e1fc93dd7ab29f331a74fab9202
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369894
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/tls/cache.go      |  93 ++++++++++++++++++++++++++++++++++
- src/crypto/tls/cache_test.go | 117 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 210 insertions(+)
+ src/cmd/compile/internal/reflectdata/reflect.go | 30 ++++++++----
+ test/run.go                                     |  1 +
+ test/typeparam/issue50002.go                    | 64 +++++++++++++++++++++++++
+ 3 files changed, 86 insertions(+), 9 deletions(-)

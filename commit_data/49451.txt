@@ -1,18 +1,18 @@
-commit fb75c2da91b9cccf05ec6baad2636325c5d96751
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jun 9 17:30:05 2022 -0400
+commit e49775e0579891479888a514c82cf6eea123763f
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 16:01:42 2021 -0400
 
-    cmd/dist, cmd/internal/metadata: don't install metadata binary
+    go/types: consolidate verification logic
     
-    It is only needed by cmd/dist, no need to build and install the
-    binary.
+    This is a straightforward port of CL 342149 to go/types.
     
-    Change-Id: I6aba6b81496406077a0efba255c35020cff9d351
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411534
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I468c5154b7545b7816bb3f240b8db91e7a1fd3f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342488
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/test.go              | 2 +-
- src/cmd/internal/metadata/main.go | 6 ++++++
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/go/types/instantiate.go | 49 +++++++++++++++++++++++----------------------
+ src/go/types/typexpr.go     |  2 +-
+ 2 files changed, 26 insertions(+), 25 deletions(-)

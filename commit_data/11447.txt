@@ -1,42 +1,23 @@
-commit 79dc34413e4ad93cc8c590e9f3cc97538c7f8266
-Author: Rob Pike <r@golang.org>
-Date:   Sun Jan 29 09:19:05 2012 -0800
+commit 3d400db5de91ede0fb36c2c045a0572f731a1dc4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 29 19:11:05 2012 +0900
 
-    cmd/go: first piece of tool rearrangement
-    1) create go-tool dir in make.bash
-    2) clean up stale binaries in make.bash
-    3) add 'tool' command to go
-    4) convert goyacc->yacc as a first test tool
-    Since goyacc stands alone, it's a safe trial.
+    net: update comments to remove redundant "net" prefix
     
-    R=rsc
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5576061
+    https://golang.org/cl/5569087
 
- src/Make.tool                              |  49 ++++++++++++++
- src/buildscript/darwin_386.sh              |   2 +-
- src/buildscript/darwin_amd64.sh            |   2 +-
- src/buildscript/freebsd_386.sh             |   2 +-
- src/buildscript/freebsd_amd64.sh           |   2 +-
- src/buildscript/linux_386.sh               |   2 +-
- src/buildscript/linux_amd64.sh             |   2 +-
- src/buildscript/linux_arm.sh               |   2 +-
- src/buildscript/netbsd_386.sh              |   2 +-
- src/buildscript/netbsd_amd64.sh            |   2 +-
- src/buildscript/openbsd_386.sh             |   2 +-
- src/buildscript/openbsd_amd64.sh           |   2 +-
- src/buildscript/plan9_386.sh               |   2 +-
- src/buildscript/windows_386.sh             |   2 +-
- src/buildscript/windows_amd64.sh           |   2 +-
- src/cmd/Makefile                           |   2 +-
- src/cmd/go/Makefile                        |   1 +
- src/cmd/go/main.go                         |   1 +
- src/cmd/go/tool.go                         | 100 +++++++++++++++++++++++++++++
- src/cmd/{goyacc => yacc}/Makefile          |  10 +--
- src/cmd/{goyacc => yacc}/doc.go            |  10 +--
- src/cmd/{goyacc => yacc}/units.txt         |   0
- src/cmd/{goyacc => yacc}/units.y           |  10 +--
- src/cmd/{goyacc/goyacc.go => yacc/yacc.go} |   2 +-
- src/make.bash                              |  16 ++++-
- src/pkg/Makefile                           |   4 +-
- 26 files changed, 198 insertions(+), 35 deletions(-)
+ src/pkg/net/dnsmsg.go          |  2 +-
+ src/pkg/net/fd.go              |  2 +-
+ src/pkg/net/fd_windows.go      |  2 +-
+ src/pkg/net/iprawsock_plan9.go |  6 +++---
+ src/pkg/net/ipsock_plan9.go    | 10 +++++-----
+ src/pkg/net/net.go             |  4 ++--
+ src/pkg/net/tcpsock_plan9.go   |  6 +++---
+ src/pkg/net/tcpsock_posix.go   | 10 +++++-----
+ src/pkg/net/udpsock_plan9.go   | 10 +++++-----
+ src/pkg/net/udpsock_posix.go   | 14 +++++++-------
+ src/pkg/net/unixsock_plan9.go  | 14 +++++++-------
+ src/pkg/net/unixsock_posix.go  | 14 +++++++-------
+ 12 files changed, 47 insertions(+), 47 deletions(-)

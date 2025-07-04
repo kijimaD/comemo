@@ -1,0 +1,20 @@
+commit 9f9afbf3329b3d6d00fbcba069dbdd428cc1dd76
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 13 18:00:46 2024 +0200
+
+    net/netip: test that Addr.AsSlice is inlineable
+    
+    CL 584995 made Addr.AsSlice inlineable as a side effect. Make sure we
+    don't regress.
+    
+    Updates #56136
+    
+    Change-Id: Ib5f77a430db66ffe45c4cbb264da7a401945fec9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585057
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/netip/inlining_test.go | 1 +
+ 1 file changed, 1 insertion(+)

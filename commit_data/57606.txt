@@ -1,17 +1,23 @@
-commit fe873490028958be3f9338ff45c9b0f6fe9a11dc
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Oct 3 17:23:22 2024 +0200
+commit 89eb6b76ae4b81b2b5613d62a8afec9e791c55ec
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 22:13:22 2023 -0700
 
-    slices: print modified cloned slice in ExampleClone
+    cmd/compile: remove some uses of ir.CurFunc
     
-    Make it obvious that numbers wasn't modified, but clone was.
+    This CL updates several frontend passes to stop relying on
+    ir.CurFunc (at least directly).
     
-    Change-Id: Id8bd4ca59b7348cd218faef61abfdf12e20c89f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617795
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I3c3529e81e27fb05d54a828f081f7c7efc31af67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520606
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/slices/example_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/devirtualize/pgo.go | 10 +++++-----
+ src/cmd/compile/internal/gc/main.go          |  6 +++---
+ src/cmd/compile/internal/inline/inl.go       | 26 +++++++++++++-------------
+ src/cmd/compile/internal/loopvar/loopvar.go  |  6 +++---
+ src/cmd/compile/internal/noder/reader.go     |  5 +----
+ 5 files changed, 25 insertions(+), 28 deletions(-)

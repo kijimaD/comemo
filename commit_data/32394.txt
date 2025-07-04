@@ -1,13 +1,15 @@
-commit b3a17812867ad746fb13fbede06e9055fb17c2fb
-Author: Ryuji IWATA <qt.luigi@gmail.com>
-Date:   Sun Aug 20 23:58:59 2017 +0900
+commit c2b4fb5a3bfc13618a683f1265555f89f37de550
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:51:37 2017 -0700
 
-    doc/go1.9: fix typo in crypto/x509 of "Minor changes to the library".
+    cmd/compile: eliminate some Linksym calls in obj.go
     
-    Change-Id: I79fee40370dc6758ca1869227f076c61d07f21a5
-    Reviewed-on: https://go-review.googlesource.com/57390
-    Reviewed-by: Avelino <t@avelino.xxx>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I0cb2ea9ca7ec2449999af28457270ff7b3324e92
+    Reviewed-on: https://go-review.googlesource.com/41410
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.9.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/obj.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

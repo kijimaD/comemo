@@ -1,31 +1,19 @@
-commit 07faf8fab55d74ef6108e56b9e0ccee3e62b0a2d
-Author: Dominique Lefevre <domingolefevre@gmail.com>
-Date:   Thu Aug 24 10:14:54 2023 +0300
+commit 9faf6b79297810f6c9418201c6a9fe7fe5a3695c
+Author: Mikael Urankar <mikael@FreeBSD.org>
+Date:   Sun Sep 18 17:39:37 2022 +0200
 
-    cmd/compile: do not flag reflect.StructOf() as a ReflectMethod.
+    cmd/link/internal/riscv64: add support for freebsd/riscv64
     
-    StructOf() calls reflect.Type.Method(), but looks up only methods
-    accessible via interfaces. DCE does not remove such methods, so
-    there is no need to disable the DCE if StructOf() is used.
+    Updates #53466
     
-    There is a dependency chain between struct rtype and StructOf():
-    
-      (*rtype).Method() -> FuncOf() -> initFuncTypes() -> StructOf().
-    
-    Thus, any use of (*rtype).Method() or (*rtype).MethodByName()
-    disables the DCE in the linker. This is not an issue just yet
-    because all users of Method() and MethodByName() are flagged
-    as ReflectMethods. A subsequent patch avoids this flag on callers
-    of MethodByName(string literal). When that patch is applied,
-    it becomes important to have no ReflectMethods down the call
-    chain of MethodByName().
-    
-    Change-Id: I9b3e55c495c122ed70ef31f9d978c0e2e0573799
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522435
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Change-Id: Ifa1b8fe79f952a08dbdf91ae5ab23e4431e66134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431660
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/walk/expr.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/riscv64/obj.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

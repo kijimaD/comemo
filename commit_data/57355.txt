@@ -1,62 +1,22 @@
-commit 1e0cba8ee19206a6f76acb18b1f2de1c9375de05
-Author: Garrett Bodley <garrett.bodley@gmail.com>
-Date:   Sun Jul 21 01:00:56 2024 -0400
+commit 29253f4d513f1d3fe549db39a8daa311492138b3
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Jul 31 19:40:37 2023 +0000
 
-    crypto/md5: Avo port of md5block_amd64.s
+    os/exec: Use the built-in function min instead of minInt
     
-    This implementation utilizes the same registers found in the reference
-    implementation, aiming to produce a minimal semantic diff between the
-    Avo-generated output and the original hand-written assembly.
+    The built-in function `min` has been implemented and can now be used to replace some manually written `minType` helper functions.
     
-    To verify the Avo implementation, the reference and Avo-generated
-    assembly files are fed to `go tool asm`, capturing the debug output into
-    corresponding temp files. The debug output contains supplementary
-    metadata (line numbers, instruction offsets, and source file references)
-    that must be removed in order to obtain a semantic diff of the two
-    files. This is accomplished via a small utility script written in awk.
-    
-    Metadata not found in the reference assembly file has been added to one
-    parameter symbol, resulting in a single line diff.
-    
-    Commands used to verify Avo output:
-    
-    GOROOT=$(go env GOROOT)
-    ASM_PATH="src/crypto/md5/md5block_amd64.s"
-    REFERENCE="54fe0fd43fcf8609666c16ae6d15ed92873b1564"
-    
-    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
-      <(git cat-file -p "$REFERENCE:$ASM_PATH") \
-      > /tmp/reference.s
-    
-    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
-      "$ASM_PATH" \
-      > /tmp/avo.s
-    
-    normalize(){
-      awk '{
-        $1=$2=$3="";
-        print substr($0,4)
-      }'
-    }
-    
-    diff <(normalize < /tmp/reference.s) <(normalize < /tmp/avo.s)
-    
-    3c3
-    < MOVQ p+8(FP), SI
-    ---
-    > MOVQ p_base+8(FP), SI
-    
-    Change-Id: Ifecc84fd0f5a39a88350e6eaffb45ed3fdacf2fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599935
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ie8ffc7881c8652ece752751214f1242bf76a6e7e
+    GitHub-Last-Rev: 5db344f13142c78f437571e3a1cdc0b02c0589cb
+    GitHub-Pull-Request: golang/go#60866
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504315
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
 
- src/cmd/compile/internal/types2/stdlib_test.go |   1 +
- src/crypto/md5/_asm/go.mod                     |  11 +
- src/crypto/md5/_asm/go.sum                     |   8 +
- src/crypto/md5/_asm/md5block_amd64_asm.go      | 228 +++++++
- src/crypto/md5/md5block_amd64.s                | 866 +++++++++++++++++++------
- src/go/types/stdlib_test.go                    |   1 +
- 6 files changed, 928 insertions(+), 187 deletions(-)
+ src/os/exec/exec.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

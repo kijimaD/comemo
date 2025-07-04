@@ -1,20 +1,19 @@
-commit f8892147bdfd16fe7ef04eccf59c4abf774550f1
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Apr 19 13:58:07 2021 -0400
+commit e08059f4fcacce2ff18d1cfc5fa48c942f8d46aa
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 13 08:26:36 2020 +0200
 
-    runtime: open up space for callee's arg spill slot in mcall (regabi version)
+    runtime: remove unused alg constants
     
-    mcall calls fn with an argument. Currently, in the regabi version
-    of mcall it does not reserve space for that argument's spill slot.
-    If the callee spills its argument, it may clobber things on the
-    g0 stack at 0(SP) (e.g. the old SP saved in cgocallback).
+    CL 191198 removed algarray from the runtime
+    which used these constants as indices.
     
-    Reserve the space.
-    
-    Change-Id: I85a314273cd996c7fac8fd0b03cd9033faae9c5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311489
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ia669cf410372ef5113dadccd115a39ff8d47e5c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261364
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/asm_amd64.s | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/alg.go | 19 -------------------
+ 1 file changed, 19 deletions(-)

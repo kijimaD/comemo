@@ -1,36 +1,73 @@
-commit fa13731a45049eca149bdfd807c35d18ece6a85a
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Tue Sep 27 17:36:26 2022 +0000
+commit a108b280bc724779ebaa6656d35f0fb307fb2a9b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 13 03:07:27 2021 +0000
 
-    debug/elf: return error on reading from SHT_NOBITS sections
+    runtime: implement GC pacer redesign
     
-    An SHT_NOBITS section contains no bytes and occupies no space in the
-    file. This change makes it return an error on reading from this section
-    so that it will force the caller to check for an SHT_NNOBITS section.
+    This change implements the GC pacer redesign outlined in #44167 and the
+    accompanying design document, behind a GOEXPERIMENT flag that is on by
+    default.
     
-    We have considered another option to return "nil, nil" for the Data
-    method. It's abandoned because it might lead a program to simply do
-    the wrong thing, thinking that the section is empty.
+    In addition to adding the new pacer, this CL also includes code to track
+    and account for stack and globals scan work in the pacer and in the
+    assist credit system.
     
-    Please note that it breaks programs which expect a byte slice with the
-    length described by the sh_size field. There are two reasons to
-    introduce this breaking change: 1. SHT_NOBITS means no data and it's
-    unnecessary to allocate memory for it; 2. it could result in an OOM if
-    the file is corrupted and has a huge sh_size.
+    The new pacer also deviates slightly from the document in that it
+    increases the bound on the minimum trigger ratio from 0.6 (scaled by
+    GOGC) to 0.7. The logic behind this change is that the new pacer much
+    more consistently hits the goal (good!) leading to slightly less
+    frequent GC cycles, but _longer_ ones (in this case, bad!). It turns out
+    that the cost of having the GC on hurts throughput significantly (per
+    byte of memory used), though tail latencies can improve by up to 10%! To
+    be conservative, this change moves the value to 0.7 where there is a
+    small improvement to both throughput and latency, given the memory use.
     
-    Fixes #54967.
+    Because the new pacer accounts for the two most significant sources of
+    scan work after heap objects, it is now also safer to reduce the minimum
+    heap size without leading to very poor amortization. This change thus
+    decreases the minimum heap size to 512 KiB, which corresponds to the
+    fact that the runtime has around 200 KiB of scannable globals always
+    there, up-front, providing a baseline.
     
-    Change-Id: I0c3ed4e097214fe88413d726a89122105ad45d4f
-    GitHub-Last-Rev: 994c12d9da8c7029ce1d26eb1eb4d333ef3b1f97
-    GitHub-Pull-Request: golang/go#54994
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429601
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Benchmark results: https://perf.golang.org/search?q=upload:20211001.6
+    
+    tile38's KNearest benchmark shows a memory increase, but throughput (and
+    latency) per byte of memory used is better.
+    
+    gopher-lua showed an increase in both CPU time and memory usage, but
+    subsequent attempts to reproduce this behavior are inconsistent.
+    Sometimes the overall performance is better, sometimes it's worse. This
+    suggests that the benchmark is fairly noisy in a way not captured by the
+    benchmarking framework itself.
+    
+    biogo-igor is the only benchmark to show a significant performance loss.
+    This benchmark exhibits a very high GC rate, with relatively little work
+    to do in each cycle. The idle mark workers are quite active. In the new
+    pacer, mark phases are longer, mark assists are fewer, and some of that
+    time in mark assists has shifted to idle workers. Linux perf indicates
+    that the difference in CPU time can be mostly attributed to write-barrier
+    slow path related calls, which in turn indicates that the write barrier
+    being on for longer is the primary culprit. This also explains the memory
+    increase, as a longer mark phase leads to more memory allocated black,
+    surviving an extra cycle and contributing to the heap goal.
+    
+    For #44167.
+    
+    Change-Id: I8ac7cfef7d593e4a642c9b2be43fb3591a8ec9c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309869
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/debug/elf/elf_test.go  | 22 ----------------------
- src/debug/elf/file.go      | 16 +++++++++-------
- src/debug/elf/file_test.go | 24 ++++++++++++++++++++++++
- 3 files changed, 33 insertions(+), 29 deletions(-)
+ src/internal/goexperiment/exp_pacerredesign_off.go |   9 +
+ src/internal/goexperiment/exp_pacerredesign_on.go  |   9 +
+ src/internal/goexperiment/flags.go                 |   6 +
+ src/runtime/export_test.go                         |   4 +-
+ src/runtime/mgc.go                                 |   2 +
+ src/runtime/mgcmark.go                             | 117 +++--
+ src/runtime/mgcpacer.go                            | 498 ++++++++++++++++++---
+ src/runtime/mgcpacer_test.go                       | 127 +++++-
+ src/runtime/mgcwork.go                             |  11 +-
+ 9 files changed, 680 insertions(+), 103 deletions(-)

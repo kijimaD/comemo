@@ -1,18 +1,12 @@
-commit 5a7e14c143333a0769b1f54e7373e8fc43f3acd5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon May 13 10:28:12 2013 +0400
+commit 12ab08a87bd20f1f519fc82083340bb39ef4f201
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 8 16:06:25 2013 -0700
 
-    runtime/race: improve public documentation
-    Move the documentation from race.go to doc.go, because
-    race.go uses +build race, so it's not normally parsed by go doc.
-    Rephrase the documentation for end users, provide link to race
-    detector manual.
-    Fixes #5444.
+    tag go1.1rc3
     
-    R=golang-dev, minux.ma, adg, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9144050
+    https://golang.org/cl/9124045
 
- src/pkg/runtime/race/doc.go  | 9 +++++++++
- src/pkg/runtime/race/race.go | 1 -
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

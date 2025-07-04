@@ -1,29 +1,12 @@
-commit 6d0d08b8495efc033ede78370941e566e45eb7c8
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Fri Jan 10 02:49:37 2014 +1100
+commit 2d55fdb507982eb6539868cf54a0c7f14c1b8cec
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 8 20:37:41 2014 -0500
 
-    os, os/exec, os/user: add support for GOOS=solaris
+    debug/goobj: add String methods for SymID and SymKind
     
-    R=golang-codereviews, dave, minux.ma, gobot, jsing
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/36020043
+    https://golang.org/cl/48890044
 
- src/pkg/os/dir_unix.go           |  2 +-
- src/pkg/os/env_unix_test.go      |  2 +-
- src/pkg/os/error_unix.go         |  2 +-
- src/pkg/os/exec/exec_test.go     |  4 +++
- src/pkg/os/exec/lp_unix.go       |  2 +-
- src/pkg/os/exec/lp_unix_test.go  |  2 +-
- src/pkg/os/exec_posix.go         |  2 +-
- src/pkg/os/exec_unix.go          |  2 +-
- src/pkg/os/file_posix.go         |  2 +-
- src/pkg/os/file_unix.go          |  2 +-
- src/pkg/os/os_unix_test.go       |  2 +-
- src/pkg/os/path_unix.go          |  2 +-
- src/pkg/os/pipe_bsd.go           |  2 +-
- src/pkg/os/signal/signal_test.go |  2 +-
- src/pkg/os/signal/signal_unix.go |  2 +-
- src/pkg/os/stat_solaris.go       | 61 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/os/sys_solaris.go        | 11 ++++++++
- src/pkg/os/user/lookup_unix.go   |  2 +-
- 18 files changed, 91 insertions(+), 15 deletions(-)
+ src/pkg/debug/goobj/read.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

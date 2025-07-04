@@ -1,17 +1,19 @@
-commit bed88f4e81013433ff47fb2661a329530b57ede6
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Nov 23 15:16:18 2018 +0100
+commit ccb70bd19c44b90ef4030c6399c884f82a12bc68
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Thu Aug 23 00:02:24 2018 +0200
 
-    cmd/link: fix error messages for external linking on ppc64
+    context: don't talk about tools that don't exist
     
-    This commit fixes error messages displayed on aix/ppc64 with external
-    linking.
+    This comment has been the source of much confusion and broken dreams. We
+    can add it back if a tool ever gets released.
     
-    Change-Id: I5311d36f30394be717827891e070db249482814a
-    Reviewed-on: https://go-review.googlesource.com/c/151041
+    Updates #16742
+    
+    Change-Id: I4b9c179b7c60274e6ff1bcb607b82029dd9a893f
+    Reviewed-on: https://go-review.googlesource.com/130876
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/config.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/context/context.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

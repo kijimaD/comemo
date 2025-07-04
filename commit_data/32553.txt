@@ -1,14 +1,16 @@
-commit 1e093043e731435b37644cde80451298a514faef
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Aug 28 15:07:19 2017 +0900
+commit a8e3852a05ddc1e590c7ae40b050ca663f1e1e4a
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Sun Apr 30 14:47:04 2017 +0200
 
-    cmd/link: remove dead code
+    sync: really test DeepCopyMap
     
-    Change-Id: I8a54235c8b7bf1010f19d0d358cd4f76fc911d28
-    Reviewed-on: https://go-review.googlesource.com/59416
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    since there current version suffers from a copy'n'paste error.
+    
+    Change-Id: I1ef97a4413198dde10c5c926a2a9806724cd6d44
+    Reviewed-on: https://go-review.googlesource.com/42095
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/go.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/sync/map_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

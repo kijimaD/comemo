@@ -1,28 +1,30 @@
-commit e470a00cdff2c4c13162dc8887fedd6812393514
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 1 16:50:04 2024 +0700
+commit 7e2e648a2d55547f0e541668b893329ec195691a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 16 14:39:47 2023 -0700
 
-    test: fix test issue 69434 for riscv64
+    cmd/compile/internal/typecheck: normalize go/defer statements earlier
     
-    CL 615915 simplified test for issue 69434, using gcflags maymorestack to
-    force stack moving, making program failed with invalid stack pointer.
+    Normalizing go/defer statements to always use functions with zero
+    parameters and zero results was added to escape analysis, because that
+    was the earliest point at which all three frontends converged. Now
+    that we only have the unified frontend, we can do it during typecheck,
+    which is where we perform all other desugaring and normalization
+    rewrites.
     
-    However, it seems that this maymorestack is broken on riscv64. At least
-    gotip-linux-riscv64 is currently broken.
-    
-    This CL fixes this problem by using the initial approach, growing stack
-    size big enough to force stack moving.
-    
-    Updates #69434
-    Fixes #69714
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
-    Change-Id: I95255fba884a200f75bcda34d58e9717e4a952ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616698
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Iebf7679b117fd78b1dffee2974bbf85ebc923b23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520260
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- test/fixedbugs/issue69434.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/escape/call.go    |  62 ++-------
+ src/cmd/compile/internal/ir/func.go        |  53 ++++---
+ src/cmd/compile/internal/ir/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/noder/reader.go   |   2 +-
+ src/cmd/compile/internal/typecheck/stmt.go | 213 +++++++++++++++++++++++------
+ src/runtime/race/output_test.go            |   4 +-
+ test/fixedbugs/issue24491a.go              |   2 +-
+ test/fixedbugs/issue31573.go               |   4 +-
+ 8 files changed, 223 insertions(+), 119 deletions(-)

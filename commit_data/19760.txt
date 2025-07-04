@@ -1,65 +1,14 @@
-commit f378f300345431204d5842751db2add7994d9957
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 17 14:41:46 2014 -0700
+commit 92c1e720401e07a97670c92b0ac208da8cc4988c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 17 21:51:03 2014 +0400
 
-    undo CL 101570044 / 2c57aaea79c4
+    runtime: make NumGoroutines faster
+    Resolves TODO for not walking all goroutines in NumGoroutines.
     
-    redo stack allocation.  This is mostly the same as
-    the original CL with a few bug fixes.
-    
-    1. add racemalloc() for stack allocations
-    2. fix poolalloc/poolfree to terminate free lists correctly.
-    3. adjust span ref count correctly.
-    4. don't use cache for sizes >= StackCacheSize.
-    
-    Should fix bugs and memory leaks in original changelist.
-    
-    ««« original CL description
-    undo CL 104200047 / 318b04f28372
-    
-    Breaks windows and race detector.
-    TBR=rsc
-    
-    ««« original CL description
-    runtime: stack allocator, separate from mallocgc
-    
-    In order to move malloc to Go, we need to have a
-    separate stack allocator.  If we run out of stack
-    during malloc, malloc will not be available
-    to allocate a new stack.
-    
-    Stacks are the last remaining FlagNoGC objects in the
-    GC heap.  Once they are out, we can get rid of the
-    distinction between the allocated/blockboundary bits.
-    (This will be in a separate change.)
-    
-    Fixes #7468
-    Fixes #7424
-    
-    LGTM=rsc, dvyukov
-    R=golang-codereviews, dvyukov, khr, dave, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/104200047
-    »»»
-    
-    TBR=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/101570044
-    »»»
-    
-    LGTM=dvyukov
-    R=dvyukov, dave, khr, alex.brainman
-    CC=golang-codereviews
-    https://golang.org/cl/112240044
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/107290044
 
- src/pkg/runtime/malloc.h      |  27 ++-
- src/pkg/runtime/mcache.c      |  23 ++-
- src/pkg/runtime/mcentral.c    |   2 +
- src/pkg/runtime/mem.go        |   2 +-
- src/pkg/runtime/mgc0.c        |  25 ++-
- src/pkg/runtime/mheap.c       | 327 ++++++++++++++++++++---------------
- src/pkg/runtime/proc.c        |   6 +-
- src/pkg/runtime/runtime.h     |  15 +-
- src/pkg/runtime/stack.c       | 387 +++++++++++++++++++++++++++---------------
- src/pkg/runtime/stack_test.go |  49 ++++++
- 10 files changed, 557 insertions(+), 306 deletions(-)
+ src/pkg/runtime/proc.c | 33 +++++++++++++++------------------
+ 1 file changed, 15 insertions(+), 18 deletions(-)

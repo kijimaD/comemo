@@ -1,23 +1,29 @@
-commit b7ae16e04b93c771dca22f7a9b3d6f985027b101
-Author: Jin Lin <jinl@uber.com>
-Date:   Wed Sep 20 12:22:26 2023 -0700
+commit 3693fd255f44acc24efa2b45317473d4d1e1abde
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Aug 20 12:05:07 2022 -0700
 
-    cmd/preprofile: Add preprocess tool to pre-parse the profile file.
+    net/netip: fix invalid representation of Prefix
     
-    The pgo compilation time is very long if the profile file is large.
-    We added a preprocess tool to pre-parse profile file in order to
-    expedite the compile time.
+    For a given Addr, ensure there is exactly one invalid representation.
+    This allows invalid representations to be safely comparable.
+    To ensure that the zero value of Prefix is invalid,
+    we modify the encoding of bits to simply be the bit count plus one.
     
-    Change-Id: I6f50bbd01f242448e2463607a9b63483c6ca9a12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529738
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Since Addr is immutable, we check in the PrefixFrom constructor that
+    the provided Addr is valid and only store a non-zero bits length if so.
+    IsValid is simplified to just checking whether bitsPlusOne is non-zero.
+    
+    Fixes #54525
+    
+    Change-Id: I9244cae2fd160cc9c81d007866992df2e422d3b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425035
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
 
- src/cmd/compile/internal/base/flag.go              |   2 +-
- src/cmd/compile/internal/pgo/irgraph.go            | 207 +++++++++++++++----
- src/cmd/compile/internal/test/pgo_inl_test.go      |  35 +++-
- .../testdata/pgo/inline/inline_hot.pprof.node_map  |  13 ++
- src/cmd/preprofile/main.go                         | 224 +++++++++++++++++++++
- .../internal/graph => internal/profile}/graph.go   |  13 +-
- 6 files changed, 450 insertions(+), 44 deletions(-)
+ src/net/netip/netip.go          | 57 +++++++++++++++++------------------------
+ src/net/netip/netip_pkg_test.go | 48 +++++++++++++++++++---------------
+ 2 files changed, 50 insertions(+), 55 deletions(-)

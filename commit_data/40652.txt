@@ -1,25 +1,17 @@
-commit e5ce13c178cc0be72ca220b4c3f0c95f570c19ab
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Sep 12 18:24:56 2019 +0000
+commit 39f7561e1b38e46d24b62e7dcc772ba87f8a802b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 10 15:35:21 2019 -0400
 
-    runtime: add option to scavenge with lock held throughout
+    cmd/go/internal/load: remove unused hasSubdir function
     
-    This change adds a "locked" parameter to scavenge() and scavengeone()
-    which allows these methods to be run with the heap lock acquired, and
-    synchronously with respect to others which acquire the heap lock.
+    No references to this function remain; remove it to avoid confusion
+    and reduce build overhead.
     
-    This mode is necessary for both heap-growth scavenging (multiple
-    asynchronous scavengers here could be problematic) and
-    debug.FreeOSMemory.
+    The last reference was removed in CL 167748.
     
-    Updates #35112.
-    
-    Change-Id: I24eea8e40f971760999c980981893676b4c9b666
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195699
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9d023c5d8904800edd3898fed79aa9f824dfb46a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181548
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/export_test.go      |  4 ++--
- src/runtime/mgcscavenge.go      | 46 +++++++++++++++++++++++++++--------------
- src/runtime/mgcscavenge_test.go | 10 +++++++--
- 3 files changed, 41 insertions(+), 19 deletions(-)
+ src/cmd/go/internal/load/path.go | 24 ------------------------
+ 1 file changed, 24 deletions(-)

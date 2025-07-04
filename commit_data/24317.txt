@@ -1,19 +1,16 @@
-commit 49065cbfe41877747f4e0bb67e2dd0833ec01b7a
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 17 13:46:46 2015 -0700
+commit 3e7e519c367f4ab5b2d9f863302cd0946fe74800
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Fri Jul 17 12:26:35 2015 +0200
 
-    asm: handle EOF better
+    [dev.ssa] cmd/compile/internal/ssa/gen: generalize strength reduction.
     
-    Add some error catches to prevent looping at EOF.
-    Also give better diagnostics.
-    Also add tests for these cases.
+    Handle multiplication with -1, 0, 3, 5, 9 and all powers of two.
     
-    Fixes #12656.
-    
-    Change-Id: I1355fc149b71c868e740bfa53de29c25d160777d
-    Reviewed-on: https://go-review.googlesource.com/14710
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I8e87e7670dae389aebf6f446d7a56950cacb59e0
+    Reviewed-on: https://go-review.googlesource.com/12350
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/lex/input.go    | 12 ++++++
- src/cmd/asm/internal/lex/lex_test.go | 73 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 85 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  10 ++-
+ src/cmd/compile/internal/ssa/rewrite.go      |  15 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 122 +++++++++++++++++++++++----
+ 3 files changed, 129 insertions(+), 18 deletions(-)

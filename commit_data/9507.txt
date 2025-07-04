@@ -1,19 +1,25 @@
-commit d130611f4514ade696ae641ce242ca32b54f34a3
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Aug 26 15:38:02 2011 -0400
+commit 75d337e84b620a403da1353250d4cbced962e43f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 26 15:15:23 2011 -0400
 
-    net: disable "tcp" test on openbsd
+    time: fix zone during windows test
+    Factor out sleep interrupt.
     
-    Doing a socket/listen on an unspecified address with an unspecified
-    address family is likely to result in an AF_INET6 socket on an IPv6
-    capable system, which under OpenBSD means IPv6 only - not IPv4 *and*
-    IPv6. In this case trying to connect to this socket from an IPv4
-    loopback address is not going to end well.
+    Fixes #1109.
     
-    R=golang-dev, rsc
+    R=alex.brainman, go.peter.90, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/4807057
+    https://golang.org/cl/4968041
 
- src/pkg/net/server_test.go   | 4 +++-
- src/pkg/net/tcpsock_posix.go | 5 +++++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/Makefile                              |  1 -
+ src/pkg/time/Makefile                         | 10 +++---
+ src/pkg/time/internal_test.go                 | 12 ++++++++
+ src/pkg/time/sleep_test.go                    |  3 +-
+ src/pkg/time/sys_plan9.go                     |  5 +++
+ src/pkg/time/sys_unix.go                      | 23 ++++++++++++++
+ src/pkg/time/{sys_posix.go => sys_windows.go} |  4 +++
+ src/pkg/time/time_test.go                     |  8 -----
+ src/pkg/time/zoneinfo_plan9.go                | 16 ++++++++++
+ src/pkg/time/zoneinfo_unix.go                 |  5 +++
+ src/pkg/time/zoneinfo_windows.go              | 44 ++++++++++++++++++++++++++-
+ 11 files changed, 114 insertions(+), 17 deletions(-)

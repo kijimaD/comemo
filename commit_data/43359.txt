@@ -1,18 +1,20 @@
-commit 178b0f59ff0d8be6d41d0f4099d16bfd3bc21ea7
-Author: hk <hk@tinyclouds.cn>
-Date:   Mon Oct 19 12:13:25 2020 +0000
+commit 82047a080f0aa320e316773fe8bcbb7c7bcd5a1f
+Author: alex-semenyuk <alexsemenyuk88@gmail.com>
+Date:   Sun Mar 29 08:12:06 2020 +0000
 
-    cmd/compile/internal/gc: remove an unused method
+    test, test/fixedbugs, crypto/x509, go/internal/gccgoimporter: fix typos
     
-    Change-Id: Ib496d1e9a47d2cf69509ffd0009038b7d34a0149
-    GitHub-Last-Rev: 5b5589dd03e1d781e4cedc643d5e8a7f8bda2139
-    GitHub-Pull-Request: golang/go#42060
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263618
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ie2d605ca8cc3bde2e26c6865642ff4e6412cd075
+    GitHub-Last-Rev: ce5c3ba369b2ef476e7c63e4404baa256584f357
+    GitHub-Pull-Request: golang/go#38137
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226201
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/crypto/x509/x509_test.go            | 2 +-
+ src/go/internal/gccgoimporter/parser.go | 2 +-
+ test/blank1.go                          | 2 +-
+ test/chanlinear.go                      | 2 +-
+ test/fixedbugs/issue9521.go             | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

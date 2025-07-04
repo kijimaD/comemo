@@ -1,19 +1,23 @@
-commit 0709e58bee0b268ee2a11629f44e352c41339443
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Oct 20 13:36:57 2020 +0200
+commit 5db079d2e5f97952be288c28a3a0690a523efdce
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Sun Mar 29 03:04:51 2020 +0000
 
-    net/http/cgi: preserve env vars on illumos
+    crypto/rsa: reject invalid length PKCS#1v1.5 signatures
     
-    Preserve the same environment variables as on solaris.
+    Per RFC 8017, reject signatures which are not the same length as the RSA
+    modulus. This matches the behavior of SignPKCS1v15 which properly left pads
+    the signatures it generates to the size of the modulus.
     
-    Spotted while reviewing CL 263577.
+    Fixes #21896
     
-    Change-Id: Id479dcf83d6231e9ef1fd2404b400d10082e1d0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263802
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I2c42a0b24cf7fff158ece604b6f0c521a856d932
+    GitHub-Last-Rev: 6040f7990633630a0ad157cb17e016bb7db98a27
+    GitHub-Pull-Request: golang/go#38140
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226203
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/cgi/host.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/rsa/pkcs1v15.go      |  7 +++++++
+ src/crypto/rsa/pkcs1v15_test.go | 18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+)

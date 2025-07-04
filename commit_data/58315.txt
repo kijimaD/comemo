@@ -1,33 +1,37 @@
-commit 50a8b3a30ec104ce00533db47e7200e01371eaa0
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Sun Dec 1 23:53:23 2024 -0500
+commit 59f0ab40369e4f05276aa2afe20a74beb78aa0b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 6 08:46:45 2023 -0400
 
-    hash/maphash, cmd/compile: make Comparable[string] not escape its argument
+    math/rand/v2: start of new API
     
-    Currently, maphash.Comparable forces its argument to escape if it
-    contains a pointer, as we cannot hash stack pointers, which will
-    change when the stack moves. However, for a string, it is actually
-    okay if its data pointer points to the stack, as the hash depends
-    on only the content, not the pointer.
+    This is the beginning of the math/rand/v2 package from proposal #61716.
+    Start by copying old API. This CL copies math/rand/* to math/rand/v2
+    and updates references to math/rand to add v2 throughout.
+    Later CLs will make the v2 changes.
     
-    Currently there is no way to write this type-dependent escape
-    logic in Go code. So we implement it in the compiler as an
-    intrinsic. The compiler can also recognize not just the string
-    type, but types whose pointers are all string pointers, and make
-    them not escape.
+    For #61716.
     
-    Fixes #70560.
-    
-    Change-Id: I3bf219ad71a238d2e35f0ea33de96487bc8cc231
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632715
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I1624ccffae3dfa442d4ba2461942decbd076e11b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502495
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/escape/call.go | 44 +++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/inline/inl.go  | 15 +++++++++++
- src/cmd/compile/internal/walk/expr.go   | 14 +++++++++++
- src/hash/maphash/maphash.go             | 24 ++++++++++--------
- src/hash/maphash/maphash_purego.go      |  2 ++
- src/hash/maphash/maphash_runtime.go     |  2 ++
- src/hash/maphash/maphash_test.go        | 31 +++++++++++++++++++++++
- 7 files changed, 122 insertions(+), 10 deletions(-)
+ api/next/61716.txt               |  47 +++
+ src/go/build/deps_test.go        |   2 +-
+ src/math/rand/v2/auto_test.go    |  40 +++
+ src/math/rand/v2/default_test.go | 148 +++++++++
+ src/math/rand/v2/example_test.go | 133 ++++++++
+ src/math/rand/v2/exp.go          | 221 ++++++++++++
+ src/math/rand/v2/export_test.go  |  17 +
+ src/math/rand/v2/gen_cooked.go   |  89 +++++
+ src/math/rand/v2/normal.go       | 156 +++++++++
+ src/math/rand/v2/race_test.go    |  49 +++
+ src/math/rand/v2/rand.go         | 547 ++++++++++++++++++++++++++++++
+ src/math/rand/v2/rand_test.go    | 701 +++++++++++++++++++++++++++++++++++++++
+ src/math/rand/v2/regress_test.go | 404 ++++++++++++++++++++++
+ src/math/rand/v2/rng.go          | 252 ++++++++++++++
+ src/math/rand/v2/zipf.go         |  77 +++++
+ src/runtime/stubs.go             |   3 +
+ 16 files changed, 2885 insertions(+), 1 deletion(-)

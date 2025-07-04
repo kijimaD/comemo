@@ -1,19 +1,26 @@
-commit 1536c2e0f6f2cf0b42b8f4db329f969cabc8eabb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Sep 18 16:39:35 2015 +0000
+commit 61aa0953e542eb047f22905f84c7d627a35b8607
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 20 15:39:14 2015 -0700
 
-    cmd/dist: shard shootout test units
+    [dev.ssa] cmd/compile: implement control flow handling
     
-    Instead of a 10 second test unit, make it 13 sub-second ones. This
-    takes advantage of multiple builders better.
+    Add label and goto checks and improve test coverage.
     
-    Fixes #12623
+    Implement OSWITCH and OSELECT.
     
-    Change-Id: I3fb2eb02f899f25749e34b546b9d41b742a746cd
-    Reviewed-on: https://go-review.googlesource.com/14738
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Implement OBREAK and OCONTINUE.
+    
+    Allow generation of code in dead blocks.
+    
+    Change-Id: Ibebb7c98b4b2344f46d38db7c9dce058c56beaac
+    Reviewed-on: https://go-review.googlesource.com/12445
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/test.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/gen.go                |   2 +
+ src/cmd/compile/internal/gc/ssa.go                | 316 ++++++++++++++++++++--
+ src/cmd/compile/internal/gc/ssa_test.go           |  17 +-
+ src/cmd/compile/internal/gc/testdata/break_ssa.go | 255 +++++++++++++++++
+ src/cmd/compile/internal/ssa/compile.go           |   1 +
+ test/label.go                                     |   4 +
+ test/label1.go                                    |  31 ++-
+ 7 files changed, 590 insertions(+), 36 deletions(-)

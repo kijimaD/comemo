@@ -1,20 +1,52 @@
-commit 5cf5a6fc5eca5e05ab7cd189a19196e73c5408c4
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Mon Jul 15 06:32:40 2019 +0200
+commit 5ee1b849592787ed050ef3fbd9b2c58aabd20ff3
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Mar 5 01:56:17 2019 +0100
 
-    os: return an error when the argument of Mkdir on Windows is os.DevNull
+    math, math/bits: add intrinsics for wasm
     
-    Test added.
+    This commit adds compiler intrinsics for the packages math and
+    math/bits on the wasm architecture for better performance.
     
-    Fixes #24556
+    benchmark                        old ns/op     new ns/op     delta
+    BenchmarkCeil                    8.31          3.21          -61.37%
+    BenchmarkCopysign                5.24          3.88          -25.95%
+    BenchmarkAbs                     5.42          3.34          -38.38%
+    BenchmarkFloor                   8.29          3.18          -61.64%
+    BenchmarkRoundToEven             9.76          3.26          -66.60%
+    BenchmarkSqrtLatency             8.13          4.88          -39.98%
+    BenchmarkSqrtPrime               5246          3535          -32.62%
+    BenchmarkTrunc                   8.29          3.15          -62.00%
+    BenchmarkLeadingZeros            13.0          4.23          -67.46%
+    BenchmarkLeadingZeros8           4.65          4.42          -4.95%
+    BenchmarkLeadingZeros16          7.60          4.38          -42.37%
+    BenchmarkLeadingZeros32          10.7          4.48          -58.13%
+    BenchmarkLeadingZeros64          12.9          4.31          -66.59%
+    BenchmarkTrailingZeros           6.52          4.04          -38.04%
+    BenchmarkTrailingZeros8          4.57          4.14          -9.41%
+    BenchmarkTrailingZeros16         6.69          4.16          -37.82%
+    BenchmarkTrailingZeros32         6.97          4.23          -39.31%
+    BenchmarkTrailingZeros64         6.59          4.00          -39.30%
+    BenchmarkOnesCount               7.93          3.30          -58.39%
+    BenchmarkOnesCount8              3.56          3.19          -10.39%
+    BenchmarkOnesCount16             4.85          3.19          -34.23%
+    BenchmarkOnesCount32             7.27          3.19          -56.12%
+    BenchmarkOnesCount64             8.08          3.28          -59.41%
+    BenchmarkRotateLeft              4.88          3.80          -22.13%
+    BenchmarkRotateLeft64            5.03          3.63          -27.83%
     
-    Change-Id: I4d1cd4513142edeea1a983fbfde46c2fccecab2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186139
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ic1e0c2984878be8defb6eb7eb6ee63765c793222
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165177
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/file.go            | 21 +++++++++++++++++++++
- src/os/os_windows_test.go | 16 ++++++++++++++++
- src/os/stat_windows.go    | 22 ++--------------------
- 3 files changed, 39 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go          |  42 ++--
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  25 +++
+ src/cmd/compile/internal/ssa/gen/WasmOps.go |  13 ++
+ src/cmd/compile/internal/ssa/opGen.go       | 156 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 317 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/wasm/ssa.go        |   4 +-
+ test/codegen/math.go                        |   7 +
+ test/codegen/mathbits.go                    |  21 ++
+ test/run.go                                 |   4 +
+ 9 files changed, 566 insertions(+), 23 deletions(-)

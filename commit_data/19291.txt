@@ -1,18 +1,14 @@
-commit dbe5f88804ad974a8c98d67421c9aac302873359
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 7 08:50:52 2014 -0700
+commit acb03b8028bdbb5aa6bc3813b7de62a7202eb65e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 7 19:32:34 2014 +0400
 
-    spec: remove evaluation order inconsistency
+    runtime: optimize markspan
+    Increases throughput by 2x on a memory hungry program on 8-node NUMA machine.
     
-    This is a clarification of what happens already.
-    Not a language change.
-    
-    Fixes #7137.
-    
-    LGTM=iant, r, rsc
-    R=r, rsc, iant, ken
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/96000044
+    https://golang.org/cl/100230043
 
- doc/go_spec.html | 37 +++++++++++++++++++++++++++++++------
- 1 file changed, 31 insertions(+), 6 deletions(-)
+ src/pkg/runtime/mgc0.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

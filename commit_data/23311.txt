@@ -1,12 +1,15 @@
-commit 93e57a22d5d3c9006b144ddfd9d675967fd810d0
-Author: Yongjian Xu <i3dmaster@gmail.com>
-Date:   Tue Jun 9 22:51:25 2015 -0700
+commit a77fcb3f8d8973065313810bcb2edeb000fcde0d
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 23 21:33:08 2015 +0100
 
-    runtime: correct a drifted comment in referencing m->locked.
+    net: fix comment in sendFile
     
-    Change-Id: Ida4b98aa63e57594fa6fa0b8178106bac9b3cd19
-    Reviewed-on: https://go-review.googlesource.com/10837
+    Change-Id: Iacee13150b283f9d2867a7ca98f805900f7cbe50
+    Reviewed-on: https://go-review.googlesource.com/7943
     Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/runtime2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/sendfile_dragonfly.go | 2 +-
+ src/net/sendfile_freebsd.go   | 2 +-
+ src/net/sendfile_linux.go     | 2 +-
+ src/net/sendfile_solaris.go   | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

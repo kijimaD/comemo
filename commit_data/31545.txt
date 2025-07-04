@@ -1,39 +1,12 @@
-commit 00263a896856c12cb57ee17355c6f911252b6214
-Author: David Chase <drchase@google.com>
-Date:   Thu Feb 2 14:51:15 2017 -0500
+commit 09294ab75461c088e3676e1575acb44c38371b08
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 28 15:24:18 2017 -0800
 
-    cmd/compile: reduce debugger-worsening line number churn
+    cmd/vet/all: disable cgo when running 'go install'
     
-    Reuse block head or preceding instruction's line number for
-    register allocator's spill, fill, copy, rematerialization
-    instructionsl; and also for phi, and for no-src-pos
-    instructions.  Assembler creates same line number tables
-    for copy-predecessor-line and for no-src-pos,
-    but copy-predecessor produces better-looking assembly
-    language output with -S and with GOSSAFUNC, and does not
-    require changes to tests of existing assembly language.
-    
-    Split "copyInto" into two cases, one for register allocation,
-    one for otherwise.  This caused the test score line change
-    count to increase by one, which may reflect legitimately
-    useful information preserved.  Without any special treatment
-    for copyInto, the change count increases by 21 more, from
-    51 to 72 (i.e., quite a lot).
-    
-    There is a test; using two naive "scores" for line number
-    churn, the old numbering is 2x or 4x worse.
-    
-    Fixes #18902.
-    
-    Change-Id: I0a0a69659d30ee4e5d10116a0dd2b8c5df8457b1
-    Reviewed-on: https://go-review.googlesource.com/36207
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iab1e84624c0288ebdd33fbe83bd60948b5d91fc4
+    Reviewed-on: https://go-review.googlesource.com/37612
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go       |  26 ++++-
- src/cmd/compile/internal/ssa/regalloc.go |   6 +-
- src/cmd/compile/internal/ssa/value.go    |  16 ++-
- test/fixedbugs/issue18902.go             | 137 ++++++++++++++++++++++++++
- test/fixedbugs/issue18902b.go            | 161 +++++++++++++++++++++++++++++++
- 5 files changed, 340 insertions(+), 6 deletions(-)
+ src/cmd/vet/all/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

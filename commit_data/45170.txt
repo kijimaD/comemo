@@ -1,14 +1,15 @@
-commit 7ed6d1f2fb2e092f59ec56e0d16b1f9da33992a4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 15 12:18:08 2021 -0700
+commit eb67eab861442e6275deb584ecf08c95a639cedb
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 12 15:46:19 2020 -0400
 
-    cmd/compile/internal/types2: add sizeof test
+    cmd/compile: late call expansion for rtcall
     
-    Change-Id: I75d3c8546b7ad51d8c7369e7289036b697d6b913
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310530
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I0708c9d649d8a579857330b68d9fbcbbeced29e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248189
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/sizeof_test.go | 65 ++++++++++++++++++++++++++
- 1 file changed, 65 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 48 ++++++++++++++++++++++++++++++--------
+ 1 file changed, 38 insertions(+), 10 deletions(-)

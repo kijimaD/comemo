@@ -1,22 +1,14 @@
-commit 58b18cfda5fa96330df00c529c36f207eae08cbc
-Author: quasilyte <quasilyte@gmail.com>
-Date:   Sun Apr 15 15:20:33 2018 +0300
+commit d62809096ae13bd6caf00f5b604188c528376ed5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 22:20:46 2017 -0500
 
-    cmd/internal/obj/x86: better error msg for offset overflow on AMD64
+    doc/go1.10: update release notes for recent commits
     
-    Say "offset too large" instead of "invalid instruction" when
-    assembling for AMD64. GOARCH=386 already reports error correctly.
-    
-    Fixed #24871
-    
-    Change-Id: Iab029307b5c5edbb45f9df4b64c60ecb5f101349
-    Reviewed-on: https://go-review.googlesource.com/107116
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: Id6ced9a6c76131263041cdaf5ed17479be075fa6
+    Reviewed-on: https://go-review.googlesource.com/82075
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/testdata/386enc.s         |  6 ++++
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s |  3 ++
- src/cmd/asm/internal/asm/testdata/amd64error.s     | 11 ++++++++
- src/cmd/internal/obj/x86/asm6.go                   | 32 ++++++++++++----------
- 4 files changed, 38 insertions(+), 14 deletions(-)
+ doc/go1.10.html | 157 ++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 124 insertions(+), 33 deletions(-)

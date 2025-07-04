@@ -1,20 +1,29 @@
-commit 2414e1f17b2f82be10110513b17cdfa80c9937c6
-Author: David Chase <drchase@google.com>
-Date:   Mon Oct 26 19:06:39 2020 -0400
+commit ce528719487080f4797e1ed45671bd509cbc2d10
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Apr 7 15:17:25 2020 -0400
 
-    cmd/compile: make sure field offset is aligned for structure splitting
+    runtime/pprof: clarify recursive inline heuristic
     
-    Always use the aligned form -- the old code sometimes could
-    at least nominally use a misaligned field in an SSA-able struct,
-    even if not actually.
+    Following CL 226818, the compiler will allow inlining a single cycle in
+    an inline chain. Immediately-recursive functions are still disallowed,
+    which is what this heuristic refers to.
     
-    Fixes #42181.
+    Add a regression test for this case.
     
-    Change-Id: Ibdce0985f9349da70921a37423054b85ee4200d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265277
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: David Chase <drchase@google.com>
+    Note that in addition to this check, if the compiler were to inline
+    multiple cycles via a loop (i.e., rather than appending duplicate code),
+    much more work would be required here to handle a single address
+    appearing in multiple different inline frames.
+    
+    Updates #29737
+    
+    Change-Id: I88de15cfbeabb9c04381e1c12cc36778623132a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227346
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/compile/internal/gc/ssa.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/runtime/pprof/pprof_test.go | 75 ++++++++++++++++++++++++++++++++++++-----
+ src/runtime/pprof/proto.go      |  2 +-
+ 2 files changed, 68 insertions(+), 9 deletions(-)

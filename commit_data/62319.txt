@@ -1,0 +1,22 @@
+commit ad39fd94860661d022c633cd2856a76221adedc8
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Feb 7 21:12:05 2025 +1100
+
+    internal/bytealg: clean up and simplify the riscv64 equal implementation
+    
+    Now that riscv64 is only regabi, remove the entrypoint separation and
+    have runtime.memequal_varlen call runtime.memequal. Add a zero byte
+    length check and replace the equal and not equal exit paths with a
+    single exit path that conditions on length reaching zero.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
+    Change-Id: Ida4e54378daa7fd423f759753eba04ce513a27cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648855
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/bytealg/equal_riscv64.s | 62 +++++++++++++++++-------------------
+ 1 file changed, 29 insertions(+), 33 deletions(-)

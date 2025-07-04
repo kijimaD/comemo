@@ -1,24 +1,20 @@
-commit bc2095280e4f607c30397a15a89ca8347b019918
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Mon May 15 09:33:40 2023 +0000
+commit ffe5f085cd8b289a7853fcdb3c26adbebda09fd6
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Mon Jul 25 12:32:24 2022 +0800
 
-    net: root the nodata test domain to avoid search domains
+    runtime: refine code reducing indents in netpollBreak()
     
-    I came across similar issue in CL 455275.
-    Without rooting this, the search domains might affect
-    the query, so the test might not prove the right thing.
-    The search domain will cause a change from no data
-    to NXDOMAIN error.
-    
-    Change-Id: I59f4de2635f03c69adf29b74e25e4ebd71e7413b
-    GitHub-Last-Rev: 3a086c74f1453e4d1f2e88631ac835389984da17
-    GitHub-Pull-Request: golang/go#60197
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494896
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I2d1528910cb3660344c7a664d6f32306defe75d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419321
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/net/lookup_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/netpoll_aix.go     |  9 ++++++---
+ src/runtime/netpoll_epoll.go   | 33 ++++++++++++++++++---------------
+ src/runtime/netpoll_kqueue.go  | 27 +++++++++++++++------------
+ src/runtime/netpoll_solaris.go | 25 ++++++++++++++-----------
+ src/runtime/netpoll_windows.go | 13 ++++++++-----
+ 5 files changed, 61 insertions(+), 46 deletions(-)

@@ -1,19 +1,20 @@
-commit 89f7bd578189423e8699e64e58bfb992de9dce6d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Mar 25 11:47:02 2020 -0400
+commit 5f92939c9040c33ed19893a6b369b3dbbd3c5837
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 11 08:53:42 2019 -0700
 
-    cmd/internal/obj/arm64: write test output to temp dir
+    runtime: update timejump function for new timers
     
-    Write the test output to the temporary directory, not the current
-    directory.
+    Since timers are now on a P, rather than having a G running timerproc,
+    timejump changes to return a P rather than a G.
     
-    May fix linux-mips64le-mengzhuo builder.
+    Updates #27707
     
-    Change-Id: Ibfeb3d2879c11d498abc31df4efe776fc09a6ad6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225440
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I3d05af2d664409a0fd906e709fdecbbcbe00b9a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171880
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/internal/obj/arm64/asm_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/proc.go | 61 ++++++++++++++++++++++++++++++++++++++++-------------
+ src/runtime/time.go | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 106 insertions(+), 16 deletions(-)

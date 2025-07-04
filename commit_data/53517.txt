@@ -1,21 +1,18 @@
-commit 6801c27837b44b40aef0878a8a611413ef46e3eb
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jun 7 21:36:19 2023 +0200
+commit 011a525b21c77c8a11e54c5b15cb10761baf1925
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 13 18:31:30 2022 -0700
 
-    crypto/tls: make SessionState.Extra a slice of byte slices
+    test: add test that caused gccgo to crash
     
-    Fixes #60539
-    Updates #60105
+    For #23868
     
-    Change-Id: I7b567cc1d0901891ed97d29591db935cd487cc71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501675
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I07b001836e8d1411609ab84786398a5b575bf8d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417481
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- api/go1.21.txt                            |  2 +-
- src/crypto/tls/handshake_messages_test.go |  4 +++-
- src/crypto/tls/ticket.go                  | 31 +++++++++++++++++++++++--------
- 3 files changed, 27 insertions(+), 10 deletions(-)
+ test/fixedbugs/issue23868.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

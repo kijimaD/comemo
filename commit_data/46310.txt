@@ -1,17 +1,55 @@
-commit ba66d62b688d50f4e89b724d1c5b48bb05f8b117
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Aug 17 18:25:05 2021 +0000
+commit cb28c96be8b8010dd979e0723bf5a94b11962a93
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 24 13:14:46 2020 -0400
 
-    cmd/internal/obj/riscv: avoid obj.Prog rewriting for memory stores
+    [dev.regabi] cmd/compile,cmd/link: initial support for ABI wrappers
     
-    Rather than rewriting the obj.Prog for a MOV pseudo-instruction targeting
-    a register to memory stores, generate the appropriate machine instruction
-    sequence directly.
+    Add compiler support for emitting ABI wrappers by creating real IR as
+    opposed to introducing ABI aliases. At the moment these are "no-op"
+    wrappers in the sense that they make a simple call (using the existing
+    ABI) to their target. The assumption here is that once late call
+    expansion can handle both ABI0 and the "new" ABIInternal (register
+    version), it can expand the call to do the right thing.
     
-    Change-Id: I6eac8637e1fcb48c04d9f331cac7ae5d8cc54092
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344455
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Note that the runtime contains functions that do not strictly follow
+    the rules of the current Go ABI0; this has been handled in most cases
+    by treating these as ABIInternal instead (these changes have been made
+    in previous patches).
+    
+    Generation of ABI wrappers (as opposed to ABI aliases) is currently
+    gated by GOEXPERIMENT=regabi -- wrapper generation is on by default if
+    GOEXPERIMENT=regabi is set and off otherwise (but can be turned on
+    using "-gcflags=all=-abiwrap -ldflags=-abiwrap"). Wrapper generation
+    currently only workd on AMD64; explicitly enabling wrapper for other
+    architectures (via the command line) is not supported.
+    
+    Also in this patch are a few other command line options for debugging
+    (tracing and/or limiting wrapper creation). These will presumably go
+    away at some point.
+    
+    Updates #27539, #40724.
+    
+    Change-Id: I1ee3226fc15a3c32ca2087b8ef8e41dbe6df4a75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270863
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 52 ++++++++++++++++++++++-----------------
- 1 file changed, 29 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/base/debug.go  |   1 +
+ src/cmd/compile/internal/base/flag.go   |   3 +
+ src/cmd/compile/internal/gc/gsubr.go    | 191 +++++++++++++++++++++++++++-----
+ src/cmd/compile/internal/gc/main.go     |  23 ++++
+ src/cmd/compile/internal/gc/pgen.go     |   7 +-
+ src/cmd/compile/internal/gc/racewalk.go |   2 +-
+ src/cmd/compile/internal/gc/ssa.go      |  49 +++++++-
+ src/cmd/compile/internal/types/sym.go   |  17 +++
+ src/cmd/internal/obj/link.go            |   6 +
+ src/cmd/internal/obj/plist.go           |   6 +
+ src/cmd/internal/obj/textflag.go        |   3 +
+ src/cmd/internal/obj/x86/obj6.go        |   4 +-
+ src/cmd/link/internal/ld/main.go        |  12 +-
+ src/cmd/link/internal/ld/symtab.go      |  37 ++++++-
+ src/runtime/textflag.h                  |   2 +
+ test/nosplit.go                         |   9 +-
+ 16 files changed, 328 insertions(+), 44 deletions(-)

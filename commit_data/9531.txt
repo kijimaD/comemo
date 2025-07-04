@@ -1,12 +1,65 @@
-commit 45bd7b07e5e4a6524a6fe243a40a5918850168bf
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Mon Aug 29 09:35:08 2011 -0400
+commit b3cc4897be0c8131a2b50d2349a0d8249b46b444
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Aug 29 09:35:04 2011 -0400
 
-    time: fix Plan 9 build
+    gc: fix build on Plan 9
     
-    R=golang-dev, rsc
+    gc/bits.c
+    . improved format with associated cast;
+    gc/closure.c
+    gc/dcl.c
+    gc/range.c
+    gc/reflect.c
+    gc/sinit.c
+    . dropped unnecessary assignments;
+    gc/gen.c
+    . dropped unnecessary assignment;
+    . added static qualifier to local function definition;
+    gc/go.h
+    . added varargck pragmas;
+    gc/lex.c
+    . used {} instead of ; in if statement to suppress warning;
+    . replaced exit(0) with exits(0);
+    . added compilation conditions for SIGBUS/SIGSEGV;
+    . dropped unnecessary assignment;
+    gc/mparith2.c
+    . dropped four unnecessary assignments/initialisations;
+    gc/obj.c
+    . added type cast to local pointer;
+    gc/pgen.c
+    . added cast and related print format;
+    gc/subr.c
+    . replaced exit(1) with exits("error");
+    . replaced unlink() with remove();
+    . renamed local cistrmp() as ucistrmp() to remove conflict with
+      Plan 9 function by the same name;
+    gc/swt.c
+    . added braces instead of ; as empty statment;
+    gc/typecheck.c
+    . added static qualifier to local function definition;
+    . dropped unnecessary assignments;
+    gc/walk.c
+    . dropped unnecessary assignments;
+    . added static qualifier to local function definitions;
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4966045
+    https://golang.org/cl/4964046
 
- src/pkg/time/zoneinfo_plan9.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/bits.c      |  2 +-
+ src/cmd/gc/closure.c   |  1 -
+ src/cmd/gc/dcl.c       |  3 ---
+ src/cmd/gc/gen.c       |  3 +--
+ src/cmd/gc/go.h        | 20 ++++++++++++++++++++
+ src/cmd/gc/lex.c       | 14 +++++++-------
+ src/cmd/gc/mparith2.c  |  4 ++++
+ src/cmd/gc/obj.c       |  2 +-
+ src/cmd/gc/pgen.c      |  2 +-
+ src/cmd/gc/range.c     |  2 --
+ src/cmd/gc/reflect.c   |  1 -
+ src/cmd/gc/sinit.c     |  2 +-
+ src/cmd/gc/subr.c      | 14 ++++++++------
+ src/cmd/gc/swt.c       |  4 ++--
+ src/cmd/gc/typecheck.c |  8 ++++----
+ src/cmd/gc/walk.c      | 10 +++-------
+ 16 files changed, 53 insertions(+), 39 deletions(-)

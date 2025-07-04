@@ -1,21 +1,23 @@
-commit bdbba224040a0f079a80368d9956f85a10577045
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Mar 5 19:47:34 2021 +0000
+commit b3d9cf7a07518020c6ec5032474aafef9345cdd5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 13 14:59:29 2020 -0400
 
-    reflect: add tests for reflect.Value.Call for the new ABI
+    os: return a *PathError from Readdirnames and Readdir on POSIX platforms
     
-    This change adds tests for reflect.Value.Call for calling functions
-    using the new register-based ABI.
+    Previously, Readdirnames returned a *PathError on Windows and Plan 9,
+    but a *SyscallError on POSIX systems.
     
-    For #40724.
+    In contrast, similar methods (such as Stat) return a *PathError on all platforms.
     
-    Change-Id: Ia9afd43e26dd80c7e36dd135a5b71acce8074801
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299269
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #38923
+    
+    Change-Id: I26395905b1e723933f07b792c7aeee7c335949cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233917
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/abi_test.go    | 447 +++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/export_test.go |  15 +-
- 2 files changed, 461 insertions(+), 1 deletion(-)
+ src/os/dir_darwin.go | 10 +++++-----
+ src/os/dir_unix.go   |  2 +-
+ src/os/os_test.go    |  4 ++++
+ 3 files changed, 10 insertions(+), 6 deletions(-)

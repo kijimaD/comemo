@@ -1,15 +1,12 @@
-commit 1d57943987e6a13a0aa0e57d8a40a66fb877e636
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:28:29 2015 -0400
+commit fa97136038a2f848b6d9c1820757a3762882263b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 14 18:50:18 2015 -0400
 
-    go/build: skip darwin/arm64 tests that need GOROOT
+    cmd/internal/obj: add basic test of line history
     
-    Just like darwin/arm.
-    
-    Change-Id: I1a9f51c572c14b78d35ea62f52927f2bdc46e4c0
-    Reviewed-on: https://go-review.googlesource.com/8821
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ic22e004b43bd98e712befb30684be16d8214c94a
+    Reviewed-on: https://go-review.googlesource.com/7622
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/build/build_test.go | 14 ++++++++++----
- src/go/build/deps_test.go  |  5 +++--
- 2 files changed, 13 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/line_test.go | 50 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

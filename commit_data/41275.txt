@@ -1,24 +1,29 @@
-commit 1cd724acb6304d30d8998d14a5469fbab24dd3b1
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Feb 18 10:03:22 2020 -0500
+commit 1ee9bc9b0ff630c24436f12a0158724e1eafd100
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 18 15:49:25 2019 -0400
 
-    doc/go1.14: highlight the addition of hash/maphash package
+    cmd/link: enhance linker's dwarf test
     
-    Given that it's a package that did not exist before, was a proposal
-    in issue #28322, got accepted and implemented for 1.14, it seems to
-    be more than a minor change to the library. Highlight it accordingly.
+    Couple of changes to the linker's dwarf test, including:
     
-    Also specify the results are 64-bit integers, as done in CL 219340.
+     - add some code to the DWARF tests inlining coverage to verify the
+       call_file attribute attached to inlined routine DIEs. If function
+       main.F is inlined into function main.G, we want to see that the
+       call_file attribute in the inlined routine DIE for main.F is the
+       same file as that reported for main.G.
     
-    Updates #36878
-    Updates #28322
+     - fix a glitch with the way the DW_AT_decl_file attribute was
+       being checked. The previous code relied on hard-coded indices
+       into the line table files table, which is very brittle (since
+       there is no requirement that files be ordered in any specific
+       way). Instead, add machinery to look up the actual file string
+       via the line table reader.
     
-    Change-Id: Idefe63d4c47a02cdcf8be8ab08c40cdb94ff2098
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219877
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I44e71c69b6e676238cf4b805e7170de17b50939f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196517
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.14.html | 34 +++++++++++++++-------------------
- 1 file changed, 15 insertions(+), 19 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 78 +++++++++++++++++++++++++++++++---
+ 1 file changed, 71 insertions(+), 7 deletions(-)

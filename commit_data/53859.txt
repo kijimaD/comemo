@@ -1,22 +1,16 @@
-commit 54e9d6d5efdd03a75574f78e8cf379a9eec79f6d
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed Aug 2 00:37:49 2023 +0000
+commit 8f14a4602dba2e681c1308cd680de8455521189b
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:36:22 2022 +0800
 
-    reflect: update Type.FieldByName documentation
+    net/http/httptrace: use strings.Builder
     
-    Fixes #61495
-    
-    Change-Id: I9abaf3613c797006b803dcb1dbee16f25ffb7516
-    
-    Change-Id: I9abaf3613c797006b803dcb1dbee16f25ffb7516
-    GitHub-Last-Rev: 7bc2cba77286be1bd322ee31eee3e1df3d8761f1
-    GitHub-Pull-Request: golang/go#61645
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514035
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I407d11b43349cd78b709deb7b0e774bd93922caa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428269
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/reflect/type.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/net/http/httptrace/trace_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

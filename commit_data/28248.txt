@@ -1,24 +1,23 @@
-commit 2321895fe2a2def7b511453329f4cd8662230256
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Wed Sep 7 08:59:00 2016 +0200
+commit 9d7c9b4384db01afd2acb27d3a4636b60e957f08
+Author: Tal Shprecher <tshprecher@gmail.com>
+Date:   Thu May 5 15:14:08 2016 -0700
 
-    bytes: improve WriteRune performance
+    cmd/compile: properly handle map assignments for OAS2DOTTYPE
     
-    Remove the runeBytes buffer and write the utf8 encoding directly
-    to the internal buf byte slice.
+    The boolean destination in an OAS2DOTTYPE expression craps out during
+    compilation when trying to assign to a map entry because, unlike slice entries,
+    map entries are not directly addressable in memory. The solution is to
+    properly order the boolean destination node so that map entries are set
+    via autotmp variables.
     
-    name         old time/op   new time/op   delta
-    WriteRune-4   80.5µs ± 2%   57.1µs ± 2%  -29.06%  (p=0.000 n=20+20)
+    Fixes #14678
     
-    name         old speed     new speed     delta
-    WriteRune-4  153MB/s ± 2%  215MB/s ± 2%  +40.96%  (p=0.000 n=20+20)
-    
-    Change-Id: Ic15f6e2d6e56a3d15c74f56159e2eae020ba73ba
-    Reviewed-on: https://go-review.googlesource.com/28816
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If344e8f232b5bdac1b53c0f0d21eeb43ab17d3de
+    Reviewed-on: https://go-review.googlesource.com/22833
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bytes/buffer.go      | 15 ++++++++-------
- src/bytes/buffer_test.go | 13 +++++++++++++
- 2 files changed, 21 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 26 ++++++++++++++++----------
+ test/fixedbugs/issue14678.go         | 27 +++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 10 deletions(-)

@@ -1,28 +1,18 @@
-commit 840f2c167f1d5196559d8a1e77c370960e66d34e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 5 15:37:13 2017 -0400
+commit be3fcecd5256893230192310f3cfb5fca03af1c8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 6 13:33:01 2017 +0900
 
-    cmd/asm, cmd/cgo, cmd/compile, cmd/cover, cmd/link: use standard -V output
+    net: update documentation on methods of IPConn
     
-    Also add -V=full to print a unique identifier of the specific tool being invoked.
-    This will be used for content-based staleness.
+    This change simplifies the documentation on methods of IPConn and adds
+    a reference to golang.org/x/net/ipv{4,6} packages to the documentation
+    on {Read,Write}MsgIP methods.
     
-    Also sort and clean up a few of the flag doc comments.
-    
-    Change-Id: I786fe50be0b8e5f77af809d8d2dab721185c2abd
-    Reviewed-on: https://go-review.googlesource.com/68590
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ie07a853288940e0fef6a417ffc8d0c3d444c21cd
+    Reviewed-on: https://go-review.googlesource.com/44911
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/doc.go                  | 31 +++++++++++++-----------
- src/cmd/asm/internal/flags/flags.go |  2 ++
- src/cmd/cgo/doc.go                  | 48 ++++++++++++++++++-------------------
- src/cmd/cgo/main.go                 |  3 +++
- src/cmd/compile/internal/gc/main.go |  2 +-
- src/cmd/cover/cover.go              |  3 +++
- src/cmd/go/internal/work/build.go   |  8 +++++++
- src/cmd/internal/objabi/flag.go     | 42 ++++++++++++++++++++++++++++----
- src/cmd/link/doc.go                 |  2 +-
- src/cmd/link/internal/ld/main.go    |  2 +-
- 10 files changed, 98 insertions(+), 45 deletions(-)
+ src/net/iprawsock.go | 30 ++++++++++++------------------
+ 1 file changed, 12 insertions(+), 18 deletions(-)

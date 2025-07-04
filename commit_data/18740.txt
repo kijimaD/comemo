@@ -1,16 +1,12 @@
-commit b38320bffbc2239b5825566676004f4dc45d5444
-Author: Matt Aimonetti <mattaimonetti@gmail.com>
-Date:   Tue Mar 4 11:58:21 2014 -0800
+commit f884e15aabcdf547eb8c8a10e02e6bddc801e7e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 4 14:03:39 2014 -0500
 
-    net/http: make Request.ParseForm parse form-urlencoded for method PATCH too
+    runtime: fix arm build (B not JMP)
     
-    Fixes #7454
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    TBR=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/70990044
+    https://golang.org/cl/71060046
 
- src/pkg/net/http/request.go      |  2 +-
- src/pkg/net/http/request_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ src/pkg/runtime/asm_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

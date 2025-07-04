@@ -1,14 +1,25 @@
-commit 1c54119315d9f3bd9212c01db2fd4653314959e0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 10 21:35:01 2016 +0000
+commit 46ba59025f527b2cfc5ef0d5ec47be45971ba672
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 20 10:09:40 2016 -0400
 
-    net/http: document that Server.Close and Shutdown don't track hijacked conns
+    cmd/compile: label LoadReg with line number of the use
     
-    Fixes #17721
+    A tentative fix of #16380. It adds "line" everywhere...
     
-    Change-Id: I19fd81c9909a22b01a4dc9c75f3f0e069c8608ca
-    Reviewed-on: https://go-review.googlesource.com/33095
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This also reduces binary size slightly (cmd/go on ARM as an example):
+    
+                            before          after
+    total binary size       8068097         8018945 (-0.6%)
+    .gopclntab              1195341         1179929 (-1.3%)
+    .debug_line              689692          652017 (-5.5%)
+    
+    Change-Id: Ibda657c6999783c5bac180cbbba487006dbf0ed7
+    Reviewed-on: https://go-review.googlesource.com/25082
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/deadstore.go |  2 +-
+ src/cmd/compile/internal/ssa/regalloc.go  | 83 +++++++++++++++++--------------
+ src/cmd/compile/internal/ssa/sparsemap.go |  8 +--
+ 3 files changed, 51 insertions(+), 42 deletions(-)

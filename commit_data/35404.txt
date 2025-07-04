@@ -1,26 +1,14 @@
-commit c3d10e64b91652bf2a65411b2cac9ed7797fb53f
-Author: Gustav Westling <zegl@westling.xyz>
-Date:   Wed May 16 16:35:58 2018 +0000
+commit 0ed5bec951e3068df3201254f615b5ad1d429ee0
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Feb 13 09:06:59 2018 -0800
 
-    encoding/base32: handle NoPadding in NewDecoder
+    time: add example for FixedZone
     
-    This change adds functionality to properly handle NoPadding in NewDecoder.
-    
-    Removes the following expectations when using NoPadding:
-    
-    * the input message length is a multiple of 8
-    * the input message length is 0, or longer than 7 characters
-    
-    Fixes #25332
-    
-    Change-Id: I7c38160df23f7e8da4f85a5629530016e7bf71f3
-    GitHub-Last-Rev: 68ab8d2291df5c69e647620f8ef82cc90e06db28
-    GitHub-Pull-Request: golang/go#25394
-    Reviewed-on: https://go-review.googlesource.com/113215
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8a6c3e225038cbeb315433fabf8835f582836d3e
+    Reviewed-on: https://go-review.googlesource.com/93657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/base32/base32.go      | 31 +++++++++++++++----
- src/encoding/base32/base32_test.go | 63 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 88 insertions(+), 6 deletions(-)
+ src/time/example_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

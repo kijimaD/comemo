@@ -1,22 +1,24 @@
-commit 8c8baad927b2fd0bca589bacab658fe0f7eb5dac
-Author: vpachkov <slava.pach@gmail.com>
-Date:   Sun Oct 31 11:06:27 2021 +0000
+commit 2a2f99eefb70a66ecb9560a61b5cf23a5ca02ecb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 26 17:40:18 2021 -0500
 
-    runtime: check amd64 microarchitecture level at startup
+    cmd/go/internal/modload: do not resolve an arbitrary version for 'go list --versions'
     
-    Make Go runtime throw if it's been compiled to assume instruction
-    set extensions that aren't available on the CPU.
-    Updates #48506
+    If we don't actually require the listed module, we previously
+    implicitly resolved "latest", but also (erroneously) forgot to apply
+    exclusions and retractions for it. But there is really no need to
+    resolve "latest" in this case at all — now we omit the version from
+    the reported module info entirely.
     
-    Change-Id: Ic4d6696e1cd6b28d389a86fe64e8175ea3ca135a
-    GitHub-Last-Rev: ba338377f549344b416fbd519576e95ce5d523be
-    GitHub-Pull-Request: golang/go#48514
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351191
-    Run-TryBot: Martin Möhrmann <martin@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <martin@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Martin Möhrmann <martin@golang.org>
+    Fixes #44296
+    
+    Change-Id: Id595f52f597c7213bd65b73bf066a678d9e1d694
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297150
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/asm_amd64.s | 137 +++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 135 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modload/build.go                |  6 +++++-
+ src/cmd/go/internal/modload/list.go                 | 14 +++-----------
+ src/cmd/go/testdata/script/mod_proxy_https.txt      |  1 +
+ src/cmd/go/testdata/script/mod_retract_versions.txt |  3 +--
+ 4 files changed, 10 insertions(+), 14 deletions(-)

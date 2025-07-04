@@ -1,16 +1,13 @@
-commit 29415eb2b92e78481897c4161ba99f5b09fa6102
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 13 11:16:40 2017 -0700
+commit b3b9b5e463cefb5eaad69628709ed5a0c1cb658f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun May 7 23:19:31 2017 -0700
 
-    os: avoid crashing with a thundering herd in TestPipeThreads
+    net/url: add examples for URL.Hostname and URL.RequestURI
     
-    Fixes #21559
-    
-    Change-Id: I3393c4bee4c84fe0724a9c9aeb1a809b1a92eea6
-    Reviewed-on: https://go-review.googlesource.com/63650
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Change-Id: I72a10cd5dfb863f8219bb3b5b8280c017f523cf4
+    Reviewed-on: https://go-review.googlesource.com/42856
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/os_test.go | 23 +++++++++--------------
- 1 file changed, 9 insertions(+), 14 deletions(-)
+ src/net/url/example_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

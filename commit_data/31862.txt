@@ -1,22 +1,23 @@
-commit c60d6c0b4367c047470ddd652f8c53e286481f96
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 16 18:13:13 2017 -0700
+commit f2b79cadfde436a824a12b40e096b4fe6c8249d7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 8 14:58:41 2017 +1100
 
-    os: on OpenBSD implement Executable using Args[0]
+    runtime: import os package in BenchmarkRunningGoProgram
     
-    OpenBSD no longer has procfs.
+    I would like to use BenchmarkRunningGoProgram to measure
+    changes for issue #15588. So the program in the benchmark
+    should import "os" package.
     
-    Based on a patch by Matthieu Sarter.
+    It is also reasonable that basic Go program includes
+    "os" package.
     
-    Fixes #19453.
+    For #15588.
     
-    Change-Id: Ia09d16f8a1cbef2f8cc1c5f49e9c61ec7d026a40
-    Reviewed-on: https://go-review.googlesource.com/46004
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ida6712eab22c2e79fbe91b6fdd492eaf31756852
+    Reviewed-on: https://go-review.googlesource.com/37914
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/executable_path.go   | 104 ++++++++++++++++++++++++++++++++++++++++++++
- src/os/executable_procfs.go |   4 +-
- src/os/executable_test.go   |  11 +++--
- 3 files changed, 112 insertions(+), 7 deletions(-)
+ src/runtime/syscall_windows_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

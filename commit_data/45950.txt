@@ -1,30 +1,20 @@
-commit b39e0f461c099abf98f5a8c81d58d32d9a765a03
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jul 27 18:30:38 2021 -0700
+commit f5978a09589badb927d3aa96998fc785524cae02
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 22 11:52:55 2020 +1100
 
-    runtime: don't crash on nil pointers in checkptrAlignment
+    cmd/internal/obj/riscv: add tests for BGE/BGEU/BLT/BLTU
     
-    Ironically, checkptrAlignment had a latent case of bad pointer
-    arithmetic: if ptr is nil, then `add(ptr, size-1)` might produce an
-    illegal pointer value.
+    Add tests for BGE/BGEU/BLT/BLTU branch instructions. Also add pure Go variants
+    of these to ensure that the test data, Go and assembly all match up.
     
-    The fix is to simply check for nil at the top of checkptrAlignment,
-    and short-circuit if so.
-    
-    This CL also adds a more explicit bounds check in checkptrStraddles,
-    rather than relying on `add(ptr, size-1)` to wrap around. I don't
-    think this is necessary today, but it seems prudent to be careful.
-    
-    Fixes #47430.
-    
-    Change-Id: I5c50b2f7f41415dbebbd803e1b8e7766ca95e1fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338029
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I84c68605e116a4e57f6c5c765bf0aaecab84b675
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271913
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Quey-Liang Kao <s101062801@m101.nthu.edu.tw>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/checkptr.go                   | 11 ++++++++--
- src/runtime/checkptr_test.go              |  1 +
- src/runtime/testdata/testprog/checkptr.go | 36 ++++++++++++++++++++++++++++++-
- 3 files changed, 45 insertions(+), 3 deletions(-)
+ .../obj/riscv/testdata/testbranch/branch_test.go   | 54 +++++++++++++++++++++-
+ .../obj/riscv/testdata/testbranch/branch_test.s    | 44 ++++++++++++++++++
+ 2 files changed, 97 insertions(+), 1 deletion(-)

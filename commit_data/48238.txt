@@ -1,18 +1,23 @@
-commit ad523565369af0005c59232e5d2dd7359073f0f4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 28 14:35:52 2022 -0800
+commit b5842308892e0c4f9e772a42d5826f6f62f57be3
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Apr 26 20:10:56 2021 -0700
 
-    cmd/compile: remove a bunch of dead noder code
+    net/http: use relative path in Location redirect
     
-    This code was only needed for supporting -G=0 mode, which is now gone.
+    If the cleaned path did not match the requested path, ServeMux.Handler
+    would return a Location header which reflected the hostname in the
+    request, possibly leading to an incorrect redirect. Instead the
+    Location header should be relative, like the other cases in
+    ServeMux.Handler.
     
-    Change-Id: I504887ab179e357a3cd21ef582f9edae49f6cbb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388536
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2c220d925e708061bc128f0bdc96cca7a32764d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313950
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/noder/import.go |  175 ----
- src/cmd/compile/internal/noder/noder.go  | 1333 +-----------------------------
- 2 files changed, 1 insertion(+), 1507 deletions(-)
+ src/net/http/serve_test.go | 17 +++++++++++++++++
+ src/net/http/server.go     |  5 ++---
+ 2 files changed, 19 insertions(+), 3 deletions(-)

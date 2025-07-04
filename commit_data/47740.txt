@@ -1,21 +1,31 @@
-commit 3042ba34db86853c7035046716c4a00b2dbef2ed
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 7 17:32:55 2021 -0500
+commit 46ffbec1d6715f62c724a7180aec12ffd8acf57f
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Apr 7 07:58:10 2021 -0700
 
-    net/smtp: skip TestTLSSClient on all freebsd platforms
+    cmd/compile: break out transformations of tcCompLit into transformCompLit
     
-    This test seems like it needs attention from a TLS and/or FreeBSD
-    expert. In the meantime, it needs to stop causing noise on the build
-    dashboard.
+    Create transformCompLit, which does the transformations done by
+    tcCompLit without the typechecking. This removes the final use of the
+    old typechecker in the noder2 pass.
     
-    For #19229
+    Other changes:
     
-    Change-Id: If7e9e3533ae7cb29006a670c3e9df90512dcf9f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370137
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+     - Used the transformCompLit in stringstorunelit(), which creates an
+       OCOMPLIT that needs transformation as well.
+    
+     - Fixed one place in transformIndex where we were still using
+       typecheck.AssignConv, when we should be using its equivalent
+       noder.assignconvfn.
+    
+    The go/test tests always run with -G=3, and I also tested that the "go
+    test" tests continue to run correctly with -G=3.
+    
+    Change-Id: I4a976534ab7311cf2a5f43841026dbf7401e62b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308529
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/smtp/smtp_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/expr.go      |   5 +-
+ src/cmd/compile/internal/noder/transform.go | 166 +++++++++++++++++++++++++++-
+ 2 files changed, 163 insertions(+), 8 deletions(-)

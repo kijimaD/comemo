@@ -1,19 +1,20 @@
-commit ee1c76dccdfb2a40fb21a7875cccd8fc6d76d7ad
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Feb 27 10:14:44 2019 -0800
+commit 160ee5d7f55cb20d9c4bb4f3285c1bc0025edf3c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 9 14:23:34 2018 -0400
 
-    runtime: simplify constant strings in asm
+    cmd/go: test that 'go mod tidy' uses transitive requirements from replacements
     
-    As of CL 163747, we can write arbitrary length strings
-    in assembly DATA instructions.
+    The existing mod_tidy test uses replacements, but doesn't replace
+    modules that can also be resolved by fetching from GOPROXY, and
+    doesn't check the differences between the internal and external views.
     
-    Make use of it here to improve readability.
+    This new test clarifies that interaction with a more realistic example.
     
-    Change-Id: I556279ca893f527874e3b26112c43573834ccd9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167386
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2bb2028148f4b7b95c3bfcc54b3976a49515379a
+    Reviewed-on: https://go-review.googlesource.com/c/140859
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_386.s   | 12 ++----------
- src/runtime/asm_amd64.s |  8 +++-----
- 2 files changed, 5 insertions(+), 15 deletions(-)
+ src/cmd/go/testdata/script/mod_tidy_replace.txt | 71 +++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

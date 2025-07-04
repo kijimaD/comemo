@@ -1,18 +1,40 @@
-commit b00a6d8bfe749f90043ced2d7efb1f0b8f387ba3
-Author: Austin Clements <austin@google.com>
-Date:   Thu Sep 27 11:50:46 2018 -0400
+commit f85125345cc5d3eb054c90bfca4bda3544d7fcab
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 20 10:59:57 2018 -0400
 
-    runtime: eliminate mheap.busy* lists
+    go/build: invoke go command to find modules during Import, Context.Import
     
-    The old whole-page reclaimer was the only thing that used the busy
-    span lists. Remove them so nothing uses them any more.
+    The introduction of modules has broken (intentionally) the rule
+    that the source code for a package x/y/z is in GOPATH/src/x/y/z
+    (or GOROOT/src/x/y/z). This breaks the code in go/build.Import,
+    which uses that rule to find the directory for a package.
     
-    Change-Id: I4007dd2be08b9ef41bfdb0c387215c73c392cc4c
-    Reviewed-on: https://go-review.googlesource.com/c/138960
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    In the long term, the fix is to move programs that load packages
+    off of go/build and onto golang.org/x/tools/go/packages, which
+    we hope will eventually become go/packages. That code invokes
+    the go command to learn what it needs to know about where
+    packages are.
+    
+    In the short term, though, there are lots of programs that use go/build
+    and will not be able to find code in module dependencies.
+    To help those programs, go/build now runs the go command to
+    ask where a package's source code can be found, if it sees that
+    modules are in use. (If modules are not in use, it falls back to the
+    usual lookup code and does not invoke the go command, so that
+    existing uses are unaffected and not slowed down.)
+    
+    Helps #24661.
+    Fixes #26504.
+    
+    Change-Id: I0dac68854cf5011005c3b2272810245d81b7cc5a
+    Reviewed-on: https://go-review.googlesource.com/125296
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mheap.go | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ src/cmd/go/go_test.go                             |   7 +-
+ src/cmd/go/internal/cfg/cfg.go                    |   8 +-
+ src/cmd/go/internal/modload/init.go               |   6 --
+ src/cmd/go/script_test.go                         |   4 +-
+ src/cmd/go/testdata/script/mod_gobuild_import.txt |  74 +++++++++++++
+ src/go/build/build.go                             | 123 +++++++++++++++++++++-
+ 6 files changed, 211 insertions(+), 11 deletions(-)

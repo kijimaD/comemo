@@ -1,18 +1,27 @@
-commit 4c4ca8312064cc47bc3b3cd5efc43ff5b89f4dff
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Aug 11 09:54:04 2016 -0400
+commit 8f6c35de2f7c972a4f34efddd21281b7060c4457
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 13 15:06:01 2016 -0400
 
-    cmd/compile: remove nil check in accessing PAUTOHEAP variable
+    runtime: make sync_atomic_SwapPointer signature match sync/atomic
     
-    CL 23393 introduces PAUTOHEAP, and access of PAUTOHEAP variable is
-    rewritten to indirection of a PAUTO variable. Mark this variable
-    non-nil, so this indirection does not introduce extra nil checks.
+    SwapPointer is declared as
     
-    Change-Id: I31853eed5e60238b6c5bc0546e2e9ab340dcddd9
-    Reviewed-on: https://go-review.googlesource.com/26831
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+      func SwapPointer(addr *unsafe.Pointer, new unsafe.Pointer) (old unsafe.Pointer)
+    
+    in sync/atomic, but defined in the runtime (where it's actually
+    implemented) as
+    
+      func sync_atomic_SwapPointer(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+    
+    Make ptr a *unsafe.Pointer in the runtime definition to match the type
+    in sync/atomic.
+    
+    Change-Id: I99bab651b995001bbe54f9e790fdef2417ef0e9e
+    Reviewed-on: https://go-review.googlesource.com/21998
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/atomic_pointer.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

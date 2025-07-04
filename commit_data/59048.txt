@@ -1,22 +1,30 @@
-commit bdfa604b2e12990784c4eac4186360b56857370b
-Author: Than McIntosh <thanm@golang.org>
-Date:   Wed Mar 12 14:08:21 2025 -0400
+commit c0984005487b293b4bb2f92e8cd9b58422f7831e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 19 18:06:27 2023 +0200
 
-    cmd/internal/dwarf: always use AT_ranges for scopes with DWARF 5
+    runtime,internal/syscall/windows: remove long path support check
     
-    This patch extends the change in CL 657175 to apply the same abbrev
-    selection strategy to single-range lexical scopes that we're now using
-    for inlined routine bodies, when DWARF 5 is in effect. Ranges are more
-    compact and use fewer relocation than explicit hi/lo PC values, so we
-    might as well always use them.
+    The runtime currently enables long path support process-wide by updating
+    the process environment block (PEB). It then tries to create a file
+    using a long path to check if the PEB update made any difference.
     
-    Updates #26379.
+    There hasn't been any report that the PEB update was not effective,
+    and the check itself is quite tricky, so it's time to remove it.
     
-    Change-Id: Ieeaddf50e82acc4866010e29af32bcd1fb3b4f02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657177
+    While here, linkname `runtime.canUseLongPaths` to a variable in
+    internal/syscall/windows instead of the os package so it is easier to
+    consume from other packages.
+    
+    Change-Id: I549380b7f2c242dc4db20d5be603840282de69b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536495
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/dwarf/dwarf.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go |  6 +++
+ src/os/export_windows_test.go                   |  1 -
+ src/os/path_windows.go                          |  8 ++--
+ src/os/path_windows_test.go                     |  2 +-
+ src/runtime/os_windows.go                       | 55 ++-----------------------
+ 5 files changed, 14 insertions(+), 58 deletions(-)

@@ -1,14 +1,15 @@
-commit 54bc760ad72578f5e948baaff0348ea0609f6395
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Jun 16 12:59:10 2014 -0700
+commit be0079abe1eff5b4d123a249ce6a14da279217a0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jun 14 16:47:40 2014 +1000
 
-    bufio: handle excessive white space in ScanWords
+    os: disable TestGetppid on plan9
     
-    LGTM=r
-    R=golang-codereviews, bradfitz, r
+    Fixes build.
+    
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/109020043
+    https://golang.org/cl/105140047
 
- src/pkg/bufio/scan.go      |  5 +----
- src/pkg/bufio/scan_test.go | 17 ++++++++++++++++-
- 2 files changed, 17 insertions(+), 5 deletions(-)
+ src/pkg/os/os_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

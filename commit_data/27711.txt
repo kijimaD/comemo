@@ -1,15 +1,21 @@
-commit f2c13d713d85650e4a850813d64681d6be5d2e29
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Jun 22 10:40:30 2016 -0400
+commit 012557b3769f9286b9488fbfd4bddfeee66b6a55
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Apr 10 08:48:55 2016 +0200
 
-    cmd/vet: fix a crash in lostcancel check
+    all: replace magic 0x80 with named constant utf8.RuneSelf
     
-    Fixes issue 16143
-    
-    Change-Id: Id9d257aee54d31fbf0d478cb07339729cd9712c0
-    Reviewed-on: https://go-review.googlesource.com/24325
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Id1c2e8e9d60588de866e8b6ca59cc83dd28f848f
+    Reviewed-on: https://go-review.googlesource.com/21756
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/lostcancel.go          | 2 +-
- src/cmd/vet/testdata/lostcancel.go | 6 ++++++
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/bufio/bufio.go                 | 2 +-
+ src/cmd/compile/internal/gc/fmt.go | 2 +-
+ src/encoding/asn1/asn1.go          | 2 +-
+ src/go/build/build.go              | 2 +-
+ src/go/build/read.go               | 3 ++-
+ src/go/scanner/scanner.go          | 6 +++---
+ src/html/template/css.go           | 2 +-
+ src/net/http/cookiejar/punycode.go | 2 +-
+ 8 files changed, 11 insertions(+), 10 deletions(-)

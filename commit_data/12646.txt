@@ -1,12 +1,12 @@
-commit a4e6197b91e2bc16616245a3a704b89ab99db949
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 15 10:06:25 2012 -0700
+commit aec01c36272832d07507bfc4c7779eb466a846c3
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Mar 15 19:28:07 2012 +1100
 
-    net/http: couple more triv.go modernizations
+    doc/play: use []rune insetead of []int.
     
-    R=golang-dev, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5834049
+    https://golang.org/cl/5823058
 
- src/pkg/net/http/triv.go | 25 ++++++++++++++++---------
- 1 file changed, 16 insertions(+), 9 deletions(-)
+ doc/play/solitaire.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

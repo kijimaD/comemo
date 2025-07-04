@@ -1,29 +1,19 @@
-commit 73e38303f3e24ea651778705606b390d088070f0
-Author: Dmitri Shuralyov <dmitri@shuralyov.com>
-Date:   Fri May 4 13:05:15 2018 -0400
+commit 03e10bd9c4d33a68cd98931e8a4c644e8274b094
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Jan 31 10:27:49 2018 +1300
 
-    net/http: write status code in Redirect when Content-Type header set
+    os/signal: skip TestTerminalSignal if posix_openpt fails with EACCES
     
-    This is a followup to CL 110296. That change added a new behavior
-    to Redirect, where the short HTML body is not written if the
-    Content-Type header is already set. It was implemented by doing
-    an early return. That unintentionally prevented the correct status
-    code from being written, so it would always default to 200.
-    Existing tests didn't catch this because they don't check status code.
+    This happens in a chroot and so causes failures when packaging Go 1.10 for
+    Debian/Ubuntu.
     
-    This change fixes that issue by removing the early return and
-    moving the code to write a short HTML body behind an if statement.
-    It adds written status code checks to Redirect tests.
-    
-    It also tries to improve the documentation wording and code style
-    in TestRedirect_contentTypeAndBody.
-    
-    Updates #25166.
-    
-    Change-Id: Idce004baa88e278d098661c03c9523426c5eb898
-    Reviewed-on: https://go-review.googlesource.com/111517
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I817038c237e584ce185b2168f8c7a10b9ef27b43
+    Reviewed-on: https://go-review.googlesource.com/90875
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 41 +++++++++++++++++++++++++----------------
- src/net/http/server.go     | 30 ++++++++++++++++--------------
- 2 files changed, 41 insertions(+), 30 deletions(-)
+ src/go/build/deps_test.go         |  2 +-
+ src/os/signal/internal/pty/pty.go | 21 ++++++++++++++++++---
+ src/os/signal/signal_cgo_test.go  |  4 ++++
+ 3 files changed, 23 insertions(+), 4 deletions(-)

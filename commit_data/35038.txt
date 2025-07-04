@@ -1,30 +1,15 @@
-commit 0a4b962c17a9584a177c06b3c0c3119f250bbbaa
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Thu Feb 15 12:21:48 2018 +0200
+commit 3d3b8cc47716b9ce3df37b8babe48cfd074cd121
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 7 13:29:26 2017 +0900
 
-    runtime/internal/atomic: don't use Cas in atomic.Load on ARM
+    cmd/vendor/golang.org/x/arch/arm64: update from upstream
     
-    Instead issue a memory barrier on ARMv7 after reading the address.
+    Updates x/arch/arm64 to git rev. 530ae47 for CL 82437.
     
-    Fixes #23777
-    
-    Change-Id: I7aff2ab0246af64b437ebe0b31d4b30d351890d8
-    Reviewed-on: https://go-review.googlesource.com/94275
+    Change-Id: I0131f7ac783462fcaeddf5625c59784fe30bbd5a
+    Reviewed-on: https://go-review.googlesource.com/82435
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/internal/atomic/asm_arm.s          |  3 +++
- src/runtime/internal/atomic/atomic_arm.go      | 22 ++++++----------------
- src/runtime/internal/atomic/sys_linux_arm.s    | 20 ++++++++++++++++++++
- src/runtime/internal/atomic/sys_nonlinux_arm.s | 12 ++++++++++++
- src/sync/atomic/asm_arm.s                      |  3 +++
- src/sync/atomic/asm_darwin_arm.s               | 12 ------------
- src/sync/atomic/asm_freebsd_arm.s              | 10 ----------
- src/sync/atomic/asm_linux_arm.s                | 10 ----------
- src/sync/atomic/asm_nacl_arm.s                 | 10 ----------
- src/sync/atomic/asm_netbsd_arm.s               | 10 ----------
- src/sync/atomic/asm_openbsd_arm.s              | 10 ----------
- src/sync/atomic/asm_plan9_arm.s                | 11 -----------
- 12 files changed, 44 insertions(+), 89 deletions(-)
+ src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition.go      | 0
+ src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition_util.go | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)

@@ -1,19 +1,25 @@
-commit 5edfaa2cf8407853a0303fd7ee561f7621140c4f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 5 09:22:04 2017 -0400
+commit 09ebbf408530b82f1a817e2f648e1c5618eeb1ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 15 16:42:08 2017 -0700
 
-    cmd/go: clean up implicit compiler and linker dependencies
+    runtime: add read/write mutex type
     
-    Telling the truth about these will be important for
-    content-based staleness checks.
+    This is a runtime version of sync.RWMutex that can be used by code in
+    the runtime package. The type is not quite the same, in that the zero
+    value is not valid.
     
-    Change-Id: Iaed6ca6c945eb805d815156753a3e5dc48c6f0b9
-    Reviewed-on: https://go-review.googlesource.com/68336
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    For future use by CL 43713.
+    
+    Updates #19546
+    
+    Change-Id: I431eb3688add16ce1274dab97285f555b72735bf
+    Reviewed-on: https://go-review.googlesource.com/45991
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/load/pkg.go   | 102 +++++++++++++++++++++++---------------
- src/cmd/go/internal/test/test.go  |   7 +--
- src/cmd/go/internal/work/build.go |   4 --
- 3 files changed, 65 insertions(+), 48 deletions(-)
+ src/runtime/export_test.go  |  24 ++++++
+ src/runtime/rwmutex.go      |  80 +++++++++++++++++++
+ src/runtime/rwmutex_test.go | 183 ++++++++++++++++++++++++++++++++++++++++++++
+ src/sync/rwmutex.go         |   3 +
+ src/sync/rwmutex_test.go    |   3 +
+ 5 files changed, 293 insertions(+)

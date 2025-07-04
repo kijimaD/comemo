@@ -1,38 +1,23 @@
-commit 1fda57ba725044e61148258ea9e98080b0a35260
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Feb 25 11:23:04 2015 +1100
+commit 5a2771e286433c64a20fbe5ae6252080418dfa5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:14:23 2015 -0500
 
-    syscall: split implementation of Dup2 per linux GOOS
+    cmd/gc, cmd/ld, liblink: update for portable Prog, Addr changes
     
-    Updates #9974
-    
-    This proposal moves the definition of Dup2 from the generic syscall_linux.go
-    to the GOOS specific variants. This is in preparation for the arm64 port.
-    
-    For all existing platforms Dup2 is not affected. When arm64 is added we'll use
-    either a forwarding method to Dup3 or
-    
-            //sysnb        Dup2(oldfd int, newfd int) (err error) = SYS_DUP3
-    
-    Because mksycall.pl does not sort symbols before generating the output file
-    the diff includes some unavoidable code moves as Dup2 is processed latter in
-    the run.
-    
-    Discussion: https://groups.google.com/forum/#!topic/golang-dev/zpeFtN2z5Fc
-    
-    Change-Id: Icdedf55bb29e749c4230e1ee371bf9d0bd0cfb38
-    Reviewed-on: https://go-review.googlesource.com/5835
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Change-Id: Ia6f8badca56565b9df80c8dbe28c47f6cf7e653f
+    Reviewed-on: https://go-review.googlesource.com/3515
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/syscall/syscall_linux.go          |  1 -
- src/syscall/syscall_linux_386.go      |  1 +
- src/syscall/syscall_linux_amd64.go    |  1 +
- src/syscall/syscall_linux_arm.go      |  1 +
- src/syscall/syscall_linux_ppc64x.go   |  1 +
- src/syscall/zsyscall_linux_386.go     | 20 ++++++++++----------
- src/syscall/zsyscall_linux_amd64.go   | 20 ++++++++++----------
- src/syscall/zsyscall_linux_arm.go     | 20 ++++++++++----------
- src/syscall/zsyscall_linux_ppc64.go   | 20 ++++++++++----------
- src/syscall/zsyscall_linux_ppc64le.go | 20 ++++++++++----------
- 10 files changed, 54 insertions(+), 51 deletions(-)
+ src/cmd/gc/align.c    |  2 +-
+ src/cmd/gc/go.h       |  4 ----
+ src/cmd/gc/pgen.c     |  2 +-
+ src/cmd/gc/plive.c    | 18 +++++++++++-------
+ src/cmd/gc/popt.c     | 10 +++++-----
+ src/cmd/ld/dwarf.c    |  2 +-
+ src/cmd/ld/lib.c      |  4 ++--
+ src/liblink/data.c    |  8 ++++----
+ src/liblink/objfile.c | 26 +++++++++++---------------
+ src/liblink/pass.c    |  6 +++---
+ src/liblink/pcln.c    |  2 +-
+ 11 files changed, 40 insertions(+), 44 deletions(-)

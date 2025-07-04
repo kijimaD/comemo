@@ -1,39 +1,33 @@
-commit 0a02371b0576964e81c3b40d328db9a3ef3b031b
-Author: Cuong Manh Le <cuong@orijtech.com>
-Date:   Mon Dec 14 09:45:44 2020 +0700
+commit 44d22869a8df6419f894317b10c9f8329706467a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 30 23:10:35 2020 -0400
 
-    cmd/compile: set correct type for OpIData
+    cmd/link: don't mark a symbol's Gotype reachable
     
-    Since CL 270057, there're many attempts to fix the expand_calls pass
-    with interface{}-typed. But all of them did not fix the root cause. The
-    main issue is during SSA conversion in gc/ssa.go, for empty interface
-    case, we make its type as n.Type, instead of BytePtr.
+    A symbol being reachable doesn't imply its type descriptor is
+    needed. Don't mark it.
     
-    To fix these, we can just use BytePtr for now, since when itab fields
-    are treated as scalar.
+    If the type is converted to interface somewhere in the program,
+    there will be an explicit use of the type descriptor, which
+    will make it marked.
     
-    No significal changes on compiler speed, size.
+    A println("hello") program before and after
     
-    cmd/compile/internal/ssa
-    expandCalls.func6 9488 -> 9232  (-2.70%)
+    -rwxr-xr-x  1 cherryyz  primarygroup  1259824 Apr 30 23:00 hello
+    -rwxr-xr-x  1 cherryyz  primarygroup  1169680 Apr 30 23:10 hello
     
-    file                       before   after    Δ       %
-    cmd/compile/internal/ssa.s 3992893  3992637  -256    -0.006%
-    total                      20500447 20500191 -256    -0.001%
+    Updates #38782.
+    Updates #6853.
     
-    Fixes #43112
-    Updates #42784
-    Updates #42727
-    Updates #42568
-    
-    Change-Id: I0b15d9434e0be5448453e61f98ef9c2d6cd93792
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276952
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I88884c126ce75ba073f1ba059c4b892c87d2ac96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231397
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/ssa.go           |  4 +--
- src/cmd/compile/internal/ssa/expand_calls.go |  8 +-----
- test/fixedbugs/issue43112.go                 | 41 ++++++++++++++++++++++++++++
- 3 files changed, 44 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go               | 11 ++++-
+ src/cmd/link/internal/ld/deadcode_test.go          | 54 +++++++++-------------
+ .../internal/ld/testdata/deadcode/reflectcall.go   | 24 ++++++++++
+ .../link/internal/ld/testdata/deadcode/typedesc.go | 16 +++++++
+ 4 files changed, 71 insertions(+), 34 deletions(-)

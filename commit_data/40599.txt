@@ -1,18 +1,25 @@
-commit a9c0cc6f6744654de7f8fdff52f5da601a109d11
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Sun Nov 3 20:53:47 2019 -0500
+commit 5e2af2b0d2e7e367e461d4162b0338ff2dc08033
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 31 20:33:01 2019 +1000
 
-    cmd/go: make 'go mod why' require a main module
+    errors: fix package example
     
-    Updates #32027
+    The example in example_test.go requires that the whole file be
+    displayed; the addition of ExampleAs meant that only the body of the
+    package example function was shown, rather than the surrounding context.
     
-    Change-Id: Ifc9427f35188c3fd356917d8510f3e01866ebca8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205065
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    This change moves ExampleAs to the file wrap_test.go file, restoring the
+    package example to its former glory.
+    
+    Update #31716
+    
+    Change-Id: Id0ea77bc06023b239a63c1d6a7c8b3c1dae91ce9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179737
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Jean de Klerk <deklerk@google.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modget/get.go          | 12 +++++++-----
- src/cmd/go/internal/modload/load.go        |  4 ++++
- src/cmd/go/testdata/script/mod_outside.txt |  7 +++----
- 3 files changed, 14 insertions(+), 9 deletions(-)
+ src/errors/example_test.go | 16 ----------------
+ src/errors/wrap_test.go    | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 16 deletions(-)

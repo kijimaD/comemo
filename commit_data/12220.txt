@@ -1,12 +1,12 @@
-commit e4db4e9b585423324a5bf9ef22914e9f546e707f
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Mon Feb 27 11:49:06 2012 +1100
+commit 4762e9d98c6f9970f22f5ae897079b281445283f
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Mon Feb 27 11:31:38 2012 +1100
 
-    crypto/x509: fix typo in Verify documentation
+    html/template: use correct method signature, in introduction example.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5695070
+    https://golang.org/cl/5695067
 
- src/pkg/crypto/x509/verify.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/html/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

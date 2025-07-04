@@ -1,19 +1,27 @@
-commit 79edd1d19d247a9c35ee90c96f9b70b54c4dfda2
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jan 26 14:46:51 2023 -0800
+commit 81d3c25c6cf39a76b17ab4eda97e8ad7b92a21e9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 15 23:07:41 2022 -0700
 
-    runtime: remove go119MemoryLimitSupport flag
+    cmd/compile: remove unused code from typecheckdef
     
-    Change-Id: I207480d991c6242a1610795605c5ec6a3b3c59de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463225
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    typecheckdef used to be used to handle references to package-level
+    declarations that hadn't yet been typechecked yet. It's no longer
+    needed, as the current IR frontends construct package-level
+    declarations with proper types upfront.
+    
+    Exception: this code is still used for compiler-generated function
+    declarations, so that code needs to be kept. Eventually that code can
+    be moved elsewhere, but for now this CL makes it obvious that the rest
+    of the code paths really are unused.
+    
+    Updates #51691.
+    
+    Change-Id: I5322edb686aaf5dc4627288f3d9ba910a017b41d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393256
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/mgcmark.go     | 2 +-
- src/runtime/mgcpacer.go    | 8 +-------
- src/runtime/mgcscavenge.go | 3 +--
- src/runtime/mheap.go       | 2 +-
- src/runtime/runtime1.go    | 2 +-
- 5 files changed, 5 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go | 156 +-----------------------
+ 1 file changed, 6 insertions(+), 150 deletions(-)

@@ -1,20 +1,14 @@
-commit 0c81248bf46f611b56e3ab38b4d83e449b3c8636
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Apr 6 18:43:23 2016 +1000
+commit d44088f173efab62a25be9cf1f26c29982fc2617
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Feb 19 02:10:56 2016 -0800
 
-    runtime: remove unused return value from lfstackUnpack
+    net/http: refactored internal shouldClose for readability
     
-    None of the two places that call lfstackUnpack use the second argument.
-    This simplifies a followup CL that merges the lfstack{Pack,Unpack}
-    implementations.
-    
-    Change-Id: I3c93f6259da99e113d94f8c8027584da79c1ac2c
-    Reviewed-on: https://go-review.googlesource.com/21595
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Change-Id: Ie89c0945a4cc3aebfa9f7ad7f107bc7ab59ab61c
+    Reviewed-on: https://go-review.googlesource.com/19685
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/lfstack.go       | 4 ++--
- src/runtime/lfstack_32bit.go | 6 ++----
- src/runtime/lfstack_64bit.go | 6 ++----
- src/runtime/lfstack_amd64.go | 6 ++----
- 4 files changed, 8 insertions(+), 14 deletions(-)
+ src/net/http/transfer.go | 26 ++++++++++++--------------
+ 1 file changed, 12 insertions(+), 14 deletions(-)

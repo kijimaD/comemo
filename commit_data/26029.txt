@@ -1,23 +1,23 @@
-commit 71d13a8c01706c0196a843116d403fe8eb446130
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 2 20:54:41 2016 -0800
+commit 6a1c2a59898ada6403cc1f4937c0fe9c271cb363
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Dec 7 17:45:19 2015 +0900
 
-    cmd/compile: fix fieldtrack experiment
+    net: add missing File{Conn,Listener,PacketConn} read/write tests
     
-    The ODOTPTRs introduced in CL #19814 don't have field names,
-    just offsets.  The fieldtrack experiment crashes when
-    examining them.  Instead, just ignore them.  We'll never track
-    these fields anyway.
+    At present, the series of File{Conn,Listener,PacketConn} APIs are the
+    only way to configure platform-specific socket options such as
+    SO_REUSE{ADDR,PORT}, TCP_FASTOPEN. This change adds missing test cases
+    that test read and write operations on connections created by File APIs
+    and removes redundant parameter tests which are already tested in
+    server_test.go.
     
-    It would be nice to have the runtime type struct build in the
-    compiler (like we do sudog, for example) so we could use its
-    fieldnames.  Doesn't seem worth it just for this CL.
+    Also adds comment on full stack test cases for IPConn.
     
-    Change-Id: I5e75024f5a8333eb7439543b3f466ea40213a1b9
-    Reviewed-on: https://go-review.googlesource.com/20157
+    Fixes #10730.
+    
+    Change-Id: I67abb083781b602e876f72a6775a593c0f363c38
+    Reviewed-on: https://go-review.googlesource.com/17476
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/net/file_test.go | 366 ++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 233 insertions(+), 133 deletions(-)

@@ -1,38 +1,26 @@
-commit 86dc86b4f948e16001903879162e9cf8da8f0537
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Mar 18 11:16:30 2017 -0700
+commit bc075e61cb90585c34ae696aca7c0f2476f01c77
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 30 08:30:31 2016 -0800
 
-    cmd/compile: don't merge load+op if other op arg is still live
+    crypto/dsa: don't allow signing with degenerate private keys to loop forever.
     
-    We want to merge a load and op into a single instruction
+    Previously it was possible to craft a DSA private key that would cause
+    Sign() to loop forever because no signature could be valid. This change
+    does some basic sanity checks and ensures that Sign will always
+    terminate.
     
-        l = LOAD ptr mem
-        y = OP x l
+    Thanks to Yolan Romailler for highing this.
     
-    into
+    Be aware, however, that it's still possible for an attacker to simply
+    craft a private key with enormous values and thus cause Sign to take an
+    arbitrary amount of time.
     
-        y = OPload x ptr mem
-    
-    However, all of our OPload instructions require that y uses
-    the same register as x. If x is needed past this instruction, then
-    we must copy x somewhere else, losing the whole benefit of merging
-    the instructions in the first place.
-    
-    Disable this optimization if x is live past the OP.
-    
-    Also disable this optimization if the OP is in a deeper loop than the load.
-    
-    Update #19595
-    
-    Change-Id: I87f596aad7e91c9127bfb4705cbae47106e1e77a
-    Reviewed-on: https://go-review.googlesource.com/38337
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: Icd53939e511eef513a4977305dd9015d9436d0ce
+    Reviewed-on: https://go-review.googlesource.com/33725
+    Reviewed-by: Yolan Romailler <y@romailler.ch>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go      |  41 +++++++--
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  56 ++++++------
- src/cmd/compile/internal/ssa/gen/S390X.rules |  66 +++++++-------
- src/cmd/compile/internal/ssa/likelyadjust.go |   8 ++
- src/cmd/compile/internal/ssa/rewrite.go      |  28 +++++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 112 +++++++++++------------
- src/cmd/compile/internal/ssa/rewriteS390X.go | 132 +++++++++++++--------------
- 7 files changed, 249 insertions(+), 194 deletions(-)
+ src/crypto/dsa/dsa.go      | 18 ++++++++++++++++--
+ src/crypto/dsa/dsa_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 2 deletions(-)

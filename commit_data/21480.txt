@@ -1,17 +1,16 @@
-commit 706cc13b211e7c8745c47ee1e49b8e765634bb6b
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 4 13:50:08 2015 -0800
+commit ee94cd1dfff26e3044713367adcdf901a5e2653a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 7 16:30:24 2015 -0800
 
-    cmd/pack: simplify the testing logic slightly
+    cmd/cgo, go/build: finish a cleanup TODO
     
-    Followup to https://go-review.googlesource.com/3910
+    Removing #cgo directive parsing from cmd/cgo was done in
+    https://golang.org/cl/8610044.
     
-    We only need 1000 iteratinons.
-    
-    Change-Id: Ib63ae53105176abec77bad9609d638aeda7bcd61
-    Reviewed-on: https://go-review.googlesource.com/3901
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Id1bec58c6ec1f932df0ce0ee84ff253655bb73ff
+    Reviewed-on: https://go-review.googlesource.com/2501
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/pack/pack_test.go | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ src/cmd/cgo/gcc.go    | 14 --------------
+ src/go/build/build.go |  3 ---
+ 2 files changed, 17 deletions(-)

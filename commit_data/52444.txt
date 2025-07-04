@@ -1,19 +1,38 @@
-commit 541ef422e24c8010f95151f241224fa16cdce210
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Aug 26 14:19:06 2022 +0800
+commit 265b5fd2f1c6d3379893b58940dde48e156ce531
+Author: Bryan Mills <bcmills@google.com>
+Date:   Wed May 4 16:27:53 2022 +0000
 
-    runtime: add comment for sys_linux_loong64
+    Revert "cmd/compile: enable Asan check for global variables"
     
-    Change-Id: I617d6d788cb213c1405f81d9f689fd6846ee105a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425300
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    This reverts CL 401775.
+    
+    Reason for revert: broke build.
+    
+    Change-Id: I4f6f2edff1e4afcf31cd90e26dacf303979eb10c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403981
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/sys_linux_loong64.s | 31 +++++++++++++++++++++++++++++--
- 1 file changed, 29 insertions(+), 2 deletions(-)
+ misc/cgo/testsanitizers/asan_test.go               |   8 -
+ misc/cgo/testsanitizers/cc_test.go                 |  25 +--
+ src/cmd/compile/internal/base/base.go              |   1 -
+ src/cmd/compile/internal/gc/obj.go                 |  17 +-
+ src/cmd/compile/internal/noder/noder.go            |   2 +-
+ src/cmd/compile/internal/noder/object.go           |   2 +-
+ src/cmd/compile/internal/noder/reader.go           |   2 +-
+ src/cmd/compile/internal/pkginit/init.go           |  53 -----
+ .../compile/internal/pkginit/initAsanGlobals.go    | 241 ---------------------
+ src/cmd/go/alldocs.go                              |   2 -
+ src/cmd/go/internal/work/build.go                  |   2 -
+ src/cmd/go/internal/work/init.go                   | 100 ---------
+ ...o.txt => install_msan_and_race_require_cgo.txt} |   2 +-
+ src/runtime/asan.go                                |   4 -
+ src/runtime/asan/asan.go                           |  38 ----
+ src/runtime/asan0.go                               |   9 +-
+ src/runtime/asan_amd64.s                           |   8 -
+ src/runtime/asan_arm64.s                           |   8 -
+ 18 files changed, 15 insertions(+), 509 deletions(-)

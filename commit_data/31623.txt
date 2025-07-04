@@ -1,19 +1,18 @@
-commit 2d20ded584cc840bf35054b2a5f840fdefb12767
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 19 19:03:35 2017 +0900
+commit 2dc714e1cf956edc6137be2674b5c8e44601873a
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Mar 4 01:28:53 2017 +0100
 
-    net: add test for RawConn.Control on Windows
+    Revert "cmd/go: add comment about SIGUSR2 on iOS"
     
-    This is a followup to https://go-review.googlesource.com/37039.
+    This reverts commit 4f0aac52d926270255fa2b682aca15e8ff404c59.
     
-    Updates #19435.
+    Replaced by a improved strategy later in the CL relation chain.
     
-    Change-Id: Ia795bd5158d26effa56e897698208ccf73f9e0d2
-    Reviewed-on: https://go-review.googlesource.com/43693
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iff0333f172443bb5b01a42ad06b01edeb6aa15bc
+    Reviewed-on: https://go-review.googlesource.com/36068
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/rawconn.go                                |  7 +++--
- src/net/{rawconn_test.go => rawconn_unix_test.go} |  0
- src/net/rawconn_windows_test.go                   | 36 +++++++++++++++++++++++
- 3 files changed, 41 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/test/test.go | 4 ----
+ 1 file changed, 4 deletions(-)

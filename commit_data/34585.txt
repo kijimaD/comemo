@@ -1,16 +1,28 @@
-commit 09d4455f458478a9bc1f69fd29f1c5c70fefe23e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 13 12:59:41 2018 -0700
+commit 15f07dbf59e223ca3116eb57868632082657d3a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 19:57:50 2017 -0400
 
-    cmd/compile: enable inlining variadic functions
+    cmd/go: add cache verification mode
     
-    As a side effect of working on mid-stack inlining, we've fixed support
-    for inlining variadic functions. Might as well enable it.
+    If GODEBUG=gocacheverify=1, then instead of using the cache to
+    avoid computations, the go command will do the computations and
+    double-check that they match any existing cache entries.
+    This is handled entirely in the cache implementation; there's no
+    complexity added to any of the cache usage sites.
     
-    Change-Id: I7f555f8b941969791db7eb598c0b49f6dc0820aa
-    Reviewed-on: https://go-review.googlesource.com/100456
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    (As of this CL there aren't any cache usage sites, but soon there will be.)
+    
+    Also change GOCMDDEBUGHASH to the more usual GODEBUG=gocachehash=1.
+    
+    Change-Id: I574f181e06b5299b1d9c6d402e40c57a0e064e74
+    Reviewed-on: https://go-review.googlesource.com/75294
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 16 +---------------
- test/inline_variadic.go            |  4 ++--
- 2 files changed, 3 insertions(+), 17 deletions(-)
+ src/cmd/dist/build.go                   |  2 +-
+ src/cmd/dist/deps.go                    |  1 +
+ src/cmd/go/internal/cache/cache.go      | 49 +++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/cache/cache_test.go | 42 ++++++++++++++++++++++++++++
+ src/cmd/go/internal/cache/hash.go       |  2 +-
+ 5 files changed, 94 insertions(+), 2 deletions(-)

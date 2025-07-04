@@ -1,32 +1,29 @@
-commit 7db75b368d4599e02b065f48b6ca8675b658b928
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 7 11:28:14 2022 -0800
+commit 55c517a8b330710e6aaf6cc7133a9c7759bbb1d1
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Apr 26 17:52:53 2021 -0700
 
-    go/types, types2: ensure we have an interface before checking constraints
+    cmd/compile: fix handling of ir.CurFunc during stenciling
     
-    Due to delayed computation of constraint type sets it is possible that
-    a type argument is checked against a constraint before that constraint
-    has been wrapped into an implicit interface (if needed).
+    The transform functions (specifically transformArgs, which is used from
+    transformCall/transformReturn) require that ir.CurFunc is set correctly.
+    Since transformCall() is used on the call of an instantiated generic
+    function, we need to set ir.CurFunc correctly in stencil(). Also,
+    correctly save/restore ir.CurFunc in genericSubst().
     
-    When the type checker is about to check whether a type argument
-    implements a constraint, it's always safe to force wrapping of
-    a constraint in an implicit interface (if necessary) before doing
-    the implements check.
+    Without this fix, ir.CurFunc can be nil when we call TransformCall()
+    from stencil(), which leads to some temp variables being added
+    incorrectly to ir.TodoFunc (which leads to the fatal panic in the
+    issue).
     
-    Also, use a better position for tracing output related to constraint
-    type set computation.
+    Fixes #45722
     
-    Fixes #51048.
-    
-    Change-Id: I52fecbf57814f09b62762452d7e17c2a230fdd59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383834
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Iddf4a67d28f2100dde8cde5dbc9ca1e00dad6089
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313869
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/types2/instantiate.go                |  2 ++
- .../compile/internal/types2/testdata/fixedbugs/issue51048.go2 | 11 +++++++++++
- src/cmd/compile/internal/types2/typeparam.go                  |  5 +++--
- src/go/types/instantiate.go                                   |  2 ++
- src/go/types/testdata/fixedbugs/issue51048.go2                | 11 +++++++++++
- src/go/types/typeparam.go                                     |  6 +++---
- 6 files changed, 32 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  8 +++++++-
+ test/typeparam/issue45722.go              | 34 +++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 1 deletion(-)

@@ -1,25 +1,15 @@
-commit eede112492174c8b0f72845e6ac9edf1bd481f41
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Apr 12 10:43:44 2016 -0700
+commit 1661493c7394c694406c7c91fc2655b0599ad987
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 2 22:28:05 2016 -0500
 
-    crypto/tls: make error prefix uniform.
+    cmd/link: replace LSym.Queue with a slice
     
-    Error strings in this package were all over the place: some were
-    prefixed with “tls:”, some with “crypto/tls:” and some didn't have a
-    prefix.
-    
-    This change makes everything use the prefix “tls:”.
-    
-    Change-Id: Ie8b073c897764b691140412ecd6613da8c4e33a2
-    Reviewed-on: https://go-review.googlesource.com/21893
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idc95452088d23be8e18522209d98f789dfca070b
+    Reviewed-on: https://go-review.googlesource.com/20161
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/alert.go            |  4 ++--
- src/crypto/tls/common.go           |  2 +-
- src/crypto/tls/conn.go             |  2 +-
- src/crypto/tls/handshake_client.go |  6 +++---
- src/crypto/tls/handshake_server.go | 12 ++++++------
- src/crypto/tls/key_agreement.go    | 20 ++++++++++----------
- src/crypto/tls/tls.go              | 26 +++++++++++++-------------
- 7 files changed, 36 insertions(+), 36 deletions(-)
+ src/cmd/link/internal/ld/go.go   | 27 +++++++++------------------
+ src/cmd/link/internal/ld/link.go |  1 -
+ 2 files changed, 9 insertions(+), 19 deletions(-)

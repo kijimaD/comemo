@@ -1,17 +1,17 @@
-commit ca831135b34d13fe5b774a6b23867dd1a277786a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue May 17 07:07:58 2016 +0900
+commit d0801f70b24ca90f2852f59f9f46865e02772545
+Author: David Benjamin <davidben@google.com>
+Date:   Mon Jan 4 16:11:02 2016 -0800
 
-    net: simplify interfaceTable for BSD variants
+    encoding/asn1: tags should be encoded in minimal form.
     
-    This change drops parseInterfaceTable which becomes unnecessary by the
-    golang.org/x/net/route plumbing.
+    High tag number form may not be used for tag numbers that fit in low tag number
+    form.
     
-    Change-Id: I05f96e347de950bb1e9292bb3eeff01bb40e292f
-    Reviewed-on: https://go-review.googlesource.com/23125
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I93edde0e1f86087047e0b3f2e55d6180b01e78bf
+    Reviewed-on: https://go-review.googlesource.com/18224
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/net/interface_bsd.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/encoding/asn1/asn1.go      | 5 +++++
+ src/encoding/asn1/asn1_test.go | 4 +++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

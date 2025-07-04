@@ -1,36 +1,20 @@
-commit 802a8f88a3e5e52de77cfb75a5926b2025d33f4f
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Fri Jun 23 01:50:14 2017 -0700
+commit 0cf7e54f2fe033a1e596d9aaed0e728cda1fc5e7
+Author: Ron Minnich <rminnich@gmail.com>
+Date:   Tue Aug 29 09:59:27 2017 -0700
 
-    math/cmplx: use signed zero to correct branch cuts
+    os: don't assume /bin/pwd in test, find it in $PATH
     
-    Branch cuts for the elementary complex functions along real or imaginary axes
-    should be resolved in floating point calculations by one-sided continuity with
-    signed zero as described in:
+    There are several distros now that no longer have /bin.
+    Instead of assuming /bin/pwd, we will look for it in $PATH.
     
-    "Branch Cuts for Complex Elementary Functions or Much Ado About Nothing's Sign Bit"
-    W. Kahan
+    Fixes #21684.
     
-    Available at: https://people.freebsd.org/~das/kahan86branch.pdf
-    
-    And as described in the C99 standard which is claimed as the original cephes source.
-    
-    Sqrt did not return the correct branch when imag(x) == 0. The branch is now
-    determined by sign(imag(x)).  This incorrect branch choice was affecting the behavior
-    of the Trigonometric/Hyperbolic functions that use Sqrt in intermediate calculations.
-    
-    Asin, Asinh and Atan had spurious domain checks, whereas the functions should be valid
-    over the whole complex plane with appropriate branch cuts.
-    
-    Fixes #6888
-    
-    Change-Id: I9b1278af54f54bfb4208276ae345bbd3ddf3ec83
-    Reviewed-on: https://go-review.googlesource.com/46492
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I61478326500edeadc3c26803990550dad00c7971
+    Signed-off-by: Ron Minnich <rminnich@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/60010
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/cmplx/asin.go       | 19 +++----------
- src/math/cmplx/cmath_test.go | 63 ++++++++++++++++++++++++++++++++++++++++++++
- src/math/cmplx/sqrt.go       |  7 ++---
- 3 files changed, 71 insertions(+), 18 deletions(-)
+ src/os/os_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

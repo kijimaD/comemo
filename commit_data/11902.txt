@@ -1,21 +1,15 @@
-commit 2a6e6999a45a88999930cd879c919f6b93aaa868
+commit f8f0a2bc7bbb587836312747600d0e084b30baef
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Feb 14 22:13:19 2012 +0100
+Date:   Tue Feb 14 20:23:45 2012 +0100
 
-    runtime, time: accelerate tests in short mode.
+    cgo: add support for returning errno with gccgo.
     
-                                       before   after
-    go test -short time                4.144s  1.215s
-    go test -short runtime             1.315s  0.351s
-    go test -short -cpu=1,2,4 runtime  4.376s  1.266s
+    Also eliminate some warnings in builds.
     
-    Partially solves issue 3015.
-    
-    R=golang-dev, r
+    R=golang-dev, fullung, iant, rsc
     CC=golang-dev, remy
-    https://golang.org/cl/5673045
+    https://golang.org/cl/5650066
 
- src/pkg/runtime/gc_test.go |  6 +++++-
- src/pkg/time/sleep_test.go | 16 +++++++++-------
- src/pkg/time/tick_test.go  | 15 ++++++++++-----
- 3 files changed, 24 insertions(+), 13 deletions(-)
+ src/cmd/cgo/out.go  | 50 +++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/go/build.go | 11 +++++++----
+ 2 files changed, 46 insertions(+), 15 deletions(-)

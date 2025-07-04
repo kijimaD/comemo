@@ -1,15 +1,20 @@
-commit 3b5537739428fc6983ccc913b5a73de594124ae4
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed Dec 13 22:50:17 2023 +0800
+commit 4df10fba1687a6d4f51d7238a403f8f2298f6a16
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jan 25 16:19:26 2023 +0100
 
-    doc: add missing html tags
+    crypto/rand, internal/syscall/unix: add support for getrandom on NetBSD ≥ 10.0
     
-    Change-Id: Ieb1a9efdff571f402dd44815e0fbe2cf5a2d55b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549355
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    The getrandom syscall was added to NetBSD in version 10.0, see
+    https://man.netbsd.org/NetBSD-10.0-STABLE/getrandom.2
+    
+    Change-Id: I2714c1040791f7f4728be8d869058a38cbd93d4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463123
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- doc/go1.22.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/crypto/rand/rand.go                       |  2 +-
+ src/crypto/rand/rand_getrandom.go             |  4 +-
+ src/internal/syscall/unix/getrandom_netbsd.go | 56 +++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 3 deletions(-)

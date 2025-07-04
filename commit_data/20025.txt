@@ -1,14 +1,20 @@
-commit 523aa932881e72ccc83f25d441b2e535c1048296
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 18 13:26:28 2014 -0700
+commit e0aaf2b2dbbba264a112e498666821f412b87ba9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 19:49:18 2014 -0400
 
-    runtime: move panicindex/panicslice to Go.
+    [dev.power64] syscall: auto-generated source for linux/power64 and linux/power64le.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/130210043
+    https://golang.org/cl/127170043
 
- src/pkg/runtime/panic.c  | 12 ------------
- src/pkg/runtime/panic.go | 13 +++++++++++++
- 2 files changed, 13 insertions(+), 12 deletions(-)
+ src/pkg/syscall/zerrors_linux_power64.go    | 1887 ++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_power64le.go  | 1911 ++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_power64.go   | 1931 +++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_power64le.go | 1931 +++++++++++++++++++++++++++
+ src/pkg/syscall/zsysnum_linux_power64.go    |  351 +++++
+ src/pkg/syscall/zsysnum_linux_power64le.go  |  351 +++++
+ src/pkg/syscall/ztypes_linux_power64.go     |  602 +++++++++
+ src/pkg/syscall/ztypes_linux_power64le.go   |  602 +++++++++
+ 8 files changed, 9566 insertions(+)

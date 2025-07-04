@@ -1,22 +1,92 @@
-commit 07f623063ddf8216b03a4a17a27110d330e80c7e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 21 09:43:58 2021 -0700
+commit 440308ffd7061e0eb386a9a8469575528b41dcd4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:03:33 2020 -0500
 
-    reflect: add MapIter.Reset
+    [dev.regabi] cmd/compile: simplify Nodes usage [generated]
     
-    This allows callers to do (amortized) allocation-free iteration
-    over many maps.
+    Now that Nodes is a slice, most of the methods can be removed
+    in favor of direct slice operations, reducing the new API that must
+    be understood to:
     
-    Fixes #46293
+            Copy
+            Take
+            Append
+            Prepend
+            Format
     
-    Change-Id: I3aa6134dd00da35b508bd1e3b487332a871a3673
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321891
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    [git-generate]
+    cd src/cmd/compile/internal/ir
+    rf '
+    ex . ../gc {
+            var ns Nodes
+            var pns *Nodes
+            var n, n2, n3 Node
+            var i int
+            var slice []Node
+    
+            ns.Len() -> len(ns)
+            ns.Slice() -> ns
+            ns.First() -> ns[0]
+            ns.Second() -> ns[1]
+            ns.Index(i) -> ns[i]
+            ns.Addr(i) -> &ns[i]
+            ns.SetIndex(i, n) -> ns[i] = n
+            ns.SetFirst(n) -> ns[0] = n
+            ns.SetSecond(n) -> ns[1] = n
+            ns.Set1(n) -> ns = []Node{n}
+            ns.Set2(n, n2) -> ns = []Node{n, n2}
+            ns.Set3(n, n2, n3) -> ns = []Node{n, n2, n3}
+            ns.Set1(n) -> ns = []Node{n}
+            ns.Set2(n, n2) -> ns = []Node{n, n2}
+            ns.Set3(n, n2, n3) -> ns = []Node{n, n2, n3}
+            AsNodes(slice) -> Nodes(slice)
+            ns.AppendNodes(pns) -> ns.Append(pns.Take()...)
+            ns.MoveNodes(pns) -> ns = pns.Take()
+    }
+    
+    rm \
+            Nodes.Len Nodes.Slice \
+            Nodes.First Nodes.Second Nodes.Index Nodes.Addr \
+            Nodes.SetIndex Nodes.SetFirst Nodes.SetSecond \
+            Nodes.Set1 Nodes.Set2 Nodes.Set3 \
+            AsNodes \
+            Nodes.AppendNodes Nodes.MoveNodes
+    '
+    
+    Change-Id: Iee86434ced52e67861c3fa71bdd6d994a8cba735
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277936
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/all_test.go | 66 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/value.go    | 12 +++++++++
- 2 files changed, 78 insertions(+)
+ src/cmd/compile/internal/gc/alg.go       |   4 +-
+ src/cmd/compile/internal/gc/closure.go   |  10 +-
+ src/cmd/compile/internal/gc/const.go     |   2 +-
+ src/cmd/compile/internal/gc/dcl.go       |   4 +-
+ src/cmd/compile/internal/gc/escape.go    |  54 +++----
+ src/cmd/compile/internal/gc/gsubr.go     |   4 +-
+ src/cmd/compile/internal/gc/iexport.go   |  22 +--
+ src/cmd/compile/internal/gc/iimport.go   |  10 +-
+ src/cmd/compile/internal/gc/init.go      |   4 +-
+ src/cmd/compile/internal/gc/initorder.go |   4 +-
+ src/cmd/compile/internal/gc/inl.go       |  62 ++++----
+ src/cmd/compile/internal/gc/noder.go     |  24 +--
+ src/cmd/compile/internal/gc/order.go     |  96 ++++++------
+ src/cmd/compile/internal/gc/pgen.go      |   4 +-
+ src/cmd/compile/internal/gc/range.go     |  80 +++++-----
+ src/cmd/compile/internal/gc/select.go    |  84 +++++------
+ src/cmd/compile/internal/gc/sinit.go     |  34 ++---
+ src/cmd/compile/internal/gc/ssa.go       |  56 +++----
+ src/cmd/compile/internal/gc/subr.go      |  16 +-
+ src/cmd/compile/internal/gc/swt.go       |  82 +++++-----
+ src/cmd/compile/internal/gc/typecheck.go | 194 ++++++++++++------------
+ src/cmd/compile/internal/gc/walk.go      | 250 +++++++++++++++----------------
+ src/cmd/compile/internal/ir/dump.go      |   2 +-
+ src/cmd/compile/internal/ir/expr.go      |  16 +-
+ src/cmd/compile/internal/ir/fmt.go       |  46 +++---
+ src/cmd/compile/internal/ir/node.go      |  92 +-----------
+ src/cmd/compile/internal/ir/visit.go     |  10 +-
+ 27 files changed, 588 insertions(+), 678 deletions(-)

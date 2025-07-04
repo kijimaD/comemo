@@ -1,19 +1,15 @@
-commit 4464ae280f6b6cd16ac23677aba05ac69e26c896
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 21 12:30:43 2014 -0700
+commit 708304bea26bec83c443f7657ad1780b17c23790
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 21 10:39:23 2014 -0700
 
-    fmt: fix floating-point padding once and for all
-    Rewrite formatFloat to be much simpler and clearer and
-    avoid the tricky interaction with padding.
-    The issue refers to complex but the problem is just floating-point.
-    The new tests added were incorrectly formatted before this fix.
-    Fixes #8064.
+    cmd/go: check for SWIG version that is too old to use
     
-    LGTM=jscrockett01, rsc
-    R=rsc, jscrockett01
-    CC=golang-codereviews
-    https://golang.org/cl/99420048
+    Fixes #7983.
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/96540044
 
- src/pkg/fmt/fmt_test.go | 12 ++++++++++
- src/pkg/fmt/format.go   | 62 ++++++++++++++++++++++++-------------------------
- 2 files changed, 43 insertions(+), 31 deletions(-)
+ src/cmd/go/build.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 40 insertions(+), 1 deletion(-)

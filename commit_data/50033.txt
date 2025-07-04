@@ -1,22 +1,29 @@
-commit dbc3b44f85e638c2247af02548d8b386996f4d37
+commit 73418bca347c94560a6cb605d8eb393b56941446
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 18 20:16:15 2022 -0700
+Date:   Wed Sep 22 09:55:10 2021 -0700
 
-    go/types: match types2 errors for incorrect method receiver count
+    cmd/compile/internal/types2: record all instances, not just inferred instances
     
-    Use "method has no receiver" and "method has multiple receivers"
-    in error messages for invalid receiver counts, matching the
-    corresponding types2 errors.
+    This is a port of CL 349629 from go/types to types2, adjusted to
+    make it work for types2. It also includes the necessary compiler
+    changes, provided by mdempsky.
     
-    For #54511.
-    
-    Change-Id: I96fc99440d6206c74e9416069db052234baa8248
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424934
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: If8de174cee9c69df0d0642fcec1ee7622b7c3852
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351455
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/types/resolver.go                      |  2 +-
- src/go/types/signature.go                     |  2 +-
- src/go/types/testdata/check/decls2/decls2a.go | 10 +++++-----
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/noder/expr.go      |  79 ++-------------
+ src/cmd/compile/internal/noder/irgen.go     |   2 +-
+ src/cmd/compile/internal/noder/object.go    |  21 +++-
+ src/cmd/compile/internal/noder/writer.go    |  57 ++++-------
+ src/cmd/compile/internal/types2/api.go      |  30 ++++--
+ src/cmd/compile/internal/types2/api_test.go | 148 ++++++++++++++++++++--------
+ src/cmd/compile/internal/types2/call.go     |   9 +-
+ src/cmd/compile/internal/types2/check.go    |  34 ++++++-
+ src/cmd/compile/internal/types2/typexpr.go  |   1 +
+ 9 files changed, 207 insertions(+), 174 deletions(-)

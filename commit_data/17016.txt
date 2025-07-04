@@ -1,16 +1,14 @@
-commit 910caf93454d177fee459a6e65cb4f5d8e0b56ad
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 4 11:23:17 2013 -0700
+commit 7d4ea6cc9edf75199c72a42cfa3481f0e98f5d89
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 4 09:06:14 2013 +1000
 
-    net/http: fix Response.Header documentation for multiple headers with same key
+    html/template: delete panic recovery code from test
     
-    Whether the keys are concatenated or separate (or a mixture) depends on the server.
+    The test isn't checking deliberate panics so catching them just makes the code longer.
     
-    Fixes #5979.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/12433043
+    https://golang.org/cl/12420043
 
- src/pkg/net/http/response.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/html/template/content_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

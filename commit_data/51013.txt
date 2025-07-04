@@ -1,19 +1,20 @@
-commit 599a1e40c6dc4d02e2d0ae5a22659b49dc327e40
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Fri Sep 30 09:17:11 2022 +0800
+commit b77f5f9667c6e5c2081d94163dd7d11c03fa2b8e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 23 15:55:11 2021 -0800
 
-    math/rand: deprecate Read
+    cmd/compile/internal/types2: better error message for missing ~ in constraint
     
-    For #20661.
+    If a constraint could be satisfied if one of its type elements
+    had a ~, provide this information in the error message.
     
-    Change-Id: I1e638cb619e643eadc210d71f92bd1af7bafc912
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436955
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Fixes #49179.
+    
+    Change-Id: I59f1a855a0646ad7254a978420b0334f1f52ec22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366758
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/math/rand/rand.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/types2/instantiate.go     | 25 +++++++++++++++++++---
+ .../types2/testdata/fixedbugs/issue49179.go2       | 20 ++++++++++++++++-
+ src/cmd/compile/internal/types2/typeset.go         |  2 ++
+ 3 files changed, 43 insertions(+), 4 deletions(-)

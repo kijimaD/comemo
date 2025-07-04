@@ -1,15 +1,39 @@
-commit 0d0c7489306f9379e5968435769b0620ff6b7fe3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 17 15:24:40 2013 -0700
+commit aa0439ba65bfa762c26a3dbb3f0c0474267b5582
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 17 16:54:22 2013 -0400
 
-    encoding/xml: remove dead code
+    cmd/gc: eliminate redundant &x.Field nil checks
     
-    Avoid future 'declared and not used error'.
-    See also issue 6414.
+    This eliminates ~75% of the nil checks being emitted,
+    on all architectures. We can do better, but we need
+    a bit more general support from the compiler, and
+    I don't want to do that so close to Go 1.2.
+    What's here is simple but effective and safe.
     
-    R=r
+    A few small code generation cleanups were required
+    to make the analysis consistent on all systems about
+    which nil checks are omitted, at least in the test.
+    
+    Fixes #6019.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/13242058
+    https://golang.org/cl/13334052
 
- src/pkg/encoding/xml/xml_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/5g/ggen.c |   2 +-
+ src/cmd/5g/peep.c |  28 ++++++++
+ src/cmd/5g/prog.c |   2 +-
+ src/cmd/5g/reg.c  |   4 ++
+ src/cmd/6g/cgen.c |   1 +
+ src/cmd/6g/ggen.c |   2 +-
+ src/cmd/6g/peep.c |  28 ++++++++
+ src/cmd/8g/cgen.c |  28 ++++++++
+ src/cmd/8g/ggen.c |   2 +-
+ src/cmd/8g/peep.c |  28 ++++++++
+ src/cmd/gc/gen.c  |   4 ++
+ src/cmd/gc/pgen.c |   8 ++-
+ src/cmd/gc/popt.c | 184 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/popt.h |   4 ++
+ src/cmd/gc/walk.c |   5 --
+ test/nilptr3.go   | 191 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 16 files changed, 510 insertions(+), 11 deletions(-)

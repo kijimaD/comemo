@@ -1,30 +1,16 @@
-commit e4b624eae5fa3c51b8ca808da29442d3e3aaef04
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 31 13:48:06 2022 -0700
+commit eba91e83b05f146892aec8922615e77b6496d886
+Author: Sean Liao <seankhliao@gmail.com>
+Date:   Sat Oct 9 12:22:01 2021 +0200
 
-    cmd/compile: use HaveInlineBody for unified IR
+    sync: use example.com for url in ExampleWaitGroup
     
-    In go.dev/cl/419674 I added a mechanism to the inliner to allow
-    inlining to fail gracefully when a function body is missing, but I
-    missed we already have a mechanism for that: typecheck.HaveInlineBody.
+    Fixes #48886
     
-    This CL makes it overridable so that unified IR can plug in its
-    appropriate logic, like it does with the logic for building the
-    ir.InlinedCallExpr node.
-    
-    While here, rename inline.NewInline to inline.InlineCall, because the
-    name "NewInline" is now a misnomer since we initialize it to oldInline
-    (now named oldInlineCall).
-    
-    Change-Id: I4e65618d3725919f69e6f43cf409699d20fb797c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427234
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1093ae0ba30dab5a73d4d6bcfd083564d13877a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354830
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/compile/internal/inline/inl.go        | 12 ++++++------
- src/cmd/compile/internal/noder/reader.go      | 22 ++++++++++++++--------
- src/cmd/compile/internal/noder/unified.go     |  3 ++-
- src/cmd/compile/internal/typecheck/iimport.go | 11 ++++-------
- 4 files changed, 26 insertions(+), 22 deletions(-)
+ src/sync/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

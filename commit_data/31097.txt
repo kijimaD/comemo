@@ -1,18 +1,17 @@
-commit 30ddffadd5475e76aeaccdf1e243658c20350422
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 12 06:06:51 2017 -0700
+commit 048b8cecc6e74b50205e803ca387ffaa7e9f37fe
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Jan 31 12:54:45 2017 -0800
 
-    cmd/internal/obj: remove Link.Debugdivmod
+    reflect: adjust documentation on Value
     
-    It is only used once and never written to.
-    Switch to a local constant instead.
+    Make the documentation more explicit that it is not safe to directly
+    compare Value. Get straight to the point on how to do it correctly.
     
-    Change-Id: Icdd84e47b81f0de44ad9ed56ab5f4f91df22e6b6
-    Reviewed-on: https://go-review.googlesource.com/40405
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #18871
+    
+    Change-Id: I2aa3253f779636b2f72a1aae8c9bb45d3c32c902
+    Reviewed-on: https://go-review.googlesource.com/36018
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go | 3 ++-
- src/cmd/internal/obj/link.go     | 1 -
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/value.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

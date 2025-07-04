@@ -1,26 +1,19 @@
-commit cacab6455503e04b276542baffc19f5113ef133d
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Mar 26 12:02:36 2019 -0400
+commit 1100df58238a1b1c55af148a880b48caf4be6504
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Tue Oct 30 22:58:24 2018 +0000
 
-    cmd/link: change -strictdups checking to handle mix of flags
+    go/internal/gcimporter: ensure tests pass even if GOROOT is read-only
     
-    Update the recently-added '-strictdups' sanity checking to avoid
-    failing the link in cases where we have objects feeding into the link
-    with a mix of command line flags (and in particular some with "-N" and
-    some without). This scenario will trigger errors/warnings due to
-    inlinable functions and wrapper functions that have different sizes
-    due to presence or lack of optimization.
+    This mainly entails writing compiler output files to a temporary
+    directory, as well as the corrupted files in TestVersionHandling.
     
-    Update #31034.
+    Updates #28387
     
-    Change-Id: I1dd9e37c2f9bea5da0ab82e32e6fc210aebf6a65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169160
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I6b3619a91fff27011c7d73daa4febd14a6c5c348
+    Reviewed-on: https://go-review.googlesource.com/c/146119
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go        | 12 ++++++++++++
- src/cmd/link/internal/ld/lib.go          | 10 +++++++++-
- src/cmd/link/internal/ld/main.go         |  1 +
- src/cmd/link/internal/objfile/objfile.go |  9 +++++----
- 4 files changed, 27 insertions(+), 5 deletions(-)
+ src/go/internal/gcimporter/gcimporter_test.go | 113 ++++++++++++++++----------
+ 1 file changed, 69 insertions(+), 44 deletions(-)

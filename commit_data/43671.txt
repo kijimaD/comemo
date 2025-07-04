@@ -1,31 +1,30 @@
-commit e463c28cc116fb1f40a4e203bddf93b6ef52c8d9
-Author: Quim Muntal <quimmuntal@gmail.com>
-Date:   Thu Oct 22 22:32:20 2020 +0200
+commit b2cff7e091ca1f59ceb77c4dd3acaf0c150b5440
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Jan 23 18:18:39 2020 -0800
 
-    cmd/link: avoid exporting all symbols on windows buildmode=pie
+    database/sql: check conn expiry when returning to pool, not when handing it out
     
-    Marking one functions with __declspec(dllexport) forces mingw to
-    create .reloc section without having to export all symbols.
+    With the original connection reuse strategy, it was possible that
+    when a new connection was requested, the pool would wait for an
+    an existing connection to return for re-use in a full connection
+    pool, and then it would check if the returned connection was expired.
+    If the returned connection expired while awaiting re-use, it would
+    return an error to the location requestiong the new connection.
+    The existing call sites requesting a new connection was often the last
+    attempt at returning a connection for a query. This would then
+    result in a failed query.
     
-    See https://insights.sei.cmu.edu/cert/2018/08/when-aslr-is-not-really-aslr---the-case-of-incorrect-assumptions-and-bad-defaults.html for more info.
+    This change ensures that we perform the expiry check right
+    before a connection is inserted back in to the connection pool
+    for while requesting a new connection. If requesting a new connection
+    it will no longer fail due to the connection expiring.
     
-    This change cuts 73kb of a "hello world" pie binary.
+    Fixes #32530
     
-    Updates #6853
-    Fixes #40795
-    
-    Change-Id: I3cc57c3b64f61187550bc8751dfa085f106c8475
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264459
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: If16379befe0e14d90160219c0c9396243fe062f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216197
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- misc/cgo/testcshared/cshared_test.go |  9 +++++----
- src/cmd/go/go_test.go                | 33 +++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/lib.go      |  3 ---
- src/runtime/cgo/gcc_windows_386.c    |  1 +
- src/runtime/cgo/gcc_windows_amd64.c  |  1 +
- src/runtime/cgo/libcgo_windows.h     | 12 ++++++++++++
- 6 files changed, 52 insertions(+), 7 deletions(-)
+ src/database/sql/sql.go      | 13 ++++++-
+ src/database/sql/sql_test.go | 89 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 101 insertions(+), 1 deletion(-)

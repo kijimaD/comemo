@@ -1,30 +1,19 @@
-commit e8cdab5c494716e547d2b84b68d46680e35a7a9f
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Aug 16 21:27:15 2023 -0700
+commit 95a5e20d8f7a6f7863eb3281e3a198a577e773fe
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 9 18:06:25 2022 +1000
 
-    encoding: optimize growth behavior in Encoding.AppendDecode
+    internal/cpu: enable arm64 SHA512 detection for freebsd/openbsd
     
-    The Encoding.DecodedLen API only returns the maximum length of the
-    expected decoded output, since it does not know about padding.
-    Since we have the input, we can do better by computing the
-    input length without padding, and then perform the DecodedLen
-    calculation as if there were no padding.
-    
-    This avoids over-growing the destination slice if possible.
-    Over-growth is still possible since the input may contain
-    ignore characters like newlines and carriage returns,
-    but those a rarely encountered in practice.
-    
-    Change-Id: I38b8f91de1f4fbd3a7128c491a25098bd385cf74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520267
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I1f21654b50d7b0cd8e1f854efe2724b72f067449
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422216
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/encoding/base32/base32.go      | 14 ++++++++++++--
- src/encoding/base32/base32_test.go |  7 +++++++
- src/encoding/base64/base64.go      | 14 ++++++++++++--
- src/encoding/base64/base64_test.go |  7 +++++++
- 4 files changed, 38 insertions(+), 4 deletions(-)
+ src/internal/cpu/cpu_arm64_freebsd.go | 5 ++++-
+ src/internal/cpu/cpu_arm64_openbsd.go | 5 ++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

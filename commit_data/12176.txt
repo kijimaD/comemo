@@ -1,14 +1,14 @@
-commit 1bddfb52031fd6bbe602e0d586758eac9ffd592a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Feb 23 15:43:14 2012 -0500
+commit 7ae6872fc02557c46f8b9550a0697db3b9f19207
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Thu Feb 23 15:38:07 2012 -0500
 
-    runtime: check for ARM syscall failures
-        While we are at it, also update some comments.
-        Tested on Linux/ARM builder.
+    dist: treat CC as one unit
     
-    R=rsc, golang-dev
+    Fixes #3112.
+    
+    R=golang-dev, 0xe2.0x9a.0x9b, ality, rsc, rsc
     CC=golang-dev
-    https://golang.org/cl/5696047
+    https://golang.org/cl/5700044
 
- src/pkg/runtime/sys_linux_arm.s | 26 ++++++++++++++++++++------
- 1 file changed, 20 insertions(+), 6 deletions(-)
+ src/cmd/dist/build.c | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

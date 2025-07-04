@@ -1,23 +1,15 @@
-commit a5d1a9df812706708da1940898cf8cad8d5f9de2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 27 12:11:21 2020 -0400
+commit a42a396846453e44ff9abadc1430a8c0c6a11e25
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 24 18:43:43 2019 +0700
 
-    net/http: remove arbitrary timeouts from TestIdentityResponse and TestTLSHandshakeTimeout
+    syscall: remove un-used const ptrSize
     
-    These hard-coded timeouts make the tests flaky on slow builders (such
-    as solaris-amd64-oraclerel), and make test failures harder to diagnose
-    anyway (by replacing dumps of the stuck goroutine stacks with failure
-    messages that do not describe the stuck goroutines). Eliminate them
-    and simplify the tests.
-    
-    Fixes #37327
-    Fixes #38112
-    
-    Change-Id: Id40febe349d134ef53c702e36199bfbf2b6468ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225977
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic809a533f9c4042373bdad3ba1cd237d203bacff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202881
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 93 ++++++++++++++++++----------------------------
- 1 file changed, 37 insertions(+), 56 deletions(-)
+ src/syscall/syscall_darwin.go | 2 --
+ 1 file changed, 2 deletions(-)

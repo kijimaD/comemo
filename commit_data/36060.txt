@@ -1,12 +1,29 @@
-commit 9c9c5a032fb17d6e835d18cd5ac4510f4cbe0fbc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 18 21:57:36 2018 +0000
+commit 0250ef910f9a979a2151bd8e02b2641b74cf2f27
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Mar 31 16:49:07 2018 -0700
 
-    doc: update go1.11 release notes
+    cmd/compile: refactor constant rewriting
     
-    Change-Id: I9008afdc8c38c440ea083a4f2bed0d2253e112f0
-    Reviewed-on: https://go-review.googlesource.com/124836
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Extract all rewrite-to-OLITERAL expressions to use a single setconst
+    helper function.
+    
+    Does not pass toolstash-check for two reasons:
+    
+    1) We now consistently clear Left/Right/etc when rewriting Nodes into
+    OLITERALs, which results in their inlining complexity being correctly
+    computed. So more functions can now be inlined.
+    
+    2) We preserve Pos, so PC line tables change somewhat.
+    
+    Change-Id: I2b5c293bee7c69c2ccd704677f5aba4ec40e3155
+    Reviewed-on: https://go-review.googlesource.com/103860
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- doc/go1.11.html | 27 ++++++++++++++++++---------
- 1 file changed, 18 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/const.go     | 119 +++++++++++--------------------
+ src/cmd/compile/internal/gc/sinit.go     |   3 +-
+ src/cmd/compile/internal/gc/subr.go      |  22 ------
+ src/cmd/compile/internal/gc/typecheck.go |  68 +++++++-----------
+ src/cmd/compile/internal/gc/walk.go      |   2 +-
+ 5 files changed, 72 insertions(+), 142 deletions(-)

@@ -1,0 +1,34 @@
+commit a2fbb50322e716f75e9c4707afd2de725a95e14b
+Author: Yao Zi <ziyao@disroot.org>
+Date:   Fri May 9 15:09:39 2025 +0000
+
+    cmd/link: ignore mapping symbols on riscv64
+    
+    Specified in RISC-V ELF psABI[1], mapping symbols are symbols starting
+    with "$d" or "$x" with STT_NOTYPE, STB_LOCAL and zero sizes, indicating
+    boundaries between code and data in the same section.
+    
+    Let's simply ignore them as they're only markers instead of real symbols.
+    This fixes linking errors like
+    
+            sym#63 ("$d"): ignoring symbol in section 4 (".riscv.attributes") (type 0)
+    
+    when using CGO together with Clang and internal linker, which are caused
+    by unnecessary (but technically correct) mapping symbols created by LLVM
+    for various sections.
+    
+    [1]: https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/87aecf601722171c570120a46003be3c17ad3108/riscv-elf.adoc?plain=1#L1448
+    
+    Fixes #73516
+    
+    Change-Id: I02ca90c100ba8a38733fe3b8b8403836b44a3dd1
+    GitHub-Last-Rev: d7842ceafb840c511cf0c36295c353698898d399
+    GitHub-Pull-Request: golang/go#73592
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669675
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

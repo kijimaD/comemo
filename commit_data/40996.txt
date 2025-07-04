@@ -1,18 +1,23 @@
-commit f7f9866f34111b1e5d6c67e7af4de64ecb685f9e
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Dec 13 11:23:09 2019 -0500
+commit 81fde0c9418a057ea83f9c7c286d866bd20cf692
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 28 15:50:31 2019 +0200
 
-    doc: remove Go Security Policy page (moved to x/website)
+    net/http: fix a long test after CL 185117
     
-    This page has moved to the x/website repo in CL 211300 (commit
-    golang/website@3c8b7f99cadaa000e642595d0fabcd9ac496f335).
-    Remove the old copy in this repo since it's no longer used.
+    The net/url error in question now quotes the URL, so update the expected
+    output string.
     
-    Updates #29206
+    While at it, also update a comment in httputil, though that doesn't
+    affect any test.
     
-    Change-Id: I8b3396d9e42d1e7262a8cde9577962d33b215836
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211301
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Fixes #33910.
+    
+    Change-Id: I0981f528b24337c2952ef60c0db3b7ff72d72110
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192078
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/security.html | 183 ------------------------------------------------------
- 1 file changed, 183 deletions(-)
+ src/net/http/httputil/reverseproxy_test.go | 2 +-
+ src/net/http/transport_test.go             | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

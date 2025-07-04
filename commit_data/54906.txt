@@ -1,17 +1,35 @@
-commit 995ec5c85b2690ff65f7f1143f1283f19cd03100
-Author: wulianglongrd <wulianglongrd@gmail.com>
-Date:   Sun Oct 29 22:57:22 2023 +0800
+commit 8614c525b301b2b993bf99269a01975ea072b086
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Nov 8 15:46:05 2022 -0600
 
-    net/http/cookiejar: remove unused variable
+    crypto/aes: On ppc64le, use better instructions when available
     
-    The errNoHostname variable is not used, delete it.
+    Several operations emulate instructions available on power9. Use
+    the GOPPC64_power9 macro provided by the compiler to select the
+    native instructions if the minimum cpu requirements are met.
     
-    Change-Id: I62ca6390fd026e6a8cb1e8147f3fbfc3078c2249
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538455
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Likewise rework the LXSDX_BE to simplify usage when overriding
+    it. It is only used in one place.
+    
+    All three configurations are tested via CI.
+    
+    On POWER9:
+    
+    pkg:crypto/cipher goos:linux goarch:ppc64le
+    AESCBCEncrypt1K   949MB/s ± 0%   957MB/s ± 0%  +0.83%
+    AESCBCDecrypt1K  1.82GB/s ± 0%  1.99GB/s ± 0%  +8.93%
+    pkg:crypto/aes goos:linux goarch:ppc64le
+    Encrypt          1.01GB/s ± 0%  1.05GB/s ± 0%  +4.36%
+    Decrypt           987MB/s ± 0%  1024MB/s ± 0%  +3.77%
+    
+    Change-Id: I56d0eb845647dd3c43bcad71eb281b499e1d1789
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449116
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Auto-Submit: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- src/net/http/cookiejar/jar.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/crypto/aes/asm_ppc64x.s | 42 +++++++++++++++++++++++-------------------
+ 1 file changed, 23 insertions(+), 19 deletions(-)

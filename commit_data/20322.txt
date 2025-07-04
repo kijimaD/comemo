@@ -1,17 +1,14 @@
-commit a09e61395ee5e71c4c4a37fa0faed87592a04834
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Sep 6 15:27:26 2014 -0400
+commit 686ecd83c04c9904de9457c7b14380cc2c04cff2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 1 10:02:52 2014 +1000
 
-    runtime: move stubs.goc code into runtime.c
+    image/png: make the CompressionLevel constants negative, reserving
+    positive numbers to mean a numeric zlib compression level.
     
-    Now that the calling conventions are the same,
-    there's no danger to using plain C for these.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=dvyukov, golang-codereviews, iant, khr, r
-    https://golang.org/cl/134580043
+    LGTM=bradfitz, ruiu
+    R=bradfitz, ruiu
+    CC=golang-codereviews, jeff.allen
+    https://golang.org/cl/138860043
 
- src/pkg/runtime/runtime.c | 48 +++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/stubs.goc | 57 -----------------------------------------------
- 2 files changed, 48 insertions(+), 57 deletions(-)
+ src/pkg/image/png/writer.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

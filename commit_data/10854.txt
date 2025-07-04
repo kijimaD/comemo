@@ -1,14 +1,57 @@
-commit 96a5780db882b4bd4a1f4b69e185833e5bedffcb
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Dec 17 13:14:18 2011 +1100
+commit 86dcc431e9282013eb8ce6cce22c882f37a05147
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 16 18:50:40 2011 -0500
 
-    go/build: remove 'go/build' from error messages
+    runtime: hg revert -r 6ec0a5c12d75
     
-    This leads to really confusing messages in goinstall.
+    That was the last build that was close to working.
+    I will try that change again next week.
+    Make is being very subtle today.
+    
+    At the reverted-to CL, the ARM traceback appears
+    to be broken.  I'll look into that next week too.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5495074
+    https://golang.org/cl/5492063
 
- src/pkg/go/build/path.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/Make.pkg                          |   2 +-
+ src/cmd/Makefile                      |   7 +--
+ src/make.bash                         |   8 +--
+ src/pkg/runtime/Makefile              |  83 +++++++++++++++++++---------
+ src/pkg/runtime/Makefile.auto         | 101 ----------------------------------
+ src/pkg/runtime/asm_386.s             |   2 +-
+ src/pkg/runtime/asm_amd64.s           |   2 +-
+ src/pkg/runtime/asm_arm.s             |   2 +-
+ src/pkg/runtime/defs1_linux.go        |   2 -
+ src/pkg/runtime/defs2_linux.go        |   2 -
+ src/pkg/runtime/defs_arm_linux.go     |   2 -
+ src/pkg/runtime/defs_darwin.go        |   2 -
+ src/pkg/runtime/defs_freebsd.go       |   2 -
+ src/pkg/runtime/defs_linux.go         |   2 -
+ src/pkg/runtime/defs_netbsd.go        |   2 -
+ src/pkg/runtime/defs_openbsd.go       |   2 -
+ src/pkg/runtime/defs_windows.go       |   2 -
+ src/pkg/runtime/goc2c.c               |   3 -
+ src/pkg/runtime/lock_futex.c          |   2 -
+ src/pkg/runtime/lock_sema.c           |   2 -
+ src/pkg/runtime/mkasmh.sh             |  25 +--------
+ src/pkg/runtime/mkgodefs.sh           |  24 +-------
+ src/pkg/runtime/mkversion.c           |   8 +--
+ src/pkg/runtime/rt0_windows_amd64.s   |   2 +-
+ src/pkg/runtime/signal_darwin_amd64.c |   2 +-
+ src/pkg/runtime/sys_darwin_386.s      |   2 +-
+ src/pkg/runtime/sys_darwin_amd64.s    |   2 +-
+ src/pkg/runtime/sys_freebsd_386.s     |   2 +-
+ src/pkg/runtime/sys_freebsd_amd64.s   |   2 +-
+ src/pkg/runtime/sys_linux_386.s       |   2 +-
+ src/pkg/runtime/sys_linux_amd64.s     |   2 +-
+ src/pkg/runtime/sys_linux_arm.s       |   2 +-
+ src/pkg/runtime/sys_netbsd_386.s      |   2 +-
+ src/pkg/runtime/sys_netbsd_amd64.s    |   2 +-
+ src/pkg/runtime/sys_openbsd_386.s     |   2 +-
+ src/pkg/runtime/sys_openbsd_amd64.s   |   2 +-
+ src/pkg/runtime/sys_plan9_386.s       |   2 +-
+ src/pkg/runtime/sys_windows_386.s     |   2 +-
+ src/pkg/runtime/sys_windows_amd64.s   |   2 +-
+ 39 files changed, 85 insertions(+), 236 deletions(-)

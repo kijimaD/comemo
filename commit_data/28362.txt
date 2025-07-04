@@ -1,17 +1,23 @@
-commit 2e675142dd269348da992c1862a28e56e0a87eb6
-Author: Jan Mercl <0xjnml@gmail.com>
-Date:   Wed Sep 14 13:17:37 2016 +0200
+commit 1119af89767dc4086cba336e732afcea084c8c34
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 04:42:37 2016 +0000
 
-    test/float_lit2: fix expressions in comment
+    net/http: update bundled x/net/http2 for httptrace changes
     
-    The change corrects the values of the largest float32 value (f1) and the
-    value of the halfway point between f1 and the next, overflow value (f2).
+    Updates x/net/http2 to 3b99394 for golang.org/cl/23205
     
-    Fixes #17012
+    And associated tests.
     
-    Change-Id: Idaf9997b69d61fafbffdb980d751c9857732e14d
-    Reviewed-on: https://go-review.googlesource.com/29171
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #12580
+    
+    Change-Id: I1f4b59267b453d241f2afaa315b7fe10d477e52d
+    Reviewed-on: https://go-review.googlesource.com/23206
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/float_lit2.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/clientserver_test.go |  7 +++++
+ src/net/http/h2_bundle.go         | 58 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/httptrace/trace.go   |  1 +
+ src/net/http/transport_test.go    | 38 +++++++++++++------------
+ 4 files changed, 87 insertions(+), 17 deletions(-)

@@ -1,14 +1,15 @@
-commit 30d60936d97423af0403f2d5395c604ac0ff3757
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Mar 6 00:55:57 2014 -0500
+commit 3a7fe36d667f3b60dcab173025f4ecb0e70238e0
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 6 13:15:09 2014 +1100
 
-    syscall: update NetBSD/ARM port to EABI.
+    doc/go_faq.html: reference the new wiki page titled Go Code Review Comments
     
-    LGTM=jsing
-    R=golang-codereviews, jsing
+    Fixes #7449.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/70720043
+    https://golang.org/cl/71610044
 
- src/pkg/syscall/zsyscall_netbsd_arm.go |  2 +-
- src/pkg/syscall/ztypes_netbsd_arm.go   | 29 +++++++++++++++++------------
- 2 files changed, 18 insertions(+), 13 deletions(-)
+ doc/go_faq.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

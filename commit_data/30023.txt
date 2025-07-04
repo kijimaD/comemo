@@ -1,30 +1,20 @@
-commit 7d889af26d40a6d81e668c9780086e8c8ef14ceb
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Feb 1 09:37:47 2017 +0100
+commit 40d4be59ccd83c29a72fb6a9a8c2eee4c91f628b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 21 10:27:57 2016 -0700
 
-    misc/ios: include the bundle id in the GOIOS_APP_ID env variable
+    net: make all Resolver methods respect Resolver.PreferGo
     
-    The iOS exec wrapper use the constant bundle id "golang.gotest" for
-    running Go programs on iOS. However, that only happens to work on
-    the old iOS builders where their provisioning profile covers
-    that bundle id.
+    Fixes #17532
     
-    Expand the detection script to list all available provisioning
-    profiles for the attached device and include the bundle id in the
-    GOIOS_APP_ID environment variable.
-    
-    To allow the old builders to continue, the "golang.gotest" bundle
-    id is used as a fallback if only the app id prefix is specified in
-    GOIOS_APP_ID.
-    
-    For the new builders.
-    
-    Change-Id: I8baa1d4d57f845de851c3fad3f178e05e9a01b17
-    Reviewed-on: https://go-review.googlesource.com/36060
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Id62671d505c77ea924b3570a504cdc3b157e5a0d
+    Reviewed-on: https://go-review.googlesource.com/31734
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/ios/detect.go             | 55 ++++++++++++++++++++++++------------------
- misc/ios/go_darwin_arm_exec.go | 26 ++++++++++++++------
- 2 files changed, 50 insertions(+), 31 deletions(-)
+ src/net/lookup.go         | 37 +++++++++++++++----------------------
+ src/net/lookup_nacl.go    | 22 +++++++++-------------
+ src/net/lookup_plan9.go   | 22 ++++++++++------------
+ src/net/lookup_unix.go    | 29 ++++++++++++++++-------------
+ src/net/lookup_windows.go | 30 ++++++++++++++----------------
+ 5 files changed, 64 insertions(+), 76 deletions(-)

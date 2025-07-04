@@ -1,21 +1,15 @@
-commit cf241a34a2ee8b337e11731958d918cbfd338caf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Sep 30 16:35:52 2021 -0700
+commit 50cba0506f0f979cf1a1670ffff9113a4cdb6273
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 21 19:41:56 2021 -0800
 
-    net: consistently return DNSError on lookup failure
+    time: clarify Timer.Reset behavior on AfterFunc Timers
     
-    Previously if we failed because the context timed out or was canceled,
-    we returned errCanceled or errTimeout.
+    Fixes #28100
     
-    Fixes #39178
-    
-    Change-Id: I11bd7ebfaa7e5775fb05dfbb6b67f8307c8d8697
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353400
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I37d4d7badf455e4ecf982d4fc7cb070052de2e45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285632
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/lookup.go      | 27 ++++++++++++++++---
- src/net/lookup_test.go | 70 +++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 93 insertions(+), 4 deletions(-)
+ src/time/sleep.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

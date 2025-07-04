@@ -1,14 +1,16 @@
-commit d0a91f230591a3c5225d9258e62371c13092bd92
-Author: 沈涛 <shentaoskyking@gmail.com>
-Date:   Thu Nov 8 11:25:20 2018 +0000
+commit 3a28a711db15efd97c7675fccf0d2d0f2245a99b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 17 19:57:24 2018 +1000
 
-    strings: remove empty line
+    doc: improve the garbage collection discussion
     
-    Change-Id: Ibdca4f7002585b00d7f69d710285a8e0f69c598a
-    GitHub-Last-Rev: eb8f800c986c8ac4a81705158ecc730c35e1c5c2
-    GitHub-Pull-Request: golang/go#28659
-    Reviewed-on: https://go-review.googlesource.com/c/148477
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Bring it up to date with recent terminology, mention new approaches
+    such as in Rust, and link to the new blog post.
+    
+    Change-Id: I1d0b121e6f8347c3cf2c8ca0d8adc8285ce59ef1
+    Reviewed-on: https://go-review.googlesource.com/124475
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/strings/strings.go | 1 -
- 1 file changed, 1 deletion(-)
+ doc/go_faq.html | 39 +++++++++++++++++++++++++++++----------
+ 1 file changed, 29 insertions(+), 10 deletions(-)

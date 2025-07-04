@@ -1,20 +1,18 @@
-commit a164a2f5357ed5635cbda1fd4e8dacb835248cd0
-Author: Wei Congrui <crvv.mail@gmail.com>
-Date:   Tue Aug 22 13:36:19 2017 +0800
+commit 91c9b0d568e41449f26858d88eb2fd085eaf306d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Apr 24 18:37:48 2017 +0900
 
-    build: add `go env GOROOT` as default GOROOT_BOOTSTRAP value
+    runtime: adjust netpoll panic messages
     
-    This change also added the same check in make.bash to make.rc,
-    which makes sure $GOROOT_BOOTSTRAP != $GOROOT.
-    
-    Fixes #14339
-    
-    Change-Id: I2758f4a845bae42ace02492fc6a911f6d6247d26
-    Reviewed-on: https://go-review.googlesource.com/57753
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I34547b057605bb9e1e2227c41867589348560244
+    Reviewed-on: https://go-review.googlesource.com/41513
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/make.bash | 10 +++++++++-
- src/make.rc   | 15 +++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/runtime/netpoll.go         | 20 ++++++++++----------
+ src/runtime/netpoll_epoll.go   |  8 ++++----
+ src/runtime/netpoll_kqueue.go  |  8 ++++----
+ src/runtime/netpoll_solaris.go | 14 +++++++-------
+ src/runtime/netpoll_windows.go | 21 +++++++++++----------
+ 5 files changed, 36 insertions(+), 35 deletions(-)

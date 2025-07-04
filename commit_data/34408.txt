@@ -1,39 +1,23 @@
-commit 4338518da83386be4728498cfc157d22e36f9b9e
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Feb 28 13:45:06 2018 -0800
+commit 986582126a371ff927182ba6e61e364c1341171a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 25 11:13:23 2017 -0400
 
-    encoding/json: avoid assuming side-effect free reflect.Value.Addr().Elem()
+    runtime: avoid monotonic time zero on systems with low-res timers
     
-    Consider the following:
-            type child struct{ Field string }
-            type parent struct{ child }
+    Otherwise low-res timers cause problems at call sites that expect to
+    be able to use 0 as meaning "no time set" and therefore expect that
+    nanotime never returns 0 itself. For example, sched.lastpoll == 0
+    means no last poll.
     
-            p := new(parent)
-            v := reflect.ValueOf(p).Elem().Field(0)
-            v.Field(0).SetString("hello")           // v.Field = "hello"
-            v = v.Addr().Elem()                     // v = *(&v)
-            v.Field(0).SetString("goodbye")         // v.Field = "goodbye"
+    Fixes #22394.
     
-    It would appear that v.Addr().Elem() should have the same value, and
-    that it would be safe to set "goodbye".
-    However, after CL 66331, any interspersed calls between Field calls
-    causes the RO flag to be set.
-    Thus, setting to "goodbye" actually causes a panic.
-    
-    That CL affects decodeState.indirect which assumes that back-to-back
-    Value.Addr().Elem() is side-effect free. We fix that logic to keep
-    track of the Addr() and Elem() calls and set v back to the original
-    after a full round-trip has occured.
-    
-    Fixes #24152
-    Updates #24153
-    
-    Change-Id: Ie50f8fe963f00cef8515d89d1d5cbc43b76d9f9c
-    Reviewed-on: https://go-review.googlesource.com/97796
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iea28acfddfff6f46bc90f041ec173e0fea591285
+    Reviewed-on: https://go-review.googlesource.com/73410
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/encoding/json/decode.go      | 24 ++++++++++++++++++-
- src/encoding/json/decode_test.go | 50 ++++++++++++++++++++++++++++++++++++----
- 2 files changed, 69 insertions(+), 5 deletions(-)
+ src/runtime/proc.go | 3 +++
+ src/runtime/time.go | 8 +++++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)

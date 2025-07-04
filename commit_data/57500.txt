@@ -1,32 +1,27 @@
-commit 89a5a60da623ca9e7f91a93cd34b35785e30ab7e
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Tue Aug 27 20:46:33 2024 +0200
+commit 7ce1dd99793e2aa2e78dc8d2031666a4a98bfd38
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 19:58:26 2023 +1000
 
-    internal/trace: refactor Stack.Frames to return iter.Seq
+    runtime/cgo: rename crosscall_amd64 to crosscall1
     
-    The Frames function is almost an iter.Seq, except for its bool return
-    value.
+    This reduces inconsistency with other architectures and will allow
+    for further code deduplication.
     
-    Since none of the callers in the Go tree rely on the bool, we can remove
-    it. However, doing so might still obscure the intended usage as an iterator.
-    
-    This refactor changes the API to return iter.Seq, making the intended
-    usage explicit. Refactoring the existing callers to take advantage of
-    the new interface will be done in a follow-up CL.
-    
-    Change-Id: I03e4d6d762910e418cc37d59a6c519eb7f39b3b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608855
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I5becbf29af2ef714974b5e338f869281f2b4de8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518617
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/trace/gstate.go                    |  2 +-
- src/cmd/trace/pprof.go                     |  4 ++--
- src/cmd/trace/regions.go                   |  2 +-
- src/cmd/trace/viewer.go                    |  2 +-
- src/internal/trace/event.go                | 36 ++++++++++++++++--------------
- src/internal/trace/summary.go              |  2 +-
- src/internal/trace/testtrace/validation.go |  2 +-
- src/internal/trace/trace_test.go           |  4 ++--
- src/runtime/trace_cgo_test.go              |  2 +-
- 9 files changed, 29 insertions(+), 27 deletions(-)
+ src/runtime/cgo/gcc_amd64.S           | 8 ++++----
+ src/runtime/cgo/gcc_darwin_amd64.c    | 3 ++-
+ src/runtime/cgo/gcc_dragonfly_amd64.c | 3 ++-
+ src/runtime/cgo/gcc_freebsd_amd64.c   | 3 ++-
+ src/runtime/cgo/gcc_linux_amd64.c     | 3 ++-
+ src/runtime/cgo/gcc_netbsd_amd64.c    | 3 ++-
+ src/runtime/cgo/gcc_openbsd_amd64.c   | 3 ++-
+ src/runtime/cgo/gcc_solaris_amd64.c   | 3 ++-
+ src/runtime/cgo/gcc_windows_amd64.c   | 3 ++-
+ src/runtime/cgo/libcgo.h              | 5 -----
+ 10 files changed, 20 insertions(+), 17 deletions(-)

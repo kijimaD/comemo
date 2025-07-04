@@ -1,18 +1,38 @@
-commit 5b1658d6912759e91e404e8c728d08439a15fea9
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 17:45:15 2022 +0700
+commit ddb5a42b25c63df9f11669bd4b14eeebcd2ba2bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 22 21:57:19 2021 -0700
 
-    runtime: convert profbuf.eof to atomic type
+    cmd/compile/internal/types2: avoid "declared but not used" errors for invalid code
     
-    Updates #53821
+    Agressively mark all LHS variables in assignments as used if there
+    is any error in the (entire) assignment. This reduces the number of
+    spurious "declared but not used" errors in programs that are invalid
+    in the first place. This behavior is closer to the behavior of the
+    compiler's original type checker (types1) and lets us remove lines
+    of the form "_ = variable" just to satisfy test cases. It also makes
+    more important errors visible by not crowding them out.
     
-    Change-Id: I271faaedbf8b8efca5fc765496eaf45c94927edf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423891
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Remove the Checker.useLHS function and use Checker.use instead:
+    useLHS didn't evaluate top-level variables, but we actually want
+    them to be evaluated in an error scenario so that they are getting
+    used (and thus we don't get the "declared but not used" error).
+    
+    Fixes #42937.
+    
+    Change-Id: Idda460f6b81c66735bf9fd597c54188949bf12b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351730
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/profbuf.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go | 39 ++++++++++++++++++---
+ src/cmd/compile/internal/types2/call.go        | 48 ++++++--------------------
+ src/cmd/compile/internal/types2/stmt.go        |  3 --
+ test/fixedbugs/bug062.go                       |  3 +-
+ test/fixedbugs/bug131.go                       |  5 ++-
+ test/fixedbugs/bug175.go                       |  3 +-
+ test/fixedbugs/bug289.go                       | 10 ++----
+ test/fixedbugs/issue9083.go                    | 12 +++----
+ test/interface/pointer.go                      |  5 +--
+ 9 files changed, 57 insertions(+), 71 deletions(-)

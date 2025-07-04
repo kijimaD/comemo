@@ -1,24 +1,24 @@
-commit 1004a7cb31ae31d2ca0b54b507b996c12403d54c
-Author: Branden J Brown <zephyrtronium@gmail.com>
-Date:   Mon Feb 15 23:12:15 2021 -0500
+commit ee776b41267ee910196b616b7104f0e5ed63d2b2
+Author: David Chase <drchase@google.com>
+Date:   Mon Jun 1 14:30:24 2020 -0400
 
-    runtime/metrics: update documentation to current interface
+    runtime: repair slice, string, and channel printing in gdb
     
-    The package documentation referenced sample metadata that was removed in CL 282632. Update this documentation to be less specific
-    about what metadata is available.
+    "Something" changed the names of types in gdb, causing the
+    pretty-printer matchers to fail to match.  This tracks that
+    change.
     
-    Additionally, the documentation on the Sample type referred to Descriptions instead of All as the source of metrics names.
+    Updated runtime-gdb_test.go to include a slice and a channel printing test.
     
-    Fixes #44280.
+    (The straightforward printing of a slicevar doesn't work because
+    of compiler DWARF problems describing the slicevar, not gdb problems).
     
-    Change-Id: I24fc63a744bf498cb4cd5bda56c1599f6dd75929
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292309
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I21607a955b9c894f11ecf3763aea2a6dd59a3f42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235926
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/metrics/doc.go    | 4 +---
- src/runtime/metrics/sample.go | 2 +-
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/runtime/runtime-gdb.py      | 19 ++++++++------
+ src/runtime/runtime-gdb_test.go | 55 +++++++++++++++++++++++++++++++++++------
+ 2 files changed, 60 insertions(+), 14 deletions(-)

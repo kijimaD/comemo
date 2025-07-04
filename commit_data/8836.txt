@@ -1,22 +1,16 @@
-commit 65b036c38107ef805edc7734b705157a8d9d43bd
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Fri Jun 24 00:29:59 2011 -0300
+commit b4bab6f8b351630211b0617ac91fb532d6aaf16d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 24 13:01:17 2011 +1000
 
-    runtime: don't use twice the memory with grsec-like kernels
+    goinstall: build with make by default, add -make flag
     
-    grsec needs the FIXED flag to be provided to mmap, which
-    works now.  That said, when the allocation fails to be made
-    in the specific address, we're still given back a writable
-    page.  This change will unmap that page to avoid using
-    twice the amount of memory needed.
+    This is a temporary measure until go/build can build cgo packages.
     
-    It'd also be pretty easy to avoid the extra system calls
-    once we detected that the flag is needed, but I'm not sure
-    if that edge case is worth the effort.
-    
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4634086
+    https://golang.org/cl/4627056
 
- src/pkg/runtime/linux/mem.c | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/goinstall/Makefile |   1 +
+ src/cmd/goinstall/main.go  |  49 +++++++-----
+ src/cmd/goinstall/make.go  | 180 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 210 insertions(+), 20 deletions(-)

@@ -1,30 +1,18 @@
-commit 5d8a61a43eea306b4426adf8b903135517b019c9
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jan 9 14:58:18 2020 -0800
+commit 6719d889e1a333989c6f461a66090d5583eeaedf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 4 11:51:06 2019 -0400
 
-    cmd/compile: print recursive types correctly
+    cmd/go/internal/get: avoid panic in metaImportsForPrefix if web.Get fails
     
-    Change the type printer to take a map of types that we're currently
-    printing. When we happen upon a type that we're already in the middle
-    of printing, print a reference to it instead.
+    Fixes #34049
     
-    A reference to another type is built using the offset of the first
-    byte of that type's string representation in the result. To facilitate
-    that computation (and it's probably more efficient, regardless), we
-    print the type to a buffer as we go, and build the string at the end.
-    
-    It would be nice to use string.Builder instead of bytes.Buffer, but
-    string.Builder wasn't around in Go 1.4, and we'd like to bootstrap
-    from that version.
-    
-    Fixes #29312
-    
-    Change-Id: I49d788c1fa20f770df7b2bae3b9979d990d54803
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214239
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I817b83ee2d0ca6d01ec64998f14bc4f32e365d66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193259
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go          | 304 +++++++++++++++-------------
- src/cmd/compile/internal/gc/main.go         |   4 +-
- src/cmd/compile/internal/ssa/export_test.go |   2 +-
- src/cmd/compile/internal/types/utils.go     |  12 +-
- 4 files changed, 169 insertions(+), 153 deletions(-)
+ src/cmd/go/internal/get/vcs.go                           |  4 ++--
+ src/cmd/go/testdata/script/get_insecure_redirect.txt     |  5 ++---
+ src/cmd/go/testdata/script/mod_get_insecure_redirect.txt | 13 +++++++++++++
+ 3 files changed, 17 insertions(+), 5 deletions(-)

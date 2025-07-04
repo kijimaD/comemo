@@ -1,17 +1,17 @@
-commit 90965718a868c49c96f2e9942052ff28afa6c836
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 10 22:22:50 2015 -0500
+commit c6ddca2aec4218e1af7f51fad3b761afb33b4c20
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 15 20:45:07 2015 -0800
 
-    cmd/gc: make qsort comparisons totally ordered
+    math/big: bug in AndNot(x,y) for x>0,y<0.
     
-    Otherwise different qsort implementations might result
-    in different sort orders and therefore different compiled
-    object files.
+    The comment says to use (y-1), but then we did add(y.abs, natOne).  We meant sub.
     
-    Change-Id: Ie783ba55a55af06941307e150b0c406e0a8128b0
-    Reviewed-on: https://go-review.googlesource.com/4590
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #9609
+    
+    Change-Id: I4fe4783326ca082c05588310a0af7895a48fc779
+    Reviewed-on: https://go-review.googlesource.com/2961
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/gc/popt.c |  8 ++++++++
- src/cmd/gc/reg.c  | 13 +++++++------
- 2 files changed, 15 insertions(+), 6 deletions(-)
+ src/math/big/int.go      | 2 +-
+ src/math/big/int_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

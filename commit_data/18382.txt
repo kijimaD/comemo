@@ -1,16 +1,30 @@
-commit 73b0d84c83833b21968ed9bf4d00cbfbc2ec2fdb
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Jan 30 11:12:08 2014 +0100
+commit ae8251b0aa946177877f61b45a96e90319dce1ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 30 09:57:04 2014 +0100
 
-    net/http: temporarily disable the failing tests on Plan 9
+    net/http: use a struct instead of a string in transport conn cache key
     
-    Update #7237
+    The Transport's idle connection cache is keyed by a string,
+    for pre-Go 1.0 reasons.  Ever since Go has been able to use
+    structs as map keys, there's been a TODO in the code to use
+    structs instead of allocating strings. This change does that.
     
-    LGTM=bradfitz
-    R=jas, bradfitz
+    Saves 3 allocatins and ~100 bytes of garbage per client
+    request. But because string hashing is so fast these days
+    (thanks, Keith), the performance is a wash: what we gain
+    on GC and not allocating, we lose in slower hashing. (hashing
+    structs of strings is slower than 1 string)
+    
+    This seems a bit faster usually, but I've also seen it be a
+    bit slower. But at least it's how I've wanted it now, and it
+    the allocation improvements are consistent.
+    
+    LGTM=adg
+    R=adg
     CC=golang-codereviews
-    https://golang.org/cl/57190045
+    https://golang.org/cl/58260043
 
- src/pkg/net/http/serve_test.go     | 12 ++++++++++++
- src/pkg/net/http/transport_test.go | 12 ++++++++++++
- 2 files changed, 24 insertions(+)
+ src/pkg/net/http/export_test.go | 11 +++----
+ src/pkg/net/http/proxy_test.go  |  4 +--
+ src/pkg/net/http/transport.go   | 64 ++++++++++++++++++++++-------------------
+ 3 files changed, 43 insertions(+), 36 deletions(-)

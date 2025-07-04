@@ -1,17 +1,23 @@
-commit fb7134e4e3a45fee4ab662ef0d467ef864c23e2e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Oct 26 11:28:02 2020 +0700
+commit 37470c06644ec916821ec82ed84abc2f0d0b876c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Mar 31 10:08:29 2020 -0400
 
-    test: add index bounds check elided with "&^"
+    cmd/internal/obj/ppc64: add support for pcalign 32 on ppc64x
     
-    For follow up CL, which will defer lowering OANDNOT until SSA.
+    Previous PCALIGN support on ppc64x only accepted 8 and 16 byte
+    alignment since the default function alignment was 16. Now that
+    the function's alignment can be set to a larger value when needed,
+    PCALIGN can accept 32. When this happens then the function's
+    alignment will be changed to 32.
     
-    Change-Id: I5a988d0b8f0ae664580f08b123811b2a31ef55c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265040
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Test has been updated to recognized this new value.
+    
+    Change-Id: If82c3cd50d7c686fcf8a9e819708b15660cdfa63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227775
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/bounds.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/internal/obj/ppc64/asm9.go     | 27 +++++++++++++++-------
+ src/cmd/internal/obj/ppc64/asm_test.go | 42 ++++++++++++++++++++++++++++------
+ 2 files changed, 54 insertions(+), 15 deletions(-)

@@ -1,12 +1,7 @@
-commit 828c68f8d80a642d89cc17e04aeb0116c8bce4ae
+commit 47e0a3d7b12bbb12a513d7d1a4ebef8632a471ae
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue May 28 11:14:39 2013 +0400
+Date:   Tue May 28 10:47:35 2013 +0400
 
-    undo CL 9805043 / 776aba85ece8
-    
-    multiple failures on amd64
-    
-    ««« original CL description
     runtime: introduce helper persistentalloc() function
     It is a caching wrapper around SysAlloc() that can allocate small chunks.
     Use it for symtab allocations. Reduces number of symtab walks from 4 to 3
@@ -21,13 +16,8 @@ Date:   Tue May 28 11:14:39 2013 +0400
     R=golang-dev, daniel.morsing, khr
     CC=golang-dev
     https://golang.org/cl/9805043
-    »»»
-    
-    R=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/9822043
 
- src/pkg/runtime/malloc.goc | 47 ----------------------------------------------
- src/pkg/runtime/malloc.h   |  1 -
- src/pkg/runtime/symtab.c   | 32 ++++++++++++++++++++++++-------
- 3 files changed, 25 insertions(+), 55 deletions(-)
+ src/pkg/runtime/malloc.goc | 47 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/malloc.h   |  1 +
+ src/pkg/runtime/symtab.c   | 32 +++++++------------------------
+ 3 files changed, 55 insertions(+), 25 deletions(-)

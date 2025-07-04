@@ -1,0 +1,16 @@
+commit a1d62aa475d163e97c416dd601fbf9ca996a8e47
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 21 15:42:48 2024 -0500
+
+    hash/maphash: simplify pointer size checks
+    
+    Use internal/goarch.PtrSize, instead of unsafe.Sizeof(uintptr(0)).
+    
+    Change-Id: If501ae9853ed384c4b9485e2c3b0aeba03c17685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+
+ src/hash/maphash/maphash_runtime.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

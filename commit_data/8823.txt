@@ -1,12 +1,21 @@
-commit 6b4fb9f85a6e8ab13b4d2a30b55331967a232b69
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jun 23 08:39:00 2011 +1000
+commit c8443d72429a9b3439f309512ae90a37c1235829
+Author: Ken Rockot <ken@oz.gs>
+Date:   Wed Jun 22 18:07:20 2011 -0400
 
-    image: basic test for the 16-bits-per-color-channel types.
+    syscall: add tty support to StartProcess
     
-    R=r
+    These changes add a Ctty int field to the Unix syscall.ProcAttr which,
+    if set >= 0 in conjuction with Setsid=true, will be used by
+    forkAndExecInChild as the file descriptor for the new child's
+    controlling terminal.
+    
+    Necessary changes have been made to mkerrors.sh to generate defs for
+    TIOC*, though changes to its output files are not included here.
+    The changes made should support Linux, FreeBSD and Darwin, at least.
+    
+    R=iant, bradfitz, r, rsc, borman
     CC=golang-dev
-    https://golang.org/cl/4635059
+    https://golang.org/cl/4532075
 
- src/pkg/image/image_test.go | 79 +++++++++++++++++++++++++++++++--------------
- 1 file changed, 55 insertions(+), 24 deletions(-)
+ src/pkg/syscall/mkerrors.sh | 3 +++
+ 1 file changed, 3 insertions(+)

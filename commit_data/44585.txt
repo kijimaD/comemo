@@ -1,17 +1,20 @@
-commit 818f6b14b496d718c0f8e49c9ef4c06cc45cc0d4
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Mar 8 15:19:47 2021 -0500
+commit 016e13df7475329c65524b2eabbc5207ceb4ee74
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jun 29 16:28:18 2020 -0400
 
-    cmd/compile: remove ".fp" fake arg
+    cmd/go/internal/modfetch: stop migrating go.modverify to go.sum
     
-    No longer needed with previous CLs.
+    go.modverify was renamed to go.sum before vgo was merged into
+    cmd/go. It's been long enough that we can safely drop support for it.
     
-    Change-Id: I9a1c11092a2736c190fa8e8ddfbb913b708957eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300155
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    For #25525
+    
+    Change-Id: If8da66280a0fb6a4d4db0b170700775523c18571
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240458
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/cmd/go/internal/modfetch/fetch.go     | 31 ++++---------------------------
+ src/cmd/go/testdata/script/mod_verify.txt |  8 +++-----
+ 2 files changed, 7 insertions(+), 32 deletions(-)

@@ -1,0 +1,42 @@
+commit f328f3ff0689b69e92f3a2e55e1afff4fba9a157
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Oct 7 15:24:17 2024 +0000
+
+    go/types, types2: use slices to simplify the code
+    
+    Simplify the code and remove some unnecessary helper functions.
+    
+    Change-Id: I1419ca3a0c7048891bbdc274f53fd72960410651
+    GitHub-Last-Rev: 06b1f03bb36cf1028a52f0223af81cf74ec4d77c
+    GitHub-Pull-Request: golang/go#68732
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602719
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go      | 29 ++++-----------------
+ src/cmd/compile/internal/types2/decl.go          | 10 ++------
+ src/cmd/compile/internal/types2/example_test.go  |  8 +++---
+ src/cmd/compile/internal/types2/infer.go         | 32 +++++-------------------
+ src/cmd/compile/internal/types2/issues_test.go   |  4 +--
+ src/cmd/compile/internal/types2/labels.go        | 10 ++------
+ src/cmd/compile/internal/types2/object.go        | 26 ++++++++++++-------
+ src/cmd/compile/internal/types2/predicates.go    | 13 ++++------
+ src/cmd/compile/internal/types2/resolver.go      | 15 ++++-------
+ src/cmd/compile/internal/types2/resolver_test.go |  4 +--
+ src/cmd/compile/internal/types2/scope.go         |  4 +--
+ src/cmd/compile/internal/types2/typeset.go       | 18 ++++++-------
+ src/cmd/compile/internal/types2/typestring.go    |  6 ++---
+ src/go/types/api_test.go                         | 23 ++---------------
+ src/go/types/decl.go                             | 10 ++------
+ src/go/types/infer.go                            | 32 +++++-------------------
+ src/go/types/labels.go                           | 10 ++------
+ src/go/types/methodset_test.go                   |  3 ++-
+ src/go/types/object.go                           | 26 ++++++++++++-------
+ src/go/types/predicates.go                       | 13 ++++------
+ src/go/types/resolver.go                         | 15 ++++-------
+ src/go/types/scope.go                            |  4 +--
+ src/go/types/typeset.go                          | 18 ++++++-------
+ src/go/types/typestring.go                       |  6 ++---
+ 24 files changed, 115 insertions(+), 224 deletions(-)

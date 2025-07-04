@@ -1,26 +1,34 @@
-commit 0605bf6052807e71e52fc3864b18b221ce61b047
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 11 17:19:09 2022 -0400
+commit 9d46ee5ac4acd6602692f70c5149a3f6db058558
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 11 13:58:05 2021 +0000
 
-    go/ast, go/printer: recognize export and extern line directives
+    reflect: handle stack-to-register translation in callMethod
     
-    Now that gofmt is reformatting these, we can't get away with
-    not knowing about directives such as //export and //extern (for gccgo).
-    Otherwise "//export foo" and "//extern foo" turn into "// export foo",
-    and "// extern foo", which are completely different meanings.
+    callMethod previously assumed erroneously that between the "value" and
+    "method" ABIs (that is, the ABI the caller is following to call this
+    method value and the actual ABI of the method), it could never happen
+    that an argument passed on the stack in the former could be passed in
+    registers in the latter. The cited reason was that the latter always
+    uses strictly more registers.
     
-    For #51082.
+    However, there are situations where the value ABI could pass a value on
+    the stack, but later is passed in a register. For instance, if the
+    receiver pushes a value passed in registers that uses multiple registers
+    to be passed on the stack, later arguments which were passed on the
+    stack may now be passed in registers.
     
-    Change-Id: Id0970331fa0b52ab5fa621631b5fa460767068bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399734
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This change fixes callMethod to no longer makes this assumption, and
+    handles the stack-to-register translation explicitly.
+    
+    Fixes #46696.
+    
+    Change-Id: I7100a664d97bbe401302cc893b3a98b28cdcdfc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327089
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/go/ast/ast.go                       | 4 +++-
- src/go/ast/ast_test.go                  | 3 +++
- src/go/printer/comment.go               | 4 +++-
- src/go/printer/testdata/comments.golden | 6 ++++++
- src/go/printer/testdata/comments.input  | 6 ++++++
- 5 files changed, 21 insertions(+), 2 deletions(-)
+ src/reflect/abi_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ src/reflect/value.go    | 42 ++++++++++++++++++++++++++++++++----------
+ 2 files changed, 74 insertions(+), 11 deletions(-)

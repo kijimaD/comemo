@@ -1,0 +1,29 @@
+commit b874005a84253e9c4313eb30889df418d607ed4d
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed Jun 5 10:52:08 2024 +0800
+
+    cmd/internal/obj/loong64: add support for instructions FCOPYSIGN.{S/D} and FCLASS.{S/D}
+    
+    Go asm syntax:
+            FCOPYSG{F/D}    FK, FJ, FD
+            FCLASSF{F/D}    FJ, FD
+    
+    Equivalent platform assembler syntax:
+            fcopysign.{s/d} fd, fj, fk
+            fclass.{s/d}    fd, fj
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: Ied34b71c9d0b34456ac5782a59d29d2d0229e326
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590675
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  5 +++++
+ src/cmd/internal/obj/loong64/a.out.go           |  8 ++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  4 ++++
+ src/cmd/internal/obj/loong64/asm.go             | 12 ++++++++++++
+ 4 files changed, 29 insertions(+)

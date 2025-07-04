@@ -1,48 +1,25 @@
-commit c4f2a9788a7be04daf931ac54382fbe2cb754938
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Feb 14 17:44:00 2020 -0500
+commit cc47b0d2cd1c633f1a3c21632978d1180f65195f
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Oct 28 15:55:36 2019 -0700
 
-    cmd/go: allow configuring module cache directory with GOMODCACHE
+    cmd/compile:  handle some missing cases of non-SSAable values for args of open-coded defers
     
-    Adds a GOMODCACHE environment variable that's used by cmd/go to determine the
-    location of the module cache. The default value of GOMODCACHE will be
-    GOPATH[0]/pkg/mod, the default location of the module cache before this change.
+    In my experimentation, I had found that most non-SSAable expressions were
+    converted to autotmp variables during AST evaluation. However, this was not true
+    generally, as witnessed by issue #35213, which has a non-SSAable field reference
+    of a struct that is not converted to an autotmp. So, I fixed openDeferSave() to
+    handle non-SSAable nodes more generally, and make sure that these non-SSAable
+    expressions are not evaluated more than once (which could incorrectly repeat side
+    effects).
     
-    Replace the cmd/go/internal/modfetch.PkgMod variable which previously held the
-    location of the module cache with the new cmd/go/internal/cfg.GOMODCACHE
-    variable, for consistency with many of the other environment variables that
-    affect the behavior of cmd/go.  (Most of the changes in this CL are due to
-    moving/renaming the variable.)
+    Fixes #35213
     
-    The value of cfg.GOMODCACHE is now set using a variable initializer. It was
-    previously set in cmd/go/internal/modload.Init.
-    
-    The location of GOPATH/pkg/sumdb is unchanged by this CL. While it was
-    previously determined using the value of PkgMod, it now is determined
-    independently dirctly from the value of GOPATH[0].
-    
-    Fixes #34527
-    
-    Change-Id: Id4d31d217b3507d6057c8ef7c52af1a0606603e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219538
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I8043d5576b455e94163599e930ca0275e550d594
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203888
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go                    | 11 +++++
- src/cmd/go/internal/clean/clean.go                |  6 +--
- src/cmd/go/internal/envcmd/env.go                 |  1 +
- src/cmd/go/internal/modconv/convert_test.go       |  4 +-
- src/cmd/go/internal/modfetch/cache.go             | 28 ++++++-----
- src/cmd/go/internal/modfetch/codehost/codehost.go | 10 ++--
- src/cmd/go/internal/modfetch/codehost/git_test.go |  1 -
- src/cmd/go/internal/modfetch/codehost/shell.go    |  3 +-
- src/cmd/go/internal/modfetch/coderepo_test.go     |  2 +-
- src/cmd/go/internal/modfetch/fetch.go             | 11 +++--
- src/cmd/go/internal/modfetch/sumdb.go             | 15 ++++--
- src/cmd/go/internal/modload/init.go               | 19 --------
- src/cmd/go/internal/modload/query_test.go         |  5 +-
- src/cmd/go/testdata/script/mod_gomodcache.txt     | 59 +++++++++++++++++++++++
- src/internal/cfg/cfg.go                           |  1 +
- 15 files changed, 115 insertions(+), 61 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 39 ++++++++++++++++++++++++--------------
+ src/runtime/defer_test.go          | 35 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 59 insertions(+), 15 deletions(-)

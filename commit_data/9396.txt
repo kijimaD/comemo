@@ -1,19 +1,15 @@
-commit b77c40a2b3c9e1b6b4c27918da92828fed546b74
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 17 10:27:32 2011 -0700
+commit ca6e1dbc2258e95e9ac1a1269768e544a259964a
+Author: Kyle Lemons <kyle@kylelemons.net>
+Date:   Wed Aug 17 12:12:08 2011 -0400
 
-    go/parser: do not accept type literals where not permitted in general
+    xml: escape string chardata in xml.Marshal
     
-    - Resolves a long-standing TODO.
-    - Replacement for CL 4908042 by befelemepeseveze@gmail.com
+    Fixes #2150.
     
-    Fixes #2155.
-    
-    R=rsc
+    R=golang-dev, nigeltao, rsc
     CC=golang-dev
-    https://golang.org/cl/4904048
+    https://golang.org/cl/4890042
 
- src/cmd/gofmt/test.sh            |  2 +-
- src/pkg/go/parser/parser.go      | 34 +++++++++++++++++++---------------
- src/pkg/go/parser/parser_test.go | 13 +++++++++++++
- 3 files changed, 33 insertions(+), 16 deletions(-)
+ src/pkg/xml/marshal.go      | 2 +-
+ src/pkg/xml/marshal_test.go | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

@@ -1,46 +1,31 @@
-commit c769f034d796769ad10fc03fe6866b36039d1a09
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Apr 15 13:56:09 2020 -0400
+commit bcdd5d002431a3354e95c8745f4d5771cee22483
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 21:47:42 2020 -0800
 
-    cmd/go/internal/modload: support go.mod retract directive
+    cmd/compile: use shift boundedness when lowering shifts on 386
     
-    The go command now recognizes 'retract' directives in go.mod. A
-    retract directive may be used by a module author to indicate a
-    version should not be used. The go command will not automatically
-    upgrade to a retracted version. Retracted versions will not be
-    considered when resolving version queries like "latest" that don't
-    refer to a specific version.
+    Minor improvements to generated code.
     
-    Internally, when the go command resolves a version query, it will find
-    the highest release version (or pre-release if no release is
-    available), then it will load retractions from the go.mod file for
-    that version. Comments on retractions are treated as a rationale and
-    may appear in error messages. Retractions are only loaded when a query
-    is resolved, so this should have no impact on performance for most
-    builds, except when go.mod is incomplete.
+    file                                          before   after    Δ       %
+    runtime.s                                     451117   450977   -140    -0.031%
+    compress/bzip2.s                              10202    10194    -8      -0.078%
+    compress/lzw.s                                5924     5904     -20     -0.338%
+    compress/flate.s                              45053    45032    -21     -0.047%
+    net.s                                         236980   236970   -10     -0.004%
+    vendor/golang.org/x/crypto/cryptobyte.s       29450    29439    -11     -0.037%
+    crypto/x509.s                                 107854   107840   -14     -0.013%
+    cmd/vendor/golang.org/x/arch/arm64/arm64asm.s 102448   102434   -14     -0.014%
+    cmd/internal/obj/arm.s                        60536    60528    -8      -0.013%
+    cmd/vendor/golang.org/x/mod/sumdb/tlog.s      38273    38276    +3      +0.008%
+    net/http.s                                    462215   462201   -14     -0.003%
+    cmd/compile/internal/ssa.s                    3951732  3954683  +2951   +0.075%
+    total                                         16946051 16948745 +2694   +0.016%
     
-    For #24031
-    
-    Change-Id: I17d643b9e03a3445676dbf1a5a351090c6ff6914
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228380
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I9f6df1a90a295dce6fe86c8eb7576a8c96f8bb0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217000
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go                              |   8 +-
- src/cmd/go/internal/modinfo/info.go                |  17 ++-
- src/cmd/go/internal/modload/help.go                |   8 +-
- src/cmd/go/internal/modload/list.go                |   3 +-
- src/cmd/go/internal/modload/modfile.go             | 146 ++++++++++++++++++++-
- .../example.com_retract_self_prev_v1.0.0-bad.txt   |  14 ++
- .../mod/example.com_retract_self_prev_v1.1.0.txt   |  14 ++
- .../mod/example.com_retract_self_prev_v1.9.0.txt   |  18 +++
- .../mod/example.com_retract_v1.0.0-bad.txt         |  10 ++
- .../mod/example.com_retract_v1.0.0-good.txt        |  10 ++
- .../mod/example.com_retract_v1.0.0-unused.txt      |  10 ++
- .../go/testdata/mod/example.com_retract_v1.1.0.txt |  13 ++
- src/cmd/go/testdata/script/mod_download.txt        |  64 +++++----
- src/cmd/go/testdata/script/mod_retract.txt         |  40 ++++++
- src/cmd/go/testdata/script/mod_sumdb_golang.txt    |  12 +-
- 15 files changed, 340 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules |  30 +-
+ src/cmd/compile/internal/ssa/rewrite386.go | 549 +++++++++++++++++++++++++++++
+ 2 files changed, 570 insertions(+), 9 deletions(-)

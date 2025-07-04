@@ -1,26 +1,26 @@
-commit d05825468921f8d0e54c81f59330d3b263057a54
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jun 16 16:31:10 2025 +0000
+commit 508e76197842792f87504d9f031ce4f7bf453c4f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Apr 24 11:19:17 2024 -0400
 
-    cmd/dist: always include variant in package names
+    cmd/compile: bail PGO method lookup on interface types
     
-    Our attempt to evenly distribute tests across shards struggles a bit
-    because certain long-running targets are very difficult to distinguish
-    in ResultDB, namely racebench and the test directory tests. These are
-    the only tests where the JSON output from dist omits the variant from
-    the package, making it impossible to distinguish them in the test result
-    data. My current suspicion is that this is preventing the load balancing
-    from being effective for the race builders in particular, though I worry
-    the longtest builders have a similar situation with the test directory
-    tests.
+    Interface types don't have concrete method implementations, so it does
+    not make sense to attempt a lookup.
     
-    For #65814.
+    An interface method would not normally appear in a PGO profile as it has
+    no symbol in the final binary. However it can appear if the method was
+    concrete when the profile was collected and it has since been refactored
+    to an interface method in the code being compiled.
     
-    Change-Id: I5804c2af092ff9aa4a3f0f6897b4a57c4628f837
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/681955
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    The guards here (OTYPE, !Alias, !IsInterface) now match
+    noder.linker.relocObj, which does a similar iteration of all methods.
+    
+    Fixes #67016.
+    
+    Change-Id: I858c58929c890ac0b2019fbd7c99f683ab63f8bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581436
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/dist/test.go | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/unified.go | 3 +++
+ 1 file changed, 3 insertions(+)

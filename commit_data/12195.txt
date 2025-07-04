@@ -1,51 +1,15 @@
-commit eb37b5b74499c1c5f90a1adf533dc59fa870d794
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 24 16:24:24 2012 +1100
+commit 51a84bbfaa812fe0421ab4a1607bf87b43d2a877
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 23 23:10:38 2012 -0500
 
-    test: document ken/*.go
+    runtime: fix arm
     
-    R=golang-dev, rsc
+    signal.test binary passes on my phone; should fix builder
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5694065
+    https://golang.org/cl/5694064
 
- test/ken/array.go      | 2 ++
- test/ken/chan.go       | 2 ++
- test/ken/chan1.go      | 2 ++
- test/ken/complit.go    | 2 ++
- test/ken/convert.go    | 3 ++-
- test/ken/cplx0.go      | 2 ++
- test/ken/cplx1.go      | 2 ++
- test/ken/cplx2.go      | 2 ++
- test/ken/cplx3.go      | 2 ++
- test/ken/cplx4.go      | 3 +++
- test/ken/cplx5.go      | 2 ++
- test/ken/divconst.go   | 2 ++
- test/ken/divmod.go     | 2 ++
- test/ken/embed.go      | 2 ++
- test/ken/for.go        | 1 +
- test/ken/interbasic.go | 2 ++
- test/ken/interfun.go   | 2 ++
- test/ken/intervar.go   | 2 ++
- test/ken/label.go      | 2 ++
- test/ken/litfun.go     | 1 +
- test/ken/mfunc.go      | 2 ++
- test/ken/modconst.go   | 2 ++
- test/ken/ptrfun.go     | 1 +
- test/ken/ptrvar.go     | 1 +
- test/ken/range.go      | 2 ++
- test/ken/rob1.go       | 2 ++
- test/ken/rob2.go       | 3 +++
- test/ken/robfor.go     | 2 ++
- test/ken/robfunc.go    | 2 ++
- test/ken/shift.go      | 2 ++
- test/ken/simparray.go  | 2 ++
- test/ken/simpbool.go   | 2 ++
- test/ken/simpconv.go   | 2 ++
- test/ken/simpfun.go    | 1 +
- test/ken/simpswitch.go | 2 ++
- test/ken/simpvar.go    | 2 ++
- test/ken/slicearray.go | 2 ++
- test/ken/sliceslice.go | 2 ++
- test/ken/string.go     | 1 +
- test/ken/strvar.go     | 1 +
- 40 files changed, 75 insertions(+), 1 deletion(-)
+ src/pkg/runtime/defs_arm_linux.go | 1 -
+ src/pkg/runtime/defs_linux_arm.h  | 2 --
+ 2 files changed, 3 deletions(-)

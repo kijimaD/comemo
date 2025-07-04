@@ -1,24 +1,28 @@
-commit adb467ffd2d82b796de12bdd8effa2cfefe01f29
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Sat Jan 2 16:28:11 2021 +0200
+commit cbfced7415f6b0ac0be0182cb929e336d5d33ea3
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 17 11:42:47 2020 -0400
 
-    cmd/compile: reduce inline cost of OCONVOP
+    [dev.link] cmd/internal: convert basic types to builtin symbols
     
-    OCONVOP doesn't have effect in the compiled code so, it can be safely
-    excluded from inline cost calculation.
+    The Go compiler includes special treatment for a small set of very
+    commonly used type symbols (26 to be exact); for these types it
+    doesn't bother to emit type descriptors for "normal" compilations, and
+    instead only generates them for the runtime package, so as to reduce
+    object file bloat.
     
-    Also make sequence ODEREF OCONVNOP* OADDR cost 1. This is rather common
-    conversion, such as *(*uint32)(unsafe.Pointer(&x)).
+    This patch moves the set of type symbols in question from the
+    PkgIdxNone index space (in the object file) to the PkgIdxBuiltin
+    space, which saves some work in the compiler and loader (reduces each
+    package's index space slightly).
     
-    Fixes #42788
-    
-    Change-Id: I5001f7e89d985c198b6405694cdd5b819cf3f47a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/281232
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Elias Naur <mail@eliasnaur.com>
+    Change-Id: I039c805e05c1aef26f035e52760fd0a0af40f7a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239658
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/inline/inl.go | 16 ++++++++++++++++
- test/inline.go                         | 23 +++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/cmd/internal/goobj2/builtinlist.go | 38 ++++++++++++++++++++++++++++++++++
+ src/cmd/internal/goobj2/mkbuiltin.go   | 36 ++++++++++++++++++++++++++++----
+ src/cmd/link/internal/loader/loader.go |  4 +++-
+ 3 files changed, 73 insertions(+), 5 deletions(-)

@@ -1,32 +1,29 @@
-commit 7124056f7e6f44faba822e4d96c18fde002b4566
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 24 11:46:06 2016 -0700
+commit 310a40b4f2d602786becb3a5ed28394311c41ffa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Aug 19 16:35:36 2016 -0400
 
-    cmd/internal/obj: drop Addr's Gotype field
+    cmd/compile: start MIPS64 port of SSA backend
     
-    The Gotype field is only used for ATYPE instructions. Instead of
-    specially storing the Go type symbol in From.Gotype, just store it in
-    To.Sym like any other 2-argument instruction would.
+    Fib with all int and float types run correctly.
+    *, /, shifts, Zero, Move not implemented yet. No optimization yet.
     
-    Modest reduction in allocations:
+    Updates #16359.
     
-    name       old alloc/op    new alloc/op    delta
-    Template      42.0MB ± 0%     41.8MB ± 0%  -0.40%         (p=0.000 n=9+10)
-    Unicode       34.3MB ± 0%     34.1MB ± 0%  -0.48%         (p=0.000 n=9+10)
-    GoTypes        122MB ± 0%      122MB ± 0%  -0.14%         (p=0.000 n=9+10)
-    Compiler       518MB ± 0%      518MB ± 0%  -0.04%         (p=0.000 n=9+10)
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: I0e603266b5d7d4e405106a26369e22773a0d3a91
-    Reviewed-on: https://go-review.googlesource.com/31850
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4b0412954d5fd4c13a5fcddd8689ed8ac701d345
+    Reviewed-on: https://go-review.googlesource.com/27404
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/pgen.go | 4 +++-
- src/cmd/internal/obj/link.go        | 1 -
- src/cmd/internal/obj/plist.go       | 2 +-
- src/cmd/internal/obj/sizeof_test.go | 4 ++--
- src/cmd/internal/obj/util.go        | 3 ---
- 5 files changed, 6 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/mips64/galign.go     |    6 +
+ src/cmd/compile/internal/mips64/ssa.go        |  603 +++++
+ src/cmd/compile/internal/ssa/config.go        |   10 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  215 ++
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  314 +++
+ src/cmd/compile/internal/ssa/gen/rulegen.go   |    1 +
+ src/cmd/compile/internal/ssa/opGen.go         | 1803 +++++++++++++--
+ src/cmd/compile/internal/ssa/rewrite386.go    |    1 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  |    1 +
+ src/cmd/compile/internal/ssa/rewriteARM.go    |    1 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go  |    1 +
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 3018 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  |    1 +
+ 13 files changed, 5777 insertions(+), 198 deletions(-)

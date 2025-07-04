@@ -1,24 +1,17 @@
-commit d8e6ed32622b692c79a4db42e878921e1d3f16a8
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Thu Feb 3 10:00:30 2022 +0000
+commit fd09e88722e0af150bf8960e95e8da500ad91001
+Author: Alexander Melentyev <alexander@melentyev.org>
+Date:   Sun Oct 31 17:50:38 2021 +0000
 
-    time: implement Compare method
+    testing: remove redundant type conversion
     
-    Fixes #50770.
-    
-    Change-Id: If0104883bb409ec85827fa5b570f68099ad4fd1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382734
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib6415bb09af02e9ebc0099f50bf0fd7b572f2516
+    GitHub-Last-Rev: ebaa849d66efa45bd8ca50a8306652d823a41678
+    GitHub-Pull-Request: golang/go#49244
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360214
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- api/next/50770.txt    |  1 +
- src/time/mono_test.go | 19 ++++++++++++++++++-
- src/time/time.go      | 23 ++++++++++++++++++++++-
- src/time/time_test.go |  1 +
- 4 files changed, 42 insertions(+), 2 deletions(-)
+ src/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

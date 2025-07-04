@@ -1,0 +1,20 @@
+commit ce49eb488af1c5273b226b3b52a8cbd7eae63a51
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 21 13:36:42 2025 -0400
+
+    runtime: skip windows stack tests in race mode
+    
+    These became race instrumented in CL 643897, but race mode uses more
+    memory, so the test doesn't make much sense.
+    
+    For #71395.
+    
+    Change-Id: I6a6a636cf09ba29625aa9a22550314845fb2e611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675077
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/crash_cgo_test.go       | 3 +++
+ src/runtime/syscall_windows_test.go | 4 ++++
+ 2 files changed, 7 insertions(+)

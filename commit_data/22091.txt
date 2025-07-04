@@ -1,16 +1,22 @@
-commit bef356b28281b8ff4a585d857a881783926cabb1
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 17 15:31:11 2015 -0400
+commit 5b94a47b7f1ddfa975ffd9fc48f61dac2d47699b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 14:00:51 2015 -0500
 
-    runtime: improve comment in concurrent GC
+    [dev.cc] test: disable syntax error tests
     
-    "Sync" is not very informative. What's being synchronized and with
-    whom? Update this comment to explain what we're really doing: enabling
-    write barriers.
+    These don't work with the new compiler, because the
+    new compiler doesn't have the custom syntax errors
+    that I built for the old compiler. It will, just not yet.
+    (Issue #9968.)
     
-    Change-Id: I4f0cbb8771988c7ba4606d566b77c26c64165f0f
-    Reviewed-on: https://go-review.googlesource.com/7700
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I658f7dab2c7f855340a501f9ae4479c097b28cd3
+    Reviewed-on: https://go-review.googlesource.com/5632
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug121.go    | 3 +++
+ test/fixedbugs/bug349.go    | 3 +++
+ test/fixedbugs/bug388.go    | 3 +++
+ test/fixedbugs/bug435.go    | 3 +++
+ test/fixedbugs/issue4468.go | 3 +++
+ test/run.go                 | 3 ++-
+ 6 files changed, 17 insertions(+), 1 deletion(-)

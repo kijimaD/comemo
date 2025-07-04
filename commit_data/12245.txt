@@ -1,21 +1,15 @@
-commit 9dd746c4cb09b65128d0dd432b58c324151910bf
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Feb 28 11:41:16 2012 +1100
+commit 740d5038667d385f99eb42d54381b330390f0417
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Tue Feb 28 11:28:10 2012 +1100
 
-    encoding/json: drop MarshalForHTML; gofix calls to Marshal.
+    net: add stubs for NetBSD
     
-    I've elected to omit escaping the output of Marshalers for now.
-    I haven't thought through the implications of that;
-    I suspect that double escaping might be the undoing of that idea.
-    
-    Fixes #3127.
+    This fixes the build of package net for GOOS=NetBSD.
+    Of course, a real implementation would be even better.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5694098
+    https://golang.org/cl/5693065
 
- src/cmd/fix/go1rename.go             |  6 ++++++
- src/cmd/fix/go1rename_test.go        |  4 ++++
- src/pkg/encoding/json/decode_test.go | 10 ----------
- src/pkg/encoding/json/encode.go      | 11 -----------
- 4 files changed, 10 insertions(+), 21 deletions(-)
+ src/pkg/net/sockoptip_netbsd.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

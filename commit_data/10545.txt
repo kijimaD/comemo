@@ -1,93 +1,39 @@
-commit 03823b881cdfd4432ac1ea576677b6279bc6bb74
+commit efe3d35fc590bf8b439f56070aa1f070125c6e8e
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 30 12:01:46 2011 -0500
+Date:   Wed Nov 30 11:59:44 2011 -0500
 
-    use new time API
+    time: new Time, Duration, ZoneInfo types
     
-    R=bradfitz, gri, r, dsymonds
+    R=r, bradfitz, gri, dsymonds, iant
     CC=golang-dev
-    https://golang.org/cl/5390042
+    https://golang.org/cl/5392041
 
- misc/dashboard/builder/main.go                    | 18 ++++----
- src/cmd/godoc/filesystem.go                       |  7 +--
- src/cmd/godoc/godoc.go                            | 41 +++++++++---------
- src/cmd/godoc/httpzip.go                          | 26 ++++++-----
- src/cmd/godoc/main.go                             |  9 ++--
- src/cmd/godoc/throttle.go                         | 36 +++++++--------
- src/cmd/godoc/utils.go                            |  6 +--
- src/cmd/godoc/zip.go                              |  7 +--
- src/cmd/gotest/gotest.go                          | 10 ++---
- src/pkg/archive/tar/common.go                     | 53 ++++++++++++-----------
- src/pkg/archive/tar/reader.go                     |  7 +--
- src/pkg/archive/tar/reader_test.go                | 53 ++++++++++++-----------
- src/pkg/archive/tar/writer.go                     | 26 +++++------
- src/pkg/archive/tar/writer_test.go                |  9 ++--
- src/pkg/archive/zip/reader_test.go                |  4 +-
- src/pkg/archive/zip/struct.go                     | 32 ++++++++------
- src/pkg/compress/gzip/gunzip.go                   | 13 +++---
- src/pkg/compress/gzip/gzip.go                     |  2 +-
- src/pkg/compress/gzip/gzip_test.go                |  7 +--
- src/pkg/crypto/ocsp/ocsp.go                       | 10 ++---
- src/pkg/crypto/ocsp/ocsp_test.go                  |  8 +++-
- src/pkg/crypto/openpgp/keys.go                    | 18 ++++----
- src/pkg/crypto/openpgp/packet/private_key.go      |  5 ++-
- src/pkg/crypto/openpgp/packet/private_key_test.go |  9 ++--
- src/pkg/crypto/openpgp/packet/public_key.go       | 18 ++++----
- src/pkg/crypto/openpgp/packet/public_key_test.go  | 11 ++---
- src/pkg/crypto/openpgp/packet/signature.go        | 17 +++++---
- src/pkg/crypto/openpgp/write.go                   | 20 ++++++---
- src/pkg/crypto/openpgp/write_test.go              |  2 +-
- src/pkg/crypto/rand/rand_unix.go                  |  2 +-
- src/pkg/crypto/tls/common.go                      |  6 +--
- src/pkg/crypto/tls/handshake_client.go            |  2 +-
- src/pkg/crypto/tls/handshake_server.go            |  2 +-
- src/pkg/crypto/tls/handshake_server_test.go       |  3 +-
- src/pkg/crypto/x509/pkix/pkix.go                  | 13 +++---
- src/pkg/crypto/x509/verify.go                     | 12 ++---
- src/pkg/crypto/x509/verify_test.go                |  3 +-
- src/pkg/crypto/x509/x509.go                       |  6 +--
- src/pkg/crypto/x509/x509_test.go                  | 12 ++---
- src/pkg/encoding/asn1/asn1.go                     | 10 ++---
- src/pkg/encoding/asn1/asn1_test.go                | 41 ++++++++++--------
- src/pkg/encoding/asn1/marshal.go                  | 38 +++++++++-------
- src/pkg/encoding/asn1/marshal_test.go             | 14 +++---
- src/pkg/exp/types/gcimporter_test.go              |  8 ++--
- src/pkg/go/build/build.go                         |  9 ++--
- src/pkg/io/ioutil/tempfile.go                     |  2 +-
- src/pkg/log/log.go                                | 21 ++++-----
- src/pkg/math/big/calibrate_test.go                | 10 ++---
- src/pkg/net/dnsclient_unix.go                     |  2 +-
- src/pkg/net/fd.go                                 |  2 +-
- src/pkg/net/fd_windows.go                         |  3 +-
- src/pkg/net/hosts.go                              | 10 ++---
- src/pkg/net/http/cgi/host_test.go                 |  2 +-
- src/pkg/net/http/cookie.go                        |  6 +--
- src/pkg/net/http/cookie_test.go                   |  2 +-
- src/pkg/net/http/export_test.go                   |  6 ++-
- src/pkg/net/http/fcgi/child.go                    |  2 +-
- src/pkg/net/http/fs.go                            |  4 +-
- src/pkg/net/http/httptest/server.go               |  4 --
- src/pkg/net/http/httputil/reverseproxy.go         | 10 ++---
- src/pkg/net/http/pprof/pprof.go                   |  2 +-
- src/pkg/net/http/serve_test.go                    | 12 ++---
- src/pkg/net/http/server.go                        | 11 +++--
- src/pkg/net/http/transport_test.go                |  2 +-
- src/pkg/net/mail/message.go                       |  8 ++--
- src/pkg/net/mail/message_test.go                  | 22 ++--------
- src/pkg/net/timeout_test.go                       |  8 ++--
- src/pkg/old/netchan/common.go                     | 12 ++---
- src/pkg/old/netchan/export.go                     | 14 +++---
- src/pkg/old/netchan/import.go                     |  4 +-
- src/pkg/os/file_posix.go                          | 10 +++--
- src/pkg/os/os_test.go                             | 20 ++++-----
- src/pkg/os/stat_darwin.go                         | 15 +++++--
- src/pkg/os/stat_freebsd.go                        | 15 +++++--
- src/pkg/os/stat_linux.go                          | 15 +++++--
- src/pkg/os/stat_openbsd.go                        | 15 +++++--
- src/pkg/os/stat_windows.go                        |  7 +--
- src/pkg/os/types.go                               | 35 ++++++++-------
- src/pkg/testing/benchmark.go                      | 44 ++++++++++---------
- src/pkg/testing/example.go                        |  6 +--
- src/pkg/testing/testing.go                        | 21 ++++-----
- test/initsyscall.go                               |  3 +-
- 82 files changed, 558 insertions(+), 494 deletions(-)
+ src/pkg/runtime/darwin/386/sys.s    |   16 +
+ src/pkg/runtime/darwin/amd64/sys.s  |   13 +
+ src/pkg/runtime/freebsd/386/sys.s   |   17 +
+ src/pkg/runtime/freebsd/amd64/sys.s |   15 +
+ src/pkg/runtime/linux/386/sys.s     |   17 +
+ src/pkg/runtime/linux/amd64/sys.s   |   15 +
+ src/pkg/runtime/linux/arm/sys.s     |   17 +
+ src/pkg/runtime/openbsd/386/sys.s   |   17 +
+ src/pkg/runtime/openbsd/amd64/sys.s |   15 +
+ src/pkg/runtime/time.goc            |    5 +-
+ src/pkg/runtime/windows/thread.c    |   12 +
+ src/pkg/time/Makefile               |    6 +-
+ src/pkg/time/example_test.go        |   58 ++
+ src/pkg/time/format.go              |  439 +++++++++------
+ src/pkg/time/internal_test.go       |    2 +-
+ src/pkg/time/sleep.go               |   23 +-
+ src/pkg/time/sleep_test.go          |   56 +-
+ src/pkg/time/sys.go                 |   40 +-
+ src/pkg/time/sys_unix.go            |    7 +-
+ src/pkg/time/tick.go                |   26 +-
+ src/pkg/time/tick_test.go           |   14 +-
+ src/pkg/time/time.go                | 1003 +++++++++++++++++++++++++++--------
+ src/pkg/time/time_test.go           |  326 ++++++++----
+ src/pkg/time/zoneinfo.go            |  191 +++++++
+ src/pkg/time/zoneinfo_plan9.go      |   15 +-
+ src/pkg/time/zoneinfo_posix.go      |   64 ---
+ src/pkg/time/zoneinfo_unix.go       |  141 +++--
+ src/pkg/time/zoneinfo_windows.go    |  269 +++-------
+ 28 files changed, 1967 insertions(+), 872 deletions(-)

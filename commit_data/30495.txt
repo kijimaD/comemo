@@ -1,17 +1,18 @@
-commit 3a90bfb2531c373be05bfe8ff27ba475f9c75cb2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 2 14:12:09 2017 -0800
+commit 76d8e60451c7b51eb7ea362e7ce3f66050864493
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:47 2016 +0200
 
-    cmd/dist, cmd/compile: eliminate mergeEnvLists copies
+    cmd/link: add support for GOARCH=mips{,le}
     
-    This is now handled by os/exec.
+    Only internal linking without cgo is supported for now.
     
-    Updates #12868
-    
-    Change-Id: Ic21a6ff76a9b9517437ff1acf3a9195f9604bb45
-    Reviewed-on: https://go-review.googlesource.com/37698
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I772d2ba496a613c78bee7e93f29e9538e6407bdc
+    Reviewed-on: https://go-review.googlesource.com/31481
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go | 21 +-------------------
- src/cmd/dist/test.go                    | 34 +++++++--------------------------
- 2 files changed, 8 insertions(+), 47 deletions(-)
+ src/cmd/link/internal/ld/elf.go   |   2 +-
+ src/cmd/link/internal/mips/asm.go | 191 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/mips/l.go   |  74 +++++++++++++++
+ src/cmd/link/internal/mips/obj.go | 110 ++++++++++++++++++++++
+ 4 files changed, 376 insertions(+), 1 deletion(-)

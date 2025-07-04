@@ -1,57 +1,27 @@
-commit 1a7fc2357b1c26dcdf4fa57dee67a1172696801f
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Wed May 4 01:42:13 2016 -0600
+commit 8dc04cbedcab9a769bb9f74d897c35ed9bc73ba2
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 18 10:45:30 2016 -0700
 
-    runtime: print signal name in panic, if name is known
+    cmd/compile: enforce 32-bit restrictions on ops
     
-    Adds a small function signame that infers a signal name
-    from the signal table, otherwise will fallback to using
-    hex(sig) as previously. No signal table is present for
-    Windows hence it will always print the hex value.
+    Most 64-bit x86 ops can only take a signed 32-bit constant.
+    Clean up our rewrite rules to enforce this restriction.
     
-    Sample code and new result:
-    ```go
-    package main
+    Modify the assembler to fail if the offset does not fit
+    in the instruction.
     
-    import (
-      "fmt"
-      "time"
-    )
+    That last check triggers a few times on weird testing code.
+    Suppress those errors if the compiler itself generated errors.
     
-    func main() {
-      defer func() {
-        if err := recover(); err != nil {
-          fmt.Printf("err=%v\n", err)
-        }
-      }()
+    Fixes #14862
     
-      ticker := time.Tick(1e9)
-      for {
-        <-ticker
-      }
-    }
-    ```
-    
-    ```shell
-    $ go run main.go &
-    $ kill -11 <pid>
-    fatal error: unexpected signal during runtime execution
-    [signal SIGSEGV: segmentation violation code=0x1 addr=0xb01dfacedebac1e
-    pc=0xc71db]
-    ...
-    ```
-    
-    Fixes #13969
-    
-    Change-Id: Ie6be312eb766661f1cea9afec352b73270f27f9d
-    Reviewed-on: https://go-review.googlesource.com/22753
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I76559af035b38483b1e59621a8029fc66b3a5d1e
+    Reviewed-on: https://go-review.googlesource.com/20815
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/os1_nacl.go       | 7 +++++++
- src/runtime/os1_plan9.go      | 7 +++++++
- src/runtime/panic.go          | 8 +++++++-
- src/runtime/signal_unix.go    | 7 +++++++
- src/runtime/signal_windows.go | 4 ++++
- 5 files changed, 32 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go           |   4 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 243 ++++++------
+ src/cmd/compile/internal/ssa/rewrite.go      |  10 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 561 +++++++++++++++------------
+ src/cmd/internal/obj/x86/asm6.go             |  10 +
+ 5 files changed, 459 insertions(+), 369 deletions(-)

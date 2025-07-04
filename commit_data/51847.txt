@@ -1,21 +1,21 @@
-commit 47e205c344b88639fae2e9cced906fb8c72579d0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jan 28 19:55:19 2023 -0800
+commit 9f252a0462bd8c279beec56d1538e8a6c26c44c5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 18 13:04:08 2022 -0400
 
-    cmd/link: make .dynamic section read-only for MIPS ELF
+    all: delete ARM64 non-register ABI fallback path
     
-    For #36435
-    
-    Change-Id: Ie733b641f20ca5bcee3784c088eb27699890a151
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463982
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3996fb31789a1f8559348e059cf371774e548a8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393875
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/link/internal/ld/elf.go     | 11 ++++++++++-
- src/cmd/link/internal/mips/obj.go   |  4 ++++
- src/cmd/link/internal/mips64/obj.go |  4 ++++
- 3 files changed, 18 insertions(+), 1 deletion(-)
+ src/internal/bytealg/compare_arm64.s |  27 ------
+ src/internal/bytealg/equal_arm64.s   |  33 --------
+ src/reflect/asm_arm64.s              |  10 ---
+ src/runtime/asm_arm64.s              | 155 +----------------------------------
+ src/runtime/memclr_arm64.s           |   5 --
+ src/runtime/memmove_arm64.s          |   5 --
+ src/runtime/race_arm64.s             |  22 -----
+ 7 files changed, 1 insertion(+), 256 deletions(-)

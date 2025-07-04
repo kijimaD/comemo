@@ -1,12 +1,16 @@
-commit 6d622416f1088fef92d44c79af2dfcb385088ffa
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 29 15:43:05 2012 -0500
+commit 372cf8fe87de7a49818de2157429ccbc76c35c2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 29 11:19:55 2012 -0800
 
-    net: add test case for SplitHostPort with zone
+    codereview: always use HTTPS
     
-    R=golang-dev, bradfitz
+    The new version of rietveld pushed 1.5 hours ago
+    requires HTTPS now, otherwise it issues a 301
+    to HTTPS which we barfed on.
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6854119
+    https://golang.org/cl/6782135
 
- src/pkg/net/ip_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ lib/codereview/codereview.py | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

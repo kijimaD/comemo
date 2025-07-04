@@ -1,17 +1,18 @@
-commit 25af691c43efdc4ff15e3b5355d1f2638bd67e0a
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Wed Mar 6 01:33:39 2024 +0000
+commit 231806c83debbb4feec288f6c4729c0b131823a4
+Author: ezzno <ezzno@ezzno.site>
+Date:   Thu Mar 16 10:20:23 2023 +0000
 
-    cmd/dist: fix typo in comment
+    cmd/compile: reorder BlankNode assignment to make SetType more clear
     
-    Change-Id: If8bcde960348ebafec2ced0e22f315685de0bb82
-    GitHub-Last-Rev: 4477ade97fe831284f78183905ee5222b0d1a7cd
-    GitHub-Pull-Request: golang/go#66124
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569278
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9e6bf9ed100de2039961a6f6558daaa09c176861
+    GitHub-Last-Rev: 594331fa10cfe22cc34801a09a642d31156bfdab
+    GitHub-Pull-Request: golang/go#59072
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476895
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/test.go | 2 +-
+ src/cmd/compile/internal/typecheck/universe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

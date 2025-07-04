@@ -1,14 +1,14 @@
-commit 08e11187e6dd06c2a9a478c6138685683f935c47
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Feb 10 16:03:24 2012 +1100
+commit 1ceb5616292496da476f52c0125917ecff002a76
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 15:57:12 2012 +1100
 
-    debug/macho: dropped monstrous URL from package comment
+    regexp/syntax: add package and Parse commentary
     
-    Relax. It's still in macho.go.
+    Fixes #2954.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5653054
+    https://golang.org/cl/5645077
 
- src/pkg/debug/macho/file.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/regexp/syntax/parse.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,23 +1,28 @@
-commit 55e1fc930b3a4efe4ac8ad74ff7844be4c7ef162
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Nov 16 10:43:21 2018 -0500
+commit 52cc9e3762171bd45368b3280554bf12a63f23b2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jul 27 16:23:16 2018 -0400
 
-    cmd/vet: reenable cgo test
+    cmd/go: add test code packages in list -test
     
-    The reason the 386 trybot was happy but 'GOARCH=386 go test cmd/vet'
-    was not is that CgoEnabled defaults to false in a cross build;
-    I have no idea why. Now we ask the go command for the effective
-    value so that the test works in both cases.
+    Previously go list -test <pkg> would return pkg and, if it exists,
+    pkg.test, the test main package. This change will also list the
+    two test code packages (if they exist) that contain testing functions,
+    <pkg> [<pkg>.test] and <pkg>_test [<pkg>.test].
     
-    Also, remove stale comment.
+    These packages which contain testing code are usually the packages
+    go list users desire to know about, so they should be surfaced
+    in go list -test.
     
-    Fixes #28829
+    See the discussion at
+    golang.org/cl/123635#message-5befbc66663063fb7247645a02ab1327a681e362
+    for more context.
     
-    Change-Id: I1210af34da6986f47924059de5c1f08b2824ace9
-    Reviewed-on: https://go-review.googlesource.com/c/149958
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Change-Id: I7170b539d02b548c050ac54048735ed785f47389
+    Reviewed-on: https://go-review.googlesource.com/126475
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/vet_test.go | 21 +++++++++++++--------
- 1 file changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/go/go_test.go            | 2 +-
+ src/cmd/go/internal/list/list.go | 8 +++++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

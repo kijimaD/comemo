@@ -1,13 +1,19 @@
-commit aad7f7bfb7b088fdcdb51c9e384a5d9a2ea37838
-Author: Ross Light <light@google.com>
-Date:   Sat Jul 15 14:53:42 2017 -0600
+commit 3ebe7d7d110ba2573cfd597bb786d14749181cc3
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 1 11:50:38 2017 -0500
 
-    encoding/binary: add examples for ByteOrder functions
+    runtime: pull heap profile cycle into a type
     
-    Change-Id: Iec9a7bf61566ee08c4d15adb39d43c7a29c79122
-    Reviewed-on: https://go-review.googlesource.com/48962
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently memRecord has the same set of four fields repeated three
+    times. Pull these into a type and use this type three times. This
+    cleans up and simplifies the code a bit and will make it easier to
+    switch to a globally tracked heap profile cycle for #19311.
+    
+    Change-Id: I414d15673feaa406a8366b48784437c642997cf2
+    Reviewed-on: https://go-review.googlesource.com/37713
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/encoding/binary/example_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/runtime/mprof.go | 74 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 36 insertions(+), 38 deletions(-)

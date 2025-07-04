@@ -1,28 +1,41 @@
-commit 0cd309e12818f988693bf8e4d9f1453331dcf9f2
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 13 14:40:01 2023 -0800
+commit bf408e741c2827a45c8576dda4126fc4135ef247
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 29 17:30:58 2022 -0700
 
-    go/internal/gcimporter: restore Go 1.19 Package.SetImports behavior
+    cmd/compile/internal/syntax: remove generic-specific parse modes
     
-    This CL is a port of go.dev/cl/465936 from the x/tools importer, which
-    changes the unified importer to (1) only call Package.SetImports on
-    the main package being imported (not any transitively imported
-    packages), and (2) to only populate it with any packages that were
-    referenced by the exported API.
+    Generics have landed; we cannot revert the syntax anymore. Remove
+    ability to choose between non-generic and generic code. Also remove
+    mode to enable method type parameters. Adjust code accordingly.
     
-    With these changes, it should behave identically to how the indexed
-    importer worked in Go 1.19. It will also allow eventually dropping the
-    serialized import DAG from the export data format, which should help
-    with export data file sizes somewhat.
+    Also remove a couple of TODOs that are not relevant anymore.
     
-    Updates #54096.
-    Updates #58296.
+    Remove tests from types2 which were focussed on method type parameters,
+    make types2 and go/types tests match up where there was a difference in
+    this regard.
     
-    Change-Id: I70d252a19cada3333ed59b16d1df2abc5a4cff73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467896
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I989bdcb19eea7414214af739187fa013a044295d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396634
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/internal/gcimporter/ureader.go | 47 ++++++++---------------------------
- 1 file changed, 11 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/noder/noder.go            |   2 +-
+ src/cmd/compile/internal/syntax/dumper_test.go     |   2 +-
+ src/cmd/compile/internal/syntax/error_test.go      |   6 +-
+ src/cmd/compile/internal/syntax/parser.go          | 209 +++++++++------------
+ src/cmd/compile/internal/syntax/parser_test.go     |   6 +-
+ src/cmd/compile/internal/syntax/printer_test.go    |   6 +-
+ src/cmd/compile/internal/syntax/syntax.go          |   2 -
+ .../compile/internal/syntax/testdata/issue47704.go |   1 -
+ .../internal/syntax/testdata/issue47704.go117      |  18 --
+ .../compile/internal/syntax/testdata/smoketest.go  |  18 +-
+ src/cmd/compile/internal/types2/api_test.go        |  32 +---
+ src/cmd/compile/internal/types2/builtins_test.go   |   2 +-
+ src/cmd/compile/internal/types2/check_test.go      |   2 +-
+ src/cmd/compile/internal/types2/mono_test.go       |   2 +-
+ src/cmd/compile/internal/types2/stdlib_test.go     |   2 +-
+ .../internal/types2/testdata/check/mtypeparams.go  |  52 -----
+ .../internal/types2/testdata/check/typeparams.go   |  27 +--
+ src/cmd/compile/internal/types2/typeset_test.go    |   2 +-
+ src/go/types/testdata/check/typeparams.go          |  25 ---
+ 19 files changed, 109 insertions(+), 307 deletions(-)

@@ -1,16 +1,20 @@
-commit 830f424c9b25640d796bb5f1f3c1e2b1d680c11b
-Author: Umang Parmar <umangjparmar@gmail.com>
-Date:   Wed Oct 17 08:10:28 2018 +0000
+commit 741dad28cb50b7cdbd4b6fd46114541aa73b15be
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Jan 6 18:10:30 2018 +0900
 
-    database/sql: remove commented debug prints
+    cmd/cgo: avoid name confliction for C functions
     
-    Fixes #28234
+    Use more cryptic names for local variables inside C function wrappers.
     
-    Change-Id: I89090ffb8285c4936b0c9b5c2475849c0643186a
-    GitHub-Last-Rev: 4dd0ec162d0ce1548045d4119fd3295570f65d85
-    GitHub-Pull-Request: golang/go#28246
-    Reviewed-on: https://go-review.googlesource.com/c/142877
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #23356
+    
+    Change-Id: Ia6a0218f27a13be14f589b1a0facc9683d22ff56
+    Reviewed-on: https://go-review.googlesource.com/86495
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go | 2 --
- 1 file changed, 2 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue23356.go | 19 +++++++++++++++++++
+ src/cmd/cgo/out.go          | 22 +++++++++++-----------
+ 3 files changed, 31 insertions(+), 11 deletions(-)

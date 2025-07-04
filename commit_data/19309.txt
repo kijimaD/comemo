@@ -1,18 +1,31 @@
-commit aed9762638b9b619b6239367c9368bfa79096cf0
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Fri May 9 14:34:50 2014 -0700
+commit 0f52fdbf7ba599702643660b46ce94f4925856b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 9 16:32:38 2014 -0400
 
-    test/bench/shootout: support windows
+    cmd/go: accept build flags in clean and list
     
-    1. fix executable extension (a.out -> a.exe).
-    2. fix pthread build error on mingw
-    3. if depends lib messing, skip the test
+    list has been adding them one at a time haphazardly
+    (race and tags were there and documented; compiler
+    was there and undocumented).
+    
+    clean -i needs -compiler in order to clean the
+    installed targets for alternate compilers.
+    
+    Fixes #7302.
+    
+    While we're here, tweak the language in the 'go get' docs
+    about build flags.
+    
+    Fixes #7807.
     
     LGTM=iant
     R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/100210043
+    https://golang.org/cl/99130043
 
- test/bench/shootout/threadring.c |  12 ++-
- test/bench/shootout/timing.sh    | 157 +++++++++++++++++++++++----------------
- 2 files changed, 105 insertions(+), 64 deletions(-)
+ src/cmd/go/build.go |  6 ++++--
+ src/cmd/go/clean.go | 29 ++++++++++++++++-------------
+ src/cmd/go/doc.go   | 16 ++++++++--------
+ src/cmd/go/get.go   |  5 +----
+ src/cmd/go/list.go  | 16 +++-------------
+ 5 files changed, 32 insertions(+), 40 deletions(-)

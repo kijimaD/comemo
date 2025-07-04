@@ -1,0 +1,23 @@
+commit 932ec2be8d01e553a768df3709182abf2b579097
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jan 9 15:12:49 2025 +0100
+
+    crypto/rsa: fix GenerateKey flakes for toy-sized keys
+    
+    Could have fixed this some other ways, including inside the FIPS 140-3
+    module, but this is small and self-contained, clearly not affecting
+    production non-toy key sizes. This late in the freeze, a surgical fix
+    felt best.
+    
+    Fixes #71185
+    
+    Change-Id: I6a6a465641357c9d6b076c8a520b221be4210ed5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641755
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/rsa/rsa.go      | 15 +++++++++++++++
+ src/crypto/rsa/rsa_test.go | 17 +++++++++++++++++
+ 2 files changed, 32 insertions(+)

@@ -1,12 +1,12 @@
-commit 00dd2b4ab92b4491466196d69942ccb9eb5b4721
+commit 43d6389397651948cd5f1bb94426d2fc3c14aece
 Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 16 16:03:30 2011 +1000
+Date:   Tue Aug 16 15:24:00 2011 +1000
 
-    builtin: correct description of a closed channel.
+    builtin: tweak a couple of descriptions.
     
-    R=golang-dev, dvyukov
+    R=golang-dev, adg, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4896046
+    https://golang.org/cl/4875050
 
- src/pkg/builtin/builtin.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/builtin/builtin.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

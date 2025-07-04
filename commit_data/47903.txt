@@ -1,31 +1,17 @@
-commit 6df0957060b1315db4fd6a359eefc3ee92fcc198
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sat Jan 8 09:18:24 2022 -0500
+commit bdddfd10ec26e3d81639bcf8030c281aaf315615
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 15 17:23:16 2021 -0400
 
-    net/http: map FS Open errors just like Dir
+    runtime: improve synchronization in TestFinalizerRegisterABI
     
-    When an http.FileServer is given a path like file1/file2 where file1
-    exists but file2 does not, the proper HTTP status should be
-    NotFound. Some OSes return a "not a directory" error instead, so this
-    must be mapped to NotFound.
+    Replace busy-wait with a channel.
     
-    That mapping was already being done for the Dir FileSystem
-    implementation, as discussed in #18984. But it wasn't for the
-    FS implementation.
-    
-    This CL does the same mapping for FS, by generalizing the function
-    that did it for Dir.
-    
-    Fixes #49552
-    
-    Change-Id: I61d6aa8ef101158e9674707d44e653f5dedbd040
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376874
-    Trust: Jonathan Amsterdam <jba@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I51ddfd5dbde15fff56c62c618570e66930902cbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310630
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/http/fs.go      | 16 +++++++++-------
- src/net/http/fs_test.go | 23 ++++++++++++++++-------
- 2 files changed, 25 insertions(+), 14 deletions(-)
+ src/runtime/abi_test.go | 44 ++++++++++++--------------------------------
+ 1 file changed, 12 insertions(+), 32 deletions(-)

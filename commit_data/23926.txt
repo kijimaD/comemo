@@ -1,26 +1,24 @@
-commit 3548a1e7b8691be21d57bec32b875130543d0ea7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 30 15:20:12 2015 -0700
+commit eabdd05892d7cf2d1e14a135367cf2445fa6c848
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 23 14:04:09 2015 -0400
 
-    cmd/go: permit installing into a subdirectory of $GOPATH/bin
+    runtime: document memory ordering for h_spans
     
-    In https://golang.org/cl/12080 we forbade installing cross-compiled
-    binaries into a subdirectory of $GOBIN, in order to fix
-    https://golang.org/issue/9769.  However, that fix was too aggressive,
-    in that it also forbade installing into a subdirectory of $GOPATH/bin.
+    h_spans can be accessed concurrently without synchronization from
+    other threads, which means it needs the appropriate memory barriers on
+    weakly ordered machines. It happens to already have the necessary
+    memory barriers because all accesses to h_spans are currently
+    protected by the heap lock and the unlocks happen in exactly the
+    places where release barriers are needed, but it's easy to imagine
+    that this could change in the future. Document the fact that we're
+    depending on the barrier implied by the unlock.
     
-    This patch permits installing cross-compiled binaries into a
-    subdirectory $GOPATH/bin while continuing to forbid installing into a
-    subdirectory of $GOBIN.
+    Related to issue #9984.
     
-    Fixes #11778.
-    
-    Change-Id: Ibc9919554e8c275beff54ec8bf919cfaa03b11ba
-    Reviewed-on: https://go-review.googlesource.com/12938
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1bc3c95cd73361b041c8c95cd4bb92daf8c1f94a
+    Reviewed-on: https://go-review.googlesource.com/11361
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/go/go_test.go | 2 +-
- src/cmd/go/pkg.go     | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/mheap.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

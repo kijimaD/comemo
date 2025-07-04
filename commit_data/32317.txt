@@ -1,15 +1,17 @@
-commit 58f84fdf29ca2f014a813991cf35e52de91a43cb
-Author: Blain Smith <rebelgeek@blainsmith.com>
-Date:   Mon Jul 17 09:42:25 2017 -0600
+commit 6b0bd51c1c7f34acdc5556d88a52d9a9f3b14da5
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Apr 19 15:14:56 2017 -0400
 
-    fmt: add Stringer example
+    cmd/internal/obj/s390x: delete unused REGZERO constant
     
-    Change-Id: I901f995f8aedee47c48252745816e53192d4b7e4
-    Reviewed-on: https://go-review.googlesource.com/49090
-    Reviewed-by: Sam Whited <sam@samwhited.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Sam Whited <sam@samwhited.com>
+    When we switched to SSA R0 was made allocatable and no longer holds
+    zero on s390x.
+    
+    Change-Id: I1c752bb02da35462a535492379345fa9f4e12cb0
+    Reviewed-on: https://go-review.googlesource.com/41079
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/fmt/example_test.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/cmd/internal/obj/s390x/a.out.go | 1 -
+ 1 file changed, 1 deletion(-)

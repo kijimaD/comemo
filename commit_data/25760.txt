@@ -1,14 +1,26 @@
-commit c51f9173ad2711f5b1a5af9d95dae9e711e13ebb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 18 09:42:28 2016 -0800
+commit b43b375c6c3d540b8ed4ab69bfc634991cd5dcd3
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 17 17:14:32 2015 -0500
 
-    go/constant: fix doc strings
+    runtime: eliminate write barriers from gentraceback
     
-    Fixes #14357.
+    gentraceback is used in many contexts where write barriers are
+    disallowed. This currently works because the only write barrier is in
+    assigning frame.argmap in setArgInfo and in practice frame is always
+    on the stack, so this write barrier is a no-op.
     
-    Change-Id: I91acff0b0cc7be2bcbad68925a19a437dbd4c83d
-    Reviewed-on: https://go-review.googlesource.com/19620
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    However, we can easily eliminate this write barrier, which will let us
+    statically disallow write barriers (using go:nowritebarrierrec
+    annotations) in many more situations. As a bonus, this makes the code
+    a little more idiomatic.
+    
+    Updates #10600.
+    
+    Change-Id: I45ba5cece83697ff79f8537ee6e43eadf1c18c6d
+    Reviewed-on: https://go-review.googlesource.com/17003
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/go/constant/value.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/traceback.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

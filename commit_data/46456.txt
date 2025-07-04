@@ -1,59 +1,27 @@
-commit 59a9a035ffa34c26a287d124180f6eca7c912311
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Sep 13 13:53:18 2021 -0700
+commit b8fd3440cd3973a16184c4c878b557cf6c6703e4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 31 21:32:52 2020 -0800
 
-    cmd/compile: switch to computing dict format on instantiated functions
+    [dev.regabi] cmd/compile: report unused variables during typecheck
     
-    Change to computing the dictionary form on each shape-instantiated
-    function, rather than once on the underlying generic function/method.
-    The problem with computing the dictionary format on the generic function
-    is that we had to force early transformations to create all the
-    needed/implicit CONVIFACE nodes, since many of these nodes cause the
-    need for a dictionary entry. Also, the dictionary entries needed can
-    different with different instantiations of the same generic function,
-    especially depending on whether a type argument is a non-interface or
-    interface type, or a instantiated type vs. a non-instantiated type.
+    Unused variables are a type-checking error, so they should be reported
+    during typecheck rather than walk.
     
-    By computing the dictionary format on the instantiated function, we are
-    scanning a function where all the transformations have been done to
-    create implicit CONVFIFACE nodes, and we know the above relevant
-    information about the type params (which are shapes).
+    One catch is that we only want to report unused-variable errors for
+    functions that type check successfully, but some errors are reported
+    during noding, so we don't have an easy way to detect that
+    currently. As an approximate solution, we simply check if we've
+    reported any errors yet.
     
-    Much of the change is more mechanical changes from typeparams to shapes,
-    and generic functions/info to instantiated functions/info. Some of the
-    most important non-mechanical changes are:
+    Passes toolstash -cmp.
     
-     - Separated out the dictionary transformations to nodes into a separate
-       dictPass, since we need to analyze instantiated functions after
-       stenciling, but before the dictionary transformations.
-    
-     - Added type param index to shape types, since we need to be able
-       distinguish type params of an instantiation which are different but
-       happen to have the same shape.
-    
-     - Allow the type substituter to work with shapes again (since for the
-       dictionary entries we need to substitute shape params to the concrete
-       type args).
-    
-     - Support types.IdentityStrict() that does strict type comparison (no
-       special case for shapes). This needed for type substitution,
-       formatting and creating dictionaries, etc. We can maybe create better
-       names for this function.
-    
-     - Add new information to instInfo to contain a mapping from the shape
-       type params to their instantiated type bound. This is needed when
-       doing the dictionary transformations related to type bounds.
-    
-    Change-Id: I1c3ca312c5384f318c4dd7d0858dba9766396ff6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349613
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I9400bfc94312c71d0c908a491e85c16d62224c9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280973
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/noder/irgen.go         |  57 ++-
- src/cmd/compile/internal/noder/stencil.go       | 534 +++++++++++++-----------
- src/cmd/compile/internal/reflectdata/reflect.go |   2 +-
- src/cmd/compile/internal/typecheck/subr.go      |  59 +--
- src/cmd/compile/internal/types/identity.go      |  31 +-
- 5 files changed, 375 insertions(+), 308 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go | 34 +++++++++++++++++++++++++
+ src/cmd/compile/internal/walk/walk.go           | 30 ----------------------
+ 2 files changed, 34 insertions(+), 30 deletions(-)

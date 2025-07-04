@@ -1,18 +1,12 @@
-commit 6cbf35c1721ff8b22da2176d4ae5f9a98ae98b40
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Jul 30 09:14:49 2012 +0200
+commit 2a9478ed6446e2cbdef47d9dea1bd857c86631c1
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 30 14:41:04 2012 +1000
 
-    cmd/gc: fix initialization order involving method calls.
+    misc/dashboard/codereview: pass user information to gobot when assigning reviewer.
     
-    They were previously ignored when deciding order and
-    detecting dependency loops.
-    Fixes #3824.
-    
-    R=rsc, golang-dev
-    CC=golang-dev, remy
-    https://golang.org/cl/6455055
+    R=bradfitz
+    CC=gobot, golang-dev, rsc
+    https://golang.org/cl/6457052
 
- src/cmd/gc/reflect.c     |  7 ++++++-
- src/cmd/gc/sinit.c       |  6 ++++++
- test/fixedbugs/bug446.go | 36 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 48 insertions(+), 1 deletion(-)
+ misc/dashboard/codereview/dashboard/cl.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

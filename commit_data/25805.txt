@@ -1,24 +1,23 @@
-commit 92b74d0940cd46e3a480137844d9d61986f7d895
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 19 17:45:22 2016 +0900
+commit b5fe07710f4a31bfc100fbc2e344be11e4b4d3fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 23 14:11:15 2015 -0800
 
-    net: add missing aborted connection handling on accept test
+    cmd/compile: remove yacc-based parser
     
-    This change adds TestAcceptIgnoreAbortedConnRequest to test accepting
-    aborted connection requests on all supported platforms except Plan 9.
+    - moved yySymType and token constants (L...) to lex.go
+    - removed oldparser flag and related code
+    - removed go generate that generated y.go
     
-    Change-Id: I5936b04085184ff348539962289b1167ec4ac619
-    Reviewed-on: https://go-review.googlesource.com/19707
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #13240.
+    
+    Change-Id: I2576ec61ee1efe482f2a5132175725c9c02ef977
+    Reviewed-on: https://go-review.googlesource.com/17176
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/error_plan9_test.go   |  2 ++
- src/net/error_posix_test.go   | 10 --------
- src/net/error_unix_test.go    | 21 ++++++++++++++++
- src/net/error_windows_test.go | 19 +++++++++++++++
- src/net/fd_windows.go         |  2 +-
- src/net/hook_windows.go       | 11 +++++----
- src/net/main_windows_test.go  |  3 +++
- src/net/net_test.go           | 56 +++++++++++++++++++++++++++++++++++++++++++
- 8 files changed, 108 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/go.go     |    2 -
+ src/cmd/compile/internal/gc/go.y      | 2325 ----------------------
+ src/cmd/compile/internal/gc/lex.go    |  171 +-
+ src/cmd/compile/internal/gc/parser.go |   95 +-
+ src/cmd/compile/internal/gc/subr.go   |    4 -
+ src/cmd/compile/internal/gc/y.go      | 3536 ---------------------------------
+ 6 files changed, 108 insertions(+), 6025 deletions(-)

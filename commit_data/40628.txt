@@ -1,24 +1,18 @@
-commit 61ef6a39dd75032a3ab7eff1f0cf1181e4ee98d0
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Nov 6 23:18:28 2019 +0000
+commit 7d65e3a8533c90e5a3ec3d73734891a18b057fed
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 14:51:57 2019 -0400
 
-    runtime: remove MAP_FIXED in sysReserve for raceenabled on darwin
+    runtime: document, fix libc error checks on macOS
     
-    This change removes a hack which was added to deal with Darwin 10.10's
-    weird ignorance of mapping hints which would cause race mode to fail
-    since it requires the heap to live within a certain address range.
+    It matters whether we are calling a function that would
+    return a 32-bit or 64-bit -1 on error. A few sites were wrong
+    and this key detail was omitted from syscall/syscallX docs.
     
-    We no longer support 10.10, and this is potentially causing problems
-    related to the page allocator, so drop this code.
-    
-    Updates #26475.
-    Updates #35112.
-    
-    Change-Id: I0e1c6f8c924afe715a2aceb659a969d7c7b6f749
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205757
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I48a421b6cc4d2d2b5e58f790cc947e3cb2f98940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180841
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mem_darwin.go | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+ src/runtime/lookup_darwin_amd64.s |  4 ++--
+ src/runtime/sys_darwin_amd64.s    | 14 +++++++++++++-
+ 2 files changed, 15 insertions(+), 3 deletions(-)

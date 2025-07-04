@@ -1,21 +1,19 @@
-commit 295d160e017edce29b3dccfa7bb7a9e5d9434b26
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 17 09:33:33 2016 -0400
+commit a355639c6046edae6b3a5190bc78260c2fe3b063
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Feb 18 18:37:38 2017 -0500
 
-    runtime: make _TinySizeClass an int8 to prevent use as spanClass
+    cmd/compile: fix storeOrder
     
-    Currently _TinySizeClass is untyped, which means it can accidentally
-    be used as a spanClass (not that I would know this from experience or
-    anything). Make it an int8 to avoid this mix up.
+    storeOrder visits values in DFS order. It should "break" after
+    pushing one argument to stack, instead of "continue".
     
-    This is a cherry-pick of dev.garbage commit 81b74bf9c5.
+    Fixes #19179.
     
-    Change-Id: I1e69eccee436ea5aa45e9a9828a013e369e03f1a
-    Reviewed-on: https://go-review.googlesource.com/41254
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I561afb44213df40ebf8bf7d28e0fd00f22a81ac0
+    Reviewed-on: https://go-review.googlesource.com/37250
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/malloc.go | 2 +-
- src/runtime/mheap.go  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go      |  2 +-
+ src/cmd/compile/internal/ssa/schedule_test.go | 41 +++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

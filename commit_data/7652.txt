@@ -1,17 +1,16 @@
-commit 59d2acd2d4a3434f49daaa478f2fab1e29f362db
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 6 17:04:24 2011 -0500
+commit 6afe7eba32c06022ef11ab0307d6b3361b59a8f0
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Sun Mar 6 15:02:06 2011 -0500
 
-    build: remove old cgo files
+    http: add cookie support
     
-    Cgo changed to write these files into _obj, but some
-    trees may still have the old ones in the source directory.
-    They need to be removed during make clean so that
-    a subsequent build will use the ones in _obj.
-    
-    R=r, r2
+    R=rsc1, mattn, bradfitzwork, pascal, bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4254056
+    https://golang.org/cl/4214042
 
- src/Make.pkg | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/Makefile       |   1 +
+ src/pkg/http/cookie.go      | 336 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/cookie_test.go |  96 +++++++++++++
+ src/pkg/http/request.go     |   9 ++
+ src/pkg/http/response.go    |   9 ++
+ 5 files changed, 451 insertions(+)

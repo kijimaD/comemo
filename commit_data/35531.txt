@@ -1,12 +1,18 @@
-commit 79fbe92b7e834dd3769807647718bdeb24f0a9d2
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Sat Apr 21 08:20:39 2018 -0300
+commit 9b7f221a3af2ee8495129621a5012647ffe15eb1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 20 12:57:51 2018 +0900
 
-    os/signal: remove unnecessary else condition
+    net: adjust the test for IPv4 loopback address block
     
-    Change-Id: I00f0195d54bf9bc30073741974ab941ec4d51a5c
-    Reviewed-on: https://go-review.googlesource.com/108635
+    We live in the era of virtualization and isolation.
+    There is no reason to hesitate to use IPv4 loopback address block for
+    umbrella-type customer accommodating services.
+    
+    Fixes #23903
+    
+    Change-Id: I990dd98e2651a993dac1b105c0bc771f8631cb93
+    Reviewed-on: https://go-review.googlesource.com/95336
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/signal/signal.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/net/interface_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

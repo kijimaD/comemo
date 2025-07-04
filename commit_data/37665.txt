@@ -1,16 +1,31 @@
-commit a35ddcc222dc84c5a510f5440713b70c07162b0f
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Dec 12 17:05:06 2018 -0500
+commit 9a2a34e1c1be53fce0782a0b5e14e6f7ceaad62a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jul 8 13:17:56 2018 +0100
 
-    syscall: update doc comment to match behavior for Proc.Call
+    encoding/json: defer error context work until necessary
     
-    golang.org/cl/147117 increased the number of arguments permitted
-    by Proc.Call on Windows, but the doc comment was never updated.
+    Calling Name on a reflect.Type is somewhat expensive, as it involves a
+    number of nested calls and string handling.
     
-    Change-Id: Iea5eb9e0aafbc1025d5fcb8665d028b2254c183a
-    Reviewed-on: https://go-review.googlesource.com/c/153825
-    Reviewed-by: Channing Kimble-Brown <ckimblebrown@google.com>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    This cost was showing up when decoding structs, as we were calling it to
+    set up an error context.
+    
+    We can avoid the extra work unless we do encounter an error, which makes
+    decoding via struct types faster.
+    
+    name           old time/op    new time/op    delta
+    CodeDecoder-4    31.0ms ± 1%    29.9ms ± 1%  -3.69%  (p=0.002 n=6+6)
+    
+    name           old speed      new speed      delta
+    CodeDecoder-4  62.6MB/s ± 1%  65.0MB/s ± 1%  +3.83%  (p=0.002 n=6+6)
+    
+    Updates #5683.
+    
+    Change-Id: I48a3a85ef0ba96f524b7c3e9096cb2c4589e077a
+    Reviewed-on: https://go-review.googlesource.com/122467
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/dll_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/json/decode.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

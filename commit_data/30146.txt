@@ -1,22 +1,26 @@
-commit e410d2a81ef26d7dcef0c712b584d2345b15148e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Feb 7 15:29:18 2017 -0800
+commit cec84f7309f9ae962a326d60f19c9c7881749012
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 25 19:14:20 2016 -0700
 
-    cmd/gofmt: clear pattern match map at the correct time
+    doc/effectivego: reword confusing sentence
     
-    We need to clear the pattern match map after the recursive rewrite
-    applications, otherwise there might be lingering entries that cause
-    match to fail.
+    For some reason git won't let me write
     
-    Fixes #18987.
+            doc/effective_go.html: reword confusing sentence
     
-    Change-Id: I7913951c455c98932bda790861db6a860ebad032
-    Reviewed-on: https://go-review.googlesource.com/36546
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    or even
+    
+            doc/effective_go: reword confusing sentence
+    
+    as the subject line for this CL, but that's not important. The
+    actual CL just rewrites one sentence and adds an option to grep in
+    the associated example.
+    
+    Fixes #15875
+    
+    Change-Id: Iee159ea751caf4b73eacf3dfc86e29032646373f
+    Reviewed-on: https://go-review.googlesource.com/32110
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/gofmt/rewrite.go               |  2 +-
- src/cmd/gofmt/testdata/rewrite9.golden | 11 +++++++++++
- src/cmd/gofmt/testdata/rewrite9.input  | 11 +++++++++++
- 3 files changed, 23 insertions(+), 1 deletion(-)
+ doc/effective_go.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

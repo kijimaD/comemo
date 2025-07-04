@@ -1,39 +1,17 @@
-commit 5419e7a09d3ad91aa462621fc86752b092bf2718
-Author: Steeve Morin <steeve.morin@gmail.com>
-Date:   Tue Jul 17 15:55:01 2018 +0000
+commit 7fe2f549cc10e1251bc84a5c0b99668ca73589a8
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Tue Jan 9 11:48:15 2018 +0800
 
-    cmd/cgo: update JNI's jobject to uintptr check for newer Android NDKs
+    math: handle denormals in AMD64 Exp
     
-    In Android's NDK16, jobject is now declared as:
-        #ifdef __cplusplus
-        class _jobject {};
-        typedef _jobject*       jobject;
-        #else /* not __cplusplus */
-        typedef void*           jobject;
-        #endif
+    Fixes #23164
     
-    This makes the jobject to uintptr check fail because it expects the
-    following definition:
-        struct _jobject;
-        typedef struct _jobject *jobject;
-    
-    Update the type check to handle that new type definition in both C and
-    C++ modes.
-    
-    Fixes #26213
-    
-    Change-Id: Ic36d4a5176526998d2d5e4e404f8943961141f7a
-    GitHub-Last-Rev: 42037c3c584579c2b3281c25372b830e864e7aec
-    GitHub-Pull-Request: golang/go#26221
-    Reviewed-on: https://go-review.googlesource.com/122217
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6e8c6443f3ef91df71e117cce1cfa1faba647dd7
+    Reviewed-on: https://go-review.googlesource.com/87337
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/test/cgo_test.go             |  1 +
- misc/cgo/test/issue26213/jni.h        | 29 ++++++++++++++++++++++
- misc/cgo/test/issue26213/test26213.go | 46 +++++++++++++++++++++++++++++++++++
- misc/cgo/test/test26213.go            | 15 ++++++++++++
- src/cmd/cgo/gcc.go                    | 30 ++++++++++++++++++-----
- src/cmd/dist/test.go                  |  7 +++++-
- 6 files changed, 121 insertions(+), 7 deletions(-)
+ src/math/all_test.go |  3 +++
+ src/math/exp_amd64.s | 25 ++++++++++++++++---------
+ 2 files changed, 19 insertions(+), 9 deletions(-)

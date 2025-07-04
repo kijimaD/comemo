@@ -1,18 +1,21 @@
-commit 799968dfc3b9121019b752a9110489baa71a4355
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 23 10:12:55 2024 -0700
+commit 22d94dfdc8ab866ff6097b6b92a2860233873c95
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Apr 23 18:44:05 2023 +0800
 
-    go.types, types2: factor out isUntypedNumeric predicate
+    html/template: fix unavailable url
     
-    No need for Unalias or under calls for this predicate.
+    The previous link is no longer accessible. use latest link.
     
-    Change-Id: Idcdcda3e153d829ee5b26ad112ccfda3f4efedde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581255
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I76411ee00785f3d92014c5012e4efb446924adaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487835
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Andrew Polukhin <andrewmathematics2003@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/predicates.go | 22 +++++++++++++++-------
- src/go/types/predicates.go                    | 22 +++++++++++++++-------
- 2 files changed, 30 insertions(+), 14 deletions(-)
+ src/html/template/escape.go     | 2 +-
+ src/html/template/transition.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

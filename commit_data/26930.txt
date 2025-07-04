@@ -1,27 +1,23 @@
-commit 6b0b3f86d6b3c2cf01c7ed6080e038bda2c12997
-Author: David Chase <drchase@google.com>
-Date:   Wed Apr 13 13:30:03 2016 -0400
+commit 0c84c4f19cedd13445c64fcdc409b4821ff9a7d2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Mar 3 10:51:30 2016 -0500
 
-    cmd/compile: fix use of original spill name after sinking
+    cmd/link: combine all string data into one symbol
     
-    This is a fix for the ssacheck builder
-    http://build.golang.org/log/baa00f70c34e41186051cfe90568de3d91f115d7
-    after CL 21307 for sinking spills down loop exits
-    https://go-review.googlesource.com/#/c/21037/
+    This CL introduces a mergestrings pass after the reachability
+    analysis to combine all reachable go.string."..." character data
+    symbols into a single symbol.
     
-    The fix is to reuse (move) the original spill, thus preserving
-    the definition of the variable and its use count. Original and
-    copy both use the same stack slot, but ssacheck needs to see
-    a definition for the variable itself.
+    Shrinks juju by 1.2mb (1.5%).
+    Shrinks cmd/go by 0.5% when building without DWARF.
+    No noticable effect on linker speed.
     
-    Fixes #15279.
-    
-    Change-Id: I286285490193dc211b312d64dbc5a54867730bd6
-    Reviewed-on: https://go-review.googlesource.com/21995
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I2ba3e60bf418f65766bda257f6ca9eea26d895b6
+    Reviewed-on: https://go-review.googlesource.com/20165
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/check.go    | 10 +++++-----
- src/cmd/compile/internal/ssa/regalloc.go | 32 ++++++++++++++++++++++++--------
- 2 files changed, 29 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/ld/mergestrings.go | 66 ++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/pobj.go         |  1 +
+ 2 files changed, 67 insertions(+)

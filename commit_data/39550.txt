@@ -1,25 +1,26 @@
-commit 2fc7574aab072c697d2d020fa48347b0c1b221e7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jul 25 20:26:46 2019 -0400
+commit 53d859bdf570699c7d581f6ba3cdc45d0ad102f3
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:05:23 2019 +0100
 
-    cmd/go/internal/cache: avoid ioutil.WriteFile for writing cache entries
+    runtime/cgo: add port for aix/ppc64
     
-    ioutil.WriteFile always truncates the destination file to 0 before
-    writing, which is inappropriate for unsynchronized, idempotent,
-    fixed-size files such as the cache entry files here.
+    This commit add port of runtime/cgo for aix/ppc64.
+    AIX assembly is different from Linux assembly, therefore gcc_ppc64.S
+    must be redone for AIX.
     
-    Instead, truncate the file only after writing it, so that a second
-    write will never (even temporarily!) remove the contents of a
-    preceding write.
-    
-    Fixes #29667
-    
-    Change-Id: I16a53ce79d8a23d23580511cb6abd062f54b65ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188157
+    Change-Id: I780ebab4ef9c4ce912f4c4d521d8c135b1eebf6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164002
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/cache/cache.go                 | 25 +++++++++++--
- .../script/mod_list_compiled_concurrent.txt        | 41 ++++++++++++++++++++++
- 2 files changed, 64 insertions(+), 2 deletions(-)
+ src/runtime/cgo/asm_ppc64x.s                       |  13 +-
+ src/runtime/cgo/gcc_aix_ppc64.S                    | 133 +++++++++++++++++++++
+ src/runtime/cgo/gcc_context.c                      |   2 +-
+ src/runtime/cgo/gcc_fatalf.c                       |   2 +-
+ src/runtime/cgo/gcc_libinit.c                      |   2 +-
+ .../cgo/{gcc_ppc64x.S => gcc_linux_ppc64x.S}       |   1 +
+ .../cgo/{gcc_linux_ppc64x.c => gcc_ppc64x.c}       |   0
+ src/runtime/cgo/gcc_setenv.c                       |   2 +-
+ src/runtime/cgo/setenv.go                          |   2 +-
+ 9 files changed, 148 insertions(+), 9 deletions(-)

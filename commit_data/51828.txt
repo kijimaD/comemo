@@ -1,31 +1,18 @@
-commit d75a867395e983c0a420ef3fecf30c98897560d7
+commit 2b0ac284cf4b81badb1c29e4fa299ea25cb9318f
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 22 11:40:42 2022 -0500
+Date:   Thu Mar 10 14:58:02 2022 -0500
 
-    cmd/dist: skip rebuilding packages during builder testing
+    cmd/doc: use 'go env' to identify GOROOT if it isn't otherwise known
     
-    Since packages in "std" no longer have install targets, checking them
-    for staleness is somewhat meaningless: if they are not cached they
-    will be rebuilt anyway, and without installed archives against which
-    we can compare them the staleness check will not detect builder skew.
+    Updates #51483.
     
-    It would still be meaningful to check "cmd" for staleness, but
-    (especially on sharded VM-based builders) that is a fairly expensive
-    operation relative to its benefit. If we are really interested in
-    detecting builder skew and/or build reproducibility, we could instead
-    add a "misc" test (similar to "misc/reboot", or perhaps even a part of
-    that test) that verifies that bootstrapped binaries are reproducible.
-    
-    For #57734.
-    Updates #47257.
-    Updates #56896.
-    
-    Change-Id: I8683ee81aefe8fb59cce9484453df9729bdc587c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452775
+    Change-Id: I13d8e58b30639d8a5ed3c9e8b72c8bbaa6a6f1cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391813
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go | 42 ++++++++++--------------------------------
- 1 file changed, 10 insertions(+), 32 deletions(-)
+ src/cmd/doc/dirs.go | 17 +++++++++++++++--
+ src/cmd/doc/pkg.go  |  8 +++++---
+ 2 files changed, 20 insertions(+), 5 deletions(-)

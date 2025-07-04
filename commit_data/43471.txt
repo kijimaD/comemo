@@ -1,26 +1,16 @@
-commit f24ff3856a629a6b5fefe28a1676638d5f103342
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Oct 16 14:02:16 2020 -0400
+commit 08dd4ad7e30313d089793f19baff1855bbaa004e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 2 17:14:25 2020 -0700
 
-    cmd/go: change error message for missing import with unused replacement
+    runtime: only check for pointers up to ptrdata, not size
     
-    In readonly mode, if a package is not provided by any module in the
-    build list, and there is an unused replacement that contains the
-    package, we now recommend a 'go get' command to add a requirement on
-    the highest replaced version.
-    
-    Fixes #41416
-    
-    Change-Id: Iedf3539292c70ea6ba6857433fd184454d9325da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263146
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Change-Id: I166cf253b7f2483d652c98d2fba36c380e2f3347
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227177
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modfetch/pseudo.go             | 12 ++++
- src/cmd/go/internal/modload/import.go              | 72 ++++++++++----------
- src/cmd/go/testdata/script/mod_get_replaced.txt    |  2 +-
- .../go/testdata/script/mod_replace_readonly.txt    | 76 +++++++++++++++-------
- 4 files changed, 99 insertions(+), 63 deletions(-)
+ src/runtime/mbarrier.go | 24 ++++++++++++++++++++----
+ src/runtime/slice.go    |  2 +-
+ 2 files changed, 21 insertions(+), 5 deletions(-)

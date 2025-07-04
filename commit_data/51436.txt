@@ -1,27 +1,24 @@
-commit a8510f92e6c2b845c66f1fa428466ed3beafc083
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 22 13:27:16 2022 -0500
+commit 25b4b862f29900af00c794424b033b01eb5ab0cb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 27 10:52:22 2022 -0800
 
-    cmd/compile: fix error message wording
+    go/types, types2: use Checker.implements in operand.assignableTo
     
-    CL 450136 fixed a different copy of this error but missed this one.
+    Now that we have the detailed error reporting in Checker.implements
+    we don't need it anymore in operand.assignableTo and can simply call
+    Checker.implements. This also more directly matches the spec.
     
-    With the compiler fix from CL 451555 rolled back to produce the error,
-    this is the text before this CL:
+    For #50646.
     
-            b.go:9:15: internal compiler error: 'init': Value live at entry. It shouldn't be. func init, node a.i, value nil
-    
-    And this CL changes it to:
-    
-            b.go:9:15: internal compiler error: 'init': value a.i (nil) incorrectly live at entry
-    
-    matching the same change in the earlier CL.
-    
-    Change-Id: I33e6b91477e1a213a6918c3ebdea81273be7d235
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452816
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic44ced999c75be6cc9edaab01177ee0495147ea1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381435
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/instantiate.go     |  2 +
+ src/cmd/compile/internal/types2/operand.go         | 47 +++++++--------------
+ .../internal/types2/testdata/check/issues.src      |  4 +-
+ src/go/types/instantiate.go                        |  2 +
+ src/go/types/operand.go                            | 49 +++++++---------------
+ src/go/types/testdata/check/issues.src             |  4 +-
+ 6 files changed, 38 insertions(+), 70 deletions(-)

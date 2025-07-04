@@ -1,16 +1,35 @@
-commit e08f0c18c9b50bfe7d3079508b1254adff4340bb
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Mar 7 12:53:39 2011 -0500
+commit 02323c0e216827929b693f2fa762040e0a467166
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 12:09:00 2011 -0500
 
-    goinstall: handle .c files with gc when cgo isn't used
+    rpc: clean up dregs from June 2010
     
-    As a data point, this enables goinstall to handle the standard
-    syscall package almost unchanged (there's one file with the _bsd
-    extension, and a .c file which isn't supposed to be compiled in).
+    In June 2010 I accidentally checked in pending
+    changes to package rpc in a compiler CL:
+    https://golang.org/cl/1736041
     
-    R=rsc
+    I backed them out by hand in a followup CL:
+    https://golang.org/cl/1736042
+    
+    That followup CL missed the lines being deleted
+    in this CL, spotted by Petar.
+    
+    hg diff -r 5678:5683 src/cmd/prof/gopprof \
+            src/pkg/image/png/reader.go \
+            src/pkg/rpc/client.go \
+            src/pkg/rpc/jsonrpc/all_test.go \
+            src/pkg/rpc/jsonrpc/server.go \
+            src/pkg/rpc/server.go \
+            test/arm-pass.txt
+    
+    confirms that these lines in server.go are the
+    only ones that were missed by the original followup.
+    
+    Fixes #1583.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4259057
+    https://golang.org/cl/4266046
 
- src/cmd/goinstall/make.go | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ src/pkg/rpc/server.go | 13 -------------
+ 1 file changed, 13 deletions(-)

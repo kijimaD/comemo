@@ -1,25 +1,26 @@
-commit 7bb6fed9b53494e9846689520b41b8e679bd121d
-Author: Changkun Ou <hi@changkun.us>
-Date:   Thu Sep 24 08:57:00 2020 +0200
+commit 9cae3b33c3553932ca9689dda0de8ff215a39c89
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 6 12:43:59 2020 -0500
 
-    os: document and emphasize a potential misuse of File.Fd
+    [dev.link] cmd/asm: new -p option, changes to DWARF generation
     
-    This CL revises the document of File.Fd that explicitly points
-    its user to runtime.SetFinalizer where contains the information
-    that a file descriptor could be closed in a finalizer and therefore
-    causes a failure in syscall.Write if runtime.KeepAlive is not invoked.
+    Adds a new "-p" option to the assembler, for specifying the import
+    path of the package being compiled. DWARF generation is now conditional
+    on having a valid package path -- if we don't know the package path,
+    then don't emit DWARF.
     
-    The CL also suggests an alternative of File.Fd towards File.SyscallConn.
+    This is intended to lay the groundwork for removing the various
+    "patchDWARFname" hacks in the linker.
     
-    Fixes #41505
-    
-    Change-Id: I6816f0157add48b649bf1fb793cf19dcea6894b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256899
-    Reviewed-by: Rob Pike <r@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5f8315c0881791eb8fe1f2ba32f5bb0ae76f6b98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222718
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/os/file_plan9.go   |  9 +++++++--
- src/os/file_unix.go    |  9 +++++++--
- src/os/file_windows.go |  7 +++++--
- src/runtime/mfinal.go  | 18 +++++++++---------
- 4 files changed, 28 insertions(+), 15 deletions(-)
+ src/cmd/asm/internal/flags/flags.go |  1 +
+ src/cmd/asm/main.go                 |  2 +-
+ src/cmd/go/internal/work/gc.go      | 21 ++++++++++++++-------
+ src/cmd/internal/obj/plist.go       |  4 +++-
+ 4 files changed, 19 insertions(+), 9 deletions(-)

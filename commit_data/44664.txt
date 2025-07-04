@@ -1,43 +1,31 @@
-commit cc4e6160a78742bba6ac8e9be225cd7a58da7a60
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Feb 11 10:49:55 2021 -0800
+commit 20b4987d3e658a1cd93472185d7998f745bd062e
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed May 13 13:57:36 2020 -0400
 
-    net: use mid-stack inlining with ReadFromUDP to avoid an allocation
+    cmd/dist: use GO_TEST_SHORT value more consistently
     
-    This commit rewrites ReadFromUDP to be mid-stack inlined
-    and pass a UDPAddr for lower layers to fill in.
+    There were two places where the -short flag was added in order to
+    speed up tests when run in short mode, in CL 178399 and CL 177417.
     
-    This lets performance-sensitive clients avoid an allocation.
-    It requires some care on their part to prevent the UDPAddr
-    from escaping, but it is now possible.
-    The UDPAddr trivially does not escape in the benchmark,
-    as it is immediately discarded.
+    It appears viable to re-use the GO_TEST_SHORT value so that -short
+    flag is not used when the tests are executed on a longtest builder,
+    where it is not a goal to skip slow tests for improved performance.
     
-    name                  old time/op    new time/op    delta
-    WriteToReadFromUDP-8    17.2µs ± 6%    17.1µs ± 5%     ~     (p=0.387 n=9+9)
+    Do so, in order to make the testing configurations simpler and more
+    predictable.
     
-    name                  old alloc/op   new alloc/op   delta
-    WriteToReadFromUDP-8      112B ± 0%       64B ± 0%  -42.86%  (p=0.000 n=10+10)
+    Factor out the flag name out of the string returned by short, so that
+    it can be used in context of 'go test' which can accept a -short flag,
+    and a test binary which requires the use of a longer -test.short flag.
     
-    name                  old allocs/op  new allocs/op  delta
-    WriteToReadFromUDP-8      3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=10+10)
+    For #39054.
+    For #29252.
     
-    Updates #43451
-    
-    Co-authored-by: Filippo Valsorda <filippo@golang.org>
-    Change-Id: I1f9d2ab66bd7e4eff07fe39000cfa0b45717bd13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291509
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I52dfbef73cc8307735c52e2ebaa609305fb05933
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233898
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/test/inl_test.go |  5 ++++-
- src/net/udpsock.go                        | 22 +++++++++++++---------
- src/net/udpsock_plan9.go                  |  7 ++++---
- src/net/udpsock_posix.go                  |  7 +++----
- src/net/udpsock_test.go                   | 21 +++++++++++++++++++++
- 5 files changed, 45 insertions(+), 17 deletions(-)
+ src/cmd/dist/test.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

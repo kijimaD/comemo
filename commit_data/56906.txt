@@ -1,23 +1,33 @@
-commit 90c6558b6acef5a9b9fb8f3c35cff58423c8b00e
-Author: Zxilly <zxilly@outlook.com>
-Date:   Wed Jul 17 05:34:55 2024 +0000
+commit b71d43296f87b3318a81cb808881d314391d101a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon May 22 21:39:54 2023 +0000
 
-    internal/bytealg: extend memchr result correctly on wasm
+    runtime: fix race in BenchmarkSetType* benchmarks
     
-    The mem address should be regarded as uint32.
+    Currently the BenchmarkSetType* benchmarks are racy: they call
+    heapBitsSetType on an allocation that might be in a span in-use for
+    allocation on another P. Because heap bits are bits but are written
+    byte-wise non-atomically (because a P assumes it has total ownership of
+    a span's bits), two threads can race writing the same heap bitmap byte
+    creating incorrect metadata.
     
-    Fixes #65571
+    Fix this by forcing every value we're writing heap bits for into a large
+    object. Large object spans will never be written to concurrently unless
+    they're freed first.
     
-    Change-Id: Icee38d11f2d93eeca7d50b2e133159e321daeb90
-    GitHub-Last-Rev: c2568b104369bcf5c4d42c6281d235a52bb9675f
-    GitHub-Pull-Request: golang/go#68400
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597955
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Also, while we're here, refactor the benchmarks a bit. Use generics to
+    eliminate the reflect nastiness in gc_test.go, and pass b.ResetTimer
+    down into the test to get slightly more accurate results.
+    
+    Fixes #60050.
+    
+    Change-Id: Ib7d6249b321963367c8c8ca88385386c8ae9af1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497215
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/bytes/bytes_js_wasm_test.go       | 21 +++++++++++++++++++++
- src/internal/bytealg/indexbyte_wasm.s |  4 ++--
- 2 files changed, 23 insertions(+), 2 deletions(-)
+ src/runtime/export_test.go | 128 ++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/gc_test.go     |  71 ++++++++++++-------------
+ 2 files changed, 144 insertions(+), 55 deletions(-)

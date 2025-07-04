@@ -1,13 +1,23 @@
-commit fa61945cf21cce6d435ec69e8167400aa55bc108
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 11:33:48 2015 -0400
+commit 36af087aeff187d0881aed51e7822e2b2bb66b27
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 2 13:11:26 2015 -0700
 
-    runtime/debug: skip TestFreeOSMemory for mips64{,le}
+    cmd/asm: handle CMPF and CMPD on ARM
     
-    Change-Id: I419f3b8bf1bddffd4a775b0cd7b98f0239fe19cb
-    Reviewed-on: https://go-review.googlesource.com/14458
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    These instructions are special cases that were missed in the translation.
+    The second argument must go into the Reg field not the To field.
+    
+    Fixes #12458
+    
+    For Go 1.5.1
+    
+    Change-Id: Iad57c60c7e38e3bcfafda483ed5037ce670e8816
+    Reviewed-on: https://go-review.googlesource.com/14183
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/debug/garbage_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arm.go          | 9 +++++++++
+ src/cmd/asm/internal/asm/asm.go           | 5 +++++
+ src/cmd/asm/internal/asm/testdata/arm.out | 4 +++-
+ src/cmd/asm/internal/asm/testdata/arm.s   | 4 ++++
+ 4 files changed, 21 insertions(+), 1 deletion(-)

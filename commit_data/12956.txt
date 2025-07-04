@@ -1,24 +1,15 @@
-commit 733b51d996a2b270c2ccfcee149db0583fade879
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Apr 25 02:32:51 2012 -0300
+commit 990f3af72b36ac8d9a78b8b8621d248af490f8be
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 24 21:36:42 2012 -0700
 
-    net/http: revert 97d027b3aa68
+    crypto/rand: use io.ReadFull in test
     
-    Revert the following change set:
+    On Solaris versions before Solaris 11, the kernel will not
+    return more than 1040 on a single read from /dev/urandom.
     
-            changeset:   13018:97d027b3aa68
-            user:        Gustavo Niemeyer <gustavo@niemeyer.net>
-            date:        Mon Apr 23 22:00:16 2012 -0300
-            summary:     net/http: allow clients to disable keep-alive
-    
-    This broke a test on Windows 64 and somebody else
-    will have to check.
-    
-    R=golang-dev, r
+    R=golang-dev, agl, bradfitz, rsc, iant, dchest
     CC=golang-dev
-    https://golang.org/cl/6112054
+    https://golang.org/cl/6113046
 
- src/pkg/net/http/request.go    | 16 ++--------------
- src/pkg/net/http/serve_test.go | 15 ++++-----------
- src/pkg/net/http/server.go     |  3 ++-
- 3 files changed, 8 insertions(+), 26 deletions(-)
+ src/pkg/crypto/rand/rand_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

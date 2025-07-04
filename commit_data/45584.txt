@@ -1,17 +1,27 @@
-commit af6123a865546c8735acc64c344a4e02bd561c0d
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Thu May 6 22:15:11 2021 -0700
+commit 75789880a6693a4a0645f1b5924d1ede87308a63
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 28 22:46:41 2020 -0400
 
-    doc/go1.17: document encoding/binary.Uvarint max read of 10 bytes
+    cmd/link: put C static symbols in the symbol table, attempt 2
     
-    Updates #41185
-    For #44513.
-    Fixes #46009
+    We don't put Go static symbols in the symbol table, as they are
+    always compiler-generated (there is no way to define a static
+    symbol in user code in Go). We retain static symbols in assembly
+    code, as it may be user-defined. Also retain static symbols in C.
     
-    Change-Id: I60f4d891b897809765acc0aace037c78e95bb4f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317929
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This is the second attempt of CL 263259, which was reverted
+    because it broke AIX tests in that it brought TOC.stmp symbols
+    in the symbol table. This time we use SymPkg(s) == "" to identify
+    non-Go symbols, instead of IsExternal(s), as the latter also
+    includes linker-modified Go symbols.
+    
+    Change-Id: I5c752c54f0fc6ac4cde6a0e8161dac5b72a47d56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266237
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.17.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

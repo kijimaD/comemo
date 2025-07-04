@@ -1,14 +1,21 @@
-commit aba6250250d0cdcd1b7a19ca9c6112639eccbb5e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 13 19:36:51 2016 +0000
+commit bc1f9d20b40998b87c9a5f56f2b22595de65c2d4
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Tue Oct 27 15:36:38 2015 +0800
 
-    net/http: clarify ConnState StateActive docs for HTTP/2
+    cmd/go: use shallow clones for new git checkouts
     
-    Update #13925
+    Currently go get will clone the full history of git repos.
+    We can improve the download waiting time/size by passing depth argument.
     
-    Change-Id: I7cd0625fad841eb0e3f364629f9bc225aa2fdce9
-    Reviewed-on: https://go-review.googlesource.com/18575
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    The docs about shallow clones and the --depth argument are here:
+    https://git-scm.com/docs/git-clone
+    https://git-scm.com/docs/git-pull
+    
+    Fixes #13078
+    
+    Change-Id: Ie891d905d9c77f6ecadf7dcd5b44b477f4e079e0
+    Reviewed-on: https://go-review.googlesource.com/16360
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/server.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/vcs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

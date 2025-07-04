@@ -1,17 +1,16 @@
-commit dc3540d982ade0d50569abd8d054c9c66e2d9d03
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Sun Aug 30 23:56:40 2015 +0200
+commit 3290e9c14551035f9be528e199f643a04ac7f047
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 00:41:18 2015 -0400
 
-    compile/internal/gc: make typecheckok a bool
+    runtime: fix build on non-x86 machines
     
-    Change-Id: Ib3960321a4c8164f6b221bfd15977d2f34dbc65b
-    Reviewed-on: https://go-review.googlesource.com/14175
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #11656 (again).
+    
+    Change-Id: I170ff10bfbdb0f34e57c11de42b6ee5291837813
+    Reviewed-on: https://go-review.googlesource.com/12142
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go       | 2 +-
- src/cmd/compile/internal/gc/go.go        | 2 +-
- src/cmd/compile/internal/gc/lex.go       | 8 ++++----
- src/cmd/compile/internal/gc/typecheck.go | 2 +-
- 4 files changed, 7 insertions(+), 7 deletions(-)
+ src/runtime/signal_arm.go    | 14 ++++++++++++--
+ src/runtime/signal_arm64.go  | 14 ++++++++++++--
+ src/runtime/signal_ppc64x.go | 14 ++++++++++++--
+ 3 files changed, 36 insertions(+), 6 deletions(-)

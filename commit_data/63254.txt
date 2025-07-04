@@ -1,0 +1,20 @@
+commit 8cd7f17248b9215530e9ce9ed7831fc24b5eeef7
+Author: Damien Neil <dneil@google.com>
+Date:   Fri May 23 16:21:19 2025 -0700
+
+    testing, testing/synctest: report correct duration after panics
+    
+    Report the correct wall-clock test duration after handling a
+    panic in a synctest.Test bubble.
+    
+    Fixes #73852
+    
+    Change-Id: I053262e5eac2dd9d5938b17c3093cbc3fa115a0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676695
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/testing/synctest/synctest.go | 10 ++++++++--
+ src/testing/testing.go           |  6 ++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

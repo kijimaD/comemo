@@ -1,22 +1,25 @@
-commit ef30a1c8aa68f5226de1ed7397751f15f2956d62
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 13 09:06:08 2017 -0800
+commit 85c22bc3a5e9ce03cd0ca668285755ce430456e0
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 9 09:34:26 2016 -0400
 
-    runtime: fix some assembly offset names
+    runtime: mark tiny blocks at GC start
     
-    For vet. There are more. This is a start.
+    The hybrid barrier requires allocate-black, but there's one case where
+    we don't currently allocate black: the tiny allocator. If we allocate
+    a *new* tiny alloc block during GC, it will be allocated black, but if
+    we allocated the current block before GC, it won't be black, and the
+    further allocations from it won't mark it, which means we may free a
+    reachable tiny block during sweeping.
     
-    Change-Id: Ibbbb2b20b5db60ee3fac4a1b5913d18fab01f6b9
-    Reviewed-on: https://go-review.googlesource.com/36939
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fix this by passing over all mcaches at the beginning of mark, while
+    the world is still stopped, and greying their tiny blocks.
+    
+    Updates #17503.
+    
+    Change-Id: I04d4df7cc2f553f8f7b1e4cb0b52e2946588111a
+    Reviewed-on: https://go-review.googlesource.com/31456
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/sys_freebsd_386.s   | 4 ++--
- src/runtime/sys_linux_arm.s     | 4 ++--
- src/runtime/sys_nacl_386.s      | 4 ++--
- src/runtime/sys_nacl_amd64p32.s | 4 ++--
- src/runtime/sys_nacl_arm.s      | 6 +++---
- src/runtime/sys_openbsd_386.s   | 4 ++--
- src/runtime/sys_plan9_386.s     | 4 ++--
- 7 files changed, 15 insertions(+), 15 deletions(-)
+ src/runtime/mgc.go     |  7 +++++++
+ src/runtime/mgcmark.go | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

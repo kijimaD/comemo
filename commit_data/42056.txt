@@ -1,20 +1,26 @@
-commit 79395c55e27618c1d48218274498d8390705979c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Apr 22 00:52:19 2020 +0700
+commit 47360884638e5c8ad65003515b324ec33b823861
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 21 14:08:11 2019 -0400
 
-    cmd/compile: remove ntz function
+    cmd/internal/obj/arm64: mark unsafe points
     
-    Use ntzX variants instead.
+    For async preemption, we will be using REGTMP as a temporary
+    register in injected call on ARM64, which will clobber it. So any
+    code that uses REGTMP is not safe for async preemption.
     
-    Passes toolstash-check -a.
+    In the assembler backend, we expand a Prog to multiple machine
+    instructions and use REGTMP as a temporary register if necessary.
+    These need to be marked unsafe. In fact, most of the
+    multi-instruction Progs use REGTMP, so we mark all of them,
+    except ones that are whitelisted.
     
-    Change-Id: I7a627f46f75c3d339034bd3e81c190cea5409c88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229140
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I6e97805a13950e3b693fb606d77834940ac3722e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203460
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 16 +++++++-------
- src/cmd/compile/internal/ssa/rewrite.go      |  3 +--
- src/cmd/compile/internal/ssa/rewriteARM64.go | 32 ++++++++++++++--------------
- 3 files changed, 25 insertions(+), 26 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 47 ++++++++++++++++++++-------
+ src/cmd/internal/obj/arm64/obj7.go |  6 ++++
+ src/cmd/internal/obj/plist.go      | 65 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 106 insertions(+), 12 deletions(-)

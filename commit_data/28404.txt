@@ -1,22 +1,20 @@
-commit e727e37090de987f2fafd48a02cd39455dff2ca5
-Author: Alberto Bertogli <albertito@blitiri.com.ar>
-Date:   Thu Sep 15 02:32:44 2016 +0100
+commit 054a721dcac9b30610af0898b3ed8bf3ffa9f8b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 20 11:19:19 2016 -0700
 
-    net: document dummy byte in ReadMsgUnix and WriteMsgUnix
+    cmd/compile: read safemode bit from package header
     
-    ReadMsgUnix and WriteMsgUnix both will read/write 1 byte from/to the
-    socket if they were given no buffer to read/write, to avoid a common
-    pitfall in out of band operations (they will usually block
-    indefinitely if there's no actual data to read).
+    Ignore respective bit in export data, but leave the info to
+    minimize format changes for 1.7. Scheduled to remove by 1.8.
     
-    This patch adds a note about this behaviour in their documentation, so
-    users can be aware of it.
+    For #15772.
     
-    Change-Id: I751f0e12bb4d80311e94ea8de023595c5d40ec3e
-    Reviewed-on: https://go-review.googlesource.com/29180
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifb3beea655367308a4e2d5dc8cb625915f904287
+    Reviewed-on: https://go-review.googlesource.com/23285
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/unixsock.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/bimport.go |  4 +++-
+ src/cmd/compile/internal/gc/main.go    | 15 +++++++++++++++
+ src/cmd/compile/internal/gc/parser.go  |  6 +-----
+ 3 files changed, 19 insertions(+), 6 deletions(-)

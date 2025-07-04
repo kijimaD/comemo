@@ -1,17 +1,22 @@
-commit 2bf57a3534f478d9c072391b1deba1d211545661
-Author: Sean Liao <sean@liao.dev>
-Date:   Sat Mar 22 00:48:16 2025 +0000
+commit 806aeb1e7667958047ef744cac16319e662d1b1e
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Sat Feb 17 04:35:24 2024 +0000
 
-    testing: document exit codes
+    cmd/go: fail fast across packages
     
-    Fixes #25989
+    Fixes #33038
     
-    Change-Id: I2e2a2a17854034ff68e69b8973018b1b2e7d59f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660076
-    Reviewed-by: Thanyalak Detkhong (Palm’my) <pmy4416@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I0b70c450be1c1cc59ddc1f3fddad227deccc7e14
+    GitHub-Last-Rev: 302ebd648afb4a5fc9ca0ae10cda5c58f2d64120
+    GitHub-Pull-Request: golang/go#62714
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-race,gotip-windows-amd64-race,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529198
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/testing/testing.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/internal/test/test.go              | 18 ++++++++++++---
+ src/cmd/go/internal/test/testflag.go          |  2 +-
+ src/cmd/go/testdata/script/test_fail_fast.txt | 33 +++++++++++++++++++++++++++
+ 3 files changed, 49 insertions(+), 4 deletions(-)

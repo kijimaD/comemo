@@ -1,21 +1,47 @@
-commit 2a60d77059201c9f1f09cb4885f690859d7bc643
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 4 23:44:06 2015 -0400
+commit 61cd48b1ce95d518dc80d6344c1d84bbb55af5c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 17 18:28:50 2015 -0700
 
-    runtime: align stack pointer during initcgo call on arm
+    debug/elf: change R_ARM_REL32 to R_ARM_ABS32 in applyRelocationsARM
     
-    This is what is causing freebsd/arm to crash mysteriously when using cgo.
-    The bug was introduced in golang.org/cl/4030, which moved this code out
-    of rt0_go and into its own function. The ARM ABI says that calls must
-    be made with the stack pointer at an 8-byte boundary, but only FreeBSD
-    seems to crash when this is violated.
+    The original version of applyRelocationsARM was added in
+    http://golang.org/cl/7266.  It was added to fix the ARM build, which
+    had been broken by http://golang.org/cl/6780.
     
-    Fixes #10119.
+    Before CL 6780, there was no relocation processing for ARM.  CL 6780
+    changed the code to require relocation processing for every supported
+    target.  CL 7266 fixed the ARM build by adding a relocation processing
+    function, but in fact no actual processing was done.  The code only
+    looked for REL32 relocations, but ARM debug info has no such
+    relocations.  The test case added in CL 7266 doesn't have any either.
     
-    Change-Id: Ibdbe76b2c7b80943ab66b8abbb38b47acb70b1e5
-    Reviewed-on: https://go-review.googlesource.com/13161
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    This didn't matter because no relocation processing was required on
+    ARM, at least not for GCC-generated debug info.  GCC generates ABS32
+    relocations, but only against section symbols which have the value 0.
+    Therefore, the addition done by correct handling of ABS32 doesn't
+    change anything.
+    
+    Clang, however, generates ABS32 relocations against local symbols,
+    some of which have non-zero values.  For those, we need to handle
+    ABS32 relocations.
+    
+    This patch corrects the CL 7266 to look for ABS32 relocations instead
+    of REL32 relocations.  The code was already written to correctly
+    handle ABS32 relocations, it just mistakenly said REL32.
+    
+    This is the ARM equivalent of https://golang.org/cl/96680045, which
+    fixed the same problem in the same way for clang on 386.
+    
+    With this patch, clang-3.5 can be used to build Go on ARM GNU/Linux.
+    
+    Fixes #8980.
+    
+    Change-Id: I0c2d72eadfe6373bde99cd03eee40de6a582dda1
+    Reviewed-on: https://go-review.googlesource.com/11222
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/tls_arm.s | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/debug/elf/file.go                                   |   2 +-
+ src/debug/elf/file_test.go                              |   6 ++++++
+ src/debug/elf/testdata/go-relocation-test-clang-arm.obj | Bin 0 -> 3092 bytes
+ 3 files changed, 7 insertions(+), 1 deletion(-)

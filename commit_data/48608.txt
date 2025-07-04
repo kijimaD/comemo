@@ -1,22 +1,23 @@
-commit c5c66d78b21074c562ece01d6682d4a499815786
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Mar 31 13:15:51 2022 -0400
+commit 95c618e99a3f733543fd36ef19e833d04acc8710
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 2 17:50:47 2021 -0700
 
-    debug/pe: skip TestReadCOFFSymbolAuxInfo on big-endian systems
+    [dev.typeparams] cmd/compile/internal/types2: add Config.AllowTypeLists to control type list handling
     
-    Disable the new TestReadCOFFSymbolAuxInfo testpoint on big endian
-    systems, pending resolution of issue 52079. The newly added interfaces
-    for reading symbol definition aux info is not working properly when
-    reading PE objects obj big-endian systems.
+    Eventually the flag should not be set anymore, but we set it in the
+    compiler until all tests have been converted.
     
-    Updates #52079.
+    Also, convert some more types2 tests to use the type set notation.
     
-    Change-Id: I8d55c7e4c03fc6444ef06a6a8154cb50596ca58a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397294
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I616599a3473451ab75d67272016b2bd3de6835af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324571
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/debug/pe/symbols_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/noder/irgen.go                  |  1 +
+ src/cmd/compile/internal/types2/api.go                   |  6 ++++++
+ src/cmd/compile/internal/types2/api_test.go              | 16 ++++++++--------
+ src/cmd/compile/internal/types2/interface.go             | 11 +++++++++--
+ .../internal/types2/testdata/examples/constraints.go2    | 12 ++++++++++++
+ src/cmd/compile/internal/types2/typestring_test.go       |  1 -
+ 6 files changed, 36 insertions(+), 11 deletions(-)

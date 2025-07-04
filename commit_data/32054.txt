@@ -1,60 +1,33 @@
-commit 235aff0a40337217cb685b4d6093cadd0e73d85c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 17 19:34:18 2017 +0000
+commit ca33e1097155019d0636a0da805054b4182e9b7d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 11:46:45 2017 -0700
 
-    A+C: final updates for Go 1.9
+    cmd/compile: rework reporting of oversized stack frames
     
-    Add Adam Kisala (individual CLA)
-    Add Aditya Mukerjee (individual CLA)
-    Add Akhil Indurti (individual CLA)
-    Add André Carvalho (individual CLA)
-    Add Andy Walker (individual CLA)
-    Add Awn Umar (individual CLA)
-    Add Bastian Ike (individual CLA)
-    Add Brian Downs (individual CLA)
-    Add Cody Oss (individual CLA)
-    Add Costin Chirvasuta (corporate CLA for Google Inc.)
-    Add Dan Ballard (individual CLA)
-    Add Dong-hee Na (individual CLA)
-    Add Dylan Waits (individual CLA)
-    Add Evan Hicks (individual CLA)
-    Add Fannie Zhang (corporate CLA for ARM Ltd.)
-    Add Francisco Rojas (individual CLA)
-    Add Gabriel Nicolas Avellaneda (individual CLA)
-    Add Gabríel Arthúr Pétursson (individual CLA)
-    Add Greg Poirier (individual CLA)
-    Add Iccha Sethi (individual CLA)
-    Add Ivan Moscoso (individual CLA)
-    Add Jamie Kerr (individual CLA)
-    Add Joe Kyo (individual CLA)
-    Add Joey Geiger (individual CLA)
-    Add John R. Lenton (individual CLA)
-    Add Johnny Luo (individual CLA)
-    Add Josh Roppo (individual CLA)
-    Add Kate Manson (individual CLA)
-    Add Leo Rudberg (corporate CLA for Google Inc.)
-    Add Ma Peiqi (individual CLA)
-    Add Martynas Budriūnas (corporate CLA for Google Inc.)
-    Add Maryan Hratson (individual CLA)
-    Add Michael Edwards (individual CLA)
-    Add Michael Hendricks (individual CLA)
-    Add Pablo Santiago Blum de Aguiar (individual CLA)
-    Add Pat Moroney (individual CLA)
-    Add Shi Han Ng (individual CLA)
-    Add Steven Buss (corporate CLA for Google Inc.)
-    Add Suzy Mueller (corporate CLA for Google Inc.)
-    Add Taro Aoki (individual CLA)
-    Add Tim Heckman (individual CLA)
-    Add Tony Walker (individual CLA)
-    Add Yasha Bubnov (individual CLA)
+    We don't support stack frames over 2GB.
+    Rather than detect this during backend compilation,
+    check for it at the end of compilation.
+    This is arguably a more accurate check anyway,
+    since it takes into account the full frame,
+    including local stack, arguments, and arch-specific
+    rounding, although it's unlikely anyone would ever notice.
     
-    Updates #12042
+    Also, rather than reporting the error right away,
+    take note of it and report it later, at the top level.
+    This is not relevant now, but it will help with making
+    the backend concurrent, as the append to the list of
+    oversized functions can be cheaply protected by a plain mutex.
     
-    Change-Id: Iee063dd6c5a39de16907acfb5af87e81a05ab417
-    Reviewed-on: https://go-review.googlesource.com/49351
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #15756
+    Updates #19250
+    
+    Change-Id: Id3fa21906616d62e9dc66e27a17fd5f83304e96e
+    Reviewed-on: https://go-review.googlesource.com/38972
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- AUTHORS      | 37 +++++++++++++++++++++++++++++++++++++
- CONTRIBUTORS | 43 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 80 insertions(+)
+ src/cmd/compile/internal/gc/main.go | 3 +++
+ src/cmd/compile/internal/gc/pgen.go | 8 ++++----
+ src/cmd/compile/internal/gc/subr.go | 2 ++
+ 3 files changed, 9 insertions(+), 4 deletions(-)

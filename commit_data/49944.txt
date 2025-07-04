@@ -1,18 +1,42 @@
-commit 9b988c9094df18a75537f5c4ae12449062550290
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 17 16:21:00 2022 +0700
+commit e128749be88278768c50907ca87270b9d5e96eb5
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Sun Sep 19 23:50:02 2021 -0500
 
-    runtime: convert windows netpollWakeSig to atomic type
+    hash/crc32: improve performance of ppc64SlicingUpdateBy8 on ppc64le
     
-    Updates #53821
+    Reduce the number of instructions in the short loop of
+    ppc64SlicingUpdateBy8 function by combining MOVWZ and SRD into a SRD
+    with appropriate parameters performing the same operation and remove
+    MOVWZ R7,R7 from the loop
+    This change produces the following improvements on POWER9. None of the
+    other tests regress. Improvments on other POWERPC platforms similar.
     
-    Change-Id: Ifc5bc551a4bcf82bf10d2e670ad2644eb9c6b334
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423879
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    name                                     old time/op    new time/op
+    delta
+    
+    CRC32/poly=IEEE/size=15/align=0            80.5ns ± 0%    70.6ns ± 0%
+    -12%
+    CRC32/poly=IEEE/size=15/align=1            80.5ns ± 0%    70.6ns ± 0%
+    -12%
+    CRC32/poly=IEEE/size=512/align=1            151ns ± 0%     139ns ± 0%
+    -7%
+    CRC32/poly=IEEE/size=1kB/align=1            167ns ± 0%     155ns ± 0%
+    -7%
+    CRC32/poly=Castagnoli/size=15/align=0      80.2ns ± 0%    70.5ns ± 0%
+    -12%
+    CRC32/poly=Castagnoli/size=15/align=1      80.2ns ± 0%    70.5ns ± 0%
+    -12%
+    CRC32/poly=Castagnoli/size=512/align=1      150ns ± 0%     139ns ± 0%
+    -7%
+    CRC32/poly=Castagnoli/size=1kB/align=1      166ns ± 0%     155ns ± 0%
+    -6%
+    
+    Change-Id: I424709041c30d1c637b595d0845e3ae78dc3e0a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350989
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/netpoll_windows.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/hash/crc32/crc32_ppc64le.s | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

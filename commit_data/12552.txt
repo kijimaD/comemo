@@ -1,12 +1,13 @@
-commit 959d0c7ac0091513fc1a2e53834d027430122ee8
-Author: Jeremy Jackins <jeremyjackins@gmail.com>
-Date:   Sat Mar 10 15:13:34 2012 -0800
+commit 3492f32b83fbb568ed60a1fb3b3dcc41f0de63b6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 10 14:48:00 2012 -0800
 
-    doc: fix typo in contribute.html
+    A+C: Add Gwenael Treguier (Individual CLA)
     
-    R=golang-dev, bradfitz
+    R=golang-dev, wcn
     CC=golang-dev
-    https://golang.org/cl/5795050
+    https://golang.org/cl/5777052
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

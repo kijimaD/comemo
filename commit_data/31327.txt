@@ -1,28 +1,16 @@
-commit 67399c6279d7c2777a1a83103644f853d87533ba
-Author: Ronald G. Minnich <rminnich@gmail.com>
-Date:   Mon Apr 24 16:09:24 2017 -0700
+commit 61bf0d1c4033ef2cc6905c2ca6e03046cf54d2bc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Feb 12 18:23:34 2017 +1100
 
-    syscall: fix ordering of Unshare and chroot on Linux
+    path/filepath: add test for directory junction walk
     
-    When unshare specifies a new namespace, the syscall
-    package changes / to make namespace changes private.
+    For #10424.
     
-    If a chroot is specified, the unshare must be done first.
-    If the chroot is done first then the unshare will
-    not specify the correct /.
-    
-    A new test is included which test combining chroot
-    and CLONE_NEWNS; it fails without the patch and works with
-    it.
-    
-    Fixes #20103
-    
-    Change-Id: I86022803c784bd418a30383321f3d64103d95c62
-    Reviewed-on: https://go-review.googlesource.com/41626
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie4e87503b0ed04f65d2444652bd1db647d3529f4
+    Reviewed-on: https://go-review.googlesource.com/36851
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_linux.go      | 16 +++++------
- src/syscall/exec_linux_test.go | 64 +++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 71 insertions(+), 9 deletions(-)
+ src/path/filepath/path_windows_test.go | 42 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

@@ -1,30 +1,17 @@
-commit 006bc57095e7b1221ecc292735a510a52a27292c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Oct 20 11:56:31 2017 +0100
+commit 7320506bc58d3a55eff2c67b2ec65cfa94f7b0a7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 27 04:33:18 2017 +0000
 
-    cmd/compile: clean up various bits of code
+    [release-branch.go1.9] cmd/dist: skip moved GOROOT on Go's Windows builders when not sharding tests
     
-    * replace a copy of IsMethod with a call of it.
-    * a few more switches where they simplify the code.
-    * prefer composite literals over "n := new(...); n.x = y; ...".
-    * use defers to get rid of three goto labels.
-    * rewrite updateHasCall into two funcs to remove gotos.
-    
-    Passes toolstash-check on std cmd.
-    
-    Change-Id: Icb5442a89a87319ef4b640bbc5faebf41b193ef1
-    Reviewed-on: https://go-review.googlesource.com/72070
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I0bcae339624e7d61037d9ea0885b7bd07491bbb6
+    Reviewed-on: https://go-review.googlesource.com/51430
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    (cherry picked from commit 4833e920c1d7f6b23458e6ff3c73951fcf754219)
+    Reviewed-on: https://go-review.googlesource.com/51450
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/const.go  | 13 +++-----
- src/cmd/compile/internal/gc/esc.go    |  4 +--
- src/cmd/compile/internal/gc/export.go |  2 +-
- src/cmd/compile/internal/gc/gsubr.go  |  8 ++---
- src/cmd/compile/internal/gc/obj.go    |  8 ++---
- src/cmd/compile/internal/gc/select.go |  3 +-
- src/cmd/compile/internal/gc/ssa.go    |  9 +++---
- src/cmd/compile/internal/gc/subr.go   | 61 ++++++++++++++---------------------
- src/cmd/compile/internal/gc/walk.go   | 22 +++++--------
- 9 files changed, 52 insertions(+), 78 deletions(-)
+ src/cmd/dist/test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

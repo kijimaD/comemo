@@ -1,12 +1,57 @@
-commit 519090729961e4ea27db6a81ca248de3da33c41d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 25 13:20:50 2011 -0400
+commit b0f39cc27cb3bcd0c9a53b158d8ea04d6f5c2e28
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 25 10:15:26 2011 -0700
 
-    quietgcc: fix typo, respect $TMPDIR
+    io, net, http: sendfile support
     
-    R=golang-dev, bradfitz
+    Speeds up static fileserver, avoiding kernel/userspace copies.
+    
+    Numbers: downloading 14 MB AppEngine Go SDK with ab (Apache Bench)
+    with 5 threads:
+    
+    Before/after numbers:
+    
+    CPU:
+    user    0m3.910s
+    sys     0m23.650s
+    ->
+    user    0m0.720s
+    sys     0m4.890s
+    
+    Time taken for tests:   8.906 seconds
+    ->
+    Time taken for tests:   8.545 seconds
+    
+    Percentage of the requests served within a certain time (ms)
+    50%     44
+    66%     45
+    75%     46
+    80%     46
+    90%     48
+    95%     51
+    98%     59
+    99%     71
+    100     74 (longest request)
+    ->
+    50%     42
+    66%     43
+    75%     43
+    80%     44
+    90%     46
+    95%     57
+    98%     62
+    99%     63
+    100%    64 (longest request)
+    
+    R=iant, gary.burd, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4529087
+    https://golang.org/cl/4543071
 
- src/quietgcc.bash | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/http/server.go        | 21 +++++++++++
+ src/pkg/io/io.go              | 26 ++++++++------
+ src/pkg/net/Makefile          | 29 +++++++++------
+ src/pkg/net/sendfile_linux.go | 84 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/sendfile_stub.go  | 14 ++++++++
+ src/pkg/net/sock.go           | 12 +++++++
+ src/pkg/net/tcpsock.go        |  9 +++++
+ 7 files changed, 173 insertions(+), 22 deletions(-)

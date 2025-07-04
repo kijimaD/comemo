@@ -1,28 +1,13 @@
-commit 75d5c4af7128e8fd6e2df71f631925715784de46
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Oct 29 22:17:14 2013 -0400
+commit e6c4fa58b5a0c77c9c95d227ed5f36937df0544d
+Author: Julien Schmidt <google@julienschmidt.com>
+Date:   Tue Oct 29 16:03:13 2013 -0700
 
-    undo CL 19010044 / dbcd720e5396
+    database/sql: Fix typos in doc
     
-    bradfitz reports:
-    > It breaks go-mode on GNU Emacs 22.1.1 as ships with OS X 10.8.6.
-    
-    ««« original CL description
-    misc/emacs: various cleanups
-    
-    - Use #' for function symbols
-    - Remove unused variables
-    - Use declare-function to shut up byte compiler
-    
-    R=adonovan
-    CC=golang-dev
-    https://golang.org/cl/19010044
-    
-    »»»
-    
-    R=bradfitz
-    CC=golang-dev
-    https://golang.org/cl/19640043
+    R=golang-dev
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/17590043
 
- misc/emacs/go-mode.el | 46 +++++++++++++++++++++++-----------------------
- 1 file changed, 23 insertions(+), 23 deletions(-)
+ src/pkg/database/sql/driver/driver.go | 4 ++--
+ src/pkg/database/sql/sql.go           | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,17 +1,14 @@
-commit ff4518da17a7362094a58ecc54872b36ea7cc987
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 28 23:58:35 2011 -0400
+commit 3a52cf56f85a83b31b474d56b15aad1301c5569c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 29 13:57:59 2011 +1000
 
-    gc: fix package quoting logic
+    gob: delete some unused bits from the GobEncoder/GobDecoder code.
     
-    The decision for when to say "hash/crc32".New instead of
-    crc32.New in an error was double-counting imports
-    from different packages or indirect imports, so it was
-    quoting even when there was no ambiguity.
-    
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4645070
+    https://golang.org/cl/4631076
 
- src/cmd/gc/go.y | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ src/pkg/gob/decode.go |  4 ++--
+ src/pkg/gob/encode.go | 15 ++-------------
+ src/pkg/gob/type.go   |  5 -----
+ 3 files changed, 4 insertions(+), 20 deletions(-)

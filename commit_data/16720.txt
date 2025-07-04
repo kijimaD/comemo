@@ -1,18 +1,14 @@
-commit 8268eadb9ee2a36e117c55296bbfdcf38566b641
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jul 9 21:12:53 2013 -0700
+commit 825373e4f02d415b687806d8f5ebe9bc19f1d336
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 10 10:14:31 2013 +1000
 
-    spec: define notion of named type
+    encoding/xml: fix typo in docs
     
-    The notion of a named type is crucial for the definition
-    of type identity, assignability, definitions of methods.
-    Explicitly introduce the notion with an extra sentence.
+    Fixes #5843.
     
-    Fixes #5682.
-    
-    R=r, rsc, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/11055043
+    https://golang.org/cl/11073043
 
- doc/go_spec.html | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/encoding/xml/read.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

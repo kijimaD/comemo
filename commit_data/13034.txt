@@ -1,16 +1,34 @@
-commit a642ca49309b129e77ba15a066fbf8e7c4b69b79
+commit dac4c3eee949ccc395bde808832ab7b2bba370da
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat May 5 01:59:14 2012 +0800
+Date:   Sat May 5 01:54:16 2012 +0800
 
-    runtime: get per-process random number from auxv for hash table
-    Decode AT_RANDOM, AT_HWCAP, and AT_PLATFORM.
-    This CL only make use of AT_RANDOM, but future CLs will make use of the others.
+    cmd/cgo, cmd/cc, cmd/ld: detect dynamic linker automatically
+    Some newer Linux distributions (Ubuntu ARM at least) use a new multiarch
+    directory organization, where dynamic linker is no longer in the hardcoded
+    path in our linker.
+    For example, Ubuntu 12.04 ARM hardfloat places its dynamic linker at
+    /lib/arm-linux-gnueabihf/ld-linux.so.3
     
-    R=dave, rsc
+    Ref: http://lackof.org/taggart/hacking/multiarch/
+    
+    Also, to support Debian GNU/kFreeBSD as a FreeBSD variant, we need this capability, so it's part of issue 3533.
+    
+    This CL add a new pragma (#pragma dynlinker "path") to cc.
+    
+    R=iant, rsc
     CC=golang-dev
-    https://golang.org/cl/5978051
+    https://golang.org/cl/6086043
 
- src/pkg/runtime/asm_arm.s          | 10 -------
- src/pkg/runtime/rt0_linux_arm.s    |  4 +++
- src/pkg/runtime/signal_linux_arm.c | 57 ++++++++++++++++++++++++++++++++++++++
- 3 files changed, 61 insertions(+), 10 deletions(-)
+ src/cmd/5c/swt.c   |  4 ++++
+ src/cmd/5l/obj.c   |  1 +
+ src/cmd/6c/swt.c   |  4 ++++
+ src/cmd/6l/obj.c   |  1 +
+ src/cmd/8c/swt.c   |  4 ++++
+ src/cmd/8l/obj.c   |  1 +
+ src/cmd/cc/cc.h    |  2 ++
+ src/cmd/cc/dpchk.c | 17 +++++++++++++++
+ src/cmd/cc/lexbody |  7 ++++++
+ src/cmd/cc/macbody |  4 ++++
+ src/cmd/cgo/out.go |  6 +++++
+ src/cmd/ld/go.c    | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 12 files changed, 113 insertions(+), 2 deletions(-)

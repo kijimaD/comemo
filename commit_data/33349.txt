@@ -1,21 +1,21 @@
-commit 4fe42799a8a3170715dcbfa3d904ca8173131d79
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 30 11:16:09 2017 -0400
+commit 2c990f4596b8211ec24b095d80e66ec82a5a5021
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 11 09:48:46 2017 -0700
 
-    cmd/vet: accept package config from go command
+    runtime: add a use of runtime.KeepAlive's argument
     
-    This CL adds support for accepting package config from
-    the go command. Paired with CL 74356 this lets us make
-    sure vet has complete information about package sources.
-    This fixes many issues (see CL 74356 for the list), including
-    mishandling of cgo and vendoring.
+    This makes sure that its argument is marked live on entry.
+    We need its arg to be live so defers of KeepAlive get
+    scanned correctly by the GC.
     
-    Change-Id: Ia4a1dce6f9b1b0a8ef5fdf9005a20a8b294969f1
-    Reviewed-on: https://go-review.googlesource.com/74355
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #21402
+    
+    Change-Id: I906813e433d0e9726ca46483723303338da5b4d7
+    Reviewed-on: https://go-review.googlesource.com/55150
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/main.go | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 79 insertions(+)
+ src/runtime/mfinal.go      | 15 +++++++++------
+ src/runtime/mfinal_test.go | 17 +++++++++++++++++
+ 2 files changed, 26 insertions(+), 6 deletions(-)

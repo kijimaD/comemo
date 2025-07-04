@@ -1,13 +1,13 @@
-commit 17992f7a06c99b85429aa16118388551a7cc38bb
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Jul 31 17:34:48 2014 +1000
+commit 58241bfdf7be488f8d55b604146bbb788104f6ae
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 30 17:08:33 2014 -0700
 
-    image/jpeg: rename some internal variables.
+    runtime: fix cmallocgc's C prototype
     
-    LGTM=dsymonds
-    R=dsymonds
+    LGTM=khr
+    R=khr
     CC=golang-codereviews
-    https://golang.org/cl/120980043
+    https://golang.org/cl/121910043
 
- src/pkg/image/jpeg/scan.go | 33 ++++++++++++++++-----------------
- 1 file changed, 16 insertions(+), 17 deletions(-)
+ src/pkg/runtime/malloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

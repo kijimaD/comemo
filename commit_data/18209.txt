@@ -1,18 +1,22 @@
-commit 8449863d3173f59c11b477dc93d5eb00452e80e6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 9 19:29:29 2014 -0500
+commit d6bce32a3607222075734bf4363ca3fea02ea1e5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 9 15:05:09 2014 -0800
 
-    cmd/link: Mach-O (OS X) file formatter
+    net/http: use TCP keep-alives for ListenAndServe and ListenAndServeTLS
     
-    See CL 48870044 for basic structure.
+    Our default behavior for the common cases shouldn't lead to
+    leaked TCP connections (e.g. from people closing laptops) when
+    their Go servers are exposed to the open Internet without a
+    proxy in front.
     
-    R=iant
+    Too many users on golang-nuts have learned this the hard way.
+    
+    No API change. Only ListenAndServe and ListenAndServeTLS are
+    updated.
+    
+    R=golang-codereviews, cespare, gobot, rsc, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/48910043
+    https://golang.org/cl/48300043
 
- src/cmd/link/macho.go                     | 385 ++++++++++++++++++++++++++++
- src/cmd/link/macho_test.go                | 403 ++++++++++++++++++++++++++++++
- src/cmd/link/testdata/macho.amd64.exit9   | Bin 0 -> 4109 bytes
- src/cmd/link/testdata/macho.amd64.hello   | Bin 0 -> 8204 bytes
- src/cmd/link/testdata/macho.amd64.helloro | Bin 0 -> 8204 bytes
- 5 files changed, 788 insertions(+)
+ src/pkg/net/http/server.go | 30 ++++++++++++++++++++++++------
+ 1 file changed, 24 insertions(+), 6 deletions(-)

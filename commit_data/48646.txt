@@ -1,20 +1,26 @@
-commit df89f2ba53aab53356be197c581d142cefc2c6bc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 1 11:09:30 2022 -0400
+commit 46beeed0ac4cd409554167c315861eaf8ae68c4a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 3 18:25:47 2021 -0400
 
-    crypto/x509: skip WSATRY_AGAIN errors when dialing badssl.com subdomains
+    [dev.typeparams] cmd/compile: allow go'd closure to escape when compiling runtime
     
-    (Temporarily, until the root cause of the test failure can be
-    diagnosed and fixed properly.)
+    When compiling runtime, we don't allow closures to escape,
+    because we don't want (implicit) allocations to occur when it is
+    not okay to allocate (e.g. in the allocator itself). However, for
+    go statement, it already allocates a new goroutine anyway. It is
+    okay to allocate the closure. Allow it.
     
-    For #52094
+    Also include the closure's name when reporting error.
     
-    Change-Id: Iec69e162159f3f0a93135f742aac97cf82c1d96c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397478
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #40724.
+    
+    Change-Id: Id7574ed17cc27709609a059c4eaa67ba1c4436dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325109
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/crypto/x509/root_windows_test.go | 17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/expr.go    |  1 +
+ src/cmd/compile/internal/ir/func.go    |  4 ++--
+ src/cmd/compile/internal/walk/order.go | 14 ++++++--------
+ test/fixedbugs/issue14999.go           |  4 ++--
+ 4 files changed, 11 insertions(+), 12 deletions(-)

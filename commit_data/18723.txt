@@ -1,13 +1,13 @@
-commit df8b63780b9331ea1860eae6432b047a7c8ea08e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Mar 4 10:53:24 2014 +0900
+commit 56b983c112ddca28cf29e4d1b0ab9f590ea69976
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 3 19:55:40 2014 -0500
 
-    doc: add freebsd items
+    cmd/gc: fix internal crash
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    TBR=ken2
     CC=golang-codereviews
-    https://golang.org/cl/71000043
+    https://golang.org/cl/70200053
 
- doc/go1.3.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/gc/typecheck.c      |  2 ++
+ test/fixedbugs/issue7310.go | 15 +++++++++++++++
+ 2 files changed, 17 insertions(+)

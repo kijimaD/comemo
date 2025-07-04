@@ -1,29 +1,20 @@
-commit 7ee4c1665477c6cf574cb9128deaf9d00906c69f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Oct 4 21:44:08 2021 +0000
+commit 2b95c28b18872b2d61ac9e9b32f63c76b619e86b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 22 13:29:59 2021 -0800
 
-    Revert "runtime: add padding to Linux kernel structures"
+    [dev.typeparams] cmd/compile: refactor SelectorExpr code into helpers
     
-    This reverts commit f0db7eae74ea235e9fbc2598252bfd46c1cc5510.
+    This CL refactors the SelectorExpr-handling code added in CL 285373
+    into helper functions that can eventually be reused by iimport.
     
-    Reason for revert: Breaks linux-386 tests
-    
-    Change-Id: Ia51fbf97460ab52920b67d6db6177ac2d6b0058e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353432
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I15b4a96c242f63cb370d7492ed08168550724f47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285953
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/defs_linux_386.go     | 11 -----------
- src/runtime/defs_linux_amd64.go   | 11 -----------
- src/runtime/defs_linux_arm.go     | 11 -----------
- src/runtime/defs_linux_arm64.go   | 11 -----------
- src/runtime/defs_linux_mips64x.go | 11 -----------
- src/runtime/defs_linux_mipsx.go   | 11 -----------
- src/runtime/defs_linux_ppc64.go   | 11 -----------
- src/runtime/defs_linux_ppc64le.go | 11 -----------
- src/runtime/defs_linux_riscv64.go | 11 -----------
- src/runtime/defs_linux_s390x.go   | 11 -----------
- src/runtime/os_linux.go           | 12 ------------
- 11 files changed, 122 deletions(-)
+ src/cmd/compile/internal/noder/expr.go    | 121 +++++++++++-------------------
+ src/cmd/compile/internal/noder/helpers.go |  90 +++++++++++++++++++---
+ 2 files changed, 125 insertions(+), 86 deletions(-)

@@ -1,27 +1,16 @@
-commit 0d54fb5610fb054e08a77f2a68a4df145182ae8e
-Author: Lubomir I. Ivanov (VMware) <neolit123@gmail.com>
-Date:   Wed Apr 25 20:59:04 2018 +0000
+commit f05c8b48ea2d249965418e76c9151a3d6bde7ed9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 3 12:59:09 2018 -0800
 
-    path/filepath: fix Win32 tests missing 'chcp'
+    net: set CLOEXEC on sockets used for capability probes
     
-    '%SystemRoot%/System32/chcp.com' is a tool on Windows that
-    is used to change the active code page in the console.
+    Fixes #22349
     
-    'go test path/filepath' can fail with:
-    "'chcp' is not recognized as an internal or external command"
-    
-    The test uses a custom PATH variable but does not include
-    '%SystemRoot%/System32'. Always append that to PATH.
-    
-    Updates #24709
-    
-    Change-Id: Ib4c83ffdcc5dd6eb7bb34c07386cf2ab61dcae57
-    GitHub-Last-Rev: fac92613cce0d60f6794ad850618ed64d04c76fd
-    GitHub-Pull-Request: golang/go#25089
-    Reviewed-on: https://go-review.googlesource.com/109362
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I84ec4fa9fa95bac0f26bf4ca3e62a35dff4f7e00
+    Reviewed-on: https://go-review.googlesource.com/86015
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/path/filepath/path_windows_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/ipsock_posix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

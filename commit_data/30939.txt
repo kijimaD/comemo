@@ -1,19 +1,24 @@
-commit 1be3e76e7628cae8500c0c1f3aa620638aec351d
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 1 21:03:20 2017 -0500
+commit c44da14440e5a2e412f9b1d3f5f2f562591d8e49
+Author: Kirill Smelkov <kirr@nexedi.com>
+Date:   Thu Dec 1 21:40:57 2016 +0300
 
-    runtime: simplify heap profile flushing
+    cmd/compile/internal/ssa: add tests for BSWAP on stores on AMD64
     
-    Currently the heap profile is flushed by *either* gcSweep in STW mode
-    or by gcMarkTermination in concurrent mode. Simplify this by making
-    gcMarkTermination always flush the heap profile and by making gcSweep
-    do one extra flush (instead of two) in STW mode.
+    Commit 10f75748 (CL 32222) taught AMD64 backend to rewrite series of
+    byte loads or stores with corresponding shifts into a single long or
+    quad load or store + appropriate BSWAP. However it did not added test
+    for stores - only loads were tested.
     
-    Change-Id: I62147afb2a128e1f3d92ef4bb8144c8a345f53c4
-    Reviewed-on: https://go-review.googlesource.com/37715
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fix it.
+    
+    NOTE Tests for indexed stores are not added because 10f75748 did not add
+    support for indexed stores - only indexed loads were handled then.
+    
+    Change-Id: I48c867ebe7622ac8e691d43741feed1d40cca0d7
+    Reviewed-on: https://go-review.googlesource.com/34634
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgc.go | 23 ++++++++---------------
- 1 file changed, 8 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

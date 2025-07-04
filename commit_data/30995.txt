@@ -1,22 +1,14 @@
-commit 6c5a819a5edd602236200627694215a1017aded2
-Author: Filip Gruszczyński <gruszczy@gmail.com>
-Date:   Fri Mar 17 20:10:38 2017 -0700
+commit ffedff7e506cdf298f06ad36f3264ca197aa7d25
+Author: Austin Clements <austin@google.com>
+Date:   Sat Dec 24 17:03:10 2016 -0800
 
-    reflect: add MakeMapWithSize for creating maps with size hint
+    runtime: add table of size classes in a comment
     
-    Providing size hint when creating a map allows avoiding re-allocating
-    underlying data structure if we know how many elements are going to
-    be inserted. This can be used for example during decoding maps in
-    gob.
-    
-    Fixes #19599
-    
-    Change-Id: I108035fec29391215d2261a73eaed1310b46bab1
-    Reviewed-on: https://go-review.googlesource.com/38335
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I52fae67c9aeceaa23e70f2ef0468745b354f8c75
+    Reviewed-on: https://go-review.googlesource.com/34932
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/reflect/all_test.go | 18 ++++++++++++++++++
- src/reflect/value.go    | 13 +++++++++----
- src/runtime/hashmap.go  |  4 ++--
- 3 files changed, 29 insertions(+), 6 deletions(-)
+ src/runtime/mksizeclasses.go | 16 +++++++++++
+ src/runtime/sizeclasses.go   | 68 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+)

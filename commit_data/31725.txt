@@ -1,18 +1,34 @@
-commit a838191406e80b3b0d665e7b1ba38197eacc7b72
-Author: gulyasm <mgulyas86@gmail.com>
-Date:   Sat Jan 7 23:30:47 2017 +0100
+commit 95c5227c15da3c0c61eeea70f0a8288088301b98
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 10 15:14:54 2017 -0800
 
-    math: add doc note about floating point operation
+    strconv: use % instead of computing the remainder from the quotient
     
-    Go doesn't guarantee that the result of floating point operations will
-    be the same on different architectures. It was not stated in the
-    documentation, that can lead to confusion.
+    The compiler recognizes that in a sequence q = x/y; r = x%y only
+    one division is required. Remove prior work-arounds and write
+    more readable straight-line code (this also results in fewer
+    instructions, though it doesn't appear to affect the benchmarks
+    significantly).
     
-    Fixes #18354
+    name          old time/op  new time/op  delta
+    FormatInt-8   2.95µs ± 1%  2.92µs ± 5%   ~     (p=0.952 n=5+5)
+    AppendInt-8   1.91µs ± 1%  1.89µs ± 2%   ~     (p=0.421 n=5+5)
+    FormatUint-8   795ns ± 2%   782ns ± 4%   ~     (p=0.444 n=5+5)
+    AppendUint-8   557ns ± 1%   557ns ± 2%   ~     (p=0.548 n=5+5)
     
-    Change-Id: Idb1b4c256fb9a7158a74256136eca3b8ce44476f
-    Reviewed-on: https://go-review.googlesource.com/34938
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    https://perf.golang.org/search?q=upload:20170310.1
+    
+    Also:
+    - use uint instead of uintptr where we want to guarantee single-
+      register operations
+    - remove some unnecessary conversions (before indexing)
+    - add more comments and fix some comments
+    
+    Change-Id: I04858dc2d798a6495879d9c7cfec2fdc2957b704
+    Reviewed-on: https://go-review.googlesource.com/38071
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/const.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/strconv/itoa.go | 48 ++++++++++++++++++++++++++----------------------
+ 1 file changed, 26 insertions(+), 22 deletions(-)

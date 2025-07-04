@@ -1,19 +1,45 @@
-commit 1b523384dc5c46e0a137d73f65dda636bfeda350
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Feb 6 14:33:44 2015 -0500
+commit 1cd347b18b5a6c17f4e98f25fd182ff66841146f
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Mon Jan 5 11:10:05 2015 +0000
 
-    runtime: skip the gdb test if -iex is not supported
+    crypto/x509: NULL parameter MUST be present in the Signature Algorithm (RSA)
     
-    It turns out -iex argument is not supported by all gdb versions,
-    but as we need to add the auto-load safe path before loading the
-    inferior, test -iex support first and skip the test if it's not
-    available.
+    According to RFC4055 a NULL parameter MUST be present in the signature
+    algorithm. This patch adds the NULL value to the Signature Algorithm
+    parameters in the signingParamsForPrivateKey function for RSA based keys.
     
-    We should still update our builders though.
+    Section 2.1 states:
     
-    Change-Id: I355697de51baf12162ba6cb82f389dad93f93dc5
-    Reviewed-on: https://go-review.googlesource.com/4070
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    "There are two possible encodings for the AlgorithmIdentifier
+    parameters field associated with these object identifiers.  The two
+    alternatives arise from the loss of the OPTIONAL associated with the
+    algorithm identifier parameters when the 1988 syntax for
+    AlgorithmIdentifier was translated into the 1997 syntax.  Later the
+    OPTIONAL was recovered via a defect report, but by then many people
+    thought that algorithm parameters were mandatory.  Because of this
+    history some implementations encode parameters as a NULL element
+    while others omit them entirely.  The correct encoding is to omit the
+    parameters field; however, when RSASSA-PSS and RSAES-OAEP were
+    defined, it was done using the NULL parameters rather than absent
+    parameters.
+    
+    All implementations MUST accept both NULL and absent parameters as
+    legal and equivalent encodings.
+    
+    To be clear, the following algorithm identifiers are used when a NULL
+    parameter MUST be present:
+    
+       sha1Identifier AlgorithmIdentifier ::= { id-sha1, NULL }
+       sha224Identifier AlgorithmIdentifier ::= { id-sha224, NULL }
+       sha256Identifier AlgorithmIdentifier ::= { id-sha256, NULL }
+       sha384Identifier AlgorithmIdentifier ::= { id-sha384, NULL }
+       sha512Identifier AlgorithmIdentifier ::= { id-sha512, NULL }"
+    
+    This CL has been discussed at: http://golang.org/cl/177610043
+    
+    Change-Id: Ic782161938b287f34f64ef5eb1826f0d936f2f71
+    Reviewed-on: https://go-review.googlesource.com/2256
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/runtime-gdb_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/x509.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

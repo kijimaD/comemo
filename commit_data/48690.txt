@@ -1,31 +1,30 @@
-commit 5210a7128563e64952d432a0efd2d38c32cd090c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 1 15:36:17 2022 -0400
+commit a9de78ac88ff668bbe8c0dc5fdc9dc864ae60447
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 4 13:53:18 2021 -0400
 
-    run.bat: use cmd/dist instead of 'go install' to rebuild std and cmd
+    [dev.typeparams] cmd/compile, runtime: always enable defer/go wrapping
     
-    cmd/dist may set and/or unset variables before building, and at any
-    rate it is fragile to run 'go install' before sourcing env.bat.
+    Hardwire regabidefers to true. Remove it from GOEXPERIMENTs.
     
-    The build-stamp information embedded by the 'go' command is currently
-    sensitive to whether CGO_* variables are implicit or explicit, so running
-    'go install' before env.bat may cause stamped metadata to become stale.
-    (Explicitly setting to the default arguably ought to produce the same
-    metadata as leaving the variables unset, but that's a separate issue
-    and a bigger cleanup.)
+    Fallback paths are not cleaned up in this CL. That will be done
+    in later CLs.
     
-    Moreover, run.bat is supposed to parallel run.bash, and run.bash
-    already hasn't invoked 'go install' itself since CL 6531!
-    
-    For #52009
-    
-    Change-Id: Ie35217913f02cc7e0c3f9b12874abd7416473478
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398060
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Iec1112a1e55d5f6ef70232a5ff6e702f649071c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325913
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/run.bat | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go           |  4 ++--
+ src/cmd/compile/internal/walk/order.go           |  5 +----
+ src/internal/buildcfg/exp.go                     |  6 ++----
+ src/internal/goexperiment/exp_regabidefer_off.go |  9 ---------
+ src/internal/goexperiment/exp_regabidefer_on.go  |  9 ---------
+ src/internal/goexperiment/flags.go               |  3 ---
+ src/runtime/panic.go                             | 19 +++++++++----------
+ src/runtime/proc.go                              |  3 +--
+ test/live.go                                     |  2 +-
+ test/live_regabi.go                              |  2 +-
+ 10 files changed, 17 insertions(+), 45 deletions(-)

@@ -1,18 +1,17 @@
-commit 0ce3ce010cf03698494944518e8801b17a00aaa1
-Author: Ibrahim AshShohail <ibra.sho@gmail.com>
-Date:   Sun Jan 22 02:46:25 2017 +0300
+commit 10560afb540b783da568aebe83d0f782e46bb673
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 20 11:24:51 2016 +0200
 
-    archive/zip: update the ZIP spec link
+    runtime/debug: avoid overflow in SetMaxThreads
     
-    Update the link to PKWARE "Application Notes on the .ZIP file format" document.
-    Now uses the permanent link according to 1.5 in version 6.3.3 (https://pkware.cachefly.net/webdocs/APPNOTE/APPNOTE-6.3.3.TXT):
-    http://www.pkware.com/appnote
+    Fixes #16076
     
-    Fixes #18738
-    
-    Change-Id: If252a5fca1dd666e70c2591a83d8714672d02932
-    Reviewed-on: https://go-review.googlesource.com/35500
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I91fa87b642592ee4604537dd8c3197cd61ec8b31
+    Reviewed-on: https://go-review.googlesource.com/31516
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/zip/struct.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/debug/garbage_test.go | 13 +++++++++++++
+ src/runtime/proc.go               |  6 +++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)

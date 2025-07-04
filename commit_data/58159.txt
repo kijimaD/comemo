@@ -1,21 +1,22 @@
-commit 5e1726b71a6485f5744db1c5533c847fa63163fd
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 19 15:46:37 2024 -0500
+commit 25e48765a4d267287630b63634c86b6a8ebb782e
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 7 09:19:16 2023 -0700
 
-    cmd/go: add GOFIPS140 to 'go help environment'
+    map: use correct load factor for deciding when to grow
     
-    Also re-sort the various lists. (All lists should be sorted.)
-    The linked page https://go.dev/security/fips140 has yet
-    to be written, but soon.
+    The correct load factor is 6.5, not 6.
+    This got broken by accident in CL 462115.
     
-    For #70123.
+    Fixes #63438
     
-    Change-Id: Ica5bbf5bd29e9136c2a49d3099d6e0e018c36145
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629816
+    Change-Id: Ib07bb6ab6103aec87cb775bc06bd04362a64e489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533279
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/alldocs.go               | 44 +++++++++++++++++++++----------------
- src/cmd/go/internal/help/helpdoc.go | 44 +++++++++++++++++++++----------------
- 2 files changed, 50 insertions(+), 38 deletions(-)
+ src/runtime/export_test.go |  4 ++++
+ src/runtime/map.go         |  2 +-
+ src/runtime/map_test.go    | 15 +++++++++++++++
+ 3 files changed, 20 insertions(+), 1 deletion(-)

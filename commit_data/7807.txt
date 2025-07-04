@@ -1,13 +1,12 @@
-commit 61c83b6407547f189cfb21fb0b088a351e150130
-Author: Ken Thompson <ken@golang.org>
-Date:   Thu Mar 17 16:47:00 2011 -0700
+commit bf91e827ac08ba3375353108840d641c5a581865
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 18 10:19:19 2011 +1100
 
-    sinit.c: recursion in sinit
-    fixes #1617
+    filepath: do not run TestEvalSymlinks on Windows
     
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/4277059
+    R=golang-dev, rsc1
+    CC=adg, golang-dev
+    https://golang.org/cl/4274069
 
- src/cmd/gc/range.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/path/filepath/path_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

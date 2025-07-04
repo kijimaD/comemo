@@ -1,34 +1,18 @@
-commit 528bafa0498bb26a3b3961fa5bf50d02bd7101bb
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Mar 4 19:02:48 2025 +0000
+commit 1922cef5d7d4400725d06303268659cc9ebc86ef
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Fri Feb 23 02:44:04 2024 +0000
 
-    runtime: move sizeclass defs to new package internal/runtime/gc
+    internal/fuzz: remove useless code
     
-    We will want to reference these definitions from new generator programs,
-    and this is a good opportunity to cleanup all these old C-style names.
-    
-    Change-Id: Ifb06f0afc381e2697e7877f038eca786610c96de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655275
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I4534a116ef421379b2356bbe80760adae8cdd95f
+    GitHub-Last-Rev: a3fab3f1fa84111f3f3af7cf9f98e964f2423c73
+    GitHub-Pull-Request: golang/go#65892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566315
+    Run-TryBot: Tim King <taking@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/internal/objabi/pkgspecial.go              |  1 +
- src/go/build/deps_test.go                          |  1 +
- .../runtime/gc}/mksizeclasses.go                   | 26 +++++++-------
- .../runtime/gc}/sizeclasses.go                     | 28 +++++++--------
- src/runtime/export_test.go                         |  7 ++--
- src/runtime/heapdump.go                            |  5 +--
- src/runtime/malloc.go                              | 42 +++++++++++-----------
- src/runtime/mcache.go                              |  9 ++---
- src/runtime/mcentral.go                            | 11 +++---
- src/runtime/metrics.go                             | 11 +++---
- src/runtime/mgcsweep.go                            |  6 ++--
- src/runtime/mheap.go                               | 13 +++----
- src/runtime/mpagealloc.go                          |  3 +-
- src/runtime/msize.go                               |  8 +++--
- src/runtime/mstats.go                              | 23 ++++++------
- src/runtime/stack.go                               |  9 ++---
- src/runtime/traceallocfree.go                      |  5 +--
- 17 files changed, 110 insertions(+), 98 deletions(-)
+ src/internal/fuzz/encoding_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

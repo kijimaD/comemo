@@ -1,25 +1,27 @@
-commit 88a6df72c9c056559bda14d88252ba350949bf50
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 30 17:11:31 2023 -0400
+commit 605148c0fbf68b6942d62813bdaac9fb35f6159b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 22 20:45:53 2022 -0700
 
-    cmd/internal/objabi: generalize "is runtime package" check
+    go/types, types2: uniformly use "cannot convert X to type T"
     
-    There are several implementations of "is this package path a runtime
-    package". They all have slightly different lists because they all care
-    about slightly different properties of building the runtime.
+    This matches current compiler behavior.
     
-    To start converging these, we replace objabi.IsRuntimePackagePath with
-    objabi.LookupPkgSpecial, which returns a struct we can extend with
-    various special build properties. We'll extend this with several other
-    flags in the following CLs.
+    For #55326.
     
-    Change-Id: I21959cb8c3d18a350d6060467681c72ea49af712
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521698
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I660bd15f13a8d9eb00fafa937f8261e664b0e065
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433276
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/asm/main.go                   |  2 +-
- src/cmd/internal/objabi/path.go       | 24 -----------------
- src/cmd/internal/objabi/pkgspecial.go | 50 +++++++++++++++++++++++++++++++++++
- 3 files changed, 51 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/types2/conversions.go     | 24 ++++++-----------
+ src/cmd/compile/internal/types2/expr.go            |  2 +-
+ src/go/types/conversions.go                        | 24 ++++++-----------
+ src/go/types/expr.go                               |  2 +-
+ src/internal/types/testdata/check/builtins0.go     |  4 +--
+ .../types/testdata/fixedbugs/issue49247.go         |  4 +--
+ .../types/testdata/fixedbugs/issue49296.go         |  6 ++---
+ src/internal/types/testdata/spec/conversions.go    | 30 +++++++++++-----------
+ 8 files changed, 40 insertions(+), 56 deletions(-)

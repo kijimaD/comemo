@@ -1,26 +1,31 @@
-commit 889a902d215c57fe2032181370a9a2c30c531c99
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jan 12 18:27:28 2022 -0500
+commit 859d903b06af669edbbc74be371186f732b60bfa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 21 20:03:58 2021 -0700
 
-    cmd/trace: embed static content
+    [dev.typeparams] cmd/compile: add -d=unifiedquirks for quirks mode
     
-    cmd/trace is currently somewhat painful to use in odd environments since
-    it depends on the presence of $GOROOT/misc/trace to serve the static
-    trace viewer content.
+    Originally, overloading -d=inlfuncswithclosures=0 to enable quirks
+    mode was convenient because toolstash -cmp doesn't provide a way to
+    pass different gcflags to the installed vs stashed toolchains. Prior
+    to unified IR being merged, the stashed toolchain wouldn't know about
+    or accept any unified-specific flags.
     
-    Use //go:embed to embed this content directly into cmd/trace for easier
-    use.
+    However, this concern is no longer applicable since unified IR has
+    been merged, and the TestUnifiedCompare test can easily specify
+    different flag sets for the baseline and experiment build configs.
     
-    Change-Id: I83b7d97dbecc9773f3b5a6b3bc4a6597473bc01a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378194
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This CL adds a new -d=unifiedquirks flag to enable quirks mode, so
+    that it's possible to test unified IR with -d=inlfuncswithclosures=0
+    without also affecting a bunch of other compilation details.
+    
+    Change-Id: Id1932f332822622aa8617278e82ec6d1a53b1b46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329733
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/bootstrap.bash                                 |  2 +-
- {misc/trace => src/cmd/trace/static}/README.md     |  4 ++--
- .../cmd/trace/static}/trace_viewer_full.html       |  0
- .../cmd/trace/static}/webcomponents.min.js         |  0
- src/cmd/trace/trace.go                             | 26 ++++++++--------------
- 5 files changed, 12 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/base/debug.go         | 1 +
+ src/cmd/compile/internal/noder/quirks.go       | 5 +----
+ src/cmd/compile/internal/noder/unified_test.go | 2 +-
+ 3 files changed, 3 insertions(+), 5 deletions(-)

@@ -1,33 +1,27 @@
-commit 506d6a32cecfed3f3b310f9b0d3de10205c17852
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Fri Apr 27 08:07:48 2018 -0400
+commit 4072608b58e32b761068538f254799669fdb9b1a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jan 29 09:24:51 2018 +0000
 
-    cmd/go, cmd/link: provide meaningful error msg with ext linking on ppc64
+    cmd/vet: %s is valid for an array of stringer
     
-    linux/ppc64 uses the ppc64 v1 ABI which was never fully supported
-    by Go. (linux/ppc64le uses the ppc64 v2 ABI and that is fully
-    supported).
+    vet was quiet for []stringer, but not for [N]stringer. The source of the
+    problem was how the recursive call used .Elem().Underlying() for arrays,
+    but .Elem() for slices. In the first case, the named type is dropped,
+    thus losing all information of attached methods.
     
-    As a result if the external linker is used to build a program
-    on ppc64, there is a either a warning or error message that doesn't
-    clearly describe the problem. In the case of a warning,
-    a program is created that will most likely not execute since it is not
-    built as expected for the ppc64 dynamic linker (ld64.so.1).
+    Be consistent across slices and arrays, by dropping the Underlying call
+    that is causing trouble. Add regression tests too, including cases where
+    the element type does not implement fmt.Stringer.
     
-    To avoid confusion in these cases, error messages are now issued
-    if external linker is explicitly used to build the program. Note that most
-    buildmodes that require external linking were already flagging linux/ppc64
-    as unsupported except for c-archive, which has been added here.
+    Fixes #23552.
     
-    This problem does not occur with gccgo since the ppc64 v1 ABI is
-    supported there.
-    
-    Fixes #25079
-    
-    Change-Id: I44d77a1eb9df750d499cd432b0ca4a97f0be88b2
-    Reviewed-on: https://go-review.googlesource.com/109915
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0fde07d101f112d5768be0a79207ef0b3dc45f2e
+    Reviewed-on: https://go-review.googlesource.com/90455
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/work/init.go   |  3 +++
- src/cmd/link/internal/ld/config.go | 10 ++++++++++
- 2 files changed, 13 insertions(+)
+ src/cmd/vet/testdata/print.go | 35 +++++++++++++++++++++++------------
+ src/cmd/vet/types.go          |  2 +-
+ 2 files changed, 24 insertions(+), 13 deletions(-)

@@ -1,16 +1,22 @@
-commit 925516309128f20bb11a38f3e5265f23360a28ba
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 21 04:28:23 2020 +0000
+commit 198f0452b0292eb245bb5122510b1dfd0050dacc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 6 23:56:03 2019 +0000
 
-    Revert "cmd/compile: use cheaper implementation of oneBit"
+    runtime: define darwin/arm64's address space as 33 bits
     
-    This reverts commit 066c47ca5fac1c49f754029f1e61323f74f6d93d.
+    On iOS, the address space is not 48 bits as one might believe, since
+    it's arm64 hardware. In fact, all pointers are truncated to 33 bits, and
+    the OS only gives applications access to the range [1<<32, 2<<32).
     
-    Reason for revert: This appears to have broken a bunch of builders.
+    While today this has no effect on the Go runtime, future changes which
+    care about address space size need this to be correct.
     
-    Change-Id: I68b4decf3c1892766e195d8eb018844cdff69443
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229177
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Updates #35112.
+    
+    Change-Id: Id518a2298080f7e3d31cf7d909506a37748cc49a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205758
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/malloc.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

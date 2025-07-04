@@ -1,13 +1,17 @@
-commit 691e5e3b01706803a15350656668474e1fc2084f
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Feb 10 00:08:30 2013 +0800
+commit a0430dae0482f2e9fc90252a568047be78129f13
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 9 08:18:32 2013 +0900
 
-    bytes: annotate assembly functions with //go:noescape
+    net: fix unixgram
     
-    R=golang-dev, agl, bradfitz, rsc
+    The socket for AF_UNIX domain with SOCK_DGARM type isn't
+    allowed to work with syscall listen.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7299064
+    https://golang.org/cl/7310068
 
- src/pkg/bytes/bytes.go      | 4 ----
- src/pkg/bytes/bytes_decl.go | 8 ++++++++
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/pkg/net/dial.go           | 3 ++-
+ src/pkg/net/unixsock_plan9.go | 3 +--
+ src/pkg/net/unixsock_posix.go | 5 ++---
+ 3 files changed, 5 insertions(+), 6 deletions(-)

@@ -1,14 +1,19 @@
-commit 910bd157c94ce893ec4f092c065954c8842ac6f4
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon May 20 21:53:16 2013 +0400
+commit b98a4d1a107606c298376b5b5633927034669c5b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon May 20 23:18:52 2013 +0900
 
-    test: do not run the test that relies on precise GC on 32-bits
-    Currently most of the 32-bit builder are broken.
-    Fixes #5516.
+    syscall: prefer PATH environment variable in bootstrap scripts
     
     R=golang-dev, dave, iant
     CC=golang-dev
-    https://golang.org/cl/9573043
+    https://golang.org/cl/9575043
 
- test/fixedbugs/issue5493.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/syscall/mksyscall.pl         | 2 +-
+ src/pkg/syscall/mksyscall_windows.pl | 2 +-
+ src/pkg/syscall/mksysctl_openbsd.pl  | 2 +-
+ src/pkg/syscall/mksysnum_darwin.pl   | 2 +-
+ src/pkg/syscall/mksysnum_freebsd.pl  | 2 +-
+ src/pkg/syscall/mksysnum_linux.pl    | 2 +-
+ src/pkg/syscall/mksysnum_netbsd.pl   | 2 +-
+ src/pkg/syscall/mksysnum_openbsd.pl  | 2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)

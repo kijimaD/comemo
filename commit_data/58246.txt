@@ -1,18 +1,22 @@
-commit a276c811a7c906d94ed5e468a17d277400e4e94b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 21 13:09:20 2024 -0800
+commit 061d77cb7008cf9e4d8b3b6382828b483bff032f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Sep 15 15:20:56 2023 -0500
 
-    internal/copyright: close files
+    cmd/compile/internal/ssa: on PPC64, generate large constant paddi
     
-    Fixes #70507
+    This is only supported power10/linux/PPC64. This generates smaller,
+    faster code by merging a pli + add into paddi.
     
-    Change-Id: I2ab1f221ebd45fedc70d1fded29b084147eadd28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630815
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Tim King <taking@google.com>
+    Change-Id: I1f4d522fce53aea4c072713cc119a9e0d7065acc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531717
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/internal/copyright/copyright_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ .../compile/internal/ssa/_gen/PPC64latelower.rules |  3 +++
+ .../compile/internal/ssa/rewritePPC64latelower.go  | 27 ++++++++++++++++++++++
+ test/codegen/arithmetic.go                         | 15 ++++++++++++
+ 3 files changed, 45 insertions(+)

@@ -1,25 +1,22 @@
-commit e03cca64073bd1b4704482c81061d19ab019b5cc
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 16 22:03:17 2020 +0000
+commit 9ec0a46a15d98db9241bca7606bb0a90a3c77b01
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Sep 24 18:54:58 2020 +0200
 
-    runtime: use 4 MiB heap arenas on iOS
+    cmd/compile: enforce strongly typed rules for ARM (read)
     
-    iOS arm64 is a 64-bit platform but with a strictly 32-bit address space
-    (technically 33 bits, but the bottom half is unavailable to the
-    application). Since address space is limited, use 4 MiB arenas instead
-    of 64 MiB arenas. No changes are needed to the arena index because it's
-    still relatively small; this change just brings iOS more in line with
-    32-bit platforms.
+    Add type casting to offset.
+    L246-L247
+    L1473-L1475
     
-    Change-Id: I484e2d273d896fd0a57cd5c25012df0aef160290
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270538
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    toolstash-check successful.
+    
+    Change-Id: I816c7556609ca6dd67bff8007c2d006cab89ee2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257639
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/runtime/malloc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 10 ++++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 36 +++++++++++++++---------------
+ 2 files changed, 23 insertions(+), 23 deletions(-)

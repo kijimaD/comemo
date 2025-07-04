@@ -1,18 +1,19 @@
-commit e2390ec18352f25066074331449cbcb74957068e
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Wed Feb 8 11:17:47 2017 -0800
+commit 1625da24106b610f89ff7a67a11581df95f8e234
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 10 10:16:41 2016 -0700
 
-    doc: remove the confusing use of CL
+    encoding/json: marshal the RawMessage value type the same as its pointer type
     
-    CL (change list) pops out of nowhere and confuses the
-    reader. Use "change" instead to be consistent with the
-    rest of the document.
+    Fixes #14493
+    Updates #6458 (changes its behavior)
     
-    Fixes #18989.
-    
-    Change-Id: I525a63a195dc6bb992c8ad0f10c2f2e1b2b952df
-    Reviewed-on: https://go-review.googlesource.com/36564
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I851a8113fd312dae3384e989ec2b70949dc22838
+    Reviewed-on: https://go-review.googlesource.com/21811
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/except.txt                   |  1 +
+ src/encoding/json/encode_test.go | 15 ++++++++++++++-
+ src/encoding/json/stream.go      |  6 +++---
+ 3 files changed, 18 insertions(+), 4 deletions(-)

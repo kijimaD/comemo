@@ -1,37 +1,30 @@
-commit 19f6422e005ed3f4b1a9f6850d382519673a3c87
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Oct 19 11:09:10 2020 +0200
+commit 2ba00e47545406b3dd11436e3f1acf841d4932c6
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 21 13:22:14 2020 +0100
 
-    internal/bytealg: add assembly implementation of Count/CountString for riscv64
+    doc: decrease prominence of GOROOT_BOOTSTRAP
     
-    Simple single-byte loop count for now, to be further improved in future
-    CLs.
+    Go build scripts on UNIX (make.bash, all.bash) have not required
+    GOROOT_BOOTSTRAP since August 2017 (CL 57753). Windows build scripts
+    have followed suit since CL 96455. Most people building Go will have
+    a Go toolchain in their PATH and will not need to specify a different
+    toolchain.
     
-    Benchmark on linux/riscv64 (HiFive Unleashed):
+    This CL removes the GOROOT_BOOTSTRAP mention from the contribution guide
+    (it was there for Windows only, but it's not required anymore). The guide
+    is meant to be light and clear for beginners and is not supposed to be
+    a reference, so there's not need to keep mentioning GOROOT_BOOTSTRAP.
     
-    name               old time/op    new time/op     delta
-    CountSingle/10-4      190ns ± 1%      145ns ± 1%  -23.66%  (p=0.000 n=10+9)
-    CountSingle/32-4      422ns ± 1%      268ns ± 0%  -36.43%  (p=0.000 n=10+7)
-    CountSingle/4K-4     43.3µs ± 0%     23.8µs ± 0%  -45.09%  (p=0.000 n=8+10)
-    CountSingle/4M-4     54.2ms ± 1%     33.3ms ± 1%  -38.48%  (p=0.000 n=10+10)
-    CountSingle/64M-4     1.52s ± 1%      1.20s ± 1%  -21.20%  (p=0.000 n=9+9)
+    Also update install-source.html to reflect the current status quo,
+    where using the PATH is probably the first and most used default, and
+    GOROOT_BOOTSTRAP is just an option.
     
-    name               old speed      new speed       delta
-    CountSingle/10-4   52.7MB/s ± 1%   69.1MB/s ± 1%  +31.03%  (p=0.000 n=10+9)
-    CountSingle/32-4   75.9MB/s ± 1%  119.5MB/s ± 0%  +57.34%  (p=0.000 n=10+8)
-    CountSingle/4K-4   94.6MB/s ± 0%  172.2MB/s ± 0%  +82.10%  (p=0.000 n=8+10)
-    CountSingle/4M-4   77.4MB/s ± 1%  125.8MB/s ± 1%  +62.54%  (p=0.000 n=10+10)
-    CountSingle/64M-4  44.2MB/s ± 1%   56.1MB/s ± 1%  +26.91%  (p=0.000 n=9+9)
-    
-    Change-Id: I2a6bd50d22d5f598517bb3c5a50066c54280cac5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263541
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Change-Id: Iab453e61b0c749c256aaaf81ea9b2ae58822cb89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224717
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/internal/bytealg/count_generic.go |  2 +-
- src/internal/bytealg/count_native.go  |  2 +-
- src/internal/bytealg/count_riscv64.s  | 44 +++++++++++++++++++++++++++++++++++
- 3 files changed, 46 insertions(+), 2 deletions(-)
+ doc/contribute.html     |  4 +---
+ doc/install-source.html | 22 ++++++++--------------
+ 2 files changed, 9 insertions(+), 17 deletions(-)

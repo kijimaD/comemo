@@ -1,12 +1,37 @@
-commit e47090ab40967c2e5e6058838319259b4cc0d508
-Author: Dmitry Savintsev <dsavints@gmail.com>
-Date:   Tue Apr 16 11:20:51 2019 +0200
+commit 9fe9853ae5641eda4cfa58015bd0bcedb99c12cb
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Oct 16 15:59:43 2018 +0200
 
-    doc: fix typo in go1.12 release notes
+    cmd/compile: fix nilcheck for AIX
     
-    Change-Id: I3cb4fb7cacba51bfd611ade918f16c618e2569fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172159
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This commit adapts compile tool to create correct nilchecks for AIX.
+    
+    AIX allows to load a nil pointer. Therefore, the default nilcheck
+    which issues a load must be replaced by a CMP instruction followed by a
+    store at 0x0 if the value is nil. The store will trigger a SIGSEGV as on
+    others OS.
+    
+    The nilcheck algorithm must be adapted to do not remove nilcheck if it's
+    only a read. Stores are detected with v.Type.IsMemory().
+    
+    Tests related to nilptr must be adapted to the previous changements.
+    nilptr.go cannot be used as it's because the AIX address space starts at
+    1<<32.
+    
+    Change-Id: I9f5aaf0b7e185d736a9b119c0ed2fe4e5bd1e7af
+    Reviewed-on: https://go-review.googlesource.com/c/144538
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.12.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go       |   3 +-
+ src/cmd/compile/internal/ppc64/ssa.go    |  46 +++++-
+ src/cmd/compile/internal/ssa/nilcheck.go |  12 +-
+ test/nilptr.go                           |   3 +
+ test/nilptr3.go                          |  21 +--
+ test/nilptr3_wasm.go                     | 270 -------------------------------
+ test/nilptr5.go                          |  33 ++++
+ test/nilptr5_aix.go                      |  32 ++++
+ test/nilptr5_wasm.go                     |  32 ++++
+ test/nilptr_aix.go                       | 185 +++++++++++++++++++++
+ 10 files changed, 337 insertions(+), 300 deletions(-)

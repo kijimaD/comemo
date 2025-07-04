@@ -1,15 +1,12 @@
-commit 839d47add56515fc9f127e60398ea7132f0b1d38
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 27 08:47:08 2013 -0800
+commit 01ab9a012a7a34040ed9b69ec87b5b3301e0f50b
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Feb 27 08:28:53 2013 -0800
 
-    net/http: add Transport.ResponseHeaderTimeout
+    runtime: improve precision of GC_REGION
     
-    Update #3362
-    
-    R=golang-dev, adg, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7369055
+    https://golang.org/cl/7383054
 
- src/pkg/net/http/transport.go      | 16 ++++++++++++-
- src/pkg/net/http/transport_test.go | 48 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

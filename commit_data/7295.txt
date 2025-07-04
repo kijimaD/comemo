@@ -1,15 +1,15 @@
-commit fc52d7029fcd667557230d4b4b6443886e261ef9
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 31 15:20:44 2011 -0800
+commit 614391860aedf7d9794439c39fa42de2637d8198
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 31 17:42:10 2011 -0500
 
-    unicode: update to unicode 6.0.0
+    ebnflint: exit with non-zero status on error
     
-    R=rsc
+    Tweak spec to avoid ebnflint complaints.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/3981049
+    https://golang.org/cl/3973050
 
- src/pkg/unicode/letter_test.go |   3 +-
- src/pkg/unicode/maketables.go  |  10 +-
- src/pkg/unicode/script_test.go |  11 +-
- src/pkg/unicode/tables.go      | 479 +++++++++++++++++++++++++----------------
- 4 files changed, 312 insertions(+), 191 deletions(-)
+ doc/go_spec.html             | 4 ++--
+ src/cmd/ebnflint/ebnflint.go | 3 +++
+ 2 files changed, 5 insertions(+), 2 deletions(-)

@@ -1,16 +1,16 @@
-commit 89dacb9cca0a27da1efe0578cd0881b80b13ed45
-Author: Rob Pike <r@golang.org>
-Date:   Sun Sep 15 10:45:36 2013 +1000
+commit 22e8f82e8d4b62a4c96a82d4f731606a87db8d09
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 13 15:43:54 2013 -0400
 
-    fmt: %b for complex64 and complex128
-    Just an oversight they were missing.
-    Fixes #6387
+    os/exec: add more caveats to StdoutPipe, StderrPipe
     
-    R=golang-dev, dominik.honnef, rsc
+    (StdinPipe was taken care of by CL 13329043.)
+    
+    Fixes #6008.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13715043
+    https://golang.org/cl/13606046
 
- src/pkg/fmt/fmt_test.go | 4 ++++
- src/pkg/fmt/format.go   | 4 ++++
- src/pkg/fmt/print.go    | 4 ++--
- 3 files changed, 10 insertions(+), 2 deletions(-)
+ src/pkg/os/exec/exec.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

@@ -1,18 +1,12 @@
-commit 0ab8f2d287159de00dfa64793a64285223f5661e
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Thu Sep 26 21:59:13 2013 -0700
+commit b128426804cc3b6f4243eab2651f6ad79519e5b1
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Sep 27 12:35:03 2013 +1000
 
-    reflect: expose reflect.call argument slice to the garbage collector
+    misc/vim: godoc is optional. so should point installation instruction.
     
-    The argument slice was kept hidden from the garbage collector
-    by destroying its referent in an unsafe.Pointer to uintptr
-    conversion.  This change preserves the unsafe.Pointer referent
-    and only performs an unsafe.Pointer to uintptr conversions
-    within expressions that construct new unsafe.Pointer values.
-    
-    R=golang-dev, khr, rsc
+    R=golang-dev, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/14008043
+    https://golang.org/cl/14017043
 
- src/pkg/reflect/value.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ misc/vim/plugin/godoc.vim | 7 +++++++
+ 1 file changed, 7 insertions(+)

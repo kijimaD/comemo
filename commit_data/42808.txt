@@ -1,28 +1,19 @@
-commit a9146a49d0db666a7efd5f5d4555cf6117405cf5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jul 23 00:45:27 2020 -0400
+commit 6396bc9df705310c9e7848773154960b7c92978c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 20 12:53:32 2020 -0500
 
-    cmd/go/internal/modload: cache parsed go.mod files globally
+    cmd/go: in tests, add sync before closing file in copyFile helper
     
-    Previously they were cached per mvsReqs instance. However, the
-    contents of the go.mod file of a given dependency version can only
-    vary if the 'replace' directives that apply to that version have
-    changed, and the only time we change 'replace' directives is in 'go
-    mod edit' (which does not care about the build list or MVS).
+    An experiment to see if this helps flakiness go away in
+    TestExecutableGOROOT.
     
-    This not only simplifies the mvsReqs implementation, but also makes
-    more of the underlying logic independent of mvsReqs.
+    Updates #37306
     
-    For #36460
-    
-    Change-Id: Ieac20c2fcd56f64d847ac8a1b40f9361ece78663
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244774
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2f4f63bdb507359ca07267d86cdb41fe4968f151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220317
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/build.go               |  15 +-
- src/cmd/go/internal/modload/modfile.go             | 171 +++++++++++++++++++++
- src/cmd/go/internal/modload/mvs.go                 | 109 +------------
- src/cmd/go/testdata/script/mod_invalid_version.txt |   4 +-
- 4 files changed, 190 insertions(+), 109 deletions(-)
+ src/cmd/go/go_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,20 +1,27 @@
-commit 58f6022eee95f43b4e0dc640b012bb3f574898f1
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Dec 20 11:25:38 2022 -0500
+commit 2d1dd4372211f6f9bcdc6a3e4623b5fd10cebdbf
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 14 13:23:30 2022 -0800
 
-    syscall: don't use faccessat2 on android
+    cmd/go: enable file shortening for lines starting with \t
     
-    The Android seccomp policy does not allow faccessat2, so attempting to
-    use it results in a SIGSYS. Avoid it and go straight to the fallback.
+    Compiler errors now (as of 1.18) might start with a tab character,
+    for errors which take multiple lines to report. e.g.:
     
-    Fixes #57393.
+    /Users/khr/gowork/tmp1.go:3:15: x redeclared in this block
+            /Users/khr/gowork/tmp1.go:3:8: other declaration of x
     
-    Change-Id: I8d4e12a6f46cea5642d3b5b5a02c682529882f29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458495
-    Reviewed-by: Austin Clements <austin@google.com>
+    This CL makes error lines starting with a tab character
+    eligible for replacing absolute paths with relative ones.
+    
+    Fixes #51177
+    
+    Change-Id: Ic9e9c610a1aa1e21e9f19e6a9bd05c73b5a14e4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385755
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Changkun Ou <mail@changkun.de>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/syscall/syscall_linux.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/exec.go | 1 +
+ 1 file changed, 1 insertion(+)

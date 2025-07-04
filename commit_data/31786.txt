@@ -1,18 +1,16 @@
-commit 5c37397a471c061fd92a7b9cc799a9c9e66dcd9d
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Mon Jun 12 11:28:18 2017 -0700
+commit 793e4ec3dd440ddb68ec4d154f5711ef76d32b60
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 16 15:26:13 2017 -0400
 
-    database/sql: correct level of write to same var for race detector
+    cmd/compile: fix MIPS Zero lower rule
     
-    Rather then write to the same variable per fakeConn, write to either
-    fakeConn or rowsCursor.
+    A copy-paste error in CL 38150. Fix build.
     
-    Fixes #20646
-    
-    Change-Id: Ifc79f989bd1606b8e3ebecb1e7844cce3ad06e17
-    Reviewed-on: https://go-review.googlesource.com/45393
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib2afc83564ebe7dab934d45522803e1a191dea18
+    Reviewed-on: https://go-review.googlesource.com/38292
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/database/sql/fakedb_test.go | 73 ++++++++++++++++++++++++++---------------
- src/database/sql/sql_test.go    | 12 +++----
- 2 files changed, 51 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/ssa/gen/MIPS.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

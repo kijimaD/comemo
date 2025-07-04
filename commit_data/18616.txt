@@ -1,13 +1,15 @@
-commit 51b9879a905f35c4572d7cbaa4179b05970de7f5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 24 20:46:56 2014 +0400
+commit 2ff431189e4be35d3121cce7cc7d3df21dcfd71c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 24 08:36:56 2014 -0800
 
-    math/big: use RunParallel in benchmarks
+    syscall: regenerate Flock_t to make it compliant with EABI
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Note that current z-files for linux/amd64,386,arm are based on 3.2 kernel.
+    
+    LGTM=iant
+    R=golang-codereviews, dave, bradfitz, gobot, iant
     CC=golang-codereviews
-    https://golang.org/cl/67830044
+    https://golang.org/cl/59160044
 
- src/pkg/math/big/nat_test.go | 19 +++++--------------
- 1 file changed, 5 insertions(+), 14 deletions(-)
+ src/pkg/syscall/ztypes_linux_arm.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

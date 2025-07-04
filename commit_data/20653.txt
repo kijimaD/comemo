@@ -1,28 +1,16 @@
-commit f739b7750853f2d620c78eca9fc14c32e48a14d5
-Author: Jens Frederich <jfrederich@gmail.com>
-Date:   Tue Oct 7 07:13:42 2014 -0700
+commit 0b8bc7cee9cc8c2bedc030e9a59a687201210212
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 26 14:36:49 2014 -0400
 
-    net/http: fix authentication info leakage in Referer header (potential security risk)
+    cmd/go: handle paths like \x.go on windows
     
-    http.Client calls URL.String() to fill in the Referer header, which may
-    contain authentication info. This patch removes authentication info from
-    the Referer header without introducing any API changes.
+    Fixes #8130.
     
-    A new test for net/http is also provided.
-    
-    This is the polished version of Alberto García Hierro's
-    https://golang.org/cl/9766046/
-    
-    It should handle https Referer right.
-    
-    Fixes #8417
-    
-    LGTM=bradfitz
-    R=golang-codereviews, gobot, bradfitz, mikioh.mikioh
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/151430043
+    https://golang.org/cl/143200043
 
- src/net/http/client.go      | 28 ++++++++++++++++++++++++++--
- src/net/http/client_test.go | 37 +++++++++++++++++++++++++++++++++++++
- src/net/http/export_test.go |  5 +++++
- 3 files changed, 68 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go           |  9 +++++--
+ src/cmd/go/go_windows_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 2 deletions(-)

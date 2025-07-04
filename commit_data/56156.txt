@@ -1,38 +1,32 @@
-commit 017478a96364b474944715b175dc14b4ed34c079
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Mar 8 23:06:41 2024 +0000
+commit f05c1941dd386217bd7c199c13be35a806fdd514
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 12 09:43:41 2023 -0700
 
-    runtime: move GC pause time CPU metrics update into the STW
+    go/types, types2: generalize tparamIndex to arbitrary type parameter lists
     
-    This change fixes a possible race with updating metrics and reading
-    them. The update is intended to be protected by the world being stopped,
-    but here, it clearly isn't.
+    tparamIndex returns the index of a type parameter given the type
+    parameter and a list of type parameters. If an index >= 0 is returned,
+    it is the index assigned to the type parameter (TypeParam.index), and
+    the index of the type parameter in the provided list of parameters.
+    For it to work correctly, the type parameter list must be from a single
+    type parameter declaration.
     
-    Fixing this lets us lower the thresholds in the metrics tests by an
-    order of magnitude, because the only thing we have to worry about now is
-    floating point error (the tests were previously written assuming the
-    floating point error was much higher than it actually was; that turns
-    out not to be the case, and this bug was the problem instead). However,
-    this still isn't that tight of a bound; we still want to catch any and
-    all problems of exactness. For this purpose, this CL adds a test to
-    check the source-of-truth (in uint64 nanoseconds) that ensures the
-    totals exactly match.
+    To allow for lists of arbitrary type parameters (from different generic
+    signatures), change the implementation to do a linear search. The result
+    is the index of the type parameter in the provided type parameter list,
+    which may be different from the index assigned to the type parameter.
     
-    This means we unfortunately have to take another time measurement, but
-    for now let's prioritize correctness. A few additional nanoseconds of
-    STW time won't be terribly noticable.
+    The linear search is likely fast enough since type parameter lists tend
+    to be very short.
     
-    Fixes #66212.
-    
-    Change-Id: Id02c66e8a43c13b1f70e9b268b8a84cc72293bfd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570257
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I913f97fa4c042abeb535ee86ca6657241a4cf796
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483995
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/export_test.go  |  6 ++++++
- src/runtime/metrics.go      | 22 ++++++++++-----------
- src/runtime/metrics_test.go | 48 +++++++++++++++++++++++++++++++++++++++------
- src/runtime/mgc.go          | 21 +++++++++++---------
- src/runtime/mstats.go       | 46 +++++++++++++++++++++----------------------
- 5 files changed, 94 insertions(+), 49 deletions(-)
+ src/cmd/compile/internal/types2/infer.go | 16 ++++++----------
+ src/go/types/infer.go                    | 16 ++++++----------
+ 2 files changed, 12 insertions(+), 20 deletions(-)

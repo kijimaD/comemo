@@ -1,16 +1,21 @@
-commit 1b07b774c06ba0a0baf0a19324ab76ace5741305
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 4 16:06:12 2024 -0700
+commit 2544b1051ec1bff91d436250ce78295f3123a356
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue May 23 11:16:28 2023 +0200
 
-    doc: document "range-over-func" language change in release notes
+    runtime/metrics: add /gc/gomemlimit:bytes
     
-    For #65614.
+    For #56857
     
-    Change-Id: Idbbcb6eb57b7294d52b174c1aba74ca7aa1b8efd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590616
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Change-Id: I184d752cc615874ada3d0dbc6ed1bf72c8debd0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497316
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/next/2-language.md | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 7 +++++++
+ src/runtime/metrics/doc.go         | 5 +++++
+ src/runtime/metrics_test.go        | 8 ++++++++
+ 4 files changed, 26 insertions(+)

@@ -1,12 +1,14 @@
-commit ff1f3a11e4f1b0eee87225aec1aaaf2e74972ae0
-Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
-Date:   Fri Mar 27 03:29:06 2015 +0000
+commit 4734464a140b997fd85b636a66bfa6cd1079e0a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 28 19:17:27 2015 -0500
 
-    math/big: fix copy-paste mistake in int_test.go
+    net: disable failing interface tests on dragonfly
     
-    Change-Id: If986ed2cf94efba92763d00a3182047c05d6f805
-    Reviewed-on: https://go-review.googlesource.com/8133
-    Reviewed-by: Minux Ma <minux@golang.org>
+    (Issue #10041.)
+    
+    Change-Id: Ia894ab60ac6b09926c684f99aacca79275cbced4
+    Reviewed-on: https://go-review.googlesource.com/6365
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/int_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/interface_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

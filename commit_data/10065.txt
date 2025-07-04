@@ -1,13 +1,12 @@
-commit 22dd0ba90dfd832e5a60ec8ef5b986611e0e8fe9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 20 10:30:01 2011 -0700
+commit 9e1a2adf07cb58a0244d1aebf11da368750cd698
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Thu Oct 20 08:10:58 2011 +0100
 
-    go/ast, go/token: actually run tests; fix go/ast test
+    exp/winfsnotify: fix test
     
-    R=gri
+    R=alex.brainman, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/5292048
+    https://golang.org/cl/5311047
 
- src/pkg/Makefile             | 2 --
- src/pkg/go/ast/print_test.go | 8 ++++----
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ src/pkg/exp/winfsnotify/winfsnotify_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

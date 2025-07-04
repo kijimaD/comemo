@@ -1,17 +1,13 @@
-commit e5f6d8d00c3d0c1f77665f493109925c831e7cf8
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Oct 1 17:02:50 2021 -0400
+commit 9897655c615584c5a70b7a2d89028c014fc5f29b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 22 20:21:22 2021 -0800
 
-    cmd/internal/obj: reduce alignment for gcbits
+    doc/go1.16: reword ambiguously parsable sentence
     
-    runtime.gcbits symbols are pointer masks, which are just bytes.
-    
-    Change-Id: I6e86359451c7da69da435e1928e55712dd904047
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353571
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Idc54967e962352a598c9d4c563d1d9f51ec5c889
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285680
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/objfile.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.16.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

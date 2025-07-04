@@ -1,27 +1,15 @@
-commit e9f0381a807d1797e0b5969a29f4a3666a73c9e3
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 11 16:51:08 2021 -0500
+commit f82ce7fb230c0c0934be8975bd8b56c953c29422
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 17 14:15:28 2021 -0700
 
-    cmd/link: don't unmap output file at error exit
+    cmd/link: improve nonexistent package error message
     
-    When the link exits on error it currently calls Out.Close, which
-    will munmap the output buffer and close the file. This may be
-    called in concurrent phase where other goroutines may be writing
-    to the output buffer. The munmap can race with the write, causing
-    it to write to unmapped memory and crash. This CL changes it to
-    just close the file without unmapping. We're exiting on error
-    anyway so no need to unmap.
-    
-    Fixes #47816.
-    
-    Change-Id: I0e89aca991bdada3d017b7d5c8efc29e46308c03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363357
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I207541efa6a34bc21e7a00584376622b59e2bf6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302749
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/ld/lib.go    |  1 -
- src/cmd/link/internal/ld/outbuf.go | 14 ++++++++++++++
- src/cmd/link/internal/ld/sym.go    |  2 +-
- 3 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

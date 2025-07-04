@@ -1,23 +1,13 @@
-commit 75b72b1b27dd74ca9a1ebdba22f545233431a99f
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Aug 24 20:31:45 2014 -0400
+commit d0be55a66242cd8bea2f40b7ceca4b3651d0b720
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Aug 15 15:31:54 2014 -0400
 
-    cmd/gc: re-enable IfacePointerOnly
+    [dev.power64] liblink: fix g->panicwrap update code generation
     
-    CL 130240043 did this but broke ARM, because
-    it made newErrorCString start allocating, so we rolled
-    it back in CL 133810043.
-    
-    CL 133820043 removed that allocation.
-    
-    Try again.
-    
-    Fixes #8405.
-    
-    LGTM=bradfitz, dave
-    R=golang-codereviews, bradfitz
-    CC=dave, golang-codereviews, r
-    https://golang.org/cl/133830043
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/123400043
 
- src/cmd/gc/subr.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/liblink/obj9.c | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

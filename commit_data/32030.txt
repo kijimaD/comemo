@@ -1,14 +1,21 @@
-commit 9c5eadf41379b53db38787e70012eeb2de8f41c9
-Author: Pablo Santiago Blum de Aguiar <scorphus@gmail.com>
-Date:   Sat Jul 15 12:13:45 2017 -0600
+commit 94c62efe9cfb9b3d9f0934dcb6d40a0ae522cdff
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 15:07:05 2017 -0700
 
-    strings: add example for IndexByte
+    cmd/link: skip TestDWARF when cgo is disabled
     
-    Change-Id: Ib6a59735381ce744553f1ac96eeb65a194c8da10
-    Reviewed-on: https://go-review.googlesource.com/48860
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    While we're here, fix a Skip/Skipf error I noticed.
+    
+    Fixes #19796.
+    
+    Change-Id: I59b1f5b5ea727fc314acfee8445b3de0b5af1e46
+    Reviewed-on: https://go-review.googlesource.com/38992
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/example_test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/link/dwarf_test.go          |  1 +
+ src/cmd/link/linkbig_test.go        |  2 +-
+ src/internal/testenv/testenv.go     |  9 +++++++++
+ src/internal/testenv/testenv_cgo.go | 11 +++++++++++
+ 4 files changed, 22 insertions(+), 1 deletion(-)

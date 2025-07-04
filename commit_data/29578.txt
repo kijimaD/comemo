@@ -1,23 +1,15 @@
-commit 4ca3a8f7a807bba55e9db82b9aa8c43b1a186b8e
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Nov 17 13:52:00 2016 +0100
+commit 4383e4387b30ffbd8f85f053e399d53d7eef9330
+Author: Antonio Murdaca <runcom@redhat.com>
+Date:   Sun Jun 26 12:14:41 2016 +0200
 
-    misc/cgo: decrease test failure timeouts
+    net/url: avoid if statement
     
-    CL 33239 changed the polling loops from using sched_yield to a sleep
-    for 1/1000 of a second. The loop counters were not updated, so failing
-    tests now take 100 seconds to complete. Lower the loop counts to 5
-    seconds instead.
-    
-    Change-Id: I7c9a343dacc8188603ecf7e58bd00b535cfc87f5
-    Reviewed-on: https://go-review.googlesource.com/33280
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: I894a8f49d29dbb6f9265e4b3df5767318b225460
+    Signed-off-by: Antonio Murdaca <runcom@redhat.com>
+    Reviewed-on: https://go-review.googlesource.com/24492
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testcarchive/main2.c | 2 +-
- misc/cgo/testcarchive/main3.c | 4 ++--
- misc/cgo/testcarchive/main4.c | 4 ++--
- misc/cgo/testcshared/main4.c  | 2 +-
- misc/cgo/testcshared/main5.c  | 4 ++--
- 5 files changed, 8 insertions(+), 8 deletions(-)
+ src/net/url/url.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

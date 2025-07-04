@@ -1,22 +1,21 @@
-commit 74a9d283e4d498b78521f4a40c23b4c3f5ff7387
-Author: Florin Papa <fpapa@google.com>
-Date:   Mon Nov 21 12:54:11 2022 -0800
+commit dd97871282c28f1572f7cfe67395f848f69abb4b
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 14 11:14:36 2022 -0400
 
-    debug/elf: retrieve values for dynamic section tags
+    debug/dwarf: better stmt list attr checking in LineReader
     
-    Add functionality to retrieve values for .dynamic entries that don't
-    correspond to entries in the string table.
+    Check for insane statement list attribute values when
+    constructing LineReader's for a compilation unit.
     
-    Fixes #56892
+    Fixes #52354.
     
-    Change-Id: I6edabc8ca331c819e442d06e19b7f4df8343372b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452617
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Icb5298db31f6c5fe34c44e0ed4fe277a7cd676b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400255
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- api/next/56892.txt         |  1 +
- src/debug/elf/file.go      | 34 ++++++++++++++++++++++++++++++++++
- src/debug/elf/file_test.go | 18 ++++++++++++++++++
- 3 files changed, 53 insertions(+)
+ src/debug/dwarf/line.go      |  2 +-
+ src/debug/dwarf/line_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

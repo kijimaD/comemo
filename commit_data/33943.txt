@@ -1,19 +1,29 @@
-commit 23e68d7651a0017a6fc8223a964ec3d6db53d4bb
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 14 14:53:40 2017 -0500
+commit 39983cf491aef22579d993b59a4dffedb190666a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 18 23:29:46 2017 -0700
 
-    cmd/go: fix caching of test -json outputs
+    cmd/compile: refactor onebitwalktype1
     
-    go test -json was inadvertently disabling caching. Fix that.
+    The existing logic tried to advance the offset for each variable's
+    width, but then tried to undo this logic with the array and struct
+    handling code. It can all be much simpler by only worrying about
+    computing offsets within the array and struct code.
     
-    Fixes #22984.
+    While here, include a short-circuit for zero-width arrays to fix a
+    pedantic compiler failure case.
     
-    Change-Id: Ic933a8c8ac00ce8253e934766954b1ccc6ac0cec
-    Reviewed-on: https://go-review.googlesource.com/84075
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Fixes #20739.
+    
+    Change-Id: I98af9bb512a33e3efe82b8bf1803199edb480640
+    Reviewed-on: https://go-review.googlesource.com/64471
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go                |   3 +
- src/cmd/go/internal/test/test.go     | 115 +++++++++++++++++++++--------------
- src/cmd/go/internal/test/testflag.go |   2 +-
- 3 files changed, 73 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go    | 14 +++---
+ src/cmd/compile/internal/gc/plive.go   | 80 ++++++++++++----------------------
+ src/cmd/compile/internal/gc/reflect.go |  3 +-
+ test/fixedbugs/issue20739.go           | 16 +++++++
+ 4 files changed, 49 insertions(+), 64 deletions(-)

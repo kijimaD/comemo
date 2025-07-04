@@ -1,34 +1,21 @@
-commit aeb0644bd33e67f24e2411a651ac9ff72ddc96b4
-Author: Jabar Asadi <jasadi@d2iq.com>
-Date:   Fri May 19 09:31:25 2023 +0000
+commit 64f2829c9cdf12b893068305b2451c81b0a5b3a6
+Author: Abirdcfly <fp544037857@gmail.com>
+Date:   Sun Jul 24 13:41:16 2022 +0000
 
-    io: prevent seeking to position prior to offsetwrite.base
+    runtime: fix typo in function comments
     
-    We don't want to permit writing before the start of an OffsetWriter.
+    The correct word to use here is 'receive' not 'recieve'
     
-    One of the goals of OffsetWriter is to restrict where data
-    can be written.
-    
-    However, this rule can be violated by WriteAt() method of OffsetWriter
-    as the following code shows:
-    
-    f, _ := os.Create("file.txt")
-    owr := io.NewOffsetWriter(f, 10)
-    owr.Write([]byte("world"))
-    owr.WriteAt([]byte("hello"), -10)
-    
-    Change-Id: I6c7519fea68daefa641f25130cdd9803dc8aae22
-    GitHub-Last-Rev: a29d890d6f32fd5a1ecef84d012b8447b406e2e2
-    GitHub-Pull-Request: golang/go#60222
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495155
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia33e2a91c1c2da6dbe479a05518dbb9b8733d20d
+    GitHub-Last-Rev: e3c3e211dd7055d1dab8699a88d0b35c459da149
+    GitHub-Pull-Request: golang/go#54025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419316
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jabar Asadi <jasadi@d2iq.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/io/io.go      |  4 ++++
- src/io/io_test.go | 20 ++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/runtime/string.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

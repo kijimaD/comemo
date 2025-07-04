@@ -1,18 +1,22 @@
-commit 79877e5f91fb77362235d9160ddbeada5878a9c5
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Sep 13 04:33:06 2019 +1000
+commit 70ea70ecfda68abbc5b3c7703dc671f75adde645
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 27 14:59:10 2019 -0700
 
-    cmd/link: simplify determineLinkMode
+    runtime: rename p racectx field to raceprocctx
     
-    Simplify determineLinkMode by calling mustLinkExternal upfront,
-    then doing a first pass for LinkModeAuto, followed by a second pass
-    that determines if the link mode is valid.
+    Both g and p had a racectx field, but they held different kinds of values.
+    The g field held ThreadState values while the p field held Processor values
+    (to use the names used in the C++ code in the compiler_rt support library).
+    Rename the p field to raceprocctx to reduce potential confusion.
     
-    Change-Id: I9d7668107c159f8fe330b8c05fee035bbe9875fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195078
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iefba0e259d240171e973054c452c3c15bf3f8f8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169960
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/config.go | 30 ++++++++++++------------------
- 1 file changed, 12 insertions(+), 18 deletions(-)
+ src/runtime/proc.go        | 10 +++++-----
+ src/runtime/race_amd64.s   |  2 +-
+ src/runtime/race_ppc64le.s |  2 +-
+ src/runtime/runtime2.go    |  2 +-
+ 4 files changed, 8 insertions(+), 8 deletions(-)

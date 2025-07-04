@@ -1,19 +1,23 @@
-commit d7f58834cb9684cff9ccd8e8e8294dc436129551
-Author: Than McIntosh <thanm@golang.org>
-Date:   Wed Mar 12 13:27:25 2025 -0400
+commit 28b8851671a0254ed0e46ce8dbec43ebe73e7132
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Feb 2 16:30:54 2024 +0100
 
-    doc/next: add tentative DWARF 5 release note fragment
+    os: support Stat and LStat for CON device on Windows
     
-    Add a small fragment describing the move to DWARF 5 for this release,
-    along with the name of the GOEXPERIMENT.
+    \\.\con and CON need to be opened with GENERIC_READ access, else
+    CreateFile will fail with ERROR_INVALID_PARAMETER.
     
-    Updates #26379.
+    Special-case ERROR_INVALID_PARAMETER in os.[L]Stat so it retries with
+    GENERIC_READ access.
     
-    Change-Id: I3a30a71436133e2e0a5edf1ba0db84b9cc17cc5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657176
+    Fixes #34900.
+    
+    Change-Id: I5010e736d0189c8ada4fc0eca98d71a438c41426
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560755
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/next/5-toolchain.md | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/os/stat_test.go    | 75 +++++++++++++++++++++++++++++++++++++++-----------
+ src/os/stat_windows.go | 11 +++++++-
+ 2 files changed, 69 insertions(+), 17 deletions(-)

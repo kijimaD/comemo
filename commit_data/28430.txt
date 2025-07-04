@@ -1,23 +1,18 @@
-commit d6194c1fd1bc7ba2c89f2e0eaa9c08228088f4fc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 16 13:56:39 2016 -0700
+commit 7b6b5e340403c32756a92294729dc52f308b841a
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed May 25 00:12:22 2016 +0600
 
-    cmd/compile: change goarch.Main into goarch.Init
+    doc: add notes on good commit messages
     
-    Similar idea to golang.org/cl/28970.
+    Explain Brad's algorithm for generating commit headlines.
     
-    Change-Id: I9d2feb1a669d71ffda1d612cf39ee0d3c08d22d2
-    Reviewed-on: https://go-review.googlesource.com/29357
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #15700
+    
+    Change-Id: Ic602f17629b3dd7675e2bb1ed119062c03353ee9
+    Reviewed-on: https://go-review.googlesource.com/23355
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/galign.go  |  5 +----
- src/cmd/compile/internal/arm/galign.go    |  5 +----
- src/cmd/compile/internal/arm64/galign.go  |  5 +----
- src/cmd/compile/internal/mips64/galign.go |  5 +----
- src/cmd/compile/internal/ppc64/galign.go  |  5 +----
- src/cmd/compile/internal/s390x/galign.go  |  5 +----
- src/cmd/compile/internal/x86/galign.go    |  5 +----
- src/cmd/compile/main.go                   | 18 +++++++++++-------
- 8 files changed, 18 insertions(+), 35 deletions(-)
+ doc/contribute.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

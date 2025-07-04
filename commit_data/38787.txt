@@ -1,32 +1,39 @@
-commit 644543dd6447b39800825f66411df06066baa84e
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Tue Apr 16 20:32:31 2019 +0700
+commit 0b79dde1128462963db740efd3c9ed98eda2735e
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 29 15:14:39 2018 -0700
 
-    cmd/compile: fix const declaration group broken with closure
+    cmd/compile: don't use CMOV ops to compute load addresses
     
-    In typecheckclosure, a xfunc node will be put to xtop. But that node can
-    be shared between multiple closures, like in a const declaration group:
+    We want to issue loads as soon as possible, especially when they
+    are going to miss in the cache. Using a conditional move (CMOV) here:
     
-    const (
-            x = unsafe.Sizeof(func() {})
-            y
-    )
+    i := ...
+    if cond {
+       i++
+    }
+    ... = a[i]
     
-    It makes a xfunc node appears multiple times in xtop, causing duplicate
-    initLSym run.
+    means that we have to wait for cond to be computed before the load
+    is issued. Without a CMOV, if the branch is predicted correctly the
+    load can be issued in parallel with computing cond.
+    Even if the branch is predicted incorrectly, maybe the speculative
+    load is close to the real load, and we get a prefetch for free.
+    In the worst case, when the prediction is wrong and the address is
+    way off, we only lose by the time difference between the CMOV
+    latency (~2 cycles) and the mispredict restart latency (~15 cycles).
     
-    To fix this issue, we only do typecheck for xfunc one time, and setup
-    closure node earlier in typecheckclosure process.
+    We only squash CMOVs that affect load addresses. Results of CMOVs
+    that are used for other things (store addresses, store values) we
+    use as before.
     
-    Fixes #30709
+    Fixes #26306
     
-    Change-Id: Ic924a157ee9f3e5d776214bef5390849ddc8aab9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172298
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I82ca14b664bf05e1d45e58de8c4d9c775a127ca1
+    Reviewed-on: https://go-review.googlesource.com/c/145717
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/closure.go | 14 ++++++++++----
- test/fixedbugs/issue30709.go           | 33 +++++++++++++++++++++++++++++++++
- test/fixedbugs/issue30709.out          |  4 ++++
- 3 files changed, 47 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/branchelim.go | 63 +++++++++++++++++++++++++++---
+ test/codegen/condmove.go                   | 17 ++++++++
+ 2 files changed, 74 insertions(+), 6 deletions(-)

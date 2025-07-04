@@ -1,37 +1,18 @@
-commit fd0c0db4a411eae0483d1cb141e801af401e43d3
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Jul 29 09:27:16 2022 -0700
+commit c948823cb7fc898eafb798ad15655663755d0bc9
+Author: MoZhonghua <Kasulle@gmail.com>
+Date:   Fri Nov 12 08:08:25 2021 +0000
 
-    net/http: add ResponseController and per-handler timeouts
+    runtime/cgo: fix signature of crosscall_amd64 in comment
     
-    The ResponseController type provides a discoverable interface
-    to optional methods implemented by ResponseWriters.
+    In CL 289192, crosscall_amd64() was changed to recieve 3
+    arguments, but the comment was not updated.
     
-            c := http.NewResponseController(w)
-            c.Flush()
-    
-    vs.
-    
-            if f, ok := w.(http.Flusher); ok {
-                    f.Flush()
-            }
-    
-    Add the ability to control per-request read and write deadlines
-    via the ResponseController SetReadDeadline and SetWriteDeadline
-    methods.
-    
-    For #54136
-    
-    Change-Id: I3f97de60d4c9ff150cda559ef86c6620eee665d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436890
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: Iba36c27aa5189e50f3fcc2a50291fecb2ef722c1
+    GitHub-Last-Rev: e7c041f00c562fdfeec84f1f3ea341713dcc7bf5
+    GitHub-Pull-Request: golang/go#49539
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363442
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- api/next/54136.txt                      |   6 +
- src/net/http/request.go                 |   9 +-
- src/net/http/responsecontroller.go      | 122 ++++++++++++++
- src/net/http/responsecontroller_test.go | 277 ++++++++++++++++++++++++++++++++
- src/net/http/server.go                  |  29 +++-
- 5 files changed, 434 insertions(+), 9 deletions(-)
+ src/runtime/cgo/gcc_amd64.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

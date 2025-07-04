@@ -1,0 +1,89 @@
+commit b450b5409dbdec1810873413b1213fc543f43a39
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat May 10 18:53:14 2025 +0000
+
+    runtime: prevent cleanup goroutines from missing work
+    
+    Currently, there's a window of time where each cleanup goroutine has
+    committed to going to sleep (immediately after full.pop() == nil) but
+    hasn't yet marked itself as asleep (state.sleep()). If new work arrives
+    in this window, it might get missed. This is what we see in #73642, and
+    I can reproduce it with stress2.
+    
+    Side-note: even if the work gets missed by the existing sleeping
+    goroutines, needg is incremented. So in theory a new goroutine will
+    handle the work. Right now that doesn't happen in tests like the one
+    running in #73642, where there might never be another call to AddCleanup
+    to create the additional goroutine. Also, if we've hit the maximum on
+    cleanup goroutines and all of them are in this window simultaneously, we
+    can still end up missing work, it's just more rare. So this is still a
+    problem even if we choose to just be more aggressive about creating new
+    cleanup goroutines.
+    
+    This change fixes the problem and also aims to make the cleanup
+    wake/sleep code clearer. The way this change fixes this problem is to
+    have cleanup goroutines re-check the work list before going to sleep,
+    but after having already marked themselves as sleeping. This way, if new
+    work comes in before the cleanup goroutine marks itself as going to
+    sleep, we can rely on the re-check to pick up that work. If new work
+    comes after the goroutine marks itself as going to sleep and after the
+    re-check, we can rely on the scheduler noticing that the goroutine is
+    asleep and waking it up. If work comes in between a goroutine marking
+    itself as sleeping and the re-check, then the re-check will catch that
+    piece of work. However, the scheduler might now get a false signal that
+    the goroutine is asleep and try to wake it up. This is OK. The sleeping
+    signal is now mutated and double-checked under the queue lock, so the
+    scheduler will grab the lock, may notice there are no sleeping
+    goroutines, and go on its way. This may cause spurious lock acquisitions
+    but it should be very rare. The window between a cleanup goroutine
+    marking itself as going to sleep and re-checking the work list is a
+    handful of instructions at most.
+    
+    This seems subtle but overall it's a simplification of the code. We
+    rely more on the lock, which is easier to reason about, and we track two
+    separate atomic variables instead of the merged cleanupSleepState: the
+    length of the full list, and the number of cleanup goroutines that are
+    asleep. The former is now the primary way to acquire work. Cleanup
+    goroutines must decrement the length successfully to obtain an item off
+    the full list. The number of cleanup goroutines asleep, meanwhile, is
+    now only updated with the queue lock held. It can be checked without the
+    lock held, and the invariant to make that safe is simple: it must always
+    be an overestimate of the number of sleeping cleanup goroutines.
+    
+    The changes here do change some other behaviors.
+    
+    First, since we're tracking the length of the full list instead of the
+    abstract concept of a wake-up, the waker can't consume wake-ups anymore.
+    This means that cleanup goroutines may be created more aggressively. If
+    two threads in the scheduler see that there are goroutines that are
+    asleep, only one will win the race, but the other will observe zero
+    asleep goroutines but potentially many work units available. This will
+    cause it to signal many goroutines to be created. This is OK since we
+    have a cap on the number of cleanup goroutines, and the race should be
+    relatively rare.
+    
+    Second, because cleanup goroutines can now fail to go to sleep if any
+    units of work come in, they might spend more time contended on the lock.
+    For example, if we have N cleanup goroutines and work comes in at *just*
+    the wrong rate, in the worst case we'll have each of G goroutines loop
+    N times for N blocks, resulting in O(G*N) thread time to handle each
+    block in the worst case. To paint a picture, imagine each goroutine
+    trying to go to sleep, fail because a new block of work came in, and
+    only one goroutine will get that block. Then once that goroutine is
+    done, we all try again, fail because a new block of work came in, and so
+    on and so forth. This case is unlikely, though, and probably not worth
+    worrying about until it actually becomes a problem. (A similar problem
+    exists with parking (and exists before this change, too) but at least in
+    that case each goroutine parks, so it doesn't block the thread.)
+    
+    Fixes #73642.
+    
+    Change-Id: I6bbe1b789e7eb7e8168e56da425a6450fbad9625
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671676
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/runtime/math/math.go |   5 +-
+ src/runtime/mcleanup.go           | 186 +++++++++++++++++++++-----------------
+ 2 files changed, 105 insertions(+), 86 deletions(-)

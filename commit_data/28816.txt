@@ -1,15 +1,33 @@
-commit 46276d6b6b14993b4851b77cf48c67ede3360e31
-Author: Austin Clements <austin@google.com>
-Date:   Mon Sep 26 18:09:54 2016 -0400
+commit 8ea89ba858823212114de952b8a1375ceb82587f
+Merge: 8707f31c0a 28ee179657
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 1 18:26:06 2016 -0700
 
-    doc: catch go1.8.txt up on runtime changes
+    all: merge master into release-branch.go1.7
     
-    This clarifies some of the titles so they're more "news" friendly and
-    less implementation-oriented.
-    
-    Change-Id: Ied02aa1e6824b04db5d32ecdd58e972515b1f588
-    Reviewed-on: https://go-review.googlesource.com/29830
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ifb9647fa9817ed57aa4835a35a05020aba00a24e
 
- doc/go1.8.txt | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ doc/asm.html                                 |  58 +++++
+ doc/go1.7.html                               |  17 ++
+ src/cmd/compile/internal/amd64/ssa.go        |  44 +++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   4 +-
+ src/cmd/compile/internal/ssa/rewrite.go      |  46 ----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  13 +-
+ src/compress/flate/deflate.go                |  13 +-
+ src/context/context_test.go                  |   6 +
+ src/crypto/x509/root_cgo_darwin.go           |  60 +++++
+ src/net/dial_unix_test.go                    | 108 +++++++++
+ src/net/fd_unix.go                           |  55 +++--
+ src/net/hook_unix.go                         |   3 +-
+ src/net/http/h2_bundle.go                    | 339 ++++++++++++++++++---------
+ src/net/http/serve_test.go                   |  11 +
+ src/net/http/server.go                       |  38 ++-
+ src/net/http/transport.go                    |  52 +++-
+ src/net/http/transport_internal_test.go      |   9 +-
+ src/net/http/transport_test.go               |  39 +++
+ src/runtime/mgc.go                           |   9 +-
+ src/runtime/mgcmark.go                       |  11 +-
+ src/runtime/pprof/pprof.go                   |  63 ++++-
+ test/fixedbugs/issue16515.go                 |  53 +++++
+ 23 files changed, 839 insertions(+), 214 deletions(-)

@@ -1,15 +1,17 @@
-commit 828a4b93765c87a96578c1aaa3b0781d3d4e31be
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 24 15:54:48 2013 -0400
+commit 7616c9492166893c7470bab647be6afc3c18007e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Sep 24 00:17:08 2013 -0400
 
-    sync/atomic: adjust for new runtime.cas64 prototype
+    cmd/dist, cmd/go: embed default C++ compiler into cmd/go
+    Fixes #6426.
     
-    R=golang-dev, minux.ma, josharian
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/13859043
+    https://golang.org/cl/13704044
 
- src/pkg/sync/atomic/asm_linux_arm.s          | 23 ++++++++++++++---------
- src/pkg/sync/atomic/atomic_linux_arm_test.go | 14 ++++++++++++++
- src/pkg/sync/atomic/atomic_test.go           | 10 +++++++---
- src/pkg/sync/atomic/export_linux_arm_test.go |  9 +++++++++
- 4 files changed, 44 insertions(+), 12 deletions(-)
+ src/cmd/dist/a.h       |  1 +
+ src/cmd/dist/build.c   | 10 ++++++++++
+ src/cmd/dist/buildgo.c |  6 ++++--
+ src/cmd/go/build.go    |  3 ++-
+ src/cmd/go/env.go      |  2 ++
+ 5 files changed, 19 insertions(+), 3 deletions(-)

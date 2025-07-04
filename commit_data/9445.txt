@@ -1,14 +1,12 @@
-commit d883f29309e867e97d30df96df246c3d41bf1f92
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 22 14:06:07 2011 -0700
+commit c7a742c5108e2823c466750e6a26b2509b3c8b0f
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Mon Aug 22 12:53:05 2011 -0700
 
-    godoc: add dummy playground.js to silence godoc warning at start-up
+    go/ast: fix ast.MergePackageFiles to collect infos about imports
     
-    Fixes #2173.
-    
-    R=r, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4941044
+    https://golang.org/cl/4710047
 
- doc/play/playground.js | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/go/ast/filter.go | 33 ++++++++++++++++++++++++++++++---
+ 1 file changed, 30 insertions(+), 3 deletions(-)

@@ -1,25 +1,27 @@
-commit 7191f1136b1526703c5af7fc04ff948e3a6c26b9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 30 10:36:31 2020 -0700
+commit a32262d4625e6f54cedd765e4807c215d1deb992
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 18 17:47:54 2020 -0400
 
-    cmd/compile: fix reassignVisitor
+    cmd/compile: when marking REFLECTMETHOD, check for reflect package itself
     
-    reassignVisitor was short-circuiting on assignment statements after
-    checking the LHS, but there might be further assignment statements
-    nested within the RHS expressions.
+    reflect.Type.Method (and MethodByName) can be used to obtain a
+    reference of a method by reflection. The linker needs to know
+    if reflect.Type.Method is called, and retain all exported methods
+    accordingly. This is handled by the compiler, which marks the
+    caller of reflect.Type.Method with REFLECTMETHOD attribute. The
+    current code failed to handle the reflect package itself, so the
+    method wrapper reflect.Type.Method is not marked. This CL fixes
+    it.
     
-    Fixes #42284.
+    Fixes #38515.
     
-    Change-Id: I175eef87513b973ed5ebe6a6527adb9766dde6cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266618
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I12904d23eda664cf1794bc3676152f3218fb762b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228880
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/inl.go |  2 --
- test/fixedbugs/issue42284.dir/a.go | 23 +++++++++++++++++++++++
- test/fixedbugs/issue42284.dir/b.go | 15 +++++++++++++++
- test/fixedbugs/issue42284.go       |  7 +++++++
- 4 files changed, 45 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/walk.go |  3 ++-
+ test/reflectmethod5.go              | 30 ++++++++++++++++++++++++++++++
+ test/reflectmethod6.go              | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 64 insertions(+), 1 deletion(-)

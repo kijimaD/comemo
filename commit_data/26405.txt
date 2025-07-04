@@ -1,21 +1,18 @@
-commit d6d33f678dfe17e58b1d2f4b4b9d1487cd625c12
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Sun Mar 20 11:52:41 2016 +0200
+commit df2a9e4a337a4feda8981433639cbddeb8216d37
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Jan 19 16:27:14 2016 +1300
 
-    cmd/link: use encbuf when writing integers
+    runtime/race: fix test so it compiles
     
-    name       old s/op   new s/op   delta
-    LinkCmdGo  0.59 ± 6%  0.58 ± 5%  -1.61%  (p=0.000 n=99+99)
+    I'm not sure what the convert function was intended to be.
     
-    GOGC=off:
-    name       old s/op   new s/op   delta
-    LinkCmdGo  0.50 ± 3%  0.49 ± 3%  -1.28%  (p=0.000 n=98+99)
+    Fixes #14011
     
-    Change-Id: I737ae056214999441a210c69ec0cf4febc39a715
-    Reviewed-on: https://go-review.googlesource.com/20914
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I29d905bc1827936b9433b20b13b7a0b0ac5f502e
+    Reviewed-on: https://go-review.googlesource.com/18712
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/symtab.go | 48 ++++++++------------------------------
- 1 file changed, 10 insertions(+), 38 deletions(-)
+ src/runtime/race/testdata/issue12225_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

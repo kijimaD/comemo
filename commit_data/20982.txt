@@ -1,14 +1,17 @@
-commit 9b71417495b8fe4ef4b2a30855a4cf32bf947a4d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Dec 15 09:30:53 2014 +1100
+commit 700ab16daf01e77f77faca242e148ad2100b6627
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 31 15:29:03 2014 -0400
 
-    encoding/json: mention that the "string" tag applies to booleans
+    [dev.power64] reflect: fix asm on power64x
     
-    Fixes #9284
+    reflect/asm_power64x.s was missing changes made to other
+    platforms for stack maps.  This CL ports those changes.  With
+    this fix, the reflect test passes on power64x.
     
-    Change-Id: I0410a9ed82b861686a0a986c9ca4eeeacac8f296
-    Reviewed-on: https://go-review.googlesource.com/1534
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/170870043
 
- src/encoding/json/encode.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/asm_power64x.s | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

@@ -1,23 +1,23 @@
-commit 4c05525f0e44cf83d6e712086e9e60ffe45e6c27
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 31 12:05:07 2019 -0400
+commit cf155b00d18f855eaaf2a541190dba3ff7b7cf8a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 14 17:38:36 2019 -0500
 
-    cmd/link: revise test case to work on pre-10.14 macos
+    runtime: make tests that invoke 'go build' module-agnostic
     
-    Rework this recently introduced test case to insure that it works with
-    older versions of the OS. It was using a new framework library not
-    available on pre-10.14 to trigger the weak symbol reference; switch to
-    using a new symbol from an existing library. Tested on MacOS 10.14 and
-    10.11.
+    In module mode, building the current directory requires a go.mod file
+    (in order to determine the import path of the package).
     
-    Updates #32233.
+    Change the tests to pass explicit file arguments instead, since those
+    can be built in module mode without defining a module.
     
-    Change-Id: I1fe2a9255fca46cb7cdf33ff7fed67bba86fdc22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179837
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Updates #30228
+    
+    Change-Id: I680c658d1f79645f73ad4d1e88189ea50a4852e9
+    Reviewed-on: https://go-review.googlesource.com/c/162837
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/link/internal/ld/testdata/issue32233/lib/ObjC.m | 8 +++++---
- src/cmd/link/internal/ld/testdata/issue32233/lib/lib.go | 4 ++--
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/runtime/crash_unix_test.go  |  2 +-
+ src/runtime/runtime-gdb_test.go | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

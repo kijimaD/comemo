@@ -1,44 +1,16 @@
-commit 78baea836d9f4312972e50e17dcff15ff63d155b
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Thu Sep 26 00:00:20 2019 +0800
+commit a5032bc86c1a661cf3a68d5095c7a86591c62bc1
+Author: james <james.naftel@gmail.com>
+Date:   Thu Apr 11 16:18:29 2019 -0400
 
-    internal/bytealg: add assembly implementation of Compare/CompareString on mips64x
+    os: don't leak file in ExampleOpenFile_append failure path
     
-    name                         old time/op    new time/op    delta
-    BytesCompare/1                 28.9ns ± 4%    22.8ns ± 0%    -21.23%  (p=0.000 n=9+10)
-    BytesCompare/2                 34.6ns ± 0%    23.5ns ± 0%    -32.01%  (p=0.000 n=8+10)
-    BytesCompare/4                 54.6ns ± 0%    41.4ns ± 0%    -24.18%  (p=0.001 n=8+9)
-    BytesCompare/8                 73.9ns ± 0%    49.7ns ± 0%    -32.75%  (p=0.002 n=8+10)
-    BytesCompare/16                 113ns ± 0%      23ns ± 0%    -79.56%  (p=0.000 n=9+10)
-    BytesCompare/32                 190ns ± 0%      26ns ± 0%    -86.53%  (p=0.000 n=10+10)
-    BytesCompare/64                 345ns ± 0%      44ns ± 0%    -87.19%  (p=0.000 n=10+10)
-    BytesCompare/128                654ns ± 0%      52ns ± 0%    -91.97%  (p=0.000 n=9+8)
-    BytesCompare/256               1.27µs ± 0%    0.08µs ± 1%    -94.10%  (p=0.000 n=8+10)
-    BytesCompare/512               2.51µs ± 0%    0.12µs ± 0%    -95.26%  (p=0.000 n=9+9)
-    BytesCompare/1024              4.99µs ± 0%    0.21µs ± 1%    -95.84%  (p=0.000 n=8+10)
-    BytesCompare/2048              9.94µs ± 0%    0.38µs ± 0%    -96.13%  (p=0.000 n=8+10)
-    CompareBytesEqual               105ns ± 0%      64ns ± 0%    -39.05%  (p=0.000 n=10+9)
-    CompareBytesToNil              34.8ns ± 1%    39.5ns ± 3%    +13.48%  (p=0.000 n=10+10)
-    CompareBytesEmpty              33.6ns ± 3%    36.6ns ± 0%     +8.77%  (p=0.000 n=10+10)
-    CompareBytesIdentical          29.7ns ± 0%    36.6ns ± 0%    +23.23%  (p=0.000 n=10+10)
-    CompareBytesSameLength         69.1ns ± 0%    51.1ns ± 0%    -26.05%  (p=0.000 n=10+10)
-    CompareBytesDifferentLength    69.8ns ± 0%    51.1ns ± 0%    -26.79%  (p=0.000 n=10+10)
-    CompareBytesBigUnaligned       5.15ms ± 0%    2.18ms ± 0%    -57.62%  (p=0.000 n=9+9)
-    CompareBytesBig                5.28ms ± 0%    0.28ms ± 0%    -94.64%  (p=0.000 n=8+10)
-    CompareBytesBigIdentical       29.7ns ± 0%    36.8ns ± 0%    +23.91%  (p=0.000 n=8+8)
+    Fixes #31424
     
-    name                         old speed      new speed      delta
-    CompareBytesBigUnaligned      204MB/s ± 0%   480MB/s ± 0%   +135.94%  (p=0.000 n=9+9)
-    CompareBytesBig               198MB/s ± 0%  3703MB/s ± 0%  +1765.85%  (p=0.000 n=8+10)
-    CompareBytesBigIdentical     35.3TB/s ± 0%  28.5TB/s ± 0%    -19.31%  (p=0.000 n=8+8)
-    
-    Change-Id: I112d9de2324986fd65ed237a86b11856a1c0f4a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196837
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I8364578cbc77827552bd764c716f68495ec51547
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171763
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/bytealg/compare_generic.go |  2 +-
- src/internal/bytealg/compare_mips64x.s  | 92 +++++++++++++++++++++++++++++++++
- src/internal/bytealg/compare_native.go  |  2 +-
- 3 files changed, 94 insertions(+), 2 deletions(-)
+ src/os/example_test.go | 1 +
+ 1 file changed, 1 insertion(+)

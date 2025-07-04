@@ -1,16 +1,16 @@
-commit 731b3ed18dcb854912cb06b3486bb633917e4cb7
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Sep 14 15:23:41 2016 +0300
+commit a871464e5aca9b81a6dc54cde8c31629387cb785
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jun 5 09:24:09 2016 -0700
 
-    math: make sqrt smaller on AMD64
+    runtime: fix typo
     
-    This makes function fit in 16 bytes, saving 16 bytes.
+    Fixes #15962
     
-    Change-Id: Iac5d2add42f6dae985b2a5cbe19ad4bd4bcc92ec
-    Reviewed-on: https://go-review.googlesource.com/29151
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I1949e0787f6c2b1e19b9f9d3af2f712606a6d4cf
+    Reviewed-on: https://go-review.googlesource.com/23786
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/sqrt_amd64.s | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/asm_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,38 @@
-commit 9ab9ca27bb035bccdeff57d513316e3c4b2d2029
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Jun 5 11:45:01 2019 -0400
+commit 8ea27e117fffbb14ef3605a641444b79e9bd6c9e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 09:06:09 2019 -0500
 
-    doc: update Go 1.13 release notes using relnote
+    misc/cgo/errors: fix tests in module mode
     
-    The additions were generated using golang.org/x/build/cmd/relnote.
+    Updates #30228
     
-    Change-Id: Ie7322f7d01a2dd4a7bca89b9ef9c1ce93bc2671a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180778
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I84bc705591bdb3da0106404b24353251939355b8
+    Reviewed-on: https://go-review.googlesource.com/c/163209
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go1.13.html | 287 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 287 insertions(+)
+ misc/cgo/errors/errors_test.go                        | 2 +-
+ misc/cgo/errors/ptr_test.go                           | 9 +++++++--
+ misc/cgo/errors/{src => testdata}/err1.go             | 0
+ misc/cgo/errors/{src => testdata}/err2.go             | 0
+ misc/cgo/errors/{src => testdata}/err3.go             | 0
+ misc/cgo/errors/{src => testdata}/err4.go             | 0
+ misc/cgo/errors/{src => testdata}/issue11097a.go      | 0
+ misc/cgo/errors/{src => testdata}/issue11097b.go      | 0
+ misc/cgo/errors/{src => testdata}/issue13129.go       | 0
+ misc/cgo/errors/{src => testdata}/issue13423.go       | 0
+ misc/cgo/errors/{src => testdata}/issue13467.go       | 0
+ misc/cgo/errors/{src => testdata}/issue13635.go       | 0
+ misc/cgo/errors/{src => testdata}/issue13830.go       | 0
+ misc/cgo/errors/{src => testdata}/issue14669.go       | 0
+ misc/cgo/errors/{src => testdata}/issue16116.go       | 0
+ misc/cgo/errors/{src => testdata}/issue16591.go       | 0
+ misc/cgo/errors/{src => testdata}/issue18452.go       | 0
+ misc/cgo/errors/{src => testdata}/issue18889.go       | 0
+ misc/cgo/errors/{src => testdata}/issue26745.go       | 0
+ misc/cgo/errors/{src => testdata}/issue28069.go       | 0
+ misc/cgo/errors/{src => testdata}/issue28721.go       | 0
+ misc/cgo/errors/{src => testdata}/issue7757.go        | 0
+ misc/cgo/errors/{src => testdata}/issue8442.go        | 0
+ misc/cgo/errors/{src => testdata}/long_double_size.go | 0
+ misc/cgo/errors/{src => testdata}/malloc.go           | 0
+ 25 files changed, 8 insertions(+), 3 deletions(-)

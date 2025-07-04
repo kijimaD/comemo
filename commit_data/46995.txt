@@ -1,17 +1,31 @@
-commit 6c200017bf0ad9987453d5c265e5a3063ad72dc5
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Oct 18 23:54:02 2021 +0700
+commit 3527caa7d63eab821c9936383e6c442d7a013de1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 10:30:10 2021 -0500
 
-    doc: document new reflect.UnsafePointer function
+    runtime: initial windows/arm64 implementation files
     
-    Updates #40592
+    This CL adds a few small files - defs, os, and rt0 - to start
+    on windows/arm64 support for the runtime.
     
-    Change-Id: If66629e47ca9859128ee3ad8fb584e022d7a6982
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356255
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    It also copies sys_windows_arm.s to sys_windows_arm64.s,
+    with the addition of "#ifdef NOT_PORTED" around the entire file.
+    This is meant to make future CLs easier to review, since the
+    general pattern is to translate the 32-bit ARM assembly into
+    64-bit ARM assembly.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    
+    Change-Id: I922037eb3890e77bac48281ecaa8e489595675be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288827
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
- doc/go1.18.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/runtime/defs_windows_arm64.go |  83 ++++++
+ src/runtime/os_windows_arm64.go   |  14 +
+ src/runtime/rt0_windows_arm64.s   |  12 +
+ src/runtime/sys_windows_arm64.s   | 588 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 697 insertions(+)

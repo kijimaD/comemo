@@ -1,30 +1,25 @@
-commit 8f6d68ebaa660c6db8a87d418e95f8c0d3a221e4
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Wed Feb 22 14:40:17 2017 +0100
+commit c2eb06193f70475650a85a0e279f865181c1cece
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Mar 1 10:31:57 2017 -0800
 
-    net/http: send more cookie values in double quotes
+    os/user: add non-cgo versions of Lookup, LookupId
     
-    According to RFC 6255 a cookie value may contain neither spaces " "
-    nor commas ",". But browsers seem to handle these pretty well and such
-    values are not uncommon in the wild so we do allow spaces and commas
-    in cookie values too. Up to now we use the double-quoted wire format
-    only for cookie values with leading and/or trailing spaces and commas.
-    Values with internal spaces/commas are sent without the optional double
-    quotes. This seems to be a problem for some agents.
+    If you cross compile for a Unix target and call user.Lookup("root")
+    or user.LookupId("0"), we'll try to read the answer out of
+    /etc/passwd instead of returning an "unimplemented" error.
     
-    This CL changes the behaviour for cookie values with spaces or commas:
-    Such values are always sent in double quotes. This should not have
-    any impact on existing agents and the increases of data transmitted
-    is negligible.
+    The equivalent cgo function calls getpwuid_r in glibc, which
+    may reach out to the NSS database or allow callers to register
+    extensions. The pure Go implementation only reads from /etc/passwd.
     
-    Fixes #18627
-    
-    Change-Id: I575a98d589e048aa39d976a3c984550daaca730a
-    Reviewed-on: https://go-review.googlesource.com/37328
+    Change-Id: I56a302d634b15ba5097f9f0d6a758c68e486ba6d
+    Reviewed-on: https://go-review.googlesource.com/37664
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/cookie.go      | 2 +-
- src/net/http/cookie_test.go | 9 ++++++---
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/os/user/lookup_stubs.go     |   9 ---
+ src/os/user/lookup_unix.go      | 162 ++++++++++++++++++++++++++++++++--------
+ src/os/user/lookup_unix_test.go | 159 +++++++++++++++++++++++++++++++++++++++
+ src/os/user/user_test.go        |   3 +
+ 4 files changed, 292 insertions(+), 41 deletions(-)

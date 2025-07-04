@@ -1,46 +1,58 @@
-commit 0c884d0810285ffec6ed6290dc64f2fa34248a19
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 26 17:35:29 2018 -0800
+commit 1643d4f33a0ed45cef0f6d33aff207ad530f9c94
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Wed Aug 9 23:17:07 2017 -0700
 
-    cmd/compile, cmd/compile/internal/syntax: print relative column info
+    math/big: implement Lehmer's GCD algorithm
     
-    This change enables printing of relative column information if a
-    prior line directive specified a valid column. If there was no
-    line directive, or the line directive didn't specify a column
-    (or the -C flag is specified), no column information is shown in
-    file positions.
+    Updates #15833
     
-    Implementation: Column values (and line values, for that matter)
-    that are zero are interpreted as "unknown". A line directive that
-    doesn't specify a column records that as a zero column in the
-    respective PosBase data structure. When computing relative columns,
-    a relative value is zero of the base's column value is zero.
-    When formatting a position, a zero column value is not printed.
+    Lehmer's GCD algorithm uses single precision calculations
+    to simulate several steps of multiple precision calculations
+    in Euclid's GCD algorithm which leads to a considerable
+    speed up.  This implementation uses Collins' simplified
+    testing condition on the single digit cosequences which
+    requires only one quotient and avoids any possibility of
+    overflow.
     
-    To make this work without special cases, the PosBase for a file
-    is given a concrete (non-0:0) position 1:1 with the PosBase's
-    line and column also being 1:1. In other words, at the position
-    1:1 of a file, it's relative positions are starting with 1:1 as
-    one would expect.
+    name                          old time/op  new time/op  delta
+    GCD10x10/WithoutXY-4          1.82µs ±24%  0.28µs ± 6%  -84.40%  (p=0.008 n=5+5)
+    GCD10x10/WithXY-4             1.69µs ± 6%  1.71µs ± 6%     ~     (p=0.595 n=5+5)
+    GCD10x100/WithoutXY-4         1.87µs ± 2%  0.56µs ± 4%  -70.13%  (p=0.008 n=5+5)
+    GCD10x100/WithXY-4            2.61µs ± 2%  2.65µs ± 4%     ~     (p=0.635 n=5+5)
+    GCD10x1000/WithoutXY-4        2.75µs ± 2%  1.48µs ± 1%  -46.06%  (p=0.008 n=5+5)
+    GCD10x1000/WithXY-4           5.29µs ± 2%  5.25µs ± 2%     ~     (p=0.548 n=5+5)
+    GCD10x10000/WithoutXY-4       10.7µs ± 2%  10.3µs ± 0%   -4.38%  (p=0.008 n=5+5)
+    GCD10x10000/WithXY-4          22.3µs ± 6%  22.1µs ± 1%     ~     (p=1.000 n=5+5)
+    GCD10x100000/WithoutXY-4      93.7µs ± 2%  99.4µs ± 2%   +6.09%  (p=0.008 n=5+5)
+    GCD10x100000/WithXY-4          196µs ± 2%   199µs ± 2%     ~     (p=0.222 n=5+5)
+    GCD100x100/WithoutXY-4        10.1µs ± 2%   2.5µs ± 2%  -74.84%  (p=0.008 n=5+5)
+    GCD100x100/WithXY-4           21.4µs ± 2%  21.3µs ± 7%     ~     (p=0.548 n=5+5)
+    GCD100x1000/WithoutXY-4       11.3µs ± 2%   4.4µs ± 4%  -60.87%  (p=0.008 n=5+5)
+    GCD100x1000/WithXY-4          24.7µs ± 3%  23.9µs ± 1%     ~     (p=0.056 n=5+5)
+    GCD100x10000/WithoutXY-4      26.6µs ± 1%  20.0µs ± 2%  -24.82%  (p=0.008 n=5+5)
+    GCD100x10000/WithXY-4         78.7µs ± 2%  78.2µs ± 2%     ~     (p=0.690 n=5+5)
+    GCD100x100000/WithoutXY-4      174µs ± 2%   171µs ± 1%     ~     (p=0.056 n=5+5)
+    GCD100x100000/WithXY-4         563µs ± 4%   561µs ± 2%     ~     (p=1.000 n=5+5)
+    GCD1000x1000/WithoutXY-4       120µs ± 5%    29µs ± 3%  -75.71%  (p=0.008 n=5+5)
+    GCD1000x1000/WithXY-4          355µs ± 4%   358µs ± 2%     ~     (p=0.841 n=5+5)
+    GCD1000x10000/WithoutXY-4      140µs ± 2%    49µs ± 2%  -65.07%  (p=0.008 n=5+5)
+    GCD1000x10000/WithXY-4         626µs ± 3%   628µs ± 9%     ~     (p=0.690 n=5+5)
+    GCD1000x100000/WithoutXY-4     340µs ± 4%   259µs ± 6%  -23.79%  (p=0.008 n=5+5)
+    GCD1000x100000/WithXY-4       3.76ms ± 4%  3.82ms ± 5%     ~     (p=0.310 n=5+5)
+    GCD10000x10000/WithoutXY-4    3.11ms ± 3%  0.54ms ± 2%  -82.74%  (p=0.008 n=5+5)
+    GCD10000x10000/WithXY-4       7.96ms ± 3%  7.69ms ± 3%     ~     (p=0.151 n=5+5)
+    GCD10000x100000/WithoutXY-4   3.88ms ± 1%  1.27ms ± 2%  -67.21%  (p=0.008 n=5+5)
+    GCD10000x100000/WithXY-4      38.1ms ± 2%  38.8ms ± 1%     ~     (p=0.095 n=5+5)
+    GCD100000x100000/WithoutXY-4   208ms ± 1%    25ms ± 4%  -88.07%  (p=0.008 n=5+5)
+    GCD100000x100000/WithXY-4      533ms ± 5%   525ms ± 4%     ~     (p=0.548 n=5+5)
     
-    In the package syntax, this requires self-recursive PosBases for
-    file bases, matching what cmd/internal/src.PosBase was already
-    doing. In src.PosBase, file and inlining bases also need to be
-    based at 1:1 to indicate "known" positions.
-    
-    This change completes the cmd/compiler part of the issue below.
-    
-    Fixes #22662.
-    
-    Change-Id: I6c3d2dee26709581fba0d0261b1d12e93f1cba1a
-    Reviewed-on: https://go-review.googlesource.com/97375
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic1e007eb807b93e75f4752e968e98c1f0cb90e43
+    Reviewed-on: https://go-review.googlesource.com/59450
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/noder.go           |   8 +-
- src/cmd/compile/internal/syntax/parser.go      |  25 ++--
- src/cmd/compile/internal/syntax/parser_test.go | 170 ++++++++++++-------------
- src/cmd/compile/internal/syntax/pos.go         |  63 +++++++--
- src/cmd/internal/src/pos.go                    |  64 ++++++----
- src/cmd/internal/src/pos_test.go               |  28 ++--
- test/fixedbugs/issue22662b.go                  |  65 ++++++++++
- 7 files changed, 272 insertions(+), 151 deletions(-)
+ src/math/big/int.go      | 156 ++++++++++++++++++++++++++++++++---------------
+ src/math/big/int_test.go |  59 ++++++++++++------
+ src/math/big/rat.go      |   2 +-
+ 3 files changed, 150 insertions(+), 67 deletions(-)

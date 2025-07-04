@@ -1,20 +1,17 @@
-commit 8444a545e3d38c2e470df5035ef4b5a9365aaefc
+commit ad2ca26a521a5a642f51c3ef8e3004c9ce7af5aa
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 5 11:41:40 2021 -0700
+Date:   Thu Jan 21 17:29:36 2021 -0800
 
-    text/template: only unwrap final and/or value
+    doc/go1.16: mention os.DirEntry and types moved from os to io/fs
     
-    In the last CL I missed the fact that except for the final value the
-    code already unwraps the argument.
+    For #40700
+    For #41467
+    For #41190
     
-    For #31103
-    
-    Change-Id: Ic9099aeb50c6b3322fc14a90ac8026c1d8cb1698
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354091
+    Change-Id: Id94e7511c98c38a22b1f9a55af6e200c9df07fd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285592
     Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/text/template/exec.go      | 14 +++++++++++---
- src/text/template/exec_test.go |  2 ++
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ doc/go1.16.html | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

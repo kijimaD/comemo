@@ -1,16 +1,16 @@
-commit 93870aeee980aadf6f67b778734f25419de55a7d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 26 16:11:33 2017 -0700
+commit 9330ef869ce9cf281ec5d78e73824a8b3a6c7c2b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 23 11:21:42 2017 -0700
 
-    runtime: get more info for TestCgoSignalDeadlock failures
+    cmd/compile: use Widthptr instead of Types[Tptr].Width
     
-    Updates #18598
-    
-    Change-Id: I13c60124714cf9d1537efa0a7dd1e6a0fed9ae5b
-    Reviewed-on: https://go-review.googlesource.com/46723
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I21e3abcfd1859f933f55fe875476dec07e43b038
+    Reviewed-on: https://go-review.googlesource.com/38466
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/testdata/testprogcgo/cgo.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go     | 2 +-
+ src/cmd/compile/internal/gc/reflect.go | 2 +-
+ src/cmd/compile/internal/gc/subr.go    | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

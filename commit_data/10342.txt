@@ -1,17 +1,19 @@
-commit d08f57e68c2343822ebd449b4bc234a657ee56f3
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Nov 11 11:18:45 2011 -0500
+commit ca4708fa792ca14a97399933214cd0fefc547cd7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Nov 12 00:22:22 2011 +0900
 
-    exp/terminal: rename terminal.go to util.go
+    syscall: regenerate z-files for freebsd, openbsd
     
-    (This is part of removing the duplicate code between exp/terminal and
-    exp/ssh, but hg is having a very hard time keeping up so I'm doing it
-    in small steps.)
-    
-    R=bradfitz, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5373061
+    https://golang.org/cl/5375057
 
- src/pkg/exp/terminal/Makefile                 | 2 +-
- src/pkg/exp/terminal/{terminal.go => util.go} | 0
- 2 files changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/zerrors_freebsd_386.go   |  52 +++--
+ src/pkg/syscall/zerrors_freebsd_amd64.go |  52 +++--
+ src/pkg/syscall/zerrors_openbsd_386.go   | 356 +++++++++++++++----------------
+ src/pkg/syscall/zerrors_openbsd_amd64.go |  53 +++--
+ src/pkg/syscall/ztypes_freebsd_386.go    | 226 +++++++++++---------
+ src/pkg/syscall/ztypes_freebsd_amd64.go  | 263 ++++++++++++-----------
+ src/pkg/syscall/ztypes_openbsd_386.go    | 191 +++++++++--------
+ src/pkg/syscall/ztypes_openbsd_amd64.go  | 226 +++++++++++---------
+ 8 files changed, 739 insertions(+), 680 deletions(-)

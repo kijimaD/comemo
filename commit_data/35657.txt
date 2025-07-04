@@ -1,24 +1,15 @@
-commit d0d47bb94fcc018d03f47faa51f981b8902fc7cd
+commit a375a6b3638f99c33dfc95a398a0e6fd8b5700df
 Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Wed May 23 17:23:35 2018 -0400
+Date:   Sun Feb 25 14:26:24 2018 -0500
 
-    cmd/doc: continue to search when package import fails
+    cmd/compile: convert untyped bool during walkCases
     
-    Keep searching for a package that is both findable and importable. The
-    current code would always guarantee that a package was findable but
-    exited if it was not importable.
+    Updates #23834.
     
-    Fixes #25478
-    
-    Change-Id: I237b7dfafb930cae02538c4a2e4d5ce0c1058478
-    Reviewed-on: https://go-review.googlesource.com/114295
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1789525a992d37aae9e9b69c1e9d91437d3d0d3b
+    Reviewed-on: https://go-review.googlesource.com/97001
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/doc/doc_test.go                    | 20 +++++++++++++++++++-
- src/cmd/doc/main.go                        | 29 ++++++++++++++++++++---------
- src/cmd/doc/testdata/nested/ignore.go      |  4 ++++
- src/cmd/doc/testdata/nested/nested/real.go |  4 ++++
- 4 files changed, 47 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/swt.go | 4 ++++
+ 1 file changed, 4 insertions(+)

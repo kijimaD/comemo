@@ -1,41 +1,18 @@
-commit f75f2f3fcc0bf4becde65dc23297e081a8d35d1f
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Fri Aug 28 17:36:35 2015 +0000
+commit bbf8c5ce2ffc7085bc63e2edf0117adaccada53e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 11 17:28:56 2015 -0700
 
-    regexp: fix slice bounds out of range panics
+    [dev.ssa] cmd/compile: initial implementation of likely direction
     
-    Regular expressions involving a (x){0} term are
-    simplified by removing this term from the
-    expression, just before the expression is compiled.
-    
-    The number of subexpressions is evaluated before
-    the simplification. The number of capture instructions
-    in the compiled expressions is not necessarily in line
-    with the number of subexpressions.
-    
-    When the ReplaceAll(String) methods are used, a number
-    of capture slots (nmatch) is evaluated as 2*(s+1)
-    (s being the number of subexpressions).
-    
-    In some case, it can be higher than the number of capture
-    instructions evaluated at compile time, resulting in a
-    panic when the internal slices of regexp.machine
-    are resized to this value.
-    
-    Fixed by capping the number of capture slots to the number
-    of capture instructions.
-    
-    I must say I do not really see the benefits of setting
-    nmatch lower than re.prog.NumCap using this 2*(s+1) formula,
-    so perhaps this can be further simplified.
-    
-    Fixes #11178
-    Fixes #11176
-    
-    Change-Id: I21415e8ef2dd5f2721218e9a679f7f6bfb76ae9b
-    Reviewed-on: https://go-review.googlesource.com/14013
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id8457b18c07bf717d13c9423d8f314f253eee64f
+    Reviewed-on: https://go-review.googlesource.com/13580
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/regexp/all_test.go | 6 ++++++
- src/regexp/regexp.go   | 4 ++++
- 2 files changed, 10 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             | 34 +++++++++++++++++++++-----
+ src/cmd/compile/internal/ssa/TODO              |  2 +-
+ src/cmd/compile/internal/ssa/block.go          | 21 ++++++++++++++++
+ src/cmd/compile/internal/ssa/check.go          |  3 +++
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 13 ++++++++++
+ src/cmd/compile/internal/ssa/layout.go         | 16 +++++++++++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  3 +++
+ 7 files changed, 84 insertions(+), 8 deletions(-)

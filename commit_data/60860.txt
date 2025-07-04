@@ -1,0 +1,19 @@
+commit dfae83c9db334477ba3f3ab9df4f174e7f778e55
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Sep 3 19:32:40 2024 -0700
+
+    cmd/link/internal/ld: simplify gobuildTestdata
+    
+    Drop the second argument, which is is always a one-time temporary
+    directory, thus it can be created right here.
+    
+    Change-Id: I73e5be2ccd4bddec249c7cb2a8ff9242d99f7e20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610037
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 26 +++++++-------------------
+ 1 file changed, 7 insertions(+), 19 deletions(-)

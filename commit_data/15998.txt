@@ -1,18 +1,16 @@
-commit 245dc62ca4a0dd0d9f797a6c756f0992517e56ee
+commit 0f9b3059bc969053b68cf135c4c8266da53a6405
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Mar 29 15:06:43 2013 +0900
+Date:   Fri Mar 29 11:46:47 2013 +0900
 
-    net: update documentation for ListenTCP, ListenUDP
+    net: enable IPv6 tests on Windows
     
-    Adds the missing wildcard port assignment description to ListenUDP.
-    Also updates the wildcard port description on ListenTCP.
+    Also removes redundant tests that run Go 1.0 non-IPv6 support
+    Windows code on IPv6 enabled Windows kernels.
     
-    R=golang-dev, dave, r
+    R=alex.brainman, golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/8063043
+    https://golang.org/cl/7812052
 
- src/pkg/net/tcpsock_plan9.go |  4 ++--
- src/pkg/net/tcpsock_posix.go |  8 ++++----
- src/pkg/net/udpsock_plan9.go |  5 ++++-
- src/pkg/net/udpsock_posix.go | 11 +++++++----
- 4 files changed, 17 insertions(+), 11 deletions(-)
+ src/pkg/net/multicast_test.go     |  2 +-
+ src/pkg/net/unicast_posix_test.go | 65 +++------------------------------------
+ 2 files changed, 5 insertions(+), 62 deletions(-)

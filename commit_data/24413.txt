@@ -1,23 +1,14 @@
-commit d96a3a2d113909a470d2fd039018e1852a8d72b8
-Author: Burcu Dogan <jbd@google.com>
-Date:   Thu Oct 1 15:01:50 2015 -0400
+commit d0729a6edebcaae1ab6554244fc6ef2ff36609bf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 28 07:53:37 2015 +0200
 
-    net: make /etc/hosts lookups case-insensitive
+    encoding/json: test style tweaks
     
-    The native Go host resolver was behaving differently than libc
-    and the entries in the /etc/hosts were handled in a case sensitive
-    way. In order to be compatible with libc's resolver, /etc/hosts
-    lookups must be case-insensitive.
+    Rename test name from Http to HTTP, and fix some style nits.
     
-    Fixes #12806.
-    
-    Change-Id: I3c14001abffadf7458fd1a027c91e6438a87f285
-    Reviewed-on: https://go-review.googlesource.com/15321
-    Run-TryBot: Burcu Dogan <jbd@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I00fe1cecd69ca2f50be86a76ec90031c2f921707
+    Reviewed-on: https://go-review.googlesource.com/12760
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/hosts.go       | 14 ++++++++++----
- src/net/hosts_test.go  |  1 +
- src/net/testdata/hosts |  2 ++
- 3 files changed, 13 insertions(+), 4 deletions(-)
+ src/encoding/json/stream_test.go | 29 +++++++++++------------------
+ 1 file changed, 11 insertions(+), 18 deletions(-)

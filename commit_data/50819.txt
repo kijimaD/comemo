@@ -1,71 +1,24 @@
-commit d0b0b10b5cbb28d53403c2bd6af343581327e946
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Aug 18 15:35:38 2022 -0500
+commit 46b2fc05a2681a9dd3b606176e738d786b0c2176
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 11 17:31:36 2021 +0000
 
-    cmd/compile: leverage cc ops in more cases on ppc64x
+    runtime: adjust TestPhysicalMemoryUtilization to handle large page sizes
     
-    This updates some rules to use ops with CC variations to
-    set the condition code when the result of the operation is
-    zero. This allows the following compare with zero to be
-    removed since the equivalent condition code has already been
-    set.
+    Currently TestPhysicalMemoryUtilization can fail on systems with large
+    physical page sizes like 64 KiB because all the of the holes to be
+    scavenged are not aligned to the page size. The holes themselves are 64
+    KiB so this is actually quite likely.
     
-    In addition, a previous rule change to use ANDCCconst was modified
-    to allow any constant value, not just 1 in some cases.
+    Bump the size of the allocations for systems with larger physical page
+    sizes, and add additional slack to the threshold for unaligned pieces of
+    the holes that may be unaligned.
     
-    Improvements in the reflect package benchmarks:
+    Fixes #49411.
     
-    DeepEqual/int8-4                    23.9ns ± 1%    23.1ns ± 1%   -3.57%  (p=0.029 n=4+4)
-    DeepEqual/[]int8-4                   109ns ± 2%     102ns ± 1%   -6.67%  (p=0.029 n=4+4)
-    DeepEqual/int16-4                   23.8ns ± 1%    22.8ns ± 0%   -3.97%  (p=0.029 n=4+4)
-    DeepEqual/[]int16-4                  108ns ± 1%     102ns ± 0%   -6.25%  (p=0.029 n=4+4)
-    DeepEqual/int32-4                   24.9ns ± 3%    23.6ns ± 0%   -5.09%  (p=0.029 n=4+4)
-    DeepEqual/[]int32-4                  109ns ± 1%     103ns ± 0%   -5.64%  (p=0.029 n=4+4)
-    DeepEqual/int64-4                   25.5ns ± 1%    23.7ns ± 0%   -7.03%  (p=0.029 n=4+4)
-    DeepEqual/[]int64-4                  109ns ± 1%     102ns ± 0%   -6.73%  (p=0.029 n=4+4)
-    DeepEqual/int-4                     23.2ns ± 1%    22.7ns ± 0%   -2.05%  (p=0.029 n=4+4)
-    DeepEqual/[]int-4                    109ns ± 3%     101ns ± 0%   -7.18%  (p=0.029 n=4+4)
-    DeepEqual/uint8-4                   23.9ns ± 1%    23.5ns ± 0%   -1.69%  (p=0.029 n=4+4)
-    DeepEqual/[]uint8-4                 89.1ns ± 0%    85.6ns ± 1%   -3.95%  (p=0.029 n=4+4)
-    DeepEqual/uint16-4                  24.0ns ± 1%    23.8ns ± 0%   -0.76%  (p=0.343 n=4+4)
-    DeepEqual/[]uint16-4                 111ns ± 0%     106ns ± 4%   -4.74%  (p=0.029 n=4+4)
-    DeepEqual/uint32-4                  23.5ns ± 1%    23.0ns ± 0%   -2.15%  (p=0.029 n=4+4)
-    DeepEqual/[]uint32-4                 110ns ± 1%     104ns ± 0%   -5.66%  (p=0.029 n=4+4)
-    DeepEqual/uint64-4                  24.6ns ± 1%    24.3ns ± 0%   -1.10%  (p=0.143 n=4+4)
-    DeepEqual/[]uint64-4                 111ns ± 0%     105ns ± 1%   -5.16%  (p=0.029 n=4+4)
-    DeepEqual/uint-4                    23.6ns ± 0%    23.0ns ± 0%   -2.70%  (p=0.029 n=4+4)
-    DeepEqual/[]uint-4                   109ns ± 0%     103ns ± 1%   -5.74%  (p=0.029 n=4+4)
-    DeepEqual/uintptr-4                 25.1ns ± 1%    24.8ns ± 2%   -1.11%  (p=0.171 n=4+4)
-    DeepEqual/[]uintptr-4                111ns ± 0%     106ns ± 1%   -4.45%  (p=0.029 n=4+4)
-    DeepEqual/float32-4                 22.5ns ± 0%    22.2ns ± 0%   -1.29%  (p=0.029 n=4+4)
-    DeepEqual/[]float32-4                105ns ± 0%     101ns ± 1%   -3.75%  (p=0.029 n=4+4)
-    DeepEqual/float64-4                 22.7ns ± 2%    22.1ns ± 0%   -2.52%  (p=0.029 n=4+4)
-    DeepEqual/[]float64-4                105ns ± 1%     103ns ± 1%   -2.77%  (p=0.029 n=4+4)
-    DeepEqual/complex64-4               22.9ns ± 0%    22.8ns ± 0%   -0.48%  (p=0.029 n=4+4)
-    DeepEqual/[]complex64-4              107ns ± 0%     101ns ± 0%   -5.48%  (p=0.029 n=4+4)
-    DeepEqual/complex128-4              23.2ns ± 1%    22.6ns ± 0%   -2.34%  (p=0.029 n=4+4)
-    DeepEqual/[]complex128-4             107ns ± 0%     101ns ± 0%   -5.60%  (p=0.029 n=4+4)
-    DeepEqual/bool-4                    22.0ns ± 1%    21.7ns ± 0%   -1.44%  (p=0.029 n=4+4)
-    DeepEqual/[]bool-4                   106ns ± 1%     100ns ± 0%   -5.42%  (p=0.029 n=4+4)
-    DeepEqual/string-4                  26.7ns ± 1%    24.7ns ± 0%   -7.47%  (p=0.029 n=4+4)
-    DeepEqual/[]string-4                 112ns ± 0%     107ns ± 0%   -4.21%  (p=0.029 n=4+4)
-    DeepEqual/[]uint8#01-4              89.4ns ± 1%    85.5ns ± 1%   -4.44%  (p=0.029 n=4+4)
-    DeepEqual/[][]uint8-4                177ns ± 0%     173ns ± 1%   -2.22%  (p=0.029 n=4+4)
-    DeepEqual/[6]uint8-4                 137ns ± 1%     137ns ± 0%   -0.56%  (p=0.057 n=4+4)
-    DeepEqual/[][6]uint8-4               232ns ± 0%     230ns ± 1%   -1.09%  (p=0.029 n=4+4)
-    
-    Change-Id: I275624e21dc4d70001032be48897f1504cbfdd1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427634
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iafb35b8761dc9cdc53d3745c4771b1a64c5c97b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363415
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go         |   2 +-
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  23 +-
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  42 +--
- src/cmd/compile/internal/ssa/opGen.go         |  36 ++-
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 414 +++++++++++++++++++++-----
- 5 files changed, 408 insertions(+), 109 deletions(-)
+ src/runtime/testdata/testprog/gc.go | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

@@ -1,14 +1,41 @@
-commit 6e87f8896106c9a673c3c049c83ef389178cef82
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Dec 20 18:24:40 2016 +0100
+commit dc46b882d583a32c7de37a7cfa8b423eb58d0296
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 13 02:20:51 2016 -0700
 
-    doc: add mips, mips64 information to asm.html
+    cmd/compile: stop allocating Name and Param for ODCLFIELD
     
-    Fixes #18105
+    name       old time/op     new time/op     delta
+    Template       349ms ± 5%      339ms ± 7%  -2.89%        (p=0.000 n=27+29)
+    Unicode        187ms ±11%      182ms ±11%  -2.77%        (p=0.039 n=29+29)
+    GoTypes        1.05s ± 3%      1.04s ± 4%    ~           (p=0.103 n=29+29)
+    Compiler       4.57s ± 3%      4.55s ± 3%    ~           (p=0.202 n=30+29)
     
-    Change-Id: Id56e8782ff618761ec44b6dc20891c8b48fea8df
-    Reviewed-on: https://go-review.googlesource.com/34632
-    Reviewed-by: Rob Pike <r@golang.org>
+    name       old user-ns/op  new user-ns/op  delta
+    Template        510M ±21%       521M ±18%    ~           (p=0.281 n=30+29)
+    Unicode         303M ±34%       300M ±28%    ~           (p=0.592 n=30+30)
+    GoTypes        1.52G ± 9%      1.50G ± 9%    ~           (p=0.314 n=30+30)
+    Compiler       6.50G ± 5%      6.44G ± 5%    ~           (p=0.362 n=29+30)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      44.7MB ± 0%     44.0MB ± 0%  -1.63%        (p=0.000 n=28+28)
+    Unicode       34.6MB ± 0%     34.5MB ± 0%  -0.18%        (p=0.000 n=30+29)
+    GoTypes        125MB ± 0%      123MB ± 0%  -1.14%        (p=0.000 n=30+30)
+    Compiler       515MB ± 0%      513MB ± 0%  -0.52%        (p=0.000 n=30+30)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        427k ± 0%       416k ± 0%  -2.66%        (p=0.000 n=30+30)
+    Unicode         323k ± 0%       322k ± 0%  -0.28%        (p=0.000 n=30+30)
+    GoTypes        1.21M ± 0%      1.18M ± 0%  -1.84%        (p=0.000 n=29+30)
+    Compiler       4.40M ± 0%      4.36M ± 0%  -0.95%        (p=0.000 n=30+30)
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ifee7d012b1cddadda01450e027eef8d4ecf5581f
+    Reviewed-on: https://go-review.googlesource.com/30980
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/asm.html | 38 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 38 insertions(+)
+ src/cmd/compile/internal/gc/subr.go   | 7 -------
+ src/cmd/compile/internal/gc/syntax.go | 4 ++--
+ 2 files changed, 2 insertions(+), 9 deletions(-)

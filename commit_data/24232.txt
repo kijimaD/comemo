@@ -1,21 +1,12 @@
-commit d8384e9a8f35efff15c8f62187dc793f79b7a355
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Aug 15 20:50:17 2015 -0400
+commit 29ffa4bd921125b73b04078fd293ecc4bdb9d7cd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jul 16 15:41:34 2015 +0900
 
-    cmd/vet: diagnose plain assignment in copylock detector
+    cmd/go: don't put mycmd in wrong directory
     
-    It went out of its way to look for implicit assignments
-    but never checked explicit assignments.
-    
-    This detects the root bug for #12099.
-    
-    Change-Id: I6a6e774cc38749ea8be7cfd58ba6421247b67000
-    Reviewed-on: https://go-review.googlesource.com/13646
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia7cc1d52211b32a2eb2b3888d621b28d6932aca9
+    Reviewed-on: https://go-review.googlesource.com/12290
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/copylock.go                | 22 +++++++++++++++++-----
- src/cmd/vet/testdata/copylock.go       | 28 ++++++++++++++++++++++++++++
- src/cmd/vet/testdata/copylock_func.go  | 22 +++++++++++-----------
- src/cmd/vet/testdata/copylock_range.go | 26 +++++++++++++-------------
- 4 files changed, 69 insertions(+), 29 deletions(-)
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

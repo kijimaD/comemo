@@ -1,16 +1,13 @@
-commit 446d90d727b1820f8f4ef2f4e22d6ce1cd88df4d
+commit fa445849d129b68e1343d1c99abeb0a02380b2cd
 Author: Rui Ueyama <ruiu@google.com>
-Date:   Sun Mar 23 15:44:29 2014 -0700
+Date:   Sat Mar 22 17:40:17 2014 -0700
 
-    unicode/utf8: minor code simplification
+    bufio: fix typo in test
     
-    It's a little bit waste to check if r is not a surrogate
-    code point because RuneError is not a surrogate code point.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/79230043
+    https://golang.org/cl/79120043
 
- src/pkg/unicode/utf8/utf8.go | 32 ++++++++++++--------------------
- 1 file changed, 12 insertions(+), 20 deletions(-)
+ src/pkg/bufio/bufio_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

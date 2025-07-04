@@ -1,22 +1,23 @@
-commit 1e43298df8da93a1de21a5c87c664644195669e7
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jan 10 16:59:02 2020 -0500
+commit c4fbaee8596bbab16ced99c1a1cc3229c37d4934
+Author: Gregory Man <man.gregory@gmail.com>
+Date:   Sun Sep 22 13:30:45 2019 +0300
 
-    cmd/go: convert remaining non-parallel tooSlow tests to script framework
+    cmd/go: allow -I= and -I$SYSROOT in cgo CFLAGS
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Current checkFlags() didn't allow any not safe charactars in arguments.
+    In GCC "=" in arguments will be replaced with sysroot prefix, and used
+    by users to work with different SDK versions.
     
-    Updates #36320
-    Updates #17751
+    This CL allow to use "=" and $SYSROOT with -I argument.
     
-    Change-Id: Ib1c55a48fafb5ce040ac70707bbc2a3ee5e2ddd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214382
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #34449
+    
+    Change-Id: I3d8b2b9d13251e454ea18e9d34a94b87c373c7b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196783
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/go_test.go                              | 107 ---------------------
- src/cmd/go/testdata/script/build_dash_x.txt        |  49 ++++++++++
- .../go/testdata/script/cgo_flag_contains_space.txt |  15 +++
- .../script/test_write_profiles_on_timeout.txt      |  14 +++
- 4 files changed, 78 insertions(+), 107 deletions(-)
+ src/cmd/go/internal/work/security.go      | 9 +++++++++
+ src/cmd/go/internal/work/security_test.go | 4 ++++
+ 2 files changed, 13 insertions(+)

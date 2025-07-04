@@ -1,20 +1,15 @@
-commit 5844fc1b21cbab3201b081055f3b106ffc6b69d3
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Oct 5 10:44:11 2011 -0700
+commit 0da66a2e902ad36729d3facc887af3144a7d8336
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 5 10:34:01 2011 -0700
 
-    exp/norm: introduced input interface to implement string versions
-    of methods.
+    ebnf: use scanner instead of go/scanner
     
-    R=r, mpvl
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5166045
+    https://golang.org/cl/5192043
 
- src/pkg/exp/norm/Makefile            |   1 +
- src/pkg/exp/norm/composition.go      |  64 ++++++-------
- src/pkg/exp/norm/composition_test.go |  39 +++-----
- src/pkg/exp/norm/forminfo.go         |  60 +++---------
- src/pkg/exp/norm/input.go            | 107 +++++++++++++++++++++
- src/pkg/exp/norm/normalize.go        | 177 +++++++++++++++++++++--------------
- src/pkg/exp/norm/normalize_test.go   |  42 +++++++--
- src/pkg/exp/norm/readwriter.go       |  18 +++-
- 8 files changed, 318 insertions(+), 190 deletions(-)
+ src/cmd/ebnflint/ebnflint.go |   4 +-
+ src/pkg/ebnf/ebnf.go         | 100 +++++++++++++++++++++++++++----------------
+ src/pkg/ebnf/ebnf_test.go    |  34 ++++-----------
+ src/pkg/ebnf/parser.go       |  94 +++++++++++++++++++---------------------
+ 4 files changed, 117 insertions(+), 115 deletions(-)

@@ -1,14 +1,32 @@
-commit 9e72e604a647c5e782308a91fdc6a6fd099346c4
-Author: Andrei Matei <andrei@cockroachlabs.com>
-Date:   Mon Mar 4 00:44:58 2019 +0000
+commit 101a677ebf87f6ed0ed877533c54c7270edadc20
+Author: Rob Pike <r@golang.org>
+Date:   Sat Oct 13 21:06:43 2018 +1100
 
-    database/sql: fix comment grammar
+    cmd/doc: add -all flag to print all documentation for package
     
-    Change-Id: I92d8c93967c5ec57f07151affd0041f00e405057
-    GitHub-Last-Rev: 2dea977d938a504604aed6a9ae87986001f96acd
-    GitHub-Pull-Request: golang/go#30551
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164970
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Unlike the one for the old godoc, you need the -u flag to see
+    unexported symbols. This seems like the right behavior: it's
+    consistent.
+    
+    For now at least, the argument must be a package, not a symbol.
+    This is also different from old godoc.
+    
+    Required a little refactoring but also cleaned up a few things.
+    
+    Update #25595
+    
+    Leaving the bug open for now until we tackle
+            go doc -all symbol
+    
+    Change-Id: Ibc1975bfa592cb1e92513eb2e5e9e11e01a60095
+    Reviewed-on: https://go-review.googlesource.com/c/141977
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/database/sql/driver/driver.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/doc/doc_test.go        | 116 ++++++++++++++++-
+ src/cmd/doc/main.go            |  14 ++
+ src/cmd/doc/pkg.go             | 283 ++++++++++++++++++++++++++++-------------
+ src/cmd/go/alldocs.go          |   2 +
+ src/cmd/go/internal/doc/doc.go |   2 +
+ 5 files changed, 326 insertions(+), 91 deletions(-)

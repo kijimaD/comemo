@@ -1,0 +1,33 @@
+commit 328aa9e39f3a5da785daa015d673f19ded9e13ae
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 8 11:13:10 2024 -0400
+
+    all: vendor golang.org/x/telemetry@2790727
+    
+    Commands run (in both src/ and src/cmd/)
+        go get golang.org/x/telemetry@2790727
+        go mod tidy
+        go mod vendor
+    
+    Change-Id: Idbabcc4a3069afac08d2735fac264577846ea1d7
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584236
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../x/telemetry/counter/countertest/countertest.go |   5 +-
+ .../x/telemetry/internal/configstore/download.go   |  38 ++--
+ .../x/telemetry/internal/counter/file.go           |  12 +-
+ .../internal/telemetry/{mode.go => dir.go}         | 105 ++++++----
+ .../golang.org/x/telemetry/internal/upload/date.go |  12 +-
+ .../x/telemetry/internal/upload/findwork.go        |  16 +-
+ .../x/telemetry/internal/upload/reports.go         |  66 +++----
+ .../golang.org/x/telemetry/internal/upload/run.go  | 217 +++++++++++++--------
+ .../x/telemetry/internal/upload/upload.go          |  28 +--
+ src/cmd/vendor/golang.org/x/telemetry/mode.go      |   8 +-
+ src/cmd/vendor/golang.org/x/telemetry/start.go     | 104 ++++++++--
+ .../vendor/golang.org/x/telemetry/upload/upload.go |  33 ++--
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 15 files changed, 387 insertions(+), 265 deletions(-)

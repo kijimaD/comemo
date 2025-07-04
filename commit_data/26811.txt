@@ -1,14 +1,17 @@
-commit 824d8c10fe5e1026c15cbece41ee372b1fd333f3
-Author: Wisdom Omuya <deafgoat@gmail.com>
-Date:   Sat Apr 9 19:23:01 2016 -0400
+commit f5f8b38462983a06ec07d6c394834af50eef6698
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 17:27:10 2016 -0800
 
-    cmd/go: fix typo in findInternal documentation
+    cmd/compile: eliminate prectab
     
-    Fixes #15217
+    While here, merge LINC and LDEC into LINCOP.
     
-    Change-Id: Ib8f7af714197fd209e743f61f28a5b07c04a7f5c
-    Reviewed-on: https://go-review.googlesource.com/21793
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #13244.
+    
+    Change-Id: I8ea426f986d60d35c3b1a80c056a7aa49d22d802
+    Reviewed-on: https://go-review.googlesource.com/19928
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/pkg.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/lex.go    | 181 ++++++++++++++++++----------------
+ src/cmd/compile/internal/gc/parser.go |  72 +++-----------
+ 2 files changed, 111 insertions(+), 142 deletions(-)

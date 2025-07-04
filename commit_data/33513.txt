@@ -1,18 +1,25 @@
-commit dc3a4e4bca1eb0fed3304d22875ca26964091e82
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Oct 2 08:17:15 2017 +0900
+commit 7e9e3a06cbeb868988fcbe478365f609b8981398
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 3 16:46:15 2017 -0400
 
-    cmd/objdump: pass the correct execution mode to x86asm.Decode in disasm_x86 on 386
+    [dev.boringcrypto] crypto/rsa: use BoringCrypto
     
-    Fixes #22093
-    Fixes #19988
-    
-    Change-Id: Ibd8ec89e091fd527f363999e484676931d7aa6e2
-    Reviewed-on: https://go-review.googlesource.com/67450
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ibb92f0f8cb487f4d179b069e588e1cb266599384
+    Reviewed-on: https://go-review.googlesource.com/55479
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/internal/objfile/disasm.go |  2 +-
- src/cmd/objdump/objdump_test.go    | 13 +++++++++++++
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/crypto/internal/boring/boring.go        |  17 ++
+ src/crypto/internal/boring/goboringcrypto.h |   4 +-
+ src/crypto/internal/boring/hmac.go          |  23 +++
+ src/crypto/internal/boring/notboring.go     |  42 ++++
+ src/crypto/internal/boring/rsa.go           | 305 ++++++++++++++++++++++++++++
+ src/crypto/rsa/boring.go                    | 124 +++++++++++
+ src/crypto/rsa/pkcs1v15.go                  |  84 +++++++-
+ src/crypto/rsa/pkcs1v15_test.go             |   2 +-
+ src/crypto/rsa/pss.go                       |  19 ++
+ src/crypto/rsa/pss_test.go                  |   3 +-
+ src/crypto/rsa/rsa.go                       |  77 ++++++-
+ src/crypto/rsa/rsa_test.go                  |  86 ++++++--
+ 12 files changed, 755 insertions(+), 31 deletions(-)

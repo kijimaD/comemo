@@ -1,30 +1,18 @@
-commit b41185c5c3da2d5f52b3b5aa7eb034addd458938
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Jan 13 13:20:19 2022 -0800
+commit 4efd581383ade76c562953289ed8210bb55bff47
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Tue Apr 13 15:51:58 2021 +0300
 
-    cmd/compile: add call to ImportedBody() when exporting shape inst body
+    archive/zip: fix imports block of biggestZipBytes generator
     
-    When we export a shape instantiation, because a particular
-    fully-instantiated type is needed by an inlineable function, we possibly
-    export the body of the instantiation, if it is inlineable. In this case,
-    we should have been calling ImportedBody() to make sure that the
-    function body had already been read in (if it is actually imported from
-    another package).
+    Fixes #45529
     
-    Fixes #50598
-    
-    Change-Id: I512d2bcc745faa6ff3a97e25bc8f46e2c2643d23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378494
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4d64c40aa6733b783dc4066e222f17abeb7ad413
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309357
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/typecheck/crawler.go |  1 +
- test/typeparam/issue50598.dir/a0.go           | 23 +++++++++++++++++++++++
- test/typeparam/issue50598.dir/a1.go           | 11 +++++++++++
- test/typeparam/issue50598.dir/a2.go           | 11 +++++++++++
- test/typeparam/issue50598.dir/main.go         | 22 ++++++++++++++++++++++
- test/typeparam/issue50598.go                  |  7 +++++++
- 6 files changed, 75 insertions(+)
+ src/archive/zip/reader_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

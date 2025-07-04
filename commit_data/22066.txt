@@ -1,18 +1,23 @@
-commit 1313e7982f44c24948e73c4795d9606265d36871
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Mar 17 12:38:53 2015 +1100
+commit f6791da7adc338e9b37c175c116845def45d2f54
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 20 13:54:45 2015 -0500
 
-    test: disable recover4 test to fix ppc64 builds
+    [dev.cc] cmd/new6g etc: reconvert from C
     
-    Updates #10180
+    Reconvert using rsc.io/c2go rev 27b3f59.
+    (Same as last conversion, but C sources have changed
+    due to merging master into this branch.)
     
-    Temporarily disable this test on ppc64 systems as all our builders use 64k page size.
-    
-    We need a portable way to get the page size of the host so we can correctly size the mmap hole.
-    
-    Change-Id: Ibd36ebe2f54cf75a44667e2070c385f0daaca481
-    Reviewed-on: https://go-review.googlesource.com/7652
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ib314bb9ac14a726ceb83e2ecf4d1ad2d0b331c38
+    Reviewed-on: https://go-review.googlesource.com/5471
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/recover4.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/gc/closure.go     | 72 ++++++++++++++++++++++++++++++++------
+ src/cmd/internal/gc/fmt.go         |  4 +--
+ src/cmd/internal/gc/go.go          |  2 ++
+ src/cmd/internal/gc/init.go        | 11 +++---
+ src/cmd/internal/gc/pgen.go        |  2 +-
+ src/cmd/internal/gc/reflect.go     |  2 +-
+ src/cmd/internal/obj/ppc64/obj9.go |  1 +
+ src/cmd/new6g/gsubr.go             |  2 +-
+ 8 files changed, 75 insertions(+), 21 deletions(-)

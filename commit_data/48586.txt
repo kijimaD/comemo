@@ -1,23 +1,29 @@
-commit 077573018027c30e5f422d50f0b96e1733ac6001
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 30 13:23:37 2022 -0700
+commit aa9cfdf775692a9fa6cc4ea9768415d73323c0cc
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 28 21:56:50 2021 -0400
 
-    cmd/compile/internal/syntax: better errors for syntax errors in lists
+    [dev.typeparams] runtime: update ABIInternal assembly with register ABI on ARM64
     
-    For syntax errors in various (syntactic) lists, instead of reporting
-    a set of "expected" tokens (which may be incomplete), provide context
-    and mention "possibly missing" tokens. The result is a friendlier and
-    more accurate error message.
+    mcall calls a closure (using ABIInternal) with an argument.
+    Update it to pass the argument in register.
     
-    Fixes #49205.
+    Panic functions tail-call Go panic functions using ABIInternal.
+    Update them to pass the arguments in registers.
     
-    Change-Id: I38ae7bf62febfe790075e62deb33ec8c17d64476
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396914
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Race functions are called using ABIInternal from compiler-
+    instrumented code. Update them to receive the arguments in
+    registers.
+    
+    Now all.bash passes with GOEXPERIMENT=regabi on ARM64 (at least on
+    macOS).
+    
+    Change-Id: I648f6502c7eeb1422330c6c829181f12e08c7d0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323937
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/syntax/parser.go          | 16 ++++++-------
- .../compile/internal/syntax/testdata/issue49205.go | 27 ++++++++++++++++++++++
- test/fixedbugs/issue13319.go                       |  4 ++--
- test/syntax/composite.go                           |  2 +-
- 4 files changed, 38 insertions(+), 11 deletions(-)
+ src/runtime/asm_arm64.s  | 75 ++++++++++++++++++++++++++++++++++++++++++++----
+ src/runtime/race_arm64.s | 18 ++++++++++++
+ 2 files changed, 88 insertions(+), 5 deletions(-)

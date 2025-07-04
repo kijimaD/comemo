@@ -1,24 +1,16 @@
-commit 85d56c3096636cebd6e0aea846d78599edbbb9e2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 13 12:49:03 2019 -0700
+commit 97f81572c4a97b6539f0a7b3ca3089daf3d6b4c3
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Sun Feb 3 16:07:39 2019 +0000
 
-    runtime: use dispatch semaphores on Darwin
+    bytes: clean up a test
     
-    Changes Darwin semaphore support from using pthread mutexes and
-    condition variables to using dispatch semaphores. Signaling a dispatch
-    semaphore is async-signal-safe.
-    
-    Fixes #31264
-    
-    Change-Id: If0ce47623501db13e3804b14ace5f4d8eaef461e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182258
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Change-Id: Iaa0e1721996b582bba9509c083755e1f125abb6b
+    GitHub-Last-Rev: c9b13ec0cdc2b22aafa54706dc6df6113a11712b
+    GitHub-Pull-Request: golang/go#29996
+    Reviewed-on: https://go-review.googlesource.com/c/160420
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/os_darwin.go       | 60 ++++++++---------------------
- src/runtime/sys_darwin.go      | 58 +++++++++-------------------
- src/runtime/sys_darwin_386.s   | 85 +++++++++++++-----------------------------
- src/runtime/sys_darwin_amd64.s | 62 +++++++++++-------------------
- src/runtime/sys_darwin_arm.s   | 54 +++++++++++----------------
- src/runtime/sys_darwin_arm64.s | 53 +++++++++++---------------
- 6 files changed, 123 insertions(+), 249 deletions(-)
+ src/bytes/buffer_test.go | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)

@@ -1,15 +1,21 @@
-commit cc8bd8969f21a7c0a5e5a0a4f61173d25f1c03e7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 14 22:04:03 2012 -0800
+commit 36c4a73fb2aa9f9665c71f563a3e8125c29223e2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Nov 15 11:40:10 2012 +1100
 
-    runtime/cgo: include <string.h> as needed so that strerror is declared
+    run.{bash,bat,rc}: unset GOMAXPROCS before ../test
     
-    R=golang-dev, dave, jsing
+    test/run.go already executes tests in parallel where
+    possible. An unknown GOMAXPROCS value during the tests
+    is known to cause failures with tests that measure
+    allocations.
+    
+    ref: https://groups.google.com/d/topic/golang-nuts/tgMhFJ3F5WY/discussion
+    
+    R=fullung, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/6847051
+    https://golang.org/cl/6847050
 
- src/pkg/runtime/cgo/gcc_freebsd_386.c   | 1 +
- src/pkg/runtime/cgo/gcc_freebsd_amd64.c | 1 +
- src/pkg/runtime/cgo/gcc_netbsd_386.c    | 1 +
- src/pkg/runtime/cgo/gcc_netbsd_amd64.c  | 1 +
- 4 files changed, 4 insertions(+)
+ src/run.bash | 2 +-
+ src/run.bat  | 7 +++++++
+ src/run.rc   | 2 +-
+ 3 files changed, 9 insertions(+), 2 deletions(-)

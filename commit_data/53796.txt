@@ -1,36 +1,17 @@
-commit 737a5b0eaaff9098a41c04bcee5585678766bfae
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 26 11:58:44 2023 -0700
+commit 2efb5792c3ba46f7f388130aafa79762d1b79c3d
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Sep 2 08:58:16 2022 +0000
 
-    runtime: call miniterrno on m0 on AIX and Solaris
+    net: rfc number typo
     
-    AIX and Solaris call into libc for syscalls, and expect M.mOS.perrno
-    to point to the thread-local errno value for the current M.
-    We initialize that field in miniterrno called from mstart.
-    However, this means that any libc calls before mstart will not
-    return the correct errno value.
-    
-    This caused trouble in checkfds, which runs very early, before mstart.
-    We worked around that in 513215. This CL reverts 513215 in favor
-    of a better workaround: call miniterrno for m0 earlier (we will
-    still wind up calling miniterrno again from mstart, which does
-    no harm).
-    
-    This is a better workaround because it means that if we add future
-    syscalls before mstart, they will behave as expected.
-    
-    Fixes #61584
-    
-    Change-Id: Ib6a0d3c53d2c8214cc339a5019f9d4f71a746f0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513535
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I9cde2a82a395546d7620b5138cf922b2ac1c94b5
+    GitHub-Last-Rev: 25b8e972b044848da1a1f94cbd943702952102c0
+    GitHub-Pull-Request: golang/go#54835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427834
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/fds_unix.go    | 9 ---------
- src/runtime/os3_solaris.go | 4 ++++
- src/runtime/os_aix.go      | 4 ++++
- 3 files changed, 8 insertions(+), 9 deletions(-)
+ src/net/dnsclient_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

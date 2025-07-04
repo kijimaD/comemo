@@ -1,31 +1,39 @@
-commit e6c2e12c63db5b24724db873009373af413cd1ea
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Aug 19 23:57:56 2024 +1000
+commit 0e7c9846c430c2952e51ba7b1085fae9bec26f81
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Feb 23 09:20:03 2024 -0500
 
-    cmd/compile/internal/ssa: optimise more branches with zero on riscv64
+    cmd: don't require build tags in relnote pathnames
     
-    Optimise more branches with zero on riscv64. In particular, BLTU with
-    zero occurs with IsInBounds checks for index zero. This currently results
-    in two instructions and requires an additional register:
+    Due to a bug in golang.org/x/build/relnote, API features affecting
+    specific builds would need to include those build tags in relnote
+    pathnames.
     
-       li      t2, 0
-       bltu    t2, t1, 0x174b4
+    This CL vendors in the fixed golang.org/x/build. (That caused other
+    modules to be vendored in as well.)
     
-    This is equivalent to checking if the bounds is not equal to zero. With
-    this change:
+    It also renames the syscall relnote file to remove the build tags
+    from its pathname.
     
-       bnez    t1, 0x174c0
+    For #64169.
     
-    This removes more than 500 instructions from the Go binary on riscv64.
-    
-    Change-Id: I6cd861d853e3ef270bd46dacecdfaa205b1c4644
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606715
+    Change-Id: Iaf6cd9099df1156f4e20c63d519a862ea19a7a3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566455
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 18 ++++++++++--------
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 24 ++++++++++++++++++++++++
- test/codegen/compare_and_branch.go              | 10 ++++++++++
- 3 files changed, 44 insertions(+), 8 deletions(-)
+ .../99-minor/syscall (windows-amd64)/62254.md      |   1 -
+ .../{syscall (windows-386) => syscall}/62254.md    |   0
+ src/cmd/go.mod                                     |   8 +-
+ src/cmd/go.sum                                     |  20 +-
+ src/cmd/vendor/golang.org/x/build/relnote/dump.go  |  46 ++++
+ src/cmd/vendor/golang.org/x/build/relnote/links.go | 242 +++++++++++++++++++++
+ .../vendor/golang.org/x/build/relnote/relnote.go   |  34 ++-
+ .../go/analysis/passes/stringintconv/string.go     |   8 +-
+ .../golang.org/x/tools/go/types/typeutil/map.go    |   7 +
+ .../x/tools/go/types/typeutil/methodsetcache.go    |   6 +-
+ .../golang.org/x/tools/internal/aliases/aliases.go |  28 +++
+ .../x/tools/internal/aliases/aliases_go121.go      |  30 +++
+ .../x/tools/internal/aliases/aliases_go122.go      |  72 ++++++
+ src/cmd/vendor/modules.txt                         |   9 +-
+ 14 files changed, 478 insertions(+), 33 deletions(-)

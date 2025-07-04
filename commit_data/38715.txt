@@ -1,22 +1,18 @@
-commit 7b33b6274f36ecc5dd5c24c99c2f72d3edf79b3d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Mar 29 16:02:05 2019 +0000
+commit b7ba5233550cadd2b06c4b98c702b45e7904f7ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 13 10:23:01 2018 -0500
 
-    runtime: introduce treapForSpan to reduce code duplication
+    doc/go_spec: tweak wording to avoid 'explicit assignment' misreading
     
-    Currently which treap a span should be inserted into/removed from is
-    checked by looking at the span's properties. This logic is repeated in
-    four places. As this logic gets more complex, it makes sense to
-    de-duplicate this, so introduce treapForSpan instead which captures this
-    logic by returning the appropriate treap for the span.
+    This text changed in CL 139099 to add "explicit" in front of "conversion".
+    But now "explicit conversion or assignment" reads like it might mean
+    "explicit [conversion or assignment]" when what is meant is
+    "[explicit conversion] or assignment". To make clear that explicit does
+    not apply to assignment, use "assignment or explicit conversion".
     
-    For #30333.
-    
-    Change-Id: I4bd933d93dc50c5fc7c7c7f56ceb95194dcbfbcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170857
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I8ff7a5b3ecd9f562793502fa6808242f22264f28
+    Reviewed-on: https://go-review.googlesource.com/c/149340
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mheap.go | 34 ++++++++++++++--------------------
- 1 file changed, 14 insertions(+), 20 deletions(-)
+ doc/go_spec.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

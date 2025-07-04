@@ -1,20 +1,16 @@
-commit 11e3955e10ccd9105b78e07f4785402a5c8ceaf7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 29 13:53:32 2016 -0700
+commit 2e8b74b69574e969b5565e69cb54d39064b2dba1
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 28 11:19:53 2016 -0400
 
-    net: restore per-query timeout logic
+    [dev.garbage] runtime: document sysAlloc
     
-    The handling of "options timeout:n" is supposed to be per individual
-    DNS server exchange, not per Lookup call.
+    In particular, it always returns an aligned pointer.
     
-    Fixes #16865.
-    
-    Change-Id: I2304579b9169c1515292f142cb372af9d37ff7c1
-    Reviewed-on: https://go-review.googlesource.com/28057
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I763789a539a4bfd8b0efb36a39a80be1a479d3e2
+    Reviewed-on: https://go-review.googlesource.com/22558
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dnsclient_unix.go      | 17 ++++----
- src/net/dnsclient_unix_test.go | 96 ++++++++++++++++++++++++++++++++++++------
- 2 files changed, 92 insertions(+), 21 deletions(-)
+ src/runtime/malloc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

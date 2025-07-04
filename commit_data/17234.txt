@@ -1,21 +1,14 @@
-commit 4e76abbc6042ba7f415c5932674d0608528c9c42
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 14 21:54:07 2013 +0400
+commit dc48e9516c3b46f061af16f595a7c7dcb46434d1
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Aug 14 13:50:12 2013 -0400
 
-    runtime: implement SysUnused on windows
-    Fixes #5584.
+    runtime: Fix build on older ARM
     
-    R=golang-dev, chaishushan, alex.brainman
+            The ARM external linking CL used BLX instructions in gcc assembler. Replace with BL to retain support on older ARM processors.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/12720043
+    https://golang.org/cl/12938043
 
- src/pkg/runtime/malloc.h      |  6 ++++--
- src/pkg/runtime/mem_darwin.c  |  7 +++++++
- src/pkg/runtime/mem_freebsd.c |  7 +++++++
- src/pkg/runtime/mem_linux.c   |  7 +++++++
- src/pkg/runtime/mem_netbsd.c  |  7 +++++++
- src/pkg/runtime/mem_openbsd.c |  7 +++++++
- src/pkg/runtime/mem_plan9.c   |  6 ++++++
- src/pkg/runtime/mem_windows.c | 18 ++++++++++++++++--
- src/pkg/runtime/mheap.c       | 15 ++++++++++-----
- 9 files changed, 71 insertions(+), 9 deletions(-)
+ src/pkg/runtime/cgo/gcc_arm.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

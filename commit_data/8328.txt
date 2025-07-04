@@ -1,12 +1,12 @@
-commit be99859dbedb9353d02b866aa0fe6344acbc1372
-Author: Dmitry Chestnykh <dchest@gmail.com>
-Date:   Fri May 6 16:11:07 2011 -0400
+commit 0629354bd3a2eb8d9f2e1bafdd508120f94422ef
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Fri May 6 15:29:49 2011 -0400
 
-    doc: remove left and right padding in H2 headings.
+    runtime: handle out-of-threads on Linux gracefully
     
-    R=adg, rsc1, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4491041
+    https://golang.org/cl/4396050
 
- doc/all.css | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/linux/thread.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

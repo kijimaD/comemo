@@ -1,14 +1,12 @@
-commit 19d064f68a275064c4a288f0c89885524b87fe9e
+commit e62b40344d54bb6932fcb37e756f781d82326b6b
 Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Tue Dec 13 16:23:06 2011 -0500
+Date:   Tue Dec 13 16:18:56 2011 -0500
 
-    gofix: add fix httputil
+    codereview: fix path slash issue.
     
-    R=r, rsc, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5364056
+    https://golang.org/cl/5487057
 
- src/cmd/gofix/Makefile         |   1 +
- src/cmd/gofix/httputil.go      |  63 +++++++++++++++++++++
- src/cmd/gofix/httputil_test.go | 122 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 186 insertions(+)
+ lib/codereview/codereview.py | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

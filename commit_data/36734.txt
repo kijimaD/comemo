@@ -1,15 +1,24 @@
-commit c7ac645d28b99f163c46e2b8622ca7b60dc212ce
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 20 11:43:42 2018 +0200
+commit 132900982c2b28470559afcdc43f517cdf285e9c
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 22 17:27:54 2018 -0400
 
-    runtime: fix reference to sys{Fault,Free,Reserve,Unused,Used} in comments
+    cmd/compile: ignore g register in liveness analysis
     
-    Change-Id: Icbaedc49c810c63c51d56ae394d2f70e4d64b3e0
-    Reviewed-on: https://go-review.googlesource.com/136495
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    In rare circumstances that we don't yet fully understand, the g
+    register can be spilled to the stack and then reloaded. If this
+    happens, liveness analysis sees a pointer load into a
+    non-general-purpose register and panics.
+    
+    We should fix the root cause of this, but fix the build for now by
+    ignoring pointer loads into the g register.
+    
+    For #25504.
+    
+    Change-Id: I0dfee1af9750c8e9157c7637280cdf07118ef2ca
+    Reviewed-on: https://go-review.googlesource.com/114081
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc.go   | 18 +++++++++---------
- src/runtime/mgcsweep.go |  8 ++++----
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

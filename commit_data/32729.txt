@@ -1,22 +1,22 @@
-commit 95b146e8ebf1687503fcf105f16e1f1eb0ea135e
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Sep 14 11:04:37 2017 +0100
+commit 1865a56e8de5b0ffd80a6894ed49eac8132b8b5f
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sun May 21 19:51:46 2017 -0700
 
-    cmd/compile: improve floating point constant propagation
+    database/sql: allow Stmt Query and Exec methods to open a new conn
     
-    Add generic rules to propagate floating point constants through
-    comparisons and integer conversions. These new rules seldom trigger
-    in the standard library so there is no performance change, however
-    I think it is worth adding them anyway for completeness.
+    Query and Exec functions on DB first attempt to get a cached
+    connection before requesting the connection pool to ignore
+    the cache and get a new connection. This change aligns Stmt to
+    that behavior as well.
     
-    Change-Id: I9db5222746508a2996f1cafb72f4e0cf2541de07
-    Reviewed-on: https://go-review.googlesource.com/63795
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Fixes #20433
+    
+    Change-Id: Idda5f61927289d7ad0882effa3a50ffc9efd88e6
+    Reviewed-on: https://go-review.googlesource.com/43790
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go        |  23 ++
- src/cmd/compile/internal/gc/float_test.go      | 104 ++++-
- src/cmd/compile/internal/ssa/gen/generic.rules |  39 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 508 +++++++++++++++++++++++++
- 4 files changed, 667 insertions(+), 7 deletions(-)
+ src/database/sql/sql.go      | 20 ++++++++++++++------
+ src/database/sql/sql_test.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 54 insertions(+), 7 deletions(-)

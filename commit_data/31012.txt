@@ -1,20 +1,29 @@
-commit 168eb9cf3395583541224af0227c19ddb13e35be
-Author: Jeff Wendling <jeff@spacemonkey.com>
-Date:   Thu Apr 6 15:45:30 2017 +0000
+commit 49de5f035169526675b9d5897753d257bf2c7965
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 22 13:04:04 2016 -0800
 
-    cmd/dist: disable plugin test on linux-arm with GOARM=5
+    [dev.typealias] cmd/compile, go/importer: define export format and implement importing of type aliases
     
-    Plugin support is patchy at the moment, so disable the test for
-    now until the test can be fixed. This way, we can get builders
-    for ARMv5 running for the rest of the code.
+    This defines the (tentative) export/import format for type aliases.
     
-    Updates #19674
+    The compiler doesn't support type aliases yet, so while the code is present
+    it is guarded with a flag.
     
-    Change-Id: I08aa211c08a85688656afe2ad2e680a2a6e5dfac
-    Reviewed-on: https://go-review.googlesource.com/39716
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The export format for embedded (anonymous) fields now has three modes (mode 3 is new):
+    1) The original type name and the anonymous field name are the same, and the name is exported:
+       we don't need the field name and write "" instead
+    2) The original type name and the anonymous field name are the same, and the name is not exported:
+       we don't need the field name and write "?" instead, indicating that there is package info
+    3) The original type name and the anonymous field name are different:
+       we do need the field name and write "@" followed by the field name (and possible package info)
+    
+    For #18130.
+    
+    Change-Id: I790dad826757233fa71396a210f966c6256b75d3
+    Reviewed-on: https://go-review.googlesource.com/35100
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/dist/test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/gc/bexport.go | 52 +++++++++++++++++++++-------
+ src/cmd/compile/internal/gc/bimport.go | 61 +++++++++++++++++++++++----------
+ src/go/internal/gcimporter/bimport.go  | 62 ++++++++++++++++++----------------
+ 3 files changed, 114 insertions(+), 61 deletions(-)

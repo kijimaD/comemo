@@ -1,18 +1,31 @@
-commit 6bb88fc280518150e31bf12744596467796a4528
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 24 10:13:25 2017 -0700
+commit 719c7b03ba5d8bdea937a6b21564fa82539d3661
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 31 12:46:35 2017 -0400
 
-    cmd/link: use full link, not compile, to test for -no-?pie
+    testing/quick: generate all possible int64, uint64 values
     
-    This avoids an error from clang when using -nopie during compilation,
-    and permits us to check that the entire build succeeds.
+    When generating a random int8, uint8, int16, uint16, int32, uint32,
+    quick.Value chooses among all possible values.
     
-    Updates #21042
+    But when generating a random int64 or uint64, it only chooses
+    values in the range [-2⁶², 2⁶²) (even for uint64).
+    It should, like for all the other integers, use the full range.
     
-    Change-Id: I2e6c7d5c97a85c223ed3288622bbb58ce33b8774
-    Reviewed-on: https://go-review.googlesource.com/50874
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    If it had, this would have caught #19807 earlier.
+    Instead it let us discover the presence of #19809.
+    
+    While we are here, also make the default source of
+    randomness not completely deterministic.
+    
+    Fixes #19808.
+    
+    Change-Id: I070f852531c92b3670bd76523326c9132bfc9416
+    Reviewed-on: https://go-review.googlesource.com/39152
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/go/build/deps_test.go  |  2 +-
+ src/testing/quick/quick.go | 13 ++++++++++---
+ src/time/format_test.go    |  4 ++--
+ 3 files changed, 13 insertions(+), 6 deletions(-)

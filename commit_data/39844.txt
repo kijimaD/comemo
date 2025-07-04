@@ -1,21 +1,22 @@
-commit b6ec56bc26a89e9733390dd41fade5baace5a641
-Author: Romain Baugue <romain.baugue@gmail.com>
-Date:   Wed May 1 14:52:57 2019 +0200
+commit e4ba40030f9ba4b61bb28dbf78bb41a7b14e6788
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 18 16:10:07 2019 -0700
 
-    encoding/json: don't indirect pointers when decoding null
+    math/big: accept non-decimal floats with Rat.SetString
     
-    The indirect method checked the type of the child when indirecting a
-    pointer. If the current value is a pointer and we are decoding null, we
-    can skip this entirely and return early, avoiding the whole descent.
+    This fixes an old oversight. Rat.SetString already permitted
+    fractions a/b where both a and b could independently specify
+    a base prefix. With this CL, it now also accepts non-decimal
+    floating-point numbers.
     
-    Fixes #31776
+    Fixes #29799.
     
-    Change-Id: Ib8b2a2357572c41f56fceac59b5a858980f3f65e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174699
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I9cc65666a5cebb00f0202da2e4fc5654a02e3234
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168237
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/encoding/json/decode.go      |  7 ++++---
- src/encoding/json/decode_test.go | 10 ++++++++++
- 2 files changed, 14 insertions(+), 3 deletions(-)
+ src/math/big/floatconv.go    |  14 ++---
+ src/math/big/nat.go          |   7 +--
+ src/math/big/ratconv.go      | 124 ++++++++++++++++++++++++++++++++++---------
+ src/math/big/ratconv_test.go |  26 +++++++--
+ 4 files changed, 133 insertions(+), 38 deletions(-)

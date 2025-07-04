@@ -1,22 +1,17 @@
-commit d83b23fd4fb146cbe4b8dfa977ac2f1849572750
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Sep 22 15:50:03 2017 +0200
+commit b225051f1dbf2e8b7a8fdcf4d740dc20de84658d
+Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
+Date:   Thu Apr 13 16:15:26 2017 -0500
 
-    archive/tar: skip TestSparseFiles on Plan 9
+    cmd/go: reject -buildmode=plugin if package is not main
     
-    CL 60871 added TestSparseFiles. This test is succeeding
-    on Plan 9 when executed on the ramfs file system, but
-    is failing when executed on the Fossil file system.
+    Fixes #17625
     
-    This may be due to an issue in the handling of sparse
-    files in the Fossil file system on Plan 9 that should
-    be investigated.
-    
-    Updates #21977.
-    
-    Change-Id: I177afff519b862a5c548e094203c219504852006
-    Reviewed-on: https://go-review.googlesource.com/65352
+    Change-Id: I09319b888b547c631a50dbfab9255cc08e8a2426
+    Reviewed-on: https://go-review.googlesource.com/40691
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/tar_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/go_test.go             | 14 ++++++++++++++
+ src/cmd/go/internal/work/build.go | 21 ++++++++++++---------
+ 2 files changed, 26 insertions(+), 9 deletions(-)

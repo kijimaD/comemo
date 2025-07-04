@@ -1,22 +1,39 @@
-commit 189053aee2705a16ed660b7e036e9b6d825c0e9b
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Wed Mar 22 14:25:30 2017 -0300
+commit 7cba779cea52e827382a73804d06697e15444247
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 2 15:32:55 2016 -0800
 
-    runtime/internal/atomic: Remove unnecessary checks for GOARCH_ppc64
+    runtime/cgo: retry pthread_create on EAGAIN
     
-    Starting in go1.9, the minimum processor requirement for ppc64 is POWER8. This
-    means the checks for GOARCH_ppc64 in asm_ppc64x.s can be removed, since we can
-    assume LBAR and STBCCC instructions (both from ISA 2.06) will always be
-    available.
+    Update #18146.
     
-    Updates #19074
-    
-    Change-Id: Ib4418169cd9fc6f871a5ab126b28ee58a2f349e2
-    Reviewed-on: https://go-review.googlesource.com/38406
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib447aabae9f203a8b61fb8c984b57d8e2bfe69c2
+    Reviewed-on: https://go-review.googlesource.com/33894
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/internal/atomic/asm_ppc64x.s | 43 --------------------------------
- 1 file changed, 43 deletions(-)
+ misc/cgo/test/cgo_unix_test.go           |  1 +
+ misc/cgo/test/issue18146.go              | 87 ++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_darwin_386.c         |  3 +-
+ src/runtime/cgo/gcc_darwin_amd64.c       |  3 +-
+ src/runtime/cgo/gcc_darwin_arm.c         |  3 +-
+ src/runtime/cgo/gcc_darwin_arm64.c       |  3 +-
+ src/runtime/cgo/gcc_dragonfly_amd64.c    |  3 +-
+ src/runtime/cgo/gcc_freebsd_386.c        |  3 +-
+ src/runtime/cgo/gcc_freebsd_amd64.c      |  3 +-
+ src/runtime/cgo/gcc_freebsd_arm.c        |  3 +-
+ src/runtime/cgo/gcc_libinit.c            | 25 ++++++++-
+ src/runtime/cgo/gcc_linux_386.c          |  3 +-
+ src/runtime/cgo/gcc_linux_amd64.c        |  3 +-
+ src/runtime/cgo/gcc_linux_arm.c          |  3 +-
+ src/runtime/cgo/gcc_linux_arm64.c        |  3 +-
+ src/runtime/cgo/gcc_linux_mips64x.c      |  3 +-
+ src/runtime/cgo/gcc_linux_ppc64x.c       |  3 +-
+ src/runtime/cgo/gcc_linux_s390x.c        |  3 +-
+ src/runtime/cgo/gcc_netbsd_386.c         |  3 +-
+ src/runtime/cgo/gcc_netbsd_amd64.c       |  3 +-
+ src/runtime/cgo/gcc_netbsd_arm.c         |  3 +-
+ src/runtime/cgo/gcc_signal_darwin_armx.c |  3 +-
+ src/runtime/cgo/gcc_solaris_amd64.c      |  3 +-
+ src/runtime/cgo/libcgo_unix.h            |  8 +++
+ 24 files changed, 160 insertions(+), 21 deletions(-)

@@ -1,15 +1,22 @@
-commit 4541fa96b3fbe8e94dd0b8adda11b16ea001b470
-Author: Ross Light <rlight2@gmail.com>
-Date:   Fri Aug 26 12:29:52 2011 -0300
+commit 396cd361790c7c885df2c7f0531c3ae6f432aee7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 26 12:27:33 2011 +0400
 
-    xml: marshal "parent>child" tags correctly
+    json: fix decode bug with struct tag names with ,opts being ignored
     
-    Fixes #2119
+    When the encoder was updated to respect the ",omitempty"
+    struct tag options, the decoder half was never updated to know
+    about the new struct tag format. (the format is now an optional
+    name, followed by zero or more ",option" strings)
     
-    R=m.n.summerfield, adg, kevlar, rsc, gustavo, n13m3y3r
+    This only affected people who used ",omitempty" along with
+    a field name. In that case, the serialized JSON wouldn't
+    decode to the original value.
+    
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/4941042
+    https://golang.org/cl/4965049
 
- src/pkg/xml/marshal.go      |  93 ++++++++++++++++++++++++++++++---
- src/pkg/xml/marshal_test.go | 123 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 208 insertions(+), 8 deletions(-)
+ src/pkg/json/decode.go      | 12 +++++++++++-
+ src/pkg/json/decode_test.go |  6 +++++-
+ 2 files changed, 16 insertions(+), 2 deletions(-)

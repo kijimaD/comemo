@@ -1,14 +1,20 @@
-commit 2afdd17e3f0a453ba330352a7221f4fa9bef19b2
-Author: Urvil Patel <patelurvil38@gmail.com>
-Date:   Tue Sep 25 13:44:45 2018 +0530
+commit 8cf579abf7151f9301daf9d2ee293de0320c16aa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 7 12:50:21 2018 -0400
 
-    strconv: add example for QuoteRuneToGraphic and QuoteToGraphic functions
+    cmd/go: restore "go list" exit code for missing binary packages
     
-    Change-Id: Ie5b2ef0087dbc7b8191de8c8b4190396631e3c7f
-    Reviewed-on: https://go-review.googlesource.com/c/137215
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Prior to CL 108156, "go list" exited with code 0 if there were missing binary packages.
+    Restore that behavior to fix the failing TestBinaryOnlyPackages.
+    
+    Fixes golang/go#25784.
+    
+    Change-Id: Iaeca6bcc840f5ac8f2a016cef131f5c59a8261a8
+    Reviewed-on: https://go-review.googlesource.com/117036
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/strconv/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 38 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go            | 1 -
+ src/cmd/go/internal/work/exec.go | 3 +++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,23 +1,15 @@
-commit 4cb921bbf1f5d7d161e45e362be1cce35b73fc8b
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Mon Mar 25 14:10:28 2013 -0700
+commit 60a1f54d6b45e71022af91c84eb39916928e46e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 25 17:01:40 2013 -0400
 
-    runtime: store asmcgocall return PC where the ARM unwind expects it
+    math: make Hypot special cases look like others
     
-    The ARM implementation of runtime.cgocallback_gofunc diverged
-    from the calling convention by leaving a word of garbage at
-    the top of the stack and storing the return PC above the
-    locals.  This change stores the return PC at the top of the
-    stack and removes the save area above the locals.
+    The edit makes Hypot's description match the form
+    used in the other routines in this package.
     
-    Update #5124
-    This CL fixes first part of the ARM issues and added the unwind test.
-    
-    R=golang-dev, bradfitz, minux.ma, cshapiro, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7728045
+    https://golang.org/cl/8003046
 
- misc/cgo/test/callback.go | 50 +++++++++++++++++++++++++++++++++++++++++++++++
- misc/cgo/test/cgo_test.go |  1 +
- src/pkg/runtime/asm_arm.s | 26 +++++++++++-------------
- 3 files changed, 62 insertions(+), 15 deletions(-)
+ src/pkg/math/hypot.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

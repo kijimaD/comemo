@@ -1,12 +1,15 @@
-commit 3a52338608f9e34843007441bdceceedd888a640
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 27 09:57:48 2015 -0800
+commit a51b6ccfea67784164399d004c6bdcfed552b49c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Dec 22 22:33:39 2014 +0100
 
-    unsafe: fix doc strings
+    cmd/dist: fatal shouldn't print errstr on Plan 9
     
-    Change-Id: I73a416291a2374dbb8ce8586f24059f8dce56529
-    Reviewed-on: https://go-review.googlesource.com/3360
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    During change 1864 discussion, Russ Cox pointed out
+    the fatal function shouldn't print errstr.
+    
+    Change-Id: Icd71ec04be9c944bc235b8b198158465172e4fde
+    Reviewed-on: https://go-review.googlesource.com/2030
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/unsafe/unsafe.go | 22 ++++++++++++----------
- 1 file changed, 12 insertions(+), 10 deletions(-)
+ src/cmd/dist/plan9.c | 6 ------
+ 1 file changed, 6 deletions(-)

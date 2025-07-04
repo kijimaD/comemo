@@ -1,52 +1,12 @@
-commit 35ea62468bf7e3a79011c3ad713e847daa9a45a2
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sat Mar 31 23:14:17 2018 +0200
+commit 20e228f2fdb44350c858de941dff4aea9f3127b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 7 11:05:41 2018 -0500
 
-    runtime: add js/wasm architecture
+    [release-branch.go1.10] go1.10rc2
     
-    This commit adds the js/wasm architecture to the runtime package.
-    Currently WebAssembly has no support for threads yet, see
-    https://github.com/WebAssembly/design/issues/1073. Because of that,
-    there is no preemption of goroutines and no sysmon goroutine.
-    
-    Design doc: https://docs.google.com/document/d/131vjr4DH6JFnb-blm_uRdaC0_Nv3OUwjEY5qVCxCup4
-    About WebAssembly assembly files: https://docs.google.com/document/d/1GRmy3rA4DiYtBlX-I1Jr_iHykbX8EixC3Mq0TCYqbKc
-    
-    Updates #18892
-    
-    Change-Id: I7f12d21b5180500d55ae9fd2f7e926a1731db391
-    Reviewed-on: https://go-review.googlesource.com/103877
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I393ff9e8599d20f71545ab9f4191993f5d6fa5a4
+    Reviewed-on: https://team-review.git.corp.google.com/213247
+    Reviewed-by: Andrew Bonventre <andybons@google.com>
 
- misc/wasm/wasm_exec.js                     |   8 +-
- src/internal/cpu/cpu_wasm.go               |   7 +
- src/reflect/asm_wasm.s                     |  44 +++
- src/runtime/asm_wasm.s                     | 471 +++++++++++++++++++++++++++++
- src/runtime/cgo/asm_wasm.s                 |   8 +
- src/runtime/cputicks.go                    |   1 +
- src/runtime/debug.go                       |   4 +
- src/runtime/env_posix.go                   |   2 +-
- src/runtime/gcinfo_test.go                 |   2 +-
- src/runtime/hash64.go                      |   2 +-
- src/runtime/internal/atomic/atomic_wasm.go | 180 +++++++++++
- src/runtime/internal/atomic/stubs.go       |   2 +
- src/runtime/internal/sys/arch.go           |   1 +
- src/runtime/internal/sys/arch_wasm.go      |  18 ++
- src/runtime/lfstack_64bit.go               |   2 +-
- src/runtime/lock_js.go                     |  75 +++++
- src/runtime/malloc.go                      |   6 +-
- src/runtime/mem_js.go                      |  68 +++++
- src/runtime/memclr_wasm.s                  |  37 +++
- src/runtime/memmove_wasm.s                 | 152 ++++++++++
- src/runtime/mmap.go                        |   1 +
- src/runtime/proc.go                        |  22 +-
- src/runtime/rt0_js_wasm.s                  |  49 +++
- src/runtime/stack.go                       |   2 +-
- src/runtime/stubs2.go                      |   1 +
- src/runtime/sys_wasm.go                    |  42 +++
- src/runtime/sys_wasm.s                     | 195 ++++++++++++
- src/runtime/type.go                        |   2 +-
- src/runtime/unaligned1.go                  |   2 +-
- 29 files changed, 1390 insertions(+), 16 deletions(-)
+ VERSION | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

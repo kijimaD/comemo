@@ -1,18 +1,77 @@
-commit 90276c268bf003e94917db8df513736f9b01479b
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Mon Sep 25 12:39:43 2023 -0400
+commit 667c53e1599fbc61b48e3ddc95e2361b8c8fb8a5
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 21 18:10:23 2022 -0400
 
-    net/http: document new ServeMux patterns
+    cmd/compile: add debug-hash flag for fused-multiply-add
     
-    Updates #61410.
+    This adds a -d debug flag "fmahash" for hashcode search for
+    floating point architecture-dependent problems. This variable has no
+    effect on architectures w/o fused-multiply-add.
     
-    Change-Id: Ib9dd8ebca43cec6e27c6fdfcf01ee6a1539c2fa0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530481
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    This was rebased onto the GOSSAHASH renovation so that this could have
+    its own dedicated environment variable, and so that it would be
+    cheap (a nil check) to check it in the normal case.
+    
+    Includes a basic test of the trigger plumbing.
+    
+    Sample use (on arm64, ppc64le, s390x):
+    
+    % GOCOMPILEDEBUG=fmahash=001110110 \
+      go build -o foo cmd/compile/internal/ssa/testdata/fma.go
+    fmahash triggered main.main:24 101111101101111001110110
+    GOFMAHASH triggered main.main:20 010111010000101110111011
+    1.0000000000000002 1.0000000000000004 -2.220446049250313e-16
+    exit status 1
+    
+    The intended use is in conjunction with github.com/dr2chase/gossahash,
+    which will probably acquire a flag "-fma" to streamline its use. This
+    tool+use was inspired by an ad hoc use of this technique "in anger"
+    to debug this very problem.  This is also a dry-run for using this
+    same technique to identify code sensitive to loop variable
+    lifetime/capture, should we make that change.
+    
+    Example intended use, with current search tool (using old environment
+    variable), for a test example:
+    
+    gossahash -e GOFMAHASH GOMAGIC=GOFMAHASH go run fma.go
+    Trying go args=[...], env=[GOFMAHASH=1 GOMAGIC=GOFMAHASH]
+    go failed (81 distinct triggers): exit status 1
+    Trying go args=[...], env=[GOFMAHASH=11 GOMAGIC=GOFMAHASH]
+    go failed (39 distinct triggers): exit status 1
+    Trying go args=[...], env=[GOFMAHASH=011 GOMAGIC=GOFMAHASH]
+    go failed (18 distinct triggers): exit status 1
+    Trying go args=[...], env=[GOFMAHASH=0011 GOMAGIC=GOFMAHASH]
+    Trying go args=[...], env=[GOFMAHASH=1011 GOMAGIC=GOFMAHASH]
+    ...
+    Trying go args=[...], env=[GOFMAHASH=0110111011 GOMAGIC=GOFMAHASH]
+    Trying go args=[...], env=[GOFMAHASH=1110111011 GOMAGIC=GOFMAHASH]
+    go failed (2 distinct triggers): exit status 1
+    Trigger string is 'GOFMAHASH triggered math.qzero:427 111111101010011110111011', repeated 6 times
+    Trigger string is 'GOFMAHASH triggered main.main:20 010111010000101110111011', repeated 1 times
+    Trying go args=[...], env=[GOFMAHASH=01110111011 GOMAGIC=GOFMAHASH]
+    go failed (1 distinct triggers): exit status 1
+    Trigger string is 'GOFMAHASH triggered main.main:20 010111010000101110111011', repeated 1 times
+    Review GSHS_LAST_FAIL.0.log for failing run
+    FINISHED, suggest this command line for debugging:
+    GOSSAFUNC='main.main:20 010111010000101110111011' \
+    GOFMAHASH=01110111011 GOMAGIC=GOFMAHASH go run fma.go
+    
+    Change-Id: Ifa22dd8f1c37c18fc8a4f7c396345a364bc367d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394754
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/server.go | 142 ++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 112 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/base/debug.go        |  1 +
+ src/cmd/compile/internal/base/flag.go         |  4 ++
+ src/cmd/compile/internal/base/hashdebug.go    |  1 +
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules | 25 ++++----
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  4 +-
+ src/cmd/compile/internal/ssa/_gen/S390X.rules |  4 +-
+ src/cmd/compile/internal/ssa/fmahash_test.go  | 56 +++++++++++++++++
+ src/cmd/compile/internal/ssa/func.go          | 14 +++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 48 +++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 86 +++++++++++++++++++--------
+ src/cmd/compile/internal/ssa/rewriteS390X.go  | 16 +++++
+ src/cmd/compile/internal/ssa/testdata/fma.go  | 31 ++++++++++
+ 12 files changed, 250 insertions(+), 40 deletions(-)

@@ -1,0 +1,25 @@
+commit b589478af7f4b09cc9c4d5f76fbbf5cad2b2b7bb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 11 18:39:19 2024 -0400
+
+    cmd/link: put runtime.end in the last section of data segment
+    
+    Currently the runtime.end symbol is put into the noptrbss section,
+    which is usually the last section, except that when fuzzing is
+    enabled, the last section is actually .go.fuzzcntrs. The
+    runtime.end symbol has the value pointing to the end of the data
+    segment, so if it is not in the last section, the value will not
+    actually be in the range of the section. This causes an assertion
+    failure in the new Apple linker. This CL fixes this by putting it
+    in the last section.
+    
+    Fixes #65169.
+    
+    Change-Id: I5c991c46a0483a96e5f6e0255a3b444953676026
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592095
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/testdata/script/test_fuzz_cgo.txt | 28 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go             |  4 +++-
+ 2 files changed, 31 insertions(+), 1 deletion(-)

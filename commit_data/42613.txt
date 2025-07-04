@@ -1,18 +1,21 @@
-commit e88ea87e7b886815cfdadc4cd3d70bf5ef833bd7
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Jul 7 14:17:30 2020 -0400
+commit bcd50e4cd0e308c05fb52b35431c454d9cb07fff
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 25 02:39:59 2020 +1100
 
-    cmd/go: include GOMODCACHE in 'go help environment'
+    vendor: provide golang.org/x/sys/cpu/cpu_riscv64.go
     
-    Updates #34527
-    Fixes #40089
+    Manually provide golang.org/x/sys/cpu/cpu_riscv64.go until such time
+    as this code can be updated, post release.
     
-    Change-Id: Ie9c8573536e5c31e874d755f4d888ffc805b796f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241275
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    This already exists in x/sys/cpu via:
+    
+      https://go-review.googlesource.com/c/sys/+/206860
+    
+    Update #27532
+    
+    Change-Id: I57d598ef737642f9c3aa7b280c6c680477ae7633
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216261
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go               | 2 ++
- src/cmd/go/internal/help/helpdoc.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

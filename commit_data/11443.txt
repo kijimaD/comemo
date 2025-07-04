@@ -1,47 +1,34 @@
-commit a3fdd6e64970b87768f3aed733c6fe72c983bb3e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 27 14:47:02 2012 -0800
+commit b3a5f9e51ba86bafe414e8a7036a090d9da9a660
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 27 14:45:47 2012 -0800
 
-    os: remove SIGXXX signals variables.
+    go/doc: don't show methods of exported anonymous fields
     
-    They're not portable, and pkg os is supposed to be portable.
+    Added flag AllMethods: if not set (future default), embedded
+    methods of exported (and thus visible) embedded fields are not
+    shown in the final package documentation
     
-    Fixes #2562
+    The actual change for AllMethods is just in sortedFuncs. All
+    other changes are simplifications of the existing logic (mostly
+    deletion of code): Because method conflicts due to embedding
+    must always be detected, remove any premature elimination of
+    types and methods. Instead collect all named types and all
+    methods and do the filtering at the end.
     
-    R=golang-dev, mikioh.mikioh, r, n13m3y3r, rsc
+    Miscellaneous:
+    - renamed baseType -> namedType
+    - streamline logic for recording embedded types
+    - record embedded types via a map (simpler data structures)
+    
+    AllMethods is set by default; so the output is unchanged and
+    the tests pass. The next CL will enable the AllMethods flag
+    and have adjusted tests (and fix issue 2791).
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5574078
+    https://golang.org/cl/5572076
 
- src/buildscript/darwin_386.sh       |  2 +-
- src/buildscript/darwin_amd64.sh     |  2 +-
- src/buildscript/freebsd_386.sh      |  2 +-
- src/buildscript/freebsd_amd64.sh    |  2 +-
- src/buildscript/linux_386.sh        |  2 +-
- src/buildscript/linux_amd64.sh      |  2 +-
- src/buildscript/linux_arm.sh        |  2 +-
- src/buildscript/netbsd_386.sh       |  2 +-
- src/buildscript/netbsd_amd64.sh     |  2 +-
- src/buildscript/openbsd_386.sh      |  2 +-
- src/buildscript/openbsd_amd64.sh    |  2 +-
- src/buildscript/windows_386.sh      |  2 +-
- src/buildscript/windows_amd64.sh    |  2 +-
- src/pkg/os/Makefile                 |  6 -----
- src/pkg/os/exec_posix.go            |  2 +-
- src/pkg/os/exec_windows.go          |  3 +--
- src/pkg/os/mksignals.sh             | 24 -----------------
- src/pkg/os/mkunixsignals.sh         | 27 --------------------
- src/pkg/os/signal/signal_test.go    |  6 +++--
- src/pkg/os/zsignal_darwin_386.go    | 48 ----------------------------------
- src/pkg/os/zsignal_darwin_amd64.go  | 48 ----------------------------------
- src/pkg/os/zsignal_freebsd_386.go   | 50 ------------------------------------
- src/pkg/os/zsignal_freebsd_amd64.go | 50 ------------------------------------
- src/pkg/os/zsignal_linux_386.go     | 51 -------------------------------------
- src/pkg/os/zsignal_linux_amd64.go   | 51 -------------------------------------
- src/pkg/os/zsignal_linux_arm.go     | 51 -------------------------------------
- src/pkg/os/zsignal_netbsd_386.go    | 49 -----------------------------------
- src/pkg/os/zsignal_netbsd_amd64.go  | 49 -----------------------------------
- src/pkg/os/zsignal_openbsd_386.go   | 49 -----------------------------------
- src/pkg/os/zsignal_openbsd_amd64.go | 49 -----------------------------------
- src/pkg/os/zsignal_windows_386.go   | 29 ---------------------
- src/pkg/os/zsignal_windows_amd64.go | 29 ---------------------
- 32 files changed, 19 insertions(+), 678 deletions(-)
+ src/pkg/go/doc/doc.go     |   9 ++-
+ src/pkg/go/doc/exports.go |  25 +++-----
+ src/pkg/go/doc/reader.go  | 144 +++++++++++++++++++++-------------------------
+ 3 files changed, 82 insertions(+), 96 deletions(-)

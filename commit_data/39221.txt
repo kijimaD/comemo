@@ -1,124 +1,25 @@
-commit b0e238add5dc8ab80b4eade78ca047f074658dcd
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 15 20:47:25 2019 -0400
+commit f1d662f34788f4a5f087581d0951cdf4e0f6e708
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 29 17:22:36 2019 +0000
 
-    misc/cgo/test: consolidate tests into fewer cgo source files
+    net/url, net/http: relax CTL-in-URL validation to only ASCII CTLs
     
-    Each different file that does import "C" must be compiled
-    and analyzed separately by cgo. Having fewer files import "C"
-    reduces the cost of building the test. This is especially important
-    because this test is built and run four different times (with different
-    settings) during all.bash.
+    CL 159157 was doing UTF-8 decoding of URLs. URLs aren't really UTF-8,
+    even if sometimes they are in some contexts.
     
-    go test -c in this directory used to take over 20 seconds on my laptop.
-    Now it takes under 5 seconds.
+    Instead, only reject ASCII CTLs.
     
-    Removes 23.4r 29.0u 21.5s from all.bash.
+    Updates #27302
+    Updates #22907
     
-    For #26473.
-    
-    Change-Id: Ie7cb7b0d9d6138ebd2eb548d0d8ea6e409ae10b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177558
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ibd64efa5d3a93263d175aadf1c9f87deb4670c62
+    Reviewed-on: https://go-review.googlesource.com/c/160178
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/align.go                             |   76 -
- misc/cgo/test/api.go                               |   30 -
- misc/cgo/test/basic.go                             |  181 --
- misc/cgo/test/cflags.go                            |   32 -
- misc/cgo/test/cgo_stubs_android_test.go            |    1 -
- misc/cgo/test/checkconst.go                        |   33 -
- misc/cgo/test/complex.go                           |   24 -
- misc/cgo/test/cthread.go                           |   44 -
- misc/cgo/test/duplicate_symbol.go                  |   21 -
- misc/cgo/test/env.go                               |   41 -
- misc/cgo/test/exports.go                           |   18 -
- misc/cgo/test/fpvar.go                             |   50 -
- misc/cgo/test/helpers.go                           |   35 -
- misc/cgo/test/issue10303.go                        |   76 -
- misc/cgo/test/issue11925.go                        |   37 -
- misc/cgo/test/issue12030.go                        |   35 -
- misc/cgo/test/issue1222.go                         |   29 -
- misc/cgo/test/issue1328.go                         |   30 -
- misc/cgo/test/issue13930.go                        |   13 -
- misc/cgo/test/issue14838.go                        |   37 -
- misc/cgo/test/issue1560.go                         |   50 -
- misc/cgo/test/issue1635.go                         |   38 -
- misc/cgo/test/issue17065.go                        |   29 -
- misc/cgo/test/issue17537.go                        |   58 -
- misc/cgo/test/issue18126.go                        |   26 -
- misc/cgo/test/issue18146.go                        |    2 -
- misc/cgo/test/issue18720.go                        |   54 -
- misc/cgo/test/issue20129.go                        |   33 -
- misc/cgo/test/issue20369.go                        |   20 -
- misc/cgo/test/issue20910.go                        |   19 -
- misc/cgo/test/issue21668.go                        |   13 -
- misc/cgo/test/issue21708.go                        |   16 -
- misc/cgo/test/issue21809.go                        |   45 -
- misc/cgo/test/issue22958.go                        |   24 -
- misc/cgo/test/issue23356.go                        |   19 -
- misc/cgo/test/issue23720.go                        |   22 -
- misc/cgo/test/issue24206.go                        |   54 -
- misc/cgo/test/issue24206_generic.go                |   13 -
- misc/cgo/test/issue2462.go                         |  102 -
- misc/cgo/test/issue25143.go                        |   22 -
- misc/cgo/test/issue26066.go                        |   19 -
- misc/cgo/test/issue26517.go                        |   23 -
- misc/cgo/test/issue28545.go                        |   26 -
- misc/cgo/test/issue28772.go                        |   12 -
- misc/cgo/test/issue28896.go                        |   83 -
- misc/cgo/test/issue29383.go                        |   19 -
- misc/cgo/test/issue29748.go                        |   22 -
- misc/cgo/test/issue29781.go                        |   28 -
- misc/cgo/test/issue29878.go                        |   20 -
- misc/cgo/test/issue30065.go                        |   38 -
- misc/cgo/test/issue3250.go                         |   95 -
- misc/cgo/test/issue3250w.go                        |   11 -
- misc/cgo/test/issue3261.go                         |   49 -
- misc/cgo/test/issue3729.go                         |   47 -
- misc/cgo/test/issue3729w.go                        |   16 -
- misc/cgo/test/issue3741.go                         |   22 -
- misc/cgo/test/issue3775.go                         |   39 -
- misc/cgo/test/issue3945.go                         |   22 -
- misc/cgo/test/issue4054a.go                        |   23 -
- misc/cgo/test/issue4054b.go                        |   23 -
- misc/cgo/test/issue4339.go                         |   17 -
- misc/cgo/test/issue4417.go                         |   42 -
- misc/cgo/test/issue4857.go                         |   15 -
- misc/cgo/test/issue5227.go                         |   38 -
- misc/cgo/test/issue5242.go                         |   31 -
- misc/cgo/test/issue5337.go                         |   31 -
- misc/cgo/test/issue5337w.go                        |   11 -
- misc/cgo/test/issue5548.go                         |   27 -
- misc/cgo/test/issue5603.go                         |   32 -
- misc/cgo/test/issue5740.go                         |   15 -
- misc/cgo/test/issue5986.go                         |   33 -
- misc/cgo/test/issue6128.go                         |   20 -
- misc/cgo/test/issue6390.go                         |   23 -
- misc/cgo/test/issue6472.go                         |   22 -
- misc/cgo/test/issue6506.go                         |   36 -
- misc/cgo/test/issue6612.go                         |   90 -
- misc/cgo/test/issue6833.go                         |   27 -
- misc/cgo/test/issue6907.go                         |   33 -
- misc/cgo/test/issue6907export.go                   |   30 -
- misc/cgo/test/issue7560.go                         |   44 -
- misc/cgo/test/issue7665.go                         |   25 -
- misc/cgo/test/issue7786.go                         |   51 -
- misc/cgo/test/issue7978.go                         |  133 --
- misc/cgo/test/issue8092.go                         |   36 -
- misc/cgo/test/issue8331a.go                        |   15 -
- misc/cgo/test/issue8331b.go                        |   13 -
- misc/cgo/test/issue8428.go                         |   55 -
- misc/cgo/test/issue8441.go                         |   27 -
- misc/cgo/test/issue8811.go                         |   22 -
- misc/cgo/test/issue9557.go                         |   36 -
- misc/cgo/test/test.go                              | 2087 ++++++++++++++++++++
- misc/cgo/test/test22906.go                         |   74 -
- misc/cgo/test/test27660.go                         |   54 -
- .../cgo/test/{issue29878export.go => test_unix.go} |    9 +-
- misc/cgo/test/{issue13402.go => test_windows.go}   |    7 +-
- misc/cgo/test/testx.go                             |  542 +++++
- misc/cgo/test/twoargs.go                           |   22 -
- 97 files changed, 2636 insertions(+), 3328 deletions(-)
+ src/net/http/http.go    | 13 +++++++++----
+ src/net/http/request.go |  2 +-
+ src/net/url/url.go      | 15 ++++++++++-----
+ src/net/url/url_test.go |  6 ++++++
+ 4 files changed, 26 insertions(+), 10 deletions(-)

@@ -1,15 +1,97 @@
-commit 40d5e6d4e28eba538ec124d0e437dead63b0206e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 5 11:54:51 2021 -0700
+commit 7fe2a84834537b58578791dd041b7bb40572620a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 23 12:11:35 2020 +1100
 
-    cmd/compile/internal/types2: fix potential bugs in santitizer pass
+    strconv: remove extfloat.go atof code path
     
-    Change-Id: I88c5e1f620d0f3546ac9ac7b6a4b881772a38449
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317329
+    Prior to this commit, strconv.ParseFloat (known in C as atof) takes the
+    first of four algorithms to succeed: atof64exact, eiselLemire64,
+    extFloat, fallback. The Eisel-Lemire implementation is a recent addition
+    but, now that it exists, the extFloat implementation (based on the
+    algorithm used by https://github.com/google/double-conversion) is
+    largely redundant. This Go program:
+    
+    func parseOneMillionFloats(bitSize int, normallyDistributed bool) {
+      rng := rand.New(rand.NewSource(1))
+      for i := 0; i < 1_000_000; {
+        x := 0.0
+        if normallyDistributed {
+          x = rng.NormFloat64()
+        } else if bitSize == 32 {
+          x = float64(math.Float32frombits(rng.Uint32()))
+        } else {
+          x = math.Float64frombits(
+              uint64(rng.Uint32())<<32 | uint64(rng.Uint32()))
+        }
+        if math.IsInf(x, 0) {
+          continue
+        }
+        s := strconv.FormatFloat(x, 'g', -1, bitSize)
+        strconv.ParseFloat(s, bitSize)
+        i++
+      }
+    }
+    
+    triggers the four algorithms by these percentages:
+    
+    bitSize=32, normallyDistributed=false
+    07.4274% atof32exact
+    91.2982% eiselLemire32
+    00.8673% extFloat
+    00.0269% fallback
+    
+    bitSize=32, normallyDistributed=true
+    27.6356% atof32exact
+    72.3641% eiselLemire32
+    00.0003% extFloat
+    00.0000% fallback
+    
+    bitSize=64, normallyDistributed=false
+    01.2076% atof64exact
+    98.6216% eiselLemire64
+    00.1081% extFloat
+    00.0130% fallback
+    
+    bitSize=64, normallyDistributed=true
+    24.8826% atof64exact
+    75.1174% eiselLemire64
+    00.0000% extFloat
+    00.0000% fallback
+    
+    This commit removes the extfloat.go atof code (but keeps the extfloat.go
+    ftoa code for now), reducing the number of atof algorithms from 4 to 3.
+    
+    The benchmarks (below) show some regressions but these are arguably
+    largely artificial situations.
+    
+    Atof*RandomBits generates uniformly distributed uint32/uint64 values and
+    reinterprets the bits as float32/float64 values. The change in headline
+    numbers (arithmetic means) are primarily due to relatively large changes
+    for relatively rare cases.
+    
+    Atof64Big parses a hard-coded "123456789123456789123456789".
+    
+    name                  old time/op  new time/op  delta
+    Atof64Decimal-4       47.1ns ± 1%  47.4ns ± 2%      ~     (p=0.516 n=5+5)
+    Atof64Float-4         56.4ns ± 1%  55.9ns ± 2%      ~     (p=0.206 n=5+5)
+    Atof64FloatExp-4      68.8ns ± 0%  68.7ns ± 1%      ~     (p=0.516 n=5+5)
+    Atof64Big-4            157ns ± 2%  1528ns ± 2%  +875.99%  (p=0.008 n=5+5)
+    Atof64RandomBits-4     156ns ± 1%   186ns ± 1%   +19.49%  (p=0.008 n=5+5)
+    Atof64RandomFloats-4   144ns ± 0%   143ns ± 1%      ~     (p=0.365 n=5+5)
+    Atof32Decimal-4       47.6ns ± 1%  47.5ns ± 2%      ~     (p=0.714 n=5+5)
+    Atof32Float-4         54.3ns ± 2%  54.1ns ± 1%      ~     (p=0.532 n=5+5)
+    Atof32FloatExp-4      75.2ns ± 1%  75.7ns ± 3%      ~     (p=0.794 n=5+5)
+    Atof32Random-4         108ns ± 1%   120ns ± 1%   +10.54%  (p=0.008 n=5+5)
+    
+    Fixes #36657
+    
+    Change-Id: Id3c4e1700f969f885b580be54c8892b4fe042a79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264518
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/compile/internal/types2/sanitize.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/strconv/atof.go      |  45 ++++-----------
+ src/strconv/atof_test.go |   6 ++
+ src/strconv/extfloat.go  | 143 -----------------------------------------------
+ 3 files changed, 18 insertions(+), 176 deletions(-)

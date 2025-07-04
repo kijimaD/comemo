@@ -1,22 +1,24 @@
-commit c981874a5a87605b446b3a56abba9907d17e8493
-Author: korzhao <korzhao95@gmail.com>
-Date:   Thu Sep 9 21:51:43 2021 +0800
+commit 4c215c4fa934990d159c549bcdd85f9be92287cd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 19:55:57 2020 -0800
 
-    cmd/compile: fix implement for closure in a global assignment
+    [dev.regabi] cmd/compile: simplify and optimize reorder3
     
-    If closure in a global assignment and has a method receiver.
-    We should assign receiver as a global variable, not a local variable.
+    reorder3 is the code responsible for ensuring that evaluation of an
+    N:N parallel assignment statement respects the order of evaluation
+    rules specified for Go.
     
-    Fixes #48225
+    This CL simplifies the code and improves it from an O(N^2) algorithm
+    to O(N).
     
-    Change-Id: I8f65dd6e8baf66a5eff24028d28ad0a594091add
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348512
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I04cd31613af6924f637b042be8ad039ec6a924c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280437
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/noder/stencil.go | 12 +++++++---
- test/typeparam/issue48225.go              | 37 +++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/walk/assign.go | 237 ++++++++++++--------------------
+ 1 file changed, 85 insertions(+), 152 deletions(-)

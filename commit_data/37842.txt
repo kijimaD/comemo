@@ -1,21 +1,27 @@
-commit e1b903788ac5e35ed0d0fb20d904eafedca02c81
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Jan 4 17:30:36 2019 -0500
+commit f02cc88f46e01c21e550dbf212aefcdad138a91d
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat May 19 09:42:52 2018 +0200
 
-    cmd/go: deflake TestScript/gcflags_patterns
+    test: relax whitespaces matching in codegen tests
     
-    The check below can fail incorrectly if the buildid ends with '-p'.
+    The codegen testsuite uses regexp to parse the syntax, but it doesn't
+    have a way to tell line comments containing checks from line comments
+    containing English sentences. This means that any syntax error (that
+    is, non-matching regexp) is currently ignored and not reported.
     
-        ! stderr 'compile.* -e .*-p [^z]'
+    There were some tests in memcombine.go that had an extraneous space
+    and were thus effectively disabled. It would be great if we could
+    report it as a syntax error, but for now we just punt and swallow the
+    spaces as a workaround, to avoid the same mistake again.
     
-    This fix changes regular expressions to '-e.* -p' or '-N.* -p' instead
-    of '-e .*-p'. '-l' is no longer used because the compiler accepts
-    multiple flags starting with '-l' ('-e' and '-N' do not have this
-    problem), so there could be false matches.
+    Fixes #25452
     
-    Change-Id: I827c411de28624019a287f853acc9666e87cbfb9
-    Reviewed-on: https://go-review.googlesource.com/c/156327
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic7747a2278bc00adffd0c199ce40937acbbc9cf0
+    Reviewed-on: https://go-review.googlesource.com/113835
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/testdata/script/gcflags_patterns.txt | 26 ++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ test/codegen/memcombine.go | 4 ++--
+ test/run.go                | 9 +++++----
+ 2 files changed, 7 insertions(+), 6 deletions(-)

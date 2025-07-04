@@ -1,15 +1,23 @@
-commit d131ffefadd283cfcb98d49949b8b82a8c77c378
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 12 13:31:13 2014 +1000
+commit 7bcbb65d7879f17b185cee9ab4ab392da0bd865f
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Jun 11 19:03:59 2014 -0700
 
-    doc: link to release history from /doc/
+    bytes, strings: optimize Repeat
     
-    Fixes #8168.
+    Call copy with as large buffer as possible to reduce the
+    number of function calls.
     
-    TBR=bradfitz
-    R=golang-codereviews
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkBytesRepeat            540          162  -70.00%
+    BenchmarkStringsRepeat          563          177  -68.56%
+    
+    LGTM=josharian
+    R=golang-codereviews, josharian, dave, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/107950043
+    https://golang.org/cl/90550043
 
- doc/docs.html | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/bytes/bytes.go          | 7 ++++---
+ src/pkg/bytes/bytes_test.go     | 6 ++++++
+ src/pkg/strings/strings.go      | 7 ++++---
+ src/pkg/strings/strings_test.go | 6 ++++++
+ 4 files changed, 20 insertions(+), 6 deletions(-)

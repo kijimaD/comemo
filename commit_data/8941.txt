@@ -1,13 +1,13 @@
-commit bedee318d5e9fcde9d55bff24bc8090cef1e57dc
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Tue Jul 5 16:01:29 2011 +1000
+commit cc9fed7c1a9214b511544b53942fd4de07c76bb3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 5 15:58:54 2011 +1000
 
-    os: fix build for Plan 9
+    exp/template: add an html escaping function.
     
-    R=golang-dev, alex.brainman
+    R=golang-dev, dsymonds, adg
     CC=golang-dev
-    https://golang.org/cl/4657074
+    https://golang.org/cl/4626092
 
- src/pkg/os/file_plan9.go | 26 ++++++++++++++++++++++++++
- src/pkg/os/file_unix.go  |  6 ++----
- 2 files changed, 28 insertions(+), 4 deletions(-)
+ src/pkg/exp/template/exec_test.go |  4 +++
+ src/pkg/exp/template/funcs.go     | 65 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+)

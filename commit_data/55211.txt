@@ -1,17 +1,36 @@
-commit 1661bf02c8fa7802505de040386365d76dacd0af
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 5 13:01:30 2023 -0800
+commit f53137f95cfb1f33e592e2818fcb5e8d7ac80b66
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jan 8 23:07:43 2023 +0000
 
-    doc: add release note for new go/version package
+    internal/profile: use internal/lazyregexp for the legacy parser
     
-    For #62039.
+    Per benchinit, this makes a big difference to init times:
     
-    Change-Id: Id19a4c06489ad24dc44c7caf2405d155d96c6fcb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547695
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+            name             old time/op    new time/op    delta
+            InternalProfile     185µs ± 1%       6µs ± 1%  -96.51%  (p=0.008 n=5+5)
+    
+            name             old alloc/op   new alloc/op   delta
+            InternalProfile     101kB ± 0%       4kB ± 0%  -95.72%  (p=0.008 n=5+5)
+    
+            name             old allocs/op  new allocs/op  delta
+            InternalProfile       758 ± 0%        25 ± 0%  -96.70%  (p=0.008 n=5+5)
+    
+    The fixed 0.2ms init cost is saved for any importer of net/http/pprof,
+    but also for cmd/compile, as it supports PGO now.
+    A Go program parsing profiles might not even need to compile these
+    regular expressions at all, if it doesn't encounter any legacy files.
+    I suspect this will be the case with most invocations of cmd/compile.
+    
+    Updates #26775.
+    
+    Change-Id: I8374dc64459f0b6bb09bbdf9d0b6c55d7ae1646e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460545
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.22.html | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/go/build/deps_test.go              |  2 +-
+ src/internal/profile/legacy_profile.go | 26 +++++++++++++-------------
+ src/internal/profile/profile.go        |  4 ++--
+ 3 files changed, 16 insertions(+), 16 deletions(-)

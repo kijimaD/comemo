@@ -1,15 +1,23 @@
-commit 3aa755b8fb82c28e55938e040bdead6b7f45ae5a
-Author: Tamir Duberstein <tamird@gmail.com>
-Date:   Tue Oct 20 11:21:21 2015 -0400
+commit 9172a1b5738bf55b4d2b6f045cf40cae24c081f1
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Sep 18 11:40:36 2015 +0200
 
-    regexp/syntax: correctly print `^` BOL and `$` EOL
+    runtime: race instrument read of convT2E/I arg
     
-    Fixes #12980.
+    Sometimes this read is instrumented by compiler when it creates
+    a temp to take address, but sometimes it is not (e.g. for global vars
+    compiler takes address of the global directly).
     
-    Change-Id: I936db2f57f7c4dc80bb8ec32715c4c6b7bf0d708
-    Reviewed-on: https://go-review.googlesource.com/16112
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Instrument convT2E/I similarly to chansend and mapaccess.
+    
+    Fixes #12664
+    
+    Change-Id: Ia7807f15d735483996426c5f3aed60a33b279579
+    Reviewed-on: https://go-review.googlesource.com/14752
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/regexp/syntax/regexp.go        | 4 ++--
- src/regexp/syntax/simplify_test.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/iface.go                         |  6 +++
+ src/runtime/race/testdata/issue12664_test.go | 76 ++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+)

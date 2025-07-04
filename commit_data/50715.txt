@@ -1,20 +1,19 @@
-commit b78b84cd23f7d0f2a2d7a9574bb37c340cf28947
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Thu Sep 22 23:10:31 2022 +0800
+commit ba79c1e24198c2222e3bfe350326a8962fee0441
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Nov 5 18:40:03 2021 -0400
 
-    sync/atomic: rename "ifaceWords" to "efaceWords"
+    doc/go1.18: split bytes and strings packages
     
-    Rename "ifaceWords" to "efaceWords", since we are defining
-    an empty interface.
+    A small touchup after CL 361894.
     
-    Change-Id: I7151fb730a081a800e6dd28bcba831787ee9d6a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432815
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    For #47694.
+    
+    Change-Id: Ifc161516f897f727195d21351a3c8eda7b6e327e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361895
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
 
- src/sync/atomic/value.go | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ doc/go1.18.html | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

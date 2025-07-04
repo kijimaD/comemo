@@ -1,16 +1,16 @@
-commit 2b309c6e225a908132ddf34316286ec0cdfdb98f
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jun 17 09:17:33 2014 -0700
+commit 4f14d1520253bd5d3dc19ab8b8668308d5bdcd64
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 17 08:58:08 2014 -0700
 
-    runtime: fix stringw test.
+    go/parser: don't accept trailing explicit semicolon
     
-    Null terminate string.  Make it endian-agnostic.
+    Fixes #8207.
     
-    TBR=bradfitz
-    R=golang-codereviews
+    LGTM=gordon.klaus, bradfitz
+    R=golang-codereviews, wandakkelly, gordon.klaus, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/106060044
+    https://golang.org/cl/106010046
 
- src/pkg/runtime/export_test.go |  2 +-
- src/pkg/runtime/string_test.go | 10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/go/parser/interface.go   |  2 +-
+ src/pkg/go/parser/parser_test.go | 38 ++++++++++++++++++++++++++++----------
+ 2 files changed, 29 insertions(+), 11 deletions(-)

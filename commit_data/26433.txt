@@ -1,18 +1,13 @@
-commit 5fb6aa3e096bc61f5a602109ebdb8e3edb0f66ca
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Mar 18 19:11:19 2016 +0100
+commit 02717bdc20f0c4d3472c2cba6fce292c9a5c3777
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 09:49:48 2016 -0500
 
-    testing: add test for not exceeding maximum parallism
+    cmd/asm: add -e flag (no limit on errors) to match compiler
     
-    Fixed bug that slipped probably slipped in after rebasing and
-    explain why it failed on nacl/netbsd/plan9, which set default
-    maxparallelism to 1.
-    
-    Change-Id: I4d59682fb2843d138b320334189f53fcdda5b2f6
-    Reviewed-on: https://go-review.googlesource.com/20980
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5b749c575e0ec78fb3c50d056899bd1fe5d91853
+    Reviewed-on: https://go-review.googlesource.com/18847
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/testing/sub_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/testing/testing.go  |  2 +-
- 2 files changed, 52 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/parse.go   | 3 ++-
+ src/cmd/asm/internal/flags/flags.go | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

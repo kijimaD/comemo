@@ -1,57 +1,12 @@
-commit 0273dc131e4d5c63875824784e4240d0c8bb23bc
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Aug 7 12:20:05 2013 -0700
+commit 2b45124a598be04cfa7aad9de43f7cbb465603f8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 7 11:31:01 2013 -0700
 
-    runtime: convert .s textflags from numbers to symbolic constants.
-    Remove NOPROF/DUPOK from everything.
-    
-    Edits done with a script, except pclinetest.asm which depended
-    on the DUPOK flag on main().
+    test: add cases to return.go that gccgo got wrong
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12613044
+    https://golang.org/cl/12620043
 
- src/pkg/debug/gosym/pclinetest.asm  | 16 ++++-----
- src/pkg/runtime/memclr_arm.s        |  4 ++-
- src/pkg/runtime/memmove_386.s       |  4 ++-
- src/pkg/runtime/memmove_amd64.s     |  4 ++-
- src/pkg/runtime/memmove_arm.s       |  4 ++-
- src/pkg/runtime/race_amd64.s        |  4 ++-
- src/pkg/runtime/rt0_darwin_386.s    |  6 ++--
- src/pkg/runtime/rt0_darwin_amd64.s  |  6 ++--
- src/pkg/runtime/rt0_freebsd_386.s   |  6 ++--
- src/pkg/runtime/rt0_freebsd_amd64.s |  6 ++--
- src/pkg/runtime/rt0_freebsd_arm.s   |  4 ++-
- src/pkg/runtime/rt0_linux_386.s     |  8 +++--
- src/pkg/runtime/rt0_linux_amd64.s   |  6 ++--
- src/pkg/runtime/rt0_linux_arm.s     |  8 +++--
- src/pkg/runtime/rt0_netbsd_386.s    |  6 ++--
- src/pkg/runtime/rt0_netbsd_amd64.s  |  6 ++--
- src/pkg/runtime/rt0_netbsd_arm.s    |  4 ++-
- src/pkg/runtime/rt0_openbsd_386.s   |  6 ++--
- src/pkg/runtime/rt0_openbsd_amd64.s |  6 ++--
- src/pkg/runtime/rt0_plan9_386.s     |  4 ++-
- src/pkg/runtime/rt0_plan9_amd64.s   |  4 ++-
- src/pkg/runtime/rt0_windows_386.s   |  6 ++--
- src/pkg/runtime/rt0_windows_amd64.s |  5 +--
- src/pkg/runtime/sys_darwin_386.s    | 71 +++++++++++++++++++------------------
- src/pkg/runtime/sys_darwin_amd64.s  | 69 +++++++++++++++++------------------
- src/pkg/runtime/sys_freebsd_386.s   | 59 +++++++++++++++---------------
- src/pkg/runtime/sys_freebsd_amd64.s | 57 ++++++++++++++---------------
- src/pkg/runtime/sys_freebsd_arm.s   | 53 +++++++++++++--------------
- src/pkg/runtime/sys_linux_386.s     | 63 ++++++++++++++++----------------
- src/pkg/runtime/sys_linux_amd64.s   | 63 ++++++++++++++++----------------
- src/pkg/runtime/sys_linux_arm.s     | 67 +++++++++++++++++-----------------
- src/pkg/runtime/sys_netbsd_386.s    | 59 +++++++++++++++---------------
- src/pkg/runtime/sys_netbsd_amd64.s  | 57 ++++++++++++++---------------
- src/pkg/runtime/sys_netbsd_arm.s    | 59 +++++++++++++++---------------
- src/pkg/runtime/sys_openbsd_386.s   | 57 ++++++++++++++---------------
- src/pkg/runtime/sys_openbsd_amd64.s | 55 ++++++++++++++--------------
- src/pkg/runtime/sys_plan9_386.s     | 37 +++++++++----------
- src/pkg/runtime/sys_plan9_amd64.s   | 43 +++++++++++-----------
- src/pkg/runtime/sys_windows_386.s   | 33 ++++++++---------
- src/pkg/runtime/sys_windows_amd64.s | 33 ++++++++---------
- src/pkg/runtime/vlop_386.s          |  6 ++--
- src/pkg/runtime/vlop_arm.s          | 15 ++++----
- 42 files changed, 575 insertions(+), 514 deletions(-)
+ test/return.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

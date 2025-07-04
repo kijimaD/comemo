@@ -1,12 +1,19 @@
-commit b0c3429ac30ae91d00c3fb0e2a62b220f25d6e65
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Sun Oct 7 11:24:14 2012 +1100
+commit 0b2ca9e62f778adb95c31e57e120ef1cbfc42b25
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 00:52:40 2012 +0200
 
-    doc/debugging_with_gdb: fix minor typo (space before comma)
+    cmd/gc: avoid clobbering the AST in cgen_callmeth.
     
-    R=golang-dev, r
+    It confused the detection of init loops when involving
+    method calls.
+    
+    Fixes #3890.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6610061
+    https://golang.org/cl/6620067
 
- doc/debugging_with_gdb.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/gc/gen.c         | 16 +++++++++-------
+ src/cmd/gc/sinit.c       |  2 ++
+ test/fixedbugs/bug459.go | 35 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 46 insertions(+), 7 deletions(-)

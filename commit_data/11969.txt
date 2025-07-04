@@ -1,24 +1,25 @@
-commit 5c598d3c9f0b9d78f92ffe1ab5a2365fe900c631
-Author: Sébastien Paolacci <sebastien.paolacci@gmail.com>
-Date:   Thu Feb 16 13:30:04 2012 -0500
+commit 85d33918a0c4ad56b2f40b052963e2c1dafb7014
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 16 22:43:41 2012 +1100
 
-    runtime: release unused memory to the OS.
+    cmd, pkg/go/*: fix "go vet" warnings for go/ast and go/printer
+    struct literals.
     
-    Periodically browse MHeap's freelists for long unused spans and release them if any.
-    
-    Current hardcoded settings:
-            - GC is forced if none occured over the last 2 minutes.
-            - spans are handed back after 5 minutes of uselessness.
-    
-    SysUnused (for Unix) is a wrapper on madvise MADV_DONTNEED on Linux and MADV_FREE on BSDs.
-    
-    R=rsc, dvyukov, remyoudompheng
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5451057
+    https://golang.org/cl/5653073
 
- src/pkg/runtime/malloc.h |  9 ++++--
- src/pkg/runtime/mem.go   | 14 ++++----
- src/pkg/runtime/mgc0.c   |  8 +++++
- src/pkg/runtime/mheap.c  | 83 +++++++++++++++++++++++++++++++++++++++++++++++-
- src/pkg/runtime/proc.c   | 15 +++++++--
- 5 files changed, 117 insertions(+), 12 deletions(-)
+ src/cmd/fix/httpfs.go              |  10 +-
+ src/cmd/fix/main.go                |   4 +-
+ src/cmd/fix/reflect.go             |   2 +-
+ src/cmd/godoc/codewalk.go          |   2 +-
+ src/cmd/godoc/godoc.go             |   2 +-
+ src/cmd/godoc/parser.go            |   2 +-
+ src/cmd/godoc/snippet.go           |  16 ++-
+ src/cmd/gofmt/gofmt.go             |   2 +-
+ src/cmd/gofmt/long_test.go         |   2 +-
+ src/pkg/go/doc/reader.go           |  10 +-
+ src/pkg/go/parser/parser.go        | 253 ++++++++++++++++++++++++-------------
+ src/pkg/go/printer/nodes.go        |   2 +-
+ src/pkg/go/printer/printer_test.go |   8 +-
+ 13 files changed, 203 insertions(+), 112 deletions(-)

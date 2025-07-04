@@ -1,17 +1,19 @@
-commit 679004f484f0902b6eb8c66eb40c88f98a1163f1
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 30 10:10:08 2018 +0200
+commit d07581f28ebe98b8920b6ac64a9e844e9dab1a78
+Author: Hana Kim <hakim@google.com>
+Date:   Mon Jan 22 16:20:30 2018 -0500
 
-    cmd/dist: remove support for macOS 10.9 and earlier
+    cmd/trace: add analyzeAnnotation and /usertasks view.
     
-    Updates #23122
+    R=go1.11
     
-    Change-Id: I14cfb83f3f78cdbe5880bd29209388ad12b9ee89
-    Reviewed-on: https://go-review.googlesource.com/115236
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I5078ab714c8ac2c652e6ec496e01b063235a014a
+    Reviewed-on: https://go-review.googlesource.com/90216
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/dist/main.go | 26 ++------------------------
- 1 file changed, 2 insertions(+), 24 deletions(-)
+ src/cmd/trace/annotations.go      | 670 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/trace/annotations_test.go | 150 +++++++++
+ src/cmd/trace/main.go             |   1 +
+ src/cmd/trace/trace.go            |  18 +
+ 4 files changed, 839 insertions(+)

@@ -1,33 +1,31 @@
-commit 54452b963c16834935b0589897b9ced9c4066a0d
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Nov 1 23:43:15 2023 +1100
+commit bed970b3ffa81cd43ce520bdc75113dd069f41ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 16 16:04:08 2022 -0500
 
-    syscall: call getfsstat via libc on openbsd
+    cmd/compile: handle integer conversions in static init inliner
     
-    On openbsd, call getfsstat directly via libc, instead of calling it
-    via syscall.Syscall.
+    Given code like
     
-    Updates #63900
+            func itou(i int) uint { return uint(i) }
+            var x = itou(-1)
     
-    Change-Id: Ib4c581160b170e6cc6017c42e959e647d97ac993
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538736
+    the static inliner from CL 450136 was rewriting the code to
+    
+            var x = uint(-1)
+    
+    which is not valid Go code. Fix this by converting the
+    constants appropriately during inlining.
+    
+    Fixes golang.org/x/image/vector test.
+    
+    Change-Id: I13448df8504c6a70525b1cdc36e2c947e22cdd33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451376
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Josh Rickmar <jrick@zettaport.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/syscall/syscall_openbsd.go          | 12 ++++--------
- src/syscall/zsyscall_openbsd_386.go     | 15 +++++++++++++++
- src/syscall/zsyscall_openbsd_386.s      |  2 ++
- src/syscall/zsyscall_openbsd_amd64.go   | 15 +++++++++++++++
- src/syscall/zsyscall_openbsd_amd64.s    |  2 ++
- src/syscall/zsyscall_openbsd_arm.go     | 15 +++++++++++++++
- src/syscall/zsyscall_openbsd_arm.s      |  2 ++
- src/syscall/zsyscall_openbsd_arm64.go   | 15 +++++++++++++++
- src/syscall/zsyscall_openbsd_arm64.s    |  2 ++
- src/syscall/zsyscall_openbsd_ppc64.go   | 15 +++++++++++++++
- src/syscall/zsyscall_openbsd_ppc64.s    |  3 +++
- src/syscall/zsyscall_openbsd_riscv64.go | 15 +++++++++++++++
- src/syscall/zsyscall_openbsd_riscv64.s  |  2 ++
- 13 files changed, 107 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/staticinit/sched.go |  57 +++++++-
+ test/convinline.go                           | 194 +++++++++++++++++++++++++++
+ 2 files changed, 247 insertions(+), 4 deletions(-)

@@ -1,17 +1,15 @@
-commit 94df1a067caed13602ae5dd0cd2c2c6d1b8ffae2
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Jan 5 13:12:30 2011 -0500
+commit c0332fc93f36bfaf6a5fe681c73d743c36d9f301
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 5 10:11:34 2011 -0800
 
-    gc: return constant floats for parts of complex constants
+    fmt: normalize processing of format string
+    The old loop was a bit odd; change it to be more regular.
+    This also enables a diagnostic for Printf("%", 3): %!(NOVERB)
     
-    Fixes #1369.
-    
-    R=rsc
+    R=rsc, Kyle C
     CC=golang-dev
-    https://golang.org/cl/3731046
+    https://golang.org/cl/3749044
 
- src/cmd/gc/go.h          |  1 +
- src/cmd/gc/subr.c        | 15 +++++++++++++++
- src/cmd/gc/typecheck.c   |  6 ++++++
- test/fixedbugs/bug316.go | 17 +++++++++++++++++
- 4 files changed, 39 insertions(+)
+ src/pkg/fmt/fmt_test.go |  8 +++++---
+ src/pkg/fmt/print.go    | 20 +++++++++++---------
+ 2 files changed, 16 insertions(+), 12 deletions(-)

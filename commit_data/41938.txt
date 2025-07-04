@@ -1,35 +1,37 @@
-commit 6d63a74f8e8be044d672fc594c0d356eb911f14b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Mar 21 18:28:16 2020 -0700
+commit afe50c11965ecc1e0500935a5e3fc737c9875c21
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Oct 19 12:31:59 2019 +0200
 
-    time/tzdata: new package
+    doc: update ports list description to reflect current status
     
-    Importing the time/tzdata package will embed a copy of the IANA
-    timezone database into the program. This will let the program work
-    correctly when the timezone database is not available on the system.
-    It will increase the size of the binary by about 800K.
+    This change updates the GOARCH/GOOS discussion at the top of the
+    "Installing Go from source" document to better reflect the current
+    status. In particular:
     
-    You can also build a program with -tags timetzdata to embed the
-    timezone database in the program being built.
+    - The GOARCH list now focuses on simply listing the supported
+    architectures, with no notes about their supposed "maturity", since
+    the same GOARCH can be mature on a GOOS and not so mature on another.
     
-    Fixes #21881
-    Fixes #38013
-    Fixes #38017
+    - Outdated notes about some archs being new and "not well-exercised"
+    have been removed in favour of a following list of which ports are
+    first class.
     
-    Change-Id: Iffddee72a8f46c95fee3bcde43c142d6899d9246
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224588
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    - The list of supported OS has been updated (added: AIX, Illumos),
+    and sorted in alphabetical order.
+    
+    - A note about the runtime support being the same for all ARCHS,
+    "including garbage collection and efficient array slicing and" etc etc
+    has been removed, since it doesn't seem particularly relevant in a
+    "install from source" instruction page, and it's likely a leftover
+    from the time this doc page was the landing place for new people and
+    it felt the need to "sell" Go.
+    
+    Updates #27689
+    Fixes #35009
+    
+    Change-Id: Ic4eca91dca3135adc7bed4fe00b4f157768f0e81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202197
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.15.html                     |    14 +
- lib/time/update.bash                |     2 +
- src/go/build/deps_test.go           |     2 +
- src/time/embed.go                   |    12 +
- src/time/tzdata/generate_zipdata.go |    83 +
- src/time/tzdata/tzdata.go           |   107 +
- src/time/tzdata/tzdata_test.go      |    95 +
- src/time/tzdata/zipdata.go          | 13048 ++++++++++++++++++++++++++++++++++
- src/time/zoneinfo_read.go           |    23 +
- 9 files changed, 13386 insertions(+)
+ doc/install-source.html | 68 +++++++++++++++++++------------------------------
+ 1 file changed, 26 insertions(+), 42 deletions(-)

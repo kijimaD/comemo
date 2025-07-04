@@ -1,43 +1,25 @@
-commit 2b2348ab143368a35031a814a8d41eb5a437aa33
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Apr 8 13:39:10 2018 +0100
+commit 03c93eaa0ba19a57ae348ea3f3ff91a1be2ef7fb
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Nov 7 13:04:22 2017 +0100
 
-    cmd/compile/internal/gc: add some Node methods
+    misc/ios: dump logs for failing lldb sessions to stdout
     
-    Focus on "isfoo" funcs that take a *Node, and conver them to isFoo
-    methods instead. This makes for more idiomatic Go code, and also more
-    readable func names.
+    The iOS test harness dumps the output of its lldb session to stdout,
+    but only if the lldb session was successfully started.
+    Make sure the log is always dumpede, so that lldb startup failures
+    such as
     
-    Found candidates with grep, and applied most changes with sed. The funcs
-    chosen were isgoconst, isnil, and isblank. All had the same signature,
-    func(*Node) bool.
+    lldb setup error: exited (lldb start: exit status 253)
     
-    While at it, camelCase the isliteral and iszero function names. Don't
-    move these to methods, as they are only used in the backend part of gc,
-    which might one day be split into a separate package.
+    can be diagnosed.
     
-    Passes toolstash -cmp on std cmd.
+    For the iOS builders.
     
-    Change-Id: I4df081b12d36c46c253167c8841c5a841f1c5a16
-    Reviewed-on: https://go-review.googlesource.com/105555
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ie0e3341dd8f84a88d26509c34816668d3ebbfaa0
+    Reviewed-on: https://go-review.googlesource.com/76195
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/compile/internal/gc/closure.go   |  2 +-
- src/cmd/compile/internal/gc/const.go     | 12 +++++++-----
- src/cmd/compile/internal/gc/dcl.go       | 10 +++++-----
- src/cmd/compile/internal/gc/esc.go       |  2 +-
- src/cmd/compile/internal/gc/gsubr.go     |  2 +-
- src/cmd/compile/internal/gc/init.go      |  2 +-
- src/cmd/compile/internal/gc/inl.go       |  4 ++--
- src/cmd/compile/internal/gc/noder.go     |  2 +-
- src/cmd/compile/internal/gc/order.go     | 18 +++++++++---------
- src/cmd/compile/internal/gc/range.go     |  8 ++++----
- src/cmd/compile/internal/gc/sinit.go     | 28 ++++++++++++++--------------
- src/cmd/compile/internal/gc/ssa.go       | 10 +++++-----
- src/cmd/compile/internal/gc/subr.go      |  6 +++---
- src/cmd/compile/internal/gc/swt.go       |  4 ++--
- src/cmd/compile/internal/gc/typecheck.go | 12 ++++++------
- src/cmd/compile/internal/gc/walk.go      | 16 ++++++++--------
- 16 files changed, 70 insertions(+), 68 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

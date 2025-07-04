@@ -1,20 +1,24 @@
-commit 8a9b96ace4c0064d3c06cd483368bd655ad43d87
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Thu Aug 18 19:07:59 2016 +0900
+commit 75b844f0d228bda5dea2aabae096909f81355bac
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Apr 7 15:48:15 2016 +0200
 
-    internal/testenv: add HasSymlink/MustHaveSymlink
+    runtime/trace: test detection of broken timestamps
     
-    os package and path/filepath package have duplicated code for
-    checking symlink supports in test code.
-    This CL tries to simplify such test code.
+    On some processors cputicks (used to generate trace timestamps)
+    produce non-monotonic timestamps. It is important that the parser
+    distinguishes logically inconsistent traces (e.g. missing, excessive
+    or misordered events) from broken timestamps. The former is a bug
+    in tracer, the latter is a machine issue.
     
-    Change-Id: I0371488337f5e951eca699852daab9ccb16ddd62
-    Reviewed-on: https://go-review.googlesource.com/27331
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Test that (1) parser does not return a logical error in case of
+    broken timestamps and (2) broken timestamps are eventually detected
+    and reported.
+    
+    Change-Id: Ib4b1eb43ce128b268e754400ed8b5e8def04bd78
+    Reviewed-on: https://go-review.googlesource.com/21608
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/build/deps_test.go               |  2 +-
- src/internal/testenv/testenv.go         | 13 +++++++++++
- src/internal/testenv/testenv_notwin.go  | 20 +++++++++++++++++
- src/internal/testenv/testenv_windows.go | 40 +++++++++++++++++++++++++++++++++
- 4 files changed, 74 insertions(+), 1 deletion(-)
+ src/internal/trace/parser.go          | 15 +++++++++++
+ src/runtime/trace/trace_stack_test.go |  5 +---
+ src/runtime/trace/trace_test.go       | 48 +++++++++++++++++++++++++----------
+ 3 files changed, 50 insertions(+), 18 deletions(-)

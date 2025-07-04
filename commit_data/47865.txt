@@ -1,20 +1,24 @@
-commit a893d0f464e15f72d5f01937bed5011098adbb7b
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Dec 17 10:30:51 2021 -0500
+commit 25b25a9ed7fe8a543fd6c1f79c6a43d33f8eae68
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 13 13:46:52 2021 -0400
 
-    go/doc: use subtests
+    cmd/asm: require NOSPLIT for ABIInternal asm functions
     
-    Change the Test function to use sub-tests for each doc mode and
-    package.
+    Change the assembler to enforce the requirement that ABIInternal
+    functions need to be NOSPLIT. At the moment all of the assembly
+    routines in the runtime that are defined as ABIInternal also
+    happen to be NOSPLIT, but this CL makes it mandatory.
     
-    This will allow more fine-grained test execution.
+    Updates #40724.
     
-    Change-Id: Ie3dda5791bda2781a60776886dd39fd18e670e24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375094
-    Trust: Jonathan Amsterdam <jba@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ief80d22de1782edb44b798fcde9aab8a93548722
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309789
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/doc/doc_test.go | 82 ++++++++++++++++++++++++--------------------------
- 1 file changed, 40 insertions(+), 42 deletions(-)
+ src/cmd/asm/internal/asm/asm.go         |  8 ++++++
+ src/cmd/asm/internal/asm/pseudo_test.go | 47 ++++++++++++++++++++++++---------
+ 2 files changed, 43 insertions(+), 12 deletions(-)

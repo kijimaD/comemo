@@ -1,14 +1,15 @@
-commit dae803863978513a159b36822054126f042ff412
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 4 01:58:31 2014 -0400
+commit 6a76bca33ffc83254edb9878679f11f4ba8e1b37
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 28 21:35:59 2014 -0700
 
-    runtime: fix nacl/amd64p32 build
+    runtime: convert closechan/chanlen/chancap to Go
     
-    BP is not a legal register on nacl.
-    
-    TBR=iant
+    LGTM=bradfitz, rsc
+    R=golang-codereviews, bradfitz, rsc
     CC=golang-codereviews
-    https://golang.org/cl/140980043
+    https://golang.org/cl/135150043
 
- src/pkg/runtime/asm_amd64p32.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/chan.go  | 75 +++++++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/runtime/chan.goc | 75 ------------------------------------------------
+ src/pkg/runtime/thunk.s  |  9 ++++++
+ 3 files changed, 77 insertions(+), 82 deletions(-)

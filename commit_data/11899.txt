@@ -1,15 +1,29 @@
-commit 33f7596f8d13a8114275b2ec3aa31791857f7554
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 14 13:07:14 2012 -0500
+commit 1076d4ef73a3fd802432b8c54d166d5c562b7d2d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 14 09:13:12 2012 -0800
 
-    syscall: linux Tgkill takes a Signal too
+    go/doc: treat predeclared error interface like an exported type
     
-    R=golang-dev, gri
+    Also added -files flag to provide regexp for test files for
+    selective testing.
+    
+    Fixes #2956.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5649089
+    https://golang.org/cl/5657045
 
- src/pkg/syscall/syscall_linux.go        | 2 +-
- src/pkg/syscall/zsyscall_linux_386.go   | 2 +-
- src/pkg/syscall/zsyscall_linux_amd64.go | 2 +-
- src/pkg/syscall/zsyscall_linux_arm.go   | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/go/doc/doc_test.go              | 20 +++++++++++---
+ src/pkg/go/doc/exports.go               | 47 ++++++++++++++++++++++++++++-----
+ src/pkg/go/doc/reader.go                | 34 ++++++++++++++++++------
+ src/pkg/go/doc/testdata/e.go            |  2 +-
+ src/pkg/go/doc/testdata/error1.0.golden | 30 +++++++++++++++++++++
+ src/pkg/go/doc/testdata/error1.1.golden | 32 ++++++++++++++++++++++
+ src/pkg/go/doc/testdata/error1.2.golden | 30 +++++++++++++++++++++
+ src/pkg/go/doc/testdata/error1.go       | 24 +++++++++++++++++
+ src/pkg/go/doc/testdata/error2.0.golden | 27 +++++++++++++++++++
+ src/pkg/go/doc/testdata/error2.1.golden | 37 ++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/error2.2.golden | 27 +++++++++++++++++++
+ src/pkg/go/doc/testdata/error2.go       | 29 ++++++++++++++++++++
+ src/pkg/go/doc/testdata/f.go            |  2 +-
+ 13 files changed, 322 insertions(+), 19 deletions(-)

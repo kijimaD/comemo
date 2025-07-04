@@ -1,22 +1,23 @@
-commit ae9c822f78d5048aa4290b06a5a38f67aaf23dbe
-Author: David Heuschmann <heuschmann.d@gmail.com>
-Date:   Sat Sep 15 13:04:59 2018 +0200
+commit 29957c52df59795ba21a6832662f66e9f1f298cf
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 23 14:01:21 2018 -0400
 
-    cmd/compile: use more specific error message for assignment mismatch
+    runtime: fix preemption deadlocks in TestDebugCall*
     
-    Show a more specifc error message in the form of "%d variables but %v
-    returns %d values" if an assignment mismatch occurs with a function
-    or method call on the right.
+    TestDebugCall* uses atomic spin loops and hence can deadlock if the
+    garbage collector is enabled (because of #10958; ironically,
+    implementing debugger call injection is closely related to fixing this
+    exact issue, but we're not there yet).
     
-    Fixes #27595
+    Fix this by disabling the garbage collector during these tests.
     
-    Change-Id: Ibc97d070662b08f150ac22d686059cf224e012ab
-    Reviewed-on: https://go-review.googlesource.com/135575
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Updates #25519 (might fix it, though I suspect not)
+    
+    Change-Id: If1e454b9cdea8e4b1cd82509b762c75b6acd8476
+    Reviewed-on: https://go-review.googlesource.com/114086
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  9 +++++++--
- test/fixedbugs/issue26616.go             | 10 +++++-----
- test/fixedbugs/issue27595.go             | 19 +++++++++++++++++++
- 3 files changed, 31 insertions(+), 7 deletions(-)
+ src/runtime/debug_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

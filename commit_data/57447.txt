@@ -1,33 +1,22 @@
-commit 8efb5ebfd02a8e5cb6c79c5cd0e093fe896e6347
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Sep 3 10:04:02 2024 +0800
+commit 87fe5faffca1bce0db513a3c1bb640ccf6a04bc7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 31 11:13:35 2023 -0700
 
-    runtime: switch cputicks and switchToCrashStack0 on loong64 to regabi
+    internal/syscall/unix: don't define libc_getentropy_trampoline on ios
     
-    goos: linux
-    goarch: loong64
-    pkg: runtime
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                         |   old.bench   |   new.bench                        |
-                         |   sec/op      |   sec/op      vs base              |
-    SelectUncontended       246.6n ± 0%     247.4n ± 0%  +0.32% (p=0.000 n=10)
-    SelectSyncContended     1.458µ ± 0%     1.461µ ± 0%  +0.17% (p=0.000 n=10)
-    SelectAsyncContended    246.6n ± 0%     247.5n ± 0%  +0.36% (p=0.000 n=10)
-    SelectNonblock          32.81n ± 0%     32.81n ± 0%       ~ (p=1.000 n=10)
-    SelectProdCons          653.8n ± 0%     652.2n ± 0%  -0.24% (p=0.010 n=10)
-    GoroutineSelect         2.204m ± 0%     2.172m ± 0%  -1.46% (p=0.000 n=10)
-    GoroutineForRange       1.775m ± 0%     1.748m ± 0%  -1.54% (p=0.000 n=10)
-    geomean                 3.573µ          3.561µ       -0.34%
+    It is only used on Darwin. This fixes "go vet" on ios.
     
-    Change-Id: I6337cad72369e77e378b6e9bec6521d71b3f4fc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610175
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Tim King <taking@google.com>
+    Fixes #61667
+    
+    Change-Id: Iaf00fcee5d89eb8e454f75bb1c0ea62c3950b684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514495
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_loong64.s | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+ src/internal/syscall/unix/asm_darwin.s        | 1 -
+ src/internal/syscall/unix/getentropy_darwin.s | 9 +++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

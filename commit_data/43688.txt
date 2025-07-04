@@ -1,24 +1,14 @@
-commit cc0930cd1d200a126a3ae8ac3d1bea986cfc30fe
-Author: kemalelmizan <kemalelmizan@gmail.com>
-Date:   Fri Aug 28 06:39:43 2020 +0700
+commit eec981e622743821a2113a892826a223fe169a04
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Apr 19 17:56:27 2020 -0700
 
-    cmd/doc: adding validation before adding comment marker
+    go/types: remove duplicate assert call (minor cleanup)
     
-    Previous fix in issue #20929 for adding comment marker does
-    not check whether string field have // prefix or not.
-    This commit ensures string field does not contain // before adding
-    prefix to the line. Test also included in this commit.
-    
-    Fixes #40992
-    
-    Change-Id: Ibc5e8ef147eeb2ed732fb9e19815c8b21fcfb2ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251237
+    Change-Id: I6051b3305f8ee02bec4ff3dc7ec2217daed38d72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228903
     Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/doc/comment.go      |  2 +-
- src/go/doc/comment_test.go | 11 +++++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/go/types/check.go | 1 -
+ 1 file changed, 1 deletion(-)

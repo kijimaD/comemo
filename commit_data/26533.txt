@@ -1,20 +1,18 @@
-commit ad391c908b8e4532937ee912caf8ddb8f3891ef8
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Thu Mar 17 23:18:14 2016 +0100
+commit 224888655fbbdf4a6d7a792d17dd95851e9b86aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 22:07:06 2016 -0500
 
-    fmt: split doPrint into two specialized functions
+    cmd/go: document that -msan requires clang
     
-    Remove format flag reset from doPrint. Flags will not be set in
-    doPrint and printArg will not return with flags modified.
+    Fixes #14171.
     
-    Remove the extra arguments addspace and addnewline and split up
-    doPrint into two simpler and specialized functions.
-    
-    Change-Id: Ib884d027abfbb31c6f01b008f51d6d76fc0c1a17
-    Reviewed-on: https://go-review.googlesource.com/21181
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: Ie75c1cfd88801618308d472bc04e7fc648c95e0c
+    Reviewed-on: https://go-review.googlesource.com/19150
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/fmt/print.go | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+ src/cmd/go/alldocs.go | 3 ++-
+ src/cmd/go/build.go   | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

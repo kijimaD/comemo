@@ -1,23 +1,21 @@
-commit 70f4717e96cf9d8ca8a5f439d7d6487ec822ce49
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Oct 14 15:30:13 2024 -0700
+commit 56b3b244fdd7a50fcd9ffb20d7cfdbfae3af81f0
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 7 17:01:47 2023 -0400
 
-    os: use relative paths in a test dir in TestOpenError
+    cmd/internal/objabi,cmd/compile: move NoInstrumentPkgs and NoRacePkgs to PkgSpecials
     
-    Refactor TestOpenError to use relative paths in test cases,
-    in preparation for extending it to test os.Root.
+    This consolidates the NoInstrumentPkgs and NoRacePkgs lists into the
+    objabi.LookupPkgSpecial mechanism.
     
-    Use a test temporary directory instead of system directory
-    with presumed-known contents.
-    
-    Move the testcase type and case definitions inline with the test.
-    
-    For #67002
-    
-    Change-Id: Idc53dd9fcecf763d3e4eb3b4643032e3003d7ef4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620157
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I411654afdd690fb01c412e7e8b57ddfbe85415e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521702
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/os/os_test.go | 45 +++++++++++++++++++++++----------------------
- 1 file changed, 23 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/base/base.go  | 41 ----------------------------------
+ src/cmd/compile/internal/gc/main.go    |  2 +-
+ src/cmd/compile/internal/types/type.go | 15 +++----------
+ src/cmd/compile/internal/walk/race.go  |  3 ++-
+ src/cmd/internal/objabi/pkgspecial.go  | 39 +++++++++++++++++++++++++++++++-
+ 5 files changed, 44 insertions(+), 56 deletions(-)

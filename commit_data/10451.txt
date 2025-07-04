@@ -1,12 +1,12 @@
-commit cf5a1c0909819f2b70b7d8558e0e1103cf7f9642
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 18 14:30:06 2011 -0500
+commit aa3dbf2947a5bce8c5a3595fafd0e26f184dabf5
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Nov 18 13:36:06 2011 -0500
 
-    codereview: put message back in post-commit mails
+    syscall: fix env routines for Plan 9
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/5417049
+    R=golang-dev
+    CC=ality, golang-dev, rsc
+    https://golang.org/cl/5364063
 
- lib/codereview/codereview.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/env_plan9.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

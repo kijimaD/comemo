@@ -1,24 +1,17 @@
-commit 05082c90d5b35935ccc27acb070e00702df91a3a
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Aug 17 14:17:07 2020 -0400
+commit b2fde1098a151f89c7a20d0fe322dfb052211786
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 24 14:57:20 2020 -0400
 
-    cmd/compile: clean up buggy DWARF inlined info PC ranges
+    [dev.link] cmd/link: use new dodata on darwin/amd64
     
-    Repair the code that generates PC ranges for DWARF inlined routine
-    instances to insure that if II Y is a child of II X within the inline
-    tree, X's ranges include the ranges from Y. This is similar to what
-    we're already doing for DWARF scopes.
+    This probably breaks darwin/arm64. Will fix.
     
-    Updates #33188.
-    
-    Change-Id: I9bb552777fcd1ae93dc01872707667ad092b1dd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248724
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Trust: Than McIntosh <thanm@google.com>
+    Change-Id: I8be168985124f971e9d8ab5bc95c303336dd705b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230019
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/dwinl.go | 92 ++++++++++++++++++++++++++++++++++++
- src/cmd/internal/dwarf/dwarf.go      | 31 +++++++-----
- 2 files changed, 110 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/ld/data.go  |   3 +-
+ src/cmd/link/internal/ld/data2.go |   3 +-
+ src/cmd/link/internal/ld/macho.go | 148 +++++++++++++++++++++-----------------
+ src/cmd/link/internal/ld/main.go  |  12 +++-
+ 4 files changed, 97 insertions(+), 69 deletions(-)

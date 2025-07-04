@@ -1,38 +1,65 @@
-commit 11b3ee6fec40857af609674292362fb9a096dff6
-Author: Ian Gudger <igudger@google.com>
-Date:   Fri May 18 12:43:13 2018 -0700
+commit 32d1cd33c7b93267d371baa7206aed6bbd236d00
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Nov 9 11:39:10 2017 -0500
 
-    net: fix DNS NXDOMAIN performance regression
+    runtime/trace: user annotation API
     
-    golang.org/cl/37879 unintentionally changed the way NXDOMAIN errors were
-    handled. Before that change, resolution would fail on the first NXDOMAIN
-    error and return to the user. After that change, the next server would
-    be consulted and resolution would fail only after all servers had been
-    consulted. This change restores the old behavior.
+    This CL presents the proposed user annotation API skeleton.
+    This CL bumps up the trace version to 1.11.
     
-    Go 10.10.2:
-    BenchmarkGoLookupIP-12                             10000            174883 ns/op   11450 B/op        163 allocs/op
-    BenchmarkGoLookupIPNoSuchHost-12                    3000            670140 ns/op   52189 B/op        544 allocs/op
-    BenchmarkGoLookupIPWithBrokenNameServer-12             1        5002568137 ns/op  163792 B/op        375 allocs/op
+    Design doc https://goo.gl/iqJfJ3
     
-    before this change:
-    BenchmarkGoLookupIP-12                             10000            165501 ns/op    8585 B/op         94 allocs/op
-    BenchmarkGoLookupIPNoSuchHost-12                    1000           1204117 ns/op   83661 B/op        674 allocs/op
-    BenchmarkGoLookupIPWithBrokenNameServer-12             1        5002629186 ns/op  159128 B/op        275 allocs/op
+    Implementation CLs are followed.
     
-    after this change:
-    BenchmarkGoLookupIP-12                             10000            158102 ns/op    8585 B/op         94 allocs/op
-    BenchmarkGoLookupIPNoSuchHost-12                    2000            645364 ns/op   42990 B/op        356 allocs/op
-    BenchmarkGoLookupIPWithBrokenNameServer-12             1        5002163437 ns/op  159144 B/op        275 allocs/op
+    The API introduces three basic building blocks. Log, Span, and Task.
     
-    Fixes #25336
+    Log is for basic logging. When called, the message will be recorded
+    to the trace along with timestamp, goroutine id, and stack info.
     
-    Change-Id: I315cd70330d1f66e54ce5a189a61c99f095bc138
-    Reviewed-on: https://go-review.googlesource.com/113815
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+       trace.Log(ctx, messageType message)
+    
+    Span can be thought as an extension of log to record interesting
+    time interval during a goroutine's execution. A span is local to a
+    goroutine by definition.
+    
+       trace.WithSpan(ctx, "doVeryExpensiveOp", func(ctx context) {
+          /* do something very expensive */
+       })
+    
+    Task is higher-level concept that aids tracing of complex operations
+    that encompass multiple goroutines or are asynchronous.
+    For example, an RPC request, a HTTP request, a file write, or a
+    batch job can be traced with a Task.
+    
+    Note we chose to design the API around context.Context so it allows
+    easier integration with other tracing tools, often designed around
+    context.Context as well. Log and WithSpan APIs recognize the task
+    information embedded in the context and record it in the trace as
+    well. That allows the Go execution tracer to associate and group
+    the spans and log messages based on the task information.
+    
+    In order to create a Task,
+    
+       ctx, end := trace.NewContext(ctx, "myTask")
+       defer end()
+    
+    The Go execution tracer measures the time between the task created
+    and the task ended for the task latency.
+    
+    More discussion history in golang.org/cl/59572.
+    
+    Update #16619
+    
+    R=go1.11
+    
+    Change-Id: I59a937048294dafd23a75cf1723c6db461b193cd
+    Reviewed-on: https://go-review.googlesource.com/63274
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/dnsclient_unix.go      | 21 +++++++++---------
- src/net/dnsclient_unix_test.go | 48 +++++++++++++++++++++++++++---------------
- 2 files changed, 42 insertions(+), 27 deletions(-)
+ src/cmd/go/internal/work/gc.go  |   2 +-
+ src/go/build/deps_test.go       |   2 +-
+ src/internal/trace/parser.go    |  12 ++-
+ src/runtime/trace.go            |  38 ++++++++-
+ src/runtime/trace/annotation.go | 166 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/trace/trace.go      |  99 ++++++++++++++++++++++--
+ 6 files changed, 307 insertions(+), 12 deletions(-)

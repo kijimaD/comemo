@@ -1,22 +1,14 @@
-commit d184f8dc020ac635cea02c046ab1d0b87dfd624d
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Thu Jun 5 19:23:55 2025 +0800
+commit 7f76c00fc5678fa782708ba8fece63750cb89d03
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 19 16:14:54 2024 -0400
 
-    runtime: check for gsignal in racecall on loong64
+    internal/reflectlite: remove unused mapType
     
-    This issue has been fixed for amd64, arm64 and other platforms
-    in CL 643875, but it was missed when the race support was
-    submitted for loong64.
-    
-    Fixes #71395.
-    
-    Change-Id: I678f381e868214f1b3399be43187db49e1660933
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/679055
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I715186c053bc9911b912e69904735c9498bf9c13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580376
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/race_loong64.s | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/internal/reflectlite/reflect_mirror_test.go |  1 -
+ src/internal/reflectlite/type.go                | 14 --------------
+ 2 files changed, 15 deletions(-)

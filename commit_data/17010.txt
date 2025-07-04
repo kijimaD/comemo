@@ -1,12 +1,29 @@
-commit a039bf20be6f5a90f0a29dd7530ea589fd7438b8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Aug 3 18:32:14 2013 +1000
+commit 8a7def2b3b8fc801eb4f02e58328e84ee311910e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 3 13:32:22 2013 +0900
 
-    cmd/dist: generate cmd/cgo/zdefaultcc.go on windows (fixes windows build)
+    net: reduce unnecessary syscall.Sockaddr conversions
     
-    R=golang-dev, r
+    This CL makes IPAddr, UDPAddr and TCPAddr implement sockaddr
+    interface, UnixAddr is already sockaddr interface compliant, and
+    reduces unnecessary conversions between net.Addr, net.sockaddr and
+    syscall.Sockaddr.
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=golang-dev, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12404043
+    https://golang.org/cl/12010043
 
- src/cmd/dist/buildgo.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/net/iprawsock_posix.go | 11 +++++---
+ src/pkg/net/ipsock_posix.go    | 13 +---------
+ src/pkg/net/sock_posix.go      | 58 +++++++++++++++++++++++++++++-------------
+ src/pkg/net/sock_unix.go       | 22 ++++++++--------
+ src/pkg/net/sock_windows.go    | 22 ++++++++--------
+ src/pkg/net/tcpsock_posix.go   | 13 ++++++----
+ src/pkg/net/udpsock_posix.go   | 13 ++++++----
+ src/pkg/net/unixsock_posix.go  | 17 ++++++-------
+ 8 files changed, 95 insertions(+), 74 deletions(-)

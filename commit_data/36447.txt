@@ -1,38 +1,25 @@
-commit a3381faf81e5e9ec0b207d74f29f6c442b2abb73
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Mon Sep 18 22:02:55 2017 -0700
+commit 7ec25d0acfed3f40fe634be518f0857704e5b642
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Apr 2 01:57:49 2018 +0200
 
-    math/big: streamline divLarge initialization
+    cmd/compile: implement loop BCE in prove
     
-    The divLarge code contained "todo"s about avoiding alias
-    and clear calls in the initialization of variables.  By
-    rearranging the order of initialization and always using
-    an auxiliary variable for the shifted divisor, all of these
-    calls can be safely avoided.  On average, normalizing
-    the divisor (shift>0) is required 31/32 or 63/64 of the
-    time.  If one always performs the shift into an auxiliary
-    variable first, this avoids the need to check for aliasing of
-    vIn in the output variables u and z.  The remainder u is
-    initialized via a left shift of uIn and thus needs no
-    alias check against uIn.  Since uIn and vIn were both used,
-    z needs no alias checks except against u which is used for
-    storage of the remainder. This change has a minimal impact
-    on performance (see below), but cleans up the initialization
-    code and eliminates the "todo"s.
+    Reuse findIndVar to discover induction variables, and then
+    register the facts we know about them into the facts table
+    when entering the loop block.
     
-    name                 old time/op  new time/op  delta
-    Div/20/10-4          86.7ns ± 6%  85.7ns ± 5%    ~     (p=0.841 n=5+5)
-    Div/200/100-4         523ns ± 5%   502ns ± 3%  -4.13%  (p=0.024 n=5+5)
-    Div/2000/1000-4      2.55µs ± 3%  2.59µs ± 5%    ~     (p=0.548 n=5+5)
-    Div/20000/10000-4    80.4µs ± 4%  80.0µs ± 2%    ~     (p=1.000 n=5+5)
-    Div/200000/100000-4  6.43ms ± 6%  6.35ms ± 4%    ~     (p=0.548 n=5+5)
+    Moreover, handle "x+delta > w" while updating the facts table,
+    to be able to prove accesses to slices with constant offsets
+    such as slice[i-10].
     
-    Fixes #22928
-    
-    Change-Id: I30d8498ef1cf8b69b0f827165c517bc25a5c32d7
-    Reviewed-on: https://go-review.googlesource.com/130775
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I2a63d050ed58258136d54712ac7015b25c893d71
+    Reviewed-on: https://go-review.googlesource.com/104038
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/math/big/int_test.go | 26 ++++++++++++++++++++++++
- src/math/big/nat.go      | 52 ++++++++++++++++++++----------------------------
- 2 files changed, 48 insertions(+), 30 deletions(-)
+ src/cmd/compile/fmt_test.go             |   1 +
+ src/cmd/compile/internal/ssa/loopbce.go |   2 +-
+ src/cmd/compile/internal/ssa/prove.go   | 119 +++++++++++++++++++++++++++++++-
+ test/loopbce.go                         |  80 +++++++++++----------
+ test/prove.go                           |   5 +-
+ 5 files changed, 163 insertions(+), 44 deletions(-)

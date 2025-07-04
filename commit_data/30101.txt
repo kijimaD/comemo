@@ -1,14 +1,18 @@
-commit fdbae7d77ed1d365f1fd6735d234f7c277102f12
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Mon Feb 6 13:43:11 2017 -0500
+commit 5db7c6d32cef3d9dd917adb81c4a38978853a17b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 25 06:46:26 2016 -0700
 
-    net/http/httputil: don't log read error when it's context.Canceled
+    cmd/vet/all: update whitelists
     
-    Fixes #18838
-    
-    Change-Id: I44976cadb0dc3c23eacb8cdd58429a572cd8d28a
-    Reviewed-on: https://go-review.googlesource.com/36358
+    Change-Id: Ie505b5d8cdfe4ffda71f909d6f81603b6d752eed
+    Reviewed-on: https://go-review.googlesource.com/31937
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/reverseproxy.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vet/all/whitelist/all.txt          | 4 ++++
+ src/cmd/vet/all/whitelist/arm64.txt        | 1 +
+ src/cmd/vet/all/whitelist/darwin_386.txt   | 6 ------
+ src/cmd/vet/all/whitelist/darwin_arm.txt   | 1 +
+ src/cmd/vet/all/whitelist/darwin_arm64.txt | 1 +
+ 5 files changed, 7 insertions(+), 6 deletions(-)

@@ -1,17 +1,20 @@
-commit 26e1010372216d013a0279be6b453fd680130881
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 6 11:29:54 2024 -0500
+commit 794e7ea15b3eaf1c88c7dd9b41551acf6017bcc3
+Author: Abhinav Gupta <mail@abhinavg.net>
+Date:   Wed Sep 13 15:55:06 2023 +0000
 
-    cmd/dist: add more pie tests, fips tests
+    net/http: use new Go Doc list syntax
     
-    Check the various pie combinations with the new FIPS code.
+    This tweaks the documentation for http.Client
+    to use the list syntax introduced in Go 1.19.
     
-    For #69536.
-    
-    Change-Id: I8fc771eab465c4af46a0ec8154d550c1bf95f7d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625999
+    Change-Id: I1f7e0256c13f57e04fc76e5e2362608c8f9f524d
+    GitHub-Last-Rev: 11d384f9adb25605d44dbb7aaeec88fbb3b457ed
+    GitHub-Pull-Request: golang/go#62574
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527335
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 48 insertions(+), 4 deletions(-)
+ src/net/http/client.go | 27 +++++++++++++--------------
+ 1 file changed, 13 insertions(+), 14 deletions(-)

@@ -1,61 +1,19 @@
-commit 80d306da50aef6334bcb65fb02f5728cb9513691
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Nov 1 21:54:07 2024 +0000
+commit c80a9f172bbab2b19fa3680c7928fcedf3088e4d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 20:19:46 2023 -0700
 
-    runtime: prevent weak->strong conversions during mark termination
+    cmd/compile/internal/types: add Type.Registers
     
-    Currently it's possible for weak->strong conversions to create more GC
-    work during mark termination. When a weak->strong conversion happens
-    during the mark phase, we need to mark the newly-strong pointer, since
-    it may now be the only pointer to that object. In other words, the
-    object could be white.
+    To be used by package abi in the following CL.
     
-    But queueing new white objects creates GC work, and if this happens
-    during mark termination, we could end up violating mark termination
-    invariants. In the parlance of the mark termination algorithm, the
-    weak->strong conversion is a non-monotonic source of GC work, unlike the
-    write barriers (which will eventually only see black objects).
-    
-    This change fixes the problem by forcing weak->strong conversions to
-    block during mark termination. We can do this efficiently by setting a
-    global flag before the ragged barrier that is checked at each
-    weak->strong conversion. If the flag is set, then the conversions block.
-    The ragged barrier ensures that all Ps have observed the flag and that
-    any weak->strong conversions which completed before the ragged barrier
-    have their newly-minted strong pointers visible in GC work queues if
-    necessary. We later unset the flag and wake all the blocked goroutines
-    during the mark termination STW.
-    
-    There are a few subtleties that we need to account for. For one, it's
-    possible that a goroutine which blocked in a weak->strong conversion
-    wakes up only to find it's mark termination time again, so we need to
-    recheck the global flag on wake. We should also stay non-preemptible
-    while performing the check, so that if the check *does* appear as true,
-    it cannot switch back to false while we're actively trying to block. If
-    it switches to false while we try to block, then we'll be stuck in the
-    queue until the following GC.
-    
-    All-in-all, this CL is more complicated than I would have liked, but
-    it's the only idea so far that is clearly correct to me at a high level.
-    
-    This change adds a test which is somewhat invasive as it manipulates
-    mark termination, but hopefully that infrastructure will be useful for
-    debugging, fixing, and regression testing mark termination whenever we
-    do fix it.
-    
-    Fixes #69803.
-    
-    Change-Id: Ie314e6fd357c9e2a07a9be21f217f75f7aba8c4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623615
+    Change-Id: Ic2470069e65f8d9b01ec161c28e5b86dca2ec141
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527338
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/export_test.go  |  27 +++++
- src/runtime/gc_test.go      |  77 +++++++++++++++
- src/runtime/lockrank.go     | 235 ++++++++++++++++++++++----------------------
- src/runtime/mgc.go          |  49 +++++++++
- src/runtime/mheap.go        |  48 ++++++++-
- src/runtime/mklockrank.go   |   2 +
- src/runtime/runtime2.go     |   2 +
- src/runtime/traceruntime.go |  32 +++---
- 8 files changed, 340 insertions(+), 132 deletions(-)
+ src/cmd/compile/internal/types/size.go        | 69 +++++++++++++++++++++++----
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/type.go        | 16 +++++++
+ 3 files changed, 77 insertions(+), 10 deletions(-)

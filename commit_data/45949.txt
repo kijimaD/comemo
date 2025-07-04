@@ -1,37 +1,23 @@
-commit 7cd10c1149e51a9d2f0868babaf66b8091b9c0b9
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Jul 27 10:22:35 2021 -0700
+commit a36ba090fd647e741668629527e25c657c40f8f3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Nov 27 02:06:08 2020 +1100
 
-    cmd/go: use .mod instead of .zip to determine if version has go.mod file
+    cmd/link/internal/amd64: always generate R_X86_64_PLT32 for SDYNIMPORT calls
     
-    When checking for updates, the go command checks whether the highest
-    compatible version has a go.mod file in order to determine whether
-    +incompatible versions may be considered "latest". Previously, to
-    perform this check, the go command would download the content of the
-    module (the .zip file) to see whether a go.mod file was present at the
-    root. This is slower than necessary, and it caused 'go list -m -u' to
-    try to save the sum for the .zip file in go.sum in some cases.
+    Currently, in the non-DynlinkingGo case with external linking, we generate a
+    R_X86_64_GOTPCREL relocation for the imported symbol. This results in the
+    external linker turning this into a R_X86_64_GLOB_DAT relocation, rather
+    than a R_X86_64_JUMP_SLOT. Always generate R_X86_64_PLT32 for SDYNIMPORT
+    calls so that these calls work correctly.
     
-    With this change, the go command only downloads the .mod file and
-    checks whether it appears to be a fake file generated for a version
-    that didn't have a go.mod file. This is faster and requires less
-    verification. Fake files only have a "module" directive. It's possible
-    to commit a file that passes this test, but it would be difficult to
-    do accidentally: Go 1.12 and later at least add a "go" directive. A
-    false positive here would cause version queries to have slightly
-    different results but would not affect builds.
+    Update #36435
+    Fixes #42671
     
-    Fixes #47377
-    
-    Change-Id: Ie5ffd0b45e39bd0921328a60af99a9f6e5ab6346
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337850
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I8a28884b7853cb4135053ed817bedc919482f4ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270377
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modfetch/coderepo.go           | 23 +++---
- src/cmd/go/internal/modload/modfile.go             | 83 +++++++++++-----------
- src/cmd/go/internal/modload/query.go               | 30 ++++++--
- .../go/testdata/script/mod_update_sum_readonly.txt | 34 +++++++++
- 4 files changed, 114 insertions(+), 56 deletions(-)
+ src/cmd/link/internal/amd64/asm.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

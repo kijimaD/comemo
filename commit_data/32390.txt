@@ -1,12 +1,15 @@
-commit 97246527e8cb814f65b04a35c0c3d6c88398633d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 5 15:51:26 2017 +1000
+commit ad4b5f28cec66304ca26a46f1ed744ab2079833f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:38:28 2017 -0700
 
-    cmd/link: introduce and use peFile.textSect, dataSect and bssSect
+    cmd/compile: update dextratypeData to accept *obj.LSym
     
-    Change-Id: I6a1d33a759deaa4788bafb1c288d9b0e2fe3b026
-    Reviewed-on: https://go-review.googlesource.com/56317
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: Ic235960e85b8faeffe81dac2334c09757578a552
+    Reviewed-on: https://go-review.googlesource.com/41406
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 23 ++++++++++-------------
- 1 file changed, 10 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

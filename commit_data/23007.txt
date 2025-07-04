@@ -1,19 +1,12 @@
-commit 5c7f94421ef5eca55b37f778b427abd5ea174c26
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 13 15:28:11 2015 -0700
+commit 757f21fd6fb24dc760bb01209ef9379f2a88b8f6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Apr 18 10:44:42 2015 +0900
 
-    cmd/internal/obj: validate GOARM environment variable's value before use
+    net: fix a nit found by vet
     
-    I was previously setting GOARM=arm5 (due to confusion with previously
-    seeing buildall.sh's temporary of "arm5" as a GOARCH and
-    misremembernig), but GOARM=arm5 was acting like GOARM=5 only on
-    accident. See https://go-review.googlesource.com/#/c/10023/
-    
-    Instead, fail if GOARM is not a known value.
-    
-    Change-Id: I9ba4fd7268df233d40b09f0431f37cd85a049847
-    Reviewed-on: https://go-review.googlesource.com/10024
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ic965b48bdc0e0ffba9bed5ff6b3d28ff742f8b2d
+    Reviewed-on: https://go-review.googlesource.com/9100
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/util.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/net/ipsock_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

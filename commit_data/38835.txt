@@ -1,24 +1,16 @@
-commit dc193dee15294e451ceaae2e50e539255f4a37b6
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Apr 18 09:45:40 2019 -0400
+commit 90812292e25796f8411f625c062cfc2e2b4bdf5e
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Nov 29 18:41:03 2018 -0500
 
-    go/internal/gccgoimporter: improve alias handling for anonymous fields
+    net: skip flaky TestLookupDotsWithRemoteSource on darwin
     
-    The code in the parser that deals with anonymous structure fields
-    records the fact that a field is anonymous, then tries to install a proxy
-    name for the field based on the name of the type used to declare
-    the field. If that type was an alias, the current recipe for determining
-    the proxy name was not working properly; enhance the code to recover
-    and report the alias name used.
+    Updates golang/go#27992
     
-    Fixes #31540.
-    
-    Change-Id: I9b7369ed558a288b56d85170c6f1144daf5228eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172603
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic327df7cc5002a3d537f9117559c25f30e1eab9c
+    Reviewed-on: https://go-review.googlesource.com/c/151799
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gccgoimporter/importer_test.go     |  1 +
- src/go/internal/gccgoimporter/parser.go            | 46 ++++++++++++++++------
- .../internal/gccgoimporter/testdata/issue31540.go  | 26 ++++++++++++
- .../internal/gccgoimporter/testdata/issue31540.gox | 16 ++++++++
- 4 files changed, 76 insertions(+), 13 deletions(-)
+ src/net/lookup_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

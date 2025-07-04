@@ -1,15 +1,14 @@
-commit 062b6094139edb8345c2f6ba82f8fe129ccaaf62
-Author: Ryan Barrett <ryanb@google.com>
-Date:   Mon Jun 4 10:36:24 2012 -0400
+commit 6b31508e3d59d0ea470006c5905236fec4fc8baf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 4 07:06:05 2012 -0700
 
-    misc/emacs: make compilation-mode's next-error understand test failure output.
+    net/http: simplify ParseHTTPVersion
     
-    specifically, adds a go-test element to compilation-error-regexp-alist[-alist].
-    Fixes #3629.
+    Removes code. No need for atoi helper.
     
-    R=golang-dev, rsc, sameer
-    CC=golang-dev, jba
-    https://golang.org/cl/6197091
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6285045
 
- misc/emacs/go-mode.el | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/pkg/net/http/request.go | 40 +++++++++++++++++-----------------------
+ 1 file changed, 17 insertions(+), 23 deletions(-)

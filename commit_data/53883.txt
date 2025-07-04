@@ -1,23 +1,18 @@
-commit 873f76d27bc403c266df25a4d74e10276fd42c8d
-Author: miller <millerresearch@gmail.com>
-Date:   Thu May 18 11:25:48 2023 +0100
+commit 2a627afe139b9e7b079da14b30beeb0bb8f5d09e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 14:20:20 2022 +0800
 
-    encoding/gob: skip TestLargeSlice on machines with small address space
+    bytes: simplify code using unsafe.SliceData
     
-    The encoding/gob.TestLargeSlice test needs too much virtual memory
-    to run reliably on machines with a small address space, for example
-    the plan9-arm builders where user processes only have 1 gigabyte.
+    Updates #54854
     
-    Fixes #60284
-    
-    Change-Id: Ied88630e5ec6685e14d2060ae316abca1619f9b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496138
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9c14f9fa595f73eae44eb714abc5d486915893c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428155
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/encoding/gob/codec_test.go | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ src/bytes/bytes_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

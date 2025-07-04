@@ -1,36 +1,14 @@
-commit 8dafdb1be147f0cd5a2811c69ce6e27769f5e5f1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 23 11:29:37 2017 -0700
+commit 232991e8a75011a7ae6afd41c62a1f556749ebd6
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Tue Dec 13 23:01:15 2016 -0500
 
-    cmd/compile: add Type.WidthCalculated
+    net: change "mask" to "prefix length" in ParseCIDR comment
     
-    Prior to this CL, Type.Width != 0 was the mark
-    of a Type whose Width had been calculated.
-    As a result, dowidth always recalculated
-    the width of struct{}.
-    This, combined with the prohibition on calculating
-    the width of a FuncArgsStruct and the use of
-    struct{} as a function argument,
-    meant that there were circumstances in which
-    it was forbidden to call dowidth on a type.
-    This inhibits refactoring to call dowidth automatically,
-    rather than explicitly.
-    Instead add a helper method, Type.WidthCalculated,
-    and implement as Type.Align > 0.
-    Type.Width is not a good candidate for tracking
-    whether the width has been calculated;
-    0 is a value type width, and Width is subject to
-    too much magic value game-playing.
+    Fixes #18175
     
-    For good measure, add a test for #11354.
-    
-    Change-Id: Ie9a9fb5d924e7a2010c1904ae5e38ed4a38eaeb2
-    Reviewed-on: https://go-review.googlesource.com/38468
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0074109fa885976b22c2be9fa39641d4d0657dee
+    Reviewed-on: https://go-review.googlesource.com/34375
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/align.go | 16 ++++++----------
- src/cmd/compile/internal/gc/type.go  |  4 ++++
- test/fixedbugs/issue11354.go         | 15 +++++++++++++++
- 3 files changed, 25 insertions(+), 10 deletions(-)
+ src/net/ip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

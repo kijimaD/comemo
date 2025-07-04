@@ -1,28 +1,22 @@
-commit f121e0eddd64aa0084b916e94c9a540edf859539
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Oct 20 15:03:33 2020 -0700
+commit ff29f97437765abb4dd47a239c3cca274175d5e0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 31 20:01:46 2020 -0400
 
-    cmd/compile: fix nodedump output for types of nodes
+    [dev.link] cmd/internal/goobj2: change StringRef encoding for better locality
     
-    The Dbg dumping of complex types was broken, because (I think) of a
-    recent change to handle recursive types correctly. Before this fix,
-    the Dump output of a closure node (where the last thing on the line is
-    the type of the node) was:
+    Previously, StringRef is encoded as an offset pointing to
+    { len, [len]byte }. This CL changes it to { len, offset }, where
+    offset points the bytes.
     
-    .   .   CLOSURE l(8) esc(h) tc(1) FUNC-@0
+    With the new format, reading a string header is just reading two
+    adjacent uint32s, without accessing the string table. This should
+    improve locality of object file reading.
     
-    after this change it is:
-    
-    .   .   CLOSURE l(8) esc(h) tc(1) FUNC-func(int) int
-    
-    The problem is that that the 'mode == Fdbg' code was immediately
-    aborting the descent into tconv2, since it was calling down with the
-    same node that was just entered into the hash table.
-    
-    Change-Id: Iee106b967cea1856dd92d4350681401dd34a23b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264025
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iec30708f9d9adb2f0242db6c4767c0f8e730f4df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226797
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/internal/goobj2/objfile.go | 61 +++++++++++++++++++-------------------
+ 1 file changed, 31 insertions(+), 30 deletions(-)

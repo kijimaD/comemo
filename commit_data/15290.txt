@@ -1,21 +1,12 @@
-commit 556dd0bfbd52876933ef0454ca86f492c618f342
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Feb 18 03:23:29 2013 +1100
+commit f1037f0e86d6f02fd29fe859ff0b5ed2ded6ecf5
+Author: Georg Reinke <guelfey@gmail.com>
+Date:   Sun Feb 17 02:06:59 2013 +1100
 
-    runtime: fix sigaction struct on freebsd
+    runtime: fix build on openbsd
     
-    Fix the sa_mask member of the sigaction struct - on FreeBSD this is
-    declared as a sigset_t, which is an array of four unsigned ints.
-    Replace the current int64 with Sigset from defs_freebsd_GOARCH, which
-    has the correct definition.
-    
-    Unbreaks the FreeBSD builds.
-    
-    R=golang-dev, dave, minux.ma
+    R=golang-dev, jsing
     CC=golang-dev
-    https://golang.org/cl/7333047
+    https://golang.org/cl/7312104
 
- src/pkg/runtime/signal_freebsd_386.c   | 7 +++++--
- src/pkg/runtime/signal_freebsd_amd64.c | 7 +++++--
- src/pkg/runtime/signal_freebsd_arm.c   | 7 +++++--
- 3 files changed, 15 insertions(+), 6 deletions(-)
+ src/pkg/runtime/thread_openbsd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

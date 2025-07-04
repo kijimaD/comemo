@@ -1,14 +1,14 @@
-commit 01479b6c4a5a7863b9712b16123d41fea6a3951f
+commit dc8d9031550e4adc5c83dadd48d9e1e8d0f7ea6d
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 3 09:49:12 2013 -0400
+Date:   Thu Oct 3 09:18:47 2013 -0400
 
-    go/doc: update ToHTML doc comment
+    doc/faq: add a FAQ about versioning
     
-    Update #5429
+    Fixes #5633.
     
-    R=golang-dev, r, dan.kortschak
+    R=golang-dev, r, tommi.virtanen, adg, nj
     CC=golang-dev
-    https://golang.org/cl/14293043
+    https://golang.org/cl/14283044
 
- src/pkg/go/doc/comment.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ doc/go_faq.html | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

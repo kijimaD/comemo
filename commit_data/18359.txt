@@ -1,22 +1,18 @@
-commit d7c14655a9a022ea900d25b49bda3c474cd1b97c
-Author: Vincent Vanackere <vincent.vanackere@gmail.com>
-Date:   Mon Jan 27 14:00:00 2014 -0800
+commit 179d41feccc29260d1a16294647df218f1a6746a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jan 27 23:17:46 2014 +0400
 
-    runtime/debug: fix incorrect Stack output if package path contains a dot
+    runtime: tune P retake logic
+    When GOMAXPROCS>1 the last P in syscall is never retaken
+    (because there are already idle P's -- npidle>0).
+    This prevents sysmon thread from sleeping.
+    On a darwin machine the program from issue 6673 constantly
+    consumes ~0.2% CPU. With this change it stably consumes 0.0% CPU.
+    Fixes #6673.
     
-    Although debug.Stack is deprecated, it should still return the correct result.
-    Output before this CL (using a trivial library in $GOPATH/test.com/a):
-    /home/vince/src/test.com/a/lib.go:9 (0x42311e)
-            com/a.ShowStack: os.Stdout.Write(debug.Stack())
-    
-    Output with this CL applied:
-    /home/vince/src/test.com/a/lib.go:9 (0x42311e)
-            ShowStack: os.Stdout.Write(debug.Stack())
-    
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=golang-codereviews
-    https://golang.org/cl/57330043
+    R=golang-codereviews, r
+    CC=bradfitz, golang-codereviews, iant, khr
+    https://golang.org/cl/56990045
 
- src/pkg/runtime/debug/stack.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/runtime/proc.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

@@ -1,14 +1,21 @@
-commit ae5991695c8efcb8aed3a58bbb6b93b0ffd3c60b
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Jul 22 12:42:42 2013 +1000
+commit 21b9d1473838b34911629e754f5cd2165411c1f4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Jul 20 23:31:51 2013 +0200
 
-    runtime: add a missing newline in a debug printf.
+    regexp: use a very fast random generator for benchmarks.
     
-    Trivial, but annoying while debugging this code.
+    Calls into math/rand are very slow, especially under race
+    detector because of heap accesses.
     
-    R=golang-dev, bradfitz
+    go test -bench . -run none -benchtime .1s
+    Before: 23.0s
+    After:  17.4s
+    
+    Fixes #5837.
+    
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/11656043
+    https://golang.org/cl/11564044
 
- src/pkg/runtime/proc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/regexp/exec_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

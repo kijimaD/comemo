@@ -1,13 +1,12 @@
-commit 1f5f457ba350dfa9d5b03fe4b707967b000e1990
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jan 31 12:09:56 2012 +1100
+commit 33b6d46afd3377d309e6db0126a20c7cc859e064
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 30 15:44:27 2012 -0800
 
-    dashboard: better ui layout for subrepo status
+    cmd/pack: change gopack to pack in error messages
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5595048
+    https://golang.org/cl/5598051
 
- misc/dashboard/app/build/ui.go   |  57 +++++++++--------
- misc/dashboard/app/build/ui.html | 131 ++++++++++++++++++++++++---------------
- 2 files changed, 112 insertions(+), 76 deletions(-)
+ src/cmd/pack/ar.c | 69 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 34 insertions(+), 35 deletions(-)

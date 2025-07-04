@@ -1,14 +1,19 @@
-commit 3e48c0381fd1beb78e993e940c3b46ca9898ce6d
-Author: wdvxdr <wdvxdr1123@gmail.com>
-Date:   Wed Jul 21 11:59:45 2021 +0800
+commit d2b436d95d99cb3ff587bf0d2e893a8d027f8292
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 30 15:46:33 2020 -0500
 
-    reflect: add missing copyright header
+    cmd/go: fix infinite loop in modload.keepSums
     
-    Change-Id: I5a2f7203f83be02b03aa7be5fe386e485bf68ca3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336189
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
+    Fixes #42891
+    
+    Change-Id: I0cce4204a1c4959b896188a2ab3719c0507f95e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274172
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/reflect/visiblefields.go      | 4 ++++
- src/reflect/visiblefields_test.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ src/cmd/go/internal/modload/init.go                  |  2 +-
+ src/cmd/go/testdata/script/mod_import_issue42891.txt | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

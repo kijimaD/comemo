@@ -1,19 +1,20 @@
-commit 5ba15db77f7ba92884b9a2fce21c9938c233967f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jul 17 17:08:05 2019 -0400
+commit 95d4e6158b4199e1eee957e2c8c934d2cb86c35e
+Author: hengwu0 <41297446+hengwu0@users.noreply.github.com>
+Date:   Tue Mar 5 01:24:35 2019 +0000
 
-    cmd/go: suppress errors with '@upgrade' when the latest version is replaced
+    cmd/compile: fix mips64 instruction UNPREDICTABLE bug
     
-    Fixes #33154
+    Replace addu with a sll instruction with a definite behavior (sll will discard the upper 32 bits of the 64 bits, then do sign extensions, with certain behavior). It won't have any UNPREDICTABLE expectation.
     
-    Change-Id: I5a249a77843a8bd438006af0fa1d8b4429ee25f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186617
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #30459
+    
+    Change-Id: Id79085c28c5cc4f86939b4ef08ef4bff46077c45
+    GitHub-Last-Rev: 03569796a9a64ed6c7d56a5bca966fc62c89b4ff
+    GitHub-Pull-Request: golang/go#30461
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164758
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modfetch/coderepo.go           |  8 +++++++-
- src/cmd/go/internal/modget/get.go                  | 19 +++++++++++++++++++
- src/cmd/go/internal/modload/query_test.go          |  8 ++++----
- src/cmd/go/testdata/script/mod_invalid_version.txt | 13 +++++++++++++
- 4 files changed, 43 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/mips/asm0.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

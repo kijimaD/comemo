@@ -1,14 +1,13 @@
-commit c5f16d4e40d0a2d9c2e32a866129d6a40535f57d
-Author: Kevin Burke <kev@inburke.com>
-Date:   Mon Dec 19 20:53:45 2016 -0800
+commit ab019da7272285fb4f634e7fca00c3fa973c76c4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 17 23:06:56 2016 -0800
 
-    crypto/x509: fix spelling/grammar in comments
+    cmd/internal/obj: document Prog
     
-    Also tweak one of the comment lines to fit in 80 characters.
-    
-    Change-Id: I9c6d2028c29318ba9264486590056cb1ffc8219e
-    Reviewed-on: https://go-review.googlesource.com/34655
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iafc392ba06452419542ec85e91d44991839eb6f8
+    Reviewed-on: https://go-review.googlesource.com/19593
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/x509/root_darwin.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/link.go | 73 +++++++++++++++++++++++++++++---------------
+ 1 file changed, 48 insertions(+), 25 deletions(-)

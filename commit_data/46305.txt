@@ -1,19 +1,27 @@
-commit 4957976b1a1f67ba872cc281b9ae25d59f6e003d
-Author: Tao Qingyun <qingyunha@gmail.com>
-Date:   Thu Jul 1 00:22:51 2021 +0000
+commit 2755361e6abfd3a58acd5f7ebbcd05c23bc8261a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Dec 18 20:49:50 2020 -0800
 
-    cmd/link: make npkgsyms meaningful
+    [dev.regabi] cmd/compile: change noder.declNames to returns ir.Names
     
-    npkgsyms always equals 1 currently.
+    declNames always returns a slice of *ir.Names, so return that directly
+    rather than as []ir.Node.
     
-    Change-Id: Ie88bc273beaace12ec7432054ca7c151396e8e35
-    GitHub-Last-Rev: c5d3b12b88ddcdc6011f97787fd7c0e94c7df20e
-    GitHub-Pull-Request: golang/go#46988
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331929
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    While here, also change iimport to directly create ir.ODCL/ir.OAS
+    statements, rather than calling variter. Allows eliminating a use of
+    ir.TypeNode.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Icb75e993c4957b6050c797ba64ee71cfb7a19644
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279315
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/loader/loader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go     | 20 ++++++++------------
+ src/cmd/compile/internal/gc/embed.go   |  4 ++--
+ src/cmd/compile/internal/gc/iimport.go | 10 ++++++++--
+ src/cmd/compile/internal/gc/noder.go   |  5 ++---
+ 4 files changed, 20 insertions(+), 19 deletions(-)

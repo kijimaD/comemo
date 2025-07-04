@@ -1,14 +1,14 @@
-commit c1139549bc51ebb429f5322699c267f440b3f82b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 12:44:11 2012 -0800
+commit 1bddfb52031fd6bbe602e0d586758eac9ffd592a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 23 15:43:14 2012 -0500
 
-    godoc: consistent placement of documentation sections
+    runtime: check for ARM syscall failures
+        While we are at it, also update some comments.
+        Tested on Linux/ARM builder.
     
-    Fixes #1226.
-    
-    R=golang-dev, rsc
+    R=rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/5694052
+    https://golang.org/cl/5696047
 
- lib/godoc/package.html | 21 +++++++++++++--------
- 1 file changed, 13 insertions(+), 8 deletions(-)
+ src/pkg/runtime/sys_linux_arm.s | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

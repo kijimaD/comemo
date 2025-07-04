@@ -1,53 +1,17 @@
-commit d3ad216f8e7ea7699fe44990c65213c26aba907d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Sep 28 17:06:56 2021 -0700
+commit 0f054c5be06d87d199e5691773af640936ecb588
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 20 14:08:53 2021 -0800
 
-    cmd/link, runtime: use offset for _func.entry
+    [dev.typeparams] cmd/dist: add -G=3 test coverage
     
-    The first field of the func data stored by the linker is the
-    entry PC for the function. Prior to this change, this was stored
-    as a relocation to the function. Change this to be an offset
-    relative to runtime.text.
-    
-    This reduces the number of relocations on darwin/arm64 by about 10%.
-    It also slightly shrinks binaries:
-    
-    file      before    after     Δ       %
-    addr2line 3803058   3791298   -11760  -0.309%
-    api       5140114   5104242   -35872  -0.698%
-    asm       4886850   4840626   -46224  -0.946%
-    buildid   2512466   2503042   -9424   -0.375%
-    cgo       4374770   4342274   -32496  -0.743%
-    compile   22920530  22769202  -151328 -0.660%
-    cover     4624626   4588242   -36384  -0.787%
-    dist      3217570   3205522   -12048  -0.374%
-    doc       3715026   3684498   -30528  -0.822%
-    fix       3148226   3119266   -28960  -0.920%
-    link      6350226   6313362   -36864  -0.581%
-    nm        3768850   3757106   -11744  -0.312%
-    objdump   4140594   4127618   -12976  -0.313%
-    pack      2227474   2218818   -8656   -0.389%
-    pprof     13598706  13506786  -91920  -0.676%
-    test2json 2497234   2487426   -9808   -0.393%
-    trace     10198066  10118498  -79568  -0.780%
-    vet       6930658   6889074   -41584  -0.600%
-    total     108055044 107366900 -688144 -0.637%
-    
-    It should also incrementally speed up binary launching.
-    
-    This is the first step towards removing enough relocations
-    that pages that were previously dirtied by the loader may remain clean,
-    which will offer memory savings useful in constrained environments.
-    
-    Change-Id: Icfba55e696ba2f9c99c4f179125ba5a3ba4369c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351463
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Icb85b93f0d98df722fffd70cf9a2554ac2098c60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285052
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pcln.go | 41 ++++++++++++++++++++++++--------------
- src/debug/gosym/pclntab.go       | 43 +++++++++++++++++++++++++++++++++++-----
- src/runtime/runtime2.go          |  6 +++---
- src/runtime/symtab.go            | 16 ++++++++-------
- 4 files changed, 76 insertions(+), 30 deletions(-)
+ src/cmd/dist/test.go | 28 ++++++++++++++++++++++------
+ 1 file changed, 22 insertions(+), 6 deletions(-)

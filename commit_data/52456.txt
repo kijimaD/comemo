@@ -1,22 +1,19 @@
-commit 6615324f79bf16e1c81951c9a18e51d1908f2698
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 17 13:12:13 2023 -0400
+commit b922055572d8fb4428d9d3482229e1c32c2f40a4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu May 5 02:40:51 2022 +0700
 
-    cmd/go: compute BuildInfo and EmbedFiles when listing export data
+    cmd/compile/internal/walk: remove litas
     
-    'go list -export' lists the locations of compiled artifacts,
-    so it needs to load all of the metadata needed to compile each package.
+    Since when its only usage is in maplit, and its body is simple enough to
+    be inlined directly at the caller side.
     
-    Fixes #58885.
-    
-    Change-Id: Ie78527e0fb423698fb4195fe50e0b6925b05aa8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477197
+    Change-Id: Id6b8a9d230d0e1e7f8da8d33bbc0073d3e816fb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403998
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/list/list.go                 |  4 ++--
- src/cmd/go/testdata/script/list_export_embed.txt | 17 +++++++++++++++++
- 2 files changed, 19 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/walk/complit.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

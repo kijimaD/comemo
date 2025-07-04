@@ -1,20 +1,71 @@
-commit e39072d65fd3aeb1db0744226c27abc1fa02e047
+commit 0184081eb903a9c8ccc6dae250ea79b5c2c06e26
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Sep 12 10:36:22 2012 +1000
+Date:   Tue Sep 11 19:45:28 2012 +1000
 
-    sync/atomic: add package doc for AddT, LoadT and StoreT.
+    cmd/gc: recognize small TPTR64 values as small integer constants.
     
-    Rename the first argument of CompareAndSwapT and AddT s/val/addr/
-    for consistency with LoadT and StoreT.
+    Given the following Go program:
     
-    R=rsc, r, dvyukov
+    func sum(s []int) int {
+            ret := 0
+            for _, x := range s {
+                    ret += x
+            }
+            return ret
+    }
+    
+    6g would previously generate:
+    
+    --- prog list "sum" ---
+    0000 (main.go:3) TEXT    sum+0(SB),$0-24
+    0001 (main.go:5) MOVQ    s+0(FP),CX
+    0002 (main.go:5) MOVL    s+8(FP),DI
+    0003 (main.go:5) MOVL    s+12(FP),BX
+    0004 (main.go:4) MOVL    $0,SI
+    0005 (main.go:5) MOVL    $0,AX
+    0006 (main.go:5) JMP     ,8
+    0007 (main.go:5) INCL    ,AX
+    0008 (main.go:5) CMPL    AX,DI
+    0009 (main.go:5) JGE     $0,16
+    0010 (main.go:5) MOVL    (CX),DX
+    0011 (main.go:5) MOVQ    $4,BX
+    0012 (main.go:5) ADDQ    CX,BX
+    0013 (main.go:5) MOVQ    BX,CX
+    0014 (main.go:6) ADDL    DX,SI
+    0015 (main.go:5) JMP     ,7
+    0016 (main.go:8) MOVL    SI,.noname+16(FP)
+    0017 (main.go:8) RET     ,
+    
+    and now generates:
+    
+    --- prog list "sum" ---
+    0000 (main.go:3) TEXT    sum+0(SB),$0-24
+    0001 (main.go:5) MOVQ    s+0(FP),CX
+    0002 (main.go:5) MOVL    s+8(FP),DI
+    0003 (main.go:5) MOVL    s+12(FP),BX
+    0004 (main.go:4) MOVL    $0,SI
+    0005 (main.go:5) MOVL    $0,AX
+    0006 (main.go:5) JMP     ,8
+    0007 (main.go:5) INCL    ,AX
+    0008 (main.go:5) CMPL    AX,DI
+    0009 (main.go:5) JGE     $0,14
+    0010 (main.go:5) MOVL    (CX),BP
+    0011 (main.go:5) ADDQ    $4,CX
+    0012 (main.go:6) ADDL    BP,SI
+    0013 (main.go:5) JMP     ,7
+    0014 (main.go:8) MOVL    SI,.noname+16(FP)
+    0015 (main.go:8) RET     ,
+    
+    The key difference is that
+    0011 (main.go:5) MOVQ    $4,BX
+    0012 (main.go:5) ADDQ    CX,BX
+    0013 (main.go:5) MOVQ    BX,CX
+    has changed to
+    0011 (main.go:5) ADDQ    $4,CX
+    
+    R=rsc, dave, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6494112
+    https://golang.org/cl/6506089
 
- src/pkg/sync/atomic/asm_386.s       |  26 +++----
- src/pkg/sync/atomic/asm_amd64.s     |  20 +++---
- src/pkg/sync/atomic/asm_arm.s       |  12 ++--
- src/pkg/sync/atomic/asm_linux_arm.s |  16 ++---
- src/pkg/sync/atomic/atomic_test.go  | 140 ++++++++++++++++++------------------
- src/pkg/sync/atomic/doc.go          |  46 +++++++-----
- 6 files changed, 135 insertions(+), 125 deletions(-)
+ src/cmd/gc/const.c | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,19 +1,24 @@
-commit a8b4bee683cbb54601bccefbfc28f95aa4340526
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 3 13:27:31 2019 -0400
+commit 07544c7e80a7559973930befca8c8744f43df3ce
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 2 16:38:52 2018 -0400
 
-    cmd/go/internal/modfetch: replace nanomsg.org with vcs-test in TestCodeRepo
+    cmd/go, cmd/dist: collect known cross-package uses of runtime symbols
     
-    nanomsg.org currently performs an HTTPS-to-HTTP redirect, so this case
-    fails after the fix for #29591.
+    This extends cmd/go's symabis support to collect known cross-package
+    uses of runtime symbols from other "basically runtime" packages in
+    std. This avoids having to declare a large number of ABI0 symbols in
+    the runtime for a small number of known cross-package references.
     
-    Updates #29591
+    For cmd/dist, we use a simpler but less efficient approach and tell
+    the compiler to generate ABI wrappers for everything.
     
-    Change-Id: I6306d378ef213e98c0271258bbc6669bb33f9021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170637
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ifaed94efdcff42e7345ab11b4d2fb880fb1a24e8
+    Reviewed-on: https://go-review.googlesource.com/c/147257
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo_test.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/dist/build.go            |  7 ++++
+ src/cmd/go/internal/work/exec.go | 19 ++++++++++
+ src/cmd/go/internal/work/gc.go   | 80 ++++++++++++++++++++++++++++++++--------
+ 3 files changed, 91 insertions(+), 15 deletions(-)

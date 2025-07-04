@@ -1,0 +1,35 @@
+commit 272262750fe70b4c0694fbc0459caf4810b0336b
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Mar 13 17:04:30 2025 -0700
+
+    crypto: drop pre-AVX2 SHA assembly implementations
+    
+    Drop the entire pre-AVX2 assembly implementation of SHA-1, SHA-256, and
+    SHA-512. This also technically impacts the SHA-1 AVX2 implementation,
+    since it previously called the pre-AVX2 implementation for the last
+    block if the number of blocks wasn't a multiple of 2.
+    
+    Instead of keeping the entire implementation just for that case, we
+    just call the generic implementation for the last block. This will be a
+    little slower, but still seems like a win.
+    
+    Updates #69587
+    
+    Change-Id: Id5234c42910d8c6ec6b8df700a721c0953dff02b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657716
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ .../fips140/sha256/_asm/sha256block_amd64_asm.go   |  194 -
+ .../internal/fips140/sha256/sha256block_amd64.go   |    5 +-
+ .../internal/fips140/sha256/sha256block_amd64.s    | 3486 ---------------
+ .../fips140/sha512/_asm/sha512block_amd64_asm.go   |  207 -
+ .../internal/fips140/sha512/sha512block_amd64.go   |    5 +-
+ .../internal/fips140/sha512/sha512block_amd64.s    | 4506 +-------------------
+ src/crypto/sha1/_asm/sha1block_amd64_asm.go        |  221 -
+ src/crypto/sha1/sha1block_amd64.go                 |   18 +-
+ src/crypto/sha1/sha1block_amd64.s                  | 1272 ------
+ 9 files changed, 15 insertions(+), 9899 deletions(-)

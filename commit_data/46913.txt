@@ -1,20 +1,17 @@
-commit 4a7975e73a2815b93caf6697fec4f4e777e729a1
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Oct 15 11:54:25 2021 -0700
+commit 353e111455d6b81fdce0a6d3190baba6adca3372
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Tue Feb 16 15:51:32 2021 +0000
 
-    cmd/compile: convert to using a map in getInstInfo, rather than SetImplicit()
+    doc/go1.16: fix mismatched id attribute
     
-    SetImplicit() has an explicit meaning and really shouldn't be used in
-    this way - its use is left over from early prototype of the dictionary
-    code. Convert from using SetImplicit to just using a map during
-    traversal.
+    For #40700.
     
-    Change-Id: I3d257c101a859f000e159d7ced307d1b7cf990d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356310
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: I186a21899404bfb79c08bfa8623caf9da74b6b0d
+    GitHub-Last-Rev: 25d240db3c0e2a923720bb9667ef0599ec06819e
+    GitHub-Pull-Request: golang/go#44145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290329
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

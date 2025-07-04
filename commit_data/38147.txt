@@ -1,19 +1,19 @@
-commit 336ae0d242bca424d0a0a48b663d290af7968ba9
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Thu Feb 28 13:58:11 2019 +0100
+commit 48e22da1d24dc5b038bd83a78553173af5474e76
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Oct 4 16:32:21 2018 -0700
 
-    cmd: update vendored golang.org/x/sys/unix
+    cmd/link: fix deferreturn location on wasm
     
-    This pulls in CL 164497.
+    On wasm, pcln tables are indexed by "resumption point ID" instead of
+    by pc offset. When finding a deferreturn call, we must find the
+    associated resumption point ID for the deferreturn call.
     
-    Fixes #24771
+    Update #27518
+    Fixes wasm bug introduced in CL 134637.
     
-    Change-Id: I88f2062e2c42363591dcb9e592a7a8381268ddeb
-    Reviewed-on: https://go-review.googlesource.com/c/164460
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3d178a3f5203a06c0180a1aa2309bfb7f3014f0f
+    Reviewed-on: https://go-review.googlesource.com/c/139898
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go | 4 ++--
- src/cmd/vendor/vendor.json                            | 6 +++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

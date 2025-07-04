@@ -1,29 +1,16 @@
-commit 83c4e533bcf71d86437a5aa9ffc9b5373208628c
-Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
-Date:   Tue May 9 19:11:20 2023 +0800
+commit 50bb42a46f177d117acd2050e5b498ea15f06332
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 07:14:29 2022 +0800
 
-    cmd/internal/obj/mips: add WSBH/DSBH/DSHD instructions
+    net/http: using strings.Builder
     
-    Add support for WSBH/DSBH/DSHD instructions, which are introduced in mips{32,64}r2.
-    
-    WSBH reverse bytes within halfwords for 32-bit word, DSBH reverse bytes within halfwords for 64-bit doubleword, and DSHD reverse halfwords within doublewords. These instructions can be used to optimize byte swaps.
-    
-    Ref: The MIPS64 Instruction Set, Revision 5.04: https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00087-2B-MIPS64BIS-AFP-05.04.pdf
-    
-    Updates #60072
-    
-    Change-Id: I31c043150fe8ac03027f413ef4cb2f3e435775e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493816
+    Change-Id: I5d4c89a8d87a8697d038bf91b17d7ffc847a49c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428137
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/cmd/asm/internal/asm/testdata/mips.s   |  1 +
- src/cmd/asm/internal/asm/testdata/mips64.s |  5 +++++
- src/cmd/internal/obj/mips/a.out.go         |  3 +++
- src/cmd/internal/obj/mips/anames.go        |  3 +++
- src/cmd/internal/obj/mips/asm0.go          | 16 ++++++++++++++++
- 5 files changed, 28 insertions(+)
+ src/net/http/triv.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,18 +1,17 @@
-commit a3f842a4c1aea97a79f751887555fd8497d0fed0
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 28 13:37:07 2013 -0700
+commit 64441d6d6605a9fbf27f163afbc359d9cb1af0cc
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Fri Jun 28 12:24:45 2013 -0700
 
-    runtime: shorten hash lookup stack frames
+    net/smtp: preserve Auth errors
     
-    On amd64 the frames are very close to the limit for a
-    nosplit (textflag 7) function, in part because the C compiler
-    does not make any attempt to reclaim space allocated for
-    completely registerized variables. Avoid a few short-lived
-    variables to reclaim two words.
+    If authentication failed, the initial error was being thrown away.
     
-    R=golang-dev, r
+    Fixes #5700.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10758043
+    https://golang.org/cl/10744043
 
- src/pkg/runtime/hashmap_fast.c | 40 ++++++++++++++++++----------------------
- 1 file changed, 18 insertions(+), 22 deletions(-)
+ src/pkg/net/smtp/smtp.go      |  4 +++-
+ src/pkg/net/smtp/smtp_test.go | 44 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 1 deletion(-)

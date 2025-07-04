@@ -1,23 +1,21 @@
-commit 25f79b9dbeb13d5a6a66290848999de2425ad691
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 16 14:58:11 2014 -0400
+commit a22424567c622ee0b111787a37e775c815d2e14b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 3 13:23:35 2014 -0700
 
-    runtime/pprof: disable new memory test
+    fmt: part 2 of the great flag rebuild: make %+v work in formatters
+    Apply a similar transformation to %+v that we did to %#v, making it
+    a top-level setting separate from the + flag itself. This fixes the
+    appearance of flags in Formatters and cleans up the code too,
+    probably making it a little faster.
     
-    It cannot run 'go tool pprof'. There is no guarantee that's installed.
-    It needs to build a temporary pprof binary and run that.
-    It also needs to skip the test on systems that can't build and
-    run binaries, namely android and nacl.
+    Fixes #8835.
     
-    See src/cmd/nm/nm_test.go's TestNM for a template.
-    
-    Update #8867
-    Status: Accepted
-    
-    TBR=dvyukov
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/153710043
+    https://golang.org/cl/154820043
 
- src/runtime/malloc.go           | 2 ++
- src/runtime/pprof/mprof_test.go | 1 +
- 2 files changed, 3 insertions(+)
+ src/fmt/fmt_test.go | 122 ++++++++++++++++++++++------------------------------
+ src/fmt/format.go   |  48 +++++++++------------
+ src/fmt/print.go    | 111 +++++++++++++++++++++++------------------------
+ 3 files changed, 127 insertions(+), 154 deletions(-)

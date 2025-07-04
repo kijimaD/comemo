@@ -1,14 +1,12 @@
-commit ec512340148f80aa0be3da90f86043ff535c4081
-Author: Sam Whited <sam@samwhited.com>
-Date:   Wed Mar 8 16:12:58 2017 -0600
+commit 8016808562c514dbb1146739b56ca67be9028d91
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Dec 5 17:28:51 2016 -0800
 
-    encoding/xml: format test output using subtests
+    net/http: fix typo in Request.GetBody's doc string
     
-    Change-Id: I2d155c838935cd8427abd142a462ff4c56829715
-    Reviewed-on: https://go-review.googlesource.com/37948
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I84043b6fe4b20a2514d47217e07e44f26bec52ab
+    Reviewed-on: https://go-review.googlesource.com/33973
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/xml/marshal_test.go | 77 +++++++++++++++++++++-------------------
- 1 file changed, 41 insertions(+), 36 deletions(-)
+ src/net/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

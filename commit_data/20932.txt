@@ -1,8 +1,12 @@
-commit f33fc0eb95be84f0a688a62e25361a117e5b995b
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Dec 8 13:53:11 2014 +1100
+commit 8a9c2c55bd0ccbadcf49126482110bee92fb5826
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 15:34:50 2014 -0400
 
-    cmd/dist: convert dist from Hg to Git.
+    os: fix build
+    
+    TBR=crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/162390043
 
- src/cmd/dist/build.c | 100 ++++++++++++++++++++++++++++++---------------------
- 1 file changed, 59 insertions(+), 41 deletions(-)
+ src/os/file_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

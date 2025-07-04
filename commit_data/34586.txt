@@ -1,12 +1,18 @@
-commit 375280f1bbdd8443cd961dab0ce97f1ce80f7c92
-Author: pityonline <pityonline@gmail.com>
-Date:   Wed Mar 14 00:50:56 2018 +0800
+commit 2dd110f9a73b369bebc1f1d99576ab2170827652
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 1 17:06:52 2017 +0100
 
-    cmd/vendor: fix JSON format
+    runtime/pprof: use switch for GOOS check in testCPUProfile
     
-    Change-Id: I9c5a4a4031c12d67c7e75e9a276a766927abf83d
-    Reviewed-on: https://go-review.googlesource.com/100415
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Since CL 33071, testCPUProfile is only one user of the badOS map.
+    Replace it by the corresponding switch, with the "plan9" case removed
+    because it is already checked earlier in the same function.
+    
+    Change-Id: Id647b8ee1fd37516bb702b35b3c9296a4f56b61b
+    Reviewed-on: https://go-review.googlesource.com/75110
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vendor/vendor.json | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/pprof/pprof_test.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

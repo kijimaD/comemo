@@ -1,16 +1,14 @@
-commit 58f3a8295070df9d7b27c6b1dad5e2a8c3e06cdc
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 22 11:54:41 2015 -0400
+commit a84ac5b507f5d895ca2ee300275beb73d2327f99
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 12 21:11:34 2015 -0700
 
-    runtime: fix comments referring to trace functions in runtime/pprof
+    go/types: exclude some example tests for arm64, nacl (fix build)
     
-    ae1ea2a moved trace-related functions from runtime/pprof to
-    runtime/trace, but missed a doc comment and a code comment. Update
-    these to reflect the move.
+    TBR: bradfitz, adonovan
     
-    Change-Id: I6e1e8861e5ede465c08a2e3f80b976145a8b32d8
-    Reviewed-on: https://go-review.googlesource.com/12525
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ifc8574494848503c979d11e2766ba8da0f374068
+    Reviewed-on: https://go-review.googlesource.com/11043
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/trace.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/example_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

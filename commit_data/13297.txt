@@ -1,12 +1,12 @@
-commit c8cbbd31f0ddfccb26a62d1c13696fce3b53e52c
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Wed Jun 6 16:54:02 2012 -0400
+commit 3476c2312492947e1c300921c5d4f1bce0e07ef5
+Author: Markus Sonderegger <marraison@gmail.com>
+Date:   Wed Jun 6 16:05:47 2012 -0400
 
-    fmt: fix doc typo
+    crypto/rand: enable rand.Reader on plan9
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6308046
+    https://golang.org/cl/6297044
 
- src/pkg/fmt/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/rand/rand_unix.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

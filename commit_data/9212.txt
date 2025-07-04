@@ -1,12 +1,19 @@
-commit e21f69338b64f81d40af42dbb1ce1ee5e23309f8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jul 26 11:30:11 2011 -0700
+commit 12a5774cde429d8db8c499cbb818c76ec28a28c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 26 00:52:46 2011 -0400
 
-    http: set content type for fileserver directory listings
+    gc, runtime: fix range+panic line number bugs
     
-    R=bradfitz, rsc
+    Fixes #1856.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4815062
+    https://golang.org/cl/4810054
 
- src/pkg/http/fs.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/range.c                |  4 ++++
+ src/pkg/runtime/amd64/traceback.c |  7 +++++-
+ src/pkg/runtime/arm/traceback.c   |  7 +++++-
+ src/pkg/runtime/plan9/thread.c    | 11 ++++++++++
+ src/pkg/runtime/runtime.c         | 28 +++++++++++++++++++-----
+ test/fixedbugs/bug348.go          | 46 +++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 96 insertions(+), 7 deletions(-)

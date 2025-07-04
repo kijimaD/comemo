@@ -1,19 +1,16 @@
-commit 8f9cf5525e2ae3107c0df57ee563fcb0372710cf
-Author: Keith Randall <khr@google.com>
-Date:   Mon Jan 22 10:06:10 2018 -0800
+commit 07c01e396894cc2b6d2528fe6b00e910d24a9384
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun Oct 8 16:53:18 2017 +0200
 
-    cmd/compile: constant fold !true and !false
+    misc/cgo/testcarchive: skip flaky SIGPROF test on darwin
     
-    Constant fold Not of boolean constants.
+    Updates #19320.
     
-    Noticed while working on #23504.
-    
-    Change-Id: I965705154ee7348a1a159fad4e029b922d3171b3
-    Reviewed-on: https://go-review.googlesource.com/88956
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id38df033e3f0873986e668c8ff3855b6e08407a9
+    Reviewed-on: https://go-review.googlesource.com/69114
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  2 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 37 +++++++++++++++++---------
- 2 files changed, 27 insertions(+), 12 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

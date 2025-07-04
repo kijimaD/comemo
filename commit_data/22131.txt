@@ -1,31 +1,16 @@
-commit 7727dee44565bed441c9fc09a2e2441ecd6b9fe7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 8 16:01:31 2015 -0800
+commit 07b73ce146f7958c6e9e9b8778690971ac160cd8
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 24 22:29:33 2015 -0500
 
-    spec: extend type omission rules for composite literal element values
-          to map element keys
+    runtime: simplify gcResetGState
     
-    Composite literals containing element values that are themselves composite
-    literals may leave away the element's literal types if they are identical
-    to the enclosing composite literal's element type.
+    Since allglock is held in this function, there's no point to
+    tip-toeing around allgs.  Just use a for-range loop.
     
-    (http://golang.org/ref/spec#Composite_literals)
-    
-    When we made this change, we forgot to apply the analogous rule to map
-    literal keys. This change generalizes that rule. Added more examples,
-    including one showing the recursive application of the elision rules.
-    
-    This is a fully backward-compatible language change. It was discussed
-    some time back.
-    
-    Fixes #8589.
-    
-    To be submitted once all compilers accept the extension.
-    
-    Change-Id: I4d45b64b5970f0d5501572945d5a097e64a9458b
-    Reviewed-on: https://go-review.googlesource.com/2591
+    Change-Id: I1ee61c7e8cac8b8ebc8107c0c22f739db5db9840
+    Reviewed-on: https://go-review.googlesource.com/5882
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- doc/go_spec.html | 23 +++++++++++++----------
- 1 file changed, 13 insertions(+), 10 deletions(-)
+ src/runtime/mgc.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

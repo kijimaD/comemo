@@ -1,30 +1,16 @@
-commit 16962faf998a2f84793c5ca8481f6686ae9e3024
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 25 00:24:13 2018 -0400
+commit d5ff631e6b86787857913049fc5312969211a1c7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Apr 9 14:24:35 2018 +0200
 
-    cmd/go: add 'go version' statement in go.mod
+    test/codegen: port last remaining misc bit/arithmetic tests
     
-    We aren't planning to use this or advertise it much yet,
-    but having support for it now will make it easier to start
-    using in the future - older go commands will understand
-    what 'go 1.20' means and that they don't have go 1.20.
+    And delete them from asm_test.
     
-    Fixes #23969.
-    
-    Change-Id: I729130b2690d3c0b794b49201526b53de5093c45
-    Reviewed-on: https://go-review.googlesource.com/125940
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I9a75efe9858ef9d7ac86065f860c2ae3f25b0941
+    Reviewed-on: https://go-review.googlesource.com/105597
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/alldocs.go                         |  4 +-
- src/cmd/go/internal/imports/tags.go           |  1 -
- src/cmd/go/internal/modcmd/mod.go             |  2 +
- src/cmd/go/internal/modfile/rule.go           | 37 +++++++++++++---
- src/cmd/go/internal/modget/get.go             |  2 +-
- src/cmd/go/internal/modinfo/info.go           | 23 +++++-----
- src/cmd/go/internal/modload/build.go          | 14 ++++--
- src/cmd/go/internal/modload/load.go           | 47 +++++++++++++++------
- src/cmd/go/internal/work/exec.go              | 25 +++++++++++
- src/cmd/go/testdata/script/mod_go_version.txt | 61 +++++++++++++++++++++++++++
- 10 files changed, 180 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 37 ---------------------------------
+ test/codegen/arithmetic.go              |  5 +++++
+ test/codegen/bitfield.go                |  8 +++++++
+ 3 files changed, 13 insertions(+), 37 deletions(-)

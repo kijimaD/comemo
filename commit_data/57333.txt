@@ -1,22 +1,40 @@
-commit 794b0a07483fdae7125f325d34fbea6b40a67885
-Author: Demi Marie Obenour <demi@invisiblethingslab.com>
-Date:   Tue Sep 3 01:33:29 2024 +0000
+commit be910bf2fd6dee75bfb15aab567dc94b126bde29
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 15 17:25:08 2023 -0400
 
-    encoding/xml: allow ]]> in attribute values
+    cmd/link: always use symbol-targeted relocations on Mach-O
     
-    This is permitted by the XML specification.
+    In Mach-O object files, there are two kinds of relocations:
+    "external" relocation, which targets a symbol, and "non-external"
+    relocation, which targets a section. For targeting symbols not in
+    the current object, we must use symbol-targeted relocations. For
+    targeting symbols defined in the current object, for some
+    relocation types, both kinds can be used. We currently use
+    section-targeted relocations for R_ADDR targeting locally defined
+    symbols.
     
-    Fixes #68387
+    Modern Apple toolchain seems to prefer symbol-targeted relocations.
+    Also, Apple's new linker, ld-prime, seems to not handle section-
+    targeted relocations well in some cases. So this CL switches to
+    always generate symbol-targeted relocations. This also simplifies
+    the code.
     
-    Change-Id: Ic4ab5520a08a5a997f1c3d13c6d5f80c0521e45c
-    GitHub-Last-Rev: 6d2ac307bbd0ba7d50830ad8b879c00cc3a7242b
-    GitHub-Pull-Request: golang/go#69197
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610056
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    One exception is that DWARF tools seem to handle only section-
+    targeted relocations. So generate those in DWARF sections.
+    
+    This CL supersedes CL 502616.
+    
+    Fixes #60694.
+    For #61229.
+    
+    Change-Id: I3b74df64f21114635061bcd89114392b3a2d588b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503935
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/xml/xml.go      |  5 +++--
- src/encoding/xml/xml_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   |  2 +-
+ src/cmd/link/internal/arm64/asm.go   | 10 ++++------
+ src/cmd/link/internal/ld/data.go     |  8 +++++---
+ src/cmd/link/internal/sym/symkind.go |  4 ++++
+ 4 files changed, 14 insertions(+), 10 deletions(-)

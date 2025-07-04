@@ -1,36 +1,33 @@
-commit 46f352de2dc80657664431ebb04f89a2fad579c5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 7 21:49:26 2022 -0800
+commit 031854117f91fbc1265840a04caf2a7a168dd06b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 5 17:08:39 2021 -0400
 
-    spec: remove notion of specific types
+    cmd/go: include packages with InvalidGoFiles when filtering main packages
     
-    Specific types were introduced to explain rules for operands of
-    type parameter type. Specific types are really an implementation
-    mechanism to represent (possibly infinite) type sets in the machine;
-    they are not needed in the specification.
+    If a package has files with conflicting package names, go/build
+    empirically populates the first name encountered and puts the
+    remaining files in InvalidGoFiles. That foiled our check for packages
+    whose name is either unpopulated or "main", since the "package main"
+    could be found in a source file after the first.
     
-    A specific type is either standing for a single named or unnamed
-    type, or it is the underlying (unnamed) type of an infinite set of
-    types. Each rule that applies to a type T of the set of specific
-    types must also apply to all types T' in the type set for which T
-    is a representative of. Thus, in the spec we can simply refer to
-    the type set directly, infinite or not.
+    Instead, we now treat any package with a nonzero set of InvalidGoFiles
+    as potentially a main package. This biases toward over-reporting
+    errors, but we would rather over-report than under-report.
     
-    Rather then excluding operands with empty type sets in each instance,
-    leave unspecified what happens when such an operand is used. Instead
-    give an implementation some leeway with an implementation restriction.
+    If we fix #45999, we will be able to make these error checks more
+    precise.
     
-    (The implementation restriction also needs to be formulated for types,
-    such as in conversions, which technically are not "operands". Left for
-    another CL.)
+    Updates #42088
+    Fixes #45827
+    Fixes #39986
     
-    Minor: Remove the two uses of the word "concrete" to refer to non-
-    interface types; instead just say "non-interface type" for clarity.
-    
-    Change-Id: I67ac89a640c995369c9d421a03820a0c0435835a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390694
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I588314341b17961b38660192c2130678dc03023e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317300
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- doc/go_spec.html | 138 +++++++++++++++----------------------------------------
- 1 file changed, 38 insertions(+), 100 deletions(-)
+ src/cmd/go/internal/load/pkg.go                    | 76 +++++++++++++---------
+ .../go/testdata/script/mod_install_pkg_version.txt |  2 +-
+ src/cmd/go/testdata/script/mod_run_nonmain.txt     | 18 +++++
+ src/cmd/go/testdata/script/mod_run_pkgerror.txt    | 20 +++++-
+ 4 files changed, 82 insertions(+), 34 deletions(-)

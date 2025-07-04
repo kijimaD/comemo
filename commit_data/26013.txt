@@ -1,20 +1,18 @@
-commit c0f7195d626a8391da969d9fab4e77cd2614826e
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Mar 2 15:14:02 2016 -0500
+commit f939ee13ae5d54683f31699420b354be50de7e58
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Thu Dec 10 15:06:42 2015 -0800
 
-    cmd/link: replace custom hashmap in DWARF writer
+    runtime: fix GODEBUG=schedtrace=X delay handling.
     
-    Also stop creating a map for each symbol, as it does not seem to help.
+    debug.schedtrace is an int32. Convert it to int64 before
+    multiplying with constant 1000000. Otherwise, schedtrace
+    values more than 2147 result in int32 overflow causing
+    incorrect delays between traces.
     
-    Linking juju:
-            tip:  real 0m5.470s user 0m6.131s
-            this: real 0m4.811s user 0m5.582s
-    
-    Change-Id: Ib3d931c996396a00942581770ff32df1eb8d6615
-    Reviewed-on: https://go-review.googlesource.com/20140
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I064e8d7b432c1e892a705ee1f31a2e8cdd2c3ea3
+    Reviewed-on: https://go-review.googlesource.com/17712
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 54 +++++----------------------------------
- 1 file changed, 7 insertions(+), 47 deletions(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

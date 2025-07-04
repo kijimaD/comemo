@@ -1,53 +1,30 @@
-commit d2909ec8858371ce19d7fd021f80f9e6ca84911f
-Author: Gopher Robot <gobot@golang.org>
-Date:   Wed Jun 5 18:04:59 2024 +0000
+commit 6f13d0bfe42115d1d5452bee0bb7648d968beeb4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 18 15:51:57 2023 +0000
 
-    api: promote next to go1.23
+    runtime: fix usage of stale "now" value for netpolling Ms
     
-    Change-Id: I219c59b5efc2ed7fcfdd7cd3c418635831b17b8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590835
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Currently pidleget gets passed "now" from before the M goes into
+    netpoll, resulting in incorrect accounting of idle CPU time.
+    lastpoll is also stored with a stale "now": the mistake was added in the
+    same CL it was added for pidleget.
+    
+    Recompute "now" after returning from netpoll.
+    
+    Also, start tracking idle time on js/wasm at all.
+    
+    Credit to Rhys Hiltner for the test case.
+    
+    Fixes #60276.
+    
+    Change-Id: I5dd677471f74c915dfcf3d01621430876c3ff307
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496183
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- api/go1.23.txt     | 128 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next/42888.txt |   2 -
- api/next/44940.txt |   1 -
- api/next/46443.txt |   1 -
- api/next/50102.txt |   9 ----
- api/next/53987.txt |   1 -
- api/next/57151.txt |   1 -
- api/next/59473.txt |   1 -
- api/next/60023.txt |   3 --
- api/next/60427.txt |   4 --
- api/next/61308.txt |   1 -
- api/next/61395.txt |  20 ---------
- api/next/61472.txt |   1 -
- api/next/61696.txt |   1 -
- api/next/61716.txt |   2 -
- api/next/61897.txt |   4 --
- api/next/61899.txt |   8 ----
- api/next/61900.txt |   5 ---
- api/next/62254.txt |  12 -----
- api/next/62483.txt |   3 --
- api/next/62484.txt |   1 -
- api/next/62490.txt |   1 -
- api/next/63116.txt |   2 -
- api/next/63369.txt |   6 ---
- api/next/63691.txt |   8 ----
- api/next/65238.txt |   1 -
- api/next/65772.txt |   1 -
- api/next/66008.txt |   2 -
- api/next/66054.txt |   2 -
- api/next/66056.txt |   4 --
- api/next/66249.txt |   5 ---
- api/next/66339.txt |   1 -
- api/next/66405.txt |   1 -
- api/next/66408.txt |   1 -
- api/next/66559.txt |   1 -
- api/next/66836.txt |   6 ---
- api/next/67059.txt |   1 -
- api/next/67143.txt |   4 --
- 38 files changed, 128 insertions(+), 128 deletions(-)
+ src/runtime/lock_js.go      |  6 +++++
+ src/runtime/metrics_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go         |  7 ++++--
+ 3 files changed, 70 insertions(+), 2 deletions(-)

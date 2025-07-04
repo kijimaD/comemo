@@ -1,27 +1,29 @@
-commit 256a8fc6ef297f2a2cec0cb7c918f61706b6f9a3
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Nov 4 23:13:12 2021 +0000
+commit b6def6a34e049d5d2cc9225d991c4b84427467ec
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Mar 6 23:57:33 2021 -0800
 
-    sync/atomic: disable GC during TestHammerStoreLoad
+    cmd/vet: bring in sigchanyzer to report unbuffered channels to signal.Notify
     
-    TestHammerStoreLoad involves a stress test of StorePointer, which has a
-    write barrier. The "pointer" that is being written is not a real value,
-    which is generally fine (though not *really* safe) on 64-bit systems
-    because they never point to an actual object.
+    Brings in the static analyzer "sigchanyzer", that we created at
+    Orijtech, Inc, and already submitted in CL 274352, as
     
-    On 32-bit systems, however, this is much more likely. Because I can't
-    figure out how to rewrite the test such that it still is testing the
-    same conditions but is also using real pointers, just disable the GC
-    during the test, and make sure there isn't one currently in progress.
+        golang.org/x/tools/go/analysis/passes/sigchanyzer
     
-    Fixes #49362.
+    and add it to cmd/vet as one of the passes.
     
-    Change-Id: If81883fedf06568132e6484f40c820aa69027a9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361455
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #9399
+    
+    Change-Id: I83708b8ea5ca8ede5ee31efab55cbce7419434ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299532
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/sync/atomic/atomic_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ .../go/analysis/passes/sigchanyzer/sigchanyzer.go  | 129 +++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   1 +
+ src/cmd/vet/main.go                                |   2 +
+ 3 files changed, 132 insertions(+)

@@ -1,24 +1,24 @@
-commit 8dbf3e9393400d72d313e5616c88873e07692c70
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Oct 23 10:16:41 2021 -0700
+commit 4da0188c6c1ec83db2a3659af8e4eaace155ab80
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 4 09:42:48 2021 -0500
 
-    cmd/compile: fix fuse pass to do CFG surgery correctly
+    cmd/go/internal/modget: split resolveCandidates into two methods
     
-    removePred and removeArg do different things. removePred moves the last
-    predecessor to index k, whereas removeArg slides all the args k or
-    greater down by 1 index.
+    It turns out that the existing call sites of the resolveCandidates
+    method pass only *either* a slice of queries or a slice of upgrades
+    (never both), and the behaviors triggered by the two parameters don't
+    overlap much at all. To clarify the two different operations, split
+    them into two separate methods.
     
-    Kind of unfortunate different behavior in things named similarly.
+    For #36460
     
-    Fixes #49122
-    
-    Change-Id: I9ae409bdac744e713f4c121f948e43db6fdc8542
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358117
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I64651637734fd44fea68740a3cdfbacfb73c19b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289697
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/fuse_branchredirect.go |  6 +++++-
- test/fixedbugs/issue49122.go                        | 16 ++++++++++++++++
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modget/get.go | 106 +++++++++++++++++++++-----------------
+ 1 file changed, 60 insertions(+), 46 deletions(-)

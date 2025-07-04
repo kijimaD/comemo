@@ -1,30 +1,44 @@
-commit d8cf2243e0ed1c498ed405432c10f9596815a582
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Mar 24 18:06:47 2022 +0000
+commit 5160896c69a83f14bc54beb04be4c089333a0387
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 23 00:50:43 2021 -0400
 
-    runtime: disable idle mark workers with at least one dedicated worker
+    go/types: in TestStdlib, import from source instead of export data
     
-    This change completes the proposal laid out in #44163. With #44313
-    resolved, we now ensure that stopped Ms are able to wake up and become
-    dedicated GC workers. As a result, idle GC workers are in theory no
-    longer required to be a proxy for scheduling dedicated mark workers.
+    TestStdlib was failing after running
+            rm -r $(go env GOROOT)/pkg/*/cmd
+    as the builders do when building binary releases.¹
     
-    And, with at least one dedicated mark worker running (which is
-    non-preemptible) we ensure the GC makes progress in all circumstances
-    when at least one is running. Currently we ensure at least one idle mark
-    worker is available at all times because it's possible before #44313
-    that a dedicated worker doesn't ever get scheduled, leading to a
-    deadlock if user goroutines block on a GC completing. But now that extra
-    idle mark worker should be unnecessary to ensure GC progress when at
-    least one dedicated mark worker is going to be scheduled.
+    For users who write programs that depend on go/types, it should be
+    reasonable to run the tests for go/types as part of 'go test all', and
+    those tests should pass even if they installed Go from a binary
+    release.
     
-    Fixes #44163.
+    I had originally drafted this as a fallback to import from source only
+    if the affected packages can't be imported by the default export-data
+    importer. Unfortunately, I realized that we don't currently have a
+    builder that tests the actual release (#46900), so it is quite likely
+    that the fallback path would bit-rot and produce unexpected test
+    regressions.
     
-    Change-Id: I62889ef2db4e69d44da883e8e6eebcfe5398c86d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395634
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    So instead, we now unconditionally import from source in TestStdlib.
+    That makes the test substantially slower (~15s instead of ~5s on my
+    workstation), but with less risk of regression, and TestStdlib is
+    skipped in short mode already so short-mode test time is unaffected.
+    
+    If we change the builders to test the actual release configuration, we
+    can consider restoring the faster path when export data is available.
+    
+    ¹https://github.com/golang/build/blob/df58bbac082bc87c4a3cdfe336d1ffe60bbaa916/cmd/release/release.go#L533-L545
+    
+    For #43232
+    
+    Change-Id: I764ec56926c104053bb2ef23cf258c8f0f773290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330252
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/mgcpacer.go | 47 ++++++++++++++++++++++++++++++-----------------
- 1 file changed, 30 insertions(+), 17 deletions(-)
+ src/go/types/stdlib_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,14 +1,29 @@
-commit 9e849dcee4a7049325e483bddef27c22b19dd88b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 26 12:11:34 2018 -0800
+commit b800f202dc4d4281edd56ec40ea58f09dac8b730
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 3 11:34:11 2018 -0400
 
-    runtime: improve godoc formatting of memclrNoHeapPointers comment
+    runtime: document assumption about wbBufFlush argument slots
     
-    Fixes #28955
+    gcWriteBarrier and wbBufFlush assume that not writing to an argument
+    variable is sufficient to not clobber the corresponding argument slot.
+    This assumption lets us simplify the write barrier assembly code,
+    speed up the flush path, and reduce the stack usage of the write
+    barrier.
     
-    Change-Id: I738ad0c76f7bf8fc504a48cf55d3becd5ed7a9d6
-    Reviewed-on: https://go-review.googlesource.com/c/151337
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    But it is an assumption, so this CL documents it to make this clear.
+    
+    Alternatively, we could separate the register spill slots from the
+    argument slots in the write barrier, but that loses the advantages
+    above. On the other hand, it's extremely unlikely that we'll change
+    the behavior of the compiler to start clobbering argument slots (if
+    anything, we'd probably change it to *not* clobber argument slots even
+    if you wrote to the arguments).
+    
+    Fixes #25512.
+    
+    Change-Id: Ib2cf29c0d90956ca02b997ef6e7fa56fc8044efe
+    Reviewed-on: https://go-review.googlesource.com/127815
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/stubs.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/mwbbuf.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

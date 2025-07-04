@@ -1,34 +1,25 @@
-commit e539461e34b1c5163220f9910b2c0360fb9f21e4
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Dec 23 03:37:43 2022 +0700
+commit c9f67c289faba2d3876bc166dbcc3b325d3c5ecc
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed May 4 10:07:38 2022 -0500
 
-    cmd/compile: emit ODCL node for autotmp during RewriteNonNameCall
+    cmd/compile/internal: intrinsify publicationBarrier on ppc64x
     
-    For f()() call, the compiler rewrite it roughly to:
+    This enables publicationBarrier to be used as an intrinsic
+    on ppc64le/ppc64.
     
-            autotmp := f()
-            autotmp()
+    A call to this appears in test/bench/go1 BinaryTree17
     
-    However, if f() were inlined, escape analysis will confuse about the
-    lifetime of autotmp, leading to bad escaping decision.
-    
-    This CL fixes this issue by rewriting f()() to:
-    
-            var autotmp
-            autotmp = f()
-            autotmp()
-    
-    This problem also happens with Unified IR, until CL 421821 land.
-    
-    Fixes #57434
-    
-    Change-Id: I159a7e4c93bbc172f0eae60e7d40fc64ba70b236
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459295
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: If53528a82de99688270473cbe23472f37046ad65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404056
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ppc64/ssa.go        | 4 ++++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 3 +++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 1 +
+ src/cmd/compile/internal/ssa/opGen.go        | 8 ++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 3 +++
+ src/cmd/compile/internal/ssagen/ssa.go       | 2 +-
+ 6 files changed, 20 insertions(+), 1 deletion(-)

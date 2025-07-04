@@ -1,16 +1,12 @@
-commit ef6c922edf38d75f3410a51a31d65eb48bcaebc6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 24 10:13:00 2013 -0700
+commit 9b321faae7a598c6576a97e9363e9ea52d429c59
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 23 10:34:14 2013 +0400
 
-    C+A: add Matthew Cottingham (Individual CLA)
+    misc/dist: use go.tools release branch
     
-    Done by addca, but codereview failed with a Python stacktrace,
-    so submitting by hand.
-    
-    R=golang-dev
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/16650043
+    https://golang.org/cl/15450047
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ misc/dist/bindist.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

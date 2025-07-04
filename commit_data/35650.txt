@@ -1,14 +1,18 @@
-commit e411bd706d5d1b2b679d18efacbddb238155edf5
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Sun Jun 10 10:26:40 2018 +0300
+commit 4f5389c321b0b5623f7cbd5b9d003920ccbb94ff
+Author: ChrisALiles <caveryliles@gmail.com>
+Date:   Wed Feb 14 14:54:59 2018 +1100
 
-    cmd/compile: add doc comment to the parseFiles function
+    cmd/compile: move the SSA local type definitions to a single location
     
-    Change-Id: Ifa14557ba834865602c207297ccf0c63e93feb4c
-    Reviewed-on: https://go-review.googlesource.com/117695
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Fixes #20304
+    
+    Change-Id: I52ee02d1602ed7fffc96b27fd60990203c771aaf
+    Reviewed-on: https://go-review.googlesource.com/94256
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/noder.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go          | 28 ++----------------------
+ src/cmd/compile/internal/ssa/config.go      | 33 +++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/export_test.go | 26 +----------------------
+ 3 files changed, 36 insertions(+), 51 deletions(-)

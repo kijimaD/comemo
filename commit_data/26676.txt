@@ -1,20 +1,24 @@
-commit 29a6149e67a9c382938ffb40102fb989a0a6db48
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sat Mar 19 00:23:17 2016 -0400
+commit 89cfdda44dec9f1e4e7f9ac360638fecee2482c6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 20 18:49:22 2016 -0800
 
-    cmd/link/internal/s390x: add s390x support
+    cmd/compile: replace Order's use of NodeLists with slices
     
-    Supports basic internal linking, external linking and shared library
-    linking.
+    Order's "temp" and "free" fields use NodeLists in a rather
+    non-idiomatic way.  Instead of using the "list" or "concat" functions,
+    it manipulates them directly and without the normal invariants (e.g.,
+    it doesn't maintain the "End" field).
     
-    Change-Id: Ic9693dd94df561b0f9df9880009b1e8ab9d59b92
-    Reviewed-on: https://go-review.googlesource.com/20879
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Rather than convert it to more typical usage, just replace with a
+    slice, which ends up much simpler anyway.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: Ibd0f24324bd674c0d5bb1bc40d073b01e7824ad5
+    Reviewed-on: https://go-review.googlesource.com/19776
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/buildtool.go          |   1 +
- src/cmd/link/internal/s390x/asm.go | 598 +++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/s390x/l.go   |  79 +++++
- src/cmd/link/internal/s390x/obj.go | 119 ++++++++
- 4 files changed, 797 insertions(+)
+ src/cmd/compile/internal/gc/order.go | 55 +++++++++++-------------------------
+ 1 file changed, 17 insertions(+), 38 deletions(-)

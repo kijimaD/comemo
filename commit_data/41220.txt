@@ -1,14 +1,21 @@
-commit 0fe79aad0ff800f8df3136d018e0a8b64c614d61
-Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-Date:   Tue Feb 4 12:32:58 2020 +0000
+commit 782228a73f4c6c8019ab5763e749d5ef98905e5f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Jun 25 13:15:59 2019 -0400
 
-    doc/go1.14: add missing slashes
+    doc: update ppc64 section for asm.html
     
-    This saves a redirect and makes the document more consistent.
+    Update the section in asm.html related to PPC64. Remove the line
+    that says it is in an experimental state, add a link to the
+    new doc.go file that has all the detail for the Go assembler for
+    PPC64.
     
-    Change-Id: I67840f5dc05dffd8893a055618eb202b682a0ebc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217698
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I45d9891669e01d94e2721be576d572e02cd9d2db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183840
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.14.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ doc/asm.html | 17 +++--------------
+ 1 file changed, 3 insertions(+), 14 deletions(-)

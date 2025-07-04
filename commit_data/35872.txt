@@ -1,31 +1,27 @@
-commit 33f6b08ffe5cfcb8efc4b6529ff8e23e04290b84
-Author: Mark Fischer <meirfischer@gmail.com>
-Date:   Mon Jul 2 00:56:46 2018 -0400
+commit 644d14ea0f3d99863a033f66543ce0346bf20831
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Mar 14 21:02:20 2018 +0000
 
-    net/http: make Transport treat 101 as a terminal status
+    Revert "cmd/compile: implement CMOV on amd64"
     
-    Before CL 116855, Transport would only skip over 100 (expect-continue)
-    responses automatically and treat all other 1xx responses as if they
-    were the final status. CL 116855 made the Transport more spec
-    compliant (ignoring unknown 1xx responses), but broke "101 Switching
-    Protocols" in the process. Since 101 is already in use and defined to
-    not have a following message, treat it as terminal.
+    This reverts commit 080187f4f72bd6594e3c2efc35cf51bf61378552.
     
-    Note that because the Client/Transport don't support hijacking the
-    underlying Conn, most clients doing a WebSocket or other protocol
-    upgrade are probably using net.Dial + http.ReadResponse instead, which
-    remained unaffected (before & after this CL).
+    It broke build of golang.org/x/exp/shiny/iconvg
+    See issue 24395 for details
     
-    The main affect of this CL is to fix tests that were using the
-    Client/Transport to test that a server returns 101, presumably without
-    actually switching to another protocol.
-    
-    Fixes #26161
-    
-    Change-Id: Ie3cd3a465f948c4d6f7ddf2a6a78a7fb935d0672
-    Reviewed-on: https://go-review.googlesource.com/121860
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifd6134f6214e6cee40bd3c63c32941d5fc96ae8b
+    Reviewed-on: https://go-review.googlesource.com/100755
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/transport.go      | 12 +++++++++++-
- src/net/http/transport_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go           |    78 +-
+ src/cmd/compile/internal/ssa/branchelim.go      |    27 +-
+ src/cmd/compile/internal/ssa/branchelim_test.go |   244 +-
+ src/cmd/compile/internal/ssa/export_test.go     |     2 -
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |    50 -
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |    57 +-
+ src/cmd/compile/internal/ssa/opGen.go           |   641 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 14480 +++++++++-------------
+ test/codegen/condmove.go                        |   178 -
+ 9 files changed, 6068 insertions(+), 9689 deletions(-)

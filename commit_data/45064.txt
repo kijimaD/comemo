@@ -1,43 +1,35 @@
-commit 7beb988a3b935a9db56b9e0544506491c4d5d06a
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Thu Apr 8 16:08:55 2021 +0800
+commit 39dde09126be02f5f8c38ddf7590ae8f9825fcaa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Sep 21 20:44:53 2020 -0400
 
-    runtime: using wyhash for memhashFallback on 64bit platform
+    cmd/link: retain only used interface methods
     
-    wyhash is a general hash function that:
+    Currently, in the linker's deadcode pass, when an interface type
+    is live, the linker thinks all its methods are live, and uses
+    them to match methods on concrete types. The interface method may
+    never be used, though.
     
-    1. About 8-70% faster that internal maphash
-    2. Passed Smhasher, BigCrush and PractRand tests
+    This CL changes it to only keep used interface methods, for
+    matching concrete type methods. To do that, when an interface
+    method is used, the compiler generates a mark relocation. The
+    linker uses the marker relocations to mark used interface
+    methods, and only the used ones.
     
-    name                  old time/op    new time/op    delta
-    Hash5                   28.9ns ± 0%    30.0ns ± 0%   +3.77%  (p=0.000 n=9+10)
-    Hash16                  32.4ns ± 0%    30.2ns ± 0%   -6.74%  (p=0.000 n=10+8)
-    Hash64                  52.4ns ± 0%    43.4ns ± 0%  -17.20%  (p=0.000 n=9+10)
-    Hash1024                 415ns ± 0%     258ns ± 2%  -37.89%  (p=0.000 n=10+10)
-    Hash65536               24.9µs ± 0%    14.6µs ± 0%  -41.22%  (p=0.000 n=9+9)
-    HashStringSpeed         50.2ns ± 4%    47.8ns ± 4%   -4.88%  (p=0.000 n=10+10)
-    HashBytesSpeed          90.1ns ± 7%    78.3ns ± 4%  -13.06%  (p=0.000 n=10+10)
-    HashInt32Speed          33.3ns ± 6%    33.6ns ± 4%     ~     (p=0.071 n=10+10)
-    HashInt64Speed          32.7ns ± 3%    34.0ns ± 3%   +4.05%  (p=0.000 n=9+10)
-    HashStringArraySpeed     131ns ± 2%     117ns ± 5%  -10.32%  (p=0.000 n=9+10)
-    FastrandHashiter        72.2ns ± 1%    75.7ns ±10%   +4.87%  (p=0.019 n=8+10)
+    binary size    before      after
+    cmd/compile   18887400   18812200
+    cmd/go        13470652   13470492
     
-    name                  old speed      new speed      delta
-    Hash5                  173MB/s ± 0%   167MB/s ± 0%   -3.63%  (p=0.000 n=9+10)
-    Hash16                 494MB/s ± 0%   530MB/s ± 0%   +7.23%  (p=0.000 n=10+8)
-    Hash64                1.22GB/s ± 0%  1.48GB/s ± 0%  +20.77%  (p=0.000 n=9+10)
-    Hash1024              2.47GB/s ± 0%  3.97GB/s ± 2%  +61.01%  (p=0.000 n=8+10)
-    Hash65536             2.64GB/s ± 0%  4.48GB/s ± 0%  +70.13%  (p=0.000 n=9+9)
-    
-    Change-Id: I76af4e2bc1995a18149d11983ea8a149c132865e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279612
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3cfd9df4a53783330ba87735853f2a0ec3c42802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256798
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go    |   1 +
- src/cmd/compile/internal/test/inl_test.go |   4 +-
- src/runtime/hash64.go                     | 136 +++++++++++++-----------------
- src/runtime/internal/math/math.go         |  21 +++++
- 4 files changed, 84 insertions(+), 78 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go             | 19 +++++-
+ src/cmd/compile/internal/gc/walk.go                | 15 +++++
+ src/cmd/internal/objabi/reloctype.go               |  6 ++
+ src/cmd/internal/objabi/reloctype_string.go        | 67 +++++++++++-----------
+ src/cmd/link/internal/ld/deadcode.go               | 53 ++++++++---------
+ src/cmd/link/internal/ld/deadcode_test.go          |  1 +
+ .../internal/ld/testdata/deadcode/ifacemethod4.go  | 23 ++++++++
+ 7 files changed, 120 insertions(+), 64 deletions(-)

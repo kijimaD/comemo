@@ -1,18 +1,30 @@
-commit 642b1311111ef949f54606317ec447838c29024c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Nov 2 21:46:38 2023 +1100
+commit d6171c9be2a4bd2801841aa006702886c476f217
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 8 17:48:48 2022 -0800
 
-    runtime: remove getcallerpc on riscv64
+    runtime: fix conflict between lfstack and checkptr
     
-    This was converted to a compiler intrinsic and no longer needs to exist
-    in assembly.
+    lfstack does very unsafe things. In particular, it will not
+    work with nodes that live on the heap. In normal use by the runtime,
+    that is the case (it is only used for gc work bufs). But the lfstack
+    test does use heap objects. It goes through some hoops to prevent
+    premature deallocation, but those hoops are not enough to convince
+    -d=checkptr that everything is ok.
     
-    Change-Id: I7495c435d4642e0e71d8f7677d70af3a3ca2a6ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539195
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Instead, allocate the test objects outside the heap, like the runtime
+    does for all of its lfstack usage. Remove the lifetime workaround
+    from the test.
+    
+    Reported in https://groups.google.com/g/golang-nuts/c/psjrUV2ZKyI
+    
+    Change-Id: If611105eab6c823a4d6c105938ce145ed731781d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448899
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/runtime/asm_riscv64.s | 5 -----
- 1 file changed, 5 deletions(-)
+ src/runtime/export_test.go  |  9 +++++++++
+ src/runtime/lfstack.go      |  6 ++++--
+ src/runtime/lfstack_test.go | 31 ++++++++++++++-----------------
+ 3 files changed, 27 insertions(+), 19 deletions(-)

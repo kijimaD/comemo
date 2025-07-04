@@ -1,33 +1,16 @@
-commit ac0e12d15800ac0e5795e823ab0e99c1eb70667b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 5 16:40:23 2014 -0400
+commit c22ed1290c55e7ca0e8cbd7028ddd4c397a71174
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 5 10:42:03 2014 -0700
 
-    cmd/6g: fix stack zeroing on native client
+    cmd/cgo: for typedef of untagged struct, use typedef name in C code
     
-    I am not sure what the rounding here was
-    trying to do, but it was skipping the first
-    pointer on native client.
+    Fixes #8148.
     
-    The code above the rounding already checks
-    that xoffset is widthptr-aligned, so the rnd
-    was a no-op everywhere but on Native Client.
-    And on Native Client it was wrong.
-    
-    Perhaps it was supposed to be rounding down,
-    not up, but zerorange handles the extra 32 bits
-    correctly, so the rnd does not seem to be necessary
-    at all.
-    
-    This wouldn't be worth doing for Go 1.3 except
-    that it can affect code on the playground.
-    
-    Fixes #8155.
-    
-    LGTM=r, iant
-    R=golang-codereviews, r, iant
-    CC=dvyukov, golang-codereviews, khr
-    https://golang.org/cl/108740047
+    LGTM=cookieo9, rsc
+    R=rsc, cookieo9
+    CC=golang-codereviews
+    https://golang.org/cl/103080043
 
- src/cmd/6g/ggen.c           |  2 +-
- test/fixedbugs/issue8155.go | 48 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue8148.go | 31 +++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go         |  5 +++++
+ 2 files changed, 36 insertions(+)

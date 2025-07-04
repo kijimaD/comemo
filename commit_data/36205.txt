@@ -1,18 +1,21 @@
-commit ac6d1564795e662b5b930c6b3d86f12351ff83d5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Aug 3 10:38:22 2018 -0400
+commit 4af08e7a13f2423f689c74d0c0ed79165b639e1e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 6 21:02:01 2018 -0400
 
-    cmd/go/internal/load: trim the " (test)" suffix from ImportStack paths
+    cmd/link: set S_ATTR_PURE_INSTRUCTIONS bit for text section on darwin
     
-    We were passing untrimmed paths to ModPackageModuleInfo, which was then failing
-    the build because it was asked to resolve an invalid path.
+    Mac otool and llvm-objdump distinguishes a Mach-O section is
+    text or data by looking at S_ATTR_PURE_INSTRUCTIONS bit. Without
+    this bit it thinks our function symbols are data, not functions.
+    Set this bit for text section to make otool/objdump happy.
     
-    Fixes #26722
+    Fixes #24706.
     
-    Change-Id: I043cc9c26f2188c5e005c0353620d9c55b339df9
-    Reviewed-on: https://go-review.googlesource.com/127795
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5236482cb9a72474c23fbea0f35d5b5cc8491ea4
+    Reviewed-on: https://go-review.googlesource.com/105256
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go         |  7 ++++---
- src/cmd/go/testdata/script/mod_test.txt | 18 ++++++++++++++++++
- 2 files changed, 22 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/macho.go | 4 ++++
+ 1 file changed, 4 insertions(+)

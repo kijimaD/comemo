@@ -1,0 +1,17 @@
+commit 0ccfbc834a489f92745613b2e06275c2cfe6ace0
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Apr 24 16:46:44 2025 +0200
+
+    os/signal: doc link to syscall.EPIPE
+    
+    Add godoc link for EPIPE error.
+    
+    Change-Id: I5df35f700684510328f92bb5d4946c5123ba5f2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667757
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/signal/doc.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

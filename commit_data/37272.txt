@@ -1,27 +1,14 @@
-commit 9c89923266a372e9357dc3296b6c53bb931dd4a9
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 5 12:36:42 2018 -0500
+commit 22e17d0ac7db5321a0f6e073bd0afb949f44dd70
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 14 16:46:57 2018 +1000
 
-    runtime: deflake TestTracebackAncestors
+    doc: update Design and Types sections of the FAQ
     
-    TestTracebackAncestors has a ~0.1% chance of failing with more
-    goroutines in the traceback than expected. This happens because
-    there's a window between each goroutine starting its child and that
-    goroutine actually exiting. The test captures its own stack trace
-    after everything is "done", but if this happens during that window, it
-    will include the goroutine that's in the process of being torn down.
-    Here's an example of such a failure:
-    https://build.golang.org/log/fad10d0625295eb79fa879f53b8b32b9d0596af8
+    Update #26107.
     
-    This CL fixes this by recording the goroutines that are expected to
-    exit and removing them from the stack trace. With this fix, this test
-    passed 15,000 times with no failures.
-    
-    Change-Id: I71e7c6282987a15e8b74188b9c585aa2ca97cbcd
-    Reviewed-on: https://go-review.googlesource.com/c/147517
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8bfa5b01ce953c53f7fd7a866d0ece61ba04c618
+    Reviewed-on: https://go-review.googlesource.com/123919
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../testdata/testprog/traceback_ancestors.go       | 56 ++++++++++++++++++++--
- 1 file changed, 51 insertions(+), 5 deletions(-)
+ doc/go_faq.html | 137 +++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 100 insertions(+), 37 deletions(-)

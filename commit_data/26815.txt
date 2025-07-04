@@ -1,21 +1,20 @@
-commit 012557b3769f9286b9488fbfd4bddfeee66b6a55
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sun Apr 10 08:48:55 2016 +0200
+commit 52f099c4263f2ffd1cda777d7f6ed9689bb481a5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 26 02:10:29 2016 -0800
 
-    all: replace magic 0x80 with named constant utf8.RuneSelf
+    cmd/compile: simplify lexinit and lexfini
     
-    Change-Id: Id1c2e8e9d60588de866e8b6ca59cc83dd28f848f
-    Reviewed-on: https://go-review.googlesource.com/21756
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Split the syms array into separate basicTypes and builtinFuncs arrays.
+    
+    Also, in lexfini, instead of duplicating the code from lexinit to
+    declare the builtin identifiers in the user package, just import them
+    from builtinpkg like how importdot works.
+    
+    Change-Id: Ic3b3b454627a46f7bd5f290d0e31443e659d431f
+    Reviewed-on: https://go-review.googlesource.com/19936
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/bufio/bufio.go                 | 2 +-
- src/cmd/compile/internal/gc/fmt.go | 2 +-
- src/encoding/asn1/asn1.go          | 2 +-
- src/go/build/build.go              | 2 +-
- src/go/build/read.go               | 3 ++-
- src/go/scanner/scanner.go          | 6 +++---
- src/html/template/css.go           | 2 +-
- src/net/http/cookiejar/punycode.go | 2 +-
- 8 files changed, 11 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 209 ++++++++++++++-----------------------
+ 1 file changed, 77 insertions(+), 132 deletions(-)

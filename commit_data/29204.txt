@@ -1,20 +1,39 @@
-commit ee785f03a24e0373be4c2d7256413296735c3414
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 13 15:34:56 2016 -0400
+commit bdde10137b3e67383f38329b02b329a906b78d5d
+Author: Radu Berinde <radu@cockroachlabs.com>
+Date:   Sun Aug 28 14:36:06 2016 -0400
 
-    runtime: shade stack-to-stack copy when starting a goroutine
+    hash/crc32: cleanup code and improve tests
     
-    The hybrid barrier requires barriers on stack-to-stack copies if
-    either stack is grey. There are only two instances of this in the
-    runtime: channel sends and starting a goroutine. Channel sends already
-    use typedmemmove and hence have the necessary barriers. This commits
-    adds barriers for the stack-to-stack copy when starting a goroutine.
+    Major reorganization of the crc32 code:
     
-    Updates #17503.
+     - The arch-specific files now implement a well-defined interface
+       (documented in crc32.go). They no longer have the responsibility of
+       initializing and falling back to a non-accelerated implementation;
+       instead, that happens in the higher level code.
     
-    Change-Id: Ibb55e08127ca4d021ac54be61cb96732efa5df5b
-    Reviewed-on: https://go-review.googlesource.com/31455
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+     - The non-accelerated algorithms are moved to a separate file with no
+       dependencies on other code.
+    
+     - The "cutoff" optimization for slicing-by-8 is moved inside the
+       algorithm itself (as opposed to every callsite).
+    
+    Tests are significantly improved:
+     - direct tests for the non-accelerated algorithms.
+     - "cross-check" tests for arch-specific implementations (all archs).
+     - tests for misaligned buffers for both IEEE and Castagnoli.
+    
+    Fixes #16909.
+    
+    Change-Id: I9b6dd83b7a57cd615eae901c0a6d61c6b8091c74
+    Reviewed-on: https://go-review.googlesource.com/27935
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/hash/crc32/crc32.go            | 167 +++++++++++++++++++------------------
+ src/hash/crc32/crc32_amd64.go      |  60 +++++++------
+ src/hash/crc32/crc32_amd64_test.go |  44 ----------
+ src/hash/crc32/crc32_amd64p32.go   |  36 ++++----
+ src/hash/crc32/crc32_generic.go    |  92 ++++++++++++++++----
+ src/hash/crc32/crc32_otherarch.go  |  15 ++++
+ src/hash/crc32/crc32_s390x.go      |  83 +++++++++---------
+ src/hash/crc32/crc32_test.go       | 164 +++++++++++++++++++++++++++++-------
+ 8 files changed, 407 insertions(+), 254 deletions(-)

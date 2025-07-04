@@ -1,17 +1,16 @@
-commit 7e0950861703c93ea3e7f122c1c594851919261e
-Author: Adam Bender <abender@gmail.com>
-Date:   Mon Nov 25 17:52:25 2024 -0800
+commit 9ab5121691ee0c4f32bf8d8c3c10c0e85a89ceb5
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 12 10:57:04 2023 -0700
 
-    os/exec: edit comment to remove invalid link
+    cmd/compile: use new runtime type mechanism for type switches and asserts
     
-    Update comment to remove link formatting that doesn't turn into a link, because the target field is not a top-level member of the package. Re-word comment slightly.
-    
-    Change-Id: I43ebd8fb105b772a4362c0c763e6464321a92747
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631856
-    Reviewed-by: Veronica Silina <veronicasilina@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ife7d6d6d773ac0d8ac38dbd2da7dccc519998b63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534816
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/os/exec/exec.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/rttype/rttype.go | 26 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/walk/expr.go     | 16 +++++++---------
+ src/cmd/compile/internal/walk/switch.go   | 20 +++++++++++---------
+ 3 files changed, 44 insertions(+), 18 deletions(-)

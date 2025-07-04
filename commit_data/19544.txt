@@ -1,19 +1,19 @@
-commit 311e28636ab1b41a10510a46fe1c8728e8713057
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 16 10:45:05 2014 -0700
+commit 6f6f1bd054bf8789ede8cdfeaf28fa5af88bc371
+Author: Alan Shreve <alan@inconshreveable.com>
+Date:   Sat Jun 14 15:51:00 2014 +1000
 
-    fmt: don't put 0x on every byte of a compact hex-encoded string
-    Printf("%x", "abc") was "0x610x620x63"; is now "0x616263", which
-    is surely better.
-    Printf("% #x", "abc") is still "0x61 0x62 0x63".
+    syscall: implement syscall.Getppid() on Windows
     
-    Fixes #8080.
+    Also added a test to verify os.Getppid() works across all platforms
     
-    LGTM=bradfitz, gri
-    R=golang-codereviews, bradfitz, gri
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman, shreveal, iant
     CC=golang-codereviews
-    https://golang.org/cl/106990043
+    https://golang.org/cl/102320044
 
- src/pkg/fmt/fmt_test.go | 10 +++++++---
- src/pkg/fmt/format.go   |  2 +-
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/pkg/os/os_test.go                     | 26 ++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go        | 35 +++++++++++++++++++++++++--
+ src/pkg/syscall/zsyscall_windows_386.go   | 40 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 40 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go         | 24 +++++++++++++++++++
+ 5 files changed, 163 insertions(+), 2 deletions(-)

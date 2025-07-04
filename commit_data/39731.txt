@@ -1,19 +1,27 @@
-commit 75198b9a9ccdacc3e9ed87a2406b0b87acb1fbac
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 17 11:48:37 2019 -0700
+commit c135dfbf1842993aa2fd4c293b2476ce4733daf7
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jan 18 15:16:11 2019 -0500
 
-    cmd/compile: simplify postorder
+    debug/dwarf: more graceful handling of unsupported types
     
-    Use a bool instead of markKind;
-    it doesn't save space, but the semantics are more obvious.
-    Move type markKind closer to its only remaining use.
+    Enhance the type decoder to do a better job handling unknown type
+    tags. DWARF has a number of type DIEs that this package doesn't handle
+    (things like "pointer to member" types in C++); avoid crashing for
+    such types, but instead return a placeholder "UnsupportedType" object
+    (this idea suggested by Austin). This provides a compromise between
+    implementing the entire kitchen sink and simply returning an error
+    outright on any unknown type DIE.
     
-    Change-Id: I9945a7baaeb764295a2709f83120ce3a82fa3beb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177880
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #29601.
+    
+    Change-Id: I2eeffa094c86ef3a2c358ee42e8e629d74cec2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/158797
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/dom.go               | 33 ++++++++---------------
- src/cmd/compile/internal/ssa/loopreschedchecks.go | 10 +++++++
- 2 files changed, 21 insertions(+), 22 deletions(-)
+ src/debug/dwarf/testdata/cppunsuptypes.cc  |  34 ++++++++++++++++
+ src/debug/dwarf/testdata/cppunsuptypes.elf | Bin 0 -> 3920 bytes
+ src/debug/dwarf/type.go                    |  24 ++++++++++++
+ src/debug/dwarf/type_test.go               |  60 +++++++++++++++++++++++++++++
+ 4 files changed, 118 insertions(+)

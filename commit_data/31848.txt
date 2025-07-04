@@ -1,16 +1,33 @@
-commit eb86abaa36097971d1cd52c1479da246f2b49073
+commit 8ada52228cac7ef265915cf95d8a0e515069fe9d
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jun 15 13:52:13 2017 -0700
+Date:   Fri Mar 10 15:03:25 2017 -0800
 
-    cmd/compile: better error for malformed packages
+    cmd/compile: remove ProgInfo tables
     
-    Fixes #14270.
-    
-    Change-Id: Iaf2496a24b1aba443391b90951cef472add73f13
-    Reviewed-on: https://go-review.googlesource.com/45950
+    Change-Id: Id807c702ad71edddd23f2eb6f5e69e9a62e60bcd
+    Reviewed-on: https://go-review.googlesource.com/38089
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/main.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/compile/fmt_test.go               |   1 -
+ src/cmd/compile/internal/amd64/galign.go  |   1 -
+ src/cmd/compile/internal/amd64/prog.go    | 287 ---------------------------
+ src/cmd/compile/internal/arm/galign.go    |   1 -
+ src/cmd/compile/internal/arm/prog.go      | 157 ---------------
+ src/cmd/compile/internal/arm64/galign.go  |   1 -
+ src/cmd/compile/internal/arm64/prog.go    | 182 -----------------
+ src/cmd/compile/internal/gc/go.go         |  60 ------
+ src/cmd/compile/internal/gc/plive.go      |   8 -
+ src/cmd/compile/internal/mips/galign.go   |   1 -
+ src/cmd/compile/internal/mips/prog.go     | 155 ---------------
+ src/cmd/compile/internal/mips64/galign.go |   1 -
+ src/cmd/compile/internal/mips64/prog.go   | 152 --------------
+ src/cmd/compile/internal/ppc64/galign.go  |   4 -
+ src/cmd/compile/internal/ppc64/prog.go    | 319 ------------------------------
+ src/cmd/compile/internal/s390x/galign.go  |   1 -
+ src/cmd/compile/internal/s390x/prog.go    | 198 -------------------
+ src/cmd/compile/internal/x86/galign.go    |   1 -
+ src/cmd/compile/internal/x86/prog.go      | 268 -------------------------
+ 19 files changed, 1798 deletions(-)

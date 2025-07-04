@@ -1,16 +1,18 @@
-commit 9eda2b997719c7c7fcb88d0d44cc92d5003887a2
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Mar 6 08:02:39 2012 +0100
+commit 9442c4429a7fe18aba304f8d239c4ca10ab598ad
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 6 15:41:17 2012 +0900
 
-    net: do not use reflect for DNS messages.
+    net: add skip message to test
     
-    Fixes #3201.
-    
-    R=bradfitz, bradfitz, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5753045
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5753048
 
- src/pkg/go/build/deps_test.go |   4 +-
- src/pkg/net/dnsmsg.go         | 350 +++++++++++++++++++++++++++---------------
- src/pkg/net/dnsmsg_test.go    |  11 ++
- 3 files changed, 242 insertions(+), 123 deletions(-)
+ src/pkg/net/multicast_test.go |  3 +++
+ src/pkg/net/net_test.go       |  1 +
+ src/pkg/net/parse_test.go     |  4 +++-
+ src/pkg/net/server_test.go    |  1 +
+ src/pkg/net/timeout_test.go   | 12 +++++++++---
+ src/pkg/net/udp_test.go       |  4 +++-
+ src/pkg/net/unicast_test.go   |  7 +++++++
+ 7 files changed, 27 insertions(+), 5 deletions(-)

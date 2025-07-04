@@ -1,15 +1,21 @@
-commit 43dfb879a3154cd9e87ce752f9b9f1662eb7931e
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Thu Feb 26 21:23:31 2015 +0100
+commit e31e35a0dea212bba08d85449554dad2969a2d91
+Author: Rick Hudson <rlh@golang.org>
+Date:   Tue Feb 24 17:49:55 2015 -0500
 
-    mime/quotedprintable: add writer
+    runtime: reset gcscanvalid and gcworkdone when GODEBUG=gctrace=2
     
-    Updates #4943
+    When GODEBUG=gctrace=2 two gcs are preformed. During the first gc
+    the stack scan sets the g's gcscanvalid and gcworkdone flags to true
+    indicating that the stacks have to be scanned and do not need to
+    be rescanned. These need to be reset to false for the second GC so the
+    stacks are rescanned, otherwise if the only pointer to an object is
+    on the stack it will not be discovered and the object will be freed.
+    Typically this will include the object that was just allocated in
+    the mallocgc call that initiated the GC.
     
-    Change-Id: I082b97ccd787cf91245d39b8d93783732db6f42c
-    Reviewed-on: https://go-review.googlesource.com/6171
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: Ic25163f4689905fd810c90abfca777324005c02f
+    Reviewed-on: https://go-review.googlesource.com/5861
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/mime/quotedprintable/writer.go      | 168 ++++++++++++++++++++++++++++++++
- src/mime/quotedprintable/writer_test.go | 141 +++++++++++++++++++++++++++
- 2 files changed, 309 insertions(+)
+ src/runtime/mgc.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

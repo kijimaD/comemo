@@ -1,29 +1,26 @@
-commit 69ca0a859cbd8807b03b7772a11f5a147cd46565
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Nov 22 09:22:13 2022 -0800
+commit b7b44b3173f151a2313da7072afd25de80511605
+Author: David Chase <drchase@google.com>
+Date:   Thu Jan 27 11:26:59 2022 -0500
 
-    Revert "net/url, net/http/httputil: accept invalid percent encodings"
+    cmd/compile: remove incorrect arm,arm64 CMP->CMN transformations
     
-    This reverts CL 450375.
+    These can go wrong when one of the operands is the minimum integer value.
     
-    Reason for revert: This change causes test failures (and possibly other
-    problems) for users depending on the existing validation behavior.
-    Rolling back the change for now to give us more time to consider its
-    impact. This landed late in the cycle and isn't urgent; it can wait
-    for 1.21 if we do want to make the change.
+    Fixes #50854.
     
-    Fixes #56884
-    For #56732
-    
-    Change-Id: I082023c67f1bbb933a617453ab92b67abba876ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452795
+    Change-Id: I238fe284f60c7ee5aeb9dc9a18e8b1578cdb77d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381318
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/net/http/httputil/reverseproxy.go      | 27 ++++++++++++++++++++-
- src/net/http/httputil/reverseproxy_test.go |  2 +-
- src/net/url/url.go                         | 26 +++++++-------------
- src/net/url/url_test.go                    | 39 ++++++++++++++++++------------
- 4 files changed, 59 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |   4 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   4 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go   |   2 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go   | 144 ------------------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 160 ---------------------------
+ test/fixedbugs/issue50854.go                 |  38 +++++++
+ 7 files changed, 45 insertions(+), 317 deletions(-)

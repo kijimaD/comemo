@@ -1,13 +1,17 @@
-commit 708a53f9cf618270b609aa72795fb0cdf01260cc
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Mar 25 23:21:28 2014 -0400
+commit 3eb591ff76c9edb8a9ed6466712be425269f8739
+Author: David Barnett <dbarnett@google.com>
+Date:   Wed Mar 26 13:51:16 2014 +1100
 
-    doc: document Solaris port.
+    misc/vim: Disable automatic line wrapping by textwidth.
     
-    LGTM=aram, rsc
-    R=aram, adg, bradfitz, rsc
+    If someone configures a 'textwidth' in go files, vim will by default insert
+    newlines into long lines as you type, which breaks syntax and doesn't really
+    make sense for go code. This fixes the default.
+    
+    LGTM=dsymonds
+    R=golang-codereviews, gobot, dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/74750045
+    https://golang.org/cl/76890046
 
- doc/install-source.html | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ misc/vim/ftplugin/go.vim | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

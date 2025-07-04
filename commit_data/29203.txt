@@ -1,12 +1,24 @@
-commit 0c0960a2349d00369f7e1781ec3d8b04d96a5b80
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Oct 28 15:58:44 2016 -0400
+commit 2a2cab2911083f1ed2ea5c6bf24a12e2c5f6bcfc
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Aug 30 18:07:39 2016 +0300
 
-    runtime/pprof/internal/profile: add copyright notice to profile_memmap.go
+    math: speed up bessel functions on AMD64
     
-    Change-Id: Ia511b0aadc87eb53e084d14cdb90ba4be958a43e
-    Reviewed-on: https://go-review.googlesource.com/32259
-    Reviewed-by: Austin Clements <austin@google.com>
+    J0-4            71.9ns ± 1%  54.6ns ± 0%  -24.08%  (p=0.000 n=20+18)
+    J1-4            71.6ns ± 0%  55.4ns ± 0%  -22.60%  (p=0.000 n=19+20)
+    Jn-4             153ns ± 0%   118ns ± 1%  -22.71%  (p=0.000 n=20+20)
+    Y0-4            70.8ns ± 0%  53.9ns ± 0%  -23.87%  (p=0.000 n=19+19)
+    Y1-4            70.8ns ± 0%  54.1ns ± 0%  -23.54%  (p=0.000 n=20+20)
+    Yn-4             149ns ± 0%   116ns ± 0%  -22.15%  (p=0.000 n=19+20)
+    
+    Fixes #16889
+    
+    Change-Id: Ie88496407b42f6acb918ffae1226b1b4c0500cb9
+    Reviewed-on: https://go-review.googlesource.com/28086
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/pprof/internal/profile/profile_memmap.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/math/j0.go | 38 +++++++++++++++++++-------------------
+ src/math/j1.go | 38 +++++++++++++++++++-------------------
+ 2 files changed, 38 insertions(+), 38 deletions(-)

@@ -1,17 +1,13 @@
-commit 07f6f313a90b264377f8a9ecc4fadfe13bfff633
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jun 26 11:40:48 2014 -0700
+commit 131526f64d0573b0070454bb82d9820518322668
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 26 10:01:28 2014 -0700
 
-    runtime: say when a goroutine is locked to OS thread
-    Say when a goroutine is locked to OS thread in crash reports
-    and goroutine profiles.
-    It can be useful to understand what goroutines consume OS threads
-    (syscall and locked), e.g. if you forget to call UnlockOSThread
-    or leak locked goroutines.
+    C: add Evan Kroske (Google CLA)
     
-    R=golang-codereviews
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/94170043
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/110160045
 
- src/pkg/runtime/proc.c | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

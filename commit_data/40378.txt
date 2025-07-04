@@ -1,16 +1,42 @@
-commit 7d84245a9cd41489984e36c5a01876fc4da5d5ec
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 11 14:29:09 2019 -0700
+commit 0047353c53cd5c5524f8978c855e982cb4ca4533
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 11 19:22:49 2019 -0700
 
-    runtime: implement time.Sleep for new timers
+    cmd/compile: add countRule rewrite rule helper
     
-    Updates #27707
+    noteRule is useful when you're trying to debug
+    a particular rule, or get a general sense for
+    how often a rule fires overall.
     
-    Change-Id: I51da8a04ec12ba1efa435e86e3a15d4d13c96c45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171879
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    It is less useful if you're trying to figure
+    out which functions might be useful to benchmark
+    to ascertain the impact of a newly added rule.
+    
+    Enter countRule. You use it like noteRule,
+    except that you get per-function summaries.
+    
+    Sample output:
+    
+     # runtime
+    (*mspan).sweep: idx1=1
+    evacuate_faststr: idx1=1
+    evacuate_fast32: idx1=1
+    evacuate: idx1=2
+    evacuate_fast64: idx1=1
+    sweepone: idx1=1
+    purgecachedstats: idx1=1
+    mProf_Free: idx1=1
+    
+    This suggests that the map benchmarks
+    might be good to run for this added rule.
+    
+    Change-Id: Id471c3231f1736165f2020f6979ff01c29677808
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167088
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/time.go | 26 +++++++++++++++++++++++++-
- 1 file changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/compile.go | 17 +++++++++++++++++
+ src/cmd/compile/internal/ssa/func.go    |  7 ++++---
+ src/cmd/compile/internal/ssa/rewrite.go | 14 ++++++++++++++
+ 3 files changed, 35 insertions(+), 3 deletions(-)

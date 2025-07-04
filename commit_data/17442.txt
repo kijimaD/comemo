@@ -1,19 +1,21 @@
-commit aeb8b45866b8e9664d931c1c297b122237fe679e
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Aug 30 16:03:16 2013 +1000
+commit 20692c22d7407125dba801dadee7413c6bc6b0a6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 30 09:28:26 2013 +0900
 
-    image/color/palette: move Plan9Palette and WebSafePalette out of the
-    image/color package into their own package. They require some non-
-    trivial init-time code (interface conversions, currently 40KiB of text)
-    that would otherwise burden any Go program that imported image/color.
+    net: add addrList
     
-    R=r
+    This CL adds a new type addrList that will carry a short list of IP
+    addresses to dial helper functions in the upcoming CLs.
+    
+    This is in preparation for TCP connection setup with fast failover on
+    dual IP stack node as described in RFC 6555.
+    
+    Update #3610
+    Update #5267
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13256046
+    https://golang.org/cl/13241046
 
- src/pkg/image/color/palette.go           | 497 ------------------------------
- src/pkg/image/color/{ => palette}/gen.go |  21 +-
- src/pkg/image/color/palette/palette.go   | 500 +++++++++++++++++++++++++++++++
- src/pkg/image/gif/reader_test.go         |  22 +-
- src/pkg/image/gif/writer.go              |   5 +-
- 5 files changed, 526 insertions(+), 519 deletions(-)
+ src/pkg/net/ipsock.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,16 +1,24 @@
-commit 3877f1d9c80f57beb8a8dde778f6239598fd4a58
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Mar 11 17:35:49 2014 +0400
+commit c07ca77432d0c6b7e75eb0eec83ecccea03d38b5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 11 16:36:14 2014 +1100
 
-    runtime: remove atomic CAS loop from marknogc
-    Spans are now private to threads, and the loop
-    is removed from all other functions.
-    Remove it from marknogc for consistency.
+    syscall: replace mksyscall_windows.pl with mksyscall_windows.go
     
-    LGTM=khr, rsc
-    R=golang-codereviews, bradfitz, khr
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/72520043
+    Not many windows users have perl installed. They can just use
+    standard go tools instead. Also mkerrors_windows.sh script
+    removed - we don't add any new "unix" errors to windows
+    syscall package anymore.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/41060044
 
- src/pkg/runtime/mgc0.c | 18 ++----------------
- 1 file changed, 2 insertions(+), 16 deletions(-)
+ src/pkg/syscall/mkall.sh                  |  37 +-
+ src/pkg/syscall/mkall_windows.bat         |  21 +
+ src/pkg/syscall/mkerrors_windows.sh       | 202 ---------
+ src/pkg/syscall/mksyscall_windows.go      | 662 ++++++++++++++++++++++++++++++
+ src/pkg/syscall/mksyscall_windows.pl      | 333 ---------------
+ src/pkg/syscall/zsyscall_windows_386.go   |   2 +-
+ src/pkg/syscall/zsyscall_windows_amd64.go |   2 +-
+ 7 files changed, 703 insertions(+), 556 deletions(-)

@@ -1,21 +1,20 @@
-commit 67b8bf3e32ec0bcc79453caeea9595a3ca036929
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 27 18:29:00 2014 -0800
+commit 8d2465ab501eb186ffe869019f3d69b125954993
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 28 11:09:26 2014 +1100
 
-    net/http: add optional Server.ConnState callback
+    go/misc/makerelease: pin go-tour repo to a specific revision
     
-    Update #4674
+    We're about to commit some wide-sweeping changes to the go-tour and I
+    would rather not include them in Go 1.2.1, which is due in the next
+    week or so.
     
-    This allows for all sorts of graceful shutdown policies,
-    without picking a policy (e.g. lameduck period) and without
-    adding lots of locking to the server core. That policy and
-    locking can be implemented outside of net/http now.
+    Also fix the makerelease tool; it has been broken since it was
+    renamed from bindist.
     
-    LGTM=adg
-    R=golang-codereviews, josharian, r, adg, dvyukov
+    LGTM=campoy
+    R=campoy
     CC=golang-codereviews
-    https://golang.org/cl/69260044
+    https://golang.org/cl/68780043
 
- src/pkg/net/http/serve_test.go | 115 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/server.go     |  67 ++++++++++++++++++++++++
- 2 files changed, 182 insertions(+)
+ misc/makerelease/makerelease.go | 73 +++++++++++++++++++++++++----------------
+ 1 file changed, 44 insertions(+), 29 deletions(-)

@@ -1,53 +1,18 @@
-commit ca384f76296af68b874cf9305a78ca5269c20956
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Jan 13 12:46:34 2022 +0000
+commit 4c9791299d418c7434bebe59a9a481b7a246e33b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed May 5 04:01:52 2021 +1000
 
-    cmd/go: avoid rebuilding itself in TestMain
+    runtime: remove redundant save_g call in mcall for arm
     
-    An extra "go build" was happening, for the sake of -tags=testgo,
-    which would insert some extra behavior into ./internal/work.
+    The setg call a few lines earlier has already performed the same iscgo check
+    and called save_g if necessary.
     
-    Instead, reuse the test binary as cmd/go directly,
-    by calling the main func when a special env var is set.
-    We still duplicate the test binary into testBin,
-    because we need a "go" executable in that directory for $PATH.
-    
-    Finally, the special behavior is instead inserted via TestMain.
-    
-    The numbers below represent how long it takes to run zero tests,
-    measured via:
-    
-            benchcmd GoTestNothing go test -run=-
-    
-    That is, the time it takes to run the first test is reduced by half.
-    Note that these numbers are on a warm build cache,
-    so if the -tags=testgo build were to be done from scratch,
-    the speed-up would be significantly more noticeable.
-    
-            name           old time/op         new time/op         delta
-            GoTestNothing          830ms ± 2%          380ms ± 7%  -54.23%  (p=0.008 n=5+5)
-    
-            name           old user-time/op    new user-time/op    delta
-            GoTestNothing          1.64s ± 1%          0.82s ± 3%  -50.24%  (p=0.008 n=5+5)
-    
-            name           old sys-time/op     new sys-time/op     delta
-            GoTestNothing          306ms ± 7%          159ms ±28%  -48.15%  (p=0.008 n=5+5)
-    
-            name           old peak-RSS-bytes  new peak-RSS-bytes  delta
-            GoTestNothing          173MB ± 1%          147MB ± 1%  -14.96%  (p=0.008 n=5+5)
-    
-    Change-Id: I1f8fc71269a7b45bc5b82b7228e13f56589d44c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378294
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I6e7c44cef4e0397d6001a3d5b7e334cdfbc3ce22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316929
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/export_test.go          |  7 ++++
- src/cmd/go/go_test.go              | 78 ++++++++++++++++++++++++++++++++------
- src/cmd/go/internal/work/build.go  |  2 +-
- src/cmd/go/internal/work/exec.go   | 22 +++++------
- src/cmd/go/internal/work/gc.go     |  4 +-
- src/cmd/go/internal/work/testgo.go | 48 -----------------------
- src/cmd/go/script_test.go          |  1 +
- 7 files changed, 89 insertions(+), 73 deletions(-)
+ src/runtime/asm_arm.s | 3 ---
+ 1 file changed, 3 deletions(-)

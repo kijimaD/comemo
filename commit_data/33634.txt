@@ -1,25 +1,16 @@
-commit 337f04bd6c2b049a68eabd9dcec4f47cd6933d94
-Author: Rob Pike <r@golang.org>
-Date:   Mon Nov 20 14:12:43 2017 +1100
+commit 53c8be4a8dadc2d4e664d69732032409a9c344d7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 2 11:15:41 2017 -0700
 
-    cmd/doc: don't print a declaration twice
+    cmd/compile: use raceX instead of raceXrange for types without subcomponents
     
-    That can occur if we have -u set and there is an upper- and lower-case
-    name of the same spelling in a single declaration.
-    
-    A rare corner case but easy to fix.
-    
-    Fix by remembering what we've printed.
-    
-    Fixes #21797.
-    
-    Change-Id: Ie0b681ae8c277fa16e9635ba594c1dff272b8aeb
-    Reviewed-on: https://go-review.googlesource.com/78715
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9882488e69565dc9da6814fefbdba3621daf74fe
+    Reviewed-on: https://go-review.googlesource.com/59332
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
 
- src/cmd/doc/doc_test.go     | 13 +++++++++++++
- src/cmd/doc/pkg.go          |  8 +++++++-
- src/cmd/doc/testdata/pkg.go |  5 +++++
- 3 files changed, 25 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/racewalk.go |  7 ++++++-
+ src/cmd/compile/internal/types/type.go  | 17 +++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

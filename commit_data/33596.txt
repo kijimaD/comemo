@@ -1,37 +1,21 @@
-commit 85c3ebf4dde67026a703dd7c4a3b64ffc307e115
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 10 11:45:16 2017 -0500
+commit b976859b4757eafac39988c9ba72704ff472786f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 23 13:50:47 2017 -0700
 
-    cmd/cgo: modify source as text, not as AST
+    cmd/compile: fix node position for imported constants
     
-    Cgo has always operated by rewriting the AST and invoking go/printer.
-    This CL converts it to use the AST to make decisions but then apply
-    its edits directly to the underlying source text. This approach worked
-    better in rsc.io/grind (used during the C to Go conversion) and also
-    more recently in cmd/cover. It guarantees that all comments and
-    line numbers are preserved exactly.
+    Discovered while debugging CL 53644.
     
-    This eliminates a lot of special concern about comments and
-    problems with cgo not preserving meaningful comments.
-    Combined with the CL changing cmd/cover to use the same
-    approach, it means that the combination of applying cgo and
-    applying cover still guarantees all comments and line numbers
-    are preserved exactly.
+    No test case because these are purely internal conversions that should
+    never end up resulting in compiler warnings or even generated code.
     
-    This sets us up to fix some cgo vs cover bugs by swapping
-    the order in which they run during the go command.
+    Updates #19683.
     
-    This also sets up #16623 a bit: the edit list being
-    accumulated here is nearly exactly what you'd want
-    to pass to the compiler for that issue.
-    
-    Change-Id: I7611815be22e7c5c0d4fc3fa11832c42b32c4eb3
-    Reviewed-on: https://go-review.googlesource.com/77153
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0d9333ef2c963fa22eb9b5335bb022bcc9b25708
+    Reviewed-on: https://go-review.googlesource.com/58190
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/cgo/ast.go        | 57 +++++++++++++++++++++++------------
- src/cmd/cgo/gcc.go        | 76 ++++++++++++++++++++++-------------------------
- src/cmd/cgo/main.go       |  9 ++++++
- src/cmd/cgo/out.go        |  3 +-
- src/cmd/dist/buildtool.go |  1 +
- 5 files changed, 86 insertions(+), 60 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

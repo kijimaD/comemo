@@ -1,24 +1,15 @@
-commit 9e83c11fca44282e4b8b1e099f437f557b73b43e
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 20 15:54:12 2017 -0400
+commit 466a8915e3274c8b33d82c68c187bd6c5653d80e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 1 13:40:24 2017 -0800
 
-    runtime/pprof: expand inlined frames in symbolized proto profiles
+    net/smtp: skip flaky TestTLSClient on freebsd/amd64
     
-    Currently proto symbolization uses runtime.FuncForPC and assumes each
-    PC maps to a single frame. This isn't true in the presence of inlining
-    (even with leaf-only inlining this can get incorrect results).
+    Updates #19229
     
-    Change PC symbolization to use runtime.CallersFrames to expand each PC
-    to all of the frames at that PC.
-    
-    Change-Id: I8d20dff7495a5de495ae07f569122c225d433ced
-    Reviewed-on: https://go-review.googlesource.com/41256
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ibe1ea090ac064c7eb5abd225214ab43744bafbc4
+    Reviewed-on: https://go-review.googlesource.com/37653
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/pprof.go      |  4 +-
- src/runtime/pprof/pprof_test.go | 27 ++++++++++++
- src/runtime/pprof/proto.go      | 98 +++++++++++++++++++++++++----------------
- src/runtime/pprof/protomem.go   |  5 +--
- 4 files changed, 91 insertions(+), 43 deletions(-)
+ src/net/smtp/smtp_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,12 +1,19 @@
-commit 86183e43c92be0f3761abd0855e5cdac2280e073
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Jun 9 22:41:19 2011 -0400
+commit 5e8b9c614bed42da8cc2c16b705e491dcab693fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 9 18:10:21 2011 -0700
 
-    gopack: make unused page function a fatal error
+    http: fix regression permitting io.Copy on HEAD response
     
-    R=iant, rsc
+    With the ReadFrom change in the sendfile CL, it became
+    possible to illegally send a response to a HEAD request if you
+    did it via io.Copy.
+    
+    Fixes #1939
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4601051
+    https://golang.org/cl/4584049
 
- src/cmd/gopack/ar.c | 19 +------------------
- 1 file changed, 1 insertion(+), 18 deletions(-)
+ src/pkg/http/serve_test.go |  7 +++++++
+ src/pkg/http/server.go     | 15 +++++++++++----
+ 2 files changed, 18 insertions(+), 4 deletions(-)

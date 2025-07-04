@@ -1,16 +1,18 @@
-commit a3e3b8e9db553fb6870c9488e9817f4bd0bb9593
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Feb 13 07:28:22 2014 +0100
+commit 673917f87879e32e81e55b3cc5fa027a5c8fce0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 05:06:46 2014 +0000
 
-    cmd/gc: fix warnings on Plan 9
+    codereview: warn about 'hg upload' not uploading
     
-    warning: src/cmd/gc/popt.c:700 format mismatch d VLONG, arg 4
-    warning: src/cmd/gc/popt.c:700 format mismatch d VLONG, arg 5
+    This seems to be what causes the 'chunk mismatch' errors.
+    I don't know why the server tells us there's nothing to upload,
+    but at the least we can warn that it did, so that the user
+    will try again.
     
-    LGTM=rsc
-    R=rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/62910043
+    https://golang.org/cl/62840043
 
- src/cmd/gc/popt.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/codereview/codereview.py | 2 ++
+ 1 file changed, 2 insertions(+)

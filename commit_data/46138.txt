@@ -1,21 +1,44 @@
-commit f98b6111eb8edda63a785db5678418b9eecbc5e9
-Author: subham sarkar <sarkar.subhams2@gmail.com>
-Date:   Tue Jul 20 17:17:14 2021 +0000
+commit 63bc23b5452f6605df3e40ce7ecdd8b0348792af
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 7 21:56:58 2020 -0800
 
-    go/token: match the implementation of index selection with sort.Search
+    [dev.regabi] cmd/compile: first start towards using Ident
     
-    name          old time/op    new time/op    delta
-    SearchInts-8    15.5ns ± 2%    13.7ns ± 4%  -11.87%  (p=0.008 n=5+5)
+    This CL adds Ident, which will eventually replace *Name and *PkgName
+    within the AST for representing uses of declared names. (Originally, I
+    intended to call it "IdentExpr", but neither go/ast nor
+    cmd/compile/internal/syntax include the "Expr" suffix for their
+    respective types.)
     
-    (see CL 36332 for the original change to sort.Search)
+    To start, this CL converts two uses of *Name to *Ident: the tag
+    identifier in a TypeSwitchGuard (which doesn't actually declare a
+    variable by itself), and the not-yet-known placeholder ONONAME
+    returned by oldname to stand-in for identifiers that might be declared
+    later in the package.
     
-    Change-Id: If452818185b92b8b3548b066f475e493d604ea29
-    GitHub-Last-Rev: 32dd3cffa6b54b332948ac6a2929458defd4838f
-    GitHub-Pull-Request: golang/go#47293
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/335809
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
+    The TypeSwitchGuard's Name's Used flag was previously used for
+    detecting whether none of the per-clause variables were used. To avoid
+    bloating all Idents for this rare use, a "Used" bool is added to
+    TypeSwitchGuard instead. Eventually it could maybe be packed into
+    miniNode.bits, but for now this is good enough.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I393284d86757cbbebd26e1320c7354e2bdcb30b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276113
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/token/position.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go       |  2 +-
+ src/cmd/compile/internal/gc/iimport.go   | 10 +++++-----
+ src/cmd/compile/internal/gc/noder.go     | 10 +++++-----
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++++--
+ src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
+ src/cmd/compile/internal/ir/mknode.go    |  8 ++++----
+ src/cmd/compile/internal/ir/name.go      | 19 +++++++++++++++++++
+ src/cmd/compile/internal/ir/node.go      |  2 --
+ src/cmd/compile/internal/ir/node_gen.go  | 24 ++++++++++++++++++++----
+ src/cmd/compile/internal/ir/stmt.go      | 20 +++++++++-----------
+ 10 files changed, 74 insertions(+), 39 deletions(-)

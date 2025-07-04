@@ -1,24 +1,20 @@
-commit 6dd0b2d70292fc57e5664e2806f1d46cd621f531
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 28 08:56:06 2016 -0700
+commit c231dd21e1fe992e196d4a36f9e990523b9cc45a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 28 13:26:14 2016 -0700
 
-    androidtest.bash: fix pkg dir
+    net: remove internal support for obsolete DNS record types
     
-    CL 24930 altered the default InstallSuffix
-    for mobile platforms.
-    Update androidtest.bash to reflect this.
-    This reverts CL 16151.
+    There are no real world use cases for HINFO, MINFO, MB, MG, or MR
+    records, and package net's exposed APIs don't provide any way to
+    access them even if there were. If a use ever does show up, we can
+    revive them. In the mean time, this is just effectively-dead code that
+    sticks around because of rr_mk.
     
-    A subsequent CL will make this more robust,
-    but it will take more discussion and review.
-    In the meantime, this fixes the build.
-    
-    Change-Id: Ia19ca2c9bab7b79c9cf24beeca64ecddaa60289c
-    Reviewed-on: https://go-review.googlesource.com/27927
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I6c188b5ee32f3b3a04588b79a0ee9c2e3e725ccc
+    Reviewed-on: https://go-review.googlesource.com/22593
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/androidtest.bash | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/net/dnsmsg.go | 72 -------------------------------------------------------
+ 1 file changed, 72 deletions(-)

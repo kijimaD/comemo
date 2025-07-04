@@ -1,48 +1,18 @@
-commit c8b889cc4824f4dbd64a51a3f7b5b6dce4b87ed2
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Tue Mar 7 18:59:14 2017 +0100
+commit ec63158d7104ab6eb3765f7d4ea48744f97d9ff9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 11 15:48:30 2017 -0800
 
-    cmd/compile: output DWARF lexical blocks for local variables
+    [dev.inline] cmd/compile: parse source files concurrently
     
-    Change compiler and linker to emit DWARF lexical blocks in debug_info.
-    Version of debug_info is updated from DWARF v.2 to DWARF v.3 since version 2
-    does not allow lexical blocks with discontinuous ranges.
+    Conversion to Nodes still happens sequentially at the moment.
     
-    Second attempt at https://go-review.googlesource.com/#/c/29591/
-    
-    Remaining open problems:
-    - scope information is removed from inlined functions
-    - variables in debug_info do not have DW_AT_start_scope attributes so a
-    variable will shadow other variables with the same name as soon as its
-    containing scope begins, before its declaration.
-    
-    Updates golang/go#12899, golang/go#6913
-    
-    Change-Id: I0e260a45b564d14a87b88974eb16c5387cb410a5
-    Reviewed-on: https://go-review.googlesource.com/36879
+    Change-Id: I3407ba0711b8b92e22ece0a06fefaff863c3ccc9
+    Reviewed-on: https://go-review.googlesource.com/35126
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/alg.go         |  17 +-
- src/cmd/compile/internal/gc/bimport.go     |  24 +-
- src/cmd/compile/internal/gc/closure.go     |   8 +-
- src/cmd/compile/internal/gc/dcl.go         |  32 ++-
- src/cmd/compile/internal/gc/init.go        |   9 +-
- src/cmd/compile/internal/gc/noder.go       |  48 ++--
- src/cmd/compile/internal/gc/pgen.go        |  25 +-
- src/cmd/compile/internal/gc/scope.go       |  91 +++++++
- src/cmd/compile/internal/gc/scope_test.go  | 410 +++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
- src/cmd/compile/internal/gc/subr.go        |   8 +-
- src/cmd/compile/internal/gc/syntax.go      |   7 +-
- src/cmd/compile/internal/gc/walk.go        |   5 +-
- src/cmd/internal/dwarf/dwarf.go            | 179 +++++++++++--
- src/cmd/internal/obj/data.go               |   2 +-
- src/cmd/internal/obj/link.go               |   3 +-
- src/cmd/internal/obj/objfile.go            |  31 ++-
- src/cmd/internal/src/scope.go              |  36 +++
- src/cmd/link/internal/ld/data.go           |  19 +-
- src/cmd/link/internal/ld/dwarf.go          |  38 ++-
- src/cmd/link/internal/ld/link.go           |   4 +
- 21 files changed, 889 insertions(+), 109 deletions(-)
+ src/cmd/compile/internal/gc/lex.go    |  30 +++-------
+ src/cmd/compile/internal/gc/noder.go  | 107 +++++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/syntax.go |  17 +++---
+ 3 files changed, 85 insertions(+), 69 deletions(-)

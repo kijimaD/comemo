@@ -1,20 +1,47 @@
-commit 1cf67709beb2d7e317cb6e6b983f3fc6304ebc1a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Mar 9 17:08:37 2022 -0500
+commit dc50683bf7ebdfde726d710131ba05fe97e10a07
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 13 18:24:16 2020 -0700
 
-    runtime: fix SegvInCgo skip check
+    crypto/elliptic: upgrade from generic curve impl to specific if available
     
-    CL 390034 changed this throw message to add the goid, breaking the
-    match.
+    This change alters the CurveParam methods to upgrade from the generic
+    curve implementation to the specific P224 or P256 implementations when
+    called on the embedded CurveParams. This removes the trap of using
+    elliptic.P224().Params() instead of elliptic.P224(), for example, which
+    results in using the generic implementation instead of the optimized
+    constant time one. For P224 this is done for all of the CurveParams
+    methods, except Params, as the optimized implementation covers all
+    these methods. For P256 this is only done for ScalarMult and
+    ScalarBaseMult, as despite having implementations of addition and
+    doubling they aren't exposed and instead the generic implementation is
+    used. For P256 an additional check that there actually is a specific
+    implementation is added, as unlike the P224 implementation the P256 one
+    is only available on certain platforms.
     
-    For #50979.
+    This change takes the simple, fast approach to checking this, it simply
+    compares pointers. This removes the most obvious class of mistakes
+    people make, but still allows edge cases where the embedded CurveParams
+    pointer has been dereferenced (as seen in the unit tests) or when someone
+    has manually constructed their own CurveParams that matches one of the
+    standard curves. A more complex approach could be taken to also address
+    these cases, but it would require directly comparing all of the
+    CurveParam fields which would, in the worst case, require comparing
+    against two standard CurveParam sets in the ScalarMult and
+    ScalarBaseMult paths, which are likely to be the hottest already.
     
-    Change-Id: I52d97695484938701e5b7c269e2caf0c87d44d7a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391139
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Updates #34648
+    
+    Change-Id: I82d752f979260394632905c15ffe4f65f4ffa376
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233939
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/crash_cgo_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/elliptic/elliptic.go      | 39 ++++++++++++++++++++++++++++++++++++
+ src/crypto/elliptic/elliptic_test.go | 18 +++++++++++++----
+ src/crypto/elliptic/p256_asm.go      |  4 +---
+ src/crypto/elliptic/p256_generic.go  |  4 +---
+ 4 files changed, 55 insertions(+), 10 deletions(-)

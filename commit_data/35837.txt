@@ -1,15 +1,23 @@
-commit b410ce750e08f3b62af3d3d277fa0793f11ed674
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 27 15:38:29 2018 -0700
+commit fdf5aaf5555692a9e03a65df1aba06aa4a09052b
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Mar 5 07:48:28 2018 +0000
 
-    cmd/compile: don't crash in untyped expr to interface conversion
+    cmd/asm: fix ARM64 vector register arrangement encoding bug
     
-    Fixes #24763.
+    The current code assigns vector register arrangement a wrong value
+    when the arrangement specifier is S2, which causes the incorrect
+    assembly.
     
-    Change-Id: Ibe534271d75b6961d00ebfd7d42c43a3ac650d79
-    Reviewed-on: https://go-review.googlesource.com/121335
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    The patch fixes the issue and adds the test cases.
+    
+    Fixes #24249
+    
+    Change-Id: I9736df1279494003d0b178da1af9cee9cd85ce21
+    Reviewed-on: https://go-review.googlesource.com/98555
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 18 +++++++++++-------
- test/fixedbugs/issue24763.go         | 21 +++++++++++++++++++++
- 2 files changed, 32 insertions(+), 7 deletions(-)
+ src/cmd/asm/internal/arch/arm64.go        | 2 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

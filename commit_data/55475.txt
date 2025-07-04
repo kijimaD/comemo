@@ -1,30 +1,26 @@
-commit 65f056d07ad1db7dd4fb23c4d35cf7b8bd0d6008
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jan 30 11:01:05 2024 -0500
+commit a4d5fbc3a48b63f19fcd2a4d040a85c75a2709b5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 9 09:23:41 2023 -0800
 
-    runtime: avoid new linkname for goroutine profiles
+    go/types, types2: remove need to store type parameter list in unifier
     
-    CL 464349 added a new linkname to provide gcount to runtime/pprof to
-    avoid a STW when estimating the goroutine profile allocation size.
+    For unification we only need the handles map.
+    The type parameter list was stored for reproducible printing only,
+    but we can achieve the same effect with sorting.
     
-    However, adding a linkname here isn't necessary for a few reasons:
+    This opens the door to adding type parameters from different
+    types/functions that we may want to infer together. They may
+    be added through separate "addTypeParams" calls in the future.
+    Printing (which is used for debugging only) will remain reproducible.
     
-    1. We already export gcount via NumGoroutines. I completely forgot about
-       this during review.
-    2. aktau suggested that goroutineProfileWithLabelsConcurrent return
-       gcount as a fast path estimate when the input is empty.
-    
-    The second point keeps the code cleaner overall, so I've done that.
-    
-    For #54014.
-    
-    Change-Id: I6cb0811a769c805e269b55774cdd43509854078e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559515
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Nicolas Hillegeer <aktau@google.com>
-    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I23b56c63fa45a7d687761f2efcf558e61b004584
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466955
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/mprof.go       | 13 ++++++++-----
- src/runtime/pprof/pprof.go | 10 +---------
- 2 files changed, 9 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/types2/unify.go | 25 +++++++++++++++++++------
+ src/go/types/unify.go                    | 25 +++++++++++++++++++------
+ 2 files changed, 38 insertions(+), 12 deletions(-)

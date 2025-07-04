@@ -1,22 +1,20 @@
-commit 0bb14d74f1550dca916251ddb6e1703f95be7325
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Aug 31 22:49:14 2014 -0400
+commit 39ffa8be78d2f54220c99b828e5346cabcf1598c
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Aug 26 08:34:46 2014 +0200
 
-    cmd/ld: diagnose Go calling C
-    
-    For example:
-    go build -ldflags -C cmd/go 2>&1 | awk '{print $NF}' | sort | uniq -c | sort -nr
+    runtime: convert Stack to Go.
     
     LGTM=khr
     R=khr, josharian
     CC=golang-codereviews
-    https://golang.org/cl/135170044
+    https://golang.org/cl/129510043
 
- include/link.h              |  1 +
- src/cmd/cc/pgen.c           |  1 +
- src/cmd/ld/lib.c            | 53 +++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/ld/lib.h            |  1 +
- src/cmd/ld/pobj.c           |  2 ++
- src/liblink/objfile.c       | 18 +++++++++++----
- src/pkg/debug/goobj/read.go |  6 +++--
- 7 files changed, 76 insertions(+), 6 deletions(-)
+ src/pkg/runtime/asm_386.s      |  6 ++++++
+ src/pkg/runtime/asm_amd64.s    |  6 ++++++
+ src/pkg/runtime/asm_amd64p32.s |  6 ++++++
+ src/pkg/runtime/asm_arm.s      |  7 +++++++
+ src/pkg/runtime/debug.go       |  6 ------
+ src/pkg/runtime/mprof.go       | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/mprof.goc      | 33 ---------------------------------
+ src/pkg/runtime/stubs.go       |  6 ++++++
+ 8 files changed, 72 insertions(+), 39 deletions(-)

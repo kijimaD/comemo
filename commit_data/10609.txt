@@ -1,20 +1,40 @@
-commit 3538d40ab5f57db77b3a76822c555a76020588f0
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Dec 5 13:30:25 2011 -0500
+commit b9ccd077dc478fca2e8bd00633c1a60a54f342d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 5 09:40:22 2011 -0500
 
-    crypto/aes: eliminate some bounds checking and manual truncation.
+    runtime: prep for type-specific algorithms
     
-    By converting array indices to uint8, they are automatically
-    constrained in the array range, and the binary AND with 0xff
-    is no longer needed anymore.
+    Equality on structs will require arbitrary code for type equality,
+    so change algorithm in type data from uint8 to table pointer.
+    In the process, trim top-level map structure from
+    104/80 bytes (64-bit/32-bit) to 24/12.
     
-    Before:  aes.BenchmarkEncrypt    363 ns/op
-    After:   aes.BenchmarkEncrypt    273 ns/op
+    Equality on structs will require being able to call code generated
+    by the Go compiler, and C code has no way to access Go return
+    values, so change the hash and equal algorithm functions to take
+    a pointer to a result instead of returning the result.
     
-    R=golang-dev, gri, agl
-    CC=golang-dev, remy
-    https://golang.org/cl/5450084
+    R=ken
+    CC=golang-dev
+    https://golang.org/cl/5453043
 
- src/pkg/crypto/aes/aes_test.go | 14 ++++++++++++++
- src/pkg/crypto/aes/block.go    | 16 ++++++++--------
- 2 files changed, 22 insertions(+), 8 deletions(-)
+ src/cmd/gc/builtin.c.boot | 210 ++++++++++++++--------------
+ src/cmd/gc/go.h           |  29 ----
+ src/cmd/gc/range.c        |   4 +-
+ src/cmd/gc/reflect.c      |  10 +-
+ src/cmd/gc/runtime.go     |   2 +-
+ src/cmd/gc/walk.c         |   2 +-
+ src/cmd/ld/dwarf.c        |   2 +-
+ src/pkg/reflect/type.go   |   3 +-
+ src/pkg/runtime/Makefile  |   1 +
+ src/pkg/runtime/alg.c     | 345 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/chan.c    |   9 +-
+ src/pkg/runtime/hashmap.c | 291 ++++++++++++++------------------------
+ src/pkg/runtime/hashmap.h |   1 +
+ src/pkg/runtime/iface.c   |  63 +++++----
+ src/pkg/runtime/runtime.c | 332 --------------------------------------------
+ src/pkg/runtime/runtime.h |  58 ++++++--
+ src/pkg/runtime/slice.c   |   6 +-
+ src/pkg/runtime/type.go   |  19 +--
+ src/pkg/runtime/type.h    |   3 +-
+ 19 files changed, 669 insertions(+), 721 deletions(-)

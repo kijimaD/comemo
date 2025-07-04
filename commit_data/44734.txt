@@ -1,17 +1,18 @@
-commit 79d03ad7396c781aa490442a3c853b5cb627298d
-Author: Elvina Yakubova <elvinayakubova@gmail.com>
-Date:   Thu Dec 24 22:38:06 2020 +0300
+commit c78d215ce38288afe382d38af11b6692ce44c368
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 26 11:48:37 2020 -0400
 
-    runtime/pprof: move common code to writeProfileInternal function
+    go/build: ignore symlinks to directories when matching source files
     
-    This patch provides changes according to TODO. Since writeMutex and
-    writeBlock functions have a lot of code in common, it is better to
-    move this code to one function.
+    Fixes #39841
     
-    Change-Id: I81aaad067b0cb1647824909f3b5f6861add3a7ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/280152
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Icbdc37d40e9c10179d6eb704d04482175b139f57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240120
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/pprof/pprof.go | 58 +++++++++++-----------------------------------
- 1 file changed, 13 insertions(+), 45 deletions(-)
+ src/cmd/go/testdata/script/mod_symlink_dotgo.txt | 17 +++++++++++++++++
+ src/go/build/build.go                            |  6 ++++++
+ 2 files changed, 23 insertions(+)

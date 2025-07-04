@@ -1,24 +1,21 @@
-commit 46afa893ebf85e23dd820a11e6007a9adb503419
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Mon Jan 3 18:48:51 2022 +0100
+commit 9e0facd26ecefa5a3aa5bfd9e4034fe6d4b2f64e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 28 16:14:12 2021 -0700
 
-    crypto/rand: use fast key erasure RNG on plan9 instead of ANSI X9.31
+    cmd/compile/internal/types2: implement types2.Instantiate
     
-    This should be a bit faster and slicker than the very old ANSI X9.31,
-    which relied on the system time. Uses AES instead of ChaCha because it's
-    in the standard library.
+    Instantiation support for imports. This is experimental
+    but it also doesn't affect Go 1.17 as this code is not
+    executed unless we enable generics (in the parser).
     
-    Reference: https://blog.cr.yp.to/20170723-random.html
-    Reference: https://github.com/jedisct1/supercop/blob/master/crypto_rng/aes256/ref/rng.c
-    
-    Change-Id: Ib7b37a83cca29f5d346355b7cb8cfe5250086b95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375215
-    Trust: Jason Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: If2da09ac3a557ec6a180707a53f75f3ce354f3e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314773
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/crypto/rand/rand_plan9.go | 114 +++++++++++++++++-------------------------
- 1 file changed, 46 insertions(+), 68 deletions(-)
+ src/cmd/compile/internal/types2/instantiate.go | 63 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/subst.go       | 31 ++++++++-----
+ 2 files changed, 83 insertions(+), 11 deletions(-)

@@ -1,16 +1,18 @@
-commit 6b97dbf848d1019a9e8195e8914530a2cc518327
-Author: kortschak <dan.kortschak@adelaide.edu.au>
-Date:   Wed Mar 30 19:37:18 2016 +1030
+commit 62fad436bbea35e46ab9a4615a5fe077f205e269
+Author: Austin Clements <austin@google.com>
+Date:   Sun Feb 14 15:09:21 2016 -0500
 
-    cmd/dist: make fortran test conditional on bash existence
+    doc: tweak Go 1.6 GC release notes
     
-    Fixes #14929.
+    Go 1.6 significantly improves pause times for large heaps, but it
+    improves them in many other situations as well, such as when goroutine
+    churn is high, allocation rate is high, or when there are many
+    finalizers. Hence, make the statement about pause times a bit more
+    general.
     
-    Change-Id: I0391acf9f5f65389f73637533306a7c4240320b8
-    Reviewed-on: https://go-review.googlesource.com/21295
+    Change-Id: Ic034b1c904c39dd1d966ee7fa96ca8bbb3614e53
+    Reviewed-on: https://go-review.googlesource.com/19504
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 2 +-
+ doc/go1.6.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

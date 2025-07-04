@@ -1,14 +1,13 @@
-commit 7d3be61386bd7aab350b443808e2b0e5171033a9
+commit 328e86d2625851f8aeb13be6e16d43370311c780
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jun 13 16:34:52 2014 +1000
+Date:   Fri Jun 13 13:30:54 2014 +1000
 
-    doc: link to new downloads page
+    tag go1.3rc2
     
-    LGTM=minux
-    R=golang-codereviews, minux
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/102340044
+    https://golang.org/cl/101270043
 
- doc/go1.html     | 2 +-
- doc/install.html | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

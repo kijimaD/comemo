@@ -1,22 +1,116 @@
-commit 517781b39181e26cff880b656787fac65a63092c
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Fri Apr 8 17:33:50 2022 +0800
+commit 79cd1687e6abf8c565281d310b4c2b44a8d4bb84
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 13 20:23:13 2021 -0700
 
-    cmd/compile: add SARXQload and SARXLload
+    [dev.typeparams] cmd/compile: unified IR construction
     
-    Change-Id: I4e8dc5009a5b8af37d71b62f1322f94806d3e9d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399056
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This CL adds a new unified IR construction mode to the frontend.  It's
+    purely additive, and all files include "UNREVIEWED" at the top, like
+    how types2 was initially imported. The next CL adds a -d=unified flag
+    to actually enable unified IR mode.
+    
+    See below for more details, but some highlights:
+    
+    1. It adds ~6kloc (excluding enum listings and stringer output), but I
+    estimate it will allow removing ~14kloc (see CL 324670, including its
+    commit message);
+    
+    2. When enabled by default, it passes more tests than -G=3 does (see
+    CL 325213 and CL 324673);
+    
+    3. Without requiring any new code, it supports inlining of more code
+    than the current inliner (see CL 324574; contrast CL 283112 and CL
+    266203, which added support for inlining function literals and type
+    switches, respectively);
+    
+    4. Aside from dictionaries (which I intend to add still), its support
+    for generics is more complete (e.g., it fully supports local types,
+    including local generic types within generic functions and
+    instantiating generic types with local types; see
+    test/typeparam/nested.go);
+    
+    5. It supports lazy loading of types and objects for types2 type
+    checking;
+    
+    6. It supports re-exporting of types, objects, and inline bodies
+    without needing to parse them into IR;
+    
+    7. The new export data format has extensive support for debugging with
+    "sync" markers, so mistakes during development are easier to catch;
+    
+    8. When compiling with -d=inlfuncswithclosures=0, it enables "quirks
+    mode" where it generates output that passes toolstash -cmp.
+    
+    --
+    
+    The new unified IR pipeline combines noding, stenciling, inlining, and
+    import/export into a single, shared code path. Previously, IR trees
+    went through multiple phases of copying during compilation:
+    
+    1. "Noding": the syntax AST is copied into the initial IR form. To
+    support generics, there's now also "irgen", which implements the same
+    idea, but takes advantage of types2 type-checking results to more
+    directly construct IR.
+    
+    2. "Stenciling": generic IR forms are copied into instantiated IR
+    forms, substituting type parameters as appropriate.
+    
+    3. "Inlining": the inliner made backup copies of inlinable functions,
+    and then copied them again when inlining into a call site, with some
+    modifications (e.g., updating position information, rewriting variable
+    references, changing "return" statements into "goto").
+    
+    4. "Importing/exporting": the exporter wrote out the IR as saved by
+    the inliner, and then the importer read it back as to be used by the
+    inliner again. Normal functions are imported/exported "desugared",
+    while generic functions are imported/exported in source form.
+    
+    These passes are all conceptually the same thing: make a copy of a
+    function body, maybe with some minor changes/substitutions. However,
+    they're all completely separate implementations that frequently run
+    into the same issues because IR has many nuanced corner cases.
+    
+    For example, inlining currently doesn't support local defined types,
+    "range" loops, or labeled "for"/"switch" statements, because these
+    require special handling around Sym references. We've recently
+    extended the inliner to support new features like inlining type
+    switches and function literals, and they've had issues. The exporter
+    only knows how to export from IR form, so when re-exporting inlinable
+    functions (e.g., methods on imported types that are exposed via
+    exported APIs), these functions may need to be imported as IR for the
+    sole purpose of being immediately exported back out again.
+    
+    By unifying all of these modes of copying into a single code path that
+    cleanly separates concerns, we eliminate many of these possible
+    issues. Some recent examples:
+    
+    1. Issues #45743 and #46472 were issues where type switches were
+    mishandled by inlining and stenciling, respectively; but neither of
+    these affected unified IR, because it constructs type switches using
+    the exact same code as for normal functions.
+    
+    2. CL 325409 fixes an issue in stenciling with implicit conversion of
+    values of type-parameter type to variables of interface type, but this
+    issue did not affect unified IR.
+    
+    Change-Id: I5a05991fe16d68bb0f712503e034cb9f2d19e296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324573
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go           |   7 +-
- src/cmd/compile/internal/ssa/addressingmodes.go |   7 ++
- src/cmd/compile/internal/ssa/gen/AMD64.rules    |   1 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   7 ++
- src/cmd/compile/internal/ssa/opGen.go           | 136 ++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go    |  44 ++++++++
- test/codegen/bmi.go                             |  16 +++
- 7 files changed, 216 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/codes.go            |  126 ++
+ src/cmd/compile/internal/noder/decoder.go          |  243 +++
+ src/cmd/compile/internal/noder/encoder.go          |  245 +++
+ src/cmd/compile/internal/noder/linker.go           |  296 +++
+ src/cmd/compile/internal/noder/quirks.go           |  453 +++++
+ src/cmd/compile/internal/noder/reader.go           | 1970 ++++++++++++++++++++
+ src/cmd/compile/internal/noder/reader2.go          |  463 +++++
+ src/cmd/compile/internal/noder/reloc.go            |   40 +
+ src/cmd/compile/internal/noder/sync.go             |  154 ++
+ .../compile/internal/noder/syncmarker_string.go    |  152 ++
+ src/cmd/compile/internal/noder/unified.go          |  276 +++
+ src/cmd/compile/internal/noder/writer.go           | 1746 +++++++++++++++++
+ 12 files changed, 6164 insertions(+)

@@ -1,24 +1,16 @@
-commit a6deafaf9e6262e1a9fa390e2cc0b6df1977828c
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 17 17:14:33 2020 -0400
+commit d3c2b1f17600fadeebf62d65c85baf3bef879e2b
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Nov 13 11:57:17 2019 +0100
 
-    cmd/compile: rename issafepoint -> hasStackMap
+    cmd/link/internal/ld,misc/cgo/testcshared: don't -fuse-ld=gold on Android
     
-    Currently, this function conflates two (easily conflated!) concepts:
-    whether a Value is a safe-point and whether it has a stack map. In
-    particular, call Values may not be a safe-point, but may need a stack
-    map anyway in case the called function grows the stack.
+    The NDK is switching to ldd, and will stop including the gold linker.
     
-    Hence, rename this function to "hasStackMap", since that's really what
-    it represents.
-    
-    For #36365.
-    
-    Change-Id: I89839de0be8db3be3f0d3a7fb5fcf0b0b6ebc98a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230540
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: If74168017c9874134b34010906ab1d94001528b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206840
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 2 +-
+ src/cmd/link/internal/ld/lib.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

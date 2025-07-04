@@ -1,19 +1,17 @@
-commit 0b7e586e485d4790b240354513acbb8438bb842f
-Author: Adrian Hesketh <adrianhesketh@hushmail.com>
-Date:   Sun Jan 30 19:11:32 2022 +0000
+commit 645cb62ee3926ce88b8c2cf556fed6dea3d525ce
+Author: Julien Tant <julien@craftyx.fr>
+Date:   Tue Apr 27 21:32:18 2021 +0000
 
-    os: add examples for Mkdir and MkdirAll
+    testing: document that TestMain can be used with benchmarks
     
-    Provides example using value for the perm argument that matches the value set by the mkdir command on MacOS and Linux.
+    Fixes #45764
     
-    Change-Id: I98d9ac9668de4dc0efde2484f5b00d005628ac9e
-    GitHub-Last-Rev: 44e617912f3604f4cc05a946d76cd3020acfd722
-    GitHub-Pull-Request: golang/go#50641
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378874
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie6c18bb5c20721c2ffa8b4a9cf9f97cdc665a450
+    GitHub-Last-Rev: 8bcea7e0ff60227c05437b372c0a3546e151af31
+    GitHub-Pull-Request: golang/go#45808
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314349
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/os/example_test.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/testing/testing.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

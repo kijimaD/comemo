@@ -1,22 +1,16 @@
-commit 0b3d39c70018c6f149129abb3b05ce8ccffcf292
-Author: David Chase <drchase@google.com>
-Date:   Thu Jul 19 15:04:14 2018 -0400
+commit 4637699e92af1d80fd1d1e2250fbf418e137b531
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 3 14:39:10 2018 -0700
 
-    cmd/compile: don't run gc/ssa_test/TestGenFlowGraph in short mode
+    cmd/compile/internal/syntax: better error message for incorrect if/switch header
     
-    The test runs far too long for -short mode (4 seconds).
+    Fixes #23664.
     
-    Also removed useless test of now-disconnected knob
-    (GO_SSA_PHI_LOC_CUTOFF), which cuts 4 seconds to 2 seconds (which
-    is still too long), and finished removing the disconnected knob.
-    
-    Updates #26469.
-    
-    Change-Id: I6c594227c4a5aaffee46832049bdbbf570d86e60
-    Reviewed-on: https://go-review.googlesource.com/125075
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic0637e9f896b2fc6502dfbab2d1c4de3c62c0bd2
+    Reviewed-on: https://go-review.googlesource.com/104616
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/ssa_test.go |  7 ++--
- src/cmd/compile/internal/ssa/config.go  | 72 ++++++++++++---------------------
- 2 files changed, 29 insertions(+), 50 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go |  3 ++-
+ test/fixedbugs/issue23664.go              | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

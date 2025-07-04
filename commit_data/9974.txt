@@ -1,14 +1,12 @@
-commit ddc3381e8b3bc91e54985bd8679c98f0cba3beff
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 14 10:07:27 2011 -0700
+commit ec10d677253a4308c7736bc513bde206ff11e695
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Fri Oct 14 12:26:38 2011 -0400
 
-    net: skip ICMP test on Windows too unless uid 0
+    crypto/tls: fix broken looping code in windows root CA fetcher
     
-    This test fails for me on Windows 7 64-bit non-Admin.
-    
-    R=golang-dev, rsc, krautz
+    R=alex.brainman, hectorchu, rsc
     CC=golang-dev
-    https://golang.org/cl/5276048
+    https://golang.org/cl/5263045
 
- src/pkg/net/ipraw_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/crypto/tls/root_windows.go | 30 +++++++++++++-----------------
+ 1 file changed, 13 insertions(+), 17 deletions(-)

@@ -1,16 +1,13 @@
-commit dfa5a99ebb3ba3d586830caa7096e10a89b37621
+commit d514e2915ce0be5d19954ea9a8ce0c34b30cee19
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 29 22:06:47 2014 +0400
+Date:   Tue Jul 29 15:18:01 2014 +0400
 
-    runtime: generate type info for chans
+    runtime: mark global var as NOPTR
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, khr
-    https://golang.org/cl/115280043
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/120280044
 
- src/pkg/runtime/chan.goc  | 43 ++++++++++++++++++++++++++++++++++++++-----
- src/pkg/runtime/chan.h    |  6 ++----
- src/pkg/runtime/proc.c    |  1 +
- src/pkg/runtime/runtime.h |  1 +
- 4 files changed, 42 insertions(+), 9 deletions(-)
+ src/pkg/runtime/softfloat_arm.c | 1 +
+ 1 file changed, 1 insertion(+)

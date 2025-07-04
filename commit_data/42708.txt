@@ -1,22 +1,35 @@
-commit abfeec5eb0356d1ac91a097d2124a6b7c8cfccd4
-Author: Carlos Alexandro Becker <caarlos0@gmail.com>
-Date:   Sun Aug 16 21:58:40 2020 +0000
+commit 6cfd1bcadae200ee87a3b75b1d94ff39a789dce2
+Merge: 1152c6d3f0 1a37095062
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 7 11:51:09 2020 -0500
 
-    testing/iotest: add ErrReader
+    [dev.link] all: merge branch 'master' into dev.link
     
-    Adds an io.Reader that always returns 0 and a non-nil error.
+    Clean merge.
     
-    Fixes #38781
-    
-    Change-Id: I56bd124de07bc8809e77c6cfaab33a1e32cfe2ee
-    GitHub-Last-Rev: 4e232b17e9120405d4ea4743350ee361a3505043
-    GitHub-Pull-Request: golang/go#34741
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199501
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I15c23aedf1a7fa6f728d87fd29087368c7cc3393
 
- src/testing/iotest/logger_test.go | 12 ++----------
- src/testing/iotest/reader.go      | 15 +++++++++++++++
- src/testing/iotest/reader_test.go | 10 ++++++++++
- 3 files changed, 27 insertions(+), 10 deletions(-)
+ doc/go1.11.html                                    |   2 +-
+ doc/go1.13.html                                    |   2 +-
+ doc/go1.14.html                                    | 218 +++++++++++++++------
+ doc/go1.9.html                                     |   2 +-
+ doc/install.html                                   |  27 +--
+ src/cmd/go.mod                                     |   4 +-
+ src/cmd/go.sum                                     |   6 +-
+ src/cmd/go/internal/vet/vet.go                     |   4 +-
+ src/cmd/go/testdata/script/vet_flags.txt           |  11 ++
+ src/cmd/vendor/modules.txt                         |   4 +-
+ src/crypto/x509/pkcs8.go                           |   2 +-
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   4 +-
+ src/internal/bytealg/indexbyte_riscv64.s           |   8 +-
+ src/math/big/int.go                                |   9 +-
+ .../{matryoshka_test.go => integration_test.go}    |   0
+ src/net/lookup_test.go                             |   7 +-
+ src/runtime/malloc.go                              |   7 +-
+ src/runtime/signal_unix.go                         |  10 +
+ src/testing/benchmark.go                           |   1 +
+ src/testing/sub_test.go                            |  40 ++++
+ src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go     |   2 +-
+ src/vendor/modules.txt                             |   2 +-
+ 23 files changed, 258 insertions(+), 116 deletions(-)

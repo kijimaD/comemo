@@ -1,14 +1,17 @@
-commit 14aacc2fd8abe054ca7e63a141e87b2844623303
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Jan 18 17:55:06 2016 -0500
+commit 624f84536d52b13066c268c83e1b84c088d29471
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 24 08:50:13 2015 -0400
 
-    runtime: print address as hex in messages
+    runtime: renamed os2_linux.go to os2_linux_generic.go, added mips64 support
     
-    Change-Id: I7ccf1b5001d77c4390479f53c0137ab02f98595b
-    Reviewed-on: https://go-review.googlesource.com/18685
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Linux/mips64 has a different sigset type and some different constants.
+    os2_linux.go is renamed to os2_linux_generic.go, and not used in mips64.
+    The corresponding file os2_linux_mips64x.go is added.
+    
+    Change-Id: Ief83845a2779f7fe048d236d3c7da52b627ab533
+    Reviewed-on: https://go-review.googlesource.com/14992
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/malloc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/{os2_linux.go => os2_linux_generic.go} |  4 ++++
+ src/runtime/os2_linux_mips64x.go                   | 25 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

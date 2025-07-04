@@ -1,22 +1,18 @@
-commit a1371756c368e4d85cfb84ac8ffc53180aa4d2f2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 8 15:50:43 2017 -0700
+commit 2e45310caff101ea7de8873523faab96eb3a87ca
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 18 08:39:00 2017 -0700
 
-    testing: don't fail all tests after racy test failure
+    cmd/vet: make tests safe for perl 5.26
     
-    The code was adding race.Errors to t.raceErrors before checking
-    Failed, but Failed was using t.raceErrors+race.Errors. We don't want
-    to change Failed, since that would affect tests themselves, so modify
-    the harness to not unnecessarily change t.raceErrors.
+    Someday we should write errchk in Go. But not today.
     
-    Updates #19851
-    Fixes #21338
-    Change-Id: I7bfdf281f90e045146c92444f1370d55c45221d4
-    Reviewed-on: https://go-review.googlesource.com/54050
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Fixes #20007
+    
+    Change-Id: I61ccf3cfaa66a710782f8a2212a6a2b4040698da
+    Reviewed-on: https://go-review.googlesource.com/40950
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/race/output_test.go | 21 +++++++++++++++++++++
- src/testing/testing.go          |  3 +--
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/cmd/vet/testdata/copylock_func.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

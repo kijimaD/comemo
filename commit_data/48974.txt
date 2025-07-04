@@ -1,23 +1,23 @@
-commit 0feebe6eb594e28c29022c65ffcd2ae0e8bebac7
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Feb 15 00:22:20 2022 +0000
+commit 835d86a17ebf32a3cb081f66119c74363dbd8825
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jun 23 01:02:33 2021 +0900
 
-    runtime: add byte count parser for GOMEMLIMIT
+    cmd/go: use path.Dir instead of filepath.Dir for package paths in 'go mod vendor'
     
-    This change adds a parser for the GOMEMLIMIT environment variable's
-    input. This environment variable accepts a number followed by an
-    optional prefix expressing the unit. Acceptable units include
-    B, KiB, MiB, GiB, TiB, where *iB is a power-of-two byte unit.
+    copyMetadata walk-up to parent directory until the pkg become modPath.
+    But pkg should be slash-separated paths. It have to use path.Dir instead of
+    filepath.Dir.
     
-    For #48409.
+    Fixes #46867
     
-    Change-Id: I6a3b4c02b175bfcf9c4debee6118cf5dda93bb6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393400
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I44cf1429fe52379a7415b94cc30ae3275cc430e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330149
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/export_test.go |   1 +
- src/runtime/string.go      | 117 +++++++++++++++++++++++++++++++++++++-----
- src/runtime/string_test.go | 123 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 229 insertions(+), 12 deletions(-)
+ src/cmd/go/internal/modcmd/vendor.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

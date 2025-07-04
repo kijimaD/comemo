@@ -1,15 +1,21 @@
-commit 024952fb8a75ca12e30cda9d9b52fb9ad653b6c4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 9 16:51:20 2012 -0800
+commit 146a703cd1ecf096d270873090c8eeef6438b5f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 9 16:44:01 2012 -0800
 
-    syscall: make Environ return original order
+    cmd/go: add -v flag to build and install
     
-    Fixes #2619
+    The -v flag prints the names of packages as they are built/installed.
     
-    R=r, rsc
+    Use -v in make.bash/run.bash to avoid a silent pause during
+    the build while Go code is being compiled.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5528058
+    https://golang.org/cl/5532055
 
- src/pkg/os/env_test.go      | 11 ++++++++
- src/pkg/syscall/env_unix.go | 64 +++++++++++++++++++++++++++++++--------------
- 2 files changed, 55 insertions(+), 20 deletions(-)
+ src/cmd/go/build.go | 20 +++++++++++++++-----
+ src/cmd/go/run.go   |  2 +-
+ src/cmd/go/test.go  |  2 +-
+ src/make.bash       |  2 +-
+ src/run.bash        |  2 +-
+ 5 files changed, 19 insertions(+), 9 deletions(-)

@@ -1,82 +1,23 @@
-commit a939bb94399ce50f7ca62d546a75a226de525d27
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 29 12:00:10 2024 -0500
+commit ac8a97ac9e5de94d1c0e830299ce6487cbbfd3f6
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Feb 10 14:39:20 2023 +0000
 
-    fmt: revert "don't pad strings with zeros"
+    Revert "math: add Compare and Compare32"
     
-    This reverts CL 555776 (commit 704401ffa06).
-    Scores of tests break inside Google, and there was a test for the old behavior,
-    so clearly we thought it was correct at one point.
+    This reverts CL 459435.
     
-    An example of code that broke inside Google is:
+    Reason for revert: Tests failing on MIPS.
     
-            func (pn ProjectNumber) PaddedHexString() string {
-                    return fmt.Sprintf("%016s", strconv.FormatInt(int64(pn), 16))
-            }
-    
-    Here is another example:
-    
-            // IPv4toISO create ISO address base on a given IPv4 address.
-            func IPv4toISO(v4 string) (string, error) {
-                    if net.ParseIP(v4).To4() == nil {
-                            return "", fmt.Errorf("invalid IPv4 address")
-                    }
-                    s := strings.Split(v4, ".")
-                    var ss string
-                    for _, n := range s {
-                            ss = ss + fmt.Sprintf("%03s", n)
-                    }
-                    if len(ss) != 12 {
-                            return "", fmt.Errorf("invalid IPv4 address")
-                    }
-                    return fmt.Sprint("49.0001." + ss[0:4] + "." + ss[4:8] + "." + ss[8:12] + ".00"), nil
-            }
-    
-    This is doing the weird but apparently standard conversion from
-    IPv4 to ISO ISIS Area 1 (see for example [1]).
-    
-    Here is an example from github.com/netbirdio/netbird:
-    
-            func generateNewToken() (string, string, error) {
-                    secret, err := b.Random(PATSecretLength)
-                    if err != nil {
-                            return "", "", err
-                    }
-    
-                    checksum := crc32.ChecksumIEEE([]byte(secret))
-                    encodedChecksum := base62.Encode(checksum)
-                    paddedChecksum := fmt.Sprintf("%06s", encodedChecksum)
-                    plainToken := PATPrefix + secret + paddedChecksum
-                    hashedToken := sha256.Sum256([]byte(plainToken))
-                    encodedHashedToken := b64.StdEncoding.EncodeToString(hashedToken[:])
-                    return encodedHashedToken, plainToken, nil
-            }
-    
-    base62.Encode returns a string no leading zeros; the %06s adds leading zeros.
-    
-    Are there other ways to write these examples? Yes.
-    Has all this code worked until now? Also yes.
-    
-    The change to this behavior observed that right padding doesn't
-    add zeros, only left padding, but that makes sense: in numbers
-    without decimal points, zeros on the left preserve the value
-    while zeros on the right change it.
-    
-    Since we agree that this case is probably not important either way,
-    preserve the long-time behavior of %0s.
-    
-    Will document it in a followup CL: this is a clean revert.
-    
-    Reopen #56486.
-    
-    [1] https://community.cisco.com/t5/routing/isis-net-address-configuration/m-p/1338984/highlight/true#M127827
-    
-    Change-Id: Ie7dd35227f46933ccc9bfa1eac5fa8608f6d1918
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559196
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9017bf718ba938df6d6766041555034d55d90b8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467255
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/fmt/fmt_test.go | 4 ++--
- src/fmt/print.go    | 5 -----
- 2 files changed, 2 insertions(+), 7 deletions(-)
+ api/next/56491.txt   |  2 --
+ src/math/all_test.go | 59 ----------------------------------------------------
+ src/math/compare.go  | 53 ----------------------------------------------
+ 3 files changed, 114 deletions(-)

@@ -1,18 +1,31 @@
-commit 5a049aa4a6c7e73163375ee00acf413ff4a0a0c4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 2 12:07:57 2015 -0800
+commit b7fa4f27ba0c127512f2c4808c628efe842ff660
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat Sep 26 17:21:35 2015 +0000
 
-    cmd/cgo: error, not panic, if not enough arguments to function
+    net/http/fcgi: fix panic with malformed params record
     
-    Fixes #13423.
+    As stated in FastCGI specifications:
     
-    Change-Id: I41bb45790cca36c57a107796f0eca61287acb2a9
-    Reviewed-on: https://go-review.googlesource.com/17332
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    FastCGI transmits a name-value pair as the length of the name,
+    followed by the length of the value, followed by the name,
+    followed by the value.
+    
+    The current implementation trusts the name and value length
+    provided in the record, leading to a panic if the record
+    is malformed.
+    
+    Added an explicit check on the lengths.
+    
+    Test case and fix suggested by diogin@gmail.com (Jingcheng Zhang)
+    
+    Fixes #11824
+    
+    Change-Id: I883a1982ea46465e1fb02e0e02b6a4df9e529ae4
+    Reviewed-on: https://go-review.googlesource.com/15015
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/errors/issue13423.go | 12 ++++++++++++
- misc/cgo/errors/test.bash     |  1 +
- src/cmd/cgo/gcc.go            | 12 ++++++------
- 3 files changed, 19 insertions(+), 6 deletions(-)
+ src/net/http/fcgi/child.go     |  3 +++
+ src/net/http/fcgi/fcgi_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)

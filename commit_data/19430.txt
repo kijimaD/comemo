@@ -1,20 +1,16 @@
-commit 1be479df926fae2291e78f59be7474e6edb1cf97
+commit f9c6ad9b6bad25bff480b95d3ebf6a780e86964d
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 21 17:11:52 2014 -0400
+Date:   Wed May 21 13:59:14 2014 -0400
 
-    cmd/gc: fix floating point rounding again
+    cmd/go: fix coverage for 'package foo_test' tests
     
-    Passes the expanded test in CL 100660044,
-    which gives me some confidence that it
-    might be right.
-    
-    (The old code failed by not considering all the
-    low bits.)
+    Fixes #8062.
     
     LGTM=r
-    R=golang-codereviews, r, bradfitz
-    CC=golang-codereviews, iant, khr
-    https://golang.org/cl/99410051
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/91610046
 
- src/cmd/gc/mparith3.c | 46 ++++++++++++++++++++++------------------------
- 1 file changed, 22 insertions(+), 24 deletions(-)
+ src/cmd/go/test.bash | 36 ++++++++++++++++++++-------------
+ src/cmd/go/test.go   | 56 ++++++++++++++++++++++++++++++----------------------
+ 2 files changed, 54 insertions(+), 38 deletions(-)

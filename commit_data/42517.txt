@@ -1,14 +1,17 @@
-commit bd486c39bad4c9f90190ae58de8a592bb9a2aae9
-Author: Ainar Garipov <gugl.zadolbal@gmail.com>
-Date:   Wed Jun 10 18:26:29 2020 +0300
+commit daacf269802eaa856705063159b55b5e752e7058
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jan 7 16:25:34 2020 -0500
 
-    doc/go1.15: add release notes for database/sql and database/sql/driver
+    cmd/go: fix TestScript/test_main_twice
     
-    Updates #37419.
+    The TMPDIR environment variable isn't always available. Use $WORK/tmp
+    instead, to fix this test on Windows.
     
-    Change-Id: Ifb6aa9a671f677e1a3e908f0b75bf0da17a57ad0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237397
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: I521c470430c6eea4d1f2fc7db749d38178a03a13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213680
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.15.html | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/cmd/go/testdata/script/test_main_twice.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

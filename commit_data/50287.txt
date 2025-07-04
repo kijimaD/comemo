@@ -1,19 +1,49 @@
-commit f00fa0b98da9f4353839da99e6f6f7f109f9954f
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 13 13:36:23 2022 -0400
+commit a37bebc042672d20837ea348d45e39740568cb77
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Oct 1 11:21:49 2021 -0700
 
-    runtime: document stkframe
+    cmd/go: stamp VCS revision and uncommitted status into binaries
     
-    The meaning of some of the fields in stkframe is actually quite
-    subtle.
+    When the go command builds a binary, it will now stamp the current
+    revision from the local Git or Mercurial repository, and it will also
+    stamp whether there are uncommitted edited or untracked files. Only
+    Git and Mercurial are supported for now.
     
-    Change-Id: Iac765ff6fbf4c3b7c9f2453f5b4a2e5e640f5750
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424256
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    If no repository is found containing the current working directory
+    (where the go command was started), or if either the main package
+    directory or the containing module's root directory is outside the
+    repository, no VCS information will be stamped. If the VCS tool is
+    missing or returns an error, that error is reported on the main
+    package (hinting that -buildvcs may be disabled).
+    
+    This change introduces the -buildvcs flag, which is enabled by
+    default. When disabled, VCS information won't be stamped when it would
+    be otherwise.
+    
+    Stamped information may be read using 'go version -m file' or
+    debug.ReadBuildInfo.
+    
+    For #37475
+    
+    Change-Id: I4e7d3159e1c270d85869ad99f10502e546e7582d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353930
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/runtime2.go | 59 ++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 48 insertions(+), 11 deletions(-)
+ api/next.txt                                       |   4 +
+ src/cmd/go/alldocs.go                              |   6 +
+ src/cmd/go/internal/cfg/cfg.go                     |   1 +
+ src/cmd/go/internal/get/get.go                     |  18 ++-
+ src/cmd/go/internal/load/pkg.go                    |  67 ++++++++++
+ src/cmd/go/internal/vcs/vcs.go                     | 115 +++++++++++++-----
+ src/cmd/go/internal/vcs/vcs_test.go                |  16 +--
+ src/cmd/go/internal/work/build.go                  |   7 ++
+ src/cmd/go/script_test.go                          |  78 ++++++++++++
+ .../go/testdata/script/version_buildvcs_git.txt    | 135 +++++++++++++++++++++
+ src/cmd/go/testdata/script/version_buildvcs_hg.txt |  81 +++++++++++++
+ .../go/testdata/script/version_buildvcs_nested.txt |  50 ++++++++
+ src/cmd/internal/str/path.go                       |  14 +++
+ src/runtime/debug/mod.go                           |  46 +++++--
+ 14 files changed, 585 insertions(+), 53 deletions(-)

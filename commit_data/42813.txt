@@ -1,23 +1,23 @@
-commit b3d9cf7a07518020c6ec5032474aafef9345cdd5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed May 13 14:59:29 2020 -0400
+commit a37bbcecca120ed513035a6d8532367daa4e6a95
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 20 13:52:02 2020 -0800
 
-    os: return a *PathError from Readdirnames and Readdir on POSIX platforms
+    cmd/compile: use ellipses in AMD64 rules
     
-    Previously, Readdirnames returned a *PathError on Windows and Plan 9,
-    but a *SyscallError on POSIX systems.
+    file    before    after     Δ       %
+    compile 20801800  20743944  -57856  -0.278%
+    total   131542652 131484796 -57856  -0.044%
     
-    In contrast, similar methods (such as Stat) return a *PathError on all platforms.
+    file                       before    after     Δ       %
+    cmd/compile/internal/ssa.a 23321562  23177930  -143632 -0.616%
+    total                      125602774 125459142 -143632 -0.114%
     
-    Fixes #38923
-    
-    Change-Id: I26395905b1e723933f07b792c7aeee7c335949cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233917
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I3bdcff87e76d95a4367738a55316bd561c719c5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220349
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/dir_darwin.go | 10 +++++-----
- src/os/dir_unix.go   |  2 +-
- src/os/os_test.go    |  4 ++++
- 3 files changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  175 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1696 ++++----------------------
+ 2 files changed, 325 insertions(+), 1546 deletions(-)

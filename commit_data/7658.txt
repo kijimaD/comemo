@@ -1,12 +1,12 @@
-commit 2b4a9603d33308ac8a13700dbb9489de115bd2ec
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 6 21:52:37 2011 -0500
+commit 94401f524ea26f72afcb6454b0cd2c5c7749a7f5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 7 12:23:57 2011 +1100
 
-    io/ioutil: use filepath.Join, handle trailing / in $TMPDIR
+    path/filepath: disable test on windows to fix build
     
-    R=niemeyer
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4256057
+    https://golang.org/cl/4235054
 
- src/pkg/io/ioutil/tempfile_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/path/filepath/path_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

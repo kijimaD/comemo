@@ -1,12 +1,12 @@
-commit 0b534bc9c3a8d02fc449c92a609eb78d2eac4d81
-Author: Paul Borman <borman@google.com>
-Date:   Tue Oct 4 13:58:31 2011 -0700
+commit c31f987bd68c774db172ef49bdf1dcc75491f89a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 4 13:46:03 2011 -0700
 
-    pkg/syscall: add Mkfifo for linux platforms
+    websocket: better error message in a test
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5131055
+    https://golang.org/cl/5185045
 
- src/pkg/syscall/syscall_linux.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/websocket/websocket_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,16 @@
-commit d822ffebc59d27190ac145a71c726dad35769225
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Wed Feb 24 21:08:52 2021 +0200
+commit c875503cf79f82b7d2dbec85667f330f72ec4557
+Author: Jie Ma <jienius@outlook.com>
+Date:   Sat Jun 27 23:15:53 2020 +0000
 
-    test: fix inline.go test for linux-amd64-noopt
+    doc: fix typos and grammatical errors in contribute.html
     
-    math.Float32bits was not being inlined across package boundaries.
-    Create a private func that can be inlined with -l.
+    Fixed some typos and grammatical errors in contribute.html
     
-    Change-Id: Ic50bf4727dd8ade09d011eb204006b7ee88db34a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295989
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ifb31f22d876b7bea84b5e130870c26813b2fa139
+    GitHub-Last-Rev: 43519198859ca8f5e1c870b8f3eeb1b465aa6bc5
+    GitHub-Pull-Request: golang/go#39892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240277
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/inline.go | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

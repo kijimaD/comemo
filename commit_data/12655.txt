@@ -1,45 +1,22 @@
-commit 7a84fb3a85366a33fb14695263b3340d3a4d7fa7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 15 17:35:57 2012 -0400
+commit 9e03dcb3fa3a024330909808d7338f0d194bf05a
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Fri Mar 16 08:21:13 2012 +1100
 
-    cmd/go: make build errors more visible
+    doc: add Gobs of data article
     
-    Fixes #3324.
+    Originally published on The Go Programming Language Blog, March 24, 2011.
     
-    Robert suggested not reporting errors until the end of the output.
-    which I'd also like to do, but errPrintedOutput makes that a bigger
-    change than I want to do before Go 1.  This change should at least
-    remove the confusion we had.
+    http://blog.golang.org/2011/03/gobs-of-data.html
     
-    # Building packages and commands for linux/amd64.
-    runtime
-    errors
-    sync/atomic
-    unicode
-    unicode/utf8
-    math
-    sync
-    unicode/utf16
-    crypto/subtle
-    io
-    syscall
-    hash
-    crypto
-    crypto/md5
-    hash/crc32
-    crypto/cipher
-    crypto/hmac
-    crypto/sha1
-    go install unicode: copying /tmp/go-build816525784/unicode.a to /home/rsc/g/go/pkg/linux_amd64/unicode.a: short write
-    hash/adler32
-    container/list
-    container/ring
-    ...
-    
-    R=golang-dev, r
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5837054
+    https://golang.org/cl/5834043
 
- src/cmd/go/build.go | 16 +++++++++++++---
- src/cmd/go/clean.go |  2 +-
- 2 files changed, 14 insertions(+), 4 deletions(-)
+ doc/Makefile                   |   1 +
+ doc/articles/gobs_of_data.html | 315 +++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                  |   2 +-
+ doc/progs/gobs1.go             |  22 +++
+ doc/progs/gobs2.go             |  43 ++++++
+ doc/progs/run                  |   7 +-
+ src/pkg/encoding/gob/doc.go    |   2 +-
+ 7 files changed, 389 insertions(+), 3 deletions(-)

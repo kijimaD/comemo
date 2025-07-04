@@ -1,36 +1,26 @@
-commit 0e39946e8df426b459103ab94256b697a6a4dd9c
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Oct 19 14:05:29 2021 -0400
+commit 086357e8f617c325339fdaedd13563dbdb05b00d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 12 11:21:38 2021 -0500
 
-    cmd/go: add workspace pruning mode
+    cmd/go: include default GOEXPERIMENT in build config
     
-    This change corrects a bug in the handling of module loading of
-    workspaces. Namely, there is an assumption by the module pruning code
-    that if a root module is selected then the packages of that module can
-    be resolved without loading the whole module graph. This is not true
-    in workspace mode because two workspace modules can require different
-    versions of a dependency. Worse, one workspace module can directly
-    require a depencency that is transitively required by another
-    workspace module, changing the version of that module loaded in the
-    fully expanded graph.
+    Currently, the build config includes GOEXPERIMENT environment
+    variable if it is not empty, but that doesn't take the default
+    value (set at make.bash/bat/rc time) into consideration. This
+    may cause standard library packages appearing stale, as the
+    build config appears changed.
     
-    To correct this, a new 'workspace' pruning mode is added where the
-    roots are the workspace modules themselves, satisfying the assumption
-    made by the module pruning logic.
+    This CL changes it to use cfg.GOEXPERIMENT variable, which
+    includes the default value (if it is not overwritten).
     
-    The rest of this change accounts for the new pruning mode where it's
-    used and correctly sets the requirements in this pruning mode.
+    May fix regabi and staticlockranking builders.
     
-    Change-Id: I5d4d9877e492e196681f6ee9f8f18a08b4e95c61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357169
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I242f887167f8e99192010be5c1a046eb88ab0c2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301269
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/modload/buildlist.go  | 86 +++++++++++++++++++++++--------
- src/cmd/go/internal/modload/init.go       | 44 ++++++++--------
- src/cmd/go/internal/modload/load.go       | 24 ++++++++-
- src/cmd/go/internal/modload/modfile.go    | 14 +++--
- src/cmd/go/testdata/script/work_prune.txt |  2 +-
- 5 files changed, 121 insertions(+), 49 deletions(-)
+ src/cmd/go/internal/work/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

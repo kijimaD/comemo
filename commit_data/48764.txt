@@ -1,44 +1,24 @@
-commit 4569fe64101c2209e3429bd1c953b5f4021fc43d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Apr 7 17:25:23 2022 -0400
+commit cf4e3e3d3b3a713ec4df7e995d5bf5caef045a09
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Jun 12 12:25:12 2021 -0700
 
-    cmd/go: allow '-buildvcs=auto' and treat it as the default
+    reflect: explain why convertible or comparable types may still panic
     
-    When we added VCS stamping in the Go 1.18 release, we defaulted to
-    -buildvcs=true, on the theory that most folks will actually want VCS
-    information stamped.
+    Conversions of slices to arrays may panic since the slice is too short.
+    Comparibility of interfaces may panic since the underlying value is incomparable.
     
-    We also made -buildvcs=true error out if a VCS directory is found and
-    no VCS tool is available, on the theory that a user who builds with
-    '-buildvcs=true' will be very surprised if the VCS metadata is
-    silently missing.
+    This is a follow-up to CL 301652
     
-    However, that causes a problem for CI environments that don't have the
-    appropriate VCS tool installed. (And we know that's a common situation
-    because we're in that situation ourselves — see #46693!)
-    
-    The new '-buildvcs=auto' setting provides a middle ground: it stamps
-    VCS information by default when the tool is present (and reports
-    explicit errors if the tool errors out), but omits the metadata
-    when the tool isn't present at all.
-    
-    Fixes #51748.
-    Updates #51999.
-    
-    Change-Id: Iebc955c2af0abca9b7517f62ca48b1d944eb2df4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398855
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia5d84a6e556a7b82c39add4be93ed7463e63cc8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327589
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go                              | 12 +--
- src/cmd/go/internal/cfg/cfg.go                     |  6 +-
- src/cmd/go/internal/list/list.go                   |  2 +-
- src/cmd/go/internal/load/pkg.go                    | 33 +++++---
- src/cmd/go/internal/work/build.go                  | 42 +++++++++--
- src/cmd/go/testdata/script/build_buildvcs_auto.txt | 87 ++++++++++++++++++++++
- src/cmd/go/testdata/script/test_buildvcs.txt       |  2 +
- .../go/testdata/script/version_buildvcs_nested.txt |  2 +-
- 8 files changed, 159 insertions(+), 27 deletions(-)
+ src/reflect/type.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,28 +1,25 @@
-commit 9b61b0054b34760506efe5a7763594d0188defce
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Sep 25 10:49:11 2023 -0500
+commit 50664c236f9ab38cd57e0a36cf29527d4c513010
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 1 17:27:41 2022 -0400
 
-    crypto/subtle: improve xorBytes assembler on PPC64
+    runtime: yield in goschedIfBusy if gp.preempt
     
-    This makes some improvements to the xorBytes assembler
-    implementation for PPC64 targets.
+    runtime.bgsweep contains an infinite loop. With aggressive enough
+    inlining, it may not perform any CALLs on a typical iteration. If
+    the runtime trying to preempt this goroutine, the lack of CALLs may
+    prevent preemption for ever occurring.
     
-    The loops to process large streams of bytes has been changed to
-    do 64 bytes at a time. Other changes were made to prevent
-    degradations in some of the common sizes like 8, 16.
+    bgsweep does happen to call goschedIfBusy. Add a preempt check there to
+    make sure we yield eventually.
     
-    The case for < 8 bytes on power10 has been modified to use
-    the LXVL and STXVL instructions.
+    For #55022.
     
-    Change-Id: I7477d12d5375d484af8c274443d595ccdafbda7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530877
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Change-Id: If22eb86fd6a626094b3c56dc745c8e4243b0fb40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447135
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/subtle/xor_ppc64x.s | 171 +++++++++++++++++++++++++++--------------
- 1 file changed, 113 insertions(+), 58 deletions(-)
+ src/runtime/proc.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

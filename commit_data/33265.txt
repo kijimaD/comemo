@@ -1,19 +1,21 @@
-commit 4f2ee4997470c84a55d89d097e6b8fc45680978f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 27 16:48:02 2017 -0400
+commit 60b9ae4cf3a0428668748a53f278a80d41fbfc38
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Fri Jul 21 01:19:42 2017 -0700
 
-    cmd/dist: translate /private/var to /var on darwin builders
+    crypto/rsa: drop uneeded parameter in modInverse
     
-    This is ugly but needed on the builders, because they do not set
-    PWD/GOROOT consistently, and the new content-based staleness
-    understands that the setting of GOROOT influences the content in
-    the linker outputs.
+    The current modInverse implementation allocates a big.Int
+    for the second parameter of GCD, while only the first is needed.
+    This is unnecessary and can lead to a speed up for optimizations
+    of GCD where the second parameter is not calculated at all.
     
-    Change-Id: I0606f2c70b719619b188864ad3ae1b34432140cb
-    Reviewed-on: https://go-review.googlesource.com/74070
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I3f042e140ff643311bc3d0b8d192992d4d2c4c70
+    Reviewed-on: https://go-review.googlesource.com/50531
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Filippo Valsorda <filosottile.wiki@gmail.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/dist/build.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/crypto/rsa/rsa.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

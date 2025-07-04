@@ -1,21 +1,19 @@
-commit 2507e7897ba17bb33759c1c496d05bb7d459a31d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 18 14:39:20 2023 -0800
+commit ac3ba9790762113bbc4ce1e8068654ce9579d3d6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 03:35:14 2022 -0800
 
-    go/types: provision for generating initorder.go, but disabled for now
+    cmd/compile: add itabs to unified IR dictionaries
     
-    Add the code to generate initorder.go but do not enable the generation
-    of that file for now because the generated  use uses error_ which has
-    implications for gopls use (error_ produces a single error instead of
-    pultiple \t-indented follow-on errors).
+    This CL changes unified IR to include itabs in its serialized
+    dictionary format.
     
-    Change-Id: I5cd8acdeb8845dbb4716f19cf90d88191dd4216c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461692
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I334c972dc1bc19293f955bb23cfb66844da7adec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390355
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/types/generator.go | 42 ++++++++++++++++++++++++++++++++++--------
- 1 file changed, 34 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 68 ++++++++++++++++++++------------
+ src/cmd/compile/internal/noder/writer.go | 55 +++++++++++++++++++++++---
+ 2 files changed, 93 insertions(+), 30 deletions(-)

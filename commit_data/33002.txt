@@ -1,18 +1,14 @@
-commit e285f39248f7499c4764bb394fd77a591f4dde64
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Oct 8 10:45:48 2017 -0400
+commit 143bdc27932451200f3c8f4b304fe92ee8bba9be
+Author: Qiuxuan Zhu <ilsh1022@gmail.com>
+Date:   Fri Jun 23 12:31:48 2017 +0800
 
-    cmd/link: ignore macho symbols in invalid sections
+    net/http: Update server idleTimeout documentation
     
-    Restores linker behavior that existed before CL 68930.
-    Hopefully fixes the macOS 10.8 builder.
+    Fixes #20383
     
-    Change-Id: Ib8d6923b59543008cf71c4625addb4e2045cedf6
-    Reviewed-on: https://go-review.googlesource.com/69170
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Change-Id: I11234393c3beb669f87976a4f0b424bec7372b82
+    Reviewed-on: https://go-review.googlesource.com/46434
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/loadmacho/ldmacho.go | 2 +-
+ src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

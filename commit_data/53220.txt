@@ -1,22 +1,18 @@
-commit 807cce479f38c84b0bca63db80f64e4700d8643c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 23 17:15:21 2023 +0000
+commit c6a2dada0df8c2d75cf3ae599d7caed77d416fa2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 2 11:20:30 2022 -0400
 
-    runtime: add partial lock order between mspanSpecial and gcBitsArenas
+    net: disable TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion [sic] on DragonflyBSD
     
-    CL 493275 started using gcBits for pinner bits. This means gcBits can be
-    allocated while holding the mspanSpecial lock. This is safe because
-    these were just parallel in the partial order, but now they need an
-    explicit edge between them.
+    Like OpenBSD, DragonflyBSD does not do IPv4-in-IPv6 mapping.
     
-    For #58277.
+    For #52264.
     
-    Change-Id: I37917730e12d59cf0580f198d732198413a56424
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497475
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id41606e75652e684f2e0e98c6459156641aec9b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420775
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/lockrank.go   | 26 +++++++++++++-------------
- src/runtime/mklockrank.go |  5 ++++-
- 2 files changed, 17 insertions(+), 14 deletions(-)
+ src/net/udpsock_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

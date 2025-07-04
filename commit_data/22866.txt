@@ -1,16 +1,16 @@
-commit a63ba85a9f0a96cdedc58ba8e97615972b555c44
-Author: Rob Pike <r@golang.org>
-Date:   Tue May 5 11:05:35 2015 -0700
+commit d1af6bed847291599985e85a8fbf207b6f0342a6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 13 12:02:44 2015 +1000
 
-    fmt: document that Scanf returns an error the same as Scan
+    runtime: move all exception related code into signal_windows.go
     
-    No semantic change.
-    
-    Fixes #8708.
-    
-    Change-Id: Ieda04a86a19bb69bfc2519d381a2f025e7cb8279
-    Reviewed-on: https://go-review.googlesource.com/9740
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9654a5c85bd9b3ae9c7a9eddaef1ec752f42bd1b
+    Reviewed-on: https://go-review.googlesource.com/8840
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/fmt/scan.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/os1_windows.go    | 100 ++--------------------------------------
+ src/runtime/os_windows.go     |  27 -----------
+ src/runtime/signal_windows.go | 105 ++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 106 insertions(+), 126 deletions(-)

@@ -1,19 +1,17 @@
-commit d20b6d8849ca3c7c1461b28418afb15ed7652712
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 7 12:08:12 2018 -0500
+commit 85a0192b59d8d9be9cb3759d128b43a5ebf2d766
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 20 21:04:15 2018 +0000
 
-    cmd/go/internal/modload: add missing build constraint in testgo.go
+    net/http: add Client.CloseIdleConnections
     
-    That file is supposed to make unexpected dependencies on the main
-    module easier to diagnose in 'go test cmd/go', but I accidentally left
-    off the build constraint, so it was triggering outside of the test.
+    Fixes #26563
     
-    Updates #29097
-    
-    Change-Id: I1cde3fe6c1d80add37c98a8c95ce48524ea05024
-    Reviewed-on: https://go-review.googlesource.com/c/153159
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I22b0c72d45fab9d3f31fda04da76a8c0b10cd8b6
+    Reviewed-on: https://go-review.googlesource.com/130115
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/internal/modload/testgo.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/http/client.go      | 16 ++++++++++++++++
+ src/net/http/client_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

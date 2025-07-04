@@ -1,47 +1,50 @@
-commit 1e27e4807b3daf8c5e4f84823a1f3c588b773b8b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 2 14:21:27 2018 -0700
+commit 2edc4d46340ca64dfc4dbcb8433868b6f29a7a07
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 18 14:58:05 2018 -0500
 
-    cmd/compile: shrink liveness maps
+    runtime: never allocate during an unrecoverable panic
     
-    The GC maps don't care about trailing non-pointers in args.
-    Work harder to eliminate them.
+    Currently, startpanic_m (which prepares for an unrecoverable panic)
+    goes out of its way to make it possible to allocate during panic
+    handling by allocating an mcache if there isn't one.
     
-    This should provide a slight speedup to everything that reads these
-    maps, mainly GC and stack copying.
+    However, this is both potentially dangerous and unnecessary.
+    Allocating an mcache is a generally complex thing to do in an already
+    precarious situation. Specifically, it requires obtaining the heap
+    lock, and there's evidence that this may be able to deadlock (#23360).
+    However, it's also unnecessary because we never allocate from the
+    unrecoverable panic path.
     
-    The non-ptr-y runtime benchmarks happen to go from having a non-empty
-    args map to an empty args map, so they have a significant speedup.
+    This didn't use to be the case. The call to allocmcache was introduced
+    long ago, in CL 7388043, where it was in preparation for separating Ms
+    and Ps and potentially running an M without an mcache. At the time,
+    after calling startpanic, the runtime could call String and Error
+    methods on panicked values, which could do anything including
+    allocating. That was generally unsafe even at the time, and CL 19792
+    fixed this be pre-printing panic messages before calling startpanic.
+    As a result, we now no longer allocate after calling startpanic.
     
-    name                old time/op  new time/op  delta
-    StackCopyPtr-8      80.2ms ± 4%  79.7ms ± 2%  -0.63%  (p=0.001 n=94+91)
-    StackCopy-8         63.3ms ± 3%  59.2ms ± 3%  -6.45%  (p=0.000 n=98+97)
-    StackCopyNoCache-8   107ms ± 3%    98ms ± 3%  -8.00%  (p=0.000 n=95+88)
+    This CL not only removes the allocmcache call, but goes a step further
+    to explicitly disallow any allocation during unrecoverable panic
+    handling, even in situations where it might be safe. This way, if
+    panic handling ever does an allocation that would be unsafe in unusual
+    circumstances, we'll know even if it happens during normal
+    circumstances.
     
-    It also shrinks object files a tiny bit:
+    This would help with debugging #23360, since the deadlock in
+    allocmcache is currently masking the real failure.
     
-    name        old object-bytes  new object-bytes  delta
-    Template          476kB ± 0%        476kB ± 0%  -0.03%  (p=0.008 n=5+5)
-    Unicode           218kB ± 0%        218kB ± 0%  -0.09%  (p=0.008 n=5+5)
-    GoTypes          1.58MB ± 0%       1.58MB ± 0%  -0.03%  (p=0.008 n=5+5)
-    Compiler         6.25MB ± 0%       6.24MB ± 0%  -0.06%  (p=0.008 n=5+5)
-    SSA              15.9MB ± 0%       15.9MB ± 0%  -0.06%  (p=0.008 n=5+5)
-    Flate             304kB ± 0%        303kB ± 0%  -0.29%  (p=0.008 n=5+5)
-    GoParser          370kB ± 0%        370kB ± 0%  +0.02%  (p=0.008 n=5+5)
-    Reflect          1.27MB ± 0%       1.27MB ± 0%  -0.07%  (p=0.008 n=5+5)
-    Tar               421kB ± 0%        421kB ± 0%  -0.05%  (p=0.008 n=5+5)
-    XML               518kB ± 0%        517kB ± 0%  -0.06%  (p=0.008 n=5+5)
-    [Geo mean]        934kB             933kB       -0.07%
+    Beyond all.bash, I manually tested this change by adding panics at
+    various points in early runtime init, signal handling, and the
+    scheduler to check unusual panic situations.
     
-    Note that some object files do grow;
-    this can happen because some maps that were
-    duplicates of each others must be stored separately.
-    
-    Change-Id: Ie076891bd8e9d269ff2ff5435d5d25c721e0e31d
-    Reviewed-on: https://go-review.googlesource.com/104175
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I85df21e2b4b20c6faf1f13fae266c9339eebc061
+    Reviewed-on: https://go-review.googlesource.com/88835
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 43 +++++++++++++++++++++++++-----------
- 1 file changed, 30 insertions(+), 13 deletions(-)
+ src/runtime/error.go |  3 +--
+ src/runtime/panic.go | 13 +++++++++----
+ 2 files changed, 10 insertions(+), 6 deletions(-)

@@ -1,15 +1,15 @@
-commit 74c0de8fb6ef26deece0541a7bf9337ce30c1878
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 25 12:45:21 2014 -0700
+commit 4caf377e6ef53356414b185930e898acb896c562
+Author: Ahmed Waheed Moanes <oneofone@gmail.com>
+Date:   Tue Sep 16 15:06:52 2014 -0700
 
-    bufio: fix handling of empty tokens at end of line/file
-    Fixes #8672.
+    cmd/go: use pkg-config include pathes in swig and don't double compile c++ files.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    Fixes #8566.
+    
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/145390043
+    https://golang.org/cl/126210045
 
- src/bufio/scan.go      |  4 +++-
- src/bufio/scan_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go | 93 +++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 61 insertions(+), 32 deletions(-)

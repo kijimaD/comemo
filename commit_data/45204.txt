@@ -1,29 +1,24 @@
-commit 02a2ff47ef6004a59e4d688c7c93198778c36bcf
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Mar 29 16:03:51 2021 -0400
+commit 84f3b33f10d8f12818975cb188da46145ac2036a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 5 16:34:27 2020 -0400
 
-    go/parser: add a SkipObjectResolution mode to bypass object resolution
+    syscall: remove dependency on io
     
-    Parser object resolution is an auxiliary feature in which the parser
-    attempts to resolve identifiers to their declarations. In functionality,
-    it significantly overlaps with go/types and in fact cannot be correctly
-    computed at parse-time without type information (for example, it is
-    generally not possible to resolve k in the composite lit c{k: v}). Due
-    to these limitations, it is of limited utility and rarely used.
+    Keep syscall and io separated; neither should depend on the other.
     
-    Now that object resolution is isolated as a post-processing pass, it is
-    trivial to offer a parser mode that skips it entirely. This CL adds that
-    mode.
-    
-    Fixes #45104
-    
-    Change-Id: I5a2c05437e298964ad2039e1ff98e63d6efbd1af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306149
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Icdd61bd0c05d874cabd7b5ae6631dd09dec90112
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243902
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/parser/interface.go | 23 ++++++++++++++---------
- src/go/parser/parser.go    |  4 +++-
- 2 files changed, 17 insertions(+), 10 deletions(-)
+ src/go/build/deps_test.go                              |  2 +-
+ src/internal/syscall/windows/registry/key.go           | 17 ++---------------
+ src/internal/syscall/windows/registry/registry_test.go |  6 +++---
+ src/internal/syscall/windows/registry/value.go         | 13 +------------
+ src/mime/type_windows.go                               |  2 +-
+ src/syscall/fs_js.go                                   |  7 +++----
+ src/time/zoneinfo_windows.go                           |  2 +-
+ 7 files changed, 12 insertions(+), 37 deletions(-)

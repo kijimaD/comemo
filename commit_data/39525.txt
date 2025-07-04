@@ -1,28 +1,18 @@
-commit 4814e7d59191e17b2d27c723220512db32374301
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Jul 15 11:33:26 2019 -0400
+commit b6625758e407eaa2038d7355546689eea9bf4ea2
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 28 09:55:27 2019 +0100
 
-    cmd/go: include GOEXPERIMENT flags in tool id for cache key
+    cmd/go: pass -X64 to ar on aix/ppc64
     
-    The go command invokes each tool with -V=full to discover its version
-    to compute a tool id. For release versions (that don't include the
-    word "devel"), the go command only used the third word in
-    the output (e.g., "go1.13"), ignoring any toolchain experiments that
-    followed. With this change, the go command will use whole version line
-    in the tool id for release versions.
+    On aix/ppc64, ar tool must always have -X64 argument if it aims to
+    create 64 bits archives.
     
-    Also, when -V=full is set and there are non-default experiments,
-    experiments are no longer printed twice.
+    This commit also adds the -D flag handler when calling ar with
+    gccgotoolchain, to match gccgo version.
     
-    Fixes #33091
-    
-    Change-Id: I19b96f939c7e2fbc5d8befe3659156ee4b58daef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186200
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1f5750f8f64a7073780d283567f0b60fc7fa5b97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164417
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/reboot/experiment_toolid_test.go | 101 ++++++++++++++++++++++++++++++++++
- src/cmd/go/internal/work/buildid.go   |   5 +-
- src/cmd/internal/objabi/flag.go       |  10 ++--
- 3 files changed, 108 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/work/gccgo.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

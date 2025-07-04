@@ -1,18 +1,20 @@
-commit 03e1d4bc2262de4d50e0fe9ebcf743f1f1aef479
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 15 12:21:21 2012 -0700
+commit efa67b2c55b1a61ff780c04486ba9f901d8fb0a6
+Author: Joel Sing <jsing@google.com>
+Date:   Wed May 16 04:32:49 2012 +1000
 
-    go/printer: don't print newlines for empty statements
+    runtime: implement getcontext and sigprocmask for netbsd
     
-    Fixes #3466.
+    Implement getcontext and sigprocmask for NetBSD - these will soon be
+    used by the thread handling code.
     
-    gofmt -w src misc causes no changes.
+    Also fix netbsd/386 signal handling - there is no sigreturn, just
+    return so that we hit the trampoline.
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6206073
+    https://golang.org/cl/6215049
 
- src/pkg/go/printer/nodes.go                   | 30 +++++++++++++++------------
- src/pkg/go/printer/testdata/statements.golden | 26 +++++++++++++++++++++++
- src/pkg/go/printer/testdata/statements.input  | 24 +++++++++++++++++++++
- 3 files changed, 67 insertions(+), 13 deletions(-)
+ src/pkg/runtime/os_netbsd.h        | 15 ++++++++++-----
+ src/pkg/runtime/sys_netbsd_386.s   | 28 +++++++++++++++++-----------
+ src/pkg/runtime/sys_netbsd_amd64.s | 26 ++++++++++++++++++++++----
+ 3 files changed, 49 insertions(+), 20 deletions(-)

@@ -1,0 +1,19 @@
+commit 17789bc8771ad2d36e374df65262c4ffd81c97c5
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Apr 9 16:21:42 2025 -0400
+
+    crypto/tls: use runtime.AddCleanup instead of runtime.SetFinalizer
+    
+    Replace the usage of runtime.SetFinalizer with runtime.AddCleanup in
+    the certificate cache.
+    
+    Updates #70907
+    
+    Change-Id: Ieab6ff88dbc4083f11c1b475f11bd61521dbc638
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664275
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/tls/cache.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

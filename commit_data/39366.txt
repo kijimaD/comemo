@@ -1,12 +1,20 @@
-commit c0c6cee6aada70c261bd83cd0a94e6e37ba1fc21
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed Jun 12 18:04:00 2019 -0400
+commit 38a4b37905cd7df3a97fa6dbf070f570c4bf135b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 18 15:59:47 2018 +0100
 
-    doc: release notes for text/scanner and text/template
+    syscall: add empty line before marker comments in zsyscall_darwin_*.go
     
-    Change-Id: Ib5417cc48959b03befb1579da3281415a11ede9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181879
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    This was spotted during the review of the corresponding CL 154179 for
+    x/sys/unix. Let's change it in syscall as well to be consistent.
+    
+    Change-Id: I33f25db1f6ba941b694c2aa276336448cc2b9b51
+    Reviewed-on: https://go-review.googlesource.com/c/154719
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.13.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/syscall/mksyscall.pl             |   2 +-
+ src/syscall/zsyscall_darwin_386.go   | 118 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_darwin_amd64.go | 118 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_darwin_arm.go   | 119 +++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_darwin_arm64.go | 119 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 475 insertions(+), 1 deletion(-)

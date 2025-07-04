@@ -1,38 +1,70 @@
-commit c526f3ac1099fef117a385d0336860cacde6b257
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 21 14:22:41 2015 -0700
+commit 63d72f69011a47234d61380849c466f416459d8c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Apr 4 01:24:36 2015 -0400
 
-    runtime: tail call into memeq/cmp body implementations
+    cmd/7g: enable peephole optimizer
     
-    There's no need to call/ret to the body implementation.
-    It can write the result to the right place.  Just jump to
-    it and have it return to our caller.
+    Based on cmd/9g/peep.go.
     
-    Old:
-      call body implementation
-      compute result
-      put result in a register
-      return
-      write register to result location
-      return
+    Go 1 benchmark comparison:
+    benchmark                          old ns/op       new ns/op       delta
+    BenchmarkBinaryTree17              24328574000     18351639000     -24.57%
+    BenchmarkFannkuch11                17029365000     10817758000     -36.48%
+    BenchmarkFmtFprintfEmpty           291             223             -23.37%
+    BenchmarkFmtFprintfString          1073            799             -25.54%
+    BenchmarkFmtFprintfInt             1024            778             -24.02%
+    BenchmarkFmtFprintfIntInt          1654            1277            -22.79%
+    BenchmarkFmtFprintfPrefixedInt     1360            1083            -20.37%
+    BenchmarkFmtFprintfFloat           2272            1415            -37.72%
+    BenchmarkFmtManyArgs               5933            4742            -20.07%
+    BenchmarkGobDecode                 53166003        38584736        -27.43%
+    BenchmarkGobEncode                 37930156        30074874        -20.71%
+    BenchmarkGzip                      1880638900      1286832100      -31.57%
+    BenchmarkGunzip                    386343633       292194480       -24.37%
+    BenchmarkHTTPClientServer          237077          179776          -24.17%
+    BenchmarkJSONEncode                101731690       73116925        -28.13%
+    BenchmarkJSONDecode                344655360       241277600       -29.99%
+    BenchmarkMandelbrot200             28329778        12950809        -54.29%
+    BenchmarkGoParse                   21670755        16554244        -23.61%
+    BenchmarkRegexpMatchEasy0_32       557             484             -13.11%
+    BenchmarkRegexpMatchEasy0_1K       4687            4832            +3.09%
+    BenchmarkRegexpMatchEasy1_32       539             483             -10.39%
+    BenchmarkRegexpMatchEasy1_1K       5100            5080            -0.39%
+    BenchmarkRegexpMatchMedium_32      796             651             -18.22%
+    BenchmarkRegexpMatchMedium_1K      233099          182047          -21.90%
+    BenchmarkRegexpMatchHard_32        13202           9897            -25.03%
+    BenchmarkRegexpMatchHard_1K        401027          303602          -24.29%
+    BenchmarkRevcomp                   3837679666      2816546600      -26.61%
+    BenchmarkTemplate                  440608300       324831040       -26.28%
+    BenchmarkTimeParse                 1460            1019            -30.21%
+    BenchmarkTimeFormat                1609            1174            -27.04%
     
-    New:
-      load address of result location into a register
-      jump to body implementation
-      compute result
-      write result to passed-in address
-      return
+    benchmark                         old MB/s     new MB/s     speedup
+    BenchmarkGobDecode                14.44        19.89        1.38x
+    BenchmarkGobEncode                20.24        25.52        1.26x
+    BenchmarkGzip                     10.32        15.08        1.46x
+    BenchmarkGunzip                   50.23        66.41        1.32x
+    BenchmarkJSONEncode               19.07        26.54        1.39x
+    BenchmarkJSONDecode               5.63         8.04         1.43x
+    BenchmarkGoParse                  2.67         3.50         1.31x
+    BenchmarkRegexpMatchEasy0_32      57.38        66.05        1.15x
+    BenchmarkRegexpMatchEasy0_1K      218.47       211.91       0.97x
+    BenchmarkRegexpMatchEasy1_32      59.29        66.21        1.12x
+    BenchmarkRegexpMatchEasy1_1K      200.76       201.54       1.00x
+    BenchmarkRegexpMatchMedium_32     1.26         1.53         1.21x
+    BenchmarkRegexpMatchMedium_1K     4.39         5.62         1.28x
+    BenchmarkRegexpMatchHard_32       2.42         3.23         1.33x
+    BenchmarkRegexpMatchHard_1K       2.55         3.37         1.32x
+    BenchmarkRevcomp                  66.23        90.24        1.36x
+    BenchmarkTemplate                 4.40         5.97         1.36x
     
-    It's a bit tricky on 386 because there is no free register
-    with which to pass the result location.  Free up a register
-    by keeping around blen-alen instead of both alen and blen.
+    Fixes #10105.
     
-    Change-Id: If2cf0682a5bf1cc592bdda7c126ed4eee8944fba
-    Reviewed-on: https://go-review.googlesource.com/9202
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I353cc9fdf922e431821508c9dbbe4d9a85d64bd4
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8471
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/runtime/asm_386.s   | 93 ++++++++++++++++++++++++-------------------------
- src/runtime/asm_amd64.s | 68 +++++++++++++++++-------------------
- src/runtime/asm_arm.s   | 30 ++++++++--------
- src/runtime/asm_arm64.s | 30 ++++++++--------
- 4 files changed, 108 insertions(+), 113 deletions(-)
+ src/cmd/7g/peep.go | 690 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ test/nilptr3.go    |   6 +-
+ 2 files changed, 692 insertions(+), 4 deletions(-)

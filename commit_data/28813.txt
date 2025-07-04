@@ -1,16 +1,26 @@
-commit 2427123d9391134a68c6f60b5acbcb6f60856ff8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 12 22:42:40 2016 -0400
+commit c558a539b5efaeda4b6f8e61f51c21f64d1b94f6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 1 23:44:22 2016 +0000
 
-    encoding/xml: split attribute marshaling into its own method
+    net/http: update bundled http2
     
-    No functional changes here. Just makes next CL easier to read.
+    Updates bundled http2 to x/net/http2 rev 28d1bd4f for:
     
-    Change-Id: Icf7b2281b4da6cb59ff4edff05943b2ee288576a
-    Reviewed-on: https://go-review.googlesource.com/30945
-    Run-TryBot: Russ Cox <rsc@golang.org>
+        http2: make Transport work around mod_h2 bug
+        https://golang.org/cl/25362
+    
+        http2: don't ignore DATA padding in flow control
+        https://golang.org/cl/25382
+    
+    Updates #16519
+    Updates #16556
+    Updates #16481
+    
+    Change-Id: I51f5696e977c91bdb2d80d2d56b8a78e3222da3f
+    Reviewed-on: https://go-review.googlesource.com/25388
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/xml/marshal.go | 132 +++++++++++++++++++++++---------------------
- 1 file changed, 70 insertions(+), 62 deletions(-)
+ src/net/http/h2_bundle.go | 230 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 141 insertions(+), 89 deletions(-)

@@ -1,19 +1,15 @@
-commit cad872f75a1946ea49397a33e269dabe56febff6
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Feb 22 13:17:30 2023 -0500
+commit a4ffeb9edd23e1edbea87eb9ebd8cbb84fad6efa
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Mon Dec 6 11:46:57 2021 +0300
 
-    doc: start draft Go 1.21 release notes
+    cmd/compile: use opregreg for x86.AXOR* ops
     
-    This initial release notes template is based on previous releases.
-    
-    For #58645.
-    
-    Change-Id: I8bae25d6dd9778a69963b8b4903a6dc1c180e15f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470296
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Id087d86261744559685c687aa7bad6c55466f1b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369020
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Trust: Alex Rakoczy <alex@golang.org>
 
- doc/go1.21.html | 77 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 77 insertions(+)
+ src/cmd/compile/internal/amd64/ssa.go | 24 ++++--------------------
+ 1 file changed, 4 insertions(+), 20 deletions(-)

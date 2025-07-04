@@ -1,46 +1,32 @@
-commit 92bda33d2771a9b12868d9025f113538fa7a84de
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 31 15:58:00 2020 -0400
+commit b1f9f479820be1c251cbdcadfdf9c94d7f6c2e72
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jan 29 22:10:51 2020 -0500
 
-    runtime: revert signal stack mlocking
+    [dev.link] cmd/link: fix payload pointer liveness
     
-    Go 1.14 included a (rather awful) workaround for a Linux kernel bug
-    that corrupted vector registers on x86 CPUs during signal delivery
-    (https://bugzilla.kernel.org/show_bug.cgi?id=205663). This bug was
-    introduced in Linux 5.2 and fixed in 5.3.15, 5.4.2 and all 5.5 and
-    later kernels. The fix was also back-ported by major distros. This
-    workaround was necessary, but had unfortunate downsides, including
-    causing Go programs to exceed the mlock ulimit in many configurations
-    (#37436).
+    Currently, the symbol updater uses a pointer pointing to the
+    loader's payloads array. If the payloads slice grows (and moves),
+    the pointer may become stale and no longer point to the symbol's
+    actual payload. Specifically, consider
     
-    We're reasonably confident that by the Go 1.16 release, the number of
-    systems running affected kernels will be vanishingly small. Hence,
-    this CL removes this workaround.
+            sb, sym := l.MakeSymbolUpdater(...)
+            // add a bunch of external symbols, which grows payload slice
+            sb.SetType(t)
+            l.SymType(sym) // may not return t
     
-    This effectively reverts CLs 209597 (version parser), 209899 (mlock
-    top of signal stack), 210299 (better failure message), 223121 (soft
-    mlock failure handling), and 244059 (special-case patched Ubuntu
-    kernels). The one thing we keep is the osArchInit function. It's empty
-    everywhere now, but is a reasonable hook to have.
+    sb.SetType on line 3 may not have the desired effect, as
+    sb.extSymPayload may no longer point to the right payload. As a
+    result, the type we get on line 4 may be not the one we set.
     
-    Updates #35326, #35777 (the original register corruption bugs).
-    Updates #40184 (request to revert in 1.15).
-    Fixes #35979.
+    Fix this by making the payload's address permanent. Once it is
+    allocated it will never move.
     
-    Change-Id: Ie213270837095576f1f3ef46bf3de187dc486c50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246200
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iab190ea5aceb5c37f91d09ad4ffd458e881b03f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217063
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/defs_linux_386.go   |  11 ----
- src/runtime/defs_linux_amd64.go |  11 ----
- src/runtime/export_test.go      |   2 -
- src/runtime/os_linux.go         |   9 ---
- src/runtime/os_linux_x86.go     | 118 +---------------------------------------
- src/runtime/panic.go            |  10 ----
- src/runtime/string.go           |  34 ------------
- src/runtime/string_test.go      |  31 -----------
- src/runtime/sys_linux_386.s     |  19 -------
- src/runtime/sys_linux_amd64.s   |  19 -------
- 10 files changed, 1 insertion(+), 263 deletions(-)
+ src/cmd/link/internal/loader/loader.go        | 25 +++++++++++++++++++------
+ src/cmd/link/internal/loader/loader_test.go   | 17 +++++++++++++----
+ src/cmd/link/internal/loader/symbolbuilder.go |  4 ++--
+ 3 files changed, 34 insertions(+), 12 deletions(-)

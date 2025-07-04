@@ -1,17 +1,16 @@
-commit 98c26afa8c9c1016d205408e2afaba5824f4d930
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Aug 27 14:42:26 2023 -0700
+commit 9e0149da3c25c3a2399e0f578549f252c186491c
+Author: David Chase <drchase@google.com>
+Date:   Tue Sep 27 15:47:20 2022 -0400
 
-    cmd/compile/internal/ssagen: stop canonicalizing symabis
+    cmd/compile: fuse largest possible runs of plain blocks
     
-    cmd/asm writes canonicalized symabis now.
+    This is predicted to reduce allocation, hence GC time.
+    (And it does.)
     
-    Change-Id: I65cc39ce1671a3c225f14003b336015f0cc33980
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523339
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I30a46805b81e5ecd3fd7a6737f60ec26ef0498b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434796
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/ssagen/abi.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/fuse.go | 157 ++++++++++++++++++++++++++---------
+ 1 file changed, 117 insertions(+), 40 deletions(-)

@@ -1,17 +1,18 @@
-commit ca3b474702dcce86bf3e8597216cc73f43a17b16
-Author: Jake Bailey <jacob.b.bailey@gmail.com>
-Date:   Wed May 14 22:36:57 2025 -0700
+commit 132f9fa9f8d52ac6ca38b5f3a65d67c1492a42c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 26 13:18:34 2024 -0700
 
-    unique: add alloc test for Make
+    test: issue16016: use fewer goroutines for gccgo
     
-    This will be useful to show how the next CLs improve things.
+    For https://gcc.gnu.org/PR114453
     
-    Change-Id: I49a691295c1fe3c7455a67c7d19e5c03979f714a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673015
+    Change-Id: If41d9fca6288b18ed47b0f21ff224c74ddb34958
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574536
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/unique/handle_test.go | 111 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 111 insertions(+)
+ test/fixedbugs/issue16016.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

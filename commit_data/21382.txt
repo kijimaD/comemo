@@ -1,22 +1,15 @@
-commit 4ce4d8b2c4ffb0378a246b26815e9e27d077670a
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Jan 28 08:42:20 2015 +0300
+commit 26d5573949843e5504c79b1d32440918ee5e9181
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Sun Dec 28 11:18:59 2014 -0800
 
-    cmd/gc: allocate stack buffer for ORUNESTR
+    net/smtp: add TLSConnectionState accessor
     
-    If result of string(i) does not escape,
-    allocate a [4]byte temp on stack for it.
+    Fixes #9451
     
-    Change-Id: If31ce9447982929d5b3b963fd0830efae4247c37
-    Reviewed-on: https://go-review.googlesource.com/3411
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0540e398b30c10779ac9d5a67a01d44bb6054a92
+    Reviewed-on: https://go-review.googlesource.com/2151
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/cmd/gc/builtin.c       |  2 +-
- src/cmd/gc/esc.c           |  3 +++
- src/cmd/gc/runtime.go      |  2 +-
- src/cmd/gc/walk.c          | 11 ++++++++---
- src/runtime/string.go      | 11 +++++++++--
- src/runtime/string_test.go | 35 +++++++++++++++++++++++++++++++++++
- test/escape2.go            | 21 +++++++++++++++++++++
- test/escape2n.go           | 21 +++++++++++++++++++++
- 8 files changed, 99 insertions(+), 7 deletions(-)
+ src/net/smtp/smtp.go      | 11 +++++++++++
+ src/net/smtp/smtp_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

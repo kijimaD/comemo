@@ -1,13 +1,16 @@
-commit 2785f9528e84f29429c083db4693faf536f361cc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 31 18:07:32 2012 -0400
+commit ba97d52b85a26e41dc1751bfbb5d268717d45f94
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Aug 31 22:23:37 2012 +0200
 
-    A+C: Patrick Higgins, Shawn Smith (individual CLA)
+    cmd/gc: fix escape analysis bug with variable capture in loops.
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/6492067
+    Fixes #3975.
+    
+    R=rsc, lvd
+    CC=golang-dev, remy
+    https://golang.org/cl/6475061
 
- AUTHORS      | 2 ++
- CONTRIBUTORS | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/gc/esc.c |  1 +
+ test/escape.go   | 27 +++++++++++++++++++++------
+ test/escape2.go  | 13 +++++++++++++
+ 3 files changed, 35 insertions(+), 6 deletions(-)

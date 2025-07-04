@@ -1,14 +1,21 @@
-commit 0242d461c9293d50f429fc9bdc41a02510b86995
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Tue Apr 28 12:11:14 2020 -0400
+commit 29f886e427c1686fd79fc4c4052b22634a5b13d8
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 4 09:47:22 2019 -0500
 
-    net/http/pprof: document the trace endpoint is for execution trace
+    [dev.link] cmd/link: avoid allsyms loop in initarray setup
     
-    Update google/pprof#529
+    In the linker's symtab() function, avoid looping over the context's
+    Syms.Allsyms array to locate the entry symbol when setting up the init
+    array section; do an explicit ABI0 symbol lookup instead. This is a
+    minor efficiency tweak / code cleanup.
     
-    Change-Id: Iec3b343a487b399ada3a6f73c120b5f7ed8938be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230538
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Fixes #20205.
+    
+    Change-Id: I2ebc17a3cb2cd63e9f5052bc80f1b0ac72c960e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209838
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/pprof/pprof.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

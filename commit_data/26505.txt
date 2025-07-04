@@ -1,20 +1,14 @@
-commit 5c8674a497724f509737a3523e7c2ddf94e3a72b
-Author: John Jeffery <jjeffery@sp.com.au>
-Date:   Sun Mar 20 20:24:12 2016 +1000
+commit 1ab900e5f14d01f34fad75131eaa4cebe3bbe6ad
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 29 16:44:16 2016 +1100
 
-    reflect: add method StructTag.Lookup
+    doc: link to block example in go1.6 doc
     
-    The Lookup method provides a way to extract a tag value, while
-    determining whether the tag key exists in the struct field's tag.
+    Fixes #14143
     
-    Fixes #14883
-    
-    Change-Id: I7460cb68f0ca1aaa025935050b9e182efcb64db3
-    Reviewed-on: https://go-review.googlesource.com/20864
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2d77e55bc0b6bb42e11de291e0ddb5ad5d620646
+    Reviewed-on: https://go-review.googlesource.com/19110
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/reflect/example_test.go | 28 ++++++++++++++++++++++++++++
- src/reflect/type.go         | 18 +++++++++++++++---
- 2 files changed, 43 insertions(+), 3 deletions(-)
+ doc/go1.6.html | 16 ++--------------
+ 1 file changed, 2 insertions(+), 14 deletions(-)

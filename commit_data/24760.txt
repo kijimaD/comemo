@@ -1,14 +1,14 @@
-commit 5e1d0fcbed3060b00c33e48ae6fdbaa92965c287
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Sep 8 15:21:58 2015 +1200
+commit a5cffb6182801f6e164089ce872a4fb622c0f0d9
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 28 13:52:26 2015 -0700
 
-    cmd/internal/obj, cmd/link: handle the fact that a few store/loads on ppc64 are DS form
+    [dev.ssa] cmd/compile/internal/ssa: allocate complex zero in the entry block
     
-    Change-Id: I4fe1af48ec1cd8a23e2f7f2a0257dc989ff7aced
-    Reviewed-on: https://go-review.googlesource.com/14235
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes build.  There may be no current block.
+    
+    Change-Id: I0da8bab133dc207124556927698e7cd682e64ef5
+    Reviewed-on: https://go-review.googlesource.com/13989
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/link.go       | 12 +++++
- src/cmd/internal/obj/ppc64/asm9.go | 66 ++++++++++++++++++++-------
- src/cmd/link/internal/ppc64/asm.go | 91 +++++++++++++++++++++-----------------
- 3 files changed, 113 insertions(+), 56 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

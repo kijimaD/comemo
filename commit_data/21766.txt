@@ -1,47 +1,30 @@
-commit 77ccb16eb12f461eaea5fdf652a2e929dc154192
+commit a293c7e68f64d3935c4720372cb26925e4d8353f
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 24 12:19:01 2015 -0500
+Date:   Thu Jan 29 13:50:19 2015 -0500
 
-    cmd/internal/gc: transitive inlining
+    cmd/9a: fix GLOBL instruction
     
-    Inlining refuses to inline bodies containing an actual function call, so that
-    if that call or a child uses runtime.Caller it cannot observe
-    the inlining.
+    Because it was lumped in with the TEXT instruction,
+    the high 32 bits of the 64-bit constant holding the size
+    were always set to 0x80000000 (ArgsSizeUnknown).
+    This only worked because cmd/9l was reading the 64-bit
+    value into an int32.
     
-    However, inlining was also refusing to inline bodies that contained
-    function calls that were themselves inlined away. For example:
+    While we're here, fix 5a.
+    It wasn't as much of a problem there because
+    the two values were being stored in two different fields.
+    But it was still wrong.
     
-            func f() int {
-                    return f1()
-            }
-    
-            func f1() int {
-                    return f2()
-            }
-    
-            func f2() int {
-                    return 2
-            }
-    
-    The f2 call in f1 would be inlined, but the f1 call in f would not,
-    because f1's call to f2 blocked the inlining, despite itself eventually
-    being inlined away.
-    
-    Account properly for this kind of transitive inlining and enable.
-    
-    Also bump the inlining budget a bit, so that the runtime's
-    heapBits.next is inlined.
-    
-    This reduces the time for '6g *.go' in html/template by around 12% (!).
-    (For what it's worth, closing Chrome reduces the time by about 17%.)
-    
-    Change-Id: If1aa673bf3e583082dcfb5f223e67355c984bfc1
-    Reviewed-on: https://go-review.googlesource.com/5952
+    Change-Id: I69a2214c7be939530d499e29cfdc3b26720ac05a
+    Reviewed-on: https://go-review.googlesource.com/3570
     Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/internal/gc/go.go  |  1 +
- src/cmd/internal/gc/inl.go | 71 +++++++++++++++++++++++++++++++++-------------
- src/cmd/internal/gc/lex.go | 20 ++++++-------
- test/escape4.go            |  8 +++---
- test/inline.go             | 24 ++++++++++++++++
- 5 files changed, 89 insertions(+), 35 deletions(-)
+ src/cmd/5a/a.y     |   17 +-
+ src/cmd/5a/lex.c   |    2 +-
+ src/cmd/5a/y.tab.c | 1177 ++++++++++++++++++++++++-----------------------
+ src/cmd/5a/y.tab.h |  152 ++++---
+ src/cmd/9a/a.y     |   18 +-
+ src/cmd/9a/lex.c   |    2 +-
+ src/cmd/9a/y.tab.c | 1287 ++++++++++++++++++++++++++--------------------------
+ src/cmd/9a/y.tab.h |  160 +++----
+ 8 files changed, 1449 insertions(+), 1366 deletions(-)

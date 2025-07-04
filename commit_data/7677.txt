@@ -1,35 +1,16 @@
-commit 02323c0e216827929b693f2fa762040e0a467166
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 7 12:09:00 2011 -0500
+commit ff40deee6234dc8ad72af0dba1a28c1047f497f6
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Mar 7 12:08:52 2011 -0500
 
-    rpc: clean up dregs from June 2010
+    goinstall: handle .s files with gc
     
-    In June 2010 I accidentally checked in pending
-    changes to package rpc in a compiler CL:
-    https://golang.org/cl/1736041
+    As a data point, with this change goinstall is able to
+    fully build package big out of the box.
     
-    I backed them out by hand in a followup CL:
-    https://golang.org/cl/1736042
-    
-    That followup CL missed the lines being deleted
-    in this CL, spotted by Petar.
-    
-    hg diff -r 5678:5683 src/cmd/prof/gopprof \
-            src/pkg/image/png/reader.go \
-            src/pkg/rpc/client.go \
-            src/pkg/rpc/jsonrpc/all_test.go \
-            src/pkg/rpc/jsonrpc/server.go \
-            src/pkg/rpc/server.go \
-            test/arm-pass.txt
-    
-    confirms that these lines in server.go are the
-    only ones that were missed by the original followup.
-    
-    Fixes #1583.
-    
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4266046
+    https://golang.org/cl/4264049
 
- src/pkg/rpc/server.go | 13 -------------
- 1 file changed, 13 deletions(-)
+ src/cmd/goinstall/make.go  | 34 +++++++++++++++++++++++++---------
+ src/cmd/goinstall/parse.go | 19 +++++++++++++++----
+ 2 files changed, 40 insertions(+), 13 deletions(-)

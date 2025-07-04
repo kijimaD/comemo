@@ -1,12 +1,25 @@
-commit 247b034ac04b753d5e3ca7d0d8a172f63db5dcb4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 21 03:46:17 2018 +0000
+commit cc8809238b69b8614a1db1ecd1602318a05a259d
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Tue Jan 23 15:56:24 2018 +0800
 
-    cmd/go: run mkalldocs.sh after earlier revert
+    runtime: fix errno sign for epollctl on mips, mips64 and ppc64
     
-    Change-Id: Ie4ed8b3e7d26ae53b2290a7a6e7d9888eb963edc
-    Reviewed-on: https://go-review.googlesource.com/130318
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The caller of epollctl expects it to return a negative errno value,
+    but it returns a positive errno value on mips, mips64 and ppc64.
+    The change fixes this.
+    
+    Updates #23446
+    
+    Change-Id: Ie6372eca6c23de21964caaaa433c9a45ef93531e
+    Reviewed-on: https://go-review.googlesource.com/89235
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/runtime/export_linux_test.go  | 6 ++++++
+ src/runtime/runtime_linux_test.go | 9 +++++++++
+ src/runtime/sys_linux_mips64x.s   | 1 +
+ src/runtime/sys_linux_mipsx.s     | 1 +
+ src/runtime/sys_linux_ppc64x.s    | 1 +
+ 5 files changed, 18 insertions(+)

@@ -1,19 +1,23 @@
-commit c2f96e686fe9383711d23aea95a34a280fdd0e49
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 24 10:21:16 2021 -0700
+commit 0aba8f24cb1f38beb01491bc91697617ea0ce55b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 9 18:25:05 2020 -0500
 
-    cmd/compile: mark ODYNAMICDOTTYPE as an expression that can panic
+    cmd/link: truncate file after code signature
     
-    Fixes #47924
+    When external linking, in case that the external linker generates
+    a code signature with a different size (e.g. as it uses a
+    different identifier), truncate the file after rewriting the code
+    signature, to make sure that no bytes after the signature (which
+    will invalidate the signature).
     
-    Change-Id: I4325b3c4ed9d369d9ea778478285436e1b2ab08a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344571
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #43105.
+    
+    Change-Id: I732f949fedd6de42d9f3cf6d017f7ba3f4e59e7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276693
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/walk/walk.go |  2 +-
- test/typeparam/issue47924.go          | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/macho.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

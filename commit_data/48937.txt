@@ -1,38 +1,27 @@
-commit cb6fc99b32cd5ec80e98f0eaec18bcfffba572ca
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Apr 28 12:58:32 2022 -0400
+commit 956c81bfe60306e49e26f7edd4f48cbc24c8fe28
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 16 15:10:57 2021 -0700
 
-    runtime: mark sigtramp as TOPFRAME on the rest of unix
+    cmd/go: add GOEXPERIMENT to `go env` output
     
-    This extends CL 402190 from Linux to the rest of the Unix OSes.
+    This CL adds GOEXPERIMENT to `go env` output, and also makes it
+    configurable via `GOENV`. Thanks to Baokun Lee's CL 304350 for the
+    test and initial work on this.
     
-    Marking sigtramp as TOPFRAME allows gentraceback to stop tracebacks at
-    the end of a signal handler, since there is not much beyond sigtramp.
+    Fixes #45226.
     
-    Change-Id: I8b7f5d55d41889f59c0a79c65351b9b0b2d77717
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402934
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: Ie7f92a8a503b6a2a4df3f6598f0b2bf2915e2e7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328751
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/sys_aix_ppc64.s       | 2 +-
- src/runtime/sys_darwin_amd64.s    | 2 +-
- src/runtime/sys_darwin_arm64.s    | 2 +-
- src/runtime/sys_dragonfly_amd64.s | 2 +-
- src/runtime/sys_freebsd_386.s     | 2 +-
- src/runtime/sys_freebsd_amd64.s   | 2 +-
- src/runtime/sys_freebsd_arm.s     | 2 +-
- src/runtime/sys_freebsd_arm64.s   | 2 +-
- src/runtime/sys_netbsd_386.s      | 2 +-
- src/runtime/sys_netbsd_amd64.s    | 2 +-
- src/runtime/sys_netbsd_arm.s      | 2 +-
- src/runtime/sys_netbsd_arm64.s    | 2 +-
- src/runtime/sys_openbsd_386.s     | 2 +-
- src/runtime/sys_openbsd_amd64.s   | 2 +-
- src/runtime/sys_openbsd_arm.s     | 2 +-
- src/runtime/sys_openbsd_arm64.s   | 2 +-
- src/runtime/sys_openbsd_mips64.s  | 2 +-
- src/runtime/sys_solaris_amd64.s   | 2 +-
- 18 files changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/go/alldocs.go                    |  6 ++++++
+ src/cmd/go/internal/envcmd/env.go        |  8 ++++++++
+ src/cmd/go/internal/help/helpdoc.go      |  6 ++++++
+ src/cmd/go/testdata/script/env_exp.txt   | 17 +++++++++++++++++
+ src/cmd/go/testdata/script/env_unset.txt |  7 +++++++
+ src/cmd/go/testdata/script/env_write.txt |  6 ++++++
+ 6 files changed, 50 insertions(+)

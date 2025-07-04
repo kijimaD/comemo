@@ -1,12 +1,12 @@
-commit 80cb47b706b81fd85d8141455af9e62b5683bc35
+commit 63eef6a07177fc9ea11b393b63ac2b09da0dd22f
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 5 17:07:10 2012 +1100
+Date:   Mon Mar 5 16:09:13 2012 +1100
 
-    doc: fix download link on front page
+    tag weekly.2012-03-04
     
-    R=golang-dev
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5730053
+    https://golang.org/cl/5732059
 
- doc/root.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

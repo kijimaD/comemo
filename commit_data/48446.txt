@@ -1,21 +1,110 @@
-commit d68615f64b0d7c1e886f4b8c1267ecc1c4da76ad
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 10 23:38:25 2022 -0500
+commit 15ad61aff5e6b7774101483a933b3d975ae9bae8
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Apr 13 15:37:36 2021 -0700
 
-    cmd/go/internal/test: ensure that build.ToolDir is accurate in tests
+    [dev.typeparams] cmd/compile: get export/import of generic types & functions working
     
-    This fixes a build failure due to inability to locate the "vet" tool
-    when the test binary is built with -trimpath.
+    The general idea is that we now export/import typeparams, typeparam
+    lists for generic types and functions, and instantiated types
+    (instantiations of generic types with either new typeparams or concrete
+    types).
     
-    Updates #51461
+    This changes the export format -- the next CL in the stack adds the
+    export versions and checks for it in the appropriate places.
     
-    Change-Id: I81838cc8842e4ff7900cab81af60501ebba86ff1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391808
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    We always export/import generic function bodies, using the same code
+    that we use for exporting/importing the bodies of inlineable functions.
+    
+    To avoid complicated scoping, we consider all type params as unique and
+    give them unique names for types1. We therefore include the types2 ids
+    (subscripts) in the export format and re-create on import. We always
+    access the same unique types1 typeParam type for the same typeparam
+    name.
+    
+    We create fully-instantiated generic types and functions in the original
+    source package. We do an extra NeedRuntimeType() call to make sure that
+    the correct DWARF information is written out. We call SetDupOK(true) for
+    the functions/methods to have the linker automatically drop duplicate
+    instantiations.
+    
+    Other miscellaneous details:
+     - Export/import of typeparam bounds works for methods (but not
+       typelists) for now, but will change with the typeset changes.
+    
+     - Added a new types.Instantiate function roughly analogous to the
+       types2.Instantiate function recently added.
+    
+     - Always access methods info from the original/base generic type, since
+       the methods of an instantiated type are not filled in (in types2 or
+       types1).
+    
+     - New field OrigSym in types.Type to keep track of base generic type
+       that instantiated type was based on. We use the generic type's symbol
+       (OrigSym) as the link, rather than a Type pointer, since we haven't
+       always created the base type yet when we want to set the link (during
+       types2 to types1 conversion).
+    
+     - Added types2.AsTypeParam(), (*types2.TypeParam).SetId()
+    
+     - New test minimp.dir, which tests use of generic function Min across
+       packages. Another test stringimp.dir, which also exports a generic
+       function Stringify across packages, where the type param has a bound
+       (Stringer) as well. New test pairimp.dir, which tests use of generic
+       type Pair (with no methods) across packages.
+    
+     - New test valimp.dir, which tests use of generic type (with methods
+       and related functions) across packages.
+    
+     - Modified several other tests (adder.go, settable.go, smallest.go,
+       stringable.go, struct.go, sum.go) to export their generic
+       functions/types to show that generic functions/types can be exported
+       successfully (but this doesn't test import).
+    
+    Change-Id: Ie61ce9d54a46d368ddc7a76c41399378963bb57f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319930
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go            | 50 ++++++++++++++++++++-----------
- src/cmd/go/internal/test/flagdefs_test.go |  6 ++++
- 2 files changed, 39 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/export.go           |  12 +-
+ src/cmd/compile/internal/importer/iimport.go    |  85 +++++++++++
+ src/cmd/compile/internal/noder/decl.go          |  14 +-
+ src/cmd/compile/internal/noder/expr.go          |   8 +-
+ src/cmd/compile/internal/noder/irgen.go         |   6 +-
+ src/cmd/compile/internal/noder/object.go        |  10 +-
+ src/cmd/compile/internal/noder/stencil.go       |  69 +++++----
+ src/cmd/compile/internal/noder/types.go         |  35 ++++-
+ src/cmd/compile/internal/reflectdata/reflect.go |   8 +-
+ src/cmd/compile/internal/typecheck/iexport.go   |  97 +++++++++++-
+ src/cmd/compile/internal/typecheck/iimport.go   | 188 ++++++++++++++++++++----
+ src/cmd/compile/internal/typecheck/subr.go      |  10 +-
+ src/cmd/compile/internal/types/sizeof_test.go   |   2 +-
+ src/cmd/compile/internal/types/type.go          |  21 ++-
+ src/cmd/compile/internal/types2/api_test.go     |  14 +-
+ src/cmd/compile/internal/types2/type.go         |  10 ++
+ src/cmd/compile/internal/types2/typestring.go   |   7 +
+ src/go/internal/gcimporter/gcimporter_test.go   |   3 +-
+ src/go/internal/gcimporter/iimport.go           |  20 +++
+ test/typeparam/adder.go                         |   8 +-
+ test/typeparam/min.go                           |  11 +-
+ test/typeparam/minimp.dir/a.go                  |  16 ++
+ test/typeparam/minimp.dir/main.go               |  38 +++++
+ test/typeparam/minimp.go                        |   7 +
+ test/typeparam/pair.go                          |   1 +
+ test/typeparam/pairimp.dir/a.go                 |  10 ++
+ test/typeparam/pairimp.dir/main.go              |  27 ++++
+ test/typeparam/pairimp.go                       |   7 +
+ test/typeparam/settable.go                      |  10 +-
+ test/typeparam/smallest.go                      |   6 +-
+ test/typeparam/stringable.go                    |   8 +-
+ test/typeparam/stringerimp.dir/a.go             |  16 ++
+ test/typeparam/stringerimp.dir/main.go          |  38 +++++
+ test/typeparam/stringerimp.go                   |   7 +
+ test/typeparam/struct.go                        |  34 ++---
+ test/typeparam/sum.go                           |  16 +-
+ test/typeparam/valimp.dir/a.go                  |  32 ++++
+ test/typeparam/valimp.dir/main.go               |  56 +++++++
+ test/typeparam/valimp.go                        |   7 +
+ 39 files changed, 816 insertions(+), 158 deletions(-)

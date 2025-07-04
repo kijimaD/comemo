@@ -1,15 +1,18 @@
-commit e5437ab0652865c9314c8fbf643743dd6415568f
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jul 26 00:49:32 2011 -0400
+commit 55dfdb64abe97a838cef38442182ae95199a5714
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 26 00:30:39 2011 -0400
 
-    runtime: fix freebsd build
+    build: remove rm dreg
     
-    Fixes #2078.
+    Undo CL 4254056 now that enough time has elapsed
+    that people with old trees have all built and removed
+    those files (which are no longer generated in that location).
     
-    R=rsc
+    Fixes #1581.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4800052
+    https://golang.org/cl/4802059
 
- src/pkg/runtime/freebsd/386/signal.c   | 2 ++
- src/pkg/runtime/freebsd/amd64/signal.c | 2 ++
- 2 files changed, 4 insertions(+)
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

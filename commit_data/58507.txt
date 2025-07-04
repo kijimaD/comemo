@@ -1,25 +1,18 @@
-commit 7bb192a1c56e2961b3eeffb8250615e395c903d4
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Jan 10 11:49:07 2025 -0800
+commit 2f5bd4e4f2399091993774d015e3be0ba65dc866
+Author: David Chase <drchase@google.com>
+Date:   Wed Nov 15 14:31:30 2023 -0500
 
-    encoding/json: always check resulting Go value for unmarshaling
+    cmd/compile: extend profiling-per-package-into-directory to other profiling flags
     
-    Even if an error occurs during unmarshal, check the resulting Go value.
-    The documented API specifies no guarantees on how much of a Go value
-    will be populated when an error occurs and the "json" package
-    is technically not bounded by the Go compatibility agreement
-    to ensure this behavior never changes.
+    Also allow specification of "directory" with a trailing
+    path separator on the name.  Updated suffix ".mprof" to ".memprof",
+    others are similarly disambiguated.
     
-    However, there is still value in running checks for
-    what exactly what is partially mutated in the event of an error
-    even if this is not guaranteed behavior.
-    
-    Change-Id: I6e923a31f77768a14c4adfb0d37dbeee5807a4a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642275
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I2f3f44a436893730dbfe70b6815dff1e74885404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542715
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/json/decode_test.go | 75 ++++++++++++++++++++++++++++++++++++----
- 1 file changed, 68 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/util.go | 31 ++++++++++++++++++++++++++-----
+ 1 file changed, 26 insertions(+), 5 deletions(-)

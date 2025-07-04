@@ -1,16 +1,12 @@
-commit 2f39a33b6a34cbc71ded902053cbd10447b073dc
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Aug 3 09:31:45 2012 +1000
+commit 37d7500f8df7050332817244dc7869d4dc0cd65d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 2 16:24:09 2012 -0700
 
-    exp/html: in parse tests, discard only one trailing newline
+    exp/types: set non-embedded method type during GcImport.
     
-    Pass 2 additional tests.
-    
-    R=nigeltao
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/6454090
+    https://golang.org/cl/6445068
 
- src/pkg/exp/html/parse_test.go            | 5 ++++-
- src/pkg/exp/html/testlogs/tests16.dat.log | 2 +-
- src/pkg/exp/html/testlogs/tests26.dat.log | 2 +-
- 3 files changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/exp/types/gcimporter.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

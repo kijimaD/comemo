@@ -1,47 +1,41 @@
-commit 167e381f405d36f71ef152e45bb845b866592c80
+commit 3572c6418b5032fbd7e888e14fd9ad5afac85dfc
 Author: Keith Randall <khr@golang.org>
-Date:   Wed Sep 14 10:01:05 2016 -0700
+Date:   Thu Apr 21 19:28:28 2016 -0700
 
-    cmd/compile: make ssa compilation unconditional
+    cmd/compile: keep pointer input arguments live throughout function
     
-    Rip out the code that allows SSA to be used conditionally.
+    Introduce a KeepAlive op which makes sure that its argument is kept
+    live until the KeepAlive.  Use KeepAlive to mark pointer input
+    arguments as live after each function call and at each return.
     
-    No longer exists:
-     ssa=0 flag
-     GOSSAHASH
-     GOSSAPKG
-     SSATEST
+    We do this change only for pointer arguments.  Those are the
+    critical ones to handle because they might have finalizers.
+    Doing compound arguments (slices, structs, ...) is more complicated
+    because we would need to track field liveness individually (we do
+    that for auto variables now, but inputs requires extra trickery).
     
-    GOSSAFUNC now only controls the printing of the IR/html.
+    Turn off the automatic marking of args as live.  That way, when args
+    are explicitly nulled, plive will know that the original argument is
+    dead.
     
-    Still need to rip out all of the old backend.  It should no longer be
-    callable after this CL.
+    The KeepAlive op will be the eventual implementation of
+    runtime.KeepAlive.
     
-    Update #16357
+    Fixes #15277
     
-    Change-Id: Ib30cc18fba6ca52232c41689ba610b0a94aa74f5
-    Reviewed-on: https://go-review.googlesource.com/29155
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5f223e65d99c9f8342c03fbb1512c4d363e903e5
+    Reviewed-on: https://go-review.googlesource.com/22365
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go       |  10 +-
- src/cmd/compile/internal/arm/ssa.go         |   8 +-
- src/cmd/compile/internal/arm64/ssa.go       |   8 +-
- src/cmd/compile/internal/gc/main.go         |   1 -
- src/cmd/compile/internal/gc/pgen.go         |  82 +---------------
- src/cmd/compile/internal/gc/ssa.go          | 144 +++++-----------------------
- src/cmd/compile/internal/mips64/ssa.go      |   8 +-
- src/cmd/compile/internal/ppc64/ssa.go       |   4 +-
- src/cmd/compile/internal/s390x/ssa.go       |   8 +-
- src/cmd/compile/internal/ssa/block.go       |   7 +-
- src/cmd/compile/internal/ssa/config.go      |  13 +--
- src/cmd/compile/internal/ssa/decompose.go   |   4 +-
- src/cmd/compile/internal/ssa/export_test.go |   7 +-
- src/cmd/compile/internal/ssa/func.go        |   3 -
- src/cmd/compile/internal/ssa/lower.go       |   2 +-
- src/cmd/compile/internal/ssa/regalloc.go    |   4 +-
- src/cmd/compile/internal/ssa/value.go       |   3 -
- src/cmd/compile/internal/x86/ssa.go         |   8 +-
- 18 files changed, 68 insertions(+), 256 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          | 12 +++++++++
+ src/cmd/compile/internal/gc/plive.go           | 21 +++------------
+ src/cmd/compile/internal/gc/ssa.go             | 30 +++++++++++++++++++--
+ src/cmd/compile/internal/gc/syntax.go          | 36 +++++++++++++++++++++----
+ src/cmd/compile/internal/gc/typecheck.go       |  8 +++---
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  9 ++++---
+ src/cmd/compile/internal/ssa/lower.go          |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  7 +++++
+ src/cmd/compile/internal/ssa/regalloc.go       | 17 ++++++++++++
+ test/fixedbugs/issue15277.go                   | 37 ++++++++++++++++++++++++++
+ 10 files changed, 145 insertions(+), 34 deletions(-)

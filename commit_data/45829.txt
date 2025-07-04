@@ -1,22 +1,20 @@
-commit b0355a3e72df384c82a688524c603a97c1d8e7a7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 10 15:14:01 2021 -0400
+commit d902791b509b641683d4ec58b282180c56918aec
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Nov 21 15:53:18 2020 +0100
 
-    time: fix receiver for Time.IsDST method
+    sync: use 386 instead of x86-32 to refer to the 32 bit x86 architecture
     
-    Only methods that modify the time take pointer receivers;
-    IsDST does not modify it and therefore should not.
+    This aligns the naming with GOARCH using 386 as a build target for
+    this architecture and makes it more easily found when searching
+    for documentation related to the build target.
     
-    For #42102 and #46688.
-    
-    Change-Id: I4721ef7f4d7572236ae6e4d99a459b9ffb11999e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326789
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I393bb89dd2f71e568124107b13e1b288fbd0c76a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271988
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/go1.17.txt   | 2 +-
- src/time/time.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/sync/atomic/doc.go | 11 +++++------
+ src/sync/once.go       |  2 +-
+ 2 files changed, 6 insertions(+), 7 deletions(-)

@@ -1,19 +1,21 @@
-commit e2d5e54e504117e3f141b6c2ab52389aa04fdb79
-Author: Kaviraj <kavirajkanagaraj@gmail.com>
-Date:   Wed Nov 23 19:03:46 2016 +0530
+commit 79db1625b929b8dad46c1537175b9412fd020851
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 19:09:36 2016 -0700
 
-    net: document that Header.Get key is case insensitive
+    cmd/compile: eliminate stkdelta
     
-    Document that key in Header.Get(key) is case insensitive in
-    http.Header, mail.Header, textproto.Header.
+    At this point in the compiler we haven't assigned Xoffset values for
+    PAUTO variables anyway, so just immediately store the stack offsets
+    into Xoffset rather than into a global map.
     
-    Fixes #18019
-    
-    Change-Id: Iba7932491e02e555190b6fce053088b580a853ef
-    Reviewed-on: https://go-review.googlesource.com/33530
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I61eb471c857c8b145fd0895cbd98fd4e8d3c3365
+    Reviewed-on: https://go-review.googlesource.com/30081
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/header.go      | 6 ++++--
- src/net/mail/message.go     | 4 ++++
- src/net/textproto/header.go | 4 +++-
- 3 files changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go   |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go |  4 ++--
+ src/cmd/compile/internal/gc/pgen.go  | 16 +---------------
+ src/cmd/compile/internal/gc/ssa.go   |  3 ++-
+ 4 files changed, 6 insertions(+), 19 deletions(-)

@@ -1,24 +1,17 @@
-commit 79e3ee52f48411eb7c4edfe3daa55e2ecf7a6c61
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Mar 10 10:06:11 2021 +0100
+commit cf9b4f63a57b4360be700831781885fc6cf5a0b1
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 5 03:15:58 2020 +1000
 
-    internal/syscall/unix: unify GetRandom implementation
+    runtime: use riscv64 RDTIME instruction
     
-    The implementation of GetRandom for Linux, FreeBSD and DragonflyBSD can
-    be shared.
+    Use the actual RDTIME instruction, rather than a WORD.
+    Generated code is the same.
     
-    Also remove GRND_INSECURE on DragonflyBSD as pointed out by Ian in the
-    review of CL 269999.
-    
-    Change-Id: I5bf4c1bd51ddb2ad600652a57e0bc1bafa1cf40d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299133
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6f6f5a1836eae2d05af34d4a22db2ede4fdcb458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231997
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/syscall/unix/getrandom.go           | 40 ++++++++++++++++++++++++
- src/internal/syscall/unix/getrandom_dragonfly.go | 37 +---------------------
- src/internal/syscall/unix/getrandom_freebsd.go   | 34 +-------------------
- src/internal/syscall/unix/getrandom_linux.go     | 33 -------------------
- 4 files changed, 42 insertions(+), 102 deletions(-)
+ src/runtime/asm_riscv64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

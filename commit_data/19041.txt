@@ -1,16 +1,16 @@
-commit 375b7bb76786ad61711771c7703f4c71b4489987
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Apr 4 12:58:19 2014 -0700
+commit 3072df5c1d04e44dbe388e966801a3913c53a720
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Apr 4 16:46:23 2014 +0200
 
-    cmd/gc: compute size of keys & values before making map bucket
+    cmd/gc: check duplicate keys in maps with interface{} key type
     
-    Fixes #7547
+    Fixes #7214
     
-    LGTM=iant
-    R=iant, khr
-    CC=golang-codereviews
-    https://golang.org/cl/84470046
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews, minux.ma
+    https://golang.org/cl/82080044
 
- src/cmd/gc/reflect.c        |  2 ++
- test/fixedbugs/issue7547.go | 17 +++++++++++++++++
- 2 files changed, 19 insertions(+)
+ src/cmd/gc/typecheck.c      | 27 +++++++++++++++++++++------
+ test/fixedbugs/issue7214.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 6 deletions(-)

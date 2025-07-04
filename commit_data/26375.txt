@@ -1,25 +1,23 @@
-commit 89cda2db007c8389ba39d292c6372ff0c6a7622f
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Jan 29 16:55:35 2016 +0100
+commit 8534429181ea99c86a5ccefee508f573ae6d4ba2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 21:34:13 2016 -0500
 
-    testing: hoisted chunks of code to prepare for Run method
+    cmd/go, go/build: ignore vendor directories with no Go source files
     
-    testing.go:
-    - run method will evolve into the Run method.
-    - added level field in common
+    Otherwise it is impossible to vendor a/b/c without hiding the real a/b.
+    I also updated golang.org/s/go15vendor.
     
-    benchmark.go:
-    - benchContext will be central to distinguish handling of benchmarks
-      between normal Run methods and ones called from within Benchmark
-      function.
-    - expandCPU will evolve into the processing hook for Run methods
-      called within normal processing.
-    - runBench will evolve into the Run method.
+    Fixes #13832.
     
-    Change-Id: I1816f9985d5ba94deb0ad062302ea9aee0bb5338
-    Reviewed-on: https://go-review.googlesource.com/18894
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iee3d53c11ea870721803f6e8e67845b405686e79
+    Reviewed-on: https://go-review.googlesource.com/18644
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/testing/benchmark.go | 99 +++++++++++++++++++++++++++++++-----------------
- src/testing/testing.go   | 59 +++++++++++++++++------------
- 2 files changed, 100 insertions(+), 58 deletions(-)
+ src/cmd/go/pkg.go                                      | 16 +++++++++++++++-
+ src/cmd/go/testdata/src/vend/dir1/dir1.go              |  1 +
+ .../go/testdata/src/vend/vendor/vend/dir1/dir2/dir2.go |  1 +
+ src/cmd/go/testdata/src/vend/x/x.go                    |  2 ++
+ src/cmd/go/vendor_test.go                              | 12 +++++++++++-
+ src/go/build/build.go                                  | 16 +++++++++++++++-
+ src/go/build/build_test.go                             | 18 ++++++++++++++++++
+ 7 files changed, 63 insertions(+), 3 deletions(-)

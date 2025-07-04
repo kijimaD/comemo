@@ -1,14 +1,12 @@
-commit 905f29655230cac74f0b91bd1f1de112451e61f3
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 6 21:29:35 2013 +0400
+commit 7583c14be7a4d3c2289c536148bc65957c41f3fc
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Tue Aug 6 07:57:51 2013 -0700
 
-    net: test that Read/Write do 0 allocations
-    It turned out that change 12413043 did not break
-    any builders. So let's lock this in.
+    misc/notepadplus: simplify Function List regex
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12545043
+    https://golang.org/cl/12508043
 
- src/pkg/net/tcp_test.go | 125 +++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 124 insertions(+), 1 deletion(-)
+ misc/notepadplus/functionList.xml | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

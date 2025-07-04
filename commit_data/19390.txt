@@ -1,16 +1,13 @@
-commit d54b67df0cc2f9cfa7785919e20d152305bd72e8
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 19 09:36:47 2014 -0400
+commit d021d982daa3f12701722bcb5420675fd2295d6a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 19 10:04:34 2014 +1000
 
-    reflect: test, fix access to nil maps
+    C: add Burcu Dogan (Google CLA)
     
-    Fixes #8010.
-    
-    LGTM=bradfitz, khr
-    R=khr, bradfitz, dvyukov
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/91450048
+    https://golang.org/cl/94610043
 
- src/pkg/reflect/all_test.go | 22 ++++++++++++++++++++++
- src/pkg/runtime/hashmap.goc | 12 ++++++++----
- 2 files changed, 30 insertions(+), 4 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

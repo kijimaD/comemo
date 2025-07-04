@@ -1,16 +1,21 @@
-commit 4bfc81a727ddd2090e87e6b2c805684de924c22b
-Author: limeidan <limeidan@loongson.cn>
-Date:   Sat Jul 6 17:19:06 2024 +0800
+commit 882a356ec020919b733bf66d6bcb775fe7a92bad
+Author: korzhao <korzhao95@gmail.com>
+Date:   Tue Aug 22 14:22:53 2023 +0800
 
-    cmd/compile/internal/ssa: optimize ANDconst rule of loong64
+    time: make time.Until a few nanoseconds faster
     
-    Change-Id: I0e88f885ff17b4932c2f448dc3c577c0329a6658
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620976
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This is similar to CL 518336.
+    
+    For #61765.
+    
+    Change-Id: I7c1d92a3b3e2b6c1c0058a2094997d93082ad139
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  2 ++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 13 +++++++++++++
- 2 files changed, 15 insertions(+)
+ src/time/time.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

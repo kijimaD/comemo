@@ -1,22 +1,18 @@
-commit 7e8e9abe0a9ef49dfcba0ec5e18232327d581fe9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 23 08:51:38 2016 -0700
+commit 26397f1383ff02770a62160891e9de349aa1fb92
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 22:13:01 2016 -0500
 
-    cmd/compile: reduce stutter
+    runtime: fix upper bound on out-of-memory print
     
-    This is follow-up 1 of 3 to CL 20959.
+    It's possible for arena_start+MaxArena32 to wrap.
+    We do the right thing in the bounds check but not in the print.
     
-    Passes toolstash -cmp.
+    For #13992 (to fix the print there, not the bug).
     
-    Change-Id: I9bddf7d88333fa4755e03ff8a034a35bd01b7855
-    Reviewed-on: https://go-review.googlesource.com/21052
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4df845d0c03f0f35461b128e4f6765d3ccb71c6d
+    Reviewed-on: https://go-review.googlesource.com/18975
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/closure.go |  8 ++------
- src/cmd/compile/internal/gc/const.go   | 10 +++-------
- src/cmd/compile/internal/gc/esc.go     |  3 +--
- src/cmd/compile/internal/gc/export.go  |  3 +--
- src/cmd/compile/internal/gc/inl.go     |  6 ++----
- 5 files changed, 9 insertions(+), 21 deletions(-)
+ src/runtime/malloc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

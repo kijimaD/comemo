@@ -1,29 +1,26 @@
-commit 277acca286e47fd704aae10d030c74927ba2a8d2
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 15 16:13:14 2015 -0400
+commit 3f91a017f8f67cb9a744cf5d0a8b5db34a95808d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 21 12:47:11 2015 -0700
 
-    runtime: hold worldsema while starting the world
+    go/exact: future-proof API: permit setting precision limit
     
-    Currently, startTheWorld releases worldsema before starting the
-    world. Since startTheWorld can change gomaxprocs after allowing Ps to
-    run, this means that gomaxprocs can change while another P holds
-    worldsema.
+    Added a prec parameter to MakeFromLiteral (which currently must
+    always be 0). This will permit go/types to provide an upper limit
+    for the precision of constant values, eventually. Overflows can be
+    returned with a special Overflow value (very much like the current
+    Unknown values).
     
-    Unfortunately, the garbage collector and forEachP assume that holding
-    worldsema protects against changes in gomaxprocs (which it *almost*
-    does). In particular, this is causing somewhat frequent "P did not run
-    fn" crashes in forEachP in the runtime tests because gomaxprocs is
-    changing between the several loops that forEachP does over all the Ps.
+    This is a minimal change that should prevent the need for future
+    backward-incompatible API changes.
     
-    Fix this by only releasing worldsema after the world is started.
-    
-    This relates to issue #10618. forEachP still fails under stress
-    testing, but much less frequently.
-    
-    Change-Id: I085d627b70cca9ebe9af28fe73b9872f1bb224ff
-    Reviewed-on: https://go-review.googlesource.com/10156
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6c9390d7cc4810375e26c53ed3bde5a383392330
+    Reviewed-on: https://go-review.googlesource.com/9168
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go   | 3 +--
- src/runtime/proc1.go | 9 ++++++---
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/go/exact/exact.go                    | 25 +++++++++++++++----------
+ src/go/exact/exact_test.go               |  6 +++---
+ src/go/internal/gcimporter/gcimporter.go |  6 +++---
+ src/go/types/expr.go                     |  6 +++---
+ src/go/types/operand.go                  |  2 +-
+ 5 files changed, 25 insertions(+), 20 deletions(-)

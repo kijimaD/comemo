@@ -1,16 +1,13 @@
-commit e9ec8e7a2693b322287a96100750c6f00cf574ef
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 18 19:40:31 2014 -0400
+commit 2302b21bbeef1c0bca8fff62c2d34cd301ce38a0
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Sep 10 06:25:05 2014 -0700
 
-    bytes, strings: document that FieldsFunc f must not be stateful
+    runtime: stop plan9/amd64 build from crashing
     
-    Fixes #8738.
-    
-    LGTM=adg
-    R=golang-codereviews, adg
+    LGTM=iant
+    R=rsc, 0intro, alex.brainman, iant
     CC=golang-codereviews
-    https://golang.org/cl/143260045
+    https://golang.org/cl/140460044
 
- src/bytes/bytes.go     | 2 ++
- src/strings/strings.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/runtime/asm_amd64.s | 1 +
+ 1 file changed, 1 insertion(+)

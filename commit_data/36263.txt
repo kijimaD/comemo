@@ -1,14 +1,17 @@
-commit 469ada6ed9cbf921a268f867d3fde0f311532ff5
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Jul 28 16:46:22 2018 +0200
+commit 0b9c1ad20d4d4120e30f05129987f44de57032be
+Author: Keegan Carruthers-Smith <keegan.csmith@gmail.com>
+Date:   Sun Apr 15 22:22:13 2018 +0100
 
-    runtime: go fmt runtime2.go
+    context: avoid defer in the cancelCtx.Err method
     
-    Change-Id: I29a6125c9ef285fc365c4e11ab158b79224ae333
-    Reviewed-on: https://go-review.googlesource.com/126602
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    name                  old time/op  new time/op  delta
+    CheckCanceled/Err-4   53.5ns ± 2%  20.8ns ± 0%  -61.05%  (p=0.008 n=5+5)
+    CheckCanceled/Done-4  44.4ns ± 1%  44.5ns ± 0%     ~     (p=0.889 n=5+5)
+    
+    Change-Id: I2c68700a2b33f8feb3d307ce7c966590a3e960af
+    Reviewed-on: https://go-review.googlesource.com/107137
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime2.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/context/benchmark_test.go | 18 ++++++++++++++++++
+ src/context/context.go        |  5 +++--
+ 2 files changed, 21 insertions(+), 2 deletions(-)

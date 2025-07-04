@@ -1,14 +1,12 @@
-commit a7b83f2287bc650e8479445bbe5008e9ccec12ba
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 11 00:04:37 2012 -0500
+commit f842dc160bb48d2bd9c06f704f71cd10f4ea68c2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 11 13:23:44 2012 +0900
 
-    5g: fix out of registers bug
+    cmd/dist: clear execute bit from source file
     
-    Same fix as 6g, tripped by the 6g test case.
-    
-    R=ken2
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5651074
+    https://golang.org/cl/5651072
 
- src/cmd/5g/cgen.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/buf.c | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

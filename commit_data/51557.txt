@@ -1,16 +1,18 @@
-commit 5c682f94c6b465f75b3e638ecff77adaf87aabb2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 13 17:41:19 2022 -0800
+commit 8521d1ea346212bcdabe15b4e157b3a2f2ca95f4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Feb 11 19:31:30 2022 +0000
 
-    spec: document illegal recursive type parameter lists
+    [dev.boringcrypto] misc/boring: use go install cmd@latest for installing command
     
-    Fixes #40882.
+    "go get cmd" is deprecated.
     
-    Change-Id: I90f99d75e6d66f857b6ab8789c6d436f85d20993
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457515
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I2242764c79b5e4c3ff94e5323d6504b596bdc9e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385197
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go_spec.html | 19 +++++++++++++++----
- 1 file changed, 15 insertions(+), 4 deletions(-)
+ misc/boring/build.release | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

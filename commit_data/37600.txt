@@ -1,23 +1,16 @@
-commit 9536c5fa69d619395015fcd526a979e17320b4b1
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Mon Aug 6 18:38:38 2018 -0400
+commit 083938df14c0602a44d055bd3f4427980cf51c27
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 10 10:33:05 2018 -0400
 
-    crypto/x509: re-enable TestSystemRoots
+    runtime: use gList for injectglist
     
-    Now that the cgo and no-cgo paths should be correct and equivalent,
-    re-enable the TestSystemRoots test without any margin of error (which
-    was tripping anyway when users had too many of a certain edge-case).
-    
-    As a last quirk, the verify-cert invocation will validate certificates
-    that aren't roots, but are signed by valid roots. Ignore them.
-    
-    Fixes #24652
-    
-    Change-Id: I6a8ff3c2282136d7122a4e7e387eb8014da0d28a
-    Reviewed-on: https://go-review.googlesource.com/c/128117
+    Change-Id: Id5af75eaaf41f43bc6baa6d3fe2b852a2f93bb6f
+    Reviewed-on: https://go-review.googlesource.com/129400
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/crypto/x509/root_darwin_test.go | 108 ++++++++++++++++++++++++------------
- 1 file changed, 74 insertions(+), 34 deletions(-)
+ src/runtime/mgc.go     |  3 +--
+ src/runtime/mgcmark.go |  3 ++-
+ src/runtime/proc.go    | 31 ++++++++++++++++---------------
+ 3 files changed, 19 insertions(+), 18 deletions(-)

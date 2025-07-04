@@ -1,13 +1,21 @@
-commit 4f193cdc5d828a246d6a8cab3c34e8c5b89d6f08
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 8 19:46:33 2014 -0700
+commit b3a33a654d2f640f3b6c7856ea742c23f6c49d1c
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Tue Apr 8 22:35:29 2014 -0400
 
-    doc: add a couple net/http go1.3 items
+    cmd/go: allow use of Context in 'go list -f'
     
-    LGTM=r
-    R=r
+    Add a $Context variable to the template so that the build.Context values
+    such as BuildTags can be accessed.
+    
+    Fixes #6666.
+    
+    LGTM=adg, rsc
+    R=golang-codereviews, gobot, adg, rsc
     CC=golang-codereviews
-    https://golang.org/cl/85760043
+    https://golang.org/cl/72770043
 
- doc/go1.3.html | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/go/context.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/cmd/go/doc.go     | 23 +++++++++++++++++++++--
+ src/cmd/go/list.go    | 36 +++++++++++++++++++++++++++++++++---
+ src/cmd/go/test.bash  |  6 ++++++
+ 4 files changed, 96 insertions(+), 5 deletions(-)

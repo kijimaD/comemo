@@ -1,23 +1,18 @@
-commit 3452d80da3cf4f08da0f5905b1aa19cec475936e
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 24 08:38:56 2025 -0700
+commit e0ba596c15dd82aad021c0c812fda6ca14ce118a
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Mar 7 01:57:07 2024 +0000
 
-    cmd/compile: add cast in range loop final value computation
+    cmd/link: replace bytes.Compare call with bytes.Equal
     
-    When replacing a loop where the iteration variable has a named type,
-    we need to compute the last iteration value as i = T(len(a)-1), not
-    just i = len(a)-1.
-    
-    Fixes #73491
-    
-    Change-Id: Ic1cc3bdf8571a40c10060f929a9db8a888de2b70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667815
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Icc254cad3c861fd2b33228aa4d19424ce57a1b55
+    GitHub-Last-Rev: f557a696e4a5c632c49c7cd20745eeb771708f81
+    GitHub-Pull-Request: golang/go#66153
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569695
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/walk/range.go |  2 +-
- test/fixedbugs/issue73491.go           | 25 +++++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,286 +1,46 @@
-commit c3935c08d27d3f04a4e211b506f9c7b05a613132
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Oct 31 15:49:21 2017 -0500
+commit 58d7231b2f503f70955fb050f02ea8a0277db0fa
+Author: Jed Denlea <jed@fastly.com>
+Date:   Wed Oct 4 17:32:44 2017 -0700
 
-    math/big: speed-up addMulVVW on amd64
+    image/gif: make blockReader a ByteReader, harden tests
     
-    Use MULX/ADOX/ADCX instructions to speed-up addMulVVW,
-    when they are available. addMulVVW is a hotspot in rsa.
-    This is faster than ADD/ADC/IMUL version, because ADOX/ADCX only
-    modify carry/overflow flag, so they can be interleaved with each other
-    and with MULX, which doesn't modify flags at all.
-    Increasing unroll factor to e. g. 16 makes rsa 1% faster, but 3PrimeRSA2048Decrypt
-    performance falls back to baseline.
+    golang.org/cl/37258 was committed to fix issue #16146.
     
-    Updates #20058
+    This patch seemed intent to allow at most one dangling byte.  But, as
+    implemented, many more bytes may actually slip through.  This is because
+    the LZW layer creates a bufio.Reader which will itself consume data
+    beyond the end of the LZW stream, and this isn't accounted for anywhere.
     
-    AddMulVVW/1-8                       3.28ns ± 2%     3.26ns ± 3%     ~     (p=0.107 n=10+10)
-    AddMulVVW/2-8                       4.26ns ± 2%     4.24ns ± 3%     ~     (p=0.327 n=9+9)
-    AddMulVVW/3-8                       5.07ns ± 2%     5.26ns ± 2%   +3.73%  (p=0.000 n=10+10)
-    AddMulVVW/4-8                       6.40ns ± 2%     6.50ns ± 2%   +1.61%  (p=0.000 n=10+10)
-    AddMulVVW/5-8                       6.77ns ± 2%     6.86ns ± 1%   +1.38%  (p=0.001 n=9+9)
-    AddMulVVW/10-8                      12.2ns ± 2%     10.6ns ± 3%  -13.65%  (p=0.000 n=10+10)
-    AddMulVVW/100-8                     79.7ns ± 2%     52.4ns ± 1%  -34.17%  (p=0.000 n=10+10)
-    AddMulVVW/1000-8                     695ns ± 1%      491ns ± 2%  -29.39%  (p=0.000 n=9+10)
-    AddMulVVW/10000-8                   7.26µs ± 2%     5.92µs ± 6%  -18.42%  (p=0.000 n=10+10)
-    AddMulVVW/100000-8                  72.6µs ± 2%     62.2µs ± 2%  -14.31%  (p=0.000 n=10+10)
+    This change means to avoid the allocation of the bufio.Reader by making
+    blockReader implement io.ByteReader.  Further, it adds a close() method
+    which detects extra data in the block sequence.  To avoid any
+    regressions with poorly encoded GIFs which may have worked accidentally,
+    there are no restrictions on how many extra bytes may exist in the final
+    full sub-block that contained LZW data.  If the end of the LZW stream
+    happened to align with the end of a sub-block, at most one more
+    sub-block with a length of 1 byte may exist before the block terminator.
     
-    crypto/rsa speed-up is smaller, but stil noticeable:
+    This change aims to be at least as performant as the prior
+    implementation.  But the primary gain is avoiding the allocation of a
+    bufio.Reader per frame:
     
-    RSA2048Decrypt-8        1.61ms ± 1%  1.38ms ± 1%  -14.13%  (p=0.000 n=10+10)
-    RSA2048Sign-8           1.93ms ± 1%  1.70ms ± 1%  -11.86%  (p=0.000 n=10+10)
-    3PrimeRSA2048Decrypt-8   932µs ± 0%   828µs ± 0%  -11.15%  (p=0.000 n=10+10)
+    name      old time/op    new time/op    delta
+    Decode-8     276µs ± 0%     275µs ± 2%    ~     (p=0.690 n=5+5)
     
-    Results on crypto/tls:
+    name      old speed      new speed      delta
+    Decode-8  55.9MB/s ± 0%  56.3MB/s ± 2%    ~     (p=0.690 n=5+5)
     
-    HandshakeServer/RSA-8                        901µs ± 1%    777µs ± 0%  -13.70%  (p=0.000 n=10+8)
-    HandshakeServer/ECDHE-P256-RSA-8            1.01ms ± 1%   0.90ms ± 0%  -11.53%  (p=0.000 n=10+9)
+    name      old alloc/op   new alloc/op   delta
+    Decode-8    49.2kB ± 0%    44.8kB ± 0%  -9.10%  (p=0.008 n=5+5)
     
-    Full math/big benchmarks:
+    name      old allocs/op  new allocs/op  delta
+    Decode-8       269 ± 0%       267 ± 0%  -0.74%  (p=0.008 n=5+5)
     
-    name                              old time/op    new time/op     delta
-    AddVV/1-8                           3.74ns ± 6%     3.55ns ± 2%     ~     (p=0.082 n=10+8)
-    AddVV/2-8                           3.96ns ± 2%     3.98ns ± 5%     ~     (p=0.794 n=10+9)
-    AddVV/3-8                           4.97ns ± 2%     4.94ns ± 1%     ~     (p=0.081 n=10+9)
-    AddVV/4-8                           5.59ns ± 2%     5.59ns ± 2%     ~     (p=0.809 n=10+10)
-    AddVV/5-8                           6.63ns ± 1%     6.62ns ± 1%     ~     (p=0.560 n=9+10)
-    AddVV/10-8                          8.11ns ± 1%     8.11ns ± 2%     ~     (p=0.402 n=10+10)
-    AddVV/100-8                         46.9ns ± 2%     46.8ns ± 1%     ~     (p=0.809 n=10+10)
-    AddVV/1000-8                         389ns ± 1%      391ns ± 4%     ~     (p=0.809 n=10+10)
-    AddVV/10000-8                       5.05µs ± 5%     4.98µs ± 2%     ~     (p=0.113 n=9+10)
-    AddVV/100000-8                      55.3µs ± 3%     55.2µs ± 3%     ~     (p=0.796 n=10+10)
-    AddVW/1-8                           3.04ns ± 3%     3.02ns ± 3%     ~     (p=0.538 n=10+10)
-    AddVW/2-8                           3.57ns ± 2%     3.61ns ± 2%   +1.12%  (p=0.032 n=9+9)
-    AddVW/3-8                           3.77ns ± 1%     3.79ns ± 2%     ~     (p=0.719 n=10+10)
-    AddVW/4-8                           4.69ns ± 1%     4.69ns ± 2%     ~     (p=0.920 n=10+9)
-    AddVW/5-8                           4.58ns ± 1%     4.58ns ± 1%     ~     (p=0.812 n=10+10)
-    AddVW/10-8                          7.62ns ± 2%     7.63ns ± 1%     ~     (p=0.926 n=10+10)
-    AddVW/100-8                         41.1ns ± 2%     42.4ns ± 3%   +3.34%  (p=0.000 n=10+10)
-    AddVW/1000-8                         386ns ± 2%      389ns ± 4%     ~     (p=0.514 n=10+10)
-    AddVW/10000-8                       3.88µs ± 3%     3.87µs ± 3%     ~     (p=0.448 n=10+10)
-    AddVW/100000-8                      41.2µs ± 3%     41.7µs ± 3%     ~     (p=0.148 n=10+10)
-    AddMulVVW/1-8                       3.28ns ± 2%     3.26ns ± 3%     ~     (p=0.107 n=10+10)
-    AddMulVVW/2-8                       4.26ns ± 2%     4.24ns ± 3%     ~     (p=0.327 n=9+9)
-    AddMulVVW/3-8                       5.07ns ± 2%     5.26ns ± 2%   +3.73%  (p=0.000 n=10+10)
-    AddMulVVW/4-8                       6.40ns ± 2%     6.50ns ± 2%   +1.61%  (p=0.000 n=10+10)
-    AddMulVVW/5-8                       6.77ns ± 2%     6.86ns ± 1%   +1.38%  (p=0.001 n=9+9)
-    AddMulVVW/10-8                      12.2ns ± 2%     10.6ns ± 3%  -13.65%  (p=0.000 n=10+10)
-    AddMulVVW/100-8                     79.7ns ± 2%     52.4ns ± 1%  -34.17%  (p=0.000 n=10+10)
-    AddMulVVW/1000-8                     695ns ± 1%      491ns ± 2%  -29.39%  (p=0.000 n=9+10)
-    AddMulVVW/10000-8                   7.26µs ± 2%     5.92µs ± 6%  -18.42%  (p=0.000 n=10+10)
-    AddMulVVW/100000-8                  72.6µs ± 2%     62.2µs ± 2%  -14.31%  (p=0.000 n=10+10)
-    DecimalConversion-8                  108µs ±19%      104µs ± 4%     ~     (p=0.460 n=10+8)
-    FloatString/100-8                    926ns ±14%      908ns ± 5%     ~     (p=0.398 n=9+9)
-    FloatString/1000-8                  25.7µs ± 1%     25.7µs ± 1%     ~     (p=0.739 n=10+10)
-    FloatString/10000-8                 2.13ms ± 1%     2.12ms ± 1%     ~     (p=0.353 n=10+10)
-    FloatString/100000-8                 207ms ± 1%      206ms ± 2%     ~     (p=0.912 n=10+10)
-    FloatAdd/10-8                       61.3ns ± 3%     61.9ns ± 3%     ~     (p=0.183 n=10+10)
-    FloatAdd/100-8                      62.0ns ± 2%     62.9ns ± 4%     ~     (p=0.118 n=10+10)
-    FloatAdd/1000-8                     84.7ns ± 2%     84.4ns ± 1%     ~     (p=0.591 n=10+10)
-    FloatAdd/10000-8                     305ns ± 2%      306ns ± 1%     ~     (p=0.443 n=10+10)
-    FloatAdd/100000-8                   2.45µs ± 1%     2.46µs ± 1%     ~     (p=0.782 n=10+10)
-    FloatSub/10-8                       56.8ns ± 4%     56.5ns ± 5%     ~     (p=0.423 n=10+10)
-    FloatSub/100-8                      57.3ns ± 4%     57.1ns ± 5%     ~     (p=0.540 n=10+10)
-    FloatSub/1000-8                     66.8ns ± 4%     66.6ns ± 1%     ~     (p=0.868 n=10+10)
-    FloatSub/10000-8                     199ns ± 1%      198ns ± 1%     ~     (p=0.287 n=10+9)
-    FloatSub/100000-8                   1.47µs ± 2%     1.47µs ± 2%     ~     (p=0.920 n=10+9)
-    ParseFloatSmallExp-8                8.74µs ±10%     9.48µs ±10%   +8.51%  (p=0.010 n=9+10)
-    ParseFloatLargeExp-8                39.2µs ±25%     39.6µs ±12%     ~     (p=0.529 n=10+10)
-    GCD10x10/WithoutXY-8                 173ns ±23%      177ns ±20%     ~     (p=0.698 n=10+10)
-    GCD10x10/WithXY-8                    736ns ±12%      728ns ±16%     ~     (p=0.838 n=10+10)
-    GCD10x100/WithoutXY-8                325ns ±16%      326ns ±14%     ~     (p=0.912 n=10+10)
-    GCD10x100/WithXY-8                  1.14µs ±13%     1.16µs ± 6%     ~     (p=0.287 n=10+9)
-    GCD10x1000/WithoutXY-8               851ns ±25%      820ns ±12%     ~     (p=0.592 n=10+10)
-    GCD10x1000/WithXY-8                 2.89µs ±17%     2.85µs ± 5%     ~     (p=1.000 n=10+9)
-    GCD10x10000/WithoutXY-8             6.66µs ±12%     6.82µs ±19%     ~     (p=0.529 n=10+10)
-    GCD10x10000/WithXY-8                18.0µs ± 5%     17.2µs ±19%     ~     (p=0.315 n=7+10)
-    GCD10x100000/WithoutXY-8            77.8µs ±18%     73.3µs ±11%     ~     (p=0.315 n=10+9)
-    GCD10x100000/WithXY-8                186µs ±14%      204µs ±29%     ~     (p=0.218 n=10+10)
-    GCD100x100/WithoutXY-8              1.09µs ± 1%     1.09µs ± 2%     ~     (p=0.117 n=9+10)
-    GCD100x100/WithXY-8                 7.93µs ± 1%     7.97µs ± 1%   +0.52%  (p=0.006 n=10+10)
-    GCD100x1000/WithoutXY-8             2.00µs ± 3%     2.04µs ± 6%     ~     (p=0.053 n=9+10)
-    GCD100x1000/WithXY-8                9.23µs ± 1%     9.29µs ± 1%   +0.63%  (p=0.009 n=10+10)
-    GCD100x10000/WithoutXY-8            10.2µs ±11%      9.7µs ± 6%     ~     (p=0.278 n=10+9)
-    GCD100x10000/WithXY-8               33.3µs ± 4%     33.6µs ± 4%     ~     (p=0.481 n=10+10)
-    GCD100x100000/WithoutXY-8            106µs ±17%      105µs ±13%     ~     (p=0.853 n=10+10)
-    GCD100x100000/WithXY-8               289µs ±17%      276µs ± 8%     ~     (p=0.353 n=10+10)
-    GCD1000x1000/WithoutXY-8            12.2µs ± 1%     12.1µs ± 1%   -0.45%  (p=0.007 n=10+10)
-    GCD1000x1000/WithXY-8                131µs ± 1%      132µs ± 0%   +0.93%  (p=0.000 n=9+7)
-    GCD1000x10000/WithoutXY-8           20.6µs ± 2%     20.6µs ± 1%     ~     (p=0.326 n=10+9)
-    GCD1000x10000/WithXY-8               238µs ± 1%      237µs ± 1%     ~     (p=0.356 n=9+10)
-    GCD1000x100000/WithoutXY-8           117µs ± 8%      114µs ±11%     ~     (p=0.190 n=10+10)
-    GCD1000x100000/WithXY-8             1.51ms ± 1%     1.50ms ± 1%     ~     (p=0.053 n=9+10)
-    GCD10000x10000/WithoutXY-8           220µs ± 1%      218µs ± 1%   -0.86%  (p=0.000 n=10+10)
-    GCD10000x10000/WithXY-8             3.04ms ± 0%     3.05ms ± 0%   +0.33%  (p=0.001 n=9+10)
-    GCD10000x100000/WithoutXY-8          513µs ± 0%      511µs ± 0%   -0.38%  (p=0.000 n=10+10)
-    GCD10000x100000/WithXY-8            15.1ms ± 0%     15.0ms ± 0%     ~     (p=0.053 n=10+9)
-    GCD100000x100000/WithoutXY-8        10.4ms ± 1%     10.4ms ± 2%     ~     (p=0.258 n=9+9)
-    GCD100000x100000/WithXY-8            205ms ± 1%      205ms ± 1%     ~     (p=0.481 n=10+10)
-    Hilbert-8                           1.25ms ±15%     1.24ms ±17%     ~     (p=0.853 n=10+10)
-    Binomial-8                          3.03µs ±24%     2.90µs ±16%     ~     (p=0.481 n=10+10)
-    QuoRem-8                            1.95µs ± 1%     1.95µs ± 2%     ~     (p=0.117 n=9+10)
-    Exp-8                               5.12ms ± 2%     3.99ms ± 1%  -22.02%  (p=0.000 n=10+9)
-    Exp2-8                              5.14ms ± 2%     3.98ms ± 0%  -22.55%  (p=0.000 n=10+9)
-    Bitset-8                            16.4ns ± 2%     16.5ns ± 2%     ~     (p=0.311 n=9+10)
-    BitsetNeg-8                         46.3ns ± 4%     45.8ns ± 4%     ~     (p=0.272 n=10+10)
-    BitsetOrig-8                         250ns ±19%      247ns ±14%     ~     (p=0.671 n=10+10)
-    BitsetNegOrig-8                      416ns ±14%      429ns ±14%     ~     (p=0.353 n=10+10)
-    ModSqrt225_Tonelli-8                 400µs ± 0%      320µs ± 0%  -19.88%  (p=0.000 n=9+7)
-    ModSqrt224_3Mod4-8                   123µs ± 1%       97µs ± 0%  -21.21%  (p=0.000 n=9+10)
-    ModSqrt5430_Tonelli-8                1.87s ± 0%      1.39s ± 1%  -25.70%  (p=0.000 n=9+10)
-    ModSqrt5430_3Mod4-8                  630ms ± 2%      465ms ± 1%  -26.12%  (p=0.000 n=10+10)
-    Sqrt-8                              25.8µs ± 1%     25.9µs ± 0%   +0.66%  (p=0.002 n=10+8)
-    IntSqr/1-8                          11.3ns ± 1%     11.3ns ± 2%     ~     (p=0.360 n=9+10)
-    IntSqr/2-8                          26.6ns ± 1%     27.4ns ± 2%   +2.87%  (p=0.000 n=8+9)
-    IntSqr/3-8                          36.5ns ± 6%     36.6ns ± 5%     ~     (p=0.589 n=10+10)
-    IntSqr/5-8                          57.2ns ± 2%     57.8ns ± 1%   +0.92%  (p=0.045 n=10+9)
-    IntSqr/8-8                           112ns ± 1%       93ns ± 1%  -16.60%  (p=0.000 n=10+10)
-    IntSqr/10-8                          148ns ± 1%      129ns ± 5%  -12.85%  (p=0.000 n=10+10)
-    IntSqr/20-8                          642ns ±28%      692ns ±21%     ~     (p=0.105 n=10+10)
-    IntSqr/30-8                         1.03µs ±18%     1.06µs ±15%     ~     (p=0.422 n=10+8)
-    IntSqr/50-8                         2.33µs ±14%     2.14µs ±20%     ~     (p=0.063 n=10+10)
-    IntSqr/80-8                         4.06µs ±13%     3.72µs ±14%   -8.31%  (p=0.029 n=10+10)
-    IntSqr/100-8                        5.79µs ±10%     5.20µs ±18%  -10.15%  (p=0.004 n=10+10)
-    IntSqr/200-8                        17.1µs ± 1%     12.9µs ± 3%  -24.44%  (p=0.000 n=10+10)
-    IntSqr/300-8                        35.9µs ± 0%     26.6µs ± 1%  -25.75%  (p=0.000 n=10+10)
-    IntSqr/500-8                        84.9µs ± 0%     71.7µs ± 1%  -15.49%  (p=0.000 n=10+10)
-    IntSqr/800-8                         170µs ± 1%      142µs ± 2%  -16.73%  (p=0.000 n=10+10)
-    IntSqr/1000-8                        258µs ± 1%      218µs ± 1%  -15.65%  (p=0.000 n=10+10)
-    Mul-8                               10.4ms ± 1%      8.3ms ± 0%  -20.05%  (p=0.000 n=10+9)
-    Exp3Power/0x10-8                     311ns ±15%      321ns ±24%     ~     (p=0.447 n=10+10)
-    Exp3Power/0x40-8                     358ns ±21%      346ns ±37%     ~     (p=0.591 n=10+10)
-    Exp3Power/0x100-8                    611ns ±19%      570ns ±27%     ~     (p=0.393 n=10+10)
-    Exp3Power/0x400-8                   1.31µs ±26%     1.34µs ±19%     ~     (p=0.853 n=10+10)
-    Exp3Power/0x1000-8                  6.76µs ±23%     6.22µs ±16%     ~     (p=0.095 n=10+9)
-    Exp3Power/0x4000-8                  37.6µs ±14%     36.4µs ±21%     ~     (p=0.247 n=10+10)
-    Exp3Power/0x10000-8                  345µs ±14%      310µs ±11%   -9.99%  (p=0.005 n=10+10)
-    Exp3Power/0x40000-8                 2.77ms ± 1%     2.34ms ± 1%  -15.47%  (p=0.000 n=10+10)
-    Exp3Power/0x100000-8                25.1ms ± 1%     21.3ms ± 1%  -15.26%  (p=0.000 n=10+10)
-    Exp3Power/0x400000-8                 225ms ± 1%      190ms ± 1%  -15.61%  (p=0.000 n=10+10)
-    Fibo-8                              23.4ms ± 1%     23.3ms ± 0%     ~     (p=0.052 n=10+10)
-    NatSqr/1-8                          58.4ns ±24%     59.8ns ±38%     ~     (p=0.739 n=10+10)
-    NatSqr/2-8                           122ns ±21%      122ns ±16%     ~     (p=0.896 n=10+10)
-    NatSqr/3-8                           140ns ±28%      148ns ±30%     ~     (p=0.288 n=10+10)
-    NatSqr/5-8                           193ns ±29%      210ns ±34%     ~     (p=0.469 n=10+10)
-    NatSqr/8-8                           317ns ±21%      296ns ±25%     ~     (p=0.393 n=10+10)
-    NatSqr/10-8                          362ns ± 8%      373ns ±30%     ~     (p=0.617 n=9+10)
-    NatSqr/20-8                         1.24µs ±16%     1.06µs ±29%  -14.57%  (p=0.019 n=10+10)
-    NatSqr/30-8                         1.90µs ±32%     1.71µs ±10%     ~     (p=0.176 n=10+9)
-    NatSqr/50-8                         4.22µs ±19%     3.67µs ± 7%  -13.03%  (p=0.017 n=10+9)
-    NatSqr/80-8                         7.33µs ±20%     6.50µs ±15%  -11.26%  (p=0.009 n=10+10)
-    NatSqr/100-8                        9.84µs ±18%     9.33µs ± 8%     ~     (p=0.280 n=10+10)
-    NatSqr/200-8                        21.4µs ± 7%     20.0µs ±14%     ~     (p=0.075 n=10+10)
-    NatSqr/300-8                        38.0µs ± 2%     31.3µs ±10%  -17.63%  (p=0.000 n=10+10)
-    NatSqr/500-8                         102µs ± 5%      101µs ± 4%     ~     (p=0.780 n=9+10)
-    NatSqr/800-8                         190µs ± 3%      166µs ± 6%  -12.29%  (p=0.000 n=10+10)
-    NatSqr/1000-8                        277µs ± 2%      245µs ± 6%  -11.64%  (p=0.000 n=10+10)
-    ScanPi-8                             144µs ±23%      149µs ±24%     ~     (p=0.579 n=10+10)
-    StringPiParallel-8                  25.6µs ± 0%     25.8µs ± 0%   +0.69%  (p=0.000 n=9+10)
-    Scan/10/Base2-8                      305ns ± 1%      309ns ± 1%   +1.32%  (p=0.000 n=10+9)
-    Scan/100/Base2-8                    1.95µs ± 1%     1.98µs ± 1%   +1.10%  (p=0.000 n=10+10)
-    Scan/1000/Base2-8                   19.5µs ± 1%     19.7µs ± 1%   +1.39%  (p=0.000 n=10+10)
-    Scan/10000/Base2-8                   270µs ± 1%      272µs ± 1%   +0.58%  (p=0.024 n=9+9)
-    Scan/100000/Base2-8                 10.3ms ± 0%     10.3ms ± 0%   +0.16%  (p=0.022 n=9+10)
-    Scan/10/Base8-8                      146ns ± 4%      154ns ± 4%   +5.57%  (p=0.000 n=9+9)
-    Scan/100/Base8-8                     748ns ± 1%      759ns ± 1%   +1.51%  (p=0.000 n=9+10)
-    Scan/1000/Base8-8                   7.88µs ± 1%     8.00µs ± 1%   +1.64%  (p=0.000 n=10+10)
-    Scan/10000/Base8-8                   155µs ± 1%      155µs ± 1%     ~     (p=0.968 n=10+9)
-    Scan/100000/Base8-8                 9.11ms ± 0%     9.11ms ± 0%     ~     (p=0.604 n=9+10)
-    Scan/10/Base10-8                     140ns ± 5%      149ns ± 5%   +6.39%  (p=0.000 n=9+10)
-    Scan/100/Base10-8                    680ns ± 0%      688ns ± 1%   +1.08%  (p=0.000 n=9+10)
-    Scan/1000/Base10-8                  7.09µs ± 1%     7.16µs ± 1%   +0.98%  (p=0.019 n=10+10)
-    Scan/10000/Base10-8                  149µs ± 3%      150µs ± 3%     ~     (p=0.143 n=10+10)
-    Scan/100000/Base10-8                9.16ms ± 0%     9.16ms ± 0%     ~     (p=0.661 n=10+9)
-    Scan/10/Base16-8                     134ns ± 5%      135ns ± 3%     ~     (p=0.505 n=9+9)
-    Scan/100/Base16-8                    560ns ± 1%      563ns ± 0%   +0.67%  (p=0.000 n=10+8)
-    Scan/1000/Base16-8                  6.28µs ± 1%     6.26µs ± 1%     ~     (p=0.448 n=10+10)
-    Scan/10000/Base16-8                  161µs ± 1%      162µs ± 1%   +0.74%  (p=0.008 n=9+9)
-    Scan/100000/Base16-8                9.64ms ± 0%     9.64ms ± 0%     ~     (p=0.436 n=10+10)
-    String/10/Base2-8                    116ns ±12%      118ns ±13%     ~     (p=0.645 n=10+10)
-    String/100/Base2-8                   871ns ±23%      860ns ±22%     ~     (p=0.699 n=10+10)
-    String/1000/Base2-8                 10.0µs ±20%     10.0µs ±23%     ~     (p=0.853 n=10+10)
-    String/10000/Base2-8                 110µs ±21%      120µs ±25%     ~     (p=0.436 n=10+10)
-    String/100000/Base2-8                768µs ±11%      733µs ±16%     ~     (p=0.393 n=10+10)
-    String/10/Base8-8                   51.3ns ± 1%     51.0ns ± 3%     ~     (p=0.286 n=9+9)
-    String/100/Base8-8                   284ns ± 9%      272ns ±12%     ~     (p=0.267 n=9+10)
-    String/1000/Base8-8                 3.06µs ± 9%     3.04µs ±10%     ~     (p=0.739 n=10+10)
-    String/10000/Base8-8                36.1µs ±14%     35.1µs ± 9%     ~     (p=0.447 n=10+9)
-    String/100000/Base8-8                371µs ±12%      373µs ±16%     ~     (p=0.739 n=10+10)
-    String/10/Base10-8                   167ns ±11%      165ns ± 9%     ~     (p=0.781 n=10+10)
-    String/100/Base10-8                  727ns ± 1%      740ns ± 2%   +1.70%  (p=0.001 n=10+10)
-    String/1000/Base10-8                5.30µs ±18%     5.37µs ±14%     ~     (p=0.631 n=10+10)
-    String/10000/Base10-8               45.0µs ±14%     44.6µs ±10%     ~     (p=0.720 n=9+10)
-    String/100000/Base10-8              5.10ms ± 1%     5.05ms ± 3%     ~     (p=0.211 n=9+10)
-    String/10/Base16-8                  47.7ns ± 6%     47.7ns ± 6%     ~     (p=0.985 n=10+10)
-    String/100/Base16-8                  221ns ±10%      234ns ±27%     ~     (p=0.541 n=10+10)
-    String/1000/Base16-8                2.23µs ±11%     2.12µs ± 8%   -4.81%  (p=0.029 n=9+8)
-    String/10000/Base16-8               28.3µs ±21%     28.5µs ±14%     ~     (p=0.796 n=10+10)
-    String/100000/Base16-8               291µs ±16%      293µs ±15%     ~     (p=0.931 n=9+9)
-    LeafSize/0-8                        2.43ms ± 1%     2.49ms ± 1%   +2.56%  (p=0.000 n=10+10)
-    LeafSize/1-8                        49.7µs ± 9%     46.3µs ±16%   -6.78%  (p=0.017 n=10+9)
-    LeafSize/2-8                        48.4µs ±18%     46.3µs ±19%     ~     (p=0.436 n=10+10)
-    LeafSize/3-8                        81.7µs ± 3%     80.9µs ± 3%     ~     (p=0.278 n=10+9)
-    LeafSize/4-8                        47.0µs ± 7%     47.9µs ±13%     ~     (p=0.905 n=9+10)
-    LeafSize/5-8                        96.8µs ± 1%     97.3µs ± 2%     ~     (p=0.515 n=8+10)
-    LeafSize/6-8                        82.5µs ± 4%     80.9µs ± 2%   -1.92%  (p=0.019 n=10+10)
-    LeafSize/7-8                        67.2µs ±13%     66.6µs ± 9%     ~     (p=0.842 n=10+9)
-    LeafSize/8-8                        46.0µs ±28%     45.1µs ±12%     ~     (p=0.739 n=10+10)
-    LeafSize/9-8                         111µs ± 1%      111µs ± 1%     ~     (p=0.739 n=10+10)
-    LeafSize/10-8                       98.8µs ± 4%     97.9µs ± 3%     ~     (p=0.278 n=10+9)
-    LeafSize/11-8                       96.8µs ± 1%     96.4µs ± 1%     ~     (p=0.211 n=9+10)
-    LeafSize/12-8                       81.0µs ± 4%     81.3µs ± 3%     ~     (p=0.579 n=10+10)
-    LeafSize/13-8                       79.7µs ± 5%     79.2µs ± 3%     ~     (p=0.661 n=10+9)
-    LeafSize/14-8                       67.6µs ±12%     65.8µs ± 7%     ~     (p=0.447 n=10+9)
-    LeafSize/15-8                       63.9µs ±17%     66.3µs ±14%     ~     (p=0.481 n=10+10)
-    LeafSize/16-8                       44.0µs ±28%     46.0µs ±27%     ~     (p=0.481 n=10+10)
-    LeafSize/32-8                       46.2µs ±13%     43.5µs ±18%     ~     (p=0.156 n=9+10)
-    LeafSize/64-8                       53.3µs ±10%     53.0µs ±19%     ~     (p=0.730 n=9+9)
-    ProbablyPrime/n=0-8                 3.60ms ± 1%     3.39ms ± 1%   -5.87%  (p=0.000 n=10+9)
-    ProbablyPrime/n=1-8                 4.42ms ± 1%     4.08ms ± 1%   -7.69%  (p=0.000 n=10+10)
-    ProbablyPrime/n=5-8                 7.57ms ± 2%     6.79ms ± 1%  -10.24%  (p=0.000 n=10+10)
-    ProbablyPrime/n=10-8                11.6ms ± 2%     10.2ms ± 1%  -11.69%  (p=0.000 n=10+10)
-    ProbablyPrime/n=20-8                19.4ms ± 2%     16.9ms ± 2%  -12.89%  (p=0.000 n=10+10)
-    ProbablyPrime/Lucas-8               2.81ms ± 2%     2.72ms ± 1%   -3.22%  (p=0.000 n=10+9)
-    ProbablyPrime/MillerRabinBase2-8     797µs ± 1%      680µs ± 1%  -14.64%  (p=0.000 n=10+10)
-    
-    name                              old speed      new speed       delta
-    AddVV/1-8                         17.1GB/s ± 6%   18.0GB/s ± 2%     ~     (p=0.122 n=10+8)
-    AddVV/2-8                         32.4GB/s ± 2%   32.2GB/s ± 4%     ~     (p=0.661 n=10+9)
-    AddVV/3-8                         38.6GB/s ± 2%   38.9GB/s ± 1%     ~     (p=0.113 n=10+9)
-    AddVV/4-8                         45.8GB/s ± 2%   45.8GB/s ± 2%     ~     (p=0.796 n=10+10)
-    AddVV/5-8                         48.1GB/s ± 2%   48.3GB/s ± 1%     ~     (p=0.315 n=10+10)
-    AddVV/10-8                        78.9GB/s ± 1%   78.9GB/s ± 2%     ~     (p=0.353 n=10+10)
-    AddVV/100-8                        136GB/s ± 2%    137GB/s ± 1%     ~     (p=0.971 n=10+10)
-    AddVV/1000-8                       164GB/s ± 1%    164GB/s ± 4%     ~     (p=0.853 n=10+10)
-    AddVV/10000-8                      126GB/s ± 6%    129GB/s ± 2%     ~     (p=0.063 n=10+10)
-    AddVV/100000-8                     116GB/s ± 3%    116GB/s ± 3%     ~     (p=0.796 n=10+10)
-    AddVW/1-8                         2.64GB/s ± 3%   2.64GB/s ± 3%     ~     (p=0.579 n=10+10)
-    AddVW/2-8                         4.49GB/s ± 2%   4.44GB/s ± 2%   -1.09%  (p=0.040 n=9+9)
-    AddVW/3-8                         6.36GB/s ± 1%   6.34GB/s ± 2%     ~     (p=0.684 n=10+10)
-    AddVW/4-8                         6.83GB/s ± 1%   6.82GB/s ± 2%     ~     (p=0.905 n=10+9)
-    AddVW/5-8                         8.75GB/s ± 1%   8.73GB/s ± 1%     ~     (p=0.796 n=10+10)
-    AddVW/10-8                        10.5GB/s ± 2%   10.5GB/s ± 1%     ~     (p=0.971 n=10+10)
-    AddVW/100-8                       19.5GB/s ± 2%   18.9GB/s ± 2%   -3.22%  (p=0.000 n=10+10)
-    AddVW/1000-8                      20.7GB/s ± 2%   20.6GB/s ± 4%     ~     (p=0.631 n=10+10)
-    AddVW/10000-8                     20.6GB/s ± 3%   20.7GB/s ± 3%     ~     (p=0.481 n=10+10)
-    AddVW/100000-8                    19.4GB/s ± 2%   19.2GB/s ± 3%     ~     (p=0.165 n=10+10)
-    AddMulVVW/1-8                     19.5GB/s ± 2%   19.7GB/s ± 3%     ~     (p=0.123 n=10+10)
-    AddMulVVW/2-8                     30.1GB/s ± 2%   30.2GB/s ± 3%     ~     (p=0.297 n=9+9)
-    AddMulVVW/3-8                     37.9GB/s ± 2%   36.5GB/s ± 2%   -3.63%  (p=0.000 n=10+10)
-    AddMulVVW/4-8                     40.0GB/s ± 2%   39.4GB/s ± 2%   -1.58%  (p=0.001 n=10+10)
-    AddMulVVW/5-8                     47.3GB/s ± 2%   46.6GB/s ± 1%   -1.35%  (p=0.001 n=9+9)
-    AddMulVVW/10-8                    52.3GB/s ± 2%   60.6GB/s ± 3%  +15.76%  (p=0.000 n=10+10)
-    AddMulVVW/100-8                   80.3GB/s ± 2%  122.1GB/s ± 1%  +51.92%  (p=0.000 n=10+10)
-    AddMulVVW/1000-8                  92.0GB/s ± 1%  130.3GB/s ± 2%  +41.61%  (p=0.000 n=9+10)
-    AddMulVVW/10000-8                 88.2GB/s ± 2%  108.2GB/s ± 5%  +22.66%  (p=0.000 n=10+10)
-    AddMulVVW/100000-8                88.2GB/s ± 2%  102.9GB/s ± 2%  +16.69%  (p=0.000 n=10+10)
-    
-    Change-Id: Ic98e30c91d437d845fed03e07e976c3fdbf02b36
-    Reviewed-on: https://go-review.googlesource.com/74851
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Iec4f9b895561ad52266313fbc73ec82c070c3349
+    Reviewed-on: https://go-review.googlesource.com/68350
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/math/big/arith_amd64.go | 11 ++++++
- src/math/big/arith_amd64.s  | 93 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 104 insertions(+)
+ src/image/gif/reader.go      | 136 ++++++++++++++++++++++++++++++-------------
+ src/image/gif/reader_test.go |   7 +++
+ 2 files changed, 104 insertions(+), 39 deletions(-)

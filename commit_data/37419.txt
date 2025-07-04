@@ -1,21 +1,28 @@
-commit 8d335084cc58c8167b12ce5d1791bfc6db1355f2
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Mar 16 10:57:44 2018 -0700
+commit 154394f8d35ebd084f27132396d90309646cafcf
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Jul 29 13:15:25 2018 +0200
 
-    database/sql: add examples for opening and testing a DB pool
+    cmd/go: fix TestScript/mod_gobuild_import on Plan 9
     
-    Show two larger application examples. One example that
-    could be used in a CLI, the other in a long running
-    service. These demonstarates different strategies for
-    handling DB.Ping errors in context.
+    CL 125296 added TestScript/mod_gobuild_import. This
+    test is failing on Plan 9, because go/build invokes
+    the go tool which cannot be found in the path.
     
-    Fixes #23738
+    The "PATH" environment variable has been updated to
+    contain the path to the go tool on Unix and Windows,
+    but on Plan 9, the analogous environment variable is
+    called "path".
     
-    Change-Id: Id01213caf1f47917239a7506b01d30e37db74d31
-    Reviewed-on: https://go-review.googlesource.com/c/101216
+    This change fixes the script engine by setting
+    the "path" environment variable on Plan 9.
+    
+    Fixes #26669.
+    
+    Change-Id: If1be50e14baceccee591f4f76b7e698f5e12a2d4
+    Reviewed-on: https://go-review.googlesource.com/126608
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/example_cli_test.go     |  86 +++++++++++++++++
- src/database/sql/example_service_test.go | 158 +++++++++++++++++++++++++++++++
- src/database/sql/example_test.go         |  77 ++++++++++-----
- 3 files changed, 298 insertions(+), 23 deletions(-)
+ src/cmd/go/script_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

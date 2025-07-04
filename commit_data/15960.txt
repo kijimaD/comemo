@@ -1,25 +1,18 @@
-commit 12cf2ff00ba0a0816c1e572dae1476341f0bf3ed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 26 18:28:16 2013 -0700
+commit 5f9a9433ea5f3e933d9950994edaf45c36a92ffb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Mar 26 23:35:42 2013 +0100
 
-    godoc: pass *PageInfos instead of *token.FileSets in templates
+    cmd/gc: enable racewalk of HMUL nodes.
     
-    - convert all formatters that require a *token.FileSet to
-      consistenly use a *PageInfo as first argument instead
-    - adjust templates correspondingly
-    - fix outstanding bug from previous CL 8005044
+    A HMUL node appears in some constant divisions, but
+    to observe a false negative in race detector the divisor must be
+    suitably chosen to make sure the only memory access is
+    done for HMUL.
     
-    Going forward, with this change the affected functions have
-    access to the full page "context" (PageInfo), not just the
-    respective file set. This will permit better context-dependent
-    formatting in the future.
-    
-    R=golang-dev, bradfitz
+    R=dvyukov
     CC=golang-dev
-    https://golang.org/cl/7860049
+    https://golang.org/cl/7935045
 
- lib/godoc/package.html | 42 +++++++++++++++++++++---------------------
- lib/godoc/package.txt  | 28 ++++++++++++++--------------
- src/cmd/godoc/godoc.go | 49 ++++++++++++++++++++++---------------------------
- src/cmd/godoc/main.go  |  4 ++--
- 4 files changed, 59 insertions(+), 64 deletions(-)
+ src/cmd/gc/racewalk.c                     | 18 +++++++++---------
+ src/pkg/runtime/race/testdata/mop_test.go |  4 ++--
+ 2 files changed, 11 insertions(+), 11 deletions(-)

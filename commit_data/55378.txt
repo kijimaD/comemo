@@ -1,18 +1,18 @@
-commit 73eff89d0766718c72eea7e54e49d65bd96edc59
+commit ac7efcb0caac712395adf602f69d2ff3ace6e16e
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Oct 23 10:56:57 2023 +0700
+Date:   Wed Feb 1 02:11:01 2023 +0700
 
-    runtime: document GODEBUG panicnil values
+    test: enable inlining tests for functions with local type
     
-    Updates #25448
+    Updates #57410
     
-    Change-Id: Ia1b7a376f5175f67e14ad4bd065d6e8ad5250d38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536955
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ibe1f5523a4635d2b844b9a5db94514e07eb0bc0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463998
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/extern.go | 3 +++
- 1 file changed, 3 insertions(+)
+ test/escape4.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

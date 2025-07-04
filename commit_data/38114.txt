@@ -1,25 +1,36 @@
-commit a1925076fe5436bf7316fd2ab30d5e716df46f28
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Dec 30 18:43:13 2018 +0100
+commit 9a8372f8bd5a39d2476bfa9247407b51f9193b9e
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Sep 7 14:55:09 2018 -0700
 
-    cmd/go: add benchmark that execs 'go env GOARCH'
+    cmd/compile,runtime: remove ambiguously live logic
     
-    'go env' is used for many quick operations, such as in go/packages to
-    query GOARCH and GOMOD. It often is a bottleneck; for example,
-    go/packages doesn't know whether or not to use Go modules until it has
-    queried GOMOD.
+    The previous CL introduced stack objects. This CL removes the old
+    ambiguously live liveness analysis. After this CL we're relying
+    on stack objects exclusively.
     
-    As such, this go command should be fast. Right now it's slower than it
-    should be. This commit adds a simple benchmark with os/exec, since we're
-    particularly interested in the cost of cmd/go's large init function.
+    Update a bunch of liveness tests to reflect the new world.
     
-    Updates #29382.
+    Fixes #22350
     
-    Change-Id: Ifee6fb9997b9b89565fbfc2739a00c86117b1d37
-    Reviewed-on: https://go-review.googlesource.com/c/155961
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I739b26e015882231011ce6bc1a7f426049e59f31
+    Reviewed-on: https://go-review.googlesource.com/c/134156
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/init_test.go | 34 ++++++++++++++++++++++++++++++++++
- 1 file changed, 34 insertions(+)
+ src/cmd/compile/internal/gc/op_string.go       |   4 +-
+ src/cmd/compile/internal/gc/plive.go           | 235 +++++--------------------
+ src/cmd/compile/internal/gc/sinit.go           |   6 +
+ src/cmd/compile/internal/gc/ssa.go             |  32 ++--
+ src/cmd/compile/internal/gc/syntax.go          |   1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   5 +-
+ src/runtime/chan.go                            |   5 +
+ src/runtime/gcinfo_test.go                     |  48 ++++-
+ src/runtime/mbitmap.go                         |   9 +-
+ test/fixedbugs/issue20250.go                   |   8 +-
+ test/live.go                                   | 175 +++++++++---------
+ test/live2.go                                  |  15 +-
+ test/live_syscall.go                           |   8 +-
+ test/stackobj.go                               |  57 ++++++
+ test/stackobj3.go                              |  93 ++++++++++
+ test/uintptrescapes2.go                        |   8 +-
+ 16 files changed, 375 insertions(+), 334 deletions(-)

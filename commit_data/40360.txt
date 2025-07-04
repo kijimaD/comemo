@@ -1,26 +1,16 @@
-commit 3db6d46a4e0ee33eb34cef29f797ab7c12530a80
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Fri Aug 16 16:05:10 2019 +0700
+commit 7feb31384a7b41d7a85d875629510b5e05b00366
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Thu May 2 15:48:13 2019 +0800
 
-    cmd/compile: add marker for skipping dowidth when tracing typecheck
+    cmd/go: fix sumdb test failure
     
-    The root cause of #33658 is that fmt.Printf does have side effects when
-    printing Type.
+    Fixes #31779
     
-    typefmt for TINTER will call Type.Fields to get all embedded fields and
-    methods. The thing is that type.Fields itself will call dowidth, which will
-    expand the embedded interface, make it non-embedded anymore.
-    
-    To fix it, we add a marker while we are tracing, so dowidth can know and
-    return immediately without doing anything.
-    
-    Fixes #33658
-    
-    Change-Id: Id4b70ff68a3b802675deae96793fdb8f7ef1a4a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190537
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iae80d9adcb39d12c36c525fc2738625cadcc8e41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174838
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/align.go     | 5 +++++
- src/cmd/compile/internal/gc/typecheck.go | 5 +++++
- 2 files changed, 10 insertions(+)
+ src/cmd/go/testdata/script/mod_sumdb_proxy.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,35 +1,14 @@
-commit dde8358a1c504f15a1c17ee0822622ea172f1f3d
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Apr 25 10:49:27 2012 +1000
+commit 76490cffaf8c54f4e014cc8d74f77abde8cba416
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 24 10:17:26 2012 -0700
 
-    exp/html: adjust inTableIM to match spec
+    test: add test for order of evaluation of map index on left of =
     
-    Don't foster-parent text nodes that consist only of whitespace.
-    (I implemented this entirely in inTableIM instead of creating an
-    inTableTextIM, because the sole purpose of inTableTextIM seems to be
-    to combine character tokens into a string, which our tokenizer does
-    already.)
+    Gccgo used to get this wrong.
     
-    Use parseImpliedToken to clarify a couple of cases.
-    
-    Handle <style>, <script>, <input>, and <form>.
-    
-    Ignore doctype tokens.
-    
-    Pass 20 additional tests.
-    
-    R=nigeltao
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6117048
+    https://golang.org/cl/6121044
 
- src/pkg/exp/html/parse.go                       | 52 ++++++++++++++++++-------
- src/pkg/exp/html/testlogs/html5test-com.dat.log |  2 +-
- src/pkg/exp/html/testlogs/tables01.dat.log      |  2 +-
- src/pkg/exp/html/testlogs/tests15.dat.log       |  4 +-
- src/pkg/exp/html/testlogs/tests16.dat.log       |  2 +-
- src/pkg/exp/html/testlogs/tests18.dat.log       |  4 +-
- src/pkg/exp/html/testlogs/tests19.dat.log       |  2 +-
- src/pkg/exp/html/testlogs/tests20.dat.log       |  4 +-
- src/pkg/exp/html/testlogs/tests7.dat.log        | 16 ++++----
- src/pkg/exp/html/testlogs/tricky01.dat.log      |  4 +-
- 10 files changed, 57 insertions(+), 35 deletions(-)
+ test/reorder.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

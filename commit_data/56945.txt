@@ -1,35 +1,21 @@
-commit d55253f5ddfc38bd45846583e07b5e4a97719931
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Jul 23 17:38:32 2024 -0400
+commit fdb3dc471d099cf04cfa575a2bc8d51999917e1e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jan 23 13:31:00 2023 -0500
 
-    cmd/pprof: update vendored github.com/google/pprof
+    cmd/internal/obj/arm: handle HAUTO etc. in addpool
     
-    Pull in the latest published version of github.com/google/pprof
-    as part of the continuous process of keeping Go's dependencies
-    up to date.
+    HAUTO should be handled the same way as other stack offsets for
+    adding to constant pool. Add the missing cases.
     
-    For #36905.
+    Fixes #57955.
     
-    [git-generate]
-    cd src/cmd
-    go get github.com/google/pprof@v0.0.0-20240722153945-304e4f0156b8
-    go mod tidy
-    go mod vendor
-    
-    Change-Id: If009cff7f2d99ec58315102963cbe07b6739c09a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600596
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: If7fc82cafb2bbf0a6121e73e353b8825cb36b5bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463138
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 ++--
- .../google/pprof/internal/driver/html/common.css   | 10 +++++----
- .../google/pprof/internal/driver/html/stacks.css   |  3 ---
- .../google/pprof/internal/driver/html/stacks.js    | 18 +++++++++++++++-
- .../google/pprof/internal/driver/stacks.go         |  4 +---
- .../google/pprof/internal/report/report.go         | 24 ++++++++++++----------
- .../google/pprof/internal/report/stacks.go         |  7 +++++++
- src/cmd/vendor/modules.txt                         |  2 +-
- 9 files changed, 48 insertions(+), 26 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go | 11 ++++++----
+ test/fixedbugs/issue57955.go     | 43 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 4 deletions(-)

@@ -1,19 +1,24 @@
-commit d69f87445cb28d68b4d62d8b80dff8a8d5a9203e
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Apr 24 09:52:52 2024 -0700
+commit 635839a17aeb086b3e1eeba73973aac6ccdb8df2
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 20 08:55:12 2023 -0700
 
-    strings, internal/stringslite: lite version of strings package
+    cmd/compile: constant-fold loads from constant dictionaries and types
     
-    To be used by internal/filepathlite, which is to be used by os.
-    There are probably other places where it would be convenient
-    to have strings functions accessible to RUNTIME level packages.
+    Update #59591
     
-    Change-Id: Icda59e7a9e26d9e8f3692db0ea4fb7b3dbf570d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581516
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id250a7779c5b53776fff73f3e678fec54d92a8e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486895
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/build/deps_test.go           |   1 +
- src/internal/stringslite/strings.go | 124 ++++++++++++++++++++++++++++++++++++
- src/strings/strings.go              | 100 +++--------------------------
- 3 files changed, 133 insertions(+), 92 deletions(-)
+ src/cmd/compile/internal/noder/reader.go        |   2 +-
+ src/cmd/compile/internal/reflectdata/reflect.go |  13 +-
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  27 +-
+ src/cmd/compile/internal/ssa/rewrite.go         |  91 ++++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 357 ++++++++++++++++++++++--
+ src/cmd/internal/obj/link.go                    |  18 +-
+ 6 files changed, 453 insertions(+), 55 deletions(-)

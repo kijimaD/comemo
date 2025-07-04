@@ -1,36 +1,15 @@
-commit da769814b83c4eb65681dbe682d07d4b902b554a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 26 14:40:51 2018 -0700
+commit 0dfc740e6837b9ae14951f3b3b973879a3070ac7
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Tue Mar 13 20:44:51 2018 +0000
 
-    cmd/cgo: handle GCC 8 change in errors about constant initializers
+    compress/gzip, compress/zlib: fix Writer documentation inconsistencies
     
-    Before GCC 8 C code like
+    Fixes #24379.
     
-    const unsigned long long int neg = (const unsigned long long) -1;
-    void f(void) { static const double x = (neg); }
-    
-    would get an error "initializer element is not constant". In GCC 8 and
-    later it does not.
-    
-    Because a value like neg, above, can not be used as a general integer
-    constant, this causes cgo to conclude that it is a floating point
-    constant. The way that cgo handles floating point values then causes
-    it to get the wrong value for it: 18446744073709551615 rather than -1.
-    These are of course the same value when converted to int64, but Go
-    does not permit that kind of conversion for an out-of-range constant.
-    
-    This CL side-steps the problem by treating floating point constants
-    with integer type as they would up being treated before GCC 8: as
-    variables rather than constants.
-    
-    Fixes #26066
-    
-    Change-Id: I6f2f9ac2fa8a4b8218481b474f0b539758eb3b79
-    Reviewed-on: https://go-review.googlesource.com/121035
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibdc763a0c2b56e26f4269f8be429880e34a2558f
+    Reviewed-on: https://go-review.googlesource.com/100495
+    Reviewed-by: Joe Tsai <joetsai@google.com>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue26066.go | 19 +++++++++++++++++++
- src/cmd/cgo/gcc.go          | 20 +++++++++++++++++++-
- 3 files changed, 39 insertions(+), 1 deletion(-)
+ src/compress/gzip/gzip.go   | 2 +-
+ src/compress/zlib/writer.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

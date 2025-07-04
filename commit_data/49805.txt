@@ -1,19 +1,21 @@
-commit 9c5cae08928a885616f54d8df50a43713b95db7a
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Aug 9 22:41:06 2022 +0700
+commit 81a4fe6fd29a427c613038260ea12c5374cc5894
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 13 17:26:03 2021 +0200
 
-    debug/gosym: fix missing symbol version for 1.2+ pclntab
+    cmd/link/internal/ld: re-enable DWARF tests on solaris/illumos
     
-    Updates #37762
+    It looks like these are fixed on current tip after CL 84655
+    marked them to be skipped.
     
-    Change-Id: Ib587f472304a04ebd9794666228f81ae6cb5c2a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422315
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #23168
+    
+    Change-Id: I0020e6da1042f723eb54186ef0fe925df5326230
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349250
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/debug/gosym/pclntab.go      | 11 ++++++-----
- src/debug/gosym/pclntab_test.go | 14 ++++++++++++++
- 2 files changed, 20 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 12 ------------
+ 1 file changed, 12 deletions(-)

@@ -1,33 +1,19 @@
-commit 7020759859a3b7c2f033e497eca750b15d3aa38d
-Author: Austin Clements <austin@google.com>
-Date:   Thu Aug 24 13:29:39 2023 -0400
+commit d516aa6bdceb4d0a0bf4f714ef4a432a3896c6d7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 15 19:57:36 2023 -0400
 
-    cmd/go: implement "go build -json"
+    runtime: skip TestG0StackOverflow on iOS
     
-    This adds support for a "-json" flag in all build-related go
-    subcommands. This causes build output and build failures to be
-    reported to stdout in a machine-readable way.
+    Apparently it falls into infinite printing loop. Skipping for now.
+    Will investigate.
     
-    For #62067.
-    Fixes #23037.
+    For #62671.
     
-    Change-Id: Id045c5bd5dde9d16cc09dde6248a4b9637896a30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536397
+    Change-Id: I5be8e8c1d0f4f2eaa231d6bcdfe13e7f08c28b98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528403
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go                     | 37 +++++++++++++++++++++
- src/cmd/go/internal/cfg/cfg.go            | 53 ++++++++++++++++--------------
- src/cmd/go/internal/clean/clean.go        |  2 +-
- src/cmd/go/internal/fix/fix.go            |  2 +-
- src/cmd/go/internal/generate/generate.go  |  2 +-
- src/cmd/go/internal/help/helpdoc.go       | 37 +++++++++++++++++++++
- src/cmd/go/internal/list/list.go          |  3 +-
- src/cmd/go/internal/load/printer.go       | 54 ++++++++++++++++++++++++++++++-
- src/cmd/go/internal/test/testflag.go      |  3 +-
- src/cmd/go/internal/vet/vetflag.go        |  5 ++-
- src/cmd/go/internal/work/action.go        |  9 ++++--
- src/cmd/go/internal/work/build.go         | 12 +++++++
- src/cmd/go/main.go                        |  1 +
- src/cmd/go/testdata/script/build_json.txt | 48 +++++++++++++++++++++++++++
- 14 files changed, 233 insertions(+), 35 deletions(-)
+ src/runtime/crash_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

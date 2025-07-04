@@ -1,20 +1,15 @@
-commit b80029ccf422cfdfa758838fd18a219901cda839
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 9 11:06:52 2017 -0700
+commit 7f93232a1088ee7984bb2891075ec2eabb177f84
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Jun 27 01:18:30 2017 -0400
 
-    cmd/compile: simplify mkinlcall1
+    encoding/binary: improve comment formatting consistency
     
-    mkinlcall1 already guards against recursively inlining functions into
-    themselves, so there's no need to clear and restore fn.Func.Inl during
-    recursive inlining.
+    Use 2 slashes, space, then tab. This is more consistent, and removes
+    inadvertent leading space.
     
-    Passes toolstash-check.
-    
-    Change-Id: I8bf0c8dea8788d94d3ea5670610b4acb1d26d2fb
-    Reviewed-on: https://go-review.googlesource.com/69310
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I383770ed4eb8ac17c78c7ae5675b553d4fb70b1e
+    Reviewed-on: https://go-review.googlesource.com/46726
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ src/encoding/binary/varint.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

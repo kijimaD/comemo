@@ -1,19 +1,21 @@
-commit 2f45981679551e88880a18684a4d65ca3d9b45d9
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Jan 7 17:50:37 2022 +0000
+commit 31e12b953a2a8fa5f3c849da18ded575c5737532
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Apr 5 13:36:13 2021 -0500
 
-    .github: remove duplicate security link
+    cmd/link: issue error if elf header overruns
     
-    Since a SECURITY.md file is present in the main Go repository,
-    GitHub already shows a "Report a security vulnerability" link
-    in the issue template list. Remove the duplicate custom link.
+    This is probably unlikely in practice, but when debugging alignment
+    related issues on ppc64 using very small text section splits, the elf
+    header could grow beyond the preallocated space and quietly stomp
+    on the first few text sections.
     
-    Fixes #49962.
-    
-    Change-Id: Ifdf7e93b76ebd9258d907aa9cb4915c0dbc4f93e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/376357
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Julie Qiu <julie@golang.org>
+    Change-Id: Ided58aa0b1e60f9da4b3cb277e4ebafcee4ec693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307430
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- .github/ISSUE_TEMPLATE/config.yml | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,15 +1,24 @@
-commit 7faf70239670c3c1f8b4b530aba8847a03860f2a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 4 21:15:42 2016 -0700
+commit 8eadb89266a5a785e568f936b176d746a6d7de7c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 14 11:18:39 2016 -0400
 
-    runtime: avoid endless loop if printing the panic value panics
+    [dev.ssa] cmd/compile: move tuple selectors to generator's block in CSE
     
-    Change-Id: I56de359a5ccdc0a10925cd372fa86534353c6ca0
-    Reviewed-on: https://go-review.googlesource.com/30358
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    CSE may substitute a tuple generator with another one in a different
+    block. In this case, since we want tuple selectors to stay together
+    with the tuple generator, copy the selector to the new generator's
+    block and rewrite its use.
+    
+    Op.isTupleGenerator and Op.isTupleSelector are introduced to assert
+    tuple ops. Use it in tighten as well.
+    
+    Updates #15365.
+    
+    Change-Id: Ia9e8c734b9cc3bc9fca4a2750041eef9cdfac5a5
+    Reviewed-on: https://go-review.googlesource.com/24137
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/crash_test.go                 |  7 +++++++
- src/runtime/panic.go                      |  5 +++++
- src/runtime/testdata/testprog/deadlock.go | 11 +++++++++++
- 3 files changed, 23 insertions(+)
+ src/cmd/compile/internal/ssa/cse.go     | 23 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/op.go      | 18 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/tighten.go |  7 +++++--
+ 3 files changed, 46 insertions(+), 2 deletions(-)

@@ -1,24 +1,16 @@
-commit 4832bf8bde9df6695f6f4e15a7885a1609bb579f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Feb 14 23:42:24 2019 +0100
+commit 9d907160d46ee56169b910673c0a934a0422cd73
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 5 08:28:20 2018 +0900
 
-    debug/elf: perform stricter section header table checks in NewFile
+    vendor: update golang_org/x/net/route from upstream
     
-    If an ELF file has no section header table (shoff = 0), shnum must be
-    zero as well according to elf(5).
+    Updates the route package to git rev 146acd2 for:
+    - 146acd2 don't run NET_RT_IFLIST vs. NET_RT_IFLISTL test in 386 emulation (again)
     
-    So far, when only shnum was zero but shoff was non-zero (i.e. in an
-    invalid ELF file) shstrndx wasn't properly checked and could result in
-    an 'index out of range' later on.
-    
-    Fixes #10996
-    
-    Change-Id: Ic248d2d77099b0036458e2a844b086a5f463c844
-    Reviewed-on: https://go-review.googlesource.com/c/162857
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I24de1eb31b2ca0e24cb9ab1648f7a71b5067cf97
+    Reviewed-on: https://go-review.googlesource.com/c/139937
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/elf/file.go      |  7 +++++--
- src/debug/elf/file_test.go | 11 +++++++++++
- 2 files changed, 16 insertions(+), 2 deletions(-)
+ .../golang_org/x/net/route/message_freebsd_test.go      |  8 ++------
+ src/vendor/golang_org/x/net/route/sys_freebsd.go        | 17 +++++++++++------
+ 2 files changed, 13 insertions(+), 12 deletions(-)

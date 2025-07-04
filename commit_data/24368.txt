@@ -1,50 +1,31 @@
-commit 007fa019a30de94174922aa50b80401921f54f85
-Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 23 16:49:30 2015 -0700
+commit 54a966e383f5e866f7d89899cf100c3fde9c3a7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 12:42:18 2015 -0400
 
-    cmd/doc: don't stop after first package if the symbol is not found
+    go/build: make TestDependencies check all systems at once
     
-    The test case is
-            go doc rand.Float64
-    The first package it finds is crypto/rand, which does not have a Float64.
-    Before this change, cmd/doc would stop there even though math/rand
-    has the symbol. After this change, we get:
+    We used to use build.Import to get the dependencies, but that meant
+    we had to repeat the check for every possible GOOS/GOARCH/cgo
+    combination, which took too long. So we made the test in short mode
+    only check the current GOOS/GOARCH/cgo combination.
+    But some combinations can't run the test at all. For example darwin/arm64
+    does not run tests with a full source file systems, so it cannot test itself,
+    so nothing was testing darwin/arm64. This led to bugs like #10455
+    not being caught.
     
-            % go doc rand.Float64
-            package rand // import "math/rand"
+    Rewrite the test to read the imports out of the source files ourselves,
+    so that we can look at all source files in a directory in one pass,
+    regardless of which GOOS/GOARCH/cgo/etc they require.
+    This one complete pass runs in the same amount of time as the
+    old single combination check ran, so we can now test all systems,
+    even in short mode.
     
-            func Float64() float64
-    
-                Float64 returns, as a float64, a pseudo-random number in [0.0,1.0) from the
-                default Source.
-            %
-    
-    Another nice consequence is that if a symbol is not found, we might get
-    a longer list of packages that were examined:
-    
-            % go doc rand.Int64
-            doc: no symbol Int64 in packages crypto/rand, math/rand
-            exit status 1
-            %
-    
-    This change introduces a coroutine to scan the file system so that if
-    the symbol is not found, the coroutine can deliver another path to try.
-    (This is darned close to the original motivation for coroutines.)
-    Paths are delivered on an unbuffered channel so the scanner does
-    not proceed until candidate paths are needed.
-    
-    The scanner is attached to a new type, called Dirs, that caches the results
-    so if we need to scan a second time, we don't walk the file system
-    again. This is significantly more efficient than the existing code, which
-    could scan the tree multiple times looking for a package with
-    the symbol.
-    
-    Change-Id: I2789505b9992cf04c19376c51ae09af3bc305f7f
-    Reviewed-on: https://go-review.googlesource.com/14921
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ie216303c2515bbf1b6fb717d530a0636e271cb6d
+    Reviewed-on: https://go-review.googlesource.com/12576
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/doc/dirs.go     | 118 ++++++++++++++++++++++++++
- src/cmd/doc/doc_test.go |  77 ++++++++++++++---
- src/cmd/doc/main.go     | 214 +++++++++++++++++++++---------------------------
- src/cmd/doc/pkg.go      |  40 +++++++--
- 4 files changed, 309 insertions(+), 140 deletions(-)
+ src/go/build/build.go     |  2 +-
+ src/go/build/deps_test.go | 79 +++++++++++++++++++++++++++++------------------
+ src/go/build/read.go      | 20 ++++++++----
+ src/go/build/read_test.go |  6 ++--
+ 4 files changed, 67 insertions(+), 40 deletions(-)

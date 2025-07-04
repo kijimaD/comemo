@@ -1,19 +1,23 @@
-commit 48a1f6989ccd74ad2cb7eab14cdfab1e06bc36b4
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Wed Aug 7 09:20:30 2024 +0000
+commit 51885c1fa2eff36c421d6669816f971b54b63a33
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 15 09:14:03 2023 -0400
 
-    hash: mention encoding.BinaryAppender in Hash docs
+    cmd/{go,cover}: enable response file args for cmd/cover
     
-    For #62384
+    Change the cover command to accept arguments via response files, using
+    the same mechanism employed for the compiler and the assembler. This
+    is needed now that the cover tool accepts a list of all source files
+    in a package, as opposed to just a single source file, and as a result
+    can run into system-dependent command line length limits.
     
-    Change-Id: I4eeb83a4708544777815eacd6a5b6d293580c5e5
-    GitHub-Last-Rev: 6fdb6db4811a7b19742fec556fd5a1d5002b4e5e
-    GitHub-Pull-Request: golang/go#68758
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603405
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #60785.
+    
+    Change-Id: I67dbc96ad9fc5c6f43d5c1e4e903e4b8589b154f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503735
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/hash/hash.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/cover/cover.go           | 2 +-
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

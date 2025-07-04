@@ -1,27 +1,29 @@
-commit 1c50fcf853b0382ac6a98e4c84eb90230b37832f
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Sep 12 21:05:45 2019 +0200
+commit 59f2704dabf0c68bc645adb0ed4a8d94cdbcd7bb
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 8 15:01:34 2019 -0500
 
-    cmd/compile: add 32 bit float registers/variables on wasm
+    sync: add Pool benchmarks to stress STW and reuse
     
-    Before this change, wasm only used float variables with a size of 64 bit
-    and applied rounding to 32 bit precision where necessary. This change
-    adds proper 32 bit float variables.
+    This adds two benchmarks that will highlight two problems in Pool that
+    we're about to address.
     
-    Reduces the size of pkg/js_wasm by 254 bytes.
+    The first benchmark measures the impact of large Pools on GC STW time.
+    Currently, STW time is O(# of items in Pools), and this benchmark
+    demonstrates 70µs STW times.
     
-    Change-Id: Ieabe846a8cb283d66def3cdf11e2523b3b31f345
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195117
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    The second benchmark measures the impact of fully clearing all Pools
+    on each GC. Typically this is a problem in heavily-loaded systems
+    because it causes a spike in allocation. This benchmark stresses this
+    by simulating an expensive "New" function, so the cost of creating new
+    objects is reflected in the ns/op of the benchmark.
+    
+    For #22950, #22331.
+    
+    Change-Id: I0c8853190d23144026fa11837b6bf42adc461722
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166959
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/config.go      |   4 +
- src/cmd/compile/internal/ssa/gen/Wasm.rules |  59 +--
- src/cmd/compile/internal/ssa/gen/WasmOps.go | 142 ++++--
- src/cmd/compile/internal/ssa/gen/main.go    |   8 +
- src/cmd/compile/internal/ssa/opGen.go       | 652 ++++++++++++++++++++++------
- src/cmd/compile/internal/ssa/regalloc.go    |  15 +-
- src/cmd/compile/internal/ssa/rewriteWasm.go | 178 +++-----
- src/cmd/compile/internal/wasm/ssa.go        |  63 +--
- src/cmd/internal/obj/wasm/a.out.go          |  22 +-
- src/cmd/internal/obj/wasm/wasmobj.go        |  26 +-
- 10 files changed, 798 insertions(+), 371 deletions(-)
+ src/sync/pool_test.go | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 82 insertions(+)

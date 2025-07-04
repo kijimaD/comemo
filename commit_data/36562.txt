@@ -1,16 +1,12 @@
-commit 579768e0785f14032e3a971ad03f2deb33427e2d
-Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
-Date:   Fri Aug 31 23:48:15 2018 +0530
+commit 7b7a854c041fc15ca11bf760617f11dc31aaa519
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Mon May 7 07:34:53 2018 +0000
 
-    fmt: add example for Fscanln
+    runtime: fix a typo mistake in comments
     
-    Updates golang/go#27376.
-    
-    Change-Id: I9f33233f1aafa10941a63fcb4e49d351ea7ee246
-    Reviewed-on: https://go-review.googlesource.com/132675
-    Reviewed-by: Kevin Burke <kev@inburke.com>
-    Run-TryBot: Kevin Burke <kev@inburke.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I33790af9fd0c2f6fdeaf9778c1381e0e6d697abb
+    Reviewed-on: https://go-review.googlesource.com/111755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/example_test.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

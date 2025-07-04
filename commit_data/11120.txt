@@ -1,15 +1,15 @@
-commit e955a3cca2ad600666f2f814aad6075a42a88d4d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 12 14:15:58 2012 +1100
+commit 610757b1552d35d3e960b053ad2a5aedea85b8da
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 11 18:45:32 2012 -0800
 
-    net/textproto: always copy the data from bufio to avoid corruption
+    runtime: delete duplicate implementation of pcln walker
     
-    Fixes #2621.
+    It's hard enough to get right once.
     
-    R=rsc, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5498104
+    https://golang.org/cl/5533073
 
- src/pkg/net/textproto/reader.go      | 71 +++++++++++-------------------------
- src/pkg/net/textproto/reader_test.go |  9 +++++
- 2 files changed, 30 insertions(+), 50 deletions(-)
+ src/pkg/runtime/extern.go | 47 ++++-------------------------------------------
+ src/pkg/runtime/symtab.c  |  9 +++++++++
+ 2 files changed, 13 insertions(+), 43 deletions(-)

@@ -1,28 +1,27 @@
-commit 5ca785d48d4648bdd771d95c5a99e0ce799dcfd3
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 4 18:45:17 2024 +0700
+commit 1eaeec10958bf41d082ef212ee689fd8c1284320
+Author: korzhao <korzhao95@gmail.com>
+Date:   Sun Jul 30 15:02:15 2023 +0800
 
-    cmd: use 16 bytes hash when possible
+    encoding/json: optimize Unmarshal for maps
     
-    CL 402595 changes all usages of 16 bytes hash to 32 bytes hash by using
-    notsha256.
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkUnmarshalMap-10     218           172           -21.28%
     
-    However, since CL 454836, notsha256 is not necessary anymore, so this CL
-    reverts those changes to 16 bytes hash using cmd/internal/hash package.
+    benchmark                    old allocs     new allocs     delta
+    BenchmarkUnmarshalMap-10     15             12             -20.00%
     
-    Updates #51940
-    Updates #64751
+    benchmark                    old bytes     new bytes     delta
+    BenchmarkUnmarshalMap-10     328           256           -21.95%
     
-    Change-Id: Ic015468ca4a49d0c3b1fb9fdbed93fddef3c838f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610598
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie20ab62731c752eb0040c6d1591fedd7d12b1e0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514100
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/cgo/main.go                   | 4 ++--
- src/cmd/compile/internal/types/fmt.go | 4 ++--
- src/cmd/internal/obj/sym.go           | 2 +-
- src/cmd/objdump/objdump_test.go       | 2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/encoding/json/bench_test.go | 13 +++++++++++++
+ src/encoding/json/decode.go     | 16 +++++++++-------
+ 2 files changed, 22 insertions(+), 7 deletions(-)

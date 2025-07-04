@@ -1,13 +1,23 @@
-commit 9fdcfb7c10b464ffab815892f5fc77d68ed35714
-Author: Kevin Burke <kevin@burke.dev>
-Date:   Thu Feb 10 20:44:03 2022 -0800
+commit 1e235cd454b58f5ae26cac2a41e8ec131312ac6b
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Apr 27 22:52:56 2021 -0400
 
-    doc: fix spelling error in link ID
+    go/types: use combined type and ordinary args for type inference
     
-    Change-Id: I6de236442f213ab4b4f19ec881add4923d8bfd8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385054
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Kevin Burke <kevin@burke.dev>
+    This is a port of CL 308372 to go/types. The only meaningful change was
+    to add TODOs to improve the positioning error messages.
+    
+    Change-Id: I8314615d0851a59c2b5fd30eb897d581652eacc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314435
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/builtins.go              |  2 +-
+ src/go/types/call.go                  | 37 +++++++++++++++++++++++++++++++----
+ src/go/types/fixedbugs/issue39754.go2 |  6 +++++-
+ src/go/types/fixedbugs/issue44799.go2 | 20 +++++++++++++++++++
+ src/go/types/testdata/issues.go2      |  5 +++--
+ 5 files changed, 62 insertions(+), 8 deletions(-)

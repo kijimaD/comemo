@@ -1,20 +1,18 @@
-commit fcbe51c9e3ecbb1cb5d8d50f64b0bc42a6a0c7f5
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 5 14:59:09 2014 -0400
+commit b70bc22cd0b43bfe2021cb99e2a80eb6ab0eff5c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 29 23:13:17 2014 -0700
 
-    misc/cgo/test: make issue5548 test pickier
+    runtime: retry fix openbsd build
     
-    If there is doubt about passing arguments correctly
-    (as there is in this test), there should be doubt about
-    getting the results back intact too. Using 0 and 1
-    (especially 0 for success) makes it easy to get a PASS
-    accidentally when the return value is not actually
-    being propagated. Use less common values.
+    Tested on linux/amd64 too this time.
     
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=golang-codereviews, r
-    https://golang.org/cl/141110043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=dave, golang-codereviews, iant, rsc
+    https://golang.org/cl/140050043
 
- misc/cgo/test/issue5548.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/runtime/defs_openbsd.go      | 4 ++--
+ src/pkg/runtime/defs_openbsd_386.h   | 4 ++--
+ src/pkg/runtime/defs_openbsd_amd64.h | 4 ++--
+ src/pkg/runtime/os_openbsd.c         | 6 +++---
+ 4 files changed, 9 insertions(+), 9 deletions(-)

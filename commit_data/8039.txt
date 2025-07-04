@@ -1,41 +1,23 @@
-commit 1bc84b7e18ae704483ab028bb2030970bbc0b2f3
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Apr 9 09:44:20 2011 -0400
+commit ebaf01f0526f349dd207798dc5771219e9d8a8ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 8 15:47:21 2011 -0700
 
-    ld: 25% faster
+    go/printer, gofmt: use blank to separate import rename from import path
     
-    The ld time was dominated by symbol table processing, so
-      * increase hash table size
-      * emit fewer symbols in gc (just 1 per string, 1 per type)
-      * add read-only lookup to avoid creating spurious symbols
-      * add linked list to speed whole-table traversals
+    Note that declarations.golden is not using spaces for alignment (so
+    that the alignment tabs are visible) which is why this change affects
+    the test cases significantly. gofmt uses spaces for alignment (by default)
+    and only tabs for indentation.
     
-    Breaks dwarf generator (no idea why), so disable dwarf.
+    gofmt -w src misc (no changes)
     
-    Reduces time for 6l to link godoc by 25%.
+    Fixes #1673.
     
-    R=ken2
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/4383047
+    https://golang.org/cl/4388044
 
- src/cmd/5g/gobj.c    | 186 ++++++++++++---------------------------------------
- src/cmd/5l/l.h       |   2 +-
- src/cmd/6g/gobj.c    | 174 ++++++++++-------------------------------------
- src/cmd/6l/asm.c     |  49 +++++++-------
- src/cmd/6l/l.h       |   2 +-
- src/cmd/6l/obj.c     |  18 ++---
- src/cmd/8g/gobj.c    | 170 +++++++++-------------------------------------
- src/cmd/8l/l.h       |   2 +-
- src/cmd/gc/go.h      |   4 ++
- src/cmd/gc/lex.c     |   3 -
- src/cmd/gc/obj.c     |  54 +++++++++++++++
- src/cmd/gc/reflect.c |  47 +++++++------
- src/cmd/ld/data.c    |  22 +++---
- src/cmd/ld/dwarf.c   |  10 +--
- src/cmd/ld/elf.c     |  38 +++++------
- src/cmd/ld/go.c      |  11 ++-
- src/cmd/ld/lib.c     |  28 ++++++--
- src/cmd/ld/lib.h     |   4 ++
- src/cmd/ld/pe.c      |   8 +--
- src/cmd/ld/symtab.c  |  32 +++------
- 20 files changed, 303 insertions(+), 561 deletions(-)
+ src/pkg/go/printer/nodes.go                     |  2 +-
+ src/pkg/go/printer/testdata/declarations.golden | 77 +++++++++++++++++--------
+ src/pkg/go/printer/testdata/declarations.input  | 29 ++++++++++
+ 3 files changed, 83 insertions(+), 25 deletions(-)

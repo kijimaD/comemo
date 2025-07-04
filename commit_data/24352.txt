@@ -1,18 +1,12 @@
-commit 4fc9565ffce91c4299903f7c17a275f0786734a1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 22 17:32:54 2015 -0700
+commit c09d284953f3b628087896da65b6c0227529e33e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 24 14:55:07 2015 -0700
 
-    math/big: implement negative precision for Float.Append/Text
+    cmd/compile: add missing quotation mark
     
-    Enabled all but a handful of disabled Float formatting test cases.
-    
-    Fixes #10991.
-    
-    Change-Id: Id18e160e857be2743429a377000e996978015a1a
-    Reviewed-on: https://go-review.googlesource.com/14850
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I102901e3df76830ccd5ab74d757203d103eef9e8
+    Reviewed-on: https://go-review.googlesource.com/12657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/decimal.go        |  2 +-
- src/math/big/floatconv_test.go | 84 ++++++++++++++++++++-------------------
- src/math/big/ftoa.go           | 90 ++++++++++++++++++++++++++++++++++++++----
- 3 files changed, 127 insertions(+), 49 deletions(-)
+ src/cmd/compile/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

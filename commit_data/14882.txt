@@ -1,14 +1,16 @@
-commit 1590be9e6f18a06734f84365589d3ab10ef79732
-Author: Francesc Campoy <campoy@golang.org>
-Date:   Mon Jan 14 12:11:22 2013 +0000
+commit 406ca3c2f19a0742a05e5837ca9cae77fb4cadd8
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jan 14 08:44:16 2013 +0100
 
-    html/template: Clarifying references to "text/template" in the documentation.
+    encoding/json: fix panics on type mismatches.
     
-    Fixes #4634.
+    Fixes #4222.
+    Fixes #4628.
     
-    R=adg, kevlar
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7066053
+    https://golang.org/cl/7100049
 
- src/pkg/html/template/template.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/pkg/encoding/json/decode.go      | 34 ++++++++++++++++++++++++----------
+ src/pkg/encoding/json/decode_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 10 deletions(-)

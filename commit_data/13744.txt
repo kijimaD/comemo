@@ -1,13 +1,14 @@
-commit b2458ff75c75c9fafe1b5f4e0521d4949cd3754e
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Sep 4 14:34:03 2012 -0400
+commit 997a11ae6accb410f6fbbb295143d28cb9aaa152
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 4 15:26:51 2012 +1000
 
-    runtime/pprof: emit end-of-log marker at end of CPU profile.
+          doc: link to references from docs page
     
-    R=golang-dev, rsc
+    Fixes #3667.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6489065
+    https://golang.org/cl/6492078
 
- src/pkg/runtime/cpuprof.c           | 14 ++++++++++++++
- src/pkg/runtime/pprof/pprof_test.go | 16 +++++++++++-----
- 2 files changed, 25 insertions(+), 5 deletions(-)
+ doc/docs.html | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,17 +1,19 @@
-commit 900578d09c42eef2fa5139246794ac6f3aff2e0a
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Oct 25 14:22:23 2024 -0700
+commit 9a9aa6e2388a54c20ba522335e15f2a1758af0fe
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Aug 31 11:58:16 2023 +0000
 
-    internal/runtime/maps: removed unused convertNonFullToEmptyAndFullToDeleted
+    encoding/gob: make comment more idiomatic for *Encoder.writer
     
-    I don't think we have any code that uses this function.
-    Unless it is something for the future.
-    
-    Change-Id: I7e44634f7a9c1d4d64d84c358447ccf213668d92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622077
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I89a4d7f4af8dfb67a35647283be6c1d2965595f5
+    GitHub-Last-Rev: f7c11c156cd0c1d7e9e811c5eb2d19d233c568dd
+    GitHub-Pull-Request: golang/go#62389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524735
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/internal/runtime/maps/group.go | 27 ---------------------------
- 1 file changed, 27 deletions(-)
+ src/encoding/gob/encoder.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

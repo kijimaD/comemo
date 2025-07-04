@@ -1,68 +1,33 @@
-commit c1a5889edbd3e499df10db5ed1d8006c73de5792
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 18 14:28:16 2024 -0800
+commit 0cb45bac014715433c0110675cc4e32d871a5ff0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 28 15:04:24 2023 -0400
 
-    net, internal/routebsd: move vendored x/net/route to internal
+    testing: use subprocesses in TestTBHelper and TestTBHelperParallel
     
-    This is a simple move of the contents of the vendored x/net/route
-    to internal/routebsd. I've also added some test files that
-    were not previously vendored.
+    These tests are checking the output of test functions that call the
+    Helper methods. However, they were reaching into package internals
+    instead of running those test functions as actual tests.
     
-    This next CL will simplify the new internal/routebsd, removing the
-    code that is not needed by the new package.
+    That not only produced significant differences in formatting (such as
+    indentation for subtests), but also caused test flags such as
+    "-failfast" passed for the overall test run to interfere with the
+    output formatting.
     
-    This is a step toward simplifying the x/net/route package by
-    permitting it to import x/sys/unix.
+    Now, we run the test functions as real tests in a subprocess,
+    so that we get the real output and formatting of those tests.
+    This makes the tests not only more realistic, but also less
+    sensitive to otherwise-irrelevant implementation details
+    (such as the names and signatures of unexported types and
+    functions in the testing package).
     
-    Change-Id: I4d13df11fa9738cd68876b2ea456d03f82d8d64a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637695
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Fixes #61016.
+    
+    Change-Id: I646fbbd7cfeb00382054677f726c05fc9d35d0dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506955
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/go/build/deps_test.go                          |   8 +-
- .../x/net/route => internal/routebsd}/address.go   |   2 +-
- src/internal/routebsd/address_darwin_test.go       | 170 +++++++++
- src/internal/routebsd/address_test.go              | 104 ++++++
- .../x/net/route => internal/routebsd}/binary.go    |   2 +-
- .../x/net/route => internal/routebsd}/empty.s      |   0
- .../x/net/route => internal/routebsd}/interface.go |   2 +-
- .../routebsd}/interface_announce.go                |   2 +-
- .../routebsd}/interface_classic.go                 |   2 +-
- .../routebsd}/interface_freebsd.go                 |   2 +-
- .../routebsd}/interface_multicast.go               |   2 +-
- .../routebsd}/interface_openbsd.go                 |   2 +-
- .../x/net/route => internal/routebsd}/message.go   |   2 +-
- src/internal/routebsd/message_darwin_test.go       |  37 ++
- src/internal/routebsd/message_freebsd_test.go      |  91 +++++
- src/internal/routebsd/message_test.go              | 238 +++++++++++++
- .../x/net/route => internal/routebsd}/route.go     |   2 +-
- .../route => internal/routebsd}/route_classic.go   |   2 +-
- .../route => internal/routebsd}/route_openbsd.go   |   2 +-
- src/internal/routebsd/route_test.go                | 382 +++++++++++++++++++++
- .../x/net/route => internal/routebsd}/sys.go       |   2 +-
- .../net/route => internal/routebsd}/sys_darwin.go  |   2 +-
- .../route => internal/routebsd}/sys_dragonfly.go   |   2 +-
- .../net/route => internal/routebsd}/sys_freebsd.go |   2 +-
- .../net/route => internal/routebsd}/sys_netbsd.go  |   2 +-
- .../net/route => internal/routebsd}/sys_openbsd.go |   2 +-
- .../x/net/route => internal/routebsd}/syscall.go   |   2 +-
- .../net/route => internal/routebsd}/zsys_darwin.go |   2 +-
- .../route => internal/routebsd}/zsys_dragonfly.go  |   2 +-
- .../routebsd}/zsys_freebsd_386.go                  |   2 +-
- .../routebsd}/zsys_freebsd_amd64.go                |   2 +-
- .../routebsd}/zsys_freebsd_arm.go                  |   2 +-
- .../routebsd}/zsys_freebsd_arm64.go                |   2 +-
- .../routebsd}/zsys_freebsd_riscv64.go              |   2 +-
- .../net/route => internal/routebsd}/zsys_netbsd.go |   2 +-
- .../route => internal/routebsd}/zsys_openbsd.go    |   2 +-
- src/net/interface_bsd.go                           |  21 +-
- src/net/interface_bsdvar.go                        |   9 +-
- src/net/interface_darwin.go                        |  19 +-
- src/net/interface_freebsd.go                       |  19 +-
- src/vendor/modules.txt                             |   1 -
- 41 files changed, 1087 insertions(+), 68 deletions(-)
+ src/testing/helper_test.go      | 151 +++++++++++++++++++++-------------------
+ src/testing/helperfuncs_test.go |  40 ++++++-----
+ 2 files changed, 101 insertions(+), 90 deletions(-)

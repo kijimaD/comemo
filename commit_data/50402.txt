@@ -1,23 +1,19 @@
-commit e828fbdffe3318b976aa12d2aee27d4a53bc9f12
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 7 10:30:46 2022 -0700
+commit 1ed060cf87ec887ad76c51e3f7a2148cc2a7bf9b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 21 11:11:13 2021 -0400
 
-    os/exec: skip TestFindExecutableVsNoexec if mount failed
+    testing: reference benchmark format spec
     
-    Apparently, some testing environments do not allow root to mount tmpfs
-    (due to e.g. AppArmor profile disallowing mount(2) syscall).
+    This updates the testing package documentation to reference the
+    specification for the benchmark format, and points users to our
+    standard tools for working with benchmark data. (It's somewhat
+    remarkable how widely used benchstat appears to be given that we don't
+    mention it anywhere!)
     
-    Always skip the test if the mount has failed.
-    
-    Fixes the test issue introduced by CL 414824.
-    
-    Change-Id: Ic565d2e6f277f2926d85a351be7df2498ffba656
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429175
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Idbb4416d2fde9606ea7e6c15595f3b9e6a38f3b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357589
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec/lp_linux_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/testing/testing.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

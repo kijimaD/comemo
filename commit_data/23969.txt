@@ -1,28 +1,20 @@
-commit 31b0b73924e83fe3341e5c5ebca8854febcb3157
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Aug 5 11:58:44 2015 +1000
+commit 4ec946ce95226b9e1b5258bdc3d46090d828d896
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Jun 14 16:41:31 2015 -0700
 
-    doc: adjust installation instructions dynamically for a given download
+    crypto/x509: don't panic when decrypting invalid PEM data.
     
-    This change allows the download page to redirect the user to
-    /doc/install?download=filename so the user can see installation
-    instructions specific to the file they are downloading.
+    If an encrypted PEM block contained ciphertext that was not a multiple
+    of the block size then the code would panic. This change tests for that
+    case and returns an error.
     
-    This change also expands the "Test your Go installation" section
-    to instruct the user to create a workspace, hopefully leading
-    to less confusion down the line.
+    Fixes #11215.
     
-    It also changes the front page download link to go directly
-    to the downloads page, which will in turn take them to the
-    installation instructions (the original destination).
-    
-    This is related to this change to the tools repo:
-    https://golang.org/cl/13180
-    
-    Change-Id: I658327bdb93ad228fb1846e389b281b15da91b1d
-    Reviewed-on: https://go-review.googlesource.com/13151
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: I7b700f99e20810c4f545519b1e9d766b4640e8a7
+    Reviewed-on: https://go-review.googlesource.com/11097
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/install.html | 80 ++++++++++++++++++++++++++++++++++++++++++++------------
- doc/root.html    |  2 +-
- 2 files changed, 65 insertions(+), 17 deletions(-)
+ src/crypto/x509/pem_decrypt.go      |  4 ++++
+ src/crypto/x509/pem_decrypt_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

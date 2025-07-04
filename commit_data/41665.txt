@@ -1,23 +1,28 @@
-commit 14d20dc4f38dda548f6991cc687bc71b250b1603
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 17 10:50:40 2020 -0400
+commit 3876bd67ef4a1972f54d926f7d8a5c7324861f51
+Author: diaxu01 <dianhong.xu@arm.com>
+Date:   Tue Sep 3 02:46:38 2019 +0000
 
-    cmd/go: replace TestCgoDependsOnSyscall with a simpler script test
+    cmd/internal/obj/arm64: add support of NOOP instruction
     
-    The existing test attempted to remove '_race' binaries from
-    GOROOT/pkg, which could not only fail if GOROOT is read-only, but also
-    interfere with other tests run in parallel.
+    This patch uses symbol NOOP to support arm64 instruction NOP. In
+    arm64, NOP stands for that No Operation does nothing, other than
+    advance the value of the program counter by 4. This instruction
+    can be used for instruction alignment purposes. This patch uses
+    NOOP to support arm64 instruction NOP, because we have a generic
+    "NOP" instruction, which is a zero-width pseudo-instruction.
     
-    Updates #30316
-    Updates #37573
-    Updates #17751
+    In arm64, instruction NOP is an alias of HINT #0. This patch adds
+    test cases for instruction HINT #0.
     
-    Change-Id: Id7e2286ab67f8333baf4d52244b7f4476aa93a46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223745
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I54e6854c46516eb652b412ef9e0f73ab7f171f8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200578
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                              | 28 ----------------------
- .../go/testdata/script/cgo_depends_on_syscall.txt  | 11 +++++++++
- 2 files changed, 11 insertions(+), 28 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s    | 2 ++
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 3 ++-
+ src/cmd/internal/obj/arm64/a.out.go          | 1 +
+ src/cmd/internal/obj/arm64/anames.go         | 1 +
+ src/cmd/internal/obj/arm64/asm7.go           | 5 +++--
+ 5 files changed, 9 insertions(+), 3 deletions(-)

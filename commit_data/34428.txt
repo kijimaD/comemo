@@ -1,24 +1,28 @@
-commit bff29f2d1798cb0c8b6a4a8440c076f4b9460158
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Feb 28 16:32:11 2018 -0500
+commit ebfcdef90174ea86b2952abec511c0be96b05099
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 25 14:58:13 2017 -0400
 
-    cmd/compile/internal/ssa: avoid accidental list ends
+    [release-branch.go1.9] runtime: make runtime.GC() trigger GC even if GOGC=off
     
-    Some SSA values don't translate into any instructions. If a function
-    began with two of them, and both modified the storage of the same
-    variable, we'd end up with a location list entry that started and ended
-    at 0. That looks like an end-of-list entry, which would then confuse
-    downstream tools, particularly the fixup in the linker.
+    Currently, the priority of checks in (gcTrigger).test() puts the
+    gcpercent<0 test above gcTriggerCycle, which is used for runtime.GC().
+    This is an unintentional change from 1.8 and before, where
+    runtime.GC() triggered a GC even if GOGC=off.
     
-    "Fix" this by changing the end of such entries to 1. Should be harmless,
-    since AFAIK we don't generate any 1-byte instructions. Later CLs will
-    reduce the frequency of these entries anyway.
+    Fix this by rearranging the priority so the gcTriggerCycle test
+    executes even if gcpercent < 0.
     
-    Change-Id: I9b7e5e69f914244cc826fb9f4a6acfe2dc695f81
-    Reviewed-on: https://go-review.googlesource.com/97955
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Fixes #22023.
+    
+    Change-Id: I109328d7b643b6824eb9d79061a9e775f0149575
+    Reviewed-on: https://go-review.googlesource.com/65994
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70979
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/debug.go | 20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
+ src/runtime/gc_test.go | 16 ++++++++++++++++
+ src/runtime/mgc.go     |  5 ++++-
+ 2 files changed, 20 insertions(+), 1 deletion(-)

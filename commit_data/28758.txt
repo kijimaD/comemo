@@ -1,14 +1,30 @@
-commit 460d112f6c3716a45e99651ed769e7d8d74aca41
-Author: Gleb Stepanov <glebstepanov1992@gmail.com>
-Date:   Mon Jul 25 15:53:15 2016 +0300
+commit 8cc3f4a17e2f4d63e090fd7bd39bee697521fddf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 17 10:34:06 2016 -0400
 
-    runtime: fix typo in comments
+    [dev.ssa] cmd/compile: use shifted and indexed ops in SSA for ARM
     
-    Fix typo in word synchronization in comments.
+    This CL implements the following optimizations for ARM:
+    - use shifted ops (e.g. ADD R1<<2, R2) and indexed load/stores
+    - break up shift ops. Shifts used to be one SSA op that generates
+      multiple instructions. We break them up to multiple ops, which
+      allows constant folding and CSE for comparisons. Conditional moves
+      are introduced for this.
+    - simplify zero/sign-extension ops.
     
-    Change-Id: I453b4e799301e758799c93df1e32f5244ca2fb84
-    Reviewed-on: https://go-review.googlesource.com/25174
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #15365.
+    
+    Change-Id: I55e262a776a7ef2a1505d75e04d1208913c35d39
+    Reviewed-on: https://go-review.googlesource.com/24512
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/mgc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/arm/ssa.go               |   305 +-
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go |   440 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules        |   507 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go        |   129 +-
+ src/cmd/compile/internal/ssa/op.go                |     8 +-
+ src/cmd/compile/internal/ssa/opGen.go             |  1671 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go        | 17764 +++++++++++++++-----
+ 7 files changed, 16078 insertions(+), 4746 deletions(-)

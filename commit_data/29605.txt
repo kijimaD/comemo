@@ -1,22 +1,29 @@
-commit 35231ec7c6a6d9277bf6ac53cb0142e4d37c2ece
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 21 14:58:23 2016 +0000
+commit 3436f0776f4f373b5ba1aacf9f66689c833168b0
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Aug 30 15:25:28 2016 -0400
 
-    net/http: deflake TestClientTimeout
+    reflect, runtime: optimize Value.Call on s390x and add benchmark
     
-    Should fix flakes like:
+    Use an MVC loop to copy arguments in runtime.call* rather than copying
+    bytes individually.
     
-    https://build.golang.org/log/c8da331317064227f38d5ef57ed7dba563ba1b38
+    I've added the benchmark CallArgCopy to test the speed of Value.Call
+    for various argument sizes.
     
-    --- FAIL: TestClientTimeout_h1 (0.35s)
-        client_test.go:1263: timeout after 200ms waiting for timeout of 100ms
-    FAIL
+    name                    old speed      new speed       delta
+    CallArgCopy/size=128     439MB/s ± 1%    582MB/s ± 1%   +32.41%  (p=0.000 n=10+10)
+    CallArgCopy/size=256     695MB/s ± 1%   1172MB/s ± 1%   +68.67%  (p=0.000 n=10+10)
+    CallArgCopy/size=1024    573MB/s ± 8%   4175MB/s ± 2%  +628.11%  (p=0.000 n=10+10)
+    CallArgCopy/size=4096   1.46GB/s ± 2%  10.19GB/s ± 1%  +600.52%  (p=0.000 n=10+10)
+    CallArgCopy/size=65536  1.51GB/s ± 0%  12.30GB/s ± 1%  +716.30%   (p=0.000 n=9+10)
     
-    Change-Id: I0a4dba607524e8d7a00f498e27d9598acde5d222
-    Reviewed-on: https://go-review.googlesource.com/33420
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I87dae4809330e7964f6cb4a9e40e5b3254dd519d
+    Reviewed-on: https://go-review.googlesource.com/28096
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/client_test.go | 19 +++++++++----------
- 1 file changed, 9 insertions(+), 10 deletions(-)
+ src/reflect/all_test.go | 28 ++++++++++++++++
+ src/runtime/asm_s390x.s | 88 ++++++++++++++++++++++++++-----------------------
+ 2 files changed, 75 insertions(+), 41 deletions(-)

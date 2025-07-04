@@ -1,16 +1,24 @@
-commit 81484cf6263461057251bbda825f2c3dc4cdcd09
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Oct 14 21:08:11 2021 -0700
+commit 060fa49bd23d758a9062f4cb50e65960ec9662f1
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Feb 10 12:04:31 2021 -0500
 
-    doc: document new reflect.SetIter{Key,Value} functions
+    [dev.regabi] go/types: refuse excessively long constants
     
-    Update #48294
-    Update #47694
+    This is a port of CL 289049 to go/types. In that CL, tests were written
+    using the ability of tests/run.go to generate test packages dynamically.
+    For this CL, similar functionality is added to the go/types errmap
+    tests: tests are refactored to decouple the loading of source code from
+    the filesystem, so that tests for long constants may be generated
+    dynamically rather than checked-in as a large testdata file.
     
-    Change-Id: I4d4c01be74a9736d89a4ec92318ce29ff7289a0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356050
-    Trust: Keith Randall <khr@golang.org>
-    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Change-Id: I92c7cb61a8d42c6593570ef7ae0af86b501fa34e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290949
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.18.html | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/go/types/check_test.go | 74 +++++++++++++++++++++++++++-------------------
+ src/go/types/expr.go       | 17 +++++++++++
+ 2 files changed, 60 insertions(+), 31 deletions(-)

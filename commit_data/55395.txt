@@ -1,18 +1,25 @@
-commit 29cea6583ead4fa5b12a333e6a9dabe3f8a52fdd
-Author: Wingrez <31106425+wingrez@users.noreply.github.com>
-Date:   Sun Jan 21 09:26:40 2024 +0000
+commit 07dca0fe14d717f7e44593d13d9a6767ec34a9cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 31 11:34:16 2023 -0800
 
-    cmd/compile/internal/ssa: fix typo in sccp
+    go/types, types2: better error when trying to use ~ as bitwise operation
     
-    Change-Id: I7f522a4e1b0c50a469ce948249342d6e7cf7777c
-    GitHub-Last-Rev: f89d7ee576814c6ebde823b68a0b64bba8c2ad8f
-    GitHub-Pull-Request: golang/go#65188
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557255
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    When coming from C, the bitwise integer complement (bitwise negation)
+    operator is ~, but in Go it is ^. Report an error mentioning ^ when
+    ~ is used with an integer operand.
+    
+    Background: Some articles on the web claim that Go doesn't have a
+    bitwise complement operator.
+    
+    Change-Id: I41185cae4a70d528754e44f42c13c013ed91bf27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463747
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/sccp.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/expr.go    | 19 ++++++++++++-------
+ src/go/types/expr.go                       | 20 +++++++++++++-------
+ src/internal/types/testdata/check/expr0.go |  9 +++++++++
+ 3 files changed, 34 insertions(+), 14 deletions(-)

@@ -1,38 +1,55 @@
-commit 3839b6001470f7bc73c9a80f6458f7111ae3d9cc
-Author: Austin Clements <austin@google.com>
-Date:   Tue Aug 20 17:39:09 2019 -0400
+commit b70a2bc9c612de35b765712bd689865f6a1716b6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 5 11:22:13 2021 +0100
 
-    cmd/{asm,compile,internal/obj}: add "maymorestack" support
+    cmd/compile: make ValAndOff.{Val,Off} return an int32
     
-    This adds a debugging hook for optionally calling a "maymorestack"
-    function in the prologue of any function that might call morestack
-    (whether it does at run time or not). The maymorestack function will
-    let us improve lock checking and add debugging modes that stress
-    function preemption and stack growth.
+    The ValAndOff type is a 64bit integer holding a 32bit value and a
+    32bit offset in each half, but for historical reasons its Val and Off
+    methods returned an int64. This was convenient when AuxInt was always
+    an int64, but now that AuxInts are typed we can return int32 from Val
+    and Off and get rid of a several casts and now unnecessary range
+    checks.
     
-    Passes toolstash-check -all (except on js/wasm, where toolstash
-    appears to be broken)
+    This change:
     
-    Fixes #48297.
+    - changes the Val and Off methods to return an int32 (from int64);
+    - adds Val64 and Off64 methods for convenience in the few remaining
+      places (in the ssa.go files) where Val and Off are stored in int64
+      fields;
+    - deletes makeValAndOff64, renames makeValAndOff32 to makeValAndOff
+    - deletes a few ValAndOff methods that are now unused;
+    - removes several validOff/validValAndOff check that will always
+      return true.
     
-    Change-Id: I27197947482b329af75dafb9971fc0d3a52eaf31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359795
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Passes:
+    
+      GOARCH=amd64 gotip build -toolexec 'toolstash -cmp' -a std
+      GOARCH=386 gotip build -toolexec 'toolstash -cmp' -a std
+      GOARCH=s390x gotip build -toolexec 'toolstash -cmp' -a std
+    
+    (the three GOARCHs with SSA rules files impacted by the change).
+    
+    Change-Id: I2abbbf42188c798631b94d3a55ca44256f140be7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299149
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/flags/flags.go    |  5 ++
- src/cmd/asm/main.go                    |  1 +
- src/cmd/compile/internal/base/debug.go |  1 +
- src/cmd/compile/internal/base/flag.go  |  1 +
- src/cmd/internal/obj/arm/obj5.go       | 57 +++++++++++++++++++-
- src/cmd/internal/obj/arm64/obj7.go     | 87 +++++++++++++++++++++++++++++-
- src/cmd/internal/obj/link.go           |  3 +-
- src/cmd/internal/obj/mips/obj0.go      | 79 ++++++++++++++++++++++++++-
- src/cmd/internal/obj/ppc64/obj9.go     | 93 +++++++++++++++++++++++++++++++-
- src/cmd/internal/obj/riscv/obj.go      | 58 +++++++++++++++++++-
- src/cmd/internal/obj/s390x/objz.go     | 81 ++++++++++++++++++++++++----
- src/cmd/internal/obj/wasm/wasmobj.go   | 56 +++++++++++++++++++-
- src/cmd/internal/obj/x86/obj6.go       | 97 ++++++++++++++++++++++++----------
- test/maymorestack.go                   | 47 ++++++++++++++++
- 14 files changed, 620 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go              |  22 +-
+ src/cmd/compile/internal/s390x/ssa.go              |  14 +-
+ src/cmd/compile/internal/ssa/gen/386.rules         |  75 +++--
+ .../compile/internal/ssa/gen/386splitload.rules    |   6 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |  95 +++---
+ .../compile/internal/ssa/gen/AMD64splitload.rules  |  32 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules       |  40 +--
+ src/cmd/compile/internal/ssa/op.go                 |  42 +--
+ src/cmd/compile/internal/ssa/rewrite386.go         | 184 +++++-------
+ .../compile/internal/ssa/rewrite386splitload.go    |  14 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 330 ++++++++++-----------
+ .../compile/internal/ssa/rewriteAMD64splitload.go  | 100 +++----
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |  96 +++---
+ src/cmd/compile/internal/x86/ssa.go                |  20 +-
+ 14 files changed, 504 insertions(+), 566 deletions(-)

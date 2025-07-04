@@ -1,26 +1,26 @@
-commit b7451e299ba2b1f69ecf8744adaf028ae437f262
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Dec 21 13:47:20 2018 -0500
+commit a700ae98630b4e4dd03a0ead627941d6bb1d55bf
+Author: Tobias Klauser <tobias.klauser@gmail.com>
+Date:   Sun Aug 26 18:50:33 2018 +0000
 
-    cmd/go: use cached source files in "go list -find -compiled"
+    Revert "syscall, os: use pipe2 syscall on DragonflyBSD instead of pipe"
     
-    When "go list" is invoked with -find, it clears the list of imports
-    for each package matched on the command line. This affects action IDs,
-    since they incorporate dependencies' action IDs. Consequently, the
-    build triggered by -compiled won't find sources cached by
-    "go build".
+    This reverts commit e6c15945dee0661dee6111183d4951853c4c2d98.
     
-    We can still safely cache compiled sources from multiple runs of
-    "go list -find -compiled" though, since cgo generated sources are not
-    affected by imported dependencies. This change adds a second look into
-    the cache in this situation.
+    Reason for revert: breaks the Dragonfly builders.
     
-    Fixes #29371
+    Fixes #27245
     
-    Change-Id: Ia0ae5a403ab5d621feaa16f521e6a65ac0ae6d9a
-    Reviewed-on: https://go-review.googlesource.com/c/155481
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2c147a5726aec28647f6ef5eb8f9db5efa3a9fd0
+    Reviewed-on: https://go-review.googlesource.com/131497
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/exec.go         | 7 +++++++
- src/cmd/go/testdata/script/list_find.txt | 9 +++++++++
- 2 files changed, 16 insertions(+)
+ src/os/pipe2_bsd.go                     |  2 +-
+ src/os/pipe_bsd.go                      |  2 +-
+ src/syscall/forkpipe.go                 |  2 +-
+ src/syscall/forkpipe2.go                |  2 +-
+ src/syscall/syscall_dragonfly.go        | 10 +++-------
+ src/syscall/zsyscall_dragonfly_amd64.go |  4 ++--
+ src/syscall/zsysnum_dragonfly_amd64.go  |  1 -
+ 7 files changed, 9 insertions(+), 14 deletions(-)

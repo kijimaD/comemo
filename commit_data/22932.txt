@@ -1,24 +1,23 @@
-commit 96265610307eab2b160a271169632b52ad7cc455
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 7 15:29:48 2015 -0400
+commit 57bc7a043405c7e7215360f5fd1b80df6f56bb43
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Apr 10 17:24:43 2015 +0900
 
-    runtime: fix gccheckmark mode and enable by default
+    net: fix TestDialGoogle with -ipv6 when CGO_ENABLED=0
     
-    It was testing the mark bits on what roots pointed at,
-    but not the remainder of the live heap, because in
-    CL 2991 I accidentally inverted this check during
-    refactoring.
+    Under some dial tests that require external network connectivity, we
+    must prevent application traffic but must not interfere with control
+    plane traffic such as DNS message exchange. But test helper function
+    disableSocketConnect prevents both application and control plane traffic
+    unconditionally and makes some dial tests with -ipv6 fail when
+    CGO_ENABLED=0.
     
-    The next CL will turn it back off by default again,
-    but I want one run on the builders with the full
-    checkmark checks.
+    This change makes disableSocketConnect take a look at not only address
+    family but socket type for fixing some dial tests with -ipv6 when
+    CGO_ENBALED=0.
     
-    Change-Id: Ic166458cea25c0a56e5387fc527cb166ff2e5ada
-    Reviewed-on: https://go-review.googlesource.com/9824
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I32241d9592d31483424bb5e69cb4d56f3fc20312
+    Reviewed-on: https://go-review.googlesource.com/8743
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcmark.go  | 2 +-
- src/runtime/runtime1.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/net/main_posix_test.go | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)

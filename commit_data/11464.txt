@@ -1,12 +1,12 @@
-commit 022aac78836a96ca844efd327071a55b13cca6a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 30 11:10:59 2012 -0500
+commit ed7a8f71590bcd704335bab5c07e3164431e43e1
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Jan 30 07:57:50 2012 -0800
 
-    runtime: fix float64 hash
+    net/http: Fix nil pointer dereference in error case.
     
-    R=ken2
-    CC=golang-dev
-    https://golang.org/cl/5580046
+    R=golang-dev
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/5598044
 
- src/pkg/runtime/alg.c | 2 +-
+ src/pkg/net/http/client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

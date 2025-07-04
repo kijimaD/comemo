@@ -1,23 +1,37 @@
-commit 497feff168b44bdcb645ab0c2a956b0033d6100d
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Feb 27 19:07:32 2021 +1100
+commit 27342e5bd9694df2878534ec122058ccbcd291aa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jul 10 18:49:01 2020 -0400
 
-    cmd/compile: intrinsify runtime/internal/atomic.{And,Or}{8,} on RISCV64
+    [dev.link] cmd/internal/goobj2, cmd/link: add content addressable symbols
     
-    The 32 bit versions are easily implement with a single instruction, while the
-    8 bit versions require a bit more effort but use the same atomic instructions
-    via rewrite rules.
+    This CL introduces content-addressable symbols (a.k.a. hashed
+    symbols) to object files. Content-addressable symbols are
+    identified and referenced by their content hashes, instead of by
+    names.
     
-    Change-Id: I42e8d457b239c8f75e39a8e282fc88c1bb292a99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268098
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    In the object file, a new pseudo-package index PkgIdxHashed is
+    introduced, for content-addressable symbols, and a new block is
+    added to store their hashes. The hashes are used by the linker to
+    identify and deduplicate the symbols.
+    
+    For now, we only support content-addressable symbols that are
+    always locally defined (i.e. no cross-package references).
+    
+    As a proof of concept, make string constant symbols content-
+    addressable.
+    
+    Change-Id: Iaf53efd74c0ffb54fa95f784628cc84e95844536
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242079
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/riscv64/ssa.go        |  8 +++
- src/cmd/compile/internal/ssa/gen/RISCV64.rules | 16 ++++++
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  8 ++-
- src/cmd/compile/internal/ssa/opGen.go          | 28 ++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 75 ++++++++++++++++++++++++++
- 5 files changed, 134 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/obj.go     |   1 +
+ src/cmd/internal/goobj/readnew.go      |   8 ++-
+ src/cmd/internal/goobj2/objfile.go     |  43 ++++++++++--
+ src/cmd/internal/obj/link.go           |  40 ++++++-----
+ src/cmd/internal/obj/objfile2.go       |  26 ++++++-
+ src/cmd/internal/obj/sym.go            |  17 ++++-
+ src/cmd/link/internal/ld/main.go       |   2 +-
+ src/cmd/link/internal/loader/loader.go | 123 ++++++++++++++++++++++++---------
+ 8 files changed, 197 insertions(+), 63 deletions(-)

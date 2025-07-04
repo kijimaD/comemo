@@ -1,17 +1,41 @@
-commit 26069e1981ba8500baf35ff5aec79531e4882543
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Nov 16 14:28:12 2016 +0000
+commit 254169d7bb6f96409ba4b405c80d28deefdb000b
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Sep 14 11:50:36 2016 -0700
 
-    cmd/compile: remove some unused code
+    crypto/tls: fix deadlock when racing to complete handshake.
     
-    The use of these has been removed in recent commits.
+    After renegotiation support was added (af125a5193c) it's possible for a
+    Write to block on a Read when racing to complete the handshake:
+       1. The Write determines that a handshake is needed and tries to
+          take the neccesary locks in the correct order.
+       2. The Read also determines that a handshake is needed and wins
+          the race to take the locks.
+       3. The Read goroutine completes the handshake and wins a race
+          to unlock and relock c.in, which it'll hold when waiting for
+          more network data.
     
-    Change-Id: Iff36a3ee4dcdfe39c40e93e2601f44d3c59f7024
-    Reviewed-on: https://go-review.googlesource.com/33274
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    If the application-level protocol requires the Write to complete before
+    data can be read then the system as a whole will deadlock.
+    
+    Unfortunately it doesn't appear possible to reverse the locking order of
+    c.in and handshakeMutex because we might read a renegotiation request at
+    any point and need to be able to do a handshake without unlocking.
+    
+    So this change adds a sync.Cond that indicates that a goroutine has
+    committed to doing a handshake. Other interested goroutines can wait on
+    that Cond when needed.
+    
+    The test for this isn't great. I was able to reproduce the deadlock with
+    it only when building with -race. (Because -race happened to alter the
+    timing just enough.)
+    
+    Fixes #17101.
+    
+    Change-Id: I4e8757f7b82a84e46c9963a977d089f0fb675495
+    Reviewed-on: https://go-review.googlesource.com/29164
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/swt.go  |  3 ---
- src/cmd/compile/internal/gc/walk.go | 37 -------------------------------------
- 2 files changed, 40 deletions(-)
+ src/crypto/tls/conn.go                  | 68 +++++++++++++++++++++++++--------
+ src/crypto/tls/handshake_client_test.go | 54 ++++++++++++++++++++++++++
+ 2 files changed, 107 insertions(+), 15 deletions(-)

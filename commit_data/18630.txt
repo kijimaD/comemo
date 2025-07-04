@@ -1,17 +1,18 @@
-commit c7612f3426977332b471acb8f1928a1cd027f896
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Feb 24 18:01:28 2014 -0500
+commit e6e894500171ee8013713f76660076632f1b355c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 24 16:44:35 2014 -0500
 
-    crypto/tls: report TLS version in ConnectionState.
+    build: comment possible ulimit failure in run.bash
     
-    Fixes #7231.
+    Record what's going on in case someone is debugging a failure there.
+    It's not Go's fault.
+    
+    Fixes #7381.
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/68250043
+    https://golang.org/cl/68200043
 
- src/pkg/crypto/tls/common.go                |  1 +
- src/pkg/crypto/tls/conn.go                  |  1 +
- src/pkg/crypto/tls/handshake_server_test.go | 17 +++++++++++++++++
- 3 files changed, 19 insertions(+)
+ src/run.bash | 6 ++++++
+ 1 file changed, 6 insertions(+)

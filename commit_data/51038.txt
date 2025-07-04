@@ -1,30 +1,27 @@
-commit 76940b3e5749a9936cbc32631e068065c2003267
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 28 15:15:25 2022 -0400
+commit bc32dd1b69b0629a54cfe50626e42eb4b75eb017
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 26 13:14:01 2021 -0800
 
-    cmd/internal/obj: cleanup linkgetlineFromPos
+    go/types: better error position for instantiation failure
     
-    Make linkgetlineFromPos and getFileIndexAndLine methods on Link, and
-    give the former a more descriptive name.
+    This is a port of CL 366757 from types2 to go/types,
+    adjusted for the different handling of index expressions
+    in go/types.
     
-    The docs are expanded to make it more clear that these are final
-    file/line visible in programs.
+    For #49179.
     
-    In getFileSymbolAndLine use ctxt.InnermostPos instead of ctxt.PosTable
-    direct, which makes it more clear that we want the semantics of
-    InnermostPos.
-    
-    Change-Id: I7c3d344dec60407fa54b191be8a09c117cb87dd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446301
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic859eb09683134d055e28c8e0cb1f3814a87dc5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367198
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/internal/obj/dwarf.go     |  4 ++--
- src/cmd/internal/obj/line.go      | 17 +++++++++++------
- src/cmd/internal/obj/line_test.go |  6 +++---
- src/cmd/internal/obj/objfile.go   |  2 +-
- src/cmd/internal/obj/pcln.go      |  2 +-
- src/cmd/internal/obj/plist.go     |  5 ++++-
- src/cmd/internal/obj/sym.go       |  2 +-
- 7 files changed, 23 insertions(+), 15 deletions(-)
+ src/go/types/builtins.go                       |  2 +-
+ src/go/types/call.go                           | 39 +++++++++++---------------
+ src/go/types/mono.go                           |  7 +++--
+ src/go/types/testdata/check/issues.go2         |  2 +-
+ src/go/types/testdata/fixedbugs/issue39754.go2 |  5 +---
+ src/go/types/testdata/fixedbugs/issue49179.go2 | 19 +++++++++++++
+ src/go/types/typexpr.go                        | 13 ++-------
+ 7 files changed, 45 insertions(+), 42 deletions(-)

@@ -1,15 +1,15 @@
-commit 83c5d07c0e940b0ff3f9da23920f047c4dd6e6fe
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 1 00:30:19 2013 -0500
+commit 94955f9b4076aafd54fc756b9d11065e2bba5b05
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Mar 1 00:21:08 2013 -0500
 
-    runtime/cgo: fix arm build
+    runtime: check the value returned by runtime·SysAlloc
     
-    During my global search and replace I forgot to open *.S (capital).
-    
-    R=golang-dev
-    TBR=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/7415047
+    R=golang-dev, rsc
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/7424047
 
- src/pkg/runtime/cgo/gcc_arm.S | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/malloc.goc | 4 ++++
+ src/pkg/runtime/mgc0.c     | 8 ++++++++
+ src/pkg/runtime/mheap.c    | 2 ++
+ src/pkg/runtime/mprof.goc  | 6 ++++++
+ 4 files changed, 20 insertions(+)

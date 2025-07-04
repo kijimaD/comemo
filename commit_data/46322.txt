@@ -1,19 +1,52 @@
-commit 20a71c9a1d7e0d246dfad2c2a2057c954324217d
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Mon Sep 6 15:17:11 2021 +0800
+commit ec741b04470cda8df5902f1d8d84ab15cb2c8b8b
+Merge: acc32ea124 c9fb4eb0a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 22 16:54:51 2020 -0500
 
-    cmd/internal/sys: fix placement of loong64 definition
+    [dev.regabi] all: merge master (c9fb4eb) into dev.regabi
     
-    In rebasing the patch series up to CL 339015, the branches were messed
-    up by me, and changes from v3 to v4 of CL 339009 was lost. Fix the
-    ordering to restore alphabetical order per original review.
+    Merge List:
     
-    Change-Id: I8e57c96e996c4f962cab684a9d305a8dbdeea43b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347731
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Meng Zhuo <mzh@golangcn.org>
+    * 2020-12-22 c9fb4eb0a2 cmd/link: handle grouped resource sections
+    * 2020-12-22 c06a354bcc test: trigger SIGSEGV instead of SIGTRAP in issue11656.go
+    * 2020-12-22 0aa9b4709a cmd/pack: r command create output file if not exist
+    * 2020-12-22 4d27c4c223 runtime: correct error handling in several FreeBSD syscall wrappers
+    * 2020-12-22 9b6147120a cmd/pack: treat compiler's -linkobj output as "compiler object"
+    * 2020-12-21 bc7e4d9257 syscall: don't generate ptrace on iOS
+    * 2020-12-21 6cff874c47 runtime/metrics: add Read examples
+    * 2020-12-21 8438a5779b runtime: use _exit on darwin
+    * 2020-12-21 cb95819cf6 runtime: detect netbsd netpoll overrun in sysmon
+    * 2020-12-21 53c984d976 runtime: skip wakep call in wakeNetPoller on Plan 9
+    * 2020-12-21 9abbe27710 test: skip issue11656.go on mips/mips64/ppc64
+    
+    Change-Id: Ibb235fbf6a86ebcf50c686dc11f7c02d1865f845
 
- src/cmd/internal/sys/arch.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/link/internal/ld/lib.go                    |   2 +-
+ src/cmd/link/internal/ld/pe.go                     |  60 +++++++------
+ src/cmd/link/internal/loadpe/ldpe.go               |  49 ++++++-----
+ src/cmd/link/link_test.go                          |  19 ++++
+ src/cmd/link/testdata/testPErsrc-complex/main.go   |  43 +++++++++
+ src/cmd/link/testdata/testPErsrc-complex/rsrc.syso | Bin 0 -> 352 bytes
+ src/cmd/pack/pack.go                               |  38 ++++----
+ src/cmd/pack/pack_test.go                          |  89 +++++++++++++++++++
+ src/runtime/defs_freebsd_386.go                    |   9 +-
+ src/runtime/defs_freebsd_amd64.go                  |   9 +-
+ src/runtime/defs_freebsd_arm.go                    |   9 +-
+ src/runtime/defs_freebsd_arm64.go                  |   9 +-
+ src/runtime/metrics/example_test.go                |  96 +++++++++++++++++++++
+ src/runtime/os_freebsd.go                          |   3 +-
+ src/runtime/proc.go                                |  24 +++++-
+ src/runtime/sys_darwin.go                          |   2 +-
+ src/runtime/sys_freebsd_386.s                      |   6 ++
+ src/runtime/sys_freebsd_amd64.s                    |   6 ++
+ src/runtime/sys_freebsd_arm.s                      |   3 +
+ src/runtime/sys_freebsd_arm64.s                    |   6 ++
+ src/syscall/mksyscall.pl                           |   2 +-
+ src/syscall/ptrace_darwin.go                       |  14 +++
+ src/syscall/ptrace_ios.go                          |  12 +++
+ src/syscall/syscall_darwin_amd64.go                |   2 +-
+ src/syscall/syscall_darwin_arm64.go                |   2 +-
+ src/syscall/zsyscall_darwin_amd64.go               |   2 +-
+ src/syscall/zsyscall_darwin_arm64.go               |   2 +-
+ test/fixedbugs/issue11656.go                       |  23 ++---
+ 28 files changed, 442 insertions(+), 99 deletions(-)

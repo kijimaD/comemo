@@ -1,17 +1,15 @@
-commit 22505cd2a1f6006c50a90999561463eba57897de
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 15 20:05:56 2014 -0400
+commit edebe10864982e912e70c7fa1bc5676ed7933f33
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 15 16:27:48 2014 -0700
 
-    cmd/pack: print error along with usage
+    doc/asm.html: remove mention of 6l -a
+    Also make it clear this is not a complete description of all features.
+    Fixes #7790.
     
-    My cmd/go got in a weird state where it started invoking pack grcP.
-    Change pack to print a 1-line explanation of the usage problem
-    before the generic usage message.
-    
-    LGTM=r
-    R=r
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/87770047
+    https://golang.org/cl/88300044
 
- src/cmd/pack/pack.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ doc/asm.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,17 +1,21 @@
-commit 0480bfe57f41b4f4746b0f9da2eb72e948b355a8
+commit 12c286c149583edbb08045cc8f518f0c90c7dc85
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Aug 18 21:19:12 2017 -0700
+Date:   Thu Apr 27 06:00:18 2017 -0700
 
-    runtime: remove handling of indirect key types in evacuate_fastX
+    cmd/compile: minor writebarrier cleanup
     
-    None of the mapfast key types are indirect.
+    This CL mainly moves some work to the switch on w.Op,
+    to make a follow-up change simpler and clearer.
     
-    Change-Id: I1fb2682257567ee69504082a6cdad63c99916671
-    Reviewed-on: https://go-review.googlesource.com/59133
+    Updates #19838
+    
+    Change-Id: I86f3181c380dd60960afcc24224f655276b8956c
+    Reviewed-on: https://go-review.googlesource.com/42010
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/hashmap_fast.go | 36 ++++++------------------------------
- 1 file changed, 6 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/ssa/deadstore.go    |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go | 13 ++++++-------
+ 2 files changed, 7 insertions(+), 8 deletions(-)

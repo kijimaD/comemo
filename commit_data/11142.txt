@@ -1,17 +1,12 @@
-commit 4505ae3863d363a9ef76e6ee4ead162493c0b143
+commit e91b31bc79809ccb3ac86dc9c71d7fad4acbc40d
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 15:27:57 2012 -0800
+Date:   Thu Jan 12 15:27:49 2012 -0800
 
-    cmd/go: handle path to cmd directory
+    fix build
     
-    Now it works to run 'go install' (no args) in cmd/go.
-    
-    Fixes #2679.
-    
-    R=golang-dev, r
+    TBR=gri
     CC=golang-dev
-    https://golang.org/cl/5543046
+    https://golang.org/cl/5528090
 
- src/cmd/go/main.go | 20 +++++++++++++++++++-
- src/cmd/go/pkg.go  | 15 ++++++++++++++-
- 2 files changed, 33 insertions(+), 2 deletions(-)
+ src/Make.pkg | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

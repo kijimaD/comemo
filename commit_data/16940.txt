@@ -1,18 +1,31 @@
-commit df4de948a5145519411696b4f741bcdd6480bece
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 31 15:09:13 2013 +1000
+commit a696ae56db451f2f02ffdf63092e0c06dba1d0c5
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 30 21:39:57 2013 -0700
 
-    text/template/parse: print TextNodes using %s not %q
-    This means that printing a Node will produce output that can be used as valid input.
-    It won't be exactly the same - some spacing may be different - but it will mean the same.
+    runtime: optimize some hash lookups.
     
-    Fixes #4593.
+    When comparing strings, check these (in order):
+    - length mismatch => not equal
+    - string pointer equal => equal
+    - if length is short:
+      - memeq on body
+    - if length is long:
+      - compare first&last few bytes, if different => not equal
+      - save entry as a possible match
+      - after checking every entry, if there is only one possible
+        match, use memeq on that entry.  Otherwise, fallback to hash.
     
-    R=golang-dev, dsymonds
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkSameLengthMap           43            4  -89.77%
+    
+    Fixes #5194.
+    Update #3885.
+    
+    R=golang-dev, bradfitz, khr, rsc
     CC=golang-dev
-    https://golang.org/cl/12006047
+    https://golang.org/cl/12128044
 
- src/pkg/text/template/multi_test.go       | 4 ++--
- src/pkg/text/template/parse/node.go       | 4 +++-
- src/pkg/text/template/parse/parse_test.go | 2 ++
- 3 files changed, 7 insertions(+), 3 deletions(-)
+ src/pkg/runtime/hashmap.c        |  57 ++++++++++++-------
+ src/pkg/runtime/hashmap_fast.c   | 120 +++++++++++++++++++++++++--------------
+ src/pkg/runtime/mapspeed_test.go |  14 +++++
+ 3 files changed, 128 insertions(+), 63 deletions(-)

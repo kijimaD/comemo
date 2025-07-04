@@ -1,17 +1,14 @@
-commit e8fab405cb5f7e6f10357ed26720c6b8938a5be3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 12 13:40:30 2016 -0800
+commit d02193c628c1b442909950f310362d9e7b66e94a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:51:01 2016 -0500
 
-    cmd/compile: minor cleanup
+    doc: document linux/ppc64 kernel requirement (2.6.37 or later)
     
-    Passes toolstash -cmp.
+    Fixes #13269.
     
-    Change-Id: Ib8c76081956e1d4eecef16b82bc8d527d7849d7e
-    Reviewed-on: https://go-review.googlesource.com/20643
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I960d1825bda9d8873c2a9005872c45e4c7d30111
+    Reviewed-on: https://go-review.googlesource.com/18339
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/gsubr.go | 31 ++++++++-------------
- src/cmd/internal/obj/objfile.go      | 52 +++++++++++++++---------------------
- 2 files changed, 32 insertions(+), 51 deletions(-)
+ doc/install-source.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

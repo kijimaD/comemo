@@ -1,12 +1,13 @@
-commit f7ad1834ea2db813914314d14cfdf94d197d204e
+commit bdca78e1a76cd97a20d45d5f6990b52533154aee
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Feb 26 01:40:29 2012 +0800
+Date:   Sun Feb 26 01:36:26 2012 +0800
 
-    doc/install: fix FreeBSD/Linux install command
+    cmd/yacc/units.y: update comment, give better error messages when $GOROOT not set
     
-    R=adg, golang-dev, go.peter.90, rsc
+    R=r, golang-dev
     CC=golang-dev
-    https://golang.org/cl/5700062
+    https://golang.org/cl/5698062
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/yacc/Makefile |  3 +++
+ src/cmd/yacc/units.y  | 12 ++++++++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)

@@ -1,24 +1,13 @@
-commit 9f38b6c9e574c672d646a366c1933c3ff88b8781
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 29 18:44:38 2014 +0400
+commit 639dc6c794d682dd7efff21107d0e085ed66726c
+Author: Sanjay Menakuru <balasanjay@gmail.com>
+Date:   Mon Aug 25 11:29:53 2014 +0400
 
-    runtime: clean up GC code
-    Remove C version of GC.
-    Convert freeOSMemory to Go.
-    Restore g0 check in GC.
-    Remove unknownGCPercent check in GC,
-    it's initialized explicitly now.
+    runtime: Loosen conditions in TestMemstat in an attempt to fix the nacl/arm build.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
     CC=golang-codereviews, khr
-    https://golang.org/cl/139910043
+    https://golang.org/cl/128680043
 
- src/pkg/runtime/malloc.go | 26 ++++------------
- src/pkg/runtime/malloc.h  |  1 -
- src/pkg/runtime/mgc0.c    | 78 +----------------------------------------------
- src/pkg/runtime/mgc0.go   |  5 +++
- src/pkg/runtime/mheap.c   | 13 ++------
- src/pkg/runtime/stubs.go  |  4 +--
- src/pkg/runtime/thunk.s   |  3 ++
- 7 files changed, 19 insertions(+), 111 deletions(-)
+ src/pkg/runtime/malloc_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

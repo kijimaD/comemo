@@ -1,28 +1,16 @@
-commit 6fe1febc867237fdf9ae40483044ed377144627f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 16 15:31:04 2016 -0700
+commit 095fbdcc91e41abf52a690dd6c64d701682ca96b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 25 15:44:39 2016 +0200
 
-    cmd/internal/obj: replace AGLOBL with (*Link).Globl
+    runtime: use of Run for some benchmarks
     
-    Replace the AGLOBL pseudo-op with a method to directly register an
-    LSym as a global. Similar to how we previously already replaced the
-    ADATA pseudo-op with directly writing out data bytes.
+    Names of sub-benchmarks are preserved, short of the additional slash.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I3631af0a2ab5798152d0c26b833dc309dbec5772
-    Reviewed-on: https://go-review.googlesource.com/29366
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I9b3f82964f9a44b0d28724413320afd091ed3106
+    Reviewed-on: https://go-review.googlesource.com/23425
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/asm.go      | 12 +-----
- src/cmd/compile/internal/gc/dcl.go   |  1 -
- src/cmd/compile/internal/gc/gsubr.go | 79 ++++++------------------------------
- src/cmd/compile/internal/gc/obj.go   |  1 -
- src/cmd/compile/internal/gc/plive.go |  2 +-
- src/cmd/internal/obj/link.go         |  1 -
- src/cmd/internal/obj/plist.go        | 54 ++++++++++++------------
- src/cmd/internal/obj/util.go         |  3 +-
- src/cmd/internal/obj/x86/asm6.go     |  1 -
- 9 files changed, 42 insertions(+), 112 deletions(-)
+ src/runtime/memmove_test.go | 189 +++++++++++++++-----------------------------
+ 1 file changed, 64 insertions(+), 125 deletions(-)

@@ -1,27 +1,16 @@
-commit 9e227acfb62b091eea743bef03bbe466e4070df9
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Oct 31 15:30:59 2016 +0000
+commit d58886409398abfa1a3aed1864e9ee14d516c089
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 5 01:20:50 2016 +0000
 
-    Revert "runtime/pprof: write profiles in protobuf format."
+    syscall: add more TestGetfsstat debugging
     
-    This reverts commit b33030a72754cb55d6ec137e79facacb398c9be4.
+    Updates #16937
     
-    Reason for revert: We're going to try to get the code in this change
-    submitted in smaller, more carefully reviewed changes.
-    
-    Change-Id: I4175f4b297f0e69fb78b11f9dc0bd82f27865be7
-    Reviewed-on: https://go-review.googlesource.com/32441
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6d1b210c741269b58040bd68bf3b51644f891737
+    Reviewed-on: https://go-review.googlesource.com/28487
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/go/build/deps_test.go                          |  15 +-
- src/runtime/crash_cgo_test.go                      |   3 +-
- src/runtime/pprof/decoder_for_test.go              | 807 ---------------------
- src/runtime/pprof/internal/profile/encode.go       | 187 -----
- src/runtime/pprof/internal/profile/profile.go      | 112 ---
- .../pprof/internal/profile/profile_memmap.go       | 306 --------
- src/runtime/pprof/internal/profile/proto.go        | 156 ----
- .../pprof/internal/protopprof/protopprof.go        | 295 --------
- src/runtime/pprof/mprof_test.go                    |  64 +-
- src/runtime/pprof/pprof.go                         | 409 ++++++-----
- src/runtime/pprof/pprof_test.go                    | 227 ++++--
- 11 files changed, 406 insertions(+), 2175 deletions(-)
+ src/syscall/syscall_bsd_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

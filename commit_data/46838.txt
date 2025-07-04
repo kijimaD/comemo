@@ -1,24 +1,21 @@
-commit bd41f2d3cd82a37e85fcf44067ffd2f728554a3b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Oct 8 19:55:17 2021 -0400
+commit 724d0720b3e110f64598bf789cbe2a6a1b3b0fd8
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Fri Feb 5 05:47:46 2021 +0000
 
-    cmd/link: do not mark holes in functab
+    doc/go1.16: add missed heading tag in vet section
     
-    With multiple text sections, there may be holes (non-Go code) in
-    the PC range of Go code and covered by the functab. Previously, we
-    use a linear search with actual PCs to find the functab entry. We
-    need to use special entries to mark holes, so a PC in the hole can
-    be distinguished from the previous function.
+    Add missed heading tag in CL 276373.
     
-    Now, with the previous CL we find if the PC is in between of the
-    sections upfront in textOff. There is no need to mark holes in the
-    functab.
+    For #40700
     
-    Change-Id: I22ff27279422bfc855c2ca35ba0fdfb63234c113
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354874
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ida9e8861589bbc296a5a1cecbf9fe33fa09ed0ca
+    GitHub-Last-Rev: d218f8d4b70b20c30422863db7bed3683e3218e6
+    GitHub-Pull-Request: golang/go#44111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289869
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Tim King <taking@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/link/internal/ld/pcln.go | 35 ++++-------------------------------
- 1 file changed, 4 insertions(+), 31 deletions(-)
+ doc/go1.16.html | 2 ++
+ 1 file changed, 2 insertions(+)

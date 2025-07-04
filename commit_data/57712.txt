@@ -1,27 +1,29 @@
-commit 2e9ed44d3943164636271f3242b21f0072b6caa7
-Author: Alfonso Subiotto Marques <alfonsojssm@gmail.com>
-Date:   Mon Jun 3 12:02:40 2024 +0000
+commit 88cb17e1069bef854ead49c703262abdf93c9458
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 24 03:04:01 2023 -0700
 
-    runtime: remove linkname from memhash{32,64} functions
+    cmd/compile: create "init" function during noding
     
-    Remove linkname directives that are no longer necessary given
-    parquet-go/parquet-go#142 removes the dependency on the `memhash{32,64}`
-    functions.
+    This CL arranges for package-scope initialization statements to be
+    constructed directly into their eventual "init" function, so we can
+    eliminate the roundabout solution of using InitTodoFunc.
     
-    This change also removes references to segmentio/parquet-go since that
-    repository was archived in favor of parquet-go/parquet-go.
+    While here, somewhat simplify and generalize the logic for outlining
+    map initialization statements.
     
-    Updates #67401
-    
-    Change-Id: Ibafb0c41b39cdb86dac5531f62787fb5cb8d3f01
-    GitHub-Last-Rev: e14c4e4dfe1023df83339da73eb5dd632d52851b
-    GitHub-Pull-Request: golang/go#67784
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589795
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8aff042e6b266f7024de436424ec6711b8b69129
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522318
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/alg.go | 22 ----------------------
- 1 file changed, 22 deletions(-)
+ src/cmd/compile/internal/gc/main.go             |  7 +-
+ src/cmd/compile/internal/ir/package.go          |  4 --
+ src/cmd/compile/internal/noder/reader.go        | 77 +++++++++-----------
+ src/cmd/compile/internal/noder/writer.go        |  9 ++-
+ src/cmd/compile/internal/pkginit/init.go        | 59 ---------------
+ src/cmd/compile/internal/staticinit/sched.go    | 96 ++++++++++++-------------
+ src/cmd/compile/internal/typecheck/typecheck.go | 27 -------
+ 7 files changed, 86 insertions(+), 193 deletions(-)

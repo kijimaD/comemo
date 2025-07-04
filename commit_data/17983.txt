@@ -1,14 +1,12 @@
-commit c134ce272f5e1170908771f8371f5f8c01caf37c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Dec 12 22:13:19 2013 -0500
+commit 74a43546b03e521eb70a3bfd6a84123ffc4e12c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 19:01:50 2013 -0800
 
-    bytes: fix description of FieldsFunc
-    Similar to CL 3814041 that fixed the same issue in strings.
-    Fixes #6941.
+    .hgignore: remove duplicate entry
     
-    R=golang-dev, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/41490045
+    https://golang.org/cl/40690048
 
- src/pkg/bytes/bytes.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ .hgignore | 1 -
+ 1 file changed, 1 deletion(-)

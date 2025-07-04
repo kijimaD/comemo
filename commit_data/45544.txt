@@ -1,41 +1,55 @@
-commit 4df662fb373480b5055e645120558bb536fae42c
-Author: Philipp Sauter <sauterp@protonmail.com>
-Date:   Sun Nov 8 22:12:38 2020 +0100
+commit fc116b69e2004c159d0f2563c6e91ac75a79f872
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 5 18:12:35 2020 -0400
 
-    cmd/go: don't crash when running "go version" in deleted directory
+    runtime: try to elide timer stealing if P has no timers
     
-    If the go command is executed on Linux in a deleted directory,
-    it fails. This behavior is reasonable for commands which depend on
-    the CWD, but it's unexpected for commands like `go version`.
-    This change delays initialization of a global CWD variable.
+    Following golang.org/cl/259578, findrunnable still must touch every
+    other P in checkTimers in order to look for timers to steal. This scales
+    poorly with GOMAXPROCS and potentially performs poorly by pulling remote
+    Ps into cache.
     
-    Fixed #34499
+    Add timerpMask, a bitmask that tracks whether each P may have any timers
+    on its timer heap.
     
-    Change-Id: I7302fb84a3b7f5f149a123d277abd5b9b5bc95b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268261
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Ideally we would update this field on any timer add / remove to always
+    keep it up to date. Unfortunately, updating a shared global structure is
+    antithetical to sharding timers by P, and doing so approximately doubles
+    the cost of addtimer / deltimer in microbenchmarks.
+    
+    Instead we only (potentially) clear the mask when the P goes idle. This
+    covers the best case of avoiding looking at a P _at all_ when it is idle
+    and has no timers. See the comment on updateTimerPMask for more details
+    on the trade-off. Future CLs may be able to expand cases we can avoid
+    looking at the timers.
+    
+    Note that the addition of idlepMask to p.init is a no-op. The zero value
+    of the mask is the correct init value so it is not necessary, but it is
+    included for clarity.
+    
+    Benchmark results from WakeupParallel/syscall/pair/race/1ms (see
+    golang.org/cl/228577). Note that these are on top of golang.org/cl/259578:
+    
+    name                        old msec           new msec   delta
+    Perf-task-clock-8           244 ± 4%           246 ± 4%     ~     (p=0.841 n=5+5)
+    Perf-task-clock-16          247 ±11%           252 ± 4%     ~     (p=1.000 n=5+5)
+    Perf-task-clock-32          270 ± 1%           268 ± 2%     ~     (p=0.548 n=5+5)
+    Perf-task-clock-64          302 ± 3%           296 ± 1%     ~     (p=0.222 n=5+5)
+    Perf-task-clock-128         358 ± 3%           352 ± 2%     ~     (p=0.310 n=5+5)
+    Perf-task-clock-256         483 ± 3%           458 ± 1%   -5.16%  (p=0.008 n=5+5)
+    Perf-task-clock-512         663 ± 1%           612 ± 4%   -7.61%  (p=0.008 n=5+5)
+    Perf-task-clock-1024      1.06k ± 1%         0.95k ± 2%  -10.24%  (p=0.008 n=5+5)
+    
+    Updates #28808
+    Updates #18237
+    
+    Change-Id: I4239cd89f21ad16dfbbef58d81981da48acd0605
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264477
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/go_test.go                  | 22 ++++++++++++++++++++++
- src/cmd/go/internal/base/path.go       | 26 ++++++++++++++++----------
- src/cmd/go/internal/envcmd/env.go      |  2 +-
- src/cmd/go/internal/fsys/fsys.go       |  2 +-
- src/cmd/go/internal/get/get.go         |  2 +-
- src/cmd/go/internal/load/flag.go       |  2 +-
- src/cmd/go/internal/load/pkg.go        |  8 ++++----
- src/cmd/go/internal/modload/init.go    | 14 +++++++-------
- src/cmd/go/internal/modload/load.go    |  6 +++---
- src/cmd/go/internal/search/search.go   |  2 +-
- src/cmd/go/internal/test/cover.go      |  4 ++--
- src/cmd/go/internal/test/test.go       |  8 ++++----
- src/cmd/go/internal/test/testflag.go   | 25 ++++++++++++++++---------
- src/cmd/go/internal/work/action.go     |  6 +++---
- src/cmd/go/internal/work/build_test.go |  3 ++-
- src/cmd/go/internal/work/exec.go       |  4 ++--
- src/cmd/go/internal/work/gc.go         |  2 +-
- src/cmd/go/internal/work/gccgo.go      | 10 +++++-----
- src/cmd/go/internal/work/init.go       |  2 +-
- 19 files changed, 93 insertions(+), 57 deletions(-)
+ src/runtime/proc.go     | 87 +++++++++++++++++++++++++++++++++++++------------
+ src/runtime/runtime2.go | 17 ++++++++--
+ 2 files changed, 81 insertions(+), 23 deletions(-)

@@ -1,24 +1,22 @@
-commit d278d5bbdddd0e976c272d1dd3ecc41eeb37daf9
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 23 12:02:50 2024 -0500
+commit 1bd0405b8fc4b2c308927df0803475e83542dd78
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Feb 6 14:27:06 2023 +0700
 
-    all: enable range-over-func in Go 1.23
+    test: add test for issue 58345
     
-    GOEXPERIMENT=rangefunc still enables it for all Go modules.
-    Otherwise only enable in Go 1.23 source files.
-    More work remains but it will be done in follow-up issues.
+    CL 458619 fixed the problem un-intentionally, so adding test to prevent
+    regression happening.
     
-    Fixes #61405.
+    Updates #58345
     
-    Change-Id: Icad64942deb152ee65444e4d7be289814a8a0b6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557835
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I80cf60716ef85e142d769e8621fce19c826be03d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465455
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/stmt.go    | 5 ++---
- src/cmd/compile/internal/types2/version.go | 1 +
- src/go/types/stmt.go                       | 5 ++---
- src/go/types/version.go                    | 1 +
- src/internal/types/testdata/spec/range.go  | 2 --
- 5 files changed, 6 insertions(+), 8 deletions(-)
+ test/fixedbugs/issue58345.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

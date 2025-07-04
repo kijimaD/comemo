@@ -1,12 +1,12 @@
-commit 6f53c4136b72f74f0ada09c66bcbbb5aefe3c5cd
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Tue Oct 15 18:41:23 2013 +1100
+commit 2acb80b5e57f5c42c6f474616253d4be80187527
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 14 14:26:52 2013 -0700
 
-    doc/contrib.html: fix some tags
+    cmd/gc: fix comment about performing indexing at compile time.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14516057
+    https://golang.org/cl/14441070
 
- doc/contrib.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/walk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,17 +1,18 @@
-commit dc8b4e65a7a68e102484020efbf80cecd2d515bd
-Author: sam boyer <tech@samboyer.org>
-Date:   Sat Jun 17 01:21:48 2017 -0400
+commit 89840e4ac9525ddff2b04a8f17fe5b85e96f9bdc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 21 12:13:12 2017 -0700
 
-    doc: add qualified mention of dep to FAQ
+    cmd/compile: eliminate a Curfn reference in plive
     
-    This adds a qualified mention of golang/dep to the FAQ.
+    I think this got lost in a rebase somewhere.
     
-    Fixes #19049
+    Updates #15756
     
-    Change-Id: I42a114a008a6ca1250d849872dd98fd6523fa659
-    Reviewed-on: https://go-review.googlesource.com/46005
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia3e7c60d1b9254f2877217073732b46c91059ade
+    Reviewed-on: https://go-review.googlesource.com/38425
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_faq.html | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/plive.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,15 +1,14 @@
-commit a293065a39963ef2efb4cc133e286d2d97b356a9
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jul 23 14:09:53 2013 +1000
+commit 7d9a8fb8a913c21599959cd2cea3496ae0828bdc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 23 10:13:58 2013 +0900
 
-    database/sql: close statement before connection
-    
-    Fixes #5936
+    net: make use of noDeadline instead of time.Time{}
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/11620046
+    https://golang.org/cl/11691044
 
- src/pkg/database/sql/sql.go      |  2 +-
- src/pkg/database/sql/sql_test.go | 14 ++++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/pkg/net/dnsclient_unix.go | 2 +-
+ src/pkg/net/fd_posix_test.go  | 4 ++--
+ src/pkg/net/sock_posix.go     | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

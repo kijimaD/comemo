@@ -1,26 +1,30 @@
-commit 85d54a7667c12ea2320f43b24129a68f020ac095
-Author: Michael Munday <mike.munday@lowrisc.org>
-Date:   Mon Sep 20 21:39:39 2021 +0100
+commit 69756b38f25bf72f1040dd7fd243febba89017e6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 5 14:25:34 2022 -0400
 
-    cmd/compile: use zero constants in comparisons where possible
+    cmd/dist: move more environment logic into cmd/dist from make and run scripts
     
-    Some integer comparisons with 1 and -1 can be rewritten as comparisons
-    with 0. For example, x < 1 is equivalent to x <= 0. This is an
-    advantageous transformation on riscv64 because comparisons with zero
-    do not require a constant to be loaded into a register. Other
-    architectures will likely benefit too and the transformation is
-    relatively benign on architectures that do not benefit.
+    'go tool dist env' outputs different (and fewer) environment variables
+    than 'go env'. The 'go tool dist env' variables should be
+    authoritative, whereas many printed by 'go env' are merely
+    informational (and not intended to be overridden in the actual
+    environment).
     
-    Change-Id: I2ce9821dd7605a660eb71d76e83a61f9bae1bf25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350831
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    Fixes #52009
+    
+    Change-Id: Ic0590153875183135cebf7ca55ead7c2b4038569
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398061
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |   9 +
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 420 ++++++++++++++++++++++++
- test/codegen/compare_and_branch.go              |  36 ++
- test/prove.go                                   |   2 +-
- 4 files changed, 466 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.go | 59 +++++++++++++++++++++++++--------------------------
+ src/cmd/dist/test.go  |  4 ++--
+ src/make.bash         |  8 +------
+ src/make.bat          |  6 ++----
+ src/make.rc           |  6 +-----
+ src/run.bash          |  7 ++----
+ src/run.bat           | 11 +++-------
+ src/run.rc            |  6 +-----
+ 8 files changed, 41 insertions(+), 66 deletions(-)

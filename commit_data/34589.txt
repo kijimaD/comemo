@@ -1,17 +1,14 @@
-commit 63f4ab98ebbe168fd508469a76d038160af8487d
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Feb 16 18:41:41 2018 +0000
+commit 1cb86e2858d9cc76ebcb3f5abb7fcab3cbdb6ded
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 9 15:25:51 2017 -0400
 
-    cmd/compile: deduplicate racewalk switch cases
+    cmd/internal/objfile: allow disassemble amd64p32 binaries
     
-    Only the contiguous ones, to keep the patch simple. Remove some
-    unnecessary newlines, while at it.
-    
-    Change-Id: Ia588f80538b49a169fbf49835979ebff5a0a7b6d
-    Reviewed-on: https://go-review.googlesource.com/94756
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ifa7701e97c0ec7d113e952b2b366edf422d6df2f
+    Reviewed-on: https://go-review.googlesource.com/69351
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/racewalk.go | 42 ++++++---------------------------
- 1 file changed, 7 insertions(+), 35 deletions(-)
+ src/cmd/internal/objfile/disasm.go | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)

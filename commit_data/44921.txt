@@ -1,20 +1,15 @@
-commit 01821137c24750ddc7a58d3469bfd8c5e9d6bd47
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 29 14:59:39 2021 -0700
+commit 37aa65357007411d121fbdbaa5a340aba21ab40a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jul 24 03:38:38 2020 +1000
 
-    cmd/compile/internal/types2: review of errors.go
+    cmd/link: make it easier to debug an elfrelocsect size mismatch
     
-    The changes between (equivalent, and reviewed) go/types/errors.go
-    and errors.go can be seen by comparing patchset 1 and 2. The actual
-    changes are removing the "// UNREVIEWED" marker.
-    
-    The go/types version is significantly different as it handles
-    error codes but doesn't have some of the types2 changes.
-    
-    Change-Id: I48f79ce31490db938c830df7d38e247d55d54f2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305577
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I54976b004b4db006509f5e0781b1c2e46cfa09ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244577
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Joel Sing <joel@sing.id.au>
 
- src/cmd/compile/internal/types2/errors.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/link/internal/ld/elf.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,24 +1,27 @@
-commit f73dd8173a2d459113254dbd71d47856b5be0441
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 16 14:32:54 2024 -0700
+commit 7cc4516ac8305acf3689a2b755932512a1bf6efd
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue May 9 09:50:19 2023 -0400
 
-    go/types: re-enable suppressed gcimporter tests
+    internal/testdir: move to cmd/internal/testdir
     
-    Port CL 577616 from types2 to go/types allows us
-    to re-enable these tests.
+    The effect and motivation is for the test to be selected when doing
+    'go test cmd' and not when doing 'go test std' since it's primarily
+    about testing the Go compiler and linker. Other than that, it's run
+    by all.bash and 'go test std cmd' as before.
     
-    Fixes #66859.
-    Fixes #67436.
-    Updates #50259.
-    Updates #65294.
+    For #56844.
+    Fixes #60059.
     
-    Change-Id: I573e51cf16546ac1c115beac5322b51dd998c881
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586236
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I2d499af013f9d9b8761fdf4573f8d27d80c1fccf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493876
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/go/internal/gcimporter/gcimporter_test.go | 11 -----------
- src/go/types/resolver.go                      | 17 ++++++++++++++++-
- 2 files changed, 16 insertions(+), 12 deletions(-)
+ src/cmd/dist/test.go                           | 4 ++--
+ src/{ => cmd}/internal/testdir/testdir_test.go | 0
+ test/README.md                                 | 4 ++--
+ test/codegen/README                            | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

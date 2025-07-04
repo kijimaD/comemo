@@ -1,18 +1,14 @@
-commit c199c76cb47f065f9f513bc6f74f58be0484765d
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 16 12:11:33 2016 -0700
+commit a0abecf1020c33e82c464f7891b317e83f0c6a78
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue May 24 13:40:02 2016 -0400
 
-    cmd/compile: turn live variable test off for ppc
+    cmd/link: ensure -fuse-ld=gold uses gold
     
-    ppc64 has an extraneous variable live in some situations.
-    We need a better tighten pass to get rid of this extra variable.
-    I'm working on it, but fix the test in the meantime.
+    Fixes #15696
     
-    Fixes build for ppc64.
-    
-    Change-Id: I1efb9ccb234a64f2a1c228abd2b3195f67fbeb41
-    Reviewed-on: https://go-review.googlesource.com/29353
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I134e918dc56f79a72a04aa54f415371884113d2a
+    Reviewed-on: https://go-review.googlesource.com/23400
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/live.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,33 +1,14 @@
-commit 9f012e100210b6fb4e9bf8972e3d3b04c44b863a
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Sep 9 17:19:01 2014 -0700
+commit b1d01529975d2d87921c88891f85f3faa65e8cea
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Sep 4 08:36:18 2014 +0200
 
-    runtime: call rfork on scheduler stack on Plan 9
+    runtime: fix Plan 9 build
     
-    A race exists between the parent and child processes after a fork.
-    The child needs to access the new M pointer passed as an argument
-    but the parent may have already returned and clobbered it.
-    
-    Previously, we avoided this by saving the necessary data into
-    registers before the rfork system call but this isn't guaranteed
-    to work because Plan 9 makes no promises about the register state
-    after a system call. Only the 386 kernel seems to save them.
-    For amd64 and arm, this method won't work.
-    
-    We eliminate the race by allocating stack space for the scheduler
-    goroutines (g0) in the per-process copy-on-write stack segment and
-    by only calling rfork on the scheduler stack.
-    
-    LGTM=aram, 0intro, rsc
-    R=aram, 0intro, mischief, rsc
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/110680044
+    https://golang.org/cl/138050043
 
- src/runtime/os_plan9.c        | 16 ++++++------
- src/runtime/os_plan9.go       |  3 ++-
- src/runtime/os_plan9.h        |  3 ++-
- src/runtime/proc.c            |  4 +--
- src/runtime/runtime.h         |  9 +++++++
- src/runtime/sys_plan9_386.s   | 57 ++++++++++++++++++-------------------------
- src/runtime/sys_plan9_amd64.s | 48 ++++++++++++++++--------------------
- 7 files changed, 69 insertions(+), 71 deletions(-)
+ src/pkg/runtime/os_plan9.c  | 6 ------
+ src/pkg/runtime/os_plan9.go | 4 ++++
+ 2 files changed, 4 insertions(+), 6 deletions(-)

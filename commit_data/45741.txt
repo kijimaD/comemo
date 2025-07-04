@@ -1,18 +1,15 @@
-commit e11d14225c032a7c2722798db3c309762fa99757
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Jun 2 11:20:40 2021 -0400
+commit 26a860706a0ed4c3cb4228b0265dbd5eba8547d3
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Nov 10 11:31:31 2020 -0800
 
-    doc/go1.17: remove runtime section
+    doc/go1.16: add crypto/x509 CSR release note
     
-    Updates #44513
-    
-    Change-Id: I359d56fc3eeece3005f092cca2cb485664affc23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324209
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Change-Id: If74d49c3be9299d8c136003673e0fee2a563389d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268957
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- doc/go1.17.html | 6 ------
- 1 file changed, 6 deletions(-)
+ doc/go1.16.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

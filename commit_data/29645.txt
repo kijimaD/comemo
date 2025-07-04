@@ -1,22 +1,26 @@
-commit beec631c4c6a26fc7011d9f3be2b9aaa52b39ad2
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Nov 28 11:41:48 2016 -0500
+commit bb2bbfa08630c65b8751159515f3a22ec5f933ee
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 16:22:43 2016 -0700
 
-    cmd/asm: fix parsing of the s390x instructions VSTE{G,F,H,B}
+    cmd/compile: split Addrconst out of Naddr
     
-    The element index needs to be placed in From3. Before this CL it
-    was impossible to write a VSTE instruction that could be
-    successfully parsed, so this won't affect existing assembly code.
+    There are only three Prog types that we were creating with an OLITERAL
+    Node: ATEXT, ATYPE, and AFUNCDATA. ATEXT's value we later overwrite in
+    defframe, and ATYPE's we don't even need. AFUNCDATA only needs integer
+    constants, so get rid of all the non-int constant logic and skip
+    creating a Node representation for the constant.
     
-    Fixes #18075.
+    While here, there are a few other Naddr code paths that are no longer
+    needed, so turn those into Fatalfs.
     
-    Change-Id: I5b71be4c6632b1d5a30820a529122f96fd1bc864
-    Reviewed-on: https://go-review.googlesource.com/33584
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Passes toolstash/buildall.
+    
+    Change-Id: I4cc9b92c3011890afd4f31ebeba8b1b42b753cab
+    Reviewed-on: https://go-review.googlesource.com/30074
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/arch/s390x.go        | 2 ++
- src/cmd/asm/internal/asm/testdata/s390x.s | 5 ++++-
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/gsubr.go | 83 ++++++++++++------------------------
+ src/cmd/compile/internal/gc/pgen.go  | 13 ++----
+ 2 files changed, 32 insertions(+), 64 deletions(-)

@@ -1,20 +1,31 @@
-commit eb00167e27ba3525d26bbe9286c82090da782587
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Thu Mar 21 13:42:53 2019 +0100
+commit a1ee0a21cfd3d44f4585c1eb57698460abbfc7f1
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 17:27:16 2018 +0100
 
-    cmd/link: skip TestBuildFortvOS if the SDK is missing
+    runtime, time: refactor startNano handling
     
-    While we're here, move the test from dwarf_test.go to link_test.go;
-    it doesn't have anything to do with DWARF.
+    Move startNano from runtime to time package.
+    In preparation for a subsequent change that speeds up Since and Until.
+    This also makes code simpler as we have less assembly as the result,
+    monotonic time handling is better localized in time package.
+    This changes values returned from nanotime on windows
+    (it does not account for startNano anymore), current comments state
+    that it's important, but it's unclear how it can be important
+    since no other OS does this.
     
-    Should fix the macOS builders with only the Xcode command line tools
-    installed.
+    Update #25729
     
-    Change-Id: Iaaba1b589f4d778705f7b627f78c2b12388e2b3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168462
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I2275d57b7b5ed8fd0d53eb0f19d55a86136cc555
+    Reviewed-on: https://go-review.googlesource.com/c/146340
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/dwarf_test.go | 51 ---------------------------------------------
- src/cmd/link/link_test.go  | 52 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 51 deletions(-)
+ src/runtime/proc.go             |  3 +--
+ src/runtime/sys_windows_386.s   |  7 +------
+ src/runtime/sys_windows_amd64.s |  2 --
+ src/runtime/sys_windows_arm.s   | 12 ++----------
+ src/runtime/time.go             |  8 --------
+ src/runtime/timeasm.go          |  2 --
+ src/runtime/timestub.go         |  2 +-
+ src/time/sleep.go               |  3 ---
+ src/time/time.go                | 12 ++++++++++++
+ 9 files changed, 17 insertions(+), 34 deletions(-)

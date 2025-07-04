@@ -1,16 +1,18 @@
-commit fef54b22f8ee7a57a5ba04a6a02244a10f90e904
+commit ffb07c0e6c66946a30b7944d380254ebc81642d4
+Merge: 245ed93c20 2185dbcd85
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 6 17:59:30 2014 -0400
+Date:   Wed Aug 6 16:15:22 2014 -0400
 
-    cmd/go: revise disallowInternal
+    [dev.power64] all: merge default, for codereview update
     
-    This fixes two problems: x/internal/y/z was using parent = x/internal/y instead of x,
-    and hasPathPrefix only looks at /, not \ for Windows.
-    
-    LGTM=bradfitz
-    R=bradfitz
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/121280045
+    https://golang.org/cl/124820043
 
- src/cmd/go/pkg.go | 35 ++++++++++++++++++++++++++++-------
- 1 file changed, 28 insertions(+), 7 deletions(-)
+ lib/codereview/codereview.py | 30 ++++++++++++++++++-------
+ src/cmd/gc/array.c           | 14 ------------
+ src/cmd/gc/bv.c              | 36 +++++++++++++++++++++++++-----
+ src/cmd/gc/go.h              |  2 +-
+ src/cmd/gc/plive.c           | 52 ++++++++++++++++++++++++++++++++------------
+ 5 files changed, 91 insertions(+), 43 deletions(-)

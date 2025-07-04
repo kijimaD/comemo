@@ -1,26 +1,12 @@
-commit de47f68c99e9c86a32261b45752819a86cac74f2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 21 16:11:13 2013 -0700
+commit 279c48444aaf0f49a3c2be539fc6f3ca888e9deb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 21 14:19:08 2013 -0700
 
-    spec: fix spec on conversions to match implementations
+    testing: include cover mode in cover profile
     
-    The existing compilers convert empty strings to empty
-    but non-nil byte and rune slices. The spec required
-    a nil byte and rune slice in those cases. That seems
-    an odd additional requirement. Adjust the spec to
-    match the reality.
-    
-    Also, removed over-specification for conversions of
-    nil []byte and []rune: such nil slices already act
-    like empty slices and thus don't need extra language.
-    Added extra examples instead.
-    
-    Fixes #5704.
-    
-    R=rsc, r, iant
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/10440045
+    https://golang.org/cl/10392049
 
- doc/go_spec.html            | 23 ++++++++++++++---------
- test/fixedbugs/issue5704.go | 46 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 60 insertions(+), 9 deletions(-)
+ src/pkg/testing/cover.go | 1 +
+ 1 file changed, 1 insertion(+)

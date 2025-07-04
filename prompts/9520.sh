@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9520: db5f9da4256084db2f78db0e26b7b794af3ec7d6
+# Index 9520: 2a808826012ecc2165733de186f5e0a569e41619
 
 echo "🚀 Generating explanation for commit 9520..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 9520
-- **コミットハッシュ**: db5f9da4256084db2f78db0e26b7b794af3ec7d6
-- **GitHub URL**: https://github.com/golang/go/commit/db5f9da4256084db2f78db0e26b7b794af3ec7d6
+- **コミットハッシュ**: 2a808826012ecc2165733de186f5e0a569e41619
+- **GitHub URL**: https://github.com/golang/go/commit/2a808826012ecc2165733de186f5e0a569e41619
 
 ### 章構成
 

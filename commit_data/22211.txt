@@ -1,15 +1,51 @@
-commit 1f5617e37c9078dbe082151c9e17d5dc900cb5a0
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Feb 19 17:54:55 2015 +0300
+commit 1f9dbb60ef5cf8b0027c1149fdb1d6f08c41cfed
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 27 22:57:28 2015 -0500
 
-    test: add additional ... tests for escape analysis
+    cmd/new5l etc: convert from C to Go
     
-    False positives (var incorrectly escapes) are marked with BAD.
+    Using rsc.io/c2go rev fc8cbfa's run.ld script.
     
-    Change-Id: I646a29ffe24d963c63db09cba81dbc101d7c7242
-    Reviewed-on: https://go-review.googlesource.com/5296
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4d4d14fce96f8ce7a934bf8b9701b84fa9cf772d
+    Reviewed-on: https://go-review.googlesource.com/6335
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/escape2.go  | 24 ++++++++++++++++++++++--
- test/escape2n.go | 24 ++++++++++++++++++++++--
- 2 files changed, 44 insertions(+), 4 deletions(-)
+ src/cmd/internal/ld/ar.go         |   51 +
+ src/cmd/internal/ld/arch.go       |   67 +
+ src/cmd/internal/ld/data.go       | 1798 ++++++++++++++++++++++++
+ src/cmd/internal/ld/decodesym.go  |  183 +++
+ src/cmd/internal/ld/dwarf.go      | 2744 +++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/ld/dwarf_defs.go |  500 +++++++
+ src/cmd/internal/ld/elf.go        | 2448 +++++++++++++++++++++++++++++++++
+ src/cmd/internal/ld/fmt.go        |   60 +
+ src/cmd/internal/ld/go.go         |  929 +++++++++++++
+ src/cmd/internal/ld/ld.go         |  123 ++
+ src/cmd/internal/ld/ldelf.go      | 1004 ++++++++++++++
+ src/cmd/internal/ld/ldmacho.go    |  919 +++++++++++++
+ src/cmd/internal/ld/ldpe.go       |  550 ++++++++
+ src/cmd/internal/ld/lib.go        | 1751 +++++++++++++++++++++++
+ src/cmd/internal/ld/link.go       |  299 ++++
+ src/cmd/internal/ld/macho.go      |  892 ++++++++++++
+ src/cmd/internal/ld/objfile.go    |  366 +++++
+ src/cmd/internal/ld/pcln.go       |  487 +++++++
+ src/cmd/internal/ld/pe.go         | 1060 ++++++++++++++
+ src/cmd/internal/ld/pobj.go       |  224 +++
+ src/cmd/internal/ld/sym.go        |  238 ++++
+ src/cmd/internal/ld/symtab.go     |  440 ++++++
+ src/cmd/internal/ld/textflag.go   |  133 ++
+ src/cmd/internal/ld/util.go       |  369 +++++
+ src/cmd/internal/ld/z.go          |    1 +
+ src/cmd/new5l/asm.go              |  777 +++++++++++
+ src/cmd/new5l/l.go                |   78 ++
+ src/cmd/new5l/obj.go              |  182 +++
+ src/cmd/new6l/asm.go              |  829 +++++++++++
+ src/cmd/new6l/l.go                |   78 ++
+ src/cmd/new6l/obj.go              |  215 +++
+ src/cmd/new6l/z.go                |    1 +
+ src/cmd/new8l/asm.go              |  734 ++++++++++
+ src/cmd/new8l/l.go                |   78 ++
+ src/cmd/new8l/obj.go              |  191 +++
+ src/cmd/new9l/asm.go              |  851 ++++++++++++
+ src/cmd/new9l/l.go                |   77 ++
+ src/cmd/new9l/obj.go              |  165 +++
+ 38 files changed, 21892 insertions(+)

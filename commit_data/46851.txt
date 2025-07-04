@@ -1,19 +1,25 @@
-commit d887d3be5f8f143f2475ddb2ea6c48ceb32def17
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Oct 11 09:32:52 2021 +0200
+commit 618e3c15bdb5c031ac037e7ad5c1b3791a913226
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Feb 4 11:44:21 2021 -0500
 
-    cmd/link/internal/ld: use libc based fcntl for (*OutBuf).fallocate on darwin
+    [dev.regabi] go/types: consistently report nil type as "untyped nil"
     
-    Direct syscalls are no longer supported on darwin. Instead, use libc
-    fcntl go:linkname'd from the syscall package.
+    This is a port of CL 284052 to go/types. The port is not entirely
+    faithful, as untyped conversion has been refactored in go/types.
+    Additionally, a comment was added to reference issue #13061 in the
+    implicitType method.
     
-    Change-Id: Ieeec64810452455faedd200f661a8b5839ca1fa0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255260
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    For #13061
+    
+    Change-Id: Iec17611f6432c988624023d1d74121ff34eb0c83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289715
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/outbuf_darwin.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/go/types/api_test.go    | 64 ++++++++++++++++++++++++++++++++++++++-------
+ src/go/types/conversions.go |  4 +--
+ src/go/types/expr.go        |  2 ++
+ 3 files changed, 59 insertions(+), 11 deletions(-)

@@ -1,20 +1,12 @@
-commit 9dd81d62275a963e3d9c37453fcde42ab929bd96
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Sep 1 14:56:37 2015 +0300
+commit ff991940f167030daec0e0342199f52a94e3e8fc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 29 09:43:32 2015 +1000
 
-    cmd/internal/obj/x86: Add initial VEX support.
+    doc: add json tokenizer to go1.5.html
     
-    Support VZEROUPPER, VMOVNTDQ, VMOVDQU, VMOVDQA.
-    Use MOVHD* for names, where HD stands for HexaDeca (16).
-    
-    Change-Id: I9b1ea52e7ef0714a3d2aeb31ec1823fe509a047e
-    Reviewed-on: https://go-review.googlesource.com/14127
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I45d92fed757fa1866d5b80e53ed1af6712fa6741
+    Reviewed-on: https://go-review.googlesource.com/12782
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/link.go       |   1 +
- src/cmd/internal/obj/x86/a.out.go  |   5 ++
- src/cmd/internal/obj/x86/anames.go |   4 ++
- src/cmd/internal/obj/x86/asm6.go   | 108 +++++++++++++++++++++++++++++++------
- 4 files changed, 102 insertions(+), 16 deletions(-)
+ doc/go1.5.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

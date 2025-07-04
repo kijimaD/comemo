@@ -1,16 +1,36 @@
-commit 0e3ace42f5a06a2472662da08105d6c956f4eef1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 11 10:24:14 2020 -0400
+commit cab29ebd84d3fae2092337684ba82999fe97e947
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 4 22:05:41 2019 -0400
 
-    net/http: use t.Deadline instead of an arbitrary timeout in TestServerConnState
+    [dev.link] cmd/link: create sym.Symbols after deadcode in newobj mode
     
-    Updates #37322
+    With the new object files, now we can run the deadcode pass on
+    indices instead of Symbol structs, so we can delay creating
+    Symbols after the deadcode pass. Then we only need to create
+    reachable symbols.
     
-    Change-Id: I3b8369cd9e0ed5e4b3136cedaa2f70698ead2270
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222957
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Not create Symbols in LoadNew and LoadRefs, and recombine
+    LoadReloc into LoadFull.
+    
+    Split loadcgo into two parts: the first finds root symbols, the
+    second create Symbols and sets attributes. The first runs before
+    the deadcode pass, while the second runs after.
+    
+    TODO: currently there are still symbols that are not marked
+    reachable but still used. This includes DWARF symbols, file
+    symbols, and type symbols that are referenced by DWARF symbols.
+    We still need to create them (conservatively).
+    
+    Change-Id: I695779c9312be9d49ab1683957ac3e72e1f65a1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199643
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/http/serve_test.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go      |  10 +-
+ src/cmd/link/internal/ld/deadcode2.go     |  18 +--
+ src/cmd/link/internal/ld/go.go            |  48 +++++--
+ src/cmd/link/internal/ld/lib.go           | 118 +++++++++-------
+ src/cmd/link/internal/ld/link.go          |  40 ++----
+ src/cmd/link/internal/objfile/objfile2.go | 221 +++++++++++++-----------------
+ 6 files changed, 217 insertions(+), 238 deletions(-)

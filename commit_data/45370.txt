@@ -1,29 +1,24 @@
-commit bd2175e1b1369bce59cdceb9282c817802a87746
-Author: Ray Wu <ray@liftoff.io>
-Date:   Tue Apr 20 10:41:37 2021 -0700
+commit 9a49f772575f8009355ac7d64d51ef41bc960c3d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 20 20:08:30 2020 -0700
 
-    cmd/go: show warnings about symlinks only for patterns containing ...
+    runtime/race: update race .syso files
     
-    Go commands show a warning message any time a pattern is expanded and a
-    symlink to a directory is encountered. For monorepo with non Go projects
-    using symlinks underneath, the output of go commands could be spammed by
-    this warning.
+    Fixes #39186
     
-    This commit includes the behavior change to only print this warning when
-    there's a pattern containing ... .
-    
-    Fixes #35941
-    
-    Change-Id: I094da2628bcd47b86fee8c6529d1066aa013a43b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311890
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    Change-Id: I624ab73b3083f190978c09716672ce1b712a5c81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264082
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Trust: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modload/search.go              |  2 +-
- src/cmd/go/internal/search/search.go               |  2 +-
- .../go/testdata/script/list_symlink_issue35941.txt | 18 +++++++++++
- .../script/mod_tidy_symlink_issue35941.txt         | 36 ++++++++++++++++++++++
- 4 files changed, 56 insertions(+), 2 deletions(-)
+ src/runtime/race/README                  |  14 +++++++-------
+ src/runtime/race/race_darwin_amd64.syso  | Bin 449292 -> 451280 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 579744 -> 583264 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 521752 -> 525176 bytes
+ src/runtime/race/race_linux_arm64.syso   | Bin 500584 -> 505224 bytes
+ src/runtime/race/race_linux_ppc64le.syso | Bin 623824 -> 624648 bytes
+ src/runtime/race/race_netbsd_amd64.syso  | Bin 602664 -> 609424 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 458427 -> 461185 bytes
+ 8 files changed, 7 insertions(+), 7 deletions(-)

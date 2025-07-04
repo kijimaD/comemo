@@ -1,13 +1,13 @@
-commit 1d0c7792f172ab0485edf2818398deffe3d452ba
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 9 11:31:23 2015 -0800
+commit e8f13700b70c99278fa42586f5785c09a3ae19b0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Dec 9 00:13:10 2014 -0500
 
-    runtime: add missing copyright notices
+    test/fixedbugs/bug302: fix test on windows.
     
-    Change-Id: Icecfe9223d8457de067391fffa9f0fcee4292be7
-    Reviewed-on: https://go-review.googlesource.com/2620
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I74c2578d1620b37a6486eca00a774b9a736a8899
+    Reviewed-on: https://go-review.googlesource.com/1222
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/print1_write.go         | 4 ++++
- src/runtime/print1_write_android.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ test/fixedbugs/bug302.dir/main.go | 4 ++--
+ test/fixedbugs/bug302.go          | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

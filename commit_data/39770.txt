@@ -1,23 +1,35 @@
-commit 7450960a1300a6f81da2abac63fcfbe0bccc6c50
-Author: itchyny <itchyny@hatena.ne.jp>
-Date:   Mon Sep 2 00:07:40 2019 +0000
+commit 349e7df2c3d0f9b5429e7c86121499c137faac7e
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Mar 19 16:16:50 2019 +0700
 
-    encoding/json: fix scanner byte offset on scanEnd
+    net/http: fix wrong mime rar signature
     
-    scanEnd is delayed one byte so we decrement
-    the scanner bytes count by 1 to ensure that
-    this value is correct in the next call of Decode.
+    MIME sniffing standard defines the RAR signature as 52 61 72 20 1A 07 00.
     
-    Fixes #32399
+    But this signature is wrong, the RARlab spec defines the 4th byte must
+    be 0x21 or "!", not 0x20 or " ". Checking a rar file also indicates that:
     
-    Change-Id: I8c8698e7f95bbcf0373aceaa05319819eae9d86f
-    GitHub-Last-Rev: 0ac25d8de23d38c7ac577faddc6983571023f561
-    GitHub-Pull-Request: golang/go#32598
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182117
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+            $ file abc.rar
+            abc.rar: RAR archive data, v1d, os: Win32
+            $ head -c 7 abc.rar | od -v -t x1
+            0000000 52 61 72 21 1a 07 00
+            0000007
+    
+    There is also an issue to fix this problem in MIME standard.
+    
+    See:
+     - https://www.rarlab.com/technote.htm#rarsign
+     - https://github.com/whatwg/mimesniff/issues/63
+    
+    Fixes #30926
+    
+    Change-Id: Id2e2de7ecbf7f44d37ebaf280efd05e4972c5078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167781
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/decode_test.go | 35 +++++++++++++++++++++++++++++++++++
- src/encoding/json/stream.go      |  4 ++++
- 2 files changed, 39 insertions(+)
+ src/net/http/sniff.go      | 10 ++++++++--
+ src/net/http/sniff_test.go |  6 ++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

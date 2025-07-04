@@ -1,24 +1,15 @@
-commit 310db63c5bc121e7bfccb494c01a6b91a257e7fc
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Apr 17 12:24:42 2015 +0900
+commit 713451a0975d40d2cd5a0da325fee4a6012ec5a4
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 25 13:22:32 2015 -0400
 
-    net: fix inconsistent error values on Close
+    misc/ios: simplify breakpoint timeout
     
-    This change fixes inconsistent error values on Close, CloseRead and
-    CloseWrite.
+    The clever partial timer I added interacts badly with iOS app launch
+    timeout termination. A fixed timeout will be easier to debug.
     
-    Updates #4856.
-    
-    Change-Id: I3c4d46ccd7d6e1a2f52d8e75b512f62c533a368d
-    Reviewed-on: https://go-review.googlesource.com/8994
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6eb4ee5f1431539f00fa707e8cde6f3cf86983fc
+    Reviewed-on: https://go-review.googlesource.com/8083
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/net/error_test.go     | 92 +++++++++++++++++++++++++++++++++++++++++++++++
- src/net/fd_unix.go        |  6 +---
- src/net/fd_windows.go     |  6 +---
- src/net/net.go            | 11 +++++-
- src/net/tcpsock_plan9.go  | 20 ++++++++---
- src/net/tcpsock_posix.go  | 18 ++++++++--
- src/net/unixsock_plan9.go |  6 ++--
- src/net/unixsock_posix.go | 18 ++++++++--
- 8 files changed, 153 insertions(+), 24 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

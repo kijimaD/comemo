@@ -1,23 +1,21 @@
-commit ace1730a417bf5cb1662407ef12013ca7e4e5f84
-Author: kezhao <korzhao@tencent.com>
-Date:   Wed Jul 28 02:06:10 2021 +0000
+commit 24beae1df3e15c7d5b8d79ad2cfb4651c047e029
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Oct 14 12:05:13 2020 -0400
 
-    cmd/go: go test flag -failfast should be cacheable
+    [dev.fuzz] testing: remove testing.RunFuzzTargets
     
-    Add failfast to cacheable list and update docs
+    It is a legacy practice to expose these exported
+    testing functions, and is not needed for running
+    fuzz targets.
     
-    Fixes #47355
-    
-    Change-Id: I75b371c45b80a3b179ff070b7b9d092a504380c0
-    GitHub-Last-Rev: abe61fd48c01fab4ef5ea5db013dcce4ead09c6f
-    GitHub-Pull-Request: golang/go#47371
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337229
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ic300c9bfd15f4e71a1cea99f12c97d671a899f9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262258
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/alldocs.go                            | 20 ++++++++++----------
- src/cmd/go/internal/test/test.go                 | 21 +++++++++++----------
- src/cmd/go/testdata/script/test_cache_inputs.txt |  6 ++++++
- 3 files changed, 27 insertions(+), 20 deletions(-)
+ src/testing/fuzz.go      |  7 -------
+ src/testing/fuzz_test.go | 42 ------------------------------------------
+ 2 files changed, 49 deletions(-)

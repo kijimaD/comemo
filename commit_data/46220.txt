@@ -1,25 +1,22 @@
-commit 86fa510d2456e20ceaa518f97f0c1c89d2ebd81c
-Author: Quim Muntal <quimmuntal@gmail.com>
-Date:   Sun Aug 29 22:57:36 2021 +0200
+commit 7cdc84a15b1f83c6370a79c8e013246a6b495a73
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 14 21:20:36 2020 -0800
 
-    go/types, types2: types in method expressions must be instantiated
+    test: remove bug429 (duplicates runtime.TestSimpleDeadlock)
     
-    Use varType instead of instantiatedOperand to check if the type of a method expressions is instantiated.
+    The bug429 tests is an exact duplicate of TestSimpleDeadlock in the
+    runtime package. The runtime package is the right place for this test,
+    and the version in the runtime package will run faster as the build
+    step is combined with other runtime package tests.
     
-    This removes the last usage of instantiatedOperand, so it can be deleted.
-    
-    Fixes #48048
-    
-    Change-Id: I2b219dafe2bba3603100bb8f25b8ff4e8ef53841
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345970
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I6538d24e6df8e8c5e3e399d3ff37d68f3e52be56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278173
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/call.go                   | 12 +++---------
- .../internal/types2/testdata/fixedbugs/issue48048.go2     | 15 +++++++++++++++
- src/go/types/call.go                                      | 12 +++---------
- src/go/types/testdata/fixedbugs/issue48048.go2            | 15 +++++++++++++++
- 4 files changed, 36 insertions(+), 18 deletions(-)
+ test/fixedbugs/bug429.go     | 14 --------------
+ test/fixedbugs/bug429_run.go | 35 -----------------------------------
+ 2 files changed, 49 deletions(-)

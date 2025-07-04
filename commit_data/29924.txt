@@ -1,14 +1,13 @@
-commit 1ede11d13a2a4ed63e9a6cf8b6039225749fa6ea
-Author: Kevin Burke <kev@inburke.com>
-Date:   Thu Dec 8 22:22:24 2016 -0800
+commit bb4c40b21a30c02c069270327c5b34acab19b3f2
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Oct 17 13:34:40 2016 -0700
 
-    os/user: document the difference between Username and Name
+    doc: document go1.7.2
     
-    Fixes #18261.
-    
-    Change-Id: I4bd7363aac4e62461f61fd95b3c7a18063412182
-    Reviewed-on: https://go-review.googlesource.com/34241
+    Change-Id: I34b3650ee9512879ff7528336813a7850c46ea90
+    Reviewed-on: https://go-review.googlesource.com/31311
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/user/user.go | 36 ++++++++++++++++++++++--------------
- 1 file changed, 22 insertions(+), 14 deletions(-)
+ doc/devel/release.html  | 8 ++++++++
+ doc/install-source.html | 4 ++--
+ 2 files changed, 10 insertions(+), 2 deletions(-)

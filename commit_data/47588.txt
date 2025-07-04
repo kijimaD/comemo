@@ -1,23 +1,26 @@
-commit 066620f0d8597116a62d9423669ca569646de5ff
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 23 14:30:56 2021 +0000
+commit 1318fb4a32371311688c6b868c3041f0501b6aeb
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Mar 29 16:07:18 2021 -0700
 
-    runtime: ensure no GC is running in TestParallelRWMutexReaders
+    cmd/compile: handle partial type inference that doesn't require function args
     
-    Currently this test makes it clear that it's unsafe for a GC to run,
-    otherwise a deadlock could occur, so it calls SetGCPercent(-1). However,
-    a GC may be actively in progress, and SetGCPercent is not going to end
-    any in-progress GC. Call runtime.GC to block until at least the current
-    GC is over.
+    Handle the case where types can be partially inferred for an
+    instantiated function that is not immediately called. The key for the
+    Inferred map is the CallExpr (if inferring types required the function
+    arguments) or the IndexExpr (if types could be inferred without the
+    function arguments).
     
-    Updates #49680.
+    Added new tests for the case where the function isn't immediately called
+    to typelist.go.
     
-    Change-Id: Ibdc7d378e8cf7e05270910e92effcad8c6874e59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366534
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I60f503ad67cd192da2f2002060229efd4930dc39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305909
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/rwmutex_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/noder/expr.go | 32 +++++++++++--------
+ test/typeparam/typelist.go             | 58 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 13 deletions(-)

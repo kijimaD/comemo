@@ -1,20 +1,31 @@
-commit ad646b33c9fd2366c91a44b262910c1064b24f11
-Author: mzh <mzh@golangcn.org>
-Date:   Sun Mar 27 23:08:32 2022 +0000
+commit ea522bc546bb9f66285ea00744de8b258368b3ed
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 27 02:50:17 2021 -0700
 
-    Revert "reflect, runtime: add reflect support for regabi on riscv64"
+    [dev.typeparams] cmd/compile: add and use ir.RawOrigExpr
     
-    This reverts commit 56400fc70675cc2f404f33e3ed13386967cfe4da.
+    This CL adds ir.RawOrigExpr, which can be used to represent arbitrary
+    constant expressions without needing to build and carry around an
+    entire IR representation of the original expression. It also allows
+    distinguishing how the constant was originally written by the
+    user (e.g., "0xff" vs "255").
     
-    Reason for revert: this CL requires CL360296 be merged
+    This CL then also updates irgen to make use of this functionality for
+    expressions that were constant folded by types2.
     
-    Change-Id: I4c48c4d23b73b6e892cf86cbbc864698ebc5c992
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396076
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: mzh <mzh@golangcn.org>
-    Run-TryBot: mzh <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I41e04e228e715ae2735c357b75633a2d08ee7021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323210
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/reflect/asm_riscv64.s | 54 +++++++----------------------------------------
- src/runtime/stack.go      |  3 +--
- 2 files changed, 9 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/ir/expr.go       | 14 +++++++++
+ src/cmd/compile/internal/ir/fmt.go        |  5 +++
+ src/cmd/compile/internal/ir/node_gen.go   | 16 ++++++++++
+ src/cmd/compile/internal/ir/val.go        |  2 +-
+ src/cmd/compile/internal/noder/expr.go    | 51 +++++++++++++++++++++++++++----
+ src/cmd/compile/internal/noder/helpers.go | 26 ++++++++++++++++
+ 6 files changed, 107 insertions(+), 7 deletions(-)

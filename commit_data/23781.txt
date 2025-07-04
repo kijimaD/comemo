@@ -1,14 +1,19 @@
-commit a502fb21820aed165a24a00e969e8cc7735ff09d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 22 13:11:54 2015 -0400
+commit ff8f3f0fa126c71059f53f81be3b87237fb55546
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 12 19:49:45 2015 -0700
 
-    crypto/x509: disable sha2 test with system APIs
+    cmd/vet: extend copylocks to anonymous functions
     
-    Fixes #11730.
+    Running -copylocks over a large corpus generates 1507 warnings.
+    Of those, only 3 are from the new anonymous function check,
+    but they are all bugs.
     
-    Change-Id: I5bc60779a87dc07899dd70659a830996bf7812ca
-    Reviewed-on: https://go-review.googlesource.com/12527
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #10927.
+    
+    Change-Id: I2672f6871036bed711beec5f88bc39aa8b3b6a94
+    Reviewed-on: https://go-review.googlesource.com/11051
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/crypto/x509/verify_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/vet/copylock.go               | 26 ++++++++++++++------------
+ src/cmd/vet/testdata/copylock_func.go |  5 +++++
+ 2 files changed, 19 insertions(+), 12 deletions(-)

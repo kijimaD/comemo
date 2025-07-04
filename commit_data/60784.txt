@@ -1,0 +1,18 @@
+commit 6d52d7d22b70a5faa2868b6406ccdc7fd9b89083
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 28 09:33:49 2024 -0700
+
+    slices: clarify Insert behavior if i == len(s)
+    
+    Fixes #69104
+    
+    Change-Id: Ie928239d5ef198ce36759ec4cffb7f6320ff3b82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609175
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/slices/slices.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

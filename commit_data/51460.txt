@@ -1,20 +1,17 @@
-commit 0fd7be7ee5f36215b5d6b8f23f35d60bf749805a
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Nov 23 06:47:14 2022 -0500
+commit 9784ef8ab139491773684386c1cefa0b75fdb89e
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Feb 1 12:30:36 2022 -0500
 
-    testing: remove stale builder names from windows tests
+    internal/fuzz: small cleanups
     
-    A couple of the windows runtime tests were being gated by "if
-    testenv.Builder() == ..." guards that referred to builders that have
-    long since been obsoleted (e.g. "windows-amd64-gce"). Use a more
-    generic guard instead, checking for windows-<goarch> prefix.
-    
-    Change-Id: Ibdb9ce2b0cfe10bba986bd210a5b8ce5c1b1d675
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453035
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I9fc12f352d57db776d176990277e104f64f9908d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382238
+    Reviewed-by: Julie Qiu <julie@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/syscall_windows_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/fuzz/fuzz.go   | 10 +++++-----
+ src/internal/fuzz/worker.go |  4 ++--
+ 2 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,31 +1,20 @@
-commit 1e6b12a201e5fa7009510bb036367dfb0f5a6320
-Author: Bill O'Farrell <billo@ca.ibm.com>
-Date:   Wed Oct 26 18:35:12 2016 -0400
+commit 3e59b20d41c6dc4ed1e528279da3017555df2ceb
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Aug 26 17:44:30 2016 +0900
 
-    math/big: uses SIMD for some math big functions on s390x
+    os: fix build error on plan9
     
-    The following benchmarks are improved by the amounts shown
-    (Others unaffected beyond the level of noise.)
-    Also adds a test to confirm non-SIMD implementation still correct,
-    even when run on SIMD-capable machine
+    https://go-review.googlesource.com/#/c/27580 added the test.
+    However the test use syscall.ELOOP which is not defined on plan9.
+    Move test code from "os_test.go" to "os_windows_test.go" to prevent
+    build error.
     
-    Benchmark                   old            new
-    BenchmarkAddVV/100-18    66148.08 MB/s 117546.19 MB/s 1.8x
-    BenchmarkAddVV/1000-18   70168.27 MB/s 133478.96 MB/s 1.9x
-    BenchmarkAddVV/10000-18  67489.80 MB/s 100010.79 MB/s 1.5x
-    BenchmarkAddVV/100000-18 54329.99 MB/s  69232.45 MB/s 1.3x
-    BenchmarkAddVW/100-18     9929.10 MB/s  14841.31 MB/s 1.5x
-    BenchmarkAddVW/1000-18   10583.31 MB/s  18674.44 MB/s 1.76x
-    BenchmarkAddVW/10000-18  10521.15 MB/s  17484.10 MB/s 1.66x
-    BenchmarkAddVW/100000-18 10616.56 MB/s  18084.27 MB/s 1.7x
-    
-    Change-Id: Ic9234c41a43f6c5e9d0e9377de8b4deeefc428a7
-    Reviewed-on: https://go-review.googlesource.com/32211
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie7f05bfb9ab229e06a8e82a4b3b8a7ca82d4663b
+    Reviewed-on: https://go-review.googlesource.com/27833
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/math/big/arith_decl_s390x.go |   23 +
- src/math/big/arith_s390x.s       | 1222 +++++++++++++++++++++++++++++---------
- src/math/big/arith_s390x_test.go |   44 ++
- 3 files changed, 1019 insertions(+), 270 deletions(-)
+ src/os/os_test.go         | 23 -----------------------
+ src/os/os_windows_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 23 deletions(-)

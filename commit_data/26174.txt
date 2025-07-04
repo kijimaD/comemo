@@ -1,23 +1,12 @@
-commit b014b55b82fe8319001f30c7e57e9feab9ebc5f0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 9 15:32:57 2016 -0800
+commit acc150013924d6532ffb47e0e79d6d52af170777
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 18 15:50:43 2015 -0500
 
-    cmd/compile: consolidate Type construction and copying code
+    api/go1.6.txt: add debug.SetTraceback, build.Package.InvalidGoFiles
     
-    This should is preparatory cleanup to make it easier to use separate
-    types to represent each kind of Go type, rather than a single omnibus
-    Type struct with heavily overloaded fields.
-    
-    Also, add TODO comments marking assignments that change an existing
-    Type's kind, as they need to be removed before we can factor Type.
-    
-    Change-Id: If4b551fdea4ae045b10b1a3de2ee98f5cf32a517
-    Reviewed-on: https://go-review.googlesource.com/20494
+    Change-Id: Ib00e866e29681631f6fa3a14e7d81c25fc3c8500
+    Reviewed-on: https://go-review.googlesource.com/18052
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go   |  1 +
- src/cmd/compile/internal/gc/sinit.go     |  3 +--
- src/cmd/compile/internal/gc/subr.go      | 39 +++++++-------------------------
- src/cmd/compile/internal/gc/type.go      | 25 ++++++++++++++++++++
- src/cmd/compile/internal/gc/typecheck.go |  6 +++--
- 5 files changed, 39 insertions(+), 35 deletions(-)
+ api/go1.6.txt | 2 ++
+ 1 file changed, 2 insertions(+)

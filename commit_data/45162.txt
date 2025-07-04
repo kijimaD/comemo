@@ -1,33 +1,19 @@
-commit dba2eab8267599f5f59f1f586b47f31b6552938c
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 13 09:06:50 2021 -0400
+commit 23e9e0c7f09bb50a870cbd1a2543a33df49b37b6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 7 18:26:26 2020 -0400
 
-    runtime,runtime/cgo: save all necessary registers on entry to Go on Windows
+    syscall: support ptrace on macOS/ARM64
     
-    There are several assembly functions that transition from the Windows
-    ABI to the Go ABI. These all need to save all registers that are
-    callee-save in the Windows ABI and caller-save in the Go ABI and
-    prepare the register state for Go. However, they all do this slightly
-    differently and most of them don't save the necessary XMM registers
-    for this transition (which could corrupt them in the C caller).
-    Furthermore, now that we have a carefully specified Go ABI, it's clear
-    that none of these actually get all of the details 100% right.
+    Updates #38485.
     
-    So, unify this code into two macros in a shared header in
-    runtime/cgo/abi_amd64.h that handle all necessary registers and setup
-    and use these macros everywhere on Windows that handles transitions
-    from C to Go.
-    
-    Change-Id: I62f41345a507aad1ca383814ac8b7e2a9ffb821e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309769
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I853966d934a8ee05cf62c7321f3e6271811d47b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260718
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go |  2 +-
- src/runtime/cgo/abi_amd64.h      | 69 +++++++++++++++++++++++++++++++++
- src/runtime/cgo/asm_amd64.s      | 58 +++++++++-------------------
- src/runtime/sys_windows_amd64.s  | 83 ++++++++++++----------------------------
- 4 files changed, 113 insertions(+), 99 deletions(-)
+ src/syscall/syscall_darwin_arm64.go  | 14 ++++----------
+ src/syscall/zsyscall_darwin_arm64.go | 16 ++++++++++++++++
+ src/syscall/zsyscall_darwin_arm64.s  |  2 ++
+ 3 files changed, 22 insertions(+), 10 deletions(-)

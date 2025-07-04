@@ -1,14 +1,17 @@
-commit 712473612f211dba692064b4c6d7801698118930
+commit 987a580b9f91dfe0709d6927525952acf9101fc9
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 02:22:08 2012 -0500
+Date:   Wed Mar 7 01:55:17 2012 -0500
 
-    test/run: fix builders
+    cmd/gc: do not confuse unexported methods of same name
     
-    Let the outer environment filter down to the commands being run.
+    Fixes #3146.
     
-    TBR=r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5758066
+    https://golang.org/cl/5756074
 
- test/run.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/gc/dcl.c                                   | 15 +++++++++++----
+ test/bugs/424.go                                   |  9 ---------
+ test/{bugs/424.dir => fixedbugs/bug424.dir}/lib.go |  0
+ test/{bugs/424.dir/main.go => fixedbugs/bug424.go} | 18 ++++++++++++++++--
+ 4 files changed, 27 insertions(+), 15 deletions(-)

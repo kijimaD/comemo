@@ -1,19 +1,23 @@
-commit 2b58355ef624239dbe32185dc8dfc9d1074615c6
-Author: codesoap <codesoap@mailbox.org>
-Date:   Thu Feb 8 22:18:27 2024 +0000
+commit 516753278df2eb4896ba8b3350bf5ca19ec4b1f0
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 8 10:27:20 2023 +0100
 
-    net/http: remove superfluous newline on redirects
+    runtime: use explicit NOFRAME on dragonfly/amd64
     
-    Change-Id: I30d3ae9d540f9cc85ea5a6875ee8884d3e646d6f
-    GitHub-Last-Rev: 29cabdcb3a8746ef51953617f4ec47deac3608da
-    GitHub-Pull-Request: golang/go#65623
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562356
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    This CL marks some dragonfly assembly functions as NOFRAME to avoid
+    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
+    
+    Updates #58378
+    
+    Change-Id: I832a1a78d68a49f11df3b03fa9d50d4796bcac03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466355
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/serve_test.go | 2 +-
- src/net/http/server.go     | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go  |  2 +-
+ src/runtime/sys_dragonfly_amd64.s | 10 ++++------
+ src/syscall/asm9_unix2_amd64.s    | 21 ++++++++++-----------
+ 3 files changed, 15 insertions(+), 18 deletions(-)

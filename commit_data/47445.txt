@@ -1,22 +1,33 @@
-commit 3a4b95073a9fd7bca6e9fd80016275ef04bc1987
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 12 13:23:45 2021 -0800
+commit c71acbfe8372099877cdc989b546389b05222600
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 17 18:28:38 2021 -0400
 
-    cmd/compile/internal/types2: make sure we are safe for nil in underIs
+    test: make nosplit test invariant to ABI wrappers
     
-    Reviewed all uses of underIs (global function and method) and made
-    sure we are ok with a nil incoming argument (indicating a type set
-    with no specific types).
+    Currently, the nosplit test disables ABI wrapper generation because it
+    generates a main.main in assembly, and so the ABI wrapper for calling
+    from runtime.main to main.main counts against the nosplit limit, which
+    cases some of the tests to fail.
     
-    Added a couple of checks where we didn't have them (and somehow
-    didn't run into a problem yet).
+    Fix this by first entering ABI0 in a splittable context and then
+    calling from there into the test entry point, since this doesn't
+    introduce an ABI wrapper.
     
-    Change-Id: Ifde45a3a80ddf2b1a19c83f79258ad8207dfb09f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363658
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    While we're here, this CL removes the test's check for the
+    framepointer experiment. That's now statically enabled, so it doesn't
+    appear in the experiment line, and enabling any other experiment
+    causes the test to think that the framepointer experiment *isn't*
+    enabled.
+    
+    For #40724.
+    
+    Change-Id: I6291eb9391f129779e726c5fc8c41b7b4a14eeb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302772
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/expr.go       | 3 +++
- src/cmd/compile/internal/types2/predicates.go | 4 +++-
- src/cmd/compile/internal/types2/type.go       | 3 +++
- 3 files changed, 9 insertions(+), 1 deletion(-)
+ test/nosplit.go | 178 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 88 insertions(+), 90 deletions(-)

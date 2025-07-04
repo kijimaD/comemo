@@ -1,23 +1,28 @@
-commit fd18f3ba5031079102ca4dc4cf425c2b496408ba
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Apr 10 14:07:13 2020 -0700
+commit 219922e95b8e49cfb94da9de0c48edb22a2e7054
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 30 12:31:55 2019 -0400
 
-    cmd/link: turn ASLR off for netbsd+race
+    [dev.link] cmd/link: add support to new deadcode for field tracking
     
-    The race detector can't handle ASLR (adddress space layout randomization).
-    On some platforms it can re-exec the binary with ASLR off. But not NetBSD.
-    For NetBSD we have to introduce a special ELF header note that tells
-    the kernel not to use ASLR.
+    Fix up the new dead code pass to include support for populating the
+    ctxt "Reachparent" map, which is needed to support field tracking.
+    Since we don't have sym.Symbols created at the point where new dead
+    code runs, keep track of reachability using global symbol indices, and
+    then once loader.LoadFull is complete we can translate the index
+    mappings into symbol mappings.
     
-    This works fine for internal linking. For external linking it also works,
-    but "readelf -n" shows multiple notes in the resulting binary. Maybe the
-    last one wins? Not sure, but it appears to work.
+    The fieldtracking output is unfortunately different relative to
+    master, due to differences in the order in which symbols are
+    encountered in deadcode, but I have eyeballed the results to make sure
+    they look reasonable.
     
-    Change-Id: I5fe6dd861e42a8293f64d0dacb166631ea670fcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227864
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I48c7a4597f05c00f15af3bfd37fc15ab4d0017c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204342
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/ld/elf.go | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ src/cmd/link/internal/ld/deadcode2.go  | 33 ++++++++++++++++++---------------
+ src/cmd/link/internal/ld/lib.go        | 16 ++++++++++++++++
+ src/cmd/link/internal/loader/loader.go |  5 +++++
+ 3 files changed, 39 insertions(+), 15 deletions(-)

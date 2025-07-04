@@ -1,20 +1,18 @@
-commit 304cf4dc9b6c289d4e458872d83d8f409ab72c07
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 18:48:45 2011 -0400
+commit e5f3dc8bc54942db96f55b1b6207edfe69ca4021
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Oct 18 09:42:16 2011 +1100
 
-    reflect: disallow Interface method on Value obtained via unexported name
+    html: refactor the tokenizer; parse "</>" correctly.
     
-    Had been allowing it for use by fmt, but it is too hard to lock down.
-    Fix other packages not to depend on it.
+    Previously, Next would call either nextText or nextTag, but nextTag
+    could also call nextText. Both nextText and nextTag were responsible
+    for detecting "</a" end tags and "<!" comments. This change simplifies
+    the call chain and puts that responsibility in a single place.
     
-    R=r, r
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/5266054
+    https://golang.org/cl/5263050
 
- src/pkg/fmt/fmt_test.go      |  16 +--
- src/pkg/fmt/print.go         | 247 ++++++++++++++++++++++++++-----------------
- src/pkg/reflect/all_test.go  | 115 +++++++++++++++-----
- src/pkg/reflect/deepequal.go |   2 +-
- src/pkg/reflect/value.go     |  31 +++---
- test/interface/fake.go       |  40 +++----
- 6 files changed, 286 insertions(+), 165 deletions(-)
+ src/pkg/html/token.go      | 273 ++++++++++++++++++++++-----------------------
+ src/pkg/html/token_test.go |  41 ++++---
+ 2 files changed, 160 insertions(+), 154 deletions(-)

@@ -1,40 +1,81 @@
-commit 2fba42cb52e203d09878b385034b625788275663
+commit 1c72ee7f13831b215b8744f6b35bc4fd53aba5e2
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 14 10:56:49 2023 -0400
+Date:   Thu Oct 13 16:13:46 2022 -0400
 
-    cmd/compile: implement range over func
+    testing: fix many test2json inaccuracies
     
-    Add compiler support for range over functions.
-    See the large comment at the top of
-    cmd/compile/internal/rangefunc/rewrite.go for details.
+    Test2json is parsing the output stream from the test, which includes
+    package testing's own framing lines intermingled with other output,
+    in particular any output printed via fmt.Printf, println, and so on.
+    We have had recurring problems with unexpected partial output lines
+    causing a framing line to be missed.
     
-    This is only reachable if GOEXPERIMENT=range is set,
-    because otherwise type checking will fail.
+    A recent talk at GopherCon gave an example of an integration test
+    involving Docker that happened to print \r-terminated lines instead
+    of \n-terminated lines in some configurations, which in turn broke
+    test2json badly. (https://www.gophercon.com/agenda/session/944259)
     
-    For proposal #61405 (but behind a GOEXPERIMENT).
-    For #61717.
+    There are also a variety of open reported issues with similar problems,
+    which this CL also addresses. The general approach is to add a new
+    testing flag -test.v=json that means to print additional output to help
+    test2json. And then test2json takes advantage of that output.
     
-    Change-Id: I05717f94e63089c503acc49b28b47edeb4e011b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/510541
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Among the fixes:
+    
+     - Identify testing framing more reliably, using ^V
+       (#23036, #26325, #43683, GopherCon talk)
+     - Test that output with \r\n endings is handled correctly
+       (#43683, #34286)
+     - Use === RUN in fuzz tests (#52636, #48132)
+     - Add === RUN lines to note benchmark starts (#27764, #49505)
+     - Print subtest --- PASS/FAIL lines as they happen (#29811)
+     - Add === NAME lines to emit more test change events,
+       such as when a subtest stops and the parent continues running.
+     - Fix event shown in overall test failure (#27568)
+     - Avoid interleaving of writes to os.Stdout and os.Stderr (#33419)
+    
+    Fixes #23036.
+    Fixes #26325.
+    Fixes #27568.
+    Fixes #27764.
+    Fixes #29811.
+    Fixes #33419.
+    Fixes #34286.
+    Fixes #43683.
+    Fixes #49505.
+    Fixes #52636.
+    
+    Change-Id: Id4207b746a20693f92e52d68c6e4a7f8c41cc7c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443596
     Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/escape/call.go            |    2 +-
- src/cmd/compile/internal/ir/expr.go                |    1 +
- src/cmd/compile/internal/ir/stmt.go                |    3 +-
- src/cmd/compile/internal/ir/symtab.go              |    5 +-
- src/cmd/compile/internal/noder/irgen.go            |   19 +-
- src/cmd/compile/internal/noder/reader.go           |   12 +-
- src/cmd/compile/internal/noder/writer.go           |   11 +
- src/cmd/compile/internal/rangefunc/rewrite.go      | 1142 ++++++++++++++++++++
- src/cmd/compile/internal/ssagen/ssa.go             |   30 +-
- src/cmd/compile/internal/syntax/nodes.go           |   11 +-
- src/cmd/compile/internal/syntax/tokens.go          |    4 +-
- .../compile/internal/typecheck/_builtin/runtime.go |    3 +
- src/cmd/compile/internal/typecheck/builtin.go      |  392 +++----
- src/cmd/compile/internal/walk/expr.go              |   11 +
- src/cmd/compile/internal/walk/stmt.go              |    4 +-
- test/range3.go                                     |  335 +++++-
- test/rangegen.go                                   |  333 ++++++
- 17 files changed, 2101 insertions(+), 217 deletions(-)
+ src/cmd/go/internal/test/test.go                   |  41 ++++-
+ src/cmd/go/internal/test/testflag.go               |  10 +-
+ .../testdata/script/test_chatty_parallel_fail.txt  |  24 +--
+ .../script/test_chatty_parallel_success.txt        |  20 +--
+ .../script/test_chatty_parallel_success_run.txt    |   4 +-
+ .../go/testdata/script/test_json_panic_exit.txt    |   2 +-
+ src/cmd/go/testdata/script/test_json_prints.txt    |  48 ++++++
+ src/cmd/go/testdata/script/test_json_timeout.txt   |  19 +++
+ src/cmd/internal/test2json/test2json.go            | 105 ++++++++++---
+ src/cmd/internal/test2json/test2json_test.go       |  10 ++
+ src/cmd/internal/test2json/testdata/frame.json     |   9 ++
+ src/cmd/internal/test2json/testdata/frame.test     |   6 +
+ src/cmd/internal/test2json/testdata/framebig.json  | 167 +++++++++++++++++++++
+ src/cmd/internal/test2json/testdata/framebig.test  | 138 +++++++++++++++++
+ src/cmd/internal/test2json/testdata/framefuzz.json |  68 +++++++++
+ src/cmd/internal/test2json/testdata/framefuzz.test |  56 +++++++
+ src/cmd/internal/test2json/testdata/timeout.json   |   7 +
+ src/cmd/internal/test2json/testdata/timeout.test   |   5 +
+ src/cmd/test2json/main.go                          |  19 ++-
+ src/testing/benchmark.go                           |  14 +-
+ src/testing/example.go                             |  10 +-
+ src/testing/fuzz.go                                |  15 +-
+ src/testing/run_example.go                         |   4 +-
+ src/testing/run_example_js.go                      |   4 +-
+ src/testing/sub_test.go                            |  35 ++++-
+ src/testing/testing.go                             | 151 +++++++++++++++----
+ 26 files changed, 890 insertions(+), 101 deletions(-)

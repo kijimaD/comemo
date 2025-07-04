@@ -1,21 +1,23 @@
-commit 575386d6324308d83f6f0782e61620ffe9f5dba3
-Author: Pantelis Sampaziotis <psampaz@gmail.com>
-Date:   Tue Sep 17 19:01:36 2019 +0000
+commit fc7ac2e8c0499d047ce0120a2f5df23093df6c17
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Apr 2 23:58:43 2019 +0200
 
-    time: add examples for microseconds and milliseconds methods
+    runtime/cgo: look for android_get_device_api_level in libc.so
     
-    This change adds testable examples for the new Microseconds and Milliseconds methods that were introduced in Go 1.13.
+    The presence of the android_get_device_api_level symbol is used to
+    detect Android Q or later. Use the suggestion by Ryan Prichard and
+    look for it in libc.so and not in the entire program where someone
+    else might have defined it.
     
-    Fixes #34354
+    Manually tested on an Android Q amd64 emulator and arm64 Pixel.
     
-    Change-Id: Ibdbfd770ca2192f9086f756918325f7327ce0482
-    GitHub-Last-Rev: 4575f48f5feb8e49742304d17776e28302647931
-    GitHub-Pull-Request: golang/go#34355
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195979
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Updates #29674
+    
+    Change-Id: Iaef35d8f8910037b3690aa21f319e216a05a9a73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170127
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/example_test.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/runtime/cgo/gcc_android.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

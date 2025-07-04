@@ -1,18 +1,17 @@
-commit 6ed9463133daabcf11b259155c3f3348ae5a06af
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Aug 15 11:46:33 2021 -0700
+commit 05ddb879c73bc0c84ed1a80864aaf27b4a3d032f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 12:56:29 2020 -0500
 
-    cmd/compile/internal/syntax: better error message for index syntax error
+    cmd/go: fix TestNewReleaseRebuildsStalePackagesInGOPATH
     
-    Fixes #47704.
+    Broken during CL 267719.
     
-    Change-Id: I1de9fd00baaa4b534c23f011ade54120f5153a9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342369
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: If5acb8231d3053c0e714a79c02cb56eaba6e74e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274854
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/syntax/parser.go              |  6 +++++-
- .../compile/internal/syntax/testdata/issue47704.src    | 18 ++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

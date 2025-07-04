@@ -1,32 +1,20 @@
-commit d21af00dd22d478d0026797c91961168ba83aff9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 29 12:20:53 2020 -0400
+commit d8ab10525e111bfe5a5b2a75685270ad19912080
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 22 00:00:03 2020 -0400
 
-    path/filepath: add WalkDir
+    [dev.link] cmd/link, cmd/oldlink: remove more darwin/386 and darwin/arm code
     
-    WalkDir is like Walk but can use ReadDir to read directories,
-    instead of Readdirnames + Lstat on every entry,
-    which is usually a significant performance improvement.
-    (The Lstat can still happen if the walk function calls d.Info.)
+    Updates #37610, #37611.
     
-    Fixes #42027.
-    
-    [Replay of CL 266240 after it was reverted due to accidentally
-    enabling on Windows a test that does not work on Windows.
-    The original code only ran the test on os.Getuid() > 0.
-    The rolled-back CL skipped the test on os.Getuid() == 0.
-    But on Windows, os.Getuid(), it turns out, always returns -1.
-    So what looked like a test for root was also excluding Windows.
-    This CL revises the test to skip Windows explicitly.]
-    
-    Change-Id: I9b3661013d6449b7486532445d934ae91e5393ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267887
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I0a497af03e24ddea40ed3e342f3a9362bf21ac0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229323
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/path/filepath/export_test.go |   2 +
- src/path/filepath/path.go        | 213 ++++++++++++++++++++++++++++++++++-----
- src/path/filepath/path_test.go   |  92 +++++++++++------
- 3 files changed, 253 insertions(+), 54 deletions(-)
+ src/cmd/link/internal/arm/asm.go    | 82 +------------------------------------
+ src/cmd/link/internal/ld/data.go    | 10 +----
+ src/cmd/link/internal/x86/asm.go    | 48 +---------------------
+ src/cmd/oldlink/internal/arm/asm.go | 82 +------------------------------------
+ src/cmd/oldlink/internal/ld/data.go | 10 +----
+ src/cmd/oldlink/internal/x86/asm.go | 48 +---------------------
+ 6 files changed, 6 insertions(+), 274 deletions(-)

@@ -1,24 +1,21 @@
-commit 5f7a40856372142372d3b67c9dd737373932f088
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Nov 21 06:52:54 2023 +0000
+commit 8e199294361de59b637f25a7d5eebdee1b131415
+Author: fangguizhen <1297394526@qq.com>
+Date:   Tue Jan 17 16:37:42 2023 +0000
 
-    runtime: change the name of variables in asan-related assembly functions
+    strings: remove redundant symbols
     
-    Variables in functions implemented in assembly should have the
-    same names as when they were defined. The names of some variables
-    in asan-related assembly functions do not follow the above rule,
-    which will cause the runtime test to fail. This CL fixes this issue.
-    
-    Updates #64257
-    
-    Change-Id: I261f4db807d25e460513ef1c92cd1b707cdd1a16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543837
-    Run-TryBot: Fannie Zhang <Fannie.Zhang@arm.com>
+    Change-Id: Ie3fe0274288d6cb6303acdcec1340c480e5c0b20
+    GitHub-Last-Rev: ce9d44619e970b1319fbccf3aace1ddf719bcec1
+    GitHub-Pull-Request: golang/go#57848
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462277
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/asan_amd64.s   | 10 +++++-----
- src/runtime/asan_arm64.s   | 10 +++++-----
- src/runtime/asan_loong64.s | 10 +++++-----
- 3 files changed, 15 insertions(+), 15 deletions(-)
+ src/strings/clone_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

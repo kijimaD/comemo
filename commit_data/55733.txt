@@ -1,24 +1,33 @@
-commit 960654be0c4ad7918376e2e1d47491c9bc7520e0
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Feb 26 13:45:42 2024 -0800
+commit 642542cb3c4b672cb34cde44a415c05bf1560a5e
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 9 16:31:41 2023 +0000
 
-    net/http/httputil: avoid ReverseProxy data race on 1xx response and error
+    Revert "cmd/link: establish dependable package initialization order"
     
-    ReverseProxy uses a httptrace.ClientTrace.Got1xxResponse trace hook
-    to capture 1xx response headers for proxying. This hook can be called
-    asynchrnously after RoundTrip returns. (This should only happen when
-    RoundTrip has failed for some reason.) Add synchronization so we don't
-    attempt to modifying the ResponseWriter headers map from the hook
-    after another goroutine has begun making use of it.
+    This reverts commit ce2a609909d9de3391a99a00fe140506f724f933.
+    aka CL 462035
     
-    Fixes #65123
+    Reason for revert: this CL is causing some problems in some internal Google programs.
     
-    Change-Id: I8b7ecb1a140f7ba7e37b9d27b8a20bca41a118b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567216
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I4476b8d8d2c3d7b5703d1d85c93baebb4b4e5d26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474976
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/http/httputil/reverseproxy.go      | 14 +++++++
- src/net/http/httputil/reverseproxy_test.go | 67 ++++++++++++++++++++++++++++++
- 2 files changed, 81 insertions(+)
+ src/cmd/compile/internal/pkginit/init.go |  18 ++--
+ src/cmd/internal/objabi/reloctype.go     |   6 --
+ src/cmd/link/internal/ld/deadcode.go     |   8 --
+ src/cmd/link/internal/ld/heap.go         |  47 ---------
+ src/cmd/link/internal/ld/inittask.go     | 175 -------------------------------
+ src/cmd/link/internal/ld/lib.go          |   4 -
+ src/cmd/link/internal/ld/main.go         |   3 -
+ src/cmd/link/internal/ld/symtab.go       |  16 ---
+ src/plugin/plugin_dlopen.go              |  20 ++--
+ src/runtime/plugin.go                    |  10 +-
+ src/runtime/proc.go                      |  60 +++++------
+ src/runtime/symtab.go                    |   4 -
+ test/fixedbugs/issue31636.out            |   4 +-
+ test/noinit.go                           |   5 +-
+ 14 files changed, 56 insertions(+), 324 deletions(-)

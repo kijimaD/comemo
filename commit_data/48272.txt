@@ -1,25 +1,22 @@
-commit d3fe4e193e387f250ba53a80f669eac465b1641d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 2 18:38:55 2022 -0800
+commit 10a082aa70fb58d92fc85769983d42110d61fad1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 4 15:57:45 2021 -0400
 
-    go/types, types2: fix scoping for iteration variables declared by range clause
+    cmd/go: update x/mod to fix "//indirect" comment editing
     
-    Also correct scope position for such variables.
-    Adjusted some comments.
+    Fixes #45932
     
-    Fixes #51437.
-    
-    Change-Id: Ic49a1459469c8b2c7bc24fe546795f7d56c67cb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389594
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I043aecb6224348faf54c1d41fdbc00aa566089c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316751
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/api_test.go        |  2 +-
- src/cmd/compile/internal/types2/stmt.go            | 22 ++++++++++------------
- .../types2/testdata/fixedbugs/issue51437.go        | 17 +++++++++++++++++
- src/go/types/api_test.go                           |  2 +-
- src/go/types/stmt.go                               | 17 +++++++----------
- src/go/types/testdata/fixedbugs/issue51437.go      | 17 +++++++++++++++++
- test/fixedbugs/issue51437.go                       | 19 +++++++++++++++++++
- 7 files changed, 72 insertions(+), 24 deletions(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  2 ++
+ .../go/testdata/script/mod_indirect_nospace.txt    | 32 ++++++++++++++++++++++
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |  4 +--
+ src/cmd/vendor/golang.org/x/mod/module/module.go   |  2 +-
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 6 files changed, 39 insertions(+), 5 deletions(-)

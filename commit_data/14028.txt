@@ -1,13 +1,21 @@
-commit 3a4e156ae1789970d37e8e53b053c2e0c8ab2465
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Oct 5 23:30:49 2012 +0200
+commit 23599ca2f6a25aa43c24e24962dcd7616a83d508
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Fri Oct 5 16:23:30 2012 -0400
 
-    cmd/5g: fix out of registers in nested calls, add compiler torture test.
+    runtime: mask SSE exceptions on plan9/amd64
     
-    R=golang-dev, dave, daniel.morsing, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/6586072
+    The Go run-time assumes that all SSE floating-point exceptions
+    are masked so that Go programs are not broken by such invalid
+    operations. By default, the 64-bit version of the Plan 9 kernel
+    masks only some SSE floating-point exceptions. Here, we mask
+    them all on a per-thread basis.
+    
+    R=rsc, rminnich, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6592056
 
- src/cmd/5g/cgen.c |  24 +++++---
- test/torture.go   | 171 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 188 insertions(+), 7 deletions(-)
+ src/pkg/runtime/os_plan9.h        | 1 +
+ src/pkg/runtime/sys_plan9_386.s   | 4 ++++
+ src/pkg/runtime/sys_plan9_amd64.s | 9 +++++++++
+ src/pkg/runtime/thread_plan9.c    | 3 +++
+ 4 files changed, 17 insertions(+)

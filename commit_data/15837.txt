@@ -1,12 +1,12 @@
-commit 47ce4bd3535bc914a960e383eadfb3471c7ea846
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 19 16:53:07 2013 -0400
+commit ddddd70cd2ea6f85612fef5f2d2ab3ad0ef47033
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 19 12:49:46 2013 -0700
 
-    cmd/ld: fix typo
+    misc/dashboard: show correct dir name in README
     
-    R=golang-dev, minux.ma
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7552045
+    https://golang.org/cl/7909043
 
- src/cmd/ld/dwarf.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/README | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

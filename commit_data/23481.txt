@@ -1,17 +1,16 @@
-commit 66130907d1483f851b514ab564c64fe1d1fceec6
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 24 17:31:57 2015 -0400
+commit 0b9866fd561d5ecebee14d73c0a4938dec5abe7d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 16 20:05:58 2015 -0400
 
-    cmd/compile: handle copy in escape analysis
+    buildall.bash: exit 1 when make.bash fails
     
-    Somehow we missed this!
-    Fixes #11387.
+    If make.bash fails, there is no point continuing any further.
     
-    Change-Id: Ida08fe52eff7da2ef7765b4cf35a39a301420c43
-    Reviewed-on: https://go-review.googlesource.com/11460
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #10880.
+    
+    Change-Id: I350cc16999372422ad3d2e0327d52d467886a5b1
+    Reviewed-on: https://go-review.googlesource.com/10180
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/esc.go |  3 +++
- test/escape2.go                    | 12 ++++++++++--
- test/escape2n.go                   | 12 ++++++++++--
- 3 files changed, 23 insertions(+), 4 deletions(-)
+ src/buildall.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

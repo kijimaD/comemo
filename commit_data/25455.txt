@@ -1,31 +1,18 @@
-commit 194a5c3e61d4509bdc9c84005305a881783939e3
+commit 7c167f270826039590af43360b9fb9b2890fe13d
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 6 07:14:49 2016 +0000
+Date:   Fri Oct 30 13:33:28 2015 -0700
 
-    net/http: update bundled http2, add test for Transport's User-Agent behavior
+    test: disable flaky heapsampling test for now
     
-    Adds a test that both http1 and http2's Transport send a default
-    User-Agent, with the same behavior.
+    Flaky tests do more harm than good.
     
-    Updates bundled http2 to golang.org/x/net git rev 1ade16a545 (for
-    https://go-review.googlesource.com/18285)
+    Updates #13098
     
-    The http1 behavior changes slightly: if req.Header["User-Agent"] is
-    defined at all, even if it's nil or a zero-length slice, then the
-    User-Agent header is omitted. This is a slight behavior change for
-    http1, but is consistent with how http1 & http2 do optional headers
-    elsewhere (such as "Date", "Content-Type"). The old behavior (set it
-    explicitly to "", aka []string{""}) still works as before. And now
-    there are even tests.
-    
-    Fixes #13685
-    
-    Change-Id: I5786a6913b560de4a5f1f90e595fe320ff567adf
-    Reviewed-on: https://go-review.googlesource.com/18284
+    Change-Id: I179ed810b49bbb96c8df462bfa20b70231b26772
+    Reviewed-on: https://go-review.googlesource.com/16521
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/clientserver_test.go | 61 +++++++++++++++++++++++++++++++++++++++
- src/net/http/h2_bundle.go         | 20 ++++++++++++-
- src/net/http/request.go           |  6 ++--
- 3 files changed, 82 insertions(+), 5 deletions(-)
+ test/heapsampling.go | 2 ++
+ 1 file changed, 2 insertions(+)

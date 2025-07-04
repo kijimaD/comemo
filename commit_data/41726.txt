@@ -1,18 +1,24 @@
-commit f0e8b81aa34120e21642c569912bde00ccd33393
-Author: Aurélio A. Heckert <aurium@gmail.com>
-Date:   Sun Mar 22 20:38:42 2020 -0300
+commit 51504f0a2d65a7f7fcf63c25c2cb306a6863d07d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 21 14:25:45 2019 -0700
 
-    syscall/js: allow copyBytesTo(Go|JS) to use Uint8ClampedArray
+    go/types: don't update package-external types when checking validity
     
-    closes #38011
+    The recently added type-validity check uses a new field of Named
+    types for marking (to detect cycles). That field was modified even
+    if the type was not part of the current package or belonged to the
+    Universe scope (error type). This led to race conditions if the
+    package's type was imported by multiple, concurrently type-checked
+    packages.
     
-    Change-Id: Ic50f2f27456dccdc3fca1bda076871af1eb81705
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224638
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    A test would be nice but it's a bit cumbersome to set one up.
+    Verified manually that package-external types are left alone.
+    
+    Fixes #35049.
+    
+    Change-Id: I51686bef47fcca48b99b91ecb1b2e9d58e135ea6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202483
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- misc/wasm/wasm_exec.js |  4 ++--
- src/syscall/js/js.go   | 12 ++++++------
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/go/types/decl.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

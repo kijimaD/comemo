@@ -1,24 +1,31 @@
-commit 434e4caf1b93530b225494ba30d9e39ba15ecf4f
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Sep 19 01:01:07 2019 +1000
+commit c3495058786a3c05699f0d4a39ecc7df39e58897
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Apr 7 13:56:58 2019 +0700
 
-    cmd/internal/obj/riscv: implement floating point instructions
+    os: fix RemoveAll hangs on large directory
     
-    Add support for assembling various single-precision and double-precision
-    floating point instructions.
+    golang.org/cl/121255 added close and re-open the directory when looping, prevent
+    us from missing some if previous iteration deleted files.
     
-    Based on the riscv-go port.
+    The CL introdued a bug. If we can not delete all entries in one request,
+    the looping never exits, causing RemoveAll hangs.
     
-    Updates #27532
+    To fix that, simply discard the entries if we can not delete all of them
+    in one iteration, then continue reading entries and delete them.
     
-    Change-Id: Iac1aec9b03bb6cbf116b229daeef944d4df550fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196839
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Also make sure removeall_at return first error it encounters.
+    
+    Fixes #29921
+    
+    Change-Id: I8ec3a4c822d8d2d95d9f1ab71547879da395bc4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171099
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscvenc.s |  71 ++++++++++-
- src/cmd/internal/obj/riscv/anames.go         |   4 +-
- src/cmd/internal/obj/riscv/cpu.go            |   4 +-
- src/cmd/internal/obj/riscv/obj.go            | 174 +++++++++++++++++++++++++++
- 4 files changed, 248 insertions(+), 5 deletions(-)
+ src/os/export_test.go    |  1 +
+ src/os/path.go           |  3 +++
+ src/os/removeall_at.go   | 48 ++++++++++++++++++++++++++++++++----------------
+ src/os/removeall_noat.go | 40 ++++++++++++++++++++++++++++------------
+ src/os/removeall_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 110 insertions(+), 28 deletions(-)

@@ -1,14 +1,16 @@
-commit 5c94f1ae8f7e901d74242c248771531bc38edd85
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Jan 17 09:04:58 2016 +0900
+commit a36dda7880179c09361cd7ec26f11dbb73dc2b78
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:21:57 2015 -0400
 
-    net: disable TestInterfaceAddrsWithNetsh on windows
+    runtime: added go files for linux/mips64{,le} support
     
-    Updates #13981.
-    
-    Change-Id: Id8f3cd56a81a7a993cea5c757e619407da491fed
-    Reviewed-on: https://go-review.googlesource.com/18710
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I14b537922b97d4bce9e0523d98a822da906348f1
+    Reviewed-on: https://go-review.googlesource.com/14447
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/net_windows_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/defs_linux_mips64x.go    | 183 +++++++++++++++++++++++++++++++++++
+ src/runtime/lfstack_linux_mips64x.go |  32 ++++++
+ src/runtime/os_linux_mips64x.go      |  18 ++++
+ src/runtime/signal_linux_mips64x.go  |  67 +++++++++++++
+ src/runtime/signal_mips64x.go        | 180 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 480 insertions(+)

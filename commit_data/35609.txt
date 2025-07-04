@@ -1,22 +1,35 @@
-commit 11f6cb43a0db4f8c8a7c91c23cb88a30c5ed37bf
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jun 5 22:41:10 2018 +0200
+commit 9697a119e6af9fd08080e7765d8ba75d715117a6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Feb 23 15:08:11 2018 -0800
 
-    crypto/x509: use SecItemExport instead of deprecated SecKeychainItemExport
+    archive/zip: fix handling of Info-ZIP Unix extended timestamps
     
-    SecKeychainItemExport is deprecated as of macOS 10.7. The minimum
-    supported version is macOS 10.10, so use SecItemExport instead.
+    The Info-ZIP Unix1 extra field is specified as such:
+    >>>
+    Value    Size   Description
+    -----    ----   -----------
+    0x5855   Short  tag for this extra block type ("UX")
+    TSize    Short  total data size for this block
+    AcTime   Long   time of last access (GMT/UTC)
+    ModTime  Long   time of last modification (GMT/UTC)
+    <<<
     
-    While at it also bump macosx-version-min to 10.10 and
-    __MAC_OS_X_VERSION_MAX_ALLOWED to 101300 (for macOS 10.13).
+    The previous handling was incorrect in that it read the AcTime field
+    instead of the ModTime field.
     
-    Tested on macOS 10.10, 10.11 and 10.12.
+    The test-osx.zip test unfortunately locked in the wrong behavior.
+    Manually parsing that ZIP file shows that the encoded MS-DOS
+    date and time are 0x4b5f and 0xa97d, which corresponds with a
+    date of 2017-10-31 21:11:58, which matches the correct mod time
+    (off by 1 second due to MS-DOS timestamp resolution).
     
-    Updates #23122
+    Fixes #23901
     
-    Change-Id: Id4cd6a5cea93315791253dc248e40e5615760a6c
-    Reviewed-on: https://go-review.googlesource.com/116396
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I567824c66e8316b9acd103dbecde366874a4b7ef
+    Reviewed-on: https://go-review.googlesource.com/96895
+    Run-TryBot: Joe Tsai <joetsai@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/root_cgo_darwin.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/archive/zip/reader.go      | 8 +-------
+ src/archive/zip/reader_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 8 deletions(-)

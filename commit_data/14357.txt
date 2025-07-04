@@ -1,15 +1,36 @@
-commit 4e75d2c7d5234f3bd9789b643e30b744de96b348
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Nov 9 03:41:43 2012 +1100
+commit ef6806fb13b1db44a57e4f26908803d55ed28e81
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 8 10:35:16 2012 -0600
 
-    runtime: re-enable crash test on NetBSD
+    net: close fds eagerly in DialTimeout
     
-    Re-enable the crash tests on NetBSD now that the issue has been
-    identified and fixed.
+    Integrates with the pollserver now.
     
-    R=golang-dev, bradfitz
+    Uses the old implementation on windows and plan9.
+    
+    Fixes #2631
+    
+    R=paul, iant, adg, bendaglish, rsc
     CC=golang-dev
-    https://golang.org/cl/6813100
+    https://golang.org/cl/6815049
 
- src/pkg/runtime/crash_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/pkg/net/dial.go            | 77 +++++++++++++++++++++++++----------------
+ src/pkg/net/dial_test.go       | 78 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/fd_unix.go         | 12 ++++---
+ src/pkg/net/iprawsock.go       | 14 ++++++--
+ src/pkg/net/iprawsock_plan9.go |  4 +++
+ src/pkg/net/iprawsock_posix.go |  9 +++--
+ src/pkg/net/ipsock.go          | 11 +++---
+ src/pkg/net/ipsock_posix.go    |  9 +++--
+ src/pkg/net/lookup.go          | 41 ++++++++++++++++++++++
+ src/pkg/net/net.go             |  2 ++
+ src/pkg/net/sock_posix.go      |  7 +++-
+ src/pkg/net/tcpsock.go         |  8 ++++-
+ src/pkg/net/tcpsock_plan9.go   | 12 ++++++-
+ src/pkg/net/tcpsock_posix.go   | 10 ++++--
+ src/pkg/net/udpsock.go         | 11 ++++--
+ src/pkg/net/udpsock_plan9.go   |  8 +++++
+ src/pkg/net/udpsock_posix.go   | 15 +++++---
+ src/pkg/net/unixsock_plan9.go  |  4 +++
+ src/pkg/net/unixsock_posix.go  | 14 +++++---
+ 19 files changed, 281 insertions(+), 65 deletions(-)

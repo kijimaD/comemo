@@ -1,106 +1,21 @@
-commit 0cab8bfddde4b5798563638947065f21912d25bf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Aug 2 18:16:39 2018 -0700
+commit 467eca607697b30ba4f0b58bceae002f87ce5097
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Apr 11 17:03:14 2018 +0200
 
-    cmd/go: revert "cmd/go: no longer eval symlinks in inDir"
+    test/codegen: port last stack and memcombining tests
     
-    It breaks on the Darwin builders, with
+    And delete them from asm_test.
     
-    --- FAIL: TestTestCacheInputs (21.65s)
-        go_test.go:5371: file.txt: old=2018-08-02 15:12:21.136438 -0700 PDT m=+219.458659208, info.ModTime=2018-08-02 15:12:21 -0700 PDT
-        go_test.go:5377: running testgo [test testcache]
-        go_test.go:5377: standard output:
-        go_test.go:5377: ok         testcache       0.013s
+    Also delete an arm64 cmov test has been already ported to the new test
+    harness.
     
-        go_test.go:5378: running testgo [test testcache]
-        go_test.go:5378: standard output:
-        go_test.go:5378: ok         testcache       (cached)
-    
-        go_test.go:5382: running testgo [test testcache]
-        go_test.go:5382: standard output:
-        go_test.go:5382: ok         testcache       0.172s
-    
-        go_test.go:5384: running testgo [test testcache]
-        go_test.go:5384: standard output:
-        go_test.go:5384: ok         testcache       (cached)
-    
-        go_test.go:5387: running testgo [test testcache -run=FileSize]
-        go_test.go:5387: standard output:
-        go_test.go:5387: ok         testcache       0.012s
-    
-        go_test.go:5388: running testgo [test testcache -run=FileSize]
-        go_test.go:5388: standard output:
-        go_test.go:5388: ok         testcache       (cached)
-    
-        go_test.go:5391: running testgo [test testcache -run=FileSize]
-        go_test.go:5391: standard output:
-        go_test.go:5391: ok         testcache       0.008s
-    
-        go_test.go:5393: running testgo [test testcache -run=FileSize]
-        go_test.go:5393: standard output:
-        go_test.go:5393: ok         testcache       (cached)
-    
-        go_test.go:5396: running testgo [test testcache -run=Chdir]
-        go_test.go:5396: standard output:
-        go_test.go:5396: ok         testcache       0.417s
-    
-        go_test.go:5397: running testgo [test testcache -run=Chdir]
-        go_test.go:5397: standard output:
-        go_test.go:5397: ok         testcache       (cached)
-    
-        go_test.go:5400: running testgo [test testcache -run=Chdir]
-        go_test.go:5400: standard output:
-        go_test.go:5400: ok         testcache       (cached)
-    
-        go_test.go:5401: did not notice file size change
-        go_test.go:5401: pattern \(cached\) found unexpectedly in standard output
-    FAIL
-    
-    Original CL description:
-    
-        Evaluating the symlinks was slowing down test cache checks.
-    
-        Fixes #26562
-        Fixes #26726
-    
-                ijt:~/gopath/src/issue26562$ cat foo_test.go
-                package foo_test
-    
-                import (
-                        "fmt"
-                        "os"
-                        "path/filepath"
-                        "testing"
-                )
-    
-                // package and imports snipped
-                func TestCache(t *testing.T) {
-                        tmp := os.TempDir()
-                        for i := 0; i < 1000000; i++ {
-                                os.Stat(filepath.Join(tmp, fmt.Sprintf("%d", i)))
-                        }
-                }
-                ijt:~/gopath/src/issue26562$ time ~/github/go/bin/go test -count=1
-                PASS
-                ok      issue26562      9.444s
-    
-                real    0m10.021s
-                user    0m2.344s
-                sys     0m7.835s
-                ijt:~/gopath/src/issue26562$ time ~/github/go/bin/go test .
-                ok      issue26562      (cached)
-    
-                real    0m0.802s
-                user    0m0.551s
-                sys     0m0.306s
-    
-    Updates #26562
-    Updates #26726
-    
-    Change-Id: I7914ee57dc75bcbd7f0ea01c70bed97d67c810ea
-    Reviewed-on: https://go-review.googlesource.com/127715
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4458721e1f512bc9ecbbe1c22a2c9c7109ad68fe
+    Reviewed-on: https://go-review.googlesource.com/106335
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/go/internal/test/test.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go | 80 ---------------------------------
+ test/codegen/memcombine.go              | 19 +++++++-
+ test/codegen/stack.go                   | 12 +++++
+ 3 files changed, 30 insertions(+), 81 deletions(-)

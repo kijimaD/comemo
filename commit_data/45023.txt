@@ -1,24 +1,39 @@
-commit bb76193a7f0b04c6c25696ed28dd5516ae23d83c
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Apr 8 15:30:03 2021 -0400
+commit 5824a4ce1a0e47f3093128371c7156b35fe9d806
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 12 15:14:42 2020 +0100
 
-    cmd/compile: fix buglet in walk convert phase relating to convF32/64
+    cmd/go: error when -c or -i are used with unknown flags
     
-    The helper function used by the compiler's walk phase to determine
-    whether a param can be passed in a single float register wasn't quite
-    correct (didn't allow for the possibility of struct with two fields,
-    first zero size and second float). Fix up the helper to take this
-    case into account.
+    Other test flags passed to the test binary, such as -run or -count, are
+    equally pointless when -c or -i are used, since the test binary is never
+    run. However, custom flags in that scenario are far more likely to be
+    due to human error, such as:
     
-    Updates #40724.
+            # note the "ldflags" typo, which silently did nothing
+            go test -c -lflags=-w
     
-    Change-Id: I55b42a1b17ea86de1d696788f029ad3aae4a179c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308689
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Instead, make this scenario error. It seems unlikely that anyone is
+    using -c along with intended custom-defined test flags, and if they are,
+    removing those extra flags that do nothing is probably a good idea
+    anyway.
+    
+    We don't add this restriction for the flags defined in 'go help
+    testflag', since they are far less likely to be typos or unintended
+    mistakes. Another reason not to do that change is that other commands
+    similarly silently ignore no-op flags, such as:
+    
+            # -d disables the build, so -ldflags is never used
+            go get -d -ldflags=-w
+    
+    Fixes #39484.
+    
+    Change-Id: I6ba2f6866562fe8f8fceaf4cd862d874bf5cd978
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237697
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/walk/convert.go | 17 ++++++++++++++++-
- test/abi/convF_criteria.go               | 27 +++++++++++++++++++++++++++
- test/abi/convF_criteria.out              |  2 ++
- 3 files changed, 45 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/test/testflag.go     | 16 ++++++++++++++++
+ src/cmd/go/testdata/script/test_flag.txt | 18 ++++++++++++++++++
+ 2 files changed, 34 insertions(+)

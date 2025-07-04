@@ -1,22 +1,22 @@
-commit a99ff24a26939f30440dd0f06dce426ed5e638ee
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 3 18:33:45 2021 -0800
+commit 6b4dcf19fa493905689dedc27f2232b74c366057
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jul 28 20:02:57 2020 +0000
 
-    cmd/compile/internal/syntax: print type parameters and type lists
+    runtime: hold sched.lock over globrunqputbatch in runqputbatch
     
-    types2 uses the syntax printer to print expressions (for tracing
-    or error messages), so we need to (at least) print type lists in
-    interfaces.
+    globrunqputbatch should never be called without sched.lock held.
+    runqputbatch's documentation even says it may acquire sched.lock in
+    order to call it.
     
-    While at it, also implement the printing of type parameter lists.
+    Fixes #40457.
     
-    Fixes #44766.
-    
-    Change-Id: I36a4a7152d9bef7251af264b5c7890aca88d8dc3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298549
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I5421b64f1da3a6087dfebbef7203db0c95d213a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245377
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/syntax/printer.go      | 57 +++++++++++++++++++------
- src/cmd/compile/internal/syntax/printer_test.go | 37 +++++++++++++++-
- 2 files changed, 79 insertions(+), 15 deletions(-)
+ src/runtime/proc.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,12 +1,14 @@
-commit 97eb06233fef967a39688fff3ea907c88c329160
+commit ab44a814c2bcc54975d145ee437a9adf54475d18
 Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 22 13:29:17 2011 +1000
+Date:   Mon Aug 22 13:22:42 2011 +1000
 
-    test/chan/sieve2.go: remove container/vector.
+    reflect: remove references to container/vector.
+    It's not even using vectors - the references are just examples.
     
-    R=golang-dev, dsymonds, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4918043
+    https://golang.org/cl/4938043
 
- test/chan/sieve2.go | 38 ++++++++++++++++++++++++++------------
- 1 file changed, 26 insertions(+), 12 deletions(-)
+ src/pkg/reflect/all_test.go | 6 +++---
+ src/pkg/reflect/type.go     | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

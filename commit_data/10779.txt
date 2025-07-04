@@ -1,20 +1,25 @@
-commit a62722bba4e7ccfe2ebfae4a5702c17e0a64937d
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Dec 14 15:05:33 2011 +0100
+commit e25a83d03e97edf0d8474ad41ed2edd0a63b19fc
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Dec 14 21:40:31 2011 +1100
 
-    gc: inlining (disabled without -l)
+    html: close <button> element before opening a new one
     
-    Cross- and intra package inlining of single assignments or return <expression>.
-    Minus some hairy cases, currently including other calls, expressions with closures and ... arguments.
+    Pass tests6.dat, test 13:
+    <button><button>
     
-    R=rsc, rogpeppe, adg, gri
+    | <html>
+    |   <head>
+    |   <body>
+    |     <button>
+    |     <button>
+    
+    Also pass tests through test 25:
+    <table><colgroup>foo
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5400043
+    https://golang.org/cl/5487072
 
- src/cmd/gc/Makefile |   1 +
- src/cmd/gc/export.c |  83 ++++++-
- src/cmd/gc/go.h     |  13 +-
- src/cmd/gc/go.y     |  12 +-
- src/cmd/gc/inl.c    | 688 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/gc/lex.c    |  40 ++-
- 6 files changed, 824 insertions(+), 13 deletions(-)
+ src/pkg/html/parse.go      | 5 +++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

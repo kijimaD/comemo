@@ -1,21 +1,21 @@
-commit bb0bfd002ada7e3eb9198d4287b32c2fed6e8da6
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Oct 5 17:36:13 2017 +1100
+commit 3c0f69a52101c69b5a8288195fa74c7ecfa2fa43
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 26 19:07:24 2017 +0000
 
-    cmd/dist, cmd/link, cmd/go: make c-shared work on windows
+    net/http/httputil: always deep copy the Request.Header map in ReverseProxy
     
-    Thanks to Christopher Nelson for spearheading the effort.
+    We used to do it sometimes as an optimization, but the optimization is
+    flawed: in all non-contrived cases we need to deep clone the map
+    anyway. So do it always, which both simplifies the code but also fixes
+    the X-Forward-For value leaking to the caller's Request, as well as
+    modifications from the optional Director func.
     
-    Fixes #11058
+    Fixes #18327
     
-    Change-Id: Icafabac8dc697626ff1bd943cc577b0b1cc6b349
-    Reviewed-on: https://go-review.googlesource.com/69091
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0c86d10c557254bf99fdd988227dcb15f968770b
+    Reviewed-on: https://go-review.googlesource.com/46716
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go              |  3 ++-
- src/cmd/go/internal/work/build.go | 11 +++++++++--
- src/cmd/internal/obj/x86/asm6.go  |  2 +-
- src/cmd/link/internal/ld/lib.go   | 11 +++++++----
- 4 files changed, 19 insertions(+), 8 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 26 +++++++++++------------
+ src/net/http/httputil/reverseproxy_test.go | 33 ++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 14 deletions(-)

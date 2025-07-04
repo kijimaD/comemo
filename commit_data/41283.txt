@@ -1,26 +1,33 @@
-commit fcfc16694f6e1a1ddaead5f950094cfe7173d08e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Jan 7 16:41:26 2020 -0500
+commit 0d9981bccb0e9783b25491c9395702ca099a11e3
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Sep 19 23:35:34 2019 -0700
 
-    cmd/go: convert TestCoverageNoStatements to the script framework.
+    debug/dwarf: optimize buf.string
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    (*buf).string previously manually searched
+    through its underlying byte slice until we
+    encountered a '0'. This change instead uses
+    bytes.IndexByte that results in a speed up:
     
-    Updates #36320
-    Updates #17751
+    $ benchstat before.txt after.txt
     
-    Change-Id: Ie2c60ec0654ef605439beeed92cf5f1c2c8a1dd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213681
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    name         old time/op    new time/op    delta
+    BufString-8     257ns ± 1%     174ns ± 1%  -32.37%  (p=0.000 n=9+8)
+    
+    name         old speed      new speed      delta
+    BufString-8   495MB/s ± 1%   732MB/s ± 1%  +47.76%  (p=0.000 n=10+8)
+    
+    name         old alloc/op   new alloc/op   delta
+    BufString-8      162B ± 0%      162B ± 0%     ~     (all equal)
+    
+    name         old allocs/op  new allocs/op  delta
+    BufString-8      3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    
+    Change-Id: I7cf241742cc091d5d30d987a168b02d83955b1cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196657
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/go/go_test.go                           |  8 ----
- src/cmd/go/testdata/script/cover_statements.txt | 57 +++++++++++++++++++++++++
- src/cmd/go/testdata/testcover/pkg1/a.go         |  7 ---
- src/cmd/go/testdata/testcover/pkg2/a.go         |  7 ---
- src/cmd/go/testdata/testcover/pkg2/a_test.go    |  1 -
- src/cmd/go/testdata/testcover/pkg3/a.go         |  7 ---
- src/cmd/go/testdata/testcover/pkg3/a_test.go    |  7 ---
- src/cmd/go/testdata/testcover/pkg4/a.go         |  5 ---
- src/cmd/go/testdata/testcover/pkg4/a_test.go    |  9 ----
- 9 files changed, 57 insertions(+), 51 deletions(-)
+ src/debug/dwarf/buf.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

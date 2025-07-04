@@ -1,21 +1,17 @@
-commit e99f53fed98b0378c147588789b8c56b0305469b
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Aug 1 13:38:27 2022 -0400
+commit 37e9c1d6fe453458a203595277147ae713650a3a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 20 17:04:35 2021 +0000
 
-    doc: move Go 1.19 release notes to x/website
+    cmd/internal/obj/riscv: avoid obj.Prog rewriting for address to register loads
     
-    Now that the development of the Go 1.19 release is almost done, its
-    release notes are moved to their eventual long-term home in x/website
-    in CL 420417. Delete the initial development copy here.
+    Rather than rewriting the obj.Prog for a MOV pseudo-instruction targeting
+    an address to register load, generate the appropriate machine instruction
+    sequence directly.
     
-    For golang/go#51400.
-    
-    Change-Id: I741285555af28ce9a64e7f8d2b9fe2a0f3e13c26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420418
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I507195b6d24ff3253eadcc807ddbe27dca97d220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344456
+    Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/go1.19.html | 1008 -------------------------------------------------------
- 1 file changed, 1008 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 149 ++++++++++++++++++++------------------
+ 1 file changed, 79 insertions(+), 70 deletions(-)

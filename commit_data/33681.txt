@@ -1,20 +1,21 @@
-commit c866110689796c42ab379de1402462d03dfe23fa
-Author: Tom Lanyon <tomlanyon@google.com>
-Date:   Thu Nov 23 12:21:25 2017 +1100
+commit 526f3420c2a25a2bc99ae4cc2750c2598a07c895
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Tue May 16 16:55:54 2017 -0500
 
-    os/exec: Stdout/Stderr doc cleanup.
+    cmd/asm, cmd/internal/obj/ppc64: add ISA 3.0 instructions
     
-    Following comments on CL 76320.
+    This change adds new ppc64 instructions from the POWER9 ISA. This includes
+    compares, loads, maths, register moves and the new random number generator and
+    copy/paste facilities.
     
-    Breaks Cmd.Std{out,err} doc into three paragraphs and updates Cmd.Stdin
-    formatting to match.
-    
-    Fixes an erroneous reference to Stdin in the output goroutine comment, while
-    keeping the wording consistent between Stdin and Stdout/Stderr.
-    
-    Change-Id: I186a0e2d4b85dfb939443a17e62a1eb2ef64b1bf
-    Reviewed-on: https://go-review.googlesource.com/79595
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ife3720b90f5af184ff115bbcdcbce5c1302d39b6
+    Reviewed-on: https://go-review.googlesource.com/53930
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/os/exec/exec.go | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  40 +++++++++
+ src/cmd/internal/obj/ppc64/a.out.go       |  15 ++++
+ src/cmd/internal/obj/ppc64/anames.go      |  15 ++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 145 +++++++++++++++++++++++-------
+ 4 files changed, 183 insertions(+), 32 deletions(-)

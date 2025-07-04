@@ -1,32 +1,32 @@
-commit 576fa692774137633b09dd244e1de36993dd2803
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Feb 25 11:00:08 2020 -0500
+commit 831e3cfaa594ceb70c3cbeff2d31fddcd9a25a5e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 2 20:27:35 2019 -0700
 
-    cmd/go: extract module zip files in place
+    runtime: change netpoll to take an amount of time to block
     
-    Previously, we extracted module zip files to temporary directories
-    with random names, then renamed them to their final locations. This
-    failed with ERROR_ACCESS_DENIED on Windows if any file in the
-    temporary was open. Antivirus programs did this occasionally. Retrying
-    the rename did not work (CL 220978).
+    This new facility will be used by future CLs in this series.
     
-    With this change, we extract module zip files in place. We create a
-    .partial file alongside the .lock file to indicate a directory is not
-    fully populated, and we delete this at the end of the process.
+    Change the only blocking call to netpoll to do the right thing when
+    netpoll returns an empty list.
     
-    Updates #36568
+    Updates #6239
+    Updates #27707
     
-    Change-Id: I75c09df879a602841f3459322c021896292b2fdb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221157
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I58b3c2903eda61a3698b1a4729ed0e81382bb1ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171821
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/go/internal/modfetch/fetch.go              |  93 +++++++++++-----
- src/cmd/go/script_test.go                          |   1 +
- src/cmd/go/testdata/script/README                  |   1 +
- .../script/mod_concurrent_unzipinplace.txt         |  17 +++
- .../script/mod_download_concurrent_read.txt        | 120 +++++++++++++++++++++
- .../go/testdata/script/mod_download_partial.txt    |  10 ++
- 6 files changed, 214 insertions(+), 28 deletions(-)
+ src/runtime/defs1_solaris_amd64.go |  1 +
+ src/runtime/defs_solaris.go        |  1 +
+ src/runtime/netpoll_aix.go         | 31 ++++++++++++++++++++++++-------
+ src/runtime/netpoll_epoll.go       | 31 +++++++++++++++++++++++--------
+ src/runtime/netpoll_fake.go        |  2 +-
+ src/runtime/netpoll_kqueue.go      | 26 ++++++++++++++++++++------
+ src/runtime/netpoll_solaris.go     | 35 +++++++++++++++++++++++++----------
+ src/runtime/netpoll_stub.go        |  2 +-
+ src/runtime/netpoll_windows.go     | 33 +++++++++++++++++++++------------
+ src/runtime/proc.go                | 30 ++++++++++++++++++------------
+ 10 files changed, 135 insertions(+), 57 deletions(-)

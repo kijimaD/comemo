@@ -1,12 +1,28 @@
-commit 8d1d9292ff024f6c7586d27edd2c84c1ca8d9bf5
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Sep 13 23:31:07 2016 -0700
+commit d73ca5f4d8f6aef0c2e738cd1614d4dbf87735fb
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Jul 20 13:52:03 2016 +0200
 
-    syscall: document that Exec wraps execve(2)
+    runtime/race: fix memory leak
     
-    Change-Id: I611511434f37c75f77c22f61f469108243bc0101
-    Reviewed-on: https://go-review.googlesource.com/29121
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The leak was reported internally on a sever canary that runs for days.
+    After a day server consumes 5.6GB, after 6 days -- 12.2GB.
+    The leak is exposed by the added benchmark.
+    The leak is fixed upstream in :
+    http://llvm.org/viewvc/llvm-project/compiler-rt/trunk/lib/tsan/rtl/tsan_rtl_thread.cc?view=diff&r1=276102&r2=276103&pathrev=276103
+    
+    Fixes #16441
+    
+    Change-Id: I9d4f0adef48ca6cf2cd781b9a6990ad4661ba49b
+    Reviewed-on: https://go-review.googlesource.com/25091
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
 
- src/syscall/exec_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/race/README                  |   2 +-
+ src/runtime/race/race_darwin_amd64.syso  | Bin 341304 -> 326172 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 399904 -> 404216 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 371032 -> 376048 bytes
+ src/runtime/race/race_test.go            |  18 ++++++++++++++++++
+ src/runtime/race/race_windows_amd64.syso | Bin 363595 -> 367717 bytes
+ 6 files changed, 19 insertions(+), 1 deletion(-)

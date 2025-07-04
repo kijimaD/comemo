@@ -1,21 +1,32 @@
-commit f99e40aac023d818e8c2594e5b8c075786087132
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 8 22:01:13 2021 +0000
+commit bb6efb96092cc8ae398c29e3b052a0051c746f88
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 21:14:43 2021 -0500
 
-    runtime: detangle gcPaceScavenger from the pacer
+    build: set GOPATH consistently in run.bash, run.bat, run.rc
     
-    Currently gcPaceScavenger is called by gcControllerState.commit, but it
-    manipulates global state which precludes testing. This change detangles
-    the two.
+    We used to clear GOPATH in all the build scripts.
+    Clearing GOPATH is misleading at best, since you just end up
+    with the default GOPATH (%USERPROFILE%\go on Windows).
+    Unless that's your GOROOT, in which case you end up with a
+    fatal error from the go command (#43938).
     
-    Change-Id: I10d8ebdf426d99ba49d2f2cb4fb64891e9fd6091
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309272
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    run.bash changed to setting GOPATH=/dev/null, which has no
+    clear analogue on Windows.
+    
+    run.rc still clears GOPATH.
+    
+    Change them all to set GOPATH to a non-existent directory
+    /nonexist-gopath or c:\nonexist-gopath.
+    
+    Change-Id: I51edd66d37ff6a891b0d0541d91ecba97fbbb03d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288818
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/runtime/mgc.go         |  1 +
- src/runtime/mgcpacer.go    |  5 +++--
- src/runtime/mgcscavenge.go | 13 +++++++++----
- 3 files changed, 13 insertions(+), 6 deletions(-)
+ src/run.bash | 10 +---------
+ src/run.bat  |  4 +---
+ src/run.rc   |  9 ++++-----
+ 3 files changed, 6 insertions(+), 17 deletions(-)

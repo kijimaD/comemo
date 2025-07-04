@@ -1,14 +1,19 @@
-commit 01f0dbbafce1b4f7cd3771268041d3caa40fc73b
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 31 20:46:57 2018 -0400
+commit 2acae8741688ec29fff74118ffa0d0347ae8fc4d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Jul 5 19:55:08 2018 +0200
 
-    cmd/compile: gofmt
+    syscall/js: improve panic messages
     
-    I don't know how this file wasn't gofmted.
+    This commit adds the actual type to the panic message when calling
+    a method of Value on a Value with a bad type. It also adds better
+    panic messages to Value.Invoke and Value.Call.
     
-    Change-Id: I9b3765ae63970b7bc4dc87107f546e64a78e2830
-    Reviewed-on: https://go-review.googlesource.com/c/146497
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic4b3aa29d3bef8e357be40cd07664ad602ffab12
+    Reviewed-on: https://go-review.googlesource.com/122376
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/obj.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/js/js.go      | 35 ++++++++++++++++++++++++++++++-----
+ src/syscall/js/js_test.go |  6 ++++++
+ 2 files changed, 36 insertions(+), 5 deletions(-)

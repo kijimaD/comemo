@@ -1,18 +1,21 @@
-commit 1099644f5208c9e7911783c0103d5dad0a2021cd
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 9 12:09:45 2023 -0400
+commit fc5dad6646b165d0de75bf94956b18e22d00fa0a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 14 15:34:05 2022 -0700
 
-    cmd/compile: add ability to print extra information in bisect output
+    [dev.unified] cmd/compile/internal/walk: minor prep refactoring
     
-    Change-Id: I619c21ab9754f67b69215cfed238a3e489c7fbcf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493955
+    Two small refactorings that will make it easier to thread through
+    RType parameters later. Behavior preserving, but seemed worth
+    separating out.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I77905775015b6582bad2b32dd7700880c415893f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413354
     Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/base/hashdebug.go       | 54 +++++++++++++-----------
- src/cmd/compile/internal/base/hashdebug_test.go  | 24 +++++------
- src/cmd/compile/internal/loopvar/loopvar.go      |  4 +-
- src/cmd/compile/internal/loopvar/loopvar_test.go |  2 +-
- src/cmd/compile/internal/ssa/func.go             |  2 +-
- 5 files changed, 45 insertions(+), 41 deletions(-)
+ src/cmd/compile/internal/walk/complit.go |  4 ++--
+ src/cmd/compile/internal/walk/range.go   | 12 ++++++------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

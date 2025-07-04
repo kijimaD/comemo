@@ -1,28 +1,28 @@
-commit d3672054fb58d5eaa241f15fa9d7fb9d61e9ac05
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 2 15:08:23 2022 -0800
+commit 62d424d794e7543e84f4b6ddd7acc8e39c6c6380
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 3 16:11:24 2021 -0400
 
-    cmd/compile: don't include instantiating types in type hash
+    cmd: update x/tools to pull in CL 315570
     
-    This CL is a bit overkill, but it is pretty safe for 1.18. We'll
-    want to revisit for 1.19 so we can avoid the hash collisions between
-    types, e.g. G[int] and G[float64], that will cause some slowdowns
-    (but not incorrect behavior). Thanks Cherry for the simple idea.
+    Since x/tools is now lazy, this removes a significant fraction of
+    otherwise-irrelevant dependencies from the go.sum file.
     
-    Fixes #51250
+    The remaining extraneous go.sum lines come from the dependency on
+    github.com/google/pprof. Since that module is outside of the Go
+    project proper, I do not plan to submit a PR to make it lazy until
+    after the Go 1.17 release.
     
-    Change-Id: I68130e09ba68e7cc35687bc623f63547bc552867
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389474
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #36460
+    Updates #36905
+    
+    Change-Id: I214492cf931fca797817124ecdcbccd4ebb7505b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316452
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
- src/cmd/compile/internal/types/fmt.go           | 28 ++++++++++++++++++-------
- test/typeparam/issue51250a.dir/a.go             |  9 ++++++++
- test/typeparam/issue51250a.dir/b.go             | 24 +++++++++++++++++++++
- test/typeparam/issue51250a.dir/main.go          | 24 +++++++++++++++++++++
- test/typeparam/issue51250a.go                   |  7 +++++++
- 6 files changed, 85 insertions(+), 9 deletions(-)
+ src/cmd/go.mod             |  2 +-
+ src/cmd/go.sum             | 25 ++-----------------------
+ src/cmd/vendor/modules.txt |  4 ++--
+ 3 files changed, 5 insertions(+), 26 deletions(-)

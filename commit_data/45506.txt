@@ -1,22 +1,17 @@
-commit 7f9febd4a19a02bd25e40c63289268e9c062701e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon May 3 14:10:23 2021 +0700
+commit 79a3482d9e735fc6d0373da170fd1b4ff9222bc2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Oct 24 17:27:52 2020 +0200
 
-    cmd/compile: fix linux-amd64-noopt builder
+    cmd/compile: remove support for untyped ssa rules
     
-    CL 312214 added unsafe.{Add,Slice}, which may appears in expression that
-    evaluating requires function calls. "mayCall" does not handle that
-    case, causing linux-amd64-noopt builder failed.
+    This change removes support in rulegen for untyped -> ssa rules.
     
-    Fixes #45917
-    
-    Change-Id: I900aefb702122480be621355def3d2c20eadbe70
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316170
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I202018e191fc74f027243351bc8cf96145f2482c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264679
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/compile/internal/walk/walk.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 87 ++++++++---------------------
+ 1 file changed, 22 insertions(+), 65 deletions(-)

@@ -1,22 +1,16 @@
-commit ee6c6d96b652cb7003bdb705dcfa617e04777b3d
+commit b143feb1431b58c02be6edca6bc5f6067b22a14d
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 9 17:12:05 2014 -0400
+Date:   Thu Sep 4 01:38:49 2014 -0400
 
-    runtime: fix windows/386 build
+    runtime: fix int64 reconstruction in semasleep
     
-    The difference between the old and the new (from earlier) code
-    is that we set stackguard = stack.lo + StackGuard, while the old
-    code set stackguard = stack.lo. That 512 bytes appears to be
-    the difference between the profileloop function running and not running.
+    I had this right in one of my clients, but apparently not the one I submitted from.
     
-    We don't know how big the system stack is, but it is likely MUCH bigger than 4k.
-    Give Go/C 8k.
+    Fixes 386 builds.
     
-    TBR=iant
+    TBR=dfc
     CC=golang-codereviews
-    https://golang.org/cl/140440044
+    https://golang.org/cl/138000045
 
- src/runtime/memclr_386.s      | 2 ++
- src/runtime/memclr_amd64.s    | 2 ++
- src/runtime/sys_windows_386.s | 2 +-
- 3 files changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/runtime/os_darwin.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

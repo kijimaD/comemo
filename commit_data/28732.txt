@@ -1,12 +1,28 @@
-commit 795289b114e4dd4f69eaa7f74cb9eb7b6f963fff
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sun Oct 9 21:03:00 2016 -0700
+commit d8722012afb789f1a2875a0d2ed50bfbae12bb9c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 6 21:29:40 2016 +0000
 
-    net/http: fix typo in server commont
+    net/http: deflake TestClientRedirectContext
     
-    Change-Id: I5b04ba7e12eff933fc67eb7a1cbdfde536e4db88
-    Reviewed-on: https://go-review.googlesource.com/30722
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The test was checking for 1 of 2 possible error values. But based on
+    goroutine scheduling and the randomness of select statement receive
+    cases, it was possible for a 3rd type of error to be returned.
+    
+    This modifies the code (not the test) to make that third type of error
+    actually the second type of error, which is a nicer error message.
+    
+    The test is no longer flaky. The flake was very reproducible with a
+    5ms sleep before the select at the end of Transport.getConn.
+    
+    Thanks to Github user @jaredborner for debugging.
+    
+    Fixes #16049
+    
+    Change-Id: I0d2a036c9555a8d2618b07bab01f28558d2b0b2c
+    Reviewed-on: https://go-review.googlesource.com/24748
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/transport.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

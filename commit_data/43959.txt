@@ -1,16 +1,20 @@
-commit 7f9a2bc2bc6201d7ffb3b5066b88a19d2da96592
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Dec 7 18:10:56 2020 +0100
+commit 2a00c137b1a503e2482598cefe888e8bf581f3fe
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 30 01:39:18 2020 -0400
 
-    doc/go1.16: fix typo
+    [dev.link] cmd/link: fold zero symbol check into ResolveABIAlias
     
-    For #40700
+    We call (or will call) ResolveABIAlias in many places. Doing zero
+    symbol check everytime is annoying. Fold the condition into
+    ResolveABIAlias.
     
-    Change-Id: Idea442d45d18ca8cedc0b160df23eac6b86755ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275677
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I10485fe83b9cce2d19b6bd17dc42176f72dae48b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231046
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.16.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go       | 4 +---
+ src/cmd/link/internal/loader/loader.go | 3 +++
+ 2 files changed, 4 insertions(+), 3 deletions(-)

@@ -1,27 +1,28 @@
-commit 3a66bc415e674ed0ba2dd55ec7ef413fcac3778e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 5 16:24:37 2012 -0400
+commit 09f48db3e17c71e2ab709efb760e2a305c67aace
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 5 18:55:14 2012 +1000
 
-    runtime: use OS X vsyscall for gettimeofday (amd64)
+    runtime: use uintptr for block length in scanblock
     
-    Thanks to Dave Cheney for the magic words "comm page".
+    Using an int64 for a block size doesn't make
+    sense on 32bit platforms but extracts a performance
+    penalty dealing with double word quantities on Arm.
     
-    benchmark       old ns/op    new ns/op    delta
-    BenchmarkNow          197           33  -83.05%
+    linux/arm
     
-    This should make profiling a little better on OS X.
-    The raw time saved is unlikely to matter: what likely matters
-    more is that it seems like OS X sends profiling signals on the
-    way out of system calls more often than it should; avoiding
-    the system call should increase the accuracy of cpu profiles.
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkGobDecode        155401600    144589300   -6.96%
+    BenchmarkGobEncode         72772220     62460940  -14.17%
+    BenchmarkGzip               5822632      2604797  -55.26%
+    BenchmarkGunzip              326321       151721  -53.51%
     
-    The 386 version would be similar but needs to do different
-    math for CPU speeds less than 1 GHz. (Apparently Apple has
-    never shipped a 64-bit CPU with such a slow clock.)
+    benchmark                  old MB/s     new MB/s  speedup
+    BenchmarkGobDecode             4.94         5.31    1.07x
+    BenchmarkGobEncode            10.55        12.29    1.16x
     
-    R=golang-dev, bradfitz, dave, minux.ma, r
+    R=golang-dev, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6275056
+    https://golang.org/cl/6272047
 
- src/pkg/runtime/sys_darwin_amd64.s | 79 +++++++++++++++++++++++++++++++-------
- 1 file changed, 66 insertions(+), 13 deletions(-)
+ src/pkg/runtime/mgc0.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

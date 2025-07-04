@@ -1,19 +1,24 @@
-commit 098f059d077d01d9151e2e76901f62a7f2d52fec
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Dec 4 17:47:52 2023 -0500
+commit 440ef8c4d24861cbfb01758e7e03fa3b4164f55a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jan 4 20:54:34 2023 -0500
 
-    runtime: require cgo for cgo gdb test
+    cmd/internal/osinfo: report Node.js version
     
-    Fixes #64542.
+    Seeing the Node.js version that was used during a particular test run
+    should be helpful during the upcoming migration from Node.js 14 to 18.
+    Add minimal support for that.
     
-    Change-Id: Ic0dc37dfefac83fd3aab6dacfec58b8ee9105fbd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547135
+    For golang/go#57614.
+    
+    Change-Id: Id55ba25a7ee4a803788316d4a646cd4b6f4297e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460655
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Commit-Queue: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/runtime-gdb_unix_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/osinfo/os_js.go | 27 ++++++++++++++++++++++-----
+ 1 file changed, 22 insertions(+), 5 deletions(-)

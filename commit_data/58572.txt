@@ -1,43 +1,28 @@
-commit f7dbbf251980763609a65efe15ef9f8ed0cc5a95
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Sat Jan 11 17:56:04 2025 +0100
+commit 4a90cdb03d9c103abb0d44ff42dde7121ac6cd34
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Nov 18 20:16:47 2023 -0800
 
-    cmd/compile: distribute 8 and 16-bit multiplication
+    cmd/compile: interleave devirtualization and inlining
     
-    Expand the existing rule to cover 8 and 16 bit variants.
+    This CL interleaves devirtualization and inlining, so that
+    devirtualized calls can be inlined.
     
-    compilecmp linux/amd64:
+    Fixes #52193.
     
-    time
-    time.parseStrictRFC3339.func1 80 -> 70  (-12.50%)
-    time.Time.appendStrictRFC3339.func1 80 -> 70  (-12.50%)
-    time.Time.appendStrictRFC3339 439 -> 428  (-2.51%)
-    
-    time [cmd/compile]
-    time.parseStrictRFC3339.func1 80 -> 70  (-12.50%)
-    time.Time.appendStrictRFC3339.func1 80 -> 70  (-12.50%)
-    time.Time.appendStrictRFC3339 439 -> 428  (-2.51%)
-    
-    linux/arm64:
-    
-    time
-    time.parseStrictRFC3339.func1 changed
-    time.Time.appendStrictRFC3339.func1 changed
-    time.Time.appendStrictRFC3339 416 -> 400  (-3.85%)
-    
-    time [cmd/compile]
-    time.Time.appendStrictRFC3339 416 -> 400  (-3.85%)
-    time.parseStrictRFC3339.func1 changed
-    time.Time.appendStrictRFC3339.func1 changed
-    
-    Change-Id: I0ad3b2363a9fe8c322dd05fbc13bf151a146d8cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641756
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I681e7c55bdb90ebf6df315d334e7a58f05110d9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528321
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Bypass: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |  4 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 68 +++++++++++++++++++++++++
- 2 files changed, 72 insertions(+)
+ .../compile/internal/devirtualize/devirtualize.go  |  18 +-
+ src/cmd/compile/internal/gc/main.go                |  25 +--
+ src/cmd/compile/internal/inline/inl.go             | 242 +++++++--------------
+ .../internal/inline/interleaved/interleaved.go     | 132 +++++++++++
+ src/cmd/compile/internal/noder/reader.go           |   3 +-
+ src/cmd/compile/internal/noder/unified.go          |   2 +-
+ test/fixedbugs/issue42284.dir/a.go                 |   2 +-
+ test/fixedbugs/issue42284.dir/b.go                 |   2 +-
+ test/fixedbugs/issue52193.go                       |  46 ++++
+ 9 files changed, 265 insertions(+), 207 deletions(-)

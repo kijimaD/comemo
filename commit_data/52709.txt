@@ -1,23 +1,33 @@
-commit 6a5f35047f8c69301bc05ee4359bb20bd71dcad9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 18 10:20:15 2023 -0700
+commit 00847065287a11353c66b4144f5692848c7e837e
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
 
-    go/types, types2: consistently set x.mode in Checker.assignment
+    runtime: implement signal for linux/loong64
     
-    Per the doc string, Checker.assignment must set x.mode to invalid
-    in case of failure.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    (It may be simpler to return a bool, but the operand x may be tested
-    by callers several stack frames above.)
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
     
-    Change-Id: Ia1789b0396e8338103c0e707761c46f8d253fd31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/485875
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Updates #46229
+    
+    Change-Id: Ifa0229d2044dd53683de4a2b3ab965b16263f267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368075
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/assignments.go | 3 +++
- src/go/types/assignments.go                    | 3 +++
- 2 files changed, 6 insertions(+)
+ src/runtime/defs_linux_loong64.go   | 212 ++++++++++++++++++++++++++++++++++++
+ src/runtime/signal_linux_loong64.go |  75 +++++++++++++
+ src/runtime/signal_loong64.go       |  98 +++++++++++++++++
+ 3 files changed, 385 insertions(+)

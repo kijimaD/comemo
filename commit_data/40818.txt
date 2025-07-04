@@ -1,19 +1,25 @@
-commit 6ba0be16391697bdaab7d8f836b66921977d5474
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Nov 16 07:12:53 2019 -0800
+commit b9edee32e15eb2ea66fe96563088520fff6f2535
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 9 17:41:37 2019 -0400
 
-    hash/maphash: mark call into runtime hash function as not escaping
+    cmd/go: check for source files in relative paths before attempting to determine the package path
     
-    This allows maphash.Hash to be allocated on the stack for typical uses.
+    This is a more minimial fix for the immediate symptom of 32917 and
+    30590, but does not improve 'list -e' behavior or error
+    messages resulting from other package loading issues.
     
-    Fixes #35636
+    Fixes #32917
+    Fixes #30590
     
-    Change-Id: I8366507d26ea717f47a9fb46d3bd69ba799845ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207444
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I6088d14d864410159ebf228d9392d186322fd2a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185417
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/hash/maphash/maphash.go |  1 +
- test/escape_hash_maphash.go | 19 +++++++++++++++++++
- 2 files changed, 20 insertions(+)
+ src/cmd/go/internal/modload/load.go                | 66 ++++++++++++++++++----
+ src/cmd/go/testdata/script/mod_dot.txt             | 36 ++++++++++++
+ src/cmd/go/testdata/script/mod_fs_patterns.txt     |  4 +-
+ src/cmd/go/testdata/script/mod_list_dir.txt        |  5 +-
+ .../go/testdata/script/mod_list_replace_dir.txt    |  2 +-
+ 5 files changed, 96 insertions(+), 17 deletions(-)

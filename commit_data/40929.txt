@@ -1,22 +1,13 @@
-commit fa3a121a79f85a4c957f29372b5ebfde7211a980
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 2 17:32:01 2019 -0500
+commit 739123c3a36f30af06c294741f74a26e54ee21ad
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Jun 28 19:20:04 2019 -0400
 
-    runtime: add a simple version number parser
+    errors: add example showing a custom error with Unwrap
     
-    This will be used to parse the Linux kernel versions, but this code is
-    generic and can be tested on its own.
-    
-    For #35777.
-    
-    Change-Id: If1df48d07250e5855dde45bc9d57c66f777b9fb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209597
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2bddee9b460d3875911859b49528a00d318f37fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184237
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/export_test.go |  2 ++
- src/runtime/string.go      | 34 ++++++++++++++++++++++++++++++++++
- src/runtime/string_test.go | 31 +++++++++++++++++++++++++++++++
- 3 files changed, 67 insertions(+)
+ src/errors/example_unwrap_test.go | 56 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 56 insertions(+)

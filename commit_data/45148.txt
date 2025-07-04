@@ -1,28 +1,21 @@
-commit cbf9caaf22da04805f1e07277860324c7d9052b6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 12 10:41:56 2021 -0400
+commit ccf89bef43f3580526019e0804e91352e62047d5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 7 11:32:43 2020 -0400
 
-    cmd/go: add a Go source file in TestScript/mod_sumdb
+    cmd/compile: store call args in the call block
     
-    This test expects 'go mod tidy' to fail if the existing module graph
-    has a bad checksum. However, there is no intrinsic reason why 'go mod
-    tidy' should fail in that case: the module contains no packages, and
-    thus no imports, so 'go mod tidy' can justifiably remove all
-    requirements without regard to any errors that may have already been
-    present in the module graph.
+    We already do this for OpStore, but we didn't do this for OpMove.
+    Do the same, to ensure that no two memories are live at the same
+    time.
     
-    Adding a source file that imports a package from the module with the
-    bad checksum should guarantee that 'go mod tidy' reports the checksum
-    eror.
+    Fixes #41846.
     
-    For #36460
-    
-    Change-Id: I59734ac524031288bc03a11f58eed5abe2db76b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309334
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iad77ff031b3c4459d1217e0b04aeb0e692eb474d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260237
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/testdata/script/mod_sumdb.txt | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/ssa/expand_calls.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

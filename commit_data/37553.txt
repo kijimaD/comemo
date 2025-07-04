@@ -1,16 +1,33 @@
-commit c042fedbc8dbbf27603a360d79d59b4969f299ec
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri Nov 30 09:30:36 2018 +0000
+commit d46587c4eaaf64a7e9cb0797fcfa238f5138b170
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 10 13:26:32 2018 -0400
 
-    test/codegen: add arithmetic tests for 386/amd64/arm/arm64
+    cmd/go: distinguish patterns from the results of matching them
     
-    This CL adds several test cases of arithmetic operations for
-    386/amd64/arm/arm64.
+    To date the go command has always just treated the command line
+    package patterns as a []string, expanded by pattern matching into
+    another []string. As a result, the code is not always clear about
+    whether a particular []string contains patterns or results.
+    A few different important bugs are caused by not keeping
+    this distinction clear enough. This CL sets us up well for fixing those,
+    by introducing an explicit search.Match struct holding the
+    results of matching a single pattern.
     
-    Change-Id: I362687c06249f31091458a1d8c45fc4d006b616a
-    Reviewed-on: https://go-review.googlesource.com/c/151897
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The added clarity here also makes it clear how to avoid duplicate
+    warnings about unmatched packages.
+    
+    Fixes #26925. (Test in followup CL.)
+    
+    Change-Id: Ic2f0606f7ab8b3734a40e22d3cb1e6f58d031061
+    Reviewed-on: https://go-review.googlesource.com/129058
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- test/codegen/arithmetic.go | 35 ++++++++++++++++++++++++++++++++++-
- 1 file changed, 34 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/get/get.go       |  45 ++++------
+ src/cmd/go/internal/load/pkg.go      |  45 ++++------
+ src/cmd/go/internal/modcmd/why.go    |  24 ++---
+ src/cmd/go/internal/modget/get.go    |  13 +--
+ src/cmd/go/internal/modload/load.go  | 167 ++++++++++++++++++++++-------------
+ src/cmd/go/internal/search/search.go | 119 ++++++++++++-------------
+ src/cmd/go/internal/work/build.go    |  10 +--
+ 7 files changed, 219 insertions(+), 204 deletions(-)

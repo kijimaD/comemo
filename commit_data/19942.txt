@@ -1,20 +1,15 @@
-commit d078d483ce87b4311f79e988a0b609d3c53d3cb4
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 7 12:33:19 2014 -0400
+commit 7582ecc996cd2009f0dbe97fe91c226b88ee12fd
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 6 23:43:36 2014 -0400
 
-    go/build: look in $GOROOT/src/cmd/foo/bar for import cmd/foo/bar
+    [dev.power64] cmd/9g: add doc.go to prevent build failures.
     
-    This lets us have non-main packages like cmd/internal or cmd/nm/internal/whatever.
+    After CL 117670045, cmd/dist will expect to have a cmd/9g directory.
     
-    The src/pkg migration (see golang.org/s/go14mainrepo) will allow this
-    as a natural side effect. The explicit change here just allows use of the
-    effect a little sooner.
-    
-    LGTM=r
-    R=r
+    LGTM=rsc, dave
+    R=rsc, iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/117630043
+    https://golang.org/cl/126780043
 
- src/pkg/go/build/build.go      |  7 ++++++-
- src/pkg/go/build/build_test.go | 10 ++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/9g/doc.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

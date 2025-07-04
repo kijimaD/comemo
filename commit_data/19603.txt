@@ -1,19 +1,12 @@
-commit 0c7ddfaab61e40b5f6a9344cc30aaa0e36a9ad82
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jun 25 05:01:09 2014 +0900
+commit 54375081fe3a81083be697a121f3311528786fb7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 24 11:09:13 2014 -0700
 
-    syscall: add source-specific multicast socket options for Darwin
+    doc/go1.4.txt: text/scanner: IsIdentRune
     
-    Update #8266
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    R=gri
     CC=golang-codereviews
-    https://golang.org/cl/101460043
+    https://golang.org/cl/104340043
 
- src/pkg/syscall/types_darwin.go         |  9 +++++++++
- src/pkg/syscall/zerrors_darwin_386.go   |  9 +++++++++
- src/pkg/syscall/zerrors_darwin_amd64.go |  9 +++++++++
- src/pkg/syscall/ztypes_darwin_386.go    | 22 ++++++++++++++++++++++
- src/pkg/syscall/ztypes_darwin_amd64.go  | 22 ++++++++++++++++++++++
- 5 files changed, 71 insertions(+)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,20 +1,22 @@
-commit 88d3db0a5b5196ed45c96014d5a2d32e4e41e34e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 12:45:23 2016 -0500
+commit 93098de0cc99dc5588477da9f5a9b09d3480677d
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Sun Mar 20 17:22:57 2016 +0200
 
-    runtime: stop traceback at foreign function
+    cmd/link: patch up symbols only once per object file
     
-    This can only happen when profiling and there is foreign code
-    at the top of the g0 stack but we're not in cgo.
-    That in turn only happens with the race detector.
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.57 ± 5%  0.55 ± 6%  -2.37%  (p=0.000 n=97+98)
     
-    Fixes #13568.
+    GOGC=off:
     
-    Change-Id: I23775132c9c1a3a3aaae191b318539f368adf25e
-    Reviewed-on: https://go-review.googlesource.com/18322
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.48 ± 3%  0.47 ± 3%  -2.90%  (p=0.000 n=100+100)
+    
+    Change-Id: I1a36dbf84914cacb79842bc0ddb1e26b4c5a5828
+    Reviewed-on: https://go-review.googlesource.com/20917
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/traceback.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/link/internal/ld/objfile.go | 65 +++++++++++++++++--------------------
+ 1 file changed, 30 insertions(+), 35 deletions(-)

@@ -1,19 +1,19 @@
-commit 567ee865f690cde59d5aeadc04bcc926d2316db8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 1 13:47:42 2021 -0700
+commit da3957ad0d16ca9d8d0c6bbe19694edc733b2827
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Nov 10 17:54:01 2020 +0000
 
-    cmd/go: add declaration to cgo_lto_issue43830 test
+    Revert "cmd/go: don't copy cgo files to objdir when overlay is present"
     
-    This permits the test to work in C99 mode.
+    This reverts CL 265758.
     
-    For #43830
+    Reason for revert: longtest builders were failing
     
-    Change-Id: Ide54bd62239cfe602e2664300f04e472df5daf43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324009
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ic6c3f3759399e45c1625c7c57f7aa67a1d90c601
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268900
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/testdata/script/cgo_lto_issue43830.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/work/exec.go             | 14 -----------
+ src/cmd/go/testdata/script/build_overlay.txt | 36 ----------------------------
+ 2 files changed, 50 deletions(-)

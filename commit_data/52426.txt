@@ -1,26 +1,23 @@
-commit 3ed8a1e629e95dc6337a73d5db9936dabd43f4f4
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Jul 5 19:41:27 2022 +0800
+commit 5a103ca5e9e67414f5307b3993c1c34e531b26a8
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 3 10:40:34 2022 -0700
 
-    cmd/internal/obj/loong64: save LR after decrementing SP
+    cmd/compile: fix bit length intrinsic for 16/8 bits on GOAMD64=v3
     
-    Refer to CL 413428 and 412474, for loong64, like mips, s390x and riscv, there
-    is no single instruction that saves the LR and decrements the SP, so we also
-    need to insert an instruction to save the LR after decrementing the SP.
+    Upper bits of registers for uint8/uint16 are junk. Make sure we
+    mask those off before using LZCNT (leading zeros count).
     
-    Fixes #56623.
-    Updates #53374.
+    Fixes #52681
     
-    Change-Id: I3de040792f0a041d3d2a98ea89c23a2dd2f4ad10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416154
+    Change-Id: I0ca9e62f23bcb1f6ad2a787fa9895322afaa2533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403815
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
-    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@google.com>
 
- src/cmd/internal/obj/loong64/obj.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules     |  4 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go     | 12 +++--
+ src/cmd/compile/internal/test/intrinsics_test.go | 62 ++++++++++++++++++++++++
+ 3 files changed, 73 insertions(+), 5 deletions(-)

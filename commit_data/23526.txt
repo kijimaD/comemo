@@ -1,15 +1,58 @@
-commit 2b3b7dc1a96d4e23d687e1d4cc61dcb076ee3609
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 26 15:13:52 2015 -0700
+commit 2a141dedc4bb7b33f5caee6e7b185dfbd20c92bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 13:28:06 2015 -0400
 
-    archive/tar: also skip header roundtrip test on nacl
+    cmd/link: move to cmd/newlink
     
-    Update #11426
+    In preparation for making the current linker cmd/link.
+    If cmd/newlink is ever completed, it can be moved back.
     
-    Change-Id: I7abc4ed2241a7a3af6d57c934786f36de4f97b77
-    Reviewed-on: https://go-review.googlesource.com/11592
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    See golang-dev thread titled "go tool compile, etc" for background.
+    
+    Change-Id: I4029580f470038240c5181a37ea4202ba971f9ef
+    Reviewed-on: https://go-review.googlesource.com/10286
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/archive/tar/tar_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/nacl/testzip.proto                                    |   2 +-
+ src/cmd/dist/build.go                                      |   2 +-
+ src/cmd/go/pkg.go                                          |   2 +-
+ src/cmd/{link => newlink}/auto.go                          |   0
+ src/cmd/{link => newlink}/auto_test.go                     |   0
+ src/cmd/{link => newlink}/dead.go                          |   0
+ src/cmd/{link => newlink}/dead_test.go                     |   0
+ src/cmd/{link => newlink}/debug.go                         |   0
+ src/cmd/{link => newlink}/hex_test.go                      |   0
+ src/cmd/{link => newlink}/layout.go                        |   0
+ src/cmd/{link => newlink}/layout_test.go                   |   0
+ src/cmd/{link => newlink}/link_test.go                     |   0
+ src/cmd/{link => newlink}/load.go                          |   0
+ src/cmd/{link => newlink}/macho.go                         |   0
+ src/cmd/{link => newlink}/macho_test.go                    |   0
+ src/cmd/{link => newlink}/main.go                          |   0
+ src/cmd/{link => newlink}/pclntab.go                       |   0
+ src/cmd/{link => newlink}/pclntab_test.go                  |   0
+ src/cmd/{link => newlink}/prog.go                          |   0
+ src/cmd/{link => newlink}/prog_test.go                     |   0
+ src/cmd/{link => newlink}/runtime.go                       |   0
+ src/cmd/{link => newlink}/scan.go                          |   0
+ src/cmd/{link => newlink}/testdata/Makefile                |   0
+ src/cmd/{link => newlink}/testdata/autosection.6           | Bin
+ src/cmd/{link => newlink}/testdata/autosection.s           |   0
+ src/cmd/{link => newlink}/testdata/autoweak.6              | Bin
+ src/cmd/{link => newlink}/testdata/autoweak.s              |   0
+ src/cmd/{link => newlink}/testdata/dead.6                  | Bin
+ src/cmd/{link => newlink}/testdata/dead.s                  |   0
+ src/cmd/{link => newlink}/testdata/genpcln.go              |   0
+ src/cmd/{link => newlink}/testdata/hello.6                 | Bin
+ src/cmd/{link => newlink}/testdata/hello.s                 |   0
+ src/cmd/{link => newlink}/testdata/layout.6                | Bin
+ src/cmd/{link => newlink}/testdata/layout.s                |   0
+ src/cmd/{link => newlink}/testdata/link.hello.darwin.amd64 |   0
+ src/cmd/{link => newlink}/testdata/macho.amd64.exit9       |   0
+ src/cmd/{link => newlink}/testdata/macho.amd64.hello       |   0
+ src/cmd/{link => newlink}/testdata/macho.amd64.helloro     |   0
+ src/cmd/{link => newlink}/testdata/pclntab.6               | Bin
+ src/cmd/{link => newlink}/testdata/pclntab.s               |   0
+ src/cmd/{link => newlink}/util.go                          |   0
+ src/cmd/{link => newlink}/write.go                         |   0
+ 42 files changed, 3 insertions(+), 3 deletions(-)

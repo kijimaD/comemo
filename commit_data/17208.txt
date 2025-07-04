@@ -1,14 +1,14 @@
-commit c18af467fdec00d4369bc9b5a140ff1d043aab2e
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 14 07:03:56 2013 +1000
+commit 992374f8fb665d4b389019400178189b1b671547
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 14 00:55:18 2013 +0400
 
-    encoding/binary: make Write work like Read
-    Use the fast path calculation to shorten the code.
-    No effect on benchmarks.
+    net: fix build fix
+    Now builders say:
+    pkg/net/dnsclient_unix_test.go:10: imported and not used: "runtime"
     
-    R=golang-dev, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/12696046
+    https://golang.org/cl/12890043
 
- src/pkg/encoding/binary/binary.go | 198 +++++++++++++++++++-------------------
- 1 file changed, 97 insertions(+), 101 deletions(-)
+ src/pkg/net/dnsclient_unix_test.go | 1 -
+ 1 file changed, 1 deletion(-)

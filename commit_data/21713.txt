@@ -1,18 +1,19 @@
-commit 42289a4f394a31e88d7288b91887c614f218808e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Feb 25 08:39:07 2015 +1100
+commit b528063099adfbaea3319ca8de57eee3130c5d4c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 29 12:07:50 2015 -0800
 
-    syscall: rebuild zsyscall_linux_*.go
+    [dev.cc] cmd/asm: delete overflow checking, make labels function-scoped
     
-    Rebuild the zsyscall_linux_*.go files in preperation for #9974
+    The overflow checking was causing more problems than it was avoiding,
+    so get rid of it. But because arithmetic is done with uint64s, to simplify
+    dealing with large constants, complain about right shift and divide with
+    huge numbers to avoid ambiguity about signed shifts.
     
-    The only change is the ppc64/ppc64le files which were not rebuilt when
-    syscall.use was added.
-    
-    Change-Id: I804c63731e4900c782025de04ea3585d99688958
-    Reviewed-on: https://go-review.googlesource.com/5831
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5b5ea55d8e8c02846605f4a3f8fd7a176b1e962b
+    Reviewed-on: https://go-review.googlesource.com/3531
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/syscall/zsyscall_linux_ppc64.go   | 51 +++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_linux_ppc64le.go | 51 +++++++++++++++++++++++++++++++++++
- 2 files changed, 102 insertions(+)
+ src/cmd/asm/internal/asm/asm.go      |   8 +++
+ src/cmd/asm/internal/asm/overflow.go | 129 -----------------------------------
+ src/cmd/asm/internal/asm/parse.go    |  21 +++---
+ 3 files changed, 16 insertions(+), 142 deletions(-)

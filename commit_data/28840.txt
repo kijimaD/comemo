@@ -1,14 +1,62 @@
-commit 1e775fe4a30c78cf6e8e995efe5a0f469b8d9a4d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Oct 16 10:27:29 2016 +0100
+commit 2cbdd55d640314e37e43d7dd8e60c457846a2876
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 3 13:00:49 2016 -0700
 
-    net/http: add more docs on ErrHijacked
+    [dev.ssa] cmd/compile: fix PIC for SSA-generated code
     
-    Updates #16456
+    Access to globals requires a 2-instruction sequence on PIC 386.
     
-    Change-Id: Ifea651ea3ece2267a6f0c1638181d6ddd9248a9f
-    Reviewed-on: https://go-review.googlesource.com/31181
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+        MOVL foo(SB), AX
+    
+    is translated by the obj package into:
+    
+        CALL getPCofNextInstructionInTempRegister(SB)
+        MOVL (&foo-&thisInstruction)(tmpReg), AX
+    
+    The call returns the PC of the next instruction in a register.
+    The next instruction then offsets from that register to get the
+    address required.  The tricky part is the allocation of the
+    temp register.  The legacy compiler always used CX, and forbid
+    the register allocator from allocating CX when in PIC mode.
+    We can't easily do that in SSA because CX is actually a required
+    register for shift instructions. (I think the old backend got away
+    with this because the register allocator never uses CX, only
+    codegen knows that shifts must use CX.)
+    
+    Instead, we allow the temp register to be anything.  When the
+    destination of the MOV (or LEA) is an integer register, we can
+    use that register.  Otherwise, we make sure to compile the
+    operation using an LEA to reference the global.  So
+    
+        MOVL AX, foo(SB)
+    
+    is never generated directly.  Instead, SSA generates:
+    
+        LEAL foo(SB), DX
+        MOVL AX, (DX)
+    
+    which is then rewritten by the obj package to:
+    
+        CALL getPcInDX(SB)
+        LEAL (&foo-&thisInstruction)(DX), AX
+        MOVL AX, (DX)
+    
+    So this CL modifies the obj package to use different thunks
+    to materialize the pc into different registers.  We use the
+    registers that regalloc chose so that SSA can still allocate
+    the full set of registers.
+    
+    Change-Id: Ie095644f7164a026c62e95baf9d18a8bcaed0bba
+    Reviewed-on: https://go-review.googlesource.com/25442
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/server.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/386.rules | 34 ++++++++++++++++-------
+ src/cmd/compile/internal/ssa/regalloc.go   |  6 ++++
+ src/cmd/compile/internal/ssa/rewrite386.go | 40 +++++++++++++--------------
+ src/cmd/compile/internal/x86/ssa.go        |  6 ++--
+ src/cmd/internal/obj/x86/asm6.go           | 23 ++++++++++------
+ src/cmd/internal/obj/x86/obj6.go           | 25 +++++++++++++++--
+ src/cmd/link/internal/x86/asm.go           | 44 ++++++++++++++++++++----------
+ 7 files changed, 120 insertions(+), 58 deletions(-)

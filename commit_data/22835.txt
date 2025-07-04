@@ -1,35 +1,23 @@
-commit 76ace947aeaa53e4f743f0a3bc69cea17e63580a
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sat May 2 11:03:35 2015 +0000
+commit 53840ad6f19b0c1b27a0731a37341d6159625355
+Author: Derek Buitenhuis <derek.buitenhuis@gmail.com>
+Date:   Fri Apr 10 15:13:04 2015 -0400
 
-    text/template: check for literals in chain of terms
+    runtime: Fix GDB integration with Python 2
     
-    The current parser ignores obvious errors such as:
-    {{0.1.E}}
-    {{true.any}}
-    {{"hello".wrong}}
-    {{nil.E}}
+    A similar fix was applied in 545686857bc4c2e7a5306d97e5ef48f631d277bc
+    but another instance of 'pc' was missed.
     
-    The common problem is that a chain is built from
-    a literal value. It then panics at execution time.
+    Also adds a test for the goroutine gdb command.
     
-    Furthermore, a double dot triggers the same behavior:
-    {{..E}}
+    It currently uses goroutine 2 for the test, since goroutine 1 has
+    its stack pointer set to 0 for some reason.
     
-    Addresses a TODO left in Tree.operand to catch these
-    errors at parsing time.
-    
-    Note that identifiers can include a '.', and pipelines
-    could return an object which a field can be derived
-    from (like a variable), so they are excluded from the check.
-    
-    Fixes #10615
-    
-    Change-Id: I903706d1c17861b5a8354632c291e73c9c0bc4e1
-    Reviewed-on: https://go-review.googlesource.com/9621
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I53ca22be6952f03a862edbdebd9b5c292e0853ae
+    Reviewed-on: https://go-review.googlesource.com/8729
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/exec_test.go        |  6 ++++--
- src/text/template/parse/parse.go      |  7 +++++--
- src/text/template/parse/parse_test.go | 13 ++++++++++++-
- 3 files changed, 21 insertions(+), 5 deletions(-)
+ src/runtime/runtime-gdb.py      | 2 +-
+ src/runtime/runtime-gdb_test.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

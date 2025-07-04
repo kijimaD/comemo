@@ -1,17 +1,32 @@
-commit d259a50d15ad401167851d7092dc3291a3ae8752
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 6 06:07:07 2023 -0800
+commit 7607888df0eca35dadb0529960d7965d0d6f4072
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Wed Dec 1 15:48:53 2021 +0800
 
-    cmd/go/internal/cache: update docs on cache accessor func
+    runtime: load/save TLS variable g on loong64
     
-    Its docs went stale in Go 1.12 when the build cache became required.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Signed-off-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Change-Id: Icb7b06dc5147a858f00460e7cfe85b79b6b6f0eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465555
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I5e09759ce9201596e89a01fc4a6f7fd7e205449f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368074
     Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/cache/default.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/stubs_loong64.go | 11 +++++++++++
+ src/runtime/tls_loong64.s    | 26 ++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

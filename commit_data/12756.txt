@@ -1,15 +1,13 @@
-commit 9b6555c6050b0ca626e8725b47885c5e73e19704
+commit d2991229bc49adf29eb56034a064eebaaa893418
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 27 09:59:20 2012 +1100
+Date:   Tue Mar 27 09:27:43 2012 +1100
 
-    misc/dist: don't include old python dashboard in releases
+    doc: add Terms of Service
     
-    I'd prefer not to ship a bunch of bad Python code to everyone who uses
-    Go 1.
-    
-    R=golang-dev, gri
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5915043
+    https://golang.org/cl/5913044
 
- misc/dist/bindist.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/tos.html         | 11 +++++++++++
+ lib/godoc/godoc.html |  5 +++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)

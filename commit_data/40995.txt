@@ -1,17 +1,22 @@
-commit ae2bf169f6282a2715a3c0faf194910278044b03
-Author: Alexander Rakoczy <alex@golang.org>
-Date:   Mon Dec 16 13:58:27 2019 -0500
+commit 372b0eed175b88ba2654607b05a36416f08c4cea
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 28 12:42:37 2019 +0000
 
-    api: promote next to go1.14
+    Revert "cmd/compile: optimize 386's math.bits.TrailingZeros16"
     
-    Change-Id: I14b1a21a8639b3241326e74ab6152673d5d71243
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211517
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    This reverts CL 189277.
+    
+    Reason for revert: broke 32-bit builders.
+    
+    Updates #33902
+    
+    Change-Id: Ie5f180d0371a90e5057ed578c334372e5fc3a286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192097
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- api/go1.14.txt | 198 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next.txt   |   5 --
- 2 files changed, 198 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go         |  2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules |  2 --
+ src/cmd/compile/internal/ssa/rewrite386.go | 18 ------------------
+ test/codegen/mathbits.go                   |  1 -
+ 4 files changed, 1 insertion(+), 22 deletions(-)

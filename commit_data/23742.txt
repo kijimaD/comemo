@@ -1,14 +1,19 @@
-commit 4a0d9587f23b42bb604666a65a81559ff7944dc5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Jul 18 10:54:50 2015 +1000
+commit 50e657fbfa10d5dbc7e5a5f3210b06e23cfeb4af
+Author: Carl Jackson <carl@stripe.com>
+Date:   Fri Apr 17 00:52:40 2015 -0700
 
-    runtime: skip TestReturnAfterStackGrowInCallback if gcc is not found
+    crypto/cipher: Support unusual GCM nonce lengths
     
-    Fixes #11754
+    GCM is traditionally used with a 96-bit nonce, but the standard allows
+    for nonces of any size. Non-standard nonce sizes are required in some
+    protocols, so add support for them in crypto/cipher's GCM
+    implementation.
     
-    Change-Id: Ifa423ca6eea46d1500278db290498724a9559d14
-    Reviewed-on: https://go-review.googlesource.com/12347
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7feca7e903eeba557dcce370412b6ffabf1207ab
+    Reviewed-on: https://go-review.googlesource.com/8946
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/runtime/syscall_windows_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/crypto/cipher/gcm.go      | 70 ++++++++++++++++++++++++++++++-------------
+ src/crypto/cipher/gcm_test.go | 31 ++++++++++++++++++-
+ 2 files changed, 80 insertions(+), 21 deletions(-)

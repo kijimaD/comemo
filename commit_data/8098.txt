@@ -1,16 +1,12 @@
-commit ceef10c222f6ea8aec8f76526a76346daa01c3e5
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Thu Apr 14 11:54:36 2011 -0700
+commit 02cae293cc950edae42a0dff99ce64e7eb296e26
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 14 11:50:00 2011 -0700
 
-    pkg/runtime/plan9: Warning remediation, for Plan 9 native.
+    gotest: generate gofmt-compliant code
     
-    . Missing declaration of runtime.brk_();
-    . Argument v in runtime.SysReserve() is not used;
-      (I'd prefer a Plan 9-type solution...)
-    
-    R=golang-dev, r, r2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4368076
+    https://golang.org/cl/4400047
 
- src/pkg/runtime/plan9/mem.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/gotest/gotest.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

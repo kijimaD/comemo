@@ -1,16 +1,25 @@
-commit 012fec3821d6d01b69a563125fcb7ae49186be81
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 1 15:15:11 2016 -0700
+commit 4354ffd38b7ebdf7b4ee9ff614939ed77f872acd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Aug 29 16:26:57 2016 -0400
 
-    cmd/compile/internal/syntax: don't depend on hardwired $GOROOT name
+    cmd/compile: intrinsify Ctz, Bswap, and some atomics on ARM64
     
-    Fixes #17697.
-    
-    Change-Id: I3c47e139b09bde81566e29a1ac0ec8c58d55a34a
-    Reviewed-on: https://go-review.googlesource.com/32539
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia5bf72b70e6f6522d6fb8cd050e78f862d37b5ae
+    Reviewed-on: https://go-review.googlesource.com/27936
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/syntax/parser_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/arm64/prog.go       |  30 ++-
+ src/cmd/compile/internal/arm64/ssa.go        | 144 ++++++++++++-
+ src/cmd/compile/internal/gc/ssa.go           |  84 ++++----
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  25 +++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  68 +++++--
+ src/cmd/compile/internal/ssa/gen/main.go     |   4 +
+ src/cmd/compile/internal/ssa/op.go           |   3 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 202 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go     |  12 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 292 +++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm64/obj7.go           |   6 +-
+ test/intrinsic.go                            |   2 +-
+ 12 files changed, 801 insertions(+), 71 deletions(-)

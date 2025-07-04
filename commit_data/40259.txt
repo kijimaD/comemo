@@ -1,17 +1,20 @@
-commit e7394e178d0ccf2053238b5cb28805f3062907c5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 15 13:39:13 2019 -0400
+commit 8e28cd19acc43437e7ccec25dd0572afd6b77f8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 29 21:29:16 2019 -0400
 
-    cmd/go: omit new 'vendor/modules.txt' annotations if the go version is 1.13 or lower
+    cmd/go/internal/modfetch: fix concurrent read/write race in modfetch
     
-    Updates #33848
+    On Windows systems, the failure rate for cmd/go's TestScript/mod_concurrent
+    is somewhere around 3-10% without this change. With the change, I have yet
+    to see a failure.
     
-    Change-Id: I887d78179d467030f4177d1834ccefee28a55c8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201257
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Fixes #31744.
+    
+    Change-Id: Ib321ebb9556dd8438086cf329dfa083a9e051732
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174439
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modcmd/vendor.go           | 40 ++++++++++++++++----------
- src/cmd/go/testdata/script/mod_vendor_auto.txt | 17 +++++++----
- 2 files changed, 36 insertions(+), 21 deletions(-)
+ src/cmd/go/internal/modfetch/sumdb.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

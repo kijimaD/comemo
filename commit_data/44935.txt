@@ -1,18 +1,25 @@
-commit 24dd8cfe23b2ffc0641611dd6299c037cb459807
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 2 16:59:22 2021 -0400
+commit 7f24142b7b289df7e98ed3e1ccd673824dd1d0ee
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 16 22:15:13 2020 +0200
 
-    cmd/internal/obj/arm: simplify huge frame prologue
+    syscall, cmd/go/internal/lockedfile/internal/filelock: add and use Flock on illumos
     
-    CL 307010 for arm.
+    Copy the syscall wrapper from golang.org/x/sys/unix CL 255377 to provide
+    Flock on illumos and switch cmd/go/internal/lockedfile/internal/filelock
+    to use it.
     
-    Change-Id: I14d939eb8aa6f594927054a2595f8c270a0b607f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307049
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #35618
+    
+    Change-Id: I876a2b782329a988fa85361fb1ea58eb6f329af1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255258
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/internal/obj/arm/a.out.go |  4 +--
- src/cmd/internal/obj/arm/obj5.go  | 58 +++++++++++++--------------------------
- 2 files changed, 21 insertions(+), 41 deletions(-)
+ .../lockedfile/internal/filelock/filelock_fcntl.go |  2 +-
+ .../lockedfile/internal/filelock/filelock_test.go  |  2 +-
+ .../lockedfile/internal/filelock/filelock_unix.go  |  2 +-
+ src/syscall/syscall_illumos.go                     | 25 ++++++++++++++++++++++
+ src/syscall/types_illumos_amd64.go                 | 17 +++++++++++++++
+ 5 files changed, 45 insertions(+), 3 deletions(-)

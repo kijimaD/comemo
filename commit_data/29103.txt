@@ -1,14 +1,19 @@
-commit 587b80322c6ce34ab115d7a837a56d7450aa913d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 26 18:58:01 2016 +0000
+commit 64e152910e5b8ef3cad5aa4d02070fdda645c378
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 16 10:49:32 2016 -0700
 
-    api: update next.txt
+    cmd/internal/obj/x86: remove pointless NOPs
     
-    Change-Id: I5ad338c90c311bd4cfdcd3d221a1f3e506a97d53
-    Reviewed-on: https://go-review.googlesource.com/32118
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    They are no longer needed by stkcheck.
+    
+    Fixes #16057
+    
+    Change-Id: I57cb55de5b7a7a1d31a3da200a3a2d51576b68f5
+    Reviewed-on: https://go-review.googlesource.com/26667
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/next.txt | 193 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 193 insertions(+)
+ src/cmd/internal/obj/x86/obj6.go | 11 -----------
+ 1 file changed, 11 deletions(-)

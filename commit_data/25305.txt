@@ -1,26 +1,12 @@
-commit 691e63b7fe69102c4db83a96cea0e19a4c345841
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 00:31:56 2015 +0000
+commit 88fa2e0be638a48cd91ea73cddd59b1728098f5d
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Mon Oct 19 14:30:35 2015 -0700
 
-    net/http: update bundled copy of http2, enable TestTrailersServerToClient tests
+    net/http: fix typo in serve_test.go
     
-    This CL updates the bundled copy of x/net/http2 to include
-    https://golang.org/cl/17930 and enables the previously-skipped tests
-    TestTrailersServerToClient_h2 and TestTrailersServerToClient_Flush_h2.
-    
-    It also updates the docs on http.Response.Trailer to describe how to
-    use it. No change in rules. Just documenting the old unwritten rules.
-    (there were tests locking in the behavior, and misc docs and examples
-    scattered about, but not on http.Response.Trailer itself)
-    
-    Updates #13557
-    
-    Change-Id: I6261d439f6c0d17654a1a7928790e8ffed16df6c
-    Reviewed-on: https://go-review.googlesource.com/17931
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
+    Change-Id: Iaf33fae7043f21df2dba0bb7e1addb0ff002c508
+    Reviewed-on: https://go-review.googlesource.com/16088
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/clientserver_test.go |  35 ++++---
- src/net/http/h2_bundle.go         | 208 ++++++++++++++++++++++++++++++++------
- src/net/http/response.go          |   6 ++
- 3 files changed, 203 insertions(+), 46 deletions(-)
+ src/net/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

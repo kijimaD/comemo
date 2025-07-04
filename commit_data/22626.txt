@@ -1,18 +1,14 @@
-commit 100da60979087cac50c186b4928ee695ace2db62
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 17 12:17:47 2015 -0400
+commit 6d9fd7e65b29af8227a763d754ac7a2fbf8be6f9
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 15:44:08 2015 +0300
 
-    runtime: track time spent in mutator assists
+    test: add tests for indirection level computation in escape analysis
     
-    This time is tracked per P and periodically flushed to the global
-    controller state. This will be used to compute mutator assist
-    utilization in order to schedule background GC work.
+    The false positive (var incorrectly escapes to heap) is marked with BAD.
     
-    Change-Id: Ib94f90903d426a02cf488bf0e2ef67a068eb3eec
-    Reviewed-on: https://go-review.googlesource.com/8837
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I11877fa8e976094b31a221abd88ae32d351c85ee
+    Reviewed-on: https://go-review.googlesource.com/5292
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go      | 23 ++++++++++++++++++++++-
- src/runtime/mgcmark.go  | 13 +++++++++++++
- src/runtime/runtime2.go |  3 +++
- 3 files changed, 38 insertions(+), 1 deletion(-)
+ test/escape_level.go | 108 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 108 insertions(+)

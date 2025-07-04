@@ -1,12 +1,16 @@
-commit d9b32f0c7d327f4fc165eb1fb9e76ac97b314c95
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 19 13:52:51 2016 -0800
+commit 7ff52e13cdc61af1f63ab27bd91c1f00cf11bd86
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 09:15:19 2015 -0400
 
-    cmd/compile: add VARLIVE to opnames list
+    debug/elf: added MIPS ELF relocations
     
-    Change-Id: Ie8cb7c7428ae9026c11643b22f9ecf7977e25f5f
-    Reviewed-on: https://go-review.googlesource.com/18737
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I05352749a852095baae2f67fd71ffcf5f727538d
+    Reviewed-on: https://go-review.googlesource.com/14453
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/opnames.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/debug/elf/elf.go                               | 109 +++++++++++++++++++++
+ src/debug/elf/file.go                              |  54 ++++++++++
+ src/debug/elf/file_test.go                         |  38 +++++++
+ .../testdata/go-relocation-test-gcc492-mips64.obj  | Bin 0 -> 4120 bytes
+ .../go-relocation-test-gcc493-mips64le.obj         | Bin 0 -> 4160 bytes
+ 5 files changed, 201 insertions(+)

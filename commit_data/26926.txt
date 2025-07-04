@@ -1,22 +1,19 @@
-commit b623b71509b2d24df915d5bc68602e1c6edf38ca
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Apr 12 11:14:25 2016 -0700
+commit 5be961a3521fe7f9cb345206337368351b645d5c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 2 22:38:42 2016 -0500
 
-    crypto/x509: don't add an AuthorityKeyId to self-signed certificates.
+    cmd/link: replace Autom linked list with slice
     
-    The AuthorityKeyId is optional for self-signed certificates, generally
-    useless, and takes up space. This change causes an AuthorityKeyId not to
-    be added to self-signed certificates, although it can still be set in
-    the template if the caller really wants to include it.
-    
-    Fixes #15194.
-    
-    Change-Id: If5d3c3d9ca9ae5fe67458291510ec7140829756e
-    Reviewed-on: https://go-review.googlesource.com/21895
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I939129da0e71a7ccc61bec79515a34f0b1e59502
+    Reviewed-on: https://go-review.googlesource.com/20162
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/x509.go      |  14 +++---
- src/crypto/x509/x509_test.go | 105 ++++++++++++++++++++++++-------------------
- 2 files changed, 66 insertions(+), 53 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go   |  2 +-
+ src/cmd/link/internal/ld/go.go      |  2 +-
+ src/cmd/link/internal/ld/lib.go     |  3 +--
+ src/cmd/link/internal/ld/link.go    |  5 ++---
+ src/cmd/link/internal/ld/objfile.go | 15 +++++++--------
+ 5 files changed, 12 insertions(+), 15 deletions(-)

@@ -1,16 +1,16 @@
-commit 9c039ea27a0deafcc713a1fced175ba73ae47b6a
-Author: Rijnard van Tonder <rvantonder@gmail.com>
-Date:   Wed Oct 17 01:10:14 2018 +0000
+commit 4eb1c84752b8d3171be930abf4281080d639f634
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Jun 14 19:22:55 2018 +0200
 
-    crypto/aes: remove redundant nil check around loop
+    cmd/link: fix name section of WebAssembly binary
     
-    Change-Id: I8cc4b5efe798e74b6daabd64fc2dd5486dcb7c5e
-    GitHub-Last-Rev: 694509e33df7c5729ec0bf7b053ff18ebd87c36b
-    GitHub-Pull-Request: golang/go#28115
-    Reviewed-on: https://go-review.googlesource.com/c/140998
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Chrome and Node.js were not showing the names of WebAssembly
+    functions any more. This was due to the name section containing
+    names also for import functions, which is redundant.
+    
+    Change-Id: I2f2b2d0b5bd7a59b34f108d2fd7b6ba2eb26f9c9
+    Reviewed-on: https://go-review.googlesource.com/118976
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/aes/aes_test.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/wasm/asm.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

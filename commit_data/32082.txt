@@ -1,16 +1,22 @@
-commit 3d9475c04bbc78ad5052521b2881d93fb9dc27da
-Author: Zac Bergquist <zbergquist99@gmail.com>
-Date:   Tue Jul 25 14:08:47 2017 -0400
+commit 9d5987d79f42b018ce8c57ac2d90ce0d81f0d646
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 3 11:50:54 2017 -0400
 
-    doc: cleanup editor page
+    cmd/compile: rewrite upper-bit-clear idiom to use shift-rotate
     
-    Fix some UI issues introduced with CL50952:
-    - increase header colspan to account for additional column
-    - remove ':' character from footnotes
+    Old buggy hardware incorrectly executes the shift-left-K
+    then shift-right-K idiom for clearing K leftmost bits.
+    Use a right rotate instead of shift to avoid triggering the
+    bug.
     
-    Change-Id: I56f59b8e4b2852612b3c6c7c0dfe99125dd8b57b
-    Reviewed-on: https://go-review.googlesource.com/51113
-    Reviewed-by: Jaana Burcu Dogan <jbd@google.com>
+    Fixes #19809.
+    
+    Change-Id: I6dc646b183c29e9d01aef944729f34388dcc687d
+    Reviewed-on: https://go-review.googlesource.com/39310
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/editors.html | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

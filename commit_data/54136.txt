@@ -1,21 +1,27 @@
-commit ba6fe5172d5dbd604ef6f535ce54fc70f0c0d1d5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 18 15:52:34 2023 -0700
+commit 1e4989c33674bf9570c99250a081a448c3cded65
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 21 15:54:33 2022 -0400
 
-    spec: clarify that []byte("") must be non-nil
+    cmd: relocate search.MatchPattern to cmd/internal/pkgpattern
     
-    The example text below suggests that []byte("") always evaluates to
-    the non-nil value []byte{}, but the text proper doesn't explicitly
-    require that. This CL makes it clear that it must not evaluate to
-    []byte(nil), which otherwise was allowed by the wording.
+    Relocate cmd/go's search.MatchPattern helper routine to a new package
+    in cmd/internal from its current location, as to allow it to be used
+    in other tools that accept package pattern command line flags. No
+    change in functionality along the way.
     
-    Change-Id: I6564bfd5e2fd0c820d9b55d17406221ff93ce80c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521035
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Updates #51430.
+    
+    Change-Id: I726e974ccd66a055bb5a94497b36b8d68d47cad1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432757
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/load/pkg.go                    |   3 +-
+ src/cmd/go/internal/load/search.go                 |   5 +-
+ src/cmd/go/internal/modget/query.go                |   5 +-
+ src/cmd/go/internal/modload/list.go                |   3 +-
+ src/cmd/go/internal/modload/query.go               |   3 +-
+ src/cmd/go/internal/modload/search.go              |   5 +-
+ src/cmd/go/internal/search/search.go               | 108 +---------------
+ .../pkgpattern/pat_test.go}                        |  70 ++++++++---
+ src/cmd/internal/pkgpattern/pkgpattern.go          | 137 +++++++++++++++++++++
+ 9 files changed, 208 insertions(+), 131 deletions(-)

@@ -1,18 +1,26 @@
-commit 46f4bfb2d17a3ccb4b3207d086a90cac3c00ea2f
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Apr 28 13:37:52 2017 -0700
+commit 32a1736d2416363cea43a297632acc7414e77032
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 2 07:02:26 2017 -0800
 
-    crypto/tls: pass argument to serverInit rather than using a field in Config.
+    go/types: add a compiler param to SizesFor
     
-    Updates #20164.
+    The current StdSizes most closely matches
+    the gc compiler, and the uses I know of that care
+    which compiler the sizes are for are all for
+    the gc compiler, so call the existing
+    implementation "gc".
     
-    Change-Id: Ib900095e7885f25cd779750674a712c770603ca8
-    Reviewed-on: https://go-review.googlesource.com/42137
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #17586
+    Fixes #19351
+    
+    Change-Id: I2bdd694518fbe233473896321a1f9758b46ed79b
+    Reviewed-on: https://go-review.googlesource.com/37666
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/tls/common.go           | 19 ++++++-------------
- src/crypto/tls/handshake_server.go |  8 ++------
- 2 files changed, 8 insertions(+), 19 deletions(-)
+ src/go/internal/srcimporter/srcimporter.go |  2 +-
+ src/go/types/api.go                        |  2 +-
+ src/go/types/gotype.go                     |  2 +-
+ src/go/types/sizes.go                      | 17 +++++++++++------
+ 4 files changed, 14 insertions(+), 9 deletions(-)

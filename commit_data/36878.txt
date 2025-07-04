@@ -1,16 +1,21 @@
-commit 3d19d95932e2d864c5b9a71f9c78ef5c8b2eafbe
-Author: Jordan Rhee <jordanrh@microsoft.com>
-Date:   Fri Oct 5 13:12:18 2018 -0700
+commit 88dc4aee7cf81f78a8da08691349bb394f0ba75c
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Jun 6 13:10:16 2018 +0200
 
-    debug/pe: fix TestDWARF to work with relocations
+    cmd/compile: fix OffPtr with negative offset on wasm
     
-    Fixes #27904
+    The wasm archtecture was missing a rule to handle OffPtr with a
+    negative offset. This commit makes it so OffPtr always gets lowered
+    to I64AddConst.
     
-    Change-Id: Ie2aad20cd66785b6cc1018c0048824382cb39f8c
-    Reviewed-on: https://go-review.googlesource.com/c/140158
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #25741
+    
+    Change-Id: I1d48e2954e3ff31deb8cba9a9bf0cab7c4bab71a
+    Reviewed-on: https://go-review.googlesource.com/116595
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- src/debug/pe/file_test.go | 77 +++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 71 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 37 +++++++++++++++--------------
+ test/fixedbugs/issue25741.go                | 14 +++++++++++
+ 3 files changed, 35 insertions(+), 20 deletions(-)

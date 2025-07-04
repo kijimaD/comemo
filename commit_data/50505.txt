@@ -1,38 +1,64 @@
-commit 88b51d2e630738f9396e3825eafd90d03727ec0d
-Author: Shengyu Zhang <zhangshengyu.0@bytedance.com>
-Date:   Tue Aug 23 02:27:04 2022 +0000
+commit a88575d662a7e8e4fbb31bf139bcffc063e2a734
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 29 01:18:24 2021 +0000
 
-    go/printer: make ExampleFprint correctly run as online example
+    Revert "cmd/go: remove support for -buildmode=shared"
     
-    function "ExampleFprint" will be rewritten to function "main"
-    when displayed on the godoc pages, so the online example is failed to
-    run:
+    This reverts CL 359096.
     
-        Output:
+    Updates #47788.
     
-        panic: function not found
+    Reason for revert: -buildmode=shared may have actually been working in a few very specific cases. We should not remove -buildmode=shared until we have implemented an alternative to support those few cases.
     
-        goroutine 1 [running]:
-        main.parseFunc({0x4f772e, 0xf}, {0x4f713f, 0xd})
-                /tmp/sandbox1264544227/prog.go:23 +0x13b
-        main.main()
-                /tmp/sandbox1264544227/prog.go:30 +0x45
-    
-    See: https://pkg.go.dev/go/printer#example-Fprint
-    
-    Add printSelf function to prevent the function not found when running in godoc
-    sandbox. Beside, deleting the dummy test function to make the example show
-    the entire file, as we want to show the newly added printSelf function.
-    
-    Change-Id: Ia2b772937081b58a0fce9860838959c95f2d650c
-    GitHub-Last-Rev: bac11891735e48b8ffe99cd1096bcb3f08c6575d
-    GitHub-Pull-Request: golang/go#53141
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409314
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ia962b06abacc11f6f29fc29d092773be175e32f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359575
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/printer/example_test.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ doc/go1.18.html                                    |    7 -
+ misc/cgo/testshared/overlaydir_test.go             |   78 ++
+ misc/cgo/testshared/shared_test.go                 | 1080 ++++++++++++++++++++
+ misc/cgo/testshared/testdata/dep2/dep2.go          |   15 +
+ misc/cgo/testshared/testdata/dep3/dep3.go          |   22 +
+ misc/cgo/testshared/testdata/depBase/asm.s         |   10 +
+ misc/cgo/testshared/testdata/depBase/dep.go        |   37 +
+ misc/cgo/testshared/testdata/depBase/gccgo.go      |    9 +
+ misc/cgo/testshared/testdata/depBase/stubs.go      |    9 +
+ misc/cgo/testshared/testdata/division/division.go  |   17 +
+ misc/cgo/testshared/testdata/exe/exe.go            |   45 +
+ misc/cgo/testshared/testdata/exe2/exe2.go          |    8 +
+ misc/cgo/testshared/testdata/exe3/exe3.go          |    7 +
+ misc/cgo/testshared/testdata/execgo/exe.go         |    8 +
+ misc/cgo/testshared/testdata/explicit/explicit.go  |    9 +
+ misc/cgo/testshared/testdata/gcdata/main/main.go   |   37 +
+ misc/cgo/testshared/testdata/gcdata/p/p.go         |    7 +
+ misc/cgo/testshared/testdata/global/main.go        |   71 ++
+ misc/cgo/testshared/testdata/globallib/global.go   |   17 +
+ misc/cgo/testshared/testdata/iface/main.go         |   17 +
+ misc/cgo/testshared/testdata/iface_a/a.go          |   17 +
+ misc/cgo/testshared/testdata/iface_b/b.go          |   17 +
+ misc/cgo/testshared/testdata/iface_i/i.go          |   17 +
+ misc/cgo/testshared/testdata/implicit/implicit.go  |    5 +
+ .../testshared/testdata/implicitcmd/implicitcmd.go |   10 +
+ misc/cgo/testshared/testdata/issue25065/a.go       |   20 +
+ .../testdata/issue30768/issue30768lib/lib.go       |   11 +
+ misc/cgo/testshared/testdata/issue30768/x_test.go  |   22 +
+ misc/cgo/testshared/testdata/issue39777/a/a.go     |    9 +
+ misc/cgo/testshared/testdata/issue39777/b/b.go     |    7 +
+ misc/cgo/testshared/testdata/issue44031/a/a.go     |    9 +
+ misc/cgo/testshared/testdata/issue44031/b/b.go     |   17 +
+ .../testshared/testdata/issue44031/main/main.go    |   20 +
+ misc/cgo/testshared/testdata/issue47837/a/a.go     |   19 +
+ .../testshared/testdata/issue47837/main/main.go    |   14 +
+ misc/cgo/testshared/testdata/trivial/trivial.go    |    9 +
+ src/cmd/dist/test.go                               |    9 +
+ src/cmd/go/alldocs.go                              |    9 +
+ src/cmd/go/internal/help/helpdoc.go                |    5 +
+ src/cmd/go/internal/list/list.go                   |    3 +-
+ src/cmd/go/internal/work/build.go                  |    3 +
+ src/cmd/go/internal/work/init.go                   |   31 +-
+ src/cmd/go/testdata/script/list_linkshared.txt     |   16 +
+ src/cmd/internal/sys/supported.go                  |    7 +
+ 44 files changed, 1786 insertions(+), 30 deletions(-)

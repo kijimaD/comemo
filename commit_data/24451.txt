@@ -1,13 +1,12 @@
-commit 5ae12e9c718b2f64289bd260c6d77f601f6254c3
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Sep 14 00:48:02 2015 -0400
+commit c1ccbab097343843b2cefd4280e0be34a2e5ebad
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 17:42:58 2015 -0400
 
-    cmd/cgo: update docs refering to 6g and 6l
+    cmd/internal/obj/arm64: fix build
     
-    Change-Id: Id6cb5e3d40e8a2ded6359aa7fcdc012861cc3994
-    Reviewed-on: https://go-review.googlesource.com/14545
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3088e17aff72096e3ec2ced49c70564627c982a6
+    Reviewed-on: https://go-review.googlesource.com/12854
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/cgo/doc.go | 84 ++++++++++++++++++++++++++----------------------------
- 1 file changed, 40 insertions(+), 44 deletions(-)
+ src/cmd/internal/obj/arm64/obj7.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

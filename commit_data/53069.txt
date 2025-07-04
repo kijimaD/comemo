@@ -1,21 +1,30 @@
-commit 54031132c87931d7a5844a1ce05e637b03703c38
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 12 14:39:42 2023 -0700
+commit c1110910713766eb06d75ed48db3722d318a845e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 1 16:10:19 2022 -0400
 
-    internal/abi: update type name in comment
+    cmd/go: make module@nonexistentversion failures reusable
     
-    method -> Method
+    CL 411398 added the -reuse flag for reusing cached JSON output
+    when the remote Git repository has not changed. One case that was
+    not yet cached is a lookup of a nonexistent version.
     
-    For #59670
+    This CL adds caching of failed lookups of nonexistent versions,
+    by saving a checksum of all the heads and tags refs on the remote
+    server (we never consider other kinds of refs). If none of those have
+    changed, then we don't need to download the full server.
     
-    Change-Id: I78e0410f3d5094aa12b2f3ccd6735fec0d696190
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494795
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #53644.
+    
+    Change-Id: I428bbc8ec8475bd7d03788934d643e1e2be3add0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415678
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/internal/abi/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/cache.go             | 26 ++++++----
+ src/cmd/go/internal/modfetch/codehost/codehost.go |  9 +++-
+ src/cmd/go/internal/modfetch/codehost/git.go      | 48 ++++++++++++++++--
+ src/cmd/go/internal/modfetch/coderepo.go          | 10 +++-
+ src/cmd/go/internal/modload/query.go              |  2 +-
+ src/cmd/go/testdata/script/reuse_git.txt          | 62 +++++++++++++++++++++--
+ 6 files changed, 136 insertions(+), 21 deletions(-)

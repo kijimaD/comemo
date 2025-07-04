@@ -1,0 +1,22 @@
+commit 35caf4130eafaafb0f30bb4feeeb61ed0df37596
+Author: Dmytro Yeroshkin <yeroshkin@google.com>
+Date:   Fri Dec 6 15:49:52 2024 +0000
+
+    encoding/base64, encoding/base32: add doc details to DecodeString and AppendDecode
+    
+    Currently only Encoding.Decode has the information that `\r` and
+    `\n` are ignored. However, this also applies to the other decoding
+    methods. Since this is not intuitive behavior, we should add this
+    information to the other impacted methods.
+    
+    Change-Id: I6f71fe1f4280fe75f2694a3cc1b759652eb8b8c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634215
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Chris Ingram <chrisingram@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Truc Le <trucleduc@google.com>
+
+ src/encoding/base32/base32.go | 3 +++
+ src/encoding/base64/base64.go | 3 +++
+ 2 files changed, 6 insertions(+)

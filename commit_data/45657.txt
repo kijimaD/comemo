@@ -1,54 +1,34 @@
-commit 6c1c055d1ea417d050503efe92c1eead0da68cef
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue May 18 23:29:14 2021 -0400
+commit 3a1d84b393e4192c413a45824304381625c09fbc
+Author: Curtis La Graff <curtis@lagraff.me>
+Date:   Tue Nov 3 20:26:17 2020 +0000
 
-    cmd/internal/moddeps: use filepath.SkipDir only on directories
+    cmd/go/internal/modfetch/codehost: add support for new fossil info hash prefix
     
-    If a filepath.WalkFunc returns filepath.SkipDir when invoked on a
-    non-directory file, it skips the remaining files in the containing
-    directory.¹
+    A recent update of the Fossil SCM application changes
+    the line prefix when the fossil info command is used.
+    Instead of the revision hash starting with "uuid:", it has been
+    changed to "hash:".
     
-    CL 276272 accidentally added a code path that triggers this behavior
-    whenever filepath.Walk reaches a non-directory file that begins with
-    a dot, such as .gitattributes or .DS_Store, causing findGorootModules
-    to return early without finding any modules in GOROOT. Tests that use
-    it ceased to provide test coverage that the tree is tidy.
+    Fossil check-in introducing this change:
     
-    Add an explicit check for info.IsDir in the 5 places that intend to
-    use filepath.SkipDir to skip traversing that directory. Even paths
-    like GOROOT/bin and GOROOT/pkg which are unlikely to be anything but
-    a directory are worth checking, since the goal of moddeps is to take
-    a possibly problematic GOROOT tree as input and detect problems.
+    https://fossil-scm.org/home/info/8ad5e4690854a81a
     
-    While the goal of findGorootModules is to find all modules in GOROOT
-    programmatically (in case new modules are added or modified), there
-    are 4 modules now that are quite likely to exist, so check for their
-    presence to avoid similar regressions. (It's not hard to update this
-    test if a well-known GOROOT module is removed or otherwise modified;
-    but if it becomes hard we can simplify it to check for a reasonable
-    number of modules instead.)
+    To support older and new versions, fossilParseStat will
+    now check for either version of the prefix when attempting
+    to find the line containing the hash of the desired revision.
     
-    Also fix the minor skew that has crept in since the test got disabled.
+    Fixes #42323
     
-    ¹ This wasn't necessarily an intentional design decision, but it was
-      found only when Go 1.4 was already out. See CL 11690 for details.
-    
-    Fixes #46254.
-    
-    Change-Id: Id55ed926f8c0094b1af923070de72bacca05996f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320991
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I6eff49f9989b37b295322a8569e222a1fd02f6e3
+    GitHub-Last-Rev: f4e6652307732fd3213684f13e42d17528271d88
+    GitHub-Pull-Request: golang/go#42324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267080
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/internal/moddeps/moddeps_test.go   |  36 ++++++--
- src/go.mod                                 |   2 +-
- src/go.sum                                 |   4 +-
- src/net/http/h2_bundle.go                  | 133 ++++++++++++++++++++++-------
- src/net/http/socks_bundle.go               |   2 +-
- src/vendor/golang.org/x/sys/cpu/cpu.go     |   5 +-
- src/vendor/golang.org/x/sys/cpu/cpu_aix.go |   1 +
- src/vendor/modules.txt                     |   2 +-
- 8 files changed, 137 insertions(+), 48 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/vcs.go  |  2 +-
+ src/cmd/go/testdata/script/mod_get_fossil.txt | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

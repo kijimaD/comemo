@@ -1,35 +1,16 @@
-commit 7c019c62fb32db42e946b15763217518a521404e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Mar 8 12:49:10 2023 +0100
+commit 9de57244e1708cbdac5b8d53e5cf7eea788f3f33
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 21 11:19:56 2022 -0400
 
-    syscall: use clone3 syscall with CLONE_NEWTIME
+    go/build: replace a call to os.Environ with (*exec.Cmd).Environ
     
-    CLONE_NEWTIME can only be used with the clone3 and unshare system calls,
-    see https://github.com/torvalds/linux/commit/769071ac9f20b6a447410c7eaa55d1a5233ef40c:
+    This is a code simplification using the new API added in #50599.
     
-    > All available clone flags have been used, so CLONE_NEWTIME uses the highest
-    > bit of CSIGNAL. It means that it can be used only with the unshare() and
-    > the clone3() system calls.
-    
-    The clone3 syscall was added in Linux kernel version 5.3 and
-    CLONE_NEWTIME was added in version 5.6. However, it was non-functional
-    until version 6.3 (and stable versions with the corresponding fix [1]).
-    
-    [1] https://lore.kernel.org/lkml/20230308105126.10107-1-tklauser@distanz.ch/
-    
-    In case CLONE_NEWTIME is set in SysProcAttr.Cloneflags on an unsupported
-    kernel version, the fork/exec call will fail.
-    
-    Fixes #49779
-    
-    Change-Id: Ic3ecfc2b601bafaab12b1805d7f9512955a8c7e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/474356
+    Change-Id: Icb9628bcd0daa3dc2d653e9654b38099730137d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401535
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/syscall/exec_linux.go      |  5 +++++
- src/syscall/exec_linux_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+)
+ src/go/build/build.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

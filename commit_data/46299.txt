@@ -1,23 +1,42 @@
-commit 9f69a44308f4f9cbdae68925202dfef2027a7d20
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Aug 5 16:11:28 2021 +1000
+commit 0e21d5be3790a55484f1dfcad6d8b1d2f253600e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 4 18:27:09 2020 -0500
 
-    image/draw: add RGBA64Image fast path
+    [dev.fuzz] internal/fuzz: read and write interesting values in fuzz cache
     
-    name               old time/op  new time/op  delta
-    GenericOver-4      15.0ms ± 1%   2.9ms ± 1%  -80.56%  (p=0.008 n=5+5)
-    GenericMaskOver-4  7.82ms ± 4%  1.69ms ± 2%  -78.38%  (p=0.008 n=5+5)
-    GenericSrc-4       6.13ms ± 3%  1.66ms ± 1%  -72.90%  (p=0.008 n=5+5)
-    GenericMaskSrc-4   11.5ms ± 1%   2.0ms ± 0%  -82.77%  (p=0.008 n=5+5)
+    'go test -fuzz' may now read and write interesting fuzzing values to
+    directories in $GOCACHE/fuzz. Files in this directory are named
+    $pkg/$test/$hash where $pkg is the package path containing the fuzz
+    target, $test is the target name, and $hash is the SHA-256 sum of the
+    data in the file.
     
-    Updates #44808.
+    Note that different versions of the same package or packages with the
+    same path from different modules may share the same directory.
     
-    Change-Id: I131cf6fad01708540390a8012d8f2a21e849fe9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340049
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Nigel Tao <nigeltao@golang.org>
+    Although files are written into a subdirectory of GOCACHE, they are
+    not removed automatically, nor are they removed by 'go clean -cache'.
+    Instead, they may be removed with 'go clean -fuzzcache'. We chose to
+    nest the fuzzing directory inside GOCACHE to avoid introducing a new
+    environment variable, since there's no real need for users to specify
+    a separate directory.
+    
+    Change-Id: I2032cf8e6c92f715cf36a9fc6a550acf666d2382
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275534
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- doc/go1.18.html             |  13 +++
- src/image/draw/draw.go      |  81 +++++++++++++++++-
- src/image/draw/draw_test.go | 201 +++++++++++++++++++++++++++++++++++++++-----
- 3 files changed, 272 insertions(+), 23 deletions(-)
+ src/cmd/go/alldocs.go                          |   2 +
+ src/cmd/go/internal/cache/cache.go             |  10 +++
+ src/cmd/go/internal/clean/clean.go             |  16 ++++
+ src/cmd/go/internal/test/flagdefs_test.go      |   2 +-
+ src/cmd/go/internal/test/test.go               |   7 +-
+ src/cmd/go/internal/test/testflag.go           |   2 +-
+ src/cmd/go/testdata/script/test_fuzz_cache.txt |  62 ++++++++++++++
+ src/internal/fuzz/fuzz.go                      | 108 ++++++++++++++++---------
+ src/testing/fuzz.go                            |   8 +-
+ src/testing/internal/testdeps/deps.go          |   4 +-
+ src/testing/testing.go                         |  30 ++++---
+ 11 files changed, 194 insertions(+), 57 deletions(-)

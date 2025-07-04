@@ -1,41 +1,22 @@
-commit 2f71c86370a2c3bf2827e8d9f9080d9bf92a5317
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 21 21:19:23 2021 +0000
+commit 9ece63f0647ec34cc729ad71a87254193014dcca
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 10 10:26:20 2021 +0100
 
-    runtime: retype gcControllerState.gcPercent as atomic.Int32
+    crypto/rand, internal/syscall/unix: add support for getrandom syscall on solaris
     
-    [git-generate]
-    cd src/runtime
-    mv export_test.go export.go
-    GOROOT=$(dirname $(dirname $PWD)) rf '
-      add gcControllerState.gcPercent \
-    // Initialized from GOGC. GOGC=off means no GC. \
-    gcPercent_ atomic.Int32
-      ex {
-        import "runtime/internal/atomic"
+    The getrandom syscall is available on Solaris and Illumos, see
+    https://docs.oracle.com/cd/E88353_01/html/E37841/getrandom-2.html and
+    https://illumos.org/man/2/getrandom
     
-        var t gcControllerState
-        var v, w int32
-        var d int32
-    
-        t.gcPercent -> t.gcPercent_.Load()
-        t.gcPercent = v -> t.gcPercent_.Store(v)
-        atomic.Loadint32(&t.gcPercent) -> t.gcPercent_.Load()
-        atomic.Storeint32(&t.gcPercent, v) -> t.gcPercent_.Store(v)
-        atomic.Xaddint32(&t.gcPercent, d) -> t.gcPercent_.Add(d)
-        atomic.Casint32(&t.gcPercent, v, w) -> t.gcPercent_.CompareAndSwap(v, w)
-        atomic.Xchgint32(&t.gcPercent, v) -> t.gcPercent_.Swap(v)
-      }
-      rm gcControllerState.gcPercent
-      mv gcControllerState.gcPercent_ gcControllerState.gcPercent
-    '
-    mv export.go export_test.go
-    
-    Change-Id: I1aae34a3f782d096c6b6233bbf7986e67ce9c5f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357794
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Id1c65d6a5b2fbc80d20b43d8b32dab137ca950ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299134
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go      |  2 +-
- src/runtime/mgcpacer.go | 31 ++++++++++++++-----------------
- 2 files changed, 15 insertions(+), 18 deletions(-)
+ src/crypto/rand/rand_batched.go                |  4 +-
+ src/crypto/rand/rand_batched_test.go           |  4 +-
+ src/crypto/rand/rand_solaris.go                | 10 +++++
+ src/internal/syscall/unix/getrandom_solaris.go | 53 ++++++++++++++++++++++++++
+ 4 files changed, 67 insertions(+), 4 deletions(-)

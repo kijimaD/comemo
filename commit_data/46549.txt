@@ -1,16 +1,25 @@
-commit a630783ba0d1816f684bdab18b6f9f03dc93a209
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Sep 21 14:55:23 2021 -0400
+commit 950cf4d46c5bc343644e7ef08828b9e5114d4676
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 3 21:34:03 2021 -0800
 
-    cmd/internal/obj: remove ABI aliases from object file
+    [dev.regabi] cmd/compile: bind closure vars during SSA constructions
     
-    Change-Id: I8a51f054e017e0116dee4e435b60c08d72e998e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351331
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    For function literals that aren't inlined or directly called, we need
+    to pass their arguments via a closure struct. This also means we need
+    to rewrite uses of closure variables to access from this closure
+    struct.
+    
+    Currently we do this rewrite in a pass before walking begins. This CL
+    moves the code to SSA construction instead, alongside binding other
+    input parameters.
+    
+    Change-Id: I13538ef3394e2d6f75d5b7b2d0adbb00db812dc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281352
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/link.go | 10 ----------
- src/cmd/internal/obj/sym.go  |  4 ++--
- 2 files changed, 2 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go   |  41 +++++++++
+ src/cmd/compile/internal/walk/closure.go | 139 +++++++++++--------------------
+ 2 files changed, 91 insertions(+), 89 deletions(-)

@@ -1,17 +1,20 @@
-commit 91f997be723a0f88df0c42051f29c23ef90db0c5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 6 15:45:16 2016 +1100
+commit d04f38e3ee7b7948c4fd18a0a26ad351d2b88670
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 29 13:41:02 2015 -0700
 
-    net/http: better documentation for Transport
+    [dev.ssa] cmd/compile: flag recomputing: find original values correctly
     
-    Mention that:
-    - connection pooling is enabled by default,
-    - the Transport is safe for concurrent use, and
-    - the Client type should be used for high-level stuff.
+    We "spill" flag values by recomputing them from their original
+    inputs.  The "find original inputs" part of the algorithm was
+    a hack.  It was broken by rematerialization.  This change does
+    the real job of keeping track of original values for each
+    spill/restore/flagrecompute/rematerialization we issue.
     
-    Change-Id: Idfd8cc852e733c44211e77cf0e22720b1fdca39b
-    Reviewed-on: https://go-review.googlesource.com/18273
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I95088326a4ee4958c98148b063e518c80e863e4c
+    Reviewed-on: https://go-review.googlesource.com/16500
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 32 ++++++++++++++++++++++++++++----
+ 1 file changed, 28 insertions(+), 4 deletions(-)

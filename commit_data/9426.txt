@@ -1,12 +1,21 @@
-commit f7b9ac765b9febe3be51cb6e29ed907279f08b59
-Author: Tarmigan Casebolt <tarmigan@gmail.com>
-Date:   Sun Aug 21 20:28:29 2011 +1000
+commit d1a3edaee72d6ac7d4e74017dc12d34da153dcbe
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 21 09:46:19 2011 +1000
 
-    goinstall: error out with paths that end with '/'
+    effective_go: convert to use tmpltohtml.
+    Also update the big example to the new template system.
+    There are a number of other examples that should be
+    extracted; this CL serves as an introduction to the
+    approach.
     
-    R=adg, rsc, tarmigan+golang
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4807048
+    https://golang.org/cl/4923043
 
- src/cmd/goinstall/main.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/Makefile          |    7 +
+ doc/effective_go.html |   80 +-
+ doc/effective_go.tmpl | 2980 +++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/makehtml          |    2 +-
+ doc/progs/eff_qr.go   |   47 +
+ doc/progs/run         |    1 +
+ 6 files changed, 3069 insertions(+), 48 deletions(-)

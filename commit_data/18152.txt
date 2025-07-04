@@ -1,18 +1,12 @@
-commit d4c66a35baba191b5857960d75fe66d766f6d573
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Jan 3 10:10:54 2014 +1100
+commit eaff83b98e27890723b175f242735a75f9616d7d
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Thu Jan 2 10:34:21 2014 -0800
 
-    runtime: add a test for randomised map iteration order.
+    encoding/hex: add Decode error test case
     
-    Technically the spec does not guarantee that the iteration order is random,
-    but it is a property that we have consciously pursued, and so it seems
-    right to verify that our implementation does indeed randomise.
-    
-    Update #6719.
-    
-    R=khr, bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/47010043
+    https://golang.org/cl/46880043
 
- src/pkg/runtime/map_test.go | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ src/pkg/encoding/hex/hex_test.go | 1 +
+ 1 file changed, 1 insertion(+)

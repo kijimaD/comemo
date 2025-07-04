@@ -1,23 +1,14 @@
-commit b03d12176d22f49f557fc174645ded22d91e6f28
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon May 22 19:23:21 2023 +0000
+commit c647264619bba886f1bff90e594d3cddc057f6ce
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 13:18:42 2022 -0400
 
-    doc: write various runtime-related release notes
+    runtime: trivial replacements of g in signal_unix.go
     
-    This includes release notes for several small runtime changes, including
-    runtime/trace and runtime package changes.
-    
-    For #58645.
-    
-    Change-Id: I3e9c804da1bb6b385088e16a20d9576c11098021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497095
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I0d8d50c8b7ae6cd01594091392dc726cf149e34a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418590
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ansiwen <ansiwen@gmail.com>
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- doc/go1.21.html | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 56 insertions(+)
+ src/runtime/signal_unix.go | 78 +++++++++++++++++++++++-----------------------
+ 1 file changed, 39 insertions(+), 39 deletions(-)

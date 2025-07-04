@@ -1,12 +1,53 @@
-commit c350c5cfdc5a6ed1a135c06517ef29cdd716a935
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Sat Nov 5 00:57:45 2016 +0100
+commit 9980b70cb460f27907a003674ab1b9bea24a847c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 19 11:47:53 2016 -0700
 
-    plugin: fix doc example fmt usage
+    runtime: limit the number of map overflow buckets
     
-    Change-Id: I0520a37a48a56d231a8ac2dc58b2bf1762282760
-    Reviewed-on: https://go-review.googlesource.com/32795
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Consider repeatedly adding many items to a map
+    and then deleting them all, as in #16070. The map
+    itself doesn't need to grow above the high water
+    mark of number of items. However, due to random
+    collisions, the map can accumulate overflow
+    buckets.
+    
+    Prior to this CL, those overflow buckets were
+    never removed, which led to a slow memory leak.
+    
+    The problem with removing overflow buckets is
+    iterators. The obvious approach is to repack
+    keys and values and eliminate unused overflow
+    buckets. However, keys, values, and overflow
+    buckets cannot be manipulated without disrupting
+    iterators.
+    
+    This CL takes a different approach, which is to
+    reuse the existing map growth mechanism,
+    which is well established, well tested, and
+    safe in the presence of iterators.
+    When a map has accumulated enough overflow buckets
+    we trigger map growth, but grow into a map of the
+    same size as before. The old overflow buckets will
+    be left behind for garbage collection.
+    
+    For the code in #16070, instead of climbing
+    (very slowly) forever, memory usage now cycles
+    between 264mb and 483mb every 15 minutes or so.
+    
+    To avoid increasing the size of maps,
+    the overflow bucket counter is only 16 bits.
+    For large maps, the counter is incremented
+    stochastically.
+    
+    Fixes #16070
+    
+    Change-Id: If551d77613ec6836907efca58bda3deee304297e
+    Reviewed-on: https://go-review.googlesource.com/25049
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/plugin/plugin.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/reflect.go |  22 ++--
+ src/runtime/hashmap.go                 | 232 ++++++++++++++++++++++++---------
+ src/runtime/hashmap_fast.go            |  36 ++++-
+ 3 files changed, 212 insertions(+), 78 deletions(-)

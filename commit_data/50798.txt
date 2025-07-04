@@ -1,23 +1,25 @@
-commit 7d3a5a501c9f30ff6db3016dbfffcb70dacb9f55
-Author: Youlin Feng <fengyoulin@live.com>
-Date:   Mon Oct 3 13:15:12 2022 +0000
+commit 4d0683965bd05aee6845bf6849c85c4bf2bb10d4
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Nov 5 13:02:09 2021 +0100
 
-    runtime/cgo: let darwin pthread stacksize follow rlimit
+    net: do more faithful conversion from AddrPort to UDPAddr
     
-    On Mac OS X, the default stack size for non-main threads created by cgo is
-    fixed at 512KB and cannot be altered by setrlimit. This stack size is too
-    small for some recursive scenarios. We can solve this problem by explicitly
-    copying the stack size of the main thread when creating a new thread.
+    A UDPAddr with a nil IP is a valid state, representing an AF-agnostic
+    unspecified address, so checking for addr.IsValid() isn't correct;
+    remove that, as it's only needed in the UDP rx path where it can be
+    added. Secondly, forcing everything to be IPv6 also is not correct, and
+    was likely done when the missing .AsSlice() made doing the right thing
+    less ergonomic. Fix this by using .AsSlice(), which properly preserves
+    IP version.
     
-    Change-Id: I400d5b2e929a1ee261502914a991e208759f64a8
-    GitHub-Last-Rev: b29c74599ea1cce4683d25e1ac8a70ffd9b86381
-    GitHub-Pull-Request: golang/go#53667
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415915
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Idd1eaecd4076f32a843f859a0a9802ef98f956d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361478
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/cgo/gcc_darwin_amd64.c | 10 ++++------
- src/runtime/cgo/gcc_darwin_arm64.c | 10 ++++------
- 2 files changed, 8 insertions(+), 12 deletions(-)
+ src/net/udpsock.go      | 16 +++++++---------
+ src/net/udpsock_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 9 deletions(-)

@@ -1,16 +1,26 @@
-commit 08ab43eca244e7bec0228c17d93a7cde17b20f7f
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Fri Nov 6 23:27:01 2015 +0530
+commit 37cfb2e07e9e9e8b11f21ea462856aeb1f6ec0c0
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon Sep 14 18:42:39 2015 +0300
 
-    cmd/pprof: exit with non-zero status code on error
+    math: optimize ceil/floor functions on amd64
     
-    Set the status code in case of error.
+    Use SSE 4.1 rounding instruction to perform rounding
+    Results (haswell):
     
-    Fixes #11510
+    name      old time/op  new time/op  delta
+    Floor-48  2.71ns ± 0%  1.87ns ± 1%  -31.17%  (p=0.000 n=16+19)
+    Ceil-48   3.09ns ± 3%  2.16ns ± 0%  -30.16%  (p=0.000 n=19+12)
     
-    Change-Id: If461c30a1f6d2275539f33a2eabd7b19bbfa411d
-    Reviewed-on: https://go-review.googlesource.com/16718
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If63715879eed6530b1eb4fc96132d827f8f43909
+    Reviewed-on: https://go-review.googlesource.com/14561
+    Reviewed-by: Klaus Post <klauspost@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/pprof/pprof.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/obj/x86/a.out.go  |  5 +++++
+ src/cmd/internal/obj/x86/anames.go |  4 ++++
+ src/cmd/internal/obj/x86/asm6.go   |  4 ++++
+ src/math/floor_amd64.s             | 23 +++++++++++++++++++++++
+ src/math/floor_asm.go              | 12 ++++++++++++
+ 5 files changed, 48 insertions(+)

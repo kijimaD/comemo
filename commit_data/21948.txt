@@ -1,13 +1,14 @@
-commit de486b24d1c8fb9b7571077a680a2b193a47928d
-Author: tnt <alkaloid.btx@gmail.com>
-Date:   Sat Mar 7 00:48:26 2015 +0100
+commit 69937d213192b1a87d6ca8a71337b7aa05f3566e
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Fri Feb 13 15:31:00 2015 -0500
 
-    Fixed wrong arguments to formatting functions
+    androidtest.bash: remove use of cp --preserve.
     
-    Change-Id: I11b4cf00ceeb4441b865e0de3f1674095d1c32d0
-    Reviewed-on: https://go-review.googlesource.com/7043
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    --preserve flag is not a valid flag for some versions of cp.
+    
+    Change-Id: I57f5bf21cbe726057fdadcd55b040ef7ff5d7479
+    Reviewed-on: https://go-review.googlesource.com/4835
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/os/os_test.go   | 8 ++++----
- src/os/path_test.go | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/androidtest.bash | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

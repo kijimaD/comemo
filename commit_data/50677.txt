@@ -1,23 +1,15 @@
-commit 8c29881dd189bac1a3f34750c1c3fc071626b660
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 28 14:42:16 2022 -0700
+commit dc2658558d2fe31e1bd5068a8ea43689da4cf900
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu Nov 4 16:50:52 2021 -0400
 
-    cmd/compile: use "shifted operand %s (type %s) must be integer" for some shift errors
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    This matches what go/types and types2 report and it also matches
-    the compiler errors reported for some related shift problems.
-    
-    For #55326.
-    
-    Change-Id: Iee40e8d988d5a7f9ff2c49f019884d02485c9fdf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436177
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I85bc353978902238160a73d7cebd3025912189ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361434
+    Trust: Heschi Kreinick <heschi@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/compile/internal/types2/expr.go | 6 +-----
- src/go/types/expr.go                    | 6 +-----
- test/fixedbugs/issue28079c.go           | 2 +-
- 3 files changed, 3 insertions(+), 11 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

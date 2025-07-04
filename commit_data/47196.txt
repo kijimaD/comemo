@@ -1,28 +1,26 @@
-commit 1012bc810fcd3076015edf947785e54ec6b1d766
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 2 11:20:10 2021 -0400
+commit 27dbc4551a37a48cf7c020db0aeac6f2841883dc
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu Feb 4 03:08:20 2021 +0000
 
-    go/types: clean up asT converters (step 2 of 2)
+    cmd/asm: disable scaled register format for arm64
     
-    This is a clean port of CL 358774 to go/types.
+    Arm64 doesn't have scaled register format, such as (R1*2), (R1)(R2*3),
+    but currently the assembler doesn't report an error for such kind of
+    instruction operand format. This CL disables the scaled register
+    operand format for arm64 and reports an error if this kind of instruction
+    format is seen.
+    With this CL, the assembler won't print (R1)(R2) as (R1)(R2*1), so that
+    we can make the assembly test simpler.
     
-    Change-Id: Icba54336de2b8de7c2002d2a44cac856907178c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360754
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I6d7569065597215be4c767032a63648d2ad16fed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289589
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/assignments.go |  2 +-
- src/go/types/builtins.go    |  8 ++++----
- src/go/types/call.go        |  2 +-
- src/go/types/conversions.go | 20 ++++++++++----------
- src/go/types/expr.go        |  6 +++---
- src/go/types/index.go       |  6 +++---
- src/go/types/lookup.go      |  8 ++++----
- src/go/types/predicates.go  |  6 +++---
- src/go/types/sizes.go       |  2 +-
- src/go/types/type.go        | 14 +++++++-------
- src/go/types/typestring.go  |  2 +-
- src/go/types/typexpr.go     |  2 +-
- 12 files changed, 39 insertions(+), 39 deletions(-)
+ src/cmd/asm/internal/asm/parse.go            |  8 +++--
+ src/cmd/asm/internal/asm/testdata/arm64.s    | 48 ++++++++++++++--------------
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 44 ++++++++++++-------------
+ 3 files changed, 51 insertions(+), 49 deletions(-)

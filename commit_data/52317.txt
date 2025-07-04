@@ -1,21 +1,24 @@
-commit 964985362b4d8702a16bce08c7a825488ccb9601
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Mar 16 19:23:34 2023 +0100
+commit 415e3fd8a6e62d7e9cf7d0c995518179dc0b7723
+Author: 张云浩 <zhangyunhao@bytedance.com>
+Date:   Fri Apr 15 07:45:17 2022 +0000
 
-    syscall: let errors.ErrUnsupported match ERROR_NOT_SUPPORTED and ERROR_CALL_NOT_IMPLEMENTED
+    slices: use !{{Less}} instead of {{GreaterOrEqual}}
     
-    These error codes are returned on windows in case a particular functions
-    is not supported.
+    In CL 371574 PatchSet 18, we replaced all !{{Less}} with {{GreaterOrEqual}} to fix a problem(handle NaNs when sorting float64 slice) in exp/slices.
     
-    Updates #41198
+    We don't actually need this change, because we don't guarantee that the slice will be sorted eventually if there are NaNs(we could have a[i] < a[j] for some i,j with i>j).
     
-    Change-Id: Ic31755a131d4e7c96961ba54f5bb51026fc7a563
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476916
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    This CL reverts all the replacements in exp/slices and does not affect any codes in the sort package.
+    
+    Change-Id: Idc225d480de3e2efef2add35c709ed880d1306cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400534
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
 
- src/syscall/syscall_windows.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/sort/gen_sort_variants.go | 32 ++++++++++----------------------
+ 1 file changed, 10 insertions(+), 22 deletions(-)

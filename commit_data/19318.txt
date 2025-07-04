@@ -1,13 +1,13 @@
-commit 91a576eb0f35c36ce7a63f73c7b3e1a9f0dc134a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun May 11 14:46:29 2014 -0700
+commit d6a1fb0b0c7f148773e02f40f1ef61852e4e6e16
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sat May 10 13:41:05 2014 -0400
 
-    C: add another email address for David Crawshaw
+    cmd/go: remove merge markers
     
-    LGTM=crawshaw
-    R=crawshaw
+    LGTM=minux.ma
+    R=cespare, rsc, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/99180043
+    https://golang.org/cl/96210043
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/test.bash | 16 +++++-----------
+ 1 file changed, 5 insertions(+), 11 deletions(-)

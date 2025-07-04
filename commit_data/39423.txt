@@ -1,16 +1,21 @@
-commit 295419d0b446bd8e7310966be561c9196d92dc5a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 21 11:50:25 2019 -0700
+commit b34c5f0cb46d77c3929fc2b37e86f811c4d32377
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Feb 8 17:50:36 2019 +0100
 
-    runtime/cgo: on Solaris link against -lxnet
+    net/http: remove use of DeepEqual for testing errors
     
-    Fixes #32205
+    Comparing errors using DeepEqual breaks if frame information
+    is added as proposed in Issue #29934.
     
-    Change-Id: If5b1d32a5e19ff5d9337862c07fb77890d19d69f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183379
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #29934.
+    
+    Change-Id: I4ef076e262109a9d6f5b18846129df2535611d71
+    Reviewed-on: https://go-review.googlesource.com/c/162178
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/cgo/cgo.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/clientserver_test.go | 2 +-
+ src/net/http/transport.go         | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

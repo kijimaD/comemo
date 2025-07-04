@@ -1,15 +1,19 @@
-commit 22d46d53ea31b1bcee0a125f6fc1651ae2541563
+commit cc81712190ba438097e4e0262ec8d29f8d468dcf
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jun 19 22:19:56 2014 -0700
+Date:   Thu Jun 19 22:04:10 2014 -0700
 
-    sync: detect incorrect usages of RWMutex
-    Fixes #7858.
+    runtime: remove obsolete afterprologue check
+    Afterprologue check was required when did not know
+    about return arguments of functions and/or they were not zeroed.
+    Now 100% precision is required for stacks due to stack copying,
+    so it must work w/o afterprologue one way or another.
+    I can limit this change for 1.3 to merely adding a TODO,
+    but this check is super confusing so I don't want this knowledge to get lost.
     
-    LGTM=ruiu
-    R=ruiu
-    CC=golang-codereviews
-    https://golang.org/cl/92720045
+    LGTM=rsc
+    R=golang-codereviews, gobot, rsc, khr
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/96580045
 
- src/pkg/sync/rwmutex.go      | 10 +++++++++-
- src/pkg/sync/rwmutex_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 64 +++++++++++++++++++++++---------------------------
+ 1 file changed, 30 insertions(+), 34 deletions(-)

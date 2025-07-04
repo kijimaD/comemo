@@ -1,39 +1,14 @@
-commit 7555f7f2bf1636443b6013c90e45698894af75e1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Dec 1 11:52:32 2015 -0800
+commit 23791ee11d7869fe73b9b19218c91674cff6d733
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Nov 18 23:39:53 2015 -0500
 
-    cmd/compile: cleanup mkbuiltin.go
+    cmd/compile: set log prefix and suppress date
     
-    Changes largely in preparation for eventually switching the builtin
-    export data to use the new binary format.
+    Fixes #13320.
     
-    Replace fancy incremental line-by-line scanning with simply reading
-    the entire object file into memory, finding the export data section,
-    and processing it that way.
-    
-    Just use "package runtime" and "package unsafe" in the builtin Go
-    source files so we don't need to rewrite references to "PACKAGE".
-    
-    Stop looking for init_PACKAGE_function; it doesn't exist anyway.
-    
-    Compile package runtime with -u so that its export data marks it as a
-    "safe" package.
-    
-    Eliminate requirement to pass "runtime" and "unsafe" as command-line
-    arguments so that just "go run mkbuiltin.go" works.
-    
-    Only rewrite builtin.go when successful.
-    
-    Change-Id: I4addfde9e0cfb30607c7a83de686bde0ad1f035a
-    Reviewed-on: https://go-review.googlesource.com/19624
+    Change-Id: I3a96a6707982629caf89656c479d096891783328
+    Reviewed-on: https://go-review.googlesource.com/17050
     Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         |  2 +-
- src/cmd/compile/internal/gc/builtin/runtime.go |  2 +-
- src/cmd/compile/internal/gc/builtin/unsafe.go  |  2 +-
- src/cmd/compile/internal/gc/lex.go             |  2 +-
- src/cmd/compile/internal/gc/mkbuiltin.go       | 88 +++++++++++---------------
- src/cmd/compile/internal/gc/parser.go          |  2 +-
- 6 files changed, 41 insertions(+), 57 deletions(-)
+ src/cmd/compile/main.go | 5 +++++
+ 1 file changed, 5 insertions(+)

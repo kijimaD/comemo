@@ -1,31 +1,14 @@
-commit 21a3c53c541ee6366db371e333cdb5376f507c65
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 11 15:45:09 2016 -0500
+commit 54a72d90f62030034f03cacbac1d1ec02c0444c6
+Author: Luigi Riefolo <luigi.riefolo@gmail.com>
+Date:   Tue Sep 27 03:02:40 2016 +0200
 
-    build: fix cross-compile on Plan 9
+    go/doc: add IsPredeclared function
     
-    In Plan 9's shell,
+    IsPredeclared allows simplifying src/golang.org/x/tools/godoc/linkify.go
     
-            GOBIN= \
-                    foo bar
-    
-    is the same as
-    
-            GOBIN=foo bar
-    
-    Write what was meant, which is
-    
-            GOBIN=() \
-                    foo bar
-    
-    Fixes #17737.
-    
-    Change-Id: Ie5a1b51a7cec950b5e78bbbe99cbc3cfe102f980
-    Reviewed-on: https://go-review.googlesource.com/33144
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Change-Id: I56b3223896f844630bc2e940255572d1682f0d06
+    Reviewed-on: https://go-review.googlesource.com/29870
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/make.rc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/doc/reader.go | 5 +++++
+ 1 file changed, 5 insertions(+)

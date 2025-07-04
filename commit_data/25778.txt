@@ -1,15 +1,18 @@
-commit fe5eac63c4b8d8f9d541d40f9055c3e4d4454d67
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 4 14:16:58 2016 -0500
+commit 9fa6a2d42d5d6ded4e05f06148305354e66344d6
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Nov 20 10:42:05 2015 -0500
 
-    cmd/internal/obj: hoist fieldtrack code out of x86 back end
+    os: use different test files on android
     
-    Change-Id: I38e59088c37426d914ce2b4dfc79f3d476e06f49
-    Reviewed-on: https://go-review.googlesource.com/19617
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Some Android OS installations have very strange permissions on their
+    /system/etc directory, meaning that Readdir fails. Instead use
+    /system/framework, which is far more regular.
+    
+    Change-Id: Iefc140614183cda0f875e0f6ef859f4d4eaad9da
+    Reviewed-on: https://go-review.googlesource.com/17078
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/obj.go      | 18 ++++++++++++++++++
- src/cmd/internal/obj/objfile.go  |  1 +
- src/cmd/internal/obj/x86/asm6.go |  9 ---------
- 3 files changed, 19 insertions(+), 9 deletions(-)
+ src/os/os_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

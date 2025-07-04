@@ -1,15 +1,31 @@
-commit 361199749d81d06cc1007db9f7da5818b6f830b2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 19 20:52:58 2014 -0500
+commit 5a653089ef756ecda170e4ee030480d547496362
+Merge: 32c75a2d3d 3e62d2184a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 27 17:17:06 2014 -0400
 
-    build: disable race external linking test on OS X 10.6 and earlier
+    [dev.power64] all: merge default into dev.power64
     
-    External linking doesn't work there at all.
-    
-    LGTM=bradfitz
-    R=adg, bradfitz
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/176070043
+    https://golang.org/cl/164110043
 
- src/run.bash | 37 ++++++++++++++++++++++++-------------
- 1 file changed, 24 insertions(+), 13 deletions(-)
+ doc/gccgo_install.html                 |  4 +++
+ doc/go1.4.txt                          |  4 ++-
+ doc/go1compat.html                     |  8 +++++
+ doc/go_faq.html                        |  4 +--
+ doc/go_spec.html                       | 11 +++---
+ misc/makerelease/windows/installer.wxs |  6 ++--
+ src/cmd/gc/walk.c                      |  8 +----
+ src/cmd/go/build.go                    |  1 +
+ src/cmd/go/get.go                      | 11 ++++--
+ src/cmd/go/vcs.go                      | 50 ++++++++++++++++++++++++--
+ src/encoding/csv/writer.go             | 16 +++++++--
+ src/encoding/csv/writer_test.go        | 11 ++++++
+ src/net/http/pprof/pprof.go            |  4 +++
+ src/net/lookup.go                      | 51 ++++++++++++++------------
+ src/net/singleflight.go                | 66 +++++++++++++++++++++++++++++++---
+ src/runtime/symtab.go                  | 11 +++---
+ src/unsafe/unsafe.go                   |  3 ++
+ test/fixedbugs/issue8947.go            | 53 +++++++++++++++++++++++++++
+ 18 files changed, 265 insertions(+), 57 deletions(-)

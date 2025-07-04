@@ -1,20 +1,21 @@
-commit 038fbf9f285d09663670d7cbc9a0185e06bf5e2f
-Author: suntala <artichaut2023@gmail.com>
-Date:   Thu Feb 22 22:49:36 2024 +0000
+commit 7ec69abf05822a377513eb7e08de5a12799e21c3
+Author: Tianon Gravi <tianon@debian.org>
+Date:   Mon Mar 13 21:32:49 2023 +0000
 
-    cmd/go/internal/envcmd: show GODEBUG in 'go env' output
+    runtime/debug: replace "GOARM64" with "GOARM" in docs
     
-    Fixes #65777
+    The former does not exist (yet) but the latter very much exists and is in active use.
     
-    Change-Id: I62067d8212bfd9f9475ecad036a1218ffc5c2130
-    GitHub-Last-Rev: a395b0293a4796e4ac5db64c1521ade4ede0dfd8
-    GitHub-Pull-Request: golang/go#65888
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566097
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ic8812b98a10f01061a211a0de4caa9e9cfff36fa
+    GitHub-Last-Rev: 0dab9f524c778b176e4e4b3652f53ea5e2873d26
+    GitHub-Pull-Request: golang/go#59014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476016
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/envcmd/env.go        | 3 ++-
- src/cmd/go/testdata/script/env_write.txt | 6 ++++--
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/runtime/debug/mod.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

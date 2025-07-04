@@ -1,21 +1,46 @@
-commit c00603607511701ecc9f56fd82ac528ecf6b8fc6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 7 10:55:28 2018 -0400
+commit 0c884d0810285ffec6ed6290dc64f2fa34248a19
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 26 17:35:29 2018 -0800
 
-    cmd/vet: use vet-specific export data to record detected printf wrappers
+    cmd/compile, cmd/compile/internal/syntax: print relative column info
     
-    This CL takes advantage of the ability to record vet-specific export data,
-    added in CL 108558, to save information about observed printf wrappers.
-    Then calls to those wrappers from other packages can be format-checked.
-    This found a few real mistakes using previously-unrecognized printf
-    wrappers in cmd/compile. It will no doubt find real mistakes in external code.
+    This change enables printing of relative column information if a
+    prior line directive specified a valid column. If there was no
+    line directive, or the line directive didn't specify a column
+    (or the -C flag is specified), no column information is shown in
+    file positions.
     
-    Change-Id: I9c29c92d89bbdc984571a174a96e6054585e9cd4
-    Reviewed-on: https://go-review.googlesource.com/108559
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Implementation: Column values (and line values, for that matter)
+    that are zero are interpreted as "unknown". A line directive that
+    doesn't specify a column records that as a zero column in the
+    respective PosBase data structure. When computing relative columns,
+    a relative value is zero of the base's column value is zero.
+    When formatting a position, a zero column value is not printed.
+    
+    To make this work without special cases, the PosBase for a file
+    is given a concrete (non-0:0) position 1:1 with the PosBase's
+    line and column also being 1:1. In other words, at the position
+    1:1 of a file, it's relative positions are starting with 1:1 as
+    one would expect.
+    
+    In the package syntax, this requires self-recursive PosBases for
+    file bases, matching what cmd/internal/src.PosBase was already
+    doing. In src.PosBase, file and inlining bases also need to be
+    based at 1:1 to indicate "known" positions.
+    
+    This change completes the cmd/compiler part of the issue below.
+    
+    Fixes #22662.
+    
+    Change-Id: I6c3d2dee26709581fba0d0261b1d12e93f1cba1a
+    Reviewed-on: https://go-review.googlesource.com/97375
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/vet/print.go          | 375 ++++++++++++++++++++++++++++++++----------
- src/cmd/vet/testdata/print.go |  71 +++++++-
- 2 files changed, 353 insertions(+), 93 deletions(-)
+ src/cmd/compile/internal/gc/noder.go           |   8 +-
+ src/cmd/compile/internal/syntax/parser.go      |  25 ++--
+ src/cmd/compile/internal/syntax/parser_test.go | 170 ++++++++++++-------------
+ src/cmd/compile/internal/syntax/pos.go         |  63 +++++++--
+ src/cmd/internal/src/pos.go                    |  64 ++++++----
+ src/cmd/internal/src/pos_test.go               |  28 ++--
+ test/fixedbugs/issue22662b.go                  |  65 ++++++++++
+ 7 files changed, 272 insertions(+), 151 deletions(-)

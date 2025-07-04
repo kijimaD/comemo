@@ -1,20 +1,14 @@
-commit 7847f328cd583231fc6bed6e7ddf7704b204d813
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jan 10 11:36:40 2013 +0400
+commit 7d403871cb7e319cb1f52ce2ff04c80bdc5ac92a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 10 14:17:20 2013 +1100
 
-    runtime: faster segmented stacks
-    benchmark                      old ns/op    new ns/op    delta
-    BenchmarkStackGrowth                 665          548  -17.59%
-    BenchmarkStackGrowth-2               333          274  -17.72%
-    BenchmarkStackGrowth-4               224          168  -25.00%
-    BenchmarkStackGrowth-8               124           91  -26.21%
-    BenchmarkStackGrowth-16               82           70  -14.55%
-    BenchmarkStackGrowth-32               73           59  -19.49%
+    doc/contribute: Link to IssueTracker docs for more "special sentences"
     
-    R=nigeltao, minux.ma, rsc
+    Update #4582.
+    
+    R=nigeltao, dave, adg
     CC=golang-dev
-    https://golang.org/cl/7026044
+    https://golang.org/cl/7070065
 
- src/pkg/runtime/malloc.goc |  4 ++--
- src/pkg/runtime/proc.c     | 52 +++++++++++++++++++++++++++++-----------------
- 2 files changed, 35 insertions(+), 21 deletions(-)
+ doc/contribute.html | 2 ++
+ 1 file changed, 2 insertions(+)

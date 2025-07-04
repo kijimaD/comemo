@@ -1,15 +1,19 @@
-commit 86713ea31116ca295db98713d24c2cea41dcb5be
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Nov 17 13:27:57 2022 +0100
+commit 6891d07ee6a34f1c8d0326f3f7dd941bddf524f1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 13 13:57:47 2022 -0500
 
-    internal/profile: remove unused encodeStringOpt
+    database/sql: consolidate test polling loops
     
-    Change-Id: Icaee8064c5ab61cc2ad28c2d1d06d70f845754fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451535
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Also eliminate some arbitrary deadlines and sleeps.
+    
+    Fixes #49958
+    
+    Change-Id: I999b39a896e430e3bb93aa8b8c9444f28bbaa9d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378395
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/internal/profile/proto.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/database/sql/sql_test.go | 111 ++++++++++++++++++++++++-------------------
+ 1 file changed, 61 insertions(+), 50 deletions(-)

@@ -1,14 +1,12 @@
-commit 256daf2c85c0277298d7066e5b24c137ef332aa5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 3 08:16:27 2012 -0700
+commit 727e5ce95fe11653b4ba197771173c80359bdada
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Oct 3 11:41:18 2012 +0800
 
-    misc/dashboard: set charset utf-8 on build log downloads
+    testing: update package docs to use ResetTimer() instead of StopTimer/StartTimer()
     
-    Fixes #4187
-    
-    R=golang-dev, dave, minux.ma
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/6587071
+    https://golang.org/cl/6591051
 
- misc/dashboard/app/build/handler.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/testing/testing.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

@@ -1,22 +1,16 @@
-commit bc6bb3efb4f2f75375ab8820ee536f696269c6b4
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 19 11:22:09 2013 +1000
+commit 24f302a69d80f2e89db81fad600165b2f857c193
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Aug 19 11:11:27 2013 +1000
 
-    math/big: fix nil bug in GobEncode
+    cmd/dist: join with TMPDIR more carefully to avoid // in path.
     
-    Update #5305.
-    This handles the case where the nil pointers are inside a slice.
-    A top-level nil pointer is harder, maybe fundamentally broken by gob's model.
-    Thinking required.
-    However, a slice is the important case since people don't expect to be sending
-    top-level nils much, but they can arise easily in slices.
+    This might fix the mkdtemp problem on the darwin builders if they
+    have TMPDIR set to a path ending in a slash; at worse this will
+    result in cleaner path names.
     
-    R=golang-dev, josharian, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13042044
+    https://golang.org/cl/13097043
 
- src/pkg/math/big/int.go      |  7 ++++++-
- src/pkg/math/big/int_test.go | 26 ++++++++++++++++++++++++++
- src/pkg/math/big/rat.go      |  7 ++++++-
- src/pkg/math/big/rat_test.go | 26 ++++++++++++++++++++++++++
- 4 files changed, 64 insertions(+), 2 deletions(-)
+ src/cmd/dist/unix.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

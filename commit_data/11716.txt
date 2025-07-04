@@ -1,18 +1,14 @@
-commit e7a138b856b21bc3db8ddb1dfe9f3fabe0dc59e8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 15:24:48 2012 -0500
+commit cf80ccd8f666a839466af874aefa0ee02c58efdc
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 9 07:09:52 2012 +1100
 
-    spec: send on closed channel counts as "proceeding"
+    doc/go1: mention that the compiler catches TotalSize and NewReaderSize
+    Today is Size day and the compiler will reject old code using these functions.
     
-    Other wordings are possible but defining this as one
-    of the ways to proceed means we don't have to add
-    language about this to the description of select.
-    
-    Fixes #2825.
-    
-    R=golang-dev, gri, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5643062
+    https://golang.org/cl/5644053
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.html | 5 ++---
+ doc/go1.tmpl | 5 ++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)

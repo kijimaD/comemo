@@ -1,26 +1,24 @@
-commit 3fbfc83db298c55669b6165eca1b8a56b04c895c
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri May 4 14:39:00 2018 +0700
+commit a0222ec518a80909060151ccbc275e67f3f03b60
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Jan 17 10:25:26 2018 +0000
 
-    cmd/vet: recognise func type conversions
+    cmd/internal/obj/arm64: fix assemble add/adds/sub/subs/cmp/cmn(extended register) bug
     
-    In hasSideEffects, vet has to be taught whether or not a CallExpr is an
-    actual function call, or just a type conversion.
+    The current code encodes the wrong option value in the binary.
     
-    The previous code knew how to differentiate fn(arg) from int(arg), but
-    it incorrectly saw (func(T))(fn) as a func call. This edge case is
-    slightly tricky, since the CallExpr.Fun has a func signature type, just
-    like in func calls.
+    The fix reconstructs the function opxrrr() that does not encode the option
+    value into the binary value when arguments is sign or zero-extended register.
     
-    However, the difference is that in this case the Fun is a type, not a
-    value. This information is in types.TypeAndValue, so use it.
+    Add the relevant test cases and negative tests.
     
-    Change-Id: I18bb8b23abbe7decc558b726ff2dc31fae2f13d6
-    Reviewed-on: https://go-review.googlesource.com/111416
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #23501
+    Change-Id: Ie5850ead2ad08d9a235a5664869aac5051762f1f
+    Reviewed-on: https://go-review.googlesource.com/88876
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/vet/bool.go          | 15 ++++++++-------
- src/cmd/vet/testdata/bool.go |  3 +--
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/asm/internal/arch/arm64.go             |  7 +++-
+ src/cmd/asm/internal/asm/testdata/arm64.s      | 16 +++++++--
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  2 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 48 +++++++++++++++++---------
+ 4 files changed, 54 insertions(+), 19 deletions(-)

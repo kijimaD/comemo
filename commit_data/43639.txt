@@ -1,25 +1,46 @@
-commit 676ad56095c819751ae9f61354cf0fa356e71cb6
-Author: Rob Findley <rfindley@google.com>
-Date:   Fri Oct 30 11:35:48 2020 -0400
+commit 2ff1e3ebf5de77325c0e96a6c2a229656fc7be50
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Wed Dec 11 18:47:05 2019 -0500
 
-    go/types: reorganize error codes into categories
+    net/http/pprof: support the "seconds" param for block, mutex profiles
     
-    In CL 264179, some reorganization of error codes was deferred in order
-    to minimize diffs between patch-sets.
+    When the seconds param is given, the block and mutex profile endpoints
+    report the difference between two measurements collected the given
+    seconds apart. Historically, the block and mutex profiles have reported
+    the cumulative counts since the process start, and it turned out they
+    are more useful when interpreted along with the time duration.
     
-    This CL reorganizes the error codes as discussed. It is a pure
-    reordering, with no material changes other than the changing of internal
-    const values.
+    Note: cpu profile and trace endpoints already accept the "seconds"
+    parameter. With this CL, the block and mutex profile endpoints will
+    accept the "seconds" parameter. Providing the "seconds" parameter
+    to other types of profiles is an error.
     
-    For #42290
+    This change moves runtime/pprof/internal/profile to internal/profile and
+    adds part of merge logic from github.com/google/pprof/profile/merge.go to
+    internal/profile, in order to allow both net/http/pprof and runtime/pprof
+    to access it.
     
-    Change-Id: I0e9b421a92e96b19e53039652f8de898c5255290
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266637
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #23401
+    
+    Change-Id: Ie2486f1a63eb8ff210d7d3bc2de683e9335fd5cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/147598
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/go/types/errorcodes.go | 1504 ++++++++++++++++++++++----------------------
- 1 file changed, 748 insertions(+), 756 deletions(-)
+ src/go/build/deps_test.go                          | 100 ++---
+ src/{runtime/pprof => }/internal/profile/encode.go |   0
+ src/{runtime/pprof => }/internal/profile/filter.go |   0
+ .../pprof => }/internal/profile/legacy_profile.go  |   0
+ src/internal/profile/merge.go                      | 461 +++++++++++++++++++++
+ .../pprof => }/internal/profile/profile.go         |  55 ++-
+ .../pprof => }/internal/profile/profile_test.go    |   0
+ src/{runtime/pprof => }/internal/profile/proto.go  |   0
+ .../pprof => }/internal/profile/proto_test.go      |   0
+ src/{runtime/pprof => }/internal/profile/prune.go  |   0
+ src/net/http/pprof/pprof.go                        |  90 ++++
+ src/net/http/pprof/pprof_test.go                   | 187 +++++++++
+ src/runtime/pprof/mprof_test.go                    |   2 +-
+ src/runtime/pprof/pprof_test.go                    |   6 +-
+ src/runtime/pprof/proto_test.go                    |   2 +-
+ src/runtime/pprof/protomem_test.go                 |   2 +-
+ 16 files changed, 840 insertions(+), 65 deletions(-)

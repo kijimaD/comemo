@@ -1,0 +1,35 @@
+commit 1ffc296717ba27d5ca5dd9a81439a49367363c89
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu May 9 16:54:41 2024 -0400
+
+    runtime: always update stack bounds on cgocallback
+    
+    callbackUpdateSystemStack contains a fast path to exit early without
+    update if SP is already within the g0.stack bounds.
+    
+    This is not safe, as a subsequent call may have new stack bounds that
+    only partially overlap the old stack bounds. In this case it is possible
+    to see an SP that is in the old stack bounds, but very close to the
+    bottom of the bounds due to the partial overlap. In that case we're very
+    likely to "run out" of space on the system stack.
+    
+    We only need to do this on extra Ms, as normal Ms have precise bounds
+    defined when we allocated the stack.
+    
+    TSAN annotations are added to x_cgo_getstackbounds because bounds is a
+    pointer into the Go stack. The stack can be reused when an old thread
+    exits and a new thread starts, but TSAN can't see the synchronization
+    there. This isn't a new case, but we are now calling more often.
+    
+    Fixes #62440.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I5389050494987b7668d0b317fb92f85e61d798ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584597
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/cgo/gcc_stack_darwin.c |  5 +++++
+ src/runtime/cgo/gcc_stack_unix.c   |  4 ++++
+ src/runtime/cgocall.go             | 31 ++++++++++++++++++++++++-------
+ 3 files changed, 33 insertions(+), 7 deletions(-)

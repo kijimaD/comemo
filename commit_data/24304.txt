@@ -1,20 +1,16 @@
-commit a326c3e1ad3713c3e1c3373a45c6907e10fb1579
-Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 15 09:27:22 2015 -0700
+commit 4a4eba9f37cde100584c7ee07c602d7b80e4e8f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 20:30:41 2015 -0400
 
-    text/template: export isTrue
+    runtime: disable TestGoroutineParallelism on uniprocessor
     
-    The definition of 'truth' used by if etc. is not trivial to compute, so publish
-    the implementation to allow custom template functions to have the
-    same definition as the template language itself.
+    It's a bad test and it's worst on uniprocessors.
     
-    Fixes #12033.
+    Fixes #11143.
     
-    Change-Id: Icdfd6039722d7d3f984ba0905105eb3253e14831
-    Reviewed-on: https://go-review.googlesource.com/14593
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I0164231ada294788d7eec251a2fc33e02a26c13b
+    Reviewed-on: https://go-review.googlesource.com/12522
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/template/template.go | 8 ++++++++
- src/text/template/exec.go     | 9 +++++----
- src/text/template/funcs.go    | 7 +++----
- 3 files changed, 16 insertions(+), 8 deletions(-)
+ src/runtime/proc_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

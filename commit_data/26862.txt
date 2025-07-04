@@ -1,20 +1,16 @@
-commit 7f5a063d157c777d8e78a567fc9538929bfd38f5
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Apr 12 10:27:16 2016 -0400
+commit eaf5235f984080d592dbc88d6e4ad4e246e2f3b2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 29 10:05:46 2016 -0800
 
-    cmd/compile/internal/gc: minor Cgen_checknil cleanup
+    misc/cgo/testsanitizers: don't run tsan tests on old clang
     
-    Most architectures can only generate nil checks when the
-    the address to check is in a register. Currently only
-    amd64 and 386 can generate checks for addresses that
-    reside in memory. This is unlikely to change so the architecture
-    check has been inverted.
+    Fixes #14570.
     
-    Change-Id: I73697488a183406c79a9039c62823712b510bb6a
-    Reviewed-on: https://go-review.googlesource.com/21861
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ief84a14585bfc209e38cdf15702c2f54ba759714
+    Reviewed-on: https://go-review.googlesource.com/20057
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/compile/internal/gc/pgen.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ misc/cgo/testsanitizers/test.bash | 34 +++++++++++++++++++++++-----------
+ 1 file changed, 23 insertions(+), 11 deletions(-)

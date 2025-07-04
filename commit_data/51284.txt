@@ -1,29 +1,20 @@
-commit 0b82b670ed0ba6826ce8215e816df9c8016df323
+commit 10f1ed131cd2cfb5ac4d9aa09888deb1bac6e921
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:21:21 2022 -0500
+Date:   Thu Jan 6 11:59:09 2022 -0500
 
-    cmd/link: use testenv.Command instead of exec.Command in tests
+    time: skip TestTimerModifiedEarlier on plan9/arm
     
-    testenv.Command sets a default timeout based on the test's deadline
-    and sends SIGQUIT (where supported) in case of a hang.
+    This test is observed to be flaky on the plan9-arm builder.
+    Skip it on that platform until it can be diagnosed and fixed.
     
-    Change-Id: I25a67aa5793c6fa977ff6d4dc59ca1533bf58d41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450702
+    For #50470
+    
+    Change-Id: If626af426d856c377e00ac5baaca52899456556e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375934
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/cgo_test.go                      |  2 +-
- src/cmd/link/dwarf_test.go                    | 10 +--
- src/cmd/link/elf_test.go                      | 22 +++----
- src/cmd/link/internal/ld/deadcode_test.go     |  3 +-
- src/cmd/link/internal/ld/dwarf_test.go        |  7 +--
- src/cmd/link/internal/ld/elf_test.go          |  5 +-
- src/cmd/link/internal/ld/go_test.go           |  5 +-
- src/cmd/link/internal/ld/ld_test.go           | 15 +++--
- src/cmd/link/internal/ld/nooptcgolink_test.go |  3 +-
- src/cmd/link/internal/ld/stackcheck_test.go   |  3 +-
- src/cmd/link/link_test.go                     | 87 +++++++++++++--------------
- src/cmd/link/linkbig_test.go                  |  9 ++-
- 12 files changed, 81 insertions(+), 90 deletions(-)
+ src/time/sleep_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

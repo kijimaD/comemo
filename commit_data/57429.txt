@@ -1,21 +1,20 @@
-commit ec67622d04ea379ecd0dcff065267371cce69f72
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 10 13:27:56 2024 -0700
+commit 0c2abb32337def615027f66e14eb212987498070
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 4 14:15:39 2023 -0700
 
-    cmd/compile, go/types: add missing space in error message
+    runtime, cmd/compile: prune unused _defer fields
     
-    Otherwise "print(nil)" gets an error like
-        use of untyped nil in argument to built-inprint
+    These fields are no longer needed since go.dev/cl/513837.
     
-    Change-Id: Iaa841df106f90787031dce75a49af69860a9dbc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611918
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I980fc9db998c293e930094bbb87e8c8f1654e39c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516198
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go | 2 +-
- src/go/types/builtins.go                    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 24 ++++++------------------
+ src/runtime/runtime2.go                | 15 ++++-----------
+ 2 files changed, 10 insertions(+), 29 deletions(-)

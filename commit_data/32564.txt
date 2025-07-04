@@ -1,123 +1,44 @@
-commit 64607dbd26612850d64c4422f14001387956d022
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri Aug 25 12:07:01 2017 +0000
+commit d1b544c7eb00d54d7298292c1860a965ecc93d41
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 23 17:31:15 2017 -0700
 
-    cmd/compile: optimize ARM with MULS
+    cmd/compile: avoid giant init functions due to many user inits
     
-    MULS was introduced in ARMv7 and corresponding to MULA. This patch
-    duplicated all MULA related SSA rules with MULS.
+    We generate code that calls each user init function one at a time.
+    When there are lots of user init functions,
+    usually due to generated code, like test/rotate* or
+    github.com/juju/govmomi/vim25/types,
+    we can end up with a giant function,
+    which can be slow to compile.
     
-    Here was the contrast test result against the original go compiler.
-    There was no improvement in total, but big improvement in special cases.
+    This CL puts in an escape valve.
+    When there are more than 500 functions, instead of doing:
     
-    1. A specific test case accelerated 18.62%.
-    (https://github.com/benshi001/ugo1/blob/master/mulsub_test.go)
-    name                     old time/op    new time/op    delta
-    MulSub-4                    270µs ± 0%     219µs ± 0%  -18.62%  (p=0.000 n=35+40)
+    init.0()
+    init.1()
+    // ...
     
-    2. Total size of all .a files in pkg/ shrank by 0.002%.
+    we construct a static array of functions:
     
-    3. The compilecmp benchmark showed no decline.
-    name        old time/op       new time/op       delta
-    Template          2.37s ± 3%        2.36s ± 1%    ~     (p=0.233 n=19+18)
-    Unicode           1.32s ± 2%        1.34s ± 5%  +1.32%  (p=0.011 n=20+18)
-    GoTypes           7.88s ± 1%        7.87s ± 1%    ~     (p=0.758 n=20+20)
-    Compiler          37.5s ± 1%        37.6s ± 1%    ~     (p=0.194 n=20+19)
-    SSA               83.7s ± 2%        83.5s ± 2%    ~     (p=0.569 n=20+19)
-    Flate             1.46s ± 3%        1.45s ± 1%    ~     (p=0.619 n=20+17)
-    GoParser          1.87s ± 2%        1.85s ± 1%  -0.58%  (p=0.048 n=20+18)
-    Reflect           5.10s ± 2%        5.11s ± 2%    ~     (p=0.365 n=19+20)
-    Tar               1.78s ± 2%        1.78s ± 2%    ~     (p=0.531 n=19+20)
-    XML               2.62s ± 1%        2.61s ± 2%    ~     (p=0.057 n=17+19)
-    [Geo mean]        4.68s             4.67s       -0.07%
+    var fns = [...]func(){init.0, init.1, ... }
     
-    name        old user-time/op  new user-time/op  delta
-    Template          2.80s ± 1%        2.79s ± 2%    ~     (p=0.686 n=17+20)
-    Unicode           1.61s ± 4%        1.63s ± 6%    ~     (p=0.222 n=20+20)
-    GoTypes           9.59s ± 1%        9.60s ± 1%    ~     (p=0.482 n=17+20)
-    Compiler          46.1s ± 1%        46.2s ± 1%    ~     (p=0.373 n=20+18)
-    SSA                108s ± 1%         108s ± 2%    ~     (p=0.784 n=20+20)
-    Flate             1.68s ± 3%        1.69s ± 3%    ~     (p=0.335 n=20+19)
-    GoParser          2.20s ± 4%        2.19s ± 2%    ~     (p=0.844 n=20+18)
-    Reflect           5.97s ± 3%        6.01s ± 2%    ~     (p=0.184 n=20+20)
-    Tar               2.11s ± 2%        2.11s ± 4%    ~     (p=0.961 n=19+20)
-    XML               3.07s ± 1%        3.07s ± 3%    ~     (p=0.786 n=16+19)
-    [Geo mean]        5.61s             5.62s       +0.19%
+    and call them in a loop.
     
-    name        old text-bytes    new text-bytes    delta
-    HelloSize         586kB ± 0%        586kB ± 0%    ~     (all equal)
+    This generates marginally bigger, marginally worse code,
+    so we restrict it to cases in which it might start to matter.
     
-    name        old data-bytes    new data-bytes    delta
-    HelloSize        5.46kB ± 0%       5.46kB ± 0%    ~     (all equal)
+    500 was selected as a mostly arbitrary threshold for "lots".
+    Each call uses two Progs, one for PCDATA and one for the call,
+    so at 500 calls we use ~1000 Progs.
+    At concurrency==8, we get a Prog cache of about
+    1000 Progs per worker.
+    So a threshold of 500 should more or less avoid
+    exhausting the Prog cache in most cases.
     
-    name        old bss-bytes     new bss-bytes     delta
-    HelloSize        72.9kB ± 0%       72.9kB ± 0%    ~     (all equal)
-    
-    name        old exe-bytes     new exe-bytes     delta
-    HelloSize        1.03MB ± 0%       1.03MB ± 0%    ~     (all equal)
-    
-    4. The go1 benchmark showed no decline in total.
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              41.7s ± 1%     41.7s ± 1%    ~     (p=0.966 n=40+40)
-    Fannkuch11-4                23.6s ± 0%     23.6s ± 1%  -0.23%  (p=0.000 n=40+40)
-    FmtFprintfEmpty-4           844ns ± 1%     834ns ± 1%  -1.23%  (p=0.000 n=40+40)
-    FmtFprintfString-4         1.39µs ± 1%    1.40µs ± 1%  +0.71%  (p=0.000 n=40+40)
-    FmtFprintfInt-4            1.44µs ± 1%    1.45µs ± 1%  +0.70%  (p=0.000 n=40+40)
-    FmtFprintfIntInt-4         2.10µs ± 1%    2.10µs ± 1%  +0.30%  (p=0.000 n=40+40)
-    FmtFprintfPrefixedInt-4    2.49µs ± 0%    2.50µs ± 1%  +0.66%  (p=0.000 n=32+40)
-    FmtFprintfFloat-4          4.42µs ± 1%    4.46µs ± 2%  +0.94%  (p=0.000 n=40+40)
-    FmtManyArgs-4              8.31µs ± 1%    8.22µs ± 1%  -1.09%  (p=0.000 n=40+40)
-    GobDecode-4                 105ms ± 1%     102ms ± 1%  -2.30%  (p=0.000 n=39+39)
-    GobEncode-4                90.2ms ± 1%    88.7ms ± 1%  -1.66%  (p=0.000 n=40+39)
-    Gzip-4                      4.17s ± 1%     4.16s ± 1%    ~     (p=0.785 n=40+40)
-    Gunzip-4                    608ms ± 1%     608ms ± 1%    ~     (p=0.481 n=40+40)
-    HTTPClientServer-4          697µs ± 2%     684µs ± 3%  -1.89%  (p=0.000 n=37+40)
-    JSONEncode-4                255ms ± 1%     256ms ± 1%  +0.35%  (p=0.000 n=40+40)
-    JSONDecode-4                920ms ± 1%     926ms ± 1%  +0.64%  (p=0.000 n=40+39)
-    Mandelbrot200-4            49.3ms ± 1%    49.3ms ± 0%  +0.07%  (p=0.005 n=40+40)
-    GoParse-4                  46.8ms ± 2%    46.7ms ± 1%    ~     (p=1.000 n=40+40)
-    RegexpMatchEasy0_32-4      1.27µs ± 0%    1.27µs ± 1%    ~     (p=0.057 n=40+40)
-    RegexpMatchEasy0_1K-4      7.97µs ± 7%    7.92µs ± 5%    ~     (p=0.094 n=40+40)
-    RegexpMatchEasy1_32-4      1.28µs ± 1%    1.28µs ± 1%    ~     (p=0.406 n=40+40)
-    RegexpMatchEasy1_1K-4      10.5µs ± 4%    10.5µs ± 3%    ~     (p=0.855 n=40+40)
-    RegexpMatchMedium_32-4     2.04µs ± 0%    2.04µs ± 1%  -0.22%  (p=0.000 n=39+40)
-    RegexpMatchMedium_1K-4      541µs ± 0%     540µs ± 1%  -0.25%  (p=0.000 n=40+38)
-    RegexpMatchHard_32-4       29.3µs ± 1%    29.3µs ± 0%    ~     (p=0.149 n=40+40)
-    RegexpMatchHard_1K-4        878µs ± 1%     880µs ± 0%  +0.14%  (p=0.005 n=36+35)
-    Revcomp-4                  81.8ms ± 2%    81.4ms ± 2%  -0.43%  (p=0.015 n=38+39)
-    Template-4                  1.05s ± 1%     1.05s ± 1%    ~     (p=0.302 n=40+35)
-    TimeParse-4                7.18µs ± 1%    7.26µs ± 1%  +1.05%  (p=0.000 n=40+36)
-    TimeFormat-4               13.1µs ± 1%    13.1µs ± 1%    ~     (p=0.698 n=37+40)
-    [Geo mean]                  733µs          732µs       -0.16%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4              7.34MB/s ± 1%  7.51MB/s ± 1%  +2.36%  (p=0.000 n=39+39)
-    GobEncode-4              8.51MB/s ± 1%  8.65MB/s ± 1%  +1.69%  (p=0.000 n=40+39)
-    Gzip-4                   4.66MB/s ± 1%  4.66MB/s ± 1%    ~     (p=0.783 n=40+40)
-    Gunzip-4                 31.9MB/s ± 1%  31.9MB/s ± 1%    ~     (p=0.466 n=40+40)
-    JSONEncode-4             7.61MB/s ± 1%  7.58MB/s ± 1%  -0.35%  (p=0.001 n=40+40)
-    JSONDecode-4             2.11MB/s ± 1%  2.10MB/s ± 1%  -0.52%  (p=0.000 n=38+39)
-    GoParse-4                1.24MB/s ± 2%  1.24MB/s ± 1%    ~     (p=0.556 n=40+39)
-    RegexpMatchEasy0_32-4    25.1MB/s ± 0%  25.1MB/s ± 1%    ~     (p=0.064 n=40+40)
-    RegexpMatchEasy0_1K-4     129MB/s ± 8%   129MB/s ± 5%    ~     (p=0.094 n=40+40)
-    RegexpMatchEasy1_32-4    25.0MB/s ± 1%  25.1MB/s ± 1%    ~     (p=0.331 n=40+40)
-    RegexpMatchEasy1_1K-4    97.7MB/s ± 4%  97.8MB/s ± 3%    ~     (p=0.851 n=40+40)
-    RegexpMatchMedium_32-4    490kB/s ± 0%   490kB/s ± 0%    ~     (all equal)
-    RegexpMatchMedium_1K-4   1.89MB/s ± 0%  1.90MB/s ± 1%  +0.12%  (p=0.031 n=40+40)
-    RegexpMatchHard_32-4     1.09MB/s ± 1%  1.09MB/s ± 1%    ~     (p=0.597 n=40+40)
-    RegexpMatchHard_1K-4     1.16MB/s ± 1%  1.16MB/s ± 1%    ~     (p=0.565 n=40+35)
-    Revcomp-4                31.1MB/s ± 2%  31.2MB/s ± 2%  +0.44%  (p=0.018 n=38+39)
-    Template-4               1.85MB/s ± 1%  1.85MB/s ± 1%    ~     (p=0.873 n=40+40)
-    [Geo mean]               6.66MB/s       6.67MB/s       +0.26%
-    
-    Change-Id: Icc972d8a78ea06c32c3aa15733ff0537c82c2dc7
-    Reviewed-on: https://go-review.googlesource.com/58950
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I276b887173ddbf65b2164ec9f9b5eb04d8c753c2
+    Reviewed-on: https://go-review.googlesource.com/41500
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/arm/ssa.go        |   2 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules |  24 ++
- src/cmd/compile/internal/ssa/gen/ARMOps.go |   1 +
- src/cmd/compile/internal/ssa/opGen.go      |  16 +
- src/cmd/compile/internal/ssa/rewriteARM.go | 528 +++++++++++++++++++++++++++++
- 5 files changed, 570 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/init.go  | 78 ++++++++++++++++++++++++++++++++----
+ src/cmd/compile/internal/gc/sinit.go |  5 ++-
+ 2 files changed, 74 insertions(+), 9 deletions(-)

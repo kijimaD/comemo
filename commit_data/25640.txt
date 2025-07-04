@@ -1,25 +1,20 @@
-commit 863d9b66f812844e4bf6d3abc3a8161b25bd242c
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 23 22:50:58 2016 -0500
+commit c1b6e392f56a35d4e59e1e938c68e4c5db4fd919
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 30 12:47:24 2015 +1300
 
-    cmd/asm: add requested amd64 instructions
+    cmd/internal/obj, cmd/link, runtime: increase stack limit to accommodate larger frames on ppc64x
     
-    Add amd64 instructions I promised to add for Go 1.6
-    at the beginning of January.
+    Larger stack frames mean nosplit functions use more stack and so the limit
+    needs to increase.
     
-    These may be the last instructions added by hand.
-    I intend to generate the whole set mechanically for Go 1.7.
+    The change to test/nosplit.go is a bit ugly but I can't really think of a
+    way to make it nicer.
     
-    Fixes #13822.
-    
-    Change-Id: I8c6bae2efd25f717f9ec750402e50f408a911d2b
-    Reviewed-on: https://go-review.googlesource.com/18853
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I2616b58015f0b62abbd62951575fcd0d2d8643c2
+    Reviewed-on: https://go-review.googlesource.com/16504
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/arch/arch.go            |   2 +-
- src/cmd/asm/internal/asm/testdata/amd64.s    |   6 +
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 264 +++++++++++++--------------
- src/cmd/internal/obj/x86/a.out.go            |  37 +++-
- src/cmd/internal/obj/x86/anames.go           |  37 +++-
- src/cmd/internal/obj/x86/asm6.go             |  42 +++++
- 6 files changed, 239 insertions(+), 149 deletions(-)
+ src/cmd/internal/obj/stack.go |  2 +-
+ src/runtime/stack.go          |  2 +-
+ test/nosplit.go               | 64 ++++++++++++++++++++++++++-----------------
+ 3 files changed, 41 insertions(+), 27 deletions(-)

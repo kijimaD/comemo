@@ -1,44 +1,22 @@
-commit 4953b87296f53c5e0c7c62a775f1c088d4212902
+commit 725f084b1165f910e32cb40006c9d530d95ca938
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 10:18:12 2012 -0800
+Date:   Thu Jan 12 10:18:03 2012 -0800
 
-    testing: fix defer race
+    cmd/go: fix linker arguments
     
-    In a test that does
+    Especially affects tests, but not test-specific.
+    The linker was only being told where to find the
+    direct dependencies of package main.  Sometimes that
+    was sufficient to find the rest; sometimes not.
     
-            func TestFoo(t *testing.T) {
-                    defer cleanup()
-                    t.Fatal("oops")
-            }
+    Fixes #2657.
+    Fixes #2666.
+    Fixes #2680.
     
-    it can be important that cleanup run as the test fails.
-    The old code did this in Fatal:
-    
-            t.signal <- t
-            runtime.Goexit()
-    
-    The runtime.Goexit would run the deferred cleanup
-    but the send on t.signal would cause the main test loop
-    to move on and possibly even exit the program before
-    the runtime.Goexit got a chance to run.
-    
-    This CL changes tRunner (the top stack frame of a test
-    goroutine) to send on t.signal as part of a function
-    deferred by the top stack frame.  This delays the send
-    on t.signal until after runtime.Goexit has run functions
-    deferred by the test itself.
-    
-    For the above TestFoo, this CL guarantees that cleanup
-    will run before the test binary exits.
-    
-    This is particularly important when cleanup is doing
-    externally visible work, like removing temporary files
-    or unmounting file systems.
-    
-    R=golang-dev, r
+    R=golang-dev, adg, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/5532078
+    https://golang.org/cl/5528079
 
- src/pkg/testing/benchmark.go |  8 +++++++-
- src/pkg/testing/testing.go   | 34 ++++++++++++++++++++++++++++++----
- 2 files changed, 37 insertions(+), 5 deletions(-)
+ src/cmd/go/build.go | 88 +++++++++++++++++++++++++++++------------------------
+ src/cmd/go/pkg.go   |  4 +++
+ 2 files changed, 53 insertions(+), 39 deletions(-)

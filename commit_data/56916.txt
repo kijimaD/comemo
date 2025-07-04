@@ -1,17 +1,21 @@
-commit 5e8a7316658c2f300a375041b6e0a606fec4c5f2
-Author: Will Faught <willfaught@users.noreply.github.com>
-Date:   Sat Jul 20 01:18:47 2024 +0000
+commit 7ecd2212e102c7f92a4a6f8da6f0b9595f888f3f
+Author: David Chase <drchase@google.com>
+Date:   Wed May 31 15:33:58 2023 -0400
 
-    README: fix CC BY license name
+    runtime: preserve R29 in the write barrier flush path on ppc64
     
-    Change-Id: Idf3c4427426e3cb74c7749762f2b4f621cf82dba
-    GitHub-Last-Rev: 86f51a5d504fdb596145a41e305bea1171776daa
-    GitHub-Pull-Request: golang/go#68518
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599515
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Surprisingly, it usually survived the call to flush a write
+    barrier.  Usually.
+    
+    Fixes #60368
+    
+    Change-Id: I4792a57738e5829c79baebae4d13b62abe9526b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499679
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- README.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_ppc64x.s | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

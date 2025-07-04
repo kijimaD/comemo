@@ -1,16 +1,21 @@
-commit 4103fedf199dbc80c11455ffe75e3ecf89c77da5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 6 19:06:49 2016 +0000
+commit 95483f262b619a53793baf86512aeabf44fc9d3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 29 19:20:51 2016 -0700
 
-    runtime: skip gdb tests on linux/ppc64 for now
+    os/exec: start checking for context cancelation in Start
     
-    Updates #17366
+    Previously we started checking for context cancelation in Wait, but
+    that meant that when using StdoutPipe context cancelation never took
+    effect.
     
-    Change-Id: Ia4bd3c74c48b85f186586184a7c2b66d3b80fc9c
-    Reviewed-on: https://go-review.googlesource.com/30596
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #16222.
+    
+    Change-Id: I89cd26d3499a6080bf1a07718ce38d825561899e
+    Reviewed-on: https://go-review.googlesource.com/24650
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/runtime-gdb_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/os/exec/exec.go      | 36 ++++++++++++++++---------
+ src/os/exec/exec_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 13 deletions(-)

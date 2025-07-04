@@ -1,50 +1,18 @@
-commit 1e2114349d995ce09c75411463c4cdb59d40d8fc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 4 13:20:36 2024 -0700
+commit 431612eacb1089ad2e264e2aea3b8c9370e9bc62
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 26 10:40:12 2023 -0700
 
-    cmd/compile/internal/syntax: handle parentheses around constraints consistently
+    doc/go1.21: finish last TODO for go/types.Package.GoVersion
     
-    Generally, the parser strips (i.e., does not record in the syntax tree)
-    unnecessary parentheses. Specifically, given a type parameter list of
-    the form
+    Updates #58645.
     
-            [P (C),]
-    
-    it records it as
-    
-            [P C]
-    
-    and then no comma is required when printing. However it did only strip
-    one level of parentheses, and
-    
-            [P ((C)),]
-    
-    made it through, causing a panic when printing. Somewhat related,
-    the printer stripped parentheses around constraints as well.
-    
-    This CL implements a more consistent behavior:
-    
-    1) The parser strips all parentheses around constraints. For testing
-       purposes, a local flag (keep_parens) can be set to retain the
-       parentheses.
-    
-    2) The printer code now correctly intruces a comma if parentheses
-       are present (e.g., when testing with keep_parens). This case does
-       not occur in normal operation.
-    
-    3) The printer does not strip parentheses around constraints since
-       the parser does it already.
-    
-    For #69206.
-    
-    Change-Id: I974a800265625e8daf9477faa9ee4dd74dbd17ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610758
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I7352bf7f03c478d92ebd0b8345d676d5b2dfccb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513475
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/syntax/parser.go       | 16 ++++++++++++++--
- src/cmd/compile/internal/syntax/printer.go      | 12 ++++++++----
- src/cmd/compile/internal/syntax/printer_test.go |  6 ++++++
- 3 files changed, 28 insertions(+), 6 deletions(-)
+ doc/go1.21.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

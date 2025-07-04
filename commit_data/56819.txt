@@ -1,31 +1,28 @@
-commit 4f77a83589baa5a3038cc6e35615084dc7e5f0c1
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu May 30 14:31:40 2024 -0700
+commit a965318ac051b112b61fcbbbfe4e0be00088abd7
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 24 14:16:38 2023 -0400
 
-    internal/syscall/unix: fix UTIME_OMIT for dragonfly
+    go/types: set correct Pos for T in struct{p.T}
     
-    CL 219638 added UTIME_OMIT values for various systems. The value for
-    DragonFly BSD appears to be incorrect.
+    Previously, the field Var for T created for struct{p.T}
+    would use the Pos of the ast.Field, which coincides with p.
+    This change makes it use the Pos of T.
     
-    The correct value is -2 (see references below), while -1 is used for
-    UTIME_NOW. As a result, timestamp is changed to the current time instead
-    of not touching. This should have been caught by the accompanying test
-    case, TestChtimesWithZeroTimes, but its failures are essentially skipped
-    on dragonfly (this is being fixed separately in a followup CL 591535).
+    Errors about the field type are still reported at the
+    position of the ast.Field (e.g. *p.T) not the field T.
     
-    Improve formatting while at it.
+    Fixes #60372
     
-    References:
-     - https://github.com/DragonFlyBSD/DragonFlyBSD/blob/965b380e9609/sys/sys/stat.h#L284
-     - https://go.googlesource.com/sys/+/refs/tags/v0.20.0/unix/zerrors_dragonfly_amd64.go#1421
-    
-    Change-Id: I432360ca982c84b7cd70d0cf01d860af9ff985fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589496
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I06000874f2018d47159493626da3d16e6716f4c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497882
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
 
- src/internal/syscall/unix/at_sysnum_dragonfly.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/struct.go     | 4 ++--
+ src/go/types/struct.go                        | 4 ++--
+ src/internal/types/testdata/check/decls3.go   | 4 ++--
+ src/internal/types/testdata/examples/types.go | 8 ++++----
+ 4 files changed, 10 insertions(+), 10 deletions(-)

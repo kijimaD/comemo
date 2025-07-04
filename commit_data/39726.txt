@@ -1,20 +1,19 @@
-commit b136267b87a5004f38665af2bc4237a53c776f0e
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Thu May 30 23:01:37 2019 +0700
+commit 9238a8ffe12b6eb44aab12de1b861c0f045da8b7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 14 17:08:25 2019 -0400
 
-    cmd/compile: do not set n.Type.Sym in typecheckdeftype
+    cmd/go: skip package loading if explicitly cleaning a cache
     
-    typecheckdef calls typecheckdeftype, which will also set n.Type.Sym,
-    causing duplicated work. So do not set n.Type.Sym in typecheckdeftype to
-    prevent this, and also keep populating n.Type info in one place make
-    more sense.
+    Fixes #28680
+    Fixes #29925
     
-    Change-Id: I62671babd750f9d5d0bbfcf8d7eecd2cc314c955
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179579
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I9f7effb3e7743b96b0b8a797d6e1044b39d9b86b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167717
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/typecheck.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/go/alldocs.go                          |  3 ++-
+ src/cmd/go/internal/clean/clean.go             | 14 ++++++++++++--
+ src/cmd/go/testdata/script/mod_clean_cache.txt |  5 ++---
+ 3 files changed, 16 insertions(+), 6 deletions(-)

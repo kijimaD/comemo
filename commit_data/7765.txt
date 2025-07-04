@@ -1,19 +1,22 @@
-commit 66f09fd459cc7477c1c2f0de5a296ab84920f473
+commit e72156b316f158c3357856a94b5fc60564f78b50
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 15 14:05:37 2011 -0400
+Date:   Tue Mar 15 14:05:07 2011 -0400
 
-    gc: diagnose unused labels
+    remove unused labels
     
-    R=ken2
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4287047
+    https://golang.org/cl/4274052
 
- src/cmd/5g/ggen.c |   2 +-
- src/cmd/6g/ggen.c |   2 +-
- src/cmd/8g/ggen.c |   2 +-
- src/cmd/gc/dcl.c  |   1 -
- src/cmd/gc/gen.c  | 157 +++++++++++++++++++++++++++++++++---------------------
- src/cmd/gc/go.h   |   9 +++-
- test/label.go     |  60 +++++++++++++++++++++
- test/label1.go    |  85 +++++++++++++++++++++++++++++
- 8 files changed, 251 insertions(+), 67 deletions(-)
+ src/pkg/net/ip.go            | 109 +++++++++++++++++++++++++++++++++++++++----
+ src/pkg/template/template.go |   1 -
+ src/pkg/xml/xml.go           |   1 -
+ test/fixedbugs/bug055.go     |  29 +++++++-----
+ test/fixedbugs/bug076.go     |  10 ++--
+ test/fixedbugs/bug077.go     |   5 +-
+ test/fixedbugs/bug091.go     |  11 +++--
+ test/fixedbugs/bug137.go     |  19 +++++---
+ test/fixedbugs/bug140.go     |  13 +++++-
+ test/fixedbugs/bug178.go     |  18 ++++---
+ test/fixedbugs/bug179.go     |  14 +++---
+ 11 files changed, 177 insertions(+), 53 deletions(-)

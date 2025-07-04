@@ -1,21 +1,25 @@
-commit 04a4dca2ac3d4f963e3c740045ce7a2959bf0319
-Author: David Chase <drchase@google.com>
-Date:   Wed Feb 17 12:17:25 2021 -0500
+commit 0e3114871e221485d89bf94dc019fcfa3df9c21a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 20 18:07:00 2020 -0400
 
-    cmd/compile: refactor out an almost-superfluous arg
+    [dev.link] cmd/link: fix hash collision check
     
-    Moved all "target" information into "storeRC"; it was a register
-    cursor, now it is a register cursor that also carries the store
-    target with it if there are no registers.  Also allows booby-trapping
-    to ensure that the target is unambiguously one or the other.
+    For content-addressable symbols, we build its content hash based
+    on the symbol data and relocations. When the compiler builds the
+    symbol data, it may not always include the trailing zeros, e.g.
+    the data of [10]int64{1,2,3} is only the first 24 bytes.
+    Therefore, we may end up with symbols with the same contents
+    (thus same hash) but different sizes. This is not actually a hash
+    collision. In this case, we can deduplicate them and keep the one
+    with the larger size.
     
-    For #40724.
-    
-    Change-Id: I53ba4b91679e5fcc89c63b7d31225135299c6ec6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293397
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: If6834542d7914cc00f917d7db151955e5aee6f30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243718
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 162 +++++++++++++++------------
- 1 file changed, 90 insertions(+), 72 deletions(-)
+ src/cmd/link/internal/loader/loader.go    | 63 +++++++++++++++----------------
+ src/cmd/link/link_test.go                 | 20 ++++++++++
+ src/cmd/link/testdata/testHashedSyms/p.go | 33 ++++++++++++++++
+ 3 files changed, 84 insertions(+), 32 deletions(-)

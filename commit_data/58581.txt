@@ -1,22 +1,25 @@
-commit 77f5ecef3a4f30644eadb922a8ba5deb76fa8e07
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 13 10:24:50 2025 -0800
+commit 515f3c0da643a3c2dfcf494ac0a7cf8f65002f38
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Nov 20 13:37:33 2023 +0000
 
-    all: run gofmt
+    reflect: tweak logic for 'case Array' in IsZero
     
-    Change-Id: I0af1903ed1e4f2bf4ea273847b024520c577ef6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642496
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    For 'case Array' in IsZero, check 'v.flag&flagIndir == 0' in the
+    first place, rename 'array' to 'typ' for consistency, and remove
+    stale comment.
+    
+    Add line breaks for long sentence in isZero.
+    
+    Change-Id: Id06d01fd61eefd205bf4626e6b920ae82b459455
+    GitHub-Last-Rev: 7225ca3f7b55cbef58387365ed8f3ff104236a06
+    GitHub-Pull-Request: golang/go#64270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543656
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/objabi/path_test.go   | 36 +++++++++++++++++-----------------
- src/cmd/internal/pgo/deserialize.go    |  2 +-
- src/cmd/internal/pgo/pgo.go            |  1 -
- src/cmd/internal/pgo/serialize_test.go | 20 +++++++++----------
- src/encoding/xml/xml_test.go           |  4 ++--
- src/reflect/all_test.go                |  4 ++--
- src/runtime/traceback_system_test.go   |  4 ++--
- 7 files changed, 35 insertions(+), 36 deletions(-)
+ src/reflect/value.go | 30 ++++++++++++++++++------------
+ 1 file changed, 18 insertions(+), 12 deletions(-)

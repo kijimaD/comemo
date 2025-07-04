@@ -1,12 +1,17 @@
-commit 8f48efb31c7cdddeec7d4221174254466b0891dd
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Fri May 13 02:05:48 2016 +0530
+commit 5f08e480f447a7f197f41686bf672d39b10c3518
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Mar 24 10:40:34 2016 +0100
 
-    fmt: remove extra space in too few arguments example
+    misc/ios: pass through SIGCONT in the exec wrapper
     
-    Change-Id: Iae4855c52c4da9755277251d22121226507ea26a
-    Reviewed-on: https://go-review.googlesource.com/23074
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Instruct lldb to pass through SIGCONT unhindered when running iOS
+    tests. Fixes the TestSIGCONT test in os/signal.
+    
+    For #14318
+    
+    Change-Id: I669264208cc3d6ecae9fbc8790e0b753a93a5e04
+    Reviewed-on: https://go-review.googlesource.com/21071
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/fmt/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/ios/go_darwin_arm_exec.go | 1 +
+ 1 file changed, 1 insertion(+)

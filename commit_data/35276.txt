@@ -1,31 +1,30 @@
-commit bcdbd58ce48d71cb912238caaa193d832901e227
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu May 3 15:38:37 2018 +0200
+commit 14f8027a10040b99773bcd5cb452579926cf2758
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jan 29 10:35:39 2018 +0000
 
-    cmd/link/internal/ld: skip DWARF combining for iOS binaries
+    cmd/vet: extra args if any formats are indexed are ok
     
-    The macOS and iOS external linker strips DWARF information from
-    binaries because it assumes the information will go into separate
-    DWARF information .dSYM files. To preserve the embedded debugging
-    information, the Go linker re-combines the separate DWARF
-    information into the unmapped __DWARF segment of the final
-    executable.
+    For example, the following program is valid:
     
-    However, the iOS dyld linker does not allow unmapped segments, so
-    use the presence of the LC_VERSION_MIN_IPHONEOS linker command to
-    skip DWARF combining. Note that we can't use GOARCH for detection
-    since the iOS emulator runs on  GOARCH=386 and GOARCH=amd64 and we
-    will run into https://golang.org/issues/25148.
+            func main() {
+                    fmt.Printf("%[1]d", 1, 2, 3)
+            }
     
-    Updates #25148.
+    If any of the formats are indexed, fmt will not complain about unused
+    extra arguments. See #22867 for more detail.
     
-    Change-Id: I29a1bc468fdee74ab3b27c46931501a0a8120c66
-    Reviewed-on: https://go-review.googlesource.com/111275
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Make vet follow the same logic, to avoid erroring on programs that would
+    run without fmt complaining.
+    
+    Fixes #23564.
+    
+    Change-Id: Ic9dede5d4c37d1cd4fa24714216944897b5bb7cc
+    Reviewed-on: https://go-review.googlesource.com/90495
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/dwarf_test.go                      | 36 ++++++++--
- src/cmd/link/internal/ld/lib.go                 | 11 ++--
- src/cmd/link/internal/ld/macho_combine_dwarf.go | 88 ++++++++++++++-----------
- 3 files changed, 88 insertions(+), 47 deletions(-)
+ src/cmd/vet/print.go          | 10 ++++++++++
+ src/cmd/vet/testdata/print.go |  3 ++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

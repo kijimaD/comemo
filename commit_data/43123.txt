@@ -1,19 +1,20 @@
-commit c4971a14a7cac78849f4d0908e7140263129bdf7
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Thu Sep 24 15:33:45 2020 -0700
+commit 035c018d40c0a7895880e235048d425ea3e3fa6b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 11 09:39:54 2020 -0400
 
-    testing: add benchmark for TB.Helper
+    runtime: skip TestSignalIgnoreSIGTRAP on known-flaky OpenBSD builders
     
-    Adds a benchmark for TB.Helper, to use as a judge of future
-    improvements like CL 231717.
+    This test is flaky, and the cause is suspected to be an OpenBSD kernel bug.
+    Since there is no obvious workaround on the Go side, skip the test on
+    builders whose versions are known to be affected.
     
-    Change-Id: I17c40d482fc12caa3eb2c1cda39fd8c42356b422
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257317
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Fixes #17496
+    
+    Change-Id: Ifa70061eb429e1d949f0fa8a9e25d177afc5c488
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222856
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- src/testing/helper_test.go | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ src/runtime/crash_unix_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,14 +1,22 @@
-commit 6ba3e6a8c76c3266d75e62c6ecf47b2f795ba371
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Jun 30 13:23:32 2020 -0400
+commit ace25f82df0a27eb26a518e1883eb56c1bec6c5e
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Jan 22 15:30:52 2020 -0500
 
-    doc/go1.15: add html/template and text/template docs
+    cmd/link: ensure cgo cflags do not leak into tvOS test
     
-    Updates #37419
+    Running the 'TestBuildForTvOS' test with CGO_CFLAGS set
+    with certain values would cause the test to fail. all.bash
+    would fail when CGO_CFLAGS was set to '-mmacosx-version-min=10.10'
+    because the --macosx-version-min flag is incompatible with tvOS.
+    The change guards against using an unintended flag in the unit test.
     
-    Change-Id: I23abfeabc6be704aad9da2649bbbe7c8e237dfab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240546
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Updates #35459
+    
+    Change-Id: Ifc43f3ebfb23d37aabeaac2ea9efae5b877991bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215957
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.15.html | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/cmd/link/link_test.go | 1 +
+ 1 file changed, 1 insertion(+)

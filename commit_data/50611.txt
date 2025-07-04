@@ -1,22 +1,19 @@
-commit 361f5eba9f9e9902226e7edac76646253b7025e4
-Author: cui fliter <imcusg@gmail.com>
-Date:   Tue Sep 27 01:31:31 2022 +0000
+commit e0e6e4d23fe840c2c9b4caed30930cad6788b797
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Nov 3 10:58:59 2021 -0400
 
-    all: use strings.CutPrefix
+    internal/fuzz: improve error for mismatched types
     
-    Updates #42537
+    Fixes #48635
     
-    Change-Id: Ice23d7d36bbede27551cbc086119694f6a3b5e4a
-    GitHub-Last-Rev: 0d65208313ea318725159186fad045fc6400fb25
-    GitHub-Pull-Request: golang/go#55347
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432895
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia3cde119d5eb31bc771fe3a39acb2372dbd988ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361114
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/build/build.go     | 5 +++--
- src/go/printer/comment.go | 7 ++++---
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt |  5 +++--
+ src/internal/fuzz/fuzz.go                | 10 +++++++---
+ 2 files changed, 10 insertions(+), 5 deletions(-)

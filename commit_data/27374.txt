@@ -1,19 +1,22 @@
-commit 5bd37b8e78980beed2861bbdc7f8f28fc3f72671
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon May 9 02:13:03 2016 +1000
+commit 7e8e9abe0a9ef49dfcba0ec5e18232327d581fe9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 23 08:51:38 2016 -0700
 
-    runtime: stop using sigreturn on openbsd/386
+    cmd/compile: reduce stutter
     
-    In future releases of OpenBSD, the sigreturn syscall will no longer
-    exist. As such, stop using sigreturn on openbsd/386 and just return
-    from the signal trampoline (as we already do for openbsd/amd64 and
-    openbsd/arm).
+    This is follow-up 1 of 3 to CL 20959.
     
-    Change-Id: Ic4de1795bbfbfb062a685832aea0d597988c6985
-    Reviewed-on: https://go-review.googlesource.com/23024
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I9bddf7d88333fa4755e03ff8a034a35bd01b7855
+    Reviewed-on: https://go-review.googlesource.com/21052
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/sys_openbsd_386.s | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/compile/internal/gc/closure.go |  8 ++------
+ src/cmd/compile/internal/gc/const.go   | 10 +++-------
+ src/cmd/compile/internal/gc/esc.go     |  3 +--
+ src/cmd/compile/internal/gc/export.go  |  3 +--
+ src/cmd/compile/internal/gc/inl.go     |  6 ++----
+ 5 files changed, 9 insertions(+), 21 deletions(-)

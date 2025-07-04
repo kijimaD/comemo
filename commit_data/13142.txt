@@ -1,15 +1,19 @@
-commit f430d0e6096093c9b21b05c48acabe4ab15f87cd
+commit e4ed9494e5a9a6f2c05f84f9279c8062d8a9427d
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 23 13:45:53 2012 -0700
+Date:   Wed May 23 11:19:38 2012 -0700
 
-    cmd/api: add flag to specify contexts
+    net/http: fix response Connection: close, close client connections
     
-    I needed this to explore per-GOOS/GOARCH differences in pkg
-    syscall for a recent CL.  Others may find it useful too.
+    Fixes #3663
+    Updates #3540 (fixes it more)
+    Updates #1967 (fixes it more, re-enables a test)
     
-    R=golang-dev, rsc
+    R=golang-dev, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/6236046
+    https://golang.org/cl/6213064
 
- src/cmd/api/goapi.go | 42 ++++++++++++++++++++++++++++++++++++------
- 1 file changed, 36 insertions(+), 6 deletions(-)
+ src/pkg/net/http/serve_test.go     | 14 +++++++++-----
+ src/pkg/net/http/server.go         |  5 +++++
+ src/pkg/net/http/transport.go      |  9 ++++++++-
+ src/pkg/net/http/transport_test.go | 22 ++++++++++++----------
+ 4 files changed, 34 insertions(+), 16 deletions(-)

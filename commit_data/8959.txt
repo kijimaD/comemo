@@ -1,14 +1,15 @@
-commit 502589e0304d2a196bbb2ff373ca2d82cd614df5
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Jul 6 16:22:21 2011 -0400
+commit 7b0bb48056a59d3829ee47ab853b282d38b1efd1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 6 13:00:54 2011 -0700
 
-    crypto/tls: fix generate_cert.go
+    json: fix test if rand returns 0.
     
-    Fixes #2030.
+    Fixes test when run with gccgo using optimization, which
+    changes the order of the calls to rand.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4635092
+    https://golang.org/cl/4639101
 
- src/pkg/crypto/tls/generate_cert.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/json/scanner_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

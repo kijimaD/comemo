@@ -1,26 +1,15 @@
-commit 73a304356bd1edfac204c639859a01643a3f8955
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 12 15:54:21 2014 -0500
+commit 3cac829ff403e229729434a33cb59ae6dfc23209
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Feb 13 00:03:27 2014 +0400
 
-    runtime: fix non-concurrent sweep
+    runtime: temporary disable concurrent GC sweep
+    We see failures on builders, e.g.:
+    http://build.golang.org/log/70bb28cd6bcf8c4f49810a011bb4337a61977bf4
     
-    State of the world:
-    
-    CL 46430043 introduced a new concurrent sweep but is broken.
-    
-    CL 62360043 made the new sweep non-concurrent
-    to try to fix the world while we understand what's wrong with
-    the concurrent version.
-    
-    This CL fixes the non-concurrent form to run finalizers.
-    This CL is just a band-aid to get the build green again.
-    
-    Dmitriy is working on understanding and then fixing what's
-    wrong with the concurrent sweep.
-    
-    TBR=dvyukov
+    LGTM=rsc, dave
+    R=rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/62370043
+    https://golang.org/cl/62360043
 
- src/pkg/runtime/mgc0.c | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

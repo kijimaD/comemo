@@ -1,0 +1,35 @@
+commit 79fd633632cdbaf9ca38f7559e5abb5c07fbbd9d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 4 03:08:26 2024 +0000
+
+    internal/weak: shade pointer in weak-to-strong conversion
+    
+    There's a bug in the weak-to-strong conversion in that creating the
+    *only* strong pointer to some weakly-held object during the mark phase
+    may result in that object not being properly marked.
+    
+    The exact mechanism for this is that the new strong pointer will always
+    point to a white object (because it was only weakly referenced up until
+    this point) and it can then be stored in a blackened stack, hiding it
+    from the garbage collector.
+    
+    This "hide a white pointer in the stack" problem is pretty much exactly
+    what the Yuasa part of the hybrid write barrier is trying to catch, so
+    we need to do the same thing the write barrier would do: shade the
+    pointer.
+    
+    Added a test and confirmed that it fails with high probability if the
+    pointer shading is missing.
+    
+    Fixes #69210.
+    
+    Change-Id: Iaae64ae95ea7e975c2f2c3d4d1960e74e1bd1c3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610396
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/weak/pointer_test.go | 82 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/mheap.go              | 27 ++++++++++++-
+ 2 files changed, 108 insertions(+), 1 deletion(-)

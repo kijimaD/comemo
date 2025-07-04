@@ -1,17 +1,16 @@
-commit 81188661f1fd51f67dfff40c451d4e878b533a66
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 8 00:33:32 2021 +0700
+commit 23922cf83b0933dd0612d2256fb0977c17e81bc7
+Merge: 788dad53c5 d1d1099c91
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 22 20:03:06 2020 -0500
 
-    go/types: do not format TParams when hashing
+    [dev.typeparams] all: merge dev.regabi (d1d1099) into dev.typeparams
     
-    This is a port of CL 347534 to go/types.
+    Merge List:
     
-    Change-Id: I2b15a29992c430e34592d110be16d7b2b10521a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348029
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    * 2020-12-23 d1d1099c91 [dev.regabi] cmd/compile: fixes for big rewrite
+    
+    Change-Id: I245471cf78138eb7848c747002e2eb47c287065b
 
- src/go/types/typestring.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/gsubr.go | 11 ++++++-----
+ src/cmd/compile/internal/gc/ssa.go   | 10 ++++++----
+ 2 files changed, 12 insertions(+), 9 deletions(-)

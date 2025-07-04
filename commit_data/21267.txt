@@ -1,18 +1,14 @@
-commit 3b63b69d2f16be676d4fdc4f4ac697ed92abf523
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jan 15 10:43:04 2015 +1100
+commit 8655f04d8e21884ab69c89eb760df2e31245af91
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 16 12:16:25 2014 +1100
 
-    test: comment the behavior and use of cmplxdivide*
+    doc: propose $GOPATH as $HOME/work, not $HOME/go
     
-    The various files are confusingly named and their operation
-    not easy to see. Add a comment to cmplxdivide.c, one of the few
-    C files that will endure in the repository, to explain how to build
-    and run the test.
+    Related to issue #9228
     
-    Change-Id: I1fd5c564a14217e1b9815b09bc24cc43c54c096f
-    Reviewed-on: https://go-review.googlesource.com/2850
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0819e657f6393788754d1412f9c2126a170d4cf1
+    Reviewed-on: https://go-review.googlesource.com/1577
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/cmplxdivide.c  | 13 ++++++++++++-
- test/cmplxdivide.go |  1 +
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ doc/code.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

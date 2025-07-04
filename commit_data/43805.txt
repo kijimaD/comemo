@@ -1,26 +1,18 @@
-commit c7233dd063cd8bf24460b280e3929458e64f4315
-Author: Kai Lüke <kai@kinvolk.io>
-Date:   Mon Nov 16 12:05:13 2020 +0000
+commit 47b5efad5dba1c275128cb74b18a3f059fafd2e2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 22:27:23 2020 -0700
 
-    cmd/go: permit wrongly rejected -Wl,-O... linker flags
+    cmd/compile: convert nilcheck elim rules to typed aux
     
-    A typo caused the validation rule to check against -WL,-O... which is
-    not a regular flag because the L should be lowercase as in the other
-    rules. This caused valid linker flags to be rejected and people had to
-    work around this by filtering their default flags that include, e.g.,
-    -Wl,-O1 for a simple link optimization.
-    Fix the typo that wrongly rejected -Wl,-O... but allowed a non-existing
-    -WL,-O flag.
+    Passes toolstash-check.
     
-    Change-Id: Ia3bf730f16f5ad98a39d7f17159de17b44075462
-    GitHub-Last-Rev: 2ec7f2a2b92c9c76e707a71f6c5273aa1d512006
-    GitHub-Pull-Request: golang/go#42631
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270278
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ic7efb0e4778844366f581c6310a1a2f3bfc1868a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229686
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/security.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 14 +++++++-------
+ src/cmd/compile/internal/ssa/rewrite.go        |  5 +++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 22 +++++++++++-----------
+ 3 files changed, 23 insertions(+), 18 deletions(-)

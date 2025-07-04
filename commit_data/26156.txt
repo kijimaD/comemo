@@ -1,14 +1,17 @@
-commit 903f096992875e1a64fa43d65081dec551bf1950
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Feb 28 14:56:31 2016 -0800
+commit 2cf5f04ffd4b00821fd0aed40ae8836f6ce8f161
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Dec 19 17:42:16 2015 +1100
 
-    cmd/compile: superficial cleanup in alg.go
+    net: adjust TestInterfaceHardwareAddrWithGetmac
     
-    Passes toolstash -cmp.
+    CL skips interfaces that are not listed on getmac output.
     
-    Change-Id: I6ec2143a30c1f2c15f8ec74422c954ed6b9b1a0f
-    Reviewed-on: https://go-review.googlesource.com/20452
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #13606
+    
+    Change-Id: Ic25c9dc95e8eeff4d84b78e99131a4f97020164c
+    Reviewed-on: https://go-review.googlesource.com/17994
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/cmd/compile/internal/gc/alg.go | 64 ++++++++++++--------------------------
- 1 file changed, 20 insertions(+), 44 deletions(-)
+ src/net/net_windows_test.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

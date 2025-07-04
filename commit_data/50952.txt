@@ -1,26 +1,25 @@
-commit 160bb0e66b96e24120deba5fed927acc47b59b1a
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Oct 20 19:06:05 2022 +0200
+commit 80cb59c0c15d2391f7b8d2571121f8213df70f7b
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Nov 18 11:40:48 2021 -0800
 
-    runtime: fix TestVectoredHandlerExceptionInNonGoThread
+    internal/fuzz: fix chunk swap mutator
     
-    This test is failing on the windows-arm64-10 builder
-    https://build.golang.org/log/c161c86be1af83c349ee02c1b12eff5828818f50.
+    When swapping two chunks of bytes in a slice, don't pick chunks which
+    extend beyond the end of the slice. Also don't pick chunks which
+    intersect with each other.
     
-    It is not failing on windows-arm64-11, so I guess it has something to
-    do with the compiler.
+    Fixes #49047
     
-    This CL simplifies the test so is easier to build.
-    
-    Change-Id: I6e0e1cf237277628f8ebf892c70ab54cd0077680
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444438
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I070eb1888d05ae849ec6122d01c40c45e602019f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365175
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/signal_windows_test.go           |  4 +--
- src/runtime/testdata/testwinlibthrow/main.go |  4 ---
- src/runtime/testdata/testwinlibthrow/veh.c   | 26 ++++++++++++++
- src/runtime/testdata/testwinlibthrow/veh.cpp | 53 ----------------------------
- 4 files changed, 28 insertions(+), 59 deletions(-)
+ src/internal/fuzz/mutators_byteslice.go      | 14 +++++++++++++-
+ src/internal/fuzz/mutators_byteslice_test.go | 19 +++++++++++++------
+ 2 files changed, 26 insertions(+), 7 deletions(-)

@@ -1,22 +1,17 @@
-commit 64205cd4b6d48432fdcbe2127d45e4f786468ff3
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 9 23:44:43 2018 -0400
+commit eef79b6712b306379f5b98259820b1a9736ecbbd
+Author: tengufromsky <nick27surgut@gmail.com>
+Date:   Sun Apr 15 19:08:56 2018 +0300
 
-    cmd/go: report implicit cgo inputs in go list -compiled
+    encoding/xml: remove unnecessary if conditions
     
-    Tools using go list -compiled expect to see an Imports list
-    that includes all the imports in CompiledGoFiles.
-    Make sure the list includes the cgo-generated imports.
+    Fixes gosimple warning "if err != nil { return err };
+    return nil' can be simplified to 'return err"
     
-    Fixes #26136.
-    
-    Change-Id: I6cfe14063f8edfe65a7af37522c7551272115b82
-    Reviewed-on: https://go-review.googlesource.com/128935
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ibbc717fb066ff41ab35c481b6d44980ac809ae09
+    Reviewed-on: https://go-review.googlesource.com/107018
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/list/list.go                   |  8 +++++-
- src/cmd/go/internal/load/pkg.go                    | 23 +++++++++++------
- .../go/testdata/script/list_compiled_imports.txt   | 29 ++++++++++++++++++++++
- 3 files changed, 51 insertions(+), 9 deletions(-)
+ src/encoding/xml/xml.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

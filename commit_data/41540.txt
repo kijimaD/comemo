@@ -1,20 +1,16 @@
-commit 97a268624c9f2830133d2bdfae677f5d99ec82cb
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jan 24 13:52:41 2020 -0800
+commit 26ff21d44da04bc3fdec33caf292a836ac4e692a
+Author: alan <shore.cloud@gmail.com>
+Date:   Thu Oct 10 18:56:27 2019 +0000
 
-    cmd/compile: add -d=ssa/check/seed=SEED
+    runtime: remove no-op pointer writes in treap rotations
     
-    This change adds the option to run the ssa checker with a random seed.
-    The current system uses a completely fixed seed,
-    which is good for reproducibility but bad for exploring the state space.
-    
-    Preserve what we have, but also provide a way for the caller
-    to provide a seed. The caller can report the seed
-    alongside any failures.
-    
-    Change-Id: I2676a8112d8260e6cac86d95d2e8db4d3221aeeb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216418
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If5a272f331fe9da09467efedd0231a4ce34db0f8
+    GitHub-Last-Rev: 4b81a79a92db4b51001ce6660b24c760fd3b630b
+    GitHub-Pull-Request: golang/go#28420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/144999
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ src/runtime/sema.go | 24 ++++--------------------
+ 1 file changed, 4 insertions(+), 20 deletions(-)

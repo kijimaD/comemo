@@ -1,22 +1,20 @@
-commit be1d7388b349e86bc2fc1b8769902875e732918f
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Wed Mar 30 18:19:48 2022 +0800
+commit e59a19ccebe87b84e69625d0b83df6d0fe2499db
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 22 20:33:00 2021 -0700
 
-    internal/bytealg: port bytealg functions to reg ABI on riscv64
+    [dev.typeparams] cmd/compile: simplify walkGoDefer
     
-    This CL adds support for the reg ABI to the bytes functions for
-    riscv64. These are initially under control of the
-    GOEXPERIMENT macro until all changes are in.
+    order already takes care of wrapping all go/defer function calls, so
+    there's no need for walk to duplicate that logic: it's never going to
+    be used.
     
-    Change-Id: I026295ae38e2aba055f7a51c77f92c1921e5ec97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361916
-    Run-TryBot: mzh <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I54e545404e52ab8f9d60151d1bd2aff4b9bd8b72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330270
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/internal/bytealg/compare_riscv64.s   | 228 +++++++++++++++++--------------
- src/internal/bytealg/count_riscv64.s     |  69 ++++++----
- src/internal/bytealg/equal_riscv64.s     | 177 +++++++++++++-----------
- src/internal/bytealg/indexbyte_riscv64.s |  79 +++++++----
- 4 files changed, 315 insertions(+), 238 deletions(-)
+ src/cmd/compile/internal/walk/stmt.go | 128 +++++-----------------------------
+ 1 file changed, 16 insertions(+), 112 deletions(-)

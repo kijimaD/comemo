@@ -1,19 +1,18 @@
-commit ec56bad1fc0568a529ccda944acd18a72998bb86
-Author: Nick Cooper <nmvc@google.com>
-Date:   Thu Mar 12 11:23:44 2015 +1100
+commit b1c0d8a54b6f7b12c10f47adfadfccdff1b5c9ca
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 28 20:34:53 2015 +0000
 
-    mime: add ExtensionByType method
+    net: disable TestTCPReadWriteAllocs on darwin
     
-    Added the inverse of TypeByExtension for discovering an appropriate
-    extensions for a given MIME type.
+    Having this test fail, as it does reliably for me,
+    makes working frustrating. Disable it for now,
+    until we can diagnose the issue.
     
-    Fixes #10144
+    Update issue #8859.
     
-    Change-Id: I6a80e1af3db5d45ad6a4c7ff4ccfdf6a4f424367
-    Reviewed-on: https://go-review.googlesource.com/7444
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9dda30d60793e7a51f48f445c78ccb158068cc25
+    Reviewed-on: https://go-review.googlesource.com/6381
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/mime/type.go      | 45 ++++++++++++++++++++++++++++++++++++++---
- src/mime/type_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 98 insertions(+), 3 deletions(-)
+ src/net/tcp_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

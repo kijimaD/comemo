@@ -1,21 +1,18 @@
-commit bd224fa5222ffb5f8dcbba59400d36f1f777b3ec
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Aug 15 20:10:33 2023 +0800
+commit 13ed4f42f03cac6d9ad701a3041dba06c84dc70d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Dec 21 13:27:04 2022 +0100
 
-    cmd/compile/internal: add spill support for loong64 regABI
+    doc/go1.20: fix typo
     
-    Update #40724
-    
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: Ic01d59bd81420b89c6d4b90c5975bf069d08e7cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521780
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Change-Id: Ia0ce728ca18eefd835220b2076c4aa8ba00cda6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458815
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/loong64/galign.go |  2 ++
- src/cmd/compile/internal/loong64/ssa.go    | 31 +++++++++++++++++++++++++++++-
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ doc/go1.20.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

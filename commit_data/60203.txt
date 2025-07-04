@@ -1,0 +1,32 @@
+commit c506f035d99153accf7a9b322c6596fc7652aea6
+Author: Zxilly <zhouxinyu1001@gmail.com>
+Date:   Tue Mar 12 10:36:15 2024 +0000
+
+    text/template: add detailed info for goodFunc check
+    
+    goodFunc now returns a error describe the exact error it met.
+    builtin call function can print the name of the callee function
+    if the goodFunc check failed.
+    
+    For input {{call .InvalidReturnCountFunc}}
+    
+    before:
+      can't evaluate field InvalidReturnTypeFunc in type *template.T
+    after:
+      invalid function signature for .InvalidReturnTypeFunc: second argument should be error; is bool
+    
+    Change-Id: I9aa53424ac9a2bffbdbeac889390f41218817575
+    GitHub-Last-Rev: 7c1e0dbd08884a38d92a42530104884a9ca52b44
+    GitHub-Pull-Request: golang/go#65509
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561115
+    Reviewed-by: Rob Pike <r@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/text/template/exec.go      | 14 +++++--
+ src/text/template/exec_test.go | 84 +++++++++++++++++++++++++++++++++++++++---
+ src/text/template/funcs.go     | 40 ++++++++++++--------
+ 3 files changed, 114 insertions(+), 24 deletions(-)

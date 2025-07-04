@@ -1,16 +1,16 @@
-commit 12eca21f1c1c0f048b985a2a8545fb304b4383f6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Mar 18 11:49:40 2022 +0100
+commit 6bdfff112f098b371bca718efffa47225cc1b608
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 19 16:25:31 2021 -0700
 
-    syscall: use bytealg.IndexByte in clen
+    [dev.typeparams] cmd/compile/internal/types2: use correct type parameter list in missingMethod
     
-    Change-Id: Ib3f92ea8371a13471acf9304dc9db66c0aae9bf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393756
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #46275
+    
+    Change-Id: Iaed9d8ba034ad793e5c57f2be174f01a535fee95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321232
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/syscall/syscall_unix.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go          | 21 ++++++++++++++++-
+ .../types2/testdata/fixedbugs/issue46275.go2       | 26 ++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)

@@ -1,21 +1,26 @@
-commit 06e5749f0175275cdf0c76836d82a2efd3096386
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 21 19:05:38 2017 -0700
+commit 6ac8ccf4b3b7ffe946b99e5031b88edc611e32ec
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Feb 8 15:31:54 2017 -0600
 
-    cmd/link: cleanup after IntSize->PtrSize conversion
+    crypto/sha512: Add AVX2 version for AMD64
     
-    Passes toolstash-check -all.
+    name          old time/op    new time/op     delta
+    Hash8Bytes-6     913ns ± 0%      667ns ± 0%  -26.91%  (p=0.000 n=10+10)
+    Hash1K-6        6.58µs ± 0%     4.23µs ± 0%  -35.69%  (p=0.000 n=10+9)
+    Hash8K-6        45.9µs ± 0%     28.1µs ± 0%  -38.93%  (p=0.000 n=10+10)
     
-    Updates #19954.
+    name          old speed      new speed       delta
+    Hash8Bytes-6  8.76MB/s ± 0%  11.99MB/s ± 0%  +36.87%  (p=0.000 n=10+8)
+    Hash1K-6       156MB/s ± 0%    242MB/s ± 0%  +55.49%  (p=0.000 n=10+9)
+    Hash8K-6       178MB/s ± 0%    292MB/s ± 0%  +63.74%  (p=0.000 n=10+10)
     
-    Change-Id: Ic162306eed105912491bf1df47e32c32653f824c
-    Reviewed-on: https://go-review.googlesource.com/41490
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic9211d68b02935b2195995f264ec57d6bc36f713
+    Reviewed-on: https://go-review.googlesource.com/36630
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/data.go      | 4 ++++
- src/cmd/link/internal/ld/decodesym.go | 6 +++---
- src/cmd/link/internal/ld/pcln.go      | 6 +++---
- src/cmd/link/internal/ld/symtab.go    | 6 +++---
- 4 files changed, 13 insertions(+), 9 deletions(-)
+ src/crypto/sha512/sha512block_amd64.go |   26 +
+ src/crypto/sha512/sha512block_amd64.s  | 1215 +++++++++++++++++++++++++++++++-
+ src/crypto/sha512/sha512block_decl.go  |    2 +-
+ 3 files changed, 1241 insertions(+), 2 deletions(-)

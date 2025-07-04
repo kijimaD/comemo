@@ -1,19 +1,24 @@
-commit af545660d59edeffb52b8b72bec08f8c7b33cf23
+commit ab9e8d068aafce0df7edca629af0549b5f54d3c9
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 14 00:38:24 2014 -0500
+Date:   Thu Feb 13 23:56:53 2014 -0500
 
-    cmd/gc: correct liveness for various non-returning functions
+    cmd/gc: correct liveness for func ending in panic
     
-    When the liveness code doesn't know a function doesn't return
-    (but the generated code understands that), the liveness analysis
-    invents a control flow edge that is not really there, which can cause
-    variables to seem spuriously live. This is particularly bad when the
-    variables are uninitialized.
+    The registerization code needs the function to end in a RET,
+    even if that RET is actually unreachable.
+    
+    The liveness code needs to avoid such unreachable RETs.
+    It had a special case for final RET after JMP, but no case
+    for final RET after UNDEF. Instead of expanding the special
+    cases, let fixjmp - which already knows what is and is not
+    reachable definitively - mark the unreachable RET so that
+    the liveness code can identify it.
     
     TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/63720043
+    https://golang.org/cl/63680043
 
- src/cmd/gc/popt.c |  3 +++
- test/live.go      | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 64 insertions(+)
+ src/cmd/gc/plive.c | 8 +++-----
+ src/cmd/gc/popt.c  | 8 +++++++-
+ test/live.go       | 8 ++++++++
+ 3 files changed, 18 insertions(+), 6 deletions(-)

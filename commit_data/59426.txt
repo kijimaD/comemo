@@ -1,30 +1,31 @@
-commit 591c4b50c0d8c61087c30261efd5e97668625e06
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Thu May 16 15:48:36 2024 -0700
+commit 6e5398bad16aba15db365b72cb70d1177330b603
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Feb 16 13:29:16 2024 -0600
 
-    runtime: verify attribution of mutex delay
+    cmd/asm,cmd/compile: generate less instructions for most 32 bit constant adds on ppc64x
     
-    Have the test use the same clock (cputicks) as the profiler, and use the
-    test's own measurements as hard bounds on the magnitude to expect in the
-    profile.
+    For GOPPC64 < 10 targets, most large 32 bit constants (those
+    exceeding int16 capacity) can be added using two instructions
+    instead of 3.
     
-    Compare the depiction of two users of the same lock: one where the
-    critical section is fast, one where it is slow. Confirm that the profile
-    shows the slow critical section as a large source of delay (with #66999
-    fixed), rather than showing the fast critical section as a large
-    recipient of delay.
+    This cannot be done for values greater than 0x7FFF7FFF, so this
+    must be done during asm preprocessing as the optab matching
+    rules cannot differentiate this special case.
     
-    Previously reviewed as https://go.dev/cl/586237.
+    Likewise, constants 0x8000 <= x < 0x10000 are not converted. The
+    assembler currently generates 2 instructions sequences for these
+    constants.
     
-    For #66999
-    
-    Change-Id: Ic2d78cc29153d5322577d84abdc448e95ed8f594
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667616
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I1ccc839c6c28fc32f15d286b2e52e2d22a2a06d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568116
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/export_test.go  |   2 +
- src/runtime/metrics_test.go | 202 ++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 169 insertions(+), 35 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  6 +++--
+ src/cmd/internal/obj/ppc64/obj9.go        | 42 +++++++++++++++++++++++++++----
+ test/codegen/arithmetic.go                | 26 +++++++++++++++++++
+ 3 files changed, 67 insertions(+), 7 deletions(-)

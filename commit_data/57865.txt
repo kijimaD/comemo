@@ -1,21 +1,21 @@
-commit 375129ab4c12ee9f04e20eb363c61460b8069290
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 28 17:12:41 2024 -0700
+commit 1d538f198dd3da072d00e3dca70c28c40bbde87e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Sep 7 11:09:10 2023 +0200
 
-    cmd/dist, internal/syslist: update UnixOS comments
+    runtime: support nil libcall.args when calling stdcall on Windows
     
-    Update the comments about the list of Unix systems after CL 601357,
-    which moved one copy and eliminated another.
+    Having to pass a dummy pointer to the libcall.args field is a bit
+    annoying. This change allows nil to be passed instead.
     
-    Change-Id: I12f5b14a53ce6f8b3a41c9a10f947465c291e2b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623035
+    windows/arm and windows/arm64 already support nil libcall.args.
+    
+    Change-Id: I07a2bdb7d1f76b13d125397ff5177337c43536a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526016
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/dist/build.go           | 3 +--
- src/internal/syslist/syslist.go | 3 +--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/runtime/os_windows.go       |  2 +-
+ src/runtime/sys_windows_386.s   | 10 ++++++++--
+ src/runtime/sys_windows_amd64.s |  6 ++++++
+ 3 files changed, 15 insertions(+), 3 deletions(-)

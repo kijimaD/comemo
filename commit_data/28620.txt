@@ -1,21 +1,185 @@
-commit 5f36e9a3062c1f133169d01d612da9458a7ea884
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Oct 1 20:28:09 2016 -0700
+commit 0393ed8201751d58ac71288e6ef902ec4e03efde
+Merge: c40dcff2f2 53242e49b1
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 14 07:33:48 2016 -0700
 
-    net: clarify that Conn deadlines also affect currently-blocked I/O
+    [dev.ssa] Merge remote-tracking branch 'origin/master' into mergebranch
     
-    All implementations have always implemented this behavior, it's
-    tested, and it's depended on by other packages. (notably, by net/http)
-    
-    The one exception is Plan 9 which doesn't support I/O deadlines at all
-    (tracked in #11932). As a result, a bunch of tests fail on plan9
-    (#7237). But once Plan 9 adds I/O deadline support, it'll also need
-    this behavior.
-    
-    Change-Id: Idb71767f0c99279c66dce29f7bdc78ef467e47aa
-    Reviewed-on: https://go-review.googlesource.com/30164
-    Reviewed-by: Sam Whited <sam@samwhited.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idd150294aaeced0176b53d6b95852f5d21ff4fdc
 
- src/net/net.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ LICENSE                                            |    2 +-
+ api/go1.7.txt                                      |  276 +
+ api/next.txt                                       |  251 -
+ doc/go1.7.html                                     |  192 +-
+ doc/go_spec.html                                   |    5 +-
+ misc/android/go_android_exec.go                    |    6 +-
+ misc/cgo/errors/issue13830.go                      |   26 +
+ misc/cgo/errors/ptr.go                             |    8 +
+ misc/cgo/errors/test.bash                          |    7 +-
+ misc/cgo/test/cgo_stubs_android_test.go            |   13 +
+ misc/cgo/test/cthread.go                           |    4 +
+ misc/cgo/test/issue3775.go                         |    2 +
+ misc/cgo/test/issue6997_linux.c                    |    2 +
+ misc/cgo/test/issue6997_linux.go                   |    2 +
+ misc/cgo/test/issue7978.go                         |    3 +
+ misc/cgo/test/issue8694.go                         |    2 +
+ misc/cgo/test/issue9400/asm_386.s                  |    5 +-
+ misc/cgo/test/sigaltstack.go                       |    2 +-
+ misc/cgo/testsanitizers/test.bash                  |   66 +-
+ misc/cgo/testsanitizers/tsan5.go                   |   51 +
+ misc/cgo/testsanitizers/tsan6.go                   |   49 +
+ misc/cgo/testshared/src/depBase/dep.go             |    5 +
+ misc/cgo/testshared/src/exe2/exe2.go               |    3 +-
+ src/bytes/bytes_test.go                            |  309 +-
+ src/cmd/api/run.go                                 |    2 +-
+ src/cmd/cgo/ast.go                                 |    9 +-
+ src/cmd/cgo/gcc.go                                 |  138 +-
+ src/cmd/cgo/main.go                                |   13 +-
+ src/cmd/cgo/out.go                                 |   11 +-
+ src/cmd/compile/internal/arm/ggen.go               |   26 +
+ src/cmd/compile/internal/gc/asm_test.go            |   21 +-
+ src/cmd/compile/internal/gc/bexport.go             |   16 +-
+ src/cmd/compile/internal/gc/cgen.go                |    5 -
+ src/cmd/compile/internal/gc/constFold_test.go      | 5692 ++++++++++++++++++++
+ src/cmd/compile/internal/gc/fixedbugs_test.go      |   50 +
+ src/cmd/compile/internal/gc/go.go                  |    2 +
+ src/cmd/compile/internal/gc/main.go                |    2 +
+ src/cmd/compile/internal/gc/plive.go               |    9 +
+ src/cmd/compile/internal/gc/racewalk.go            |    2 +-
+ src/cmd/compile/internal/gc/shift_test.go          | 1031 ++++
+ src/cmd/compile/internal/gc/ssa.go                 |  136 +-
+ src/cmd/compile/internal/gc/subr.go                |    8 +-
+ src/cmd/compile/internal/gc/swt.go                 |    8 +-
+ .../internal/gc/testdata/gen/constFoldGen.go       |   83 +
+ src/cmd/compile/internal/gc/universe.go            |   14 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules     |   94 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |  692 ++-
+ src/cmd/dist/build.go                              |    4 +-
+ src/cmd/dist/test.go                               |   30 +-
+ src/cmd/go/alldocs.go                              | 3172 ++++++-----
+ src/cmd/go/build.go                                |   76 +-
+ src/cmd/go/get.go                                  |    4 +-
+ src/cmd/go/go_test.go                              |   49 +-
+ src/cmd/go/main.go                                 |   56 +-
+ src/cmd/go/mkalldocs.sh                            |    3 +-
+ src/cmd/go/pkg.go                                  |    3 +-
+ src/cmd/go/test.go                                 |    6 +-
+ src/cmd/go/vcs.go                                  |   18 +-
+ src/cmd/go/vcs_test.go                             |   94 +
+ src/cmd/internal/obj/x86/asm6.go                   |   10 -
+ src/cmd/internal/obj/x86/obj6.go                   |   12 +-
+ src/cmd/internal/objfile/elf.go                    |    9 +
+ src/cmd/internal/objfile/goobj.go                  |    4 +
+ src/cmd/internal/objfile/macho.go                  |    4 +
+ src/cmd/internal/objfile/objfile.go                |    8 +
+ src/cmd/internal/objfile/pe.go                     |    4 +
+ src/cmd/internal/objfile/plan9obj.go               |    4 +
+ src/cmd/link/internal/amd64/asm.go                 |    3 +-
+ src/cmd/link/internal/ld/data.go                   |   37 +-
+ src/cmd/link/internal/ld/dwarf.go                  |    6 +-
+ src/cmd/link/internal/ld/lib.go                    |   17 +-
+ src/cmd/link/internal/x86/asm.go                   |    3 +-
+ src/cmd/pprof/pprof.go                             |   13 +-
+ src/compress/flate/deflate.go                      |    9 +-
+ src/context/context.go                             |    2 +-
+ src/crypto/subtle/constant_time.go                 |    2 +-
+ src/crypto/tls/conn.go                             |   37 +-
+ src/crypto/tls/handshake_client.go                 |    7 +
+ src/crypto/tls/handshake_client_test.go            |   44 +-
+ src/crypto/tls/handshake_server.go                 |   12 +
+ src/crypto/tls/tls_test.go                         |   20 +-
+ src/crypto/x509/x509.go                            |    3 +
+ src/encoding/csv/reader.go                         |   53 +-
+ src/encoding/json/encode.go                        |    4 +-
+ src/flag/flag.go                                   |   19 +-
+ src/flag/flag_test.go                              |    2 +-
+ src/go/build/deps_test.go                          |    2 +-
+ src/go/internal/gcimporter/gcimporter_test.go      |   25 +
+ src/go/internal/gcimporter/testdata/issue15920.go  |   11 +
+ src/go/parser/interface.go                         |   16 +-
+ src/go/types/api_test.go                           |   41 +
+ src/go/types/initorder.go                          |   45 +-
+ src/go/types/resolver.go                           |    2 +-
+ src/io/io.go                                       |   10 +-
+ src/math/big/floatconv_test.go                     |    5 +
+ src/math/big/ftoa.go                               |    7 +-
+ src/net/dial_test.go                               |    7 +-
+ src/net/http/h2_bundle.go                          |   47 +-
+ src/net/http/httputil/persist.go                   |   10 +-
+ src/net/http/request.go                            |    6 +-
+ src/net/http/serve_test.go                         |   34 +
+ src/net/http/server.go                             |    4 +
+ src/net/http/transport_test.go                     |   35 +-
+ src/net/main_plan9_test.go                         |    1 +
+ src/net/main_unix_test.go                          |    1 +
+ src/net/main_windows_test.go                       |    1 +
+ src/net/timeout_test.go                            |   19 +-
+ src/os/exec.go                                     |    6 +-
+ src/os/exec_unix.go                                |   18 +
+ src/os/file.go                                     |    4 +
+ src/os/signal/signal_test.go                       |   13 +
+ src/os/wait_unimp.go                               |   16 +
+ src/os/wait_wait6.go                               |   45 +
+ src/os/wait_waitid.go                              |   34 +
+ src/path/filepath/match.go                         |    5 +
+ src/path/filepath/match_test.go                    |    6 +
+ src/reflect/all_test.go                            |    4 +
+ src/reflect/type.go                                |    4 +
+ src/regexp/exec_test.go                            |   77 +-
+ src/runtime/asm_386.s                              |   11 +-
+ src/runtime/asm_amd64.s                            |  100 +-
+ src/runtime/asm_arm.s                              |    2 +-
+ src/runtime/cgo/gcc_context.c                      |   16 +-
+ src/runtime/cgo/gcc_libinit.c                      |   39 +-
+ src/runtime/cgo/gcc_libinit_openbsd.c              |   23 +-
+ src/runtime/cgo/gcc_libinit_windows.c              |   27 +-
+ src/runtime/cgo/gcc_linux_amd64.c                  |    2 +
+ src/runtime/cgo/gcc_mmap.c                         |    4 +
+ src/runtime/cgo/gcc_s390x.S                        |    5 +-
+ src/runtime/cgo/gcc_traceback.c                    |    2 +
+ src/runtime/cgo/gcc_util.c                         |    2 +
+ src/runtime/cgo/libcgo.h                           |   41 +-
+ src/runtime/cpuprof.go                             |   42 +-
+ src/runtime/crash_cgo_test.go                      |   21 +-
+ src/runtime/crash_test.go                          |   18 +-
+ src/runtime/debug/heapdump_test.go                 |    2 +-
+ src/runtime/extern.go                              |   15 +
+ src/runtime/hash_test.go                           |   20 +
+ src/runtime/pprof/pprof.go                         |   37 +
+ src/runtime/pprof/pprof_test.go                    |   10 +-
+ src/runtime/proc.go                                |   32 +
+ src/runtime/runtime-gdb.py                         |    6 +-
+ src/runtime/signal_sigtramp.go                     |    8 +
+ src/runtime/sys_linux_amd64.s                      |   30 +-
+ src/runtime/testdata/testprogcgo/pprof.go          |    1 +
+ src/runtime/testdata/testprogcgo/threadpprof.go    |  112 +
+ src/runtime/testdata/testprogcgo/traceback.go      |    1 +
+ src/runtime/testdata/testprogcgo/tracebackctxt_c.c |    1 +
+ src/runtime/traceback.go                           |   36 +-
+ src/strconv/ftoa_test.go                           |   85 +-
+ src/strings/strings_amd64.go                       |    2 +-
+ src/strings/strings_test.go                        |   37 +
+ src/sync/rwmutex.go                                |   17 +-
+ src/syscall/dir_plan9.go                           |    1 +
+ src/syscall/exec_linux.go                          |   44 +-
+ src/syscall/exec_linux_test.go                     |   76 +-
+ src/syscall/types_linux.go                         |    2 +-
+ src/syscall/ztypes_linux_s390x.go                  |    1 +
+ src/time/format.go                                 |    3 +
+ src/time/genzabbrs.go                              |    2 +-
+ src/time/sleep.go                                  |   22 +
+ .../golang.org/x/net/route/message_freebsd_test.go |    4 +-
+ test/fixedbugs/issue15898.go                       |   18 +
+ test/fixedbugs/issue15902.go                       |   27 +
+ test/fixedbugs/issue15920.dir/a.go                 |    9 +
+ test/fixedbugs/issue15920.dir/b.go                 |    7 +
+ test/fixedbugs/issue15920.go                       |    7 +
+ test/fixedbugs/issue15926.go                       |   20 +
+ test/fixedbugs/issue15961.go                       |   21 +
+ test/fixedbugs/issue15975.go                       |   36 +
+ test/fixedbugs/issue15988.go                       |   14 +
+ test/fixedbugs/issue16008.go                       |   52 +
+ test/fixedbugs/issue16016.go                       |   35 +
+ test/switch5.go                                    |   81 +
+ test/switch6.go                                    |   32 +
+ 175 files changed, 12302 insertions(+), 2798 deletions(-)

@@ -1,24 +1,12 @@
-commit 615f289209d08316da2c609f843bd20201ce2275
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 15 15:24:13 2013 -0400
+commit ca15ac36ede807c53c5f1b8778061eb70cbff616
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 15 22:23:35 2013 +0400
 
-    cmd/gc: ensure unique parameter and result names in function types
+    net: fix build with CGO_ENABLED=0
     
-    In addition to fixing the bug, the check is now linear instead of quadratic.
-    
-    Fixes #4469.
-    
-    R=ken2
+    R=golang-dev, rsc, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/7773047
+    https://golang.org/cl/7857044
 
- src/cmd/gc/dcl.c         | 36 ++++++++++++++++++++++++------------
- src/cmd/gc/go.h          |  1 +
- test/fixedbugs/bug040.go |  2 +-
- test/fixedbugs/bug342.go |  6 +-----
- test/fixedbugs/bug412.go |  4 ++--
- test/fixedbugs/bug469.go | 13 -------------
- test/func1.go            |  2 +-
- test/funcdup.go          | 27 +++++++++++++++++++++++++++
- test/funcdup2.go         | 17 +++++++++++++++++
- 9 files changed, 74 insertions(+), 34 deletions(-)
+ src/pkg/net/empty.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

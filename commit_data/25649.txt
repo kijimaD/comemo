@@ -1,23 +1,13 @@
-commit 7688ffe1341a534d42367410f4a4bef0a31a7f37
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 25 09:54:39 2016 -0800
+commit 1ccefcd1b879df2e1603812594cd351978367295
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 21:22:20 2015 +1300
 
-    runtime/pprof: document SetCPUProfile with c-archive/c-shared
+    cmd/link, runtime: implement & call addmoduledata on ppc64le
     
-    When using c-archive/c-shared, the signal handler for SIGPROF will not
-    be installed, which means that runtime/pprof.StartCPUProfile won't work.
-    There is no really good solution here, as the main program may want to
-    do its own profiling.  For now, just document that runtime/pprof doesn't
-    work as expected, but that it will work if you use Notify to install the
-    Go signal handler.
-    
-    Fixes #14043.
-    
-    Change-Id: I7ff7a01df6ef7f63a7f050aac3674d640a246fb4
-    Reviewed-on: https://go-review.googlesource.com/18911
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I3980d82c7df95e69522c3d2c90311f89c6fef0e1
+    Reviewed-on: https://go-review.googlesource.com/15972
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/pprof/pprof.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/link/internal/ppc64/asm.go | 80 +++++++++++++++++++++++++++++++++++++-
+ src/runtime/asm_ppc64x.s           | 10 +++++
+ 2 files changed, 89 insertions(+), 1 deletion(-)

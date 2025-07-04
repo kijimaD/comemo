@@ -1,66 +1,27 @@
-commit 3e54329cbe41e887f309c733a619206bf6351768
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Jan 22 11:47:50 2024 -0500
+commit 54bdb8ee70892dd77651c0a092e4a2e3edbb3ab6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 1 12:15:08 2023 -0500
 
-    all: update vendored dependencies
+    cmd/link: keep go.buildinfo even with --gc-sections
     
-    The Go 1.23 development tree has opened. This is a time to update
-    all golang.org/x/... module versions that contribute packages to the
-    std and cmd modules in the standard library to latest master versions.
+    If you use an external linker with --gc-sections, nothing refers
+    to .go.buildinfo, so the section is deleted, which in turns makes
+    'go version' fail on the binary. It is important for vulnerability
+    scanning and the like to be able to run 'go version' on any binary.
     
-    Generated with:
+    Fix this by inserting a reference to .go.buildinfo from the rodata
+    section, which will not be GC'ed.
     
-    go install golang.org/x/build/cmd/updatestd@latest
-    go install golang.org/x/tools/cmd/bundle@latest
-    updatestd -goroot=$(pwd) -branch=master
+    Fixes #58222.
     
-    For #36905.
-    
-    Change-Id: I46a68f27a54f1e3f9e1aa5af4de6ee0b26388f3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557457
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I1e13e9464acaf2f5cc5e0b70476fa52b43651123
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464435
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go.mod                                     | 12 ++--
- src/cmd/go.sum                                     | 20 +++---
- src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   | 39 +++++-----
- .../vendor/golang.org/x/sys/unix/zerrors_linux.go  | 83 ++++++++++++++++++++++
- .../golang.org/x/sys/unix/zerrors_linux_386.go     |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_arm.go     |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_loong64.go |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_mips.go    |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |  3 +
- .../x/sys/unix/zerrors_linux_mips64le.go           |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |  3 +
- .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |  3 +
- .../golang.org/x/sys/unix/zsyscall_openbsd_386.go  |  2 -
- .../x/sys/unix/zsyscall_openbsd_amd64.go           |  2 -
- .../golang.org/x/sys/unix/zsyscall_openbsd_arm.go  |  2 -
- .../x/sys/unix/zsyscall_openbsd_arm64.go           |  2 -
- .../x/sys/unix/zsyscall_openbsd_mips64.go          |  2 -
- .../x/sys/unix/zsyscall_openbsd_ppc64.go           |  2 -
- .../x/sys/unix/zsyscall_openbsd_riscv64.go         |  2 -
- .../golang.org/x/sys/windows/syscall_windows.go    |  1 +
- .../golang.org/x/sys/windows/zsyscall_windows.go   |  9 +++
- .../golang.org/x/tools/go/analysis/diagnostic.go   | 17 +++--
- .../go/analysis/internal/analysisflags/flags.go    | 33 ++++++---
- .../go/analysis/passes/lostcancel/lostcancel.go    | 13 +++-
- .../analysis/passes/unusedresult/unusedresult.go   | 20 +++++-
- src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go    |  6 +-
- .../x/tools/internal/analysisinternal/analysis.go  |  4 ++
- src/cmd/vendor/modules.txt                         | 10 +--
- src/go.mod                                         |  8 +--
- src/go.sum                                         | 12 ++--
- src/net/http/h2_bundle.go                          | 11 ++-
- .../x/crypto/internal/poly1305/bits_compat.go      | 39 ----------
- .../x/crypto/internal/poly1305/bits_go1.13.go      | 21 ------
- .../x/crypto/internal/poly1305/sum_generic.go      | 43 +++++------
- src/vendor/modules.txt                             |  6 +-
- 42 files changed, 295 insertions(+), 171 deletions(-)
+ src/cmd/go/testdata/script/version_gc_sections.txt | 24 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go                   | 13 +++++++++++-
+ 2 files changed, 36 insertions(+), 1 deletion(-)

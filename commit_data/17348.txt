@@ -1,12 +1,12 @@
-commit efdbf0811c86f32eb029ff3f2affdf63337ed2fa
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Aug 21 14:02:58 2013 +1000
+commit a83b17c0b741263e7f3ad5ebb2e3aba27751c770
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 21 12:55:09 2013 +1000
 
-    C: add Todd Wang (Google CLA).
+    doc/go1.2.txt: text/template: add comparison functions
     
-    R=r, adg
-    CC=golang-dev, toddwang
-    https://golang.org/cl/13149043
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12801045
 
- CONTRIBUTORS | 1 +
+ doc/go1.2.txt | 1 +
  1 file changed, 1 insertion(+)

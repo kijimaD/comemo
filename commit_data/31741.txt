@@ -1,29 +1,52 @@
-commit ef0f7fb92b9458d7d35ee3c10ae853e3dc3077eb
-Author: Bulat Gaifullin <gaifullinbf@gmail.com>
-Date:   Tue Jun 6 20:20:06 2017 +0300
+commit 08d8d5c986cd11951a6c2eb76587d4ec3ea9ecc7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 10 17:42:02 2017 -0800
 
-    database/sql: Use Tx.ctx in Tx non-context methods
+    cmd/compile/internal/ssa: replace {Defer,Go}Call with StaticCall
     
-    The Tx methods Query and Exec uses context.Background()
-    even Tx was created by context.
-    This patch enables using Tx.ctx in all Tx methods
-    which do not has context arg.
-    Backward compatibility:
-    - If Tx has created without context, nothing changes.
-    - If Tx has created with context and non-context method is called:
-      - If context is expired, the execution fails,
-        but it can fail on Commit or Rollback as well,
-        so in terms of whole transaction - nothing changes.
-      - If context is not expired, nothing changes too.
+    Passes toolstash-check -all.
     
-    Fixes #20098
-    Change-Id: I9570a2deaace5875bb4c5dcf7b3a084a6bcd0d00
-    Reviewed-on: https://go-review.googlesource.com/44956
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icf8b75364e4761a5e56567f503b2c1cb17382ed2
+    Reviewed-on: https://go-review.googlesource.com/38080
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/database/sql/sql.go      | 10 +++++-----
- src/database/sql/sql_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  16 --
+ src/cmd/compile/internal/arm/ssa.go            |  16 --
+ src/cmd/compile/internal/arm64/ssa.go          |  16 --
+ src/cmd/compile/internal/gc/ssa.go             |   4 +-
+ src/cmd/compile/internal/mips/ssa.go           |  16 --
+ src/cmd/compile/internal/mips64/ssa.go         |  16 --
+ src/cmd/compile/internal/ppc64/ssa.go          |  16 --
+ src/cmd/compile/internal/s390x/ssa.go          |  16 --
+ src/cmd/compile/internal/ssa/block.go          |   2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules     |   2 -
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |   2 -
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 -
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   2 -
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |   2 -
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   2 -
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |   2 -
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   2 -
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |   2 -
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |   2 -
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |   2 -
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go    |   6 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |   2 -
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |   2 -
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |   2 -
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |   2 -
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   2 -
+ src/cmd/compile/internal/ssa/opGen.go          | 196 +------------------------
+ src/cmd/compile/internal/ssa/rewrite386.go     |  34 -----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  34 -----
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  34 -----
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  34 -----
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  34 -----
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  34 -----
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  34 -----
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  34 -----
+ src/cmd/compile/internal/x86/387.go            |   2 +-
+ src/cmd/compile/internal/x86/ssa.go            |  16 --
+ 37 files changed, 8 insertions(+), 634 deletions(-)

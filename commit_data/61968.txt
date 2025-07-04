@@ -1,0 +1,23 @@
+commit d1d93129506c78cc8ee25644384286822d93c81a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jan 2 01:34:40 2025 +0100
+
+    crypto/tls: fix Config.Time in tests using expired certificates
+    
+    Fixes #71077
+    
+    Change-Id: I6a6a465685f3bd50a5bb35a160f87b59b74fa6af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639655
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/crypto/tls/handshake_client_test.go | 30 ++++++++++++++++++------------
+ src/crypto/tls/handshake_server_test.go |  2 ++
+ src/crypto/tls/handshake_test.go        |  5 +++++
+ src/crypto/tls/tls_test.go              |  6 ++----
+ 4 files changed, 27 insertions(+), 16 deletions(-)

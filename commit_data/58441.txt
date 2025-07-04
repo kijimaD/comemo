@@ -1,21 +1,36 @@
-commit 7c03fe70b897581aacc0092315f75abd08ebeeee
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 27 10:48:22 2024 -0500
+commit e816eb50140841c524fd07ecb4eaa078954eb47c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Aug 28 02:08:56 2023 +1000
 
-    cmd/compile: improve compiler directive docs
+    cmd/internal/obj/riscv: improve handling of invalid assembly
     
-    This section has gotten long enough that it deserves to be multiple
-    sections. This also allows us to better structure information shared
-    by subsets of directives. In particular, this enables a self-contained
-    section on the wasm directives.
+    Currently, instruction validation failure will result in a panic during
+    encoding. Furthermore, the errors generated do not include the PC or
+    file/line information that is normally present.
     
-    Updates #66984.
+    Fix this by:
     
-    Change-Id: I062081d46c6b0aef7887fdaf9efae80f32ad4b21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638881
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    - Tracking and printing the *obj.Prog associated with the instruction,
+      including the assembly instruction/opcode if it differs. This provides
+      the standard PC and file/line prefix, which is also expected by assembly
+      error end-to-end tests.
+    
+    - Not proceeding with assembly if errors exist - with the current design,
+      errors are identified during validation, which is run via preprocess.
+      Attempts to encode invalid instructions will intentionally panic.
+    
+    Add some additional riscv64 encoding errors, now that we can actually do so.
+    
+    Change-Id: I64a7b83680c4d12aebdc96c67f9df625b5ef90d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523459
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
 
- src/cmd/compile/doc.go | 69 +++++++++++++++++++++++++++++---------------------
- 1 file changed, 40 insertions(+), 29 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscv64error.s |   5 +-
+ src/cmd/internal/obj/riscv/obj.go                | 201 +++++++++++++----------
+ 2 files changed, 116 insertions(+), 90 deletions(-)

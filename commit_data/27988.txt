@@ -1,18 +1,14 @@
-commit b046786528d6c802ae007f001a60341fd0d9c9d4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jun 1 15:21:56 2016 -0700
+commit ba966f5d891191450f286859c35bf8a7fa49cde2
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Fri Apr 22 16:27:34 2016 -0700
 
-    cmd/compile: eliminate switch case kinds
+    doc: mention security from contribution guidelines
     
-    We used to have separate kinds for the default
-    case and the nil type case. Now that those are
-    gone, we can use a simple bool instead.
+    Fixes #15413
     
-    Change-Id: I65488e945df68178e893cddd2e091ebb6e32ef4d
-    Reviewed-on: https://go-review.googlesource.com/26763
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I837a391276eed565cf66d3715ec68b7b959ce143
+    Reviewed-on: https://go-review.googlesource.com/22390
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/swt.go      | 49 ++++++------------
- src/cmd/compile/internal/gc/swt_test.go | 92 ++++++++++++++++-----------------
- 2 files changed, 61 insertions(+), 80 deletions(-)
+ doc/contribute.html | 4 ++++
+ 1 file changed, 4 insertions(+)

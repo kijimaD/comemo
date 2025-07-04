@@ -1,21 +1,16 @@
-commit c8ef0df06cbab367ab943825ab0677e03d019c3d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 3 19:17:21 2015 -0800
+commit 336c998291b2aaf78fac65b98cca00086db61266
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Dec 4 14:44:27 2015 -0800
 
-    cmd/cgo: add hooks for thread sanitizer
+    cmd/compile: reject slice/map/func comparisons against converted nil
     
-    When Go code is used with C code compiled with -fsanitize=thread, adds
-    thread sanitizer calls so that correctly synchronized Go code does not
-    cause spurious failure reports from the thread sanitizer.  This may
-    cause some false negatives, but for the thread sanitizer what is most
-    important is avoiding false positives.
+    Fixes #13480.
     
-    Change-Id: If670e4a6f2874c7a2be2ff7db8728c6036340a52
-    Reviewed-on: https://go-review.googlesource.com/17421
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Icbf4f83e965e84f7020f56c3f346193f8b91e7bf
+    Reviewed-on: https://go-review.googlesource.com/17461
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testsanitizers/test.bash | 105 ++++++++++++++++++++++++++------------
- misc/cgo/testsanitizers/tsan.go   |  44 ++++++++++++++++
- misc/cgo/testsanitizers/tsan2.go  |  55 ++++++++++++++++++++
- src/cmd/cgo/out.go                |  60 +++++++++++++++++++++-
- 4 files changed, 228 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 14 ++++----------
+ src/cmd/compile/internal/gc/swt.go  |  2 +-
+ test/fixedbugs/issue13480.go        | 38 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 43 insertions(+), 11 deletions(-)

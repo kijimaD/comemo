@@ -1,15 +1,12 @@
-commit b16ec46c2fc144e9b8dff4c418db2d82227f3fd5
+commit 0f775d6b769496296e95ce19ae5f4062bc0e5aed
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Apr 5 11:17:18 2012 +1000
+Date:   Thu Apr 5 11:16:37 2012 +1000
 
-    doc: shorten project dashboard link
+    misc/dist: label 386 and amd64 as "32-bit x86" and "64-bit x86"
     
-    Fixes #3420.
-    (which was already fixed)
-    
-    R=golang-dev, bradfitz, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5987043
+    https://golang.org/cl/5986043
 
- doc/code.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dist/bindist.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

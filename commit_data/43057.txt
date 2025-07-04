@@ -1,26 +1,18 @@
-commit 5853b4ee47f41f2d5ea8e63a185b2cfd6e08b98c
-Author: witchard <witchard@hotmail.co.uk>
-Date:   Mon Sep 21 19:35:15 2020 +0000
+commit cec08794ef325e84f141e1a7b4deca0bedaeab34
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Tue Mar 3 16:24:32 2020 +0100
 
-    cmd/go/internal/get: warn about -insecure deprecation
+    misc/cgo/test: fix sigaltstack test on AIX
     
-    Adds deprecation warning for -insecure flag on go get in both modules
-    and GOPATH mode.
+    Increase the size of the signal stack as the value given by SIGSTKSZ
+    is too small for the Go signal handler.
     
-    Updates #37519.
+    Fixes #37609
     
-    Change-Id: Ie2efeeb4a91e6dda92955295969e9715314ae50e
-    GitHub-Last-Rev: a9ebe21fe067baa12391ad4f9357d8e5b0cf7051
-    GitHub-Pull-Request: golang/go#41497
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255882
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Michael Matloob <matloob@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Change-Id: I56f1006bc69a2a9fb43f9e0da00061964290a690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221804
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go                               | 18 +++++++++++-------
- src/cmd/go/internal/get/get.go                      | 12 ++++++++----
- src/cmd/go/internal/modget/get.go                   | 12 +++++++++---
- .../go/testdata/script/get_insecure_deprecated.txt  | 21 +++++++++++++++++++++
- 4 files changed, 49 insertions(+), 14 deletions(-)
+ misc/cgo/test/sigaltstack.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

@@ -1,15 +1,13 @@
-commit 34ac4ec30ca8bca47fb3552bae0116ef140b11cb
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri May 13 16:05:47 2011 +1000
+commit 142008c325da1bb6e23f051fddd69c1f0de1dd35
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu May 12 22:00:50 2011 -0700
 
-    6l, 8l: emit windows dwarf sections similar to other platforms
+    strconv: document and test True and False for Atob
     
-    R=golang-dev, rsc
-    CC=golang-dev, vcc.163
-    https://golang.org/cl/4517056
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4535057
 
- src/cmd/6l/asm.c   | 70 +++++++++++++++++++++++++++++++-----------------------
- src/cmd/8l/asm.c   | 36 ++++++++++++++++++----------
- src/cmd/ld/dwarf.c |  1 -
- src/cmd/ld/pe.c    |  6 ++---
- 4 files changed, 66 insertions(+), 47 deletions(-)
+ src/pkg/strconv/atob.go      | 4 ++--
+ src/pkg/strconv/atob_test.go | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

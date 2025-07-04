@@ -1,17 +1,15 @@
-commit 44fd1d1a6aee68023be292a6f856991af3f0d4c8
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Apr 30 15:55:07 2012 -0400
+commit 1bdb788b2ea5147ff7847f7a401a9da994a5e360
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 30 22:47:51 2012 +1000
 
-    runtime: give proper messages when user defined DYLD_INSERT_LIBRARIES on Darwin
-           also gives clear error when bsdthread_register fails on Darwin
-           Fixes #2992.
+    misc/dashboard/codereview: record Message-ID of code review thread mails.
     
-    R=rsc, krautz
+    This will allow us to properly thread "R=..." mails at a later time.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5966067
+    https://golang.org/cl/6135053
 
- src/pkg/runtime/os_darwin.h        |  2 +-
- src/pkg/runtime/sys_darwin_386.s   |  6 ++++--
- src/pkg/runtime/sys_darwin_amd64.s |  6 ++++--
- src/pkg/runtime/thread_darwin.c    | 19 ++++++++++++++-----
- 4 files changed, 23 insertions(+), 10 deletions(-)
+ misc/dashboard/codereview/dashboard/cl.go   | 10 +++++++---
+ misc/dashboard/codereview/dashboard/mail.go | 18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+), 3 deletions(-)

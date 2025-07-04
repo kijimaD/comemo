@@ -1,13 +1,14 @@
-commit c01945afc90e17b214ccbc7d49d477075ec8b463
-Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
-Date:   Sun Sep 8 13:21:03 2013 +1000
+commit 78338d8c667d7798209132a6c206051db98de83c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 6 16:23:46 2013 -0700
 
-    sort: fix up example expected output formatting
+    runtime: Smhasher tests of our map hash function.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13426046
+    https://golang.org/cl/13436045
 
- src/pkg/sort/example_interface_test.go |  3 ++-
- src/pkg/sort/example_multi_test.go     | 10 +++++-----
- 2 files changed, 7 insertions(+), 6 deletions(-)
+ src/pkg/runtime/alg.c          |  26 +++
+ src/pkg/runtime/export_test.go |  12 +
+ src/pkg/runtime/hash_test.go   | 512 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 550 insertions(+)

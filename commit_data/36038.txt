@@ -1,27 +1,20 @@
-commit a371bc2dfdf1fe4166c83be1177fbecb03d8da53
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 17 17:36:15 2018 -0700
+commit 5cf3b523080ea35a5148c3dc6c8a701305f1f875
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Mar 29 18:48:33 2018 -0700
 
-    cmd/cgo: don't report inconsistency error for incomplete typedef
+    api: add exception for os.ModeType value
     
-    In CLs 122575 and 123177 the cgo tool started explicitly looking up
-    typedefs. When there are two Go files using import "C", and the first
-    one has an incomplete typedef and the second one has a complete
-    version of the same typedef, then we will now record a version of the
-    first typedef which will not match the recorded version of the second
-    typedef, producing an "inconsistent definitions" error. Fix this by
-    silently merging incomplete typedefs with complete ones.
+    The ModeType constant is a bit-wise OR of several other values.
+    It is reasonable for this to change without breaking compatibility.
     
-    Fixes #26430
+    This fixes the failures introduced by https://golang.org/cl/103597
     
-    Change-Id: I9e629228783b866dd29b5c3a31acd48f6e410a2d
-    Reviewed-on: https://go-review.googlesource.com/124575
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I817e351cf3d1e0115dce665c8efbce21bc36426c
+    Reviewed-on: https://go-review.googlesource.com/103616
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/issue26430.go   | 10 ++++++++++
- misc/cgo/test/issue26430/a.go | 13 +++++++++++++
- misc/cgo/test/issue26430/b.go | 13 +++++++++++++
- src/cmd/cgo/main.go           | 10 ++++++++++
- 4 files changed, 46 insertions(+)
+ api/except.txt | 1 +
+ 1 file changed, 1 insertion(+)

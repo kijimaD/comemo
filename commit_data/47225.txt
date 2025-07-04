@@ -1,22 +1,22 @@
-commit be0cd9e5ec01141def07412b0ef3fa0d3f8cba9d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Nov 2 11:59:56 2021 -0700
+commit d891ebdce1ac2c72e1d923c24f5a65ec14ba7cf8
+Author: David Chase <drchase@google.com>
+Date:   Fri Feb 26 14:27:59 2021 -0500
 
-    syscall: unify unix Sendmsg prologues
+    cmd/compile: return (and receive) medium-large results
     
-    These were identical. This is a preliminary step
-    towards remove allocs per UDP send.
+    includes three tests
     
-    Change-Id: I21e1264c7d4747baa626ddb93afff4c1cf225d13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361256
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I33ac0cfe35085d4b6ad2775abcaa3d7d6527b49f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297031
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/syscall_aix.go     | 15 +--------------
- src/syscall/syscall_bsd.go     | 15 +--------------
- src/syscall/syscall_linux.go   | 16 +---------------
- src/syscall/syscall_solaris.go | 15 +--------------
- src/syscall/syscall_unix.go    | 17 +++++++++++++++++
- 5 files changed, 21 insertions(+), 57 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 80 ++++++++++++--------------
+ src/cmd/compile/internal/ssa/op.go           |  9 ++-
+ src/cmd/compile/internal/ssagen/ssa.go       | 85 ++++++++++++++++++----------
+ test/abi/double_nested_addressed_struct.go   | 62 ++++++++++++++++++++
+ test/abi/double_nested_struct.go             | 55 ++++++++++++++++++
+ test/abi/too_big_to_ssa.go                   | 47 +++++++++++++++
+ test/abi/too_big_to_ssa.out                  |  2 +
+ 7 files changed, 264 insertions(+), 76 deletions(-)

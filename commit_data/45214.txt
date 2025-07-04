@@ -1,31 +1,23 @@
-commit a72622d028077643169dc48c90271a82021f0534
-Author: Cuong Manh Le <cuong@orijtech.com>
-Date:   Mon Apr 19 02:39:50 2021 +0700
+commit 575ea5a87a86de3107b2401e10ff4e50e5a133a0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 12 18:00:25 2020 -0400
 
-    cmd/compile: skip "_" function in reflectdata.MarkUsedIfaceMethod
+    cmd/link: set runtime.text to the address of the first function
     
-    CL 256798 added compiler ability to retain only used interface methods,
-    by generating a mark relocation whenever an interface method is used. To
-    do that, the compiler needs the current function linker object.
+    In CL 240065 we changed it to set to FlagTextAddr. Normally it
+    is the address of the first function, except on plan9/amd64
+    where, as FlagTextAddr is not aligned, it is rounded up. Set it
+    to the actual text start address.
     
-    However, for unnamed function "func _()", its linker object is nil,
-    causes the compiler crashes for code in #45258.
+    Fixes #41137.
     
-    CL 283313 fixed the code in #45258 unintentionally, since when the
-    compiler now does not walk unnamed functions anymore.
-    
-    This CL fixes the root issue, by making reflectdata.MarkUsedIfaceMethod
-    skips unnamed functions, and also adding regression test.
-    
-    Fixes #45258
-    
-    Change-Id: I4cbefb0a89d9928f70c00dc8a271cb61cd20a49c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311130
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I1bba67f5eb4e24d9f745a11350fc999ff48bff45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261644
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  4 ++++
- test/fixedbugs/issue45258.go                    | 28 +++++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
+ src/cmd/link/internal/ld/data.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

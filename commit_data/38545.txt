@@ -1,18 +1,14 @@
-commit e6df1799791fac7262effe4464bd5c82bbb275cb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 25 21:36:31 2019 +0000
+commit b2e8dd187343cf3059e373374426833d1a676a3e
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 28 16:30:05 2017 -0400
 
-    cmd/dist: move GOPATH setting from init to bootstrap
+    cmd/trace: expose MMU analysis flags in web UI
     
-    CL 168697 unconditionally set GOPATH in dist, which broke the
-    misc-vet-vetall builder, because cmd/vet/all depends on GOPATH.
-    
-    Fixes #30971
-    
-    Change-Id: If6a58e054c6a4fedc2ea506a2c443348489c91f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169217
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I672240487172380c9eef61837b41698021aaf834
+    Reviewed-on: https://go-review.googlesource.com/c/60798
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/dist/build.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/trace/mmu.go | 133 +++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 119 insertions(+), 14 deletions(-)

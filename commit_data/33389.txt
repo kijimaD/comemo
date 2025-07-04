@@ -1,16 +1,16 @@
-commit ad3742f4acbf20c681c9f6f6775ea7ece85e5881
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 2 19:17:13 2017 +0000
+commit e6cbf98d696c0b8e800951698de1d30d15cae03f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Aug 15 20:53:49 2017 +0900
 
-    net/http: remove some log spam in test, add missing error detail
+    misc/cgo/testshared: call flag.Parse in TestMain
     
-    Updates #22540
+    Otherwise, some test flags don't work.
     
-    Change-Id: I26e79c25652976fac6f2e5a7afb4fd1240996d74
-    Reviewed-on: https://go-review.googlesource.com/75531
-    Reviewed-by: Tom Bergan <tombergan@google.com>
-    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Change-Id: Iacf3930d0eec28e4d690cd382adbb2ecf866a0e2
+    Reviewed-on: https://go-review.googlesource.com/55615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport_test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ misc/cgo/testshared/shared_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,12 +1,12 @@
-commit e62b40344d54bb6932fcb37e756f781d82326b6b
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Tue Dec 13 16:18:56 2011 -0500
+commit 0e9ee93cea231186c565ab10e3e5f3161cd4c769
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Wed Dec 14 08:08:49 2011 +1100
 
-    codereview: fix path slash issue.
+    archive/tar: (test) structure comparison not reflect.DeepEqual
     
-    R=golang-dev, rsc
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5487057
+    https://golang.org/cl/5487064
 
- lib/codereview/codereview.py | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ src/pkg/archive/tar/reader_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,14 +1,12 @@
-commit 46ee09eff19f85512637bc85014f78937c3b688a
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Nov 8 10:09:17 2011 +1100
+commit 2d89db65c0fe6d7f736bb2272b84bb9ab02c013d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Nov 8 06:56:35 2011 +0900
 
-    html: fix typo in package docs.
+    net: fix build comment
     
-    Fixes #2419.
-    
-    R=dsymonds, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5352046
+    https://golang.org/cl/5353045
 
- src/pkg/html/doc.go | 2 +-
+ src/pkg/net/sock_bsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

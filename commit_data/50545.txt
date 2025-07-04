@@ -1,19 +1,26 @@
-commit 7234c90352e5ea7769c02808017fb20043ea8210
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Sep 4 05:23:07 2022 +1000
+commit 2bcf1c0373195724161a9dc287e1dbc26404e4fa
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Oct 29 11:21:45 2021 -0700
 
-    cmd/compile: combine operations with immediate on riscv64
+    internal/fuzz: don't add duplicate corpus entries
     
-    Replace two immediate operations with one, where possible.
+    If a identical input is already present in the corpus, don't re-add it.
+    This may happen when the same input produces a different coverage map,
+    causing the coordinator to think it has found a new input.
     
-    Change-Id: Idc00e868155c9ca1d872aaaf70ea1f73e9eac4d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428497
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This fixes a race between reading/writing cached inputs.
+    
+    Fixes #48721
+    
+    Change-Id: I4807602f433c2b99396d25ceaa58b827796b3555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359755
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  5 +++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 46 ++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+)
+ src/internal/fuzz/fuzz.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

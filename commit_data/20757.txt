@@ -1,13 +1,16 @@
-commit c57cb7867e834136e55e7a2a171e1b7cc7cf34a0
-Author: Rob Pike <r@golang.org>
-Date:   Mon Oct 20 13:27:41 2014 -0700
+commit 7b2b8edee60788358938dc7d7e04aabeae357b85
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 11:07:04 2014 -0400
 
-    cmd/go: set exit status for failing "go generate" run.
+    encoding/json: fix handling of null with ,string fields
     
-    LGTM=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/154360048
+    Fixes #8587.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/152270044
 
- src/cmd/go/generate.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/encoding/json/decode.go      | 40 ++++++++++++++++++++++++++++++++++++----
+ src/encoding/json/decode_test.go | 21 ++++++++++++++-------
+ 2 files changed, 50 insertions(+), 11 deletions(-)

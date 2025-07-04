@@ -1,13 +1,12 @@
-commit a033e367661d2c76f8949822673ffc36a560852a
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Jun 24 01:41:17 2012 +0800
+commit 75344d3d5b85acb4db74eb98cdffdef1d490508c
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Fri Jun 22 14:43:41 2012 -0700
 
-    runtime: fix struct Sigaction for Linux/386
-            We need to use kernel headers to generate defs_linux_$GOARCH.h
+    encoding/json: fix minor typo in documentation for Marshal
     
-    R=golang-dev, dave, alex.brainman, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6296091
+    https://golang.org/cl/6325053
 
- src/pkg/runtime/defs_linux_386.h | 2 +-
+ src/pkg/encoding/json/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

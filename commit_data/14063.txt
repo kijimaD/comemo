@@ -1,16 +1,15 @@
-commit caff4398203582dcdfe400b8b27c9ce218ea4564
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Oct 7 21:46:10 2012 +0200
+commit 373dbcb37af7b8966fc6f3818701c9ca3e8693da
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Oct 7 22:08:06 2012 +0400
 
-    cmd/gc: more graceful handling of invalid fields in widstruct.
+    io/ioutil: fix data race under the race detector
+    See issue 3970 (it's already marked as Fixed).
     
-    The protection against segfaults does not completely solve
-    crashes and breaks test/fixedbugs/bug365.go
-    
-    R=golang-dev, rsc
+    R=rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6615058
+    https://golang.org/cl/6624059
 
- src/cmd/gc/align.c | 7 +++++--
- src/cmd/gc/go.h    | 2 +-
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/io/ioutil/blackhole.go      | 13 +++++++++++++
+ src/pkg/io/ioutil/blackhole_race.go | 13 +++++++++++++
+ src/pkg/io/ioutil/ioutil.go         |  5 ++---
+ 3 files changed, 28 insertions(+), 3 deletions(-)

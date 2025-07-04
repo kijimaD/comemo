@@ -1,38 +1,22 @@
-commit 18c6ec1e4a62d25ce9801174c1c17360eb95233c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 6 14:00:30 2023 -0700
+commit 1b316e3571190964d960c6a7af3e17e887c70d45
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 10 14:45:12 2022 -0400
 
-    cmd/compile/internal/noder: stop preserving original const strings
+    internal/coverage: minor code cleanups
     
-    One of the more tedious quirks of the original frontend (i.e.,
-    typecheck) to preserve was that it preserved the original
-    representation of constants into the backend. To fit into the unified
-    IR model, I ended up implementing a fairly heavyweight workaround:
-    simply record the original constant's string expression in the export
-    data, so that diagnostics could still report it back, and match the
-    old test expectations.
+    Delete some unused code, various cleanups to fix staticcheck warnings.
     
-    But now that there's just a single frontend to support, it's easy
-    enough to just update the test expectations and drop this support for
-    "raw" constant expressions.
-    
-    Change-Id: I1d859c5109d679879d937a2b213e777fbddf4f2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526376
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ie475d57735a83351a4977f0dd4bc1387ce06a20e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441935
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ir/expr.go       | 14 -------------
- src/cmd/compile/internal/ir/fmt.go        |  5 -----
- src/cmd/compile/internal/ir/node_gen.go   | 19 -----------------
- src/cmd/compile/internal/noder/expr.go    | 34 -------------------------------
- src/cmd/compile/internal/noder/helpers.go |  5 -----
- src/cmd/compile/internal/noder/reader.go  |  4 +---
- src/cmd/compile/internal/noder/writer.go  |  5 -----
- test/escape5.go                           |  2 +-
- test/escape_reflect.go                    |  6 +++---
- test/escape_slice.go                      |  2 +-
- test/fixedbugs/issue13799.go              | 12 +++++------
- 11 files changed, 12 insertions(+), 96 deletions(-)
+ .../coverage/decodecounter/decodecounterfile.go    | 12 --------
+ src/internal/coverage/encodecounter/encode.go      |  4 +--
+ src/internal/coverage/encodemeta/encode.go         |  2 +-
+ src/internal/coverage/encodemeta/encodefile.go     | 10 +++----
+ src/internal/coverage/pods/pods_test.go            |  3 +-
+ src/internal/coverage/slicewriter/slw_test.go      | 32 +++++++++++-----------
+ src/internal/coverage/stringtab/stringtab.go       |  2 +-
+ src/internal/coverage/test/counter_test.go         | 14 ++++++++--
+ src/internal/coverage/test/roundtrip_test.go       |  7 +++--
+ 9 files changed, 42 insertions(+), 44 deletions(-)

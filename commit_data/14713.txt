@@ -1,15 +1,12 @@
-commit 407d0c5ab732c8a5ac003c41c294590d824b1eff
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 22 10:01:15 2012 -0500
+commit 9622f5032e67561c822374714aceb779389c3c00
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Dec 22 14:56:02 2012 +0900
 
-    cmd/gc: fix error line in switch expr eval
+    net: fix timeout tests
     
-    Fixes #4562.
-    
-    R=ken2
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7008044
+    https://golang.org/cl/7003049
 
- src/cmd/gc/swt.c            |  6 +++---
- test/fixedbugs/issue4562.go | 49 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 3 deletions(-)
+ src/pkg/net/timeout_test.go | 33 +++++++++++++++++++++++++++------
+ 1 file changed, 27 insertions(+), 6 deletions(-)

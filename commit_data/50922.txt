@@ -1,23 +1,20 @@
-commit b65e259e56a326295250f037efbd31f64bcdfbfe
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 09:29:05 2022 -0400
+commit 0555ea3ce997db6e6ef14ba9f55857f359b3fbf2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 16 22:18:02 2021 -0800
 
-    internal/fuzz: write shorter testdata corpus file names
+    runtime: don't serialize all builds in test
     
-    The only purpose of using the SHA256 in the file name is
-    collision avoidance. Using just the first 64 bits (16 hex digits)
-    will be more than enough, unless people start storing billions
-    of test cases in their corpora.
+    Permit a test whose program is already built to run immediately,
+    rather than waiting for another test to complete its build.
     
-    The shorter names are nicer for just about everything:
-    command lines, repository listings, and so on.
+    For #44422
     
-    Change-Id: I67c760023bed85ba3ffd4f8058f86ef778322ba7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443335
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Peter Weinberger <pjw@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I2d1b35d055ee4c4251f4caef3b52dccc82b71a1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364654
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/internal/fuzz/fuzz.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/crash_test.go | 61 ++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 42 insertions(+), 19 deletions(-)

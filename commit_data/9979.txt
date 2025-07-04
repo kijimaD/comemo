@@ -1,16 +1,24 @@
-commit c4b9c8bb7debdf5b15b10d4daa2fa1f0cdc85caa
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Oct 14 11:31:00 2011 -0700
+commit d296fa1c9523d5c767cbf2def38c9360fae97af6
+Author: Luca Greco <luca.greco@alcacoop.it>
+Date:   Fri Oct 14 14:27:45 2011 -0400
 
-    http: shut up a false Transport warning on Windows
+    websocket: tweak hybi ReadHandshake to supports Firefox implementation
     
-    Fixes #2057
+    Firefox Websocket implementation send a "Connection: keep-alive, upgrade"
+    header during the handshake (and as descripted on the last hybi draft
+    the "Connection" header must include, but doesn't need to be equal to,
+    "upgrade":
     
-    R=golang-dev, rsc
+       '4. A "Connection" header field that includes the token "Upgrade",
+        treated as an ASCII case-insensitive value.'
+    
+    From:
+    http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-17#page-23
+    
+    R=golang-dev, ukai, cw, rsc
     CC=golang-dev
-    https://golang.org/cl/5269044
+    https://golang.org/cl/5233059
 
- src/pkg/http/Makefile             |  5 +++++
- src/pkg/http/transport.go         | 14 +++++++++++++-
- src/pkg/http/transport_windows.go | 21 +++++++++++++++++++++
- 3 files changed, 39 insertions(+), 1 deletion(-)
+ src/pkg/websocket/hybi.go      |  2 +-
+ src/pkg/websocket/hybi_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 1 deletion(-)

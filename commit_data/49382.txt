@@ -1,21 +1,22 @@
-commit a32a592c8c14927c20ac42808e1fb2e55b2e9470
-Author: mstmdev <mstmdev@gmail.com>
-Date:   Sat Jun 4 19:32:04 2022 +0000
+commit fda8ee8b077dd8a5819cac7c52c3af1499a0674e
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 21:50:42 2021 -0400
 
-    database/sql/driver: fix typo in driver.go
+    go/types: make Interface.Complete a no-op
     
-    ExecerContext -> ExecContext
-    QueryerContext -> QueryContext
+    This is a partial port of CL 340255 to go/types. Of course we can't
+    delete Interface.Complete, but make it a no-op.
     
-    Change-Id: Id3b1f44de5aa47372d59696523b4379e1fbfc11c
-    GitHub-Last-Rev: 571d01f8052cef27bd5f91a5e95c0735ddf2e327
-    GitHub-Pull-Request: golang/go#53235
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410415
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Completing interfaces is no longer necessary.
+    
+    Change-Id: Ida3c84cc94713f14a646c7682f5d4ae5339a0faa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342489
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/database/sql/driver/driver.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/go/internal/gcimporter/iimport.go |  4 ----
+ src/go/types/interface.go             | 18 ++++--------------
+ src/go/types/issues_test.go           |  3 ++-
+ 3 files changed, 6 insertions(+), 19 deletions(-)

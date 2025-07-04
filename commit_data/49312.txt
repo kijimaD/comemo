@@ -1,23 +1,24 @@
-commit 3fa5ab0d83e1a27628dd997f3883eadd399679e1
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Mon May 23 11:02:57 2022 +0800
+commit d7d4f28a06b8633d433a925b0dfaeadf6530ae97
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Aug 2 18:28:40 2021 -0400
 
-    runtime: fix the vDSO symbol version on loong64
+    [dev.typeparams] runtime, internal/bytealg: remove regabi fallback code on AMD64
     
-    The current value is appropriate for an early in-house version of
-    Linux/LoongArch, but for the upstream version it is very likely
-    "LINUX_5.10" instead, per the latest upstream submission [1].
+    As we commit to always enabling register ABI on AMD64, remove the
+    fallback code.
     
-    [1]: https://lore.kernel.org/all/20220518095709.1313120-3-chenhuacai@loongson.cn/
-    
-    Change-Id: Ia97e5cae82a5b306bd3eea86b9e442441da07973
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407755
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Change-Id: I30556858ba4bac367495fa94f6a8682ecd771196
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341152
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/vdso_linux_loong64.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/internal/bytealg/compare_amd64.s |  32 ------
+ src/internal/bytealg/equal_amd64.s   |  51 ---------
+ src/runtime/asm_amd64.s              | 202 -----------------------------------
+ src/runtime/memclr_amd64.s           |   5 -
+ src/runtime/memmove_amd64.s          |   6 --
+ src/runtime/race_amd64.s             |  13 ---
+ 6 files changed, 309 deletions(-)

@@ -1,36 +1,31 @@
-commit d28bf6c9a2ea9b992796738d03eb3d15ffbfc0b4
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Sun Aug 15 16:31:52 2021 +0800
+commit 7ab875402985ea5a31512fb9750dc0f809e06861
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 2 23:56:13 2021 -0700
 
-    internal/bytealg: support basic byte operation on loong64
+    [dev.typeparams] cmd/compile: avoid redundant method wrappers in unified IR
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Currently, unified IR takes a simple approach of generating method
+    wrappers for every anonymous type that it sees. This is correct, but
+    spends a lot of time in code generation and bloats the object files
+    with duplicate method wrappers that the linker discards.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    This CL changes it to distinguish anonymous types that were found in
+    imported packages vs the local package. The simple win here is that
+    now we stop emitting wrappers for imported types; but by keeping track
+    of them and marking them as "have" instead of "need", we can avoid
+    emitting wrappers for types that appear in both the local package and
+    imported packages.
     
-    Updates #46229
+    This can be improved further, but this is a simple first step that
+    prevents large protobuf projects from blowing up build cache limits.
     
-    Change-Id: I4ac6d38dc632abfa0b698325ca0ae349c0d7ecd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342316
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia65e8981cb1f067eca2bd072b9bbb77c27b95207
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339411
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/internal/bytealg/compare_generic.go   |  2 +-
- src/internal/bytealg/compare_loong64.s    | 86 +++++++++++++++++++++++++++++++
- src/internal/bytealg/compare_native.go    |  2 +-
- src/internal/bytealg/equal_loong64.s      | 52 +++++++++++++++++++
- src/internal/bytealg/indexbyte_generic.go |  2 +-
- src/internal/bytealg/indexbyte_loong64.s  | 52 +++++++++++++++++++
- src/internal/bytealg/indexbyte_native.go  |  2 +-
- 7 files changed, 194 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/reader.go        | 69 +++++++++++++++++--------
+ src/cmd/compile/internal/reflectdata/reflect.go |  3 +-
+ 2 files changed, 49 insertions(+), 23 deletions(-)

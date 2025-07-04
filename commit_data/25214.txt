@@ -1,14 +1,19 @@
-commit 7e1791b97f53bd42808ef2d2e783134b9c3de257
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 9 14:55:10 2015 +0000
+commit 32ffbf7e0f1e79b28eb7da7bc21ab7ce478ef3ef
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 8 17:14:12 2015 -0400
 
-    math/big: fix typo
+    [dev.ssa] cmd/compile: handle addr of PARAM nodes
     
-    Found by github user asukakenji.
+    Turns out that these do occur after all, so did the obvious
+    refactoring into the addr method.
     
-    Change-Id: I4c76316b69e8a243fb6bf280283f3722e728d853
-    Reviewed-on: https://go-review.googlesource.com/17641
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Also added better debugging for the case of unhandled
+    closure args.
+    
+    Change-Id: I1cd8ac58f78848bae0b995736f1c744fd20a6c95
+    Reviewed-on: https://go-review.googlesource.com/15640
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/math/big/float.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 31 ++++++++++++++-----------------
+ 1 file changed, 14 insertions(+), 17 deletions(-)

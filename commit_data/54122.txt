@@ -1,22 +1,22 @@
-commit 38a0c5bdb4ab0175a089d907aa62e30f1046816c
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Tue Jul 25 10:53:58 2023 +0000
+commit 17f83e347312ce3e7a0369f1db50d60e6104f4cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 21 13:30:18 2022 -0700
 
-    net/http: clear reference to the request context after transport getConn
+    go/types, types2: report "undefined: p.x" instead of "x not declared by package p"
     
-    Clears wannConn ctx and prevents pending dialConnFor after connection delivered or canceled.
+    This matches the compiler's long-standing behavior.
     
-    Updates #50798
+    For #55326.
     
-    Change-Id: I9a681ac0f222be56571fa768700220f6b5ee0888
-    GitHub-Last-Rev: fd6c83ab072c62d224ed8220c4c286b6e90bc151
-    GitHub-Pull-Request: golang/go#61524
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512196
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Icd946b031b1b6e65498fb52bceb4a53807732463
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432556
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/transport.go | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/call.go      | 8 ++------
+ src/go/types/call.go                         | 4 ++--
+ src/internal/types/testdata/check/decls1.go  | 2 +-
+ src/internal/types/testdata/check/issues0.go | 2 +-
+ 4 files changed, 6 insertions(+), 10 deletions(-)

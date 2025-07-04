@@ -1,34 +1,20 @@
-commit 5a513061709dc7513a54635bd6bc04c483ceffea
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Apr 10 06:36:20 2014 +0200
+commit c8f90979acf078d2cbb18a9bf5c6f8349fab296a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 10 14:02:24 2014 +1000
 
-    runtime: fix semasleep on Plan 9
+    cmd/go: always build package during "go test" command
     
-    If you pass ns = 100,000 to this function, timediv will
-    return ms = 0. tsemacquire in /sys/src/9/port/sysproc.c
-    will return immediately when ms == 0 and the semaphore
-    cannot be acquired immediately - it doesn't sleep - so
-    notetsleep will spin, chewing cpu and repeatedly reading
-    the time, until the 100us have passed.
+    even when there are no *_test.go files present.
+    rsc suggested this change
     
-    Thanks to the time reads it won't take too many iterations,
-    but whatever we are waiting for does not get a chance to
-    run. Eventually the notetsleep spin loop returns and we
-    end up in the stoptheworld spin loop - actually a sleep
-    loop but we're not doing a good job of sleeping.
+    Fixes #7108
     
-    After 100ms or so of this, the kernel says enough and
-    schedules a different thread. That thread manages to do
-    whatever we're waiting for, and the spinning in the other
-    thread stops. If tsemacquire had actually slept, this
-    would have happened much quicker.
-    
-    Many thanks to Russ Cox for help debugging.
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=r, adg
+    R=golang-codereviews, r, adg
     CC=golang-codereviews
-    https://golang.org/cl/86210043
+    https://golang.org/cl/84300043
 
- src/pkg/runtime/os_plan9.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/test.bash                    | 8 ++++++++
+ src/cmd/go/test.go                      | 2 +-
+ src/cmd/go/testdata/src/notest/hello.go | 6 ++++++
+ 3 files changed, 15 insertions(+), 1 deletion(-)

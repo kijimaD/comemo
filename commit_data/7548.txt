@@ -1,18 +1,33 @@
-commit 4b376ef328c69a803bcb801b122b4bfc270a403d
+commit 63c24081a09a363735797097bf238a7c78d15fd7
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 23 14:47:22 2011 -0500
+Date:   Wed Feb 23 13:21:39 2011 -0500
 
-    runtime: traceback through active lessstack
+    5g: fix optimizer bug
     
-    With this change, a panic trace due to a signal arriving while
-    running on the scheduler stack during a lessstack
-    (a stack unsplit) will trace through the lessstack to show
-    the state of the goroutine that was unsplitting its stack.
+    same as in issue below, never fixed on ARM
     
-    R=r
+    changeset:   5498:3fa1372ca694
+    user:        Ken Thompson <ken@golang.org>
+    date:        Thu May 20 17:31:28 2010 -0700
+    
+    description:
+    fix issue 798
+    cannot allocate an audomatic temp
+    while real registers are allocated.
+    there is a chance that the automatic
+    will be allocated to one of the
+    allocated registers. the fix is to
+    not registerize such variables.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4206042
+    https://golang.org/cl/1202042
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4226042
 
- src/pkg/runtime/amd64/traceback.c | 12 ++++++++++++
- src/pkg/runtime/arm/traceback.c   | 11 +++++++++++
- 2 files changed, 23 insertions(+)
+ src/cmd/5g/gg.h    | 1 +
+ src/cmd/5g/gsubr.c | 1 +
+ src/cmd/5g/reg.c   | 4 ++--
+ 3 files changed, 4 insertions(+), 2 deletions(-)

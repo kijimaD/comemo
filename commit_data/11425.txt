@@ -1,12 +1,25 @@
-commit 01afb79c5960c746238c21b1eadc222af85d7c19
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jan 26 14:44:38 2012 -0800
+commit 899cd04e214435ee09483231fc3fa03ad270c5e6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 26 14:37:14 2012 -0800
 
-    FAQ: more words about why GOMAXPROCS>1 might not speed you up
+    net/http: add Request.RequestURI field
     
-    R=golang-dev, adg, gri
+    The new url.URL's parsing can be too canonicalizing for
+    certain applications. By keeping the original request URI
+    around, we give applications a gross escape hatch while
+    keeping the URL package clean and simple for normal uses.
+    
+    (From a discussion with Gary Burd, Gustavo Niemeyer,
+    and Russ Cox.)
+    
+    Fixes #2782
+    
+    R=golang-dev, rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5572067
+    https://golang.org/cl/5580044
 
- doc/go_faq.html | 21 +++++++++++++++++----
- 1 file changed, 17 insertions(+), 4 deletions(-)
+ src/pkg/net/http/client.go           |  4 ++++
+ src/pkg/net/http/client_test.go      | 12 ++++++++++++
+ src/pkg/net/http/readrequest_test.go |  7 +++++++
+ src/pkg/net/http/request.go          | 10 ++++++++--
+ 4 files changed, 31 insertions(+), 2 deletions(-)

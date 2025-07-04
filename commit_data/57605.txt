@@ -1,19 +1,33 @@
-commit 1edb49a6eb37af8593e25fed63029343fc9177f5
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Thu Oct 3 13:11:43 2024 +0000
+commit 78f90511ec89774fcdfe3d619972a58dd73b4954
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 22:19:10 2023 -0700
 
-    Revert "runtime/pprof: make TestBlockMutexProfileInlineExpansion stricter"
+    cmd/compile/internal/typecheck: replace Temp calls with TempAt
     
-    This reverts commit 5b0f8596b766afae9dd1f117a4a5dcfbbf1b80f1.
+    Steps towards eliminating implicit dependencies on base.Pos and
+    ir.CurFunc. Mechanical CL produced with gofmt -r.
     
-    Reason for revert: This CL breaks gotip-linux-amd64-noopt builder.
-    
-    Change-Id: I3950211f05c90e4955c0785409b796987741a9f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617715
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I070015513cb955cbe87f9a148d81db8c0d4b0dc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520605
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/pprof/pprof_test.go | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/devirtualize/pgo.go    | 10 +++++-----
+ src/cmd/compile/internal/loopvar/loopvar.go     |  6 +++---
+ src/cmd/compile/internal/reflectdata/alg.go     |  4 ++--
+ src/cmd/compile/internal/typecheck/dcl.go       |  8 --------
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 ++--
+ src/cmd/compile/internal/walk/assign.go         | 10 +++++-----
+ src/cmd/compile/internal/walk/builtin.go        | 20 ++++++++++----------
+ src/cmd/compile/internal/walk/complit.go        | 12 ++++++------
+ src/cmd/compile/internal/walk/convert.go        | 10 +++++-----
+ src/cmd/compile/internal/walk/expr.go           |  4 ++--
+ src/cmd/compile/internal/walk/order.go          |  2 +-
+ src/cmd/compile/internal/walk/range.go          | 22 +++++++++++-----------
+ src/cmd/compile/internal/walk/select.go         | 12 ++++++------
+ src/cmd/compile/internal/walk/switch.go         |  2 +-
+ src/cmd/compile/internal/walk/temp.go           |  4 ++--
+ 15 files changed, 61 insertions(+), 69 deletions(-)

@@ -1,13 +1,14 @@
-commit bdd78a088dd07f1182dac2a17f9ff0d2353cc429
-Author: Michael Gehring <mg@ebfe.org>
-Date:   Wed Jan 22 10:58:38 2014 -0800
+commit ec8a24adbd710652212f763d2bc757480a7c45a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 22 10:48:58 2014 -0800
 
-    archive/tar: add dragonfly build tag
+    api: add Fchflags exception to more platforms
     
-    R=golang-codereviews, bradfitz
+    Unbreaks the build.
+    
+    R=golang-codereviews, dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/55720044
+    https://golang.org/cl/53820045
 
- src/pkg/archive/tar/stat_atim.go | 2 +-
- src/pkg/archive/tar/stat_unix.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ api/except.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

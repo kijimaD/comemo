@@ -1,28 +1,56 @@
-commit 0d42cebacdba1855d11f29f708587c9a7a5cb976
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 9 19:33:22 2025 +0000
+commit 63deaf00ea6058d1422f0b435e475666cba5743e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Mar 4 13:29:39 2024 -0500
 
-    runtime: report finalizer and cleanup queue length with checkfinalizer>0
+    cmd/compile,cmd/preprofile: move logic to shared common package
     
-    This change adds tracking for approximate finalizer and cleanup queue
-    lengths. These lengths are reported once every GC cycle as a single line
-    printed to stderr when GODEBUG=checkfinalizer>0.
+    The processing performed in cmd/preprofile is a simple version of the
+    same initial processing performed by cmd/compile/internal/pgo. Refactor
+    this processing into the new IR-independent cmd/internal/pgo package.
     
-    This change lays the groundwork for runtime/metrics metrics to produce
-    the same values.
+    Now cmd/preprofile and cmd/compile run the same code for initial
+    processing of a pprof profile, guaranteeing that they always stay in
+    sync.
     
-    For #72948.
-    For #72950.
+    Since it is now trivial, this CL makes one change to the serialization
+    format: the entries are ordered by weight. This allows us to avoid
+    sorting ByWeight on deserialization.
     
-    Change-Id: I081721238a0fc4c7e5bee2dbaba6cfb4120d1a33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671437
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Impact on PGO parsing when compiling cmd/compile with PGO:
+    
+    * Without preprocessing: PGO parsing ~13.7% of CPU time
+    * With preprocessing (unsorted): ~2.9% of CPU time (sorting ~1.7%)
+    * With preprocessing (sorted): ~1.3% of CPU time
+    
+    The remaining 1.3% of CPU time approximately breaks down as:
+    
+    * ~0.5% parsing the preprocessed profile
+    * ~0.7% building weighted IR call graph
+      * ~0.5% walking function IR to find direct calls
+      * ~0.2% performing lookups for indirect calls targets
+    
+    For #58102.
+    
+    Change-Id: Iaba425ea30b063ca195fb2f7b29342961c8a64c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569337
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/mcleanup.go | 29 +++++++++++++++++++++++++++++
- src/runtime/mfinal.go   | 26 ++++++++++++++++++++------
- src/runtime/mgc.go      | 13 +++++++++++++
- src/runtime/proc.go     |  2 ++
- src/runtime/runtime2.go |  3 ++-
- 5 files changed, 66 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/devirtualize/pgo_test.go  |  25 +-
+ src/cmd/compile/internal/inline/inl.go             |  35 +--
+ src/cmd/compile/internal/pgo/irgraph.go            | 296 ++-------------------
+ .../pgo/devirtualize/devirt.pprof.node_map         |  62 ++---
+ .../testdata/pgo/inline/inline_hot.pprof.node_map  |   8 +-
+ src/cmd/dist/buildtool.go                          |   3 +-
+ src/cmd/internal/pgo/deserialize.go                | 102 +++++++
+ src/cmd/internal/pgo/pgo.go                        |  55 ++++
+ src/cmd/internal/pgo/pprof.go                      | 140 ++++++++++
+ src/cmd/internal/pgo/serialize.go                  |  79 ++++++
+ src/cmd/internal/pgo/serialize_test.go             | 190 +++++++++++++
+ .../testdata/fuzz/FuzzRoundTrip/12fcf136fcb7463c   |   2 +
+ .../testdata/fuzz/FuzzRoundTrip/2055d314024c8d6c   |   2 +
+ .../testdata/fuzz/FuzzRoundTrip/b615162315f7b72c   |   2 +
+ .../testdata/fuzz/FuzzRoundTrip/fdc60117b431bbae   |   2 +
+ src/cmd/preprofile/main.go                         | 125 ++-------
+ 16 files changed, 685 insertions(+), 443 deletions(-)

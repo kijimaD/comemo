@@ -1,19 +1,16 @@
-commit 5c0fbf052b8ab98c0a1dd74365912d33572be4f3
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Sep 16 15:08:17 2016 -0400
+commit 07f0c19a30a5c83592bcd2f19e52eb8a40b32790
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 25 14:57:49 2016 +0200
 
-    plugin: cast dlerror return value for android
+    math/big: use run for benchmarks
     
-    Until a few weeks ago, bionic, the Andoid libc, incorrectly
-    returned const char* (instead of char*) from dlerror(3).
+    shortens code and gives an example of the use of Run.
     
-    https://android.googlesource.com/platform/bionic/+/5e071a18ce88d93fcffaebb9e0f62524ae504908
-    
-    Change-Id: I30d33240c63a9f35b6c20ca7e3928ad33bc5e33f
-    Reviewed-on: https://go-review.googlesource.com/29352
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I75ffaf762218a589274b4b62e19022e31e805d1b
+    Reviewed-on: https://go-review.googlesource.com/23424
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/plugin/plugin_dlopen.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/math/big/arith_test.go | 135 ++++++++++++++++++++-------------------------
+ 1 file changed, 60 insertions(+), 75 deletions(-)

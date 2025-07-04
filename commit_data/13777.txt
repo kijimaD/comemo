@@ -1,13 +1,15 @@
-commit b752ab2e90a29e8c56a19457c736065085d4ab09
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Sep 9 20:07:09 2012 -0400
+commit b7376442669a0ea48e06bd98a3350c33cefe1113
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Sep 9 23:53:48 2012 +0900
 
-    crypto/rand: zero length reads shouldn't crash on Windows.
+    net: change cname lookup test target to iana.org
     
-    R=golang-dev, dave
+    It might be meaningful, and stable than others.
+    
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/6496099
+    https://golang.org/cl/6499091
 
- src/pkg/crypto/rand/rand_test.go    | 11 +++++++++++
- src/pkg/crypto/rand/rand_windows.go |  4 ++++
- 2 files changed, 15 insertions(+)
+ src/pkg/net/dialgoogle_test.go | 11 -----------
+ src/pkg/net/lookup_test.go     | 12 ++++++++++++
+ 2 files changed, 12 insertions(+), 11 deletions(-)

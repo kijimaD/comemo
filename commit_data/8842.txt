@@ -1,12 +1,12 @@
-commit fc57c4b7a982979b7ed2f62af10b2b1c3cbcf8fb
-Author: Quan Yong Zhai <qyzhai@gmail.com>
-Date:   Fri Jun 24 11:19:48 2011 -0700
+commit a39ead7ed2b92a0f22fe837500b650180bb23f33
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 24 19:18:59 2011 +1000
 
-    misc/emacs: update list of builtins.
+    path/filepath: enable TestWalk to run on windows
     
-    R=golang-dev, gri
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/4630065
+    https://golang.org/cl/4630066
 
- misc/emacs/go-mode.el | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/path/filepath/path_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

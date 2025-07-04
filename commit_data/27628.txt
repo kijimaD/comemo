@@ -1,14 +1,15 @@
-commit 49c680f948310cfc7ab3062ca9a96a4adb6ae8cd
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jun 2 17:17:02 2016 +0900
+commit 870d997ab47fe88c33f4dadef38d7e85eeabf17c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 5 17:24:23 2016 +0000
 
-    syscall: deflake TestUnshare
+    net/http: keep request context during Client redirects
     
-    Change-Id: I21a08c2ff5ebb74e158723cca323574432870ba8
-    Reviewed-on: https://go-review.googlesource.com/23662
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I25c51280ba55120ffeaf08222f5ac5d471632d89
+    Reviewed-on: https://go-review.googlesource.com/21535
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_linux_test.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/net/http/client.go      |  1 +
+ src/net/http/client_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

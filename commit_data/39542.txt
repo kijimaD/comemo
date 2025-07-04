@@ -1,14 +1,19 @@
-commit a25c2878c75902585023618f1c60b447afcdd063
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Jul 27 14:53:54 2019 -0700
+commit 4b142806fa070bfbd26126c75b109f6aefc3b738
+Author: sergey <sngasuan@gmail.com>
+Date:   Sun Mar 3 16:38:04 2019 +0300
 
-    doc: use <code> for a few file paths that didn't
+    net/http: add corner cases for readCookiesTests
     
-    Spotted while seeing CL 187818 in master.
+    The following corner cases for readCookiesTests are tested now:
+     - An extra cookie delimiter ";" at the end of a Cookie header
+     - An empty Cookie header
     
-    Change-Id: Ic3f42558f6833fc35580b2b2a15f2c5aba5713c0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187822
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id8028b448e4182613fb261bf0903efc98cbf4997
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164702
+    Reviewed-by: Volker Dobler <dr.volker.dobler@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/contribute.html | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/net/http/cookie_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,15 +1,15 @@
-commit 3c0466136d635fc4845484f0a98f52e66d61168b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 9 04:08:32 2016 +0000
+commit 56d35d42e188b8767665a368384e084da50ef634
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Oct 7 21:27:32 2016 -0700
 
-    go/build: clarify Context.HasSubdir docs
+    compress/gzip: document Reader.Read
     
-    Fixes #17888
+    Fixes #17374.
     
-    Change-Id: I7490b95a03b810a0f7ed1f07f37d7c7b3ac036be
-    Reviewed-on: https://go-review.googlesource.com/34240
-    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+    Change-Id: Ic89c35aaa31f35a8a4e3ffa09f49b68f08127625
+    Reviewed-on: https://go-review.googlesource.com/30718
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/go/build/build.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/compress/gzip/gunzip.go | 1 +
+ 1 file changed, 1 insertion(+)

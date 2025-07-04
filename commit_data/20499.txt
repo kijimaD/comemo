@@ -1,17 +1,21 @@
-commit 0be3176a8bc394f5234a2665843b5490e9095f46
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Sep 22 14:29:45 2014 +1000
+commit a14c1c986eba6ca6a35bfb9feb833b8eff53c7b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 12 11:18:12 2014 -0700
 
-    image/gif: don't let the per-frame transparent index modify the global
-    palette.
+    go/printer: don't reduce nesting depth twice if parentheses are present around an expr
     
-    Fixes #7993.
+    No impact on formatting on our repos.
     
-    LGTM=r
-    R=r
-    CC=golang-codereviews, james.jdunne
-    https://golang.org/cl/138600043
+    Fixes #8021.
+    
+    LGTM=adonovan
+    R=adonovan, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/142020043
 
- src/image/gif/reader.go      |  7 ++++-
- src/image/gif/reader_test.go | 64 +++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 61 insertions(+), 10 deletions(-)
+ src/go/printer/nodes.go                    | 2 +-
+ src/go/printer/testdata/expressions.golden | 5 +++++
+ src/go/printer/testdata/expressions.input  | 5 +++++
+ src/go/printer/testdata/expressions.raw    | 5 +++++
+ src/go/printer/testdata/statements.golden  | 2 +-
+ 5 files changed, 17 insertions(+), 2 deletions(-)

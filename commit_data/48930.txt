@@ -1,24 +1,18 @@
-commit c15d0a93c772c03fb028f0473016629a70a4427e
+commit a8861b907dc9d6fece2d515e45dc5091ffd4be63
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Apr 28 21:03:00 2022 +0700
+Date:   Sun Jun 27 22:10:03 2021 +0700
 
-    cmd/compile: fix missing export/import init nodes of builtins that allow multiple arguments
+    [dev.typeparams] cmd/compile: port CL 330838 for -G=3
     
-    Fixes #52590
+    So next CL can move MethodValueWrapper to walk, since when walk is now
+    the only place which uses this function.
     
-    Change-Id: Ibd0852ae2a9ad8e4598e93320daff1b3c196929f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402854
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id3be359bfc38efb022451cb7f9e53c2868fe7e12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330840
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go |  2 +
- src/cmd/compile/internal/typecheck/iimport.go | 20 ++++++--
- test/fixedbugs/issue52590.dir/a.go            | 68 +++++++++++++++++++++++++++
- test/fixedbugs/issue52590.dir/b.go            | 18 +++++++
- test/fixedbugs/issue52590.go                  |  7 +++
- 5 files changed, 111 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/transform.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

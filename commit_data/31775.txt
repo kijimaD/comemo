@@ -1,17 +1,27 @@
-commit 27f88731eba585e1d9b5e425f61d270ff170ed68
+commit 4b8f41daa63154949104d27d70acc3857a0b4b0b
 Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 9 11:58:53 2017 -0400
+Date:   Fri Mar 10 10:59:39 2017 -0500
 
-    runtime: print pc with fp/sp in traceback
+    runtime: print user stack on other threads during GOTRACBEACK=crash
     
-    If we're in a situation where printing the fp and sp in the traceback
-    is useful, it's almost certainly also useful to print the PC.
+    Currently, when printing tracebacks of other threads during
+    GOTRACEBACK=crash, if the thread is on the system stack we print only
+    the header for the user goroutine and fail to print its stack. This
+    happens because we passed the g0 to traceback instead of curg. The g0
+    never has anything set in its gobuf, so traceback doesn't print
+    anything.
     
-    Change-Id: Ie48a0d5de8a54b5b90ab1d18638a897958e48f70
-    Reviewed-on: https://go-review.googlesource.com/45210
+    Fix this by passing _g_.m.curg to traceback instead of the g0.
+    
+    Fixes #19494.
+    
+    Change-Id: Idfabf94d6a725e9cdf94a3923dead6455ef3b217
+    Reviewed-on: https://go-review.googlesource.com/38012
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/traceback.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/crash_unix_test.go   | 73 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/export_test.go       | 13 +++++++
+ src/runtime/signal_sighandler.go |  2 +-
+ 3 files changed, 87 insertions(+), 1 deletion(-)

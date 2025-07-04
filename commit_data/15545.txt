@@ -1,20 +1,19 @@
-commit 8cfed59941655f6a77af065f0196dff6450f52a7
+commit 749082e2a48719101606e7416b70fbdeea93a523
 Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 1 14:31:26 2013 -0800
+Date:   Fri Mar 1 12:30:09 2013 -0800
 
-    runtime: special-case small byte appends.
-    Update #3679.
+    cmd/vet: use go/printer to pretty-print expressions in printf messages
+    Fixes #4945.
+    Most examples in this issue now better, but #10 is incomplete and I'm not
+    certain how to reproduce it. It actually looks like a go/types problem, since
+    the type being reported is coming directly from that package.
+    Please reopen the issue if you disagree.
     
-    BenchmarkAppend1Byte            484          199  -58.88%
-    BenchmarkAppend4Bytes           829          286  -65.50%
-    BenchmarkAppend8Bytes           484          365  -24.59%
-    BenchmarkAppend16Bytes          484          498   +2.89%
-    BenchmarkAppend32Bytes          486          484   -0.41%
-    
-    R=iant, dave, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7443047
+    https://golang.org/cl/7448046
 
- src/pkg/runtime/append_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/slice.c        | 23 ++++++++++++++++++++--
- 2 files changed, 64 insertions(+), 2 deletions(-)
+ src/cmd/vet/main.go       |  2 +-
+ src/cmd/vet/print.go      |  6 +++---
+ src/cmd/vet/test_print.go | 52 +++++++++++++++++++++++------------------------
+ 3 files changed, 30 insertions(+), 30 deletions(-)

@@ -1,15 +1,15 @@
-commit 79db6ada48d09dbbf47c4fb0f49ebbd2a044a35b
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Feb 16 00:19:42 2012 +0100
+commit 88f8af127ab675b94e18f161c59415edd92110e9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 16 10:15:36 2012 +1100
 
-    cmd/gc: error on constant shift overflows.
+    bufio: don't return errors from good Peeks
     
-    Fixes #3019.
+    Fixes #3022
     
-    R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5674044
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5674060
 
- src/cmd/gc/mparith2.c | 26 +++++++++++++++++---------
- test/const2.go        |  4 +++-
- 2 files changed, 20 insertions(+), 10 deletions(-)
+ src/pkg/bufio/bufio.go      |  9 ++++++---
+ src/pkg/bufio/bufio_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 3 deletions(-)

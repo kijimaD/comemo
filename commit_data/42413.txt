@@ -1,12 +1,17 @@
-commit 65f514edfb0ca5208e961318306eeddfdf79fda7
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri May 29 16:09:50 2020 +0200
+commit ae2bf169f6282a2715a3c0faf194910278044b03
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Mon Dec 16 13:58:27 2019 -0500
 
-    math: fix dead link to springerlink (now link.springer)
+    api: promote next to go1.14
     
-    Change-Id: Ie5fd026af45d2e7bc371a38d15dbb52a1b4958cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235717
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I14b1a21a8639b3241326e74ab6152673d5d71243
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211517
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/math/exp_amd64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/go1.14.txt | 198 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt   |   5 --
+ 2 files changed, 198 insertions(+), 5 deletions(-)

@@ -1,18 +1,16 @@
-commit 362713183a8947394d2900563e711d05c9bbd67b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Nov 14 16:34:16 2022 -0500
+commit b357b05b70d2b8c4988ac2a27f2af176e7a09e1b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 21 13:58:15 2021 -0800
 
-    cmd/pprof: debug TestDisasm
+    doc/go1.18: add section for runtime/debug changes
     
-    If pprof -disasm fails, print the profile content for debugging.
+    For #37475
+    For #47694
     
-    For #56574.
-    
-    Change-Id: I5d9377b7fb80f6b85317bc53f3ebb18f70c2f06d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450281
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: If8c1f1b756daf32648110f1a669b2ea60f797a24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373875
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/pprof/pprof_test.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ doc/go1.18.html | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

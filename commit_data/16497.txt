@@ -1,24 +1,15 @@
-commit 63a707e35424dfa0e4d1dffb8b22099a8d54c9f2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 4 21:51:22 2013 -0700
+commit 427bec62b5a24aa42b0dc97a6040fd84d7f4366d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jun 5 10:18:06 2013 +1000
 
-    undo CL 10017045 / 6ec8c49421a0
+    image/jpeg: avoid documentation argument over whether it's luma
+    subsampling or chroma subsampling.
     
-    It was never tested and also breaks Windows.
+    Fixes #5569.
     
-    run.go doesn't yet support the proper !windows,!plan9 syntax.
-    
-    ««« original CL description
-    test: do not run SIGCHLD test on Plan 9
-    
-    R=golang-dev, bradfitz
+    R=r
     CC=golang-dev
-    https://golang.org/cl/10017045
-    »»»
-    
-    R=golang-dev, dave
-    CC=golang-dev
-    https://golang.org/cl/10024044
+    https://golang.org/cl/9900044
 
- test/sigchld.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/image/jpeg/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,24 +1,22 @@
-commit e3cb3817049ca5e9d96543500b72117f6ca659b8
-Author: Sergey Zagursky <gvozdoder@gmail.com>
-Date:   Fri Jun 4 12:25:51 2021 +0300
+commit 30ba7980932dfb7ec6660ee929b4e1982256285f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Oct 30 16:47:58 2020 -0400
 
-    go/internal/gcimporter: don't waste CPU copying bytes in `io.ReadAll`
+    cmd/go: use overlaid path contents in build cache
     
-    `io.ReadAll` dynamically reallocates byte slice because it doesn't know
-    its size in advance. We don't need to read an entire file into memory
-    and therefore may use `bufio.Reader` to read its contents.
+    When caching actions, use the overlaid file contents, because those
+    are the ones actually used to produce the outputs.
     
-    Fixes #46564
+    For #39958
     
-    Change-Id: Id504b1512662b6dea4775d523455896fa4162ab3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325429
-    Reviewed-by: Dominik Honnef <dominik@honnef.co>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dominik Honnef <dominik@honnef.co>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia1f85b2fcf1f26e3b5be82f4d35c2726b134a36b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266720
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/internal/gcimporter/gcimporter.go | 11 ++++-------
- src/go/internal/gcimporter/iimport.go    | 21 +++++++++++----------
- 2 files changed, 15 insertions(+), 17 deletions(-)
+ src/cmd/go/internal/work/buildid.go          |  2 ++
+ src/cmd/go/testdata/script/build_overlay.txt | 32 ++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

@@ -1,16 +1,22 @@
-commit 7322ef5d2a4aefc3f059015dcb8a7860461cb911
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 15 12:49:45 2015 -0700
+commit 7d9e16abc6bea2eb12d718b578f91328af99586a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat May 2 22:59:35 2015 -0400
 
-    go/types: fix Eval to use correct file set when evaluating an expression
+    runtime: add benchmark of heapBitsSetType
     
-    This is https://go-review.googlesource.com/10999 which we could not apply
-    in x/tools/go/types because we must not rely on 1.5 features in that repo
-    yet.
+    There was an old benchmark that measured this indirectly
+    via allocation, but I don't understand how to factor out the
+    allocation cost when interpreting the numbers.
     
-    Change-Id: I9a57cdb7ad4051df278d1fbed90c736df50f426f
-    Reviewed-on: https://go-review.googlesource.com/11125
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Replace with a benchmark that only calls heapBitsSetType,
+    that does not allocate. This was not possible when the
+    benchmark was first written, because heapBitsSetType had
+    not been factored out of mallocgc.
+    
+    Change-Id: I30f0f02362efab3465a50769398be859832e6640
+    Reviewed-on: https://go-review.googlesource.com/9701
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/types/eval.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/runtime/export_test.go |  29 ++++++++
+ src/runtime/gc_test.go     | 168 +++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 161 insertions(+), 36 deletions(-)

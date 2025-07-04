@@ -1,45 +1,24 @@
-commit 211ee9f07cb454058fab5914117c19f33a7f64de
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jan 14 16:37:42 2020 -0800
+commit 5fec7882391e839e0b6811b2d4347f0ba8b12358
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 11 17:43:32 2019 -0400
 
-    cmd/compile: use a bytes.Buffer to format symbols
+    [dev.link] cmd/link: add dupok symbols resolved to another package to textp
     
-    No significant compiler speed changes,
-    but some minor memory savings.
+    When a dupok symbol is resolved to another package, we still need
+    to record its presence in the current package, as the trampoline
+    pass expects packages are laid out in dependency order. At the
+    point after deadcode where we populate symbol contents for
+    reachable symbols (add relocations and read symbol data), make a
+    note of the dupok text symbols for each package. Later in
+    addToTextp we will visit packages in dependency order, process
+    the dup text symbol list for each package and select a final lib
+    for each dup text symbol.
     
-    Passes toolstash-check.
-    
-    name        old alloc/op      new alloc/op      delta
-    Template         36.3MB ± 0%       36.2MB ± 0%  -0.25%  (p=0.008 n=5+5)
-    Unicode          28.3MB ± 0%       28.2MB ± 0%  -0.16%  (p=0.008 n=5+5)
-    GoTypes           122MB ± 0%        121MB ± 0%  -0.39%  (p=0.008 n=5+5)
-    Compiler          568MB ± 0%        566MB ± 0%  -0.21%  (p=0.008 n=5+5)
-    SSA              1.95GB ± 0%       1.95GB ± 0%  -0.08%  (p=0.008 n=5+5)
-    Flate            22.8MB ± 0%       22.8MB ± 0%  -0.21%  (p=0.008 n=5+5)
-    GoParser         28.0MB ± 0%       27.9MB ± 0%  -0.38%  (p=0.008 n=5+5)
-    Reflect          78.6MB ± 0%       78.3MB ± 0%  -0.33%  (p=0.008 n=5+5)
-    Tar              34.1MB ± 0%       34.1MB ± 0%  -0.19%  (p=0.008 n=5+5)
-    XML              44.3MB ± 0%       44.2MB ± 0%  -0.19%  (p=0.008 n=5+5)
-    [Geo mean]       79.9MB            79.7MB       -0.24%
-    
-    name        old allocs/op     new allocs/op     delta
-    Template           363k ± 0%         359k ± 0%  -1.21%  (p=0.008 n=5+5)
-    Unicode            329k ± 0%         326k ± 0%  -0.90%  (p=0.008 n=5+5)
-    GoTypes           1.28M ± 0%        1.25M ± 0%  -2.62%  (p=0.008 n=5+5)
-    Compiler          5.39M ± 0%        5.31M ± 0%  -1.45%  (p=0.008 n=5+5)
-    SSA               18.1M ± 0%        17.9M ± 0%  -0.78%  (p=0.008 n=5+5)
-    Flate              228k ± 0%         226k ± 0%  -0.97%  (p=0.008 n=5+5)
-    GoParser           295k ± 0%         288k ± 0%  -2.26%  (p=0.008 n=5+5)
-    Reflect            949k ± 0%         932k ± 0%  -1.74%  (p=0.008 n=5+5)
-    Tar                336k ± 0%         332k ± 0%  -1.12%  (p=0.008 n=5+5)
-    XML                417k ± 0%         413k ± 0%  -1.10%  (p=0.008 n=5+5)
-    [Geo mean]         818k              806k       -1.42%
-    
-    Change-Id: Ibdb94650a761edec17d8eba0abdfb70a8a495da9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222920
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ib885e0a7e2343229d853aa629e3e337111df6011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200797
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 84 ++++++++++++++++++++++++++++----------
- 1 file changed, 62 insertions(+), 22 deletions(-)
+ src/cmd/link/internal/objfile/objfile2.go | 28 ++++++++++++++++++++++------
+ 1 file changed, 22 insertions(+), 6 deletions(-)

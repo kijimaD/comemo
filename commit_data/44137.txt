@@ -1,21 +1,44 @@
-commit 5a8fbb0d2d339fa87a02c0794f5a92c1ce121631
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Mon Jan 18 13:31:28 2021 +0100
+commit 796786cd0cc1ed71da65fe9f1760b390b189c5cd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 12 16:08:50 2020 +0000
 
-    os: do not close syscall.Stdin in TestReadStdin
+    runtime: make maxOffAddr reflect the actual address space upper bound
     
-    By calling NewConsoleFile on syscall.Stdin, we wind up closing it when
-    the function returns, which causes errors when all the tests are run in
-    a loop. To fix this, we instead create a duplicate handle of stdin.
+    Currently maxOffAddr is defined in terms of the whole 64-bit address
+    space, assuming that it's all supported, by using ^uintptr(0) as the
+    maximal address in the offset space. In reality, the maximal address in
+    the offset space is (1<<heapAddrBits)-1 because we don't have more than
+    that actually available to us on a given platform.
     
-    Fixes #43720.
+    On most platforms this is fine, because arenaBaseOffset is just
+    connecting two segments of address space, but on AIX we use it as an
+    actual offset for the starting address of the available address space,
+    which is limited. This means using ^uintptr(0) as the maximal address in
+    the offset address space causes wrap-around, especially when we just
+    want to represent a range approximately like [addr, infinity), which
+    today we do by using maxOffAddr.
     
-    Change-Id: Ie6426e6306c7e1e39601794f4ff48bbf2fe67502
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284140
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    To fix this, we define maxOffAddr more appropriately, in terms of
+    (1<<heapAddrBits)-1.
+    
+    This change also redefines arenaBaseOffset to not be the negation of the
+    virtual address corresponding to address zero in the virtual address
+    space, but instead directly as the virtual address corresponding to
+    zero. This matches the existing documentation more closely and makes the
+    logic around arenaBaseOffset decidedly simpler, especially when trying
+    to reason about its use on AIX.
+    
+    Fixes #38966.
+    
+    Change-Id: I1336e5036a39de846f64cc2d253e8536dee57611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233497
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/os/os_windows_test.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/runtime/export_test.go |  6 +-----
+ src/runtime/malloc.go      |  2 +-
+ src/runtime/mheap.go       |  4 ++--
+ src/runtime/mpagealloc.go  | 12 ++++++------
+ src/runtime/mranges.go     | 32 ++++++++++----------------------
+ 5 files changed, 20 insertions(+), 36 deletions(-)

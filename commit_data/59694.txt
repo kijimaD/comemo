@@ -1,18 +1,49 @@
-commit aec96d686be16fda519f6fd4a6e3bbfe3454c0b9
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 16 13:50:44 2025 -0700
+commit bfb1f563716f513b1c58883c7217f468c53a0f1a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 11 20:33:20 2024 +0000
 
-    doc: mention stack allocation of variable-sized make calls
+    internal/trace/v2: make TestGCStress less random
     
-    Also mention the bisect tool and flag used to track down
-    incorrect uses.
+    Currently TestGCStress' main loop allocates a randomly-sized byte slice
+    in a loop. On the windows-386 builder, it looks like the following is
+    happening.
     
-    Change-Id: Id36a236e1bb2733b8611b22a5b16916e7d9f5522
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666075
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    In such heavily-allocating scenarios, the test seems to be able to
+    outrun the GC. This is a known issue on all platforms, but it looks to
+    me like there may be a real issue with mark termination. (Fixing that is
+    outside the scope of this change, but relevant here.)
+    
+    Furthermore, while the test is ramping up, the pacer is taking time to
+    acclimate to the high allocation rate. This is probably made worse due
+    to the coarse time granularity on Windows, since the pacer relies on
+    accurate time measurements.
+    
+    Because the pacer is ramping up, it isn't starting early enough, causing
+    a lot of memory to get allocated black and inflate the live heap size.
+    This happens for more than one cycle.
+    
+    Last but not least, because the core allocating loop of this test
+    allocates randomly-sized byte slices, we could just get unlucky and
+    inflate the live heap by much more sometimes. Furthermore, the
+    randomness creates chaos for the pacer that is totally unnecessary for
+    this test.
+    
+    Although I couldn't reproduce the issue we're seeing on the trybots in a
+    gomote, I *could* reproduce memory spikes in general. These memory
+    spikes always occurred before the pacer had a chance to "warm up," in
+    the first two cycles after the heavy allocating begins.
+    
+    I believe the flakiness we're seeing is all of these factors lining up,
+    because if I just make the size of the allocated byte slices smaller and
+    non-random, I can no longer reproduce the memory spikes. This change
+    implements this as a fix in the hope that it'll resolve the flakiness.
+    
+    Fixes #66624.
+    
+    Change-Id: I478d45e7c600e5aee4b21dbe831e1f287284f5e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578319
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- doc/next/5-toolchain.md | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/internal/trace/v2/testdata/testprog/gc-stress.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

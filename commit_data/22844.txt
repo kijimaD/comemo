@@ -1,15 +1,18 @@
-commit 10f6d30315536703065cec19ef48d51561a5219a
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon May 4 10:37:34 2015 +1000
+commit 09fb56dc7d8230db521816e75fcff0f77241de0e
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Apr 1 15:53:52 2015 +1300
 
-    cmd/go: Update alldocs.go header to point to the correct shell script.
+    cmd/go: start support for -linkshared
     
-    The script was renamed in b3000b6.
+    This will fruitlessly rebuild stale packages that are in a shared
+    library.
     
-    Change-Id: I45ecafff7400e4bff14f31906278609abf2bcb9f
-    Reviewed-on: https://go-review.googlesource.com/9667
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I66a6e1adf7818558e7d1351ab215a5021b4a8a6b
+    Reviewed-on: https://go-review.googlesource.com/8333
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go | 4 ++--
- src/cmd/go/main.go    | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/build.go    | 14 ++++++++++++++
+ src/cmd/go/doc.go      |  3 +++
+ src/cmd/go/test.go     |  1 +
+ src/cmd/go/testflag.go |  3 ++-
+ 4 files changed, 20 insertions(+), 1 deletion(-)

@@ -1,20 +1,12 @@
-commit b53ce1e66221be41a0b869869ceba73b795c8c3e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 1 18:25:40 2012 -0500
+commit 3692726f32f4cff4429e893830871d9b50b9816b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 1 15:24:15 2012 -0800
 
-    lib9: make safe for automatic builds
+    test: test append with two different named types with same element type
     
-    R=golang-dev, adg, bradfitz
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5615046
+    https://golang.org/cl/5615045
 
- src/lib9/Makefile               |  2 +-
- src/lib9/await.c                |  2 ++
- src/lib9/fmt/errfmt.c           | 30 ---------------------------
- src/lib9/fork.c                 | 46 -----------------------------------------
- src/lib9/getuser.c              |  2 ++
- src/lib9/jmp.c                  |  2 ++
- src/lib9/notify.c               |  2 ++
- src/lib9/rfork.c                |  2 ++
- src/lib9/{win32.c => windows.c} |  0
- 9 files changed, 11 insertions(+), 77 deletions(-)
+ test/append.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

@@ -1,24 +1,17 @@
-commit 77fcf36a5ece3eb2a3c2a427d0b63f417ae7c8c8
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 12 13:03:50 2015 -0400
+commit d10ede5edec7ace23e68c15ed996e64aec20d6bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 14:10:08 2015 -0500
 
-    runtime: don't use cached wbuf in markroot
+    [dev.cc] cmd/dist, cmd/go: stop building C implementations of compilers, assemblers
     
-    Currently markroot fetches the wbuf to fill from the per-M wbuf
-    cache. The wbuf cache is primarily meant for the write barrier because
-    it produces very little work on each call. There's little point to
-    using the cache in mark root, since each call to markroot is likely to
-    produce a large amount of work (so the slight win on getting it from
-    the cache instead of from the central wbuf lists doesn't matter), and
-    markroot does not dispose the wbuf back to the cache (so most markroot
-    calls won't get anything from the wbuf cache anyway).
+    Also stop building objwriter, which was only used by them.
     
-    Instead, just get the wbuf from the central wbuf lists like other work
-    producers. This will simplify later changes.
-    
-    Change-Id: I07a18a4335a41e266a6d70aa3a0911a40babce23
-    Reviewed-on: https://go-review.googlesource.com/7732
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ia2353abd9426026a81a263cb46a72dd39c360ce4
+    Reviewed-on: https://go-review.googlesource.com/5634
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgcmark.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/dist/build.go     | 35 ++++-------------------------------
+ src/cmd/dist/buildtool.go | 17 ++++++++---------
+ src/cmd/go/build.go       | 13 -------------
+ src/cmd/go/pkg.go         | 17 ++++++++---------
+ 4 files changed, 20 insertions(+), 62 deletions(-)

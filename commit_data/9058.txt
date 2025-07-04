@@ -1,17 +1,15 @@
-commit 469e3331069639fd1592593940febe0aacc6d40c
+commit c3344d61bd99eb00b61764e5500e7f37015e0864
 Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 14 07:59:04 2011 +1000
+Date:   Thu Jul 14 07:52:07 2011 +1000
 
-    exp/template: tweak behavior of booleans.
-    Russ suggested this technique, making the "and" and "or" functions handier.
-    But it's hacky, and I can be talked out of it.
+    exp/template: allow niladic methods inside chained field references.
+    Also really fix the bug about dot vs. receivers.
     
-    R=dsymonds, rsc
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4698044
+    https://golang.org/cl/4705047
 
- src/pkg/exp/template/doc.go       | 10 ++++++++--
- src/pkg/exp/template/exec.go      |  2 +-
- src/pkg/exp/template/exec_test.go |  8 ++++++--
- src/pkg/exp/template/funcs.go     | 41 +++++++++++++++++++++++++++------------
- 4 files changed, 44 insertions(+), 17 deletions(-)
+ src/pkg/exp/template/doc.go       | 13 ++++++-----
+ src/pkg/exp/template/exec.go      | 46 +++++++++++++++++++--------------------
+ src/pkg/exp/template/exec_test.go | 25 ++++++++++++++++++++-
+ 3 files changed, 55 insertions(+), 29 deletions(-)

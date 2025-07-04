@@ -1,20 +1,28 @@
-commit 70fbc88288143c218fde9f905a38d55505adfb2b
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Wed Nov 22 09:21:27 2023 +0000
+commit 2449bbb5e614954ce9e99c8a481ea2ee73d72d61
+Author: Shang Ding <shangjian.ding@gmail.com>
+Date:   Wed Feb 15 21:04:33 2023 -0600
 
-    net/http: add ResponseController http2 request without body read deadline test
+    net/http/httputil: use response controller in reverse proxy
     
-    Requires CL 464936
+    Previously, the reverse proxy is unable to detect
+    the support for hijack or flush if those things
+    are residing in the response writer in a wrapped
+    manner.
     
-    For #58237
+    The reverse proxy now makes use of the new http
+    response controller as the means to discover
+    the underlying flusher and hijacker associated
+    with the response writer, allowing wrapped flusher
+    and hijacker become discoverable.
     
-    Change-Id: I007b61f0f216d759f8e5327d77affbd9e8f8ff23
-    GitHub-Last-Rev: 30a10909b03bb0e8e4cd370a6f5ca386cd4ebc39
-    GitHub-Pull-Request: golang/go#58282
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465035
+    Change-Id: I53acbb12315c3897be068e8c00598ef42fc74649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468755
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/responsecontroller_test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/net/http/httputil/reverseproxy.go      | 61 ++++++++++++++----------------
+ src/net/http/httputil/reverseproxy_test.go | 56 +++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+), 33 deletions(-)

@@ -1,28 +1,21 @@
-commit 1ac16586421070cdc76c62b5dfd5e74a4b47fca8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 16 10:01:20 2022 -0500
+commit 2e4b79949fbb6e0c7e68a1f0258c42ea791069e6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 27 19:02:27 2021 -0400
 
-    cmd/go: remove arbitrary sleep in TestScript/test_chatty_parallel_success_sleepy
+    [dev.typeparams] runtime: implement register ABI for reflectcall on ARM64
     
-    (Also rename it to no longer describe itself in terms of sleeping.)
+    Implement register ABI version of reflectcall.
     
-    This test previously relied on the scheduler to wake up a goroutine to
-    write the "--- PASS: TestFast" line within 100ms of TestFast actually
-    finishing. On some platforms, even that long a delay is apparently too
-    short.
+    Now runtime tests pass with GOEXPERIMENT=regabiwrappers,regabireflect
+    on ARM64 (at least on macOS).
     
-    Instead, we now use a deterministic "=== RUN" line instead of a
-    timing-dependent "--- PASS" line to interrupt the output.
-    
-    Fixes #51221
-    
-    Change-Id: I3997640fb7577e29e3866a82d4d49a3a70a4b033
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386154
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2812cd96bdc13f8dc91c867e3f571921c0cdfc8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323935
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- .../script/test_chatty_parallel_success_run.txt    | 41 ++++++++++++++++++++++
- .../script/test_chatty_parallel_success_sleepy.txt | 39 --------------------
- 2 files changed, 41 insertions(+), 39 deletions(-)
+ src/runtime/asm_arm64.s    | 94 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/stubs_arm64.go |  7 ++++
+ 2 files changed, 97 insertions(+), 4 deletions(-)

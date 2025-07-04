@@ -1,17 +1,16 @@
-commit 5a59b9eba31bc2f0999bf0735b66cf9c7c968944
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Apr 4 15:40:40 2011 -0400
+commit cc40870f4b023e37104365eefb0cd8d185459da1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 4 08:32:59 2011 -0700
 
-    syscall: add BPF support for freebsd/386, freebsd/amd64
+    httptest: add NewTLSServer
     
-    R=rsc
+    Enables the use of https servers in tests.
+    
+    R=agl, rsc, agl1
     CC=golang-dev
-    https://golang.org/cl/4331050
+    https://golang.org/cl/4284063
 
- src/pkg/syscall/mkerrors.sh              |    6 +-
- src/pkg/syscall/types_freebsd.c          |   21 +
- src/pkg/syscall/zerrors_freebsd_386.go   | 1806 +++++++++++++++++-------------
- src/pkg/syscall/zerrors_freebsd_amd64.go | 1806 +++++++++++++++++-------------
- src/pkg/syscall/ztypes_freebsd_386.go    |   50 +
- src/pkg/syscall/ztypes_freebsd_amd64.go  |   51 +
- 6 files changed, 2141 insertions(+), 1599 deletions(-)
+ src/pkg/crypto/tls/tls.go       | 14 +++++---
+ src/pkg/http/httptest/server.go | 76 ++++++++++++++++++++++++++++++++++++++---
+ src/pkg/http/serve_test.go      | 27 +++++++++++++++
+ 3 files changed, 107 insertions(+), 10 deletions(-)

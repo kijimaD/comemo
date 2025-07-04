@@ -1,16 +1,103 @@
-commit 72ce047a6ceae5490bb5e7d7cfb635463cdc6ea2
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Wed Jun 13 10:36:01 2018 +0200
+commit 39fefa0709474d291af65af13bd2ac408ef5e9eb
+Author: Chad Rosier <mrosier.qdt@qualcommdatacenter.com>
+Date:   Wed Feb 28 13:29:03 2018 -0500
 
-    misc/wasm: remove use of performance.timeOrigin
+    cmd/compile/internal/ssa: combine consecutive BigEndian stores on arm64
     
-    This commit changes wasm_exec.js to not depend on the existence of
-    performance.timeOrigin. The field is not yet supported on all
-    browsers, e.g. it is unavailable on Safari.
+    This optimization mirrors that which is already implemented for AMD64.  The
+    optimization specifically targets the binary.BigEndian.PutUint* functions.
     
-    Change-Id: I6cd3834376c1c55424c29166fde1219f0d4d338f
-    Reviewed-on: https://go-review.googlesource.com/118617
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    encoding-binary results on Amberwing:
+    name                   old time/op    new time/op    delta
+    ReadSlice1000Int32s      9.83µs ± 2%    9.78µs ± 1%     ~     (p=0.362 n=9+10)
+    ReadStruct               5.24µs ± 3%    5.19µs ± 2%     ~     (p=0.285 n=10+10)
+    ReadInts                 8.35µs ± 8%    8.44µs ± 3%     ~     (p=0.323 n=10+10)
+    WriteInts                3.38µs ± 3%    3.44µs ±15%     ~     (p=0.921 n=9+10)
+    WriteSlice1000Int32s     11.4µs ± 6%    10.2µs ± 4%   -9.94%  (p=0.000 n=10+10)
+    PutUint16                 510ns ±12%     500ns ± 0%     ~     (p=0.586 n=10+7)
+    PutUint32                 530ns ±15%     490ns ±12%     ~     (p=0.086 n=10+10)
+    PutUint64                 550ns ± 0%     470ns ± 6%  -14.52%  (p=0.000 n=7+10)
+    LittleEndianPutUint16     500ns ± 0%     475ns ±16%     ~     (p=0.120 n=7+10)
+    LittleEndianPutUint32     450ns ± 0%     517ns ±16%  +14.81%  (p=0.004 n=8+9)
+    LittleEndianPutUint64     550ns ± 0%     485ns ±13%  -11.82%  (p=0.000 n=8+10)
+    PutUvarint32              685ns ±12%     622ns ± 4%   -9.17%  (p=0.005 n=10+9)
+    PutUvarint64              735ns ± 9%     711ns ± 9%     ~     (p=0.272 n=10+9)
+    [Geo mean]               1.47µs         1.42µs        -3.87%
+    
+    name                   old speed      new speed      delta
+    ReadSlice1000Int32s     407MB/s ± 2%   409MB/s ± 1%     ~     (p=0.362 n=9+10)
+    ReadStruct             14.3MB/s ± 3%  14.4MB/s ± 2%     ~     (p=0.250 n=10+10)
+    ReadInts               3.59MB/s ± 7%  3.56MB/s ± 4%     ~     (p=0.340 n=10+10)
+    WriteInts              8.87MB/s ± 3%  8.74MB/s ±13%     ~     (p=0.890 n=9+10)
+    WriteSlice1000Int32s    352MB/s ± 6%   391MB/s ± 4%  +11.03%  (p=0.000 n=10+10)
+    PutUint16              3.95MB/s ±13%  4.00MB/s ± 0%     ~     (p=0.312 n=10+7)
+    PutUint32              7.62MB/s ±17%  8.21MB/s ±11%     ~     (p=0.086 n=10+10)
+    PutUint64              14.6MB/s ± 0%  17.1MB/s ± 6%  +17.28%  (p=0.000 n=7+10)
+    LittleEndianPutUint16  4.00MB/s ± 0%  4.23MB/s ±18%     ~     (p=0.176 n=7+10)
+    LittleEndianPutUint32  8.89MB/s ± 0%  7.64MB/s ±20%  -14.05%  (p=0.001 n=8+10)
+    LittleEndianPutUint64  14.6MB/s ± 0%  16.6MB/s ±12%  +13.86%  (p=0.000 n=8+10)
+    PutUvarint32           5.86MB/s ±14%  6.44MB/s ± 5%   +9.84%  (p=0.006 n=10+9)
+    PutUvarint64           10.9MB/s ± 8%  11.3MB/s ± 9%     ~     (p=0.373 n=10+9)
+    [Geo mean]             14.2MB/s       14.8MB/s        +3.93%
+    
+    go1 results on Amberwing:
+    RegexpMatchEasy0_32       254ns ± 0%     254ns ± 0%    ~     (all equal)
+    RegexpMatchEasy0_1K       547ns ± 0%     547ns ± 0%    ~     (all equal)
+    RegexpMatchEasy1_32       252ns ± 0%     253ns ± 1%    ~     (p=0.294 n=8+10)
+    RegexpMatchEasy1_1K       782ns ± 0%     783ns ± 1%    ~     (p=0.529 n=8+9)
+    RegexpMatchMedium_32      316ns ± 0%     316ns ± 0%    ~     (all equal)
+    RegexpMatchMedium_1K     51.5µs ± 0%    51.5µs ± 0%    ~     (p=0.645 n=10+9)
+    RegexpMatchHard_32       2.75µs ± 0%    2.75µs ± 0%    ~     (all equal)
+    RegexpMatchHard_1K       78.7µs ± 0%    78.7µs ± 0%    ~     (p=0.754 n=10+10)
+    FmtFprintfEmpty          57.0ns ± 0%    57.0ns ± 0%    ~     (all equal)
+    FmtFprintfString          111ns ± 0%     111ns ± 0%    ~     (all equal)
+    FmtFprintfInt             114ns ± 0%     114ns ± 1%    ~     (p=0.065 n=9+10)
+    FmtFprintfIntInt          182ns ± 0%     178ns ± 0%  -2.20%  (p=0.000 n=10+10)
+    FmtFprintfPrefixedInt     225ns ± 0%     227ns ± 0%  +0.89%  (p=0.000 n=10+10)
+    FmtFprintfFloat           307ns ± 0%     307ns ± 0%    ~     (p=1.000 n=9+9)
+    FmtManyArgs               697ns ± 0%     701ns ± 2%    ~     (p=0.108 n=9+10)
+    Gzip                      436ms ± 0%     437ms ± 0%  +0.23%  (p=0.000 n=10+8)
+    HTTPClientServer         88.8µs ± 2%    89.6µs ± 1%  +0.98%  (p=0.019 n=10+10)
+    JSONEncode               20.1ms ± 1%    20.2ms ± 1%  +0.48%  (p=0.007 n=10+10)
+    JSONDecode               94.7ms ± 1%    94.1ms ± 0%  -0.62%  (p=0.000 n=10+9)
+    GobDecode                12.6ms ± 2%    12.6ms ± 1%    ~     (p=0.360 n=10+8)
+    GobEncode                12.0ms ± 1%    11.9ms ± 1%  -1.34%  (p=0.000 n=10+10)
+    Mandelbrot200            5.05ms ± 0%    5.05ms ± 0%  +0.12%  (p=0.000 n=10+10)
+    TimeParse                 448ns ± 0%     448ns ± 0%    ~     (p=0.529 n=8+9)
+    TimeFormat                501ns ± 1%     501ns ± 1%    ~     (p=1.000 n=10+9)
+    Template                 90.6ms ± 0%    89.1ms ± 0%  -1.67%  (p=0.000 n=9+9)
+    GoParse                  6.01ms ± 0%    5.96ms ± 0%  -0.83%  (p=0.000 n=10+9)
+    BinaryTree17              11.7s ± 0%     11.7s ± 0%    ~     (p=0.481 n=10+10)
+    Revcomp                   675ms ± 0%     675ms ± 0%    ~     (p=0.436 n=9+9)
+    Fannkuch11                3.26s ± 0%     3.27s ± 1%  +0.57%  (p=0.000 n=10+10)
+    [Geo mean]               67.4µs         67.3µs       -0.10%
+    
+    name                   old speed      new speed      delta
+    RegexpMatchEasy0_32     126MB/s ± 0%   126MB/s ± 0%    ~     (p=0.353 n=10+7)
+    RegexpMatchEasy0_1K    1.87GB/s ± 0%  1.87GB/s ± 0%    ~     (p=0.275 n=8+10)
+    RegexpMatchEasy1_32     127MB/s ± 0%   126MB/s ± 1%    ~     (p=0.110 n=8+10)
+    RegexpMatchEasy1_1K    1.31GB/s ± 0%  1.31GB/s ± 1%    ~     (p=0.079 n=8+10)
+    RegexpMatchMedium_32   3.16MB/s ± 0%  3.16MB/s ± 0%    ~     (all equal)
+    RegexpMatchMedium_1K   19.9MB/s ± 0%  19.9MB/s ± 0%    ~     (p=0.889 n=10+9)
+    RegexpMatchHard_32     11.7MB/s ± 0%  11.7MB/s ± 0%    ~     (all equal)
+    RegexpMatchHard_1K     13.0MB/s ± 0%  13.0MB/s ± 0%    ~     (p=1.000 n=10+10)
+    Gzip                   44.5MB/s ± 0%  44.4MB/s ± 0%  -0.22%  (p=0.000 n=10+8)
+    JSONEncode             96.6MB/s ± 1%  96.1MB/s ± 1%  -0.48%  (p=0.007 n=10+10)
+    JSONDecode             20.5MB/s ± 1%  20.6MB/s ± 0%  +0.63%  (p=0.000 n=10+9)
+    GobDecode              61.0MB/s ± 2%  61.1MB/s ± 1%    ~     (p=0.372 n=10+8)
+    GobEncode              63.8MB/s ± 1%  64.7MB/s ± 1%  +1.36%  (p=0.000 n=10+10)
+    Template               21.4MB/s ± 0%  21.8MB/s ± 0%  +1.69%  (p=0.000 n=9+9)
+    GoParse                9.63MB/s ± 0%  9.71MB/s ± 0%  +0.84%  (p=0.000 n=9+8)
+    Revcomp                 377MB/s ± 0%   376MB/s ± 0%    ~     (p=0.399 n=9+9)
+    [Geo mean]             56.2MB/s       56.3MB/s       +0.20%
+    
+    Change-Id: Ic915373f5ef512f9fbc45745860e5db7f6de6286
+    Reviewed-on: https://go-review.googlesource.com/97755
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/wasm/wasm_exec.js | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go      |  27 ++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  57 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 544 +++++++++++++++++++++++++++
+ 3 files changed, 628 insertions(+)

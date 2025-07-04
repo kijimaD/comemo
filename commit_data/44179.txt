@@ -1,18 +1,35 @@
-commit 044f937a73dc9a28c36a6c87d55c2211247e7d63
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jan 25 11:14:57 2021 +0100
+commit c847589ad06a1acfcceaac7b230c0d5a826caab8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 19 16:33:17 2020 +0000
 
-    doc/go1.16: fix WalkDir and Walk links
+    runtime: synchronize StartTrace and StopTrace with sysmon
     
-    Reported by Ben on golang-dev:
-    https://groups.google.com/g/golang-dev/c/gsoj5Vv15j0/m/XR9CYSRkAgAJ
+    Currently sysmon is not stopped when the world is stopped, which is
+    in general a difficult thing to do. The result of this is that when
+    tracing starts and the value of trace.enabled changes, it's possible
+    for sysmon to fail to emit an event when it really should. This leads to
+    traces which the execution trace parser deems inconsistent.
     
-    For #40700.
+    Fix this by putting all of sysmon's work behind a new lock sysmonlock.
+    StartTrace and StopTrace both acquire this lock after stopping the world
+    but before performing any work in order to ensure sysmon sees the
+    required state change in tracing. This change is expected to slow down
+    StartTrace and StopTrace, but will help ensure consistent traces are
+    generated.
     
-    Change-Id: If4702cf0e9858aaef99c231251dc646a67d1026e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285718
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Updates #29707.
+    Fixes #38794.
+    
+    Change-Id: I64c58e7c3fd173cd5281ffc208d6db24ff6c0284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234617
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.16.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/lockrank.go | 41 ++++++++++++++++++++++-------------------
+ src/runtime/proc.go     | 14 ++++++++++++++
+ src/runtime/runtime2.go | 20 +++++++++++++-------
+ src/runtime/trace.go    | 12 ++++++++++++
+ 4 files changed, 61 insertions(+), 26 deletions(-)

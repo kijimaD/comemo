@@ -1,14 +1,22 @@
-commit 149ac34893ad1cc5023ae2fbabd0d553f21b0313
-Author: Mikhail Gusarov <dottedmag@dottedmag.net>
-Date:   Mon May 9 19:28:28 2016 +0200
+commit 9549c06ce6e379de4554a911ffe8470af8d70daa
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Sun Mar 20 22:15:27 2016 +0100
 
-    doc: update number of supported instruction sets
+    cmd/compile: fold IsInBounds with small index
     
-    Current  number was out-of-date since adding MIPS.
+    For the following example, but there are a few more in the stdlib:
+    func histogram(b []byte, h *[256]int32) {
+            for _, t := range b {
+                    h[t]++
+            }
+    }
     
-    Change-Id: I565342a92de3893b75cdfb76fa39f7fdf15672da
-    Reviewed-on: https://go-review.googlesource.com/22952
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I56615f341ae52e02ef34025588dc6d1c52122295
+    Reviewed-on: https://go-review.googlesource.com/20924
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/install-source.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  6 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 72 ++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+)

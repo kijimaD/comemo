@@ -1,13 +1,15 @@
-commit e0a617496e52b7e1b71ca95ff5b10e4945267e0e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 20 14:06:00 2011 -0400
+commit da7b96f714c3b5047a1af6903fa2d73f29693b00
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 20 10:33:07 2011 -0700
 
-    test: test of goto restrictions
+    http: fix req.Cookie(name) with cookies in one header
     
-    R=gri, iant, bradfitz, fvbommel, r
+    Fixes #1974
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4652041
+    https://golang.org/cl/4654042
 
- test/errchk  |  16 ++
- test/goto.go | 535 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 551 insertions(+)
+ src/pkg/http/cookie.go      |  4 ++--
+ src/pkg/http/cookie_test.go | 17 ++++++++++++++++-
+ 2 files changed, 18 insertions(+), 3 deletions(-)

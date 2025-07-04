@@ -1,23 +1,14 @@
-commit c5732c8526fa4fef697730a739631fd69cf4f965
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon May 20 19:25:32 2013 +0900
+commit 13081942042636c6ebeee837a25977f7fdf65f1e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon May 20 08:17:21 2013 +0400
 
-    runtime: integrated network poller for freebsd/amd64,386, openbsd/amd64,386
+    runtime: zeroize g->fnstart to not prevent GC of the closure
+    Fixes #5493.
     
-    Update #5199
-    
-    R=golang-dev, dvyukov
+    R=golang-dev, minux.ma, iant
     CC=golang-dev
-    https://golang.org/cl/8825043
+    https://golang.org/cl/9557043
 
- src/pkg/runtime/defs_freebsd.go      | 16 ++++++++++++++--
- src/pkg/runtime/defs_freebsd_386.h   | 29 +++++++++++++++++++++++++----
- src/pkg/runtime/defs_freebsd_amd64.h | 27 ++++++++++++++++++++++++---
- src/pkg/runtime/defs_openbsd.go      | 15 +++++++++++++--
- src/pkg/runtime/defs_openbsd_386.h   | 22 ++++++++++++++++++++--
- src/pkg/runtime/defs_openbsd_amd64.h | 22 ++++++++++++++++++++--
- src/pkg/runtime/sys_freebsd_386.s    | 29 +++++++++++++++++++++++++++++
- src/pkg/runtime/sys_freebsd_amd64.s  | 34 ++++++++++++++++++++++++++++++++++
- src/pkg/runtime/sys_openbsd_386.s    | 29 +++++++++++++++++++++++++++++
- src/pkg/runtime/sys_openbsd_amd64.s  | 33 +++++++++++++++++++++++++++++++++
- 10 files changed, 241 insertions(+), 15 deletions(-)
+ src/pkg/runtime/proc.c      |  1 +
+ test/fixedbugs/issue5493.go | 52 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

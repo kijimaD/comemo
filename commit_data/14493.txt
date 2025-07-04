@@ -1,17 +1,20 @@
-commit 5188c0b59cfb9f904ece4ee7e8f69d56ab15fbbd
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Mon Nov 26 22:23:13 2012 +0100
+commit 2a982e8e25f35735268711d21c77aaaee75f8366
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 26 13:14:04 2012 -0800
 
-    cmd/gc: Make sure bools lose idealness when used with logical operators.
+    go/printer: Permit declaration and statement lists as input.
     
-    Bools from comparisons can be assigned to all bool types, but this idealness would propagate through logical operators when the result should have been lowered to a non-ideal form.
+    Also: Can set base indentation in printer.Config: all code
+    is going to be indented by at least that amount (except for
+    raw string literals spanning multiple lines, since their
+    values must not change).
     
-    Fixes #3924.
-    
-    R=golang-dev, remyoudompheng, r, rsc, mtj
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6855061
+    https://golang.org/cl/6847086
 
- src/cmd/gc/typecheck.c      |  5 ++++-
- test/fixedbugs/issue3924.go | 13 +++++++++++++
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/pkg/go/printer/nodes.go            | 46 ++++++++++-------
+ src/pkg/go/printer/performance_test.go |  2 +-
+ src/pkg/go/printer/printer.go          | 32 ++++++++----
+ src/pkg/go/printer/printer_test.go     | 92 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 142 insertions(+), 30 deletions(-)

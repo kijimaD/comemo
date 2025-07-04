@@ -1,16 +1,38 @@
-commit d5c1333eb452e37f80af797c6c26a93b00697f7f
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Dec 11 09:49:36 2024 -0800
+commit b7cbcf0c274a0e9f9703468c8ea1d511efe90c5e
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Nov 2 14:36:30 2023 -0400
 
-    net/http: document zero value of Protocols
+    syscall: copy rlimit.go's build constraint to rlimit_test.go
     
-    For #67814
+    Tests in rlimit_test.go exist to test the behavior of automatically
+    bumping RLIMIT_NOFILE on Unix implemented in rlimit.go (issue #46279),
+    with darwin-specific behavior split out into rlimit_darwin.go and
+    the rest left empty in rlimit_stub.go.
     
-    Change-Id: I182e9c7e720493adb9d2384336e757dace818525
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635335
+    Since the behavior happens only on Unix, it doesn't make sense to test
+    it on other platforms. Copy rlimit.go's 'unix' build constraint to
+    rlimit_test.go to accomplish that.
+    
+    Also simplify the build constraint in rlimit_stub.go while here,
+    so that its maintenance is easier and it starts to match all
+    non-darwin Unix GOOS values (previously, 'hurd' happened to be missed).
+    
+    In particular, this fixes a problem where TestOpenFileLimit was
+    failing in some environments when testing the wasip1/wasm port.
+    The RLIMIT_NOFILE bumping behavior isn't implemented there, so
+    the test was testing the environment and not the Go project.
+    
+    Updates #46279.
+    For #61116.
+    
+    Change-Id: Ic993f9cfc021d4cda4fe3d7fed8e2e180f78a2ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539435
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/net/http/http.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/syscall/rlimit_stub.go | 2 +-
+ src/syscall/rlimit_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

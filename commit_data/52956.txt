@@ -1,20 +1,27 @@
-commit 200a01ff5589e2b8eb8cebeb4dcf6469aceaab27
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 10 17:08:59 2023 +0200
+commit 4b236b45d0bb659a447dcfc02ebd431587b52e2b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 17 19:56:27 2022 +0000
 
-    html: convert fuzz test to native Go fuzzing
+    runtime: convert flaky semaphore linearity test into benchmark
     
-    Convert the existing gofuzz based fuzz test to a testing.F based fuzz
-    test.
+    Also, add a benchmark for another case that was originally tested.
     
-    Change-Id: Ieae69ba7fb17bd54d95c7bb2f4ed04c323c9f15f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494195
+    Also also, remove all the dead code this now creates.
+    
+    Fixes #53428.
+    
+    Change-Id: Idbba88d3d31d38a8854fd5ed99001e394da27300
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412878
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/html/fuzz.go      | 31 -------------------------------
- src/html/fuzz_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 22 insertions(+), 31 deletions(-)
+ src/go/build/deps_test.go       |   5 +-
+ src/internal/testenv/testenv.go |  65 ------------
+ src/internal/testmath/bench.go  |  38 -------
+ src/internal/testmath/ttest.go  | 213 ----------------------------------------
+ src/runtime/sema.go             |   4 +-
+ src/runtime/sema_test.go        |  87 ++++++++++------
+ 6 files changed, 58 insertions(+), 354 deletions(-)

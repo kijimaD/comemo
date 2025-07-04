@@ -1,19 +1,15 @@
-commit a94bd4d7c324648f1736e8f7fb1a0fd4b13bacc6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Jan 29 21:04:13 2012 -0800
+commit 0f2659a3235d388153e8d0d259800318f5fa7476
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 30 14:53:48 2012 +1100
 
-    cmd/goapi: expand embedded interfaces
+    builder: drop recover blocks
     
-    Fixes #2801
+    The one time they recovered from anything they obscured a useful stack
+    trace. We're better off just crashing hard.
     
-    R=rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5576068
+    https://golang.org/cl/5577073
 
- src/cmd/goapi/goapi.go                             | 218 ++++++++++++++++++---
- src/cmd/goapi/goapi_test.go                        |   9 +-
- src/cmd/goapi/testdata/{ => src/pkg}/p1/golden.txt |   9 +-
- src/cmd/goapi/testdata/{ => src/pkg}/p1/p1.go      |  18 +-
- src/cmd/goapi/testdata/src/pkg/p2/golden.txt       |   2 +
- src/cmd/goapi/testdata/src/pkg/p2/p2.go            |   5 +
- 6 files changed, 221 insertions(+), 40 deletions(-)
+ misc/dashboard/builder/main.go | 58 ++++++++++--------------------------------
+ 1 file changed, 14 insertions(+), 44 deletions(-)

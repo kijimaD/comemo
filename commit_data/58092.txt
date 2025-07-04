@@ -1,59 +1,25 @@
-commit bc1da38c3d29b4950b302b36fd180bf86bdcb45c
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Jul 15 10:05:37 2024 -0700
+commit 9bfaaa15fd38f10ba7f11eb6cc67c6dfb21454e6
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Sep 12 15:39:56 2023 -0500
 
-    crypto/subtle: add DIT closure
+    cmd/internal/obj/ppc64: fix rebuilding of optab for asm tests
     
-    Add a new function, WithDataIndependentTiming, which takes a function as
-    an argument, and encloses it with calls to set/unset the DIT PSTATE bit
-    on Arm64.
+    The end-to-end asm tests reinitialize the assembler using different
+    GOPPC64 values. This caused duplicate entries to amass from the
+    prefix and generated optab entries. This bug only affects the
+    asm end-to-end tests.
     
-    Since DIT is OS thread-local, for the duration of the execution of
-    WithDataIndependentTiming, we lock the goroutine to the OS thread, using
-    LockOSThread. For long running operations, this is likely to not be
-    performant, but we expect this to be tightly scoped around cryptographic
-    operations that have bounded execution times.
+    On reinitialization, optab contains the previous prefixedOptab
+    and optabGen entries, not just the initial values. Rework the
+    initialization to avoid the stale optab entries.
     
-    If locking to the OS thread turns out to be too slow, another option is
-    to add a bit to the g state indicating if a goroutine has DIT enabled,
-    and then have the scheduler enable/disable DIT when scheduling a g.
-    
-    Additionally, we add a new GODEBUG, dataindependenttiming, which allows
-    setting DIT for an entire program. Running a program with
-    dataindependenttiming=1 enables DIT for the program during
-    initialization. In an ideal world PSTATE.DIT would be inherited from
-    the parent thread, so we'd only need to set it in the main thread and
-    then all subsequent threads would inherit the value. While this does
-    happen in the Linux kernel [0], it is not the case for darwin [1].
-    Rather than add complex logic to only set it on darwin for each new
-    thread, we just unconditionally set it in mstart1 and cgocallbackg1
-    regardless of the OS. DIT will already impose some overhead, and the
-    cost of setting the bit is only ~two instructions (CALL, MSR), so it
-    should be cheap enough.
-    
-    Fixes #66450
-    Updates #49702
-    
-    [0] https://github.com/torvalds/linux/blob/e8bdb3c8be08c9a3edc0a373c0aa8729355a0705/arch/arm64/kernel/process.c#L373
-    [1] https://github.com/apple-oss-distributions/xnu/blob/8d741a5de7ff4191bf97d57b9f54c2f6d4a15585/osfmk/arm64/status.c#L1666
-    
-    Change-Id: I78eda691ff9254b0415f2b54770e5850a0179749
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598336
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I310499915a5272ed0174ed8135d60788e6b4b716
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528316
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- api/next/66450.txt                                |  1 +
- doc/godebug.md                                    | 11 ++++
- doc/next/6-stdlib/99-minor/crypto/subtle/66450.md |  6 +++
- src/crypto/subtle/dit.go                          | 50 +++++++++++++++++++
- src/crypto/subtle/dit_test.go                     | 61 +++++++++++++++++++++++
- src/internal/godebugs/table.go                    |  1 +
- src/internal/runtime/sys/dit_arm64.go             | 17 +++++++
- src/internal/runtime/sys/dit_arm64.s              | 18 +++++++
- src/internal/runtime/sys/no_dit.go                | 13 +++++
- src/runtime/cgocall.go                            | 12 +++++
- src/runtime/proc.go                               |  4 ++
- src/runtime/runtime1.go                           |  2 +
- 12 files changed, 196 insertions(+)
+ src/cmd/internal/obj/ppc64/asm9.go     | 22 +++++++++++++---------
+ src/cmd/internal/obj/ppc64/asm_test.go | 16 ++++++++++++++++
+ 2 files changed, 29 insertions(+), 9 deletions(-)

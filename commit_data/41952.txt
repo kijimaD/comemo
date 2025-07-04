@@ -1,20 +1,58 @@
-commit f5439d4c68e14d1f7758ec0e50cc8fe192ad2f5b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 13 23:28:32 2020 -0700
+commit 4497d7eb6f2c6ab29cb4a352775a9952820508f9
+Merge: 32190b0a49 35cfe059a1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 3 01:01:00 2019 -0400
 
-    cmd/compile: make type switch case positions consistent
+    [dev.link] all: merge branch 'master' into dev.link
     
-    CL 228106 moved the position at which we
-    checked whether a type switch variable had a particular type
-    from the type switch to the case statement, but only for
-    single, concrete types. This is a better position,
-    so this change changes the rest.
+    Clean merge.
     
-    Change-Id: I601d4a5c4a0d9400e7804b9f1e729af948349a8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228220
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I26a4e3d4c09a928c9fd95e394304ee10319ca7c5
 
- src/cmd/compile/internal/gc/swt.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go             |   49 +
+ misc/cgo/testcarchive/testdata/libgo7/sink.go      |   17 +
+ misc/cgo/testcarchive/testdata/main7.c             |   17 +
+ src/cmd/compile/internal/gc/typecheck.go           |    2 +-
+ src/cmd/go/internal/cfg/cfg.go                     |    1 +
+ src/cmd/go/internal/modfetch/cache.go              |   22 +-
+ src/cmd/go/internal/modfetch/fetch.go              |    4 -
+ src/cmd/go/internal/modfetch/repo.go               |   21 +-
+ src/cmd/go/internal/modget/get.go                  |   28 +-
+ src/cmd/go/internal/modload/init.go                |   47 +-
+ src/cmd/go/internal/modload/load.go                |    1 +
+ src/cmd/go/internal/modload/query.go               |   15 +
+ src/cmd/go/internal/modload/stat_openfile.go       |   27 +
+ src/cmd/go/internal/modload/stat_unix.go           |   31 +
+ src/cmd/go/internal/modload/stat_windows.go        |   23 +
+ src/cmd/go/script_test.go                          |    6 +-
+ src/cmd/go/testdata/script/mod_get_newcycle.txt    |    1 -
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt  |    2 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |    4 +
+ src/cmd/go/testdata/script/mod_readonly.txt        |   12 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     |    2 -
+ src/crypto/dsa/dsa.go                              |    4 +-
+ src/encoding/binary/binary.go                      |   19 +-
+ src/encoding/binary/binary_test.go                 |   62 +
+ src/go/build/deps_test.go                          |  103 +-
+ .../hash/hash.go => hash/maphash/maphash.go}       |    6 +-
+ .../hash_test.go => hash/maphash/maphash_test.go}  |   26 +-
+ src/{bytes/hash => hash/maphash}/smhasher_test.go  |   12 +-
+ src/make.bash                                      |    3 +-
+ src/net/http/header.go                             |    1 +
+ src/net/http/main_test.go                          |    2 +-
+ src/net/http/transport_test.go                     |    4 -
+ src/runtime/mgcscavenge.go                         |   10 +-
+ src/runtime/netpoll_solaris.go                     |   16 +-
+ src/runtime/proc.go                                |    3 +
+ src/runtime/time.go                                |   16 +-
+ src/syscall/asm_linux_riscv64.s                    |  115 ++
+ src/syscall/endian_little.go                       |    2 +-
+ src/syscall/mkall.sh                               |    9 +
+ src/syscall/syscall_linux_riscv64.go               |  203 +++
+ src/syscall/types_linux.go                         |    6 +-
+ src/syscall/zerrors_linux_riscv64.go               | 1878 ++++++++++++++++++++
+ src/syscall/zsyscall_linux_riscv64.go              | 1624 +++++++++++++++++
+ src/syscall/zsysnum_linux_riscv64.go               |  273 +++
+ src/syscall/ztypes_linux_riscv64.go                |  631 +++++++
+ src/time/zoneinfo.go                               |    5 +
+ 46 files changed, 5221 insertions(+), 144 deletions(-)

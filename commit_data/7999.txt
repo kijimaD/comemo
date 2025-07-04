@@ -1,58 +1,20 @@
-commit 0ea7bf486708dfbdd6e652812eaa8514eeed00a9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 6 15:06:28 2011 -0400
+commit 5ee13c0d59de2f26dacc53046ce265232eeb6f2b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 6 11:48:03 2011 -0700
 
-    src/pkg/Makefile: trim per-directory make output except on failure
+    log: generalize getting and setting flags and prefix.
+    - used to be only for standard log, not for user-built.
+    - there were no getters.
+    Also rearrange the code a little so we can avoid allocating
+    a buffer on every call.  Logging is expensive but we should
+    avoid unnecessary cost.
     
-    Not committed to this but it sure makes
-    the output easier to skim.  With this CL:
+    This should have no effect on existing code.
     
-    $ make
-    install runtime
-    install sync/atomic
-    install sync
-    install unicode
-    install utf16
-    install syscall
-    install os
-    ...
-    install ../cmd/govet
-    install ../cmd/goyacc
-    install ../cmd/hgpatch
-    $ make test
-    test archive/tar
-    test archive/zip
-    test asn1
-    test big
-    test bufio
-    ...
-    test path
-    test path/filepath
-    TEST FAIL reflect
-    gotest
-    rm -f _test/reflect.a
-    6g -o _gotest_.6 deepequal.go type.go value.go
-    rm -f _test/reflect.a
-    gopack grc _test/reflect.a _gotest_.6
-    all_test.go:210: invalid type assertion: reflect.NewValue(tt.i).(*StructValue) (non-interface type reflect.Value on left)
-    all_test.go:217: cannot type switch on non-interface value v (type reflect.Value)
-    all_test.go:218: undefined: IntValue
-    all_test.go:221: cannot use 132 (type int) as type reflect.Value in function argument
-    all_test.go:223: cannot use 8 (type int) as type reflect.Value in function argument
-    all_test.go:225: cannot use 16 (type int) as type reflect.Value in function argument
-    all_test.go:227: cannot use 32 (type int) as type reflect.Value in function argument
-    all_test.go:229: cannot use 64 (type int) as type reflect.Value in function argument
-    all_test.go:231: undefined: UintValue
-    all_test.go:234: cannot use 132 (type int) as type reflect.Value in function argument
-    all_test.go:234: too many errors
-    gotest: "/Users/rsc/g/go/bin/6g -I _test -o _xtest_.6 all_test.go tostring_test.go" failed: exit status 1
-    make[1]: *** [test] Error 2
-    make: *** [reflect.test] Error 1
-    
-    R=r, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4343046
+    https://golang.org/cl/4363045
 
- src/Make.pkg     | 2 +-
- src/pkg/Makefile | 9 ++++++---
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/pkg/log/log.go      | 101 +++++++++++++++++++++++++++++++++---------------
+ src/pkg/log/log_test.go |  33 ++++++++++++++++
+ 2 files changed, 102 insertions(+), 32 deletions(-)

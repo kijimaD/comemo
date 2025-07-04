@@ -1,18 +1,28 @@
-commit 1ad2298c777382a129e6ffd325b029ff0d541ae3
-Author: Baokun Lee <nototon@gmail.com>
-Date:   Fri May 3 01:28:52 2019 +0800
+commit 9ed9df6ca27850704133de1ceb94407c635beb82
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Dec 18 20:04:53 2018 +0000
 
-    cmd/go/internal/modfile: make error message for module path more clear
+    runtime: avoid write barrier in startpanic_m
     
-    Fixes #31775
+    startpanic_m could be called correctly in a context where there's a
+    valid G, a valid M, but no P, for example in a signal handler which
+    panics. Currently, startpanic_m has write barriers enabled because
+    write barriers are permitted if a G's M is dying. However, all the
+    current write barrier implementations assume the current G has a P.
     
-    `
+    Therefore, in this change we disable write barriers in startpanic_m,
+    remove the only pointer write which clears g.writebuf, and fix up gwrite
+    to ignore the writebuf if the current G's M is dying, rather than
+    relying on it being nil in the dying case.
     
-    Change-Id: I59c4e90f20d1b31161c259680b48b7be7218bf58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175017
-    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    Fixes #26575.
+    
+    Change-Id: I9b29e6b9edf00d8e99ffc71770c287142ebae086
+    Reviewed-on: https://go-review.googlesource.com/c/154837
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/modfile/rule.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/panic.go | 11 +++++++----
+ src/runtime/print.go |  7 ++++++-
+ 2 files changed, 13 insertions(+), 5 deletions(-)

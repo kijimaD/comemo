@@ -1,103 +1,16 @@
-commit fe3c913443a713097a9a0a427846d5411c4150b0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 3 11:35:59 2014 -0400
+commit 14a75ecf4a673e99ff41c1a1166289840d4f3cbb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 3 11:44:17 2014 +0900
 
-    cmd/gc: fix escape analysis of func returning indirect of parameter
+    time: support version 3 zone records
     
-    I introduced this bug when I changed the escape
-    analysis to run in phases based on call graph
-    dependency order, in order to be more precise about
-    inputs escaping back to outputs (functions returning
-    their arguments).
-    
-    Given
-    
-            func f(z **int) *int { return *z }
-    
-    we were tagging the function as 'z does not escape
-    and is not returned', which is all true, but not
-    enough information.
-    
-    If used as:
-    
-            var x int
-            p := &x
-            q := &p
-            leak(f(q))
-    
-    then the compiler might try to keep x, p, and q all
-    on the stack, since (according to the recorded
-    information) nothing interesting ends up being
-    passed to leak.
-    
-    In fact since f returns *q = p, &x is passed to leak
-    and x needs to be heap allocated.
-    
-    To trigger the bug, you need a chain that the
-    compiler wants to keep on the stack (like x, p, q
-    above), and you need a function that returns an
-    indirect of its argument, and you need to pass the
-    head of the chain to that function. This doesn't
-    come up very often: this bug has been present since
-    June 2012 (between Go 1 and Go 1.1) and we haven't
-    seen it until now. It helps that most functions that
-    return indirects are getters that are simple enough
-    to be inlined, avoiding the bug.
-    
-    Earlier versions of Go also had the benefit that if
-    &x really wasn't used beyond x's lifetime, nothing
-    broke if you put &x in a heap-allocated structure
-    accidentally. With the new stack copying, though,
-    heap-allocated structures containing &x are not
-    updated when the stack is copied and x moves,
-    leading to crashes in Go 1.3 that were not crashes
-    in Go 1.2 or Go 1.1.
-    
-    The fix is in two parts.
-    
-    First, in the analysis of a function, recognize when
-    a value obtained via indirect of a parameter ends up
-    being returned. Mark those parameters as having
-    content escape back to the return results (but we
-    don't bother to write down which result).
-    
-    Second, when using the analysis to analyze, say,
-    f(q), mark parameters with content escaping as
-    having any indirections escape to the heap. (We
-    don't bother trying to match the content to the
-    return value.)
-    
-    The fix could be less precise (simpler).
-    In the first part we might mark all content-escaping
-    parameters as plain escaping, and then the second
-    part could be dropped. Or we might assume that when
-    calling f(q) all the things pointed at by q escape
-    always (for any f and q).
-    
-    The fix could also be more precise (more complex).
-    We might record the specific mapping from parameter
-    to result along with the number of indirects from the
-    parameter to the thing being returned as the result,
-    and then at the call sites we could set up exactly the
-    right graph for the called function. That would make
-    notleaks(f(q)) be able to keep x on the stack, because
-    the reuslt of f(q) isn't passed to anything that leaks it.
-    
-    The less precise the fix, the more stack allocations
-    become heap allocations.
-    
-    This fix is exactly as precise as it needs to be so that
-    none of the current stack allocations in the standard
-    library turn into heap allocations.
-    
-    Fixes #8120.
+    Fixes #8134
     
     LGTM=iant
     R=golang-codereviews, iant
-    CC=golang-codereviews, khr, r
-    https://golang.org/cl/102040046
+    CC=golang-codereviews, r, rsc
+    https://golang.org/cl/100930044
 
- src/cmd/gc/esc.c | 43 ++++++++++++++++++++++++++++++++++++-------
- src/cmd/gc/go.h  |  4 +++-
- test/escape2.go  | 31 ++++++++++++++++++++++++++++---
- 3 files changed, 67 insertions(+), 11 deletions(-)
+ src/pkg/time/zoneinfo_read.go | 4 ++--
+ src/pkg/time/zoneinfo_test.go | 9 +++++++++
+ 2 files changed, 11 insertions(+), 2 deletions(-)

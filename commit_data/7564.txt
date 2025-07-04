@@ -1,19 +1,35 @@
-commit 8d36a78440f4a489d961ecb034dfc2b0fdb6ab51
+commit 820dc9ff1af5771a66ce4666e4e7620f831fba45
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 24 17:11:20 2011 -0500
+Date:   Thu Feb 24 13:46:44 2011 -0800
 
-    reflect: add pointer word to CommonType
+    runtime: fix signal stack bug
     
-    The pointer will eventually let us find *T given T.
-    This CL just makes room for it, always storing a zero.
+    In CL 4188061 I changed malg to allocate the requested
+    number of bytes n, not n+StackGuard, so that the
+    allocations would use rounder numbers.
     
-    R=r, r2
+    The allocation of the signal stack asks for 32k and
+    then used g->stackguard as the base, but g->stackguard
+    is StackGuard bytes above the base.  Previously, asking
+    for 32k meant getting 32k+StackGuard bytes, so using
+    g->stackguard as the base was safe.  Now, the actual base
+    must be computed, so that the signal handler does not
+    run StackGuard bytes past the top of the stack.
+    
+    Was causing flakiness mainly in programs that use the
+    network, because they sometimes write to closed network
+    connections, causing SIGPIPEs.  Was also causing problems
+    in the doc/progs test.
+    
+    Also fix Makefile so that changes to stack.h trigger rebuild.
+    
+    R=bradfitzgo, r, r2
     CC=golang-dev
-    https://golang.org/cl/4221046
+    https://golang.org/cl/4230044
 
- src/cmd/gc/reflect.c    |  5 +++--
- src/cmd/ld/dwarf.c      | 40 +++++++++++++++++++++++-----------------
- src/pkg/reflect/type.go |  1 +
- src/pkg/runtime/type.go |  3 ++-
- src/pkg/runtime/type.h  |  1 +
- 5 files changed, 30 insertions(+), 20 deletions(-)
+ src/Make.pkg                     | 4 +---
+ src/pkg/runtime/Makefile         | 7 ++++---
+ src/pkg/runtime/darwin/thread.c  | 3 ++-
+ src/pkg/runtime/freebsd/thread.c | 3 ++-
+ src/pkg/runtime/linux/thread.c   | 3 ++-
+ 5 files changed, 11 insertions(+), 9 deletions(-)

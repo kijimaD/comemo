@@ -1,18 +1,16 @@
-commit 12566a60d789077bcaeb699879695060cae6f8c4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 18 12:43:23 2013 -0700
+commit b08a3164c0a10b608db0e9fafcdc3c9168e3cffe
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Apr 17 23:21:15 2013 -0700
 
-    doc: misc tweaks, new links, fix broken links
+    crypto/rand: better panic message for invalid Int argument.
     
-    I read docs and wrote a crawler + link checker on the plane,
-    which also checks for #fragments. I'll send that out later
-    when it's less gross.
+    Also document the panic to be consistent with math/rand.
     
-    R=golang-dev, r
+    Fixes #5187.
+    
+    R=golang-dev, dave, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/8729050
+    https://golang.org/cl/8303043
 
- doc/go1.1.html     | 21 +++++++++++++--------
- doc/go1.html       | 10 +++++-----
- doc/reference.html |  2 +-
- 3 files changed, 19 insertions(+), 14 deletions(-)
+ src/pkg/crypto/rand/util.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

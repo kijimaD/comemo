@@ -1,14 +1,12 @@
-commit ae502c4e02c3728aed9553279c7c787ae3ec39a3
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Sep 1 13:43:03 2011 -0400
+commit b0bd77f8fb637a6ff9442dd5398b11d90a6ed0eb
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 1 17:30:41 2011 +1000
 
-    libmach: fix incorrect use of memset
+    tag weekly.2011-09-01
     
-    Fixes #2213.
-    
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4975047
+    https://golang.org/cl/4968057
 
- src/libmach/executable.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

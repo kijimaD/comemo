@@ -1,0 +1,94 @@
+commit cb3b34349b4608a8eb5107159db74cbe472744b2
+Author: Gopher Robot <gobot@golang.org>
+Date:   Fri Jun 21 19:19:05 2024 +0000
+
+    doc/next: delete
+    
+    The release note fragments have been merged and added
+    as _content/doc/go1.23.md in x/website in CL 594035.
+    
+    For #65614.
+    
+    Change-Id: I7c8c718bc065024b6bdca93ce9bcc3c5d8b2dbc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594036
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/next/1-intro.md                                | 14 ----
+ doc/next/2-language.md                             | 18 -----
+ doc/next/3-tools.md                                | 84 ----------------------
+ doc/next/4-runtime.md                              |  7 --
+ doc/next/5-toolchain.md                            | 38 ----------
+ doc/next/6-stdlib/0-heading.md                     |  2 -
+ doc/next/6-stdlib/1-time.md                        | 32 ---------
+ doc/next/6-stdlib/2-unique.md                      | 13 ----
+ doc/next/6-stdlib/3-iter.md                        | 29 --------
+ doc/next/6-stdlib/4-structs.md                     | 11 ---
+ doc/next/6-stdlib/99-minor/0-heading.md            |  3 -
+ doc/next/6-stdlib/99-minor/README                  |  1 -
+ doc/next/6-stdlib/99-minor/archive/tar/50102.md    |  4 --
+ doc/next/6-stdlib/99-minor/crypto/tls/63369.md     |  3 -
+ doc/next/6-stdlib/99-minor/crypto/tls/63691.md     |  3 -
+ doc/next/6-stdlib/99-minor/crypto/tls/66214.md     |  3 -
+ doc/next/6-stdlib/99-minor/crypto/tls/67061.md     |  3 -
+ doc/next/6-stdlib/99-minor/crypto/tls/67065.md     |  3 -
+ doc/next/6-stdlib/99-minor/crypto/x509/45990.md    |  3 -
+ doc/next/6-stdlib/99-minor/crypto/x509/62048.md    |  4 --
+ doc/next/6-stdlib/99-minor/crypto/x509/66249.md    |  3 -
+ doc/next/6-stdlib/99-minor/database/sql/64707.md   |  3 -
+ doc/next/6-stdlib/99-minor/debug/elf/66054.md      |  3 -
+ doc/next/6-stdlib/99-minor/debug/elf/66836.md      |  2 -
+ .../6-stdlib/99-minor/encoding/binary/60023.md     |  3 -
+ doc/next/6-stdlib/99-minor/go/ast/66339.md         |  2 -
+ doc/next/6-stdlib/99-minor/go/types/46477.md       |  1 -
+ doc/next/6-stdlib/99-minor/go/types/65772.md       |  3 -
+ doc/next/6-stdlib/99-minor/go/types/66559.md       |  3 -
+ doc/next/6-stdlib/99-minor/go/types/67143.md       |  2 -
+ doc/next/6-stdlib/99-minor/go/types/cl-577715.md   |  4 --
+ doc/next/6-stdlib/99-minor/iter/61897.md           |  1 -
+ doc/next/6-stdlib/99-minor/maps/61900.md           |  1 -
+ doc/next/6-stdlib/99-minor/math/rand/v2/61716.md   |  2 -
+ doc/next/6-stdlib/99-minor/math/rand/v2/67059.md   |  1 -
+ doc/next/6-stdlib/99-minor/net/62254.md            |  3 -
+ doc/next/6-stdlib/99-minor/net/63116.md            |  3 -
+ doc/next/6-stdlib/99-minor/net/67925.md            |  3 -
+ doc/next/6-stdlib/99-minor/net/http/46443.md       |  3 -
+ doc/next/6-stdlib/99-minor/net/http/61472.md       |  1 -
+ doc/next/6-stdlib/99-minor/net/http/62490.md       |  1 -
+ doc/next/6-stdlib/99-minor/net/http/64910.md       |  2 -
+ doc/next/6-stdlib/99-minor/net/http/66008.md       |  7 --
+ doc/next/6-stdlib/99-minor/net/http/66343.md       | 16 -----
+ doc/next/6-stdlib/99-minor/net/http/66405.md       |  3 -
+ .../6-stdlib/99-minor/net/http/httptest/59473.md   |  2 -
+ doc/next/6-stdlib/99-minor/os/33357.md             |  3 -
+ doc/next/6-stdlib/99-minor/os/61893.md             |  7 --
+ doc/next/6-stdlib/99-minor/os/62484.md             |  1 -
+ doc/next/6-stdlib/99-minor/os/63703.md             |  5 --
+ doc/next/6-stdlib/99-minor/path/filepath/57151.md  |  2 -
+ doc/next/6-stdlib/99-minor/path/filepath/63703.md  | 11 ---
+ doc/next/6-stdlib/99-minor/reflect/60427.md        |  6 --
+ doc/next/6-stdlib/99-minor/reflect/61308.md        |  3 -
+ doc/next/6-stdlib/99-minor/reflect/66056.md        |  4 --
+ doc/next/6-stdlib/99-minor/runtime/debug/42888.md  |  5 --
+ doc/next/6-stdlib/99-minor/runtime/debug/67182.md  |  1 -
+ doc/next/6-stdlib/99-minor/runtime/pprof/43669.md  |  2 -
+ doc/next/6-stdlib/99-minor/runtime/trace/65319.md  |  4 --
+ doc/next/6-stdlib/99-minor/slices/53987.md         |  1 -
+ doc/next/6-stdlib/99-minor/slices/61899.md         |  1 -
+ doc/next/6-stdlib/99-minor/slices/65238.md         |  2 -
+ doc/next/6-stdlib/99-minor/structs/66408.md        |  1 -
+ doc/next/6-stdlib/99-minor/sync/61696.md           |  2 -
+ doc/next/6-stdlib/99-minor/sync/atomic/61395.md    |  3 -
+ doc/next/6-stdlib/99-minor/syscall/62254.md        |  1 -
+ doc/next/6-stdlib/99-minor/syscall/65817.md        |  1 -
+ doc/next/6-stdlib/99-minor/testing/fstest/63675.md |  3 -
+ doc/next/6-stdlib/99-minor/text/template/57646.md  |  1 -
+ doc/next/6-stdlib/99-minor/time/67470.md           |  2 -
+ doc/next/6-stdlib/99-minor/unicode/utf16/44940.md  |  3 -
+ doc/next/6-stdlib/99-minor/unique/62483.md         |  1 -
+ doc/next/7-ports.md                                | 38 ----------
+ doc/next/9-todo.md                                 | 51 -------------
+ 74 files changed, 521 deletions(-)

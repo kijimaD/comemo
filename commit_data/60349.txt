@@ -1,0 +1,21 @@
+commit 740043f516f716fe359ffd3bd76f1a30a9aa5eec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jun 23 15:21:28 2024 -0700
+
+    net/netip: unexport fields of addrDetail
+    
+    For #68113
+    
+    Change-Id: I19c7d8eff8e3a7a1b6c8e28cb867edeca6be237d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593737
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/netip/export_test.go |  4 ++++
+ src/net/netip/netip.go       | 10 +++++-----
+ src/net/netip/netip_test.go  |  8 ++++----
+ 3 files changed, 13 insertions(+), 9 deletions(-)

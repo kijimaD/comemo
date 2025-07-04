@@ -1,16 +1,21 @@
-commit 3f83c83bd681861802ac07ec285cef28fd5766cb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jun 25 09:17:28 2019 -0400
+commit 2deda8792a1f0139eba0bee527f3141659491444
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 15:48:22 2019 +0100
 
-    cmd/go: ensure that runtime/cgo is not stale in TestExecBuildX
+    cmd/link: improve XCOFF symbol table
     
-    Fixes #29004
+    This commit improves symbol table for XCOFF format.
+    It adds symbol alignment, TLS symbols and move the whole symbol table at
+    the end of the FILE. As relocations in the future external linking will
+    need symbols' index, we cannot write the symbol table when it's
+    generated.
     
-    Change-Id: Ifc8330b47fbec6f902057cb9b6db44f2c0082056
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183838
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I5dcae85b95e538b65f1a128faf56d4e2aa15baf1
+    Reviewed-on: https://go-review.googlesource.com/c/163998
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/link/internal/ld/data.go  |   1 +
+ src/cmd/link/internal/ld/xcoff.go | 178 +++++++++++++++++++++++++-------------
+ 2 files changed, 118 insertions(+), 61 deletions(-)

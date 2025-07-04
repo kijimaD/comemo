@@ -1,20 +1,23 @@
-commit 5e4543c29ff930084f79cd982d6eee0f13f52565
-Author: Philippe Antoine <contact@catenacyber.fr>
-Date:   Fri Apr 15 11:36:32 2022 +0000
+commit 6237e441bca7f3429abde413bf71c7840fec9bf2
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 10 11:26:08 2021 -0400
 
-    bytes: explode checks for n too large
+    [dev.typeparams] go/types: disallow type list handling
     
-    As is already done in strings package.
+    This is a port of CL 324571 to go/types, though type list handling is
+    guarded by a const rather than a config option.
     
-    Change-Id: Ia45e6443ddf6beac5e70a1cc493119030e173139
-    GitHub-Last-Rev: 1174c250350f31eced1513169d62a8a3e679dcf6
-    GitHub-Pull-Request: golang/go#52348
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400239
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I91c940fead048980603e0bb56fcc896dbef4f94c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326683
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/bytes/bytes.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/api.go                            |  2 ++
+ src/go/types/api_test.go                       |  2 +-
+ src/go/types/api_typeparams_test.go            | 14 +++++++-------
+ src/go/types/interface.go                      | 10 +++++++++-
+ src/go/types/testdata/examples/constraints.go2 | 12 ++++++++++++
+ src/go/types/typestring_test.go                |  1 -
+ 6 files changed, 31 insertions(+), 10 deletions(-)

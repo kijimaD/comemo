@@ -1,19 +1,21 @@
-commit dbc7203d22e782275c1cad6840b235a0bcf83288
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Oct 1 15:09:11 2015 -0700
+commit 7402416a8b0dd30c7a245ca053561a87d4021be6
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Jul 29 17:52:25 2015 +0200
 
-    io: clarify documentation for Seeker
+    [dev.ssa] cmd/compile/internal/ssa/gen: implement OOR.
     
-    The later part of the docstring simply talks about "offset" but does
-    not disambiguate what it is relative to. For both the return value
-    and valid offsets to seek to, it only makes sense in the context of
-    "offset relative to origin of file".
+    From compiling go there were 761 functions where OR was needed.
     
-    Fixes #11877
-    
-    Change-Id: Ic238a407cf8e8fdd64991d98a6584cdc8a51cd6b
-    Reviewed-on: https://go-review.googlesource.com/15257
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ied8bf59cec50a3175273387bc7416bd042def6d8
+    Reviewed-on: https://go-review.googlesource.com/12766
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/io/io.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                | 14 +++-
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 22 ++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  5 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go      |  6 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go    |  5 ++
+ src/cmd/compile/internal/ssa/opGen.go             | 89 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 72 ++++++++++++++++++
+ 7 files changed, 211 insertions(+), 2 deletions(-)

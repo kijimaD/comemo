@@ -1,16 +1,18 @@
-commit aa00d9744785f5215ec8e47a9bb00a4289cea3d2
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Mar 7 09:46:47 2018 +0100
+commit f96b95bcd192c771d815d2699e3aae9bbb65f6b2
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 27 15:29:05 2017 -0400
 
-    debug/pe: use bytes.IndexByte instead of a loop
+    runtime: benchmark for bulk write barriers
     
-    Follow CL 98759
+    This adds a benchmark of typedslicecopy and its bulk write barriers.
     
-    Change-Id: I58c8b769741b395e5bf4e723505b149d063d492a
-    Reviewed-on: https://go-review.googlesource.com/99095
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    For #22460.
+    
+    Change-Id: I439ca3b130bb22944468095f8f18b464e5bb43ca
+    Reviewed-on: https://go-review.googlesource.com/74051
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/debug/pe/string.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/gc_test.go | 121 +++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 82 insertions(+), 39 deletions(-)

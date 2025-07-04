@@ -1,18 +1,20 @@
-commit 6e759ad2e2ae53f08db4470aa60e972eb908f2ef
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Aug 1 20:34:12 2016 +1000
+commit aee8d8b9dd633f43754cdc310e5264026dc3bc42
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 18 11:51:48 2016 -0700
 
-    cmd/compile/internal/gc: add runtime/trace support
+    [dev.ssa] cmd/compile: implement more 64-bit ops on 386
     
-    This change adds runtime/trace support to go tool compile.
+    add/sub/mul, plus constant input variants.
     
-    Change-Id: I6c496b9b063796123f75eba6af511c53a57c0196
-    Reviewed-on: https://go-review.googlesource.com/25354
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I1c8006727c4fdf73558da0e646e7d1fa130ed773
+    Reviewed-on: https://go-review.googlesource.com/25006
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/main.go  |  1 +
- src/cmd/compile/internal/gc/trace.go | 27 +++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/util.go  |  5 +++++
- 3 files changed, 33 insertions(+)
+ src/cmd/compile/internal/ssa/gen/386.rules   |  13 +-
+ src/cmd/compile/internal/ssa/gen/386Ops.go   |  26 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  18 +--
+ src/cmd/compile/internal/ssa/opGen.go        | 133 ++++++++++++++++++--
+ src/cmd/compile/internal/ssa/rewrite386.go   | 181 ++++++++++++++++++++++++++-
+ src/cmd/compile/internal/x86/ssa.go          |  27 +++-
+ 6 files changed, 369 insertions(+), 29 deletions(-)

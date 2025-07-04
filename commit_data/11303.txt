@@ -1,14 +1,12 @@
-commit 531ded922f4eeb8c4634924b935599165b9f407b
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 20 15:38:03 2012 -0800
+commit 14d7e869ebd37d0dbe14c884eb97fec39485aeb0
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Fri Jan 20 14:44:05 2012 -0800
 
-    doc/go1: flag, runtime, testing
+    doc: fix typo in Go for C++ programmers
     
-    R=golang-dev, dsymonds, gri
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/5557076
+    https://golang.org/cl/5555062
 
- doc/go1.html     | 76 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
- doc/go1.tmpl     | 62 ++++++++++++++++++++++++++++++++++++++++++---
- doc/progs/go1.go | 19 ++++++++++++++
- 3 files changed, 149 insertions(+), 8 deletions(-)
+ doc/go_for_cpp_programmers.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

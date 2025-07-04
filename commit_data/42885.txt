@@ -1,22 +1,20 @@
-commit ac55d58fca4312fe4f84fa3a4761800803bc25e0
-Author: witchard <witchard@hotmail.co.uk>
-Date:   Sun Aug 30 18:15:03 2020 +0000
+commit 1cfe8e91b6d742140153d943e1b09ad48c670b1f
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 30 14:04:35 2019 -0800
 
-    cmd/go/internal/get: add GOINSECURE support
+    cmd/compile: use ADDQ instead of LEAQ when we can
     
-    Adds support for the GOINSECURE environment variable to GOPATH mode.
+    The address calculations in the example end up doing x << 4 + y + 0.
+    Before this CL we use a SHLQ+LEAQ. Since the constant offset is 0,
+    we can use SHLQ+ADDQ instead.
     
-    Updates #37519.
-    
-    Change-Id: Ibe3f52b7f30b1395edb000998905ee93abe6cada
-    GitHub-Last-Rev: e298c0009eb5eba537bb00185a8778d2aab696ba
-    GitHub-Pull-Request: golang/go#38628
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229758
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia048c4fdbb3a42121c7e1ab707961062e8247fca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209959
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go                           |  5 ++++-
- src/cmd/go/internal/get/get.go                  | 16 ++++++++------
- src/cmd/go/testdata/script/get_insecure_env.txt | 29 +++++++++++++++++++++++++
- 3 files changed, 42 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 17 +++++++++++++++++
+ test/codegen/addrcalc.go                     | 14 ++++++++++++++
+ 3 files changed, 34 insertions(+)

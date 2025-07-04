@@ -1,19 +1,17 @@
-commit 46bed9d04c5f1e0da557d79b9a35bf9331fcd33f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 11 13:12:47 2022 -0500
+commit 2bdf34f3e86693264938d791a673a97011420eb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 15 20:03:11 2021 -0800
 
-    runtime/race: add missing copyright headers to syso import files
+    spec: clarify that comparable cannot be a union element
     
-    These were apparently missed in CL 424034.
+    For #49602.
     
-    Change-Id: I60fcdd8c16992177a23c0e701f4224b250cfabee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449855
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I0d3ff8f087dffb3409918494147fd1dceff7514d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372694
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/race/race_v1_amd64.go | 4 ++++
- src/runtime/race/race_v3_amd64.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ doc/go_spec.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

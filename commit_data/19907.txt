@@ -1,18 +1,16 @@
-commit 2b9f3fceadf26d6f73ae76c640b6f6c3b821c706
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 6 10:28:19 2014 -0700
+commit f3dd6df6b1772134da51fac6067f6b0aefdd6b03
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 6 18:36:48 2014 +0400
 
-    cmd/cgo: consistently map void* to *byte under -{c,go}defs
+    runtime: simplify code
+    Full spans can't be passed to UncacheSpan since we get rid of free.
     
-    Fixes #8478.
-    
-    LGTM=iant
-    R=iant
-    CC=golang-codereviews
-    https://golang.org/cl/122150043
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/119490044
 
- misc/cgo/testgodefs/issue8478.go | 20 +++++++++++++++++++
- misc/cgo/testgodefs/main.go      |  3 +++
- misc/cgo/testgodefs/test.bash    |  2 +-
- src/cmd/cgo/gcc.go               | 42 ++++++++++++----------------------------
- 4 files changed, 36 insertions(+), 31 deletions(-)
+ src/pkg/runtime/malloc.h   |  1 -
+ src/pkg/runtime/mcache.c   |  2 +-
+ src/pkg/runtime/mcentral.c | 51 ++++++++++++----------------------------------
+ 3 files changed, 14 insertions(+), 40 deletions(-)

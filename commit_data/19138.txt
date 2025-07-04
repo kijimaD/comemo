@@ -1,26 +1,13 @@
-commit 85ddc68921052dbe214ed78b679e896d69f13db0
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Apr 15 10:20:04 2014 +1000
+commit 632e641fd23e794ae40d3a0d2a10fc9c8e57c1ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 14 16:28:52 2014 -0700
 
-    undo CL 87300043 / 1dc800571456
+    doc: simplify a go1.3 change description
     
-    This breaks "go get -d repo/path/...".
-    
-    ««« original CL description
-    cmd/go: do not miss an error if import path contains "cmd/something"
-    
-    Fixes #7638
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=r
+    R=rsc, r
     CC=golang-codereviews
-    https://golang.org/cl/87300043
-    »»»
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/87890043
+    https://golang.org/cl/87750043
 
- src/cmd/go/get.go | 4 ----
- 1 file changed, 4 deletions(-)
+ doc/go1.3.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

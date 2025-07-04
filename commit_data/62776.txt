@@ -1,0 +1,24 @@
+commit cac276f81a5ff11ae3c9027c45d14469f2b7fb70
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 8 15:31:02 2025 +0200
+
+    internal/poll: fix race in Close
+    
+    There is a potential race between a concurrent call to FD.initIO, which
+    calls FD.pd.init, and a call to FD.Close, which calls FD.pd.evict.
+    
+    This is solved by calling FD.initIO in FD.Close, as that will block
+    until the concurrent FD.initIO has completed. Note that FD.initIO is
+    no-op if first called from here.
+    
+    The race window is so small that it is not possible to write a test
+    that triggers it.
+    
+    Change-Id: Ie2f2818e746b9d626fe3b9eb6b8ff967c81ef863
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663815
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/internal/poll/fd_windows.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

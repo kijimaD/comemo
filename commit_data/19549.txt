@@ -1,40 +1,16 @@
-commit 61dca94e107170d2ff3beb13bb9fa5ce49d8d6fd
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 16 23:03:03 2014 -0700
+commit 38eea5b2ad6a6bf108cf4445506559118e34d782
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Jun 16 18:00:28 2014 -0700
 
-    runtime: implement string ops in Go
+    net: avoid array copy when shuffling SRV records
     
-    Also implement go:nosplit annotation.  Not really needed
-    for now, but we'll definitely need it for other conversions.
-    
-    benchmark                 old ns/op     new ns/op     delta
-    BenchmarkRuneIterate      534           474           -11.24%
-    BenchmarkRuneIterate2     535           470           -12.15%
+    We don't need to shift array elements to shuffle them.
+    We just have to swap a selected element with 0th element.
     
     LGTM=bradfitz
-    R=golang-codereviews, dave, bradfitz, minux
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/93380044
+    https://golang.org/cl/91750044
 
- src/cmd/gc/fmt.c               |   2 +-
- src/cmd/gc/go.h                |   2 +
- src/cmd/gc/go.y                |   2 +
- src/cmd/gc/lex.c               |   4 +
- src/cmd/gc/pgen.c              |   2 +
- src/cmd/gc/y.tab.c             |   2 +
- src/pkg/runtime/asm_386.s      |   6 +
- src/pkg/runtime/asm_amd64.s    |   6 +
- src/pkg/runtime/asm_amd64p32.s |   6 +
- src/pkg/runtime/asm_arm.s      |   4 +
- src/pkg/runtime/error.go       |   2 -
- src/pkg/runtime/race.go        |   3 +
- src/pkg/runtime/race0.go       |  11 ++
- src/pkg/runtime/rune.c         | 231 -----------------------
- src/pkg/runtime/rune.go        | 219 +++++++++++++++++++++
- src/pkg/runtime/string.c       | 199 ++++++++++++++++++++
- src/pkg/runtime/string.go      | 200 ++++++++++++++++++++
- src/pkg/runtime/string.goc     | 418 -----------------------------------------
- src/pkg/runtime/string_test.go |  24 +++
- src/pkg/runtime/stubs.go       |  30 +++
- src/pkg/runtime/stubs.goc      |  66 +++++++
- 21 files changed, 787 insertions(+), 652 deletions(-)
+ src/pkg/net/dnsclient.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

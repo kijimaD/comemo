@@ -1,17 +1,12 @@
-commit 12b6c18139233abd7b1af1fc0a07279d56df3642
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 1 00:26:16 2017 +0000
+commit c350c5cfdc5a6ed1a135c06517ef29cdd716a935
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Sat Nov 5 00:57:45 2016 +0100
 
-    cmd/vet/all: remove pprof from the whitelist
+    plugin: fix doc example fmt usage
     
-    Updates #19322
-    
-    Change-Id: I610f40d874f499e52db3356a3da54538dac55242
-    Reviewed-on: https://go-review.googlesource.com/37618
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I0520a37a48a56d231a8ac2dc58b2bf1762282760
+    Reviewed-on: https://go-review.googlesource.com/32795
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/all/main.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/plugin/plugin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

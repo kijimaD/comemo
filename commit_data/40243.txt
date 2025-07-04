@@ -1,44 +1,21 @@
-commit 06b12e660c239541c973ea9340f00455b9c5a266
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Oct 12 16:21:55 2019 -0700
+commit 9308637e3c2babcb3695d9f9673cf2a2b840362d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Apr 25 10:55:49 2019 +0200
 
-    cmd/compile: move some ONAME-specific flags from Node to Name
+    misc/wasm: fix command line arguments containing multi-byte characters
     
-    The IsClosureVar, IsOutputParamHeapAddr, Assigned, Addrtaken,
-    InlFormal, and InlLocal flags are only interesting for ONAME nodes, so
-    it's better to set these flags on Name.flags instead of Node.flags.
+    Command line arguments containing multi-byte characters were causing
+    go_js_wasm_exec to crash (RangeError: Source is too large), because
+    their byte length was not handled correctly. This change fixes the bug.
     
-    Two caveats though:
+    Fixes #31645.
     
-    1. Previously, we would set Assigned and Addrtaken on the entire
-    expression tree involved in an assignment or addressing operation.
-    However, the rest of the compiler only actually cares about knowing
-    whether the underlying ONAME (if any) was assigned/addressed.
-    
-    2. This actually requires bumping Name.flags from bitset8 to bitset16,
-    whereas it doesn't allow shrinking Node.flags any. However, Name has
-    some trailing padding bytes, so expanding Name.flags doesn't cost any
-    memory.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I7775d713566a38d5b9723360b1659b79391744c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200898
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I7860ebf5b12da37d9d0f43d4b6a22d326a90edaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173877
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/closure.go   |   8 +-
- src/cmd/compile/internal/gc/dcl.go       |   2 +-
- src/cmd/compile/internal/gc/esc.go       |   4 +-
- src/cmd/compile/internal/gc/escape.go    |   4 +-
- src/cmd/compile/internal/gc/fmt.go       |  13 +--
- src/cmd/compile/internal/gc/inl.go       |  10 +--
- src/cmd/compile/internal/gc/order.go     |   2 +-
- src/cmd/compile/internal/gc/pgen.go      |  18 ++--
- src/cmd/compile/internal/gc/plive.go     |   4 +-
- src/cmd/compile/internal/gc/ssa.go       |  20 ++---
- src/cmd/compile/internal/gc/syntax.go    | 136 +++++++++++++++----------------
- src/cmd/compile/internal/gc/typecheck.go |  31 +++----
- src/cmd/compile/internal/gc/walk.go      |   6 +-
- 13 files changed, 125 insertions(+), 133 deletions(-)
+ misc/wasm/wasm_exec.js | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

@@ -1,18 +1,23 @@
-commit 99bf122de86ffec5ebd85a688432619d717025fe
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 27 10:41:55 2024 -0700
+commit 91bea5a21dc1a951a7fbe491a6da07b664c5a167
+Author: David Chase <drchase@google.com>
+Date:   Mon Aug 14 13:20:45 2023 -0400
 
-    go/types, types2: remove need for Scope.LookupParent from TestObjectString
+    runtime: guard against runtime/sema* ops on Darwin signal stack.
     
-    Updates #69673.
+    These operations misbehave and cause hangs and flakes.
+    Fail hard if they are attempted.
     
-    Change-Id: I0ce5f009c1e95a2722a50d79a74fef83d2547b47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616260
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Tested by backing out the Darwin-profiling-hang fix
+    CL 518836 and running run.bash, the guard panicked in
+    runtime/pprof tests, as expected/hoped.
+    
+    Updates #61768
+    
+    Change-Id: I89b6f85745fbaa2245141ea98f584afc5d6b133e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519275
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/object_test.go | 7 ++++++-
- src/go/types/object_test.go                    | 7 ++++++-
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ src/runtime/os_darwin.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

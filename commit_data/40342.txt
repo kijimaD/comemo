@@ -1,17 +1,22 @@
-commit a59808ed01b52119025c49c7ab71ceffbf56c080
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 21 15:29:41 2019 -0700
+commit e64241216dd141589144a07f7f68acd64dc108fe
+Author: Vivek Sekhar <vsekhar@google.com>
+Date:   Mon May 6 17:49:47 2019 +0000
 
-    go/parser: better error (recovery) for Allman/BSD-style func decls
+    net/http: add support for SameSite=None
     
-    This matches the behavior and error of cmd/compile.
+    Section 4.2 of the Internet-Draft for SameSite includes the possible
+    SameSite value of "None".
     
-    Fixes #34946.
+    https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00
     
-    Change-Id: I329ef358deea63d8425f76f1d54c95749b96c365
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202484
+    Change-Id: I44f246024429ec175db13ff6b36bee465f3d233d
+    GitHub-Last-Rev: 170d24aaca4f00d750fca88740100f7c0b440d19
+    GitHub-Pull-Request: golang/go#31842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175337
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/parser/parser.go               | 12 +++++++++++-
- src/go/parser/testdata/issue34946.src | 22 ++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ api/next.txt                |  2 ++
+ src/net/http/cookie.go      |  5 +++++
+ src/net/http/cookie_test.go | 13 +++++++++++++
+ 3 files changed, 20 insertions(+)

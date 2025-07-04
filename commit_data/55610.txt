@@ -1,14 +1,54 @@
-commit f2db96cd6ca96adf7717761194811dd07019b78e
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Dec 13 12:46:39 2023 -0800
+commit 0b5affb193ed559f2cb646e0324827f261e2e767
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Feb 17 14:51:05 2023 -0500
 
-    reflect: use internal/abi itab type
+    cmd/link: better fix for arm32 trampgen problem with duff routines
     
-    Change-Id: I4a40d9cda41d3601169ef0daf0f25fb1509bdcb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549458
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    This patch provides a fix for a problem linking large arm32 binaries
+    with external linking, specifically R_CALLARM relocations against
+    runtime.duff* routines being flagged by the external linker as not
+    reaching.
+    
+    What appears to be happening in the bug in question is that the Go
+    linker and the external linker are using slightly different recipes to
+    decide whether a given R_CALLARM relocation will "fit" (e.g. will not
+    require a trampoline). The Go linker is taking into account the addend
+    on the call reloc (which for calls to runtime.duffcopy or
+    runtime.duffzero is nonzero), whereas the external linker appears to
+    be ignoring the addend.
+    
+    Example to illustrate:
+    
+       Addr      Size   Func
+       -----     -----  -----
+       ...
+       XYZ       1024   runtime.duffcopy
+       ...
+       ABC       ...    mypackge.MyFunc
+         + R0: R_CALLARM  o=8 a=848 tgt=runtime.duffcopy<0>
+    
+    Let's say that the distance between ABC (start address of
+    runtime.duffcopy) and XYZ (start of MyFunc) is just over the
+    architected 24-bit maximum displacement for an R_CALLARM (let's say
+    that ABC-XYZ is just over the architected limit by some small value,
+    say 36). Because we're calling into runtime.duffcopy at offset 848,
+    however, the relocation does in fact fit, but if the external linker
+    isn't taking into account the addend (assuming that all calls target
+    the first instruction of the called routine), then we'll get a
+    "doesn't fit" error from the linker.
+    
+    To work around this problem, revise the ARM trampoline generation code
+    in the Go linker that computes the trampoline threshold to ignore the
+    addend on R_CALLARM relocations, so as to harmonize the two linkers.
+    
+    Updates #58428.
+    Updates #58425.
+    
+    Change-Id: I56e580c05b7b47bbe8edf5532a1770bbd700fbe5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/reflect/value.go | 13 +++----------
- 1 file changed, 3 insertions(+), 10 deletions(-)
+ src/cmd/link/internal/arm/asm.go | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)

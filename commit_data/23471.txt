@@ -1,18 +1,27 @@
-commit 4ba1f258881b7cd82e22be3bff25b84fe6f21219
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 23 13:59:18 2015 -0700
+commit 004706099d95160960785a45a56b7cb54fc6f7af
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 12 15:40:13 2015 +1200
 
-    go/types: better error message for certain unary/binary expression errors
+    cmd/5l, etc, cmd/internal/ld: consolidate implementations of adddynlib
     
-    Port of https://go-review.googlesource.com/11363.
+    They were all essentially the same.
     
-    Fixes #11367.
-    
-    Change-Id: Ie0a82bcfab782c514d1947e7a6b190e286afd159
-    Reviewed-on: https://go-review.googlesource.com/11367
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I6e0b548cda6e4bbe2ec3b3025b746d1f6d332d48
+    Reviewed-on: https://go-review.googlesource.com/10000
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/expr.go            | 16 ++++++++++++----
- src/go/types/stmt.go            |  4 ++--
- src/go/types/testdata/expr0.src |  6 ++++++
- 3 files changed, 20 insertions(+), 6 deletions(-)
+ src/cmd/5l/asm.go          | 36 ------------------------------------
+ src/cmd/5l/obj.go          |  1 -
+ src/cmd/6l/asm.go          | 38 +-------------------------------------
+ src/cmd/6l/obj.go          |  1 -
+ src/cmd/7l/asm.go          | 36 ------------------------------------
+ src/cmd/7l/obj.go          |  1 -
+ src/cmd/8l/asm.go          | 36 ------------------------------------
+ src/cmd/8l/obj.go          |  1 -
+ src/cmd/9l/asm.go          | 34 ----------------------------------
+ src/cmd/9l/obj.go          |  1 -
+ src/cmd/internal/ld/go.go  | 23 ++++++++++++++++++++++-
+ src/cmd/internal/ld/lib.go |  1 -
+ 12 files changed, 23 insertions(+), 186 deletions(-)

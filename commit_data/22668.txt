@@ -1,16 +1,39 @@
-commit ba8fa0e1a90b01727c9aa6bb23d6c3981cee9b4e
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Apr 23 14:14:31 2015 +1000
+commit 57279ba752d6975f387b7707a99e43ec9ad6725e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 10 21:37:13 2015 -0700
 
-    image/png: don't silently swallow io.ReadFull's io.EOF error when it
-    lands exactly on an IDAT row boundary.
+    cmd/internal/gc: separate func-only Node fields
     
-    Fixes #10493
+    Nodes dominate gc's memory usage, but many fields are only used
+    for a subset of kinds of nodes. This change pulls out fields
+    used only for func-like Nodes. This reduces the size of the
+    Node struct on a 64-bit machine from 504 bytes to 416 bytes (-17%).
     
-    Change-Id: I12be7c5bdcde7032e17ed1d4400db5f17c72bc87
-    Reviewed-on: https://go-review.googlesource.com/9270
-    Reviewed-by: Rob Pike <r@golang.org>
+    Compiling the runtime, 1.5% of nodes have a non-nil Func.
+    In html/template, 2.7% of nodes have a non-nil Func.
+    
+    This change introduces an extra alloc and associated GC overhead
+    when Func is non-nil. However, when Func is nil, as it almost
+    always is, it spares the garbage collector scanning some Node fields.
+    Empirically, this change appears to be roughly neutral with regard to GC.
+    
+    To keep the diff readable, this CL uses an embedded Func field.
+    A subsequent CL will unembed the field.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ide86aa954b097fb8e6154f0811d3691497477004
+    Reviewed-on: https://go-review.googlesource.com/7360
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/image/png/reader.go      |  9 +++++++++
- src/image/png/reader_test.go | 15 +++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/cmd/internal/gc/closure.go |   4 +-
+ src/cmd/internal/gc/dcl.go     |  17 ++++--
+ src/cmd/internal/gc/export.go  |   2 +-
+ src/cmd/internal/gc/go.y       |   6 +-
+ src/cmd/internal/gc/inl.go     |   8 ++-
+ src/cmd/internal/gc/subr.go    |   4 ++
+ src/cmd/internal/gc/syntax.go  | 126 ++++++++++++++++++++++-------------------
+ src/cmd/internal/gc/y.go       |   6 +-
+ 8 files changed, 98 insertions(+), 75 deletions(-)

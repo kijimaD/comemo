@@ -1,19 +1,22 @@
-commit 88518e7dd6a118167aa71851a3a9f24d0230bc82
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 26 14:34:20 2016 -0400
+commit 859cab099c5a9a9b4939960b630b78e468c8c39e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 30 03:40:51 2016 +0000
 
-    runtime: zero-initialize LR on new stacks
+    net/http: make DefaultTransport's Dialer enable DualStack ("Happy Eyeballs")
     
-    Currently we initialize LR on a new stack by writing nil to it. But
-    this is an initializing write since the newly allocated stack is not
-    zeroed, so this is unsafe with the hybrid barrier. Change this is a
-    uintptr write to avoid a bad write barrier.
+    As @pmarks-net said in the bug, this is something of a prisoner's
+    dilemma, but it does help people who occasionally report problems.
     
-    Updates #17503.
+    This is temporary. IPv6 is happening regardless of our decision here,
+    so we'll do this for now.
     
-    Change-Id: I062ac352e35df7da4644c1f2a5aaab87049d1f60
-    Reviewed-on: https://go-review.googlesource.com/32093
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Fixes #15324
+    
+    Change-Id: I8cc29c6efa56222970996c71182fc9ee89d78539
+    Reviewed-on: https://go-review.googlesource.com/28077
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/transport.go | 1 +
+ 1 file changed, 1 insertion(+)

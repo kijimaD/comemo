@@ -1,31 +1,12 @@
-commit 3be0a0ef6fb80d099aefdba67b68df3b500188bc
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 12 15:17:10 2015 -0500
+commit 2d02ff278cb8b339df239f5706d2b5b13917e302
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 13 19:47:22 2014 +1100
 
-    liblink: adjustments for c2go conversion
+    misc/chrome/gophertool: update URLs from code.google.com to new homes
     
-    Mostly this is using uint32 instead of int32 for unsigned values
-    like instruction encodings or float32 bit representations,
-    removal of ternary operations, and removal of #defines.
-    
-    Delete sched9.c, because it is not compiled (it is still in the history
-    if we ever need it).
-    
-    Change-Id: I68579cfea679438a27a80416727a9af932b088ae
-    Reviewed-on: https://go-review.googlesource.com/2658
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I46bf9f1b84a331cabce2d3417b2b59ccb83d00fa
+    Reviewed-on: https://go-review.googlesource.com/1532
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/cmd/9l/9.out.h   |  11 +-
- src/liblink/asm5.c   | 115 ++++---
- src/liblink/asm9.c   | 230 +++++++++-----
- src/liblink/list6.c  |  35 ---
- src/liblink/list9.c  |  67 +----
- src/liblink/obj5.c   |  20 +-
- src/liblink/obj6.c   |   8 +-
- src/liblink/obj8.c   |   8 +-
- src/liblink/obj9.c   |  21 +-
- src/liblink/pass.c   |   7 +-
- src/liblink/sched9.c | 835 ---------------------------------------------------
- src/liblink/sym.c    |   5 +-
- src/runtime/stack.h  |  10 +-
- 13 files changed, 279 insertions(+), 1093 deletions(-)
+ misc/chrome/gophertool/gopher.js | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

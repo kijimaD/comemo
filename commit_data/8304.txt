@@ -1,16 +1,14 @@
-commit 8ef56f7e92445327c93e1ac7e71aa87a4f69f0f0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 3 07:10:48 2011 -0700
+commit 2c92fe0b4f4d4525b845f688070d2ebc6be04c57
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue May 3 09:53:04 2011 -0300
 
-    net: don't crash on unexpected DNS SRV responses
+    Make.cmd: create TARGDIR if necessary
     
-    Fixes #1350
+    Fixes #1771.
     
-    R=rsc, bradfitzwork
+    R=adg, rsc1
     CC=golang-dev
-    https://golang.org/cl/4432089
+    https://golang.org/cl/4437089
 
- src/pkg/net/dnsclient.go   |  28 ++++++-------
- src/pkg/net/dnsmsg.go      |  35 ++++++++++------
- src/pkg/net/dnsmsg_test.go | 100 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 137 insertions(+), 26 deletions(-)
+ src/Make.cmd | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

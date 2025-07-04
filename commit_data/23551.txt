@@ -1,59 +1,30 @@
-commit d57056ba2619ed75a8b1c0255d318ac1dc9a1bb1
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jun 22 10:24:50 2015 -0400
+commit eeb64b7fef7b593c64ea127ab4c1052162638099
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 14 10:18:10 2015 +0900
 
-    runtime: don't free stack spans during GC
+    net: adjust dual stack support on dragonfly
     
-    Memory for stacks is manually managed by the runtime and, currently
-    (with one exception) we free stack spans immediately when the last
-    stack on a span is freed. However, the garbage collector assumes that
-    spans can never transition from non-free to free during scan or mark.
-    This disagreement makes it possible for the garbage collector to mark
-    uninitialized objects and is blocking us from re-enabling the bad
-    pointer test in the garbage collector (issue #9880).
+    As mentioned in
+    http://gitweb.dragonflybsd.org/dragonfly.git/commit/727ccde8cce813911d885b7f6ed749dcea68a886,
+    DragonFly BSD is dropping support for IPv6 IPv4-mapped address.
+    Unfortunately, on some released versions we see the kernels pretend to
+    support the feature but actually not (unless tweaking some kernel states
+    via sysctl.)
     
-    For example, the following sequence will result in marking an
-    uninitialized object:
+    To avoid unpredictable behavior, the net package assumes that all
+    DragonFly BSD kernels don't support IPv6 IPv4-mapped address.
     
-    1. scanobject loads a pointer slot out of the object it's scanning.
-       This happens to be one of the special pointers from the heap into a
-       stack. Call the pointer p and suppose it points into X's stack.
+    Fixes #10764.
     
-    2. X, running on another thread, grows its stack and frees its old
-       stack.
-    
-    3. The old stack happens to be large or was the last stack in its
-       span, so X frees this span, setting it to state _MSpanFree.
-    
-    4. The span gets reused as a heap span.
-    
-    5. scanobject calls heapBitsForObject, which loads the span containing
-       p, which is now in state _MSpanInUse, but doesn't necessarily have
-       an object at p. The not-object at p gets marked, and at this point
-       all sorts of things can go wrong.
-    
-    We already have a partial solution to this. When shrinking a stack, we
-    put the old stack on a queue to be freed at the end of garbage
-    collection. This was done to address exactly this problem, but wasn't
-    a complete solution.
-    
-    This commit generalizes this solution to both shrinking and growing
-    stacks. For stacks that fit in the stack pool, we simply don't free
-    the span, even if its reference count reaches zero. It's fine to reuse
-    the span for other stacks, and this enables that. At the end of GC, we
-    sweep for cached stack spans with a zero reference count and free
-    them. For larger stacks, we simply queue the stack span to be freed at
-    the end of GC. Ideally, we would reuse these large stack spans the way
-    we can small stack spans, but that's a more invasive change that will
-    have to wait until after the freeze.
-    
-    Fixes #11267.
-    
-    Change-Id: Ib7f2c5da4845cc0268e8dc098b08465116972a71
-    Reviewed-on: https://go-review.googlesource.com/11502
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic7af3651e0372ec03774432fbb6b2eb0c455e994
+    Reviewed-on: https://go-review.googlesource.com/10071
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go    |  6 +++-
- src/runtime/mheap.go  | 14 ++++++++
- src/runtime/stack1.go | 93 +++++++++++++++++++++++++++++++++------------------
- 3 files changed, 79 insertions(+), 34 deletions(-)
+ src/net/ipsock_posix.go  | 29 ++++++++++++++++++++---
+ src/net/listen_test.go   |  6 ++---
+ src/net/main_test.go     | 51 +++++++++++++++++++++++++++++++++++++++-
+ src/net/sockopt_bsd.go   |  2 +-
+ src/net/tcp_test.go      | 36 ++++------------------------
+ src/net/tcpsock_posix.go |  5 ----
+ src/net/udp_test.go      | 61 +++++++++++++++---------------------------------
+ 7 files changed, 102 insertions(+), 88 deletions(-)

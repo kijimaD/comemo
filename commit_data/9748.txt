@@ -1,16 +1,12 @@
-commit bf595ba1c2431582236b09bca5e17e30cc9aa05e
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 19 16:55:08 2011 -0700
+commit 5d1d040e3af871b62d78ec88ccc32c21f2a78f03
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 19 11:54:07 2011 -0700
 
-    gob: don't allocate a slice if there's room to decode already
-    Fixes #2275.
+    doc: when configuring gold for gccgo, use --enable-gold=default
     
-    R=golang-dev, gri
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5082041
+    https://golang.org/cl/5030057
 
- src/pkg/gob/codec_test.go   |  2 +-
- src/pkg/gob/decode.go       | 33 +++++++++++++++++++---------
- src/pkg/gob/doc.go          |  5 ++++-
- src/pkg/gob/encoder_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 79 insertions(+), 13 deletions(-)
+ doc/gccgo_install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

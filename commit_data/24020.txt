@@ -1,21 +1,26 @@
-commit d2cf46dedfa4c6244d2c1913ce48b08a569e4809
+commit 434e0bc0a06afa124a6d9167fa51b5d02ff4db14
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 17 20:47:29 2015 -0400
+Date:   Sun Jun 28 22:26:35 2015 -0400
 
-    cmd/go: fix spurious rebuild of binaries using cgo on OS X
+    cmd/link: record missing pcdata tables correctly
     
-    The text segment starts farther into the binary when using
-    external linking on the mac. Test and fix.
+    The old code was recording the current table output offset,
+    so the table from the next function would be used instead of
+    the runtime realizing that there was no table at all.
     
-    Fixes #12173.
+    Add debug constant in runtime to check this for every function
+    at startup. It's too expensive to do that by default, but we can
+    do the last five functions. The end of the table is usually where
+    the C symbols end up, so that's where the problems typically are.
     
-    Change-Id: I1f0c81814bf70cd9decfceac3022784f4608eeef
-    Reviewed-on: https://go-review.googlesource.com/13672
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #10747.
+    Fixes #11396.
+    
+    Change-Id: I13592e78017969fc22979fa902e19e1b151d41b1
+    Reviewed-on: https://go-review.googlesource.com/11657
+    Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/note_test.go | 17 +++++++++++++++++
- src/cmd/go/pkg.go       |  8 ++++----
- 2 files changed, 21 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 10 ++++++----
+ src/runtime/symtab.go            | 11 ++++++++++-
+ 2 files changed, 16 insertions(+), 5 deletions(-)

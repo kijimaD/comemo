@@ -1,15 +1,26 @@
-commit 14062efb16e3c69adaf655d0b545189036929368
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 26 13:54:44 2013 -0400
+commit a0f74093b2f3aa0d8d2b69c881a75f40d296355f
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jul 26 09:10:29 2013 +0200
 
-    runtime: handle runtime.Goexit during init
+    crypto/des: faster block expansion.
     
-    Fixes #5963.
+    On amd64:
     
-    R=golang-dev, dsymonds, dvyukov
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkEncrypt         6170         3593  -41.77%
+    BenchmarkDecrypt         6209         3564  -42.60%
+    
+    benchmark            old MB/s     new MB/s  speedup
+    BenchmarkEncrypt         1.30         2.23    1.72x
+    BenchmarkDecrypt         1.29         2.24    1.74x
+    
+    Update #4299.
+    
+    R=golang-dev, agl, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/11879045
+    https://golang.org/cl/11874043
 
- src/pkg/runtime/proc.c      | 18 ++++++++++++++++
- test/fixedbugs/issue5963.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 68 insertions(+)
+ src/pkg/crypto/des/block.go    | 14 +++++++++++++-
+ src/pkg/crypto/des/const.go    | 11 -----------
+ src/pkg/crypto/des/des_test.go | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+), 12 deletions(-)

@@ -1,13 +1,15 @@
-commit d27dfd2152efd34d0603fdb105b1aaeb0f8b492e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Aug 21 10:16:49 2014 -0700
+commit ebf42035b76acad4c5f58b7904750b7fb0b25a42
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 13 14:52:01 2014 -0400
 
-    cmd/api: reduce stutter in runtime type stubs
+    [dev.power64] runtime: fix newstackcall
     
-    LGTM=khr
-    R=khr
-    CC=dvyukov, golang-codereviews
-    https://golang.org/cl/132770044
+    moreframesize is a uint32, not a uint64.
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/124310043
 
- src/cmd/api/goapi.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/pkg/runtime/asm_power64x.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

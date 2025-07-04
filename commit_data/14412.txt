@@ -1,13 +1,15 @@
-commit c590db2b8b9d72492d5a5269f19a105e9614369b
-Author: Rob Pike <r@golang.org>
-Date:   Thu Nov 15 10:42:39 2012 -0800
+commit cc8bd8969f21a7c0a5e5a0a4f61173d25f1c03e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 14 22:04:03 2012 -0800
 
-    sudo.bash: diagnose when the go tool is not in $PATH
-    Fixes #4386.
+    runtime/cgo: include <string.h> as needed so that strerror is declared
     
-    R=golang-dev, iant
+    R=golang-dev, dave, jsing
     CC=golang-dev
-    https://golang.org/cl/6854050
+    https://golang.org/cl/6847051
 
- src/sudo.bash | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/runtime/cgo/gcc_freebsd_386.c   | 1 +
+ src/pkg/runtime/cgo/gcc_freebsd_amd64.c | 1 +
+ src/pkg/runtime/cgo/gcc_netbsd_386.c    | 1 +
+ src/pkg/runtime/cgo/gcc_netbsd_amd64.c  | 1 +
+ 4 files changed, 4 insertions(+)

@@ -1,23 +1,20 @@
-commit 635a83047b4733f8cb3c9f5ac9d7c057622c2b52
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 23 15:02:43 2020 -0800
+commit 03978a97e5336c0ef46cec9b4f0733e9d897d083
+Author: sandyskies <chenmingjie0828@163.com>
+Date:   Mon Oct 21 17:32:13 2019 +0000
 
-    runtime/race: test that close synchronizes with read
+    io: make CopyBuffer docs state when buf is not used
     
-    Add a test to ensure that the race detector sees that closing a
-    channel synchronizes with a read from that channel.
-    This test case failed when CL 181543 was in the tree.
-    CL 181543 was reverted in CL 216158; this adds a test to make
-    sure that we don't re-introduce the problem at a later date.
+    Document that if either src implements the WriteTo interface
+    or if dst implements the ReaderFrom interface, then
+    buf will not be used.
     
-    For #32529
-    For #36714
+    Fixes #32276
     
-    Change-Id: I5a40f744c67c3f8191d6ad822710c180880a7375
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216099
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id0a69c90e255e694e7ec9f79ffe4d8391441e59e
+    GitHub-Last-Rev: 750e7e86d5d9b985fae7f2329fd219cacf72a62b
+    GitHub-Pull-Request: golang/go#32279
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179137
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/race/testdata/chan_test.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/io/io.go | 3 +++
+ 1 file changed, 3 insertions(+)

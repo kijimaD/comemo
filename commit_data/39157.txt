@@ -1,25 +1,24 @@
-commit cefc0bbc9011baa62a8284d61452ba33245e8455
-Author: Baokun Lee <nototon@gmail.com>
-Date:   Thu May 9 11:24:30 2019 +0800
+commit 52cae2763ee59ea63e885e9a41708e3ce677039a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jan 9 11:21:07 2019 -0500
 
-    cmd/go/internal/renameio: allow write file with the specified permissions
+    cmd/internal/obj/wasm: increment PC by 2 at sigpanic
     
-    Now renameio package creates file use ioutil.TempFile, which calls
-    OpenFile with mode 0600, we should support creates a file with given
-    permission bits.
+    On Wasm, PC is not the instruction counter but the block ID. We
+    advance the PC only when necessary. In the case of sigpanic (used
+    in nil check), the panic stack trace expects the PC at the call
+    of sigpanic, not the next one. However, runtime.Caller subtracts
+    1 from the PC. To make both PC and PC-1 work (have the same line
+    number), we advance the PC by 2 at sigpanic.
     
-    Fixes #31871
+    Fixes #29632.
     
-    Change-Id: I0436e9f7081f2fce18bf9f3b14d55b02d4d995fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175958
-    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    Change-Id: Ieb4d0bb9dc6a8103855a194e3d289f1db4bfb1e5
+    Reviewed-on: https://go-review.googlesource.com/c/157157
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/cache/cache.go            |  2 +-
- src/cmd/go/internal/modfetch/cache.go         |  4 +--
- src/cmd/go/internal/modfetch/fetch.go         |  4 +--
- src/cmd/go/internal/modload/init.go           |  2 +-
- src/cmd/go/internal/renameio/renameio.go      | 26 ++++++++++++----
- src/cmd/go/internal/renameio/renameio_test.go | 44 +++++++++++++++++++++++++++
- 6 files changed, 70 insertions(+), 12 deletions(-)
+ src/cmd/internal/obj/wasm/wasmobj.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

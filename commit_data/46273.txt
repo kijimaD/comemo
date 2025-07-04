@@ -1,26 +1,40 @@
-commit 1ae7ddc2350b2dd30e1f3ad877c3c70ef745111d
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 2 11:06:27 2021 +0700
+commit 4e8f1e139f5c69a1d596a54b035d6fc4fb08b94d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 18:47:09 2020 -0500
 
-    test: always run test in unified IR mode regardless of explicit -G flag
+    [dev.regabi] cmd/compile: cleanup for concrete types - sinit
     
-    Currently, if a test explicitly specify -G flag, if that flag conflict
-    with compiler default -G flag, the test will be skipped. That's the
-    reason CL 346469 haven't fixed the unified IR stuff, but still make the
-    unified builder passed.
+    An automated rewrite will add concrete type assertions after
+    a test of n.Op(), when n can be safely type-asserted
+    (meaning, n is not reassigned a different type, n is not reassigned
+    and then used outside the scope of the type assertion,
+    and so on).
     
-    This CL makes run.go always run the test in unified IR mode, regardless
-    of the explicit -G flag specified.
+    This sequence of CLs handles the code that the automated
+    rewrite does not: adding specific types to function arguments,
+    adjusting code not to call n.Left() etc when n may have multiple
+    representations, and so on.
     
-    Updates #48094
+    This CL focuses on sinit.go.
     
-    Change-Id: I959ecaff6aca07844f0ffcf36caa60cf0747e8ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347271
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I3e9458e69a7a9b3f2fe139382bf961bc4473cc42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277928
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/run.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/iexport.go   |   6 +-
+ src/cmd/compile/internal/gc/initorder.go |   2 +-
+ src/cmd/compile/internal/gc/inl.go       |   3 +-
+ src/cmd/compile/internal/gc/obj.go       |  25 ++--
+ src/cmd/compile/internal/gc/sinit.go     | 214 +++++++++++++++++++------------
+ src/cmd/compile/internal/gc/ssa.go       |   3 +-
+ src/cmd/compile/internal/gc/typecheck.go |  14 +-
+ src/cmd/compile/internal/ir/expr.go      |  40 +++---
+ src/cmd/compile/internal/ir/fmt.go       |  14 +-
+ src/cmd/compile/internal/ir/node.go      |   2 -
+ src/cmd/compile/internal/ir/node_gen.go  |   8 +-
+ 11 files changed, 194 insertions(+), 137 deletions(-)

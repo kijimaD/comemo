@@ -1,16 +1,15 @@
-commit 01187f756e26c80af83ec13b3ebdfe3bcd2d0a46
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu May 7 02:12:23 2015 -0400
+commit 3b38626f7d5c9b85e3acb2601e34324879438fae
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 12 23:11:28 2015 +0900
 
-    build: fix clean scripts
+    net: don't run IP stack required tests on IP stack unimplemented kernels
     
-    Fixes #10734.
+    Fixes #10787.
     
-    Change-Id: I7a2c580b87749225668fbd7a005412c8eee6824d
-    Reviewed-on: https://go-review.googlesource.com/9823
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I35c96808a713dafb1f0fea301fa3f3528fe6a5bf
+    Reviewed-on: https://go-review.googlesource.com/9948
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/clean.bash | 3 ++-
- src/clean.bat  | 5 +++--
- src/clean.rc   | 3 ++-
- 3 files changed, 7 insertions(+), 4 deletions(-)
+ src/net/main_test.go     |  4 ++--
+ src/net/platform_test.go | 13 ++++++++++++-
+ 2 files changed, 14 insertions(+), 3 deletions(-)

@@ -1,28 +1,24 @@
-commit a3c70e28edf7f0202ab35b64c9d83644761cf033
-Author: Austin Clements <austin@google.com>
-Date:   Tue Nov 13 18:32:55 2018 -0500
+commit 08ab820437229f68fe5f7dad1c9b4940c674e206
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Jun 26 13:28:04 2018 +0200
 
-    test: fix ABI mismatch in fixedbugs/issue19507
+    net/rpc: clarify requirements for connections and codecs
     
-    Because run.go doesn't pass the package being compiled to the compiler
-    via the -p flag, it can't match up the main·f symbol from the
-    assembler with the "func f" stub in Go, so it doesn't produce the
-    correct assembly stub.
+    1. Connections and codecs need to be partially safe for concurrent use.
+       Namely, read side is serialized by one mutex,
+       and writing side is serialized by another.
+       Current comment says that they need to be fully thread-safe,
+       which makes the default implementations (gobClientCodec/gobServerCodec)
+       non-conforming.
     
-    Fix this by removing the package prefix from the assembly definition.
+    2. Say that ServerCodec.Close can be called multiple times
+       and must be idempotent. Server requires this and gobServerCodec
+       accounts for this,  but the requirement is not documented.
     
-    Alternatively, we could make run.go pass -p to the compiler, but it's
-    nicer to remove these package prefixes anyway.
-    
-    Should fix the linux-arm builder, which was broken by the introduction
-    of function ABIs in CL 147160.
-    
-    Updates #27539.
-    
-    Change-Id: Id62b7701e1108a21a5ad48ffdb5dad4356c273a6
-    Reviewed-on: https://go-review.googlesource.com/c/149483
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie877e37891fed28056e3d9d1722edaed8e154067
+    Reviewed-on: https://go-review.googlesource.com/120818
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/fixedbugs/issue19507.dir/div_arm.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/rpc/client.go | 7 ++++++-
+ src/net/rpc/server.go | 5 ++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

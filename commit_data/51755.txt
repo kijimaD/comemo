@@ -1,41 +1,28 @@
-commit 91c1c5922dcfc646fa9b1c2b3d506abe0956e97f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jan 24 10:16:42 2023 +0100
+commit 6fb07317e5e7997a1e44ccb6984229c77dc186a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 8 13:11:04 2022 -0800
 
-    runtime/cgo: use //go:build lines in C and assembly files
+    spec: more adjustments/corrections
     
-    Replace deprecated // +build lines by their respective //go:build line
-    counterpart. Also remove build constraints implied by file name or type.
+    - Change section title from "Type parameters lists" to
+      "Type parameter declarations" as the enclosing section
+      is about declarations.
     
-    Change-Id: I8d18cd40071ca28d7654da8f0d22841f43729ca6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460538
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    - Correct section on parsing ambiguity in type parameter
+      lists.
+    
+    - Rephrase paragraphs on type parameters for method receivers
+      and adjust examples.
+    
+    - Remove duplicate prose in section on function argument type
+      inference.
+    
+    - Clarified "after substitution" column in Instantiations section.
+    
+    Change-Id: Id76be9804ad96a3f1221e5c4942552dde015dfcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390994
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cgo/asm_mips64x.s           | 1 -
- src/runtime/cgo/asm_mipsx.s             | 1 -
- src/runtime/cgo/asm_ppc64x.s            | 1 -
- src/runtime/cgo/gcc_aix_ppc64.S         | 3 ---
- src/runtime/cgo/gcc_aix_ppc64.c         | 3 ---
- src/runtime/cgo/gcc_context.c           | 3 +--
- src/runtime/cgo/gcc_fatalf.c            | 2 +-
- src/runtime/cgo/gcc_freebsd_sigaction.c | 2 +-
- src/runtime/cgo/gcc_libinit.c           | 3 +--
- src/runtime/cgo/gcc_libinit_windows.c   | 2 --
- src/runtime/cgo/gcc_linux_mips64x.c     | 4 +---
- src/runtime/cgo/gcc_linux_mipsx.c       | 4 +---
- src/runtime/cgo/gcc_linux_ppc64x.S      | 3 +--
- src/runtime/cgo/gcc_mips64x.S           | 2 +-
- src/runtime/cgo/gcc_mipsx.S             | 2 +-
- src/runtime/cgo/gcc_mmap.c              | 2 +-
- src/runtime/cgo/gcc_ppc64x.c            | 2 +-
- src/runtime/cgo/gcc_setenv.c            | 3 +--
- src/runtime/cgo/gcc_sigaction.c         | 2 +-
- src/runtime/cgo/gcc_signal2_ios_arm64.c | 2 +-
- src/runtime/cgo/gcc_signal_ios_arm64.c  | 2 +-
- src/runtime/cgo/gcc_signal_ios_nolldb.c | 4 +---
- src/runtime/cgo/gcc_traceback.c         | 2 +-
- src/runtime/cgo/linux_syscall.c         | 2 +-
- 24 files changed, 18 insertions(+), 39 deletions(-)
+ doc/go_spec.html | 92 +++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 47 insertions(+), 45 deletions(-)

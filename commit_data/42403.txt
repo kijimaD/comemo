@@ -1,25 +1,12 @@
-commit 748533e3a1a8e64b3910b9cac1e767d95ee38f84
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue May 26 15:55:54 2020 -0400
+commit 100bf440b9a69c6dce8daeebed038d607c963b8f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 12 17:31:11 2019 +0000
 
-    runtime: check gdb exit status and log output
+    net/http: fix some awkward wording in Request.WithContext docs
     
-    All GDB tests currently ignore non-zero exit statuses. When tests
-    flakes, we don't even know if GDB exited successfully or not.
-    
-    Add checks for non-zero exits, which are not expected.
-    
-    Furthermore, always log the output from GDB. The tests are currently
-    inconsistent about whether they always log, or only on error.
-    
-    Updates #39021
-    
-    Change-Id: I7af1d795fc2fdf58093cb2731d616d4aa44e9996
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235282
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib37db42c7f1fd6aa55f70fd2d65d56bb2ae6d26a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211098
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/runtime-gdb_test.go | 51 +++++++++++++++++++++++++++--------------
- 1 file changed, 34 insertions(+), 17 deletions(-)
+ src/net/http/request.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

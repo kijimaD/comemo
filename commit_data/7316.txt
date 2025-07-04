@@ -1,23 +1,32 @@
-commit 9040da9e406a263f0ad3290490516f22ecb7d7c5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 1 12:49:56 2011 -0800
+commit eea18d959e962571af177e24df125e0e8cae5c56
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 1 12:47:35 2011 -0800
 
-    ld: Add -I option to set ELF interpreter.
+    log: rename Exit* to Fatal*
+    This aligns the naming scheme with the testing package and
+    also lets govet work on more logging calls.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4080049
+    https://golang.org/cl/4001048
 
- src/cmd/5l/asm.c  |  4 +++-
- src/cmd/5l/doc.go |  2 ++
- src/cmd/5l/l.h    |  1 +
- src/cmd/5l/obj.c  |  5 ++++-
- src/cmd/6l/asm.c  | 17 ++++++++++-------
- src/cmd/6l/doc.go |  2 ++
- src/cmd/6l/l.h    |  1 +
- src/cmd/6l/obj.c  |  5 ++++-
- src/cmd/8l/asm.c  | 17 ++++++++++-------
- src/cmd/8l/doc.go |  2 ++
- src/cmd/8l/l.h    |  1 +
- src/cmd/8l/obj.c  |  5 ++++-
- 12 files changed, 44 insertions(+), 18 deletions(-)
+ doc/codelab/wiki/get.go             |  8 +++---
+ doc/codelab/wiki/srcextract.go      |  2 +-
+ doc/effective_go.html               |  4 +--
+ doc/htmlgen.go                      |  2 +-
+ misc/dashboard/builder/main.go      | 10 ++++----
+ misc/goplay/goplay.go               |  4 +--
+ src/cmd/godoc/godoc.go              |  6 ++---
+ src/cmd/godoc/main.go               | 10 ++++----
+ src/pkg/exec/lp_test.go             |  2 +-
+ src/pkg/http/server.go              |  4 +--
+ src/pkg/log/log.go                  | 28 ++++++++++-----------
+ src/pkg/netchan/export.go           |  2 +-
+ src/pkg/netchan/import.go           |  4 +--
+ src/pkg/rpc/server.go               | 10 ++++----
+ src/pkg/rpc/server_test.go          |  2 +-
+ src/pkg/syslog/syslog_test.go       |  2 +-
+ src/pkg/unicode/maketables.go       | 50 ++++++++++++++++++-------------------
+ src/pkg/websocket/websocket_test.go |  2 +-
+ test/garbage/parser.go              |  2 +-
+ 19 files changed, 77 insertions(+), 77 deletions(-)

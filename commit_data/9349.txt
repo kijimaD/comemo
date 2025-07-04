@@ -1,27 +1,12 @@
-commit 5233c50321828323959663faf000d599f0cefa6c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 12 10:06:32 2011 -0700
+commit 4abbdc0399e401151ea4d4abdab018dc457b8275
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Aug 12 18:00:31 2011 +0200
 
-    godoc: first round of template cleanups
+    exp/norm: generate trie struct in triegen.go for better encapsulation.
     
-    - simplified pipelines
-    - simplified templates by using template variables
-    - converted most old-style formatters into new-style funcs
-    - fixed some escaping bugs (use of url escaping where it was missing)
-    
-    R=r, dsymonds
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/4868044
+    https://golang.org/cl/4837071
 
- lib/godoc/codewalk.html    |  10 +--
- lib/godoc/codewalkdir.html |   4 +-
- lib/godoc/dirlist.html     |   6 +-
- lib/godoc/error.html       |   2 +-
- lib/godoc/godoc.html       |  12 +--
- lib/godoc/package.html     |  66 ++++++++---------
- lib/godoc/package.txt      |  20 ++---
- lib/godoc/search.html      |  37 +++++-----
- lib/godoc/search.txt       |   9 ++-
- src/cmd/godoc/godoc.go     | 179 +++++++++++++++------------------------------
- src/cmd/godoc/main.go      |   6 +-
- 11 files changed, 150 insertions(+), 201 deletions(-)
+ src/pkg/exp/norm/trie_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

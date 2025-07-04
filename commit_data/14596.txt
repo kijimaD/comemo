@@ -1,19 +1,15 @@
-commit f0d9ccb8da4c2f0b8f900c970073eb4c980dcc38
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 10 17:25:31 2012 -0500
+commit 575de93dd395481abeaf9427e04fc83b758dec0e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 10 16:30:42 2012 -0500
 
-    bufio: minor fixes
+    mime/multipart: allow setting the Writer boundary
     
-    * note end-of-line and EOF behavior for ReadLine
-    * diagnose broken Readers
+    Fixes #4490
     
-    Fixes #3825.
-    Fixes #4276.
-    
-    R=golang-dev, dave
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6907060
+    https://golang.org/cl/6924044
 
- src/pkg/bufio/bufio.go      |  8 ++++++++
- src/pkg/bufio/bufio_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/pkg/mime/multipart/writer.go      | 29 ++++++++++++++++++++++++++++-
+ src/pkg/mime/multipart/writer_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)

@@ -1,15 +1,12 @@
-commit 1b2d5b4c9389aecc56a4547a9770d0c73925b248
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 6 16:37:05 2011 -0800
+commit 4cd31e8a28b84a467bbcbe74e3f2044872472fbc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 7 09:34:13 2011 +1100
 
-    ld: Permit an ELF symbol to be exported in the dynamic symbol table.
+    doc: add golanguage.ru to foreign-language doc list
     
-    This permits exporting crosscall2 from the runtime/cgo
-    package.
-    
-    R=rsc
+    R=r, brainman, r2
     CC=golang-dev
-    https://golang.org/cl/3885041
+    https://golang.org/cl/3881041
 
- src/cmd/ld/ldelf.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ doc/docs.html | 5 +++++
+ 1 file changed, 5 insertions(+)

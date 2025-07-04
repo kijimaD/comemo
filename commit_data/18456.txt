@@ -1,16 +1,19 @@
-commit 4687b5414789581f635ff96d401e23a50da8024b
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Feb 11 18:43:05 2014 -0500
+commit 85e4cb2f10eb1bbc147b6b549f48eb243c3517e3
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Tue Feb 11 20:25:40 2014 +0000
 
-    cmd/ld, cmd/6l: part 2 of solaris/amd64 linker changes.
-    Second part of the solaris/amd64 linker changes: relocation and symbol table.
+    cmd/6g, cmd/8g, cmd/5g: make the undefined instruction have no successors
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    The UNDEF instruction was listed in the instruction data as having the next instruction in the stream as its successor. This confused the optimizer into adding a load where it wasn't needed, in turn confusing the liveness analysis pass for GC bitmaps into thinking that the variable was live.
+    
+    Fixes #7229.
+    
+    LGTM=iant, rsc
+    R=golang-codereviews, bradfitz, iant, dave, rsc
     CC=golang-codereviews
-    https://golang.org/cl/61330043
+    https://golang.org/cl/56910045
 
- src/cmd/6l/asm.c    | 18 +++++++++++++++---
- src/cmd/ld/data.c   |  8 ++++----
- src/cmd/ld/symtab.c |  9 +++++++--
- 3 files changed, 26 insertions(+), 9 deletions(-)
+ src/cmd/5g/prog.c | 2 +-
+ src/cmd/6g/prog.c | 2 +-
+ src/cmd/8g/prog.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

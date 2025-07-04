@@ -1,12 +1,16 @@
-commit 11d1c05fee22bd0609cab9dfc852fd4c6bc69b66
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 12 17:02:33 2014 +1100
+commit c24156bafe24a82ca4c182f289b1bff121ea72e0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 30 16:44:42 2014 -0400
 
-    cmd/api: treat a hex-y VERSION as devel and permit API changes
+    [dev.power64] runtime: fix a syntax error that slipped in to asm_power64x.s
     
-    Change-Id: I2b05b7ff217586851ab41744e3077fddc480253c
-    Reviewed-on: https://go-review.googlesource.com/1405
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Apparently I had already moved on to fixing another problem
+    when I submitted CL 169790043.
+    
+    LGTM=dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/165210043
 
- src/cmd/api/goapi.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/runtime/asm_power64x.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,16 @@
-commit 0a8005c7729951e26a37d17bb42a989f30bb415d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 14 10:48:26 2011 -0800
+commit 869aabbdd092f71858caffa502598148417f3a70
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 14 11:31:58 2011 -0500
 
-    sql: add DB.Close, fix bugs, remove Execer on Driver (only Conn)
+    syscall: more linux arm build fixes
     
-    R=rsc
+    Don't know if it runs, but at least it builds.
+    
+    R=bradfitz
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5372099
+    https://golang.org/cl/5373093
 
- src/pkg/exp/sql/convert.go       | 15 +++++++++
- src/pkg/exp/sql/driver/driver.go | 17 +++++-----
- src/pkg/exp/sql/fakedb_test.go   | 33 ++++++++++++++++++++
- src/pkg/exp/sql/sql.go           | 67 ++++++++++++++++++++++++++++------------
- src/pkg/exp/sql/sql_test.go      | 11 +++++++
- 5 files changed, 117 insertions(+), 26 deletions(-)
+ src/pkg/syscall/syscall_linux_arm.go |  16 ++-
+ src/pkg/syscall/zerrors_linux_arm.go | 262 ++++++++++++++++++-----------------
+ 2 files changed, 144 insertions(+), 134 deletions(-)

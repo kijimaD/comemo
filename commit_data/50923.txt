@@ -1,35 +1,30 @@
-commit 07c57aff5d6d8f1df96eb99507bd04c57d0616ca
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 5 21:13:08 2022 -0400
+commit 17b7604ef62316c7ea69e6a07f90282edcf4c874
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 16 19:17:31 2021 -0500
 
-    all: use Go 1.17.13 for bootstrap
+    go/types: match Go 1.17 compiler error messages more closely
     
-    Previously we used Go 1.17, but we realized thanks to tickling
-    a pre-Go1.17.3 bug that if we are going to change the bootstrap
-    toolchain that we should default to the latest available point release
-    at the time we make the switch, not the initial major release, so as
-    to avoid bugs that were fixed in the point releases.
+    Introduce a new constant compilerErrorMessages, which is set to false
+    for now, so that we can port types2 error handling more precisely. Use
+    this to (partially) port CL 363436, excluding issue49005.go, which does
+    not exist in go/types (it was added in a previous CL related to compiler
+    error messages, that was not ported). I've also included the bugfix from
+    CL 364034, so that go/types is not broken at this commit.
     
-    This CL updates the default search locations and the release notes.
+    In subsequent CLs I'll catch up with error handling locations in types2
+    that use compiler error messages.
     
-    Users who run make.bash and depend on finding $HOME/sdk/go1.17
-    may need to run
-    
-            go install golang.org/dl/go1.17.13@latest
-            go1.17.13 download
-    
-    to provide a Go 1.17.13 toolchain to their builds.
-    
-    Change-Id: I3a2511f088cf852470a7216a5a41ae775fb561b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439419
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I13fd6c43d61b28e0a7a3b0ae8ba785fb8506fbb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364379
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.20.html          |  2 +-
- src/cmd/dist/notgo117.go |  4 ++--
- src/make.bash            | 14 ++++++++------
- src/make.bat             |  8 +++++---
- src/make.rc              |  7 ++++---
- 5 files changed, 20 insertions(+), 15 deletions(-)
+ src/go/types/assignments.go           | 14 +++++++--
+ src/go/types/check.go                 |  4 +++
+ src/go/types/conversions.go           | 15 +++++++--
+ src/go/types/lookup.go                | 58 +++++++++++++++++++++++++++++++++++
+ src/go/types/operand.go               | 40 +++++++++++++++++++-----
+ src/go/types/testdata/check/expr3.src |  2 +-
+ 6 files changed, 118 insertions(+), 15 deletions(-)

@@ -1,19 +1,29 @@
-commit 51a112fefc26fe557bab46abbc3b50565e56c570
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Dec 5 14:29:39 2015 +1100
+commit 9c258c6aa6880268a0be9f2e90ea11f9e4ded150
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat Oct 3 15:50:45 2015 +0000
 
-    path/filepath: handle c: as first parameter in Join properly
+    cmd/cgo: fix panic on references to non-existing C types
     
-    This is CL 11882 brought back to life.
+    cgo panics in Package.rewriteRef for:
     
-    Fixes #11551
+    var a = C.enum_test(1)
+    or
+    p := new(C.enum_test)
     
-    Change-Id: I29810183957745442d1e9937f56a66fc9c6cc82a
-    Reviewed-on: https://go-review.googlesource.com/17470
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    when the corresponding enum type is not defined.
+    
+    Check nil values for Type fields and issue a proper
+    error instead.
+    
+    Fixes #11097
+    Updates #12160
+    
+    Change-Id: I5821d29097ef0a36076ec5273125b09846c7d832
+    Reviewed-on: https://go-review.googlesource.com/15264
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/path/filepath/path_test.go    | 7 ++++++-
- src/path/filepath/path_windows.go | 5 +++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ misc/cgo/errors/issue11097a.go | 15 +++++++++++++++
+ misc/cgo/errors/issue11097b.go | 15 +++++++++++++++
+ misc/cgo/errors/test.bash      |  2 ++
+ src/cmd/cgo/gcc.go             |  8 ++++++++
+ 4 files changed, 40 insertions(+)

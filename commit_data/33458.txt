@@ -1,48 +1,29 @@
-commit 4fcc835971ad63cf913ebe074ef6191e35a44ab9
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Nov 2 13:53:16 2017 -0700
+commit 541f8fef30adf62a2032b6e275e95507b00feb52
+Author: Kyle Shannon <kyle@pobox.com>
+Date:   Wed Aug 16 16:51:22 2017 -0600
 
-    archive/zip: add FileHeader.NonUTF8 field
+    cmd/go: add fossil to general server regexp in get
     
-    The NonUTF8 field provides users with a way to explictly tell the
-    ZIP writer to avoid setting the UTF-8 flag.
-    This is necessary because many readers:
-            1) (Still) do not support UTF-8
-            2) And use the local system encoding instead
+    Fix a missed change from:
     
-    Thus, even though character encodings other than CP-437 and UTF-8
-    are not officially supported by the ZIP specification, pragmatically
-    the world has permitted use of them.
+    https://golang.org/cl/56190
     
-    When a non-standard encoding is used, it is the user's responsibility
-    to ensure that the target system is expecting the encoding used
-    (e.g., producing a ZIP file you know is used on a Chinese version of Windows).
+    pointed out on the fossil mailing list shortly after submission
+    of the change mentioned above.  See:
     
-    We adjust the detectUTF8 function to account for Shift-JIS and EUC-KR
-    not being identical to ASCII for two characters.
+    http://www.mail-archive.com/fossil-users@lists.fossil-scm.org/msg25736.html
     
-    We don't need an API for users to explicitly specify that they are encoding
-    with UTF-8 since all single byte characters are compatible with all other
-    common encodings (Windows-1256, Windows-1252, Windows-1251, Windows-1250,
-    IEC-8859, EUC-KR, KOI8-R, Latin-1, Shift-JIS, GB-2312, GBK) except for
-    the non-printable characters and the backslash character (all of which
-    are invalid characters in a path name anyways).
+    This change adds fossil to the general regular expression that is checked last
+    in the import path check.
     
-    Fixes #10741
+    For #10010
     
-    Change-Id: I9004542d1d522c9137973f1b6e2b623fa54dfd66
-    Reviewed-on: https://go-review.googlesource.com/75592
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I6b711cdb1a8d4d767f61e1e28dc29dce529e0fad
+    Reviewed-on: https://go-review.googlesource.com/56491
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/reader.go                 |  18 +++++++++
- src/archive/zip/reader_test.go            |  65 +++++++++++++++++++++++++++++-
- src/archive/zip/struct.go                 |  20 +++++++--
- src/archive/zip/testdata/utf8-7zip.zip    | Bin 0 -> 146 bytes
- src/archive/zip/testdata/utf8-infozip.zip | Bin 0 -> 162 bytes
- src/archive/zip/testdata/utf8-osx.zip     | Bin 0 -> 138 bytes
- src/archive/zip/testdata/utf8-winrar.zip  | Bin 0 -> 146 bytes
- src/archive/zip/testdata/utf8-winzip.zip  | Bin 0 -> 146 bytes
- src/archive/zip/writer.go                 |  21 ++++++----
- src/archive/zip/writer_test.go            |   8 ++++
- 10 files changed, 119 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/get/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,13 +1,13 @@
-commit e8ae29588d87e931e4c2848f3fe76270c9c70e7d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Dec 23 14:09:44 2011 +1100
+commit 5962ef2c008e10b21ad73a7bdc08713225f90297
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 23 13:23:07 2011 +1100
 
-    cmd/go: update "go help remote" to use correct Google Code urls
+    path/filepath: implement Base and Dir for windows
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5489114
+    https://golang.org/cl/5501069
 
- src/cmd/go/help.go | 13 +++++--------
- src/cmd/go/list.go |  6 +++---
- 2 files changed, 8 insertions(+), 11 deletions(-)
+ src/pkg/path/filepath/path.go      | 12 +++++++---
+ src/pkg/path/filepath/path_test.go | 48 ++++++++++++++++++++++++++++++++++----
+ 2 files changed, 53 insertions(+), 7 deletions(-)

@@ -1,18 +1,35 @@
-commit ea2a2c0c2233a3aad73c4ba53cec315fb28d7a48
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Sep 28 21:34:01 2022 +0800
+commit fa16efb8358e0cb23e285803075764abbdcffe5e
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Jul 14 14:09:27 2021 -0500
 
-    cmd/cgo: delete unused code
+    cmd/link: enable internal linking of PIE binaries on ppc64le
     
-    Change-Id: I6007cc6363e22ffa5f9a8f0441a642fd85127397
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435945
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    The amd64/arm64 relocation processing is used as a template
+    and updated for ppc64le.
+    
+    This requires updating the TOC relocation handling code to
+    support linux type TOC relocations too (note, AIX uses
+    TOC-indirect accesses).
+    
+    Noteably, the shared flag of go functions is used as a proxy
+    for the local entry point offset encoded in elf objects. Functions
+    in go ppc64le shared objects always[1] insert 2 instructions to
+    regenerate the TOC pointer.
+    
+    [1] excepting a couple special runtime functions, see preprocess
+        in obj9.go for specific details of this behavior.
+    
+    Change-Id: I3646e6dc8a0a0ffe712771a976983315eae5c418
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352829
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/cgo/util.go | 20 --------------------
- 1 file changed, 20 deletions(-)
+ src/cmd/dist/test.go               |   2 +-
+ src/cmd/internal/sys/supported.go  |   2 +-
+ src/cmd/link/internal/ld/config.go |   3 +-
+ src/cmd/link/internal/ld/data.go   |   2 +
+ src/cmd/link/internal/ppc64/asm.go | 221 ++++++++++++++++++++++++++++++++-----
+ src/debug/elf/elf.go               |   2 +
+ 6 files changed, 201 insertions(+), 31 deletions(-)

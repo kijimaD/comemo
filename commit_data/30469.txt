@@ -1,18 +1,21 @@
-commit 1eed80f09adc7641227ac80a9031fd3781e54d7d
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Feb 19 09:37:22 2017 -0800
+commit 9e4a70e8fd3e6fed93fcd6159228b3a8ecae1d80
+Author: Quentin Smith <quentin@golang.org>
+Date:   Tue Oct 25 15:41:14 2016 -0400
 
-    cmd/compile: fix disassembly of invalid instructions
+    mime/multipart: test for overreading on a stream
     
-    Make sure that if we encode an explicit base register, we print it.
-    That will ensure that if we make an Addr with an auto variable but
-    a base that isn't SP, then it will be obvious from the disassembly.
+    Some multipart data arrives in a stream, where subsequent parts may not
+    be ready yet. Read should return a complete part as soon as
+    possible.
     
-    Update #19184
+    Fixes #15431
     
-    Change-Id: If5556a5183f344d719ec7197aa935a0166061e6f
-    Reviewed-on: https://go-review.googlesource.com/37255
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie8c041b853f3e07f0f2a66fbf4bcab5fe9132a7c
+    Reviewed-on: https://go-review.googlesource.com/32032
+    Run-TryBot: Quentin Smith <quentin@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/util.go | 41 +++++++++++++++++++++++++++++++----------
- 1 file changed, 31 insertions(+), 10 deletions(-)
+ src/mime/multipart/multipart_test.go | 67 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 67 insertions(+)

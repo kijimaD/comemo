@@ -1,13 +1,58 @@
-commit 799da9cee79e7ee89156ddc3c8bea44fdf1ac252
-Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 29 08:15:58 2014 -0700
+commit 9aefdc802890f49fd402592d9f6b447b9c5a82af
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 15 14:33:52 2014 -0400
 
-    doc/go1.4.html: half of the small library changes
+    cmd/gc: do not copy via temporary for writebarrierfat{2,3,4}
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    The general writebarrierfat needs a temporary for src,
+    because we need to pass the address of the temporary
+    to the writebarrierfat routine. But the new fixed-size
+    ones pass the value directly and don't need to introduce
+    the temporary.
+    
+    Magnifies some of the effect of the custom write barrier change.
+    
+    Comparing best of 5 with TurboBoost turned off,
+    on a 2012 Retina MacBook Pro Core i5.
+    Still not completely confident in these numbers,
+    but the fmt, regexp, and revcomp improvements seem real.
+    
+    benchmark                      old ns/op  new ns/op  delta
+    BenchmarkBinaryTree17          3942965521 3929654940 -0.34%
+    BenchmarkFannkuch11            3707543350 3699566011 -0.22%
+    BenchmarkFmtFprintfEmpty       119        119        +0.00%
+    BenchmarkFmtFprintfString      295        296        +0.34%
+    BenchmarkFmtFprintfInt         313        314        +0.32%
+    BenchmarkFmtFprintfIntInt      517        484        -6.38%
+    BenchmarkFmtFprintfPrefixedInt 439        429        -2.28%
+    BenchmarkFmtFprintfFloat       571        569        -0.35%
+    BenchmarkFmtManyArgs           1899       1820       -4.16%
+    BenchmarkGobDecode             15507208   15325649   -1.17%
+    BenchmarkGobEncode             14811710   14715434   -0.65%
+    BenchmarkGzip                  561144467  549624323  -2.05%
+    BenchmarkGunzip                137377667  137691087  +0.23%
+    BenchmarkHTTPClientServer      126632     124717     -1.51%
+    BenchmarkJSONEncode            29944112   29526629   -1.39%
+    BenchmarkJSONDecode            108954913  107339551  -1.48%
+    BenchmarkMandelbrot200         5828755    5821659    -0.12%
+    BenchmarkGoParse               5577437    5521895    -1.00%
+    BenchmarkRegexpMatchEasy0_32   198        193        -2.53%
+    BenchmarkRegexpMatchEasy0_1K   486        469        -3.50%
+    BenchmarkRegexpMatchEasy1_32   175        167        -4.57%
+    BenchmarkRegexpMatchEasy1_1K   1450       1419       -2.14%
+    BenchmarkRegexpMatchMedium_32  344        338        -1.74%
+    BenchmarkRegexpMatchMedium_1K  112088     109855     -1.99%
+    BenchmarkRegexpMatchHard_32    6078       6003       -1.23%
+    BenchmarkRegexpMatchHard_1K    191166     187499     -1.92%
+    BenchmarkRevcomp               854870445  799012851  -6.53%
+    BenchmarkTemplate              141572691  141508105  -0.05%
+    BenchmarkTimeParse             604        603        -0.17%
+    BenchmarkTimeFormat            579        560        -3.28%
+    
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/165090043
+    https://golang.org/cl/155450043
 
- doc/go1.4.html | 166 ++++++++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 135 insertions(+), 31 deletions(-)
+ src/cmd/gc/order.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

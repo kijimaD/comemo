@@ -1,76 +1,15 @@
-commit ebb1566a46f2f5b2c06ef0f7ad5f7084dce0aed9
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 28 09:43:14 2011 +1000
+commit 82a8afdf1411bbe5b08b09d1e94a8d1c4fb5635c
+Author: Ken Rockot <ken@oz.gs>
+Date:   Mon Jun 27 19:07:49 2011 -0400
 
-    strings.Split: make the default to split all.
-    Change the signature of Split to have no count,
-    assuming a full split, and rename the existing
-    Split with a count to SplitN.
-    Do the same to package bytes.
-    Add a gofix module.
+    syscall: support for tty options in StartProcess
     
-    R=adg, dsymonds, alex.brainman, rsc
+    These are the relevant changes to exec_unix.go now that
+    mkerrors.sh outputs have been updated.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4661051
+    https://golang.org/cl/4648064
 
- misc/dashboard/builder/main.go                 |  8 +--
- src/cmd/cgo/gcc.go                             | 10 ++--
- src/cmd/cgo/out.go                             |  2 +-
- src/cmd/godoc/dirtrees.go                      |  4 +-
- src/cmd/godoc/godoc.go                         |  2 +-
- src/cmd/godoc/index.go                         |  2 +-
- src/cmd/gofix/Makefile                         |  1 +
- src/cmd/gofix/main.go                          |  2 +-
- src/cmd/gofix/stringssplit.go                  | 71 ++++++++++++++++++++++++++
- src/cmd/gofix/stringssplit_test.go             | 51 ++++++++++++++++++
- src/cmd/gofix/testdata/reflect.template.go.in  |  4 +-
- src/cmd/gofix/testdata/reflect.template.go.out |  4 +-
- src/cmd/gofmt/gofmt_test.go                    |  4 +-
- src/cmd/gofmt/rewrite.go                       |  2 +-
- src/cmd/goinstall/download.go                  |  4 +-
- src/cmd/govet/govet.go                         |  2 +-
- src/cmd/goyacc/goyacc.go                       |  2 +-
- src/cmd/hgpatch/main.go                        |  2 +-
- src/pkg/asn1/common.go                         |  2 +-
- src/pkg/bytes/bytes.go                         | 26 +++++++---
- src/pkg/bytes/bytes_test.go                    | 19 +++++--
- src/pkg/compress/lzw/reader_test.go            |  2 +-
- src/pkg/crypto/x509/verify.go                  |  4 +-
- src/pkg/debug/proc/proc_linux.go               |  2 +-
- src/pkg/exec/exec_test.go                      |  2 +-
- src/pkg/exec/lp_plan9.go                       |  2 +-
- src/pkg/exec/lp_unix.go                        |  2 +-
- src/pkg/exec/lp_windows.go                     |  4 +-
- src/pkg/exp/ogle/cmd.go                        |  2 +-
- src/pkg/go/ast/print_test.go                   |  2 +-
- src/pkg/go/build/dir.go                        |  2 +-
- src/pkg/go/doc/comment.go                      |  2 +-
- src/pkg/html/token_test.go                     |  2 +-
- src/pkg/http/cgi/host.go                       |  2 +-
- src/pkg/http/cgi/host_test.go                  |  2 +-
- src/pkg/http/cookie.go                         |  4 +-
- src/pkg/http/fs.go                             |  2 +-
- src/pkg/http/request.go                        |  8 +--
- src/pkg/http/response.go                       |  2 +-
- src/pkg/http/server.go                         |  2 +-
- src/pkg/http/spdy/read.go                      |  2 +-
- src/pkg/http/transfer.go                       |  4 +-
- src/pkg/http/transport.go                      |  4 +-
- src/pkg/http/url.go                            |  4 +-
- src/pkg/mail/message.go                        |  2 +-
- src/pkg/mime/mediatype.go                      |  2 +-
- src/pkg/patch/patch.go                         |  2 +-
- src/pkg/path/filepath/path.go                  |  2 +-
- src/pkg/rpc/server.go                          |  2 +-
- src/pkg/runtime/debug/stack.go                 |  2 +-
- src/pkg/runtime/debug/stack_test.go            |  2 +-
- src/pkg/smtp/smtp.go                           |  6 +--
- src/pkg/smtp/smtp_test.go                      |  4 +-
- src/pkg/strconv/fp_test.go                     |  6 +--
- src/pkg/strings/strings.go                     | 26 +++++++---
- src/pkg/strings/strings_test.go                | 22 ++++++--
- src/pkg/template/execute.go                    |  2 +-
- src/pkg/template/parse.go                      |  2 +-
- src/pkg/testing/testing.go                     |  2 +-
- src/pkg/unicode/maketables.go                  | 12 ++---
- 60 files changed, 280 insertions(+), 104 deletions(-)
+ src/pkg/syscall/exec_unix.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

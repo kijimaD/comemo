@@ -1,14 +1,16 @@
-commit cab87a60dec2c771c12ba08b82bb7645228192e6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jun 14 10:14:28 2016 +0900
+commit e6181eb9e1dc4ab9e297a102ed192997582ac46c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 7 14:00:00 2016 -0400
 
-    os: fix build on freebsd/arm
+    cmd/link: disable DWARF when not generating symtab
     
-    Change-Id: I21fad94ff94e342ada18e0e41ca90296d030115f
-    Reviewed-on: https://go-review.googlesource.com/24061
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Fixes #15166
+    
+    Change-Id: I30284e3c0fb2c80b26a2572e2fb249b8018e85f9
+    Reviewed-on: https://go-review.googlesource.com/21587
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/wait_wait6.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 3 +++
+ 1 file changed, 3 insertions(+)

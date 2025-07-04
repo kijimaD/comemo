@@ -1,25 +1,23 @@
-commit 6ed045b365731e59fcae48de48f1aea7a6304eb3
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Mar 31 14:25:33 2021 -0400
+commit acde81e0a9c17ea23a6fc545b40bfabc80133f78
+Author: David Chase <drchase@google.com>
+Date:   Fri Jun 19 15:29:51 2020 -0400
 
-    cmd/go: refactor modload.CheckRetractions
+    cmd/compile: initialize ACArgs and ACResults AuxCall fields for static and interface calls.
     
-    Extract queryLatestVersionIgnoringRetractions, which returns the
-    version we should load retractions and deprecations from. This will be
-    shared with CheckDeprecations.
+    Extend use of AuxCall
     
-    Rename ShortRetractionRationale to ShortMessage. This will be used to
-    shorten deprecation warnings as well.
-    
-    For #40357
-    
-    Change-Id: Ic1e0c670396bdb3bd87c7a97cf2b14ca58ea1d80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306332
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I68b6d9bad09506532e1415fd70d44cf6c15b4b93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239081
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modload/modfile.go             | 179 ++++++++++++---------
- .../go/testdata/script/mod_retract_rationale.txt   |   4 +-
- 2 files changed, 104 insertions(+), 79 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                | 53 ++++++++++++++++++-----
+ src/cmd/compile/internal/ssa/gen/generic.rules    |  4 +-
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
+ src/cmd/compile/internal/ssa/op.go                | 50 ++++++++++++++++++---
+ src/cmd/compile/internal/ssa/rewrite.go           |  5 ++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go    | 11 ++---
+ src/cmd/compile/internal/ssa/writebarrier.go      |  6 ++-
+ 7 files changed, 102 insertions(+), 29 deletions(-)

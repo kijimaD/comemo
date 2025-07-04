@@ -1,14 +1,15 @@
-commit 2e7aaeddc4498788fe98bb9052af67894566ee5d
+commit 4d7c81bc674479a6d21cbeec14bb1d6dac5e4a8c
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Sep 20 00:58:34 2012 +0800
+Date:   Thu Sep 20 00:18:41 2012 +0800
 
-    src/all.bat: fix banner
-    we need to restore %PATH% before calling "dist banner", so that
-    it could suggest the user to add %GOROOT%/bin to %PATH% if necessary.
+    cmd/ld: consistent binary for cgo programs
+    We use pkg path instead of file name (which contains $WORK) in section symbols names.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, fullung, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/6525049
+    https://golang.org/cl/6445085
 
- src/all.bat | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/ld/ldelf.c   | 3 +--
+ src/cmd/ld/ldmacho.c | 3 +--
+ src/cmd/ld/ldpe.c    | 3 +--
+ 3 files changed, 3 insertions(+), 6 deletions(-)

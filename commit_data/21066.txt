@@ -1,22 +1,25 @@
-commit 209dd4cdc1e9180d819b1217f065a63b94e82ff9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Dec 22 15:26:21 2014 -0800
+commit ece09790afb822fed2bd2e8ac3a803e5ccbb8e3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:07:54 2014 -0500
 
-    test: fix windows build
+    [dev.cc] runtime: convert parallel support code from C to Go
     
-    Broken by e7173dfdfd1c74b1d301da9b6f295ef99b9cc11c
+    The conversion was done with an automated tool and then
+    modified only as necessary to make it compile and run.
     
-    Fix by simply disabling the relevant tests.
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
     
-    * bug248 and bug345 require errchk, but we can't
-      rely on perl being available.
-    * bug369 is disabled anyway.
-    
-    Change-Id: Idf73ebccb066943e3fe17c2f662b37238ec74dfe
-    Reviewed-on: https://go-review.googlesource.com/2052
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LGTM=r
+    R=r, austin
+    CC=dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/172250043
 
- test/fixedbugs/bug248.go | 3 ++-
- test/fixedbugs/bug345.go | 3 ++-
- test/fixedbugs/bug369.go | 2 +-
- 3 files changed, 5 insertions(+), 3 deletions(-)
+ src/runtime/export_test.go   |  72 ++++----------
+ src/runtime/lfstack.c        |  87 -----------------
+ src/runtime/lfstack.go       |  51 ++++++++++
+ src/runtime/lfstack_32bit.go |  13 +++
+ src/runtime/lfstack_amd64.go |  12 +++
+ src/runtime/parfor.c         | 226 -------------------------------------------
+ src/runtime/parfor.go        | 186 +++++++++++++++++++++++++++++++++++
+ 7 files changed, 281 insertions(+), 366 deletions(-)

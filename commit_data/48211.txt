@@ -1,23 +1,45 @@
-commit 01e522a97384d2c81c90490654c2749bfe05045e
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Feb 25 18:20:12 2022 -0500
+commit d19eece91f7825556eadfef08e7011e22a719ec0
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 29 11:47:18 2021 -0400
 
-    go/types,types2: revert documentation for Type.Underlying
+    cmd/compile: handle field padding for register-passed structs
     
-    In the dev.typeparams branch, the documentation for Type.Underlying was
-    updated with commentary about forwarding chains. This aspect of
-    Underlying should not be exposed to the user. Revert to the
-    documentation of Go 1.16.
+    When constructing multi-piece DWARF location expressions for
+    struct-typed parameters using the register ABI, make sure that the
+    location expressions generated properly reflect padding between
+    elements (this is required by debuggers). Example:
     
-    Fixes #51036
+       type small struct { x uint16 ; y uint8 ; z int32 }
+       func ABC(p1 int, p2 small, f1 float32) {
+         ...
     
-    Change-Id: I4b73d3908a88606314aab56540cca91c014dc426
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388036
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    In the DWARF location expression for "p2" on entry to the routine, we
+    need pieces for each field, but for debuggers (such as GDB) to work
+    properly, we also need to describe the padding between elements. Thus
+    instead of
+    
+      <rbx> DW_OP_piece 2 <rcx> DW_OP_piece 1 <rdi> DW_OP_piece 4
+    
+    we need to emit
+    
+      <rbx> DW_OP_piece 2 <rcx> DW_OP_piece 1 DW_OP_piece 1 <rdi> DW_OP_piece 4
+    
+    This patch adds a new helper routine in abiutils to compute the
+    correct padding amounts for a struct type, a unit test for the helper,
+    and updates the debug generation code to call the helper and insert
+    apadding "piece" ops in the right spots.
+    
+    Updates #40724.
+    Updates #45720.
+    
+    Change-Id: Ie208bee25776b9eb70642041869e65e4fa65a005
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315071
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/type.go | 4 +---
- src/go/types/type.go                    | 4 +---
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go       | 48 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/debug.go          |  6 ++++
+ src/cmd/compile/internal/test/abiutils_test.go | 36 +++++++++++++++++++
+ 3 files changed, 90 insertions(+)

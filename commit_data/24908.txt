@@ -1,12 +1,18 @@
-commit 4bae454d6865b64d189b797f4870a6c9eeb8212d
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Nov 3 10:23:56 2015 +1300
+commit 92e68c89f686d451df2d72e6b3f279dbd2b82442
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 28 23:15:41 2015 -0400
 
-    cmd/link: work around arm64 linker bugs with GOT relocations against local symbols
+    runtime: move stack barrier code to its own file
     
-    Change-Id: Ie14530c57720f1af1960ab77686b860e906058c6
-    Reviewed-on: https://go-review.googlesource.com/16582
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Currently the stack barrier code is mixed in with the mark and scan
+    code. Move all of the stack barrier related functions and variables to
+    a new dedicated source file. There are no code modifications.
+    
+    Change-Id: I604603045465ef8573b9f88915d28ab6b5910903
+    Reviewed-on: https://go-review.googlesource.com/14050
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/link/internal/arm64/asm.go | 34 ++++++++++++++++++++++++++++++++--
- 1 file changed, 32 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go     |  14 ----
+ src/runtime/mgcmark.go | 161 -------------------------------------------
+ src/runtime/mstkbar.go | 184 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 184 insertions(+), 175 deletions(-)

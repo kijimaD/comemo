@@ -1,14 +1,13 @@
-commit a46102d2094126c7e33cfd9b90e739e7ad1ab9b7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 6 11:21:04 2011 -0500
+commit 754f0402c3d570e9d956b491f0434e1fccff6e6f
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Wed Jan 5 11:42:35 2011 -0800
 
-    crypto/cipher: make NewCBCEncrypter return BlockMode
+    Made format string handling more efficient.
     
-    Fixes #1389.
-    
-    R=agl1
+    R=rsc, r, r2
     CC=golang-dev
-    https://golang.org/cl/3827043
+    https://golang.org/cl/3421042
 
- src/pkg/crypto/cipher/cbc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/fmt/fmt_test.go | 45 ++++++++++++++++++---------------------------
+ src/pkg/fmt/print.go    | 25 +++++++++++++------------
+ 2 files changed, 31 insertions(+), 39 deletions(-)

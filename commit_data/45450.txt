@@ -1,18 +1,28 @@
-commit 0dfb6fb4907c770269d5530f210567e371eebeaa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 29 21:38:43 2021 -0700
+commit f5c6875f3228951afa1fcf2ec01c614e0fb7e2dd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 20:24:56 2020 +0000
 
-    go/ast: print CommentMap contents in source order
+    runtime: make next_gc atomically accessed
     
-    Sort the comment map entries before printing.
-    Makes it easier to use the output for debugging.
+    next_gc is mostly updated only during a STW, but may occasionally be
+    updated by calls to e.g. debug.SetGCPercent. In this case the update is
+    supposed to be protected by the heap lock, but in reality it's accessed
+    by gcController.revise which may be called without the heap lock held
+    (despite its documentation, which will be updated in a later change).
     
-    For #39753.
+    Change the synchronization policy on next_gc so that it's atomically
+    accessed when the world is not stopped to aid in making revise safe for
+    concurrent use.
     
-    Change-Id: Ic8e7d27dd2df59173e2c3a04a6b71ae966703885
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315370
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I79657a72f91563f3241aaeda66e8a7757d399529
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246962
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/go/ast/commentmap.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go         | 13 +++++++------
+ src/runtime/mgcscavenge.go |  2 +-
+ src/runtime/mstats.go      | 10 ++++++++--
+ src/runtime/trace.go       |  5 +++--
+ 4 files changed, 19 insertions(+), 11 deletions(-)

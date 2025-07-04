@@ -1,15 +1,12 @@
-commit 7c5d90dfbd1a1647e94c26ba11dba779e54c1b37
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 25 22:11:01 2011 -0700
+commit 9c012899a98357882376b6a101ed9f2135b1357c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 26 14:10:44 2011 +0900
 
-    http: remove Connection header in ReverseProxy
+    tag weekly.2011-10-25
     
-    Fixes #2342
-    
-    R=golang-dev, adg
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5302057
+    https://golang.org/cl/5306064
 
- src/pkg/http/reverseproxy.go      | 25 +++++++++++++++++++------
- src/pkg/http/reverseproxy_test.go |  5 +++++
- 2 files changed, 24 insertions(+), 6 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,35 +1,20 @@
-commit 20ed60311848ca40e51cb430fa602dd83a9c726f
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Oct 7 11:11:06 2024 -0400
+commit 43e69b330a71e0d101bd57f0a1ea83bc4da259f3
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Aug 24 11:18:18 2023 +0800
 
-    cmd/link: generate Mach-O UUID when -B flag is specified
+    cmd/compile/internal: fix receiver names are different
     
-    Currently, on Mach-O, the Go linker doesn't generate LC_UUID in
-    internal linking mode. This causes some macOS system tools unable
-    to track the binary, as well as in some cases the binary unable
-    to access local network on macOS 15.
-    
-    This CL makes the linker start generate LC_UUID. Currently, the
-    UUID is generated if the -B flag is specified. And we'll make it
-    generate UUID by default in a later CL. The -B flag is currently
-    for generating GNU build ID on ELF, which is a similar concept to
-    Mach-O's UUID. Instead of introducing another flag, we just use
-    the same flag and the same setting. Specifically, "-B gobuildid"
-    will generate a UUID based on the Go build ID.
-    
-    For #68678.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-darwin-arm64_13
-    Change-Id: I90089a78ba144110bf06c1c6836daf2d737ff10a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618595
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
-    Reviewed-by: Than McIntosh <thanm@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I78a7d34a6e2558ecff0274170bffaa51e038d0bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/elf.go               | 14 +++++++++++---
- src/cmd/link/internal/ld/macho.go             | 16 ++++++++++++++++
- src/cmd/link/internal/ld/macho_update_uuid.go |  2 +-
- src/cmd/link/internal/ld/main.go              |  6 +++++-
- test/fixedbugs/issue14636.go                  | 21 ++++++++++++++-------
- 5 files changed, 47 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/noder/writer.go             | 14 +++++++-------
+ src/cmd/compile/internal/pgo/internal/graph/graph.go | 10 +++++-----
+ src/cmd/compile/internal/ssa/debug.go                |  4 ++--
+ src/cmd/compile/internal/ssa/expand_calls.go         | 12 ++++++------
+ 4 files changed, 20 insertions(+), 20 deletions(-)

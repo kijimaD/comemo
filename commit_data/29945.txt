@@ -1,23 +1,23 @@
-commit 4c4c5fc7a3248c063b279ffb3a28a12f0c6de04b
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 11 15:08:08 2017 -0800
+commit 736443c13a718f0a9c30327ebbf09f58ccbe6d49
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 17:20:48 2016 -0400
 
-    misc/cgo/testplugin: test that types and itabs are unique
+    os/exec: allow simultaneous cmd.Wait and Write of cmd.StdinPipe
     
-    Make sure that the same type and itab generated in two
-    different plugins are actually the same thing.
+    cmd.StdinPipe returns an io.WriteCloser.
+    It's reasonable to expect the caller not to call Write and Close simultaneously,
+    but there is an implicit Close in cmd.Wait that's not obvious.
+    We already synchronize the implicit Close in cmd.Wait against
+    any explicit Close from the caller. Also synchronize that implicit
+    Close against any explicit Write from the caller.
     
-    See also CL 35115
+    Fixes #9307.
     
-    Change-Id: I0c1ecb039d7e2bf5a601d58dfa162a435ae4ef76
-    Reviewed-on: https://go-review.googlesource.com/35116
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I8561e9369d6e5ac88dfbca1175549f6dfa04b8ac
+    Reviewed-on: https://go-review.googlesource.com/31148
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testplugin/src/iface/main.go | 46 +++++++++++++++++++++++++++++++++++
- misc/cgo/testplugin/src/iface_a/a.go  | 17 +++++++++++++
- misc/cgo/testplugin/src/iface_b/b.go  | 17 +++++++++++++
- misc/cgo/testplugin/src/iface_i/i.go  | 17 +++++++++++++
- misc/cgo/testplugin/test.bash         | 10 ++++++--
- 5 files changed, 105 insertions(+), 2 deletions(-)
+ src/os/exec/exec.go      | 49 +++++++++++++++++++++++++++++++++++++++++++++---
+ src/os/exec/exec_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 3 deletions(-)

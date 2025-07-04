@@ -1,21 +1,25 @@
-commit 7cb3e4fb1d6b2704ecdc3d6983587975ce077a34
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Oct 28 17:35:27 2017 +0100
+commit 98276d6abe97e50b2740e78a2b1e768abe6c7a33
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Aug 13 22:10:49 2017 +0530
 
-    all: unindent some if bodies by exiting early
+    encoding/hex: improve tests
     
-    All of these had a return or break in the else body, so flipping the
-    condition means we can unindent and simplify.
+    The tests for error scenarios were done by manually checking
+    error strings. Improved them by checking the actual error type
+    instead of just the string.
     
-    Change-Id: If93e97504480d18a0dac3f2c8ffe57ab8bcb929c
-    Reviewed-on: https://go-review.googlesource.com/74190
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Printing the actual error in case of failure instead of a
+    generic string.
+    
+    Also added a new scenario with both an invalid byte and an
+    invalid length string to verify that the length is checked first
+    before doing any computation.
+    
+    Change-Id: Ic2a19a6d6058912632d597590186ee2d8348cb45
+    Reviewed-on: https://go-review.googlesource.com/55256
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 19 +++++++++----------
- src/cmd/link/internal/ld/data.go       |  9 ++++-----
- src/mime/mediatype.go                  | 18 +++++++++---------
- src/reflect/value.go                   | 13 ++++++-------
- src/regexp/exec.go                     | 13 ++++++-------
- src/text/tabwriter/tabwriter.go        | 23 +++++++++++------------
- 6 files changed, 45 insertions(+), 50 deletions(-)
+ src/encoding/hex/hex_test.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

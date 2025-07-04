@@ -1,19 +1,23 @@
-commit 0460c61e5fd2242d27451f527dafc4d9a098fef4
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Sep 12 22:43:28 2023 +0000
+commit b65e259e56a326295250f037efbd31f64bcdfbfe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 09:29:05 2022 -0400
 
-    go/doc/comment: update TODO for isStdPkg
+    internal/fuzz: write shorter testdata corpus file names
     
-    Even better is slices.BinarySearch, leave a TODO to update to that when possible.
+    The only purpose of using the SHA256 in the file name is
+    collision avoidance. Using just the first 64 bits (16 hex digits)
+    will be more than enough, unless people start storing billions
+    of test cases in their corpora.
     
-    Change-Id: Ie1ec75c34c0329c536725b45e520693790f0520e
-    GitHub-Last-Rev: 6cd811b186c95752794cead3ae747f54c2d0d0c5
-    GitHub-Pull-Request: golang/go#62585
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527341
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    The shorter names are nicer for just about everything:
+    command lines, repository listings, and so on.
+    
+    Change-Id: I67c760023bed85ba3ffd4f8058f86ef778322ba7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443335
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/go/doc/comment/parse.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/internal/fuzz/fuzz.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,22 +1,40 @@
-commit 44febb28b626695e2daa693b1aa9ad7e516518e3
+commit 3ead49989ed037bda6009b96b0008ed83fb7d184
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 7 01:21:15 2016 +0000
+Date:   Wed Sep 14 16:34:27 2016 +0000
 
-    cmd/go: parallelize some tests
+    cmd/dist: skip compiling 100 packages without benchmarks in race mode
     
-    Cuts tests from 35 to 25 seconds.
+    The go_test_bench:* tests run:
     
-    Many of these could be parallel if the test runner were modified to
-    give each test its own workdir cloned from the tempdir files they
-    use. But later. This helps for now.
+        go test -short -race -run=^$ -benchtime=.1s -cpu=4 $PKG
     
-    Updates #17751
+    ... on each discovered package with any tests. (The same set used for
+    the "go_test:*" tests)
     
-    Change-Id: Icc2ff87cca60a33ec5fd8abb1eb0a9ca3e85bf95
-    Reviewed-on: https://go-review.googlesource.com/32850
+    That set was 168 packages:
+    
+    $ go tool dist test -list | grep go_test: | wc -l
+    168
+    
+    But only 76 of those have a "func Benchmark", and running each
+    "go_test_bench:" test and compiling it in race mode, just to do
+    nothing took 1-2 seconds each.
+    
+    So stop doing that and filter out the useless packages earlier. Now:
+    
+    $ go tool dist test -list -race | grep go_test_bench:  | wc -l
+    76
+    
+    Should save 90-180 seconds. (or maybe 45 seconds for trybots, since
+    they're sharded)
+    
+    Updates #17104
+    
+    Change-Id: I08ccb072a0dc0454ea425540ee8e74b59f83b773
+    Reviewed-on: https://go-review.googlesource.com/29153
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go | 65 +++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 55 insertions(+), 10 deletions(-)
+ src/cmd/dist/test.go | 40 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 39 insertions(+), 1 deletion(-)

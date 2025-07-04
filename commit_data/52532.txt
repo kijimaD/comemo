@@ -1,32 +1,23 @@
-commit 99de78e175bed03e21e0da72d2f084c88e4f62ad
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Fri Mar 24 23:07:58 2023 -0700
+commit 50203976777808f03b01974076ddeb26f24be311
+Author: miller <millerresearch@gmail.com>
+Date:   Sun May 8 13:29:27 2022 +0100
 
-    all: add wasip1 asm and link logic
+    path/filepath: simplify EvalSymlinks for plan9
     
-    Add wasip1 asm and symbols to cmd/internal/obj, cmd/link and
-    runtime.
+    Plan 9 doesn't have symbolic links, so EvalSymlinks can be simplified
+    just to check validity of the path and call Clean. This saves a lot
+    of redundant file system activity.
     
-    For #58141
+    Updates #50775
     
-    Co-authored-by: Richard Musiol <neelance@gmail.com>
-    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
-    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
-    Co-authored-by: Evan Phoenix <evan@phx.io>
-    Change-Id: Ie088d9b65ea13e231694af6341465f95be33093f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479617
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I84c24ef1d5e6e38fd19df2d37c72fbf883f0140d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404954
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/cmd/internal/obj/wasm/wasmobj.go |  5 +++--
- src/cmd/link/internal/ld/dwarf.go    |  2 +-
- src/cmd/link/internal/ld/sym.go      |  2 +-
- src/cmd/link/internal/wasm/asm.go    | 33 +++++++++++++++++++++--------
- src/runtime/asm_wasm.s               | 41 ++++++++++++++++++++++++++++++++++++
- src/runtime/rt0_js_wasm.s            | 39 ----------------------------------
- src/runtime/rt0_wasip1_wasm.s        | 16 ++++++++++++++
- 7 files changed, 86 insertions(+), 52 deletions(-)
+ src/path/filepath/symlink_plan9.go | 27 +++++++++++++++++++++++++++
+ src/path/filepath/symlink_unix.go  |  2 +-
+ 2 files changed, 28 insertions(+), 1 deletion(-)

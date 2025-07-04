@@ -1,31 +1,26 @@
-commit bade680867c9b1eecc7b5d177ed94c455a72e50a
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed May 12 12:11:03 2021 -0500
+commit 45205bc47b88f49020edabed18f99153cadf718e
+Author: Alwin Doss <alwindoss84@gmail.com>
+Date:   Sun Nov 1 04:43:20 2020 +0000
 
-    runtime/cgo: fix crosscall2 on ppc64x
+    os: export ErrProcessDone variable in windows and plan9
     
-    Some uses of crosscall2 did not work on ppc64le and probably
-    aix-ppc64. In particular, if there was a main program compiled
-    with -buildmode=pie and used a plugin which invoked crosscall2,
-    then failures could occur due to R2 getting set incorrectly along the
-    way. The problem was due to R2 being saved on the caller's
-    stack; it is now saved on the crosscall2 stack. More details can be
-    found in the issue.
+    Exposes ErrProcessDone variable in windows and plan9
+    also returns this error code instead of
+    errors.New("os: process already finished")
     
-    This adds a testcase where the main program is built with pie
-    and the plugin invokes crosscall2.
+    Fixes #42311
     
-    This also changes the save of the CR bits from MOVD to MOVW as
-    it should be.
-    
-    Fixes #43228
-    
-    Change-Id: Ib5673e25a2ec5ee46bf9a1ffb0cb1f3ef5449086
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319489
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ie807b6526e7b6c27636e6bffe5ff0c904b319be4
+    GitHub-Last-Rev: 2153e0d7020d8ee9e94087d02977ea049b7fd6a0
+    GitHub-Pull-Request: golang/go#42313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266997
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- misc/cgo/testplugin/plugin_test.go |  7 +++++++
- src/runtime/cgo/asm_ppc64x.s       | 12 ++++++++----
- 2 files changed, 15 insertions(+), 4 deletions(-)
+ src/os/exec.go         | 4 ++++
+ src/os/exec_plan9.go   | 3 +--
+ src/os/exec_unix.go    | 3 ---
+ src/os/exec_windows.go | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

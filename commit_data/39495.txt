@@ -1,12 +1,29 @@
-commit 0fddd668671c44a622be7d7ea71962be644d8218
-Author: Alexander Rakoczy <alex@golang.org>
-Date:   Mon Jul 8 14:14:17 2019 -0400
+commit aa5165d62cf623230dd820afe2bdba92bd15beeb
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Nov 25 23:22:11 2018 +0000
 
-    doc: document Go 1.11.12
+    encoding/hex: simplify decoder arithmetic
     
-    Change-Id: I1b2e369befc58b3f88ac201442a2d9f76d87d54e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185257
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Remove all multiplications and divisions from the main decoding loop.
+    
+    name            old time/op   new time/op   delta
+    Decode/256-8      323ns ± 0%    293ns ± 0%   -9.29%  (p=0.000 n=5+4)
+    Decode/1024-8    1.26µs ± 0%   1.14µs ± 0%   -9.48%  (p=0.000 n=6+5)
+    Decode/4096-8    4.99µs ± 0%   4.51µs ± 0%   -9.55%  (p=0.002 n=6+6)
+    Decode/16384-8   20.0µs ± 0%   18.1µs ± 0%   -9.54%  (p=0.002 n=6+6)
+    
+    name            old speed     new speed     delta
+    Decode/256-8    791MB/s ± 0%  872MB/s ± 0%  +10.34%  (p=0.002 n=6+6)
+    Decode/1024-8   814MB/s ± 0%  899MB/s ± 0%  +10.48%  (p=0.004 n=6+5)
+    Decode/4096-8   821MB/s ± 0%  908MB/s ± 0%  +10.55%  (p=0.002 n=6+6)
+    Decode/16384-8  821MB/s ± 0%  908MB/s ± 0%  +10.54%  (p=0.002 n=6+6)
+    
+    Change-Id: Ie9f91242ce04c130a77c1184379e3b9de38fe713
+    Reviewed-on: https://go-review.googlesource.com/c/151199
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/devel/release.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/encoding/hex/hex.go      | 17 +++++++++--------
+ src/encoding/hex/hex_test.go | 14 ++++++++++++++
+ 2 files changed, 23 insertions(+), 8 deletions(-)

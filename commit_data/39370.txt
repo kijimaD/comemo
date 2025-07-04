@@ -1,12 +1,20 @@
-commit b388d6868fba8a0764d4dbd940a0bd249133923f
-Author: Julie <julie@golang.org>
-Date:   Wed Jun 12 13:54:51 2019 -0400
+commit ef954a03eb9d4e8d19e1024db088095110e19a0b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Feb 8 17:57:46 2019 +0100
 
-    doc: add release notes for reflect
+    bytes: hoist error creation out of function
     
-    Change-Id: I71a6816f54f8ad0f8531bb3f9de552fd136a0ed4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181943
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    generating frame information in errors will cause this
+    function to no longer be inlined.
+    
+    Updates #29934.
+    
+    Change-Id: I1d7bc11707f1872d7315f627bfb9a12afa41e358
+    Reviewed-on: https://go-review.googlesource.com/c/161760
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.13.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/bytes/buffer.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

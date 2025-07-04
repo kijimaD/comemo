@@ -1,29 +1,25 @@
-commit 9a1d3b0ad20ba5d73ba3a88c86563ae7b4cf03ca
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 18 16:42:28 2022 -0700
+commit 02d56a1584f968b86b669b3b943dc2ffad30e087
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Sep 27 19:49:38 2021 -0400
 
-    go/parser: match const/var decl parsing of syntax package
+    go/types: add the Interface.IsMethodSet method
     
-    Use same approach to parsing const and var declarations
-    as the syntax package. Specifically, don't complain if
-    the first const specification in a const declaration
-    doesn't have a type and initialization expression. This
-    removes some duplicate errors when combined with the
-    type checker.
+    As pointed out in #47916, the IsConstraint method becomes ambiguously
+    named if ever we allow interfaces with structural restrictions outside
+    of constraint position.
     
-    Adjust corresponding type checker tests accordingly.
+    Add instead an IsMethodSet method, which has the opposite sense and
+    avoids this ambiguity. In a subsequent CL the IsConstraint method will
+    be removed, once x/tools has been updated to use the IsMethodSet API.
     
-    For #54511.
+    Updates #47916
     
-    Change-Id: I96702eba51dda6b581dad44577a7f93e4c02c857
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424904
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I82ad16b111464b0cd2f354b8ecdd4b3f14796cd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352616
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/parser/parser.go                  | 32 ++++++++++++++++++--------------
- src/go/parser/short_test.go              |  5 +----
- src/go/types/testdata/check/constdecl.go | 19 ++++++++-----------
- src/go/types/testdata/check/vardecl.go   |  9 +++------
- 4 files changed, 30 insertions(+), 35 deletions(-)
+ src/go/types/interface.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

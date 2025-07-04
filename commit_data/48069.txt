@@ -1,23 +1,46 @@
-commit bec8a108b324b2fc68eafeee7293a479813ec4e2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 2 10:19:30 2022 -0500
+commit 1f7ddf57d2908319c0ca7dc621a206935d8726f2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 23 19:02:44 2021 -0400
 
-    runtime: skip TestSegv failures with "morestack on g0" on darwin/amd64
+    syscall, etc.: use abi.FuncPCABI0 for libc syscall wrappers
     
-    This failure mode has been present since at least 2020-06-08. We have
-    enough information to diagnose it, and further failures don't seem to
-    be adding any new information at this point: they can only add noise,
-    both on the Go project's builders and in users' own modules (for
-    example, when run as part of 'go test all').
+    In CL 288092 we made Darwin syscall wrappers as ABIInternal, so
+    their addresses taken from Go using funcPC are the actual function
+    entries, not the wrappers.
     
-    For #39457
+    As we introduced internal/abi.FuncPCABIxxx intrinsics, use that.
+    And change the assembly functions back to ABI0.
     
-    Change-Id: I2379631da0c8af69598fa61c0cc5ac0ea6ba8267
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382395
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Do it on OpenBSD as well, as OpenBSD and Darwin share code
+    generator.
+    
+    Change-Id: I408120795f7fc826637c867394248f8f373906bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313230
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/crash_cgo_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/dist/build.go                            |   2 -
+ src/cmd/internal/objabi/path.go                  |   2 -
+ src/crypto/x509/internal/macos/corefoundation.go |  26 +-
+ src/crypto/x509/internal/macos/corefoundation.s  |  18 +-
+ src/crypto/x509/internal/macos/security.go       |   9 +-
+ src/crypto/x509/internal/macos/security.s        |   8 +-
+ src/syscall/exec_libc2.go                        |  47 +--
+ src/syscall/mkasm.go                             |   3 +-
+ src/syscall/mksyscall.pl                         |  15 +-
+ src/syscall/syscall_darwin.go                    |  22 +-
+ src/syscall/syscall_darwin_amd64.go              |   7 +-
+ src/syscall/syscall_darwin_arm64.go              |   7 +-
+ src/syscall/syscall_openbsd_libc.go              |  21 +-
+ src/syscall/zsyscall_darwin_amd64.go             | 248 ++++++++--------
+ src/syscall/zsyscall_darwin_amd64.s              | 250 ++++++++--------
+ src/syscall/zsyscall_darwin_arm64.go             | 248 ++++++++--------
+ src/syscall/zsyscall_darwin_arm64.s              | 250 ++++++++--------
+ src/syscall/zsyscall_openbsd_amd64.go            | 352 ++++++++---------------
+ src/syscall/zsyscall_openbsd_amd64.s             | 230 +++++++--------
+ src/syscall/zsyscall_openbsd_arm64.go            | 352 ++++++++---------------
+ src/syscall/zsyscall_openbsd_arm64.s             | 230 +++++++--------
+ 21 files changed, 1059 insertions(+), 1288 deletions(-)

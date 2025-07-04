@@ -1,21 +1,25 @@
-commit a05934639bde593326f8d7ed9eb3f73f9ba6eb53
-Author: Sam Whited <sam@samwhited.com>
-Date:   Tue Aug 21 17:11:30 2018 -0500
+commit c77a9e0aa5a8a238d68aa82b3b7e052a314a0060
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sun May 19 12:07:45 2019 -0700
 
-    encoding/xml: fix token decoder on early EOF
+    runtime: In Frames.Next, delay file/line lookup until just before return
     
-    The documentation for TokenReader suggests that implementations of the
-    interface may return a token and io.EOF together, indicating that it is
-    the last token in the stream. This is similar to io.Reader. However, if
-    you wrap such a TokenReader in a Decoder it complained about the EOF.
-    A test was added to ensure this behavior on Decoder's.
+    That way we will never have to look up the file/line for the frame
+    that's next to be returned when the user stops calling Next.
     
-    Change-Id: I9083c91d9626180d3bcf5c069a017050f3c7c4a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/130556
-    Run-TryBot: Sam Whited <sam@samwhited.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For the benchmark from #32093:
+    
+    name      old time/op  new time/op  delta
+    Helper-4   948ns ± 1%   836ns ± 3%  -11.89%  (p=0.000 n=9+9)
+    
+    (#32093 was fixed with a more specific, and better, fix, but this
+    fix is much more general.)
+    
+    Change-Id: I89e796f80c9706706d8d8b30eb14be3a8a442846
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178077
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/xml/xml.go      |  5 ++++-
- src/encoding/xml/xml_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 1 deletion(-)
+ src/runtime/symtab.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

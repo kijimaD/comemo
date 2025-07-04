@@ -1,31 +1,19 @@
-commit e6b8b2f3e236e8646962c68e172c304e11e9a8f0
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Wed May 29 16:39:34 2024 +0000
+commit 5cdc3874b0e44cecfadcf995091894eca978e558
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed May 10 07:04:58 2023 -0400
 
-    Revert "runtime: improve runtime-internal mutex profile tests"
+    cmd/covdata: tweak output format for 'go tool covdata percent'
     
-    This reverts commit f9ba2cff2286d378eca28c841bea8488c69fc30e (CL 586237)
+    Include some additional whitepace when emitting percentage of
+    statements covered per package, to make "go tool covdata percent"
+    output more like "go test -cover" output.
     
-    Reason for revert: This is part of a patch series that changed the
-    handling of contended lock2/unlock2 calls, reducing the maximum
-    throughput of contended runtime.mutex values, and causing a performance
-    regression on applications where that is (or became) the bottleneck.
-    
-    This test verifies that the semantics of the mutex profile for
-    runtime.mutex values matches that of sync.Mutex values. Without the rest
-    of the patch series, this test would correctly identify that Go 1.22's
-    semantics are incorrect (issue #66999).
-    
-    Updates #66999
-    Updates #67585
-    
-    Change-Id: Id06ae01d7bc91c94054c80d273e6530cb2d59d10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589096
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I450cf2bfa05b1eed747cb2f99967314419fa446c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495445
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/runtime/export_test.go  |   2 -
- src/runtime/metrics_test.go | 175 ++++++++------------------------------------
- 2 files changed, 29 insertions(+), 148 deletions(-)
+ src/internal/coverage/cformat/fmt_test.go | 2 +-
+ src/internal/coverage/cformat/format.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,15 +1,17 @@
-commit 1a09d70e230a7a9468ded587c7a1e3bee53c402b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 13 19:37:54 2013 -0400
+commit 45cb2e1b70c80e9c087d2eea9449e7763cca16fc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 14 07:04:39 2013 +0900
 
-    runtime: fix build on arm
+    net: make Dial, Listen and ListenPacket return consistent error value
     
-    Do not use ? :
-    I cannot say this enough.
+    Update #4856
     
-    TBR=dvyukov
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12903043
+    https://golang.org/cl/12763044
 
- src/pkg/runtime/proc.c | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/pkg/net/dial.go       | 18 ++++++++++--------
+ src/pkg/net/dial_gen.go   |  6 +++---
+ src/pkg/net/fd_unix.go    |  2 +-
+ src/pkg/net/fd_windows.go |  2 +-
+ 4 files changed, 15 insertions(+), 13 deletions(-)

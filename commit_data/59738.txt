@@ -1,20 +1,33 @@
-commit 9f3dd846e2ee6e8fcb2c673122d9d0c932e01b71
+commit 4742c52e101ecf4aacebe5148a1cb172bdadb1d4
 Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu May 29 19:04:08 2025 +0000
+Date:   Fri Mar 22 21:42:02 2024 +0000
 
-    cmd/internal/obj/s390x: fix potential recursive String call
+    internal/abi: define EmptyInterface, TypeOf, and NoEscape
     
-    This String method can potentially recurse infinitely, since %#x will
-    apparently call String if the method exists. This isn't well documented,
-    but cmd/vet will be updated soon to check this (when we update the
-    vendored x/tools dependency) so cut off the recursion by converting to
-    the underlying type first.
+    This change defines two commonly-defined functions and a
+    commonly-defined type in internal/abi to try and deduplicate some
+    definitions. This is motivated by a follow-up CL which will want access
+    to TypeOf in yet another package.
     
-    Change-Id: Ia6fc046c9eb56a5dd6a33772afd23da443a06116
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677261
+    There still exist duplicate definitions of all three of these things in
+    the runtime, and this CL doesn't try to handle that yet. There are far
+    too many uses in the runtime to handle manually in a way that feels
+    comfortable; automated refactoring will help.
+    
+    For #62483.
+    
+    Change-Id: I02fc64a28f11af618f6071f94d27f45c135fa8ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573955
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/obj/s390x/condition_code.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/abi/escape.go        | 22 ++++++++++++++++++++++
+ src/internal/abi/iface.go         | 10 ++++++++++
+ src/internal/abi/type.go          | 11 +++++++++++
+ src/internal/reflectlite/type.go  |  5 +----
+ src/internal/reflectlite/value.go | 30 +++++++++---------------------
+ src/reflect/type.go               |  8 ++------
+ src/reflect/value.go              | 38 ++++++++++++++++++--------------------
+ src/strings/builder.go            | 16 ++--------------
+ 8 files changed, 75 insertions(+), 65 deletions(-)

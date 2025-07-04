@@ -1,24 +1,22 @@
-commit 8d075beeef137455b9dc40f1c724b495f3ceda26
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 26 10:55:32 2016 -0700
+commit 77b527e283112d33000990c59e766074c9396292
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 11 17:39:00 2016 -0800
 
-    cmd/compile: lazily initialize litbuf
+    cmd/compile: strength reduce *24
     
-    Instead of eagerly creating strings like "literal 2.01" for every
-    lexed number in case we need to mention it in an error message, defer
-    this work to (*parser).syntax_error.
+    We use *24 a lot for pointer arithmetic when accessing slices
+    of slices ([][]T).  Rewrite to use an LEA and a shift.
+    The shift will likely be free, as it often gets folded into
+    an indexed load/store.
     
-    name      old allocs/op  new allocs/op  delta
-    Template      482k ± 0%      482k ± 0%  -0.12%   (p=0.000 n=9+10)
-    GoTypes      1.35M ± 0%     1.35M ± 0%  -0.04%  (p=0.015 n=10+10)
-    Compiler     5.45M ± 0%     5.44M ± 0%  -0.12%    (p=0.000 n=9+8)
+    Update #14606
     
-    Change-Id: I333b3c80e583864914412fb38f8c0b7f1d8c8821
-    Reviewed-on: https://go-review.googlesource.com/22480
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie0bf6dc1093876efd57e88ce5f62c26a9bf21cec
+    Reviewed-on: https://go-review.googlesource.com/20567
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/cmd/compile/internal/gc/lex.go    | 2 +-
- src/cmd/compile/internal/gc/parser.go | 3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)

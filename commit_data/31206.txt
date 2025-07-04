@@ -1,22 +1,14 @@
-commit 619af172055dccfd92a87ec116236ef3a885ac2c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 13 05:25:20 2017 -0700
+commit c2bc727f944fe41e1567b8ac1cf306809801bec9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 7 08:05:01 2017 +1100
 
-    runtime: refactor hmap setoverflow into newoverflow
+    doc: remove inactive members of the CoC working group
     
-    This simplifies the code, as well as providing
-    a single place to modify to change the
-    allocation of new overflow buckets.
+    Dave and Jason have moved on to other things.
     
-    Updates #19931
-    Updates #19992
-    
-    Change-Id: I77070619f5c8fe449bbc35278278bca5eda780f2
-    Reviewed-on: https://go-review.googlesource.com/40975
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I702d11bedfab1f47a33679a48c2309f49021229e
+    Reviewed-on: https://go-review.googlesource.com/36450
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/runtime/hashmap.go      | 13 ++++++-------
- src/runtime/hashmap_fast.go |  9 +++------
- 2 files changed, 9 insertions(+), 13 deletions(-)
+ doc/conduct.html | 2 --
+ 1 file changed, 2 deletions(-)

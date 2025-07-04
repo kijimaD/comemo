@@ -1,13 +1,15 @@
-commit f4f5836840c8d4654957ad66f519cdf130f1ebf0
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jun 3 15:27:28 2011 +1000
+commit f531ef3279cd18315c01966d5beb318af6195e9b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 3 13:18:15 2011 +1000
 
-    dashboard: add favicon.ico
+    image: rename Contains and ContainsRectangle to In.
     
-    R=golang-dev, dsymonds
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4547082
+    https://golang.org/cl/4539104
 
- misc/dashboard/godashboard/app.yaml           |   4 ++++
- misc/dashboard/godashboard/static/favicon.ico | Bin 0 -> 785 bytes
- 2 files changed, 4 insertions(+)
+ src/pkg/exp/draw/clip_test.go |  6 ++---
+ src/pkg/image/geom.go         | 26 ++++++++++-----------
+ src/pkg/image/image.go        | 54 +++++++++++++++++++++----------------------
+ src/pkg/image/ycbcr/ycbcr.go  |  2 +-
+ 4 files changed, 44 insertions(+), 44 deletions(-)

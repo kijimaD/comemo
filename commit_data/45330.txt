@@ -1,14 +1,21 @@
-commit 8e368708c510219dabfb38a4781d2152420c778f
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 20 14:12:04 2021 -0400
+commit d595712540f00d980b1276ed25495ee7e05c1bfa
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Oct 20 09:06:42 2020 -0400
 
-    cmd/link: implement windows/arm64 external linking
+    cmd/asm: rename "compiling runtime" flag
     
-    Change-Id: Ia73309ec7013138b37028e669d7ae5eac81126e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312044
-    Trust: Russ Cox <rsc@golang.org>
+    Rename the assembler "-compilingRuntime" flag to "-compiling-runtime",
+    to be more consistent with the flag style of other Go commands.
+    
+    Change-Id: I8cc5cbf0b9b34d1dd4e9fa499d3fec8c1ef10b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263857
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/arm64/asm.go | 186 ++++++++++++++++++++++++++-----------
- src/cmd/link/internal/ld/pe.go     |  10 ++
- 2 files changed, 140 insertions(+), 56 deletions(-)
+ src/cmd/asm/internal/flags/flags.go | 2 +-
+ src/cmd/dist/build.go               | 2 +-
+ src/cmd/go/internal/work/gc.go      | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

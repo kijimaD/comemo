@@ -1,17 +1,20 @@
-commit 14c5c8a93a55593403f198c4df3c1e503840cf02
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 12 11:27:36 2014 -0800
+commit 5e72fae9b2c4fddc67a5d8ea0aecf3f73234d83e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 12 22:31:36 2014 +0400
 
-    crypto/sha1: always test the portable block function too
+    runtime: improve cpu profiles for GC/syscalls/cgo
+    Current "System->etext" is not very informative.
+    Add parent "GC" frame.
+    Replace un-unwindable syscall/cgo frames with Go stack that leads to the call.
     
-    So it doesn't bitrot.
-    
-    LGTM=agl
-    R=golang-codereviews, agl
+    LGTM=rsc
+    R=rsc, alex.brainman, ality
     CC=golang-codereviews
-    https://golang.org/cl/62270043
+    https://golang.org/cl/61270043
 
- src/pkg/crypto/sha1/sha1_test.go         | 13 +++++++++++++
- src/pkg/crypto/sha1/sha1block.go         | 10 +++-------
- src/pkg/crypto/sha1/sha1block_generic.go |  9 +++++++++
- 3 files changed, 25 insertions(+), 7 deletions(-)
+ src/pkg/runtime/os_windows.c        |  7 +++++++
+ src/pkg/runtime/proc.c              | 40 ++++++++++++++++++++++++++++++-------
+ src/pkg/runtime/runtime.h           |  3 +++
+ src/pkg/runtime/sys_windows_386.s   | 19 ++++++++++++++++--
+ src/pkg/runtime/sys_windows_amd64.s | 21 +++++++++++++++----
+ 5 files changed, 77 insertions(+), 13 deletions(-)

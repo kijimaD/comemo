@@ -1,12 +1,12 @@
-commit d5c806d581f4d110dfc2696c8b18b4ecde82e453
-Author: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
-Date:   Tue Aug 27 06:32:24 2013 -0700
+commit c0148303afafefeebdfd6e4cae072f4b7963ec74
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 27 14:33:05 2013 +1000
 
-    encoding/binary: use bytes.Reader in read example
+    doc/go1.2.txt: dereference pointer values when evaluating args for escape funcs
     
-    R=golang-dev, dave
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/13274043
+    https://golang.org/cl/13262043
 
- src/pkg/encoding/binary/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

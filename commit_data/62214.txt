@@ -1,0 +1,27 @@
+commit 30f515898c9852f0529fe42b46c8b89d00e14949
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Feb 11 18:23:11 2025 +0000
+
+    make.bat,race.bat: simplify --dist-tool handling
+    
+    make.bat accepts the --dist-tool flag on multiple flag positions
+    and also allows omitting the trailing dash. Doing so adds complexity
+    and is not aligned with the make.bash and make.rc behavior. Remove that
+    flexibility to simplify the code and make it more consistent. This also
+    fixes a bug where dist.exe wouldn't be removed from cmd\dist when
+    running make.bat --dist-tool.
+    
+    Also, there is no need for race.bat to invoke make.bat with --dist-tool.
+    It uses it to get the GOHOSTARCH env value, but we can already get
+    that from the built-in PROCESSOR_ARCHITECTURE env variable.
+    
+    Change-Id: Ia673562c1ae6aff9bd3ec7aa8cdd25ff187eeb79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648615
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/make.bat | 21 ++++++++-------------
+ src/race.bat |  8 +-------
+ 2 files changed, 9 insertions(+), 20 deletions(-)

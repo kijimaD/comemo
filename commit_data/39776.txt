@@ -1,16 +1,23 @@
-commit dec16794cf9136f8887e08391c01f1265b876ddb
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Aug 28 16:07:39 2019 -0400
+commit 250b96a7bfa5b9ac0f31e70e768173f57a61d2f7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 19 12:26:22 2019 -0700
 
-    doc/1.13: remove draft note and make various fixes
+    cmd/compile: slightly optimize adding 128
     
-    Fixes #33954
+    'SUBQ $-0x80, r' is shorter to encode than 'ADDQ $0x80, r',
+    and functionally equivalent. Use it instead.
     
-    Change-Id: Idfe71bf825adcd7cbf70cd139b3e779963394ff6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192105
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Shaves off a few bytes here and there:
+    
+    file    before    after     Δ       %
+    compile 25935856  25927664  -8192   -0.032%
+    nm      4251840   4247744   -4096   -0.096%
+    
+    Change-Id: Ia9e02ea38cbded6a52a613b92e3a914f878d931e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168344
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.13.html | 28 ++++++++++++++++------------
- 1 file changed, 16 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go | 20 +++++++++++++++++---
+ test/codegen/arithmetic.go            | 10 ++++++++++
+ 2 files changed, 27 insertions(+), 3 deletions(-)

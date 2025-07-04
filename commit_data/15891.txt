@@ -1,20 +1,12 @@
-commit 3b9702c9c8a7e69e5af9b6dafd2932228d6b3210
-Author: Joel Sing <jsing@google.com>
-Date:   Sat Mar 23 02:17:01 2013 +1100
+commit d88133137bcab6839d1f1cab0d4b9edb30381b41
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 21 22:37:13 2013 -0700
 
-    runtime: correct return value checks for mmap on darwin/freebsd
+    go1.1.html: bufio.Scanner and reflect; more about surrogates
     
-    On Darwin and FreeBSD, the mmap syscall return value is returned
-    unmodified. This means that the return value will either be a
-    valid address or a positive error number.
-    
-    Also check return value from mmap in SysReserve - the callers of
-    SysReserve expect nil to be returned if the allocation failed.
-    
-    R=golang-dev, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7871043
+    https://golang.org/cl/7958043
 
- src/pkg/runtime/mem_darwin.c  |  9 +++++++--
- src/pkg/runtime/mem_freebsd.c | 21 +++++++++++++--------
- 2 files changed, 20 insertions(+), 10 deletions(-)
+ doc/go1.1.html | 93 ++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 88 insertions(+), 5 deletions(-)

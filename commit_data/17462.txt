@@ -1,17 +1,12 @@
-commit f68c23e2bba617d8f9bbe1cb53a920aeaf8901ad
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 3 21:15:15 2013 -0700
+commit 54b2a83d9ae31bdb7a6c5aa97f7dfa219b40035d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 4 10:04:12 2013 +0900
 
-    cmd/cgo: don't let #cgo directives mess up line numbering
-    
-    Fixes #5272.
+    net/http: remove dreg of obsoleted network poller
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13498046
+    https://golang.org/cl/13261049
 
- misc/cgo/errors/err1.go   | 14 ++++++++++++++
- misc/cgo/errors/test.bash | 19 +++++++++++++++++++
- src/cmd/cgo/gcc.go        |  2 ++
- src/run.bash              |  6 ++++++
- 4 files changed, 41 insertions(+)
+ src/pkg/net/http/z_last_test.go | 1 -
+ 1 file changed, 1 deletion(-)

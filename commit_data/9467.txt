@@ -1,18 +1,24 @@
-commit 00d64c723947593f3957d43b18d65cd58d4aff44
+commit 66bedf82210220e45ca2eb4919fe764e6a022630
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 23 22:50:08 2011 -0400
+Date:   Tue Aug 23 22:45:30 2011 -0400
 
-    reflect: add Value.Bytes, Value.SetBytes methods
+    go/build: add test support & use in gotest
     
-    This allows code that wants to handle
-    []byte separately to get at the actual slice
-    instead of just at individual bytes.
-    It seems to come up often enough.
+    A side-effect is that, just like foo_386.go
+    is only built on 386, foo_386_test.go is only
+    built for testing on 386.
     
-    R=r
+    R=adg, r, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/4942051
+    https://golang.org/cl/4942050
 
- src/pkg/reflect/all_test.go | 25 +++++++++++++++++++++++++
- src/pkg/reflect/value.go    | 25 +++++++++++++++++++++++++
- 2 files changed, 50 insertions(+)
+ src/cmd/gotest/gotest.go                    |  15 ++--
+ src/pkg/go/build/build_test.go              |  64 ++++++++++---
+ src/pkg/go/build/dir.go                     | 134 ++++++++++++++++++----------
+ src/pkg/go/build/pkgtest/sqrt_386_test.go   |   1 +
+ src/pkg/go/build/pkgtest/sqrt_amd64_test.go |   1 +
+ src/pkg/go/build/pkgtest/sqrt_arm_test.go   |   1 +
+ src/pkg/go/build/pkgtest/sqrt_test.go       |   1 +
+ src/pkg/go/build/pkgtest/xsqrt_test.go      |   1 +
+ src/pkg/go/build/syslist_test.go            |   2 +-
+ 9 files changed, 153 insertions(+), 67 deletions(-)

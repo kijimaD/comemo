@@ -1,32 +1,29 @@
-commit 67d85ad00f9d9be0cc2bb1bb96d01c3d40dcb376
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Wed May 11 10:48:48 2022 -0500
+commit ecb2f231fa41b581319505139f8d5ac779763bee
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Sep 30 22:46:09 2021 +0800
 
-    cmd/asm: add new classification for index memory operands on PPC64
+    runtime,sync: using fastrandn instead of modulo reduction
     
-    When a base+displacement kind of operand is given in an index-mode
-    instruction, the assembler does not flag it as an invalid instruction
-    causing the user to get an incorrect encoding of that instruction
-    leading to incorrect execution of the program.
-    Enable assembler to recognize valid and invalid operands used in index
-    mode instructions by classifying SOREG type into two further types
-    XOREG (used uniquely in index addressing mode instructions) and SOREG
-    for instructions working on base+displacement operands.
-    Also cleaned up usage of obj.Addr.Scale on PPC64.
+    fastrandn is ~50% faster than fastrand() % n.
+    `ack -v 'fastrand\(\)\s?\%'` finds all modulo on fastrand()
     
-    Change-Id: Ib4d84343ae57477c6c074f44c4c2749496e11b91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405542
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    name              old time/op  new time/op  delta
+    Fastrandn/2       2.86ns ± 0%  1.59ns ± 0%  -44.35%  (p=0.000 n=9+10)
+    Fastrandn/3       2.87ns ± 1%  1.59ns ± 0%  -44.41%  (p=0.000 n=10+9)
+    Fastrandn/4       2.87ns ± 1%  1.58ns ± 1%  -45.10%  (p=0.000 n=10+10)
+    Fastrandn/5       2.86ns ± 1%  1.58ns ± 1%  -44.84%  (p=0.000 n=10+10)
+    
+    Change-Id: Ic91f5ca9b9e3b65127bc34792b62fd64fbd13b5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353269
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/asm/operand_test.go  |   2 +-
- src/cmd/asm/internal/asm/parse.go         |  11 +-
- src/cmd/asm/internal/asm/testdata/ppc64.s | 171 +++++++++++++++++++++++++++++-
- src/cmd/internal/obj/ppc64/a.out.go       |   3 +-
- src/cmd/internal/obj/ppc64/anames9.go     |   1 +
- src/cmd/internal/obj/ppc64/asm9.go        | 147 +++++++++++++++----------
- src/cmd/internal/obj/ppc64/asm_test.go    |   1 +
- 7 files changed, 268 insertions(+), 68 deletions(-)
+ src/runtime/malloc.go  | 4 ++--
+ src/runtime/mbitmap.go | 2 +-
+ src/runtime/proc.go    | 2 +-
+ src/runtime/stubs.go   | 4 ++--
+ src/runtime/symtab.go  | 2 +-
+ src/sync/pool.go       | 4 ++--
+ 6 files changed, 9 insertions(+), 9 deletions(-)

@@ -1,34 +1,25 @@
-commit 56a14ad4bc19d5ee9d4257f370a570377e81e544
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 31 13:55:19 2023 -0800
+commit 0aaa55526e3a58fd3ed1929421d57d3f0ef11515
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 21 13:44:17 2022 -0400
 
-    cmd/dist, internal/platform: remove some target modes that fail
+    cmd/vendor: update golang.org/x/tools to c717623e3197
     
-    Before CL 463992 there were some cases that cmd/dist did not test
-    but that platform.BuildModeSupport permitted. In CL 463992 those
-    conflicts were resolved in favor of platform.BuildModeSupport.
-    However, further testing has uncovered some cases that do not in
-    fact work. Adjust those in both cmd/dist and internal/platform.
+    To pick up CL 394234.
     
-    In particular, mark android-arm and android-arm64 as not supporting
-    plugin mode.  Sample failure:
-        https://build.golang.org/log/ebba858ea9f94f076966d8cfd42348a0e9345095
+    Done by
+            go get -d golang.org/x/tools@c717623e3197
+            go mod tidy
+            go mod vendor
     
-    Mark ios as not supporting c-archive mode.  Sample failure:
-        https://build.golang.org/log/e78a58189d94b90dc6d4b2e01a1b4a0b35d63792
-    
-    Fixes #58170
-    Fixes #58172
-    
-    Change-Id: Ic1bd18e36382cac0779aad48cb6e7b1de8eeb10d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464339
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ic67a7deb9a22b2679eec895210168f698d8d05eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394275
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/dist/test.go               | 4 ++--
- src/internal/platform/supported.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go.mod                                                        | 2 +-
+ src/cmd/go.sum                                                        | 4 ++--
+ .../vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go   | 4 ++--
+ src/cmd/vendor/modules.txt                                            | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

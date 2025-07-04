@@ -1,23 +1,23 @@
-commit 44943aff33ad52b5c9adc3092ae98bb0e497e3f3
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Oct 31 15:38:06 2017 -0500
+commit 9223adcc2c48f4b7f60ff10001bb35f028e6126a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 14 15:39:19 2017 -0700
 
-    cmd/internal/obj/x86: add ADX extension
+    archive/tar: add support for atime and ctime to Writer
     
-    Add support for ADX cpuid bit detection and all instructions,
-    implied by that bit (ADOX/ADCX). They are useful for rsa and math/big in
-    general.
+    Both the GNU and PAX formats support atime and ctime fields.
+    The implementation is trivial now that we have:
+    * support for formatting PAX records for timestamps
+    * dedicated methods that only handle one format (e.g., GNU)
     
-    Change-Id: Idaa93303ead48fd18b9b3da09b3e79de2f7e2193
-    Reviewed-on: https://go-review.googlesource.com/74850
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Fixes #17876
+    
+    Change-Id: I0c604fce14a47d722098afc966399cca2037395d
+    Reviewed-on: https://go-review.googlesource.com/55570
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 64 ++++++++++++++--------------
- src/cmd/internal/obj/x86/aenum.go            |  4 ++
- src/cmd/internal/obj/x86/anames.go           |  4 ++
- src/cmd/internal/obj/x86/asm6.go             | 18 ++++++++
- src/internal/cpu/cpu.go                      |  1 +
- src/internal/cpu/cpu_x86.go                  |  1 +
- 6 files changed, 60 insertions(+), 32 deletions(-)
+ src/archive/tar/common.go   | 10 +++++-----
+ src/archive/tar/tar_test.go | 28 ++++++++++++++++++++++++++++
+ src/archive/tar/writer.go   |  8 ++++++--
+ 3 files changed, 39 insertions(+), 7 deletions(-)

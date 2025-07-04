@@ -1,186 +1,31 @@
-commit f243cf6016c9c962a615e88087f1a40149c767ac
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Mon Aug 12 16:41:11 2024 +0800
+commit cd589c8a73415afbf94a8976f20cbed9d4061ba6
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Aug 8 15:31:43 2023 +0200
 
-    cmd/compile: optimize math.Float64(32)bits and math.Float64(32)frombits on loong64
+    os: make MkdirAll support volume names
     
-    Use float <-> int register moves without conversion instead of stores
-    and loads to move float <-> int values like arm64 and mips64.
+    MkdirAll fails to create directories under root paths using volume
+    names (e.g. //?/Volume{GUID}/foo). This is because fixRootDirectory
+    only handle extended length paths using drive letters (e.g. //?/C:/foo).
     
-    goos: linux
-    goarch: loong64
-    pkg: math
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                        │  bench.old   │               bench.new                │
-                        │    sec/op    │    sec/op     vs base                  │
-    Acos                   15.98n ± 0%    15.94n ± 0%   -0.25% (p=0.000 n=20)
-    Acosh                  27.75n ± 0%    25.56n ± 0%   -7.89% (p=0.000 n=20)
-    Asin                   15.85n ± 0%    15.76n ± 0%   -0.57% (p=0.000 n=20)
-    Asinh                  39.79n ± 0%    37.69n ± 0%   -5.28% (p=0.000 n=20)
-    Atan                   7.261n ± 0%    7.242n ± 0%   -0.27% (p=0.000 n=20)
-    Atanh                  28.30n ± 0%    27.62n ± 0%   -2.40% (p=0.000 n=20)
-    Atan2                  15.85n ± 0%    15.75n ± 0%   -0.63% (p=0.000 n=20)
-    Cbrt                   27.02n ± 0%    21.08n ± 0%  -21.98% (p=0.000 n=20)
-    Ceil                   2.830n ± 1%    2.896n ± 1%   +2.31% (p=0.000 n=20)
-    Copysign              0.8022n ± 0%   0.8004n ± 0%   -0.22% (p=0.000 n=20)
-    Cos                    11.64n ± 0%    11.61n ± 0%   -0.26% (p=0.000 n=20)
-    Cosh                   35.98n ± 0%    33.44n ± 0%   -7.05% (p=0.000 n=20)
-    Erf                    10.09n ± 0%    10.08n ± 0%   -0.10% (p=0.000 n=20)
-    Erfc                   11.40n ± 0%    11.35n ± 0%   -0.44% (p=0.000 n=20)
-    Erfinv                 12.31n ± 0%    12.29n ± 0%   -0.16% (p=0.000 n=20)
-    Erfcinv                12.16n ± 0%    12.17n ± 0%   +0.08% (p=0.000 n=20)
-    Exp                    28.41n ± 0%    26.44n ± 0%   -6.95% (p=0.000 n=20)
-    ExpGo                  28.68n ± 0%    27.07n ± 0%   -5.60% (p=0.000 n=20)
-    Expm1                  17.21n ± 0%    16.75n ± 0%   -2.67% (p=0.000 n=20)
-    Exp2                   24.71n ± 0%    23.01n ± 0%   -6.88% (p=0.000 n=20)
-    Exp2Go                 25.17n ± 0%    23.91n ± 0%   -4.99% (p=0.000 n=20)
-    Abs                   0.8004n ± 0%   0.8004n ± 0%        ~ (p=0.224 n=20)
-    Dim                    1.201n ± 0%    1.201n ± 0%        ~ (p=1.000 n=20) ¹
-    Floor                  2.848n ± 0%    2.859n ± 0%   +0.39% (p=0.000 n=20)
-    Max                    3.074n ± 0%    3.071n ± 0%        ~ (p=0.481 n=20)
-    Min                    3.179n ± 0%    3.176n ± 0%   -0.09% (p=0.003 n=20)
-    Mod                    49.62n ± 0%    44.82n ± 0%   -9.67% (p=0.000 n=20)
-    Frexp                  7.604n ± 0%    6.803n ± 0%  -10.53% (p=0.000 n=20)
-    Gamma                  18.01n ± 0%    17.61n ± 0%   -2.22% (p=0.000 n=20)
-    Hypot                  7.204n ± 0%    7.604n ± 0%   +5.55% (p=0.000 n=20)
-    HypotGo                7.204n ± 0%    7.604n ± 0%   +5.56% (p=0.000 n=20)
-    Ilogb                  6.003n ± 0%    6.003n ± 0%        ~ (p=0.407 n=20)
-    J0                     76.43n ± 0%    76.24n ± 0%   -0.25% (p=0.000 n=20)
-    J1                     76.44n ± 0%    76.44n ± 0%        ~ (p=1.000 n=20)
-    Jn                     168.2n ± 0%    168.5n ± 0%   +0.18% (p=0.000 n=20)
-    Ldexp                  8.804n ± 0%    7.604n ± 0%  -13.63% (p=0.000 n=20)
-    Lgamma                 19.01n ± 0%    19.01n ± 0%        ~ (p=0.695 n=20)
-    Log                    19.38n ± 0%    19.12n ± 0%   -1.34% (p=0.000 n=20)
-    Logb                   6.003n ± 0%    6.003n ± 0%        ~ (p=1.000 n=20)
-    Log1p                  18.57n ± 0%    16.72n ± 0%   -9.96% (p=0.000 n=20)
-    Log10                  20.67n ± 0%    20.45n ± 0%   -1.06% (p=0.000 n=20)
-    Log2                   9.605n ± 0%    8.804n ± 0%   -8.34% (p=0.000 n=20)
-    Modf                   4.402n ± 0%    4.402n ± 0%        ~ (p=1.000 n=20)
-    Nextafter32            7.204n ± 0%    5.603n ± 0%  -22.22% (p=0.000 n=20)
-    Nextafter64            6.803n ± 0%    6.003n ± 0%  -11.76% (p=0.000 n=20)
-    PowInt                 39.62n ± 0%    37.22n ± 0%   -6.06% (p=0.000 n=20)
-    PowFrac                120.9n ± 0%    108.9n ± 0%   -9.93% (p=0.000 n=20)
-    Pow10Pos               1.601n ± 0%    1.601n ± 0%        ~ (p=0.487 n=20)
-    Pow10Neg               2.675n ± 0%    2.675n ± 0%        ~ (p=1.000 n=20)
-    Round                  3.018n ± 0%    2.401n ± 0%  -20.46% (p=0.000 n=20)
-    RoundToEven            3.822n ± 0%    3.001n ± 0%  -21.48% (p=0.000 n=20)
-    Remainder              45.62n ± 0%    42.42n ± 0%   -7.01% (p=0.000 n=20)
-    Signbit               0.9075n ± 0%   0.8004n ± 0%  -11.81% (p=0.000 n=20)
-    Sin                    12.65n ± 0%    12.65n ± 0%        ~ (p=0.503 n=20)
-    Sincos                 14.81n ± 0%    14.60n ± 0%   -1.42% (p=0.000 n=20)
-    Sinh                   36.75n ± 0%    35.11n ± 0%   -4.46% (p=0.000 n=20)
-    SqrtIndirect           1.201n ± 0%    1.201n ± 0%        ~ (p=1.000 n=20) ¹
-    SqrtLatency            4.002n ± 0%    4.002n ± 0%        ~ (p=1.000 n=20)
-    SqrtIndirectLatency    4.002n ± 0%    4.002n ± 0%        ~ (p=1.000 n=20)
-    SqrtGoLatency          52.85n ± 0%    40.82n ± 0%  -22.76% (p=0.000 n=20)
-    SqrtPrime              887.4n ± 0%    887.4n ± 0%        ~ (p=0.751 n=20)
-    Tan                    13.95n ± 0%    13.97n ± 0%   +0.18% (p=0.000 n=20)
-    Tanh                   36.79n ± 0%    34.89n ± 0%   -5.16% (p=0.000 n=20)
-    Trunc                  2.849n ± 0%    2.861n ± 0%   +0.42% (p=0.000 n=20)
-    Y0                     77.44n ± 0%    77.64n ± 0%   +0.26% (p=0.000 n=20)
-    Y1                     74.41n ± 0%    74.33n ± 0%   -0.11% (p=0.000 n=20)
-    Yn                     158.7n ± 0%    159.0n ± 0%   +0.19% (p=0.000 n=20)
-    Float64bits           0.8774n ± 0%   0.4002n ± 0%  -54.39% (p=0.000 n=20)
-    Float64frombits       0.8042n ± 0%   0.4002n ± 0%  -50.24% (p=0.000 n=20)
-    Float32bits           1.1230n ± 0%   0.5336n ± 0%  -52.48% (p=0.000 n=20)
-    Float32frombits       1.0670n ± 0%   0.8004n ± 0%  -24.99% (p=0.000 n=20)
-    FMA                    2.001n ± 0%    2.001n ± 0%        ~ (p=0.605 n=20)
-    geomean                10.87n         10.10n        -7.15%
-    ¹ all samples are equal
+    This CL fixes that issue by also detecting volume names without path
+    separator.
     
-    goos: linux
-    goarch: loong64
-    pkg: math
-    cpu: Loongson-3A5000 @ 2500.00MHz
-                        │  bench.old   │              bench.new               │
-                        │    sec/op    │    sec/op     vs base                │
-    Acos                   33.10n ± 0%    31.95n ± 2%   -3.46% (p=0.000 n=20)
-    Acosh                  58.38n ± 0%    50.44n ± 0%  -13.60% (p=0.000 n=20)
-    Asin                   32.70n ± 0%    31.94n ± 0%   -2.32% (p=0.000 n=20)
-    Asinh                  57.65n ± 0%    50.83n ± 0%  -11.82% (p=0.000 n=20)
-    Atan                   14.21n ± 0%    14.21n ± 0%        ~ (p=0.501 n=20)
-    Atanh                  60.86n ± 0%    54.44n ± 0%  -10.56% (p=0.000 n=20)
-    Atan2                  32.02n ± 0%    34.02n ± 0%   +6.25% (p=0.000 n=20)
-    Cbrt                   55.58n ± 0%    40.64n ± 0%  -26.88% (p=0.000 n=20)
-    Ceil                   9.566n ± 0%    9.566n ± 0%        ~ (p=0.463 n=20)
-    Copysign              0.8005n ± 0%   0.8005n ± 0%        ~ (p=0.806 n=20)
-    Cos                    18.02n ± 0%    18.02n ± 0%        ~ (p=0.191 n=20)
-    Cosh                   64.44n ± 0%    65.64n ± 0%   +1.86% (p=0.000 n=20)
-    Erf                    16.15n ± 0%    16.16n ± 0%        ~ (p=0.770 n=20)
-    Erfc                   18.71n ± 0%    18.83n ± 0%   +0.61% (p=0.000 n=20)
-    Erfinv                 19.33n ± 0%    19.34n ± 0%        ~ (p=0.513 n=20)
-    Erfcinv                18.90n ± 0%    19.78n ± 0%   +4.63% (p=0.000 n=20)
-    Exp                    50.04n ± 0%    49.66n ± 0%   -0.75% (p=0.000 n=20)
-    ExpGo                  50.03n ± 0%    50.03n ± 0%        ~ (p=0.723 n=20)
-    Expm1                  28.41n ± 0%    28.27n ± 0%   -0.49% (p=0.000 n=20)
-    Exp2                   50.08n ± 0%    51.23n ± 0%   +2.31% (p=0.000 n=20)
-    Exp2Go                 49.77n ± 0%    49.89n ± 0%   +0.24% (p=0.000 n=20)
-    Abs                   0.8009n ± 0%   0.8006n ± 0%        ~ (p=0.317 n=20)
-    Dim                    1.987n ± 0%    1.993n ± 0%   +0.28% (p=0.001 n=20)
-    Floor                  8.543n ± 0%    8.548n ± 0%        ~ (p=0.509 n=20)
-    Max                    6.670n ± 0%    6.672n ± 0%        ~ (p=0.335 n=20)
-    Min                    6.694n ± 0%    6.694n ± 0%        ~ (p=0.459 n=20)
-    Mod                    56.44n ± 0%    53.23n ± 0%   -5.70% (p=0.000 n=20)
-    Frexp                  8.409n ± 0%    7.606n ± 0%   -9.55% (p=0.000 n=20)
-    Gamma                  35.64n ± 0%    35.23n ± 0%   -1.15% (p=0.000 n=20)
-    Hypot                  11.21n ± 0%    10.61n ± 0%   -5.31% (p=0.000 n=20)
-    HypotGo                11.50n ± 0%    11.01n ± 0%   -4.30% (p=0.000 n=20)
-    Ilogb                  7.606n ± 0%    6.804n ± 0%  -10.54% (p=0.000 n=20)
-    J0                     125.3n ± 0%    126.5n ± 0%   +0.96% (p=0.000 n=20)
-    J1                     124.9n ± 0%    125.3n ± 0%   +0.32% (p=0.000 n=20)
-    Jn                     264.3n ± 0%    265.9n ± 0%   +0.61% (p=0.000 n=20)
-    Ldexp                  9.606n ± 0%    9.204n ± 0%   -4.19% (p=0.000 n=20)
-    Lgamma                 38.82n ± 0%    38.85n ± 0%   +0.06% (p=0.019 n=20)
-    Log                    38.44n ± 0%    28.04n ± 0%  -27.06% (p=0.000 n=20)
-    Logb                   8.405n ± 0%    7.605n ± 0%   -9.52% (p=0.000 n=20)
-    Log1p                  31.62n ± 0%    27.11n ± 0%  -14.26% (p=0.000 n=20)
-    Log10                  38.83n ± 0%    28.42n ± 0%  -26.81% (p=0.000 n=20)
-    Log2                   11.21n ± 0%    10.41n ± 0%   -7.14% (p=0.000 n=20)
-    Modf                   5.204n ± 0%    5.205n ± 0%        ~ (p=0.983 n=20)
-    Nextafter32            8.809n ± 0%    7.208n ± 0%  -18.18% (p=0.000 n=20)
-    Nextafter64            8.405n ± 0%    8.406n ± 0%   +0.01% (p=0.007 n=20)
-    PowInt                 48.83n ± 0%    44.78n ± 0%   -8.28% (p=0.000 n=20)
-    PowFrac                146.9n ± 0%    142.1n ± 0%   -3.23% (p=0.000 n=20)
-    Pow10Pos               2.334n ± 0%    2.333n ± 0%        ~ (p=0.110 n=20)
-    Pow10Neg               4.803n ± 0%    4.803n ± 0%        ~ (p=0.130 n=20)
-    Round                  4.816n ± 0%    3.819n ± 0%  -20.70% (p=0.000 n=20)
-    RoundToEven            5.735n ± 0%    5.204n ± 0%   -9.26% (p=0.000 n=20)
-    Remainder              52.05n ± 0%    49.64n ± 0%   -4.63% (p=0.000 n=20)
-    Signbit                1.201n ± 0%    1.001n ± 0%  -16.65% (p=0.000 n=20)
-    Sin                    20.63n ± 0%    20.64n ± 0%   +0.05% (p=0.040 n=20)
-    Sincos                 23.82n ± 0%    24.62n ± 0%   +3.36% (p=0.000 n=20)
-    Sinh                   71.25n ± 0%    68.44n ± 0%   -3.94% (p=0.000 n=20)
-    SqrtIndirect           2.001n ± 0%    2.001n ± 0%        ~ (p=0.182 n=20)
-    SqrtLatency            4.003n ± 0%    4.003n ± 0%        ~ (p=0.754 n=20)
-    SqrtIndirectLatency    4.003n ± 0%    4.003n ± 0%        ~ (p=0.773 n=20)
-    SqrtGoLatency          60.84n ± 0%    81.26n ± 0%  +33.56% (p=0.000 n=20)
-    SqrtPrime              1.791µ ± 0%    1.791µ ± 0%        ~ (p=0.784 n=20)
-    Tan                    27.22n ± 0%    27.22n ± 0%        ~ (p=0.819 n=20)
-    Tanh                   70.88n ± 0%    69.04n ± 0%   -2.60% (p=0.000 n=20)
-    Trunc                  8.543n ± 0%    8.543n ± 0%        ~ (p=0.784 n=20)
-    Y0                     122.9n ± 0%    122.9n ± 0%        ~ (p=0.559 n=20)
-    Y1                     123.3n ± 0%    121.7n ± 0%   -1.30% (p=0.000 n=20)
-    Yn                     263.0n ± 0%    262.6n ± 0%   -0.15% (p=0.000 n=20)
-    Float64bits           1.2010n ± 0%   0.6004n ± 0%  -50.01% (p=0.000 n=20)
-    Float64frombits       1.2010n ± 0%   0.6004n ± 0%  -50.01% (p=0.000 n=20)
-    Float32bits           1.7010n ± 0%   0.8005n ± 0%  -52.94% (p=0.000 n=20)
-    Float32frombits       1.5010n ± 0%   0.8005n ± 0%  -46.67% (p=0.000 n=20)
-    FMA                    2.001n ± 0%    2.001n ± 0%        ~ (p=0.238 n=20)
-    geomean                17.41n         16.15n        -7.19%
+    Updates #22230
+    Fixes #39785
     
-    Change-Id: I0a0c263af2f07203eab1782e69c706f20c689d8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604737
-    Auto-Submit: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Change-Id: I813fdc0b968ce71a4297f69245b935558e6cd789
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517015
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/loong64/ssa.go         |   4 +
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  13 +++
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   8 ++
- src/cmd/compile/internal/ssa/opGen.go           |  56 ++++++++++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 139 ++++++++++++++++++++++++
- test/codegen/math.go                            |   4 +
- 6 files changed, 224 insertions(+)
+ src/internal/syscall/windows/syscall_windows.go  |  1 +
+ src/internal/syscall/windows/zsyscall_windows.go | 89 +++++++++++++-----------
+ src/os/path.go                                   | 24 ++++---
+ src/os/path_plan9.go                             |  4 +-
+ src/os/path_unix.go                              |  4 +-
+ src/os/path_windows.go                           | 11 ---
+ src/os/path_windows_test.go                      | 49 +++++++++++++
+ 7 files changed, 118 insertions(+), 64 deletions(-)

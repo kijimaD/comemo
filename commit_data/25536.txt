@@ -1,22 +1,14 @@
-commit c02aa463db0c5867a4ae1adfc2f98c436cb751b0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 8 16:56:02 2016 -0800
+commit 5e1d0fcbed3060b00c33e48ae6fdbaa92965c287
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 8 15:21:58 2015 +1200
 
-    runtime: fix arm/arm64/ppc64/mips64 to dropm when necessary
+    cmd/internal/obj, cmd/link: handle the fact that a few store/loads on ppc64 are DS form
     
-    Fixes #13881.
-    
-    Change-Id: Idff77db381640184ddd2b65022133bb226168800
-    Reviewed-on: https://go-review.googlesource.com/18449
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4fe1af48ec1cd8a23e2f7f2a0257dc989ff7aced
+    Reviewed-on: https://go-review.googlesource.com/14235
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_arm.s                          | 10 +++--
- src/runtime/asm_arm64.s                        | 10 +++--
- src/runtime/asm_mips64x.s                      | 10 +++--
- src/runtime/asm_ppc64x.s                       | 10 +++--
- src/runtime/crash_cgo_test.go                  |  9 ++++
- src/runtime/proc.go                            |  5 +++
- src/runtime/testdata/testprogcgo/dropm.go      | 57 ++++++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/dropm_stub.go | 11 +++++
- 8 files changed, 110 insertions(+), 12 deletions(-)
+ src/cmd/internal/obj/link.go       | 12 +++++
+ src/cmd/internal/obj/ppc64/asm9.go | 66 ++++++++++++++++++++-------
+ src/cmd/link/internal/ppc64/asm.go | 91 +++++++++++++++++++++-----------------
+ 3 files changed, 113 insertions(+), 56 deletions(-)

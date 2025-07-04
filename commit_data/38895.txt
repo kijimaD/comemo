@@ -1,25 +1,22 @@
-commit 5fa14a31b0b4bd95cf10a1394d2322db110b25b4
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 23 16:51:28 2019 -0400
+commit 9e0ec5ef5945696e90d7749d3569471c6f8b68c5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 5 17:08:27 2018 -0800
 
-    cmd/go/internal/web: minor api cleanup
+    go/types: better error messages for field lookup errors
     
-    - rename PasswordRedacted to Redacted
-    - move URL into Response in redacted form, remove from Get result list
-    - add Response.Err to construct non-200 errors
-      (otherwise GetBytes is not just a wrapper)
-    - make 404/410 errors satisfy Is(err, os.ErrNotExist)
+    - follow wording of cmd/compile more closely
+    - only print base of a package path to avoid overly long error messages
     
-    Change-Id: Id15899c1e3dfd30cffb1a75ba79a9a1999913258
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173717
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #26234.
+    
+    Change-Id: I47a8c64b3adcf73980cd296a24cf8ac721e5df06
+    Reviewed-on: https://go-review.googlesource.com/c/152764
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/internal/get/vcs.go        | 17 +++++-----
- src/cmd/go/internal/modfetch/proxy.go |  8 ++---
- src/cmd/go/internal/web/api.go        | 64 ++++++++++++++++++++++-------------
- src/cmd/go/internal/web/bootstrap.go  |  4 +--
- src/cmd/go/internal/web/http.go       | 20 ++++++-----
- 5 files changed, 66 insertions(+), 47 deletions(-)
+ src/go/types/call.go             | 11 +++++++----
+ src/go/types/errors.go           |  3 ++-
+ src/go/types/testdata/issues.src | 27 ++++++++++++++++++++++++++-
+ 3 files changed, 35 insertions(+), 6 deletions(-)

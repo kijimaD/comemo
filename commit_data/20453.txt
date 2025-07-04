@@ -1,15 +1,13 @@
-commit 72a2539c38d06be486b180310d5703700f9f1f5f
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Sep 17 05:44:42 2014 +0000
+commit 1d88f9dd4ddc99c557593007ac4118492d559d05
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 8 15:42:48 2014 -0700
 
-    sync: fix linux/arm build
+    runtime: note the double-releasem isn't an error.
     
-    For real this time.
-    
-    LGTM=minux
-    R=golang-codereviews, minux
+    LGTM=bradfitz
+    R=dave, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/141640043
+    https://golang.org/cl/136390043
 
- src/sync/atomic/export_linux_arm_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/runtime/malloc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

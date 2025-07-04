@@ -1,23 +1,21 @@
-commit aab849e4297d60918602355a0335cc7b3ca4c5f2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 3 22:33:49 2016 -0400
+commit aa6345d3c91167f1e81bff9e8655e7aaac7762bd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 21 15:17:56 2016 -0700
 
-    math: use portable Exp instead of 387 instructions on 386
+    testing: document that logs are dumped to standard output
     
-    The 387 implementation is less accurate and slower.
+    Since at least 1.0.3, the testing package has said that logs are dumped
+    to standard error, but has in fact dumped the logs to standard output.
+    We could change to dump to standard error, but after doing it this way
+    for so long I think it's better to change the docs.
     
-    name     old time/op  new time/op  delta
-    Exp-8    29.7ns ± 2%  24.0ns ± 2%  -19.08%  (p=0.000 n=10+10)
+    Fixes #16138.
     
-    This makes Gamma more accurate too.
-    
-    Change-Id: Iad33b9cce0b087ccbce3e08ba7a6d285c4999d02
-    Reviewed-on: https://go-review.googlesource.com/30230
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: If39c7ce91f51c7113f33ebabfb8f84fd4611b9e1
+    Reviewed-on: https://go-review.googlesource.com/24311
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/math/all_test.go |  2 +-
- src/math/exp_386.s   | 36 +++---------------------------------
- 2 files changed, 4 insertions(+), 34 deletions(-)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

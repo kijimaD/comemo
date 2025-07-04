@@ -1,23 +1,12 @@
-commit e74dcbeb0f3615fa7bf5732495764c324c5e42e4
+commit 37e802a7c5e3c91cc572badb99f6f15f9c30b24c
 Author: Adam Langley <agl@golang.org>
-Date:   Fri Oct 14 15:06:54 2011 -0400
+Date:   Fri Oct 14 15:06:11 2011 -0400
 
-    crypto/x509: keep the raw Subject and Issuer.
-    
-    X509 names, like everything else X509, are ludicrously general. This
-    change keeps the raw version of the subject and issuer around for
-    matching. Since certificates use a distinguished encoding, comparing
-    the encoding is the same as comparing the values directly. This came
-    up recently when parsing the NSS built-in certificates which use the
-    raw subject and issuer for matching trust records to certificates.
+    asn1: accept UTF8 strings as ASN.1 ANY values
     
     R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5275047
+    https://golang.org/cl/5172042
 
- src/pkg/asn1/marshal.go            | 12 ++++++++----
- src/pkg/crypto/x509/cert_pool.go   | 10 ++--------
- src/pkg/crypto/x509/pkix/pkix.go   |  3 +++
- src/pkg/crypto/x509/verify_test.go |  5 +++++
- src/pkg/crypto/x509/x509.go        | 35 +++++++++++++++++++++++++++++------
- 5 files changed, 47 insertions(+), 18 deletions(-)
+ src/pkg/asn1/asn1.go | 2 ++
+ 1 file changed, 2 insertions(+)

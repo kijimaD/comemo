@@ -1,13 +1,15 @@
-commit 5962ef2c008e10b21ad73a7bdc08713225f90297
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Dec 23 13:23:07 2011 +1100
+commit 0f14ebf99350fd8e87653129c5e1337cb8de3957
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Dec 23 13:21:25 2011 +1100
 
-    path/filepath: implement Base and Dir for windows
+    dashboard: Don't highlight first heading row.
     
-    R=golang-dev, r
+    The two heading rows were previously a little hard to pick out,
+    because they were alternately shaded like the commit rows.
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5501069
+    https://golang.org/cl/5500074
 
- src/pkg/path/filepath/path.go      | 12 +++++++---
- src/pkg/path/filepath/path_test.go | 48 ++++++++++++++++++++++++++++++++++----
- 2 files changed, 53 insertions(+), 7 deletions(-)
+ misc/dashboard/app/build/ui.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

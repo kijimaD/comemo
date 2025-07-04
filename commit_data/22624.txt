@@ -1,24 +1,14 @@
-commit 028f9728473c6e7590ecaa7d30b0288df4a5731a
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 13 14:01:16 2015 -0400
+commit a21537ff74e8d873a9dcf55412a467769ddc3bd5
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 17:39:17 2015 +0300
 
-    runtime: make gcDrainN in terms of scan work
+    test: add tests for escape analysis when assigning to indirections
     
-    Currently, the "n" in gcDrainN is in terms of objects to scan. This is
-    used by gchelpwork to perform a limited amount of work on allocation,
-    but is a pretty arbitrary way to bound this amount of work since the
-    number of objects has little relation to how long they take to scan.
+    False positives (var incorrectly escapes) are marked with BAD.
     
-    Modify gcDrainN to perform a fixed amount of scan work instead. For
-    now, gchelpwork still performs a fairly arbitrary amount of scan work,
-    but at least this is much more closely related to how long the work
-    will take. Shortly, we'll use this to precisely control the scan work
-    performed by mutator assists during allocation to achieve the heap
-    size goal.
-    
-    Change-Id: I3cd07fe0516304298a0af188d0ccdf621d4651cc
-    Reviewed-on: https://go-review.googlesource.com/8835
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I0114d87ee467fe1e3b27642f8c5a04d4a9664211
+    Reviewed-on: https://go-review.googlesource.com/5295
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgcmark.go | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ test/escape_indir.go | 153 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 153 insertions(+)

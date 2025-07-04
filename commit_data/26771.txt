@@ -1,12 +1,21 @@
-commit 438ce713a1c8e4d24aea547b6fcf907b5dbf0bec
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 6 23:34:32 2016 -0700
+commit 98130b39f50f51ac966201461b96a20f923c7d64
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 9 18:37:41 2016 -0500
 
-    cmd/link/internal/amd64: remove empty source file
+    runtime: remove noescape hacks from gcWork
     
-    Change-Id: I2da012ed996c669db513a462f014c6f3ffa396ee
-    Reviewed-on: https://go-review.googlesource.com/21646
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    When gcWork was first introduced, the compiler's escape analysis
+    wasn't good enough to detect that that method receiver didn't escape,
+    so we had to hack around this.
+    
+    Now that the compiler can figure out this for itself, remove these
+    hacks.
+    
+    Change-Id: I9f73fab721e272410b8b6905b564e7abc03c0dfe
+    Reviewed-on: https://go-review.googlesource.com/19634
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/amd64/z.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/mgcwork.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

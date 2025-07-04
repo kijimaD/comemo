@@ -1,23 +1,30 @@
-commit 8108444eaa7ee45a74b2f2da6d21dd1d2b0c0352
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Dec 14 12:48:31 2021 -0500
+commit 51a47b7ff2934b6c28ece51f6a37dc30bd37a02d
+Author: Julie Qiu <julie@golang.org>
+Date:   Wed Mar 24 16:24:38 2021 -0400
 
-    go/types: record types for union subexpressions
+    cmd/go: display helpful error when module cache can't be created
     
-    Prior to unions, unary and binary expressions always had a recorded
-    type. Preserve this by recording a type for all unary and binary
-    expressions encountered while parsing a union type.
+    Previously when the module cache specified by GOMODCACHE could not be
+    created an unhelpful message would be printed multiple times.
     
-    Updates #50093
+    This happened because we were fetching several things in parallel then
+    failing to write them because we can't create the module cache.
     
-    Change-Id: I5ba20f37854760596350d91ea325dc98e67e115a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371757
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    We now check if the module cache can be created before fetching.
+    
+    If not, the following message is printed:
+    
+    go: could not create module cache
+    
+    Fixes #45113
+    
+    Change-Id: Ic9cec787411335edc7f4d0614fde7eaa8a957fb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304571
+    Trust: Julie Qiu <julie@golang.org>
+    Run-TryBot: Julie Qiu <julie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/types/api.go      |  6 ------
- src/go/types/api_test.go | 13 ++++++++++++
- src/go/types/union.go    | 55 +++++++++++++++++++++++++++++++++---------------
- 3 files changed, 51 insertions(+), 23 deletions(-)
+ src/cmd/go/internal/modfetch/cache.go         | 34 +++++++++++++++++++++++++--
+ src/cmd/go/testdata/script/mod_gomodcache.txt |  7 ++++++
+ 2 files changed, 39 insertions(+), 2 deletions(-)

@@ -1,26 +1,12 @@
-commit 092f34feca489bb6b873281b7484522eb574fe9d
-Author: Eivind Uggedal <eivind@uggedal.com>
-Date:   Fri May 13 08:17:59 2011 -0700
+commit 404d49154bc61c159ae4306940cefa63233c61c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 13 11:17:06 2011 -0400
 
-    http: make HEAD client request follow redirects
+    codereview: handle 'null as missing field' in rietveld json
     
-    HEAD requests should in my opinion have the ability to follow redirects
-    like the implementation of GET requests does. My use case is polling
-    several thousand severs to check if they respond with 200 status codes.
-    Using GET requests is neither efficient in running time of the task nor
-    for bandwidth consumption.
-    
-    This suggested patch changes the return signature of http.Head() to match
-    that of http.Get(), providing the final URL in a redirect chain.
-    
-    `curl -IL http://google.com` follows redirects with HEAD requests just fine.
-    
-    Fixes #1806.
-    
-    R=golang-dev, bradfitz, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4517058
+    https://golang.org/cl/4543046
 
- src/pkg/http/client.go      | 33 +++++++++++++++++++++++----------
- src/pkg/http/client_test.go |  6 ++++++
- 2 files changed, 29 insertions(+), 10 deletions(-)
+ lib/codereview/codereview.py | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

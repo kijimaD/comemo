@@ -1,17 +1,18 @@
-commit 05e8db985aa1d8959d9ca1fedb148470fdcf0bb0
-Author: Rob Pike <r@golang.org>
-Date:   Mon Apr 22 16:28:42 2013 -0700
+commit 8c72b8113263977b3882f551d26ee4e31ce8bd4a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 23 04:42:04 2013 +0800
 
-    lib/time: update to IANA 2013c
-    This should do it for the release.
-    There was a new data set pushed out a couple of days ago.
+    misc/cgo/testso: enable test on windows
+    Depends on CL 8715043 and CL 8676050.
+    Fixes #5273.
     
-    Fixes #4553.
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/8621044
+    R=alex.brainman, r
+    CC=gobot, golang-dev
+    https://golang.org/cl/8764043
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 374065 -> 374530 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testso/cgoso.c   | 14 ++++++++++++++
+ misc/cgo/testso/cgoso.go  |  2 ++
+ misc/cgo/testso/cgoso_c.c | 16 +++++++++++++++-
+ misc/cgo/testso/test.bat  | 18 ++++++++++++++++++
+ src/run.bat               |  8 ++++++++
+ 5 files changed, 57 insertions(+), 1 deletion(-)

@@ -1,19 +1,33 @@
-commit 38ee0c7630e999f97d96899ecf4e8d0230236cd6
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Mon Mar 18 19:33:36 2024 +0000
+commit c746059a86348b03b09d6452de5bb1a4e58612dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 3 12:16:40 2023 -0700
 
-    cmd/go: import vendored packages only listed in modules.txt
+    go/types, types2: rename allowVersionf to verifyVersionf
     
-    Fixes: #60922
+    Follow-up on comment in CL 491715.
     
-    Change-Id: I4a18267596441b97c6a701a2befd75ee10644d7d
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572200
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie6a71859e791434b7ab53c5524f35718a3567ecb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492236
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/go/internal/gover/version.go             |  4 ++
- src/cmd/go/internal/modload/import.go            | 28 ++++++++-----
- src/cmd/go/testdata/script/mod_import_vendor.txt | 50 ++++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_vendor_auto.txt   |  3 ++
- 4 files changed, 75 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go | 12 ++++++------
+ src/cmd/compile/internal/types2/call.go     |  6 +++---
+ src/cmd/compile/internal/types2/decl.go     |  4 ++--
+ src/cmd/compile/internal/types2/expr.go     |  2 +-
+ src/cmd/compile/internal/types2/resolver.go |  4 ++--
+ src/cmd/compile/internal/types2/typeset.go  |  6 +++---
+ src/cmd/compile/internal/types2/typexpr.go  |  4 ++--
+ src/cmd/compile/internal/types2/version.go  |  4 ++--
+ src/go/types/builtins.go                    | 12 ++++++------
+ src/go/types/call.go                        |  6 +++---
+ src/go/types/decl.go                        |  4 ++--
+ src/go/types/expr.go                        |  2 +-
+ src/go/types/resolver.go                    |  4 ++--
+ src/go/types/typeset.go                     |  6 +++---
+ src/go/types/typexpr.go                     |  4 ++--
+ src/go/types/version.go                     |  4 ++--
+ 16 files changed, 42 insertions(+), 42 deletions(-)

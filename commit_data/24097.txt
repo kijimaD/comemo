@@ -1,20 +1,16 @@
-commit 8261c887aaf997655b95591c17b1068bb627dc9d
-Author: Alexander Morozov <lk4d4math@gmail.com>
-Date:   Wed Aug 26 20:45:28 2015 -0700
+commit 2e6ed613dc023d7c9e5cdfd6b3877069918bcae3
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 9 15:06:15 2015 +1000
 
-    syscall: don't call Setgroups if Credential.Groups is empty
+    doc: R13 is stack pointer on ARM, not 386
     
-    Setgroups with zero-length groups is no-op for changing groups and
-    supposed to be used only for determining curent groups length. Also
-    because we deny setgroups by default if use GidMappings we have
-    unnecessary error from that no-op syscall.
+    Fix typo.
     
-    Change-Id: I8f74fbca9190a3dcbbef1d886c518e01fa05eb62
-    Reviewed-on: https://go-review.googlesource.com/13938
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    TBR=rsc
+    
+    Change-Id: I85d1b46744a9a4524e7949e452cdebb53afe0740
+    Reviewed-on: https://go-review.googlesource.com/11959
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/exec_linux.go      | 11 +++++------
- src/syscall/exec_linux_test.go |  8 ++++++++
- 2 files changed, 13 insertions(+), 6 deletions(-)
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

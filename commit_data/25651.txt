@@ -1,18 +1,14 @@
-commit 071fcd1ae919775149d43a01379dc8874cbe3d73
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 20 19:00:32 2016 +0000
+commit 85ca578d4a71ef8d56bc828a38f42482ff264028
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Nov 12 15:27:51 2015 -0500
 
-    net/http/httputil: clarify docs on the Dump functions
+    os: add document for ErrInvalid
     
-    Also don't nil out the Request or Response Body on error. Just leave
-    it in its previous broken state. The docs now say it's undefined, but
-    it always was.
+    Fixes #12391.
     
-    Fixes #14036
-    
-    Change-Id: I7fe175a36cbc01b4158f4dffacd8733b2ffa9999
-    Reviewed-on: https://go-review.googlesource.com/18726
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I31211cd711c035151785c3083571594d15c7d93e
+    Reviewed-on: https://go-review.googlesource.com/16873
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/http/httputil/dump.go | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+ src/os/error.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

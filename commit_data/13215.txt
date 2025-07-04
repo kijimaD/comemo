@@ -1,19 +1,15 @@
-commit deb93b0f7b646faabc7b4c5db49d7a586a17247e
+commit 586b6dfa465d83ea86d2f725b2c4416f9d32c917
 Author: Joel Sing <jsing@google.com>
-Date:   Thu May 31 03:27:04 2012 +1000
+Date:   Thu May 31 03:06:38 2012 +1000
 
-    runtime: always initialise procid on netbsd
+    cmd/ld: increase number of ELF sections
     
-    The correct procid is needed for unparking LWPs on NetBSD - always
-    initialise procid in minit() so that cgo works correctly. The non-cgo
-    case already works correctly since procid is initialised via
-    lwp_create().
+    On NetBSD a cgo enabled binary has more than 32 sections - bump NSECTS
+    so that we can actually link them successfully.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6257071
+    https://golang.org/cl/6261052
 
- src/pkg/runtime/sys_netbsd_386.s   | 5 +++++
- src/pkg/runtime/sys_netbsd_amd64.s | 5 +++++
- src/pkg/runtime/thread_netbsd.c    | 6 +++---
- 3 files changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/ld/elf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

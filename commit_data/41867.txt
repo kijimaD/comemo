@@ -1,19 +1,18 @@
-commit 4874835232322713f23d2f10c083ae6fa893868b
-Author: BurtonQin <bobbqqin@gmail.com>
-Date:   Wed Apr 8 16:03:18 2020 +0000
+commit 07b72d91894a14c3bded9ba985d337705ccc71bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 29 10:37:05 2019 -0700
 
-    net/textproto, sync: unlock mutexes appropriately before panics
+    go/parser: use valid position when reporting an error (copy-paste bug)
     
-    Ensure mutexes are unlocked right before panics, where defers aren’t easily usable.
+    This is a follow-up on https://golang.org/cl/202581.
     
-    Change-Id: I67c9870e7a626f590a8de8df6c8341c5483918dc
-    GitHub-Last-Rev: bb8ffe538b3956892b55884fd64eadfce326f7b0
-    GitHub-Pull-Request: golang/go#37143
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218717
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #33649.
+    
+    Change-Id: Ib078fed983792c5493bdbed6d33e21b86856894a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204041
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    Reviewed-by: Rebecca Stambler <rstambler@golang.org>
 
- src/net/textproto/pipeline.go | 1 +
- src/sync/rwmutex_test.go      | 2 ++
- 2 files changed, 3 insertions(+)
+ src/go/parser/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

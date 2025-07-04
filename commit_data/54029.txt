@@ -1,64 +1,17 @@
-commit 3fd676208a990577ba76e5d27ed4dcad74ff56d4
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 11 11:24:07 2023 -0400
+commit a84f46a28a1a9ffc0183fed394b6969c10fad502
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Sep 16 10:28:42 2022 -0700
 
-    cmd/go: remove conversion of legacy pre-module dependency configs
+    net/http/httputil: remove duplicated code block
     
-    This kind of worked, kind of didn't, but by now no one is running into
-    those configs anymore during "go mod init", the code is complex,
-    and the tests are slow. Not worth the trouble of maintaining anymore.
+    Remove a harmless but redundant section of code introduced
+    in CL 407214.
     
-    Change-Id: I02d4188d531c68334d17b2462bafec4c5dd49777
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518776
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Id6522e6ff13a283d726b3b97dfc72f101884f733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/go/internal/modconv/convert.go             |  105 --
- src/cmd/go/internal/modconv/dep.go                 |  132 --
- src/cmd/go/internal/modconv/glide.go               |   41 -
- src/cmd/go/internal/modconv/glock.go               |   23 -
- src/cmd/go/internal/modconv/godeps.go              |   30 -
- src/cmd/go/internal/modconv/modconv.go             |   19 -
- src/cmd/go/internal/modconv/modconv_test.go        |   69 -
- .../go/internal/modconv/testdata/cockroach.glock   |   41 -
- src/cmd/go/internal/modconv/testdata/cockroach.out |   31 -
- .../internal/modconv/testdata/dockermachine.godeps |  159 --
- .../go/internal/modconv/testdata/dockermachine.out |   33 -
- .../go/internal/modconv/testdata/dockerman.glide   |   52 -
- src/cmd/go/internal/modconv/testdata/dockerman.out |   16 -
- src/cmd/go/internal/modconv/testdata/govmomi.out   |    5 -
- .../go/internal/modconv/testdata/govmomi.vmanifest |   46 -
- src/cmd/go/internal/modconv/testdata/juju.out      |  106 --
- src/cmd/go/internal/modconv/testdata/juju.tsv      |  106 --
- src/cmd/go/internal/modconv/testdata/moby.out      |  105 --
- src/cmd/go/internal/modconv/testdata/moby.vconf    |  149 --
- .../go/internal/modconv/testdata/panicparse.out    |    8 -
- .../go/internal/modconv/testdata/panicparse.vyml   |   17 -
- .../go/internal/modconv/testdata/prometheus.out    |  258 ----
- .../go/internal/modconv/testdata/prometheus.vjson  | 1605 --------------------
- src/cmd/go/internal/modconv/testdata/traefik.dep   |   79 -
- src/cmd/go/internal/modconv/testdata/traefik.out   |   14 -
- src/cmd/go/internal/modconv/testdata/upspin.dep    |   57 -
- src/cmd/go/internal/modconv/testdata/upspin.out    |    8 -
- src/cmd/go/internal/modconv/tsv.go                 |   23 -
- src/cmd/go/internal/modconv/vconf.go               |   26 -
- src/cmd/go/internal/modconv/vjson.go               |   29 -
- src/cmd/go/internal/modconv/vmanifest.go           |   29 -
- src/cmd/go/internal/modconv/vyml.go                |   41 -
- src/cmd/go/internal/modload/init.go                |   52 +-
- src/cmd/go/testdata/script/mod_convert.txt         |   70 -
- src/cmd/go/testdata/script/mod_convert_dep.txt     |   30 -
- src/cmd/go/testdata/script/mod_convert_glide.txt   |   18 -
- .../go/testdata/script/mod_convert_glockfile.txt   |   18 -
- src/cmd/go/testdata/script/mod_convert_godeps.txt  |   19 -
- src/cmd/go/testdata/script/mod_convert_tsv.txt     |   18 -
- .../testdata/script/mod_convert_tsv_insecure.txt   |   29 -
- .../go/testdata/script/mod_convert_vendor_conf.txt |   18 -
- .../go/testdata/script/mod_convert_vendor_json.txt |   19 -
- .../script/mod_convert_vendor_manifest.txt         |   19 -
- .../go/testdata/script/mod_convert_vendor_yml.txt  |   18 -
- src/cmd/go/testdata/script/mod_init_dep.txt        |   40 -
- src/cmd/go/testdata/script/mod_init_glide.txt      |   35 -
- 46 files changed, 1 insertion(+), 3864 deletions(-)
+ src/net/http/httputil/reverseproxy.go | 6 ------
+ 1 file changed, 6 deletions(-)

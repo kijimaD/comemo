@@ -1,23 +1,27 @@
-commit f957a7e3572435c7d7031df8c58f63ebb633ecf7
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Apr 3 23:35:44 2019 -0400
+commit fbdaa965634be842647195ee2d610dc363c760d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 20 15:55:02 2018 -0800
 
-    cmd/link: apply relocations later
+    cmd/cgo: use field alignment when setting field offset
     
-    Move the phase of applying relocations later, after the sections
-    and segments are written to the mmap'd output region. Then apply
-    relocations directly in the output region, instead of the input.
-    So the input slices we read in don't need to be modified.
+    The old code ignored the field alignment, and only looked at the field
+    offset: if the field offset required padding, cgo added padding. But
+    while that approach works for Go (at least with the gc toolchain) it
+    doesn't work for C code using packed structs. With a packed struct the
+    added padding may leave the struct at a misaligned position, and the
+    inserted alignment, which cgo is not considering, may introduce
+    additional, unexpected, padding. Padding that ignores alignment is not
+    a good idea when the struct is not packed, and Go structs are never
+    packed. So don't ignore alignment.
     
-    This is in preparation for mmap'ing input files read-only.
+    Fixes #28896
     
-    Change-Id: If9c80657b4469da36aec5a9ab6acf664f5af8fa0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170739
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ie50ea15fa6dc35557497097be9fecfecb11efd8a
+    Reviewed-on: https://go-review.googlesource.com/c/150602
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/link/internal/ld/data.go   |  2 +-
- src/cmd/link/internal/ld/main.go   |  7 ++++++-
- src/cmd/link/internal/ld/outbuf.go | 15 +++++++++++++++
- 3 files changed, 22 insertions(+), 2 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue28896.go | 83 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 18 +++++++---
+ 3 files changed, 97 insertions(+), 5 deletions(-)

@@ -1,12 +1,16 @@
-commit 832959ffcc1d99f8364e75b02d433cb72de63fc1
-Author: Andrew <andybons@golang.org>
-Date:   Tue Jun 18 13:32:04 2019 -0400
+commit 43732816be576bfa3b57e58941d7a46b46090dc3
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Dec 26 12:09:49 2018 +0530
 
-    doc/go1.13: add release notes for the testing package
+    syscall/js: add a note about a bug in TypedArray
     
-    Change-Id: I4ddbe22061579383ca47e14d0b64a74365fb3d19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182797
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Fixes #29355
+    
+    Change-Id: I4018d420c8d413b2681744af18ffb65da03ac504
+    Reviewed-on: https://go-review.googlesource.com/c/155778
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- doc/go1.13.html | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/syscall/js/typedarray.go | 5 +++++
+ 1 file changed, 5 insertions(+)

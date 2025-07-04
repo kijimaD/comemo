@@ -1,15 +1,17 @@
-commit e0213576732f5eb408d3301832a296c20176d330
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Jan 22 10:34:17 2012 -0800
+commit 87079cc14c98cb82d98f3e564fe5e89cbd7d8ff6
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jan 22 09:25:47 2012 -0800
 
-    runtime: update out-of-date comment
+    bytes: delete the test for huge buffers
+    It takes too much memory to be reliable and causes
+    trouble on 32-bit machines.
+    Sigh.
     
-    R=golang-dev, r
+    Fixes #2756.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5532118
+    https://golang.org/cl/5567043
 
- src/pkg/runtime/asm_arm.s         | 2 +-
- src/pkg/runtime/cgocall.c         | 4 ++--
- src/pkg/runtime/sys_freebsd_386.s | 2 +-
- src/pkg/runtime/thread_darwin.c   | 4 ++--
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/bytes/buffer_test.go | 21 ---------------------
+ 1 file changed, 21 deletions(-)

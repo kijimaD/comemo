@@ -1,23 +1,16 @@
-commit cae5c7fe88cfdedb517d853730a99e4e319c219f
-Author: Mark Fischer <meirfischer@gmail.com>
-Date:   Sun Apr 22 01:16:46 2018 -0400
+commit 4b837c702340d23bdf28b98f44ab18a8da33fdcb
+Author: jimmyfrasche <soapboxcicero@gmail.com>
+Date:   Sat Mar 17 18:29:05 2018 -0700
 
-    net/http: add Transport.MaxConnsPerHost knob
+    go/constant: add examples for working with constant.Value
     
-    Add field to http.Transport which limits connections per host,
-    including dial-in-progress, in-use and idle (keep-alive) connections.
+    Updates #24352.
     
-    For HTTP/2, this field only controls the number of dials in progress.
-    
-    Fixes #13957
-    
-    Change-Id: I7a5e045b4d4793c6b5b1a7191e1342cd7df78e6c
-    Reviewed-on: https://go-review.googlesource.com/71272
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie7c1de905154a483b7f7748de28e35b484cce6ea
+    Reviewed-on: https://go-review.googlesource.com/101279
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/export_test.go    |  14 ++++-
- src/net/http/transport.go      | 135 ++++++++++++++++++++++++++++++++++++++++-
- src/net/http/transport_test.go |  86 +++++++++++++++++++++++---
- 3 files changed, 220 insertions(+), 15 deletions(-)
+ src/go/constant/example_test.go | 158 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 158 insertions(+)

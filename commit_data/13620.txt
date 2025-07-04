@@ -1,12 +1,15 @@
-commit 058149f153d7ef7b777df1b3ca20edbc9f49c5c1
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 14 01:51:42 2012 +0400
+commit a9d0ff6ead470b565b832e2af29b564e9ac28e65
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Aug 11 21:06:40 2012 -0700
 
-    runtime/pprof: fix comments
+    go/parser: exit early if source file does not contain text
     
-    R=golang-dev, iant
+    Partial fix for issue 3943.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6460082
+    https://golang.org/cl/6458115
 
- src/pkg/runtime/pprof/pprof.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/go/parser/interface.go |  9 +++++++++
+ src/pkg/go/parser/parser.go    | 13 +++++++++++--
+ 2 files changed, 20 insertions(+), 2 deletions(-)

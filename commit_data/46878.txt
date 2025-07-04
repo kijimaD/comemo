@@ -1,22 +1,33 @@
-commit 40f82f8a092ac1f23eb3af86f34b7436a6fc19e0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 12 15:38:52 2021 -0700
+commit e5b08e6d5cecb646066c0cadddf6300e2a10ffb2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 9 13:46:53 2021 -0500
 
-    unsafe: optimize Slice bounds checking
+    io/fs: allow backslash in ValidPath, reject in os.DirFS.Open
     
-    This reduces the number of branches to bounds check non-empty slices
-    from 5 to 3. It does also increase the number of branches to handle
-    empty slices from 1 to 3; but for non-panicking calls, they should all
-    be predictable.
+    Rejecting backslash introduces problems with presenting
+    underlying OS file systems that contain names with backslash.
+    Rejecting backslash also does not Windows-proof the syntax,
+    because colon can also be a path separator. And we are not
+    going to reject colon from all names. So don't reject backslash
+    either.
     
-    Updates #48798.
+    There is a similar problem on Windows with names containing
+    slashes, but those are more difficult (though not impossible)
+    to create.
     
-    Change-Id: I3ffa66857096486f4dee417e1a66eb8fdf7a3777
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355490
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Also document and enforce that paths must be UTF-8.
+    
+    Fixes #44166.
+    
+    Change-Id: Iac7a9a268025c1fd31010dbaf3f51e1660c7ae2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290709
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/slice.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/io/fs/fs.go      | 23 ++++++++++++++---------
+ src/io/fs/fs_test.go |  7 ++++---
+ src/os/file.go       | 13 ++++++++++++-
+ src/os/os_test.go    | 34 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 64 insertions(+), 13 deletions(-)

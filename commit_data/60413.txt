@@ -1,0 +1,16 @@
+commit 66e940b6f80bac7b03a8f6ee45385bee752034c0
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Jul 10 19:22:24 2024 -0700
+
+    math/big: more cross-references in docstrings
+    
+    Change-Id: I3541859bbf3ac4f9317b82a66d21be3d5c4c5a84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597658
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/math/big/float.go | 4 ++--
+ src/math/big/int.go   | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

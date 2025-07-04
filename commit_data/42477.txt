@@ -1,19 +1,17 @@
-commit fca286bed3ed0e12336532cc711875ae5b3cb02a
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Fri Jun 5 18:12:22 2020 -0400
+commit 6bcddae1af34d251b88fe134c1d3a8f4b4c7b0b6
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 3 13:13:57 2020 -0500
 
-    doc/go1.15: remove TODO intended for the Core library section
+    cmd/go: clarify stderr behavior for 'go help mod download'
     
-    The TODO was added durring the initial creation of the document.
-    In the current location, it makes it seem like the tzdata documents
-    are incomplete when they are complete. It is understood that the
-    entire Core library section will be a work in progress until the release.
+    Fixes #36297
     
-    For #37419
-    
-    Change-Id: Ic857eb0ec2583781c701985ea62e519e9d940090
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236760
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I2623e9ee386644eddfa9a348ba368c5f1a81f893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213134
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- doc/go1.15.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/go/alldocs.go                  | 4 +++-
+ src/cmd/go/internal/modcmd/download.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

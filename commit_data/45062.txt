@@ -1,18 +1,28 @@
-commit 0da9eff5034521ccc51c32ebaad5fae20d8345fe
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Sun Apr 11 14:18:24 2021 +0930
+commit 0ab72ed020d0c320b5007987abdf40677db34cfc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 24 16:54:31 2020 -0400
 
-    runtime: simplify syntax for pointer arithmetic in mapaccess functions
+    cmd/link, runtime: use a sentinel value for unreachable method
     
-    This harmonizes the syntax between mapaccess1 and mapaccess2, and
-    simplifies the code.
+    In the method table, the method's code pointer is stored as an
+    offset from the start of the text section. Currently, for an
+    unreachable method, the offset is left as 0, which resolves to
+    the start of the text section at run time. It is possible that
+    there is valid code there. If an unreachable method is ever
+    reached (due to a compiler or linker bug), the execution will
+    jump to a wrong location but may continue to run for a while,
+    until it fails with a seemingly unrelated error.
     
-    Change-Id: I6db25ffdc871018d399f9030259894b3994c5793
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308951
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This CL changes it to use -1 for unreachable method instead. At
+    run time this will resolve to an invalid address, which makes it
+    fail immediately if it is ever reached.
+    
+    Change-Id: Ied6ed7f1833c4f3b991fdf55d8810d70d307b2e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257203
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/map.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/data.go | 6 ++++++
+ src/runtime/type.go              | 9 ++++++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

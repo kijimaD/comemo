@@ -1,19 +1,13 @@
-commit 4d0f2e9195304e595c706de381d4a59d6f6f72bf
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 14 10:49:34 2011 -0400
+commit 371aa14e0606f0a34a89330be1a34e908603e6c2
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jun 14 17:32:47 2011 +1000
 
-    syscall, os, exec: introduce *syscall.SysProcAttr field in os.ProcAttr and exec.Cmd
+    mail: decode RFC 2047 "B" encoding.
     
-    R=r, bradfitz, alex.brainman, borman, vincent.vanackere
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4607046
+    https://golang.org/cl/4584056
 
- src/pkg/debug/proc/proc_linux.go |  8 ++++---
- src/pkg/exec/exec.go             |  6 ++++++
- src/pkg/os/exec.go               |  6 ++++++
- src/pkg/os/exec_plan9.go         |  1 +
- src/pkg/os/exec_posix.go         |  1 +
- src/pkg/syscall/exec_plan9.go    | 30 +++++++++++++++------------
- src/pkg/syscall/exec_unix.go     | 45 ++++++++++++++++++++++++----------------
- src/pkg/syscall/exec_windows.go  | 26 ++++++++++++++++-------
- 8 files changed, 81 insertions(+), 42 deletions(-)
+ src/pkg/mail/message.go      | 89 ++++++++++++++++++++++++++++++--------------
+ src/pkg/mail/message_test.go | 23 +++++++++++-
+ 2 files changed, 83 insertions(+), 29 deletions(-)

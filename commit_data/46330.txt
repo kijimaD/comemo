@@ -1,18 +1,25 @@
-commit 66401719143692f1b892fb47aaef286f885395c9
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Sep 7 07:46:27 2021 -0700
+commit 6d03cde88a0599bd0a8d6cb1e5b08c5d0a06020a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 22 19:32:57 2020 -0800
 
-    cmd/compile: fix type substituter to copy Funarg value for structs
+    [dev.regabi] cmd/dist: automatically bootstrap cmd subdirs
     
-    We were missing copying the Funarg value when substituting for a struct
-    type.
+    We want almost all cmd subdirectories anyway, and relative to the cost
+    of the rest of toolchain bootstrapping, copying/rewriting a few extra
+    source files is way cheaper than the engineering cost of forgetting to
+    maintain these lists as we split out new packages.
     
-    Change-Id: Id0c2d9e55fb15987acb9edba6f74cf57cfd3417e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347913
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    While here, also add cmd/internal/archive (and make it compile with Go
+    1.4) because it'll be needed in subsequent refactorings anyway; and
+    skip files starting with # (emacs temporary files) and test files
+    ending with _test.go.
+    
+    Change-Id: Ic86e680a5fdfaecd617c36d5d04413293b2d6f52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279832
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/dist/buildtool.go           | 113 ++++++++++++++----------------------
+ src/cmd/internal/archive/archive.go |  10 ++--
+ 2 files changed, 49 insertions(+), 74 deletions(-)

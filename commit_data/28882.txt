@@ -1,20 +1,23 @@
-commit f6cdfc7987d9f3ee7380b3e6f52e433608f342c5
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Oct 17 21:59:10 2016 +0200
+commit b173298c896ebec8e4f898bfae986fce7557c1ec
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 21 08:30:41 2016 -0700
 
-    math/big: add benchmarks for big.Float String
+    syscall: unify unix 386 implementations
     
-    In addition to the DecimalConversion benchmark, that exercises the
-    String method of the internal decimal type on a range of small shifts,
-    add a few benchmarks for the big.Float String method. They can be used
-    to obtain more realistic data on the real-world performance of
-    big.Float printing.
+    They were identical.
     
-    Change-Id: I7ada324e7603cb1ce7492ccaf3382db0096223ba
-    Reviewed-on: https://go-review.googlesource.com/31275
+    This will allow us to do the TODO at the top
+    of the file only once.
+    
+    Updates #11041
+    
+    Change-Id: I07aaca27ae46b66b65780082988bdc7546ed534b
+    Reviewed-on: https://go-review.googlesource.com/25112
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/decimal_test.go | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ src/syscall/asm_netbsd_386.s                      | 143 ----------------------
+ src/syscall/asm_openbsd_386.s                     | 143 ----------------------
+ src/syscall/{asm_freebsd_386.s => asm_unix_386.s} |   4 +-
+ 3 files changed, 3 insertions(+), 287 deletions(-)

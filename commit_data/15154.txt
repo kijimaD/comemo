@@ -1,29 +1,14 @@
-commit 80e1cf73eb673b352a7888141c42ab9ab16488df
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Feb 7 18:54:21 2013 +0800
+commit c2fb6e2c0bf7ba6866eb27567b5d16683680e63b
+Author: Gaal Yahas <gaal@google.com>
+Date:   Thu Feb 7 00:39:52 2013 +0800
 
-    crypto/rc4: naïve ARM assembly implementation
+    sync: improve WaitGroup example by putting the call to Done in a
+    deferred block. This makes hangs in the waiting code less likely
+    if a goroutine exits abnormally.
     
-    On 800MHz Cortex-A8:
-    benchmark           old ns/op    new ns/op    delta
-    BenchmarkRC4_128         9395         2838  -69.79%
-    BenchmarkRC4_1K         74497        22120  -70.31%
-    BenchmarkRC4_8K        587243       171435  -70.81%
-    
-    benchmark            old MB/s     new MB/s  speedup
-    BenchmarkRC4_128        13.62        45.09    3.31x
-    BenchmarkRC4_1K         13.75        46.29    3.37x
-    BenchmarkRC4_8K         13.79        47.22    3.42x
-    
-    Result for "OpenSSL 1.0.1c 10 May 2012" from Debian/armhf sid:
-    type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
-    rc4              39553.81k    46522.39k    49336.11k    50085.63k    50258.06k
-    
-    R=golang-dev, agl, dave
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7310051
+    https://golang.org/cl/7306052
 
- src/pkg/crypto/rc4/rc4_arm.s  | 58 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/crypto/rc4/rc4_asm.go |  2 +-
- src/pkg/crypto/rc4/rc4_ref.go |  2 +-
- 3 files changed, 60 insertions(+), 2 deletions(-)
+ src/pkg/sync/example_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

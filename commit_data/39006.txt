@@ -1,24 +1,12 @@
-commit 762953be28010644fb38ddbe4a55094751d10049
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 1 16:44:21 2019 -0700
+commit 3f9e53f34695d3bf35c8a751430bf1ab364b843d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Dec 14 21:23:02 2018 -0500
 
-    cmd/compile: disable Go1.13 language features for -lang=go1.12 and below
+    [dev.boringcrypto] misc/boring: add go1.10.7b4 and go1.11.4b4 releases
     
-    Fixes   #31747.
-    Updates #19308.
-    Updates #12711.
-    Updates #29008.
-    Updates #28493.
-    Updates #19113.
-    
-    Change-Id: I76d2fdbc7698cc4e0f31b7ae24cbb4d28afbb6a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174897
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iab5a7d4090e1c00ea7bd30f52372945b23a4142f
+    Reviewed-on: https://go-review.googlesource.com/c/154312
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/gc/noder.go     | 32 ++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
- src/go/types/stdlib_test.go              |  1 +
- test/fixedbugs/issue31747.go             | 34 ++++++++++++++++++++++++++++++++
- 4 files changed, 72 insertions(+), 1 deletion(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

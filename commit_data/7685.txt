@@ -1,12 +1,31 @@
-commit 6892155dedeb041db0d0e0f912dabe5b9c72f8f8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 7 15:30:25 2011 -0800
+commit 5c2666c18cb6b06a4c05afe86aa1abd4e1addde7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 15:10:01 2011 -0500
 
-    runtime: remove unused declarations from mgc0.c.
+    gc: unsafe.Pointer is not a pointer
     
-    R=rsc
+    Change unsafe.Pointer to be its own kind of
+    type, instead of making it equivalent to *any.
+    The change complicates import and export
+    but avoids the need to find all the places that
+    operate on pointers but should not operate on
+    unsafe.Pointer.
+    
+    Fixes #1566. (a different way)
+    Fixes #1582.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4252063
+    https://golang.org/cl/4264050
 
- src/pkg/runtime/mgc0.c | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/gc/align.c        | 12 ++++++++++++
+ src/cmd/gc/builtin.c.boot |  2 +-
+ src/cmd/gc/const.c        |  1 +
+ src/cmd/gc/dcl.c          | 11 ++++++++++-
+ src/cmd/gc/go.h           |  3 ++-
+ src/cmd/gc/reflect.c      | 18 ++++++------------
+ src/cmd/gc/subr.c         | 16 ++++++++++++----
+ src/cmd/gc/typecheck.c    |  4 ++--
+ src/cmd/gc/unsafe.go      |  2 +-
+ test/fixedbugs/bug325.go  |  1 +
+ 10 files changed, 48 insertions(+), 22 deletions(-)

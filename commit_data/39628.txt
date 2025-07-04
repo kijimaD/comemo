@@ -1,15 +1,28 @@
-commit bc405df3914e82c9967e029a0235e19ba4461072
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 14 17:37:20 2019 -0700
+commit cc5dc00150725fec3933f7d4c571da94978b7978
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 9 17:48:23 2019 +0000
 
-    spec: allow embedding overlapping interfaces
+    cmd/compile: update TestIntendedInlining
     
-    Updates #6977.
+    Value.CanInterface and Value.pointer are now inlinable, since we have a
+    limited form of mid-stack inlining. Their calls to panic were preventing
+    that in previous Go releases. The other three methods still go over
+    budget, so update that comment.
     
-    Change-Id: I6eda4be550e7c7ea1e1bac3222850002d90a81a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190378
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    In recent commits, sync.Once.Do and multiple lock/unlock methods have
+    also been made inlinable, so add those as well. They have standalone
+    tests like test/inline_sync.go already, but it's best if the funcs are
+    in this global test table too. They aren't inlinable on every platform
+    yet, though.
+    
+    Finally, use math/bits.UintSize to check if GOARCH is 64-bit, now that
+    we can.
+    
+    Change-Id: I65cc681b77015f7746dba3126637e236dcd494e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166461
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 64 ++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 41 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go | 28 ++++++++++++++++++++++------
+ 1 file changed, 22 insertions(+), 6 deletions(-)

@@ -1,14 +1,27 @@
-commit bc33dd7432369b3abd2a6fd75cb57d6c5c3defa7
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 20 08:56:33 2016 -0700
+commit f128b5421e4ec7a00d9ff93288ea3f4b38654243
+Author: Ross Light <light@google.com>
+Date:   Mon Mar 7 16:21:30 2016 -0800
 
-    doc/faq: reword the link to the generics proposal
+    os/user: make OS-specific getgrouplist calls
     
-    A late response to CL 22163.
+    getgrouplist is non-standard and has slightly different semantics on
+    each platform.  Darwin defines the function in terms of ints instead of
+    gid_ts.  Solaris only recently supported the call, so stubbing out for
+    now.
     
-    Change-Id: I5275a22af7081875af0256da296811f4fe9832dc
-    Reviewed-on: https://go-review.googlesource.com/22296
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Fixes #14696
+    Fixes #14709
+    
+    Change-Id: I5a44538d41594909efb6f3f9610c55d638c36757
+    Reviewed-on: https://go-review.googlesource.com/20348
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_faq.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/os/user/getgrouplist_darwin.c | 22 ++++++++++++++++
+ src/os/user/getgrouplist_unix.c   | 14 ++++++++++
+ src/os/user/listgroups_solaris.go | 17 ++++++++++++
+ src/os/user/listgroups_unix.go    | 54 +++++++++++++++++++++++++++++++++++++++
+ src/os/user/lookup_unix.go        | 37 ---------------------------
+ src/os/user/user_test.go          |  3 +++
+ 6 files changed, 110 insertions(+), 37 deletions(-)

@@ -1,12 +1,12 @@
-commit 0995aba983f1c1793c2039d259a8605285d32be6
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 13 23:05:19 2012 -0500
+commit 913abfee3bd25af5d80b3b9079d22f8e296d94c8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 14 15:04:29 2012 +1100
 
-    runtime/debug: fix build
+    net/http: don't spin on temporary accept failure
     
-    TBR=r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5661053
+    https://golang.org/cl/5658049
 
- src/pkg/runtime/debug/stack_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/net/http/server.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

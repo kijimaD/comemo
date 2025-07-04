@@ -1,19 +1,77 @@
-commit 6a40bdcbaf97ca6a815bf48998d90ccfa5a0b6fc
-Author: vpachkov <slava.pach@gmail.com>
-Date:   Fri Nov 19 14:38:23 2021 +0300
+commit 2175e2f57331cbcd32bccc47fa7fe7a6874a69a3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat May 29 15:35:18 2021 -0700
 
-    runtime: check GOAMD64 v4 compatibility on Darwin
+    [dev.typeparams] cmd/compile: lazy import resolution for types2
     
-    Darwin requires a different approach to check AVX512 support.
+    This CL adds three new functions to the types2 API to support lazy
+    import resolution:
     
-    Update #45453
+    1. A new Scope.InsertLazy method to allow recording that Objects exist
+    in a particular Scope (in particular, package scopes) without having
+    to yet fully construct those objects. Instead, types2 will call the
+    provided `resolve` function if/when the object is actually needed.
     
-    Change-Id: Ia3dfecc04b47aab16f472000e92e46d4fc6d596d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365395
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Heschi Kreinick <heschi@google.com>
+    2. Similarly, a new NewTypeNameLazy function to create TypeName
+    objects without yet instantiating their underlying Named
+    instance.
+    
+    3. Finally, an InstantiateLazy method, that allows creating type
+    instances without requiring any of the types to be expanded right
+    away. Importantly, this requires providing a types2.Checker argument
+    to handle recursive types correctly.
+    
+    The APIs as-is are a bit clumsy (esp. NewTypeNameLazy), but seem to
+    work well for cmd/compile's needs. In particular, they simplify some
+    of the complexities of handling recursive type definitions within the
+    importer.
+    
+    Also, the current prototype is a bit fragile. It uses sync.Once to
+    manage concurrent lazy resolution, which is frustrating to debug in
+    the presence of reentrancy issues. It also means the importer needs to
+    deal with concurrency as well. These aren't issues for types2 though
+    as cmd/compile only walks the type-checked AST sequentially.
+    
+    Finally, it looks like some of the details of lazy type names are
+    similar to the lazy "instance" stuff used for generics, so maybe
+    there's opportunity for unifying them under a more general (but still
+    internal) lazy type mechanism.
+    
+    I had originally intended for this CL to also update the types2
+    importer, but (1) it doesn't have access to the types2.Checker
+    instance needed to call InstantiateLazy, and (2) it creates a new
+    TypeName/TypeParam at each use rather than reusing them, which
+    evidently works with types2.Instantiate but not
+    types2.(*Checker).instantiate (i.e., InstantiateLazy). I spent a while
+    trying to fix these issues, but kept running into more subtle
+    issues. Instead, I've included my WIP "unified IR" CL as a followup CL
+    that demonstrates these Lazy methods (see noder/reader2.go).
+    
+    Updates #46449.
+    
+    Change-Id: I4d1e8e649f6325a11790d25fd90c39fa07c8d41d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323569
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/asm_amd64.s | 25 ++++++++++++++++++++++++-
- 1 file changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/check.go       |  2 +-
+ src/cmd/compile/internal/types2/decl.go        |  7 +-
+ src/cmd/compile/internal/types2/instantiate.go | 18 ++++-
+ src/cmd/compile/internal/types2/labels.go      |  3 +-
+ src/cmd/compile/internal/types2/lookup.go      |  5 +-
+ src/cmd/compile/internal/types2/object.go      |  8 +++
+ src/cmd/compile/internal/types2/predicates.go  |  2 +-
+ src/cmd/compile/internal/types2/resolver.go    | 19 ++++--
+ src/cmd/compile/internal/types2/sanitize.go    |  1 +
+ src/cmd/compile/internal/types2/scope.go       | 93 +++++++++++++++++++++++---
+ src/cmd/compile/internal/types2/signature.go   |  2 +-
+ src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types2/stmt.go        |  3 +-
+ src/cmd/compile/internal/types2/subst.go       | 12 ++--
+ src/cmd/compile/internal/types2/type.go        | 46 +++++++++++--
+ src/cmd/compile/internal/types2/typestring.go  |  4 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ 17 files changed, 186 insertions(+), 43 deletions(-)

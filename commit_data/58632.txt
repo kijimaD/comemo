@@ -1,21 +1,17 @@
-commit e7c9667defe1aed61818d63ace6ebb7a27b9c13e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Dec 22 21:15:30 2024 -0800
+commit 41f58b2295c39611fcf13040e499167966321e72
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 8 19:05:11 2023 +0000
 
-    os: simplify process status
+    runtime: enable the exectracer2 experiment by default
     
-    Since it no longer holds a reference count, just use values.
+    Fixes #60773.
     
-    For #70907
-    
-    Change-Id: I19a42583988d4f8a9133b1c837356ca0179d688c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638578
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race
+    Change-Id: Ice3fd4577d58ce593611144242f2cba99c9d2ecb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540778
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/os/exec.go              | 34 ++++++++++++++++------------------
- src/os/export_linux_test.go |  2 +-
- 2 files changed, 17 insertions(+), 19 deletions(-)
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

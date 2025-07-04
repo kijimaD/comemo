@@ -1,24 +1,19 @@
-commit 9892ccff23c94c5fabd704ff0c027d45b7b03cb8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Nov 6 16:27:58 2018 -0800
+commit 86e251c938af90b1f80b41d7ca3713fb46430071
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:21:58 2018 +0200
 
-    cmd/compile: add types.SoleComponent, use in convFuncName
+    internal/syscall: add AIX operating system
     
-    The specialized conversion functions care only
-    about a type's layout in memory, so e.g.
-    [1]string is equivalent to string.
+    This commit adds AIX operating system to internal/syscall package for ppc64
+    architecture.
     
-    Add types.SoleComponent to assist with such use cases,
-    and use it for the specialized conversion functions.
+    Updates: #25893
     
-    Increases the number of convTstring calls by ~1%.
-    
-    Change-Id: I09a392909f2037387b30642781e65f707a048af5
-    Reviewed-on: https://go-review.googlesource.com/c/148577
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5c3a9d4403ca170a7e894e06e68b83387d09b816
+    Reviewed-on: https://go-review.googlesource.com/c/138718
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/walk.go    | 12 ++++++++----
- src/cmd/compile/internal/types/type.go | 22 ++++++++++++++++++++++
- 2 files changed, 30 insertions(+), 4 deletions(-)
+ src/internal/syscall/unix/nonblocking.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

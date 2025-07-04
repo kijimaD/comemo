@@ -1,28 +1,18 @@
-commit e306d0606379cc9330302f97f237ca3ef55fee98
-Author: Makdon <makdon@makdon.me>
-Date:   Wed Apr 7 15:24:46 2021 +0000
+commit 2813e22ef841018d6e51bf3c70f5d65ea40065ca
+Author: zhouzhongyuan <zhouzhongyuan96@gmail.com>
+Date:   Tue Sep 15 19:53:42 2020 +0800
 
-    runtime/map: update comment for gc/reflect
+    crypto/des: fix typo in permuteInitialBlock function comments
     
-    update comment cause gc/reflect.go has been moved to reflectdata/reflect.go
+    Fixes #41398
     
-    In the commit (attach below), gc/reflect.go is moved to reflectdata/reflect.go
-    So the  comment referring gc/reflect.go should be updated to reflectdata/reflect.go
-    
-    There maybe other places that refers gc/reflect.go that should be updated.
-    I would work around it soon.
-    
-    commit:
-    https://github.com/golang/go/commit/de65151e507e7b3c8e46d74f223d7c562177bedc
-    https://github.com/golang/go/commit/e4895ab4c0eb44de6ddc5dc8d860a827b20d2781
-    
-    Change-Id: Ieed5c48049ffe6889c08e164972fc7825653ac05
-    GitHub-Last-Rev: eec9c2328d0be40842c3994f26f26f03fa650a91
-    GitHub-Pull-Request: golang/go#45421
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307930
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: Ib47b8ec43bb11d8cd13c24f833532434127c7532
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254980
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/walk/range.go |  4 +++-
- src/runtime/map.go                     | 10 +++++-----
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/crypto/des/block.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

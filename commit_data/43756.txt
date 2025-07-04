@@ -1,22 +1,17 @@
-commit 8a368c63ec2d48e1c8965341c982987de96164fd
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Oct 29 16:34:32 2020 -0400
+commit 917aa72c1438c64e593d68a779892b97012b4779
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 23 11:02:15 2020 +0700
 
-    cmd/go: print deprecation messages for -i
+    cmd/compile: rewrite dec rules to use typed aux field
     
-    build, install, and test will now print deprecation messages when the
-    -i flag is used. clean will continue to support -i.
+    Passes toolstash-check -all.
     
-    For #41696
-    
-    Change-Id: I956c235c487a872c5e6c1395388b4d6cd5ef817a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266368
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia73233c2269017a5802df821ea2ca138c16a94ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229519
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- doc/go1.16.html                                  | 12 ++++++++++
- src/cmd/go/alldocs.go                            |  7 ++++--
- src/cmd/go/internal/test/test.go                 |  2 ++
- src/cmd/go/internal/work/build.go                | 30 +++++++++++++++++++++---
- src/cmd/go/testdata/script/build_i_deprecate.txt | 24 +++++++++++++++++++
- 5 files changed, 70 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/dec.rules | 38 ++++++++++----------
+ src/cmd/compile/internal/ssa/rewritedec.go | 58 +++++++++++++++---------------
+ 2 files changed, 48 insertions(+), 48 deletions(-)

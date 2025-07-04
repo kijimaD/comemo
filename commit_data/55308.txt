@@ -1,37 +1,18 @@
-commit a7097243e462802f3055da9f843013e450a75092
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 12 16:26:45 2023 -0500
+commit 5ad799ef8a8178f1f958206dc587b37d8406fbcb
+Author: Oleksii Sholik <alcosholik@gmail.com>
+Date:   Sat Jan 14 22:03:38 2023 +0000
 
-    internal/syscall/windows: fix the signature of SetFileInformationByHandle
+    net/http: fix missing word in ServeMux doc
     
-    Also fix its call site in internal/poll to pass the length of the
-    actual buffer instead of an unrelated variable, and update the
-    definition of FILE_BASIC_INFO to match the documented field types
-    and add padding that is empirically needed on the 386 architecture.
-    
-    Passing a pointer to a Go-allocated buffer as type uintptr violates
-    the unsafe.Pointer conversion rules, which allow such a conversion
-    only in the call expression itself for a call to syscall.Syscall or
-    equivalent. That can allow the buffer to be corrupted arbitrarily if
-    the Go runtime happens to garbage-collect it while the call to
-    SetFileInformationByHandle is in progress.
-    
-    The Microsoft documentation for SetFileInformationByHandle specifies
-    its third argument type as LPVOID, which corresponds to Go's
-    unsafe.Pointer, not uintptr.
-    
-    Fixes #58933 (maybe).
-    
-    Change-Id: If577b57adea9922f5fcca55e46030c703d8f035c
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549256
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I324cedfcdfa1d7eac7be43dc89febb584359c8e3
+    GitHub-Last-Rev: 7724cd84f323b531215db0406f72481394d0b206
+    GitHub-Pull-Request: golang/go#57799
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462039
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/internal/poll/fd_windows.go                  |  3 +--
- src/internal/syscall/windows/syscall_windows.go  | 21 ++++++++++++++++-----
- src/internal/syscall/windows/zsyscall_windows.go |  2 +-
- 3 files changed, 18 insertions(+), 8 deletions(-)
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

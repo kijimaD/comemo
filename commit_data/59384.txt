@@ -1,28 +1,23 @@
-commit 214b208e248d30a3b6c35a5ebf344cc2de3b9e3f
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Apr 25 19:43:16 2025 -0400
+commit 2171e628b8d3d505b0ee82e3ac35a21f12467130
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 16 18:38:51 2024 -0500
 
-    cmd/go, cmd/internal/objabi: detect "devel" version by substring
+    runtime: rename timers fields for clarity
     
-    These were the remaining instances in the main Go repo I found where a
-    Go version like "devel go1.25-9ce47e66e8 Wed Mar 26 03:48:50 2025 -0700"
-    is considered to be a development version rather than a release version,
-    but the version "go1.25-devel_9ce47e66e8 Wed Mar 26 03:48:50 2025 -0700"
-    is not.
+    These names were copied over from the p field names,
+    but now that they are part of the timers type they can use
+    shorter names that make the relationship clearer.
     
-    Update this in preparation of the move of "devel" from front to middle.
+    timer0When -> minWhen
+    timerModifiedEarliest -> minNextWhen
     
-    For #73372.
-    For #73369.
+    This code change is only the renaming.
     
-    Change-Id: If5442ecb0751c08b3a1b4d1148193e501700b956
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668355
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I1c0adc0b3a1289d35639619d5c945585b2d81a9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564975
+    Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/work/buildid.go | 4 ++--
- src/cmd/internal/objabi/flag.go     | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/time.go | 71 +++++++++++++++++++++++++----------------------------
+ 1 file changed, 34 insertions(+), 37 deletions(-)

@@ -1,14 +1,25 @@
-commit d865b5caa6bedfe90ce9335af518d17f8107fb91
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jun 18 10:26:46 2019 +0200
+commit 47e42cdadc4abeb28ff21930bfe22210dcb9abd4
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Mar 12 23:40:03 2019 +0100
 
-    syscall: enable ReadDirent tests on aix, linux and solaris
+    misc/wasm: add workaround for missed timeout events
     
-    Change-Id: I13fd6bad4600ef909b13ac517ba6a06909b5c703
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182379
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot is sometimes running into deadlocks on js/wasm. We haven't been
+    able to reproduce them yet. This workaround is an experiment to resolve
+    these deadlocks by retrying a missed timeout event.
+    
+    A timeout event is scheduled by Go to be woken by JavaScript after a
+    certain amount of time. The checkTimeouts function then checks which
+    notes to wake by comparing their deadline to nanotime. If this
+    check fails erroneously then the note may stay asleep forever, causing
+    a deadlock. This may or may not be the reason of the observed
+    deadlocks.
+    
+    Updates #28975.
+    
+    Change-Id: I46b9d4069307142914f0e7b3acd4e65578319f0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167119
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/{dirent_bsd_test.go => dirent_test.go} | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/wasm/wasm_exec.js | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

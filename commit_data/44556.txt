@@ -1,25 +1,23 @@
-commit bd372847849c9187fd6112bd3cc0203c15c3ac72
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Mar 7 20:52:39 2021 -0800
+commit 9559877543976f8e7b15ae02a7196c4f930fc371
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jul 30 20:49:29 2020 -0400
 
-    cmd/link: use testing.T.TempDir in tests
+    [dev.link] cmd/internal/objfile: read Go object file using goobj2 package
     
-    Change-Id: I6fc8c9ee6d2246bfd874eb58b411e34ddbeaf723
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299670
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Read Go object files using cmd/internal/goobj2 package directly,
+    instead of using cmd/internal/goobj as an intermediate layer.
+    
+    Now cmd/internal/archive is only about reading archives.
+    
+    Change-Id: Ifecb217fb26c16c26fc1bbc3fba0ed44710020ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246443
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/dwarf_test.go                    |   7 +-
- src/cmd/link/elf_test.go                      |  18 +---
- src/cmd/link/internal/ld/deadcode_test.go     |   8 +-
- src/cmd/link/internal/ld/dwarf_test.go        | 104 ++++++---------------
- src/cmd/link/internal/ld/elf_test.go          |  13 +--
- src/cmd/link/internal/ld/fallocate_test.go    |   9 +-
- src/cmd/link/internal/ld/go_test.go           |   7 +-
- src/cmd/link/internal/ld/issue33808_test.go   |   8 +-
- src/cmd/link/internal/ld/ld_test.go           |  26 +-----
- src/cmd/link/internal/ld/nooptcgolink_test.go |   8 +-
- src/cmd/link/internal/ld/outbuf_test.go       |   8 +-
- src/cmd/link/link_test.go                     | 129 ++++++--------------------
- src/cmd/link/linkbig_test.go                  |   9 +-
- 13 files changed, 75 insertions(+), 279 deletions(-)
+ .../archive/{goobj_test.go => archive_test.go}     | 133 +++++-----
+ src/cmd/internal/archive/read.go                   | 253 +++++-------------
+ src/cmd/internal/archive/readnew.go                | 200 ---------------
+ src/cmd/internal/bio/buf.go                        |   7 +-
+ src/cmd/internal/objfile/goobj.go                  | 283 +++++++++++++++------
+ 5 files changed, 341 insertions(+), 535 deletions(-)

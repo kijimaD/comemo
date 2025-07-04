@@ -1,34 +1,33 @@
-commit 3bf75e691f54eb13b2915ab3326b25d3fb67b249
+commit ed963c908d11fc6ffd17c9e9bc615cc134af6046
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jul 30 10:01:32 2014 +0900
+Date:   Wed Jul 30 09:47:39 2014 +0900
 
-    undo CL 104290043 / 1d13818e6b3d
+    undo CL 102610045 / 7244ce3ae9db
     
     preparing for the syscall package freeze.
     
     ««« original CL description
-    syscall: add source-specific multicast socket options for FreeBSD
+    syscall: regenerate z-files for darwin
     
-    Update #8266
+    Updates z-files from 10.7 kernel-based to 10.9 kernel-based.
     
     LGTM=iant
-    R=golang-codereviews, iant
+    R=golang-codereviews, bradfitz, iant
     CC=golang-codereviews
-    https://golang.org/cl/104290043
+    https://golang.org/cl/102610045
     »»»
     
     LGTM=r
     R=r
     CC=golang-codereviews
-    https://golang.org/cl/113660043
+    https://golang.org/cl/114530044
 
- src/pkg/syscall/mkerrors.sh              |  2 +-
- src/pkg/syscall/syscall_freebsd.go       | 34 ++++++--------------------------
- src/pkg/syscall/types_freebsd.go         |  9 ---------
- src/pkg/syscall/zerrors_freebsd_386.go   |  9 ---------
- src/pkg/syscall/zerrors_freebsd_amd64.go |  9 ---------
- src/pkg/syscall/zerrors_freebsd_arm.go   |  9 ---------
- src/pkg/syscall/ztypes_freebsd_386.go    | 22 ---------------------
- src/pkg/syscall/ztypes_freebsd_amd64.go  | 24 ----------------------
- src/pkg/syscall/ztypes_freebsd_arm.go    | 24 ----------------------
- 9 files changed, 7 insertions(+), 135 deletions(-)
+ api/except.txt                          |  24 -----
+ src/pkg/syscall/mkerrors.sh             |  30 ------
+ src/pkg/syscall/mksysnum_darwin.pl      |  28 +-----
+ src/pkg/syscall/types_darwin.go         |   9 +-
+ src/pkg/syscall/zerrors_darwin_386.go   | 173 +-------------------------------
+ src/pkg/syscall/zerrors_darwin_amd64.go | 173 +-------------------------------
+ src/pkg/syscall/zsysnum_darwin_386.go   |  21 +---
+ src/pkg/syscall/zsysnum_darwin_amd64.go |  21 +---
+ 8 files changed, 15 insertions(+), 464 deletions(-)

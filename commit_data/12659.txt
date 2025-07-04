@@ -1,28 +1,15 @@
-commit 3211b2cca98936e94dc2e819dbe474337ecdd24e
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Mar 15 23:50:25 2012 +0100
+commit 86c7bc6e8bd80ef651a92e5103ade11ce159b9d1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 15 15:22:56 2012 -0700
 
-    cmd/cgo: add support for function export for gccgo.
+    misc/dist: don't ship cmd/cov or cmd/prof
     
-    A "gccgoprefix" flag is added and used by the go tool,
-    to mirror the -fgo-prefix flag for gccgo, whose value
-    is required to know how to access functions from C.
+    Fixes #3317
     
-    Trying to export Go methods or unexported Go functions
-    will not work.
-    
-    Also fix go test on "main" packages.
-    
-    Updates #2313.
-    Fixes #3262.
-    
-    R=mpimenov, rsc, iant
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5797046
+    https://golang.org/cl/5784083
 
- src/cmd/cgo/main.go |  1 +
- src/cmd/cgo/out.go  | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/go/build.go | 23 ++++++++++-----
- src/cmd/go/pkg.go   | 21 +++++++-------
- src/cmd/go/test.go  |  3 +-
- 5 files changed, 112 insertions(+), 19 deletions(-)
+ misc/dist/bindist.go | 2 ++
+ src/cmd/dist/build.c | 2 ++
+ 2 files changed, 4 insertions(+)

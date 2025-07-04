@@ -1,16 +1,15 @@
-commit df885e70d7eea5b421310ebd863423c1ed1a191b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 29 08:30:28 2013 -0700
+commit 47a54ab2ad7ab29bfdb92f4be282e6c6637578c1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 29 15:07:38 2013 +0900
 
-    net/http: ignore more uninteresting goroutines
+    api: remove Zone of net.IPNet from next.txt
     
-    These only show up if GOTRACEBACK=2
+    Update #4234.
+    Update #4501.
     
-    Update #5005
-    
-    R=golang-dev, fullung
+    R=golang-dev, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8156044
+    https://golang.org/cl/8129043
 
- src/pkg/net/http/z_last_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ api/next.txt | 1 -
+ 1 file changed, 1 deletion(-)

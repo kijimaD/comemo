@@ -1,0 +1,17 @@
+commit 430a3dc4587a9a3f8696d6eb34c8265877022e34
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 23 23:15:51 2025 +0200
+
+    crypto/internal/cryptotest: test Armv8.2 on darwin/arm64
+    
+    Fixes #69593
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-arm64_15
+    Change-Id: I6a6a4656302d65b582df582fa12bb72b88b0316d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667755
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/cryptotest/implementations.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

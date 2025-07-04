@@ -1,14 +1,24 @@
-commit 0a85be573c21935f5197404ad8575d9dd4f28f8c
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed Mar 30 00:52:22 2016 -0400
+commit e3033fc535eb29ab7533ecc4a86c607c2046b9c7
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 12 10:07:36 2016 -0800
 
-    cmd/internal/obj: add copyright header to files
+    cmd/compile: add write barrier to type switch
     
-    Change-Id: I4ed33f3fdb9ad5f0f8984d3ef282c34e26eb2cde
-    Reviewed-on: https://go-review.googlesource.com/21301
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Type switches need write barriers if the written-to
+    variable is heap allocated.
+    
+    For the added needwritebarrier call, the right arg doesn't
+    really matter, I just pass something that will never disqualify
+    the write barrier.  The left arg is the one that matters.
+    
+    Fixes #14306
+    
+    Change-Id: Ic2754167cce062064ea2eeac2944ea4f77cc9c3b
+    Reviewed-on: https://go-review.googlesource.com/19481
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/arm64/anames7.go | 4 ++++
- src/cmd/internal/obj/mips/anames0.go  | 4 ++++
- src/cmd/internal/obj/ppc64/anames9.go | 4 ++++
- 3 files changed, 12 insertions(+)
+ src/cmd/compile/internal/gc/gen.go |  2 +-
+ test/writebarrier.go               | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

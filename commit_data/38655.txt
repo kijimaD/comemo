@@ -1,18 +1,19 @@
-commit a8e83d2febe28a79e2906a9249ab2d79e0523c2a
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Apr 4 14:08:06 2019 -0700
+commit de578dcdd682182c69efc8f9328c9bba500192b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 12 11:25:58 2018 -0800
 
-    syscall: don't use INODE64 for fdopendir on darwin/386
+    spec: be clearer about definition of string length
     
-    The INODE64 variant only exists on 64-bit.
+    Adjusted spec to explicitly define the string length as the
+    number of bytes of the string; the prose now matches the prose
+    for arrays. Made analogous change for slices.
     
-    Fixes #31262
+    Fixes #28736.
     
-    Change-Id: I528277c9b3312fdb15463ccbea0d537ff300f4ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170837
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I47cab321c87de0a4c482f5466b819b2cc8993fd1
+    Reviewed-on: https://go-review.googlesource.com/c/149077
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/syscall_darwin_386.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

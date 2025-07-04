@@ -1,26 +1,43 @@
-commit a632009c4a0b0826871baae7e7ce7804b4089d93
-Author: xieyuschen <xieyuschen@gmail.com>
-Date:   Mon Oct 14 19:11:53 2024 +0800
+commit 2e8d84f148c69404b8eec86d9149785a3f4e3e92
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Mar 12 12:26:53 2024 +0100
 
-    cmd/go: support -json flag in go version
+    os: support UNC paths and .. segments in fixLongPath
     
-    It supports features described in the issue:
+    This CL reimplements fixLongPath using syscall.GetFullPathName instead
+    of a custom implementation that was not handling UNC paths and ..
+    segments correctly. It also fixes a bug here multiple trailing \
+    were removed instead of replaced by a single one.
     
-    * add -json flag for 'go version -m' to print json encoding of
-      runtime/debug.BuildSetting to standard output.
-    * report an error when specifying -json flag without -m.
-    * print build settings on seperated line for each binary
+    The new implementation is slower than the previous one, as it does a
+    syscall and needs to convert UTF-8 to UTF-16 (and back), but it is
+    correct and should be fast enough for most use cases.
     
-    Fixes #69712
+    goos: windows
+    goarch: amd64
+    pkg: os
+    cpu: Intel(R) Core(TM) i7-10850H CPU @ 2.70GHz
+                │   old.txt    │                new.txt                 │
+                │    sec/op    │    sec/op      vs base                 │
+    LongPath-12   1.007µ ± 53%   4.093µ ± 109%  +306.41% (p=0.000 n=10)
     
-    Change-Id: I79cba2109f80f7459252d197a74959694c4eea1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/619955
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+                │  old.txt   │               new.txt                │
+                │    B/op    │    B/op      vs base                 │
+    LongPath-12   576.0 ± 0%   1376.0 ± 0%  +138.89% (p=0.000 n=10)
+    
+                │  old.txt   │              new.txt               │
+                │ allocs/op  │ allocs/op   vs base                │
+    LongPath-12   2.000 ± 0%   3.000 ± 0%  +50.00% (p=0.000 n=10)
+    
+    Fixes #41734.
+    
+    Change-Id: Iced5cf47f56f6ab0ca74a6e2374c31a75100902d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570995
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/go/alldocs.go                  |  5 ++++-
- src/cmd/go/internal/version/version.go | 32 ++++++++++++++++++++++++++++----
- src/cmd/go/testdata/script/version.txt | 23 +++++++++++++++++++++--
- src/runtime/debug/mod.go               | 21 +++++++++++----------
- 4 files changed, 64 insertions(+), 17 deletions(-)
+ src/os/path_windows.go      | 81 ++++++++++++++++++++-------------------------
+ src/os/path_windows_test.go | 29 +++++++++++-----
+ 2 files changed, 57 insertions(+), 53 deletions(-)

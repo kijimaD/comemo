@@ -1,18 +1,18 @@
-commit 2de1f428570855bd59083a705f832e8bddc0eb51
-Author: Baokun Lee <bk@golangcn.org>
-Date:   Tue Mar 23 11:18:50 2021 +0800
+commit bf833ead6250290dce039ffeee88f20a086b5dbe
+Author: David Chase <drchase@google.com>
+Date:   Fri Aug 28 14:32:15 2020 -0400
 
-    net: clear completed Buffers to permit earlier collection
+    cmd/compile: ensure that ssa.Func constant cache is consistent
     
-    Fixes #45163
+    It was not necessarily consistent before, we were just lucky.
     
-    Change-Id: Ie034145e3818930bb19371d73ec6960cbdc55aa7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303829
-    Run-TryBot: Baokun Lee <bk@golangcn.org>
-    Trust: Baokun Lee <bk@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I3a92dc724e0af7b4d810a6a0b7b1d58844eb8f87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251440
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/net.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/func.go      | 59 ++++++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/softfloat.go |  1 +
+ src/cmd/compile/internal/ssa/value.go     |  9 +++++
+ 3 files changed, 56 insertions(+), 13 deletions(-)

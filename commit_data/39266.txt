@@ -1,29 +1,25 @@
-commit 5d0d87ae1659807909da9d97ed1da77d7544d30c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 28 14:35:49 2019 -0700
+commit e2d87f2ca5affab517baef8008cb80559d03e15a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 20:16:59 2019 -0500
 
-    cmd/compile: fix package initialization ordering
+    strconv: format hex floats
     
-    This CL rewrites cmd/compile's package-level initialization ordering
-    algorithm to be compliant with the Go spec. See documentation in
-    initorder.go for details.
+    This CL updates FormatFloat to format
+    standard hexadecimal floating-point constants,
+    using the 'x' and 'X' verbs.
     
-    Incidentally, this CL also improves fidelity of initialization loop
-    diagnostics by including referenced functions in the emitted output
-    like go/types does.
+    See golang.org/design/19308-number-literals for background.
     
-    Fixes #22326.
+    For #29008.
     
-    Change-Id: I7c9ac47ff563df4d4f700cf6195387a0f372cc7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170062
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I540b8f71d492cfdb7c58af533d357a564591f28b
+    Reviewed-on: https://go-review.googlesource.com/c/160242
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/init.go      |   2 +-
- src/cmd/compile/internal/gc/initorder.go | 355 +++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/sinit.go     | 266 +++--------------------
- src/cmd/compile/internal/gc/syntax.go    |  28 +++
- test/fixedbugs/issue22326.go             |  25 +++
- test/fixedbugs/issue22326.out            |   1 +
- 6 files changed, 439 insertions(+), 238 deletions(-)
+ src/math/big/floatconv_test.go |  6 +--
+ src/strconv/ftoa.go            | 98 +++++++++++++++++++++++++++++++++++++++---
+ src/strconv/ftoa_test.go       | 27 +++++++++++-
+ src/strconv/quote.go           |  5 ++-
+ 4 files changed, 126 insertions(+), 10 deletions(-)

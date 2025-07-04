@@ -1,21 +1,22 @@
-commit 58e381b0b22352dda355f6d95fa101b773766c72
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 10 22:24:21 2020 -0800
+commit a81bc8e8254d01cd442a5684801d8d2dbc553694
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Apr 28 16:28:46 2020 -0700
 
-    cmd/vet: vendor in x/tools, update structtag vet check
+    runtime:  add one extra lock ranking partial edge
     
-    For #40281
-    Fixes #43083
+    This adds an assistQueue -> mheapSpecial edge, which can happen via
     
-    Change-Id: I50cb4db916587a6660c7f6e71f41f02334081510
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277076
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    gcFlushBgCredit [gets assistQueue lock] -> ready() -> ... ->
+    allocm() -> newobject -> .. mProf_Malloc() ->
+    setprofilebucket() [gets mheap special lock]
+    
+    From https://build.golang.org/log/6f8f253f6c3a747de411cfdf78c27980146618be
+    
+    Change-Id: Icdfba41b49aa704e8f6f20d25271f938afaf52ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231463
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +-
- .../go/analysis/passes/structtag/structtag.go      | 94 +++++++++++++---------
- src/cmd/vendor/modules.txt                         |  2 +-
- 4 files changed, 60 insertions(+), 42 deletions(-)
+ src/runtime/lockrank.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

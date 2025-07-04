@@ -1,17 +1,18 @@
-commit ffd096db2b1cff6399eb1f86e5652564ee8ee362
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 12 20:45:45 2019 -0800
+commit 37db664c6cd480b578d6114854bc20c2bc3cddcd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 17 14:25:06 2018 +1000
 
-    doc: don't use "go tool vet" as an example
+    builtin: document when len and cap are constant
     
-    Fixes #30199
+    The rules are subtle, but under some circumstances the result
+    can be constant. Mention this and refer to the appropriate
+    section of the specification.
     
-    Change-Id: Ib4586e3facb8c0985c8882482d94843b648b9d2f
-    Reviewed-on: https://go-review.googlesource.com/c/162257
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #27588.
+    
+    Change-Id: I4beaad036db87501378fb2ef48d216742d096933
+    Reviewed-on: https://go-review.googlesource.com/135519
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/cmd.html            |  8 +++-----
- doc/install-source.html | 20 +-------------------
- 2 files changed, 4 insertions(+), 24 deletions(-)
+ src/builtin/builtin.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

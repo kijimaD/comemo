@@ -1,34 +1,20 @@
-commit 617b4168b8c6b11269a22646f0743ce43fb5a321
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 1 12:06:24 2019 -0400
+commit 7a567a631f48f19817a4c9a221e9951ffebfa8cb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 19:02:00 2019 +0000
 
-    cmd/go: adjust module-related logging
+    cmd/dist: support using cross-compiled std test binaries for slow builders
     
-    Suppress “finding” messages unless they are unusually slow, and
-    “extracting” messages always (they almost always occur conjunction
-    with “downloading”, which is already logged).
+    We want the builders to be able to cross-compile test binaries for a
+    few of the super slow builders that require either slow hardware or
+    slow full CPU emulation.
     
-    Log “found” messages for module dependencies added to satisfy missing
-    import paths.
+    Updates golang/go#31217
     
-    Log top-level version changes in 'go get' when the selected version
-    is not identical to the version requested on the command line.
-    
-    Updates #26152
-    Updates #33284
-    
-    Change-Id: I4d0de60fab58d7cc7df8a2aff05c8b5b2220e626
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204777
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I8d33b18efaf788f6f131354b2917ac9738ca975e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178399
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfetch/cache.go             | 22 +++++++++++++-----
- src/cmd/go/internal/modfetch/fetch.go             |  4 ----
- src/cmd/go/internal/modget/get.go                 | 28 +++++++++++++++++++++--
- src/cmd/go/internal/modload/load.go               |  1 +
- src/cmd/go/internal/modload/query.go              | 15 ++++++++++++
- src/cmd/go/testdata/script/mod_get_newcycle.txt   |  1 -
- src/cmd/go/testdata/script/mod_getmode_vendor.txt |  2 +-
- src/cmd/go/testdata/script/mod_load_badchain.txt  |  4 ++++
- 8 files changed, 63 insertions(+), 14 deletions(-)
+ src/cmd/dist/test.go | 71 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 70 insertions(+), 1 deletion(-)

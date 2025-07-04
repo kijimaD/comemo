@@ -1,20 +1,31 @@
-commit a495fe2775147dca0c72263cd65e0bd20f4edfda
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 14:20:54 2017 -0700
+commit 06e5a558207f1d2bc6f61365b87925120c8549b3
+Author: Paulo Flabiano Smorigo <pfsmorigo@linux.vnet.ibm.com>
+Date:   Thu Dec 8 12:06:34 2016 -0200
 
-    cmd/compile: make ggloblsym work with obj.LSyms
+    crypto/aes: improve performance for aes on ppc64le
     
-    Automated refactoring using gorename, eg, and gofmt -r.
+    Add asm implementation for AES in order to make use of VMX cryptographic
+    acceleration instructions for POWER8. There is a speed boost of over 10
+    times using those instructions:
     
-    Passes toolstash-check.
+    Fixes #18076
     
-    Change-Id: Ib50f368bf62a07e5ced50b1b92a29c669ba9a158
-    Reviewed-on: https://go-review.googlesource.com/41401
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+                            old ns/op  new ns/op  delta
+    BenchmarkEncrypt-20     337        30.3       -91.00%
+    BenchmarkDecrypt-20     347        30.5a      -91.21%
+    BenchmarkExpand-20      1180       130        -88.98%
+    
+                            old MB/s   new MB/s   speedup
+    BenchmarkEncrypt-20     47.38      527.68     11.13x
+    BenchmarkDecrypt-20     46.05      524.45     11.38x
+    
+    Change-Id: Ifa4d1b508f4803cc72dcaad97acc8495d651b019
+    Reviewed-on: https://go-review.googlesource.com/33587
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/gc/gsubr.go   |  6 +-----
- src/cmd/compile/internal/gc/obj.go     |  8 ++++----
- src/cmd/compile/internal/gc/pgen.go    |  2 +-
- src/cmd/compile/internal/gc/reflect.go | 28 ++++++++++++++--------------
- 4 files changed, 20 insertions(+), 24 deletions(-)
+ src/crypto/aes/asm_ppc64le.s     | 499 +++++++++++++++++++++++++++++++++++++++
+ src/crypto/aes/cipher_generic.go |   2 +-
+ src/crypto/aes/cipher_ppc64le.go |  80 +++++++
+ 3 files changed, 580 insertions(+), 1 deletion(-)

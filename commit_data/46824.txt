@@ -1,23 +1,22 @@
-commit b9e1e1ba3d44069ce0b0564abab1b130ed120539
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 8 11:23:38 2021 -0700
+commit 370e9f58432c51bf3d95308cdc7109e25cc141f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 29 15:29:36 2021 -0800
 
-    cmd/cgo: use "!compiler_bootstrap" tag instead of "go1.18"
+    [dev.typeparams] cmd/compile/internal/types2: use 512 bits as max. integer precision
     
-    The illumos builder is using a Go 1.18 prerelease toolchain for
-    bootstrapping, which doesn't have ast.IndexListExpr. But we can
-    instead check for the "compiler_bootstrap" build tag that's already
-    used for distinguishing binaries built for toolchain1.
+    This matches the compiler's existing limitations and thus ensures
+    that types2 reports the same errors for oversize integer constants.
     
-    Fixes #48863.
-    
-    Change-Id: I87b672322eee22a60ab8d0bb3be5f76cffc97545
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354695
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4fb7c83f3af69098d96f7b6c53dbe3eaf6ea9ee4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288633
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/cgo/ast_go1.go   | 4 ++--
- src/cmd/cgo/ast_go118.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/typecheck/const.go        |  2 +-
+ src/cmd/compile/internal/types2/expr.go            | 45 ++++++++++++++++++----
+ src/cmd/compile/internal/types2/stdlib_test.go     |  1 -
+ .../compile/internal/types2/testdata/builtins.src  | 10 ++---
+ .../compile/internal/types2/testdata/const0.src    | 17 +++++---
+ .../compile/internal/types2/testdata/const1.src    | 18 +++++++--
+ test/run.go                                        |  1 -
+ 7 files changed, 69 insertions(+), 25 deletions(-)

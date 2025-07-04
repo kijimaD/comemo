@@ -1,18 +1,11 @@
-commit bb4a358af3469a1dee0cb5bcae245865233aa9ea
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 5 15:14:47 2014 -0500
+commit 18c7fbdfd7a0842ca601231266b6582f957c982b
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 19 10:33:50 2014 -0700
 
-    5g: don't generate reg variables for direct-called functions
+    doc/go1.4.txt: flags can now be set at most once
     
-    The test intended to skip direct calls when creating
-    registerization variables was testing p->to.type instead of
-    p->to.name, so it always failed, causing regopt to create
-    unnecessary variables for these names.
-    
-    LGTM=rsc
-    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/169110043
+    https://golang.org/cl/161820043
 
- src/cmd/5g/reg.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,22 +1,21 @@
-commit 53c088fbf05f42b24e1f7aa40889ca51055f9f29
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Aug 19 13:17:34 2019 -0400
+commit b4baa8dd1d8bc1d65e80e88c294729554bab72b8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 8 11:36:31 2019 +0100
 
-    cmd/go: fix "go help build -o" docs
+    bytes: add benchmark for LastIndex
     
-    The docs refer to "the last two paragraphs", but in fact should refer to
-    the first two of the previous three paragraphs. Moved up the out of place
-    paragraph.
+    Add BenchmarkLastIndexHard[1-3] in preparation for implementing
+    LastIndex using Rabin-Karp akin to strings.LastIndex
     
-    Updates #14295
+    BenchmarkLastIndexHard1-8            500           3162694 ns/op
+    BenchmarkLastIndexHard2-8            500           3170475 ns/op
+    BenchmarkLastIndexHard3-8            500           3051127 ns/op
     
-    Change-Id: I066da7a665bc6754d246782b941af214a385017a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190839
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id99f85f9640e248958f2b4be4dfd8c974e3b50e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166257
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go             | 4 ++--
- src/cmd/go/internal/work/build.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/bytes/bytes_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

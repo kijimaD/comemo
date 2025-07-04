@@ -1,16 +1,21 @@
-commit 70d95a488da89d268d0a61171ec389982a62184d
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Apr 26 15:28:17 2016 -0400
+commit 2dcbbbd193bf604570ecdfe4f696f32da95e7ffe
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 13 15:44:00 2016 -0700
 
-    regexp: add a harder regexp to the benchmarks
+    cmd/internal/obj, cmd/asm: get rid of obj.ADATA
     
-    This regexp has many parallel alternations
+    Just recognize "DATA" as a special pseudo op word in the assembler
+    directly.
     
-    Change-Id: I8044f460aa7d18f20cb0452e9470557b87facd6d
-    Reviewed-on: https://go-review.googlesource.com/22471
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I508e111fd71f561efa600ad69567a7089a57adb2
+    Reviewed-on: https://go-review.googlesource.com/20648
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/regexp/exec_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/asm/internal/arch/arch.go       |  8 --------
+ src/cmd/asm/internal/asm/parse.go       | 27 +++++++++++++--------------
+ src/cmd/asm/internal/asm/pseudo_test.go |  5 +----
+ src/cmd/internal/obj/link.go            |  1 -
+ src/cmd/internal/obj/util.go            |  1 -
+ 5 files changed, 14 insertions(+), 28 deletions(-)

@@ -1,23 +1,22 @@
-commit 0fe1986a72ea578390d4909988a1d7cb3a687544
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed Mar 20 20:10:38 2019 +0100
+commit 86d375498fa377c7d81c5b93750e8dce2389500e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 16:18:36 2018 +0100
 
-    cmd/link/internal/ld: extract Mach-O load command parsing
+    runtime: don't recreate netpoll timers if they don't change
     
-    We're going to need the ability to extract the LC_VERSION_MIN_* and
-    LC_BUILD_VERSION load commands. This CL adds peekMachoPlatform to do
-    that and in the process simplifies machoCombineDwarf.
+    Currently we always delete both read and write timers and then
+    add them again. However, if user setups read and write deadline
+    separately, then we don't need to touch the other one.
     
-    While here, disable DWARF combining for Apple platforms other than
-    macOS (watchOS, tvOS, bridgeOS), not just iOS.
+    name                  old time/op  new time/op  delta
+    TCP4OneShotTimeout-6  17.2µs ± 0%  17.2µs ± 0%     ~     (p=0.310 n=5+5)
+    SetReadDeadline-6      319ns ± 1%   274ns ± 2%  -13.94%  (p=0.008 n=5+5)
     
-    Updates #22395
+    Update #25729
     
-    Change-Id: I4862b0f15ccc87b7be1a6532b4d37b47c8f7f243
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168459
+    Change-Id: I4c869c3083521de6d0cd6ca99a7609d4dd84b4e4
+    Reviewed-on: https://go-review.googlesource.com/c/146338
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go                 | 18 ++++-
- src/cmd/link/internal/ld/macho.go               | 58 ++++++++++++++++
- src/cmd/link/internal/ld/macho_combine_dwarf.go | 91 ++++++++++---------------
- 3 files changed, 109 insertions(+), 58 deletions(-)
+ src/runtime/netpoll.go | 71 +++++++++++++++++++++++++++++---------------------
+ 1 file changed, 42 insertions(+), 29 deletions(-)

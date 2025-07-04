@@ -1,16 +1,34 @@
-commit 689dc17793991746eb27ba4520d45af19a661f98
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 19 08:55:04 2022 -0700
+commit 33d1b82d16a199b1f8c61cba40b4d883088ca278
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 21:25:19 2021 +0000
 
-    reflect: adjust MapRange allocation test for noopt builder
+    [dev.typeparams] runtime/internal/sys: replace ArchFamily and constants with goarch
     
-    Change-Id: I55899ff0ed2c3c01f24ab1ccf133ce4236049e39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401074
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Refactoring with rf
+    
+        rf 'ex . {
+          import "internal/goarch"
+          import "runtime/internal/sys"
+          sys.ArchFamily -> goarch.ArchFamily
+          sys.AMD64 -> goarch.AMD64
+          sys.ARM -> goarch.ARM
+          sys.ARM64 -> goarch.ARM64
+          sys.I386 -> goarch.I386
+          sys.MIPS -> goarch.MIPS
+          sys.MIPS64 -> goarch.MIPS64
+          sys.PPC64 -> goarch.PPC64
+          sys.RISCV64 -> goarch.RISCV64
+          sys.S390X -> goarch.S390X
+          sys.WASM -> goarch.WASM
+        }'
+    
+    Change-Id: I0cc29ed3fdcf9ff39aa901d8bc92270996f0821c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328341
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/all_test.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/runtime/internal/sys/consts.go | 18 ------------------
+ src/runtime/stack.go               |  8 ++++----
+ 2 files changed, 4 insertions(+), 22 deletions(-)

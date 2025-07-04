@@ -1,22 +1,15 @@
-commit f8474fa01d6995b9e442abff3f7b01a9119a22cc
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Sep 19 11:14:51 2014 +1000
+commit 8cc6cb2f17d7fac3cd180b60ab85beabe874b24d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Sep 11 12:47:17 2014 -0700
 
-    runtime: remove useless code around of EXCEPTION_BREAKPOINT
+    test: return errors earlier in run.go
     
-    This is to simplify VEH handler before making
-    changes to fix issue 8006.
+    Fixes #8184.
     
-    Update #8006
-    
-    LGTM=adg, rsc
-    R=golang-codereviews, adg, rsc
+    LGTM=bradfitz
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/138630043
+    https://golang.org/cl/137510043
 
- src/runtime/defs_windows.go      |  1 -
- src/runtime/defs_windows_386.h   |  1 -
- src/runtime/defs_windows_amd64.h |  1 -
- src/runtime/os_windows_386.c     | 13 -------------
- src/runtime/os_windows_amd64.c   | 10 ----------
- 5 files changed, 26 deletions(-)
+ test/run.go | 4 ++++
+ 1 file changed, 4 insertions(+)

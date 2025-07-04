@@ -1,18 +1,44 @@
-commit aa168ed2cd0614afa7503e3b0eb2b1e38b43384a
-Author: Michael MacInnis <Michael.P.MacInnis@gmail.com>
-Date:   Thu Sep 11 18:39:51 2014 -0700
+commit d16a2ad09b373efe891f0acf9c27e0f2455e5590
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 22:48:08 2014 -0400
 
-    syscall: SysProcAttr job control changes
+    runtime: do not stop traceback at onM
     
-    Making the child's process group the foreground process group and
-    placing the child in a specific process group involves co-ordination
-    between the parent and child that must be done post-fork but pre-exec.
+    Behavior before this CL:
     
-    LGTM=iant
-    R=golang-codereviews, gobot, iant, mikioh.mikioh
+    1. If onM is called on a g0 stack, it just calls the given function.
+    
+    2. If onM is called on a gsignal stack, it calls badonm.
+    
+    3. If onM is called on a curg stack, it switches to the g0 stack
+    and then calls the function.
+    
+    In cases 1 and 2, if the program then crashes (and badonm always does),
+    we want to see what called onM, but the traceback stops at onM.
+    In case 3, the traceback must stop at onM, because the g0
+    stack we are renting really does stop at onM.
+    
+    The current code stops the traceback at onM to handle 3,
+    at the cost of making 1 and 2 crash with incomplete traces.
+    
+    Change traceback to scan past onM but in case 3 make it look
+    like on the rented g0 stack, onM was called from mstart.
+    The traceback already knows that mstart is a top-of-stack function.
+    
+    Alternate fix at CL 132610043 but I think this one is cleaner.
+    This CL makes 3 the exception, while that CL makes 1 and 2 the exception.
+    
+    Submitting TBR to try to get better stack traces out of the
+    freebsd/amd64 builder, but happy to make changes in a
+    followup CL.
+    
+    TBR=khr
+    R=khr
     CC=golang-codereviews
-    https://golang.org/cl/131750044
+    https://golang.org/cl/133620043
 
- src/syscall/exec_bsd.go   | 40 ++++++++++++++++++++++++++++++++++++++--
- src/syscall/exec_linux.go | 40 ++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 76 insertions(+), 4 deletions(-)
+ src/pkg/runtime/asm_386.s    | 7 ++++++-
+ src/pkg/runtime/asm_amd64.s  | 7 ++++++-
+ src/pkg/runtime/asm_arm.s    | 7 ++++++-
+ src/pkg/runtime/traceback.go | 2 --
+ 4 files changed, 18 insertions(+), 5 deletions(-)

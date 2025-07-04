@@ -1,15 +1,17 @@
-commit 26ec05cdbee032ffdb1936730ba9fbe65eacacff
-Author: Hana Kim <hakim@google.com>
-Date:   Wed Dec 13 12:59:12 2017 -0500
+commit 2a2e4dad33dfe75c3163ecdae264ec2fecfe5dfb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 13 20:41:45 2017 -0700
 
-    doc: update info about flame graphs in diagnostics.html
+    misc/cgo/errors: don't pass -C to compiler
     
-    Use Brendan Gregg's FlameGraphs page link.
-    Mention the flame graph is available from the upstream pprof.
+    It's not needed, and the current expectation is that it will go away
+    in the future.
     
-    Change-Id: Ife1d5a5f4f93f20cd5952a09083f798b77d25a60
-    Reviewed-on: https://go-review.googlesource.com/83798
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5f46800e748d9ffa484bda6d1738290c8e00ac2b
+    Reviewed-on: https://go-review.googlesource.com/63751
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/diagnostics.html | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ misc/cgo/errors/errors_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,17 @@
-commit 66cb673de6068a42ce67b538ae561ac23aca13f1
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jun 24 14:27:32 2020 -0400
+commit 0c65531ef18f0f4c1d983ca677c601afbe5552bb
+Author: Koya IWAMURA <kiwamura0314@gmail.com>
+Date:   Tue Jan 14 15:57:49 2020 +0900
 
-    crypto/tls: expand the ConnectionState docs
+    C: add missing name
     
-    Fixes #37572
+    Even though I contributed to golang/go[^1], the rule[^2] did not reflect my name in CONTRIBUTORS, so I added it.
     
-    Change-Id: I493392f535a979ee16609861041da2ecfe21cf77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239744
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    [^1]: https://go-review.googlesource.com/c/go/+/164199
+    [^2]: https://github.com/golang/build/blob/e21a90b/cmd/updatecontrib/updatecontrib.go#L118
+    
+    Change-Id: I5d6b5684d61ea5da679519a9e703d977470de175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214617
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/common.go | 82 +++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 63 insertions(+), 19 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

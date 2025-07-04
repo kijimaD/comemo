@@ -1,12 +1,17 @@
-commit 3d6316623205c48935aec18bedb0c70c703600a7
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Tue Apr 23 14:16:05 2019 +0200
+commit f91fd4f9da04f7675e5ef7dee2c70ae5059f5eed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 15:45:10 2018 -0800
 
-    A: Add Maya Rashish (individual CLA)
+    os: increase default write size for TestClosedPipeRaceWrite
     
-    Change-Id: I1380229c250a6100dc7e0bcf59be8df425a3efac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173399
+    The original value of 65537 consistently caused the test to fail on
+    Solaris. The new value of 131073 consistently lets the test pass.
+    
+    Change-Id: If1a76ab89aa8f661ea049113addd04b23a116534
+    Reviewed-on: https://go-review.googlesource.com/c/152164
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- AUTHORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/os/pipe_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,25 @@
-commit fd3612e4339d10a0e02571a8e43868d569b11a9f
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 14 12:37:04 2021 -0400
+commit 48755e06aa2ed6ec977efc6df976bcc375a2e6f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 12 16:19:49 2020 -0700
 
-    internal/buildcfg: enable regabiwrappers by default
+    [dev.typeparams] cmd/compile: enable parsing of generic code with new -G flag
     
-    For #40724.
+    Providing the -G flag instructs the compiler to accept type parameters.
+    For now, the compiler only parses such files and then exits.
     
-    Change-Id: I75d6ba2d3e4e2d858eea8053efd0f3fd4439dab7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310172
-    Trust: Austin Clements <austin@google.com>
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Added a new test directory (test/typeparam) and initial test case.
+    
+    Port from dev.go2go branch.
+    
+    Change-Id: Ic11e33a9d5f012f8def0bdae205043659562ac73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261660
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/buildcfg/exp.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go  | 10 ++++++-
+ src/cmd/compile/internal/gc/noder.go | 13 ++++++--
+ test/run.go                          |  2 +-
+ test/typeparam/smoketest.go          | 57 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 77 insertions(+), 5 deletions(-)

@@ -1,18 +1,37 @@
-commit 08dbd8ae6d16ed9eaaca241024a4f92fd2184e2c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 15 23:28:31 2015 +0000
+commit 2774b37306616380c00a4fde7f46bde1a8668ece
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 3 14:59:27 2015 -0400
 
-    Revert "cmd/internal/obj: fix pc/sp information for prologue"
+    all: use RET instead of RETURN on ppc64
     
-    This seems to have broken arm64 in a mysterious way. Will try again later.
+    All of the architectures except ppc64 have only "RET" for the return
+    mnemonic. ppc64 used to have only "RETURN", but commit cf06ea6
+    introduced RET as a synonym for RETURN to make ppc64 consistent with
+    the other architectures. However, that commit was never followed up to
+    make the code itself consistent by eliminating uses of RETURN.
     
-    This reverts commit 0a3c991fd330276f6876c401541dcbacbb860985.
+    This commit replaces all uses of RETURN in the ppc64 assembly with
+    RET.
     
-    Change-Id: Ic1b53413c4168977a27381d9cc6fb8d9d7cbb780
-    Reviewed-on: https://go-review.googlesource.com/12245
+    This was done with
+        sed -i 's/\<RETURN\>/RET/' **/*_ppc64x.s
+    plus one manual change to syscall/asm.s.
+    
+    Change-Id: I3f6c8d2be157df8841d48de988ee43f3e3087995
+    Reviewed-on: https://go-review.googlesource.com/10672
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go   | 10 +---------
- src/cmd/internal/obj/arm64/obj7.go | 10 +---------
- src/cmd/internal/obj/x86/obj6.go   | 11 +----------
- 3 files changed, 3 insertions(+), 28 deletions(-)
+ src/math/abs_ppc64x.s          |  2 +-
+ src/reflect/asm_ppc64x.s       |  4 +-
+ src/runtime/asm_ppc64x.s       | 90 +++++++++++++++++++++---------------------
+ src/runtime/atomic_ppc64x.s    |  6 +--
+ src/runtime/duff_ppc64x.s      |  2 +-
+ src/runtime/memclr_ppc64x.s    |  2 +-
+ src/runtime/memmove_ppc64x.s   |  6 +--
+ src/runtime/sys_linux_ppc64x.s | 62 ++++++++++++++---------------
+ src/sync/atomic/asm_ppc64x.s   | 24 +++++------
+ src/syscall/asm.s              |  7 ----
+ src/syscall/asm_linux_ppc64x.s | 16 ++++----
+ 11 files changed, 107 insertions(+), 114 deletions(-)

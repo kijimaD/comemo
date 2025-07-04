@@ -1,0 +1,21 @@
+commit b292799ddd0e81ef6ffbbe5c7972786673d122f9
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Aug 20 10:07:05 2024 -0400
+
+    testing: use temp dir without symlinks in TestChdir/relative
+    
+    When paths with symlinks are involved, it's not viable to compare them
+    with string equality. Don't use a temporary directory with symlinks in
+    it as input, so the test works in more environments.
+    
+    For #62516.
+    
+    Change-Id: I95d774365cc2f90eb0ffcffa61229ed5cee43e3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607035
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/testing/testing_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

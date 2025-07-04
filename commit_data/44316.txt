@@ -1,32 +1,14 @@
-commit 06b86e98031aacdd6f0499799cc4f50200ecfd18
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Feb 18 18:07:09 2021 -0800
+commit 281f0ed7bf671e6bb65ade4aa3146bc572d64560
+Author: Vee Zhang <veezhang@126.com>
+Date:   Tue Jun 9 08:03:13 2020 +0000
 
-    cmd/compile:  fix check to avoid creating new closure function when typechecking inline body
+    internal/poll: correct function name in comment
     
-    By default, when typechecking a closure, tcClosure() creates a new
-    closure function. This should really be done separate from typechecking.
-    For now, we explicitly avoid creating a new closure function when
-    typechecking an inline body (in ImportedBody). However, the heuristic
-    for determining when we are typechecking an inline body was not correct
-    for double nested closures in an inline body, since CurFunc will then be
-    the inner closure, which has a body.
-    
-    So, use a simple global variable to indicate when we typechecking an
-    inline body. The global variable is fine (just like ir.CurFunc), since
-    the front-end runs serially.
-    
-    Fixes #44325
-    
-    Change-Id: If2829fe1ebb195a7b1a240192b57fe6f04d1a36b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294211
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I3b28a45e942a6d6032855758fcc41e4edd64aa32
+    GitHub-Last-Rev: 9c994bbee7420861b5dc83e71e50fc43d7f6650b
+    GitHub-Pull-Request: golang/go#39467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237059
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/typecheck/func.go | 11 ++++++++++-
- test/fixedbugs/issue44325.dir/a.go         | 13 +++++++++++++
- test/fixedbugs/issue44325.dir/b.go         | 13 +++++++++++++
- test/fixedbugs/issue44325.go               |  7 +++++++
- 4 files changed, 43 insertions(+), 1 deletion(-)
+ src/internal/poll/fd_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

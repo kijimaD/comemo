@@ -1,20 +1,22 @@
-commit 9f513254ae92e2a62c3197cf16f7f22a8ca2879a
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Thu May 2 03:12:12 2019 -0400
+commit 213845f7b932c72c5e49445224166d0ae14dfac9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Dec 11 18:26:42 2018 +0000
 
-    net: skip DNS tests on self-hosted Android
+    runtime: fix sysUsed for Windows
     
-    They were already skipped on tethered Android builders because
-    the tests are gated on GO_BUILDER_NAME being set and the Android
-    exec wrapper does not propagate GO_BUILDER_NAME.
+    sysUsed on Windows cares about the result from the VirtualAlloc syscall
+    returning exactly the address that was passed to it. However,
+    VirtualAlloc aligns the address its given to the kernel's allocation
+    granularity, so the returned address may not be the same.
     
-    Updates #31722
+    Note that this wasn't an issue in the past because we only sysUsed
+    regions owned by spans, and spans are always a multiple of 8K, which
+    is a multiple of the allocation granularity on most Windows machines.
     
-    Change-Id: Ifd2c7daecc19a4e540d86d1f38083f43cc3e6b15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175177
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3f5ccd63c6bbbd8b7995945ecedee17573b31667
+    Reviewed-on: https://go-review.googlesource.com/c/153677
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/dial_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/mem_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

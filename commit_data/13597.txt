@@ -1,21 +1,25 @@
-commit 3601f27708e6c0d6f71e690139de46df19cedc38
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 7 17:45:58 2012 -0700
+commit 5f7bec693d3d383061586d6f29f4fea2648399a7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Aug 8 09:57:09 2012 +1000
 
-    godoc: make id attributes unique
+    image/jpeg: send a correct Start Of Scan (SOS) header.
     
-    Some browsers (e.g. IE9) ignore the case of 'id' attributes
-    which can lead to conflicts. Prefix non-generated 'id's with
-    "pkg-" to make them different from any generated attribute.
+    Section B.2.3 of http://www.w3.org/Graphics/JPEG/itu-t81.pdf discusses
+    the End of spectral selection (Se) byte.
     
-    Also: Added missing entry for "Other packages" to top-level
-    index.
+    Apparently many JPEG decoders ignore the Se byte (or let it through
+    with a warning), but some configurations reject them. For example,
+    http://download.blender.org/source/chest/blender_2.03_tree/jpeg/jcmaster.c
+    has these lines:
     
-    Fixes #3851.
+    if (Ss != 0 || Se != DCTSIZE2-1 || Ah != 0 || Al != 0)
+      ERREXIT1(cinfo, JERR_BAD_PROG_SCRIPT, scanno);
     
-    R=adg, dsymonds
+    Fixes #3916.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6449105
+    https://golang.org/cl/6459052
 
- lib/godoc/package.html | 39 ++++++++++++++++++++++++---------------
- 1 file changed, 24 insertions(+), 15 deletions(-)
+ src/pkg/image/jpeg/writer.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

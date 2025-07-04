@@ -1,18 +1,18 @@
-commit 84152d57692fc21ad5ee4bcf8eb0a5ec2a958790
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jun 29 14:32:22 2020 +0200
+commit 6718cb617f3d09878088779fe9d18b08949a9bc0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 04:32:32 2019 +1100
 
-    doc: add riscv64 to ports list
+    cmd/internal/obj/riscv: implement prologue and epilogue
     
-    Mention support for the 64-bit RISC-V instruction set (GOARCH=riscv64)
-    in the "Installing Go from source" document. Also sort the list of
-    supported instruction sets alphabetically.
+    Based on riscv-go port.
     
     Updates #27532
     
-    Change-Id: I07a443044a41a803853978dd7f7446de89ecceb5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240377
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: If552225552bf8d27c29b08de31146dd34986a3a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204630
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/install-source.html | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 334 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 331 insertions(+), 3 deletions(-)

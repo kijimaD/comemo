@@ -1,16 +1,30 @@
-commit 32510eea742162bc8048e8eaa68c2c5b1d8712d2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 16 11:10:54 2022 -0700
+commit 3081f817da8c194982596ddddf5d3ec321c859af
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 20 16:15:53 2021 -0700
 
-    go/parser: remove unused method checkBinaryExpr
+    cmd/compile: always remove receiver type from instantiated method values
     
-    Change-Id: Ica981657e50e30cbfa1757e8457819a479f11c7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412775
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    If a type T has a method foo, then
+    
+    var t T
+    var i interface{} = t.foo
+    
+    The type of foo is a method type, but the type of t.foo should be a
+    standard function type. Make sure we always do that conversion.
+    
+    Fixes #47775
+    
+    Change-Id: I464ec792196b050aba1914e070a4ede34bfd0bfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343881
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/parser/parser.go | 17 -----------------
- 1 file changed, 17 deletions(-)
+ src/cmd/compile/internal/noder/transform.go |  6 +-----
+ src/cmd/compile/internal/typecheck/dcl.go   |  6 ++++++
+ test/typeparam/issue47775.dir/b.go          | 19 +++++++++++++++++++
+ test/typeparam/issue47775.dir/main.go       | 11 +++++++++++
+ test/typeparam/issue47775.go                |  7 +++++++
+ test/typeparam/issue47775b.go               | 28 ++++++++++++++++++++++++++++
+ 6 files changed, 72 insertions(+), 5 deletions(-)

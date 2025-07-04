@@ -1,25 +1,31 @@
-commit 1667dbd7be0da5e75a25f14c339c859ed2190b43
-Author: aimuz <mr.imuz@gmail.com>
-Date:   Fri May 17 06:13:32 2024 +0000
+commit be4fe08b57b3365f3f5db2e2def296904557442d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 17 13:06:16 2022 -0400
 
-    net: use stringslite package for string operations
+    reflect: do not escape Value.Type
     
-    - Replace manual string suffix removal with stringslite.TrimSuffix in conf.go
-    - Use stringslite.Cut for string splitting in ParseCIDR function in ip.go
-    - Add stringslite import in ip.go
+    Types are either static (for compiler-created types) or heap
+    allocated and always reachable (for reflection-created types, held
+    in the central map). So there is no need to escape types.
     
-    This change simplifies string operations and improves code readability.
+    With CL 408826 reflect.Value does not always escape. Some functions
+    that escapes Value.typ would make the Value escape without this CL.
     
-    Change-Id: I02c238d0bc91e95789d8060e6ef4c7d4f6e3f0d9
-    GitHub-Last-Rev: aef5dc5011217abc95b2a2d7c1d991ca84060d59
-    GitHub-Pull-Request: golang/go#67461
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586157
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Had to add a special case for the inliner to keep (*Value).Type
+    still inlineable.
+    
+    Change-Id: I7c14d35fd26328347b509a06eb5bd1534d40775f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413474
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/conf.go | 4 +---
- src/net/ip.go   | 6 +++---
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/inline/inl.go |  18 ++-
+ src/reflect/deepequal.go               |   2 +-
+ src/reflect/makefunc.go                |   4 +-
+ src/reflect/type.go                    |  12 +-
+ src/reflect/value.go                   | 249 ++++++++++++++++++---------------
+ src/runtime/export_test.go             |   3 +
+ test/inline_sync.go                    |   4 +-
+ 7 files changed, 170 insertions(+), 122 deletions(-)

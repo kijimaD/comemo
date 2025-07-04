@@ -1,23 +1,18 @@
-commit cd016af6b6bbbeeb1c14fea574914862a50c3ad6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 25 16:21:59 2018 -0700
+commit 2cc15b18dbab600939147dfe4c58aa6b8f04586e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Mar 8 14:39:43 2018 -0800
 
-    go/types: rename NewInterface2 to NewInterfaceType
+    encoding/csv: disallow quote for use as Comma
     
-    NewInterface2 was introduced with https://go-review.googlesource.com/114317
-    which fixed #25301. Changed the name to NewInterfaceType to better match
-    Go naming styles, per discussion with @josharian, @iant, et al.
+    '"' has special semantic meaning that conflicts with using it as Comma.
     
-    Change-Id: Ifa4708a5efd4f708295b33c3d20fdc5812e1b4fc
-    Reviewed-on: https://go-review.googlesource.com/120875
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ife25ba43ca25dba2ea184c1bb7579a230d376059
+    Reviewed-on: https://go-review.googlesource.com/99696
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/go1.11.txt                          |  2 +-
- src/go/internal/gccgoimporter/parser.go |  2 +-
- src/go/internal/gcimporter/bimport.go   |  2 +-
- src/go/internal/gcimporter/iimport.go   |  2 +-
- src/go/types/type.go                    | 16 ++++++++--------
- src/go/types/typestring_test.go         | 26 +++++++++++++-------------
- src/go/types/universe.go                |  2 +-
- 7 files changed, 26 insertions(+), 26 deletions(-)
+ src/encoding/csv/reader.go      |  2 +-
+ src/encoding/csv/reader_test.go |  4 ++++
+ src/encoding/csv/writer_test.go | 12 ++++++++++--
+ 3 files changed, 15 insertions(+), 3 deletions(-)

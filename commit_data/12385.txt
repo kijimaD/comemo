@@ -1,13 +1,15 @@
-commit a55a6cb925639c9379b3cf53427d5205050a3b5b
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Mon Mar 5 14:58:35 2012 -0500
+commit 82a9294d1bdc230b0b251c5c2505dacefe0b901f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 5 11:43:28 2012 -0800
 
-    misc/emacs: fix extra indentation after comments that end with a period
-    in emacs go mode.  Thanks Alex Shinn for the patch.
+    net: don't import bytes or fmt in mac.go
     
-    R=golang-dev, bradfitz
+    Also add some more MAC tests.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5728063
+    https://golang.org/cl/5728065
 
- misc/emacs/go-mode.el | 22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ src/pkg/net/mac.go      | 20 +++++++++++---------
+ src/pkg/net/mac_test.go | 16 ++++++++++++++--
+ 2 files changed, 25 insertions(+), 11 deletions(-)

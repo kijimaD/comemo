@@ -1,16 +1,23 @@
-commit 8f14a4602dba2e681c1308cd680de8455521189b
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 18:36:22 2022 +0800
+commit 7999fd4710e7f987e86d7b32dd9af31ced4810ba
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Tue Oct 19 10:09:06 2021 +0200
 
-    net/http/httptrace: use strings.Builder
+    errors: mention Is methods should not call Unwrap
     
-    Change-Id: I407d11b43349cd78b709deb7b0e774bd93922caa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428269
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    errors.Is internally unwraps the error until the error matches the
+    target. Because of this, a user-authored Is method on an error type
+    need not call errors.Unwrap on itself or the target, because that would
+    make the unwrapping operation O(N^2). It is a subtle detail to remind
+    authors for resource efficiency reasons.
+    
+    Change-Id: Ic1ba59a5bdbfe2c7cb51a2cba2537ab6de4a13ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356789
+    Reviewed-by: Jean de Klerk <deklerk@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Jean de Klerk <deklerk@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Jean de Klerk <deklerk@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/http/httptrace/trace_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/errors/wrap.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

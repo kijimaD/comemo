@@ -1,27 +1,18 @@
-commit 5a1c5b8ae741df2d5c53f328c57a84d85ae6c44a
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jun 23 15:46:29 2022 -0400
+commit 0ac64f6d700b56fa793d9304bec621cf4dde6fd6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 24 20:20:07 2021 -0700
 
-    cmd/go: add per-package indexing for modules outside mod cache
+    cmd/compile/internal/types2: rename IsMethodSet to IsConstraint (cleanup)
     
-    Packages outside the module cache including the standard library will be
-    indexed individually rather than as a whole module.
+    Invert the boolean result to match the new name.
     
-    For #52876
-    
-    Change-Id: I142dad6a790e9e8eb4dc6430a588fbfa86552e49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413815
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ide6c649ed8ac3a5d263640309960e61a005c886e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344872
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/go/internal/load/pkg.go               |   4 +-
- src/cmd/go/internal/modindex/index_format.txt |  13 +-
- src/cmd/go/internal/modindex/read.go          | 248 ++++++++++++++++++++------
- src/cmd/go/internal/modindex/scan.go          |  10 +-
- src/cmd/go/internal/modindex/write.go         |  18 +-
- src/cmd/go/internal/modload/import.go         |   6 +-
- src/cmd/go/internal/modload/load.go           |   4 +-
- src/cmd/go/internal/modload/search.go         |   8 +-
- 8 files changed, 242 insertions(+), 69 deletions(-)
+ src/cmd/compile/internal/types2/interface.go | 2 +-
+ src/cmd/compile/internal/types2/typeset.go   | 6 ++----
+ src/cmd/compile/internal/types2/typexpr.go   | 2 +-
+ 3 files changed, 4 insertions(+), 6 deletions(-)

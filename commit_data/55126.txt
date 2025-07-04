@@ -1,22 +1,26 @@
-commit 74993bffe1a5c7e28f43423f9925bf9f6ec17aad
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 21 16:59:44 2023 +0000
+commit ebb572d82f97d19d0016a49956eb1fddc658eb76
+Author: Bryan Mills <bcmills@google.com>
+Date:   Fri Jan 13 20:20:31 2023 +0000
 
-    runtime: disable trace v2 optimistic deadlock debugger
+    Revert "internal/fsys: follow root symlink in fsys.Walk"
     
-    The v2 execution tracer has a rudimentary deadlock detector, but it's
-    based on an arbitrary threshold that an actually get hit even if there's
-    no deadlock. This ends up breaking tests sometimes, and it would be bad
-    if this just appeared in production logs.
+    This reverts CL 448360 and adds a regression test for #57754.
     
-    Put this 'deadlock detector' behind a flag.
+    Reason for revert: broke 'go list' in Debian's distribution of the Go toolchain
     
-    For #55317.
+    Fixes #57754.
+    Updates #50807.
     
-    Change-Id: I286f0c05b3ac9600f4f2f9696065cac8bbd25f00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544235
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I3e8b9126294c55f21572774b549fb28f29eded0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461959
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/runtime/trace2.go | 19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/fsys/fsys.go                   | 28 ++--------
+ src/cmd/go/internal/fsys/fsys_test.go              |  4 +-
+ src/cmd/go/script_test.go                          |  1 +
+ src/cmd/go/testdata/script/list_goroot_symlink.txt | 63 ++++++++++++++++++++++
+ .../go/testdata/script/list_symlink_dotdotdot.txt  | 20 -------
+ 5 files changed, 70 insertions(+), 46 deletions(-)

@@ -1,13 +1,12 @@
-commit 05348ab0c84a7e2c76864a156993ac7f4ed092cd
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 7 12:19:36 2011 +0000
+commit 4881e7744ab3f125a60fda1d32583dcb59f9d817
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 7 16:59:35 2011 +1000
 
-    image/gif: fix buglet in graphics extension.
-    need to ReadFull, not Read, to get extension data.
+    cgo: support non intel gcc machine flags
     
-    R=nigeltao
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4576043
+    https://golang.org/cl/4528124
 
- src/pkg/image/gif/reader.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/cgo/gcc.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

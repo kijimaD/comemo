@@ -1,49 +1,18 @@
-commit a37bebc042672d20837ea348d45e39740568cb77
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Oct 1 11:21:49 2021 -0700
+commit bab3461123060804628744a82e8ba03c51c27564
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 10 17:21:23 2021 -0800
 
-    cmd/go: stamp VCS revision and uncommitted status into binaries
+    [dev.typeparams] cmd/compile/internal/types: review of infer.go
     
-    When the go command builds a binary, it will now stamp the current
-    revision from the local Git or Mercurial repository, and it will also
-    stamp whether there are uncommitted edited or untracked files. Only
-    Git and Mercurial are supported for now.
+    The changes between (equivalent, and reviewed) go/types/infer.go
+    and infer.go can be seen by comparing patchset 1 and 2. The actual
+    change is just removing the "// UNREVIEWED" marker and fixing a
+    few comments.
     
-    If no repository is found containing the current working directory
-    (where the go command was started), or if either the main package
-    directory or the containing module's root directory is outside the
-    repository, no VCS information will be stamped. If the VCS tool is
-    missing or returns an error, that error is reported on the main
-    package (hinting that -buildvcs may be disabled).
-    
-    This change introduces the -buildvcs flag, which is enabled by
-    default. When disabled, VCS information won't be stamped when it would
-    be otherwise.
-    
-    Stamped information may be read using 'go version -m file' or
-    debug.ReadBuildInfo.
-    
-    For #37475
-    
-    Change-Id: I4e7d3159e1c270d85869ad99f10502e546e7582d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353930
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ieb0c07c325a2e446550f85b159f99d4dfe5f1d5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291171
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- api/next.txt                                       |   4 +
- src/cmd/go/alldocs.go                              |   6 +
- src/cmd/go/internal/cfg/cfg.go                     |   1 +
- src/cmd/go/internal/get/get.go                     |  18 ++-
- src/cmd/go/internal/load/pkg.go                    |  67 ++++++++++
- src/cmd/go/internal/vcs/vcs.go                     | 115 +++++++++++++-----
- src/cmd/go/internal/vcs/vcs_test.go                |  16 +--
- src/cmd/go/internal/work/build.go                  |   7 ++
- src/cmd/go/script_test.go                          |  78 ++++++++++++
- .../go/testdata/script/version_buildvcs_git.txt    | 135 +++++++++++++++++++++
- src/cmd/go/testdata/script/version_buildvcs_hg.txt |  81 +++++++++++++
- .../go/testdata/script/version_buildvcs_nested.txt |  50 ++++++++
- src/cmd/internal/str/path.go                       |  14 +++
- src/runtime/debug/mod.go                           |  46 +++++--
- 14 files changed, 585 insertions(+), 53 deletions(-)
+ src/cmd/compile/internal/types2/infer.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

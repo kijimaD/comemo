@@ -1,12 +1,22 @@
-commit 4e9b3ba84df34263f1d423c739c14a3acddd3dc0
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Dec 17 20:01:10 2018 -0500
+commit 4363c98f62e9e315ed20b12d2ce47021fd2bf7bc
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Jun 3 13:00:19 2018 +0200
 
-    doc/go1.12: finish most Go 1.12 release notes
+    runtime: do not execute write barrier on newly allocated slice in growslice
     
-    Change-Id: I598c9a2031001a6780b75c31d9015c880741b170
-    Reviewed-on: https://go-review.googlesource.com/c/154637
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The new slice created in growslice is cleared during malloc for
+    element types containing pointers and therefore can only contain
+    nil pointers. This change avoids executing write barriers for these
+    nil pointers by adding and using a special bulkBarrierPreWriteSrcOnly
+    function that does not enqueue pointers to slots in dst to the write
+    barrier buffer.
+    
+    Change-Id: If9b18248bfeeb6a874b0132d19520adea593bfc4
+    Reviewed-on: https://go-review.googlesource.com/115996
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.12.html | 110 ++++++++++++++++++++++++++++++++------------------------
- 1 file changed, 63 insertions(+), 47 deletions(-)
+ src/runtime/mbitmap.go | 29 +++++++++++++++++++++++++++++
+ src/runtime/slice.go   |  4 +++-
+ 2 files changed, 32 insertions(+), 1 deletion(-)

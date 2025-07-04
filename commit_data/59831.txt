@@ -1,26 +1,21 @@
-commit 2a22aefa1f7befb0ac7a95c918b75b05919c1907
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Jun 26 12:19:23 2025 -0700
+commit 99ee616250e865ca8eff8a91bef3824038b411f1
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Sat Apr 27 12:37:53 2024 +0300
 
-    encoding/json: add security section to doc
+    internal/runtime/atomic: fix TestAnd64 and TestOr64
     
-    Add a section to the package doc which details the security
-    considerations of using encoding/json, in particular with respect to
-    parser misalignment issues.
+    The local variable may not be 64bit aligned, which caused arm tests
+    to fail.
     
-    Additionally, clarify previously ambiguous statement in the Unmarshal
-    doc about how case is used when matching keys in objects, and add a note
-    about how duplicate keys are handled.
+    Fixes #67077
     
-    Fixes #14750
-    
-    Change-Id: I66f9b845efd98c86a684d7333b3aa8a456564922
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/684315
+    Change-Id: Ia3ae4abcc90319cb10cd593bdc7994cc6eeb3a28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581916
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/encoding/json/decode.go | 13 ++++++++-----
- src/encoding/json/encode.go | 38 +++++++++++++++++++++++++++++++++++---
- 2 files changed, 43 insertions(+), 8 deletions(-)
+ src/internal/runtime/atomic/atomic_andor_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

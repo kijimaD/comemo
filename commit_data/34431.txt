@@ -1,20 +1,20 @@
-commit 1023b016d51ee0e6b7245482b9d8715170d785ee
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Mar 1 09:20:26 2018 +0100
+commit 7dadd8d5172d44a7a9eccf4770ea299d7ef37b14
+Author: Author Name <brett.j.merrill94@gmail.com>
+Date:   Sat Sep 30 13:47:48 2017 -0700
 
-    syscall: fix nil pointer dereference in Select on linux/{arm64,mips64x}
+    [release-branch.go1.9] net: increase expected time to dial a closed port on all Darwin ports
     
-    The timeout parameter might be nil, don't dereference it
-    unconditionally.
+    All current darwin architectures seem to take at least 100ms to dial a closed port,
+    and that was making the all.bash script fail.
     
-    Fixes #24189
+    Fixes #22062
     
-    Change-Id: I03e6a1ab74fe30322ce6bcfd3d6c42130b6d61be
-    Reviewed-on: https://go-review.googlesource.com/97819
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ib79c4b7a5db2373c95ce5d993cdcbee55cc0667f
+    Reviewed-on: https://go-review.googlesource.com/67350
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70988
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall_linux_arm64.go   | 7 +++++--
- src/syscall/syscall_linux_mips64x.go | 7 +++++--
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ src/net/dial_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

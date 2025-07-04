@@ -1,14 +1,41 @@
-commit 5d580336821b05684c00ebaf9fb4a8318a40788e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jul 18 12:44:24 2014 +0400
+commit 040eeff71c63451cdbc417defa8c907962577619
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jul 18 02:59:54 2014 -0400
 
-    go/printer: simplify test
-    Pre Go1?
+    undo CL 109640045 / f97fb06525e5
     
-    LGTM=r
-    R=golang-codereviews, r
+    Breaks build for FreeBSD. Probably clang related?
+    
+    ««« original CL description
+    cmd/cgo: disable inappropriate warnings when the gcc struct is empty
+    
+    package main
+    //#cgo CFLAGS: -Wall
+    //void test() {}
+    import "C"
+    func main() {
+        C.test()
+    }
+    
+    This code will cause gcc issuing warnings about unused variable.
+    
+    This commit use offset of the second return value of
+    Packages.structType to detect whether the gcc struct is empty,
+    and if it's directly invoke the C function instead of writing an
+    unused code.
+    
+    LGTM=dave, minux
+    R=golang-codereviews, iant, minux, dave
     CC=golang-codereviews
-    https://golang.org/cl/115870043
+    https://golang.org/cl/109640045
+    
+    »»»
+    
+    TBR=dfc
+    R=dave
+    CC=golang-codereviews
+    https://golang.org/cl/114990044
 
- src/pkg/go/printer/printer_test.go | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ misc/cgo/test/empty.go | 18 ------------------
+ src/cmd/cgo/out.go     |  6 ++----
+ 2 files changed, 2 insertions(+), 22 deletions(-)

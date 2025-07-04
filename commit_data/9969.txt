@@ -1,17 +1,18 @@
-commit 3153395ed0d358fd0e4887bbe24c751cf4df32e5
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Thu Oct 13 22:58:19 2011 -0400
+commit 812249fe5e524b2e8a7e6fd1722a05322fced4c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 13 16:36:53 2011 -0700
 
-    crypto/tls: fetch root CA from Windows store
+    gotype: move to exp/gotype per Go 1 plan
     
-    R=rsc
+    R=r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5281044
+    https://golang.org/cl/5269043
 
- src/pkg/crypto/tls/Makefile               |   2 +-
- src/pkg/crypto/tls/root_windows.go        |  55 ++++++++
- src/pkg/syscall/syscall_windows.go        |   3 +
- src/pkg/syscall/zsyscall_windows_386.go   | 223 ++++++++++++++++++------------
- src/pkg/syscall/zsyscall_windows_amd64.go | 223 ++++++++++++++++++------------
- src/pkg/syscall/ztypes_windows.go         |   8 ++
- 6 files changed, 329 insertions(+), 185 deletions(-)
+ src/cmd/Makefile                              | 1 -
+ src/pkg/Makefile                              | 2 +-
+ src/{cmd => pkg/exp}/gotype/Makefile          | 4 ++--
+ src/{cmd => pkg/exp}/gotype/doc.go            | 0
+ src/{cmd => pkg/exp}/gotype/gotype.go         | 0
+ src/{cmd => pkg/exp}/gotype/gotype_test.go    | 0
+ src/{cmd => pkg/exp}/gotype/testdata/test1.go | 0
+ 7 files changed, 3 insertions(+), 4 deletions(-)

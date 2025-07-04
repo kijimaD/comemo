@@ -1,14 +1,16 @@
-commit 7d9a8fb8a913c21599959cd2cea3496ae0828bdc
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jul 23 10:13:58 2013 +0900
+commit 48b9be2b1994d4f9109294102df271c339dc9897
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 22 16:20:30 2013 -0700
 
-    net: make use of noDeadline instead of time.Time{}
+    all: change "true iff" to "whether" in public docs
     
-    R=golang-dev, bradfitz
+    For consistency with Go documentation style.
+    
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/11691044
+    https://golang.org/cl/11697043
 
- src/pkg/net/dnsclient_unix.go | 2 +-
- src/pkg/net/fd_posix_test.go  | 4 ++--
- src/pkg/net/sock_posix.go     | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/crypto/ecdsa/ecdsa.go    | 2 +-
+ src/pkg/crypto/x509/pkix/pkix.go | 2 +-
+ src/pkg/encoding/asn1/asn1.go    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

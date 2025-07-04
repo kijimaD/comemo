@@ -1,15 +1,20 @@
-commit 01b649b7ef45b89610a47efa048b8e73e76b078e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 13 16:49:58 2023 -0700
+commit fc34fdb4154ac40711209e9234639285e071daa9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 19 00:15:53 2022 -0700
 
-    spec: explain in which situations function type arguments can be omitted
+    internal/saferio: avoid returning io.EOF from ReadData if data was read
     
-    Change-Id: I9f008dba7ba6e30f0e62647482a3ed0b51bc1ad0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502997
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    ReadData follows the error semantics of io.ReadFull for small sizes,
+    it should do so as well for large sizes.
+    
+    Change-Id: I6a11b00d903ac5332e1dda074473790dcf21f32a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424919
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
 
- doc/go_spec.html | 52 +++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 37 insertions(+), 15 deletions(-)
+ src/internal/saferio/io.go      |  7 +++++++
+ src/internal/saferio/io_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

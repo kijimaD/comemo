@@ -1,14 +1,14 @@
-commit 3a0a86888a0bd371931a10493a7c5b25e6774085
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 9 17:47:01 2011 +1000
+commit c3be760889be43a61edbc868921517151b4acde5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 9 10:29:25 2011 +1000
 
-    AC: s/Jeffrey M Hodges/Jeff Hodges/
-    Formality rejected.
+    runtime: increase maximum number of windows callbacks
     
-    R=jeff
+    Fixes #1912.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4591057
+    https://golang.org/cl/4591047
 
- AUTHORS      | 2 +-
- CONTRIBUTORS | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/windows/thread.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

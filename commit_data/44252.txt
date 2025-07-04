@@ -1,17 +1,18 @@
-commit 70c37ee7d0eb68777bd81a1acc06d85ee3da4052
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Feb 16 17:55:27 2021 -0500
+commit 9326d71874730901c159643703a16dc34646e5bd
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 2 13:56:26 2020 -0400
 
-    cmd/compile/internal/test: gofmt abiutils_test.go
+    doc/go1.15: add release notes for new linker
     
-    Turns out that file is not formatted properly in the dev.regabi
-    branch.
+    Add a blurb to the release notes describing improvements made to the
+    Go linker in the most recent development cycle.
     
-    Change-Id: I93125e65d5d3e8448c6ec1f077332c9bf7f0dd26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292594
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Updates #37419.
+    
+    Change-Id: I3b870f0c00efc0b7b33aab2631d8c4e1c273922d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236159
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/test/abiutils_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.15.html | 30 ++++++++++++++++++++++++++++--
+ 1 file changed, 28 insertions(+), 2 deletions(-)

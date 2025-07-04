@@ -1,12 +1,24 @@
-commit a101bfc6201ff81075a1ff57516a487d14e092aa
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 26 11:47:27 2013 -0700
+commit 7cfebf7b1d0e02663a18225c04ca02f28e4fd6df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 26 11:14:30 2013 -0700
 
-    doc/go1.1.html: net/mail, net/smtp
+    godoc: link identifiers to declarations
     
-    R=golang-dev, bradfitz
+    The changes are almost completely self-contained
+    in the new file linkify.go. The other changes are
+    minimal and should not disturb the currently
+    working godoc, in anticipation of Go 1.1.
+    
+    To disable the feature in case of problems, set
+    -links=false.
+    
+    Fixes #2063.
+    
+    R=adg, r
     CC=golang-dev
-    https://golang.org/cl/7835049
+    https://golang.org/cl/7883044
 
- doc/go1.1.html | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ src/cmd/godoc/format.go  |  10 +--
+ src/cmd/godoc/godoc.go   |  39 ++++++++-
+ src/cmd/godoc/linkify.go | 210 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 251 insertions(+), 8 deletions(-)

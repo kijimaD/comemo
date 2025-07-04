@@ -1,34 +1,25 @@
-commit 68f55700320cb6d4d5a63a6c1e0f2c4f31c01203
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Apr 20 11:53:20 2015 +1200
+commit 9d0239771a2ddd77be0ba64c2782e1328a378190
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 30 16:13:39 2015 +1100
 
-    cmd/link, cmd/internal/goobj: update constants, regenerate testdata
+    cmd/go: always link external test packages first when using gccgo
     
-    The constants in cmd/internal/goobj had gone stale (we had three copies of
-    these constants, working on reducing that was what got me to noticing this).
+    This CL is an amagamation of several fixes Canonical have made on their
+    fork of the cmd/go tool (packaged as gccgo-go.deb on Ubuntu 14.04+).
     
-    Some of the changes to link.hello.darwin.amd64 are the change from absolute
-    to %rip-relative addressing, a change which happened quite a while ago...
+    Additionally this CL brings gccgoToolchain.ldi() up to date with the version
+    that will ship in gccgo-5.0. As gccgo is most likely to be used with its
+    own version of the go tool that it supples it makes good sense that the libgo
+    version should dictate the contents of gccgotoolchain.ld()
     
-    Depends on http://golang.org/cl/9113.
+    Please see https://codereview.appspot.com/222890043/ for more details on the
+    issues fixed.
     
-    Fixes #10501.
-    
-    Change-Id: Iaa1511f458a32228c2df2ccd0076bb9ae212a035
-    Reviewed-on: https://go-review.googlesource.com/9105
+    Change-Id: Icf7deb43f8e80b424757f1673e6bca7a0aa2a1ac
+    Reviewed-on: https://go-review.googlesource.com/8250
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/goobj/read.go                |  68 +++++++++++++-------------
- src/cmd/link/load.go                          |  20 +++-----
- src/cmd/link/pclntab.go                       |   3 +-
- src/cmd/link/testdata/Makefile                |   2 +-
- src/cmd/link/testdata/autosection.6           | Bin 942 -> 937 bytes
- src/cmd/link/testdata/autoweak.6              | Bin 387 -> 386 bytes
- src/cmd/link/testdata/dead.6                  | Bin 854 -> 849 bytes
- src/cmd/link/testdata/hello.6                 | Bin 233 -> 229 bytes
- src/cmd/link/testdata/layout.6                | Bin 391 -> 396 bytes
- src/cmd/link/testdata/link.hello.darwin.amd64 |  37 +++++++-------
- src/cmd/link/testdata/pclntab.6               | Bin 3809 -> 3804 bytes
- 11 files changed, 63 insertions(+), 67 deletions(-)
+ src/cmd/go/build.go | 40 ++++++++++++++++++++++------------------
+ src/cmd/go/pkg.go   |  1 +
+ src/cmd/go/test.go  |  9 +++++----
+ 3 files changed, 28 insertions(+), 22 deletions(-)

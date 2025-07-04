@@ -1,17 +1,41 @@
-commit 97fa89497db21823fd13da319915349b13891d46
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Jun 24 14:23:28 2018 +0200
+commit 7f1b2738bb7a8863ee78d5357acbc820b7083821
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 12 12:39:22 2018 -0500
 
-    time: run genzabbrs.go to update zoneinfo_abbrs_windows.go
+    runtime: make throw safer to call
     
-    The abbreviations list in zoneinfo_abbrs_windows.go was last updated
-    in June 2017, and it's currently outdated. Update it.
+    Currently, throw may grow the stack, which means whenever we call it
+    from a context where it's not safe to grow the stack, we first have to
+    switch to the system stack. This is pretty easy to get wrong.
     
-    Change-Id: Ie2bf4268787f5aefe98ee110c2c279451e18fd97
-    Reviewed-on: https://go-review.googlesource.com/120559
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Fix this by making throw switch to the system stack so it doesn't grow
+    the stack and is hence safe to call without a system stack switch at
+    the call site.
+    
+    The only thing this complicates is badsystemstack itself, which would
+    now go into an infinite loop before printing anything (previously it
+    would also go into an infinite loop, but would at least print the
+    error first). Fix this by making badsystemstack do a direct write and
+    then crash hard.
+    
+    Change-Id: Ic5b4a610df265e47962dcfa341cabac03c31c049
+    Reviewed-on: https://go-review.googlesource.com/93659
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/time/zoneinfo_abbrs_windows.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/runtime/asm_386.s      |  1 +
+ src/runtime/asm_amd64.s    |  1 +
+ src/runtime/asm_amd64p32.s |  1 +
+ src/runtime/asm_arm.s      |  1 +
+ src/runtime/asm_arm64.s    |  1 +
+ src/runtime/asm_mips64x.s  |  1 +
+ src/runtime/asm_mipsx.s    |  1 +
+ src/runtime/asm_ppc64x.s   |  1 +
+ src/runtime/asm_s390x.s    |  1 +
+ src/runtime/cgocheck.go    |  8 ++------
+ src/runtime/panic.go       |  6 +++++-
+ src/runtime/proc.go        | 19 ++++---------------
+ src/runtime/stack.go       |  4 +---
+ src/runtime/stubs.go       |  7 ++++++-
+ 14 files changed, 27 insertions(+), 26 deletions(-)

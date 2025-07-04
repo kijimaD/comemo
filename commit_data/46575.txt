@@ -1,21 +1,29 @@
-commit 93f964b4122b7f9a1ae3f80ad75363403a5753ca
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 22 11:54:22 2021 -0400
+commit cc90e7a51e15659ea1a1eb53ca08361b6a77696a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 12 11:38:32 2021 -0800
 
-    cmd/compile/internal/ssa: remove workarounds for #43938
+    [dev.regabi] cmd/compile: always use the compile queue
     
-    The cmd/go bug this worked around should be fixed as of CL 351329.
+    The compiler currently has two modes for compilation: one where it
+    compiles each function as it sees them, and another where it enqueues
+    them all into a work queue. A subsequent CL is going to reorder
+    function compilation to ensure that functions are always compiled
+    before any non-trivial function literals they enclose, and this will
+    be easier if we always use the compile work queue.
     
-    Fixes #43938
-    Fixes #48550
+    Also, fewer compilation modes makes things simpler to reason about.
     
-    Change-Id: Ida930e7ee33d44d89556b9b8bbc3c26bb53697b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351529
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie090e81f7476c49486296f2b90911fa0a466a5dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283313
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/debug_lines_test.go | 15 +++++----------
- src/cmd/compile/internal/ssa/debug_test.go       |  3 +++
- 2 files changed, 8 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/base/debug.go     |  1 -
+ src/cmd/compile/internal/gc/compile.go     | 87 ++++++++----------------------
+ src/cmd/compile/internal/gc/main.go        |  5 +-
+ src/cmd/compile/internal/gc/obj.go         |  5 +-
+ src/cmd/compile/internal/liveness/plive.go |  1 +
+ test/fixedbugs/issue20250.go               |  2 +-
+ 6 files changed, 28 insertions(+), 73 deletions(-)

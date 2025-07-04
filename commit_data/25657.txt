@@ -1,20 +1,32 @@
-commit 980364b7a2425657a5c66dcad4e52f6cd3723a77
-Author: Kevin Kirsche <kev.kirsche@gmail.com>
-Date:   Fri Jan 22 11:04:07 2016 -0500
+commit ec9aae772c6da242fd0c1ef2d71ddb5c139d8f61
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 21 18:36:05 2015 -0700
 
-    crypto/cipher: Add AES-GCM encryption and decryption example
+    runtime: move m's OS-specific semaphore fields into mOS
     
-    Add example of how to use the aes package to
-    implement AES encryption and decryption
-    within an application.
+    Allows removing fields that aren't relevant to a particular OS or
+    changing their types to match the underlying OS system calls they'll
+    be used for.
     
-    Per feedback, use more secure AES-GCM implementation as an
-    example in crypto/cipher instead of AES directly.
-    
-    Change-Id: I84453ebb18e0bc79344a24171a031ec0d7ccec2e
-    Reviewed-on: https://go-review.googlesource.com/18803
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5cea89ee77b4e7b985bff41337e561887c3272ff
+    Reviewed-on: https://go-review.googlesource.com/16176
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/cipher/example_test.go | 52 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 52 insertions(+)
+ src/runtime/lock_sema.go   | 32 +++++++++++---------------------
+ src/runtime/os1_darwin.go  | 15 ++++++++-------
+ src/runtime/os1_nacl.go    | 30 +++++++++++++++---------------
+ src/runtime/os1_netbsd.go  |  3 +--
+ src/runtime/os1_openbsd.go |  3 +--
+ src/runtime/os1_plan9.go   |  3 +--
+ src/runtime/os1_windows.go |  7 +++++--
+ src/runtime/os3_solaris.go |  8 ++++++--
+ src/runtime/os_darwin.go   |  4 +++-
+ src/runtime/os_nacl.go     |  6 +++++-
+ src/runtime/os_netbsd.go   |  4 +++-
+ src/runtime/os_openbsd.go  |  4 +++-
+ src/runtime/os_plan9.go    |  5 +++--
+ src/runtime/os_solaris.go  |  3 ++-
+ src/runtime/os_windows.go  |  4 +++-
+ src/runtime/runtime2.go    |  3 ---
+ 16 files changed, 70 insertions(+), 64 deletions(-)

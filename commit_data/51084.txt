@@ -1,34 +1,17 @@
-commit a367981b4c8e3ae955eca9cc597d9622201155f3
-Author: Alexander Scheel <alex.scheel@hashicorp.com>
-Date:   Wed Nov 2 16:19:23 2022 +0000
+commit a174638a5cc88eb4fccaaa699990f5626fbb0e30
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 30 16:33:51 2021 -0500
 
-    crypto/x509: create CRLs with Issuer.RawSubject
+    os: test that LookupEnv reports all keys found in Environ
     
-    Per discussion with Roland Shoemaker, this updates
-    x509.CreateRevocationList to mirror the behavior of
-    x509.CreateCertificate, creating an internal struct for the ASN.1
-    encoding of the CRL. This allows us to switch the Issuer field type to
-    asn1.RawValue, bypassing the round-tripping issues of pkix.Name in most
-    scenarios.
+    For #49886
     
-    Per linked ticket, this resolves issues where a non-Go created
-    certificate can be used to create CRLs which aren't correctly attested
-    to that certificate. In rare cases where the CRL issuer is validated
-    against the certificate's issuer (such as the linked JDK example), this
-    can result in failing to check this CRL for the candidate certificate.
-    
-    Fixes #53754
-    
-    Change-Id: If0adc053c081d6fb0b1ce47324c877eb2429a51f
-    GitHub-Last-Rev: 033115dd5eb93295330eb151ff8557df5bffbec8
-    GitHub-Pull-Request: golang/go#53985
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418834
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ie3a7f12a0d30ec719caf375e7be30cc4a5796c3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367850
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/crypto/x509/x509.go      | 39 ++++++++++++++++++++++++++++++++---
- src/crypto/x509/x509_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 85 insertions(+), 3 deletions(-)
+ src/os/env_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

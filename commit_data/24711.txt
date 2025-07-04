@@ -1,20 +1,19 @@
-commit 2780abd645536db2f23d6c1f47bb404bc1da8fea
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 3 17:18:42 2015 -0800
+commit 01490eb96cb0ff15d6b749fc11db99f53891be61
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Aug 23 21:14:25 2015 -0700
 
-    cmd/cgo: add a missing newline in writeExports
+    [dev.ssa] cmd/compile: make sure to keep offset and sym of MOV opcodes.
     
-    The code works without the newline, but it looks funny:
+    MOVXload and MOVXstore opcodes have both an auxint offset
+    and an aux offset (a symbol name, like a local or arg or global).
+    Make sure we keep those values during rewrites.
     
-    func _cgoexp_15afe6549f62_GoFn(a unsafe.Pointer, n int32) {     fn := GoFn
-    
-    This adds a newline after the '{'.
-    
-    Change-Id: I6c465abe16f47924426d1b22b91004b3a3586ebd
-    Reviewed-on: https://go-review.googlesource.com/16612
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic9fd61bf295b5d1457784c281079a4fb38f7ad3b
+    Reviewed-on: https://go-review.googlesource.com/13849
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/cgo/out.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 115 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  25 +-
+ src/cmd/compile/internal/ssa/rewrite.go      |   5 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 795 +++++++++++++++++++++------
+ 4 files changed, 707 insertions(+), 233 deletions(-)

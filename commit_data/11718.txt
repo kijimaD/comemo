@@ -1,12 +1,14 @@
-commit 7c5d6409f50b731992e33af0c3cee23e8cc4a7c5
+commit 596840a905bf0dfd79ce4ce7583a3f22f7b38d13
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 15:37:58 2012 -0500
+Date:   Wed Feb 8 15:26:47 2012 -0500
 
-    spec: address CL 5647054 comments
+    cmd/dist: make 'make' quieter for developers
     
-    R=golang-dev, r
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5641057
+    https://golang.org/cl/5646055
 
- doc/go_spec.html | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/Make.dist        |  4 ++++
+ src/cmd/dist/build.c | 12 +++++-------
+ src/cmd/dist/unix.c  |  6 +++---
+ 3 files changed, 12 insertions(+), 10 deletions(-)

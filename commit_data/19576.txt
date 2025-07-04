@@ -1,13 +1,20 @@
-commit 26282e4093fcf34738483ed837c1b97a54bb059d
+commit 1ca10de35d289346468a9c5b26475265c375eb95
 Author: Rui Ueyama <ruiu@google.com>
-Date:   Thu Jun 19 20:10:55 2014 -0700
+Date:   Thu Jun 19 11:22:50 2014 -0700
 
-    strings: define byteBitmap.isSet
+    strings: reduce allocation in byteStringReplacer.WriteString
     
-    LGTM=dave
-    R=golang-codereviews, bradfitz, dave
+    Use WriteString instead of allocating a byte slice as a
+    buffer. This was a TODO.
+    
+    benchmark               old ns/op    new ns/op    delta
+    BenchmarkWriteString        40139        19991  -50.20%
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/109090048
+    https://golang.org/cl/107190044
 
- src/pkg/strings/replace.go | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ src/pkg/strings/replace.go      | 44 +++++++++++++----------------------------
+ src/pkg/strings/replace_test.go |  9 +++++++++
+ 2 files changed, 23 insertions(+), 30 deletions(-)

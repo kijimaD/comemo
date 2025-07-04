@@ -1,18 +1,15 @@
-commit df184ff2f0a7ab5ec47a68d29738ccf3dd296fd3
+commit 7b094182e42d23582194114e2da6d47ee03eff25
 Author: Adam Langley <agl@golang.org>
-Date:   Wed Mar 16 10:50:06 2011 -0400
+Date:   Wed Mar 16 10:42:41 2011 -0400
 
-    crypto/openpgp: add DSA signature support.
+    crypto/ecdsa: truncate hash values.
     
-    R=bradfitzgo, nsz
+    There is some disagreement about how to deal with hash values larger
+    than the curve order size. We choose to follow OpenSSL's lead here.
+    
+    R=bradfitzgo, r
     CC=golang-dev
-    https://golang.org/cl/4280041
+    https://golang.org/cl/4273059
 
- src/pkg/crypto/openpgp/packet/packet.go      |  8 ++-
- src/pkg/crypto/openpgp/packet/private_key.go | 31 +++++++++-
- src/pkg/crypto/openpgp/packet/public_key.go  | 31 ++++++----
- src/pkg/crypto/openpgp/packet/signature.go   | 90 +++++++++++++++++++++++-----
- src/pkg/crypto/openpgp/read_test.go          | 32 ++++++++--
- src/pkg/crypto/openpgp/write.go              |  4 ++
- src/pkg/crypto/openpgp/write_test.go         | 16 ++++-
- 7 files changed, 180 insertions(+), 32 deletions(-)
+ src/pkg/crypto/ecdsa/ecdsa.go | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)

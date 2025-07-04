@@ -1,25 +1,26 @@
-commit 35c7234601c409a1d1595e4eb9fe72e8ba4e6464
-Author: Austin Clements <austin@google.com>
-Date:   Wed Sep 15 17:14:21 2021 -0400
+commit 762ef81a5670da99a4b060fd3afe4134c9e82017
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 8 18:44:27 2021 -0800
 
-    runtime: add always-preempt maymorestack hook
+    cmd/link/internal/ld: deflake TestWindowsIssue36495
     
-    This adds a maymorestack hook that forces a preemption at every
-    possible cooperative preemption point. This would have helped us catch
-    several recent preemption-related bugs earlier, including #47302,
-     #47304, and #47441.
+    Over a dozen of the ld tests were missing closes. That was less
+    obvious before CL 299670 started using T.TempDir instead, which fails
+    a test when the tempdir can't be cleaned up (as it can't on Windows
+    when things are still open), insteading of leaving tempdirs around on
+    disk after the test.
     
-    For #48297.
+    Most of the missing closes were fixed in CL 299670, but the builders
+    helpfully pointed out that I missed at least this one.
     
-    Change-Id: Ib82c973589c8a7223900e1842913b8591938fb9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359796
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I35f695bb7cbfba31e16311c5af965c148f9d7943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299929
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/debug.go | 34 ++++++++++++++++++++++++++++++++++
- src/runtime/stack.go |  3 +++
- 2 files changed, 37 insertions(+)
+ src/cmd/link/internal/ld/dwarf_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,22 +1,21 @@
-commit 7ece3a7b17ff637755dbe9e5687af22fd5f82168
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Jan 21 18:24:55 2021 -0800
+commit 2dbbc867dbf44f72422d1827d18a2055f9b7b72f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 19 14:17:05 2020 -0400
 
-    net/http: fix flaky TestDisableKeepAliveUpgrade
+    crypto/x509: save the temp dir in TestReadUniqueDirectoryEntries
     
-    This test hijacks a connection. It was reading from the net.Conn
-    returned by Hijack, not the bufio.ReadWriter, causing flaky failures
-    when a read-ahead byte was held in the read buffer.
+    In CL 231958, TempDir was changed to create a new temp directory on
+    each allocation, on the theory that it is easy to save in a variable
+    for callers that want the same directory repeatedly. Apply that
+    transformation here.
     
-    Fixes #43073.
+    Updates #38850
     
-    Change-Id: Ic3e7f704fba9635fd851cb3c0c0c74e312b75f6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285596
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ibb014095426c33038e0a2c95303579cf95d5c3ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234582
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Anmol Sethi <nhooyr@gmail.com>
 
- src/net/http/serve_test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/crypto/x509/root_unix_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

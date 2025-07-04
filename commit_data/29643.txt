@@ -1,14 +1,27 @@
-commit 7e455163dedfe0ba73f13adbd1d9f0728a383bc9
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Nov 22 14:07:03 2016 -0800
+commit dd748cf3141d45eeeedcb9b88aa11e47b16a0008
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 15:43:10 2016 -0700
 
-    net: update documentation on Conn and PacketConn
+    cmd/compile: make Afunclit the default/only behavior for Naddr
     
-    Fixes #17982
+    Naddr used to translate PFUNC Nodes into references to the function
+    literal wrapper, and then Afunclit could be used to rewrite it to
+    reference the function text itself. But now everywhere we use Naddr on
+    PFUNC Nodes, we immediately call Afunclit anyway. So just merge
+    Afunclit's behavior into Naddr.
     
-    Change-Id: I4884a6b57905420ac0e37210c411de98c582de1d
-    Reviewed-on: https://go-review.googlesource.com/33473
+    Passes toolstash/buildall.
+    
+    Change-Id: If2ca6d7f314c1a0711df9b8209aace16ba4b8bc0
+    Reviewed-on: https://go-review.googlesource.com/30073
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/net.go | 40 ++++++++++++++++++++++++++--------------
- 1 file changed, 26 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/arm/ggen.go    |  4 +---
+ src/cmd/compile/internal/arm64/ggen.go  |  4 +---
+ src/cmd/compile/internal/gc/gsubr.go    | 14 +-------------
+ src/cmd/compile/internal/gc/pgen.go     |  1 -
+ src/cmd/compile/internal/mips64/ggen.go |  4 +---
+ src/cmd/compile/internal/ppc64/ggen.go  |  4 +---
+ 6 files changed, 5 insertions(+), 26 deletions(-)

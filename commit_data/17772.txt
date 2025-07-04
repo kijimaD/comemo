@@ -1,12 +1,15 @@
-commit 139cc96a5718f59867e1a4295a29c46bc38a9a29
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Oct 9 13:28:47 2013 -0700
+commit cb309173874e3dd0dca19c904fd368b59e373906
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 9 08:44:47 2013 -0700
 
-    runtime: markfreed's error reports should be prefixed with "markfreed", not "markallocated".
+    runtime/cgo: mark callback functions as NOSPLIT
     
-    R=golang-dev, iant
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/14441055
+    https://golang.org/cl/14448044
 
- src/pkg/runtime/mgc0.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/test/callback.go       | 14 ++++++++++++++
+ misc/cgo/test/callback_c.c      | 14 ++++++++++++++
+ misc/cgo/test/cgo_test.go       |  1 +
+ src/pkg/runtime/cgo/callbacks.c |  3 +++
+ 4 files changed, 32 insertions(+)

@@ -1,26 +1,29 @@
-commit 707a83341b8c7973f4e0fce731fa279c618f233b
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Mon Oct 3 09:49:25 2016 -0700
+commit 77ef597f38e11e03522d1ccac34cfd39a1ca8d8e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 9 13:58:06 2016 -0700
 
-    database/sql: add option to use named parameter in query arguments
+    [dev.ssa] cmd/compile: more fixes for 386 shared libraries
     
-    Modify the new Context methods to take a name-value driver struct.
-    This will require more modifications to drivers to use, but will
-    reduce the overall number of structures that need to be maintained
-    over time.
+    Use the destination register for materializing the pc
+    for GOT references also. See https://go-review.googlesource.com/c/25442/
+    The SSA backend assumes CX does not get clobbered for these instructions.
     
-    Fixes #12381
+    Mark duffzero as clobbering CX. The linker needs to clobber CX
+    to materialize the address to call. (This affects the non-shared-library
+    duffzero also, but hopefully forbidding one register across duffzero
+    won't be a big deal.)
     
-    Change-Id: I30747533ce418a1be5991a0c8767a26e8451adbd
-    Reviewed-on: https://go-review.googlesource.com/30166
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Hopefully this is all the cases where the linker is clobbering CX
+    under the hood and SSA assumes it isn't.
+    
+    Change-Id: I080c938170193df57cd5ce1f2a956b68a34cc886
+    Reviewed-on: https://go-review.googlesource.com/26611
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/database/sql/convert.go       | 27 +++++++++----
- src/database/sql/ctxutil.go       | 43 ++++++++++++++++----
- src/database/sql/driver/driver.go | 18 +++++++--
- src/database/sql/fakedb_test.go   | 83 ++++++++++++++++++++++++++++++---------
- src/database/sql/sql.go           | 23 ++++++++++-
- src/database/sql/sql_test.go      | 47 ++++++++++++++++++++++
- 6 files changed, 202 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules |  3 ++-
+ src/cmd/compile/internal/ssa/gen/386Ops.go |  3 ++-
+ src/cmd/compile/internal/ssa/opGen.go      |  2 +-
+ src/cmd/internal/obj/x86/obj6.go           | 21 ++++++++++++++-------
+ 4 files changed, 19 insertions(+), 10 deletions(-)

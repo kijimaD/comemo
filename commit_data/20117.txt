@@ -1,20 +1,29 @@
-commit 9601abaf8b3d454f6bf84ba9f5e07c11de16ef14
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 25 20:25:22 2014 +0400
+commit 6d248cec56dd56f3ddb92bd587b5c4ac2f9919b1
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Mon Aug 18 14:41:28 2014 -0700
 
-    runtime: convert timers to Go
+    bzip2: improve performance
     
-    LGTM=rsc
-    R=golang-codereviews, ruiu, rsc, daniel.morsing
-    CC=golang-codereviews, khr
-    https://golang.org/cl/123700044
+    Improve performance of move-to-front by using cache-friendly
+    copies instead of doubly-linked list. Simplify so that the
+    underlying slice is the object. Remove the n=0 special case,
+          which was actually slower with the copy approach.
+    
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkDecodeDigits     26429714      23859699      -9.72%
+    BenchmarkDecodeTwain      76684510      67591946      -11.86%
+    
+    benchmark                 old MB/s     new MB/s     speedup
+    BenchmarkDecodeDigits     1.63         1.81         1.11x
+    BenchmarkDecodeTwain      1.63         1.85         1.13x
+    
+    Updates #6754.
+    
+    LGTM=adg, agl, josharian
+    R=adg, agl, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/131840043
 
- src/pkg/runtime/mgc0.c      |  10 ++
- src/pkg/runtime/netpoll.goc |  15 ++
- src/pkg/runtime/runtime.h   |  33 -----
- src/pkg/runtime/thunk.s     |  12 ++
- src/pkg/runtime/time.go     | 263 ++++++++++++++++++++++++++++++++++
- src/pkg/runtime/time.goc    | 341 --------------------------------------------
- src/pkg/syscall/net_nacl.go |   2 +-
- src/pkg/time/sleep.go       |   2 +-
- 8 files changed, 302 insertions(+), 376 deletions(-)
+ src/pkg/compress/bzip2/bzip2_test.go    | 38 ++++++++++++++++
+ src/pkg/compress/bzip2/move_to_front.go | 79 +++++++--------------------------
+ 2 files changed, 55 insertions(+), 62 deletions(-)

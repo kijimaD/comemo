@@ -1,16 +1,16 @@
-commit 8599c0da1f7ffc1f230ee49ddb9838a5caff358a
-Author: Takuya Ueda <uedatakuya@gmail.com>
-Date:   Wed Dec 21 12:43:05 2016 +0900
+commit 1da1da3d6ab9ac8287e6b4185afcd1c3396178f5
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon May 9 09:40:27 2016 -0400
 
-    go/parser: fix reference in ParseExprFrom docs
+    go/internal/gcimporter: set Pos attribute of decoded types.Objects
     
-    The ParseExprFrom docs refer to Parse. It meant ParseFile.
+    This change is a copy of CL 22788 in x/tools.
+    It has no observable effect yet, but brings the two packages in synch.
     
-    Fixes #18398
-    
-    Change-Id: I06fb3b5178c6319e86199823fe4769a8eb9dc49c
-    Reviewed-on: https://go-review.googlesource.com/34671
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I266c77547cb46deb69b1a36e1674dfebc430e3a5
+    Reviewed-on: https://go-review.googlesource.com/22936
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/parser/interface.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/internal/gcimporter/bimport.go    | 74 ++++++++++++++++++++++++--------
+ src/go/internal/gcimporter/gcimporter.go |  6 ++-
+ 2 files changed, 61 insertions(+), 19 deletions(-)

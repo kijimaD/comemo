@@ -1,13 +1,14 @@
-commit 8e28a8d2a025c7061323b30189992d8f85acabb4
+commit 7ff9fcafbdd45e9bb9f1885adcf76e7a91f608ec
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 16 11:56:45 2017 -0500
+Date:   Thu Aug 24 19:24:43 2017 -0400
 
-    cmd/go: fix cgo-disabled test failure from CL 77151
+    [dev.boringcrypto] crypto/internal/boring: clear "executable stack" bit from syso
     
-    Change-Id: I8ed4c6dd32a74d94565d77771bb773f006ff90ac
-    Reviewed-on: https://go-review.googlesource.com/78317
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie9dd13f3ae78a423a231f47e746a38f96768b93c
+    Reviewed-on: https://go-review.googlesource.com/58830
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/crypto/internal/boring/build/build.sh          |   2 +-
+ .../internal/boring/build/build_in_chroot.sh       |   2 ++
+ .../boring/goboringcrypto_linux_amd64.syso         | Bin 7576080 -> 7576080 bytes
+ 3 files changed, 3 insertions(+), 1 deletion(-)

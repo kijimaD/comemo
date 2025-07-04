@@ -1,36 +1,22 @@
-commit 702226f93321a6cc9c90c657c589c869c70872fc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 5 10:22:07 2020 -0500
+commit c3c53661ba8823ea7a051110aebbdea2650c25d0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 8 04:11:07 2019 +1000
 
-    doc/install.html: streamline the “Test your installation” step and make it module-agnostic
+    cmd/asm,cmd/internal/obj/riscv: implement integer computational instructions
     
-    In CL 199417, we updated “How to Write Go Code” to give a basic
-    introduction to modules and to include module-mode commands.
-    However, most new users will end up reading “Getting Started”
-    (doc/install.html) before “How to Write Go Code”, and we forgot to
-    update the handful of commands there for module mode.
+    Add support for assembling integer computational instructions.
     
-    Before this change, the “Test your installation” section also covered
-    quite a few operations beoyond merely testing the installation: it
-    included setting up a GOPATH, building a binary, and installing and
-    cleaning binaries. Those are valuable operations to learn, but they
-    arguably belong in “How to Write Go Code”, not “Test your
-    installation” — and having all that extra detail in the install
-    instructions may well discourage folks from further essential reading.
+    Based on the riscv-go port.
     
-    Rather than updating all of those operations here, I've removed them.
-    A companion CL will update “How to Write Go Code” to ensure that it
-    mentions GOPATH (as the location of the module cache and the default
-    install location for binaries) and 'go clean -i'.
+    Updates #27532
     
-    Updates #37042
-    
-    Change-Id: I157f21ccbe3896575fa1115dc821abf6c71ed15e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217840
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ibf02649eebd65ce96002a9ca0624266d96def2cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195079
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/install.html | 27 +++++----------------------
- 1 file changed, 5 insertions(+), 22 deletions(-)
+ src/cmd/asm/internal/asm/asm.go              |   4 +-
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  68 +++++++++
+ src/cmd/internal/obj/riscv/obj.go            | 209 ++++++++++++++++++++++++++-
+ 3 files changed, 278 insertions(+), 3 deletions(-)

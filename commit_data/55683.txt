@@ -1,18 +1,21 @@
-commit ef84d62cfc358ff62c60da9ceec754e7a389b5d5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 23 12:18:20 2024 -0800
+commit 2f9e38a1be0b2e09898dac261ae8894dcb2594a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 1 13:53:48 2023 -0800
 
-    net: skip TestReadLine if /etc/services does not exist
+    go/types, types2: combine missingMethodCause with missingMethod
     
-    Fixes #65905
+    For now this is simply a mechanical combination without any
+    relevant logic changes. This will make it easier to review
+    subsequent changes.
     
-    Change-Id: I42326d3b743e80d5226ea374eca5c9edaef4dd4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566535
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ic2e2ae32b031d2dda0f69a08a5cc2349748bd25d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472675
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/net/parse_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/lookup.go | 83 +++++++++++++++----------------
+ src/go/types/lookup.go                    | 83 +++++++++++++++----------------
+ 2 files changed, 82 insertions(+), 84 deletions(-)

@@ -1,25 +1,12 @@
-commit ffc0573b854ca2fc58ad85ad7599ec66f0a82b36
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 6 15:32:40 2020 -0800
+commit 740d2c8c2250355d22a7c70698f55eeb6894d1ce
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Thu Sep 19 22:34:06 2019 +0200
 
-    cmd/compile/internal/syntax: better error when an assignment is used in value context
+    cmd/compile: adjust top-level documentation of poset
     
-    The error message is now positioned at the statement position (which is
-    an identifing token, such as the '=' for assignments); and in case of
-    assignments it emphasizes the assignment by putting the Lhs and Rhs
-    in parentheses. Finally, the wording is changed from "use of * as value"
-    to the stronger "cannot use * as value" (for which there is precedent
-    elsewhere in the parser).
-    
-    Fixes #36858.
-    
-    Change-Id: Ic3f101bba50f58e3a1d9b29645066634631f2d61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218337
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I29e24c734e5e0041008771c805a0285aac3e02e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196598
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/syntax/parser.go               | 11 ++++++++---
- src/cmd/compile/internal/syntax/testdata/issue23385.src |  9 +++++++--
- test/fixedbugs/issue18915.go                            |  6 +++---
- test/syntax/chan1.go                                    |  2 +-
- test/syntax/typesw.go                                   |  2 +-
- 5 files changed, 20 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/poset.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

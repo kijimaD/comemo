@@ -1,15 +1,16 @@
-commit c644a4ddfe9afe8ab79a6d3c776117cdb11dd2b7
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Jun 30 22:08:53 2012 +1000
+commit 11cafa3a42e216140adcb9f29d1ec3e320850682
+Author: Jean-Marc Eurin <jmeurin@google.com>
+Date:   Fri Jun 29 12:49:31 2012 -0400
 
-    path/filepath: avoid allocation in Clean of cleaned path even on windows (fix build)
+        misc/emacs: Fix the gofmt patching when the TMPDIR is not the default.
     
-    R=golang-dev, rsc
+    The previous code assumed the gofmt output referred to /tmp but
+    that's not true if TMPDIR points somewhere else (like on Macs).
+    Fixes #3782.
+    
+    R=sameer
     CC=golang-dev
-    https://golang.org/cl/6344049
+    https://golang.org/cl/6346050
 
- src/pkg/path/filepath/path.go         | 43 ++++++++++++++++++++++-------------
- src/pkg/path/filepath/path_plan9.go   |  8 +++----
- src/pkg/path/filepath/path_unix.go    |  8 +++----
- src/pkg/path/filepath/path_windows.go | 22 ++++++++----------
- 4 files changed, 45 insertions(+), 36 deletions(-)
+ misc/emacs/go-mode.el | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

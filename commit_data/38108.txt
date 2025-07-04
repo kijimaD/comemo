@@ -1,17 +1,19 @@
-commit bd986286767f046ae47b6496d4dffb541e6d0cb6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 5 10:22:32 2019 -0500
+commit 4559d58ced7f6576df2d2f932e8faeabe712c860
+Author: Tim <tdhutt@gmail.com>
+Date:   Wed Oct 3 09:20:29 2018 +0000
 
-    math/cmplx: avoid panic in Pow(x, NaN())
+    database/sql: improve unimplemented LastInsertId error message
     
-    Fixes #30088
+    The old one was rather confusing - it makes it sound like the user has done something wrong.
     
-    Change-Id: I08cec17feddc86bd08532e6b135807e3c8f4c1b2
-    Reviewed-on: https://go-review.googlesource.com/c/161197
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ibc7411f4f1d5f6c66fbcaac64bb05b0743354418
+    GitHub-Last-Rev: 09290accddb23848ee80d641e4f2bcf6ef686e01
+    GitHub-Pull-Request: golang/go#27979
+    Reviewed-on: https://go-review.googlesource.com/c/139102
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/cmplx/cmath_test.go | 6 ++++--
- src/math/cmplx/pow.go        | 3 +++
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/database/sql/driver/driver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

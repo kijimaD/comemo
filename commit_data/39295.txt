@@ -1,33 +1,16 @@
-commit 38c129b4f0219fa26123fae42ef9a7b3683befde
-Author: Keith Randall <khr@google.com>
-Date:   Mon Jun 3 10:03:44 2019 -0700
+commit 34291f5f3e0a40eac110132b620b1444c2123d0e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 15 18:04:32 2019 -0500
 
-    runtime: get map of args of unstarted goroutines like we do for defers
+    cmd/internal/goobj: make the buildGoobj test helper work in module mode
     
-    Normally, reflect.makeFuncStub records the context value at a known
-    point in the stack frame, so that the runtime can get the argument map
-    for reflect.makeFuncStub from that known location.
+    Updates #30228
     
-    This doesn't work for defers or goroutines that haven't started yet,
-    because they haven't allocated a frame or run an instruction yet. The
-    argument map must be extracted from the context value. We already do
-    this for defers (the non-nil ctxt arg to getArgInfo), we just need to
-    do it for unstarted goroutines as well.
-    
-    When we traceback a goroutine, remember the context value from
-    g.sched.  Use it for the first frame we find.
-    
-    (We never need it for deeper frames, because we normally don't stop at
-     the start of reflect.makeFuncStub, as it is nosplit. With this CL we
-     could allow makeFuncStub to no longer be nosplit.)
-    
-    Fixes #25897
-    
-    Change-Id: I427abf332a741a80728cdc0b8412aa8f37e7c418
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180258
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I8dd4a1f94dfd3be324a4f213941a20fa1b8b1215
+    Reviewed-on: https://go-review.googlesource.com/c/162832
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/traceback.go      | 16 ++++++++++------
- test/fixedbugs/issue25897a.go | 34 ++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue25897b.go | 38 ++++++++++++++++++++++++++++++++++++++
- 3 files changed, 82 insertions(+), 6 deletions(-)
+ src/cmd/internal/goobj/goobj_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

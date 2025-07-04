@@ -1,16 +1,20 @@
-commit f612cd704a260cf362e5b6307b7ace4eb83f5f56
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Aug 10 01:28:10 2017 +0000
+commit 5de5dd8d25d17fa8893ee7244c1cb02e87d5ccfd
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Mar 8 08:11:33 2017 +0900
 
-    Revert "cmd/compile: discard duplicate inline method bodies"
+    mime: fix panic parsing 'encoded-word'
     
-    This reverts commit f0b36269041eff3b8bbdd18e2ff41b06557235d1.
+    https://go-review.googlesource.com/37812 says fix panic parsing.
+    Actually, it doesn't. so fix it.
     
-    Reason for revert: this change caused the runtime tests on all linux/amd64 and linux/386 builders to timeout
+    Fixes #19416
     
-    Change-Id: Idf8cfdfc84540e21e8da403e74df5596a1d9327b
-    Reviewed-on: https://go-review.googlesource.com/54490
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie0c4241f10e5ebcbac20e184c2a7b13b22632eab
+    Reviewed-on: https://go-review.googlesource.com/37912
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 14 ++------------
- 1 file changed, 2 insertions(+), 12 deletions(-)
+ src/mime/encodedword.go      | 6 +++---
+ src/mime/encodedword_test.go | 1 +
+ 2 files changed, 4 insertions(+), 3 deletions(-)

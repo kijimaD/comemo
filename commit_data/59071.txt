@@ -1,19 +1,15 @@
-commit e1f9013a58e5ad6d90ae0eb13a943aafa765d6e7
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Feb 24 23:08:46 2025 +1100
+commit dba518999dfb7212f6fbc42d85dd303fcb78baad
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Mon Feb 5 01:22:58 2024 +0100
 
-    test/codegen: add riscv64 codegen for arithmetic tests
+    time: fix FuzzFormatRFC3339 nano comparison
     
-    Codify the current riscv64 code generation for various subtract from
-    constant and addition/subtraction tests.
-    
-    Change-Id: I54ad923280a0578a338bc4431fa5bdc0644c4729
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652316
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I13ed84b99459d5844abb6e932cc4b8e0bd3ae9f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561215
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
 
- test/codegen/arithmetic.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/time/format_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

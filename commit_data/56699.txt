@@ -1,24 +1,18 @@
-commit 78eadc87df453c2a325fd9762d57e3232179b631
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sun May 26 18:27:53 2024 +0000
+commit 6761bff433d3cc77bf0b220a69ad813f93415354
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri May 19 09:46:22 2023 -0400
 
-    make.bash: preserve GOROOT_BOOTSTRAP
+    log/slog: increase test coverage
     
-    CL 582076 made the GOROOT_BOOTSTRAP set to "", which in turn
-    causes the next iteration to return true. "$GOROOT_BOOTSTRAP/bin/go"
-    becomes "/bin/go", which always exists.
-    
-    Fixes #67654
-    
-    Change-Id: I290bd4a7defc58e4b34d5bf955ef4f34569ff0ed
-    GitHub-Last-Rev: 9c7134fa44874b0a9d03807aa583b1088cc13922
-    GitHub-Pull-Request: golang/go#67655
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588436
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I2c7f3ca27ee1b1c2d65d713ffa6256c3cfdd8aad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495979
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/make.bash | 2 ++
- src/make.rc   | 4 +++-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/log/slog/level_test.go        | 10 +++++++
+ src/log/slog/logger_test.go       | 55 ++++++++++++++++++++++++++++++++++++++-
+ src/log/slog/record_test.go       | 19 ++++++++------
+ src/log/slog/text_handler_test.go |  2 ++
+ src/log/slog/value_test.go        | 25 +++++++++++++++++-
+ 5 files changed, 101 insertions(+), 10 deletions(-)

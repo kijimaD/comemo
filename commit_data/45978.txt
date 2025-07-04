@@ -1,89 +1,31 @@
-commit 98f3d7fecbb8a9074f5f4ffc50bb016e194940b7
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Aug 9 20:29:14 2021 -0400
+commit 6f84993e90e7076427c1bd0aaebe4e10b764194a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Nov 21 20:11:03 2020 -0500
 
-    all: gofmt more (but vendor, testdata, and top-level test directories)
+    cmd/link: code-sign on darwin/arm64
     
-    CL 294430 made packages in std and cmd modules use Go 1.17 gofmt format,
-    adding //go:build lines. This change applies the same formatting to some
-    more packages that 'go fmt' missed (e.g., syscall/js, runtime/msan), and
-    everything else that is easy and safe to modify in bulk.
+    This CL lets the linker code-sign output binaries on
+    darwin/arm64, as the kernel requires binaries must be signed in
+    order to run.
     
-    Consider the top-level test directory, testdata, and vendor directories
-    out of scope, since there are many files that don't follow strict gofmt
-    formatting, often for intentional and legitimate reasons (testing gofmt
-    itself, invalid Go programs that shouldn't crash the compiler, etc.).
+    This signature will likely be invalidated when we stamp the
+    buildid after linking. We still do it in the linker, for
+    - plain "go tool link" works.
+    - the linker generates the LC_CODE_SIGNATURE load command with
+      the right size and offset, so we don't need to update it when
+      stamping the buildid.
     
-    That makes it easy and safe to gofmt -w the .go files that are found
-    with gofmt -l with aforementioned directories filtered out:
+    Updates #38485, #42684.
     
-            $ gofmt -l . 2>/dev/null | \
-                    grep -v '^test/' | \
-                    grep -v '/testdata/' | \
-                    grep -v '/vendor/' | wc -l
-                  51
-    
-    None of the 51 files are generated. After this change, the same command
-    prints 0.
-    
-    For #41184.
-    
-    Change-Id: Ia96ee2a0f998d6a167d4473bcad17ad09bc1d86e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341009
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ia306328906d73217221ba31093fe61a935a46122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272256
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- misc/android/go_android_exec.go                        | 1 +
- misc/cgo/gmp/fib.go                                    | 1 +
- misc/cgo/gmp/pi.go                                     | 1 +
- misc/cgo/test/cgo_thread_lock.go                       | 1 +
- misc/cgo/test/cgo_unix_test.go                         | 1 +
- misc/cgo/test/issue1435.go                             | 1 +
- misc/cgo/test/issue18146.go                            | 1 +
- misc/cgo/test/issue21897.go                            | 1 +
- misc/cgo/test/issue21897b.go                           | 1 +
- misc/cgo/test/issue4029.go                             | 4 +++-
- misc/cgo/test/issue4029w.go                            | 1 +
- misc/cgo/test/issue6997_linux.go                       | 1 +
- misc/cgo/test/issue8517.go                             | 1 +
- misc/cgo/test/issue8694.go                             | 1 +
- misc/cgo/test/sigaltstack.go                           | 1 +
- misc/cgo/test/sigprocmask.go                           | 1 +
- misc/cgo/test/test_unix.go                             | 1 +
- misc/cgo/testso/noso_test.go                           | 1 +
- misc/cgo/testso/so_test.go                             | 1 +
- misc/cgo/testsovar/noso_test.go                        | 1 +
- misc/cgo/testsovar/so_test.go                          | 1 +
- misc/cgo/testtls/tls_test.go                           | 1 +
- misc/ios/detect.go                                     | 1 +
- misc/reboot/experiment_toolid_test.go                  | 1 +
- src/cmd/compile/internal/base/bootstrap_false.go       | 1 +
- src/cmd/compile/internal/base/bootstrap_true.go        | 1 +
- src/cmd/compile/internal/noder/frames_go1.go           | 1 +
- src/cmd/compile/internal/noder/frames_go17.go          | 1 +
- src/cmd/compile/internal/ssa/gen/386Ops.go             | 1 +
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go          | 1 +
- src/cmd/compile/internal/ssa/gen/MIPSOps.go            | 1 +
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go           | 1 +
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go         | 1 +
- src/cmd/compile/internal/ssa/gen/S390XOps.go           | 1 +
- src/cmd/compile/internal/ssa/gen/WasmOps.go            | 1 +
- src/cmd/compile/internal/ssa/gen/dec64Ops.go           | 1 +
- src/cmd/compile/internal/ssa/gen/decOps.go             | 1 +
- src/internal/syscall/windows/exec_windows_test.go      | 1 +
- src/internal/syscall/windows/mksyscall.go              | 1 +
- src/internal/syscall/windows/registry/export_test.go   | 1 +
- src/internal/syscall/windows/registry/key.go           | 1 +
- src/internal/syscall/windows/registry/mksyscall.go     | 1 +
- src/internal/syscall/windows/registry/registry_test.go | 1 +
- src/internal/syscall/windows/registry/syscall.go       | 1 +
- src/internal/syscall/windows/registry/value.go         | 1 +
- src/internal/syscall/windows/sysdll/sysdll.go          | 1 +
- src/runtime/msan/msan.go                               | 4 +++-
- src/syscall/js/export_test.go                          | 1 +
- src/syscall/js/func.go                                 | 1 +
- src/syscall/js/js.go                                   | 1 +
- src/syscall/js/js_test.go                              | 1 +
- 51 files changed, 55 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go    |  11 +++
+ src/cmd/link/internal/ld/macho.go  | 146 ++++++++++++++++++++++++++++++++++---
+ src/cmd/link/internal/ld/outbuf.go |   9 +++
+ 3 files changed, 155 insertions(+), 11 deletions(-)

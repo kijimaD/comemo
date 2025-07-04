@@ -1,44 +1,16 @@
-commit ba2835db6ce72dc941ee8a1492c49176ed3bf9f7
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Nov 15 11:27:10 2017 -0800
+commit 1708122b48aa4af57ed1ce6163b642a58172f9cc
+Author: Wei Xiao <Wei.Xiao@arm.com>
+Date:   Thu Aug 17 13:56:44 2017 +0800
 
-    archive/tar: partially revert sparse file support
+    cmd/vendor/golang.org/x/arch: pull latest updates from x repo (commit edaf650)
     
-    This CL removes the following APIs:
-            type SparseEntry struct{ ... }
-            type Header struct{ SparseHoles []SparseEntry; ... }
-            func (*Header) DetectSparseHoles(f *os.File) error
-            func (*Header) PunchSparseHoles(f *os.File) error
-            func (*Reader) WriteTo(io.Writer) (int, error)
-            func (*Writer) ReadFrom(io.Reader) (int, error)
+    Updates #21486
     
-    This API was added during the Go1.10 dev cycle, and are safe to remove.
-    
-    The rationale for reverting is because Header.DetectSparseHoles and
-    Header.PunchSparseHoles are functionality that probably better belongs in
-    the os package itself.
-    
-    The other API like Header.SparseHoles, Reader.WriteTo, and Writer.ReadFrom
-    perform no OS specific logic and only perform the actual business logic of
-    reading and writing sparse archives. Since we do know know what the API added to
-    package os may look like, we preemptively revert these non-OS specific changes
-    as well by simply commenting them out.
-    
-    Updates #13548
-    Updates #22735
-    
-    Change-Id: I77842acd39a43de63e5c754bfa1c26cc24687b70
-    Reviewed-on: https://go-review.googlesource.com/78030
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I78ca76490d8e9b52e055c1f0b8d10bdb227e3a80
+    Reviewed-on: https://go-review.googlesource.com/56331
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/common.go         | 143 ++++++-----------------
- src/archive/tar/example_test.go   | 179 -----------------------------
- src/archive/tar/format.go         |   2 +
- src/archive/tar/reader.go         |  16 +--
- src/archive/tar/reader_test.go    | 141 ++++++-----------------
- src/archive/tar/sparse_unix.go    |  77 -------------
- src/archive/tar/sparse_windows.go | 129 ---------------------
- src/archive/tar/tar_test.go       | 236 +++++++-------------------------------
- src/archive/tar/writer.go         | 160 ++++++++++++++------------
- src/archive/tar/writer_test.go    | 226 ++++++++++++++++++------------------
- 10 files changed, 322 insertions(+), 987 deletions(-)
+ .../x/arch/arm64/arm64asm/objdump_test.go          | 23 +++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)

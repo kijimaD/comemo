@@ -1,14 +1,35 @@
-commit 2899be812046515c7d9d9d3f925c7bcfca093e8a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Jul 17 10:16:45 2015 +0900
+commit 7089ea4e475a11beaed6837027b7f5254449989f
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Jun 7 21:28:58 2015 +0200
 
-    net: avoid unnecessary conversion in address selection
+    testing/quick: probabilistically generate nil pointers
     
-    Change-Id: I0d940810b493249bc092cd38bdb434f7fa67cafb
-    Reviewed-on: https://go-review.googlesource.com/12341
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The documentation for quick.Value says that it "returns an arbitrary
+    value of the given type." In spite of this, nil values for pointers were
+    never generated, which seems more like an oversight than an intentional
+    choice.
+    
+    The lack of nil values meant that testing recursive type like
+    
+      type Node struct {
+            Next *Node
+      }
+    
+    with testing/quick would lead to a stack overflow since the data
+    structure would never terminate.
+    
+    This change may break tests that don't check for nil with pointers
+    returned from quick.Value. Two such instances were found in the standard
+    library, one of which was in the testing/quick package itself.
+    
+    Fixes #8818.
+    
+    Change-Id: Id390dcce649d12fbbaa801ce6f58f5defed77e60
+    Reviewed-on: https://go-review.googlesource.com/10821
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/net/addrselect.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/encoding/pem/pem_test.go    | 12 ++++++------
+ src/testing/quick/quick.go      | 14 +++++++++-----
+ src/testing/quick/quick_test.go | 17 +++++++++++++++++
+ 3 files changed, 32 insertions(+), 11 deletions(-)

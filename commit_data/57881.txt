@@ -1,18 +1,20 @@
-commit 08d2403576737c5735d0c1d356490e03a774dff6
-Author: cuishuang <imcusg@gmail.com>
-Date:   Thu Oct 31 21:45:00 2024 +0800
+commit 9c9fcabb024fc835d7b19249ea59c9e8cf9ed882
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 21:43:58 2023 -0700
 
-    time: add examples for Since, Until, Abs and fix some comments
+    cmd/compile/internal/ssa: simplify NewFunc API
     
-    Change-Id: I33b61629dfabffa15065a14fccdb418bab11350d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623915
+    Add Config and Cache as params rather than documenting that the caller
+    has to set them manually.
+    
+    Change-Id: I8d530be695a0c94bcc4211b496d6e57ec2fff029
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526515
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/time/example_test.go | 38 ++++++++++++++++++++++++++++++++++++--
- src/time/format.go       |  2 +-
- src/time/tick_test.go    |  2 +-
- src/time/time_test.go    |  2 +-
- 4 files changed, 39 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/func.go      | 14 +++++++++++---
+ src/cmd/compile/internal/ssa/func_test.go |  4 +---
+ src/cmd/compile/internal/ssagen/ssa.go    |  8 ++++----
+ 3 files changed, 16 insertions(+), 10 deletions(-)

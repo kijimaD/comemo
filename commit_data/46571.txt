@@ -1,29 +1,32 @@
-commit 0626ac064d9300d16e1e5878777efc0430088569
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 22 17:08:00 2021 -0700
+commit 2f072cf8a975afb082b40cb29238ce536b5ae9b6
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Jan 5 16:01:49 2021 -0500
 
-    cmd/compile: restore original assignment error messages
+    [dev.fuzz] internal/fuzz: implement a more robust mutator
     
-    When used with the compiler, types2 will report assignment error
-    messages that closely match what the compiler type checker (types1)
-    produces.
+    This change also allocates a larger capacity (100 MB) for the shared
+    memory at the start, rather than beginning as small as possible and
+    immediately needing to grow while mutating. This means that 100 MB is
+    the maximum size of a corpus entry currently, since growing the shared
+    memory is not yet supported.
     
-    Also, mark lhs variables as used in invalid variable initializations
-    to avoid a class of follow-on errors.
+    The code in internal/fuzz/mutator.go and internal/fuzz/pcg.go are copied
+    from, or heavily inspired by, code originally authored by Dmitry Vyukov
+    and Josh Bleecher Snyder as part of the go-fuzz project. Thanks to them
+    for their contributions. See https://github.com/dvyukov/go-fuzz.
     
-    Fixes #48558.
-    
-    Change-Id: I92d1de006c66b3a2364bb1bea773a312963afe75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351669
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I0d51d53976e23933072e760ff78e6c4ad9dcd862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281972
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/types2/assignments.go | 40 ++++++++++++-
- src/cmd/compile/internal/types2/expr.go        |  6 +-
- test/fixedbugs/issue19323.go                   |  2 +-
- test/fixedbugs/issue26616.go                   |  6 +-
- test/fixedbugs/issue27595.go                   |  2 +-
- test/fixedbugs/issue48558.go                   | 77 ++++++++++++++++++++++++++
- 6 files changed, 124 insertions(+), 9 deletions(-)
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  |  66 +++++-
+ ...{test_fuzz_mutate.txt => test_fuzz_mutator.txt} |  45 +++-
+ src/internal/fuzz/fuzz.go                          |  11 +-
+ src/internal/fuzz/mem.go                           |   9 +-
+ src/internal/fuzz/mutator.go                       | 244 ++++++++++++++++++++-
+ src/internal/fuzz/pcg.go                           | 104 +++++++++
+ src/internal/fuzz/worker.go                        |   9 +-
+ 7 files changed, 454 insertions(+), 34 deletions(-)

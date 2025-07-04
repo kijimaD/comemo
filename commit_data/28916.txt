@@ -1,14 +1,25 @@
-commit e05d0140483e78c36cd03b3f6173e9f23e975645
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 11:00:00 2016 -0400
+commit 9b88fac00cdbb4025a24fd20e87be121785da579
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 17 12:30:27 2016 -0700
 
-    reflect: correct Type.FieldByNameFunc docs
+    cmd/internal/obj: reduce per-architecture opcode space
     
-    Fixes #16573.
+    s390x took up the last available chunk of int16 opcodes.
+    There are RISC-V and sparc64 ports in progress out of tree,
+    and there will likely be other architectures.
+    Reduce the opcode space to allow more architectures to
+    fit without increasing to int32.
     
-    Change-Id: I5a26eaa8b258cb1861190f9690086725532b8a0d
-    Reviewed-on: https://go-review.googlesource.com/31354
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This is the smallest power of two that accomodates all
+    existing architectures. All else being equal, smaller is
+    better--smaller numbers are easier to generate immediates
+    for and easier on the eyes when debugging.
+    
+    Change-Id: I4d0824b28913892fbd0579d3f90bea34e44c8946
+    Reviewed-on: https://go-review.googlesource.com/24223
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/reflect/type.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/link.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,14 @@
-commit c7065e927d1e8bbee6365bc8acfdf0b58ffdce8a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jul 9 16:20:19 2013 -0700
+commit 328ec95878d15fb823d8ff6f9c9b2658874f6ab9
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jul 8 21:14:32 2013 -0500
 
-    builtin: document print and println
+    cmd/ld: trivial: fix unhandled switch case
     
-    Fixes #5787.
+    Fix warning found by clang 3.3.
     
-    R=r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/11057043
+    https://golang.org/cl/11022043
 
- src/pkg/builtin/builtin.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/ld/lib.c | 3 +++
+ 1 file changed, 3 insertions(+)

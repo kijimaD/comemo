@@ -1,19 +1,22 @@
-commit 115e9cac8033163a6edfdce6b28a9be21475bed5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 15 16:57:59 2016 -0800
+commit 14204662c8a73ea6d5b6489b0c5a6b0345b99a0d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Sep 2 21:03:57 2016 -0700
 
-    misc/cgo/testsanitizer: don't run msan tests if msan doesn't work
+    archive/tar: handle integer overflow on 32bit machines
     
-    Confirm that a trivial executable can build and execute using
-    -fsanitize=memory.
+    Most calls to strconv.ParseInt(x, 10, 0) should really be
+    calls to strconv.ParseInt(x, 10, 64) in order to ensure that they
+    do not overflow on 32b architectures.
     
-    Fixes #18335 (by skipping the tests when they don't work).
+    Furthermore, we should document a bug where Uid and Gid may
+    overflow on 32b machines since the type is declared as int.
     
-    Change-Id: Icb7a276ba7b57ea3ce31be36f74352cc68dc89d5
-    Reviewed-on: https://go-review.googlesource.com/34505
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I99c0670b3c2922e4a9806822d9ad37e1a364b2b8
+    Reviewed-on: https://go-review.googlesource.com/28472
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testsanitizers/test.bash | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/archive/tar/common.go |  4 ++++
+ src/archive/tar/reader.go | 14 +++++++-------
+ 2 files changed, 11 insertions(+), 7 deletions(-)

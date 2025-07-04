@@ -1,28 +1,15 @@
-commit 63ceeafa308b99e6b7d5480521b83360b4f6b2fd
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Apr 18 17:41:50 2016 -0400
+commit 2339b131d63b397eb4b1bcd2cc09d532df138213
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 9 18:54:26 2016 -0800
 
-    crypto/sha1: add s390x assembly implementation
+    cmd/compile: cleanup paramstoheap and returnsfromheap
     
-    Use the compute intermediate message digest (KIMD) instruction
-    when possible. Adds test to check fallback code path in case
-    KIMD is not available.
+    Better documentation. Change parameter types from **Type and int to
+    just *Type and bool. Make use of short var declarations.
     
-    Benchmark changes:
-    Hash8Bytes  3.4x
-    Hash1K      9.3x
-    Hash8K      10.9x
-    
-    Change-Id: Ibcd71a886dfd7b3822042235b4f4eaa7a148036b
-    Reviewed-on: https://go-review.googlesource.com/22350
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I909846ba0df65cd2bc05ee145b72d60e881588bd
+    Reviewed-on: https://go-review.googlesource.com/20495
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/crypto/sha1/fallback_test.go     | 34 ++++++++++++++++++++++++++++++++++
- src/crypto/sha1/sha1_test.go         |  2 +-
- src/crypto/sha1/sha1block_decl.go    |  2 +-
- src/crypto/sha1/sha1block_generic.go |  2 +-
- src/crypto/sha1/sha1block_s390x.go   | 12 ++++++++++++
- src/crypto/sha1/sha1block_s390x.s    | 34 ++++++++++++++++++++++++++++++++++
- 6 files changed, 83 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 47 +++++++++++++++++--------------------
+ 1 file changed, 22 insertions(+), 25 deletions(-)

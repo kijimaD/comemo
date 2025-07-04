@@ -1,28 +1,18 @@
-commit 5feb15508e9cefa06f7d109da8233c91e69937fa
+commit 043ace1213bc996615fb0551effaa879a68cc4f6
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 15 15:00:48 2013 -0400
+Date:   Tue Oct 15 14:34:46 2013 -0400
 
-    cmd/cgo: print the builtin prolog after the per-file preamble
+    cmd/cgo: fix Xcode 5 incompatibility for #defined expressions
     
-    The preamble may want to #define some special symbols
-    and then #include <sys/types.h> itself. The builtin prolog
-    also #includes <sys/types.h>, which would break such a
-    preamble (because the second #include will be a no-op).
+    Ensure that clang always exits with a non-zero status by
+    giving it something that it always warns about (the statement "1;").
     
-    The use of sys/types.h in the builtin prolog is new since Go 1.1,
-    so this should preserve the semantics of more existing cgo
-    code than we would otherwise.
+    Fixes #6128.
     
-    It also fixes src/pkg/syscall/mkall.sh's use of go tool cgo -godefs
-    on some Linux systems.
-    
-    Thanks to fullung@ for identifying the problem.
-    
-    Fixes #6558.
-    
-    R=golang-dev, iant
+    R=golang-dev, iant, minux.ma
     CC=golang-dev
-    https://golang.org/cl/14684044
+    https://golang.org/cl/14702043
 
- src/cmd/cgo/gcc.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ misc/cgo/test/issue6128.go | 20 ++++++++++++++++++++
+ src/cmd/cgo/gcc.go         | 13 +++++++++++++
+ 2 files changed, 33 insertions(+)

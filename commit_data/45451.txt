@@ -1,38 +1,27 @@
-commit cc02d59e84b60b3221e6c079afe04d3b7e59b872
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Apr 29 22:54:26 2021 +0100
+commit ce46f197b6c75281b77ee93338e2559671e28b01
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 20:48:06 2020 +0000
 
-    cmd/gofmt: always format non-directory arguments again
+    runtime: access the assist ratio atomically
     
-    golang.org/cl/284138 introduced a regression: running "gofmt foo" would
-    silently ignore the file due to its lack of a ".go" extension, whereas
-    the tool is documented otherwise:
+    This change makes it so that the GC assist ratio (the pair of
+    gcControllerState fields assistBytesPerWork and assistWorkPerByte) is
+    updated atomically. Note that the pair of fields are not updated
+    together atomically, but that's OK. The code here was already racy for
+    some time and in practice the assist ratio moves very slowly.
     
-            Given a file, it operates on that file; given a directory, it
-            operates on all .go files in that directory, recursively.
+    The purpose of this change is so that we can document
+    gcController.revise to be safe for concurrent use, which will be useful
+    in further changes.
     
-    This wasn't caught as there were no tests for these edge cases. gofmt's
-    own tests are regular Go tests, so it's hard to test it properly without
-    adding an abstraction layer on top of func main.
-    
-    Luckily, this kind of test is a great fit for cmd/go's own script tests,
-    and it just takes a few straightforward lines.
-    
-    Finally, add the relevant logic back, with documentation to clarify its
-    intentional purpose.
-    
-    Fixes #45859.
-    
-    Change-Id: Ic5bf5937b8f95fcdad2b6933227c8b504ef38a82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315270
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie25d630207c88e4f85f2b8953f6a0051ebf1b4ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246963
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/testdata/script/fmt_load_errors.txt | 13 +++++++++++++
- src/cmd/gofmt/gofmt.go                         | 13 ++++++++++++-
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go     | 51 ++++++++++++++++++++++++++++++++++++++++++--------
+ src/runtime/mgcmark.go | 17 +++++++++++------
+ src/runtime/proc.go    |  3 ++-
+ 3 files changed, 56 insertions(+), 15 deletions(-)

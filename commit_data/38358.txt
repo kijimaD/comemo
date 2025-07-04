@@ -1,20 +1,20 @@
-commit 21a634e2e91752aa61b4e4a008ec500eeb4ee462
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Mar 7 08:41:02 2019 +0100
+commit 642792350ccd148da7b3e8a0e4e69341b222ab34
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 23 10:03:59 2018 +0200
 
-    os: drop special case for FreeBSD 10.4 in newFile
+    runtime: remove unused maxSliceCap function and maxElems array
     
-    Support for FreeBSD 10 will be dropped with Go 1.13, so revert the
-    workaround introduced in CL 157099.
+    All uses of these have been converted to use runtime/internal/math
+    functions for overflow checking.
     
-    Updates #29633
-    Updates #27619
+    Fixes #21588
     
-    Change-Id: I1a2e50d3f807a411389f3db07c0f4535a590da02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165801
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0ba57028e471803dc7d445e66d77a8f87edfdafb
+    Reviewed-on: https://go-review.googlesource.com/c/144037
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/file_unix.go | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go |  1 -
+ src/runtime/slice.go                    | 22 ----------------------
+ 2 files changed, 23 deletions(-)

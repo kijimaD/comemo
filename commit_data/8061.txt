@@ -1,12 +1,16 @@
-commit dcf32a24a000651dc60dfbc6adc35482d5cdcfec
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Apr 13 14:49:56 2011 +1000
+commit 89901bbd14298f4e21c1b8bf8df166c47480183d
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Wed Apr 13 11:55:41 2011 +1000
 
-    builder: fix documentation s/\.gobuilder/.gobuildkey/
+    misc/vim: add plugin with Fmt command.
     
-    R=rsc
+    Fmt command filters the current Go buffer through gofmt.
+    It tries to preserve cursor position and avoids replacing
+    the buffer with stderr output.
+    
+    R=golang-dev, dsymonds, niemeyer
     CC=golang-dev
-    https://golang.org/cl/4312051
+    https://golang.org/cl/4382053
 
- misc/dashboard/builder/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/vim/ftplugin/go/fmt.vim | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

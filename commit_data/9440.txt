@@ -1,13 +1,24 @@
-commit d9c9c487975023f4b9d6a1bda66ef1aeea47be58
+commit 45b7084b92901b9b5a98827db73746e660109bef
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Aug 22 12:52:04 2011 +0200
+Date:   Mon Aug 22 12:11:29 2011 +0200
 
-    exp/norm: added implemenation for []byte versions of methods.
+    exp/norm: a few minor fixes to support the implementation of norm.
+    maketables.go/tables.go
+    - Properly set combinesForward flag for JamoL and JamoV.
+    - Fixed Printf bug.
+    composition.go
+    - Make insertString use the same control flow as insert.
+    - Better Hangul and non-Hangul mixing.
+    forminfo.go
+    - Fixed bug in compBoundaryBefore that affected a few esoteric cases.
+    - Buffer overflow now tested in normalize_test.go (other CL).
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4925041
+    https://golang.org/cl/4924041
 
- src/pkg/exp/norm/normalize.go      | 337 +++++++++++++++++++--
- src/pkg/exp/norm/normalize_test.go | 578 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 894 insertions(+), 21 deletions(-)
+ src/pkg/exp/norm/composition.go |   14 +-
+ src/pkg/exp/norm/forminfo.go    |    4 +-
+ src/pkg/exp/norm/maketables.go  |    8 +-
+ src/pkg/exp/norm/tables.go      | 1133 ++++++++++++++++++++-------------------
+ 4 files changed, 586 insertions(+), 573 deletions(-)

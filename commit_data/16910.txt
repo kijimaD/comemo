@@ -1,13 +1,28 @@
-commit c7d5c438a2bd6bad779cc535d11466bb93cc08e3
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 29 16:42:07 2013 -0400
+commit 14e3540430adf614047328043e70a3184ce287da
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 30 00:08:30 2013 +0400
 
-    runtime: adjust timediv to avoid _vasop; mark _subv okay
+    runtime: fix arm build
     
-    R=dvyukov
+    The current failure is:
+    fatal error: runtime: stack split during syscall
+    goroutine 2 [stack split]:
+    _si2v(0xb6ebaebc, 0x3b9aca00)
+            /usr/local/go/src/pkg/runtime/vlrt_arm.c:628 fp=0xb6ebae9c
+    runtime.timediv(0xf8475800, 0xd, 0x3b9aca00, 0xb6ebaef4)
+            /usr/local/go/src/pkg/runtime/runtime.c:424 +0x1c fp=0xb6ebaed4
+    
+    Just adding textflag 7 causes the following error:
+    notetsleep: nosplit stack overflow
+            128     assumed on entry to notetsleep
+            96      after notetsleep uses 32
+            60      after runtime.futexsleep uses 36
+            4       after runtime.timediv uses 56
+            -4      after _si2v uses 8
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12028046
+    https://golang.org/cl/12001045
 
- src/pkg/runtime/runtime.c  |  2 +-
- src/pkg/runtime/vlrt_arm.c | 25 +++++++++----------------
- 2 files changed, 10 insertions(+), 17 deletions(-)
+ src/pkg/runtime/vlrt_arm.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

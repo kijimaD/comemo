@@ -1,19 +1,47 @@
-commit b60a3a8cfbc6096babe72ebcee0733bba496cf9a
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 5 09:49:28 2021 -0800
+commit 9ae8f71c9431d287893443fa2b7fbdb72a9b56a2
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Aug 3 13:19:46 2020 -0400
 
-    cmd/compile: add debugging mode for import/export
+    [dev.link] cmd/link: stop renumbering files for pclntab generation
     
-    Just add a simple magic number with each op, to detect when
-    the reader gets desynchronized from the writer.
+    Creates two new symbols: runtime.cutab, and runtime.filetab, and strips
+    the filenames out of runtime.pclntab_old.
     
-    Change-Id: Iac7dab7f465b0021b1d7ae31c8f8a353ac3663a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299769
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    All stats are for cmd/compile.
+    
+    Time:
+    Pclntab_GC                   48.2ms ± 3%    45.5ms ± 9%     -5.47%  (p=0.004 n=9+9)
+    
+    Alloc/op:
+    Pclntab_GC                   30.0MB ± 0%    29.5MB ± 0%     -1.88%  (p=0.000 n=10+10)
+    
+    Allocs/op:
+    Pclntab_GC                    90.4k ± 0%     73.1k ± 0%    -19.11%  (p=0.000 n=10+10)
+    
+    live-B:
+    Pclntab_GC                    29.1M ± 0%     29.2M ± 0%     +0.10%  (p=0.000 n=10+10)
+    
+    binary sizes:
+    NEW: 18565600
+    OLD: 18532768
+    
+    The size differences in the binary are caused by the increased size of
+    the Func objects, and (less likely) some extra alignment padding needed
+    as a result. This is probably the maximum increase in size we'll size
+    from the pclntab reworking.
+    
+    Change-Id: Idd95a9b159fea46f7701cfe6506813b88257fbea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246497
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 8 ++++++++
- src/cmd/compile/internal/typecheck/iimport.go | 3 +++
- 2 files changed, 11 insertions(+)
+ src/cmd/link/internal/ld/data.go   |   4 +
+ src/cmd/link/internal/ld/link.go   |   1 -
+ src/cmd/link/internal/ld/pcln.go   | 303 ++++++++++++++++++++-----------------
+ src/cmd/link/internal/ld/symtab.go |  12 +-
+ src/debug/gosym/pclntab.go         |  52 +++++--
+ src/runtime/runtime2.go            |   7 +-
+ src/runtime/symtab.go              |  19 ++-
+ 7 files changed, 231 insertions(+), 167 deletions(-)

@@ -1,17 +1,12 @@
-commit 4b94e881611890c6d6cbda6f542a94ab08de17e0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu May 7 20:48:37 2020 +0200
+commit 09bc5e8723e9fdf162e8207387f60c8026c218a8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Feb 13 17:33:53 2020 -0500
 
-    net: simplify error return in *RawConn test helpers
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    No need to check operr before returning.
-    
-    Change-Id: I64b849f7c102de01180823e3f0123d438ce7608a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232797
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0738b67728f48fc0cf339914da4c64a8bfca33dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219381
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/rawconn_unix_test.go    | 20 ++++----------------
- src/net/rawconn_windows_test.go | 20 ++++----------------
- 2 files changed, 8 insertions(+), 32 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

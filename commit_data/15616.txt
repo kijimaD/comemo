@@ -1,33 +1,20 @@
-commit d07978a0f7ddfc1eb9b7434e06328987145313da
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 6 14:34:03 2013 -0800
+commit fb59aed60b64319ad6fb1d6e6f18e7b1d96aaf77
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 6 16:57:14 2013 -0500
 
-    exp/norm: delete, part of moving to go.text
-    See also https://golang.org/cl/7520044
+    cmd/cgo: split cgo_export into cgo_export_static and cgo_export_dynamic
     
-    R=golang-dev, rsc
+    Also emit cgo_ldflag pragmas.
+    
+    R=golang-dev, remyoudompheng, iant
     CC=golang-dev
-    https://golang.org/cl/7533044
+    https://golang.org/cl/7530043
 
- src/pkg/exp/norm/Makefile             |   30 -
- src/pkg/exp/norm/composition.go       |  382 --
- src/pkg/exp/norm/composition_test.go  |  143 -
- src/pkg/exp/norm/example_iter_test.go |   81 -
- src/pkg/exp/norm/forminfo.go          |  229 --
- src/pkg/exp/norm/input.go             |  105 -
- src/pkg/exp/norm/iter.go              |  401 --
- src/pkg/exp/norm/iter_test.go         |  188 -
- src/pkg/exp/norm/maketables.go        |  923 -----
- src/pkg/exp/norm/maketesttables.go    |   45 -
- src/pkg/exp/norm/norm_test.go         |   14 -
- src/pkg/exp/norm/normalize.go         |  478 ---
- src/pkg/exp/norm/normalize_test.go    |  750 ----
- src/pkg/exp/norm/normregtest.go       |  304 --
- src/pkg/exp/norm/readwriter.go        |  126 -
- src/pkg/exp/norm/readwriter_test.go   |   68 -
- src/pkg/exp/norm/tables.go            | 6779 ---------------------------------
- src/pkg/exp/norm/trie.go              |  232 --
- src/pkg/exp/norm/trie_test.go         |  152 -
- src/pkg/exp/norm/triedata_test.go     |   85 -
- src/pkg/exp/norm/triegen.go           |  317 --
- 21 files changed, 11832 deletions(-)
+ src/cmd/cc/dpchk.c  | 22 ++++++++++++++++++----
+ src/cmd/cgo/doc.go  | 14 +++++++++++---
+ src/cmd/cgo/gcc.go  |  6 +-----
+ src/cmd/cgo/main.go |  4 ++--
+ src/cmd/cgo/out.go  | 11 +++++++++--
+ src/cmd/ld/go.c     | 29 ++++++++++++++++++++++-------
+ src/cmd/ld/lib.h    |  2 ++
+ 7 files changed, 65 insertions(+), 23 deletions(-)

@@ -1,30 +1,19 @@
-commit 2b833666f13e851f1a83873ac249bfce1059df2c
-Author: Rob Pike <r@golang.org>
-Date:   Fri May 8 11:00:17 2015 -0700
+commit 4fd9a3fdbb4a3466000ea63d28fa09043272ed2e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 10 21:28:09 2015 -0400
 
-    testing: make the output of -v more uniform and aligned when using fixed-width fonts
+    cmd/internal/obj, cmd/internal/ld, cmd/7l: external linking for darwin/arm64
     
-    Delete the colon from RUN: for examples, since it's not there for tests.
-    Add spaces to line up RUN and PASS: lines.
-    
-    Before:
-    === RUN TestCount
-    --- PASS: TestCount (0.00s)
-    === RUN: ExampleFields
-    --- PASS: ExampleFields (0.00s)
-    
-    After:
-    === RUN   TestCount
-    --- PASS: TestCount (0.00s)
-    === RUN   ExampleFields
-    --- PASS: ExampleFields (0.00s)
-    
-    Fixes #10594.
-    
-    Change-Id: I189c80a5d99101ee72d8c9c3a4639c07e640cbd8
-    Reviewed-on: https://go-review.googlesource.com/9846
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f02
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8781
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/testing/example.go | 2 +-
- src/testing/testing.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/7l/asm.go            | 148 +++++++++++++++++++++++++++++++++++++++----
+ src/cmd/7l/obj.go            |  21 +++++-
+ src/cmd/internal/ld/data.go  |  12 +++-
+ src/cmd/internal/ld/lib.go   |   3 +-
+ src/cmd/internal/ld/macho.go |  40 ++++++++++--
+ src/cmd/internal/ld/sym.go   |   9 ++-
+ src/cmd/internal/obj/sym.go  |   9 ++-
+ 7 files changed, 213 insertions(+), 29 deletions(-)

@@ -1,0 +1,16 @@
+commit 60e69866121dffa686cfbc27aee32cd2f6dc05ca
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri May 24 12:45:11 2024 -0400
+
+    .github/ISSUE_TEMPLATE/03-gopls.yml: use textarea for gopls version
+    
+    The output of "gopls version" is multiple lines.
+    
+    Change-Id: Ic00734b05011098d408db6f49f86c4e2c8edfa24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587924
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ .github/ISSUE_TEMPLATE/03-gopls.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

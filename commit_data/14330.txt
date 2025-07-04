@@ -1,15 +1,24 @@
-commit 703043c8dcfdbf1d6b3fd5bea539da7392adce39
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Nov 7 12:01:31 2012 +0400
+commit f8892fb39522b3d075d134036df5d2859b3c095d
+Author: Carl Mastrangelo <notcarl@google.com>
+Date:   Wed Nov 7 13:41:02 2012 +1100
 
-    cmd/gc: refactor racewalk
-    It is refactoring towards generic walk
-    + it handles mode nodes.
-    Partially fixes 4228 issue.
+    crypto/sha1: Make sha-1 do block mixup in place
     
-    R=golang-dev, lvd, rsc
+    Benchmarks:
+    
+    benchmark              old ns/op    new ns/op    delta
+    BenchmarkHash8Bytes          762          674  -11.55%
+    BenchmarkHash1K             8791         7375  -16.11%
+    BenchmarkHash8K            65094        54881  -15.69%
+    
+    benchmark               old MB/s     new MB/s  speedup
+    BenchmarkHash8Bytes        10.50        11.86    1.13x
+    BenchmarkHash1K           116.48       138.84    1.19x
+    BenchmarkHash8K           125.85       149.27    1.19x
+    
+    R=dave, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/6775098
+    https://golang.org/cl/6820096
 
- src/cmd/gc/racewalk.c | 39 ++++++++++++++++++---------------------
- 1 file changed, 18 insertions(+), 21 deletions(-)
+ src/pkg/crypto/sha1/sha1block.go | 42 ++++++++++++++++++++++++++--------------
+ 1 file changed, 28 insertions(+), 14 deletions(-)

@@ -1,30 +1,18 @@
-commit 74695644e0c38586a85b9b483830c546efbb6642
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 22 23:55:27 2019 -0400
+commit aac285c2df754f61b49baf2a35bffae0ae5bf95b
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Dec 5 14:15:37 2018 +0100
 
-    cmd/go: add -trimpath build flag
+    cmd/go/internal/lockedfile: fix filelock.Unlock() called twice
     
-    "go build -trimpath" trims the recorded file paths in the
-    resulting packages and executables to avoid recording
-    the names of any local directories. Instead, the files appear
-    to be stored in directories named either "go/src/..." (for the
-    standard library) or named after the module or package
-    in which the files appear.
+    filelock.Unlock() was called twice for fcntl implementation if an error
+    occurs during file.{,R}Lock(): once in the error handler, once in
+    filelock.lock().
     
-    Fixes #16860.
-    
-    Change-Id: I433afeeb1fdeea641286b21693fee5e0a66d607e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173345
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I5ad84e8ef6b5e51d79e0a7a0c51f465276cd0c57
+    Reviewed-on: https://go-review.googlesource.com/c/152717
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go                         |  6 +++++
- src/cmd/go/internal/cfg/cfg.go                |  1 +
- src/cmd/go/internal/work/build.go             |  7 ++++++
- src/cmd/go/internal/work/exec.go              |  3 ++-
- src/cmd/go/internal/work/gc.go                | 34 +++++++++++++++++++++------
- src/cmd/go/script_test.go                     | 23 ++++++++++++++----
- src/cmd/go/testdata/script/README             |  7 ++++--
- src/cmd/go/testdata/script/build_trimpath.txt | 19 +++++++++++++++
- 8 files changed, 85 insertions(+), 15 deletions(-)
+ .../go/internal/lockedfile/lockedfile_filelock.go   | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

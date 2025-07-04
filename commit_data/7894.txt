@@ -1,38 +1,19 @@
-commit 5be77a204bee72c81a8f0182d0a23bfd32b36ab9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 28 10:46:26 2011 -0700
+commit a7a854b82f99c4fb08e44b3c942a3361894cf4b5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 28 09:41:57 2011 -0700
 
-    go/ast: implemented NewPackage
+    strings: Map: avoid allocation when string is unchanged
     
-    NewPackage creates an ast.Package node from
-    a set of package files and resolves unresolved
-    identifiers.
+    This speeds up strings.ToLower, etc.
     
-    Also:
-    - Changed semantics of Scope.Insert: If an
-      object is inserted w/o errors, the result
-      is nil (before it was obj).
-    - Fixed an identifier resolution bug in the
-      parser: map keys must not be resolved.
+    before/after:
+    strings_test.BenchmarkMapNoChanges 1000000 1013 ns/op
+    strings_test.BenchmarkMapNoChanges 5000000  442 ns/op
     
-    gotype runs through several go/* packages
-    and successfully resolves all (non-field/method)
-    identifiers.
-    
-    R=rog, rsc
+    R=r, rog, eh, rsc
     CC=golang-dev
-    https://golang.org/cl/4298044
+    https://golang.org/cl/4306056
 
- src/cmd/gotype/gotype.go              |  94 ++++++++++++++---
- src/cmd/gotype/gotype_test.go         |  15 ++-
- src/pkg/go/ast/Makefile               |   1 +
- src/pkg/go/ast/ast.go                 |  14 +--
- src/pkg/go/ast/filter.go              |   3 +-
- src/pkg/go/ast/resolve.go             | 188 ++++++++++++++++++++++++++++++++++
- src/pkg/go/ast/scope.go               |  15 +--
- src/pkg/go/parser/interface.go        |   3 +-
- src/pkg/go/parser/parser.go           |  22 ++--
- src/pkg/go/typechecker/scope.go       |   2 +-
- src/pkg/go/typechecker/typechecker.go |   6 +-
- src/pkg/go/typechecker/universe.go    |   2 +-
- 12 files changed, 321 insertions(+), 44 deletions(-)
+ src/pkg/strings/strings.go      | 17 +++++++++++++++--
+ src/pkg/strings/strings_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

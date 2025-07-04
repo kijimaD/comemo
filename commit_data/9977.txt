@@ -1,13 +1,19 @@
-commit 6c1f4ff15f45e9a00aea334b25094aebfdbf78fb
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 14 14:27:26 2011 -0400
+commit 550fa3fa2dd68f5a081839ba4adf3dfb12b8f6cd
+Author: Chris Hundt <hundt@google.com>
+Date:   Fri Oct 14 13:10:02 2011 -0400
 
-    A+C: Luca Greco (individual CLA)
+    goyacc: make more gofmt-compliant
     
-    R=golang-dev, bradfitz
+    Adjust goyacc.go to produce code that is gofmt-compliant whenever it is easy to do so. Also changed two lines in cpyact that appeared to be bugs.
+    
+    Also updated units.y to remove a few other errors.
+    
+    After this change, units.go has only two style errors: an extra newline at the top of the file, and yys misaligned in yySymType.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5274045
+    https://golang.org/cl/5265047
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/goyacc/goyacc.go | 77 ++++++++++++++++++++++++++++--------------------
+ src/cmd/goyacc/units.y   | 26 ++++++----------
+ 2 files changed, 54 insertions(+), 49 deletions(-)

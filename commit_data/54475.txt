@@ -1,46 +1,27 @@
-commit 0b07bbd2be98f80f3d447a266803f1d68aee2902
+commit 67403a30f61ac6af584796cdfd45c0d86820690c
 Author: Than McIntosh <thanm@google.com>
-Date:   Fri Aug 11 09:40:31 2023 -0400
+Date:   Fri Oct 21 09:18:44 2022 -0400
 
-    cmd/compile/internal/inl: inline based on scoring when GOEXPERIMENT=newinliner
+    cmd/cover: fix problem with race mode and inlining
     
-    This patch changes the inliner to use callsite scores when deciding to
-    inline as opposed to looking only at callee cost/hairyness.
+    This patch fixes a problem in which we can get a data race on a
+    coverage counter function registration sequence. The scenario is that
+    package P contains a function F that is built with coverage, then F is
+    inlined into some other package that isn't being instrumented. Within
+    F's exported function body counter updates were being done with
+    atomics, but the initial registration sequence was not, which had the
+    potential to trigger a race. Fix: if race mode is enabled and we're
+    using atomics for counter increments, also use atomics in the
+    registration sequence.
     
-    For this to work, we have to relax the inline budget cutoff as part of
-    CanInline to allow for the possibility that a given function might
-    start off with a cost of N where N > 80, but then be called from a
-    callsites whose score is less than 80. Once a given function F in
-    package P has been approved by CanInline (based on the relaxed budget)
-    it will then be emitted as part of the export data, meaning that other
-    packages importing P will need to also need to compute callsite scores
-    appropriately.
+    Fixes #56370.
     
-    For a function F that calls function G, if G is marked as potentially
-    inlinable then the hairyness computation for F will use G's cost for
-    the call to G as opposed to the default call cost; for this to work
-    with the new scheme (given relaxed cost change described above) we
-    use G's cost only if it falls below inlineExtraCallCost, otherwise
-    just use inlineExtraCallCost.
-    
-    Included in this patch are a bunch of skips and workarounds to
-    selected 'errorcheck' tests in the <GOROOT>/test directory to deal
-    with the additional "can inline" messages emitted when the new inliner
-    is turned on.
-    
-    Change-Id: I9be5f8cd0cd8676beb4296faf80d2f6be7246335
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519197
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If274b61714b90275ff95fc6529239e9264b0ab0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444617
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/inline/inl.go             |  53 ++-
- .../compile/internal/inline/inlheur/callsite.go    |   8 +
- test/closure3.go                                   |   3 +
- test/escape4.go                                    |   2 +
- test/fixedbugs/issue19261.go                       |   3 +
- test/fixedbugs/issue4099.go                        |   5 +-
- test/fixedbugs/issue42284.go                       |   3 +
- test/fixedbugs/issue7921.go                        |   3 +-
- test/inline.go                                     |   3 +
- test/newinline.go                                  | 398 +++++++++++++++++++++
- 10 files changed, 470 insertions(+), 11 deletions(-)
+ src/cmd/cover/cover.go                             | 27 +++++++++--
+ .../testdata/script/cover_test_race_issue56370.txt | 54 ++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 5 deletions(-)

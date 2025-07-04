@@ -1,17 +1,14 @@
-commit 797d1bac0d5f22f8d2ce105ecb22d3b64b7ebd37
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 30 10:24:42 2013 -0400
+commit 7307ffa7cd97bb6a290914efd856a8ae4076e6e5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 29 17:38:43 2013 -0700
 
-    cmd/cgo: accept extra leading _ on __cgodebug_data for all object formats
+    database/sql: document Result methods
     
-    The current Windows build breakage appears to be because
-    the Windows code should be looking for __cgodebug_data
-    not ___cgodebug_data. Dodge the question everywhere by
-    accepting both.
+    Fixes #5110
     
-    R=golang-dev, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/19780043
+    https://golang.org/cl/19280046
 
- src/cmd/cgo/gcc.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/pkg/database/sql/sql.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

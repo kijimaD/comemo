@@ -1,15 +1,43 @@
-commit ab3bd2c15fb5f58f9d41feaa65a42579aca91fdc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 14 15:16:09 2020 -0700
+commit 063d0f11e535edf61d1e0b4ba16cfeae0f312bcf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 23 10:57:00 2019 -0700
 
-    cmd/compile: make AlgKind a stringer
+    cmd/compile: restore -m=2 diagnostics
     
-    Change-Id: I4a4b866d9233b8369e5ca913a9dd576b323b8f3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228421
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    This is a rough attempt at restoring -m=2 escape analysis diagnostics
+    on par with those that were available with esc.go. It's meant to be
+    simple and non-invasive.
+    
+    For example, given this random example from bytes/reader.go:
+    
+    138     func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
+    ...
+    143             b := r.s[r.i:]
+    144             m, err := w.Write(b)
+    
+    esc.go used to report:
+    
+    bytes/reader.go:138:7: leaking param content: r
+    bytes/reader.go:138:7:       from r.s (dot of pointer) at bytes/reader.go:143:8
+    bytes/reader.go:138:7:       from b (assigned) at bytes/reader.go:143:4
+    bytes/reader.go:138:7:       from w.Write(b) (parameter to indirect call) at bytes/reader.go:144:19
+    
+    With this CL, escape.go now reports:
+    
+    bytes/reader.go:138:7: parameter r leaks to {heap} with derefs=1:
+    bytes/reader.go:138:7:   flow: b = *r:
+    bytes/reader.go:138:7:     from r.s (dot of pointer) at bytes/reader.go:143:8
+    bytes/reader.go:138:7:     from r.s[r.i:] (slice) at bytes/reader.go:143:10
+    bytes/reader.go:138:7:     from b := r.s[r.i:] (assign) at bytes/reader.go:143:4
+    bytes/reader.go:138:7:   flow: {heap} = b:
+    bytes/reader.go:138:7:     from w.Write(b) (call parameter) at bytes/reader.go:144:19
+    
+    Updates #31489.
+    
+    Change-Id: I0c2b943a0f9ce6345bfff61e1c635172a9290cbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196959
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/alg.go            |  2 ++
- src/cmd/compile/internal/gc/algkind_string.go | 48 +++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+)
+ src/cmd/compile/internal/gc/escape.go | 98 +++++++++++++++++++++++++++++++----
+ 1 file changed, 87 insertions(+), 11 deletions(-)

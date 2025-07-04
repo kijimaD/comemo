@@ -1,15 +1,12 @@
-commit f367c13c79c229743d4954ca9c86ac90cea4c078
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Thu Apr 21 17:03:58 2011 -0400
+commit 10d1680efb10333f1e8280b1f812dd83ca9b0eee
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Thu Apr 21 17:02:52 2011 -0400
 
-    8l/prof.c: #if 0 is not accepted by the Plan 9 native toolchain.
+    cgo: avoid "incompatible pointer type" warning
     
-    The solution may be a bit of a sledgehammer, but it looks like
-    a temporary situation anyway.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4400042
+    https://golang.org/cl/4409041
 
- src/cmd/8l/prof.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/out.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

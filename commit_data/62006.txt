@@ -1,0 +1,22 @@
+commit 54693a81fd605a9c1abbee83da072c61e38d3ebf
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jan 6 18:49:45 2025 +0100
+
+    crypto/md5,crypto/sha1: apply fips140=only to Write and Sum, not New
+    
+    New is called to get a Hash which can then be rejected with an error
+    (instead of a panic) from fips140only.ApprovedHash.
+    
+    Also, it's reasonable to call New().Size() and then not use the hash.
+    
+    Change-Id: I6a6a4656c43528d169c4b28c8b6de48448236d4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641317
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/md5/md5.go   | 13 +++++++------
+ src/crypto/sha1/sha1.go | 16 ++++++++++++----
+ 2 files changed, 19 insertions(+), 10 deletions(-)

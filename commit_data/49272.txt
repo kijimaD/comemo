@@ -1,44 +1,30 @@
-commit 946b4baaf6521d521928500b2b57429c149854e7
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 18 16:46:20 2022 -0400
+commit 70546f6404c5927a9868a80ccbf4c6c2beaea671
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Aug 5 13:37:29 2021 +0200
 
-    all: gofmt main repo
+    runtime: allow arm64 SEH to be called if illegal instruction
     
-    Excluding vendor and testdata.
-    CL 384268 already reformatted most, but these slipped past.
+    DLLs built with recent Microsoft toolchains for ARM64 test for ARMv8.1
+    atomics by potentially calling an illegal instruction, and then trapping
+    the exception to disable use of them by way of a structured exception
+    handler. However, vectored exception handlers are always called before
+    structured exception handlers. When LoadLibrary-ing DLLs that do this
+    probing during initialization, our lastcontinuehandler winds up being
+    called, and then crashing, but actually it should give execution back to
+    the library to handle the exception and fix up the state. So special
+    case this for arm64 with illegal instructions, and hope that we're not
+    masking other things in external DLLs that might more fatally trigger an
+    illegal instruction exception.
     
-    The struct in the doc comment in debug/dwarf/type.go
-    was fixed up by hand to indent the first and last lines as well.
+    Updates #47576.
     
-    For #51082.
-    
-    Change-Id: Iad020f83aafd671ff58238fe491907e85923d0c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407137
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I341ab99cd8d513ae999b75596749d49779072022
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340070
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/archive/zip/reader.go                |  2 +-
- src/cmd/compile/internal/ir/stmt.go      | 12 ++++++----
- src/cmd/compile/internal/types2/api.go   |  6 ++---
- src/cmd/pprof/doc.go                     |  2 +-
- src/crypto/aes/cbc_ppc64x.go             |  1 +
- src/debug/dwarf/type.go                  | 39 ++++++++++++++++----------------
- src/debug/dwarf/type_test.go             |  1 -
- src/debug/pe/symbol.go                   | 18 +++++++--------
- src/go/internal/gcimporter/exportdata.go |  1 -
- src/internal/diff/diff.go                |  1 -
- src/io/multi.go                          |  2 +-
- src/math/big/alias_test.go               |  4 ++--
- src/net/net.go                           |  4 +++-
- src/runtime/debug/garbage.go             |  5 ++--
- src/runtime/mem.go                       |  2 ++
- src/runtime/mgcpacer.go                  |  2 ++
- src/runtime/os_linux.go                  |  1 +
- src/runtime/string.go                    |  2 +-
- src/runtime/vdso_linux_s390x.go          |  3 +--
- src/sort/search.go                       | 17 +++++++-------
- src/sync/atomic/doc.go                   |  1 -
- src/syscall/syscall_linux.go             |  1 +
- 22 files changed, 66 insertions(+), 61 deletions(-)
+ src/runtime/signal_windows.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

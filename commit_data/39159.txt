@@ -1,20 +1,15 @@
-commit ba23fa483379deb6c5f22e150679bedde95c69c5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 14 09:53:24 2019 -0400
+commit a5318bf5d676b3dfc10a1843668e3593cbdc87c5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 9 10:04:58 2019 -0800
 
-    cmd/vendor: go get -u golang.org/x/tools && go mod vendor
+    os: always treat files as unpollable on FreeBSD
     
-    Picks up vet fix from CL 176357.
+    Fixes #29633
+    Updates #27619
     
-    Change-Id: Ia77cd4a582c4edfbe59bbc311e6ce14046df0e83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177137
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I1e38569ea2a02423b028331f2ed987d3ae47fd2e
+    Reviewed-on: https://go-review.googlesource.com/c/157099
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +++
- .../go/analysis/internal/analysisflags/flags.go    | 37 ++++++++++++++++++++++
- .../x/tools/go/analysis/passes/bools/bools.go      | 21 +++++++-----
- src/cmd/vendor/modules.txt                         |  2 +-
- 5 files changed, 56 insertions(+), 10 deletions(-)
+ src/os/file_unix.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

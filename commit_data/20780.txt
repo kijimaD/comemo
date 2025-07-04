@@ -1,22 +1,20 @@
-commit c5943c668b919b98fd107c2327678ee32a868246
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 24 10:58:13 2014 -0400
+commit 9ca836844496fe8723d8fe215d78530d1bba032e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 9 16:10:51 2014 +1100
 
-    net/http/pprof: run GC for /debug/pprof/heap?gc=1
+    misc/cgo/test: add Test8517
     
-    We force runtime.GC before WriteHeapProfile with -test.heapprofile.
-    Make it possible to do the same with the HTTP interface.
+    CL 145890044 did not provide test. Rectify that.
     
-    Some servers only run a GC every few minutes.
-    On such servers, the heap profile will be a few minutes stale,
-    which may be too old to be useful.
+    Update #8517
     
-    Requested by private mail.
-    
-    LGTM=dvyukov
-    R=dvyukov
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/161990043
+    https://golang.org/cl/148790043
 
- src/net/http/pprof/pprof.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ misc/cgo/test/cgo_test.go          |  1 +
+ misc/cgo/test/issue8517.go         | 13 +++++++++++
+ misc/cgo/test/issue8517_windows.c  | 24 ++++++++++++++++++++
+ misc/cgo/test/issue8517_windows.go | 45 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 83 insertions(+)

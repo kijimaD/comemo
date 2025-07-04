@@ -1,23 +1,22 @@
-commit 95a4f793c077ab7b13fdb7505b65ff19a97a07f9
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Nov 6 10:16:17 2018 -0800
+commit 0852a104fde7675724d973637bff3ebbf1ba61c9
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jul 12 19:19:45 2018 -0400
 
-    cmd/compile: don't deadcode eliminate labels
+    crypto/x509: add GODEBUG option x509ignoreCN=1
     
-    Dead-code eliminating labels is tricky because there might
-    be gotos that can still reach them.
+    When x509ignoreCN=1 is present in GODEBUG, ignore the deprecated Common
+    Name field. This will let people test a behavior we might make the
+    default in the future, and lets a final class of certificates avoid the
+    NameConstraintsWithoutSANs error.
     
-    Bug probably introduced with CL 91056
+    Updates #24151
     
-    Fixes #28616
-    
-    Change-Id: I6680465134e3486dcb658896f5172606cc51b104
-    Reviewed-on: https://go-review.googlesource.com/c/147817
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1c397aa1fa23777b9251c311d02558f9a5bdefc0
+    Reviewed-on: https://go-review.googlesource.com/123695
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 12 +++++++++++-
- test/fixedbugs/issue28616.go             | 25 +++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 1 deletion(-)
+ src/crypto/x509/name_constraints_test.go | 26 +++++++++++++++++++++++
+ src/crypto/x509/verify.go                | 10 ++++++++-
+ src/crypto/x509/verify_test.go           | 36 ++++++++++++++++++++++++++++++++
+ 3 files changed, 71 insertions(+), 1 deletion(-)

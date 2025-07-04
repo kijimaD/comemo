@@ -1,19 +1,17 @@
-commit c999108723fb35cec3667f1fcd60933d2608becc
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 23:51:16 2016 -0400
+commit 6f74c0774cf4fd906292bf0a733cb596f0849780
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 11 11:18:17 2016 -0700
 
-    time: revise Timer comments for Stop, Reset
+    runtime: move printing of extra newline
     
-    The comments added for Go 1.7 are very close.
-    Make explicit that they only apply if the timer is
-    not known to have expired already.
+    No functional changes, makes vet happy.
     
-    Fixes #14038.
+    Updates #11041
     
-    Change-Id: I6a38be7b2015e1571fc477e18444a8cee38aab29
-    Reviewed-on: https://go-review.googlesource.com/31350
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I59f3aba46d19b86d605508978652d76a1fe7ac7b
+    Reviewed-on: https://go-review.googlesource.com/27125
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/sleep.go | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/runtime/testdata/testprogcgo/threadprof.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

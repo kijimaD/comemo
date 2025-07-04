@@ -1,51 +1,18 @@
-commit 1ec4d5e9e775b2adcf7dd2e464a10854bad09803
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 1 13:30:10 2014 -0400
+commit 16b95507a5424452423ca44c7396fe960c7a5bef
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 1 02:57:51 2014 -0400
 
-    runtime: adjust GODEBUG=allocfreetrace=1 and GODEBUG=gcdead=1
+    html/template: fix broken links
+    Fixes #7562.
     
-    GODEBUG=allocfreetrace=1:
-    
-    The allocfreetrace=1 mode prints a stack trace for each block
-    allocated and freed, and also a stack trace for each garbage collection.
-    
-    It was implemented by reusing the heap profiling support: if allocfreetrace=1
-    then the heap profile was effectively running at 1 sample per 1 byte allocated
-    (always sample). The stack being shown at allocation was the stack gathered
-    for profiling, meaning it was derived only from the program counters and
-    did not include information about function arguments or frame pointers.
-    The stack being shown at free was the allocation stack, not the free stack.
-    If you are generating this log, you can find the allocation stack yourself, but
-    it can be useful to see exactly the sequence that led to freeing the block:
-    was it the garbage collector or an explicit free? Now that the garbage collector
-    runs on an m0 stack, the stack trace for the garbage collector was never interesting.
-    
-    Fix all these problems:
-    
-    1. Decouple allocfreetrace=1 from heap profiling.
-    2. Print the standard goroutine stack traces instead of a custom format.
-    3. Print the stack trace at time of allocation for an allocation,
-       and print the stack trace at time of free (not the allocation trace again)
-       for a free.
-    4. Print all goroutine stacks at garbage collection. Having all the stacks
-       means that you can see the exact point at which each goroutine was
-       preempted, which is often useful for identifying liveness-related errors.
-    
-    GODEBUG=gcdead=1:
-    
-    This mode overwrites dead pointers with a poison value.
-    Detect the poison value as an invalid pointer during collection,
-    the same way that small integers are invalid pointers.
-    
-    LGTM=khr
-    R=khr
+    LGTM=nigeltao
+    R=nigeltao
     CC=golang-codereviews
-    https://golang.org/cl/81670043
+    https://golang.org/cl/81190044
 
- src/pkg/runtime/malloc.goc |  17 +++---
- src/pkg/runtime/malloc.h   |  11 +++-
- src/pkg/runtime/mgc0.c     |  17 ++++--
- src/pkg/runtime/mheap.c    |   2 +-
- src/pkg/runtime/mprof.goc  | 137 ++++++++++++++++++++++++---------------------
- src/pkg/runtime/stack.c    |   2 +-
- 6 files changed, 103 insertions(+), 83 deletions(-)
+ src/pkg/html/template/attr.go    | 4 ++--
+ src/pkg/html/template/content.go | 3 ++-
+ src/pkg/html/template/context.go | 4 ++--
+ src/pkg/html/template/escape.go  | 2 +-
+ src/pkg/html/template/html.go    | 4 ++--
+ 5 files changed, 9 insertions(+), 8 deletions(-)

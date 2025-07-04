@@ -1,28 +1,19 @@
-commit 2ad666dea0490305bb7fd2dd6e7beb767acfd2c3
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Jul 27 19:36:55 2023 -0400
+commit 55ca6a20afb718972f0625ce971081f78efe10bf
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 26 14:38:19 2022 -0400
 
-    syscall, cmd/cgo: skip tests that shouldn't run under 'unshare -n -r'
+    runtime: simplify stkframe.argMapInternal
     
-    A small number of tests in the main tree are currently skipped in LUCI
-    because our builders there run tests without root. Unfortunately, these
-    tests begin to run when run under 'unshare -n -r' as implemented in
-    the current iteration of a no-network check. Add targeted builder-only
-    skips so that they don't begin to run and fail with a false positive.
+    Use an early return to reduce indentation and clarify flow.
     
-    Updates #10719.
-    For #30612.
+    For #54466.
     
-    Change-Id: I6dd320714a279c395882c1b2ebfbb2fce58f913b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513779
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I12ce810bea0f22b8707a175dc5ba66241c0a9a21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425936
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/internal/test/issue1435.go |  8 ++++++++
- src/syscall/exec_linux_test.go         | 16 ++++++++++++++++
- src/syscall/exec_pdeathsig_test.go     |  8 ++++++++
- src/syscall/syscall_linux_test.go      | 15 +++++++++++++++
- 4 files changed, 47 insertions(+)
+ src/runtime/stkframe.go | 99 +++++++++++++++++++++++++------------------------
+ 1 file changed, 50 insertions(+), 49 deletions(-)

@@ -1,28 +1,19 @@
-commit 5987f3c2715d93cb52f05dcb1c29825507e1d625
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Feb 27 15:37:32 2023 -0500
+commit 66f03f79dadc6005d30a6edf4419b8f6c0fa6398
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sat Apr 9 14:40:40 2022 +0800
 
-    cmd/go: make PGO profile path per package
+    cmd/compile: add SHLX&SHRX without load
     
-    Currently, the PGO profile path is global for a single go command
-    invocation, as it applies to all packages being built (or none).
-    With -pgo=auto mode with multiple main packages, packages from a
-    single go command invocation could have different profiles. So it
-    is necessary that the PGO profile path is per package, which is
-    this CL does.
-    
-    For #58099.
-    
-    Change-Id: I148a15970ec907272db85b4b27ad6b08c41d6c0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472357
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I79eb5e7d6bcb23f26d3a100e915efff6dae70391
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399061
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/cfg/cfg.go   |  1 -
- src/cmd/go/internal/load/pkg.go  | 22 ++++++++++++++--------
- src/cmd/go/internal/load/test.go |  3 +++
- src/cmd/go/internal/work/exec.go |  4 ++--
- src/cmd/go/internal/work/gc.go   |  4 ++--
- 5 files changed, 21 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |    4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   88 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |    4 +
+ src/cmd/compile/internal/ssa/opGen.go        |   60 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 2422 +++++++++++++++++++++++++-
+ test/codegen/bmi.go                          |   20 +-
+ 6 files changed, 2484 insertions(+), 114 deletions(-)

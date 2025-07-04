@@ -1,19 +1,35 @@
-commit 1ec56062ef6b256f8269e2ca8c5477e3a917331a
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jul 1 09:20:51 2014 +0200
+commit 7c13860cd08352e785002cb97bd3baafd370e8bc
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 30 18:59:24 2014 -0700
 
-    cmd/8g: don't allocate a register early for cap(CHAN).
+    runtime: stack allocator, separate from mallocgc
     
-    There is no reason to generate different code for cap and len.
+    In order to move malloc to Go, we need to have a
+    separate stack allocator.  If we run out of stack
+    during malloc, malloc will not be available
+    to allocate a new stack.
     
-    Fixes #8025.
-    Fixes #8026.
+    Stacks are the last remaining FlagNoGC objects in the
+    GC heap.  Once they are out, we can get rid of the
+    distinction between the allocated/blockboundary bits.
+    (This will be in a separate change.)
     
-    LGTM=rsc
-    R=rsc, iant, khr
+    Fixes #7468
+    Fixes #7424
+    
+    LGTM=rsc, dvyukov
+    R=golang-codereviews, dvyukov, khr, dave, rsc
     CC=golang-codereviews
-    https://golang.org/cl/93570044
+    https://golang.org/cl/104200047
 
- src/cmd/8g/cgen.c | 5 ++++-
- test/torture.go   | 7 +++++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/pkg/runtime/malloc.h      |  27 +++-
+ src/pkg/runtime/mcache.c      |   1 +
+ src/pkg/runtime/mcentral.c    |   2 +
+ src/pkg/runtime/mem.go        |   2 +-
+ src/pkg/runtime/mgc0.c        |  16 +-
+ src/pkg/runtime/mheap.c       | 323 ++++++++++++++++++++++----------------
+ src/pkg/runtime/proc.c        |   3 +-
+ src/pkg/runtime/runtime.h     |  15 +-
+ src/pkg/runtime/stack.c       | 356 +++++++++++++++++++++++++-----------------
+ src/pkg/runtime/stack_test.go |  49 ++++++
+ 10 files changed, 492 insertions(+), 302 deletions(-)

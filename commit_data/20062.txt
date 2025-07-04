@@ -1,19 +1,19 @@
-commit 31e4ad5846d21cb5db1cc52a38a89acc915701b5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 21 21:10:30 2014 +0400
+commit f285537b7f16a726284b0a0b482a8733e16d9f01
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 13 11:39:07 2014 -0400
 
-    runtime: remove now arg from timer callback
-    Cleanup before converting to Go.
-    Fortunately nobody using it, because it is incorrect:
-    monotonic runtime time instead of claimed real time.
+    [dev.power64] cmd/9g: do not ignore move instructions even if from and to are samaddr()
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/129480043
+    Those moves might be significant (e.g. narrowing or widening): on Power64,
+    we don't distinguish between MOVWD and MOVW.
+    
+    This fixes divmode.go and bug447.go.
+    
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/125200043
 
- src/pkg/runtime/netpoll.goc   | 21 ++++++++++-----------
- src/pkg/runtime/time.goc      |  8 +++-----
- src/pkg/time/internal_test.go |  2 +-
- src/pkg/time/sleep.go         |  6 +++---
- 4 files changed, 17 insertions(+), 20 deletions(-)
+ src/cmd/9g/gg.h    |  1 -
+ src/cmd/9g/gsubr.c | 25 -------------------------
+ 2 files changed, 26 deletions(-)

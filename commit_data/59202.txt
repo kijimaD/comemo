@@ -1,37 +1,39 @@
-commit 4c32b1cc753e9005ed7c741bf69d3cb69ee3a56c
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 11 11:23:24 2025 -0400
+commit e596e8831885ad057a7f1db1391fddfd53f06431
+Author: Damien Neil <dneil@google.com>
+Date:   Sat Sep 30 10:38:01 2023 -0700
 
-    runtime: fix plan9 monotonic time, crypto randomness
+    path/filepath: add Localize
     
-    Open /dev/bintime at process start on Plan 9,
-    marked close-on-exec, hold it open for the duration of the
-    process, and use it for obtaining time.
+    Add the Localize function, which takes an io/fs slash-separated path
+    and returns an operating system path.
     
-    The change to using /dev/bintime also sets up for an upcoming
-    Plan 9 change to add monotonic time to that file. If the monotonic
-    field is available, then nanotime1 and time.now use that field.
-    Otherwise they fall back to using Unix nanoseconds as "monotonic",
-    as they always have.
+    Localize returns an error if the path cannot be represented on
+    the current platform.
     
-    Before this CL, monotonic time went backward any time
-    aux/timesync decided to adjust the system's time-of-day backward.
+    Replace internal/safefile.FromFS with Localize,
+    which serves the same purpose as this function.
     
-    Also use /dev/random for randomness (once at startup).
-    Before this CL, there was no real randomness in the runtime
-    on Plan 9 (the crypto/rand package still had some). Now there will be.
+    The internal/safefile package remains separate from path/filepath
+    to avoid a dependency cycle with the os package.
     
-    Change-Id: I0c20ae79d3d96eff1a5f839a56cec5c4bc517e61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656755
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Fixes #57151
+    
+    Change-Id: I75c88047ddea17808276761da07bf79172c4f6fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531677
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/env_plan9.go      |   4 +-
- src/runtime/os_plan9.go       | 105 ++++++++++++++++++++++++++++++++++++------
- src/runtime/sys_plan9_386.s   |  37 ++++++---------
- src/runtime/sys_plan9_amd64.s |  29 ++++++------
- src/runtime/sys_plan9_arm.s   |  37 ++++++---------
- src/runtime/timestub.go       |   2 +-
- src/runtime/timestub2.go      |   2 +-
- 7 files changed, 138 insertions(+), 78 deletions(-)
+ api/next/57151.txt                                |  1 +
+ doc/next/6-stdlib/99-minor/path/filepath/57151.md |  2 +
+ src/internal/safefilepath/path.go                 | 17 +++--
+ src/internal/safefilepath/path_other.go           | 24 -------
+ src/internal/safefilepath/path_plan9.go           | 14 ++++
+ src/internal/safefilepath/path_test.go            | 88 -----------------------
+ src/internal/safefilepath/path_unix.go            | 16 +++++
+ src/internal/safefilepath/path_windows.go         | 35 ++++-----
+ src/net/http/fs.go                                |  7 +-
+ src/os/dir.go                                     |  2 +-
+ src/os/file.go                                    |  5 +-
+ src/path/filepath/path.go                         | 16 +++++
+ src/path/filepath/path_test.go                    | 67 +++++++++++++++++
+ 13 files changed, 149 insertions(+), 145 deletions(-)

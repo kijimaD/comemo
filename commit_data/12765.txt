@@ -1,15 +1,14 @@
-commit cf13bd3fab523931c3555c82c3d2fe896d2935c9
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Mar 27 12:56:56 2012 +1100
+commit 9031f952e2b17752f4eb716d4d96575026ce5338
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 12:46:46 2012 +1100
 
-    path/filepath: convert drive letter to upper case in windows EvalSymlinks
+    doc: remove cov and prof from /ref/cmd
     
-    Fixes #3347.
+    Update #3400
     
-    R=golang-dev, aram, r, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5918043
+    https://golang.org/cl/5921044
 
- src/pkg/path/filepath/path_test.go       | 23 +++++++++++++++++++++++
- src/pkg/path/filepath/symlink_windows.go | 10 +++++++++-
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ doc/reference-cmd.html | 38 ++++++++++++--------------------------
+ 1 file changed, 12 insertions(+), 26 deletions(-)

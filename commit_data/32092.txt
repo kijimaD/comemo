@@ -1,19 +1,18 @@
-commit 6f08c935a9474a300d34e7a476628c2667142474
-Author: Seiji Takahashi <timaki.st@gmail.com>
-Date:   Sun Jul 30 21:00:09 2017 +0900
+commit 59f6549d1c7e0e074472c46f55716267225f4fd6
+Author: Eric Lagergren <ericscottlagergren@gmail.com>
+Date:   Mon Apr 3 16:08:13 2017 -0700
 
-    cmd/go: show examples with empty output in go test -list
+    bytes, strings: declare variables inside loop they're used in
     
-    Fixes #21205
+    The recently updated Count functions declare variables before
+    special-cased returns.
     
-    Change-Id: I81b001eb42cbf2a5d5b7b82eb63548b22f501be5
-    Reviewed-on: https://go-review.googlesource.com/52110
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8f726118336b7b0ff72117d12adc48b6e37e60ea
+    Reviewed-on: https://go-review.googlesource.com/39357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                            | 17 +++++++++++++++++
- src/cmd/go/testdata/src/testlist/bench_test.go   | 14 ++++++++++++++
- src/cmd/go/testdata/src/testlist/example_test.go | 21 +++++++++++++++++++++
- src/cmd/go/testdata/src/testlist/test_test.go    | 10 ++++++++++
- src/testing/testing.go                           |  2 +-
- 5 files changed, 63 insertions(+), 1 deletion(-)
+ src/bytes/bytes.go     | 2 +-
+ src/strings/strings.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

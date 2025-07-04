@@ -1,13 +1,15 @@
-commit 701fb580bd1d199027126b00f1a2aee2f65afd97
-Author: Rob Pike <r@golang.org>
-Date:   Sat Feb 18 16:02:51 2012 +1100
+commit 292bd04a434dcd294f243e247d6e3811a0921994
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 17 20:35:40 2012 -0800
 
-    html/template: replace obsolete reference to template.Set
-    Fixes #3053.
+    test: change bug040 to use errorcheck
     
-    R=golang-dev, dsymonds
+    Because bug040.go was ignoring all error messages, the fact
+    that it got an error about fuction main was being ignored.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5656094
+    https://golang.org/cl/5675085
 
- src/pkg/html/template/doc.go | 6 +++---
+ test/fixedbugs/bug040.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)

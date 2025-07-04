@@ -1,20 +1,19 @@
-commit aa49a0b37249fc1d4a7963b6f1119983eaae9f97
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Aug 22 18:21:14 2020 +0700
+commit f4f7db414dc0ea27df38dbd46c2731819e08dfc2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 11:14:23 2020 -0500
 
-    runtime: add test for StorepNoWB param leaking
+    cmd/go: convert TestBuildDryRunWithCgo to the script framework
     
-    CL 249962 added wasm StorepNoWB implementation in assembly, it's now
-    like all other architectures. This CL adds a general test that the
-    second param of StorepNoWB must be force to escape.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Fixes #40975
+    Updates #36320
+    Updates #17751
     
-    Change-Id: I1eccc7e50a3ec742a1912d65f25b15f9f5ad9241
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249761
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2d14c07c590cc618c66f27fdc3a2bb8120c6d646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214427
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/internal/atomic/atomic_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/go/go_test.go                           | 21 ---------------------
+ src/cmd/go/testdata/script/build_dash_n_cgo.txt | 18 ++++++++++++++++++
+ 2 files changed, 18 insertions(+), 21 deletions(-)

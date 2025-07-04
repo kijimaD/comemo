@@ -1,26 +1,17 @@
-commit 8c0425825ced4042eac0439161abe1f22a47d615
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Thu Jun 14 18:20:03 2018 +0300
+commit e656aebb5b9e0437e050c3050e50a658c0244777
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Mon Apr 23 13:03:44 2018 +0900
 
-    cmd/compile: display Go code for a function in ssa.html
+    os: os: make Stat("*.txt") fail on windows
     
-    This CL adds the "sources" column at the beginning of SSA table.
-    This column displays the source code for the function being passed
-    in the GOSSAFUNC env variable.
+    Fixes #24999
     
-    Also UI was extended so that clicking on particular line will
-    highlight all places this line is referenced.
-    
-    JS code was cleaned and formatted.
-    
-    This CL does not handle inlined functions. See issue 25904.
-    
-    Change-Id: Ic7833a0b05e38795f4cf090f3dc82abf62d97026
-    Reviewed-on: https://go-review.googlesource.com/119035
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Change-Id: Ie0bb6a6e0fa3992cdd272d42347af65ae7c95463
+    Reviewed-on: https://go-review.googlesource.com/108755
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/gc/ssa.go   |  26 +++++++-
- src/cmd/compile/internal/ssa/html.go | 116 +++++++++++++++++++++++++----------
- 2 files changed, 107 insertions(+), 35 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go | 1 +
+ src/os/os_windows_test.go                       | 8 ++++++++
+ src/os/types_windows.go                         | 8 ++++++++
+ 3 files changed, 17 insertions(+)

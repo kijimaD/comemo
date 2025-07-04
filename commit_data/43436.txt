@@ -1,13 +1,17 @@
-commit 91b7619310cc05c2ffa3fa558f041a3b3cf6e948
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 21 21:09:57 2020 -0400
+commit 3103495fa9bb166c9d0c56fbf3cd2146f32aef57
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Fri Mar 6 08:44:23 2020 +0000
 
-    cmd/compile: remove go115flagallocdeadcode
+    runtime: eliminate redundant load in Xchg and Xadd on arm64
     
-    Change-Id: Iafd72fb06a491075f7f996a6684e0d495c96aee5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264342
-    Trust: Cherry Zhang <cherryyz@google.com>
+    Loading arguments of Xchg(64) and Xadd(64) functions to registers
+    could be done only once.
+    
+    Change-Id: Iaf0a695ec9c6a221dfa755855edb68c476978a5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227001
     Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/flagalloc.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/runtime/internal/atomic/atomic_arm64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,27 +1,40 @@
-commit 1b2930d70c8bad5ecae08275e56e228e0f424b02
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 1 11:04:39 2021 -0500
+commit b975d0baa0e0d4a733c4f5ff86ed81514deb53b2
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Apr 1 17:51:18 2021 -0400
 
-    net: remove arbitrary deadlines in PacketConn tests
+    [dev.fuzz] internal/fuzz: reduce allocation in the mutator
     
-    When TestPacketConn was added (in CL 6501057) it included arbitrary
-    100ms deadlines. Those deadlines were arbitrarily increased to 500ms
-    in CL 4922.
+    When mutating a byte slice, mutate in place, and only allocate once if
+    the slice's capacity is less than the maximum size.
     
-    If the test is actually provoking a deadlock, allowing it to deadlock
-    will give us a more useful goroutine dump. Otherwise, the deadlines
-    don't seem all that useful — they appear to increase code coverage,
-    but have no effect on the test in the typical case, and can only
-    cause flakes on particularly-slow machines.
+    mutateBytes already should not allocate; we check a post-condition
+    that the slice's data pointer does not change.
     
-    For #43627
+    This speeds up the mutator from 4 ms per value to 200-600 ns. For
+    example:
     
-    Change-Id: I83de5217c54c743b83adddf51d4f6f2bd5b91732
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368215
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+        goos: darwin
+        goarch: amd64
+        pkg: internal/fuzz
+        cpu: Intel(R) Core(TM) i7-8559U CPU @ 2.70GHz
+        BenchmarkMutatorBytes/1-8                5908735               275.3 ns/op
+        BenchmarkMutatorBytes/10-8               5198473               282.0 ns/op
+        BenchmarkMutatorBytes/100-8              4304750               233.9 ns/op
+        BenchmarkMutatorBytes/1000-8             4623988               295.2 ns/op
+        BenchmarkMutatorBytes/10000-8            4252104               458.5 ns/op
+        BenchmarkMutatorBytes/100000-8           1236751               950.8 ns/op
+        PASS
+        ok      internal/fuzz   12.993s
+    
+    Change-Id: I4bf2a04be6c648ef440af2c62bf0ffa3d310172c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306675
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/packetconn_test.go | 13 -------------
- 1 file changed, 13 deletions(-)
+ src/internal/fuzz/fuzz.go         |  3 +--
+ src/internal/fuzz/mutator.go      | 13 ++++++-------
+ src/internal/fuzz/mutator_test.go | 30 ++++++++++++++++++++++++++++++
+ src/internal/fuzz/worker.go       |  6 +++++-
+ 4 files changed, 42 insertions(+), 10 deletions(-)

@@ -1,21 +1,19 @@
-commit 8994607f828e46272bae5e7959997dea8cb1a19a
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 22 14:40:50 2020 -0400
+commit f652eb72b6b65a63572650de5b5c08cfcf65de6b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 20 11:51:34 2020 -0400
 
-    go/build: clean up ctxt.shouldBuild, tests
+    [dev.link] cmd/internal/dwarf: add back some constant prefixes
     
-    Make ctxt.shouldBuild return multiple values
-    instead of modifying *sawBinaryOnly in place.
-    Also give it a table-driven test.
+    They are still used by the old linker.
     
-    Cleanup in preparation for boolean expressions,
-    but nice even if those don't end up happening.
+    This is for introducing gating for the new object file format and
+    the new linker.
     
-    Change-Id: Ibb78b0080070deafac7299a6de87ab8bebeb702d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240598
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I97bb6ab4cc2c03f90f199c705d4c127e45ca07f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224621
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/build/build.go      |  21 ++++-----
- src/go/build/build_test.go | 113 +++++++++++++++++++++++++++++----------------
- 2 files changed, 81 insertions(+), 53 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

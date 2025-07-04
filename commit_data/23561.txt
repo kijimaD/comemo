@@ -1,16 +1,17 @@
-commit 27edd7209e1c21fdd5143a725c91719791e9f1f5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 13:56:27 2015 -0400
+commit fad25c29a1c8c3cffdd18ff8ebff3ead3bdfed1f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 26 13:49:55 2015 -0700
 
-    cmd/compile: enable PAUTO capture variables on arch != 6
+    archive/zip: verify number of File bytes read at EOF
     
-    Fixes #9865.
+    Fixes #10957
     
-    Change-Id: I8ce5b1708ed938910c59899706e470271c2e7e9d
-    Reviewed-on: https://go-review.googlesource.com/11699
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I75fe25133dfcebd1682a8058b1c354ec894cc997
+    Reviewed-on: https://go-review.googlesource.com/10384
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/closure.go | 7 ++-----
- src/cmd/compile/internal/x86/gsubr.go  | 7 +++++--
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/archive/zip/reader.go      | 22 ++++++++++++++++------
+ src/archive/zip/reader_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 6 deletions(-)

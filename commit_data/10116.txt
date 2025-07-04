@@ -1,12 +1,12 @@
-commit 8fee9bc8c21090b70139216eefebe3bc3c3fa92c
+commit bff71ed421e51cd89fb2e113ab80e5aef10bd986
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 26 12:40:45 2011 -0700
+Date:   Wed Oct 26 12:20:40 2011 -0700
 
-    A+C: Ron Minnich (individual CLA)
+    A+C: Jan Newmarch (individual CLA)
     
-    R=golang-dev, adg
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5308057
+    https://golang.org/cl/5305062
 
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +

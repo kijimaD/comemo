@@ -1,15 +1,15 @@
-commit 705c1f5cd45d572ba32dea48f5fe997a9f970400
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 29 13:42:33 2014 -0700
+commit 54b63f06478d390d69fc826a16ab19dc6b5d5503
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 21:50:22 2014 -0400
 
-    net/http: clarify Request.FormValue docs
+    path/filepath: document that Glob ignores i/o errors
     
-    Fixes #8067
+    Fixes #8008.
     
-    LGTM=r
-    R=r
+    LGTM=adg
+    R=golang-codereviews, nightlyone, adg
     CC=golang-codereviews
-    https://golang.org/cl/146480043
+    https://golang.org/cl/138630045
 
- src/net/http/request.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/path/filepath/match.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,18 +1,15 @@
-commit 6b29f7bfbe9ca985ce2419285f0b56b5428e1ffe
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 12 11:20:01 2014 -0500
+commit c50760110280ce1e07e7969eec77b1d32e25ae12
+Author: Robert Dinu <r@varp.se>
+Date:   Wed Feb 12 07:35:54 2014 -0800
 
-    crypto/tls: better error messages.
+    debug/pe: delete unnecessary type conversions
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Fixes #7104.
+    
+    LGTM=iant
+    R=golang-dev, iant
     CC=golang-codereviews
-    https://golang.org/cl/60580046
+    https://golang.org/cl/61480049
 
- src/pkg/crypto/tls/common.go                |  5 ++++
- src/pkg/crypto/tls/conn.go                  | 23 ++++++++++------
- src/pkg/crypto/tls/handshake_client.go      | 41 +++++++++++++++++++----------
- src/pkg/crypto/tls/handshake_server.go      | 40 +++++++++++++++++++---------
- src/pkg/crypto/tls/handshake_server_test.go | 15 ++++++-----
- src/pkg/crypto/tls/key_agreement.go         | 15 ++++++-----
- 6 files changed, 90 insertions(+), 49 deletions(-)
+ src/pkg/debug/pe/file.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

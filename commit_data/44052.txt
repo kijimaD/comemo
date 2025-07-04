@@ -1,34 +1,20 @@
-commit 4d27c4c223ccb7de3876abbac79b58ad9579be1a
-Author: Nikhil Benesch <nikhil.benesch@gmail.com>
-Date:   Wed Dec 9 15:14:59 2020 -0500
+commit 05e3ad38973a1f594b46ec16ce355b09aef76924
+Author: Shengyu Zhang <shengyu.zhang@chaitin.com>
+Date:   Wed Dec 11 02:46:49 2019 +0000
 
-    runtime: correct error handling in several FreeBSD syscall wrappers
+    cmd/go: add -Wl,-E to linker flag whitelist (shortcut of --export-dynamic)
     
-    The FreeBSD syscall convention uses the carry flag to indicate whether
-    an error has occured. The sys_umtx_op, thr_new, and pipe2 syscall
-    wrappers were failing to account for this convention and silently
-    suppressing errors as a result. This commit corrects these wrappers
-    by copying the pattern used by the other fallible syscall wrappers.
+    According to https://linux.die.net/man/1/ld, `-E` is a shortcut of
+    `--export-dynamic`, it will be better to be added in to whitelist for the
+    later one has been added in https://golang.org/cl/134016.
     
-    Note that futexsleep1 must now explicitly ignore the ETIMEDOUT error
-    from sys_umtx_op. Previously ETIMEDOUT was implicitly ignored because
-    sys_umtx_op never returned an error.
-    
-    Fixes #43106.
-    
-    Change-Id: I9c422b87cf4c6d308003bf42c3b419f785578b5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276892
+    Change-Id: I11aa8ea7d86c1c58a2f1dcd258f6f7d2e50861df
+    GitHub-Last-Rev: 4b1b3676c58406f48fed0571e5353e039f27830d
+    GitHub-Pull-Request: golang/go#36066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210657
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/defs_freebsd_386.go   | 9 +++++----
- src/runtime/defs_freebsd_amd64.go | 9 +++++----
- src/runtime/defs_freebsd_arm.go   | 9 +++++----
- src/runtime/defs_freebsd_arm64.go | 9 +++++----
- src/runtime/os_freebsd.go         | 3 +--
- src/runtime/sys_freebsd_386.s     | 6 ++++++
- src/runtime/sys_freebsd_amd64.s   | 6 ++++++
- src/runtime/sys_freebsd_arm.s     | 3 +++
- src/runtime/sys_freebsd_arm64.s   | 6 ++++++
- 9 files changed, 42 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/work/security.go | 1 +
+ 1 file changed, 1 insertion(+)

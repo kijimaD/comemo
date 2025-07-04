@@ -1,41 +1,18 @@
-commit 7dc10dbf45db5a361e0ace376dedb5578f6a5642
-Author: Matthieu Baerts <matthieu.baerts@tessares.net>
-Date:   Fri Feb 24 17:51:58 2023 +0100
+commit 0bd7408f901f33c6f0a5a542f8de6bf17c901e79
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed May 4 18:39:26 2022 +0700
 
-    net: mptcp: implement listenMPTCP
+    cmd/compile: fix static init of literal contains dynamic exprs
     
-    Similar to dialMPTCP, this listenMPTCP function is called when the user
-    has requested MPTCP via SetMultipathTCP in the ListenConfig.
+    Fixes #52673
     
-    This function falls back to listenTCP on operating systems that do not
-    support MPTCP or if MPTCP is not supported.
-    
-    On ListenConfig side, MultipathTCP function can be used to know if the
-    package will try to use MPTCP or not when Listen is called.
-    
-    Note that this new listenMPTCP function returns a TCPListener object and
-    not a new MPTCP dedicated one. The reasons are similar as the ones
-    explained in the parent commit introducing dialTCP: if MPTCP is used by
-    default later, Listen will return a different object that could break
-    existing applications expecting TCPListener.
-    
-    This work has been co-developped by Gregory Detal
-    <gregory.detal@tessares.net>.
-    
-    Updates #56539
-    
-    Change-Id: I010f1d87f921bbac9e157cef2212c51917852353
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471137
+    Change-Id: Ib2faa5a669c05778fc6beb38c3e63d558af9b2be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403995
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- api/next/56539.txt         |  2 ++
- src/net/dial.go            | 29 ++++++++++++++++++++++++++++-
- src/net/mptcpsock_linux.go |  9 +++++++++
- src/net/mptcpsock_stub.go  |  4 ++++
- src/net/tcpsock_posix.go   |  6 +++++-
- 5 files changed, 48 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/walk/complit.go | 11 ++++++++++-
+ test/fixedbugs/issue52673.go             | 16 ++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

@@ -1,20 +1,22 @@
-commit 730db0affc642530daf9129f4fbc89a4e40f9c95
-Author: David Thomas <davidthomas426@gmail.com>
-Date:   Thu Apr 3 20:01:04 2014 +0000
+commit b2cbf49343a89cc76a17a0b8361f9e977699aa5d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 3 15:39:48 2014 -0400
 
-    archive/tar: add support for GNU sparse files.
+    runtime: fix fault during arm software floating point
     
-    Supports all the current GNU tar sparse formats, including the
-    old GNU format and the GNU PAX format versions 0.0, 0.1, and 1.0.
-    Fixes #3864.
+    The software floating point runs with m->locks++
+    to avoid being preempted; recognize this case in panic
+    and undo it so that m->locks is maintained correctly
+    when panicking.
     
-    LGTM=rsc
-    R=golang-codereviews, dave, gobot, dsymonds, rsc
+    Fixes #7553.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/64740043
+    https://golang.org/cl/84030043
 
- src/pkg/archive/tar/common.go                   |   1 +
- src/pkg/archive/tar/reader.go                   | 446 +++++++++++++++++++++++-
- src/pkg/archive/tar/reader_test.go              | 302 ++++++++++++++++
- src/pkg/archive/tar/testdata/sparse-formats.tar | Bin 0 -> 17920 bytes
- 4 files changed, 732 insertions(+), 17 deletions(-)
+ src/pkg/runtime/panic.c    | 16 +++++++++++++++-
+ src/pkg/runtime/runtime.h  |  1 +
+ src/pkg/runtime/vlop_arm.s |  4 ++++
+ 3 files changed, 20 insertions(+), 1 deletion(-)

@@ -1,39 +1,21 @@
-commit 7a3a2b18ff3b8591eba18b730da7f84751bbfdc5
-Author: Robert Findley <rfindley@google.com>
-Date:   Thu Dec 23 10:33:17 2021 -0500
+commit c3931ab1b7bceddc56479d7ddbd7517d244bfe17
+Author: ian woolf <btw515wolf2@gmail.com>
+Date:   Sat Apr 10 15:41:13 2021 +0800
 
-    go/types, types2: eagerly check that constraints are not type params
+    net/http/httptest: panic on non-3 digit (XXX) status code in Recorder.WriteHeader
     
-    As a result of the change to the underlying of a type parameter to be
-    its constraint interface, we had couple inaccuracies that combined to
-    cause an infinite recursion when type checking the invalid type
-    parameter list [A A].
-     - We deferred tpar.iface() using check.later twice: once in
-       newTypeParam, and then again at the end of collectTypeParams.
-     - We deferred the check that type parameter constraints are not type
-       parameters, even though this is unnecessary: the constraint type is
-       known.
+    This change conforms Recorder with net/http servers, to panic
+    when a handler writes a non-3 digit XXX status code.
     
-    With these inaccuracies, tpar.iface() was executing before our guard
-    against using type parameters as constraints, causing an infinite
-    recursion through under().
+    Fixes #45353
     
-    Fix this by eagerly checking whether the constraint is a type
-    parameter, and marking it invalid if so. Also remove the unnecessary
-    calls to tpar.iface() at the end of collectTypeParams, as this will
-    already have been scheduled by newTypeParam.
-    
-    Fixes #50321
-    
-    Change-Id: I4eecbecf21656615867cb94be65b520e9e795bd1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374294
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id5ed4af652e8c150ae86bf50402b800d935e2203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308950
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/decl.go            | 19 ++++---------
- .../types2/testdata/fixedbugs/issue50321.go2       |  8 ++++++
- src/go/types/decl.go                               | 31 +++++++++-------------
- src/go/types/testdata/fixedbugs/issue50321.go2     |  8 ++++++
- 4 files changed, 34 insertions(+), 32 deletions(-)
+ src/net/http/httptest/recorder.go      | 19 +++++++++++++++++++
+ src/net/http/httptest/recorder_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

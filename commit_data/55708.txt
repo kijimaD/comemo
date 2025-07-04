@@ -1,19 +1,24 @@
-commit f8b4653500744da567767b641378193638d4fcf8
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Feb 14 17:17:40 2024 -0500
+commit c6cdfdabef7838800f79c1c1fd3b9841e41cdaf9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 6 13:05:29 2023 -0800
 
-    std: fix more nilness findings
+    go/types, types2: better error when method is missing due to ambiguity
     
-    (found with x/tools/go/analysis/passes/nilness)
+    If a type doesn't implement an interface due to an ambiguous method,
+    say so in the error message instead of just reporting a missing method.
     
-    Change-Id: I1bdc7811efbecea95608e634f894cb6c656e3a5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564221
+    Fixes #57352.
+    
+    Change-Id: I5608f893c485de578b7f86362ca6f66033653695
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473658
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/go/types/stmt.go                          | 2 +-
- src/os/exec/exec_test.go                      | 4 ++--
- src/runtime/internal/wasitest/tcpecho_test.go | 6 +-----
- src/runtime/trace2cpu.go                      | 4 +---
- 4 files changed, 5 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go          | 27 +++++++++++++---------
+ src/go/types/lookup.go                             | 27 +++++++++++++---------
+ src/internal/types/testdata/check/decls4.go        |  2 +-
+ .../types/testdata/fixedbugs/issue57352.go         | 21 +++++++++++++++++
+ 4 files changed, 54 insertions(+), 23 deletions(-)

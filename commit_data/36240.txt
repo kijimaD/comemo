@@ -1,21 +1,37 @@
-commit 0cac563132d2bf38423f3e39860469dc70790aee
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 8 16:54:15 2018 -0700
+commit c0547476f342665514904cf2581a62135d2366c3
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Tue Dec 19 15:43:30 2017 -0800
 
-    cmd/go: include experiments in compiler tool ID
+    encoding/json: make use of encodeStatePool in Marshal
     
-    No test because testing this would require building a new toolchain
-    with a different experiment.
+    On my system, this seems to be a significant win, with a major
+    reduction in allocations and minor speed improvement.
     
-    Fixes #26883
+    name           old time/op    new time/op    delta
+    CodeMarshal      9.75ms ± 3%    9.24ms ± 1%   -5.21%  (p=0.001 n=5+10)
+    CodeMarshal-4    4.98ms ± 1%    4.71ms ± 1%   -5.44%  (p=0.001 n=5+10)
+    CodeMarshal-8    4.80ms ± 0%    4.77ms ± 1%   -0.70%  (p=0.012 n=5+9)
     
-    Change-Id: Iadd513d0920ef12463006dd2a61e94370dd13f68
-    Reviewed-on: https://go-review.googlesource.com/128735
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    name           old speed      new speed      delta
+    CodeMarshal     199MB/s ± 3%   210MB/s ± 1%   +5.46%  (p=0.001 n=5+10)
+    CodeMarshal-4   390MB/s ± 1%   412MB/s ± 1%   +5.76%  (p=0.001 n=5+10)
+    CodeMarshal-8   404MB/s ± 0%   407MB/s ± 1%   +0.70%  (p=0.012 n=5+9)
+    
+    name           old alloc/op   new alloc/op   delta
+    CodeMarshal      4.59MB ± 0%    1.96MB ± 0%  -57.22%  (p=0.000 n=5+9)
+    CodeMarshal-4    4.59MB ± 0%    2.00MB ± 0%  -56.39%  (p=0.000 n=5+8)
+    CodeMarshal-8    4.59MB ± 0%    2.06MB ± 0%  -55.05%  (p=0.001 n=5+9)
+    
+    name           old allocs/op  new allocs/op  delta
+    CodeMarshal        16.0 ± 0%       1.0 ± 0%  -93.75%  (p=0.000 n=5+10)
+    CodeMarshal-4      16.0 ± 0%       1.0 ± 0%  -93.75%  (p=0.000 n=5+10)
+    CodeMarshal-8      16.0 ± 0%       1.0 ± 0%  -93.75%  (p=0.000 n=5+10)
+    
+    Change-Id: I9d09850d8227f523f861ae1b4ca248c4a4b16aaf
+    Reviewed-on: https://go-review.googlesource.com/84897
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/work/buildid.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/encoding/json/encode.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

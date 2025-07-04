@@ -1,29 +1,26 @@
-commit d8efa0e0ed8bbd5ed0780527652d86be2fba99dc
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 21 11:38:57 2017 -0400
+commit a38c8dfa44f32eb464b826c7f7a50e51f73506e0
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Jun 12 03:42:55 2017 +0000
 
-    cmd/go: add gccgo support for recent work
+    cmd/internal/obj/arm: fix MOVW to/from FPSR
     
-    Implement importcfg on behalf of gccgo by writing out a
-    tree of symbolic links. In addition to keeping gccgo working
-    with the latest changes, this also fixes a precedence bug in
-    gccgo's cmd/go vendor support (the vendor equivalent of #14271).
+    "MOVW FPSR, g" should be assembled to 0xeef1aa10, but actually
+    0xee30a110 (RFS). "MOVW g, FPSR" should be 0xeee1aa10, but actually
+    0xee20a110 (WFS). They should be updated to VFP forms, since the ARM
+    back end doesn't support non-VFP floating points.
     
-    Change-Id: I0e5645116e1c84c957936baf22e3126ba6b0d46e
-    Reviewed-on: https://go-review.googlesource.com/61731
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    The patch fixes them and adds more assembly encoding tests.
+    
+    fixes #20643
+    
+    Change-Id: I3b29490337c6e8d891b400fcedc8b0a87b82b527
+    Reviewed-on: https://go-review.googlesource.com/45276
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/go_test.go                              |  13 +++
- src/cmd/go/internal/work/build.go                  | 116 +++++++++++++++++----
- src/cmd/go/testdata/src/complex/main.go            |  12 +++
- .../go/testdata/src/complex/nest/sub/test12/p.go   |  11 ++
- .../go/testdata/src/complex/nest/sub/test23/p.go   |  11 ++
- .../testdata/src/complex/nest/sub/vendor/v2/v2.go  |   3 +
- .../go/testdata/src/complex/nest/vendor/v1/v1.go   |   3 +
- .../go/testdata/src/complex/nest/vendor/v2/v2.go   |   3 +
- .../go/testdata/src/complex/nest/vendor/v3/v3.go   |   3 +
- src/cmd/go/testdata/src/complex/vendor/v/v.go      |   3 +
- src/cmd/go/testdata/src/complex/w/w.go             |   3 +
- 11 files changed, 159 insertions(+), 22 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm.s      | 102 +++++++++++++++++++++++----
+ src/cmd/asm/internal/asm/testdata/armerror.s |   4 ++
+ src/cmd/asm/internal/asm/testdata/armv6.s    |   3 +
+ src/cmd/internal/obj/arm/asm5.go             |   8 +--
+ 4 files changed, 98 insertions(+), 19 deletions(-)

@@ -1,15 +1,13 @@
-commit fa9befd777e6f2f96f69280392725533caef509c
+commit 3537b79329b09c231f54160243f10343fea068d6
 Author: Ken Thompson <ken@golang.org>
-Date:   Mon Jan 17 20:39:26 2011 -0800
+Date:   Mon Jan 17 13:27:05 2011 -0800
 
-    arm reg bug with SP adjust
-    after call to deferproc
+    arm bug address of a string
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4059041
+    https://golang.org/cl/4004042
 
- src/cmd/5g/opt.h  |  3 ++-
- src/cmd/5g/peep.c |  2 +-
- src/cmd/5g/reg.c  | 40 ++++++++++++++++++++++++++++++++++------
- 3 files changed, 37 insertions(+), 8 deletions(-)
+ src/cmd/5g/peep.c |  4 +++-
+ src/cmd/5g/reg.c  | 34 +++++++++++++++++++++++-----------
+ 2 files changed, 26 insertions(+), 12 deletions(-)

@@ -1,17 +1,23 @@
-commit 40c7be9b0f92d88b90a5aa35838d786579e4fa1d
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed May 31 10:35:20 2023 -0700
+commit c6be7103a5ab8cd45e08d822efa24da4fd88b9c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 5 15:44:15 2022 -0400
 
-    doc/go1.21: crypto release notes
+    cmd/go: add go generate -skip flag
     
-    Updates #58645
+    Following proposal discussion in #38687, add go generate -skip
+    to allow easier skipping of specific //go:generate directives.
     
-    Change-Id: Ib7e2baba41bb327d8fc466afb1e117fe2f22e1c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499637
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Fixes #38687.
+    
+    Change-Id: Ied5b4042965dd6a2b93c1c517045fccae2d95c3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421440
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.21.html | 30 +++++++-----------------------
- 1 file changed, 7 insertions(+), 23 deletions(-)
+ src/cmd/go/alldocs.go                    |  9 ++++++++-
+ src/cmd/go/internal/generate/generate.go | 29 ++++++++++++++++++++++++-----
+ src/cmd/go/testdata/script/generate.txt  | 10 +++++++++-
+ 3 files changed, 41 insertions(+), 7 deletions(-)

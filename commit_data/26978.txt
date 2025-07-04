@@ -1,20 +1,27 @@
-commit a85a224e8e835fc9544f5e9e7b28d7bbc732045b
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sat Apr 16 09:24:43 2016 +0200
+commit 9f4a359fc2d914c275bccc187ae5216787a85146
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 7 09:47:02 2016 +1300
 
-    fmt: fix padding when precision is set for integer formatting
+    cmd/compile, cmd/link, cmd/newlink: remove support for weak symbols
     
-    Ignore the f.zero flag and use spaces for padding instead
-    when precision is set.
+    They were only used for rtype.ptrToThis which David Crawshaw removed a couple
+    of weeks ago. Removes two traversals of Ctxt.Allsym from the linker but it
+    doesn't seem to make much difference to performance.
     
-    Fixes #15331
-    
-    Change-Id: I3ac485df24b7bdf4fddf69e3cc17c213c737b5ff
-    Reviewed-on: https://go-review.googlesource.com/22131
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I5c305e0180186f643221d57822d301de4aa18827
+    Reviewed-on: https://go-review.googlesource.com/20287
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/fmt/fmt_test.go |  6 +++++-
- src/fmt/format.go   | 31 +++++++++++++++----------------
- 2 files changed, 20 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/go.go      |   2 --
+ src/cmd/compile/internal/gc/lex.go     |   5 -----
+ src/cmd/compile/internal/gc/reflect.go |   9 ---------
+ src/cmd/link/internal/ld/go.go         |  31 -------------------------------
+ src/cmd/link/internal/ld/pobj.go       |   1 -
+ src/cmd/newlink/auto.go                |  21 +--------------------
+ src/cmd/newlink/auto_test.go           |   1 -
+ src/cmd/newlink/prog.go                |   1 -
+ src/cmd/newlink/testdata/autoweak.6    | Bin 385 -> 0 bytes
+ src/cmd/newlink/testdata/autoweak.s    |  30 ------------------------------
+ 10 files changed, 1 insertion(+), 100 deletions(-)

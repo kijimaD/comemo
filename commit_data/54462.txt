@@ -1,27 +1,21 @@
-commit de4ead8102c3ba5dc9475ed3e117b2c50220b4df
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Sep 12 15:32:22 2023 +0200
+commit c0f27eb3d580c8b9efd73802678eba4c6c9461be
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Oct 19 15:53:43 2022 +1100
 
-    time: unconditionally use RegLoadMUIString on Windows
+    cmd/compile/internal/ssa: wire up late lower block function
     
-    RegLoadMUIString is supported on Windows Vista and later, so this
-    should be safe to do unconditionally.
+    Currently, the lowerBlock function is reused with lateLowerValue, meaning
+    that any block rewriting rules in the late lower pass are silently ignored.
+    Change the late lower pass to actually use the lateLowerBlock function with
+    the lateLowerValue function.
     
-    While here, also unconditionally use GetDynamicTimeZoneInformation
-    in syscall/windows/registry tests, since it's also supported on Windows
-    Vista and later.
-    
-    Change-Id: Ifa32a81f4727d4810f2b9ccc814aa77a43513e59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527595
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iaac1c2955bb27078378cac50cde3716e79a7d9f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444335
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/internal/syscall/windows/registry/registry_test.go |  6 ------
- src/internal/syscall/windows/registry/syscall.go       |  4 ----
- src/internal/syscall/windows/registry/value.go         |  3 ---
- src/time/zoneinfo_windows.go                           | 14 ++++++--------
- src/time/zoneinfo_windows_test.go                      | 10 ++++------
- 5 files changed, 10 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/ssa/config.go | 10 +++++++---
+ src/cmd/compile/internal/ssa/lower.go  |  2 +-
+ 2 files changed, 8 insertions(+), 4 deletions(-)

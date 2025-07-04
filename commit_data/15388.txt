@@ -1,15 +1,17 @@
-commit e82286075674df84b9435445d48c5b8a4eeeeaa2
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Feb 23 08:42:04 2013 +0900
+commit 046e035fcaf4727e9ac7af554beea87d02618f15
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Sat Feb 23 00:22:39 2013 +0100
 
-    syscall: add netlink constants for linux
+    all.rc: make sure the Go tools end up in /bin
     
-    R=golang-dev, r
+    At least one test (in package runtime) depends
+    on `go' being in $path. We simply bind GOROOT/bin
+    before /bin to make sure the latest copy of the
+    binary is accessible there.
+    
+    R=rsc, rminnich, ality
     CC=golang-dev
-    https://golang.org/cl/7403049
+    https://golang.org/cl/7391047
 
- src/pkg/syscall/types_linux.go        | 166 +++++++++++++++++++---------------
- src/pkg/syscall/ztypes_linux_386.go   | 166 +++++++++++++++++++---------------
- src/pkg/syscall/ztypes_linux_amd64.go | 166 +++++++++++++++++++---------------
- src/pkg/syscall/ztypes_linux_arm.go   | 166 +++++++++++++++++++---------------
- 4 files changed, 364 insertions(+), 300 deletions(-)
+ src/all.rc | 1 +
+ 1 file changed, 1 insertion(+)

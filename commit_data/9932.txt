@@ -1,18 +1,21 @@
-commit a0d335c31d43c922d847e6500fc0c9c46ae98148
+commit e9ba607bf531c5e5b223a54c164714b6b00411a6
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 11 22:28:56 2011 -0700
+Date:   Tue Oct 11 21:49:53 2011 -0700
 
-    go/scanner: remove AllowIllegalChars mode
+    gofmt: fix a couple of crashes, disallow rewrites for incomplete programs
     
-    This mode was needed before for clients of
-    the go/scanner that were parsing non-Go code.
-    All those clients have been moved to scanner
-    or have been deleted from the library.
+    The current implementation of formatting for incomplete programs
+    cannot tolerate program rewrites; ignore -rewrite in that case
+    with a warning message (temporary solution).
     
-    R=r
+    Fix a couple of crashes that were introduced recently.
+    
+    Fixes #2348.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5232051
+    https://golang.org/cl/5233054
 
- src/pkg/go/scanner/scanner.go      |  9 +++------
- src/pkg/go/scanner/scanner_test.go | 29 ++++-------------------------
- 2 files changed, 7 insertions(+), 31 deletions(-)
+ src/cmd/gofmt/gofmt.go   | 19 ++++++++++++++-----
+ src/cmd/gofmt/rewrite.go |  3 ++-
+ 2 files changed, 16 insertions(+), 6 deletions(-)

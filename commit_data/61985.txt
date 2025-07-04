@@ -1,0 +1,19 @@
+commit c112c0af1328ef0aae989ae20d27359a18f72543
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Mon Dec 23 17:59:28 2024 -0800
+
+    Revert "internal/sync: optimize CompareAndSwap and Swap"
+    
+    This reverts CL 606462.
+    
+    Reason for revert: Breaks atomicity between operations. See #70970.
+    
+    Change-Id: I1a899f2784da5a0f9da3193e3267275c23aea661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638615
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/sync/hashtriemap.go | 171 ++++++++++++++++-----------------------
+ 1 file changed, 69 insertions(+), 102 deletions(-)

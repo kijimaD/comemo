@@ -1,16 +1,15 @@
-commit 4fda54ce3f6761104e835fc4e7847f89e34b7d6d
-Author: sryoya <ryoyasekino1993@gmail.com>
-Date:   Sun May 16 23:36:05 2021 +0900
+commit 40f0359d52e04ed124a8f81e1ef8ac86957dd983
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 3 11:03:22 2020 -0700
 
-    doc/go1.17: document database/sql changes for Go 1.17
+    runtime: avoid a bit of unneeded work when MemProfileRate==1
     
-    For #44513
-    Fixes #46008
-    
-    Change-Id: If80d484f73a0eb6946abdc654eb2c0d3dd6db416
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320251
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Trust: Robert Findley <rfindley@google.com>
+    Change-Id: I1dc355bcaeb0e5fb06a7fddc4cf5db596d22e0b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236148
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.17.html | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

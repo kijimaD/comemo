@@ -1,17 +1,14 @@
-commit 206568566473e9a91c05b8b0153d27ecbee466b7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 30 19:37:16 2017 +0000
+commit 53d24f76fb129fe682cc92cc99c69998af4212b2
+Author: Andrii Soldatenko <andrii.soldatenko@gmail.com>
+Date:   Sun Sep 3 17:23:39 2017 +0300
 
-    runtime: use monotonic time on NetBSD
+    doc: Fixed missing dot in effective_go.html
     
-    Fixes #6007
+    First sentence of https://golang.org/doc/effective_go.html#maps dot is missing.
     
-    Change-Id: I239a1699122e086e907ac1f18b1c86a650e1438a
-    Reviewed-on: https://go-review.googlesource.com/81135
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic93b407945a6ad24a73ae9f7b6076ac9619871db
+    Reviewed-on: https://go-review.googlesource.com/61020
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/sys_netbsd_386.s   | 2 +-
- src/runtime/sys_netbsd_amd64.s | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

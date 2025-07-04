@@ -1,17 +1,18 @@
-commit 58e3f2ac8786ffc21a4aae83eb83cfee413ba802
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Apr 6 14:40:18 2018 +0200
+commit 1e3f563b145ad98d2a5fcd4809e25a6a0bc8f892
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 21 20:46:40 2017 +0000
 
-    cmd/asm/internal/arch: unexport ParseARM64Suffix
+    runtime: fix build on non-Linux platforms
     
-    ParseARM64Suffix is not used outside cmd/asm/internal/arch.
+    CL 78538 was updated after running TryBots to depend on
+    syscall.NanoSleep which isn't available on all non-Linux platforms.
     
-    Change-Id: I8e7782dce11cf8cd2fd08dd17e555ced8d87ba24
-    Reviewed-on: https://go-review.googlesource.com/105115
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I1fa615232b3920453431861310c108b208628441
+    Reviewed-on: https://go-review.googlesource.com/79175
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/asm/internal/arch/arm64.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/proc_test.go          | 18 ++++++++++--------
+ src/runtime/runtime_linux_test.go | 12 ++++++++++++
+ 2 files changed, 22 insertions(+), 8 deletions(-)

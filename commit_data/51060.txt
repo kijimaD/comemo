@@ -1,25 +1,25 @@
-commit 49bbece44c93b4de62ff360268c420e45f27ad63
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 28 17:23:58 2022 -0700
+commit 00dbcb33f8c20ce51de558cbc9de811b1ba0f70c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 1 14:15:08 2021 -0500
 
-    go/build: ignore files by extension before matching on name
+    os/exec: in TestContextCancel, dump goroutines on failure
     
-    Otherwise given a file like defs_nacl_amd64p32.go.~1~ we will add
-    "nacl" and "amd64p32" to AllTags. This was causing the
-    cmd/go/internal/modindex tests to fail on my system, since I had
-    an old editor backup file lying around.
+    If this test fails, we want to know exactly what the os/exec
+    goroutines are doing. Panicking gives us a goroutine dump,
+    whereas t.Fatal does not.
     
-    Change-Id: Ib1c5d835e4871addae6dc78cee07c9839bb880e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446395
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    While we're here, use exponential backoff instead of a hard-coded 1ms
+    sleep. We want to give the OS enough time to actually terminate the
+    subprocess.
+    
+    For #42061
+    
+    Change-Id: I3d50a71ac314853c68a935218e7f97ce18b08b5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368317
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/build.go                                    |  6 +++---
- src/go/build/build_test.go                               | 10 ++++++++++
- src/go/build/testdata/non_source_tags/non_source_tags.go |  5 +++++
- src/go/build/testdata/non_source_tags/x_arm.go.ignore    |  5 +++++
- 4 files changed, 23 insertions(+), 3 deletions(-)
+ src/os/exec/exec_test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

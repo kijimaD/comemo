@@ -1,17 +1,20 @@
-commit db3e02994c98f1d6dc00f7df807579c4619885c7
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Thu May 22 13:33:28 2025 -0400
+commit e14aad1faf6f511e342d124681bc0146e426f9aa
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 11 20:30:24 2024 +0000
 
-    runtime/trace: fix flaky test for SetMinAge
+    cmd/trace/v2: handle the -pprof flag
     
-    This change fixes the flaky test which expects setting SetMinAge to a
-    small ammount. It expects two sync events but should realistically
-    expect up to 3.
+    Turns out we ported all the profile generation, but forgot to actually
+    support the command line flags for them! This change fixes the issue by
+    handling the different kinds of profiles and writing them out to stdout.
     
-    Change-Id: Ibd02fe55ebca99eb880025eb968fcebae9cb09c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675597
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #66782.
+    
+    Change-Id: I7756fb4636ce8daaf11ed471be79c86ce3d463cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578318
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/trace/flightrecorder_test.go | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ src/cmd/trace/v2/main.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

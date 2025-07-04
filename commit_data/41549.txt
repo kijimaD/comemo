@@ -1,14 +1,15 @@
-commit 34830beffa6396129bd9d9da58afb7a046775d49
-Author: Jingwei <zhjw43@163.com>
-Date:   Sat Dec 14 15:52:17 2019 +0800
+commit b421b858417abae1defa75cc2d008cfae2a18174
+Author: davidsbond <davidsbond93@gmail.com>
+Date:   Fri Oct 11 14:12:55 2019 +0100
 
-    doc/mem: remove unnecessary pre tags within same snippet
+    errors: fix typo in TODO comment
     
-    currently the snippet is segmented but should be one code snippet.
-    
-    Change-Id: Ic747faf9bb1b52f9d1786eca70616a05b71ee801
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211198
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Fixes #34846
+    Change-Id: I24b3e65fc96ec85b2821480e9396c9d1663611c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200678
+    Run-TryBot: Johan Brandhorst <johan.brandhorst@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
 
- doc/go_mem.html | 2 --
- 1 file changed, 2 deletions(-)
+ src/errors/wrap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

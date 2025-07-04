@@ -1,16 +1,29 @@
-commit 03e2a4d1f1d2ee74799eb103d0051c129523e4d6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 3 16:33:06 2017 -0800
+commit b20c055230a20663c75e3099f672c15c39d46b9e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 10 22:53:16 2016 +0000
 
-    cmd/compile: cull UINF
+    net/http: update bundled http2
     
-    It was used with Node.Ullman, which is now gone.
+    Updates http2 to x/net/http2 git rev 9ef22118 for:
     
-    Change-Id: I83b167645659ae7ef70043b7915d642e42ca524f
-    Reviewed-on: https://go-review.googlesource.com/37761
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+       http2: fix CloseNotify data race
+       https://golang.org/cl/33013
+    
+       http2: don't overflow stream IDs in server push
+       https://golang.org/cl/32488
+    
+       http2: disable server push on receiving a GOAWAY
+       https://golang.org/cl/32887
+    
+       http2: fix state tracking for pushed streams
+       https://golang.org/cl/32755
+    
+    Change-Id: Ie7d675857423c102c9ec164d3c943093c749c7cf
+    Reviewed-on: https://go-review.googlesource.com/33100
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/go.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/net/http/h2_bundle.go | 42 ++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 34 insertions(+), 8 deletions(-)

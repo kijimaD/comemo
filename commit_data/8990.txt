@@ -1,17 +1,20 @@
-commit b053400e37a994b773694b6f428b54724168c8e1
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Sat Jul 9 15:10:39 2011 -0700
+commit 3987b91213e6e0d2e0b87fe8c79d2b0fe4923909
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jul 10 07:32:01 2011 +1000
 
-    http: update triv.go with gofix
+    exp/template: better template invocation
+    1) Make the value optional ({{template "foo"}})
+    2) Allow the template identifier to be a thing of type *Template.
+    The second makes it easy to drop templates in to a set dynamically
+    during invocation.
     
-    Sample code in triv.go wouldn't compile because it didn't use the new
-    FileSystem interface.
-    This was discussed on golang-nuts on July 7.
-    https://groups.google.com/forum/#!topic/golang-nuts/NMhZk3Ft_Vc
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4684044
+    https://golang.org/cl/4671056
 
- src/pkg/http/triv.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/template/exec.go       | 43 +++++++++++++++++++++++++++-----------
+ src/pkg/exp/template/exec_test.go  |  3 +++
+ src/pkg/exp/template/parse.go      | 11 ++++++++--
+ src/pkg/exp/template/parse_test.go |  2 ++
+ src/pkg/exp/template/set_test.go   |  8 +++++--
+ 5 files changed, 51 insertions(+), 16 deletions(-)

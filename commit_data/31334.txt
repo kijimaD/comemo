@@ -1,17 +1,33 @@
-commit 34ee8ec193aa211883326aca7ba223f711da5fd1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 25 04:59:14 2017 +0000
+commit b548eee3d96fc0b6e962a243b28121e1f37ad792
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 13 09:37:06 2017 -0800
 
-    runtime: ignore TestCgoPprofPIE test failures on Alpine (take 2)
+    cmd/compile: fix load-combining rules
     
-    s/arm64/amd64/ in previous typo CL 41628
+    CL 33632 reorders args of commutative ops in order to make
+    CSE for commutative ops more robust.  Unfortunately, that
+    broke the load-combining rules which depend on a certain ordering
+    of OR ops' arguments.
     
-    Updates #19938
-    Updates #18243
+    Introduce some additional rules that order OR ops' arguments
+    consistently so that the load-combining rules fire.
     
-    Change-Id: I282244ee3c94535f229a87b6246382385ff64428
-    Reviewed-on: https://go-review.googlesource.com/41675
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Note: there's also something else wrong with the s390x rules.
+    I've filed #19059 for that.
+    
+    Fixes #18946
+    
+    Change-Id: I0a5447196bd88a55ccee683c69a57b943a9972e1
+    Reviewed-on: https://go-review.googlesource.com/36911
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/crash_cgo_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go      | 33 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/386.rules   |  3 +++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++++
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  4 ++++
+ src/cmd/compile/internal/ssa/rewrite386.go   | 17 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 34 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 34 ++++++++++++++++++++++++++++
+ 7 files changed, 129 insertions(+)

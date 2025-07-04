@@ -1,15 +1,27 @@
-commit 0829e1b757969cc5e22df6c5b5a45cff8f073a38
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 24 15:46:40 2017 -0800
+commit 09d36a819eb48d6a2c10b36bf654dcf8867d6641
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 10:45:52 2018 -0400
 
-    misc/cgo/testcarchive: make the tests work when using gccgo
+    doc: update "go get" HTTPS answer to mention .netrc
     
-    Change-Id: I62a7a8ebbbc1f1a266234b53680768da157b2df5
-    Reviewed-on: https://go-review.googlesource.com/130416
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The existing text makes it seem like there's no way
+    to use GitHub over HTTPS. There is. Explain that.
+    
+    Also, the existing text suggests explicit checkout into $GOPATH,
+    which is not going to work in the new module world.
+    Drop that alternative.
+    
+    Also, the existing text uses pushInsteadOf instead of insteadOf,
+    which would have the effect of being able to push to a private
+    repo but not clone it in the first place. That seems not helpful,
+    so suggest insteadOf instead.
+    
+    Fixes #18927.
+    
+    Change-Id: Ic358b66f88064b53067d174a2a1591ac8bf96c88
+    Reviewed-on: https://go-review.googlesource.com/107775
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 71 +++++++++++++++++++++++++++++-----
- misc/cgo/testcarchive/main_unix.c      |  8 +++-
- 2 files changed, 69 insertions(+), 10 deletions(-)
+ doc/go_faq.html | 29 ++++++++++++++++-------------
+ 1 file changed, 16 insertions(+), 13 deletions(-)

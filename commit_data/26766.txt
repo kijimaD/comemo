@@ -1,93 +1,21 @@
-commit c6e11fe03765e3fe1fc68bd794625ca0ecd833be
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 6 12:01:40 2016 -0700
+commit d3f15ff6bc353d94b7249f33bb030ee1f7ee887e
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 25 11:40:51 2016 -0800
 
-    cmd: add new common architecture representation
+    [dev.ssa] cmd/compile: shrink stack guard
     
-    Information about CPU architectures (e.g., name, family, byte
-    ordering, pointer and register size) is currently redundantly
-    scattered around the source tree. Instead consolidate the basic
-    information into a single new package cmd/internal/sys.
+    Our stack frame sizes look pretty good now.  Lower the stack
+    guard from 1024 to 720.
+    Tip is currently using 720.
+    We could go lower (to 640 at least) except PPC doesn't like that.
     
-    Also, introduce new sys.I386, sys.AMD64, etc. names for the constants
-    '8', '6', etc. and replace most uses of the latter. The notable
-    exceptions are a couple of error messages that still refer to the old
-    char-based toolchain names and function reltype in cmd/link.
-    
-    Passes toolstash/buildall.
-    
-    Change-Id: I8a6f0cbd49577ec1672a98addebc45f767e36461
-    Reviewed-on: https://go-review.googlesource.com/21623
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie5f96c0e822435638223f1e8a2bd1a1eed68e6aa
+    Reviewed-on: https://go-review.googlesource.com/19922
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/asm/internal/asm/asm.go           |  49 +++++-----
- src/cmd/asm/internal/asm/parse.go         |  16 ++--
- src/cmd/compile/internal/amd64/galign.go  |  12 +--
- src/cmd/compile/internal/arm/galign.go    |   7 +-
- src/cmd/compile/internal/arm64/galign.go  |   7 +-
- src/cmd/compile/internal/gc/cgen.go       |  88 +++++++++---------
- src/cmd/compile/internal/gc/gen.go        |   3 +-
- src/cmd/compile/internal/gc/go.go         |   5 +-
- src/cmd/compile/internal/gc/gsubr.go      |  19 ++--
- src/cmd/compile/internal/gc/main.go       |  21 +++--
- src/cmd/compile/internal/gc/pgen.go       |   5 +-
- src/cmd/compile/internal/gc/plive.go      |   3 +-
- src/cmd/compile/internal/gc/reg.go        |   7 +-
- src/cmd/compile/internal/gc/ssa.go        |   7 +-
- src/cmd/compile/internal/gc/walk.go       |  10 +--
- src/cmd/compile/internal/mips64/galign.go |  10 +--
- src/cmd/compile/internal/ppc64/galign.go  |  11 +--
- src/cmd/compile/internal/x86/galign.go    |   7 +-
- src/cmd/dist/buildtool.go                 |   1 +
- src/cmd/internal/obj/arm/obj5.go          |  15 ++--
- src/cmd/internal/obj/arm64/obj7.go        |  15 ++--
- src/cmd/internal/obj/data.go              |   2 +-
- src/cmd/internal/obj/link.go              |  19 ++--
- src/cmd/internal/obj/mips/obj0.go         |  22 ++---
- src/cmd/internal/obj/objfile.go           |   3 +-
- src/cmd/internal/obj/pcln.go              |   4 +-
- src/cmd/internal/obj/ppc64/obj9.go        |  22 ++---
- src/cmd/internal/obj/s390x/objz.go        |  15 ++--
- src/cmd/internal/obj/sym.go               |   3 +-
- src/cmd/internal/obj/x86/asm6.go          |   2 +-
- src/cmd/internal/obj/x86/obj6.go          |  55 +++++-------
- src/cmd/internal/sys/arch.go              | 145 ++++++++++++++++++++++++++++++
- src/cmd/link/internal/amd64/asm.go        |   2 +-
- src/cmd/link/internal/amd64/l.go          |   5 --
- src/cmd/link/internal/amd64/obj.go        |  11 +--
- src/cmd/link/internal/arm/l.go            |   2 -
- src/cmd/link/internal/arm/obj.go          |   9 +-
- src/cmd/link/internal/arm64/asm.go        |   2 +-
- src/cmd/link/internal/arm64/l.go          |   2 -
- src/cmd/link/internal/arm64/obj.go        |   9 +-
- src/cmd/link/internal/ld/arch.go          |  97 --------------------
- src/cmd/link/internal/ld/data.go          |  57 ++++++------
- src/cmd/link/internal/ld/deadcode.go      |   3 +-
- src/cmd/link/internal/ld/decodesym.go     |  77 ++++++++--------
- src/cmd/link/internal/ld/dwarf.go         |  44 ++++-----
- src/cmd/link/internal/ld/elf.go           |  92 ++++++++++---------
- src/cmd/link/internal/ld/ldelf.go         |  26 +++---
- src/cmd/link/internal/ld/ldmacho.go       |  18 ++--
- src/cmd/link/internal/ld/ldpe.go          |   3 +-
- src/cmd/link/internal/ld/lib.go           |  53 +++++------
- src/cmd/link/internal/ld/link.go          |  25 ++----
- src/cmd/link/internal/ld/macho.go         |  46 ++++------
- src/cmd/link/internal/ld/pcln.go          |  38 ++++----
- src/cmd/link/internal/ld/pe.go            |  29 +++---
- src/cmd/link/internal/ld/pobj.go          |   9 +-
- src/cmd/link/internal/ld/sym.go           |  33 +++----
- src/cmd/link/internal/ld/symtab.go        |   5 +-
- src/cmd/link/internal/mips64/asm.go       |   9 +-
- src/cmd/link/internal/mips64/l.go         |   2 -
- src/cmd/link/internal/mips64/obj.go       |  15 ++--
- src/cmd/link/internal/ppc64/l.go          |   2 -
- src/cmd/link/internal/ppc64/obj.go        |  17 ++--
- src/cmd/link/internal/s390x/l.go          |   5 --
- src/cmd/link/internal/s390x/obj.go        |   9 +-
- src/cmd/link/internal/x86/asm.go          |   4 +-
- src/cmd/link/internal/x86/l.go            |   3 -
- src/cmd/link/internal/x86/obj.go          |   9 +-
- 67 files changed, 639 insertions(+), 743 deletions(-)
+ src/cmd/internal/obj/stack.go | 2 +-
+ src/runtime/stack.go          | 2 +-
+ test/nosplit.go               | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

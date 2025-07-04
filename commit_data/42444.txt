@@ -1,19 +1,23 @@
-commit 5aaeda19c1876ecec85406726b544ac49c8f799b
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Wed Jun 3 10:33:03 2020 +0800
+commit 7cab55dfd38ca24c327a648907d6befbf828447e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 02:31:37 2019 +1100
 
-    cmd/internal/obj/arm64: fix typos in document
+    cmd/internal/obj/riscv: handle call, jmp and branch
     
-    The current document mismatches Go syntax loads a signed-byte
-    instruction "MOVB" with GNU syntax loads an 64bit double-word
-    instruction "ldr". This is just a typo in the document, the
-    assembler has the correct encoding. This patch fix this error.
+    Also provide REG_LR to more clearly define the link register.
     
-    Fixes #39367
+    Based on the riscv-go port.
     
-    Change-Id: Idb8f65ca540514ee5bc8f07073e756838710ba93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236217
+    Updates #27532
+    
+    Change-Id: I0805f373682f93b3918a01c21d4ef34eb3817c75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204627
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/arm64/doc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  15 ++
+ src/cmd/internal/obj/riscv/asm_test.go       |  79 +++++++++
+ src/cmd/internal/obj/riscv/cpu.go            |   1 +
+ src/cmd/internal/obj/riscv/obj.go            | 238 ++++++++++++++++++++++++++-
+ 4 files changed, 331 insertions(+), 2 deletions(-)

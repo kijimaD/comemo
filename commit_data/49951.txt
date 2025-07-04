@@ -1,19 +1,14 @@
-commit ebda5a73fa0a96f6f1a1d468f86284e5654f5ee8
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Aug 17 10:49:57 2022 -0700
+commit 1537f14db558ced001ba6e5d75dadcca173b0189
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Wed Sep 22 15:54:35 2021 +0800
 
-    net: revert "reenable TestLookupLongTXT"
+    io: fix spelling in documentation
     
-    Test is still flaky.
-    
-    For #22857
-    
-    Change-Id: Ic0d979778eb4c2d3779b18a983e7077789ae08a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424535
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ie23a9f1300a803d9c713e82b0d892dd90333ca7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351371
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/lookup_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/io/io.go         | 2 +-
+ src/io/multi_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,15 +1,25 @@
-commit c4792e60f332577678c643b430e66934fe64a81e
-Author: Andy Pan <i@andypan.me>
-Date:   Thu Mar 21 13:08:24 2024 +0000
+commit 3e8f5457ef79c2574ba34f8dafc5ad95464c172d
+Author: Imre Rad <imrer@google.com>
+Date:   Tue Mar 7 16:31:13 2023 +0000
 
-    net/http: eliminate the needless idle timeout for TestServerNoReadTimeout
+    archive/zip: return ErrInsecurePath for unsafe paths by OpenReader
     
-    Change-Id: I1339749bfeac99848beca780cebb9c87564da656
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573335
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    zip.NewReader was recently improved to return ErrInsecurePath when
+    insecure entries are encountered.
+    This change adopts the same logic for the OpenReader interface as well.
+    
+    Fixes #58641
+    
+    Change-Id: I0d8be94d073cc14cf93a914dc250f85b19cec4ab
+    GitHub-Last-Rev: 68391dc51562aebc893ec70fdfbdfb181955983a
+    GitHub-Pull-Request: golang/go#58658
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470735
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/net/http/serve_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/archive/zip/reader.go      | 46 ++++++++++++++++++++--------------
+ src/archive/zip/reader_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 19 deletions(-)

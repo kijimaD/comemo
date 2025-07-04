@@ -1,20 +1,35 @@
-commit 82a65299050cb1146583c72350f841684256bb3c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Mar 6 19:52:08 2022 -0800
+commit cf73f1a8e40f44c0d3c69d63a5815861d685a845
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Apr 30 16:58:56 2021 -0400
 
-    cmd/compile: remove unneeded type alias code in unified IR
+    go/parser: don't parse a nil IndexExpr.Index
     
-    Before #46477, the Go generics proposal allowed `type T = U` where `U`
-    was an uninstantiated generic type. However, we decided not to allow
-    that, and go/types and types2 have already been updated to disallow
-    it. This CL just removes the analogous code from unified IR.
+    When parsing type parameters, an empty type instantiation was parsed as
+    an IndexExpr with nil Index. This should be considered a breaking change
+    to parsing: ast.Walk previously assumed that Index was non-nil.
     
-    Change-Id: I0fe6d1754c96790b498c1d5185b948333646d7de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390315
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Back out the nil check in ast.Walk, and for now pack an empty argument
+    list as a non-nil ListExpr with nil Elems.
+    
+    Alternatives considered:
+     - Parsing the entire index expression as a BadExpr: this led to
+       inferior errors while type checking.
+     - Parsing the Index as a BadExpr: this seems reasonable, but encodes
+       strictly less information into the AST.
+    
+    We may want to opt for one of these alternatives in the future, but for
+    now let's just fix the breaking change.
+    
+    Change-Id: I93f2b89641692ac014b8ee98bfa031ed3477afb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315851
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/writer.go | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+ src/go/ast/walk.go                         | 6 +-----
+ src/go/internal/typeparams/notypeparams.go | 2 --
+ src/go/internal/typeparams/typeparams.go   | 5 ++++-
+ src/go/parser/parser.go                    | 1 +
+ 4 files changed, 6 insertions(+), 8 deletions(-)

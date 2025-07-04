@@ -1,16 +1,29 @@
-commit 516d75ccf1879cba1277cc92d0c6b61725b4aab5
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Aug 30 11:56:58 2021 -0500
+commit eb330020dc42930e99d9a8c8ea3cc0972cbd230f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jan 14 12:29:16 2021 -0500
 
-    cmd/internal/obj/ppc64: add a test for long branch fixups
+    cmd/dist, cmd/go: pass -arch for C compilation on Darwin
     
-    Cribbed and modified from arm64, verify each transformation
-    rewrites a too-far conditional branch as expected.
+    On Apple Silicon Mac, the C compiler has an annoying default
+    target selection, depending on the ancestor processes'
+    architecture. In particular, if the shell or IDE is x86, when
+    running "go build" even with a native ARM64 Go toolchain, the C
+    compiler defaults to x86, causing build failures. We pass "-arch"
+    flag explicitly to avoid this situation.
     
-    Change-Id: I87d35085158ed7d7478aa9725b273401fcd0bd01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347049
-    Trust: David Chase <drchase@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Fixes #43692.
+    Fixes #43476.
+    Updates golang/vscode-go#1087.
+    
+    Change-Id: I80b6a116a114e11e273c6886e377a1cc969fa3f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283812
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/internal/obj/ppc64/asm_test.go | 127 +++++++++++++++++++++++++++++++++
- 1 file changed, 127 insertions(+)
+ src/cmd/cgo/gcc.go                                 |  7 +++++++
+ src/cmd/go/internal/work/exec.go                   |  9 +++++++-
+ .../go/testdata/script/build_darwin_cc_arch.txt    | 24 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go                    | 11 ++++++++--
+ 4 files changed, 48 insertions(+), 3 deletions(-)

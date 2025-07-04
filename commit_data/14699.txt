@@ -1,14 +1,14 @@
-commit bb576704709e6edb8e45f0f2b1a8ddfefc99e010
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Dec 21 13:48:36 2012 +1100
+commit ff27cdb625c7870d3a0b846dae70fc339b021b62
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 21 07:06:38 2012 +1100
 
-    cmd/vet: expand printf flags understood by %s and %q.
+    go/doc: don't synthesize code for examples that are not self-contained
     
-    Fixes #4580.
+    Fixes #4309.
     
-    R=golang-dev, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7002043
+    https://golang.org/cl/6974045
 
- src/cmd/vet/print.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/go/doc/example.go | 35 ++++++++++++++++++++++++++++++++---
+ 1 file changed, 32 insertions(+), 3 deletions(-)

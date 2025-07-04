@@ -1,24 +1,35 @@
-commit b5d555991ab73e06e09741952a66dd7eeaf2a185
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Jun 24 20:35:36 2025 -0700
+commit 1c4704991aeae5c9e0c6816a227390829b724ab5
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Mon Jan 22 09:31:43 2024 +0200
 
-    encoding/json/jsontext: remove Encoder.UnusedBuffer
+    testing: use QueryPerformanceCounter on Windows
     
-    WARNING: This commit contains a breaking change.
-    This is permissible since jsontext is experimental and
-    not subject to the Go 1 compatibility agreement.
+    Windows time.Now granularity is around 0.5ms on modern systems,
+    which introduces a significant noise into benchmark results.
+    Instead of relying time.Now use QueryPerformanceCounter, which
+    has significantly better granularity compared to time.Now.
     
-    Existing callers of UnusedBuffer should use AvailableBuffer instead.
+     │ TimeNow-32  │        HighPrecisionTimeNow-32        │
+     │   sec/op    │    sec/op     vs base                 │
+       4.812n ± 0%   30.580n ± 0%  +535.43% (p=0.000 n=20)
     
-    Updates #71497
+    Fixes #31160
     
-    Change-Id: Ib080caf306d545a8fb038e57f0817b18dd0f91cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/683897
+    Change-Id: Ib2a574d638c9c6762a2524212def02265574e267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557315
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/encoding/json/jsontext/encode.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go | 11 +++++++
+ src/runtime/os_windows.go                       | 16 +++++++++++
+ src/testing/benchmark.go                        |  8 +++---
+ src/testing/export_test.go                      |  4 +++
+ src/testing/fuzz.go                             | 10 +++----
+ src/testing/testing.go                          | 28 +++++++++---------
+ src/testing/testing_other.go                    | 18 ++++++++++++
+ src/testing/testing_windows.go                  | 38 +++++++++++++++++++++++++
+ src/testing/testing_windows_test.go             | 25 ++++++++++++++++
+ 9 files changed, 135 insertions(+), 23 deletions(-)

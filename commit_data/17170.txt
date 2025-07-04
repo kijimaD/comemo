@@ -1,14 +1,15 @@
-commit 954d14741d56c271a95d7b4dee1e8da35d7347af
-Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 13 11:32:32 2013 +1000
+commit 9a0a59f171d0ae1defff35440c93e1a119289c29
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 12 21:02:55 2013 -0400
 
-    go/build: change the wording of NoGoError and comment it better
-    Out of context, it can be very confusing because there can be lots of Go
-    files in the directory, but the error message says there aren't.
+    cmd/6g, cmd/8g: proginfo carry fixes
     
-    R=golang-dev, dsymonds, rsc
+    Bugs pointed out by cshapiro in CL 12637051.
+    
+    R=cshapiro
     CC=golang-dev
-    https://golang.org/cl/12823043
+    https://golang.org/cl/12815043
 
- src/pkg/go/build/build.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/6g/prog.c | 24 ++++++++++++------------
+ src/cmd/8g/prog.c | 18 +++++++++---------
+ 2 files changed, 21 insertions(+), 21 deletions(-)

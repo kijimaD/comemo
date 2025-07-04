@@ -1,17 +1,17 @@
-commit 54b9c2015194b68135098c4eae564a122a4bccf6
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Nov 20 16:24:12 2012 +1100
+commit d32d1e098a1022e45f4a7afd05c328b72c5df8ee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 19 19:50:19 2012 -0800
 
-    net/http/cgi: another attempt to fix windows tests
+    mime/multipart: transparently decode quoted-printable transfer encoding
     
-    Also enables TestDirWindows test on windows.
+    Fixes #4411
     
-    Fixes #4401.
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev, krautz
-    https://golang.org/cl/6847072
+    R=dsymonds
+    CC=gobot, golang-dev
+    https://golang.org/cl/6854067
 
- src/pkg/net/http/cgi/host_test.go      |  5 ++-
- src/pkg/net/http/cgi/testdata/test.cgi | 77 ++++++++++------------------------
- 2 files changed, 25 insertions(+), 57 deletions(-)
+ src/pkg/mime/multipart/multipart.go            | 22 ++++++
+ src/pkg/mime/multipart/multipart_test.go       | 28 +++++++-
+ src/pkg/mime/multipart/quotedprintable.go      | 92 ++++++++++++++++++++++++++
+ src/pkg/mime/multipart/quotedprintable_test.go | 52 +++++++++++++++
+ 4 files changed, 192 insertions(+), 2 deletions(-)

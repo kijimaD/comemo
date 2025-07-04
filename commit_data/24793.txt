@@ -1,21 +1,18 @@
-commit bc1f9d20b40998b87c9a5f56f2b22595de65c2d4
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Tue Oct 27 15:36:38 2015 +0800
+commit ae82315b82672ca95c2b5365d7d18283981a40af
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Mon Aug 31 08:41:43 2015 -0700
 
-    cmd/go: use shallow clones for new git checkouts
+    syscall: move check of unprivileged_userns_clone to whoamiCmd
     
-    Currently go get will clone the full history of git repos.
-    We can improve the download waiting time/size by passing depth argument.
+    This is basic validation and should be performed early
     
-    The docs about shallow clones and the --depth argument are here:
-    https://git-scm.com/docs/git-clone
-    https://git-scm.com/docs/git-pull
+    Fixes #12412
     
-    Fixes #13078
-    
-    Change-Id: Ie891d905d9c77f6ecadf7dcd5b44b477f4e079e0
-    Reviewed-on: https://go-review.googlesource.com/16360
+    Change-Id: I903f7eeafdc22376704985a53d649698cf9d8ef4
+    Reviewed-on: https://go-review.googlesource.com/14110
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/vcs.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/syscall/exec_linux_test.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

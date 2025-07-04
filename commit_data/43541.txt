@@ -1,27 +1,25 @@
-commit 8a013233ac53d934e53cd7d118b5ff7836d8973a
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Oct 25 00:32:23 2020 +1100
+commit a1b802bde7ceab614dcf64e84f972cac5f1b2210
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 10 21:38:49 2020 -0700
 
-    cmd/compile: use MOV pseudo-instructions for sign/zero extension
+    cmd/compile: move some generic rules to strongly typed
     
-    Rather than handling sign and zero extension via rules, defer to the assembler
-    and use MOV pseudo-instructions. The instruction can also be omitted where the
-    type and size is already correct. This change results in more than 6,000
-    instructions being removed from the go binary (in part due to omitted
-    instructions, in part due to MOVBU having a more efficient implementation in
-    the assembler than what is used in the current ZeroExt8to{16,32,64} rules).
+    Move a lot of the constant folding rules to use strongly
+    typed AuxInt fields.
     
-    This will also allow for further rewriting to remove redundant sign/zero
-    extension.
+    We need more than a cast to convert AuxInt to, e.g., float32.
+    Make conversion functions for converting back and forth.
     
-    Change-Id: I05e42fd9f09f40a69948be7de772cce8946c8744
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264658
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia3d95ee3583ee2179a10938e20210a7617358c88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227866
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/riscv64/ssa.go        |  33 +++-
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  34 ++--
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   9 +
- src/cmd/compile/internal/ssa/opGen.go          |  98 +++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 235 +++----------------------
- 5 files changed, 178 insertions(+), 231 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 243 ++++-----
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  29 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  67 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  24 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 715 ++++++++++++++-----------
+ 5 files changed, 621 insertions(+), 457 deletions(-)

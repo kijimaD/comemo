@@ -1,21 +1,14 @@
-commit 4572e4848364b6098b565a2ef480e9b4e8ff5977
-Author: Tad Glines <tad.glines@gmail.com>
-Date:   Thu Aug 29 17:20:39 2013 -0700
+commit 8869cc159e25f571f7b24f23735679d1a0531d82
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Fri Aug 30 10:11:18 2013 +1000
 
-    database/sql: add SetMaxOpenConns
+    misc/dist: remove Xcode files from the darwin binary distribution
     
-    Update #4805
+    Fixes #6132.
     
-    Add the ability to set an open connection limit.
-    Fixed case where the Conn finalCloser was being called with db.mu locked.
-    Added seperate benchmarks for each path for Exec and Query.
-    Replaced slice based idle pool with list based idle pool.
-    
-    R=bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/10726044
+    https://golang.org/cl/12858049
 
- src/pkg/database/sql/fakedb_test.go |  28 +-
- src/pkg/database/sql/sql.go         | 261 +++++++++++++---
- src/pkg/database/sql/sql_test.go    | 594 ++++++++++++++++++++++++++++++++++--
- 3 files changed, 813 insertions(+), 70 deletions(-)
+ misc/dist/darwin/scripts/postinstall | 21 ---------------------
+ 1 file changed, 21 deletions(-)

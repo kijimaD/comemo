@@ -1,29 +1,21 @@
-commit 695be961d57508da5a82217f7415200a11845879
-Author: Roland Shoemaker <bracewell@google.com>
-Date:   Wed Jun 15 10:43:05 2022 -0700
+commit f4e24599dd2fe81690c6dacceec1d9336bf24c60
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 18:32:21 2021 -0400
 
-    go/parser: limit recursion depth
+    go/types: disallow aliases for generic types
     
-    Limit nested parsing to 100,000, which prevents stack exhaustion when
-    parsing deeply nested statements, types, and expressions. Also limit
-    the scope depth to 1,000 during object resolution.
+    This is a port of CL 346294 to go/types.
     
-    Thanks to Juho Nurminen of Mattermost for reporting this issue.
-    
-    Fixes #53616
-    Fixes CVE-2022-1962
-    
-    Change-Id: I4d7b86c1d75d0bf3c7af1fdea91582aa74272c64
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1491025
-    Reviewed-by: Russ Cox <rsc@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417063
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib70541a92e352c8df8123c8b82bb4eeedce3b89f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346560
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/parser/interface.go   |  10 ++-
- src/go/parser/parser.go      |  54 +++++++++++++-
- src/go/parser/parser_test.go | 169 +++++++++++++++++++++++++++++++++++++++++++
- src/go/parser/resolver.go    |   9 ++-
- 4 files changed, 234 insertions(+), 8 deletions(-)
+ src/go/types/decl.go                           |  2 +-
+ src/go/types/testdata/check/typeinst.go2       | 10 ++++++----
+ src/go/types/testdata/fixedbugs/issue39768.go2 |  6 +++---
+ src/go/types/testdata/fixedbugs/issue47968.go2 |  2 +-
+ src/go/types/typexpr.go                        | 18 ++++++------------
+ 5 files changed, 17 insertions(+), 21 deletions(-)

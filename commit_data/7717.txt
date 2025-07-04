@@ -1,21 +1,14 @@
-commit ec5c4759190006261014c08aceccb6f99aa53d50
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 9 10:24:50 2011 -0800
+commit 2ac4d5270f65464c136cf978ad61f293e393f0d3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 9 10:02:17 2011 -0800
 
-    http: add Flusher type; remove Flush from ResponseWriter
+    rpc: delete unused field from InvalidRequest struct.
+    Was a mysterious holdover from an attempt to fix a problem
+    long-resolved, I think.
     
-    The Flush functionality wasn't removed, but now you have
-    to test if your ResponseWriter is also a Flusher:
-    
-    func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-       if f, ok := rw.(http.Flusher); ok {
-           f.Flush()
-       }
-    }
-    
-    R=rsc, bradfitzwork
-    CC=gburd, golang-dev
-    https://golang.org/cl/4239077
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4243066
 
- src/pkg/http/server.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/pkg/rpc/server.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

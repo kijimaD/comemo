@@ -1,15 +1,18 @@
-commit e22d79ec1d6f6bae0fbc0d658baf7718c9dd01b0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Nov 23 11:21:06 2017 +0100
+commit 6959087b1cf7cdb5b5e714f321b01a47cdf2ac18
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Jun 5 13:02:32 2017 +0300
 
-    syscall: remove dragonfly/386 from mkall.sh
+    cmd/vet: unexported Stringer and error fields cannot be formatted
     
-    dragonfly/386 isn't a valid GOOS/GOARCH pair and there are no generated
-    files for this pair in syscall.
+    According to CL 31817, fmt cannot invoke String or Error methods
+    on unexported struct fields.
     
-    Change-Id: Ibea2103c2f5e139139d850df3aac9b5a9c4ac9ab
-    Reviewed-on: https://go-review.googlesource.com/79675
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #17798.
+    
+    Change-Id: I0d516577298bc36daa9a94313c3874d64dc079e6
+    Reviewed-on: https://go-review.googlesource.com/44831
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/mkall.sh | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/vet/testdata/print.go | 53 ++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/vet/types.go          | 17 ++++++++++----
+ 2 files changed, 64 insertions(+), 6 deletions(-)

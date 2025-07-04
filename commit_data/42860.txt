@@ -1,25 +1,19 @@
-commit 42fd1306cea2dc2ff91bd5208d9593721ab5a30f
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 15 11:08:36 2020 -0700
+commit 5bd145413a84be1afa74a82767384d9e224f7069
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 23 08:04:13 2020 -0800
 
-    cmd/compile: clean up equality generation
+    time: don't get confused about day 31 when parsing 002
     
-    We're using sort.SliceStable, so no need to keep track of indexes as well.
+    The 002 parsing code had a bug that mishandled day 31.
     
-    Use a more robust test for whether a node is a call.
+    Fixes #37387
     
-    Add a test that we're actually reordering comparisons. This test fails
-    without the alg.go changes in this CL because eqstring uses OCALLFUNC
-    instead of OCALL for its data comparisons.
-    
-    Update #8606
-    
-    Change-Id: Ieeec33434c72e3aa328deb11cc415cfda05632e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237921
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ia5a492a4ddd09a4bc232ce9582aead42d5099bdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220637
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/gc/alg.go | 31 ++++++++-----------
- test/fixedbugs/issue8606b.go       | 63 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 75 insertions(+), 19 deletions(-)
+ src/time/format.go      |  2 +-
+ src/time/format_test.go | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

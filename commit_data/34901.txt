@@ -1,26 +1,19 @@
-commit 49ed4cbe853e910b6f8d83012bc8b9afedb4b6b6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 5 12:48:28 2018 -0700
+commit 9dbeb92711b86ed4f0a37ad6ce465fb2d9053f2f
+Author: Travis Cline <travis.cline@gmail.com>
+Date:   Sat Jul 15 14:32:18 2017 -0600
 
-    cmd/compile: sort method sets using package height
+    crypto/x509: add ParsePKCS1PublicKey and MarshalPKCS1PublicKey
     
-    Also, when statically building itabs, compare *types.Sym instead of
-    name alone so that method sets with duplicate non-exported methods are
-    handled correctly.
+    Fixes #21029
     
-    Fixes #24693.
-    
-    Change-Id: I2db8a3d6e80991a71fef5586a15134b6de116269
-    Reviewed-on: https://go-review.googlesource.com/105039
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I308e2a2977870d8554a629f8ce38876598dba2a8
+    Reviewed-on: https://go-review.googlesource.com/48988
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  8 ++++++-
- src/cmd/compile/internal/types/sym.go  | 15 ++++++++++++--
- test/fixedbugs/issue24693.dir/a.go     | 11 ++++++++++
- test/fixedbugs/issue24693.dir/b.go     | 38 ++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue24693.dir/c.go     | 12 +++++++++++
- test/fixedbugs/issue24693.go           |  7 +++++++
- test/fixedbugs/issue24693.out          |  2 ++
- 7 files changed, 90 insertions(+), 3 deletions(-)
+ src/crypto/x509/pkcs1.go     |  33 ++++++++++++++
+ src/crypto/x509/x509_test.go | 101 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 134 insertions(+)

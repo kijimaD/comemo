@@ -1,15 +1,22 @@
-commit 2072fc30611bb04206ec29889b29f2bcdb1eb44e
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Thu Jul 16 10:12:43 2015 +1000
+commit 9389a86b01bfe86053350fe587b411ab3a0a5bed
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 3 15:10:53 2015 -0400
 
-    A+C: Add missing entries, full names.
+    cmd/compile: use obj.ARET instead of ppc64.ARETURN
     
-    Updates #10639
+    obj.ARET is the portable return mnemonic. ppc64.ARETURN is a legacy
+    alias.
     
-    Change-Id: Ifece75b8d1d822869df8abf654725a00bef4fc25
-    Reviewed-on: https://go-review.googlesource.com/12280
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This was done with
+        sed -i s/ppc64\.ARETURN/obj.ARET/ cmd/compile/**/*.go
+        sed -i s/ARETURN/obj.ARET/ cmd/internal/obj/ppc64/obj9.go
+    
+    Change-Id: I4d8e83ff411cee764774a40ef4c7c34dcbca4e43
+    Reviewed-on: https://go-review.googlesource.com/10673
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- AUTHORS      |  5 +++--
- CONTRIBUTORS | 10 ++++++----
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ppc64/peep.go |  2 +-
+ src/cmd/compile/internal/ppc64/prog.go |  2 +-
+ src/cmd/internal/obj/ppc64/obj9.go     | 12 ++++++------
+ 3 files changed, 8 insertions(+), 8 deletions(-)

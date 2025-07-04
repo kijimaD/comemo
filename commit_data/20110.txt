@@ -1,14 +1,28 @@
-commit 8ca564fb3fe0b8d6f4d7c660f9df9c1bbcc0539e
+commit 30940cfad6c45d40bec377aeacc10f6964e75b76
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 25 11:56:25 2014 +0400
+Date:   Mon Aug 18 16:33:39 2014 +0400
 
-    runtime: fix block profile for sync semaphores
-    And add a test.
+    runtime: don't acquirem on malloc fast path
+    Mallocgc must be atomic wrt GC, but for performance reasons
+    don't acquirem/releasem on fast path. The code does not have
+    split stack checks, so it can't be preempted by GC.
+    Functions like roundup/add are inlined. And onM/racemalloc are nosplit.
+    Also add debug code that checks these assumptions.
     
-    LGTM=rsc
-    R=golang-codereviews
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/128670043
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkMalloc8              20.5          17.2          -16.10%
+    BenchmarkMalloc16             29.5          27.0          -8.47%
+    BenchmarkMallocTypeInfo8      31.5          27.6          -12.38%
+    BenchmarkMallocTypeInfo16     34.7          30.9          -10.95%
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/123100043
 
- src/pkg/runtime/pprof/pprof_test.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/api/goapi.go      |  5 +++-
+ src/pkg/runtime/malloc.go | 67 ++++++++++++++++++++++++++++++++++++++---------
+ src/pkg/runtime/race.c    |  2 ++
+ src/pkg/runtime/stubs.go  |  1 +
+ src/pkg/runtime/stubs.goc |  5 ++++
+ 5 files changed, 67 insertions(+), 13 deletions(-)

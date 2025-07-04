@@ -1,20 +1,18 @@
-commit b6632f770f8c490554612a975840ecd05ebe8a32
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Sep 23 14:41:33 2020 +0200
+commit a7f918c1a596d691da5839b3b1f29dd9c674bfb8
+Author: Nathan Fiscaletti <nate.fiscaletti@gmail.com>
+Date:   Sat Mar 7 05:44:31 2020 +0000
 
-    cmd/compile: switch to typed for amd64 flag const rules
+    cmd/cgo: avoid extra newline in doc comment of exported function
     
-    Passes
+    Fixes #37722
     
-      gotip build -toolexec 'toolstash -cmp' -a std
-    
-    Change-Id: I5a322c9a3922107aa3bfcddfae732dcd6e15ac3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256738
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie9154f9d91824558a8ac34ad2fb5bc4e02c64a4b
+    GitHub-Last-Rev: 9fbe1c1d802287ff3c3ccee62e4e74d802196ffb
+    GitHub-Pull-Request: golang/go#37723
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222419
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules | 208 ++++----
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 684 +++++++++++++--------------
- 2 files changed, 446 insertions(+), 446 deletions(-)
+ src/cmd/cgo/out.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

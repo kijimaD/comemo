@@ -1,17 +1,18 @@
-commit da8e6eec9a69b6de4b75a92797a92fa0c6c8be3e
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 23 12:02:41 2011 -0500
+commit 73aacbda205127dd5a51eae4ab02869a98f92404
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Feb 23 11:48:40 2011 -0500
 
-    compress/bzip2: fix bugs
+    codereview: fix clpatch with empty diffs
     
-    (Once again, proving that a fuzz tester is the first thing that I
-    should try.)
+    Avoid passing the placeholder diff to hgpatch, so that
+    clpatch-ing an empty diff grabs the metadata and warns
+    about it being empty, rather than failing with a
+    hard-to-debug problem ("mkdir: no such file or dir",
+    no metadata, etc).
     
-    R=bradfitzgo
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4227042
+    https://golang.org/cl/4172060
 
- src/pkg/compress/bzip2/bzip2.go         | 26 ++++++++++++++------------
- src/pkg/compress/bzip2/bzip2_test.go    | 29 +++++++++++++++++++++++++----
- src/pkg/compress/bzip2/move_to_front.go |  6 +++++-
- 3 files changed, 44 insertions(+), 17 deletions(-)
+ lib/codereview/codereview.py | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

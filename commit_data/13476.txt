@@ -1,13 +1,15 @@
-commit 8de5080f34ad738488430ec1cb5e918dc7c384ff
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 16 13:31:15 2012 -0700
+commit da4eef402d55b91a3e3ea16a3ff4f8902526eac0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Jul 16 12:01:18 2012 +1000
 
-    faq: add status section
-    Fixes #3822.
+    compress/flate: fix panic when nlit is out of bounds.
     
-    R=golang-dev, r, dsymonds, minux.ma, adg
+    Fixes #3815.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6395043
+    https://golang.org/cl/6352109
 
- doc/go_faq.html | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/pkg/compress/flate/inflate.go     | 12 +++++++++---
+ src/pkg/compress/flate/reader_test.go | 10 ++++++++++
+ 2 files changed, 19 insertions(+), 3 deletions(-)

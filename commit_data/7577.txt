@@ -1,24 +1,20 @@
-commit 12b7875bf2c534c7ec1659a733ec2d82a3f85076
+commit 22eab1f5c78bb432b951426175b01c9bf97241f3
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 25 14:29:47 2011 -0500
+Date:   Fri Feb 25 14:29:36 2011 -0500
 
-    sync: use sync/atomic
+    sync/atomic: new package
     
-    Remove references to custom assembly routines.
+    Fixes #170.
     
-    R=r, r2
+    R=gri, iant, r, r2
     CC=golang-dev
-    https://golang.org/cl/4241043
+    https://golang.org/cl/4241041
 
- src/pkg/sync/Makefile               | 17 ----------
- src/pkg/sync/asm_386.s              | 23 -------------
- src/pkg/sync/asm_amd64.s            | 23 -------------
- src/pkg/sync/asm_arm5.s             | 40 ----------------------
- src/pkg/sync/asm_arm6.s             | 30 ----------------
- src/pkg/sync/atomic/asm_linux_arm.s | 68 +++++++++++++++++++++++++++++++++++++
- src/pkg/sync/cond_test.go           |  2 +-
- src/pkg/sync/mutex.go               | 29 +++++-----------
- src/pkg/sync/rwmutex.go             | 12 ++++---
- src/pkg/sync/rwmutex_test.go        | 15 ++++----
- src/pkg/sync/xadd_test.go           |  9 -----
- 11 files changed, 92 insertions(+), 176 deletions(-)
+ src/pkg/Makefile                   |   1 +
+ src/pkg/sync/atomic/Makefile       |  18 ++
+ src/pkg/sync/atomic/asm_386.s      |  87 +++++++
+ src/pkg/sync/atomic/asm_amd64.s    |  59 +++++
+ src/pkg/sync/atomic/asm_arm.s      |  78 ++++++
+ src/pkg/sync/atomic/atomic_test.go | 506 +++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/atomic/doc.go         |  58 +++++
+ 7 files changed, 807 insertions(+)

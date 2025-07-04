@@ -1,15 +1,27 @@
-commit 946e2543f878929752da9d16575dd5e96ac78532
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Tue Jul 6 07:17:07 2021 +0000
+commit 35f3b7053addf842690162d4d4937c0fbf438c50
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Dec 3 13:05:14 2020 -0500
 
-    runtime: use RDCYCLE for cputicks on riscv64
+    [dev.fuzz] internal/fuzz: add mutex to workerClient
     
-    Use RDCYCLE instruction instead of RDTIME emulation
+    This prevents workerClient.Close from closing fuzzIn while
+    workerClient.fuzz is writing to it concurrently. It also prevents
+    multiple callers from writing to fuzzIn concurrently, though there's
+    nothing that does that yet.
     
-    Change-Id: Id7b3de42a36d2d1b163c39cc79870eee7c840ad5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332954
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This should prevent most "broken pipe" errors, though they may still
+    be possible if worker.stop is called and it needs to kill the process
+    due to a timeout. In the future, we should detect and ignore those
+    errors, but for now, they're useful for debugging.
+    
+    Also, improve documentation on workerClient and workerServer.
+    
+    Change-Id: Ie2c870392d5e91674d3b1e32b2fa4f9de9ac3eb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275173
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/asm_riscv64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/fuzz/worker.go | 47 +++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 37 insertions(+), 10 deletions(-)

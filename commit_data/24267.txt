@@ -1,15 +1,14 @@
-commit 8fab2929dd97b8fb8fe1837b886115e24e814572
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 14 12:01:04 2015 -0700
+commit 21bd483c4ad244b53d4c2d9585787c81f2ce3107
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 20 15:30:52 2015 -0700
 
-    go/parser: better error message for unexpected ',' in struct type
+    [dev.ssa] cmd/compile: refactor out zero value creation
     
-    Fixes #12437.
+    This will be used in a subsequent commit.
     
-    Change-Id: I5463970a6259527003eb0e12903a338cc78e0683
-    Reviewed-on: https://go-review.googlesource.com/14564
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: I43eca21f4692d99e164c9f6be0760597c46e6a26
+    Reviewed-on: https://go-review.googlesource.com/12440
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/parser/parser.go     |  9 +++++++--
- src/go/parser/short_test.go | 12 +++++++-----
- 2 files changed, 14 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

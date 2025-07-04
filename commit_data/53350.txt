@@ -1,18 +1,28 @@
-commit 13be9fa7f896b876775f964e167cdd44166438eb
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 26 10:10:01 2023 -0400
+commit 62654dfd4f8d7ac2309232dc3c09c33b1741ce95
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jul 23 22:31:35 2022 +0700
 
-    doc: add release note on dead global map variable deletion
+    cmd/compile: fix wrong typeparams for selector expr with embedded generic type
     
-    Add a short release note blurb on linker dead-coding of global map
-    variables.
+    For selector expression "x.M" where "M" is a promoted method, irgen is using
+    the type of receiver "x" for determining the typeparams for instantiation.
+    However, because M is a promoted method, so its associated receiver is
+    not "x", but "x.T" where "T" is the embedded field of "x". That casues a
+    mismatch when converting non-shape types arguments.
     
-    Updates #58645.
+    Fixing it by using the actual receiver which has the method, instead of
+    using the base receiver.
     
-    Change-Id: Ibfdd3e2b2b78517db4245b1d7eedd5e75a643b47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498575
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    TryBot-Bypass: Than McIntosh <thanm@google.com>
+    Fixes #53982
+    
+    Change-Id: I1836fc422d734df14e9e6664d4bd014503960bfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419294
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- doc/go1.21.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  7 ++-----
+ test/fixedbugs/issue53982.go              | 25 +++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 5 deletions(-)

@@ -1,14 +1,29 @@
-commit b60c7a5c7f50fc75ddecb7f1dea6c2e47a12b42c
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sun Nov 10 11:56:15 2019 +0530
+commit c19b3a60da360a4e02b18dcb3430ec3485a0a831
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 26 13:20:05 2019 -0400
 
-    go/doc: document unicode quoting conversion
+    sync: make TestPoolDequeue termination condition more robust
     
-    Fixes #30955
+    TestPoolDequeue creates P-1 consumer goroutines and 1 producer
+    goroutine. Currently, if a consumer goroutine pops the last value from
+    the dequeue, it sets a flag that stops all consumers, but the producer
+    also periodically pops from the dequeue and doesn't set this flag.
     
-    Change-Id: I8a2bff5215ddf6c3a80b1e760cb72b0bb9a5e0d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206122
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Hence, if the producer were to pop the last element, the consumers
+    will continue to run and the test won't terminate. This CL fixes this
+    by also setting the termination flag in the producer.
+    
+    I believe it's impossible for this to happen right now because the
+    producer only pops after pushing an element for which j%10==0 and the
+    last element is either 999 or 1999999, which means it should never try
+    to pop after pushing the last element. However, we shouldn't depend on
+    this reasoning.
+    
+    Change-Id: Icd2bc8d7cb9a79ebfcec99e367c8a2ba76e027d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183980
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/doc/comment.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/sync/pool_test.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

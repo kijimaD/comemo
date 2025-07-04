@@ -1,15 +1,18 @@
-commit 4345a9fc5d3e994230cb8578a79ee0b4a727cd70
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Mar 6 09:45:24 2015 -0500
+commit 1313e7982f44c24948e73c4795d9606265d36871
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 17 12:38:53 2015 +1100
 
-    misc/ios: support go run in go_darwin_arm_exec
+    test: disable recover4 test to fix ppc64 builds
     
-    The -lldb flag makes it easy to use go run and end up in a debugging
-    session on darwin/arm.
+    Updates #10180
     
-    Change-Id: I556f93e950086a7dff4839f301b9c55f7579f87b
-    Reviewed-on: https://go-review.googlesource.com/8024
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Temporarily disable this test on ppc64 systems as all our builders use 64k page size.
+    
+    We need a portable way to get the page size of the host so we can correctly size the mmap hole.
+    
+    Change-Id: Ibd36ebe2f54cf75a44667e2070c385f0daaca481
+    Reviewed-on: https://go-review.googlesource.com/7652
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 75 +++++++++++++++++++++++++++++++-----------
- 1 file changed, 55 insertions(+), 20 deletions(-)
+ test/recover4.go | 1 +
+ 1 file changed, 1 insertion(+)

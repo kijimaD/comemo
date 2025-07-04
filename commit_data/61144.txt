@@ -1,0 +1,25 @@
+commit 6a3f39a9b856c7fd063d9bc10c1e43f074fa8867
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Oct 4 14:23:54 2024 -0700
+
+    internal/syscall/windows: add NtCreateFile
+    
+    Mostly copied from x/sys/windows.
+    
+    This adds a various related types and functions,
+    but the purpose is to give access to NtCreateFile,
+    which can be used as an equivalent to openat.
+    
+    For #67002
+    
+    Change-Id: I04e6f630445a55c2000c9c323ce8dcdc7fc0d0e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617377
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/syscall/windows/string_windows.go   |  32 +++++
+ src/internal/syscall/windows/syscall_windows.go  |  18 +++
+ src/internal/syscall/windows/types_windows.go    | 166 +++++++++++++++++++++++
+ src/internal/syscall/windows/zsyscall_windows.go |  16 +++
+ 4 files changed, 232 insertions(+)

@@ -1,14 +1,14 @@
-commit de6da4a8bdce935ba71f585bb458272cc781dd9a
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jul 25 17:40:29 2013 -0700
+commit f3310124277638d3eb4fdcfe86966b9c41fe4954
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 25 09:35:55 2013 -0700
 
-    5c: fix pc recalculation in the presence of AFUNCDATA
+    spec: update prose in Constants section
     
-    This makes CL 11683043 not break arm anymore.
+    Fixes #5952.
     
-    R=golang-dev, bradfitz, dave
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/11888043
+    https://golang.org/cl/11812043
 
- src/cmd/5c/reg.c | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

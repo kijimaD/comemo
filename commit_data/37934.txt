@@ -1,34 +1,22 @@
-commit 8e093e7a1cd8a092f23717cb8f34bca489a3eee5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jan 25 17:40:40 2019 +0000
+commit 0ef42f4dd6b12821641fe415f16e425bb094137b
+Author: erifan01 <eric.fang@arm.com>
+Date:   Wed Sep 12 10:31:04 2018 +0000
 
-    runtime: scavenge memory upon allocating from scavenged memory
+    runtime: skip TestGcSys on arm64
     
-    Because scavenged and unscavenged spans no longer coalesce, memory that
-    is freed no longer has a high likelihood of being re-scavenged. As a
-    result, if an application is allocating at a fast rate, it may work fast
-    enough to undo all the scavenging work performed by the runtime's
-    current scavenging mechanisms. This behavior is exacerbated by the
-    global best-fit allocation policy the runtime uses, since scavenged
-    spans are just as likely to be chosen as unscavenged spans on average.
+    This failure occurs randomly on arm64.
     
-    To remedy that, we treat each allocation of scavenged space as a heap
-    growth, and scavenge other memory to make up for the allocation.
+    13:10:32 --- FAIL: TestGcSys (0.06s)
+    13:10:32 gc_test.go:30: expected "OK\n", but got "using too much memory: 71401472 bytes\n"
+    13:10:32 FAIL
     
-    This change makes performance of the runtime slightly worse, as now
-    we're scavenging more often during allocation. The regression is
-    particularly obvious with the garbage benchmark (3%) but most of the Go1
-    benchmarks are within the margin of noise. A follow-up change should
-    help.
+    Updates #27636
     
-    Garbage: https://perf.golang.org/search?q=upload:20190131.3
-    Go1:     https://perf.golang.org/search?q=upload:20190131.2
-    
-    Updates #14045.
-    
-    Change-Id: I44a7e6586eca33b5f97b6d40418db53a8a7ae715
-    Reviewed-on: https://go-review.googlesource.com/c/159500
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ifd4cfce167d8054dc6f037bd34368d63c7f68ed4
+    Reviewed-on: https://go-review.googlesource.com/135155
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mheap.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/runtime/gc_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

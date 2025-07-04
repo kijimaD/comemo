@@ -1,17 +1,19 @@
-commit 2e6cbab1c84363638ed48f259c3db57c4d2aaab3
-Author: Sean Liao <sean@liao.dev>
-Date:   Sat Aug 6 14:28:16 2022 +0100
+commit 02a092778625a9e9b9eb88c954a4c6e33dc742dc
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jan 24 15:24:50 2024 -0500
 
-    encoding/pem: clarify Decode only works on lines
+    doc/go1.22: remove archive/tar.FileInfoNames
     
-    Fixes #53524
+    CL 514235 is reverted.
     
-    Change-Id: I929ee3c055c3ca564cd6cc374124f493aea2fbf6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421636
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Updates #65245.
+    Updates #61422.
+    
+    Change-Id: Ib5d2e16c982ab25c8a87af2bdaee8568446cf599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557840
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/encoding/pem/pem.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.22.html | 4 ----
+ 1 file changed, 4 deletions(-)

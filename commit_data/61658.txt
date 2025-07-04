@@ -1,0 +1,20 @@
+commit 5321fc265cc66ee62be5374a7f6095a842c38281
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 16 19:36:30 2024 +0100
+
+    crypto/internal/fips/ecdsa: add HMAC_DRBG
+    
+    We'll use this for deterministic and hedged ECDSA.
+    
+    For #69536
+    
+    Change-Id: Ifb3d963a084fb4914536826250589ff8862add9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628680
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/fips/ecdsa/cast.go     |  31 ++++++++
+ src/crypto/internal/fips/ecdsa/hmacdrbg.go | 120 +++++++++++++++++++++++++++++
+ 2 files changed, 151 insertions(+)

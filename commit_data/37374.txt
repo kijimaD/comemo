@@ -1,19 +1,19 @@
-commit ee55f0856a3f1fed5d8c15af54c40e4799c2d32f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Oct 29 23:21:40 2018 +0000
+commit eab8208687bf6dbea0ca36e2dabe84d2a51f252b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 17:15:32 2018 -0400
 
-    net/http/httputil: make ReverseProxy automatically proxy WebSocket requests
+    cmd/go: detect inconsistent 'go get' version requests
     
-    Fixes #26937
+    If x v1.0.0 requires y v1.2.0, then
+    go get x@v1.0.0 y@v1.0.0 needs to fail gracefully.
     
-    Change-Id: I6cdc1bad4cf476cd2ea1462b53444eccd8841e14
-    Reviewed-on: https://go-review.googlesource.com/c/146437
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Fixes #25917.
+    
+    Change-Id: I9b426af23a30310fcb0c3545a8d97feb58b8ddbe
+    Reviewed-on: https://go-review.googlesource.com/124800
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/build/deps_test.go                  |  2 +-
- src/net/http/httputil/reverseproxy.go      | 81 +++++++++++++++++++++++++++
- src/net/http/httputil/reverseproxy_test.go | 88 ++++++++++++++++++++++++++----
- src/net/http/transport.go                  |  2 +-
- 4 files changed, 161 insertions(+), 12 deletions(-)
+ src/cmd/go/internal/modget/get.go                | 68 +++++++++++++++++++++++-
+ src/cmd/go/internal/modload/init.go              | 19 +++++++
+ src/cmd/go/testdata/script/mod_get_downgrade.txt | 11 ++++
+ 3 files changed, 96 insertions(+), 2 deletions(-)

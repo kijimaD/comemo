@@ -1,20 +1,26 @@
-commit b768d82d8e19493e287b9f6c3219cd253d3ccb42
-Author: Niek Sanders <niek.sanders@gmail.com>
-Date:   Thu Jun 15 09:38:57 2017 -0700
+commit aa9c1a8f8038e88da6d7cbfdc56e34ff914b7b04
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 28 22:01:24 2018 -0800
 
-    encoding/base32: eliminate alphabet bounds check
+    runtime: fix amd64p32 indexbytes in presence of overflow
     
-    name              old time/op   new time/op   delta
-    EncodeToString-4   35.5µs ± 7%   33.3µs ± 6%  -6.27%   (p=0.008 n=10+9)
-    DecodeString-4      120µs ± 7%    113µs ± 8%  -5.88%  (p=0.011 n=10+10)
+    When the slice/string length is very large,
+    probably artifically large as in CL 97523,
+    adding BX (length) to R11 (pointer) overflows.
+    As a result, checking DI < R11 yields the wrong result.
+    Since they will be equal when the loop is done,
+    just check DI != R11 instead.
+    Yes, the pointer itself could overflow, but if that happens,
+    something else has gone pretty wrong; not our concern here.
     
-    name              old speed     new speed     delta
-    EncodeToString-4  231MB/s ± 8%  247MB/s ± 5%  +6.55%   (p=0.008 n=10+9)
-    DecodeString-4    109MB/s ± 7%  116MB/s ± 8%  +6.27%  (p=0.011 n=10+10)
+    Fixes #24187
     
-    Change-Id: I60bf962464179e35b1711617adbc45a822eaece5
-    Reviewed-on: https://go-review.googlesource.com/45876
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2f60fc6ccae739345d01bc80528560726ad4f8c6
+    Reviewed-on: https://go-review.googlesource.com/97802
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/base32/base32.go | 26 +++++++++++++++-----------
- 1 file changed, 15 insertions(+), 11 deletions(-)
+ src/runtime/asm_amd64p32.s   |  2 +-
+ test/fixedbugs/issue24187.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

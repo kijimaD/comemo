@@ -1,17 +1,13 @@
-commit d36c095da920cffef16da7f37ce725f9a07f6ae0
-Author: Han-Wen Nienhuys <hanwen@google.com>
-Date:   Sun Jun 24 19:34:06 2012 -0400
+commit 13802f565400a91519df86902ece3bd0a8c5aadb
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sun Jun 24 19:23:09 2012 -0400
 
-    os: make POSIX StartProcess work with chroot again.
+    test/bench/shootout: remove dependency on C libraries in test mode
+    Fixes #3732.
     
-    Skip directory check in startProcess in the presence of
-    SysProcAttr.
-    
-    Fixes #3649.
-    
-    R=golang-dev, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6297083
+    https://golang.org/cl/6335053
 
- src/pkg/os/exec_posix.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ test/bench/shootout/timing.sh | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

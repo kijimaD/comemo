@@ -1,21 +1,25 @@
-commit fa2f9c2c0923edf539cdcce82473e7131826d677
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 18 11:22:12 2015 -0400
+commit 9c8c0e729d9d02b9ed996b3fec55c9f0142067e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 14:02:27 2015 -0500
 
-    runtime: run concurrent mark phase on regular stack
+    [dev.cc] cmd/internal/gc: reconvert to pick up bug fixes
     
-    Currently, the GC's concurrent mark phase runs on the system
-    stack. There's no need to do this, and running it this way ties up the
-    entire M and P running the GC by preventing the scheduler from
-    preempting the GC even during concurrent mark.
+    Convert using rsc.io/c2go rev a97ff47.
     
-    Fix this by running concurrent mark on the regular G stack. It's still
-    non-preemptible because we also set preemptoff around the whole GC
-    process, but this moves us closer to making it preemptible.
+    Notable changes:
+    - %% in format string now correctly preserved
+    - reintroduce "signal handler" to hide internal faults
+      after errors have been printed
     
-    Change-Id: Ia9f1245e299b8c5c513a4b1e3ef13eaa35ac5e73
-    Reviewed-on: https://go-review.googlesource.com/7730
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ic5a94f1c3a8015a9054e21c8969b52d964a36c45
+    Reviewed-on: https://go-review.googlesource.com/5633
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgc.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/internal/gc/const.go    |  2 +-
+ src/cmd/internal/gc/fmt.go      |  2 +-
+ src/cmd/internal/gc/go.y        |  2 +-
+ src/cmd/internal/gc/lex.go      | 26 +++++++++++++++++---------
+ src/cmd/internal/gc/mparith1.go |  2 +-
+ src/cmd/internal/gc/subr.go     |  6 +++++-
+ src/cmd/internal/gc/y.go        |  2 +-
+ 7 files changed, 27 insertions(+), 15 deletions(-)

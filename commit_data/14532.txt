@@ -1,13 +1,32 @@
-commit 279199ebccb87eb97f97bb8e8e41095400d90181
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Dec 1 00:42:50 2012 +0800
+commit 5b425cc3ab2c9ce4752a5baa9a52ab86bda96036
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Nov 30 20:02:30 2012 +1100
 
-    cmd/godoc: fix `godoc net/http` on windows
-    `godoc net/http` used to complain "/target contains more than one package: http, main"
+    undo CL 6855110 / 869253ef7009
     
-    R=golang-dev, bradfitz, rsc
+    64bit atomics are broken on 32bit systems. This is issue 599.
+    
+    linux/arm builders all broke with this change, I am concerned that the other 32bit builders are silently impacted.
+    
+    ««« original CL description
+    net: fix data races on deadline vars
+    
+    Fixes #4434.
+    
+    R=mikioh.mikioh, bradfitz, dvyukov, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/6852100
+    https://golang.org/cl/6855110
+    »»»
+    
+    R=rsc, mikioh.mikioh, dvyukov, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6852105
 
- src/cmd/godoc/godoc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/fd_posix_test.go    |  57 --------------------
+ src/pkg/net/fd_unix.go          | 114 +++++++++++++++++++---------------------
+ src/pkg/net/fd_windows.go       |  48 ++++-------------
+ src/pkg/net/sendfile_freebsd.go |   2 +-
+ src/pkg/net/sendfile_linux.go   |   2 +-
+ src/pkg/net/sock_posix.go       |   6 ++-
+ src/pkg/net/sockopt_posix.go    |  21 +++++---
+ 7 files changed, 83 insertions(+), 167 deletions(-)

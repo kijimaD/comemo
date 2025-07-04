@@ -1,21 +1,17 @@
-commit 0355a717517f7e1435e6f9eeb94e2b77d33eb43b
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed May 9 12:03:55 2012 +0200
+commit 25a8a8dab8ae1638b91ec884e6db02c3bc7fe3e6
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Wed May 9 16:16:02 2012 +1000
 
-    exp/locale/collate: Add maketables tool and generated tables.
-    Also set maxContractLen automatically.
-    Note that the table size is much bigger than it needs to be.
-    Optimization is best done, though, when the language specific
-    tables are added.
+    cmd/go: fix remote help reference to "go help packages"
     
-    R=r
+    go help remote used to reference "go help importpath", which has
+    changed to "go help packages".
+    
+    Fixes #3598.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6167044
+    https://golang.org/cl/6201065
 
- src/pkg/exp/locale/collate/Makefile         |   16 +
- src/pkg/exp/locale/collate/build/builder.go |    3 +
- src/pkg/exp/locale/collate/build/table.go   |    1 +
- src/pkg/exp/locale/collate/collate.go       |    4 -
- src/pkg/exp/locale/collate/maketables.go    |  185 +
- src/pkg/exp/locale/collate/tables.go        | 7272 +++++++++++++++++++++++++++
- 6 files changed, 7477 insertions(+), 4 deletions(-)
+ src/cmd/go/help.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

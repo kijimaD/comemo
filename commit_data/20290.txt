@@ -1,15 +1,19 @@
-commit 29225211e1048f2c2eafd5015637f149a68ecf5c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Sep 4 11:31:39 2014 +0400
+commit e77c2fe31374905b08d51f338803bea88e9c4ec2
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Fri Aug 29 12:28:09 2014 +0200
 
-    runtime: fix netbsd build
+    runtime: allow sysvicall functions to be called from Go
     
-    TBR=rsc
-    R=rsc
+    Convert them to Go in the process.
+    
+    LGTM=dvyukov, dave
+    R=khr, dvyukov, rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/140220043
+    https://golang.org/cl/131600043
 
- src/pkg/runtime/defs_netbsd_386.h   | 2 +-
- src/pkg/runtime/defs_netbsd_amd64.h | 2 +-
- src/pkg/runtime/defs_netbsd_arm.h   | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/runtime/netpoll_solaris.c | 14 +++-----
+ src/pkg/runtime/os_solaris.c      | 69 ++++++++++++++---------------------
+ src/pkg/runtime/os_solaris.go     | 75 ++++++++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/os_solaris.h      | 15 ++++----
+ src/pkg/runtime/runtime.h         |  2 +-
+ 5 files changed, 116 insertions(+), 59 deletions(-)

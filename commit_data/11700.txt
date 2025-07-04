@@ -1,21 +1,14 @@
-commit cc39bb90686197e30ad103c7053aeb5cfc2efb8b
-Author: Andrew Pritchard <awpritchard@gmail.com>
-Date:   Wed Feb 8 17:14:15 2012 +1100
+commit 878608bd29b936b889e130b0bb81cfbc523ae233
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 8 16:30:28 2012 +1100
 
-    database/sql: treat pointers as nullable types like encoding/json
+    cmd/go: connect os.Stdin for go run
     
-    - convert from nil pointers to the nil interface{}
-    - dereference non-nil pointers
-    - convert from nil interface{}s to nil pointers
-    - allocate pointers for non-nil interface{}s
-    - tests for all of the above
+    Fixes #2875
     
-    R=golang-dev, bradfitz, rsc, rogpeppe
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5630052
+    https://golang.org/cl/5641052
 
- src/pkg/database/sql/convert.go           |  8 ++++++++
- src/pkg/database/sql/convert_test.go      | 22 ++++++++++++++++++++++
- src/pkg/database/sql/driver/types.go      |  7 +++++++
- src/pkg/database/sql/driver/types_test.go |  4 ++++
- 4 files changed, 41 insertions(+)
+ src/cmd/go/run.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

@@ -1,19 +1,26 @@
-commit d6ee6c2d0654b2274fb80a5d1ca6f72f4c2da094
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Nov 19 17:36:59 2015 -0800
+commit 211cdf1e004b35e817935537671f9577066800df
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Fri Sep 11 00:03:19 2015 +0200
 
-    hash/crc32: rename iEEETable to ieeeTable
+    cmd/compile/internal/gc: cleaning lex.go
     
-    iEEETable violates the Go naming conventions and is inconsistent
-    with the rest of the package. Use ieeeTable instead.
+    Cleaning along the way:
+    -convert variable types from int to bool
+    -remove unnecessary functions
+    -remove unnecessary type conversion
+    -remove unnecessary variable declarations
+    -transform struct{string,string} with lookup to map[string]string
     
-    Change-Id: I04b201aa39759d159de2b0295f43da80488c2263
-    Reviewed-on: https://go-review.googlesource.com/17068
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I259728fe4afd7f23b67f08fab856ce0abee57b21
+    Reviewed-on: https://go-review.googlesource.com/14435
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/hash/crc32/crc32.go          | 6 +++---
- src/hash/crc32/crc32_amd64.go    | 6 +++---
- src/hash/crc32/crc32_amd64p32.go | 6 +++---
- src/hash/crc32/crc32_generic.go  | 6 +++---
- 4 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |  10 +-
+ src/cmd/compile/internal/gc/go.y    |   2 +-
+ src/cmd/compile/internal/gc/lex.go  | 245 +++++++++++++++---------------------
+ src/cmd/compile/internal/gc/subr.go |   2 +-
+ src/cmd/compile/internal/gc/util.go |  12 +-
+ src/cmd/compile/internal/gc/y.go    |   2 +-
+ 6 files changed, 120 insertions(+), 153 deletions(-)

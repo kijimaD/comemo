@@ -1,20 +1,17 @@
-commit 9da99049ba45abb4e3b91ba30a4af8dc2d24f1b1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 5 15:14:02 2019 -0700
+commit 08692bed1e796b5395b6e321c5adcd32f6fc43bf
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Mar 22 12:48:31 2019 +0100
 
-    cmd/compile: restore lineno before returning in defaultlitreuse
+    cmd/compile, misc/cgo: fix fortran tests on aix/ppc64
     
-    This affects the position information that's associated with the
-    implicit OCONV nodes created in assignconvfn.
+    Enable pattern lib.a/shared.so.X in cgo_import_dynamic as on AIX,
+    archive files (.a) often have shared objects (.so) inside them.
     
-    Not super important and the followup rewrite CL fixes this too, but
-    fixing it separately is easy and makes toolstash-check happier.
-    
-    Change-Id: Ifd65dc524b367812d14a4d996647a5d40665fb38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193606
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I21096c75eb7fbcc7064b0b832bfa8ed862142051
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168877
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ misc/cgo/fortran/test.bash         | 7 ++++++-
+ src/cmd/compile/internal/gc/lex.go | 3 ++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

@@ -1,31 +1,29 @@
-commit e3798efbc21645ac1fb9db6f7a067bfd1b997894
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon May 22 12:56:28 2023 -0400
+commit ebf182c82de21858a1a167cc8d252ae85de806a7
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jul 27 23:19:40 2022 -0700
 
-    cmd/dist: copy trailing text more directly in testJSONFilter.process
+    reflect: avoid TypeOf in init
     
-    Use io.Copy¹ that matches the comment more closely, avoids the
-    possibility of needing a bigger array, and is slightly shorter.
-    Its downside is that it takes two w.Write calls instead of one.
+    Calling TypeOf to initialize variables forces any import of "reflect"
+    to link in the declared types of "reflect" even if they are unused.
+    TypeOf operates on Type and which will pull in
+    all transitive dependencies of Type, which includes Value as well.
+    Avoid this problem by declaring a rtypeOf function that
+    directly extracts the *rtype from an interface value
+    without going through Type as an intermediate type.
     
-    ¹ Admittedly, it was temping to use io.CopyBuffer since the 'data'
-      byte slice becomes a viable buffer after its contents are written.
-      I resisted that temptation for two reasons.
+    For a program that blank imports "reflect",
+    this reduces the binary size by ~34 KiB.
     
-      One, it would need the io.Reader returned by dec.Buffered() (currently
-      a *bytes.Reader) to not implement the io.WriterTo interface for any
-      chance of making a positive difference. This seems not very likely.
+    Updates #54097
     
-      Two, to avoid burdening anyone with determining that io.CopyBuffer
-      won't panic without 'if len(data) == 0 && data != nil { data = nil }'
-      because json.Marshal never returns an empty but non-nil byte slice.
-    
-    Change-Id: I33c53d9d990f6ee79cd3ab90f12e3b575b9ebe72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497736
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I8dc7d8da8fedc48cc0dd842b69f510d17144827e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419757
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/testjson.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/reflect/type.go  | 6 ++++++
+ src/reflect/value.go | 6 +++---
+ 2 files changed, 9 insertions(+), 3 deletions(-)

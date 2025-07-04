@@ -1,23 +1,14 @@
-commit 3f3142ad99155424007b8e8182265b5b716b44ee
-Author: bill_ofarrell <billo@ca.ibm.com>
-Date:   Fri Oct 26 17:33:51 2018 -0400
+commit 0e0cd70ecf6b5f0d9c8271f68b8fcc9f85cd6598
+Author: Nikhil Benesch <nikhil.benesch@gmail.com>
+Date:   Mon Jul 2 11:29:11 2018 -0400
 
-    cmd/asm: add s390x VMSLG instruction variants
+    runtime: document when cgo traceback function is called
     
-    VMSLG has three variants on z14 and later machines. These variants are used in "limbified" squaring:
-    VMSLEG: Even Shift Indication -- the even-indexed intermediate result is doubled
-    VMSLOG: Odd Shift Indication -- the odd-indexed intermediate result is doubled
-    VMSLEOG: Even and Odd Shift Indication -- both intermediate results are doubled
-    Limbified squaring is very useful for high performance cryptographic algorithms, such as
-    elliptic curve. This change allows these instructions to be used in Go assembly.
+    Fixes #24518.
     
-    Change-Id: Iaad577b07320205539f99b3cb37a2a984882721b
-    Reviewed-on: https://go-review.googlesource.com/c/145180
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I99c79c5a2ab9dbe7f0d257c263da9d2b5d1d55c4
+    Reviewed-on: https://go-review.googlesource.com/121917
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 3 +++
- src/cmd/internal/obj/s390x/a.out.go       | 3 +++
- src/cmd/internal/obj/s390x/anames.go      | 3 +++
- src/cmd/internal/obj/s390x/asmz.go        | 3 +++
- src/cmd/internal/obj/s390x/vector.go      | 8 +++++++-
- 5 files changed, 19 insertions(+), 1 deletion(-)
+ src/runtime/traceback.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

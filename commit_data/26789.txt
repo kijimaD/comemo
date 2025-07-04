@@ -1,12 +1,18 @@
-commit 4dae828f77a37ed87401f7877998b241f0d2c33e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Apr 8 15:09:45 2016 +1000
+commit e1035c5e878c0aae938f4ee933055d4333c5cbe5
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Feb 26 16:14:31 2016 +0100
 
-    cmd/go: fix failing tests since vet was moved from x/tools
+    sync/atomic: reduce test in short mode
     
-    Change-Id: I3276a118ced78f3efd8f1bc5fb8b8fa2fde52496
-    Reviewed-on: https://go-review.googlesource.com/21704
+    In normal mode the test runs for 9+ seconds on my machine (48 cores).
+    But the real problem is race mode, in race mode it hits 10m test timeout.
+    Reduce test size in short mode. Now it runs for 100ms without race.
+    
+    Change-Id: I9493a0e84f630b930af8f958e2920025df37c268
+    Reviewed-on: https://go-review.googlesource.com/19956
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/sync/atomic/value_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

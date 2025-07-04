@@ -1,21 +1,16 @@
-commit e0adc35c470d9bf7f462c9d26340b494cbe7ce43
-Author: Matt Juran <thepciet@gmail.com>
-Date:   Tue Feb 13 14:22:25 2018 -0600
+commit 39f42c59e65963343d11f301a3d5838c0bfb1002
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 6 17:39:50 2018 -0500
 
-    test: fast GC+concurrency+types verification
+    cmd/vet: teach asmdecl check about NOFRAME
     
-    This test runs independent goroutines modifying a comprehensive variety
-    of local vars to look for garbage collector regressions. This test has
-    been verified to trigger issue 22781 on the go1.9.2 tag. This test
-    expands on test/fixedbugs/issue22781.go.
-    
-    Tests #22781
-    
-    Change-Id: Id32f8dde7ef650aea1b1b4cf518e6d045537bfdc
-    Reviewed-on: https://go-review.googlesource.com/93715
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3f71228e391f122f9cc5656ca6835fdf51a424b7
+    Reviewed-on: https://go-review.googlesource.com/92435
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/gcgort.go | 1850 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 1850 insertions(+)
+ src/cmd/vet/asmdecl.go          |  4 ++--
+ src/cmd/vet/testdata/asm/asm.go |  3 +++
+ src/cmd/vet/testdata/asm/asm3.s | 14 ++++++++++++++
+ 3 files changed, 19 insertions(+), 2 deletions(-)

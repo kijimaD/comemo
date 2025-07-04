@@ -1,18 +1,16 @@
-commit 5b21bf6f814180e45d9f048f311a28b7886cd626
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Feb 27 13:31:12 2018 +0100
+commit 4a0dcc2de115d779b48a0acd1d6b8c9b4c24c307
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Oct 23 17:27:34 2017 +1100
 
-    runtime: simplify walltime/nanotime on linux/{386,amd64}
+    runtime: make errno positive in netpollopen
     
-    Avoid an unnecessary MOVL/MOVQ.
+    Make netpollopen return what Windows GetLastError API returns.
+    It is probably copy / paste error from long time ago.
     
-    Follow CL 97377
-    
-    Change-Id: Ic43976d6b0cece3ed455496d18aedd67e0337d3f
-    Reviewed-on: https://go-review.googlesource.com/97358
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I28f78718c15fef3e8b5f5d11a259533d7e9c6185
+    Reviewed-on: https://go-review.googlesource.com/72592
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_linux_386.s   | 6 ++----
- src/runtime/sys_linux_amd64.s | 6 ++----
- 2 files changed, 4 insertions(+), 8 deletions(-)
+ src/runtime/netpoll_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

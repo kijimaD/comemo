@@ -1,21 +1,17 @@
-commit f0b05092fd9bbfc698cb3bd24c6ae042e9c54616
-Author: mstmdev <mstmdev@gmail.com>
-Date:   Mon Aug 21 09:04:07 2023 +0000
+commit 58093e8e2b5e22cf861c387d76333bccd1595065
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:24:10 2022 +0800
 
-    cmd/internal/goobj: fix the size of Header
+    cmd/asm: optimize if statement to return directly
     
-    Missed the length of the Fingerprint field.
-    
-    Change-Id: I690955466895e73821dc1e30f8400efc30338ae6
-    GitHub-Last-Rev: 87bd06d8053c003a412a6ea11b3eafcc280b94d1
-    GitHub-Pull-Request: golang/go#62174
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521495
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ieb8fb7c623ecd8b9ddd15cdb6eb2c6326a9bbd3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435941
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/goobj/objfile.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arm64.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

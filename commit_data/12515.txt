@@ -1,25 +1,12 @@
-commit 52db02bef36de3c39f32cdcf059d6d45477ae449
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 8 22:34:59 2012 +1100
+commit d7d1b18a5de13bf5f8a4972182ae572b7ea3d41a
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Mar 8 22:22:36 2012 +1100
 
-    undo CL 5699082 / 6223c9fe432b
+    fmt: minor tweak of package doc to show headings in godoc
     
-    We decided not to record installs, for now at least.
-    
-    ««« original CL description
-    misc/dashboard: record install counts for external packages
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5699082
-    »»»
-    
-    R=golang-dev, dsymonds
-    CC=golang-dev
-    https://golang.org/cl/5790044
+    https://golang.org/cl/5781052
 
- misc/dashboard/app/app.yaml       |   4 +-
- misc/dashboard/app/build/build.go |  52 ----------
- misc/dashboard/app/build/pkg.go   | 201 --------------------------------------
- misc/dashboard/app/cron.yaml      |   4 -
- 4 files changed, 2 insertions(+), 259 deletions(-)
+ src/pkg/fmt/doc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

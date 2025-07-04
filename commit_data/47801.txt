@@ -1,18 +1,23 @@
-commit c948823cb7fc898eafb798ad15655663755d0bc9
-Author: MoZhonghua <Kasulle@gmail.com>
-Date:   Fri Nov 12 08:08:25 2021 +0000
+commit 70ed28e5f763d08ee0d3be7bde14b35ce3d6322e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 11 14:33:28 2021 -0400
 
-    runtime/cgo: fix signature of crosscall_amd64 in comment
+    cmd/compile: support memmove inlining with register args
     
-    In CL 289192, crosscall_amd64() was changed to recieve 3
-    arguments, but the comment was not updated.
+    The rule that inlines memmove expects SSA ops that calls memmove
+    with arguments in memory. This CL adds a version that matches
+    it with arguments in registers, so the optimization works for
+    both situations.
     
-    Change-Id: Iba36c27aa5189e50f3fcc2a50291fecb2ef722c1
-    GitHub-Last-Rev: e7c041f00c562fdfeec84f1f3ea341713dcc7bf5
-    GitHub-Pull-Request: golang/go#49539
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363442
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ideb64f65b7521481ab2ca7c9975a6cf7b70d5966
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309332
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/cgo/gcc_amd64.S | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 22 +++++++---
+ src/cmd/compile/internal/ssa/rewrite.go        |  6 +--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 58 ++++++++++++++++++++++++++
+ 3 files changed, 77 insertions(+), 9 deletions(-)

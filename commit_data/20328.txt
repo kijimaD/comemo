@@ -1,21 +1,18 @@
-commit 59dd20f4d3d3614edf665d79c1f4fa5f6f30d057
+commit 933169febb90b2a1551a09b5761fda75be9d964d
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Sep 6 21:19:24 2014 -0400
+Date:   Mon Sep 1 00:40:28 2014 -0400
 
-    runtime: fix windows syscalls for copying stacks
+    runtime: remove old malloc test programs
     
-    Syscall and everything it calls must be nosplit:
-    we cannot split a stack once Syscall has been invoked,
-    because we don't know which of its arguments are
-    pointers.
+    These haven't been run in ages.
     
-    LGTM=khr, r, alex.brainman
-    R=dvyukov, iant, khr, r, bradfitz, alex.brainman
-    CC=golang-codereviews
-    https://golang.org/cl/133670043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, iant, khr, r
+    https://golang.org/cl/134170043
 
- src/pkg/runtime/cgocall.go          |   2 +
- src/pkg/runtime/os_windows.c        |  17 +++-
- src/pkg/runtime/syscall_windows.c   | 166 ++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/syscall_windows.goc | 137 -----------------------------
- 4 files changed, 184 insertions(+), 138 deletions(-)
+ src/pkg/runtime/malloc1.go    |  26 --------
+ src/pkg/runtime/mallocrand.go |  93 ---------------------------
+ src/pkg/runtime/mallocrep.go  |  72 ---------------------
+ src/pkg/runtime/mallocrep1.go | 144 ------------------------------------------
+ 4 files changed, 335 deletions(-)

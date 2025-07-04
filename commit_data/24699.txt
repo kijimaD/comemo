@@ -1,15 +1,16 @@
-commit 48155f5440ab4ffb2e3c31646cecb504af735ff5
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Nov 2 17:37:31 2015 -0500
+commit 8e2d0e1c4c967ce1f9e689b9f7c73a1764d90a9d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 6 01:49:00 2015 -0700
 
-    misc/ios: fix an error when getenv encounters unset variable
+    hash/fnv: fix wiki url
     
-    The error message should indicate the name of the unset variable,
-    rather than the value. The value will alwayse be empty.
+    The URL is shown on go docs and is an eye-sore.
     
-    Change-Id: I6f6c165074dfce857b6523703a890d205423cd28
-    Reviewed-on: https://go-review.googlesource.com/16555
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    For go1.6.
+    
+    Change-Id: I8b8ea3751200d06ed36acfe22f47ebb38107f8db
+    Reviewed-on: https://go-review.googlesource.com/13282
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 2 +-
+ src/hash/fnv/fnv.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

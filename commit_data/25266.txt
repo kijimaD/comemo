@@ -1,18 +1,29 @@
-commit d26a0952a8f91e1c10c53a1cc910ca7d6b0c1d84
-Author: Péter Szilágyi <peterke@gmail.com>
-Date:   Sun Dec 13 21:04:06 2015 +0200
+commit 6de40099c88048c95df40c873e89b0e31f70ac24
+Author: Chris Hines <chris.cs.guy@gmail.com>
+Date:   Mon Sep 14 03:44:56 2015 -0400
 
-    runtime: init argc/argv for android/arm64 c-shared
+    database/sql: avoid deadlock waiting for connections
     
-    Analogous to https://go-review.googlesource.com/#/c/8457/ this
-    code synthesizes an set of program arguments for Android on the
-    arm64 architecture.
+    Previously with db.maxOpen > 0, db.maxOpen+n failed connection attempts
+    started concurrently could result in a deadlock. DB.conn and
+    DB.openNewConnection did not trigger the DB.connectionOpener go routine
+    after a failed connection attempt. This omission could leave go routines
+    waiting for DB.connectionOpener forever.
     
-    Change-Id: I851958b4b0944ec79d7a1426a3bb2cfc31746797
-    Reviewed-on: https://go-review.googlesource.com/17782
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    In addition the logic to track the state of the pool was inconsistent.
+    db.numOpen was sometimes incremented optimistically and sometimes not.
+    This change harmonizes the logic and eliminates the db.pendingOpens
+    variable, making the logic easier to understand and maintain.
+    
+    Fixes #10886
+    
+    Change-Id: I983c4921a3dacfbd531c3d7f8d2da8a592e9922a
+    Reviewed-on: https://go-review.googlesource.com/14547
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/rt0_android_arm64.s | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/database/sql/fakedb_test.go | 20 ++++++++++++++
+ src/database/sql/sql.go         | 24 ++++++++++------
+ src/database/sql/sql_test.go    | 61 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 97 insertions(+), 8 deletions(-)

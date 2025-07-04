@@ -1,19 +1,19 @@
-commit 5030146cfd5196281737b522ca91f2c59354c78b
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Tue Nov 12 17:23:36 2024 +0000
+commit 7d0b611dbee183ada5e16be9884b90c3cf64fe3f
+Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
+Date:   Mon Sep 11 11:27:30 2023 -0700
 
-    cmd/go: add bzr based version stamping for binaries
+    runtime/pprof: TestVMInfo reworked to avoid test flakiness.
     
-    This CL adds support for tagging binaries in a bzr vcs environment.
+    Fixes #62352.
     
-    For: #50603
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I81eb72d9e0e15dbec8778dd06613ca212820a726
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627295
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ib137a5f39d4630c4737badfabe8e6740593ecbcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527276
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/modfetch/codehost/vcs.go        |  4 ++++
- src/cmd/go/testdata/script/version_buildvcs_bzr.txt | 18 ++++++++++++++++++
- 2 files changed, 22 insertions(+)
+ src/runtime/pprof/vminfo_darwin_test.go | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

@@ -1,33 +1,60 @@
-commit c8313d4fa8ca04a1844edcb4a6e1f61cf13fd40e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 7 16:33:42 2022 -0500
+commit 2bf5ae0c28a28244c3e20ef65b75e9e90adb5251
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 14:16:05 2022 -0800
 
-    cmd/go: deflake TestScript/test2json_interrupt
+    go/types, types2: rename structuralType/String to coreType/String
     
-    - Start handling signals in 'go test' just before starting the test
-      subprocess instead of just after. (It is unlikely that starting the
-      process will cause cmd/go to hang in a way that requires signals to
-      debug, and it is possible that something the test does — such as
-      sending os.Interrupt to its parent processes — will immediately
-      send a signal that needs to be handled.)
+    This is a pure rename of the respective Go functions/methods
+    with corresponding adjustments to error messages and tests.
+    A couple of comments were manually rephrased.
     
-    - In the test-test, don't try to re-parse the parent PIDs after
-      sending signals, and sleep for a much shorter time interval.
-      (Overrunning the sleep caused the next call to strconv.Atoi — which
-      shouldn't even happen! — to fail with a parse error, leading to the
-      failure mode observed in
-      https://build.golang.org/log/f0982dcfc6a362f9c737eec3e7072dcc7ef29e32.)
+    With this change, the implementation and error messages match
+    the latest spec.
     
-    Fixes #56083.
-    Updates #53563.
+    No functionality change.
     
-    Change-Id: I346a95bdda5619632659ea854f98a9e17a6aede7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456115
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Iaa92a08b64756356fb2c5abdaca5c943c9105c96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384618
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/test/test.go                   |  2 +-
- src/cmd/go/testdata/script/test2json_interrupt.txt | 29 ++++++++++++----------
- 2 files changed, 17 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/noder/expr.go                 |  4 ++--
+ src/cmd/compile/internal/noder/writer.go               |  4 ++--
+ src/cmd/compile/internal/types2/builtins.go            | 18 +++++++++---------
+ src/cmd/compile/internal/types2/call.go                |  2 +-
+ src/cmd/compile/internal/types2/compilersupport.go     |  8 ++++----
+ src/cmd/compile/internal/types2/expr.go                |  8 ++++----
+ src/cmd/compile/internal/types2/index.go               |  4 ++--
+ src/cmd/compile/internal/types2/infer.go               | 12 ++++++------
+ src/cmd/compile/internal/types2/lookup.go              | 10 +++++-----
+ src/cmd/compile/internal/types2/predicates.go          |  4 ++--
+ src/cmd/compile/internal/types2/stmt.go                | 10 +++++-----
+ .../internal/types2/testdata/check/builtins.go2        |  6 +++---
+ .../internal/types2/testdata/check/typeparams.go2      | 12 ++++++------
+ .../internal/types2/testdata/examples/inference.go2    |  2 +-
+ .../internal/types2/testdata/examples/types.go2        |  4 ++--
+ .../internal/types2/testdata/fixedbugs/issue43671.go2  |  4 ++--
+ .../internal/types2/testdata/fixedbugs/issue47115.go2  |  4 ++--
+ .../internal/types2/testdata/fixedbugs/issue49735.go2  |  4 ++--
+ .../internal/types2/testdata/fixedbugs/issue50417.go2  |  2 +-
+ src/cmd/compile/internal/types2/type.go                | 10 +++++-----
+ src/go/types/builtins.go                               | 18 +++++++++---------
+ src/go/types/call.go                                   |  2 +-
+ src/go/types/expr.go                                   |  8 ++++----
+ src/go/types/index.go                                  |  4 ++--
+ src/go/types/infer.go                                  | 12 ++++++------
+ src/go/types/lookup.go                                 | 10 +++++-----
+ src/go/types/predicates.go                             |  4 ++--
+ src/go/types/stmt.go                                   | 10 +++++-----
+ src/go/types/testdata/check/builtins.go2               |  6 +++---
+ src/go/types/testdata/check/typeparams.go2             | 12 ++++++------
+ src/go/types/testdata/examples/inference.go2           |  2 +-
+ src/go/types/testdata/examples/types.go2               |  4 ++--
+ src/go/types/testdata/fixedbugs/issue43671.go2         |  4 ++--
+ src/go/types/testdata/fixedbugs/issue47115.go2         |  4 ++--
+ src/go/types/testdata/fixedbugs/issue49735.go2         |  4 ++--
+ src/go/types/testdata/fixedbugs/issue50417.go2         |  2 +-
+ src/go/types/type.go                                   | 10 +++++-----
+ test/typeparam/issue50417.go                           |  4 ++--
+ test/typeparam/typelist.go                             | 18 ++++++++++--------
+ 39 files changed, 136 insertions(+), 134 deletions(-)

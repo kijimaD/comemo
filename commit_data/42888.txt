@@ -1,19 +1,20 @@
-commit 6fc329bb7fbb78315e2f53895a9fc6cbed63c1d7
-Author: Marco <gazerro@open2b.com>
-Date:   Sun May 24 14:58:51 2020 +0200
+commit 2bfa8c37c3676d240ce947d58717fc8c0caa45f1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jan 22 17:06:15 2020 -0800
 
-    net/http/cgi: don't pass nil Body to the child handler
+    cmd/compile: use ellipses in ARM64 rules
     
-    For server requests, the http.Request Body should not be nil.
+    Also, explicitly zero AuxInt in some ops (like Div),
+    to make it clear why they do not use an ellipsis.
     
-    Fixes #39190
+    Passes toolstash-check -all.
     
-    Change-Id: I32de7b6c0f6ca55008fea9fd86089cda0a2dea62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235137
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iea0e807949f0899c43d2d21b9551a2cf00a829b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217006
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/cgi/child.go            |  3 +++
- src/net/http/cgi/integration_test.go | 21 +++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  261 ++-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 2582 +++++---------------------
+ 2 files changed, 583 insertions(+), 2260 deletions(-)

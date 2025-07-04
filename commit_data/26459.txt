@@ -1,16 +1,17 @@
-commit 7177cb9fa4c748e45aa4866ee77d648961368c3f
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 22 09:43:28 2016 -0700
+commit 038b8139433054c70f17494f4cd96dd4f3ddd696
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 23 23:31:23 2016 -0500
 
-    cmd/compile: remove dots from register names
+    net/url: allow spaces in IPv6 zone identifier for Windows
     
-    They are kind of useless and are cluttering up
-    https://go-review.googlesource.com/c/21000/
+    Windows: putting spaces where they don't belong since Windows NT 3.1.
     
-    Change-Id: Iafdec75ada11c7ebdc40540d251fdc514bb00d3d
-    Reviewed-on: https://go-review.googlesource.com/21001
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #14002.
+    
+    Change-Id: I48ba8a7bfe3f27f83c8aa8355a8d355933d6c5df
+    Reviewed-on: https://go-review.googlesource.com/18855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   73 +-
- src/cmd/compile/internal/ssa/opGen.go        | 1316 +++++++++++++-------------
- 2 files changed, 693 insertions(+), 696 deletions(-)
+ src/net/url/url.go      |  3 ++-
+ src/net/url/url_test.go | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

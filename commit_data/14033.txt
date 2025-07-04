@@ -1,15 +1,21 @@
-commit 782464aea540e9ebf720509ce627d192d84d92a7
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Oct 6 12:05:52 2012 +0200
+commit ebb0e5db758791966a1afb193ddb021d4250d5d6
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Oct 6 09:23:31 2012 +0200
 
-    runtime: fix a panic when growing zero-width-element slices.
+    test: Add rundir, rundircmpout and errorcheckdir commands to testlib and run.go
     
-    Fixes #4197.
+    rundir will compile each file in the directory in lexicographic order, link the last file as the main package and run the resulting program. rundircmpout is an related command, that will compare the output of the program to an corresponding .out file
     
-    R=golang-dev, r
+    errorcheckdir will compile each file in a directory in lexicographic order, running errorcheck on each file as it compiles. All compilations are assumed to be successful except for the last file. However, If a -0 flag is present on the command, the last compilation will also be assumed successful
+    
+    This CL also includes a small refactoring of run.go. It was getting unwieldy and the meaning of the run commands was hidden behind argument line formatting.
+    
+    Fixes #4058.
+    
+    R=rsc, minux.ma, remyoudompheng, iant
     CC=golang-dev
-    https://golang.org/cl/6611056
+    https://golang.org/cl/6554071
 
- src/pkg/runtime/slice.c  |  2 +-
- test/fixedbugs/bug457.go | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ test/run.go  | 143 ++++++++++++++++++++++++++++++++++++++++++++++++-----------
+ test/testlib |  40 +++++++++++++++++
+ 2 files changed, 156 insertions(+), 27 deletions(-)

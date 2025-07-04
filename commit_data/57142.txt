@@ -1,33 +1,24 @@
-commit 2ebe15c67e1989ccf962d587df1d4d18eb188da2
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Aug 7 11:52:39 2024 -0400
+commit 4ad4128d3c09e24f1e901635bd81ba2db7c46764
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Jun 26 11:30:48 2023 +0700
 
-    cmd/internal/obj/wasm: handle stack unwinding in wasmexport
+    cmd/compile: fix bad order of evaluation for min/max builtin
     
-    CL 603055 added basic support of wasmexport. This CL follows it
-    and adds stack unwinding handling. If the wasmexport Go function
-    returns normally, we directly return to the host. If the Go
-    function unwinds the stack (e.g. goroutine switch, stack growth),
-    we need to run a PC loop to call functions on the new stack,
-    similar to wasm_pc_f_loop. One difference is that when the
-    wasmexport function returns normally, we need to exit the loop and
-    return to the host.
+    For float or string, min/max builtin performs a runtime call, so we need
+    to save its result to temporary variable. Otherwise, the runtime call
+    will clobber closure's arguments currently on the stack when passing
+    min/max as argument to closures.
     
-    Now a wasmimport function can call back into the Go via wasmexport.
-    During the callback the stack could have moved. The wasmimport
-    code needs to read a new SP after the host function returns,
-    instead of assuming the SP doesn't change.
+    Fixes #60990
     
-    For #65199.
-    
-    Change-Id: I62c1cde1c46f7eb72625892dea41e8137b361891
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603836
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    Change-Id: I1397800f815ec7853182868678d0f760b22afff2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssagen/abi.go |  7 ++++
- src/cmd/internal/obj/wasm/wasmobj.go   | 65 +++++++++++++++++++++++-----------
- src/cmd/link/internal/wasm/asm.go      |  1 +
- src/runtime/asm_wasm.s                 | 52 +++++++++++++++++++++++++++
- 4 files changed, 105 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/walk/order.go |  4 +++-
+ test/fixedbugs/issue60990.go           | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

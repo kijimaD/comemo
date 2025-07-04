@@ -1,23 +1,29 @@
-commit 5670ff4ae593019c33b8095a6341deb657be34d7
-Author: korzhao <korzhao95@gmail.com>
-Date:   Mon Aug 16 22:25:47 2021 +0800
+commit be64c8becebace2304e6c16408f6988d1da55900
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 18:48:18 2020 -0500
 
-    cmd/compile: fix conversions from TypeParam to interface
+    [dev.regabi] cmd/compile: cleanup for concrete types - noder
     
-    If the TypeParam has all the methods of an interface, allow conversions from TypeParam to interface
+    An automated rewrite will add concrete type assertions after
+    a test of n.Op(), when n can be safely type-asserted
+    (meaning, n is not reassigned a different type, n is not reassigned
+    and then used outside the scope of the type assertion,
+    and so on).
     
-    Fixes #47708
+    This sequence of CLs handles the code that the automated
+    rewrite does not: adding specific types to function arguments,
+    adjusting code not to call n.Left() etc when n may have multiple
+    representations, and so on.
     
-    Change-Id: I40a82a31f6ea9354130dbe3bcfc83537094bf12c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342509
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This CL focuses on noder.go.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Ie870126b51558e83c738add8e91a2804ed6d7f92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277931
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go | 13 +++++++---
- test/typeparam/issue47708.go               | 40 ++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/noder.go | 79 ++++++++++++++++++++----------------
+ test/mainsig.go                      | 13 ++++++
+ 2 files changed, 58 insertions(+), 34 deletions(-)

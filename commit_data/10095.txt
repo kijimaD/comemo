@@ -1,12 +1,25 @@
-commit 81b014818cda818dbbbea53a2042dc77224b7963
+commit 5be33e95437d72f5ece5f7d5cc6f9773030e024e
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 22:20:35 2011 -0700
+Date:   Tue Oct 25 22:20:20 2011 -0700
 
-    govet: update signatures for rune
+    godoc, exp/ebnf, exp/types, go/scanner, scanner: use rune
     
-    R=r
+    API question: is a scanner token an int or a rune?
+    
+    Since the rune is the common case and the token values
+    are the special (negative) case, I chose rune.  But it could
+    easily go the other way.
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5301053
+    https://golang.org/cl/5301049
 
- src/cmd/govet/govet.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/godoc/dirtrees.go       |  2 +-
+ src/cmd/godoc/spec.go           |  4 ++--
+ src/pkg/exp/ebnf/ebnf.go        |  2 +-
+ src/pkg/exp/ebnf/parser.go      |  4 ++--
+ src/pkg/exp/types/gcimporter.go | 10 ++++-----
+ src/pkg/go/scanner/scanner.go   | 22 ++++++++++----------
+ src/pkg/scanner/scanner.go      | 46 ++++++++++++++++++++---------------------
+ src/pkg/scanner/scanner_test.go | 12 +++++------
+ 8 files changed, 51 insertions(+), 51 deletions(-)

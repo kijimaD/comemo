@@ -1,31 +1,15 @@
-commit e1a7db7f3b9c2d684c0ac4b0cc2c845f8b70fd85
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 26 10:18:41 2017 -0700
+commit 2770c507a54770b38c8654357cf0f47e3f0f3052
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 14 17:13:13 2017 -0800
 
-    cmd/compile: minor cleanup
+    cmd/compile: fix position for "missing type in composite literal" error
     
-    Follow-up to review comments on CL 41797.
+    Fixes #18231.
     
-    Mask the input to set2 and set3, so that at the very least,
-    we won't corrupt the rest of the flags in case of a bad input.
-    It also seems more semantically appropriate.
-    
-    Do minor cleanup in addrescapes. I started on larger cleanup,
-    but it wasn't clear that it was an improvement.
-    
-    Add warning comments and sanity checks to Initorder and Class constants,
-    to attempt to prevent them from overflowing their allotted flag bits.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I57b9661ba36f56406aa7a1d8da9b7c70338f9119
-    Reviewed-on: https://go-review.googlesource.com/41817
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If1615da4db0e6f0516369a1dc37340d80c78f237
+    Reviewed-on: https://go-review.googlesource.com/37018
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/bitset.go |  6 ++++--
- src/cmd/compile/internal/gc/gen.go    | 10 ++++------
- src/cmd/compile/internal/gc/go.go     | 22 +++++++++++++++-------
- src/cmd/compile/internal/gc/sinit.go  |  9 +++++----
- 4 files changed, 28 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  5 +----
+ test/fixedbugs/issue18231.go             | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

@@ -1,24 +1,15 @@
-commit 3778f8e07d06cabfccd1508295ad67270af078cd
-Author: David Chase <drchase@google.com>
-Date:   Fri Feb 19 18:00:48 2021 -0500
+commit 78c20c81aaa7d8d8a4aa2132806f51fb68f33a1e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 16 15:34:29 2020 -0400
 
-    cmd/compile: fix pointer maps for morestack
+    doc/go1.15: announce GO386=387 deprecation
     
-    Verified with test and with single step watching changes to register
-    values across morestack calls, after reload.
+    For #40255.
+    Updates #37419.
     
-    Also added stack-growth test with pointer parameters of varying lifetime.
-    
-    For #40724.
-    
-    Change-Id: Idb5fe27786ac5c6665a734d41e68d3d39de2f4da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294429
-    Trust: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Change-Id: If9210c855cc2eea079e7e469463d4203888748f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243137
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/liveness/plive.go | 16 ++++++
- src/cmd/compile/internal/ssa/value.go      | 12 +++--
- test/abi/uglyfib.go                        | 79 ++++++++++++++++++++++++++++++
- test/abi/uglyfib.out                       |  1 +
- 4 files changed, 104 insertions(+), 4 deletions(-)
+ doc/go1.15.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

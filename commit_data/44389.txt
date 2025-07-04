@@ -1,15 +1,22 @@
-commit 35b80eac7d2ba6cd632b3dc195f8588d95212fbf
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Feb 14 11:19:39 2021 +0100
+commit 3e95c5b0a100595105972a70dfcfa0856c91cb38
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 23 15:04:46 2020 -0400
 
-    hash/maphash: remove duplicate from Hash documentation
+    crypto/x509: update bundled iOS roots and rewrite generator
     
-    Fixes #44255
+    Switched the generator to using the open source releases of the root
+    store rather than HTML parsing, while trying to emulate the sorting
+    algorithm of the table to reduce churn.
     
-    Change-Id: I14d2edbee0a0c39e04111414a57d70ee2fdfb6af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291631
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #38843
+    
+    Change-Id: I78608d245eabc2a35c2f98635ed5f1a531ad2ba8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239557
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/hash/maphash/maphash.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/root.go                  |    2 +
+ src/crypto/x509/root_darwin_arm64.go     | 2137 +++++++++++++++++++++---------
+ src/crypto/x509/root_darwin_arm64_gen.go |  216 ++-
+ 3 files changed, 1646 insertions(+), 709 deletions(-)

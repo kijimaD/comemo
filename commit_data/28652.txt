@@ -1,15 +1,12 @@
-commit 4caf93c9571ed637cf3876042d263b0d8938a2fe
-Author: Oleg Vakheta <helginet@gmail.com>
-Date:   Fri Nov 27 17:07:58 2015 +0200
+commit eaf4ad6f7493c222a6b27609fcb24e950eb540ab
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jun 21 11:11:50 2016 -0400
 
-    fmt: add tests for parsenum
+    doc: describe vet -lostcancel in go1.7 release notes
     
-    Change-Id: Ie7b869892816a171d8c71612998cc32a190aeff9
-    Reviewed-on: https://go-review.googlesource.com/17227
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie1c95fd0869307551bfcf76bf45c13372723fbba
+    Reviewed-on: https://go-review.googlesource.com/24288
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/fmt/export_test.go |  1 +
- src/fmt/fmt_test.go    | 23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ doc/go1.7.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

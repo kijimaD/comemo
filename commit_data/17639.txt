@@ -1,12 +1,24 @@
-commit e903f5b26a34a38a1d91677958b2d0545d71e4f2
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Sep 18 10:48:11 2013 +1000
+commit 3d3bccc42145260869f9832107d8bdb5782a8608
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 17 17:10:48 2013 -0700
 
-    C: add Thomas Habets (Google CLA)
+    cmd/go: add basic docs on calling between Go and C/C++
     
-    R=golang-dev, dsymonds
+    This is a framework for docs on the subject more than it is
+    actual docs.
+    
+    The section header in go/doc.go just says "C", not "C/C++,"
+    because otherwise godoc doesn't recognize the line as a
+    section header.
+    
+    Fixes #5473.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13501050
+    https://golang.org/cl/13280050
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/build.go |  3 ++-
+ src/cmd/go/doc.go   | 23 ++++++++++++++++++++++-
+ src/cmd/go/help.go  | 22 ++++++++++++++++++++++
+ src/cmd/go/main.go  |  1 +
+ 4 files changed, 47 insertions(+), 2 deletions(-)

@@ -1,12 +1,15 @@
-commit eeb9822457e398f59b3620e2b719a950dcf891ff
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 20 08:06:58 2013 -0700
+commit b35019fe9ad730216bacc665fa8144c49be695ad
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Mar 20 08:32:11 2013 +0100
 
-    misc/swig: remove old broken Makefile
+    cmd/ld: remove remaining occurrence of isobj.
     
-    R=golang-dev, bradfitz
+    Fixes cgo builds.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7786046
+    https://golang.org/cl/7784044
 
- misc/swig/stdio/Makefile | 17 -----------------
- 1 file changed, 17 deletions(-)
+ src/cmd/ld/lib.h    | 1 -
+ src/cmd/ld/symtab.c | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

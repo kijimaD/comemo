@@ -1,24 +1,19 @@
-commit 190cb937f7acdc1568a09c0cbbe1c14031c94ca9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 19 18:48:16 2021 -0700
+commit 748c0d87e23eaae0ba133d2f613b82c009ac8cb4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 13 20:44:04 2020 -0400
 
-    cmd/compile/internal/types2: fix type inference
+    cmd/dist: only build ios_exec wrapper for ios
     
-    Don't let type parameters that are not filled in with concrete
-    type arguments escape from constraint type inference - such
-    inferred types are not "real".
+    Not for darwin/arm64.
     
-    While at it, implement a tparamsList.String method for debugging.
+    Updates #38485.
     
-    Fixes #45548.
-    
-    Change-Id: I40f13ff7af08d0357a5c66234bfcdd0b7ed5fdd6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311651
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I08a5f00fd77f20c9c483755a36755a63cf10aa1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262558
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- .../compile/internal/types2/fixedbugs/issue45548.go2  | 13 +++++++++++++
- src/cmd/compile/internal/types2/infer.go              | 19 +++++++++++++++++++
- src/cmd/compile/internal/types2/unify.go              | 18 ++++++++++++++++++
- 3 files changed, 50 insertions(+)
+ src/cmd/dist/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

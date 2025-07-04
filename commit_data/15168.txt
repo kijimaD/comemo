@@ -1,17 +1,15 @@
-commit 6dfd3860050282fb440d9ae9f6dbe49ece6af5a0
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 8 21:53:10 2013 +0900
+commit f42fa807a6b6293da5d8e8e3cdd36f690ca56e57
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Feb 8 08:19:47 2013 +0100
 
-    net: simplify Dial, Listen, ListenPacket and those helpers
+    cmd/5g: add missing splitclean.
     
-    R=golang-dev, dave, bradfitz
+    See issue 887 for the 8g analogue.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7300065
+    https://golang.org/cl/7306069
 
- src/pkg/net/dial.go            | 86 +++++++++++++-----------------------------
- src/pkg/net/fd_unix.go         |  4 +-
- src/pkg/net/fd_windows.go      |  4 +-
- src/pkg/net/ipraw_test.go      |  2 +-
- src/pkg/net/iprawsock.go       |  2 +-
- src/pkg/net/iprawsock_posix.go |  4 +-
- 6 files changed, 35 insertions(+), 67 deletions(-)
+ src/cmd/5g/ggen.c  | 1 +
+ src/cmd/5g/gsubr.c | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

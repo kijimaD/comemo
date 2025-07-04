@@ -1,23 +1,19 @@
-commit 5b4ea626e00e998eb9c72b9d80f1c167e72da569
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 10 11:21:51 2019 -0400
+commit a1d5e8adfa4d2f1043f4617fe20994ddbb7cc25c
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Tue Jan 8 01:13:01 2019 +0000
 
-    cmd/go: default to GO111MODULE=auto and make it trigger in GOPATH/src
+    cmd/go: fix typo in output of go help importpath
     
-    Fixes #31857
+    The output refers to 'go help modules-get' but the actual command is 'go
+    help module-get', singular.
     
-    Change-Id: Ib0b791376acb7ee1cdc163f808b8ecf77dbdaf06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176580
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ie001f4181d80d3bf1995af2f257bf789dad5b33f
+    GitHub-Last-Rev: ce9b90e9a656fbab097d440458e93ab29ba014af
+    GitHub-Pull-Request: golang/go#29605
+    Reviewed-on: https://go-review.googlesource.com/c/156737
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go                     |  5 ----
- src/cmd/go/internal/get/get.go                     |  5 ----
- src/cmd/go/internal/modload/init.go                | 33 ++--------------------
- .../go/testdata/script/get_insecure_redirect.txt   |  1 +
- src/cmd/go/testdata/script/mod_enabled.txt         | 21 ++++++++++----
- src/cmd/go/testdata/script/mod_find.txt            | 10 ++-----
- src/cmd/go/testdata/script/mod_get_warning.txt     | 10 -------
- src/cmd/go/testdata/script/mod_gobuild_import.txt  |  2 +-
- src/cmd/go/testdata/script/mod_off_init.txt        |  6 ++--
- 9 files changed, 25 insertions(+), 68 deletions(-)
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/help/helpdoc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

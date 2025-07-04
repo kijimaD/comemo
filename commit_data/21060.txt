@@ -1,24 +1,30 @@
-commit 7e424ecdc106be705ac9b114871bc6d34cecb622
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 16 15:59:05 2014 -0500
+commit 9f99d531a05027ea12315a6421edf0aa9f905d70
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:05:37 2014 -0500
 
-    cmd/5l,6l,8l: remove bogus dynsym section indexes
+    [dev.cc] runtime/cgo: convert from C to Go
     
-    Previously, this code generated bogus section indexes for dynamic
-    symbols.  It turns out this didn't matter, since we only emit these
-    when generating an executable and in an executable it only matters
-    whether a symbol is defined or undefined, but it leads to perplexing
-    code full of mysterious constants.
+    The conversion was done with an automated tool and then
+    modified only as necessary to make it compile and run.
     
-    Unfortunately, this happens too early to put in real section indexes,
-    so just use section index 1 to distinguish the symbol from an
-    undefined symbol.
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
     
-    Change-Id: I0e514604bf31f21683598ebd3e020b66acf767ef
-    Reviewed-on: https://go-review.googlesource.com/1720
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=r
+    R=r
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/168500043
 
- src/cmd/5l/asm.c | 20 ++------------------
- src/cmd/6l/asm.c | 20 ++------------------
- src/cmd/8l/asm.c | 20 ++------------------
- 3 files changed, 6 insertions(+), 54 deletions(-)
+ src/runtime/cgo.go                            | 23 +++++++
+ src/runtime/cgo/callbacks.c                   | 83 -----------------------
+ src/runtime/cgo/callbacks.go                  | 95 +++++++++++++++++++++++++++
+ src/runtime/cgo/{dragonfly.c => dragonfly.go} | 14 ++--
+ src/runtime/cgo/{freebsd.c => freebsd.go}     | 12 ++--
+ src/runtime/cgo/{iscgo.c => iscgo.go}         | 11 +++-
+ src/runtime/cgo/{netbsd.c => netbsd.go}       | 12 ++--
+ src/runtime/cgo/{openbsd.c => openbsd.go}     | 22 ++++---
+ src/runtime/cgo/setenv.c                      | 13 ----
+ src/runtime/cgo/setenv.go                     | 21 ++++++
+ src/runtime/cgocall.go                        | 16 ++---
+ src/runtime/env_posix.go                      | 10 ++-
+ 12 files changed, 186 insertions(+), 146 deletions(-)

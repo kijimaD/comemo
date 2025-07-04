@@ -1,21 +1,24 @@
-commit d0a468e52c6f7bc7e3cb4731f03e1693eb535a38
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Mon Jul 29 18:39:02 2024 +0000
+commit bd00528d0415a8b8f4ca08e61856e843b7d8672b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 17:41:06 2023 +0000
 
-    encoding: add TextAppender and BinaryAppender
+    Revert "net: remove fallback path in sysSocket"
     
-    For #62384
+    This reverts CL 40364.
     
-    Change-Id: I54707a29653df72ad9cd5633f434b87e0f630b94
-    GitHub-Last-Rev: 4f78947ac563d78f862c5c8de1c2e1578a8d6e08
-    GitHub-Pull-Request: golang/go#68620
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601595
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reason for revert: Fallback path is still required on Solaris.
+    
+    For #45964
+    For #59359
+    
+    Change-Id: I4b8c8af77ee987cad6617221793b90c9a8829c3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501276
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- api/next/62384.txt                           |  4 ++++
- doc/next/6-stdlib/99-minor/encoding/62384.md |  5 +++++
- src/encoding/encoding.go                     | 24 ++++++++++++++++++++++++
- 3 files changed, 33 insertions(+)
+ src/net/sock_cloexec.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

@@ -1,0 +1,46 @@
+commit 86bec1ec198f2720c83bd232a72b800b4ea5a9f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 29 15:29:08 2024 -0700
+
+    go/types: record pointer and parentheses in receiver expressions
+    
+    CL 594740 rewrote type checking of method receiver types. Because that
+    CL takes apart receivers "manually" rather than using the regular code
+    for type checking type expressions, pointer and parenthesized receiver
+    type expressions were not recorded anymore.
+    
+    Adjust the code that typechecks method receivers to a) use ordinary
+    type expression checking for non-generic receivers, and b) to record
+    a missing pointer and any intermediate parenthesized expressions in
+    case of a generic receiver.
+    
+    Add many extra tests verifying that the correct types for parenthesized
+    and pointer type expressions are recorded in various source positions.
+    
+    Note that the parser used by the compiler and types2 doesn't encode
+    unnecessary parentheses in type expressions in its syntax tree.
+    As a result, the tests that explicitly test parentheses don't work
+    in types2 and are commented out.
+    
+    This CL adds code (disabled by default) to the parser to encode
+    parentheses in type expressions in the syntax tree. When enabled,
+    the commented out types2 tests pass like in go/types.
+    
+    Fixes #68639.
+    For #51343.
+    
+    Change-Id: Icf3d6c76f7540ee53e229660be8d78bb25380539
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601657
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/syntax/parser.go    |  10 +++
+ src/cmd/compile/internal/types2/api_test.go  | 112 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/expr.go      |   2 +-
+ src/cmd/compile/internal/types2/signature.go |  57 +++++++++++---
+ src/go/types/api_test.go                     | 110 ++++++++++++++++++++++++++
+ src/go/types/expr.go                         |   2 +-
+ src/go/types/signature.go                    |  53 ++++++++++---
+ 7 files changed, 326 insertions(+), 20 deletions(-)

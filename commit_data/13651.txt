@@ -1,16 +1,13 @@
-commit 98883c811a217aa562f92e9bc03be3cd4fac5b5f
+commit 6918357031df3a7e3373fcb0b28657ead4afc1bb
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Aug 20 10:56:19 2012 +0200
+Date:   Mon Aug 20 10:55:40 2012 +0200
 
-    exp/locale/collate: let regtest generate its own collation table.
-    The main table will need to get a slightly different collation table as the one
-    used by regtest, as the regtest is based on the standard UCA DUCET, while
-    the locale-specific tables are all based on a CLDR root table.
-    This change allows changing the table without affecting the regression test.
+    exp/locale/collate: Added test flag to maketables tool for comparing newly
+    against previously generated tables.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/6453089
+    https://golang.org/cl/6441098
 
- src/pkg/exp/locale/collate/regtest.go | 92 ++++++++++++++++++++++++++++++++---
- 1 file changed, 85 insertions(+), 7 deletions(-)
+ src/pkg/exp/locale/collate/maketables.go | 89 +++++++++++++++++++++++++++-----
+ 1 file changed, 77 insertions(+), 12 deletions(-)

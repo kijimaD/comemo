@@ -1,53 +1,16 @@
-commit a65b4904fc2a179289a241aeb010b5a33e377d2c
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Mon Aug 21 10:09:54 2023 +0200
+commit 09919ac3396f1de63dd5556758ac2dd10ecb9b9f
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 00:29:30 2022 +0800
 
-    cmd/compile: use MOVQ + MOVL for 11 byte moves
+    encoding/xml: use bytes.Clone
     
-    Instead of using two MOVQ, use a shorter MOVL for the remaining 3 bytes.
-    
-    compilecmp (linux/amd64):
-    
-    runtime/pprof
-    runtime/pprof.printCountProfile.func1 875 -> 869  (-0.69%)
-    
-    fmt [cmd/compile]
-    fmt.Sprintf 5009 -> 4977  (-0.64%)
-    
-    runtime/pprof [cmd/compile]
-    runtime/pprof.printCountProfile.func1 875 -> 869  (-0.69%)
-    
-    cmd/vendor/github.com/ianlancetaylor/demangle
-    cmd/vendor/github.com/ianlancetaylor/demangle.(*GlobalCDtor).print 957 -> 938  (-1.99%)
-    cmd/vendor/github.com/ianlancetaylor/demangle.(*ImaginaryType).printInner 270 -> 261  (-3.33%)
-    cmd/vendor/github.com/ianlancetaylor/demangle.(*TemplateTemplateParam).print 876 -> 874  (-0.23%)
-    
-    cmd/cgo/internal/test
-    cmd/cgo/internal/test.test18146.func1 73 -> 66  (-9.59%)
-    
-    cmd/go/internal/work
-    cmd/go/internal/work.(*Builder).gccSupportsFlag 3469 -> 3461  (-0.23%)
-    
-    file                                            before   after    Δ       %
-    runtime/pprof.s                                 79729    79723    -6      -0.008%
-    fmt [cmd/compile].s                             83679    83647    -32     -0.038%
-    runtime/pprof [cmd/compile].s                   79729    79723    -6      -0.008%
-    cmd/vendor/github.com/ianlancetaylor/demangle.s 254999   254969   -30     -0.012%
-    cmd/cgo/internal/test.s                         212272   212265   -7      -0.003%
-    cmd/go/internal/work.s                          287700   287692   -8      -0.003%
-    cmd/compile/internal/ssa.s                      3193233  3193553  +320    +0.010%
-    cmd/compile/internal/ssa [cmd/compile].s        3362126  3362446  +320    +0.010%
-    total                                           30810158 30810709 +551    +0.002%
-    
-    Change-Id: Iad09a42fb247c85ca1c649c367aaf75a620dbbc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521475
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
+    Change-Id: I3218b1e3f8869f579facddb29471df13c835dc66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435281
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/AMD64.rules |  5 ++++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go  | 25 +++++++++++++++++++++++--
- 2 files changed, 27 insertions(+), 3 deletions(-)
+ src/encoding/xml/xml.go | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)

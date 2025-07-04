@@ -1,14 +1,18 @@
-commit c100a0f6680318cb0511b0ecebccb1cdf0eae9b3
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Sep 19 22:13:22 2017 +0900
+commit 59096edb4aa4a43e984439682cc9b379a1d0c2c0
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue May 23 19:40:52 2017 -0600
 
-    cmd/dist: test: use existing globals rather than environment variables
+    net/http: polish gzip case insensitive test
     
-    Change-Id: Ief6bad2d15461d455e7230eadd9b42b27d04ec8b
-    Reviewed-on: https://go-review.googlesource.com/64630
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Avoid directly using the binary of the
+    gzipped encoded string in the handler.
+    
+    Follow up of CL 37431.
+    
+    Change-Id: Idcd04acb7940e67b7a35b2d6cb163d75b0e22e04
+    Reviewed-on: https://go-review.googlesource.com/44008
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 122 ++++++++++++++++++++++-----------------------------
- 1 file changed, 52 insertions(+), 70 deletions(-)
+ src/net/http/transport_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

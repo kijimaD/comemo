@@ -1,27 +1,30 @@
-commit 9f33108dfa22946622a8a78b5cd3f64cd3e455dd
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Jun 23 12:02:54 2020 -0400
+commit 5d8a61a43eea306b4426adf8b903135517b019c9
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 9 14:58:18 2020 -0800
 
-    cmd/link: skip zero values in fingerprint check
+    cmd/compile: print recursive types correctly
     
-    Normally, packages are loaded in dependency order, and if a
-    Library object is not nil, it is already loaded with the actual
-    fingerprint. In shared build mode, however, packages may be added
-    not in dependency order (e.g. go install -buildmode=shared std
-    adds all std packages before loading them), and it is possible
-    that a Library's fingerprint is not yet loaded. Skip the check
-    in this case (when the fingerprint is the zero value).
+    Change the type printer to take a map of types that we're currently
+    printing. When we happen upon a type that we're already in the middle
+    of printing, print a reference to it instead.
     
-    Fixes #39777.
+    A reference to another type is built using the offset of the first
+    byte of that type's string representation in the result. To facilitate
+    that computation (and it's probably more efficient, regardless), we
+    print the type to a buffer as we go, and build the string at the end.
     
-    Change-Id: I66208e92bf687c8778963ba8e33e9bd948f82f3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239517
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    It would be nice to use string.Builder instead of bytes.Buffer, but
+    string.Builder wasn't around in Go 1.4, and we'd like to bootstrap
+    from that version.
+    
+    Fixes #29312
+    
+    Change-Id: I49d788c1fa20f770df7b2bae3b9979d990d54803
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214239
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/testshared/shared_test.go             | 6 ++++++
- misc/cgo/testshared/testdata/issue39777/a/a.go | 9 +++++++++
- misc/cgo/testshared/testdata/issue39777/b/b.go | 7 +++++++
- src/cmd/link/internal/ld/ld.go                 | 7 ++++++-
- 4 files changed, 28 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go          | 304 +++++++++++++++-------------
+ src/cmd/compile/internal/gc/main.go         |   4 +-
+ src/cmd/compile/internal/ssa/export_test.go |   2 +-
+ src/cmd/compile/internal/types/utils.go     |  12 +-
+ 4 files changed, 169 insertions(+), 153 deletions(-)

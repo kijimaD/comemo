@@ -1,29 +1,20 @@
-commit d6653fed98518f9e76e72a7e26bf062933d2c131
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jun 16 00:12:50 2011 +1000
+commit 39208939c66a375a01a6b464b13e5b2d8bf86998
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 15 21:35:34 2011 +1000
 
-    http: use runtime/debug.Stack() to dump stack trace on panic.
-    Test output now looks like this:
+    go/build: better, self-contained tests
     
-    2011/06/15 21:10:41 http: panic serving 127.0.0.1:59729: intentional death for testing
-    $GOROOT/src/pkg/http/server.go:495 (0x3f9f8)
-            _func_004: buf.Write(debug.Stack())
-    $GOROOT/src/pkg/runtime/proc.c:1041 (0x12367)
-            panic: reflect·call(d->fn, d->args, d->siz);
-    $GOROOT/src/pkg/http/serve_test.go:775 (0x5831b)
-            _func_029: panic("intentional death for testing")
-    $GOROOT/src/pkg/http/server.go:575 (0x26366)
-            HandlerFunc.ServeHTTP: f(w, r)
-    $GOROOT/src/pkg/http/server.go:541 (0x261a9)
-            *conn.serve: c.handler.ServeHTTP(w, w.req)
-    $GOROOT/src/pkg/runtime/proc.c:178 (0x10a83)
-            goexit: runtime·goexit(void)
-    
-    with $GOROOT expanded, of course.
-    
-    R=bradfitz, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4607051
+    https://golang.org/cl/4576063
 
- src/pkg/http/server.go | 18 ++----------------
- 1 file changed, 2 insertions(+), 16 deletions(-)
+ src/pkg/go/build/Makefile             |  2 +-
+ src/pkg/go/build/build_test.go        | 67 ++++++++++++++++++++---------------
+ src/pkg/go/build/cgotest/cgotest.go   | 12 +++++++
+ src/pkg/go/build/cgotest/file.go      | 45 -----------------------
+ src/pkg/go/build/cmdtest/main.go      | 12 +++++++
+ src/pkg/go/build/pkgtest/pkgtest.go   |  9 +++++
+ src/pkg/go/build/pkgtest/sqrt_386.s   | 10 ++++++
+ src/pkg/go/build/pkgtest/sqrt_amd64.s |  9 +++++
+ src/pkg/go/build/pkgtest/sqrt_arm.s   | 10 ++++++
+ 9 files changed, 102 insertions(+), 74 deletions(-)

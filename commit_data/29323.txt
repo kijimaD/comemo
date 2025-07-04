@@ -1,89 +1,19 @@
-commit 688995d1e91fcc36ac33bf34d6303e935d1b0a70
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Oct 28 11:37:45 2016 -0700
+commit d38d59ffb5d56c838b1ed7cc346b8d63398b5452
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Sep 8 19:27:24 2016 -0400
 
-    cmd/compile: do more type conversion inline
+    runtime: fix SIGILL in checkvectorfacility on s390x
     
-    The code to do the conversion is smaller than the
-    call to the runtime.
-    The 1-result asserts need to call panic if they fail, but that
-    code is out of line.
+    STFLE does not necessarily write to all the double-words that are
+    requested. It is therefore necessary to clear the target memory
+    before calling STFLE in order to ensure that the facility list does
+    not contain false positives.
     
-    The only conversions left in the runtime are those which
-    might allocate and those which might need to generate an itab.
+    Fixes #17032.
     
-    Given the following types:
-      type E interface{}
-      type I interface { foo() }
-      type I2 iterface { foo(); bar() }
-      type Big [10]int
-      func (b Big) foo() { ... }
-    
-    This CL inlines the following conversions:
-    
-    was assertE2T
-      var e E = ...
-      b := i.(Big)
-    was assertE2T2
-      var e E = ...
-      b, ok := i.(Big)
-    was assertI2T
-      var i I = ...
-      b := i.(Big)
-    was assertI2T2
-      var i I = ...
-      b, ok := i.(Big)
-    was assertI2E
-      var i I = ...
-      e := i.(E)
-    was assertI2E2
-      var i I = ...
-      e, ok := i.(E)
-    
-    These are the remaining runtime calls:
-    
-    convT2E:
-      var b Big = ...
-      var e E = b
-    convT2I:
-      var b Big = ...
-      var i I = b
-    convI2I:
-      var i2 I2 = ...
-      var i I = i2
-    assertE2I:
-      var e E = ...
-      i := e.(I)
-    assertE2I2:
-      var e E = ...
-      i, ok := e.(I)
-    assertI2I:
-      var i I = ...
-      i2 := i.(I2)
-    assertI2I2:
-      var i I = ...
-      i2, ok := i.(I2)
-    
-    Fixes #17405
-    Fixes #8422
-    
-    Change-Id: Ida2367bf8ce3cd2c6bb599a1814f1d275afabe21
-    Reviewed-on: https://go-review.googlesource.com/32313
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I7bec9ade7103e747b72f08562fe57e6f091bd89f
+    Reviewed-on: https://go-review.googlesource.com/28850
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 130 ++++++++--------
- src/cmd/compile/internal/gc/builtin/runtime.go |  17 +--
- src/cmd/compile/internal/gc/go.go              |  30 ++--
- src/cmd/compile/internal/gc/pgen.go            |   5 +
- src/cmd/compile/internal/gc/racewalk.go        |  12 +-
- src/cmd/compile/internal/gc/ssa.go             | 196 +++++++++++++++++++++---
- src/cmd/compile/internal/gc/walk.go            | 131 +---------------
- src/cmd/compile/internal/ssa/gen/generic.rules |   4 +
- src/cmd/compile/internal/ssa/rewritegeneric.go |  32 ++++
- src/runtime/export_test.go                     |   3 -
- src/runtime/gc_test.go                         |  42 ------
- src/runtime/iface.go                           | 200 ++++++-------------------
- src/runtime/mfinal.go                          |   4 +-
- test/interface/assertinline.go                 |  33 ++--
- 14 files changed, 375 insertions(+), 464 deletions(-)
+ src/runtime/asm_s390x.s | 1 +
+ 1 file changed, 1 insertion(+)

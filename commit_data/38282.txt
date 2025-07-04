@@ -1,17 +1,18 @@
-commit a6436a5655f56bb904871fece7db43a3ad3bf415
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 6 17:31:04 2019 -0800
+commit e861c3e003b37622603ff690aba5e62c0ddb31c2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 16 15:53:38 2018 -0700
 
-    cmd/cgo: use explicit type for arg with bad pointer typedef
+    cmd/compile: simplified test case (cleanup)
     
-    Fixes #30646
+    Follow-up on https://golang.org/cl/124595; no semantic changes.
     
-    Change-Id: I5b7e986b0588e87b9781cce01445e3c55c06b6fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165897
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #26411.
+    
+    Change-Id: Ic1c4622dbf79529ff61530f9c25ec742c2abe5ca
+    Reviewed-on: https://go-review.googlesource.com/c/142720
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cgo/gcc.go  | 6 +++++-
- src/cmd/cgo/main.go | 1 +
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ test/fixedbugs/issue26411.go | 30 ++++++++++++++----------------
+ 1 file changed, 14 insertions(+), 16 deletions(-)

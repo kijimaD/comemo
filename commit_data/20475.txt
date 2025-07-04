@@ -1,13 +1,17 @@
-commit e4fa1e40354dfd1e16c2b1f912bfbbdc8c0dfa9f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 18 16:53:35 2014 -0700
+commit b78d7b75c793ee676d4d7700610bd5030c5fea2f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 10 12:37:28 2014 -0700
 
-    go/doc: document rationale for recent change
+    reflect: use runtime's memmove instead of its own
     
-    LGTM=adg
-    R=adg
+    They will both need write barriers at some point.
+    But until then, no reason why we shouldn't share.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/143290043
+    https://golang.org/cl/141330043
 
- src/go/doc/exports.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/reflect/value.go | 29 +++--------------------------
+ src/runtime/thunk.s  |  3 +++
+ 2 files changed, 6 insertions(+), 26 deletions(-)

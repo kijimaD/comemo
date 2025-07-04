@@ -1,21 +1,17 @@
-commit 24af43fa660d212af8b5609ec715b937989eb021
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Jul 28 19:27:22 2023 +1000
+commit 7d83d320c0c290a259fa9dcf9ecfb3e0402be30c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Sep 2 10:31:34 2022 +0800
 
-    cmd/internal/obj/mips: use obj.REG_NONE rather than 0
+    runtime: convert local var ready at TestMemmoveAtomicity to atomic type
     
-    Instead of comparing register values to 0, use obj.REG_NONE to improve
-    readability. No functional change.
+    For #53821
     
-    Change-Id: I848f7ab7e27fe7e5e9fe2caf9cce47e372c6cd6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514096
+    Change-Id: I2487b8d18a4cd3fc6e64fbbb531419812bfe0f08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427136
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Rong Zhang <rongrong@oss.cipunited.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Junxian Zhu <zhujunxian@oss.cipunited.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/internal/obj/mips/asm0.go | 70 +++++++++++++++++++--------------------
- 1 file changed, 35 insertions(+), 35 deletions(-)
+ src/runtime/memmove_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

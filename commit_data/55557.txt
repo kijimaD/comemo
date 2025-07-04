@@ -1,34 +1,19 @@
-commit 643d816c8b4348850a8a2a622d73256beea104cd
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Feb 5 16:38:41 2024 -0500
+commit cad872f75a1946ea49397a33e269dabe56febff6
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Feb 22 13:17:30 2023 -0500
 
-    runtime: traceback: include pc=0x%x for inline frames
+    doc: start draft Go 1.21 release notes
     
-    Crash monitoring tools may parse the PC values and feed them
-    to CallersFrames, which does not run the inline unwinder, since
-    Callers already did so. So, the GOTRACEBACK=system output
-    must also include PC values even for inlined frames.
-    (The actual values are just marker NOP instructions,
-    but that isn't important.)
+    This initial release notes template is based on previous releases.
     
-    This CL also includes a test that the PC values can be
-    parsed out of the crash report and fed to CallersFrames
-    to yield a sensible result. (The logic is a distillation
-    of the x/telemetry crashmonitor.)
+    For #58645.
     
-    The previously printed PCs were in fact slightly wrong
-    for frames containing inlined calls: instead of the
-    virtual CALL instruction (a NOP) to the first
-    inlined call, it would display the PC of the
-    CALL in the innermost inlined function.
-    
-    Change-Id: I64a06771fc191ba16c1383b8139b714f4f299703
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561635
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I8bae25d6dd9778a69963b8b4903a6dc1c180e15f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470296
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/runtime/crash_test.go            |  13 ++
- src/runtime/traceback.go             |  24 +++-
- src/runtime/traceback_system_test.go | 235 +++++++++++++++++++++++++++++++++++
- 3 files changed, 266 insertions(+), 6 deletions(-)
+ doc/go1.21.html | 77 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

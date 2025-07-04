@@ -1,17 +1,25 @@
-commit 29eca06ff078b2ebb60791988f83468d72ed44ef
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Apr 16 09:41:05 2018 +1000
+commit f047422a181d245c25127eb8e6d44502df36d376
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 11:42:48 2017 -0500
 
-    cmd/vet: fix panic in dead code checker on ill-formed switch statements.
+    cmd/go: fix -covermode=atomic use of sync/atomic in -coverpkg matches
     
-    A switch statement without a tag requires case values to be bools, but
-    the parser does not enforce that, so AST-walking code needs to take
-    care.
+    If we're using -covermode=atomic with -coverpkg, to add coverage
+    to more than just the package being tested, then we need to make sure
+    to make sync/atomic available to the compiler for every package
+    being recompiled for coverage.
     
-    Change-Id: I7d9abbb0324314e02a37813c2d2f6adb0d6af5e7
-    Reviewed-on: https://go-review.googlesource.com/107375
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #22728.
+    
+    Change-Id: I27f88f6a62e37d4a7455554cd03c8ca2b21f81a4
+    Reviewed-on: https://go-review.googlesource.com/81497
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/dead.go              | 2 +-
- src/cmd/vet/testdata/deadcode.go | 9 +++++++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go                      | 8 ++++++++
+ src/cmd/go/internal/test/test.go           | 3 +++
+ src/cmd/go/testdata/src/coverdep/p.go      | 6 ++++++
+ src/cmd/go/testdata/src/coverdep/p1/p1.go  | 3 +++
+ src/cmd/go/testdata/src/coverdep/p_test.go | 7 +++++++
+ 5 files changed, 27 insertions(+)

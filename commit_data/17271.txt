@@ -1,17 +1,14 @@
-commit 95e0a8c277ae2bb50fd5628eb3222f9d12ed81af
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 15 16:47:31 2013 -0700
+commit 5ce78b7cd281b187a06dcdb9ea9d1de8419db297
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 15 14:33:26 2013 -0400
 
-    net/http: unify the confusingly-named serve_test and server_test
+    spec: &x panics if x does
     
-    One was tiny. One was gigantic. Now one is gone and one is giganticer.
+    See golang.org/s/go12nil for the extended version.
     
-    No code changes.
-    
-    R=golang-dev, adg
+    R=golang-dev, r, adonovan
     CC=golang-dev
-    https://golang.org/cl/13025043
+    https://golang.org/cl/12964043
 
- src/pkg/net/http/serve_test.go  |  92 +++++++++++++++++++++++++++++++++++
- src/pkg/net/http/server_test.go | 104 ----------------------------------------
- 2 files changed, 92 insertions(+), 104 deletions(-)
+ doc/go_spec.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

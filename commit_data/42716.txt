@@ -1,23 +1,31 @@
-commit f30044a03bc7cf107dbec03c02fb6d0072878252
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jun 25 19:11:28 2020 -0400
+commit 38437ce118e60ff562406a771802e3ed466bd789
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 7 10:26:06 2020 -0500
 
-    cmd/go/internal: remove some users of par.Work
+    [dev.link] cmd/link: only read necessary fields in deadcode pass
     
-    par.Work is used in a number of places as a parallel
-    work queue. This change replaces it with goroutines
-    and channels in a number of simpler places where it's
-    used.
+    Reading unnecessary fields from object file take time, even from
+    memory mapping. In deadcode, we do this a alot, so only read
+    necessary ones. In particular, for relocations, for non-type
+    symbols, we only need their target symbols and reloc types to
+    build the dependency graph, so don't read other fields. This
+    should speed up the deadcode pass.
     
-    Change-Id: I0620eda46ec7b2c0599a8b9361639af7bb73a05a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248326
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Also cache an object's number of defined package symbols, as it
+    is accessed a lot in resolve.
+    
+    This is a bit ugly from an API point of view. It would be nice if
+    the compiler could figure out some fields are not used so don't
+    fill them.
+    
+    Change-Id: I5c4e9526b8a3b0aead9fa71901a51fb214f013a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218479
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/modcmd/download.go | 69 +++++++++++++++++++---------------
- src/cmd/go/internal/modcmd/graph.go    | 19 +++++-----
- src/cmd/go/internal/modconv/convert.go | 59 ++++++++++++++++-------------
- src/cmd/go/internal/modget/get.go      | 41 +++++++++++++-------
- src/cmd/go/internal/modload/list.go    | 37 +++++++++++-------
- 5 files changed, 133 insertions(+), 92 deletions(-)
+ src/cmd/internal/goobj2/objfile.go     | 15 ++++++++++++++
+ src/cmd/link/internal/ld/deadcode2.go  | 18 ++++++++++++++--
+ src/cmd/link/internal/loader/loader.go | 38 ++++++++++++++++++++++++----------
+ 3 files changed, 58 insertions(+), 13 deletions(-)

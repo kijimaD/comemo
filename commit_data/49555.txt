@@ -1,28 +1,30 @@
-commit 3580ef9d64bdc0176cde032d170737a6e67ef8f2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 24 15:36:25 2022 -0400
+commit 4f0dedca7141afafbc01be96097570de2da2bdcc
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 24 14:50:05 2021 -0700
 
-    os/exec: on Windows, suppress ErrDot if the implicit path matches the explicit one
+    cmd/compile: fix parameterized interfaces
     
-    If the current directory is also listed explicitly in %PATH%,
-    this changes the behavior of LookPath to prefer the explicit name for it
-    (and thereby avoid ErrDot).
+    type I[T any] interface{}
     
-    However, in order to avoid running a different executable from what
-    would have been run by previous Go versions, we still return the
-    implicit path (and ErrDot) if it refers to a different file entirely.
+    This is an interface, but it has a type parameter.
+    We need to distinguish that from an interface that is not parameterized.
     
-    Fixes #53536.
-    Updates #43724.
+    That means when doing type substitution on an interface with
+    parameters, we need to make a new one.
     
-    Change-Id: I7ab01074e21a0e8b07a176e3bc6d3b8cf0c873cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414054
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Same for non-empty interfaces. Even if the type parameter is not
+    used in any method, we sill need to make a new type.
+    
+    Similar case to tstruct, above.
+    
+    Change-Id: I23ad9f21d2c4ef675bf3f7d84899d9e4919d05e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344578
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/os/exec/dot_test.go   | 98 ++++++++++++++++++++++++++++++++++++++++++++---
- src/os/exec/lp_windows.go | 25 +++++++++++-
- 2 files changed, 116 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/typecheck/subr.go | 15 +++++--
+ test/typeparam/eface.go                    | 71 ++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 3 deletions(-)

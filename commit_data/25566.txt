@@ -1,16 +1,17 @@
-commit 166cfd2c878a806897526ba7bfecda060323cba5
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 13 12:45:52 2016 -0500
+commit d841860f43ded5b1f3663d2d5fe9034c65ee7b6b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 10 10:39:38 2015 -0800
 
-    runtime: arrange to show a few local variables when cgoCheckUnknownPointer panics
+    misc/cgo/test: disable Test10303 for gccgo
     
-    For #13934.
+    When using gccgo it's OK if a pointer passed to C remains on the stack.
+    Gccgo does not have the clear distinction between C and Go stacks.
     
-    Change-Id: Id399e35598def96f8bb89b9fcd1bf14ee06e2e62
-    Reviewed-on: https://go-review.googlesource.com/18612
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I3af9dd6fe078214ab16d9d8dad2d206608d7891d
+    Reviewed-on: https://go-review.googlesource.com/16774
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/cgocall.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ misc/cgo/test/issue10303.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

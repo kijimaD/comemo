@@ -1,20 +1,27 @@
-commit 02952ad7a84846524a15f4e2b0db8083f74ce836
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Tue Apr 3 22:33:03 2018 +0300
+commit b44b2feb914d866250f2efb744b24de0ce8c161a
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Nov 14 08:53:56 2017 -0800
 
-    math/big: remove "else" from if with block that ends with return
+    database/sql: allow OpenConnector in a driver.Driver interface
     
-    That "else" was needed due to gc DCE limitations.
-    Now it's not the case and we can avoid go lint complaints.
-    (See #23521 and https://golang.org/cl/91056.)
+    While driver.Connector was previously added to allow non-string
+    connection arguments and access to the context, most users of
+    the sql package will continue to rely on a string DSN.
     
-    There is inlining test for bigEndianWord, so if test
-    is passing, no performance regression should occur.
+    Allow drivers to implement a string DSN to Connector interface
+    that both allows a single parsing of the string DSN and uses
+    the Connector interface which passes available context to
+    the driver dialer.
     
-    Change-Id: Id84d63f361e5e51a52293904ff042966c83c16e9
-    Reviewed-on: https://go-review.googlesource.com/104555
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #22713
+    
+    Change-Id: Ia0b862262f4c4670effe2538d0d6d43733fea18d
+    Reviewed-on: https://go-review.googlesource.com/77550
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/nat.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/database/sql/driver/driver.go | 11 +++++++++++
+ src/database/sql/fakedb_test.go   | 10 ++++++++++
+ src/database/sql/sql.go           |  8 ++++++++
+ src/database/sql/sql_test.go      | 13 +++++++++++++
+ 4 files changed, 42 insertions(+)

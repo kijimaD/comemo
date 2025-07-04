@@ -1,19 +1,36 @@
-commit d8782e7061fab0644af8d20180a4d3821402787a
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 26 15:04:37 2023 -0400
+commit db84f5315ff19fd2ad70f07193749ef377a028e2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 11 10:48:12 2022 -0700
 
-    cmd/go: remove stray reference to mkalldocs.sh
+    cmd/compile/internal/noder: fix implicit conversion position
     
-    Clean up a stray reference in the docs to 'mkalldocs.sh', which no
-    longer exists (was replaced by a Go program, in 676794f73e).
+    In go.dev/cl/413396, I implemented implicit conversions by setting the
+    conversion's position to the enclosing statement that necessitated the
+    conversion. However, users actually want the position information to
+    be at the expression itself, and this seems sensible anyway.
     
-    Change-Id: I058e86395b14756d7afc184f99f89dbc5ba0184e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498715
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
+    This was noticed because x/tools had a test for:
+    
+            fmt.Println(42)
+    
+    and it was checking where the escape analysis diagnostic for
+    `42` (really `any(42)`) was reported.
+    
+    Historically, we reported the column of the `4`; but CL 413396 caused
+    unified IR to instead report the column of the `(` instead (the
+    position associated with the call expression, which forced `42` to be
+    implicitly converted from `int` to `any`).
+    
+    I chalk this mistake up to being accustomed to working with ir, where
+    we can't reliably use n.Pos() because of how ONAME positions work, so
+    I was trying to avoid relying on the implicitly converted expression's
+    own position.
+    
+    Change-Id: I762076af6f65ebe6d444d64630722a5016dc2698
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422976
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/alldocs.go            | 2 +-
- src/cmd/go/internal/help/help.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

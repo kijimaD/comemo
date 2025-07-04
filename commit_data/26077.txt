@@ -1,22 +1,12 @@
-commit 8c838192b84c062ccf208809320cab68d762a973
-Author: Hitoshi Mitake <mitake.hitoshi@gmail.com>
-Date:   Wed Jan 13 23:06:27 2016 +0900
+commit bdd5d6e2574347d63763d42f1a6b529236bbd06a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 11:35:23 2015 -0500
 
-    runtime: don't print EnableGC flag in WriteHeapProfile()
+    cmd/go: tiny cleanup
     
-    Current runtime.WriteHeapProfile() doesn't print correct
-    EnableGC. Even if GOGC=off, the result file has below line:
-     # EnableGC = true
-    
-    It is hard to print correct status of the variable because of corner
-    cases e.g. initialization. For avoiding confusion, this commit removes
-    the print.
-    
-    Change-Id: Ia792454a6c650bdc50a06fbaff4df7b6330ae08a
-    Reviewed-on: https://go-review.googlesource.com/18600
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I65084e518c735f1e50d191a612cd32533b241685
+    Reviewed-on: https://go-review.googlesource.com/17742
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/pprof.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/go/get.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

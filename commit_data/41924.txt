@@ -1,13 +1,28 @@
-commit 2545323c633136a28aa57b000b81e95780cbac13
-Author: Kevin Burke <kev@inburke.com>
-Date:   Sun Apr 12 18:57:26 2020 -0700
+commit 4ff45821ae4635ce806fbb8d23acd96581a50304
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 1 11:06:21 2019 -0700
 
-    cmd/link: fix spelling error
+    runtime: unlock sched lock when checkdead throws due to a deadlock
     
-    Change-Id: I6e730a99342563a97c3b1556893c8daaf5b6ec90
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228097
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    I was doing some testing with GODEBUG=schedtrace=1,scheddetail=1 and I
+    noticed that the program hung after a throw with "all goroutines are
+    asleep". This is because when doing a throw or fatal panic with schedtrace
+    the panic code does a final schedtrace, which needs to acquire the
+    scheduler lock. The checkdead function is always called with the scheduler
+    lock held. So checkdead would throw with the scheduler lock held, then
+    the panic code would call schedtrace, which would block trying to acquire
+    the scheduler lock.
+    
+    This problem will only happen for people debugging the runtime, but
+    it's easy to avoid by having checkdead unlock the scheduler lock before
+    it throws. I only did this for the throws that can happen for a normal
+    program, not for throws that indicate some corruption in the scheduler data.
+    
+    Change-Id: Ic62277b3ca6bee6f0fca8d5eb516c59cb67855cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204778
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/elf.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc.go | 2 ++
+ 1 file changed, 2 insertions(+)

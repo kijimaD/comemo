@@ -1,15 +1,17 @@
-commit f0e0be6e9020caff0b44e0dcb44c8b2e707710f0
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Tue Mar 26 11:24:40 2019 +0700
+commit 510eea2dfcabbc8916c7c59aa37046269ad29497
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Tue Nov 6 12:48:17 2018 +0900
 
-    os: document exit status range value
+    net/http: update bundled SOCKS client
     
-    Fixes #30959
+    Updates socks_bundle.go to git rev 26e67e7 for:
+    - 26e67e7 internal/socks: fix socket descriptor leakage in Dialer.Dial
     
-    Change-Id: I9d30d79e2dbb3f8c8d6555f8c64862b133638d5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169357
+    Change-Id: I9ab27a85504d77f1ca2e97cb005f5e37fd3c3ff4
+    Reviewed-on: https://go-review.googlesource.com/c/147717
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/proc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/http/socks_bundle.go | 1 +
+ 1 file changed, 1 insertion(+)

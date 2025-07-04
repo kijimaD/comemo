@@ -1,16 +1,31 @@
-commit d6df73ce406669b75ef9957160dd8fd4070354f4
-Author: Sean Liao <sean@liao.dev>
-Date:   Thu Oct 31 00:21:38 2024 +0000
+commit 3466e57354974cd2d17ce902df02e0ac58b8ded5
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed Jun 21 14:35:53 2023 -0400
 
-    net/http: clarify ServeMux path sanitization
+    fmt: avoid reflect.Value.Slice to help escape analysis
     
-    For #70130
+    This is part of a series of CLs that aim to reduce how often
+    interface arguments escape for the print functions in fmt.
     
-    Change-Id: Idd7ca3d11b78887709b83dd5c868de9cc506ecff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623835
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Prior to this change, one reason arguments escape is because
+    printValue calls reflect.Value.Slice, which causes its
+    value argument to escape (though at this CL, that is
+    shrouded in the fmt escape analysis logs by other
+    printValue escape reasons).
+    
+    This CL avoids that usage by calling f.Bytes instead,
+    which is possible because we know f is a slice of bytes
+    or an addressable array of bytes.
+    
+    Arguments still escape for other reasons.
+    
+    Change-Id: Ic3f064117a364007e1dd3197cef9d641abbf784a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524940
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: t hepudds <thepudds1460@gmail.com>
 
- src/net/http/server.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/fmt/print.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

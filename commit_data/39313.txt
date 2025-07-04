@@ -1,28 +1,27 @@
-commit c00ff65d016c07f7feb188ca0458ae3bae0f1532
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 5 12:31:42 2019 -0400
+commit 3726d91d680b20d147f5b0b6222232d10930d121
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 12:00:12 2019 -0500
 
-    runtime: use default system stack size, not 64 kB, on non-cgo macOS
+    cmd/go/internal/imports: use the full path to resolve symlinks
     
-    At least one libc call we make
-    (res_search, which calls _mdns_query and then mdns_item_call)
-    pushes a 64 kB stack frame onto the stack.
-    Then it faults on the guard page.
+    info.Name returns a name relative to the directory, so we need to
+    prefix that directory in the Stat call.
     
-    Use the default system stack size, under the assumption
-    that the C code being called is compatible with that stack size.
+    (This was missed in CL 141097 due to the fact that the test only
+    happened to check symlinks in the current directory.)
     
-    For #31705.
+    This allows the misc/ tests to work in module mode on platforms that
+    support symlinks.
     
-    Change-Id: I1b0bfc2e54043c49f0709255988ef920ce30ee82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180779
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #30228
+    Updates #28107
+    
+    Change-Id: Ie31836382df0cbd7d203b7a8b637c4743d68b6f3
+    Reviewed-on: https://go-review.googlesource.com/c/163517
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/os_darwin.go       | 19 ++++++++++++-------
- src/runtime/sys_darwin.go      |  8 ++++----
- src/runtime/sys_darwin_386.s   |  4 ++--
- src/runtime/sys_darwin_amd64.s |  4 ++--
- src/runtime/sys_darwin_arm.s   |  2 +-
- src/runtime/sys_darwin_arm64.s |  4 ++--
- 6 files changed, 23 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/imports/scan.go        |  2 +-
+ src/cmd/go/testdata/script/mod_symlink.txt | 29 ++++++++++++++++++++++++-----
+ 2 files changed, 25 insertions(+), 6 deletions(-)

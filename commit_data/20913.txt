@@ -1,13 +1,30 @@
-commit c1374b5c7806c97d627017a3bfb5d41470f89b0e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Nov 25 15:41:33 2014 +1100
+commit 0f698be54742be2d66c044b61267782272777ff8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 27 18:59:02 2014 -0400
 
-    doc: tidy up "Projects" page; add Go 1.4
+    test: make maplinear more robust
     
-    LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/182750043
+    The test just doubled a certain number of times
+    and then gave up. On a mostly fast but occasionally
+    slow machine this may never make the test run
+    long enough to see the linear growth.
+    
+    Change test to keep doubling until the first round
+    takes at least a full second, to reduce the effect of
+    occasional scheduling or other jitter.
+    
+    The failure we saw had a time for the first round
+    of around 100ms.
+    
+    Note that this test still passes once it sees a linear
+    effect, even with a very small total time.
+    The timeout here only applies to how long the execution
+    must be to support a reported failure.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/164070043
 
- doc/contrib.html | 21 ++++++++-------------
- 1 file changed, 8 insertions(+), 13 deletions(-)
+ test/maplinear.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

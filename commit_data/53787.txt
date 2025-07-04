@@ -1,29 +1,44 @@
-commit d2ec964e9c1ec84aa2e4444783ed68018ae4d5e4
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Jun 13 16:04:06 2023 -0400
+commit 19a48048543098a05efe48adb1cf8f01bfce75f1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 29 13:29:43 2022 +0200
 
-    cmd/dist: test all 'std cmd' packages, even ones without _test.go files
+    runtime: support MADV_DONTNEED on the BSDs and Solaris/Illumos
     
-    Remove the optimization added in CL 10492 that skips running 'go test'
-    on Go packages without _test.go files. By now, 'go test' can find real
-    problems even in packages that don't have any custom tests.
+    Like on Linux, use GODEBUG=madvdontneed=1 to enable madvise with
+    MADV_DONTNEED instead of MADV_FREE.
     
-    On my fairly fast laptop, running go test -short on all 164 normal
-    and 96 vendored packages without tests took around 10 seconds on
-    the first run and 2.5 seconds on the second, a small fraction of
-    the total all.bash time. So prioritize gains in the test coverage
-    over those savings in all.bash time.
+    Based on previous work by Marcelo Araujo in CL 181498.
     
-    Fixes golang/go#60463.
+    Fixes #32519
     
-    Change-Id: I3d2bec5c367de687e57131e7fd7e6b84fed30187
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503095
+    Change-Id: Ib49faf05c42a65591b90e75f663146f213030529
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266937
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/dist/test.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/runtime/defs1_netbsd_386.go     | 3 ++-
+ src/runtime/defs1_netbsd_amd64.go   | 3 ++-
+ src/runtime/defs1_netbsd_arm.go     | 3 ++-
+ src/runtime/defs1_netbsd_arm64.go   | 3 ++-
+ src/runtime/defs1_solaris_amd64.go  | 3 ++-
+ src/runtime/defs_dragonfly.go       | 3 ++-
+ src/runtime/defs_dragonfly_amd64.go | 3 ++-
+ src/runtime/defs_freebsd.go         | 3 ++-
+ src/runtime/defs_freebsd_386.go     | 3 ++-
+ src/runtime/defs_freebsd_amd64.go   | 3 ++-
+ src/runtime/defs_freebsd_arm.go     | 3 ++-
+ src/runtime/defs_freebsd_arm64.go   | 3 ++-
+ src/runtime/defs_netbsd.go          | 3 ++-
+ src/runtime/defs_openbsd.go         | 3 ++-
+ src/runtime/defs_openbsd_386.go     | 3 ++-
+ src/runtime/defs_openbsd_amd64.go   | 3 ++-
+ src/runtime/defs_openbsd_arm.go     | 3 ++-
+ src/runtime/defs_openbsd_arm64.go   | 3 ++-
+ src/runtime/defs_openbsd_mips64.go  | 3 ++-
+ src/runtime/defs_solaris.go         | 3 ++-
+ src/runtime/extern.go               | 5 ++++-
+ src/runtime/mem_bsd.go              | 6 +++++-
+ 22 files changed, 49 insertions(+), 22 deletions(-)

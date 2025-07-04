@@ -1,30 +1,25 @@
-commit b895dd56308304bedcea17852c01dc0cd794bfb8
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Fri Sep 13 15:32:03 2024 +0800
+commit 2d5ce9b729c0edded841301bd73d68d5e95aa28b
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Aug 7 15:57:54 2023 -0700
 
-    cmd/internal/obj/loong64: add support for instructions FSCALEB{F/D} and FLOGB{F/D}
+    net/http: sanitize User-Agent header in request writer
     
-    Go asm syntax:
-            FSCALEB{F/D}    FK, FJ, FD
-            FLOGB{F/D}      FJ, FD
+    Apply the same transformations to the User-Agent header value that we
+    do to other headers.
     
-    Equivalent platform assembler syntax:
-            fscaleb.{s/d}   fd, fj, fk
-            flogb.{s/d}     fd, fj
+    Avoids header and request smuggling in Request.Write and
+    Request.WriteProxy. RoundTrip already validates values in
+    Request.Header, and didn't allow bad User-Agent values to
+    make it as far as the request writer.
     
-    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    Fixes #61824
     
-    Change-Id: I6cd75c7605adbb572dae86d6470ec7cf20ce0f6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612975
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I360a915c7e08d014e0532bd5af196a5b59c89395
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516836
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  5 +++++
- src/cmd/internal/obj/loong64/a.out.go           |  4 ++++
- src/cmd/internal/obj/loong64/anames.go          |  4 ++++
- src/cmd/internal/obj/loong64/asm.go             | 12 ++++++++++++
- 4 files changed, 25 insertions(+)
+ src/net/http/request.go      |  2 ++
+ src/net/http/request_test.go | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+)

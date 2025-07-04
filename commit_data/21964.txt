@@ -1,13 +1,23 @@
-commit 29ad1ae420c6f8942d885e85a51382437ba2dc65
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 4 11:04:26 2015 -0500
+commit 7aa68756c5518e0fc2e2f65cab6b933c1c48534a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jan 8 21:43:47 2015 -0500
 
-    debug/elf: load .debug_line section and pass to dwarf.New
+    doc/asm: document that assembly function must use short name
     
-    Change-Id: Ia6f9bd77a3d4250339dcb054edc76942864dd358
-    Reviewed-on: https://go-review.googlesource.com/6781
-    Reviewed-by: Rob Pike <r@golang.org>
+    e.g. ·Name instead of package·Name for automatic stack map to
+    be applied from its Go prototype.
+    
+    The underlying reason is that liblink look up name with suffix
+    ".args_stackmap" for the stackmap coming from its Go prototype,
+    but all the Go functions are named "".Name as this stage. Thus
+    an assembly function named package·Name will never find its
+    stackmap, which is named "".package.Name.args_stackmap.
+    
+    Perhaps cmd/vet should give a warning for this.
+    
+    Change-Id: I10d154a73ec969d574d20af877f747424350fbd1
+    Reviewed-on: https://go-review.googlesource.com/2588
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/elf/file.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/asm.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

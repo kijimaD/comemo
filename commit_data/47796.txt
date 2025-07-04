@@ -1,17 +1,31 @@
-commit 1540239f48f6beaa1cae6b34d00d74860366da7d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 14 13:27:57 2021 -0800
+commit c26f954a540a99eafac6ee3bb3b996c750aad8a4
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 6 16:18:50 2021 -0400
 
-    doc/go1.18: add caution about use of generics in production
+    cmd/compile/internal/amd64: follow-on regabi fix for amd64 zerorange
     
-    Per https://groups.google.com/g/golang-dev/c/iuB22_G9Kbo/m/7B1jd1I3BQAJ.
+    This patch provides a better long-term fix for the compiler's
+    zerorange() helper function to make it generate code friendly to the
+    register ABI.
     
-    For #47694
+    CL 305829 did part of the work, but didn't properly handle the case
+    where the compiler emits a REP.STOSQ sequence; this patch changes the
+    REP code to make sure it doesn't clobber any incoming register
+    parameter values.
     
-    Change-Id: I033cdadb2067e432f7c307d1546b4c5d0cfd5d8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371954
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Also included is a test that is specifically written to trigger
+    the REP emit code in the compiler (prior to this, this code was
+    not being hit on linux/amd64 all.bash).
+    
+    Updates #45372.
+    Updates #40724.
+    
+    Change-Id: Iaf1c4e709e98eda45cd6f3aeebda0fe9160f1f42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307829
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/compile/internal/amd64/ggen.go          | 30 +++++---
+ src/cmd/compile/internal/test/zerorange_test.go | 91 ++++++++++++++++++++++++-
+ 2 files changed, 112 insertions(+), 9 deletions(-)

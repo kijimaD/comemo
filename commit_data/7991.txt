@@ -1,13 +1,12 @@
-commit db99a784c22fce2aa786d8e06335edc1e5612da1
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 5 17:07:56 2011 -0400
+commit 63e28ae4ab274d2ce3056e5adf76a2027e453ca7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 5 13:51:49 2011 -0700
 
-    A+C: Dmitry Chestnykh (individual CLA)
+    gotest: fix windows build.
     
-    R=agl1
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4346054
+    https://golang.org/cl/4339055
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/gotest/gotest.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

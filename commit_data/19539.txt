@@ -1,17 +1,14 @@
-commit 9f08c5c3830d42de9bf18b80b79516c61e1ea360
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Jun 13 17:44:29 2014 +1000
+commit 7d3be61386bd7aab350b443808e2b0e5171033a9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 13 16:34:52 2014 +1000
 
-    compress/lzw: add commentary that TIFF's LZW differs from the standard
-    algorithm.
+    doc: link to new downloads page
     
-    See https://golang.org/cl/105750045/ for an implementation of
-    TIFF's LZW.
-    
-    LGTM=r
-    R=r
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/102940043
+    https://golang.org/cl/102340044
 
- src/pkg/compress/lzw/reader.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ doc/go1.html     | 2 +-
+ doc/install.html | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,19 +1,23 @@
-commit dd009b2f1a3a781c9c23c852402deb1039513d04
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Sun Mar 12 16:02:19 2023 +0800
+commit f95db21332118134973ba046c4f5d0e890e36066
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 12 15:17:18 2022 -0400
 
-    runtime/internal/sys: remove 386 assembly code
+    cmd/go: add a better error message when in a module outside workspace
     
-    Change-Id: Ia4f8638d626c30b91729caa0c58a96451c627f67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475736
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    When the user is trying to list or build a package in a module that's
+    outside of the workspace provide a more clear message hinting to the
+    user that they can add the module to the workspace using go work use.
+    
+    Fixes #51604
+    
+    Change-Id: I1202ecb2f22fd6351bfdec88ed613b8167687fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400014
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/internal/sys/intrinsics.go        | 138 ++++++++++++++++++++++++-
- src/runtime/internal/sys/intrinsics_386.s     |  43 --------
- src/runtime/internal/sys/intrinsics_common.go | 141 --------------------------
- src/runtime/internal/sys/intrinsics_stubs.go  |  11 --
- 4 files changed, 134 insertions(+), 199 deletions(-)
+ src/cmd/go/internal/modload/load.go                       | 8 +++++---
+ src/cmd/go/testdata/script/work_module_not_in_go_work.txt | 6 ++++--
+ 2 files changed, 9 insertions(+), 5 deletions(-)

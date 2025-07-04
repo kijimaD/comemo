@@ -1,15 +1,38 @@
-commit 45ca908f890776459b46110dc44a4a99fc2160fb
+commit eac31c67a8fd94b9e91043a40b3a3cb1bf6daa4f
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 12 17:54:17 2012 -0800
+Date:   Thu Jan 12 17:36:57 2012 -0800
 
-    godoc: fix missing name change
+    go/doc: streamlined go/doc API
     
-    Fixes godoc text mode (i.e., URL?m=text).
+    - the main changes are removing the Doc suffix
+      from the exported types, so instead of
+      doc.TypeDoc one will have doc.Type, etc.
     
-    R=golang-dev, adg
+    - All exported types now have a Name (or Names) field.
+      For Values, the Names field lists all declared variables
+      or constants.
+    
+    - Methods have additional information about where they are
+      coming from.
+    
+    - There's a mode field instead of a bool to
+      control the package's operation, which makes
+      it easier to extend w/o API changes.
+    
+    Except for the partially implemented new Method type,
+    this is based on existing code. A clean rewrite is in
+    progress based on this new API.
+    
+    R=rsc, kevlar
     CC=golang-dev
-    https://golang.org/cl/5545043
+    https://golang.org/cl/5528060
 
- lib/godoc/package.html | 2 +-
- lib/godoc/package.txt  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ lib/godoc/package.html            |   4 +-
+ lib/godoc/package.txt             |   2 +-
+ misc/dashboard/builder/package.go |   2 +-
+ src/cmd/godoc/godoc.go            |  39 +++++-----
+ src/pkg/go/doc/doc.go             | 103 ++++++++++++++++----------
+ src/pkg/go/doc/doc_test.go        |  21 +++---
+ src/pkg/go/doc/filter.go          |  37 ++++++----
+ src/pkg/go/doc/reader.go          | 148 ++++++++++++++++++++++----------------
+ 8 files changed, 211 insertions(+), 145 deletions(-)

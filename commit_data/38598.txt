@@ -1,24 +1,25 @@
-commit 154e5abfcdb8ffe193d2af4c8ef590f4d9a27008
-Author: Ben Hoyt <benhoyt@gmail.com>
-Date:   Thu Mar 28 17:49:43 2019 -0400
+commit 4d913b332cf161df7c4f3717c602d491d7ac01dd
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Nov 6 21:35:23 2018 +0000
 
-    bytes, strings: add tests for TrimLeftFunc and TrimRightFunc
+    cmd/vet: fix printf false negative with nested pointers
     
-    When I was working on the fix for #31038 (make TrimSpace return nil on
-    all-space input) I noticed that there were no tests for TrimLeftFunc
-    and TrimRightFunc, including the funky nil behavior. So add some!
+    Pointers to compound objects (structs, slices, arrays, maps) are only
+    followed by fmt if the pointer is at the top level of an argument. This
+    is to minimise the chances of fmt running into loops.
     
-    I've just reused the existing TrimFunc test cases for TrimLeftFunc and
-    TrimRightFunc, as well as adding new tests for the empty string and
-    all-trimmed cases (which test the nil-returning behavior of TrimFunc and
-    TrimLeftFunc).
+    However, vet did not follow this rule. It likely doesn't help that fmt
+    does not document that restriction well, which is being tracked in
+     #28625.
     
-    Change-Id: Ib580d4364e9b3c91350305f9d9873080d7862904
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170061
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #27672.
+    
+    Change-Id: Ie9bbd9b974eda5ab9a285986d207ef92fca4453e
+    Reviewed-on: https://go-review.googlesource.com/c/147997
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/bytes/bytes_test.go     | 75 +++++++++++++++++++++++++++++++++++++--------
- src/strings/strings_test.go | 67 ++++++++++++++++++++++++++++++++--------
- 2 files changed, 118 insertions(+), 24 deletions(-)
+ src/cmd/vet/testdata/print.go | 10 +++++++++-
+ src/cmd/vet/types.go          | 10 +++++++---
+ 2 files changed, 16 insertions(+), 4 deletions(-)

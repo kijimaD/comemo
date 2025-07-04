@@ -1,25 +1,21 @@
-commit 950a56899aaf48da9691fbbfb8f48328863e02fa
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 5 22:42:16 2018 -0700
+commit 3fec6da0ab544bfa3a3b3d9988df20739b40dd49
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 21 15:24:12 2017 -0800
 
-    cmd/compile: fix method expressions with anonymous receivers
+    internal/poll: loop on EINTR in Read on Darwin
     
-    Method expressions with anonymous receiver types like "struct { T }.m"
-    require wrapper functions, which we weren't always creating. This in
-    turn resulted in linker errors.
+    Test is in os/signal package because the problem is signal related.
     
-    This CL ensures that we generate wrapper functions for any anonymous
-    receiver types used in a method expression.
+    Fixes #22838.
     
-    Fixes #22444.
-    
-    Change-Id: Ia8ac27f238c2898965e57b82a91d959792d2ddd4
-    Reviewed-on: https://go-review.googlesource.com/105044
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I223eeebb5fbc972910737eddef8ab9784cb984a6
+    Reviewed-on: https://go-review.googlesource.com/79215
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go   |  1 +
- src/cmd/compile/internal/gc/typecheck.go | 10 ++++++++++
- test/method7.go                          |  7 +++----
- 3 files changed, 14 insertions(+), 4 deletions(-)
+ src/go/build/deps_test.go         |   3 +
+ src/internal/poll/fd_unix.go      |   7 ++
+ src/os/signal/internal/pty/pty.go |  42 +++++++++++
+ src/os/signal/signal_cgo_test.go  | 145 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 197 insertions(+)

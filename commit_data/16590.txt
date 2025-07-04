@@ -1,20 +1,13 @@
-commit c1e780c4e453eef4f8a60a637aea24a8d044a747
-Author: David Bürgin <676c7473@gmail.com>
-Date:   Tue Jun 18 14:59:50 2013 +1000
+commit 83db738786704e6e93434f4c73e285383df2342b
+Author: Alex Jin <toalexjin@gmail.com>
+Date:   Mon Jun 17 16:53:27 2013 -0700
 
-    misc/vim: Added filetype settings for comments.
+    net/smtp: close conn in SendMail; add Client.Close method
     
-    This basic Vim ftplugin sets the 'comments' and 'commentstring'
-    settings to sensible values. Future filetype settings for Go
-    would go in the same file.
-    The ftplugin was added as misc/vim/ftplugin/go/go.vim, this way
-    the installation instructions in readme.txt remain valid.
-    Fixes #5715.
-    
-    R=dsymonds
-    CC=gobot, golang-dev
-    https://golang.org/cl/10323043
+    R=rsc, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10082044
 
- misc/vim/ftplugin/go.vim | 17 +++++++++++++++++
- misc/vim/readme.txt      |  7 ++++---
- 2 files changed, 21 insertions(+), 3 deletions(-)
+ src/pkg/net/smtp/smtp.go      | 11 +++++++++--
+ src/pkg/net/smtp/smtp_test.go |  3 +++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

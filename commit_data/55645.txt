@@ -1,26 +1,23 @@
-commit 1a8ee033f84d9ea53c15c3b395ddcc42a4cb9cd2
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Sat Feb 17 10:30:01 2024 +0000
+commit eee2697c38b73b731604d5584abd97bf674857ed
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 17 11:57:30 2023 +0700
 
-    runtime/internal/atomic: add s390x operators for And/Or
+    cmd/compile: use ONAME node directly from generated hash func
     
-    These primitives will be used by the new And/Or sync/atomic apis.
+    This reverts CL 468879
     
-    For #61395
+    CL 469017 marked type eq/hash functions as non-inlineable, so this
+    change won't cause ICE anymore.
     
-    Change-Id: Ia9b4877048002d3d7d1dffa2311d0ec5f38e4ee5
-    GitHub-Last-Rev: 20dea110c824913c0c3d9c259e3e21e7ff8e4ba9
-    GitHub-Pull-Request: golang/go#63318
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531678
+    Updates #58572
+    
+    Change-Id: I3e6ec9ba2217102693acd1848a0eba0886dc9fda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469018
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- .../internal/atomic/atomic_andor_generic.go        |  2 +-
- src/runtime/internal/atomic/atomic_s390x.go        | 18 +++++++
- src/runtime/internal/atomic/atomic_s390x.s         | 56 ++++++++++++++++++++++
- 3 files changed, 75 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/reflectdata/alg.go | 31 ++++++++++-------------------
+ 1 file changed, 11 insertions(+), 20 deletions(-)

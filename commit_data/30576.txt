@@ -1,16 +1,20 @@
-commit c5cdda401e483a3a4dae7cc61eb78521ab953b04
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Mar 7 09:03:40 2017 -0800
+commit f8dc4f20f8f8cb2ac8ee14b15ed4bf5201b61e81
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 13 12:59:07 2016 -0800
 
-    encoding/base64, html/template: fix grammar mistakes
+    Revert "cmd/vet: ignore printf failures in cmd"
     
-    Replace 'does not contains' with 'does not contain' where it appears
-    in the source code.
+    This reverts commit f15915af4effbbe6895ae69be02d22ac016927d5.
     
-    Change-Id: Ie7266347c429512c8a41a7e19142afca7ead3922
-    Reviewed-on: https://go-review.googlesource.com/37887
+    CL 32851 fixed cmd/vet's handling of fmt.Formatter.
+    
+    Updates #17057.
+    
+    Change-Id: I3409100d16037645946fe7fe78fbb173e1648494
+    Reviewed-on: https://go-review.googlesource.com/33166
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/base64/base64.go    | 2 +-
- src/html/template/escape_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/vet/all/main.go | 9 ---------
+ 1 file changed, 9 deletions(-)

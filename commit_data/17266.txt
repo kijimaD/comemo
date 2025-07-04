@@ -1,54 +1,12 @@
-commit cb3b292201861b8052c665ccad6cf12ff0c8d839
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 15 21:10:03 2013 +0900
+commit 67c79da857671faa65e110f58667c2282403046c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 15 14:24:28 2013 +0400
 
-    net: enable runtime-integrated network pollster on freebsd, openbsd
+    runtime: fix plan9 build
     
-    Fixes #5199.
-    
-    Benchmark results on freebsd/amd64 (virtual machine):
-    
-    benchmark                             old ns/op    new ns/op    delta
-    BenchmarkTCP4OneShot-2                   184566       187164   +1.41%
-    BenchmarkTCP4OneShotTimeout-2            215558       187722  -12.91%
-    BenchmarkTCP4Persistent-2                 59686        41294  -30.81%
-    BenchmarkTCP4PersistentTimeout-2          60692        39974  -34.14%
-    BenchmarkTCP6OneShot-2                   226595       223688   -1.28%
-    BenchmarkTCP6OneShotTimeout-2            253144       225161  -11.05%
-    BenchmarkTCP6Persistent-2                 69157        55605  -19.60%
-    BenchmarkTCP6PersistentTimeout-2          70426        53805  -23.60%
-    BenchmarkTCP4ConcurrentReadWrite-2        53878        56087   +4.10%
-    BenchmarkTCP6ConcurrentReadWrite-2        66538        68190   +2.48%
-    
-    benchmark                            old allocs   new allocs    delta
-    BenchmarkTCP4OneShot-2                       39           36   -7.69%
-    BenchmarkTCP4OneShotTimeout-2                42           36  -14.29%
-    BenchmarkTCP4Persistent-2                     1            0  -100.00%
-    BenchmarkTCP4PersistentTimeout-2              1            0  -100.00%
-    BenchmarkTCP6OneShot-2                       41           36  -12.20%
-    BenchmarkTCP6OneShotTimeout-2                43           36  -16.28%
-    BenchmarkTCP6Persistent-2                     1            0  -100.00%
-    BenchmarkTCP6PersistentTimeout-2              1            0  -100.00%
-    BenchmarkTCP4ConcurrentReadWrite-2            0            0     n/a%
-    BenchmarkTCP6ConcurrentReadWrite-2            0            0     n/a%
-    
-    benchmark                             old bytes    new bytes    delta
-    BenchmarkTCP4OneShot-2                     3084         2544  -17.51%
-    BenchmarkTCP4OneShotTimeout-2              3129         2519  -19.50%
-    BenchmarkTCP4Persistent-2                    30            0  -100.00%
-    BenchmarkTCP4PersistentTimeout-2             31            0  -100.00%
-    BenchmarkTCP6OneShot-2                     3297         2660  -19.32%
-    BenchmarkTCP6OneShotTimeout-2              3306         2655  -19.69%
-    BenchmarkTCP6Persistent-2                    31            0  -100.00%
-    BenchmarkTCP6PersistentTimeout-2             29            0  -100.00%
-    BenchmarkTCP4ConcurrentReadWrite-2            2            0  -100.00%
-    BenchmarkTCP6ConcurrentReadWrite-2            7            0  -100.00%
-    
-    R=dvyukov, minux.ma, dave, bradfitz, alex.brainman
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8264043
+    https://golang.org/cl/12986043
 
- src/pkg/net/fd_bsd.go          | 2 +-
- src/pkg/net/fd_poll_runtime.go | 2 +-
- src/pkg/net/fd_poll_unix.go    | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/runtime/mem_plan9.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

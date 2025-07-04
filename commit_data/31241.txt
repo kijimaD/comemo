@@ -1,17 +1,13 @@
-commit 6f2e6f8dd6d2b0fc1b32447c4ed38231fde4a3c2
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 19 16:11:15 2017 -0400
+commit 1f93ba66d6ccb200e8b0a037a01265f6563fdf58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 7 11:34:20 2017 -0800
 
-    runtime/pprof: don't accept "," in profile PCs
+    math/big: add IsInt64/IsUint64 predicates
     
-    TestBlockProfile matches samples against a regexp that accepts "," in
-    profile PCs. I suspect this was just a syntax mistake. Remove "," from
-    the character class.
-    
-    Change-Id: Idcfc20ed6900075abae08597ba71db559e89b37b
-    Reviewed-on: https://go-review.googlesource.com/41111
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Change-Id: Ia5ed3919cb492009ac8f66d175b47a69f83ee4f1
+    Reviewed-on: https://go-review.googlesource.com/36487
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/pprof/pprof_test.go | 42 ++++++++++++++++++++---------------------
- 1 file changed, 21 insertions(+), 21 deletions(-)
+ src/math/big/int.go      |  34 +++++++++----
+ src/math/big/int_test.go | 123 +++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 110 insertions(+), 47 deletions(-)

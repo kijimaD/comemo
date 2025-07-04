@@ -1,15 +1,31 @@
-commit 9a926911fea73017a25d6d38035946c59cf1b047
-Author: David Chase <drchase@google.com>
-Date:   Tue Oct 1 11:10:22 2019 -0400
+commit fe1afe8d4ca06c56f583a9296282697f39d27d97
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Nov 25 00:24:20 2018 +0000
 
-    cmd/compile: attempt to preserve statements when prove removes code
+    encoding/json: avoid work when unquoting strings
     
-    This was a cause of some statements being lost.
+    We can work out how many bytes can be unquoted trivially in
+    rescanLiteral, which already iterates over a string's bytes.
     
-    Change-Id: I81c95dcf3df6ed8a03b7578a27f9b21d33b3cf39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198484
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Removing the extra loop in unquoteBytes simplifies the function and
+    speeds it up, especially when decoding simple strings, which are common.
+    
+    While at it, we can remove unnecessary checks like len(s)<2 and
+    s[0]=='"'. Add a comment explaining why.
+    
+    name           old time/op    new time/op    delta
+    CodeDecoder-8    11.2ms ± 0%    11.1ms ± 1%  -1.63%  (p=0.000 n=9+10)
+    
+    name           old speed      new speed      delta
+    CodeDecoder-8   173MB/s ± 0%   175MB/s ± 1%  +1.66%  (p=0.000 n=9+10)
+    
+    Updates #28923.
+    
+    Change-Id: I2436a3a7f8148a2f7a6a4cdbd7dec6b32ef5e20c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/151157
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/encoding/json/decode.go | 68 ++++++++++++++++++++++-----------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

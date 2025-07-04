@@ -1,18 +1,25 @@
-commit cb30430af84a220f67d4cedc47c273c31051d291
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Sep 10 14:42:50 2019 -0400
+commit b5cf035d1ca21ee4bf799c6d97b2759471b76483
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Mar 25 10:26:44 2019 +0100
 
-    go/internal/gccgoimporter: remove guard on some assertions
+    runtime: improve sigtramp on aix/ppc64 to handle SIGPROF
     
-    Remove unnecessary conditional guard for a couple of assertions in the
-    type parser's update() method (inspired by comment from Robert). No
-    change in functionality.
+    R14, R15 must be saved in sigtramp because they might be modified by Go
+    code when a SIGPROF occurs.
     
-    Change-Id: I706a54569e75c6960768247889b7dec3f267dde9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194565
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Fixes #28555
+    
+    Change-Id: I573541f108d7d6aac8e60d33c649e5db943f3ef5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169117
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/internal/gccgoimporter/parser.go | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ src/runtime/crash_cgo_test.go   |  3 ---
+ src/runtime/crash_test.go       |  3 ---
+ src/runtime/os_aix.go           |  2 ++
+ src/runtime/pprof/pprof_test.go |  2 +-
+ src/runtime/pprof/proto_test.go |  4 ---
+ src/runtime/proc.go             |  2 +-
+ src/runtime/sys_aix_ppc64.s     | 60 ++++++++++++++++++++---------------------
+ 7 files changed, 33 insertions(+), 43 deletions(-)

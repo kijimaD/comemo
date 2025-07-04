@@ -1,15 +1,12 @@
-commit 49d6e490876a9bbfa5dfa27a4377b822edbf656c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 11 11:06:27 2012 -0700
+commit 1d609f9b9f0c2133cfce86175ad49c8800954a28
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jun 9 18:30:44 2012 -0700
 
-    exp/types: testing resolution of qualified identifiers
+    encoding/gob: fix doc typo
     
-    Also: fix a bug with exp/types/GcImport.
-    
-    R=rsc, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6302060
+    https://golang.org/cl/6300078
 
- src/pkg/exp/types/gcimporter.go    |  26 ++++----
- src/pkg/exp/types/resolver_test.go | 130 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 143 insertions(+), 13 deletions(-)
+ src/pkg/encoding/gob/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

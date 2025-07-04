@@ -1,23 +1,37 @@
-commit 56c9b51b937cca7d3db517add96bd9517bbffb80
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 2 15:43:56 2017 -0800
+commit 2ee82edfc2c904c952daef6f442c223b1568cb66
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 24 12:38:06 2016 -0700
 
-    spec: introduce alias declarations and type definitions
+    cmd/doc: show documentation for interface methods when requested explicitly
     
-    To avoid confusion caused by the term "named type" (which now just
-    means a type with a name, but formerly meant a type declared with
-    a non-alias type declaration), a type declaration now comes in two
-    forms: alias declarations and type definitions. Both declare a type
-    name, but type definitions also define new types.
+    For historical reasons, the go/doc package does not include
+    the methods within an interface as part of the documented
+    methods for that type. Thus,
     
-    Replace the use of "named type" with "defined type" elsewhere in
-    the spec.
+            go doc ast.Node.Pos
     
-    For #18130.
+    gives an incorrect and confusing error message:
     
-    Change-Id: I49f5ddacefce90354eb65ee5fbf10ba737221995
-    Reviewed-on: https://go-review.googlesource.com/36213
-    Reviewed-by: Rob Pike <r@golang.org>
+            doc: no method Node.Pos in package go/ast
+    
+    This CL does some dirty work to dig down to the methods
+    so interface methods now present their documentation:
+    
+    % go doc ast.node.pos
+    func Pos() token.Pos  // position of first character belonging to the node
+    %
+    
+    It must largely sidestep the doc package to do this, which
+    is a shame. Perhaps things will improve there one day.
+    
+    The change does not handle embeddings, and in principle the
+    same approach could be done for struct fields, but that is also
+    not here yet. But this CL fixes the thing that was bugging me.
+    
+    Change-Id: Ic10a91936da96f54ee0b2f4a4fe4a8c9b93a5b4a
+    Reviewed-on: https://go-review.googlesource.com/31852
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go_spec.html | 159 ++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 109 insertions(+), 50 deletions(-)
+ src/cmd/doc/doc_test.go | 17 +++++++++++++++--
+ src/cmd/doc/pkg.go      | 47 ++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 57 insertions(+), 7 deletions(-)

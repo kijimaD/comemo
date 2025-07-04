@@ -1,12 +1,15 @@
-commit f51ec00722b16d356d959065d035a880864795df
+commit a11d7d4e11207be9186c6dbeda11fedfef3cbe4d
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 14 10:59:55 2013 +0400
+Date:   Thu Mar 14 10:32:42 2013 +0400
 
-    runtime: fix build
+    net: prepare connect() for new network poller
+    The problem is that new network poller can have spurious
+    rediness notifications. This implementation ensures that
+    the socket is actually connected.
     
-    R=golang-dev
+    R=golang-dev, rsc, akumar
     CC=golang-dev
-    https://golang.org/cl/7529049
+    https://golang.org/cl/7785043
 
- src/pkg/runtime/netpoll.goc | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/net/fd_unix.go | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

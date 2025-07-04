@@ -1,28 +1,23 @@
-commit 1341104ae25a5bb6d3d22db1673e1fa050f0768e
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Apr 28 12:43:06 2017 +1200
+commit 87d5f6b9f65bc0f4a68d8712b500615df5df309c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 28 12:47:08 2017 -0700
 
-    cmd/link: replace SHIDDEN bit in SymKind with a bit of Attribute
+    reflect: make StructOf panic for methods that don't work
     
-    This is https://go-review.googlesource.com/42025 but with some more fixes --
-    hidden symbols implicitly passed "Type == 0 || Type == SXREF" checks. (This
-    sort of thing is part of why I wanted to make this change)
+    When StructOf is used with an anonymous field that has methods, and
+    that anonymous field is not the first field, the methods we generate
+    are incorrect because they do not offset to the field as required.
+    If we encounter that case, panic rather than doing the wrong thing.
     
-    Change-Id: I2273ee98570fd7f2dd8a799c692a2083c014235e
-    Reviewed-on: https://go-review.googlesource.com/42330
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Fixes #20824
+    Updates #15924
+    
+    Change-Id: I3b0901ddbc6d58af5f7e84660b5e3085a431035d
+    Reviewed-on: https://go-review.googlesource.com/47035
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/amd64/asm.go     |  4 +++-
- src/cmd/link/internal/arm64/asm.go     |  2 +-
- src/cmd/link/internal/ld/data.go       |  2 +-
- src/cmd/link/internal/ld/lib.go        |  4 +++-
- src/cmd/link/internal/ld/pe.go         |  2 +-
- src/cmd/link/internal/ld/symtab.go     |  9 +++++++--
- src/cmd/link/internal/loadelf/ldelf.go | 13 +++++++------
- src/cmd/link/internal/s390x/asm.go     |  4 +++-
- src/cmd/link/internal/sym/attribute.go |  8 +++++++-
- src/cmd/link/internal/sym/symkind.go   |  1 -
- src/cmd/link/internal/x86/asm.go       |  4 +++-
- 11 files changed, 36 insertions(+), 17 deletions(-)
+ src/reflect/all_test.go | 86 ++++++++++++++++++++++++++++++++-----------------
+ src/reflect/type.go     | 15 +++++++--
+ 2 files changed, 69 insertions(+), 32 deletions(-)

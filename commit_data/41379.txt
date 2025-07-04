@@ -1,14 +1,21 @@
-commit ebe49b2c2999a7d4128c44aed9602a69fdc53d16
-Author: Sam Chen <chenxsan@gmail.com>
-Date:   Sat Feb 22 11:42:19 2020 +0000
+commit db87c9f2d0cc0e695bc7686bdcd04ea075b28deb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 27 13:03:07 2019 -0400
 
-    doc: remove extra br tags
+    cmd/go: do not reject internal double-dots in path elements
     
-    Change-Id: I6db784c67dde058ddaae8d73b295ee02583a1ed4
-    GitHub-Last-Rev: fea8e66c8ac26809ad1d7f04462cdbde9a41020a
-    GitHub-Pull-Request: golang/go#37375
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220577
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The relative path element ".." is already rejected
+    by the checks for leading and trailing dots.
+    
+    Fixes #27299
+    
+    Change-Id: Ia8ab543c93288cdc0615abd6d22521d44bc56d72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197720
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/cmd.html | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/go/internal/get/path.go           | 3 ---
+ src/cmd/go/internal/module/module.go      | 3 ---
+ src/cmd/go/internal/module/module_test.go | 3 ++-
+ 3 files changed, 2 insertions(+), 7 deletions(-)

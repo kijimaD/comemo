@@ -1,14 +1,13 @@
-commit 9ba153e3e0969407c036deef6971d1f41cb11a18
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Apr 21 00:08:39 2014 -0400
+commit f187675041c097256527804136188ae29a6b7b21
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Apr 20 20:29:17 2014 +0200
 
-    lib9: restore argv0 initialization code.
-    `GOARCH=arm go tool 6c` used to give "<prog>: cannot use 6c with GOARCH=arm"
+    doc/go1.3.html: fix Goexit link
     
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=minux.ma
+    R=r, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/89330043
+    https://golang.org/cl/89710043
 
- src/lib9/main.c | 2 +-
+ doc/go1.3.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

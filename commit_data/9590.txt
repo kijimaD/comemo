@@ -1,14 +1,18 @@
-commit 8ede0a67a20a3cdb4d584c784f8b9de9629d050b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 5 09:50:22 2011 +1000
+commit c5670f15488843ebd368f4f3fff417cc7acdd178
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Sat Sep 3 16:01:54 2011 -0300
 
-    misc/goplay: Fix template output
+    gofix: do not convert url in field names
     
-    Fixes #2219.
+    There's some ambiguity in the U{url: url} case as it could be
+    both a map or a struct literal, but given context it's more
+    likely a struct, so U{url: url_} rather than U{url_: url_}.
+    At least that was the case for me.
     
-    R=golang-dev, r
+    R=golang-dev, rsc, adg
     CC=golang-dev
-    https://golang.org/cl/4960052
+    https://golang.org/cl/4972052
 
- misc/goplay/goplay.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gofix/url.go      | 13 ++++++++++++-
+ src/cmd/gofix/url_test.go | 10 ++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

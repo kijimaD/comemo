@@ -1,21 +1,20 @@
-commit 704893b16be5ab99913ee04c615d570ad5d57027
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue May 8 10:21:09 2018 +0200
+commit 4c4ce3dc79fcf535045e69068b15142d8b7259cd
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Feb 12 20:13:33 2018 +0000
 
-    misc/ios: retry iOS launch even if no device app path was found
+    all: restore changes from faulty merge/revert
     
-    Now that the iOS exec wrapper uninstalls any existing test app before
-    installing a new, looking up the device app path might fail. Before,
-    the lookup always succeeded (even though the path reported might be
-    stale).
+    This reverts commit 3b6abd8a4501d816e80b4d46e6fda4df486ccb66.
     
-    For the iOS builder.
-    
-    Change-Id: I5667b6fae15f88745bdee796db219a429a26e203
-    Reviewed-on: https://go-review.googlesource.com/112075
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I8ca100501c1844af78a547989786d14dac6b494a
+    Reviewed-on: https://go-review.googlesource.com/93456
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ .github/PULL_REQUEST_TEMPLATE |  7 -------
+ CONTRIBUTING.md               |  5 -----
+ README.md                     |  7 +++----
+ doc/devel/release.html        | 13 +++++++++++++
+ doc/diagnostics.html          |  2 +-
+ doc/go1.10.html               |  3 ++-
+ src/cmd/fix/cftype.go         |  2 +-
+ 7 files changed, 20 insertions(+), 19 deletions(-)

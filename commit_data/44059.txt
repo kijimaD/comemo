@@ -1,32 +1,22 @@
-commit 98a73030b01cc23a292934d09f137a2befa439bf
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Dec 16 16:37:56 2020 -0500
+commit 66ee97590ce967c8210eedfb3194b1140740a792
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed May 6 18:57:58 2020 -0400
 
-    cmd/go: in 'go get', promote named implicit dependencies to explicit
+    cmd/link: don't overwrite text sections on PPC64
     
-    'go get pkg@vers' will now add an explicit requirement for the module
-    providing pkg if that version was already indirectly required.
+    The code writes text sections twice, one with Codeblk, one with
+    Datblk. The second write shouldn't be there.
     
-    'go get mod@vers' will do the same if mod is a module path but not a
-    package.
+    May fix #38898.
     
-    Requirements promoted this way will be marked "// indirect" because
-    'go get' doesn't know whether they're needed to build packages in the
-    main module. So users should prefer to run 'go get ./pkg' (where ./pkg
-    is a package in the main module) to promote requirements.
-    
-    Fixes #43131
-    
-    Change-Id: Ifbb65b71274b3cc752a7a593d6ddd875f7de23b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278812
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I4ec70294059ec9aa0fc4cc69a3cd824f5843287b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232661
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modload/buildlist.go                | 11 +++++++++++
- src/cmd/go/internal/modload/init.go                     |  6 +++++-
- src/cmd/go/internal/modload/query.go                    | 10 +++-------
- src/cmd/go/internal/str/str.go                          | 14 ++++++++++++++
- src/cmd/go/testdata/script/mod_get_promote_implicit.txt |  6 ++++++
- 5 files changed, 39 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ppc64/asm.go | 5 -----
+ 1 file changed, 5 deletions(-)

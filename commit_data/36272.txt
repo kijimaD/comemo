@@ -1,31 +1,12 @@
-commit 2482451f76f47707e29b19cafdcaf754badd024b
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Aug 16 14:39:13 2018 +0100
+commit 0164ada30f40f945ead14063f6231642e86ba722
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Mon Apr 16 23:41:21 2018 +0900
 
-    cmd/vet: don't suggest ... if it breaks a program
+    time: go fmt
     
-    It is possible to write a function that seems to wrap a print/printf
-    call, but then doesn't. For example, if the string parameter we thought
-    was the format is used as another argument.
-    
-    One option would be to make vet's print analysis smarter, to detect when
-    format strings are indeed used like we initially suspected.
-    
-    However, I've opted for a simpler solution - check if the print/printf
-    call is already using more than one variadic argument, in which case
-    using an ellipsis in the last one would break the program:
-    
-            // too many arguments in call to fmt.Printf
-            fmt.Printf(format, arg0, args...)
-    
-    Fixes #26979.
-    
-    Change-Id: I39371f1cec8483cfd2770a91670c1e80cbb9efdf
-    Reviewed-on: https://go-review.googlesource.com/129575
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0e6b308333b84409bb0bb034c17fef9b63ad44c4
+    Reviewed-on: https://go-review.googlesource.com/107377
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/print.go          | 14 ++++++++++++++
- src/cmd/vet/testdata/print.go |  4 ++++
- 2 files changed, 18 insertions(+)
+ src/time/time_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

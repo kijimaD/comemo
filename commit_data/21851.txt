@@ -1,14 +1,12 @@
-commit 66416c00eb162f56afe90589e460fcc396b5acc1
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Mar 2 16:05:11 2015 -0500
+commit 906aefb038b6baddc38f165bdfb6ecf624db398d
+Author: mattyw <gh@mattyw.net>
+Date:   Sat Feb 7 10:28:20 2015 +0800
 
-    misc/ios: more predictable zoneinfo.zip location
+    gofmt/doc: gofmt -s output may not be backward compatible
     
-    See golang.org/cl/6511.
-    
-    Change-Id: I2145a42877ed6b78400f29c2ef18969870dab5c3
-    Reviewed-on: https://go-review.googlesource.com/6512
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: If697ab554e6cb5545d99c6b103ed8bc54f69ed48
+    Reviewed-on: https://go-review.googlesource.com/4161
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ src/cmd/gofmt/doc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

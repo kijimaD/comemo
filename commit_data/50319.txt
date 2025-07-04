@@ -1,27 +1,17 @@
-commit bd5595d7fa4eb3e234aabeac554f2ba8f2a95790
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Wed Apr 13 21:14:22 2022 +0800
+commit 543a513304c35d42b162790a6e70191aac68225c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Oct 17 01:18:20 2021 +0700
 
-    runtime: refactor finalizer goroutine status
+    reflect: add test that method values have the same code pointers
     
-    Use an atomic.Uint32 to represent the state of finalizer goroutine.
-    fingStatus will only be changed to fingWake in non fingWait state,
-    so it is safe to set fingRunningFinalizer status in runfinq.
+    Updates #40592
     
-    name            old time/op  new time/op  delta
-    Finalizer-8      592µs ± 4%   561µs ± 1%  -5.22%  (p=0.000 n=10+10)
-    FinalizerRun-8   694ns ± 6%   675ns ± 7%    ~     (p=0.059 n=9+8)
-    
-    Change-Id: I7e4da30cec98ce99f7d8cf4c97f933a8a2d1cae1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400134
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I16252dd57aceb5c49ddc11d8c12c601ca87ca902
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356252
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/export_test.go |  5 +----
- src/runtime/mfinal.go      | 49 ++++++++++++++++++++++++++--------------------
- src/runtime/mprof.go       |  2 +-
- src/runtime/proc.go        |  2 +-
- src/runtime/traceback.go   |  2 +-
- 5 files changed, 32 insertions(+), 28 deletions(-)
+ src/reflect/all_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

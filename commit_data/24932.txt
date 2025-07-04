@@ -1,19 +1,15 @@
-commit ce8f49f42ff98a87a6766aa50efa0449c4525ce3
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Oct 27 19:46:49 2015 -0400
+commit def7c65b7062f5c087c4e348768ee4c464b79b91
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Sep 7 19:07:02 2015 -0500
 
-    runtime: android/arm64 support
+    [dev.ssa] cmd/compile/internal/ssa: implement OCFUNC
     
-    Not all tests passing yet, but a good chunk are.
-    
-    Change-Id: I5daebaeabf3aecb380674ece8830a86751a8d139
-    Reviewed-on: https://go-review.googlesource.com/16458
-    Reviewed-by: Rahul Chaudhry <rahulchaudhry@google.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ieb9cddf8876bf8cd5ee1705d9210d22c3959e8cc
+    Reviewed-on: https://go-review.googlesource.com/14329
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Todd Neal <todd@tneal.org>
 
- src/runtime/defs_linux_arm64.go                  |  9 +++++++
- src/runtime/{os_android_arm.go => os_android.go} |  0
- src/runtime/rt0_android_arm64.s                  | 13 ++++++++++
- src/runtime/sys_linux_arm64.s                    | 33 ++++++++++++++++++++++++
- src/runtime/tls_arm64.h                          |  6 +++++
- 5 files changed, 61 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go                 | 12 ++++---
+ src/cmd/compile/internal/gc/ssa_test.go            |  3 ++
+ .../compile/internal/gc/testdata/closure_ssa.go    | 39 ++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 4 deletions(-)

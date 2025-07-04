@@ -1,12 +1,12 @@
-commit 4eb93029725f3adbd9632a1b58644920f077f100
-Author: Jeremy Jackins <jeremyjackins@gmail.com>
-Date:   Tue Mar 17 13:00:31 2015 +0900
+commit 6406acf33835141fe527a53faf5e461179d9298a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 21 12:53:30 2015 -0500
 
-    cmd/yacc: fix path in documentation
+    [dev.cc] cmd/asm/internal/asm: fix test on windows
     
-    Change-Id: I367b5a837844e3bee1576c59497d37f5e67c761d
-    Reviewed-on: https://go-review.googlesource.com/7674
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ia6cf3204d71740bc2b6e26c53ac5206e8a33a180
+    Reviewed-on: https://go-review.googlesource.com/5540
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/yacc/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/endtoend_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

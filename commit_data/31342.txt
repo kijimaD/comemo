@@ -1,21 +1,22 @@
-commit 51012314251a8b1f1dfe9737091a37c0e1f6b9d5
-Author: griesemer <gri@golang.org>
-Date:   Mon Apr 24 22:17:03 2017 -0700
+commit 074b73b1b2db1a1d1bb17d25bb335802e7b59f69
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Feb 13 14:39:58 2017 -0500
 
-    cmd/compile: factor out access to thisT
+    cmd/compile: fix s390x load-combining rules
     
-    isifacemethod accessed thisT without checking if it was initialized,
-    opening the possibility for a bug during type checking. Give better
-    name, move it to package types, and provide accessor instead.
+    MOVD{reg,nop} operations (added in CL 36256) inserted to preserve
+    type information were blocking the load-combining rules. Fix this
+    by merging type changes into loads wherever possible.
     
-    Change-Id: I29ffc408252a4ba4ef1de218fa154397786c9be6
-    Reviewed-on: https://go-review.googlesource.com/41673
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #19059.
+    
+    Change-Id: I8a1df06eb0f231b40ae43107d4a3bd0b9c441b59
+    Reviewed-on: https://go-review.googlesource.com/36843
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go  |  2 +-
- src/cmd/compile/internal/gc/dcl.go      | 25 ++++++++-----------------
- src/cmd/compile/internal/gc/noder.go    |  2 +-
- src/cmd/compile/internal/gc/universe.go |  2 +-
- src/cmd/compile/internal/types/type.go  | 10 ++++++++++
- 5 files changed, 21 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go      |  39 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  34 ++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 622 ++++++++++++++++++++++++++-
+ 3 files changed, 674 insertions(+), 21 deletions(-)

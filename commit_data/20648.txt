@@ -1,17 +1,22 @@
-commit f8f95590d946bb4619599f909b6facf14f9bed03
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Oct 6 15:08:31 2014 -0700
+commit b86105e80da7fd994656f134d006a700fe037fc2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 13:47:51 2014 -0400
 
-    go/build: update docs for GOOS.go change
+    cmd/go: make malformed import path message more precise
     
-    Forgotten in https://golang.org/cl/147690043/
+    If you say 'go get -v' you get extra information when import
+    paths are not of the expected form.
     
-    Update #8838
+    If you say 'go get -v src/rsc.io/pdf' the message says that
+    src/rsc.io/pdf does not contain a hostname, which is incorrect.
+    The problem is that it does not begin with a hostname.
+    
+    Fixes #7432.
     
     LGTM=r
-    R=r
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/152220045
+    R=golang-codereviews, r
+    CC=bradfitz, golang-codereviews, iant
+    https://golang.org/cl/144650043
 
- src/go/build/doc.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/go/vcs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

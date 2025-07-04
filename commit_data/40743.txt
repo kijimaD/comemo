@@ -1,16 +1,16 @@
-commit eb55a0c86438b815e244c1f00dea273b3122592a
-Author: Gabriel Rosenhouse <rosenhouse@gmail.com>
-Date:   Mon Nov 11 19:50:55 2019 +0000
+commit fd629821b83aa76062c71dbe24f4ea98aa0065e6
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Jun 24 16:30:30 2019 -0400
 
-    net/http: add DialTLSContext hook to Transport
+    cmd/internal/obj/ppc64: add doc.go
     
-    Fixes #21526
+    Adding some details on writing Go assembler for ppc64.
     
-    Change-Id: I2f8215cd671641cddfa8499f8a8c0130db93dbc6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/61291
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I46fc6b75ee6c36946f90280b2b670e0d32bcc6b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183837
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go      | 41 +++++++++++++++-----
- src/net/http/transport_test.go | 85 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 117 insertions(+), 9 deletions(-)
+ src/cmd/internal/obj/ppc64/doc.go | 204 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 204 insertions(+)

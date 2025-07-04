@@ -1,58 +1,13 @@
-commit ebe91d11051ac5e9ecf1bdacc1bcdfbe7bcbafa7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 6 18:33:03 2013 -0700
+commit a4eac94b5710539829e9ca0ed20e6a6a307f288d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 7 09:34:39 2013 +1000
 
-    net/http: treat HEAD requests like GET requests
+    doc/articles/laws_of_reflection.html: fix name of variable
+    Thanks to c.emil.hessman@gmail.com for pointing out the error.
     
-    A response to a HEAD request is supposed to look the same as a
-    response to a GET request, just without a body.
-    
-    HEAD requests are incredibly rare in the wild.
-    
-    The Go net/http package has so far treated HEAD requests
-    specially: a Write on our default ResponseWriter returned
-    ErrBodyNotAllowed, telling handlers that something was wrong.
-    This was to optimize the fast path for HEAD requests, but:
-    
-    1) because HEAD requests are incredibly rare, they're not
-       worth having a fast path for.
-    
-    2) Letting the http.Handler handle but do nop Writes is still
-       very fast.
-    
-    3) this forces ugly error handling into the application.
-       e.g. https://code.google.com/p/go/source/detail?r=6f596be7a31e
-       and related.
-    
-    4) The net/http package nowadays does Content-Type sniffing,
-       but you don't get that for HEAD.
-    
-    5) The net/http package nowadays does Content-Length counting
-       for small (few KB) responses, but not for HEAD.
-    
-    6) ErrBodyNotAllowed was useless. By the time you received it,
-       you had probably already done all your heavy computation
-       and I/O to calculate what to write.
-    
-    So, this change makes HEAD requests like GET requests.
-    
-    We now count content-length and sniff content-type for HEAD
-    requests. If you Write, it doesn't return an error.
-    
-    If you want a fast-path in your code for HEAD, you have to do
-    it early and set all the response headers yourself. Just like
-    before. If you choose not to Write in HEAD requests, be sure
-    to set Content-Length if you know it. We won't write
-    "Content-Length: 0" because you might've just chosen to not
-    write (or you don't know your Content-Length in advance).
-    
-    Fixes #5454
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12583043
+    https://golang.org/cl/12572043
 
- src/pkg/net/http/serve_test.go     | 26 +++++++++++++-------------
- src/pkg/net/http/server.go         | 15 ++++++++++-----
- src/pkg/net/http/transport_test.go |  6 ++++++
- 3 files changed, 29 insertions(+), 18 deletions(-)
+ doc/articles/laws_of_reflection.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,13 @@
-commit d2bd93a01096ac6dc8061112e7a9ac62ec239627
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Fri May 15 20:35:00 2020 +0200
+commit 55d4cbfbe10c11e56e1642cbb6b108eaf2620e09
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 5 12:55:44 2020 -0800
 
-    cmd/compile: enforce strongly typed rules for ARM (6)
+    cmd/compile/internal/scanner: report correct directive string (fix build)
     
-    End of "constant folding in *shift ops" until EOF
-    (L1070-)
-    Toolstash-check is successful.
-    
-    Change-Id: I55846a459aca5238f831750f04132e13a0baeed7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234198
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I01b244e97e4140545a46b3d494489a30126c2139
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222257
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules |  704 +++++++-------
- src/cmd/compile/internal/ssa/rewriteARM.go | 1386 ++++++++++++++--------------
- 2 files changed, 1045 insertions(+), 1045 deletions(-)
+ src/cmd/compile/internal/syntax/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

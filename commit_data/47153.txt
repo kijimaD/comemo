@@ -1,29 +1,24 @@
-commit 81fea0b4fd3b134d4c1d121abad171e358037ce3
-Author: Timothy Gu <timothygu99@gmail.com>
-Date:   Fri May 7 01:03:59 2021 -0700
+commit 998fe70b683ed64d0bc67d9e0a35f8a7bcbe161d
+Author: David Chase <drchase@google.com>
+Date:   Fri Feb 26 17:37:26 2021 -0500
 
-    net/url: consider ForceQuery in ResolveReference
+    cmd/compile: fixed which-result confusion in presence of 0-width types
     
-    Previously, when resolving references of form
-      (https://golang.org/?hello).ResolveReference(?)
-    we only used URL.RawQuery to determine whether or not a query part is
-    defined. Go 1.7 introduced URL.ForceQuery as a flag for the situation
-    where a query part is provided but empty. But we did not use it in
-    ResolveReference. This leads to the erroneous output
-      https://golang.org/?hello
-    when the correct output should be
-      https://golang.org/?
-    This commit rectifies that error.
+    A function returning multiple results, some of them zero-width,
+    will have more than one result present at an offset.  Be sure
+    that offset AND type match.
     
-    Fixes #46033
+    Includes test.
     
-    Change-Id: I05bc0b48bf2bbf13b4ddc0dd10599ea613dc2188
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317930
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3eb1f56116d989b4e73f533fefabb1bf554c901b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297169
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/net/url/url.go      | 2 +-
- src/net/url/url_test.go | 3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/op.go     |  9 ++++++---
+ src/cmd/compile/internal/ssagen/ssa.go |  4 ++--
+ test/abi/f_ret_z_not.go                | 33 +++++++++++++++++++++++++++++++++
+ test/abi/f_ret_z_not.out               |  1 +
+ 4 files changed, 42 insertions(+), 5 deletions(-)

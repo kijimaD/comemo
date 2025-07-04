@@ -1,22 +1,16 @@
-commit 78a11c21ab74e5bfb229f383b4b53621fe8aed63
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 22 16:24:05 2017 -0400
+commit 2ae79d0711c7ff039e440d1bf1d6a4e45193f533
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 23 15:05:31 2017 +1100
 
-    cmd/go: detect case-insensitive import path collision
+    cmd/compile/internal/gc: remove unused exporter.nesting field
     
-    We already detect this collision when both imports are used
-    anywhere in a single program. Also detect it when they are in
-    different targets being processed together.
+    exporter.nesting was added in c7b9bd74 to mitigate #16369 which was
+    closed in ee272bbf. Remove the exporter.nesting field as it is now unused.
     
-    Fixes #20264.
-    
-    Change-Id: I5d3c822aae136053fbcb5ed167e1d67f9b847a0f
-    Reviewed-on: https://go-review.googlesource.com/46424
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I07873d1a07d6a08b11994b817a1483ffc2f5e45f
+    Reviewed-on: https://go-review.googlesource.com/38490
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go           | 13 +++++++++++--
- src/cmd/go/internal/load/pkg.go | 21 +++++++++++----------
- src/cmd/go/internal/str/str.go  |  8 ++++----
- 3 files changed, 26 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 3 ---
+ 1 file changed, 3 deletions(-)

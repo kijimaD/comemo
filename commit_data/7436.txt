@@ -1,18 +1,12 @@
-commit 4ee90b764e4e652b10f629810bf6a78d346f4200
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Feb 11 08:34:19 2011 -0500
+commit 047b023119fe6f60e08676697e52bfcb3e33fb04
+Author: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+Date:   Fri Feb 11 08:30:34 2011 -0500
 
-    crypto/openpgp: minor updates to subpackages
+    fix example in inotify
     
-    Now that packet/ is checked in, we can add its Makefile. Also, a couple
-    of updates to error/ and s2k/ for bugfixes and to use the new crypto
-    package.
-    
-    R=bradfitzgo
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4179043
+    https://golang.org/cl/4174045
 
- src/pkg/crypto/openpgp/error/error.go  | 18 ++++++++++
- src/pkg/crypto/openpgp/packet/Makefile | 22 ++++++++++++
- src/pkg/crypto/openpgp/s2k/s2k.go      | 66 ++++++++++++++++++++--------------
- 3 files changed, 80 insertions(+), 26 deletions(-)
+ src/pkg/os/inotify/inotify_linux.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

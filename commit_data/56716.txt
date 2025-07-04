@@ -1,25 +1,24 @@
-commit 3f4be127bcd6a45ae8d91d7363f56461c80b75fb
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Wed May 29 16:42:57 2024 +0000
+commit f81c885819cfca1b92ee64abb0b932e4f73b5049
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 12 08:48:32 2023 -0400
 
-    Revert "runtime: use semaphore structure for futex locks"
+    cmd/go,testing: re-implement testing.Coverage
     
-    This reverts commit dfb7073bb8e66630156fc14ae50042acef89a929 (CL 585636).
+    This patch revives the testing.Coverage() function, which takes a
+    snapshot of the coverage counters within an executing "go test -cover"
+    test binary and returns a percentage approximating the percent of
+    statements covered so far.
     
-    Reason for revert: This is part of a patch series that changed the
-    handling of contended lock2/unlock2 calls, reducing the maximum
-    throughput of contended runtime.mutex values, and causing a performance
-    regression on applications where that is (or became) the bottleneck.
+    Fixes #59590.
     
-    Updates #66999
-    Updates #67585
-    
-    Change-Id: I3483bf0b85ba0b77204032a68b7cbe93f142703e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589098
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Change-Id: I541d47a42d71c8fb2edc473d86c8951fa80f4ab0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495450
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/lock_futex.go | 103 +++++++++++++++++++++++-----------------------
- 1 file changed, 51 insertions(+), 52 deletions(-)
+ src/cmd/go/internal/load/test.go                |  7 ++-
+ src/cmd/go/testdata/script/testing_coverage.txt | 57 +++++++++++++++++++++++++
+ src/testing/cover.go                            |  3 ++
+ src/testing/newcover.go                         | 17 ++++++--
+ 4 files changed, 79 insertions(+), 5 deletions(-)

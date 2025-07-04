@@ -1,19 +1,20 @@
-commit d9fb9e7cf5ee0e0e31007a8544a2730e20535494
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Nov 15 10:49:35 2017 -0800
+commit 645ecf5d4806bfef470da2ac1fad8df40c73beb8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 18 17:43:33 2017 -0700
 
-    archive/tar: change error prefix
+    cmd/dist: rearrange a couple of tests
     
-    Change error message prefix from "tar:" to "archive/tar:" to maintain
-    backwards compatibility with Go1.9 and earlier in the unfortunate event
-    that someone is relying on string parsing of errors.
+    Run "cmd/go terminal test" after standard library tests.
+    Run "testing race detector" before cgo tests, not in the middle of them.
     
-    Fixes #22740
+    Fixes #21524
     
-    Change-Id: I59039c59818a0599e9d3b06bb5a531aa22a389b8
-    Reviewed-on: https://go-review.googlesource.com/77933
-    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Change-Id: I32964ec6377dd070242138ec452bd8ab1821dcc5
+    Reviewed-on: https://go-review.googlesource.com/57230
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
 
- src/archive/tar/common.go | 24 ++++++++++++------------
- src/archive/tar/writer.go |  2 +-
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/dist/test.go | 58 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

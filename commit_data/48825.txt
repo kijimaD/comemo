@@ -1,24 +1,15 @@
-commit 0e08b02ac54c9232759704812f41a5836f920cff
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 15 10:15:53 2022 -0700
+commit 9f50d9a0b41bc0618272535f84c3e518e74f2fea
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 23:29:40 2021 +0000
 
-    spec: clarify rules for type set construction of an interface
+    [dev.typeparams] internal/reflectlite: remove unused ptrSize
     
-    Be explicit that we always mean non-interface types when we
-    talk about sets of types.
-    
-    Also, clarify that the quantification "all non-interface types"
-    means all such types in all possible programs, not just the
-    current program.
-    
-    Per suggestion from Philip Wadler.
-    
-    Change-Id: Ibc7b5823164e547bfcee85d4e523e58c7c27ac8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398655
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ia0da5e5d1e8d20327690cb53c9df067401f3428c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328812
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go_spec.html | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/internal/reflectlite/value.go | 2 --
+ 1 file changed, 2 deletions(-)

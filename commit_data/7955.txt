@@ -1,12 +1,14 @@
-commit c42b3e21c30c354a5a2fdc840a0824fb71c10368
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 1 20:51:55 2011 -0700
+commit 7b40095e8c2ab6ae08589fa53f4328231139fdd3
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri Apr 1 22:26:57 2011 -0400
 
-    go/parser: package name must not be the blank identifier
+    syscall: make Rawsyscall6 pass 6th arg on linux/386
     
-    R=r, r2, rsc1
+    Forgot this one in the previous CL
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4343045
+    https://golang.org/cl/4345043
 
- src/pkg/go/parser/parser.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/syscall/asm_linux_386.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

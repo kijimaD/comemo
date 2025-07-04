@@ -1,30 +1,23 @@
-commit 9372e3f5ef6c9653d29cbba2dc06bdcad2b3724c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 4 16:55:03 2017 -0800
+commit ed3b0d63b72ffb3fc00e98af295a3add20943808
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 7 12:57:58 2017 +1000
 
-    runtime: don't allocate to build strings of length 1
+    [release-branch.go1.9] internal/poll: add tests for Windows file and serial ports
     
-    Use staticbytes instead.
-    Instrumenting make.bash shows approx 0.5%
-    of all slicebytetostrings have a buffer of length 1.
+    I also wanted to test net sockets, but I do not know how to
+    access their file handles. So I did not implement socket tests.
     
-    name                     old time/op  new time/op  delta
-    SliceByteToString/1-8    14.1ns ± 1%   4.1ns ± 1%  -71.13%  (p=0.000 n=17+20)
-    SliceByteToString/2-8    15.5ns ± 2%  15.5ns ± 1%     ~     (p=0.061 n=20+18)
-    SliceByteToString/4-8    14.9ns ± 1%  15.0ns ± 2%   +1.25%  (p=0.000 n=20+20)
-    SliceByteToString/8-8    17.1ns ± 1%  17.5ns ± 1%   +2.16%  (p=0.000 n=19+19)
-    SliceByteToString/16-8   23.6ns ± 1%  23.9ns ± 1%   +1.41%  (p=0.000 n=20+18)
-    SliceByteToString/32-8   26.0ns ± 1%  25.8ns ± 0%   -1.05%  (p=0.000 n=19+16)
-    SliceByteToString/64-8   30.0ns ± 0%  30.2ns ± 0%   +0.56%  (p=0.000 n=16+18)
-    SliceByteToString/128-8  38.9ns ± 0%  39.0ns ± 0%   +0.23%  (p=0.019 n=19+15)
+    Updates #21172
     
-    Fixes #24172
-    
-    Change-Id: I3dfa14eefbf9fb4387114e20c9cb40e186abe962
-    Reviewed-on: https://go-review.googlesource.com/97717
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5062c0e65a817571d755397d60762c175f9791ce
+    Reviewed-on: https://go-review.googlesource.com/53530
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/71131
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/string.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/internal/poll/export_windows_test.go |  17 +++++
+ src/internal/poll/fd_windows.go          |  14 +++-
+ src/internal/poll/fd_windows_test.go     | 111 +++++++++++++++++++++++++++++++
+ 3 files changed, 139 insertions(+), 3 deletions(-)

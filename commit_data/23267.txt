@@ -1,25 +1,13 @@
-commit 12795c02f3d6fc54ece09a86e70aaa40a94d5131
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 21 14:35:02 2015 -0400
+commit 5ffdf53b275d54589743afa32c0af6e5b0df09a0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun May 3 01:29:52 2015 -0400
 
-    cmd/link: deprecate -X name value in favor of -X name=value
+    go/internal/gcimporter, go/types: also skip tests on nacl/arm
     
-    People invoking the linker directly already have to change their scripts
-    to use the new "go tool link", so this is a good time to make the -X flag
-    behave like all other Go flags and take just a single argument.
-    
-    The old syntax will continue to be accepted (it is rewritten into the new
-    syntax before flag parsing). Maybe some day we will be able to retire it.
-    
-    Even if we never retire the old syntax, having the new syntax at least
-    makes the rewriting much less of a kludge.
-    
-    Change-Id: I91e8df94f4c22b2186e81d7f1016b8767d777eac
-    Reviewed-on: https://go-review.googlesource.com/10310
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I3e839587626832da069d95a7d7389ea6bb2318da
+    Reviewed-on: https://go-review.googlesource.com/9674
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/data.go | 10 ++++------
- src/cmd/link/internal/ld/pobj.go | 36 +++++++++++++++++++++++++++---------
- test/linkx.go                    |  6 ++++--
- test/linkx_run.go                | 18 ++++++++++++++----
- 4 files changed, 49 insertions(+), 21 deletions(-)
+ src/go/internal/gcimporter/gcimporter_test.go | 1 +
+ src/go/types/api_test.go                      | 1 +
+ 2 files changed, 2 insertions(+)

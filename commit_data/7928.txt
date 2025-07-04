@@ -1,14 +1,13 @@
-commit 974d2c98e02d6331b9ae441ec676c6901bafc238
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Mar 29 17:53:09 2011 -0400
+commit d844aae690edfc3c411e95ed9fdf583c45f63a3c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 29 14:03:08 2011 -0700
 
-    crypto/tls: extend NPN support to the client.
+    prints: fix a couple of formatting errors caught by govet
     
-    R=bradfitzgo, rsc1, bradfitzwork
+    R=rsc, agl, agl1
     CC=golang-dev
-    https://golang.org/cl/4277085
+    https://golang.org/cl/4337041
 
- src/pkg/crypto/tls/common.go           |  8 ++++----
- src/pkg/crypto/tls/conn.go             |  4 +++-
- src/pkg/crypto/tls/handshake_client.go | 33 +++++++++++++++++++++++++++++++++
- 3 files changed, 40 insertions(+), 5 deletions(-)
+ src/cmd/gofix/fix.go               | 2 +-
+ src/pkg/crypto/ecdsa/ecdsa_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

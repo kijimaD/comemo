@@ -1,21 +1,21 @@
-commit 5f5b20c4268c1a3aa6a3b132aeede6dc82adf344
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Thu Mar 21 08:15:08 2024 +0000
+commit 2f2b874b0aab741a8628fd971f4b3aa41e2fdffb
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 4 14:57:14 2023 +0200
 
-    encoding/gob: close files used in dump.go and encgen.go
+    os/exec: skip remount in TestFindExecutableVsNoexec on EROFS
     
-    Change-Id: Ic1dd899fa52fdf9098955fc14a828d2f07da8037
-    GitHub-Last-Rev: 6e0438ec7178382e2a7d56f0a053cec33fbe9e78
-    GitHub-Pull-Request: golang/go#66437
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573235
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    To allow using testenv.SyscallIsNotSupported, rewrite the test to use
+    the exported API only. Given that path is an absolute path,
+    exec.LookPath is equivalent to exec.findExecutable on linux.
+    
+    Fixes #59087
+    
+    Change-Id: Ia01b84d4e9d5a65a88dd995f9e3c8a81c4ccd19f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481620
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Rob Pike <r@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/encoding/gob/dump.go   | 1 +
- src/encoding/gob/encgen.go | 3 +++
- 2 files changed, 4 insertions(+)
+ src/os/exec/lp_linux_test.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

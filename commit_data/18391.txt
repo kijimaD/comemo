@@ -1,18 +1,16 @@
-commit d98b3a7ee5a88ddb328e2a96f41f1e3cec40ad80
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Feb 2 16:05:07 2014 +1100
+commit 7e494f8500416b9940c239be7970fa7aacc0868f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 31 15:10:18 2014 -0800
 
-    time: use an alternative method of yielding during Overflow timer test
+    unicode: delete appearance of unused LowerUpper term from comment
+    If a LowerUpper ever happens, maketables will complain.
     
-    Fixes #6874.
+    Fixes #7002.
     
-    Use runtime.GC() as a stronger version of runtime.Gosched() which tends to bias the running goroutine in an otherwise idle system. This appears to reduce the worst case number of spins from 600 down to 30 on my 2 core system under high load.
-    
-    LGTM=iant
-    R=golang-codereviews, lucio.dere, iant, dvyukov
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/56540046
+    https://golang.org/cl/59210044
 
- src/pkg/time/internal_test.go | 10 +++++++++-
- src/pkg/time/sleep_test.go    |  3 +++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/pkg/unicode/letter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

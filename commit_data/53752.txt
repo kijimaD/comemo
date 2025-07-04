@@ -1,27 +1,44 @@
-commit 4d21b3ec2d63163962feb0cfaceaa33c6b98e6a5
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri May 5 18:52:39 2023 -0400
+commit 9b80d3d3db126bda3eb976778cca4eb03a5a229b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 15:28:52 2022 -0700
 
-    cmd/link: rationalize -s and -w flags with Mach-O external linking
+    go/parser: remove validation of expression syntax, leave to type checker
     
-    Currently, on Mach-O in external linking mode, the handling of -s
-    and -w flags are a bit mixed: neither flag disables the symbol
-    table, and both flags disable DWARF.
+    Remove the code that verifies that an expression is a type or non-type
+    expression. For one, it cannot be done perfectly accurate
+    (e.g., consider *p which could be an indirection or a pointer type),
+    it also unnecessarily slows down parsing. It's simpler to leave the
+    verification to the type checker which has all the information needed.
     
-    This CL makes it do what is documented: -s disables symbol table,
-    and -w disables DWARF. For the Darwin system linker, the -s flag
-    (strip symbol table) is obsolete. So we strip it afterwards. We
-    already use the strip command to strip the debug STAB symbols if
-    we need to combine DWARF. With this CL we'll use an additional
-    flag to strip more symbols. And we now also use strip if -s is
-    specified and we don't need to combine DWARF.
+    Remove short compiler tests that tested the expression/type property.
+    Adjust a couple of go/types tests which now trigger because the parser
+    doesn't complain anymore.
     
-    Change-Id: I9bed24fd388f2bd5b0ffa4ec2db46a4a2f6b1016
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493136
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change file for benchmark from "parser.go" to "../printer/nodes.go"
+    to avoid a moving target when benchmarking.
+    
+    The parser may be marginally faster when tested on nodes.go:
+    
+    name          old time/op    new time/op    delta
+    ParseOnly-12    1.35ms ± 0%    1.31ms ± 0%   ~     (p=0.100 n=3+3)
+    
+    name          old speed      new speed      delta
+    ParseOnly-12  39.9MB/s ± 0%  41.0MB/s ± 0%   ~     (p=0.100 n=3+3)
+    
+    For #54511.
+    
+    Change-Id: I9a32c24c2c6e843c3d1af4587651c352f378b490
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425716
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/link/internal/ld/lib.go   | 20 +++++++++++++++++---
- src/cmd/link/internal/ld/macho.go |  2 +-
- 2 files changed, 18 insertions(+), 4 deletions(-)
+ src/go/parser/interface.go                    |   2 +-
+ src/go/parser/parser.go                       | 134 +++++---------------------
+ src/go/parser/performance_test.go             |   4 +-
+ src/go/parser/short_test.go                   |  19 ----
+ src/go/types/testdata/check/stmt0.go          |   2 +-
+ src/go/types/testdata/fixedbugs/issue42987.go |   4 +-
+ 6 files changed, 30 insertions(+), 135 deletions(-)

@@ -1,20 +1,37 @@
-commit 8b51eb5199031f64f1de811deeab2979f59ad7dc
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Tue May 23 12:30:43 2023 +0200
+commit c5be4ed7df3b2ae8f9d0a5c85afa4cf49e22a56d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 20 21:49:15 2022 -0400
 
-    runtime/metrics: add /gc/scan/stack:bytes
+    runtime: add missing trace lock edges
     
-    For #56857
+    We're missing lock edges to trace.lock that happen only rarely. Any
+    trace event can potentially fill up a trace buffer and acquire
+    trace.lock in order to flush the buffer, but this happens relatively
+    rarely, so we simply haven't seen some of these lock edges that could
+    happen.
     
-    Change-Id: I58187d7c4112b35951014ab14f2969bed7f4c8e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497319
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    With this change, we promote "fin, notifyList < traceStackTab" to
+    "fin, notifyList < trace" and now everything that emits trace events
+    with a P enters the tracer lock ranks via "trace", rather than some
+    things entering at "trace" and others at "traceStackTab".
+    
+    This was found by inspecting the rank graph for things that didn't
+    make sense.
+    
+    Ideally we would add a mayAcquire annotation that any trace event can
+    potentially acquire trace.lock, but there are actually cases that
+    violate this ranking right now. This is #53979. The chance of a lock
+    cycle is extremely low given the number of conditions that have to
+    happen simultaneously.
+    
+    For #53789.
+    
+    Change-Id: Ic65947d27dee88d2daf639b21b2c9d37552f0ac0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418716
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/metrics.go             | 6 ++++++
- src/runtime/metrics/description.go | 5 +++++
- src/runtime/metrics/doc.go         | 3 +++
- 3 files changed, 14 insertions(+)
+ src/runtime/lockrank.go   | 2 +-
+ src/runtime/mklockrank.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

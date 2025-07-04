@@ -1,14 +1,97 @@
-commit 59f6c81f98addb4fcc28810b4f4eff2990377f87
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 16 10:40:41 2014 -0700
+commit 468cf827803ddffd0d72167c44f750dde004aae4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 16 11:53:14 2014 -0400
 
-    doc/go1.3.html: document the state of FreeBSD
-    Update #7056
+    liblink: fix incorrect hash collision in lookup
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/88070045
+    linklookup uses hash(name, v) as the hash table index but then
+    only compares name to find a symbol to return.
+    If hash(name, v1) == hash(name, v2) for v1 != v2, the lookup
+    for v2 will return the symbol with v1.
+    
+    The input routines assume that each symbol is found only once,
+    and then each symbol is added to a linked list, with the list header
+    in the symbol. Adding a symbol to such a list multiple times
+    short-circuits the list the second time it is added, causing symbols
+    to be dropped.
+    
+    The liblink rewrite introduced an elegant, if inefficient, handling
+    of duplicated symbols by creating a dummy symbol to read the
+    duplicate into. The dummy symbols are named .dup with
+    sequential version numbers. With many .dup symbols, eventually
+    there will be a conflict, causing a duplicate list add, causing elided
+    symbols, causing a crash when calling one of the elided symbols.
+    
+    The bug is old (2011) but could not have manifested until the
+    liblink rewrite introduced this heavily duplicated symbol .dup.
+    (See History section below.)
+    
+    1. Correct the lookup function.
+    
+    2. Since we want all the .dup symbols to be different, there's no
+    point in inserting them into the table. Call linknewsym directly,
+    avoiding the lookup function entirely.
+    
+    3. Since nothing can refer to the .dup symbols, do not bother
+    adding them to the list of functions (textp) at all.
+    
+    4. In lieu of a unit test, introduce additional consistency checks to
+    detect adding a symbol to a list multiple times. This would have
+    caught the short-circuit more directly, and it will detect a variety
+    of double-use bugs, including the one arising from the bad lookup.
+    
+    Fixes #7749.
+    
+    History
+    
+    On April 9, 2011, I submitted CL 4383047, making ld 25% faster.
+    Much of the focus was on the hash table lookup function, and
+    one of the changes was to remove the s->version == v comparison [1].
+    
+    I don't know if this was a simple editing error or if I reasoned that
+    same name but different v would yield a different hash slot and
+    so the name test alone sufficed. It is tempting to claim the former,
+    but it was probably the latter.
+    
+    Because the hash is an iterated multiply+add, the version ends up
+    adding v*3ⁿ to the hash, where n is the length of the name.
+    A collision would need x*3ⁿ ≡ y*3ⁿ (mod 2²⁴ mod 100003),
+    or equivalently x*3ⁿ ≡ x*3ⁿ + (y-x)*3ⁿ (mod 2²⁴ mod 100003),
+    so collisions will actually be periodic: versions x and y collide
+    when d = y-x satisfies d*3ⁿ ≡ 0 (mod 2²⁴ mod 100003).
+    Since we allocate version numbers sequentially, this is actually
+    about the best case one could imagine: the collision rate is
+    much lower than if the hash were more random.
+    http://play.golang.org/p/TScD41c_hA computes the collision
+    period for various name lengths.
+    
+    The most common symbol in the new linker is .dup, and for n=4
+    the period is maximized: the 100004th symbol is the first collision.
+    Unfortunately, there are programs with more duplicated symbols
+    than that.
+    
+    In Go 1.2 and before, duplicate symbols were handled without
+    creating a dummy symbol, so this particular case for generating
+    many duplicate symbols could not happen. Go does not use
+    versioned symbols. Only C does; each input file gives a different
+    version to its static declarations. There just aren't enough C files
+    for this to come up in that context.
+    
+    So the bug is old but the realization of the bug is new.
+    
+    [1] https://golang.org/cl/4383047/diff/5001/src/cmd/ld/lib.c
+    
+    LGTM=minux.ma, iant, dave
+    R=golang-codereviews, minux.ma, bradfitz, iant, dave
+    CC=golang-codereviews, r
+    https://golang.org/cl/87910047
 
- doc/go1.3.html | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ include/link.h        |  1 +
+ src/cmd/ld/data.c     |  3 +++
+ src/cmd/ld/go.c       |  1 +
+ src/cmd/ld/ldelf.c    |  6 ++++++
+ src/cmd/ld/ldmacho.c  |  6 ++++++
+ src/cmd/ld/ldpe.c     |  6 ++++++
+ src/liblink/objfile.c | 23 +++++++++++++++++------
+ src/liblink/sym.c     |  2 +-
+ 8 files changed, 41 insertions(+), 7 deletions(-)

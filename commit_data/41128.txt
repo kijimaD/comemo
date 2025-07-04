@@ -1,23 +1,16 @@
-commit c112289ee4141ebc31db50328c355b01278b987b
-Author: David Chase <drchase@google.com>
-Date:   Fri Jan 17 12:03:55 2020 -0500
+commit c78ac39ae9f6b570f9aa7c9b8f696cf50edace8e
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Thu Sep 5 08:50:11 2019 +0300
 
-    cmd/compile: change the "bogus line" to be 1
+    cmd/link: use gold when dynamic linking on arm,arm64 only on Linux and Android
     
-    The previous value was "too bogus" and caused objdump to crash.
-    Updated infinite loop test results (only run if -args -f) in ssa/debug_test.go
-    Probably also fixes #36621 but that bug needs more info to tell for certain.
+    Fixes freebsd/arm build.
     
-    Fixes #36570
-    
-    Change-Id: I51144641d25d559308a98d726d87806bd340cc5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215297
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Id9b1905a5335f86d317dab7514e0ce7cb74aba1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193537
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/testdata/infloop.dlv-opt.nexts | 8 ++++----
- src/cmd/internal/src/pos.go                                 | 2 +-
- src/cmd/objdump/testdata/fmthello.go                        | 6 ++++++
- 3 files changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

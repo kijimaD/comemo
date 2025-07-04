@@ -1,18 +1,25 @@
-commit 1ffadf146665c52b1d583bb20dc21a1fa6c02ead
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 26 18:02:56 2024 -0800
+commit 25ad137cf4f0823b877a19f36479dbde005bfa10
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Tue Oct 17 22:54:27 2023 +0000
 
-    doc/next: document new language feature (alias type parameters)
+    runtime/internal/atomic: add memory barrier for mips Cas on failure
     
-    For #46477.
-    For #68545.
+    Add a memory barrier on the failure case of the
+    compare-and-swap for mips, this avoids potential
+    race conditions.
     
-    Change-Id: I54a36f24167a1f909a865f8f6cf416d7378faa4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632055
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #63506
+    
+    Change-Id: I3df1479d1438ba72aa72567eb3dea76ff745e98d
+    GitHub-Last-Rev: 2101b9fd446f28f856986b27d20f92cd4a1f4fef
+    GitHub-Pull-Request: golang/go#63604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536116
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- doc/next/2-language.md | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/internal/atomic/atomic_mipsx.go | 7 +------
+ src/runtime/internal/atomic/atomic_mipsx.s  | 1 +
+ 2 files changed, 2 insertions(+), 6 deletions(-)

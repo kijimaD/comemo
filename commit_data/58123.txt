@@ -1,21 +1,27 @@
-commit 2e607475903b9cceacfac6bc900ed8d7e42d4231
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Nov 19 12:31:08 2024 -0600
+commit 51cb717d272545c2d4160f76a9f13741aa1e7abd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 2 15:47:08 2023 -0700
 
-    crypto/internal/fips/aes/gcm: skip TestAllocations on PPC64
+    go/types, types2: don't implicitly modify an argument function's type
     
-    TestAllocations is failing on PPC64 causing all PPC64 CI to fail.
+    See the comment in the (very small) fix for a detailed description.
+    Use the opportunity to introduce a generic clone function which may
+    be useful elsewhere.
     
-    Skip the test until it can be debugged.
+    Fixes #63260.
     
-    For #70448
-    
-    Change-Id: Ic18e402f4af5939a90eba2e1f2b182699013ed55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629697
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ic63c6b8bc443011b1a201908254f7d062e1aec71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532157
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/fips/aes/gcm/ctrkdf_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/types2/call.go        |  7 ++++
+ src/cmd/compile/internal/types2/issues_test.go | 44 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/predicates.go  |  6 ++++
+ src/go/types/call.go                           |  7 ++++
+ src/go/types/issues_test.go                    | 44 ++++++++++++++++++++++++++
+ src/go/types/predicates.go                     |  6 ++++
+ 6 files changed, 114 insertions(+)

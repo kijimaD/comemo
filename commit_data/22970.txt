@@ -1,21 +1,23 @@
-commit 2b0361084258b78cc8ed6e2dc6924985dbbcd3bf
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Fri Mar 20 10:22:55 2015 +0100
+commit 6a2b0c0b6d527d45860ec6c0d860b6aebfedea2e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 15:00:42 2015 -0400
 
-    mime: Export RFC 2047 code
+    runtime: delete cgo_allocate
     
-    Fixes #4943
-    Fixes #4687
-    Fixes #7079
+    This memory is untyped and can't be used anymore.
+    The next version of SWIG won't need it.
     
-    Change-Id: Ia96f07d650a3af935cd75fd7e3253f4af2977429
-    Reviewed-on: https://go-review.googlesource.com/7890
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I592b287c5f5186975ee09a9b28d8efe3b57134e7
+    Reviewed-on: https://go-review.googlesource.com/8956
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/deps_test.go    |  77 +++++-----
- src/internal/mime/header.go  | 122 ----------------
- src/mime/encodedword.go      | 329 +++++++++++++++++++++++++++++++++++++++++++
- src/mime/encodedword_test.go | 241 +++++++++++++++++++++++++++++++
- src/net/mail/message.go      |  35 ++++-
- 5 files changed, 638 insertions(+), 166 deletions(-)
+ misc/cgo/test/callback.go        | 19 --------------
+ misc/cgo/test/callback_c_gc.c    | 55 ----------------------------------------
+ misc/cgo/test/callback_c_gccgo.c | 49 -----------------------------------
+ misc/cgo/test/cgo_test.go        |  1 -
+ src/runtime/cgo/callbacks.go     | 26 -------------------
+ src/runtime/cgocall.go           |  6 -----
+ src/runtime/cgocallback.go       | 27 --------------------
+ src/runtime/mgc.go               |  9 -------
+ src/runtime/runtime2.go          |  8 ------
+ 9 files changed, 200 deletions(-)

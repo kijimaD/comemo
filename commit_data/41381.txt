@@ -1,20 +1,30 @@
-commit 576cc530c93d416f6fe3a0b8fefac47e83715216
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Jan 30 00:25:19 2020 +0100
+commit 95b8cbfee93766274583bacfb98b3b0cc1dbb6cf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 23 14:25:22 2019 -0700
 
-    misc/cgo: enable testso and testsovar on mips64x
+    cmd/compile: add column details to export data
     
-    External linking on mips64 was implemented in CL 19803 and CL 19809
+    This CL updates the export data format to include column details when
+    writing out position data. cmd/compile is updated to generate and make
+    use of the new details, but go/internal/gcimporter only knows how to
+    read the data. It doesn't yet actually make use of it.
     
-    Updates #12560
-    Updates #14126
+    Experimentally across a wide range of packages, this increases export
+    data size by around 4%. However, it has no impact on binary size.
+    (Notably, it actually shrinks k8s.io/kubernetes/cmd/kubelet's binary
+    size by 24kB, but it's unclear to me why at this time.)
     
-    Change-Id: I2cc127d71173aade56ad181bdd947355a76b3e46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217017
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Updates #28259.
+    
+    Change-Id: I351fb340839df8d3adced49b3757c4537fb91b3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196963
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/testso/so_test.go    | 2 --
- misc/cgo/testsovar/so_test.go | 2 --
- 2 files changed, 4 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go | 59 +++++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/iimport.go | 25 +++++++-------
+ src/go/internal/gcimporter/bimport.go  |  6 ++--
+ src/go/internal/gcimporter/iimport.go  | 42 ++++++++++++++++++------
+ 4 files changed, 85 insertions(+), 47 deletions(-)

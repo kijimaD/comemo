@@ -1,19 +1,20 @@
-commit 139891e81517231647ad48bade57604021b3fd1d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 31 00:28:10 2016 -0700
+commit 76f272d71746fec4cc91f6772e81d8745aa65384
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 11:14:46 2016 -0500
 
-    net/http/httptest: clean up unnecessary goroutine
+    cmd/asm: remove support for amd64 3DNow! instructions
     
-    Finishes cleanup which was too late to do when discovered during the
-    Go 1.6 cycle.
+    3DNotAnymore!
     
-    Fixes #14291
+    These only ever existed on AMD (not Intel) processors,
+    and AMD cancelled support for them in August 2010.
     
-    Change-Id: Idc69fadbba10baf246318a22b366709eff088a75
-    Reviewed-on: https://go-review.googlesource.com/21360
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ia362259add9d4f5788fd151fb373f91288677407
+    Reviewed-on: https://go-review.googlesource.com/19611
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/httptest/server.go | 28 ++++++++--------------------
- 1 file changed, 8 insertions(+), 20 deletions(-)
+ src/cmd/asm/internal/arch/arch.go  |  2 --
+ src/cmd/internal/obj/x86/a.out.go  | 24 ------------------------
+ src/cmd/internal/obj/x86/anames.go | 23 -----------------------
+ src/cmd/internal/obj/x86/asm6.go   | 37 -------------------------------------
+ 4 files changed, 86 deletions(-)

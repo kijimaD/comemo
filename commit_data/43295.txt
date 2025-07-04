@@ -1,16 +1,22 @@
-commit 52669c4a689a15c4f307e11609d6237ac506a3df
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 12 23:35:25 2020 -0400
+commit e3cf0525b0ecfaeb9381108e8c7181cdc2abee57
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 23 20:42:29 2020 -0700
 
-    cmd/go: update go list docs for IgnoredOtherFiles
+    runtime: always use GetQueuedCompletionStatusEx on Windows
     
-    Change-Id: I8eb7f34754c7be899d389fe807af65aa5fd5bbc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261957
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    We used to fall back to GetQueuedCompletionStatus if
+    GetQueuedCompletionStatus was not available, but as of Go 1.11 we
+    require Windows 7 or later, so GetQueuedCompletionStatusEx is always
+    available.
+    
+    Fixes #37957
+    
+    Change-Id: I7d8d49a92ab7b1f5afdc54a442f696aaf4a5168e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225059
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/go/alldocs.go            | 31 ++++++++++++++++---------------
- src/cmd/go/internal/list/list.go | 31 ++++++++++++++++---------------
- 2 files changed, 32 insertions(+), 30 deletions(-)
+ src/runtime/netpoll_windows.go | 87 +++++++++++++-----------------------------
+ src/runtime/os_windows.go      |  6 +--
+ 2 files changed, 28 insertions(+), 65 deletions(-)

@@ -1,24 +1,32 @@
-commit a30f4346674ec43bf576e6f56a9cd1c7ca482e1f
-Author: hidu <duv123@gmail.com>
-Date:   Thu Mar 3 13:33:38 2022 +0800
+commit 6a35e075126f4f78d50f236856fc5ba759616ee7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 24 15:41:11 2021 -0700
 
-    cmd/go: pass --no-decorate when listing git tags for a commit
+    cmd/compile: fix stenciling of conversions between interfaces
     
-    This avoids a parse error when the user's global .gitconfig sets
-    log.decorate to true.
+    Conversions need to allow nil through.
+    We do that using a CONVIFACE instead of a DOTTYPE.
     
-    Fixes #51312.
+    Also reorganize how nonempty interfaces are handled.
+    For nonempty to empty, a simple CONVIFACE suffices.
+    For nonempty to nonempty, we need to call the runtime to get the
+    new itab. Use the entry from the dictionary to identify the
+    target interface type (if parameterized).
     
-    Change-Id: Ic47b0f604c0c3a404ec50d6e09f4e138045ac2f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387835
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Fixes #47925
+    
+    Change-Id: I4ffeed964318bb3e270b06f558e6ab9c5bfc7188
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344830
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/go/internal/modfetch/codehost/git.go       |  2 +-
- .../script/mod_download_git_decorate_full.txt      | 28 ++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stencil.go | 64 +++++++++++++++++++++++--------
+ test/typeparam/eface.go                   | 10 ++---
+ test/typeparam/issue47925.go              | 20 ++++++++++
+ test/typeparam/issue47925b.go             | 33 ++++++++++++++++
+ test/typeparam/issue47925c.go             | 36 +++++++++++++++++
+ test/typeparam/issue47925d.go             | 47 +++++++++++++++++++++++
+ 6 files changed, 187 insertions(+), 23 deletions(-)

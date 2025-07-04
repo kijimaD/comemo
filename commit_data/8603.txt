@@ -1,13 +1,12 @@
-commit 897ad0c05ee2af17c7740f793f8136d7404e87f5
+commit 6c2b434820462f6b58c4cce397cc94dec2189c95
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jun 3 11:18:34 2011 +1000
+Date:   Fri Jun 3 09:48:42 2011 +1000
 
-    weekly.2011-06-02
+    doc: add Belarusian FAQ translation
     
-    R=golang-dev, r
+    R=golang-dev, dchest
     CC=golang-dev
-    https://golang.org/cl/4548091
+    https://golang.org/cl/4564057
 
- .hgtags               |   1 -
- doc/devel/weekly.html | 121 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 121 insertions(+), 1 deletion(-)
+ doc/docs.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

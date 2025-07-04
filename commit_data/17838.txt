@@ -1,14 +1,21 @@
-commit 6ea5687b46b080304584fbc80c3e2dd18f2e1c43
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Oct 25 23:00:22 2013 +0300
+commit 2d6a13997a9e9b154b7761d41cdbc830e02fc18e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 24 15:51:19 2013 -0700
 
-    net/url: fix Encode doc comment
+    strings: fix Replacer bug with prefix matches
     
-    Encoded query strings are always sorted by key; the example wasn't.
+    singleStringReplacer had a bug where if a string was replaced
+    at the beginning and no output had yet been produced into the
+    temp buffer before matching ended, an invalid nil check (used
+    as a proxy for having matched anything) meant it always
+    returned its input.
     
-    R=golang-dev, dsymonds, minux.ma, bradfitz
+    Fixes #6659
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/16430043
+    https://golang.org/cl/16880043
 
- src/pkg/net/url/url.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/strings/replace.go      |  5 +++--
+ src/pkg/strings/replace_test.go | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

@@ -1,0 +1,27 @@
+commit 252c939445b6b03c5c82b54f7657c5d984ce6348
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 18 06:23:33 2025 -0400
+
+    internal/runtime/maps: move tombstone test to swiss file
+    
+    This test fails on GOEXPERIMENT=noswissmap as it is testing behavior
+    specific to swissmaps. Move it to map_swiss_test.go to skip it on
+    noswissmap.
+    
+    We could also switch the test to use NewTestMap, which provides a
+    swissmap even in GOEXPERIMENT=noswissmap, but that is tedious to use and
+    noswissmap is going away soon anyway.
+    
+    For #70886.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-noswissmap
+    Change-Id: I6a6a636c5ec72217d936cd01e9da36ae127ea2c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666437
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/maps/map_swiss_test.go | 55 +++++++++++++++++++++++++++++
+ src/internal/runtime/maps/map_test.go       | 55 -----------------------------
+ 2 files changed, 55 insertions(+), 55 deletions(-)

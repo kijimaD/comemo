@@ -1,14 +1,14 @@
-commit 1075af0cce1fc706a5c1c0bfa5471e0d063399ce
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Aug 29 11:07:19 2011 -0400
+commit 3693cd2988df1ec6c26a92c7f65aabdad41c1dd2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 29 10:55:21 2011 -0400
 
-    runtime: add openbsd 386 defs.h
+    runtime: add runtime· prefix to showframe
     
-    Missed in previous change (4951043).
-    
-    R=golang-dev, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4967044
+    https://golang.org/cl/4978042
 
- src/pkg/runtime/openbsd/386/defs.h | 140 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 140 insertions(+)
+ src/pkg/runtime/amd64/traceback.c | 2 +-
+ src/pkg/runtime/arm/traceback.c   | 2 +-
+ src/pkg/runtime/symtab.c          | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

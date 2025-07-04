@@ -1,29 +1,26 @@
-commit a9407b5797c0d4dcbed965462204cdc4e38bb621
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Mar 20 10:25:46 2016 -0700
+commit cd9fc3ebfbdb129570317b3a2537975851370c7a
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Jan 20 15:31:26 2016 +1300
 
-    cmd/compile: fix varexpr handling of ODOT
+    cmd/link: allow symbols from .a files to override those from .so files
     
-    For a long time varexpr has handled ODOT incorrectly: it has always
-    returned false.  Before https://golang.org/cl/20890 this has been
-    because an ODOT had a Right field with an ONAME with no Class, for which
-    varexpr returns false.  CL 20890 preserved the behavior of varexpr for
-    ODOT, so that the change would pass toolstash -cmp.
+    https://golang.org/s/execmodes defines rules for how multiple codes of a go
+    package work when they end up in the address space of a single process, but
+    currently the linker blows up in this situation. Fix that by loading all .a
+    files before any .so files and ignoring duplicate symbols found when loading
+    shared libraries.
     
-    This CL fixes varexpr so that ODOT can return true in some cases.  This
-    breaks toolstash -cmp.  While the changed compiler allocates temporary
-    variables in a different order, I have not been able to find any
-    examples where the generated code is different, other than using
-    different stack offsets and, in some cases, registers.  It seems that
-    other parts of the compiler will force the ODOT into a temporary anyhow.
+    I know this is very very late for 1.6 but at least it should clearly not have
+    any effect when shared libraries are not in use.
     
-    Still, this change is clearly correct, and is a minor compiler cleanup.
-    
-    Change-Id: I71506877aa3c13966bb03c281aa16271ee7fe80a
-    Reviewed-on: https://go-review.googlesource.com/20907
+    Change-Id: I512ac912937e7502ff58eb5628b658ecce3c38e5
+    Reviewed-on: https://go-review.googlesource.com/18714
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ misc/cgo/testshared/shared_test.go                 | 12 ++++++++
+ misc/cgo/testshared/src/explicit/explicit.go       |  9 ++++++
+ misc/cgo/testshared/src/implicit/implicit.go       |  5 ++++
+ misc/cgo/testshared/src/implicitcmd/implicitcmd.go | 10 +++++++
+ src/cmd/link/internal/ld/lib.go                    | 34 +++++++++++-----------
+ 5 files changed, 53 insertions(+), 17 deletions(-)

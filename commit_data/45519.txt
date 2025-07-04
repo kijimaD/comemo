@@ -1,29 +1,49 @@
-commit 45600bcd614f5855060b18b189f7e126fedfe637
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun May 2 13:22:48 2021 +0200
+commit abb31c2558d58013ae191d926ed7cdd9d3201762
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 27 11:32:44 2020 -0700
 
-    os, syscall: use wait6 to avoid wait/kill race on netbsd
+    [dev.typeparams] cmd/compile/internal/types2: review of hilbert_test.go
     
-    Follow CL 23967 and CL 24021 which did the same on linux and freebsd,
-    respectively.
+    Primary differences:
+    1) syntax package is used instead of the go/* packages
+    2) parseSrc is a helper function that is used
+       in place of parser.parseFile.
+    3) defaultImporter is a helper function providing
+       access to an importer.
     
-    Updates #13987
-    Updates #16028
+    f=hilbert_test.go; diff $f ../../../../go/types/$f
+    5c5
+    < package types2_test
+    ---
+    > package types_test
+    9d8
+    <       "cmd/compile/internal/syntax"
+    11a11,14
+    >       "go/ast"
+    >       "go/importer"
+    >       "go/parser"
+    >       "go/token"
+    15c18
+    <       . "cmd/compile/internal/types2"
+    ---
+    >       . "go/types"
+    32,33c35,36
+    <       // TODO(gri) get rid of []bytes to string conversion below
+    <       f, err := parseSrc("hilbert.go", string(src))
+    ---
+    >       fset := token.NewFileSet()
+    >       f, err := parser.ParseFile(fset, "hilbert.go", src, 0)
+    40,41c43,44
+    <       conf := Config{Importer: defaultImporter()}
+    <       _, err = conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
+    ---
+    >       conf := Config{Importer: importer.Default()}
+    >       _, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
     
-    Change-Id: I95b13d8ddde4cea1ef4fb7d655f1ad1a219d13aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315281
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I65851725a3b6ac35b87177f90b788c469a54a986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265679
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/os/wait_unimp.go                | 4 ++--
- src/os/wait_wait6.go                | 4 ++--
- src/syscall/zerrors_netbsd_386.go   | 1 +
- src/syscall/zerrors_netbsd_amd64.go | 1 +
- src/syscall/zerrors_netbsd_arm.go   | 1 +
- src/syscall/zerrors_netbsd_arm64.go | 1 +
- src/syscall/zsysnum_netbsd_386.go   | 1 +
- src/syscall/zsysnum_netbsd_amd64.go | 1 +
- src/syscall/zsysnum_netbsd_arm.go   | 1 +
- src/syscall/zsysnum_netbsd_arm64.go | 1 +
- 10 files changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/hilbert_test.go | 1 -
+ 1 file changed, 1 deletion(-)

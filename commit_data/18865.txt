@@ -1,13 +1,16 @@
-commit b8d40172ce2a724ecb125746f37aee989ced5ac9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Mar 14 21:11:04 2014 +0400
+commit 1483747f3c62fb6149cce8027e98adeda77cc343
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Mar 14 16:42:42 2014 +0100
 
-    runtime: do not shrink stacks GOCOPYSTACK=0
+    cmd/gc: fix spurious 'not enough arguments to return' error
+    
+    Fixes #6405
     
     LGTM=rsc
-    R=golang-codereviews
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/76070043
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/72920046
 
- src/pkg/runtime/stack.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/gc/typecheck.c      | 14 ++++++++++----
+ test/fixedbugs/issue6405.go | 13 +++++++++++++
+ 2 files changed, 23 insertions(+), 4 deletions(-)

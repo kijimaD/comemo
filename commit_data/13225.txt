@@ -1,36 +1,22 @@
-commit 8820ab5da9da5528e256d3a519723fdf44ddc75f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 30 16:26:38 2012 -0400
+commit 37f046bac67053773d2ed34299a2e7e520c88037
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Wed May 30 16:08:38 2012 -0400
 
-    cmd/ld: align function entry on arch-specific boundary
+    compress/flate: fix overflow on 2GB input. Reset hashOffset every 16 MB.
     
-    16 seems pretty standard on x86 for function entry.
-    I don't know if ARM would benefit, so I used just 4
-    (single instruction alignment).
+    This bug has been introduced in the following revision:
     
-    This has a minor absolute effect on the current timings.
-    The main hope is that it will make them more consistent from
-    run to run.
+    changeset:   11404:26dceba5c610
+    user:        Ivan Krasin <krasin@golang.org>
+    date:        Mon Jan 23 09:19:39 2012 -0500
+    summary:     compress/flate: reduce memory pressure at cost of additional arithmetic operation.
     
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkBinaryTree17    4222117400   4140739800   -1.93%
-    BenchmarkFannkuch11      3462631800   3259914400   -5.85%
-    BenchmarkGobDecode         20887622     20620222   -1.28%
-    BenchmarkGobEncode          9548772      9384886   -1.72%
-    BenchmarkGzip                151687       150333   -0.89%
-    BenchmarkGunzip                8742         8741   -0.01%
-    BenchmarkJSONEncode        62730560     65210990   +3.95%
-    BenchmarkJSONDecode       252569180    249394860   -1.26%
-    BenchmarkMandelbrot200      5267599      5273394   +0.11%
-    BenchmarkRevcomp25M       980813500    996013800   +1.55%
-    BenchmarkTemplate         361259100    360620840   -0.18%
+    This is the review page for that CL: https://golang.org/cl/5555070/
     
-    R=ken2
+    R=rsc, imkrasin
     CC=golang-dev
-    https://golang.org/cl/6244066
+    https://golang.org/cl/6249067
 
- src/cmd/5l/l.h    | 3 ++-
- src/cmd/6l/l.h    | 3 ++-
- src/cmd/8l/l.h    | 3 ++-
- src/cmd/ld/data.c | 2 ++
- 4 files changed, 8 insertions(+), 3 deletions(-)
+ src/pkg/compress/flate/deflate.go      | 20 ++++++++++++++++
+ src/pkg/compress/flate/deflate_test.go | 44 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+)

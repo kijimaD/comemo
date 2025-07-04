@@ -1,16 +1,21 @@
-commit 18ca86ebb3935f6cd3063c189fed0175a868ddba
-Author: Rob Pike <r@golang.org>
-Date:   Sun Apr 7 23:27:26 2013 -0700
+commit bfcd2d1e800d78a9da9b9ab24f624c4621875ae3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 8 15:38:06 2013 +1000
 
-    cmd/go: fix a misleading sentence
-    Apologies for not reviewing the previous CL; I was on the road.
-    The text was misleading; execution is no more separate than with
-    any other test. Rewritten. Dropped the odd adverb.
+    archive/zip: handle trailing data after the end of directory header
     
-    R=golang-dev, bradfitz
+    The spec doesn't explicitly say that trailing data is okay, but a lot
+    of people do this and most unzippers will handle it just fine. In any
+    case, this makes the package more useful, and led me to make the
+    directory parsing code marginally more robust.
+    
+    Fixes #5228.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/8439045
+    https://golang.org/cl/8504044
 
- src/cmd/go/doc.go  | 4 ++--
- src/cmd/go/test.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/archive/zip/reader.go                       |   7 ++++++-
+ src/pkg/archive/zip/reader_test.go                  |  20 +++++++++++++++++++-
+ src/pkg/archive/zip/testdata/test-trailing-junk.zip | Bin 0 -> 1184 bytes
+ 3 files changed, 25 insertions(+), 2 deletions(-)

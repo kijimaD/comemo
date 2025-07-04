@@ -1,15 +1,12 @@
-commit 7b094182e42d23582194114e2da6d47ee03eff25
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Mar 16 10:42:41 2011 -0400
+commit e44c0573696371af6971d69dc6c7c6391d4e2456
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 16 16:36:18 2011 +1100
 
-    crypto/ecdsa: truncate hash values.
+    doc: fix line wrapping for release.html
     
-    There is some disagreement about how to deal with hash values larger
-    than the curve order size. We choose to follow OpenSSL's lead here.
-    
-    R=bradfitzgo, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4273059
+    https://golang.org/cl/4281052
 
- src/pkg/crypto/ecdsa/ecdsa.go | 25 +++++++++++++++++++++++--
- 1 file changed, 23 insertions(+), 2 deletions(-)
+ doc/devel/release.html | 65 ++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 45 insertions(+), 20 deletions(-)

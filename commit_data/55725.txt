@@ -1,20 +1,19 @@
-commit 347ad523e8943090ec9d92cccabc92819889a4d6
-Author: kkhaike <kkhaike@gmail.com>
-Date:   Wed Feb 21 21:40:02 2024 +0800
+commit 618fb4ab068272cc87b137d9fc527210be4b8ad2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 7 20:27:59 2023 -0800
 
-    net: Correct the code snippet erroneously rolled back in CL550435
+    runtime/cgo: add tsan sync for traceback function
     
-    In CL https://golang.org/cl/550435, a segment that had already been reviewed and modified was rolled back due to an erroneous operation. Here, submit a correct code snippet.
-    
-    Change-Id: I46adfad110d532aec5f557c350fe6dccbc583968
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565628
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifb8d64f18b67c8b712feec29ffb6719c6e9718ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474198
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/dnsclient_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testsanitizers/testdata/tsan13.go | 90 ++++++++++++++++++++++++++++++
+ misc/cgo/testsanitizers/tsan_test.go       |  4 ++
+ src/runtime/cgo/gcc_traceback.c            |  2 +
+ 3 files changed, 96 insertions(+)

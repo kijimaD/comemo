@@ -1,21 +1,25 @@
-commit 8fdd277fe6ee1770b12650a4bc2bc257e49c8065
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 10 15:09:12 2022 +0000
+commit d14b7011a57fd7638dd4b67f1c2d031edf49f36e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jul 12 14:31:58 2021 -0700
 
-    runtime: profile finalizer G more carefully in goroutine profile
+    [dev.fuzz] internal/fuzz: fix two bugs in BenchmarkWorkerFuzzOverhead
     
-    If SetFinalizer is never called, we might readgstatus on a nil fing
-    variable, resulting in a crash. This change guards code that accesses
-    fing by a nil check.
+    * The exec count must be set to 0 before calling
+      workerServer.fuzz. This was causing fuzz to run indefinitely after
+      the first benchmark iteration, since it wouldn't hit the termination
+      condition of being equal to fuzzArgs.Limit.
+    * Added an assertion that the count must be lower than fuzzArgs.Limit
+      at the beginning of workerServer.fuzz.
+    * Also closed and deleted shared memory at the end of each benchmark run.
     
-    Fixes #52821.
-    
-    Change-Id: I3e8e7004f97f073dc622e801a1d37003ea153a29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405475
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Change-Id: Iab465f8a4997ebd652aec04d0ff9bb60b802829e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334129
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/mprof.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/internal/fuzz/worker.go      | 3 +++
+ src/internal/fuzz/worker_test.go | 6 ++++++
+ 2 files changed, 9 insertions(+)

@@ -1,38 +1,20 @@
-commit 6dda7b2f5fb675a2747fea5ae020248245b8903f
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 18 12:24:02 2016 -0400
+commit 88d3db0a5b5196ed45c96014d5a2d32e4e41e34e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 12:45:23 2016 -0500
 
-    runtime: don't hard-code physical page size
+    runtime: stop traceback at foreign function
     
-    Now that the runtime fetches the true physical page size from the OS,
-    make the physical page size used by heap growth a variable instead of
-    a constant. This isn't used in any performance-critical paths, so it
-    shouldn't be an issue.
+    This can only happen when profiling and there is foreign code
+    at the top of the g0 stack but we're not in cgo.
+    That in turn only happens with the race detector.
     
-    sys.PhysPageSize is also renamed to sys.DefaultPhysPageSize to make it
-    clear that it's not necessarily the true page size. There are no uses
-    of this constant any more, but we'll keep it around for now.
+    Fixes #13568.
     
-    Updates #12480 and #10180.
-    
-    Change-Id: I6c23b9df860db309c38c8287a703c53817754f03
-    Reviewed-on: https://go-review.googlesource.com/25022
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I23775132c9c1a3a3aaae191b318539f368adf25e
+    Reviewed-on: https://go-review.googlesource.com/18322
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/internal/sys/arch_386.go      | 16 ++++++++--------
- src/runtime/internal/sys/arch_amd64.go    | 16 ++++++++--------
- src/runtime/internal/sys/arch_amd64p32.go | 16 ++++++++--------
- src/runtime/internal/sys/arch_arm.go      | 16 ++++++++--------
- src/runtime/internal/sys/arch_arm64.go    | 16 ++++++++--------
- src/runtime/internal/sys/arch_mips64.go   | 16 ++++++++--------
- src/runtime/internal/sys/arch_mips64le.go | 16 ++++++++--------
- src/runtime/internal/sys/arch_ppc64.go    | 16 ++++++++--------
- src/runtime/internal/sys/arch_ppc64le.go  | 16 ++++++++--------
- src/runtime/internal/sys/arch_s390x.go    | 16 ++++++++--------
- src/runtime/malloc.go                     | 12 ++++++------
- src/runtime/mbitmap.go                    |  2 +-
- src/runtime/mem_linux.go                  |  9 +++------
- src/runtime/mheap.go                      | 12 ++++++------
- 14 files changed, 96 insertions(+), 99 deletions(-)
+ src/runtime/traceback.go | 5 +++++
+ 1 file changed, 5 insertions(+)

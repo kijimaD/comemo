@@ -1,18 +1,15 @@
-commit 402f71a839e823c2ebad0b6524b17e07c03a6376
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Mar 3 13:55:22 2015 -0500
+commit a809dc7adb8065368c73900a8256048c55cde79b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 12 15:09:56 2015 -0800
 
-    runtime: do not share underlying envs/argv array
+    math/big: don't scan past a binary exponent if not accepted syntactically
     
-    Removes a potential data race between os.Setenv and runtime.GOROOT,
-    along with a bug where os.Setenv would only sometimes change the
-    value of runtime.GOROOT.
+    TBR adonovan
     
-    Change-Id: I7d2a905115c667ea6e73f349f3784a1d3e8f810d
-    Reviewed-on: https://go-review.googlesource.com/6611
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I842cbc855dbd560f65e76c9a557dff1a22c5d610
+    Reviewed-on: https://go-review.googlesource.com/4882
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/env_test.go    | 41 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/export_test.go |  3 +++
- src/runtime/runtime.go     |  4 ++--
- 3 files changed, 46 insertions(+), 2 deletions(-)
+ src/math/big/floatconv.go |  7 ++++---
+ src/math/big/ratconv.go   | 23 ++++++++++++++++++-----
+ 2 files changed, 22 insertions(+), 8 deletions(-)

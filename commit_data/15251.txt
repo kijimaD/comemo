@@ -1,13 +1,15 @@
-commit 6a828482fa9045f71328fc51c6917ae5ee649e0e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Feb 15 00:02:12 2013 +0400
+commit 30359a55c264dba2076c86f40a3c7c915889b9df
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 14 14:56:01 2013 -0500
 
-    runtime: add more tests for LockOSThread()
-    Just test some additional paths through the scheduler.
+    encoding/json: document and test use of unicode.ReplacementChar
+    
+    Fixes #4783.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7331044
+    https://golang.org/cl/7314099
 
- src/pkg/runtime/proc_test.go | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ src/pkg/encoding/json/decode.go      |  5 +++++
+ src/pkg/encoding/json/decode_test.go | 37 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)

@@ -1,0 +1,60 @@
+commit 724bab150541efefa4b3ea27bf3d4a064e9fab8c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Apr 24 16:26:39 2024 +0000
+
+    runtime: add traceallocfree GODEBUG for alloc/free events in traces
+    
+    This change adds expensive alloc/free events to traces, guarded by a
+    GODEBUG that can be set at run time by mutating the GODEBUG environment
+    variable. This supersedes the alloc/free trace deleted in a previous CL.
+    
+    There are two parts to this CL.
+    
+    The first part is adding a mechanism for exposing experimental events
+    through the tracer and trace parser. This boils down to a new
+    ExperimentalEvent event type in the parser API which simply reveals the
+    raw event data for the event. Each experimental event can also be
+    associated with "experimental data" which is associated with a
+    particular generation. This experimental data is just exposed as a bag
+    of bytes that supplements the experimental events.
+    
+    In the runtime, this CL organizes experimental events by experiment.
+    An experiment is defined by a set of experimental events and a single
+    special batch type. Batches of this special type are exposed through the
+    parser's API as the aforementioned "experimental data".
+    
+    The second part of this CL is defining the AllocFree experiment, which
+    defines 9 new experimental events covering heap object alloc/frees, span
+    alloc/frees, and goroutine stack alloc/frees. It also generates special
+    batches that contain a type table: a mapping of IDs to type information.
+    
+    Change-Id: I965c00e3dcfdf5570f365ff89d0f70d8aeca219c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583377
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/v2/base.go              |   4 +
+ src/internal/trace/v2/batch.go             |  24 +++--
+ src/internal/trace/v2/event.go             |  73 ++++++++++++++-
+ src/internal/trace/v2/event/event.go       |  31 +++++--
+ src/internal/trace/v2/event/go122/event.go |  95 +++++++++++++++++++-
+ src/internal/trace/v2/generation.go        |  21 +++++
+ src/internal/trace/v2/order.go             |  26 ++++++
+ src/internal/trace/v2/trace_test.go        |  18 +++-
+ src/runtime/lockrank.go                    |   3 +
+ src/runtime/malloc.go                      |   8 ++
+ src/runtime/mgcsweep.go                    |   9 +-
+ src/runtime/mheap.go                       |  27 ++++++
+ src/runtime/mklockrank.go                  |   1 +
+ src/runtime/runtime1.go                    |  10 +++
+ src/runtime/stack.go                       |  14 +++
+ src/runtime/trace.go                       |  37 ++++++++
+ src/runtime/traceallocfree.go              | 138 +++++++++++++++++++++++++++++
+ src/runtime/tracebuf.go                    |  13 ++-
+ src/runtime/traceevent.go                  |   9 ++
+ src/runtime/traceexp.go                    |  68 ++++++++++++++
+ src/runtime/traceregion.go                 |   6 +-
+ src/runtime/traceruntime.go                |  10 +++
+ src/runtime/tracetype.go                   |  77 ++++++++++++++++
+ 23 files changed, 695 insertions(+), 27 deletions(-)

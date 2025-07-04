@@ -1,24 +1,12 @@
-commit 76374412c36ccbac91c86a033b37732661787246
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Mon Mar 11 13:34:57 2013 -0700
+commit 404e4a90cb8c127166ee8cfa0f7c29e231a9f1bb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 11 13:23:47 2013 -0700
 
-    lib9, cmd/dist, cmd/ld: Plan 9: fix build
+    net/http/httputil: fix string in test failure message
     
-    lib9: fix runcmd, removeall, and tempdir functions
-    
-    cmd/dist: Include run_plan9.c and tempdir_plan9.c
-            from lib9 for build, and in general consider
-            file names containing "plan9" for building.
-    
-    cmd/ld: provide function args for the new functions
-            from lib9.
-    
-    R=rsc, rminnich, ality, bradfitz
+    R=golang-dev, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/7666043
+    https://golang.org/cl/7722043
 
- src/cmd/dist/build.c     | 3 ++-
- src/cmd/ld/lib.c         | 5 +++++
- src/lib9/run_plan9.c     | 4 ++--
- src/lib9/tempdir_plan9.c | 4 ++--
- 4 files changed, 11 insertions(+), 5 deletions(-)
+ src/pkg/net/http/httputil/reverseproxy_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

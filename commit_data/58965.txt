@@ -1,18 +1,19 @@
-commit 9bd21607900d7072fd3d12ec756cb5eb87f8fe2a
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Thu Mar 6 16:25:51 2025 +0100
+commit c21d118accaf255b75f89abdfe8b2ef2acd34ba5
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Dec 17 09:46:48 2023 +0000
 
-    os: add missing calls to Root.Close() in tests
+    reflect: use MapMaxKeyBytes,MapMaxElemBytes,MapBucketCount of internal/abi
     
-    In tests of os.Root, fix a few missing calls to Close().
+    For #59670
     
-    Change-Id: I8fddd5468394f41d7e92741579fd47f90203ff9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655337
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I63a6e2cfaf9eec03866ea61064164a059fc42bb2
+    GitHub-Last-Rev: a3aa46a36444b08382ddac79c10a064b314bd971
+    GitHub-Pull-Request: golang/go#64773
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550595
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/os_test.go   | 1 +
- src/os/root_test.go | 8 +++++---
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/reflect/type.go  | 32 +++++++++++---------------------
+ src/reflect/value.go |  4 ++--
+ 2 files changed, 13 insertions(+), 23 deletions(-)

@@ -1,16 +1,17 @@
-commit 13d15d147dd09b9209f5bc3778905684379129d8
-Author: Hossein Zolfi <hossein.zolfi@gmail.com>
-Date:   Fri Dec 10 12:39:57 2021 +0330
+commit 6951da56b0ae2cd4250fc1b0350d090aed633ac1
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 9 14:53:33 2021 +0000
 
-    go/types: remove TODO that is no longer relevant
+    Revert "cmd/compile: ensure spills of int/float reg args land in abi slots"
     
-    Change-Id: Ie897b7b9c0a61c837245642c608129108e28423e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370582
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Trust: Nooras Saba‎ <saba@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This reverts CL 308510.
+    
+    Reason for revert: It breaks "GOEXPERIMENT=regabi,regabiargs ./make.bash"
+    
+    Change-Id: I553654690ec73120f8a6258dd80623853c430df0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308932
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/testdata/check/issues.go2 | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/ssa/stackalloc.go | 16 ++--------------
+ 1 file changed, 2 insertions(+), 14 deletions(-)

@@ -1,14 +1,16 @@
-commit 830abc957a106e44ed33c4eeb8cc9f0dd807fcc9
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 12 11:20:02 2015 -0400
+commit 7ed429d99c67aa32acd57dc333ec84eebf697f1e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 20 18:15:20 2015 -0800
 
-    runtime: fix out of date comment
+    [dev.cc] cmd/asm: fix build
     
-    scanobject no longer returns the new wbuf.
+    Representation in printout of MRC instruction differs between
+    32- and 64-bit machines. It's just a hex dump. Fix this one day,
+    but for now just comment out the instruction.
     
-    Change-Id: I0da335ae5cd7ef7ea0e0fa965cf0e9f3a650d0e6
-    Reviewed-on: https://go-review.googlesource.com/7505
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I4709390659e2e0f2d18ff6f8e762f97cdbfb4c16
+    Reviewed-on: https://go-review.googlesource.com/5424
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgcmark.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/arm.s | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,37 +1,36 @@
-commit b5ddc42b465dd5b9532ee336d98343d81a6d35b2
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 22 12:11:29 2020 -0400
+commit 8e457c865d980b37d8becd6aaaf658c633b0b9de
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 1 13:42:20 2020 -0400
 
-    io/fs, path, path/filepath, testing/fstest: validate patterns in Match, Glob
+    [dev.link] cmd/link: begin converting gentext to loader APIs
     
-    According to #28614, proposal review agreed in December 2018 that
-    Match should return an error for failed matches where the unmatched
-    part of the pattern has a syntax error. (The failed match has to date
-    caused the scan of the pattern to stop early.)
+    Begin the job of converting the linker's "gentext" phase over to use
+    loader APIs. This patch includes most architectures except for s390x
+    and PPC (these will be added in subsequent patches, since they require
+    a couple of loader changes first).
     
-    This change implements that behavior: the match loop continues
-    scanning to the end of the pattern, even after a confirmed mismatch,
-    to check whether the pattern is even well-formed.
-    
-    The change applies to both path.Match and filepath.Match.
-    Then filepath.Glob and fs.Glob make a single validity-checking
-    call to Match before beginning their usual processing.
-    
-    Also update fstest.TestFS to check for correct validation in custom
-    Glob implementations.
-    
-    Fixes #28614.
-    
-    Change-Id: Ic1d35a4bb9c3565184ae83dbefc425c5c96318e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264397
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ic7f55c207dcdbbba657330ef007a72ff7c837416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227017
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/io/fs/glob.go               |  4 +++
- src/io/fs/glob_test.go          | 10 +++++--
- src/path/filepath/match.go      | 61 +++++++++++++++++++++++++----------------
- src/path/filepath/match_test.go | 12 +++++---
- src/path/match.go               | 60 +++++++++++++++++++++++++++-------------
- src/path/match_test.go          |  4 ++-
- src/testing/fstest/testfs.go    |  6 ++++
- 7 files changed, 106 insertions(+), 51 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   | 44 ++++-------------------
+ src/cmd/link/internal/amd64/obj.go   |  2 +-
+ src/cmd/link/internal/arm/asm.go     | 56 +++++++++++------------------
+ src/cmd/link/internal/arm/obj.go     |  2 +-
+ src/cmd/link/internal/arm64/asm.go   | 49 +++++++++-----------------
+ src/cmd/link/internal/arm64/obj.go   |  2 +-
+ src/cmd/link/internal/ld/ld.go       | 44 +++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go      |  1 +
+ src/cmd/link/internal/ld/main.go     | 11 ++++--
+ src/cmd/link/internal/mips/asm.go    |  2 +-
+ src/cmd/link/internal/mips/obj.go    |  2 +-
+ src/cmd/link/internal/mips64/asm.go  |  2 +-
+ src/cmd/link/internal/mips64/obj.go  |  2 +-
+ src/cmd/link/internal/riscv64/asm.go |  2 +-
+ src/cmd/link/internal/riscv64/obj.go |  2 +-
+ src/cmd/link/internal/wasm/asm.go    |  3 +-
+ src/cmd/link/internal/wasm/obj.go    |  2 +-
+ src/cmd/link/internal/x86/asm.go     | 68 ++++++++----------------------------
+ src/cmd/link/internal/x86/obj.go     |  2 +-
+ 19 files changed, 126 insertions(+), 172 deletions(-)

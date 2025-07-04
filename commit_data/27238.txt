@@ -1,17 +1,32 @@
-commit ade0eb2f0689b4d88d425451387c516013fd4b20
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Apr 30 22:28:37 2016 -0700
+commit 826256497100607440b5651a4853b4c6bf816318
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 14 12:49:58 2016 -0700
 
-    cmd/compile: fix reslice
+    cmd/internal/obj/x86: estimate text size
     
-    := is the wrong thing here.  The new variable masks the old
-    variable so we allocate the slice afresh each time around the loop.
+    We can’t perfectly predict how large the function
+    will be, but we can make a safe overestimate.
+    No significant CPU time changes.
     
-    Change-Id: I759c30e1bfa88f40decca6dd7d1e051e14ca0844
-    Reviewed-on: https://go-review.googlesource.com/22679
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    name       old alloc/op    new alloc/op    delta
+    Template      67.7MB ± 0%     67.5MB ± 0%   -0.24%          (p=0.029 n=4+4)
+    Unicode       43.9MB ± 0%     43.8MB ± 0%   -0.13%          (p=0.029 n=4+4)
+    GoTypes        244MB ± 0%      244MB ± 0%   -0.28%          (p=0.029 n=4+4)
+    Compiler      1.05GB ± 0%     1.05GB ± 0%   -0.38%          (p=0.029 n=4+4)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        795k ± 0%       794k ± 0%   -0.14%          (p=0.029 n=4+4)
+    Unicode         569k ± 0%       569k ± 0%     ~             (p=0.114 n=4+4)
+    GoTypes        2.59M ± 0%      2.58M ± 0%   -0.11%          (p=0.029 n=4+4)
+    Compiler       11.0M ± 0%      11.0M ± 0%   -0.09%          (p=0.029 n=4+4)
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I0a92ab04cba7520540ec58fe7189666d0e771454
+    Reviewed-on: https://go-review.googlesource.com/20771
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/ssa/regalloc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/data.go     | 14 ++++++++++++++
+ src/cmd/internal/obj/x86/asm6.go |  3 +++
+ 2 files changed, 17 insertions(+)

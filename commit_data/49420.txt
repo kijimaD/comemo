@@ -1,20 +1,23 @@
-commit 7a82c6859f14d97b741073083849bace7693f7e2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jun 6 17:32:03 2022 -0400
+commit ace1730a417bf5cb1662407ef12013ca7e4e5f84
+Author: kezhao <korzhao@tencent.com>
+Date:   Wed Jul 28 02:06:10 2021 +0000
 
-    doc/go1.19: adjust runtime release notes
+    cmd/go: go test flag -failfast should be cacheable
     
-    This addresses comments from CL 410356.
+    Add failfast to cacheable list and update docs
     
-    For #48409.
-    For #51400.
+    Fixes #47355
     
-    Change-Id: I03560e820a06c0745700ac997b02d13bc03adfc6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410735
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Chris Hines <chris.cs.guy@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I75b371c45b80a3b179ff070b7b9d092a504380c0
+    GitHub-Last-Rev: abe61fd48c01fab4ef5ea5db013dcce4ead09c6f
+    GitHub-Pull-Request: golang/go#47371
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337229
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.19.html | 53 ++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 34 insertions(+), 19 deletions(-)
+ src/cmd/go/alldocs.go                            | 20 ++++++++++----------
+ src/cmd/go/internal/test/test.go                 | 21 +++++++++++----------
+ src/cmd/go/testdata/script/test_cache_inputs.txt |  6 ++++++
+ 3 files changed, 27 insertions(+), 20 deletions(-)

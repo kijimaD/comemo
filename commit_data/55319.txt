@@ -1,29 +1,27 @@
-commit 6fe0d3758b35afcc342832e376d8d985a5a29070
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 18 18:13:30 2023 -0800
+commit 15405317460b57ff9ef605d0ca63795477c79b05
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jan 24 11:38:29 2023 -0600
 
-    cmd/compile: remove interfacecycles debug flag
+    test/codegen: merge identical ppc64 and ppc64le tests
     
-    Per the discussion on the issue, since no problems related to this
-    appeared since Go 1.20, remove the ability to disable the check for
-    anonymous interface cycles permanently.
+    Manually consolidate the remaining ppc64/ppc64le test which
+    are not so trivial to automatically merge.
     
-    Adjust various tests accordingly.
+    The remaining ppc64le tests are limited to cases where load/stores are
+    merged (this only happens on ppc64le) and the race detector (only
+    supported on ppc64le).
     
-    For #56103.
-    
-    Change-Id: Ica2b28752dca08934bbbc163a9b062ae1eb2a834
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/550896
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I1f9c0f3d3ddbb7fbbd8c81fbbd6537394fba63ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463217
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/base/debug.go         |  1 -
- src/cmd/compile/internal/noder/irgen.go        | 29 +++++++++++++-------------
- src/cmd/compile/internal/types2/stdlib_test.go |  1 +
- src/go/types/stdlib_test.go                    |  1 +
- test/fixedbugs/bug398.go                       | 10 ++++-----
- test/fixedbugs/issue16369.go                   |  4 ++--
- 6 files changed, 23 insertions(+), 23 deletions(-)
+ test/codegen/arithmetic.go |  4 ++--
+ test/codegen/bool.go       | 18 ++++++++----------
+ test/codegen/copy.go       | 20 ++++++++++----------
+ test/codegen/mathbits.go   |  4 ++--
+ test/codegen/shift.go      | 21 ++++++++++-----------
+ 5 files changed, 32 insertions(+), 35 deletions(-)

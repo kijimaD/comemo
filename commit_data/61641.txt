@@ -1,0 +1,39 @@
+commit 382b20a09e90d3d96003bd3d22418d79d2e9d2d3
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Nov 5 13:50:46 2024 -0600
+
+    crypto/aes: add optimized AES-CTR for ppc64le
+    
+    This should be a relatively trivial implementation for PPC64
+    with minor optimizations depending on GOPPC64 value.
+    GOPPC64=power9 showed about 5% improvement on power10.
+    
+    Performance is substantially improved on power10 (compiled
+    with GOPPC64=power9)
+    
+              │   p10.old    │                p10.new                │
+              │     B/s      │      B/s       vs base                │
+    AESCTR/50   632.9Mi ± 0%   1022.4Mi ± 1%   +61.54% (p=0.002 n=6)
+    AESCTR/1K   798.8Mi ± 0%   4327.3Mi ± 0%  +441.72% (p=0.002 n=6)
+    AESCTR/8K   828.8Mi ± 0%   5799.6Mi ± 0%  +599.77% (p=0.002 n=6)
+    
+    And power8:
+    
+              │    p8.old    │                p8.new                 │
+              │     B/s      │      B/s       vs base                │
+    AESCTR/50   291.6Mi ± 0%    452.4Mi ± 0%   +55.17% (p=0.002 n=6)
+    AESCTR/1K   380.8Mi ± 0%   2291.6Mi ± 0%  +501.71% (p=0.002 n=6)
+    AESCTR/8K   389.4Mi ± 0%   3028.1Mi ± 0%  +677.56% (p=0.002 n=6)
+    
+    Change-Id: Icc977e0a844a5b73a47a218f33dbee54b72edf4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626176
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Archana Ravindar <aravinda@redhat.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/crypto/internal/fips/aes/aes_ppc64x.s | 240 ++++++++++++++++++++++++++++--
+ src/crypto/internal/fips/aes/ctr_asm.go   |   2 +-
+ src/crypto/internal/fips/aes/ctr_noasm.go |   2 +-
+ 3 files changed, 230 insertions(+), 14 deletions(-)

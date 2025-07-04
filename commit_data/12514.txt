@@ -1,12 +1,15 @@
-commit d7d1b18a5de13bf5f8a4972182ae572b7ea3d41a
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Thu Mar 8 22:22:36 2012 +1100
+commit 8a146e707cc54a8e71758521085c6a2853ff8081
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 21:54:46 2012 +1100
 
-    fmt: minor tweak of package doc to show headings in godoc
+    misc/dashboard: remove obsolete package builder code
     
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5781052
+    https://golang.org/cl/5790045
 
- src/pkg/fmt/doc.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ misc/dashboard/builder/http.go      |  35 -----
+ misc/dashboard/builder/main.go      | 121 +-----------------
+ misc/dashboard/builder/package.go   | 121 ------------------
+ misc/dashboard/googlecode_upload.py | 248 ------------------------------------
+ 4 files changed, 2 insertions(+), 523 deletions(-)

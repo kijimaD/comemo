@@ -1,21 +1,22 @@
-commit c8b42f9aa5146638c62e8420147595b3533c2a78
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Apr 29 14:43:39 2020 +0200
+commit 7ad27481f84dbf325ee348831ed0f95dbf04094e
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Wed Nov 13 06:53:22 2019 +0100
 
-    cmd/compile: convert CCop arm64 rules to typed aux
+    math/big: fix out-of-bounds panic in divRecursive
     
-    Passes
+    The bounds in the last carry branch were wrong as there
+    is no reason for len(u) >= n+n/2 to always hold true.
     
-      GOARCH=arm64 gotip build -toolexec 'toolstash -cmp' -a std
+    We also adjust test to avoid using a remainder of 1
+    (in which case, the last step of the algorithm computes
+    (qhatv+1) - qhatv which rarely produces a carry).
     
-    Change-Id: Id88141dfc0dfb02c3e958e48ab4adfbac7ba1380
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230837
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I69fbab9c5e19d0db1c087fbfcd5b89352c2d26fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206839
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 124 +++++------
- src/cmd/compile/internal/ssa/gen/rulegen.go  |   2 +
- src/cmd/compile/internal/ssa/rewrite.go      |   4 +
- src/cmd/compile/internal/ssa/rewriteARM64.go | 294 +++++++++++++--------------
- 4 files changed, 215 insertions(+), 209 deletions(-)
+ src/math/big/nat.go      |  2 +-
+ src/math/big/nat_test.go | 13 ++++++++++---
+ 2 files changed, 11 insertions(+), 4 deletions(-)

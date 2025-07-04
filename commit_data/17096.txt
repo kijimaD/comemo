@@ -1,12 +1,13 @@
-commit 9497e5e2f0b02117e11c0428379c1016890b0579
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 8 11:06:38 2013 -0700
+commit 9f46efce528eccde8f1d15756bfb8d7088da1dc6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 8 21:55:04 2013 +0400
 
-    cmd/api: update run.go to fetch from go.tools when needed
+    runtime: print scavenger details when forced with debug.FreeOSMemory
+    Fixes #5900.
     
-    R=gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12639043
+    https://golang.org/cl/12669043
 
- src/cmd/api/run.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 53 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mheap.c | 28 +++++++++++++---------------
+ 1 file changed, 13 insertions(+), 15 deletions(-)

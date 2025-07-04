@@ -1,25 +1,22 @@
-commit 67bce7c1cf6540a853c6b8a9721e381c8258d7dc
-Author: Hana <hyangah@gmail.com>
-Date:   Wed Oct 7 17:27:42 2020 -0400
+commit 656f27ebf86e415c59de421643a35c98238b0ff5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 4 18:36:58 2020 +1100
 
-    cmd/vendor: sync pprof@v0.0.0-20201007051231-1066cbb265c7
+    cmd/compile: enable -d=checkptr even on windows
     
-    This is a belated early sync for 1.16 dev cycle
+    CL 201783 enable -d=checkptr when -race or -msan is specified
+    everywhere but windows.
     
-    For #36905
+    But, now that all unsafe pointer conversions in the standard
+    library are fixed, enable -d=checkptr even on windows.
     
-    Change-Id: I387528ae897794841c0c78b0f0910fc5ce8599ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260538
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Updates #34964
+    Updates #34972
+    
+    Change-Id: Id912fa83b0d5b46c6f1c134c742fd94d2d185835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227003
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go.mod                                         |  2 +-
- src/cmd/go.sum                                         |  4 ++--
- .../google/pprof/internal/driver/driver_focus.go       |  2 +-
- .../google/pprof/internal/driver/tempfile.go           | 18 ++++++++++++------
- .../github.com/google/pprof/internal/graph/dotgraph.go | 13 ++++++++++++-
- .../github.com/google/pprof/internal/report/report.go  |  2 +-
- src/cmd/vendor/modules.txt                             |  2 +-
- 7 files changed, 30 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

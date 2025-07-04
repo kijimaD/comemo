@@ -1,18 +1,26 @@
-commit 446ad131f633296f1c2589fcfa33ce6d6c58a3bc
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed May 10 17:40:01 2023 -0400
+commit 61ae2b734cdbc0db342036a2a026fe1fccdccde3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 02:30:21 2022 -0700
 
-    cmd/compile: remove "WORK IN PROGRESS" from package pgo
+    [dev.unified] cmd/compile: plumb rtype through OSWITCH/OCASE clauses
     
-    Work continues on PGO, but the existing support is certainly working.
+    For (value) switch statements, we may generate OEQ comparisons between
+    values of interface and concrete type, which in turn may require
+    access to the concrete type's RType.
     
-    Change-Id: Ic6724b9b3f174f24662468000d771f7651bb18b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494435
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Commit-Queue: Michael Pratt <mpratt@google.com>
+    To plumb this through, this CL adds CaseClause.RTypes to hold the
+    rtype values, updates the GOEXPERIMENT=unified frontend to set it, and
+    updates walk to plumb rtypes through into generated OEQ nodes.
+    
+    Change-Id: I6f1de2a1167ce54f5770147498a0a591efb3f012
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413361
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/pgo/irgraph.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/ir/stmt.go             | 11 +++++++++++
+ src/cmd/compile/internal/noder/reader.go        | 23 ++++++++++++++++++++++-
+ src/cmd/compile/internal/reflectdata/helpers.go |  4 +---
+ src/cmd/compile/internal/walk/switch.go         | 19 +++++++++++++------
+ 4 files changed, 47 insertions(+), 10 deletions(-)

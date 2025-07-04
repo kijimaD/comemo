@@ -1,14 +1,27 @@
-commit 120f3b7b9d08f05950fd57f25a48adbde877c099
-Author: David G. Andersen <dave.andersen@gmail.com>
-Date:   Thu Nov 10 14:41:24 2011 -0500
+commit e9e874b7fcc722e2e9af942761b8fc2cd8e2c240
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Nov 10 23:56:13 2011 +1100
 
-    math/big: Correcting typo in SetBit() documentation
+    html: parse framesets
     
-    z is set to x+bit change, not z+bit change
+    Pass tests1.dat, test 106:
+    <frameset><frame><frameset><frame></frameset><noframes></noframes></frameset>
     
-    R=golang-dev
+    | <html>
+    |   <head>
+    |   <frameset>
+    |     <frame>
+    |     <frameset>
+    |       <frame>
+    |     <noframes>
+    
+    Also pass test 107:
+    <h1><table><td><h3></table><h3></h1>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5374056
+    https://golang.org/cl/5373050
 
- src/pkg/math/big/int.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/html/parse.go      | 91 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 89 insertions(+), 4 deletions(-)

@@ -1,13 +1,26 @@
-commit c7f5831fa9277edebb863ab11c9527fb09637ce9
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Jan 22 10:06:08 2016 +1100
+commit b5a0c67fcc2f87b5e2fd04e023f9a0b2f3d759da
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 12 11:30:26 2015 -0500
 
-    lib/time: update to IANA release 2015g.
+    test: force heap profile update in heapsampling.go test
     
-    Change-Id: Id82209dc313fa6b54e623eb325412737e7a055fe
-    Reviewed-on: https://go-review.googlesource.com/18794
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    The heapsampling.go test occasionally fails on some architectures
+    because it finds zero heap samples in main.alloc. This happens because
+    the byte and object counts are only updated at a GC. Hence, if a GC
+    happens part way through allocInterleaved, but then doesn't happen
+    after we start calling main.alloc, checkAllocations will see buckets
+    for the lines in main.alloc (which are created eagerly), but the
+    object and byte counts will be zero.
+    
+    Fix this by forcing a GC to update the profile before we collect it.
+    
+    Fixes #13098.
+    
+    Change-Id: Ia7a9918eea6399307f10499dd7abefd4f6d13cf6
+    Reviewed-on: https://go-review.googlesource.com/16846
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- lib/time/update.bash  |   5 +++--
- lib/time/zoneinfo.zip | Bin 359824 -> 360617 bytes
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ test/heapsampling.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

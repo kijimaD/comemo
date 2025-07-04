@@ -1,20 +1,12 @@
-commit 7dc97d9e328edc800e2ce41d5b211ef4e0ef41d0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 18 18:14:11 2016 -0800
+commit 8f9e2ab55786d37158a3aaf27d054944e0742717
+Author: Sam Whited <sam@samwhited.com>
+Date:   Mon Sep 26 20:23:36 2016 -0500
 
-    misc/cgo/testcshared: add explicit ./ to shared library argument
+    database/sql: add doc comment for ErrTxDone
     
-    Use an explicit ./ to make sure we link against the libgo.so we just
-    built, not some other libgo.so that the compiler or linker may decide to
-    seek out.
-    
-    Fixes #17986.
-    
-    Change-Id: Id23f6c95aa2b52f4f42c1b6dac45482c22b4290d
-    Reviewed-on: https://go-review.googlesource.com/33413
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idffb82cdcba4985954d061bdb021217f47ff4985
+    Reviewed-on: https://go-review.googlesource.com/29850
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testcshared/test.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/database/sql/sql.go | 2 ++
+ 1 file changed, 2 insertions(+)

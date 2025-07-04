@@ -1,19 +1,24 @@
-commit 47427d67d6be53b01177040480433308821d47d3
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Thu Apr 5 00:26:38 2018 +0300
+commit 4a3d408d18df344dd8e597b46f7ddb963a9d9ddf
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu Nov 16 16:19:19 2017 -0500
 
-    cmd/internal/obj/x86: cleanup comments and consts
+    cmd/link: use . as DW_AT_comp_dir
     
-    - Unexport MaxLoopPad and LoopAlign; associated comments updated
-    - Remove commented-out C code
-    - Replace C-style /**/ code comments with single-line comments
+    Go's DWARF usually has absolute paths, in which case DW_AT_comp_dir
+    doesn't matter. But the -trimpath flag produces relative paths, and
+    then the spec says that they are relative to _comp_dir.
     
-    Change-Id: I51bd92a05b4d3823757b12efd798951c9f252bd4
-    Reviewed-on: https://go-review.googlesource.com/104795
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    There's no way to know what the "right" value of _comp_dir is without
+    more user input, but we can at least leave the paths alone rather than
+    making them absolute.
+    
+    After this change, Delve can find sources to a program built with
+    -gcflags=-trimpath=$(pwd) as long as it's run in the right directory.
+    
+    Change-Id: I8bc7bed098e352d2c06800bfbbe14e8392e1bbed
+    Reviewed-on: https://go-review.googlesource.com/78415
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/x86/a.out.go |  18 +-
- src/cmd/internal/obj/x86/asm6.go  | 337 +++++++++++++++++---------------------
- src/cmd/internal/obj/x86/list6.go |  28 ++--
- 3 files changed, 176 insertions(+), 207 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

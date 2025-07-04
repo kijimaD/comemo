@@ -1,26 +1,34 @@
-commit 07d5eb075b6f270ae4443e9689821d2e403b72b5
-Author: Sam Xie <xsambundy@gmail.com>
-Date:   Thu Sep 17 02:59:28 2020 +0000
+commit 4978f5e6ea0ba74264b562a3c9ee62dcb63aae45
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Sat Feb 29 17:35:51 2020 -0700
 
-    cmd/go: allow output in non-existent directory
+    time: use values larger than 24 for day for time.Format examples
     
-    When 'go build' is given an output path with -o, if the output path
-    ends with a path separator, always treat it as a directory.
+    Currently, the time.Format docs use 7 Mar 2015 as the day/month/year. In numeric
+    form, that is either 7/3/2015 or 3/7/2015 depending on which part of the world
+    you're from. This is extremely confusing.
     
-    Fixes #41313
+    In fact, the reference time being defined in a very US-centric way is quite
+    confusing for the rest of the world, too [1].
     
-    Change-Id: I9a9c25448abfcd6297ad973f5ed2025b2568a4a7
-    GitHub-Last-Rev: 20a19bd63a2779a2c94b0efdf86146ffd551293c
-    GitHub-Pull-Request: golang/go#41314
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253821
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    We can't change that, but we can make the time.Format docs more comprehendable
+    to the rest of the world without sacrificing by simply choosing a day that is
+    not ambiguous (a value greater than 24 for day). This CL does makes the
+    necessary change.
+    
+    Note: this CL moves some of the padding examples into their own example, since
+    those examples do need a <10 day to demonstrate padding.
+    
+    1: Additional context: a very old golang-nuts thread in which Rob expresses some
+    regret about the format being the USA standard, rather than the alternative:
+    https://groups.google.com/forum/m/#!msg/golang-nuts/0nQbfyNzk9E/LWbMgpRQNOgJ.
+    
+    Change-Id: If0a07c5e0dab86f8420cbf59543405eb857aa7f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221612
+    Run-TryBot: Jean de Klerk <deklerk@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/alldocs.go                       |  5 +++--
- src/cmd/go/internal/work/build.go           | 12 ++++++++----
- src/cmd/go/testdata/script/build_output.txt | 26 ++++++++++++++++++++++++++
- 3 files changed, 37 insertions(+), 6 deletions(-)
+ src/time/example_test.go | 92 +++++++++++++++++++++++++++++-------------------
+ 1 file changed, 56 insertions(+), 36 deletions(-)

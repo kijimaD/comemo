@@ -1,24 +1,16 @@
-commit 34846aef78e2e27da8eaadff2d9ea78cd99d491d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 29 13:12:10 2015 -0400
+commit bc89ad598e51b1f4935c2574edbabafff4dc1dea
+Author: Ryan Brown <ribrdb@google.com>
+Date:   Wed Apr 8 12:55:34 2015 -0700
 
-    cmd/link: fix -s with external linking
+    cmd/internal/objfile: Skip mach-o debug symbols.
     
-    This code used to only be run for ELF, with the predictable
-    result that using -s with external linking broke on Windows and OS X.
-    Moving it here should fix Windows and does fix OS X.
+    This allows objdump to disassemble gcc generated binaries on OS X 10.6.
     
-    CL 10835 also claims to fix the crash on Windows.
-    I don't know whether it does so correctly, but regardless,
-    this CL should make that one a no-op.
-    
-    Fixes #10254.
-    
-    Change-Id: I2e7b45ab0c28568ddbb1b50581dcc157ae0e7ffe
-    Reviewed-on: https://go-review.googlesource.com/11695
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I1a5bfbf7c252e78215ef1f122520689d5ce6ddca
+    Reviewed-on: https://go-review.googlesource.com/10383
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go            | 19 ++++++++++---------
- src/cmd/link/internal/ld/elf.go |  2 --
- src/cmd/link/internal/ld/lib.go |  6 ++++++
- 3 files changed, 16 insertions(+), 11 deletions(-)
+ src/cmd/internal/objfile/macho.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

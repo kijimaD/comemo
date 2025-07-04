@@ -1,27 +1,21 @@
-commit 0921211403731b5a8a38e2d2c647c288240e5b29
-Author: David Chase <drchase@google.com>
-Date:   Mon Apr 19 23:00:24 2021 -0400
+commit c32ac6c15f52e5508ee92702aa885ad5116516cb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 27 11:43:46 2020 -0700
 
-    cmd/compile: preserve/translate names for parameters
+    [dev.typeparams] cmd/compile/internal/types: review of selection.go
     
-    This is part of getting debugging into good shape
-    with the register ABI.  (This may generate a backport
-    for 1.16, there was some regression there as well.)
+    Except for the package name, this file is unchanged from the go/types version.
     
-    This is not necessarily fully-baked yet; my goal is to
-    make it work "well enough" for actual debugging, then
-    revisit the metrics, which are currently ignorant
-    of registers used for passing parameters (currently,
-    rejects them as a valid option).
+    f=selection.go; diff $f ../../../../go/types/$f
+    7c7
+    < package types2
+    ---
+    > package types
     
-    Updates #40724.
-    
-    Change-Id: Ib649adf39f947b7b54895c5bf181cf48ca4d38a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311689
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I09c26a744f445ec992c554d293e3ca9896b5c849
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265698
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 153 ++++++++++++++++++++++-----
- 1 file changed, 126 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/types2/selection.go | 1 -
+ 1 file changed, 1 deletion(-)

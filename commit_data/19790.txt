@@ -1,25 +1,20 @@
-commit 8e0e09ae7db8f0498d8aab1d15b21c53d6dd9556
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 21 17:38:48 2014 -0400
+commit 783bc895ae541e4b6c68ce6a38ddfdd8279e3990
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 21 12:18:14 2014 -0700
 
-    liblink: remove some gotos + other fixes
+    net/http: create internal pkg, unify two chunked.go files
     
-    Rewrite gotos that violate Go's stricter rules.
-    Use uchar* instead of char* in a few places that aren't strings.
-    Remove dead opcross code from asm5.c.
-    Declare regstr (in both list6 and list8) static.
-    
-    LGTM=minux, dave
-    R=minux, dave
-    CC=golang-codereviews
-    https://golang.org/cl/113230043
+    LGTM=rsc
+    R=rsc, dan.kortschak
+    CC=golang-codereviews, r
+    https://golang.org/cl/115840046
 
- include/link.h      |   4 +-
- src/liblink/asm5.c  | 111 ++++++++++++++++++++++++++++++----------------------
- src/liblink/asm6.c  |  27 ++++++-------
- src/liblink/asm8.c  |  26 ++++++------
- src/liblink/list6.c |   2 +-
- src/liblink/list8.c |   2 +-
- src/liblink/obj5.c  |  34 ++++++++--------
- src/liblink/sym.c   |   7 +---
- 8 files changed, 112 insertions(+), 101 deletions(-)
+ src/pkg/go/build/deps_test.go                   |   3 +-
+ src/pkg/net/http/httputil/chunked.go            | 203 ------------------------
+ src/pkg/net/http/httputil/chunked_test.go       | 159 -------------------
+ src/pkg/net/http/httputil/httputil.go           |  13 +-
+ src/pkg/net/http/{ => internal}/chunked.go      |  19 ++-
+ src/pkg/net/http/{ => internal}/chunked_test.go |  23 ++-
+ src/pkg/net/http/response_test.go               |   3 +-
+ src/pkg/net/http/transfer.go                    |   9 +-
+ 8 files changed, 40 insertions(+), 392 deletions(-)

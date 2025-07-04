@@ -1,20 +1,28 @@
-commit f6ea0621d2e7e7386d7f58241fb34bc78e39ebcc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 4 15:11:42 2025 -0800
+commit f7b2779086683bf00570427ce08bebfb54c53b76
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Nov 16 00:42:04 2023 -0800
 
-    internal/routebsd: fix parsing network address of length zero
+    syscall: fix getting pidfd when using CLONE_NEWUSER
     
-    This applies CL 646555 from the net repository to this copy.
+    While working on CL 528798, I found out that sys.PidFD field (added
+    in CL 520266) is not filled in when CLONE_NEWUSER is used.
     
-    For #70528
+    This happens because the code assumed that the parent and the child
+    run in the same memory space. This assumption is right only when
+    CLONE_VM is used for clone syscall, and the code only sets CLONE_VM
+    when CLONE_NEWUSER is not used.
     
-    Change-Id: Ib7e23accfa3f278392e7bdca6f8544b8f1395e7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646676
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fix this, and add a test case (which fails before the fix).
+    
+    Updates #51246.
+    
+    Change-Id: I805203c1369cadd63d769568b132a9ffd92cc184
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542698
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/internal/routebsd/address.go             | 74 +++++++++++++++-------------
- src/internal/routebsd/address_darwin_test.go |  2 +-
- 2 files changed, 40 insertions(+), 36 deletions(-)
+ src/syscall/exec_linux.go      | 13 ++++++-------
+ src/syscall/exec_linux_test.go | 15 ++++++++++++---
+ 2 files changed, 18 insertions(+), 10 deletions(-)

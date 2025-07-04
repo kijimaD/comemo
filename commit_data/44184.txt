@@ -1,33 +1,26 @@
-commit 3d85c69a0bf67adec57b76511ccc5e5b0ba9cdf4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 22 14:54:23 2021 -0800
+commit 9f4aeb36e22f5c7eda76111b4c49c0434b4d2897
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 21 14:16:50 2020 -0400
 
-    html/template: revert "avoid race when escaping updates template"
+    all: use a hermetic "go" tool in standard-library tests
     
-    This reverts CLs 274450 and 279492, except for the new tests.
-    The new race test is changed to skip, as it now fails.
-    We can try again for 1.17.
+    The go/build package uses the "go" tool from the user's environment,
+    but its tests should not assume that that tool is in any particular
+    state, let alone appropriate for running the test.
     
-    Original CL descriptions:
+    Instead, explicitly use testenv.GoTool, adding it to $PATH in a
+    TestMain when necessary.
     
-        html/template: attach functions to namespace
+    Fixes #39199
+    Fixes #39198
     
-        The text/template functions are stored in a data structure shared by
-        all related templates, so do the same with the original, unwrapped,
-        functions on the html/template side.
-    
-        html/template: avoid race when escaping updates template
-    
-    For #39807
-    Fixes #43855
-    
-    Change-Id: I2ce91321ada06ea496a982aefe170eb5af9ba847
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285957
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I56618a55ced473e75dd96eeb3a8f7084e2e64d02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234880
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- src/html/template/exec_test.go | 35 +++++++++++++++
- src/html/template/template.go  | 96 ++++++------------------------------------
- 2 files changed, 47 insertions(+), 84 deletions(-)
+ src/go/build/build_test.go                      |  9 +++++++++
+ src/go/internal/srcimporter/srcimporter_test.go | 10 ++++++++++
+ src/text/template/link_test.go                  |  2 +-
+ 3 files changed, 20 insertions(+), 1 deletion(-)

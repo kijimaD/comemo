@@ -1,32 +1,12 @@
-commit 101a677ebf87f6ed0ed877533c54c7270edadc20
-Author: Rob Pike <r@golang.org>
-Date:   Sat Oct 13 21:06:43 2018 +1100
+commit 534ddf741f6a5fc38fb0bb3e3547d3231c51a7be
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Jun 15 18:46:45 2018 +0900
 
-    cmd/doc: add -all flag to print all documentation for package
+    mime: add .wasm for builtin
     
-    Unlike the one for the old godoc, you need the -u flag to see
-    unexported symbols. This seems like the right behavior: it's
-    consistent.
-    
-    For now at least, the argument must be a package, not a symbol.
-    This is also different from old godoc.
-    
-    Required a little refactoring but also cleaned up a few things.
-    
-    Update #25595
-    
-    Leaving the bug open for now until we tackle
-            go doc -all symbol
-    
-    Change-Id: Ibc1975bfa592cb1e92513eb2e5e9e11e01a60095
-    Reviewed-on: https://go-review.googlesource.com/c/141977
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I9d9189ae7882164246abcc4b22d49c26d4a3f201
+    Reviewed-on: https://go-review.googlesource.com/118937
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/doc/doc_test.go        | 116 ++++++++++++++++-
- src/cmd/doc/main.go            |  14 ++
- src/cmd/doc/pkg.go             | 283 ++++++++++++++++++++++++++++-------------
- src/cmd/go/alldocs.go          |   2 +
- src/cmd/go/internal/doc/doc.go |   2 +
- 5 files changed, 326 insertions(+), 91 deletions(-)
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

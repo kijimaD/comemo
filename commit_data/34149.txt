@@ -1,27 +1,18 @@
-commit 821b04dafbc5e94223766b15622d9b7b38b2f576
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Jan 16 16:55:06 2018 +0000
+commit aac0d52d97351e0b2acaf5bb9b106eafc9e087cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 14:02:54 2017 -0400
 
-    path: remove filename mentions from pattern godocs
+    cmd/go: stop treating GOROOT binaries specially
     
-    path.Match works purely with strings, not file paths. That's what sets
-    it apart from filepath.Match. For example, only filepath.Match will
-    change its behavior towards backslashes on Windows, to accomodate for
-    the file path separator on that system.
+    This was for cmd/cgo, and cmd/cgo isn't special anymore.
     
-    As such, path.Match should make no mention of file names. Nor should
-    path.ErrBadPattern mention globbing at all - the package has no notion
-    of globbing, and the error concerns only patterns.
-    
-    For a similar reason, remove the mention of globbing from
-    filepath.ErrBadPattern. The error isn't reserved to just globbing, as it
-    can be returned from filepath.Match. And, as before, it only concerns
-    the patterns themselves.
-    
-    Change-Id: I58a83ffa3e2549625d8e546ef916652525504bd1
-    Reviewed-on: https://go-review.googlesource.com/87857
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I71efaf553b24798b523c7102859428d36b470698
+    Reviewed-on: https://go-review.googlesource.com/68530
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/path/filepath/match.go | 2 +-
- src/path/match.go          | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/cfg/cfg.go    |  8 +-------
+ src/cmd/go/internal/load/pkg.go   | 11 +----------
+ src/cmd/go/internal/work/build.go | 35 -----------------------------------
+ 3 files changed, 2 insertions(+), 52 deletions(-)

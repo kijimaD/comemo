@@ -1,15 +1,14 @@
-commit ac1015e7f3ef68be5d1c0721d76296ad84fe6768
+commit da6207f7a48a0e0bb961e0d80ca454ebd02180da
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 14 14:49:04 2013 -0500
+Date:   Thu Feb 14 14:46:03 2013 -0500
 
-    cmd/8g: fix sse2 compare code gen
+    go/types: avoid os.Getwd if not necessary
     
-    Fixes #4785.
+    Getwd can be very expensive.
     
-    R=ken2
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7300109
+    https://golang.org/cl/7312100
 
- src/cmd/8g/ggen.c           | 20 --------------------
- test/fixedbugs/issue4785.go | 20 ++++++++++++++++++++
- 2 files changed, 20 insertions(+), 20 deletions(-)
+ src/pkg/go/types/gcimporter.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

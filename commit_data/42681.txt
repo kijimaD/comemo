@@ -1,16 +1,18 @@
-commit 948d324f7d8641a042da46c25417ebabd84e5e78
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 12 23:12:57 2020 +0700
+commit e3f2e9ac4e1ab99e1ebd0bf2a6bd3898633873b1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 4 14:53:46 2020 -0800
 
-    cmd/compile: add failing test case for #24305
+    internal/bytealg: fix riscv64 offset names
     
-    Updates #24305
+    Vet caught that these were incorrect.
     
-    Change-Id: Ib0b093e33004a978467cdd1e77186798392d4eca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248217
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Updates #37022
+    
+    Change-Id: I7b5cd8032ea95eb8e0729f6a4f386aec613c71d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217777
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/escape5.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/internal/bytealg/indexbyte_riscv64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

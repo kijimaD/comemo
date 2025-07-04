@@ -1,23 +1,18 @@
-commit 9d7c9b4384db01afd2acb27d3a4636b60e957f08
-Author: Tal Shprecher <tshprecher@gmail.com>
-Date:   Thu May 5 15:14:08 2016 -0700
+commit 5fb6aa3e096bc61f5a602109ebdb8e3edb0f66ca
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 19:11:19 2016 +0100
 
-    cmd/compile: properly handle map assignments for OAS2DOTTYPE
+    testing: add test for not exceeding maximum parallism
     
-    The boolean destination in an OAS2DOTTYPE expression craps out during
-    compilation when trying to assign to a map entry because, unlike slice entries,
-    map entries are not directly addressable in memory. The solution is to
-    properly order the boolean destination node so that map entries are set
-    via autotmp variables.
+    Fixed bug that slipped probably slipped in after rebasing and
+    explain why it failed on nacl/netbsd/plan9, which set default
+    maxparallelism to 1.
     
-    Fixes #14678
-    
-    Change-Id: If344e8f232b5bdac1b53c0f0d21eeb43ab17d3de
-    Reviewed-on: https://go-review.googlesource.com/22833
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4d59682fb2843d138b320334189f53fcdda5b2f6
+    Reviewed-on: https://go-review.googlesource.com/20980
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 26 ++++++++++++++++----------
- test/fixedbugs/issue14678.go         | 27 +++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 10 deletions(-)
+ src/testing/sub_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go  |  2 +-
+ 2 files changed, 52 insertions(+), 1 deletion(-)

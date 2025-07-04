@@ -1,12 +1,12 @@
-commit c92d3552e5de31a5195aef5ff04979d61dcbf1a6
+commit 428c4cc8d4611c0ddbfe78416b63f77272dade56
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 15 17:11:13 2013 -0500
+Date:   Fri Feb 15 16:33:14 2013 -0500
 
-    os: point users of ProcessState.SysUsage to getrusage(2)
+    api: refresh next.txt
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7352044
+    https://golang.org/cl/7317049
 
- src/pkg/os/doc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ api/next.txt | 160 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 160 insertions(+)

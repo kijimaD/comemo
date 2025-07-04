@@ -1,51 +1,18 @@
-commit ab14797f2179434575fc42dcc3c4f83e6d402e4b
-Author: Michal Bohuslávek <mbohuslavek@gmail.com>
-Date:   Wed Aug 26 23:17:22 2015 +0200
+commit 692054e76e7686c6d5de385df69873e6427a35fb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 18 13:35:12 2015 -0700
 
-    go/printer: fix indentation of *ast.CallExpr parameters
+    runtime: check for findmoduledatap returning nil
     
-    The current version of go/printer formats the following code
-    like this:
+    The findmoduledatap function will not return nil in ordinary use, but
+    check for nil to try to avoid crashing when we are already crashing.
     
-            foo.Bar().
-                    Run(func() {
-                    do()
-            }).
-                    Set(map[string]interface{}{
-                    "x": "three",
-                    "y": 4,
-            }).
-                    Run(
-                    func() {
-                            do()
-                    },
-            )
+    Update #11783.
     
-    This CL changes the go/printer behaviour to make the code look
-    like this.
-    
-            foo.Bar().
-                    Run(func() {
-                            do()
-                    }).
-                    Set(map[string]interface{}{
-                            "x": "three",
-                            "y": 4,
-                    }).
-                    Run(
-                            func() {
-                                    do()
-                            },
-                    )
-    
-    Fixes #12066.
-    
-    Change-Id: If0f525dae1a5d45f9ba40534dbb65715d7e8001b
-    Reviewed-on: https://go-review.googlesource.com/13928
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: If7b1adb51efab13b4c1a37b6f3c9ad22641a0b56
+    Reviewed-on: https://go-review.googlesource.com/12391
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/printer/nodes.go                    | 40 +++++++++++++++++++++++-------
- src/go/printer/testdata/expressions.golden | 22 ++++++++++++++--
- src/go/printer/testdata/expressions.input  | 18 ++++++++++++++
- src/go/printer/testdata/expressions.raw    | 22 ++++++++++++++--
- 4 files changed, 89 insertions(+), 13 deletions(-)
+ src/runtime/symtab.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

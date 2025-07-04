@@ -1,61 +1,24 @@
-commit 8be94b82ab1832ec8a07bcb16a0cb3872915dbb7
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 15 10:41:03 2022 -0400
+commit 85a068fdf21bd2e4475a87ee049af4fbe797bcbe
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Sep 30 10:46:03 2021 -0700
 
-    runtime: drop function context from traceback
+    runtime/debug: add GoVersion to BuildInfo
     
-    Currently, gentraceback tracks the closure context of the outermost
-    frame. This used to be important for "unstarted" calls to reflect
-    function stubs, where "unstarted" calls are either deferred functions
-    or the entry-point of a goroutine that hasn't run. Because reflect
-    function stubs have a dynamic argument map, we have to reach into
-    their closure context to fetch to map, and how to do this differs
-    depending on whether the function has started. This was discovered in
-    issue #25897.
+    BuildInfo now includes the version of Go used to build a binary, as
+    reported by runtime.Version() or 'go version'.
     
-    However, as part of the register ABI, "go" and "defer" were made much
-    simpler, and any "go" or "defer" of a function that takes arguments or
-    returns results gets wrapped in a closure that provides those
-    arguments (and/or discards the results). Hence, we'll see that closure
-    instead of a direct call to a reflect stub, and can get its static
-    argument map without any trouble.
+    For #37475
     
-    The one case where we may still see an unstarted reflect stub is if
-    the function takes no arguments and has no results, in which case the
-    compiler can optimize away the wrapper closure. But in this case we
-    know the argument map is empty: the compiler can apply this
-    optimization precisely because the target function has no argument
-    frame.
-    
-    As a result, we no longer need to track the closure context during
-    traceback, so this CL drops all of that mechanism.
-    
-    We still have to be careful about the unstarted case because we can't
-    reach into the function's locals frame to pull out its context
-    (because it has no locals frame). We double-check that in this case
-    we're at the function entry.
-    
-    I would prefer to do this with some in-code PCDATA annotations of
-    where to find the dynamic argument map, but that's a lot of mechanism
-    to introduce for just this. It might make sense to consider this along
-    with #53609.
-    
-    Finally, we beef up the test for this so it more reliably forces the
-    runtime down this path. It's fundamentally probabilistic, but this
-    tweak makes it better. Scheduler testing hooks (#54475) would make it
-    possible to write a reliable test for this.
-    
-    For #54466, but it's a nice clean-up all on its own.
-    
-    Change-Id: I16e4f2364ba2ea4b1fec1e27f971b06756e7b09f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424254
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Id07dda357dc70599d64a9202dab894c7288de1de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353888
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/escape/call.go |  4 ++
- src/runtime/traceback.go                | 66 +++++++++++++++++----------------
- test/fixedbugs/issue25897a.go           | 21 ++++++++++-
- 3 files changed, 57 insertions(+), 34 deletions(-)
+ api/next.txt                          |  1 +
+ src/cmd/go/internal/load/pkg.go       |  3 +++
+ src/debug/buildinfo/buildinfo.go      |  3 ++-
+ src/debug/buildinfo/buildinfo_test.go |  7 ++++---
+ src/runtime/debug/mod.go              | 20 ++++++++++++++++----
+ 5 files changed, 26 insertions(+), 8 deletions(-)

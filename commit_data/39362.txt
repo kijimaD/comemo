@@ -1,12 +1,18 @@
-commit 6a4b1f745d999f9ae6e2c5be38acd46bef13fdcb
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Jun 11 15:12:54 2019 -0400
+commit 57976fe2b4cbd44d27e27af510494de0d182e703
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jan 15 15:00:43 2019 -0800
 
-    doc: add release notes for sync
+    cmd/compile: update comment about x86 nop instruction generator
     
-    Change-Id: I49b09349a632a6b6219c85638d9cb6774c0c210a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181721
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    The comment about losing the high bits is incorrect.  We now use these
+    nops in places where they really need to be a nop.  (Before inline
+    marks, we used them just before deferreturn calls, so they could
+    clobber any caller-saved values.)
+    
+    Change-Id: I433d1ec455aa37dab8fef6eb7d407f3737dbb97f
+    Reviewed-on: https://go-review.googlesource.com/c/158057
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- doc/go1.13.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go | 9 ++++++---
+ src/cmd/compile/internal/x86/ggen.go   | 1 +
+ 2 files changed, 7 insertions(+), 3 deletions(-)

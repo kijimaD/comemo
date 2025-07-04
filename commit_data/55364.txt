@@ -1,20 +1,17 @@
-commit d1674cb4c6531df6573bc3be136b302d2b362c56
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Wed Jan 10 21:15:55 2024 +0000
+commit 0067d814b6a45b16af6f9c36b8898bcbf38d0e99
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 30 15:43:25 2023 -0800
 
-    cmd/compile: document go:wasmimport directive
+    cmd/link: rewrite (*BuildMode).Set to use platform.BuildModeSupported
     
-    Fixes #64972
-    
-    Change-Id: I784a8728afbdef9736681d56f0a79c82a00609d6
-    GitHub-Last-Rev: bf158dbeaaa495dc258c590c7a21cf9e25e76ee7
-    GitHub-Pull-Request: golang/go#64991
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/554455
-    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I7aa2bb4560198a7d9d9e4321f60dec38f6834bdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463745
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/doc.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/cmd/link/internal/ld/config.go | 73 +++-----------------------------------
+ 1 file changed, 5 insertions(+), 68 deletions(-)

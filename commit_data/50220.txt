@@ -1,25 +1,38 @@
-commit af7f067e0d7f92bcf4d0938d093725a0ac6366b1
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Jul 3 14:52:47 2022 -0700
+commit f430bda2582bdea5cf3afd8a44ef5a46567a325a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 8 19:23:35 2021 +0200
 
-    cmd/compile: tighten bounds for induction variables in strided loops
+    go/build, internal/goarch: sort goarchList alphabetically
     
-    for i := 0; i < 9; i += 3
-    
-    Currently we compute bounds of [0,8]. Really we know that it is [0,6].
-    
-    CL 415874 computed the better bound as part of overflow detection.
-    This CL just incorporates that better info to the prove pass.
-    
-    R=go1.20
-    
-    Change-Id: Ife82cc415321f6652c2b5d132a40ec23e3385766
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415937
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I0534b61e34d78104cb85124b805fd90f3250e6c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354829
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/loopbce.go | 22 +++++++++++---
- test/loopbce.go                         | 52 ++++++++++++++++++++++-----------
- 2 files changed, 53 insertions(+), 21 deletions(-)
+ src/go/build/syslist.go                    | 2 +-
+ src/internal/goarch/zgoarch_386.go         | 4 ++--
+ src/internal/goarch/zgoarch_amd64.go       | 4 ++--
+ src/internal/goarch/zgoarch_arm.go         | 4 ++--
+ src/internal/goarch/zgoarch_arm64.go       | 4 ++--
+ src/internal/goarch/zgoarch_arm64be.go     | 4 ++--
+ src/internal/goarch/zgoarch_armbe.go       | 4 ++--
+ src/internal/goarch/zgoarch_loong64.go     | 4 ++--
+ src/internal/goarch/zgoarch_mips.go        | 4 ++--
+ src/internal/goarch/zgoarch_mips64.go      | 4 ++--
+ src/internal/goarch/zgoarch_mips64le.go    | 4 ++--
+ src/internal/goarch/zgoarch_mips64p32.go   | 4 ++--
+ src/internal/goarch/zgoarch_mips64p32le.go | 4 ++--
+ src/internal/goarch/zgoarch_mipsle.go      | 4 ++--
+ src/internal/goarch/zgoarch_ppc.go         | 4 ++--
+ src/internal/goarch/zgoarch_ppc64.go       | 4 ++--
+ src/internal/goarch/zgoarch_ppc64le.go     | 4 ++--
+ src/internal/goarch/zgoarch_riscv.go       | 4 ++--
+ src/internal/goarch/zgoarch_riscv64.go     | 4 ++--
+ src/internal/goarch/zgoarch_s390.go        | 4 ++--
+ src/internal/goarch/zgoarch_s390x.go       | 4 ++--
+ src/internal/goarch/zgoarch_sparc.go       | 4 ++--
+ src/internal/goarch/zgoarch_sparc64.go     | 4 ++--
+ src/internal/goarch/zgoarch_wasm.go        | 4 ++--
+ 24 files changed, 47 insertions(+), 47 deletions(-)

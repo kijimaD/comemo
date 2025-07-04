@@ -1,0 +1,23 @@
+commit 87a89fa45130d4406fa4d9f0882b9c5014240d03
+Author: Shuo Wang <wangshuo@kylinos.cn>
+Date:   Wed Oct 23 01:52:14 2024 +0000
+
+    runtime: add the checkPtraceScope to skip certain tests
+    
+    When the kernel parameter ptrace_scope is set to 2 or 3,
+    certain test cases in runtime-gdb_test.go will fail.
+    We should skip these tests.
+    
+    Fixes #69932
+    
+    Change-Id: I685d1217f1521d7f8801680cf6b71d8e7a265188
+    GitHub-Last-Rev: 063759e04cfc5ea750ed1d381d8586134488a96b
+    GitHub-Pull-Request: golang/go#69933
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620857
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/runtime-gdb_test.go | 44 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

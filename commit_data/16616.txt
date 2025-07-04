@@ -1,16 +1,20 @@
-commit 20ebee2c31688e6b67c1c5c235616d67cdd4ac09
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Jun 23 18:39:07 2013 +0200
+commit dd3a3cfa4939e54490d8dd0c1c121869c7eddde3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jun 22 11:03:40 2013 +1000
 
-    cmd/gc: fix pointer composite literals in exported if statements.
+    syscall: reduce duplication between *bsd and linux
     
-    Fixes #4230 (again).
+    See discussion: https://groups.google.com/forum/#!topic/golang-dev/zSmH0lQxKAs
     
-    R=rsc, golang-dev, r
+    Part 1 of several.
+    
+    Move identical types and functions to syscall_unix.go.
+    
+    R=rsc, mikioh.mikioh, r
     CC=golang-dev
-    https://golang.org/cl/10470043
+    https://golang.org/cl/10392048
 
- src/cmd/gc/fmt.c               |  2 +-
- test/fixedbugs/bug465.dir/a.go | 15 +++++++++++++++
- test/fixedbugs/bug465.dir/b.go |  2 +-
- 3 files changed, 17 insertions(+), 2 deletions(-)
+ src/pkg/syscall/syscall_bsd.go   | 60 ----------------------------------------
+ src/pkg/syscall/syscall_linux.go | 60 ----------------------------------------
+ src/pkg/syscall/syscall_unix.go  | 60 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 60 insertions(+), 120 deletions(-)

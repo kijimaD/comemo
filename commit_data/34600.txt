@@ -1,14 +1,16 @@
-commit e65d6a6abe1ea4731dcb86f02fd7a68e97ed97eb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 13 16:08:16 2018 -0700
+commit ad3742f4acbf20c681c9f6f6775ea7ece85e5881
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 2 19:17:13 2017 +0000
 
-    cmd/compile: document new line directives
+    net/http: remove some log spam in test, add missing error detail
     
-    Fixes #24183.
+    Updates #22540
     
-    Change-Id: I5ef31c4a3aad7e05568b7de1227745d686d4aff8
-    Reviewed-on: https://go-review.googlesource.com/100462
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I26e79c25652976fac6f2e5a7afb4fd1240996d74
+    Reviewed-on: https://go-review.googlesource.com/75531
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/doc.go | 60 ++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 46 insertions(+), 14 deletions(-)
+ src/net/http/transport_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

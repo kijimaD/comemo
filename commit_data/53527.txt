@@ -1,15 +1,20 @@
-commit 0fcc70ecd56e3b5c214ddaee4065ea1139ae16b5
-Author: chressie <chressie@google.com>
-Date:   Mon Jun 12 15:09:21 2023 +0200
+commit f65ded56263a9dd7d125f2b0001fb996df1fb3f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 09:47:53 2022 -0700
 
-    doc/go1.21: fix typo
+    go/printer: rename printPos to setPos
     
-    Change-Id: Ie0af0ff135ac14d35476d738a16f04e9c3eebcd2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502475
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Chressie Himpel <chressie@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Follow-up on feedback in CL 412557.
+    
+    Change-Id: I5a693efccade97a62ab880c6e1b9e50cb597c293
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424814
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- doc/go1.21.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/printer/nodes.go   | 112 +++++++++++++++++++++++-----------------------
+ src/go/printer/printer.go |   2 +-
+ 2 files changed, 57 insertions(+), 57 deletions(-)

@@ -1,16 +1,17 @@
-commit 83e22f1a47ee3bb7ceb1ceb5fbe1c5e13f7fe131
-Author: Rob Pike <r@golang.org>
-Date:   Sun Feb 24 13:18:21 2013 -0800
+commit 5a8b7dc6d009bd95f5904b4250107ef57c163c22
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 24 22:47:22 2013 +0800
 
-    cmd/vet: eliminate false positives for slices in untagged literal test
-    Made possible by go/types, as long as the package type-checks OK.
+    runtime: remove PROT_EXEC from mmap calls.
+    Executable heap is gone on Unix!
     
-    Fixes #4684.
-    
-    R=golang-dev
+    R=golang-dev, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7407045
+    https://golang.org/cl/7405045
 
- src/cmd/vet/Makefile  |  2 +-
- src/cmd/vet/taglit.go | 38 +++++++++++++++++++++++++++++++++++---
- 2 files changed, 36 insertions(+), 4 deletions(-)
+ src/pkg/runtime/mem_darwin.c  | 4 ++--
+ src/pkg/runtime/mem_freebsd.c | 6 +++---
+ src/pkg/runtime/mem_linux.c   | 6 +++---
+ src/pkg/runtime/mem_netbsd.c  | 6 +++---
+ src/pkg/runtime/mem_openbsd.c | 6 +++---
+ 5 files changed, 14 insertions(+), 14 deletions(-)

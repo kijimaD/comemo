@@ -1,17 +1,12 @@
-commit 256cd7e78eb0cc4cfd7ed472b9e11f22d34098b6
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Sep 7 02:13:14 2012 +1000
+commit ef05d8688f1ea1952d87cdea37d0848629dcb13b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 6 15:02:42 2012 +1000
 
-    syscall: regenerate/update netbsd z-files
+    C: add Manu Garg (Google CLA)
     
-    Regenerate/update netbsd z-files on NetBSD 6.0 RC1.
-    
-    R=golang-dev, r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6506062
+    https://golang.org/cl/6493087
 
- src/pkg/syscall/zerrors_netbsd_386.go   | 53 +++++++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_netbsd_amd64.go | 53 +++++++++++++++++++++++++++++++++
- src/pkg/syscall/zsysnum_netbsd_386.go   |  7 -----
- src/pkg/syscall/zsysnum_netbsd_amd64.go |  7 -----
- 4 files changed, 106 insertions(+), 14 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

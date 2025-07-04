@@ -1,17 +1,30 @@
-commit 01385b1bb64328040cdd2ea32e3de9ce8d22386a
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Aug 11 11:47:16 2017 -0700
+commit aaf4682171f1ffabd3673b82cb71fdc3d8e5317e
+Author: Meir Fischer <meirfischer@gmail.com>
+Date:   Sat Apr 8 00:17:01 2017 -0400
 
-    archive/tar: adjust bytediff to print full context
+    net/http/fcgi: expose cgi env vars in request context
     
-    Since test files don't exceed 10KiB, print the full context of the diff,
-    including bytes that are equal.
-    Also, fix the labels for got and want; they were backwards before.
+    The current interface can't access all environment
+    variables directly or via cgi.RequestFromMap, which
+    only reads variables on its "white list" to be set on
+    the http.Request it returns. If an fcgi variable is
+    not on the "white list" - e.g. REMOTE_USER - the old
+    code has no access to its value.
     
-    Change-Id: Ibac022e5f988d26812c3f75b643cae8b95603fc9
-    Reviewed-on: https://go-review.googlesource.com/55151
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This passes variables in the Request context that aren't
+    used to add data to the Request itself and adds a method
+    that parses those env vars from the Request's context.
+    
+    Fixes #16546
+    
+    Change-Id: Ibf933a768b677ece1bb93d7bf99a14cef36ec671
+    Reviewed-on: https://go-review.googlesource.com/40012
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/writer_test.go | 47 +++++++++++++++++++++++-------------------
- 1 file changed, 26 insertions(+), 21 deletions(-)
+ src/go/build/deps_test.go      |  2 +-
+ src/net/http/fcgi/child.go     | 56 +++++++++++++++++++++++++++++++++++
+ src/net/http/fcgi/fcgi.go      |  2 +-
+ src/net/http/fcgi/fcgi_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 124 insertions(+), 2 deletions(-)

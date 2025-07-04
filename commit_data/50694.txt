@@ -1,26 +1,18 @@
-commit ecd112c0d1c90a12d3c87172cf969cdd1f6cbeca
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Apr 14 15:44:20 2022 -0400
+commit 091948a55fb198be4202c21a5809ec68d77f70c4
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Wed Nov 3 22:23:29 2021 +0800
 
-    runtime/coverage: apis to emit counter data under user control
+    time: make Ticker.Reset(0) panic
     
-    Add hooks/apis to support writing of coverage counter data and
-    meta-data under user control (from within an executing "-cover"
-    binary), so as to provide a way to obtain coverage data from programs
-    that do not terminate. This patch also adds a hook for clearing the
-    coverage counter data for a running program, something that can be
-    helpful when the intent is to capture coverage info from a specific
-    window of program execution.
+    Fixes #49315
     
-    Updates #51430.
-    
-    Change-Id: I34ee6cee52e5597fa3698b8b04f1b34a2a2a418f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401236
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I0887bad1059b25ae0749bfa1ed6ddccbecca7951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361074
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- api/next/51430.txt                       |   5 +
- src/runtime/coverage/apis.go             | 176 ++++++++++++++
- src/runtime/coverage/emit.go             |  45 +++-
- src/runtime/coverage/emitdata_test.go    | 404 +++++++++++++++++++++++++++++++
- src/runtime/coverage/testdata/harness.go | 258 ++++++++++++++++++++
- 5 files changed, 887 insertions(+), 1 deletion(-)
+ src/time/tick.go      |  6 +++++-
+ src/time/tick_test.go | 11 +++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

@@ -1,16 +1,12 @@
-commit e0b6f4721fac04fbaaa669e3a52818ef6c2d5df1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jul 29 10:47:00 2011 -0700
+commit 60dac9b3db4aa1771ba1d843fa94928b4ff515b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 29 13:31:42 2011 -0400
 
-    archive/zip: more efficient reader and bug fix
+    CONTRIBUTORS: add Joel Sing (Google CLA)
     
-    Fixes #2090.
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/4815068
+    R=golang-dev, r
+    CC=golang-dev, jsing
+    https://golang.org/cl/4830044
 
- src/pkg/archive/zip/reader.go      | 228 ++++++++++++++++++-------------------
- src/pkg/archive/zip/reader_test.go |   6 +
- src/pkg/archive/zip/struct.go      |   3 +
- 3 files changed, 121 insertions(+), 116 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

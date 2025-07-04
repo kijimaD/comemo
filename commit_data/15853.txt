@@ -1,15 +1,14 @@
-commit 7c3694c4de2504eb39196d3c4b0da0f2f4e45ffc
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Wed Mar 20 22:18:20 2013 +0100
+commit 6e15683caee9085dfc953c39a49f13ccc9dc1c86
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 20 16:54:07 2013 -0400
 
-    cmd/gc: reject methods on non-locals, even if symbol exists
+    spec: define method values
     
-    Fixes #5089.
+    Fixes #2280.
     
-    R=golang-dev, rsc
+    R=golang-dev, r, bradfitz, iant, andybalholm, gri
     CC=golang-dev
-    https://golang.org/cl/7767044
+    https://golang.org/cl/7816045
 
- src/cmd/gc/dcl.c            | 12 ++++++------
- test/fixedbugs/issue5089.go | 15 +++++++++++++++
- 2 files changed, 21 insertions(+), 6 deletions(-)
+ doc/go_spec.html | 122 +++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 118 insertions(+), 4 deletions(-)

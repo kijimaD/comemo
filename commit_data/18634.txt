@@ -1,16 +1,19 @@
-commit e5b5f9b39d743893732ed0dca2e697d6de64a775
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Tue Feb 25 17:12:19 2014 +0900
+commit c738591e7e9b3ed9804c1a1348ccf7c7c596b8c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 24 19:18:16 2014 -0800
 
-    syscall: generate zfiles for GOOS=solaris
+    go/printer: fix alignment of comments in labeled statements
     
-    LGTM=minux.ma, mikioh.mikioh
-    R=golang-codereviews, minux.ma, gobot, jsing, mikioh.mikioh, dave
+    Does not change src, misc formatting.
+    
+    Fixes #5623.
+    
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/36010043
+    https://golang.org/cl/68400043
 
- src/pkg/syscall/zerrors_solaris_amd64.go  | 1414 +++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_solaris_amd64.go |  882 ++++++++++++++++++
- src/pkg/syscall/zsysnum_solaris_amd64.go  |   11 +
- src/pkg/syscall/ztypes_solaris_amd64.go   |  365 ++++++++
- 4 files changed, 2672 insertions(+)
+ src/pkg/go/printer/nodes.go                  | 17 +++++++++++++++--
+ src/pkg/go/printer/testdata/comments2.golden | 25 +++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/comments2.input  | 27 ++++++++++++++++++++++++++-
+ 3 files changed, 66 insertions(+), 3 deletions(-)

@@ -1,12 +1,25 @@
-commit 800c49820aa5ecd83506276070bd8e9439e2eb5a
-Author: Maxim Pimenov <mpimenov@google.com>
-Date:   Tue Jan 10 07:43:48 2012 -0800
+commit a6c49098bcddd3af21640b512257289c47f5e724
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Jan 10 11:19:22 2012 +0100
 
-    go: fix typo in comment
+    gc: Nicer errors before miscompiling.
     
-    R=golang-dev, r
+    This fixes issue 2444.
+    
+    A big cleanup of all 31/32bit size boundaries i'll leave for another cl though.  (see also issue 1700).
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5531060
+    https://golang.org/cl/5484058
 
- src/cmd/go/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5g/cgen.c           | 13 ++++++++-----
+ src/cmd/5g/gg.h             |  2 +-
+ src/cmd/6g/cgen.c           |  6 +++---
+ src/cmd/6g/gg.h             |  2 +-
+ src/cmd/8g/cgen.c           |  8 ++++----
+ src/cmd/8g/gg.h             |  2 +-
+ src/cmd/gc/align.c          |  3 +++
+ src/cmd/gc/pgen.c           |  4 ++++
+ test/fixedbugs/bug385_32.go | 14 ++++++++++++++
+ test/fixedbugs/bug385_64.go | 15 +++++++++++++++
+ 10 files changed, 54 insertions(+), 15 deletions(-)

@@ -1,12 +1,15 @@
-commit 16e2e95dd92bb2cf8b04be611685521adb9ea85a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 4 14:52:28 2016 -0800
+commit 1dc2e7b165d15230e4e1b1ca9eb373419ba99911
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Dec 16 09:35:23 2015 +0900
 
-    cmd/compile/internal/ssa: chmod -x likelyadjust.go
+    net: retighten test harnesses for dial cancelation
     
-    Change-Id: I01ec7d08884a1e0fbce94ea77281c1ee4a2cfd56
-    Reviewed-on: https://go-review.googlesource.com/20238
+    Updates #11225.
+    
+    Change-Id: I6c33d577f144643781f370ba2ab0997d1c1a3820
+    Reviewed-on: https://go-review.googlesource.com/17880
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/likelyadjust.go | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/net/dial_test.go  | 5 ++++-
+ src/net/error_test.go | 4 ++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

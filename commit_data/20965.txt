@@ -1,14 +1,19 @@
-commit da43976c8bd1fd86332c2401956c0b66c19282f0
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Dec 11 21:54:20 2014 +1100
+commit 097362fd2e01735b25b79c71ba6005cd38f81da0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 30 10:45:41 2014 -0400
 
-    doc/play: update obsolete comment in peano.go.
+    [dev.power64] runtime: match argument/return type signedness in power64x assembly
     
-    Change-Id: Ibecc2ef1e70c927c325c48bc381091f52c09da85
-    Reviewed-on: https://go-review.googlesource.com/1355
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Previously, the power64x runtime assembly was sloppy about
+    using sign-extending versus zero-extending moves of arguments
+    and return values.  I think all of the cases that actually
+    mattered have been fixed in recent CLs; this CL fixes up the
+    few remaining mismatches.
+    
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/162480043
 
- doc/play/peano.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/asm_power64x.s | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

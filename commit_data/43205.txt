@@ -1,21 +1,30 @@
-commit 2e4ceaf963fc2a0ce95a198769012e62ec4e28ae
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 17 12:39:43 2020 -0400
+commit 971f8a2f9a5beb0473f82d7299613c86d2b4a5b9
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 26 14:45:46 2019 -0700
 
-    cmd/dist: enable more tests on macOS/ARM64
+    database/sql: process all Session Resets synchronously
     
-    Unlike iOS, macOS ARM64 is more of a fully featured OS. Enable
-    more tests.
+    Adds a new interface, driver.ConnectionValidator, to allow
+    drivers to signal they should not be used again,
+    separatly from the session resetter interface.
+    This is done now that the session reset is done
+    after the connection is put into the connection pool.
     
-    Updates #38485.
+    Previous behavior attempted to run Session Resets
+    in a background worker. This implementation had two
+    problems: untested performance gains for additional
+    complexity, and failures when the pool size
+    exceeded the connection reset channel buffer size.
     
-    Change-Id: I2e2240c848d21996db2b950a4a6856987f7a652c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256919
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #31480
+    
+    Change-Id: I7d483b883c24a362c292471e87a88db5b204d1d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174122
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go         | 2 +-
- test/fixedbugs/bug429_run.go | 7 ++++++-
- test/fixedbugs/issue21576.go | 7 ++++++-
- test/nilptr.go               | 3 ++-
- 4 files changed, 15 insertions(+), 4 deletions(-)
+ src/database/sql/driver/driver.go |  20 +++++--
+ src/database/sql/fakedb_test.go   |   6 ++
+ src/database/sql/sql.go           | 115 ++++++++++++++------------------------
+ 3 files changed, 63 insertions(+), 78 deletions(-)

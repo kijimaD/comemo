@@ -1,19 +1,25 @@
-commit c14fc500c772c35050699f3bcc3688db3d0fbed2
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 18 16:23:43 2024 -0800
+commit 57c1dfd2ab36bbff8c54d1355479ce2fb5efb89d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 18 02:35:00 2022 +1000
 
-    internal/runtime/maps: assume constant elem offset with int64 and string keys
+    runtime: add runtime support for openbsd/riscv64 port
     
-    Note this doesn't work with int32 keys because alignment padding can change
-    the offset of the element.
+    Updates #55999
     
-    Change-Id: I27804d3cfc7cc1b7f995f7e29630f0824f0ee899
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629418
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I0e80f80d49696a00d979f85230d482e24d4c2d7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518626
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Aaron Bieber <deftly@gmail.com>
 
- src/cmd/compile/internal/reflectdata/map_swiss.go  | 6 ++++++
- src/internal/runtime/maps/runtime_fast64_swiss.go  | 8 ++++----
- src/internal/runtime/maps/runtime_faststr_swiss.go | 9 +++++----
- 3 files changed, 15 insertions(+), 8 deletions(-)
+ src/runtime/asm_riscv64.s             |   9 +
+ src/runtime/defs_openbsd_riscv64.go   | 176 ++++++++
+ src/runtime/rt0_openbsd_riscv64.s     |  14 +
+ src/runtime/signal_openbsd_riscv64.go |  72 ++++
+ src/runtime/signal_riscv64.go         |   2 +-
+ src/runtime/stubs_riscv64.go          |   5 +
+ src/runtime/sys_openbsd_riscv64.s     | 742 ++++++++++++++++++++++++++++++++++
+ src/runtime/tls_riscv64.s             |   3 +-
+ 8 files changed, 1021 insertions(+), 2 deletions(-)

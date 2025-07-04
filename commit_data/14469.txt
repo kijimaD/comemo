@@ -1,21 +1,14 @@
-commit f97bb12bb02b1a5dd0e36032c8079e019fef9d54
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Nov 25 15:23:20 2012 -0800
+commit 1fbe3090d8382176d1f5075cecd2fa578fe363a4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Nov 25 18:46:41 2012 +0900
 
-    net/http/httptest: protect against port reuse
+    runtime: fix madvise for freebsd/amd64
     
-    Should make BSDs more reliable. (they seem to reuse ports
-    quicker than Linux)
+    Make use of carry clear condition instead of low or same.
     
-    Tested by hand with local modifications to force reuse on
-    Linux. (net/http tests failed before, pass now) Details in the
-    issue.
-    
-    Fixes #4436
-    
-    R=golang-dev, minux.ma
+    R=minux.ma, jsing, dave
     CC=golang-dev
-    https://golang.org/cl/6847101
+    https://golang.org/cl/6844080
 
- src/pkg/net/http/httptest/server.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/sys_freebsd_amd64.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

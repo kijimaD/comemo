@@ -1,117 +1,45 @@
-commit c10b98022027ce584b0571359439fae41a721dd3
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Sep 10 22:05:55 2021 -0400
+commit d89705e08742c0f4fdf5d2bdbab6f344c6be884f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 3 14:37:06 2021 -0800
 
-    cmd/compile: restore tail call for method wrappers
+    [dev.regabi] cmd/compile: fix re-export of parameters
     
-    For certain type of method wrappers we used to generate a tail
-    call. That was disabled in CL 307234 when register ABI is used,
-    because with the current IR it was difficult to generate a tail
-    call with the arguments in the right places. The problem was that
-    the IR does not contain a CALL-like node with arguments; instead,
-    it contains an OAS node that adjusts the receiver, than an
-    OTAILCALL node that just contains the target, but no argument
-    (with the assumption that the OAS node will put the adjusted
-    receiver in the right place). With register ABI, putting
-    arguments in registers are done in SSA. The assignment (OAS)
-    doesn't put the receiver in register.
+    When exporting signature types, we include the originating package,
+    because it's exposed via go/types's API. And as a consistency check,
+    we ensure that the parameter names came from that same package.
     
-    This CL changes the IR of a tail call to take an actual OCALL
-    node. Specifically, a tail call is represented as
+    However, we were getting this wrong in the case of exported variables
+    that were initialized with a method value using an imported method. In
+    this case, when we created the method value wrapper function's
+    type (which is reused as the variable's type if none is explicitly
+    provided in the variable declaration), we were reusing the
+    original (i.e., imported) parameter names, but the newly created
+    signature type was associated with the current package instead.
     
-    OTAILCALL (OCALL target args...)
+    The correct fix here is really to preserve the original signature
+    type's package (along with position and name for its parameters), but
+    that's awkward to do at the moment because the DeclFunc API requires
+    an ir representation of the function signature, whereas we only
+    provide a way to explicitly set packages via the type constructor
+    APIs.
     
-    This way, the call target and args are connected through the OCALL
-    node. So the call can be analyzed in SSA and the args can be passed
-    in the right places.
+    As an interim fix, we associate the parameters with the current
+    package, to be consistent with the signature type's package.
     
-    (Alternatively, we could have OTAILCALL node directly take the
-    target and the args, without the OCALL node. Using an OCALL node is
-    convenient as there are existing code that processes OCALL nodes
-    which do not need to be changed. Also, a tail call is similar to
-    ORETURN (OCALL target args...), except it doesn't preserve the
-    frame. I did the former but I'm open to change.)
+    Fixes #43479.
     
-    The SSA representation is similar. Previously, the IR lowers to
-    a Store the receiver then a BlockRetJmp which jumps to the target
-    (without putting the arg in register). Now we use a TailCall op,
-    which takes the target and the args. The call expansion pass and
-    the register allocator handles TailCall pretty much like a
-    StaticCall, and it will do the right ABI analysis and put the args
-    in the right places. (Args other than the receiver are already in
-    the right places. For register args it generates no code for them.
-    For stack args currently it generates a self copy. I'll work on
-    optimize that out.) BlockRetJmp is still used, signaling it is a
-    tail call. The actual call is made in the TailCall op so
-    BlockRetJmp generates no code (we could use BlockExit if we like).
-    
-    This slightly reduces binary size:
-                  old        new
-    cmd/go     14003088   13953936
-    cmd/link    6275552    6271456
-    
-    Change-Id: I2d16d8d419fe1f17554916d317427383e17e27f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350145
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Id45a10f8cf64165c9bc7d9598f0a0ee199a5e752
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281292
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/amd64/ssa.go           |  21 ++--
- src/cmd/compile/internal/arm/ssa.go             |  10 +-
- src/cmd/compile/internal/arm64/ssa.go           |  10 +-
- src/cmd/compile/internal/escape/stmt.go         |   3 +-
- src/cmd/compile/internal/inline/inl.go          |   3 +
- src/cmd/compile/internal/ir/fmt.go              |   2 +-
- src/cmd/compile/internal/ir/node_gen.go         |   6 +-
- src/cmd/compile/internal/ir/stmt.go             |   9 +-
- src/cmd/compile/internal/mips/ssa.go            |   9 +-
- src/cmd/compile/internal/mips64/ssa.go          |   9 +-
- src/cmd/compile/internal/ppc64/ssa.go           |  10 +-
- src/cmd/compile/internal/reflectdata/reflect.go |  15 +--
- src/cmd/compile/internal/riscv64/ssa.go         |   9 +-
- src/cmd/compile/internal/s390x/ssa.go           |  10 +-
- src/cmd/compile/internal/ssa/check.go           |   3 -
- src/cmd/compile/internal/ssa/expand_calls.go    |  16 ++-
- src/cmd/compile/internal/ssa/gen/386.rules      |   1 +
- src/cmd/compile/internal/ssa/gen/386Ops.go      |   1 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules    |   1 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   1 +
- src/cmd/compile/internal/ssa/gen/ARM.rules      |   1 +
- src/cmd/compile/internal/ssa/gen/ARM64.rules    |   1 +
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go    |   1 +
- src/cmd/compile/internal/ssa/gen/ARMOps.go      |   1 +
- src/cmd/compile/internal/ssa/gen/MIPS.rules     |   1 +
- src/cmd/compile/internal/ssa/gen/MIPS64.rules   |   1 +
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go   |   1 +
- src/cmd/compile/internal/ssa/gen/MIPSOps.go     |   1 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules    |   1 +
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go    |   1 +
- src/cmd/compile/internal/ssa/gen/RISCV64.rules  |   1 +
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go  |   1 +
- src/cmd/compile/internal/ssa/gen/S390X.rules    |   1 +
- src/cmd/compile/internal/ssa/gen/S390XOps.go    |   1 +
- src/cmd/compile/internal/ssa/gen/Wasm.rules     |   1 +
- src/cmd/compile/internal/ssa/gen/WasmOps.go     |   1 +
- src/cmd/compile/internal/ssa/gen/genericOps.go  |   4 +-
- src/cmd/compile/internal/ssa/opGen.go           | 124 ++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewrite386.go      |   3 +
- src/cmd/compile/internal/ssa/rewriteAMD64.go    |   3 +
- src/cmd/compile/internal/ssa/rewriteARM.go      |   3 +
- src/cmd/compile/internal/ssa/rewriteARM64.go    |   3 +
- src/cmd/compile/internal/ssa/rewriteMIPS.go     |   3 +
- src/cmd/compile/internal/ssa/rewriteMIPS64.go   |   3 +
- src/cmd/compile/internal/ssa/rewritePPC64.go    |   3 +
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  |   3 +
- src/cmd/compile/internal/ssa/rewriteS390X.go    |   3 +
- src/cmd/compile/internal/ssa/rewriteWasm.go     |   3 +
- src/cmd/compile/internal/ssa/writebarrier.go    |   2 +-
- src/cmd/compile/internal/ssagen/abi.go          |  20 ++--
- src/cmd/compile/internal/ssagen/ssa.go          |  29 ++++--
- src/cmd/compile/internal/typecheck/typecheck.go |   1 +
- src/cmd/compile/internal/walk/stmt.go           |   8 ++
- src/cmd/compile/internal/wasm/ssa.go            |  13 +--
- src/cmd/compile/internal/x86/ssa.go             |   9 +-
- test/abi/method_wrapper.go                      |  35 +++++++
- 56 files changed, 319 insertions(+), 121 deletions(-)
+ src/cmd/compile/internal/typecheck/dcl.go     |  3 +++
+ src/cmd/compile/internal/typecheck/iexport.go | 13 +++++++--
+ src/cmd/compile/internal/typecheck/iimport.go | 27 ++++++++++---------
+ src/cmd/compile/internal/typecheck/subr.go    |  3 +++
+ test/fixedbugs/issue43479.dir/a.go            | 27 +++++++++++++++++++
+ test/fixedbugs/issue43479.dir/b.go            | 38 +++++++++++++++++++++++++++
+ test/fixedbugs/issue43479.go                  |  7 +++++
+ 7 files changed, 104 insertions(+), 14 deletions(-)

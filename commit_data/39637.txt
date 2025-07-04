@@ -1,25 +1,29 @@
-commit 8057c0887f89701b3091755d986b534fd8a50fc7
-Author: Sergei Zagurskii <gvozdoder@gmail.com>
-Date:   Wed May 22 17:00:34 2019 +0300
+commit fd080ea3bcc2b170b787b38ab7920d170ca65682
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 15 17:06:57 2019 -0500
 
-    reflect: optimize directlyAssignable to avoid rtype.Name call
+    cmd/go: resolve non-standard imports from within GOROOT/src using vendor directories
     
-    directlyAssignable invoked rtype.Name() just to compare its result
-    to empty string. We really only need to check whether rtype has
-    name. It can be done much cheaper, by checking tflagNamed.
+    Updates #30228
+    Fixes #26924
     
-    Benchmark: https://play.golang.org/p/V2BzESPuf2w
-    name                   old time/op  new time/op  delta
-    DirectlyAssignable-12  32.7ns ± 6%   6.6ns ± 6%  -79.80%  (p=0.008 n=5+5)
-    
-    Fixes #32186
-    
-    Change-Id: I1a2a167dbfddf319fba3015cb6a011bf010f99a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178518
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie625c64721559c7633396342320536396cd1fcf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164621
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/internal/reflectlite/type.go | 8 ++++++--
- src/reflect/type.go              | 8 ++++++--
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/cfg/cfg.go                   |  2 +-
+ src/cmd/go/internal/load/pkg.go                  | 38 +++++-----
+ src/cmd/go/internal/modload/build.go             |  3 -
+ src/cmd/go/internal/modload/import.go            | 13 ++++
+ src/cmd/go/internal/modload/init.go              |  6 ++
+ src/cmd/go/internal/modload/load.go              | 93 +++++++++++++++++++++---
+ src/cmd/go/internal/modload/query.go             |  5 ++
+ src/cmd/go/internal/modload/search.go            | 30 ++++----
+ src/cmd/go/testdata/script/gopath_std_vendor.txt |  3 +
+ src/cmd/go/testdata/script/mod_list_std.txt      | 57 +++++++++++++++
+ src/cmd/go/testdata/script/mod_patterns.txt      |  3 +-
+ src/cmd/go/testdata/script/mod_std_vendor.txt    | 60 ++++++++++++++-
+ src/cmd/go/testdata/script/std_vendor.txt        | 19 +++++
+ 13 files changed, 276 insertions(+), 56 deletions(-)

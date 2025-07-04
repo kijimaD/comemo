@@ -1,14 +1,13 @@
-commit 03048ae454131e5274161c6dbe044a5f30a263db
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Fri Apr 5 13:43:18 2013 +1100
+commit c80f5b9bf7c67e1338d04bc0cf21fe285c3a80df
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Apr 4 14:18:52 2013 -0700
 
-    testing: structure package documentation
+    runtime: use a distinct pattern to mark free blocks in need of zeroing
     
-    Makes finding the relevant information much easier.
-    
-    R=golang-dev, adg
+    R=golang-dev, dvyukov, khr, cshapiro
     CC=golang-dev
-    https://golang.org/cl/8353045
+    https://golang.org/cl/8392043
 
- src/pkg/testing/testing.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/malloc.goc | 4 ++--
+ src/pkg/runtime/mgc0.c     | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

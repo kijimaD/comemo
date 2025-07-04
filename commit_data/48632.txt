@@ -1,23 +1,31 @@
-commit baf6df06c0525b0bbcf43066f3360eb31b8e7941
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sat Mar 26 15:15:45 2022 +0800
+commit 298149a915dd9b2ce74593f5f75584f8ed6d6414
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 6 09:08:32 2021 -0400
 
-    debug/elf: ajdust SectionOverlap test for proper fields
+    [dev.typeparams] go/types: use Checker-provided type parameter IDs when possible
     
-    The current SectionOverlap tests Size (addr) with Offset (file)
+    Incrementing type parameter subscripts for each type checking pass is
+    distracting for an interactive program where packages are type-checked
+    on each keystroke.
     
-    This CL set this test for overlap of Size + Addr and
-    Offset + FileSize
+    We should perhaps hide the type parameter ID altogether, but for now at
+    least add a layer of indirection so that type parameters for a single
+    type-checked package can be stabilized.
     
-    Fixes #51939
+    This change should have no effect on non-generic type checking.
     
-    Change-Id: Ied4c0b87f61c4d5e52139a8295c371f55abc776f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395920
-    Trust: mzh <mzh@golangcn.org>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: mzh <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #46003
+    
+    Change-Id: I60d747e0a2bfb68e7d64e897eac23f609a2a4429
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321269
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/debug/elf/file_test.go | 26 ++++++++++++++++++++++----
- 1 file changed, 22 insertions(+), 4 deletions(-)
+ src/go/types/api_test.go       |  1 -
+ src/go/types/api_typeparams.go |  5 +++++
+ src/go/types/check.go          |  1 +
+ src/go/types/type.go           | 17 ++++++++++++-----
+ src/go/types/types_test.go     |  8 --------
+ 5 files changed, 18 insertions(+), 14 deletions(-)

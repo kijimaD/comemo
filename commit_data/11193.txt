@@ -1,14 +1,15 @@
-commit 5163e7aa2724c0c81feea56f7b243b122a1d3bdf
+commit b16f3a2d507fc718adcee19514a4c7b0081e726c
 Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Mon Jan 16 18:13:34 2012 -0500
+Date:   Mon Jan 16 18:12:25 2012 -0500
 
-    math/rand: document default initial seed for global generator
+    gc: don't fault on return outside function
     
-    Fixes #2044.
+    Fixes #2598.
     
-    R=golang-dev
+    R=golang-dev, ality, minux.ma, mpimenov, rsc
     CC=golang-dev
-    https://golang.org/cl/5541056
+    https://golang.org/cl/5510043
 
- src/pkg/math/rand/rand.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/gc/go.y          |  2 +-
+ test/fixedbugs/bug394.go | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

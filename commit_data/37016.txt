@@ -1,28 +1,16 @@
-commit bb3e2117777a2d9438bab0ab9e386e22662aa499
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 16 16:50:25 2018 -0700
+commit 9a91713090f22eb7bc2b0b3af7576fe6e86bebfe
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jun 17 20:30:27 2018 +0000
 
-    spec: clarify rules for receiver base types
+    cmd/dist: don't test Examples for js/wasm
     
-    The spec currently provides a syntactic rule for receiver base types,
-    and a strict reading of those rules prohibits the use of type aliases
-    referring to pointer types as receiver types.
+    Fixes #25913
     
-    This strict interpretation breaks an assumed rule for aliases, which
-    is that a type literal can always be replaced by an alias denoting
-    that literal.
-    
-    Furthermore, cmd/compile always accepted this new formulation of the
-    receiver type rules and so this change will simply validate what has
-    been implemented all along.
-    
-    Fixes #27995.
-    
-    Change-Id: I032289c926a4f070d6f7795431d86635fe64d907
-    Reviewed-on: https://go-review.googlesource.com/c/142757
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4701ec94fa4b07211a8beed85c02ee5aa4fe3eb3
+    Reviewed-on: https://go-review.googlesource.com/119377
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- doc/go_spec.html | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/dist/test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

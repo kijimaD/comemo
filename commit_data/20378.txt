@@ -1,16 +1,45 @@
-commit 251daf8650218ee2fce297280016e696d859f780
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 9 14:22:58 2014 -0700
+commit 91a670d179ae5a0b91a498b4df9d5f088704dba0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 4 10:04:04 2014 +0400
 
-    runtime: map iterators: always use intrabucket randomess
-    
-    Fixes #8688
+    runtime: convert netpoll to Go
+    The common code is converted, epoll and kqueue are converted.
+    Windows and solaris are still C.
     
     LGTM=rsc
-    R=golang-codereviews, bradfitz, rsc, khr
-    CC=golang-codereviews
-    https://golang.org/cl/135660043
+    R=golang-codereviews, rsc, dave
+    CC=golang-codereviews, iant, khr, rsc
+    https://golang.org/cl/132910043
 
- src/runtime/hashmap.go  | 20 ++++++++------------
- src/runtime/map_test.go | 43 +++++++++++++++++++++++--------------------
- 2 files changed, 31 insertions(+), 32 deletions(-)
+ src/cmd/api/goapi.go              |   3 +
+ src/pkg/runtime/asm_386.s         |   3 +
+ src/pkg/runtime/asm_amd64.s       |   3 +
+ src/pkg/runtime/asm_amd64p32.s    |  10 +
+ src/pkg/runtime/atomic_arm.c      |   7 +
+ src/pkg/runtime/netpoll.go        | 448 +++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/netpoll.goc       | 481 --------------------------------------
+ src/pkg/runtime/netpoll_epoll.c   | 103 --------
+ src/pkg/runtime/netpoll_epoll.go  |  97 ++++++++
+ src/pkg/runtime/netpoll_kqueue.c  | 111 ---------
+ src/pkg/runtime/netpoll_kqueue.go | 101 ++++++++
+ src/pkg/runtime/netpoll_nacl.c    |  37 ---
+ src/pkg/runtime/netpoll_nacl.go   |  26 +++
+ src/pkg/runtime/os_darwin.go      |   3 -
+ src/pkg/runtime/os_dragonfly.go   |   3 -
+ src/pkg/runtime/os_freebsd.go     |   3 -
+ src/pkg/runtime/os_linux.go       |   5 -
+ src/pkg/runtime/os_netbsd.go      |   3 -
+ src/pkg/runtime/os_openbsd.go     |   3 -
+ src/pkg/runtime/os_solaris.go     |   4 +
+ src/pkg/runtime/os_windows.go     |   4 +
+ src/pkg/runtime/runtime.h         |   4 -
+ src/pkg/runtime/stubs.go          |   3 +
+ src/pkg/runtime/sys_linux_386.s   |   2 +-
+ src/pkg/runtime/sys_linux_amd64.s |   2 +-
+ src/pkg/runtime/sys_linux_arm.s   |  10 +-
+ src/pkg/runtime/thunk.s           |  27 +++
+ src/pkg/runtime/time.go           |  10 +-
+ src/pkg/syscall/net_nacl.go       |   5 +-
+ src/pkg/time/internal_test.go     |   2 +-
+ src/pkg/time/sleep.go             |   7 +-
+ 31 files changed, 757 insertions(+), 773 deletions(-)

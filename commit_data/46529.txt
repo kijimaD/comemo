@@ -1,16 +1,18 @@
-commit 1367a60b064ea9ca2ba35affddfcfc1a3c3a6fbc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 20 20:28:01 2021 -0700
+commit c6513bca5aeaa9f9b6fe552d60f5b6c700ce0772
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 6 16:30:41 2021 -0800
 
-    cmd/compile/internal/types2: remove report parameter from infer and inferB
+    io/fs: minor corrections to Glob doc
     
-    This is a clean port of CL 350049 from go/types to types2.
+    The documentation for Glob was copied from filepath.Glob, and needs a bit
+    of tweaking: paths are not rooted at slash; the separator is always '/'.
     
-    Change-Id: Ifc8551a772535f7b8e943bfbd9febbb78333fa68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351169
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Fixes #43537
+    
+    Change-Id: Id64daa137e2762b66a82a5b9e60bbe603f4e2f5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282173
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/call.go  |  4 ++--
- src/cmd/compile/internal/types2/infer.go | 23 +++++++----------------
- 2 files changed, 9 insertions(+), 18 deletions(-)
+ src/io/fs/glob.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

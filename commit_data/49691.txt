@@ -1,14 +1,25 @@
-commit 9dbc0f3556b3401b0f3339d4c33cd32ea16d5241
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 13:20:48 2022 -0400
+commit 43b05173a219e19697c2f9c6d98cf4d8667b7ca5
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Sep 6 11:06:16 2021 +0800
 
-    runtime: fix outdated g.m comment in traceback.go
+    cmd/compile: merge zero/sign extensions with UBFX/SBFX on arm64
     
-    Change-Id: Idfd02781a9ee550da240ef53898943e8cd37dd64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418574
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    The UBFX and SBFX already zero/sign extend the result. Further
+    zero/sign extensions are thus unnecessary as long as they leave
+    the top bits unaltered. This patch absorbs zero/sign extensions
+    into UBFX/SBFX.
+    
+    Add the related test cases.
+    
+    Change-Id: I7c4516c8b52d677f77bf3aaedab87c4a28056ec0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265039
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/traceback.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   9 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 102 +++++++++++++++++++++++++++
+ test/codegen/bitfield.go                     |  16 +++++
+ 3 files changed, 127 insertions(+)

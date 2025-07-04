@@ -1,0 +1,18 @@
+commit 0b88a878798de21c79cbe0e499402a008df0c4bb
+Author: khr@golang.org <khr@golang.org>
+Date:   Sun Nov 17 16:42:37 2024 -0800
+
+    cmd/compile: add variants of LDP/STP for arm64 load/store combining
+    
+    These will be used in a subsequent CL.
+    
+    Change-Id: I96562668da502e5cb41096c9831c59292644be72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629255
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/arm64/ssa.go         |   4 +-
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go |  67 +++++++++-----
+ src/cmd/compile/internal/ssa/opGen.go         | 126 +++++++++++++++++++++++---
+ 3 files changed, 160 insertions(+), 37 deletions(-)

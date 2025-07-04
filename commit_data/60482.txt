@@ -1,0 +1,32 @@
+commit 9b4b4ae5859393993ec1a2359666a9c49d0d5b73
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jul 25 17:17:44 2024 +0700
+
+    types2, go/types: fix instantiation of named type with generic alias
+    
+    The typechecker is assuming that alias instances cannot be reached from
+    a named type. However, when type parameters on aliases are permited, it
+    can happen.
+    
+    This CL changes the typechecker to propagate the correct named instance
+    is being expanded.
+    
+    Updates #46477
+    Fixes #68580
+    
+    Change-Id: Id0879021f4640c0fefe277701d5096c649413811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601115
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types2/alias.go       |  4 ++--
+ src/cmd/compile/internal/types2/instantiate.go |  8 +++++---
+ src/cmd/compile/internal/types2/subst.go       |  2 +-
+ src/go/types/alias.go                          |  4 ++--
+ src/go/types/instantiate.go                    |  8 +++++---
+ src/go/types/subst.go                          |  2 +-
+ test/fixedbugs/issue68580.go                   | 15 +++++++++++++++
+ 7 files changed, 31 insertions(+), 12 deletions(-)

@@ -1,15 +1,17 @@
-commit dc492682b6b0fba963b7f44fde1526723518c708
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sat Oct 6 03:00:31 2018 +0000
+commit d09d7627f38211eaa02fed660fd1b3001a7812b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 6 12:35:09 2018 -0700
 
-    cmd/compile: combine 386 rules via regular expression
+    go/types: add missing test case for https://golang.org/cl/116735
     
-    This CL combines similar rules together via regular expression,
-    while does not impact generated 386 code.
+    Missed this in the prior submit.
     
-    Change-Id: I2b26e7fc6adffa0fa10eeb04a4f3a76ddabc760b
-    Reviewed-on: https://go-review.googlesource.com/c/140297
-    Reviewed-by: Keith Randall <khr@golang.org>
+    For #24182.
+    
+    Change-Id: If8349d39c80b7ff57bc0c857985f9e52241321b8
+    Reviewed-on: https://go-review.googlesource.com/116775
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules | 76 +++++-------------------------
- 1 file changed, 12 insertions(+), 64 deletions(-)
+ src/go/types/testdata/errors.src | 5 +++++
+ 1 file changed, 5 insertions(+)

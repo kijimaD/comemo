@@ -1,15 +1,12 @@
-commit 21f1769519eb8eb50ed9600395073a2ed2f41971
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Jan 29 10:35:11 2012 +0100
+commit a417e6f470f4cf19292a2bb5638b773bd1883e13
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Sat Jan 28 12:02:22 2012 +0000
 
-    gc: use original constant expression in error messages.
+    cmd/go: make vcs command actually gather output
     
-    Fixes #2768.
-    
-    R=golang-dev, lvd, iant
-    CC=golang-dev, remy
-    https://golang.org/cl/5572081
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5577062
 
- src/cmd/gc/export.c      |  1 +
- test/fixedbugs/bug381.go | 17 ++++++++++++++---
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

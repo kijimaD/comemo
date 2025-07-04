@@ -1,14 +1,17 @@
-commit 574dac9d9707ddd35d57aaea646710dfae67bd89
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jul 9 14:16:44 2020 -0400
+commit 69660ed7e05b8fccf071210cb0963aba8edc5ec3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 25 02:24:02 2020 +1100
 
-    doc/go1.15: fix TODO about -buildmode=pie
+    cmd/go: disable link syso test on linux/riscv64
     
-    Updates #37419.
+    This test requires support for external linking, which does not currently
+    exist on linux/riscv64.
     
-    Change-Id: If77067eb348de47a4b101325de8a43502383b6d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241740
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #27532 and #36739
+    
+    Change-Id: Ia0cdf69f1830b995f2882b47d1bc0be82c4b3039
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216259
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.15.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/link_syso_issue33139.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

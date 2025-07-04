@@ -1,26 +1,22 @@
-commit 9e21e9c5cb27e5f2b5acba14efb6bb6f126595cc
-Author: David Chase <drchase@google.com>
-Date:   Fri Apr 28 16:48:11 2017 -0400
+commit be855e3f28507dd3e34eb4699c84493eeaae68db
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 19 22:59:56 2017 +0000
 
-    cmd/compile: make loop finder more aware of irreducible loops
+    net/http: update bundled http2
     
-    The loop finder doesn't return good information if it
-    encounters an irreducible loop.  Make a start on improving
-    this, and set a function-level flag to indicate when there
-    is such a loop (and the returned information might be flaky).
+    Updates http2 to x/net/http2 git rev 3d7ac2a5d for:
     
-    Use that flag to prevent the loop rotater from getting
-    confused; the existing code seems to depend on artifacts
-    of the previous loop-finding algorithm. (There is one
-    irreducible loop in the go library, in "inflate.go").
+        http2: fix Server race
+        https://golang.org/cl/20704
     
-    Change-Id: If6e26feab38d9b009d2252d556e1470c803bde40
-    Reviewed-on: https://go-review.googlesource.com/42150
-    Run-TryBot: David Chase <drchase@google.com>
+    Fixes #20704
+    
+    Change-Id: I803288f94a8a462ad0960b0c29c2dfee27b9f1ae
+    Reviewed-on: https://go-review.googlesource.com/46093
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/check.go        | 20 +++++++-------
- src/cmd/compile/internal/ssa/likelyadjust.go | 40 +++++++++++++++++++++-------
- src/cmd/compile/internal/ssa/looprotate.go   |  3 +++
- 3 files changed, 44 insertions(+), 19 deletions(-)
+ src/net/http/h2_bundle.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

@@ -1,14 +1,15 @@
-commit a22389ec38dd57df86236feee47404c5b01ce191
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 29 21:48:25 2012 -0500
+commit e786829e8320497a062be1b3f78646bcf9375abc
+Author: Sébastien Paolacci <sebastien.paolacci@gmail.com>
+Date:   Sat Dec 29 14:34:06 2012 -0500
 
-    runtime: say 'fatal error' instead of 'throw'
+    runtime: handle locked mmap failure on Linux
     
-    Fixes #4597.
+    Used to then die on a nil pointer situation. Most Linux standard setups are rather
+    restrictive regarding the default amount of lockable memory.
     
-    R=ken2
+    R=minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7032043
+    https://golang.org/cl/6997049
 
- src/pkg/runtime/panic.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/mem_linux.c | 5 +++++
+ 1 file changed, 5 insertions(+)

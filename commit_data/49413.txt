@@ -1,19 +1,14 @@
-commit 429a4041eb2657fad8870cad5662202f3bd0eeb6
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Jun 7 09:42:03 2022 -0400
+commit a304273d74b95c835ee08b641a17ce6bc591ddd3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 16 18:06:18 2021 -0700
 
-    doc/go1.19: complete TODOs for go/types
+    cmd/compile/internal/types2: allow composite literals of type parameter type
     
-    Fill in the details of outstanding TODO items for go/types changes.
-    
-    For #51400
-    
-    Change-Id: Ib40d75fa1018aa164022cb49b293795dd597d49d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410815
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Iaaa2a3b462da6b121f13a10595950a8502b5f271
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342690
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go1.19.html | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/expr.go                |  2 +-
+ .../internal/types2/testdata/examples/types.go2        | 18 +++++++++++++++++-
+ 2 files changed, 18 insertions(+), 2 deletions(-)

@@ -1,16 +1,38 @@
-commit a9a580690bafa85c225e3777cc7fc191000535fb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 2 21:11:32 2017 +0000
+commit 22cfe24aca80653b0e8efdd4a1aba1df00e8e72d
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Aug 13 23:45:04 2017 +0530
 
-    net/http: quiet some log spam in TestNoBodyOnChunked304Response
+    encoding/hex: save allocation in DecodeString()
     
-    Updates #22540
+    The destination slice does not need to be created at all. The source
+    slice itself can be used as the destination because the decode loop
+    increments by one and then the 'seen' byte is not used anymore. Therefore
+    the decoded byte can be stored in that index of the source slice itself.
     
-    Change-Id: I63e8c4874f8a774e9c47affc856aadf8c35ca23b
-    Reviewed-on: https://go-review.googlesource.com/75593
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This trick cannot be applied to EncodeString() because in that case,
+    the destination slice is large than the source. And for a single byte
+    in the source slice, two bytes in the destination slice is written.
+    
+    func BenchmarkDecodeString(b *testing.B) {
+      for i := 0; i < b.N; i++ {
+        DecodeString("0123456789abcdef")
+      }
+    }
+    
+    name          old time/op    new time/op    delta
+    DecodeString    71.0ns ± 6%    58.0ns ± 0%  -18.28%  (p=0.008 n=5+5)
+    
+    name          old alloc/op   new alloc/op   delta
+    DecodeString     16.0B ± 0%      8.0B ± 0%  -50.00%  (p=0.008 n=5+5)
+    
+    name          old allocs/op  new allocs/op  delta
+    DecodeString      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    
+    Change-Id: Id98db4e712444557a804155457a4dd8d1b8b416d
+    Reviewed-on: https://go-review.googlesource.com/55611
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/net/http/transport_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/encoding/hex/hex.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,14 +1,12 @@
-commit 7da1f7addf54e55c7b40c1a7bffe5a64989154d8
-Author: Mikio Hara <mikioh.public.networking@gmail.com>
-Date:   Thu Nov 8 09:48:55 2018 +0900
+commit 92e03bbaa8731a5857cf0a914f1483af36b781ea
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 17 17:49:37 2018 -0400
 
-    net: simplify nested if-blocks
+    doc/go1.11: compiler and runtime release notes
     
-    Change-Id: I32e1829c955a48d8c4566430c13679e237bb0611
-    Reviewed-on: https://go-review.googlesource.com/c/148337
-    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I487bdf0c828d28b2122bd93934dc5a9a5dbc6a00
+    Reviewed-on: https://go-review.googlesource.com/124517
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/interface.go | 28 ++++++++++++----------------
- 1 file changed, 12 insertions(+), 16 deletions(-)
+ doc/go1.11.html | 208 ++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 141 insertions(+), 67 deletions(-)

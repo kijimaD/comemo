@@ -1,23 +1,26 @@
-commit 59d0de16e4f003e69403eeee969f0b4a96dd6dcb
-Author: Austin Clements <austin@google.com>
-Date:   Mon Feb 6 14:13:54 2023 -0500
+commit 3ae414c31e59c9ee210fa3606f36cf0ea36b9906
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Mar 4 21:03:53 2022 +0100
 
-    runtime: add tests of printing inlined frames in tracebacks
+    crypto/rand: remove all buffering
     
-    We're about to rewrite this code and it has almost no test coverage
-    right now.
+    The kernel's RNG is fast enough, and buffering means taking locks, which
+    we don't want to do. So just remove all buffering. This also means the
+    randomness we get is "fresher". That also means we don't need any
+    locking, making this potentially faster if multiple cores are hitting
+    GetRandom() at the same time on newer Linuxes.
     
-    This test is also more complete than the existing
-    TestTracebackInlineExcluded, so we delete that test.
+    Also, change the build tag of the tests to be 'unix' instead of
+    enumerating them.
     
-    For #54466.
-    
-    Change-Id: I144154282dac5eb3798f7d332b806f44c4a0bdf6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466098
+    Change-Id: Ia773fab768270d2aa20c0649f4171c5326b71d02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390038
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
+    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/stack_test.go     |  40 ---------
- src/runtime/traceback_test.go | 201 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 201 insertions(+), 40 deletions(-)
+ src/crypto/rand/rand_batched_test.go |  2 +-
+ src/crypto/rand/rand_unix.go         | 62 +++++++++++-------------------------
+ 2 files changed, 19 insertions(+), 45 deletions(-)

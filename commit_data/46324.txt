@@ -1,24 +1,15 @@
-commit 6226020c2f713e4545c73d56dc05676b642c9bc7
-Author: korzhao <korzhao95@gmail.com>
-Date:   Mon Sep 6 21:08:05 2021 +0800
+commit 6dc2c16f95c7b9a7f33964d2946ba2f8a6e7de9b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Dec 22 16:31:56 2020 -0500
 
-    cmd/compile: make sure that the names created for instantiated type are the same
+    [dev.cmdgo] codereview.cfg: add config for dev.cmdgo
     
-    Now we have two functions that create names for instantiated types.
-    They are inconsistent when dealing with byte/rune type.
-    
-    This CL makes instTypeName2 reuse the code of typecheck.InstTypeName
-    
-    Fixes #48198
-    
-    Change-Id: I4c216b532cba6618ef9b63fd0b76e8f1c0ed7a75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347491
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I6a711402b06a75c5cba43a72950617fea27bd50b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279526
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/noder/types.go | 32 +++++++-------------------------
- test/typeparam/issue48198.go            | 22 ++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 25 deletions(-)
+ codereview.cfg | 2 ++
+ 1 file changed, 2 insertions(+)

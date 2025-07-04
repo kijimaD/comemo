@@ -1,23 +1,29 @@
-commit f8966594faf95b19d270b9076fbafb71d78ca614
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Tue Aug 1 05:08:08 2023 +0000
+commit 29af494fca8a25d7d46276f6d4835c4dcd09e47d
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Sep 6 09:58:29 2022 -0700
 
-    archive: use predeclared function min
+    all: update vendored golang.org/x/net
     
-    Change-Id: I23e0005071fcbafeaecaa05f51712dd1de6eed01
+    Pull in security fix:
     
-    Change-Id: I23e0005071fcbafeaecaa05f51712dd1de6eed01
-    GitHub-Last-Rev: 364d7c74fef1668930b730b05a7539f7ac43e60a
-    GitHub-Pull-Request: golang/go#61661
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514215
+        f3363e06e7 http2: handle server errors after sending GOAWAY
+    
+    Fixes CVE-2022-27664
+    Fixes golang/go#54658
+    
+    Change-Id: Ie1f58a8d769c7fd75c67d202c611a3abfd7dbb35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428717
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/archive/tar/common.go   |  7 -------
- src/archive/zip/writer.go   | 15 ++++-----------
- src/archive/zip/zip_test.go |  7 -------
- 3 files changed, 4 insertions(+), 25 deletions(-)
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 +-
+ src/net/http/h2_bundle.go                          | 63 +++++++++++++++-------
+ .../golang.org/x/net/dns/dnsmessage/message.go     | 12 +++++
+ src/vendor/golang.org/x/net/nettest/nettest.go     |  6 ++-
+ .../golang.org/x/net/route/zsys_freebsd_riscv64.go | 52 ++++++++++++++++++
+ src/vendor/modules.txt                             |  2 +-
+ 7 files changed, 116 insertions(+), 25 deletions(-)

@@ -1,16 +1,18 @@
-commit 409a943f69b27a329c523230ec83d0fef495c20a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 5 16:29:06 2018 -0700
+commit bae3fd66279cf679b686ae68c35980334d9ff315
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Feb 3 15:36:38 2018 +0000
 
-    cmd/compile: avoid nil pointer deref in debugging output
+    cmd/vet: use type info to detect the atomic funcs
     
-    Found while tracking down another issue.
+    Simply checking if a name is "atomic" isn't enough, as that might be a
+    var or another imported package. Now that vet requires type information,
+    we can do better. And add a simple regression test.
     
-    Change-Id: If06eee72ce3e3f45dc00b3b68670e1e4d99c87a7
-    Reviewed-on: https://go-review.googlesource.com/116455
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibd2004428374e3628cd3cd0ffb5f37cedaf448ea
+    Reviewed-on: https://go-review.googlesource.com/91795
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vet/atomic.go          |  6 ++++--
+ src/cmd/vet/testdata/atomic.go | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

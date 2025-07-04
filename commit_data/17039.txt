@@ -1,17 +1,17 @@
-commit dd6f49ddca0f54767d5cc26b5627f025f63cbcc3
-Author: Pieter Droogendijk <pieter@binky.org.uk>
-Date:   Mon Aug 5 15:45:39 2013 -0700
+commit f7910128e790a4c86c88c4b5f7640cf7d71ac6e6
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 5 15:08:37 2013 -0700
 
-    container/heap: add Fix and document the min is element 0.
+    reflect: Get rid of the test for the error message when
+    you do reflect.call with too big an argument list.
+    Not worth the hassle.
     
-    Fixes #5372.
-    Fixes #5577.
+    Fixes #6023
+    Fixes #6033
     
-    R=gri, rsc, bradfitz, r
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/12265043
+    https://golang.org/cl/12485043
 
- src/pkg/container/heap/example_intheap_test.go |  8 +++++--
- src/pkg/container/heap/heap.go                 | 13 +++++++++++-
- src/pkg/container/heap/heap_test.go            | 29 ++++++++++++++++++++++++++
- 3 files changed, 47 insertions(+), 3 deletions(-)
+ src/pkg/reflect/all_test.go | 11 -----------
+ 1 file changed, 11 deletions(-)

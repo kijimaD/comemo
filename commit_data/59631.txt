@@ -1,20 +1,24 @@
-commit 4b7aa542ebc5144b2df7ee455ab137eb90de6f00
-Author: Damien Neil <dneil@google.com>
-Date:   Mon May 19 15:51:14 2025 -0700
+commit 170862d68377ac04a35223521ce9e450007a6032
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Mar 30 10:32:20 2024 +0800
 
-    os: add Root.ReadFile and Root.WriteFile
+    slices: simplify slice expression for Replace
     
-    For #73126
+    A slice expression of the form:
+            s[a:len(s)]
+    will be simplified to:
+            s[a:]
+    This is one of the simplifications that "gofmt -s" applies.
     
-    Change-Id: Ie69cc274e7b59f958c239520318b89ff0141e26b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674315
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    See https://pkg.go.dev/golang.org/x/tools/gopls/internal/analysis/simplifyslice
+    
+    Change-Id: Ib3c01ecf24b84333fd1993a343450fc57fb8ac84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575335
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Valentin Deleplace <deleplace@google.com>
 
- api/next/73126.txt                     |  2 ++
- doc/next/6-stdlib/99-minor/os/67002.md |  2 ++
- doc/next/6-stdlib/99-minor/os/73126.md |  1 +
- src/os/root.go                         | 25 +++++++++++++++++++++++++
- src/os/root_test.go                    | 20 ++++++++++++++++++++
- 5 files changed, 50 insertions(+)
+ src/slices/slices.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,25 +1,34 @@
-commit a9e6cebde21875379ccc05d680b3c3a78adbf089
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 10 16:46:28 2016 -0400
+commit f135c326402aaa757aa96aad283a91873d4ae124
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Aug 4 13:09:29 2016 -0400
 
-    cmd/compile, runtime: add go:yeswritebarrierrec pragma
+    runtime: initialize hash algs before typemap
     
-    This pragma cancels the effect of go:nowritebarrierrec. This is useful
-    in the scheduler because there are places where we enter a function
-    without a valid P (and hence cannot have write barriers), but then
-    obtain a P. This allows us to annotate the function with
-    go:nowritebarrierrec and split out the part after we've obtained a P
-    into a go:yeswritebarrierrec function.
+    When compiling with -buildmode=shared, a map[int32]*_type is created for
+    each extra module mapping duplicate types back to a canonical object.
+    This is done in the function typelinksinit, which is called before the
+    init function that sets up the hash functions for the map
+    implementation. The result is typemap becomes unusable after
+    runtime initialization.
     
-    Change-Id: Ic8ce4b6d3c074a1ecd8280ad90eaf39f0ffbcc2a
-    Reviewed-on: https://go-review.googlesource.com/30938
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    The fix in this CL is to move algorithm init before typelinksinit in
+    the runtime setup process. (For 1.8, we may want to turn typemap into
+    a sorted slice of types and use binary search.)
+    
+    Manually tested on GOOS=linux with:
+    
+            GOHOSTARCH=386 GOARCH=386 ./make.bash && \
+                    go install -buildmode=shared std && \
+                    cd ../test && \
+                    go run run.go -linkshared
+    
+    Fixes #16590
+    
+    Change-Id: Idc08c50cc70d20028276fbf564509d2cd5405210
+    Reviewed-on: https://go-review.googlesource.com/25469
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go | 11 ++++--
- src/cmd/compile/internal/gc/lex.go | 30 ++++++++++-----
- src/cmd/compile/internal/gc/ssa.go |  4 +-
- src/runtime/HACKING.md             | 49 ++++++++++++++++++++++++
- src/runtime/proc.go                | 56 ++++++++++++++++++---------
- test/nowritebarrier.go             | 78 ++++++++++++++++++++++++++++++++++++++
- 6 files changed, 194 insertions(+), 34 deletions(-)
+ src/runtime/alg.go  | 2 +-
+ src/runtime/proc.go | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

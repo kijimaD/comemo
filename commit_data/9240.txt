@@ -1,16 +1,15 @@
-commit fe206e63ca8b707bd6f0af42d02d736696b75c6a
+commit e0d6f95069aef81ba682be6c99bfa2d2dddec9f7
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 28 13:04:52 2011 -0400
+Date:   Thu Jul 28 13:04:30 2011 -0400
 
-    build: handle spaces in $USER
+    build: update all-qemu.bash
     
-    Fixes #2107.
+    nothing but GOARCH=arm makes sense.
+    http/cgi uses network too.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4830042
+    https://golang.org/cl/4800053
 
- src/cmd/gotry/gotry | 13 +++++++------
- src/quietgcc.bash   |  8 ++++----
- test/run            | 24 ++++++++++++------------
- 3 files changed, 23 insertions(+), 22 deletions(-)
+ src/all-qemu.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

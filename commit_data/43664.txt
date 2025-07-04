@@ -1,22 +1,24 @@
-commit f14119b561cfeefb93e8d773033caeea572dbe71
-Author: Colin Arnott <colin@urandom.co.uk>
-Date:   Thu Jul 16 17:42:47 2020 +0000
+commit 1f0738c1577a55a6b7229b821ddfe762b84771d0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Dec 31 21:24:20 2019 -0800
 
-    os: export errFinished as ErrProcessDone
+    runtime/pprof: speed up CPU profiling shutdown
     
-    (*Process).Signal returns an error sentinel, previously errFinished,
-    when (*Process).done or syscall.ESRCH. Callers would like the ability to
-    test for this state, so the value has been exported as ErrProcessDone.
+    The core CPU profiling loop contains a 100ms sleep.
+    This is important to reduce overhead.
     
-    Fixes #39444
+    However, it means that it takes 200ms to shutting down a program
+    with CPU profiling enabled. When trying to collect many samples
+    by running a short-lived program many times, this adds up.
     
-    Change-Id: I510e7647cc032af290180de5149f35ab7b09a526
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242998
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    This change cuts the shutdown penalty in half by skipping
+    the sleep whenever possible.
+    
+    Change-Id: Ic3177f8e1a2d331fe1a1ecd7c8c06f50beb42535
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228886
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/os/exec_unix.go      |  7 ++++---
- src/os/exec_unix_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 3 deletions(-)
+ src/runtime/pprof/pprof.go | 27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)

@@ -1,21 +1,17 @@
-commit ce72766a02a4be127a26e95fbd62c4b4bb906e91
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Oct 5 10:22:47 2021 -0500
+commit e48d7d3b21d39f8cf82e7e2547bd9ce47df68dde
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 25 18:04:55 2021 -0800
 
-    cmd/compile: improve PPC64 rules for AtomicLoad{8,32}
+    [dev.typeparams] go/constant: faster match implementation
     
-    This adds a rule to avoid the zero extension after an AtomicLoad8
-    or AtomicLoad32 since the atomic load has already filled it with
-    zeros. This eliminates an instruction in a high use block in findObject
-    and the AtomicLoad8 appears many times within runtime.
+    Shortcut matching code if both operands have the same representation.
     
-    Change-Id: I7e684bf73d3812110bd371e05b1aa44fa235fc9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354029
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I9433455acb5b9d0b88d3c81eb1b3b0ae258193e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286654
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  2 ++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ src/go/constant/value.go | 67 ++++++++++++++++++------------------------------
+ 1 file changed, 25 insertions(+), 42 deletions(-)

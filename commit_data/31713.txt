@@ -1,20 +1,28 @@
-commit 1f26e77e5901fb198599f12f615d0222dd7e7984
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 5 10:23:42 2017 -0400
+commit 1f9f0ea32b2dcee027b107f2c3d0bc723274a810
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 9 13:38:10 2017 -0800
 
-    cmd/go: include Fortran files in build ID computation
+    cmd/compile/internal/syntax: start line offset (column) numbers at 1
     
-    Otherwise removing a .f file won't trigger a rebuild.
-    Noticed by inspection while working on the code.
-    I don't have a good way to write a test for this,
-    and I expect the code to change significantly in the next
-    release, but might as well get it right for Go 1.9.
+    We could leave it alone and fix line offset (column) numbers when
+    reporting errors, but that is likely to cause confusion (internal
+    numbers don't match reported numbers). Instead, switch to default
+    numbering starting at 1.
     
-    Change-Id: I3f6f9f71b3a7d4f0be49a47419dac59899959e7c
-    Reviewed-on: https://go-review.googlesource.com/44855
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    For package syntax-internal use only, introduced constants defining
+    the line and column bases, and use them throughout the code and its
+    tests. It is possible to change these constants and package syntax
+    will continue to work. But changing them is going to break any client
+    that makes explicit assumptions about line and column numbers (which
+    is "all of them").
+    
+    Change-Id: Ia3d136a8ec8d9372ed9c05ca47d3dff222cf030e
+    Reviewed-on: https://go-review.googlesource.com/37996
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/load/pkg.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/syntax/nodes_test.go   |   4 +-
+ src/cmd/compile/internal/syntax/parser_test.go  |  28 ++---
+ src/cmd/compile/internal/syntax/scanner.go      |   6 +-
+ src/cmd/compile/internal/syntax/scanner_test.go | 130 ++++++++++++------------
+ src/cmd/compile/internal/syntax/source.go       |  10 +-
+ 5 files changed, 91 insertions(+), 87 deletions(-)

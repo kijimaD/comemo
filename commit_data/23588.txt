@@ -1,19 +1,33 @@
-commit 1cbbd7f545870e128ebfc14b3cb93d57be79c773
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Jun 18 16:27:29 2015 +0200
+commit 247786c1745abc0c7185f7c15ca256edf68ed6d6
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 28 10:47:24 2015 -0700
 
-    cmd/trace: fix time scale
+    [dev.ssa] B[dev.ssa] cmd/internal/ssa: Cleanup & reorg
     
-    Integrate the latest trace-viewer changes.
-    It now handles nanoseconds without any issues (thanks to @egonelbre!).
-    So change timestamps from microseconds to nanoseconds.
+    Rename ops like ADDCQ to ADDQconst, so it is clear what the base opcode is and what
+    the modifiers are.
     
-    Change-Id: I010f27effde7e80c9992e6f276f6912354d27df4
-    Reviewed-on: https://go-review.googlesource.com/11244
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Egon Elbre <egonelbre@gmail.com>
+    Convert FP references to SP references once we know the frame size.  Related, compute
+    the frame size in the ssa package.
+    
+    Do a bunch of small fixes.
+    
+    Add a TODO list for people to peruse.
+    
+    Change-Id: Ia6a3fe2bf57e5a2e5e883032e2a2a3fdd566c038
+    Reviewed-on: https://go-review.googlesource.com/10465
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- misc/trace/README.md              |    2 +-
- misc/trace/trace_viewer_lean.html | 1975 +++++++++++++++++++------------------
- src/cmd/trace/trace.go            |   25 +-
- 3 files changed, 1033 insertions(+), 969 deletions(-)
+ src/cmd/internal/gc/ssa.go                     | 125 ++++++----
+ src/cmd/internal/ssa/TODO                      |  47 ++++
+ src/cmd/internal/ssa/func.go                   |   2 +
+ src/cmd/internal/ssa/location.go               |  14 +-
+ src/cmd/internal/ssa/lower.go                  |  11 +-
+ src/cmd/internal/ssa/lowerAmd64.go             | 327 +++++++++++++++----------
+ src/cmd/internal/ssa/op.go                     |   8 +-
+ src/cmd/internal/ssa/op_string.go              |  10 +-
+ src/cmd/internal/ssa/opamd64.go                |  71 +++---
+ src/cmd/internal/ssa/rewrite.go                |   5 +-
+ src/cmd/internal/ssa/rulegen/lower_amd64.rules |  42 ++--
+ src/cmd/internal/ssa/stackalloc.go             |  58 ++++-
+ 12 files changed, 454 insertions(+), 266 deletions(-)

@@ -1,25 +1,17 @@
-commit 023dbb188dda6aa49ccc41c8e38f2703700b3f5a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 7 12:53:52 2018 -0700
+commit 94280237f4863db90e442481c5cc4edfd13389a9
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 20 13:18:09 2018 -0700
 
-    cmd/link: don't pass all linker args when testing flag
+    database/sql: add note to Scanner that the database owns values
     
-    Some linker flags can actually be input files, which can cause
-    misleading errors when doing the trial link, which can cause the
-    linker to incorrectly decide that the flag is not supported, which can
-    cause the link to fail.
+    It was unclear that users must copy values out of the src value
+    for value types like []byte.
     
-    Fixes #27510
-    Updates #27110
-    Updates #27293
+    Fixes #24492
     
-    Change-Id: I70c1e913cee3c813e7b267bf779bcff26d4d194a
-    Reviewed-on: https://go-review.googlesource.com/134057
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I99ad61e0ad0075b9efc5ee4e0d067f752f91b8fa
+    Reviewed-on: https://go-review.googlesource.com/108535
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/lib.go  | 53 ++++++++++++++++++++++++++++++++++++++--
- src/cmd/link/internal/ld/util.go | 10 ++++++++
- 2 files changed, 61 insertions(+), 2 deletions(-)
+ src/database/sql/sql.go | 4 ++++
+ 1 file changed, 4 insertions(+)

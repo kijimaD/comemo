@@ -1,12 +1,18 @@
-commit c8ee1b8ebccbe27432558d653f533b61be2e63e9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 10 17:07:22 2011 -0700
+commit d152fe74e18032cf5678c29ec9f5f56bbc6cc5bb
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 11 00:03:02 2011 +0000
 
-    io/ioutil: fix typo in comment
+    fmt: debugging formats for characters: %+q %#U
+    %+q uses strconv.Quote[Rune]ToASCII, guaranteeing ASCII-only output.
+    %#U a quoted character if the rune is printable: 'x'=U+0078; otherwise
+    it's as before: U+000A.
     
-    R=r, r
+    R=golang-dev, gri, rsc
     CC=golang-dev
-    https://golang.org/cl/4592052
+    https://golang.org/cl/4589047
 
- src/pkg/io/ioutil/ioutil.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/fmt/doc.go      |  6 ++++--
+ src/pkg/fmt/fmt_test.go |  9 +++++++++
+ src/pkg/fmt/format.go   | 34 ++++++++++++++++++++++++++++++++--
+ src/pkg/fmt/print.go    |  5 +++++
+ 4 files changed, 50 insertions(+), 4 deletions(-)

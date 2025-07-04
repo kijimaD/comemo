@@ -1,19 +1,19 @@
-commit d39b7b5347a3e6cc9173224393e4cfaf874a272a
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 28 14:54:38 2016 -0500
+commit ca04091f5be4134291142cc4e7e577d0f627e788
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 30 18:12:37 2016 +0000
 
-    runtime: extract Linux auxv handling
+    reflect: add Swapper func
     
-    This refactoring is in preparation for handling auxv differently in
-    Android shared libraries.
+    Swapper returns a func that swaps two elements in a slice.
     
-    Updates #18041.
+    Updates #16721
     
-    Change-Id: If0458a309f9c804e7abd0a58b5a224d89f8da257
-    Reviewed-on: https://go-review.googlesource.com/33651
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I7f2287a675c10a05019e02b7d62fb870af31216f
+    Reviewed-on: https://go-review.googlesource.com/30088
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/os_linux.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/reflect/all_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/swapper.go  | 74 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 155 insertions(+)

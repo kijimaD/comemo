@@ -1,44 +1,51 @@
-commit f2e58c6d4239f27db284dfe442fa62bb3c0c5b23
-Author: Andrew G. Morgan <agm@google.com>
-Date:   Mon Nov 9 19:28:04 2020 -0800
+commit 3a37fd4010dc20403d642e2c628cb0656a4fb968
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Tue Mar 24 11:51:22 2020 -0400
 
-    syscall: improve TestSetuidEtc() /proc/ parsing against races
+    math/big: rewrite subVW to use fast path on s390x
     
-    TestSetuidEtc() was failing sporadically on linux-ppc64. From the
-    three https://build.golang.org/ logs, it looked like the logged
-    errors could be associated with threads dying, but proc reads
-    were, in some way, racing with their demise.
+    This CL replaces the original subVW implementation with a implementation
+    that uses a similar idea as CL 164968.
     
-    Exploring ways to increase thread demise, revealed that races
-    of this type can happen on non-ppc64 systems, and that
-    os.IsNotExist(err) was not a sufficient error condition test
-    for a thread's status file disappearing. This change includes a
-    fix for that to.
+    When we know the borrow bit is zero, we can copy the rest of words as
+    they will not be updated. Also, since we are copying vector of a words,
+    a faster implementation of copy is written in this CL to copy a word or
+    multiple words at a time.
     
-    The actual issue on linux-ppc64 appears to be tied to PID reaping
-    and reuse latency on whatever the build test environment is for
-    linux-ppc64-buildlet. I suspect this can happen on any linux
-    system, however, especially where the container has a limited PID
-    range.
+    Benchmarks:
+    name             old time/op    new time/op     delta
+    SubVW/1-18         4.43ns ± 0%     3.82ns ± 0%   -13.85%  (p=0.000 n=20+20)
+    SubVW/2-18         5.39ns ± 0%     4.25ns ± 0%   -21.23%  (p=0.000 n=20+20)
+    SubVW/3-18         6.29ns ± 0%     4.65ns ± 0%   -26.07%  (p=0.000 n=16+19)
+    SubVW/4-18         6.08ns ± 2%     4.84ns ± 0%   -20.43%  (p=0.000 n=20+20)
+    SubVW/5-18         7.06ns ± 1%     4.93ns ± 0%   -30.18%  (p=0.000 n=20+20)
+    SubVW/10-18        10.3ns ± 2%      7.2ns ± 0%   -30.35%  (p=0.000 n=20+19)
+    SubVW/100-18       48.0ns ± 4%     17.6ns ± 0%   -63.32%  (p=0.000 n=18+19)
+    SubVW/1000-18       448ns ±10%      236ns ± 1%   -47.24%  (p=0.000 n=20+20)
+    SubVW/10000-18     4.83µs ± 5%     2.96µs ± 0%   -38.73%  (p=0.000 n=20+19)
+    SubVW/100000-18    46.6µs ± 3%     30.6µs ± 1%   -34.30%  (p=0.000 n=20+20)
+    [Geo mean]         56.3ns          37.0ns        -34.24%
     
-    The fix for this, limited to the test (the runtime syscall support
-    is unchanged), is to confirm that the Pid for the interrogated
-    thread's /proc/<TID>/status file confirms that it is still
-    associated with the test-process' PID.
+    name             old speed      new speed       delta
+    SubVW/1-18       1.80GB/s ± 0%   2.10GB/s ± 0%   +16.16%  (p=0.000 n=20+20)
+    SubVW/2-18       2.97GB/s ± 0%   3.77GB/s ± 0%   +26.95%  (p=0.000 n=20+20)
+    SubVW/3-18       3.82GB/s ± 0%   5.16GB/s ± 0%   +35.26%  (p=0.000 n=20+19)
+    SubVW/4-18       5.26GB/s ± 1%   6.61GB/s ± 0%   +25.59%  (p=0.000 n=20+20)
+    SubVW/5-18       5.67GB/s ± 1%   8.11GB/s ± 0%   +43.12%  (p=0.000 n=20+20)
+    SubVW/10-18      7.79GB/s ± 2%  11.17GB/s ± 0%   +43.52%  (p=0.000 n=20+19)
+    SubVW/100-18     16.7GB/s ± 4%   45.5GB/s ± 0%  +172.61%  (p=0.000 n=18+20)
+    SubVW/1000-18    17.9GB/s ± 9%   33.9GB/s ± 1%   +89.25%  (p=0.000 n=20+20)
+    SubVW/10000-18   16.6GB/s ± 5%   27.0GB/s ± 0%   +63.08%  (p=0.000 n=20+19)
+    SubVW/100000-18  17.2GB/s ± 2%   26.1GB/s ± 1%   +52.18%  (p=0.000 n=20+20)
+    [Geo mean]       7.25GB/s       11.03GB/s        +52.01%
     
-    linux-ppc64-buildlet:
-      go/bin/go test syscall -run=TestSetuidEtc -count=10000
-      ok      syscall 104.285s
-    
-    Fixes #42462
-    
-    Change-Id: I55c84ab8361003570a405fa52ffec4949bf91113
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268717
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I32e99cbab3260054a96231d02b87049c833ab77e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227297
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/issue1435.go        | 80 +++++++++++++++++++++++++++------------
- src/syscall/syscall_linux_test.go | 40 ++++++++++++++++----
- 2 files changed, 88 insertions(+), 32 deletions(-)
+ src/math/big/arith_decl_s390x.go |   3 -
+ src/math/big/arith_s390x.s       | 271 +++++++++++----------------------------
+ src/math/big/arith_s390x_test.go |   9 --
+ 3 files changed, 73 insertions(+), 210 deletions(-)

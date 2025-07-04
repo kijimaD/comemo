@@ -1,20 +1,22 @@
-commit 583eeaae509a01cc50955c4174044b9dac539ff6
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Sep 27 15:55:53 2021 -0400
+commit 422f38fb6c8d673eaa13669a22768f4fdd91642b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 17 22:05:50 2021 -0800
 
-    cmd/internal/objfile: use aux symbol for pcdata references
+    [dev.regabi] cmd/compile: move stack objects to liveness
     
-    Pcdata are now separate aux symbols. Read them from aux, instead
-    of using funcinfo.
+    Calculating and emitting stack objects are essentially part of
+    liveness analysis, so move the code from ssagen to liveness. Allows
+    unexporting liveness.ShouldTrack.
     
-    Change-Id: Ib3e4b5cff1e3329d0600504a8829a969a9c9f517
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352612
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I88b5b2e75b8dfb46b8b03a2fa09a9236865cbf3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284413
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/goobj/objfile.go |  2 ++
- src/cmd/internal/objfile/goobj.go | 25 ++++++++++---------------
- 2 files changed, 12 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/liveness/plive.go | 53 ++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssagen/ssa.go     | 50 ----------------------------
+ 2 files changed, 50 insertions(+), 53 deletions(-)

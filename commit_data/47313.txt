@@ -1,52 +1,35 @@
-commit feb024f4153395e5bbb2a51bb3d1ddc4f5b0d2dc
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Sep 29 11:31:01 2021 -0700
+commit aa26687e457d825fc9c580e8c029b768e0e70d38
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Mar 10 16:06:47 2021 -0500
 
-    crypto/x509: use platform verifier on darwin
+    runtime, time: disable preemption in addtimer
     
-    When VerifyOptions.Roots is nil, default to using the platform X.509
-    certificate verification APIs on darwin, rather than using the Go
-    verifier. Since our oldest supported version of macOS is 10.12, we are
-    able to use the modern verification APIs, and don't need to resort to
-    the complex chain building trickery employed by chromium et al.
+    The timerpMask optimization updates a mask of Ps (potentially)
+    containing timers in pidleget / pidleput. For correctness, it depends on
+    the assumption that new timers can only be added to a P's own heap.
     
-    Unfortunately there is not a clean way to programmatically add test
-    roots to the system trust store that the builders would tolerate. The
-    most obvious solution, using 'security add-trusted-cert' requires human
-    interaction for authorization. We could also manually add anchors to
-    the constructed SecTrustRef, but that would require adding a whole
-    bunch of plumbing for test functionality, and would mean we weren't
-    really testing the actual non-test path. The path I've chosen here is
-    to just utilize existing valid, and purposefully invalid, trusted
-    chains, from google.com and the badssl.com test suite. This requires
-    external network access, but most accurately reflects real world
-    contexts.
+    addtimer violates this assumption if it is preempted after computing pp.
+    That G may then run on a different P, but adding a timer to the original
+    P's heap.
     
-    This change removes the x509.SystemCertPool() functionality, which will
-    be ammended in a follow-up change which supports the suggested hybrid
-    pool approach described in #46287.
+    Avoid this by disabling preemption while pp is in use.
     
-    Updates #46287
-    Fixes #42414
-    Fixes #38888
-    Fixes #35631
-    Fixes #19561
+    Other uses of doaddtimer should be OK:
     
-    Change-Id: I17f0d6c5cb3ef8a1f2731ce3296478b28d30df46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353132
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    * moveTimers: always moves to the current P's heap
+    * modtimer, cleantimers, addAdjustedTimers, runtimer: does not add net
+      new timers to the heap while locked
+    
+    Fixes #44868
+    
+    Change-Id: I4a5d080865e854931d0a3a09a51ca36879101d72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300610
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/x509/cert_pool.go                     |   2 +
- src/crypto/x509/internal/macos/corefoundation.go |  77 +++++++
- src/crypto/x509/internal/macos/corefoundation.s  |  12 +
- src/crypto/x509/internal/macos/security.go       | 118 ++++++++++
- src/crypto/x509/internal/macos/security.s        |  18 ++
- src/crypto/x509/root_darwin.go                   | 268 ++++++-----------------
- src/crypto/x509/root_darwin_test.go              | 127 +++++++++--
- src/crypto/x509/verify.go                        |   4 +-
- src/crypto/x509/verify_test.go                   |   4 +-
- src/crypto/x509/x509_test.go                     |   4 +-
- 10 files changed, 409 insertions(+), 225 deletions(-)
+ src/runtime/time.go    |  5 +++++
+ src/time/sleep_test.go | 16 ++++++++++++++++
+ 2 files changed, 21 insertions(+)

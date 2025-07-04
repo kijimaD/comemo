@@ -1,0 +1,31 @@
+commit 34073a736ab87d346399b8eef60d520a8b3cc5d4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Feb 15 03:00:27 2025 +0700
+
+    cmd/compile: avoid infinite recursion when inlining closures
+    
+    CL 630696 changes budget for once-called closures, making them more
+    inlinable. However, when recursive inlining involve both the closure and
+    its parent, the inliner goes into an infinite loop:
+    
+            parent (a closure)  -> closure -> parent -> ...
+    
+    The problem here dues to the closure name mangling, causing the inlined
+    checking condition failed, since the closure name affects how the
+    linker symbol generated.
+    
+    To fix this, just prevent the closure from inlining its parent into
+    itself, avoid the infinite inlining loop.
+    
+    Fixes #71680
+    
+    Change-Id: Ib27626d70f95e5f1c24a3eb1c8e6c3443b7d90c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649656
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 32 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue71680.go           | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+)

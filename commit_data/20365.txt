@@ -1,28 +1,13 @@
-commit 55c458e05f35d0d5d539107da07b744ad96f268e
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 8 17:42:21 2014 -0700
+commit f82097f5cf8a84b89fd8b9cc056f2854c1115c3c
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Wed Sep 3 10:44:33 2014 -0700
 
-    runtime: on bigger maps, start iterator at a random bucket.
+    spec: Add link to rune literals from string literals when talking about escape sequences.
     
-    This change brings the iter/delete pattern down to O(n lgn) from O(n^2).
-    
-    Fixes #8412.
-    
-    before:
-    BenchmarkMapPop100         50000             32498 ns/op
-    BenchmarkMapPop1000          500           3244851 ns/op
-    BenchmarkMapPop10000           5         270276855 ns/op
-    
-    after:
-    BenchmarkMapPop100        100000             16169 ns/op
-    BenchmarkMapPop1000         5000            300416 ns/op
-    BenchmarkMapPop10000         300           5990814 ns/op
-    
-    LGTM=iant
-    R=golang-codereviews, iant, khr
+    LGTM=gri
+    R=golang-codereviews, gobot, gri
     CC=golang-codereviews
-    https://golang.org/cl/141270043
+    https://golang.org/cl/140750043
 
- src/runtime/hashmap.go  | 33 +++++++++++++++++++++++----------
- src/runtime/map_test.go | 21 +++++++++++++++++++++
- 2 files changed, 44 insertions(+), 10 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,26 @@
-commit e2e69ec82a7360fa8e803c0e98964e223335fe4b
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Sep 1 14:43:39 2022 -0700
+commit 4d550727f8b85e9f8866f22c8a02b8f56fa64159
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 18 10:32:22 2021 +0700
 
-    internal/syscall/unix: simplify KernelVersion
+    reflect: add Value.UnsafePointer
     
-    Since values[2] elements are initialized with 0, the switch statement
-    doesn't do anything. Remove it.
+    Allowing eliminates a class of possible misuse of unsafe.Pointer, and
+    allow callers to migrate from Value.Addr and Value.Pointer, thus they
+    can be now deprecated.
     
-    Change-Id: I41176692cdf0c01fe8e85315f0c0dc8b0f3d41fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427675
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #40592
+    
+    Change-Id: I798e507c748922cac5cc1c1971c1b2cc7095a068
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350691
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/syscall/unix/kernel_version_linux.go | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ src/reflect/all_test.go  | 22 ++++++------
+ src/reflect/deepequal.go |  6 ++--
+ src/reflect/set_test.go  |  6 ++--
+ src/reflect/type.go      |  4 +--
+ src/reflect/value.go     | 94 ++++++++++++++++++++++++++++--------------------
+ 5 files changed, 75 insertions(+), 57 deletions(-)

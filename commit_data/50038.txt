@@ -1,24 +1,143 @@
-commit 375a80c9ef521404f1d972ad82719f90bc3a019f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 11 18:50:03 2022 -0700
+commit 86bd1ecef01f2c25c311b0e3a5a82527676b80c6
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Sep 24 13:51:39 2021 -0700
 
-    go/internal/gcimporter: use saferio to read indexed data
+    cmd/go: change 'go get -d' to 'go get' in tests
     
-    Avoid allocating large amounts of memory for corrupt input.
+    The -d flag has no effect in module mode.
     
-    No test case because the problem can only happen for invalid data.
-    Let the fuzzer find cases like this.
+    GOPATH tests are left alone.
     
-    Fixes #53787
+    For #43684
     
-    Change-Id: I1b75a4c000b8d1112110309ec44b0ba9b4638d71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416861
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dan Kortschak <dan@kortschak.io>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If0f0aad73d8b543ca4058fe9c9fea9d7fd7f95bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352150
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/internal/gcimporter/iimport.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ .../go/testdata/script/build_cache_disabled.txt    |  2 +-
+ .../go/testdata/script/build_cache_trimpath.txt    |  4 ++--
+ src/cmd/go/testdata/script/get_404_meta.txt        |  2 +-
+ src/cmd/go/testdata/script/govcs.txt               |  2 +-
+ src/cmd/go/testdata/script/mod_bad_domain.txt      |  4 ++--
+ src/cmd/go/testdata/script/mod_build_info_err.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_build_versioned.txt |  2 +-
+ src/cmd/go/testdata/script/mod_cache_rw.txt        |  4 ++--
+ src/cmd/go/testdata/script/mod_case.txt            |  4 ++--
+ src/cmd/go/testdata/script/mod_case_cgo.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_concurrent.txt      |  2 +-
+ .../go/testdata/script/mod_deprecate_message.txt   |  8 +++----
+ src/cmd/go/testdata/script/mod_domain_root.txt     |  2 +-
+ .../go/testdata/script/mod_download_partial.txt    |  2 +-
+ .../go/testdata/script/mod_get_ambiguous_arg.txt   |  8 +++----
+ .../testdata/script/mod_get_ambiguous_import.txt   |  4 ++--
+ .../go/testdata/script/mod_get_ambiguous_pkg.txt   | 14 ++++++------
+ src/cmd/go/testdata/script/mod_get_changes.txt     |  6 ++---
+ src/cmd/go/testdata/script/mod_get_commit.txt      |  8 +++----
+ src/cmd/go/testdata/script/mod_get_deprecated.txt  | 16 ++++++-------
+ .../testdata/script/mod_get_downadd_indirect.txt   |  2 +-
+ src/cmd/go/testdata/script/mod_get_downgrade.txt   | 12 +++++-----
+ .../testdata/script/mod_get_downgrade_missing.txt  |  8 +++----
+ .../go/testdata/script/mod_get_downup_artifact.txt |  2 +-
+ .../go/testdata/script/mod_get_downup_indirect.txt |  2 +-
+ .../script/mod_get_downup_pseudo_artifact.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_get_extra.txt       |  4 ++--
+ src/cmd/go/testdata/script/mod_get_fallback.txt    |  2 +-
+ .../go/testdata/script/mod_get_incompatible.txt    |  6 ++---
+ src/cmd/go/testdata/script/mod_get_indirect.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_get_issue37438.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_get_issue47979.txt  |  4 ++--
+ .../go/testdata/script/mod_get_latest_pseudo.txt   |  2 +-
+ src/cmd/go/testdata/script/mod_get_local.txt       | 22 +++++++++---------
+ src/cmd/go/testdata/script/mod_get_main.txt        | 22 +++++++++---------
+ src/cmd/go/testdata/script/mod_get_major.txt       |  4 ++--
+ .../go/testdata/script/mod_get_missing_ziphash.txt |  4 ++--
+ src/cmd/go/testdata/script/mod_get_moved.txt       | 12 +++++-----
+ src/cmd/go/testdata/script/mod_get_none.txt        |  4 ++--
+ src/cmd/go/testdata/script/mod_get_nopkgs.txt      |  8 +++----
+ src/cmd/go/testdata/script/mod_get_patch.txt       |  6 ++---
+ src/cmd/go/testdata/script/mod_get_patchbound.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_get_patchmod.txt    | 12 +++++-----
+ src/cmd/go/testdata/script/mod_get_patterns.txt    | 10 ++++-----
+ src/cmd/go/testdata/script/mod_get_pkgtags.txt     | 16 ++++++-------
+ .../script/mod_get_prefer_incompatible.txt         |  2 +-
+ .../testdata/script/mod_get_promote_implicit.txt   |  4 ++--
+ src/cmd/go/testdata/script/mod_get_pseudo.txt      | 26 +++++++++++-----------
+ .../script/mod_get_pseudo_other_branch.txt         |  2 +-
+ .../go/testdata/script/mod_get_pseudo_prefix.txt   |  4 ++--
+ src/cmd/go/testdata/script/mod_get_replaced.txt    | 22 +++++++++---------
+ src/cmd/go/testdata/script/mod_get_retract.txt     | 14 ++++++------
+ .../testdata/script/mod_get_retract_ambiguous.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_get_split.txt       | 24 ++++++++++----------
+ src/cmd/go/testdata/script/mod_get_sum_noroot.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_get_test.txt        | 14 ++++++------
+ .../go/testdata/script/mod_get_trailing_slash.txt  |  9 +-------
+ .../script/mod_get_update_unrelated_sum.txt        | 10 ++++-----
+ src/cmd/go/testdata/script/mod_get_upgrade.txt     | 14 ++++++------
+ .../go/testdata/script/mod_get_upgrade_pseudo.txt  | 20 ++++++++---------
+ src/cmd/go/testdata/script/mod_get_wild.txt        |  4 ++--
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_getx.txt            |  2 +-
+ src/cmd/go/testdata/script/mod_gomodcache.txt      |  4 ++--
+ src/cmd/go/testdata/script/mod_gonoproxy.txt       | 14 ++++++------
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt  |  4 ++--
+ src/cmd/go/testdata/script/mod_import.txt          |  2 +-
+ src/cmd/go/testdata/script/mod_import_v1suffix.txt |  2 +-
+ src/cmd/go/testdata/script/mod_in_testdata_dir.txt |  2 +-
+ .../go/testdata/script/mod_install_pkg_version.txt |  4 ++--
+ .../go/testdata/script/mod_install_versioned.txt   |  4 ++--
+ src/cmd/go/testdata/script/mod_internal.txt        | 20 ++++++++---------
+ src/cmd/go/testdata/script/mod_invalid_path.txt    |  4 ++--
+ .../testdata/script/mod_invalid_path_dotname.txt   |  6 ++---
+ .../go/testdata/script/mod_invalid_path_plus.txt   |  4 ++--
+ src/cmd/go/testdata/script/mod_invalid_version.txt | 10 ++++-----
+ src/cmd/go/testdata/script/mod_issue35317.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_lazy_downgrade.txt  | 12 +++++-----
+ src/cmd/go/testdata/script/mod_list_deprecated.txt |  2 +-
+ src/cmd/go/testdata/script/mod_list_dir.txt        |  4 ++--
+ src/cmd/go/testdata/script/mod_list_direct.txt     |  2 +-
+ .../go/testdata/script/mod_list_replace_dir.txt    |  2 +-
+ .../go/testdata/script/mod_list_upgrade_pseudo.txt |  4 ++--
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |  4 ++--
+ src/cmd/go/testdata/script/mod_load_badzip.txt     |  2 +-
+ src/cmd/go/testdata/script/mod_multirepo.txt       |  2 +-
+ src/cmd/go/testdata/script/mod_outside.txt         |  6 ++---
+ src/cmd/go/testdata/script/mod_overlay.txt         | 14 ++++++------
+ src/cmd/go/testdata/script/mod_permissions.txt     |  2 +-
+ src/cmd/go/testdata/script/mod_proxy_list.txt      | 14 ++++++------
+ src/cmd/go/testdata/script/mod_query_empty.txt     |  8 +++----
+ src/cmd/go/testdata/script/mod_query_exclude.txt   |  6 ++---
+ src/cmd/go/testdata/script/mod_readonly.txt        |  6 ++---
+ src/cmd/go/testdata/script/mod_replace.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_replace_import.txt  |  2 +-
+ .../go/testdata/script/mod_replace_readonly.txt    |  4 ++--
+ src/cmd/go/testdata/script/mod_retract.txt         |  2 +-
+ .../testdata/script/mod_retract_incompatible.txt   |  4 ++--
+ .../go/testdata/script/mod_retract_pseudo_base.txt |  4 ++--
+ .../go/testdata/script/mod_retract_rationale.txt   | 14 ++++++------
+ src/cmd/go/testdata/script/mod_retract_rename.txt  |  6 ++---
+ src/cmd/go/testdata/script/mod_retract_replace.txt |  2 +-
+ src/cmd/go/testdata/script/mod_sum_lookup.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_sum_replaced.txt    |  4 ++--
+ src/cmd/go/testdata/script/mod_sumdb.txt           | 10 ++++-----
+ src/cmd/go/testdata/script/mod_sumdb_cache.txt     | 14 ++++++------
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt | 10 ++++-----
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_sumdb_proxy.txt     | 14 ++++++------
+ src/cmd/go/testdata/script/mod_symlink.txt         |  6 ++---
+ .../go/testdata/script/mod_tidy_convergence.txt    |  4 ++--
+ .../testdata/script/mod_tidy_convergence_loop.txt  |  4 ++--
+ src/cmd/go/testdata/script/mod_tidy_replace.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_tidy_sum.txt        |  4 ++--
+ src/cmd/go/testdata/script/mod_upgrade_patch.txt   | 26 +++++++++++-----------
+ src/cmd/go/testdata/script/mod_vcs_missing.txt     |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_build.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_verify.txt          |  2 +-
+ src/cmd/go/testdata/script/modfile_flag.txt        |  2 +-
+ .../go/testdata/script/vendor_list_issue11977.txt  |  2 +-
+ src/cmd/go/testdata/script/version.txt             |  2 +-
+ src/cmd/go/testdata/script/version_replace.txt     |  2 +-
+ 123 files changed, 385 insertions(+), 392 deletions(-)

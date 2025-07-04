@@ -1,13 +1,14 @@
-commit d4507d44a65e0b064f2728e92cf1221d6f1cd465
-Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 27 09:33:26 2011 -0700
+commit 7b1c1811a5a7b989da3d192f291ecfa6ca061d5d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 27 09:40:01 2011 -0400
 
-    archive/zip: fix Fatal call
-    Error found by govet.
+    crypto/elliptic: use %x consistently in error print
     
-    R=golang-dev, bradfitz
+    Fixes #2308.
+    
+    R=agl, gri
     CC=golang-dev
-    https://golang.org/cl/5142048
+    https://golang.org/cl/5121052
 
- src/pkg/archive/zip/writer_test.go | 2 +-
+ src/pkg/crypto/elliptic/elliptic_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

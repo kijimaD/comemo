@@ -1,25 +1,24 @@
-commit cea7a71d40115333d5943162e5764162b767389d
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Sep 13 18:50:19 2021 -0700
+commit d36a6bf44da6d9b6e1ec355381ef15d253435e20
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 2 23:56:20 2021 -0800
 
-    cmd/compile: fix generic type handling in crawler
+    [dev.regabi] cmd/compile: improve walkReturn common case
     
-    There are a bunch of nodes beside ONAME and OTYPE, (such as OSTRUCTLIT
-    and OCOMPLIT) which can introduce a generic type that we need to mark.
-    So, just mark any generic type on any node in markInlBody. In this
-    particular issue, the type is introduced by an OSTRUCTLIT node.
+    Instead of evaluating all result expressions up front and then
+    assigning them to their result destinations, we can interleave
+    evaluation with assignment. This reduces how much temporary
+    stack/register space is needed to hold the values in flight.
     
-    Updates #48337
+    Doesn't pass toolstash -cmp, because it allows better return statement
+    code to be generated. E.g., cmd/go's text segment on linux/ppc64le
+    shrinks another 1kB.
     
-    Change-Id: I271932518f0c1fb54d91a603e01a855c69df631d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349909
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3fe889342c80e947e0118704ec01f1682c577e6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281153
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/typecheck/crawler.go | 45 +++++++++++++--------------
- test/typeparam/issue48337a.dir/a.go           | 32 +++++++++++++++++++
- test/typeparam/issue48337a.dir/main.go        | 12 +++++++
- test/typeparam/issue48337a.go                 |  7 +++++
- test/typeparam/issue48337a.out                |  1 +
- 5 files changed, 73 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/walk/assign.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

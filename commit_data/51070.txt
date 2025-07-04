@@ -1,68 +1,17 @@
-commit d8541aa8d5d09042cff39ba064b2e09b772f0ae0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 26 23:34:15 2022 -0400
+commit d3bf627bc1e1a4959ecff797754e4a636aa6be1c
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 13:41:10 2021 -0500
 
-    math/big: add benchmark of Exp with large modulus
+    doc/go1.18: add constraints package documentation
     
-    Setting up for improving even modulus.
+    Updates #47694
     
-    name                   time/op
-    ExpMont/Odd-16          240µs ± 2%
-    ExpMont/Even1-16        757µs ± 3%
-    ExpMont/Even2-16        755µs ± 1%
-    ExpMont/Even3-16        771µs ± 3%
-    ExpMont/Even4-16        775µs ± 3%
-    ExpMont/Even8-16        779µs ± 2%
-    ExpMont/Even32-16       778µs ± 3%
-    ExpMont/Even64-16       774µs ± 6%
-    ExpMont/Even96-16       776µs ± 4%
-    ExpMont/Even128-16      764µs ± 2%
-    ExpMont/Even255-16      761µs ± 3%
-    ExpMont/SmallEven1-16  45.6µs ± 1%
-    ExpMont/SmallEven2-16  44.3µs ± 2%
-    ExpMont/SmallEven3-16  44.1µs ± 5%
-    ExpMont/SmallEven4-16  47.1µs ± 6%
-    
-    name                   alloc/op
-    ExpMont/Odd-16         2.53kB ± 0%
-    ExpMont/Even1-16       2.57kB ± 0%
-    ExpMont/Even2-16       2.57kB ± 0%
-    ExpMont/Even3-16       2.57kB ± 0%
-    ExpMont/Even4-16       2.57kB ± 0%
-    ExpMont/Even8-16       2.57kB ± 0%
-    ExpMont/Even32-16      2.57kB ± 0%
-    ExpMont/Even64-16      2.57kB ± 0%
-    ExpMont/Even96-16      2.57kB ± 0%
-    ExpMont/Even128-16     2.57kB ± 0%
-    ExpMont/Even255-16     2.57kB ± 0%
-    ExpMont/SmallEven1-16    872B ± 0%
-    ExpMont/SmallEven2-16    872B ± 0%
-    ExpMont/SmallEven3-16    872B ± 0%
-    ExpMont/SmallEven4-16    872B ± 0%
-    
-    name                   allocs/op
-    ExpMont/Odd-16           21.0 ± 0%
-    ExpMont/Even1-16         24.0 ± 0%
-    ExpMont/Even2-16         24.0 ± 0%
-    ExpMont/Even3-16         24.0 ± 0%
-    ExpMont/Even4-16         24.0 ± 0%
-    ExpMont/Even8-16         24.0 ± 0%
-    ExpMont/Even32-16        24.0 ± 0%
-    ExpMont/Even64-16        24.0 ± 0%
-    ExpMont/Even96-16        24.0 ± 0%
-    ExpMont/Even128-16       24.0 ± 0%
-    ExpMont/Even255-16       24.0 ± 0%
-    ExpMont/SmallEven1-16    16.0 ± 0%
-    ExpMont/SmallEven2-16    16.0 ± 0%
-    ExpMont/SmallEven3-16    16.0 ± 0%
-    ExpMont/SmallEven4-16    16.0 ± 0%
-    
-    Change-Id: I5278378b4209a97b16273be581533310e0e4110b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420896
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I3239023dad194c317e271e6093eff2cfbed1a4b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368314
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/int_test.go | 35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
+ doc/go1.18.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,23 +1,52 @@
-commit 0c7fcf6bd1fd8df2bfae3a482f1261886f6313c1
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Jul 1 08:39:12 2022 -0400
+commit 144e0b1f6e282e434b2a18ac27c01127d929be81
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Mon Aug 30 22:42:17 2021 +0200
 
-    cmd/link: explicitly disable PIE for windows/amd64 -race mode
+    cmd/compile: add MOVOstoreconst with offset folding on amd64
     
-    Turn off PIE explicitly for windows/amd64 when -race is in effect,
-    since at the moment the race detector runtime doesn't seem to handle
-    PIE binaries correctly. Note that newer C compilers on windows
-    produce PIE binaries by default, so the Go linker needs to explicitly
-    turn off PIE when invoking the external linker in this case.
+    Replace MOVOstorezero with new MOVOstoreconst.
+    MOVOstoreconst has similar address folding rules then
+    other MOVstoreconst operations but only supports zero
+    as store value. Currently only MOVO stores with zero
+    values are generated. Using MOVOstoreconst with
+    SymValAndOff aux has the advantage that we can just
+    add one more MOVstoreconst variant to the existing rules.
     
-    Updates #53539.
+    The main effect of this CL is converting 16 byte zeroing
+    of a value on the stack from LEAQ+MOVUPS to just MOVUPS
+    which reduces binary size.
     
-    Change-Id: Ib990621f22cf61a5fa383584bab81d3dfd7552e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415676
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    old:
+    LEAQ 0x20(SP), DX
+    MOVUPS X15, 0(DX)
+    
+    new:
+    MOVUPS X15, 0x20(SP)
+    
+    file      before    after     Δ       %
+    addr2line 3661568   3657472   -4096   -0.112%
+    asm       4566432   4562336   -4096   -0.090%
+    cgo       4305456   4301360   -4096   -0.095%
+    compile   22878528  22874512  -4016   -0.018%
+    cover     4517952   4513856   -4096   -0.091%
+    link      6287248   6283152   -4096   -0.065%
+    nm        3640768   3636672   -4096   -0.113%
+    objdump   4010592   4006496   -4096   -0.102%
+    pack      2188224   2184128   -4096   -0.187%
+    pprof     13429504  13421312  -8192   -0.061%
+    trace     10143968  10135776  -8192   -0.081%
+    vet       6868864   6864768   -4096   -0.060%
+    
+    Change-Id: I08f5dd5ab9251448a4572d3ddd1e0c8cd417f5e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346249
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/compile/internal/amd64/ssa.go        |  10 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  52 ++++---
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  36 ++---
+ src/cmd/compile/internal/ssa/opGen.go        |  28 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 215 ++++++++++++++++++++-------
+ 5 files changed, 235 insertions(+), 106 deletions(-)

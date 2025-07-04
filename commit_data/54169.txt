@@ -1,22 +1,16 @@
-commit 21293b6b87c67bc98c56b33509ae390a3352da71
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Aug 20 18:15:43 2023 -0700
+commit 2c4c2a5106e16a2ef51e3fc1d846e5d75d7ee6cc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 19 15:09:21 2022 -0700
 
-    cmd/compile/internal/typecheck: use types.IsMethodApplicable
+    time: add comment explaining >>33 in Now
     
-    In checking whether a type implements an interface, there's this
-    complex predicate spanning multiple lines, which is very obtuse.
-    
-    So let's just use the helper function we already have in package types
-    instead.
-    
-    Change-Id: I80f69d41c2bee8d6807601cf913840fa4f042b5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521435
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I022b617cd345b412bee0b50a862676a1dca94e01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418376
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/typecheck/subr.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/time/time.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,24 +1,14 @@
-commit 998419575fb34dd5228cfdb353a73184e29db8da
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Sep 30 14:48:11 2016 -0700
+commit cab87a60dec2c771c12ba08b82bb7645228192e6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 14 10:14:28 2016 +0900
 
-    crypto/ecdsa: correct code comment.
+    os: fix build on freebsd/arm
     
-    The code comment mixed up max and min. In this case, min is correct
-    because this entropy is only used to make the signature scheme
-    probabilistic. (I.e. if it were fixed then the scheme would still be
-    secure except that key.Sign(foo) would always give the same result for a
-    fixed key and foo.)
-    
-    For this purpose, 256-bits is plenty.
-    
-    Fixes #16819.
-    
-    Change-Id: I309bb312b775cf0c4b7463c980ba4b19ad412c36
-    Reviewed-on: https://go-review.googlesource.com/30153
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I21fad94ff94e342ada18e0e41ca90296d030115f
+    Reviewed-on: https://go-review.googlesource.com/24061
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/ecdsa/ecdsa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/wait_wait6.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

@@ -1,16 +1,18 @@
-commit aa511b426d1c72c182cc1b797d3fa71cf47906f3
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 8 19:05:02 2024 -0500
+commit 09e9a9eac9f3d347e3a204ae3ca309b5340028c4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 21 17:28:36 2023 -0700
 
-    time: disable TestLongAdjustTimers on android/ios
+    test: add test that caused gofrontend crash
     
-    The simulators are too slow.
+    For #59169
     
-    Change-Id: I0aaf2304ad0881c74886ff3185c09614de2aae63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570236
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Id72ad9fe8b6e1d7cf64f972520ae8858f70c025a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478217
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/time/tick_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ test/fixedbugs/issue59169.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

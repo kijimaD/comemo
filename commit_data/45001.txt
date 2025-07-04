@@ -1,36 +1,25 @@
-commit 6304b401e4bcfc1d61dd687bb5b7df13fd71033b
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 6 08:25:01 2021 -0400
+commit 0a9dd47dd817904ec2b4a80b551e6050218ee8a6
+Author: Cuong Manh Le <cuong@orijtech.com>
+Date:   Tue Sep 22 09:30:31 2020 +0700
 
-    internal/goexperiment,cmd: consolidate GOEXPERIMENTs into a new package
+    net: reflect TCP backlog size update of uint16->uint32 on Linux
     
-    Currently there's knowledge about the list of GOEXPERIMENTs in a few
-    different places. This CL introduces a new package and consolidates
-    the list into one place: the internal/goexperiment.Flags struct type.
+    The sk_max_ack_backlog was increased from uint16 to uint32 in kernel
+    version 4.1 and above, so adopt that change to maxListenerBacklog.
     
-    This package gives us a central place to document the experiments as
-    well as the GOEXPERIMENT environment variable itself. It will also
-    give us a place to put built-time constants derived from the enabled
-    experiments.
+    See https://github.com/torvalds/linux/commit/becb74f0acca19b5abfcb24dc602530f3deea66a
     
-    Now the objabi package constructs experiment names by reflecting over
-    this struct type rather than having a separate list of these names
-    (this is similar to how the compiler handles command-line flags and
-    debug options). We also expose a better-typed API to the toolchain for
-    propagating enabled experiments.
+    Fixes #41470
     
-    Change-Id: I06e026712b59fe2bd7cd11a869aedb48ffe5a4b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307817
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I63a142eb28f3ac3acaca57f0903c085c6cb15a6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255898
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/asm/internal/lex/input.go  |  23 ++---
- src/cmd/dist/buildtool.go          |   1 +
- src/cmd/go/internal/work/exec.go   |   8 +-
- src/cmd/go/internal/work/init.go   |   3 +-
- src/cmd/internal/objabi/exp.go     | 132 +++++++++++++++++++++++++++
- src/cmd/internal/objabi/util.go    | 179 -------------------------------------
- src/internal/goexperiment/flags.go |  72 +++++++++++++++
- 7 files changed, 215 insertions(+), 203 deletions(-)
+ src/net/sock_linux.go      | 62 +++++++++++++++++++++++++++++++++++++++++++---
+ src/net/sock_linux_test.go | 22 ++++++++++++++++
+ 2 files changed, 80 insertions(+), 4 deletions(-)

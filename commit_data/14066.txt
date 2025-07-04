@@ -1,13 +1,15 @@
-commit eca37e1eed089bd6bfb6e929a64761435dae65ae
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Oct 8 04:19:36 2012 +0800
+commit c4c4b3b46729d8df3a5ee7bd5f0e463290e206da
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 7 15:49:56 2012 -0400
 
-    codereview: more mercurial interface fixes
-            Fixes #4131.
+    test/bench/shootout: match gcc architecture to GOARCH
     
-    R=golang-dev, rsc
+    If we're benchmarking 8g, use gcc -m32.
+    If we're benchmarking 6g, use gcc -m64.
+    
+    R=golang-dev, bradfitz, minux.ma, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6614061
+    https://golang.org/cl/6625061
 
- lib/codereview/codereview.py | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ test/bench/shootout/timing.sh | 32 ++++++++++++++++++++------------
+ 1 file changed, 20 insertions(+), 12 deletions(-)

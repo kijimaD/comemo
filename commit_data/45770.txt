@@ -1,18 +1,31 @@
-commit f753d7223e5c10f53af8bbe5f5558292b08d5e8a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jun 7 13:43:55 2021 -0400
+commit 38367d098ed4d97539de5e43e03bce985fc56d8e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Nov 12 04:30:15 2020 +1100
 
-    doc/go1.17: resolve TODO for cmd/cover
+    cmd/link/internal/ld: dedup shared libraries on openbsd
     
-    Updates #32211
+    When linking internally on OpenBSD, dedup libraries treating versioned
+    and unversioned libraries as equivalents. Versioned libraries are preferred
+    and are retained over unversioned libraries.
     
-    Change-Id: Ie38e831fcf557534023afd552d9394fe9e055caa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325909
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    This avoids the situation where the use of cgo results in a DT_NEEDED for a
+    versioned library (for example, libc.so.96.1), while a dynamic import
+    specifies an unversioned library (for example, libc.so). Without deduplication
+    this would result in two DT_NEEDED entries, causing a failure when ld.so
+    attempts to load the Go binrary.
+    
+    Updates #36435
+    Fixes #39257
+    
+    Change-Id: I4a4942f259dece01d97bb51df9e13d67c9f94d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249978
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.17.html | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/elf_test.go              |   3 +-
+ src/cmd/link/internal/ld/go.go                    |  60 ++++++++++-
+ src/cmd/link/internal/ld/go_test.go               | 121 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/testdata/issue39256/x.go |   2 +
+ 4 files changed, 184 insertions(+), 2 deletions(-)

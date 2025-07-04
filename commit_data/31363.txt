@@ -1,23 +1,23 @@
-commit e3d7ec006f25385972c89f771d5d577adce3f024
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 25 17:47:34 2017 -0700
+commit 0993b2fd06a43a2e51b68dd7d8b0643e50c54b9d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 9 14:11:13 2017 -0500
 
-    os: consistently return ErrClosed for closed file
+    runtime: remove g.stackAlloc
     
-    Catch all the cases where a file operation might return ErrFileClosing,
-    and convert to ErrClosed. Use a new method for the conversion, which
-    permits us to remove some KeepAlive calls.
+    Since we're no longer stealing space for the stack barrier array from
+    the stack allocation, the stack allocation is simply
+    g.stack.hi-g.stack.lo.
     
-    Change-Id: I584178f297efe6cb86f3090b2341091b412f1041
-    Reviewed-on: https://go-review.googlesource.com/41793
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #17503.
+    
+    Change-Id: Id9b450ae12c3df9ec59cfc4365481a0a16b7c601
+    Reviewed-on: https://go-review.googlesource.com/36621
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/os/file.go         | 40 ++++++++++++++++++----------------------
- src/os/file_posix.go   | 16 +++++-----------
- src/os/file_unix.go    |  3 +++
- src/os/file_windows.go |  3 +++
- src/os/os_test.go      | 20 ++++++++++++++++++++
- src/os/pipe_test.go    | 41 +++++++++++++++++++++++++++++++----------
- 6 files changed, 80 insertions(+), 43 deletions(-)
+ src/runtime/proc.go        | 10 ++++------
+ src/runtime/runtime2.go    |  1 -
+ src/runtime/signal_unix.go |  4 ----
+ src/runtime/stack.go       | 19 +++++++++----------
+ 4 files changed, 13 insertions(+), 21 deletions(-)

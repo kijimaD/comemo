@@ -1,25 +1,23 @@
-commit 4893eee9dc307a234bff1aa441acf849111e1beb
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Aug 26 03:23:42 2020 +1000
+commit 74e566ed1dc52f7ef58093aff936a0931537a1ad
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 5 23:10:46 2020 +0000
 
-    runtime: switch openbsd/386 to pthreads
+    runtime: add readMetrics latency benchmark
     
-    This switches openbsd/386 to thread creation via pthreads, rather than doing
-    direct system calls.
+    This change adds a new benchmark to the runtime tests for measuring the
+    latency of the new metrics implementation, based on the
+    ReadMemStats latency benchmark. readMetrics will have more metrics added
+    to it in the future, and this benchmark will serve as a way to measure
+    the cost of adding additional metrics.
     
-    Update #36435
-    
-    Change-Id: I000a815fc0edd0272c3285954f3f007229bc60a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250577
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib05e3ed4afa49a70863fc0c418eab35b72263e24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247042
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/asm_386.s             |   4 +
- src/runtime/defs_openbsd_386.go   |   9 ++
- src/runtime/os_openbsd_libc.go    |   4 +-
- src/runtime/os_openbsd_syscall.go |   4 +-
- src/runtime/proc.go               |   2 +-
- src/runtime/sys_libc.go           |   4 +-
- src/runtime/sys_openbsd.go        |   4 +-
- src/runtime/sys_openbsd_386.s     | 282 +++++++++++++++++++++-----------------
- 8 files changed, 178 insertions(+), 135 deletions(-)
+ src/runtime/gc_test.go      | 17 ++++++++++++-----
+ src/runtime/metrics_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 5 deletions(-)

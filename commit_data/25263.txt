@@ -1,17 +1,25 @@
-commit 9b1068ad2f6b1520ac1a0ad199d0161cdd0e98af
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 20 22:52:11 2015 +0000
+commit 0b8d583320b2f6247669ef0bb1ba011054ca1c88
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 09:56:07 2015 +1300
 
-    net/http/httputil: make DumpRequest use Request.RequestURI when available
+    runtime, os/signal: use //go:linkname instead of assembly stubs to get access to runtime functions
     
-    Fixes #10912
+    os/signal depends on a few unexported runtime functions. This removes the
+    assembly stubs it used to get access to these in favour of using
+    //go:linkname in runtime to make the functions accessible to os/signal.
     
-    Change-Id: If04e3205d5cc43ebfd6864bc59340c8697cbc0af
-    Reviewed-on: https://go-review.googlesource.com/17592
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This is motivated by ppc64le shared libraries, where you cannot BR to a symbol
+    defined in a shared library (only BL), but it seems like an improvment anyway.
+    
+    Change-Id: I09361203ce38070bd3f132f6dc5ac212f2dc6f58
+    Reviewed-on: https://go-review.googlesource.com/15871
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/net/http/httputil/dump.go      | 28 +++++++++++++++++++++-------
- src/net/http/httputil/dump_test.go | 17 +++++++++++++++++
- 2 files changed, 38 insertions(+), 7 deletions(-)
+ src/os/signal/sig.s           | 32 ++++----------------------------
+ src/os/signal/signal_unix.go  |  2 +-
+ src/runtime/sigqueue.go       |  4 ++++
+ src/runtime/sigqueue_plan9.go |  6 ++++++
+ 4 files changed, 15 insertions(+), 29 deletions(-)

@@ -1,17 +1,18 @@
-commit 5b708a6b6a57fb8022da58cd4c521d0ba77126fd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Jan 14 21:40:16 2017 -0800
+commit c1ab165fa6f0744c87135b53f21576d61c74dec4
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 18 15:27:51 2016 +0200
 
-    cmd/compile: lvalues are only required for == when calling runtime fns
+    net/http: enable TestTransportRemovesDeadIdleConnections on Plan 9
     
-    Fixes #18661.
+    This issue has been fixed in CL 31390.
     
-    Change-Id: I865802a9b88ab22560c9914a70901d1924242bdc
-    Reviewed-on: https://go-review.googlesource.com/35236
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #15464.
+    
+    Change-Id: I35e088f37bf3b544100ff131c72690bcfd788e5b
+    Reviewed-on: https://go-review.googlesource.com/31393
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/walk.go |  8 ++++----
- test/fixedbugs/issue18661.go        | 18 ++++++++++++++++++
- 2 files changed, 22 insertions(+), 4 deletions(-)
+ src/net/http/transport_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,17 +1,17 @@
-commit b5203be87dc8edae182a8b45901ba8306e37110e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 28 16:17:43 2016 -0700
+commit 66121ce8a95f587be8641f79c66c8536660a16d5
+Author: Erik Staab <estaab@google.com>
+Date:   Sat Sep 3 15:57:48 2016 -0700
 
-    go/importer: implement importing of exported aliases
+    runtime: remove redundant expression from SetFinalizer
     
-    Fixes #17592.
+    The previous if condition already checks the same expression and doesn't
+    have side effects.
     
-    Change-Id: I914fa8c0729012990878b6e5c3e99b0f9b0e2be8
-    Reviewed-on: https://go-review.googlesource.com/32350
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ieaf30a786572b608d0a883052b45fd3f04bc6147
+    Reviewed-on: https://go-review.googlesource.com/28475
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/go/internal/gcimporter/bimport.go          | 28 ++++++++++++++++++++++----
- src/go/internal/gcimporter/testdata/exports.go | 22 +++++++++++++++++++-
- 2 files changed, 45 insertions(+), 5 deletions(-)
+ src/runtime/mfinal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

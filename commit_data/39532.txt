@@ -1,16 +1,16 @@
-commit ba3149612f62c011765876d7a437095fa50e0771
-Author: Allen Li <ayatane@google.com>
-Date:   Thu Jul 11 00:57:57 2019 +0000
+commit b3fac018f15e653ed69f19f4c85c811ef2a62b9f
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Mar 5 16:05:07 2019 +0100
 
-    time: clarify when draining a Timer's channel is needed
+    net: fix fd leak with interfaces on aix/ppc64
     
-    Updates #27169
+    To retrieve MTU on aix/ppc64, a socket must be created. Previously, this
+    socket was recreated for each interface and not close at all, causing a
+    fd leak on software using interface API.
     
-    Change-Id: I22a6194c06529ba70b1ec648e3188c191224e321
-    GitHub-Last-Rev: 457b2a61a8ee4a745371c87756e5b6f38058af28
-    GitHub-Pull-Request: golang/go#32996
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185245
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib573e234bfce58964935831b68d007bfbd923476
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165397
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/sleep.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/net/interface_aix.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

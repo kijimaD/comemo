@@ -1,55 +1,15 @@
-commit 8e3dd8ab8830bd9fbf908cbe91affffa8436625f
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Mon Apr 23 19:46:56 2018 +0300
+commit 26ec05cdbee032ffdb1936730ba9fbe65eacacff
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Dec 13 12:59:12 2017 -0500
 
-    cmd/internal/obj/x86: faster Assemble for non-NaCl hosts
+    doc: update info about flame graphs in diagnostics.html
     
-    Make span6 function (used as LinkArch.Assemble) faster
-    by avoiding redundant re-assemble rounds on hosts
-    that are not NaCl.
+    Use Brendan Gregg's FlameGraphs page link.
+    Mention the flame graph is available from the upstream pprof.
     
-    NaCl is excluded because it needs Prog.Isize to fix alignment.
-    
-    For make.bash, there are around 50% of functions that can
-    be encoded in a single trip. With this change, those function
-    will be assembled with 1 round instead of 2.
-    
-    compilebench results:
-    
-        name        old time/op       new time/op       delta
-        Template          305ms ± 2%        299ms ± 2%  -1.99%  (p=0.001 n=10+10)
-        Unicode           139ms ± 3%        138ms ± 4%    ~     (p=0.222 n=9+9)
-        GoTypes           1.05s ± 1%        1.04s ± 1%  -1.34%  (p=0.000 n=10+9)
-        Compiler          4.78s ± 1%        4.71s ± 1%  -1.45%  (p=0.000 n=9+9)
-        SSA               12.2s ± 1%        12.0s ± 1%  -1.90%  (p=0.000 n=9+10)
-        Flate             204ms ± 3%        202ms ± 3%    ~     (p=0.052 n=10+10)
-        GoParser          248ms ± 1%        244ms ± 2%  -1.79%  (p=0.000 n=10+9)
-        Reflect           671ms ± 1%        664ms ± 1%  -0.96%  (p=0.001 n=9+9)
-        Tar               287ms ± 2%        285ms ± 3%    ~     (p=0.393 n=10+10)
-        XML               362ms ± 1%        353ms ± 2%  -2.60%  (p=0.000 n=10+9)
-        StdCmd            29.2s ± 1%        29.0s ± 1%  -0.63%  (p=0.021 n=10+8)
-        [Geo mean]        888ms             875ms       -1.40%
-    
-        name        old user-time/op  new user-time/op  delta
-        Template          393ms ± 5%        373ms ± 8%  -5.12%  (p=0.013 n=9+10)
-        Unicode           185ms ± 6%        184ms ± 5%    ~     (p=0.825 n=10+10)
-        GoTypes           1.33s ± 1%        1.31s ± 3%  -1.60%  (p=0.004 n=10+10)
-        Compiler          5.98s ± 3%        5.92s ± 1%    ~     (p=0.050 n=10+10)
-        SSA               15.5s ± 2%        15.3s ± 0%    ~     (p=0.156 n=10+9)
-        Flate             255ms ± 5%        252ms ± 5%    ~     (p=0.362 n=10+10)
-        GoParser          309ms ± 1%        304ms ± 3%  -1.79%  (p=0.021 n=7+10)
-        Reflect           839ms ± 2%        833ms ± 1%    ~     (p=0.160 n=10+9)
-        Tar               363ms ± 3%        358ms ± 4%    ~     (p=0.194 n=8+10)
-        XML               446ms ± 3%        442ms ± 3%    ~     (p=0.503 n=10+10)
-        [Geo mean]        791ms             779ms       -1.55%
-    
-    Passes toolstash-check.
-    
-    Change-Id: Ibcdb09f2c28907932581b7566f46d34be292594b
-    Reviewed-on: https://go-review.googlesource.com/108895
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ife1d5a5f4f93f20cd5952a09083f798b77d25a60
+    Reviewed-on: https://go-review.googlesource.com/83798
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ doc/diagnostics.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

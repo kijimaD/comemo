@@ -1,16 +1,15 @@
-commit 43c04ba1b8c81114d09c0f9f326987070e0ee291
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Wed Feb 27 19:47:14 2013 +0100
+commit 839d47add56515fc9f127e60398ea7132f0b1d38
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 27 08:47:08 2013 -0800
 
-    cmd/gc: don't emit type instructions for nonexisting locals
+    net/http: add Transport.ResponseHeaderTimeout
     
-    If all locals are optimized away, the type instructions would stay in the instruction stream. Call fixautoused to scrub the output.
+    Update #3362
     
-    Fixes #4915.
-    
-    R=rsc
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/7385055
+    https://golang.org/cl/7369055
 
- src/cmd/gc/pgen.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/net/http/transport.go      | 16 ++++++++++++-
+ src/pkg/net/http/transport_test.go | 48 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)

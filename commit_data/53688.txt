@@ -1,14 +1,23 @@
-commit fe5af1532ab9c749d880c05e0ffe0e17bf874d7f
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Jul 14 08:23:18 2023 -0400
+commit 36d1f236610a436bcbceca11e040a65593f1f253
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sat Aug 27 12:42:26 2022 +0930
 
-    log/slog: doc commonHandler.handle
+    debug/macho: use saferio to allocate Load and Symbol slices
     
-    Change-Id: Id301b772e472e1cb7cd8bccaa5a13ff7b6f94711
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/509596
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Avoid allocating large amounts of memory for corrupt input.
+    
+    No test case because the problem can only happen for invalid data.
+    Let the fuzzer find cases like this.
+    
+    Change-Id: I2d1745200611f0af06ca58adcc3e2309ad6742d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425882
+    Run-TryBot: Dan Kortschak <dan@kortschak.io>
+    Auto-Submit: Dan Kortschak <dan@kortschak.io>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/log/slog/handler.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/debug/macho/file.go | 57 +++++++++++++++++++++++++++++++------------------
+ 1 file changed, 36 insertions(+), 21 deletions(-)

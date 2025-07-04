@@ -1,20 +1,18 @@
-commit 19dc7bb18fc4e4dab937ce13d50a86db938ab744
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Oct 12 13:35:05 2012 +0800
+commit eae25d430d6d6c40e129c50ed4a931858be8ffb4
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri Oct 12 14:43:50 2012 +1100
 
-    cmd/dist: fix superfluous and confusing "binaries ... to be copied or moved" message
-    Also, to aid debugging cmd/dist, make make.bat support --dist-tool flag.
+    bytes, strings: add (*Reader).WriteTo
     
-    Fixes #3100.
+    Fixes #4031.
     
-    R=alex.brainman
+    R=golang-dev, bradfitz, remyoudompheng, r, dave
     CC=golang-dev
-    https://golang.org/cl/6637061
+    https://golang.org/cl/6632046
 
- src/cmd/dist/a.h       |  1 +
- src/cmd/dist/build.c   |  2 +-
- src/cmd/dist/plan9.c   |  7 +++++++
- src/cmd/dist/unix.c    |  7 +++++++
- src/cmd/dist/windows.c | 37 +++++++++++++++++++++++++++++++++++++
- src/make.bat           |  8 ++++++++
- 6 files changed, 61 insertions(+), 1 deletion(-)
+ src/pkg/bytes/buffer_test.go   |  4 ++--
+ src/pkg/bytes/reader.go        | 21 ++++++++++++++++++++-
+ src/pkg/bytes/reader_test.go   | 21 +++++++++++++++++++++
+ src/pkg/strings/reader.go      | 21 ++++++++++++++++++++-
+ src/pkg/strings/reader_test.go | 23 +++++++++++++++++++++++
+ 5 files changed, 86 insertions(+), 4 deletions(-)

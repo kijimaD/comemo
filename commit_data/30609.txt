@@ -1,17 +1,17 @@
-commit e471ad9189d1eba54c8cb5414c47e413cea78df2
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Mar 8 06:56:40 2017 -0500
+commit e279280d0db0a8ffb7b453e789a2e322722d2259
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Nov 16 16:34:02 2016 +0900
 
-    cmd/compile: remove duplicated zeroing of outgoing args
+    net: deflake TestAcceptTimeout
     
-    Outgoing arg zeroing code is inserted at walk.go:paramstoheap.
-    Don't do it twice.
+    This change makes use of synchronization primitive instead of
+    context-based canceling not to depend on defer execution scheduling.
     
-    Change-Id: I70afac6af9e39b3efce0a6a79d6193428d922708
-    Reviewed-on: https://go-review.googlesource.com/37863
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #17927.
+    
+    Change-Id: I5ca9287a48bb5cdda6845a7f12757f95175c5db8
+    Reviewed-on: https://go-review.googlesource.com/33257
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/net/timeout_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

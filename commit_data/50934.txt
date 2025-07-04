@@ -1,21 +1,20 @@
-commit 4ac413ae22604de6defd5074dbc2a3df0ac47233
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Oct 12 19:09:43 2022 -0400
+commit 2463b4fcafbd59998ea4c81b0fd91a697ad02c15
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 19:20:52 2021 -0500
 
-    go/types: migrate importer usage in tests
+    go/types: simplify under() and fix a crash
     
-    To use an importer that knows where to find stdlib .a files based on
-    their new locations once the checked-in .a files are removed.
+    This is a port of CL 363665 from types2 to go/types.
     
-    Change-Id: I981812306b3512380d58cb0f599a9a61b27ba0d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442695
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I20c4e20ab97f1e4de66a29095dc4a9b160810fe5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364897
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/issues_test.go     | 2 ++
- src/go/types/self_test.go       | 5 +++++
- src/go/types/sizes_test.go      | 3 +++
- src/go/types/typestring_test.go | 1 +
- 4 files changed, 11 insertions(+)
+ src/go/types/lookup.go                 | 7 +++++++
+ src/go/types/testdata/check/cycles.src | 1 +
+ src/go/types/type.go                   | 7 ++-----
+ src/go/types/typexpr.go                | 1 +
+ 4 files changed, 11 insertions(+), 5 deletions(-)

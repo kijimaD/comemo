@@ -1,18 +1,21 @@
-commit bbf143002188a7af7d60e28da472f06c6d99aa03
-Author: Alberto García Hierro <alberto@garciahierro.com>
-Date:   Fri Aug 2 14:15:33 2013 -0700
+commit 9cd570680bd1d6ea23e4f5da1fe3a50c6927d6d5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 2 13:03:14 2013 -0700
 
-    cmd/go: Fix go get when the fetched XML uses ASCII encoding
+    runtime: reimplement reflect.call to not use stack splitting.
     
-    Also, add a meaningful error message when an encoding which
-    can't be parsed is found.
-    
-    Fixes #5801.
-    
-    R=golang-dev, bradfitz, rsc
+    R=golang-dev, r, khr, rsc
     CC=golang-dev
-    https://golang.org/cl/12343043
+    https://golang.org/cl/12053043
 
- src/cmd/go/discovery.go | 22 ++++++++++++++++++++--
- src/cmd/go/vcs.go       | 11 +++++++++--
- 2 files changed, 29 insertions(+), 4 deletions(-)
+ misc/cgo/test/callback.go   |   1 +
+ src/cmd/ld/lib.c            |   2 +-
+ src/pkg/reflect/all_test.go |  11 +++++
+ src/pkg/runtime/asm_386.s   |  97 +++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/asm_amd64.s |  98 ++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/asm_arm.s   | 107 ++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/panic.c     |   4 +-
+ src/pkg/runtime/proc.c      |   6 +++
+ src/pkg/runtime/runtime.h   |   1 +
+ src/pkg/runtime/stack.c     |  18 ++++----
+ 10 files changed, 321 insertions(+), 24 deletions(-)

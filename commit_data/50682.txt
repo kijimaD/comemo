@@ -1,26 +1,21 @@
-commit 223a563f58f3b6f9b5d874b7e1e33d6f36992caa
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 28 11:03:57 2022 -0400
+commit f063e0da28d441065d36f7d676f86d478f67db1f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 18 19:01:33 2021 +0000
 
-    os/exec: refactor goroutine error reporting
+    runtime: add harddecommit GODEBUG flag
     
-    Use a separate channel to report the final error of the copying
-    goroutines, receiving a value only when all of the copying goroutines
-    have completed. In a followup change (CL 401835), that will allow
-    waiters to select on goroutine completion alongside other events (such
-    as Context cancellation).
+    This change adds a new debug flag that makes the runtime map pages
+    PROT_NONE in sysUnused on Linux, in addition to the usual madvise calls.
+    This behavior mimics the behavior of decommit on Windows, and is helpful
+    in debugging the scavenger. sysUsed is also updated to re-map the pages
+    as PROT_READ|PROT_WRITE, mimicing Windows' explicit commit behavior.
     
-    Also mildly refactor the watchCtx helper method so that its structure
-    better matches what will be needed to implement WaitDelay.
-    
-    For #50436.
-    
-    Change-Id: I54b3997fb6931d204814d8382f0a388a67b520f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435995
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Iaac5fcd0e6920bd1d0e753dd4e7f0c0b128fe842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356612
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/os/exec/exec.go | 136 +++++++++++++++++++++++++++++-----------------------
- 1 file changed, 76 insertions(+), 60 deletions(-)
+ src/runtime/extern.go    |  5 +++++
+ src/runtime/mem_linux.go | 20 ++++++++++++++++++++
+ src/runtime/runtime1.go  |  2 ++
+ 3 files changed, 27 insertions(+)

@@ -1,12 +1,14 @@
-commit 733fde588babc6e7455d4e2aa53e34defc99f966
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Fri May 6 22:05:04 2011 -0700
+commit 1dc914bc0d31f0e8a20248c692539f4cbc8327d9
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri May 6 13:35:51 2011 -0700
 
-    windows: reset command var to sh for correct error output messages
+    cgo: put CFLAGS before filename argument
+    This means that the -x flag can work, which could enable
+    support for other languages (e.g. objective-C).
     
-    R=golang-dev, r
+    R=iant, rsc
     CC=golang-dev
-    https://golang.org/cl/4492043
+    https://golang.org/cl/4476049
 
- src/cmd/gotest/gotest.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

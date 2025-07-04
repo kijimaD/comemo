@@ -1,34 +1,23 @@
-commit 3395f74d865108e42eec677f69a24e8b2ccbbefe
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 16 18:19:31 2022 -0700
+commit cca23a73733ff166722c69359f0bb45e12ccaa2b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 21 10:53:10 2021 -0400
 
-    go/types, types2: implement flexible flag-setting mechanism for tests
+    cmd/compile: revert CL/316890
     
-    Use it so set the language version. Adjust relevant tests.
+    This is a revert of https://go-review.googlesource.com/c/go/+/316890,
+    which has positive effects on debugging + DWARF variable locations
+    for register parameters when the reg abi is in effect, but also
+    turns out to interact badly with the register allocator.
     
-    Fixes #49074.
+    Fixes #46304.
     
-    Change-Id: Ida6d0002bdba65b5add6e8728a1700305de18351
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393514
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I624bd980493411a9cde45d44fcd3c46cad796909
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321830
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/check_test.go      | 65 ++++++++++++++++------
- .../internal/types2/testdata/check/decls0.src      |  4 +-
- .../internal/types2/testdata/check/go1_12.src      |  4 +-
- .../internal/types2/testdata/check/go1_13.src      |  4 +-
- .../internal/types2/testdata/check/go1_16.src      |  4 +-
- .../internal/types2/testdata/check/go1_8.src       |  4 +-
- .../internal/types2/testdata/check/issues.src      |  4 +-
- .../types2/testdata/fixedbugs/issue46090.go2       |  4 +-
- .../types2/testdata/fixedbugs/issue47818.go2       |  4 +-
- src/go/types/check_test.go                         | 64 ++++++++++++++-------
- src/go/types/testdata/check/decls0.src             |  4 +-
- src/go/types/testdata/check/go1_12.src             |  4 +-
- src/go/types/testdata/check/go1_13.src             |  4 +-
- src/go/types/testdata/check/go1_16.src             |  4 +-
- src/go/types/testdata/check/go1_8.src              |  4 +-
- src/go/types/testdata/check/issues.src             |  4 +-
- src/go/types/testdata/fixedbugs/issue46090.go2     |  4 +-
- src/go/types/testdata/fixedbugs/issue47818.go2     |  4 +-
- 18 files changed, 139 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 16 ------
+ test/fixedbugs/issue46304.go                 | 76 ++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 16 deletions(-)

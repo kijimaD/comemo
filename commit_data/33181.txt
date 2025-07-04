@@ -1,20 +1,25 @@
-commit 5c18a3ca70268c3a85972a4bb40f5dbb0277a27f
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 20 10:53:48 2017 -0400
+commit ee392ac10c7bed0ef1984dbb421491ca7b18e190
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 21 16:37:40 2017 -0700
 
-    cmd/compile: skip runtime.nextFreeFast inlining test on MIPS64x
+    cmd/compile: consider exported flag in namedata
     
-    Since inlining budget calculation is fixed in CL 70151
-    runtime.nextFreeFast is no longer inlineable on MIPS64x because
-    it does not support Ctz64 as intrinsic. Skip the test.
+    It is possible to have an unexported name with a nil package,
+    for an embedded field whose type is a pointer to an unexported type.
+    We must encode that fact in the type..namedata symbol name,
+    to avoid incorrectly merging an unexported name with an exported name.
     
-    Updates #22239.
+    Fixes #21120
     
-    Change-Id: Id00d55628ddb4b48d27aebfa10377a896765d569
-    Reviewed-on: https://go-review.googlesource.com/72271
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2e3879d77fa15c05ad92e0bf8e55f74082db5111
+    Reviewed-on: https://go-review.googlesource.com/50710
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go |  6 +++++-
+ test/fixedbugs/issue21120.dir/a.go     | 13 +++++++++++++
+ test/fixedbugs/issue21120.dir/b.go     | 29 +++++++++++++++++++++++++++++
+ test/fixedbugs/issue21120.dir/main.go  | 25 +++++++++++++++++++++++++
+ test/fixedbugs/issue21120.go           | 11 +++++++++++
+ 5 files changed, 83 insertions(+), 1 deletion(-)

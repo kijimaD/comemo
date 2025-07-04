@@ -1,25 +1,26 @@
-commit ae76f6e96216f352cc5021a4c8a7d879c4cb6873
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Nov 18 11:08:43 2020 +0100
+commit 8bcf2834afdf6a1f7937390903a41518715ef6f5
+Author: Pierre Carru <pierre.carru@eshard.com>
+Date:   Sun Apr 26 09:11:35 2020 +0000
 
-    runtime: use clock_gettime instead of gettimeofday on darwin
+    net/http/httputil: make Switching Protocol requests (e.g. Websockets) cancelable
     
-    clock_gettime has higher resolution than gettimeofday and is available
-    since macOS 10.12. Go 1.15 already requires at least macOS 10.12 and
-    thus clock_gettime can be used unconditionally (also see
-    https://golang.org/doc/go1.15#darwin)
+    Ensures that a canceled client request for Switching Protocols
+    (e.g. h2c, Websockets) will cause the underlying connection to
+    be terminated.
     
-    Fixes #25633
+    Adds a goroutine in handleUpgradeResponse in order to select on
+    the incoming client request's context and appropriately cancel it.
     
-    Change-Id: I46305387212735e5d3a13e5f02ec90f3e6d546a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270918
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #35559
+    
+    Change-Id: I1238e18fd4cce457f034f78d9cdce0e7f93b8bf6
+    GitHub-Last-Rev: 3629c78493f667703ea99f9f4db5e63ddaaa0e6b
+    GitHub-Pull-Request: golang/go#38021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224897
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/sys_darwin.go      | 6 +++---
- src/runtime/sys_darwin_amd64.s | 8 +++++---
- src/runtime/sys_darwin_arm64.s | 8 +++++---
- 3 files changed, 13 insertions(+), 9 deletions(-)
+ src/net/http/httputil/reverseproxy.go      |  15 +++-
+ src/net/http/httputil/reverseproxy_test.go | 122 +++++++++++++++++++++++++++++
+ 2 files changed, 136 insertions(+), 1 deletion(-)

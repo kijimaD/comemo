@@ -1,14 +1,20 @@
-commit 5ad3c1cda2a36ca5ef934a7647956de45af6f67e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 20 15:14:05 2017 -0800
+commit 3dd96e9d82c59755117fd259a836a55098507001
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Sep 13 17:45:51 2017 +0200
 
-    go/types: document Typ slice
+    unicode: allow version to be passed by env var
     
-    Fixes #22628.
+    This, in turn, to make it work with x/text’s
+    go generate.
     
-    Change-Id: Ib7aff8043e477af18c448d6b778f159b23fb5a92
-    Reviewed-on: https://go-review.googlesource.com/85075
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also eliminates need to manually update version
+    string in maketables.go.
+    
+    Change-Id: Id5a8b8e27bdce5b1b5920eb9223a2d27b889149a
+    Reviewed-on: https://go-review.googlesource.com/63952
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/go/types/universe.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/unicode/maketables.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

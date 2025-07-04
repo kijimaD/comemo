@@ -1,38 +1,28 @@
-commit fab2e86ba230389b270940c4e1a8e30c2bbb59f2
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Dec 26 16:06:49 2019 -0500
+commit 2afe9d4dece86f523dc9e75696bffa158dcbd976
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Jul 31 14:33:57 2019 +0200
 
-    cmd/go: convert some testcases to the script framework
+    runtime: don't forward SIGPIPE on macOS
     
-    This change converts TestFatalInBenchmarkCauseNonZeroExitStatus,
-    TestBenchmarkLabels and TestWildCardsDoNotLookInUselessDirectories
-    to the script framework so they can run in parallel. These tests
-    used the testdata directory so they didn't call tg.parallel, because
-    they couldn't be sure the testdata directory wasn't being
-    modified while they were being run.
+    macOS and iOS deliver SIGPIPE signals to the main thread and not
+    the thread that raised it by writing to a closed socket or pipe.
     
-    The tests are converted to the script framework instead of being modified
-    because the script framework tests are easier to read and are self-contained.
+    SIGPIPE signals can be suppressed for sockets with the SO_NOSIGPIPE
+    option, but there is no similar option for pipes. We have no other
+    choice but to never forward SIGPIPE on macOS.
     
-    Also remove the directory src/cmd/go/testdata/src/badc. The testcase
-    that used it, "TestDisallowedCSourceFiles" was deleted in
-    golang.org/cl/19613.
+    This is a fixup of reverted CL 188297.
     
-    Updates #17751
+    Fixes #33384
     
-    Change-Id: I0b9b417ae1a9b148067a3e5f8531229f3414f104
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212620
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I09b258b078857ad3b22025bc2902d1b12d2afd92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191785
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                              | 32 +---------------------
- src/cmd/go/testdata/script/README                  |  2 +-
- .../script/list_wildcard_skip_nonmatching.txt      | 13 +++++++++
- .../go/testdata/script/test_benchmark_fatal.txt    | 15 ++++++++++
- .../go/testdata/script/test_benchmark_labels.txt   | 19 +++++++++++++
- src/cmd/go/testdata/src/badc/x.c                   |  1 -
- src/cmd/go/testdata/src/badc/x.go                  |  1 -
- src/cmd/go/testdata/src/badpkg/x.go                |  1 -
- src/cmd/go/testdata/src/bench/x_test.go            |  6 ----
- src/cmd/go/testdata/src/benchfatal/x_test.go       |  7 -----
- 10 files changed, 49 insertions(+), 48 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go | 34 +++++++++++++++++++++++--------
+ misc/cgo/testcarchive/testdata/main2.c | 37 ++++++++++++++++++++--------------
+ misc/cgo/testcarchive/testdata/main3.c | 21 +++++++++++++++++++
+ src/runtime/signal_unix.go             |  7 +++++++
+ 4 files changed, 76 insertions(+), 23 deletions(-)

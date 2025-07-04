@@ -1,21 +1,22 @@
-commit 1d3a77e5e6548a4720e74c55bed0145b570f6287
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Thu Aug 10 02:01:04 2023 +0000
+commit 09f3ff174c6487bebc4a9a6adea6d74baf6a92cc
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Sep 12 15:50:04 2022 +0000
 
-    math/big: using the min built-in function
+    strings: add a test case of growLen is negative
     
-    Change-Id: I9e95806116a8547ec782f66226d1b1382c6156de
+    Before committing,  the test coverage of strings/builder.go is 97.4%
+    After committing,  the test coverage of strings/builder.go is 100%
     
-    Change-Id: I9e95806116a8547ec782f66226d1b1382c6156de
-    GitHub-Last-Rev: 5b4ce994c162775e91aa00c942571bc0ac8b1eca
-    GitHub-Pull-Request: golang/go#61829
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516895
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I22643b1c4632b5ca7ef98362f32bb85faae80bad
+    GitHub-Last-Rev: 2a55ca3e33d3aabd2ccc047de580abcfe05d6bb4
+    GitHub-Pull-Request: golang/go#55004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430156
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
 
- src/math/big/ftoa.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/strings/builder_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

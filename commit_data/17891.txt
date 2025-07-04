@@ -1,21 +1,9 @@
-commit c497c9ea4bbe90833ee0bb8660fe91b8f17adee7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Nov 21 07:55:29 2013 +1100
+commit aa9d2cb2c77e7fa4389cebe9b99d953f9c0c478b
+Author: dvyukov <dvyukov@google.com>
+Date:   Tue Nov 19 15:31:01 2013 +0400
 
-    doc: update installation instructions
-    
-    Clarify that GOROOT should only be set when using a custom install path.
-    Remove NetBSD from binary install page (we don't provide binaries).
-    Remove "What's next" links from installation instructions.
-    Emphasize "How to Write Go Code" page.
-    
-    Fixes #6613.
-    
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/28700043
+    -
 
- doc/code.html           |  26 ++++++-
- doc/install-source.html |  17 ++++-
- doc/install.html        | 179 ++++++++++++++++++++++--------------------------
- 3 files changed, 122 insertions(+), 100 deletions(-)
+ test/bench/perf/bench1.go | 10 +++++---
+ test/bench/perf/driver.go | 58 +++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 48 insertions(+), 20 deletions(-)

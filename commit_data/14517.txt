@@ -1,14 +1,19 @@
-commit 16a5934540864a687ed709b969ea32f1e6e8c238
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Nov 28 17:01:22 2012 +1100
+commit 28b599425dd535539f9001d42ec4dd4d472f3195
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Nov 28 11:29:25 2012 +1100
 
-    exp/winfsnotify: fix data race in TestNotifyClose
+    net: move deadline logic into pollServer
     
-    Fixes #4342.
+    Update #4434.
     
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/6850080
+    The proposal attempts to reduce the number of places where fd,{r,w}deadline is checked and updated in preparation for issue 4434. In doing so the deadline logic is simplified by letting the pollster return errTimeout from netFD.Wait{Read,Write} as part of the wakeup logic.
+    
+    The behaviour of setting n = 0 has been restored to match rev 2a55e349097f, which was the previous change to fd_unix.go before CL 6851096.
+    
+    R=jsing, bradfitz, mikioh.mikioh, rsc
+    CC=fullung, golang-dev
+    https://golang.org/cl/6850110
 
- src/pkg/exp/winfsnotify/winfsnotify_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/net/fd_unix.go      | 75 ++++++++++++++++-----------------------------
+ src/pkg/net/fd_unix_test.go | 47 ++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 49 deletions(-)

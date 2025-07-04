@@ -1,34 +1,19 @@
-commit c7385e270473244ef5aa312a172f1912e99800be
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu May 16 09:21:49 2019 -0400
+commit 58365b34bb4d84dda4e2fe73cd9eb7e9267ed86c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 22 15:20:50 2019 -0800
 
-    cmd/go: when resolving packages, try all module paths before falling back to the next proxy
+    cmd/compile/internal/syntax: allow more than one rune "unread"
     
-    Since we're mucking with error-propagation in modload.Query* anyway,
-    simplify the classification logic. Ensure that “module not found”
-    errors are reported as such in various places, since non-“not found”
-    errors terminate the module search.
+    Make it possible to "unread" more than one byte before the most
+    recently read rune. Use a better name than ungetr2 and make it
+    slightly more efficient.
     
-    Fixes #31785
+    R=Go1.13
     
-    Change-Id: Ie3ca5f4eec10a5f2a6037ec7e1c2cf47bd37a232
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177958
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I45d5dfa11e508259a972ca6560d1f78d7a51fe15
+    Reviewed-on: https://go-review.googlesource.com/c/158957
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/modconv/convert_test.go       |   2 +-
- src/cmd/go/internal/modfetch/cache.go             |  55 ++++--
- src/cmd/go/internal/modfetch/coderepo_test.go     |   8 +-
- src/cmd/go/internal/modfetch/fetch.go             |  11 +-
- src/cmd/go/internal/modfetch/proxy.go             | 180 ++++-------------
- src/cmd/go/internal/modfetch/repo.go              |  69 +++++--
- src/cmd/go/internal/modfetch/sumdb.go             |   3 +
- src/cmd/go/internal/modload/import.go             |   8 +-
- src/cmd/go/internal/modload/import_test.go        |   2 +-
- src/cmd/go/internal/modload/load.go               |  14 +-
- src/cmd/go/internal/modload/query.go              | 227 ++++++++++++----------
- src/cmd/go/internal/modload/query_test.go         |   2 +-
- src/cmd/go/proxy_test.go                          |   7 +-
- src/cmd/go/testdata/script/mod_gobuild_import.txt |  16 +-
- 14 files changed, 305 insertions(+), 299 deletions(-)
+ src/cmd/compile/internal/syntax/scanner.go |  4 +--
+ src/cmd/compile/internal/syntax/source.go  | 51 ++++++++++++++++++------------
+ 2 files changed, 32 insertions(+), 23 deletions(-)

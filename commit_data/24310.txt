@@ -1,24 +1,31 @@
-commit 3a80e5bacabc93ee825c60e269f90a1bdf84397d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 16 11:15:54 2015 -0700
+commit 75d779566b75fc1a09239bfbca40b6dba42000fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 15:31:54 2015 -0400
 
-    go/types: report detailed reason in error messages for invalid assignments
+    runtime/cgo: make compatible with race detector
     
-    Fixes #10260.
+    Some routines run without and m or g and cannot invoke the
+    race detector runtime. They must be opaque to the runtime.
+    That used to be true because they were written in C.
+    Now that they are written in Go, disable the race detector
+    annotations for those functions explicitly.
     
-    Change-Id: I52d059144608912e6f7f9516e4961a75e9463355
-    Reviewed-on: https://go-review.googlesource.com/14644
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Add test.
+    
+    Fixes #10874.
+    
+    Change-Id: Ia8cc28d51e7051528f9f9594b75634e6bb66a785
+    Reviewed-on: https://go-review.googlesource.com/12534
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/api.go              |  2 +-
- src/go/types/assignments.go      | 26 +++++++-------
- src/go/types/builtins.go         | 12 +++----
- src/go/types/call.go             |  4 +--
- src/go/types/conversions.go      |  2 +-
- src/go/types/errors.go           |  8 +++++
- src/go/types/expr.go             | 26 +++++++-------
- src/go/types/operand.go          | 77 ++++++++++++++++++++--------------------
- src/go/types/stmt.go             |  7 ++--
- src/go/types/testdata/issues.src | 53 +++++++++++++++++++++++++++
- src/go/types/testdata/stmt0.src  |  4 +--
- 11 files changed, 141 insertions(+), 80 deletions(-)
+ src/cmd/cgo/out.go                      |   1 +
+ src/cmd/compile/internal/gc/go.go       |   1 +
+ src/cmd/compile/internal/gc/go.y        |   2 +
+ src/cmd/compile/internal/gc/lex.go      |   5 +
+ src/cmd/compile/internal/gc/racewalk.go |   3 +-
+ src/cmd/compile/internal/gc/syntax.go   |   1 +
+ src/cmd/compile/internal/gc/y.go        | 234 ++++++++++++++++----------------
+ src/cmd/dist/test.go                    |   8 ++
+ src/runtime/cgo/callbacks.go            |   1 +
+ src/runtime/sigqueue.go                 |   1 +
+ 10 files changed, 140 insertions(+), 117 deletions(-)

@@ -1,17 +1,13 @@
-commit 7d1d642956940f78e7f1531ec9810048f4358f85
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 11 10:23:44 2015 -0500
+commit 32d3b96e8b9c1d0eeb249579145d73bebc7ec2e6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Aug 28 23:59:04 2015 -0400
 
-    runtime: fix use of xadd64
+    runtime: implement cmpstring and bytes.Compare in assembly for ppc64
     
-    Commit 7407d8e was rebased over the switch to runtime/internal/atomic
-    and introduced a call to xadd64, which no longer exists. Fix that
-    call.
-    
-    Change-Id: I99c93469794c16504ae4a8ffe3066ac382c66a3a
-    Reviewed-on: https://go-review.googlesource.com/16816
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I15bf55aa5ac3588c05f0a253f583c52bab209892
+    Reviewed-on: https://go-review.googlesource.com/14041
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/runtime/mgcsweep.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_ppc64x.s | 59 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/noasm.go     |  4 ++--
+ 2 files changed, 61 insertions(+), 2 deletions(-)

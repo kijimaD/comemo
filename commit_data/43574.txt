@@ -1,19 +1,14 @@
-commit 02335cf4131f4eb1869f50f906e993676f7f414a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 27 21:05:13 2020 -0700
+commit 300ed43795f48bbc5b37b33f392caa8b8b1d9a7a
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Apr 13 15:47:53 2020 -0400
 
-    runtime: move TestNeedmDeadlock to crash_cgo_test.go
+    crypto/x509: fix test to prevent Gerrit keycheck errors
     
-    It requires cgo. Also, skip the test on windows and plan9.
-    
-    For #42207
-    
-    Change-Id: I8522773f93bc3f9826506a41a08b86a083262e31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265778
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9e6a11c7d8c61d0182467438b35eb6756db7aa89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228198
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/runtime/crash_cgo_test.go  | 13 +++++++++++++
- src/runtime/crash_unix_test.go |  9 ---------
- 2 files changed, 13 insertions(+), 9 deletions(-)
+ src/crypto/x509/x509_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

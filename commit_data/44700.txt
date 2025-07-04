@@ -1,19 +1,21 @@
-commit a826f7dc45f2e0f210341893bd70740aef6b777d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 16 13:31:20 2021 -0700
+commit 8535008765b4fcd5c7dc3fb2b73a856af4d51f9b
+Author: Michał Łowicki <mlowicki@gmail.com>
+Date:   Mon May 11 22:57:26 2020 +0100
 
-    debug/dwarf: support DW_FORM_rnglistx aka formRnglistx
+    cmd/go: clarify error for invalid proxy responses
     
-    Change-Id: I7df915978af3488f46a27595a1b04d0d33f81f7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302369
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Add information that error comes from parsing module proxy responses.
+    
+    Fixes #38680
+    
+    Change-Id: Ic318b9cdbca789c1b0d983e083e692a914892fbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233437
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/debug/dwarf/entry.go              |  66 +++++++++++++++++++++++++++++++---
- src/debug/dwarf/entry_test.go         |  13 +++++++
- src/debug/dwarf/line_test.go          |  23 ++++++++++++
- src/debug/dwarf/testdata/rnglistx.c   |  19 ++++++++++
- src/debug/dwarf/testdata/rnglistx.elf | Bin 0 -> 11024 bytes
- 5 files changed, 116 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/modfetch/proxy.go            | 13 +++++++------
+ src/cmd/go/proxy_test.go                         |  6 ++++++
+ src/cmd/go/testdata/script/mod_proxy_invalid.txt |  8 ++++++++
+ src/cmd/go/testdata/script/mod_query_empty.txt   |  2 +-
+ 4 files changed, 22 insertions(+), 7 deletions(-)

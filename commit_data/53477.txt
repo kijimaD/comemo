@@ -1,31 +1,18 @@
-commit bf016520e2575f8eb5e37634a4ed18c8c8044859
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jun 4 22:33:50 2023 -0400
+commit 5b1658d6912759e91e404e8c728d08439a15fea9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 17:45:15 2022 +0700
 
-    cmd/vendor: vendor latest golang.org/x/mod
+    runtime: convert profbuf.eof to atomic type
     
-    Incorporate CL 501035 for toolchain syntax changes
-    and a fix to a race (harmless outside tests) in sumdb client.
+    Updates #53821
     
-    go get golang.org/x/mod@62c7e578 # CL 501035
-    go mod tidy
-    go mod vendor
-    
-    This CL will break the cmd/go tests. The next CL fixes them.
-    
-    For #57001.
-    
-    Change-Id: I1fcb9799417595ecff870367f256cbc0a488934c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500796
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I271faaedbf8b8efca5fc765496eaf45c94927edf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423891
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go.mod                                     | 2 +-
- src/cmd/go.sum                                     | 4 ++--
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 6 +++---
- src/cmd/vendor/golang.org/x/mod/sumdb/client.go    | 7 ++++++-
- src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go | 2 +-
- src/cmd/vendor/golang.org/x/mod/sumdb/server.go    | 1 +
- src/cmd/vendor/modules.txt                         | 2 +-
- 7 files changed, 15 insertions(+), 9 deletions(-)
+ src/runtime/profbuf.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

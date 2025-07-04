@@ -1,16 +1,17 @@
-commit 8bdf0b72b0b53c877525a608fed6a7b01fd4fd17
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 18 15:20:31 2017 +0200
+commit 6374a6607ba601b8d15514b0ce9462ea50fed0a5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 23 22:35:15 2017 +0000
 
-    cmd/compile: simplify range expression
+    net/http/httptest: make ResponseRecorder.Result.Status match http.Transport
     
-    Found by running gofmt -s on the file in question.
+    Fixes #18438
     
-    Change-Id: I84511bd2bc75dff196930a7a87ecf5a2aca2fbb8
-    Reviewed-on: https://go-review.googlesource.com/64310
+    Change-Id: I9599c1536d5e8bad7662b8ffa19e9b0746e27e60
+    Reviewed-on: https://go-review.googlesource.com/44000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/httptest/recorder.go      |  3 ++-
+ src/net/http/httptest/recorder_test.go | 13 +++++++++++--
+ 2 files changed, 13 insertions(+), 3 deletions(-)

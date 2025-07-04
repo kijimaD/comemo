@@ -1,12 +1,14 @@
-commit 5f2cda5867c333e52d876e12b9e2f606806753c3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Sep 2 10:46:05 2015 +1000
+commit 3c5eb96001453466656873a2d5c8921d8baebfcd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 13 15:22:35 2015 +1000
 
-    doc: only show Share button when enabled
+    doc: update the architecture-specific information in asm.html
     
-    Change-Id: I571965bc38a8b1060642a942b898797327f0c19c
-    Reviewed-on: https://go-review.googlesource.com/14195
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Still to do: ARM64 and PPC64. These architectures are woefully underdocumented.
+    
+    Change-Id: Iedcf767a7e0e1c931812351940bc08f0c3821212
+    Reviewed-on: https://go-review.googlesource.com/12110
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/root.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ doc/asm.html | 186 +++++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 154 insertions(+), 32 deletions(-)

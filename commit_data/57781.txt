@@ -1,16 +1,17 @@
-commit c77ca70f44b2efd71c13e0322b70a977408c2750
-Author: changwang ma <machangwang.cn@gmail.com>
-Date:   Thu Oct 24 23:02:46 2024 +0800
+commit fc486e4758700a1e17b3f80a0ace0426d4f89994
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 29 13:52:07 2023 +0200
 
-    cmd/link, go/internal/gccgoimporter: get ar from env by default in tests
+    internal/poll, net: use (*FD).SetsockoptInet4Addr in setIPv4MulticastInterface on windows
     
-    Change-Id: Ib64b1f641fcf795a51aaf31639d37927dab519e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622237
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ic29d15bf62d8e693ca969354b415d958823bf41d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/link/dwarf_test.go                     | 8 ++++++--
- src/go/internal/gccgoimporter/importer_test.go | 8 ++++++--
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/internal/poll/sockopt_windows.go | 9 ---------
+ src/net/sockoptip_windows.go         | 3 +--
+ 2 files changed, 1 insertion(+), 11 deletions(-)

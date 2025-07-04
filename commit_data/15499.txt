@@ -1,13 +1,28 @@
-commit 3dc7f17e892a5422ca9a21e1eb3187850c31cebb
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 28 11:32:53 2013 -0800
+commit b89000bcabe16644d877e8d1251a3e6a784153d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 28 10:44:29 2013 -0800
 
-    cmd/vet: %b is a valid floating-point format.
-    Also add a report about "invalid type" from gotype, if -v is set.
+    cmd/cgo: extend implementation comment
     
-    R=golang-dev, bradfitz
+    This is the plan for how to make host linking work with
+    the rest of the system.
+    
+    There are two complications:
+    
+    1. It is a goal to preserve the property that pure Go programs
+    (even ones importing "net") can be compiled without needing
+    gcc, so that a Go toolchain download works out of the box.
+    This forces the support for two linking modes: with and without
+    gcc.
+    
+    2. It is a goal to allow users with old copies of SWIG to continue
+    to use those copies. This forces the support for "internal only"
+    packages. Perhaps it is reasonable to require a new SWIG.
+    I don't know.
+    
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/7420045
+    https://golang.org/cl/7433043
 
- src/cmd/vet/print.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/cgo/doc.go | 226 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 226 insertions(+)

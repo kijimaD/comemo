@@ -1,20 +1,26 @@
-commit fd1e60f6e3bd42075e335a90ad36719ffed0eb1a
-Author: Mikhail Fesenko <proggga@gmail.com>
-Date:   Mon Oct 28 21:51:00 2019 +0000
+commit a6a0ed3c4760fb6c59c55c1a01ddba8a558e04eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 14:31:48 2019 -0400
 
-    cmd/fix, cmd/go, cmd/gofmt: refactor common code into new internal diff package
+    misc/cgo: disable testcarchive, testplugin during -short test (including all.bash)
     
-    Change-Id: Idac8473d1752059bf2f617fd7a781000ee2c3af4
-    GitHub-Last-Rev: 02a3aa1a3241d3ed4422518f1c954cd54bbe858e
-    GitHub-Pull-Request: golang/go#35141
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203218
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    These tests take 20 seconds each to rebuild the entire world
+    in their respective modes. That's too much for short mode,
+    including all.bash on developer machines.
+    
+    Keep doing it on builders and if someone runs 'go test' by hand
+    in that directory.
+    
+    For #26473.
+    
+    Change-Id: I3dc6955bc3aa7a20fd170efcde72a7d19b37bdbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177417
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/fix/main.go                      | 49 ++-------------------------
- src/cmd/fix/main_test.go                 |  4 ++-
- src/cmd/go/internal/modfile/read_test.go | 33 ++----------------
- src/cmd/gofmt/gofmt.go                   | 46 ++++---------------------
- src/cmd/gofmt/gofmt_test.go              |  4 +--
- src/cmd/internal/diff/diff.go            | 58 ++++++++++++++++++++++++++++++++
- 6 files changed, 75 insertions(+), 119 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go | 6 ++++++
+ misc/cgo/testcshared/cshared_test.go   | 6 ++++++
+ misc/cgo/testplugin/plugin_test.go     | 6 ++++++
+ src/cmd/dist/test.go                   | 2 +-
+ 4 files changed, 19 insertions(+), 1 deletion(-)

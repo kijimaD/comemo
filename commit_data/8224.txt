@@ -1,27 +1,17 @@
-commit 63d531a83eff0ba205ca02b09f72ce524cb86bdf
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 25 23:48:06 2011 -0400
+commit 43b97ce69bdf417c64e639399921a655ca39baea
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 26 10:47:49 2011 +1000
 
-    dashboard: build most recent revision first
+    websocket: include *http.Request in websocket.Conn
     
-    Will fill dashboard down the screen instead of up
-    when builders get stuck and resume.  Already live.
+    This permits the websocket handler to inspect http headers and such.
     
-    Also delete dead benchmark code.
-    I think it is safe to say that if/when we bring
-    benchmarks back, we will use a different
-    data model.
+    Fixes #1726.
     
-    Fixes #1228.
-    
-    R=adg
+    R=ukai, bradfitz, bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4449059
+    https://golang.org/cl/4439069
 
- misc/dashboard/godashboard/benchmark1.html |  62 -----
- misc/dashboard/godashboard/benchmarks.html |  46 ----
- misc/dashboard/godashboard/gobuild.py      | 385 +++--------------------------
- misc/dashboard/godashboard/main.html       |   1 -
- misc/dashboard/godashboard/package.html    |   1 -
- misc/dashboard/godashboard/project.html    |   1 -
- 6 files changed, 39 insertions(+), 457 deletions(-)
+ src/pkg/websocket/server.go    | 1 +
+ src/pkg/websocket/websocket.go | 3 +++
+ 2 files changed, 4 insertions(+)

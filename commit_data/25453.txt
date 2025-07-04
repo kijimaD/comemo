@@ -1,15 +1,61 @@
-commit f034b62c85ebe17a3fc4ab54edc30994cc8c8b70
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 29 12:10:01 2015 -0500
+commit 8e7a3ea11ec1a3bf8455cdde251a54e9baac1dda
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 24 23:21:18 2015 +0200
 
-    testing: move comment inside T.Parallel
+    cmd/compile/internal: named types for Etype and Op in struct Node
     
-    This was supposed to be in CL 18204 but I submitted from the web
-    instead of my computer and lost this final edit.
+    Type Op is enfored now.
+    Type EType will need further CLs.
+    Added TODOs where Node.EType is used as a union type.
+    The TODOs have the format `TODO(marvin): Fix Node.EType union type.`.
     
-    Change-Id: I41598e936bb088d77f5e44752eda74222a4208c7
-    Reviewed-on: https://go-review.googlesource.com/18310
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Furthermore:
+    -The flag of Econv function in fmt.go is removed, since unused.
+    -Some cleaning along the way, e.g. declare vars first when getting initialized.
+    
+    Passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Fixes #11846
+    
+    Change-Id: I908b955d5a78a195604970983fb9194bd9e9260b
+    Reviewed-on: https://go-review.googlesource.com/14956
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
 
- src/testing/testing.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go   |   9 +-
+ src/cmd/compile/internal/amd64/gsubr.go  | 613 ++++++++++++++++---------------
+ src/cmd/compile/internal/arm/cgen64.go   |   6 +-
+ src/cmd/compile/internal/arm/ggen.go     |   4 +-
+ src/cmd/compile/internal/arm/gsubr.go    | 375 ++++++++++---------
+ src/cmd/compile/internal/arm64/ggen.go   |   4 +-
+ src/cmd/compile/internal/arm64/gsubr.go  | 440 +++++++++++-----------
+ src/cmd/compile/internal/gc/align.go     |  90 +++--
+ src/cmd/compile/internal/gc/bimport.go   |   2 +-
+ src/cmd/compile/internal/gc/cgen.go      |  64 ++--
+ src/cmd/compile/internal/gc/const.go     | 201 +++++-----
+ src/cmd/compile/internal/gc/cplx.go      |  23 +-
+ src/cmd/compile/internal/gc/export.go    |   4 +-
+ src/cmd/compile/internal/gc/fmt.go       |  19 +-
+ src/cmd/compile/internal/gc/gen.go       |   4 +-
+ src/cmd/compile/internal/gc/go.go        |  24 +-
+ src/cmd/compile/internal/gc/go.y         |   8 +-
+ src/cmd/compile/internal/gc/gsubr.go     |  12 +-
+ src/cmd/compile/internal/gc/inl.go       |   6 +-
+ src/cmd/compile/internal/gc/lex.go       | 107 +++---
+ src/cmd/compile/internal/gc/obj.go       |  10 +-
+ src/cmd/compile/internal/gc/order.go     |   3 +-
+ src/cmd/compile/internal/gc/reflect.go   |   2 +-
+ src/cmd/compile/internal/gc/reg.go       |  16 +-
+ src/cmd/compile/internal/gc/subr.go      |  60 +--
+ src/cmd/compile/internal/gc/syntax.go    |   8 +-
+ src/cmd/compile/internal/gc/typecheck.go |  54 +--
+ src/cmd/compile/internal/gc/walk.go      |  63 ++--
+ src/cmd/compile/internal/gc/y.go         |   6 +-
+ src/cmd/compile/internal/mips64/ggen.go  |   4 +-
+ src/cmd/compile/internal/mips64/gsubr.go | 425 +++++++++++----------
+ src/cmd/compile/internal/ppc64/ggen.go   |   4 +-
+ src/cmd/compile/internal/ppc64/gsubr.go  | 425 +++++++++++----------
+ src/cmd/compile/internal/x86/cgen64.go   |   6 +-
+ src/cmd/compile/internal/x86/ggen.go     |  40 +-
+ src/cmd/compile/internal/x86/gsubr.go    | 515 ++++++++++++++------------
+ 36 files changed, 1927 insertions(+), 1729 deletions(-)

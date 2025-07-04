@@ -1,15 +1,14 @@
-commit 08ceb870f2eef31fb75059e2553c1e9ae2fa2708
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 11 18:04:18 2011 +1100
+commit 478f08a517f44936bea0dcb6277ac640a7444812
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 10 16:41:54 2011 -0800
 
-    .hgtags: s/release/weekly/
-    .hgtags, release.html: tag current weekly as release.r56
+    io/ioutil: clean-up of ReadAll and ReadFile
     
-    R=r, rsc
+    Make ReadAll use the same mechanism as ReadFile.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4281041
+    https://golang.org/cl/4279041
 
- .hgtags                | 114 +++++++++++++++++++++++++------------------------
- doc/devel/release.html |   2 +-
- src/version.bash       |   5 ++-
- 3 files changed, 63 insertions(+), 58 deletions(-)
+ src/pkg/io/ioutil/ioutil.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

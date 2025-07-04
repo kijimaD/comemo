@@ -1,42 +1,22 @@
-commit 32fdcd7ca5156b2a0e928aa34a7b88f301ddc6f1
-Author: Simon Ser <contact@emersion.fr>
-Date:   Sun Dec 22 10:28:56 2024 +0000
+commit ed18d85ad798441e13d3b428678defb5bb0fb176
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Dec 9 05:50:59 2023 +0000
 
-    mime/quotedprintable: accept LWSP-char after =
+    internal/reflectlite: delete TODO pass safe to packEface don't need to copy if safe==true
     
-    SP and HTAB are allowed after a = before the following CRLF.
+    reflect on the https://go-review.googlesource.com/c/go/+/548436
+    delete TODO the same.
     
-    RFC 2045 section 6.7 describes the ABNF for the quoted-printable encoding:
-    
-        qp-line := *(qp-segment transport-padding CRLF)
-                   qp-part transport-padding
-        qp-segment := qp-section *(SPACE / TAB) "="
-        transport-padding := *LWSP-char
-                              ; Composers MUST NOT generate
-                              ; non-zero length transport
-                              ; padding, but receivers MUST
-                              ; be able to handle padding
-                              ; added by message transports.
-    
-    RFC 822 defines LWSP-char as:
-    
-        LWSP-char   =  SPACE / HTAB
-    
-    Dovecot's imaptest contains such a message in
-    src/tests/fetch-binary-mime-qp.mbox.
-    
-    Fixes #70952
-    
-    Change-Id: Ie05921088d7e4d6c92c4bf79b0f4a13586230753
-    GitHub-Last-Rev: e6e6eee8ebc2f629644a1d99129fb57cce58058f
-    GitHub-Pull-Request: golang/go#70951
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638276
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I5b278cbfcb4108e5ffb332ba82dafb1eaa2bd6b2
+    GitHub-Last-Rev: cfc39509085477e9cba8e8ba1698653837a12301
+    GitHub-Pull-Request: golang/go#64628
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548615
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/mime/quotedprintable/reader.go      |  3 ++-
- src/mime/quotedprintable/reader_test.go | 14 +++++++++-----
- 2 files changed, 11 insertions(+), 6 deletions(-)
+ src/internal/reflectlite/value.go | 3 ---
+ 1 file changed, 3 deletions(-)

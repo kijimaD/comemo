@@ -1,21 +1,15 @@
-commit 6c4645cffe6659580ddda68ee1fa032ff0c44886
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Sep 11 07:37:43 2012 +0900
+commit 6ce49303652420b55c7c878a924bbcd5e2e8e624
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 10 13:03:07 2012 -0700
 
-    net: rename files to clarify platform dependency
+    gc: initial BOM is legal.
+    Fixes #4040.
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6489056
+    https://golang.org/cl/6497098
 
- src/pkg/net/{dnsconfig.go => dnsconfig_unix.go}            | 0
- src/pkg/net/{fd.go => fd_unix.go}                          | 0
- src/pkg/net/{file.go => file_unix.go}                      | 0
- src/pkg/net/{doc.go => lookup.go}                          | 0
- src/pkg/net/{multicast_test.go => multicast_posix_test.go} | 0
- src/pkg/net/{newpollserver.go => newpollserver_unix.go}    | 0
- src/pkg/net/{sock.go => sock_posix.go}                     | 0
- src/pkg/net/{sockopt.go => sockopt_posix.go}               | 0
- src/pkg/net/{sockoptip.go => sockoptip_posix.go}           | 0
- src/pkg/net/{unicast_test.go => unicast_posix_test.go}     | 0
- 10 files changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/gc/lex.c | 12 +++++++++++-
+ test/bom.go      | 26 ++++++++++++++++++++++++++
+ test/bombad.go   | 18 ++++++++++++++++++
+ 3 files changed, 55 insertions(+), 1 deletion(-)

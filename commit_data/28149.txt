@@ -1,18 +1,12 @@
-commit b040bc9c062e4c5593792b6754d001509989a9df
+commit 3836354f113367a6a405ac17a65f406514ea9313
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 31 04:30:03 2016 +0000
+Date:   Thu Apr 28 13:51:12 2016 -0500
 
-    syscall: add some debugging to TestGetfsstat
+    doc: update go1.7.txt
     
-    TestGetfsstat is failing on OS X 10.8.
-    
-    Not sure why. Add more debug info.
-    
-    Change-Id: I7dabb70dd7aeffda7e8959103db9e4886b84741e
-    Reviewed-on: https://go-review.googlesource.com/28220
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I53dd5affc3a1e1f741fe44c7ce691bb2cd432764
+    Reviewed-on: https://go-review.googlesource.com/22657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall_bsd_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ doc/go1.7.txt | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

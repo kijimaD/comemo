@@ -1,13 +1,15 @@
-commit f69f45c5383044c503add49d12659e14c1496491
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 8 10:43:44 2014 -0700
+commit 3a3f8993ced61bf103e77d229722d0ce33fd0090
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 7 23:47:01 2014 +0400
 
-    test: add another test case that gccgo crashed on
+    runtime: fix nacl/amd64p32 build
+    C compiler does not support unnamed fields.
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/124020044
+    https://golang.org/cl/124870043
 
- test/fixedbugs/bug490.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/pkg/runtime/defs_nacl_amd64p32.h   | 2 +-
+ src/pkg/runtime/signal_nacl_amd64p32.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

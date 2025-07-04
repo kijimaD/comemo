@@ -1,21 +1,16 @@
-commit 31ee4bb28dff98f29654e7f1b43488641b3157db
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 31 12:30:14 2022 -0700
+commit a2d6a2caebec473de95e29c48f076b01b7ab5af0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 3 15:17:51 2021 -0400
 
-    strconv: quote rune 007F as \x7f, not \u007f
+    [dev.typeparams] internal/buildcfg: turn on regabiwrappers by default on ARM64
     
-    \u007f is not wrong but it's weird to use \u when we could use the
-    shorter \x.
-    
-    Fixes #52062
-    
-    Change-Id: Ica4bdc2463128051876f44e15297ed1e9edf1de8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397255
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8db0a797a745630ec35af3e56406fcb250ea59fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324768
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- api/go1.1.txt             |  2 +-
- doc/go1.19.html           | 12 +++++++++++-
- src/strconv/quote.go      |  2 +-
- src/strconv/quote_test.go |  1 +
- 4 files changed, 14 insertions(+), 3 deletions(-)
+ src/internal/buildcfg/exp.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

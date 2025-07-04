@@ -1,16 +1,34 @@
-commit 0ef0d6cd7b3898c5f6986d4fdc253ded497d05e2
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 24 20:23:03 2014 +0400
+commit 86c976ffd094c0326c9ba2e3d47d9cc6d73084cf
+Author: Jay Weisskopf <jay@jayschwa.net>
+Date:   Mon Feb 24 10:57:46 2014 -0500
 
-    runtime: fix double symbol definition
-    runfinqv is already defined the same way on line 271.
-    There may also be something to fix in compiler/linker wrt diagnostics.
-    Fixes #7375.
+    runtime: use monotonic clock for timers (linux/386, linux/amd64)
     
-    LGTM=bradfitz
-    R=golang-codereviews, dave, bradfitz
+    This lays the groundwork for making Go robust when the system's
+    calendar time jumps around. All input values to the runtimeTimer
+    struct now use the runtime clock as a common reference point.
+    This affects net.Conn.Set[Read|Write]Deadline(), time.Sleep(),
+    time.Timer, etc. Under normal conditions, behavior is unchanged.
+    
+    Each platform and architecture's implementation of runtime·nanotime()
+    should be modified to use a monotonic system clock when possible.
+    
+    Platforms/architectures modified and tested with monotonic clock:
+      linux/x86     - clock_gettime(CLOCK_MONOTONIC)
+    
+    Update #6007
+    
+    LGTM=dvyukov, rsc
+    R=golang-codereviews, dvyukov, alex.brainman, stephen.gutekanst, dave, rsc, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/67850044
+    https://golang.org/cl/53010043
 
- src/pkg/runtime/mgc0.c | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/net/fd_poll_runtime.go    |  5 ++++-
+ src/pkg/runtime/netpoll.goc       |  5 +++++
+ src/pkg/runtime/sys_linux_386.s   |  4 ++--
+ src/pkg/runtime/sys_linux_amd64.s |  2 +-
+ src/pkg/runtime/time.goc          |  5 +++++
+ src/pkg/time/internal_test.go     |  2 +-
+ src/pkg/time/sleep.go             | 12 +++++-------
+ src/pkg/time/tick.go              |  2 +-
+ 8 files changed, 24 insertions(+), 13 deletions(-)

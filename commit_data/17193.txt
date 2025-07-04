@@ -1,12 +1,15 @@
-commit d3f36dbfc7dbed2fe93746a563dd253a98547a6b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 13 21:18:33 2013 +0400
+commit 0a3cb7ece36e4d41cd6bca558c7bff7925240435
+Author: Alex A Skinner <alex@lx.lc>
+Date:   Tue Aug 13 09:44:12 2013 -0700
 
-    sync/atomic: add Swap to nil deref test
+    net: implement DNS TCP fallback query if UDP response is truncated
     
-    R=golang-dev, bradfitz
+    Fixes #5686.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/12870043
+    https://golang.org/cl/12458043
 
- src/pkg/sync/atomic/atomic_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/net/dnsclient_unix.go      | 42 ++++++++++++++++++++++++++++++++++----
+ src/pkg/net/dnsclient_unix_test.go | 29 ++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 4 deletions(-)

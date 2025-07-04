@@ -1,13 +1,20 @@
-commit 4c9c36e6554471c3c372a1c87b81a938e99e6dbc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 10 11:35:43 2012 -0700
+commit be2b95fe3a296803cf8cecde14c4123e04f1aa2d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Oct 10 20:49:18 2012 +0400
 
-    C+A: added Taj Khattra (individual CLA)
+    runtime/debug: fix the test
+    If source are not available, then the stack looks like:
+    stack_test.go:40:       /tmp/gobuilder/linux-amd64-race-72b15c5d6f65/go/src/pkg/runtime/debug/bla-bla-bla/src/pkg/runtime/debug/stack_test.go:15 (0x43fb11)
+    stack_test.go:40:       /tmp/gobuilder/linux-amd64-race-72b15c5d6f65/go/src/pkg/runtime/debug/bla-bla-bla/src/pkg/runtime/debug/stack_test.go:18 (0x43fb7a)
+    stack_test.go:40:       /tmp/gobuilder/linux-amd64-race-72b15c5d6f65/go/src/pkg/runtime/debug/bla-bla-bla/src/pkg/runtime/debug/stack_test.go:37 (0x43fbf4)
+    stack_test.go:40:       /tmp/gobuilder/linux-amd64-race-72b15c5d6f65/go/src/pkg/testing/bla-bla-bla/src/pkg/testing/testing.go:301 (0x43b5ba)
+    stack_test.go:40:       /tmp/gobuilder/linux-amd64-race-72b15c5d6f65/go/src/pkg/runtime/bla-bla-bla/src/pkg/runtime/proc.c:276 (0x410670)
+    stack_test.go:40:
+    which is 6 lines.
     
-    R=golang-dev, r, bradfitz
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6635061
+    https://golang.org/cl/6637060
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/debug/stack_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

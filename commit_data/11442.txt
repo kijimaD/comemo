@@ -1,34 +1,17 @@
-commit b3a5f9e51ba86bafe414e8a7036a090d9da9a660
+commit a0d0ed200210012a42d4f6e32b4b52004ca3c46e
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 27 14:45:47 2012 -0800
+Date:   Fri Jan 27 14:45:31 2012 -0800
 
-    go/doc: don't show methods of exported anonymous fields
+    go/doc: added test case
     
-    Added flag AllMethods: if not set (future default), embedded
-    methods of exported (and thus visible) embedded fields are not
-    shown in the final package documentation
-    
-    The actual change for AllMethods is just in sortedFuncs. All
-    other changes are simplifications of the existing logic (mostly
-    deletion of code): Because method conflicts due to embedding
-    must always be detected, remove any premature elimination of
-    types and methods. Instead collect all named types and all
-    methods and do the filtering at the end.
-    
-    Miscellaneous:
-    - renamed baseType -> namedType
-    - streamline logic for recording embedded types
-    - record embedded types via a map (simpler data structures)
-    
-    AllMethods is set by default; so the output is unchanged and
-    the tests pass. The next CL will enable the AllMethods flag
-    and have adjusted tests (and fix issue 2791).
+    Don't show conflicting method embedded via
+    a visible and invisible anonymous field.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5572076
+    https://golang.org/cl/5564064
 
- src/pkg/go/doc/doc.go     |   9 ++-
- src/pkg/go/doc/exports.go |  25 +++-----
- src/pkg/go/doc/reader.go  | 144 +++++++++++++++++++++-------------------------
- 3 files changed, 82 insertions(+), 96 deletions(-)
+ src/pkg/go/doc/testdata/e.0.golden | 10 ++++++++--
+ src/pkg/go/doc/testdata/e.1.golden | 10 ++++++++--
+ src/pkg/go/doc/testdata/e.go       | 16 ++++++++++++----
+ 3 files changed, 28 insertions(+), 8 deletions(-)

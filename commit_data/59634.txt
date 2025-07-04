@@ -1,23 +1,20 @@
-commit 77345f41ee36c8db3ba7e0f687a8834fa7b83c48
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 21 17:50:15 2025 +0000
+commit 885fdfc082b3d5314b495aa4e8cf297e5de20052
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Apr 3 17:47:52 2024 +0000
 
-    internal/trace: skip clock snapshot checks on Windows in stress mode
+    expvar: use slices to simplify the code
     
-    Windows' monotonic and wall clock granularity is just too coarse to get
-    reasonable values out of stress mode, which is creating new trace
-    generations constantly.
+    No effect on benchmarks.
     
-    Fixes #73813.
-    
-    Change-Id: Id9cb2fed9775ce8d78a736d0164daa7bf45075e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675096
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I7454c21b25d5e44b9c4a39922ed470522f81872d
+    GitHub-Last-Rev: 5801b30dac33712c2e3d282b2d3a9fbe04779b2e
+    GitHub-Pull-Request: golang/go#66660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575777
+    Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/trace/reader_test.go          |  8 ++++----
- src/internal/trace/testtrace/validation.go | 29 +++++++++++++++++++++--------
- src/internal/trace/trace_test.go           | 11 ++++++++++-
- 3 files changed, 35 insertions(+), 13 deletions(-)
+ src/expvar/expvar.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

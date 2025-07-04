@@ -1,20 +1,18 @@
-commit 2ecaaf18f94cd5ad3ccd46937d36c7a68d3e69bf
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sun Oct 9 21:06:03 2016 +0200
+commit 4c4ca8312064cc47bc3b3cd5efc43ff5b89f4dff
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Aug 11 09:54:04 2016 -0400
 
-    fmt: always handle special methods if print operand is a reflect.Value
+    cmd/compile: remove nil check in accessing PAUTOHEAP variable
     
-    Check for and call the special printing and format methods such as String
-    at printing depth 0 when printing the concrete value of a reflect.Value.
+    CL 23393 introduces PAUTOHEAP, and access of PAUTOHEAP variable is
+    rewritten to indirection of a PAUTO variable. Mark this variable
+    non-nil, so this indirection does not introduce extra nil checks.
     
-    Fixes: #16015
-    
-    Change-Id: I23bd2927255b60924e5558321e98dd4a95e11c4c
-    Reviewed-on: https://go-review.googlesource.com/30753
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Change-Id: I31853eed5e60238b6c5bc0546e2e9ab340dcddd9
+    Reviewed-on: https://go-review.googlesource.com/26831
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/fmt/fmt_test.go | 5 ++++-
- src/fmt/print.go    | 8 ++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

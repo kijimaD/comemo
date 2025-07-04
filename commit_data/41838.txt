@@ -1,16 +1,23 @@
-commit d78639519df17bf7fb5a7facef007e90d6c0283c
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Fri Apr 3 20:01:25 2020 +0300
+commit 1c38ee5ffe223ebe1bc82404eddb111f5b5dbd8d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 27 12:03:17 2019 +0000
 
-    run.bat: check go.exe instead of go
+    cmd: remove a few unused parameters
     
-    Windows requires checking with the .exe extension.
+    They all seem pretty low-risk, and the overall diff is small.
     
-    Change-Id: I8e2fe83df81b92f04967bafb28f8effde999f597
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227157
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    While at it, remove one in go/build too.
+    
+    Change-Id: I31df52c1c97d843b06f6c1dc63462d390db4470d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203607
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/run.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/envcmd/env.go   |  6 +++---
+ src/cmd/go/internal/load/pkg.go     |  7 +++----
+ src/cmd/go/internal/sumdb/server.go | 12 ++++++------
+ src/cmd/go/internal/work/buildid.go |  3 +--
+ src/cmd/go/internal/work/exec.go    |  6 +++---
+ src/go/build/build.go               |  7 ++++---
+ 6 files changed, 20 insertions(+), 21 deletions(-)

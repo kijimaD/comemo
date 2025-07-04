@@ -1,23 +1,17 @@
-commit 41d3d153eb76f000e9f6e9edf68ed441d15081cb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 14 07:42:40 2018 -0800
+commit 31896332b39fcad70d0b451e2bff291d490cb4ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 11 14:17:57 2017 -0400
 
-    cmd/compile: permit go:cgo_import_dynamic anywhere
+    cmd/dist: reenable TestDeps
     
-    It's used on Solaris to import symbols from shared libraries, e.g., in
-    golang.org/x/sys/unix and golang.org/x/net/internal/socket.
-    We could use a different directive but that would require build tags
-    in all the places that use it.
+    It looks like I forgot to reenable this test when I fixed #21522.
+    Update deps.go and reenable.
     
-    Updates #23672
-    Updates #23749
-    
-    Change-Id: I47fcf72a6d2862e304204705979c2056c2f78ec5
-    Reviewed-on: https://go-review.googlesource.com/94018
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I68a45df09b418f48d93d2e7ab1d274e056c192e6
+    Reviewed-on: https://go-review.googlesource.com/70050
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 28 +++++++++++++++++++++++++++-
- src/cmd/go/internal/load/pkg.go      |  1 +
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/cmd/dist/deps.go      | 1 +
+ src/cmd/dist/deps_test.go | 1 -
+ 2 files changed, 1 insertion(+), 1 deletion(-)

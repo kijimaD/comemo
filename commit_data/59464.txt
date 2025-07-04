@@ -1,43 +1,30 @@
-commit e282cbb11256db717b95f9d8cf8c050cd4c4f7c2
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Thu May 8 17:33:15 2025 -0400
+commit d838e4dcdf89124ed051e1c53e8472e900664a6b
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Fri Mar 15 10:40:23 2024 +0000
 
-    crypto/tls: handle client hello version too high
+    archive/tar: add FileInfoNames interface
     
-    If the client hello legacy version is >= TLS 1.3, and no
-    supported_versions extension is sent, negotiate TLS 1.2 or lower when
-    supported.
+    An optional interface FileInfoNames has been added.
     
-    On the topic of supported version negotiation RFC 8446 4.2.1 indicates
-    TLS 1.3 implementations MUST send a supported_versions extension with
-    a list of their supported protocol versions. The crypto/tls package
-    enforces this when the client hello legacy version indicates TLS 1.3
-    (0x0304), aborting the handshake with an alertMissingExtension alert if
-    no supported_versions were received.
+    If the parameter fi of FileInfoHeader implements the interface
+    the Gname/Uname of the return value Header
+    are provided by the method of the interface.
     
-    However, section 4.2.1 indicates different behaviour should be used when
-    the extension is not present and TLS 1.2 or prior are supported:
+    Also added testing.
     
-      If this extension is not present, servers which are compliant with
-      this specification and which also support TLS 1.2 MUST negotiate
-      TLS 1.2 or prior as specified in [RFC5246], even if
-      ClientHello.legacy_version is 0x0304 or later.
+    Fixes #50102
     
-    This commit updates the client hello processing logic to allow this
-    behaviour. If no supported_versions extension was received we ignore the
-    legacy version being >= TLS 1.3 and instead negotiate a lower supported
-    version if the server configuration allows.
-    
-    This fix in turn allows enabling the BoGo ClientHelloVersionTooHigh,
-    MinorVersionTolerance, and MajorVersionTolerance tests.
-    
-    Updates #72006
-    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671235
+    Change-Id: I47976e238eb20ed43113b060e4f83a14ae49493e
+    GitHub-Last-Rev: a213613c79e150d52a2f5c84dca7a49fe123fa40
+    GitHub-Pull-Request: golang/go#65273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558355
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/crypto/tls/bogo_config.json    |  3 ---
- src/crypto/tls/handshake_server.go | 10 +++++++++-
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ api/next/50102.txt                              |  9 +++++
+ doc/next/6-stdlib/99-minor/archive/tar/50102.md |  3 ++
+ src/archive/tar/common.go                       | 32 +++++++++++++++-
+ src/archive/tar/stat_unix.go                    | 34 ++++++++---------
+ src/archive/tar/tar_test.go                     | 50 +++++++++++++++++++++++++
+ 5 files changed, 109 insertions(+), 19 deletions(-)

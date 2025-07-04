@@ -1,21 +1,38 @@
-commit 6ed847431709c673adbb783d3bbc3d75e4df590c
-Author: erifan01 <eric.fang@arm.com>
-Date:   Wed May 17 12:01:07 2023 +0800
+commit 7510e597def68cee77e8ba280fc0f04d3cfd2a22
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 6 09:49:32 2022 -0400
 
-    cmd/asm: remove unsupported opcodes MOVNP and STLP for arm64
+    cmd/go: make module index loading O(1)
     
-    ARM64 doesn't have MOVNP/MOVNPW and STLP/STLPW instructions, which are
-    currently useless instructions as well. This CL deletes them. At the
-    same time this CL sorts the opcodes by name, which looks cleaner.
+    For a large module, opening the index was populating tables with
+    entries for every package in the module. If we are only using a small
+    number of those packages, this is wasted work that can dwarf the
+    benefit from the index.
     
-    Change-Id: I25cfb636b23356ba0a50cba527a8c85b3f7e2ee4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495695
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This CL changes the index reader to avoid loading all packages
+    at module index open time. It also refactors the code somewhat
+    for clarity.
+    
+    It also removes some duplication by defining that a per-package
+    index is a per-module index containing a single package, rather
+    than having two different formats and two different decoders.
+    
+    It also changes the string table to use uvarint-prefixed data
+    instead of having to scan for a NUL byte. This makes random access
+    to long strings more efficient - O(1) instead of O(n) - and can significantly
+    speed up the strings.Compare operation in the binary search looking
+    for a given package.
+    
+    Also add a direct test of the indexing code.
+    
+    For #53577.
+    
+    Change-Id: I7428d28133e4e7fe2d2993fa014896cd15af48af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416178
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/internal/obj/arm64/a.out.go  | 446 +++++++++++++++++------------------
- src/cmd/internal/obj/arm64/anames.go | 446 +++++++++++++++++------------------
- src/cmd/internal/obj/arm64/asm7.go   |  18 --
- 3 files changed, 442 insertions(+), 468 deletions(-)
+ src/cmd/go/internal/modindex/index_test.go |  87 ++++++
+ src/cmd/go/internal/modindex/read.go       | 456 ++++++++++++++---------------
+ src/cmd/go/internal/modindex/write.go      |  46 ++-
+ src/cmd/go/internal/modload/search.go      |  13 +-
+ 4 files changed, 327 insertions(+), 275 deletions(-)

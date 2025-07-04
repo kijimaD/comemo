@@ -1,42 +1,31 @@
-commit dad2966a83c1597786a96a8ef407ed412575ec94
+commit 3f1b0ce6bb4f2e7d44791c5532728f86e24f1f1f
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 12 15:04:20 2022 -0700
+Date:   Mon Oct 25 09:13:16 2021 -0700
 
-    go/types, types2: don't print function parameter names when showing type differences
+    cmd/compile/internal/types2: clarify is/underIs semantics and implementation
     
-    Add a new flag 'paramNames' to typeWriter struct to control whether
-    function parameter names are written or not (set by default). Unset
-    it when we want the function signature w/o parameter names, e.g. when
-    showing two signatures that are not identical. This makes is much
-    easier to see the typw differences in the error message.
+    The behavior of is/underIs was murky with the presence of a top type term
+    (corresponding to a type set that is not constrained by any types, yet the
+    function argument f of is/underIs was called with that term).
     
-    To avoid needing to provide yet another (rarely used) boolean parameter
-    to typeString, remove that function in favor of setting the paramNames
-    flag explicitly. Adjust the code in errors.go that used typeString; the
-    resulting code is also more efficient (fewer bytes.Buffer allocations).
+    Change is/underIs to call f explicitly for existing specific type terms,
+    otherwise return the result of f(nil). Review all uses of is/underIs and
+    variants.
     
-    While at it, rename the typeWriter 'debug' field to 'tpSubscripts'
-    because that is what it controls.
+    This makes the conversion code slightly more complicated because we need
+    to explicitly exclude type parameters without specific types; but the
+    code is clearer now.
     
-    Add test case and adjusted existing expected output for existing tests.
-    
-    Fixes #54942.
-    
-    Change-Id: I625eae30c403c39ce89951b8ea6214d783c92c75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430416
+    Change-Id: I6115cb46f7f2a8d0f54799aafff9a67c4cca5e30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358594
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/errors.go      | 21 ++++++++++----
- src/cmd/compile/internal/types2/lookup.go      |  4 ++-
- src/cmd/compile/internal/types2/typestring.go  | 29 ++++++++------------
- src/go/types/errors.go                         | 20 ++++++++++----
- src/go/types/lookup.go                         |  4 ++-
- src/go/types/typestring.go                     | 29 ++++++++------------
- src/internal/types/testdata/check/issues0.go   | 20 +++++++-------
- src/internal/types/testdata/fixedbugs/54942.go | 38 ++++++++++++++++++++++++++
- 8 files changed, 107 insertions(+), 58 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go    |  5 ++-
+ src/cmd/compile/internal/types2/conversions.go | 11 ++++--
+ src/cmd/compile/internal/types2/expr.go        |  2 ++
+ src/cmd/compile/internal/types2/infer.go       |  2 +-
+ src/cmd/compile/internal/types2/operand.go     |  3 ++
+ src/cmd/compile/internal/types2/typeparam.go   | 11 ++++++
+ src/cmd/compile/internal/types2/typeset.go     | 46 ++++++++++++++------------
+ 7 files changed, 54 insertions(+), 26 deletions(-)

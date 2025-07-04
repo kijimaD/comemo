@@ -1,20 +1,29 @@
-commit a57e4063ace88511d8db361fd94c2b712b85c807
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 2 12:19:53 2023 -0800
+commit 45c3387d777caf28f4b992ad9a6216e3085bb8fe
+Author: Julie Qiu <julie@golang.org>
+Date:   Tue Mar 1 10:19:38 2022 -0600
 
-    go/types, types2: simplify missingMethod some more (cleanup)
+    encoding/pem: fix stack overflow in Decode
     
-    Remove unnecessary assignments by using the same two variables
-    for methods consistently throughout.
+    Previously, Decode called decodeError, a recursive function that was
+    prone to stack overflows when given a large PEM file containing errors.
     
-    Change-Id: I8b9bc8dbc8022b2472724d2a170f2635de3306e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472915
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Credit to Juho Nurminen of Mattermost who reported the error.
+    
+    Fixes CVE-2022-24675
+    Fixes #51853
+    
+    Change-Id: Iffe768be53c8ddc0036fea0671d290f8f797692c
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1391157
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    (cherry picked from commit 794ea5e828010e8b68493b2fc6d2963263195a02)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399820
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/lookup.go | 49 +++++++++++++++----------------
- src/go/types/lookup.go                    | 49 +++++++++++++++----------------
- 2 files changed, 46 insertions(+), 52 deletions(-)
+ src/encoding/pem/pem.go      | 172 ++++++++++++++++++-------------------------
+ src/encoding/pem/pem_test.go |  28 ++++++-
+ 2 files changed, 100 insertions(+), 100 deletions(-)

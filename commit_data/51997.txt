@@ -1,39 +1,31 @@
-commit 95eb5abd6340b271ae728f99986eeccbc0354ab1
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Dec 12 16:43:37 2022 -0800
+commit ca1e509552cab36072016de44234f30072b9e703
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Mar 18 20:15:15 2022 -0400
 
-    path/filepath: do not Clean("a/../c:/b") into c:\b on Windows
+    cmd/dist: delete special case for release branches without VERSION
     
-    Do not permit Clean to convert a relative path into one starting
-    with a drive reference. This change causes Clean to insert a .
-    path element at the start of a path when the original path does not
-    start with a volume name, and the first path element would contain
-    a colon.
+    findgoversion has some logic from before the go1 release that only
+    has effect when on a release branch without a VERSION file.
     
-    This may introduce a spurious but harmless . path element under
-    some circumstances. For example, Clean("a/../b:/../c") becomes `.\c`.
+    Starting with release-branch.go1 and the go1 tag a decade ago,
+    release branch have always had a VERSION file checked in.
+    (The commit that adds/updates the VERSION file is what is tagged.)
     
-    This reverts CL 401595, since the change here supersedes the one
-    in that CL.
+    Since we have no need to support old branches like release-branch.r60,
+    and such scenarios don't come up in modern Go, delete it to simplify
+    this code a bit. Should the VERSION file situation change, we'd need
+    to rework this code anyway.
     
-    Thanks to RyotaK (https://twitter.com/ryotkak) for reporting this issue.
+    Fixes #42345.
     
-    Fixes #57274
-    Fixes CVE-2022-41722
-    
-    Change-Id: I837446285a03aa74c79d7642720e01f354c2ca17
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1675249
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    TryBot-Result: Security TryBots <security-trybots@go-security-trybots.iam.gserviceaccount.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468123
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I13f27babd37aaa5cec30fefde1b8e6ccce816461
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393954
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/path/filepath/path.go              | 27 ++++++++++++++-------------
- src/path/filepath/path_test.go         |  8 ++++++++
- src/path/filepath/path_windows_test.go |  2 +-
- 3 files changed, 23 insertions(+), 14 deletions(-)
+ src/cmd/dist/build.go | 78 +++++++++++----------------------------------------
+ 1 file changed, 17 insertions(+), 61 deletions(-)

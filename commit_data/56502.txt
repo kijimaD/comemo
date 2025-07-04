@@ -1,21 +1,30 @@
-commit ee0bf1d1b6227bd803c9df737a597c07adbe2aed
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Thu May 9 14:09:32 2024 -0400
+commit 41893389a6fb6d4d8b181cd90ca58d9d65326f76
+Author: Chris O'Hara <cohara87@gmail.com>
+Date:   Mon May 8 17:06:08 2023 +1000
 
-    doc/README.md: mention adding the proposal issue
+    syscall: implement wasip1 SetNonblock and IsNonblock
     
-    Inform users that every accepted proposal should be mentioned
-    in the release notes to avoid generating a TODO.
+    Allows for the NONBLOCK file descriptor flag to be set and queried
+    on wasip1.
     
-    Also, clarify instructions for the release team.
+    syscall.SetNonblock uses the fd_fdstat_set_flags WASI system call
+    and unix.IsNonblock uses the fd_fdstat_get system call.
     
-    For #64169.
+    This is a prerequisite for non-blocking I/O support.
     
-    Change-Id: I03921739af31fc93f4b5808b2c7c98e28ad3da11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584615
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I2bf79fd57142b2ec53eed3977d9aac8c6337eb80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493356
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Julien Fabre <ju.pryz@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
 
- doc/README.md | 26 +++++++++++++++++++++-----
- 1 file changed, 21 insertions(+), 5 deletions(-)
+ src/internal/syscall/unix/nonblocking_wasip1.go | 18 +++++++++++++++++-
+ src/syscall/fs_wasip1.go                        | 24 ++++++++++++++++++++++++
+ src/syscall/net_wasip1.go                       |  4 ----
+ src/syscall/syscall_wasip1.go                   | 14 ++++++++++++++
+ 4 files changed, 55 insertions(+), 5 deletions(-)

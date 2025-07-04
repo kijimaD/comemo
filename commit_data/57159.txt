@@ -1,15 +1,17 @@
-commit 3c170ac018422fce5811f23455c89fe7630a4156
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Wed Aug 7 14:43:14 2024 +0800
+commit e4ed92a355cebc399dc34d33a556f656fa5c7690
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Thu Jun 29 16:06:19 2023 +0300
 
-    slices: add examples for iterator-related functions
+    os, syscall: update unreachable link about =C: envs
     
-    Change-Id: I13e878579b51638c2c07ad3ea99be7276177875c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603735
+    Change-Id: I185dec133599f9c69fda7563697bbc33e433fb78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/slices/example_test.go | 127 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 127 insertions(+)
+ src/os/env_test.go         | 2 +-
+ src/syscall/env_windows.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,17 +1,15 @@
-commit d96ebf8a6d26f6f5bcf46f9da04def4ad8ec08d9
-Author: Edan B <3d4nb3@gmail.com>
-Date:   Sat Nov 11 10:10:14 2017 +0200
+commit a6ffab6b6743a490151aadfd2f2a79244a84e03a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Aug 19 13:02:36 2017 +1000
 
-    net/http/httputil: make ReverseProxy close response body if ModifyResponse returns an error
+    misc/cgo/testcshared: temporarily skip testing on android
     
-    Fixes #22658
+    For #21513
     
-    Change-Id: I00e2b007d77b6f54798f7755d0b08e4fea824392
-    Reviewed-on: https://go-review.googlesource.com/77170
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ibe9479f8afc6f425779a737a807ff2f839a4f311
+    Reviewed-on: https://go-review.googlesource.com/57250
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/net/http/httputil/reverseproxy.go      |  1 +
- src/net/http/httputil/reverseproxy_test.go | 44 ++++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+)
+ misc/cgo/testcshared/cshared_test.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

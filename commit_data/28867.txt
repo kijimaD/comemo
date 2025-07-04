@@ -1,24 +1,22 @@
-commit 92221fe8bc73ec6d487bd479f9739fdddb6fcada
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 14 17:09:54 2016 -0700
+commit a9ed47735f2948d7391c8a663ededeb495f7753f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 1 10:15:02 2016 -0700
 
-    math/big: slightly faster float->decimal conversion
+    cmd/compile: move auto label gen variables to local function
     
-    Inspired by Alberto Donizetti's observations in
-    https://go-review.googlesource.com/#/c/30099/.
+    This still depends on Curfn, but it's progress.
     
-    name                 old time/op  new time/op  delta
-    DecimalConversion-8   138µs ± 1%   136µs ± 2%  -1.85%  (p=0.000 n=10+10)
+    Updates #15756
     
-    10 runs each, measured on a Mac Mini, 2.3 GHz Intel Core i7.
-    
-    Performance improvements varied between -1.25% to -4.4%; -1.85% is
-    about in the middle of the observed improvement. The generated code
-    is slightly shorter in the inner loops of the conversion code.
-    
-    Change-Id: I10fb3b2843da527691c39ad5e5e5bd37ed63e2fa
-    Reviewed-on: https://go-review.googlesource.com/31250
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic32fe56f44fcfbc023e7668d4dee07f8b47bf3a4
+    Reviewed-on: https://go-review.googlesource.com/26661
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/decimal.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/inl.go         | 13 +++----------
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        | 14 ++++++++++++++
+ src/cmd/compile/internal/gc/swt.go         | 19 +++----------------
+ src/cmd/compile/internal/gc/syntax.go      |  2 ++
+ 5 files changed, 23 insertions(+), 27 deletions(-)

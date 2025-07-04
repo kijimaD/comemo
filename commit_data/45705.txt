@@ -1,38 +1,15 @@
-commit 9bc52686da81b515cf3ad654dfb1a536fabceafa
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 25 12:21:11 2021 -0400
+commit 564ec4867bd867ccf37d149243d016abfa5a857c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Oct 30 16:12:13 2020 +0100
 
-    cmd/go,cmd/link: do not check for staleness in most tests
+    crypto/tls: don't use CN in BuildNameToCertificate if SANs are present
     
-    Instead, check that stale packages in the standard library
-    are not rebuilt when already present in the build cache,
-    and are not installed implicitly when rebuilt.
-    
-    We retain the staleness checks for the runtime package in tests
-    involving '-i', because those are guaranteed to fail anyway if the
-    package is stale and the "stale" failure message is arguably clearer.
-    They can be removed if/when we remove the '-i' flag, but the runtime
-    package is less likely to become stale because it does not have cgo
-    dependencies.
-    
-    Fixes #46347
-    Updates #33598
-    Updates #35459
-    Updates #41696
-    
-    Change-Id: I7b0a808addd930f9f4911ff53ded62272af75a40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322629
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I18d5b9fc392a6a52fbdd240254d6d9db838073a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266540
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- .../build_package_not_stale_trailing_slash.txt     | 13 ------
- src/cmd/go/testdata/script/cgo_stale.txt           | 39 ++++++++++++++++
- src/cmd/go/testdata/script/list_std_stale.txt      | 31 -------------
- src/cmd/go/testdata/script/list_std_vendor.txt     | 32 +++++++++++++
- .../go/testdata/script/test_race_install_cgo.txt   |  2 -
- src/cmd/go/testdata/script/toolexec.txt            |  6 +++
- src/cmd/link/dwarf_test.go                         | 52 +++++++++++++++-------
- 7 files changed, 112 insertions(+), 63 deletions(-)
+ src/crypto/tls/common.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

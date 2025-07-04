@@ -1,16 +1,20 @@
-commit ba5ebc0a0b2f00f22ecfe7d848041ff62227a717
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Oct 14 01:28:00 2023 +0800
+commit cb6e4f08c2e760c4eb90f3ed50eca3177b7ff6ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 9 08:50:51 2022 -0500
 
-    index/suffixarray: add available godoc link
+    cmd/api: point to API docs in all.bash failure
     
-    Change-Id: Ic6397348108f00fc88b59b259169bd98daceba3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535085
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    When people add new API and get an all.bash failure,
+    they often don't know about the API checker at all.
+    Point to the README in the failure message, to try to
+    help them find what they need to know.
+    
+    Change-Id: I6b148ec414d212033b371357a5e8c6ab79bb50a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449015
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/index/suffixarray/suffixarray.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/api/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

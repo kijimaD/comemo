@@ -1,23 +1,40 @@
-commit f8937cb6255970de3f0c8cbccc5253ae81249c47
-Author: yincong <yincong@baidu.com>
-Date:   Wed Jan 22 02:23:08 2025 +0000
+commit 1cecbb38f477a94938a27936d717f2e6f048623e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 14 22:39:41 2023 +0100
 
-    archive/zip, archive/tar: writer appends slash to directory names
+    net/netip: optimize AddrPort.String for IPv4 addresses
     
-    Fixes #71235
+    Use Addr.appendTo4 like in Addr.String.
     
-    Change-Id: I62aebb9d421db0e4b57ad5cae25c70f47aa5f8f9
-    GitHub-Last-Rev: 6e0fba07dd128e20e32a3a6258edf80ee91d4690
-    GitHub-Pull-Request: golang/go#71239
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642375
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    name                          old time/op    new time/op    delta
+    AddrPortString/v4-8             47.5ns ± 0%    27.7ns ± 1%  -41.81%  (p=0.000 n=8+10)
+    AddrPortString/v6-8             95.2ns ± 0%    94.9ns ± 1%   -0.35%  (p=0.034 n=10+10)
+    AddrPortString/v6_ellipsis-8    96.8ns ± 0%    96.6ns ± 0%   -0.15%  (p=0.008 n=9+9)
+    AddrPortString/v6_v4-8          70.9ns ± 0%    70.9ns ± 0%     ~     (p=0.425 n=10+10)
+    AddrPortString/v6_zone-8        97.0ns ± 0%    97.0ns ± 0%     ~     (p=0.838 n=10+10)
+    
+    name                          old alloc/op   new alloc/op   delta
+    AddrPortString/v4-8              24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    AddrPortString/v6-8              96.0B ± 0%     96.0B ± 0%     ~     (all equal)
+    AddrPortString/v6_ellipsis-8     56.0B ± 0%     56.0B ± 0%     ~     (all equal)
+    AddrPortString/v6_v4-8           56.0B ± 0%     56.0B ± 0%     ~     (all equal)
+    AddrPortString/v6_zone-8         56.0B ± 0%     56.0B ± 0%     ~     (all equal)
+    
+    name                          old allocs/op  new allocs/op  delta
+    AddrPortString/v4-8               1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrPortString/v6-8               2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    AddrPortString/v6_ellipsis-8      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    AddrPortString/v6_v4-8            2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    AddrPortString/v6_zone-8          2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    
+    Change-Id: I3d3fcee807ca33d1e8d6dafb03ab844ea0c76bea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542396
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/archive/tar/writer.go      | 3 +++
- src/archive/tar/writer_test.go | 6 +++++-
- src/archive/zip/writer.go      | 3 +++
- src/archive/zip/writer_test.go | 5 ++++-
- 4 files changed, 15 insertions(+), 2 deletions(-)
+ src/net/netip/netip.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

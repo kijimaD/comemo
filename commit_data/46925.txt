@@ -1,26 +1,188 @@
-commit 4d550727f8b85e9f8866f22c8a02b8f56fa64159
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Sep 18 10:32:22 2021 +0700
+commit 03cea563d156736a916137d0f68a14dc86c552a0
+Merge: b8fb049c7a 5faf941df0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 16 16:18:18 2021 -0500
 
-    reflect: add Value.UnsafePointer
+    [dev.regabi] all: merge master (5faf941) into dev.regabi
     
-    Allowing eliminates a class of possible misuse of unsafe.Pointer, and
-    allow callers to migrate from Value.Addr and Value.Pointer, thus they
-    can be now deprecated.
+    Merge List:
     
-    Fixes #40592
+    + 2021-02-16 5faf941df0 internal/goversion: update Version to 1.17
+    + 2021-02-16 6f3da9d2f6 README: pull gopher image from website
+    + 2021-02-16 098504c73f cmd/link: generate trampoline for inter-dependent packages
+    + 2021-02-16 1004a7cb31 runtime/metrics: update documentation to current interface
+    + 2021-02-16 6530f2617f doc/go1.16: remove draft notice
+    + 2021-02-16 353e111455 doc/go1.16: fix mismatched id attribute
+    + 2021-02-16 f0d23c9dbb internal/poll: netpollcheckerr before sendfile
+    + 2021-02-16 0cb3415154 doc: remove all docs not tied to distribution
+    + 2021-02-16 626ef08127 doc: remove install.html and install-source.html
+    + 2021-02-16 30641e36aa internal/poll: if copy_file_range returns 0, assume it failed
+    + 2021-02-15 33d72fd412 doc/faq: update generics entry to reflect accepted proposal
+    + 2021-02-15 852ce7c212 cmd/go: provide a more helpful suggestion for "go vet -?"
+    + 2021-02-13 66c27093d0 cmd/link: fix typo in link_test.go
     
-    Change-Id: I798e507c748922cac5cc1c1971c1b2cc7095a068
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350691
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I98f047b79b93c5ceb344dd43408bcb919b23aeb3
 
- src/reflect/all_test.go  | 22 ++++++------
- src/reflect/deepequal.go |  6 ++--
- src/reflect/set_test.go  |  6 ++--
- src/reflect/type.go      |  4 +--
- src/reflect/value.go     | 94 ++++++++++++++++++++++++++++--------------------
- 5 files changed, 75 insertions(+), 57 deletions(-)
+ README.md                                  |   12 +-
+ doc/articles/go_command.html               |  254 --
+ doc/articles/index.html                    |    8 -
+ doc/articles/race_detector.html            |  440 ----
+ doc/articles/wiki/edit.html                |    6 -
+ doc/articles/wiki/final-noclosure.go       |  105 -
+ doc/articles/wiki/final-noerror.go         |   56 -
+ doc/articles/wiki/final-parsetemplate.go   |   94 -
+ doc/articles/wiki/final-template.go        |   68 -
+ doc/articles/wiki/final.go                 |   92 -
+ doc/articles/wiki/final_test.go            |   24 -
+ doc/articles/wiki/go.mod                   |    3 -
+ doc/articles/wiki/http-sample.go           |   18 -
+ doc/articles/wiki/index.html               |  741 ------
+ doc/articles/wiki/notemplate.go            |   59 -
+ doc/articles/wiki/part1-noerror.go         |   35 -
+ doc/articles/wiki/part1.go                 |   38 -
+ doc/articles/wiki/part2.go                 |   44 -
+ doc/articles/wiki/part3-errorhandling.go   |   76 -
+ doc/articles/wiki/part3.go                 |   60 -
+ doc/articles/wiki/test_Test.txt.good       |    1 -
+ doc/articles/wiki/test_edit.good           |    6 -
+ doc/articles/wiki/test_view.good           |    5 -
+ doc/articles/wiki/view.html                |    5 -
+ doc/articles/wiki/wiki_test.go             |  165 --
+ doc/cmd.html                               |  100 -
+ doc/codewalk/codewalk.css                  |  234 --
+ doc/codewalk/codewalk.js                   |  305 ---
+ doc/codewalk/codewalk.xml                  |  124 -
+ doc/codewalk/codewalk_test.go              |   52 -
+ doc/codewalk/functions.xml                 |  105 -
+ doc/codewalk/markov.go                     |  130 -
+ doc/codewalk/markov.xml                    |  307 ---
+ doc/codewalk/pig.go                        |  121 -
+ doc/codewalk/popout.png                    |  Bin 213 -> 0 bytes
+ doc/codewalk/sharemem.xml                  |  181 --
+ doc/codewalk/urlpoll.go                    |  116 -
+ doc/contribute.html                        | 1294 ----------
+ doc/debugging_with_gdb.html                |  554 -----
+ doc/diagnostics.html                       |  472 ----
+ doc/editors.html                           |   33 -
+ doc/effective_go.html                      | 3673 ----------------------------
+ doc/gccgo_contribute.html                  |  112 -
+ doc/gccgo_install.html                     |  533 ----
+ doc/go-logo-black.png                      |  Bin 8843 -> 0 bytes
+ doc/go-logo-blue.png                       |  Bin 9360 -> 0 bytes
+ doc/go-logo-white.png                      |  Bin 21469 -> 0 bytes
+ doc/go1.1.html                             | 1099 ---------
+ doc/go1.10.html                            | 1448 -----------
+ doc/go1.11.html                            |  934 -------
+ doc/go1.12.html                            |  949 -------
+ doc/go1.13.html                            | 1066 --------
+ doc/go1.14.html                            |  924 -------
+ doc/go1.15.html                            | 1064 --------
+ doc/go1.16.html                            |   16 +-
+ doc/go1.2.html                             |  979 --------
+ doc/go1.3.html                             |  608 -----
+ doc/go1.4.html                             |  896 -------
+ doc/go1.5.html                             | 1310 ----------
+ doc/go1.6.html                             |  923 -------
+ doc/go1.7.html                             | 1281 ----------
+ doc/go1.8.html                             | 1666 -------------
+ doc/go1.9.html                             | 1024 --------
+ doc/go1.html                               | 2038 ---------------
+ doc/go1compat.html                         |  202 --
+ doc/go_faq.html                            | 2475 -------------------
+ doc/gopher/README                          |    3 -
+ doc/gopher/appenginegopher.jpg             |  Bin 135882 -> 0 bytes
+ doc/gopher/appenginegophercolor.jpg        |  Bin 162023 -> 0 bytes
+ doc/gopher/appenginelogo.gif               |  Bin 2105 -> 0 bytes
+ doc/gopher/biplane.jpg                     |  Bin 203420 -> 0 bytes
+ doc/gopher/bumper.png                      |  Bin 276215 -> 0 bytes
+ doc/gopher/bumper192x108.png               |  Bin 8432 -> 0 bytes
+ doc/gopher/bumper320x180.png               |  Bin 15098 -> 0 bytes
+ doc/gopher/bumper480x270.png               |  Bin 26509 -> 0 bytes
+ doc/gopher/bumper640x360.png               |  Bin 42013 -> 0 bytes
+ doc/gopher/doc.png                         |  Bin 4395 -> 0 bytes
+ doc/gopher/favicon.svg                     |  238 --
+ doc/gopher/fiveyears.jpg                   |  Bin 220526 -> 0 bytes
+ doc/gopher/frontpage.png                   |  Bin 17668 -> 0 bytes
+ doc/gopher/gopherbw.png                    |  Bin 171323 -> 0 bytes
+ doc/gopher/gophercolor.png                 |  Bin 169406 -> 0 bytes
+ doc/gopher/gophercolor16x16.png            |  Bin 739 -> 0 bytes
+ doc/gopher/help.png                        |  Bin 5729 -> 0 bytes
+ doc/gopher/modelsheet.jpg                  |  Bin 85880 -> 0 bytes
+ doc/gopher/pencil/gopherhat.jpg            |  Bin 129627 -> 0 bytes
+ doc/gopher/pencil/gopherhelmet.jpg         |  Bin 151965 -> 0 bytes
+ doc/gopher/pencil/gophermega.jpg           |  Bin 122348 -> 0 bytes
+ doc/gopher/pencil/gopherrunning.jpg        |  Bin 86299 -> 0 bytes
+ doc/gopher/pencil/gopherswim.jpg           |  Bin 158593 -> 0 bytes
+ doc/gopher/pencil/gopherswrench.jpg        |  Bin 231095 -> 0 bytes
+ doc/gopher/pkg.png                         |  Bin 5409 -> 0 bytes
+ doc/gopher/project.png                     |  Bin 8042 -> 0 bytes
+ doc/gopher/ref.png                         |  Bin 5895 -> 0 bytes
+ doc/gopher/run.png                         |  Bin 9220 -> 0 bytes
+ doc/gopher/talks.png                       |  Bin 4877 -> 0 bytes
+ doc/help.html                              |   96 -
+ doc/ie.css                                 |    1 -
+ doc/install-source.html                    |  777 ------
+ doc/install.html                           |  315 ---
+ doc/play/fib.go                            |   19 -
+ doc/play/hello.go                          |    9 -
+ doc/play/life.go                           |  113 -
+ doc/play/peano.go                          |   88 -
+ doc/play/pi.go                             |   34 -
+ doc/play/sieve.go                          |   36 -
+ doc/play/solitaire.go                      |  117 -
+ doc/play/tree.go                           |  100 -
+ doc/progs/cgo1.go                          |   22 -
+ doc/progs/cgo2.go                          |   22 -
+ doc/progs/cgo3.go                          |   18 -
+ doc/progs/cgo4.go                          |   18 -
+ doc/progs/defer.go                         |   64 -
+ doc/progs/defer2.go                        |   58 -
+ doc/progs/eff_bytesize.go                  |   47 -
+ doc/progs/eff_qr.go                        |   50 -
+ doc/progs/eff_sequence.go                  |   49 -
+ doc/progs/eff_unused1.go                   |   16 -
+ doc/progs/eff_unused2.go                   |   20 -
+ doc/progs/error.go                         |  127 -
+ doc/progs/error2.go                        |   54 -
+ doc/progs/error3.go                        |   63 -
+ doc/progs/error4.go                        |   74 -
+ doc/progs/go1.go                           |  245 --
+ doc/progs/gobs1.go                         |   22 -
+ doc/progs/gobs2.go                         |   43 -
+ doc/progs/image_draw.go                    |  142 --
+ doc/progs/image_package1.go                |   15 -
+ doc/progs/image_package2.go                |   16 -
+ doc/progs/image_package3.go                |   15 -
+ doc/progs/image_package4.go                |   16 -
+ doc/progs/image_package5.go                |   17 -
+ doc/progs/image_package6.go                |   17 -
+ doc/progs/interface.go                     |   62 -
+ doc/progs/interface2.go                    |  132 -
+ doc/progs/json1.go                         |   88 -
+ doc/progs/json2.go                         |   42 -
+ doc/progs/json3.go                         |   73 -
+ doc/progs/json4.go                         |   45 -
+ doc/progs/json5.go                         |   31 -
+ doc/progs/run.go                           |  229 --
+ doc/progs/slices.go                        |   63 -
+ doc/progs/timeout1.go                      |   29 -
+ doc/progs/timeout2.go                      |   28 -
+ doc/share.png                              |  Bin 2993 -> 0 bytes
+ doc/tos.html                               |   11 -
+ src/cmd/dist/test.go                       |    8 -
+ src/cmd/go/internal/vet/vetflag.go         |    3 +-
+ src/cmd/go/testdata/script/help.txt        |    7 +-
+ src/cmd/link/internal/arm/asm.go           |   16 +-
+ src/cmd/link/internal/ld/data.go           |   12 +-
+ src/cmd/link/internal/ppc64/asm.go         |   12 +-
+ src/cmd/link/link_test.go                  |    2 +-
+ src/internal/goversion/goversion.go        |    2 +-
+ src/internal/poll/copy_file_range_linux.go |   10 +-
+ src/internal/poll/sendfile_bsd.go          |    4 +
+ src/internal/poll/sendfile_linux.go        |    3 +
+ src/internal/poll/sendfile_solaris.go      |    3 +
+ src/net/sendfile_test.go                   |   65 +
+ src/os/readfrom_linux_test.go              |   32 +
+ src/runtime/metrics/doc.go                 |    4 +-
+ src/runtime/metrics/sample.go              |    2 +-
+ 162 files changed, 164 insertions(+), 35813 deletions(-)

@@ -1,16 +1,27 @@
-commit e23ebec90d93f934d4426b861d83799637fe3e45
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Tue Aug 13 18:27:38 2024 +0200
+commit 9b0361e549949a208aa6bbcdff25506a3f97d7a9
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jul 25 13:58:37 2023 -0400
 
-    cmd/compile: compute Divu's limits from argument's limits
+    net: make mustHaveExternalNetwork work as usual on GOOS=linux
     
-    Change-Id: Id522bde5bba627d9cdc8c3d8e907bdc168e5b13c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605157
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    I considered deleting mustHaveExternalNetwork in favor of just using
+    the real testenv.MustHaveExternalNetwork. That certainly makes these
+    tests that call it easier to understand. But that negatively affects
+    some ports that don't have a longtest builder as it'd make the tests
+    not run automatically on any builder at all.
+    
+    So, make a minimal change that applies only to GOOS=linux for now.
+    If we make more progress on establishing -longtest builders for all
+    ports, this intermediate layer helper will cease to have any benefit
+    and can be deleted in favor of the one in testenv package.
+    
+    Change-Id: Iaea207d98e780db429ab49e6e227650a8b35b786
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513416
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 11 +++++++++++
- test/prove.go                         | 23 +++++++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/net/dial_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

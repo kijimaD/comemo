@@ -1,22 +1,18 @@
-commit 8ad70a549364c216c386afcead4dccfdcd39748b
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Aug 18 16:44:08 2016 -0700
+commit 1dad218da1239a8375b7fad5dd83e4a840e3fdbb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 20 10:36:27 2016 -0400
 
-    crypto/x509: allow a leaf certificate to be specified directly as root.
+    cmd/link: move declarations into loops
     
-    In other systems, putting a leaf certificate in the root store works to
-    express that exactly that certificate is acceptable. This change makes
-    that work in Go too.
+    (Split out from CL 22205.)
     
-    Fixes #16763.
-    
-    Change-Id: I5c0a8dbc47aa631b23dd49061fb217ed8b0c719c
-    Reviewed-on: https://go-review.googlesource.com/27393
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id32698f48ce02b55c15b6f2842215e0ffdbf425b
+    Reviewed-on: https://go-review.googlesource.com/22298
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/cert_pool.go   | 16 ++++++++++++++++
- src/crypto/x509/verify.go      | 10 +++++++---
- src/crypto/x509/verify_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 66 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/elf.go   | 6 ++----
+ src/cmd/link/internal/ld/macho.go | 6 ++----
+ src/cmd/link/internal/ld/pe.go    | 6 ++----
+ 3 files changed, 6 insertions(+), 12 deletions(-)

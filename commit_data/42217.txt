@@ -1,17 +1,18 @@
-commit 769a1cf7b6b79e747e3a4d886992b2a7e54f33d7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 29 19:47:34 2020 -0700
+commit 398f9e1e1a2f9af255d6b6036f07ec93c5c61ddd
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Nov 15 12:32:43 2019 +0530
 
-    debug/gosym: correct comments for Table.{Files,Objs}
+    cmd/go: document the -mod=mod option
     
-    The fields aren't too useful for Go 1.2 and later, but they aren't
-    actually nil.
+    Updates #33848
     
-    Fixes #38754
-    
-    Change-Id: Ia13a224f623697a00dea8ba0225633e1b9308c9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230940
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I505490906be7cd6fbcdc6a05c1017c779dbf7bba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207397
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/debug/gosym/symtab.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go               | 5 ++++-
+ src/cmd/go/internal/modload/help.go | 3 +++
+ src/cmd/go/internal/work/build.go   | 2 +-
+ 3 files changed, 8 insertions(+), 2 deletions(-)

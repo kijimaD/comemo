@@ -1,15 +1,19 @@
-commit 6db195cae25904a8675804073f87c2b65e154370
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jul 29 14:31:21 2013 +1000
+commit b7c3d06a1fbad0df04773e8b6825689ae6bde41b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jul 29 01:25:51 2013 +0200
 
-    misc/dashboard/builder: increase cmdTimeout to 10 minutes
+    all: move examples into package *_test.
     
-    It takes more then 5 minutes to clone go repo
-    on windows-386 builder now.
+    Fixes #5677.
     
-    R=golang-dev, dave
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12007043
+    https://golang.org/cl/11992043
 
- misc/dashboard/builder/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/des/des_test.go      | 18 ------------------
+ src/pkg/crypto/des/example_test.go  | 25 +++++++++++++++++++++++++
+ src/pkg/crypto/md5/example_test.go  | 19 +++++++++++++++++++
+ src/pkg/crypto/md5/md5_test.go      |  8 --------
+ src/pkg/crypto/sha1/example_test.go | 18 ++++++++++++++++++
+ src/pkg/crypto/sha1/sha1_test.go    |  7 -------
+ 6 files changed, 62 insertions(+), 33 deletions(-)

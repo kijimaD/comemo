@@ -1,13 +1,16 @@
-commit b50ff580ba6ffdaae895477c9953a76aafc70cd4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 2 11:31:29 2015 -0800
+commit 8ffc4500492a1acaab9b5d37f44ae1b22cc10222
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Feb 8 19:07:48 2015 +0300
 
-    cmd/internal/ld: minor int to bool cleanup
+    cmd/gc: remove dead code
     
-    Change-Id: I3078385f5e7c92fbf99af7c4ae8918c86b9f86c9
-    Reviewed-on: https://go-review.googlesource.com/6500
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib46a42fc873066b1cc00368fe43648f08dce48bd
+    Reviewed-on: https://go-review.googlesource.com/4200
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/ld/lib.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/gc/dcl.c  | 16 +---------------
+ src/cmd/gc/go.h   |  2 +-
+ src/cmd/gc/init.c |  2 +-
+ src/cmd/gc/lex.c  |  2 +-
+ src/cmd/gc/subr.c |  6 +++---
+ 5 files changed, 7 insertions(+), 21 deletions(-)

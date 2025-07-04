@@ -1,17 +1,17 @@
-commit 6796a7fb127676b61375339076ae1c982a721dde
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 17 09:09:39 2020 -0400
+commit acac535c3ca571beeb168c953d6d672f61387ef1
+Author: Changkun Ou <hi@changkun.us>
+Date:   Sun Feb 16 01:11:53 2020 +0100
 
-    cmd/addr2line: don't assume that GOROOT_FINAL is clean
+    doc: race condition in unsynchronized send/close
     
-    Fixes #41447
+    This CL documents that unsynchronized send and close operations
+    on a channel are detected as a race condition.
     
-    Change-Id: I4460c1c7962d02c41622a5ea1a3c4bc3714a1873
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255477
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #27769
+    
+    Change-Id: I7495a2d0dd834c3f3b6339f8ca18ea21ae979aa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219637
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/addr2line/addr2line_test.go | 24 ++++++++++++++++--------
- 1 file changed, 16 insertions(+), 8 deletions(-)
+ doc/articles/race_detector.html | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

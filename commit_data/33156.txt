@@ -1,18 +1,12 @@
-commit 48754592e02719437c46f6d1900a313141e14fa6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 17 15:38:13 2017 -0700
+commit e9b9dfe3f71a8b9f5006616f877836c67eb4fba0
+Author: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+Date:   Tue Jul 18 07:18:35 2017 +0300
 
-    runtime: align stack in 386 lib startup before calling C function
+    database/sql: fix wrong method name in description
     
-    Fixes Darwin 386 build. It turns out that the Darwin pthread_create
-    function saves the SSE registers, and therefore requires an aligned stack.
-    This worked before https://golang.org/cl/70530 because the stack sizes
-    were chosen to leave the stack aligned.
-    
-    Change-Id: I911a9e8dcde4e41e595d5ef9b9a1ca733e154de6
-    Reviewed-on: https://go-review.googlesource.com/71432
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ie6a88b70d7c45c59995ee2f57fb28f9a3cbb404d
+    Reviewed-on: https://go-review.googlesource.com/49470
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_386.s | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

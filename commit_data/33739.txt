@@ -1,27 +1,28 @@
-commit 5bd66e5e1e815f25b1a3973220ba803cfeeb98e4
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Thu Nov 2 19:17:39 2017 -0400
+commit f74b52cf505cba5ba8d3af0deae3bb1199c91aac
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 31 13:49:43 2017 +0900
 
-    cmd/trace: compute pprof-style output per goroutine type
+    cmd/cgo: support large unsigned macro again
     
-    The trace command computes IO, Schedule, Block, and Syscall profiles
-    by following the unblocking links in the execution trace and summing
-    up the duration.  This change offers variations of those profiles
-    that include only selected goroutine types. The id parameter takes the
-    goroutine type - i.e. pc of the goroutine.
+    The approach of https://golang.org/cl/43476 turned out incorrect.
+    The problem is that the sniff introduced by the CL only work for simple
+    expression. And when it fails it fallback to uint64, not int64, which
+    breaks backward compatibility.
+    In this CL, we use DWARF for guessing kind instead. That should be more
+    reliable than previous approach. And importanly, it fallbacks to int64 even
+    if it fails to guess kind.
     
-    The output is available from the /goroutine view. So, users can see
-    where the goroutines of interest typically block.
+    Fixes #21708
     
-    Also, these profiles are available for download so users can use
-    pprof or other tools to interpret the output. This change adds links
-    for download of global profile in the main page.
-    
-    Change-Id: I35699252056d164e60de282b0406caf96d629c85
-    Reviewed-on: https://go-review.googlesource.com/75710
-    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Change-Id: I39a18cb2efbe4faa9becdcf53d5ac68dba180d46
+    Reviewed-on: https://go-review.googlesource.com/60510
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/trace/goroutines.go | 17 +++++----
- src/cmd/trace/main.go       | 12 +++---
- src/cmd/trace/pprof.go      | 92 +++++++++++++++++++++++++++++++++++++++++----
- 3 files changed, 101 insertions(+), 20 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue21708.go | 16 ++++++++++++++++
+ src/cmd/cgo/doc.go          |  5 -----
+ src/cmd/cgo/gcc.go          | 39 ++++++++++-----------------------------
+ src/cmd/cgo/main.go         |  4 ++--
+ 5 files changed, 29 insertions(+), 36 deletions(-)

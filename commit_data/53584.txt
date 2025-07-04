@@ -1,20 +1,26 @@
-commit a48f9c26d5735e7612d919ffe7809e701ffe0a76
+commit be9e2440a766f4cd1069945ebd2e527cb7fd7594
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 16 15:24:56 2023 -0400
+Date:   Fri Jul 2 13:15:37 2021 -0400
 
-    go/types: skip tests that require GOROOT/test if it is not present
+    cmd/go/internal/modload: remove ImportMap and PackageDir
     
-    cmd/distpack removes GOROOT/test from its archive of the distribution.
+    These two functions together duplicated much of the functionality of
+    modload.Lookup. Use that instead in modcmd.vendorPkg, and reduce the
+    modload surface area.
     
-    For #24904.
+    Updates #42504
+    Updates #40775
+    For #26904
     
-    Change-Id: Ifde441f048f8af52f8973555b196ab0520b48ab7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504057
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Ib8aaac495d090178dd56971aef9e5aa44ffa818b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332571
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/stdlib_test.go | 8 ++++++++
- src/go/types/stdlib_test.go                    | 8 ++++++++
- 2 files changed, 16 insertions(+)
+ src/cmd/go/internal/modcmd/vendor.go | 23 ++++++++++++++---------
+ src/cmd/go/internal/modload/load.go  | 22 ----------------------
+ 2 files changed, 14 insertions(+), 31 deletions(-)

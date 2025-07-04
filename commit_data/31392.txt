@@ -1,17 +1,19 @@
-commit 6e54fe47cecc93426f26b9c6c9807733dc62911a
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Apr 27 11:37:24 2017 +0200
+commit 0ad247c6f0335f44a27217d0411b8c92e367ebd8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 14 12:01:01 2017 +1100
 
-    misc/ios: increase iOS test harness timeout
+    cmd/link: delay calculating pe file parameters after Linkmode is set
     
-    The "lldb start" phase often times out on the iOS builder. Increase
-    the timeout and see if that helps.
+    For #10776.
     
-    Change-Id: I92fd67cbfa90659600e713198d6b2c5c78dde20f
-    Reviewed-on: https://go-review.googlesource.com/41863
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Id64a7e35c7cdcd9be16cbe3358402fa379090e36
+    Reviewed-on: https://go-review.googlesource.com/36975
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/obj.go | 14 ++------------
+ src/cmd/link/internal/ld/lib.go    |  5 +++++
+ src/cmd/link/internal/ld/pe.go     | 14 ++++++++++++++
+ src/cmd/link/internal/x86/obj.go   | 14 ++------------
+ 4 files changed, 23 insertions(+), 24 deletions(-)

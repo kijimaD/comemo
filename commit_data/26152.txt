@@ -1,50 +1,32 @@
-commit 8df733bd2210e086c179ffb898d4e960f8d62df7
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Feb 23 11:31:13 2016 -0500
+commit f40c05eea437f0c0a04b6615b72b1292ebb97151
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 17 14:49:34 2015 -0800
 
-    cmd/compile: remove slices from rtype.funcType
+    runtime: write sigsetstack for Darwin, fix sigaction arg
     
-    Alternative to golang.org/cl/19852. This memory layout doesn't have
-    an easy type representation, but it is noticeably smaller than the
-    current funcType, and saves significant extra space.
+    It turns out that the second argument for sigaction on Darwin has a
+    different type than the first argument.  The second argument is the user
+    visible sigaction struct, and does not have the sa_tramp field.
     
-    Some notes on the layout are in reflect/type.go:
+    I base this on
+      http://www.opensource.apple.com/source/Libc/Libc-1081.1.3/sys/sigaction.c
+    not to mention actual testing.
     
-    // A *rtype for each in and out parameter is stored in an array that
-    // directly follows the funcType (and possibly its uncommonType). So
-    // a function type with one method, one input, and one output is:
-    //
-    //      struct {
-    //              funcType
-    //              uncommonType
-    //              [2]*rtype    // [0] is in, [1] is out
-    //              uncommonTypeSliceContents
-    //      }
+    While I was at it I removed a useless memclr in setsig, a relic of the C
+    code.
     
-    There are three arbitrary limits introduced by this CL:
+    This CL is Darwin-specific changes.  The tests for this CL are in
+    https://golang.org/cl/17903 .
     
-    1. No more than 65535 function input parameters.
-    2. No more than 32767 function output parameters.
-    3. reflect.FuncOf is limited to 128 parameters.
-    
-    I don't think these are limits in practice, but are worth noting.
-    
-    Reduces godoc binary size by 2.4%, 330KB.
-    
-    For #6853.
-    
-    Change-Id: I225c0a0516ebdbe92d41dfdf43f716da42dfe347
-    Reviewed-on: https://go-review.googlesource.com/19916
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I61fe305c72311df6a589b49ad7b6e49b6960ca24
+    Reviewed-on: https://go-review.googlesource.com/18015
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  37 +++-----
- src/cmd/link/internal/ld/decodesym.go  |  27 +++---
- src/cmd/link/internal/ld/dwarf.go      |   2 +-
- src/reflect/type.go                    | 149 ++++++++++++++++++++++++++-------
- src/reflect/value.go                   |  13 ++-
- src/runtime/mfinal.go                  |  11 ++-
- src/runtime/syscall_windows.go         |   6 +-
- src/runtime/type.go                    |  30 ++++++-
- 8 files changed, 187 insertions(+), 88 deletions(-)
+ src/runtime/defs_darwin.go       |  2 +-
+ src/runtime/defs_darwin_386.go   |  6 ++++++
+ src/runtime/defs_darwin_amd64.go |  6 ++++++
+ src/runtime/defs_darwin_arm.go   |  6 ++++++
+ src/runtime/defs_darwin_arm64.go |  6 ++++++
+ src/runtime/os1_darwin.go        | 17 +++++++++++++----
+ src/runtime/os_darwin.go         |  2 +-
+ 7 files changed, 39 insertions(+), 6 deletions(-)

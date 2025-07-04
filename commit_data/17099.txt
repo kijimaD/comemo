@@ -1,26 +1,13 @@
-commit f91e682cca2eb51a0a8b1511678a5e2b4d8a83de
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 8 16:38:02 2013 -0400
+commit 8378804640942aa165b8d591b4287d4f4148e484
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 8 11:13:00 2013 -0700
 
-    cmd/gc: make bitmaps shorter
+    os: fix windows and plan9 builds
     
-    Sort non-pointer-containing data to the low end of the
-    stack frame, and make the bitmaps only cover the
-    pointer-containing top end.
-    
-    Generates significantly less garbage collection bitmap
-    for programs with large byte buffers on the stack.
-    
-    Only 2% shorter for godoc, but 99.99998% shorter
-    in some test cases.
-    
-    Fixes arm build.
-    
-    TBR=golang-dev
-    CC=cshapiro, golang-dev, iant
-    https://golang.org/cl/12541047
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12519046
 
- src/cmd/gc/go.h      |  2 ++
- src/cmd/gc/pgen.c    | 50 ++++++++++++++++++++++++++++++++++++++++----------
- src/cmd/gc/reflect.c | 34 +++++++++++++++++++++++++---------
- 3 files changed, 67 insertions(+), 19 deletions(-)
+ src/pkg/os/file.go      | 3 +++
+ src/pkg/os/file_unix.go | 3 ---
+ 2 files changed, 3 insertions(+), 3 deletions(-)

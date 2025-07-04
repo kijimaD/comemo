@@ -1,18 +1,19 @@
-commit c15984c6c67205a19382ba350680dcfb0090325a
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Mar 1 12:30:19 2018 -0600
+commit 8c7fa95ad3420779ecffc9c72afc82bf074c6a88
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 8 14:36:43 2017 -0400
 
-    math: remove unused variable
+    [release-branch.go1.9] expvar: make (*Map).Init clear existing keys
     
-    useSSE41 was used inside asm implementation of floor to select between base and ss4 code path.
-    We intrinsified floor and left asm functions as a backup for non-sse4 systems.
-    This made variable unused, so remove it.
+    fixes #21619
     
-    Change-Id: Ia2633de7c7cb1ef1d5b15a2366b523e481b722d9
-    Reviewed-on: https://go-review.googlesource.com/97935
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5bb513dfc8cac875b06a262eec40b5863ae23a4c
+    Reviewed-on: https://go-review.googlesource.com/62370
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70973
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/math/floor_asm.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/expvar/expvar.go      | 12 +++++++++++-
+ src/expvar/expvar_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

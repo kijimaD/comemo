@@ -1,24 +1,25 @@
-commit 0088ddc3a00cc75c3eb9ce999ebf62f1415c1195
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Apr 20 11:09:14 2015 +1200
+commit 39bc78845bba57db02a88b52a47fcd8dba109c3d
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Mar 26 20:02:50 2015 -0400
 
-    cmd/6l, cmd/internal/ld, cmd/internal/obj: remove Xsym/Xadd from compiler's Reloc
+    runtime/pprof: fix TestCPUProfileWithFork for GOOS=android.
     
-    They don't really make any sense on this side of the compiler/linker divide.
+    1) Large allocation in this test caused crash. This was not
+    detected by builder because builder runs tests with -test.short.
     
-    Some of the code touching these fields was the support for R_TLS when
-    thechar=='6' which turns out to be dead and so I just removed all of that.
+    2) The command "go" for forking doesn't exist in some platforms
+    including android. This change uses the test binary itself which
+    is guaranteed to exist.
     
-    Change-Id: I4e265613c4e7fcc30a965fffb7fd5f45017f06f3
-    Reviewed-on: https://go-review.googlesource.com/9107
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This change also adds logging of the total samples collected in
+    TestCPUProfileMultithreaded test that is flaky in android-arm
+    builder.
+    
+    Change-Id: I225c6b7877d811edef8b25e7eb00559450640c42
+    Reviewed-on: https://go-review.googlesource.com/8131
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/6l/asm.go                | 11 -----------
- src/cmd/internal/ld/objfile.go   |  4 ++--
- src/cmd/internal/obj/arm/asm5.go |  2 --
- src/cmd/internal/obj/link.go     |  2 --
- src/cmd/internal/obj/objfile.go  |  4 ++--
- src/cmd/internal/obj/x86/asm6.go |  5 -----
- 6 files changed, 4 insertions(+), 24 deletions(-)
+ src/runtime/pprof/pprof_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

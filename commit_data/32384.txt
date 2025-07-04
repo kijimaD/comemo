@@ -1,16 +1,15 @@
-commit ff90f4af66c30a819532fda8754bf29e8ae6140e
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sat Aug 19 11:21:55 2017 +0000
+commit b01be13ec376f7fc06be166eb5d26a5e3ed2fc34
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:15:44 2017 -0700
 
-    Revert "misc/cgo/testcshared: temporarily skip testing on android"
+    cmd/compile: clean up some runtime LSym generation
     
-    This reverts commit a6ffab6b6743a490151aadfd2f2a79244a84e03a.
+    Passes toolstash-check.
     
-    Reason for revert: with CL 57290 the tests run on Android again.
-    
-    Change-Id: Ifeb29762a4cd0178463acfeeb3696884d99d2993
-    Reviewed-on: https://go-review.googlesource.com/57310
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I9398dd0fd9112d907f838ea911a7724dda5bbaee
+    Reviewed-on: https://go-review.googlesource.com/41400
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/testcshared/cshared_test.go | 21 ---------------------
- 1 file changed, 21 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

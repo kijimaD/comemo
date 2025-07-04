@@ -1,21 +1,16 @@
-commit eb9a157d0f6c71877ff6473072d7a8f1c34f4afc
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 23 11:00:37 2023 -0400
+commit 4240ff764b14de9007fe26aaa9147c6c0ade91c9
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 11:38:29 2022 -0400
 
-    cmd/go: accept non-standard versions like go1.21-20230523-foo in latest
+    runtime: tricky replacements of _g_ in signal_windows.go
     
-    Some custom toolchain builds add extra suffixes to the version.
-    Strip those off (cutting at - or +) to find the underlying Go version.
+    winthrow is always called on g0.
     
-    For #57001.
-    
-    Change-Id: I234fb2d069aaf0922c0a2c848e4a4c38e4adf9bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497415
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ia23276a5bd545993faf4d75368c171f6ea7a3034
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418581
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/gover/latest.go        |  9 +++++++-
- src/cmd/go/testdata/script/gotoolchain.txt | 36 +++++++++++++++++++++++++++++-
- 2 files changed, 43 insertions(+), 2 deletions(-)
+ src/runtime/signal_windows.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

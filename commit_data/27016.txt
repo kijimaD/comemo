@@ -1,22 +1,23 @@
-commit 2244ae417312a59e722643f6ea2f1b8168c599c9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 19 14:15:37 2016 -0700
+commit e28a890d5e91dfa5d0eaeed6bb1b18d9398dfe2e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 7 22:54:46 2016 -0800
 
-    cmd/compile/internal/gc: simplify typecheck's Efoo consts
-    
-    There's no need for Eiota, Eindir, Eaddr, or Eproc; the values are
-    threaded through to denote various typechecking contexts, but they
-    don't actually influence typechecking behavior at all.
-    
-    Also, while here, switch the Efoo const declarations to use iota.
+    cmd/compile: remove nodesOrNodeListPtr outside of syntax.go
     
     Passes toolstash -cmp.
     
-    Change-Id: I5cea869ccd0755c481cf071978f863474bc9c1ed
-    Reviewed-on: https://go-review.googlesource.com/22271
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Update #14473.
+    
+    Change-Id: I2620374b79c61b1e48467b98afe2d7d3beef878b
+    Reviewed-on: https://go-review.googlesource.com/20354
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 48 +++++++++++++-------------------
- 1 file changed, 19 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/gc/closure.go  |   6 +-
+ src/cmd/compile/internal/gc/racewalk.go |  26 +--
+ src/cmd/compile/internal/gc/select.go   |   9 +-
+ src/cmd/compile/internal/gc/sinit.go    |  60 +++----
+ src/cmd/compile/internal/gc/subr.go     |  17 +-
+ src/cmd/compile/internal/gc/swt.go      |   4 +-
+ src/cmd/compile/internal/gc/syntax.go   |  12 ++
+ src/cmd/compile/internal/gc/walk.go     | 292 +++++++++++++++-----------------
+ 8 files changed, 214 insertions(+), 212 deletions(-)

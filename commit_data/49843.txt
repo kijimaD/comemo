@@ -1,26 +1,23 @@
-commit 87431981522981bc69b1eccc392e101df3318c2e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 11 12:29:47 2022 -0700
+commit cfa233d76bcff00f46f5e5acdb17cb819a309d2b
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Sep 12 12:21:48 2021 -0700
 
-    test: make issue54343.go robust against the tiny allocator
+    cmd/compile: remove unneeded early transforms, with dictionary change
     
-    I structured the test for issue54343.go after issue46725.go, where I
-    was careful to use `[4]int`, which is a type large enough to avoid the
-    tiny object allocator (which interferes with finalizer semantics). But
-    in that test, I didn't note the importance of that type, so I
-    mistakenly used just `int` in issue54343.go.
+    Now that we are computing the dictionary format on the instantiated
+    functions, we can remove the early transformation code that was needed
+    to create the implicit CONVIFACE nodes in the generic function.
     
-    This CL switches issue54343.go to use `[4]int` too, and then adds
-    comments to both pointing out the significance of this type.
-    
-    Updates #54343.
-    
-    Change-Id: I699b3e64b844ff6d8438bbcb4d1935615a6d8cc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423115
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I1695484e7d59bccbfb757994f3e40e84288759a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349614
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/fixedbugs/issue46725.go | 2 +-
- test/fixedbugs/issue54343.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/expr.go      | 38 -------------
+ src/cmd/compile/internal/noder/helpers.go   | 11 ----
+ src/cmd/compile/internal/noder/stmt.go      |  9 ----
+ src/cmd/compile/internal/noder/transform.go | 84 ++++++++---------------------
+ src/cmd/compile/internal/typecheck/subr.go  |  3 ++
+ 5 files changed, 26 insertions(+), 119 deletions(-)

@@ -1,15 +1,20 @@
-commit 955aa159adc41ee2ee60563fab6dad676f332526
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 20 10:43:55 2011 -0800
+commit 3c7104479c3d25db85705ddc6bdc01c19be0a54e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 13:36:00 2011 -0500
 
-    godoc: show line numbers for non-go files (bug fix)
+    runtime: drop CLONE_PARENT
     
-    Also: Give line numbers a style and make them less intrusive.
+    The functionality we want (shared ppid) is implied
+    by CLONE_THREAD already, and CLONE_PARENT
+    causes problems if the Go program is pid 1 (init).
     
-    R=rsc
+    See issue 1406 for more details.
+    
+    Fixes #1406.
+    
+    R=adg, iant
     CC=golang-dev
-    https://golang.org/cl/4060043
+    https://golang.org/cl/3971044
 
- doc/all.css             | 4 ++++
- src/cmd/godoc/format.go | 4 ++--
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/runtime/linux/thread.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

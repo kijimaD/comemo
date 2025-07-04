@@ -1,14 +1,45 @@
-commit 0ce56e60b80d65c9677d148e885b575e21583260
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Jul 13 02:00:07 2013 +0800
+commit 031c107cad93174a6e33d3af31c1e3613129ad08
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 12 12:12:56 2013 -0400
 
-    run.bash: enlarge timeout of runtime tests
-    Recently addition to runtime test makes it take very close to 720s
-    of timeout limit on the netbsd-arm-qemu builder.
+    cmd/ld: fix large stack split for preempt check
     
-    R=golang-dev, go.peter.90, rsc
+    If the stack frame size is larger than the known-unmapped region at the
+    bottom of the address space, then the stack split prologue cannot use the usual
+    condition:
+    
+            SP - size >= stackguard
+    
+    because SP - size may wrap around to a very large number.
+    Instead, if the stack frame is large, the prologue tests:
+    
+            SP - stackguard >= size
+    
+    (This ends up being a few instructions more expensive, so we don't do it always.)
+    
+    Preemption requests register by setting stackguard to a very large value, so
+    that the first test (SP - size >= stackguard) cannot possibly succeed.
+    Unfortunately, that same very large value causes a wraparound in the
+    second test (SP - stackguard >= size), making it succeed incorrectly.
+    
+    To avoid *that* wraparound, we have to amend the test:
+    
+            stackguard != StackPreempt && SP - stackguard >= size
+    
+    This test is only used for functions with large frames, which essentially
+    always split the stack, so the cost of the few instructions is noise.
+    
+    This CL and CL 11085043 together fix the known issues with preemption,
+    at the beginning of a function, so we will be able to try turning it on again.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/10935043
+    https://golang.org/cl/11205043
 
- src/run.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5l/noop.c            | 21 +++++++++----
+ src/cmd/6l/pass.c            | 38 ++++++++++++++++++++----
+ src/cmd/8l/pass.c            | 31 ++++++++++++++++++--
+ src/pkg/runtime/proc_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/stack.c      |  2 +-
+ src/pkg/runtime/stack.h      |  2 +-
+ 6 files changed, 149 insertions(+), 15 deletions(-)

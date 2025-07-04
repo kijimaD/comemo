@@ -1,19 +1,12 @@
-commit da679db0f1ff2380af62371665bded20fef7afad
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 4 10:55:47 2011 -0800
+commit 89f890f266f0cf0d6fa8dc0935139265c0879858
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 4 16:28:27 2011 +1100
 
-    http: add packages http/cgi and http/httptest
+    doc: there's no such thing as a .cgo file
     
-    R=rsc, adg, jnw, bradfitzwork
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4247048
+    https://golang.org/cl/4264043
 
- src/pkg/Makefile                   |   3 +
- src/pkg/http/cgi/Makefile          |  11 ++
- src/pkg/http/cgi/cgi.go            | 201 +++++++++++++++++++++++++++++++++++++
- src/pkg/http/cgi/cgi_test.go       | 200 ++++++++++++++++++++++++++++++++++++
- src/pkg/http/cgi/testdata/test.cgi |  34 +++++++
- src/pkg/http/httptest/Makefile     |  11 ++
- src/pkg/http/httptest/recorder.go  |  88 ++++++++++++++++
- src/pkg/http/serve_test.go         |  73 ++------------
- 8 files changed, 556 insertions(+), 65 deletions(-)
+ doc/code.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

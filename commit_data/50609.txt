@@ -1,39 +1,18 @@
-commit 2da95e0ec80cb7df1f89a7b7f147dde42ad17a19
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 21 12:57:48 2022 -0700
+commit c143661568dc23badd4ba04f4193658fc1fd9c33
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Nov 2 20:42:21 2021 -0700
 
-    go/types, types2: report "undefined: x" instead of "undeclared name: x"
+    test/typeparam: add test for indexing on typeparams with various constraints
     
-    This matches the compiler's long-standing behavior.
+    Add test for indexing on variables whose types are constrained to
+    various kinds of types.
     
-    For #55326.
-    
-    Change-Id: I90696a11f0b7d1f4be95a4b9a6f01844df2a2347
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432555
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I991eecfe39dba5d817c0fbe259ba558d4881ea84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360867
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/issues_test.go     |  2 +-
- src/cmd/compile/internal/types2/typexpr.go         |  8 ++------
- src/go/types/issues_test.go                        |  2 +-
- src/go/types/typexpr.go                            |  4 ++--
- src/internal/types/testdata/check/constdecl.go     |  6 +++---
- src/internal/types/testdata/check/cycles0.go       |  4 ++--
- src/internal/types/testdata/check/decls0.go        |  2 +-
- .../types/testdata/check/decls2/decls2a.go         |  4 ++--
- .../types/testdata/check/decls2/decls2b.go         | 18 ++++++++--------
- src/internal/types/testdata/check/errors.go        |  4 ++--
- src/internal/types/testdata/check/expr3.go         |  4 ++--
- src/internal/types/testdata/check/issues0.go       | 24 +++++++++++-----------
- src/internal/types/testdata/check/stmt0.go         |  2 +-
- src/internal/types/testdata/check/vardecl.go       | 10 ++++-----
- .../types/testdata/fixedbugs/issue39634.go         | 12 +++++------
- .../types/testdata/fixedbugs/issue43527.go         |  2 +-
- .../types/testdata/fixedbugs/issue45635.go         |  2 +-
- .../types/testdata/fixedbugs/issue49005.go         |  4 ++--
- .../types/testdata/fixedbugs/issue49482.go         |  2 +-
- .../types/testdata/fixedbugs/issue50929.go         |  2 +-
- .../types/testdata/fixedbugs/issue54405.go         |  4 ++--
- 21 files changed, 59 insertions(+), 63 deletions(-)
+ test/typeparam/index2.go | 67 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 67 insertions(+)

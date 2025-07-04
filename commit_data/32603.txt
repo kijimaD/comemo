@@ -1,16 +1,29 @@
-commit b2e8630f2f8120f917b8e6d3e2a88ee6046da569
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Sep 3 12:31:14 2017 -0700
+commit 2eeaba4172522783f30440bf6e11f7f865116024
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 5 13:57:22 2017 -0700
 
-    cmd/compile: simplify "missing function body" error message
+    go/types: remove invalid documentation and assertion on package names
     
-    Fixes #21747.
+    NewPackage required through documentation that the package name not
+    be blank (which wasn't true since each time we check a new package
+    we create one with a blank name (api.go:350). NewPackage also asserted
+    that a package name not be "_". While it is invalid for a package name
+    to be "_", one could conceivably create a package named "_" through
+    export data manipulation. Furthermore, it is ok to import a package
+    with package path "_" as long as the package itself is not named "_".
     
-    Change-Id: I6a68370be3b7510ce364ddd1e41a1d767ce3a67f
-    Reviewed-on: https://go-review.googlesource.com/61311
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    - removed misleading documentation
+    - removed unnecessary assertion
+    - added safety checks when we actually do the import
+    
+    Fixes #20231.
+    
+    Change-Id: I1eb1ab7b5e3130283db715374770cf05d749d159
+    Reviewed-on: https://go-review.googlesource.com/42852
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/noder.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/package.go  | 6 +-----
+ src/go/types/resolver.go | 6 ++++++
+ 2 files changed, 7 insertions(+), 5 deletions(-)

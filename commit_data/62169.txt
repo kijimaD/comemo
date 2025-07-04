@@ -1,0 +1,17 @@
+commit ff27d270c9f95178f9749bc8e1f15957b1c1d5b3
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Feb 7 17:42:02 2025 -0500
+
+    bytes: use "subslice" instead of "substring" in doc comments
+    
+    The bytes package iterators return subslices, not substrings.
+    
+    Updates #61901.
+    
+    Change-Id: Ida91d3e33a0f178edfe9a267861adf4f13f9a965
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647875
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/bytes/iter.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

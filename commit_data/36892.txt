@@ -1,18 +1,14 @@
-commit 2bb91e093cb57c5ba5ca71f0d0a63913a07f21f4
-Author: Lehner Florian <dev@der-flo.net>
-Date:   Tue Oct 2 16:43:56 2018 +0000
+commit cf901a7240a37ec24d68c4da5b045fba7cf8bfd9
+Author: cch123 <buaa.cch@gmail.com>
+Date:   Thu Jun 7 10:08:48 2018 +0000
 
-    fmt: add example Sscanf
+    runtime: fix typo in runqput comment
     
-    Updates golang/go#27554.
-    
-    Change-Id: I2bf3d57ebeeb5dd50beffbc643a4ad10287b2c1e
-    GitHub-Last-Rev: 4ffae55b4b2ca9d9b2a5b2b6dcef14ce43d83544
-    GitHub-Pull-Request: golang/go#27954
-    Reviewed-on: https://go-review.googlesource.com/c/138837
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idd88a1d9420545e3e326f8e3b57a38d8c7515555
+    GitHub-Last-Rev: 59528f552238eb4070cb9a66c1dbfafd6bc3808d
+    GitHub-Pull-Request: golang/go#25779
+    Reviewed-on: https://go-review.googlesource.com/116935
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/example_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

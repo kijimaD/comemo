@@ -1,21 +1,31 @@
-commit eb1e505f3f04721763e001e607322aea0f7465ba
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Nov 12 14:53:50 2024 +0000
+commit 07d4de9312aef72d1bd7427316a2ac21b83e4a20
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 13 11:41:00 2023 -0400
 
-    runtime: make Frames example produce documented output
+    os/exec: fix edge cases in Windows PATH resolution
     
-    I believe now this code can work in both test and standalone situations.
+    - Ignore empty entries in PATH, like PowerShell does.
     
-    Fixes #70057
+    - If we resolve a path using an explicit relative entry in PATH,
+      treat it the same as we do for the implicit "." search path,
+      by allowing a later (absolute) PATH entry that resolves to the
+      same executable to return the absolute version of its path.
     
-    Change-Id: Ieb5163e6b917fd03d050f65589df6c31ad2515fe
-    GitHub-Last-Rev: db4863c05e4d4bcbd40caf459d29e2eee81f847b
-    GitHub-Pull-Request: golang/go#70270
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625904
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    - If the requested path does not end with an extension matching
+      PATHEXT, return ErrNotFound (indicating that we potentially searched
+      for multiple alternatives and did not find one) instead of
+      ErrNotExist (which would imply that we know the exact intended path
+      but couldn't find it).
+    
+    Fixes #61493.
+    
+    Change-Id: I5b539d8616e3403825749d8eccf46725fa808a17
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-race,gotip-windows-amd64-race,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528037
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/example_test.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/os/exec/lp_windows.go      | 22 ++++++++++--
+ src/os/exec/lp_windows_test.go | 77 ++++++++++++++++++++++++++++++++----------
+ 2 files changed, 79 insertions(+), 20 deletions(-)

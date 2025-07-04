@@ -1,16 +1,18 @@
-commit ac658a83c28ab3e68e9f21f21c9b0f63d13ca19c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 13 21:21:39 2015 -0800
+commit ca9e450bed8e0884e88731526adfb2b4080b548e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 8 08:59:57 2015 -0700
 
-    cmd/compile/internal/gc: consume at least one token in case of syntax error
+    [dev.ssa] cmd/compile/internal/ssa: fix defer in functions with no return
     
-    Fixes #13248.
+    The after-defer test jumps to a deferreturn site.  Some functions
+    (those with infinite loops) have no deferreturn site.  Add one
+    so we have one to jump to.
     
-    TBR: iant
-    
-    Change-Id: Ic8b10704f945e6daef04bb38a00e249854b4ef19
-    Reviewed-on: https://go-review.googlesource.com/16930
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I505e7f3f888f5e7d03ca49a3477b41cf1f78eb8a
+    Reviewed-on: https://go-review.googlesource.com/14349
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/parser.go | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 | 38 ++++++++++++++--------
+ src/cmd/compile/internal/gc/ssa_test.go            | 10 +++++-
+ .../internal/gc/testdata/deferNoReturn_ssa.go      | 21 ++++++++++++
+ 3 files changed, 54 insertions(+), 15 deletions(-)

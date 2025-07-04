@@ -1,17 +1,28 @@
-commit 2ccc9a965b11e27f3df843d36ccdecc6efbd1b52
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 26 13:03:30 2013 -0800
+commit 92b5e16147b26dcea216b48b380566b900b4916b
+Author: John Newlin <jnewlin@google.com>
+Date:   Thu Dec 26 11:52:14 2013 -0800
 
-    net/http: quiet distracting test spam
+    net/http: Release reference to chunkWriter's bufio.Writer on hijack
     
-    Capture log output (and test it while at it),
-    and quiet unnecessary t.Logf.
+    When a connection is hijacked, release the reference to the bufio.Writer
+    that is used with the chunkWriter.  The chunkWriter is not used after
+    the connection is hijacked.
     
-    R=golang-codereviews, iant
+    Also add a test to check that double Hijack calls do something sensible.
+    
+    benchmark                old ns/op    new ns/op    delta
+    BenchmarkServerHijack        24137        20629  -14.53%
+    
+    benchmark               old allocs   new allocs    delta
+    BenchmarkServerHijack           21           19   -9.52%
+    
+    benchmark                old bytes    new bytes    delta
+    BenchmarkServerHijack        11774         9667  -17.90%
+    
+    R=bradfitz, dave, chris.cahoon
     CC=golang-codereviews
-    https://golang.org/cl/45850043
+    https://golang.org/cl/39440044
 
- src/pkg/net/http/client_test.go    | 20 +-------------------
- src/pkg/net/http/cookie_test.go    | 28 ++++++++++++++++++++++++++++
- src/pkg/net/http/transport_test.go |  2 +-
- 3 files changed, 30 insertions(+), 20 deletions(-)
+ src/pkg/net/http/serve_test.go | 25 +++++++++++++++++++++++++
+ src/pkg/net/http/server.go     |  9 ++++++++-
+ 2 files changed, 33 insertions(+), 1 deletion(-)

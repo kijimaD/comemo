@@ -1,20 +1,120 @@
-commit aaa6ce230191c53c6a91f06349aa128e0fff2c56
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Apr 20 12:02:29 2011 +1000
+commit 6a186d38d1c7e98487378991dba3085acbdb05c2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Apr 20 09:57:05 2011 +1000
 
-    goinstall: support building executable commands
+    src/pkg: make package doc comments consistently start with "Package foo".
     
-    This CL gives goinstall the ability to build commands,
-    not just packages.
-    
-    "goinstall foo.googlecode.com/hg/bar" will build the command named
-    "bar" and install it to GOBIN. "goinstall ." will use the name of the
-    local directory as the command name.
-    
-    R=rsc, niemeyer
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4426045
+    https://golang.org/cl/4442064
 
- src/cmd/goinstall/main.go | 11 ++---------
- src/cmd/goinstall/make.go | 39 ++++++++++++++++++++++++++++++---------
- 2 files changed, 32 insertions(+), 18 deletions(-)
+ doc/effective_go.html                    |  4 ++--
+ src/pkg/archive/tar/common.go            |  2 +-
+ src/pkg/archive/zip/reader.go            |  2 +-
+ src/pkg/asn1/asn1.go                     |  2 +-
+ src/pkg/big/nat.go                       | 10 +++++-----
+ src/pkg/bufio/bufio.go                   |  2 +-
+ src/pkg/bytes/bytes.go                   |  4 ++--
+ src/pkg/cmath/abs.go                     |  4 ++--
+ src/pkg/compress/flate/inflate.go        |  6 +++---
+ src/pkg/compress/gzip/gunzip.go          |  4 ++--
+ src/pkg/compress/lzw/reader.go           |  2 +-
+ src/pkg/compress/zlib/reader.go          |  4 ++--
+ src/pkg/container/heap/heap.go           |  2 +-
+ src/pkg/container/list/list.go           |  2 +-
+ src/pkg/container/ring/ring.go           |  2 +-
+ src/pkg/container/vector/defs.go         |  4 ++--
+ src/pkg/crypto/aes/const.go              |  8 ++++----
+ src/pkg/crypto/blowfish/cipher.go        |  2 +-
+ src/pkg/crypto/cast5/cast5.go            |  2 +-
+ src/pkg/crypto/cipher/cipher.go          |  4 ++--
+ src/pkg/crypto/crypto.go                 |  2 +-
+ src/pkg/crypto/elliptic/elliptic.go      |  4 ++--
+ src/pkg/crypto/hmac/hmac.go              |  4 ++--
+ src/pkg/crypto/md4/md4.go                |  2 +-
+ src/pkg/crypto/md5/md5.go                |  2 +-
+ src/pkg/crypto/ocsp/ocsp.go              |  2 +-
+ src/pkg/crypto/openpgp/armor/armor.go    |  2 +-
+ src/pkg/crypto/openpgp/error/error.go    |  2 +-
+ src/pkg/crypto/openpgp/packet/packet.go  |  2 +-
+ src/pkg/crypto/openpgp/read.go           |  2 +-
+ src/pkg/crypto/openpgp/s2k/s2k.go        |  2 +-
+ src/pkg/crypto/rc4/rc4.go                |  2 +-
+ src/pkg/crypto/ripemd160/ripemd160.go    |  2 +-
+ src/pkg/crypto/rsa/rsa.go                |  2 +-
+ src/pkg/crypto/sha1/sha1.go              |  2 +-
+ src/pkg/crypto/sha256/sha256.go          |  3 ++-
+ src/pkg/crypto/sha512/sha512.go          |  3 ++-
+ src/pkg/crypto/subtle/constant_time.go   |  2 +-
+ src/pkg/crypto/tls/tls.go                |  3 ++-
+ src/pkg/crypto/twofish/twofish.go        |  2 +-
+ src/pkg/crypto/x509/x509.go              |  2 +-
+ src/pkg/crypto/xtea/cipher.go            |  4 ++--
+ src/pkg/debug/dwarf/open.go              |  6 +++---
+ src/pkg/ebnf/ebnf.go                     |  4 ++--
+ src/pkg/encoding/hex/hex.go              |  2 +-
+ src/pkg/encoding/line/line.go            |  3 ++-
+ src/pkg/encoding/pem/pem.go              |  2 +-
+ src/pkg/exec/exec.go                     |  6 +++---
+ src/pkg/exp/datafmt/datafmt.go           |  2 +-
+ src/pkg/exp/draw/x11/conn.go             |  2 +-
+ src/pkg/exp/eval/world.go                |  2 +-
+ src/pkg/exp/ogle/cmd.go                  |  2 +-
+ src/pkg/expvar/expvar.go                 |  6 +++---
+ src/pkg/flag/flag.go                     |  2 +-
+ src/pkg/go/ast/ast.go                    |  4 ++--
+ src/pkg/go/doc/doc.go                    |  2 +-
+ src/pkg/go/parser/parser.go              |  8 ++++----
+ src/pkg/go/printer/printer.go            |  2 +-
+ src/pkg/go/scanner/scanner.go            |  6 +++---
+ src/pkg/go/token/token.go                |  5 ++---
+ src/pkg/go/types/types.go                |  2 +-
+ src/pkg/gob/doc.go                       |  2 +-
+ src/pkg/hash/adler32/adler32.go          |  2 +-
+ src/pkg/hash/crc32/crc32.go              |  5 +++--
+ src/pkg/hash/crc64/crc64.go              |  5 +++--
+ src/pkg/hash/fnv/fnv.go                  |  5 ++---
+ src/pkg/hash/hash.go                     |  1 +
+ src/pkg/html/doc.go                      |  2 +-
+ src/pkg/http/httptest/recorder.go        |  2 +-
+ src/pkg/http/request.go                  |  5 ++---
+ src/pkg/image/image.go                   |  2 +-
+ src/pkg/image/png/reader.go              |  2 +-
+ src/pkg/image/ycbcr/ycbcr.go             |  2 +-
+ src/pkg/index/suffixarray/suffixarray.go |  4 ++--
+ src/pkg/io/io.go                         |  2 +-
+ src/pkg/io/ioutil/ioutil.go              |  3 +--
+ src/pkg/json/encode.go                   |  4 ++--
+ src/pkg/log/log.go                       |  6 +++---
+ src/pkg/math/const.go                    |  2 +-
+ src/pkg/mime/type.go                     |  2 +-
+ src/pkg/net/net.go                       |  5 ++---
+ src/pkg/net/textproto/textproto.go       |  5 ++---
+ src/pkg/netchan/export.go                |  2 +-
+ src/pkg/os/file.go                       |  4 ++--
+ src/pkg/os/inotify/inotify_linux.go      |  2 +-
+ src/pkg/path/filepath/path.go            |  5 ++---
+ src/pkg/path/path.go                     |  4 ++--
+ src/pkg/reflect/type.go                  |  8 ++++----
+ src/pkg/rpc/server.go                    |  2 +-
+ src/pkg/runtime/debug/stack.go           |  4 ++--
+ src/pkg/runtime/extern.go                |  2 +-
+ src/pkg/scanner/scanner.go               |  9 +++++----
+ src/pkg/sort/sort.go                     |  4 ++--
+ src/pkg/strconv/atof.go                  |  8 ++++----
+ src/pkg/strings/strings.go               |  2 +-
+ src/pkg/sync/mutex.go                    |  9 ++++-----
+ src/pkg/syscall/syscall.go               |  2 +-
+ src/pkg/syslog/syslog.go                 |  5 ++---
+ src/pkg/tabwriter/tabwriter.go           |  4 ++--
+ src/pkg/template/template.go             |  4 ++--
+ src/pkg/testing/iotest/reader.go         |  3 +--
+ src/pkg/testing/quick/quick.go           |  2 +-
+ src/pkg/testing/script/script.go         |  2 +-
+ src/pkg/testing/testing.go               |  2 +-
+ src/pkg/time/time.go                     |  3 +--
+ src/pkg/unicode/letter.go                |  3 ++-
+ src/pkg/unsafe/unsafe.go                 |  2 +-
+ src/pkg/utf8/utf8.go                     |  4 ++--
+ src/pkg/websocket/websocket.go           |  2 +-
+ 109 files changed, 181 insertions(+), 183 deletions(-)

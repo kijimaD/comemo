@@ -1,19 +1,24 @@
-commit 97494a45e21099c3a357785f31894a5e69e086c8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 15 16:35:43 2015 +0000
+commit a0452a68211c505596d0a406ec083cf5d3b03b89
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 24 10:45:20 2015 -0400
 
-    Revert "cmd/internal/gc: ignore declarations of types for goto validation"
+    runtime: proportional response GC trigger controller
     
-    This reverts commit 5726af54eb3a52b9446a834991110b945e780e99.
+    Currently, concurrent GC triggers at a fixed 7/8*GOGC heap growth. For
+    mutators that allocate slowly, this means GC will trigger too early
+    and run too often, wasting CPU time on GC. For mutators that allocate
+    quickly, this means GC will trigger too late, causing the program to
+    exceed the GOGC heap growth goal and/or to exceed CPU goals because of
+    a high mutator assist ratio.
     
-    It broke all the builds.
+    This change adds a feedback control loop to dynamically adjust the GC
+    trigger from cycle to cycle. By monitoring the heap growth and GC CPU
+    utilization from cycle to cycle, this adjusts the Go garbage collector
+    to target the GOGC heap growth goal and the 25% CPU utilization goal.
     
-    Change-Id: I4b1dde86f9433717d303c1dabd6aa1a2bf97fab2
-    Reviewed-on: https://go-review.googlesource.com/10143
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic82eef288c1fa122f73b69fe604d32cbb219e293
+    Reviewed-on: https://go-review.googlesource.com/8851
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/gc/dcl.go |  3 ---
- src/cmd/internal/gc/gen.go | 21 +++------------------
- src/cmd/internal/gc/go.go  |  1 -
- test/goto.go               | 16 ----------------
- 4 files changed, 3 insertions(+), 38 deletions(-)
+ src/runtime/mgc.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 48 insertions(+), 3 deletions(-)

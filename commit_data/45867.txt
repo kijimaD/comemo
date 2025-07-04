@@ -1,31 +1,25 @@
-commit 37f9a8f69d6299783eac8848d87e27eb563500ac
-Author: Rob Findley <rfindley@google.com>
-Date:   Thu Jun 24 11:01:49 2021 -0400
+commit 1308f118974fab4bd08d04a6a982db6dde6f9e52
+Author: eric fang <eric.fang@arm.com>
+Date:   Wed Nov 18 04:00:57 2020 +0000
 
-    go/types: fix a bug in package qualification logic
+    cmd/link: add relocation type R_AARCH64_LDST16_ABS_LO12_NC for arm64
     
-    CL 313035 had a bug, initializing pkgPathMap by walking the imported
-    package being considered rather than check.pkg.
+    The linker already has R_AARCH64_LDST{8,32,64,128}_ABS_LO12_NC, some cgo tests require
+     R_AARCH64_LDST16_ABS_LO12_NC, this CL adds this relocation type.
     
-    Fix this, and enhance our tests to exercise this bug as well as other
-    edge cases.
+    Fixes #42660
     
-    Also fix error assertions in issues.src to not use quotation marks
-    inside the error regexp. The check tests only matched the error regexp
-    up to the first quotation mark.
-    
-    Fixes #46905
-    
-    Change-Id: I6aa8eae4bec6495006a5c03fc063db0d66b44cd6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330629
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I9a5120cd872f5095c61175cb602427c6ab3225cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271017
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: eric fang <eric.fang@arm.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
 
- src/go/types/check_test.go             | 15 ++++---
- src/go/types/errors.go                 |  2 +-
- src/go/types/issues_test.go            | 72 ++++++++++++++++++++++------------
- src/go/types/testdata/check/issues.src |  4 +-
- 4 files changed, 59 insertions(+), 34 deletions(-)
+ src/cmd/internal/objabi/reloctype.go        |  3 ++
+ src/cmd/internal/objabi/reloctype_string.go | 47 +++++++++++++++--------------
+ src/cmd/link/internal/arm64/asm.go          | 16 ++++++++++
+ src/cmd/link/internal/loadelf/ldelf.go      |  1 +
+ 4 files changed, 44 insertions(+), 23 deletions(-)

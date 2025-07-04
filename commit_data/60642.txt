@@ -1,0 +1,26 @@
+commit f053f4f921d3d481d3adb3e909e81f1b31a13f2e
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Sat Feb 25 16:24:54 2023 -0800
+
+    crypto/tls: expose extensions presented by client to GetCertificate
+    
+    This enables JA3 and JA4 TLS fingerprinting to be implemented from
+    the GetCertificate callback, similar to what BoringSSL provides with
+    its SSL_CTX_set_dos_protection_cb hook.
+    
+    fixes #32936
+    
+    Change-Id: Idb54ebcb43075582fcef0ac6438727f494543424
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471396
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/32936.txt                             |  1 +
+ doc/next/6-stdlib/99-minor/crypto/tls/32936.md |  1 +
+ src/crypto/tls/common.go                       |  4 ++
+ src/crypto/tls/handshake_messages.go           |  3 ++
+ src/crypto/tls/handshake_messages_test.go      | 12 ++++++
+ src/crypto/tls/handshake_server.go             |  1 +
+ src/crypto/tls/handshake_server_test.go        | 60 ++++++++++++++++++++++++++
+ 7 files changed, 82 insertions(+)

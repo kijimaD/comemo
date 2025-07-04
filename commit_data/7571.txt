@@ -1,19 +1,12 @@
-commit ad8b0d915b2e19ec74982611ea0a2e10b3c6cd1b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 24 19:29:25 2011 -0800
+commit cdf1c4f6e054d0010b948d83ab8837f9165492c4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 25 14:24:08 2011 +1100
 
-    bug324.go: test case for issue 1550
-    
-    Also: renamed fixedbugs/bug322.go to fixedbugs/bug323.go
-    because we already have a bugs/bug322.go and bug322.dir.
+    tag release.2011-02-24
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4219044
+    https://golang.org/cl/4231045
 
- test/bugs/bug324.dir/main.go            | 48 +++++++++++++++++++++++++++++++++
- test/bugs/bug324.dir/p.go               | 15 +++++++++++
- test/bugs/bug324.go                     |  8 ++++++
- test/fixedbugs/{bug322.go => bug323.go} |  0
- test/golden.out                         |  3 +++
- 5 files changed, 74 insertions(+)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

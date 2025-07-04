@@ -1,28 +1,60 @@
-commit 0421e78f0556f98d782cdcbad6eaa2612603acf9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 8 01:06:00 2016 +0000
+commit 62ba520b237afebd16e5c55113523f1511643fb1
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 26 16:29:25 2015 -0400
 
-    net/http: fix too-strict validation of server header values
+    runtime: eliminate getfull barrier from concurrent mark
     
-    As Andy Balholm noted in #11207:
+    Currently dedicated mark workers participate in the getfull barrier
+    during concurrent mark. However, the getfull barrier wasn't designed
+    for concurrent work and this causes no end of headaches.
     
-    "RFC2616 §4.2 says that a header's field-content can consist of *TEXT,
-    and RFC2616 §2.2 says that TEXT is <any OCTET except CTLs, but
-    including LWS>, so that would mean that bytes greater than 128 are
-    allowed."
+    In the concurrent setting, participants come and go. This makes mark
+    completion susceptible to live-lock: since dedicated workers are only
+    periodically polling for completion, it's possible for the program to
+    be in some transient worker each time one of the dedicated workers
+    wakes up to check if it can exit the getfull barrier. It also
+    complicates reasoning about the system because dedicated workers
+    participate directly in the getfull barrier, but transient workers
+    must instead use trygetfull because they have exit conditions that
+    aren't captured by getfull (e.g., fractional workers exit when
+    preempted). The complexity of implementing these exit conditions
+    contributed to #11677. Furthermore, the getfull barrier is inefficient
+    because we could be running user code instead of spinning on a P. In
+    effect, we're dedicating 25% of the CPU to marking even if that means
+    we have to spin to make that 25%. It also causes issues on Windows
+    because we can't actually sleep for 100µs (#8687).
     
-    This is a partial rollback of the strictness from
-    https://golang.org/cl/11207 (added in the Go 1.6 dev cycle, only
-    released in Go 1.6beta1)
+    Fix this by making dedicated workers no longer participate in the
+    getfull barrier. Instead, dedicated workers simply return to the
+    scheduler when they fail to get more work, regardless of what others
+    workers are doing, and the scheduler only starts new dedicated workers
+    if there's work available. Everything that needs to be handled by this
+    barrier is already handled by detection of mark completion.
     
-    Fixes #11207
+    This makes the system much more symmetric because all workers and
+    assists now use trygetfull during concurrent mark. It also loosens the
+    25% CPU target so that we can give some of that 25% back to user code
+    if there isn't enough work to keep the mark worker busy. And it
+    eliminates the problematic 100µs sleep on Windows during concurrent
+    mark (though not during mark termination).
     
-    Change-Id: I3a752a7941de100e4803ff16a5d626d5cfec4f03
-    Reviewed-on: https://go-review.googlesource.com/18374
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The downside of this is that if we hit a bottleneck in the heap graph
+    that then expands back out, the system may shut down dedicated workers
+    and take a while to start them back up. We'll address this in the next
+    commit.
+    
+    Updates #12041 and #8687.
+    
+    No effect on the go1 benchmarks. This slows down the garbage benchmark
+    by 9%, but we'll more than make it up in the next commit.
+    
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  5.80ms ± 2%  6.32ms ± 4%  +9.03%  (p=0.000 n=20+20)
+    
+    Change-Id: I65100a9ba005a8b5cf97940798918672ea9dd09b
+    Reviewed-on: https://go-review.googlesource.com/16297
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/http/request.go    | 8 ++------
- src/net/http/serve_test.go | 4 ++--
- 2 files changed, 4 insertions(+), 8 deletions(-)
+ src/runtime/mgc.go     | 110 ++++++++++++++++++++++---------------------------
+ src/runtime/mgcmark.go |  22 ++++++----
+ 2 files changed, 64 insertions(+), 68 deletions(-)

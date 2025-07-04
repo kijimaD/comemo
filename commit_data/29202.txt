@@ -1,33 +1,32 @@
-commit b33030a72754cb55d6ec137e79facacb398c9be4
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Oct 28 15:28:18 2016 -0400
+commit dfbbe06a205e7048a8541c4c97b250c24c40db96
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 10 11:06:46 2016 +1000
 
-    runtime/pprof: write profiles in protobuf format.
+    cmd/link, cmd/go: delay linking of mingwex and mingw32 until very end
     
-    Original Change by Daria Kolistratova <daria.kolistratova@intel.com>
+    cmd/go links mingwex and mingw32 libraries to every package it builds.
+    This breaks when 2 different packages call same gcc standard library
+    function pow. gcc linker appends pow implementation to the compiled
+    package, and names that function "pow". But when these 2 compiled
+    packages are linked together into the final executable, linker
+    complains, because it finds two "pow" functions with the same name.
     
-    Added functions with suffix proto and stuff from pprof tool to translate
-    to protobuf. Done as the profile proto is more extensible than the legacy
-    pprof format and is pprof's preferred profile format. Large part was taken
-    from https://github.com/google/pprof tool. Tested by hand and compared the
-    result with translated by pprof tool, profiles are identical.
-    Fixes #16093
+    This CL stops linking of mingwex and mingw32 during package build -
+    that leaves pow function reference unresolved. pow reference gets
+    resolved as final executable is built, by having both internal and
+    external linker use mingwex and mingw32 libraries.
     
-    Change-Id: I2751345b09a66ee2b6aa64be76cba4cd1c326aa6
-    Reviewed-on: https://go-review.googlesource.com/32257
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Fixes #8756
+    
+    Change-Id: I50ddc79529ea5463c67118d668488345ecf069bc
+    Reviewed-on: https://go-review.googlesource.com/26670
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/deps_test.go                          |  14 +-
- src/runtime/crash_cgo_test.go                      |   3 +-
- src/runtime/pprof/decoder_for_test.go              | 807 +++++++++++++++++++++
- src/runtime/pprof/internal/profile/encode.go       | 187 +++++
- src/runtime/pprof/internal/profile/profile.go      | 112 +++
- .../pprof/internal/profile/profile_memmap.go       | 302 ++++++++
- src/runtime/pprof/internal/profile/proto.go        | 156 ++++
- .../pprof/internal/protopprof/protopprof.go        | 295 ++++++++
- src/runtime/pprof/mprof_test.go                    |  64 +-
- src/runtime/pprof/pprof.go                         | 409 +++++------
- src/runtime/pprof/pprof_test.go                    | 227 ++----
- 11 files changed, 2170 insertions(+), 406 deletions(-)
+ misc/cgo/test/cgo_test.go            |  1 +
+ misc/cgo/test/issue8756.go           | 17 ++++++++++
+ misc/cgo/test/issue8756/issue8756.go | 11 ++++++
+ src/cmd/go/build.go                  |  7 ----
+ src/cmd/link/internal/ld/lib.go      | 65 ++++++++++++++++++++++++++----------
+ 5 files changed, 76 insertions(+), 25 deletions(-)

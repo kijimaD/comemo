@@ -1,16 +1,16 @@
-commit 74fcf82dd9c551fb0e2c2f8c323bba5b91da60bf
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Nov 25 13:27:32 2012 +0400
+commit 1e9ab9e7926ec655850379b0326b11f830a482e7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 25 11:29:06 2012 +1100
 
-    net: add unit tests for read/write deadlines
-    The tests verify that deadlines are "persistent",
-    read/write deadlines do not interfere, can be reset,
-    read deadline can be set with both SetDeadline()
-    and SetReadDeadline(), etc.
+    time: add Now()/UnixNano() malloc tests
     
-    R=golang-dev, bradfitz, dave
+    The fix for issue 4403 may include more calls to time.Now().UnixNano(). I was concerned that if this function allocated it would cause additional garbage on the heap. It turns out that it doesn't, which is a nice surprise.
+    
+    Also add benchmark for Now().UnixNano()
+    
+    R=bradfitz, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6850070
+    https://golang.org/cl/6849097
 
- src/pkg/net/timeout_test.go | 147 +++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 146 insertions(+), 1 deletion(-)
+ src/pkg/time/time_test.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 40 insertions(+), 1 deletion(-)

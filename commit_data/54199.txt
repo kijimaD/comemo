@@ -1,26 +1,17 @@
-commit cf6838467453be54d1c6b45f431db35cf95b1eee
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 18 00:32:11 2023 -0700
+commit 50cc2238fb4393901e5b62af3bef972c14c79a27
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:32:34 2022 +0800
 
-    cmd/compile/internal/gc: steps towards work-queue
+    cmd/cgo: use strings.Contains instead of strings.Index
     
-    [This is a reattempt of go.dev/cl/520611.]
-    
-    This CL reorganizes the top-level functions for handling package-level
-    declarations, runtime type descriptors, and SSA compilation to work in
-    a loop. This generalizes the loop that previously existed in dumpdata.
-    
-    Change-Id: I7502798a8662b3cec92d3001169f3af4f804df2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522339
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iaa623dae50ccae36ad44af25899c6453b6108046
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435944
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/compile.go          |  4 --
- src/cmd/compile/internal/gc/main.go             | 72 ++++++++++++++++++-------
- src/cmd/compile/internal/gc/obj.go              | 51 +-----------------
- src/cmd/compile/internal/reflectdata/reflect.go |  2 +
- src/cmd/go/testdata/script/build_issue62156.txt | 27 ++++++++++
- 5 files changed, 84 insertions(+), 72 deletions(-)
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

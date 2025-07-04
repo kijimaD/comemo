@@ -1,68 +1,16 @@
-commit 613f0a31445666cd573bf070309607e579b0b5c7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 13 15:06:46 2019 -0500
+commit 048c766e660e70e6e3779e479a2ab535b3865a21
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 19 16:19:05 2018 -0700
 
-    cmd/go: set GO111MODULE=off explicitly in tests that assume GOPATH mode
+    cmd/compile/internal/gc: minor code reorg (cleanup)
     
-    We will soon switch GO111MODULE to 'on' by default, and when that
-    happens these tests will otherwise break.
+    Found while tracking down #26855.
     
-    Updates #30228
-    
-    Change-Id: I1016d429b1dfb889d1aae8bc86fb2567cf0fc56f
-    Reviewed-on: https://go-review.googlesource.com/c/162697
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ice137fe390820ba351e1c7439b6a9a1b3bdc966b
+    Reviewed-on: https://go-review.googlesource.com/136396
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go                                  | 1 +
- src/cmd/go/testdata/script/binary_only.txt             | 2 ++
- src/cmd/go/testdata/script/build_GOTMPDIR.txt          | 2 ++
- src/cmd/go/testdata/script/build_cache_compile.txt     | 2 ++
- src/cmd/go/testdata/script/build_cache_gomips.txt      | 2 ++
- src/cmd/go/testdata/script/build_cache_link.txt        | 2 ++
- src/cmd/go/testdata/script/build_cache_output.txt      | 2 ++
- src/cmd/go/testdata/script/build_nocache.txt           | 2 ++
- src/cmd/go/testdata/script/build_relative_pkgdir.txt   | 2 ++
- src/cmd/go/testdata/script/build_relative_tmpdir.txt   | 2 ++
- src/cmd/go/testdata/script/build_runtime_gcflags.txt   | 2 ++
- src/cmd/go/testdata/script/cache_unix.txt              | 2 ++
- src/cmd/go/testdata/script/cgo_syso_issue29253.txt     | 2 ++
- src/cmd/go/testdata/script/clean_testcache.txt         | 2 ++
- src/cmd/go/testdata/script/cover_atomic_pkgall.txt     | 2 ++
- src/cmd/go/testdata/script/cover_pkgall_runtime.txt    | 2 ++
- src/cmd/go/testdata/script/cpu_profile_twice.txt       | 2 ++
- src/cmd/go/testdata/script/fileline.txt                | 2 ++
- src/cmd/go/testdata/script/gcflags_patterns.txt        | 2 ++
- src/cmd/go/testdata/script/get_brace.txt               | 2 ++
- src/cmd/go/testdata/script/get_dotfiles.txt            | 2 ++
- src/cmd/go/testdata/script/get_tilde.txt               | 2 ++
- src/cmd/go/testdata/script/get_unicode.txt             | 2 ++
- src/cmd/go/testdata/script/get_with_git_trace.txt      | 2 ++
- src/cmd/go/testdata/script/goflags.txt                 | 2 ++
- src/cmd/go/testdata/script/help.txt                    | 2 ++
- src/cmd/go/testdata/script/install_cleans_build.txt    | 2 ++
- src/cmd/go/testdata/script/install_cross_gobin.txt     | 2 ++
- src/cmd/go/testdata/script/install_rebuild_gopath.txt  | 2 ++
- src/cmd/go/testdata/script/install_rebuild_removed.txt | 2 ++
- src/cmd/go/testdata/script/linkname.txt                | 2 ++
- src/cmd/go/testdata/script/list_bad_import.txt         | 2 ++
- src/cmd/go/testdata/script/list_compiled_imports.txt   | 2 ++
- src/cmd/go/testdata/script/list_find.txt               | 2 ++
- src/cmd/go/testdata/script/list_importmap.txt          | 2 ++
- src/cmd/go/testdata/script/list_std.txt                | 2 ++
- src/cmd/go/testdata/script/list_tags.txt               | 2 ++
- src/cmd/go/testdata/script/list_test_e.txt             | 2 ++
- src/cmd/go/testdata/script/list_test_imports.txt       | 2 ++
- src/cmd/go/testdata/script/mod_find.txt                | 2 ++
- src/cmd/go/testdata/script/mod_gobuild_import.txt      | 6 ++----
- src/cmd/go/testdata/script/pattern_syntax_error.txt    | 2 ++
- src/cmd/go/testdata/script/run_hello.txt               | 2 ++
- src/cmd/go/testdata/script/run_wildcard.txt            | 2 ++
- src/cmd/go/testdata/script/script_wait.txt             | 2 ++
- src/cmd/go/testdata/script/test_badtest.txt            | 2 ++
- src/cmd/go/testdata/script/test_compile_binary.txt     | 2 ++
- src/cmd/go/testdata/script/test_devnull.txt            | 2 ++
- src/cmd/go/testdata/script/vendor_complex.txt          | 2 ++
- src/cmd/go/testdata/script/vet_asm.txt                 | 2 ++
- 50 files changed, 99 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

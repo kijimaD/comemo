@@ -1,12 +1,51 @@
-commit 3b76b017cabb0ea29a184670e081edfe11afb8de
-Author: Brad Fitzpatrick <brad@danga.com>
-Date:   Sun Dec 28 13:37:44 2014 -0800
+commit 9ef4e5610809780555260f386d6e20f3df87c6ce
+Merge: 3dcc62e1da 743bdf612a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 14 12:09:42 2014 -0500
 
-    doc: add net/smtp TLSConnectionState note in go1.5.txt
+    [dev.garbage] all: merge dev.power64 (7667e41f3ced) into dev.garbage
     
-    Change-Id: Ia18f6ed0fa38dac297fc5fe1ca56e38ec37518ef
-    Reviewed-on: https://go-review.googlesource.com/2152
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Now the only difference between dev.cc and dev.garbage
+    is the runtime conversion on the one side and the
+    garbage collection on the other. They both have the
+    same set of changes from default and dev.power64.
+    
+    LGTM=austin
+    R=austin
+    CC=golang-codereviews
+    https://golang.org/cl/172570043
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ include/link.h                  |    9 +-
+ src/cmd/5g/gobj.c               |    2 +-
+ src/cmd/5g/gsubr.c              |    3 +-
+ src/cmd/5g/opt.h                |   14 +-
+ src/cmd/5g/reg.c                |   50 +-
+ src/cmd/6g/gobj.c               |    2 +-
+ src/cmd/6g/opt.h                |   14 +-
+ src/cmd/6g/reg.c                |   97 +---
+ src/cmd/8g/gobj.c               |    2 +-
+ src/cmd/8g/opt.h                |   14 +-
+ src/cmd/8g/reg.c                |   92 +--
+ src/cmd/9g/ggen.c               |   20 +-
+ src/cmd/9g/gobj.c               |    2 +-
+ src/cmd/9g/gsubr.c              |   26 +-
+ src/cmd/9g/opt.h                |   49 +-
+ src/cmd/9g/peep.c               |    4 +-
+ src/cmd/9g/prog.c               |   22 +-
+ src/cmd/9g/reg.c                | 1212 ++++++++++++++++++++++++++++++++++++++-
+ src/cmd/9l/9.out.h              |    4 +-
+ src/cmd/gc/bits.c               |   34 +-
+ src/cmd/gc/go.h                 |   12 +-
+ src/cmd/objdump/objdump_test.go |    8 +
+ src/liblink/list9.c             |   11 +-
+ src/reflect/asm_power64x.s      |    7 +-
+ src/runtime/asm_power64x.s      |   55 +-
+ src/runtime/gcinfo_test.go      |    8 +-
+ src/runtime/mgc0.c              |    1 +
+ src/runtime/panic.c             |    2 +-
+ src/runtime/runtime.c           |    6 +
+ src/runtime/signal_power64x.c   |    2 +-
+ test/clearfat.go                |   68 +++
+ test/live.go                    |    2 +-
+ test/nilptr3.go                 |    2 +
+ 33 files changed, 1544 insertions(+), 312 deletions(-)

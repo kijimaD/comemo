@@ -1,12 +1,7 @@
-commit 2261021be1b7ecc0c0fbd4a62250e2dfe5b81eb5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 31 14:24:21 2011 -0400
+commit fd0cf087481d476db91b4a43f6a547a6c2e443b5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue May 31 10:46:11 2011 -0700
 
-    undo CL 4515163 / 42c3cfa4d64f
-    
-    breaks Mac build
-    
-    ««« original CL description
     runtime: use HOST_CC to compile mkversion
     
     HOST_CC is set in Make.inc, so use that rather
@@ -15,12 +10,6 @@ Date:   Tue May 31 14:24:21 2011 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/4515163
-    
-    »»»
-    
-    R=iant
-    CC=golang-dev
-    https://golang.org/cl/4515168
 
  src/pkg/runtime/Makefile | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

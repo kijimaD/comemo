@@ -1,25 +1,24 @@
-commit 9449c18ac8c130df000283d5d533f4cecf6b3afe
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 8 14:10:59 2013 -0700
+commit 390656affd8993ce6332dca3fa86d57659622fdf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 8 16:44:16 2013 -0400
 
-    cmd/api: rewrite using go/types
+    cmd/gc: fix stkptrsize calculation
     
-    - adjusted test files so that they actually type-check
-    - adjusted go1.txt, go1.1.txt, next.txt
-    - to run, provide build tag: api_tool
+    I moved the pointer block from one end of the frame
+    to the other toward the end of working on the last CL,
+    and of course that made the optimization no longer work.
     
-    Fixes #4538.
+    Now it works again:
     
-    R=bradfitz
-    CC=golang-dev
-    https://golang.org/cl/12300043
+    0030 (bug361.go:12) DATA    gclocals·0+0(SB)/4,$4
+    0030 (bug361.go:12) DATA    gclocals·0+4(SB)/4,$3
+    0030 (bug361.go:12) GLOBL   gclocals·0+0(SB),8,$8
+    
+    Fixes arm build (this time for sure!).
+    
+    TBR=golang-dev
+    CC=cshapiro, golang-dev, iant
+    https://golang.org/cl/12627044
 
- api/go1.1.txt                              |    2 +
- api/go1.txt                                |   94 ++-
- api/next.txt                               |  133 +++-
- src/cmd/api/clone.go                       |  251 ------
- src/cmd/api/goapi.go                       | 1146 +++++++++-------------------
- src/cmd/api/goapi_test.go                  |    8 +-
- src/cmd/api/testdata/src/pkg/p1/golden.txt |   13 +-
- src/cmd/api/testdata/src/pkg/p1/p1.go      |   21 +-
- 8 files changed, 584 insertions(+), 1084 deletions(-)
+ src/cmd/gc/pgen.c | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)

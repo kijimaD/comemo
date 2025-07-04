@@ -1,18 +1,22 @@
-commit b86fae041baff7a7077c67060bc4282d78a2118b
-Author: tbunyk <tbunyk@gmail.com>
-Date:   Tue Sep 5 19:01:16 2017 +0300
+commit 9044cb04f2c0379e907d0b2e944043e81888033e
+Author: griesemer <gri@golang.org>
+Date:   Thu May 18 14:11:17 2017 -0700
 
-    encoding/json: update documentation for MarshalIndent
+    test: restore fixedbugs/bug398.go to original version
     
-    Make arguments semantics clear without the need to look for
-    json.Indent documentation.
+    Cannot reproduce original problem. Compiler internals
+    have changed enough such that this appears to work now.
     
-    Change-Id: If9adfe9f477a30d426ae83790b0f2578c0a809b7
-    Reviewed-on: https://go-review.googlesource.com/61670
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Restore original test (exported interfaces), but also
+    keep version of the test using non-exported interfaces.
+    
+    Fixes #15596.
+    
+    Change-Id: Idb32da80239963242bd5d1609343c80f19773b0c
+    Reviewed-on: https://go-review.googlesource.com/43622
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/encoding/json/encode.go       |  2 ++
- src/encoding/json/example_test.go | 19 +++++++++++++++++++
- 2 files changed, 21 insertions(+)
+ test/fixedbugs/bug398.go | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)

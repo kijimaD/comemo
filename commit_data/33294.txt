@@ -1,19 +1,22 @@
-commit 01c144c410b09d8b56d40e7e9c54fface204aa29
-Author: Terin Stock <terinjokes@gmail.com>
-Date:   Mon Oct 16 17:34:35 2017 -0700
+commit 320b6fef1840c14778587bfd5aeadd1f48bb5ed7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 3 07:54:14 2017 +0900
 
-    net/http/pprof: attach handlers using http.HandleFunc
+    fmt: remove stopAtNewline unused parameter
     
-    Simplify how pprof attaches the handlers to the DefaultMux by using
-    http.HandleFunc instead of manually wrapping the handlers in
-    a http.HandlerFunc.
+    This parameter is always false. The last occurrence of s.skipSpace(true)
+    was removed in mid-2015.
     
-    Change-Id: I65db262ebb2e29e4b6f30df9d2688f5daf782c29
-    Reviewed-on: https://go-review.googlesource.com/71251
-    Reviewed-by: Sam Whited <sam@samwhited.com>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
-    Run-TryBot: Sam Whited <sam@samwhited.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    While at it, merge skipSpace into SkipSpace, since the latter was just a
+    wrapper without the parameter.
+    
+    Found with github.com/mvdan/unparam.
+    
+    Change-Id: I884ea4036f41234a898d6aeee515211c49b0b435
+    Reviewed-on: https://go-review.googlesource.com/52890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
 
- src/net/http/pprof/pprof.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/fmt/scan.go | 34 +++++++++++++---------------------
+ 1 file changed, 13 insertions(+), 21 deletions(-)

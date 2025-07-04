@@ -1,26 +1,20 @@
-commit 99f67228608db9c9a587586186ec612feb425e48
+commit 0e10196982e81be38c46b77572837ccf90cb3366
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 21 15:51:49 2013 -0700
+Date:   Tue May 21 14:58:08 2013 -0700
 
-    bufio: reuse Writer buffers after Flush
+    database/sql: remove extra RemoveDep call
     
-    A bufio.Writer.Flush marks the usual end of a Writer's
-    life. Recycle its internal buffer on those explicit flushes,
-    but not on normal, as-needed internal flushes.
+    This should have been removed in 45c12efb4635. Not a correctness
+    issue, but unnecessary work.
     
-    benchmark               old ns/op    new ns/op    delta
-    BenchmarkWriterEmpty         1959          727  -62.89%
+    This CL also adds paranoia checks in removeDep so this doesn't
+    happen again.
     
-    benchmark              old allocs   new allocs    delta
-    BenchmarkWriterEmpty            2            1  -50.00%
+    Fixes #5502
     
-    benchmark               old bytes    new bytes    delta
-    BenchmarkWriterEmpty         4215           83  -98.03%
-    
-    R=gri, iant
-    CC=gobot, golang-dev, voidlogic7
-    https://golang.org/cl/9459044
+    R=adg
+    CC=gobot, golang-dev, google
+    https://golang.org/cl/9543043
 
- src/pkg/bufio/bufio.go      | 78 +++++++++++++++++++++++++++++++++++----------
- src/pkg/bufio/bufio_test.go | 28 ++++++++++++++++
- 2 files changed, 89 insertions(+), 17 deletions(-)
+ src/pkg/database/sql/sql.go | 27 ++++++++++++++++-----------
+ 1 file changed, 16 insertions(+), 11 deletions(-)

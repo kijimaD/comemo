@@ -1,21 +1,23 @@
-commit afac4f0a403ec0742d68330c3f3bb97be6b187bc
-Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
-Date:   Sun Feb 8 07:42:10 2015 -0800
+commit b8d67596f67ea13525e752a02f45c9d9f346472d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 14 01:23:26 2015 -0500
 
-    os: embed "sleep 1" within the test binary itself.
+    cmd/go: adjust error for custom import checkout mismatch
     
-    This is an alternative to http://golang.org/cl/4150,
-    and is motivated by a review comment on that CL.
+    Before:
     
-    testKillProcess() tries to build and run the Go equivalent
-    for "sleep 1". This doesn't work for testing cross compilers
-    since the Go compiler is not available on the targets. This
-    change embeds the "sleep 1" functionality within the "os.test"
-    binary itself.
+            ...
+            imports golang.org/x/net/context: /Users/rsc/g/src/golang.org/x/net is from https://code.google.com/p/go.net, should be from https://go.googlesource.com/net
     
-    Change-Id: I6bad513deaa6c9e2704e70319098eb4983f1bb23
-    Reviewed-on: https://go-review.googlesource.com/4190
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    After:
+    
+            ...
+            imports golang.org/x/net/context: golang.org/x/net is a custom import path for https://go.googlesource.com/net, but /Users/rsc/g/src/golang.org/x/net is checked out from https://code.google.com/p/go.net
+    
+    Change-Id: I93c35b85f955c7de684f71fbd4baecc717405318
+    Reviewed-on: https://go-review.googlesource.com/2808
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/os_test.go | 46 ++++++++++++----------------------------------
- 1 file changed, 12 insertions(+), 34 deletions(-)
+ src/cmd/go/get.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

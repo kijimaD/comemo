@@ -1,0 +1,14 @@
+commit aba16d17c5c674416a322c16f8baba063fafa988
+Author: khr@golang.org <khr@golang.org>
+Date:   Thu Jul 11 12:36:32 2024 -0700
+
+    cmd/compile: simplify jump table case in prove pass
+    
+    Change-Id: I01e0c4953667594b84daaa38082fad1175343861
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599196
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

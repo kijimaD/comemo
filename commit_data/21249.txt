@@ -1,23 +1,14 @@
-commit f15c675fb436f8225903d46ec10a9f49c6eb5553
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Jan 11 03:40:08 2015 +0000
+commit d3072127ccac58f39df12a217f1fa9bb46d36a3b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Dec 11 23:07:04 2014 -0500
 
-    runtime: use runtime.sysargs to parse auxv on linux/arm
+    cmd/dist: ignore \r in crlf EOL when splitlines()
     
-    Make auxv parsing in linux/arm less of a special case.
+    Fixes build on Windows. Fixes #9234.
     
-    * rename setup_auxv to sysargs
-    * exclude linux/arm from vdso_none.go
-    * move runtime.checkarm after runtime.sysargs so arm specific
-      values are properly initialised
-    
-    Change-Id: I1ca7f5844ad5a162337ff061a83933fc9a2b5ff6
-    Reviewed-on: https://go-review.googlesource.com/2681
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iebf4317e7cc20ba1afea5558553166cd89783316
+    Reviewed-on: https://go-review.googlesource.com/1421
+    Reviewed-by: <iant@golang.org>
 
- src/runtime/asm_arm.s       | 2 +-
- src/runtime/os_linux_arm.go | 3 +--
- src/runtime/rt0_linux_arm.s | 3 ---
- src/runtime/vdso_none.go    | 1 +
- 4 files changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/dist/buf.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

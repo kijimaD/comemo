@@ -1,23 +1,1279 @@
-commit ac8a97ac9e5de94d1c0e830299ce6487cbbfd3f6
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Feb 10 14:39:20 2023 +0000
+commit 50b8f490e1701773254fdbfe0e3fea00ff1f2a68
+Merge: 0af0e19368 c3fcd01177
+Author: Nicolas Hillegeer <aktau@google.com>
+Date:   Mon Mar 28 17:40:23 2022 -0700
 
-    Revert "math: add Compare and Compare32"
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    This reverts CL 459435.
-    
-    Reason for revert: Tests failing on MIPS.
-    
-    Change-Id: I9017bf718ba938df6d6766041555034d55d90b8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467255
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I04d511ed8e3e7ca4a3267f226a0c3e248c0f84a9
 
- api/next/56491.txt   |  2 --
- src/math/all_test.go | 59 ----------------------------------------------------
- src/math/compare.go  | 53 ----------------------------------------------
- 3 files changed, 114 deletions(-)
+ AUTHORS                                            |    5 +-
+ CONTRIBUTORS                                       |    7 +-
+ README.md                                          |    8 +-
+ api/README                                         |   16 +-
+ api/next/45628.txt                                 |    1 +
+ api/next/45754.txt                                 |    2 +
+ api/next/46059.txt                                 |    2 +
+ api/next/47005.txt                                 |    2 +
+ api/{next.txt => next/50601.txt}                   |   10 +-
+ api/next/51414.txt                                 |    1 +
+ doc/go1.19.html                                    |   15 +
+ doc/go_spec.html                                   |  412 +-
+ misc/cgo/testplugin/plugin_test.go                 |    6 +
+ misc/cgo/testplugin/testdata/method3/main.go       |   32 +
+ misc/cgo/testplugin/testdata/method3/p/p.go        |   17 +
+ misc/cgo/testplugin/testdata/method3/plugin.go     |   11 +
+ misc/cgo/testsanitizers/asan_test.go               |    3 +
+ .../testsanitizers/testdata/asan_unsafe_fail1.go   |   27 +
+ .../testsanitizers/testdata/asan_unsafe_fail2.go   |   28 +
+ .../testsanitizers/testdata/asan_unsafe_fail3.go   |   21 +
+ src/builtin/builtin.go                             |    8 +-
+ src/bytes/buffer.go                                |   31 +-
+ src/bytes/buffer_test.go                           |   15 +
+ src/bytes/bytes.go                                 |   24 +-
+ src/bytes/bytes_test.go                            |   93 +-
+ src/cmd/api/goapi.go                               |   70 +-
+ src/cmd/api/goapi_test.go                          |    2 +
+ src/cmd/api/run.go                                 |   65 +-
+ src/cmd/asm/internal/arch/ppc64.go                 |    2 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s          |    4 +
+ src/cmd/asm/internal/asm/testdata/arm64error.s     |    4 +-
+ src/cmd/asm/internal/asm/testdata/ppc64.s          |   30 +-
+ src/cmd/asm/internal/flags/flags.go                |    1 +
+ src/cmd/asm/internal/lex/input.go                  |    2 +-
+ src/cmd/asm/main.go                                |    1 +
+ src/cmd/compile/abi-internal.md                    |   53 +
+ src/cmd/compile/internal/amd64/versions_test.go    |    6 +-
+ src/cmd/compile/internal/base/flag.go              |    7 +-
+ src/cmd/compile/internal/deadcode/deadcode.go      |    1 +
+ src/cmd/compile/internal/escape/escape.go          |    8 -
+ src/cmd/compile/internal/escape/expr.go            |    6 +-
+ src/cmd/compile/internal/gc/main.go                |    3 +
+ .../compile/internal/importer/gcimporter_test.go   |   10 +-
+ src/cmd/compile/internal/importer/iimport.go       |    6 +-
+ src/cmd/compile/internal/inline/inl.go             |   11 +-
+ src/cmd/compile/internal/ir/expr.go                |   29 +-
+ src/cmd/compile/internal/ir/func.go                |    6 +-
+ src/cmd/compile/internal/ir/mini.go                |    9 +-
+ src/cmd/compile/internal/ir/name.go                |   17 -
+ src/cmd/compile/internal/ir/node.go                |    3 -
+ src/cmd/compile/internal/ir/op_string.go           |  105 +-
+ src/cmd/compile/internal/ir/sizeof_test.go         |    2 +-
+ src/cmd/compile/internal/ir/stmt.go                |    2 +-
+ src/cmd/compile/internal/ir/val.go                 |   42 -
+ src/cmd/compile/internal/logopt/log_opts.go        |    2 +-
+ src/cmd/compile/internal/logopt/logopt_test.go     |    6 +-
+ src/cmd/compile/internal/noder/codes.go            |    3 -
+ src/cmd/compile/internal/noder/decl.go             |    4 +-
+ src/cmd/compile/internal/noder/expr.go             |    1 -
+ src/cmd/compile/internal/noder/import.go           |   10 +-
+ src/cmd/compile/internal/noder/irgen.go            |   23 +-
+ src/cmd/compile/internal/noder/noder.go            |    2 +-
+ src/cmd/compile/internal/noder/object.go           |    1 -
+ src/cmd/compile/internal/noder/reader.go           |  152 +-
+ src/cmd/compile/internal/noder/stencil.go          |  245 +-
+ src/cmd/compile/internal/noder/transform.go        |    2 +-
+ src/cmd/compile/internal/noder/types.go            |    2 +-
+ src/cmd/compile/internal/noder/unified.go          |   40 +-
+ src/cmd/compile/internal/noder/writer.go           |  104 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    |   24 +-
+ src/cmd/compile/internal/riscv64/galign.go         |    2 +
+ src/cmd/compile/internal/riscv64/ggen.go           |    2 +-
+ src/cmd/compile/internal/riscv64/ssa.go            |   35 +-
+ src/cmd/compile/internal/ssa/config.go             |    2 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |    2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules       |    6 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules       |    8 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go       |    6 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go     |   30 +-
+ src/cmd/compile/internal/ssa/opGen.go              |  230 +-
+ src/cmd/compile/internal/ssa/prove.go              |    7 +-
+ src/cmd/compile/internal/ssa/rewrite.go            |    8 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |   23 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go       |   36 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |    4 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |   53 -
+ src/cmd/compile/internal/syntax/parser_test.go     |    6 +-
+ src/cmd/compile/internal/syntax/scanner.go         |    4 +-
+ src/cmd/compile/internal/test/fixedbugs_test.go    |    2 +-
+ src/cmd/compile/internal/test/lang_test.go         |    2 +-
+ .../internal/test/reproduciblebuilds_test.go       |    4 +-
+ src/cmd/compile/internal/typecheck/const.go        |  112 +-
+ src/cmd/compile/internal/typecheck/crawler.go      |   14 +-
+ src/cmd/compile/internal/typecheck/dcl.go          |    2 -
+ src/cmd/compile/internal/typecheck/expr.go         |   14 +-
+ src/cmd/compile/internal/typecheck/func.go         |   34 +-
+ src/cmd/compile/internal/typecheck/iexport.go      |    7 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |   12 +-
+ src/cmd/compile/internal/typecheck/stmt.go         |   32 +-
+ src/cmd/compile/internal/typecheck/subr.go         |   29 +-
+ src/cmd/compile/internal/typecheck/syms.go         |    1 -
+ src/cmd/compile/internal/typecheck/typecheck.go    |  314 +-
+ src/cmd/compile/internal/typecheck/universe.go     |    7 -
+ src/cmd/compile/internal/types/alg.go              |    3 -
+ src/cmd/compile/internal/types/goversion.go        |   16 +-
+ src/cmd/compile/internal/types/identity.go         |    2 +-
+ src/cmd/compile/internal/types/scope.go            |   24 +-
+ src/cmd/compile/internal/types/size.go             |  128 +-
+ src/cmd/compile/internal/types/sizeof_test.go      |    2 +-
+ src/cmd/compile/internal/types/sym.go              |   12 +-
+ src/cmd/compile/internal/types/type.go             |   44 +-
+ src/cmd/compile/internal/types2/api.go             |   28 +-
+ src/cmd/compile/internal/types2/api_test.go        |  336 +-
+ src/cmd/compile/internal/types2/assignments.go     |    2 +-
+ src/cmd/compile/internal/types2/call.go            |   12 +-
+ src/cmd/compile/internal/types2/check.go           |   12 +-
+ src/cmd/compile/internal/types2/check_test.go      |  103 +-
+ src/cmd/compile/internal/types2/conversions.go     |    2 +-
+ src/cmd/compile/internal/types2/decl.go            |    4 +-
+ src/cmd/compile/internal/types2/expr.go            |   24 +-
+ src/cmd/compile/internal/types2/infer.go           |    4 +-
+ src/cmd/compile/internal/types2/instantiate.go     |   11 +-
+ src/cmd/compile/internal/types2/interface.go       |    1 -
+ src/cmd/compile/internal/types2/lookup.go          |    3 +-
+ src/cmd/compile/internal/types2/main_test.go       |   17 +
+ src/cmd/compile/internal/types2/named.go           |   27 +-
+ src/cmd/compile/internal/types2/predicates.go      |    5 +
+ src/cmd/compile/internal/types2/resolver.go        |    4 +-
+ src/cmd/compile/internal/types2/sizeof_test.go     |    2 +-
+ src/cmd/compile/internal/types2/stdlib_test.go     |   26 +-
+ src/cmd/compile/internal/types2/stmt.go            |   21 +-
+ .../types2/testdata/check/{blank.src => blank.go}  |    0
+ .../testdata/check/{builtins.src => builtins0.go}  |    0
+ .../testdata/check/{builtins.go2 => builtins1.go}  |    0
+ .../types2/testdata/check/{chans.go2 => chans.go}  |    0
+ .../check/{compliterals.go2 => compliterals.go}    |    0
+ .../testdata/check/{const0.src => const0.go}       |    0
+ .../testdata/check/{const1.src => const1.go}       |    0
+ .../testdata/check/{constdecl.src => constdecl.go} |    0
+ .../check/{conversions.src => conversions0.go}     |    0
+ .../check/{conversions2.src => conversions1.go}    |    0
+ .../testdata/check/{cycles.src => cycles0.go}      |    0
+ .../testdata/check/{cycles1.src => cycles1.go}     |    0
+ .../testdata/check/{cycles2.src => cycles2.go}     |    0
+ .../testdata/check/{cycles3.src => cycles3.go}     |    0
+ .../testdata/check/{cycles4.src => cycles4.go}     |    0
+ .../testdata/check/{cycles5.src => cycles5.go}     |    0
+ .../testdata/check/{decls0.src => decls0.go}       |    4 +-
+ .../testdata/check/{decls1.src => decls1.go}       |    0
+ .../check/decls2/{decls2a.src => decls2a.go}       |    0
+ .../check/decls2/{decls2b.src => decls2b.go}       |    0
+ .../testdata/check/{decls3.src => decls3.go}       |    0
+ .../testdata/check/{decls4.src => decls4.go}       |    0
+ .../testdata/check/{decls5.src => decls5.go}       |    0
+ .../testdata/check/{errors.src => errors.go}       |    0
+ .../types2/testdata/check/{expr0.src => expr0.go}  |    0
+ .../types2/testdata/check/{expr1.src => expr1.go}  |    0
+ .../types2/testdata/check/{expr2.src => expr2.go}  |    0
+ .../types2/testdata/check/{expr3.src => expr3.go}  |    0
+ .../types2/testdata/check/funcinference.go}        |    2 +-
+ .../internal/types2/testdata/check/go1_12.go}      |    5 +-
+ .../internal/types2/testdata/check/go1_13.go}      |    5 +-
+ .../testdata/check/{go1_16.src => go1_16.go}       |    4 +-
+ .../types2/testdata/check/{go1_8.src => go1_8.go}  |    4 +-
+ .../types2/testdata/check/{gotos.src => gotos.go}  |    0
+ .../testdata/check/{importC.src => importC.go}     |    2 +
+ .../{importdecl0a.src => importdecl0a.go}          |    0
+ .../{importdecl0b.src => importdecl0b.go}          |    0
+ .../{importdecl1a.src => importdecl1a.go}          |    0
+ .../{importdecl1b.src => importdecl1b.go}          |    0
+ .../types2/testdata/check/{init0.src => init0.go}  |    0
+ .../types2/testdata/check/{init1.src => init1.go}  |    0
+ .../types2/testdata/check/{init2.src => init2.go}  |    0
+ .../issue25008/{issue25008a.src => issue25008a.go} |    0
+ .../issue25008/{issue25008b.src => issue25008b.go} |    0
+ .../testdata/check/{issues.src => issues0.go}      |    4 +-
+ .../testdata/check/{issues.go2 => issues1.go}      |   29 +-
+ .../testdata/check/{labels.src => labels.go}       |    0
+ .../testdata/check/{linalg.go2 => linalg.go}       |    0
+ .../testdata/check/{literals.src => literals.go}   |    0
+ .../types2/testdata/check/{main.src => main0.go}   |    0
+ .../types2/testdata/check/{main.go2 => main1.go}   |    0
+ .../types2/testdata/check/{map.go2 => map0.go}     |    0
+ .../types2/testdata/check/{map2.go2 => map1.go}    |    0
+ .../check/{methodsets.src => methodsets.go}        |    0
+ .../check/{mtypeparams.go2 => mtypeparams.go}      |    0
+ .../testdata/check/{shifts.src => shifts.go}       |    0
+ .../testdata/check/{slices.go2 => slices.go}       |    0
+ .../types2/testdata/check/{stmt0.src => stmt0.go}  |    2 +-
+ .../types2/testdata/check/{stmt1.src => stmt1.go}  |    0
+ .../types2/testdata/check/typeinference.go}        |   24 +-
+ .../testdata/check/{typeinst.go2 => typeinst0.go}  |    0
+ .../testdata/check/{typeinst2.go2 => typeinst1.go} |   12 +-
+ .../{typeinstcycles.go2 => typeinstcycles.go}      |    0
+ .../check/{typeparams.go2 => typeparams.go}        |    0
+ .../testdata/check/{unions.go2 => unions.go}       |    0
+ .../testdata/check/{vardecl.src => vardecl.go}     |    0
+ .../examples/{constraints.go2 => constraints.go}   |    0
+ .../examples/{functions.go2 => functions.go}       |    0
+ .../examples/{inference.go2 => inference.go}       |    0
+ .../testdata/examples/{methods.go2 => methods.go}  |    0
+ .../examples/{operations.go2 => operations.go}     |    0
+ .../testdata/examples/{types.go2 => types.go}      |    0
+ .../examples/{typesets.go2 => typesets.go}         |    0
+ .../fixedbugs/{issue20583.src => issue20583.go}    |    0
+ .../fixedbugs/{issue23203a.src => issue23203a.go}  |    0
+ .../fixedbugs/{issue23203b.src => issue23203b.go}  |    0
+ .../fixedbugs/{issue26390.src => issue26390.go}    |    0
+ .../fixedbugs/{issue28251.src => issue28251.go}    |    0
+ .../fixedbugs/{issue39634.go2 => issue39634.go}    |    0
+ .../fixedbugs/{issue39664.go2 => issue39664.go}    |    0
+ .../fixedbugs/{issue39680.go2 => issue39680.go}    |    0
+ .../fixedbugs/{issue39693.go2 => issue39693.go}    |    0
+ .../fixedbugs/{issue39699.go2 => issue39699.go}    |    0
+ .../fixedbugs/{issue39711.go2 => issue39711.go}    |    0
+ .../fixedbugs/{issue39723.go2 => issue39723.go}    |    0
+ .../fixedbugs/{issue39725.go2 => issue39725.go}    |    0
+ .../fixedbugs/{issue39754.go2 => issue39754.go}    |    0
+ .../fixedbugs/{issue39755.go2 => issue39755.go}    |    0
+ .../fixedbugs/{issue39768.go2 => issue39768.go}    |    0
+ .../fixedbugs/{issue39938.go2 => issue39938.go}    |    0
+ .../fixedbugs/{issue39948.go2 => issue39948.go}    |    0
+ .../fixedbugs/{issue39976.go2 => issue39976.go}    |    0
+ .../fixedbugs/{issue39982.go2 => issue39982.go}    |    0
+ .../fixedbugs/{issue40038.go2 => issue40038.go}    |    0
+ .../fixedbugs/{issue40056.go2 => issue40056.go}    |    0
+ .../fixedbugs/{issue40057.go2 => issue40057.go}    |    0
+ .../fixedbugs/{issue40301.go2 => issue40301.go}    |    0
+ .../fixedbugs/{issue40684.go2 => issue40684.go}    |    0
+ .../fixedbugs/{issue40789.go2 => issue40789.go}    |    0
+ .../types2/testdata/fixedbugs/issue41124.go}       |   10 +-
+ .../fixedbugs/{issue42695.src => issue42695.go}    |    0
+ .../types2/testdata/fixedbugs/issue42758.go}       |    2 +-
+ .../fixedbugs/{issue42987.src => issue42987.go}    |    0
+ .../fixedbugs/{issue43056.go2 => issue43056.go}    |    0
+ .../fixedbugs/{issue43087.src => issue43087.go}    |    0
+ .../fixedbugs/{issue43110.src => issue43110.go}    |    0
+ .../fixedbugs/{issue43124.src => issue43124.go}    |    0
+ .../fixedbugs/{issue43125.src => issue43125.go}    |    0
+ .../fixedbugs/{issue43190.src => issue43190.go}    |    0
+ .../fixedbugs/{issue43527.go2 => issue43527.go}    |    0
+ .../fixedbugs/{issue43671.go2 => issue43671.go}    |    0
+ .../fixedbugs/{issue44688.go2 => issue44688.go}    |    0
+ .../fixedbugs/{issue44799.go2 => issue44799.go}    |    0
+ .../fixedbugs/{issue45548.go2 => issue45548.go}    |    0
+ .../fixedbugs/{issue45550.go2 => issue45550.go}    |    0
+ .../fixedbugs/{issue45635.go2 => issue45635.go}    |    0
+ .../fixedbugs/{issue45639.go2 => issue45639.go}    |    0
+ .../fixedbugs/{issue45920.go2 => issue45920.go}    |    0
+ .../fixedbugs/{issue45985.go2 => issue45985.go}    |    0
+ .../types2/testdata/fixedbugs/issue46090.go}       |    4 +-
+ .../fixedbugs/{issue46275.go2 => issue46275.go}    |    0
+ .../fixedbugs/{issue46461.go2 => issue46461.go}    |    0
+ .../fixedbugs/{issue46583.src => issue46583.go}    |    0
+ .../fixedbugs/{issue47031.go2 => issue47031.go}    |    0
+ .../fixedbugs/{issue47115.go2 => issue47115.go}    |    0
+ .../fixedbugs/{issue47127.go2 => issue47127.go}    |    0
+ .../fixedbugs/{issue47411.go2 => issue47411.go}    |    0
+ .../fixedbugs/{issue47747.go2 => issue47747.go}    |    0
+ .../fixedbugs/{issue47796.go2 => issue47796.go}    |    0
+ .../fixedbugs/{issue47818.go2 => issue47818.go}    |   10 +-
+ .../fixedbugs/{issue47887.go2 => issue47887.go}    |    0
+ .../fixedbugs/{issue47968.go2 => issue47968.go}    |    0
+ .../fixedbugs/{issue47996.go2 => issue47996.go}    |    0
+ .../fixedbugs/{issue48008.go2 => issue48008.go}    |    0
+ .../fixedbugs/{issue48018.go2 => issue48018.go}    |    0
+ .../fixedbugs/{issue48048.go2 => issue48048.go}    |    0
+ .../fixedbugs/{issue48082.src => issue48082.go}    |    0
+ .../fixedbugs/{issue48083.go2 => issue48083.go}    |    0
+ .../fixedbugs/{issue48136.go2 => issue48136.go}    |    0
+ .../fixedbugs/{issue48234.go2 => issue48234.go}    |    0
+ .../fixedbugs/{issue48312.go2 => issue48312.go}    |    0
+ .../fixedbugs/{issue48472.go2 => issue48472.go}    |    0
+ .../fixedbugs/{issue48529.go2 => issue48529.go}    |    0
+ .../fixedbugs/{issue48582.go2 => issue48582.go}    |    0
+ .../fixedbugs/{issue48619.go2 => issue48619.go}    |    0
+ .../fixedbugs/{issue48656.go2 => issue48656.go}    |    0
+ .../fixedbugs/{issue48695.go2 => issue48695.go}    |    0
+ .../fixedbugs/{issue48703.go2 => issue48703.go}    |    0
+ .../fixedbugs/{issue48712.go2 => issue48712.go}    |    0
+ .../fixedbugs/{issue48819.src => issue48819.go}    |    0
+ .../fixedbugs/{issue48951.go2 => issue48951.go}    |    0
+ .../fixedbugs/{issue48962.go2 => issue48962.go}    |    0
+ .../fixedbugs/{issue48974.go2 => issue48974.go}    |    0
+ .../fixedbugs/{issue49043.go2 => issue49043.go}    |    0
+ .../fixedbugs/{issue49112.go2 => issue49112.go}    |    0
+ .../fixedbugs/{issue49179.go2 => issue49179.go}    |    0
+ .../fixedbugs/{issue49242.go2 => issue49242.go}    |    0
+ .../fixedbugs/{issue49247.go2 => issue49247.go}    |    0
+ .../fixedbugs/{issue49296.go2 => issue49296.go}    |    0
+ .../fixedbugs/{issue49439.go2 => issue49439.go}    |    0
+ .../fixedbugs/{issue49482.go2 => issue49482.go}    |    0
+ .../types2/testdata/fixedbugs/issue49541.go}       |    7 +-
+ .../fixedbugs/{issue49579.go2 => issue49579.go}    |    0
+ .../fixedbugs/{issue49592.go2 => issue49592.go}    |    0
+ .../fixedbugs/{issue49602.go2 => issue49602.go}    |    0
+ .../fixedbugs/{issue49705.go2 => issue49705.go}    |    0
+ .../fixedbugs/{issue49735.go2 => issue49735.go}    |    0
+ .../fixedbugs/{issue49739.go2 => issue49739.go}    |    0
+ .../fixedbugs/{issue49864.go2 => issue49864.go}    |    0
+ .../fixedbugs/{issue50259.go2 => issue50259.go}    |    0
+ .../fixedbugs/{issue50276.go2 => issue50276.go}    |    0
+ .../fixedbugs/{issue50281.go2 => issue50281.go}    |    0
+ .../fixedbugs/{issue50321.go2 => issue50321.go}    |    0
+ .../types2/testdata/fixedbugs/issue50417.go}       |   24 +-
+ .../fixedbugs/{issue50426.go2 => issue50426.go}    |    0
+ .../fixedbugs/{issue50450.go2 => issue50450.go}    |    0
+ .../fixedbugs/{issue50516.go2 => issue50516.go}    |    0
+ .../fixedbugs/{issue50646.go2 => issue50646.go}    |    0
+ .../fixedbugs/{issue50755.go2 => issue50755.go}    |    0
+ .../fixedbugs/{issue50779.go2 => issue50779.go}    |    0
+ .../types2/testdata/fixedbugs/issue50782.go}       |   13 +-
+ .../fixedbugs/{issue50816.go2 => issue50816.go}    |    0
+ .../fixedbugs/{issue50833.go2 => issue50833.go}    |    0
+ .../fixedbugs/{issue50912.go2 => issue50912.go}    |    0
+ .../fixedbugs/{issue50929.go2 => issue50929.go}    |    6 +-
+ .../fixedbugs/{issue51048.go2 => issue51048.go}    |    0
+ .../fixedbugs/{issue51158.go2 => issue51158.go}    |    0
+ .../fixedbugs/{issue51229.go2 => issue51229.go}    |    0
+ .../types2/testdata/fixedbugs/issue51232.go        |   30 +
+ .../fixedbugs/{issue51232.go2 => issue51233.go}    |   16 +-
+ .../fixedbugs/{issue51257.go2 => issue51257.go}    |    0
+ .../fixedbugs/{issue51335.go2 => issue51335.go}    |    0
+ .../fixedbugs/{issue51339.go2 => issue51339.go}    |    4 +-
+ .../fixedbugs/{issue51376.go2 => issue51376.go}    |    0
+ .../fixedbugs/{issue51386.go2 => issue51386.go}    |    0
+ .../types2/testdata/fixedbugs/issue51472.go        |   54 +
+ .../types2/testdata/fixedbugs/issue51509.go        |    7 +
+ .../types2/testdata/fixedbugs/issue51533.go        |   20 +
+ .../types2/testdata/fixedbugs/issue51578.go        |   17 +
+ .../types2/testdata/fixedbugs/issue51593.go        |   13 +
+ .../types2/testdata/fixedbugs/issue51616.go        |   19 +
+ .../types2/testdata/fixedbugs/issue51658.go        |   39 +
+ .../types2/testdata/fixedbugs/issue51877.go        |   18 +
+ .../fixedbugs/{issue6977.src => issue6977.go}      |    0
+ .../types2/testdata/{manual.go2 => manual.go}      |    0
+ .../spec/{assignability.go2 => assignability.go}   |    0
+ .../spec/{comparisons.go2 => comparisons.go}       |    0
+ .../spec/{conversions.go2 => conversions.go}       |    0
+ src/cmd/compile/internal/types2/typeparam.go       |    9 +-
+ src/cmd/compile/internal/types2/typeset.go         |   93 +-
+ src/cmd/compile/internal/types2/typeset_test.go    |   10 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   41 +-
+ src/cmd/compile/internal/types2/unify.go           |    7 +-
+ src/cmd/compile/internal/types2/union.go           |   20 +-
+ src/cmd/compile/internal/types2/universe.go        |    4 +-
+ src/cmd/compile/internal/types2/validtype.go       |    3 +-
+ src/cmd/compile/internal/walk/assign.go            |    2 +-
+ src/cmd/compile/internal/walk/builtin.go           |    2 +-
+ src/cmd/compile/internal/walk/convert.go           |   32 +-
+ src/cmd/compile/internal/walk/expr.go              |   60 +-
+ src/cmd/dist/build.go                              |   61 +-
+ src/cmd/dist/test.go                               |   29 +-
+ src/cmd/doc/dirs.go                                |   33 +-
+ src/cmd/doc/doc_test.go                            |    8 +
+ src/cmd/doc/pkg.go                                 |    8 +-
+ src/cmd/fix/main.go                                |   10 +-
+ src/cmd/fix/main_test.go                           |   18 +-
+ src/cmd/go.mod                                     |   12 +-
+ src/cmd/go.sum                                     |   20 +-
+ src/cmd/go/alldocs.go                              |    5 +
+ src/cmd/go/export_test.go                          |    7 +
+ src/cmd/go/go_test.go                              |   80 +-
+ src/cmd/go/help_test.go                            |   14 +-
+ src/cmd/go/internal/cfg/cfg.go                     |  139 +-
+ src/cmd/go/internal/envcmd/env.go                  |   16 +-
+ src/cmd/go/internal/fsys/fsys_test.go              |    3 +-
+ src/cmd/go/internal/help/helpdoc.go                |    1 +
+ src/cmd/go/internal/imports/scan_test.go           |    3 +-
+ src/cmd/go/internal/list/list.go                   |    1 +
+ src/cmd/go/internal/load/pkg.go                    |  125 +-
+ src/cmd/go/internal/load/test.go                   |    6 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |    7 -
+ src/cmd/go/internal/run/run.go                     |    4 +
+ src/cmd/go/internal/test/flagdefs_test.go          |    6 +
+ src/cmd/go/internal/vcs/vcs.go                     |    2 +-
+ src/cmd/go/internal/work/build.go                  |    6 +-
+ src/cmd/go/internal/work/exec.go                   |   31 +-
+ src/cmd/go/internal/work/gc.go                     |    9 +-
+ src/cmd/go/internal/work/testgo.go                 |   48 -
+ src/cmd/go/main.go                                 |    7 +
+ src/cmd/go/proxy_test.go                           |    2 +-
+ src/cmd/go/script_test.go                          |   16 +-
+ src/cmd/go/testdata/addmod.go                      |    3 +-
+ src/cmd/go/testdata/savedir.go                     |    3 +-
+ src/cmd/go/testdata/script/README                  |    2 +-
+ .../go/testdata/script/build_trimpath_goroot.txt   |   68 +
+ src/cmd/go/testdata/script/fmt_load_errors.txt     |   14 +-
+ src/cmd/go/testdata/script/list_swigcxx.txt        |    5 +-
+ src/cmd/go/testdata/script/mod_doc_path.txt        |   30 +
+ .../go/testdata/script/mod_install_pkg_version.txt |    2 +-
+ src/cmd/go/testdata/script/test_buildvcs.txt       |   92 +
+ .../script/test_fuzz_minimize_dirty_cov.txt        |   84 +
+ .../script/test_fuzz_minimize_interesting.txt      |   11 -
+ .../go/testdata/script/version_build_settings.txt  |    4 +
+ .../go/testdata/script/version_buildvcs_git.txt    |    2 +-
+ src/cmd/gofmt/gofmt.go                             |   56 +-
+ src/cmd/gofmt/gofmt_test.go                        |   76 +-
+ src/cmd/gofmt/long_test.go                         |   10 +-
+ src/cmd/gofmt/testdata/crlf.golden                 |    8 +-
+ src/cmd/gofmt/testdata/crlf.input                  |    8 +-
+ src/cmd/gofmt/testdata/typeswitch.golden           |   26 +-
+ src/cmd/gofmt/testdata/typeswitch.input            |   26 +-
+ src/cmd/internal/archive/archive_test.go           |    4 +-
+ src/cmd/internal/diff/diff.go                      |   78 -
+ src/cmd/internal/goobj/objfile.go                  |    2 +
+ src/cmd/internal/metadata/main.go                  |   27 +
+ src/cmd/internal/moddeps/moddeps_test.go           |   23 +-
+ src/cmd/internal/obj/arm64/a.out.go                |    2 +
+ src/cmd/internal/obj/arm64/anames.go               |    2 +
+ src/cmd/internal/obj/arm64/asm7.go                 |   69 +-
+ src/cmd/internal/obj/arm64/obj7.go                 |  218 +-
+ src/cmd/internal/obj/objfile.go                    |    6 +
+ src/cmd/internal/obj/objfile_test.go               |    2 +-
+ src/cmd/internal/obj/ppc64/a.out.go                |   11 +-
+ src/cmd/internal/obj/ppc64/anames.go               |    2 +
+ src/cmd/internal/obj/ppc64/asm9.go                 |   24 +-
+ src/cmd/internal/obj/riscv/cpu.go                  |    6 +-
+ src/cmd/internal/objabi/flag.go                    |    6 +-
+ src/cmd/internal/objabi/line.go                    |    2 +-
+ src/cmd/internal/objabi/util.go                    |    2 +-
+ src/cmd/internal/osinfo/doc.go                     |    6 +
+ src/cmd/internal/osinfo/os_js.go                   |   21 +
+ src/cmd/internal/osinfo/os_plan9.go                |   21 +
+ src/cmd/internal/osinfo/os_unix.go                 |   36 +
+ src/cmd/internal/osinfo/os_windows.go              |   19 +
+ src/cmd/link/elf_test.go                           |    3 +
+ src/cmd/link/internal/arm64/asm.go                 |    6 +-
+ src/cmd/link/internal/ld/data.go                   |   27 +-
+ src/cmd/link/internal/ld/deadcode.go               |    2 +-
+ src/cmd/link/internal/ld/dwarf.go                  |   13 +-
+ src/cmd/link/internal/ld/elf.go                    |    5 +-
+ src/cmd/link/internal/ld/elf_test.go               |    2 +-
+ src/cmd/link/internal/ld/ld.go                     |   53 +-
+ src/cmd/link/internal/ld/lib.go                    |    6 +-
+ src/cmd/link/internal/ld/main.go                   |   12 +-
+ src/cmd/link/internal/ld/nooptcgolink_test.go      |    3 +-
+ src/cmd/link/internal/ld/pcln.go                   |    4 +-
+ src/cmd/link/internal/loader/loader.go             |   22 +-
+ src/cmd/link/internal/sym/segment.go               |    2 +
+ src/cmd/link/link_test.go                          |   71 +-
+ src/cmd/nm/nm_test.go                              |    2 +-
+ src/cmd/objdump/objdump_test.go                    |    2 +-
+ src/cmd/pack/pack_test.go                          |   16 +-
+ src/cmd/pprof/pprof.go                             |    2 +-
+ .../github.com/google/pprof/driver/driver.go       |   10 +-
+ .../google/pprof/internal/binutils/binutils.go     |   38 +-
+ .../github.com/google/pprof/internal/driver/cli.go |    2 +-
+ .../google/pprof/internal/driver/fetch.go          |    6 +-
+ .../google/pprof/internal/driver/webhtml.go        |   21 +-
+ .../google/pprof/internal/elfexec/elfexec.go       |    6 +-
+ .../google/pprof/internal/graph/dotgraph.go        |    4 +-
+ .../google/pprof/internal/plugin/plugin.go         |    6 +-
+ .../google/pprof/internal/report/report.go         |    2 +-
+ .../google/pprof/internal/report/source.go         |    2 +-
+ .../google/pprof/internal/symbolizer/symbolizer.go |    5 +-
+ .../github.com/google/pprof/profile/encode.go      |    9 +
+ .../github.com/google/pprof/profile/merge.go       |   21 +-
+ .../github.com/google/pprof/profile/profile.go     |    9 +
+ .../github.com/google/pprof/third_party/d3/LICENSE |   27 -
+ .../google/pprof/third_party/d3/README.md          |  119 -
+ .../github.com/google/pprof/third_party/d3/d3.go   | 4675 --------------------
+ .../{LICENSE => D3_FLAME_GRAPH_LICENSE}            |    0
+ .../pprof/third_party/d3flamegraph/D3_LICENSE      |   13 +
+ .../pprof/third_party/d3flamegraph/README.md       |   33 +
+ .../third_party/d3flamegraph/d3_flame_graph.go     |  976 +---
+ .../google/pprof/third_party/d3flamegraph/index.js |   13 +
+ .../third_party/d3flamegraph/package-lock.json     | 1106 +++++
+ .../pprof/third_party/d3flamegraph/package.json    |   17 +
+ .../pprof/third_party/d3flamegraph/update.sh       |   62 +
+ .../third_party/d3flamegraph/webpack.config.js     |   13 +
+ .../vendor/golang.org/x/crypto/ed25519/ed25519.go  |  188 +-
+ .../golang.org/x/crypto/ed25519/ed25519_go113.go   |   74 -
+ .../crypto/ed25519/internal/edwards25519/const.go  | 1422 ------
+ .../ed25519/internal/edwards25519/edwards25519.go  | 1793 --------
+ .../vendor/golang.org/x/sys/plan9/syscall_plan9.go |    6 +-
+ .../vendor/golang.org/x/sys/unix/ioctl_linux.go    |   23 +
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |    6 +
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   22 +-
+ .../vendor/golang.org/x/sys/unix/syscall_bsd.go    |   24 +-
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |   10 +-
+ .../golang.org/x/sys/unix/syscall_dragonfly.go     |   14 +-
+ .../golang.org/x/sys/unix/syscall_freebsd.go       |   10 +-
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   87 +-
+ .../golang.org/x/sys/unix/syscall_linux_386.go     |   12 +-
+ .../golang.org/x/sys/unix/syscall_linux_alarm.go   |   14 +
+ .../golang.org/x/sys/unix/syscall_linux_amd64.go   |    5 +-
+ .../golang.org/x/sys/unix/syscall_linux_arm.go     |    5 +-
+ .../golang.org/x/sys/unix/syscall_linux_arm64.go   |    5 +-
+ .../golang.org/x/sys/unix/syscall_linux_mips64x.go |    5 +-
+ .../golang.org/x/sys/unix/syscall_linux_mipsx.go   |    5 +-
+ .../golang.org/x/sys/unix/syscall_linux_ppc.go     |    5 +-
+ .../golang.org/x/sys/unix/syscall_linux_ppc64x.go  |    5 +-
+ .../golang.org/x/sys/unix/syscall_linux_riscv64.go |    5 +-
+ .../golang.org/x/sys/unix/syscall_linux_s390x.go   |   13 +-
+ .../golang.org/x/sys/unix/syscall_linux_sparc64.go |    5 +-
+ .../vendor/golang.org/x/sys/unix/syscall_netbsd.go |   18 +-
+ .../golang.org/x/sys/unix/syscall_openbsd.go       |   10 +-
+ .../golang.org/x/sys/unix/syscall_solaris.go       |   40 +-
+ .../vendor/golang.org/x/sys/unix/syscall_unix.go   |   51 +
+ .../golang.org/x/sys/unix/syscall_zos_s390x.go     |    6 +-
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |   53 +-
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |    3 +
+ .../x/sys/unix/zerrors_linux_mips64le.go           |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |    3 +
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |    3 +
+ .../golang.org/x/sys/unix/zsyscall_aix_ppc.go      |    4 +-
+ .../golang.org/x/sys/unix/zsyscall_aix_ppc64.go    |    4 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |    4 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |    4 +-
+ .../golang.org/x/sys/unix/zsyscall_freebsd_386.go  |    4 +-
+ .../x/sys/unix/zsyscall_freebsd_amd64.go           |    4 +-
+ .../golang.org/x/sys/unix/zsyscall_freebsd_arm.go  |    4 +-
+ .../x/sys/unix/zsyscall_freebsd_arm64.go           |    4 +-
+ .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |   20 +
+ .../golang.org/x/sys/unix/zsyscall_linux_386.go    |   17 +-
+ .../golang.org/x/sys/unix/zsyscall_linux_amd64.go  |   28 +-
+ .../golang.org/x/sys/unix/zsyscall_linux_arm.go    |   15 +-
+ .../golang.org/x/sys/unix/zsyscall_linux_arm64.go  |   15 +-
+ .../golang.org/x/sys/unix/zsyscall_linux_mips.go   |   28 +-
+ .../golang.org/x/sys/unix/zsyscall_linux_mips64.go |   28 +-
+ .../x/sys/unix/zsyscall_linux_mips64le.go          |   15 +-
+ .../golang.org/x/sys/unix/zsyscall_linux_mipsle.go |   28 +-
+ .../golang.org/x/sys/unix/zsyscall_linux_ppc.go    |   28 +-
+ .../golang.org/x/sys/unix/zsyscall_linux_ppc64.go  |   28 +-
+ .../x/sys/unix/zsyscall_linux_ppc64le.go           |   28 +-
+ .../x/sys/unix/zsyscall_linux_riscv64.go           |   15 +-
+ .../golang.org/x/sys/unix/zsyscall_linux_s390x.go  |   17 +-
+ .../x/sys/unix/zsyscall_linux_sparc64.go           |   28 +-
+ .../golang.org/x/sys/unix/zsyscall_netbsd_386.go   |   16 +-
+ .../golang.org/x/sys/unix/zsyscall_netbsd_amd64.go |   16 +-
+ .../golang.org/x/sys/unix/zsyscall_netbsd_arm.go   |   16 +-
+ .../golang.org/x/sys/unix/zsyscall_netbsd_arm64.go |   16 +-
+ .../golang.org/x/sys/unix/zsyscall_openbsd_386.go  |    4 +-
+ .../x/sys/unix/zsyscall_openbsd_amd64.go           |    4 +-
+ .../golang.org/x/sys/unix/zsyscall_openbsd_arm.go  |    4 +-
+ .../x/sys/unix/zsyscall_openbsd_arm64.go           |    4 +-
+ .../x/sys/unix/zsyscall_openbsd_mips64.go          |    4 +-
+ .../x/sys/unix/zsyscall_solaris_amd64.go           |   16 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_386.go     |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |    1 +
+ .../x/sys/unix/zsysnum_linux_mips64le.go           |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc.go     |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |    1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |    1 +
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   | 1574 ++++++-
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |    4 +-
+ .../golang.org/x/sys/windows/exec_windows.go       |   37 +-
+ .../golang.org/x/sys/windows/syscall_windows.go    |   37 +-
+ .../golang.org/x/sys/windows/types_windows.go      |   43 +-
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |   18 +-
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |    4 +-
+ .../go/analysis/passes/composite/whitelist.go      |    9 +-
+ .../x/tools/go/analysis/passes/tests/tests.go      |  230 +
+ .../x/tools/go/types/objectpath/objectpath.go      |   56 +-
+ .../golang.org/x/tools/go/types/typeutil/map.go    |   10 +-
+ .../x/tools/internal/analysisinternal/analysis.go  |    3 +
+ .../x/tools/internal/typeparams/common.go          |  101 +
+ .../tools/internal/typeparams/typeparams_go117.go  |    5 +
+ .../tools/internal/typeparams/typeparams_go118.go  |    5 +
+ src/cmd/vendor/modules.txt                         |   13 +-
+ src/compress/bzip2/huffman.go                      |    2 +-
+ src/compress/gzip/example_test.go                  |   87 +
+ src/crypto/rand/rand_plan9.go                      |  114 +-
+ src/crypto/rand/util.go                            |   61 +-
+ src/crypto/sha512/sha512block_ppc64x.s             |    2 +-
+ src/crypto/tls/conn.go                             |    2 +-
+ src/crypto/x509/parser.go                          |    2 +-
+ src/crypto/x509/root_darwin.go                     |    7 +-
+ src/crypto/x509/verify_test.go                     |   34 +
+ src/crypto/x509/x509.go                            |   20 +-
+ src/debug/buildinfo/buildinfo_test.go              |    4 +-
+ src/debug/dwarf/buf.go                             |    2 +-
+ src/debug/dwarf/entry.go                           |    2 +-
+ src/debug/dwarf/entry_test.go                      |  121 +
+ src/debug/dwarf/unit.go                            |    3 +
+ src/debug/elf/file.go                              |   34 +-
+ src/debug/gosym/pclntab.go                         |    4 +
+ src/encoding/hex/hex.go                            |   55 +-
+ src/encoding/xml/xml.go                            |   19 +-
+ src/encoding/xml/xml_test.go                       |  204 +
+ src/flag/example_textvar_test.go                   |   35 +
+ src/flag/export_test.go                            |    6 +-
+ src/flag/flag.go                                   |  172 +-
+ src/flag/flag_test.go                              |    9 +-
+ src/fmt/doc.go                                     |  677 +--
+ src/go.mod                                         |   10 +-
+ src/go.sum                                         |   16 +-
+ src/go/build/build.go                              |   61 +-
+ src/go/build/build_test.go                         |   10 +-
+ src/go/build/deps_test.go                          |   33 +-
+ src/go/build/syslist.go                            |   72 +-
+ src/go/doc/headscan.go                             |   10 +-
+ src/go/importer/importer_test.go                   |    9 +-
+ src/go/internal/gcimporter/gcimporter_test.go      |   12 +-
+ src/go/internal/gcimporter/iimport.go              |    6 +-
+ src/go/internal/srcimporter/srcimporter.go         |    6 +-
+ src/go/internal/srcimporter/srcimporter_test.go    |    9 +-
+ src/go/printer/nodes.go                            |   24 +-
+ src/go/printer/printer_test.go                     |   36 +-
+ src/go/printer/testdata/generics.golden            |   26 +
+ src/go/printer/testdata/generics.input             |   25 +
+ src/go/token/token.go                              |    2 +-
+ src/go/types/api.go                                |   30 +-
+ src/go/types/api_test.go                           |  304 +-
+ src/go/types/assignments.go                        |    2 +-
+ src/go/types/call.go                               |   12 +-
+ src/go/types/check.go                              |   12 +-
+ src/go/types/check_test.go                         |  112 +-
+ src/go/types/conversions.go                        |    2 +-
+ src/go/types/decl.go                               |    4 +-
+ src/go/types/errorcodes.go                         |    5 -
+ src/go/types/eval.go                               |    4 +-
+ src/go/types/expr.go                               |   24 +-
+ src/go/types/infer.go                              |    4 +-
+ src/go/types/instantiate.go                        |   11 +-
+ src/go/types/interface.go                          |    1 -
+ src/go/types/lookup.go                             |    3 +-
+ src/go/types/main_test.go                          |   17 +
+ src/go/types/named.go                              |   27 +-
+ src/go/types/package.go                            |    8 +-
+ src/go/types/predicates.go                         |    5 +
+ src/go/types/sizeof_test.go                        |    2 +-
+ src/go/types/stdlib_test.go                        |   31 +-
+ src/go/types/stmt.go                               |   24 +-
+ .../types/testdata/check/{blank.src => blank.go}   |    0
+ .../testdata/check/{builtins.src => builtins0.go}  |    0
+ .../testdata/check/{builtins.go2 => builtins1.go}  |    0
+ .../types/testdata/check/{chans.go2 => chans.go}   |    0
+ .../check/{compliterals.go2 => compliterals.go}    |    0
+ .../types/testdata/check/{const0.src => const0.go} |    0
+ .../types/testdata/check/{const1.src => const1.go} |    0
+ .../testdata/check/{constdecl.src => constdecl.go} |    0
+ .../check/{conversions.src => conversions0.go}     |    0
+ .../check/{conversions2.src => conversions1.go}    |    0
+ .../testdata/check/{cycles.src => cycles0.go}      |    0
+ .../testdata/check/{cycles1.src => cycles1.go}     |    0
+ .../testdata/check/{cycles2.src => cycles2.go}     |    0
+ .../testdata/check/{cycles3.src => cycles3.go}     |    0
+ .../testdata/check/{cycles4.src => cycles4.go}     |    0
+ .../testdata/check/{cycles5.src => cycles5.go}     |    0
+ .../types/testdata/check/{decls0.src => decls0.go} |    4 +-
+ .../types/testdata/check/{decls1.src => decls1.go} |    0
+ .../check/decls2/{decls2a.src => decls2a.go}       |    0
+ .../check/decls2/{decls2b.src => decls2b.go}       |    0
+ .../types/testdata/check/{decls3.src => decls3.go} |    0
+ .../types/testdata/check/{decls4.src => decls4.go} |    0
+ .../types/testdata/check/{decls5.src => decls5.go} |    0
+ .../types/testdata/check/{errors.src => errors.go} |    0
+ .../types/testdata/check/{expr0.src => expr0.go}   |    0
+ .../types/testdata/check/{expr1.src => expr1.go}   |    0
+ .../types/testdata/check/{expr2.src => expr2.go}   |    0
+ .../types/testdata/check/{expr3.src => expr3.go}   |    0
+ .../types/testdata/check/funcinference.go}         |    2 +-
+ .../types/testdata/check/go1_12.go}                |    5 +-
+ .../types/testdata/check/go1_13.go}                |    5 +-
+ .../types/testdata/check/{go1_16.src => go1_16.go} |    4 +-
+ .../types/testdata/check/{go1_8.src => go1_8.go}   |    4 +-
+ .../types/testdata/check/{gotos.src => gotos.go}   |    0
+ .../testdata/check/{importC.src => importC.go}     |    2 +
+ .../{importdecl0a.src => importdecl0a.go}          |    0
+ .../{importdecl0b.src => importdecl0b.go}          |    0
+ .../{importdecl1a.src => importdecl1a.go}          |    0
+ .../{importdecl1b.src => importdecl1b.go}          |    0
+ .../types/testdata/check/{init0.src => init0.go}   |    0
+ .../types/testdata/check/{init1.src => init1.go}   |    0
+ .../types/testdata/check/{init2.src => init2.go}   |    0
+ .../issue25008/{issue25008a.src => issue25008a.go} |    0
+ .../issue25008/{issue25008b.src => issue25008b.go} |    0
+ .../testdata/check/{issues.src => issues0.go}      |    4 +-
+ .../testdata/check/{issues.go2 => issues1.go}      |   33 +-
+ .../types/testdata/check/{labels.src => labels.go} |    0
+ .../types/testdata/check/{linalg.go2 => linalg.go} |    0
+ .../testdata/check/{literals.src => literals.go}   |    0
+ src/go/types/testdata/check/{main.src => main0.go} |    0
+ src/go/types/testdata/check/{main.go2 => main1.go} |    0
+ src/go/types/testdata/check/{map.go2 => map0.go}   |    0
+ src/go/types/testdata/check/{map2.go2 => map1.go}  |    0
+ .../check/{methodsets.src => methodsets.go}        |    0
+ .../types/testdata/check/{shifts.src => shifts.go} |    0
+ .../types/testdata/check/{slices.go2 => slices.go} |    0
+ .../types/testdata/check/{stmt0.src => stmt0.go}   |    2 +-
+ .../types/testdata/check/{stmt1.src => stmt1.go}   |    0
+ .../types/testdata/check/{todos.go2 => todos.go}   |    0
+ .../types/testdata/check/typeinference.go}         |   24 +-
+ .../testdata/check/{typeinst.go2 => typeinst0.go}  |    0
+ .../testdata/check/{typeinst2.go2 => typeinst1.go} |   14 +-
+ .../{typeinstcycles.go2 => typeinstcycles.go}      |    0
+ .../check/{typeparams.go2 => typeparams.go}        |    0
+ .../types/testdata/check/{unions.go2 => unions.go} |    0
+ .../testdata/check/{vardecl.src => vardecl.go}     |    0
+ .../examples/{constraints.go2 => constraints.go}   |    0
+ .../examples/{functions.go2 => functions.go}       |    0
+ .../examples/{inference.go2 => inference.go}       |    0
+ .../testdata/examples/{methods.go2 => methods.go}  |    0
+ .../examples/{operations.go2 => operations.go}     |    0
+ .../testdata/examples/{types.go2 => types.go}      |    0
+ .../examples/{typesets.go2 => typesets.go}         |    0
+ .../fixedbugs/{issue20583.src => issue20583.go}    |    0
+ .../fixedbugs/{issue23203a.src => issue23203a.go}  |    0
+ .../fixedbugs/{issue23203b.src => issue23203b.go}  |    0
+ .../fixedbugs/{issue26390.src => issue26390.go}    |    0
+ .../fixedbugs/{issue28251.src => issue28251.go}    |    0
+ .../fixedbugs/{issue39634.go2 => issue39634.go}    |    0
+ .../fixedbugs/{issue39664.go2 => issue39664.go}    |    0
+ .../fixedbugs/{issue39680.go2 => issue39680.go}    |    0
+ .../fixedbugs/{issue39693.go2 => issue39693.go}    |    0
+ .../fixedbugs/{issue39699.go2 => issue39699.go}    |    0
+ .../fixedbugs/{issue39711.go2 => issue39711.go}    |    0
+ .../fixedbugs/{issue39723.go2 => issue39723.go}    |    0
+ .../fixedbugs/{issue39725.go2 => issue39725.go}    |    0
+ .../fixedbugs/{issue39754.go2 => issue39754.go}    |    0
+ .../fixedbugs/{issue39755.go2 => issue39755.go}    |    0
+ .../fixedbugs/{issue39768.go2 => issue39768.go}    |    0
+ .../fixedbugs/{issue39938.go2 => issue39938.go}    |    0
+ .../fixedbugs/{issue39948.go2 => issue39948.go}    |    0
+ .../fixedbugs/{issue39976.go2 => issue39976.go}    |    0
+ .../fixedbugs/{issue39982.go2 => issue39982.go}    |    0
+ .../fixedbugs/{issue40038.go2 => issue40038.go}    |    0
+ .../fixedbugs/{issue40056.go2 => issue40056.go}    |    0
+ .../fixedbugs/{issue40057.go2 => issue40057.go}    |    0
+ .../fixedbugs/{issue40301.go2 => issue40301.go}    |    0
+ .../fixedbugs/{issue40684.go2 => issue40684.go}    |    0
+ .../fixedbugs/{issue40789.go2 => issue40789.go}    |    0
+ .../types/testdata/fixedbugs/issue41124.go}        |   10 +-
+ .../fixedbugs/{issue42695.src => issue42695.go}    |    0
+ .../types/testdata/fixedbugs/issue42758.go}        |    2 +-
+ .../fixedbugs/{issue42987.src => issue42987.go}    |    0
+ .../fixedbugs/{issue43056.go2 => issue43056.go}    |    0
+ .../fixedbugs/{issue43087.src => issue43087.go}    |    0
+ .../fixedbugs/{issue43110.src => issue43110.go}    |    0
+ .../fixedbugs/{issue43124.src => issue43124.go}    |    0
+ .../fixedbugs/{issue43125.src => issue43125.go}    |    0
+ .../fixedbugs/{issue43190.src => issue43190.go}    |    0
+ .../fixedbugs/{issue43527.go2 => issue43527.go}    |    0
+ .../fixedbugs/{issue43671.go2 => issue43671.go}    |    0
+ .../fixedbugs/{issue44688.go2 => issue44688.go}    |    0
+ .../fixedbugs/{issue44799.go2 => issue44799.go}    |    0
+ .../fixedbugs/{issue45548.go2 => issue45548.go}    |    0
+ .../fixedbugs/{issue45550.go2 => issue45550.go}    |    0
+ .../fixedbugs/{issue45635.go2 => issue45635.go}    |    0
+ .../fixedbugs/{issue45639.go2 => issue45639.go}    |    0
+ .../fixedbugs/{issue45920.go2 => issue45920.go}    |    0
+ .../fixedbugs/{issue45985.go2 => issue45985.go}    |    0
+ .../types/testdata/fixedbugs/issue46090.go}        |    4 +-
+ .../fixedbugs/{issue46275.go2 => issue46275.go}    |    0
+ .../fixedbugs/{issue46403.src => issue46403.go}    |    0
+ .../fixedbugs/{issue46461.go2 => issue46461.go}    |    0
+ .../fixedbugs/{issue47031.go2 => issue47031.go}    |    0
+ .../fixedbugs/{issue47115.go2 => issue47115.go}    |    0
+ .../fixedbugs/{issue47127.go2 => issue47127.go}    |    0
+ .../fixedbugs/{issue47411.go2 => issue47411.go}    |    0
+ .../fixedbugs/{issue47747.go2 => issue47747.go}    |    0
+ .../fixedbugs/{issue47796.go2 => issue47796.go}    |    0
+ .../fixedbugs/{issue47818.go2 => issue47818.go}    |    4 +-
+ .../fixedbugs/{issue47887.go2 => issue47887.go}    |    0
+ .../fixedbugs/{issue47968.go2 => issue47968.go}    |    0
+ .../fixedbugs/{issue48008.go2 => issue48008.go}    |    0
+ .../fixedbugs/{issue48018.go2 => issue48018.go}    |    0
+ .../fixedbugs/{issue48048.go2 => issue48048.go}    |    0
+ .../fixedbugs/{issue48082.src => issue48082.go}    |    0
+ .../fixedbugs/{issue48083.go2 => issue48083.go}    |    0
+ .../fixedbugs/{issue48136.go2 => issue48136.go}    |    0
+ .../fixedbugs/{issue48234.go2 => issue48234.go}    |    0
+ .../fixedbugs/{issue48312.go2 => issue48312.go}    |    0
+ .../fixedbugs/{issue48472.go2 => issue48472.go}    |    0
+ .../fixedbugs/{issue48529.go2 => issue48529.go}    |    0
+ .../fixedbugs/{issue48582.go2 => issue48582.go}    |    0
+ .../fixedbugs/{issue48619.go2 => issue48619.go}    |    0
+ .../fixedbugs/{issue48656.go2 => issue48656.go}    |    0
+ .../fixedbugs/{issue48695.go2 => issue48695.go}    |    0
+ .../fixedbugs/{issue48703.go2 => issue48703.go}    |    0
+ .../fixedbugs/{issue48712.go2 => issue48712.go}    |    0
+ .../fixedbugs/{issue48819.src => issue48819.go}    |    0
+ .../fixedbugs/{issue48827.go2 => issue48827.go}    |    0
+ .../fixedbugs/{issue48951.go2 => issue48951.go}    |    0
+ .../fixedbugs/{issue48962.go2 => issue48962.go}    |    0
+ .../fixedbugs/{issue48974.go2 => issue48974.go}    |    0
+ .../fixedbugs/{issue49043.go2 => issue49043.go}    |    0
+ .../fixedbugs/{issue49112.go2 => issue49112.go}    |    0
+ .../fixedbugs/{issue49179.go2 => issue49179.go}    |    0
+ .../fixedbugs/{issue49242.go2 => issue49242.go}    |    0
+ .../fixedbugs/{issue49247.go2 => issue49247.go}    |    0
+ .../fixedbugs/{issue49276.go2 => issue49276.go}    |    0
+ .../fixedbugs/{issue49296.go2 => issue49296.go}    |    0
+ .../fixedbugs/{issue49439.go2 => issue49439.go}    |    0
+ .../fixedbugs/{issue49482.go2 => issue49482.go}    |    0
+ .../types/testdata/fixedbugs/issue49541.go}        |    7 +-
+ .../fixedbugs/{issue49579.go2 => issue49579.go}    |    0
+ .../fixedbugs/{issue49592.go2 => issue49592.go}    |    0
+ .../fixedbugs/{issue49602.go2 => issue49602.go}    |    0
+ .../fixedbugs/{issue49705.go2 => issue49705.go}    |    0
+ .../fixedbugs/{issue49735.go2 => issue49735.go}    |    0
+ .../fixedbugs/{issue49739.go2 => issue49739.go}    |    0
+ .../fixedbugs/{issue49864.go2 => issue49864.go}    |    0
+ .../fixedbugs/{issue50259.go2 => issue50259.go}    |    0
+ .../fixedbugs/{issue50276.go2 => issue50276.go}    |    0
+ .../fixedbugs/{issue50281.go2 => issue50281.go}    |    0
+ .../fixedbugs/{issue50321.go2 => issue50321.go}    |    0
+ .../types/testdata/fixedbugs/issue50417.go}        |   24 +-
+ .../fixedbugs/{issue50426.go2 => issue50426.go}    |    0
+ .../fixedbugs/{issue50427.go2 => issue50427.go}    |    0
+ .../fixedbugs/{issue50450.go2 => issue50450.go}    |    0
+ .../fixedbugs/{issue50516.go2 => issue50516.go}    |    0
+ .../fixedbugs/{issue50646.go2 => issue50646.go}    |    0
+ .../fixedbugs/{issue50755.go2 => issue50755.go}    |    0
+ .../fixedbugs/{issue50779.go2 => issue50779.go}    |    0
+ .../types/testdata/fixedbugs/issue50782.go}        |   13 +-
+ .../fixedbugs/{issue50816.go2 => issue50816.go}    |    0
+ .../fixedbugs/{issue50833.go2 => issue50833.go}    |    0
+ .../fixedbugs/{issue50912.go2 => issue50912.go}    |    0
+ .../fixedbugs/{issue50929.go2 => issue50929.go}    |    6 +-
+ .../fixedbugs/{issue51048.go2 => issue51048.go}    |    0
+ .../fixedbugs/{issue51158.go2 => issue51158.go}    |    0
+ .../fixedbugs/{issue51229.go2 => issue51229.go}    |    0
+ src/go/types/testdata/fixedbugs/issue51232.go      |   30 +
+ src/go/types/testdata/fixedbugs/issue51232.go2     |   29 -
+ .../types/testdata/fixedbugs/issue51233.go}        |   10 +-
+ src/go/types/testdata/fixedbugs/issue51233.go2     |   25 -
+ .../fixedbugs/{issue51257.go2 => issue51257.go}    |    0
+ .../fixedbugs/{issue51335.go2 => issue51335.go}    |    0
+ .../fixedbugs/{issue51339.go2 => issue51339.go}    |    4 +-
+ .../fixedbugs/{issue51376.go2 => issue51376.go}    |    0
+ .../fixedbugs/{issue51386.go2 => issue51386.go}    |    0
+ src/go/types/testdata/fixedbugs/issue51472.go      |   54 +
+ src/go/types/testdata/fixedbugs/issue51509.go      |    7 +
+ src/go/types/testdata/fixedbugs/issue51533.go      |   20 +
+ src/go/types/testdata/fixedbugs/issue51578.go      |   17 +
+ src/go/types/testdata/fixedbugs/issue51593.go      |   13 +
+ src/go/types/testdata/fixedbugs/issue51616.go      |   19 +
+ src/go/types/testdata/fixedbugs/issue51658.go      |   39 +
+ src/go/types/testdata/fixedbugs/issue51877.go      |   18 +
+ .../fixedbugs/{issue6977.src => issue6977.go}      |    0
+ src/go/types/testdata/{manual.go2 => manual.go}    |    0
+ .../spec/{assignability.go2 => assignability.go}   |    0
+ .../spec/{comparisons.go2 => comparisons.go}       |    0
+ .../spec/{conversions.go2 => conversions.go}       |    0
+ src/go/types/typeparam.go                          |    9 +-
+ src/go/types/typeset.go                            |   91 +-
+ src/go/types/typeset_test.go                       |   10 +-
+ src/go/types/typexpr.go                            |   41 +-
+ src/go/types/unify.go                              |    7 +-
+ src/go/types/union.go                              |   20 +-
+ src/go/types/universe.go                           |    4 +-
+ src/go/types/validtype.go                          |    4 +-
+ src/html/template/escape.go                        |    4 +-
+ src/index/suffixarray/sais.go                      |    2 +-
+ src/index/suffixarray/sais2.go                     |    2 +-
+ src/internal/abi/abi_arm64.go                      |    2 -
+ src/internal/abi/abi_generic.go                    |    2 +-
+ src/internal/abi/abi_ppc64x.go                     |    2 +-
+ src/internal/abi/abi_riscv64.go                    |   19 +
+ src/internal/abi/abi_test.go                       |    2 +-
+ src/internal/buildcfg/cfg.go                       |    5 +-
+ src/internal/buildcfg/exp.go                       |   93 +-
+ src/internal/bytealg/compare_arm64.s               |   27 -
+ src/internal/bytealg/compare_generic.go            |    2 +-
+ src/internal/bytealg/compare_native.go             |    2 +-
+ src/internal/bytealg/compare_ppc64x.s              |   98 +-
+ src/internal/bytealg/compare_riscv64.s             |  185 +
+ src/internal/bytealg/count_ppc64x.s                |   37 +-
+ src/internal/bytealg/equal_arm64.s                 |   33 -
+ src/internal/bytealg/equal_ppc64x.s                |   29 +-
+ src/internal/bytealg/equal_riscv64.s               |  146 +-
+ src/internal/bytealg/index_ppc64x.s                |   69 +-
+ src/internal/bytealg/indexbyte_ppc64x.s            |   34 +-
+ src/internal/cpu/cpu_ppc64x_linux.go               |    2 +
+ src/internal/cpu/cpu_x86.go                        |   34 +-
+ src/internal/cpu/cpu_x86.s                         |   17 +
+ src/internal/cpu/cpu_x86_test.go                   |    3 +
+ src/internal/cpu/export_x86_test.go                |   11 +
+ src/internal/diff/diff.go                          |  262 ++
+ src/internal/diff/diff_test.go                     |   43 +
+ src/internal/diff/testdata/allnew.txt              |   13 +
+ src/internal/diff/testdata/allold.txt              |   13 +
+ src/internal/diff/testdata/basic.txt               |   35 +
+ src/internal/diff/testdata/dups.txt                |   40 +
+ src/internal/diff/testdata/end.txt                 |   38 +
+ src/internal/diff/testdata/eof.txt                 |    9 +
+ src/internal/diff/testdata/eof1.txt                |   18 +
+ src/internal/diff/testdata/eof2.txt                |   18 +
+ src/internal/diff/testdata/long.txt                |   62 +
+ src/internal/diff/testdata/same.txt                |    5 +
+ src/internal/diff/testdata/start.txt               |   34 +
+ src/internal/diff/testdata/triv.txt                |   40 +
+ src/internal/fuzz/coverage.go                      |   11 +
+ src/internal/fuzz/encoding.go                      |  195 +-
+ src/internal/fuzz/encoding_test.go                 |  290 +-
+ src/internal/fuzz/worker.go                        |   16 +-
+ src/internal/goexperiment/exp_regabireflect_off.go |    9 -
+ src/internal/goexperiment/exp_regabireflect_on.go  |    9 -
+ src/internal/goexperiment/flags.go                 |    5 -
+ src/internal/pkgbits/decoder.go                    |   10 +-
+ src/internal/pkgbits/encoder.go                    |   12 +-
+ src/internal/pkgbits/sync.go                       |    1 +
+ src/internal/pkgbits/syncmarker_string.go          |   61 +-
+ src/internal/reflectlite/all_test.go               |    5 +
+ src/internal/reflectlite/type.go                   |    9 +-
+ src/internal/syscall/unix/pipe2_illumos.go         |   34 -
+ src/internal/testenv/testenv.go                    |  101 +-
+ .../x/tools => internal}/txtar/archive.go          |    0
+ src/io/fs/walk.go                                  |    3 +
+ src/io/fs/walk_test.go                             |   33 +
+ src/io/ioutil/ioutil.go                            |   14 +-
+ src/io/ioutil/tempfile.go                          |    4 +-
+ src/io/multi.go                                    |   25 +
+ src/io/multi_test.go                               |   25 +
+ src/make.bash                                      |    1 +
+ src/make.bat                                       |    1 +
+ src/make.rc                                        |    1 +
+ src/math/all_test.go                               |   12 +-
+ src/math/big/nat.go                                |    2 +-
+ src/net/http/h2_bundle.go                          |   47 +-
+ src/net/http/httptest/server.go                    |   29 +-
+ src/net/http/httptest/server_test.go               |   54 +
+ src/net/http/httputil/reverseproxy.go              |   13 +-
+ src/net/http/pprof/pprof_test.go                   |    2 +-
+ src/net/http/request.go                            |   13 +-
+ src/net/lookup.go                                  |    2 +-
+ src/net/mail/message.go                            |   38 +-
+ src/net/mail/message_test.go                       |   23 +-
+ src/net/netip/inlining_test.go                     |    7 +-
+ src/net/netip/netip.go                             |   10 +-
+ src/net/netip/netip_test.go                        |    2 +-
+ src/net/rpc/server.go                              |  190 +-
+ src/net/url/url.go                                 |   51 +-
+ src/net/url/url_test.go                            |   69 +-
+ src/os/file.go                                     |    2 +
+ src/os/pipe2_illumos.go                            |   25 -
+ src/os/{pipe2_bsd.go => pipe2_unix.go}             |    4 +-
+ src/os/pipe_linux.go                               |   20 -
+ src/os/{pipe_bsd.go => pipe_unix.go}               |    2 +-
+ src/os/rlimit.go                                   |   32 +
+ src/os/rlimit_darwin.go                            |   22 +
+ src/os/rlimit_stub.go                              |   12 +
+ src/os/rlimit_test.go                              |   37 +
+ src/os/stat_darwin.go                              |    8 +-
+ src/os/stat_dragonfly.go                           |    8 +-
+ src/os/stat_freebsd.go                             |    8 +-
+ src/os/stat_js.go                                  |    8 +-
+ src/os/stat_linux.go                               |    8 +-
+ src/os/stat_netbsd.go                              |    8 +-
+ src/os/stat_openbsd.go                             |    8 +-
+ src/os/stat_solaris.go                             |    8 +-
+ src/path/filepath/path.go                          |    3 +
+ src/path/filepath/path_test.go                     |   37 +-
+ src/reflect/abi.go                                 |    7 +-
+ src/reflect/abi_test.go                            |    2 +-
+ src/reflect/all_test.go                            |    9 +
+ src/reflect/asm_arm64.s                            |   10 -
+ src/reflect/type.go                                |    4 +-
+ src/regexp/regexp.go                               |    7 +-
+ src/runtime/abi_test.go                            |    2 +-
+ src/runtime/asm_arm64.s                            |  155 +-
+ src/runtime/asm_ppc64x.s                           |   92 -
+ src/runtime/cgo/gcc_freebsd_arm.c                  |    6 -
+ src/runtime/crash_cgo_test.go                      |    2 +-
+ src/runtime/crash_test.go                          |    2 +-
+ src/runtime/debug/stack_test.go                    |  112 +-
+ src/runtime/debug_test.go                          |    5 +-
+ src/runtime/duff_riscv64.s                         | 1790 ++++----
+ src/runtime/memclr_arm64.s                         |    5 -
+ src/runtime/memclr_ppc64x.s                        |    6 +-
+ src/runtime/memmove_arm64.s                        |    5 -
+ src/runtime/memmove_ppc64x.s                       |    8 +-
+ src/runtime/mgcwork.go                             |    9 +-
+ src/runtime/mkduff.go                              |   22 +-
+ src/runtime/os3_solaris.go                         |    3 -
+ src/runtime/pprof/mprof_test.go                    |   18 +-
+ src/runtime/pprof/pprof_norusage.go                |    2 +-
+ src/runtime/pprof/pprof_rusage.go                  |    8 +-
+ src/runtime/pprof/pprof_test.go                    |  108 +-
+ src/runtime/pprof/proto.go                         |   52 +-
+ src/runtime/pprof/rusage_test.go                   |   10 +-
+ src/runtime/race/README                            |    2 +-
+ src/runtime/race/race_linux_amd64.syso             |  Bin 525176 -> 552768 bytes
+ src/runtime/race/testdata/mop_test.go              |   14 +-
+ src/runtime/race_arm64.s                           |   22 -
+ src/runtime/race_ppc64le.s                         |   30 +-
+ src/runtime/rt0_linux_ppc64le.s                    |   32 +-
+ src/runtime/runtime-gdb_test.go                    |   18 +-
+ src/runtime/runtime2.go                            |    2 +-
+ src/runtime/signal_windows_test.go                 |   34 +-
+ src/runtime/stubs.go                               |    3 +-
+ src/runtime/sys_solaris_amd64.s                    |   12 -
+ src/runtime/syscall_solaris.go                     |   18 -
+ src/runtime/testdata/testwinsignal/main.go         |   36 +-
+ src/runtime/tls_arm64.h                            |    5 -
+ src/runtime/traceback.go                           |    4 +-
+ src/runtime/traceback_test.go                      |    4 +-
+ src/sort/gen_sort_variants.go                      |   10 +-
+ src/strconv/quote.go                               |    6 +
+ src/syscall/asm9_unix2_amd64.s                     |    6 +-
+ src/syscall/asm_darwin_amd64.s                     |   18 +-
+ src/syscall/asm_darwin_arm64.s                     |   18 +-
+ src/syscall/asm_freebsd_arm64.s                    |   18 +-
+ src/syscall/asm_linux_amd64.s                      |   12 +-
+ src/syscall/asm_linux_arm64.s                      |   12 +-
+ src/syscall/asm_linux_ppc64x.s                     |   12 +-
+ src/syscall/asm_netbsd_amd64.s                     |    6 +-
+ src/syscall/asm_netbsd_arm64.s                     |   19 +-
+ src/syscall/asm_plan9_amd64.s                      |   12 +-
+ src/syscall/asm_solaris_amd64.s                    |    3 -
+ src/syscall/asm_unix_amd64.s                       |   12 +-
+ src/syscall/creds_test.go                          |    6 +-
+ src/syscall/dirent_test.go                         |    3 -
+ src/syscall/exec_bsd.go                            |   26 +-
+ src/syscall/exec_libc2.go                          |   23 +-
+ src/syscall/forkpipe.go                            |    2 +-
+ src/syscall/forkpipe2.go                           |    2 +-
+ src/syscall/syscall.go                             |    8 +-
+ src/syscall/syscall_aix.go                         |    5 +-
+ src/syscall/syscall_darwin.go                      |    6 +-
+ src/syscall/syscall_dragonfly.go                   |    4 +-
+ src/syscall/syscall_freebsd.go                     |    4 +-
+ src/syscall/syscall_linux.go                       |    7 +
+ src/syscall/syscall_linux_386.go                   |    4 +-
+ src/syscall/syscall_linux_amd64.go                 |    4 +-
+ src/syscall/syscall_linux_arm.go                   |    4 +-
+ src/syscall/syscall_linux_arm64.go                 |    4 +-
+ src/syscall/syscall_linux_mips64x.go               |    4 +-
+ src/syscall/syscall_linux_mipsx.go                 |    4 +-
+ src/syscall/syscall_linux_ppc64x.go                |    4 +-
+ src/syscall/syscall_linux_riscv64.go               |    4 +-
+ src/syscall/syscall_linux_s390x.go                 |    4 +-
+ src/syscall/syscall_netbsd.go                      |    4 +-
+ src/syscall/syscall_openbsd.go                     |    5 +-
+ src/syscall/syscall_openbsd_libc.go                |    2 +
+ src/syscall/syscall_openbsd_mips64.go              |    2 +-
+ src/syscall/syscall_solaris.go                     |   24 +-
+ src/syscall/syscall_unix.go                        |   43 +-
+ src/syscall/syscall_unix_test.go                   |   27 -
+ src/syscall/syscall_windows.go                     |   61 +-
+ src/syscall/zsyscall_aix_ppc64.go                  |   33 +-
+ src/syscall/zsyscall_darwin_amd64.go               |    4 +-
+ src/syscall/zsyscall_darwin_arm64.go               |    4 +-
+ src/syscall/zsyscall_freebsd_386.go                |    4 +-
+ src/syscall/zsyscall_freebsd_amd64.go              |    4 +-
+ src/syscall/zsyscall_freebsd_arm.go                |    4 +-
+ src/syscall/zsyscall_freebsd_arm64.go              |    4 +-
+ src/syscall/zsyscall_linux_386.go                  |    4 +-
+ src/syscall/zsyscall_linux_amd64.go                |    4 +-
+ src/syscall/zsyscall_linux_arm.go                  |    4 +-
+ src/syscall/zsyscall_linux_arm64.go                |    4 +-
+ src/syscall/zsyscall_linux_mips.go                 |    4 +-
+ src/syscall/zsyscall_linux_mips64.go               |    4 +-
+ src/syscall/zsyscall_linux_mips64le.go             |    4 +-
+ src/syscall/zsyscall_linux_mipsle.go               |    4 +-
+ src/syscall/zsyscall_linux_ppc64.go                |    4 +-
+ src/syscall/zsyscall_linux_ppc64le.go              |    4 +-
+ src/syscall/zsyscall_linux_riscv64.go              |    4 +-
+ src/syscall/zsyscall_linux_s390x.go                |    4 +-
+ src/syscall/zsyscall_netbsd_386.go                 |    4 +-
+ src/syscall/zsyscall_netbsd_amd64.go               |    4 +-
+ src/syscall/zsyscall_netbsd_arm.go                 |    4 +-
+ src/syscall/zsyscall_netbsd_arm64.go               |    4 +-
+ src/syscall/zsyscall_openbsd_386.go                |   18 +-
+ src/syscall/zsyscall_openbsd_386.s                 |    2 +
+ src/syscall/zsyscall_openbsd_amd64.go              |   18 +-
+ src/syscall/zsyscall_openbsd_amd64.s               |    2 +
+ src/syscall/zsyscall_openbsd_arm.go                |   18 +-
+ src/syscall/zsyscall_openbsd_arm.s                 |    2 +
+ src/syscall/zsyscall_openbsd_arm64.go              |   18 +-
+ src/syscall/zsyscall_openbsd_arm64.s               |    2 +
+ src/syscall/zsyscall_openbsd_mips64.go             |    4 +-
+ src/syscall/zsyscall_solaris_amd64.go              |   46 +-
+ src/syscall/zsyscall_windows.go                    |    4 +-
+ src/text/scanner/scanner.go                        |    2 +-
+ src/text/scanner/scanner_test.go                   |   19 +
+ src/text/template/parse/parse.go                   |    8 +-
+ src/text/template/parse/parse_test.go              |    4 +
+ src/time/export_android_test.go                    |   12 +-
+ src/time/export_test.go                            |    3 +-
+ src/time/format_test.go                            |    4 +-
+ src/time/internal_test.go                          |   21 +-
+ src/time/time.go                                   |   13 +
+ src/time/time_test.go                              |   32 +-
+ src/time/tzdata_test.go                            |    4 +-
+ src/time/zoneinfo.go                               |    2 +-
+ src/time/zoneinfo_android.go                       |   13 +-
+ src/time/zoneinfo_android_test.go                  |    4 +-
+ src/time/zoneinfo_goroot.go                        |   14 +
+ src/time/zoneinfo_ios.go                           |   16 +-
+ src/time/zoneinfo_js.go                            |    4 +-
+ src/time/zoneinfo_plan9.go                         |    5 +-
+ src/time/zoneinfo_read.go                          |   17 +-
+ src/time/zoneinfo_test.go                          |   23 +-
+ src/time/zoneinfo_unix.go                          |    6 +-
+ src/time/zoneinfo_windows.go                       |    5 +-
+ src/unsafe/unsafe.go                               |    6 +-
+ .../golang.org/x/sys/cpu/syscall_aix_gccgo.go      |    2 +-
+ src/vendor/modules.txt                             |    8 +-
+ test/closure5.dir/main.go                          |    2 +-
+ test/codegen/bitfield.go                           |    6 +
+ test/const7.go                                     |    2 +-
+ test/fixedbugs/bug222.dir/chanbug2.go              |    3 +-
+ test/fixedbugs/bug302.dir/main.go                  |   12 -
+ test/fixedbugs/bug302.dir/p.go                     | 1011 -----
+ test/fixedbugs/bug302.go                           |   45 -
+ test/fixedbugs/bug345.go                           |    5 +-
+ test/fixedbugs/bug369.go                           |   12 +-
+ test/fixedbugs/issue11053.dir/p_test.go            |    2 +-
+ test/fixedbugs/issue11771.go                       |    2 +-
+ test/fixedbugs/issue19467.dir/z.go                 |    7 +-
+ test/fixedbugs/issue21317.go                       |    2 +-
+ test/fixedbugs/issue22660.go                       |    2 +-
+ test/fixedbugs/issue22662b.go                      |    2 +-
+ test/fixedbugs/issue22962.dir/b.go                 |    2 +-
+ test/fixedbugs/issue23179.dir/b.go                 |    2 +-
+ test/fixedbugs/issue26411.go                       |    2 +-
+ test/fixedbugs/issue29919.dir/a.go                 |    4 +-
+ test/fixedbugs/issue30908.go                       |    3 +-
+ test/fixedbugs/issue31252.dir/c.go                 |    4 +-
+ test/fixedbugs/issue31252.dir/main.go              |    2 +-
+ test/fixedbugs/issue31636.dir/main.go              |    6 +-
+ test/fixedbugs/issue31959.dir/main.go              |    2 +-
+ test/fixedbugs/issue32595.dir/main.go              |    4 +-
+ test/fixedbugs/issue33013.dir/b.go                 |    2 +-
+ test/fixedbugs/issue33013.dir/c.go                 |    4 +-
+ test/fixedbugs/issue33013.dir/d.go                 |    4 +-
+ test/fixedbugs/issue33020.dir/b.go                 |    2 +-
+ test/fixedbugs/issue33158.dir/b.go                 |    2 +-
+ test/fixedbugs/issue33219.dir/c.go                 |    4 +-
+ test/fixedbugs/issue33739.dir/b.go                 |    2 +-
+ test/fixedbugs/issue34503.dir/b.go                 |    2 +-
+ test/fixedbugs/issue34577.dir/b.go                 |    2 +-
+ test/fixedbugs/issue35586.dir/b.go                 |    2 +-
+ test/fixedbugs/issue36085.dir/b.go                 |    2 +-
+ test/fixedbugs/issue42401.dir/b.go                 |    5 +-
+ test/fixedbugs/issue45503.dir/b.go                 |    2 +-
+ test/fixedbugs/issue47068.dir/main.go              |    4 +-
+ test/fixedbugs/issue47087.dir/main.go              |    4 +-
+ test/fixedbugs/issue48088.dir/b.go                 |    2 +-
+ test/fixedbugs/issue51531.go                       |   13 +
+ test/fixedbugs/issue51839.go                       |   22 +
+ test/fixedbugs/issue5910.dir/main.go               |    2 +-
+ test/fixedbugs/issue5957.dir/c.go                  |    6 +-
+ test/fixedbugs/issue7648.dir/b.go                  |    2 +-
+ test/fixedbugs/issue8060.dir/b.go                  |    2 +-
+ test/fixedbugs/issue9355.go                        |    2 +-
+ test/inline.go                                     |   28 +
+ test/interface/embed1.dir/embed0.go                |    5 +-
+ test/linkmain_run.go                               |    8 +-
+ test/linkname.dir/linkname2.go                     |    2 +-
+ test/linkname2.go                                  |   21 -
+ test/linkobj.go                                    |   14 +-
+ test/oldescape_linkname.dir/linkname1.go           |   10 -
+ test/oldescape_linkname.dir/linkname2.go           |   13 -
+ test/oldescape_linkname.dir/linkname3.go           |   11 -
+ test/run.go                                        |   94 +-
+ test/sinit_run.go                                  |    2 +-
+ test/typeparam/absdiff2.go                         |   32 +-
+ test/typeparam/absdiffimp2.dir/a.go                |   32 +-
+ test/typeparam/absdiffimp2.dir/main.go             |    2 +-
+ test/typeparam/aliasimp.dir/main.go                |    2 +-
+ test/typeparam/chansimp.dir/main.go                |    2 +-
+ test/typeparam/dedup.dir/b.go                      |    2 +-
+ test/typeparam/dedup.dir/c.go                      |    2 +-
+ test/typeparam/dedup.dir/main.go                   |    4 +-
+ test/typeparam/factimp.dir/main.go                 |    2 +-
+ test/typeparam/gencrawler.dir/main.go              |    2 +-
+ test/typeparam/geninline.dir/main.go               |    2 +-
+ test/typeparam/issue42758.go                       |   19 +
+ test/typeparam/issue47514c.dir/main.go             |    2 +-
+ test/typeparam/issue47775.dir/main.go              |    2 +-
+ test/typeparam/issue47892.dir/main.go              |    6 +-
+ test/typeparam/issue47892b.dir/main.go             |    2 +-
+ test/typeparam/issue48094.dir/main.go              |    2 +-
+ test/typeparam/issue48185a.dir/p_test.go           |    2 +-
+ test/typeparam/issue48185b.dir/main.go             |    2 +-
+ test/typeparam/issue48280.dir/main.go              |    2 +-
+ test/typeparam/issue48306.dir/main.go              |    2 +-
+ test/typeparam/issue48337a.dir/main.go             |    2 +-
+ test/typeparam/issue48337b.dir/main.go             |    2 +-
+ test/typeparam/issue48454.dir/b.go                 |    2 +-
+ test/typeparam/issue48454.dir/main.go              |    2 +-
+ test/typeparam/issue48462.dir/main.go              |    2 +-
+ test/typeparam/issue48716.dir/main.go              |    2 +-
+ test/typeparam/issue48962.dir/b.go                 |    2 +-
+ test/typeparam/issue49027.dir/main.go              |    2 +-
+ test/typeparam/issue49241.dir/b.go                 |    6 +-
+ test/typeparam/issue49241.dir/c.go                 |    6 +-
+ test/typeparam/issue49241.dir/main.go              |    4 +-
+ test/typeparam/issue49497.dir/main.go              |    2 +-
+ test/typeparam/issue49524.dir/main.go              |    2 +-
+ test/typeparam/issue49536.dir/a.go                 |   12 +
+ test/typeparam/issue49536.dir/b.go                 |    9 +
+ test/typeparam/issue49536.go                       |    7 +
+ test/typeparam/issue49659.dir/b.go                 |    2 +-
+ test/typeparam/issue49667.dir/b.go                 |    2 +-
+ test/typeparam/issue49667.dir/main.go              |    2 +-
+ test/typeparam/issue49893.dir/b.go                 |    2 +-
+ test/typeparam/issue49893.dir/main.go              |    2 +-
+ test/typeparam/issue50121.dir/main.go              |    2 +-
+ test/typeparam/issue50121b.dir/b.go                |    2 +-
+ test/typeparam/issue50121b.dir/c.go                |    2 +-
+ test/typeparam/issue50121b.dir/d.go                |    2 +-
+ test/typeparam/issue50121b.dir/main.go             |    2 +-
+ test/typeparam/issue50417.go                       |    6 +
+ test/typeparam/issue50417b.go                      |    8 +
+ test/typeparam/issue50481b.dir/main.go             |    2 +-
+ test/typeparam/issue50481c.dir/main.go             |    2 +-
+ test/typeparam/issue50485.dir/main.go              |    2 +-
+ test/typeparam/issue50486.dir/main.go              |    2 +-
+ test/typeparam/issue50552.dir/main.go              |    2 +-
+ test/typeparam/issue50561.dir/main.go              |    2 +-
+ test/typeparam/issue50598.dir/a1.go                |    2 +-
+ test/typeparam/issue50598.dir/a2.go                |    2 +-
+ test/typeparam/issue50598.dir/main.go              |    4 +-
+ test/typeparam/issue50690a.go                      |   37 +-
+ test/typeparam/issue50690b.go                      |   26 +-
+ test/typeparam/issue50690c.go                      |   30 +-
+ test/typeparam/issue50841.dir/b.go                 |    2 +-
+ test/typeparam/issue51219.dir/main.go              |    2 +-
+ test/typeparam/issue51232.go                       |   12 +-
+ test/typeparam/issue51233.go                       |   16 +-
+ test/typeparam/issue51367.dir/main.go              |    2 +-
+ test/typeparam/issue51423.dir/a.go                 |   17 +
+ test/typeparam/issue51423.dir/b.go                 |   11 +
+ test/typeparam/issue51423.go                       |    7 +
+ test/typeparam/issue51521.go                       |   30 +
+ test/typeparam/issue51522a.go                      |   42 +
+ test/typeparam/issue51522b.go                      |   62 +
+ test/typeparam/issue51733.go                       |   32 +
+ test/typeparam/issue51765.go                       |   15 +
+ test/typeparam/issue51836.dir/a.go                 |    8 +
+ test/typeparam/issue51836.dir/aa.go                |   13 +
+ test/typeparam/issue51836.dir/p.go                 |   11 +
+ test/typeparam/issue51836.go                       |    7 +
+ test/typeparam/listimp.dir/main.go                 |    2 +-
+ test/typeparam/listimp2.dir/main.go                |    2 +-
+ test/typeparam/mapimp.dir/main.go                  |    2 +-
+ test/typeparam/mapsimp.dir/main.go                 |    2 +-
+ test/typeparam/mdempsky/13.go                      |    2 +-
+ test/typeparam/mincheck.dir/main.go                |    2 +-
+ test/typeparam/minimp.dir/main.go                  |    2 +-
+ test/typeparam/orderedmapsimp.dir/main.go          |    2 +-
+ test/typeparam/pairimp.dir/main.go                 |    2 +-
+ test/typeparam/recoverimp.dir/main.go              |    2 +-
+ test/typeparam/setsimp.dir/main.go                 |    2 +-
+ test/typeparam/sliceimp.dir/main.go                |    2 +-
+ test/typeparam/stringerimp.dir/main.go             |    2 +-
+ test/typeparam/typeswitch1.go                      |    2 +
+ test/typeparam/typeswitch1.out                     |    2 +
+ test/typeparam/typeswitch2.go                      |   14 +-
+ test/typeparam/typeswitch2.out                     |    6 +-
+ test/typeparam/typeswitch3.go                      |    8 +
+ test/typeparam/typeswitch3.out                     |    3 +
+ test/typeparam/typeswitch4.go                      |    8 +
+ test/typeparam/typeswitch4.out                     |    3 +
+ test/typeparam/valimp.dir/main.go                  |    2 +-
+ 1269 files changed, 14919 insertions(+), 17878 deletions(-)

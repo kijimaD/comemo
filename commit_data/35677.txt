@@ -1,43 +1,34 @@
-commit bd83774593bca66cc899d5180c77680bc907fab8
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 4 14:55:31 2018 -0400
+commit c9438cb198c420648743108b6495aa4c7775f453
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Feb 27 01:59:58 2018 +0100
 
-    cmd/link: separate virtual address layout from file layout
+    test: add support for code generation tests (asmcheck)
     
-    Currently these two forms of layout are done in a single pass. This
-    makes it difficult to compress DWARF sections because that must be
-    done after relocations are applied, which must happen after virtual
-    address layout, but we can't layout the file until we've compressed
-    the DWARF sections.
+    The top-level test harness is modified to support a new kind
+    of test: "asmcheck". This is meant to replace asm_test.go
+    as an easier and more readable way to test code generation.
     
-    Fix this by separating the two layout steps. In the process, we can
-    also unify the copy-pasted code in Link.address to compute file
-    offsets. Currently, each instance of this is slightly different, but
-    there's no reason for it to be. For example, we don't perform
-    PEFILEALIGN alignment on Segrodata or Selreltodata even when HeadType
-    == Hwindows, but it turns out it doesn't matter whether you do or
-    don't because these segments simply don't exist on Windows. Hence, in
-    the unified code path, we do this alignment for all segments.
-    Likewise, there are two ways of computing Fileoff:
-      seg.Vaddr - prev.Vaddr + prev.Fileoff
-    and
-      prev.Fileoff + uint64(Rnd(int64(prev.Filelen), int64(*FlagRound)))
-    At the moment, these always have the same value, but the latter will
-    continue to work after we start compressing sections on disk.
+    I've added a couple of codegen tests to get initial feedback
+    on the syntax. I've created them under a common "codegen"
+    subdirectory, so that it's easier to run them all with
+    "go run run.go -v codegen".
     
-    Tested by comparing test binaries for all packages in std before and
-    after this change for GOOS={linux,windows,darwin,plan9}. All binaries
-    are identical.
+    The asmcheck syntax allows to insert line comments that
+    can specify a regular expression to match in the assembly code,
+    for multiple architectures (the testsuite will automatically
+    build each testfile multiple times, one per mentioned architecture).
     
-    For #11799.
+    Negative matches are unsupported for now, so this cannot fully
+    replace asm_test yet.
     
-    Change-Id: If09f28771bb4d78dd392fd58b8d7c9d5f22b0b9f
-    Reviewed-on: https://go-review.googlesource.com/111682
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ifdbba389f01d55e63e73c99e5f5449e642101d55
+    Reviewed-on: https://go-review.googlesource.com/97355
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/link/internal/ld/data.go | 68 +++++++++++++++++++++++-----------------
- src/cmd/link/internal/ld/main.go |  3 +-
- 2 files changed, 42 insertions(+), 29 deletions(-)
+ test/codegen/bits.go   |  10 ++++
+ test/codegen/rotate.go |  25 ++++++++++
+ test/run.go            | 126 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 160 insertions(+), 1 deletion(-)

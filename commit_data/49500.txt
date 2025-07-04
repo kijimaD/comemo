@@ -1,20 +1,38 @@
-commit 3fcbfb07a82c5332e6b50cddba333af6e6e3e488
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jun 20 11:42:07 2022 +0200
+commit 1ff0554b5318d5a39e2b26a9c84330e6aa47b1c6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 23 18:29:38 2021 -0700
 
-    doc/go1.19: fix HTML validation issues
+    cmd/compile/internal/types2: use []*TypeParam rather than []*TypeName for type param lists
     
-    Avoid duplicating tag ID runtime and remove a superflous </dd> tag.
+    This is a port of CL 343932 from go/types, with the necessary adjustments
+    to the compiler.
     
-    Found by https://validator.w3.org
+    This change improves type safety slightly, avoids many internal type
+    assertions, and simplifies some code paths.
     
-    Change-Id: I9c84b8257acbb6d3d6817192bb8d355207944b9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413254
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ie9c4734814f49cd248927152d7b3264d3578428c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344614
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- doc/go1.19.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go       | 14 +++++-----
+ src/cmd/compile/internal/noder/decl.go             |  2 +-
+ src/cmd/compile/internal/noder/reader2.go          | 11 ++++----
+ .../compile/internal/noder/syncmarker_string.go    |  5 ++--
+ src/cmd/compile/internal/noder/types.go            |  4 +--
+ src/cmd/compile/internal/noder/writer.go           |  6 ++--
+ src/cmd/compile/internal/types2/decl.go            | 12 ++++----
+ src/cmd/compile/internal/types2/infer.go           | 32 +++++++++++-----------
+ src/cmd/compile/internal/types2/instantiate.go     | 10 +++----
+ src/cmd/compile/internal/types2/named.go           |  4 +--
+ src/cmd/compile/internal/types2/object.go          |  2 +-
+ src/cmd/compile/internal/types2/predicates.go      |  4 +--
+ src/cmd/compile/internal/types2/signature.go       | 18 ++++++------
+ src/cmd/compile/internal/types2/subst.go           |  4 +--
+ src/cmd/compile/internal/types2/typeparam.go       | 11 ++++----
+ src/cmd/compile/internal/types2/typestring.go      |  7 ++---
+ src/cmd/compile/internal/types2/unify.go           | 14 +++++-----
+ 17 files changed, 79 insertions(+), 81 deletions(-)

@@ -1,17 +1,33 @@
-commit f3c89e21a566a6c82cff3e4d4b30e21de22a84fa
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 12 14:47:32 2024 +0200
+commit 94e40d5603797fe4d9302421682bb5b997d9c568
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Aug 7 11:24:13 2023 +0200
 
-    cmd/link/internal: use slices.Contains
+    os: follow all name surrogate reparse points in Stat on Windows
     
-    Change-Id: Ib437e272e0eb7d1b0969a4ed94d264ca3aad7c59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612696
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Tim King <taking@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tim King <taking@google.com>
+    Previously, os.Stat only followed IO_REPARSE_TAG_SYMLINK
+    and IO_REPARSE_TAG_MOUNT_POINT reparse points.
+    
+    This CL generalize the logic to detect which reparse points to follow
+    by using the reparse tag value to determine whether the reparse point
+    refers to another named entity, as documented in
+    https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags.
+    
+    The new behavior adds implicit support for correctly stat-ing reparse
+    points other than mount points and symlinks, e.g.,
+    IO_REPARSE_TAG_WCI_LINK and IO_REPARSE_TAG_IIS_CACHE.
+    
+    Updates #42184
+    
+    Change-Id: I51f56127d4dc6c0f43eb5dfa3bfa6d9e3922d000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516555
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/cmd/link/internal/ld/lib.go  |  5 +++--
- src/cmd/link/internal/ld/util.go | 10 ----------
- 2 files changed, 3 insertions(+), 12 deletions(-)
+ src/os/os_windows_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ src/os/stat.go            |  4 ++++
+ src/os/stat_windows.go    | 18 +++++++++---------
+ src/os/types_windows.go   | 10 ++++++++++
+ 4 files changed, 62 insertions(+), 9 deletions(-)

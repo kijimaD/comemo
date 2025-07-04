@@ -1,27 +1,14 @@
-commit 229695a2833ead7bbee53071f52f34e2ce1c2802
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 28 09:32:55 2021 -0500
+commit cb5fad79d068420409686f435385a8d62f26c56f
+Author: Julie Qiu <julie@golang.org>
+Date:   Tue Jun 2 13:46:34 2020 -0400
 
-    runtime: clean up funcID assignment
+    doc/go1.15: add release notes for strconv
     
-    Large enum sets should be sorted by name when the
-    values don't matter, as they don't here. Do that.
+    Updates #37419
     
-    Also replace the large switch with a map lookup.
-    
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: Ibe727b5d8866bf4c40c96020e1f4632bde7efd59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288798
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic72bf0da914fa8a56570750b8fd4b4d09d2ed075
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236157
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/internal/objabi/funcid.go | 113 ++++++++++++++++----------------------
- src/runtime/symtab.go             |  26 ++++-----
- 2 files changed, 61 insertions(+), 78 deletions(-)
+ doc/go1.15.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

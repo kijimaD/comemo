@@ -1,34 +1,30 @@
-commit b675a75c3d7c221d8f5734203e25bd690a9a1f83
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Mar 7 15:32:30 2023 -0500
+commit 3d8cb26504f9e3f5b45b4ea97b55714a25e016c1
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Mar 6 12:07:54 2022 -0800
 
-    cmd/compile: enable address folding for globals on ARM64, just not -dynlink mode
+    cmd/compile: modify switches of strings to use jump table for lengths
     
-    On ARM64, in -dynlink mode (building a shared library or a plugin),
-    accessing global variable is made using the GOT. Currently, the
-    GOT accessing instruction sequence our assembler generates doesn't
-    handle large offset well, so we don't fold the offset into loads
-    and stores in the compiler. Currently, the rewrite rules are
-    guarded with the -shared flag. However, the GOT access
-    instructions are only generated in the -dynlink mode (which
-    implies -shared, but not the other direction).
+    Reorganize the way we rewrite expression switches on strings, so that
+    jump tables are naturally used for the outer switch on the string length.
     
-    CL 445535 attempted to remove the guard althgether. But that
-    causes build failure for -dynlink mode for the reason above. This
-    CL changes it to guard specifically on -dynlink mode, allowing
-    the optimization in more cases (-shared but not -dynlink build
-    modes).
+    The changes to the prove pass in this CL are required so as to not repeat
+    the test for string length in each case.
     
-    Updates #58826.
+    name                         old time/op  new time/op  delta
+    SwitchStringPredictable    2.28ns ± 9%  2.08ns ± 5%   -9.04%  (p=0.000 n=10+10)
+    SwitchStringUnpredictable  10.5ns ± 1%   9.5ns ± 1%   -9.08%  (p=0.000 n=9+10)
     
-    Change-Id: I1391db6a33e8d0455a304e7cae7fcfdeb49bfdab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473999
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Update #5496
+    Update #34381
+    
+    Change-Id: Ie6846b1dd27f3e472f7c30dfcc598c68d440b997
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395714
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules |  93 +++++++-------
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 176 +++++++++++++-------------
- test/fixedbugs/issue58826.go                  |  23 ++++
- 3 files changed, 159 insertions(+), 133 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go        | 82 +++++++++++++++++++++-------
+ src/cmd/compile/internal/test/switch_test.go | 43 +++++++++++++++
+ src/cmd/compile/internal/walk/switch.go      | 68 +++++++++++++++++++----
+ 3 files changed, 162 insertions(+), 31 deletions(-)

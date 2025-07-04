@@ -1,13 +1,31 @@
-commit 0627fa84b773fbb38b28727d99e7e35e7345ca05
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu May 29 08:40:15 2014 +1000
+commit 6c10e64a906039678f5dffda8b453005ffcdb92e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 28 14:08:44 2014 -0400
 
-    misc/makerelease: upload files to Google Cloud Storage
+    regexp: hide one-pass code from exported API
     
-    LGTM=bradfitz
-    R=jasonhall, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/91700047
+    Update #8112
+    
+    Hide one-pass regexp API.
+    
+    This means moving the code from regexp/syntax to regexp,
+    but it avoids being locked into the specific API chosen for
+    the implementation.
+    
+    It also removes a slice field from the syntax.Inst, which
+    should avoid bloating the memory footprint of a non-one-pass
+    regexp unnecessarily.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/98610046
 
- misc/makerelease/makerelease.go | 177 +++++++++++++---------------------------
- 1 file changed, 57 insertions(+), 120 deletions(-)
+ api/next.txt                       |   5 -
+ src/pkg/regexp/exec.go             |   8 +-
+ src/pkg/regexp/onepass.go          | 582 +++++++++++++++++++++++++++++++++++++
+ src/pkg/regexp/onepass_test.go     | 208 +++++++++++++
+ src/pkg/regexp/regexp.go           |   8 +-
+ src/pkg/regexp/syntax/prog.go      | 547 +---------------------------------
+ src/pkg/regexp/syntax/prog_test.go | 202 +------------
+ 7 files changed, 804 insertions(+), 756 deletions(-)

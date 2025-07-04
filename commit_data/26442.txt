@@ -1,22 +1,16 @@
-commit 9549c06ce6e379de4554a911ffe8470af8d70daa
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Sun Mar 20 22:15:27 2016 +0100
+commit 970ce1c866f767796ca36f5a3ac37c7222bf31d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 23 23:22:49 2016 -0500
 
-    cmd/compile: fold IsInBounds with small index
+    encoding/xml: update docs for Token
     
-    For the following example, but there are a few more in the stdlib:
-    func histogram(b []byte, h *[256]int32) {
-            for _, t := range b {
-                    h[t]++
-            }
-    }
+    Fixes #13757.
     
-    Change-Id: I56615f341ae52e02ef34025588dc6d1c52122295
-    Reviewed-on: https://go-review.googlesource.com/20924
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    Change-Id: I1b52593df8df0e98ce7342767eb34eccecc11761
+    Reviewed-on: https://go-review.googlesource.com/18854
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  6 +++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 72 ++++++++++++++++++++++++++
- 2 files changed, 78 insertions(+)
+ src/encoding/xml/xml.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

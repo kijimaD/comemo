@@ -1,24 +1,23 @@
-commit 4f74bbd24ca2cecdd24dada8d1d6af0f24ebb211
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Nov 28 06:36:05 2012 +0900
+commit e781b20ac9c0d5ec7658f4f6a2b8041b3706e1c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 27 10:29:49 2012 -0800
 
-    net: consoldate literal target address into IP address functions
+    go/format: Package format implements standard formatting of Go source.
     
-    This CL continues with introducing IPv6 scoped addressing capability
-    into the net package.
+    Package format is a utility package that takes care of
+    parsing, sorting of imports, and formatting of .go source
+    using the canonical gofmt formatting parameters.
     
-    Update #4234.
+    Use go/format in various clients instead of the lower-level components.
     
-    R=rsc
+    R=r, bradfitz, dave, rogpeppe, rsc
     CC=golang-dev
-    https://golang.org/cl/6842053
+    https://golang.org/cl/6852075
 
- src/pkg/net/dial.go       | 13 +++----
- src/pkg/net/ipraw_test.go | 32 ++++++++++++++++
- src/pkg/net/iprawsock.go  | 47 ++++--------------------
- src/pkg/net/ipsock.go     | 94 +++++++++++++++++++++++++++++------------------
- src/pkg/net/tcp_test.go   | 28 ++++++++++++++
- src/pkg/net/tcpsock.go    | 15 ++++----
- src/pkg/net/udp_test.go   | 28 ++++++++++++++
- src/pkg/net/udpsock.go    | 18 ++++-----
- 8 files changed, 174 insertions(+), 101 deletions(-)
+ src/cmd/fix/main.go              |  21 +---
+ src/cmd/godoc/godoc.go           |   5 +-
+ src/cmd/godoc/play.go            |  31 +-----
+ src/cmd/godoc/template.go        |   8 +-
+ src/pkg/go/format/format.go      | 200 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/format/format_test.go | 125 ++++++++++++++++++++++++
+ 6 files changed, 338 insertions(+), 52 deletions(-)

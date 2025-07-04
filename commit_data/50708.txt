@@ -1,16 +1,19 @@
-commit e3ac2152f28f74c085d305d764a54d14d46eaaa9
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Sep 28 21:17:34 2022 +0800
+commit 35a588109b2a6d8b610be08d32aaf99ef1549085
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Oct 31 23:22:38 2021 -0400
 
-    bufio: use strings.Builder
+    net: accept "." as a valid domain name
     
-    Change-Id: Ia8d6cea75b32c8839837c1bb1e13cde9b236abdd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435939
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #45715
+    
+    Change-Id: Ibdaa91c97d34473061b377325ebe9a3bf5696c8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360314
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bufio/bufio_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/dnsclient.go           |  5 +++++
+ src/net/dnsclient_unix_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup.go              |  4 +---
+ 3 files changed, 47 insertions(+), 3 deletions(-)

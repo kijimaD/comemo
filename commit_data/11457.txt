@@ -1,13 +1,18 @@
-commit 43ebc6b5c64ca580b4a10430b2b620f4f5e6a84d
+commit d87813b51c667cf5169695ca4dc893d1976af888
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 30 12:02:14 2012 +1100
+Date:   Mon Jan 30 11:59:06 2012 +1100
 
-    gobuilder: use go tool to build and test sub-repositories
+    dashboard: add sub-repositories to init list
+    dashboard: add Kind to Package struct
+    dashboard: add kind parameter to /packages handler
     
-    R=rsc
+    R=rsc, bsiegert, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/5576047
+    https://golang.org/cl/5572062
 
- misc/dashboard/builder/http.go |  5 +--
- misc/dashboard/builder/main.go | 70 +++++++++++++++++++++++++++++-------------
- 2 files changed, 51 insertions(+), 24 deletions(-)
+ misc/dashboard/app/build/build.go   | 14 +++++++--
+ misc/dashboard/app/build/handler.go | 29 ++-----------------
+ misc/dashboard/app/build/init.go    | 57 +++++++++++++++++++++++++++++++++++++
+ misc/dashboard/app/build/test.go    |  4 +--
+ misc/dashboard/app/build/ui.go      |  4 +--
+ 5 files changed, 75 insertions(+), 33 deletions(-)

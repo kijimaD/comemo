@@ -1,16 +1,23 @@
-commit b280edb89eae1974e3f218726814b03b3558e005
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Jun 1 19:43:58 2018 +0200
+commit e9db7b9dd147d787883813a772b7cd5700b87114
+Author: Austin Clements <austin@google.com>
+Date:   Fri Feb 16 17:53:16 2018 -0500
 
-    cmd/compile: fix comment to reference runtime.countrunes
+    runtime: abstract indexing of arena index
     
-    Updates #24923
+    Accessing the arena index is about to get slightly more complicated.
+    Abstract this away into a set of functions for going back and forth
+    between addresses and arena slice indexes.
     
-    Change-Id: Ie5a1b54b023381b58df618080f3d742a50d46d8b
-    Reviewed-on: https://go-review.googlesource.com/115836
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    For #23862.
+    
+    Change-Id: I0b20e74ef47a07b78ed0cf0a6128afe6f6e40f4b
+    Reviewed-on: https://go-review.googlesource.com/95496
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/heapdump.go |  4 ++--
+ src/runtime/malloc.go   | 29 ++++++++++++++++++++++-------
+ src/runtime/mbitmap.go  |  4 ++--
+ src/runtime/mheap.go    | 36 ++++++++++++++++++++++++++++++------
+ 4 files changed, 56 insertions(+), 17 deletions(-)

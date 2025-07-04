@@ -1,22 +1,33 @@
-commit a6ae01a64a6a5ef17a4825cd486aa31f62481100
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 17 16:30:21 2017 -0400
+commit dcf643f1fd39f98baa4686c1b3baf5691e5773d3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 6 12:51:55 2017 -0700
 
-    runtime: add "max waste" column to size class table comment
+    cmd/internal/obj/arm: make assembler concurrency-safe
     
-    This computes the maximum possible waste in a size class due to both
-    internal and external fragmentation as a percent of the span size.
-    This parallels the reasoning about overhead in the comment at the top
-    of mksizeclasses.go and confirms that comment's assertion that (except
-    for the few smallest size classes), none of the size classes have
-    worst-case internal and external fragmentation simultaneously.
+    Move global state from obj.Link
+    to a new function-local state struct arm.ctxt5.
     
-    Change-Id: Idb66fe6c241d56f33d391831d4cd5a626955562b
-    Reviewed-on: https://go-review.googlesource.com/49370
-    Run-TryBot: Austin Clements <austin@google.com>
+    This ends up being cleaner than threading
+    all the state through as parameters; there's a lot of it.
+    While we're here, move newprog from a parameter to ctxt5.
+    
+    We reserve the variable name c for ctxt5,
+    so a few local variables named c have been renamed.
+    
+    Instead of lazily initializing deferreturn
+    and Sym_div and friends, initialize them up front.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Ifb4e4b9879e4e1f25e6168d8b7b2a25a3390dc11
+    Reviewed-on: https://go-review.googlesource.com/39922
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/mksizeclasses.go |  13 +++--
- src/runtime/sizeclasses.go   | 134 +++++++++++++++++++++----------------------
- 2 files changed, 75 insertions(+), 72 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go | 767 ++++++++++++++++++++-------------------
+ src/cmd/internal/obj/arm/obj5.go | 137 +++----
+ src/cmd/internal/obj/link.go     |   5 -
+ 3 files changed, 452 insertions(+), 457 deletions(-)

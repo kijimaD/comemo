@@ -1,24 +1,27 @@
-commit 529362e1e2d68c1740ee71a7d5ece3f2c5190791
-Author: David Chase <drchase@google.com>
-Date:   Fri May 18 15:11:30 2018 -0400
+commit 821b04dafbc5e94223766b15622d9b7b38b2f576
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jan 16 16:55:06 2018 +0000
 
-    cmd/compile: refactor and cleanup of common code/workaround
+    path: remove filename mentions from pattern godocs
     
-    There's a glitch in how attributes from procs that do not
-    generate code are combined, and the workaround for this
-    glitch appeared in two places.
+    path.Match works purely with strings, not file paths. That's what sets
+    it apart from filepath.Match. For example, only filepath.Match will
+    change its behavior towards backslashes on Windows, to accomodate for
+    the file path separator on that system.
     
-    "One big pile is better than two little ones."
+    As such, path.Match should make no mention of file names. Nor should
+    path.ErrBadPattern mention globbing at all - the package has no notion
+    of globbing, and the error concerns only patterns.
     
-    Updates #25426.
+    For a similar reason, remove the mention of globbing from
+    filepath.ErrBadPattern. The error isn't reserved to just globbing, as it
+    can be returned from filepath.Match. And, as before, it only concerns
+    the patterns themselves.
     
-    Change-Id: I252f9adc5b77591720a61fa22e6f9dda33d95350
-    Reviewed-on: https://go-review.googlesource.com/113717
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I58a83ffa3e2549625d8e546ef916652525504bd1
+    Reviewed-on: https://go-review.googlesource.com/87857
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/gsubr.go        |  9 +++------
- src/cmd/compile/internal/gc/ssa.go          |  4 +---
- src/cmd/compile/internal/ssa/numberlines.go | 10 ++++++++++
- 3 files changed, 14 insertions(+), 9 deletions(-)
+ src/path/filepath/match.go | 2 +-
+ src/path/match.go          | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,13 +1,15 @@
-commit 5a3336096f19c7c813305f548e054b86391874ff
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Thu Jul 31 13:54:42 2014 -0700
+commit 53304558f95660233be1259b817fb1ca4693279d
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 31 13:07:16 2014 -0700
 
-    strconv: remove needless cast
+    runtime: fix 32 bit build.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    int(maxMem) is negative on 32 bits.  Need to use
+    unsigned arithmetic.
+    
+    TBR=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/119340043
+    https://golang.org/cl/121000045
 
- src/pkg/strconv/atoi.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/slice.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

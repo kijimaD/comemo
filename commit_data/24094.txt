@@ -1,36 +1,23 @@
-commit 7437e3f02e839d82d1818980376bdeea9c75c535
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Tue Aug 25 16:25:11 2015 +0000
+commit 1b74c71da5de4d066b8fa142ab158bea4cb96f60
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 9 12:49:01 2015 +1000
 
-    cmd/asm: fix potential infinite loop in parser
+    cmd/asm: add copyright notices to tests
     
-    For ARM machines, the assembler supports list of registers
-    operands such as [R1,R2].
+    They were missing from the inputs.
+    Unfortunately this means the .out files all have wrong line numbers,
+    but they are easy to update.
     
-    A list missing a ']' results in the parser issuing many errors
-    and consuming all the tokens. At EOF (i.e. end of the line),
-    it still loops.
-    
-    Normally, a counter is maintained to make sure the parser
-    stops after 10 errors. However, multiple errors occuring on the
-    same line are simply ignored. Only the first one is reported.
-    At most one error per line is accounted.
-    
-    Missing ']' in a register list therefore results in an
-    infinite loop.
-    
-    Fixed the parser by explicitly checking for ']' to interrupt
-    this loops
-    
-    In the operand tests, also fixed a wrong entry which I think was
-    not set on purpose (but still led to a successful result).
-    
-    Fixes #11764
-    
-    Change-Id: Ie87773388ee0d21b3a2a4cb941d4d911d0230ba4
-    Reviewed-on: https://go-review.googlesource.com/13920
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I254742f24ab803421f34d52d13b9afa93674edd6
+    Reviewed-on: https://go-review.googlesource.com/11958
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/operand_test.go | 3 ++-
- src/cmd/asm/internal/asm/parse.go        | 9 +++++++--
- 2 files changed, 9 insertions(+), 3 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64.out | 114 +++++++-------
+ src/cmd/asm/internal/asm/testdata/amd64.s   |   4 +
+ src/cmd/asm/internal/asm/testdata/arm.out   | 110 +++++++-------
+ src/cmd/asm/internal/asm/testdata/arm.s     |   4 +
+ src/cmd/asm/internal/asm/testdata/arm64.out | 102 ++++++-------
+ src/cmd/asm/internal/asm/testdata/arm64.s   |   4 +
+ src/cmd/asm/internal/asm/testdata/ppc64.out | 220 ++++++++++++++--------------
+ src/cmd/asm/internal/asm/testdata/ppc64.s   |   4 +
+ 8 files changed, 289 insertions(+), 273 deletions(-)

@@ -1,22 +1,18 @@
-commit 080119799bb9cbace0d20bcc671497a53e3ec14e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 23 11:38:24 2021 -0500
+commit 4379fa1740b24c610849f597f9ca13711e1bf455
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Jun 16 13:40:03 2020 -0400
 
-    runtime: fix usleep on windows/arm
+    cmd/internal/obj/ppc64: update doc
     
-    Changed calling convention to pre-multiply the argument by -100,
-    and then deleted the * 100 but not the negation in the windows/arm assembly.
-    Delete the negation.
+    This updates the ppc64 asm doc file, including information on
+    updates to the objdump, correcting information on operand order,
+    and adding some information on shifts.
     
-    Fixes the current all.bash breakage on windows/arm builder.
-    (Maybe that will uncover more.)
-    
-    Change-Id: I13006a44866ecc007586deb180a49c038d70aa99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295529
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib8ed53eac86c2121ea5b657c361ad92aae31cb32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238237
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/sys_windows_arm.s | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/internal/obj/ppc64/doc.go | 52 ++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 46 insertions(+), 6 deletions(-)

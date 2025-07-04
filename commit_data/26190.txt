@@ -1,22 +1,12 @@
-commit 72655afb4ed84ce7809b3ee6202fd4edcdb25593
+commit 956535f5cbc0808a69e19c1e6953fde2bf012881
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 10 10:00:29 2016 -0800
+Date:   Sat Jan 2 19:39:37 2016 -0800
 
-    cmd/compile: remove NodeList type
+    runtime: implement setsigstack for Solaris
     
-    That was easy.
-    
-    Fixes #14473.
-    
-    Change-Id: I9d1d20a5c5a9b1423e6c72c0460ee4a78130864f
-    Reviewed-on: https://go-review.googlesource.com/20521
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0280d478b7d0a59d8e2082aa87fab6d7d9f36a18
+    Reviewed-on: https://go-review.googlesource.com/18158
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/cmd/compile/internal/gc/fmt.go       | 12 ++-----
- src/cmd/compile/internal/gc/pgen_test.go | 16 ----------
- src/cmd/compile/internal/gc/reflect.go   | 18 +++++------
- src/cmd/compile/internal/gc/syntax.go    | 54 --------------------------------
- src/cmd/compile/internal/gc/typecheck.go | 35 +++++++--------------
- 5 files changed, 21 insertions(+), 114 deletions(-)
+ src/runtime/os3_solaris.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

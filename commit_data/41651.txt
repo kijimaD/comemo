@@ -1,22 +1,27 @@
-commit 85a8526a7e8d12a31f2f1d9ebcec2841a27dc493
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Feb 21 02:30:09 2020 +1100
+commit 286d744246a84b3a19093db6e7f24a823aac50bb
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 17 01:11:23 2019 -0400
 
-    cmd/asm,cmd/internal/obj/riscv: add LR/SC instructions
+    [dev.link] cmd/compile: pass index through when re-exporting
     
-    Add support for Load-Reserved (LR) and Store-Conditional (SC) instructions.
+    When we re-export an imported symbol that has an index, we should
+    pass the index through. Currently, if the symbol is not
+    referenced in the generated machine code, it does not get
+    assigned a package index, and the exporter will not export its
+    symbol index. Let the exporter handle this case -- if the symbol
+    has a symbol index but not a package index, still export its
+    symbol index. This is safe as referenced-by-name symbols always
+    have their package indices set to a special value.
     
-    Use instructions in place of currently used defines.
+    This should reduce the number of referenced-by-name symbols, and
+    also make the export data more stable, less dependent on codegen
+    details.
     
-    Updates #36765
-    
-    Change-Id: I77e660639802293ece40cfde4865ac237e3308d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220540
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic515a002ae84226e7fdbe68a53496c051b7badcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201719
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/asm/internal/arch/riscv64.go         | 25 +++++++++++++++++++++
- src/cmd/asm/internal/asm/asm.go              | 17 +++++++++++++-
- src/cmd/asm/internal/asm/testdata/riscvenc.s |  8 ++++++-
- src/cmd/internal/obj/riscv/obj.go            | 33 +++++++++++++++++++++-------
- src/runtime/internal/atomic/atomic_riscv64.s | 12 +++++-----
- 5 files changed, 79 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

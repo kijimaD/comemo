@@ -1,14 +1,30 @@
-commit 37af06360039c96be707526596557a33885c3ad0
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Tue Apr 12 13:12:54 2016 -0300
+commit e197f467d51318305439610d44af0e20dae7062f
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Mon Feb 29 19:29:04 2016 +0100
 
-    crypto/x509: remove broken link in ParsePKCS8PrivateKey documentation
+    [dev.ssa] cmd/compile/internal/ssa: simplify boolean phis
     
-    Fixes #14776
+    * Decreases the generated code slightly.
+    * Similar to phiopt pass from gcc, except it only handles
+    booleans. Handling Eq/Neq had no impact on the generated code.
     
-    Change-Id: I55423ac643f18542b9fd1386ed98dec47fb678aa
-    Reviewed-on: https://go-review.googlesource.com/21890
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    name       old time/op     new time/op     delta
+    Template       453ms ± 4%      451ms ± 4%    ~           (p=0.468 n=24+24)
+    GoTypes        1.55s ± 1%      1.55s ± 2%    ~           (p=0.287 n=24+25)
+    Compiler       6.53s ± 2%      6.56s ± 1%  +0.46%        (p=0.050 n=23+23)
+    MakeBash       45.8s ± 2%      45.7s ± 2%    ~           (p=0.866 n=24+25)
+    
+    name       old text-bytes  new text-bytes  delta
+    HelloSize       676k ± 0%       676k ± 0%    ~     (all samples are equal)
+    CmdGoSize      8.07M ± 0%      8.07M ± 0%  -0.03%        (p=0.000 n=25+25)
+    
+    Change-Id: Ia62477b7554127958a14cb27f85849b095d63663
+    Reviewed-on: https://go-review.googlesource.com/20090
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/pkcs8.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go |  1 +
+ src/cmd/compile/internal/ssa/phiopt.go  | 86 +++++++++++++++++++++++++++++++++
+ test/phiopt.go                          | 43 +++++++++++++++++
+ 3 files changed, 130 insertions(+)

@@ -1,17 +1,18 @@
-commit fafd792de30f46cbd822fd6bb041c60c7b5fbe6d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 14:37:45 2016 -0500
+commit d246eedcaa5105450ecfe72b626e955147c383b2
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Mar 10 12:33:33 2016 +0100
 
-    net: fix hostLookupOrder("")
+    fmt: integer formatting should not permanently change padding
     
-    Fixes #13623.
+    Changes the integer function to restore the original f.zero value
+    and therefore padding type before returning.
     
-    Change-Id: I1bd96aa7b6b715e4dbdcf0c37c2d29228df6565c
-    Reviewed-on: https://go-review.googlesource.com/18329
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I456449259a3d39bd6d62e110553120c31ec63f23
+    Reviewed-on: https://go-review.googlesource.com/20512
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/conf.go      | 2 +-
- src/net/conf_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/fmt/fmt_test.go | 3 +++
+ src/fmt/format.go   | 2 ++
+ 2 files changed, 5 insertions(+)

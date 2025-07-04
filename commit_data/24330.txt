@@ -1,16 +1,13 @@
-commit 6d0178359f59f6481ed3c3a41d2ddde93bb3556e
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Sat Sep 19 23:55:27 2015 +0200
+commit e0ac5c53377a0145494a051330ea00e2995f9ed8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 20 18:42:45 2015 -0700
 
-    cmd/compile/internal/gc: eliminate stringsCompare for stackvar sorting
+    [dev.ssa] cmd/compile: minor cleanup
     
-    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
-    
-    Change-Id: I2a87d31da74affdf3d0f358d0efdb3f1c646d917
-    Reviewed-on: https://go-review.googlesource.com/14759
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: Ib33f3b1cfa09f410675d275e214d8ddc246c53c3
+    Reviewed-on: https://go-review.googlesource.com/12548
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go      | 39 ++++++++--------
- src/cmd/compile/internal/gc/pgen_test.go | 76 +++++++++++++++++++++++++++++++-
- src/cmd/compile/internal/gc/syntax.go    | 13 +++---
- 3 files changed, 100 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 7 +++----
+ src/cmd/compile/internal/ssa/TODO  | 3 +++
+ 2 files changed, 6 insertions(+), 4 deletions(-)

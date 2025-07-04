@@ -1,12 +1,12 @@
-commit dff0c194464bf23fc924242885843426a91b8969
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jul 10 14:19:35 2013 -0700
+commit 4ca346795e9f1008878768214895c372838e7e48
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 10 17:31:46 2013 +1000
 
-    go/format: fix failing test (fix build)
+    html: add escaping tests
     
-    R=khr
+    R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
-    https://golang.org/cl/11131043
+    https://golang.org/cl/11095043
 
- src/pkg/go/format/format_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/html/escape_test.go | 97 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 97 insertions(+)

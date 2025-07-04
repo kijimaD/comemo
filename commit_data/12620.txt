@@ -1,18 +1,29 @@
-commit d724631a532017535133546776d444e698c67336
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 13 17:29:07 2012 -0700
+commit fef92cbbac97022c094f4ff5bfb47b12852e076b
+Author: Johan Euphrosine <proppy@google.com>
+Date:   Wed Mar 14 11:27:41 2012 +1100
 
-    all: various typos
+    doc: add Go image/draw package article and convert code snippets to Go1.
     
-    R=golang-dev, dsymonds
+    Originally published on The Go Programming Language Blog, September 29, 2011.
+    
+    http://blog.golang.org/2011/09/go-imagedraw-package.html
+    
+    Update #2547.
+    
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/5820045
+    https://golang.org/cl/5755057
 
- src/pkg/index/suffixarray/qsufsort.go | 4 ++--
- src/pkg/math/big/nat.go               | 2 +-
- src/pkg/math/erf.go                   | 4 ++--
- src/pkg/net/interface_linux.go        | 2 +-
- src/pkg/net/interface_stub.go         | 2 +-
- src/pkg/net/interface_windows.go      | 2 +-
- src/pkg/syscall/syscall_linux.go      | 2 +-
- 7 files changed, 9 insertions(+), 9 deletions(-)
+ doc/Makefile                 |   3 +-
+ doc/articles/image-20.png    | Bin 0 -> 95383 bytes
+ doc/articles/image-2a.png    | Bin 0 -> 3625 bytes
+ doc/articles/image-2b.png    | Bin 0 -> 95423 bytes
+ doc/articles/image-2c.png    | Bin 0 -> 60552 bytes
+ doc/articles/image-2d.png    | Bin 0 -> 68314 bytes
+ doc/articles/image-2e.png    | Bin 0 -> 96721 bytes
+ doc/articles/image-2f.png    | Bin 0 -> 62662 bytes
+ doc/articles/image_draw.html | 222 +++++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                |   2 +-
+ doc/progs/image_draw.go      | 142 +++++++++++++++++++++++++++
+ src/pkg/image/draw/draw.go   |   2 +-
+ 12 files changed, 368 insertions(+), 3 deletions(-)

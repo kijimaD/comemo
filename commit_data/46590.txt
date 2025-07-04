@@ -1,27 +1,32 @@
-commit 812c99f86a1b38d50c5c0b501d10b72c3b7dfb95
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Sep 24 09:13:32 2021 -0700
+commit 5a5ab24689b63b3c156a17103265c439c1e86df7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 6 10:47:35 2021 +0700
 
-    cmd/compile: fix case in dictPass where OMETHVALUE should become ODOTMETH
+    [dev.regabi] cmd/compile: do not rely on CallExpr.Rargs for detect already walked calls
     
-    When I separate out the dictionary transformations to dictPass, I missed
-    duplicating a conditional that deals with OMETHVALUE nodes that are
-    actually called. We create the OMETHVALUE when transforming bounds
-    function reference (before we know whether that reference will be
-    called), and we need to call transformDot() again to convert the
-    OMETHVALUE to ODOTMETH if the reference is actually called (the usual
-    case). Without this change, we leave the OMETHVALUE in, and extra *-fm
-    are created and used unncessarily.
+    Currently, there's an awkward issue with walk pass. When walking the AST
+    tree, the compiler generate code for runtime functions (using mkcall* variants),
+    add/modify the AST tree and walk new generated tree again. This causes the
+    double walking on some CallExpr, which is relying on checking Rargs to prevent
+    that. But checking Rargs has its own issue as well.
     
-    Also, fixed a few places where we were missing ir.MarkFunc(), which sets
-    the class of a function node properly.
+    For functions that does not have arguments, this check is failed, and we
+    still double walk the CallExpr node.
     
-    Change-Id: I6b02613039b16b507b44525faa2cd7031afb6982
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352069
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This CL change the way that compiler detects double walking, by using
+    separated field instead of relying on Rargs. In perfect world, we should make
+    the compiler walks the AST tree just once, but it's not safe to do that at
+    this moment.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ifdd1e0f98940ddb1f574af2da2ac7f005b5fcadd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283672
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/noder/stencil.go     | 6 ++++++
- src/cmd/compile/internal/typecheck/iimport.go | 1 +
- src/cmd/compile/internal/typecheck/subr.go    | 1 +
- 3 files changed, 8 insertions(+)
+ src/cmd/compile/internal/ir/mini.go   | 4 ++++
+ src/cmd/compile/internal/walk/expr.go | 3 ++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

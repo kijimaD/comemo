@@ -1,0 +1,24 @@
+commit 061efaa8a761458eaa41119ffd59033738cf141c
+Author: Grégoire Lodi <pro@lodi.me>
+Date:   Wed Mar 5 09:44:46 2025 +0000
+
+    net/http: make http.FileServer return 404 when a path is invalid/unsafe
+    
+    This PR adds error handling in net/http toHTTPError to return a 404
+    instead of a 500 when net/http fs.Dir.Open throws the error http:
+    invalid or unsafe file path.
+    
+    Fixes #72091
+    
+    Change-Id: I7941c8fca5160a4a82732dc1d05b9b95eac84fbf
+    GitHub-Last-Rev: 04b5019dfb629820621f3776d6f22fd754171565
+    GitHub-Pull-Request: golang/go#72108
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654975
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/fs.go      | 10 +++++++++-
+ src/net/http/fs_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

@@ -1,17 +1,14 @@
-commit 5cd294480364eb166751838a3df8f58649c214e1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jul 15 18:36:49 2015 +1000
+commit d64cdde3577e9478da6d25047eccac63f95c49d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 5 11:44:31 2015 -0700
 
-    cmd/go: fix parsing of Git SCP-like remotes
+    go/types: remove unused return value
     
-    Now that we care about the protocol of Git remotes (for the -insecure
-    flag), we need to recognize and parse the SCP-like remote format.
+    Port of https://go-review.googlesource.com/10773 from x/tools.
     
-    Fixes golang/go#11457
-    
-    Change-Id: Ia26132274fafb1cbfefe2475f7ac5f17ccd6da40
-    Reviewed-on: https://go-review.googlesource.com/12226
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6aba6a63a5448b8fcbcc7f072c627c27965dbe20
+    Reviewed-on: https://go-review.googlesource.com/10774
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/vcs.go | 27 +++++++++++++++++++++++----
- 1 file changed, 23 insertions(+), 4 deletions(-)
+ src/go/types/typexpr.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

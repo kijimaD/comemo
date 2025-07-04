@@ -1,45 +1,20 @@
-commit 231aa9d6d7e942ac43130356ba3554972251f015
-Author: Quentin Smith <quentin@golang.org>
-Date:   Fri Oct 28 13:01:51 2016 -0400
+commit 33ed35647520f2162c2fed1b0e5f19cec2c65de3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 11:16:50 2016 -0700
 
-    os: use extended-length paths on Windows when possible
+    cmd: add internal/browser package
     
-    Windows has a limit of 260 characters on normal paths, but it's possible
-    to use longer paths by using "extended-length paths" that begin with
-    `\\?\`. This commit attempts to transparently convert an absolute path
-    to an extended-length path, following the subtly different rules those
-    paths require. It does not attempt to handle relative paths, which
-    continue to be passed to the operating system unmodified.
+    cmd/cover, cmd/trace, and cmd/pprof all open browsers.
+    'go bug' will soon also open a browser.
+    It is time to unify the browser-handling code.
     
-    This adds a new test, TestLongPath, to the os package. This test makes
-    sure that it is possible to write a path at least 400 characters long
-    and runs on every platform. It also tests symlinks and hardlinks, though
-    symlinks are not testable with our builder configuration.
-    
-    HasLink is moved to internal/testenv so it can be used by multiple tests.
-    
-    https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
-    has Microsoft's documentation on extended-length paths.
-    
-    Fixes #3358.
-    Fixes #10577.
-    Fixes #17500.
-    
-    Change-Id: I4ff6bb2ef9c9a4468d383d98379f65cf9c448218
-    Reviewed-on: https://go-review.googlesource.com/32451
-    Run-TryBot: Quentin Smith <quentin@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iee6b443e21e938aeaaac366a1aefb1afbc7d9b2c
+    Reviewed-on: https://go-review.googlesource.com/29160
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/testenv/testenv.go | 16 ++++++++++
- src/os/export_windows_test.go   |  1 +
- src/os/file.go                  |  2 +-
- src/os/file_plan9.go            |  5 ++++
- src/os/file_posix.go            |  4 +--
- src/os/file_unix.go             |  5 ++++
- src/os/file_windows.go          | 29 ++++++++++--------
- src/os/os_test.go               | 66 +++++++++++++++++++++++++++++++++++------
- src/os/path_windows.go          | 63 +++++++++++++++++++++++++++++++++++++++
- src/os/path_windows_test.go     | 29 ++++++++++++++++++
- src/os/stat_windows.go          |  2 +-
- 11 files changed, 196 insertions(+), 26 deletions(-)
+ src/cmd/cover/html.go                       | 22 ++--------------
+ src/cmd/internal/browser/browser.go         | 41 +++++++++++++++++++++++++++++
+ src/cmd/internal/pprof/commands/commands.go | 15 +++--------
+ src/cmd/trace/main.go                       | 23 ++--------------
+ 4 files changed, 48 insertions(+), 53 deletions(-)

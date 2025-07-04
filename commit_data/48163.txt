@@ -1,37 +1,28 @@
-commit ada95e2807abbbab990c5c13a271e823e4e0a5cc
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 11 16:49:51 2022 -0500
+commit 657f58d845e83c47c7d4b7638ccbee8e5a2acbf5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 27 10:57:09 2021 -0400
 
-    net: in TestNotTemporaryRead, do not assume that a dialed connection has been accepted
+    cmd/link: support trampoline insertion for PLT calls on ARM64
     
-    Previously, TestNotTemporaryRead issued the Read on the Accept side of
-    the connection, and Closed the Dial side. It appears that on some
-    platforms, Dial may return before the connection has been Accepted,
-    and if that connection is immediately closed with no bytes written and
-    SO_LINGER set to 0, the connection may no longer even exist by the
-    time Accept returns, causing Accept to block indefinitely until the
-    Listener is closed.
+    When internal linking with C objects, some C object relocations
+    may be turned into a CALL via PLT. For very large programs, the
+    PLT stub may be laid too far.
     
-    If we were to just swap the directions, we would have an analogous
-    problem: Accept could accept the connection and close it before the
-    client even finishes dialing, causing Dial (instead of Read) to return
-    the ECONNRESET error.
+    PLT stubs are generated late in the linker, and laid out after
+    the end of the text section. So if the text section is big, the
+    PLT stubs are likely too far.
     
-    Here, we take a middle path: we Accept and Dial the connection
-    concurrently, but wait until both the Accept and the Dial have
-    returned (indicating that the connection is completely established and
-    won't vanish from the accept queue) before resetting the connection.
+    To avoid this situation, add trampolines for PLT calls in the
+    trampoline pass. Only do this when the program is known too large
+    (i.e. the second pass of the two-pass algorithm).
     
-    Fixes #29685
-    Updates #25289
+    Updates #40492.
     
-    Change-Id: Ida06f70f7205fffcdafa3df78bd56184e6cec760
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385314
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I21f65d6cbc6bde84e3cf9c2ae05f5233df6cfa72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314452
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/net_test.go | 64 ++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 39 insertions(+), 25 deletions(-)
+ src/cmd/link/internal/arm64/asm.go | 10 +++++++++-
+ src/cmd/link/internal/ld/data.go   | 26 +++++++++++++++++++++++---
+ 2 files changed, 32 insertions(+), 4 deletions(-)

@@ -1,19 +1,17 @@
-commit 824f2d635ca96a7bded6ed039f8a9c0f06ee1443
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Fri Jan 15 17:05:29 2021 +0100
+commit 881d5405402d6e8c54f83eed6216a9ed29778006
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 14 16:11:53 2020 -0400
 
-    cmd/go: allow go fmt to complete when embedded file is missing
+    cmd/link: fix SLIBFUZZER_EXTRA_COUNTER symbol handling
     
-    Fixes #43273
+    Found this while deleting the old code. This should be data2.
     
-    Change-Id: I75fe2e608cb43c048e3c2a22fe7fbb6eb779504a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/280452
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I1232fac22ef63bb3a3f25a0558537cc371af3bd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234098
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/fmtcmd/fmt.go        |  3 ++-
- src/cmd/go/testdata/script/embed_fmt.txt | 22 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

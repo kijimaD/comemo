@@ -1,18 +1,19 @@
-commit f946a7ca0971027a71e057c2650fdf63d54543e8
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Mar 7 20:50:30 2014 +0400
+commit e509bbc943e817317e4db04b48f2895bec712c2f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 7 16:02:25 2014 +1100
 
-    runtime: fix memory corruption and leak in recursive panic handling
-    Recursive panics leave dangling Panic structs in g->panic stack.
-    At best it leads to a Defer leak and incorrect output on a subsequent panic.
-    At worst it arbitrary corrupts heap.
+    cmd/6a: add support for nacl/amd64p32
+    
+    Replaces CL 70000043.
+    
+    Switch to the amd64p32 linker model if we are building under nacl/amd64p32.
+    
+    No need to introduce linkarchinit() as 6a contains its own main() function.
     
     LGTM=rsc
-    R=rsc
+    R=rsc, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/72480043
+    https://golang.org/cl/72020043
 
- src/pkg/runtime/crash_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/panic.c       | 37 ++++++++++++++++++++++++++++++++++++-
- src/pkg/runtime/runtime.h     |  2 ++
- 3 files changed, 76 insertions(+), 1 deletion(-)
+ src/cmd/6a/lex.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

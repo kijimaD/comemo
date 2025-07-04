@@ -1,20 +1,82 @@
-commit 6f1dce0fcb03f22402dac00f66a42b8b0f5bef2b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Apr 1 19:23:52 2022 -0400
+commit 0e39cdc0e9d76ba06d8cf3096ab94f17b1ffefb3
+Merge: 7c8a5be2d6 8212707871
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 7 12:27:24 2021 -0700
 
-    runtime/race: update PPC64LE syso file to new TSAN runtime (v3)
+    [dev.typeparams] all: merge master (8212707) into dev.typeparams
     
-    In CL 397494 Linux/PPC64LE syso was not updated due to  test
-    failure. It should be fixed by the previous CL and should work
-    now.
+    Conflicts:
     
-    Change-Id: Ieb0993ded5541397094d3aecae28c5255c822eac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397676
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    - src/go/internal/gcimporter/iimport.go
+    
+      CL 325429 and CL 319931 made unrelated changes to adjacent lines
+    
+    Merge List:
+    
+    + 2021-06-07 8212707871 crypto/elliptic: update P-521 docs to say it's constant-time
+    + 2021-06-07 7406180012 fmt: split package documentation into more sections
+    + 2021-06-07 e3176bbc3e crypto/tls: fix typo in Config.NextProtos docs
+    + 2021-06-05 e1fa26026d spec: improve wording consistency by eliminating "specifier"
+    + 2021-06-05 f490134126 spec: improve wording by choosing an official term "keyword"
+    + 2021-06-05 e3cb381704 go/internal/gcimporter: don't waste CPU copying bytes in `io.ReadAll`
+    + 2021-06-05 9d669ed47a misc/cgo/errors: use expected column numbers
+    + 2021-06-04 95939e8de7 cmd/compile/internal/abi: fix typo in comment
+    + 2021-06-04 831f9376d8 net/http: fix ResponseWriter.ReadFrom with short reads
+    + 2021-06-04 3a9d906edc os: avoid finalizer race in windows process object
+    + 2021-06-04 105c5b50e0 os: terminate windows processes via handle directly
+    + 2021-06-04 79cd407f88 syscall: regenerate zsyscall_windows.go
+    + 2021-06-04 c6b6211229 doc/go1.17: document testing changes for Go 1.17
+    + 2021-06-04 0214440075 syscall: do not pass console handles to PROC_THREAD_ATTRIBUTE_HANDLE_LIST on Windows 7
+    + 2021-06-04 962d5c997a cmd/compile,go/types: restrict use of unsafe.{Add,Slice} to go1.17 or newer
+    + 2021-06-04 b29b123e07 cmd/compile: remove spurious ir.Dump
+    + 2021-06-03 6d98301114 cmd/link: use correct alignment in PE DWARF sections
+    + 2021-06-03 e0d029f758 runtime: avoid gp.lockedm race in exitsyscall0
+    + 2021-06-02 dd7ba3ba2c net: don't rely on system hosts in TestCVE202133195
+    + 2021-06-02 4f572d7076 io/fs: minor corrections to Sub docs
+    + 2021-06-02 e11d14225c doc/go1.17: remove runtime section
+    + 2021-06-02 6e189afd3e doc/go1.17: mention SYS_WAIT6/WEXITED on NetBSD
+    + 2021-06-02 ff9f5fb859 cmd/link: recognize clang linker error in testCGOLTO
+    + 2021-06-02 1c6a2ea2ea doc/go1.17: document time changes for Go1.17
+    + 2021-06-02 d743e67e06 doc/go1.17: document flag changes for Go 1.17
+    + 2021-06-02 dc8f87b749 runtime/internal/sys: generate //go:build lines in gengoos.go
+    + 2021-06-02 84c0e5d47f cmd/link: move issue 43830 tests out of TestScript
+    + 2021-06-02 cae68700cc runtime: fix formatting
+    + 2021-06-01 567ee865f6 cmd/go: add declaration to cgo_lto_issue43830 test
+    + 2021-06-01 24e9707cbf cmd/link, cmd/cgo: support -flto in CFLAGS
+    
+    Change-Id: I9ef88e7de0f8b1841ed9604b613b41672df67e71
 
- src/runtime/race/README                  |   2 +-
- src/runtime/race/race_linux_ppc64le.syso | Bin 624648 -> 669736 bytes
- 2 files changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.17.html                             |  36 ++++---
+ doc/go_spec.html                            |   6 +-
+ misc/cgo/errors/errors_test.go              |   3 +-
+ misc/cgo/errors/testdata/err2.go            |  12 +--
+ src/cmd/cgo/gcc.go                          |   2 +
+ src/cmd/cgo/out.go                          |  16 +++-
+ src/cmd/compile/internal/abi/abiutils.go    |   2 +-
+ src/cmd/compile/internal/noder/noder.go     |   3 -
+ src/cmd/compile/internal/typecheck/func.go  |  12 +++
+ src/cmd/compile/internal/types2/builtins.go |  10 ++
+ src/cmd/dist/test.go                        |  29 ++++--
+ src/cmd/link/cgo_test.go                    | 141 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/ar.go              |   4 +
+ src/cmd/link/internal/ld/config.go          |   6 +-
+ src/cmd/link/internal/ld/lib.go             |  26 ++++-
+ src/cmd/link/internal/ld/pe.go              |   2 +-
+ src/crypto/elliptic/elliptic.go             |   4 +-
+ src/crypto/tls/common.go                    |   2 +-
+ src/fmt/doc.go                              |   4 +-
+ src/go/internal/gcimporter/gcimporter.go    |  11 +--
+ src/go/internal/gcimporter/iimport.go       |  21 +++--
+ src/go/types/builtins.go                    |  10 ++
+ src/io/fs/sub.go                            |   6 +-
+ src/net/dnsclient_unix_test.go              |  39 ++++----
+ src/net/http/server.go                      |  40 ++------
+ src/net/http/sniff_test.go                  | 122 +++++++++++++++++++-----
+ src/os/exec_windows.go                      |  23 ++---
+ src/runtime/internal/sys/gengoos.go         |  16 ++--
+ src/runtime/proc.go                         |  10 +-
+ src/syscall/exec_windows.go                 |  54 +++++++++--
+ src/syscall/syscall_windows.go              |   1 +
+ src/syscall/zsyscall_windows.go             |   7 ++
+ test/fixedbugs/issue46525.go                |  14 +++
+ 33 files changed, 525 insertions(+), 169 deletions(-)

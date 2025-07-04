@@ -1,21 +1,15 @@
-commit 5f853d7d9407db1aaa7c7d0dfbf3dbd9d5c19093
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 2 12:30:49 2013 -0400
+commit 4d7c63558c2f4b79169eaa6f6b3ce017f5d43b1e
+Author: Frithjof Schulze <schulze@math.uni-hannover.de>
+Date:   Wed Oct 2 12:09:13 2013 -0400
 
-    runtime: fix finalizer test on amd64
+    crypto/tls: Update reference to the TLS 1.2 RFC.
     
-    Not scanning the stack by frames means we are reintroducing
-    a few false positives into the collection. Run the finalizer registration
-    in its own goroutine so that stack is guaranteed to be out of
-    consideration in a later collection.
-    
-    This is working around a regression from yesterday's tip, but
-    it's not a regression from Go 1.1.
+    Ticket 13740047 updated the documented TLS version to 1.2.
+    This also updates the RFC refered to.
     
     R=golang-dev
-    TBR=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/14290043
+    CC=golang-dev, rsc
+    https://golang.org/cl/14029043
 
- src/pkg/runtime/mfinal_test.go | 19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ src/pkg/crypto/tls/tls.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

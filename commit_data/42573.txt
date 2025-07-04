@@ -1,21 +1,17 @@
-commit a980e8a690f59542e6e68aa4d84face19ee57a15
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Mon Jun 29 01:50:50 2020 -0400
+commit 03eeaa9656027514113e7cd3dc2906255ee23963
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Jan 17 09:06:13 2020 +0000
 
-    net: handle more interface types without a hardware address on Plan 9
+    testing: clarify that Cleanup is run after subtests complete.
     
-    We were handling loopback devices when attempting to read hardware
-    address, but packet interfaces were not being handled. As a general fix,
-    don't attempt to read hardware address of any device that's not inside
-    /net.
+    It's good to be explicit, as it's not necessarily obvious (and indeed
+    the behavior has changed recently with https://go-review.googlesource.com/c/go/+/214822)
+    without an associated doc comment change).
     
-    Fixes #39908
-    
-    Change-Id: Ifa05e270357e111c60906110db2cc23dc7c1c49c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240259
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Change-Id: I99d6398bf15b404b1b1b196e712e926e363251e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215217
+    Reviewed-by: Paul Jolly <paul@myitcv.org.uk>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/interface_plan9.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/testing/testing.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

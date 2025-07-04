@@ -1,15 +1,30 @@
-commit 9f4d5c94b0cafc4d888b7f02e4ff12c2ff39eedc
-Author: Ayan George <ayan@ayan.net>
-Date:   Tue Mar 2 17:44:22 2021 -0500
+commit b0369225ebfdc355c61abbbb2663316388c60895
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 31 23:15:05 2020 -0400
 
-    cmd/go: emit error when listing with -f and -json
+    cmd/go: simplify and document lazy-loading test cases
     
-    Fixes #44738
-    Change-Id: Ie57ddcbe87408c9644313ec2a9ea347b4d6de76b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298029
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    I decided to add package and module diagrams to the test cases to make
+    them easier to follow.
+    
+    While adding those diagrams, I noticed some strong similarities among
+    a couple of the graphs, so I consolidated those cases (and deleted the
+    redundant tests).
+    
+    For #36460
+    
+    Change-Id: Id6cd04fc871379b83851c2d1af89ea9296a0f3e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251997
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/list/list.go                |  4 ++++
- src/cmd/go/testdata/script/list_json_with_f.txt | 20 ++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/cmd/go/testdata/script/mod_all.txt             |  72 +++++++++-
+ .../go/testdata/script/mod_lazy_import_allmod.txt  |  19 ++-
+ .../testdata/script/mod_lazy_import_test_dep.txt   | 159 ---------------------
+ src/cmd/go/testdata/script/mod_lazy_new_import.txt |  28 +++-
+ src/cmd/go/testdata/script/mod_lazy_test_all.txt   | 125 ----------------
+ .../go/testdata/script/mod_lazy_test_horizon.txt   |  20 ++-
+ .../testdata/script/mod_lazy_test_of_test_dep.txt  |  77 ++++++----
+ 7 files changed, 177 insertions(+), 323 deletions(-)

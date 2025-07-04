@@ -1,15 +1,16 @@
-commit 353ce60f6e8e5898efec62945fbafd33bc28a37b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Feb 23 08:48:02 2013 +0400
+commit 4434212f1558c124e1823d3d7279ed63a71a31b8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 22 17:16:31 2013 -0800
 
-    runtime: implement local work queues (in preparation for new scheduler)
+    cmd/vet: use types to test Error methods correctly.
+    We need go/types to discriminate the Error method from
+    the error interface and the Error method of the testing package.
+    Fixes #4753.
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz, gri
     CC=golang-dev
-    https://golang.org/cl/7402047
+    https://golang.org/cl/7396054
 
- src/pkg/runtime/export_test.go |   6 ++
- src/pkg/runtime/proc.c         | 217 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/proc_test.go   |   8 ++
- src/pkg/runtime/runtime.h      |  12 +++
- 4 files changed, 243 insertions(+)
+ src/cmd/vet/main.go  |  16 +++++--
+ src/cmd/vet/print.go | 124 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 133 insertions(+), 7 deletions(-)

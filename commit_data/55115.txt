@@ -1,32 +1,19 @@
-commit 64c12bafea06144c0d4e3f3bee80171021800903
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat Nov 18 05:50:50 2023 +0000
+commit 376076f3c6bed06f5256a316af8f1eed53a1135e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 4 18:03:46 2023 -0800
 
-    cmd/trace/v2: add support for goroutine filtering
+    runtime: skip TestCgoPprofCallback in short mode, don't run in parallel
     
-    This change adds support for the trace?goid=<goid> endpoint to the trace
-    tool for v2 traces.
+    Fixes #54778
     
-    In effect, this change actually implements a per-goroutine view. I tried
-    to add a link to the main page to enable a "view by goroutines" view
-    without filtering, but the web trace viewer broke the browser tab when
-    there were a few hundred goroutines. The risk of a browser hang probably
-    isn't worth the cases where this is nice, especially since filtering by
-    goroutine already works. Unfortunate, but c'est l'vie. Might be worth
-    revisiting if we change out the web viewer in the future.
-    
-    For #60773.
-    For #63960.
-    
-    Change-Id: I8e29f4ab8346af6708fd8824505c30f2c43db796
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543595
-    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Change-Id: If9aef0c06b993ef2aedbeea9452297ee9f11fa06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460461
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/trace/v2/goroutinegen.go   | 164 +++++++++++++++++++++++++++++++++++++
- src/cmd/trace/v2/jsontrace.go      |  63 +++++++++++++-
- src/cmd/trace/v2/main.go           |   2 +-
- src/internal/trace/summary.go      |  18 +---
- src/internal/trace/summary_test.go |  26 +++++-
- 5 files changed, 249 insertions(+), 24 deletions(-)
+ src/runtime/crash_cgo_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

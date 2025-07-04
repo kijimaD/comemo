@@ -1,27 +1,21 @@
-commit 275e1fdb20a3751f5a30f9ec2f0c3fb0b1c8d1d1
-Author: Mark Adams <mark@markadams.me>
-Date:   Fri Feb 3 08:46:25 2017 -0600
+commit 79d2115ec933904c02311cd31923b125fe4303dc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Oct 27 19:53:50 2016 -0700
 
-    cmd/go: use Bitbucket v2 REST API when determining VCS
+    cmd/compile: eliminate more allocs in newblock
     
-    The existing implementation uses v1.0 of Bitbucket's REST API. The newer
-    version 2.0 of Bitbucket's REST API provides the same information but
-    with support for partial responses allowing the client to request only
-    the response fields that are relevant to their usage of the API
-    resulting in a much smaller payload size.
+    name       old allocs/op    new allocs/op    delta
+    Template         389k ± 0%        386k ± 0%  -0.84%        (p=0.000 n=10+10)
+    Unicode          323k ± 0%        323k ± 0%  -0.25%        (p=0.000 n=10+10)
+    GoTypes         1.17M ± 0%       1.16M ± 0%  -0.93%        (p=0.000 n=10+10)
+    Compiler        4.13M ± 0%       4.09M ± 0%  -1.05%        (p=0.000 n=10+10)
     
-    The partial response functionality in the Bitbucket API is documented here:
-    https://developer.atlassian.com/bitbucket/api/2/reference/meta/partial-response
-    
-    The v2.0 of the Bitbucket repositories API is documented here:
-    https://developer.atlassian.com/bitbucket/api/2/reference/resource/repositories/%7Busername%7D/%7Brepo_slug%7D#get
-    
-    Fixes #18919
-    
-    Change-Id: I319947d5c51adc241cfe3a2228a667cc43fb1f56
-    Reviewed-on: https://go-review.googlesource.com/36219
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6c00850d07511c2e65761c7373fc3df738499105
+    Reviewed-on: https://go-review.googlesource.com/32235
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/get/vcs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/plive.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

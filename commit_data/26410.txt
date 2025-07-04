@@ -1,28 +1,26 @@
-commit 34f0c0b3de8957f247c0bc99a682f622793fd88b
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Sun Mar 20 19:17:36 2016 +0000
+commit a734bbc95349a487c78ff02eda07e3f219808be3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 11 21:05:33 2016 -0800
 
-    net/http: adaptive wait time in PersistConnLeak tests
+    [dev.ssa] cmd/compile: Allow structs to be SSAd
     
-    In tests TransportPersistConnLeak and TransportPersistConnLeakShortBody,
-    there's a fixed wait time (100ms and 400ms respectively) to allow
-    goroutines to exit after CloseIdleConnections is called. This
-    is sometimes too short on a slow host running many simultaneous
-    tests.
+    Break small structs up into their components so they
+    can be registerized.
     
-    This CL replaces the fixed sleep in each test with a sequence of
-    shorter sleeps, testing the number of remaining goroutines until
-    it reaches the threshold or an overall time limit of 500ms expires.
-    This prevents some failures in the plan9_arm builder, while reducing
-    the test time on faster machines.
+    Change StructSelect to use field indexes instead of
+    field offsets, as field offsets aren't unique in the
+    presence of zero-sized fields.
     
-    Fixes #14887
-    
-    Change-Id: Ia5c871062df139e2667cdfb2ce8283e135435318
-    Reviewed-on: https://go-review.googlesource.com/20922
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2f1dc89f7fa58e1cf58aa1a32b238959d53f62e4
+    Reviewed-on: https://go-review.googlesource.com/18570
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/transport_test.go | 20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             |  94 +++-
+ src/cmd/compile/internal/ssa/TODO              |   4 +-
+ src/cmd/compile/internal/ssa/decompose.go      |  91 +++-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  86 ++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  15 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  35 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 726 ++++++++++++++++++++++++-
+ 7 files changed, 1004 insertions(+), 47 deletions(-)

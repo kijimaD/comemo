@@ -1,23 +1,31 @@
-commit c1fe637eda9b198cf3acad4eee6db8bc03b602f9
-Author: jokemanfire <huzuzong123@gmail.com>
-Date:   Fri Sep 6 13:42:49 2024 +0000
+commit 5f674f64e4e3f79adf45d301bcbc16a8a3a82b1d
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 7 18:11:17 2023 -0400
 
-    cmd/go: set environment LANG=C when getting compiler version
+    Revert "runtime: drop stack-allocated pcvalueCaches"
     
-    Compiler's version will not work well if gcc output have
-    different language. Like 'gcc -v', it may not output:
-    'gcc version xx.xx.x'
+    This reverts CL 515277
     
-     Fixes #69221
-    
-    Change-Id: I4adcea79dfaaf5853dfb6e718468f8530c67da6a
-    GitHub-Last-Rev: 069787c0836f9be10e4bf71dd6c468ae47f6161e
-    GitHub-Pull-Request: golang/go#69223
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610215
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: DING HU <huzuzong123@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ie10378eed4993cb69f4a9b43a38af32b9d743155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516855
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/work/init.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/runtime/debugcall.go      |  2 +-
+ src/runtime/heapdump.go       |  2 +-
+ src/runtime/mbitmap.go        |  2 +-
+ src/runtime/mgcmark.go        |  2 +-
+ src/runtime/mgcstack.go       |  2 ++
+ src/runtime/preempt.go        |  4 ++--
+ src/runtime/race.go           |  2 +-
+ src/runtime/stack.go          |  3 ++-
+ src/runtime/stkframe.go       |  4 ++--
+ src/runtime/symtab.go         | 30 ++++++++++++++++--------------
+ src/runtime/symtabinl.go      |  7 ++++---
+ src/runtime/symtabinl_test.go |  3 ++-
+ src/runtime/trace.go          |  3 ++-
+ src/runtime/traceback.go      | 17 ++++++++++-------
+ 14 files changed, 47 insertions(+), 36 deletions(-)

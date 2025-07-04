@@ -1,44 +1,19 @@
-commit 28c5fed5576483cc696db233d7f6fffecd2833a2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jan 28 15:23:05 2021 +0000
+commit f1c400a06393aad55cd4758fc78ccd7aec379ec0
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Sep 15 10:14:15 2020 -0400
 
-    reflect: add register ABI support for makeFuncStub and methodValueCall
+    cmd/go: fix broken mod_outside test
     
-    This change finishes off functionality register ABI for the reflect
-    package.
+    Since CL 254369, 'go mod graph' now reports an error when invoked
+    outside a module. This broke the mod_outside test, which expected
+    'go mod graph' to succeed with no output.
     
-    Specifically, it implements a call on a MakeFunc'd value by performing
-    the reverse process that reflect.Value.Call does, using the same ABI
-    steps. It implements a call on a method value created by reflect by
-    translating between the method value's ABI to the method's ABI.
-    
-    Tests are added for both cases.
-    
-    For #40724.
-    
-    Change-Id: I302820b61fc0a8f94c5525a002bc02776aef41af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298670
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic30ee68f1f4c4d33795bdf7df70a7631fb9395e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255017
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/reflect/abi.go         |  27 ++-
- src/reflect/abi_test.go    | 559 +++++++++++++++++++++++++++++++++++++++++----
- src/reflect/asm_386.s      |  14 +-
- src/reflect/asm_amd64.s    |  49 +++-
- src/reflect/asm_arm.s      |  16 +-
- src/reflect/asm_arm64.s    |  10 +-
- src/reflect/asm_mips64x.s  |  12 +-
- src/reflect/asm_mipsx.s    |  14 +-
- src/reflect/asm_ppc64x.s   |  14 +-
- src/reflect/asm_riscv64.s  |  14 +-
- src/reflect/asm_s390x.s    |  14 +-
- src/reflect/asm_wasm.s     |  14 +-
- src/reflect/makefunc.go    |  68 ++++--
- src/reflect/value.go       | 310 +++++++++++++++++++------
- src/runtime/asm_amd64.s    |  12 +-
- src/runtime/stack.go       |  42 +++-
- src/runtime/stubs_amd64.go |   7 +
- src/runtime/traceback.go   |   2 +-
- 18 files changed, 991 insertions(+), 207 deletions(-)
+ src/cmd/go/testdata/script/mod_outside.txt | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

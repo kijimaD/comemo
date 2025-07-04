@@ -1,14 +1,19 @@
-commit c4f07510a0161c4493a751984e24532a1b189759
-Author: Ivan Sharavuev <shpiwan@gmail.com>
-Date:   Sat Oct 13 13:14:39 2018 +0300
+commit a1b85ee754f84899b1bd7460c0a51630541dc3da
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 13 17:42:22 2018 +0000
 
-    strings: Replace s[:] to s where s is a slice.
+    Revert "cmd/link: separate virtual address layout from file layout"
     
-    Change-Id: Ie7ba3f9ece9b0fc0e8a5c92fbae9c3b558815e4c
-    Reviewed-on: https://go-review.googlesource.com/c/141997
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    This reverts commit bd83774593bca66cc899d5180c77680bc907fab8.
+    
+    Reason for revert: This broke ELF layout on arm, arm64, mips*, mips64*, ppc64*, and s390x.
+    
+    Change-Id: I56a27b76e6f4b22ce39a99790af9116f8687eee9
+    Reviewed-on: https://go-review.googlesource.com/118675
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
 
- src/strings/replace.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go | 68 +++++++++++++++++-----------------------
+ src/cmd/link/internal/ld/main.go |  3 +-
+ 2 files changed, 29 insertions(+), 42 deletions(-)

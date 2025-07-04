@@ -1,21 +1,16 @@
-commit 275a7be3da9fded6ec71c92633bca30caf6dd93b
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Nov 8 16:11:44 2019 -0500
+commit d1d9ad583df5d6dc58028e1303ddeccb39237220
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 24 11:54:15 2019 -0700
 
-    cmd/go: remove -w workaround for -buildmode=plugin on Darwin
+    bufio: fix ExampleScanner_Bytes comment, add error check
     
-    The problem causing the assert in #21647 are fixed at this point,
-    along with various other linker issues with plugin + Darwin. With
-    this in mind, remove the "-ldflags=-w" workaround for plugin mode on
-    Darwin and re-enable the appropriate tests misc/cgo/testplugin
+    Followup to CL 51412.
     
-    Fixes #21647.
-    Fixes #27502.
-    
-    Change-Id: I5b662987b138b06cfc9e1f9f6d804cf682bd501a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206198
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ic83c833e2c571cd7c8293d998ff745f181037a61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183657
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/testplugin/plugin_test.go | 7 +------
- src/cmd/go/internal/work/init.go   | 2 --
- 2 files changed, 1 insertion(+), 8 deletions(-)
+ src/bufio/example_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

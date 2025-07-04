@@ -1,24 +1,19 @@
-commit afafab3b9736345d150445840dbb603c883bfde4
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Thu Mar 24 13:40:11 2016 +0100
+commit e97096661ecaf1f7476c2320208d92709b72279d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 27 14:07:25 2016 -0800
 
-    cmd/compile: simplify shifts when the counter fits 6 bits.
+    runtime: handle kindString in cgoCheckArg
     
-    In f the extra & 63 is redundant because SHRQ already
-    looks at the bottom 6 bits only. This is a trick on AMD64
-    to get rid of CMPQ/SBBQ/ANDQ if one knows that the shift
-    counter is small.
+    It's awkward to get a string value in cgoCheckArg, but SWIG testing
+    revealed that it is possible.  The new handling of extra files in the
+    ptr.go test emulates what SWIG does with an exported function that
+    returns a string.
     
-    func f(x uint64, s uint) uint64 {
-            return x >> (s & 63)
-    }
-    
-    Change-Id: I4861c902168dabec9a6a14a85750246dde94fc08
-    Reviewed-on: https://go-review.googlesource.com/21073
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I453717f867b8a49499576c28550e7c93053a0cf8
+    Reviewed-on: https://go-review.googlesource.com/19020
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  15 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 216 +++++++++++++++++++++++++++
- 2 files changed, 231 insertions(+)
+ misc/cgo/errors/ptr.go | 104 ++++++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/cgocall.go |   8 ++++
+ 2 files changed, 98 insertions(+), 14 deletions(-)

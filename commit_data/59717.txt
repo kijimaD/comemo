@@ -1,26 +1,21 @@
-commit fce9d4515defec0473ca3a685408ef5304d23aa9
-Author: Damien Neil <dneil@google.com>
-Date:   Wed May 21 15:08:08 2025 -0700
+commit cfbe6cd9bb1595e07ede1ffb1fff610819ffab00
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Apr 15 14:50:39 2024 -0400
 
-    runtime, testing/synctest: verify cleanups/finalizers run outside bubbles
+    cmd/compile/internal/types2: port CL 576975 to types2
     
-    Cleanup functions and finalizers must not run in a synctest bubble.
-    If they did, a function run by the GC at an unpredictable time
-    could unblock a bubble that synctest believes is durably
-    blocked.
+    This CL ports to types2 the (passing) test from CL 576975,
+    which fixed a bug in go/types.
     
-    Add a test verifying that cleanups and finalizers are always
-    run by non-bubbled goroutines. (This is already the case because
-    we never add system goroutines to a bubble.)
+    Updates #66704
+    Updates #65294
     
-    For #67434
-    
-    Change-Id: I5a48db2b26f9712c3b0dc1f425d99814031a2fc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675257
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Icdf77e39ed177d9f9ecc435d5125f02f2ee4dd0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579015
+    Auto-Submit: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/testdata/testsynctest/main.go | 31 +++++++++++++++++++++++++------
- src/testing/synctest/synctest.go          |  4 ++++
- 2 files changed, 29 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 25 +++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/decl.go     |  5 +++++
+ 2 files changed, 30 insertions(+)

@@ -1,29 +1,17 @@
-commit d3660e8ef8adf91462d0be382a1ed8e696f0ee37
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Nov 3 17:04:28 2019 -0500
+commit 3970667d958eadbe591400ac9a53051a39f40ea2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat May 25 18:47:22 2019 +0000
 
-    cmd/link: enable PIE on darwin/arm
+    net/http: fix TestTransportServerClosingUnexpectedly flake
     
-    We used to pass -no_pie to external linker on darwin/arm, which
-    is incompatible with -fembed-bitcode. CL 201358 attempted to
-    remove the -no_pie flag, but it resulted the darwin linker to
-    complain about absolute addressing in TEXT segment.
+    Fixes #32119
     
-    On darwin/arm, we already get away from absolute addressing in
-    the TEXT section. The complained absolute addressing is in
-    RODATA, which was embedded in the TEXT segment. This CL moves
-    RODATA to the DATA segment, like what we already did on ARM64
-    and on AMD64 in c-archive/c-shared buildmodes for the same reason.
-    So there is no absolute addressing in the TEXT segment, which
-    allows us to remove -no_pie flag.
-    
-    Fixes #35252.
-    Updates #32963.
-    
-    Change-Id: Id6e3a594cb066d257d4f58fadb4a3ee4672529f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205060
-    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Change-Id: I8cf2e2e69737e2485568af91ab75149f3cf66781
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178918
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go   | 4 +---
- src/cmd/link/internal/ld/macho.go | 6 +++---
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ src/net/http/export_test.go    | 15 +++++++++++++++
+ src/net/http/transport_test.go | 17 ++++++++++-------
+ 2 files changed, 25 insertions(+), 7 deletions(-)

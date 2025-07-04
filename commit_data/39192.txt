@@ -1,36 +1,16 @@
-commit 06642d8e77ae23325de1db177366c902ec75ab1e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed May 15 12:47:05 2019 -0400
+commit 1e49021f8936d1ed435ae7d314aeaf55dcc55001
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Jan 18 14:45:25 2019 -0500
 
-    cmd/go: don't attempt to downgrade to incompatible versions
+    doc/go1.12: mention heap sampling change
     
-    When we downgrade a module (using 'go get m@none' or similar), we
-    exclude versions of other modules that depend on it. We'll try
-    previous versions (in the "versions" list returned by the proxy or in
-    codeRepo.Versions for vcs) until we find a version that doesn't
-    require an excluded module version.
+    This is about a minor change but worthy of note because this
+    may affect the profile results users will see.
     
-    If older versions of a module are broken for some reason,
-    mvs.Downgrade currently panics. With this change, we ignore versions
-    with errors during downgrade.
-    
-    A frequent cause of this is incompatible v2+ versions. These are
-    common if a repository tagged v2.0.0 before migrating to modules, then
-    tagged v2.0.1 with a go.mod file later. v2.0.0 is incorrectly
-    considered part of the v2 module.
-    
-    Fixes #31942
-    
-    Change-Id: Icaa75c5c93f73f18a400c22f18a8cc603aa4011a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177337
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie2c4358b248f868662dbc71db587576481aa7238
+    Reviewed-on: https://go-review.googlesource.com/c/158577
+    Reviewed-by: Raul Silvera <rauls5382@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/mvs/mvs.go                     | 50 ++++++++++++++--------
- .../testdata/mod/example.com_downgrade_v2.0.0.txt  |  9 ++++
- .../mod/example.com_downgrade_v2_v2.0.1.txt        | 13 ++++++
- .../mod/example.com_latemigrate_v2_v2.0.0.txt      | 14 ++++++
- .../mod/example.com_latemigrate_v2_v2.0.1.txt      | 20 +++++++++
- src/cmd/go/testdata/script/mod_get_downgrade.txt   | 17 +++++++-
- 6 files changed, 102 insertions(+), 21 deletions(-)
+ doc/go1.12.html | 5 +++++
+ 1 file changed, 5 insertions(+)

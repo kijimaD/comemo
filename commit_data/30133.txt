@@ -1,18 +1,27 @@
-commit 67c3d4dab06530b4a444c3a076fceaa5573cf2b6
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Tue Feb 7 12:27:29 2017 -0500
+commit c78d072c8e4a8b0283da21423732f93c503711a4
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 25 23:34:35 2016 +0000
 
-    time: delete incorrect docs about day-of-month checks.
+    Revert "Revert "cmd/compile: inline convI2E""
     
-    Documentation was introduced by CL https://golang.org/cl/14123
-    but that behavior was changed later by CL https://golang.org/cl/17710.
-    This CL deletes the stale paragraph.
+    This reverts commit 7dd9c385f6896c7dcb5d76353e52e36c81af2838.
     
-    Fixes #18980
+    Reason for revert: Reverting the revert, which will re-enable the convI2E optimization.  We originally reverted the convI2E optimization because it was making the builder fail, but the underlying cause was later determined to be unrelated.
     
-    Change-Id: Ib434f1eac6fc814fde1be112a8f52afe6e3e0fcc
-    Reviewed-on: https://go-review.googlesource.com/36532
+    Original CL: https://go-review.googlesource.com/31260
+    Revert CL: https://go-review.googlesource.com/31310
+    Real bug: https://go-review.googlesource.com/c/25159
+    Real fix: https://go-review.googlesource.com/c/31316
+    
+    Change-Id: I17237bb577a23a7675a5caab970ccda71a4124f2
+    Reviewed-on: https://go-review.googlesource.com/32023
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/time/format.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 272 ++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   1 -
+ src/cmd/compile/internal/gc/walk.go            |  34 +++-
+ src/runtime/iface.go                           |  10 -
+ 4 files changed, 165 insertions(+), 152 deletions(-)

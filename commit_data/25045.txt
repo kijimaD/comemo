@@ -1,18 +1,16 @@
-commit 7a1fb95d50b7a8302445ebc1296010695151ce7b
-Author: Jakub Čajka <jcajka@redhat.com>
-Date:   Tue Nov 24 15:36:32 2015 +0100
+commit 8bd222f046e15353ea389ffe2f5f503fa14b188c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 17 16:08:57 2015 -0700
 
-    compress: make Mark.Twain-Tom.Sawyer.txt licensed under non-free license free again
+    go/types: handle import "C" more like cmd/compile
     
-    This change strips non-free license from Mark.Twain-Tom.Sawyer.txt along with all reference to Project Gutenberg in the file and the whole source tree. Making the file public domain again.
+    Fixes #12667.
     
-    Fixes #13216
-    
-    Change-Id: I2f41b0de225f627dde152efe93c006a4c24be668
-    Reviewed-on: https://go-review.googlesource.com/17196
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I68e73e26da9938606304163ae2637e3c6bacd6f6
+    Reviewed-on: https://go-review.googlesource.com/14722
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/compress/bzip2/bzip2_test.go                |   2 +-
- src/compress/flate/reader_test.go               |   2 +-
- src/compress/testdata/Mark.Twain-Tom.Sawyer.txt | 393 ------------------------
- 3 files changed, 2 insertions(+), 395 deletions(-)
+ src/go/types/check_test.go        |  5 +++++
+ src/go/types/resolver.go          | 10 ++++++++++
+ src/go/types/testdata/importC.src | 10 ++++++++++
+ 3 files changed, 25 insertions(+)

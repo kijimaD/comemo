@@ -1,24 +1,24 @@
-commit 17ba830f4663816c3270860fad96373a833a3b26
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Dec 16 13:44:14 2016 -0500
+commit 09272ae981905dcdc76ab7ffbda996c49d86595c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 17 13:35:36 2017 -0700
 
-    go/token: use fine-grained locking in FileSet
+    cmd/compile/internal/gc: rename Thearch to thearch
     
-    Before, all accesses to the lines and infos tables of each File were
-    serialized by the lock of the owning FileSet, causing parsers running
-    in parallel to contend.  Now, each File has its own mutex.
+    Prepared using gorename.
     
-    This fixes a data race in (*File).PositionFor, which used to call
-    f.position then f.unpack without holding the mutex's lock.
-    
-    Fixes golang/go#18348
-    
-    Change-Id: Iaa5989b2eba88a7fb2e91c1a0a8bc1e7f6497f2b
-    Reviewed-on: https://go-review.googlesource.com/34591
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id55dac9ae5446a8bfeac06e7995b35f4c249eeca
+    Reviewed-on: https://go-review.googlesource.com/38302
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/go/token/position.go  | 35 ++++++++++++++++++-----------------
- src/go/token/serialize.go | 19 +++++++++++++++++--
- 2 files changed, 35 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/align.go |  6 +++---
+ src/cmd/compile/internal/gc/go.go    |  2 +-
+ src/cmd/compile/internal/gc/main.go  | 14 +++++++-------
+ src/cmd/compile/internal/gc/pgen.go  |  4 ++--
+ src/cmd/compile/internal/gc/plive.go |  2 +-
+ src/cmd/compile/internal/gc/sinit.go |  2 +-
+ src/cmd/compile/internal/gc/ssa.go   | 36 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/subr.go  |  2 +-
+ src/cmd/compile/internal/gc/walk.go  |  4 ++--
+ 9 files changed, 36 insertions(+), 36 deletions(-)

@@ -1,13 +1,14 @@
-commit 61f3fdcaec30b5798f62024b3cc485d8d6a615b9
-Author: Rob Pike <r@golang.org>
-Date:   Sun Aug 25 23:50:44 2013 +1000
+commit 9ec0f30a25dc2f2b106a30130bf6b97d2d20ef3f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Aug 24 17:05:27 2013 -0500
 
-    doc/go_faq.html: fix non-grammatical sentence
-    With my apologies.
+    bytes: clarify Equal docs
     
-    R=golang-dev, alex.brainman
+    == isn't defined on slices, so don't use it in docs.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/12984045
+    https://golang.org/cl/12983045
 
- doc/go_faq.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/bytes/bytes_decl.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

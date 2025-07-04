@@ -1,13 +1,18 @@
-commit 2a5dcfafec11744d55692838912901c58ba43bd2
-Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 17 07:41:45 2013 +1000
+commit 6a1022a094ce66c5fe101d53d1953a5b6f91c3c0
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 16 16:39:42 2013 -0400
 
-    effective_go: add a discussion of labeled break and continue
-    Fixes #5725.
+    crypto/tls: fix TLS 1.2 client certificates.
     
-    R=golang-dev, iant
+    With TLS 1.2, when sending client certificates the code was omitting
+    the new (in TLS 1.2) signature and hash fields.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13705044
+    https://golang.org/cl/13413050
 
- doc/effective_go.html | 43 ++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 42 insertions(+), 1 deletion(-)
+ src/pkg/crypto/tls/handshake_client.go      |  13 +-
+ src/pkg/crypto/tls/handshake_client_test.go | 564 ++++++++++++++++++++++++++++
+ src/pkg/crypto/tls/handshake_server.go      |   4 +-
+ src/pkg/crypto/tls/prf.go                   |  12 +-
+ 4 files changed, 582 insertions(+), 11 deletions(-)

@@ -1,22 +1,17 @@
-commit 7d9faaa19f4870ed0ac92af26f5552a09a504218
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 5 10:19:12 2015 -0400
+commit 9139089ee5d3e0724157ca79e7cc2f23a0c750a7
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Sat Jun 13 11:25:17 2015 -0400
 
-    cmd/go: skip external tests on freebsd-arm builder
+    net/http: add comment to exported ErrNoCookie and ErrNoLocation values
     
-    It is just far too slow.
-    I have a CL for Go 1.6 that makes many of these into internal tests.
-    That will improve the coverage.
+    All other exported errors in net/http are commented.  This change adds
+    documentation to ErrNoCookie and ErrNoLocation to explain where they are
+    returned, and why.
     
-    It does not matter much, because basically none of the go command
-    tests are architecture dependent, so the other builders will catch
-    any problems.
-    
-    Fixes freebsd-arm builder.
-    
-    Change-Id: I8b2f6ac2cc1e7657019f7731c6662dc43e20bfb5
-    Reviewed-on: https://go-review.googlesource.com/13166
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I21fa0d070dd35256681ad0714000f238477d4af1
+    Reviewed-on: https://go-review.googlesource.com/11044
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/go_test.go | 26 +++++++++++++++++---------
- 1 file changed, 17 insertions(+), 9 deletions(-)
+ src/net/http/request.go  | 1 +
+ src/net/http/response.go | 2 ++
+ 2 files changed, 3 insertions(+)

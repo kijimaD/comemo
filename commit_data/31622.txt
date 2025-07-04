@@ -1,17 +1,18 @@
-commit fd25fe60fac4014dfe09c364c8c73ff2c95251e5
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 19 18:49:28 2017 +0900
+commit 3ce5371aaf6abc63ade70447198e9a88cb186910
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Mar 4 01:15:14 2017 +0100
 
-    internal/poll: implement RawControl of FD on Windows
+    Revert "cmd/go, misc: rework cwd handling for iOS tests"
     
-    This is a followup to https://go-review.googlesource.com/37038.
+    This reverts commit 593ea3b3606a16da39e38406e22e373eeb944287.
     
-    Updates #19435.
+    Replaced by a improved strategy later in the CL relation chain.
     
-    Change-Id: If3d56bca0e8816d1a169f5cf97f27b20695a9955
-    Reviewed-on: https://go-review.googlesource.com/43692
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6963e4d1bf38e7028cf545a953e28054d83548
+    Change-Id: I6963e4d1bf38e7028cf545a953e28054d8354870
+    Reviewed-on: https://go-review.googlesource.com/36067
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/internal/poll/fd_windows.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ misc/ios/go_darwin_arm_exec.go   | 14 +++++++++-----
+ src/cmd/go/internal/test/test.go | 22 +++-------------------
+ 2 files changed, 12 insertions(+), 24 deletions(-)

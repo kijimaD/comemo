@@ -1,23 +1,16 @@
-commit 3a7806d387e8dc62a327ce9d2c7a3ea913f1efde
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Apr 26 11:47:16 2023 +0800
+commit 0eb7051aada1c8f115419122322002f47c1d0fea
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jun 3 13:47:10 2022 -0400
 
-    cmd/dist,internal: enable buildmode=c-archive for linux/loong64
+    sync/atomic: note that alignment responsibility doesn't apply to types
     
-    Now the shared flag is supported on the linux/loong64 platform and
-    misc/cgo/testcarchive has been passed, buildmode=c-archive can be used.
+    For #50860.
     
-    Change-Id: Ice450dc11fcb91942fdf2ddd34bb163853267e01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489576
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8e117f00c5da230d0dc398aaed417fe5e64a5b22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410127
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/dist/test.go               | 2 +-
- src/internal/platform/supported.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/sync/atomic/doc.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

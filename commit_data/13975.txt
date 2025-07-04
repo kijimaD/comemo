@@ -1,12 +1,22 @@
-commit 020d85152ec25fdf454e02d9a8d1b7a7fc5860ca
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Sep 27 14:48:33 2012 -0700
+commit e289a2b913d476cf8592728e6d50767d0e29afde
+Author: Michael Chaten <mchaten@gmail.com>
+Date:   Thu Sep 27 16:31:03 2012 +1000
 
-    doc: fix OS X download links
+    bufio: Implement io.WriterTo for (*Reader)
     
-    R=golang-dev, r
+    This is part 1 of 2 for issue 4028
+    
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkReaderCopyOptimal          33495         9849  -70.60%
+    BenchmarkReaderCopyUnoptimal        70631        27041  -61.72%
+    BenchmarkReaderCopyOldImpl          51407        52970   +3.04%
+    
+    Update #4028
+    
+    R=dave, nigeltao, rsc, bradfitz, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/6566064
+    https://golang.org/cl/6548047
 
- doc/install.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/bufio/bufio.go      |  35 +++++++++++++++
+ src/pkg/bufio/bufio_test.go | 104 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 139 insertions(+)

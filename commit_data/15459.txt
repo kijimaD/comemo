@@ -1,12 +1,15 @@
-commit 7add9b7f6a4a0b557a579f8fbdfad1dfcb0f70e6
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Feb 27 14:09:42 2013 +0100
+commit f853e9aa4ed4e3f1aa299cc9b123cda574707eaa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 27 15:19:23 2013 +1100
 
-    exp/locale/collate: fixed go vet error.
+    syscall: Fix FD passing on OpenBSD
     
-    R=r, dave
+    Fixes #3349.
+    
+    R=bradfitz, dave, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7403055
+    https://golang.org/cl/7383056
 
- src/pkg/exp/locale/collate/collate_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/passfd_test.go   | 48 +++++++++++++++++++++++++++++++++++++++-
+ src/pkg/syscall/sockcmsg_unix.go | 16 ++++++--------
+ 2 files changed, 54 insertions(+), 10 deletions(-)

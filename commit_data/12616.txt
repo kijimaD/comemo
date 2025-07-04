@@ -1,29 +1,13 @@
-commit b5021f3fe0163ddad2681cd76402f15fa17cff56
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 13 16:15:58 2012 -0700
+commit 62bb39e2baad708c3910abc6b5b51c49f91418d4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 14 04:59:17 2012 +0800
 
-    go/printer, gofmt: fix multi-line logic
+    fmt: remove dead code
+         Also fix a typo in comment.
     
-    A node spans multiple lines if the line difference
-    between start and end point is > 0 (rather than > 1).
-    Fixes some odd cases introduced by CL 5706055;
-    pointed out by dsymonds.
-    
-    Added corresponding test case. The other change
-    in the .golden file reverts to the status before
-    the CL mentioned above and is correct.
-    
-    gofmt -w src misc changes godoc.go back to where
-    it was before the CL mentioned above.
-    
-    Fixes #3304.
-    
-    R=dsymonds, rsc
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/5820044
+    https://golang.org/cl/5808043
 
- src/cmd/godoc/godoc.go                          |  2 +-
- src/pkg/go/printer/nodes.go                     |  2 +-
- src/pkg/go/printer/testdata/declarations.golden | 15 +++++++++++++--
- src/pkg/go/printer/testdata/declarations.input  | 10 ++++++++++
- 4 files changed, 25 insertions(+), 4 deletions(-)
+ src/pkg/fmt/scan_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

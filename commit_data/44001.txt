@@ -1,124 +1,15 @@
-commit ce61ccca8f9e101b13b61907024ee48afadca403
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 11 19:53:32 2020 -0800
+commit e0e0dab41184763899d9068f375151d97d6c5caa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 1 14:12:48 2020 -0400
 
-    test: match gofrontend error messages
+    cmd/link: expand a TODO comment
     
-    fixedbugs/issue14136.go:17:16: error: unknown field ‘X’ in ‘T’
-    fixedbugs/issue14136.go:18:13: error: incompatible type in initialization (cannot use type int as type string)
+    CL 231397 is submitted too fast... Expand the comment to make it
+    a little clearer.
     
-    fixedbugs/issue14520.go:9:37: error: import path contains control character
-    fixedbugs/issue14520.go:14:2: error: expected ‘)’
-    fixedbugs/issue14520.go:14:3: error: expected declaration
-    
-    fixedbugs/issue14652.go:9:7: error: use of undefined type ‘any’
-    
-    fixedbugs/issue14729.go:13:17: error: embedded type may not be a pointer
-    
-    fixedbugs/issue15514.dir/c.go:10: error: incompatible type in initialization
-    
-    fixedbugs/issue15898.go:11:9: error: duplicate type in switch
-    fixedbugs/issue15898.go:16:9: error: duplicate type in switch
-    
-    fixedbugs/issue16439.go:10:21: error: index expression is negative
-    fixedbugs/issue16439.go:13:21: error: index expression is negative
-    fixedbugs/issue16439.go:16:21: error: index expression is not integer constant
-    fixedbugs/issue16439.go:18:22: error: index expression is not integer constant
-    
-    fixedbugs/issue17328.go:11:20: error: expected ‘{’
-    fixedbugs/issue17328.go:11:20: error: expected ‘;’ or ‘}’ or newline
-    fixedbugs/issue17328.go:13:1: error: expected declaration
-    
-    fixedbugs/issue17588.go:14:15: error: expected type
-    
-    fixedbugs/issue17631.go:20:17: error: unknown field ‘updates’ in ‘unnamed struct’
-    
-    fixedbugs/issue17645.go:15:13: error: incompatible type in initialization
-    
-    fixedbugs/issue17758.go:13:1: error: redefinition of ‘foo’
-    fixedbugs/issue17758.go:9:1: note: previous definition of ‘foo’ was here
-    
-    fixedbugs/issue18092.go:13:19: error: expected colon
-    
-    fixedbugs/issue18231.go:17:12: error: may only omit types within composite literals of slice, array, or map type
-    
-    fixedbugs/issue18393.go:24:38: error: expected type
-    
-    fixedbugs/issue18419.dir/test.go:12: error: reference to unexported field or method 'member'
-    
-    fixedbugs/issue18655.go:14:1: error: redefinition of ‘m’
-    fixedbugs/issue18655.go:13:1: note: previous definition of ‘m’ was here
-    fixedbugs/issue18655.go:15:1: error: redefinition of ‘m’
-    fixedbugs/issue18655.go:13:1: note: previous definition of ‘m’ was here
-    fixedbugs/issue18655.go:16:1: error: redefinition of ‘m’
-    fixedbugs/issue18655.go:13:1: note: previous definition of ‘m’ was here
-    fixedbugs/issue18655.go:17:1: error: redefinition of ‘m’
-    fixedbugs/issue18655.go:13:1: note: previous definition of ‘m’ was here
-    fixedbugs/issue18655.go:18:1: error: redefinition of ‘m’
-    fixedbugs/issue18655.go:13:1: note: previous definition of ‘m’ was here
-    fixedbugs/issue18655.go:20:1: error: redefinition of ‘m’
-    fixedbugs/issue18655.go:13:1: note: previous definition of ‘m’ was here
-    fixedbugs/issue18655.go:21:1: error: redefinition of ‘m’
-    fixedbugs/issue18655.go:13:1: note: previous definition of ‘m’ was here
-    fixedbugs/issue18655.go:22:1: error: redefinition of ‘m’
-    fixedbugs/issue18655.go:13:1: note: previous definition of ‘m’ was here
-    
-    fixedbugs/issue18915.go:13:20: error: expected ‘;’ after statement in if expression
-    fixedbugs/issue18915.go:16:21: error: parse error in for statement
-    fixedbugs/issue18915.go:19:24: error: expected ‘;’ after statement in switch expression
-    fixedbugs/issue18915.go:13:12: error: ‘a’ declared but not used
-    fixedbugs/issue18915.go:16:13: error: ‘b’ declared but not used
-    fixedbugs/issue18915.go:19:16: error: ‘c’ declared but not used
-    
-    fixedbugs/issue19012.go:16:17: error: return with value in function with no return type
-    fixedbugs/issue19012.go:18:9: error: return with value in function with no return type
-    fixedbugs/issue19012.go:22:16: error: argument 2 has incompatible type (cannot use type bool as type uint)
-    fixedbugs/issue19012.go:22:9: error: too many arguments
-    fixedbugs/issue19012.go:22:16: error: incompatible types in binary expression
-    fixedbugs/issue19012.go:24:9: error: too many arguments
-    
-    fixedbugs/issue19056.go:9:9: error: expected operand
-    fixedbugs/issue19056.go:9:9: error: expected ‘;’ or newline after top level declaration
-    
-    fixedbugs/issue19482.go:25:15: error: expected struct field name
-    fixedbugs/issue19482.go:27:15: error: expected struct field name
-    fixedbugs/issue19482.go:31:19: error: expected struct field name
-    fixedbugs/issue19482.go:33:15: error: expected struct field name
-    
-    fixedbugs/issue19667.go:13:1: error: expected operand
-    fixedbugs/issue19667.go:13:1: error: missing ‘)’
-    fixedbugs/issue19667.go:13:105: error: expected ‘;’ after statement in if expression
-    fixedbugs/issue19667.go:13:105: error: expected ‘{’
-    fixedbugs/issue19667.go:12:19: error: reference to undefined name ‘http’
-    
-    Change-Id: Ia9c75b9c78671f354f0a0623dbc075157ef8f181
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277433
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ica9737aa7b51f97320bab74457388dcab8188370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231597
+    Reviewed-by: Austin Clements <austin@google.com>
 
- test/fixedbugs/issue14136.go          |  4 ++--
- test/fixedbugs/issue14520.go          |  4 ++--
- test/fixedbugs/issue14652.go          |  2 +-
- test/fixedbugs/issue14729.go          |  2 +-
- test/fixedbugs/issue15514.dir/c.go    |  2 +-
- test/fixedbugs/issue15898.go          |  4 ++--
- test/fixedbugs/issue16439.go          |  8 ++++----
- test/fixedbugs/issue17328.go          |  4 ++--
- test/fixedbugs/issue17588.go          |  2 +-
- test/fixedbugs/issue17631.go          |  2 +-
- test/fixedbugs/issue17645.go          |  2 +-
- test/fixedbugs/issue17758.go          |  2 +-
- test/fixedbugs/issue18092.go          |  4 ++--
- test/fixedbugs/issue18231.go          |  2 +-
- test/fixedbugs/issue18393.go          |  2 +-
- test/fixedbugs/issue18419.dir/test.go |  2 +-
- test/fixedbugs/issue18655.go          | 16 ++++++++--------
- test/fixedbugs/issue18915.go          |  6 +++---
- test/fixedbugs/issue19012.go          |  8 ++++----
- test/fixedbugs/issue19056.go          |  2 +-
- test/fixedbugs/issue19482.go          |  8 ++++----
- test/fixedbugs/issue19667.go          |  4 ++--
- 22 files changed, 46 insertions(+), 46 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

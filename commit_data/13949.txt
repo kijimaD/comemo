@@ -1,14 +1,18 @@
-commit 1b6d4b5c0a33909c0f17328e6a45c53d939f5ace
-Author: Christian Himpel <chressie@googlemail.com>
-Date:   Tue Sep 25 09:22:13 2012 -0700
+commit f2fadfefaf8b050a401296faa9c9b060828c3d42
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Sep 25 14:42:44 2012 +0800
 
-    net/http: use tls host instead of proxy, when checking against a certificate
+    cmd/5c: fix dataflag annotation
     
-    Fixes #4152.
+    file        old_size     new_size    base@c1ce95068533
+    bin/go      14717392     6287824     5918236
     
-    R=bradfitz
+    this huge size difference is due to GC data for runtime.mheap
+    (NOPTR dataflag is not obeyed).
+    
+    R=rsc, dave
     CC=golang-dev
-    https://golang.org/cl/6570045
+    https://golang.org/cl/6547051
 
- src/pkg/net/http/transport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5c/txt.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

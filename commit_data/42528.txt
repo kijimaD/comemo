@@ -1,16 +1,178 @@
-commit dd3bfb39eb19b1d48ec65b9816bbad1efc8cea2e
-Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-Date:   Fri Jun 12 05:04:13 2020 +0000
+commit 10bfe5b9617c77c4e5e7cfb2a369b649110cc3c6
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jan 8 13:50:30 2020 -0500
 
-    doc/go1.15: add missing slashes
+    CONTRIBUTORS: first round of updates for Go 1.14
     
-    This saves a redirect and makes the document more consistent.
+    This update was automatically generated using the updatecontrib command:
     
-    For #37419
+            cd gotip
+            go run golang.org/x/build/cmd/updatecontrib
     
-    Change-Id: Ic3bd62f8caacf67ffe43a359624e11bed8b8cfaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237540
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    With minor manual changes based on publicly available information
+    to canonicalize letter case and formatting for a few names.
+    
+    Actions taken (relative to CONTRIBUTORS at origin/master):
+    
+            Added Aaron Beitch <aaronb@arista.com>
+            Added Adam Shelton <aashelt90@gmail.com>
+            Added Aditya Harindar <aditya.harindar@gmail.com>
+            Added Alec Benzer <alec.benzer@gmail.com>
+            Added Alex Buchanan <buchanae@gmail.com>
+            Added Alex Gaynor <alex@alloy.us>
+            Added Alex Harford <alex.harford@saucelabs.com>
+            Added Alex Zhirov <azhirov@google.com>
+            Added Alexandr Mayorskiy <a.mayorskiy@corp.mail.ru>
+            Added An Xiao <hac@zju.edu.cn>
+            Added Andrei Enshin <b1os@bk.ru>
+            Added Andrew Medvedev <andrew.y.medvedev@gmail.com>
+            Added Andrew Stormont <astormont@racktopsystems.com>
+            Added Antonio Huete Jimenez <tuxillo@quantumachine.net>
+            Added Arda Güçlü <ardaguclu@gmail.com>
+            Added Artem Alekseev <artem.alekseev@intel.com>
+            Added Ayan George <ayan@ayan.net>
+            Added Barnaby Keene <accounts@southcla.ws>
+            Added Ben Toews <mastahyeti@gmail.com>
+            Added Benjamin Wuethrich <benjamin.wuethrich@gmail.com>
+            Added Brandon Philips <brandon@ifup.org>
+            Added Carlos Amedee <carlos@golang.org>
+            Added Changkun Ou <hi@changkun.us>
+            Added Chauncy Cullitan <chauncyc@google.com>
+            Added Clint J. Edwards <clint.j.edwards@gmail.com>
+            Added Daisuke Suzuki <daisuzu@gmail.com>
+            Added Dan Scales <danscales@google.com>
+            Added David Bond <davidsbond93@gmail.com>
+            Added Denis Isaev <idenx@yandex.com>
+            Added Domas Tamašauskas <puerdomus@gmail.com>
+            Added Duco van Amstel <duco.vanamstel@gmail.com>
+            Added Eduardo Villaseñor <evillasrmx@gmail.com>
+            Added Eric Biggers <ebiggers@google.com>
+            Added Eric Brown <browne@vmware.com>
+            Added Eric Rutherford <erutherford@gmail.com>
+            Added Gabriel Rosenhouse <rosenhouse@gmail.com>
+            Added George Hartzell <hartzell@alerce.com>
+            Added Gert Cuykens <gert.cuykens@gmail.com>
+            Added Ghazni Nattarshah <ghazni.nattarshah@gmail.com>
+            Added GitHub User DQNEO (188741) <dqneoo@gmail.com>
+            Added GitHub User Matts966 (28551465) <Matts966@users.noreply.github.com>
+            Added GitHub User ajz01 (4744634) <ajzdenek@gmail.com>
+            Added GitHub User andig (184815) <cpuidle@gmx.de>
+            Added GitHub User jinmiaoluo (39730824) <jinmiaoluo@icloud.com>
+            Added GitHub User maltalex (10195391) <code@bit48.net>
+            Added GitHub User po3rin (29445112) <abctail30@gmail.com>
+            Added GitHub User pokutuna (57545) <popopopopokutuna@gmail.com>
+            Added GitHub User ramenjuniti (32011829) <ramenjuniti@gmail.com>
+            Added GitHub User skanehira (7888591) <sho19921005@gmail.com>
+            Added GitHub User witchard (4994659) <witchard@hotmail.co.uk>
+            Added GitHub User zikaeroh (48577114) <zikaeroh@gmail.com>
+            Added Günther Noack <gnoack@google.com>
+            Added Hasit Bhatt <hasit.p.bhatt@gmail.com>
+            Added Howard Zhang <howard.zhang@arm.com>
+            Added Huan Du <i@huandu.me>
+            Added Ignacio Hagopian <jsign.uy@gmail.com>
+            Added Ilya Sinelnikov <sidhmangh@gmail.com>
+            Added Irbe Krumina <irbekrm@gmail.com>
+            Added Isfan Azhabil <isfan.azhabil@tokopedia.com>
+            Added Ivan Trubach <mr.trubach@icloud.com>
+            Added Jaap Aarts <jaap.aarts1@gmail.com>
+            Added Jeremy Faller <jeremy@golang.org>
+            Added Johan Jansson <johan.jansson@iki.fi>
+            Added John Papandriopoulos <jpap.code@gmail.com>
+            Added Jorge L. Fatta <jorge.fatta@auth0.com>
+            Added Josa Gesell <josa@gesell.me>
+            Added Julian Tibble <julian.tibble@gmail.com>
+            Added Jun Zhang <jim.zoumo@gmail.com>
+            Added Jędrzej Szczepaniak <jbszczepaniak@gmail.com>
+            Added Kalman Bekesi <kalmanb@google.com>
+            Added Katharine Berry <ktbry@google.com>
+            Added Keisuke Kishimoto <keisuke.kishimoto@gmail.com>
+            Added Kevan Swanberg <kevswanberg@gmail.com>
+            Added Koki Tomoshige <tomocy.dev@gmail.com>
+            Added Liz Rice <liz@lizrice.com>
+            Added Lorenz Brun <lorenz@brun.one>
+            Added Luke Young <bored-engineer@users.noreply.github.com>
+            Added Marc Sanmiquel <marcsanmiquel@gmail.com>
+            Added Marko Kungla <marko.kungla@gmail.com>
+            Added Mikhail Fesenko <proggga@gmail.com>
+            Added Mohit Verma <vmohit.93@gmail.com>
+            Added Moritz Fain <moritz@fain.io>
+            Added Nathan Dias <nathan.dias@orijtech.com>
+            Added Nikita Vanyasin <nikita.vanyasin@gmail.com>
+            Added Nuno Cruces <ncruces@users.noreply.github.com>
+            Added Oliver Powell <oliverpowell84@gmail.com>
+            Added Panos Georgiadis <pgeorgiadis@suse.de>
+            Added Pantelis Sampaziotis <psampaz@gmail.com>
+            Added Paulo Gomes <paulo.gomes.uk@gmail.com>
+            Added Prashant Agrawal <prashant.a.vjti@gmail.com>
+            Added Ricardo Seriani <ricardo.seriani@gmail.com>
+            Added Rob Findley <rfindley@google.com>
+            Added Robin Zhong <robin@robinzhong.co>
+            Added Rohan Challa <rohan@golang.org>
+            Added Roman Kollár <roman.kollar.0@gmail.com>
+            Added Ruixin Bao <ruixin.bao@ibm.com>
+            Added Sardorbek Pulatov <sardorbek.pulatov@outlook.com>
+            Added Scott Ragan <ragansa@fb.com>
+            Added Sean Liao <seankhliao@gmail.com>
+            Added Sebastian Chlopecki <sebsebmc@gmail.com>
+            Added Sebastian Kinne <skinne@google.com>
+            Added Sergei Lemeshkin <sergeilem@gmail.com>
+            Added Serhat Giydiren <serhatgiydiren@gmail.com>
+            Added Shivashis Padhi <shivashispadhi@gmail.com>
+            Added Simarpreet Singh <simar@linux.com>
+            Added Simon Ferquel <simon.ferquel@docker.com>
+            Added Simon Rozman <simon@rozman.si>
+            Added Sjoerd Siebinga <sjoerd.siebinga@gmail.com>
+            Added Spencer Kocot <spencerkocot@gmail.com>
+            Added Srinidhi Kaushik <shrinidhi.kaushik@gmail.com>
+            Added Sven Taute <sven.taute@gmail.com>
+            Added Tao Qingyun <qingyunha@gmail.com>
+            Added Tianji Wu <the729@gmail.com>
+            Added Tomas Dabasinskas <tomas@dabasinskas.net>
+            Added Ville Skyttä <ville.skytta@iki.fi>
+            Added Vitaly Zdanevich <zdanevich.vitaly@ya.ru>
+            Added Vladimir Evgrafov <evgrafov.vladimir@gmail.com>
+            Added Vojtech Bocek <vbocek@gmail.com>
+            Added Wang Xuerui <git@xen0n.name>
+            Added William Poussier <william.poussier@gmail.com>
+            Added Xiangdong Ji <xiangdong.ji@arm.com>
+            Added Yuichi Nishiwaki <yuichi.nishiwaki@gmail.com>
+            Added Ziheng Liu <lzhfromustc@gmail.com>
+            Used GitHub User DQNEO (188741) form for DQNEO <dqneoo@gmail.com> https://github.com/golang/go/commit/f07059d949 [go]
+            Used GitHub User Matts966 (28551465) form for Matts966 <Matts966@users.noreply.github.com> https://github.com/golang/tools/commit/d89860af [tools]
+            Used GitHub User ajz01 (4744634) form for ajz01 <ajzdenek@gmail.com> https://github.com/golang/go/commit/57ad6ef15d [go]
+            Used GitHub User andig (184815) form for andig <cpuidle@gmx.de> https://github.com/golang/go/commit/cf630586ca [go sys]
+            Used GitHub User jinmiaoluo (39730824) form for jinmiaoluo <jinmiaoluo@icloud.com> https://github.com/golang/go/commit/c7e73ef60a [go]
+            Used GitHub User maltalex (10195391) form for maltalex <code@bit48.net> https://github.com/golang/sys/commit/c709ea0 [sys]
+            Used GitHub User po3rin (29445112) form for po3rin <abctail30@gmail.com> https://github.com/golang/go/commit/bf865823ba [go]
+            Used GitHub User pokutuna (57545) form for pokutuna <popopopopokutuna@gmail.com> https://github.com/golang/go/commit/46e0d724b3 [go]
+            Used GitHub User ramenjuniti (32011829) form for ramenjuniti <ramenjuniti@gmail.com> https://github.com/golang/go/commit/f9dd99cae3 [go]
+            Used GitHub User skanehira (7888591) form for skanehira <sho19921005@gmail.com> https://github.com/golang/go/commit/87805c92fd [go]
+            Used GitHub User utkarsh-extc (53217283) form for utkarsh-extc <53217283+utkarsh-extc@users.noreply.github.com> https://github.com/golang/sys/commit/51ab0e2 [sys]
+            Used GitHub User witchard (4994659) form for witchard <witchard@hotmail.co.uk> https://github.com/golang/go/commit/42db1da8e9 [go]
+            Used GitHub User zikaeroh (48577114) form for zikaeroh <zikaeroh@gmail.com> https://github.com/golang/tools/commit/e84277c2 [tools]
+            Used GitHub name "Adam Shelton" for Adam <aashelt90@gmail.com> https://github.com/golang/exp/commit/c286b88 [exp]
+            Used GitHub name "Andrew Bonventre" for Andrew <andybons@golang.org> https://github.com/golang/go/commit/8bbfc51d9a [arch blog build crypto debug exp gddo go image lint mobile net oauth2 perf playground proposal.git review sync sys talks term text time tools tour website]
+            Used GitHub name "David Bond" for davidsbond <davidsbond93@gmail.com> https://github.com/golang/go/commit/b421b85841 [go]
+            Used GitHub name "Eduardo Villaseñor" for galaxy-designer <evillasrmx@gmail.com> https://github.com/golang/tools/commit/db047d72 [tools]
+            Used GitHub name "George Hartzell" for hartzell <hartzell@alerce.com> https://github.com/golang/tools/commit/5eefd052 [tools]
+            Used GitHub name "Ignacio Hagopian" for jsign <jsign.uy@gmail.com> https://github.com/golang/go/commit/4d4ddd862d [go]
+            Used GitHub name "Ivan Markin" for nogoegst <nogoegst@users.noreply.github.com> https://github.com/golang/go/commit/a1addf15df [go]
+            Used GitHub name "Jun Zhang" for zoumo <jim.zoumo@gmail.com> https://github.com/golang/tools/commit/81ca6dc7 [tools]
+            Used GitHub name "Keiji Yoshida" for yosssi <yoshida.keiji.84@gmail.com> https://github.com/golang/lint/commit/ac6833c [lint]
+            Used GitHub name "Koki Tomoshige" for tomocy <tomocy.dev@gmail.com> https://github.com/golang/go/commit/2f04903fec [go]
+            Used GitHub name "Michalis Kargakis" for kargakis <mkargaki@redhat.com> https://github.com/golang/go/commit/e243d242d7 [go]
+            Used GitHub name "Nikita Vanyasin" for nikita-vanyasin <nikita.vanyasin@gmail.com> https://github.com/golang/go/commit/c3e8a20a65 [go]
+            Used GitHub name "Roberto Clapis" for Roberto <empijei@users.noreply.github.com> https://github.com/golang/go/commit/963776e689 [go]
+            Used GitHub name "Robin Eklind" for mewmew <rnd0x00@gmail.com> https://github.com/golang/go/commit/b8620afb8d [arch blog go proposal.git]
+            Used GitHub name "Sergei Lemeshkin" for sergeilem <sergeilem@gmail.com> https://github.com/golang/go/commit/a3a1bdff79 [go]
+            Used GitHub name "Vladimir Evgrafov" for vovapi <evgrafov.vladimir@gmail.com> https://github.com/golang/go/commit/207a0b7933 [go]
+    
+    Updates #12042
+    
+    Change-Id: I1ba3c17108491316255f914c3a71f69fc6f4341a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213824
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- doc/go1.15.html | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ CONTRIBUTORS | 125 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 124 insertions(+), 1 deletion(-)

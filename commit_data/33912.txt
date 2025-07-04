@@ -1,32 +1,14 @@
-commit a58286c289c227fe09cb71d57483d4fd8eeff0bd
-Author: Hana Kim <hakim@google.com>
-Date:   Tue Dec 12 18:20:06 2017 -0500
+commit 0bbb6665d85c1e80c3b479a4c00dc8a0a1b83ec8
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Sep 19 16:31:03 2017 +0900
 
-    cmd/trace: init goroutine info entries with GoCreate event
+    cmd/go: fix file leak in TestBuildmodePIE
     
-    golang.org/cl/81315 attempted to distinguish system goroutines
-    by examining the function name in the goroutine stack. It assumes that
-    the information would be available when GoSysBlock or GoInSyscall
-    events are processed, but it turned out the stack information is
-    set too late (when the goroutine gets a chance to run).
-    
-    This change initializes the goroutine information entry when
-    processing GoCreate event which should be one of the very first
-    events for the every goroutine in trace.
-    
-    Fixes #22574
-    
-    Change-Id: I1ed37087ce2e78ed27c9b419b7d942eb4140cc69
-    Reviewed-on: https://go-review.googlesource.com/83595
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ifeb93f6dc75fb5f90d595211fb0f97a89bf74526
+    Reviewed-on: https://go-review.googlesource.com/64530
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/trace/main.go             | 28 +++++++----
- src/cmd/trace/trace.go            | 41 ++++++++++-------
- src/cmd/trace/trace_test.go       | 85 ++++++++++++++++++++++------------
- src/cmd/trace/trace_unix_test.go  | 97 +++++++++++++++++++++++++++++++++++++++
- src/internal/trace/parser.go      | 32 ++++++++-----
- src/internal/trace/parser_test.go |  4 +-
- src/runtime/trace/trace_test.go   |  8 ++--
- 7 files changed, 222 insertions(+), 73 deletions(-)
+ src/cmd/go/go_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

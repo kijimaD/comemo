@@ -1,29 +1,27 @@
-commit 4b6a542048be59fae3b01950ff0359de913d1201
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri May 12 10:33:14 2023 -0400
+commit d5bf9604aa597d23085435701f5f8d1584596dbd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 28 10:51:53 2022 -0700
 
-    cmd/compile/internal/pgo: remove node weights from IRNode
+    test: add more tests for const decls with ommitted RHS expressions
     
-    Actual PGO operation doesn't use these weights at all. They are
-    theoretically used when printing a dot graph for debugging, but that
-    doesn't actually work because these weights are always zero.
+    Add analogous tests to go/types and types2 test suites.
+    Make sure "assert" built-in is available in type-checker
+    tests.
     
-    These fields are initialized by looking for a NodeMap entry with key
-    {CallerName: sym, CalleeName: "", CallSiteOffset: 0}. These entries will
-    never exist, as we never put entries in NodeMap without CalleeName.
+    For #49157.
+    For #53585.
     
-    Since they aren't really used and don't work, just remove them entirely,
-    which offers nice simplification.
-    
-    This leaves IRNode with just a single field. I keep the type around as a
-    future CL will make the *ir.Func optional, allowing nodes with a name
-    but no IR.
-    
-    Change-Id: I1646654cad1d0779ce071042768ffad2a7e6ff49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494616
+    Change-Id: I092901ecb43eb4833c09bd8f5e38efbe0285babe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414795
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/pgo/irgraph.go | 98 +++++++++++----------------------
- 1 file changed, 32 insertions(+), 66 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ .../internal/types2/testdata/check/constdecl.go    | 22 +++++++++++++
+ src/go/types/check_test.go                         |  2 +-
+ src/go/types/testdata/check/constdecl.go           | 22 +++++++++++++
+ test/const8.go                                     | 36 ++++++++++++++++++++++
+ 5 files changed, 82 insertions(+), 2 deletions(-)

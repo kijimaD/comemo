@@ -1,14 +1,18 @@
-commit 9a6439690ec3f42f1e6c1e219f0020e5cc985072
-Author: Roland Shoemaker <rolandshoemaker@gmail.com>
-Date:   Fri Jun 26 21:33:22 2020 -0700
+commit cbaa666682386fe5350bf87d7d70171704c90fe4
+Author: Yasser Abdolmaleki <yasser@yasser.ca>
+Date:   Thu Jul 25 20:44:06 2019 -0700
 
-    doc/go1.15: add release note for encoding/asn1
+    net: document *OpError.Err must not be nil
     
-    Updates #37419
+    The point of *net.OpError is to add details to an underlying lower
+    level error. It makes no sense to have an OpError without an Err and
+    a nil *OpError.Err will cause *OpError.Error() method to panic.
     
-    Change-Id: I05368efbedd8c7e0b50cd691559491699c3a0945
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240201
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Fixes #33007
+    
+    Change-Id: If4fb2501e02dad110a095b73e18c47312ffa6015
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187677
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.15.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/net/net.go | 1 +
+ 1 file changed, 1 insertion(+)

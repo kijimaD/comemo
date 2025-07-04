@@ -1,18 +1,17 @@
-commit 85d09574fd2ed789eb5550a04eae1d261aaf4d17
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Feb 24 11:11:56 2015 -0500
+commit d135966ef60cc4d1b94de1a184cafdfcb6ee59b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 30 14:12:21 2015 -0800
 
-    runtime: fallback to 128M address space on 32bit
+    math/big: split nat conversion routines and tests into separate files
     
-    Available darwin/arm devices sporadically have trouble mapping 256M.
+    No functional changes.
     
-    I would really appreciate it if anyone could check my working on
-    this, and make sure sure there aren't obviously bad consequences I
-    haven't considered.
-    
-    Change-Id: Id1a8edae104d974fcf5f9333274f958625467f79
-    Reviewed-on: https://go-review.googlesource.com/5752
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ibbb705b167603d30467f3ebb83a3bb39845306a5
+    Reviewed-on: https://go-review.googlesource.com/3671
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/malloc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/math/big/nat.go          | 483 +-----------------------------------------
+ src/math/big/nat_test.go     | 419 ------------------------------------
+ src/math/big/natconv.go      | 489 +++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/natconv_test.go | 429 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 919 insertions(+), 901 deletions(-)

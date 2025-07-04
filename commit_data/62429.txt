@@ -1,0 +1,23 @@
+commit 05354fc3b431a5ff8281a145552b3f62178d560c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 26 15:23:59 2025 -0800
+
+    go/types, types2: remove remaining references to coreType in literals.go
+    
+    For now, use commonUnder (formerly called sharedUnder) and update
+    error messages and comments. We can provide better error messages
+    in individual cases eventually.
+    
+    For #70128.
+    
+    Change-Id: I906ba9a0c768f6499c1683dc9be3ad27da8007a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653156
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/literals.go         | 6 +++---
+ src/go/types/literals.go                            | 6 +++---
+ src/internal/types/testdata/fixedbugs/issue51335.go | 4 ++--
+ 3 files changed, 8 insertions(+), 8 deletions(-)

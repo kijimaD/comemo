@@ -1,16 +1,15 @@
-commit 1b6d55acab9199e09f9134ff3ac359647767f741
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Jan 21 16:45:36 2016 -0500
+commit 87a65f6ce7322de799843cfa991a5e7e36de90d5
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 12 10:44:37 2015 -0500
 
-    cmd/internal/obj/mips, cmd/internal/obj: reduce MIPS register space
+    cmd/compile: delete the runtime_internal_atomic.go builtin defs file
     
-    Change-Id: I43458ce0e78ffc3d0943d28dc8df8e1c9e4cf679
-    Reviewed-on: https://go-review.googlesource.com/18821
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The file was automatically placed in the cl by a tool I had built.
+    Since the compiler doesn't hook into the atomic package, it's unnecessary.
+    
+    Change-Id: I631fd876813b381bb12604865b00fc5b268dce84
+    Reviewed-on: https://go-review.googlesource.com/16844
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/mips/a.out.go | 6 ++++--
- src/cmd/internal/obj/mips/list0.go | 2 +-
- src/cmd/internal/obj/util.go       | 2 +-
- 3 files changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/builtin/runtime_internal_atomic.go | 3 ---
+ 1 file changed, 3 deletions(-)

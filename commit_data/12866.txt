@@ -1,43 +1,15 @@
-commit 30bc5d7bbd8644e044c8c3ecfceca9455326b7a5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 10 10:45:58 2012 -0400
+commit ae382129f1f32b91115ef7d60ce9ec4108253e5d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 10 22:34:31 2012 +0800
 
-    cmd/8c: fix store to complex uint64 ptr
+    syscall: support Getpid() on Windows
+            Fixes #3379.
     
-    Assignment of a computed uint64 value to an
-    address derived with a function call was executing
-    the call after computing the value, which trashed
-    the value (held in registers).
-    
-    long long *f(void) { return 0; }
-    void g(int x, int y) {
-            *f() = (long long)x | (long long)y<<32;
-    }
-    
-    Before:
-    
-    (x.c:3) TEXT    g+0(SB),(gok(71))
-    ...
-    (x.c:4) ORL     AX,DX
-    (x.c:4) ORL     CX,BX
-    (x.c:4) CALL    ,f+0(SB)
-    (x.c:4) MOVL    DX,(AX)
-    (x.c:4) MOVL    BX,4(AX)
-    
-    After:
-    (x.c:3) TEXT    g+0(SB),(gok(71))
-    (x.c:4) CALL    ,f+0(SB)
-    ...
-    (x.c:4) ORL     CX,BX
-    (x.c:4) ORL     DX,BP
-    (x.c:4) MOVL    BX,(AX)
-    (x.c:4) MOVL    BP,4(AX)
-    
-    Fixes #3501.
-    
-    R=ken2
+    R=golang-dev, alex.brainman, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5998043
+    https://golang.org/cl/5909043
 
- src/cmd/8c/cgen64.c | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ src/pkg/syscall/syscall_windows.go        | 5 +++--
+ src/pkg/syscall/zsyscall_windows_386.go   | 7 +++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 7 +++++++
+ 3 files changed, 17 insertions(+), 2 deletions(-)

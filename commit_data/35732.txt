@@ -1,26 +1,15 @@
-commit 1a92cdbfc10e0c66f2e015264a39159c055a5c15
-Author: Misty De Meo <mistydemeo@gmail.com>
-Date:   Fri Jun 15 18:15:50 2018 +0000
+commit 83e41b3e76cb1e9033e6b2860e5f6cab5330dd23
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Mar 5 19:46:18 2018 +0100
 
-    ld/macho: add all missing load commands
+    test/codegen: port math/bits.Leadingzero tests to codegen
     
-    The ld/macho code currently understands a subset of the mach-o load
-    commands. I've encountered one of these in the wild in a Go-produced
-    binary, which tripped up the Go linker because its switch statement
-    expects its list of load commands to be exhaustive; the rest I've
-    added for the sake of completion.
-    
-    The ruby-macho library is a good non-Darwin header resource for these:
-    https://github.com/homebrew/ruby-macho
-    
-    Fixes #25908
-    
-    Change-Id: Ib54c065d27e87d8726a9870df05a2bae24828b98
-    GitHub-Last-Rev: 655e3f488a4c1a89896a40edb0e1f715a5d3f734
-    GitHub-Pull-Request: golang/go#25906
-    Reviewed-on: https://go-review.googlesource.com/119115
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic21d25db5d56ce77516c53082dfbc010e5875b81
+    Reviewed-on: https://go-review.googlesource.com/98655
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/macho.go               | 77 ++++++++++++++++---------
- src/cmd/link/internal/ld/macho_combine_dwarf.go |  2 +-
- 2 files changed, 52 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 212 +-------------------------------
+ test/codegen/mathbits.go                |  46 ++++++-
+ 2 files changed, 49 insertions(+), 209 deletions(-)

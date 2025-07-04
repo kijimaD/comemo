@@ -1,17 +1,15 @@
-commit c4a814f2da2982a03f930b43797767f35721b5c1
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu May 31 07:57:49 2012 +0200
+commit 43cf5505fcc3cdf4d02a4970af0b8a441ac274ef
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 30 21:57:50 2012 -0700
 
-    runtime/pprof, misc/pprof: correct profile of total allocations.
+    regexp: fix a couple of bugs in the documentation
+    Byte slices are not strings.
     
-    The previous heap profile format did not include buckets with
-    zero used bytes. Also add several missing MemStats fields in
-    debug mode.
+    Fixes #3687.
     
-    R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/6249068
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6257074
 
- misc/pprof                     | 20 ++++++++++++--------
- src/pkg/runtime/pprof/pprof.go | 11 +++++++----
- 2 files changed, 19 insertions(+), 12 deletions(-)
+ src/pkg/regexp/regexp.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,25 +1,22 @@
-commit c63e047dac52ff18d55d1c60eef9a8a5e39f0da5
-Author: Jakub Čajka <jcajka@redhat.com>
-Date:   Fri Jan 5 13:38:55 2018 +0100
+commit f72196647e017e834f65dc7264b844e0a2760490
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Dec 7 13:38:16 2017 -0800
 
-    cmd/go/internal/work: support pkgconf 1.4 and later
+    sync: throw, not panic, for unlock of unlocked mutex
     
-    Fixes #23373
+    This was originally done in https://golang.org/cl/31359 but partially
+    undone (apparently unintentionally) in https://golang.org/cl/34310
     
-    Fix interfacing with latest(1.4+) pkgconf versions, as they have change the
-    output format, by extending parsing function splitPkgConfigOutput to accommodate
-    more possible fragment escaping formats. Function is based on pkgconfigs own
-    implementation at
-    https://github.com/pkgconf/pkgconf/blob/master/libpkgconf/argvsplit.c. Along
-    with this change test case TestSplitPkgConfigOutput have been expanded. Thanks
-    to ignatenko for help on test cases and insights in to the pkgconfig.
+    Fix it, and update tests to ensure the error is unrecoverable.
     
-    Change-Id: I55301bb564b07128d5564ec1454dd247f84a95c3
-    Reviewed-on: https://go-review.googlesource.com/86541
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #23039
+    
+    Change-Id: I923ebd613a05e67d8acce77f4a68c64c8574faa6
+    Reviewed-on: https://go-review.googlesource.com/82656
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/go/internal/work/build_test.go | 49 +++++++++++++++++++++-
- src/cmd/go/internal/work/exec.go       | 77 ++++++++++++++++++++++++----------
- 2 files changed, 101 insertions(+), 25 deletions(-)
+ src/sync/mutex.go      | 6 +++---
+ src/sync/mutex_test.go | 5 ++++-
+ 2 files changed, 7 insertions(+), 4 deletions(-)

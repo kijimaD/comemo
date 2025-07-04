@@ -1,21 +1,30 @@
-commit ada6ffca8399af9ad24e82502db1429b85b7405f
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Mar 3 01:23:52 2023 +1100
+commit d8cf2243e0ed1c498ed405432c10f9596815a582
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Mar 24 18:06:47 2022 +0000
 
-    internal/cpu: add default osinit for ppc64/ppc64le
+    runtime: disable idle mark workers with at least one dedicated worker
     
-    This will be used for operating systems other than AIX and Linux (both of
-    which provide a more specific version).
+    This change completes the proposal laid out in #44163. With #44313
+    resolved, we now ensure that stopped Ms are able to wake up and become
+    dedicated GC workers. As a result, idle GC workers are in theory no
+    longer required to be a proxy for scheduling dedicated mark workers.
     
-    Updates #56001
+    And, with at least one dedicated mark worker running (which is
+    non-preemptible) we ensure the GC makes progress in all circumstances
+    when at least one is running. Currently we ensure at least one idle mark
+    worker is available at all times because it's possible before #44313
+    that a dedicated worker doesn't ever get scheduled, leading to a
+    deadlock if user goroutines block on a GC completing. But now that extra
+    idle mark worker should be unnecessary to ensure GC progress when at
+    least one dedicated mark worker is going to be scheduled.
     
-    Change-Id: Ia1de994866b66f03c83696faa92d0531a0b75273
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473698
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #44163.
+    
+    Change-Id: I62889ef2db4e69d44da883e8e6eebcfe5398c86d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395634
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/cpu/cpu_ppc64x_other.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/runtime/mgcpacer.go | 47 ++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 30 insertions(+), 17 deletions(-)

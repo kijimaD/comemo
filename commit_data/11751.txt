@@ -1,17 +1,18 @@
-commit 44fa114dc6493d6baeae5661b7030ab1e1289ead
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 10:07:55 2012 +1100
+commit c15a42ed76370afd87aebee0be131dba713bc4f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 10 10:05:26 2012 +1100
 
-    container/heap: add example
-    godoc doesn't have the fu to present the example well, but this gives
-    us an example of an example to develop example fu.
+    cmd/api: follow constant references
     
-    Fixes #2840.
+    For gccgo. Also removes bunch of special cases.
     
-    R=golang-dev, gri
+    Fixes #2906
+    
+    R=golang-dev, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/5645063
+    https://golang.org/cl/5644050
 
- src/pkg/container/heap/example_test.go | 105 +++++++++++++++++++++++++++++++++
- src/pkg/container/heap/heap.go         |   5 +-
- 2 files changed, 108 insertions(+), 2 deletions(-)
+ src/cmd/api/goapi.go                       | 115 +++++++++++++++++++----------
+ src/cmd/api/testdata/src/pkg/p1/golden.txt |   2 +
+ src/cmd/api/testdata/src/pkg/p1/p1.go      |   5 ++
+ 3 files changed, 84 insertions(+), 38 deletions(-)

@@ -1,14 +1,12 @@
-commit 9dfcfb938552cfc601562db1f6e6a97534d4e563
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 12 10:53:01 2013 -0700
+commit 4e032ce301f980d238d876278d60a4937c772814
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 12 21:39:49 2013 +0400
 
-    effective_go.html: fix semaphore example
-    It didn't work properly according to the Go memory model.
-    Fixes #5023.
+    runtime: fix build
     
-    R=golang-dev, dvyukov, adg
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7698045
+    https://golang.org/cl/7760043
 
- doc/effective_go.html | 54 +++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 46 insertions(+), 8 deletions(-)
+ src/pkg/runtime/netpoll_stub.c | 2 --
+ 1 file changed, 2 deletions(-)

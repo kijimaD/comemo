@@ -1,22 +1,26 @@
-commit d54902ece907d55d937b7b2fa294e0cc22b57a32
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Tue Mar 13 00:25:06 2018 +0100
+commit 647648bd475e0635ce644c947b0140fd88eef58e
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Oct 15 12:21:00 2017 -0700
 
-    cmd/compile: in prove, shortcircuit self-facts
+    crypto/x509: enforce EKU nesting at chain-construction time.
     
-    Sometimes, we can end up calling update with a self-relation
-    about a variable (x REL x). In this case, there is no need
-    to record anything: the relation is unsatisfiable if and only
-    if it doesn't contain eq.
+    crypto/x509 has always enforced EKUs as a chain property (like CAPI, but
+    unlike the RFC). With this change, EKUs will be checked at
+    chain-building time rather than in a target-specific way.
     
-    This also helps avoiding infinite loop in next CL that will
-    introduce transitive closure of relations.
+    Thus mis-nested EKUs will now cause a failure in Verify, irrespective of
+    the key usages requested in opts. (This mirrors the new behaviour w.r.t.
+    name constraints, where an illegal name in the leaf will cause a Verify
+    failure, even if the verified name is permitted.).
     
-    Passes toolstash -cmp.
+    Updates #15196
     
-    Change-Id: Ic408452ec1c13653f22ada35466ec98bc14aaa8e
-    Reviewed-on: https://go-review.googlesource.com/100276
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ib6a15b11a9879a9daf5b1d3638d5ebbbcac506e5
+    Reviewed-on: https://go-review.googlesource.com/71030
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/crypto/x509/name_constraints_test.go | 465 ++++++++++++++++++++++++++-----
+ src/crypto/x509/verify.go                | 217 ++++++++-------
+ 2 files changed, 514 insertions(+), 168 deletions(-)

@@ -1,0 +1,14 @@
+commit 34e8541d24b5b6624ccc252125f832c1ea0bfa00
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jan 28 20:59:54 2025 +0000
+
+    internal/trace/tracev2: add guide for trace experiments
+    
+    Change-Id: I6fb354a57f3e73bd6589570868c7d68369adcf3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645136
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/tracev2/EXPERIMENTS.md | 101 ++++++++++++++++++++++++++++++
+ 1 file changed, 101 insertions(+)

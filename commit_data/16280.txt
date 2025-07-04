@@ -1,14 +1,16 @@
-commit 2d846f65215cd35eb03b79871f79f03383df67cb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 8 10:42:08 2013 -0700
+commit 8a28085a0fdfea041ff923353c7e482455322c2e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 8 06:28:33 2013 -0700
 
-    spec: fix incorrect example
+    cmd/cgo: pass -Wsystem-headers when looking for errors
     
-    Fixes #5430.
+    This works around a bug in GCC 4.8.0.
     
-    R=golang-dev, r
+    Fixes #5118.
+    
+    R=golang-dev, r, minux.ma
     CC=golang-dev
-    https://golang.org/cl/9305043
+    https://golang.org/cl/9120045
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/cgo/gcc.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

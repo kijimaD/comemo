@@ -1,20 +1,27 @@
-commit 8e2dad5529d250d548e87720741d20e88a1dfaf2
-Author: Alexander Rakoczy <alex@golang.org>
-Date:   Tue Feb 25 13:44:18 2020 -0500
+commit f7f85bdc2c4a8a472a271a7d2333557ad6143eeb
+Author: David Chase <drchase@google.com>
+Date:   Tue Jul 30 16:23:55 2019 -0400
 
-    doc/go1.14: add link to module migration guide
+    cmd/compile: refine statement marking in numberlines
     
-    Adding a link to this guide will provide more value to instructing Go
-    users to migrate to modules.
+    1) An empty block is treated as not-a-statement unless its line differs
+    from at least one of its predecessors (it might make sense to
+    rearrange branches in predecessors, but that is a different issue).
     
-    Updates #36878
+    2) When iterating forward to choose a "good" place for a statement,
+    actually check that the chosen place is in fact good.
     
-    Change-Id: Ie6ab45efcd35cc5e5ba5adc16ba0ca4cca4292bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220906
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: thepudds <thepudds1460@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    3) Refactor same line and same file into methods on XPos and Pos.
+    
+    This reduces the failure rate of ssa/stmtlines_test by 7-ish lines.
+    (And interacts favorably with later debugging CLs.)
+    
+    Change-Id: Idb7cca7068f6fc9fbfdbe25bc0da15bcfc7b9d4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188217
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.14.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/numberlines.go | 41 ++++++++++++++++++-----------
+ src/cmd/internal/src/pos.go                 |  5 ++--
+ src/cmd/internal/src/xpos.go                |  5 ++++
+ 3 files changed, 33 insertions(+), 18 deletions(-)

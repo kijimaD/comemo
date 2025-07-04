@@ -1,26 +1,13 @@
-commit 18aa55c169774b96b210f234e88c98e78a1c513f
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Sat Sep 1 14:13:37 2012 +0200
+commit de7b8c50077ca0bfdcd59de488453df983f92ab3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 31 18:10:40 2012 -0400
 
-    exp/locale/collate: first changes that introduce implementation of tailorings:
-    - Elements in the array are now sorted as a linked list.  This makes it easier to
-      apply tailorings.
-    - Added code to sort entries by collation elements.
-    - Added logical reset points.  This is used for tailoring relative to certain
-      properties, rather than characters.
+    A+C: 0/2 on spelling email addresses correctly
     
-    NOTE: all code for type entry should now be in order.go.  To keep the diffs for
-    this CL reasonable, though, the existing code is left in builder.go.  I'll move
-    this in a separate CL.
-    
-    R=r
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/6493063
+    https://golang.org/cl/6497067
 
- src/pkg/exp/locale/collate/build/builder.go      | 108 +++++------
- src/pkg/exp/locale/collate/build/builder_test.go |  22 ++-
- src/pkg/exp/locale/collate/build/colelem.go      |  50 +++++
- src/pkg/exp/locale/collate/build/colelem_test.go | 116 +++++++++++-
- src/pkg/exp/locale/collate/build/order.go        | 230 +++++++++++++++++++++++
- src/pkg/exp/locale/collate/build/order_test.go   | 197 +++++++++++++++++++
- 6 files changed, 651 insertions(+), 72 deletions(-)
+ AUTHORS      | 4 ++--
+ CONTRIBUTORS | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

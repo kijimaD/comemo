@@ -1,19 +1,18 @@
-commit cfe36fd1224706389392e44bdddbc754f70b95bf
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Nov 1 01:34:33 2023 +1100
+commit 1daa8e2d5226e0645d9748c32e031d93f485e740
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Nov 16 23:11:07 2022 +0700
 
-    runtime: add crash stack support for riscv64
+    test: remove optimizationOff
     
-    Change-Id: Ib89a71e20f9c6b86c97814c75cb427e9bd7075e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538735
-    Reviewed-by: David Chase <drchase@google.com>
+    Cl 426334 removed its only usage, and now we have gcflags_noopt.
+    
+    Change-Id: I3b33a8c868669deea00bf6dfcf8d81981504e293
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451255
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/runtime/asm.s          |  2 ++
- src/runtime/asm_riscv64.s  | 38 +++++++++++++++++++++++++++++++-------
- src/runtime/crash_test.go  |  2 +-
- src/runtime/export_test.go |  2 ++
- src/runtime/proc.go        |  2 +-
- 5 files changed, 37 insertions(+), 9 deletions(-)
+ test/run.go | 4 ----
+ 1 file changed, 4 deletions(-)

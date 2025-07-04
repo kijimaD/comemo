@@ -1,29 +1,15 @@
-commit 0d441a088d2cb23af32dae473aea989830d11055
+commit 72185093f669eab9b07523bded3d186b4bb4321d
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 14 10:58:49 2014 -0400
+Date:   Sun Apr 13 20:19:10 2014 -0400
 
-    cmd/objdump: rewrite in Go
+    runtime: increase timeout in TestStackGrowth
     
-    Update cmd/dist not to build the C version.
-    Update cmd/go to install the Go version to the tool directory.
+    It looks like maybe on slower builders 4 seconds is not enough.
+    Trying to get rid of the flaky failures.
     
-    Update #7452
-    
-    This is the basic logic needed for objdump, and it works well enough
-    to support the pprof list and weblist commands. A real disassembler
-    needs to be added in order to support the pprof disasm command
-    and the per-line assembly displays in weblist. That's still to come.
-    
-    Probably objdump will move to go.tools when the disassembler
-    is added, but it can stay here for now.
-    
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
-    CC=golang-codereviews, iant, r
-    https://golang.org/cl/87580043
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/86870044
 
- src/cmd/dist/build.c    |   2 -
- src/cmd/go/pkg.go       |   1 +
- src/cmd/objdump/main.c  |  68 --------------------
- src/cmd/objdump/main.go | 162 ++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 163 insertions(+), 70 deletions(-)
+ src/pkg/runtime/stack_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

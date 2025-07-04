@@ -1,24 +1,30 @@
-commit e1e65ae3ee5f977c31f3651233cc7ff2a0b579ca
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Feb 21 10:29:09 2025 -0500
+commit 793097161b3a263b2b0912265cf99d4d9c6218fa
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Dec 15 04:33:18 2023 +0000
 
-    runtime: use WCLONE when waiting on pidfd test child
+    all: fix copyright headers
     
-    As of CL 650835, the pidfd test child no longer sends SIGCHLD on exit.
-    Per clone(2), "If [the child termination] signal is specified as
-    anything other than SIGCHLD, then the parent process must specify the
-    __WALL or __WCLONE options when waiting for the child with wait(2)."
-    
-    Align with this requirement.
-    
-    For #71828.
-    
-    Change-Id: I6a6a636c739e4a59abe1533fe429a433e8588939
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651415
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib16986fb088030b93140e48c17e3d7bb2c9312cf
+    GitHub-Last-Rev: 41572879f8f45c963c0e3ab9862bc0de59781a13
+    GitHub-Pull-Request: golang/go#64731
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549956
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
 
- src/syscall/exec_linux.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/cgo/internal/test/issue9400/asm_mips64x.s        | 2 +-
+ src/cmd/cgo/internal/test/issue9400/asm_riscv64.s        | 2 +-
+ src/cmd/cgo/internal/testgodefs/testdata/fieldtypedef.go | 2 +-
+ src/cmd/compile/internal/types2/errorcalls_test.go       | 2 +-
+ src/cmd/go/internal/mmap/mmap.go                         | 2 +-
+ src/cmd/go/internal/mmap/mmap_other.go                   | 2 +-
+ src/cmd/go/internal/mmap/mmap_unix.go                    | 2 +-
+ src/cmd/go/internal/mmap/mmap_windows.go                 | 2 +-
+ src/go/types/errorcalls_test.go                          | 2 +-
+ src/runtime/asan0.go                                     | 2 +-
+ src/runtime/profbuf.go                                   | 2 +-
+ src/runtime/signal_aix_ppc64.go                          | 2 +-
+ 12 files changed, 12 insertions(+), 12 deletions(-)

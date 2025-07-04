@@ -1,24 +1,41 @@
-commit af134b17da99344812344bba65247e45fa22d53b
-Author: Keith Randall <khr@google.com>
-Date:   Mon Dec 10 12:49:19 2018 -0800
+commit ce2e883afc02585188d215cdda265c6a27f14a41
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 21 09:50:58 2018 -0700
 
-    runtime: proper panic tracebacks with mid-stack inlining
+    go/types: track local cycles using same mechanism as for global objects
     
-    As a followon to CL 152537, modify the panic-printing traceback
-    to also handle mid-stack inlining correctly.
+    For Go 1.11, cycle tracking of global (package-level) objects was changed
+    to use a Checker-level object path rather than relying on the explicit
+    path parameter that is passed around to some (but not all) type-checker
+    functions.
     
-    Also declare -fm functions (aka method functions) as wrappers, so that
-    they get elided during traceback. This fixes part 2 of #26839.
+    This change now uses the same mechanism for the detection of local
+    type cycles (local non-type objects cannot create cycles by definition
+    of the spec).
     
-    Fixes #28640
-    Fixes #24488
-    Update #26839
+    As a result, local alias cycles are now correctly detected as well
+    (issue #27106).
     
-    Change-Id: I1c535a9b87a9a1ea699621be1e6526877b696c21
-    Reviewed-on: https://go-review.googlesource.com/c/153477
-    Reviewed-by: David Chase <drchase@google.com>
+    The path parameter that is explicitly passed around to some type-checker
+    methods is still present and will be removed in a follow-up CL.
+    
+    Also:
+    - removed useCycleMarking flag and respective dead code
+    - added a couple more tests
+    - improved documentation
+    
+    Fixes #27106.
+    Updates #25773.
+    
+    Change-Id: I7cbf304bceb43a8d52e6483dcd0fa9ef7e1ea71c
+    Reviewed-on: https://go-review.googlesource.com/130455
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/internal/objabi/funcid.go |   3 ++
- src/runtime/traceback.go          | 102 ++++++++++++++++++--------------------
- test/fixedbugs/issue24488.go      |  38 ++++++++++++++
- 3 files changed, 89 insertions(+), 54 deletions(-)
+ src/go/types/check.go            |  2 +-
+ src/go/types/decl.go             | 69 ++++++++++++++++++++++++----------------
+ src/go/types/resolver.go         |  4 +++
+ src/go/types/testdata/cycles.src |  6 ++--
+ src/go/types/typexpr.go          | 17 ++--------
+ 5 files changed, 53 insertions(+), 45 deletions(-)

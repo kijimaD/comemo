@@ -1,16 +1,14 @@
-commit 35cee9f5d8cf9cdee2cb346f4a4ca1dd83bd2ca4
+commit 108564dabc28996332dabacab8ea7da07ff8adc2
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 15 14:04:47 2011 -0400
+Date:   Tue Mar 15 13:51:24 2011 -0400
 
-    gofmt: simpler walkDir
+    spec: disallow unused labels
     
-    Swapping the goroutines lets them reuse the
-    communication completion on v instead of
-    needing a second channel (done).
+    Also change labelled examples to use gofmt formatting.
     
-    R=gri
+    R=gri, r, jnml
     CC=golang-dev
-    https://golang.org/cl/4287045
+    https://golang.org/cl/4287046
 
- src/cmd/gofmt/gofmt.go | 19 +++++++------------
- 1 file changed, 7 insertions(+), 12 deletions(-)
+ doc/go_spec.html | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)

@@ -1,65 +1,14 @@
-commit 170b8b4b12be50eeccbcdadb8523fb4fc670ca72
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Mar 27 08:40:12 2019 -0700
+commit 34437f04fd642c43d32ac70be68c470c60b4dc4e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Dec 18 09:09:12 2018 +0100
 
-    all: add Unwrap and Is methods to various error types
+    doc/1.12: add notes about aix/ppc64 port
     
-    Add Unwrap methods to types which wrap an underlying error:
+    Fixes #29315
     
-      "encodinc/csv".ParseError
-      "encoding/json".MarshalerError
-      "net/http".transportReadFromServerError
-      "net".OpError
-      "net".DNSConfigError
-      "net/url".Error
-      "os/exec".Error
-      "signal/internal/pty".PtyError
-      "text/template".ExecError
-    
-    Add os.ErrTemporary. A case could be made for putting this error
-    value in package net, since no exported error types in package os
-    include a Temporary method. However, syscall errors returned from
-    the os package do include this method.
-    
-    Add Is methods to error types with a Timeout or Temporary method,
-    making errors.Is(err, os.Err{Timeout,Temporary}) equivalent to
-    testing the corresponding method:
-    
-      "context".DeadlineExceeded
-      "internal/poll".TimeoutError
-      "net".adrinfoErrno
-      "net".OpError
-      "net".DNSError
-      "net/http".httpError
-      "net/http".tlsHandshakeTimeoutError
-      "net/pipe".timeoutError
-      "net/url".Error
-    
-    Updates #30322
-    Updates #29934
-    
-    Change-Id: I409fb20c072ea39116ebfb8c7534d493483870dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170037
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: I6ecc5109c23e7a7d9db54250bf041acc841701e3
+    Reviewed-on: https://go-review.googlesource.com/c/154697
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/context/context.go              |  4 +++
- src/context/context_test.go         |  5 +++
- src/encoding/csv/reader.go          |  2 ++
- src/encoding/json/encode.go         |  2 ++
- src/go/build/deps_test.go           |  5 +--
- src/internal/oserror/errors.go      | 48 ++++++++++++++++++++++++++--
- src/internal/oserror/errors_test.go | 63 +++++++++++++++++++++++++++++++++++++
- src/internal/poll/fd.go             |  9 +++++-
- src/net/cgo_unix.go                 | 11 +++++++
- src/net/http/transport.go           | 16 ++++++++++
- src/net/net.go                      | 23 ++++++++++++++
- src/net/pipe.go                     |  5 +++
- src/net/timeout_test.go             |  5 +++
- src/net/url/url.go                  | 24 +++-----------
- src/os/error.go                     |  2 ++
- src/os/exec/exec.go                 |  2 ++
- src/os/signal/internal/pty/pty.go   |  2 ++
- src/text/template/exec.go           |  4 +++
- 18 files changed, 208 insertions(+), 24 deletions(-)
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

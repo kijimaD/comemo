@@ -1,43 +1,35 @@
-commit 11c86ddcb898f4c2c5fa548d46821ab76ea2d0fd
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jan 22 14:13:33 2025 -0500
+commit c2b1463153e0095cf66ca362409d70ff0b6aad26
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Feb 23 23:26:49 2024 +0000
 
-    runtime: check for gsignal in asancall/msancall/racecall
+    internal/trace/v2: break up ordering.Advance into dispatched methods
     
-    asancall and msancall are reachable from the signal handler, where we
-    are running on gsignal. Currently, these calls will use the g0 stack in
-    this case, but if the interrupted code was running on g0 this will
-    corrupt the stack and likely cause a crash.
+    Currently ordering.Advance is one massive switch statement. This isn't
+    amazing for readability because it's hard to see at a glance what
+    happens before and after. Some of the state sharing is nice, but
+    otherwise, it can get confusing quickly (especially where break is used,
+    and where there are nested switches).
     
-    As far as I know, racecall is not reachable from the signal handler, but
-    I have updated it as well for consistency.
+    This CL breaks up the switch statement into individual methods on
+    ordering.Advance which are loaded and dispatched from a table. This CL
+    uses a table instead of a switch statement because the arguments passed
+    are all the same each time, and the table can provide a very precise
+    mapping for each event; with a switch, we'd be tempted to group cases
+    that call the same handler method together. It also prevents us from
+    using defer in many cases, which may help clean up the code. (Each case
+    in the switch is completely self-contained, yet we can't use a defer
+    because it's function-scoped.)
     
-    This is the most straightforward fix, though it would be nice to
-    eventually migrate these wrappers to asmcgocall, which already handled
-    this case.
+    As an aside, this should also improve performance a bit. The Go compiler
+    doesn't handle massive irregular functions very well, especially one
+    with a lot of return points and (previously) a conditionally deferred
+    call.
     
-    Fixes #71395.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-asan-clang15,gotip-linux-amd64-msan-clang15,gotip-linux-amd64-race
-    Change-Id: I6a6a636ccba826dd53e31c0e85b5d42fb1e98d12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643875
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I3ef2cf75301c795b6f23da1e058b0ac303fea8bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566576
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/asan_amd64.s                           |  7 +++-
- src/runtime/asan_arm64.s                           | 12 ++++--
- src/runtime/asan_loong64.s                         | 11 ++++--
- src/runtime/asan_ppc64le.s                         | 14 +++++--
- src/runtime/asan_riscv64.s                         | 11 ++++--
- src/runtime/crash_cgo_test.go                      |  9 +++++
- src/runtime/msan_amd64.s                           |  7 +++-
- src/runtime/msan_arm64.s                           | 12 ++++--
- src/runtime/msan_loong64.s                         |  9 ++++-
- src/runtime/race_amd64.s                           |  7 ++++
- src/runtime/race_arm64.s                           |  9 ++++-
- src/runtime/race_ppc64le.s                         | 13 +++++--
- src/runtime/race_s390x.s                           | 11 +++++-
- src/runtime/testdata/testprogcgo/tracebackctxt.go  | 43 ++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/tracebackctxt_c.c |  5 +++
- 15 files changed, 155 insertions(+), 25 deletions(-)
+ src/internal/trace/v2/order.go | 1709 ++++++++++++++++++++++------------------
+ 1 file changed, 925 insertions(+), 784 deletions(-)

@@ -1,17 +1,15 @@
-commit c10f50859ead8f1578e86e65d5f376ae6a3a32df
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Feb 28 21:48:03 2012 +0100
+commit 250fa82122e1eca680c53f99e79dd08794001cc8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 29 07:34:28 2012 +1100
 
-    all: remove various unused unexported functions and constants.
+    net/rpc: API changes, all documentation
+    except for hiding one type that is only used internally.
     
-    R=golang-dev, minux.ma, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5702050
+    Fixes #2944.
+    
+    R=golang-dev, rsc, kevlar
+    CC=golang-dev
+    https://golang.org/cl/5707044
 
- src/pkg/archive/zip/reader.go   | 28 ----------------------------
- src/pkg/bufio/bufio.go          |  1 -
- src/pkg/encoding/json/encode.go |  5 -----
- src/pkg/net/http/lex.go         |  8 --------
- src/pkg/time/format.go          |  8 --------
- src/pkg/time/time.go            |  4 ----
- 6 files changed, 54 deletions(-)
+ src/pkg/net/rpc/server.go | 39 +++++++++++++++++++++++++--------------
+ 1 file changed, 25 insertions(+), 14 deletions(-)

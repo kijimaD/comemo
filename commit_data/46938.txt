@@ -1,28 +1,29 @@
-commit b0351bfd7d5f0d367c27aa07789b2e6317442ece
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Oct 19 09:09:55 2021 +0000
+commit a76efea1fe18045ecb8d1cf2c1104208e636fbae
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 28 10:18:24 2021 -0500
 
-    Revert "cmd/compile: use MOVBE instruction for GOAMD64>=v3"
+    cmd/go/internal/mvs: don't emit duplicates from Req
     
-    This reverts CL 354670.
+    Req is supposed to return “a minimal requirement list”
+    that includes each of the module paths listed in base.
+    Currently, if base contains duplicates Req emits duplicates,
+    and a list containing duplicates is certainly not minimal.
     
-    Reason for revert: broke make.bash with GOAMD64=v3.
+    That, in turn, requires callers to be careful to deduplicate the base
+    slice, and there are multiple callers that are already quite
+    complicated to reason about even without the added complication of
+    deduplicating slices.
     
-    Fixes #49061.
+    For #36460
     
-    Change-Id: I7f2ed99b7c10100c4e0c1462ea91c4c9d8c609b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356790
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I391a1dc0641fe1dd424c16b7a1082da0d00c7292
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287632
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Koichi Shiraishi <zchee.io@gmail.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go           |   7 +-
- src/cmd/compile/internal/amd64/versions_test.go |  27 +--
- src/cmd/compile/internal/ssa/gen/AMD64.rules    |  26 ---
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   6 -
- src/cmd/compile/internal/ssa/opGen.go           |  64 -------
- src/cmd/compile/internal/ssa/rewriteAMD64.go    | 243 ------------------------
- test/codegen/memcombine.go                      |  36 ++--
- 7 files changed, 20 insertions(+), 389 deletions(-)
+ src/cmd/go/internal/mvs/mvs.go      |  5 +++++
+ src/cmd/go/internal/mvs/mvs_test.go | 13 +++++++++++++
+ 2 files changed, 18 insertions(+)

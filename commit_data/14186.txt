@@ -1,19 +1,13 @@
-commit a7a3fe72386df56d6bf6cd83fe346e1c72cf998a
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sun Oct 21 19:22:51 2012 +0200
+commit 3d00648dc1b08873f7e779d5a842641795ec42ad
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 22 01:05:21 2012 +0800
 
-    cmd/gc: Friendlier errors on oversized arrays.
+    gophertool: fix links
     
-    Someone new to the language may not know the connection between ints and arrays, which was the only thing that the previous error told you anything about.
-    
-    Fixes #4256.
-    
-    R=golang-dev, rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/6739048
+    https://golang.org/cl/6713043
 
- src/cmd/gc/const.c       | 40 +++++++++++++++++++++++++++++++---------
- src/cmd/gc/go.h          |  3 ++-
- src/cmd/gc/typecheck.c   |  6 ++++--
- test/fixedbugs/bug255.go |  2 +-
- 4 files changed, 38 insertions(+), 13 deletions(-)
+ misc/chrome/gophertool/popup.html | 10 +++++-----
+ misc/chrome/gophertool/popup.js   | 16 ++++++++++++----
+ 2 files changed, 17 insertions(+), 9 deletions(-)

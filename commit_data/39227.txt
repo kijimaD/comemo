@@ -1,33 +1,63 @@
-commit 94a9dad8fdcd7adf2036482391f715ea3ab35cd9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed May 22 11:06:09 2019 -0700
+commit 737695231de878dfdea127de1b995548785e3db0
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jan 29 13:58:21 2019 -0500
 
-    cmd/compile: fix capture-by-reference of return parameters
+    CONTRIBUTORS: second round of updates for Go 1.12
     
-    As an optimization, function literals capture variables by value when
-    they're not assigned and their address has not been taken. Because
-    result parameters are implicitly assigned through return statements
-    (which do not otherwise set the "assigned" flag), result parameters
-    are explicitly handled to always capture by reference.
+    This update has been automatically generated using the updatecontrib
+    command at CL 160277:
     
-    However, the logic was slightly mistaken because it was only checking
-    if the variable in the immediately enclosing context was a return
-    parameter, whereas in a multiply-nested function literal it would
-    itself be another closure variable (PAUTOHEAP) rather than a return
-    parameter (PPARAMOUT).
+            cd gotip
+            go run golang.org/x/build/cmd/updatecontrib
     
-    The fix is to simply test the outermost variable, like the rest of the
-    if statement's tests were already doing.
+    Actions taken (relative to CONTRIBUTORS at origin/master):
     
-    Fixes #32175.
+            Added Aaron Cannon <cannona@fireantproductions.com>
+            Added Andzej Maciusovic <andzej.maciusovic@gmail.com>
+            Added Douglas Danger Manley <doug.manley@gmail.com>
+            Added Federico Bond <federicobond@gmail.com>
+            Added Frew Schmidt <github@frew.co>
+            Added GitHub User @saitarunreddy (21041941) <saitarunreddypalla@gmail.com>
+            Added GitHub User @tell-k (26263) <ffk2005@gmail.com>
+            Added Guilherme Caruso <gui.martinscaruso@gmail.com>
+            Added Jay Taylor <outtatime@gmail.com>
+            Added Juan Pablo Civile <elementohb@gmail.com>
+            Added Julien Kauffmann <julien.kauffmann@freelan.org>
+            Added Maya Rashish <maya@NetBSD.org>
+            Added Parminder Singh <parmsingh101@gmail.com>
+            Added Peter Dotchev <dotchev@gmail.com>
+            Added Quinten Yearsley <qyearsley@chromium.org>
+            Added Ross Smith II <ross@smithii.com>
+            Added Sean Chen <oohcode@gmail.com>
+            Added Sebastiaan van Stijn <github@gone.nl>
+            Added Sebastian Schmidt <yath@google.com>
+            Added Sebastien Williams-Wynn <sebastien@cytora.com>
+            Added Viacheslav Poturaev <vearutop@gmail.com>
+            Added Yohei Takeda <yo.tak0812@gmail.com>
+            Used GitHub User @saitarunreddy (21041941) form for saitarunreddy <saitarunreddypalla@gmail.com> https://github.com/golang/build/commit/269e03a [build]
+            Used GitHub User @tell-k (26263) form for tell-k <ffk2005@gmail.com> https://github.com/golang/tools/commit/85a87a81 [tools]
+            Used GitHub name "Akhil Indurti" for smasher164 <aindurti@gmail.com> https://github.com/golang/go/commit/a7af474359 [build go]
+            Used GitHub name "Guilherme Caruso" for GuilhermeCaruso <gui.martinscaruso@gmail.com> https://github.com/golang/go/commit/5fae09b738 [go]
+            Used GitHub name "Ivan Markin" for nogoegst <nogoegst@users.noreply.github.com> https://github.com/golang/go/commit/a1addf15df [go]
+            Used GitHub name "Keiji Yoshida" for yosssi <yoshida.keiji.84@gmail.com> https://github.com/golang/lint/commit/ac6833c [lint]
+            Used GitHub name "Marwan Sulaiman" for marwan-at-work <marwan.sameer@gmail.com> https://github.com/golang/go/commit/92caeef892 [go]
+            Used GitHub name "Michalis Kargakis" for kargakis <mkargaki@redhat.com> https://github.com/golang/go/commit/e243d242d7 [go]
+            Used GitHub name "Robin Eklind" for mewmew <rnd0x00@gmail.com> https://github.com/golang/go/commit/b8620afb8d [go proposal.git]
+            Used GitHub name "Sean Chen" for two <oohcode@gmail.com> https://github.com/golang/sys/commit/302c3dd [sys]
+            Used GitHub name "Sebastien Williams-Wynn" for GiantsLoveDeathMetal <sebastien@cytora.com> https://github.com/golang/go/commit/4e056ade24 [go]
+            Used GitHub name "Yohei Takeda" for yo-tak <yo.tak0812@gmail.com> https://github.com/golang/go/commit/8b7cf898af [go]
     
-    Change-Id: Ibadde033ff89a1b47584b3f56c0014d8e5a74512
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178541
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Given that the scope of updatecontrib is only to add contributors to
+    CONTRIBUTORS file, without having to check CLAs or deal with legal
+    matters, we can relax the requirement of having a space in the name
+    before it gets added to the CONTRIBUTORS file. That will be done
+    in a later change.
+    
+    Updates #12042
+    
+    Change-Id: I70248f3c82a836ee829256898e931e638ee45eb4
+    Reviewed-on: https://go-review.googlesource.com/c/160261
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/closure.go |  2 +-
- test/fixedbugs/issue32175.go           | 22 ++++++++++++++++++++++
- test/fixedbugs/issue32175.out          |  1 +
- 3 files changed, 24 insertions(+), 1 deletion(-)
+ CONTRIBUTORS | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

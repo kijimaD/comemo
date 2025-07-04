@@ -1,0 +1,19 @@
+commit 83a7626687c790b3770592794ba12e06fbc87a35
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 6 10:14:17 2024 -0800
+
+    cmd/go: enable GOCACHEPROG by default, without GOEXPERIMENT
+    
+    Fixes #64876
+    
+    Change-Id: I2c0e1ed22f8e13d00dfb5fededbc84038cd7ff8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626035
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ doc/next/3-tools.md                  |  8 ++++++++
+ src/cmd/go/internal/cache/default.go |  3 +--
+ src/cmd/go/internal/cache/prog.go    | 30 +++++++++++++++++++++++++-----
+ 3 files changed, 34 insertions(+), 7 deletions(-)

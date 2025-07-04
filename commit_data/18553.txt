@@ -1,27 +1,13 @@
-commit 746d636859262d53d465f61675484250a3947acc
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Tue Feb 18 20:12:59 2014 +0100
+commit 13d85668ac42525564f04e85f9529d993812f345
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 18 15:53:22 2014 +1100
 
-    unicode: upgrade to Unicode 6.3.0
-    
-    This is a relatively minor change.
-    
-    This does not result in changes to go.text/unicode/norm. The go.text
-    packages will therefore be relatively unaffected. It does make the
-    way for an upgrade to CLDR 24, though.
-    
-    The tests of all.bash pass, as well as the tests in go.text after
-    this update.
+    go/doc: document the conditions where examples are "playable"
     
     LGTM=r
     R=r
     CC=golang-codereviews
-    https://golang.org/cl/65400044
+    https://golang.org/cl/64910043
 
- src/pkg/bufio/scan.go               |  2 +-
- src/pkg/fmt/scan.go                 |  1 -
- src/pkg/regexp/syntax/parse_test.go |  4 +--
- src/pkg/unicode/maketables.go       |  2 +-
- src/pkg/unicode/script_test.go      |  2 +-
- src/pkg/unicode/tables.go           | 61 +++++++++++++++++++++----------------
- 6 files changed, 40 insertions(+), 32 deletions(-)
+ src/pkg/go/doc/example.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

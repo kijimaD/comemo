@@ -1,17 +1,19 @@
-commit 9a4fe7e14a4f71267f929c5545916f9830a89187
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Fri Aug 9 15:22:28 2024 +0200
+commit f55e7e104bbef911f1495b39c3c2ff366ad3be4d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 12 13:46:08 2023 -0400
 
-    cmd/compile: remove outdated comment in prove.go
+    cmd/link: don't generate DYSYMTAB when external linking on Mach-O
     
-    See the cases above all of theses are implemented (except XOR which has a blank case with comments).
+    When external linking, the external linker will generate it.
     
-    Change-Id: I9e2994490dac89e86ba70c1abeb1af1cbcf032e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604416
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #60694.
+    For #61229.
+    
+    Change-Id: I086a7628dd9baa84b46315641746fc3640473f2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502617
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/link/internal/ld/macho.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

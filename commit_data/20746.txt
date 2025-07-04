@@ -1,21 +1,18 @@
-commit 8c29633368994eb56f19d9d15f1a3433f5e9306a
-Author: Rob Pike <r@golang.org>
-Date:   Sun Oct 19 10:33:22 2014 -0700
+commit 1eea5caa30b33c4222f24f3cce995e2bae42659a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 15:49:33 2014 -0400
 
-    flag: disallow setting flags multiple times
-    This is a day 1 error in the flag package: It did not check
-    that a flag was set at most once on the command line.
-    Because user-defined flags may have more general
-    properties, the check applies only to the standard flag
-    types in this package: bool, string, etc.
+    os: recomment MkdirAll
     
-    Fixes #8960.
+    The internal comments are not completely precise about
+    what is going on, and they are causing confusion.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Fixes #8283.
+    
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/156390043
+    https://golang.org/cl/151460043
 
- src/flag/flag.go      | 30 ++++++++++++++++++++++++++
- src/flag/flag_test.go | 60 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 90 insertions(+)
+ src/os/path.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

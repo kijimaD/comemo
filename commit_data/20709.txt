@@ -1,22 +1,15 @@
-commit 5e6bd29c2c522bf55d12bdd2c63c7a06b761617e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 14 23:25:12 2014 -0400
+commit 94f3d8cfed14e4bcb99a0389ea083cfc2ae3ab1d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 1 16:09:55 2014 -0700
 
-    liblink: require DATA lines to be ordered by offset, with no overlap
+    encoding/binary: slightly better documentation
     
-    The assembler could give a better error, but this one
-    is good enough for now.
-    
-    Fixes #8880.
+    Fixes #7306.
     
     LGTM=r
     R=r
     CC=golang-codereviews
-    https://golang.org/cl/153610043
+    https://golang.org/cl/153820044
 
- include/link.h     | 2 ++
- src/cmd/5a/lex.c   | 1 +
- src/cmd/6a/lex.c   | 1 +
- src/cmd/8a/lex.c   | 1 +
- src/liblink/data.c | 2 ++
- 5 files changed, 7 insertions(+)
+ src/encoding/binary/binary.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

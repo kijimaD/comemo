@@ -1,27 +1,16 @@
-commit 06a795e4788f0895c10695e4d89c01ff135f0463
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Feb 4 09:25:55 2018 +0000
+commit 0bbc3dd4b5aa03b51114e6431541c83c6bc6b81d
+Author: Grant Griffiths <ggp493@gmail.com>
+Date:   Mon Oct 2 19:03:41 2017 -0700
 
-    go/types: use consistent receiver names
+    net/smtp: patch for SMTP injections
     
-    Inconsistent names are quite obvious on the godoc HTML rendering:
+    Fixes #21159.
     
-            type Array
-                func NewArray(elem Type, len int64) *Array
-                func (a *Array) Elem() Type
-                func (a *Array) Len() int64
-                func (t *Array) String() string
-                func (t *Array) Underlying() Type
-    
-    Fix all the String and Underlying methods to be consistent with their
-    types. This makes these two lists of methods less consistent, but that's
-    not visible to the user.
-    
-    This also makes the inconsistent receiver names rule in golint happy.
-    
-    Change-Id: I7c84d6bae1235887233a70d5f7f61a224106e952
-    Reviewed-on: https://go-review.googlesource.com/91736
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I2c5ad505d673e213a548e5d632a5b3ad706e0dde
+    Reviewed-on: https://go-review.googlesource.com/67635
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/type.go | 32 ++++++++++++++++----------------
- 1 file changed, 16 insertions(+), 16 deletions(-)
+ src/net/smtp/smtp.go      | 28 ++++++++++++++++++++++++++++
+ src/net/smtp/smtp_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

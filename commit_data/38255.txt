@@ -1,17 +1,12 @@
-commit 6dde1fd792ba4ce41fcce50fc1c66b38666d6924
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Thu Feb 28 09:13:56 2019 +0100
+commit 9322b53396dc8aeb8bdfa825beb4d89f33216d93
+Author: avsharapov <analytics.kzn@gmail.com>
+Date:   Sat Oct 13 13:51:16 2018 +0300
 
-    runtime: disable TestGdbAutotmpTypes in short mode on aix/ppc64
+    cmd/cgo: simplify switch statement to if statement
     
-    TestGdbAutotmpTypes takes more than one minute due to gdb performances.
-    Therefore, it must be skipped in short mode.
-    
-    Change-Id: I253ebce62264cc7367c9b0f6ce9c5088a9994641
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164339
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie7dce45d554fde69d682680f55abba6a7fc55036
+    Reviewed-on: https://go-review.googlesource.com/c/142017
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/runtime-gdb_test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/cgo/gcc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

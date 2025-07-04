@@ -1,13 +1,16 @@
-commit bf3f7689554b62917f8ea16e33386a87e3717135
-Author: Joe Poirier <jdpoirier@gmail.com>
-Date:   Tue Feb 8 15:42:52 2011 -0500
+commit 69334ee62ba8bdfd754e8c38eb6b90768e2d3807
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Tue Feb 8 12:42:31 2011 -0800
 
-    windows: replace remaining __MINGW32__ instances with _WIN32
+    netchan: graceful handling of closed connection
+    Currently, when an importer closes the connection, the exporter gives an
+    error message 'netchan export: error decoding client header:EOF'.  This
+    change causes the exporter to look for an EOF during the parse of the
+    header, and silences the log message in that case.
     
-    R=rsc, brainman
-    CC=golang-dev
-    https://golang.org/cl/4146041
+    R=r
+    CC=golang-dev, rog
+    https://golang.org/cl/4132044
 
- include/libc.h | 2 +-
- include/u.h    | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/netchan/export.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

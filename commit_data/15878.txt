@@ -1,14 +1,16 @@
-commit 5bbdf40544008b78391cf2e6cfc37abe9a361b5d
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 21 14:56:42 2013 -0700
+commit aafc444b74ba2a4dc56e6d5d26f8242f0857856a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 21 17:01:39 2013 -0400
 
-    bufio.Scanner: delete obsolete TODO
-    Also fix the examples to use stderr for errors.
+    debug/elf: restore Go 1.0 semantics for (*File).Symbols
     
-    R=golang-dev, bradfitz
+    Also adjust the implementation of applyRelocationsAMD64
+    so that the test added in CL 6848044 still passes.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7716052
+    https://golang.org/cl/7686049
 
- src/pkg/bufio/example_test.go | 4 ++--
- src/pkg/bufio/scan.go         | 2 --
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ doc/go1.1.html            | 22 ----------------------
+ src/pkg/debug/elf/file.go | 16 ++++++++++++++--
+ 2 files changed, 14 insertions(+), 24 deletions(-)

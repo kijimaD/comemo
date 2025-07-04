@@ -1,12 +1,19 @@
-commit 8814b4a4c6bb3906ba82bb4372eb01c8be5d2bfa
+commit 4c855f3830f88c0d11dbc19ff0a34cfa1beecc66
 Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 16 15:38:18 2013 +1000
+Date:   Fri Aug 16 14:57:49 2013 +1000
 
-    doc/go1.2.txt: testing: add TB interface
+    time: fix time zones yet again.
+    This time we're going for 5!
+    http://goo.gl/3ETYH7
+    
+    Fixes #3790
+    Yeah, right.
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/12890044
+    https://golang.org/cl/13002044
 
- doc/go1.2.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/time/export_test.go |  2 ++
+ src/pkg/time/format.go      | 39 +++++++++++++++++++++++++++------------
+ src/pkg/time/time_test.go   | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 61 insertions(+), 12 deletions(-)

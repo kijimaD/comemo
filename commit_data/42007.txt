@@ -1,20 +1,26 @@
-commit ed5233166fd75541d9d2464e1b165079ee948a53
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 10 21:33:27 2020 -0700
+commit 552987fdbf4c2bc9641016fd323c3ae5d3a0d9a3
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Oct 14 16:42:21 2019 -0400
 
-    cmd/compile: simplify slicebytes
+    crypto/dsa: prevent bad public keys from causing panic
     
-    Use slicesym to implement. Remove len param.
+    dsa.Verify might currently use a nil s inverse in a
+    multiplication if the public key contains a non-prime Q,
+    causing a panic. Change this to check that the mod
+    inverse exists before using it.
     
-    Passes toolstash-check.
+    Fixes CVE-2019-17596
     
-    Change-Id: Ia6d4fb2a3b476eceeba60979b4dd82b634b43939
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228887
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #34960
+    
+    Change-Id: I94d5f3cc38f1b5d52d38dcb1d253c71b7fd1cae7
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/572809
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205441
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/gc/obj.go   | 11 ++++-------
- src/cmd/compile/internal/gc/sinit.go |  2 +-
- 2 files changed, 5 insertions(+), 8 deletions(-)
+ src/crypto/dsa/dsa.go      |  3 +++
+ src/crypto/dsa/dsa_test.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+)

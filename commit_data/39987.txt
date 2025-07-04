@@ -1,32 +1,17 @@
-commit f4ca3c1e0a2066ca4f7bd6203866d282ed34acf2
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Fri Sep 20 10:51:32 2019 -0400
+commit 00530918db29102a0186bcf2b3e699a742d298fa
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Apr 8 15:45:16 2019 +0200
 
-    runtime: fix regression on ppc64x from CL 192937
+    misc/cgo/testcshared: use adb exec-out instead of adb shell
     
-    This fixes a regression introduced with CL 192937. That change
-    was intended to fix a problem in arm and arm64 but also added
-    code to change the behavior in ppc64 and ppc64le even though the
-    error never occurred there. The change to function sigFetchG
-    assumes that the register holding 'g' could be clobbered by
-    vdso code when in fact 'g' is in R30 and that is nonvolatile
-    in the 64-bit PowerPC ELF ABI so would not be clobbered in vdso code.
+    Adb exec-out is like adb shell except non-flaky in non-interactive
+    settings. Don't ask why.
     
-    So if this happens somehow the path it takes is incorrect,
-    falling through to a call to badsignal which doesn't seem right.
-    
-    This regression caused intermittent hangs on the builder dashboard
-    for ppc64, and can be reproduced consistently when running os/signal
-    TestStress on some ppc64 systems.
-    
-    I mentioned this problem is issue #34391 because I thought it was
-    related to another problem described there.
-    
-    Change-Id: I2ee3606de302bafe509d300077ce3b44b88571a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196658
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I7ac3c72912883d80bc787c1d0fc101db6bae9c52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170952
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/signal_unix.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

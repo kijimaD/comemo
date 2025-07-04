@@ -1,67 +1,18 @@
-commit bac7bc55a6a8776f45144452a7236e34cdb09de6
+commit 2308aefc845d16c44882cff5590903b74aab42bf
 Author: Adam Langley <agl@golang.org>
-Date:   Thu Dec 1 12:35:37 2011 -0500
+Date:   Thu Dec 1 12:25:09 2011 -0500
 
-    Add a []byte argument to hash.Hash to allow an allocation to be saved.
+    gofix: add a fix for hash.Sum.
     
-    This is the result of running `gofix -r hashsum` over the tree, changing
-    the hash function implementations by hand and then fixing a couple of
-    instances where gofix didn't catch something.
+    This fix adds an output argument to hash.Sum.
     
-    The changed implementations are as simple as possible while still
-    working: I'm not trying to optimise in this CL.
+    Tree changes in https://golang.org/cl/5448065
     
-    R=rsc, cw, rogpeppe
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5448065
+    https://golang.org/cl/5450051
 
- src/cmd/cgo/main.go                                |  2 +-
- src/cmd/gofix/typecheck.go                         |  2 +-
- src/pkg/archive/tar/reader_test.go                 |  2 +-
- src/pkg/crypto/ecdsa/ecdsa_test.go                 |  2 +-
- src/pkg/crypto/hmac/hmac.go                        |  8 ++--
- src/pkg/crypto/hmac/hmac_test.go                   |  2 +-
- src/pkg/crypto/md4/md4.go                          | 15 +++---
- src/pkg/crypto/md4/md4_test.go                     |  4 +-
- src/pkg/crypto/md5/md5.go                          | 15 +++---
- src/pkg/crypto/md5/md5_test.go                     |  4 +-
- src/pkg/crypto/ocsp/ocsp.go                        |  2 +-
- src/pkg/crypto/openpgp/canonical_text.go           |  4 +-
- src/pkg/crypto/openpgp/canonical_text_test.go      |  6 +--
- src/pkg/crypto/openpgp/packet/private_key.go       |  2 +-
- src/pkg/crypto/openpgp/packet/public_key.go        |  4 +-
- src/pkg/crypto/openpgp/packet/signature.go         |  2 +-
- .../openpgp/packet/symmetrically_encrypted.go      |  4 +-
- src/pkg/crypto/openpgp/s2k/s2k.go                  |  4 +-
- src/pkg/crypto/ripemd160/ripemd160.go              | 12 ++---
- src/pkg/crypto/ripemd160/ripemd160_test.go         |  6 +--
- src/pkg/crypto/rsa/pkcs1v15_test.go                |  4 +-
- src/pkg/crypto/rsa/rsa.go                          |  6 +--
- src/pkg/crypto/sha1/sha1.go                        | 15 +++---
- src/pkg/crypto/sha1/sha1_test.go                   |  4 +-
- src/pkg/crypto/sha256/sha256.go                    | 22 ++++-----
- src/pkg/crypto/sha256/sha256_test.go               |  8 ++--
- src/pkg/crypto/sha512/sha512.go                    | 30 ++++++------
- src/pkg/crypto/sha512/sha512_test.go               |  8 ++--
- src/pkg/crypto/tls/cipher_suites.go                |  6 +--
- src/pkg/crypto/tls/handshake_client.go             |  4 +-
- src/pkg/crypto/tls/handshake_server.go             |  4 +-
- src/pkg/crypto/tls/key_agreement.go                |  4 +-
- src/pkg/crypto/tls/prf.go                          | 26 +++++------
- src/pkg/crypto/x509/x509.go                        |  6 +--
- src/pkg/exp/ssh/client.go                          |  2 +-
- src/pkg/exp/ssh/client_auth_test.go                |  2 +-
- src/pkg/exp/ssh/server.go                          |  6 +--
- src/pkg/exp/ssh/transport.go                       | 12 ++---
- src/pkg/hash/adler32/adler32.go                    | 13 +++---
- src/pkg/hash/crc32/crc32.go                        | 13 +++---
- src/pkg/hash/crc64/crc64.go                        | 21 ++++-----
- src/pkg/hash/fnv/fnv.go                            | 53 +++++++++++++++-------
- src/pkg/hash/fnv/fnv_test.go                       | 12 ++---
- src/pkg/hash/hash.go                               |  6 +--
- src/pkg/io/multi_test.go                           |  2 +-
- src/pkg/patch/git.go                               |  2 +-
- src/pkg/websocket/hixie.go                         |  2 +-
- src/pkg/websocket/hybi.go                          |  2 +-
- test/fixedbugs/bug257.go                           |  5 +-
- 49 files changed, 202 insertions(+), 200 deletions(-)
+ src/cmd/gofix/Makefile        |  1 +
+ src/cmd/gofix/hashsum.go      | 94 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/hashsum_test.go | 99 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 194 insertions(+)

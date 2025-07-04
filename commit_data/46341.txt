@@ -1,15 +1,143 @@
-commit 963218cc9c331931c5886f2eb7199e6d0c362e93
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 7 16:10:31 2021 -0700
+commit 527a1895d675ec0384f564dd76e56b3631948dd4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:38:15 2020 -0500
 
-    reflect: correct typoo in comment
+    [dev.regabi] cmd/compile: move helpers into package ir [generated]
     
-    Change-Id: Ic3c69906a8afde63278f173df0427b1c460c9f3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348189
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    sed -i '' 's/TestBuiltin.*/& t.Skip("mkbuiltin needs fixing")/' builtin_test.go
+    gofmt -w builtin_test.go
+    rf '
+            # Inline a few little-used constructors to avoid bringing them.
+            ex {
+                    import "cmd/compile/internal/base"
+                    import "cmd/compile/internal/ir"
+                    import "cmd/compile/internal/types"
+                    import "cmd/internal/src"
+    
+                    var typ *types.Type
+                    var sym *types.Sym
+                    var str string
+                    symfield(sym, typ) -> ir.NewField(base.Pos, sym, nil, typ)
+                    anonfield(typ) -> ir.NewField(base.Pos, nil, nil, typ)
+                    namedfield(str, typ) -> ir.NewField(base.Pos, lookup(str), nil, typ)
+    
+                    var cp *ir.CallPartExpr
+                    callpartMethod(cp) -> cp.Method
+                    var n ir.Node
+                    callpartMethod(n) -> n.(*ir.CallPartExpr).Method
+    
+                    var ns []ir.Node
+                    liststmt(ns) -> ir.NewBlockStmt(src.NoXPos, ns)
+            }
+            rm symfield anonfield namedfield liststmt callpartMethod
+    
+            mv maxStackVarSize MaxStackVarSize
+            mv maxImplicitStackVarSize MaxImplicitStackVarSize
+            mv smallArrayBytes MaxSmallArraySize
+            mv MaxStackVarSize cfg.go
+    
+            mv nodbool NewBool
+            mv nodintconst NewInt
+            mv nodstr NewString
+            mv NewBool NewInt NewString const.go
+    
+            mv Mpprec ConstPrec
+            mv bigFloatVal BigFloat
+            mv doesoverflow ConstOverflow
+            mv isGoConst IsConstNode
+            mv smallintconst IsSmallIntConst
+    
+            mv isZero IsZero
+            mv islvalue IsAssignable
+            mv staticValue StaticValue
+            mv samesafeexpr SameSafeExpr
+            mv checkPtr ShouldCheckPtr
+            mv isReflectHeaderDataField IsReflectHeaderDataField
+            mv paramNnames ParamNames
+            mv methodSym MethodSym
+            mv methodSymSuffix MethodSymSuffix
+            mv methodExprFunc MethodExprFunc
+            mv methodExprName MethodExprName
+            mv IsZero IsAssignable StaticValue staticValue1 reassigned \
+                    IsIntrinsicCall \
+                    SameSafeExpr ShouldCheckPtr IsReflectHeaderDataField \
+                    ParamNames MethodSym MethodSymSuffix \
+                    MethodExprName MethodExprFunc \
+                    expr.go
+    
+            mv Curfn CurFunc
+            mv funcsymname FuncSymName
+            mv newFuncNameAt NewFuncNameAt
+            mv setNodeNameFunc MarkFunc
+            mv CurFunc FuncSymName NewFuncNameAt MarkFunc func.go
+    
+            mv isParamStackCopy IsParamStackCopy
+            mv isParamHeapCopy IsParamHeapCopy
+            mv nodfp RegFP
+            mv IsParamStackCopy IsParamHeapCopy RegFP name.go
+    
+            mv hasUniquePos HasUniquePos
+            mv setlineno SetPos
+            mv initExpr InitExpr
+            mv hasNamedResults HasNamedResults
+            mv outervalue OuterValue
+            mv HasNamedResults HasUniquePos SetPos InitExpr OuterValue EscNever node.go
+    
+            mv visitBottomUp VisitFuncsBottomUp # scc.go
+    
+            mv cfg.go \
+                    NewBool NewInt NewString \ # parts of const.go
+                    ConstPrec BigFloat ConstOverflow IsConstNode IsSmallIntConst \
+                    expr.go func.go name.go node.go scc.go \
+                    cmd/compile/internal/ir
+    
+    '
+    
+    Change-Id: I13402c5a2cedbf78d993a1eae2940718f23ac166
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279421
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/alg.go          |  52 ++--
+ src/cmd/compile/internal/gc/builtin.go      | 185 +++++++-------
+ src/cmd/compile/internal/gc/builtin_test.go |   1 +
+ src/cmd/compile/internal/gc/closure.go      |  46 ++--
+ src/cmd/compile/internal/gc/const.go        |  91 +------
+ src/cmd/compile/internal/gc/dcl.go          | 141 ++---------
+ src/cmd/compile/internal/gc/escape.go       |  75 +++---
+ src/cmd/compile/internal/gc/gen.go          |  24 +-
+ src/cmd/compile/internal/gc/go.go           |  25 --
+ src/cmd/compile/internal/gc/gsubr.go        |   8 +-
+ src/cmd/compile/internal/gc/iexport.go      |   4 +-
+ src/cmd/compile/internal/gc/iimport.go      |   4 +-
+ src/cmd/compile/internal/gc/init.go         |   4 +-
+ src/cmd/compile/internal/gc/initorder.go    |   4 +-
+ src/cmd/compile/internal/gc/inl.go          | 163 +++---------
+ src/cmd/compile/internal/gc/main.go         |  12 +-
+ src/cmd/compile/internal/gc/noder.go        |  46 ++--
+ src/cmd/compile/internal/gc/obj.go          |   4 +-
+ src/cmd/compile/internal/gc/order.go        |  22 +-
+ src/cmd/compile/internal/gc/pgen.go         |  12 +-
+ src/cmd/compile/internal/gc/racewalk.go     |   2 +-
+ src/cmd/compile/internal/gc/range.go        |  32 +--
+ src/cmd/compile/internal/gc/reflect.go      |  14 +-
+ src/cmd/compile/internal/gc/select.go       |  34 +--
+ src/cmd/compile/internal/gc/sinit.go        |  92 ++-----
+ src/cmd/compile/internal/gc/ssa.go          |  32 +--
+ src/cmd/compile/internal/gc/subr.go         | 113 ++-------
+ src/cmd/compile/internal/gc/swt.go          |  14 +-
+ src/cmd/compile/internal/gc/typecheck.go    | 213 ++++------------
+ src/cmd/compile/internal/gc/universe.go     |   8 +-
+ src/cmd/compile/internal/gc/walk.go         | 332 ++++++++++---------------
+ src/cmd/compile/internal/ir/cfg.go          |  26 ++
+ src/cmd/compile/internal/ir/const.go        |  99 ++++++++
+ src/cmd/compile/internal/ir/expr.go         | 371 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ir/func.go         |  27 ++
+ src/cmd/compile/internal/ir/name.go         |  22 ++
+ src/cmd/compile/internal/ir/node.go         |  96 +++++++
+ src/cmd/compile/internal/{gc => ir}/scc.go  |  66 +++--
+ 38 files changed, 1255 insertions(+), 1261 deletions(-)

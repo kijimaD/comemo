@@ -1,40 +1,18 @@
-commit 0ce94d79bc7dda4c6f86c6ac13bf0bdd20d0ffdf
-Author: David Chase <drchase@google.com>
-Date:   Tue Oct 24 13:57:35 2023 -0400
+commit cc1771e2fd0fbf02079f76a21b3548d6988296b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 12:36:51 2022 -0800
 
-    cmd/compile: modify -memprofile flag for multiple profiles in a directory
+    doc/go1.20: document new semantics for comparable constraint
     
-    This permits collection of multiple profiles in a build
-    (instead of just the last compilation).  If a -memprofile
-    specifies an existing directory instead of a file, it will
-    create "<url.PathEscape(pkgpath)>.mprof" in that directory.
+    For #54202.
+    For #56548.
     
-    The PathEscaped package names are ugly, but this puts all
-    the files in a single directory with no risk of name clashs,
-    which simplies the usual case for using these files, which
-    is something like
-    ```
-    go tool pprof profiles/*.mprof
-    ```
-    
-    Creating a directory tree mimicking the package structure
-    requires something along the lines of
-    ```
-    go tool pprof `find profiles -name "*.mprof" -print`
-    ```
-    
-    In addition, this turns off "legacy format" because that
-    is only useful for a benchcompile, which does not use this
-    new feature (and people actually interested in memory
-    profiles probably prefer the new ones).
-    
-    Change-Id: Ic1d9da53af22ecdda17663e0d4bce7cdbcb54527
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539316
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: If2b9e41813c3e1c8d373469a40e1bd0bd5ea2b16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454595
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/gc/util.go | 26 ++++++++++++++++++++------
- 1 file changed, 20 insertions(+), 6 deletions(-)
+ doc/go1.20.html | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

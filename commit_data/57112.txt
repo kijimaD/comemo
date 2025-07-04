@@ -1,20 +1,38 @@
-commit 5a81570bf2dfd7698d8ae6b3f9f3addd4161d453
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Tue Aug 6 20:16:42 2024 +0300
+commit 36edde9d9f811477e1d5bd0090f4a061ba823db9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 20 10:58:26 2023 -0400
 
-    bytes,strings: use a more universal Cyrillic word
+    cmd/go: shorten longest 5 tests
     
-    The word "брат" (brother) is the same across Slavic languages that
-    use the Cyrillic script, such as Bulgarian, Macedonian, Russian,
-    Ukrainian, and others.
+    Running go test -parallel=1 -v, these are the top 10 tests:
     
-    Change-Id: I5155e6bb16a02dec5d93a01b79f9570f43f09444
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603535
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    PASS: TestScript/mod_invalid_version 40.14s
+    PASS: TestScript/build_cache_output 46.82s
+    PASS: TestScript/get_legacy 48.69s
+    PASS: TestTestCache 58.44s
+    PASS: TestScript/mod_get_direct 62.88s
+    PASS: TestScript/build_pgo_auto_multi 63.49s
+    PASS: TestScript/build_pgo_auto 70.69s
+    PASS: TestScript/gcflags_patterns 95.17s
+    PASS: TestScript/mod_list_compiled_concurrent 124.31s
+    PASS: TestScript/vet_flags 202.85s
+    
+    Change the top 5 not to run builds at all, so they don't
+    have to use -a or clear the go build cache.
+    
+    mod_get_direct should be replaced with a vcs-test test.
+    mod_invalid_version should be replaced with a vcs-test test.
+    get_legacy should be deleted eventually.
+    
+    Change-Id: Id67c458b1a96c912d89cbece341372c2ef5ee082
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504536
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/bytes/example_test.go   | 4 ++--
- src/strings/example_test.go | 8 ++++----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/build_pgo_auto.txt      | 30 +++++++++-------------
+ .../go/testdata/script/build_pgo_auto_multi.txt    | 18 +++----------
+ src/cmd/go/testdata/script/gcflags_patterns.txt    | 22 ++++++++--------
+ .../script/mod_list_compiled_concurrent.txt        | 21 ---------------
+ src/cmd/go/testdata/script/vet_flags.txt           | 14 +++++-----
+ 5 files changed, 32 insertions(+), 73 deletions(-)

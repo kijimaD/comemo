@@ -1,23 +1,17 @@
-commit bd483592a23c5c8964d1af5ca85792db031229ad
-Author: Ben Shi <powerman1st@163.com>
-Date:   Tue Jun 19 03:44:28 2018 +0000
+commit 86827fd7a16aa4c972d886921c0e63d825ce876d
+Author: Ashish Gandhi <ag@ashishgandhi.org>
+Date:   Tue Apr 17 16:13:04 2018 -0700
 
-    cmd/compile/internal/x86: simplify 387 with FLDZ and FLZ1
+    fmt: make %v doc for compound objects consistent
     
-    FLD1 pushes +1.0 to the 387 register stack, and FLDZ pushes +0.0
-    to the 387 regiser stack.
+    The documentation for %v behavior for compound objects uses an ellipsis
+    to indicate indefinite lenght of elements. This is done for struct
+    fields as well as elements of arrays and slices. This adds the missing
+    ellipsis for maps.
     
-    They can be used to simplify MOVSSconst/MOVSDconst when the
-    constant is +0.0, -0.0, +1.0, -1.0.
-    
-    The size of the go executable reduces about 62KB and the total size
-    of pkg/linux_386 reduces about 7KB with this optimization.
-    
-    Change-Id: Icc8213b58262e0024a277cf1103812a17dd4b05e
-    Reviewed-on: https://go-review.googlesource.com/119635
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia433387fe189d2daf5095df32085a541458f00a1
+    Reviewed-on: https://go-review.googlesource.com/107623
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/x86/387.go | 23 ++++++++++++++++++-----
- 1 file changed, 18 insertions(+), 5 deletions(-)
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

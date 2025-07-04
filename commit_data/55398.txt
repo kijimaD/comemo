@@ -1,18 +1,21 @@
-commit b16a1e3a03cd8a13c06291bbb39aff0a49137bc6
-Author: Rulin Tang <smiletrl@outlook.com>
-Date:   Tue Jan 9 02:39:36 2024 +0000
+commit 756a8ac91a7d26becb8f3c5c8e8fbdbae0eb77e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 1 20:13:03 2023 -0800
 
-    cmd/compile: fix typo in comment
+    go/types, types2: remove (internal) exactUnification flag
     
-    Change-Id: Ie3f1f194489dd4cfd995bfaf292e1c311b37597b
-    GitHub-Last-Rev: 6a363297785187188923a76456b468ef1bc1a656
-    GitHub-Pull-Request: golang/go#65008
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/554136
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Peter Weinberger <pjw@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Neither infer nor infer2 will correctly work if we require
+    exact unification. Remove the flag and simplify the respective
+    code.
+    
+    Change-Id: I329f207f72b6d97fa076f27275481b754e55fecf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464346
     Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/node.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/unify.go | 43 +++++++++++++-------------------
+ src/go/types/unify.go                    | 43 +++++++++++++-------------------
+ 2 files changed, 36 insertions(+), 50 deletions(-)

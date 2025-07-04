@@ -1,19 +1,25 @@
-commit e6908846df5f521ba0c927c3ce4a06ed11a6d04c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Mar 7 14:41:29 2025 +0100
+commit 47d240ccbb40425b49f14e21145d01dda542a21c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 26 12:23:01 2024 -0500
 
-    os: remove unused testingForceReadDirLstat
+    net: in the fake implementation, allow writes to buffer on closed connections
     
-    It was introduced in CL 261540 but never set by any test.
+    This mimics the apparent behavior of writes on linux/amd64, in which a
+    write on an already-closed connection silently succeeds — even if the
+    connection has already been closed by the remote end — provided that
+    the packet fits in the kernel's send buffer.
     
-    Change-Id: Id2a59c58ed510b6041cc51ce47ab79199a60b215
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655797
+    I tested this by patching in CL 557437 and running the test on js/wasm
+    and wasip1/wasm locally.
+    
+    Fixes #64317.
+    
+    Change-Id: I43f6a89e5059115cb61e4ffc33a8371057cb67a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558915
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/os/dir.go         | 4 ----
- src/os/export_test.go | 1 -
- src/os/file_unix.go   | 2 +-
- 3 files changed, 1 insertion(+), 6 deletions(-)
+ src/net/net_fake.go | 18 +++++-------------
+ 1 file changed, 5 insertions(+), 13 deletions(-)

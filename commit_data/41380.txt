@@ -1,28 +1,26 @@
-commit 6e5652bebede2d53484a872f6d1dfeb498b0b50c
-Author: Changkun Ou <hi@changkun.us>
-Date:   Mon Feb 3 14:42:32 2020 +0100
+commit 683ef8c8441d100590f5ed5c9d662e217a7130ce
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Sun Nov 26 11:05:53 2017 +0100
 
-    time: add Ticker.Reset
+    html/template: document handling of namespaced and data- attributes
     
-    This CL implements Ticker.Reset method in time package.
+    Attributes with a namespace or a data- prefix are handled as if they
+    had no namespace/data- prefix.
     
-    Benchmark:
-    name                 time/op
-    TickerReset-12       6.41µs ±10%
-    TickerResetNaive-12  95.7µs ±12%
+    There is also a special case, where attributes with a "xmlns" namespace
+    are always treated as containing URLs.
     
-    Fixes #33184
+    This could surprise users of the package, since this behaviour was not
+    documented anywhere, so this change adds some documentation for all
+    three cases.
     
-    Change-Id: I12c651f81e452541bcbbc748b45f038aae1f8dae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217362
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #12648
+    
+    Change-Id: If57a2ec49fec91a330fc04795726e8cffa9b75c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/79895
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- api/next.txt          |  1 +
- doc/go1.15.html       | 10 ++++++++++
- src/runtime/time.go   |  8 +++++++-
- src/time/sleep.go     |  1 +
- src/time/tick.go      |  9 +++++++++
- src/time/tick_test.go | 29 +++++++++++++++++++++++++++--
- 6 files changed, 55 insertions(+), 3 deletions(-)
+ src/html/template/doc.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

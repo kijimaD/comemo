@@ -1,12 +1,42 @@
-commit 391805b14b03455107783e4d4b349b2fc3f53e26
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Feb 17 17:29:54 2015 +1100
+commit 1b61a97811626d4c7a8332c107f1e091253d1b2e
+Author: INADA Naoki <songofacandy@gmail.com>
+Date:   Fri Jan 23 20:02:37 2015 +0900
 
-    image/draw: add CMYK fast path.
+    database/sql: reduce lock contention in Stmt.connStmt
     
-    Change-Id: I9582aff7ca141a8aead5692af74b9c708b1700cc
-    Reviewed-on: https://go-review.googlesource.com/5020
-    Reviewed-by: Rob Pike <r@golang.org>
+    Previouslly, Stmt.connStmt calls DB.connIfFree on each Stmt.css.
+    Since Stmt.connStmt locks Stmt.mu, a concurrent use of Stmt causes lock
+    contention on Stmt.mu.
+    Additionally, DB.connIfFree locks DB.mu which is shared by DB.addDep and
+    DB.removeDep.
+    
+    This change removes DB.connIfFree and makes use of a first unused
+    connection in idle connection pool to reduce lock contention
+    without making it complicated.
+    
+    Fixes #9484
+    
+    On EC2 c3.8xlarge (E5-2680 v2 @ 2.80GHz * 32 vCPU):
+    
+    benchmark                           old ns/op     new ns/op     delta
+    BenchmarkManyConcurrentQuery-8      40249         34721         -13.73%
+    BenchmarkManyConcurrentQuery-16     45610         40176         -11.91%
+    BenchmarkManyConcurrentQuery-32     109831        43179         -60.69%
+    
+    benchmark                           old allocs     new allocs     delta
+    BenchmarkManyConcurrentQuery-8      25             25             +0.00%
+    BenchmarkManyConcurrentQuery-16     25             25             +0.00%
+    BenchmarkManyConcurrentQuery-32     25             25             +0.00%
+    
+    benchmark                           old bytes     new bytes     delta
+    BenchmarkManyConcurrentQuery-8      3980          3969          -0.28%
+    BenchmarkManyConcurrentQuery-16     3980          3982          +0.05%
+    BenchmarkManyConcurrentQuery-32     3993          3990          -0.08%
+    
+    Change-Id: Ic96296922c465bac38a260018c58324dae1531d9
+    Reviewed-on: https://go-review.googlesource.com/2207
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/image/draw/draw.go | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ src/database/sql/sql.go      | 103 ++++++++++++++++++-------------------------
+ src/database/sql/sql_test.go |  78 ++++++++++++--------------------
+ 2 files changed, 70 insertions(+), 111 deletions(-)

@@ -1,40 +1,19 @@
-commit b4b014465216790e01aa66f9120d03230e4aff46
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 29 17:01:33 2020 -0700
+commit bd0623b4e7d7a2f24af59c06fb52a4dcdb752859
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 13 14:56:32 2020 +0000
 
-    runtime: don't always adjust timers
+    Revert "cmd/internal/obj/ppc64: add support for pcalign 32 on ppc64x"
     
-    Some programs have a lot of timers that they adjust both forward and
-    backward in time. This can cause a large number of timerModifiedEarlier
-    timers. In practice these timers are used for I/O deadlines and are
-    rarely reached. The effect is that the runtime spends a lot of time
-    in adjusttimers making sure that there are no timerModifiedEarlier
-    timers, but the effort is wasted because none of the adjusted timers
-    are near the top of the timer heap anyhow.
+    This reverts CL 227775.
     
-    Avoid much of this extra work by keeping track of the earliest known
-    timerModifiedEarlier timer. This lets us skip adjusttimers if we know
-    that none of the timers will be ready to run anyhow. We will still
-    eventually run it, when we reach the deadline of the earliest known
-    timerModifiedEarlier, although in practice that timer has likely
-    been removed. When we do run adjusttimers, we will reset all of the
-    timerModifiedEarlier timers, and clear our notion of when we need
-    to run adjusttimers again.
+    Reason for revert: broke aix-ppc64 builder (https://build.golang.org/log/cf3b4f9fd09ee81f422a4b58488b9d0a2692c949).
     
-    This effect should be to significantly reduce the number of times we
-    walk through the timer list in adjusttimers.
-    
-    Fixes #41699
-    
-    Change-Id: I38eb2be611fb34e3017bb33d0a9ed40d75fb414f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258303
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I2095bb2aadb5a4064eb89ad353012503faf15709
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228143
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/proc.go     | 52 +++++++++++++-------------
- src/runtime/runtime2.go |  7 ++++
- src/runtime/time.go     | 99 +++++++++++++++++++++++++++----------------------
- 3 files changed, 88 insertions(+), 70 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go     | 27 +++++++---------------
+ src/cmd/internal/obj/ppc64/asm_test.go | 42 ++++++----------------------------
+ 2 files changed, 15 insertions(+), 54 deletions(-)

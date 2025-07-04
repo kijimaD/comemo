@@ -1,16 +1,15 @@
-commit 406ca3c2f19a0742a05e5837ca9cae77fb4cadd8
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Jan 14 08:44:16 2013 +0100
+commit bc1152a32e2bfc5e80819034930998e44b62f0fe
+Author: Kyle Lemons <kyle@kylelemons.net>
+Date:   Mon Jan 14 16:07:11 2013 +1100
 
-    encoding/json: fix panics on type mismatches.
+    encoding/gob: handle encoding of different indirects of GobEncoder
     
-    Fixes #4222.
-    Fixes #4628.
+    Fixes #4647.
     
-    R=golang-dev, adg
+    R=r, golang-dev
     CC=golang-dev
-    https://golang.org/cl/7100049
+    https://golang.org/cl/7085051
 
- src/pkg/encoding/json/decode.go      | 34 ++++++++++++++++++++++++----------
- src/pkg/encoding/json/decode_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 10 deletions(-)
+ src/pkg/encoding/gob/encoder.go        |  4 +-
+ src/pkg/encoding/gob/gobencdec_test.go | 67 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 2 deletions(-)

@@ -1,32 +1,21 @@
-commit 65dfe4a772a4bc612219d93886e5c07290785ee6
-Author: David Chase <drchase@google.com>
-Date:   Wed Jul 15 09:07:00 2020 -0400
+commit 52b457d6f320c3491ab14a71afc3c7416b36430c
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Thu Nov 21 07:46:37 2019 +0000
 
-    cmd/compile: generate late-lowering static calls
+    runtime: use CBZ/CBNZ in linux/arm64 assembly code
     
-    This is testing for the limited case of zero or one SSA-able results.
+    Replace compare and branch on zero/non-zero instructions in linux/arm64
+    assembly files with CBZ/CBNZ.
     
-    One regression is that the later expansion of "Dereference" into
-    Move into argument slots thwarts the
-      MOVE A -> B, MOVE B -> C
-    replaced-by
-      MOVE A -> B, MOVE A -> C
-    optimization; the second move is written instead as a Dereference at the
-    phase where the optimization occurs, and because the target of the
-    dereference is not visible in the dereference, it's not possible to verify
-    that A and B or A and C don't overlap in some peculiar way (and for results
-    fed to args, they can).
-    
-    Regression is repaired in a later CL by changing when calls are expanded.
-    
-    Change-Id: Ia0f48a9d483d5a54a99657a24b12b25b8edde55f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242782
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4dbf56678f85827e83b5863804368bc28a4603b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209617
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/gc/ssa.go     | 94 ++++++++++++++++++++++++++++------
- src/cmd/compile/internal/ssa/op.go     |  5 ++
- src/cmd/compile/internal/types/type.go |  6 +--
- 3 files changed, 87 insertions(+), 18 deletions(-)
+ src/runtime/asm_arm64.s       | 36 ++++++++++++------------------------
+ src/runtime/race_arm64.s      |  3 +--
+ src/runtime/rt0_linux_arm64.s |  3 +--
+ src/runtime/sys_linux_arm64.s |  3 +--
+ src/runtime/tls_arm64.s       |  6 ++----
+ 5 files changed, 17 insertions(+), 34 deletions(-)

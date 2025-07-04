@@ -1,12 +1,30 @@
-commit 07b81912d4f7e7faaa0e2367ae834b92f4867819
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Jul 18 12:00:16 2018 +0200
+commit f63250238be548b7c6c24ae840541102a5cfef99
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 13:53:50 2018 +0100
 
-    doc/go1.11: add time package changes to release notes
+    misc/wasm: add scripts for running WebAssembly binaries
     
-    Change-Id: I6f8d9cc8997128d0076a3a3e82fe5155d53db40d
-    Reviewed-on: https://go-review.googlesource.com/124659
-    Reviewed-by: Rob Pike <r@golang.org>
+    This commit adds scripts for running the WebAssembly binaries that the
+    Go compiler will produce.
+    
+    The script go_js_wasm_exec uses Node.js to run the binaries. Adding it
+    to PATH will enable "go run" and "go test" to work for js/wasm
+    without having to manually provide the -exec flag.
+    See https://golang.org/cmd/go/#hdr-Compile_and_run_Go_program
+    for more information.
+    
+    The web page wasm_exec.html is an example on how to run the same
+    binaries in a web browser.
+    
+    Both scripts use wasm_exec.js as a shared library.
+    
+    Updates #18892
+    
+    Change-Id: Ia4d9bea025957750baa0d0651243dc88f156f85d
+    Reviewed-on: https://go-review.googlesource.com/103255
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ misc/wasm/go_js_wasm_exec |  14 ++
+ misc/wasm/wasm_exec.html  |  30 +++++
+ misc/wasm/wasm_exec.js    | 331 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 375 insertions(+)

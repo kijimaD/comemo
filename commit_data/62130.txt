@@ -1,0 +1,18 @@
+commit a8e532b0f234b3bbf7a1cdcd4213d154e82ba08e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 5 17:22:43 2025 -0800
+
+    runtime/cgo: clarify that C code must not retain pointer
+    
+    For #71566
+    
+    Change-Id: I6dc365dd799d7b506b4a55895f1736d3dfd4684b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647095
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/cgo/handle.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

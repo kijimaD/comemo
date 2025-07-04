@@ -1,23 +1,12 @@
-commit 02a15e716519b71aca6b74a0a388b30e83892e08
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 6 10:43:56 2014 -0800
+commit 657675792767779084ab45fbbe966e07ab357420
+Author: Bill Thiede <couchmoney@gmail.com>
+Date:   Mon Jan 6 10:34:24 2014 -0800
 
-    archive/zip: fix bug reading zip64 files
+    hash/fnv: fix overview link currently returning 404.
     
-    ZIP64 Extra records are variably sized, but we weren't capping
-    our reading of the extra fields at its previously-declared
-    size.
-    
-    No test because I don't know how to easily create such files
-    and don't feel like manually construction one.  But all
-    existing tests pass, and this is "obviously correct" (queue
-    laughter).
-    
-    Fixes #7069
-    
-    R=golang-codereviews, iant
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/48150043
+    https://golang.org/cl/47570043
 
- src/pkg/archive/zip/reader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/hash/fnv/fnv.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

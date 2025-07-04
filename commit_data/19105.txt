@@ -1,13 +1,20 @@
-commit 62bda120efd143b0dc9aaeccab898836ae44e0cf
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Thu Apr 10 21:14:51 2014 -0700
+commit 9d81ade223e105880853ff31d0e04affd2fec488
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 11 00:08:07 2014 -0400
 
-    fmt: fix typo in help doc
+    runtime: make stack growth test shorter
+    
+    It runs too long in -short mode.
+    
+    Disable the one in init, because it doesn't respect -short.
+    
+    Make the part that claims to test execution in a finalizer
+    actually execute the test in the finalizer.
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/86600045
+    CC=aram.h, golang-codereviews, iant, khr
+    https://golang.org/cl/86550045
 
- src/pkg/fmt/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/stack_test.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

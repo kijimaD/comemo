@@ -1,22 +1,14 @@
-commit cbf97d9103b2bbfb8c798f06c751e74093062b57
+commit 5103500d130b3b74c0c3a75ac8dab5285111ffbe
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 16 20:53:38 2014 -0400
+Date:   Mon Sep 8 18:07:33 2014 -0400
 
-    liblink, sync/atomic: fix arm build
+    runtime: mark endcgo go:nosplit
     
-    The liblink code to insert the FUNCDATA for a stack map
-    from the Go prototype was not correct for ARM
-    (different data structure layout).
+    Should help windows/amd64.
     
-    Also, sync/atomic was missing some Go prototypes
-    for ARM-specific functions.
-    
-    TBR=r
+    TBR=khr
     CC=golang-codereviews
-    https://golang.org/cl/143160045
+    https://golang.org/cl/134660043
 
- include/link.h               | 1 +
- src/liblink/obj5.c           | 1 +
- src/liblink/objfile.c        | 7 ++++++-
- src/sync/atomic/64bit_arm.go | 6 ++++++
- 4 files changed, 14 insertions(+), 1 deletion(-)
+ src/runtime/cgocall.go | 1 +
+ 1 file changed, 1 insertion(+)

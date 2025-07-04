@@ -1,13 +1,30 @@
-commit 6094b88c4868727c855efbc66c423e228bf8b3d6
-Author: Carlos C <uldericofilho@gmail.com>
-Date:   Thu Jul 9 15:08:39 2015 +0200
+commit 1303957dbf47113a09713e952c332fd5b14379b6
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 17:18:15 2015 -0400
 
-    net/url: add example to URL.ResolveReference
+    runtime: enable write barriers during concurrent scan
     
-    Change-Id: I9db1997b8dc7e06e9d124753ead6221470a1edf9
-    Reviewed-on: https://go-review.googlesource.com/12254
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently, write barriers are only enabled after completion of the
+    concurrent scan phase, as we enter the concurrent mark phase. However,
+    stack barriers are installed during the scan phase and assume that
+    write barriers will track changes to frames above the stack
+    barriers. Since write barriers aren't enabled until after stack
+    barriers are installed, we may miss modifications to the stack that
+    happen after installing the stack barriers and before enabling write
+    barriers.
+    
+    Fix this by enabling write barriers during the scan phase.
+    
+    This commit intentionally makes the minimal change to do this (there's
+    only one line of code change; the rest are comment changes). At the
+    very least, we should consider eliminating the ragged barrier that's
+    intended to synchronize the enabling of write barriers, but now just
+    wastes time. I've included a large comment about extensions and
+    alternative designs.
+    
+    Change-Id: Ib20fede794e4fcb91ddf36f99bd97344d7f96421
+    Reviewed-on: https://go-review.googlesource.com/10795
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/url/example_test.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/runtime/mgc.go | 46 +++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 39 insertions(+), 7 deletions(-)

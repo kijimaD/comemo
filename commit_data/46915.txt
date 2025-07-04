@@ -1,25 +1,24 @@
-commit 680caf15355057ca84857a2a291b6f5c44e73329
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Fri Sep 3 21:58:57 2021 +0200
+commit 1004a7cb31ae31d2ca0b54b507b996c12403d54c
+Author: Branden J Brown <zephyrtronium@gmail.com>
+Date:   Mon Feb 15 23:12:15 2021 -0500
 
-    misc/wasm: expect environment to provide polyfills
+    runtime/metrics: update documentation to current interface
     
-    The list of environments to support with wasm_exec.js was becoming too
-    large to maintain. With this change, wasm_exec.js expects that the
-    environment provides all necessary polyfills.
+    The package documentation referenced sample metadata that was removed in CL 282632. Update this documentation to be less specific
+    about what metadata is available.
     
-    The standardized "globalThis" is used for accessing the environment.
-    wasm_exec.js now only provides stub fallbacks for globalThis.fs and
-    globalThis.process.
+    Additionally, the documentation on the Sample type referred to Descriptions instead of All as the source of metrics names.
     
-    All code specific to Node.js is now in a separate file.
+    Fixes #44280.
     
-    Change-Id: I076febbd94d4d7845260faad972f450f74a7b983
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347353
-    Trust: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I24fc63a744bf498cb4cd5bda56c1599f6dd75929
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292309
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- misc/wasm/go_js_wasm_exec   |   2 +-
- misc/wasm/wasm_exec.js      | 115 ++++++--------------------------------------
- misc/wasm/wasm_exec_node.js |  49 +++++++++++++++++++
- 3 files changed, 66 insertions(+), 100 deletions(-)
+ src/runtime/metrics/doc.go    | 4 +---
+ src/runtime/metrics/sample.go | 2 +-
+ 2 files changed, 2 insertions(+), 4 deletions(-)

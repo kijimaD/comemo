@@ -1,24 +1,59 @@
-commit 590f3f0c9dffdadeeec4d9e79af6e0974a574a1b
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Sep 24 21:38:58 2016 +0200
+commit 8756d9253f56f28167543fbd41c15e5695e654b2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed May 18 18:14:36 2016 -0400
 
-    cmd/compile: fix misaligned comments
+    [dev.ssa] cmd/compile: decompose 64-bit integer on ARM
     
-    Realign multi-line comments that got misaligned by the c->go
-    conversion.
+    Introduce dec64 rules to (generically) decompose 64-bit integer on
+    32-bit architectures. 64-bit integer is composed/decomposed with
+    Int64Make/Hi/Lo ops, as for complex types.
     
-    Change-Id: I584b902e95cf588aa14febf1e0b6dfa499c303c2
-    Reviewed-on: https://go-review.googlesource.com/29871
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The idea of dealing with Add64 is the following:
+    
+    (Add64 (Int64Make xh xl) (Int64Make yh yl))
+    ->
+    (Int64Make
+            (Add32withcarry xh yh (Select0 (Add32carry xl yl)))
+            (Select1 (Add32carry xl yl)))
+    
+    where Add32carry returns a tuple (flags,uint32). Select0 and Select1
+    read the first and the second component of the tuple, respectively.
+    The two Add32carry will be CSE'd.
+    
+    Similarly for multiplication, Mul32uhilo returns a tuple (hi, lo).
+    
+    Also add support of KeepAlive, to fix build after merge.
+    
+    Tests addressed_ssa.go, array_ssa.go, break_ssa.go, chan_ssa.go,
+    cmp_ssa.go, ctl_ssa.go, map_ssa.go, and string_ssa.go in
+    cmd/compile/internal/gc/testdata passed.
+    
+    Progress on SSA for ARM. Still not complete.
+    
+    Updates #15365.
+    
+    Change-Id: I7867c76785a456312de5d8398a6b3f7ca5a4f7ec
+    Reviewed-on: https://go-review.googlesource.com/23213
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/const.go     |  6 +++---
- src/cmd/compile/internal/gc/esc.go       |  6 +++---
- src/cmd/compile/internal/gc/inl.go       |  4 ++--
- src/cmd/compile/internal/gc/order.go     | 30 +++++++++++++++---------------
- src/cmd/compile/internal/gc/racewalk.go  |  2 +-
- src/cmd/compile/internal/gc/select.go    |  2 +-
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- src/cmd/compile/internal/gc/walk.go      |  4 ++--
- src/cmd/internal/obj/arm/asm5.go         |  4 ++--
- src/cmd/link/internal/arm/asm.go         |  2 +-
- 10 files changed, 31 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go            |   47 +
+ src/cmd/compile/internal/gc/ssa.go             |   19 +
+ src/cmd/compile/internal/gc/type.go            |    1 +
+ src/cmd/compile/internal/ssa/config.go         |    1 +
+ src/cmd/compile/internal/ssa/decompose.go      |   39 +-
+ src/cmd/compile/internal/ssa/export_test.go    |    6 +
+ src/cmd/compile/internal/ssa/flagalloc.go      |    9 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |   18 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   14 +
+ src/cmd/compile/internal/ssa/gen/dec64.rules   |  185 +++
+ src/cmd/compile/internal/ssa/gen/dec64Ops.go   |   20 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  151 ++-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |    7 +
+ src/cmd/compile/internal/ssa/opGen.go          |  201 ++++
+ src/cmd/compile/internal/ssa/opt.go            |    3 +
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  187 +++
+ src/cmd/compile/internal/ssa/rewritedec64.go   | 1522 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/schedule.go       |   25 +-
+ src/cmd/compile/internal/ssa/type.go           |   57 +
+ src/cmd/compile/internal/ssa/type_test.go      |    1 +
+ 20 files changed, 2445 insertions(+), 68 deletions(-)

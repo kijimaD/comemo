@@ -1,18 +1,13 @@
-commit 98b50b89a8002e1a40f28d1851d0223d424825f6
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Jan 22 10:34:36 2014 +0400
+commit f69391dd9e33132f5082636ffcfd847d7ac07b53
+Author: Jeff Sickel <jas@corpus-callosum.com>
+Date:   Wed Jan 22 06:23:19 2014 +0100
 
-    runtime: allocate goroutine ids in batches
-    Helps reduce contention on sched.goidgen.
+    liblink: include missing pragmas for plan9 formatter
     
-    benchmark                               old ns/op    new ns/op    delta
-    BenchmarkCreateGoroutines-16                  259          237   -8.49%
-    BenchmarkCreateGoroutinesParallel-16          127           43  -66.06%
-    
-    R=golang-codereviews, dave, bradfitz, khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/46970043
+    R=rsc, r, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/36060047
 
- src/pkg/runtime/proc.c    | 25 +++++++++++++++++++------
- src/pkg/runtime/runtime.h |  4 ++++
- 2 files changed, 23 insertions(+), 6 deletions(-)
+ include/plan9/link.h | 12 ++++++++++++
+ src/liblink/list5.c  | 10 +++++-----
+ 2 files changed, 17 insertions(+), 5 deletions(-)

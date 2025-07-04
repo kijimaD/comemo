@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 21164: ccdb50931f815fdf8de16f876478d7a1d0ee6696
+# Index 21164: 2f28916f02b3e75ffdf253c8f672fffed0f63753
 
 echo "🚀 Generating explanation for commit 21164..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 21164
-- **コミットハッシュ**: ccdb50931f815fdf8de16f876478d7a1d0ee6696
-- **GitHub URL**: https://github.com/golang/go/commit/ccdb50931f815fdf8de16f876478d7a1d0ee6696
+- **コミットハッシュ**: 2f28916f02b3e75ffdf253c8f672fffed0f63753
+- **GitHub URL**: https://github.com/golang/go/commit/2f28916f02b3e75ffdf253c8f672fffed0f63753
 
 ### 章構成
 

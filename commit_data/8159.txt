@@ -1,14 +1,16 @@
-commit 64787e3123ae68765e10e2044b64ccb695527b7b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 20 15:04:04 2011 -0400
+commit 7412583e8939061a9028b1b16b95cae1b1c5ea6f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 20 11:01:21 2011 -0700
 
-    reflect: update CanAddr, CanSet documentation
+    gofix, gofmt: update documentation
     
-    CanAddr was wrong, out of date; CanSet was incomplete.
+    gofmt: also fix a typo in gofmt.go
     
-    R=r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4442066
+    https://golang.org/cl/4431055
 
- src/pkg/reflect/value.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/gofix/doc.go   |  4 +++-
+ src/cmd/gofmt/doc.go   | 26 +++++++++++++++++---------
+ src/cmd/gofmt/gofmt.go |  2 +-
+ 3 files changed, 21 insertions(+), 11 deletions(-)

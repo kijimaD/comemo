@@ -1,22 +1,21 @@
-commit 47df542fefc355d65659278761d06cb9d5eba235
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 31 16:40:14 2019 -0400
+commit c6da080b1a74b295ea3dba373234934af949e480
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 15:11:16 2019 -0500
 
-    cmd/go: remove cross-package assembly reference discovery
+    misc/cgo/testgodefs: move source files into testdata
     
-    This removes the special case for finding assembly references to Go
-    symbols in runtime and runtime/internal/atomic. These are no longer
-    necessary because we've now marked all symbols in these packages that
-    must be accessible from assembly in other packages.
+    These source files fail to build with 'go test ./...'.
+    Move them into testdata so that only test.bash will see them.
     
-    Fixes #31230.
+    Updates #30228
     
-    Change-Id: I70c90b70e13b922a6669f3d46c53347f98d6fc3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179863
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I3673f3cb64b0c128a2bca5fee7679b672fe90770
+    Reviewed-on: https://go-review.googlesource.com/c/163212
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/exec.go | 19 ----------------
- src/cmd/go/internal/work/gc.go   | 49 ----------------------------------------
- 2 files changed, 68 deletions(-)
+ misc/cgo/testgodefs/test.bash                      | 4 +++-
+ misc/cgo/testgodefs/{ => testdata}/anonunion.go    | 0
+ misc/cgo/testgodefs/{ => testdata}/fieldtypedef.go | 0
+ misc/cgo/testgodefs/{ => testdata}/issue8478.go    | 0
+ misc/cgo/testgodefs/{ => testdata}/main.go         | 0
+ 5 files changed, 3 insertions(+), 1 deletion(-)

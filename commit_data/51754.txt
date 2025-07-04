@@ -1,22 +1,36 @@
-commit 0b3f58c48e3298e49e27f80dc748f0652339d63e
-Author: hopehook <hopehook@qq.com>
-Date:   Tue Jan 3 16:23:16 2023 +0800
+commit 46f352de2dc80657664431ebb04f89a2fad579c5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 7 21:49:26 2022 -0800
 
-    bytes, strings: add ContainsFunc
+    spec: remove notion of specific types
     
-    Fixes #54386.
+    Specific types were introduced to explain rules for operands of
+    type parameter type. Specific types are really an implementation
+    mechanism to represent (possibly infinite) type sets in the machine;
+    they are not needed in the specification.
     
-    Change-Id: I78747da337ed6129e4f7426dd0483a644bed82e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460216
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    A specific type is either standing for a single named or unnamed
+    type, or it is the underlying (unnamed) type of an infinite set of
+    types. Each rule that applies to a type T of the set of specific
+    types must also apply to all types T' in the type set for which T
+    is a representative of. Thus, in the spec we can simply refer to
+    the type set directly, infinite or not.
+    
+    Rather then excluding operands with empty type sets in each instance,
+    leave unspecified what happens when such an operand is used. Instead
+    give an implementation some leeway with an implementation restriction.
+    
+    (The implementation restriction also needs to be formulated for types,
+    such as in conversions, which technically are not "operands". Left for
+    another CL.)
+    
+    Minor: Remove the two uses of the word "concrete" to refer to non-
+    interface types; instead just say "non-interface type" for clarity.
+    
+    Change-Id: I67ac89a640c995369c9d421a03820a0c0435835a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390694
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/next/54386.txt          |  2 ++
- src/bytes/bytes.go          |  5 +++++
- src/bytes/bytes_test.go     | 11 +++++++++++
- src/strings/strings.go      |  5 +++++
- src/strings/strings_test.go | 11 +++++++++++
- 5 files changed, 34 insertions(+)
+ doc/go_spec.html | 138 +++++++++++++++----------------------------------------
+ 1 file changed, 38 insertions(+), 100 deletions(-)

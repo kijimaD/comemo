@@ -1,18 +1,12 @@
-commit e73981512fdc5e1128a9b17c4b9788c600db23ea
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Mar 5 14:21:42 2015 +1300
+commit 94d0b380b04d23243a446f2d1b9ebcbff2a5bf60
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 13 15:12:03 2015 -0800
 
-    cmd/internal/obj/x86: implement -shared computation of TLS base
+    [dev.cc] doc/go1.5.txt: assembler changes
     
-    Somehow, terribly embarrassingly, I lost part of the "re-enable
-    -shared on amd64" patch when rebasing before it got submitted.
-    This restores it and also fixes the addend to be the necessary -4.
-    
-    Change-Id: If71a09121d911a863bc07f1828ef76e3a54c1074
-    Reviewed-on: https://go-review.googlesource.com/6802
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id544d435620efffaf5757dd9d9ebbc6e969a052c
+    Reviewed-on: https://go-review.googlesource.com/4823
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ doc/go1.5.txt | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

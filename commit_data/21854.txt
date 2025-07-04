@@ -1,22 +1,21 @@
-commit 59cc5a197fd9d6c0c1bc1b9914d31c342baea22f
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Mar 1 23:58:28 2015 +0900
+commit 8bf13838eb21921bf02e2970f8f8d3f2a745d982
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 6 16:58:07 2015 +1100
 
-    syscall: fix parsing ipv6 address prefix on dragonfly
+    time: return informative errors when failing to load timezone data.
     
-    This change fixes a missing case that a routing address contains an
-    invalid address family label but it holds a valid length of address
-    structure.
+    If we cannot load timezone information for a reason other than the
+    zoneinfo file not existing, return it since that will be much more
+    useful in debugging failures than "unknown time zone XYZ".
     
-    Also makes test robust.
+    Fixes #9723.
     
-    Fixes #10041.
-    
-    Change-Id: I2480ba273929e859896697382d1a75b01a116b98
-    Reviewed-on: https://go-review.googlesource.com/6391
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3aa5774859cec28e584d16bcc1fef0705d95288c
+    Reviewed-on: https://go-review.googlesource.com/3984
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/interface_test.go     |  6 ------
- src/syscall/route_bsd.go      | 14 ++++++++++++--
- src/syscall/route_bsd_test.go | 30 +++++++++++++++++++++++++++++-
- 3 files changed, 41 insertions(+), 9 deletions(-)
+ src/time/sys_unix.go         | 2 ++
+ src/time/zoneinfo_plan9.go   | 9 +++++----
+ src/time/zoneinfo_unix.go    | 6 ++++++
+ src/time/zoneinfo_windows.go | 9 +++++----
+ 4 files changed, 18 insertions(+), 8 deletions(-)

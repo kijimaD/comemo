@@ -1,19 +1,34 @@
-commit a5936a489462a2f68ee2ae1a53dd48c0458029a7
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Wed Nov 6 22:45:05 2019 +0800
+commit 037ac2bd84480e0a06c4d1e7a2c1f133109466a5
+Author: David Chase <drchase@google.com>
+Date:   Wed Jun 5 14:53:28 2019 -0400
 
-    cmd/asm: add encode tests for MIPS64x
+    cmd/compile: add -smallframes gc flag for GC latency diagnosis
     
-    This CL adds basic encode test for mips64x and
-    most of the instructions are cross checked with 'gas'
+    Shrinks the size of things that can be stack allocated from
+    10M to 128k for declared variables and from 64k to 16k for
+    implicit allocations (new(T), &T{}, etc).
     
-    Update #35008
+    Usage: "go build -gcflags -smallframes hello.go"
     
-    Change-Id: I18bb524897aa745bfe23db43fcbb44c3b009463c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204297
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    An earlier GOEXPERIMENT version of this caused only one
+    problem, when a gc-should-detect-oversize-stack test no
+    longer had an oversized stack to detect.  The change was
+    converted to a flag to make it easier to access (for
+    diagnosing "long" GC-related single-thread pauses) and to
+    remove interference with the test.
+    
+    Includes test to verify behavior.
+    
+    Updates #27732.
+    
+    Change-Id: I1255d484331e77185e07c78389a8b594041204c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180817
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/mips64.s | 389 +++++++++++++++++++++--------
- 1 file changed, 282 insertions(+), 107 deletions(-)
+ src/cmd/compile/internal/gc/go.go   |  8 ++++++--
+ src/cmd/compile/internal/gc/main.go | 12 +++++++++++-
+ src/cmd/compile/internal/gc/walk.go |  2 +-
+ test/fixedbugs/issue27732a.go       | 23 +++++++++++++++++++++++
+ 4 files changed, 41 insertions(+), 4 deletions(-)

@@ -1,28 +1,17 @@
-commit c15b7b2a54a8899fac8277cef532676c9f8fb592
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Mar 10 16:50:16 2018 +0000
+commit 85c32c3744d879392c43a4ec4772199b28c9b34e
+Author: griesemer <gri@golang.org>
+Date:   Tue Oct 31 23:01:31 2017 -0700
 
-    cmd: re-generate all stringer files
+    math/big: implement CmpAbs
     
-    The tool has gotten better over time, so re-generating the files brings
-    some advantages like fewer objects, dropping the use of fmt, and
-    dropping unnecessary bounds checks.
+    Fixes #22473.
     
-    While at it, add the missing go:generate line for obj.AddrType.
-    
-    Change-Id: I120c9795ee8faddf5961ff0384b9dcaf58d831ff
-    Reviewed-on: https://go-review.googlesource.com/100015
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ie886dfc8b5510970d6d63ca6472c73325f6f2276
+    Reviewed-on: https://go-review.googlesource.com/74971
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/compile/fmt_test.go                    |  1 -
- src/cmd/compile/internal/gc/class_string.go    |  4 ++--
- src/cmd/compile/internal/gc/op_string.go       |  4 ++--
- src/cmd/compile/internal/types/etype_string.go |  4 ++--
- src/cmd/internal/obj/addrtype_string.go        | 25 +++++++------------------
- src/cmd/internal/obj/link.go                   |  2 ++
- src/cmd/internal/objabi/reloctype_string.go    |  4 ++--
- src/cmd/internal/objabi/symkind_string.go      |  4 ++--
- src/cmd/link/internal/sym/symkind_string.go    |  6 +++---
- 9 files changed, 22 insertions(+), 32 deletions(-)
+ src/math/big/int.go      | 10 +++++++++
+ src/math/big/int_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+)

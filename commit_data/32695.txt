@@ -1,27 +1,14 @@
-commit 78c4dc37097fa98f73de02ffe1709b776a78354d
-Author: Luan Santos <cfcluan@gmail.com>
-Date:   Mon Sep 11 08:37:50 2017 -0700
+commit f700f89b0be0eda0cda20427fbdae4ff1cb7e6a8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 17 15:28:14 2017 -0700
 
-    net/http: allow reuse of http.Request objects
+    test: add missing copyright header to checkbce.go
     
-    Calling response.Body.Close() early would generarate a race before this.
-    Since closing would return early before the main code path had a chance
-    to reset the request canceler. Having a non-nil request canceler at the
-    start of the next request would cause a "request canceled" error.
-    
-    Here we simply wait for the eofc channel to be closed before returning
-    from earlyCloseFn, ensuring that the caller won't be re-using that
-    Request object before we have a chance to reset the request canceler to
-    nil.
-    
-    Fixes #21838
-    
-    Change-Id: I641815526c6ac63d1816c9b6ad49d73715f7a5cb
-    Reviewed-on: https://go-review.googlesource.com/62891
-    Run-TryBot: Tom Bergan <tombergan@google.com>
+    Change-Id: Iafeb8e033c876f482caa17cca414fe13b0fadb12
+    Reviewed-on: https://go-review.googlesource.com/43613
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/net/http/transport.go      |  1 +
- src/net/http/transport_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+)
+ test/checkbce.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

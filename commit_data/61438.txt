@@ -1,0 +1,29 @@
+commit 5a9aeef9d54321702253257eb983d7a0cc1d97bf
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Nov 8 12:43:06 2024 -0500
+
+    cmd/compile: allow more types for wasmimport/wasmexport parameters and results
+    
+    As proposed on #66984, this CL allows more types to be used as
+    wasmimport/wasmexport function parameters and results.
+    Specifically, bool, string, and uintptr are now allowed, and also
+    pointer types that point to allowed element types. Allowed element
+    types includes sized integer and floating point types (including
+    small integer types like uint8 which are not directly allowed as
+    a parameter type), bool, array whose element type is allowed, and
+    struct whose fields are allowed element type and also include a
+    struct.HostLayout field.
+    
+    For #66984.
+    
+    Change-Id: Ie5452a1eda21c089780dfb4d4246de6008655c84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626615
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssagen/abi.go | 77 +++++++++++++++++++++++++++++-----
+ src/cmd/internal/obj/link.go           |  4 ++
+ src/cmd/internal/obj/wasm/wasmobj.go   | 18 ++++++--
+ src/cmd/link/internal/wasm/asm.go      |  2 +-
+ test/wasmexport2.go                    | 57 ++++++++++++++++++-------
+ 5 files changed, 127 insertions(+), 31 deletions(-)

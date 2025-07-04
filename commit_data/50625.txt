@@ -1,52 +1,19 @@
-commit 7d157fd0eb637a4c58f629421dd8d028022391d2
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Mon Sep 26 20:46:24 2022 +0000
+commit 1292e212416f5bca1f32d3ec0679b7dae97f6f1b
+Author: Zvonimir Pavlinovic <zpavlinovic@google.com>
+Date:   Wed Nov 3 16:44:44 2021 -0700
 
-    debug/elf: suport files with >= 65280 (0xff00) sections
+    cmd/trace: use fmt.Print for newline-ending fixed string
     
-    The spec https://refspecs.linuxfoundation.org/elf/gabi4+/ch4.eheader.html
-    states:
+    This redundancy is now caught by the improved printf vet checker.
     
-    1. e_shnum: If the number of sections is greater than or equal to
-    SHN_LORESERVE (0xff00), this member has the value zero and the actual
-    number of section header table entries is contained in the sh_size
-    field of the section header at index 0.
+    Updates #49322
     
-    2. e_shstrndx: If the section name string table section index is
-    greater than or equal to SHN_LORESERVE (0xff00), this member has the
-    value SHN_XINDEX (0xffff) and the actual index of the section name
-    string table section is contained in the sh_link field of the section
-    header at index 0.
-    
-    This CL makes these changes to support files with >= 0xff00 sections:
-    
-    1. if shoff > 0 && shnum == 0, read sh_size from the initial section
-    header entry as shnum.
-    2. if shstrndx == SHN_XINDEX, read sh_link from the initial section
-    header entry as shstrndx.
-    
-    It returns an error if the type of the initial section is not SHT_NULL.
-    
-    A file with >= 0xff00 sections is too big to include in the repository,
-    so the test case constructs one on the fly, with some of the sections
-    zeroed out.
-    
-    While here, remove the unnecessary use of reflect.DeepEqual in the test.
-    
-    Fixes #55294.
-    
-    Change-Id: I15ec43612c7cce6e8decfe4e81da3a5b16de47f7
-    GitHub-Last-Rev: 797c16480bc76524ff1a7c01ed09b759fcd7d45b
-    GitHub-Pull-Request: golang/go#55295
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432255
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ic7a931b8d4838be02ebb855b69624b95093bd114
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361265
+    Run-TryBot: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/buildid/note.go |   5 +-
- src/debug/elf/file.go            |  46 +++++++
- src/debug/elf/file_test.go       | 260 +++++++++++++++++++++++++++++++++++++--
- 3 files changed, 303 insertions(+), 8 deletions(-)
+ src/cmd/trace/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

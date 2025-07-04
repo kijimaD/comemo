@@ -1,19 +1,23 @@
-commit 4e4e51c5c5a1cedf4d2e8fef59b61eeaddb10647
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 13 05:57:59 2017 -0700
+commit ade6bcf1d5d0fdddb7ce779e7aa3f1479e1e77a3
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Feb 1 08:57:46 2017 +0100
 
-    cmd/internal/obj: generate function DWARF symbols early
+    misc/ios: ignore stderr from iOS tools
     
-    This removes a concurrent access of ctxt.Data.
+    On (at least) macOS 10.12, the `security cms` subcommand used by the
+    iOS detection script will output an error to stderr. The command
+    otherwise succeeds, but the extra line confuses a later parsing step.
     
-    Updates #15756
+    To fix it, use only stdout and ignore stderr from every command run
+    by detect.go.
     
-    Change-Id: Id017e90e47e093cd8825907f3853bb3d3bf8280d
-    Reviewed-on: https://go-review.googlesource.com/40507
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    For the new iOS builders.
+    
+    Change-Id: Iee426da7926d7f987ba1be061fa92ebb853ef53d
+    Reviewed-on: https://go-review.googlesource.com/36059
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/objfile.go | 21 +++++++++++++--------
- src/cmd/internal/obj/plist.go   |  8 +++++++-
- 2 files changed, 20 insertions(+), 9 deletions(-)
+ misc/ios/detect.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

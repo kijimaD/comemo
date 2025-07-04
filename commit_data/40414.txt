@@ -1,14 +1,21 @@
-commit dad512f6df83367a46d9135daa13e27f51b8ba04
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Fri Oct 25 20:54:20 2019 +0800
+commit 5833aa507bd25df20b2aecf9e2334dccfa2dac76
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Fri May 10 20:29:24 2019 +0300
 
-    cmd/dist: fix wrong goarch on mips64le
+    cmd/vendor: import vet fixes from x/tools
     
-    Change-Id: I625f0bc533a7d14010c0344f36e8f157a19c13f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203437
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Vet help prints only to stdout.
+    
+    Fixes #31885
+    
+    Change-Id: If6089a371fa8e21828eba2e23cddd2d19fb69e8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176617
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go.mod                                                         | 2 +-
+ src/cmd/go.sum                                                         | 2 ++
+ .../golang.org/x/tools/go/analysis/internal/analysisflags/help.go      | 3 +++
+ src/cmd/vendor/modules.txt                                             | 2 +-
+ 4 files changed, 7 insertions(+), 2 deletions(-)

@@ -1,19 +1,19 @@
-commit 8c22874e4e804e29ca040599ec63bb9e35233acd
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Feb 19 13:47:14 2021 +0700
+commit ea708dc94cf35ce73f66de9c05fee66d30615c4d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jul 21 17:59:48 2020 -0400
 
-    cmd/compile: skip diag error in checkassign if one was emitted
+    [dev.link] cmd/link: avoid reading symbol Data in archreloc on ARM64
     
-    While at it, also remove checkassignlist, which is not used.
+    The previous CL changed it to drop the Data when writing out a
+    symbol. Don't read the data.
     
-    For #43311
+    Fix ARM64 build.
     
-    Change-Id: Ie7ed81f68080d8881fca6035da64a9755f2cb555
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294032
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I121e9b0ebef123dbbc4ddffc02bf1a42788532f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244038
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/arm64/asm.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

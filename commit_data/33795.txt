@@ -1,16 +1,29 @@
-commit a3c1a867e6e8516d031b540a11b3798cef04ffae
-Author: Tim Heckman <t@heckman.io>
-Date:   Tue Dec 5 09:21:25 2017 -0800
+commit e27c6c390c48a9b6740446aa2bf261166591088c
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Aug 31 12:21:51 2017 +0200
 
-    net/http: fix unclosed Listener leak in ListenAndServeTLS
+    cmd/dist: apply minor fixes
     
-    Fixes #23002
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (1).
     
-    Change-Id: I87e72833757497aff49117dd40629cb7ec49e6e7
-    Reviewed-on: https://go-review.googlesource.com/81955
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
+    
+    Change-Id: I49e5f2a9b6146e2b60a067da5bac31434ffc9aaf
+    Reviewed-on: https://go-review.googlesource.com/60650
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/dist/buildgo.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

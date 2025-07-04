@@ -1,21 +1,12 @@
-commit 86ab09eed55e4b70e642ad97d243d3090550b624
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Nov 21 12:10:07 2016 -0500
+commit 5e7bae5082dcc2cd241b40c2bf50db6b28943827
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 28 20:15:57 2016 +1000
 
-    runtime/pprof: generate heap profiles in compressed proto format
+    doc: add testing Name method to go1.8.txt
     
-    When debug is 0, emit the compressed proto format.
-    The debug>0 format stays the same.
-    
-    Updates #16093
-    
-    Change-Id: I45aa1874a22d34cf44dd4aa78bbff9302381cb34
-    Reviewed-on: https://go-review.googlesource.com/33422
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6d413f747e6a6c30c5e0e9afdffd5ec18dce7e08
+    Reviewed-on: https://go-review.googlesource.com/29974
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../pprof/internal/protopprof/protomemprofile.go   |  83 +++++++++++++++++
- .../internal/protopprof/protomemprofile_test.go    | 102 +++++++++++++++++++++
- src/runtime/pprof/pprof.go                         |  21 ++---
- 3 files changed, 194 insertions(+), 12 deletions(-)
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

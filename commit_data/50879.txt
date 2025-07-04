@@ -1,19 +1,25 @@
-commit 4a0ce46917ea51a677fffe203458af4a3224f67c
-Author: Robert Findley <rfindley@google.com>
-Date:   Thu Oct 13 10:24:19 2022 -0400
+commit c8d7c5fe0511569f19d4ebed29f11d96f50b3e07
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 14 20:45:40 2021 -0800
 
-    go/types: remove mode argument from the pkgFiles helper
+    cmd/compile/internal/types2: remove unneccesary tests in implements and lookup
     
-    This mode is now always 0. Remove the unnecessary argument to better
-    align with types2.
+    Because the underlying type of a type parameter is an interface,
+    the questions whether *P for a type parameter P has methods or
+    not is settled: P is also an interface pointers to interfaces
+    don't have methods.
     
-    Change-Id: Ib59196a9dfc26fd66ae51381eabc760c39ad9ede
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442775
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    This allows us to eliminate the now unneccesary test in "implements"
+    and also allows us to remove a special case for type parameters in
+    "lookupFieldOrMethod".
+    
+    Change-Id: I8b218f81584a8e42e75884089a44293365b700df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363838
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/errorcalls_test.go | 2 +-
- src/go/types/lookup_test.go     | 2 +-
- src/go/types/self_test.go       | 8 ++++----
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/instantiate.go | 6 ------
+ src/cmd/compile/internal/types2/lookup.go      | 6 +-----
+ 2 files changed, 1 insertion(+), 11 deletions(-)

@@ -1,23 +1,16 @@
-commit 3c2a21ff13c53b93db50cfb37b186d6200e2ceec
-Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 25 15:37:40 2016 -0500
+commit 918edf433b363d26d176d4cd6bc4c3928cc2520e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 8 17:56:50 2016 -0800
 
-    runtime: fix transient _Gwaiting states in newstack
+    go/importer: use correct path for path->package map
     
-    With concurrent stack shrinking, the stack can move the instant after
-    a G enters _Gwaiting. There are only two places that put a G into
-    _Gwaiting: gopark and newstack. We fixed uses of gopark. This commit
-    fixes newstack by simplifying its G transitions and, in particular,
-    eliminating or narrowing the transient _Gwaiting states it passes
-    through so it's clear nothing in the G is accessed while in _Gwaiting.
+    In the presence of vendored packages, the path found in a package
+    declaration may not be the path at which the package imported from
+    srcDir was found. Use the correct package path.
     
-    For #12967.
-    
-    Change-Id: I2440ead411d2bc61beb1e2ab020ebe3cb3481af9
-    Reviewed-on: https://go-review.googlesource.com/20039
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I74496c3cdf82a5dbd6a5bd189bb3cd0ca103fd52
+    Reviewed-on: https://go-review.googlesource.com/18460
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/stack.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/go/internal/gcimporter/gcimporter.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

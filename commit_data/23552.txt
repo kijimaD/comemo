@@ -1,27 +1,16 @@
-commit 1b917484a892d0f22d26143a21581cb51d509d44
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 26 13:56:58 2015 -0400
+commit 8017ace496f5a21bcd55377e250e325f8ba11d45
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat May 23 11:26:22 2015 +0200
 
-    runtime: reset mark state before checkmark and gctrace=2 mark
+    runtime: don't always block all signals on OpenBSD
     
-    Currently we fail to reset the live heap accounting state before the
-    checkmark mark and before the gctrace=2 extra mark. As a result, if
-    either are enabled, at the end of GC it thinks there are 0 bytes of
-    live heap, which causes the GC controller to initiate a new GC
-    immediately, regardless of the true heap size.
+    Implement the changes from CL 10173 on OpenBSD.
     
-    Fix this by factoring this state reset into a function and calling it
-    before all three possible marks.
-    
-    This function should be merged with gcResetGState, but doing so
-    requires some additional cleanup, so it will wait for after the
-    freeze. Filed #11427 for this cleanup.
-    
-    Fixes #10492.
-    
-    Change-Id: Ibe46348916fc8368fac6f086e142815c970a6f4d
-    Reviewed-on: https://go-review.googlesource.com/11561
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2db1cd8141fd392a34753a1b8113e2e0401173b9
+    Reviewed-on: https://go-review.googlesource.com/10342
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/runtime/os1_openbsd.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

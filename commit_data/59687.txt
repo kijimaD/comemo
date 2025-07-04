@@ -1,20 +1,17 @@
-commit 53b9eae3875122a65b387adf18c5cb7a67e824d7
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 20 20:56:46 2025 +0000
+commit 7b3c38045b4c3cb7a4f1f451bdfab93f97dc5315
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Apr 9 03:34:59 2024 +0000
 
-    runtime: use the immortal weak handle map for sbrk mode
+    cmd/link: close cpu profile
     
-    Currently weak pointers break in sbrk mode. We can just use the immortal
-    weak handle map for weak pointers in this case, since nothing is ever
-    freed.
-    
-    Fixes #69729.
-    
-    Change-Id: Ie9fa7e203c22776dc9eb3601c6480107d9ad0c99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674656
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ieaf1c165307a98d58c40d4d970eecfd6d74b2411
+    GitHub-Last-Rev: bd7271097896a4003b08c28e8ea11c6ab74077d9
+    GitHub-Pull-Request: golang/go#66736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577416
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/mheap.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/link/internal/ld/main.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

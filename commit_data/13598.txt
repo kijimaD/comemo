@@ -1,12 +1,18 @@
-commit bacccefa8d4d8e2f4f09e9a917a1dab69f972efe
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 8 11:04:57 2012 +1000
+commit fca45719a4365a0dc709202aa3efc2c58bbe473b
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Aug 8 10:00:57 2012 +1000
 
-    misc/dashboard/codereview: fix obo
+    exp/html: foster-parent text correctly
     
-    R=golang-dev, dsymonds
+    If a table contained whitespace, text nodes would not get foster parented
+    correctly.
+    
+    Pass 1 additional test.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6443091
+    https://golang.org/cl/6459054
 
- misc/dashboard/codereview/dashboard/cl.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/exp/html/parse.go                | 32 ++++++++++++++++++++++----------
+ src/pkg/exp/html/testlogs/tests7.dat.log |  2 +-
+ 2 files changed, 23 insertions(+), 11 deletions(-)

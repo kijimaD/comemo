@@ -1,20 +1,24 @@
-commit 4efa216c9d753c0853aa96a8c54ed5014fbc12e6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 12 15:31:25 2021 -0700
+commit df23540ddef33f47faf7bba2a6fc37c44a662ab0
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Feb 10 17:41:26 2021 -0500
 
-    unsafe: allow unsafe.Slice up to end of address space
+    [dev.typeparams] cmd/gofmt: add the -G flag to allow generic code
     
-    Allow the user to construct slices that are larger than the Go heap as
-    long as they don't overflow the address space.
+    Add support for type parameters to cmd/gofmt, gated behind the -G flag.
     
-    Updates #48798.
+    The test was based on a test from go/printer, slightly modified to
+    exercise more formatting.
     
-    Change-Id: I659c8334d04676e1f253b9c3cd499eab9b9f989a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355489
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I489bcb3ad06e1ed4e6d9f5bc79825e60dcfe9953
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291011
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/slice.go   | 2 +-
- test/unsafebuiltins.go | 5 +++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/gofmt/doc.go                     |  3 +++
+ src/cmd/gofmt/gofmt.go                   | 16 +++++++++------
+ src/cmd/gofmt/gofmt_test.go              |  2 ++
+ src/cmd/gofmt/testdata/typeparams.golden | 35 ++++++++++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/typeparams.input  | 32 +++++++++++++++++++++++++++++
+ 5 files changed, 82 insertions(+), 6 deletions(-)

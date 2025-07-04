@@ -1,24 +1,35 @@
-commit 9b6231a1ab9d3497816c4f9ebae6815443922dd1
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Mar 22 11:13:23 2023 +0700
+commit 0184fe5ece4f84fda9db04d2472b76efcaa8ef55
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 09:02:53 2022 -0400
 
-    log/slog: fix window race builder
+    [dev.boringcrypto] crypto/x509: remove VerifyOptions.IsBoring
     
-    Bench log file is created non-portably, only works on system where
-    "/tmp" existed and "/" is path separator.
+    This API was added only for BoringCrypto, never shipped in standard
+    Go. This API is also not compatible with the expected future evolution
+    of crypto/x509, as we move closer to host verifiers on macOS and Windows.
     
-    Fixing this by using portable methods from std lib.
+    If we want to merge BoringCrypto into the main tree, it is best not to
+    have differing API. So instead of a hook set by crypto/tls, move the
+    actual check directly into crypto/x509, eliminating the need for
+    exposed API.
     
-    Updates #56345
+    For #51940.
     
-    Change-Id: I1f6b6b97b913ca56a6053beca7025652618ecbf3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478355
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ia2ae98c745de818d39501777014ea8166cab0b03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395878
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/log/slog/json_handler_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ api/go1.9.txt                      |   1 -
+ src/crypto/internal/boring/stub.s  |   6 ++
+ src/crypto/tls/boring.go           |  30 --------
+ src/crypto/tls/boring_test.go      |  16 -----
+ src/crypto/tls/handshake_client.go |   4 +-
+ src/crypto/tls/handshake_server.go |   3 -
+ src/crypto/tls/notboring.go        |  11 ++-
+ src/crypto/x509/boring.go          |  38 ++++++++++
+ src/crypto/x509/boring_test.go     | 138 +++++++++++++++++++++++++++++++++++++
+ src/crypto/x509/notboring.go       |   9 +++
+ src/crypto/x509/verify.go          |   7 +-
+ 11 files changed, 197 insertions(+), 66 deletions(-)

@@ -1,17 +1,13 @@
-commit a05ffd85aa6f8cc532bd50df8dbdee8e8040afcc
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Mar 28 13:27:51 2014 +0900
+commit 610f395189528d5eb6a9dde36e39314403d0b7a3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 28 12:55:37 2014 +1100
 
-    net: make IPv6 capability test more suitable for address family selection on the dual IP stack node
+    doc/go1.3.html: contiguous stacks
     
-    For now we strictly use IPV6_V6ONLY=1 for IPv6-only communications
-    and IPV6_V6ONLY=0 for both IPv4 and IPv6 communications. So let the
-    capability test do the same.
-    
-    LGTM=iant
-    R=golang-codereviews, gobot, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/80140044
+    https://golang.org/cl/81650043
 
- src/pkg/net/ipsock_posix.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ doc/go1.3.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

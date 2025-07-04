@@ -1,31 +1,23 @@
-commit 33d3f603c19f46e6529483230465cd6f420ce23b
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed May 21 13:13:48 2025 -0400
+commit 50a5059056e2233c5112e1dbb65c19bfc79ebb5d
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Apr 8 11:43:03 2024 -0700
 
-    cmd/link/internal/ld: use 12.0.0 OS/SDK versions for macOS linking
+    net/http: update HandlerWritesTooMuch test to allow different h1/h2 behavior
     
-    Go 1.25 will require macOS 12 Monterey or later, so macOS 11 will be
-    unsupported. The comment here suggests using a supported macOS version,
-    and that it can be the most recent one.
+    Rather than requiring that HTTP/1 and HTTP/2 servers behave identically
+    when a misbehaving handler writes too many bytes, check only that both
+    behave reasonably.
     
-    For now, make a minimal change of going from 11.0.0 to 12.0.0 so that
-    the chosen version is a supported one (although not the most recent).
+    In particular, allow the handler to defer detection of a write overrun
+    until flush time, and permit the HTTP/2 handler to reset the stream
+    rather than requring it to return a truncated body as HTTP/1 must.
     
-    However, it looks like even in CL 460476 (where the comment was added)
-    we were staying with the macOS version that matched Go's oldest, so we
-    might not have have recent experience with going beyond that. Update
-    the comment accordingly.
+    For #56019
     
-    For #69839.
-    
-    Change-Id: I90908971b0d5a8235ce77dc6bc9649e86008270a
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest,gotip-darwin-arm64-longtest,gotip-darwin-amd64_12,gotip-darwin-amd64_14,gotip-darwin-arm64_12,gotip-darwin-arm64_15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675095
+    Change-Id: I0838e550c4fc202dcbb8bf39ce0fa4a367ca7e71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577415
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/cmd/link/internal/ld/macho.go | 6 ++++--
- src/cmd/link/link_test.go         | 4 ++--
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/net/http/clientserver_test.go | 42 +++++++++++++++++++++++++++------------
+ 1 file changed, 29 insertions(+), 13 deletions(-)

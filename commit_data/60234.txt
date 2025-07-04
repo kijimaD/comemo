@@ -1,0 +1,17 @@
+commit 1ed81661926c026b122f3a355a811a40ecd2f8f6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 29 04:35:53 2024 +0000
+
+    internal/trace: actually add experimental data to map
+    
+    addExperimentalData was missing actually placing the data into the map,
+    leaving ExperimentalEvent.Data always nil.
+    
+    Change-Id: I1715ab11eb7cfcdb982b56be28378521a357ca2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588955
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/generation.go | 4 ++++
+ 1 file changed, 4 insertions(+)

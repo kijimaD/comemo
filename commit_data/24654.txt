@@ -1,31 +1,29 @@
-commit dfc8649854eeb569598cabfbc8e408c3ef07a539
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Fri Oct 16 14:04:29 2015 -0400
+commit 18d27b2d754923854e05c3b37a2b799d9c063164
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 18 22:19:58 2015 -0400
 
-    runtime, cmd: TLS setup for android/amd64.
+    net: force LookupAddr results to be rooted DNS paths when using cgo
     
-    Android linker does not handle TLS for us. We set up the TLS slot
-    for g, as darwin/386,amd64 handle instead. This is disgusting and
-    fragile. We will eventually fix this ugly hack by taking advantage
-    of the recent TLS IE model implementation. (Instead of referencing
-    an GOT entry, make the code sequence look into the TLS variable that
-    holds the offset.)
+    Go 1.4 and before have always returned DNS names with a trailing dot
+    for reverse lookups, as they do for basically all other routines returning
+    DNS names. Go 1.4 and before always implemented LookupAddr using
+    pure Go (not C library calls).
     
-    The TLS slot for g in android/amd64 assumes a fixed offset from %fs.
-    See runtime/cgo/gcc_android_amd64.c for details.
+    Go 1.5 added the ability to make a C library call to implement LookupAddr.
+    Unfortunately the C library call returns a DNS name without a trailing dot
+    (an unrooted name), meaning that if turn off cgo during make.bash then
+    you still get the rooted name but with cgo on you get an unrooted name.
+    The unrooted name is inconsistent with the pure Go implementation
+    and with all previous Go releases, so change it to a rooted name.
     
-    For golang/go#10743
+    Fixes #12189.
     
-    Change-Id: I1a3fc207946c665515f79026a56ea19134ede2dd
-    Reviewed-on: https://go-review.googlesource.com/15991
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I3d6b72277c121fe085ea6af30e5fe8019fc490ad
+    Reviewed-on: https://go-review.googlesource.com/13697
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go    |  6 +++
- src/cmd/internal/obj/x86/obj6.go    | 10 ++++
- src/cmd/link/internal/ld/data.go    | 10 ++--
- src/cmd/link/internal/ld/sym.go     | 10 +++-
- src/runtime/cgo/gcc_android_amd64.c | 92 +++++++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_linux_amd64.c   | 12 +++++
- src/runtime/rt0_android_amd64.s     | 33 +++++++++++++
- src/runtime/sys_linux_amd64.s       |  8 +++-
- 8 files changed, 175 insertions(+), 6 deletions(-)
+ src/net/cgo_unix.go      |   5 +++
+ src/net/lookup_test.go   | 109 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/non_unix_test.go |  11 +++++
+ src/net/unix_test.go     |  25 +++++++++++
+ 4 files changed, 150 insertions(+)

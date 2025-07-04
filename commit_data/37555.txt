@@ -1,29 +1,24 @@
-commit 624e197c71b673f0b3ebc57f774536131b4f0f26
-Author: David Chase <drchase@google.com>
-Date:   Fri Nov 30 08:36:00 2018 -0500
+commit 8dd27b1864f334fa82e0ead5bd8b9448e295e316
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 12:40:18 2018 -0400
 
-    cmd/compile: decrease inlining call cost from 60 to 57
+    cmd/go: report which patterns match each package in list
     
-    A Go user made a well-documented request for a slightly
-    lower threshold.  I tested against a selection of other
-    people's benchmarks, and saw a tiny benefit (possibly noise)
-    at equally tiny cost, and no unpleasant surprises observed
-    in benchmarking.
+    It's important for some uses of go/packages, as well as for some
+    of go/packages's internal use, to be able to tell which results from
+    go list output correspond to which patterns, keeping in mind that
+    a single package might have been matched by multiple patterns.
     
-    I.e., might help, doesn't hurt, low risk, request was
-    delivered on a silver platter.
+    Also adds test for #26925.
     
-    It did, however, change the behavior of one test because
-    now bytes.Buffer.Grow is eligible for inlining.
-    
-    Updates #19348.
-    
-    Change-Id: I85e3088a4911290872b8c6bda9601b5354c48695
-    Reviewed-on: https://go-review.googlesource.com/c/151977
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I708ac162f65d9946fe6afb244b08dc7b04d2b530
+    Reviewed-on: https://go-review.googlesource.com/129060
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/inl.go |  2 +-
- test/fixedbugs/issue7921.go        | 30 +++++++++++++++---------------
- 2 files changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/go/internal/list/list.go            | 37 ++++++++++----------
+ src/cmd/go/internal/load/pkg.go             | 15 ++++----
+ src/cmd/go/internal/modload/load.go         | 17 +++++----
+ src/cmd/go/testdata/script/mod_patterns.txt | 53 +++++++++++------------------
+ 4 files changed, 56 insertions(+), 66 deletions(-)

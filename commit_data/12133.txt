@@ -1,12 +1,14 @@
-commit 818e3cdb096354dbe1a08581fd432392683529b2
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 22 16:25:55 2012 +1100
+commit d1e1367cadc92ed6773374ef8379ee222bf554ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 22 00:06:50 2012 -0500
 
-    spec: refine the wording about variables in type switches
+    cmd/go: add tool -n flag
     
-    R=golang-dev, rsc
+    As in gdb $(go tool -n 6g).
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5686064
+    https://golang.org/cl/5689066
 
- doc/go_spec.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/tool.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

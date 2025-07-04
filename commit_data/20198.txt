@@ -1,19 +1,22 @@
-commit e77c2fe31374905b08d51f338803bea88e9c4ec2
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Fri Aug 29 12:28:09 2014 +0200
+commit ef504623783c0920f7084ae4b7d6bf32c34599b5
+Author: Sanjay Menakuru <balasanjay@gmail.com>
+Date:   Sun Aug 24 20:27:00 2014 -0700
 
-    runtime: allow sysvicall functions to be called from Go
+    runtime,runtime/debug: Converted some functions from goc to Go.
     
-    Convert them to Go in the process.
-    
-    LGTM=dvyukov, dave
-    R=khr, dvyukov, rsc, dave
-    CC=golang-codereviews
-    https://golang.org/cl/131600043
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/131010044
 
- src/pkg/runtime/netpoll_solaris.c | 14 +++-----
- src/pkg/runtime/os_solaris.c      | 69 ++++++++++++++---------------------
- src/pkg/runtime/os_solaris.go     | 75 ++++++++++++++++++++++++++++++++++++++-
- src/pkg/runtime/os_solaris.h      | 15 ++++----
- src/pkg/runtime/runtime.h         |  2 +-
- 5 files changed, 116 insertions(+), 59 deletions(-)
+ src/pkg/runtime/debug/garbage.go | 16 +++++----------
+ src/pkg/runtime/debug/stubs.go   | 20 +++++++++++++++++++
+ src/pkg/runtime/debug/stubs.s    | 21 ++++++++++++++++++++
+ src/pkg/runtime/malloc.h         |  2 +-
+ src/pkg/runtime/mgc0.c           | 10 +++++++---
+ src/pkg/runtime/proc.c           | 10 +++++++---
+ src/pkg/runtime/rdebug.go        | 42 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/rdebug.goc       | 27 --------------------------
+ src/pkg/runtime/runtime.h        |  2 +-
+ src/pkg/runtime/stubs.go         |  2 ++
+ 10 files changed, 106 insertions(+), 46 deletions(-)

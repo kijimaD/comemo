@@ -1,20 +1,17 @@
-commit c3922f0a63b826000e6ab46cadc344782fbae178
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 17 06:29:56 2014 +0400
+commit a50c5fe6c368296d8d3857b32876017294f20162
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Feb 16 20:46:03 2014 +1100
 
-    testing: ease writing parallel benchmarks
-    Add b.RunParallel function that captures parallel benchmark boilerplate:
-    creates worker goroutines, joins worker goroutines, distributes work
-    among them in an efficient way, auto-tunes grain size.
-    Fixes #7090.
+    go/build: temporarily disable cgo for freebsd/arm
     
-    R=bradfitz, iant, josharian, tracey.brendan, r, rsc, gobot
+    Update #7331
+    
+    cgo is currently broken on freebsd/arm.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/57270043
+    https://golang.org/cl/63900043
 
- doc/go1.3.txt                     |   1 +
- src/pkg/runtime/chan_test.go      | 213 +++++++++++++-------------------------
- src/pkg/testing/benchmark.go      |  97 +++++++++++++++--
- src/pkg/testing/benchmark_test.go |  54 ++++++++++
- src/pkg/testing/testing.go        |  16 +++
- 5 files changed, 236 insertions(+), 145 deletions(-)
+ src/pkg/go/build/build.go | 1 -
+ 1 file changed, 1 deletion(-)

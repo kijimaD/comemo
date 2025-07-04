@@ -1,20 +1,23 @@
-commit 80e5c3b8b556c9c8010c0efd4e8d40f595743ee6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 16 22:05:35 2020 -0700
+commit 0f992b994813c3ebd6fdc3335d6b48becac8a6f5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 25 00:50:00 2019 -0400
 
-    cmd/compile: remove superfluous SetBounded call
+    cmd/compile: not use REGTMP in ZeroRange on ARM64
     
-    The call does nothing when applied to an OLSH node.
-    It would be unnecessary anyway, since we're shifting by a small constant.
+    For async preemption, we will be using REGTMP as a temporary
+    register in injected call on ARM64, which will clobber it. So any
+    code that uses REGTMP is not safe for async preemption.
     
-    Passes toolstash-check.
+    For ZeroRange, which is inserted at the function entry where
+    there is no register live, we could just use a different register
+    and avoid REGTMP.
     
-    Change-Id: If858711f1704f44637fa0f6a4c66cbaad6db24b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228699
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I3db763828df6846908c9843a9912597efb9efcdf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203458
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/walk.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/arm64/ggen.go | 12 ++++++++----
+ src/cmd/compile/internal/gc/go.go      |  8 ++++++--
+ 2 files changed, 14 insertions(+), 6 deletions(-)

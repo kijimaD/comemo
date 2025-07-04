@@ -1,12 +1,12 @@
-commit 4e110af169869b07950fa6aa543f2625021bb3cb
+commit 0a6fdcf63ba9cc34d1ae33345adbfc4d5e1a4b75
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 5 22:28:02 2012 -0500
+Date:   Mon Mar 5 22:07:22 2012 -0500
 
-    runtime: add Compiler
+    net: silence another epoll print
     
-    R=iant, r, gri
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5720073
+    https://golang.org/cl/5752048
 
- src/pkg/runtime/compiler.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/pkg/net/fd_linux.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

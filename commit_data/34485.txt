@@ -1,14 +1,25 @@
-commit f7739c07c8f6ef9bfa28e8c4a4527b01cf3991bc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 2 15:16:02 2018 -0800
+commit d941b07558882439fa38a0beda68bd1041856c77
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 22 18:10:08 2017 -0400
 
-    runtime: skip pointless writes in freedefer
+    runtime: eliminate write barriers from persistentalloc
     
-    Change-Id: I501a0e5c87ec88616c7dcdf1b723758b6df6c088
-    Reviewed-on: https://go-review.googlesource.com/98758
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    We're about to start tracking nowritebarrierrec through systemstack
+    calls, which will reveal write barriers in persistentalloc prohibited
+    by various callers.
+    
+    The pointers manipulated by persistentalloc are always to off-heap
+    memory, so this removes these write barriers statically by introducing
+    a new go:notinheap type to represent generic off-heap memory.
+    
+    Updates #22384.
+    For #22460.
+    
+    Change-Id: Id449d9ebf145b14d55476a833e7f076b0d261d57
+    Reviewed-on: https://go-review.googlesource.com/72771
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/panic.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go | 30 +++++++++++++++++++++++-------
+ 1 file changed, 23 insertions(+), 7 deletions(-)

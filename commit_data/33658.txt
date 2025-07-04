@@ -1,21 +1,27 @@
-commit a2a1c173d7917e86e2f0a3323676ae29f188593c
-Author: Tim Wright <tenortim@gmail.com>
-Date:   Tue Nov 21 19:11:56 2017 -0800
+commit e3442b4ee85a0a491e9326593c2e8fc762337337
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 28 15:33:11 2017 +1000
 
-    syscall: add missing fs locking in Link, Rename on nacl
+    cmd/doc: search for packages in the two-arg case
     
-    Per the comments at the head of fs_nacl.go, unexported methods expect
-    the fs mutex to have been taken by the caller.
-    This change brings Link and Rename into line with the other exported
-    functions wrt fs locking.
+    When given one argument, as in
     
-    Fixes #22690
+            go doc binary.BigEndian
     
-    Change-Id: I46d08f7d227f23ff49bb0099d218214364a45e1a
-    Reviewed-on: https://go-review.googlesource.com/79295
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    doc would search for the package, but when given two, as in
+    
+            go doc binary BigEndian
+    
+    it would not. Fix the inconsistency.
+    
+    Fixes #18697
+    Fixes #18664
+    
+    Change-Id: Ib59dc483e8d4f91e6061c77a5ec24d0a50e115f0
+    Reviewed-on: https://go-review.googlesource.com/59413
+    Reviewed-by: Aliaksandr Valialkin <valyala@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/fs_nacl.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/doc/doc_test.go | 30 ++++++++++++++++++++++++++++++
+ src/cmd/doc/main.go     | 11 +++++------
+ 2 files changed, 35 insertions(+), 6 deletions(-)

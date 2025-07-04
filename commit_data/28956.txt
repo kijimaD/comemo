@@ -1,14 +1,15 @@
-commit ca8dd033a0a88946f02a37bdbd107af83afa0e24
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 20 11:10:03 2016 -0700
+commit 021f2432131d9bdaa4e89592129a540324f9f22d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 17:05:31 2016 -0700
 
-    cmd/cgo: correct comment on Package.rewriteCall
+    go/types: set Info.Types.Type for array composite literals of the form [...]T
     
-    Account for changes in https://golang.org/cl/31233.
+    Fixes #14092.
     
-    Change-Id: I3311c6850a3c714d18209fdff500dd817e9dfcb2
-    Reviewed-on: https://go-review.googlesource.com/31594
+    Change-Id: I00692f60a416348e38cab256b94fda07e334d258
+    Reviewed-on: https://go-review.googlesource.com/27316
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/cgo/gcc.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/go/types/api_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/expr.go     |  5 ++++-
+ 2 files changed, 57 insertions(+), 1 deletion(-)

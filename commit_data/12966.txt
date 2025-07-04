@@ -1,12 +1,12 @@
-commit d2e70054c9c530214d9945fabbb82b2a7433644d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 25 13:44:30 2012 -0700
+commit b6522c43d5349f4b460dcb78d9173eee14ef0938
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 25 13:01:08 2012 -0700
 
-    codereview: look for new release branches
+    dashboard: sort user interface by internal counter, not date
     
-    R=adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6127048
+    https://golang.org/cl/6114053
 
- lib/codereview/codereview.py | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ misc/dashboard/app/build/ui.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

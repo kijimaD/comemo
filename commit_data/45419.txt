@@ -1,18 +1,28 @@
-commit c4c68fb57f1b081557a837e8809094b42cfdc5e3
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Wed Apr 28 05:21:33 2021 +0000
+commit 4fdb98dcb1bf7a33565c81db3c00e91a466e098d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 15 18:22:09 2020 -0400
 
-    cmd/compile/internal/walk: delete unused statement
+    cmd/go: save sums for zips needed to diagnose ambiguous imports
     
-    Change-Id: I3f118c868b13ec51b2e501424b35564929eed56d
-    GitHub-Last-Rev: d15ae124c582417cd10bceaef0b5c0ebbf100f7e
-    GitHub-Pull-Request: golang/go#45816
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314570
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Previously, we would retain entries in go.sum for .mod files in the
+    module graph (reachable from the main module) and for .zip files
+    of modules providing packages.
+    
+    This isn't quite enough: when we load a package, we need the content
+    of each module in the build list that *could* provide the package
+    (that is, each module whose path is a prefix of the package's path) so
+    we can diagnose ambiguous imports.
+    
+    For #33008
+    
+    Change-Id: I0b4d9d68c1f4ca382f0983a3a7e537764f35c3aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262781
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/walk/range.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/go/internal/modload/init.go                | 87 +++++++++++++++-------
+ .../mod/example.com_ambiguous_a_b_v0.0.0-empty.txt | 12 +++
+ .../mod/example.com_ambiguous_a_v1.0.0.txt         | 18 +++++
+ src/cmd/go/testdata/script/mod_sum_ambiguous.txt   | 48 ++++++++++++
+ 4 files changed, 138 insertions(+), 27 deletions(-)

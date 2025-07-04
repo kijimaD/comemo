@@ -1,16 +1,16 @@
-commit 26ff21d44da04bc3fdec33caf292a836ac4e692a
-Author: alan <shore.cloud@gmail.com>
-Date:   Thu Oct 10 18:56:27 2019 +0000
+commit 06a8f6840750132ba4836e579d4763b2e482ef66
+Author: Brandon Ryan <bjryan19@gmail.com>
+Date:   Thu Apr 25 20:31:44 2019 +0000
 
-    runtime: remove no-op pointer writes in treap rotations
+    doc: clarify to use MinGW-W64 for amd64 systems
     
-    Change-Id: If5a272f331fe9da09467efedd0231a4ce34db0f8
-    GitHub-Last-Rev: 4b81a79a92db4b51001ce6660b24c760fd3b630b
-    GitHub-Pull-Request: golang/go#28420
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/144999
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Fixes #19686
+    
+    Change-Id: I5c2dd60636b521425647afd0725fdd7c18e7bbbe
+    GitHub-Last-Rev: a1c5f569409d8759d5d81da811eaf873073bfe39
+    GitHub-Pull-Request: golang/go#31682
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173997
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/sema.go | 24 ++++--------------------
- 1 file changed, 4 insertions(+), 20 deletions(-)
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

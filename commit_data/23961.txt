@@ -1,26 +1,36 @@
-commit e30c6d64bac1b5a31a7062dff89744332bebc23e
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 3 09:25:23 2015 -0400
+commit 86286883047d75df7769bff42ba2364b9bcee6fd
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Wed Jun 24 09:50:12 2015 +1000
 
-    runtime: always give concurrent sweep some heap distance
+    Fix several out of date references to 4g/5g/6g/8g/9g.
     
-    Currently it's possible for the next_gc heap size trigger computed for
-    the next GC cycle to be less than the current allocated heap size.
-    This means the next cycle will start immediately, which means there's
-    no time to perform the concurrent sweep between GC cycles. This places
-    responsibility for finishing the sweep on GC itself, which delays GC
-    start-up and hence delays mutator assist.
-    
-    Fix this by ensuring that next_gc is always at least a little higher
-    than the allocated heap size, so we won't trigger the next cycle
-    instantly.
-    
-    Updates #11911.
-    
-    Change-Id: I74f0b887bf187518d5fedffc7989817cbcf30592
-    Reviewed-on: https://go-review.googlesource.com/13043
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ifb8e4e13c7778a7c0113190051415e096f5db94f
+    Reviewed-on: https://go-review.googlesource.com/11390
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/mgc.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ doc/asm.html                       |  4 ++--
+ doc/go_faq.html                    |  2 +-
+ doc/install-source.html            |  4 ++--
+ misc/cgo/gmp/gmp.go                |  2 +-
+ misc/cgo/testshared/shared_test.go |  2 +-
+ src/cmd/cgo/gcc.go                 |  2 +-
+ src/cmd/cgo/main.go                |  2 +-
+ src/cmd/cgo/out.go                 | 20 +++++++++-----------
+ src/cmd/dist/buildruntime.go       |  2 +-
+ src/cmd/go/build.go                |  2 +-
+ src/cmd/internal/obj/util.go       |  2 +-
+ src/reflect/type.go                |  2 +-
+ src/runtime/cgo/asm_arm.s          |  2 +-
+ src/runtime/cgo/asm_arm64.s        |  2 +-
+ src/runtime/cgo/gcc_arm64.S        |  2 +-
+ src/runtime/cgo/gcc_ppc64x.S       |  2 +-
+ src/runtime/compiler.go            |  2 +-
+ test/chan/select5.go               |  2 +-
+ test/cmp.go                        |  2 +-
+ test/errchk                        |  2 +-
+ test/func6.go                      |  2 +-
+ test/func7.go                      |  2 +-
+ test/index.go                      |  2 +-
+ test/run.go                        |  2 +-
+ 24 files changed, 34 insertions(+), 36 deletions(-)

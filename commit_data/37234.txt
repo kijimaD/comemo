@@ -1,15 +1,30 @@
-commit 61e2b75a2f9856e06e05e64603c95809be21ba29
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Nov 2 16:56:09 2018 -0400
+commit cc422e64d083b28a5f03e654970276c4bcac3677
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 11 16:43:51 2018 -0700
 
-    go/build: add go1.12 release tag
+    cmd/compile: fix ICE due to missing inline function body
     
-    Change-Id: I82e3f9140e5d14f02beef64c474a3ae88fe256e1
-    Reviewed-on: https://go-review.googlesource.com/c/147219
-    Run-TryBot: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For golang.org/cl/74110, I forgot that you can use range-based for
+    loops to extract key values from a map value.
+    
+    This wasn't a problem for the binary format importer, because it was
+    more tolerant about missing inline function bodies. However, the
+    indexed importer is more particular about this.
+    
+    We could potentially just make it more lenient like the binary
+    importer, but tweaking the logic here is easy enough and seems like
+    the preferable solution.
+    
+    Fixes #26341.
+    
+    Change-Id: I54564dcd0be60ea393f8a0f6954b7d3d61e96ee5
+    Reviewed-on: https://go-review.googlesource.com/123475
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/go/build/build.go | 2 +-
- src/go/build/doc.go   | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go | 25 ++++++++++++++-----------
+ test/fixedbugs/issue26341.dir/a.go     | 11 +++++++++++
+ test/fixedbugs/issue26341.dir/b.go     | 13 +++++++++++++
+ test/fixedbugs/issue26341.go           |  7 +++++++
+ 4 files changed, 45 insertions(+), 11 deletions(-)

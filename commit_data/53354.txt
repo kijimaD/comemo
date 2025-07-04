@@ -1,25 +1,26 @@
-commit 7756f825905d047a93abfb30f6da57881b7b9669
-Author: Chris O'Hara <cohara87@gmail.com>
-Date:   Thu May 25 12:07:07 2023 +1000
+commit 141f15303d528620a8855fd73d19fe51dd2479f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat May 28 17:46:38 2022 -0700
 
-    syscall: implement wasip1 Fcntl
+    internal/saferio: new package to avoid OOM
     
-    CL 494915 broke non-blocking I/O on wasip1 for files
-    opened with os.NewFile. This is fixed by providing an
-    implementation of fcntl(F_GETFL) for wasip1.
+    Broken out of debug/pe. Update debug/pe to use it.
     
-    Change-Id: I78979076b95495fd4b94814552e5f5b043270cd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498195
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #47653
+    
+    Change-Id: Ib3037ee04073e005c4b435d0128b8437a075b00a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408678
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Kortschak <dan@kortschak.io>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- .../syscall/unix/{fcntl_wasm.go => fcntl_js.go}    |   2 +
- src/internal/syscall/unix/fcntl_wasip1.go          |  17 ++++
- src/runtime/internal/wasitest/nonblock_test.go     | 108 +++++++++++----------
- src/runtime/internal/wasitest/testdata/nonblock.go |  19 +++-
- 4 files changed, 93 insertions(+), 53 deletions(-)
+ src/cmd/dist/buildtool.go       |  1 +
+ src/debug/pe/string.go          | 24 ++-----------------
+ src/go/build/deps_test.go       |  5 +++-
+ src/internal/saferio/io.go      | 52 +++++++++++++++++++++++++++++++++++++++++
+ src/internal/saferio/io_test.go | 39 +++++++++++++++++++++++++++++++
+ 5 files changed, 98 insertions(+), 23 deletions(-)

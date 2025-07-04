@@ -1,24 +1,13 @@
-commit 748e5db96d8412d2142afb15c9a3da62f410d45a
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Jul 24 23:18:54 2014 +0200
+commit 8cb040771bc9ef65834669b7924b87ef76d9b092
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Wed Jul 23 10:35:04 2014 -0700
 
-    test/run: always set goos and goarch
+    misc/pprof: support web profiles on windows/MinGW
     
-    Following CL 68150047, the goos and goarch
-    variables are not currently set when the GOOS
-    and GOARCH environment variables are not set.
-    
-    This made the content of the build tag to be
-    ignored in this case.
-    
-    This CL sets goos and goarch to runtime.GOOS
-    and runtime.GOARCH when the GOOS and GOARCH
-    environments variables are not set.
-    
-    LGTM=aram, bradfitz
-    R=golang-codereviews, aram, gobot, rsc, dave, bradfitz
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/112490043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/117060043
 
- test/run.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ misc/pprof | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

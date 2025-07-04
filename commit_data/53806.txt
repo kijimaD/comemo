@@ -1,34 +1,16 @@
-commit d8c75273cfae86e539af10d5000db9fb9ac3c4c0
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Jul 21 15:59:02 2023 -0400
+commit b226cc5ca025635175031d3ffb9596614b66bdaf
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Sep 2 22:26:05 2022 +0800
 
-    cmd/dist: update isUnsupportedVMASize test skip
+    cmd/internal/obj/riscv: fix comment typo
     
-    The dist test name changed from "race" to "flag:race", "net:race",
-    "os:race" and so on in CL 496181, we missed that this skip was checking
-    the exact dist test name, and no builder reported a problem despite the
-    skip becoming inactive.
-    
-    I considered deleting it as obsolete, but it may still be helpful
-    if someone runs race.bash on a linux/arm64 machine configured with
-    something other than the supported 48-bit VMA. So for now apply a
-    simple change to restore the existing skip.
-    
-    Hopefully one day there will be a good way to check for unsupported VMA
-    size and disable the race detector conditionally instead of relying on
-    tests running, failing, and getting marked as skipped in cmd/dist.
-    
-    For #29948.
-    For #37486.
-    
-    Change-Id: I8af6862c92fb0ee538ab27327d43c50921bd1873
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512116
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ica74977898f0af8c9abf42a003d8f02dbdc03d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427994
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/dist/test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

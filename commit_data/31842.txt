@@ -1,14 +1,25 @@
-commit 75ab6134fcea003803e25c9bad7f092be3eeb5c3
-Author: Kale Blankenship <kale@lemnisys.com>
-Date:   Wed Jun 14 19:44:20 2017 -0700
+commit df47b821747184361f9b3d6038fc66eda4916619
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Mar 20 17:31:35 2017 -0400
 
-    net/http: document SOCKS5 proxy support
+    cmd/internal/obj/s390x: cleanup objz.go
     
-    Fixes #20618
+    This CL deletes some unnecessary code in objz.go that existed to
+    support instruction scheduling. It's likely instruction scheduling
+    will never be done in this part of the backend so this code can
+    just be deleted.
     
-    Change-Id: I90712bd76d9d47f29221bc298c69737ebee25c12
-    Reviewed-on: https://go-review.googlesource.com/45814
+    This file can probably be cleaned up a bit more, but I think this
+    is a good start.
+    
+    Passes: go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I1645632ac551a90a4f4be418045c046b488e9469
+    Reviewed-on: https://go-review.googlesource.com/38394
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/internal/obj/s390x/a.out.go |  12 +--
+ src/cmd/internal/obj/s390x/objz.go  | 146 ++++--------------------------------
+ 2 files changed, 16 insertions(+), 142 deletions(-)

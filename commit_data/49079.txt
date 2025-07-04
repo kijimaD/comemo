@@ -1,24 +1,19 @@
-commit 12420f9c01d6966c2994dbcc506a9d783a30ebdb
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri May 6 15:57:21 2022 -0400
+commit de209e693a251c772a37e7deb274574d8b8759ce
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 10:33:59 2021 -0400
 
-    cmd/link: resolve relocations to .TOC. symbol
+    [dev.typeparams] go/types: make Interface.obj a *TypeName
     
-    CL 404296 breaks the PPC64LE build because the .TOC. symbol is
-    visibility hidden and was skipped from the "unresolved symbol"
-    check (the check needs to be fix). In face, the .TOC. symbol is
-    special in that it doesn't have a type but we have special logic
-    to assign a value to it in the address pass. So we can actually
-    resolve a relocation to .TOC.. We already have a special case
-    for PIE. It also applies to non-PIE as well.
+    This is a straightforward port of CL 332011 to go/types.
     
-    Fix PPC64LE builds.
-    
-    Change-Id: Iaf7e36f10c4d0a40fc56b2135e5ff38815e203b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404302
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I682791886c8496c52094f3688e36934afbd7a241
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335035
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/data.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/go/types/call.go        | 7 +++----
+ src/go/types/sizeof_test.go | 2 +-
+ src/go/types/type.go        | 2 +-
+ 3 files changed, 5 insertions(+), 6 deletions(-)

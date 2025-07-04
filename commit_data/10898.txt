@@ -1,19 +1,24 @@
-commit b9697d4a58bfd6dd99e03123c3d53e4f1b035787
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 20 09:59:09 2011 -0800
+commit c50e4f5e2f260ff2b68a127843b197443460043f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 20 09:51:39 2011 -0800
 
-    go/ast, parser: remember short variable decls. w/ correspoding ident objects
+    testing: allow benchmarks to print and fail
+    Refactors the benchmarks and test code.
+    Now benchmarks can call Errorf, Fail, etc.,
+    and the runner will act accordingly.
     
-    The ast.Object's Decl field pointed back to the corresponding declaration for
-    all but short variable declarations. Now remember corresponding assignment
-    statement in the Decl field.
+    Because functionality has been folded into an
+    embedded type, a number of methods' docs
+    no longer appear in godoc output. A fix is
+    underway; if it doesn't happen fast enough,
+    I'll add wrapper methods to restore the
+    documentation.
     
-    Also: simplified some code for parsing select statements.
-    
-    R=golang-dev, r, bradfitz
+    R=bradfitz, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/5492072
+    https://golang.org/cl/5492060
 
- src/pkg/go/ast/scope.go     |  8 +++++-
- src/pkg/go/parser/parser.go | 62 ++++++++++++++++++++++-----------------------
- 2 files changed, 37 insertions(+), 33 deletions(-)
+ src/pkg/testing/benchmark.go |  71 +++++++++++++++++++++++-----
+ src/pkg/testing/testing.go   | 110 +++++++++++++++++++++++++------------------
+ test/fixedbugs/bug229.go     |   4 +-
+ 3 files changed, 126 insertions(+), 59 deletions(-)

@@ -1,22 +1,22 @@
-commit ace25f82df0a27eb26a518e1883eb56c1bec6c5e
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Jan 22 15:30:52 2020 -0500
+commit cdd2c265cc132a15e20298fbb083a70d7f3b495d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 29 17:34:17 2019 -0700
 
-    cmd/link: ensure cgo cflags do not leak into tvOS test
+    cmd/compile/internal/scanner: report at most one lexical error per number literal
     
-    Running the 'TestBuildForTvOS' test with CGO_CFLAGS set
-    with certain values would cause the test to fail. all.bash
-    would fail when CGO_CFLAGS was set to '-mmacosx-version-min=10.10'
-    because the --macosx-version-min flag is incompatible with tvOS.
-    The change guards against using an unintended flag in the unit test.
+    Leave reporting of multiple errors for strings alone for now;
+    we probably want to see all incorrect escape sequences in
+    runes/strings independent of other errors.
     
-    Updates #35459
+    Fixes #33961.
     
-    Change-Id: Ifc43f3ebfb23d37aabeaac2ea9efae5b877991bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215957
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Change-Id: Id722e95f802687963eec647d1d1841bd6ed17d35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192499
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/link_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/syntax/scanner.go      | 28 ++++++++++++-------------
+ src/cmd/compile/internal/syntax/scanner_test.go | 22 +++++++++++++++++++
+ 2 files changed, 36 insertions(+), 14 deletions(-)

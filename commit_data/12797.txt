@@ -1,13 +1,16 @@
-commit 2195f1aa047d0a57e3a542fa90f8c63dafc2002e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Mar 30 14:04:03 2012 +0800
+commit dc640ebd1a340a53db2c5520afca8643fd8f063e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 30 15:27:39 2012 +1100
 
-    doc/go_spec: fix broken link
-            Part of issue 3424
+    exp/terminal: delete.
+    
+    This is now known as code.google.com/p/go.crypto/ssh/terminal.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5955049
+    https://golang.org/cl/5970044
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/terminal/terminal.go      | 520 ----------------------------------
+ src/pkg/exp/terminal/terminal_test.go | 110 -------
+ src/pkg/exp/terminal/util.go          | 115 --------
+ 3 files changed, 745 deletions(-)

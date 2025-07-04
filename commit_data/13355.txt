@@ -1,14 +1,13 @@
-commit 18b281978c0dba02d3312d9fbee03f711f0b26c9
+commit 985261429162edc07e0e97741f425c5aded55641
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Jun 16 02:24:44 2012 +0800
+Date:   Fri Jun 15 02:52:18 2012 +0800
 
-    doc: delete Mercurial Queues doc
-            Fixes #3716.
+    exp/types: clean up objects after test
+            Fixes #3739.
     
-    R=golang-dev, adg
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6310044
+    https://golang.org/cl/6295083
 
- doc/codereview_with_mq.html | 115 --------------------------------------------
- doc/contribute.html         |   5 --
- 2 files changed, 120 deletions(-)
+ src/pkg/exp/types/gcimporter_test.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

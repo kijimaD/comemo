@@ -1,47 +1,49 @@
-commit 28f1bf61b7383bd4079d77090e67b3198b75be12
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Oct 14 00:45:28 2023 +0800
+commit d092f597d7f0bef88620d7340df9079477df727f
+Author: ruinan <ruinan.sun@arm.com>
+Date:   Tue Nov 8 16:49:53 2022 +0800
 
-    go: add available godoc link
+    math/bits: directly calculate quo/rem when hi is zero in Div64
     
-    Change-Id: Ie2e8b56225292ef0a28a25f96b0a57cc198a13e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535195
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    func Div64(hi, lo, y uint64) (quo, rem uint64) {...}
+    
+    math/bits.Div64 returns the quotient and remainder of (hi, lo) divided
+    by y. When hi is zero, we can directly return lo/y, lo%y, which can save
+    a lot of unnecessary calculations.
+    
+    The performance is measured on arm64 and the changes will only affect
+    the arch that doesn't have the intrinsic.
+    
+    name                old time/op    new time/op    delta
+    DivWVW/1-10         4.62ns ± 1%    2.45ns ± 1%  -46.97%
+    DivWVW/2-10         12.4ns ± 0%    12.2ns ± 0%   -1.38%
+    DivWVW/3-10         17.4ns ± 1%    17.2ns ± 0%   -0.88%
+    DivWVW/4-10         21.4ns ± 1%    21.6ns ± 0%   +0.75%
+    DivWVW/5-10         22.1ns ± 1%    21.9ns ± 0%   -0.69%
+    DivWVW/10-10        53.4ns ± 1%    53.0ns ± 1%   -0.69%
+    DivWVW/100-10        641ns ± 1%     633ns ± 0%   -1.26%
+    DivWVW/1000-10      5.52µs ± 1%    5.44µs ± 0%   -1.39%
+    DivWVW/10000-10     54.9µs ± 1%    54.7µs ± 1%   -0.54%
+    DivWVW/100000-10     646µs ± 1%     643µs ± 1%     ~
+    
+    name                  old speed      new speed    delta
+    DivWVW/1-10       13.8GB/s ± 1%  26.1GB/s ± 1%  +88.57%
+    DivWVW/2-10       10.3GB/s ± 0%  10.5GB/s ± 0%   +1.39%
+    DivWVW/3-10       11.1GB/s ± 1%  11.2GB/s ± 0%   +0.90%
+    DivWVW/4-10       12.0GB/s ± 1%  11.9GB/s ± 0%   -0.74%
+    DivWVW/5-10       14.5GB/s ± 1%  14.6GB/s ± 0%   +0.69%
+    DivWVW/10-10      12.0GB/s ± 1%  12.1GB/s ± 1%   +0.69%
+    DivWVW/100-10     10.0GB/s ± 1%  10.1GB/s ± 0%   +1.28%
+    DivWVW/1000-10    11.6GB/s ± 1%  11.8GB/s ± 0%   +1.41%
+    DivWVW/10000-10   11.6GB/s ± 1%  11.7GB/s ± 1%   +0.54%
+    DivWVW/100000-10  9.91GB/s ± 1%  9.95GB/s ± 1%     ~
+    
+    Change-Id: I12014c2e2cdb2c91608079f7502592307af9e525
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449776
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/ast/ast.go               |  14 ++---
- src/go/ast/commentmap.go        |   2 +-
- src/go/ast/filter.go            |   6 +--
- src/go/ast/print.go             |   4 +-
- src/go/ast/resolve.go           |   6 +--
- src/go/ast/walk.go              |   4 +-
- src/go/build/build.go           |   8 +--
- src/go/build/constraint/expr.go |   4 +-
- src/go/build/doc.go             |   2 +-
- src/go/constant/value.go        | 112 ++++++++++++++++++++--------------------
- src/go/doc/comment/html.go      |   4 +-
- src/go/doc/comment/parse.go     |   6 +--
- src/go/doc/comment/print.go     |   2 +-
- src/go/doc/comment/text.go      |   2 +-
- src/go/doc/doc.go               |   8 +--
- src/go/doc/example.go           |   2 +-
- src/go/doc/synopsis.go          |   2 +-
- src/go/format/format.go         |   8 +--
- src/go/importer/importer.go     |   6 +--
- src/go/parser/interface.go      |  20 +++----
- src/go/printer/printer.go       |   8 +--
- src/go/scanner/errors.go        |  18 +++----
- src/go/scanner/scanner.go       |  18 +++----
- src/go/token/position.go        |  72 +++++++++++++-------------
- src/go/token/token.go           |   6 +--
- src/go/types/api.go             |  32 ++++++------
- src/go/types/check.go           |   6 +--
- src/go/types/eval.go            |   8 +--
- src/go/types/interface.go       |   8 +--
- src/go/types/methodset.go       |   2 +-
- src/go/types/signature.go       |   4 +-
- src/go/types/typestring.go      |  12 ++---
- src/go/types/union.go           |   4 +-
- 33 files changed, 210 insertions(+), 210 deletions(-)
+ src/math/bits/bits.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

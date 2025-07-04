@@ -1,21 +1,14 @@
-commit 810e439859afe4c2b526c4baed9d01fd72d499ed
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Jan 11 12:42:09 2013 +1100
+commit 6e981c181ce1b8dd54ad83107cfddc954eea668f
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 11 00:59:44 2013 +0100
 
-    net: use windows ConnectEx to dial (when possible)
+    runtime: work around 5c bug in GC code.
     
-    Update #2631.
-    Update #3097.
+    5c miscompiles *p++ = struct_literal.
     
-    R=golang-dev, bradfitz
+    R=dave, golang-dev
     CC=golang-dev
-    https://golang.org/cl/7061060
+    https://golang.org/cl/7065069
 
- src/pkg/net/dial.go                | 19 ++--------
- src/pkg/net/dial_windows_test.go   | 74 ++++++++++++++++++++++++++++++++++++++
- src/pkg/net/fd_plan9.go            |  6 ++++
- src/pkg/net/fd_unix.go             |  9 +++++
- src/pkg/net/fd_windows.go          | 64 ++++++++++++++++++++++++++++++++-
- src/pkg/syscall/syscall_windows.go | 52 +++++++++++++++++++++++++++
- src/pkg/syscall/ztypes_windows.go  | 39 +++++++++++++++-----
- 7 files changed, 236 insertions(+), 27 deletions(-)
+ src/pkg/runtime/mgc0.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

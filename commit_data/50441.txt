@@ -1,17 +1,19 @@
-commit f53b2111e489e61461837737cf69371a043d4fd9
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 7 09:51:35 2022 +0200
+commit 80be4a4f90836a33ab5b3d09c6f529de8ee628ea
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 26 14:47:07 2021 -0700
 
-    syscall: use unsafe.Slice instead of unsafeheader package
+    crypto/x509: generate new-style build tags for iOS
     
-    Change-Id: I9de5aafb36d05bdc90bbdba516367eb2b200a7e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428777
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Make the input match gofmt's output,
+    to make our lives easier as we phase out
+    old style build tags.
+    
+    Change-Id: I95dc5a77058bf17cb02e289703f60784616db006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358934
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/syscall/syscall_unix.go    | 7 +------
- src/syscall/syscall_windows.go | 7 +------
- 2 files changed, 2 insertions(+), 12 deletions(-)
+ src/crypto/x509/root_ios_gen.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

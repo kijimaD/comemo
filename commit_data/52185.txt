@@ -1,19 +1,30 @@
-commit 142d30b2cb036289b27726cee726129087728a66
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Mar 6 12:36:31 2023 +0100
+commit 9c7f0b1ccd37b6f41a5326c451c633c92e93870c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Apr 11 18:57:44 2022 -0400
 
-    cmd/go: trim spaces in pkg-config ldflags output
+    cmd/link: mangle symbol ABI name for linker-generated symbols
     
-    Fixes #58889
-    Updates #35262
+    The ABI mangling code skips symbols that are not loaded from Go
+    objects. Usually that is fine, as other symbols don't need name
+    mangling. But trampolines are linker generated and have the same
+    symbol version (ABI) as the underlying symbol. We need to avoid
+    symbol name collisions for trampolines, such as a trampoline to
+    f<ABI0> and a trampoline to f<ABIInternal>. We could explicitly
+    incorportate the ABI into the trampoline name. But as we already
+    have the name mangling scheme we could just use that.
     
-    Change-Id: I1d51aa03f445faaf4f4e9cc412d5499cad526663
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473616
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    The original code excludes external symbols probably because
+    symbols from C object don't need mangling. But a C symbol and a
+    Go symbol shouldn't have same name, and so the condition won't
+    apply.
+    
+    Also exclude static symbols as they don't need mangling.
+    
+    Change-Id: I298eb1d64bc0c3da0154f0146b95c4d26ca2f47a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399894
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/work/exec.go | 2 +-
+ src/cmd/link/internal/ld/symtab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

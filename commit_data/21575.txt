@@ -1,16 +1,21 @@
-commit c1bbf0a2eac5a6ad71debb050cd46384649fcb04
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Feb 3 12:48:35 2015 +0300
+commit e9ce76b0eca8fa95dddb90b0a72aadab58de2ffc
+Author: Bill Thiede <couchmoney@gmail.com>
+Date:   Sat Jan 17 21:09:15 2015 -0800
 
-    cmd/gc: remove several copies of outervalue
+    runtime, syscall: use SYSCALL instruction on FreeBSD.
     
-    Walk calls it outervalue, racewalk calls it basenod,
-    isstack does it manually and slightly differently.
+    This manually reverts 555da73 from #6372 which implies a
+    minimum FreeBSD version of 8-STABLE.
+    Updates docs to mention new minimum requirement.
     
-    Change-Id: Id5b5d32b8faf143fe9d34bd08457bfab6fb33daa
-    Reviewed-on: https://go-review.googlesource.com/3745
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #9627
+    
+    Change-Id: I40ae64be3682d79dd55024e32581e3e5e2be8aa7
+    Reviewed-on: https://go-review.googlesource.com/3020
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gc/racewalk.c | 34 +++++++---------------------------
- src/cmd/gc/walk.c     | 10 +++++-----
- 2 files changed, 12 insertions(+), 32 deletions(-)
+ doc/install.html                |  9 +++++----
+ src/runtime/sys_freebsd_amd64.s | 25 -------------------------
+ src/syscall/asm_freebsd_amd64.s |  5 -----
+ 3 files changed, 5 insertions(+), 34 deletions(-)

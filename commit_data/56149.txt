@@ -1,18 +1,27 @@
-commit ddc6e165fd84cf7d46f743dabe925835f16a73ee
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Sat Apr 6 06:28:34 2024 +0000
+commit d528f72d4c391309b2cb938707837b0da386b67c
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Mar 27 09:27:43 2023 -0400
 
-    cmd/link: close the file opened in the captureHostObj function
+    log/slog: require entire Attr to be empty to elide
     
-    Change-Id: I940c63c3040035e507428798d50060cfd0d04e16
-    GitHub-Last-Rev: e27484cd43e21599ba6e798ab74a703ad290ae7c
-    GitHub-Pull-Request: golang/go#66706
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577055
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
+    Specify that Handlers should ignore zero-valued Attrs.
+    
+    Implement that policy in the built-in handlers.
+    
+    Fixes #59282.
+    
+    Change-Id: I4430686b61f49bdac849ee300daaabfac9895849
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484095
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/link/internal/ld/lib.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/log/slog/attr.go                       |  2 ++
+ src/log/slog/example_wrap_test.go          |  2 +-
+ src/log/slog/handler.go                    | 28 ++++++++++++----------------
+ src/log/slog/handler_test.go               | 12 ++++++++----
+ src/log/slog/internal/slogtest/slogtest.go |  2 +-
+ src/log/slog/text_handler.go               |  3 +++
+ src/log/slog/text_handler_test.go          |  2 +-
+ src/log/slog/value_test.go                 |  1 -
+ 8 files changed, 28 insertions(+), 24 deletions(-)

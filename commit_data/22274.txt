@@ -1,51 +1,48 @@
-commit e5a0d6399e00cec2a35b77a79d81a9435b0ee909
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 20 13:35:02 2015 -0700
+commit bed1f90d080da467d6abd416f76681ef58c9f79e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 16:03:26 2015 -0500
 
-    cmd/internal/gc/big: vendored math/big for use by gc
+    cmd/internal/gc: delete Strlit, Zconv
     
-    This is vendored copy of the pure-Go version of math/big.
-    To update, run vendor.bash in place.
+    Strlit was just a poor excuse for a Go string.
+    Use a Go string.
+    In the one case where it was a string-or-nil (Type.Note), use a *string.
     
-    This will permit the use of the new big.Float functionality in
-    gc (which is not available in 1.4, the version used for bootstrapping).
+    Zconv was a poor excuse for %q. Use %q.
+    The only important part about Zconv's implementation
+    was that the compiler and linker agreed on the quoting rules.
+    Now they both use %q instead of having two Zconvs.
     
-    Change-Id: I4dcdea875d54710005ca3fdea2e0e30422b1b46d
-    Reviewed-on: https://go-review.googlesource.com/7857
+    This CL *does* change the generated object files, because the
+    quoted strings end up in symbol names.
+    For example the string "\r\n" used to be named go.string."\r\n"
+    and is now go.string."\x0d\n".
+    
+    Change-Id: I5c0d38e1570ffc495f0db1a20273c9564104a7e8
+    Reviewed-on: https://go-review.googlesource.com/6519
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/big/accuracy_string.go     |   16 +
- src/cmd/internal/gc/big/arith.go               |  291 ++++
- src/cmd/internal/gc/big/arith_decl.go          |   55 +
- src/cmd/internal/gc/big/arith_test.go          |  456 +++++++
- src/cmd/internal/gc/big/bits_test.go           |  224 ++++
- src/cmd/internal/gc/big/calibrate_test.go      |   88 ++
- src/cmd/internal/gc/big/decimal.go             |  258 ++++
- src/cmd/internal/gc/big/decimal_test.go        |  106 ++
- src/cmd/internal/gc/big/example_test.go        |   51 +
- src/cmd/internal/gc/big/float.go               | 1702 ++++++++++++++++++++++++
- src/cmd/internal/gc/big/float_test.go          | 1682 +++++++++++++++++++++++
- src/cmd/internal/gc/big/floatconv.go           |  350 +++++
- src/cmd/internal/gc/big/floatconv_test.go      |  391 ++++++
- src/cmd/internal/gc/big/floatexample_test.go   |  137 ++
- src/cmd/internal/gc/big/ftoa.go                |  190 +++
- src/cmd/internal/gc/big/gcd_test.go            |   47 +
- src/cmd/internal/gc/big/hilbert_test.go        |  160 +++
- src/cmd/internal/gc/big/int.go                 |  845 ++++++++++++
- src/cmd/internal/gc/big/int_test.go            | 1348 +++++++++++++++++++
- src/cmd/internal/gc/big/intconv.go             |  228 ++++
- src/cmd/internal/gc/big/intconv_test.go        |  342 +++++
- src/cmd/internal/gc/big/nat.go                 | 1155 ++++++++++++++++
- src/cmd/internal/gc/big/nat_test.go            |  518 ++++++++
- src/cmd/internal/gc/big/natconv.go             |  495 +++++++
- src/cmd/internal/gc/big/natconv_test.go        |  425 ++++++
- src/cmd/internal/gc/big/rat.go                 |  570 ++++++++
- src/cmd/internal/gc/big/rat_test.go            |  736 ++++++++++
- src/cmd/internal/gc/big/ratconv.go             |  251 ++++
- src/cmd/internal/gc/big/ratconv_test.go        |  451 +++++++
- src/cmd/internal/gc/big/roundingmode_string.go |   16 +
- src/cmd/internal/gc/big/vendor.bash            |   22 +
- 31 files changed, 13606 insertions(+)
+ src/cmd/5g/cgen.go               |  6 +--
+ src/cmd/6g/cgen.go               |  9 ++--
+ src/cmd/8g/cgen.go               |  6 +--
+ src/cmd/9g/cgen.go               |  6 +--
+ src/cmd/internal/gc/closure.go   |  2 +-
+ src/cmd/internal/gc/const.go     | 21 +++++----
+ src/cmd/internal/gc/dcl.go       |  9 ++--
+ src/cmd/internal/gc/esc.go       | 24 ++++------
+ src/cmd/internal/gc/export.go    | 20 ++++----
+ src/cmd/internal/gc/fmt.go       | 64 +++-----------------------
+ src/cmd/internal/gc/go.go        | 15 ++----
+ src/cmd/internal/gc/go.y         | 10 ++--
+ src/cmd/internal/gc/lex.go       | 98 ++++++++++++++++++++++------------------
+ src/cmd/internal/gc/obj.go       | 30 ++++--------
+ src/cmd/internal/gc/order.go     |  2 +-
+ src/cmd/internal/gc/reflect.go   |  8 ++--
+ src/cmd/internal/gc/sinit.go     |  4 +-
+ src/cmd/internal/gc/subr.go      | 52 ++++++++++-----------
+ src/cmd/internal/gc/typecheck.go | 16 +++----
+ src/cmd/internal/gc/walk.go      | 10 ++--
+ src/cmd/internal/gc/y.go         | 10 ++--
+ src/cmd/internal/ld/go.go        | 46 +------------------
+ 22 files changed, 179 insertions(+), 289 deletions(-)

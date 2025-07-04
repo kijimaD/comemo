@@ -1,13 +1,14 @@
-commit 12f473f8073ba6a59577967a99849d791f5b81b6
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Sun Dec 18 22:14:11 2011 -0200
+commit 41f4ba3ae53153d3de104d5f1af38109a83bc942
+Author: Paul Sbarra <Sbarra.Paul@gmail.com>
+Date:   Mon Dec 19 10:42:32 2011 +1100
 
-    text/template: fix handing of nil arguments to functions
+    vim: fix go filetype detection
     
-    R=golang-dev, r
+    The filetype needs to be set during BufRead in order for the did_filetype() check to prevent the file being detected as a conf file.  One example where this can occur is if a cgo file has a #include at the top of the file.  The # is detected in vim's generic configuration (conf file) toward the bottom of filetype.vim
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5494070
+    https://golang.org/cl/5496066
 
- src/pkg/text/template/exec.go      | 8 +++++++-
- src/pkg/text/template/exec_test.go | 7 +++++++
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ misc/vim/ftdetect/gofiletype.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

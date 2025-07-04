@@ -1,21 +1,26 @@
-commit 702d609a31f02007b471c072b633fa4238554022
-Author: pgxiaolianzi <gnnu_d13@163.com>
-Date:   Tue Jan 30 16:05:21 2024 +0000
+commit f7b32f5281888ee02f384230c48e91af2120f8b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 14:02:55 2023 -0500
 
-    log/slog: add missing test in value_test.go
+    runtime: skip darwin osinit_hack on ios
     
-    TestValueEqual: Added test cases for DurationValue, StringValue, and TimeValue types.
+    Darwin needs the osinit_hack call to fix some bugs in the Apple libc
+    that surface when Go programs call exec. On iOS, the functions that
+    osinit_hack uses are not available, so signing fails. But on iOS exec
+    is also unavailable, so the hack is not needed. Disable it there,
+    which makes signing work again.
     
-    TestValueAny: Added a test case for string values.
+    Fixes #58323.
     
-    Change-Id: I74ef15bcfcacd0bf5d990debd24846283edf1ecd
-    GitHub-Last-Rev: 6adb9f6f3147f0c655789b3bc86336a5c89a1b44
-    GitHub-Pull-Request: golang/go#65303
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558755
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Auto-Submit: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I3f1472f852bb36c06854fe1f14aa27ad450c5945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466516
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dave Anderson <danderson@tailscale.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/log/slog/value_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/runtime/sys_darwin.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

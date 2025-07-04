@@ -1,31 +1,29 @@
-commit fc6a5ea88c913cbeb9af432c1ec16b4c72f4b4ba
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Tue Apr 23 14:16:04 2024 -0700
+commit d33a5136e1a4513a3b1deacf1cc0677e070c7e8f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 21 12:02:30 2023 -0400
 
-    runtime: test mutex contention stacks and counts
+    cmd/link: use uint32 as symbol index
     
-    Fully testing the runtime's profiles and metrics for contention on its
-    internal mutex values involves comparing two separate clocks (cputicks
-    for the profile and nanotime for the metric), verifying its fractional
-    sampling (when MutexProfileRate is greater than 1), and observing a very
-    small critical section outside of the test's control (semrelease).
-    Flakiness (#64253) from those parts of the test have led to skipping it
-    entirely.
+    Currently, a symbol's global index, the Sym type, is defined as an
+    int, which is 64-bit on 64-bit machines. We're unlikely to have
+    more than 4 billion symbols in the near future. Even if we will,
+    we will probably hit some other limit (e.g. section size) before
+    the symbol number limit. Use a 32-bit type to reduce memory usage.
     
-    But there are portions of the mutex profiling behavior that should have
-    more consistent behavior: for a mutex under the test's control, the test
-    and the runtime should be able to agree that the test successfully
-    induced contention, and should agree on the call stack that caused the
-    contention. Allow those more consistent parts to run.
+    E,g, linking cmd/compile in external linking mode (on macOS/amd64)
     
-    For #64253
+    Munmap_GC    43.2M ± 0%     35.5M ± 1%   -17.74%  (p=0.000 n=16+20)
     
-    Change-Id: I7f368d3265a5c003da2765164276fab616eb9959
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581296
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Joedian Reid <joedian@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    This brings the memory usage back before the previous CL, and even
+    lower.
+    
+    Change-Id: Ie185f1586638fe70d8121312bfa9410942d518c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487416
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/metrics_test.go | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/stackcheck.go | 2 +-
+ src/cmd/link/internal/loader/loader.go | 8 +++++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

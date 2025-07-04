@@ -1,33 +1,24 @@
-commit ec0b540293a9a0e2c376721b48a208e1fbef5e29
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 28 13:52:43 2022 -0400
+commit 186f375ecfdd0f9eae109464a93bb0ba8c993f45
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 29 14:52:54 2021 -0500
 
-    cmd/compile/internal/pgo: remove ConvertLine2Int
+    go/types: ensure that constructed type parameters are immutable
     
-    Parts of package pgo fetch the line number of a node by parsing the
-    number out of the string returned from ir.Line().
+    TypeParam.iface may mutate TypeParam.bound in the event that the type
+    parameter bound is not an interface.
     
-    This is indirect and inefficient, so it should be replaced with a more
-    direct lookup. It is also potentially buggy: ir.Line uses
-    ctxt.OutermostPos, i.e., the line number where an inlined node in
-    inlined. We want ctxt.InnermostPos, because that is the line number used
-    in pprof profiles that we are matching against (See comments on
-    OutermostPos and InnermostPos).
+    Ensure that iface() is called before the type-checking pass returns, and
+    before NewTypeParam or TypeParam.SetConstraint exits.
     
-    I'm not sure whether this was an active, as we use ir.Line before and
-    during inlining. I think we could see CALL nodes with OutermostPos !=
-    InnermostPos during midstack inlining, but I am not sure. Regardless,
-    explicitly using the desired position is clearer.
+    Fixes #49788
     
-    For #55022.
-    
-    Change-Id: Ic640761c9e1d01cacbf91f3aaeaf284ad7e38dbd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446302
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I72279acf5f0223161671c04887bc2c3df4158927
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367614
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/inline/inl.go  | 14 +++++-----
- src/cmd/compile/internal/pgo/irgraph.go | 49 +++++++++++++++++++++++++--------
- 2 files changed, 45 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/types2/typeparam.go | 17 ++++++++++++++++-
+ src/go/types/typeparam.go                    | 18 ++++++++++++++++--
+ 2 files changed, 32 insertions(+), 3 deletions(-)

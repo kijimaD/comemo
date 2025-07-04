@@ -1,20 +1,21 @@
-commit 8a86b94aefd33bd720a337a645da8b23047b1381
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Wed Jun 1 00:30:31 2022 +0000
+commit 579ff8b1313479b795e3b536f7b9444094060b32
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 4 12:14:10 2021 -0700
 
-    net/http: remove unused doneChan
+    cmd/go,cmd/compile: re-enable concurrent compilation on darwin/arm64
     
-    The https://golang.org/cl/43230 removed use of `getDoneChan`.
+    I've manually reviewed all uses of ctxt.Flag_shared for concurrency safety.
+    And I manually tested with the race detector and found no issues.
+    Allow -shared to be used with compiler concurrency,
+    thereby re-enabling concurrent compilation on darwin/arm64.
     
-    Change-Id: I33390c0e3aea6d98367363773ebe39d9c1f64ae9
-    GitHub-Last-Rev: fe1e4154eaad4e485acfe4272f27d63367144e47
-    GitHub-Pull-Request: golang/go#53172
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409538
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: hopehook <hopehook@qq.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #48496
+    
+    Change-Id: I8a084cb08e6050950e404ceb9bd7e3a20e07e9c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353871
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/http/server.go | 32 +-------------------------------
- 1 file changed, 1 insertion(+), 31 deletions(-)
+ src/cmd/compile/internal/base/flag.go | 2 +-
+ src/cmd/go/internal/work/gc.go        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

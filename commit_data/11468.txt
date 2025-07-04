@@ -1,14 +1,12 @@
-commit f3492a7d404f41d45f9174b27086861fe2d2b3a5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 30 13:20:10 2012 -0500
+commit 2d6c0116744df631e3df629055bb54dcc9e8a3e9
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 30 10:15:43 2012 -0800
 
-    8g: use uintptr for local pc
+    make.bash: don't remove hgpatch
     
-    Fixes #2478.
-    
-    R=ken2
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5593051
+    https://golang.org/cl/5598046
 
- src/cmd/8g/gsubr.c | 4 ++--
+ src/make.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

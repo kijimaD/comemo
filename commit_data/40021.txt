@@ -1,39 +1,20 @@
-commit 262046716cf56637febf8dd6cbc27520e19d4db1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 20 15:31:13 2019 -0700
+commit 9d088fbfda273e26f78c9b05bcc97a8f674cf69b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 11 15:43:54 2019 -0400
 
-    cmd/compile: optimize escape graph construction and walking
+    runtime: abstract initializing and destroying Ps out of procresize
     
-    This CL implements several optimizations for the escape analysis flow
-    graph:
+    procresize is rather ungainly because it includes all of the code to
+    initialize new Ps and tear down unused Ps. Pull these out into their
+    own methods on the p type. This also tweaks the initialization loop in
+    procresize so we only initialize new Ps (and Ps we previously
+    destroyed) rather than asking each P "have you been initialized?"
     
-    1. Instead of recognizing heapLoc specially within Escape.outlives,
-    set heapLoc.escapes = true and recognize any location with escapes
-    set. This allows us to skip adding edges from the heap to escaped
-    variables in two cases:
+    This is for #10958 and #24543, but it's also just a nice cleanup.
     
-    1a. In newLoc, if the location is for a variable or allocation too
-    large to fit on the stack.
-    
-    1b. During walkOne, if we discover that an object's address flows
-    somewhere that naturally outlives it.
-    
-    2. When recording edges in Escape.flow, if x escapes and we're adding
-    an edge like "x = &y", we can simply mark that y escapes too.
-    
-    3. During walkOne, if we reach a location that's marked as escaping,
-    we can skip visiting it again: we've either already walked from it, or
-    it's in queue to be walked from again.
-    
-    On average, reduces the number of visited locations by 15%. Reduces
-    time spent in escape analysis for particularly hairy packages like
-    runtime and gc by about 8%. Reduces escape.go's TODO count by 22%.
-    
-    Passes toolstash-check.
-    
-    Change-Id: Iaf86a29d76044e4b4c8ab581b916ef5bb5df4437
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196811
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic1242066f572c94a23cea8ea4dc47c918e31d559
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171762
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/gc/escape.go | 51 ++++++++++++++++++-----------------
- 1 file changed, 26 insertions(+), 25 deletions(-)
+ src/runtime/proc.go | 168 ++++++++++++++++++++++++++++------------------------
+ 1 file changed, 91 insertions(+), 77 deletions(-)

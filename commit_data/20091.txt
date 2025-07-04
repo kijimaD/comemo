@@ -1,15 +1,16 @@
-commit 651d0cf204da51eddec88c32c039d750ef7edbbd
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Aug 24 11:50:37 2014 +0400
+commit ed68c7df5529fce8d244584b064b8fae473525c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 14 15:29:37 2014 -0400
 
-    runtime: convert sigqueue to Go
+    [dev.power64] cmd/ld, runtime: detect, fix nosplit overflows
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews, khr
-    https://golang.org/cl/132090043
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/121690043
 
- src/pkg/runtime/runtime.h                    |  1 +
- src/pkg/runtime/{sigqueue.goc => sigqueue.c} | 66 ++++++++++++++++++----------
- src/pkg/runtime/sigqueue.go                  | 42 ++++++++++++++++++
- 3 files changed, 85 insertions(+), 24 deletions(-)
+ src/cmd/ld/lib.c           | 33 +++++++++++++++------------------
+ src/pkg/runtime/os_linux.c | 15 ++++++++++++++-
+ src/pkg/runtime/string.go  |  4 ----
+ test/nosplit.go            |  9 +++++----
+ 4 files changed, 34 insertions(+), 27 deletions(-)

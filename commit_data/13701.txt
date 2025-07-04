@@ -1,16 +1,21 @@
-commit f78ead3ca461e2e3bd003e11c49eae610a10ab97
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Aug 29 21:44:46 2012 +0800
+commit f8d4bb884fdb7dc98ee9fb12a9847cb1f322ecbc
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Aug 29 09:05:30 2012 +1000
 
-    syscall: extract an ExampleLoadLibrary from comment
-       while we are at it, fix some out-of-date comments.
+    net/http/httputil: fix race in DumpRequestOut
     
-    R=golang-dev, dave, r
+    Fixes #3892.
+    
+    Swapping the order of the writers inside the MultiWriter ensures
+    the request will be written to buf before http.ReadRequest completes.
+    
+    The fencedBuffer is not required to make the test pass on
+    any machine that I have access too, but as the buf is shared
+    across goroutines, I think it is necessary for correctness.
+    
+    R=bradfitz, fullung, franciscossouza
     CC=golang-dev
-    https://golang.org/cl/6498054
+    https://golang.org/cl/6483061
 
- src/pkg/syscall/asm_windows_386.s       |  2 +-
- src/pkg/syscall/asm_windows_amd64.s     |  2 +-
- src/pkg/syscall/syscall_windows.go      | 39 +--------------------------------
- src/pkg/syscall/syscall_windows_test.go | 21 ++++++++++++++++++
- 4 files changed, 24 insertions(+), 40 deletions(-)
+ src/pkg/net/http/httputil/dump.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,31 @@
-commit 50bb2b6b0f11e4e3ef73aee55946cd4da546f6b1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 20 18:11:11 2019 -0500
+commit 5a8c11ce3e7a87485defafb78c7bcf14f9d7b5a2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Sep 26 16:39:02 2018 -0400
 
-    cmd/go: allow "stdout" and "stderr" as inputs to script_test "cp" command
+    runtime: rename _MSpan* constants to mSpan*
     
-    Updates #30241
+    We already aliased mSpanInUse to _MSpanInUse. The dual constants are
+    getting annoying, so fix all of these to use the mSpan* naming
+    convention.
     
-    Change-Id: I543d8914faf810835d3327baa3c84b3dff124156
-    Reviewed-on: https://go-review.googlesource.com/c/163519
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This was done automatically with:
+      sed -i -re 's/_?MSpan(Dead|InUse|Manual|Free)/mSpan\1/g' *.go
+    plus deleting the existing definition of mSpanInUse.
+    
+    Change-Id: I09979d9d491d06c10689cea625dc57faa9cc6767
+    Reviewed-on: https://go-review.googlesource.com/137875
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/script_test.go         | 29 +++++++++++++++++++++++------
- src/cmd/go/testdata/script/README |  2 ++
- 2 files changed, 25 insertions(+), 6 deletions(-)
+ src/runtime/cgocheck.go         |  2 +-
+ src/runtime/heapdump.go         |  8 +++---
+ src/runtime/malloc.go           |  2 --
+ src/runtime/mbitmap.go          |  4 +--
+ src/runtime/mgcmark.go          |  6 ++--
+ src/runtime/mgcsweep.go         |  2 +-
+ src/runtime/mheap.go            | 64 ++++++++++++++++++++---------------------
+ src/runtime/mstats.go           |  2 +-
+ src/runtime/runtime-gdb_test.go |  2 +-
+ src/runtime/stack.go            |  4 +--
+ 10 files changed, 47 insertions(+), 49 deletions(-)

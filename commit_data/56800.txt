@@ -1,14 +1,20 @@
-commit 6d93de2c110f66457f103c33ba496ff2e2bf33af
-Author: Benson Margulies <bimargulies@google.com>
-Date:   Thu Jun 13 22:47:18 2024 +0000
+commit a7cb7df45a83bfb6ebf7dd6d0e9c191c5d69f44b
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Mar 20 20:28:47 2023 -0700
 
-    slices: add documentation on incomparable items in SortFunc
+    net/http/pprof: adjust URL in package doc
     
-    Change-Id: Ib289008c0e9b5e83c37c9b6b316f3f5de8ac339a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592617
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The indentation makes the URL be treated as a code block,
+    thus preventing automatic detection of this URL.
+    Avoid using a code block for this.
+    
+    Change-Id: Ie37ae18ec0969ef2d5a6e3b92b2512dac093dbf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/slices/sort.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/net/http/pprof/pprof.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

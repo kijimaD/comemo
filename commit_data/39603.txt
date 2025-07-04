@@ -1,23 +1,24 @@
-commit c485506b0aae298652448e80fca35036bfa755ac
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Aug 16 10:36:01 2019 -0700
+commit 9153a3ef059a37796dceea555785b695ecbd4189
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 7 08:33:01 2019 +0100
 
-    time: update TestSub to avoid future regressions
+    cmd/cgo: adjust comment about ignored pragma warnings
     
-    CL 131196 optimized Time.Sub, but was reverted because
-    it incorrectly computed the nanoseconds in some edge cases.
-    This CL adds a test case to enforce the correct behavior
-    so that a future optimization does not break this again.
+    The warnings are not strictly tied to FreeBSD but to the clang version.
+    People could still be building with an old version of clang even if not
+    on FreeBSD. The -Wpragmas and -Waddress-of-packed-member warnings were
+    introduced in clang 4.0, so also adjust the comment accordingly.
     
-    Updates #17858
-    Updates #33677
+    This was discussed as part of CL 160777 which introduced these comments.
     
-    Change-Id: I596d8302ca6bf721cf7ca11cc6f939639fcbdd43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190524
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Updates #27619
+    
+    Change-Id: I4988ffd08797dcc72cdc264d4abd20a114f70473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165800
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/time_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/cgo/out.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

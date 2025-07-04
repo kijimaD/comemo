@@ -1,12 +1,23 @@
-commit 1560264f70a90de8d8b68e246c476d79e4d60574
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon May 6 15:56:43 2019 -0400
+commit e3b4b7baad555f74b6fbc0ddc00d46ed0ac03a0a
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Dec 18 12:54:23 2018 -0800
 
-    doc: document Go 1.12.5
+    runtime: use QPC for nanotime and time.now on windows/arm
     
-    Change-Id: I9986a323db2a8f5fa74b071cfd04e8c786da0cb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175438
+    The previous implementation of nanotime and time.now used a time source
+    that was updated on the system clock tick, which has a maximum
+    resolution of about 1ms. On 386 and amd64, this time source maps to
+    the system performance counter, so has much higher resolution.
+    On ARM, use QueryPerformanceCounter() to get a high resolution timestamp.
+    
+    Updates #26148
+    
+    Change-Id: I1abc99baf927a95b472ac05020a7788626c71d08
+    Reviewed-on: https://go-review.googlesource.com/c/154758
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/runtime/os_windows.go     |  13 +++--
+ src/runtime/sys_windows_arm.s | 109 ++----------------------------------------
+ 2 files changed, 12 insertions(+), 110 deletions(-)

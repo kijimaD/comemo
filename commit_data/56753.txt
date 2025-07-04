@@ -1,31 +1,18 @@
-commit cf501e05e138e6911f759a5db786e90b295499b9
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Jun 6 12:50:46 2024 -0700
+commit c0af7cd05f75d1ac6540bf41bbe9984a0fd35be2
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun May 21 15:16:48 2023 +0100
 
-    net/http: send body or close connection on expect-100-continue requests
+    encoding: document when marshaling methods can be added
     
-    When sending a request with an "Expect: 100-continue" header,
-    we must send the request body before sending any further requests
-    on the connection.
+    Fixes #10275
     
-    When receiving a non-1xx response to an "Expect: 100-continue" request,
-    send the request body if the connection isn't being closed after
-    processing the response. In other words, if either the request
-    or response contains a "Connection: close" header, then skip sending
-    the request body (because the connection will not be used for
-    further requests), but otherwise send it.
-    
-    Correct a comment on the server-side Expect: 100-continue handling
-    that implied sending the request body is optional. It isn't.
-    
-    For #67555
-    
-    Change-Id: Ia2f12091bee697771087f32ac347509ec5922d54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591255
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I2b3d54f3eb0f85d65324ddc3c3b2a797d42a16c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496537
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/server.go         |  25 +++--
- src/net/http/transport.go      |  34 +++++--
- src/net/http/transport_test.go | 202 +++++++++++++++++++++++++----------------
- 3 files changed, 164 insertions(+), 97 deletions(-)
+ src/encoding/encoding.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

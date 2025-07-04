@@ -1,35 +1,19 @@
-commit 3c61cb3dcd888fdef1c7456be144a1c4a44272a7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Nov 1 12:44:43 2021 -0700
+commit 87beecd6dfd3b12ed30785ec502f7380dc79ec29
+Author: Jordan Liggitt <liggitt@google.com>
+Date:   Sat Feb 27 23:06:23 2021 -0500
 
-    net: optimize ReadMsgUDPAddrPort
+    cmd/go: add missing newline to retraction warning message
     
-    Instead of implementing ReadMsgUDPAddrPort in terms of ReadMsgUDP,
-    do it the other way around. This keeps the code minimal while
-    still avoiding allocs.
+    Fixes #44674
     
-    We could also rearrange ReadMsgUDP to be mid-stack inlined to avoid
-    allocating the *UDPAddr, but anyone who's trying to eliminate
-    allocs should use ReadMsgUDPAddrPort instead anyway,
-    because ReadMsgUDP will always allocate at least once (the IP slice).
-    
-    name                       old time/op    new time/op    delta
-    ReadWriteMsgUDPAddrPort-8    5.26µs ± 3%    5.29µs ± 6%     ~     (p=0.429 n=12+13)
-    
-    name                       old alloc/op   new alloc/op   delta
-    ReadWriteMsgUDPAddrPort-8      176B ± 0%      128B ± 0%  -27.27%  (p=0.000 n=15+15)
-    
-    name                       old allocs/op  new allocs/op  delta
-    ReadWriteMsgUDPAddrPort-8      5.00 ± 0%      4.00 ± 0%  -20.00%  (p=0.000 n=15+15)
-    
-    Change-Id: I15228cb4ec4f13f2f390407b6c62c44c228e7201
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360596
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Icbdb79084bf7bd2f52cc0a53abcc1ec6f0c4a1bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297350
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/net/udpsock.go       | 22 +++++++++-------------
- src/net/udpsock_plan9.go |  5 +++--
- src/net/udpsock_posix.go |  9 ++++++---
- 3 files changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/modget/get.go              | 2 +-
+ src/cmd/go/testdata/script/mod_get_retract.txt | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

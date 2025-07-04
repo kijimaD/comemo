@@ -1,25 +1,39 @@
-commit 0d018b49e33b1383dc0ae5cc968e800dffeeaf7d
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Nov 18 13:51:35 2023 +0800
+commit f9cba430b228c81e5b5f1ec30e0f6183141f3c0c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 5 16:56:42 2023 -0800
 
-    all: fix field names
+    go/types: generate various source files from types2 files
     
-    Change-Id: I3ad7a50707486ebdbbd676b3581df6e3ed0fd3a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543476
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Starting point for more code sharing.
+    
+    Change-Id: Ia6bc3ba54476a5202bfd5f89cef09bacb3f4f3b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460761
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/pgo/irgraph.go | 2 +-
- src/cmd/compile/internal/ssa/func.go    | 2 +-
- src/cmd/compile/internal/ssa/prove.go   | 7 ++++---
- src/cmd/go/internal/modget/query.go     | 2 +-
- src/database/sql/sql.go                 | 4 ++--
- src/go/internal/gcimporter/ureader.go   | 2 +-
- src/go/parser/parser_test.go            | 2 +-
- src/runtime/mgcscavenge.go              | 2 +-
- src/runtime/runtime2.go                 | 2 +-
- 9 files changed, 13 insertions(+), 12 deletions(-)
+ src/go/types/chan.go          |   6 +-
+ src/go/types/context.go       |   2 +
+ src/go/types/gccgosizes.go    |   2 +
+ src/go/types/generate.go      |   8 +++
+ src/go/types/generator.go     | 134 ++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/lookup.go        |   2 +
+ src/go/types/main_test.go     |   2 +
+ src/go/types/map.go           |   2 +
+ src/go/types/named.go         |   2 +
+ src/go/types/objset.go        |   2 +
+ src/go/types/pointer.go       |   6 +-
+ src/go/types/selection.go     |   2 +
+ src/go/types/sizes.go         |   2 +
+ src/go/types/slice.go         |   6 +-
+ src/go/types/subst.go         |  14 +++--
+ src/go/types/termlist.go      |   2 +
+ src/go/types/termlist_test.go |   2 +
+ src/go/types/tuple.go         |   2 +
+ src/go/types/typelists.go     |   2 +
+ src/go/types/typeparam.go     |  12 ++--
+ src/go/types/typeterm.go      |   2 +
+ src/go/types/validtype.go     |   2 +
+ 22 files changed, 198 insertions(+), 18 deletions(-)

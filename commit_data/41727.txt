@@ -1,17 +1,23 @@
-commit 9ef61d58c015e7bc297ed4404e34af5f3d514257
-Author: nao20010128nao <nao20010128@gmail.com>
-Date:   Sat Mar 21 06:52:58 2020 +0000
+commit 22278ca0d4f0ecdc5e9d2884b771062cbb3e837a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 22 12:44:44 2019 -0400
 
-    syscall/js: make wasm_exec.js compatible with Webpack
+    net: convert TestTCPServer to use subtests
     
-    In Webpack, require("fs") will always be empty. This behavior throws an error: "fs.writeSync is not function". It happens when you did "fmt.Println".
-    This PR avoids such problem and use polyfill in wasm_exec.js on Webpack.
+    My fix in CL 202618 inadvertently violated an invariant in the inner
+    loop of TestTCPServer (namely, that len(trchs) == i). That causes a
+    panic when one or more of the channels is omitted due to a flake.
     
-    Change-Id: I55f2c75ce86b7f84d2d92e8e217b5decfbe3c8a1
-    GitHub-Last-Rev: aecc847e3f9d5617ea4b00196ef2810c2458f085
-    GitHub-Pull-Request: golang/go#35805
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208600
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Instead of trying to fix up the test, let's just factor out a subtest
+    and skip the whole thing if the transceiver's Dial flakes out.
+    
+    Updates #32919
+    
+    Change-Id: Ib6f274a44194311c8c5a2faf19f586cc9eccfd4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202561
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/wasm/wasm_exec.js | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/net/server_test.go | 120 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 60 insertions(+), 60 deletions(-)

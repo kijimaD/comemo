@@ -1,21 +1,42 @@
-commit d7c0de98a96893e5608358f7578c85be7ba12b25
-Author: Scott Bell <scott@sctsm.com>
-Date:   Wed May 18 09:56:51 2016 -0700
+commit ab552aa3b69deb208b38677880e86aa41c3a9e47
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 23 17:54:51 2016 -0700
 
-    database/sql: additional underlying types in DefaultValueConverter
+    runtime: unify some signal handling functions
     
-    The previous documentation purported to convert underlying strings to
-    []byte, which it did not do. This adds support for underlying bool,
-    string, and []byte, which convert directly to their underlying type.
+    Unify the OS-specific versions of msigsave, msigrestore, sigblock,
+    updatesigmask, and unblocksig into single versions in signal_unix.go.
+    To do this, make sigprocmask work the same way on all systems, which
+    required adding a definition of sigprocmask for linux and openbsd.
+    Also add a single OS-specific function sigmaskToSigset.
     
-    Fixes #15174.
-    
-    Change-Id: I7fc4e2520577f097a48f39c9ff6c8160fdfb7be4
-    Reviewed-on: https://go-review.googlesource.com/27812
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7cbf75131dddb57eeefe648ef845b0791404f785
+    Reviewed-on: https://go-review.googlesource.com/29689
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/database/sql/driver/types.go      | 16 +++++++++++++---
- src/database/sql/driver/types_test.go | 16 ++++++++++++++++
- 2 files changed, 29 insertions(+), 3 deletions(-)
+ src/runtime/os3_solaris.go      | 29 ++++------------------
+ src/runtime/os_darwin.go        | 27 +++------------------
+ src/runtime/os_dragonfly.go     | 29 ++++------------------
+ src/runtime/os_freebsd.go       | 29 ++++------------------
+ src/runtime/os_linux.go         | 44 ++++++++--------------------------
+ src/runtime/os_linux_generic.go |  8 +++++--
+ src/runtime/os_linux_mips64x.go |  8 +++++--
+ src/runtime/os_linux_s390x.go   |  6 +++--
+ src/runtime/os_netbsd.go        | 31 ++++--------------------
+ src/runtime/os_openbsd.go       | 51 ++++++++++++++++-----------------------
+ src/runtime/signal_unix.go      | 53 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_linux_386.s     |  2 +-
+ src/runtime/sys_linux_amd64.s   |  2 +-
+ src/runtime/sys_linux_arm.s     |  2 +-
+ src/runtime/sys_linux_arm64.s   |  2 +-
+ src/runtime/sys_linux_mips64x.s |  2 +-
+ src/runtime/sys_linux_ppc64x.s  |  2 +-
+ src/runtime/sys_linux_s390x.s   |  2 +-
+ src/runtime/sys_netbsd_amd64.s  |  2 +-
+ src/runtime/sys_netbsd_arm.s    |  2 +-
+ src/runtime/sys_openbsd_386.s   |  2 +-
+ src/runtime/sys_openbsd_amd64.s |  4 ++--
+ src/runtime/sys_openbsd_arm.s   |  4 ++--
+ 23 files changed, 134 insertions(+), 209 deletions(-)

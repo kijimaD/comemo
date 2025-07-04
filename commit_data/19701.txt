@@ -1,13 +1,13 @@
-commit 8e902dd726c6cd76aace8f70f929a520f736c214
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Wed Jul 9 14:26:37 2014 -0700
+commit c4b714d3fe36fe5c1928711940a9e7b8c9fb7db3
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Wed Jul 9 14:12:30 2014 -0400
 
-    docs: Make consistent use of optional li closing tags.
+    os: no /tmp on android
     
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=minux, bradfitz
+    R=golang-codereviews, minux, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/105100044
+    https://golang.org/cl/104650043
 
- doc/docs.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/os/file_unix.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

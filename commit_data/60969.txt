@@ -1,0 +1,27 @@
+commit d79e6bec6389dfeeec84a64f283055090615bad1
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Sep 13 11:12:36 2024 -0400
+
+    cmd/go: populate build info for test mains
+    
+    Before this change, test binaries didn't have build info populated on them
+    unless they were tests for package main. Now we generate them for all
+    test binaries so that they can be inspected like other binaries.
+    
+    We don't need to add the default GODEBUG in printLinkerConfig because it
+    will now always be present on the build info, and when build info is
+    present we use it to generate the hash.
+    
+    Fixes #33976
+    
+    Change-Id: Ib4f51c04f87df3c7f2f21c400ab446e70d66a101
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613096
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/load/test.go              | 15 +++++++--------
+ src/cmd/go/internal/work/exec.go              |  8 --------
+ src/cmd/go/testdata/script/test_buildinfo.txt | 24 ++++++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 16 deletions(-)

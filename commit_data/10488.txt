@@ -1,12 +1,16 @@
-commit d5514120b15bb51699633cc2e96dd2846f53c09c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Nov 23 09:35:01 2011 -0500
+commit 4874d14180282fd426f0bbf279a8ac2e9ea3a5aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 22 15:27:10 2011 -0800
 
-    exp/ssh: remove unused forwarding methods in Server Listener
+    go/printer: remove "written" result value - is never used
     
-    R=agl, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5436056
+    https://golang.org/cl/5436052
 
- src/pkg/exp/ssh/server.go | 16 +++-------------
- 1 file changed, 3 insertions(+), 13 deletions(-)
+ src/cmd/gofix/main.go                  |  4 ++--
+ src/cmd/gofmt/gofmt.go                 |  2 +-
+ src/pkg/go/printer/performance_test.go |  2 +-
+ src/pkg/go/printer/printer.go          | 11 ++++-------
+ src/pkg/go/printer/printer_test.go     |  2 +-
+ 5 files changed, 9 insertions(+), 12 deletions(-)

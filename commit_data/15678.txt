@@ -1,13 +1,16 @@
-commit 14a295c8172aa12b19944d85e92835c7e9f904cc
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 11 12:21:46 2013 -0400
+commit c729ed631f1de47c7fb1fb2413b6f69be6d0f3bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 11 09:16:29 2013 -0700
 
-    sync/atomic: make unaligned 64-bit atomics crash on 386
+    spec: result type of a comparison is always untyped bool
     
-    R=golang-dev, bradfitz, dvyukov
+    For details see the cited issue.
+    
+    Fixes #4793.
+    
+    R=rsc, r, iant, ken
     CC=golang-dev
-    https://golang.org/cl/7702043
+    https://golang.org/cl/7524044
 
- src/pkg/sync/atomic/asm_386.s      | 12 ++++++++++++
- src/pkg/sync/atomic/atomic_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+ doc/go_spec.html | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

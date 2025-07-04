@@ -1,35 +1,24 @@
-commit b788e91badd523e5bb0fc8d50cd76b8ae04ffb20
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jun 10 23:52:03 2024 +0000
+commit 5d68121628afe73ea093bb46dac45f71f92eecac
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 23 21:02:36 2023 +0000
 
-    os: always return syscall.ECHILD from Wait for done process
+    runtime: move pinned object out of inner loop for benchmarks
     
-    For processes that don't exist at lookup time, CL 570036 and CL 588675
-    make Wait return unconditionally return ErrProcessDone when using pidfd,
-    rather than attempting to make a wait system call.
+    In theory by allocating new objects every time, the benchmark is
+    including the performance of allocating new pinner bits for a span. In
+    practice however, most of the time each span already does have pinner
+    bits allocated (it's still a rare operation).
     
-    This is consistent with Signal/Kill, but inconsistent with the previous
-    behavior of Wait, which would pass through the kernel error,
-    syscall.ECHILD.
+    We can get a better sense of the raw cost of pinning an object (minus
+    pinner bits allocation) by moving the object allocation out of the inner
+    loop.
     
-    Switch the ErrProcessDone case to return syscall.ECHILD instead for
-    consistency with previous behavior.
-    
-    That said, I do think a future release should consider changing ECHILD
-    to ErrProcessDone in all cases (including when making an actual wait
-    system call) for better consistency with Signal/Kill/FindProcess.
-    
-    Fixes #67926.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-solaris-amd64,gotip-openbsd-amd64
-    Change-Id: I1f688a5751d0f3aecea99c3a5b35c7894cfc2beb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591816
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2869fa6c3f353b726fe8440d2e6b7f89902f9364
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497620
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/os/exec_test.go        | 26 --------------------------
- src/os/exec_unix_test.go   | 30 ++++++++++++++++++++++++++++++
- src/os/pidfd_linux.go      |  5 ++++-
- src/os/pidfd_linux_test.go |  4 +++-
- 4 files changed, 37 insertions(+), 28 deletions(-)
+ src/runtime/pinner_test.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

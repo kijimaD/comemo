@@ -1,15 +1,26 @@
-commit 1a1d43239e42184694d0207ffad9bbb77d8e8f76
-Author: Mark Theunissen <mark.theunissen@gmail.com>
-Date:   Thu Aug 21 10:16:34 2014 -0700
+commit 6e73ae88b58cab948490e97189e1746c85b88cc3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 13 14:36:29 2014 -0400
 
-    net/http/httputil: Pass a Logger to ReverseProxy, allowing the user to control logging.
+    [dev.power64] cmd/9l, math/big, runtime, syscall: fixes for power64
     
-    Fixes #8553.
+    On the machine I'm using, the hardware page size seems to be 64 kB.
+    Make ELF rounding and mmap quantum 64 kB to match.
     
-    LGTM=bradfitz
-    R=golang-codereviews, dave, bradfitz
+    Error numbers returned from kernel are positive; do not negate.
+    
+    Implement stubs for math/big.
+    
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/132750043
+    https://golang.org/cl/124300043
 
- src/pkg/net/http/httputil/reverseproxy.go | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/9l/obj.c                     |  2 +-
+ src/pkg/math/big/arith_power64x.s    | 46 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/arch_power64.h       |  2 +-
+ src/pkg/runtime/asm_power64x.s       | 12 +++++-----
+ src/pkg/runtime/mem_linux.c          | 16 ++++++++-----
+ src/pkg/runtime/sys_linux_power64x.s |  1 -
+ src/pkg/syscall/asm_linux_power64x.s |  4 ----
+ 7 files changed, 64 insertions(+), 19 deletions(-)

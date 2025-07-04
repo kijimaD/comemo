@@ -1,17 +1,19 @@
-commit cbef450df797c473c9ca01f8d0c81ea26d106c24
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Dec 8 16:54:07 2016 -0500
+commit cf73bbfa259afe29962a5ca5e207441f63c9bcf2
+Author: Tom Bergan <tombergan@google.com>
+Date:   Tue Oct 25 12:18:59 2016 -0700
 
-    runtime/pprof: symbolize proto profiles
+    net/http: add an interface for server push
     
-    When generating pprof profiles in proto format, symbolize the profiles.
+    This interface will be implemented by golang.org/x/net/http2 in
+    https://go-review.googlesource.com/c/29439/.
     
-    Change-Id: I2471ed7f919483e5828868306418a63e41aff5c5
-    Reviewed-on: https://go-review.googlesource.com/34192
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates golang/go#13443
+    
+    Change-Id: Ib6bdd403b0878cfe36fa9875c07c2c7239232556
+    Reviewed-on: https://go-review.googlesource.com/32012
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../pprof/internal/protopprof/protopprof.go        | 72 ++++++++++++++++
- .../pprof/internal/protopprof/protopprof_test.go   | 97 ++++++++++++++++++++++
- 2 files changed, 169 insertions(+)
+ src/net/http/http.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

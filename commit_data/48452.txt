@@ -1,22 +1,20 @@
-commit caf5cd9da8b08e786442eeef3d3a3a8e4492d3dd
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Thu Oct 28 15:22:26 2021 +0800
+commit 243076da64d251853ed7a69ce770e9fa71b5bf0d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 20 14:53:21 2021 -0700
 
-    cmd/compile/internal: add ABI register info for riscv64
+    [dev.typeparams] cmd/compile/internal/types2: move signature checking into separate file
     
-    This CL adds register information for riscv64
+    This only moves functionality from one file into another.
+    Except for import adjustments there are no changes to the
+    code.
     
-    Updates #40724
-    
-    Change-Id: If2275d9135596ff856d096881e4fe8bd1eeaacb2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359337
-    Trust: mzh <mzh@golangcn.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: mzh <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id0d20a7537f20abe3a257ad3f550b0cb4499598c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321590
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/riscv64/ssa.go        | 2 ++
- src/cmd/compile/internal/ssa/config.go         | 2 ++
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 4 ++++
- src/cmd/compile/internal/ssa/opGen.go          | 4 ++--
- 4 files changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/signature.go | 314 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go   | 304 --------------------------
+ 2 files changed, 314 insertions(+), 304 deletions(-)

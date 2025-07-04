@@ -1,28 +1,45 @@
-commit 563556ccc7c4099ac896c87178043b60365d33b5
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 31 12:32:29 2023 -0400
+commit a55793835f16d0242be18aff4ec0bd13494175bd
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 18 16:23:28 2022 -0700
 
-    cmd/cgo/internal/testerrors: pass if GOEXPERIMENT=cgocheck2 is set
+    net/http/httputil: add ReverseProxy.Rewrite
     
-    The tests in this package are meant to check cgocheck and cgocheck2
-    mode, so they're of course sensitive to whether they're set.
-    Currently, the test will set GOEXPERIMENT=cgocheck2 for tests of
-    cgocheck2 mode, but won't *unset* cgocheck2 mode if it's already in
-    the environment for tests that expect it to be off. This means
+    Add a new Rewrite hook to ReverseProxy, superseding the Director hook.
     
-      GOEXPERIMENT=cgocheck2 go test cmd/cgo/internal/testerrors
+    Director does not distinguish between the inbound and outbound request,
+    which makes it possible for headers added by Director to be inadvertently
+    removed before forwarding if they are listed in the inbound request's
+    Connection header. Rewrite accepts a value containing the inbound
+    and outbound requests, with hop-by-hop headers already removed from
+    the outbound request, avoiding this problem.
     
-    fails.
+    ReverseProxy's appends the client IP to the inbound X-Forwarded-For
+    header by default. Users must manually delete untrusted X-Forwarded-For
+    values. When used with a Rewrite hook, ReverseProxy now strips
+    X-Forwarded-* headers by default.
     
-    Fix this by removing cgocheck2 from GOEXPERIMENT if it's set and the
-    test case expects it to be unset.
+    NewSingleHostReverseProxy creates a proxy that does not rewrite the
+    Host header of inbound requests. Changing this behavior is
+    cumbersome, as it requires wrapping the Director function created
+    by NewSingleHostReverseProxy. The Rewrite hook's ProxyRequest
+    parameter provides a SetURL method that provides equivalent
+    functionality to NewSingleHostReverseProxy, rewrites the Host
+    header by default, and can be more easily extended with additional
+    customizations.
     
-    Change-Id: If663e41b791fb89df9940bc5356a566e2a54a77a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499557
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #28168.
+    Fixes #50580.
+    Fixes #53002.
+    
+    Change-Id: Ib84e2fdd1d52c610e3887af66f517d4a74e594d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407214
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/cgo/internal/testerrors/ptr_test.go | 30 ++++++++++++++++++-----------
- 1 file changed, 19 insertions(+), 11 deletions(-)
+ api/next/53002.txt                         |   6 +
+ src/net/http/httputil/example_test.go      |   7 +-
+ src/net/http/httputil/reverseproxy.go      | 258 +++++++++++++++++++++--------
+ src/net/http/httputil/reverseproxy_test.go |  99 +++++++++++
+ 4 files changed, 304 insertions(+), 66 deletions(-)

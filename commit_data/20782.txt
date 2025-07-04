@@ -1,11 +1,37 @@
-commit c2b7b6d5da9768cf35c91947157901b623778fa6
-Author: Rob Pike <r@golang.org>
-Date:   Fri Oct 24 09:52:11 2014 -0700
+commit 64736accdbc187eba6619345754abaaeefdb7238
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 9 17:24:34 2014 +1100
 
-    doc/go1.4.txt: unsafe is outside go1 compatibility guarantees
+    undo CL 145150043 / 8b3d26697b8d
     
+    That was complete failure - builders are broken,
+    but original cl worked fine on my system.
+    I will need access to builders
+    to test this change properly.
+    
+    ««« original CL description
+    runtime: handle all windows exception
+    
+    Fixes #8006.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/164770043
+    https://golang.org/cl/145150043
+    »»»
+    
+    TBR=rsc
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/154180043
 
- doc/go1.4.txt | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/defs_windows.go         |  3 --
+ src/runtime/defs_windows_386.h      |  3 --
+ src/runtime/defs_windows_amd64.h    |  3 --
+ src/runtime/os_windows.c            | 35 +++----------
+ src/runtime/os_windows_386.c        | 84 +++++++++++++-------------------
+ src/runtime/os_windows_amd64.c      | 97 +++++++++++++------------------------
+ src/runtime/sys_windows_386.s       | 18 +------
+ src/runtime/sys_windows_amd64.s     | 18 +------
+ src/runtime/syscall_windows_test.go | 39 ---------------
+ 9 files changed, 76 insertions(+), 224 deletions(-)

@@ -1,13 +1,15 @@
-commit d8ba9a440c826c5ed94f93d2d9fb7e9bf394f472
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 16 02:58:08 2011 +1100
+commit 5311d915f4a71fd6966042d6f8c2319b111e2aa1
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Feb 15 09:52:20 2011 -0500
 
-    release.2011-02-15
+    encoding/line: fix line returned after EOF
     
-    R=rsc
+    Fixes #1509.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4191041
+    https://golang.org/cl/4167045
 
- .hgtags                |   1 -
- doc/devel/release.html | 106 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 106 insertions(+), 1 deletion(-)
+ src/pkg/encoding/line/line.go      |  3 +++
+ src/pkg/encoding/line/line_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

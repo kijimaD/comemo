@@ -1,37 +1,25 @@
-commit 7f5dce08ad77519bfea58880492e1d290cd13cb0
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Oct 31 09:34:10 2018 -0400
+commit a7bcb5390d1f5c5d955663eedcade63daac270c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 12 05:02:36 2018 +0000
 
-    crypto/tls: implement TLS 1.3 version negotiation
+    net/http: update bundled http2
     
-    RFC 8446 recommends using the supported_versions extension to negotiate
-    lower versions as well, so begin by implementing it to negotiate the
-    currently supported versions.
+    Updates bundled x/net/http2 to git rev cffdcf67 for:
     
-    Note that pickTLSVersion was incorrectly negotiating the ServerHello
-    version down on the client. If the server had illegally sent a version
-    higher than the ClientHello version, the client would have just
-    downgraded it, hopefully failing later in the handshake.
+        http2: use GetBody unconditionally on Transport retry, when available
+        https://golang.org/cl/123476
     
-    In TestGetConfigForClient, we were hitting the record version check
-    because the server would select TLS 1.1, the handshake would fail on the
-    client which required TLS 1.2, which would then send a TLS 1.0 record
-    header on its fatal alert (not having negotiated a version), while the
-    server would expect a TLS 1.1 header at that point. Now, the client gets
-    to communicate the minimum version through the extension and the
-    handshake fails on the server.
+        http2: a closed stream cannot receive data
+        https://golang.org/cl/111676
     
-    Updates #9671
+    Updates #25009
+    Updates #25023
     
-    Change-Id: Ie33c7124c0c769f62e10baad51cbed745c424e5b
-    Reviewed-on: https://go-review.googlesource.com/c/146217
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I84f50cc50c0fa5a3c34f0037a9cb1ef468e5f0d9
+    Reviewed-on: https://go-review.googlesource.com/123515
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/common.go                | 65 ++++++++++++++++++++++-----------
- src/crypto/tls/handshake_client.go      | 39 ++++++++++++++++----
- src/crypto/tls/handshake_client_test.go |  6 +++
- src/crypto/tls/handshake_server.go      | 23 ++++++------
- src/crypto/tls/handshake_server_test.go | 11 ++++--
- 5 files changed, 99 insertions(+), 45 deletions(-)
+ src/net/http/h2_bundle.go | 41 ++++++++++++++++++++++++++++-------------
+ 1 file changed, 28 insertions(+), 13 deletions(-)

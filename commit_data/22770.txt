@@ -1,26 +1,16 @@
-commit c26fc88d56ee4f93c98fc8923fe256121e6199cf
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 29 12:12:23 2015 -0400
+commit d0b62d8bfaa449f68a60be3d9b7bf472f02a9204
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 3 04:37:22 2015 -0400
 
-    runtime/pprof: write heap statistics to heap profile always
+    runtime: linux/arm64 cgo support
     
-    The heap statistics were only written if asked for a profile with debug > 0,
-    but that also prints a stack trace for each profile line, which is comparatively
-    much noisier. The statistics are short enough and separate enough
-    (they only appear at the end) and useful enough that we can print them
-    always.
-    
-    This means that people using -test.memprofile in tests will get a memory
-    profile with statistics included now. Pprof won't care, but if people care to
-    look, the numbers will be there.
-    
-    This avoids the need for hacks like using -memprofilerate=1 to find
-    the number of allocations.
-    
-    Change-Id: I10a4f593403d0315aad11b37c6e554b734caa73f
-    Reviewed-on: https://go-review.googlesource.com/9491
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f3
+    Reviewed-on: https://go-review.googlesource.com/8450
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- doc/go1.5.txt              |  1 +
- src/runtime/pprof/pprof.go | 56 ++++++++++++++++++++++------------------------
- 2 files changed, 28 insertions(+), 29 deletions(-)
+ src/runtime/asm_arm64.s       | 156 +++++++++++++++++++++++-------------------
+ src/runtime/cgocall.go        |   6 ++
+ src/runtime/sys_linux_arm64.s |   5 +-
+ src/runtime/tls_arm64.h       |  14 ++++
+ src/runtime/tls_arm64.s       |  31 +++++++++
+ 5 files changed, 142 insertions(+), 70 deletions(-)

@@ -1,27 +1,20 @@
-commit ca642bb326c9eccd880f242c76f1e494d98efbc0
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 19 00:56:10 2018 -0400
+commit 02952ad7a84846524a15f4e2b0db8083f74ce836
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Tue Apr 3 22:33:03 2018 +0300
 
-    cmd/go: warn about non-use of go.mod in legacy go get
+    math/big: remove "else" from if with block that ends with return
     
-    It's important for a smooth transition for non-module users
-    not to change operation in GOPATH/src by default in Go 1.11,
-    even if go.mod exists in a downloaded dependency.
+    That "else" was needed due to gc DCE limitations.
+    Now it's not the case and we can avoid go lint complaints.
+    (See #23521 and https://golang.org/cl/91056.)
     
-    Even so, users create go.mod and then are confused about
-    why 'go get' commands seem to behave oddly, when in fact
-    they are getting the old 'go get'.
+    There is inlining test for bigEndianWord, so if test
+    is passing, no performance regression should occur.
     
-    Try to split the difference by printing a warning in 'go get'
-    when run in a tree that would normally be considered a
-    module if only it were outside GOPATH/src.
-    
-    Change-Id: I55a1cbef127f3f36de54a8d7b93e1fc64bf0a708
-    Reviewed-on: https://go-review.googlesource.com/124859
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id84d63f361e5e51a52293904ff042966c83c16e9
+    Reviewed-on: https://go-review.googlesource.com/104555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go                 |  5 +++++
- src/cmd/go/internal/get/get.go                 |  5 +++++
- src/cmd/go/internal/modload/init.go            |  3 +++
- src/cmd/go/testdata/script/mod_get_warning.txt | 10 ++++++++++
- 4 files changed, 23 insertions(+)
+ src/math/big/nat.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

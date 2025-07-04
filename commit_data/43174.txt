@@ -1,21 +1,26 @@
-commit d888f1d5c06828e9d7b0166f770a443f6315c2d1
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 1 16:06:03 2020 -0400
+commit b851e51160bc8ed412e229152b430b75e7ce56f9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 11 21:51:09 2020 -0700
 
-    runtime: add debugging to TestTimePprof
+    runtime: don't crash on mlock failure
     
-    We've seen timeouts of TestTimePprof, but the tracebacks aren't useful
-    because goroutines are running on other threads. Add GOTRACEBACK=crash
-    to catch these in the future.
+    Instead, note that mlock has failed, start trying the mitigation of
+    touching the signal stack before sending a preemption signal, and,
+    if the program crashes, mention the possible problem and a wiki page
+    describing the issue (https://golang.org/wiki/LinuxKernelSignalVectorBug).
     
-    For #41120.
+    Tested on a kernel in the buggy version range, but with the patch,
+    by using `ulimit -l 0`.
     
-    Change-Id: I97318172ef78d0cbab10df5e4ffcbfeadff579e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258802
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #37436
+    
+    Change-Id: I072aadb2101496dffd655e442fa5c367dad46ce8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223121
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/crash_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/os_linux.go     | 15 +++++++++++++++
+ src/runtime/os_linux_x86.go | 35 +++++++++++++++++++++++++++--------
+ src/runtime/panic.go        | 10 ++++++++++
+ 3 files changed, 52 insertions(+), 8 deletions(-)

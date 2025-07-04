@@ -1,22 +1,13 @@
-commit 758431fe8c2906690a209e33531d8b95e381c8c1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 24 14:09:03 2016 -0700
+commit def9c0b06d4796364cda3c1e40d75bb0fa0ecddf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 10 20:35:27 2016 -0800
 
-    cmd/compile: minor cleanup in inl
+    cmd/compile: remove Label.Link field and lastlabel global var
     
-    * Make budget an int32 to avoid needless conversions.
-    * Introduce some temporary variables to reduce repetition.
-    * If ... args are present, they will be the last argument
-      to the function. No need to scan all arguments.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: I55203609f5d2f25a4e238cd48c63214651120cfc
-    Reviewed-on: https://go-review.googlesource.com/22421
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If2a174f482ecd56dee43f921d13fef98439872fc
+    Reviewed-on: https://go-review.googlesource.com/20559
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/inl.go  | 48 ++++++++++++++++++++-----------------
- src/cmd/compile/internal/gc/type.go |  6 +++++
- 2 files changed, 32 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/gc/gen.go | 24 ++++++++----------------
+ src/cmd/compile/internal/gc/go.go  |  7 +++----
+ 2 files changed, 11 insertions(+), 20 deletions(-)

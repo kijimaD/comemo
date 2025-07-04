@@ -1,19 +1,15 @@
-commit af261a5c853914d60bcad2232c9377e63c467644
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Aug 7 11:15:54 2015 +1000
+commit af8297da86a19d68ee442db8ec325be952e72ae2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 20 17:04:18 2015 -0700
 
-    cmd/go: skip external tests on linux/arm
+    go/internal/gccgoimporter: fix handling of "byte" and "rune" alias types
     
-    CL 13166 skipped external tests on freebsd/arm with the rationale
-    that the cmd/go tests are not architecture dependent.
+    Fixes #11762.
     
-    This CL does the same for linux/arm to help linux/arm users who are
-    building Go on platforms like the Raspberry Pi where ./all.bash
-    frequently times out due to a lack of resources.
-    
-    Change-Id: Iae1a25b63b74200da3f1b5637da0fa5c2dceeb83
-    Reviewed-on: https://go-review.googlesource.com/13342
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0c7797a2dfdbbcf137bb287f854037a4a697c6e4
+    Reviewed-on: https://go-review.googlesource.com/12443
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go | 30 ++++++++++++++++++------------
- 1 file changed, 18 insertions(+), 12 deletions(-)
+ src/go/internal/gccgoimporter/parser.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

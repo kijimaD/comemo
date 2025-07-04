@@ -1,24 +1,23 @@
-commit befec5ddbbfbd81ec84e74e15a38044d67f8785b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 14 16:17:31 2023 -0700
+commit a74e5f584e96cc89a8f6a1bb1a8cd9fc6ed6e72d
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jul 24 13:24:21 2022 -0700
 
-    text/template: set variables correctly in range assignment
+    cmd/compile: issue VarDef only for pointer-ful types
     
-    I unintentionally flipped them in CL 446795.
+    Use OpVarDef only when the variable being defined has pointers in it.
+    VarDef markers are only used for liveness analysis, and that only
+    runs on pointer-ful variables.
     
-    For #56490
-    Fixes #60801
+    Fixes #53810
     
-    Change-Id: I57586bec052e1b2cc61513870ce24dd6ce17e56b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503575
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I09b0ef7ed31e72528916fe79325f80bbe69ff9b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419320
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/text/template/exec.go      | 16 ++++++++++++----
- src/text/template/exec_test.go |  1 +
- 2 files changed, 13 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/check.go       |  5 +++++
+ src/cmd/compile/internal/ssa/cse_test.go    |  4 ++--
+ src/cmd/compile/internal/ssa/export_test.go |  1 +
+ src/cmd/compile/internal/ssagen/ssa.go      | 28 ++++++++++++++++++++--------
+ 4 files changed, 28 insertions(+), 10 deletions(-)

@@ -1,62 +1,21 @@
-commit 4360fd8d6fc6cd23f56b694a91ccf751896eb712
+commit f934b8326f18c4be2cb26ed1e87621d926ba209b
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 21 14:25:34 2022 -0700
+Date:   Wed Nov 3 20:42:44 2021 -0700
 
-    go/types, types2: use "and not used" instead of "but not used" in error messages
+    cmd/compile/internal/types2: check non-generic conversions first
     
-    This matches longstanding compiler behavior.
+    This enables the elimination of convertibleToImpl again,
+    with the code structure close to the original non-generic
+    version, and closely matching the structure of assignableTo.
     
-    Also, for unused packages, report:
+    We also don't need the hasTerm tests; instead we can rely
+    directly on the mechanism of TypeParam.is which is feeding
+    a nil term if there are no specific types.
     
-    `"pkg" imported and not used`
-    `"pkg" imported as X and not used`
-    
-    This matches the other `X declared and not used` errors.
-    
-    For #55326.
-    
-    Change-Id: Ie71cf662fb5f4648449c64fc51bede298a1bdcbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432557
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0385acca779d75c3c961d06afb464714fe51705d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361269
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/assignments.go     | 10 ++---
- src/cmd/compile/internal/types2/errorcodes.go      |  2 +-
- src/cmd/compile/internal/types2/issues_test.go     | 10 ++---
- src/cmd/compile/internal/types2/labels.go          |  2 +-
- src/cmd/compile/internal/types2/resolver.go        | 12 +-----
- src/cmd/compile/internal/types2/stmt.go            |  8 ++--
- src/go/types/assignments.go                        |  2 +-
- src/go/types/errorcodes.go                         |  2 +-
- src/go/types/issues_test.go                        | 10 ++---
- src/go/types/labels.go                             |  2 +-
- src/go/types/resolver.go                           |  8 ++--
- src/go/types/stmt.go                               | 10 ++---
- .../testdata/check/importdecl0/importdecl0a.go     | 10 ++---
- .../testdata/check/importdecl0/importdecl0b.go     |  2 +-
- .../testdata/check/importdecl1/importdecl1b.go     |  2 +-
- src/internal/types/testdata/check/issues0.go       |  2 +-
- src/internal/types/testdata/check/labels.go        | 16 ++++----
- src/internal/types/testdata/check/stmt0.go         |  8 ++--
- src/internal/types/testdata/check/vardecl.go       | 46 +++++++++++-----------
- .../types/testdata/fixedbugs/issue39634.go         |  2 +-
- .../types/testdata/fixedbugs/issue43109.go         |  2 +-
- test/fixedbugs/bug373.go                           |  2 +-
- test/fixedbugs/bug450.go                           |  2 +-
- test/fixedbugs/issue13415.go                       |  2 +-
- test/fixedbugs/issue13539.go                       |  2 +-
- test/fixedbugs/issue18915.go                       |  6 +--
- test/fixedbugs/issue20185.go                       |  2 +-
- test/fixedbugs/issue21317.go                       |  4 +-
- test/fixedbugs/issue22794.go                       |  2 +-
- test/fixedbugs/issue23116.go                       |  2 +-
- test/fixedbugs/issue23586.go                       |  2 +-
- test/fixedbugs/issue29870b.go                      |  2 +-
- test/fixedbugs/issue5957.dir/c.go                  | 10 ++---
- test/import1.go                                    |  6 +--
- test/import4.dir/import4.go                        | 12 +++---
- test/typeswitch2b.go                               |  4 +-
- 36 files changed, 110 insertions(+), 118 deletions(-)
+ src/cmd/compile/internal/types2/conversions.go | 119 +++++++++++++------------
+ 1 file changed, 62 insertions(+), 57 deletions(-)

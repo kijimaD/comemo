@@ -1,20 +1,14 @@
-commit b443babad49f90e9507d91819736c97a7495e308
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Jan 21 16:58:01 2017 -0800
+commit ece4e23d9aaed3e11f7a0b9a3f15c592c96b065d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Oct 22 06:39:12 2016 -0700
 
-    test: add extra test for issue18661
+    net/http: document Transport.ExpectContinueTimeout a bit more
     
-    Make sure that the lack of an lvalue doesn't
-    cause extra side-effects.
+    Fixes #16003
     
-    Updates #18661
-    Updates #18739
-    
-    Change-Id: I52eb4b4a5c6f8ff5cddd2115455f853c18112c19
-    Reviewed-on: https://go-review.googlesource.com/36126
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I76a8da24b9944647ec40ef2ca4fc93c175ff5a25
+    Reviewed-on: https://go-review.googlesource.com/31723
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue18661.go | 25 +++++++++++++++++++++++--
- 1 file changed, 23 insertions(+), 2 deletions(-)
+ src/net/http/transport.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

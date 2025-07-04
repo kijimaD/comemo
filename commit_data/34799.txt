@@ -1,23 +1,23 @@
-commit 690324408f4e28449e81032204596880ce45dde8
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Mon Apr 2 23:13:43 2018 +0200
+commit 08270c3e18673f7f1319dce9d27d84c9a4c8eb49
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 23:58:42 2017 -0500
 
-    go/types: fix column reporting of invalid selector names
+    cmd/cover: do not report coverage for assembly functions
     
-    Fixes #24645
+    cover -func mode was reporting a coverage for function
+    declarations without bodies - assembly functions.
+    Since we are not annotating their code, we have no data
+    for those functions and should not report them at all.
     
-    Change-Id: I914674451b6667c3ebaf012893503d9de58991ee
-    Reviewed-on: https://go-review.googlesource.com/104155
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #6880.
+    
+    Change-Id: I4b8cd90805accf61f54e3ee167f54f4dc10c7c59
+    Reviewed-on: https://go-review.googlesource.com/77152
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/call.go                   | 12 ++++++------
- src/go/types/testdata/decls0.src       | 10 +++++-----
- src/go/types/testdata/decls1.src       |  2 +-
- src/go/types/testdata/decls3.src       | 32 ++++++++++++++++----------------
- src/go/types/testdata/decls4.src       |  4 ++--
- src/go/types/testdata/expr3.src        | 12 ++++++------
- src/go/types/testdata/importdecl0a.src |  2 +-
- src/go/types/testdata/issues.src       |  2 +-
- src/go/types/testdata/methodsets.src   | 24 ++++++++++++------------
- 9 files changed, 50 insertions(+), 50 deletions(-)
+ src/cmd/cover/func.go                      |  4 ++++
+ src/cmd/go/go_test.go                      | 13 +++++++++++++
+ src/cmd/go/testdata/src/coverasm/p.go      |  7 +++++++
+ src/cmd/go/testdata/src/coverasm/p.s       |  2 ++
+ src/cmd/go/testdata/src/coverasm/p_test.go |  7 +++++++
+ 5 files changed, 33 insertions(+)

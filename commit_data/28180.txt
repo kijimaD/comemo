@@ -1,17 +1,25 @@
-commit 59877bfaaf0778d4cc2cbaf06cf5030144271349
-Author: Gleb Stepanov <glebstepanov1992@gmail.com>
-Date:   Mon Jul 25 16:25:44 2016 +0300
+commit e155bf0ce8543ebffb3b5a699861402f7abe08d7
+Author: Niko Dziemba <niko@dziemba.com>
+Date:   Wed Feb 10 15:57:16 2016 +0100
 
-    runtime: rename variable
+    archive/zip: pool flate readers
     
-    Rename variable to bitScan according to
-    TODO comment.
+    Similar to the flate Writer pools already used,
+    this adds pooling for flate Readers.
     
-    Change-Id: I81dd8cc1ca28c0dc9308a654ad65cdf5b2fd2ce3
-    Reviewed-on: https://go-review.googlesource.com/25175
-    Run-TryBot: Austin Clements <austin@google.com>
+    compress/flate allows re-using of Readers, see
+    https://codereview.appspot.com/97140043/
+    
+    In a real-world scenario when reading ~ 500 small files from a ZIP
+    archive this gives a speedup of 1.5x-2x.
+    
+    Fixes #14289
+    
+    Change-Id: I2d98ad983e95ab7d97e06fd0145f619b4f47caa4
+    Reviewed-on: https://go-review.googlesource.com/19416
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mbitmap.go | 54 +++++++++++++++++++++++++-------------------------
- 1 file changed, 27 insertions(+), 27 deletions(-)
+ src/archive/zip/register.go | 40 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 39 insertions(+), 1 deletion(-)

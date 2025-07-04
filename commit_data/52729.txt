@@ -1,44 +1,17 @@
-commit 921699fe5f67a2e5246badc8f626cc70a615ad1c
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 19 14:01:05 2023 -0400
+commit 22a3209bc6efd5cc54da57f6125b91a32b6250b0
+Author: Wang Deyu <wangdeyu.2021@bytedance.com>
+Date:   Mon May 16 22:37:26 2022 +0800
 
-    runtime, cmd: rationalize StackLimit and StackGuard
+    runtime: update description of GODEBUG=scavtrace=1
     
-    The current definitions of StackLimit and StackGuard only indirectly
-    specify the NOSPLIT stack limit and duplicate a literal constant
-    (928). Currently, they define the stack guard delta, and from there
-    compute the NOSPLIT limit.
+    For #48409.
     
-    Rationalize these by defining a new constant, abi.StackNosplitBase,
-    which consolidates and directly specifies the NOSPLIT stack limit (in
-    the default case). From this we then compute the stack guard delta,
-    inverting the relationship between these two constants. While we're
-    here, we rename StackLimit to StackNosplit to make it clearer what's
-    being limited.
-    
-    This change does not affect the values of these constants in the
-    default configuration. It does slightly change how
-    StackGuardMultiplier values other than 1 affect the constants, but
-    this multiplier is a pretty rough heuristic anyway.
-    
-                        before after
-    stackNosplit           800   800
-    _StackGuard            928   928
-    stackNosplit -race    1728  1600
-    _StackGuard -race     1856  1728
-    
-    For #59670.
-    
-    Change-Id: Ibe20825ebe0076bbd7b0b7501177b16c9dbcb79e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486380
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I056afcdbc417ce633e48184e69336213750aae28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406575
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/objabi/stack.go       | 15 +++------------
- src/cmd/link/internal/ld/stackcheck.go |  2 +-
- src/internal/abi/stack.go              |  8 ++++++++
- src/runtime/preempt.go                 |  2 +-
- src/runtime/stack.go                   | 19 +++++++++----------
- test/nosplit.go                        | 13 +++----------
- 6 files changed, 25 insertions(+), 34 deletions(-)
+ src/runtime/extern.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

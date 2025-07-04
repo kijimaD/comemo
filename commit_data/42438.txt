@@ -1,21 +1,18 @@
-commit a9cc1051c11f821cb03d63fb9e05930f9e2f9fa5
-Author: David Golden <david@autopragmatic.com>
-Date:   Wed Apr 22 21:16:49 2020 -0400
+commit 24f9b9c8f3042f128d59c27d461cc34ddc3ab5d3
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 11 14:24:19 2019 -0500
 
-    time: note that formats may parse invalid strings
+    [dev.link] cmd/link: record external symbol alignment
     
-    The existing documentation for time format constants doesn't mention
-    that they may parse technically-invalid strings, such as single-digit
-    hours when a two-digit hour is required by a specification.  This commit
-    adds a short warning note to that effect.
+    Add a mechanism for recording symbol alignment for external symbols
+    under the new loader scheme. Alignments is stored in a side table,
+    since most symbols don't wind up needing an alignment other than zero.
     
-    Fixes #37616
-    
-    Change-Id: I6e5e12bd42dc368f8ca542b4c0527a2b7d30acaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229460
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I97092481412c15eac9b9f4c29b5c273f53759562
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210177
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/time/format.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go      | 38 +++++++++++++++++++++++++++++
+ src/cmd/link/internal/loader/loader_test.go | 11 +++++++++
+ 2 files changed, 49 insertions(+)

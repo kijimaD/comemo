@@ -1,22 +1,38 @@
-commit 9c93ad5520c4f995ee0ec8d1a80dd17c633002ae
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 15 15:32:42 2023 +0200
+commit 88b51d2e630738f9396e3825eafd90d03727ec0d
+Author: Shengyu Zhang <zhangshengyu.0@bytedance.com>
+Date:   Tue Aug 23 02:27:04 2022 +0000
 
-    cmd/go/testdata/script: ensure go test -skip skips ExampleTest1
+    go/printer: make ExampleFprint correctly run as online example
     
-    CL 511837 added a check for go test -skip Example but it currently
-    doesn't verify that the example doesn't show up in the command output.
-    Add such a check.
+    function "ExampleFprint" will be rewritten to function "main"
+    when displayed on the godoc pages, so the online example is failed to
+    run:
     
-    For #61482
+        Output:
     
-    Change-Id: I3a8f82fc137739bf291f39bf7719ff92cfc74f9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519595
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+        panic: function not found
+    
+        goroutine 1 [running]:
+        main.parseFunc({0x4f772e, 0xf}, {0x4f713f, 0xd})
+                /tmp/sandbox1264544227/prog.go:23 +0x13b
+        main.main()
+                /tmp/sandbox1264544227/prog.go:30 +0x45
+    
+    See: https://pkg.go.dev/go/printer#example-Fprint
+    
+    Add printSelf function to prevent the function not found when running in godoc
+    sandbox. Beside, deleting the dummy test function to make the example show
+    the entire file, as we want to show the newly added printSelf function.
+    
+    Change-Id: Ia2b772937081b58a0fce9860838959c95f2d650c
+    GitHub-Last-Rev: bac11891735e48b8ffe99cd1096bcb3f08c6575d
+    GitHub-Pull-Request: golang/go#53141
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409314
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/testdata/script/test_skip.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/go/printer/example_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

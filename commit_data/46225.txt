@@ -1,23 +1,25 @@
-commit d384ebde60a7e720f83fb10e6fa9cbf989a8866f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Aug 30 16:00:53 2021 +0200
+commit a4d4c10340957f5c1804134a75b3da36402fe8bb
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Dec 15 11:37:06 2020 -0500
 
-    net: enable multicast listener tests on solaris/illumos
+    [dev.typeparams] go/types: import lookup logic from dev.go2go
     
-    It seems everything is in place for these tests to pass on solaris and
-    illumos, so enable them.
+    Changes from dev.go2go:
+     + Remove support for pointer designation.
+     + Remove support for method type parameters in missingMethod. We could
+       leave this logic in, but it looked sufficiently shaky that I'd rather
+       not bring in the additional complexity.
+     + Remove the strictness flag parameter to assertableTo, since it isn't
+       used.
     
-    Fixes #7399
-    
-    Change-Id: If6defb651ef9c5059c1aeccbc4fc13a12a86b682
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346149
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I812b8d1c49f3b714b166f061fbb7f2e683a0ce86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278333
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/listen_test.go    | 4 ----
- src/net/sockoptip_stub.go | 6 ------
- 2 files changed, 10 deletions(-)
+ src/go/types/lookup.go    | 91 ++++++++++++++++++++++++++++++++++++-----------
+ src/go/types/methodset.go |  5 ++-
+ 2 files changed, 75 insertions(+), 21 deletions(-)

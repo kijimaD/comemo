@@ -1,31 +1,26 @@
-commit 73186ba00251b3ed8baaab36e4f5278c7681155b
-Author: Manuel Sabin <msabin27@gmail.com>
-Date:   Fri Jun 7 14:50:42 2024 -0400
+commit 3824d3d71ef1479b71ca624b728356657f62e1d3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri May 26 15:49:22 2023 -0400
 
-    crypto/internal/cryptotest: add common tests for the hash.Hash interface
+    cmd/go: always track visited packages in setPGOProfilePath
     
-    This CL creates the cryptotest package to host a suite of tests
-    for interfaces that are implemented in the crypto package.  This CL
-    includes a set of tests for the hash.Hash interface, and calls these tests from the tests of hash.Hash implementations in crypto/.
+    Currently we only track visited (copied) packages when a copy is
+    required. When a copy is not required, we will rewalk each package's
+    entire dependency graph every time we see it, which is terribly
+    inefficient.
     
-    Tests for other interfaces will be included in subsequent CLs.
+    Pull the visited package check up a level so that we visit packages only
+    once regardless of how many times they are visited.
     
-    Updates #25309
+    Fixes #60455.
+    Fixes #60428.
     
-    Change-Id: Ic47086fd7f585e812c8b0d2186c50792c773781e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592855
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: I4e9b31eeeaa170db650c461a5de2ca984b9aba0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498735
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/crypto/hmac/hmac_test.go           |  41 ++-----
- src/crypto/internal/cryptotest/hash.go | 189 +++++++++++++++++++++++++++++++++
- src/crypto/md5/md5_test.go             |   5 +
- src/crypto/sha1/sha1_test.go           |   5 +
- src/crypto/sha256/sha256_test.go       |  10 ++
- src/crypto/sha512/sha512_test.go       |  16 +++
- src/go/build/deps_test.go              |   3 +
- 7 files changed, 236 insertions(+), 33 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

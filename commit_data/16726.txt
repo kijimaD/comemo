@@ -1,16 +1,12 @@
-commit a2c30fe6481fa5b18331bb54a660928f6816cc44
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 10 22:06:52 2013 -0400
+commit dff0c194464bf23fc924242885843426a91b8969
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 10 14:19:35 2013 -0700
 
-    cmd/ld: correct assignment of sizes to mach-o symbols
+    go/format: fix failing test (fix build)
     
-    If you compute the size by subtraction from the address
-    of the next symbol, it helps to wait until the symbols have
-    been sorted by address.
-    
-    R=golang-dev, r
+    R=khr
     CC=golang-dev
-    https://golang.org/cl/11143043
+    https://golang.org/cl/11131043
 
- src/cmd/ld/ldmacho.c | 23 ++++++++++++++---------
- 1 file changed, 14 insertions(+), 9 deletions(-)
+ src/pkg/go/format/format_test.go | 1 -
+ 1 file changed, 1 deletion(-)

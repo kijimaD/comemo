@@ -1,16 +1,35 @@
-commit 4f40182240e6af76dcb2fbc307d69133e58cea19
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jan 21 17:22:30 2016 +0900
+commit bbd1a1c706659ae489b174e2a4a707bbc626d5af
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 11 15:34:54 2015 -0500
 
-    net: fix TestLookupDotsWithLocalSource
+    runtime: make SIGPROF skip stacks that are being copied
     
-    Fixes #14050.
+    sigprof tracebacks the stack across systemstack switches to make
+    profile tracebacks more complete. However, it does this even if the
+    user stack is currently being copied, which means it may be in an
+    inconsistent state that will cause the traceback to panic.
     
-    Change-Id: I2d9c32213b0da35703edf28f92ed3efb23325921
-    Reviewed-on: https://go-review.googlesource.com/18792
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    One specific way this can happen is during stack shrinking. Some
+    goroutine blocks for STW, then enters gchelper, which then assists
+    with root marking. If that root marking happens to pick the original
+    goroutine and its stack needs to be shrunk, it will begin to copy that
+    stack. During this copy, the stack is generally inconsistent and, in
+    particular, the actual locations of the stack barriers and their
+    recorded locations are temporarily out of sync. If a SIGPROF happens
+    during this inconsistency, it will walk the stack all the way back to
+    the blocked goroutine and panic when it fails to unwind the stack
+    barriers.
+    
+    Fix this by disallowing jumping to the user stack during SIGPROF if
+    that user stack is in the process of being copied.
+    
+    Fixes #12932.
+    
+    Change-Id: I9ef694c2c01e3653e292ce22612418dd3daff1b4
+    Reviewed-on: https://go-review.googlesource.com/16819
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/lookup_test.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/runtime/proc.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

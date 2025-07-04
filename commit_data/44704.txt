@@ -1,22 +1,19 @@
-commit 2f3db220d1ff1610e315d95d276782d4533f052b
-Author: Johan Brandhorst <johan.brandhorst@gmail.com>
-Date:   Wed Mar 17 14:13:35 2021 +0000
+commit e5da468c51ad13a08730dc7890311915eefd2199
+Author: Carlos Alexandro Becker <caarlos0@gmail.com>
+Date:   Fri Aug 21 08:01:01 2020 +0000
 
-    crypto/tls: remove flaky cancellation test
+    net/http: use iotest.ErrReader in tests
     
-    This will be reintroduced again once the source of the
-    flakiness has been determined and fixed.
+    Updates #38781
     
-    Fixes #45084
-    
-    Change-Id: I6677b27fcd71e8c9bb8edbe8e3be70e5a271ebd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302569
-    Trust: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I16a66904167ca4c0e916619b4da1dd23795b3ab2
+    GitHub-Last-Rev: 45054235a009cf776030bc951ba9a2a2a02c13e9
+    GitHub-Pull-Request: golang/go#40864
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249037
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/crypto/tls/handshake_client_test.go | 36 ---------------------------------
- 1 file changed, 36 deletions(-)
+ src/net/http/requestwrite_test.go | 5 +++--
+ src/net/http/transport_test.go    | 9 ++-------
+ 2 files changed, 5 insertions(+), 9 deletions(-)

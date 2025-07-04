@@ -1,20 +1,24 @@
-commit a9e1f6d7a67d0cc423765e83193640335e8b8301
+commit 423a09760bf90fe16dc03251792360daf8a99de0
 Author: Adam Langley <agl@golang.org>
-Date:   Sat Jan 14 10:59:11 2012 -0500
+Date:   Sat Jan 14 10:44:35 2012 -0500
 
-    exp/terminal: add SetPrompt and handle large pastes.
+    exp/proxy: new package
     
-    (This was missing in the last change because I uploaded it from the
-    wrong machine.)
+    exp/proxy provides client support for tunneling connections through
+    various proxies.
     
-    Large pastes previously misbehaved because the code tried reading from
-    the terminal before checking whether an line was already buffered.
-    Large pastes can cause multiples lines to be read at once from the
-    terminal.
+    This is an initial, incomplete sketch of the code to lay down an
+    API.
     
-    R=bradfitz
+    R=golang-dev, r, r, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5542049
+    https://golang.org/cl/5490062
 
- src/pkg/exp/terminal/terminal.go | 62 ++++++++++++++++++++++------------------
- 1 file changed, 34 insertions(+), 28 deletions(-)
+ src/pkg/exp/proxy/Makefile         |  14 +++
+ src/pkg/exp/proxy/direct.go        |  18 ++++
+ src/pkg/exp/proxy/per_host.go      | 140 +++++++++++++++++++++++++
+ src/pkg/exp/proxy/per_host_test.go |  55 ++++++++++
+ src/pkg/exp/proxy/proxy.go         |  98 ++++++++++++++++++
+ src/pkg/exp/proxy/proxy_test.go    |  50 +++++++++
+ src/pkg/exp/proxy/socks5.go        | 207 +++++++++++++++++++++++++++++++++++++
+ 7 files changed, 582 insertions(+)

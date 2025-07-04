@@ -1,12 +1,19 @@
-commit ee198df4cdc2e49c7376f99d9d3081da6ebae836
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 18 13:19:04 2018 -0700
+commit a30d24fad99a95c8f65f8677ad9404e090aeb13a
+Author: Gregory Man <man.gregory@gmail.com>
+Date:   Wed Mar 28 11:44:10 2018 +0300
 
-    doc: update go1.11 release notes
+    net/http: strip password from error message
     
-    Change-Id: I806d411c075cdc66322112b6ee5e50f58462bc6b
-    Reviewed-on: https://go-review.googlesource.com/124776
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Strip password from URL then stringifying it to error.
+    
+    Fixes #24572
+    
+    Change-Id: I1751ea9ccf87e7dff50c4c2a2010bf3f865702f8
+    Reviewed-on: https://go-review.googlesource.com/102855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.11.html | 32 +++++++++++++++++++++++---------
- 1 file changed, 23 insertions(+), 9 deletions(-)
+ src/net/http/client.go      | 13 +++++++++++--
+ src/net/http/client_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 2 deletions(-)

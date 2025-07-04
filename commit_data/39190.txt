@@ -1,117 +1,27 @@
-commit f35338582d0e0e7047fa45be3cb8064c43c50f25
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu May 16 19:13:29 2019 -0400
+commit dc889025c714313fbe912ad1253f0ec748a6e58c
+Author: Raul Silvera <rauls5382@gmail.com>
+Date:   Fri Jan 18 00:14:29 2019 +0000
 
-    crypto/tls: add support for Ed25519 certificates in TLS 1.2 and 1.3
+    runtime: sample large heap allocations correctly
     
-    Support for Ed25519 certificates was added in CL 175478, this wires them
-    up into the TLS stack according to RFC 8422 (TLS 1.2) and RFC 8446 (TLS 1.3).
+    Remove an unnecessary check on the heap sampling code that forced sampling
+    of all heap allocations larger than the sampling rate. This need to follow
+    a poisson process so that they can be correctly unsampled. Maintain a check
+    for MemProfileRate==1 to provide a mechanism for full sampling, as
+    documented in https://golang.org/pkg/runtime/#pkg-variables.
     
-    RFC 8422 also specifies support for TLS 1.0 and 1.1, and I initially
-    implemented that, but even OpenSSL doesn't take the complexity, so I
-    just dropped it. It would have required keeping a buffer of the
-    handshake transcript in order to do the direct Ed25519 signatures. We
-    effectively need to support TLS 1.2 because it shares ClientHello
-    signature algorithms with TLS 1.3.
+    Additional testing for this change is on cl/129117.
     
-    While at it, reordered the advertised signature algorithms in the rough
-    order we would want to use them, also based on what curves have fast
-    constant-time implementations.
+    Fixes #26618
     
-    Client and client auth tests changed because of the change in advertised
-    signature algorithms in ClientHello and CertificateRequest.
-    
-    Fixes #25355
-    
-    Change-Id: I9fdd839afde4fd6b13fcbc5cc7017fd8c35085ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177698
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I7802bde2afc655cf42cffac34af9bafeb3361957
+    GitHub-Last-Rev: 471f747af845395d458096bea26daa93b91120be
+    GitHub-Pull-Request: golang/go#29791
+    Reviewed-on: https://go-review.googlesource.com/c/158337
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/crypto/tls/auth.go                             |  61 ++-
- src/crypto/tls/auth_test.go                        |  16 +-
- src/crypto/tls/cipher_suites.go                    |  24 +-
- src/crypto/tls/common.go                           |  26 +-
- src/crypto/tls/generate_cert.go                    |  55 +-
- src/crypto/tls/handshake_client.go                 |  19 +-
- src/crypto/tls/handshake_client_test.go            |  46 +-
- src/crypto/tls/handshake_client_tls13.go           |  10 +-
- src/crypto/tls/handshake_server.go                 |  60 +--
- src/crypto/tls/handshake_server_test.go            |  53 +-
- src/crypto/tls/handshake_server_tls13.go           |  10 +-
- src/crypto/tls/key_agreement.go                    |  20 +-
- src/crypto/tls/prf.go                              |  15 +-
- .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  | 100 ++--
- .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  96 ++--
- .../tls/testdata/Client-TLSv10-ClientCert-Ed25519  | 110 ++++
- .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 102 ++--
- .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  96 ++--
- .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |  82 +--
- .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  78 +--
- src/crypto/tls/testdata/Client-TLSv10-Ed25519      |   0
- .../testdata/Client-TLSv10-ExportKeyingMaterial    |  78 +--
- src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  46 +-
- .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  80 +--
- .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  78 +--
- src/crypto/tls/testdata/Client-TLSv11-Ed25519      |   0
- src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  46 +-
- .../tls/testdata/Client-TLSv12-AES128-GCM-SHA256   |  50 +-
- .../tls/testdata/Client-TLSv12-AES128-SHA256       |  64 +--
- .../tls/testdata/Client-TLSv12-AES256-GCM-SHA384   |  50 +-
- src/crypto/tls/testdata/Client-TLSv12-ALPN         |  72 +--
- .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 100 ++--
- .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  94 ++--
- .../tls/testdata/Client-TLSv12-ClientCert-Ed25519  | 119 +++++
- .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  90 ++--
- .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    |  98 ++--
- .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  90 ++--
- .../Client-TLSv12-ClientCert-RSA-RSAPKCS1v15       |  90 ++--
- .../testdata/Client-TLSv12-ClientCert-RSA-RSAPSS   |  90 ++--
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  80 +--
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  76 +--
- .../Client-TLSv12-ECDHE-ECDSA-AES128-SHA256        |  88 ++--
- .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  74 +--
- .../Client-TLSv12-ECDHE-ECDSA-CHACHA20-POLY1305    |  72 +--
- .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  78 +--
- .../testdata/Client-TLSv12-ECDHE-RSA-AES128-SHA256 |  86 ++--
- .../Client-TLSv12-ECDHE-RSA-CHACHA20-POLY1305      |  70 +--
- src/crypto/tls/testdata/Client-TLSv12-Ed25519      |  68 +++
- .../testdata/Client-TLSv12-ExportKeyingMaterial    |  68 +--
- src/crypto/tls/testdata/Client-TLSv12-P256-ECDHE   |  82 +--
- src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  46 +-
- .../tls/testdata/Client-TLSv12-RenegotiateOnce     | 364 +++++++-------
- .../tls/testdata/Client-TLSv12-RenegotiateTwice    | 554 ++++++++++-----------
- .../Client-TLSv12-RenegotiateTwiceRejected         | 370 +++++++-------
- .../testdata/Client-TLSv12-RenegotiationRejected   |  74 +--
- src/crypto/tls/testdata/Client-TLSv12-SCT          |  68 +--
- src/crypto/tls/testdata/Client-TLSv12-X25519-ECDHE |  74 +--
- .../tls/testdata/Client-TLSv13-AES128-SHA256       | 154 +++---
- .../tls/testdata/Client-TLSv13-AES256-SHA384       | 158 +++---
- src/crypto/tls/testdata/Client-TLSv13-ALPN         | 160 +++---
- .../tls/testdata/Client-TLSv13-CHACHA20-SHA256     | 154 +++---
- .../testdata/Client-TLSv13-ClientCert-ECDSA-RSA    | 252 +++++-----
- .../tls/testdata/Client-TLSv13-ClientCert-Ed25519  | 122 +++++
- .../testdata/Client-TLSv13-ClientCert-RSA-ECDSA    | 242 ++++-----
- .../testdata/Client-TLSv13-ClientCert-RSA-RSAPSS   | 246 ++++-----
- src/crypto/tls/testdata/Client-TLSv13-ECDSA        | 146 +++---
- src/crypto/tls/testdata/Client-TLSv13-Ed25519      |  68 +++
- .../testdata/Client-TLSv13-ExportKeyingMaterial    | 154 +++---
- .../tls/testdata/Client-TLSv13-HelloRetryRequest   | 175 +++----
- src/crypto/tls/testdata/Client-TLSv13-KeyUpdate    | 170 +++----
- src/crypto/tls/testdata/Client-TLSv13-P256-ECDHE   | 162 +++---
- src/crypto/tls/testdata/Client-TLSv13-X25519-ECDHE | 156 +++---
- .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  80 +--
- ...erver-TLSv12-ClientAuthRequestedAndEd25519Given | 112 +++++
- .../Server-TLSv12-ClientAuthRequestedAndGiven      |  80 +--
- ...rver-TLSv12-ClientAuthRequestedAndPKCS1v15Given |  80 +--
- .../Server-TLSv12-ClientAuthRequestedNotGiven      |  62 +--
- src/crypto/tls/testdata/Server-TLSv12-Ed25519      |  63 +++
- .../Server-TLSv13-ClientAuthRequestedAndECDSAGiven | 336 ++++++-------
- ...erver-TLSv13-ClientAuthRequestedAndEd25519Given | 154 ++++++
- .../Server-TLSv13-ClientAuthRequestedAndGiven      | 332 ++++++------
- .../Server-TLSv13-ClientAuthRequestedNotGiven      | 186 +++----
- src/crypto/tls/testdata/Server-TLSv13-Ed25519      |  81 +++
- src/crypto/tls/tls.go                              |  12 +-
- src/go/build/deps_test.go                          |   2 +-
- 85 files changed, 4972 insertions(+), 3933 deletions(-)
+ src/runtime/malloc.go                    | 2 +-
+ src/runtime/testdata/testprog/memprof.go | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

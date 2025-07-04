@@ -1,25 +1,13 @@
-commit 3be5d551801a97a76e236a2a53489b1c9c22e665
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Tue Sep 26 21:14:03 2017 -0300
+commit b119ef154c1cc3bded16baff06143844bf1b28e1
+Author: Francisco Rojas <francisco.rojas.gallegos@gmail.com>
+Date:   Sat Jul 15 14:51:58 2017 -0600
 
-    text/template: add break, continue actions in ranges
+    strings: add a example for TrimFunc
     
-    Adds the two range control actions "break" and "continue". They act the
-    same as the Go keywords break and continue, but are simplified in that
-    only the innermost range statement can be broken out of or continued.
-    
-    Fixes #20531
-    
-    Change-Id: I4412b3bbfd4dadb0ab74ae718e308c1ac7a0a1e9
-    Reviewed-on: https://go-review.googlesource.com/66410
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9c0c601ec5957475e949dcc4a8c2116724d01215
+    Reviewed-on: https://go-review.googlesource.com/48961
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/text/template/doc.go              |  6 +++
- src/text/template/exec.go             | 84 +++++++++++++++++++++++++----------
- src/text/template/exec_test.go        |  4 ++
- src/text/template/parse/lex.go        |  4 ++
- src/text/template/parse/lex_test.go   |  6 ++-
- src/text/template/parse/node.go       | 64 ++++++++++++++++++++++++++
- src/text/template/parse/parse.go      | 44 +++++++++++++++---
- src/text/template/parse/parse_test.go | 12 +++++
- 8 files changed, 193 insertions(+), 31 deletions(-)
+ src/strings/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

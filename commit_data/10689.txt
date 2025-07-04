@@ -1,13 +1,15 @@
-commit 5912869d61f0b20aaa9ea858195e8039ddc78dc6
-Author: Rob Pike <r@golang.org>
-Date:   Fri Dec 9 10:47:36 2011 -0800
+commit 8c0b699ca45e9682c512df84a37a7f4892b7d631
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 9 11:59:21 2011 -0500
 
-    html/template: make Must work
-    Fixes #2545.
+    gc: fix another blank bug
     
-    R=golang-dev, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5475054
+    https://golang.org/cl/5478051
 
- src/pkg/html/template/template.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/5g/gsubr.c |  6 ++++++
+ src/cmd/6g/gsubr.c |  7 +++++++
+ src/cmd/8g/gsubr.c |  6 ++++++
+ test/blank.go      | 17 +++++++++++++++++
+ 4 files changed, 36 insertions(+)

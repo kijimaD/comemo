@@ -1,31 +1,36 @@
-commit 1e6924541802e4a10d8dc8a519b7c116ae213a0c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 11 06:06:34 2017 -0700
+commit b531eb30625a28eb99f9b0137ea5a409a733a1bb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Jan 24 20:19:36 2017 -0800
 
-    cmd/internal/obj/s390x: make assembler almost concurrency-safe
+    runtime: reorder modules so main.main comes first
     
-    CL 39922 made the arm assembler concurrency-safe.
-    This CL does the same, but for s390x.
-    The approach is similar: introduce ctxtz to hold
-    function-local state and thread it through
-    the assembler as necessary.
+    Modules appear in the moduledata linked list in the order they are
+    loaded by the dynamic loader, with one exception: the
+    firstmoduledata itself the module that contains the runtime.
+    This is not always the first module (when using -buildmode=shared,
+    it is typically libstd.so, the second module).
     
-    One race remains after this CL, similar to CL 40252.
+    The order matters for typelinksinit, so we swap the first module
+    with whatever module contains the main function.
     
-    That race is conceptually unrelated to this refactoring,
-    and will be addressed in a separate CL.
+    Updates #18729
     
-    Passes toolstash-check -all.
+    This fixes the test case extracted with -linkshared, and now
     
-    Updates #15756
+            go test -linkshared encoding/...
     
-    Change-Id: Iabf17aa242b70c0b078c2e85dae3d93a5e512372
-    Reviewed-on: https://go-review.googlesource.com/40371
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    passes. However the original issue about a plugin failure is not
+    yet fixed.
+    
+    Change-Id: I9f399ecc3518e22e6b0a350358e90b0baa44ac96
+    Reviewed-on: https://go-review.googlesource.com/35644
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/link.go       |   1 -
- src/cmd/internal/obj/s390x/asmz.go | 381 +++++++++++++++++++------------------
- src/cmd/internal/obj/s390x/objz.go | 156 ++++++++-------
- 3 files changed, 273 insertions(+), 265 deletions(-)
+ misc/cgo/testshared/src/depBase/dep.go |  2 ++
+ misc/cgo/testshared/src/exe/exe.go     |  9 +++++++++
+ src/runtime/symtab.go                  | 19 +++++++++++++++++++
+ 3 files changed, 30 insertions(+)

@@ -1,0 +1,323 @@
+commit 606a0bd9c8ff275244ce308f29bb5ff4ff86dabd
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Fri Feb 2 15:02:05 2024 +0100
+
+    internal/bytealg: optimize IndexByte for riscv64
+    
+    The existing implementations of IndexByte and IndexByteString for
+    riscv64 are very simplistic.  They load and compare a single byte at
+    a time in a tight loop.  It's possible to improve performance in the
+    general case by loading and checking 8 bytes at a time.  This is
+    achieved using the 'Determine if a word has a byte equal to n' bit
+    hack from https://graphics.stanford.edu/~seander/bithacks.html.
+    
+    We broadcast the byte we're looking for across a 64 bit register,
+    let v be the result of xoring that register with 8 bytes loaded
+    from the buffer and then use the formula,
+    
+    (((v) - 0x0101010101010101UL) & ~(v) & 0x8080808080808080UL)
+    
+    which evaluates to true if any one of the bytes in v is 0, i.e,
+    matches the byte we're looking for.  We then just need to figure
+    out which byte out of the 8 it is to return the correct index.
+    
+    This change generally improves performance when the byte we're
+    looking for is not in the first 24 bytes of the buffer and degrades
+    performance slightly when it is.
+    
+    Some example benchmarks results from the bytes and strings package
+    are presented below.  These were generated on a VisionFive2 running
+    Ubuntu 24.04.
+    
+    Subset of bytes Index benchmarks
+    
+    IndexByte/10                   46.49n ± 0%   44.08n ± 0%   -5.19% (p=0.000 n=10)
+    IndexByte/32                   75.98n ± 0%   67.90n ± 0%  -10.63% (p=0.000 n=10)
+    IndexByte/4K                   5.512µ ± 0%   2.113µ ± 0%  -61.67% (p=0.000 n=10)
+    IndexByte/4M                   7.354m ± 0%   3.218m ± 0%  -56.24% (p=0.000 n=10)
+    IndexByte/64M                  90.15m ± 0%   33.86m ± 0%  -62.44% (p=0.000 n=10)
+    IndexBytePortable/10           50.41n ± 0%   54.92n ± 1%   +8.94% (p=0.000 n=10)
+    IndexBytePortable/32           111.9n ± 0%   115.5n ± 0%   +3.22% (p=0.000 n=10)
+    IndexBytePortable/4K           10.99µ ± 0%   10.99µ ± 0%   +0.04% (p=0.000 n=10)
+    IndexBytePortable/4M           11.24m ± 0%   11.24m ± 0%        ~ (p=0.218 n=10)
+    IndexBytePortable/64M          179.8m ± 0%   179.8m ± 0%   +0.01% (p=0.001 n=10)
+    IndexRune/10                   104.2n ± 0%   104.4n ± 0%   +0.19% (p=0.000 n=10)
+    IndexRune/32                   133.7n ± 0%   139.3n ± 0%   +4.23% (p=0.000 n=10)
+    IndexRune/4K                   5.573µ ± 0%   2.184µ ± 0%  -60.81% (p=0.000 n=10)
+    IndexRune/4M                   5.634m ± 0%   2.112m ± 0%  -62.51% (p=0.000 n=10)
+    IndexRune/64M                  90.19m ± 0%   33.87m ± 0%  -62.45% (p=0.000 n=10)
+    IndexRuneASCII/10              50.42n ± 2%   47.14n ± 0%   -6.52% (p=0.000 n=10)
+    IndexRuneASCII/32              79.64n ± 1%   70.39n ± 0%  -11.61% (p=0.000 n=10)
+    IndexRuneASCII/4K              5.516µ ± 0%   2.115µ ± 0%  -61.66% (p=0.000 n=10)
+    IndexRuneASCII/4M              5.634m ± 0%   2.112m ± 0%  -62.51% (p=0.000 n=10)
+    IndexRuneASCII/64M             90.16m ± 0%   33.86m ± 0%  -62.44% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/10      82.14n ± 0%   82.07n ± 0%   -0.09% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/32      111.6n ± 0%   117.1n ± 0%   +4.93% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4K      6.222µ ± 0%   3.429µ ± 0%  -44.89% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4M      8.189m ± 0%   4.706m ± 0%  -42.53% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/64M     171.8m ± 2%   105.8m ± 0%  -38.44% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/10   89.69n ± 0%   89.67n ± 0%   -0.02% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/32   119.1n ± 0%   124.1n ± 0%   +4.20% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4K   8.002µ ± 0%   6.232µ ± 0%  -22.12% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4M   9.501m ± 0%   7.510m ± 0%  -20.95% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/64M  186.5m ± 0%   150.3m ± 0%  -19.41% (p=0.000 n=10)
+    IndexRuneUnicode/Han/10        117.8n ± 0%   118.1n ± 0%   +0.25% (p=0.000 n=10)
+    IndexRuneUnicode/Han/32        151.5n ± 0%   154.0n ± 0%   +1.65% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4K        6.664µ ± 0%   4.125µ ± 0%  -38.11% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4M        8.526m ± 0%   5.502m ± 0%  -35.46% (p=0.000 n=10)
+    IndexRuneUnicode/Han/64M       171.8m ± 1%   112.2m ± 0%  -34.68% (p=0.000 n=10)
+    Index/10                       199.3n ± 1%   199.4n ± 0%        ~ (p=1.000 n=10)
+    Index/32                       547.7n ± 0%   547.3n ± 0%   -0.08% (p=0.001 n=10)
+    Index/4K                       38.62µ ± 0%   38.62µ ± 0%   -0.01% (p=0.023 n=10)
+    Index/4M                       40.46m ± 0%   40.45m ± 0%        ~ (p=0.105 n=10)
+    Index/64M                      648.5m ± 0%   648.4m ± 0%        ~ (p=1.000 n=10)
+    IndexEasy/10                   70.25n ± 0%   70.92n ± 0%   +0.95% (p=0.000 n=10)
+    IndexEasy/32                  104.60n ± 0%   95.67n ± 0%   -8.54% (p=0.000 n=10)
+    IndexEasy/4K                   5.544µ ± 0%   2.142µ ± 0%  -61.36% (p=0.000 n=10)
+    IndexEasy/4M                   7.354m ± 0%   3.213m ± 0%  -56.32% (p=0.000 n=10)
+    IndexEasy/64M                 114.93m ± 2%   52.61m ± 0%  -54.22% (p=0.000 n=10)
+    IndexHard1                     10.09m ± 0%   10.09m ± 0%        ~ (p=0.393 n=10)
+    IndexHard2                     10.09m ± 0%   10.09m ± 0%        ~ (p=0.481 n=10)
+    IndexHard3                     10.09m ± 0%   10.09m ± 0%        ~ (p=1.000 n=10)
+    IndexHard4                     10.09m ± 0%   10.09m ± 0%        ~ (p=0.739 n=10)
+    LastIndexHard1                 10.71m ± 0%   10.71m ± 0%        ~ (p=0.052 n=10)
+    LastIndexHard2                 10.71m ± 0%   10.71m ± 0%        ~ (p=0.218 n=10)
+    LastIndexHard3                 10.71m ± 0%   10.71m ± 0%        ~ (p=0.739 n=10)
+    IndexAnyASCII/1:1              30.13n ± 0%   30.79n ± 0%   +2.19% (p=0.000 n=10)
+    IndexAnyASCII/1:2              31.49n ± 0%   32.16n ± 0%   +2.13% (p=0.000 n=10)
+    IndexAnyASCII/1:4              34.16n ± 0%   34.82n ± 0%   +1.93% (p=0.000 n=10)
+    IndexAnyASCII/1:8              39.50n ± 0%   40.16n ± 0%   +1.67% (p=0.000 n=10)
+    IndexAnyASCII/1:16             50.20n ± 0%   50.87n ± 0%   +1.33% (p=0.000 n=10)
+    IndexAnyASCII/1:32             81.04n ± 0%   50.29n ± 0%  -37.94% (p=0.000 n=10)
+    IndexAnyASCII/1:64            119.80n ± 0%   66.94n ± 0%  -44.13% (p=0.000 n=10)
+    IndexAnyASCII/16:1             54.86n ± 0%   55.53n ± 0%   +1.22% (p=0.000 n=10)
+    IndexAnyASCII/16:2             268.2n ± 0%   268.2n ± 0%        ~ (p=1.000 n=10)
+    IndexAnyASCII/16:4             288.1n ± 0%   288.1n ± 0%        ~ (p=1.000 n=10) ¹
+    IndexAnyASCII/16:8             328.3n ± 0%   328.2n ± 0%        ~ (p=0.370 n=10)
+    IndexAnyASCII/16:16            413.4n ± 0%   413.4n ± 0%        ~ (p=0.628 n=10)
+    IndexAnyASCII/16:32            574.0n ± 0%   573.9n ± 0%        ~ (p=0.141 n=10)
+    IndexAnyASCII/16:64            895.1n ± 0%   895.1n ± 0%        ~ (p=0.548 n=10)
+    IndexAnyASCII/256:1            381.4n ± 0%   175.4n ± 0%  -53.99% (p=0.000 n=10)
+    IndexAnyASCII/256:2            2.998µ ± 0%   2.998µ ± 0%        ~ (p=0.365 n=10)
+    IndexAnyASCII/256:4            3.018µ ± 0%   3.018µ ± 0%        ~ (p=0.650 n=10)
+    IndexAnyASCII/256:8            3.058µ ± 0%   3.064µ ± 0%   +0.20% (p=0.011 n=10)
+    IndexAnyASCII/256:16           3.143µ ± 0%   3.150µ ± 0%   +0.21% (p=0.000 n=10)
+    IndexAnyASCII/256:32           3.303µ ± 0%   3.307µ ± 0%   +0.12% (p=0.000 n=10)
+    IndexAnyASCII/256:64           3.625µ ± 0%   3.638µ ± 0%   +0.36% (p=0.000 n=10)
+    IndexAnyUTF8/1:1               30.13n ± 0%   30.94n ± 0%   +2.69% (p=0.000 n=10)
+    IndexAnyUTF8/1:2               31.49n ± 0%   32.30n ± 0%   +2.59% (p=0.000 n=10)
+    IndexAnyUTF8/1:4               34.16n ± 0%   35.03n ± 0%   +2.55% (p=0.000 n=10)
+    IndexAnyUTF8/1:8               39.50n ± 0%   40.16n ± 0%   +1.67% (p=0.000 n=10)
+    IndexAnyUTF8/1:16              50.20n ± 0%   50.84n ± 0%   +1.27% (p=0.000 n=10)
+    IndexAnyUTF8/1:32              81.02n ± 0%   61.55n ± 0%  -24.03% (p=0.000 n=10)
+    IndexAnyUTF8/1:64             119.80n ± 0%   80.04n ± 0%  -33.19% (p=0.000 n=10)
+    IndexAnyUTF8/16:1              489.0n ± 0%   489.0n ± 0%        ~ (p=1.000 n=10)
+    IndexAnyUTF8/16:2              361.9n ± 0%   372.6n ± 0%   +2.96% (p=0.000 n=10)
+    IndexAnyUTF8/16:4              404.7n ± 0%   415.4n ± 0%   +2.64% (p=0.000 n=10)
+    IndexAnyUTF8/16:8              489.9n ± 0%   500.7n ± 0%   +2.20% (p=0.000 n=10)
+    IndexAnyUTF8/16:16             661.2n ± 0%   671.9n ± 0%   +1.62% (p=0.000 n=10)
+    IndexAnyUTF8/16:32            1004.0n ± 0%   881.6n ± 0%  -12.19% (p=0.000 n=10)
+    IndexAnyUTF8/16:64             1.767µ ± 0%   1.129µ ± 0%  -36.11% (p=0.000 n=10)
+    IndexAnyUTF8/256:1             7.072µ ± 0%   7.072µ ± 0%        ~ (p=0.387 n=10)
+    IndexAnyUTF8/256:2             4.700µ ± 0%   4.872µ ± 0%   +3.66% (p=0.000 n=10)
+    IndexAnyUTF8/256:4             5.386µ ± 0%   5.557µ ± 0%   +3.18% (p=0.000 n=10)
+    IndexAnyUTF8/256:8             6.752µ ± 0%   6.923µ ± 0%   +2.53% (p=0.000 n=10)
+    IndexAnyUTF8/256:16            9.493µ ± 0%   9.664µ ± 0%   +1.80% (p=0.000 n=10)
+    IndexAnyUTF8/256:32            14.97µ ± 0%   12.93µ ± 0%  -13.64% (p=0.000 n=10)
+    IndexAnyUTF8/256:64            27.15µ ± 0%   16.89µ ± 0%  -37.80% (p=0.000 n=10)
+    LastIndexAnyASCII/1:1          30.78n ± 0%   31.45n ± 0%   +2.18% (p=0.000 n=10)
+    LastIndexAnyASCII/1:2          32.13n ± 0%   32.80n ± 0%   +2.07% (p=0.000 n=10)
+    LastIndexAnyASCII/1:4          34.81n ± 0%   35.48n ± 0%   +1.92% (p=0.000 n=10)
+    LastIndexAnyASCII/1:8          40.14n ± 0%   40.81n ± 0%   +1.67% (p=0.000 n=10)
+    LastIndexAnyASCII/1:16         50.85n ± 0%   51.51n ± 0%   +1.30% (p=0.000 n=10)
+    LastIndexAnyASCII/1:32         84.03n ± 0%   50.85n ± 0%  -39.49% (p=0.000 n=10)
+    LastIndexAnyASCII/1:64        121.50n ± 0%   68.16n ± 0%  -43.90% (p=0.000 n=10)
+    LastIndexAnyASCII/16:1         249.7n ± 0%   249.7n ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/16:2         255.2n ± 0%   255.2n ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/16:4         274.0n ± 0%   274.0n ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/16:8         314.1n ± 0%   314.1n ± 0%        ~ (p=1.000 n=10)
+    LastIndexAnyASCII/16:16        403.8n ± 0%   403.8n ± 0%        ~ (p=1.000 n=10)
+    LastIndexAnyASCII/16:32        564.4n ± 0%   564.4n ± 0%        ~ (p=1.000 n=10)
+    LastIndexAnyASCII/16:64        885.5n ± 0%   885.5n ± 0%        ~ (p=0.474 n=10)
+    LastIndexAnyASCII/256:1        2.819µ ± 0%   2.819µ ± 0%        ~ (p=0.211 n=10)
+    LastIndexAnyASCII/256:2        2.824µ ± 0%   2.824µ ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/256:4        2.843µ ± 0%   2.843µ ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/256:8        2.883µ ± 0%   2.883µ ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/256:16       2.973µ ± 0%   2.973µ ± 0%        ~ (p=1.000 n=10)
+    LastIndexAnyASCII/256:32       3.133µ ± 0%   3.133µ ± 0%        ~ (p=0.628 n=10)
+    LastIndexAnyASCII/256:64       3.454µ ± 0%   3.454µ ± 0%        ~ (p=1.000 n=10)
+    LastIndexAnyUTF8/1:1           30.78n ± 0%   31.45n ± 0%   +2.18% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:2           32.13n ± 0%   32.80n ± 0%   +2.07% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:4           34.81n ± 0%   35.48n ± 0%   +1.92% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:8           40.14n ± 0%   40.81n ± 0%   +1.67% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:16          50.84n ± 0%   51.52n ± 0%   +1.33% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:32          83.87n ± 0%   62.90n ± 0%  -25.00% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:64         121.50n ± 0%   81.67n ± 0%  -32.78% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:1          330.0n ± 0%   330.0n ± 0%        ~ (p=1.000 n=10)
+    LastIndexAnyUTF8/16:2          365.4n ± 1%   376.1n ± 0%   +2.93% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:4          399.9n ± 0%   410.6n ± 0%   +2.68% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:8          485.5n ± 0%   496.2n ± 0%   +2.20% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:16         656.8n ± 0%   667.5n ± 0%   +1.63% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:32         999.3n ± 0%   882.6n ± 0%  -11.68% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:64         1.744µ ± 0%   1.129µ ± 0%  -35.26% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:1         4.023µ ± 0%   4.023µ ± 0%    0.00% (p=0.033 n=10)
+    LastIndexAnyUTF8/256:2         4.645µ ± 0%   4.816µ ± 0%   +3.68% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:4         5.217µ ± 0%   5.388µ ± 0%   +3.28% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:8         6.587µ ± 0%   6.758µ ± 0%   +2.60% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:16        9.327µ ± 0%   9.498µ ± 0%   +1.83% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:32        14.81µ ± 0%   12.92µ ± 0%  -12.73% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:64        26.69µ ± 0%   16.84µ ± 0%  -36.92% (p=0.000 n=10)
+    IndexPeriodic/IndexPeriodic2   625.6µ ± 0%   625.6µ ± 0%        ~ (p=0.529 n=10)
+    IndexPeriodic/IndexPeriodic4   625.5µ ± 0%   625.6µ ± 0%   +0.01% (p=0.002 n=10)
+    IndexPeriodic/IndexPeriodic8   625.4µ ± 0%   625.4µ ± 0%   +0.01% (p=0.001 n=10)
+    IndexPeriodic/IndexPeriodic16  236.5µ ± 0%   225.4µ ± 0%   -4.69% (p=0.000 n=10)
+    IndexPeriodic/IndexPeriodic32  171.1µ ± 3%   133.4µ ± 0%  -22.05% (p=0.000 n=10)
+    IndexPeriodic/IndexPeriodic64 139.10µ ± 3%   89.28µ ± 0%  -35.82% (p=0.000 n=10)
+    geomean                        4.222µ        3.628µ       -14.0
+    
+    Subset of strings Index benchmarks
+    
+    IndexRune                      110.7n ± 0%   117.7n ± 0%   +6.32% (p=0.000 n=10)
+    IndexRuneLongString            246.6n ± 0%   187.4n ± 3%  -24.01% (p=0.000 n=10)
+    IndexRuneFastPath              46.82n ± 0%   46.06n ± 0%   -1.62% (p=0.000 n=10)
+    Index                          48.28n ± 0%   47.61n ± 0%   -1.39% (p=0.000 n=10)
+    LastIndex                      34.50n ± 0%   34.50n ± 0%        ~ (p=1.000 n=10) ¹
+    IndexByte                      41.72n ± 0%   40.83n ± 0%   -2.13% (p=0.000 n=10)
+    IndexHard1                     10.01m ± 0%   10.01m ± 0%   +0.02% (p=0.000 n=10)
+    IndexHard2                     10.01m ± 0%   10.01m ± 0%   +0.02% (p=0.000 n=10)
+    IndexHard3                     10.01m ± 0%   10.01m ± 0%   +0.02% (p=0.000 n=10)
+    IndexHard4                     10.01m ± 0%   10.01m ± 0%   +0.02% (p=0.000 n=10)
+    LastIndexHard1                 10.71m ± 0%   10.71m ± 0%   +0.03% (p=0.000 n=10)
+    LastIndexHard2                 10.71m ± 0%   10.71m ± 0%   +0.03% (p=0.000 n=10)
+    LastIndexHard3                 10.71m ± 0%   10.71m ± 0%   +0.03% (p=0.000 n=10)
+    IndexTorture                   71.33µ ± 0%   71.37µ ± 0%   +0.05% (p=0.000 n=10)
+    IndexAnyASCII/1:1              34.40n ± 0%   35.07n ± 0%   +1.95% (p=0.000 n=10)
+    IndexAnyASCII/1:2              46.87n ± 0%   47.54n ± 0%   +1.43% (p=0.000 n=10)
+    IndexAnyASCII/1:4              49.53n ± 0%   50.20n ± 0%   +1.35% (p=0.000 n=10)
+    IndexAnyASCII/1:8              54.86n ± 0%   55.53n ± 0%   +1.22% (p=0.000 n=10)
+    IndexAnyASCII/1:16             65.56n ± 0%   66.24n ± 0%   +1.04% (p=0.000 n=10)
+    IndexAnyASCII/1:32             86.97n ± 0%   77.82n ± 0%  -10.52% (p=0.000 n=10)
+    IndexAnyASCII/1:64            134.50n ± 0%   98.57n ± 0%  -26.71% (p=0.000 n=10)
+    IndexAnyASCII/16:1             54.19n ± 0%   54.86n ± 0%   +1.24% (p=0.000 n=10)
+    IndexAnyASCII/16:2             257.4n ± 0%   256.7n ± 0%   -0.27% (p=0.000 n=10)
+    IndexAnyASCII/16:4             275.3n ± 0%   275.3n ± 0%        ~ (p=1.000 n=10)
+    IndexAnyASCII/16:8             315.4n ± 0%   315.5n ± 0%   +0.03% (p=0.001 n=10)
+    IndexAnyASCII/16:16            405.4n ± 0%   405.4n ± 0%        ~ (p=1.000 n=10)
+    IndexAnyASCII/16:32            566.0n ± 0%   566.0n ± 0%        ~ (p=1.000 n=10)
+    IndexAnyASCII/16:64            887.0n ± 0%   887.1n ± 0%        ~ (p=0.181 n=10)
+    IndexAnyASCII/256:1            380.0n ± 0%   174.7n ± 0%  -54.03% (p=0.000 n=10)
+    IndexAnyASCII/256:2            2.826µ ± 0%   2.826µ ± 0%        ~ (p=1.000 n=10) ¹
+    IndexAnyASCII/256:4            2.844µ ± 0%   2.844µ ± 0%        ~ (p=1.000 n=10) ¹
+    IndexAnyASCII/256:8            2.884µ ± 0%   2.884µ ± 0%        ~ (p=0.087 n=10)
+    IndexAnyASCII/256:16           2.974µ ± 0%   2.974µ ± 0%        ~ (p=1.000 n=10)
+    IndexAnyASCII/256:32           3.135µ ± 0%   3.135µ ± 0%        ~ (p=1.000 n=10)
+    IndexAnyASCII/256:64           3.456µ ± 0%   3.456µ ± 0%        ~ (p=1.000 n=10) ¹
+    IndexAnyUTF8/1:1               38.13n ± 0%   38.13n ± 0%        ~ (p=1.000 n=10) ¹
+    IndexAnyUTF8/1:2               46.87n ± 0%   47.54n ± 0%   +1.43% (p=0.000 n=10)
+    IndexAnyUTF8/1:4               49.53n ± 0%   50.19n ± 0%   +1.33% (p=0.000 n=10)
+    IndexAnyUTF8/1:8               54.86n ± 0%   55.52n ± 0%   +1.20% (p=0.000 n=10)
+    IndexAnyUTF8/1:16              65.56n ± 0%   66.23n ± 0%   +1.02% (p=0.000 n=10)
+    IndexAnyUTF8/1:32              86.97n ± 0%   82.25n ± 0%   -5.42% (p=0.000 n=10)
+    IndexAnyUTF8/1:64             134.50n ± 0%   99.96n ± 0%  -25.68% (p=0.000 n=10)
+    IndexAnyUTF8/16:1              98.34n ± 0%   98.34n ± 0%        ~ (p=1.000 n=10)
+    IndexAnyUTF8/16:2              462.7n ± 0%   473.7n ± 0%   +2.38% (p=0.000 n=10)
+    IndexAnyUTF8/16:4              504.6n ± 0%   515.3n ± 0%   +2.11% (p=0.000 n=10)
+    IndexAnyUTF8/16:8              589.1n ± 0%   599.7n ± 0%   +1.80% (p=0.000 n=10)
+    IndexAnyUTF8/16:16             760.4n ± 0%   770.9n ± 0%   +1.38% (p=0.000 n=10)
+    IndexAnyUTF8/16:32             1.103µ ± 0%   1.023µ ± 0%   -7.25% (p=0.000 n=10)
+    IndexAnyUTF8/16:64             1.857µ ± 0%   1.294µ ± 0%  -30.32% (p=0.000 n=10)
+    IndexAnyUTF8/256:1             1.066µ ± 0%   1.066µ ± 0%        ~ (p=1.000 n=10) ¹
+    IndexAnyUTF8/256:2             6.106µ ± 0%   6.277µ ± 0%   +2.81% (p=0.000 n=10)
+    IndexAnyUTF8/256:4             6.787µ ± 0%   6.958µ ± 0%   +2.52% (p=0.000 n=10)
+    IndexAnyUTF8/256:8             8.136µ ± 0%   8.308µ ± 0%   +2.11% (p=0.000 n=10)
+    IndexAnyUTF8/256:16            10.88µ ± 0%   11.05µ ± 0%   +1.57% (p=0.000 n=10)
+    IndexAnyUTF8/256:32            16.36µ ± 0%   14.90µ ± 0%   -8.93% (p=0.000 n=10)
+    IndexAnyUTF8/256:64            28.51µ ± 0%   19.41µ ± 0%  -31.92% (p=0.000 n=10)
+    LastIndexAnyASCII/1:1          35.79n ± 0%   38.52n ± 0%   +7.63% (p=0.000 n=10)
+    LastIndexAnyASCII/1:2          37.12n ± 0%   39.85n ± 0%   +7.35% (p=0.000 n=10)
+    LastIndexAnyASCII/1:4          39.76n ± 0%   42.08n ± 0%   +5.84% (p=0.000 n=10)
+    LastIndexAnyASCII/1:8          44.82n ± 0%   47.22n ± 0%   +5.34% (p=0.000 n=10)
+    LastIndexAnyASCII/1:16         55.53n ± 0%   57.92n ± 3%   +4.30% (p=0.000 n=10)
+    LastIndexAnyASCII/1:32         76.94n ± 0%   70.16n ± 0%   -8.81% (p=0.000 n=10)
+    LastIndexAnyASCII/1:64        124.40n ± 0%   89.67n ± 0%  -27.92% (p=0.000 n=10)
+    LastIndexAnyASCII/16:1         245.9n ± 0%   245.9n ± 0%        ~ (p=1.000 n=10)
+    LastIndexAnyASCII/16:2         255.2n ± 0%   255.2n ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/16:4         275.1n ± 0%   275.1n ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/16:8         315.2n ± 0%   315.2n ± 0%        ~ (p=1.000 n=10)
+    LastIndexAnyASCII/16:16        400.4n ± 0%   400.4n ± 0%        ~ (p=0.087 n=10)
+    LastIndexAnyASCII/16:32        560.9n ± 0%   560.9n ± 0%        ~ (p=0.124 n=10)
+    LastIndexAnyASCII/16:64        882.1n ± 0%   882.0n ± 0%   -0.01% (p=0.003 n=10)
+    LastIndexAnyASCII/256:1        2.815µ ± 0%   2.815µ ± 0%        ~ (p=0.211 n=10)
+    LastIndexAnyASCII/256:2        2.824µ ± 0%   2.824µ ± 0%        ~ (p=1.000 n=10)
+    LastIndexAnyASCII/256:4        2.844µ ± 0%   2.844µ ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/256:8        2.884µ ± 0%   2.884µ ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/256:16       2.969µ ± 0%   2.969µ ± 0%        ~ (p=1.000 n=10)
+    LastIndexAnyASCII/256:32       3.130µ ± 0%   3.130µ ± 0%        ~ (p=1.000 n=10) ¹
+    LastIndexAnyASCII/256:64       3.451µ ± 0%   3.451µ ± 0%        ~ (p=0.474 n=10)
+    LastIndexAnyUTF8/1:1           35.79n ± 0%   36.13n ± 0%   +0.95% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:2           37.11n ± 0%   37.47n ± 0%   +0.97% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:4           39.75n ± 0%   40.14n ± 0%   +0.97% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:8           44.82n ± 0%   45.49n ± 0%   +1.49% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:16          55.52n ± 0%   56.20n ± 0%   +1.22% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:32          76.93n ± 0%   74.25n ± 0%   -3.48% (p=0.000 n=10)
+    LastIndexAnyUTF8/1:64         124.40n ± 0%   91.15n ± 0%  -26.73% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:1          322.5n ± 0%   322.5n ± 0%        ~ (p=0.087 n=10)
+    LastIndexAnyUTF8/16:2          634.2n ± 0%   616.4n ± 0%   -2.81% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:4          674.5n ± 0%   657.9n ± 0%   -2.46% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:8          758.3n ± 0%   741.0n ± 0%   -2.28% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:16         929.6n ± 0%   912.3n ± 0%   -1.86% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:32         1.272µ ± 0%   1.176µ ± 0%   -7.55% (p=0.000 n=10)
+    LastIndexAnyUTF8/16:64         2.018µ ± 0%   1.453µ ± 0%  -28.00% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:1         4.015µ ± 0%   4.016µ ± 0%   +0.02% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:2         8.896µ ± 0%   8.537µ ± 0%   -4.04% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:4         9.553µ ± 0%   9.217µ ± 0%   -3.52% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:8         10.90µ ± 0%   10.54µ ± 0%   -3.29% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:16        13.64µ ± 0%   13.28µ ± 0%   -2.63% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:32        19.12µ ± 0%   17.16µ ± 1%  -10.23% (p=0.000 n=10)
+    LastIndexAnyUTF8/256:64        31.11µ ± 0%   21.98µ ± 0%  -29.36% (p=0.000 n=10)
+    IndexPeriodic/IndexPeriodic2   625.5µ ± 0%   625.5µ ± 0%        ~ (p=0.955 n=10)
+    IndexPeriodic/IndexPeriodic4   625.4µ ± 0%   625.4µ ± 0%        ~ (p=0.838 n=10)
+    IndexPeriodic/IndexPeriodic8   625.3µ ± 0%   625.3µ ± 0%   +0.01% (p=0.009 n=10)
+    IndexPeriodic/IndexPeriodic16  229.8µ ± 0%   227.0µ ± 0%   -1.22% (p=0.000 n=10)
+    IndexPeriodic/IndexPeriodic32  168.9µ ± 3%   131.8µ ± 0%  -22.00% (p=0.000 n=10)
+    IndexPeriodic/IndexPeriodic64 126.36µ ± 0%   86.66µ ± 0%  -31.42% (p=0.000 n=10)
+    geomean                        1.361µ        1.302µ        -4.31%
+    
+    As these functions are so heavily used this change impacts other
+    benchmarks.  I include the improvements in geomean for the all the
+    benchmarks in the strings and bytes packages, along with some
+    selected benchmarks to illustrate the impact of the change.
+    
+    geomean for bytes              13.81µ          12.92µ         -6.44%
+    geomean for string             9.385µ          9.224µ         -1.72%
+    
+    Note that when building for rva22u64 a single Zbb instruction is used
+    in the main loop.  This also helps to improve performance slightly.
+    The geomean for all the bytes benchmarks when building with
+    GORISCV64=rva22u64 with and without the patch is shown below.
+    
+    geomean for bytes (rva22u64)   13.46µ          12.49µ         -7.21%
+    
+    Examples of non-Index benchmarks affected by this commit.
+    
+    ReadString uses IndexByte to search for a byte stored at the end of
+    32KB buffer, so we see a speed up.  SplitSingleByteSeparator searches
+    large buffers, but the byte being sought occurs within the first 15
+    bytes of the buffer, 76% of the time, hence the slowdown.  In
+    SplitMultiByteSeparator the first byte of the separator only occurs
+    in the first 15 bytes 33% of the time so we see a speed up.
+    
+    ReadString               05.13µ ±  2%    74.67µ ±  0%  -28.97% (p=0.000 n=10)
+    SplitSingleByteSeparator 11.31m ±  2%    12.43m ±  1%   +9.83% (p=0.000 n=10)
+    SplitMultiByteSeparator  8.070m ±  1%    7.707m ±  1%   -4.49% (p=0.000 n=10)
+    
+    Change-Id: I6210ea2f3decdc6d2e0609df72b1b66e6d6f5395
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561275
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/bytealg/indexbyte_riscv64.s | 100 +++++++++++++++++++++++++++++--
+ 1 file changed, 94 insertions(+), 6 deletions(-)

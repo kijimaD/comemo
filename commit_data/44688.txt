@@ -1,33 +1,30 @@
-commit e31e84010e0989e1df4bd2c55d529497119bb345
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Tue Mar 16 18:51:41 2021 +0800
+commit 6b420169d798c7ebe733487b56ea5c3fa4aab5ce
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 18 16:46:24 2020 -0700
 
-    cmd/asm: add rotr/drotr for mips64
+    os, internal/poll: loop on EINTR for all file syscalls
     
-    This CL encodes:
+    When using a FUSE file system, any system call that touches the file
+    system can return EINTR.
     
-    ROTR rd, rt, sa
-    ROTRV rd, rt, rs
+    Fixes #40846
     
-    => ROTR (SCON|REG), (REG,)? REG
-    
-    DROTR rd, rt, sa
-    DROTR32 rd, rt, sa
-    DROTRV rd, rt, rs
-    
-    => ROTRV (SCON|REG), (REG,)? REG
-    
-    Note: ROTRV will handle const over 32
-    Ref: The MIPS64® Instruction Set Reference Manual Revision 6.05
-    Change-Id: Ibe69f999b83eb43843d088cf1ac5a13c995269a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/280114
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I25d32da22cec08dea81ab297291a85ad72db2df7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249178
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/asm/internal/asm/testdata/mips64.s |  8 ++++++++
- src/cmd/internal/obj/mips/a.out.go         |  2 ++
- src/cmd/internal/obj/mips/anames.go        |  2 ++
- src/cmd/internal/obj/mips/asm0.go          | 15 ++++++++++++++-
- 4 files changed, 26 insertions(+), 1 deletion(-)
+ src/internal/poll/fd_fsync_posix.go    |  4 +++-
+ src/internal/poll/fd_opendir_darwin.go |  8 ++++++-
+ src/internal/poll/fd_posix.go          | 28 +++++++++++++++++++++---
+ src/internal/poll/fd_unix.go           | 22 ++++++++-----------
+ src/os/dir_darwin.go                   |  3 +++
+ src/os/file.go                         |  5 ++++-
+ src/os/file_plan9.go                   |  4 ++++
+ src/os/file_posix.go                   | 32 ++++++++++++++++++++++++---
+ src/os/file_unix.go                    | 40 +++++++++++++++++++++++++++-------
+ src/os/getwd.go                        | 11 +++++++++-
+ src/os/stat_unix.go                    |  8 +++++--
+ src/runtime/trace/trace_stack_test.go  |  2 +-
+ 12 files changed, 133 insertions(+), 34 deletions(-)

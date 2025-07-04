@@ -1,22 +1,56 @@
-commit 3c9ad7cb41c9c8166d3322e5bc7554a25cda7523
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Oct 26 21:04:45 2018 +0200
+commit 99e9be804379d0607de4a322353b317aa087073d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 21 12:08:36 2018 -0400
 
-    internal/cpu: replace arch dependent with generic minimal feature test
+    runtime: query thread stack size from OS on Windows
     
-    Use information about required CPU features stored in the CPU feature
-    options slice to test if minimal CPU requirements are met instead
-    of hard coding this information in the tests directly.
+    Currently, on Windows, the thread stack size is set or assumed in many
+    different places. In non-cgo binaries, both the Go linker and the
+    runtime have a copy of the stack size, the Go linker sets the size of
+    the main thread stack, and the runtime sets the size of other thread
+    stacks. In cgo binaries, the external linker sets the main thread
+    stack size, the runtime assumes the size of the main thread stack will
+    be the same as used by the Go linker, and the cgo entry code assumes
+    the same.
     
-    Change-Id: I72d89b1cff305b8e751995d4230a2217e32f4236
-    Reviewed-on: https://go-review.googlesource.com/c/145118
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Furthermore, users can change the main thread stack size using
+    editbin, so the runtime doesn't even really know what size it is, and
+    user C code can create threads with unknown thread stack sizes, which
+    we also assume have the same default stack size.
+    
+    This is all a mess.
+    
+    Fix the corner cases of this and the duplication of knowledge between
+    the linker and the runtime by querying the OS for the stack bounds
+    during thread setup. Furthermore, we unify all of this into just
+    runtime.minit for both cgo and non-cgo binaries and for the main
+    thread, other runtime-created threads, and C-created threads.
+    
+    Updates #20975.
+    
+    Change-Id: I45dbee2b5ea2ae721a85a27680737ff046f9d464
+    Reviewed-on: https://go-review.googlesource.com/120336
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/cpu/cpu_arm64_test.go  | 26 --------------------------
- src/internal/cpu/cpu_ppc64x.go      |  1 +
- src/internal/cpu/cpu_ppc64x_test.go | 33 ---------------------------------
- src/internal/cpu/cpu_test.go        | 17 +++++++++++++++++
- src/internal/cpu/cpu_x86_test.go    | 10 ----------
- 5 files changed, 18 insertions(+), 69 deletions(-)
+ src/cmd/link/internal/ld/pe.go                     | 13 +++---
+ src/cmd/vet/all/whitelist/386.txt                  |  2 -
+ src/cmd/vet/all/whitelist/amd64.txt                |  1 -
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt        |  2 -
+ src/runtime/cgo/gcc_windows_386.c                  | 10 +----
+ src/runtime/cgo/gcc_windows_amd64.c                | 10 +----
+ src/runtime/crash_cgo_test.go                      | 16 ++++++++
+ src/runtime/defs_windows.go                        |  1 +
+ src/runtime/defs_windows_386.go                    | 10 +++++
+ src/runtime/defs_windows_amd64.go                  | 10 +++++
+ src/runtime/os_windows.go                          | 47 +++++++++++++---------
+ src/runtime/proc.go                                |  1 +
+ src/runtime/stubs_x86.go                           | 10 +++++
+ src/runtime/sys_windows_386.s                      |  3 +-
+ src/runtime/sys_windows_amd64.s                    |  3 +-
+ src/runtime/syscall_windows_test.go                | 46 +++++++++++++++++++++
+ .../testdata/testprogcgo/bigstack_windows.c        | 46 +++++++++++++++++++++
+ .../testdata/testprogcgo/bigstack_windows.go       | 27 +++++++++++++
+ 18 files changed, 208 insertions(+), 50 deletions(-)

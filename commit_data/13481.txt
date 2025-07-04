@@ -1,16 +1,18 @@
-commit fc360f238137717e7246cc0fde908b71a3f1e5c7
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 19 11:58:14 2012 -0700
+commit dfd7f18130e538c53a2974988caecacd53d473f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 18 13:48:39 2012 -0700
 
-    unicode/utf8: reject out-of-range runes.
-    Surrogates are still admitted, but I have sent mail to golang-dev on that topic.
+    net/http: revert back to (and test) Go 1 CheckRedirect behavior
     
-    Fixes #3785.
+    If a Client's CheckRedirect function returns an error, we
+    again return both a non-nil *Response and a non-nil error.
     
-    R=golang-dev, rogpeppe, iant
+    Fixes #3795
+    
+    R=golang-dev, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/6398049
+    https://golang.org/cl/6429044
 
- src/pkg/unicode/utf8/utf8.go      | 16 ++++++++++++++--
- src/pkg/unicode/utf8/utf8_test.go |  5 +++++
- 2 files changed, 19 insertions(+), 2 deletions(-)
+ src/pkg/net/http/client.go      | 29 ++++++++++++++++++++---------
+ src/pkg/net/http/client_test.go |  6 ++++++
+ 2 files changed, 26 insertions(+), 9 deletions(-)

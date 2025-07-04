@@ -1,13 +1,13 @@
-commit 1704368c5d4de51dad3c46d833e93dfe78fddaa2
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 16 13:18:14 2014 +0900
+commit 74fe67f22e41f06ab93fc5123964f144040191aa
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu May 15 19:30:09 2014 -0400
 
-    doc/go1.3.html: add syscall.SendmsgN
+    api: update next.txt
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/93430044
+    https://golang.org/cl/95490043
 
- doc/go1.3.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ api/next.txt | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 76 insertions(+)

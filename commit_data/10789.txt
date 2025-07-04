@@ -1,20 +1,14 @@
-commit 6890afd9a34646b20043d0dffe32cabd0f3ec51c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 14 11:14:10 2011 -0800
+commit 34c7765fe5488191ba3a20cacc10d7e5d0c3acfe
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 14 11:03:28 2011 -0800
 
-    strconv: slightly faster int conversion for GOARCH=386
+    json: treat renamed byte slices the same as []byte
+    Fixes #2163.
     
-    benchmark                           old ns/op    new ns/op    delta
-    strconv_test.BenchmarkFormatInt         12198        12031   -1.37%
-    strconv_test.BenchmarkAppendInt          9268         9153   -1.24%
-    strconv_test.BenchmarkFormatUint         3538         3429   -3.08%
-    strconv_test.BenchmarkAppendUint         3133         3062   -2.27%
-    
-    No performance difference for GOARCH=amd64.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5488089
+    https://golang.org/cl/5488068
 
- src/pkg/strconv/itoa.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/encoding/json/encode.go      | 13 +++++++------
+ src/pkg/encoding/json/encode_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 6 deletions(-)

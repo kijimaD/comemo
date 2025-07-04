@@ -1,17 +1,19 @@
-commit 8ca559eed5a5b87cb4a1ebe29c95b47aa723151e
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Tue Feb 26 19:01:47 2019 +0100
+commit d3dcd89130674ee56a3ae55021e4b14ef989cf8a
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Fri Sep 28 09:26:20 2018 +0100
 
-    cmd/dist: skip Fortran tests on Android
+    all: remove repeated "the" from comments
     
-    They don't work on Android but will be run if the host has gfortran
-    installed.
+    A simple grep over the codebase for "the the" which is often
+    missed by humans.
     
-    Change-Id: I983c5695a9e963def90e4f8264fb00077a0c5e53
-    Reviewed-on: https://go-review.googlesource.com/c/163838
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie4b4f07abfc24c73dcd51c8ef1edf4f73514a21c
+    Reviewed-on: https://go-review.googlesource.com/138335
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modload/query.go | 2 +-
+ src/crypto/x509/cert_pool.go         | 2 +-
+ src/net/http/transport.go            | 2 +-
+ src/net/http/transport_test.go       | 4 ++--
+ src/os/os_unix_test.go               | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

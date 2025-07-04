@@ -1,19 +1,24 @@
-commit 2ceb79db526eabff880a8a03caab07258883b216
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Feb 22 17:05:32 2021 -0500
+commit 0031fa80a3c6685e44e84533edbae0dad0eb0395
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu May 7 00:35:28 2020 +0700
 
-    cmd/go/internal/modload: make EditBuildList report whether the build list was changed
+    cmd/compile: another fix initializing blank fields in struct literal
     
-    For #36460
+    CL 230121 fixed the bug that struct literal blank fields type array/struct
+    can not be initialized. But it still misses some cases when an expression
+    causes "candiscard(value)" return false. When these happen, we recursively
+    call fixedlit with "var_" set to "_", and hit the bug again.
     
-    Change-Id: I8dd6e6f998a217a4287212815ce61209df6f007f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296609
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    To fix it, just making splitnode return "nblank" whenever "var_" is "nblank".
+    
+    Fixes #38905
+    
+    Change-Id: I281941b388acbd551a4d8ca1a235477f8d26fb6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232617
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/modget/get.go        | 11 +++++------
- src/cmd/go/internal/modload/buildlist.go | 17 +++++++++++------
- src/cmd/go/internal/work/build.go        |  2 +-
- 3 files changed, 17 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go |  6 +++++-
+ test/fixedbugs/issue38905.go         | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

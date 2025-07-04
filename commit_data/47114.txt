@@ -1,21 +1,17 @@
-commit 4a5d78ff8b7e777d70b18a61698b1ac07bbd623d
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sun Apr 11 18:11:48 2021 +0000
+commit 6c3f8a2f4730f005850be7fde3a3dac6dc5323a6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 24 11:48:09 2021 -0800
 
-    runtime: move pacer time updates and state resets into methods
+    cmd/link: use ctxt.Logf instead of package log
     
-    Currently GC pacer updates are applied somewhat haphazardly via direct
-    field access. To facilitate ease of testing, move these field updates
-    into methods. Further CLs will move more of these updates into methods.
+    Fixes #43601
     
-    For #44167.
-    
-    Change-Id: I25b10d2219ae27b356b5f236d44827546c86578d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309274
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I28b745cb92932d875a66f64c63355650a092f096
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296029
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/mgc.go      | 39 +++++++++++----------------------------
- src/runtime/mgcpacer.go | 41 ++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 51 insertions(+), 29 deletions(-)
+ src/cmd/link/internal/ld/config.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

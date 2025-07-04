@@ -1,13 +1,27 @@
-commit decdd87bea5ab380b6c2a656735db9b2eb08a202
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sat May 28 12:39:35 2022 +0800
+commit 165ebd85a77db5f3454f38c6c3f1539f00cf2fef
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Aug 13 12:03:29 2021 -0400
 
-    doc/go1.19: mention riscv64 supported regabi
+    cmd/compile/internal/types2: clean up panics in instantiation
     
-    Change-Id: I715e53e4baf67f896fa9c240f7668ce11f7b33c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409195
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Clean up a few issues related to panicking during invalid instantiation.
+     - Panic early in instantiateLazy when check == nil and verify == true.
+       Otherwise, we would panic at check.later.
+     - Always panic when check == nil and verify == true, even if targs is
+       of incorrect length. This is more consistent behavior.
+     - Lift the check for len(posList) <= len(targs) out of
+       Checker.instantiate. This is the only reason why posList is passed to
+       that function, and doing this allows us to eliminate posList from
+       instance. At this point instance is close to being unnecessary, so
+       update a TODO to this effect.
+    
+    Change-Id: Id5f44cbb1a5897aef10ce2a573aa78acd7ae4026
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341862
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.19.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/instantiate.go | 40 +++++++++++++++-----------
+ src/cmd/compile/internal/types2/named.go       |  9 +++---
+ 2 files changed, 27 insertions(+), 22 deletions(-)

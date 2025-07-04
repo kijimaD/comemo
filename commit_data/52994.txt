@@ -1,20 +1,24 @@
-commit e2500be54947186d82c7f4bd93468fdff8a23837
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu May 11 17:27:02 2023 +0000
+commit 3e58ef6cc7dfaf2cf3b593e728f7f62391030114
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 23 20:54:52 2022 -0700
 
-    net: don't treat unknown sources as dns when there is a dns source
+    go/types, types2: better errors for == when type sets are empty
     
-    Change-Id: I3a6c3a804604b1e74a1ea6b66ab2c932a0ac973a
-    GitHub-Last-Rev: ea5403549a51a29a2799674d74425b480253d2f1
-    GitHub-Pull-Request: golang/go#60025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493236
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    For #51525.
+    
+    Change-Id: I3762bc4a48a1aaab3b006b1ad1400f866892243c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413934
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/conf.go      | 34 ++++++++++++++++++++++++----------
- src/net/conf_test.go | 20 ++++++++++++++++++++
- 2 files changed, 44 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/predicates.go            | 12 +++++++++++-
+ .../internal/types2/testdata/fixedbugs/issue48712.go     | 14 +++++++-------
+ .../internal/types2/testdata/fixedbugs/issue51525.go     | 16 ++++++++++++++++
+ .../compile/internal/types2/testdata/spec/comparisons.go | 16 ++++++++--------
+ src/go/types/predicates.go                               | 12 +++++++++++-
+ src/go/types/testdata/fixedbugs/issue48712.go            | 14 +++++++-------
+ src/go/types/testdata/fixedbugs/issue51525.go            | 16 ++++++++++++++++
+ src/go/types/testdata/spec/comparisons.go                | 16 ++++++++--------
+ 8 files changed, 84 insertions(+), 32 deletions(-)

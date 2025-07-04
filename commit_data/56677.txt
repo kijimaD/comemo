@@ -1,14 +1,19 @@
-commit 2785f4fad60a3cdee2edc1efbe860b8ccba519cc
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri May 24 11:19:15 2024 -0400
+commit 2ec648aa8c42d1215ddf59c6a461b21fb6723b74
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Mar 12 10:34:04 2023 +0800
 
-    cmd/go/internal/telemetrystats: fix assignment to ok
+    cmd/go: update help for empty environment variables
     
-    Change-Id: I7ee6198949bd2ea7e92d3e75c94ead04c31be491
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588236
-    Auto-Submit: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #50335
+    
+    Change-Id: I44b9dc6afa8c70b5cc8c79fb3ebddc3f45d3cef8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475695
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/telemetrystats/version_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/alldocs.go               | 6 +++---
+ src/cmd/go/internal/help/helpdoc.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,20 +1,21 @@
-commit 284e553035137fc339617f01dd53766977cd3e8c
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Fri Feb 16 00:15:29 2024 +0000
+commit 31881f87873b84709a49ca17195bbe5b3f683acf
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Feb 21 23:45:13 2023 +0800
 
-    runtime,cmd/link: merge pcbucketsize const into internal/abi
+    os: ensure File.ReadFrom returns ErrClosed instead of the internal poll.ErrFileClosing
     
-    For #59670
+    Fixes #58622
     
-    Change-Id: I6343bacd3126fe6381a2e73be10f61691792824d
-    GitHub-Last-Rev: bbab8d1142e5749f58c17f6f668e2eb679ff69d7
-    GitHub-Pull-Request: golang/go#65373
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559475
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ibb80296c39614478c75cb6bb04b6d0695cb990d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469795
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/link/internal/ld/pcln.go | 5 ++---
- src/internal/abi/symtab.go       | 2 ++
- src/runtime/symtab.go            | 6 ++----
- 3 files changed, 6 insertions(+), 7 deletions(-)
+ src/os/error_posix.go    | 2 +-
+ src/os/export_test.go    | 4 ++++
+ src/os/file.go           | 6 ++++++
+ src/os/readfrom_linux.go | 4 ++--
+ 4 files changed, 13 insertions(+), 3 deletions(-)

@@ -1,47 +1,21 @@
-commit 4df3d0e4df734283911cf3c428d9638c9dc5af4e
-Author: David Chase <drchase@google.com>
-Date:   Mon Apr 12 20:53:03 2021 -0400
+commit 2e4ceaf963fc2a0ce95a198769012e62ec4e28ae
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 17 12:39:43 2020 -0400
 
-    cmd/compile: rescue stmt boundaries from OpArgXXXReg and OpSelectN.
+    cmd/dist: enable more tests on macOS/ARM64
     
-    Fixes this failure:
-    go test cmd/compile/internal/ssa -run TestStmtLines -v
-    === RUN   TestStmtLines
-        stmtlines_test.go:115: Saw too many (amd64, > 1%) lines without
-        statement marks, total=88263, nostmt=1930
-        ('-run TestStmtLines -v' lists failing lines)
+    Unlike iOS, macOS ARM64 is more of a fully featured OS. Enable
+    more tests.
     
-    The failure has two causes.
+    Updates #38485.
     
-    One is that the first-line adjuster in code generation was relocating
-    "first lines" to instructions that would either not have any code generated,
-    or would have the statment marker removed by a different believed-good heuristic.
-    
-    The other was that statement boundaries were getting attached to register
-    values (that with the old ABI were loads from the stack, hence real instructions).
-    The register values disappear at code generation.
-    
-    The fixes are to (1) note that certain instructions are not good choices for
-    "first value" and skip them, and (2) in an expandCalls post-pass, look for
-    register valued instructions and under appropriate conditions move their
-    statement marker to a compatible use.
-    
-    Also updates TestStmtLines to always log the score, for easier comparison of
-    minor compiler changes.
-    
-    Updates #40724.
-    
-    Change-Id: I485573ce900e292d7c44574adb7629cdb4695c3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309649
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2e2240c848d21996db2b950a4a6856987f7a652c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256919
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/dwarfgen/scope_test.go |  8 ++++----
- src/cmd/compile/internal/ssa/expand_calls.go    | 25 +++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/stmtlines_test.go  |  1 +
- src/cmd/compile/internal/ssagen/ssa.go          | 10 +++++-----
- test/codegen/mathbits.go                        |  5 +----
- test/codegen/rotate.go                          |  8 ++++----
- 6 files changed, 40 insertions(+), 17 deletions(-)
+ src/cmd/dist/test.go         | 2 +-
+ test/fixedbugs/bug429_run.go | 7 ++++++-
+ test/fixedbugs/issue21576.go | 7 ++++++-
+ test/nilptr.go               | 3 ++-
+ 4 files changed, 15 insertions(+), 4 deletions(-)

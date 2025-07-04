@@ -1,30 +1,16 @@
-commit 5380b22991dfb5f3bad25cd2e29f59fd07716581
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 23 11:03:56 2016 -0400
+commit f8555ea6fdbbfc32e26f351ac16138fad31a2d62
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 13:14:30 2016 -0700
 
-    runtime: implement unconditional hybrid barrier
+    spec: update language on type switches to match implementations
     
-    This implements the unconditional version of the hybrid deletion write
-    barrier, which always shades both the old and new pointer. It's
-    unconditional for now because barriers on channel operations require
-    checking both the source and destination stacks and we don't have a
-    way to funnel this information into the write barrier at the moment.
+    See the issue below for details.
     
-    As part of this change, we modify the typed memclr operations
-    introduced earlier to invoke the write barrier.
+    Fixes #16794.
     
-    This has basically no overall effect on benchmark performance. This is
-    good, since it indicates that neither the extra shade nor the new bulk
-    clear barriers have much effect. It also has little effect on latency.
-    This is expected, since we haven't yet modified mark termination to
-    take advantage of the hybrid barrier.
-    
-    Updates #17503.
-    
-    Change-Id: Iebedf84af2f0e857bd5d3a2d525f760b5cf7224b
-    Reviewed-on: https://go-review.googlesource.com/31765
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I7e338089fd80ddcb634fa80bfc658dee2772361c
+    Reviewed-on: https://go-review.googlesource.com/27356
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mbarrier.go | 75 ++++++++++++++++++++++++++++++++++++++++---------
- src/runtime/mbitmap.go  | 34 ++++++++++++++++------
- 2 files changed, 87 insertions(+), 22 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

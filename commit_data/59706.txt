@@ -1,16 +1,19 @@
-commit ed70477909c97f86f8d73bee2d8680b6788acec7
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Tue May 20 13:40:18 2025 +0800
+commit c0a0ba254c48fc855f9501b0bd3b78e6847ca923
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sun Apr 14 08:44:53 2024 +0000
 
-    errors: add joinError Unwrap example
+    cmd/go/internal/modfetch: fix typos in comment
     
-    Change-Id: Id7489247e9bdd413f82fdf5a70197856c47abfb5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674336
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    Change-Id: I3eb41562bf6478b288d9f41915fd7d027399a6ba
+    GitHub-Last-Rev: 218b9cb0672f0be18834733c0907a244a8cfcfd9
+    GitHub-Pull-Request: golang/go#66551
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574575
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
 
- src/errors/example_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 2 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go      | 2 +-
+ src/cmd/go/internal/modfetch/coderepo.go          | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

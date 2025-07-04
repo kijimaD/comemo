@@ -1,39 +1,16 @@
-commit 64c134f90f0cf6d0e55fca93c433b68810d12f12
-Author: Keith Randall <khr@google.com>
-Date:   Tue May 28 14:59:23 2019 -0700
+commit d7d3887e3e1cae524f1530fd0942f9a64d669de9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 15 18:07:49 2019 -0500
 
-    cmd/compile: don't move nil checks across a VarDef
+    cmd/internal/obj/x86: fix issue19518_test in module mode
     
-    We need to make sure that there's no possible faulting
-    instruction between a VarDef and that variable being
-    fully initialized. If there was, then anything scanning
-    the stack during the handling of that fault will see
-    a live but uninitialized variable on the stack.
+    Updates #30228
     
-    If we have:
-    
-      NilCheck p
-      VarDef x
-      x = *p
-    
-    We can't rewrite that to
-    
-      VarDef x
-      NilCheck p
-      x = *p
-    
-    Particularly, even though *p faults on p==nil, we still
-    have to do the explicit nil check before the VarDef.
-    
-    Fixes #32288
-    
-    Change-Id: Ib8b88e6a5af3bf6f238ff5491ac86f53f3cf9fc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179239
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I6a38269f322d906702921b3879ff48c8a96ab511
+    Reviewed-on: https://go-review.googlesource.com/c/162831
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/nilcheck.go | 24 +++++++++++++++-
- test/fixedbugs/issue32288.go             | 48 ++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/x86/issue19518_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

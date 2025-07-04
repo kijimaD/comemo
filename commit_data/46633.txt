@@ -1,16 +1,22 @@
-commit cd4d59232e01f8b351cf83c0a669e56b10e8945d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Sep 24 10:57:27 2021 -0700
+commit e3027c6828230d01089afec0ab958040ba326abc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jan 16 22:27:23 2021 -0800
 
-    runtime: fix and simplify printing on bad ftab
+    [dev.regabi] cmd/compile: fix linux-amd64-noopt builder
     
-    Unilaterally print plugin.
-    Use println instead of print.
+    CL 284223 tightened down the allowed expressions in mayCall, but
+    evidently a little too tight. The linux-amd64-noopt builder does in
+    fact see expressions with non-empty Init lists in arguments list.
     
-    Change-Id: Ib58f187bff9c3dbedfa2725c44754a222807cc36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352072
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Since I believe these can only appear on the RHS of LogicalExpr
+    expressions, this CL relaxes that one case.
+    
+    Change-Id: I1e6bbd0449778c40ed2610b3e1ef6a825a84ada7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284226
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/symtab.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/walk/walk.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

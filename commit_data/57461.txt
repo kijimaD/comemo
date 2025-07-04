@@ -1,19 +1,23 @@
-commit 76e44f42c819e0fdd23918ea05a96b1f2d764de7
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Sep 13 13:14:51 2024 +0000
+commit 8c5a54f698873244694c8e6f20d3794a5f32ba3f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 09:04:37 2023 -0700
 
-    encoding/gob: make use of maps.Clone
+    cmd/compile: keep all open-coded defer slots as used
     
-    Change-Id: I6a23219a9e05350bdd9205e19165d5944f15de31
-    GitHub-Last-Rev: 8c295bf55feaa07cd487e6015029c4682a1480b0
-    GitHub-Pull-Request: golang/go#69429
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612719
+    Open-coded defer slots are assigned indices upfront, so they're
+    logically like elements in an array. Without reassigning the indices,
+    we need to keep all of the elements alive so their relative offsets
+    are correct.
+    
+    Fixes #61895.
+    
+    Change-Id: Ie0191fdb33276f4e8ed0becb69086524fff022b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517856
     Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/gob/type.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssagen/pgen.go |  8 ++++++++
+ test/fixedbugs/issue61895.go            | 15 +++++++++++++++
+ 2 files changed, 23 insertions(+)

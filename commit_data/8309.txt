@@ -1,12 +1,16 @@
-commit 8ace46c643e460ff56d2552f51cc9293ee60f725
+commit d6dd80b65e5fde57b8a4a27c8da56c023cfe61fb
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 3 14:12:02 2011 -0400
+Date:   Tue May 3 13:55:50 2011 -0400
 
-    tag release.r57
+    doc: release.r57
     
-    R=r, r2
+    R=golang-dev, r, adg, r2
     CC=golang-dev
-    https://golang.org/cl/4435083
+    https://golang.org/cl/4457049
 
- .hgtags | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/all.css            |    5 +-
+ doc/devel/index.html   |    3 +-
+ doc/devel/release.html | 3054 +++---------------------------------------------
+ doc/devel/roadmap.html |   10 +-
+ doc/devel/weekly.html  | 2944 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 3096 insertions(+), 2920 deletions(-)

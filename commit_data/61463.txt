@@ -1,0 +1,28 @@
+commit d311cc95dcc58becdeb0f66a5b828477ee0d83bd
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 4 16:40:09 2024 -0500
+
+    cmd/compile: change status of "bad iterator" panic
+    
+    Execution of the loop body previously either terminated
+    the iteration (returned false because of a break, goto, or
+    return) or actually panicked.  The check against abi.RF_READY
+    ensures that the body can no longer run and also panics.
+    
+    This CL in addition transitions the loop state to abi.RF_PANIC
+    so that if this already badly-behaved iterator defer-recovers
+    this panic, then the exit check at the loop context will
+    catch the problem and panic there.
+    
+    Previously, panics triggered by attempted execution of a
+    no-longer active loop would not trigger a panic at the loop
+    context if they were defer-recovered.
+    
+    Change-Id: Ieeed2fafd0d65edb66098dc27dc9ae8c1e6bcc8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ .../compile/internal/rangefunc/rangefunc_test.go   | 153 ++++++++++++++-------
+ src/cmd/compile/internal/rangefunc/rewrite.go      |  52 ++++---
+ 2 files changed, 142 insertions(+), 63 deletions(-)

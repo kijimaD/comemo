@@ -1,17 +1,25 @@
-commit 1091b50cc0e4316588aeff5146f667c56296f658
-Author: Tamir Duberstein <tamird@gmail.com>
-Date:   Wed Jan 31 11:58:03 2018 -0500
+commit a910fe2c8301298444f83ffc924b3d2d4714f197
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Oct 4 18:13:35 2017 -0400
 
-    database/sql: remove duplicate validation
+    cmd/link: move Library type to sym package
     
-    Since https://golang.org/cl/38533, this validation is performed in
-    driverArgs.
+    For #22095
     
-    Change-Id: I13a3ca46a1aa3197370de1095fb46ab83ea4628c
-    Reviewed-on: https://go-review.googlesource.com/91115
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: I2cb0d3e0aaf9f97952cf8dda0e99a4379e275020
+    Reviewed-on: https://go-review.googlesource.com/68332
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go | 14 --------------
- 1 file changed, 14 deletions(-)
+ src/cmd/link/internal/ld/ar.go       |  2 +-
+ src/cmd/link/internal/ld/elf.go      |  2 +-
+ src/cmd/link/internal/ld/ld.go       |  7 ++++---
+ src/cmd/link/internal/ld/lib.go      | 26 +++++++++++++-------------
+ src/cmd/link/internal/ld/link.go     | 29 ++++++-----------------------
+ src/cmd/link/internal/ld/objfile.go  | 12 ++++++------
+ src/cmd/link/internal/ld/sym.go      |  2 +-
+ src/cmd/link/internal/ld/symtab.go   | 10 +++++-----
+ src/cmd/link/internal/sym/library.go | 22 ++++++++++++++++++++++
+ 9 files changed, 59 insertions(+), 53 deletions(-)

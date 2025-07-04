@@ -1,19 +1,62 @@
-commit 1f39beb01a5ca6a9015d6a30af5a968a247f8d10
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 21 13:46:54 2015 -0400
+commit 29d1f3b85c8316f483164b16e459e10aacbe757e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 1 12:27:01 2015 +0900
 
-    runtime: avoid divide-by-zero in GC trigger controller
+    net: add socket system call hooks for testing
     
-    The trigger controller computes GC CPU utilization by dividing by the
-    wall-clock time that's passed since concurrent mark began. Since this
-    delta is nanoseconds it's borderline impossible for it to be zero, but
-    if it is zero we'll currently divide by zero. Be robust to this
-    possibility by ignoring the utilization in the error term if no time
-    has elapsed.
+    This change adds socket system call hooks to existing test cases for
+    simulating a bit complicated network conditions to help making timeout
+    and dual IP stack test cases work more properly in followup changes.
     
-    Change-Id: I93dfc9e84735682af3e637f6538d1e7602634f09
-    Reviewed-on: https://go-review.googlesource.com/9175
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Also test cases print debugging information in non-short mode like the
+    following:
+    
+    Leaked goroutines:
+    net.TestWriteTimeout.func2(0xc20802a5a0, 0xc20801d000, 0x1000, 0x1000, 0xc2081d2ae0)
+            /go/src/net/timeout_test.go:170 +0x98
+    created by net.TestWriteTimeout
+            /go/src/net/timeout_test.go:173 +0x745
+    net.runDatagramPacketConnServer(0xc2080730e0, 0x2bd270, 0x3, 0x2c1770, 0xb, 0xc2081d2ba0, 0xc2081d2c00)
+            /go/src/net/server_test.go:398 +0x667
+    created by net.TestTimeoutUDP
+            /go/src/net/timeout_test.go:247 +0xc9
+            (snip)
+    
+    Leaked sockets:
+    3: {Cookie:615726511685632 Err:<nil> SocketErr:0}
+    5: {Cookie:7934075906097152 Err:<nil> SocketErr:0}
+    
+    Socket statistical information:
+    {Family:1 Type:805306370 Protocol:0 Opened:17 Accepted:0 Connected:5 Closed:17}
+    {Family:2 Type:805306369 Protocol:0 Opened:450 Accepted:234 Connected:279 Closed:636}
+    {Family:1 Type:805306369 Protocol:0 Opened:11 Accepted:5 Connected:5 Closed:16}
+    {Family:28 Type:805306369 Protocol:0 Opened:95 Accepted:22 Connected:16 Closed:116}
+    {Family:2 Type:805306370 Protocol:0 Opened:84 Accepted:0 Connected:34 Closed:83}
+    {Family:28 Type:805306370 Protocol:0 Opened:52 Accepted:0 Connected:4 Closed:52}
+    
+    Change-Id: I0e84be59a0699bc31245c78e2249423459b8cdda
+    Reviewed-on: https://go-review.googlesource.com/6390
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/net/dnsclient_unix_test.go |  9 +++++
+ src/net/dnsname_test.go        |  3 ++
+ src/net/fd_unix.go             | 14 +++----
+ src/net/fd_windows.go          | 14 +++----
+ src/net/file_unix.go           |  8 ++--
+ src/net/hook_cloexec.go        | 14 +++++++
+ src/net/hook_unix.go           | 18 +++++++++
+ src/net/hook_windows.go        | 15 +++++++
+ src/net/interface_test.go      | 18 +++++++++
+ src/net/ip_test.go             |  9 +++++
+ src/net/ipsock_posix.go        |  8 ++--
+ src/net/main_cloexec_test.go   | 25 ++++++++++++
+ src/net/main_plan9_test.go     | 11 ++++++
+ src/net/main_test.go           | 89 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/main_unix_test.go      | 49 +++++++++++++++++++++++
+ src/net/main_windows_test.go   | 33 ++++++++++++++++
+ src/net/sock_cloexec.go        | 12 +++---
+ src/net/sock_posix.go          |  4 +-
+ src/net/sock_windows.go        |  4 +-
+ src/net/sys_cloexec.go         |  8 ++--
+ src/net/tcp_test.go            |  5 +++
+ 21 files changed, 330 insertions(+), 40 deletions(-)

@@ -1,14 +1,13 @@
-commit 2f0a970bde799031fcbe756644fa8c7ed5fb4ef1
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Mon Mar 11 13:24:52 2013 -0400
+commit 14a295c8172aa12b19944d85e92835c7e9f904cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 12:21:46 2013 -0400
 
-    net: allow concurrent UNIX socket tests if TMPDIR is unique.
+    sync/atomic: make unaligned 64-bit atomics crash on 386
     
-    Only clever enough to allow concurrent stress testing.
-    
-    R=mikioh.mikioh, rsc
+    R=golang-dev, bradfitz, dvyukov
     CC=golang-dev
-    https://golang.org/cl/7703044
+    https://golang.org/cl/7702043
 
- src/pkg/net/server_test.go | 19 +++++++++++++------
- 1 file changed, 13 insertions(+), 6 deletions(-)
+ src/pkg/sync/atomic/asm_386.s      | 12 ++++++++++++
+ src/pkg/sync/atomic/atomic_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

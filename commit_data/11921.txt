@@ -1,12 +1,13 @@
-commit eccc22e542bf5161a789b9956caa4d500208ea1e
+commit d2f65a6461fbb96783ae2256f2f6f67668edf385
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 15 14:20:21 2012 +1100
+Date:   Wed Feb 15 14:15:33 2012 +1100
 
-    doc: fix snapshot notes
+    weekly.2012-02-14
     
-    R=bradfitz, dsymonds
+    R=golang-dev, dsymonds, r, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/5675056
+    https://golang.org/cl/5675055
 
- doc/devel/weekly.html | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ .hgtags               |   1 -
+ doc/devel/weekly.html | 119 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 119 insertions(+), 1 deletion(-)

@@ -1,36 +1,109 @@
-commit eb1717e035e9c6b6690fd55b6396f99b40d26d3f
-Author: Vincent Vanackere <vincent.vanackere@gmail.com>
-Date:   Thu Nov 3 14:01:30 2011 -0700
+commit de03d502c7e0bd07c6f084ed9b5bb0446df29b49
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 3 13:26:43 2011 -0700
 
-    all: rename os.EOF to io.EOF in various non-code contexts
+    net: renamings
+    This is Go 1 package renaming CL #3.
+    This one merely moves the source; the import strings will be
+    changed after the next weekly release.
+    This one moves pieces into net.
     
-    R=golang-dev, r
+    http -> net/http
+    http/cgi -> net/http/cgi
+    http/fcgi -> net/http/fcgi
+    http/pprof -> net/http/pprof
+    http/httptest -> net/http/httptest
+    mail -> net/mail
+    rpc -> net/rpc
+    rpc/jsonrpc -> net/rpc/jsonrpc
+    smtp -> net/smtp
+    url -> net/url
+    
+    Also remove rand (now math/rand) from NOTEST - it has a test.
+    
+    The only edits are in Makefiles and deps.bash.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5334050
+    https://golang.org/cl/5335048
 
- doc/codewalk/markov.xml                  |  4 ++--
- doc/effective_go.html                    |  2 +-
- doc/effective_go.tmpl                    |  2 +-
- src/pkg/archive/tar/reader.go            |  4 ++--
- src/pkg/bufio/bufio.go                   |  8 ++++----
- src/pkg/bytes/buffer.go                  | 12 ++++++------
- src/pkg/crypto/openpgp/armor/armor.go    |  2 +-
- src/pkg/crypto/tls/conn.go               |  2 +-
- src/pkg/encoding/xml/xml.go              |  2 +-
- src/pkg/encoding/xml/xml_test.go         |  6 +++---
- src/pkg/fmt/scan.go                      |  2 +-
- src/pkg/html/doc.go                      |  2 +-
- src/pkg/html/token.go                    |  4 ++--
- src/pkg/math/big/int.go                  |  2 +-
- src/pkg/mime/multipart/multipart.go      |  2 +-
- src/pkg/mime/multipart/multipart_test.go |  4 ++--
- src/pkg/net/http/chunked.go              |  2 +-
- src/pkg/net/http/serve_test.go           |  2 +-
- src/pkg/net/net_test.go                  |  2 +-
- src/pkg/net/textproto/reader.go          |  2 +-
- src/pkg/os/dir_unix.go                   |  2 +-
- src/pkg/os/file_unix.go                  |  2 +-
- src/pkg/os/file_windows.go               |  2 +-
- src/pkg/scanner/scanner.go               |  2 +-
- src/pkg/strings/reader.go                |  2 +-
- 25 files changed, 39 insertions(+), 39 deletions(-)
+ src/pkg/Makefile                              | 25 ++++++++++++-------------
+ src/pkg/deps.bash                             | 19 +++++++++++++++++++
+ src/pkg/{ => net}/http/Makefile               |  4 ++--
+ src/pkg/{mail => net/http/cgi}/Makefile       |  9 +++++----
+ src/pkg/{ => net}/http/cgi/child.go           |  0
+ src/pkg/{ => net}/http/cgi/child_test.go      |  0
+ src/pkg/{ => net}/http/cgi/host.go            |  0
+ src/pkg/{ => net}/http/cgi/host_test.go       |  0
+ src/pkg/{ => net}/http/cgi/matryoshka_test.go |  0
+ src/pkg/{ => net}/http/cgi/testdata/test.cgi  |  0
+ src/pkg/{ => net}/http/chunked.go             |  0
+ src/pkg/{ => net}/http/client.go              |  0
+ src/pkg/{ => net}/http/client_test.go         |  0
+ src/pkg/{ => net}/http/cookie.go              |  0
+ src/pkg/{ => net}/http/cookie_test.go         |  0
+ src/pkg/{ => net}/http/doc.go                 |  0
+ src/pkg/{ => net}/http/dump.go                |  0
+ src/pkg/{ => net}/http/export_test.go         |  0
+ src/pkg/{ => net}/http/fcgi/Makefile          |  4 ++--
+ src/pkg/{ => net}/http/fcgi/child.go          |  0
+ src/pkg/{ => net}/http/fcgi/fcgi.go           |  0
+ src/pkg/{ => net}/http/fcgi/fcgi_test.go      |  0
+ src/pkg/{ => net}/http/filetransport.go       |  0
+ src/pkg/{ => net}/http/filetransport_test.go  |  0
+ src/pkg/{ => net}/http/fs.go                  |  0
+ src/pkg/{ => net}/http/fs_test.go             |  0
+ src/pkg/{ => net}/http/header.go              |  0
+ src/pkg/{ => net}/http/header_test.go         |  0
+ src/pkg/{ => net}/http/httptest/Makefile      |  4 ++--
+ src/pkg/{ => net}/http/httptest/recorder.go   |  0
+ src/pkg/{ => net}/http/httptest/server.go     |  0
+ src/pkg/{ => net}/http/lex.go                 |  0
+ src/pkg/{ => net}/http/lex_test.go            |  0
+ src/pkg/{ => net}/http/persist.go             |  0
+ src/pkg/{smtp => net/http/pprof}/Makefile     |  9 ++++-----
+ src/pkg/{ => net}/http/pprof/pprof.go         |  0
+ src/pkg/{ => net}/http/proxy_test.go          |  0
+ src/pkg/{ => net}/http/range_test.go          |  0
+ src/pkg/{ => net}/http/readrequest_test.go    |  0
+ src/pkg/{ => net}/http/request.go             |  0
+ src/pkg/{ => net}/http/request_test.go        |  0
+ src/pkg/{ => net}/http/requestwrite_test.go   |  0
+ src/pkg/{ => net}/http/response.go            |  0
+ src/pkg/{ => net}/http/response_test.go       |  0
+ src/pkg/{ => net}/http/responsewrite_test.go  |  0
+ src/pkg/{ => net}/http/reverseproxy.go        |  0
+ src/pkg/{ => net}/http/reverseproxy_test.go   |  0
+ src/pkg/{ => net}/http/serve_test.go          |  0
+ src/pkg/{ => net}/http/server.go              |  0
+ src/pkg/{ => net}/http/sniff.go               |  0
+ src/pkg/{ => net}/http/sniff_test.go          |  0
+ src/pkg/{ => net}/http/status.go              |  0
+ src/pkg/{ => net}/http/testdata/file          |  0
+ src/pkg/{ => net}/http/testdata/index.html    |  0
+ src/pkg/{ => net}/http/testdata/style.css     |  0
+ src/pkg/{ => net}/http/transfer.go            |  0
+ src/pkg/{ => net}/http/transport.go           |  0
+ src/pkg/{ => net}/http/transport_test.go      |  0
+ src/pkg/{ => net}/http/transport_windows.go   |  0
+ src/pkg/{ => net}/http/triv.go                |  0
+ src/pkg/{http/cgi => net/mail}/Makefile       |  5 ++---
+ src/pkg/{ => net}/mail/message.go             |  0
+ src/pkg/{ => net}/mail/message_test.go        |  0
+ src/pkg/{ => net}/rpc/Makefile                |  4 ++--
+ src/pkg/{ => net}/rpc/client.go               |  0
+ src/pkg/{ => net}/rpc/debug.go                |  0
+ src/pkg/{ => net}/rpc/jsonrpc/Makefile        |  4 ++--
+ src/pkg/{ => net}/rpc/jsonrpc/all_test.go     |  0
+ src/pkg/{ => net}/rpc/jsonrpc/client.go       |  0
+ src/pkg/{ => net}/rpc/jsonrpc/server.go       |  0
+ src/pkg/{ => net}/rpc/server.go               |  0
+ src/pkg/{ => net}/rpc/server_test.go          |  0
+ src/pkg/{http/pprof => net/smtp}/Makefile     |  5 +++--
+ src/pkg/{ => net}/smtp/auth.go                |  0
+ src/pkg/{ => net}/smtp/smtp.go                |  0
+ src/pkg/{ => net}/smtp/smtp_test.go           |  0
+ src/pkg/{ => net}/url/Makefile                |  4 ++--
+ src/pkg/{ => net}/url/url.go                  |  0
+ src/pkg/{ => net}/url/url_test.go             |  0
+ 79 files changed, 57 insertions(+), 39 deletions(-)

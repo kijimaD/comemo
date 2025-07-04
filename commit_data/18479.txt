@@ -1,15 +1,23 @@
-commit 27cb59fdad4696c9a9169af50bff520492d98b35
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Feb 12 17:03:21 2014 -0800
+commit 951508671dff04f1784309cf2ec5445721357e35
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 13 10:58:23 2014 +1100
 
-    cmd/5g: fix print format in peephole debugging
+    debug/macho: add test file for CL 60190043
     
-    Fixes #7294.
+    From the description of CL 60190043
     
-    LGTM=minux.ma, dave, bradfitz
-    R=golang-codereviews, minux.ma, dave, bradfitz
+    debug/macho: Add support for opening fat/universal binaries.
+    
+    New testdata was created from existing using:
+    $ lipo gcc-386-darwin-exec gcc-amd64-darwin-exec -create -output
+    fat-gcc-386-amd64-darwin-exec
+    
+    Update #7250
+    
+    LGTM=iant
+    R=golang-codereviews, gobot, dsymonds, iant
     CC=golang-codereviews
-    https://golang.org/cl/61370043
+    https://golang.org/cl/61720044
 
- src/cmd/5g/peep.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ .../debug/macho/testdata/fat-gcc-386-amd64-darwin-exec  | Bin 0 -> 28992 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

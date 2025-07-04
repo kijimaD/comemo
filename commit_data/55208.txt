@@ -1,17 +1,26 @@
-commit 49f022cfa382e7326d2a6e3237dbed1ac43ae7b6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 4 12:35:35 2023 -0800
+commit 3e77efc7204407c5c8882bec42fdcaa88ef40a9b
+Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+Date:   Wed Dec 14 06:31:50 2022 +0100
 
-    doc: add release note for go/types/PkgNameOf
+    cmd/internal/obj/s390x, runtime: fix breakpoint in s390x
     
-    For #62037.
+    Currently runtime.Breakpoint generates SIGSEGV in s390x.
+    The solution to this is add new asm instruction BRRK of
+    type FORMAT_E for the breakpoint exception.
     
-    Change-Id: Id1d02f88205e5ea62662e78c8313731ec9e55b1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546975
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Fixes #52103
+    
+    Change-Id: I8358a56e428849a5d28d5ade141e1d7310bee084
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457456
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- doc/go1.22.html | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s | 1 +
+ src/cmd/internal/obj/s390x/a.out.go       | 3 +++
+ src/cmd/internal/obj/s390x/anames.go      | 1 +
+ src/cmd/internal/obj/s390x/asmz.go        | 7 +++++++
+ src/runtime/asm_s390x.s                   | 2 +-
+ 5 files changed, 13 insertions(+), 1 deletion(-)

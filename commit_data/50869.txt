@@ -1,23 +1,27 @@
-commit 4c383951b9601b488486add020ad5b7f10fb3d39
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Sep 20 18:33:03 2022 +0000
+commit b6342a02ad901e015e1c4eb9f862824029efb7b7
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 10:49:54 2021 -0500
 
-    runtime: make (*mheap).sysAlloc more general
+    go/types: return an error message from Checker.genericType
     
-    This change makes (*mheap).sysAlloc take an explicit list of hints and a
-    boolean as to whether or not any newly-created heapArenas should be
-    registered in the full arena list.
+    The bare error message "%s is not a generic type" is probably never
+    sufficient, so change the signature of genericType to instead return an
+    message that may be formatted as additional context in errors.
     
-    This is a refactoring in preparation for arenas.
+    Along the way, refactor instantiatedType to have access to the entire
+    index expression.
     
-    For #51317.
+    Fixes #48827
     
-    Change-Id: I0584a033fce3fcb60c5d0bc033d5fb8bd23b2378
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432078
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I0c455c1ce46ac3f1ef2990c997da19e5fc6c4eae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363994
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/malloc.go | 69 ++++++++++++++++++++++++++++++---------------------
- src/runtime/mheap.go  |  2 +-
- 2 files changed, 42 insertions(+), 29 deletions(-)
+ src/go/types/errorcodes.go                     | 13 ++++---
+ src/go/types/signature.go                      |  2 +-
+ src/go/types/testdata/fixedbugs/issue48827.go2 | 19 +++++++++++
+ src/go/types/typexpr.go                        | 47 +++++++++++++++-----------
+ 4 files changed, 56 insertions(+), 25 deletions(-)

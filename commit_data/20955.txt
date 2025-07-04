@@ -1,15 +1,13 @@
-commit 495e02db8c6e080504f03525daffa4c8f19a7b03
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 10 16:06:47 2014 +1100
+commit 97b24a05dff7adef3a0fb463a575b705be985468
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 29 13:07:34 2014 -0700
 
-    doc: convert README to markdown and update CONTRIBUTING.md
+    doc/go1.4.html: gccgo status
     
-    Fixes #9233
-    
-    Change-Id: If64480cbfaafe44025fcdcc0f20d76c995ffb3a1
-    Reviewed-on: https://go-review.googlesource.com/1296
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=iant, cmang
+    R=cmang, iant, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169760043
 
- CONTRIBUTING.md     | 32 +++++++++++++++++++++++---------
- README => README.md | 25 +++++++++++++++++--------
- 2 files changed, 40 insertions(+), 17 deletions(-)
+ doc/go1.4.html | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

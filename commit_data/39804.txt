@@ -1,20 +1,22 @@
-commit 547021d723364451f5a248d6d42da7d9f67bf7a6
+commit 99e223289b023279fa27803184c3e3c8a3d523cc
 Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Wed Aug 21 21:57:59 2019 +0200
+Date:   Sun Mar 17 15:51:30 2019 +0100
 
-    cmd/internal/obj/wasm: refactor handling of wasm variables
+    cmd/link/internal/wasm: optimize data section in wasm binary
     
-    This commit improves how registers get mapped to wasm variables. This
-    is a preparation for future improvements (e.g. adding 32 bit float
-    registers).
+    This change optimizes the data section in the wasm binary by
+    omitting blocks of zeroes and instead emitting data segments
+    with offsets skipping the zeroes.
     
-    Change-Id: I374c80b2d6c9bcce6b0e373fe921b5ad4dee40ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191777
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    This optimization is inspired by the memory-packing pass of the
+    wasm-opt tool and reduces the wasm binary size of "hello world" by 14%.
+    
+    Change-Id: Iba3043df05bf6aab4745c5f8015c0337fc218aff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167801
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/wasm/a.out.go   |   6 +
- src/cmd/internal/obj/wasm/anames.go  |   5 +
- src/cmd/internal/obj/wasm/wasmobj.go | 292 ++++++++++++++++++-----------------
- 3 files changed, 163 insertions(+), 140 deletions(-)
+ src/cmd/link/internal/ld/data.go  | 31 ++++++++++++++-------
+ src/cmd/link/internal/wasm/asm.go | 57 ++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 75 insertions(+), 13 deletions(-)

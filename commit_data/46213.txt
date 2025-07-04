@@ -1,19 +1,20 @@
-commit bdc1bef8a05d4524160d56a027f110257323033d
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Aug 20 14:38:09 2021 -0700
+commit a508840c671f4ec4b923daa04c0ac17378ab52b4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 15 10:41:54 2020 +0100
 
-    cmd/go: ensure 'go get -u' can upgrade pruned (1.17+) modules
+    doc/go1.16: fix path, path/filepath release notes
     
-    Fixes #47768
+    The path package doesn't have a Glob function. Adjust the release notes
+    re. CL 264397 accordingly.
     
-    Change-Id: I981a31ba4ff716570ac4c6f35b289fa480faa5bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343879
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Also add links to the documentation of all mentioned functions.
+    
+    For #40700.
+    
+    Change-Id: Ibf3e0530fa6fab36a3f6fbc664f0800869ce9ec7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278213
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modload/edit.go                |  1 +
- .../testdata/script/mod_get_lazy_upgrade_lazy.txt  | 68 ++++++++++++++++++++++
- 2 files changed, 69 insertions(+)
+ doc/go1.16.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

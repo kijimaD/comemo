@@ -1,14 +1,15 @@
-commit 524d02cbca4255ec4b524bb809f3c2e4cba30b0b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jun 21 12:26:38 2011 +1000
+commit ceae2c930159cce83407be3489d3fa896f237429
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 21 11:28:15 2011 +1000
 
-    builder: run make single-threaded on windows
+    goinstall: undo repo peeking code
     
-    Will still honor MAKEFLAGS environment variable if set.
+    Keeping the Julian's good refactoring work.
     
-    R=golang-dev
-    CC=bradfitz, golang-dev
-    https://golang.org/cl/4644049
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4638049
 
- misc/dashboard/builder/main.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/goinstall/doc.go      | 14 ++-----
+ src/cmd/goinstall/download.go | 92 -------------------------------------------
+ 2 files changed, 3 insertions(+), 103 deletions(-)

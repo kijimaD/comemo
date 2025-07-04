@@ -1,28 +1,24 @@
-commit 1280ae7856d5226a7a4135621a6292240faa7657
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 29 15:45:35 2022 -0700
+commit 9c1dbdf60edbffeff10f58af21fa055eb0fdd29f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 9 16:52:19 2021 +1100
 
-    go/parser: leave checking of LHS in short var decls to type checker
+    compress/lzw: output a Clear code first, per GIF spec
     
-    Instead of checking at parse-time that the LHS of a short variable
-    declaration contains only identifiers, leave the check to the the
-    type checker which tests this already.
+    The TestStartsWithClearCode test is new, but if it existed beforehand,
+    the want strings would be "\x81" and "Hi\x81" without a starting "\x80".
     
-    This removes a duplicate error and matches the behavior of the
-    syntax package.
+    Fixes #26108
+    Fixes #33748
+    Updates makeworld-the-better-one/didder#7
+    Updates nothings/stb#1222
     
-    For #54511.
-    
-    Change-Id: I4c68f2bd8a0e015133685f9308beb98e714a83fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426476
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I35ac0ed862ba6ee921ba9aee257bc19828abaa82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354710
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go     |  2 --
- src/go/parser/parser.go                       | 20 ++------------------
- src/go/parser/short_test.go                   |  1 -
- src/go/types/testdata/fixedbugs/issue43087.go |  2 +-
- 4 files changed, 3 insertions(+), 22 deletions(-)
+ src/compress/lzw/writer.go      | 20 +++++++++++++++++++-
+ src/compress/lzw/writer_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 1 deletion(-)

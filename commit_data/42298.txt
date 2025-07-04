@@ -1,82 +1,50 @@
-commit 11b2853e6f322306a55519d03671e256b966e8ca
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Aug 29 14:24:16 2019 +0200
+commit 980f0c00bb07b01d2150a5b858573d9ba0a15890
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 1 11:23:05 2019 -0700
 
-    encoding/json: don't reuse slice elements when decoding
+    net/http: make Transport.IdleConnTimeout consider wall (not monotonic) time
     
-    The previous behavior directly contradicted the docs that have been in
-    place for years:
+    Both laptops closing their lids and cloud container runtimes
+    suspending VMs both faced the problem where an idle HTTP connection
+    used by the Transport could be cached for later reuse before the
+    machine is frozen, only to wake up many minutes later to think that
+    their HTTP connection was still good (because only a second or two of
+    monotonic time passed), only to find out that the peer hung up on them
+    when they went to write.
     
-            To unmarshal a JSON array into a slice, Unmarshal resets the
-            slice length to zero and then appends each element to the slice.
+    HTTP/1 connection reuse is inherently racy like this, but no need for
+    us to step into a trap if we can avoid it. Also, not everybody sets
+    Request.GetBody to enable re-tryable POSTs. And we can only safely
+    retry requests in some cases.
     
-    We could use reflect.New to create a new element and reflect.Append to
-    then append it to the destination slice, but benchmarks have shown that
-    reflect.Append is very slow compared to the code that manually grows a
-    slice in this file.
+    So with this CL, before reusing an old connection, double check the walltime.
     
-    Instead, if we're decoding into an element that came from the original
-    backing array, zero it before decoding into it. We're going to be using
-    the CodeDecoder benchmark, as it has a slice of struct pointers that's
-    decoded very often.
+    Testing was done both with a laptop (closing the lid for a bit) and
+    with QEMU, running "stop" and "cont" commands in the monitor and
+    sending QMP guest agent commands to update its wall clock after the
+    "cont":
     
-    Note that we still reuse existing values from arrays being decoded into,
-    as the documentation agrees with the existing implementation in that
-    case:
+    echo '{"execute":"guest-set-time"}' | socat STDIN UNIX-CONNECT:/var/run/qemu-server/108.qga
     
-            To unmarshal a JSON array into a Go array, Unmarshal decodes
-            JSON array elements into corresponding Go array elements.
+    In both cases, I was running
+    https://gist.github.com/bradfitz/260851776f08e4bc4dacedd82afa7aea and
+    watching that the RemoteAddr changed after resume.
     
-    The numbers with the benchmark as-is might seem catastrophic, but that's
-    only because the benchmark is decoding into the same variable over and
-    over again. Since the old decoder was happy to reuse slice elements, it
-    would save a lot of allocations by not having to zero and re-allocate
-    said elements:
+    It's kinda difficult to write an automated test for. I gave a lightning talk on
+    using pure emulation user mode qemu for such tests:
     
-            name           old time/op    new time/op    delta
-            CodeDecoder-8    10.4ms ± 1%    10.9ms ± 1%   +4.41%  (p=0.000 n=10+10)
+       https://www.youtube.com/watch?v=69Zy77O-BUM
+       https://docs.google.com/presentation/d/1rAAyOTCsB8GLbMgI0CAbn69r6EVWL8j3DPl4qc0sSlc/edit?usp=sharing
+       https://github.com/google/embiggen-disk/blob/master/integration_test.go
     
-            name           old speed      new speed      delta
-            CodeDecoder-8   186MB/s ± 1%   178MB/s ± 1%   -4.23%  (p=0.000 n=10+10)
+    ... that would probably be a good direction if we want an automated
+    test here. But I don't have time to do that now.
     
-            name           old alloc/op   new alloc/op   delta
-            CodeDecoder-8    2.19MB ± 0%    3.59MB ± 0%  +64.09%  (p=0.000 n=10+10)
+    Updates #29308 (HTTP/2 remains)
     
-            name           old allocs/op  new allocs/op  delta
-            CodeDecoder-8     76.8k ± 0%     92.7k ± 0%  +20.71%  (p=0.000 n=10+10)
-    
-    We can prove this by moving 'var r codeResponse' into the loop, so that
-    the benchmark no longer reuses the destination pointer. And sure enough,
-    we no longer see the slow-down caused by the extra allocations:
-    
-            name           old time/op    new time/op    delta
-            CodeDecoder-8    10.9ms ± 0%    10.9ms ± 1%  -0.37%  (p=0.043 n=10+10)
-    
-            name           old speed      new speed      delta
-            CodeDecoder-8   177MB/s ± 0%   178MB/s ± 1%  +0.37%  (p=0.041 n=10+10)
-    
-            name           old alloc/op   new alloc/op   delta
-            CodeDecoder-8    3.59MB ± 0%    3.59MB ± 0%    ~     (p=0.780 n=10+10)
-    
-            name           old allocs/op  new allocs/op  delta
-            CodeDecoder-8     92.7k ± 0%     92.7k ± 0%    ~     (all equal)
-    
-    I believe that it's useful to leave the benchmarks as they are now,
-    because the decoder does reuse memory in some cases. For example,
-    existing map elements are reused. However, subtle changes like this one
-    need to be benchmarked carefully.
-    
-    Finally, add a couple of tests involving both a slice and an array of
-    structs.
-    
-    Fixes #21092.
-    
-    Change-Id: I8b1194f25e723a31abd146fbfe9428ac10c1389d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191783
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I03997e00491f861629d67a0292da000bd94ed5ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204797
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/encoding/json/decode.go      | 40 ++++++++++++++++++++++------------------
- src/encoding/json/decode_test.go | 15 ++++++++++++++-
- 2 files changed, 36 insertions(+), 19 deletions(-)
+ src/net/http/transport.go | 29 +++++++++++++++++++++++++----
+ 1 file changed, 25 insertions(+), 4 deletions(-)

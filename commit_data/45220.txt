@@ -1,18 +1,24 @@
-commit bbb510ccc96e2ca1d0d1c91d244fba4e735d5a80
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 14 12:37:04 2021 -0400
+commit 076a45acd5b8d2ce08a2dbe898dc9228554db92d
+Author: Bryan Boreham <bjboreham@gmail.com>
+Date:   Mon Oct 12 14:29:28 2020 +0000
 
-    internal/buildcfg: enable regabig by default
+    fmt: explain how Formatter interface affects verbs and flags
     
-    For #40724.
+    Formatter is mentioned further down, but it's helpful
+    to add it amongst the verbs and flags.
     
-    Change-Id: Ibf4ff8b24b501813839657ac195b909682ac7d0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310173
-    Trust: Austin Clements <austin@google.com>
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Background: I spent a while puzzling how "%+v" prints
+    a stack trace for github.com/pkg/errors when this isn't
+    documented under 'flags'.
+    
+    Change-Id: Ic70145902a36780147dedca568b3cf482974fc38
+    GitHub-Last-Rev: 6571b499f211a2266812af66dd3b88dff602cabf
+    GitHub-Pull-Request: golang/go#39860
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240000
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Rob Pike <r@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/internal/buildcfg/exp.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/fmt/doc.go   | 3 ++-
+ src/fmt/print.go | 8 ++++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)

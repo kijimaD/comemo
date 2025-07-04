@@ -1,15 +1,20 @@
-commit 05deefee5227947b2239a4e1772cf738a320b09e
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Dec 11 16:42:25 2017 -0500
+commit a4956248a8b15cc8bb2fabce0be4a802e965ec3c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Sep 8 23:05:19 2017 +0200
 
-    doc: fix misuse of “substantive” in 1.10 release notes
+    runtime: move evacuateX evacuateY relation check from makemap to evacuate
     
-    Use “substantial”, which is believed to be the correct word.
-    Additionally, this change strips trailing whitespace from the file.
+    Move the check near the code in evacuate that relies on
+    the relation evacuateX+1 == evacuateY.
     
-    Change-Id: I5b6b718fc09e4b8b911b95e8be0733abd58e165d
-    Reviewed-on: https://go-review.googlesource.com/83356
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    If the relation is fullfilled the check is known to be true
+    at compile time and removed by the compiler.
+    
+    Change-Id: I711b75e09047bf347819ccaeec41d244a5883867
+    Reviewed-on: https://go-review.googlesource.com/62410
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.10.html | 42 +++++++++++++++++++++---------------------
- 1 file changed, 21 insertions(+), 21 deletions(-)
+ src/runtime/hashmap.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

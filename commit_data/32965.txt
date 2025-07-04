@@ -1,31 +1,16 @@
-commit f22ef70254a6a79834ed3fa21c4d1ccadeb758bd
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 27 23:52:04 2017 -0700
+commit a07ee270462550d17a6541ec8dbd62282477ec6a
+Author: konstantin8105 <konstantin8105@gmail.com>
+Date:   Sun Jun 18 15:11:49 2017 +0300
 
-    cmd/compile: allow := to shadow dot-imported names
+    doc: website: changed link for cover
     
-    Historically, gc optimistically parsed the left-hand side of
-    assignments as expressions. Later, if it discovered a ":=" assignment,
-    it rewrote the parsed expressions as declarations.
+    Changed link for cover from x-tools to correct
     
-    This failed in the presence of dot imports though, because we lost
-    information about whether an imported object was named via a bare
-    identifier "Foo" or a normal qualified "pkg.Foo".
+    Fix #20662
     
-    This CL fixes the issue by specially noding the left-hand side of ":="
-    assignments.
-    
-    Fixes #22076.
-    
-    Change-Id: I18190ecdb863112e7d009e1687e6112eec559921
-    Reviewed-on: https://go-review.googlesource.com/66810
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9b839ed952e9abb12b3d1655ac4cf5976f374a4b
+    Reviewed-on: https://go-review.googlesource.com/46012
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 76 ++++++++++++++++++++++++++++++------
- test/fixedbugs/bug388.go             |  2 +-
- test/fixedbugs/issue20250.go         |  4 +-
- test/fixedbugs/issue22076.go         | 25 ++++++++++++
- 4 files changed, 91 insertions(+), 16 deletions(-)
+ doc/cmd.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

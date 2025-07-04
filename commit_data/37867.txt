@@ -1,18 +1,14 @@
-commit 9aa2c06cb5cb4603500e5fbc35385fe890c6779b
-Author: Mikio Hara <mikioh.public.networking@gmail.com>
-Date:   Thu Jan 10 05:14:40 2019 +0900
+commit b88e4ad613deec84650fb763bf6005eacee4cf79
+Author: Milan Knezevic <milan.knezevic@mips.com>
+Date:   Wed Aug 29 13:56:37 2018 +0200
 
-    net: update BUG sections for go1.12
+    doc: add GOMIPS64 to source installation docs
     
-    To confirm this change with the go commaned, please run 'go doc net'
-    instead of 'go doc -all net'; the -all option surpresses BUG sections.
+    Fixes #27258
     
-    Change-Id: Iac7bc85fbef48e91d5ede16da0ce4a7ab8cae539
-    Reviewed-on: https://go-review.googlesource.com/c/157297
-    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1ac75087e2b811e6479990e12d71f2c1f4f47b64
+    Reviewed-on: https://go-review.googlesource.com/132015
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/interface.go | 4 ++--
- src/net/unixsock.go  | 7 +++++--
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ doc/install-source.html | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

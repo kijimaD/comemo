@@ -1,12 +1,25 @@
-commit 05cf6fe0c1c1a61fa95e4a3ab25c5b4f1a0ad499
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jun 25 08:06:34 2013 +0200
+commit 8486d96a2720d6ce36b8125f636306f9f224fcf3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 25 12:29:00 2013 +1000
 
-    test: add shift expression incorrectly rejected by gccgo.
+    runtime: change netpoll in preparation for windows implementation
     
-    R=golang-dev, iant
+    - change runtime_pollWait so it does not return
+      closed or timeout if IO is ready - windows must
+      know if IO has completed or not even after
+      interruption;
+    - add (*pollDesc).Prepare(mode int) that can be
+      used for both read and write, same for Wait;
+    - introduce runtime_pollWaitCanceled and expose
+      it in net as (*pollDesc).WaitCanceled(mode int);
+    
+    Full windows netpoll changes are
+    here https://golang.org/cl/8670044/.
+    
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/10483045
+    https://golang.org/cl/10485043
 
- test/shift2.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/fd_poll_runtime.go | 34 +++++++++++++++++++++------
+ src/pkg/runtime/netpoll.goc    | 53 ++++++++++++++++++++++++++++--------------
+ 2 files changed, 63 insertions(+), 24 deletions(-)

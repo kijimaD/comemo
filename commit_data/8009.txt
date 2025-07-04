@@ -1,15 +1,14 @@
-commit cf3323f511e1cf4d07258b54fd982252f0313753
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Thu Apr 7 13:17:28 2011 -0400
+commit 88bbf4f1dff08507bb860bbf81219f34dce9eb83
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 7 13:06:02 2011 -0400
 
-    ld: fix Mach-O bss bug
+    codereview: fix clpatch
     
-    Fixes #1559.
+    I love Python.  Write once, crash anywhere.
     
-    R=rsc
-    CC=golang-dev, peterGo, rog
-    https://golang.org/cl/4356046
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/4382043
 
- src/cmd/ld/data.c    | 2 +-
- src/cmd/ld/ldmacho.c | 5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ lib/codereview/codereview.py | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

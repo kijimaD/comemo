@@ -1,14 +1,59 @@
-commit b42d4a8b0e99c38bb25010ce169da9ef4af85da6
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Tue Oct 18 17:32:26 2016 -0700
+commit 84743c348b0a4a7ed1ea3d7122feb757ccc7ebae
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 3 00:31:17 2016 -0700
 
-    doc: document go1.7.3 and add note to go1.7.2 that it should not be used
+    cmd/doc: ensure summaries truly are only one line
     
-    Change-Id: I3dd1513e927733ce5c63928da772cb81760ba869
-    Reviewed-on: https://go-review.googlesource.com/31442
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/33794
+    The documentation for doc says:
+    > Doc prints the documentation comments associated with the item identified by its
+    > arguments (a package, const, func, type, var, or method) followed by a one-line
+    > summary of each of the first-level items "under" that item (package-level
+    > declarations for a package, methods for a type, etc.).
+    
+    Certain variables (and constants, functions, and types) have value specifications
+    that are multiple lines long. Prior to this change, doc would print out all of the
+    lines necessary to display the value. This is inconsistent with the documented
+    behavior, which guarantees a one-line summary for all first-level items.
+    We fix this here by writing a general oneLineNode method that always returns
+    a one-line summary (guaranteed!) of any input node.
+    
+    Packages like image/color/palette and unicode now become much
+    more readable since large slices are now a single line.
+    
+    $ go doc image/color/palette
+    <<<
+    // Before:
+    var Plan9 = []color.Color{
+            color.RGBA{0x00, 0x00, 0x00, 0xff},
+            color.RGBA{0x00, 0x00, 0x44, 0xff},
+            color.RGBA{0x00, 0x00, 0x88, 0xff},
+            ... // Hundreds of more lines!
+    }
+    var WebSafe = []color.Color{
+            color.RGBA{0x00, 0x00, 0x00, 0xff},
+            color.RGBA{0x00, 0x00, 0x33, 0xff},
+            color.RGBA{0x00, 0x00, 0x66, 0xff},
+            ... // Hundreds of more lines!
+    }
+    
+    // After:
+    var Plan9 = []color.Color{ ... }
+    var WebSafe = []color.Color{ ... }
+    >>>
+    
+    In order to test this, I ran `go doc` and `go doc -u` on all of the
+    standard library packages and diff'd the output with and without the
+    change to ensure that all differences were intended.
+    
+    Fixes #13072
+    
+    Change-Id: Ida10b7796b7e4e174a929b55c60813a9eb7158fe
+    Reviewed-on: https://go-review.googlesource.com/25420
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/devel/release.html | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/cmd/doc/doc_test.go     |  30 +++---
+ src/cmd/doc/pkg.go          | 237 ++++++++++++++++++++++++++++++++------------
+ src/cmd/doc/testdata/pkg.go |  30 ++++++
+ 3 files changed, 222 insertions(+), 75 deletions(-)

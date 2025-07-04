@@ -1,17 +1,16 @@
-commit 489e4882ef0df15f208e41915cedc1ceb2cc75fd
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Mar 22 20:57:19 2022 +0700
+commit bfd7798a6c756b22d7376db527339b41bf7f7327
+Author: tyltr <tylitianrui@126.com>
+Date:   Wed May 26 15:41:27 2021 +0000
 
-    cmd/compile: remove typecheck.FuncBody
+    runtime,cmd/link/internal/ld: fix typos
     
-    CL 388535 removed the only usage of this function.
-    
-    Change-Id: Ie5a61cce75b03d83162f62989fe52388b069c9bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394576
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I558590cef7e2311aadbdcb4088033e350d3aae32
+    GitHub-Last-Rev: 513944a6238e0e32e2a2c266b70f7d50c9db508d
+    GitHub-Pull-Request: golang/go#46389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322809
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/cmd/link/internal/ld/data.go | 2 +-
+ src/runtime/malloc.go            | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

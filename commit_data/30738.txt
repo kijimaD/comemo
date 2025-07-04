@@ -1,17 +1,20 @@
-commit a955ece6cdfb7490e184271398f0b51a0aa2ae8f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 19 22:31:02 2017 -0700
+commit 2a64ebfc6d247e9177190f862b0947ac98c5eb43
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Nov 30 09:30:31 2016 -0800
 
-    cmd/internal/obj: reduce variable scope
+    database/sql: deflake query cancel tests
     
-    Minor cleanup, to make it clearer
-    that the two p's are unrelated.
+    Rather then using a sleep in the fake DB, go to a channel
+    select and wait for the context to be done.
     
-    Change-Id: Icb6386c626681f60e5e631b33aa3a0fc84f40e4a
-    Reviewed-on: https://go-review.googlesource.com/38381
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #18115
+    
+    Change-Id: I6bc3a29db58c568d0a7ea06c2a354c18c9e798b2
+    Reviewed-on: https://go-review.googlesource.com/33712
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/plist.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/database/sql/fakedb_test.go | 12 +++++++++++-
+ src/database/sql/sql_test.go    | 19 +++++++++++++++----
+ 2 files changed, 26 insertions(+), 5 deletions(-)

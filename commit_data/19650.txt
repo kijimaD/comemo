@@ -1,19 +1,34 @@
-commit d7b678b2ca26928390078c29e3f71868e867a182
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Wed Jul 2 09:34:06 2014 +1000
+commit a36348008c4acb493be8e4faf209a3818a11f0af
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Tue Jul 1 17:21:50 2014 -0400
 
-    runtime: properly restore registers in Solaris runtime·sigtramp
+    all: add GOOS=android
     
-    We restored registers correctly in the usual case where the thread
-    is a Go-managed thread and called runtime·sighandler, but we
-    failed to do so when runtime·sigtramp was called on a cgo-created
-    thread. In that case, runtime·sigtramp called runtime·badsignal,
-    a Go function, and did not restore registers after it returned
+    As android and linux have significant overlap, and
+    because build tags are a poor way to represent an
+    OS target, this CL introduces an exception into
+    go/build: linux is treated as a synonym for android
+    when matching files.
     
-    LGTM=rsc, dave
-    R=rsc, dave
-    CC=golang-codereviews, minux.ma
-    https://golang.org/cl/105280050
+    http://golang.org/s/go14android
+    https://groups.google.com/forum/#!topic/golang-dev/P1ATVp1mun0
+    
+    LGTM=rsc, minux
+    R=golang-codereviews, mikioh.mikioh, dave, aram, minux, gobot, rsc, aram.h, elias.naur, iant
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/105270043
 
- src/pkg/runtime/sys_solaris_amd64.s | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/dist/build.c                 |  3 ++-
+ src/cmd/dist/buildruntime.c          |  8 ++++++--
+ src/liblink/sym.c                    |  1 +
+ src/pkg/go/build/build.go            | 18 +++++++++++++++++-
+ src/pkg/go/build/build_test.go       | 23 ++++++++++++++++-------
+ src/pkg/go/build/doc.go              |  3 +++
+ src/pkg/go/build/syslist.go          |  2 +-
+ src/pkg/runtime/defs_android_arm.h   |  3 +++
+ src/pkg/runtime/os_android.h         |  1 +
+ src/pkg/runtime/rt0_android_arm.s    | 11 +++++++++++
+ src/pkg/runtime/signal_android_386.h |  1 +
+ src/pkg/runtime/signal_android_arm.h |  1 +
+ src/pkg/runtime/signals_android.h    |  1 +
+ 13 files changed, 64 insertions(+), 12 deletions(-)

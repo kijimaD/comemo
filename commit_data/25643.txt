@@ -1,19 +1,54 @@
-commit 544f28a25ec9421d52bbdd7c6272b4f1d4067964
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 24 11:02:19 2016 -0500
+commit 368d54841704fabfcd87a39c66ff56ca87f6eeea
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 15:42:09 2015 +1300
 
-    misc/cgo/test: fix test on darwin/386 with cgo enabled
+    cmd/compile, cmd/link, runtime: on ppc64x, maintain the TOC pointer in R2 when compiling PIC
     
-    Apparently the darwin/386 builder does not enable cgo.
-    This failure turned up running
+    The PowerPC ISA does not have a PC-relative load instruction, which poses
+    obvious challenges when generating position-independent code. The way the ELFv2
+    ABI addresses this is to specify that r2 points to a per "module" (shared
+    library or executable) TOC pointer. Maintaining this pointer requires
+    cooperation between codegen and the system linker:
     
-            GOARCH=386 GOHOSTARCH=386 ./all.bash
+     * Non-leaf functions leave space on the stack at r1+24 to save the TOC pointer.
+     * A call to a function that *might* have to go via a PLT stub must be followed
+       by a nop instruction that the system linker can replace with "ld r1, 24(r1)"
+       to restore the TOC pointer (only when dynamically linking Go code).
+     * When calling a function via a function pointer, the address of the function
+       must be in r12, and the first couple of instructions (the "global entry
+       point") of the called function use this to derive the address of the TOC
+       for the module it is in.
+     * When calling a function that is implemented in the same module, the system
+       linker adjusts the call to skip over the instructions mentioned above (the
+       "local entry point"), assuming that r2 is already correctly set.
     
-    on my Mac.
+    So this changeset adds the global entry point instructions, sets the metadata so
+    the system linker knows where the local entry point is, inserts code to save the
+    TOC pointer at 24(r1), adds a nop after any call not known to be local and copes
+    with the odd non-local code transfer in the runtime (e.g. the stuff around
+    jmpdefer). It does not actually compile PIC yet.
     
-    Change-Id: Ia2487c4fd85d4b0f9f564880f22d9fde379946c3
-    Reviewed-on: https://go-review.googlesource.com/18859
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7522e22bdfd2f891745a900c60254fe9e372c854
+    Reviewed-on: https://go-review.googlesource.com/15967
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/test/sigaltstack.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/cgen.go     | 41 +++++++++++++++++++-----
+ src/cmd/compile/internal/gc/plive.go    |  9 +++++-
+ src/cmd/compile/internal/ppc64/gsubr.go | 17 ++++++++--
+ src/cmd/compile/internal/ppc64/reg.go   |  4 +--
+ src/cmd/internal/obj/link.go            |  5 +++
+ src/cmd/internal/obj/ppc64/a.out.go     |  1 +
+ src/cmd/internal/obj/ppc64/asm9.go      |  5 +++
+ src/cmd/internal/obj/ppc64/obj9.go      | 53 +++++++++++++++++++++++++++---
+ src/cmd/link/internal/ld/data.go        |  4 ++-
+ src/cmd/link/internal/ld/lib.go         |  2 +-
+ src/cmd/link/internal/ld/symtab.go      |  6 ++++
+ src/cmd/link/internal/ppc64/asm.go      | 10 +++++-
+ src/cmd/link/internal/ppc64/obj.go      |  5 +++
+ src/runtime/asm_ppc64x.s                | 57 +++++++++++++++++++++++++++++----
+ src/runtime/cgo/gcc_ppc64x.S            |  1 +
+ src/runtime/proc.go                     |  1 +
+ src/runtime/sys_linux_ppc64x.s          |  2 ++
+ src/runtime/sys_nonppc64x.go            | 10 ++++++
+ src/runtime/sys_ppc64x.go               |  2 ++
+ 19 files changed, 208 insertions(+), 27 deletions(-)

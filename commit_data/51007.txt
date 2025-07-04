@@ -1,22 +1,27 @@
-commit f9ee56145bd8aa802b91db9465564cae5596966b
-Author: doujiang24 <doujiang24@gmail.com>
-Date:   Wed Oct 26 06:06:43 2022 +0000
+commit 9e7600d3fccf1920028bc808c755198db73482c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 22 16:04:17 2021 -0800
 
-    cmd/compile: print readable function name in error message
+    go/types: print "nil" rather than "untyped nil"
     
-    i.e.
-    from "function %!s(*Node=0xc0003b48c0) cannot have ABI wrappers", to "function xxFunctionName cannot have ABI wrappers".
+    This is a port of CL 366276 from types2 to go/types
+    with minor adjustments due to the slightly different
+    handling of nil in go/types.
     
-    Change-Id: I83cfdf1916e82ab1455db8032153d9cdae85250d
-    GitHub-Last-Rev: 87b077653f8731be511861d968bd31d58744b386
-    GitHub-Pull-Request: golang/go#56428
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445516
-    Auto-Submit: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    It uses some more detailed error strings in stmt0.src;
+    the same changes are made to the corresponding types2
+    file.
+    
+    For #48852.
+    
+    Change-Id: I2cdf258799bcbe2d12bbadaf67b8b4504b356bd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366277
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssagen/abi.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../compile/internal/types2/testdata/check/stmt0.src   |  6 +++---
+ src/go/types/operand.go                                |  5 +++++
+ src/go/types/testdata/check/stmt0.src                  |  6 +++---
+ src/go/types/testdata/fixedbugs/issue49296.go2         |  2 +-
+ src/go/types/testdata/spec/assignability.go2           | 18 +++++++++---------
+ 5 files changed, 21 insertions(+), 16 deletions(-)

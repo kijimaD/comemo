@@ -1,18 +1,52 @@
-commit 8802b188c6303b0c03f200bb1489237cc40b968e
-Author: Rajath Agasthya <rajathagasthya@gmail.com>
-Date:   Sat Aug 19 18:05:10 2017 -0700
+commit 13ae3b3a8d345b71a5f424f9b61fa39393efccca
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 23 17:07:26 2017 -0400
 
-    fmt: Implement pp.WriteString method
+    runtime: accept non-monotonic arena allocation on 32-bit
     
-    This allows io.WriteString to make use of WriteString method
-    implemented by pp when writing a string to fmt.State.
+    Currently, the heap arena allocator allocates monotonically increasing
+    addresses. This is fine on 64-bit where we stake out a giant block of
+    the address space for ourselves and start at the beginning of it, but
+    on 32-bit the arena starts at address 0 but we start allocating from
+    wherever the OS feels like giving us memory. We can generally hint the
+    OS to start us at a low address, but this doesn't always work.
     
-    Fixes #20786
+    As a result, on 32-bit, if the OS gives us an arena block that's lower
+    than the current block we're allocating from, we simply say "thanks
+    but no thanks", return the whole (256MB!) block of memory, and then
+    take a fallback path that mmaps just the amount of memory we need
+    (which may be as little as 8K).
     
-    Change-Id: Ice7a92bf303127ad87f05562217fa076f5c589ad
-    Reviewed-on: https://go-review.googlesource.com/61430
-    Reviewed-by: Rob Pike <r@golang.org>
+    We have to do this because mheap_.arena_used is *both* the highest
+    used address in the arena and the next address we allocate from.
+    
+    Fix all of this by separating the second role of arena_used out into a
+    new field called arena_alloc. This lets us accept any arena block the
+    OS gives us. This also slightly changes the invariants around
+    arena_end. Previously, we ensured arena_used <= arena_end, but this
+    was related to arena_used's second role, so the new invariant is
+    arena_alloc <= arena_end. As a result, we no longer necessarily update
+    arena_end when we're updating arena_used.
+    
+    Fixes #20259 properly. (Unlike the original fix, this one should not
+    be cherry-picked to Go 1.8.)
+    
+    This is reasonably low risk. I verified several key properties of the
+    32-bit code path with both 4K and 64K physical pages using a symbolic
+    model and the change does not materially affect 64-bit (arena_used ==
+    arena_alloc on 64-bit). The only oddity is that we no longer call
+    setArenaUsed with racemap == false to indicate that we're creating a
+    hole in the address space, but this only happened in a 32-bit-only
+    code path, and the race detector require 64-bit, so this never
+    mattered anyway.
+    
+    Change-Id: Ib1334007933e615166bac4159bf357ae06ec6a25
+    Reviewed-on: https://go-review.googlesource.com/44010
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/fmt/fmt_test.go | 18 ++++++++++++++++++
- src/fmt/print.go    |  7 +++++++
- 2 files changed, 25 insertions(+)
+ src/runtime/malloc.go | 57 +++++++++++++++++++++++++++++----------------------
+ src/runtime/mheap.go  | 33 ++++++++++++++++++++++++-----
+ 2 files changed, 61 insertions(+), 29 deletions(-)

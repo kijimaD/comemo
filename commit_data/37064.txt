@@ -1,23 +1,20 @@
-commit 93eded02976e1bdfaddf3403fa415393f5b90378
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Thu Oct 11 14:35:29 2018 +0200
+commit d6a27e8edcd992b36446c5021a3c7560d983e9a6
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Jun 21 10:31:57 2018 +1200
 
-    internal/syscall/unix, net: improve interface_aix.go
+    cmd/link: never coalesce type descriptors when dynamically linking Go
     
-    This commit improves the interface_aix.go file, based on feedbacks about
-    CL 138724.
+    Add a test by making misc/cgo/testshared/src/trivial.go marginally less
+    trivial.
     
-    To retrieve MTU, ioctl is needed. It's implemented inside
-    internal/syscall/unix.
+    Fixes #25970.
     
-    Change-Id: Ic583d26b93935a32a5f1eb5a2170b86e80a4a85e
-    Reviewed-on: https://go-review.googlesource.com/c/142157
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8815d0c56b8850fcdbf9b45f8406f37bd21b6865
+    Reviewed-on: https://go-review.googlesource.com/120235
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/deps_test.go                 |  2 +-
- src/internal/syscall/unix/asm_aix_ppc64.s | 12 ++++++++++++
- src/internal/syscall/unix/ioctl_aix.go    | 25 +++++++++++++++++++++++++
- src/net/interface_aix.go                  | 30 ++++++++++++++++++++++++------
- 4 files changed, 62 insertions(+), 7 deletions(-)
+ misc/cgo/testshared/src/trivial/trivial.go |  5 ++++
+ src/cmd/link/internal/ld/symtab.go         | 38 ++++++++++++++++--------------
+ 2 files changed, 25 insertions(+), 18 deletions(-)

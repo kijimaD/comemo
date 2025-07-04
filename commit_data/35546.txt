@@ -1,32 +1,17 @@
-commit d5bc3b96c6fb758561e6274c8f69232623157ca4
-Author: Hana Kim <hakim@google.com>
-Date:   Wed May 30 10:54:20 2018 -0400
+commit f6f1750a0523897d6343fa3117265b5206266379
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 20 20:18:16 2018 +0100
 
-    cmd/vendor/.../pprof: sync at rev 1ddc9e2
+    cmd/compile: use | in the most repetitive boolean rules
     
-    This includes changes in pprof to support
-     - the new -diff_base flag
-     - fix for a bug in handling of legacy Go heap profiles
+    For now, limited to a few repetitive boolean rules where the win is
+    substantial (4+ variants).
     
-    Update #25096
-    
-    Change-Id: I826ac9244f31cc2c4415388c44a0cbe77303e460
-    Reviewed-on: https://go-review.googlesource.com/115295
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I67bce0d356ca7d71a0f15ff98551fe2caff8abf9
+    Reviewed-on: https://go-review.googlesource.com/95535
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../github.com/google/pprof/internal/driver/cli.go |  49 +++-
- .../google/pprof/internal/driver/driver.go         |  27 ++-
- .../google/pprof/internal/driver/driver_test.go    |   9 +-
- .../google/pprof/internal/driver/fetch.go          |   3 +
- .../google/pprof/internal/driver/fetch_test.go     | 240 +++++++++++++++---
- .../pprof/internal/driver/interactive_test.go      |   8 +-
- .../google/pprof/internal/report/report.go         |  25 +-
- .../google/pprof/internal/report/report_test.go    | 118 +++++++++
- .../google/pprof/profile/legacy_profile.go         |   1 +
- .../google/pprof/profile/legacy_profile_test.go    |   2 +
- .../github.com/google/pprof/profile/profile.go     |  30 +++
- .../google/pprof/profile/profile_test.go           | 267 ++++++++++++++++++++-
- src/cmd/vendor/vendor.json                         |  72 +++---
- 13 files changed, 750 insertions(+), 101 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 74 ++++++--------------------
+ 1 file changed, 15 insertions(+), 59 deletions(-)

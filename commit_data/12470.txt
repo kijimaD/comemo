@@ -1,14 +1,14 @@
-commit 318465b52aad848cb538db54d4b03f4d7608325a
+commit 40807282acad30201ae0979db24dca01e684e694
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 11:38:05 2012 -0500
+Date:   Wed Mar 7 11:37:56 2012 -0500
 
-    make.bash: fix old builds
+    doc: delete faq question about 6g
     
-    Fixes #3222.
+    Fixes #3230.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5761044
+    https://golang.org/cl/5753071
 
- src/make.bash | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go_faq.html | 14 --------------
+ 1 file changed, 14 deletions(-)

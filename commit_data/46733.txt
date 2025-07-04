@@ -1,17 +1,31 @@
-commit 7983830423ca0017dc5d990532e28df13862dc2d
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Oct 4 16:27:56 2021 -0500
+commit 6d8d11876287c86424fd6b33cf5e459e8bfa06fa
+Merge: 9456804e86 063c72f06d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 24 17:36:59 2021 -0800
 
-    runtime: add ABIInternal to strhash and memhash on ppc64x
+    [dev.typeparams] all: merge dev.regabi (063c72f) into dev.typeparams
     
-    In testing the register ABI changes I found that the benchmarks
-    for strhash and memhash degraded unless I marked them as
-    ABIInternal. This fixes that.
+    Eager re-sync-branch to keep Git history reasonably accurate, since
+    Git lacks a better way of encoding partial merges like CL 286172.
     
-    Change-Id: I9c7a04eaa6a66b888877f43454c51277c07e638a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353832
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Conflicts:
+    
+    - src/cmd/compile/internal/inline/inl.go
+    - src/cmd/compile/internal/noder/import.go
+    - src/cmd/compile/internal/noder/noder.go
+    
+    Merge List:
+    
+    + 2021-01-25 063c72f06d [dev.regabi] cmd/compile: backport changes from dev.typeparams (9456804)
+    + 2021-01-23 d05d6fab32 [dev.regabi] cmd/compile: replace ir.Name map with ir.NameSet for SSA 2
+    + 2021-01-23 48badc5fa8 [dev.regabi] cmd/compile: fix escape analysis problem with closures
+    + 2021-01-23 51e1819a8d [dev.regabi] cmd/compile: scan body of closure in tooHairy to check for disallowed nodes
+    
+    Change-Id: I48c0435f7aaf56f4aec26518a7459e9d95a51e9c
 
- src/runtime/asm_ppc64x.s | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/escape/escape.go | 10 ++++++++++
+ src/cmd/compile/internal/inline/inl.go    | 10 ++++++++--
+ src/cmd/compile/internal/noder/import.go  |  5 +++++
+ src/cmd/compile/internal/ssa/deadstore.go |  8 ++++----
+ test/closure6.go                          | 18 ++++++++++++++++++
+ 5 files changed, 45 insertions(+), 6 deletions(-)

@@ -1,19 +1,16 @@
-commit 39e004b69eba1b56c03e488d0002eb6a75598fc5
+commit da50221e8eaa2d68bf003f3417dae2e73fdc8b2b
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Sep 6 12:01:18 2013 -0700
+Date:   Fri Sep 6 12:00:42 2013 -0700
 
-    api: update go1.1, except and next.txt with constant values
+    reflect: unexport BUCKETSIZE, MAXKEYSIZE, MAXVALSIZE
     
-    O_SYNC changes only on linux-arm (and linux-arm-cgo), but
-    changes to match O_SYNC on linux-{386,amd64} and what Linux
-    upstream now uses.  See discussion and links on
-    https://golang.org/cl/13261050/
+    But keep their case for ease of searching.
+    
+    They were added recently. We don't want them part of go1.2's API.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13575045
+    https://golang.org/cl/13569044
 
- api/except.txt |     6 +
- api/go1.1.txt  | 48653 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next.txt   |   536 +-
- 3 files changed, 49193 insertions(+), 2 deletions(-)
+ src/pkg/reflect/type.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

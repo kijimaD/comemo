@@ -1,20 +1,28 @@
-commit 3f2737f5ddea3375303b952e3d87843d7fc0f986
-Author: apocelipes <seve3r@outlook.com>
-Date:   Thu Sep 26 08:23:13 2024 +0000
+commit be0b8e84b09733ddc6f36eca489193fe974accc9
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Aug 10 11:17:25 2023 +0200
 
-    net/http: use sync.OnceFunc, sync.OnceValue
+    os: support file systems without file IDs when reading directories on windows
     
-    Use sync.OnceFunc and sync.OnceValue to simplify the code.
+    Some file systems do not support file IDs. We should not use
+    FILE_ID_BOTH_DIR_INFO when reading directories on these file systems,
+    as it will fail. Instead, we should use FILE_ID_FULL_DIR_INFO,
+    which doesn't require file ID support.
     
-    Change-Id: Ie47e0444c2b9d3260f6ef94cdc6ee8ee5bcf9f71
-    GitHub-Last-Rev: 520afbec2a392d73dfd9697035804be7c7cc8b77
-    GitHub-Pull-Request: golang/go#69634
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616037
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #61907
+    Fixes #61918
+    
+    Change-Id: I83d0a898f8eb254dffe5b8fc68a4ca4ef21c0d85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518195
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/http/client.go         | 15 ++++++---------
- src/net/http/transport_test.go | 24 +++++++++---------------
- 2 files changed, 15 insertions(+), 24 deletions(-)
+ src/internal/syscall/windows/symlink_windows.go |  2 +
+ src/internal/syscall/windows/syscall_windows.go | 15 +++++
+ src/os/dir_windows.go                           | 82 +++++++++++++++++++------
+ src/os/export_windows_test.go                   |  9 +--
+ src/os/os_windows_test.go                       | 70 +++++++++++++++++++++
+ src/os/types_windows.go                         | 31 ++++++++--
+ 6 files changed, 181 insertions(+), 28 deletions(-)

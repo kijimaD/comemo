@@ -1,16 +1,19 @@
-commit 1e4de0584ea7dce1e31bcaba5de4d81319ba6d6c
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Apr 10 15:40:00 2024 -0400
+commit 3a872a2262de47cb921e3ae3da6e4487ba652129
+Author: nilsocket <nilsocket@gmail.com>
+Date:   Sun Apr 16 14:51:22 2023 +0530
 
-    cmd/compile: describe export data
+    slog: fix grammatical mistakes in docs
     
-    Updates #30074
-    
-    Change-Id: Ic74d482943d992c20f69edb106c666a7b26291c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578055
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I183dda71fcec04fc1e622c66f719bd745d8b4eea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484975
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/compile/README.md | 49 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 49 insertions(+)
+ src/log/slog/doc.go     | 4 ++--
+ src/log/slog/handler.go | 3 +--
+ 2 files changed, 3 insertions(+), 4 deletions(-)

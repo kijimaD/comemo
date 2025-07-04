@@ -1,21 +1,22 @@
-commit bce1f12225b9a2a3d8e59f3b1f1776e5baec9edf
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Thu Jun 21 20:43:10 2018 +0300
+commit 03f546eb60bb8da02ef86264f43d9555e96fcb0b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 17 14:54:42 2018 -0700
 
-    cmd/compile/internal/ssa: use math/bits in countRegs and pickReg
+    cmd/compile/internal/types: add Pkg and SetPkg methods to Type
     
-    Makes code simpler and faster (at least on x86).
+    The go/types API exposes what package objects were declared in, which
+    includes struct fields, interface methods, and function parameters.
     
-            name               old time/op  new time/op  delta
-            CountRegs-8        7.40ns ± 1%  0.59ns ± 0%  -92.02%  (p=0.000 n=9+9)
-            PickReg/(1<<0)-8   2.07ns ± 0%  0.37ns ± 0%  -82.13%  (p=0.000 n=9+10)
-            PickReg/(1<<16)-8  11.8ns ± 0%   0.4ns ± 0%  -96.86%  (p=0.002 n=8+10)
+    The compiler implicitly tracks these for non-exported identifiers
+    (through the Sym's associated Pkg), but exported identifiers always
+    use localpkg. To simplify identifying this, add an explicit package
+    field to struct, interface, and function types.
     
-    Change-Id: Ic780b615b75c25b6e7632a0de93b16a8e9ed0f8f
-    Reviewed-on: https://go-review.googlesource.com/120318
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6adc5dc653e78f058714259845fb3077066eec82
+    Reviewed-on: https://go-review.googlesource.com/107622
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 17 ++++-------------
- 1 file changed, 4 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/types/sizeof_test.go |  6 ++---
+ src/cmd/compile/internal/types/type.go        | 39 ++++++++++++++++++++++++++-
+ 2 files changed, 41 insertions(+), 4 deletions(-)

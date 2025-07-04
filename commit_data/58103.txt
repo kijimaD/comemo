@@ -1,19 +1,21 @@
-commit fa52db6a3ff9852dc25368d468d9eda2331e7a7d
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Nov 19 11:28:49 2024 -0600
+commit 765dfb00b2c5085e601158e0867803006ef59791
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 2 15:42:15 2023 +0000
 
-    crypto/internal/fips/aes/gcm: fix PPC64 gcm debug option logic
+    runtime: delete hugepage tracking dead code
     
-    AES-GCM is always supported, unless the debug option explicitly
-    turns it off.
+    After the previous CL, this is now all dead code. This change is
+    separated out to make the previous one easy to backport.
     
-    Change-Id: Iac17fd8429307d48daa601249a2505bcd1b1f892
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629695
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Archana Ravindar <aravinda@redhat.com>
+    For #63334.
+    Related to #61718 and #59960.
+    
+    Change-Id: I109673ed97c62c472bbe2717dfeeb5aa4fc883ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532117
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/export_test.go |  4 ----
+ src/runtime/mgcscavenge.go | 54 +++++-----------------------------------------
+ 2 files changed, 5 insertions(+), 53 deletions(-)

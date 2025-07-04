@@ -1,25 +1,24 @@
-commit 4354ffd38b7ebdf7b4ee9ff614939ed77f872acd
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Aug 29 16:26:57 2016 -0400
+commit 0b6e5e3d733c1da53244753b42940eddb7401c6c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun May 8 01:27:45 2016 +1000
 
-    cmd/compile: intrinsify Ctz, Bswap, and some atomics on ARM64
+    cmd/link: specify correct size for dynamic symbols in 386 elf output
     
-    Change-Id: Ia5bf72b70e6f6522d6fb8cd050e78f862d37b5ae
-    Reviewed-on: https://go-review.googlesource.com/27936
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Currently 386 ELF binaries are generated with dynamic symbols that have
+    a size of zero bytes, even though the symbol in the symbol table has
+    the correct size. Fix this by specifying the correct size when creating
+    dynamic symbols.
+    
+    Issue found on OpenBSD -current, where ld.so is now producing link
+    warnings due to mismatched symbol sizes.
+    
+    Fixes #15593.
+    
+    Change-Id: Ib1a12b23ff9159c61ac980bf48a983b86f3df256
+    Reviewed-on: https://go-review.googlesource.com/22912
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/arm64/prog.go       |  30 ++-
- src/cmd/compile/internal/arm64/ssa.go        | 144 ++++++++++++-
- src/cmd/compile/internal/gc/ssa.go           |  84 ++++----
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  25 +++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  68 +++++--
- src/cmd/compile/internal/ssa/gen/main.go     |   4 +
- src/cmd/compile/internal/ssa/op.go           |   3 +-
- src/cmd/compile/internal/ssa/opGen.go        | 202 ++++++++++++++++++
- src/cmd/compile/internal/ssa/regalloc.go     |  12 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 292 +++++++++++++++++++++++++++
- src/cmd/internal/obj/arm64/obj7.go           |   6 +-
- test/intrinsic.go                            |   2 +-
- 12 files changed, 801 insertions(+), 71 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

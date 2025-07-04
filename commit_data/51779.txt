@@ -1,20 +1,18 @@
-commit cea70301e2283986aadf2e4e621a3b5b2a790254
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Jan 2 15:54:44 2023 +0100
+commit 471d319fb2497aa7239943eb1a6d5cfbad503a2a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 15:28:10 2022 -0500
 
-    runtime: use explicit NOFRAME on darwin/amd64
+    debug/buildinfo: use testenv.GoToolPath in tests instead of resolving "go" from $PATH
     
-    This CL marks some darwin assembly functions as NOFRAME to avoid relying
-    on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
-    without stack were also marked as NOFRAME.
+    Updates #37475.
     
-    Change-Id: I797f3909bcf7f7aad304e4ede820c884231e54f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460235
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I8c3237438da3e9521ce3be26a0b5d5ca36944b17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391803
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/internal/obj/x86/obj6.go |   4 +-
- src/runtime/sys_darwin_amd64.s   | 171 +++------------------------------------
- 2 files changed, 15 insertions(+), 160 deletions(-)
+ src/debug/buildinfo/buildinfo_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

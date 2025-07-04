@@ -1,20 +1,20 @@
-commit 1f6fba2d5648edb757644431b87f93c8481f36c1
+commit 6c740e769f11ab4a7e4300a2011fe86109bd32ae
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 5 08:48:23 2012 -0700
+Date:   Thu Oct 4 20:53:43 2012 -0700
 
-    go/printer: don't forget the .0 in 1.0
+    go/parser: unify parsing of const and var declarations
     
-    (use floating-point rather then integer constant division)
+    The AST representation is already identical. Making the
+    code (nearly) identical in the parser reduces code size
+    and ensures that the ast.ValueSpec nodes have the same
+    values (specifically, iota). This in turn permits the
+    sharing of much of the respective code in the typechecker.
     
-    gofmt -w src misc
+    While at it: type functions work now, so use them.
     
-    Fixes #3965.
-    
-    R=r, bsiegert, 0xjnml
-    CC=bradfitz, golang-dev
-    https://golang.org/cl/6610051
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6624047
 
- src/pkg/go/printer/nodes.go                     |  2 +-
- src/pkg/go/printer/testdata/declarations.golden | 29 +++++++++++++++++++++++++
- src/pkg/go/printer/testdata/declarations.input  | 29 +++++++++++++++++++++++++
- 3 files changed, 59 insertions(+), 1 deletion(-)
+ src/pkg/go/parser/parser.go | 57 ++++++++++-----------------------------------
+ 1 file changed, 12 insertions(+), 45 deletions(-)

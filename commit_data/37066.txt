@@ -1,29 +1,41 @@
-commit 3b091bf6cceca868e2063a2c8b3cec90411ea18e
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Oct 22 20:22:55 2018 +0200
+commit 6fdbed0543cf8f4e21ab45938f5b04028877e861
+Author: Nikhil Benesch <nikhil.benesch@gmail.com>
+Date:   Sat Jun 23 01:15:19 2018 -0400
 
-    runtime: use multiplication with overflow check for growslice
+    runtime: respect timeout in semasleep on Darwin
     
-    This improves performance for slices with an element size larger
-    than 32 bytes and removes loading a value from the maxElems
-    array for smaller element sizes.
+    semasleep on Darwin was refactored in https://golang.org/cl/118736 to
+    use the pthread_cond_timedwait function from libc. The new code
+    incorrectly assumed that pthread_cond_timedwait took a timeout relative
+    to the current time, when it in fact it takes a timeout specified in
+    absolute time. semasleep thus specified a timeout well in the past,
+    causing it to immediately exceed the timeout and spin hot. This was the
+    source of a large performance hit to CockroachDB (#26019).
     
-    name                 old time/op  new time/op  delta
-    GrowSlice/Byte       41.4ns ± 2%  41.5ns ± 1%    ~     (p=0.366 n=10+9)
-    GrowSlice/Int16      51.1ns ± 2%  51.0ns ± 2%    ~     (p=0.985 n=10+10)
-    GrowSlice/Int        64.0ns ± 1%  64.2ns ± 1%    ~     (p=0.180 n=10+10)
-    GrowSlice/Ptr        90.8ns ± 1%  90.7ns ± 1%    ~     (p=0.858 n=9+10)
-    GrowSlice/Struct/24   108ns ± 0%   108ns ± 2%    ~     (p=0.488 n=8+9)
-    GrowSlice/Struct/32   118ns ± 2%   117ns ± 2%    ~     (p=0.327 n=10+10)
-    GrowSlice/Struct/40   159ns ± 1%   148ns ± 1%  -6.87%  (p=0.000 n=10+9)
+    Adjust semasleep to instead call pthread_cond_timedwait_relative_np,
+    which properly interprets its timeout parameter as relative to the
+    current time.
     
-    Updates #21588
+    pthread_cond_timedwait_relative_np is non-portable, but using
+    pthread_cond_timedwait correctly would require two calls to
+    gettimeofday: one in the runtime package to convert the relative timeout
+    to absolute time, then another in the pthread library to convert back to
+    a relative offset [0], as the Darwin kernel expects a relative offset.
     
-    Change-Id: I443b82972d379b1befa791f9ee468b3adc6bb760
-    Reviewed-on: https://go-review.googlesource.com/c/143798
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    [0]: https://opensource.apple.com/source/libpthread/libpthread-301.30.1/src/pthread_cond.c.auto.html
+    
+    Fix #26019.
+    
+    Change-Id: I1a8c2429f79513b43d2b256365cd9166d235af8b
+    Reviewed-on: https://go-review.googlesource.com/120635
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/slice.go | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
+ src/runtime/os_darwin.go       | 2 +-
+ src/runtime/sys_darwin.go      | 8 ++++----
+ src/runtime/sys_darwin_386.s   | 4 ++--
+ src/runtime/sys_darwin_amd64.s | 4 ++--
+ src/runtime/sys_darwin_arm.s   | 4 ++--
+ src/runtime/sys_darwin_arm64.s | 4 ++--
+ 6 files changed, 13 insertions(+), 13 deletions(-)

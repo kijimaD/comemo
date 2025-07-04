@@ -1,19 +1,18 @@
-commit 2f7b57e9d82c1d8d0bc15bd35b1acf084e1367d3
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Thu Sep 21 12:56:30 2017 +0900
+commit 6db87c4faaafebb6cecbb3c02bff67aafdc5d971
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 1 17:49:55 2017 -0700
 
-    cmd/nm: accept macho files which don't have symbol table in the archive
+    cmd/go: remove TestCoverageUsesActualSettingToOverrideEvenForRace
     
-    After https://golang.org/cl/64793, we started to include Mach-O object
-    files which don't have symbol table into cgo archive.
-    However, toolchains didn't handle those files yet.
+    The test no longer passes as of https://golang.org/cl/43777, which
+    intentionally disables the feature that this test was checking for.
+    Nobody noticed since the test is not run in -short mode.
     
-    Fixes #21959
+    Updates #20435.
     
-    Change-Id: Ibb2f6492f1fa59368f2dfd4cff19783997539875
-    Reviewed-on: https://go-review.googlesource.com/65170
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I64f37fd94c01f22ead88470b6d9bfe8a151ddb1c
+    Reviewed-on: https://go-review.googlesource.com/44650
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/cmd/internal/objfile/macho.go |  2 +-
- src/cmd/nm/nm.go                  | 10 +++++++++-
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 23 -----------------------
+ 1 file changed, 23 deletions(-)

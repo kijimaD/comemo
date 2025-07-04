@@ -1,14 +1,30 @@
-commit 47410a2490f4d16f44d4724e34588a2a0de0e8f1
-Author: Quan Yong Zhai <qyzhai@gmail.com>
-Date:   Sat Jul 23 15:46:58 2011 -0400
+commit ba134539c58d8b157a9d5646de91dbd0616b33c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jul 23 12:22:55 2011 -0400
 
-    runtime: replace byte-at-a-time zeroing loop with memclr
+    runtime: faster entersyscall/exitsyscall
     
-    R=golang-dev, r, r, dsymonds, rsc
+    Replace cas with xadd in scheduler.
+    Suggested by Dmitriy in last code review.
+    Verified with Promela model.
+    
+    When there's actual contention for the atomic word,
+    this avoids the looping that compare-and-swap requires.
+    
+    benchmark                            old ns/op    new ns/op    delta
+    runtime_test.BenchmarkSyscall               32           26  -17.08%
+    runtime_test.BenchmarkSyscall-2            155           59  -61.81%
+    runtime_test.BenchmarkSyscall-3            112           52  -52.95%
+    runtime_test.BenchmarkSyscall-4             94           48  -48.57%
+    runtime_test.BenchmarkSyscallWork          871          872   +0.11%
+    runtime_test.BenchmarkSyscallWork-2        481          477   -0.83%
+    runtime_test.BenchmarkSyscallWork-3        338          335   -0.89%
+    runtime_test.BenchmarkSyscallWork-4        263          256   -2.66%
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/4813043
+    https://golang.org/cl/4800047
 
- src/pkg/runtime/386/asm.s   |  6 +++++-
- src/pkg/runtime/amd64/asm.s |  6 +++++-
- src/pkg/runtime/runtime.c   | 13 +++----------
- 3 files changed, 13 insertions(+), 12 deletions(-)
+ src/pkg/runtime/proc.c | 57 ++++++++++++++------------------------------------
+ src/pkg/runtime/proc.p | 42 +++++++++++++++++++++++++++----------
+ 2 files changed, 47 insertions(+), 52 deletions(-)

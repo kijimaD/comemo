@@ -1,16 +1,25 @@
-commit 287967f74c9d937b1075a648be5fd9247283cef6
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 21 13:59:30 2014 +1100
+commit 0285d2b96b4b4d96281a23b9f938aed4de9146c3
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Mar 20 22:22:37 2014 +0100
 
-    doc/go_faq.html: update description of stack management
-    They aren't segmented any more, at least with gc.
-    Also improve the comparison of goroutines and threads.
-    Fixes #7373.
+    cmd/6g, cmd/8g: skip CONVNOP nodes in bgen.
     
-    LGTM=iant
-    R=iant
+    Revision 3ae4607a43ff introduced CONVNOP layers
+    to fix type checking issues arising from comparisons.
+    The added complexity made 8g run out of registers
+    when compiling an equality function in go.net/ipv6.
+    
+    A similar issue occurred in test/sizeof.go on
+    amd64p32 with 6g.
+    
+    Fixes #7405.
+    
+    LGTM=khr
+    R=rsc, dave, iant, khr
     CC=golang-codereviews
-    https://golang.org/cl/77950044
+    https://golang.org/cl/78100044
 
- doc/go_faq.html | 23 +++++++++++++----------
- 1 file changed, 13 insertions(+), 10 deletions(-)
+ src/cmd/6g/cgen.c           |  6 ++++++
+ src/cmd/8g/cgen.c           |  7 +++++++
+ test/fixedbugs/issue7405.go | 51 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 64 insertions(+)

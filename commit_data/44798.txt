@@ -1,15 +1,19 @@
-commit 179bcd787e4a5c4cfe475fd6fd33a41d77751113
+commit ba0fab3cb731fe9a383bd61c3480cccfe32bb1f4
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 24 13:18:13 2021 -0700
+Date:   Sat Aug 29 14:11:18 2020 -0700
 
-    test: only run bug513.go if cgo is enabled
+    debug/elf: run relocation tests in parallel
     
-    Change-Id: I868eeb79edaba9e3afc1407ae18b89daf7e67037
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304570
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Also don't restart DWARF reading from beginning when we are testing
+    multiple entries.
+    
+    Also reformat relocationTests slice to use indexed literals.
+    
+    Change-Id: Ia5f17214483394d0ef033be516df61f0bdc521b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251637
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- test/fixedbugs/bug513.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/debug/elf/file_test.go | 550 ++++++++++++++++++++++++---------------------
+ 1 file changed, 296 insertions(+), 254 deletions(-)

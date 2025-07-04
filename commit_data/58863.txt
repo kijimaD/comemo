@@ -1,90 +1,18 @@
-commit 6719336428da455c0708c7f1564c873d6f6e2c6d
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Tue Feb 18 13:17:16 2025 +0200
+commit 10a66d681672a8600705a7540e3b0477d4c43c4a
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Thu Sep 28 07:08:51 2023 +0900
 
-    crypto/internal/fips140/edwards25519/field: optimize *19
+    sync: use map[any]any instead of map[interface{}]interface{} in the godoc
     
-    Using a `x*19 == x + (x + x<<3)<<1` gives a significant performance
-    improvement for arm devices that have a slow multiply.
-    Surprisingly it also seems to help Mac M1 and AMD64+purgo a bit.
+    It's shorter and clearer.
     
-    goos: linux
-    goarch: arm64
-    pkg: crypto/internal/fips140/edwards25519
-                                  │     OLD     │                NEW                 │
-                                  │   sec/op    │   sec/op     vs base               │
-    EncodingDecoding-4              166.3µ ± 0%   158.7µ ± 0%  -4.57% (p=0.000 n=10)
-    ScalarBaseMult-4                286.0µ ± 0%   281.2µ ± 0%  -1.70% (p=0.000 n=10)
-    ScalarMult-4                    1.042m ± 0%   1.009m ± 0%  -3.22% (p=0.000 n=10)
-    VarTimeDoubleScalarBaseMult-4   1.042m ± 0%   1.003m ± 0%  -3.66% (p=0.000 n=10)
-    geomean                         476.7µ        461.0µ       -3.29%
-    
-    pkg: crypto/internal/fips140/edwards25519/field
-               │     OLD     │                NEW                 │
-               │   sec/op    │   sec/op     vs base               │
-    Add-4        45.24n ± 0%   45.22n ± 0%       ~ (p=0.166 n=10)
-    Multiply-4   447.5n ± 0%   454.0n ± 0%  +1.46% (p=0.000 n=10)
-    Square-4     289.7n ± 0%   278.2n ± 0%  -3.99% (p=0.000 n=10)
-    Invert-4     79.45µ ± 0%   75.83µ ± 0%  -4.55% (p=0.000 n=10)
-    Mult32-4     78.67n ± 0%   78.66n ± 0%       ~ (p=0.272 n=10)
-    Bytes-4      120.5n ± 0%   120.6n ± 0%       ~ (p=0.390 n=10)
-    geomean      405.0n        400.2n       -1.20%
-    
-    goos: darwin
-    goarch: arm64
-    pkg: crypto/internal/fips140/edwards25519
-    cpu: Apple M1 Pro
-                                   │     OLD     │                NEW                 │
-                                   │   sec/op    │   sec/op     vs base               │
-    EncodingDecoding-10              10.04µ ± 0%   10.10µ ± 0%  +0.54% (p=0.000 n=10)
-    ScalarBaseMult-10                12.72µ ± 0%   12.65µ ± 0%  -0.50% (p=0.000 n=10)
-    ScalarMult-10                    51.82µ ± 0%   51.49µ ± 0%  -0.63% (p=0.000 n=10)
-    VarTimeDoubleScalarBaseMult-10   50.63µ ± 2%   49.41µ ± 0%  -2.41% (p=0.001 n=10)
-    geomean                          24.06µ        23.88µ       -0.75%
-    
-    pkg: crypto/internal/fips140/edwards25519/field
-                │     OLD     │                NEW                 │
-                │   sec/op    │   sec/op     vs base               │
-    Add-10        6.327n ± 2%   6.009n ± 1%  -5.03% (p=0.000 n=10)
-    Multiply-10   19.12n ± 0%   19.59n ± 0%  +2.48% (p=0.000 n=10)
-    Square-10     17.88n ± 0%   18.14n ± 0%  +1.40% (p=0.000 n=10)
-    Invert-10     4.816µ ± 0%   4.854µ ± 0%  +0.78% (p=0.000 n=10)
-    Mult32-10     6.188n ± 0%   6.151n ± 0%  -0.61% (p=0.001 n=10)
-    Bytes-10      7.460n ± 0%   7.463n ± 1%       ~ (p=0.795 n=10)
-    geomean       27.99n        27.94n       -0.19%
-    
-    tags: purego
-    goos: windows
-    goarch: amd64
-    pkg: crypto/internal/fips140/edwards25519
-    cpu: AMD Ryzen Threadripper 2950X 16-Core Processor
-                                   │     OLD     │                NEW                 │
-                                   │   sec/op    │   sec/op     vs base               │
-    EncodingDecoding-32              13.61µ ± 1%   12.86µ ± 0%  -5.54% (p=0.000 n=10)
-    ScalarBaseMult-32                22.88µ ± 2%   21.28µ ± 1%  -6.98% (p=0.000 n=10)
-    ScalarMult-32                    79.29µ ± 3%   74.83µ ± 1%  -5.63% (p=0.000 n=10)
-    VarTimeDoubleScalarBaseMult-32   77.91µ ± 2%   73.85µ ± 0%  -5.22% (p=0.000 n=10)
-    geomean                          37.24µ        35.06µ       -5.85%
-    
-    pkg: crypto/internal/fips140/edwards25519/field
-                │     OLD     │                NEW                 │
-                │   sec/op    │   sec/op     vs base               │
-    Add-32        5.723n ± 2%   5.700n ± 1%       ~ (p=0.218 n=10)
-    Multiply-32   30.63n ± 1%   29.24n ± 2%  -4.52% (p=0.000 n=10)
-    Square-32     24.30n ± 1%   23.06n ± 1%  -5.10% (p=0.000 n=10)
-    Invert-32     6.368µ ± 1%   5.952µ ± 2%  -6.53% (p=0.000 n=10)
-    Mult32-32     5.303n ± 2%   5.240n ± 1%  -1.17% (p=0.041 n=10)
-    Bytes-32      12.47n ± 1%   12.39n ± 1%       ~ (p=0.137 n=10)
-    geomean       34.86n        33.78n       -3.10%
-    
-    Change-Id: I889b322bf49293516574d3e9514734a49cca1f86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650277
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ibfbe5a7f8d70fa884691ba9858a2c9b2122d9c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531475
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
 
- .../fips140/edwards25519/field/fe_generic.go       | 134 +++++++++++----------
- .../internal/fips140/edwards25519/field/fe_test.go |  14 +--
- 2 files changed, 76 insertions(+), 72 deletions(-)
+ src/sync/map.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

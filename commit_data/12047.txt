@@ -1,18 +1,13 @@
-commit efacb2a1b48df1a389289c045754ddb30f1a4038
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Feb 18 21:18:13 2012 -0800
+commit 83feedf7bf7147021761fd8b5a2a157095fcabc9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 00:12:31 2012 -0500
 
-    os: remove Getenverror
+    gc: fix error for floating-point constant %
     
-    Fixes #3065
-    
-    R=golang-dev, dsymonds, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5675094
+    https://golang.org/cl/5674108
 
- doc/go1.html                   |  7 +++++++
- doc/go1.tmpl                   |  7 +++++++
- misc/dashboard/builder/main.go | 20 ++++++++++++++++----
- src/pkg/os/env.go              | 23 ++---------------------
- test/env.go                    | 12 ++++--------
- 5 files changed, 36 insertions(+), 33 deletions(-)
+ src/cmd/gc/const.c |  8 ++++++++
+ test/const1.go     | 55 +++++++++++++++++++++++++++---------------------------
+ 2 files changed, 36 insertions(+), 27 deletions(-)

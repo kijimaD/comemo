@@ -1,16 +1,32 @@
-commit 7580937524965d6b4acd39d36f8447b1919e1816
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Apr 11 10:32:21 2020 -0700
+commit c9d89f6bacd66d4765cf36d2a4b121392921c5ed
+Author: Lorenz Bauer <lmb@cloudflare.com>
+Date:   Fri Nov 1 10:39:35 2019 +0000
 
-    cmd/compile: move more generic rewrites to the typed version
+    encoding/binary: cache struct sizes to speed up Read and Write
     
-    Change-Id: I22d0644710d12c7efc509fd2a15789e2e073e6a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227869
-    Run-TryBot: Keith Randall <khr@golang.org>
+    A majority of work is spent in dataSize when en/decoding the same
+    struct over and over again. This wastes a lot of work, since
+    the result doesn't change for a given reflect.Value.
+    
+    Cache the result of the function for structs, so that subsequent
+    calls to dataSize can avoid doing work.
+    
+        name         old time/op    new time/op     delta
+        ReadStruct     1.00µs ± 1%     0.37µs ± 1%   -62.99%  (p=0.029 n=4+4)
+        WriteStruct    1.00µs ± 3%     0.37µs ± 1%   -62.69%  (p=0.008 n=5+5)
+    
+        name         old speed      new speed       delta
+        ReadStruct   75.1MB/s ± 1%  202.9MB/s ± 1%  +170.16%  (p=0.029 n=4+4)
+        WriteStruct  74.8MB/s ± 3%  200.4MB/s ± 1%  +167.96%  (p=0.008 n=5+5)
+    
+    Fixes #34471
+    
+    Change-Id: Ic5d987ca95f1197415ef93643a0af6fc1224fdf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199539
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 166 +++---
- src/cmd/compile/internal/ssa/rewrite.go        |  27 +
- src/cmd/compile/internal/ssa/rewritegeneric.go | 680 ++++++++++++++-----------
- 3 files changed, 488 insertions(+), 385 deletions(-)
+ src/encoding/binary/binary.go      | 19 ++++++++++--
+ src/encoding/binary/binary_test.go | 62 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 2 deletions(-)

@@ -1,16 +1,37 @@
-commit d3595f71712ce1b322f754ef985005e87fac6d44
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 17 09:05:02 2019 +0200
+commit 1e3cdd1edce67350f8007e4a9b9b555f1e27c5b4
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Mar 11 18:53:08 2019 -0400
 
-    syscall: skip TestAmbientCapsUserns if user namespaces are not supported
+    cmd/go: print require chains in build list errors
     
-    Fixes #34015
+    mvs.BuildList and functions that invoke it directly (UpgradeAll) now
+    return an *mvs.BuildListError when there is an error retrieving the
+    requirements for a module. This new error prints the chain of
+    requirements from the main module to the module where the error
+    occurred.
     
-    Change-Id: I29798fb9c72b6f4bee8aecea96ab13b4cba2e80d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195738
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    These errors come up most commonly when a go.mod file has an
+    unexpected module path or can't be parsed for some other reason. It's
+    currently difficult to debug these errors because it's not clear where
+    the "bad" module is required from. Tools like "go list -m" and
+    "go mod why" don't work without the build graph.
+    
+    Fixes #30661
+    
+    Change-Id: I3c9d4683dcd9a5d7c259e5e4cc7e1ee209700b10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166984
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/syscall/exec_linux_test.go | 23 ++++++++++++++---------
- 1 file changed, 14 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/modload/load.go                |  23 +---
+ src/cmd/go/internal/mvs/mvs.go                     | 122 ++++++++++++++++-----
+ src/cmd/go/internal/mvs/mvs_test.go                |   5 +-
+ .../testdata/mod/example.com_badchain_a_v1.0.0.txt |  12 ++
+ .../testdata/mod/example.com_badchain_a_v1.1.0.txt |  12 ++
+ .../testdata/mod/example.com_badchain_b_v1.0.0.txt |  12 ++
+ .../testdata/mod/example.com_badchain_b_v1.1.0.txt |  12 ++
+ .../testdata/mod/example.com_badchain_c_v1.0.0.txt |   8 ++
+ .../testdata/mod/example.com_badchain_c_v1.1.0.txt |   8 ++
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |  41 +++++++
+ 10 files changed, 209 insertions(+), 46 deletions(-)

@@ -1,14 +1,19 @@
-commit 980b00f55be8e86a4d6ae5639ebc7d566a04421e
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Wed Sep 23 14:05:16 2015 -0400
+commit 5cb352edeba36e862995dd82fe7312368e6e8571
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Sep 1 21:25:24 2015 -0500
 
-    runtime: added go files for mips64 architecture support
+    [dev.ssa] cmd/compile: fix liblink rewrite of -0.0
     
-    Change-Id: Ia496470e48b3c5d39fb9fef99fac356dfb73a949
-    Reviewed-on: https://go-review.googlesource.com/14927
-    Reviewed-by: Minux Ma <minux@golang.org>
+    liblink was rewriting xor by a negative zero (used by SSA
+    for negation) as XORPS reg,reg.
+    
+    Fixes strconv.
+    
+    Change-Id: I627a0a7366618e6b07ba8f0ad0db0e102340c5e3
+    Reviewed-on: https://go-review.googlesource.com/14200
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/arch_mips64.go   | 19 +++++++++++++++++++
- src/runtime/arch_mips64le.go | 19 +++++++++++++++++++
- src/runtime/sys_mips64x.go   | 43 +++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 81 insertions(+)
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go | 14 ++++++++++++++
+ src/cmd/internal/obj/x86/obj6.go               |  6 ++++--
+ 2 files changed, 18 insertions(+), 2 deletions(-)

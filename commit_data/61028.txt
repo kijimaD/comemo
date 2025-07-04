@@ -1,0 +1,32 @@
+commit 1e5a72e980d481dbe1c605aab870275d6ab4e81d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 19 14:55:36 2024 -0700
+
+    go/types, types2: introduce typeset iterators
+    
+    Preparation for removing the existing non-standard iterators
+    (is, underIs). Note that we cannot use typeset iterators in
+    range-over-func because the bootstrap compiler doesn't have
+    access to it yet.
+    
+    While at it, move underIs from expr.go to under.go
+    and adjust some doc strings in typset.go to match
+    prevailing style in that file.
+    
+    Change-Id: Iecd014eeb5b3fca56a807381c148c5f7a29bfb78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614239
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Commit-Queue: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go      | 10 ---------
+ src/cmd/compile/internal/types2/typeparam.go |  8 +++++++
+ src/cmd/compile/internal/types2/typeset.go   | 33 +++++++++++++++++++++++-----
+ src/cmd/compile/internal/types2/under.go     | 24 ++++++++++++++++++++
+ src/go/types/expr.go                         | 10 ---------
+ src/go/types/typeparam.go                    |  8 +++++++
+ src/go/types/typeset.go                      | 33 +++++++++++++++++++++++-----
+ src/go/types/under.go                        | 24 ++++++++++++++++++++
+ 8 files changed, 120 insertions(+), 30 deletions(-)

@@ -1,15 +1,18 @@
-commit 3b7e376df87fa5255c7aa58d5719593b314338fd
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Nov 5 15:34:20 2021 -0700
+commit 68f3344fe95dde95685b0d7fbbf74d13f3e9ee04
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Mar 2 06:05:00 2021 +0000
 
-    net/netip: add tests for Addr.AsSlice
+    cmd/compile: remove 8-byte alignment requirement of stack slot on ppc64
     
-    Change-Id: Ib88dd101b3bbdf4d2bfd79838994cfadef1b604d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361915
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This CL applies CL 267999 to ppc64.
+    
+    Fixes #42385
+    
+    Change-Id: I6462d647d1abdf7cec99607c40ef4d1fed1941e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297770
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
 
- src/net/netip/netip_test.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/compile/internal/ssagen/pgen.go | 4 ----
+ 1 file changed, 4 deletions(-)

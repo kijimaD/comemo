@@ -1,17 +1,14 @@
-commit c6e84263865fa418b4d4a60f077d02c10a0fff23
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Sun Jan 5 20:16:26 2020 -0600
+commit 87113f7eadf6d8b12279709f05c0359b54b194ea
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Aug 30 10:49:10 2019 +0200
 
-    all: fix typo in RuneSelf, runeSelf comments
+    syscall: fix coredump bit for aix/ppc64
     
-    Fixes #36396
-    
-    Change-Id: I52190f450fa9ac52fbf4ecdc814e954dc29029cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213377
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I92173c3b5f842b829aac7c4d7abbe8b5113e530a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191787
+    Run-TryBot: Clément Chigot <clement.chigot@atos.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/utf8.go      | 2 +-
- src/unicode/utf8/utf8.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/syscall/syscall_aix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

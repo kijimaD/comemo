@@ -1,14 +1,22 @@
-commit 93195e1f314a0c3595e4d0c477f6b0dbcc96f944
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 19 10:11:24 2012 -0700
+commit 674bbafce6a52ef843eb130200d2946c92d9934d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Sep 20 00:27:23 2012 +0800
 
-    encoding/gob: fix comment
+    misc/cgo/stdio: make it work on Windows and also test it
+    use a function to get stdout and stderr, instead of depending
+    on a specific libc implementation.
+    also make test/run.go replace \r\n by \n before comparing
+    output.
     
-    Fixes #4100.
+            Fixes #2121.
+            Part of issue 1741.
     
-    R=adg, r, dave
+    R=alex.brainman, rsc, r, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6535055
+    https://golang.org/cl/5847068
 
- src/pkg/encoding/gob/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/stdio/stdio.go        | 15 +++++++++++----
+ misc/cgo/stdio/stdio_netbsd.go | 16 ----------------
+ src/run.bat                    |  9 ++++-----
+ test/run.go                    |  2 +-
+ 4 files changed, 16 insertions(+), 26 deletions(-)

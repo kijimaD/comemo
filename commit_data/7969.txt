@@ -1,15 +1,18 @@
-commit 06ee80d6ebfc9ec2229d1e10f4d1a2951fb2600f
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Mon Apr 4 15:57:10 2011 -0400
+commit 5fd0a749874a2784dbef57d4ec9c07429bcc0896
+Author: Matt Jones <mrjones@google.com>
+Date:   Mon Apr 4 15:49:49 2011 -0400
 
-    bufio: Write and WriteString cleanup
+    http: use upper case hex in URL escaping
     
-    Write never writes less than the buffer size and WriteString takes advantage
-    of the copy built-in to improve write efficiency.
+    According to RFC 3986: "For consistency, URI producers
+    and normalizers should use uppercase hexadecimal digits
+    for all percent-encodings."  Using lower case characters
+    makes it incompatible with Google APIs when signing OAuth requests.
     
-    R=rsc, ality, rog
+    R=golang-dev, rsc1, rsc
     CC=golang-dev
-    https://golang.org/cl/4344060
+    https://golang.org/cl/4352044
 
- src/pkg/bufio/bufio.go | 68 ++++++++++++++++++++------------------------------
- 1 file changed, 27 insertions(+), 41 deletions(-)
+ src/pkg/http/url.go      | 4 ++--
+ src/pkg/http/url_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

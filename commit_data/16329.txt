@@ -1,14 +1,12 @@
-commit af1dd56d1bcb842a10adaa071cca3ad5bb687a38
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat May 18 02:55:44 2013 +0800
+commit fad27ec5d4fa7aa271aab205a200adfcc28c3495
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 17 17:26:44 2013 +1000
 
-    misc/cgo/test: deflake TestParallelSleep once more
-    Fixes #5480.
+    os: clarify windows read console code
     
-    R=golang-dev, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9475043
+    https://golang.org/cl/9458043
 
- misc/cgo/test/callback_c.c | 26 +++++++++++++++++--
- misc/cgo/test/issue1560.go | 63 ++++++++++++++--------------------------------
- 2 files changed, 43 insertions(+), 46 deletions(-)
+ src/pkg/os/file_windows.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

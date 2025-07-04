@@ -1,68 +1,33 @@
-commit abefcac10a635c5c6afdeada810f4663e6cb6f17
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 1 11:58:33 2019 -0700
+commit ef7ce57ac2da02aeceada27761c282e0718c6e14
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 31 15:04:04 2018 -0400
 
-    cmd/compile: skip escape analysis diagnostics for OADDR
+    internal/bytealg, runtime: provide linknames for pushed symbols
     
-    For most nodes (e.g., OPTRLIT, OMAKESLICE, OCONVIFACE), escape
-    analysis prints "escapes to heap" or "does not escape" to indicate
-    whether that node's allocation can be heap or stack allocated.
+    The internal/bytealg package defines several symbols in the runtime,
+    bytes, and strings packages in assembly, and the runtime package
+    defines symbols in reflect and sync/atomic. Currently, there's no
+    corresponding Go prototype for these symbols in the defining package.
     
-    These messages are also emitted for OADDR, even though OADDR does not
-    actually allocate anything itself. Moreover, it's redundant because
-    escape analysis already prints "moved to heap" diagnostics when an
-    OADDR node like "&x" causes x to require heap allocation.
+    We're going to start depending on Go prototypes in the same package as
+    their assembly definitions in order to provide ABI wrappers. Plus,
+    these are good documentation and colocate type information with
+    definitions, which could be useful for vet if it learned a little
+    about linkname.
     
-    Because OADDR nodes don't allocate memory, my escape analysis rewrite
-    doesn't naturally emit the "escapes to heap" / "does not escape"
-    diagnostics for them. It's also non-trivial to replicate the exact
-    semantics esc.go uses for OADDR.
+    This CL adds linknamed Go prototypes for all pushed symbols in
+    internal/bytealg and runtime.
     
-    Since there are so many of these messages, I'm disabling them in this
-    CL by themselves. I modified esc.go to suppress the Warnl calls
-    without any other behavior changes, and then used a shell script to
-    automatically remove any ERROR messages mentioned by run.go in
-    "missing error" or "no match for" lines.
+    For #27539.
     
-    Fixes #16300.
-    Updates #23109.
-    
-    Change-Id: I3993e2743c3ff83ccd0893f4e73b366ff8871a57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170319
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9b0c12d935a75bb6af46b6761180d451c00f11b8
+    Reviewed-on: https://go-review.googlesource.com/c/146820
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/gc/esc.go |   4 +-
- test/closure3.dir/main.go          |   6 +-
- test/escape2.go                    | 194 ++++++++++++++++++-------------------
- test/escape2n.go                   | 194 ++++++++++++++++++-------------------
- test/escape4.go                    |  12 +--
- test/escape5.go                    |  32 +++---
- test/escape_array.go               |   6 +-
- test/escape_because.go             |  10 +-
- test/escape_calls.go               |   6 +-
- test/escape_closure.go             |  36 +++----
- test/escape_field.go               |  38 ++++----
- test/escape_iface.go               |  54 +++++------
- test/escape_indir.go               |  40 ++++----
- test/escape_level.go               |  56 +++++------
- test/escape_map.go                 |  22 ++---
- test/escape_param.go               | 132 ++++++++++++-------------
- test/escape_slice.go               |  22 ++---
- test/escape_struct_param1.go       | 144 +++++++++++++--------------
- test/escape_struct_param2.go       | 138 +++++++++++++-------------
- test/escape_struct_return.go       |  24 ++---
- test/fixedbugs/issue12006.go       |  18 ++--
- test/fixedbugs/issue12588.go       |  28 +++---
- test/fixedbugs/issue13799.go       |  18 ++--
- test/fixedbugs/issue19743.go       |   4 +-
- test/fixedbugs/issue21709.go       |   4 +-
- test/fixedbugs/issue4099.go        |   4 +-
- test/fixedbugs/issue7921.go        |  12 +--
- test/inline.go                     |   6 +-
- test/inline_sync.go                |  10 +-
- test/live_syscall.go               |   8 +-
- test/uintptrescapes2.go            |   4 +-
- 31 files changed, 643 insertions(+), 643 deletions(-)
+ src/internal/bytealg/compare_native.go |  9 +++++
+ src/internal/bytealg/equal_native.go   | 12 ++++++
+ src/runtime/race.go                    | 73 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 94 insertions(+)

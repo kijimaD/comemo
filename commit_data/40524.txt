@@ -1,16 +1,21 @@
-commit 24e9c53396bccbe2c525bd9421e426c47fe858ce
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Oct 31 15:52:41 2019 -0400
+commit 2326a668781a664707f5775d896879668ab378e8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue May 21 15:00:50 2019 -0400
 
-    cmd/go/internal/modfetch: add zip sums and hashes to TestCodeRepo
+    crypto/x509: fix and cleanup loadSystemRoots on macOS
     
-    Updates #35290
+    Note how untrustedData is never NULL, so loadSystemRoots was checking
+    the wrong thing.
     
-    Change-Id: I09cad17f09e78c2bf6a9de98b01f13ed383ca006
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204643
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Also, renamed the C function to CopyPEMRoots to follow the
+    CoreFoundation naming convention on ownership.
+    
+    Finally, redirect all debug output to standard error.
+    
+    Change-Id: Ie80abefadf8974a75c0646aa02fcfcebcbe3bde8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178538
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo_test.go | 388 +++++++++++++++-----------
- 1 file changed, 231 insertions(+), 157 deletions(-)
+ src/crypto/x509/root_cgo_darwin.go  | 39 ++++++++++++++++++-------------------
+ src/crypto/x509/root_darwin_test.go |  6 ++----
+ 2 files changed, 21 insertions(+), 24 deletions(-)

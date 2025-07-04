@@ -1,26 +1,12 @@
-commit 13f08cd807732f3ec2733e485476e509cc6e3fd2
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed May 4 10:17:53 2011 -0700
+commit e31272aa054517c84751f4ed50b1238e1761464c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 4 00:26:20 2011 -0400
 
-    exp/draw: fast paths for drawing a YCbCr or an NRGBA onto an RGBA.
+    tag release.r57.1
     
-    On my laptop, I had an 800x600 jpeg and an 800x600 png (with
-    transparency). I timed how long it took to draw each image onto an
-    equivalently sized, zeroed RGBA image.
-    
-    Previously, the jpeg took 75ms and the png took 70ms, going through
-    the medium-fast path, i.e. func drawRGBA in draw.go.
-    
-    After this CL, the jpeg took 14ms, and the png took 21ms with the
-    Over operator and 12ms with the Src operator.
-    
-    It's only a rough estimate basd on one image file, but it should
-    give an idea of the order of magnitude of improvement.
-    
-    R=rsc, r
-    CC=adg, golang-dev
-    https://golang.org/cl/4468044
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4468043
 
- src/pkg/exp/draw/draw.go      | 129 +++++++++++++++++++++++++++++++++++++++---
- src/pkg/exp/draw/draw_test.go |  50 ++++++++++++++++
- 2 files changed, 171 insertions(+), 8 deletions(-)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

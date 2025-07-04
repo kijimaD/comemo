@@ -1,19 +1,15 @@
-commit 556c978400245b29c3150ba3a53da489d67f3f7e
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Fri Aug 19 18:45:51 2022 +0800
+commit 822f349eb9586ff75dbf0fba7e8e939ad208a6fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 30 14:39:52 2021 -0700
 
-    runtime: name nil semaphore of pollDesc
+    go/types: switch uses of NewSignature to NewSignatureType (cleanup)
     
-    Use explicit name pdNil for nil semaphore of a pollDesc to make it self-explanatory like pdReady and pdWait.
-    
-    Change-Id: Ibfb246e14419d366edadbccac4d3717f0c135cb0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424923
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I05ed5806e2a35a57ef3e8c9275a157574abcb0ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353399
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/netpoll.go | 41 +++++++++++++++++++++--------------------
- 1 file changed, 21 insertions(+), 20 deletions(-)
+ src/go/internal/gccgoimporter/parser.go | 4 ++--
+ src/go/types/universe.go                | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

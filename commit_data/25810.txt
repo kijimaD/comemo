@@ -1,16 +1,17 @@
-commit 11e51ed4bc3d901c4272ba57bde4771bb7d8f6f6
+commit 8f931e49f5ce3692c25f68b415a0228f1d32c40f
 Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Feb 20 11:06:35 2016 -0800
+Date:   Mon Nov 23 16:48:31 2015 -0800
 
-    cmd/compile: remove gratuituous copying of lexer token data
+    cmd/compile: remove dead code
     
-    Rename yySymType to lexer; should eventually capture all lexer state.
-    Embed lexer in parser and access lexer token data directly.
+    Get rid of residue after removing old parser.
     
-    Change-Id: I246194705d594f80426f3ba77d8580af9185daf7
-    Reviewed-on: https://go-review.googlesource.com/19759
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0dace1037d50959071a082c276f9f374eef6edb2
+    Reviewed-on: https://go-review.googlesource.com/17179
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/lex.go    | 29 +++++++++++++++++------------
- src/cmd/compile/internal/gc/parser.go | 19 ++++---------------
- 2 files changed, 21 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/gc/lex.go    | 85 ++---------------------------------
+ src/cmd/compile/internal/gc/parser.go |  1 -
+ 2 files changed, 3 insertions(+), 83 deletions(-)

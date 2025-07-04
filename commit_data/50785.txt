@@ -1,27 +1,16 @@
-commit cddf792428be5f750a0be397c7c534870c682e52
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Oct 3 18:40:59 2022 -0400
+commit e984240d310302764c66bb4bf84b5747e05cf8ef
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Fri Nov 5 23:50:55 2021 +0900
 
-    runtime/coverage: use atomic access for counter reads
+    runtime: fix unworkable comments for go:nosplit
     
-    Read counters using atomic ops so as to avoid problems with the race
-    detector if a goroutine happens to still be executing at the end of a
-    test run when we're writing out counter data. In theory we could guard
-    the atomic use on the counter mode, but it's better just to do it in
-    all cases, leaves us with a simpler implementation.
-    
-    Fixes #56006.
-    
-    Change-Id: I81c2234b5a1c3b00cff6c77daf2c2315451b7f6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438256
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I71c29a2dc7e5b2b6bc35093535228d2907b16b47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361595
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
 
- src/runtime/coverage/apis.go                       | 10 ++++---
- src/runtime/coverage/emit.go                       | 35 +++++++++++++++-------
- src/runtime/coverage/emitdata_test.go              | 31 +++++++++++++++++++
- src/runtime/coverage/testdata/issue56006/repro.go  | 26 ++++++++++++++++
- .../coverage/testdata/issue56006/repro_test.go     |  8 +++++
- 5 files changed, 95 insertions(+), 15 deletions(-)
+ src/runtime/sys_darwin.go   | 2 +-
+ src/runtime/sys_openbsd2.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

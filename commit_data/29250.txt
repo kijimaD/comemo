@@ -1,14 +1,20 @@
-commit 398e861d9787d7da62a385110539d74dec34c18c
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Mon Oct 31 08:58:42 2016 -0700
+commit db9796dac50c65d300d2b262f2f107d86bf1703f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 20 08:18:22 2016 -0700
 
-    reflect: clarify that NumMethod returns only the number of exported methods
+    cmd/compile: simplify staticname
     
-    Fixes #17686.
+    Add docs.
+    Give it a more natural signature.
     
-    Change-Id: I7d07c367e50b448579f9855bea43df76ddb82bd0
-    Reviewed-on: https://go-review.googlesource.com/32420
-    Reviewed-by: Rob Pike <r@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: Iab368dd10e8f16e41b725c2980020bbead2cdefb
+    Reviewed-on: https://go-review.googlesource.com/26756
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/reflect/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/sinit.go | 31 ++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go  |  3 ++-
+ 2 files changed, 20 insertions(+), 14 deletions(-)

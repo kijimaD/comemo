@@ -1,26 +1,18 @@
-commit 91a716a043f01334e7e6d28af4863d2188ffb336
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed May 3 13:40:02 2023 -0400
+commit ef2567c7dd040f2cee87b8fd52885c6481deee35
+Author: David Chase <drchase@google.com>
+Date:   Tue Jun 7 12:28:54 2022 -0400
 
-    runtime/coverage: fix problematic test from issue 59563
+    doc/go1.19: document loong64 port
     
-    Fix up the coverage testpoint TestIssue59563TruncatedCoverPkgAll
-    to avoid spurious failures due to racy behavior. Specifically,
-    we are only interested in verifying coverage for the larger
-    function of the two in the test package (the smaller one is only
-    there to trigger additional function registrations while the
-    test is finalizing the cov data).
+    Updates #46229
+    For #51400
     
-    Updates #59867.
-    Updates #59563.
-    
-    Change-Id: Ibfbbcbf68e0ad7a4d9606cbcfc69d140375c7b87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492175
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
+    Change-Id: Iedd5d3c4cd656b59ba2e1fe813851830849a8614
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410816
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/coverage/emitdata_test.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ doc/go1.19.html | 3 +++
+ 1 file changed, 3 insertions(+)

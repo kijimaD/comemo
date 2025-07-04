@@ -1,12 +1,15 @@
-commit f42a11ec8e960f48c373b5c931b40def3bc2c486
-Author: John Graham-Cumming <jgc@jgc.org>
-Date:   Fri Mar 1 11:56:33 2013 -0800
+commit ba1d5571dbea50e5ed26e6f4f8cd5ced1df47388
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Mar 1 12:51:34 2013 -0500
 
-    net: eliminate odd if statement with identical branches
+    exp/ssa/interp: uncomment tests now passing thanks to recent typechecker fixes.
     
-    R=golang-dev, iant
+    Also: add support for pointer conversions, covered by one new test.
+    
+    R=gri, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/7447044
+    https://golang.org/cl/7435047
 
- src/pkg/net/fd_unix.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/pkg/exp/ssa/interp/interp_test.go | 86 ++++++++++++++++++-----------------
+ src/pkg/exp/ssa/interp/ops.go         |  8 ++--
+ 2 files changed, 49 insertions(+), 45 deletions(-)

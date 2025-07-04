@@ -1,19 +1,27 @@
-commit 3d80d57c31fcaaa505791c9aa68eebc5deb6ad46
-Author: David Chase <drchase@google.com>
-Date:   Wed Apr 19 13:47:53 2023 -0400
+commit 92c9b81447649d5a8ed38ca79b71640c099e0243
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 21 15:17:22 2022 -0700
 
-    reflect: prepare fieldnames for moving to abi/type.go
+    net: don't set netGo = true on Windows with no cgo
     
-    Change-Id: Ia8e88029d29a1210dc7a321578e61336e235f35a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487555
-    Reviewed-by: Keith Randall <khr@google.com>
+    Windows can call the C DNS lookup routines even without cgo,
+    so don't force it to use the Go routines in that scenario.
+    
+    No test because the test requires building the tools with CGO_ENABLED=0.
+    
+    For #33097
+    Fixes #53490
+    
+    Change-Id: I3595a68e788be0d3bbd1bbd431836aca20a7d757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413458
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/reflectlite/reflect_mirror_test.go |   2 +
- src/reflect/abi.go                              |   6 +-
- src/reflect/export_test.go                      |   8 +-
- src/reflect/type.go                             | 481 +++++++++---------------
- src/reflect/value.go                            |  60 +--
- 5 files changed, 216 insertions(+), 341 deletions(-)
+ src/net/cgo_stub.go | 2 --
+ src/net/netgo.go    | 6 +++++-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

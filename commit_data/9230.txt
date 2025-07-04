@@ -1,21 +1,16 @@
-commit a65f4ccb8994c1e6cfd8031012957a85e943b9b1
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Thu Jul 28 11:15:59 2011 +1000
+commit 890bdc53395676efae78218f5d9d6b6eddf26b76
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 27 19:31:11 2011 -0400
 
-    image/tiff: Do not panic when RowsPerStrip is missing.
+    gc: top-level closure bug
     
-    The RowsPerStrip tag is mandatory according to the spec. However,
-    Mac OS sometimes (?) omits it. I managed to create such an image
-    by applying "tiffutil -none" on a compressed image.
+    Fixes #2055.
     
-    If RowsPerStrip is 0, there was a division by zero in the decoder.
-    Assume that the image is a single strip in this case.
-    
-    R=nigeltao, bradfitz
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4815061
+    https://golang.org/cl/4816059
 
- src/pkg/image/tiff/reader.go            |   4 ++++
- src/pkg/image/tiff/reader_test.go       |  25 +++++++++++++++++++++++++
- src/pkg/image/tiff/testdata/no_rps.tiff | Bin 0 -> 1294 bytes
- 3 files changed, 29 insertions(+)
+ src/cmd/gc/closure.c     |  5 +++++
+ src/cmd/gc/lex.c         |  5 +++--
+ test/fixedbugs/bug355.go | 18 ++++++++++++++++++
+ 3 files changed, 26 insertions(+), 2 deletions(-)

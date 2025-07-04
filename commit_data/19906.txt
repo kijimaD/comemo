@@ -1,14 +1,23 @@
-commit 7dfcebbd2dcdd99a43b66f50f8cc631cf1d9c082
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 6 19:33:15 2014 +0400
+commit de1ab89f03a9a22a919fe051bb7251178c80279c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Aug 6 06:11:41 2014 -0700
 
-    runtime: remove unused variable
-    Left over from cl/119490044.
+    dist: fix Plan 9 build
     
-    LGTM=bradfitz
-    R=rsc, bradfitz
+    Since CL 115060044, mkanames declares an empty
+    array in anames8.c and anames6.c, which is not
+    valid for the Plan 9 compiler.
+    
+    char* cnames8[] = {
+    };
+    
+    This change makes mkanames not declaring the
+    cnames array when no C_ constants are found.
+    
+    LGTM=iant
+    R=minux, iant
     CC=golang-codereviews
-    https://golang.org/cl/125730043
+    https://golang.org/cl/117680043
 
- src/pkg/runtime/mcentral.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/buildgc.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

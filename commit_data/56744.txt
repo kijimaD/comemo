@@ -1,24 +1,20 @@
-commit b658265012e6f7213c12bb653107843475e26837
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Jun 5 09:26:29 2024 -0700
+commit 131267f1476d35c8daab4368aebd274b2f180fe4
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue May 23 12:35:48 2023 +0200
 
-    net/http: use default HTTP/2 frame scheduler
+    runtime/metrics: add /gc/scan/heap:bytes
     
-    Use the default frame scheduler (currently round-robin)
-    rather than overriding the default with the priority scheduler.
+    For #56857
     
-    The priority scheduler is slow, known buggy, and implements
-    a deprecated stream prioritization mechanism. The default
-    changed in x/net about a year ago, but we missed that net/http
-    is overriding that default.
-    
-    Fixes #67706
-    
-    Change-Id: I6d76dd0cc8c55eb5dec5cd7d25a5084877e8e8d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/590796
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: If3b962f575c33b2cc29f89e33c7aafb476d98ce9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497575
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/http/server.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 5 +++++
+ src/runtime/metrics/doc.go         | 3 +++
+ 3 files changed, 14 insertions(+)

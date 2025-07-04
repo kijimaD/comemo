@@ -1,28 +1,45 @@
-commit 6fc094ceaf87659217dd0b2184e0a8749f6e3d39
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Aug 17 18:26:00 2020 +0200
+commit 211ee9f07cb454058fab5914117c19f33a7f64de
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jan 14 16:37:42 2020 -0800
 
-    crypto/x509: define certDirectories per GOOS
+    cmd/compile: use a bytes.Buffer to format symbols
     
-    Split the list of CA certificate directory locations in root_unix.go by
-    GOOS (aix, *bsd, js, linux, solaris).
+    No significant compiler speed changes,
+    but some minor memory savings.
     
-    On solaris, also include /etc/certs/CA as documented here:
-    https://docs.oracle.com/cd/E37838_01/html/E61024/kmf-cacerts.html
+    Passes toolstash-check.
     
-    Same as CL 2208 did for certFiles.
+    name        old alloc/op      new alloc/op      delta
+    Template         36.3MB ± 0%       36.2MB ± 0%  -0.25%  (p=0.008 n=5+5)
+    Unicode          28.3MB ± 0%       28.2MB ± 0%  -0.16%  (p=0.008 n=5+5)
+    GoTypes           122MB ± 0%        121MB ± 0%  -0.39%  (p=0.008 n=5+5)
+    Compiler          568MB ± 0%        566MB ± 0%  -0.21%  (p=0.008 n=5+5)
+    SSA              1.95GB ± 0%       1.95GB ± 0%  -0.08%  (p=0.008 n=5+5)
+    Flate            22.8MB ± 0%       22.8MB ± 0%  -0.21%  (p=0.008 n=5+5)
+    GoParser         28.0MB ± 0%       27.9MB ± 0%  -0.38%  (p=0.008 n=5+5)
+    Reflect          78.6MB ± 0%       78.3MB ± 0%  -0.33%  (p=0.008 n=5+5)
+    Tar              34.1MB ± 0%       34.1MB ± 0%  -0.19%  (p=0.008 n=5+5)
+    XML              44.3MB ± 0%       44.2MB ± 0%  -0.19%  (p=0.008 n=5+5)
+    [Geo mean]       79.9MB            79.7MB       -0.24%
     
-    Change-Id: Id24822d6a674bbbbf4088ebb8fe8437edad232b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248762
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    name        old allocs/op     new allocs/op     delta
+    Template           363k ± 0%         359k ± 0%  -1.21%  (p=0.008 n=5+5)
+    Unicode            329k ± 0%         326k ± 0%  -0.90%  (p=0.008 n=5+5)
+    GoTypes           1.28M ± 0%        1.25M ± 0%  -2.62%  (p=0.008 n=5+5)
+    Compiler          5.39M ± 0%        5.31M ± 0%  -1.45%  (p=0.008 n=5+5)
+    SSA               18.1M ± 0%        17.9M ± 0%  -0.78%  (p=0.008 n=5+5)
+    Flate              228k ± 0%         226k ± 0%  -0.97%  (p=0.008 n=5+5)
+    GoParser           295k ± 0%         288k ± 0%  -2.26%  (p=0.008 n=5+5)
+    Reflect            949k ± 0%         932k ± 0%  -1.74%  (p=0.008 n=5+5)
+    Tar                336k ± 0%         332k ± 0%  -1.12%  (p=0.008 n=5+5)
+    XML                417k ± 0%         413k ± 0%  -1.10%  (p=0.008 n=5+5)
+    [Geo mean]         818k              806k       -1.42%
+    
+    Change-Id: Ibdb94650a761edec17d8eba0abdfb70a8a495da9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222920
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/root_aix.go     |  6 ++++++
- src/crypto/x509/root_bsd.go     |  7 +++++++
- src/crypto/x509/root_js.go      |  4 ++++
- src/crypto/x509/root_linux.go   |  8 ++++++++
- src/crypto/x509/root_solaris.go |  6 ++++++
- src/crypto/x509/root_unix.go    | 11 -----------
- 6 files changed, 31 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 84 ++++++++++++++++++++++++++++----------
+ 1 file changed, 62 insertions(+), 22 deletions(-)

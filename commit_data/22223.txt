@@ -1,20 +1,12 @@
-commit 09b7f4f12a961ed8dad8a37de782f9403e211562
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Fri Mar 27 07:31:31 2015 +1100
+commit 5432b4d34616585ce5a1884aeecd0e902e1c2bff
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Feb 28 22:55:29 2015 -0500
 
-    io: clarify the behavior of PipeWriter.CloseWithError(nil).
+    path/filepath: get tests working on darwin/arm
     
-    The previous wording implied that reads would return no error, rather
-    than EOF. It's convenient for users to know that Close() is equivalent
-    to CloseWithError(nil) because it can remove a branch from their error
-    handling code where they want to close the pipe in the appropriate way.
-    For example:
-    
-        https://github.com/jacobsa/gcloud/blob/6e9a8cec0a3f0834da3e9c9725dfe0bf79cccebb/gcs/bucket.go#L637-L643
-    
-    Change-Id: I618bffe556eb518011e7ba5cdce1eb0ff536350e
-    Reviewed-on: https://go-review.googlesource.com/8152
+    Change-Id: Ic44d7837aaec58601e5d9cad8da5b958a809f4a0
+    Reviewed-on: https://go-review.googlesource.com/6400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/io/pipe.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/path/filepath/path_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

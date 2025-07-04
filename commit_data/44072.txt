@@ -1,17 +1,27 @@
-commit 0ae2e032f2d42575cb64d0759a6d31a71f39412f
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Dec 30 15:49:06 2020 -0500
+commit 2e455ec2eb447a65f10b3dc929833f6aa19d526e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 30 19:35:12 2020 +0000
 
-    misc/cgo/test: enable TestCrossPackageTests on darwin/arm64
+    runtime: avoid overflow from linearAlloc
     
-    Somehow I missed that one. It works fine.
+    Currently linearAlloc manages an exclusive "end" address for the top of
+    its reserved space. While unlikely for a linearAlloc to be allocated
+    with an "end" address hitting the top of the address space, it is
+    possible and could lead to overflow.
     
-    Change-Id: I0b1286bf1e6a8f40b9f3f114f49b3034079e0b85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/280156
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Avoid overflow by chopping off the last byte from the linearAlloc if
+    it's bumping up against the top of the address space defensively. In
+    practice, this means that if 32-bit platforms map the top of the address
+    space and use the linearAlloc to acquire arenas, the top arena will not
+    be usable.
+    
+    Fixes #35954.
+    
+    Change-Id: I512cddcd34fd1ab15cb6ca92bbf899fc1ef22ff6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231338
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/cgo/test/pkg_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,38 +1,24 @@
-commit 9af74e711a2c6dd4dfd5ca857c458ca691d175ad
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Sep 8 14:54:29 2023 -0400
+commit 1ef685fb7ba413c6f5943cc1aa61de911a7ef29a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Sep 28 14:52:33 2022 -0700
 
-    runtime: set stackguard1 on extra M g0
+    debug: add top level security docs for dwarf, elf, macho, pe, and plan9obj
     
-    Standard Ms set g0.stackguard1 to the same value as stackguard0 in
-    mstart0. For consistency, extra Ms should do the same for their g0. Do
-    this in needm -> callbackUpdateSystemStack.
+    Adds a package level doc comment to the debug/dwarf, debug/elf,
+    debug/macho, debug/pe, and debug/plan9obj noting that these packages
+    are not designed to be hardened against adversarial inputs.
     
-    Background: getg().stackguard1 is used as the stack guard for the stack
-    growth prolouge in functions marked //go:systemstack [1]. User Gs set
-    stackguard1 to ^uintptr(0) so that the check always fail, calling
-    morestackc, which throws to report a //go:systemstack function call on a
-    user stack.
-    
-    g0 setting stackguard1 is unnecessary for this functionality. 0 would be
-    sufficient, as g0 is always allowed to call //go:systemstack functions.
-    However, since we have the check anyway, setting stackguard1 to the
-    actual stack bound is useful to detect actual stack overflows on g0
-    (though morestackc doesn't detect this case and would report a
-    misleading message about user stacks).
-    
-    [1] cmd/internal/obj calls //go:systemstack functions AttrCFunc. This is
-    a holdover from when the runtime contained actual C functions. But since
-    CL 2275, it has simply meant "pretend this is a C function, which would
-    thus need to use the system stack". Hence the name morestackc. At this
-    point, this terminology is pretty far removed from reality and should
-    probably be updated to something more intuitive.
-    
-    Change-Id: I8d0e5628ce31ac6a189a7d7a4124be85aef89862
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527056
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I678d01bcdc8ad01c23805f09cc59e64cec6c3f76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435417
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/cgocall.go  | 2 ++
- src/runtime/runtime2.go | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/debug/dwarf/open.go    | 16 +++++++++++++---
+ src/debug/elf/file.go      | 12 +++++++++++-
+ src/debug/macho/file.go    | 12 +++++++++++-
+ src/debug/pe/file.go       | 12 +++++++++++-
+ src/debug/plan9obj/file.go | 12 +++++++++++-
+ 5 files changed, 57 insertions(+), 7 deletions(-)

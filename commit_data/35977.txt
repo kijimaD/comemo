@@ -1,26 +1,20 @@
-commit a2419221fd3c5977bd5de0e7a390c779ab3fa1d3
-Author: Keith Randall <khr@google.com>
-Date:   Thu Jul 12 16:51:27 2018 -0700
+commit a29e25b82c9d39c448df6dfcea01bfeb111da1bc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 26 16:58:51 2018 +0200
 
-    misc/cgo/test: fix issue 24161 test for 1.11 and earlier
+    cmd/cgo: add support for GOARCH=sparc64
     
-    The test uses functions from C that were introduced in OSX 1.12.
-    Include stubs for those functions when compiling for 1.11 and earlier.
-    This test really a compile-time test, it doesn't matter much what the
-    executed code actually does.
-    Use a nasty #define hack to work around the fact that cgo doesn't
-    support static global variables.
+    Even though GOARCH=sparc64 is not supported by gc (yet), it is easy to
+    make cgo already support it.
     
-    Update #24161
-    Fixes #26355
+    This e.g. allows to generate Go type definitions for linux/sparc64 in
+    the golang.org/x/sys/unix package without using gccgo.
     
-    Change-Id: Icf6f7bc9b6b36cacc81d5d0e033a2ebaff7e0298
-    Reviewed-on: https://go-review.googlesource.com/123715
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8886c81e7c895a0d93e350d81ed653fb59d95dd8
+    Reviewed-on: https://go-review.googlesource.com/102555
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/issue24161e0/main.go | 6 ++++++
- misc/cgo/test/issue24161e1/main.go | 6 ++++++
- misc/cgo/test/issue24161e2/main.go | 6 ++++++
- 3 files changed, 18 insertions(+)
+ src/cmd/cgo/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,17 +1,15 @@
-commit 5d5e73b14a46178a636b20f45ed8f8fae0177dee
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 22 17:48:13 2014 -0700
+commit 8e77a7ef6bce15e81b9a6ce5cb2fcbe47cd7ab84
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 15 08:41:59 2014 +1000
 
-    text/template: type-check chained node as argument
-    Was just a missing case (literally) in the type checker.
+    image/jpeg: reject invalid Ta and Td values.
     
-    Fixes #8473.
+    Fixes #8693.
     
-    LGTM=adg
-    R=golang-codereviews, adg
+    LGTM=crawshaw
+    R=crawshaw
     CC=golang-codereviews
-    https://golang.org/cl/142460043
+    https://golang.org/cl/141470043
 
- src/text/template/exec.go      | 2 ++
- src/text/template/exec_test.go | 8 ++++++++
- 2 files changed, 10 insertions(+)
+ src/image/jpeg/scan.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

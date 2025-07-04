@@ -1,0 +1,17 @@
+commit 2abe5ceb1968edb882c8318af674c4133dd0bb75
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Mar 10 19:41:09 2025 +0000
+
+    testing: warn against calling Log after a test completes
+    
+    Fixes #40343
+    
+    Change-Id: Id266f4b57131e9e148e5aa2be86b67fe6d73b20a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656415
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/testing/testing.go | 2 ++
+ 1 file changed, 2 insertions(+)

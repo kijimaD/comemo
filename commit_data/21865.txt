@@ -1,12 +1,12 @@
-commit 5cc6bfe2342185a70444b977c2f1599cf9116914
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Mar 3 14:55:04 2015 -0500
+commit 04ce9dbf355a5d1b2e0b979d02f16ef2bf83833f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 9 11:26:56 2015 -0800
 
-    go/build: skip GOROOT tests on darwin/arm
+    math/big: correct umax
     
-    Change-Id: If2d303caae933eec61634152e5d83faaba591315
-    Reviewed-on: https://go-review.googlesource.com/6660
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I208c8ac44d1a8882d8fdeb18347dc20941e20374
+    Reviewed-on: https://go-review.googlesource.com/4250
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/go/build/build_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/math/big/float.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

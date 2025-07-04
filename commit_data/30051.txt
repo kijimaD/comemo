@@ -1,24 +1,18 @@
-commit e546b295b8a3b6f8996a02aeecfbdfedd07c21aa
-Author: Lars Wiegman <lars@namsral.com>
-Date:   Tue Jan 17 11:38:18 2017 +0100
+commit 19adf8aeaae7c898e8efeab18e3162c3807a8756
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 20:05:41 2016 -0400
 
-    runtime: use mach_absolute_time for runtime.nanotime
+    reflect: fix DeepEqual for some cyclic corner cases
     
-    The existing darwin/amd64 implementation of runtime.nanotime returns the
-    wallclock time, which results in timers not functioning properly when
-    system time runs backwards. By implementing the algorithm used by the
-    darwin syscall mach_absolute_time, timers will function as expected.
+    Fixes #15610.
     
-    The algorithm is described at
-    https://opensource.apple.com/source/xnu/xnu-3248.60.10/libsyscall/wrappers/mach_absolute_time.s
-    
-    Fixes #17610
-    
-    Change-Id: I9c8d35240d48249a6837dca1111b1406e2686f67
-    Reviewed-on: https://go-review.googlesource.com/35292
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Idbc8a9b328b92034d53b8009471678a166d5cf3f
+    Reviewed-on: https://go-review.googlesource.com/31588
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/runtime/sys_darwin_amd64.s | 23 ++++++++++++++++++++++-
- 1 file changed, 22 insertions(+), 1 deletion(-)
+ src/reflect/all_test.go  | 20 ++++++++++++++++++++
+ src/reflect/deepequal.go |  6 +++++-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

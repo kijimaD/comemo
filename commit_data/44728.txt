@@ -1,23 +1,27 @@
-commit af4388aee195c4328a779ba8f8171ad1632feb7e
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 15 16:23:21 2021 -0400
+commit c777863f77bb77be2e6c336b78dee2089647ff0e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 4 23:53:01 2020 -0400
 
-    cmd/internal/objabi: support boolean GOEXPERIMENTs
+    cmd/go/internal/mvs: indicate the actual version when printing a mismatched ModuleError
     
-    Currently, objabi exports GOEXPERIMENT flags as ints that are either 0
-    or 1. Since the dawn of time, there's been a comment saying that we
-    *could* support general integers here, but it's never happened and all
-    the "== 0" and "!= 0" and "== 1" are driving me crazy and are making
-    the code harder to read and maintain. Hence, this CL adds support for
-    boolean GOEXPERIMENT flags. We'll introduce some bool-typed flags in
-    the next CL.
+    Previously, we suppressed the module version annotation if the last
+    error in the stack was a *module.ModuleError, regardless of its path.
+    However, if the error is for a replacement module, that produces a
+    confusing error message: the error is attributed to the last module in
+    the error path, but actually originates in the replacement (which is
+    not otherwise indicated).
     
-    Change-Id: I7813400db130a9b8f71a644fe7912808dbe645bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302069
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Now, we print both the original and the replacement modules when they
+    differ, which may add some unfortunate redundancy in the output but at
+    least doesn't drop the very relevant information about replacements.
+    
+    Fixes #35039
+    
+    Change-Id: I631a7398033602b1bd5656150a4fad4945a87ade
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247765
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/internal/objabi/util.go | 28 ++++++++++++++++++++--------
- 1 file changed, 20 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/mvs/errors.go                       | 17 +++++++++++------
+ .../go/testdata/script/mod_load_replace_mismatch.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_replace_gopkgin.txt      |  2 +-
+ 3 files changed, 13 insertions(+), 8 deletions(-)

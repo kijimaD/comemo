@@ -1,25 +1,28 @@
-commit 36d5650a1c60be5e09abc89774758f525afc7874
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Mar 21 10:55:20 2016 +1300
+commit e8e1928bd22339dcdbfde17778cfd976184bb377
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 20 22:41:52 2016 +0000
 
-    cmd/internal/obj, cmd/link: put all symbol data in one contiguous section
+    net/http: update http2 to check header values, move from vendor to internal
     
-    Another object file change, gives a reasonable improvement:
+    Updates x/net/http2 to git rev b2ed34f for https://golang.org/cl/18727
     
-    name       old s/op   new s/op   delta
-    LinkCmdGo  0.46 ± 3%  0.44 ± 9%  -3.34%  (p=0.000 n=98+82)
-    LinkJuju   4.09 ± 4%  3.92 ± 5%  -4.30%  (p=0.000 n=98+99)
+    Updates #14029 (fixes it enough for Go 1.6)
+    Fixes #13961
     
-    I guess the data section could be mmap-ed instead of read, I haven't tried
-    that.
-    
-    Change-Id: I959eee470a05526ab1579e3f5d3ede41c16c954f
-    Reviewed-on: https://go-review.googlesource.com/20928
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: Id301247545507671f4e79df0e7c6ec9c421d5a7c
+    Reviewed-on: https://go-review.googlesource.com/18728
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/internal/goobj/read.go      | 27 +++++++++++---------
- src/cmd/internal/obj/objfile.go     | 49 ++++++++++++++++++++++++++-----------
- src/cmd/link/internal/ld/objfile.go | 42 ++++++++++++-------------------
- 3 files changed, 67 insertions(+), 51 deletions(-)
+ src/go/build/build_test.go                         |   1 +
+ src/go/build/deps_test.go                          |   2 +-
+ .../golang.org/x/net/http2/hpack/encode.go         |   0
+ .../golang.org/x/net/http2/hpack/encode_test.go    |   0
+ .../golang.org/x/net/http2/hpack/hpack.go          |   0
+ .../golang.org/x/net/http2/hpack/hpack_test.go     |   0
+ .../golang.org/x/net/http2/hpack/huffman.go        |   0
+ .../golang.org/x/net/http2/hpack/tables.go         |   0
+ src/net/http/h2_bundle.go                          | 151 +++++++++++++++++++--
+ src/vendor/README                                  |   8 ++
+ 10 files changed, 151 insertions(+), 11 deletions(-)

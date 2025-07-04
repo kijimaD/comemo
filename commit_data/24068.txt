@@ -1,16 +1,35 @@
-commit 8e2d0e1c4c967ce1f9e689b9f7c73a1764d90a9d
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Aug 6 01:49:00 2015 -0700
+commit 2a0fc9e70e26cefc1877efa00e85c2e82fbec7e3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jul 2 15:02:03 2015 +0900
 
-    hash/fnv: fix wiki url
+    Revert "net, internal/syscall/unix: add SocketConn, SocketPacketConn"
     
-    The URL is shown on go docs and is an eye-sore.
+    This reverts commit 6f7961da28232c609f7c51b3bed7f15db7dd33e1.
     
-    For go1.6.
+    Russ suggests changing the frozon syscall package and obviously it's a
+    better solution. Perhaps he will also let me know the way how to get the
+    project owners to agree later.
     
-    Change-Id: I8b8ea3751200d06ed36acfe22f47ebb38107f8db
-    Reviewed-on: https://go-review.googlesource.com/13282
+    Fixes #11492.
+    
+    Change-Id: I98f9f366b72b85db54b4acfc3a604b62fb6d783c
+    Reviewed-on: https://go-review.googlesource.com/11854
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/hash/fnv/fnv.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/deps_test.go                     |   2 +-
+ src/internal/syscall/unix/socket.go           |  39 --------
+ src/internal/syscall/unix/socket_linux_386.go |  67 --------------
+ src/internal/syscall/unix/socket_linux_386.s  |  11 ---
+ src/internal/syscall/unix/socket_stub.go      |  25 ------
+ src/internal/syscall/unix/socket_unix.go      |  59 -------------
+ src/net/fd_unix.go                            |  51 -----------
+ src/net/file.go                               |  44 ----------
+ src/net/file_bsd_test.go                      |  95 --------------------
+ src/net/file_linux_test.go                    |  98 ---------------------
+ src/net/file_plan9.go                         |   8 --
+ src/net/file_stub.go                          |   8 +-
+ src/net/file_unix.go                          | 122 ++++++--------------------
+ src/net/file_windows.go                       |  10 ---
+ 14 files changed, 30 insertions(+), 609 deletions(-)

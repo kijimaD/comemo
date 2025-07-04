@@ -1,21 +1,37 @@
-commit 89cc528e430c18c6c36b8e8bbfb1bab26ed110e3
+commit dfe0ef961b02916ae8403ced9a9a7c9a9ec19a7e
 Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Oct 23 16:39:32 2021 -0700
+Date:   Thu Feb 18 18:06:01 2021 -0800
 
-    cmd/compile/internal/types2: better error messages for empty type sets
+    [dev.typeparams] go/types, types2: revert fancy struct printing (fixes x/tools tests)
     
-    - change _TypeSet.hasTerms() to report if a type set has actual types
-      (excluding a "universe" term)
-    - handle empty type set type arguments correctly
-    - bring comments up-to-date in Checker.satisfies
+    An embedded struct field is embedded by mentioning its type.
+    The fact that the field name may be different and derived
+    from the type doesn't matter for the struct type.
     
-    Change-Id: I87f9a1096ebb21a1b08c87a9b59f400f3bc2f040
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358175
+    Do print the embedded type rather than the derived field
+    name, as we have always done in the past. Remove the fancy
+    new code which was just plain wrong.
+    
+    The struct output printing is only relevant for debugging
+    and test cases. Reverting to the original code (pre-generics)
+    fixes a couple of x/tools tests.
+    
+    Unfortunately, the original code is (also) not correct for
+    embedded type aliases. Adjusted a gccgoimporter test
+    accordingly and filed issue #44410.
+    
+    This is a follow-up on https://golang.org/cl/293961 which
+    addressed the issue only partially and left the incorrect
+    code in place.
+    
+    Change-Id: Icb7a89c12ef7929c221fb1a5792f144f7fcd5855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293962
     Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/instantiate.go     | 32 +++++++++++++++-------
- .../internal/types2/testdata/check/typeinst2.go2   | 28 ++++++++++++++++---
- .../types2/testdata/fixedbugs/issue47411.go2       |  2 +-
- src/cmd/compile/internal/types2/typeset.go         |  2 +-
- 4 files changed, 48 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/types2/typestring.go  | 36 ++++-----------------
+ src/go/internal/gccgoimporter/importer_test.go |  2 +-
+ src/go/types/typestring.go                     | 43 ++++----------------------
+ 3 files changed, 13 insertions(+), 68 deletions(-)

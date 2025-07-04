@@ -1,37 +1,15 @@
-commit 47094dcf09ca5dce1ae76bbb3a4e4311c552fd7b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 30 11:44:29 2014 -0700
+commit 892b5074f521ae812b880808e0bd79ee2a02b1a1
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 22 15:35:25 2014 -0700
 
-    spec: clarify variable declaration type rules
+    fmt: document that self-recursive data structures can be fatal
     
-    Not a language change.
+    Fixes #8241.
     
-    Several inaccuracies were fixed:
-    
-    1) A variable declaration may declare more than just one
-    variable.
-    
-    2) Variable initialization follows the rules of assignments,
-    including n:1 assignments. The existing wording implied a 1:1
-    or n:n rule and generally was somewhat unspecific.
-    
-    3) The rules for variable declarations with no types and
-    untyped initialization expressions had minor holes (issue 8088).
-    
-    4) Clarified the special cases of assignments of untyped values
-    (we don't just have untyped constants, but also untyped bools,
-    e.g. from comparisons). The new wording is more direct.
-    
-    To that end, introduced the notion of an untyped constant's
-    "default type" so that the same concept doesn't have to be
-    repeatedly introduced.
-    
-    Fixes #8088.
-    
-    LGTM=iant, r, rsc
-    R=r, rsc, iant, ken
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/142320043
+    https://golang.org/cl/144420043
 
- doc/go_spec.html | 81 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 48 insertions(+), 33 deletions(-)
+ src/fmt/doc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

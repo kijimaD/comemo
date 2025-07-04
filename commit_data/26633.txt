@@ -1,21 +1,18 @@
-commit 11d916b157415de568a619eb2970ff44a3910839
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 31 11:42:35 2016 -0700
+commit 5c5e8d41054940ccf9e1c025bf21c86e85f33bde
+Author: Tal Shprecher <tshprecher@gmail.com>
+Date:   Sat Feb 13 22:39:16 2016 -0800
 
-    cmd/compile: remove Node.Nointerface field
+    cmd/compile: avoid leak of dottype expression if type does not contain pointers.
     
-    We already keep the entire pragma bitset in n.Func.Pragma, so there's
-    no need to track Nointerface separately.
+    Fixes #13805
     
-    Passes toolstash -cmp.
-    
-    Change-Id: Ic027ece477fcf63b0c1df128a08b89ef0f34fd58
-    Reviewed-on: https://go-review.googlesource.com/21381
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ica9aae2e054b74f67d28ab27f72c52a3f03eeb59
+    Reviewed-on: https://go-review.googlesource.com/19489
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/parser.go    |  5 ++--
- src/cmd/compile/internal/gc/syntax.go    | 47 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- 3 files changed, 26 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/gc/esc.go       | 15 ++++++++++-----
+ src/cmd/compile/internal/gc/typecheck.go |  1 -
+ test/escape_iface.go                     | 20 ++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 6 deletions(-)

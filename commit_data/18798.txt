@@ -1,17 +1,30 @@
-commit 02903f8395c4d62c0e07f5ed114252635b29e92f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 7 14:19:05 2014 -0500
+commit 1a89e6388c3f1994da17a1d91a45920663db2af5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 7 20:52:29 2014 +0400
 
-    runtime: fix windows/386 build
+    runtime: refactor and fix stack management code
+    There are at least 3 bugs:
+    1. g->stacksize accounting is broken during copystack/shrinkstack
+    2. stktop->free is not properly maintained during copystack/shrinkstack
+    3. stktop->free logic is broken:
+            we can have stktop->free==FixedStack,
+            and we will free it into stack cache,
+            but it actually comes from heap as the result of non-copying segment shrink
+    This shows as at least spurious races on race builders (maybe something else as well I don't know).
     
-    From the trace it appears that stackalloc is being
-    called with 0x1800 which is 6k = 4k + (StackSystem=2k).
-    Make StackSystem 4k too, to make stackalloc happy.
-    It's already 4k on windows/amd64.
+    The idea behind the refactoring is to consolidate stacksize and
+    segment origin logic in stackalloc/stackfree.
     
-    TBR=khr
+    Fixes #7490.
+    
+    LGTM=rsc, khr
+    R=golang-codereviews, rsc, khr
     CC=golang-codereviews
-    https://golang.org/cl/72600043
+    https://golang.org/cl/72440043
 
- src/pkg/runtime/stack.h | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/pkg/runtime/panic.c   |  5 +---
+ src/pkg/runtime/proc.c    | 34 +++++++++++++++--------
+ src/pkg/runtime/runtime.h |  6 ++--
+ src/pkg/runtime/stack.c   | 71 ++++++++++++++++++++++++++++-------------------
+ src/pkg/runtime/stack.h   |  2 +-
+ 5 files changed, 69 insertions(+), 49 deletions(-)

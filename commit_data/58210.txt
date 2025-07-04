@@ -1,23 +1,47 @@
-commit 0a0a7a564271ab8acfe6210a6e1ca19e712e0d1f
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Nov 20 17:48:30 2024 -0800
+commit bfb8924653526d4c154c678f0d0bc491f60f7fce
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon May 15 18:00:57 2023 -0400
 
-    cmd/compile: fix rewrite rules for multiply/add
+    cmd/compile: lookup indirect callees from export data for devirtualization
     
-    x - (y - c) == (x - y) + c, not (x - y) - c. Oops.
+    Today, the PGO IR graph only contains entries for ir.Func loaded into
+    the package. This can include functions from transitive dependencies,
+    but only if they happen to be referenced by something in the current
+    package. If they are not referenced, noder never bothers to load them.
     
-    Fixes #70481
+    This leads to a deficiency in PGO devirtualization: some callee methods
+    are available in transitive dependencies but do not devirtualize because
+    they happen to not get loaded from export data.
     
-    Change-Id: I0e54d8e65dd9843c6b92c543ac69d69ee21f617c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630397
+    Resolve this by adding an explicit lookup from export data of callees
+    mentioned in the profile.
+    
+    I have chosen to do this during loading of the profile for simplicity:
+    the PGO IR graph always contains all of the functions we might need.
+    That said, it isn't strictly necessary. PGO devirtualization could do
+    the lookup lazily if it decides it actually needs a method. This saves
+    work at the expense of a bit more complexity, but I've chosen the
+    simpler approach for now as I measured the cost of this as significantly
+    less than the rest of PGO loading.
+    
+    For #61577.
+    
+    Change-Id: Ieafb2a549510587027270ee6b4c3aefd149a901f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497175
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules |  4 ++--
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 32 +++++++++++++--------------
- test/fixedbugs/issue70481.go                  | 20 +++++++++++++++++
- test/fixedbugs/issue70481.out                 | 19 ++++++++++++++++
- 4 files changed, 57 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/inline/inl.go             |  27 +-----
+ src/cmd/compile/internal/ir/expr.go                |  45 +++++++++
+ src/cmd/compile/internal/ir/func.go                |  62 ++++++++++++
+ src/cmd/compile/internal/ir/func_test.go           |  82 ++++++++++++++++
+ src/cmd/compile/internal/noder/unified.go          |  62 ++++++++++++
+ src/cmd/compile/internal/pgo/irgraph.go            | 106 +++++++++++++++++----
+ .../compile/internal/test/pgo_devirtualize_test.go |  10 +-
+ .../test/testdata/pgo/devirtualize/devirt.go       |  17 ++--
+ .../test/testdata/pgo/devirtualize/devirt.pprof    | Bin 699 -> 890 bytes
+ .../test/testdata/pgo/devirtualize/devirt_test.go  |   2 +-
+ .../pgo/devirtualize/{mult => mult.pkg}/mult.go    |   0
+ src/cmd/compile/internal/types/pkg.go              |  12 +++
+ 12 files changed, 367 insertions(+), 58 deletions(-)

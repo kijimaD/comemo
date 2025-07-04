@@ -1,35 +1,15 @@
-commit 2bd767b1022dd3254bcec469f0ee164024726486
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Mar 28 01:22:37 2019 +0100
+commit 67018e9b684d1a9686a37053307476cd32358c17
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 16:29:04 2018 -0700
 
-    syscall/js: improve Value.String() for non-string values
+    cmd/go: document the go statement in a go.mod file
     
-    This change modifies Value.String() to use the following
-    representations for non-string values:
-      <undefined>
-      <null>
-      <boolean: true>
-      <number: 42>
-      <symbol>
-      <object>
-      <function>
-    
-    It avoids JavaScript conversion semantics in the Go API and lowers the
-    risk of hidden bugs by unexpected conversions, e.g. the conversion
-    of the number 42 to the string "42". See discussion in #29642.
-    
-    This is a breaking change, which are still allowed for syscall/js.
-    The impact should be small since it only affects uses of
-    Value.String() with non-string values, which should be uncommon.
-    
-    Updates #29642.
-    
-    Change-Id: I2c27be6e24befe8cb713031fbf66f7b6041e7148
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169757
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Change-Id: I8db276ec371de56871ce3250f27de1d1dee4b473
+    Reviewed-on: https://go-review.googlesource.com/c/147279
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/syscall/js/js.go      | 30 ++++++++++++++++++++++++++++--
- src/syscall/js/js_test.go | 24 ++++++++++++++++++++----
- 2 files changed, 48 insertions(+), 6 deletions(-)
+ src/cmd/go/alldocs.go               | 15 +++++++++------
+ src/cmd/go/internal/modload/help.go | 15 +++++++++------
+ 2 files changed, 18 insertions(+), 12 deletions(-)

@@ -1,13 +1,13 @@
-commit 0db71338ed23324015d5d0600d2670fb3ed440b4
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jan 14 19:23:36 2014 -0500
+commit 227fe5f64e22d98e62e4e5165bffc3d6f8ec80b9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 14 15:16:01 2014 -0800
 
-    runtime/debug: force GC after setting of GCPercent to make it effective.
-    See also discussion in CL 51010045.
+    spec: tighten the wording around . imports
+    Make it clear that if you do a . import, you cannot use a qualified identifier.
     
-    R=golang-codereviews, r
+    R=gri
     CC=golang-codereviews
-    https://golang.org/cl/52230043
+    https://golang.org/cl/52390043
 
- src/pkg/runtime/debug/garbage.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

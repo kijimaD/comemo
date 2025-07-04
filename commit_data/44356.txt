@@ -1,33 +1,24 @@
-commit b3b65f21762fad1ec37bdb0cd47f79a53814bb16
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Dec 8 04:14:34 2020 +1100
+commit 188e995ae9de004322d3f822f70dc9d814e2c03b
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jun 15 15:16:51 2020 -0400
 
-    runtime: enable race detector on openbsd/amd64
+    [dev.link] cmd/link: reduce alignment requirement for symtab/elfstr
     
-    Now that this commit[1] has landed in LLVM the .syso file can be generated for
-    OpenBSD.
+    The linker's asmb phase for ELF has a chunk of code that decides where
+    to place the .symtab and .strtab sections, which appear after after
+    the DWARF data; this code currently tries to align the start of the
+    .symtab section using the value of -R (stored in *FlagRound). This
+    patch gets rid of this additional alignment and instead just aligns
+    .symtab by pointer size. The -R value is needed for loadable
+    segments/sections (such as text or data), not for non-loadable
+    sections (e.g. symtab). On most architectures the *FlagRound value is
+    4k, however on ARM64 it is 64k, meaning that aligning symtab on this
+    boundary can waste a good chunk of space.
     
-    With the changes to src/runtime running the sample race[2] detects the data
-    race as expected.
-    
-    Based on golang/go#39464 (https://go-review.googlesource.com/c/go/+/237057) from
-    Aaron Bieber <deftly@gmail.com>, however the race_openbsd_amd64.syso file has
-    been built on OpenBSD 6.4 and necessary changes added to race.bash.
-    
-    [1] https://github.com/llvm/llvm-project/commit/fcf6ae2f070eba73074b6ec8d8281e54d29dbeeb
-    [2] https://golang.org/doc/articles/race_detector.html
-    
-    Change-Id: Ic2479ccfa91d6b2cb4585346a11d813d96450f68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275892
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib51f3ad5611f5614768355eb8533084ba117a8e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238019
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/dist/test.go                     |   2 +-
- src/cmd/internal/sys/supported.go        |   2 +-
- src/race.bash                            |   7 ++++++-
- src/runtime/race/README                  |   1 +
- src/runtime/race/race.go                 |   4 ++--
- src/runtime/race/race_openbsd_amd64.syso | Bin 0 -> 688784 bytes
- 6 files changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

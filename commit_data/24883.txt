@@ -1,19 +1,32 @@
-commit a734a8550a17e54548a6c7ebb3220c33d417e767
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 12 15:16:06 2015 +0000
+commit 1fc52b61f24c210514d4b14e9cc2f8e0aa3f3d9b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Sep 6 19:39:07 2015 -0700
 
-    net/http: require valid methods in NewRequest and Transport.RoundTrip
+    [dev.ssa] test: use SSA codegen for runnable tests
     
-    Fixes #12078
+    Now that the standard library tests
+    are all passing, add the
+    test directory tests.
     
-    Change-Id: If09c927fae639ec4ed3894a2b393a87c1e677803
-    Reviewed-on: https://go-review.googlesource.com/16829
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    These contain a number of edge case tests
+    that are of particular interest for compilers.
+    
+    Some kinds of tests are not well-suited
+    for a new backend, such as errorcheck tests.
+    To start, use SSA only for run and runoutput.
+    
+    There are three failing tests now.
+    Just mark them as such for now,
+    so that we can prevent regressions.
+    
+    This code will all be unwound once SSA
+    codegen matures and becomes the default.
+    
+    Change-Id: Ic51e6d0cc1cd48ef1e2fe2c9a743bf0cce275200
+    Reviewed-on: https://go-review.googlesource.com/14344
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/http/request.go        | 20 ++++++++++++++++++++
- src/net/http/request_test.go   | 16 ++++++++++++++++
- src/net/http/transport.go      |  3 +++
- src/net/http/transport_test.go |  1 +
- 4 files changed, 40 insertions(+)
+ test/run.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

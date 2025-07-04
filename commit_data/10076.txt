@@ -1,14 +1,21 @@
-commit c1d0f0e76c4294abc1eb8464c06fb329717a7cdb
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Oct 24 09:11:01 2011 +1100
+commit 2aa589c8438debaef249e7fbcd9dd3fa0546c9c8
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Oct 23 18:36:01 2011 +1100
 
-    net: do not set SO_REUSEADDR for windows
+    html: implement foster parenting
     
-    Fixes #2307.
+    Implement the foster-parenting algorithm for content that is inside a table
+    but not in a cell.
     
-    R=golang-dev, mikioh.mikioh
+    Also fix a bug in reconstructing the active formatting elements.
+    
+    Pass test 30 in tests1.dat:
+    <a><table><td><a><table></table><a></tr><a></table><b>X</b>C<a>Y
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5306049
+    https://golang.org/cl/5309052
 
- src/pkg/net/sock_windows.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/pkg/html/parse.go      | 123 ++++++++++++++++++++++++++++++++++-----------
+ src/pkg/html/parse_test.go |   9 +++-
+ 2 files changed, 103 insertions(+), 29 deletions(-)

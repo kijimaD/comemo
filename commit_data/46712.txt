@@ -1,24 +1,372 @@
-commit 9f8d558c3b28def1b188e60e1b3b8361a461c9e2
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Oct 1 14:22:34 2021 -0400
+commit 7e0a81d2806b073c6455f73b10fbf2c811703f46
+Merge: d7e71c01ad dab3e5affe
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 22 12:00:45 2021 -0800
 
-    go/types: remove 1.18 APIs that have been replaced
+    [dev.regabi] all: merge master (dab3e5a) into dev.regabi
     
-    Remove the Interface.IsConstraint, Signature.SetTypeParams, and
-    Signature.SetRecvTypeParams methods, as they have been replaced and
-    usage removed from x/tools.
+    This merge had two conflicts to resolve:
     
-    Change-Id: I8786c3cf34e96ab5211cd8e7e6348e9ee792b843
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353570
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    1. The embed code on master had somewhat substantially diverged, so
+    this CL tediously backported the changes to dev.regabi. In particular,
+    I went through all of the embed changes to gc/{embed,noder,syntax}.go
+    and made sure the analogous code on dev.regabi in noder/noder.go and
+    staticdata/embed.go mirrors it.
+    
+    2. The init-cycle reporting code on master was extended slightly to
+    track already visited declarations to avoid exponential behavior. The
+    same fix is applied on dev.regabi, just using ir.NameSet instead of
+    map[ir.Node]bool.
+    
+    Conflicts:
+    
+    - src/cmd/compile/internal/gc/embed.go
+    - src/cmd/compile/internal/gc/noder.go
+    - src/cmd/compile/internal/gc/syntax.go
+    - src/cmd/compile/internal/pkginit/initorder.go
+    - src/embed/internal/embedtest/embed_test.go
+    - src/go/types/stdlib_test.go
+    
+    Merge List:
+    
+    + 2021-01-22 dab3e5affe runtime: switch runtime to libc for openbsd/amd64
+    + 2021-01-22 a1b53d85da cmd/go: add documentation for test and xtest fields output by go list
+    + 2021-01-22 b268b60774 runtime: remove pthread_kill/pthread_self for openbsd
+    + 2021-01-22 ec4051763d runtime: fix typo in mgcscavenge.go
+    + 2021-01-22 7ece3a7b17 net/http: fix flaky TestDisableKeepAliveUpgrade
+    + 2021-01-22 50cba0506f time: clarify Timer.Reset behavior on AfterFunc Timers
+    + 2021-01-22 cf10e69f17 doc/go1.16: mention net/http.Transport.GetProxyConnectHeader
+    + 2021-01-22 ec1b945265 doc/go1.16: mention path/filepath.WalkDir
+    + 2021-01-22 11def3d40b doc/go1.16: mention syscall.AllThreadsSyscall
+    + 2021-01-21 07b0235609 doc/go1.16: add notes about package-specific fs.FS changes
+    + 2021-01-21 e2b4f1fea5 doc/go1.16: minor formatting fix
+    + 2021-01-21 9f43a9e07b doc/go1.16: mention new debug/elf constants
+    + 2021-01-21 3c2f11ba5b cmd/go: overwrite program name with full path
+    + 2021-01-21 953d1feca9 all: introduce and use internal/execabs
+    + 2021-01-21 b186e4d70d cmd/go: add test case for cgo CC setting
+    + 2021-01-21 5a8a2265fb cmd/cgo: report exec errors a bit more clearly
+    + 2021-01-21 46e2e2e9d9 cmd/go: pass resolved CC, GCCGO to cgo
+    + 2021-01-21 3d40895e36 runtime: switch openbsd/arm64 to pthreads
+    + 2021-01-21 d95ca91380 crypto/elliptic: fix P-224 field reduction
+    + 2021-01-20 ecf4ebf100 cmd/internal/moddeps: check content of all modules in GOROOT
+    + 2021-01-20 d2d155d1ae runtime: don't adjust timer pp field in timerWaiting status
+    + 2021-01-20 803d18fc6c cmd/go: set Incomplete field on go list output if no files match embed
+    + 2021-01-20 6e243ce71d cmd/go: have go mod vendor copy embedded files in subdirs
+    + 2021-01-20 be28e5abc5 cmd/go: fix mod_get_fallback test
+    + 2021-01-20 928bda4f4a runtime: convert openbsd/amd64 locking to libc
+    + 2021-01-19 824f2d635c cmd/go: allow go fmt to complete when embedded file is missing
+    + 2021-01-19 0575e35e50 cmd/compile: require 'go 1.16' go.mod line for //go:embed
+    + 2021-01-19 ccb2e90688 cmd/link: exit before Asmb2 if error
+    + 2021-01-19 ca5774a5a5 embed: treat uninitialized FS as empty
+    + 2021-01-19 d047c91a6c cmd/link,runtime: switch openbsd/amd64 to pthreads
+    + 2021-01-19 61debffd97 runtime: factor out usesLibcall
+    + 2021-01-19 9fed39d281 runtime: factor out mStackIsSystemAllocated
+    + 2021-01-18 dbab079835 runtime: free Windows event handles after last lock is dropped
+    + 2021-01-18 5a8fbb0d2d os: do not close syscall.Stdin in TestReadStdin
+    + 2021-01-15 682a1d2176 runtime: detect errors in DuplicateHandle
+    + 2021-01-15 9f83418b83 cmd/link: remove GOROOT write in TestBuildForTvOS
+    + 2021-01-15 ec9470162f cmd/compile: allow embed into any string or byte slice type
+    + 2021-01-15 54198b04db cmd/compile: disallow embed of var inside func
+    + 2021-01-15 b386c735e7 cmd/go: fix go generate docs
+    + 2021-01-15 bb5075a525 syscall: remove RtlGenRandom and move it into internal/syscall
+    + 2021-01-15 1deae0b597 os: invoke processKiller synchronously in testKillProcess
+    + 2021-01-15 ff196c3e84 crypto/x509: update iOS bundled roots to version 55188.40.9
+    + 2021-01-14 e125ccd10e cmd/go: in 'go mod edit', validate versions given to -retract and -exclude
+    + 2021-01-14 eb330020dc cmd/dist, cmd/go: pass -arch for C compilation on Darwin
+    + 2021-01-14 84e8a06f62 cmd/cgo: remove unnecessary space in cgo export header
+    + 2021-01-14 0c86b999c3 cmd/test2json: document passing -test.paniconexit0
+    + 2021-01-14 9135795891 cmd/go/internal/load: report positions for embed errors
+    + 2021-01-14 d9b79e53bb cmd/compile: fix wrong complement for arm64 floating-point comparisons
+    + 2021-01-14 c73232d08f cmd/go/internal/load: refactor setErrorPos to PackageError.setPos
+    + 2021-01-14 6aa28d3e06 go/build: report positions for go:embed directives
+    + 2021-01-13 7eb31d999c cmd/go: add hints to more missing sum error messages
+    + 2021-01-12 ba76567bc2 cmd/go/internal/modload: delete unused *mvsReqs.next method
+    + 2021-01-12 665def2c11 encoding/asn1: document unmarshaling behavior for IMPLICIT string fields
+    + 2021-01-11 81ea89adf3 cmd/go: fix non-script staleness checks interacting badly with GOFLAGS
+    + 2021-01-11 759309029f doc: update editors.html for Go 1.16
+    + 2021-01-11 c3b4c7093a cmd/internal/objfile: don't require runtime.symtab symbol for XCOFF
+    + 2021-01-08 59bfc18e34 cmd/go: add hint to read 'go help vcs' to GOVCS errors
+    + 2021-01-08 cd6f3a54e4 cmd/go: revise 'go help' documentation for modules
+    + 2021-01-08 6192b98751 cmd/go: make hints in error messages more consistent
+    + 2021-01-08 25886cf4bd cmd/go: preserve sums for indirect deps fetched by 'go mod download'
+    + 2021-01-08 6250833911 runtime/metrics: mark histogram metrics as cumulative
+    + 2021-01-08 8f6a9acbb3 runtime/metrics: remove unused StopTheWorld Description field
+    + 2021-01-08 6598c65646 cmd/compile: fix exponential-time init-cycle reporting
+    + 2021-01-08 fefad1dc85 test: fix timeout code for invoking compiler
+    + 2021-01-08 6728118e0a cmd/go: pass signals forward during "go tool"
+    + 2021-01-08 e65c543f3c go/build/constraint: add parser for build tag constraint expressions
+    + 2021-01-08 0c5afc4fb7 testing/fstest,os: clarify racy behavior of TestFS
+    + 2021-01-08 32afcc9436 runtime/metrics: change unit on *-by-size metrics to match bucket unit
+    + 2021-01-08 c6513bca5a io/fs: minor corrections to Glob doc
+    + 2021-01-08 304f769ffc cmd/compile: don't short-circuit copies whose source is volatile
+    + 2021-01-08 ae97717133 runtime,runtime/metrics: use explicit histogram boundaries
+    + 2021-01-08 a9ccd2d795 go/build: skip string literal while findEmbed
+    + 2021-01-08 d92f8add32 archive/tar: fix typo in comment
+    + 2021-01-08 cab1202183 cmd/link: accept extra blocks in TestFallocate
+    + 2021-01-08 ee4d32249b io/fs: minor corrections to Glob release date
+    + 2021-01-08 54bd1ccce2 cmd: update to latest golang.org/x/tools
+    + 2021-01-07 9ec21a8f34 Revert "reflect: support multiple keys in struct tags"
+    + 2021-01-07 091414b5b7 io/fs: correct WalkDirFunc documentation
+    + 2021-01-07 9b55088d6b doc/go1.16: add release note for disallowing non-ASCII import paths
+    + 2021-01-07 fa90aaca7d cmd/compile: fix late expand_calls leaf type for OpStructSelect/OpArraySelect
+    + 2021-01-07 7cee66d4cb cmd/go: add documentation for Embed fields in go list output
+    + 2021-01-07 e60cffa4ca html/template: attach functions to namespace
+    + 2021-01-07 6da2d3b7d7 cmd/link: fix typo in asm.go
+    + 2021-01-07 df81a15819 runtime: check mips64 VDSO clock_gettime return code
+    + 2021-01-06 4787e906cf crypto/x509: rollback new CertificateRequest fields
+    + 2021-01-06 c9658bee93 cmd/go: make module suggestion more friendly
+    + 2021-01-06 4c668b25c6 runtime/metrics: fix panic message for Float64Histogram
+    + 2021-01-06 d2131704a6 net/http/httputil: fix deadlock in DumpRequestOut
+    + 2021-01-05 3e1e13ce6d cmd/go: set cfg.BuildMod to "readonly" by default with no module root
+    + 2021-01-05 0b0d004983 cmd/go: pass embedcfg to gccgo if supported
+    + 2021-01-05 1b85e7c057 cmd/go: don't scan gccgo standard library packages for imports
+    + 2021-01-05 6b37b15d95 runtime: don't take allglock in tracebackothers
+    + 2021-01-04 9eef49cfa6 math/rand: fix typo in comment
+    + 2021-01-04 b01fb2af9e testing/fstest: fix typo in error message
+    + 2021-01-01 3dd5867605 doc: 2021 is the Year of the Gopher
+    + 2020-12-31 95ce805d14 io/fs: remove darwin/arm64 special condition
+    + 2020-12-30 20d0991b86 lib/time, time/tzdata: update tzdata to 2020f
+    + 2020-12-30 ed301733bb misc/cgo/testcarchive: remove special flags for Darwin/ARM
+    + 2020-12-30 0ae2e032f2 misc/cgo/test: enable TestCrossPackageTests on darwin/arm64
+    + 2020-12-29 780b4de16b misc/ios: fix wording for command line instructions
+    + 2020-12-29 b4a71c95d2 doc/go1.16: reference misc/ios/README for how to build iOS programs
+    + 2020-12-29 f83e0f6616 misc/ios: add to README how to build ios executables
+    + 2020-12-28 4fd9455882 io/fs: fix typo in comment
+    
+    Change-Id: I2f257bbc5fbb05f15c2d959f8cfe0ce13b083538
 
- src/go/types/call.go      | 2 +-
- src/go/types/decl.go      | 2 +-
- src/go/types/interface.go | 7 +------
- src/go/types/signature.go | 6 ------
- src/go/types/typeset.go   | 4 ++--
- src/go/types/typexpr.go   | 2 +-
- 6 files changed, 6 insertions(+), 17 deletions(-)
+ api/go1.16.txt                                     |   15 +-
+ doc/contribute.html                                |    4 +-
+ doc/editors.html                                   |    4 +-
+ doc/go1.16.html                                    |  117 +-
+ lib/time/update.bash                               |    4 +-
+ lib/time/zoneinfo.zip                              |  Bin 424205 -> 424205 bytes
+ misc/cgo/test/pkg_test.go                          |    2 +-
+ misc/cgo/testcarchive/carchive_test.go             |    5 -
+ misc/ios/README                                    |    7 +
+ src/archive/tar/strconv.go                         |    2 +-
+ src/cmd/api/goapi.go                               |    2 +-
+ src/cmd/api/run.go                                 |    2 +-
+ src/cmd/cgo/gcc.go                                 |    7 +
+ src/cmd/cgo/out.go                                 |    6 +-
+ src/cmd/cgo/util.go                                |    6 +-
+ src/cmd/compile/internal/arm64/ssa.go              |   20 +-
+ src/cmd/compile/internal/noder/noder.go            |   19 +-
+ src/cmd/compile/internal/pkginit/initorder.go      |   18 +-
+ src/cmd/compile/internal/ssa/expand_calls.go       |    3 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go       |   32 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules     |    4 +-
+ src/cmd/compile/internal/ssa/html.go               |    2 +-
+ src/cmd/compile/internal/ssa/opGen.go              |   40 +
+ src/cmd/compile/internal/ssa/rewrite.go            |   31 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |    8 +-
+ src/cmd/compile/internal/staticdata/embed.go       |   58 +-
+ src/cmd/cover/func.go                              |    2 +-
+ src/cmd/cover/testdata/toolexec.go                 |    2 +-
+ src/cmd/dist/buildtool.go                          |    4 +-
+ src/cmd/doc/dirs.go                                |    2 +-
+ src/cmd/fix/typecheck.go                           |    2 +-
+ src/cmd/go.mod                                     |    4 +-
+ src/cmd/go.sum                                     |    8 +-
+ src/cmd/go/alldocs.go                              |  862 +----
+ src/cmd/go/go_test.go                              |    5 +-
+ src/cmd/go/internal/base/base.go                   |    2 +-
+ src/cmd/go/internal/bug/bug.go                     |    2 +-
+ src/cmd/go/internal/fmtcmd/fmt.go                  |    3 +-
+ src/cmd/go/internal/generate/generate.go           |   20 +-
+ src/cmd/go/internal/get/get.go                     |    2 +-
+ src/cmd/go/internal/help/helpdoc.go                |   19 +-
+ src/cmd/go/internal/list/list.go                   |   12 +-
+ src/cmd/go/internal/load/pkg.go                    |  134 +-
+ src/cmd/go/internal/load/test.go                   |    8 +-
+ src/cmd/go/internal/modcmd/download.go             |    4 +-
+ src/cmd/go/internal/modcmd/edit.go                 |    4 +-
+ src/cmd/go/internal/modcmd/graph.go                |    2 +
+ src/cmd/go/internal/modcmd/init.go                 |    2 +
+ src/cmd/go/internal/modcmd/tidy.go                 |    2 +
+ src/cmd/go/internal/modcmd/vendor.go               |   78 +-
+ src/cmd/go/internal/modcmd/verify.go               |    2 +
+ src/cmd/go/internal/modcmd/why.go                  |    2 +
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |    2 +-
+ src/cmd/go/internal/modfetch/codehost/git.go       |    2 +-
+ src/cmd/go/internal/modfetch/fetch.go              |  108 +-
+ src/cmd/go/internal/modfetch/proxy.go              |   61 +-
+ src/cmd/go/internal/modget/get.go                  |  127 +-
+ src/cmd/go/internal/modget/query.go                |    4 +-
+ src/cmd/go/internal/modload/help.go                |  484 +--
+ src/cmd/go/internal/modload/import.go              |   82 +-
+ src/cmd/go/internal/modload/import_test.go         |   13 +-
+ src/cmd/go/internal/modload/init.go                |   75 +-
+ src/cmd/go/internal/modload/load.go                |   31 +-
+ src/cmd/go/internal/modload/modfile.go             |    4 +-
+ src/cmd/go/internal/modload/mvs.go                 |   16 -
+ src/cmd/go/internal/modload/vendor.go              |    2 +-
+ src/cmd/go/internal/test/genflags.go               |    2 +-
+ src/cmd/go/internal/test/test.go                   |    2 +-
+ src/cmd/go/internal/test/testflag.go               |    2 +-
+ src/cmd/go/internal/tool/tool.go                   |   17 +-
+ src/cmd/go/internal/vcs/vcs.go                     |    4 +-
+ src/cmd/go/internal/vet/vetflag.go                 |    2 +-
+ src/cmd/go/internal/work/action.go                 |    3 +
+ src/cmd/go/internal/work/build.go                  |    7 +-
+ src/cmd/go/internal/work/buildid.go                |    2 +-
+ src/cmd/go/internal/work/exec.go                   |   44 +-
+ src/cmd/go/internal/work/gccgo.go                  |    8 +-
+ src/cmd/go/testdata/addmod.go                      |    2 +-
+ .../go/testdata/script/build_darwin_cc_arch.txt    |   24 +
+ src/cmd/go/testdata/script/cgo_path.txt            |   35 +
+ src/cmd/go/testdata/script/embed.txt               |   45 +-
+ src/cmd/go/testdata/script/embed_fmt.txt           |   22 +
+ src/cmd/go/testdata/script/govcs.txt               |   52 +-
+ src/cmd/go/testdata/script/mod_bad_domain.txt      |    2 +-
+ src/cmd/go/testdata/script/mod_edit.txt            |    6 +
+ src/cmd/go/testdata/script/mod_get_fallback.txt    |    2 +-
+ .../testdata/script/mod_get_promote_implicit.txt   |   10 +-
+ src/cmd/go/testdata/script/mod_get_replaced.txt    |    2 +-
+ src/cmd/go/testdata/script/mod_get_retract.txt     |    2 +-
+ src/cmd/go/testdata/script/mod_gobuild_import.txt  |    2 +-
+ src/cmd/go/testdata/script/mod_init_tidy.txt       |    4 +-
+ .../go/testdata/script/mod_install_pkg_version.txt |   11 +-
+ src/cmd/go/testdata/script/mod_invalid_path.txt    |    2 +-
+ src/cmd/go/testdata/script/mod_list_bad_import.txt |    2 +-
+ src/cmd/go/testdata/script/mod_readonly.txt        |   10 +-
+ .../go/testdata/script/mod_replace_readonly.txt    |    6 +-
+ src/cmd/go/testdata/script/mod_sum_ambiguous.txt   |   22 +-
+ src/cmd/go/testdata/script/mod_sum_readonly.txt    |   12 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     |    6 +-
+ src/cmd/go/testdata/script/mod_vendor_embed.txt    |  179 +
+ src/cmd/go/testdata/script/mod_versions.txt        |    6 +-
+ src/cmd/go/testdata/script/test_exit.txt           |   17 +
+ src/cmd/go/testdata/script/test_flag.txt           |    6 +-
+ src/cmd/internal/browser/browser.go                |    2 +-
+ src/cmd/internal/diff/diff.go                      |    2 +-
+ src/cmd/internal/dwarf/dwarf.go                    |    2 +-
+ src/cmd/internal/moddeps/moddeps_test.go           |  400 +-
+ src/cmd/internal/objfile/xcoff.go                  |    4 +-
+ src/cmd/internal/pkgpath/pkgpath.go                |    2 +-
+ src/cmd/link/internal/arm64/asm.go                 |    2 +-
+ src/cmd/link/internal/ld/data.go                   |    4 +-
+ src/cmd/link/internal/ld/execarchive.go            |    2 +-
+ src/cmd/link/internal/ld/fallocate_test.go         |    8 +-
+ src/cmd/link/internal/ld/lib.go                    |   14 +-
+ src/cmd/link/internal/ld/main.go                   |   10 +
+ src/cmd/link/link_test.go                          |    1 +
+ src/cmd/objdump/objdump_test.go                    |    5 -
+ src/cmd/test2json/main.go                          |    8 +-
+ src/cmd/trace/pprof.go                             |    2 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |   30 +
+ .../golang.org/x/tools/go/analysis/analysis.go     |    4 +
+ .../golang.org/x/tools/go/analysis/diagnostic.go   |    4 +
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   |    4 +
+ .../go/analysis/internal/analysisflags/help.go     |    4 +
+ .../analysis/passes/internal/analysisutil/util.go  |    4 +
+ .../x/tools/go/analysis/passes/printf/types.go     |    4 +
+ .../go/analysis/passes/structtag/structtag.go      |   94 +-
+ .../go/analysis/unitchecker/unitchecker112.go      |    4 +
+ .../golang.org/x/tools/go/analysis/validate.go     |    4 +
+ .../golang.org/x/tools/go/ast/astutil/util.go      |    4 +
+ .../golang.org/x/tools/go/ast/inspector/typeof.go  |    4 +
+ src/cmd/vendor/modules.txt                         |    4 +-
+ src/crypto/elliptic/p224.go                        |   41 +-
+ src/crypto/elliptic/p224_test.go                   |  277 +-
+ src/crypto/rand/rand_windows.go                    |    4 +-
+ src/crypto/x509/root.go                            |    6 +-
+ src/crypto/x509/root_ios.go                        |  280 +-
+ src/crypto/x509/x509.go                            |   84 -
+ src/crypto/x509/x509_test.go                       |   56 +-
+ src/embed/embed.go                                 |    6 +
+ src/embed/internal/embedtest/embed_test.go         |   33 +-
+ src/encoding/asn1/asn1.go                          |    9 +
+ src/go/build/build.go                              |   70 +-
+ src/go/build/build_test.go                         |    3 +-
+ src/go/build/constraint/expr.go                    |  574 +++
+ src/go/build/constraint/expr_test.go               |  317 ++
+ src/go/build/deps_test.go                          |   11 +-
+ src/go/build/read.go                               |  109 +-
+ src/go/build/read_test.go                          |   69 +-
+ src/go/internal/gccgoimporter/gccgoinstallation.go |    2 +-
+ src/go/internal/srcimporter/srcimporter.go         |    2 +-
+ src/go/types/stdlib_test.go                        |    2 +
+ src/html/template/exec_test.go                     |   20 +
+ src/html/template/template.go                      |   46 +-
+ src/internal/execabs/execabs.go                    |   70 +
+ src/internal/execabs/execabs_test.go               |  104 +
+ src/internal/goroot/gc.go                          |    2 +-
+ src/internal/syscall/windows/syscall_windows.go    |    2 +
+ src/internal/syscall/windows/zsyscall_windows.go   |   13 +
+ src/io/fs/glob.go                                  |    4 +-
+ src/io/fs/glob_test.go                             |    2 +-
+ src/io/fs/walk.go                                  |   15 +-
+ src/io/fs/walk_test.go                             |   26 -
+ src/math/rand/gen_cooked.go                        |    2 +-
+ src/net/http/httputil/dump.go                      |   15 +-
+ src/net/http/httputil/dump_test.go                 |   80 +-
+ src/net/http/serve_test.go                         |    6 +-
+ src/os/os_test.go                                  |   18 +-
+ src/os/os_windows_test.go                          |   11 +-
+ src/os/testdata/dirfs/a                            |    0
+ src/os/testdata/dirfs/b                            |    0
+ src/os/testdata/dirfs/dir/x                        |    0
+ src/reflect/all_test.go                            |  170 -
+ src/reflect/type.go                                |   43 +-
+ src/runtime/asm_amd64.s                            |    4 +
+ src/runtime/defs_openbsd.go                        |   14 +
+ src/runtime/defs_openbsd_amd64.go                  |   14 +
+ src/runtime/defs_openbsd_arm64.go                  |    9 +
+ src/runtime/histogram.go                           |   32 +-
+ src/runtime/metrics.go                             |   36 +-
+ src/runtime/metrics/description.go                 |   16 +-
+ src/runtime/metrics/doc.go                         |    4 +-
+ src/runtime/metrics/histogram.go                   |   29 +-
+ src/runtime/metrics/value.go                       |    2 +-
+ src/runtime/metrics_test.go                        |   40 +-
+ src/runtime/mgcmark.go                             |    1 -
+ src/runtime/mgcscavenge.go                         |    2 +-
+ src/runtime/mmap.go                                |   11 +-
+ src/runtime/os3_solaris.go                         |    5 +
+ src/runtime/os_aix.go                              |    5 +
+ src/runtime/os_darwin.go                           |    5 +
+ src/runtime/os_dragonfly.go                        |    5 +
+ src/runtime/os_freebsd.go                          |    5 +
+ src/runtime/os_js.go                               |    5 +
+ src/runtime/os_linux.go                            |    5 +
+ src/runtime/os_netbsd.go                           |    5 +
+ src/runtime/os_openbsd.go                          |   90 +-
+ src/runtime/os_openbsd_libc.go                     |   58 +
+ src/runtime/os_openbsd_syscall.go                  |   46 +
+ src/runtime/os_openbsd_syscall1.go                 |   15 +
+ src/runtime/os_openbsd_syscall2.go                 |   95 +
+ src/runtime/os_plan9.go                            |    5 +
+ src/runtime/os_windows.go                          |   54 +-
+ src/runtime/proc.go                                |   81 +-
+ src/runtime/runtime2.go                            |    1 -
+ src/runtime/signal_openbsd.go                      |    2 +-
+ src/runtime/stubs2.go                              |    7 +-
+ src/runtime/stubs3.go                              |    7 +-
+ src/runtime/sys_darwin.go                          |   44 -
+ src/runtime/sys_libc.go                            |   53 +
+ src/runtime/sys_linux_mips64x.s                    |   14 +
+ src/runtime/sys_openbsd.go                         |   59 +
+ src/runtime/sys_openbsd1.go                        |   34 +
+ src/runtime/sys_openbsd2.go                        |  250 ++
+ src/runtime/sys_openbsd_amd64.s                    |  729 ++--
+ src/runtime/sys_openbsd_arm64.s                    |  269 +-
+ src/runtime/time.go                                |    6 +
+ src/runtime/timestub2.go                           |    5 +-
+ src/runtime/tls_arm64.s                            |    4 +
+ src/runtime/traceback.go                           |   27 +-
+ src/syscall/syscall_windows.go                     |    1 -
+ src/syscall/zsyscall_windows.go                    |    9 -
+ src/testing/fstest/testfs.go                       |    3 +-
+ src/time/sleep.go                                  |   13 +-
+ src/time/tzdata/zipdata.go                         | 3878 ++++++++++----------
+ test/embedfunc.go                                  |   15 +
+ test/embedvers.go                                  |   12 +
+ test/fixedbugs/issue43551.dir/a.go                 |   13 +
+ test/fixedbugs/issue43551.dir/b.go                 |   14 +
+ test/fixedbugs/issue43551.go                       |    7 +
+ test/fixedbugs/issue43570.go                       |   40 +
+ test/fixedbugs/issue43619.go                       |  119 +
+ test/initexp.go                                    |   36 +
+ test/run.go                                        |   14 +-
+ 234 files changed, 7372 insertions(+), 5451 deletions(-)

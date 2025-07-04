@@ -1,12 +1,19 @@
-commit ec40c7e189182918480099bd73b5c0c73018736c
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Wed Oct 4 13:20:45 2017 -0700
+commit ebcdda4732c629508fd91a4db04cfb0de516aa2f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 15 15:05:03 2017 -0700
 
-    doc: add missing "Minor revisions" header for 1.9
+    cmd/compile: fix crash in importer when running in debug mode
     
-    Change-Id: Ib042e472e62f48a6afaba1762beaf102a9b99cf5
-    Reviewed-on: https://go-review.googlesource.com/68290
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Verified by manually enabling debug mode and running make.bash.
+    
+    Fixes #20684.
+    
+    Change-Id: I041f2ca6ef1d4198815724d98f61511072d63581
+    Reviewed-on: https://go-review.googlesource.com/45971
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/devel/release.html | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/bexport.go | 7 ++++++-
+ src/cmd/compile/internal/gc/bimport.go | 5 +----
+ 2 files changed, 7 insertions(+), 5 deletions(-)

@@ -1,23 +1,28 @@
-commit c5aea7a4941aa9c37ed07e3a252bc81c9c90802f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 2 17:08:24 2018 -0700
+commit ba6974fdc3ce96acc259055a051bbfcbabce2be4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jul 17 14:38:52 2018 +0100
 
-    cmd/go: add go mod edit -go flag
+    cmd/compile: fix crash on invalid struct literal
     
-    It can be used to set the Go language version used by the module.
+    If one tries to use promoted fields in a struct literal, the compiler
+    errors correctly. However, if the embedded fields are of struct pointer
+    type, the field.Type.Sym.Name expression below panics.
     
-    RELNOTES=yes
+    This is because field.Type.Sym is nil in that case. We can simply use
+    field.Sym.Name in this piece of code though, as it only concerns
+    embedded fields, in which case what we are after is the field name.
     
-    Updates #28221
+    Added a test mirroring fixedbugs/issue23609.go, but with pointer types.
     
-    Change-Id: Ief0dd185c01195a17be20dff8627c80943c436e7
-    Reviewed-on: https://go-review.googlesource.com/c/147282
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #26416.
+    
+    Change-Id: Ia46ce62995c9e1653f315accb99d592aff2f285e
+    Reviewed-on: https://go-review.googlesource.com/124395
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go                      |  5 ++++-
- src/cmd/go/internal/modcmd/edit.go         | 26 ++++++++++++++++++++++----
- src/cmd/go/testdata/script/mod_edit.txt    |  3 ++-
- src/cmd/go/testdata/script/mod_edit_go.txt | 16 ++++++++++++++++
- 4 files changed, 44 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue26416.go             | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

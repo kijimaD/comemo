@@ -1,17 +1,24 @@
-commit dd307f193b36e9c249ca763dd65d4db6395de665
-Author: sivchari <shibuuuu5@gmail.com>
-Date:   Tue Aug 15 01:01:46 2023 +0900
+commit 5abf200d6528a67032d67d3f50ffd7ce8b536dfa
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 29 17:30:12 2022 -0400
 
-    internal/syscall/unix: fix gofmt
+    cmd/dist: simplify exec.Cmd helpers for Go 1.19
     
-    Change-Id: I24203c4e52bf4d55a6391d10fb4d30771c2674b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518637
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    When running on Go 1.19, we can further simplify some of the exec.Cmd
+    helpers due to API improvements. There's not much point in doing this
+    while the bootstrap is still 1.17, but this will queue up this
+    simplification in an obvious way for when we next upgrade the
+    bootstrap toolchain (#54265).
+    
+    Updates #44505.
+    
+    Change-Id: I2ebc3d5c584375ec862a1d48138ab134bd9b2366
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427958
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/syscall/unix/getentropy_netbsd.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/dist/{exec.go => exec_118.go} |  2 ++
+ src/cmd/dist/exec_119.go              | 42 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

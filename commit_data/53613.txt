@@ -1,17 +1,25 @@
-commit 164aceea08a4c56b9bf451e315c5dbe3f4727971
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Jun 23 18:52:31 2023 +0700
+commit f983a9340d5660a9655b63a371966b5df69be8c5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 23 16:34:26 2022 -0700
 
-    log/slog: fix broken link to AnyValue in comment
+    cmd/compile: defer transitive inlining until after AST is edited
     
-    Change-Id: Ida52a2bf6a415017942bf9ccd74a1ea9ed02bc46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505535
+    This CL changes the inliner to process transitive inlining iteratively
+    after the AST has actually been edited, rather than recursively and
+    immediately. This is important for handling indirect function calls
+    correctly, because ir.reassigned walks the function body looking for
+    reassignments; whereas previously the inlined reassignments might not
+    have been actually added to the AST yet.
+    
+    Fixes #54632.
+    
+    Change-Id: I0dd69813c8a70b965174e0072335bc00afedf286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425257
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/log/slog/attr.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go | 64 ++++++++++++++++++----------------
+ test/fixedbugs/issue54632.go           | 31 ++++++++++++++++
+ 2 files changed, 65 insertions(+), 30 deletions(-)

@@ -1,25 +1,30 @@
-commit 0d36999a0fe3fd63c9c845faf3c9cc8be32c4b58
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 6 15:30:53 2017 -0700
+commit 435450bf3c6efcc65111e96a42fc1c8acd3081e3
+Author: Thomas Bonfort <thomas.bonfort@gmail.com>
+Date:   Sun Jan 1 17:02:44 2017 +0100
 
-    cmd/compile: make TestAssembly resilient to output ordering
+    image/jpeg: improve performance when encoding *image.YCbCr
     
-    To preserve reproducible builds, the text entries
-    during compilation will be sorted before being printed.
-    TestAssembly currently assumes that function init
-    comes after all user-defined functions.
-    Remove that assumption.
-    Instead of looking for "TEXT" to tell you where
-    a function ends--which may now yield lots of
-    non-function-code junk--look for a line beginning
-    with non-whitespace.
+    The existing implementation falls back to using image.At()
+    for each pixel when encoding an *image.YCbCr which is
+    inefficient and causes many memory allocations.
     
-    Updates #15756
+    This change makes the jpeg encoder directly read Y, Cb, and Cr
+    pixel values.
     
-    Change-Id: Ibc82dba6143d769ef4c391afc360e523b1a51348
-    Reviewed-on: https://go-review.googlesource.com/39853
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkEncodeYCbCr-4     43990846      24201148      -44.99%
+    
+    benchmark                  old MB/s     new MB/s     speedup
+    BenchmarkEncodeYCbCr-4     20.95        38.08        1.82x
+    
+    Fixes #18487
+    
+    Change-Id: Iaf2ebc646997e3e1fffa5335f1b0d642e15bd453
+    Reviewed-on: https://go-review.googlesource.com/34773
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 27 +++++++++++++++------------
- 1 file changed, 15 insertions(+), 12 deletions(-)
+ src/image/jpeg/writer.go      | 27 ++++++++++++++++++++
+ src/image/jpeg/writer_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 84 insertions(+), 1 deletion(-)

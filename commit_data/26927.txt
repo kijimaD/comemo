@@ -1,21 +1,53 @@
-commit 045411e6f28c64e6448a2432fa652cc80ca18f31
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 12 17:58:46 2016 -0700
+commit c03ed491fe8d11622a2ecac6bfc87da91879dfa8
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 2 15:18:40 2016 -0800
 
-    cmd/internal/obj: remove use of package bio
+    cmd/compile: load some live values into registers before loop
     
-    Also add MustClose and MustWriter to cmd/internal/bio, and use them in
-    cmd/asm.
+    If we're about to enter a loop, load values which are live
+    and will soon be used in the loop into registers.
     
-    Change-Id: I07f5df3b66c17bc5b2e6ec9c4357d9b653e354e0
-    Reviewed-on: https://go-review.googlesource.com/21938
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    name                     old time/op    new time/op    delta
+    BinaryTree17-8              2.80s ± 4%     2.62s ± 2%   -6.43%          (p=0.008 n=5+5)
+    Fannkuch11-8                2.45s ± 2%     2.14s ± 1%  -12.43%          (p=0.008 n=5+5)
+    FmtFprintfEmpty-8          49.0ns ± 1%    48.4ns ± 1%   -1.35%          (p=0.032 n=5+5)
+    FmtFprintfString-8          160ns ± 1%     153ns ± 0%   -4.63%          (p=0.008 n=5+5)
+    FmtFprintfInt-8             152ns ± 0%     150ns ± 0%   -1.57%          (p=0.000 n=5+4)
+    FmtFprintfIntInt-8          252ns ± 2%     244ns ± 1%   -3.02%          (p=0.008 n=5+5)
+    FmtFprintfPrefixedInt-8     223ns ± 0%     223ns ± 0%     ~     (all samples are equal)
+    FmtFprintfFloat-8           293ns ± 2%     291ns ± 2%     ~             (p=0.389 n=5+5)
+    FmtManyArgs-8               956ns ± 0%     936ns ± 0%   -2.05%          (p=0.008 n=5+5)
+    GobDecode-8                7.18ms ± 0%    7.11ms ± 0%   -1.02%          (p=0.008 n=5+5)
+    GobEncode-8                6.12ms ± 3%    6.07ms ± 1%     ~             (p=0.690 n=5+5)
+    Gzip-8                      284ms ± 1%     284ms ± 0%     ~             (p=1.000 n=5+5)
+    Gunzip-8                   40.8ms ± 1%    40.6ms ± 1%     ~             (p=0.310 n=5+5)
+    HTTPClientServer-8         69.8µs ± 1%    72.2µs ± 4%     ~             (p=0.056 n=5+5)
+    JSONEncode-8               16.1ms ± 2%    16.2ms ± 1%     ~             (p=0.151 n=5+5)
+    JSONDecode-8               54.9ms ± 0%    57.0ms ± 1%   +3.79%          (p=0.008 n=5+5)
+    Mandelbrot200-8            4.35ms ± 0%    4.39ms ± 0%   +0.85%          (p=0.008 n=5+5)
+    GoParse-8                  3.56ms ± 1%    3.42ms ± 1%   -4.03%          (p=0.008 n=5+5)
+    RegexpMatchEasy0_32-8      75.6ns ± 1%    75.0ns ± 0%   -0.83%          (p=0.016 n=5+4)
+    RegexpMatchEasy0_1K-8       250ns ± 0%     252ns ± 1%   +0.80%          (p=0.016 n=4+5)
+    RegexpMatchEasy1_32-8      75.0ns ± 0%    75.4ns ± 2%     ~             (p=0.206 n=5+5)
+    RegexpMatchEasy1_1K-8       401ns ± 0%     398ns ± 1%     ~             (p=0.056 n=5+5)
+    RegexpMatchMedium_32-8      119ns ± 0%     118ns ± 0%   -0.84%          (p=0.008 n=5+5)
+    RegexpMatchMedium_1K-8     36.6µs ± 0%    36.9µs ± 0%   +0.91%          (p=0.008 n=5+5)
+    RegexpMatchHard_32-8       1.95µs ± 1%    1.92µs ± 0%   -1.23%          (p=0.032 n=5+5)
+    RegexpMatchHard_1K-8       58.3µs ± 1%    58.1µs ± 1%     ~             (p=0.548 n=5+5)
+    Revcomp-8                   425ms ± 1%     389ms ± 1%   -8.39%          (p=0.008 n=5+5)
+    Template-8                 65.5ms ± 1%    63.6ms ± 1%   -2.86%          (p=0.008 n=5+5)
+    TimeParse-8                 363ns ± 0%     354ns ± 1%   -2.59%          (p=0.008 n=5+5)
+    TimeFormat-8                363ns ± 0%     364ns ± 1%     ~             (p=0.159 n=5+5)
+    
+    Fixes #14511
+    
+    Change-Id: I1b79d2545271fa90d5b04712cc25573bdc94f2ce
+    Reviewed-on: https://go-review.googlesource.com/20151
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/asm/main.go                | 13 +++++++-----
- src/cmd/compile/internal/gc/obj.go |  2 +-
- src/cmd/internal/bio/buf.go        |  2 +-
- src/cmd/internal/bio/must.go       | 43 ++++++++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/objfile.go    |  9 ++++----
- 5 files changed, 57 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go       |  4 +-
+ src/cmd/compile/internal/ssa/regalloc.go | 82 ++++++++++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/type.go     |  5 +-
+ 3 files changed, 78 insertions(+), 13 deletions(-)

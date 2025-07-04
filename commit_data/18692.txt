@@ -1,18 +1,15 @@
-commit 916682ea367a290da9392ef38016af5b8fd6a3b7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 28 07:40:25 2014 -0800
+commit b3e0a8df24e5c98f516e542681bb9a752999dc29
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 28 21:45:12 2014 +1100
 
-    net/http: add Server.SetKeepAlivesEnabled
+    cmd/dist: add missing Native Client bits
     
-    Part of graceful shutdown.
+    Some parts of CL 15400047 didn't survive the merge.
     
-    Update #4674
-    
-    LGTM=adg, josharian
-    R=adg, josharian, r
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/69670043
+    https://golang.org/cl/69870044
 
- src/pkg/net/http/serve_test.go | 16 ++++++++++++++++
- src/pkg/net/http/server.go     | 27 ++++++++++++++++++++++++---
- 2 files changed, 40 insertions(+), 3 deletions(-)
+ src/cmd/dist/buildruntime.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

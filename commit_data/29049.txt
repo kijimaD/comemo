@@ -1,18 +1,12 @@
-commit 5db7c6d32cef3d9dd917adb81c4a38978853a17b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 25 06:46:26 2016 -0700
+commit e3cecfdcaec55c4dd62c7d4fef3d03fed6d03e38
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Aug 22 15:02:59 2016 +0900
 
-    cmd/vet/all: update whitelists
+    net: fix a typo
     
-    Change-Id: Ie505b5d8cdfe4ffda71f909d6f81603b6d752eed
-    Reviewed-on: https://go-review.googlesource.com/31937
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I29fadde646095fa8507f239a339857bf53172c14
+    Reviewed-on: https://go-review.googlesource.com/27418
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/all/whitelist/all.txt          | 4 ++++
- src/cmd/vet/all/whitelist/arm64.txt        | 1 +
- src/cmd/vet/all/whitelist/darwin_386.txt   | 6 ------
- src/cmd/vet/all/whitelist/darwin_arm.txt   | 1 +
- src/cmd/vet/all/whitelist/darwin_arm64.txt | 1 +
- 5 files changed, 7 insertions(+), 6 deletions(-)
+ src/net/dnsclient_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

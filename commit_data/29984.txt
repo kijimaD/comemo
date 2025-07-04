@@ -1,47 +1,29 @@
-commit 2b283cedef2a62e37b7422ef3badc7b758bd26c8
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Jan 20 17:12:50 2017 -0800
+commit 40d81cf061d8a2a277d70446f582a984c1701ff3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 10:26:07 2016 -0400
 
-    database/sql: fix race when canceling queries immediately
+    sync: throw, not panic, for unlock of unlocked mutex
     
-    Previously the following could happen, though in practice it would
-    be rare.
+    The panic leaves the lock in an unusable state.
+    Trying to panic with a usable state makes the lock significantly
+    less efficient and scalable (see early CL patch sets and discussion).
     
-    Goroutine 1:
-            (*Tx).QueryContext begins a query, passing in userContext
+    Instead, use runtime.throw, which will crash the program directly.
     
-    Goroutine 2:
-            (*Tx).awaitDone starts to wait on the context derived from the passed in context
+    In general throw is reserved for when the runtime detects truly
+    serious, unrecoverable problems. This problem is certainly serious,
+    and, without a significant performance hit, is unrecoverable.
     
-    Goroutine 1:
-            (*Tx).grabConn returns a valid (*driverConn)
-            The (*driverConn) passes to (*DB).queryConn
+    Fixes #13879.
     
-    Goroutine 3:
-            userContext is canceled
-    
-    Goroutine 2:
-            (*Tx).awaitDone unblocks and calls (*Tx).rollback
-            (*driverConn).finalClose obtains dc.Mutex
-            (*driverConn).finalClose sets dc.ci = nil
-    
-    Goroutine 1:
-            (*DB).queryConn obtains dc.Mutex in withLock
-            ctxDriverPrepare accepts dc.ci which is now nil
-            ctxCriverPrepare panics on the nil ci
-    
-    The fix for this is to guard the Tx methods with a RWLock
-    holding it exclusivly when closing the Tx and holding a read lock
-    when executing a query.
-    
-    Fixes #18719
-    
-    Change-Id: I37aa02c37083c9793dabd28f7f934a1c5cbc05ea
-    Reviewed-on: https://go-review.googlesource.com/35550
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I41920d9e2317270c6f909957d195bd8b68177f8d
+    Reviewed-on: https://go-review.googlesource.com/31359
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/sql.go      | 91 +++++++++++++++++++++++++++++++-------------
- src/database/sql/sql_test.go | 91 ++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 147 insertions(+), 35 deletions(-)
+ src/runtime/panic.go     |   5 +++
+ src/sync/mutex.go        |   6 ++-
+ src/sync/mutex_test.go   | 104 +++++++++++++++++++++++++++++++++++++++++++----
+ src/sync/rwmutex.go      |   4 +-
+ src/sync/rwmutex_test.go |  42 -------------------
+ 5 files changed, 106 insertions(+), 55 deletions(-)

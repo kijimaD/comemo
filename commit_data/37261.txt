@@ -1,16 +1,30 @@
-commit 27920c8ddc609662540deaf5a3d3b4fce03abeea
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 28 13:51:58 2017 -0400
+commit f50448f531887a5fefc95fe29735e71d3542ef2c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 13 10:28:56 2018 -0400
 
-    internal/trace: flags for what to include in GC utilization
+    regexp: reword Match documentation to be more like Find
     
-    Change-Id: I4ba963b003cb25b39d7575d423f17930d84f3f69
-    Reviewed-on: https://go-review.googlesource.com/c/60796
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Before:
+    
+      // Find returns a slice holding the text of the leftmost match in b of the regular expression.
+    
+      // Match checks whether a textual regular expression matches a byte slice.
+    
+    After:
+    
+      // Match reports whether the byte slice b contains any match of the regular expression re.
+    
+    The use of different wording for Find and Match always makes me think
+    that Match required the entire string to match while Find clearly allows
+    a substring to match.
+    
+    This CL makes the Match wording correspond more closely to Find,
+    to try to avoid that confusion.
+    
+    Change-Id: I97fb82d5080d3246ee5cf52abf28d2a2296a5039
+    Reviewed-on: https://go-review.googlesource.com/123736
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/trace/mmu.go                |  2 +-
- src/internal/traceparser/gc.go      | 48 ++++++++++++++++++++++++++++++-------
- src/internal/traceparser/gc_test.go |  4 ++--
- 3 files changed, 43 insertions(+), 11 deletions(-)
+ src/regexp/regexp.go | 32 ++++++++++++++++++--------------
+ 1 file changed, 18 insertions(+), 14 deletions(-)

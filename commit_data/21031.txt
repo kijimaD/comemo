@@ -1,18 +1,25 @@
-commit 421c01706fbcb4519d0a00215120e8ebd591d9e8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 19 18:17:02 2014 -0800
+commit 9a571deed6f9bebcbb3fad864600936b55aeea22
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 10 09:39:17 2014 +1100
 
-    misc/cgo/test: skip test7978 when using gccgo
+    undo CL 166380043 / 0b54a0927656
     
-    Gccgo can only get a backtrace for the currently running thread, which
-    means that it can only get a backtrace for goroutines currently running
-    Go code.  When a goroutine is running C code, gccgo has no way to stop
-    it and get the backtrace.  This test is all about getting a backtrace
-    of goroutines running C code, so it can't work for gccgo.
+    This was a mistake; the cmd/api tool
+    depends on an old version of go/types.
     
-    Change-Id: I2dff4403841fb544da7396562ab1193875fc14c3
-    Reviewed-on: https://go-review.googlesource.com/1904
-    Reviewed-by: Minux Ma <minux@golang.org>
+    ««« original CL description
+    cmd/api: bump go.tools golden CL hash
+    
+    TBR=bradfitz
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166380043
+    »»»
+    
+    TBR=bradfitz, rsc
+    R=bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/167430043
 
- misc/cgo/test/issue7978.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/api/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

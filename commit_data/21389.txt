@@ -1,26 +1,18 @@
-commit e16ed2870786c427fd9c265bc656cb01738fa63e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jan 28 11:38:05 2015 +0900
+commit 5cc29ab95ecbbf3b7435b30e61d3e49c75c29539
+Author: Chris Manghane <cmang@golang.org>
+Date:   Tue Dec 9 07:16:38 2014 -0800
 
-    net: remove full stack test cases for IPConn
+    cmd/gc: logical operators should produce untyped bool for untyped
+    operands
     
-    A few packages that handle net.IPConn in golang.org/x/net sub repository
-    already implement full stack test cases with more coverage than the net
-    package. There is no need to keep duplicate code around here.
+    Fixes #6671 for cmd/gc.
     
-    This change removes full stack test cases for IPConn that require
-    knowing how to speak with each of protocol stack implementation of
-    supported platforms.
-    
-    Change-Id: I871119a9746fc6a2b997b69cfd733463558f5816
-    Reviewed-on: https://go-review.googlesource.com/3404
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4907655b6e243960f2ceb544c63ea16513c7bd68
+    Reviewed-on: https://go-review.googlesource.com/1251
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/fd_plan9.go        |   4 --
- src/net/fd_unix.go         |   7 --
- src/net/fd_windows.go      |  19 -----
- src/net/ipraw_test.go      | 174 ++-------------------------------------------
- src/net/mockicmp_test.go   | 116 ------------------------------
- src/net/packetconn_test.go |  26 ++-----
- src/net/protoconn_test.go  |  35 +++------
- 7 files changed, 21 insertions(+), 360 deletions(-)
+ src/cmd/gc/typecheck.c      |  9 ++++++++-
+ test/fixedbugs/issue3924.go | 13 -------------
+ test/fixedbugs/issue6671.go | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 36 insertions(+), 14 deletions(-)

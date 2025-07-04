@@ -1,24 +1,23 @@
-commit 2d34af0fd6c6cb214c3a5a8f11ef95854667dd92
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Mar 30 08:55:22 2022 +0700
+commit 84c0e5d47f46f2e1a7ce92341477d9801f0ef777
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 1 14:58:36 2021 -0700
 
-    cmd/compile/internal/walk: fix wrong soleComponent implementation
+    cmd/link: move issue 43830 tests out of TestScript
     
-    CL 367755 added soleComponent for handling 1-byte type interface conversion.
-    This implementation must be kept in sync with Type.SoleComponent, but it
-    does not. When seeing a blank field in struct, we must continue looking
-    at the field type to find sole component, if any. The current code just
-    terminate immediately, which causes wrong sole component type returned.
+    These tests pass or fail depending on the exact compiler version,
+    which the TestScript tests don't support. Rewrite into Go.
     
-    Fixes #52020
+    For #43830
+    For #46295
     
-    Change-Id: I4f506fe094fa7c5532de23467a4f9139476bb0a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396614
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I91b61dfe329d518e461ee56f186f0e9b42858e77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324049
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/walk/convert.go |  2 +-
- test/fixedbugs/issue52020.go             | 11 +++++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/cgo_lto2_issue43830.txt |  33 -----
+ src/cmd/go/testdata/script/cgo_lto_issue43830.txt  |  40 ------
+ src/cmd/link/cgo_test.go                           | 138 +++++++++++++++++++++
+ 3 files changed, 138 insertions(+), 73 deletions(-)

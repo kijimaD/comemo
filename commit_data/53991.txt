@@ -1,27 +1,31 @@
-commit c6ee8e31e3e7b01da54d241ae5a8eed350ab0e9f
-Author: David Chase <drchase@google.com>
-Date:   Fri Aug 11 14:38:19 2023 -0400
+commit e665de28611fd2cbf7789065e7a26ca12c4b9c00
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 15 14:58:02 2022 -0700
 
-    runtime: profiling on Darwin cannot use blocking reads
+    runtime/race: introduce subarch versioning of race syso
     
-    On Darwin (and assume also on iOS but not sure), notetsleepg
-    cannot be called in a signal-handling context.  Avoid this
-    by disabling block reads on Darwin.
+    Allow us to select a race .syso file based on subarch values.
     
-    An alternate approach was to add "sigNote" with a pipe-based
-    implementation on Darwin, but that ultimately would have required
-    at least one more linkname between runtime and syscall to avoid
-    racing with fork and opening the pipe, so, not.
+    Note that this doesn't actually change the syso used. This CL
+    just moves things around in preparation for adding v3-specific
+    versions in future CLs.
     
-    Fixes #61768.
-    
-    Change-Id: I0e8dd4abf9a606a3ff73fc37c3bd75f55924e07e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518836
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I14e3c273a7c6f07b13b22193b7a851ea94c765cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424034
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/runtime/cpuprof.go   | 6 +++++-
- src/runtime/os_darwin.go | 3 ++-
- src/runtime/profbuf.go   | 1 +
- 3 files changed, 8 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go                                   |   7 ++++++-
+ src/runtime/race/internal/amd64v1/doc.go                    |   8 ++++++++
+ .../amd64v1/race_darwin.syso}                               | Bin
+ .../amd64v1/race_freebsd.syso}                              | Bin
+ .../amd64v1/race_linux.syso}                                | Bin
+ .../amd64v1/race_netbsd.syso}                               | Bin
+ .../amd64v1/race_openbsd.syso}                              | Bin
+ .../amd64v1/race_windows.syso}                              | Bin
+ src/runtime/race/internal/amd64v3/doc.go                    |   8 ++++++++
+ src/runtime/race/race_v1_amd64.go                           |  10 ++++++++++
+ src/runtime/race/race_v3_amd64.go                           |  10 ++++++++++
+ 11 files changed, 42 insertions(+), 1 deletion(-)

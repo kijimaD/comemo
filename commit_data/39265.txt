@@ -1,46 +1,22 @@
-commit e883d000f4ce0c47711c3a7c59df8bb2f0ec557f
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun May 26 15:28:05 2019 +0200
+commit 07717247d8decf5a5793f04c368eab3f43fad44f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 16:25:54 2019 -0500
 
-    cmd/link: do not generate NT 4 compatibility binaries
+    strconv: parse hex floats
     
-    Incredibly, the subsystem version numbers in the PE header influence how
-    win32k handles various syscalls. The first time a win32k syscall is
-    invoked and the kernel upgrades the thread object to a tagTHREADINFO
-    with all of the lovely undocumented UI members and such, it sets the
-    dwExpWinVer member (offset 624 in Windows 10 build 1809) to the result
-    of RtlGetExpWinVer(PsGetProcessSectionBaseAddress(proc)).
-    RtlGetExpWinVer, also undocumented, then calls into the undocumented
-    RtlImageNtHeader function, which returns a fortunately documented
-    IMAGE_NT_HEADERS structure. It uses the subsystem members in there to
-    set the dwExpWinVer member of our newly minted tagTHREADINFO object.
-    Later, functions like SendInput consult this to vary their behaviors and
-    return values. In fact, littered through out win32k are checks like `if
-    (gsti->dwExpWinVer >= 0x501) { ... }`.
+    This CL updates ParseFloat to recognize
+    standard hexadecimal floating-point constants.
+    See golang.org/design/19308-number-literals for background.
     
-    I don't think Go ever supported NT 4.0. These days the minimum version
-    is Windows 7, which is 6.1. So, let's set the version numbers in the PE
-    header at that, which should give us the behavior that MSDN advertises
-    for various functions, as opposed to bizarre archeological remnants.
+    For #29008.
     
-    Interestingly, I suspect that most people never noticed the brokenness,
-    because most people trying to do serious Win32 UI stuff wind up linking
-    in cgo, if not for actually using C, then just to have a larger system
-    stack so that the stack doesn't get corrupted by various UI functions.
-    When MingW is used, the PE header gets a later version. But recently
-    there's been a bug report of some people trying to do more modest UI
-    manipulation using SendInput in a setting where this cgo hack probably
-    isn't required, so they ran into the weird historical compatibility
-    stuff.
-    
-    Fixes #31685
-    
-    Change-Id: I54461ce820f6e9df349e37be5ecc5a44c04a3e26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178977
-    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
+    Change-Id: I45f3b0c36b5d92c0e8a4b35c05443a83d7a6d4b3
+    Reviewed-on: https://go-review.googlesource.com/c/160241
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/strconv/atof.go      | 205 ++++++++++++++++++++++++++++++++++++-----------
+ src/strconv/atof_test.go | 176 ++++++++++++++++++++++++++++++++++++++++
+ src/strconv/atoi.go      |   8 ++
+ 3 files changed, 341 insertions(+), 48 deletions(-)

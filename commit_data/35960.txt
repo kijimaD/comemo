@@ -1,14 +1,18 @@
-commit 10d977d76b3a15a009ba039b2360d9c2580ac9ea
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 11 22:55:16 2018 +0000
+commit 782f9ce52f5e021a8d0b0140919afecf0733c4a7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Mar 25 10:56:11 2018 +1100
 
-    net/http: add tests to validate that Client.Timeout closes connections
+    os: document DevNull on windows
     
-    For #23399
+    DevNull is documented on darwin, dragonfly, freebsd, linux,
+    nacl, netbsd, openbsd, solaris and plan9, but not on windows.
+    Add missing documentation.
     
-    Change-Id: I9bc7c21fda6bfa89af2e7656e5c85aa9edd4f29e
-    Reviewed-on: https://go-review.googlesource.com/123435
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icdbded0dd5e322ed4360cbce6bee4cdca5cfbe72
+    Reviewed-on: https://go-review.googlesource.com/102456
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport_test.go | 119 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 119 insertions(+)
+ src/os/file_windows.go | 2 ++
+ 1 file changed, 2 insertions(+)

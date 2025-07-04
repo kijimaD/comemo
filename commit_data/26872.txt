@@ -1,24 +1,19 @@
-commit 98080a6c64c2d9bc2a759b66a9b861af4ef7367b
-Author: Shawn Walker-Salas <shawn.walker@oracle.com>
-Date:   Fri Apr 8 15:59:04 2016 -0700
+commit e96b232993fa8edb478f32041e08e5cf5c74395d
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon Feb 15 17:01:26 2016 +0300
 
-    net: broken sendfile on SmartOS/Solaris
+    [dev.ssa] cmd/compile: promote byte/word operation
     
-    In the event of a partial write on Solaris and some BSDs, the offset
-    pointer passed to sendfile() will be updated even though the function
-    returns -1 if errno is set to EAGAIN/EINTR.  In that case, calculate the
-    bytes written based on the difference between the updated offset and the
-    original offset.  If no bytes were written, and errno is set to
-    EAGAIN/EINTR, ignore the errno.
+    Writing to low 8/16 bits of register creates false dependency
+    Generate 32-bit operations when possible.
     
-    Fixes #13892
-    
-    Change-Id: I6334b5ef2edcbebdaa7db36fa4f7785967313c2d
-    Reviewed-on: https://go-review.googlesource.com/21769
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8eb6c1c43a66424eec6baa91a660bceb6b80d1d3
+    Reviewed-on: https://go-review.googlesource.com/19506
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/sendfile_solaris.go |  9 ++++-
- src/net/sendfile_test.go    | 90 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 97 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           | 49 +++++++++-----
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 96 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/opGen.go        | 64 +++++++++----------
+ 3 files changed, 112 insertions(+), 97 deletions(-)

@@ -1,0 +1,20 @@
+commit 2ef8e41f9543478a51a0147a735e4415737de09f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 24 17:20:42 2024 -0700
+
+    net/smtp: ignore HELO error in QUIT
+    
+    Fixes #70011
+    
+    Change-Id: I9d8b3ffbd66561eee0efffd54038960acd5fcf64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622476
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/smtp/smtp.go      |  4 +---
+ src/net/smtp/smtp_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 3 deletions(-)

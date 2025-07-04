@@ -1,24 +1,19 @@
-commit 3df0512469e98361b94e6107d6d12842f7c545b4
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Sat Nov 12 12:23:30 2011 +1100
+commit e8188c160762f654369cdba535324a97df6aed22
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 11 16:59:47 2011 -0800
 
-    html: handle end tags in strange places
+    godoc: fix remote search (use correct URL)
     
-    Pass tests1.dat, test 111:
-    </strong></b></em></i></u></strike></s></blink></tt></pre></big></small></font></select></h1></h2></h3></h4></h5></h6></body></br></a></img></title></span></style></script></table></th></td></tr></frame></area></link></param></hr></input></col></base></meta></basefont></bgsound></embed></spacer></p></dd></dt></caption></colgroup></tbody></tfoot></thead></address></blockquote></center></dir></div></dl></fieldset></listing></menu></ol></ul></li></nobr></wbr></form></button></marquee></object></html></frameset></head></iframe></image></isindex></noembed></noframes></noscript></optgroup></option></plaintext></textarea>
+    Also works now together with -html, as in:
+    godoc -html -q Sin
+    for an html result.
     
-    | <html>
-    |   <head>
-    |   <body>
-    |     <br>
-    |     <p>
+    Fixes #2435.
     
-    Also pass all the remaining tests in tests1.dat.
-    
-    R=nigeltao
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/5372066
+    https://golang.org/cl/5375074
 
- src/pkg/html/parse.go      | 47 +++++++++++++++++-----------------------------
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 18 insertions(+), 31 deletions(-)
+ src/cmd/godoc/godoc.go | 14 ++++++++++++++
+ src/cmd/godoc/main.go  |  4 +---
+ 2 files changed, 15 insertions(+), 3 deletions(-)

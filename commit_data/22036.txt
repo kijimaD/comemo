@@ -1,14 +1,13 @@
-commit 3ab794c8c622e3216953020e5d06b45187534b2c
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:17:46 2015 +0100
+commit caf2bf26f86dfce379442a762afd9ec661c1db04
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 18 21:11:42 2015 -0800
 
-    cmd/cgo: add support for GOARCH=arm64
+    [dev.cc] cmd/go: enable verifyAsm for all architectures
     
-    Change-Id: Ia6c3d5e7a32b20e3c45d9485e66b48cd02644280
-    Reviewed-on: https://go-review.googlesource.com/7140
+    Change-Id: Ia1ba28c81e31d149c59a48d5f71628ac0ff14d8e
+    Reviewed-on: https://go-review.googlesource.com/5283
     Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/cgo/main.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/build.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

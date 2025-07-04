@@ -1,15 +1,12 @@
-commit 0b28de9a05be8eea49f9a31325a0091d9fa8b191
+commit 3f216c1b5d4a612f31098d23f4e47e37de8ae7a0
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Dec 19 14:59:41 2011 +1100
+Date:   Mon Dec 19 12:37:39 2011 +1100
 
-    archive/zip: add SetModTime method to FileHeader
+    dashboard: hide build status column (package builder is out of action)
     
-    Fixes #2574.
-    
-    R=golang-dev, bradfitz, adg, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5494072
+    https://golang.org/cl/5489080
 
- src/pkg/archive/zip/struct.go   | 16 ++++++++++++++++
- src/pkg/archive/zip/zip_test.go | 11 +++++++++++
- 2 files changed, 27 insertions(+)
+ misc/dashboard/godashboard/package.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

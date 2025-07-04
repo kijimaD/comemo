@@ -1,21 +1,20 @@
-commit 2d23ece135076698ea4724b02f07d71d1f2145fb
-Author: Austin Clements <austin@google.com>
-Date:   Sat Sep 22 15:59:01 2018 -0400
+commit 51e19d60329b0c62d5a4eaf4c2c0afaa0cc43744
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat May 26 19:25:31 2018 +0300
 
-    runtime: remove redundant locking in mcache.refill
+    runtime: use the correct AT_HWCAP auxv constant on freebsd
     
-    mcache.refill acquires g.m.locks, which is pointless because the
-    caller itself absolutely must have done so already to prevent
-    ownership of mcache from shifting.
+    In golang.org/cl/102355 I mistakenly used 26 instead of 25 as the AT_HWCAP value.
+    26 is AT_HWCAP2. While experimenting with FreeBSD-11.2-BETA3 (where both values are
+    being supplied in the auxv), the AT_HWCAP2 value read is 0 which triggers the error again:
     
-    Also, mcache.refill's documentation is generally a bit out-of-date, so
-    this cleans this up.
+      runtime: this CPU has no floating point hardware, so it cannot run this GOARM=7 binary. Recompile using GOARM=5.
     
-    Change-Id: Idc8de666fcaf3c3d96006bd23a8f307539587d6c
-    Reviewed-on: https://go-review.googlesource.com/138195
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Updates #24507.
+    
+    Change-Id: Ide04b7365d8f10e4650edf4e188dd58bdf42cc26
+    Reviewed-on: https://go-review.googlesource.com/114822
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mcache.go | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/runtime/os_freebsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

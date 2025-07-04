@@ -1,17 +1,13 @@
-commit 6119dc1b52c550c47aa42b8b10b1760f7cad5d5d
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Thu Mar 27 00:29:55 2014 -0400
+commit a4380927eb2d0070a936666e90a979f0f258bb0f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 27 11:45:51 2014 +1100
 
-    misc/bash, misc/zsh: fix completion rules
+    doc/go1.3.html: explain the change to the memory model
     
-    This patch includes fixes pointed out in CL 52140043, which was
-    originally written by john.gosset.
-    
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
+    LGTM=iant, rsc
+    R=rsc, iant, mtj
     CC=golang-codereviews
-    https://golang.org/cl/80320043
+    https://golang.org/cl/80260044
 
- misc/bash/go | 12 +-----------
- misc/zsh/go  |  5 +++--
- 2 files changed, 4 insertions(+), 13 deletions(-)
+ doc/go1.3.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

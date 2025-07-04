@@ -1,0 +1,27 @@
+commit bfc8f28068c4aff44aded67aef12e56ecc843717
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 29 09:24:20 2024 -0700
+
+    net/http: add Protocols field to Server and Transport
+    
+    Support configuring which HTTP version(s) a server or client use
+    via an explicit set of protocols. The Protocols field takes
+    precedence over TLSNextProto and ForceAttemptHTTP2.
+    
+    Fixes #67814
+    
+    Change-Id: I09ece88f78ad4d98ca1f213157b5f62ae11e063f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607496
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/next/67814.txt                           |   8 ++
+ doc/next/6-stdlib/99-minor/net/http/67814.md |   2 +
+ src/net/http/example_test.go                 |  28 ++++
+ src/net/http/http.go                         |  48 +++++++
+ src/net/http/http_test.go                    |  22 +++
+ src/net/http/server.go                       |  79 +++++++++--
+ src/net/http/transport.go                    |  62 ++++++--
+ src/net/http/transport_test.go               | 202 +++++++++++++++++++++++++++
+ 8 files changed, 429 insertions(+), 22 deletions(-)

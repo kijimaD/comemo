@@ -1,22 +1,19 @@
-commit 284802160362644c4c58ca4ccf14884dd3c4e2d0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 11 11:57:47 2023 -0700
+commit ece6ac4d4d4aea14d51907979e76dfb32c4b174b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 4 20:06:18 2022 +0000
 
-    time: update windows zoneinfo_abbrs
+    runtime/metrics: add gomaxprocs metric
     
-    While running "go generate" I noticed that there has been a change.
+    For #47216.
     
-    For #58113
-    
-    Change-Id: Icca349d0a100dd4b11d34e4bbcfd1aef57346db7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483716
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib2d48c4583570a2dae9510a52d4c6ffc20161b31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404305
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/time/zoneinfo_abbrs_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 5 +++++
+ src/runtime/metrics/doc.go         | 5 +++++
+ src/runtime/metrics_test.go        | 4 ++++
+ 4 files changed, 20 insertions(+)

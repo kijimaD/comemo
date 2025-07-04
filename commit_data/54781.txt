@@ -1,23 +1,24 @@
-commit 2d9e8ded9464932b8a296164506b64f58908c6cf
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Oct 9 13:34:51 2023 -0700
+commit 03a18104735c78ad71cbd67d59b25bdc7fe8dcdf
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Nov 14 23:11:30 2022 +0700
 
-    cmd/compile: reorganize compiler type descriptor generation
+    cmd/compile: fix missing typecheck for static initialization slice
     
-    Use the new rttype mechanism to share internal/abi types between
-    the compiler and runtime.
+    CL 440455 fixed missing walk pass for static initialization slice.
+    However, slicelit may produce un-typechecked node, thus we need to do
+    typecheck for sinit before calling walkStmtList.
     
-    Change-Id: I2bbba4d8090c6f7ff20dca15b7b665f5d04e5bfd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534936
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #56727
+    
+    Change-Id: I40730cebcd09f2be4389d71c5a90eb9a060e4ab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450215
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 335 +++++++++++++-----------
- src/cmd/compile/internal/rttype/rttype.go       | 241 ++++++++++-------
- src/cmd/compile/internal/types/type.go          |  15 ++
- src/cmd/compile/internal/walk/switch.go         |   2 +-
- src/internal/abi/compiletype.go                 | 133 ----------
- 5 files changed, 354 insertions(+), 372 deletions(-)
+ src/cmd/compile/internal/walk/complit.go |  1 +
+ test/fixedbugs/issue56727.go             | 45 ++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)

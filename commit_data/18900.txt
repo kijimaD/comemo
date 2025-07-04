@@ -1,20 +1,16 @@
-commit 79b3daa97722c71d73b519b062078b9296a36051
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Wed Mar 19 10:14:04 2014 -0700
+commit 8a908efd7462b4476d95a92498aef13c531cc8af
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Mar 19 17:22:56 2014 +0400
 
-    unicode: minor cleanup
+    runtime: add stack growth tests
+    Also move generated code into a separate file,
+    because it's difficult to work with the file otherwise.
     
-    These test cases are redundant because TestSimpleFold tests
-    all possible rotations of test data, so no need to add
-    rotated strings.
-    
-    Also updated the comment as it's guaranteed that SimpleFold
-    returns values in increasing order.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=khr
+    R=golang-codereviews, khr
     CC=golang-codereviews
-    https://golang.org/cl/77730043
+    https://golang.org/cl/76080044
 
- src/pkg/unicode/letter_test.go | 16 ++--------------
- 1 file changed, 2 insertions(+), 14 deletions(-)
+ src/pkg/runtime/stack_gen_test.go | 1473 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/stack_test.go     | 1630 ++++---------------------------------
+ 2 files changed, 1623 insertions(+), 1480 deletions(-)

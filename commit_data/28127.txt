@@ -1,15 +1,32 @@
-commit 6a982c390138fb2af49f85c4aeea2bce3222eb20
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 30 11:33:18 2016 -0700
+commit 2f8475648a5500830561ea03960a1425e1ff0993
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Apr 25 21:46:02 2016 -0400
 
-    cmd/compile: remove unused Type.Printed field
+    crypto/cipher, crypto/aes: add s390x implementation of AES-CBC
     
-    Change-Id: Iff2b1507dce08ef7c27085c8e0f45d0e3e88c476
-    Reviewed-on: https://go-review.googlesource.com/28152
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This commit adds the cbcEncAble and cbcDecAble interfaces that
+    can be implemented by block ciphers that support an optimized
+    implementation of CBC. This is similar to what is done for GCM
+    with the gcmAble interface.
+    
+    The cbcEncAble, cbcDecAble and gcmAble interfaces all now have
+    tests to ensure they are detected correctly in the cipher
+    package.
+    
+    name             old speed     new speed      delta
+    AESCBCEncrypt1K  152MB/s ± 1%  1362MB/s ± 0%  +795.59%   (p=0.000 n=10+9)
+    AESCBCDecrypt1K  143MB/s ± 1%  1362MB/s ± 0%  +853.00%   (p=0.000 n=10+9)
+    
+    Change-Id: I715f686ab3686b189a3dac02f86001178fa60580
+    Reviewed-on: https://go-review.googlesource.com/22523
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/type.go      | 1 -
- src/cmd/compile/internal/gc/typecheck.go | 1 -
- 2 files changed, 2 deletions(-)
+ src/crypto/aes/aes_gcm.go    |  3 ++
+ src/crypto/aes/asm_s390x.s   | 31 +++++++++++++--
+ src/crypto/aes/cbc_s390x.go  | 59 ++++++++++++++++++++++++++++
+ src/crypto/aes/modes.go      | 30 +++++++++++++++
+ src/crypto/aes/modes_test.go | 91 ++++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/cipher/cbc.go     | 22 +++++++++++
+ 6 files changed, 233 insertions(+), 3 deletions(-)

@@ -1,44 +1,19 @@
-commit 49da931268fe4d1fcee988c05b1d65dad8668506
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sun Mar 20 15:24:50 2016 +0100
+commit aff6aa0a21baa332bb94c34795520008c8db9198
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 26 20:33:21 2016 +0000
 
-    fmt: cleanup and optimize doPrintf for simple formats
+    net/http: quiet http2 log spam
     
-    Make a fast path for format strings that do not use
-    precision or width specifications or argument indices.
+    Updates x/net/http2 to git rev eb066e3 for https://golang.org/cl/18932
     
-    Only check and enforce the restriction to not pad left with zeros
-    in code paths that change either f.minus or f.zero.
+    Fixes #13925
+    Fixes #14061
     
-    Consolidate the if chains at the end of the main doPrintf loop
-    into a switch statement. Move error printing into extra
-    functions to reduce size of this switch statement.
-    
-    name                             old time/op  new time/op  delta
-    SprintfPadding-2                  234ns ± 1%   233ns ± 1%   -0.54%  (p=0.010 n=19+19)
-    SprintfEmpty-2                   37.0ns ± 3%  39.1ns ±14%     ~     (p=0.501 n=17+20)
-    SprintfString-2                   112ns ± 1%   101ns ± 1%   -9.21%  (p=0.000 n=19+20)
-    SprintfTruncateString-2           139ns ± 1%   139ns ± 0%   +0.57%  (p=0.000 n=19+19)
-    SprintfQuoteString-2              402ns ± 0%   392ns ± 0%   -2.35%  (p=0.000 n=19+20)
-    SprintfInt-2                      114ns ± 1%   102ns ± 2%  -10.92%  (p=0.000 n=20+20)
-    SprintfIntInt-2                   177ns ± 2%   155ns ± 2%  -12.67%  (p=0.000 n=18+18)
-    SprintfPrefixedInt-2              260ns ± 3%   249ns ± 3%   -4.55%  (p=0.000 n=20+20)
-    SprintfFloat-2                    190ns ± 1%   178ns ± 2%   -6.54%  (p=0.000 n=20+20)
-    SprintfComplex-2                  533ns ± 1%   517ns ± 3%   -2.95%  (p=0.000 n=20+20)
-    SprintfBoolean-2                  102ns ± 1%    93ns ± 2%   -9.30%  (p=0.000 n=20+20)
-    SprintfHexString-2                176ns ± 0%   168ns ± 2%   -4.49%  (p=0.000 n=16+19)
-    SprintfHexBytes-2                 181ns ± 1%   174ns ± 2%   -4.27%  (p=0.000 n=20+20)
-    SprintfBytes-2                    326ns ± 1%   311ns ± 1%   -4.51%  (p=0.000 n=20+20)
-    ManyArgs-2                        540ns ± 2%   497ns ± 1%   -8.08%  (p=0.000 n=18+16)
-    FprintInt-2                       150ns ± 0%   149ns ± 0%   -0.33%  (p=0.000 n=20+18)
-    FprintfBytes-2                    185ns ± 0%   165ns ± 0%  -10.98%  (p=0.000 n=20+18)
-    FprintIntNoAlloc-2                113ns ± 0%   112ns ± 0%   -0.88%  (p=0.000 n=20+20)
-    
-    Change-Id: I9ada8faa1f46aa67ea116a94ab3f4ad3e405c8fe
-    Reviewed-on: https://go-review.googlesource.com/20919
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I73f8c09232877404362358240b7b369bb9c76a12
+    Reviewed-on: https://go-review.googlesource.com/18934
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/fmt/print.go | 99 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 58 insertions(+), 41 deletions(-)
+ src/net/http/h2_bundle.go | 47 +++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 43 insertions(+), 4 deletions(-)

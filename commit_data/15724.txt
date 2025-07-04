@@ -1,17 +1,14 @@
-commit b09d88179909a31579d373ff7cccc266604b7ee9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Mar 13 00:03:00 2013 +0400
+commit 66e346433eaf931ed66d599f100cacad892d001b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 12 11:03:16 2013 -0700
 
-    net: refactoring in preparation for integrated network poller
-    Introduce pollDesc struct, to split netFD struct into fd-related
-    and poller-related parts.
+    runtime: Fix plan9 aes hash initialization.
     
-    R=golang-dev, bradfitz, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7762044
+    https://golang.org/cl/7593045
 
- src/pkg/net/fd_poll_unix.go     | 147 ++++++++++++++++++++++++----------------
- src/pkg/net/fd_unix.go          |  62 ++++++++---------
- src/pkg/net/sendfile_freebsd.go |   2 +-
- src/pkg/net/sendfile_linux.go   |   2 +-
- 4 files changed, 119 insertions(+), 94 deletions(-)
+ src/pkg/runtime/env_plan9.c    |  2 +-
+ src/pkg/runtime/os_plan9.h     |  3 ---
+ src/pkg/runtime/thread_plan9.c | 13 ++++++++++---
+ 3 files changed, 11 insertions(+), 7 deletions(-)

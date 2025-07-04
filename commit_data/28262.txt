@@ -1,12 +1,16 @@
-commit daf61797330a340c1341bd5428df8f623135b81b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 16:07:49 2016 -0700
+commit 561c94884477f568bdb68aacebfeb4d0411a874b
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Mon May 9 15:14:07 2016 -0400
 
-    cmd/compile: use fmt.State in nodedump
+    os: skip Lchown test on Android if symlink doesn't work
     
-    Change-Id: Icd83e88fc879b30b34f8697d540619efeb25c25b
-    Reviewed-on: https://go-review.googlesource.com/28338
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    After upgrading builder device (android/arm) to android 5.0.2,
+    the test started failing. Running 'ln -s' from shell fails with
+    permission error.
+    
+    Change-Id: I5b9e312806d58532b41ea3560ff079dabbc6424e
+    Reviewed-on: https://go-review.googlesource.com/22962
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 65 +++++++++++++++++++-------------------
- 1 file changed, 32 insertions(+), 33 deletions(-)
+ src/os/os_unix_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

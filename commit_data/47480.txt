@@ -1,28 +1,23 @@
-commit 95e85e31089523447aadb7670715c4d3383cc4ee
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Nov 14 21:13:27 2021 -0800
+commit a93849b9e2326cffe4c9aef656b507e2cead8e5f
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 19 15:21:14 2021 -0400
 
-    cmd/compile/internal/types2: use "implements" rather than "satisfies" in error messages
+    cmd/compile: remove now-redundant AuxCall.args
     
-    Type constraint satisfaction is interface implementation.
+    Cleanup, ABI information subsumes this.
     
-    Adjusted a few error messages.
+    Updates #40724
     
-    Change-Id: I4266af78e83131a76b1e3e44c847a21de760ac6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363839
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I6c69da44380f7b0d159b22acacbd68dc000e4725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303432
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/instantiate.go     | 21 ++++++++--------
- .../internal/types2/testdata/check/issues.go2      |  6 ++---
- .../internal/types2/testdata/check/typeinst2.go2   | 28 +++++++++++-----------
- .../types2/testdata/examples/inference.go2         |  2 +-
- .../types2/testdata/fixedbugs/issue39754.go2       |  4 ++--
- .../types2/testdata/fixedbugs/issue45920.go2       |  4 ++--
- .../types2/testdata/fixedbugs/issue47411.go2       | 10 ++++----
- src/constraints/constraints_test.go                |  2 +-
- test/typeparam/mdempsky/8.dir/b.go                 |  2 +-
- test/typeparam/mincheck.dir/main.go                |  4 ++--
- 10 files changed, 41 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
+ src/cmd/compile/internal/ssa/op.go                | 22 +++++-----------------
+ src/cmd/compile/internal/ssa/rewrite.go           |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |  2 +-
+ src/cmd/compile/internal/ssagen/ssa.go            | 16 ++++++----------
+ 5 files changed, 14 insertions(+), 30 deletions(-)

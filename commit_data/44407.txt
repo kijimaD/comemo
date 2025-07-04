@@ -1,35 +1,18 @@
-commit 3ee32439b5114c1fe5f04891b678613aa72e13c2
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Fri Nov 27 17:10:33 2020 +0200
+commit d1015f3e58e50c3e6f958391a9174fc15e030e83
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 26 11:57:08 2020 -0400
 
-    cmd/compile: ARM64 optimize []float64 and []float32 access
+    runtime: don't preempt if preemption is disabled
     
-    Optimize load and store to []float64 and []float32.
-    Previously it used LSL instead of shifted register indexed load/store.
+    If asyncpreemptoff is set, don't preempt upon receiving a SIGURG.
     
-    Before:
+    Fixes #38531.
     
-        LSL   $3, R0, R0
-        FMOVD F0, (R1)(R0)
-    
-    After:
-    
-        FMOVD F0, (R1)(R0<<3)
-    
-    Fixes #42798
-    
-    Change-Id: I0c0912140c3dce5aa6abc27097c0eb93833cc589
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/273706
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I6d9a828b45c199d3e479cbdfe17a896a40d540f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240121
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/arm64/ssa.go        |  14 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  18 ++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  20 +-
- src/cmd/compile/internal/ssa/opGen.go        |  56 +++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 294 +++++++++++++++++++++++++++
- test/codegen/floats.go                       |   4 +-
- test/codegen/memops.go                       |   4 +
- 7 files changed, 396 insertions(+), 14 deletions(-)
+ src/runtime/signal_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,26 +1,24 @@
-commit 2df1ccdbc6aac9e570e985437d741d723cb3497c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 22 13:58:03 2015 -0700
+commit 2692f48330da001903bc74210cec5ff27fe663c2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 24 20:24:49 2015 -0700
 
-    math/big: Always print exponent sign when using 'p' exponent for Floats.
+    cmd/internal/ld: remove pointless allocs
     
-    Float.Format supports the 'b' and 'p' format, both of which print
-    a binary ('p') exponent. The 'b' format always printed a sign ('+'
-    or '-') for the exponent; the 'p' format only printed a negative
-    sign for the exponent. This change makes the two consistent. It
-    also makes the 'p' format easier to read if the exponent is >= 0.
+    Reduces allocs linking cmd/go and runtime.test
+    by ~13%. No functional changes.
     
-    Also:
-    - Comments added elsewhere.
+    The most easily addressed sources of allocations
+    after this are expandpkg, rdstring, and symbuf
+    string conversion.
     
-    Change-Id: Ifd2e01bdafb3043345972ca22a90248d055bd29b
-    Reviewed-on: https://go-review.googlesource.com/10359
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    These can be reduced by interning strings,
+    but that increases the overall memory footprint.
+    
+    Change-Id: Ifedefc9f2a0403bcc75460d6b139e8408374e058
+    Reviewed-on: https://go-review.googlesource.com/9391
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/math/big/bits_test.go         | 20 ++++++++++----------
- src/math/big/float.go             |  2 ++
- src/math/big/float_test.go        | 30 +++++++++++++++---------------
- src/math/big/floatconv.go         |  6 ++++++
- src/math/big/floatconv_test.go    | 24 ++++++++++++------------
- src/math/big/floatexample_test.go |  6 +++---
- 6 files changed, 48 insertions(+), 40 deletions(-)
+ src/cmd/internal/ld/dwarf.go   | 12 ++++++------
+ src/cmd/internal/ld/go.go      |  8 ++------
+ src/cmd/internal/ld/objfile.go | 18 +++++++++---------
+ 3 files changed, 17 insertions(+), 21 deletions(-)

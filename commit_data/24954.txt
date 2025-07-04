@@ -1,15 +1,18 @@
-commit 918a2644f2ba67af43cfab201bc4c3f41f8bfeb7
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 17 16:34:06 2015 -0500
+commit c244ce097c1d75b4fd178683f74bfd9318a81ebe
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 10 14:59:00 2015 -0700
 
-    cmd/compile: fix Val vs Opt collision
+    [dev.ssa] cmd/compile/internal/ssa: fix complex compares
     
-    Fixes #12686.
+    It was using 64-bit float comparison ops for complex64.
+    It should use 32-bit float comparison.
     
-    Change-Id: I7a9f49dbd1f60b1d0240de57787753b425f9548c
-    Reviewed-on: https://go-review.googlesource.com/17031
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes build.
+    
+    Change-Id: I6452b227257fecc09e04cd092ccf328d1fc9917f
+    Reviewed-on: https://go-review.googlesource.com/14497
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 16 ++++++++++++----
- test/fixedbugs/issue12686.go         | 16 ++++++++++++++++
- 2 files changed, 28 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

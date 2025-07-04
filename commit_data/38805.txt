@@ -1,32 +1,27 @@
-commit 3b37ff453edd9664045e656d1c02e63703517399
-Author: erifan01 <eric.fang@arm.com>
-Date:   Tue Apr 16 02:49:09 2019 +0000
+commit 9aadbf5755dc8e3c3b0a224f513c92b804a1a3a7
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Tue Nov 27 16:16:43 2018 +0800
 
-    cmd/link: increase the reserved space for ELF relocations
+    net/http: prevent transport sends two "Connection: close" headers
     
-    Currently the offset values of ELF relocations and Macho relocations
-    are 256 and 512 respectively, which means that the space reserved for
-    ELF relocations is only 256. But AARCH64 has more than 256 ELF relocation
-    types, in fact the maximum AARCH64 ELF relocation type recorded in file
-    src/debug/elf/elf.go is 1032 currently. So this CL increases the offset
-    of Macho relocations to 2048 to leave enough space for AARCH64 ELF
-    relocations.
+    There are three functions that do Connection header write:
+    1. transport.go/ persistConn.roundTrip
+    2. transfer.go/ transferWriter.writeHeader
+    3. request.go/ Request.write
     
-    Change-Id: I784ac38aeb3e102ac7825f6d621086849c8d3146
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172497
+    The root cause is roundTrip didn't lookup into request.Close and
+    transferWriter
+    didn't take care of extraHeaders.
+    
+    Fixes #28886
+    
+    Change-Id: I1d131019c7cd42eb1bcc972c631b7df7511c1f39
+    Reviewed-on: https://go-review.googlesource.com/c/150722
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/objabi/util.go            |  5 +++
- src/cmd/link/internal/amd64/asm.go         | 40 +++++++++---------
- src/cmd/link/internal/arm/asm.go           | 26 ++++++------
- src/cmd/link/internal/ld/data.go           |  4 +-
- src/cmd/link/internal/ld/pe.go             |  2 +-
- src/cmd/link/internal/loadelf/ldelf.go     |  2 +-
- src/cmd/link/internal/loadmacho/ldmacho.go |  4 +-
- src/cmd/link/internal/ppc64/asm.go         | 30 +++++++-------
- src/cmd/link/internal/s390x/asm.go         | 66 +++++++++++++++---------------
- src/cmd/link/internal/sym/reloc.go         |  8 ++--
- src/cmd/link/internal/x86/asm.go           | 23 ++++++-----
- 11 files changed, 109 insertions(+), 101 deletions(-)
+ src/net/http/request.go        |  3 +++
+ src/net/http/transport.go      |  2 +-
+ src/net/http/transport_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 58 insertions(+), 1 deletion(-)

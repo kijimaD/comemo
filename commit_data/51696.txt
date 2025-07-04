@@ -1,26 +1,19 @@
-commit 3e77efc7204407c5c8882bec42fdcaa88ef40a9b
-Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
-Date:   Wed Dec 14 06:31:50 2022 +0100
+commit 2b8aa2b734721487bb718ee5fb6080f51b57efd9
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Feb 28 05:42:11 2022 -0800
 
-    cmd/internal/obj/s390x, runtime: fix breakpoint in s390x
+    internal/fuzz: handle Inf/NaN float values
     
-    Currently runtime.Breakpoint generates SIGSEGV in s390x.
-    The solution to this is add new asm instruction BRRK of
-    type FORMAT_E for the breakpoint exception.
+    Fixes #51258
     
-    Fixes #52103
-    
-    Change-Id: I8358a56e428849a5d28d5ade141e1d7310bee084
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457456
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3c8b785ac912d66e1a6e2179625e6903032b8330
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388354
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 1 +
- src/cmd/internal/obj/s390x/a.out.go       | 3 +++
- src/cmd/internal/obj/s390x/anames.go      | 1 +
- src/cmd/internal/obj/s390x/asmz.go        | 7 +++++++
- src/runtime/asm_s390x.s                   | 2 +-
- 5 files changed, 13 insertions(+), 1 deletion(-)
+ src/internal/fuzz/encoding.go      | 115 +++++++++++++++++++++++++++++--------
+ src/internal/fuzz/encoding_test.go |  14 +++++
+ 2 files changed, 104 insertions(+), 25 deletions(-)

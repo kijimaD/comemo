@@ -1,32 +1,31 @@
-commit 96a10b9c8469110a0aa30ea2185ca55f4aefef99
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit 5e33d11e1051734b2495021aa64ed9f47fbae87e
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Aug 5 15:59:39 2021 -0700
 
-    runtime: implement duffzero/duffcopy for linux/loong64
+    [dev.typeparams] cmd/compile: do transformCall with non-shape type of call
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Do the transformCall using the original types2-derived type of the call
+    (in particular, the types of the params as non-shapes). Currently, since
+    we were using the param types of the instantiation, we might add in
+    interface conversions to an interface with shapes in the one case of a
+    full-instantiated generic call. So, we do the transformCall() before
+    installing the shaped-based instantiation. transformCall() works
+    correctly even in the case of OCALL/FUNCINST.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    Fixed two related bugs:
+      - Fixed case where we still were not correctly substituting the types
+        for a function instantiation.
+      - The type substituter needs to copy field flags while substituting in
+        tstruct.
     
-    Updates #46229
-    
-    Change-Id: Ida040e76dc8172f60e6aee1ea2b5bce13ab3581e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368077
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I14e960737d6840a75846ede480e6650534ba3af3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340259
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/duff_loong64.s | 907 +++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mkduff.go      |  25 ++
- 2 files changed, 932 insertions(+)
+ src/cmd/compile/internal/noder/expr.go      |  8 ++++++--
+ src/cmd/compile/internal/noder/stencil.go   | 11 ++++++++---
+ src/cmd/compile/internal/noder/transform.go |  3 ++-
+ src/cmd/compile/internal/typecheck/subr.go  |  6 ++++++
+ 4 files changed, 22 insertions(+), 6 deletions(-)

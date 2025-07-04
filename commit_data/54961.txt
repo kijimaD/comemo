@@ -1,31 +1,16 @@
-commit 5f08b4479930af266d4a84c1533b320ed75edba7
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Nov 10 21:23:38 2023 +0000
+commit e79a4f71b7af648ef594f824951800ccc555d727
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 23 17:42:01 2022 -0500
 
-    runtime: call enableMetadataHugePages and its callees on the systemstack
+    context: canceLLation
     
-    These functions acquire the heap lock. If they're not called on the
-    systemstack, a stack growth could cause a self-deadlock since stack
-    growth may allocate memory from the page heap.
+    Fixes post-review comment on CL 375977.
     
-    This has been a problem for a while. If this is what's plaguing the
-    ppc64 port right now, it's very surprising (and probably just
-    coincidental) that it's showing up now.
-    
-    For #64050.
-    For #64062.
-    Fixes #64067.
-    
-    Change-Id: I2b95dc134d17be63b9fe8f7a3370fe5b5438682f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541635
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: If7117fd7b505670eb676a73d991917505bc18a4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453296
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/malloc.go     | 4 ++++
- src/runtime/mgc.go        | 4 +++-
- src/runtime/mpagealloc.go | 4 ++++
- 3 files changed, 11 insertions(+), 1 deletion(-)
+ src/context/context.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

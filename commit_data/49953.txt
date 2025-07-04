@@ -1,47 +1,28 @@
-commit 57d05512feebed4fbe1e7a19305c8722a4ac627f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 5 13:34:29 2022 -0400
+commit 1319b1476ea6f55c780936d133a005054fa81234
+Author: Zvonimir Pavlinovic <zpavlinovic@google.com>
+Date:   Wed Aug 11 13:47:07 2021 -0700
 
-    crypto/subtle: add XORBytes
+    cmd/go/internal/test: pass only analysis flags to vet
     
-    Export cipher.xorBytes as subtle.XORBytes, for proposal #53021,
-    to provide fast XOR to cryptography libraries outside crypto/cipher.
+    In go test vet=x, x should be off, all, or one of the analyses supported
+    by vet. All other flags should not be passed to vet. This CL maintains a
+    list of supported vet analyzers by running go tool vet -flags and
+    parsing the flag info to figure out the names of the supported analyzers
+    and their aliases.
     
-    Along with the move, implement the alignment check TODO
-    in xor_generic.go, so that systems with neither unaligned
-    accesses nor custom assembly can still XOR a word at a time
-    in word-based algorithms like GCM. This removes the need
-    for the separate cipher.xorWords.
+    Fixes #47309
     
-    Fixes #53021.
-    
-    Change-Id: I58f80a922f1cff671b5ebc6168eb046e702b5a4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421435
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I16ade8024301ad4aee5ad45aa92cf63b63dbc2d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341334
+    Trust: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    Run-TryBot: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- api/next/53021.txt                         |   1 +
- src/crypto/cipher/cbc.go                   |  11 +--
- src/crypto/cipher/cfb.go                   |   7 +-
- src/crypto/cipher/ctr.go                   |   7 +-
- src/crypto/cipher/export_test.go           |   1 -
- src/crypto/cipher/gcm.go                   |   6 +-
- src/crypto/cipher/ofb.go                   |   7 +-
- src/crypto/cipher/xor_amd64.go             |  27 --------
- src/crypto/cipher/xor_arm64.go             |  29 --------
- src/crypto/cipher/xor_generic.go           |  91 -------------------------
- src/crypto/cipher/xor_ppc64x.go            |  29 --------
- src/crypto/cipher/xor_test.go              |  75 --------------------
- src/crypto/subtle/xor.go                   |  24 +++++++
- src/crypto/subtle/xor_amd64.go             |  10 +++
- src/crypto/{cipher => subtle}/xor_amd64.s  |   6 +-
- src/crypto/subtle/xor_arm64.go             |  10 +++
- src/crypto/{cipher => subtle}/xor_arm64.s  |   6 +-
- src/crypto/subtle/xor_generic.go           |  58 ++++++++++++++++
- src/crypto/subtle/xor_ppc64x.go            |  10 +++
- src/crypto/{cipher => subtle}/xor_ppc64x.s |   6 +-
- src/crypto/subtle/xor_test.go              | 106 +++++++++++++++++++++++++++++
- 21 files changed, 255 insertions(+), 272 deletions(-)
+ src/cmd/go/internal/test/flagdefs.go               | 34 +++++++++++
+ src/cmd/go/internal/test/flagdefs_test.go          | 19 ++++++
+ src/cmd/go/internal/test/genflags.go               | 21 ++++++-
+ .../go/internal/test/internal/genflags/vetflag.go  | 68 ++++++++++++++++++++++
+ src/cmd/go/internal/test/testflag.go               | 10 +++-
+ src/cmd/go/testdata/script/test_vet.txt            | 11 ++++
+ 6 files changed, 160 insertions(+), 3 deletions(-)

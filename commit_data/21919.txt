@@ -1,15 +1,48 @@
-commit b66a50999220ba2bd815ccc9d93234bb48cd3c40
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 5 00:36:09 2015 -0500
+commit 77a2113925b516c0ead2ae258c4d41ac3fdc0836
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Dec 23 18:28:02 2014 -0800
 
-    cmd/internal/obj/x86: add CALL *name(SB)
+    cmd/gc: evaluate concrete == interface without allocating
     
-    This was in i386 but not in x86 and was missed during the merge.
-    Needed for linux/386.
+    Consider an interface value i of type I and concrete value c of type C.
     
-    Change-Id: Ia6e495c044f53bcb98f3bb03e20d8f6d35a8f8ff
-    Reviewed-on: https://go-review.googlesource.com/6902
-    Reviewed-by: Rob Pike <r@golang.org>
+    Prior to this CL, i==c was evaluated as
+            I(c) == i
+    
+    Evaluating I(c) can allocate.
+    
+    This CL changes the evaluation of i==c to
+            x, ok := i.(C); ok && x == c
+    
+    The new generated code is shorter and does not allocate directly.
+    
+    If C is small, as it is in every instance in the stdlib,
+    the new code also uses less stack space
+    and makes one runtime call instead of two.
+    
+    If C is very large, the original implementation is used.
+    The cutoff for "very large" is 1<<16,
+    following the stack vs heap cutoff used elsewhere.
+    
+    This kind of comparison occurs in 38 places in the stdlib,
+    mostly in the net and os packages.
+    
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkEqEfaceConcrete      29.5          7.92          -73.15%
+    BenchmarkEqIfaceConcrete      32.1          7.90          -75.39%
+    BenchmarkNeEfaceConcrete      29.9          7.90          -73.58%
+    BenchmarkNeIfaceConcrete      35.9          7.90          -77.99%
+    
+    Fixes #9370.
+    
+    Change-Id: I7c4555950bcd6406ee5c613be1f2128da2c9a2b7
+    Reviewed-on: https://go-review.googlesource.com/2096
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/x86/asm6.go | 50 +++++++++++++++++++++++++++++++++++-----
- 1 file changed, 44 insertions(+), 6 deletions(-)
+ src/cmd/gc/typecheck.c      |  36 ++++++++-----
+ src/cmd/gc/walk.c           |  41 ++++++++++++++
+ src/runtime/iface_test.go   |  42 +++++++++++++++
+ test/fixedbugs/issue9370.go | 127 ++++++++++++++++++++++++++++++++++++++++++++
+ test/live.go                |   5 +-
+ 5 files changed, 234 insertions(+), 17 deletions(-)

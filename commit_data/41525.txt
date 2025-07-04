@@ -1,19 +1,27 @@
-commit a4f7b0879c8d5d67e8e186dc210d3c8e76589e78
-Author: Torben Schinke <torben.schinke@neotos.de>
-Date:   Sun Mar 1 20:07:46 2020 +0000
+commit b3104fe3af99c965b5e9a954264dfc384f21bb37
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 9 20:13:40 2019 +0000
 
-    syscall/js: improve documentation of js.FuncOf
+    Revert "cmd/go: fail if a test binary exits with no output"
     
-    The existing documentation is improved to be more
-    explicit about the lifecycle and its consequences.
+    This reverts CL 184457.
     
-    Fixes #34324
+    Reason for revert: introduced failures in the regression test for #18153.
     
-    Change-Id: I9969afc69f6eeb7812c11fe821a842794df5aa5b
-    GitHub-Last-Rev: 246a4991660927f88f48290580e96b15c16663c1
-    GitHub-Pull-Request: golang/go#34551
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197458
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Fixes #34791
+    Updates #29062
+    
+    Change-Id: I4040965163f809083c023be055e69b1149d6214e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200106
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/js/func.go | 23 ++++++++++++++---------
- 1 file changed, 14 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/test/test.go         |  37 +-------
+ src/cmd/go/testdata/script/test_exit.txt | 152 -------------------------------
+ src/cmd/internal/goobj/goobj_test.go     |   4 +-
+ src/cmd/nm/nm_test.go                    |   4 +-
+ src/cmd/objdump/objdump_test.go          |   4 +-
+ src/go/build/deps_test.go                |   2 +-
+ src/internal/testenv/testenv.go          |   9 --
+ 7 files changed, 12 insertions(+), 200 deletions(-)

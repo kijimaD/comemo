@@ -1,21 +1,20 @@
-commit 6f32d2050d7f0a9d0c529a1a7a21aa8c1d63fa20
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 25 21:49:05 2021 +0000
+commit 18510ae88ffcb9c4a914805fde3e613539f9b6dc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 7 20:52:48 2021 -0800
 
-    runtime: pace the scavenger according to 1% of overall CPU time
+    runtime, cmd/link/internal/ld: disable memory profiling when data unreachable
     
-    Currently the scavenger is paced to 1% of 1 CPU because it had
-    scalability problems. As of the last few CLs, that should be largely
-    resolved. This change resolves the TODO and paces the scavenger
-    according to 1% of overall CPU time.
+    If runtime.MemProfile is unreachable, default to not collecting any
+    memory profiling samples, to save memory on the hash table.
     
-    This change is made separately to allow it to be more easily rolled
-    back.
+    Fixes #42347
     
-    Change-Id: I1ab4de24ba41c564960701634a128a813c55ece9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358675
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I9a4894a5fc77035fe59b1842e1ec77a1182e70c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299671
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/runtime/mgcscavenge.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/cmd/link/internal/ld/ld_test.go | 100 ++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go     |  12 +++++
+ src/runtime/mprof.go                |  17 +++++-
+ 3 files changed, 128 insertions(+), 1 deletion(-)

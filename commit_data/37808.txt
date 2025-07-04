@@ -1,21 +1,16 @@
-commit 2175177497b74a1be52cc98a892e4197973c4ea6
-Author: Julien Salleyron <julien.salleyron@gmail.com>
-Date:   Wed Jan 2 16:29:49 2019 +0000
+commit 31389254def190938c0cc802f645f958734bc865
+Author: Alex Kohler <alexjohnkohler@gmail.com>
+Date:   Thu Aug 30 10:01:54 2018 -0400
 
-    net/http/httputil: fix missing previous headers in response when switching protocol in ReverseProxy
+    all: fix typos
     
-    When using switching protocol, previous headers set before the reverse proxy are lost.
-    
-    Fixes #29407
-    
-    Change-Id: Ia2b9784022d9bccef8625519ccbabbe8a276dfc0
-    GitHub-Last-Rev: 79bb493dcbb9b76d9d2ff9cd0854b29d634f8b73
-    GitHub-Pull-Request: golang/go#29408
-    Reviewed-on: https://go-review.googlesource.com/c/155741
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icded6c786b7b185d5aff055f34e0cfe9e521826a
+    Reviewed-on: https://go-review.googlesource.com/132176
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/reverseproxy.go      |  3 +++
- src/net/http/httputil/reverseproxy_test.go | 18 +++++++++++++++---
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 2 +-
+ src/cmd/trace/annotations.go            | 5 ++---
+ src/cmd/trace/trace.go                  | 4 ++--
+ 3 files changed, 5 insertions(+), 6 deletions(-)

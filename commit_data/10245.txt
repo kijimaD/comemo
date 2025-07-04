@@ -1,12 +1,30 @@
-commit 1a4402a1feab4a8592986a3b3675a3261667e19c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Nov 4 17:46:52 2011 +1100
+commit 632a2c59b12b525edac2fffa4ddd57b3de068707
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Nov 4 15:48:11 2011 +1100
 
-    bytes: add Contains function
+    html: properly close <tr> element when an new <tr> starts.
     
-    R=golang-dev, bradfitz
+    Pass tests1.dat, test 87:
+    <table><tr><tr><td><td><span><th><span>X</table>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <table>
+    |       <tbody>
+    |         <tr>
+    |         <tr>
+    |           <td>
+    |           <td>
+    |             <span>
+    |           <th>
+    |             <span>
+    |               "X"
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5349041
+    https://golang.org/cl/5343041
 
- src/pkg/bytes/bytes.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/html/parse.go      | 17 +++++++++++------
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 12 insertions(+), 7 deletions(-)

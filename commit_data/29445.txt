@@ -1,14 +1,16 @@
-commit 5af7553f9d8dbba8d798cadf62c10e504f5c3d36
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Nov 8 16:10:26 2016 -0800
+commit 8e922759b381061cc4709c3e52d522d983521c5a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 16 00:17:33 2016 +1000
 
-    cmd/compile: ensure that knownFormats is up to date
+    cmd/compile/internal/gc: fix build
     
-    Change-Id: I4febdddfe5be569a8bba0a4cddf52dec7f1be1bf
-    Reviewed-on: https://go-review.googlesource.com/32930
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fix conflict between CL 29213 and 29134.
+    
+    Change-Id: Ie58bd7195893d7e634f1b257ee0bdd3250cd23c2
+    Reviewed-on: https://go-review.googlesource.com/29137
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/fmt_test.go | 43 ++++++++++++++++++++++++++-----------------
- 1 file changed, 26 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

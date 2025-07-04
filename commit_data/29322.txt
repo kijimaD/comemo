@@ -1,21 +1,17 @@
-commit 761443edd56832cc1b62f9193f157ca822dfa09e
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Oct 31 21:18:00 2016 -0700
+commit 14ff7cc94c4e167dbd80c96996b43f96bb9c17fb
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 8 08:33:19 2016 -0400
 
-    cmd/compile: On a runtime.KeepAlive call, keep whole variable alive
+    runtime/cgo: fix callback on big-endian MIPS64
     
-    We generate an OpKeepAlive for the idata portion of the interface
-    for a runtime.KeepAlive call.  But given such an op, we need to keep
-    the entire containing variable alive, not just the range that was
-    passed to the OpKeepAlive operation.
+    Use MOVW, instead of MOVV, to pass an int32 arg. Also no need to
+    restore arg registers.
     
-    Fixes #17710
+    Fix big-endian MIPS64 build.
     
-    Change-Id: I90de66ec8065e22fb09bcf9722999ddda289ae6e
-    Reviewed-on: https://go-review.googlesource.com/32477
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ib43c71075c988153e5e5c5c6e7297b3fee28652a
+    Reviewed-on: https://go-review.googlesource.com/28830
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go |  9 +++++----
- test/fixedbugs/issue17710.go       | 13 +++++++++++++
- 2 files changed, 18 insertions(+), 4 deletions(-)
+ src/runtime/cgo/asm_mips64x.s | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

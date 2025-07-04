@@ -1,17 +1,15 @@
-commit 40e60e7c13d53f63d323c0a2fe380dd3eb24bf3c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 7 22:11:48 2016 +0000
+commit 8fac7e3cc7b69211267d5a2e3c08b0f5cd4c46f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 00:54:45 2015 -0500
 
-    os, syscall: skip tests when environment doesn't permit testing
+    cmd/go: document that go generate accepts all build flags
     
-    Fixes #14693
+    Fixes #12544.
     
-    Change-Id: Id0a6a80b4c37c0b0f1c2755667b7233ed8964e40
-    Reviewed-on: https://go-review.googlesource.com/20342
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5e2fd1fbb21816e9f6fb022e2664484a71093b04
+    Reviewed-on: https://go-review.googlesource.com/17947
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/os_test.go              | 12 ++++++++----
- src/syscall/exec_linux_test.go |  3 +++
- 2 files changed, 11 insertions(+), 4 deletions(-)
+ src/cmd/go/alldocs.go  | 12 +++++++++++-
+ src/cmd/go/generate.go |  4 +++-
+ 2 files changed, 14 insertions(+), 2 deletions(-)

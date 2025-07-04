@@ -1,24 +1,26 @@
-commit ddcdbb417b47e50fc7006c9438104c5b8b5f75e4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 23 12:03:51 2021 -0700
+commit afa150c2ea1b121c7727c12ab3615fcc173d0d15
+Author: Changkun Ou <hi@changkun.us>
+Date:   Mon Aug 31 20:54:17 2020 +0200
 
-    cmd/compile/internal/types2: review of assignments.go
+    testing: fail Example tests that invoke runtime.Goexit
     
-    The changes between (equivalent, and reviewed) go/types/assignments.go
-    and assignments.go can be seen by comparing patchset 1 and 2. The actual
-    changes are removing the "// UNREVIEWED" marker.
+    Previously, if an example test invoked runtime.Goexit, it would
+    pass yet hang until a timeout, while regular tests that invoke
+    runtime.Goexit do fail. This change removes that inconsistent
+    behavior and makes such example tests fail, and panic with an
+    indication of having invoked runtime.Goexit.
     
-    The primary differences to go/types/assignments.go are:
-    - use of syntax instead of go/ast package
-    - no reporting of error codes (for now)
-    - different handling of nil values (we can't use Typ[UntypedNil]
-      to represent an untyped nil because types2 gives such nil values
-      context-dependent types)
+    Fixes #41084
     
-    Change-Id: I5d8a58f43ca8ed2daa060c46842a6ebc11b3cb35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304051
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I0ffa152204f2b1580f4d5d6961ba1ce6b13fc022
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251857
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/assignments.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_example_goexit.txt | 25 ++++++++++++++++++++++
+ src/testing/example.go                             | 11 +++++++---
+ src/testing/run_example.go                         |  4 +++-
+ src/testing/run_example_js.go                      |  4 +++-
+ 4 files changed, 39 insertions(+), 5 deletions(-)

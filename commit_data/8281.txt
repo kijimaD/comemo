@@ -1,19 +1,25 @@
-commit 540feaae470ad4cf838b0c1bd5a74bdde096a082
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 2 10:49:19 2011 -0400
+commit 807ce2719c243f6d8640de774599e3335883eacb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 07:26:40 2011 -0700
 
-    runtime, sync/atomic: fix arm cas
+    jpeg: speed up RGBA encoding ~%50
     
-    Works around bug in kernel implementation on old ARM5 kernels.
-    Bug was fixed on 26 Nov 2007 (between 2.6.23 and 2.6.24) but
-    old kernels persist.
+    Avoids image.At(), color.RGBA(), opposing 8 bit shifts,
+    and min function calls in a loop.  Not as pretty as before,
+    but the pure version is still there to revert back to
+    later if/when the compiler gets better.
     
-    Fixes #1750.
+    before (best of 5)
+    jpeg.BenchmarkEncodeRGBOpaque   50   64781360 ns/op   18.97 MB/s
     
-    R=dfc, golang-dev
+    after (best of 5)
+    jpeg.BenchmarkEncodeRGBOpaque   50   42044300 ns/op   29.23 MB/s
+    
+    (benchmarked on an HP z600; 16 core Xeon E5520 @ 2.27Ghz)
+    
+    R=r, r2, nigeltao
     CC=golang-dev
-    https://golang.org/cl/4436072
+    https://golang.org/cl/4433088
 
- src/pkg/runtime/linux/arm/sys.s     | 15 +++++++++++++--
- src/pkg/sync/atomic/asm_linux_arm.s | 21 +++++++++++++++++++--
- 2 files changed, 32 insertions(+), 4 deletions(-)
+ src/pkg/image/jpeg/writer.go | 32 +++++++++++++++++++++++++++++++-
+ 1 file changed, 31 insertions(+), 1 deletion(-)

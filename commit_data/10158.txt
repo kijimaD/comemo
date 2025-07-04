@@ -1,12 +1,12 @@
-commit a07841e21ebe371f7b9f45cba1e0d1a8090c58fb
+commit d0eaa58b5a19f15546af4d61a1dc9987af168b5a
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 31 17:50:38 2011 -0400
+Date:   Mon Oct 31 17:50:25 2011 -0400
 
-    test: make bug107 os.Error-proof
+    runtime/pprof: document OS X being broken
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5306087
+    https://golang.org/cl/5307078
 
- test/fixedbugs/bug107.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/pprof/pprof.go | 3 +++
+ 1 file changed, 3 insertions(+)

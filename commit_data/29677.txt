@@ -1,20 +1,16 @@
-commit 406d2fa2f3034974e94620bacf6c09bcabaf85fd
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Nov 28 20:31:18 2016 -0500
+commit d0e92f61e5c5c59395d9b1a3b4f5c7b90dec5bc8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 3 15:21:16 2016 -0400
 
-    net/http: fix test TestServeMuxHandlerRedirects
+    cmd/compile: remove unnecessary write barriers for APPEND
     
-    The code was intended to test that mux handler should redirect at
-    most once, but the added loop condition defeated that. Remove the
-    loop condition and document the intention better.
+    Updates #17330.
     
-    Fixes #18068.
-    
-    Change-Id: I2a4ea041eae27168b45a09aa46e740ac03921594
-    Reviewed-on: https://go-review.googlesource.com/33654
+    Change-Id: I83fe80139a2213f3169db884b84a4c3bd15b58b6
+    Reviewed-on: https://go-review.googlesource.com/30140
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,27 +1,20 @@
-commit d99d5f7caa10b679f8509c22aafb35a51ab716ae
+commit 6e269256264599a49739ad1145bac3845e94ead4
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 28 10:29:58 2017 -0800
+Date:   Wed Nov 2 22:56:10 2016 -0700
 
-    cmd/vet: allow shifts by amounts calculated using unsafe
+    cmd/objdump: speed up tests
     
-    The real world code that inspired this fix,
-    from runtime/pprof/map.go:
+    Rebuild cmd/objdump once instead of twice.
+    Speeds up standalone 'go test cmd/objdump' on my
+    machine from ~1.4s to ~1s.
     
-            // Compute hash of (stk, tag).
-            h := uintptr(0)
-            for _, x := range stk {
-                    h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1)))
-                    h += uintptr(x) * 41
-            }
-            h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1)))
-            h += uintptr(tag) * 41
+    Updates #17751
     
-    Change-Id: I99a95b97cba73811faedb0b9a1b9b54e9a1784a3
-    Reviewed-on: https://go-review.googlesource.com/37574
+    Change-Id: I15fd79cf18c310f892bc28a9e9ca47ee010c989a
+    Reviewed-on: https://go-review.googlesource.com/32673
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/shift.go          | 23 +++++++++++++++++++++++
- src/cmd/vet/testdata/shift.go |  5 +++++
- 2 files changed, 28 insertions(+)
+ src/cmd/objdump/objdump_test.go | 40 ++++++++++++++++++++++++++++++----------
+ 1 file changed, 30 insertions(+), 10 deletions(-)

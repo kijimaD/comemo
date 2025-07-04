@@ -1,15 +1,18 @@
-commit 4d7c81bc674479a6d21cbeec14bb1d6dac5e4a8c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Sep 20 00:18:41 2012 +0800
+commit 7cda7dbe9aa688c105ae9ed55a2e39e7dff3d0ac
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 18 22:04:07 2012 -0700
 
-    cmd/ld: consistent binary for cgo programs
-    We use pkg path instead of file name (which contains $WORK) in section symbols names.
+    api: fix build; regenerate api.txt with fixed signatures
     
-    R=golang-dev, fullung, rsc, iant
+    Update to tip (to get 6475062 and 6525047)
+    Rebuild cmd/api.
+    Switch to a go1 release branch.
+    Run go tool api > api/go1.txt.new in release branch.
+    Back to tip.
+    
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/6445085
+    https://golang.org/cl/6528047
 
- src/cmd/ld/ldelf.c   | 3 +--
- src/cmd/ld/ldmacho.c | 3 +--
- src/cmd/ld/ldpe.c    | 3 +--
- 3 files changed, 3 insertions(+), 6 deletions(-)
+ api/go1.txt | 1340 +++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 664 insertions(+), 676 deletions(-)

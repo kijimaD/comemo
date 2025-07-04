@@ -1,18 +1,15 @@
-commit c4674e01343c0db9fad726401de114dac749382d
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 29 10:50:23 2022 +0200
+commit c3c4a2bf6589f8c1e046149356fb5456b34a0df1
+Author: Pedro Lopez Mareque <pedro.lopez.mareque@gmail.com>
+Date:   Fri Oct 8 07:01:35 2021 +0200
 
-    net/netip: add test for AddrFromSlice
+    math/bits: add examples for Add, Sub, Mul and Div
     
-    AddrFromSlice is not covered by any other test so far.
-    
-    Change-Id: I91034c6cac95a023fc419c855873a395b1afdab7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435916
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I2f3619aa827e18f356871511c20cf2c712f496b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353189
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Keith Randall <khr@golang.org>
 
- src/net/netip/netip_test.go | 35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
+ src/math/bits/example_math_test.go | 202 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 202 insertions(+)

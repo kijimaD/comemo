@@ -1,16 +1,15 @@
-commit db89e19d26f4e4d4aaf7a5c1873d532e9d8f6bac
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Thu Jan 6 11:36:47 2011 -0500
+commit 2281ca169cb9f07755d905dec03d2fc7a168094b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 6 11:21:18 2011 -0500
 
-    runtime/cgo: fix stackguard on FreeBSD/amd64
+    gc: fix &^=
     
-    A cursory reading of the cgo code suggests this
-    should be necessary, though I don't have access
-    to a FreeBSD machine for testing.
+    Fixes #1394.
     
-    R=rsc, adg
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/3746047
+    https://golang.org/cl/3879041
 
- src/pkg/runtime/cgo/freebsd_amd64.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/gc/walk.c        |  8 ++++----
+ test/fixedbugs/bug317.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+), 4 deletions(-)

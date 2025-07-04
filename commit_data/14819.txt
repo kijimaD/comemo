@@ -1,17 +1,12 @@
-commit 60544b698ed1310dd3c5dbf67f73f29938d64e0d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 7 19:36:38 2013 +1100
+commit 86aad668c0022f17a202fc8d4dd76a0456401048
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jan 7 15:31:51 2013 +1100
 
-    go/doc: recursively inspect selector expressions
+    cmd/vet: %#q is a valid format (uses raw quotes).
     
-    Also adds a couple of simple tests for doc.Examples.
-    
-    Fixes #4561.
-    
-    R=golang-dev, dave, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7067048
+    https://golang.org/cl/7057051
 
- src/pkg/go/doc/example.go      |  15 +++---
- src/pkg/go/doc/example_test.go | 111 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 119 insertions(+), 7 deletions(-)
+ src/cmd/vet/print.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

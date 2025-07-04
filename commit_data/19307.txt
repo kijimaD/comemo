@@ -1,31 +1,53 @@
-commit 0f52fdbf7ba599702643660b46ce94f4925856b0
+commit e5c105033a757127089989717937776a7d0c57a0
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 9 16:32:38 2014 -0400
+Date:   Fri May 9 16:03:44 2014 -0400
 
-    cmd/go: accept build flags in clean and list
+    cmd/gc: disable link-time copying of un-Go-initialized globals
     
-    list has been adding them one at a time haphazardly
-    (race and tags were there and documented; compiler
-    was there and undocumented).
+    If you write:
     
-    clean -i needs -compiler in order to clean the
-    installed targets for alternate compilers.
+            var x = 3
     
-    Fixes #7302.
+    then the compiler arranges for x to be initialized in the linker
+    with an actual 3 from the data segment, rather than putting
+    x in the bss and emitting init-time "x = 3" assignment code.
     
-    While we're here, tweak the language in the 'go get' docs
-    about build flags.
+    If you write:
     
-    Fixes #7807.
+            var y = x
+            var x = 3
+    
+    then the compiler is clever and treats this the same as if
+    the code said 'y = 3': they both end up in the data segment
+    with no init-time assignments.
+    
+    If you write
+    
+            var y = x
+            var x int
+    
+    then the compiler was treating this the same as if the
+    code said 'x = 0', making both x and y zero and avoiding
+    any init-time assignment.
+    
+    This copying optimization to avoid init-time assignment of y
+    is incorrect if 'var x int' doesn't mean 'x = 0' but instead means
+    'x is initialized in C or assembly code'. The program ends up
+    with 'y = 0' instead of 'y = the value specified for x in that other code'.
+    
+    Disable the propagation if there is no initializer for x.
+    
+    This comes up in some uses of cgo, because cgo generates
+    Go globals that are initialized in accompanying C files.
+    
+    Fixes #7665.
     
     LGTM=iant
     R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/99130043
+    https://golang.org/cl/93200044
 
- src/cmd/go/build.go |  6 ++++--
- src/cmd/go/clean.go | 29 ++++++++++++++++-------------
- src/cmd/go/doc.go   | 16 ++++++++--------
- src/cmd/go/get.go   |  5 +----
- src/cmd/go/list.go  | 16 +++-------------
- 5 files changed, 32 insertions(+), 40 deletions(-)
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue7665.go | 25 +++++++++++++++++++++++++
+ src/cmd/gc/sinit.c         |  4 ++--
+ 3 files changed, 28 insertions(+), 2 deletions(-)

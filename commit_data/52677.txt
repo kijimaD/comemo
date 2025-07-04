@@ -1,19 +1,34 @@
-commit 13f0b8f421bb37f5c9307eefe2b0c9fdb81c9ed1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 13 13:58:45 2023 -0700
+commit 88c5324f2ea7ebc2fb3f12c3c821096382663aa9
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Mon Nov 15 20:59:24 2021 +0800
 
-    go/types, types2: (slightly) refactor tpWalker.isParameterized (cleanup)
+    internal/syscall/unix: loong64 use generic syscall
     
-    Match the structure of cycleFinder. Removes a TODO.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: Iec0abfc809cd522f64db8900a1f8a70cbba504ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484615
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I5988bf3efed37b03b9193f1089dfece060ccba99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363934
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/infer.go | 54 +++++++++++++++-----------------
- src/go/types/infer.go                    | 54 +++++++++++++++-----------------
- 2 files changed, 50 insertions(+), 58 deletions(-)
+ src/internal/syscall/unix/at_sysnum_fstatat_linux.go | 2 +-
+ src/internal/syscall/unix/sysnum_linux_generic.go    | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

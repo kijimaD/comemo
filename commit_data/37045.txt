@@ -1,17 +1,46 @@
-commit 035f9e8102d3b46877b7462fcd365324272d1d0e
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Fri Oct 12 15:39:30 2018 -0400
+commit 0a7ac93c27c9ade79fe0f66ae0bb81484c241ae5
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Fri Nov 3 02:05:28 2017 +0000
 
-    doc: update docs.html with new tour import path
+    cmd/compile: improve atomic add intrinsics with ARMv8.1 new instruction
     
-    As of golang.org/cl/141857 the import path has changed from
-    golang.org/x/tour/gotour to golang.org/x/tour
+    ARMv8.1 has added new instruction (LDADDAL) for atomic memory operations. This
+    CL improves existing atomic add intrinsics with the new instruction. Since the
+    new instruction is only guaranteed to be present after ARMv8.1, we guard its
+    usage with a conditional on CPU feature.
     
-    Change-Id: Ib54ab2e50188ef66c8a5c45136babfa49ad6934a
-    Reviewed-on: https://go-review.googlesource.com/c/141917
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Performance result on ARMv8.1 machine:
+    name        old time/op  new time/op  delta
+    Xadd-224    1.05µs ± 6%  0.02µs ± 4%  -98.06%  (p=0.000 n=10+8)
+    Xadd64-224  1.05µs ± 3%  0.02µs ±13%  -98.10%  (p=0.000 n=9+10)
+    [Geo mean]  1.05µs       0.02µs       -98.08%
+    
+    Performance result on ARMv8.0 machine:
+    name        old time/op  new time/op  delta
+    Xadd-46      538ns ± 1%   541ns ± 1%  +0.62%  (p=0.000 n=9+9)
+    Xadd64-46    505ns ± 1%   508ns ± 0%  +0.48%  (p=0.003 n=9+8)
+    [Geo mean]   521ns        524ns       +0.55%
+    
+    Change-Id: If4b5d8d0e2d6f84fe1492a4f5de0789910ad0ee9
+    Reviewed-on: https://go-review.googlesource.com/81877
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/docs.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/arch/arm64.go             |  3 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  2 ++
+ src/cmd/compile/internal/arm64/ssa.go          | 22 ++++++++++++
+ src/cmd/compile/internal/gc/go.go              |  1 +
+ src/cmd/compile/internal/gc/ssa.go             | 47 +++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  3 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  7 ++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  7 ++++
+ src/cmd/compile/internal/ssa/opGen.go          | 48 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 36 +++++++++++++++++++
+ src/cmd/internal/obj/arm64/a.out.go            |  2 ++
+ src/cmd/internal/obj/arm64/anames.go           |  2 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 12 +++++--
+ src/runtime/internal/atomic/bench_test.go      | 20 +++++++++++
+ src/runtime/proc.go                            |  2 ++
+ src/runtime/runtime2.go                        |  3 ++
+ 16 files changed, 211 insertions(+), 6 deletions(-)

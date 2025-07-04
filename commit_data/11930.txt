@@ -1,12 +1,12 @@
-commit 988968262dcbd0d625d57f00714c655ffb7c56e9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 15 00:59:01 2012 -0800
+commit 571d6fc5e8a77e5444390b02b25859365cdf45bc
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue Feb 14 21:31:20 2012 -0800
 
-    doc: fix links
+    syscall: Make Pdeathsig type Signal in SysProcAttr on Linux.
     
-    R=golang-dev, r
+    R=rsc, iant, iant
     CC=golang-dev
-    https://golang.org/cl/5671051
+    https://golang.org/cl/5656058
 
- lib/godoc/package.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/syscall/exec_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

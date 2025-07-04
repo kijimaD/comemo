@@ -1,13 +1,24 @@
-commit d53afb8d835e3599b0e96d3bbd0a9c7fedf1cbdf
-Author: David G. Andersen <dave.andersen@gmail.com>
-Date:   Sun Sep 25 14:19:08 2011 +1000
+commit 8a06936ea18d9df793622460968590f654d76b2b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 23 21:23:40 2011 -0700
 
-    rpc:  fix typo in documentation client example
-    The example incorrectly dereferenced an integer variable
+    test: match gccgo error messages
     
-    R=golang-dev, adg
+    bug340.go:14:7: error: expected type
+    bug340.go:15:4: error: reference to undefined field or method ‘x’
+    
+    bug350.go:12:1: error: redefinition of ‘m’
+    bug350.go:11:1: note: previous definition of ‘m’ was here
+    bug350.go:15:1: error: redefinition of ‘p’
+    bug350.go:14:1: note: previous definition of ‘p’ was here
+    
+    bug351.go:12:6: error: non-name on left side of ‘:=’
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5129041
+    https://golang.org/cl/5127041
 
- src/pkg/rpc/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug340.go | 6 +++---
+ test/fixedbugs/bug350.go | 8 ++++----
+ test/fixedbugs/bug351.go | 2 +-
+ 3 files changed, 8 insertions(+), 8 deletions(-)

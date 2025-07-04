@@ -1,20 +1,16 @@
-commit 5b5a674b4665f0ca140dd210b319356de21d9184
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 21 11:28:53 2011 -0800
+commit 5cf120827c39046c46bb2df32df2ec5d55ab59a2
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Jan 21 17:59:35 2011 +0100
 
-    gob: better debugging, commentary
-    
-    Re-implement the debugging helper to be independent of the existing
-    implementation.  This is preparatory to a rewrite to clean up issue 1416.
-    Include a definition of the grammar of the data stream.
+    cc: remove pickle generation code.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3970045
+    https://golang.org/cl/4083043
 
- src/pkg/gob/codec_test.go |  27 +-
- src/pkg/gob/debug.go      | 784 ++++++++++++++++++++++++++++++++++------------
- src/pkg/gob/decode.go     |   8 +-
- src/pkg/gob/decoder.go    |  23 +-
- src/pkg/gob/doc.go        |  48 +++
- 5 files changed, 672 insertions(+), 218 deletions(-)
+ src/cmd/cc/Makefile |   1 -
+ src/cmd/cc/cc.h     |   5 -
+ src/cmd/cc/dcl.c    |   2 -
+ src/cmd/cc/lex.c    |   8 +-
+ src/cmd/cc/pickle.c | 298 ----------------------------------------------------
+ 5 files changed, 3 insertions(+), 311 deletions(-)

@@ -1,14 +1,13 @@
-commit 07e87885ad4094aa27f166d1e666b29b910c0429
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 18 13:29:55 2013 -0500
+commit d62239b5f6b47e34a392cc3c884eab1f3770f2c4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 18 15:46:36 2013 +0400
 
-    cmd/6c: fix build
+    runtime/debug: make TestFreeOSMemory repeatable
+    Fixes #4835.
     
-    copy+paste error while cleaning up CL 7303099 before submit
-    
-    R=ken2
+    R=golang-dev, fullung
     CC=golang-dev
-    https://golang.org/cl/7308104
+    https://golang.org/cl/7319050
 
- src/cmd/6c/swt.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/debug/garbage_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

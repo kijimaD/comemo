@@ -1,21 +1,19 @@
-commit e4f3cfadf618df5135bf0952507ab491975cceb5
-Author: Fazlul Shahriar <fshahriar@gmail.com>
-Date:   Thu Feb 25 15:16:25 2021 -0500
+commit 50f63a7ae4b7f951fa894b96633b1716adca55fa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 12 13:30:43 2020 -0400
 
-    net: don't append a dot to TXT records on Plan 9
+    doc/go1.15: clarify external linking can still be used for building PIE
     
-    TXT records are not domain names, so no need to call absDomainName.
-    The output now matches the pure Go resolver.
+    In Go 1.15 we switched the default linking mode for PIE on
+    Linux/AMD64 and Linux/ARM64 to internal linking. Clarify that
+    the previous behavior (external linking) can still be used with
+    a flag.
     
-    Fixes #44619
+    Fixes #40719.
     
-    Change-Id: I1ebf09152ff5c0446d2e2b4c26671358892d9dc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296589
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: David du Colombier <0intro@gmail.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib7042622bc91e1b1aa31f520990d03b5eb6c56bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248199
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/lookup_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.15.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

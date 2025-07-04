@@ -1,17 +1,30 @@
-commit 7cac742f1769f92313eac2188088c36d4aae1b74
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Tue Dec 12 21:32:10 2023 +0000
+commit 3d49b683c6095a9a2681e84f05adfbb8d82882e8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 10 11:49:37 2023 -0500
 
-    doc/go1.22: document reflect.TypeFor
+    context: eliminate arbitrary timeouts in examples
     
-    Change-Id: I122a3422f541f66d9f6e644a9f287f0e5a5729d2
-    GitHub-Last-Rev: 1d9fe39d0c1221d7179476383f3d503e45daa051
-    GitHub-Pull-Request: golang/go#64688
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549295
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    ExampleWithDeadline and ExampleWithTimeout used an arbitrary 1-second
+    timeout for a “blocked” select case, which could fail if the test
+    goroutine happens to be descheduled for over a second, or perhaps if
+    an NTP synchronization happens to jump by a second at just the right
+    time.
+    
+    Either case is plausible, especially on a heavily-loaded or slow
+    machine (as is often the case for builders for unusual ports).
+    
+    Instead of an arbitrary timeout, use a “ready” channel that is never
+    actually ready.
+    
+    Fixes #57594.
+    
+    Change-Id: I9ff68f50b041a3382e7b267c28c5259e886a9d23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460999
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- doc/go1.22.html | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/context/example_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

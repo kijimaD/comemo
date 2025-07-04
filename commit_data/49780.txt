@@ -1,25 +1,17 @@
-commit 365ca6947287d2b8fd9ca49fef74a1297786e8b1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Aug 7 19:21:15 2022 -0700
+commit 90c5660616d7f006ca62adfec49310bf40e3b354
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Mon Apr 26 22:32:21 2021 +0900
 
-    runtime/cgo: add -fno-stack-protector to CFLAGS
+    embed: guarantee the returned file of FS.Open implements io.Seeker
     
-    Some compilers default to having -fstack-protector on, which breaks
-    when using internal linking because the linker doesn't know how to
-    find the support functions.
+    Fixes golang/go#45745
     
-    Fixes #52919
-    Fixes #54313
-    
-    Change-Id: I6f51d5e906503f61fc768ad8e30c163bad135087
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421935
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ib49a9605a38074f544a5d28116862e191cea8c0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313352
+    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/runtime/cgo/cgo.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/embed/embed.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

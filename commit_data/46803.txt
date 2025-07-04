@@ -1,22 +1,38 @@
-commit 7286502b0d225b995d391c72efbaa7690ad023a9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 7 14:23:54 2021 -0400
+commit 98f8454a73b569d81d1c5e167d7b68f22e2e3fea
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 1 13:36:50 2021 -0500
 
-    test/fixedbugs: fix issue48784.go to pass with -G=0
+    cmd/link: don't decode type symbol in shared library in deadcode
     
-    This test is currently failing in the longtest builders.
+    In the linker's deadcode pass we decode type symbols for
+    interface satisfaction analysis. When linking against Go shared
+    libraries, the type symbol may come from a shared library, so it
+    doesn't have data in the current module being linked, so we cannot
+    decode it. We already have code to skip DYNIMPORT symbols. However,
+    this doesn't actually work, because at that point the type symbols'
+    names haven't been mangled, whereas they may be mangled in the
+    shared library. So the symbol definition (in shared library) and
+    reference (in current module) haven't been connected.
     
-    I do not know how or why the builders are adding the -G=0 parameter.
+    Skip decoding type symbols of type Sxxx (along with DYNIMPORT)
+    when linkShared.
     
-    Updates #48784
+    Note: we cannot skip all type symbols, as we still need to mark
+    unexported methods defined in the current module.
     
-    Change-Id: I62248d3fbc47567a8c73b4868a2d4aeb0bc47bc3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354631
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #44031.
+    
+    Change-Id: I833d19a060c94edbd6fc448172358f9a7d760657
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288496
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- test/fixedbugs/issue48784.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ misc/cgo/testshared/shared_test.go                   |  8 ++++++++
+ misc/cgo/testshared/testdata/issue44031/a/a.go       |  9 +++++++++
+ misc/cgo/testshared/testdata/issue44031/b/b.go       | 17 +++++++++++++++++
+ misc/cgo/testshared/testdata/issue44031/main/main.go | 20 ++++++++++++++++++++
+ src/cmd/link/internal/ld/deadcode.go                 | 16 ++++++++++------
+ 5 files changed, 64 insertions(+), 6 deletions(-)

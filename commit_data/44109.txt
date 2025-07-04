@@ -1,21 +1,12 @@
-commit 8f6a9acbb3f63a77175eaa153cace5f3b6d611b2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jan 8 16:56:24 2021 +0000
+commit 000636fdb58c9444b17e54977382dc1d6357e8c3
+Author: Povilas Versockas <p.versockas@gmail.com>
+Date:   Sun May 10 12:19:05 2020 +0300
 
-    runtime/metrics: remove unused StopTheWorld Description field
+    internal/trace: add license header to writer.go
     
-    This change removes the as-of-yet unused StopTheWorld field in the
-    Description struct. Adding a new field to a struct is much easier than
-    removing it, so let's save it for when we actually need it.
-    
-    Change-Id: I8074b8569187c1a148500575fa8a661534e875d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282632
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I9f23490a565b81b155642fe301f897c1d0af03fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232810
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- api/go1.16.txt                     | 1 -
- src/runtime/metrics/description.go | 4 ----
- 2 files changed, 5 deletions(-)
+ src/internal/trace/writer.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,16 +1,15 @@
-commit f8e4a2ef94f852c9f112e118f4d266b97839c3c9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Feb 13 19:36:45 2014 +0400
+commit 68bf5666cdc6805783be7c29fb2a634d8d45bc24
+Author: Nicolas Owens <mischief@offblast.org>
+Date:   Thu Feb 13 10:26:16 2014 -0500
 
-    runtime: fix concurrent GC sweep
-    The issue was that one of the MSpan_Sweep callers
-    was doing sweep with preemption enabled.
-    Additional checks are added.
+    net: only return unique hosts during hostname lookup on plan 9
     
-    LGTM=rsc
-    R=rsc, dave
+    TestLookupHost expects that no duplicate addresses are returned. when cs is consulted for a name, e.g net!localhost!1, it will possibly return multiple available paths, e.g. via il and tcp. this confuses the tests.
+    
+    LGTM=aram
+    R=jas, 0intro, aram
     CC=golang-codereviews
-    https://golang.org/cl/62990043
+    https://golang.org/cl/58120045
 
- src/pkg/runtime/mgc0.c | 32 ++++++++++++++++++++++++--------
- 1 file changed, 24 insertions(+), 8 deletions(-)
+ src/pkg/net/lookup_plan9.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

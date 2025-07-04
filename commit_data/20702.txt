@@ -1,65 +1,27 @@
-commit a3416cf5cd06857c16fd2d1e665955f0b05248dd
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 14 16:31:09 2014 -0400
+commit 85cdc49e8abed5c48d9b24eedff85e44e38269b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 1 11:17:15 2014 -0700
 
-    cmd/gc: add 2-, 3-, 4-word write barrier specializations
+    os, syscall: add Unsetenv
     
-    Assignments of 2-, 3-, and 4-word values were handled
-    by individual MOV instructions (and for scalars still are).
-    But if there are pointers involved, those assignments now
-    go through the write barrier routine. Before this CL, they
-    went to writebarrierfat, which calls memmove.
-    Memmove is too much overhead for these small
-    amounts of data.
+    Also address a TODO, making Clearenv pass through to cgo.
     
-    Instead, call writebarrierfat{2,3,4}, which are specialized
-    for the specific amount of data being copied.
-    Today the write barrier does not care which words are
-    pointers, so size alone is enough to distinguish the cases.
-    If we keep these distinctions in Go 1.5 we will need to
-    expand them for all the pointer-vs-scalar possibilities,
-    so the current 3 functions will become 3+7+15 = 25,
-    still not a large burden (we deleted more morestack
-    functions than that when we dropped segmented stacks).
+    Based largely on Minux's earlier https://golang.org/cl/82040044
     
-    BenchmarkBinaryTree17           3250972583  3123910344  -3.91%
-    BenchmarkFannkuch11             3067605223  2964737839  -3.35%
-    BenchmarkFmtFprintfEmpty        101         96.0        -4.95%
-    BenchmarkFmtFprintfString       267         235         -11.99%
-    BenchmarkFmtFprintfInt          261         253         -3.07%
-    BenchmarkFmtFprintfIntInt       444         402         -9.46%
-    BenchmarkFmtFprintfPrefixedInt  374         346         -7.49%
-    BenchmarkFmtFprintfFloat        472         449         -4.87%
-    BenchmarkFmtManyArgs            1537        1476        -3.97%
-    BenchmarkGobDecode              13986528    12432985    -11.11%
-    BenchmarkGobEncode              13120323    12537420    -4.44%
-    BenchmarkGzip                   451925758   437500578   -3.19%
-    BenchmarkGunzip                 113267612   110053644   -2.84%
-    BenchmarkHTTPClientServer       103151      77100       -25.26%
-    BenchmarkJSONEncode             25002733    23435278    -6.27%
-    BenchmarkJSONDecode             94213717    82568789    -12.36%
-    BenchmarkMandelbrot200          4804246     4713070     -1.90%
-    BenchmarkGoParse                4646114     4379456     -5.74%
-    BenchmarkRegexpMatchEasy0_32    163         158         -3.07%
-    BenchmarkRegexpMatchEasy0_1K    433         391         -9.70%
-    BenchmarkRegexpMatchEasy1_32    154         138         -10.39%
-    BenchmarkRegexpMatchEasy1_1K    1481        1132        -23.57%
-    BenchmarkRegexpMatchMedium_32   282         270         -4.26%
-    BenchmarkRegexpMatchMedium_1K   92421       86149       -6.79%
-    BenchmarkRegexpMatchHard_32     5209        4718        -9.43%
-    BenchmarkRegexpMatchHard_1K     158141      147921      -6.46%
-    BenchmarkRevcomp                699818791   642222464   -8.23%
-    BenchmarkTemplate               132402383   108269713   -18.23%
-    BenchmarkTimeParse              509         478         -6.09%
-    BenchmarkTimeFormat             462         456         -1.30%
+    Fixes #6423
     
-    LGTM=r
-    R=r
+    LGTM=iant, alex.brainman, r, rsc
+    R=rsc, iant, r, alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/156200043
+    https://golang.org/cl/148370043
 
- src/cmd/gc/builtin.c  |  5 ++++-
- src/cmd/gc/runtime.go |  3 +++
- src/cmd/gc/walk.c     | 32 ++++++++++++++++++++++----------
- src/runtime/mgc0.go   | 21 +++++++++++++++++++++
- 4 files changed, 50 insertions(+), 11 deletions(-)
+ src/os/env.go                |  5 +++++
+ src/os/env_test.go           | 26 ++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_setenv.c |  7 +++++++
+ src/runtime/cgo/setenv.c     |  3 +++
+ src/runtime/env_posix.go     | 13 ++++++++++++-
+ src/runtime/thunk.s          |  3 +++
+ src/syscall/env_plan9.go     | 38 +++++++++++++++++++++++++++++++++++---
+ src/syscall/env_unix.go      | 44 ++++++++++++++++++++++++++++++++++++--------
+ src/syscall/env_windows.go   |  8 ++++++++
+ 9 files changed, 135 insertions(+), 12 deletions(-)

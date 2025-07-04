@@ -1,35 +1,21 @@
-commit 5ddf6255a13c5a23663ca49db2d038c6530cb7a1
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 6 10:24:21 2011 -0400
+commit 37f390aa20bf629feed4c6ce47c8eb452fdd0bc4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 6 09:59:08 2011 +1000
 
-    gc: unify stack frame layout
+    os: use GetFileAttributesEx to implement Stat on windows
     
-    allocparams + tempname + compactframe
-    all knew about how to place stack variables.
+    Fixes #2129.
     
-    Now only compactframe, renamed to allocauto,
-    does the work.  Until the last minute, each PAUTO
-    variable is in its own space and has xoffset == 0.
-    
-    This might break 5g.  I get failures in concurrent
-    code running under qemu and I can't tell whether
-    it's 5g's fault or qemu's.  We'll see what the real
-    ARM builders say.
-    
-    R=ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4973057
+    https://golang.org/cl/4934049
 
- src/cmd/5g/gsubr.c |  1 -
- src/cmd/5g/reg.c   | 28 ++++++++++----------
- src/cmd/6g/gsubr.c |  1 -
- src/cmd/6g/reg.c   | 35 +++++++++++-------------
- src/cmd/8g/gsubr.c |  1 -
- src/cmd/8g/reg.c   | 30 ++++++++++-----------
- src/cmd/gc/bits.c  |  4 +--
- src/cmd/gc/dcl.c   |  2 +-
- src/cmd/gc/gen.c   | 78 +++++++-----------------------------------------------
- src/cmd/gc/go.h    |  3 ---
- src/cmd/gc/pgen.c  | 13 +++++----
- src/cmd/gc/subr.c  |  3 ---
- 12 files changed, 62 insertions(+), 137 deletions(-)
+ src/pkg/os/file_posix.go                  | 33 ---------------
+ src/pkg/os/file_unix.go                   | 33 +++++++++++++++
+ src/pkg/os/file_windows.go                | 40 ++++--------------
+ src/pkg/os/stat_windows.go                | 68 +++++++++++++++++++++++++++----
+ src/pkg/syscall/syscall_windows.go        | 34 +---------------
+ src/pkg/syscall/zsyscall_windows_386.go   | 18 +++++++-
+ src/pkg/syscall/zsyscall_windows_amd64.go | 18 +++++++-
+ src/pkg/syscall/ztypes_windows.go         | 20 ++++++---
+ 8 files changed, 150 insertions(+), 114 deletions(-)

@@ -1,15 +1,32 @@
-commit 9f43a9e07b1379a808de38559e408040b17ced1c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 20 20:09:18 2021 -0800
+commit 586d0755e2cd6a51f0837c6b7748e93d58b966f1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 18 18:20:18 2020 -0400
 
-    doc/go1.16: mention new debug/elf constants
+    [dev.link] cmd/link: only do name expansion when needed
     
-    For #40700
+    Most Go objects are compiled with known package path, so the
+    symbol name is already fully expanded. Nevertheless, currently
+    in the linker strings.Replace is called unconditionally, and most
+    of the time it doesn't do anything.
     
-    Change-Id: If105d2f043539bb0893f577a984f14ee3e7ca753
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285212
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    This CL records a per-object flag in the object file, and do the
+    name expansion only when the name is not expanded at compile time.
+    
+    This gives small speedups for the linker. Linking cmd/compile:
+    
+    name                    old time/op    new time/op    delta
+    Loadlib                   35.1ms ± 2%    32.8ms ± 4%   -6.43%  (p=0.008 n=5+5)
+    Symtab                    15.8ms ± 2%    14.0ms ± 8%  -11.45%  (p=0.008 n=5+5)
+    TotalTime                  399ms ± 1%     385ms ± 2%   -3.63%  (p=0.008 n=5+5)
+    
+    Change-Id: I735084971a051cd9be4284ad294c284cd5b545f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234490
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.16.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/internal/goobj2/objfile.go     |  6 +++++-
+ src/cmd/internal/obj/objfile2.go       |  3 +++
+ src/cmd/link/internal/loader/loader.go | 25 ++++++++++++++++++++-----
+ 3 files changed, 28 insertions(+), 6 deletions(-)

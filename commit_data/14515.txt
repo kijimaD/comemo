@@ -1,19 +1,16 @@
-commit 28b599425dd535539f9001d42ec4dd4d472f3195
+commit d244dd09f35b06909ef5590d3a2fde65bc1f0612
 Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Nov 28 11:29:25 2012 +1100
+Date:   Wed Nov 28 10:08:59 2012 +1100
 
-    net: move deadline logic into pollServer
+    net: fix intermittent TestAddFDReturnsError failure
     
-    Update #4434.
+    A fix similar to CL 6859043 was effective in resolving the intermittent failure.
     
-    The proposal attempts to reduce the number of places where fd,{r,w}deadline is checked and updated in preparation for issue 4434. In doing so the deadline logic is simplified by letting the pollster return errTimeout from netFD.Wait{Read,Write} as part of the wakeup logic.
+    Fixes #4423.
     
-    The behaviour of setting n = 0 has been restored to match rev 2a55e349097f, which was the previous change to fd_unix.go before CL 6851096.
-    
-    R=jsing, bradfitz, mikioh.mikioh, rsc
-    CC=fullung, golang-dev
-    https://golang.org/cl/6850110
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6854102
 
- src/pkg/net/fd_unix.go      | 75 ++++++++++++++++-----------------------------
- src/pkg/net/fd_unix_test.go | 47 ++++++++++++++++++++++++++++
- 2 files changed, 73 insertions(+), 49 deletions(-)
+ src/pkg/net/fd_unix_test.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

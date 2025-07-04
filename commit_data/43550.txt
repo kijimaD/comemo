@@ -1,97 +1,16 @@
-commit 8fdc79e18a9704185bd6471b592db1e8004bd993
-Author: Chris Hines <chris.cs.guy@gmail.com>
-Date:   Fri May 1 17:04:36 2020 -0400
+commit 7580937524965d6b4acd39d36f8447b1919e1816
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Apr 11 10:32:21 2020 -0700
 
-    runtime: reduce timer latency
+    cmd/compile: move more generic rewrites to the typed version
     
-    Change the scheduler to treat expired timers with the same approach it
-    uses to steal runnable G's.
-    
-    Previously the scheduler ignored timers on P's not marked for
-    preemption. That had the downside that any G's waiting on those expired
-    timers starved until the G running on their P completed or was
-    preempted. That could take as long as 20ms if sysmon was in a 10ms
-    wake up cycle.
-    
-    In addition, a spinning P that ignored an expired timer and found no
-    other work would stop despite there being available work, missing the
-    opportunity for greater parallelism.
-    
-    With this change the scheduler no longer ignores timers on
-    non-preemptable P's or relies on sysmon as a backstop to start threads
-    when timers expire. Instead it wakes an idle P, if needed, when
-    creating a new timer because it cannot predict if the current P will
-    have a scheduling opportunity before the new timer expires. The P it
-    wakes will determine how long to sleep and block on the netpoller for
-    the required time, potentially stealing the new timer when it wakes.
-    
-    This change also eliminates a race between a spinning P transitioning
-    to idle concurrently with timer creation using the same pattern used
-    for submission of new goroutines in the same window.
-    
-    Benchmark analysis:
-    
-    CL 232199, which was included in Go 1.15 improved timer latency over Go
-    1.14 by allowing P's to steal timers from P's not marked for preemption.
-    The benchmarks added in this CL measure that improvement in the
-    ParallelTimerLatency benchmark seen below. However, Go 1.15 still relies
-    on sysmon to notice expired timers in some situations and sysmon can
-    sleep for up to 10ms before waking to check timers. This CL fixes that
-    shortcoming with modest regression on other benchmarks.
-    
-    name \ avg-late-ns                                        go14.time.bench  go15.time.bench  fix.time.bench
-    ParallelTimerLatency-8                                         17.3M ± 3%        7.9M ± 0%       0.2M ± 3%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=1-8        53.4k ±23%       50.7k ±31%     252.4k ± 9%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=2-8         204k ±14%         90k ±58%       188k ±12%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=3-8        1.17M ± 0%       0.11M ± 5%      0.11M ± 2%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=4-8        1.81M ±44%       0.10M ± 4%      0.10M ± 2%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=5-8        2.28M ±66%       0.09M ±13%      0.08M ±21%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=6-8        2.84M ±85%       0.07M ±15%      0.07M ±18%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=7-8        2.13M ±27%       0.06M ± 4%      0.06M ± 9%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=8-8        2.63M ± 6%       0.06M ±11%      0.06M ± 9%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=9-8        3.32M ±17%       0.06M ±16%      0.07M ±14%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=10-8       8.46M ±20%       4.37M ±21%      5.03M ±23%
-    StaggeredTickerLatency/work-dur=2ms/tickers-per-P=1-8          1.02M ± 1%       0.20M ± 2%      0.20M ± 2%
-    
-    name \ max-late-ns                                        go14.time.bench  go15.time.bench  fix.time.bench
-    ParallelTimerLatency-8                                         18.3M ± 1%        8.2M ± 0%       0.5M ±12%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=1-8         141k ±19%        127k ±19%      1129k ± 3%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=2-8        2.78M ± 4%       1.23M ±15%      1.26M ± 5%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=3-8        6.05M ± 5%       0.67M ±56%      0.81M ±33%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=4-8        7.93M ±20%       0.71M ±46%      0.76M ±41%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=5-8        9.41M ±30%       0.92M ±23%      0.81M ±44%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=6-8        10.8M ±42%        0.8M ±41%       0.8M ±30%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=7-8        9.62M ±24%       0.77M ±38%      0.88M ±27%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=8-8        10.6M ±10%        0.8M ±32%       0.7M ±27%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=9-8        11.9M ±36%        0.6M ±46%       0.8M ±38%
-    StaggeredTickerLatency/work-dur=300µs/tickers-per-P=10-8       36.8M ±21%       24.7M ±21%      27.5M ±16%
-    StaggeredTickerLatency/work-dur=2ms/tickers-per-P=1-8          2.12M ± 2%       1.02M ±11%      1.03M ± 7%
-    
-    Other time benchmarks:
-    name \ time/op          go14.time.bench  go15.time.bench  fix.time.bench
-    AfterFunc-8                  137µs ± 4%       123µs ± 4%      131µs ± 2%
-    After-8                      212µs ± 3%       195µs ± 4%      204µs ± 7%
-    Stop-8                       165µs ± 6%       156µs ± 2%      151µs ±12%
-    SimultaneousAfterFunc-8      260µs ± 3%       248µs ± 3%      284µs ± 2%
-    StartStop-8                 65.8µs ± 9%      64.4µs ± 7%     67.3µs ±15%
-    Reset-8                     13.6µs ± 2%       9.6µs ± 2%      9.1µs ± 4%
-    Sleep-8                      307µs ± 4%       306µs ± 3%      320µs ± 2%
-    Ticker-8                    53.0µs ± 5%      54.5µs ± 5%     57.0µs ±11%
-    TickerReset-8                                9.24µs ± 2%     9.51µs ± 3%
-    TickerResetNaive-8                            149µs ± 5%      145µs ± 5%
-    
-    Fixes #38860
-    Updates #25471
-    Updates #27707
-    
-    Change-Id: If52680509b0f3b66dbd1d0c13fa574bd2d0bbd57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232298
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I22d0644710d12c7efc509fd2a15789e2e073e6a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227869
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/lockrank.go |  22 +++---
- src/runtime/proc.go     | 168 ++++++++++++++++++++++++-------------------
- src/time/sleep_test.go  | 187 ++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 294 insertions(+), 83 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 166 +++---
+ src/cmd/compile/internal/ssa/rewrite.go        |  27 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 680 ++++++++++++++-----------
+ 3 files changed, 488 insertions(+), 385 deletions(-)

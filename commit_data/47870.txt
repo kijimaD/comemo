@@ -1,21 +1,27 @@
-commit 301db3f5d2d38a13aafe5bc6efea9a3bdbfc475e
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Wed Jan 5 00:16:40 2022 +0100
+commit 283f9fdbd340a5f3c1b27fd10730986b35e57c89
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 14 10:52:30 2021 -0400
 
-    net: do not panic on nil IPNet.String()
+    cmd/dist: add tests using the typeparams build tag
     
-    The code looks like it was already trying to avoid this but missed a
-    spot.
+    Now that go/ast changes have been guarded behind the typeparams build
+    tag, we no longer have coverage for tests involving generic code.
     
-    Fixes #50271.
+    Add a new testing step to cmd/dist to run go/... and cmd/gofmt tests
+    using -tags=typeparams.
     
-    Change-Id: I450adac3f618b9535b61a28e6a160eacc351d47c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373075
-    Trust: Jason Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Comment out parser object resolution assertions that currently fail, and
+    which will be fixed by CL 304456.
+    
+    Fixes #44933
+    
+    Change-Id: I481dd4246a016f410307865b6c6c2bb3c8e6e3bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310071
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/ip.go      | 3 +++
- src/net/ip_test.go | 1 +
- 2 files changed, 4 insertions(+)
+ src/cmd/dist/test.go                             | 13 +++++++++++++
+ src/go/parser/testdata/resolution/typeparams.go2 |  9 +++++----
+ 2 files changed, 18 insertions(+), 4 deletions(-)

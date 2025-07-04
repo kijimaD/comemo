@@ -1,18 +1,25 @@
-commit 03eb132684016cee4728504425764433d7d1ff70
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Apr 20 23:15:00 2015 +0900
+commit f78dc1dac1890ff58c6c82b1097620bf171ec149
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Mar 29 23:38:20 2015 +0000
 
-    net: deflake zero byte IO tests on datagram
+    runtime: rename ·main·f to ·mainPC to avoid duplicate symbol
     
-    This change deflakes zero byte read/write tests on datagram sockets, and
-    enables them by default.
+    runtime·main·f is normalized by the linker to runtime.main.f, as is
+    the compiler-generated symbol runtime.main·f.  Change the former to
+    runtime·mainPC instead.
     
-    Change-Id: I52f1a76f8ff379d90f40a07bb352fae9343ea41a
-    Reviewed-on: https://go-review.googlesource.com/9194
+    Fixes issue #9934
+    
+    Change-Id: I656a6fa6422d45385fa2cc55bd036c6affa1abfe
+    Reviewed-on: https://go-review.googlesource.com/8234
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/main_test.go   |   6 ---
- src/net/server_test.go |  47 ---------------------
- src/net/udp_test.go    |  74 +++++++++++++++++++++++++++++++++
- src/net/unix_test.go   | 109 ++++++++++++++++++++++++++++++++++++-------------
- 4 files changed, 154 insertions(+), 82 deletions(-)
+ src/runtime/asm_386.s      | 6 +++---
+ src/runtime/asm_amd64.s    | 6 +++---
+ src/runtime/asm_amd64p32.s | 6 +++---
+ src/runtime/asm_arm.s      | 6 +++---
+ src/runtime/asm_arm64.s    | 6 +++---
+ src/runtime/asm_ppc64x.s   | 6 +++---
+ 6 files changed, 18 insertions(+), 18 deletions(-)

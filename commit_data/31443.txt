@@ -1,29 +1,18 @@
-commit 38fbada5579823378217d57671de54fc5ebfa8c6
-Author: Ben Shi <powerman1st@163.com>
-Date:   Tue Apr 25 10:53:10 2017 +0000
+commit ea52f4b374613134e12367288813019589f85f33
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 20 22:54:07 2017 -0800
 
-    cmd/compile/internal/ssa: more constant folding rules for ARM
+    cmd/vet/all: update whitelists for monotonic time changes
     
-    (ADDconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) -> (SUBconst [int64(int32(-c))] x)
-    (SUBconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) -> (ADDconst [int64(int32(-c))] x)
-    Currently
-    a = a + 0xfffffff1 is compiled to （variable a is in R0)
-    MVN $14, R11
-    ADD R11, R0, R0
-    After applying the above 2 rules, it becomes
-    SUB $15, R0, R0
-    
-    (BICconst [c] (BICconst [d] x)) -> (BICconst [int64(int32(c|d))] x)
-    This rule also optimizes the generated ARM code.
-    
-    The other rules are added to avoid to generate less optimized ARM code
-    when substitutions ADD->SUB happen.
-    
-    Change-Id: I3ead9aae2b446b674e2ab42d37259d38ceb93a4d
-    Reviewed-on: https://go-review.googlesource.com/41679
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib942cb9e0cb20821aea4274bc3ddc83a215afbcb
+    Reviewed-on: https://go-review.googlesource.com/37302
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules |  16 ++
- src/cmd/compile/internal/ssa/rewrite.go    |  12 ++
- src/cmd/compile/internal/ssa/rewriteARM.go | 312 +++++++++++++++++++++++++++++
- 3 files changed, 340 insertions(+)
+ src/cmd/vet/all/whitelist/all.txt           | 1 -
+ src/cmd/vet/all/whitelist/darwin_386.txt    | 1 +
+ src/cmd/vet/all/whitelist/darwin_amd64.txt  | 1 +
+ src/cmd/vet/all/whitelist/windows_386.txt   | 1 +
+ src/cmd/vet/all/whitelist/windows_amd64.txt | 1 +
+ 5 files changed, 4 insertions(+), 1 deletion(-)

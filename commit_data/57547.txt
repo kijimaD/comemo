@@ -1,30 +1,29 @@
-commit 2ebaff4890596ed6064e2dcbbe5e68bc93bed882
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 6 17:19:34 2024 -0700
+commit 98c9f271d67b501ecf2ce995539abd2cdc81d505
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 28 17:45:26 2023 -0400
 
-    runtime: if stop/reset races with running timer, return correct result
+    regexp/syntax: use more compact Regexp.String output
     
-    The timer code is careful to ensure that if stop/reset is called
-    while a timer is being run, we cancel the run. However, the code
-    failed to ensure that in that case stop/reset returned true,
-    meaning that the timer had been stopped. In the racing case
-    stop/reset could see that t.when had been set to zero,
-    and return false, even though the timer had not and never would fire.
+    Compact the Regexp.String output. It was only ever intended for debugging,
+    but there are at least some uses in the wild where regexps are built up
+    using regexp/syntax and then formatted using the String method.
+    Compact the output to help that use case. Specifically:
     
-    Fix this by tracking whether a timer run is in progress,
-    and using that to reliably detect that the run was cancelled,
-    meaning that stop/reset should return true.
+     - Compact 2-element character class ranges: [a-b] -> [ab].
+     - Aggregate flags: (?i:A)(?i:B)*(?i:C)|(?i:D)?(?i:E) -> (?i:AB*C|D?E).
     
-    Fixes #69312
+    Fixes #57950.
     
-    Change-Id: I78e870063eb96650638f12c056e32c931417c84a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611496
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1161d0e3aa6c3ae5a302677032bb7cd55caae5fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507015
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/runtime/time.go    | 82 +++++++++++++++++++++++++++++++++++++++++++++++---
- src/time/sleep_test.go | 62 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 139 insertions(+), 5 deletions(-)
+ src/regexp/syntax/parse.go         |  16 +++
+ src/regexp/syntax/parse_test.go    |  36 ++++++
+ src/regexp/syntax/regexp.go        | 217 ++++++++++++++++++++++++++++++++-----
+ src/regexp/syntax/simplify_test.go |  16 +--
+ 4 files changed, 248 insertions(+), 37 deletions(-)

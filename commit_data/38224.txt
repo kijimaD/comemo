@@ -1,40 +1,20 @@
-commit a1f7dbf0aa5c9c7bd6677c53d68aa991e4b18797
-Author: Rémy Oudompheng <remyoudompheng@gmail.com>
-Date:   Sun Jan 13 18:10:19 2019 +0100
+commit 7fb60eb1a2aaed7a801ab15bd7aaeaabdbb5e5db
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Fri Oct 5 10:07:29 2018 +0100
 
-    strconv: simplify (*extFloat).Multiply using math/bits.Mul64
+    cmd/vet: detect non-pointer arguments for unmarshal and decode
     
-    This method was using a handwritten long multiplication of uint64s.
-    Since implementation of #24813 we can remove it and replace it
-    by Mul64 from math/bits.
+    Checks usage of Unmarshal and Decode functions in json, gob and
+    xml packages to detect attempts to decode into non-pointer types.
     
-    This brings a small speedup for 64-bit platforms.
+    Fixes #27564
     
-    Benchmarks on Haswell Celeron 2955U.
-    
-    benchmark                                  old ns/op     new ns/op     delta
-    BenchmarkAppendFloat/Decimal-2             127           127           +0.00%
-    BenchmarkAppendFloat/Float-2               340           317           -6.76%
-    BenchmarkAppendFloat/Exp-2                 258           233           -9.69%
-    BenchmarkAppendFloat/NegExp-2              256           231           -9.77%
-    BenchmarkAppendFloat/Big-2                 402           375           -6.72%
-    BenchmarkAppendFloat/BinaryExp-2           113           114           +0.88%
-    BenchmarkAppendFloat/32Integer-2           125           125           +0.00%
-    BenchmarkAppendFloat/32ExactFraction-2     274           249           -9.12%
-    BenchmarkAppendFloat/32Point-2             339           317           -6.49%
-    BenchmarkAppendFloat/32Exp-2               255           229           -10.20%
-    BenchmarkAppendFloat/32NegExp-2            254           229           -9.84%
-    BenchmarkAppendFloat/64Fixed1-2            165           154           -6.67%
-    BenchmarkAppendFloat/64Fixed2-2            184           176           -4.35%
-    BenchmarkAppendFloat/64Fixed3-2            168           158           -5.95%
-    BenchmarkAppendFloat/64Fixed4-2            187           177           -5.35%
-    BenchmarkAppendFloat/Slowpath64-2          84977         84883         -0.11%
-    
-    Change-Id: If05784e856289b3b7bf136567882e7ee10234756
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/157717
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I07bbd5be82d61834ffde9af9937329d7fb1f05d0
+    Reviewed-on: https://go-review.googlesource.com/c/139997
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/strconv/extfloat.go | 15 ++-------------
- 1 file changed, 2 insertions(+), 13 deletions(-)
+ src/cmd/vet/testdata/unmarshal.go | 60 ++++++++++++++++++++++++++++++++
+ src/cmd/vet/unmarshal.go          | 72 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 132 insertions(+)

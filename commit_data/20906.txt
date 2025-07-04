@@ -1,30 +1,19 @@
-commit 378c2515aeec0e23662631dc6ba63148594ad92b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 19 15:25:33 2014 -0500
+commit 3e62d2184ab2d2ac6053e3f4af5e3f99902c1e32
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 27 17:12:48 2014 -0400
 
-    runtime: remove assumption that noptrdata data bss noptrbss are ordered and contiguous
+    runtime: fix endianness assumption when decoding ftab
     
-    The assumption can be violated by external linkers reordering them or
-    inserting non-Go sections in between them. I looked briefly at trying
-    to write out the _go_.o in external linking mode in a way that forced
-    the ordering, but no matter what there's no way to force Go's data
-    and Go's bss to be next to each other. If there is any data or bss from
-    non-Go objects, it's very likely to get stuck in between them.
+    The ftab ends with a half functab record consisting only of
+    the 'entry' field followed by a uint32 giving the offset of
+    the next table.  Previously, symtabinit assumed it could read
+    this uint32 as a uintptr.  Since this is unsafe on big endian,
+    explicitly read the offset as a uint32.
     
-    Instead, rewrite the two places we know about that make the assumption.
-    I grepped for noptrdata to look for more and didn't find any.
-    
-    The added race test (os/exec in external linking mode) fails without
-    the changes in the runtime. It crashes with an invalid pointer dereference.
-    
-    Fixes #9133.
-    
-    LGTM=dneil
-    R=dneil
-    CC=dvyukov, golang-codereviews, iant
-    https://golang.org/cl/179980043
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/157660043
 
- src/run.bash          |  5 +++--
- src/runtime/malloc.go | 11 +++++++++--
- src/runtime/race.c    | 44 +++++++++++++++++++++++++++++++++++++++-----
- 3 files changed, 51 insertions(+), 9 deletions(-)
+ src/runtime/symtab.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

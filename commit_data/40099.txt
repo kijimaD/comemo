@@ -1,30 +1,16 @@
-commit e79b57d6c40a25393b2d831b244b19548e23b8a4
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Mon Mar 11 10:52:00 2019 -0700
+commit f85d0e32e5cd462c4617d0189ad858d5a775424c
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Tue Apr 16 20:45:41 2019 -0400
 
-    os/signal: lazily start signal watch loop only on Notify
+    test: add escape regress for empty variadic function
     
-    By lazily starting the signal watch loop only on Notify,
-    we are able to have deadlock detection even when
-    "os/signal" is imported.
+    Fixes #30898
     
-    Thanks to Ian Lance Taylor for the solution and discussion.
-    
-    With this change in, fix a runtime gorountine count test that
-    assumed that os/signal.init would unconditionally start the
-    signal watching goroutine, but alas no more.
-    
-    Fixes #21576.
-    
-    Change-Id: I6eecf82a887f59f2ec8897f1bcd67ca311ca42ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/101036
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I903dd8ed2b10c49b2291ad0858774f3ca2f5b223
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172422
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/signal/signal.go                          | 15 ++++++
- src/os/signal/signal_plan9.go                    |  3 +-
- src/os/signal/signal_unix.go                     |  3 +-
- src/runtime/testdata/testprogcgo/numgoroutine.go |  7 ---
- test/fixedbugs/issue21576.go                     | 60 ++++++++++++++++++++++++
- 5 files changed, 79 insertions(+), 9 deletions(-)
+ test/fixedbugs/issue30898.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

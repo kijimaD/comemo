@@ -1,17 +1,16 @@
-commit 347cc981f043193dc9b29e92b485b158aa6c85f8
+commit e9d5a641d7c6c5d446c158f90249167133d5ccee
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 6 00:36:24 2012 -0500
+Date:   Tue Mar 6 00:36:12 2012 -0500
 
-    cmd/go: add -compiler
-    go/build: add Context.Compiler
+    strconv: add table-based isPrint
     
-    Fixes #3157.
+    Not used yet for simpler merge.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5756047
+    https://golang.org/cl/5756048
 
- src/cmd/go/build.go       | 127 +++++++++++++++++++++++++++++++++++-----------
- src/cmd/go/testflag.go    |   3 ++
- src/pkg/go/build/build.go |  26 ++++++----
- 3 files changed, 116 insertions(+), 40 deletions(-)
+ src/pkg/strconv/isprint.go     | 521 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strconv/makeisprint.go | 157 +++++++++++++
+ src/pkg/strconv/quote.go       |  56 +++++
+ 3 files changed, 734 insertions(+)

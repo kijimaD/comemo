@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 45308: bedfeed54a7a80123c07f83c325a0bcfe5c43398
+# Index 45308: 70cad2744b57691962645681722ce756e81791c1
 
 echo "🚀 Generating explanation for commit 45308..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 45308
-- **コミットハッシュ**: bedfeed54a7a80123c07f83c325a0bcfe5c43398
-- **GitHub URL**: https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398
+- **コミットハッシュ**: 70cad2744b57691962645681722ce756e81791c1
+- **GitHub URL**: https://github.com/golang/go/commit/70cad2744b57691962645681722ce756e81791c1
 
 ### 章構成
 

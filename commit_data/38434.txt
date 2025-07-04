@@ -1,27 +1,16 @@
-commit c135dfbf1842993aa2fd4c293b2476ce4733daf7
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Jan 18 15:16:11 2019 -0500
+commit c86d4647348b420f55d4ce7572c4cd93b20a1d4a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 29 10:24:05 2018 -0700
 
-    debug/dwarf: more graceful handling of unsupported types
+    math/big: shallow copies of Int/Rat/Float are not supported (documentation)
     
-    Enhance the type decoder to do a better job handling unknown type
-    tags. DWARF has a number of type DIEs that this package doesn't handle
-    (things like "pointer to member" types in C++); avoid crashing for
-    such types, but instead return a placeholder "UnsupportedType" object
-    (this idea suggested by Austin). This provides a compromise between
-    implementing the entire kitchen sink and simply returning an error
-    outright on any unknown type DIE.
+    Fixes #28423.
     
-    Fixes #29601.
-    
-    Change-Id: I2eeffa094c86ef3a2c358ee42e8e629d74cec2ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/158797
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie57ade565d0407a4bffaa86fb4475ff083168e79
+    Reviewed-on: https://go-review.googlesource.com/c/145537
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/dwarf/testdata/cppunsuptypes.cc  |  34 ++++++++++++++++
- src/debug/dwarf/testdata/cppunsuptypes.elf | Bin 0 -> 3920 bytes
- src/debug/dwarf/type.go                    |  24 ++++++++++++
- src/debug/dwarf/type_test.go               |  60 +++++++++++++++++++++++++++++
- 4 files changed, 118 insertions(+)
+ src/math/big/float.go | 8 +++++++-
+ src/math/big/int.go   | 7 +++++++
+ src/math/big/rat.go   | 7 +++++++
+ 3 files changed, 21 insertions(+), 1 deletion(-)

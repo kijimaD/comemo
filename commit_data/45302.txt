@@ -1,30 +1,25 @@
-commit 14056d0d004489592ee0173e685ff86f241cfb4f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 22 15:38:33 2021 -0700
+commit 2ff9e01d72f718ef61c635a25db6d2084aef95eb
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 16 21:42:01 2020 -0400
 
-    cmd/compile/internal/types2: add unsafe.Add and unsafe.Slice
+    cmd/link: fix TestDWARFiOS
     
-    This is a port of CL 312212, CL 312591 (except check_test.go), and
-    CL 312790 to types2.
+    Use GOOS=ios.
     
-    Updates #19367.
-    Updates #40481.
+    Run "xcodebuild -showsdks" correctly.
     
-    Change-Id: I58ba0b0dad157baba3f82c909d5eb1268b931be4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312511
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Wrap testDWARF in subtests, as it calls t.Parallel, otherwise
+    the two calls of testDWARF will cause t.Parallel being called
+    twice, which panics.
+    
+    Updates #38485.
+    
+    Change-Id: I614c8daa99c83cbfd05a4cfa041968d49279f16a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263639
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/builtins.go        | 39 +++++++++++++++
- src/cmd/compile/internal/types2/builtins_test.go   | 10 ++++
- src/cmd/compile/internal/types2/check.go           | 10 ++--
- src/cmd/compile/internal/types2/check_test.go      |  2 +-
- src/cmd/compile/internal/types2/index.go           | 57 +++++++++++++++-------
- src/cmd/compile/internal/types2/testdata/expr3.src |  1 +
- src/cmd/compile/internal/types2/universe.go        |  4 ++
- test/makechan.go                                   |  2 +-
- test/makemap.go                                    |  4 +-
- 9 files changed, 102 insertions(+), 27 deletions(-)
+ src/cmd/link/dwarf_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

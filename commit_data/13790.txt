@@ -1,16 +1,12 @@
-commit f97bfb93f45339b1e528bd789495d894a2bfeece
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 10 23:31:40 2012 -0400
+commit 47ae8a28cd09f821163dd76b5430b70ce57bcd04
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 11 11:33:34 2012 +1000
 
-    encoding/json: handle anonymous fields
+    C: add Brian Slesinsky (Google CLA)
     
-    Fixes #3069.
-    
-    R=golang-dev, n13m3y3r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6460044
+    https://golang.org/cl/6496103
 
- src/pkg/encoding/json/decode.go      |  81 ++++--------
- src/pkg/encoding/json/decode_test.go | 198 +++++++++++++++++++++++-----
- src/pkg/encoding/json/encode.go      | 245 +++++++++++++++++++++++++++--------
- 3 files changed, 389 insertions(+), 135 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

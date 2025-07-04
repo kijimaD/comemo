@@ -1,16 +1,14 @@
-commit 46ed89b7a32f2c415dc12a077e2bbc8bbf973eb9
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Fri Sep 23 10:28:02 2011 +0200
+commit 7249fa773a452b57f9b6834e540fa4848d5fdd9a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 23 18:16:13 2011 +1000
 
-    runtime: gdb support: gracefully handle not being able to find types
+    syscall: mark stdin, stdout and stderr as non-inheritable by child process
     
-    The Dwarf info has the full typenames, the go *struct runtime.commonType
-    has the short name.  A more permanent fix would link the two together
-    but this way the user gets useable stack traces for now.
+    Fixes #2250.
     
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/5097046
+    R=golang-dev, hectorchu
+    CC=golang-dev, vincent.vanackere
+    https://golang.org/cl/5086050
 
- src/pkg/runtime/runtime-gdb.py | 31 +++++++++++++++++++++++++++----
- 1 file changed, 27 insertions(+), 4 deletions(-)
+ src/pkg/syscall/syscall_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,15 +1,19 @@
-commit 8556c76f88a6e80aafb535802be71cc79bd22c75
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 5 18:22:23 2016 +0000
+commit 8906d2a171153ab337a88d4e9f59a7626ac55019
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 22 23:19:00 2016 -0800
 
-    runtime: minor Windows cleanup
+    [dev.ssa] cmd/compile: leave JMPs in when using -N
     
-    Change-Id: I9a8081ef1109469e9577c642156aa635188d8954
-    Reviewed-on: https://go-review.googlesource.com/21538
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Helps keep line numbers around for debugging, particularly
+    for break and continue statements (which often compile
+    down to nothing).
+    
+    Update #14379
+    
+    Change-Id: I6ea06aa887b0450d9ba4f11e319e5c263f5a98ba
+    Reviewed-on: https://go-review.googlesource.com/19848
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/os1_windows.go | 22 +++++++++-------------
- src/runtime/os_windows.go  |  2 +-
- 2 files changed, 10 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go       | 5 ++++-
+ src/cmd/compile/internal/ssa/critical.go | 1 +
+ 2 files changed, 5 insertions(+), 1 deletion(-)

@@ -1,43 +1,24 @@
-commit 4f4c23512e2d5cddfa7024a7e9c217ba357b9978
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Mar 27 15:47:18 2023 +0000
+commit ca634fa2c550cd85a1a2cc03c208304ee38c6a82
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 31 15:48:35 2022 -0700
 
-    runtime: fix debug non-concurrent sweep mode after activeSweep changes
+    cmd/compile: reject not-in-heap types as type arguments
     
-    Currently the GC creates a sweepLocker before restarting the world at
-    the end of the mark phase, so that it can safely flush mcaches without
-    the runtime incorrectly concluding that sweeping is done before that
-    happens.
+    After running the types2 type checker, walk info.Instances to reject
+    any not-in-heap type arguments. This is feasible to check using the
+    types2 API now, thanks to #46731.
     
-    However, with GODEBUG=gcstoptheworld=2, where sweeping happens during
-    that STW phase, creating that sweepLocker will fail, since the runtime
-    will conclude that sweeping is in fact complete (all the queues will be
-    drained). The problem however is that gcSweep, which does the
-    non-concurrent sweeping, doesn't actually flush mcaches.
+    Fixes #54765.
     
-    In essence, this failure to create a sweepLocker is indicating a real
-    issue: sweeping is marked as complete, but we haven't flush the mcaches
-    yet!
-    
-    The fix to this is to flush mcaches in gcSweep when in a non-concurrent
-    sweep. Now that gcSweep actually completes a full sweep, it's safe to
-    ignore a failure to create a sweepLocker (and in fact, it *must* fail).
-    
-    While we're here, let's also remove _ConcurrentSweep, the debug flag.
-    There's already an alias for it called concurrentSweep, and there's only
-    one use of it in gcSweep.
-    
-    Lastly, add a dist test for the GODEBUG=gcstoptheworld=2 mode.
-    
-    Fixes #53885.
-    
-    Change-Id: I8a1e5b8f362ed8abd03f76e4950d3211f145ab1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479517
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Idd2acc124d102d5a76f128f13c21a6e593b6790b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427235
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/dist/test.go  | 18 ++++++++++++++++--
- src/runtime/malloc.go |  2 --
- src/runtime/mgc.go    | 49 ++++++++++++++++++++++++++++++++++++++-----------
- 3 files changed, 54 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go | 25 +++++++++++++++++++++++++
+ src/cmd/compile/internal/noder/irgen.go   | 26 ++++++++++++++++++++++++++
+ test/typeparam/issue54765.go              | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 79 insertions(+)

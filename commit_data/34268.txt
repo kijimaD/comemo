@@ -1,16 +1,31 @@
-commit af7fc752b1c0fe409ad59480aa6f7b290410c92b
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Tue Feb 20 08:42:11 2018 +0900
+commit c58b98b2d617ab2dfe839c4e5ef1e2008c9b60cf
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Oct 9 16:04:44 2017 -0400
 
-    text/template: avoid assiging unnecessary variable
+    cmd/link, runtime: put hasmain bit in moduledata
     
-    This follows up CL95235
+    Currently we look to see if the main.main symbol address is in the
+    module data text range. This requires access to the main.main
+    symbol, which usually the runtime has, but does not when building
+    a plugin.
     
-    Change-Id: I62652654e5bb46d2f8f37af468e1fbcc1835bb8a
-    Reviewed-on: https://go-review.googlesource.com/95295
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    To avoid a dynamic relocation to main.main (which I haven't worked
+    out how to have the linker generate on darwin), stop using the
+    symbol. Instead record a boolean in the moduledata if the module
+    has the main function.
+    
+    Fixes #22175
+    
+    Change-Id: If313a118f17ab499d0a760bbc2519771ed654530
+    Reviewed-on: https://go-review.googlesource.com/69370
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/template.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ misc/cgo/testplugin/src/issue22175/main.go    | 28 +++++++++++++++++++++++++++
+ misc/cgo/testplugin/src/issue22175/plugin1.go | 21 ++++++++++++++++++++
+ misc/cgo/testplugin/src/issue22175/plugin2.go |  9 +++++++++
+ misc/cgo/testplugin/test.bash                 |  6 ++++++
+ src/cmd/link/internal/ld/symtab.go            |  7 +++++++
+ src/runtime/symtab.go                         |  5 +++--
+ 6 files changed, 74 insertions(+), 2 deletions(-)

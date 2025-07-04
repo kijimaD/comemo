@@ -1,20 +1,30 @@
-commit 38a4b37905cd7df3a97fa6dbf070f570c4bf135b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Dec 18 15:59:47 2018 +0100
+commit 36c789b1fd72af5ff6e756794597a3a85e069998
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Sep 29 04:30:52 2018 -0400
 
-    syscall: add empty line before marker comments in zsyscall_darwin_*.go
+    [dev.boringcrypto] misc/boring: add go1.10.4b4 and go1.11b4 releases
     
-    This was spotted during the review of the corresponding CL 154179 for
-    x/sys/unix. Let's change it in syscall as well to be consistent.
+    Also, document the fact that we cut releases only from the versioned
+    branches, and use the correct x/net branch.
     
-    Change-Id: I33f25db1f6ba941b694c2aa276336448cc2b9b51
-    Reviewed-on: https://go-review.googlesource.com/c/154719
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Had to build this passing -skip_tests to release because the buildlet
+    was timing out (see below), but the builders on the dashboard are green.
+    
+    2018/09/28 19:14:50 linux-amd64: Start.
+    2018/09/28 19:14:50 linux-amd64: Creating buildlet.
+    2018/09/28 19:15:28 linux-amd64: Pushing source to buildlet.
+    2018/09/28 19:15:37 linux-amd64: Writing VERSION file.
+    2018/09/28 19:15:38 linux-amd64: Cleaning goroot (pre-build).
+    2018/09/28 19:15:38 linux-amd64: Building.
+    2018/09/28 19:46:20 Buildlet https://farmer.golang.org:443 failed three heartbeats; final error: timeout waiting for headers
+    2018/09/28 19:46:20 linux-amd64: Error: Buildlet https://farmer.golang.org:443 failed heartbeat after 10.007631241s; marking dead; err=timeout waiting for headers
+    
+    Change-Id: I9d982df693075f96d44aa6f163533253c8ae2914
+    Reviewed-on: https://go-review.googlesource.com/138555
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/syscall/mksyscall.pl             |   2 +-
- src/syscall/zsyscall_darwin_386.go   | 118 ++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_darwin_amd64.go | 118 ++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_darwin_arm.go   | 119 +++++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_darwin_arm64.go | 119 +++++++++++++++++++++++++++++++++++
- 5 files changed, 475 insertions(+), 1 deletion(-)
+ misc/boring/README.md     | 54 +++++++++++++++++++++--------------------------
+ misc/boring/RELEASES      |  4 ++++
+ misc/boring/build.release |  4 ++--
+ 3 files changed, 30 insertions(+), 32 deletions(-)

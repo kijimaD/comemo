@@ -1,17 +1,15 @@
-commit 5d8c49a5a13d922c24dc30675d64f0c49b676535
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 23 12:02:40 2021 -0800
+commit 0e8a72b62efa44fa01eccb94d47a051366cb6d17
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 30 12:21:20 2021 -0700
 
-    spec: add definition of "specific types" of an interface
+    runtime: check for sysAlloc failures in pageAlloc
     
-    The notion of specific types will be used to define rules for
-    assignability, convertability, etc. when type parameters are
-    involved.
-    
-    Change-Id: Ic5c134261e2a9fe05cdf25efd342f052458ab5c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366754
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I78c5744bb01988f1f599569703d83fd21542ac7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305911
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/go_spec.html | 64 +++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 57 insertions(+), 7 deletions(-)
+ src/runtime/mpagealloc.go | 3 +++
+ 1 file changed, 3 insertions(+)

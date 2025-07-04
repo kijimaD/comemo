@@ -1,21 +1,16 @@
-commit 3cdd5c3bcc53298dd7de39cb6e2bd600308988b8
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Thu Nov 12 16:02:55 2020 +0100
+commit 6dad1b4c9bb63cad432bcddb7aec0d36f03f8341
+Author: alex-semenyuk <alexsemenyuk88@gmail.com>
+Date:   Sun May 17 16:05:05 2020 +0000
 
-    cmd/link: regression test for issue #42484
+    cmd/cgo: close file
     
-    Adds test to check that the compiler does not emit duplicate debug_line
-    entries for the end of sequence address.
-    
-    Updates #42484
-    
-    Change-Id: I3c5d1d606fcfd758aa1fd83ecc51d8edc054398b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270197
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ia70edc8ba22e31e498fe07946db41882804bd39f
+    GitHub-Last-Rev: 280232e879965b34fae3aa02e6215eff5bd7be46
+    GitHub-Pull-Request: golang/go#39120
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234317
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go             | 71 ++++++++++++++++++++++
- .../link/internal/ld/testdata/issue42484/main.go   | 16 +++++
- 2 files changed, 87 insertions(+)
+ src/cmd/cgo/out.go | 1 +
+ 1 file changed, 1 insertion(+)

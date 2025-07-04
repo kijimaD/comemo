@@ -1,26 +1,19 @@
-commit dbf96addfb7fc868701fdf3d70ed6c2e1c920d63
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 12 22:02:10 2013 -0400
+commit 83348a13fb40ac80e2587e27c29d18360177f3b1
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Aug 13 11:11:05 2013 +1000
 
-    cmd/gc: move flow graph into portable opt
+    text/template: Make function call builtin handle nil errors correctly
     
-    Now there's only one copy of the flow graph construction
-    and dominator computation, and different optimizations
-    can attach different annotations to the instructions.
+    The call builtin unconditionally tries to convert a second return value from a function to the error type. This fails in case nil is returned, effectively making call useless for functions returning two values.
     
-    R=ken2
+    This CL adds a nil check for the second return value, and adds a test.
+    
+    Note that for regular function and method calls the nil error case is handled correctly and is verified by a test.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/12797045
+    https://golang.org/cl/12804043
 
- src/cmd/5g/opt.h  |  34 +---
- src/cmd/5g/peep.c | 297 ++++++++++++++------------------
- src/cmd/5g/reg.c  | 499 +++++++++++++++---------------------------------------
- src/cmd/6g/opt.h  |  40 +----
- src/cmd/6g/peep.c | 194 ++++++++-------------
- src/cmd/6g/reg.c  | 454 ++++++++++++++-----------------------------------
- src/cmd/8g/opt.h  |  22 +--
- src/cmd/8g/peep.c | 160 ++++++-----------
- src/cmd/8g/reg.c  | 452 ++++++++++++++-----------------------------------
- src/cmd/gc/popt.c | 281 ++++++++++++++++++++++++++++++
- src/cmd/gc/popt.h |  34 ++++
- 11 files changed, 965 insertions(+), 1502 deletions(-)
+ src/pkg/text/template/exec_test.go | 3 +++
+ src/pkg/text/template/funcs.go     | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

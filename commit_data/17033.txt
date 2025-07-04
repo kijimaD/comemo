@@ -1,19 +1,16 @@
-commit 49da9a8e44fecbf9b3287472b6554419840b03b5
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Aug 5 22:09:53 2013 +0200
+commit 10ebb84d4801beb9fb86e6d156229e9dad0883e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 5 16:06:24 2013 -0400
 
-    cmd/gc: fix inlining of unnamed structs with embedded fields.
+    runtime: remove debugging knob to turn off preemption
     
-    Update #5910.
+    It's still easy to turn off, but the builders are happy.
+    Also document.
     
-    R=golang-dev, daniel.morsing, rsc
+    R=golang-dev, iant, dvyukov
     CC=golang-dev
-    https://golang.org/cl/11373044
+    https://golang.org/cl/12371043
 
- src/cmd/gc/go.y                      |    4 +-
- src/cmd/gc/y.tab.c                   | 1260 +++++++++++++++++++++++++---------
- src/cmd/gc/y.tab.h                   |   46 +-
- test/fixedbugs/issue5910.dir/a.go    |   17 +
- test/fixedbugs/issue5910.dir/main.go |    8 +
- test/fixedbugs/issue5910.go          |   10 +
- 6 files changed, 992 insertions(+), 353 deletions(-)
+ doc/go1.2.txt          | 1 +
+ src/pkg/runtime/proc.c | 6 ------
+ 2 files changed, 1 insertion(+), 6 deletions(-)

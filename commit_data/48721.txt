@@ -1,16 +1,21 @@
-commit db7183ccf9e7c245872864833e78a469e8747031
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 8 16:23:35 2022 -0700
+commit 1402b27d465d9949027a048ea2c86a3583400b4c
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 7 16:30:03 2021 -0700
 
-    go/build: remove unused fileInfo.embedErr field
+    strconv: document parsing of leading +/-
     
-    Change-Id: If86a0402dae32c57d07545ee6d818010e0e4b5ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399255
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Explicitly document the handling of a sign prefix, and the interaction
+    between the sign and base prefixes.
+    
+    Fixes #46641.
+    
+    Change-Id: I3cd6773e3f074fe671a944a05a79d2408137fcd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325875
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/build/build.go | 1 -
- src/go/build/read.go  | 2 +-
- 2 files changed, 1 insertion(+), 2 deletions(-)
+ src/strconv/atoi.go      | 11 ++++++++---
+ src/strconv/atoi_test.go | 10 ++++++++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)

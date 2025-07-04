@@ -1,12 +1,18 @@
-commit f70116102b03ea864ae13245716344ee2f2a8b88
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Sun Sep 22 07:28:52 2013 +1000
+commit 1c45f98fa38d9600ee1c60c2bfba3c0dced86087
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Sep 20 17:27:56 2013 -0700
 
-    doc/go1.2.html: Go 1.2, not Go1.2
+    test/chan: avoid wrap-around in memstats comparison
     
-    R=r
+    The select2.go test assumed that the memory allocated between
+    its two samplings of runtime.ReadMemStats is strictly
+    increasing.  To avoid failing the tests when this is not true,
+    a greater-than check is introduced before computing the
+    difference in allocated memory.
+    
+    R=golang-dev, r, cshapiro
     CC=golang-dev
-    https://golang.org/cl/13735044
+    https://golang.org/cl/13701046
 
- doc/go1.2.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/chan/select2.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

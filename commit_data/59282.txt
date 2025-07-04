@@ -1,23 +1,18 @@
-commit 3968a5bca4fc0cdb4e2bb9fd6169deafdafc420d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 4 10:31:02 2025 -0500
+commit b426e9797ffffff54103db85d8cd29fe882f2262
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Oct 15 17:58:43 2023 +0200
 
-    runtime: handle m0 padding better
+    encoding/xml: display closing space in error message
     
-    The SpinbitMutex experiment requires m structs other than m0
-    to be allocated in 2048-byte size class, by adding padding.
-    Do the calculation more explicitly, to avoid future CLs like CL 653335.
+    Fixes #48890
     
-    Change-Id: I83ae1e86ef3711ab65441f4e487f94b9e1429029
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654595
-    Reviewed-by: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I7644d091ad92663bda52ef4905239ec499ef9207
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535535
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/runtime/asan.go         | 1 +
- src/runtime/asan0.go        | 1 +
- src/runtime/lock_spinbit.go | 2 +-
- src/runtime/proc.go         | 2 +-
- src/runtime/runtime2.go     | 9 +++++++--
- 5 files changed, 11 insertions(+), 4 deletions(-)
+ src/encoding/xml/xml.go      | 6 +++++-
+ src/encoding/xml/xml_test.go | 4 +++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

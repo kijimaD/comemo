@@ -1,12 +1,24 @@
-commit a42f668654103ebfb56e64ebc9b6ba131d5b3831
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 19 13:57:04 2015 -0400
+commit 0fb818a424889a1f12c386fa5fb29814957678cd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 5 10:33:09 2015 -0700
 
-    runtime: eliminate unused _GCstw phase
+    [dev.ssa] cmd/compile: copy values during rewrites
     
-    Change-Id: Ie94cd17e1975fdaaa418fa6a7b2d3b164fedc135
-    Reviewed-on: https://go-review.googlesource.com/16057
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Rather than require an explicit Copy on the RHS of rewrite rules,
+    use rulegen magic to add it.
+    
+    The advantages to handling this in rulegen are:
+    
+    * simpler rules
+    * harder to accidentally miss a Copy
+    
+    Change-Id: I46853bade83bdf517eee9495bf5a553175277b53
+    Reviewed-on: https://go-review.googlesource.com/13242
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  50 +++---
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  12 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 213 ++++++++++++++-----------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  54 ++++---
+ 5 files changed, 186 insertions(+), 151 deletions(-)

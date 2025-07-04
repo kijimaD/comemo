@@ -1,30 +1,20 @@
-commit 9a702fd427645e4bcd42a68f9676bc1ab2adb6e4
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Sep 17 15:54:13 2020 -0400
+commit ab7ecea0c8dff908dfcad8c9091b71c6051bb94a
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Sat Feb 29 11:23:29 2020 +0800
 
-    cmd/go: flip relationship between load and modload
+    cmd/compile: add intrinsics for runtime/internal/math on MIPS64x
     
-    Previously, modload imported load, but it mainly just did so in order
-    to install callbacks to the modload API. This was important during vgo
-    development, but there's no longer a strong reason to do this. Nothing
-    modload imports strongly depends on load, so there's little danger of
-    a dependency cycle.
+    name              old time/op  new time/op  delta
+    MulUintptr/small  8.42ns ± 0%  5.93ns ± 0%  -29.66%  (p=0.000 n=9+10)
+    MulUintptr/large  11.1ns ± 0%   7.4ns ± 0%  -33.17%  (p=0.000 n=10+9)
     
-    This change deletes the callbacks in load and instead, makes load call
-    exported functions in modload directly. In the future, these functions
-    may have different signatures than their GOPATH counterparts.
-    
-    Change-Id: Ifde5c3ffebd190b5bd184924ec447d272b936f27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255719
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6659a886389660461fc2c90bd248243f6e7c29d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210897
+    Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/load/pkg.go       | 46 ++++++++++++-----------------------
- src/cmd/go/internal/modload/import.go |  7 ------
- src/cmd/go/internal/modload/init.go   | 14 +----------
- src/cmd/go/internal/vcs/vcs.go        | 36 ++++++++++++++++++++++++---
- src/cmd/go/internal/work/exec.go      |  3 ++-
- src/cmd/go/internal/work/init.go      |  4 +--
- 6 files changed, 53 insertions(+), 57 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go            |  2 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 41 +++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 1 deletion(-)

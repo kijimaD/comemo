@@ -1,12 +1,12 @@
-commit b13eac88aca4ac27174e3f32284637d8d8d0915d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon May 6 10:12:45 2013 -0700
+commit a21b36da1cd1e00941536ee1b4e33f456a4500dc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun May 5 02:23:19 2013 +0800
 
-    C: add Jeremiah Harmsen (Google CLA)
+    go/build: document GOOS.go also has implicit GOOS build constraint
     
-    R=golang-dev, bradfitz
+    R=golang-dev, i.caught.air, alexb, r
     CC=golang-dev
-    https://golang.org/cl/9229043
+    https://golang.org/cl/9064044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/go/build/doc.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

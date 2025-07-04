@@ -1,23 +1,46 @@
-commit fdc2072420d28b761e30dd02e7ed6118cda33f4f
-Author: Michael Munday <mike.munday@lowrisc.org>
-Date:   Wed Sep 8 13:57:07 2021 +0000
+commit 4dfb5d91a86dfcc046ced03cee6e844df0751e41
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:54:11 2020 -0500
 
-    test/codegen: remove broken riscv64 test
+    [dev.regabi] cmd/compile: split out package staticdata [generated]
     
-    This test is not executed by default (see #48247) and does not
-    actually pass. It was added in CL 346689. The code generation
-    changes made in that CL only change how instructions are assembled,
-    they do not actually affect the output of the compiler. This test
-    is unfortunately therefore invalid and will never pass.
+    [git-generate]
+    cd src/cmd/compile/internal/gc
     
-    Updates #48247.
+    rf '
+            # Export API and move to its own files.
+            mv addrsym InitAddr
+            mv pfuncsym InitFunc
+            mv slicesym InitSlice
+            mv slicebytes InitSliceBytes
+            mv stringsym StringSym
+            mv funcsym FuncSym
+            mv makefuncsym NeedFuncSym
+            mv dumpfuncsyms WriteFuncSyms
+            mv InitAddr InitFunc InitSlice InitSliceBytes stringSymPrefix \
+                    StringSym fileStringSym slicedataGen slicedata dstringdata \
+                    funcsyms FuncSym NeedFuncSym WriteFuncSyms \
+                    data.go
     
-    Change-Id: I0c807e4a111336e5a097fe4e3af2805f9932a87f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348390
-    Trust: Michael Munday <mike.munday@lowrisc.org>
-    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+            mv initEmbed WriteEmbed
+            mv dumpembeds obj.go
+    
+            mv data.go embed.go cmd/compile/internal/staticdata
+    '
+    
+    Change-Id: I209c5e597c8acfa29a48527695a9ddc1e9ea8e6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279474
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/codegen/arithmetic.go | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go                 |  51 ----
+ src/cmd/compile/internal/gc/go.go                  |   7 -
+ src/cmd/compile/internal/gc/main.go                |   3 +-
+ src/cmd/compile/internal/gc/obj.go                 | 233 +---------------
+ src/cmd/compile/internal/gc/sinit.go               |  29 +-
+ src/cmd/compile/internal/gc/ssa.go                 |   7 +-
+ src/cmd/compile/internal/gc/walk.go                |   3 +-
+ src/cmd/compile/internal/staticdata/data.go        | 296 +++++++++++++++++++++
+ .../compile/internal/{gc => staticdata}/embed.go   |  23 +-
+ 9 files changed, 336 insertions(+), 316 deletions(-)

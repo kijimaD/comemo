@@ -1,27 +1,18 @@
-commit 7cc4516ac8305acf3689a2b755932512a1bf6efd
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue May 9 09:50:19 2023 -0400
+commit 3af5280c003038e5fea1a84e7e57e85e96e131a3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 27 14:10:08 2022 -0700
 
-    internal/testdir: move to cmd/internal/testdir
+    net: really skip Windows PTR tests if we say we are skipping them
     
-    The effect and motivation is for the test to be selected when doing
-    'go test cmd' and not when doing 'go test std' since it's primarily
-    about testing the Go compiler and linker. Other than that, it's run
-    by all.bash and 'go test std cmd' as before.
+    For #38111
     
-    For #56844.
-    Fixes #60059.
-    
-    Change-Id: I2d499af013f9d9b8761fdf4573f8d27d80c1fccf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493876
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I2651687367af68ee070ea91106f4bc18adab2762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414634
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/dist/test.go                           | 4 ++--
- src/{ => cmd}/internal/testdir/testdir_test.go | 0
- test/README.md                                 | 4 ++--
- test/codegen/README                            | 2 +-
- 4 files changed, 5 insertions(+), 5 deletions(-)
+ src/net/lookup_windows_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

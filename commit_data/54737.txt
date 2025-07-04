@@ -1,30 +1,28 @@
-commit 1340662ab4c56f946337518bda94f861478d2661
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Oct 13 14:48:33 2023 +0800
+commit d62f8d5f2becb765c6c6947bfc1858ced43c1cbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 16 10:37:49 2022 -0400
 
-    debug: add available godoc link
+    crypto/ecdh: add boringcrypto support
     
-    Change-Id: I9e7b7e10d9e3d23e4ed540eb8137cd1f4d103711
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534761
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Update crypto/ecdh to use boringcrypto when enabled.
+    
+    Change-Id: Idd0ce06a22b1a62289b383c46893800621c7d97b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423363
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/debug/dwarf/const.go    |  4 ++--
- src/debug/dwarf/entry.go    | 38 +++++++++++++++++++-------------------
- src/debug/dwarf/line.go     | 22 +++++++++++-----------
- src/debug/dwarf/open.go     |  6 +++---
- src/debug/dwarf/type.go     |  6 +++---
- src/debug/dwarf/typeunit.go |  2 +-
- src/debug/elf/file.go       | 24 ++++++++++++------------
- src/debug/gosym/pclntab.go  |  4 ++--
- src/debug/gosym/symtab.go   |  2 +-
- src/debug/macho/fat.go      |  6 +++---
- src/debug/macho/file.go     |  8 ++++----
- src/debug/pe/file.go        |  8 ++++----
- src/debug/pe/section.go     |  2 +-
- src/debug/pe/symbol.go      |  4 ++--
- src/debug/plan9obj/file.go  | 10 +++++-----
- 15 files changed, 73 insertions(+), 73 deletions(-)
+ src/crypto/ecdh/ecdh.go                            |  21 +-
+ src/crypto/ecdh/ecdh_test.go                       |   8 +-
+ src/crypto/ecdh/nist.go                            |  59 +++++-
+ src/crypto/internal/boring/boring.go               |   4 +
+ src/crypto/internal/boring/build-goboring.sh       |   8 +-
+ src/crypto/internal/boring/ecdh.go                 | 224 +++++++++++++++++++++
+ src/crypto/internal/boring/goboringcrypto.h        |  16 ++
+ src/crypto/internal/boring/notboring.go            |  10 +
+ .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 2555552 -> 2555664 bytes
+ .../boring/syso/goboringcrypto_linux_arm64.syso    | Bin 1980184 -> 1980296 bytes
+ src/go/build/deps_test.go                          |  32 ++-
+ 11 files changed, 362 insertions(+), 20 deletions(-)

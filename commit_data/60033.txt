@@ -1,0 +1,22 @@
+commit c89318667f525b1e796fca991ce92a1529aba81c
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Mon May 6 12:21:37 2024 +0000
+
+    runtime: cleanup crashstack code
+    
+    This patch removes redundant guards for the crash stack feature, as all
+    supported Go architectures now have a crash stack implementation.
+    
+    Change-Id: I7ffb61c57955778d687073418130b2aaab0ff183
+    GitHub-Last-Rev: 6ff56d6420093ee8f95c75019557dc8bcec32ed7
+    GitHub-Pull-Request: golang/go#67202
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583416
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ src/runtime/asm.s   | 31 -------------------------------
+ src/runtime/proc.go |  2 +-
+ 2 files changed, 1 insertion(+), 32 deletions(-)

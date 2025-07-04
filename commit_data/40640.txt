@@ -1,25 +1,28 @@
-commit 947f8504d950648fc1a291925bce142ddfc3b4fa
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Nov 7 02:54:50 2019 +0000
+commit 74d92db8d77e20b934821b13a92bccb01dbeeb68
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 6 17:27:14 2019 -0400
 
-    runtime: map reserved memory as NORESERVE on solaris
+    cmd/dist,cmd/compile: remove -allabis mode
     
-    This changes makes it so that sysReserve, which creates a PROT_NONE
-    mapping, maps that memory as NORESERVE. Before this change, relatively
-    large PROT_NONE mappings could cause fork to fail with ENOMEM, reported
-    as "not enough space". Presumably this refers to swap space, since
-    adding this flag causes the failures to go away.
+    dist passes the -allabis flag to the compiler to avoid having to
+    recreate the cross-package ABI logic from cmd/go. However, we removed
+    that logic from cmd/go in CL 179863 and replaced it with a different
+    mechanism that doesn't depend on the build system. Hence, passing
+    -allabis in dist is no longer necessary.
     
-    This helps unblock page allocator work, since it allows us to make large
-    PROT_NONE mappings on solaris safely.
+    This CL removes -allabis from dist and, since that was the only use of
+    it, removes support for it from the compiler as well.
     
-    Updates #35112.
+    Updates #31230.
     
-    Change-Id: Ic3cba310c626e93d5db0f27269e2569bb7bc393e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205759
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ib005db95755a7028f49c885785e72c3970aea4f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181079
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/mem_bsd.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/gsubr.go | 11 -----------
+ src/cmd/compile/internal/gc/main.go  |  6 ------
+ src/cmd/dist/build.go                |  7 -------
+ 3 files changed, 24 deletions(-)

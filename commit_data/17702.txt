@@ -1,101 +1,12 @@
-commit 649a2a9be550abdacdaf45a7ad778d4f0b1f299a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Sep 26 21:35:49 2013 +1000
+commit bc0e51555c35552415eb5d4560b43b4bff0e944b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 25 18:15:29 2013 +1000
 
-    runtime, syscall: update freebsd/arm calling convention to match EABI
+    doc: mention the install locations for godoc, cover, and vet
     
-    Fixes #6451.
-    
-    There is still some breakages unrelated to the syscall change.
-    
-    [root@beaglebone ~/go/src]# /root/go/pkg/tool/freebsd_arm/go_bootstrap version
-    go version devel freebsd/arm
-    a std@beaglebone ~/go/src]# /root/go/pkg/tool/freebsd_arm/go_bootstrap install -
-    fatal error: mark - finalizer inconsistency
-    
-    runtime stack:
-    runtime.throw(0x3e80ac)
-            /root/go/src/pkg/runtime/panic.c:464 +0x5c
-    addfinroots(0x2)
-            /root/go/src/pkg/runtime/mgc0.c:1501 +0x74
-    runtime.walkfintab(0x6c200)
-            /root/go/src/pkg/runtime/mfinal.c:216 +0xa0
-    addroots()
-            /root/go/src/pkg/runtime/mgc0.c:1561 +0x188
-    gc(0x50632f78)
-            /root/go/src/pkg/runtime/mgc0.c:2098 +0x19c
-    mgc(0x306170a0)
-            /root/go/src/pkg/runtime/mgc0.c:2049 +0x30
-    runtime.mcall(0x3e97b0)
-            /root/go/src/pkg/runtime/asm_arm.s:165 +0x3c
-    
-    goroutine 1 [garbage collection]:
-    runtime.gc(0x0)
-            /root/go/src/pkg/runtime/mgc0.c:2020 +0x1a0 fp=0x50632f80
-    runtime.mallocgc(0x680, 0x1b1971, 0x1)
-            /root/go/src/pkg/runtime/malloc.goc:143 +0x210 fp=0x50632fbc
-    ----- stack segment boundary -----
-    cnew(0x1b1970, 0x640, 0x1)
-            /root/go/src/pkg/runtime/malloc.goc:718 +0xc4 fp=0x50626110
-    runtime.cnewarray(0x1b1970, 0x640)
-            /root/go/src/pkg/runtime/malloc.goc:731 +0x3c fp=0x50626120
-    makeslice1(0x1ac6d0, 0x500, 0x640, 0x50626190)
-            /root/go/src/pkg/runtime/slice.c:57 +0x50 fp=0x5062612c
-    growslice1(0x1ac6d0, 0x30714a00, 0x500, 0x500, 0x501, ...)
-            /root/go/src/pkg/runtime/slice.c:113 +0x8c fp=0x50626144
-    runtime.growslice(0x1ac6d0, 0x30714a00, 0x500, 0x500, 0x1, ...)
-            /root/go/src/pkg/runtime/slice.c:80 +0x19c fp=0x50626174
-    go/build.(*importReader).readByte(0x3070d1b0, 0xb384e)
-            /root/go/src/pkg/go/build/read.go:43 +0xbc fp=0x506261b4
-    go/build.(*importReader).peekByte(0x3070d1b0, 0x3070d101, 0x3070d180)
-            /root/go/src/pkg/go/build/read.go:89 +0x210 fp=0x506261d0
-    go/build.readComments(0x203e2560, 0x306f79a8, 0x306f79a8, 0x203e2560, 0x306f79a8, ...)
-            /root/go/src/pkg/go/build/read.go:194 +0x84 fp=0x506261f4
-    go/build.(*Context).matchFile(0x3e9730, 0x306209c0, 0x13, 0x306c42b4, 0x5, ...)
-            /root/go/src/pkg/go/build/build.go:812 +0x74c fp=0x5062629c
-    go/build.(*Context).Import(0x3e9730, 0x1f95c8, 0x1, 0x30620960, 0x13, ...)
-            /root/go/src/pkg/go/build/build.go:580 +0xd64 fp=0x506268dc
-    go/build.(*Context).ImportDir(0x3e9730, 0x30620960, 0x13, 0x0, 0x24d901, ...)
-            /root/go/src/pkg/go/build/build.go:397 +0x5c fp=0x50626904
-    main.func·021(0x30620960, 0x13, 0x203e2200, 0x30680330, 0x0, ...)
-            /root/go/src/cmd/go/main.go:521 +0x2cc fp=0x5062696c
-    path/filepath.walk(0x30620960, 0x13, 0x203e2200, 0x30680330, 0x50626ae8, ...)
-            /root/go/src/pkg/path/filepath/path.go:341 +0x5c fp=0x506269d8
-    path/filepath.walk(0x3067e720, 0x11, 0x203e2200, 0x30680210, 0x50626ae8, ...)
-            /root/go/src/pkg/path/filepath/path.go:359 +0x308 fp=0x50626a44
-    path/filepath.Walk(0x3067e720, 0x11, 0x50626ae8, 0x1f9728, 0x1)
-            /root/go/src/pkg/path/filepath/path.go:380 +0xb4 fp=0x50626a68
-    main.matchPackages(0xbfffedea, 0x3, 0x1b1190, 0x3067e600, 0x10)
-            /root/go/src/cmd/go/main.go:530 +0x2c0 fp=0x50626b1c
-    main.allPackages(0xbfffedea, 0x3, 0x1fadc8, 0x3, 0x1)
-            /root/go/src/cmd/go/main.go:474 +0x34 fp=0x50626b70
-    main.importPathsNoDotExpansion(0x30620018, 0x1, 0x1, 0x0, 0xffffffff, ...)
-            /root/go/src/cmd/go/main.go:305 +0x2f8 fp=0x50626c04
-    main.importPaths(0x30620018, 0x1, 0x1, 0x3, 0x0, ...)
-            /root/go/src/cmd/go/main.go:315 +0x44 fp=0x50626c88
-    main.packagesAndErrors(0x30620018, 0x1, 0x1, 0x50626d60, 0x90f44, ...)
-            /root/go/src/cmd/go/pkg.go:798 +0x1bc fp=0x50626d1c
-    main.packagesForBuild(0x30620018, 0x1, 0x1, 0x53490, 0x0, ...)
-            /root/go/src/cmd/go/pkg.go:818 +0x44 fp=0x50626dac
-    main.runInstall(0x3e46e0, 0x30620018, 0x1, 0x1)
-            /root/go/src/cmd/go/build.go:311 +0x48 fp=0x50626e60
-    main.main()
-            /root/go/src/cmd/go/main.go:161 +0x518 fp=0x50626f8c
-    runtime.main()
-            /root/go/src/pkg/runtime/proc.c:222 +0x100 fp=0x50626fc0
-    runtime.goexit()
-            /root/go/src/pkg/runtime/proc.c:1396 fp=0x50626fc0
-    
-    goroutine 3 [syscall]:
-    os/signal.loop()
-            /root/go/src/pkg/os/signal/signal_unix.go:21 +0x24
-    created by os/signal.init·1
-            /root/go/src/pkg/os/signal/signal_unix.go:27 +0x48
-    
-    R=minux.ma, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13824044
+    https://golang.org/cl/13893043
 
- src/pkg/runtime/sys_freebsd_arm.s | 132 ++++++++++++++++++++++++++------------
- src/pkg/syscall/asm_freebsd_arm.s |  58 ++++++++---------
- 2 files changed, 121 insertions(+), 69 deletions(-)
+ doc/install-source.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

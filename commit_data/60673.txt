@@ -1,0 +1,18 @@
+commit 8b32ce586de9a4120bc7cdc104801113bed89f1d
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Jul 15 01:31:15 2024 +0000
+
+    net/http/httputil: close res body in test
+    
+    Change-Id: Ic57c93a8d8413fe4985bc430255b6db90e11b70c
+    GitHub-Last-Rev: 25db6644c6cd3ae532796b18f8978f84a51376af
+    GitHub-Pull-Request: golang/go#68397
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597936
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/http/httputil/reverseproxy_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

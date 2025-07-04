@@ -1,18 +1,13 @@
-commit 31775c5a958e00411954724408d1a069df4b9061
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Jan 6 15:08:02 2015 -0800
+commit c1374b5c7806c97d627017a3bfb5d41470f89b0e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 25 15:41:33 2014 +1100
 
-    cmd/cgo: update code and docs to reflect post-6c world
+    doc: tidy up "Projects" page; add Go 1.4
     
-    The gc toolchain no longer includes a C compiler, so mentions of "6c"
-    can be removed or replaced by 6g as appropriate.  Similarly, some cgo
-    functions that previously generated C source output no longer need to.
-    
-    Change-Id: I1ae6b02630cff9eaadeae6f3176c0c7824e8fbe5
-    Reviewed-on: https://go-review.googlesource.com/2391
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/182750043
 
- src/cmd/cgo/doc.go  | 174 +++++++++++++++++++++++++---------------------------
- src/cmd/cgo/main.go |   6 +-
- src/cmd/cgo/out.go  |  34 +++++-----
- 3 files changed, 104 insertions(+), 110 deletions(-)
+ doc/contrib.html | 21 ++++++++-------------
+ 1 file changed, 8 insertions(+), 13 deletions(-)

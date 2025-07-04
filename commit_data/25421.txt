@@ -1,26 +1,20 @@
-commit 81b35117d9e0b99a5894d65c8c419541a48c87dd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 31 12:06:31 2015 -0800
+commit a347ab7cd160cfc7a58d7c074d4fdc2806f83e9d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 26 21:49:31 2015 -0700
 
-    runtime: set SIGCONT to _SigNotify + _SigDefault
+    [dev.ssa] cmd/compile: split op rewrites into separate functions
     
-    Use the current ability to say that we don't do anything with SIGCONT by
-    default, but programs can catch it using signal.Notify if they want.
+    The single value rewrite function is too big.  Some compilers
+    fail on it (out of memory, branch offset too large).  Break it
+    up into a rewrite function per op.
     
-    Fixes #8953.
-    
-    Change-Id: I67d40ce36a029cbc58a235cbe957335f4a58e1c5
-    Reviewed-on: https://go-review.googlesource.com/18185
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iede697c8a1a3a22b485cd0dc85d3e233160c89c2
+    Reviewed-on: https://go-review.googlesource.com/16347
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/os/signal/signal_test.go        | 9 +++++++++
- src/runtime/signal_darwin.go        | 2 +-
- src/runtime/signal_dragonfly.go     | 2 +-
- src/runtime/signal_freebsd.go       | 2 +-
- src/runtime/signal_nacl.go          | 2 +-
- src/runtime/signal_netbsd.go        | 2 +-
- src/runtime/signal_openbsd.go       | 2 +-
- src/runtime/signal_solaris.go       | 2 +-
- src/runtime/sigtab_linux_generic.go | 2 +-
- src/runtime/sigtab_linux_mips64x.go | 2 +-
- 10 files changed, 18 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |    36 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 24642 ++++++++++++-----------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  3644 ++--
+ 3 files changed, 15373 insertions(+), 12949 deletions(-)

@@ -1,19 +1,16 @@
-commit 564eab891a2a0da77aeec29d94a5a4c0c9d002b8
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 8 20:56:15 2015 -0400
+commit 3dd029aa7e5b3e770e21bd8b03981c3ef0b59c23
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 24 14:13:47 2015 +0900
 
-    runtime: add GODEBUG=sbrk=1 to bypass memory allocator (and GC)
+    net: enable TestTCPReadWriteAllocs in short mode
     
-    To reduce lock contention in this mode, makes persistent allocation state per-P,
-    which means at most 64 kB overhead x $GOMAXPROCS, which should be
-    completely tolerable.
+    The change 2096 removed unwanted allocations and a few noises in test
+    using AllocsPerRun. Now it's safe to enable this canary test on netpoll
+    hotpaths.
     
-    Change-Id: I34ca95e77d7e67130e30822e5a4aff6772b1a1c5
-    Reviewed-on: https://go-review.googlesource.com/7740
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Icdbee813d81c1410a48ea9960d46447042976905
+    Reviewed-on: https://go-review.googlesource.com/5713
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/malloc.go   | 39 ++++++++++++++++++++++++++++++++-------
- src/runtime/mfinal.go   |  5 +++++
- src/runtime/runtime1.go |  2 ++
- src/runtime/runtime2.go |  2 ++
- 4 files changed, 41 insertions(+), 7 deletions(-)
+ src/net/tcp_test.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

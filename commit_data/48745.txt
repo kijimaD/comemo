@@ -1,18 +1,25 @@
-commit 11c450fa58b1aa712d7202d71285ae1b0612d201
-Author: yangwenmai <yangwen.yw@gmail.com>
-Date:   Sun Apr 10 16:04:22 2022 +0800
+commit 8f00eb009978e2e1bb681e698a0b51e20333eb05
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 11 18:51:56 2021 -0700
 
-    A+C: add Wen Yang (individual CLA)
+    [dev.typeparams] cmd/compile: avoid ir.DeepCopy in noder.constDecl
     
-    Change-Id: Iaac18d78b4a11698d0b5f70b1d5143c0da8a6943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399299
-    Reviewed-by: mzh <mzh@golangcn.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Instead of using ir.DeepCopy to copy the IR from the previous constant
+    declaration, just call exprList again and then fix up the position
+    information. This is equivalent in practice, but has cleaner semantics
+    for tricky corner cases like constant declarations that contain
+    function literals.
+    
+    In particular, this refactoring is necessary for the next CL that
+    cleans up function literal construction, because it adds extra
+    consistency checks that weren't satisfied by DeepCopy'd OCLOSUREs.
+    
+    Change-Id: I0372bde5d6613695ee572cc8bf8fb4ff9aef4cb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327449
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/compile/internal/noder/noder.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

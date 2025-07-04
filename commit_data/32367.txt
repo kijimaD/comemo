@@ -1,26 +1,32 @@
-commit 99fe3f8c63c20d675b0237665a535a8ad9783de4
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Aug 18 08:37:58 2017 -0400
+commit 49a412a5b7f2b7ca6278da199b812bac3c683046
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 31 17:09:41 2017 -0400
 
-    cmd/compile: add rules handling unsigned div/mod by constant 1<<63
+    runtime: rationalize triggerRatio
     
-    Normally 64-bit div/mod is turned into runtime calls on 32-bit
-    arch, but the front end leaves power-of-two constant division
-    and hopes the SSA backend turns into a shift or AND. The SSA rule is
+    gcController.triggerRatio is the only field in gcController that
+    persists across cycles. As global mutable state, the places where it
+    written and read are spread out, making it difficult to see that
+    updates and downstream calculations are done correctly.
     
-    (Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
+    Improve this situation by doing two things:
     
-    But isPowerOfTwo returns true only for positive int64, which leaves
-    out 1<<63 unhandled. Add a special case for 1<<63.
+    1) Move triggerRatio to memstats so it lives with the other
+    trigger-related fields and makes gcController entirely transient
+    state.
     
-    Fixes #21517.
+    2) Commit the new trigger ratio during mark termination when we
+    compute other next-cycle controls, including the absolute trigger.
+    This forces us to explicitly thread the new trigger ratio from
+    gcController.endCycle to mark termination, so we're not just pulling
+    it out of global state.
     
-    Change-Id: I02d27dc7177d4af0ee8d7f5533714edecddf8c95
-    Reviewed-on: https://go-review.googlesource.com/56890
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6669932f8039a8c0ef46a3f2a8c537db72e578aa
+    Reviewed-on: https://go-review.googlesource.com/39830
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/testdata/arithConst.go | 680 +++++++++++++++++++++
- .../internal/gc/testdata/gen/arithConstGen.go      |   2 +-
- src/cmd/compile/internal/ssa/gen/generic.rules     |   2 +
- src/cmd/compile/internal/ssa/rewritegeneric.go     |  41 ++
- 4 files changed, 724 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go    | 74 +++++++++++++++++++++++++--------------------------
+ src/runtime/mstats.go | 12 +++++++++
+ 2 files changed, 49 insertions(+), 37 deletions(-)

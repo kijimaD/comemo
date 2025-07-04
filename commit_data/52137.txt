@@ -1,18 +1,21 @@
-commit 89c3f7c119cc3909104abaa55a6438d7b54d4a42
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Feb 16 21:19:42 2023 +0700
+commit 8cd6aacf81ad0a759ac895bce0b569b47aa4201c
+Author: cia-rana <kiwamura0314@gmail.com>
+Date:   Sat Apr 9 15:37:11 2022 +0900
 
-    cmd/compile/internal/walk: remove unused eqFor
+    runtime: fix URL in a comment
     
-    CL 436436 replaced eqFor with reflectdata.EqFor, but forgot removing it.
+    For various reasons Intel has suspended viewing web pages in the .ru
+    domain, so change the domain of the documents cited in the code
+    to the .com domain. In addition, the chapter numbers in the document
+    were updated and fix it.
     
-    Change-Id: I3f2bf02da2e161a27718226b970b81815e9f0a46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468815
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I718be1548ec46f05ebc4f73873d4635c1d5fc76d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399060
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/walk/compare.go | 27 ---------------------------
- 1 file changed, 27 deletions(-)
+ src/runtime/memmove_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

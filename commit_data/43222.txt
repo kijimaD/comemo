@@ -1,20 +1,39 @@
-commit 3f7b4d12075277f28427e6b57708258225841ecd
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 7 14:39:47 2020 -0400
+commit cbd421f75b0770c3534d1b641e7770bf1878004f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Mar 12 10:26:01 2020 -0400
 
-    cmd/internal/obj/arm64: only emit R_CALLIND relocations on calls
+    runtime: improve memmove for short moves on ppc64
     
-    Don't emit it for jumps. In particular, not for the return
-    instruction, which is JMP (LR).
+    This improves the performance of memmove for almost all moves <= 16 bytes
+    for the ppc64 assembler, improving linux/ppc64le, linux/ppc64, aix/ppc64.
     
-    Reduce some binary size and linker resources.
+    Only the forward moves were changed, the backward moves were left as is.
+    Additional macro defines were added to improve the readability of the asm.
     
-    Change-Id: Idb3242b86c5a137597fb8accb8aadfe0244c14cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260341
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Results from power8:
+    name                      old time/op    new time/op    delta
+    Memmove/0                   5.70ns ± 0%    5.69ns ± 0%    -0.18%  (p=0.029 n=4+4)
+    Memmove/1                   5.54ns ± 0%    5.39ns ± 0%    -2.71%  (p=0.029 n=4+4)
+    Memmove/2                   6.31ns ± 0%    5.55ns ± 0%   -12.08%  (p=0.029 n=4+4)
+    Memmove/3                   7.41ns ± 0%    5.54ns ± 0%   -25.24%  (p=0.029 n=4+4)
+    Memmove/4                   8.41ns ± 0%    5.56ns ± 0%   -33.87%  (p=0.029 n=4+4)
+    Memmove/5                   10.1ns ± 5%     5.5ns ± 0%   -45.30%  (p=0.029 n=4+4)
+    Memmove/6                   10.3ns ± 0%     5.6ns ± 0%   -45.92%  (p=0.029 n=4+4)
+    Memmove/7                   11.4ns ± 0%     5.7ns ± 0%   -50.33%  (p=0.029 n=4+4)
+    Memmove/8                   5.66ns ± 0%    5.54ns ± 0%    -2.12%  (p=0.029 n=4+4)
+    Memmove/9                   5.66ns ± 0%    6.47ns ± 0%   +14.31%  (p=0.029 n=4+4)
+    Memmove/10                  6.67ns ± 0%    6.22ns ± 0%    -6.82%  (p=0.029 n=4+4)
+    Memmove/11                  7.83ns ± 0%    6.45ns ± 0%   -17.60%  (p=0.029 n=4+4)
+    Memmove/12                  8.91ns ± 0%    6.25ns ± 0%   -29.85%  (p=0.029 n=4+4)
+    Memmove/13                  9.81ns ± 0%    6.48ns ± 0%   -33.94%  (p=0.029 n=4+4)
+    Memmove/14                  10.7ns ± 1%     6.4ns ± 0%   -40.00%  (p=0.029 n=4+4)
+    Memmove/15                  11.8ns ± 0%     6.7ns ± 0%   -42.84%  (p=0.029 n=4+4)
+    Memmove/16                  5.63ns ± 0%    5.56ns ± 0%    -1.20%  (p=0.029 n=4+4)
+    
+    Change-Id: I2de434f543c5a017395e0850fb9b9f7219583bbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223317
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/runtime/memmove_ppc64x.s | 184 +++++++++++++++++++++++++------------------
+ 1 file changed, 109 insertions(+), 75 deletions(-)

@@ -1,22 +1,27 @@
-commit e1fbf13896feb0b55050c22f5be0746f8a2ba01b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 9 12:01:16 2022 -0500
+commit 7e63c8b765c30823131bd136d190afbe4c21abc9
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri May 21 12:01:39 2021 +0200
 
-    cmd/go: include the "-trimpath" flag in the stamped build settings
+    runtime: wait for Go runtime to initialize in Windows signal test
     
-    The -trimpath flag has a strong effect on the resulting binary:
-    in particular, it determines whether runtime.GOROOT can report
-    a meaningful path in the absence of an explicit GOROOT environment variable.
+    The test harness waits for "ready" as a sign that the Go runtime has
+    installed its signal handler and is ready to be tested. But actually,
+    while LoadLibrary starts the loading of the Go runtime, it does so
+    asynchronously, so the "ready" sign is potentially premature and
+    certainly racy. However, all exported cgo entry points make a call to
+    _cgo_wait_runtime_init_done which waits for that asynchronous
+    initialization to complete. Therefore, this commit fixes the test to
+    call into the exported "Dummy" cgo function before emitting the "ready"
+    sign, so that we're sure the Go runtime is actually loaded.
     
-    For #51461
+    Updates #45638.
     
-    Change-Id: Id0d55572c0a0a4e2e4724363ed80dfa05b202186
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391810
-    Trust: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I9b12b172d45bdcc09d54dd301de3a3e499544834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321769
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/load/pkg.go                       | 3 +++
- src/cmd/go/testdata/script/version_build_settings.txt | 4 ++++
- 2 files changed, 7 insertions(+)
+ src/runtime/testdata/testwinlibsignal/main.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

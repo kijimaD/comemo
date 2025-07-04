@@ -1,69 +1,46 @@
-commit ced7ffe95ba176b26ef835b2f225255d1cd7808f
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Apr 9 10:44:05 2015 -0400
+commit 846ee0465bcb97d0c036e2366aa92b962d050aef
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:20:20 2015 +0100
 
-    cmd/interal/ld: darwin c-archive buildmode support
+    runtime: add support for linux/arm64
     
-    Uses ar to create an archive when -buildmode=c-archive.
-    
-    A small example (that I hope to turn into a test in a later CL):
-    
-    goarchive.go:
-            package main
-    
-            import "fmt"
-    
-            import "C"
-    
-            func init() {
-                    fmt.Println("ran go init")
-            }
-    
-            //export FuncInGo
-            func FuncInGo() {
-                    fmt.Println("called a go function")
-            }
-    
-            func main() {
-                    fmt.Println("in main")
-            }
-    
-    This can be compiled with:
-    
-            go build -ldflags=-buildmode=c-archive -o=libgo.a goarchive.go
-    
-    main.c:
-    
-            #include <stdio.h>
-    
-            extern void FuncInGo();
-    
-            int main(void) {
-                    printf("c hello\n");
-                    FuncInGo();
-                    printf("c goodbye\n");
-                    return 0;
-            }
-    
-    Can be compiled with:
-    
-            cc main.c libgo.a
-    
-    Apple provide a warning about the lack of PIE, but still produce a
-    binary which runs and outputs (on darwin/amd64):
-    
-            c hello
-            ran go init
-            called a go function
-            c goodbye
-    
-    Change-Id: I7611925f210a83afa6bd1e66a5601dd636a428c8
-    Reviewed-on: https://go-review.googlesource.com/8711
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibda6a5bedaff57fd161d63fc04ad260931d34413
+    Reviewed-on: https://go-review.googlesource.com/7142
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/ld/data.go |  11 +++-
- src/cmd/internal/ld/elf.go  |   4 +-
- src/cmd/internal/ld/go.go   |   9 ++-
- src/cmd/internal/ld/lib.go  | 138 +++++++++++++++++++++++++++++---------------
- src/cmd/internal/ld/pobj.go |   1 +
- 5 files changed, 110 insertions(+), 53 deletions(-)
+ src/runtime/arch1_arm64.go         |   16 +
+ src/runtime/arch_arm64.go          |    8 +
+ src/runtime/asm_arm64.s            | 1061 ++++++++++++++++++++++++++++++++++++
+ src/runtime/atomic_arm64.go        |   61 +++
+ src/runtime/atomic_arm64.s         |  113 ++++
+ src/runtime/cputicks.go            |    1 +
+ src/runtime/debug/stubs.s          |    3 +
+ src/runtime/defs_linux_arm64.go    |  178 ++++++
+ src/runtime/gcinfo_test.go         |    2 +-
+ src/runtime/hash64.go              |    2 +-
+ src/runtime/lfstack_linux_arm64.go |   25 +
+ src/runtime/malloc.go              |   10 +-
+ src/runtime/memclr_arm64.s         |   18 +
+ src/runtime/memmove_arm64.s        |   36 ++
+ src/runtime/mgcmark.go             |    9 +-
+ src/runtime/noasm.go               |    2 +-
+ src/runtime/os_linux_arm64.go      |   19 +
+ src/runtime/panic1.go              |    2 +-
+ src/runtime/proc1.go               |   14 +-
+ src/runtime/rt0_linux_arm64.s      |   19 +
+ src/runtime/signal_arm64.go        |  139 +++++
+ src/runtime/signal_linux_arm64.go  |   61 +++
+ src/runtime/stack1.go              |    9 +-
+ src/runtime/stubs.go               |    5 +-
+ src/runtime/sys_arm64.go           |   36 ++
+ src/runtime/sys_linux_arm64.s      |  431 +++++++++++++++
+ src/runtime/traceback.go           |    4 +
+ src/runtime/unaligned1.go          |    2 +-
+ src/runtime/zgoarch_386.go         |    1 +
+ src/runtime/zgoarch_amd64.go       |    1 +
+ src/runtime/zgoarch_amd64p32.go    |    1 +
+ src/runtime/zgoarch_arm.go         |    1 +
+ src/runtime/zgoarch_arm64.go       |   13 +
+ src/runtime/zgoarch_ppc64.go       |    1 +
+ src/runtime/zgoarch_ppc64le.go     |    1 +
+ 35 files changed, 2286 insertions(+), 19 deletions(-)

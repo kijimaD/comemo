@@ -1,25 +1,18 @@
-commit 482da5180375404439d58cf4f865ed8bc37c6a63
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Fri May 12 09:04:55 2017 +0900
+commit 29f061960d5008170541a886feab721bf754f0fd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 12:47:43 2017 +1100
 
-    cmd/go: fix TestCgoContainsSpace
+    cmd/link: write dwarf sections
     
-    TestCgoContainsSpace builds a small program which mimics $CC.
-    Usually, $CC attempts to compile a trivial code to detect its own
-    supported flags (i.e. "-no-pie", which must be passed on some systems),
-    however the mimic didn't consider these cases.
+    Also stop skipping TestExternalLinkerDWARF and
+    TestDefaultLinkerDWARF.
     
-    This CL solve the issue.
+    Fixes #10776.
     
-    Also, use the same name as $CC, it may solve other potential problems.
-    
-    Fixes #20324
-    
-    Change-Id: I7a00ac016a5fd0667540f2a715371f8152edc395
-    Reviewed-on: https://go-review.googlesource.com/43330
+    Change-Id: Ia596a684132e3cdee59ce5539293eedc1752fe5a
+    Reviewed-on: https://go-review.googlesource.com/36983
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 33 ++++++++++++++++++++-------------
- 1 file changed, 20 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 6 +++++-
+ src/debug/pe/file_cgo_test.go     | 2 --
+ 2 files changed, 5 insertions(+), 3 deletions(-)

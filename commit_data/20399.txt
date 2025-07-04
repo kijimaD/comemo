@@ -1,46 +1,29 @@
-commit 4179439de8166ded9bf097c216e6596ead2ee433
+commit e0f08b938a37490cd6e4f6bb33360678ac5f42b0
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 12 00:23:03 2014 -0400
+Date:   Thu Sep 4 23:14:21 2014 -0400
 
-    syscall: make func Syscall use pointer maps from Go prototypes
+    runtime: use cas loop to coordinate with sigprof
     
-    Before, Syscall and friends were having their arguments
-    treated conservatively. Now they will use the Go prototype,
-    which will mean the arguments are not considered pointers
-    at all.
+    sigprof and setcpuprofilerate coordinate the enabling/disabling
+    of the handler using a Mutex. This has always been a bit dodgy:
+    setcpuprofilerate must be careful to turn off signals before acquiring
+    the lock to avoid a deadlock.
     
-    This is safe because of CL 139360044.
+    Now the lock implementations use onM, and onM isn't okay on the
+    signal stack. We know how to make it okay, but it's more work than
+    is probably worth doing.
     
-    The fact that all these non-Solaris systems were using
-    conservative scanning of the Syscall arguments is why
-    the failure that prompted CL 139360044 was only
-    observed on Solaris, which does something completely different.
-    If we'd done this earlier, we'd have seen the Solaris
-    failure in more places.
+    Since this is super-dodgy anyway, replace the lock with a simple
+    cas loop. It is only contended if setcpuprofilerate is being called,
+    and that doesn't happen frequently enough to care about the
+    raw speed or about using futexes/semaphores.
     
-    LGTM=khr
-    R=khr
+    TBR to fix freebsd/amd64 and dragonfly/amd64 builds.
+    Happy to make changes in a follow-up CL.
+    
+    TBR=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/144730043
+    https://golang.org/cl/141080044
 
- src/syscall/asm_darwin_386.s      | 5 +++++
- src/syscall/asm_darwin_amd64.s    | 5 +++++
- src/syscall/asm_dragonfly_386.s   | 5 +++++
- src/syscall/asm_dragonfly_amd64.s | 5 +++++
- src/syscall/asm_freebsd_386.s     | 5 +++++
- src/syscall/asm_freebsd_amd64.s   | 5 +++++
- src/syscall/asm_freebsd_arm.s     | 5 +++++
- src/syscall/asm_linux_386.s       | 4 ++++
- src/syscall/asm_linux_amd64.s     | 4 ++++
- src/syscall/asm_linux_arm.s       | 4 ++++
- src/syscall/asm_nacl_386.s        | 1 +
- src/syscall/asm_nacl_amd64p32.s   | 1 +
- src/syscall/asm_nacl_arm.s        | 1 +
- src/syscall/asm_netbsd_386.s      | 5 +++++
- src/syscall/asm_netbsd_amd64.s    | 5 +++++
- src/syscall/asm_netbsd_arm.s      | 5 +++++
- src/syscall/asm_openbsd_386.s     | 5 +++++
- src/syscall/asm_openbsd_amd64.s   | 5 +++++
- src/syscall/asm_plan9_386.s       | 4 ++++
- src/syscall/asm_plan9_amd64.s     | 4 ++++
- 20 files changed, 83 insertions(+)
+ src/pkg/runtime/proc.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

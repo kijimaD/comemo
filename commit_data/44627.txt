@@ -1,26 +1,21 @@
-commit 086357e8f617c325339fdaedd13563dbdb05b00d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Mar 12 11:21:38 2021 -0500
+commit 49003da6d437ef1a4e1e55cf86240480f17dc8ab
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 17 17:40:35 2020 -0400
 
-    cmd/go: include default GOEXPERIMENT in build config
+    cmd/go/internal/trace: add function to distinguish goroutines
     
-    Currently, the build config includes GOEXPERIMENT environment
-    variable if it is not empty, but that doesn't take the default
-    value (set at make.bash/bat/rc time) into consideration. This
-    may cause standard library packages appearing stale, as the
-    build config appears changed.
+    trace.StartGoroutine will associate the trace information on the context
+    with a new chrome profiler thread id. The chrome profiler doesn't
+    expect multiple trace events to have the same thread id, so this
+    will allow us to display concurrent events on the trace.
     
-    This CL changes it to use cfg.GOEXPERIMENT variable, which
-    includes the default value (if it is not overwritten).
+    Updates #38714
     
-    May fix regabi and staticlockranking builders.
-    
-    Change-Id: I242f887167f8e99192010be5c1a046eb88ab0c2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301269
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I888b0cce15a5a01db66366716fdd85bf86c832cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248319
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/work/exec.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/trace/trace.go | 27 ++++++++++++++++++++++++---
+ 1 file changed, 24 insertions(+), 3 deletions(-)

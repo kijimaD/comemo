@@ -1,18 +1,30 @@
-commit ea27cd35fa07b874b3dff5d2f83dd401a361865e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 29 16:36:25 2019 -0800
+commit 8149db4f64aa72407d8be2184d0b414b535cd124
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue May 22 06:58:32 2018 +0000
 
-    os: restore RemoveAll docs by making a single copy
+    cmd/compile: intrinsify math.RoundToEven and math.Abs on arm64
     
-    Updates #29983
+    math.RoundToEven can be done by one arm64 instruction FRINTND, intrinsify it to improve performance.
+    The current pure Go implementation of the function Abs is translated into five instructions on arm64:
+    str, ldr, and, str, ldr. The intrinsic implementation requires only one instruction, so in terms of
+    performance, intrinsify it is worthwhile.
     
-    Change-Id: Ifdf8aa9c92e053374e301a4268d85e277c15f0b5
-    Reviewed-on: https://go-review.googlesource.com/c/160182
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Benchmarks:
+    name           old time/op  new time/op  delta
+    Abs-8          3.50ns ± 0%  1.50ns ± 0%  -57.14%  (p=0.000 n=10+10)
+    RoundToEven-8  9.26ns ± 0%  1.50ns ± 0%  -83.80%  (p=0.000 n=10+10)
+    
+    Change-Id: I9456b26ab282b544dfac0154fc86f17aed96ac3d
+    Reviewed-on: https://go-review.googlesource.com/116535
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/path.go           | 8 ++++++++
- src/os/removeall_at.go   | 2 +-
- src/os/removeall_noat.go | 6 +-----
- 3 files changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        |  2 ++
+ src/cmd/compile/internal/gc/ssa.go           |  4 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  2 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 28 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 26 ++++++++++++++++++++++++++
+ test/codegen/math.go                         |  2 ++
+ 7 files changed, 64 insertions(+), 2 deletions(-)

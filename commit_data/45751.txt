@@ -1,18 +1,18 @@
-commit 105c5b50e0098720b9e24aea5efa8e161c31db6d
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Tue May 25 16:23:16 2021 +0200
+commit b34b0aaf69349f060d3b03a06f520848964cb7eb
+Author: xiaodong liu <teaofmoli@gmail.com>
+Date:   Thu Nov 12 08:12:08 2020 +0000
 
-    os: terminate windows processes via handle directly
+    cmd/go: skip TestScript/build_plugin_non_main on platforms that do not support -buildmode=plugin
     
-    We already have a handle to the process, so use that for termination,
-    rather than doing a new lookup based on the PID.
+    Fixes #42474
     
-    Change-Id: I2958c1817f12f3dd783412baacbf629049f6956a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322509
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1550b44b92cd272854e2f17493245a14e3d39f41
+    GitHub-Last-Rev: 948d01716eff41c25515dfb6135769862977aba1
+    GitHub-Pull-Request: golang/go#42475
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268737
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/os/exec_windows.go | 20 ++++++++------------
- 1 file changed, 8 insertions(+), 12 deletions(-)
+ src/cmd/go/testdata/script/build_plugin_non_main.txt | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

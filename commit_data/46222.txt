@@ -1,17 +1,19 @@
-commit b06cfe9b25a9cd6ef6ff482b9cd08b2f709131b0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Aug 28 18:19:36 2021 -0700
+commit 685a322fe404d725e6bfb2766388c4b95ed84603
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 14 22:27:32 2020 -0800
 
-    cmd/compile/internal/types2: eliminate typeHashing global variable
+    test: match gofrontend error messages
     
-    Instead, keep track of hashing mode with a typeWriter field.
-    Introduce a new constructor (newTypeHasher) to set the mode.
+    fixedbugs/issue11614.go:14:9: error: interface contains embedded non-interface
+    fixedbugs/issue11614.go:22:20: error: interface contains embedded non-interface
     
-    Change-Id: Ie69cc0382532c75973794326be15c884b7fdcb76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345929
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ie9875916697833f5fa28ab890218851a741120ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278175
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/subst.go      | 13 ++++---------
- src/cmd/compile/internal/types2/typestring.go | 19 ++++++++++++-------
- 2 files changed, 16 insertions(+), 16 deletions(-)
+ test/fixedbugs/issue11614.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

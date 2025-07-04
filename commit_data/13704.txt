@@ -1,18 +1,15 @@
-commit 9dfc6f6427b4b44d5684dad1ae5cea45a82821ee
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 29 14:46:57 2012 -0700
+commit e607380ff69de8dd6235e662895644b56b4114ff
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Aug 29 23:42:05 2012 +0800
 
-    go_spec.html: clarify rune and string literals
-    No changes to the meaning, just clearer language and more
-    examples, including illegal rune and string literals.
-    In particular, "character literal" and "character constant"
-    are now called "rune literal" and "rune constant" and the
-    word "character" always refers to the source text, not
-    program values.
+    cmd/ld: handle a special case of scattered relocation 2/1 on Darwin/386
+            Fixes #1635.
     
-    R=golang-dev, gri
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/6448137
+    https://golang.org/cl/6496043
 
- doc/go_spec.html | 63 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 37 insertions(+), 26 deletions(-)
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue1635.go | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/ld/ldmacho.c       | 21 +++++++++++++++------
+ 3 files changed, 49 insertions(+), 6 deletions(-)

@@ -1,18 +1,18 @@
-commit 126c22a09824a7b52c019ed9a1d198b4e7781676
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jul 11 19:10:00 2022 +0200
+commit 3c8c9e1e443a0a49ae42836b82fb1290d42b7857
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 17:59:05 2021 -0400
 
-    syscall: gofmt after CL 412114
+    go/types: don't print instance markers for type hashes
     
-    Change-Id: Ie51545eaebd22a31379bf8814a2c62b91d1d105b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416934
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This is a port of CL 345891 to go/types.
+    
+    Change-Id: I5abcb9c9c5110923a743f0c47d9b34b2baabab68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346555
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/syscall/exec_linux.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/subst.go      | 19 +++++++------------
+ src/go/types/typestring.go |  6 +++++-
+ 2 files changed, 12 insertions(+), 13 deletions(-)

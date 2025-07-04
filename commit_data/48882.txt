@@ -1,23 +1,46 @@
-commit 534a911338a05b74b5c419080d563c6ae06d6dc8
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Apr 20 12:46:17 2022 -0400
+commit 0a0e3a3dea72d8d64d4250c9f7649da3b942eae5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 21 22:35:01 2021 -0700
 
-    runtime: skip TestNoShrinkStackWhileParking on openbsd
+    [dev.typeparams] cmd/compile: move call logic from order.go to escape
     
-    The test has proven to be flaky on OpenBSD since March, and there
-    hasn't been progress on resolving this finding. Mark the test as
-    flaky to so that this problem doesn't block the Go 1.19 release.
+    This CL moves two bits of related code from order.go to escape
+    analysis:
     
-    Updates #51482.
+    1. The recognition of "unsafe uintptr" arguments passed to
+    syscall-like functions.
     
-    Change-Id: I92ad7498c20cfa94565880363bec85f9a4f3e916
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401335
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    2. The wrapping of go/defer function calls in parameter-free function
+    literals.
+    
+    As with previous CLs, it would be nice to push this logic even further
+    forward, but for now escape analysis seems most pragmatic.
+    
+    A couple side benefits:
+    
+    1. It allows getting rid of the uintptrEscapesHack kludge.
+    
+    2. When inserting wrappers, we can move some expressions into the
+    wrapper and escape analyze them better. For example, the test
+    expectation changes are all due to slice literals in go/defer calls
+    where the slice is now constructed at the call site, and can now be
+    stack allocated.
+    
+    Change-Id: I73679bcad7fa8d61d2fc52d4cea0dc5ff0de8c0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330330
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/chan_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/escape/call.go   | 237 +++++++++++++++++++---
+ src/cmd/compile/internal/escape/escape.go |   9 +-
+ src/cmd/compile/internal/escape/expr.go   |   8 +-
+ src/cmd/compile/internal/escape/graph.go  |   4 -
+ src/cmd/compile/internal/ir/func.go       |  11 ++
+ src/cmd/compile/internal/walk/order.go    | 317 ------------------------------
+ src/cmd/compile/internal/walk/stmt.go     |  19 --
+ test/escape2.go                           |  12 +-
+ test/escape2n.go                          |  12 +-
+ test/fixedbugs/issue31573.go              |  30 +--
+ 10 files changed, 259 insertions(+), 400 deletions(-)

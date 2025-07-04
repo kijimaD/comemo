@@ -1,20 +1,17 @@
-commit b47806d1b57bd871b30fe5980454537eaefce27c
-Author: Ingo Oeser <nightlyone@googlemail.com>
-Date:   Sun Apr 15 13:46:18 2018 +0200
+commit 8ba0933a694021fe02adbc80586bd78652f2464c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 1 19:42:55 2017 +0000
 
-    cmd/compile: fix double go prefix trim
+    net/http: speed up and deflake TestServerKeepAlivesEnabled_h2
     
-    CL 106463 introduced what seems to trim the "go:" prefix in pramas
-    comments twice, so "//go:go:foo" would be handled, too.
-    So either the strings.TrimPrefix or the [3:]-slicing is not needed.
+    Fixes #21724
     
-    I opted to remove the [3:]-slicing.
-    
-    Change-Id: I1325bbc08a9be9ae100c5a7775b0a23f9ed0a419
-    Reviewed-on: https://go-review.googlesource.com/107256
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I92571bf228781b17fdf012a2fb52a597c877cefe
+    Reviewed-on: https://go-review.googlesource.com/81576
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/cmd/compile/internal/gc/lex.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/export_test.go | 6 ++++++
+ src/net/http/serve_test.go  | 6 +++++-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

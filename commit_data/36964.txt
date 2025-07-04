@@ -1,15 +1,17 @@
-commit b4150f76144808bf0015fe23be0e2ade32a14599
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 12 14:55:17 2018 -0700
+commit 24d29e85cb98010216012e0524f41b4f092b01cc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 13 15:12:28 2018 +0000
 
-    cmd/compile: remove ineffectual -i flag
+    net/http: make Transport.RoundTrip check context.Done earlier
     
-    This flag lost its usefulness in CL 34273.
+    Fixes #25852
     
-    Change-Id: I033c29f105937139b4e359a340906be439f1ed07
-    Reviewed-on: https://go-review.googlesource.com/c/141646
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I35c630367c8f1934dcffc0b0e08891d55a903518
+    Reviewed-on: https://go-review.googlesource.com/118560
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/net/http/transport.go      |  7 +++++++
+ src/net/http/transport_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

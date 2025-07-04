@@ -1,21 +1,55 @@
-commit 05962561ae490ae006377a7b8d0fd1495ad6eb2e
-Author: Wei Xiao <wei.xiao@arm.com>
-Date:   Mon Mar 5 03:50:25 2018 +0000
+commit 5a4b6bce37ed85b1d26a00b215d2401d90de6b76
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 22 16:36:27 2017 -0400
 
-    cmd/compile/internal/ssa: improve store combine optimization on arm64
+    cmd/compile: improve coverage of nowritebarrierrec check
     
-    Current implementation doesn't consider MOVDreg type operand and fail to combine
-    it into larger store. This patch fixes the issue.
+    The current go:nowritebarrierrec checker has two problems that limit
+    its coverage:
     
-    Fixes #24242
+    1. It doesn't understand that systemstack calls its argument, which
+    means there are several cases where we fail to detect prohibited write
+    barriers.
     
-    Change-Id: I7d68697f80e76f48c3528ece01a602bf513248ec
-    Reviewed-on: https://go-review.googlesource.com/98397
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    2. It only observes calls in the AST, so calls constructed during
+    lowering by SSA aren't followed.
+    
+    This CL completely rewrites this checker to address these issues.
+    
+    The current checker runs entirely after walk and uses visitBottomUp,
+    which introduces several problems for checking across systemstack.
+    First, visitBottomUp itself doesn't understand systemstack calls, so
+    the callee may be ordered after the caller, causing the checker to
+    fail to propagate constraints. Second, many systemstack calls are
+    passed a closure, which is quite difficult to resolve back to the
+    function definition after transformclosure and walk have run. Third,
+    visitBottomUp works exclusively on the AST, so it can't observe calls
+    created by SSA.
+    
+    To address these problems, this commit splits the check into two
+    phases and rewrites it to use a call graph generated during SSA
+    lowering. The first phase runs before transformclosure/walk and simply
+    records systemstack arguments when they're easy to get. Then, it
+    modifies genssa to record static call edges at the point where we're
+    lowering to Progs (which is the latest point at which position
+    information is conveniently available). Finally, the second phase runs
+    after all functions have been lowered and uses a direct BFS walk of
+    the call graph (combining systemstack calls with static calls) to find
+    prohibited write barriers and construct nice error messages.
+    
+    Fixes #22384.
+    For #22460.
+    
+    Change-Id: I39668f7f2366ab3c1ab1a71eaf25484d25349540
+    Reviewed-on: https://go-review.googlesource.com/72773
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  34 +++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 371 ++++++++++++++++++++++++++-
- test/codegen/memcombine.go                   |  16 +-
- 3 files changed, 411 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go         | 248 ++++++++++++++++++-----------
+ src/cmd/compile/internal/gc/main.go        |  17 +-
+ src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/gc/ssa.go         |   6 +
+ src/cmd/compile/internal/gc/syntax.go      |  51 ++++++
+ test/nowritebarrier.go                     |  15 ++
+ 6 files changed, 239 insertions(+), 100 deletions(-)

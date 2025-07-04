@@ -1,17 +1,20 @@
-commit 80315322f3068123ab98632c55ee4bc9d7a03930
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 22 15:40:51 2019 +0700
+commit 23f3ea82b998e60c500e711dab340852c967ec41
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat May 11 20:26:18 2019 -0400
 
-    runtime: simplify findObject bad pointer checking condition
+    cmd/compile: correct the argument type in SETXXstore -> MOVBstore rules on AMD64
     
-    Factor out case s == nil, make the code cleaner and easier to read.
+    MOVBstore's value argument is a value, not a flag. We are storing
+    a byte so just use UInt8.
     
-    Change-Id: I63f52e14351c0a0d20a611b1fe10fdc0d4947d96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202498
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #31915.
+    
+    Change-Id: Id799e5f44efc3a9c3d8480f6f25ad032c2a631bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176719
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mbitmap.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 118 +++----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 510 ++++++++++++++-------------
+ test/fixedbugs/issue31915.go                 |  23 ++
+ 3 files changed, 342 insertions(+), 309 deletions(-)

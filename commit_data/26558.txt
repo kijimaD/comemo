@@ -1,31 +1,12 @@
-commit 1f0bebcc7260480550ad114048a9428cea68e4f1
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Sat Mar 26 19:35:21 2016 +0000
+commit fd9fd4c39d92f6f177d22b39e8ee000ae01a9511
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 5 15:05:35 2016 +0000
 
-    syscall: fix accidental close of exec status pipe in StartProcess
+    net/http: fix doc typo
     
-    In syscall.forkAndExecInChild, blocks of code labelled Pass 1
-    and Pass 2 permute the file descriptors (if necessary) which are
-    passed to the child process.  If Pass 1 begins with fds = {0,2,1},
-    nextfd = 4 and pipe = 4, then the statement labelled "don't stomp
-    on pipe" is too late -- the pipe (which will be needed to pass
-    exec status back to the parent) will have been closed by the
-    preceding DUP call.
-    
-    Moving the "don't stomp" test earlier ensures that the pipe is
-    protected.
-    
-    Fixes #14979
-    
-    Change-Id: I890c311527f6aa255be48b3277c1e84e2049ee22
-    Reviewed-on: https://go-review.googlesource.com/21184
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I93201fa4152f2d60b3eedb8d321a152819033121
+    Reviewed-on: https://go-review.googlesource.com/19270
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_bsd.go     |  6 +++---
- src/syscall/exec_linux.go   |  6 +++---
- src/syscall/exec_plan9.go   |  6 +++---
- src/syscall/exec_solaris.go |  6 +++---
- src/syscall/syscall_test.go | 14 ++++++++++++++
- 5 files changed, 26 insertions(+), 12 deletions(-)
+ src/net/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

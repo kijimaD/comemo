@@ -1,47 +1,20 @@
-commit ebe49f98c89eb19d49738fd5dc2ad4f67b6cede4
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Jan 31 14:27:30 2023 -0600
+commit 153c18a515c90a78bf4c90a56e4ba5b700f407b1
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Mon Mar 21 16:18:00 2022 +0800
 
-    cmd/compile: inline constant sized memclrNoHeapPointers calls on PPC64
+    net/netip: improve documentation terminology for IPv4-mapped IPv6 addresses
     
-    Update the function isInlinableMemclr for ppc64 and ppc64le
-    to enable inlining for the constant sized cases < 512.
+    Updates #51834
     
-    Larger cases can use dcbz which performs better but requires
-    alignment checking so it is best to continue using memclrNoHeapPointers
-    for those cases.
-    
-    Results on p10:
-    
-    MemclrKnownSize1         2.07ns ± 0%     0.57ns ± 0%   -72.59%
-    MemclrKnownSize2         2.56ns ± 5%     0.57ns ± 0%   -77.82%
-    MemclrKnownSize4         5.15ns ± 0%     0.57ns ± 0%   -89.00%
-    MemclrKnownSize8         2.23ns ± 0%     0.57ns ± 0%   -74.57%
-    MemclrKnownSize16        2.23ns ± 0%     0.50ns ± 0%   -77.74%
-    MemclrKnownSize32        2.28ns ± 0%     0.56ns ± 0%   -75.28%
-    MemclrKnownSize64        2.49ns ± 0%     0.72ns ± 0%   -70.95%
-    MemclrKnownSize112       2.97ns ± 2%     1.14ns ± 0%   -61.72%
-    MemclrKnownSize128       4.64ns ± 6%     2.45ns ± 1%   -47.17%
-    MemclrKnownSize192       5.45ns ± 5%     2.79ns ± 0%   -48.87%
-    MemclrKnownSize248       4.51ns ± 0%     2.83ns ± 0%   -37.12%
-    MemclrKnownSize256       6.34ns ± 1%     3.58ns ± 0%   -43.53%
-    MemclrKnownSize512       3.64ns ± 0%     3.64ns ± 0%    -0.03%
-    MemclrKnownSize1024      4.73ns ± 0%     4.73ns ± 0%    +0.01%
-    MemclrKnownSize4096      17.1ns ± 0%     17.1ns ± 0%    +0.07%
-    MemclrKnownSize512KiB    2.12µs ± 0%     2.12µs ± 0%      ~     (all equal)
-    
-    Change-Id: If1abf5749f4802c64523a41fe0058bd144d0ea46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464340
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Change-Id: I07a43457e2e328b51fea8131f7d6d5a4f1de4dc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394078
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |  2 +-
- src/cmd/compile/internal/ssa/rewrite.go         | 10 ++++++++--
- src/cmd/compile/internal/ssa/rewritegeneric.go  |  8 ++++----
- test/codegen/slices.go                          | 16 ++++++++++++----
- 4 files changed, 25 insertions(+), 11 deletions(-)
+ src/net/netip/netip.go      | 8 ++++----
+ src/net/netip/netip_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

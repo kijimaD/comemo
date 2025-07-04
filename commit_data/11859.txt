@@ -1,14 +1,14 @@
-commit b8df36182d7321201d3985a4b3d8ca1c0faf63d2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 14 09:34:52 2012 +1100
+commit 7c2607a91da900b92aae1e9a4ff22354f07206bf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 14 09:29:51 2012 +1100
 
-    net/http: add a Linux-only sendfile test
+    runtime, syscall: fix freebsd build
     
-    I remembered that sendfile support was lacking a test.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5652079
+    https://golang.org/cl/5661047
 
- src/pkg/net/http/fs_test.go | 92 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 92 insertions(+)
+ src/pkg/runtime/os_freebsd.h             |   1 +
+ src/pkg/runtime/signal_freebsd_amd64.c   |   1 +
+ src/pkg/syscall/zerrors_freebsd_amd64.go | 131 +++++++++++++++++++++++--------
+ 3 files changed, 99 insertions(+), 34 deletions(-)

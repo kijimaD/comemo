@@ -1,15 +1,17 @@
-commit bfac8623d554043c710a2a6b8fe971167d7700c0
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 29 19:05:07 2015 -0400
+commit 5ac5a9856288d20634ac21b457ec458f19ea0a37
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 19 13:55:38 2015 -0700
 
-    runtime: enable TestEmptySlice
+    doc: mention moderation delay in contributing docs
     
-    It says to disable until #7564 is fixed. It was fixed in April 2014.
+    This sometime worries new contributors.
+    Hopefully mentioning it here will help.
     
-    Change-Id: I9bebfe96802bafdd2d1a0a47591df346d91b000c
-    Reviewed-on: https://go-review.googlesource.com/12858
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #11300.
+    
+    Change-Id: Ica7f10d749731704ac6a2c39c7dcba389996011e
+    Reviewed-on: https://go-review.googlesource.com/11236
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mfinal_test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ doc/contribute.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

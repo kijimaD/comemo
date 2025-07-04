@@ -1,0 +1,17 @@
+commit c7ea20195a3415668047eebdc488a4af1f629f04
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Wed Jul 24 06:55:35 2024 +0000
+
+    cmd/compile: fix typo in comment
+    
+    Change-Id: Ied098312399d2d6557ebf0ee294ca0e71dfa677b
+    GitHub-Last-Rev: 82f914e85756728976646b490223352059c1953a
+    GitHub-Pull-Request: golang/go#68565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600655
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/rangefunc/rewrite.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

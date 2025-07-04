@@ -1,15 +1,15 @@
-commit 46e7cb57c951724630a722c55cda684889a7123b
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Fri Jan 20 13:34:38 2012 -0500
+commit 541978af0a877232587f5e9cd1c51ecc2cfdb58b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jan 20 13:34:30 2012 -0500
 
-    gc: do not try to add a key with incorrect type to a hash
+    libmach: cross compiling support
+            We already use GOHOSTOS to represent the host OS that the toolchain
+            will be run on, so no need to resort to uname(1) to get that (and
+            use uname(1) will make cross-compiling for another host impossible).
     
-    Fixes #2623.
-    
-    R=rsc, bradfitz
+    R=rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/5533043
+    https://golang.org/cl/5530050
 
- src/cmd/gc/typecheck.c   |  3 ++-
- test/fixedbugs/bug397.go | 13 +++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/libmach/Makefile | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,16 +1,14 @@
-commit ebd9f236deb3bb8e076a4d59709f7cf729e6df14
-Author: David Symonds <dsymonds@golang.org>
-Date:   Sat Feb 4 18:35:37 2012 +1100
+commit 57b7bbe988e462715b4d15594427ea5c51a35ea7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 4 02:15:53 2012 -0500
 
-    unicode: document large var blocks and the SpecialCase vars.
+    cmd/dist: fix memory bug (fix builders?)
     
-    Fixes #2772.
+    Thanks, Valgrind!
     
-    R=golang-dev, r
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5631047
+    https://golang.org/cl/5630050
 
- src/pkg/unicode/casetables.go | 4 ++--
- src/pkg/unicode/maketables.go | 2 ++
- src/pkg/unicode/tables.go     | 3 +++
- 3 files changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/dist/buf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

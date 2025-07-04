@@ -1,20 +1,16 @@
-commit fcee3777fdb15eb6e34cb55925a8d5b0cd97e079
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 27 06:29:07 2017 -0700
+commit fc456c7f7b3eed348329483b4ad4014e05d58820
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 15 19:51:05 2017 -0800
 
-    cmd/compile: move addrescapes and moveToHeap to esc.go
+    cmd/compile/internal/gc: drop unused src.XPos params in SSA builder
     
-    They were used only in esc.go. 100% code movement.
+    Passes toolstash -cmp.
     
-    Also, remove the rather outdated comment at the top of gen.go.
-    It's not really clear what gen.go is for any more.
-    
-    Change-Id: Iaedfe7015ef6f5c11c49f3e6721b15d779a00faa
-    Reviewed-on: https://go-review.googlesource.com/41971
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I037278404ebf762482557e2b6867cbc595074a83
+    Reviewed-on: https://go-review.googlesource.com/37023
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/esc.go | 152 ++++++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/gen.go | 155 -------------------------------------
- 2 files changed, 152 insertions(+), 155 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

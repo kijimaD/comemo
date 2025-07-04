@@ -1,18 +1,32 @@
-commit d7549821a0136593e9872e9c50c45c8ce038704b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 16 10:39:34 2023 -0400
+commit 7c87012f041948af55d323fc5447230c930e79aa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 15 11:33:58 2022 -0700
 
-    cmd/go: clean internal/vcs slightly
+    runtime: treat SI_TKILL like SI_USER on Linux
     
-    Delete CheckNested, which was for GOPATH get.
-    Unexport CheckGOVCS, which was only exported for GOPATH get.
+    On Linux a signal sent using tgkill will have si_code == SI_TKILL,
+    not SI_USER. Treat the two cases the same. Add a Linux-specific test.
     
-    Change-Id: I6d3f772bfea70f4a3ec197d48b74c3d6d58bcdce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520037
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change the test to use the C pause function rather than sleeping
+    for a second, as that achieves the same effect.
+    
+    Change-Id: I2a36646aecabcab9ec42ed9a048b07c2ff0a3987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431255
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/vcs/vcs.go | 39 ++++-----------------------------------
- 1 file changed, 4 insertions(+), 35 deletions(-)
+ src/runtime/crash_cgo_test.go                  | 17 ++++++++-
+ src/runtime/os_linux.go                        | 12 ++++++
+ src/runtime/os_linux_be64.go                   |  1 -
+ src/runtime/os_linux_generic.go                |  1 -
+ src/runtime/os_linux_mips64x.go                |  1 -
+ src/runtime/os_linux_mipsx.go                  |  1 -
+ src/runtime/os_unix_nonlinux.go                | 13 +++++++
+ src/runtime/signal_unix.go                     | 14 +++----
+ src/runtime/testdata/testprogcgo/segv.go       | 18 ++++-----
+ src/runtime/testdata/testprogcgo/segv_linux.go | 51 ++++++++++++++++++++++++++
+ 10 files changed, 107 insertions(+), 22 deletions(-)

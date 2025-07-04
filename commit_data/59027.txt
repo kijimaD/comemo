@@ -1,23 +1,20 @@
-commit 8d767ff38df003e9cd85e4bba9a026ba1b70e80e
-Author: Than McIntosh <thanm@golang.org>
-Date:   Tue Mar 11 21:33:25 2025 -0400
+commit 9819d8265f92e0797df646f9a7056bb979d0005b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 31 17:56:47 2024 -0500
 
-    runtime: increase GDB version testing requirement to 10 from 7.7
+    cmd/compile: avoid reading entire PGO profile just to check the header
     
-    Bump the required version of GDB up to 10 from 7.7 in the runtime GDB
-    tests, so as to ensure that we have something that can handle DWARF 5
-    when running tests. In theory there is some DWARF 5 support on the
-    version 9 release branch, but we get "Dwarf Error: DW_FORM_addrx"
-    errors for some archs on builders where GDB 9.2 is installed.
+    isPreProfileFile reads the entire file into memory just to check the
+    first few bytes, and then throws it all away. We can avoid this by just
+    peeking at the beginning.
     
-    Updates #26379.
+    For #58102.
     
-    Change-Id: I1b7b45f8e4dd1fafccf22f2dda0124458ecf7cba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656836
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Id2c2844e5e44a2f3a9c7cdb9a027d94d26bdf71d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560035
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/runtime/runtime-gdb_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/pgo/irgraph.go | 71 +++++++++++++++------------------
+ 1 file changed, 33 insertions(+), 38 deletions(-)

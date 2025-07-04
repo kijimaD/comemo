@@ -1,14 +1,18 @@
-commit d353d43d36003614ab192754c6e77a950b20fc00
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Sep 4 15:28:09 2012 +1000
+commit f4c22b29d498c2e942a15cc8b3d2ef30b6bab1e0
+Author: Patrick Crosby <patrick@stathat.com>
+Date:   Tue Sep 4 11:27:20 2012 +1000
 
-          doc: fix typo in Concurrency Patterns article
+    net/http/pprof: updated documentation (run an http server)
     
-    Fixes #3178.
+    Added instructions for starting an http server
+    to the godoc header for this package.  With the old
+    instructions, the example "go tool pprof..." commands
+    wouldn't work unless you happen to be running an http
+    server on port 6060 in your application.
     
-    R=golang-dev, iant
+    R=golang-dev, minux.ma, adg, giacomo.tartari
     CC=golang-dev
-    https://golang.org/cl/6506064
+    https://golang.org/cl/6483049
 
- doc/articles/concurrency_patterns.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/pprof/pprof.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

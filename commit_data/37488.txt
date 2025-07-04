@@ -1,27 +1,22 @@
-commit 319787a528284aefe23424056a19bda71f7cc2b1
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Tue Oct 23 20:54:56 2018 -0600
+commit 65fa2b615b72c1fa61a718f2e3a756833f153cc3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 3 14:52:54 2018 -0700
 
-    cmd/compile: intrinsify math/bits.Div on amd64
+    cmd/internal/objfile: only consider executable segments for load address
     
-    Note that the intrinsic implementation panics separately for overflow and
-    divide by zero, which matches the behavior of the pure go implementation.
-    There is a modest performance improvement after intrinsic implementation.
+    Reportedly on some new Fedora systems the linker is producing extra
+    load segments, basically making the dynamic section non-executable.
+    We were assuming that the first load segment could be used to
+    determine the program's load offset, but that is no longer true.
+    Use the first executable load segment instead.
     
-    name     old time/op  new time/op  delta
-    Div-4    53.0ns ± 1%  47.0ns ± 0%  -11.28%  (p=0.008 n=5+5)
-    Div32-4  18.4ns ± 0%  18.5ns ± 1%     ~     (p=0.444 n=5+5)
-    Div64-4  53.3ns ± 0%  47.5ns ± 4%  -10.77%  (p=0.008 n=5+5)
+    Fixes #26369
     
-    Updates #28273
-    
-    Change-Id: Ic1688ecc0964acace2e91bf44ef16f5fb6b6bc82
-    Reviewed-on: https://go-review.googlesource.com/c/144378
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I5ee31ddeef2e8caeed3112edc5149065a6448456
+    Reviewed-on: https://go-review.googlesource.com/127895
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/go.go  |  1 +
- src/cmd/compile/internal/gc/ssa.go | 14 ++++++++++++--
- test/codegen/mathbits.go           | 14 ++++++++++++++
- 3 files changed, 27 insertions(+), 2 deletions(-)
+ src/cmd/internal/objfile/elf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,32 @@
-commit fa7efa2cb01ed24cb7f9b3b054016e644377e610
+commit 283b23297aec09439b6fcbc3e0d9973963b45af4
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 10 19:27:49 2015 -0500
+Date:   Mon Jan 19 11:45:48 2015 -0500
 
-    cmd/gc: add debugging to liveness analysis
+    [dev.cc] cmd/objwriter: add placeholder program
     
-    Even with debugmerge = 1, the debugging output only happens
-    with the -v command-line flag. This is useful because it gets added
-    in automatically when debugging things like registerization with -R -v.
+    cmd/internal/obj is the name for the Go translation of the C liblink library.
     
-    Change-Id: I9a5c7f562507b72e8e2fe2686fd07d069721345a
-    Reviewed-on: https://go-review.googlesource.com/4641
-    Reviewed-by: Austin Clements <austin@google.com>
+    cmd/objwriter is the name of a Go binary that runs liblink's writeobj function.
+    When the bulk of liblink has been converted to Go but the assemblers and
+    compilers are still written in C, the C writeobj will shell out to the Go objwriter
+    to actually write the object file. This lets us manage the transition in smaller
+    pieces.
+    
+    The objwriter tool is purely transitional.
+    It will not ship in any release (enforced in cmd/dist).
+    
+    Adding a dummy program and some dummy imports here so that we
+    can work on the bootstrap mechanisms that will be necessary to build it.
+    Once the build process handles objwriter properly,
+    we'll work on the actual implementation.
+    
+    Change-Id: I675c818b3a513c26bb91c6dba564c6ace3b7fcd4
+    Reviewed-on: https://go-review.googlesource.com/3043
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/gc/popt.c | 21 ++++++++++++++-------
- 1 file changed, 14 insertions(+), 7 deletions(-)
+ src/cmd/dist/build.go             |  1 +
+ src/cmd/go/pkg.go                 |  1 +
+ src/cmd/internal/obj/dummy.go     |  9 +++++++++
+ src/cmd/internal/obj/x86/dummy.go |  9 +++++++++
+ src/cmd/objwriter/main.go         | 22 ++++++++++++++++++++++
+ 5 files changed, 42 insertions(+)

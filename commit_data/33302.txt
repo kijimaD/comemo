@@ -1,16 +1,17 @@
-commit 7fff1db0605739fee20673475cbc1813fdf7008e
-Author: Bill O'Farrell <billo@ca.ibm.com>
-Date:   Fri Oct 27 14:40:59 2017 -0400
+commit 9aea0e89b6df032c29d0add8d69ba2c95f1106d9
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Aug 10 14:48:36 2017 -0300
 
-    runtime: remove unnecessary sync from publicationBarrier on s390x
+    runtime: make sure R0 is zero before _main on ppc64le
     
-    Memory accesses on z are at least as ordered as they are on AMD64.
+    _main has an early check to verify if a binary is statically or dynamically
+    linked that depends on R0 being zero. R0 is not guaranteed to be zero at that
+    point and this was breaking Go on Alpine for ppc64le.
     
-    Change-Id: Ia515430e571ebd07e9314de05c54dc992ab76b95
-    Reviewed-on: https://go-review.googlesource.com/74010
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I4a1059ff7fd3db6fc489e7dcfe631c1814dd965b
+    Reviewed-on: https://go-review.googlesource.com/54730
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/runtime/asm_s390x.s | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/rt0_linux_ppc64le.s | 1 +
+ 1 file changed, 1 insertion(+)

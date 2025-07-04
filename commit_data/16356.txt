@@ -1,20 +1,16 @@
-commit 8590e1bd3c0d6250b6f6c2d58022f32a40354c6b
-Author: Adam Langley <agl@golang.org>
-Date:   Tue May 21 10:47:31 2013 -0400
+commit c6c439d7a0be6bfb91348d8a76b09ffd173688fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 20 19:26:26 2013 -0700
 
-    crypto/tls: don't send NPN extension if NextProtos is not set.
+    net/http: use WriteString directly when possible
     
-    This isn't clearly a bug on Go's part, but it triggers a bug in Firefox
-    which means that crypto/tls and net/http cannot be wired up together
-    unless NextProtos includes "http/1.1". When net/http sets up the
-    tls.Config, it does this and so works fine. But anyone setting up the
-    tls.Config themselves will hit the Firefox bug.
+    Several places used io.WriteString unnecessarily when the
+    static type already implemented WriteString. No need to
+    check for it at runtime.
     
-    Fixes #5445.
-    
-    R=golang-dev, bradfitz, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9539045
+    https://golang.org/cl/9608043
 
- src/pkg/crypto/tls/handshake_server.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/net/http/server.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

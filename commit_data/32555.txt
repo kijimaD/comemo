@@ -1,26 +1,19 @@
-commit 93da0b6e66f24c4c307e0df37ceb102a33306174
-Author: Luca Bruno <luca.bruno@coreos.com>
-Date:   Thu Jun 15 11:35:43 2017 +0000
+commit cee5cd5a02a981271c8ea406b036708db22b25d0
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Apr 30 12:06:27 2017 -0500
 
-    syscall: drop dummy byte for oob in unixgram SendmsgN
+    cmd/compile: fix error when typeswitching on untyped
     
-    This commit relaxes SendmsgN behavior of introducing a dummy 1-byte
-    payload when sending ancillary-only messages.
-    The fake payload is not needed for SOCK_DGRAM type sockets, and actually
-    breaks interoperability with other fd-passing software (journald is one
-    known example). This introduces an additional check to avoid injecting
-    dummy payload in such case.
+    Fixes #20185
+    Fixes #19977
     
-    Full reference at https:/golang.org/issue/6476#issue-51285243
-    
-    Fixes #6476
-    
-    Change-Id: I19a974b4e7920e002bd0556259ab766572358520
-    Reviewed-on: https://go-review.googlesource.com/45872
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8434713d20616ff0c0bc8f33f017e2548a5cccfa
+    Reviewed-on: https://go-review.googlesource.com/42210
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/syscall/creds_test.go    | 183 +++++++++++++++++++++++--------------------
- src/syscall/syscall_linux.go |  14 +++-
- 2 files changed, 111 insertions(+), 86 deletions(-)
+ src/cmd/compile/internal/gc/swt.go |  9 ++++++++-
+ test/fixedbugs/issue19977.go       | 16 ++++++++++++++++
+ test/fixedbugs/issue20185.go       | 25 +++++++++++++++++++++++++
+ 3 files changed, 49 insertions(+), 1 deletion(-)

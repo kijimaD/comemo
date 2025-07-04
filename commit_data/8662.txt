@@ -1,24 +1,14 @@
-commit 6a876283c8c5a832d49bcca7ea1f4b671aef2448
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 8 13:38:20 2011 -0700
+commit 013cfea362fabbe52bb5aa873ec4ed0868d0fbe6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 8 12:05:40 2011 -0700
 
-    http: change most map[string][]string types to new Values type
+    gofmt: update test script so that it passes again
     
-    This replaces most the map[string][]string usage with
-    a new Values type name, with the usual methods.
+    (TODO: should replace this with a Go program, eventually)
     
-    It also changes client.PostForm to take a Values, rather
-    than a map[string]string, closing a TODO in the code.
-    
-    R=rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4532123
+    https://golang.org/cl/4584047
 
- misc/dashboard/builder/http.go   | 14 +++++-----
- src/pkg/http/client.go           | 16 +++---------
- src/pkg/http/client_test.go      | 16 +++++++++---
- src/pkg/http/readrequest_test.go |  4 +--
- src/pkg/http/request.go          | 56 +++++++++++++++++++++++++++++++++-------
- src/pkg/http/url.go              | 18 ++++++++++---
- src/pkg/http/url_test.go         | 35 ++++++++++++++++++++-----
- 7 files changed, 115 insertions(+), 44 deletions(-)
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

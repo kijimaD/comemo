@@ -1,21 +1,61 @@
-commit d7d235c92f1329359194a8c042b2099ef60ec17c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Apr 6 16:38:47 2023 -0700
+commit bf68170c638e7e69bedcc64fadfd83354fd06c10
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun May 8 23:29:23 2022 +0100
 
-    runtime: permit core dumps in darwin-amd64
+    go/printer: align expression list elements containing tabs
     
-    Previously we did not permit them as Go programs generated enormous
-    core dumps on macOS. However, according to an investigation in #59446,
-    they are OK now.
+    A user noticed that, given the input
     
-    For #59446
+            {
+                    S:       "Hello World",
+                    Integer: 42,
+            },
+            {
+                    S:       "      ", // an actual <tab>
+                    Integer: 42,
+            },
     
-    Change-Id: I1d7a3f500a6bc525aa6de8dfa8a1d8dbb15feadc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483015
+    gofmt would incorrectly format the code as
+    
+            {
+                    S:       "Hello World",
+                    Integer: 42,
+            },
+            {
+                    S: "    ", // an actual <tab>
+                    Integer: 42,
+            },
+    
+    The problem was in the nodeSize method, used to get the printed length
+    of a node before it's actually printed to the final buffer.
+    The exprList method calls nodeSize to see if one expression in a list
+    changes too drastically in size from the previous, which means the
+    vertical alignment should be broken.
+    
+    It is worth noting that nodeSize only reports valid lengths if the node
+    fits into a single line; otherwise, it returns a large number, larger
+    than an "infinity" currently set to 1e6.
+    
+    However, the "does it fit in a single line" logic was broken;
+    it checked if any of the to-be-printed characters is less than ' ',
+    which does include '\n' and '\f' (the latter used by tabwriter as well),
+    but also includes '\t', which would make nodeSize incorrectly conclude
+    that our key-value expression with a tab does not fit into a single line.
+    
+    While here, make the testdata test cases run as sub-tests,
+    as I used "-run TestRewrite/tabs.input" to help debug this.
+    
+    Fixes #51910.
+    
+    Change-Id: Ib7936e02652bc58f99772b06384ae271fddf09e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404955
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/runtime/signal_unix.go | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/cmd/gofmt/gofmt_test.go        | 21 ++++++++++++---------
+ src/cmd/gofmt/testdata/tabs.golden | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/tabs.input  | 33 +++++++++++++++++++++++++++++++++
+ src/go/printer/nodes.go            |  5 +++--
+ 4 files changed, 81 insertions(+), 11 deletions(-)

@@ -1,32 +1,21 @@
-commit 55d22f74900cae2ff9444eb81b9084175606b5dc
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Sep 21 17:52:19 2021 -0400
+commit c9c26d7ffb3c4077ffaa80f7c8e2d550528e1445
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 4 02:24:48 2021 -0800
 
-    cmd/link: remove ABI aliases
+    [dev.regabi] cmd/compile: use ClosureVars for method value wrappers
     
-    It is now gone.
+    Similar to with regular closures, we can change method value wrappers
+    to use ClosureVars and allow SSA construction to take care of wiring
+    it up appropriately.
     
-    Change-Id: I59f68b324af706476695de2f291dd3aa5734e192
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351332
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I05c0b1bcec4e24305324755df35b7bc5b8a6ce7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281353
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/objabi/symkind.go          |  7 -------
- src/cmd/internal/objabi/symkind_string.go   |  7 +++----
- src/cmd/link/internal/arm/asm.go            |  3 +--
- src/cmd/link/internal/arm64/asm.go          |  2 +-
- src/cmd/link/internal/ld/data.go            | 16 ++++++----------
- src/cmd/link/internal/ld/lib.go             |  2 +-
- src/cmd/link/internal/ld/pe.go              |  1 -
- src/cmd/link/internal/ld/xcoff.go           |  4 ++--
- src/cmd/link/internal/loader/loader.go      | 22 ----------------------
- src/cmd/link/internal/mips/asm.go           |  1 -
- src/cmd/link/internal/mips64/asm.go         |  1 -
- src/cmd/link/internal/ppc64/asm.go          | 10 +++++-----
- src/cmd/link/internal/riscv64/asm.go        |  2 +-
- src/cmd/link/internal/sym/symkind.go        |  4 ----
- src/cmd/link/internal/sym/symkind_string.go |  5 ++---
- src/cmd/link/internal/wasm/asm.go           |  2 +-
- 16 files changed, 23 insertions(+), 66 deletions(-)
+ src/cmd/compile/internal/escape/escape.go  |  3 +++
+ src/cmd/compile/internal/ir/name.go        |  4 ++--
+ src/cmd/compile/internal/typecheck/func.go | 25 +++++++++++--------------
+ 3 files changed, 16 insertions(+), 16 deletions(-)

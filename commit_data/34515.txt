@@ -1,25 +1,27 @@
-commit 0add9a4dcfb4cbc0d99cd168752bd1bd641ce8e2
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Mar 7 14:14:19 2018 -0800
+commit c280126557ee53b5b80f9f41eac18d801daa282e
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Apr 19 14:14:28 2017 -0400
 
-    encoding/csv: avoid mangling invalid UTF-8 in Writer
+    cmd/asm, cmd/internal/obj/s390x, math: add "test under mask" instructions
     
-    In the situation where a quoted field is necessary, avoid processing
-    each UTF-8 rune one-by-one, which causes mangling of invalid sequences
-    into utf8.RuneError, causing a loss of information.
-    Instead, search only for the escaped characters, handle those specially
-    and copy everything else in between verbatim.
+    Adds the following s390x test under mask (immediate) instructions:
     
-    This symmetrically matches the behavior of Reader.
+    TMHH
+    TMHL
+    TMLH
+    TMLL
     
-    Fixes #24298
+    These are useful for testing bits and are already used in the math package.
     
-    Change-Id: I9276f64891084ce8487678f663fad711b4095dbb
-    Reviewed-on: https://go-review.googlesource.com/99297
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Idffb3f83b238dba76ac1e42ac6b0bf7f1d11bea2
+    Reviewed-on: https://go-review.googlesource.com/41092
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/encoding/csv/writer.go      | 51 ++++++++++++++++++++++++++---------------
- src/encoding/csv/writer_test.go |  2 ++
- 2 files changed, 34 insertions(+), 19 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s |  5 +++++
+ src/cmd/internal/obj/s390x/a.out.go       |  6 ++++++
+ src/cmd/internal/obj/s390x/anames.go      |  4 ++++
+ src/cmd/internal/obj/s390x/asmz.go        | 21 +++++++++++++++++++++
+ src/math/sin_s390x.s                      | 12 ++++++------
+ 5 files changed, 42 insertions(+), 6 deletions(-)

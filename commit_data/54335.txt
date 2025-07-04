@@ -1,17 +1,24 @@
-commit 0725410df5221fc6552298eec41548b0ab02ac6e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 6 15:43:12 2023 -0700
+commit cecaa25bd31622f5ae0df7fd5c8c7f02afde8715
+Author: Eddie Lopez <ejlopez00@gmail.com>
+Date:   Fri Sep 30 16:51:33 2022 -0400
 
-    cmd/compile/internal/inline/inlheur: remove ConstExpr assumption
+    testing: add an example showcasing B.RunParallel with B.ReportMetric
     
-    OLITERAL isn't always ConstExpr. It can also be BasicLit or Name.
+    This commit was dedicated to adding an example of using B.ReportMetrics
+    with B.RunParallel called ExampleB_ReportMetric_parallel. In this
+    example, the same algorithm for ExampleB_ReportMetric was used, instead
+    with a concurrent for loop using PB.Next instead of a standard one.
+    There is also notes noting when to use the B.ReportMetric methods when
+    running concurrent testing.
     
-    Change-Id: I44d595830f9e206eccf6fb37bd47ddf957db0866
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526277
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #50756
+    Change-Id: I2a621b4e367af5f4ec47d38a0da1035a8d52f628
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437815
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- .../compile/internal/inline/inlheur/analyze_func_returns.go   | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+ src/testing/benchmark_test.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

@@ -1,14 +1,12 @@
-commit 82e30c681c5fcf9957c7f5d17c90b800ecd1a85e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 1 09:04:13 2012 -0700
+commit cc9a5c3be7fb8c5935dbfa49b7926219674fa705
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue May 1 16:15:32 2012 +1000
 
-    cgo: rename C names for Go types to avoid conflicting with package
+    misc/dashboard/codereview: preserve CL ordering.
     
-    Fixes #3371.
-    
-    R=rsc, bsiegert, r, mtj, iant
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6131060
+    https://golang.org/cl/6136056
 
- src/cmd/cgo/out.go | 60 ++++++++++++++++++++++++++++++------------------------
- 1 file changed, 33 insertions(+), 27 deletions(-)
+ misc/dashboard/codereview/dashboard/front.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

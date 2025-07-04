@@ -1,18 +1,14 @@
-commit f37ee0f33ba461dbaa58645c3ebdf148a43911a5
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 16 10:43:54 2017 -0700
+commit b1dbc9f8c0257aca065126d8dfc3ebfe0be2aada
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 22 15:50:03 2016 -0800
 
-    cmd/compile/internal/syntax: track column position at function end
+    reflect: fix typo in comment
     
-    Fixes #19576.
+    Sigh, forgot to run `git mail`.
     
-    Change-Id: I11034fb08e989f6eb7d54bde873b92804223598d
-    Reviewed-on: https://go-review.googlesource.com/38291
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idc49be2bb20d6f0e392cb472a63267ffee2ca22c
+    Reviewed-on: https://go-review.googlesource.com/33476
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/compile/internal/gc/noder.go      |  6 +++---
- src/cmd/compile/internal/syntax/nodes.go  | 24 +++++++++++-----------
- src/cmd/compile/internal/syntax/parser.go | 34 +++++++++++++++----------------
- 3 files changed, 31 insertions(+), 33 deletions(-)
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,22 @@
-commit 374b1904750931ed09d342e3c4c6e01fdb2802aa
-Author: Michel Levieux <mlevieux42@gmail.com>
-Date:   Thu Feb 18 15:53:46 2021 +0100
+commit 5402d40d5b041399392b29e4543f5fc4506197bd
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Aug 18 16:35:26 2020 -0400
 
-    io/fs: implement FileInfoToDirEntry
+    [dev.link] cmd/link: fix memory growth on dev.link
     
-    Implements FileInfoToDirEntry which converts an fs.FileInfo to fs.DirEntry.
+    CL 247399 caused memory growth in the linker. Fix this by adjusting how
+    we preallocate the number of symbols we'll need.
     
-    Fixes #42387.
+    cmd/compile (Darwin), alloc/op:
+    Loadlib_GC                   33.5MB ± 0%    27.3MB ± 0%
     
-    Change-Id: Ie723b6ed583c6c5ecf22bbe64e3b6496f5114254
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293649
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I34997329ea4412716114df97fc9dad6ad0c171ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249024
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/fs/readdir.go      | 30 ++++++++++++++++++++++++++++
- src/io/fs/readdir_test.go | 50 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 80 insertions(+)
+ src/cmd/link/internal/ld/lib.go        |  2 +-
+ src/cmd/link/internal/loader/loader.go | 36 ++++++++++++++++++++++------------
+ 2 files changed, 25 insertions(+), 13 deletions(-)

@@ -1,17 +1,19 @@
-commit f8ff12d480dcfe0db17648939644d0eeec0ed0fb
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 20 08:47:08 2020 -0700
+commit f71bd516b7003abed2c86b64ade6c0026075b6e8
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Nov 5 18:02:15 2019 +0100
 
-    cmd/compile: use dereference boundedness hint in ssa.addr
+    src/vendor: update to latest version of net
     
-    Follow-up to (and similar to) CL 228885.
-    Triggers a handful of times in std+cmd.
-    
-    Change-Id: Ie04057ca3974ef9eef669335e326a5ed4b7472cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228999
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ide3b689dd6808fc82f6310e4608e6d3574fafa82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205339
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go.mod                                       |    2 +-
+ src/go.sum                                       |    4 +-
+ src/vendor/golang.org/x/net/idna/tables11.0.0.go |    2 +-
+ src/vendor/golang.org/x/net/idna/tables12.00.go  | 4733 ++++++++++++++++++++++
+ src/vendor/golang.org/x/net/nettest/nettest.go   |   36 +-
+ src/vendor/modules.txt                           |    2 +-
+ 6 files changed, 4757 insertions(+), 22 deletions(-)

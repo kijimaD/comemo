@@ -1,41 +1,43 @@
-commit 0733682e5ff4cd294f5eccb31cbe87a543147bc6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Apr 22 15:48:57 2024 -0400
+commit caf9e15fb76631ca692f4779135aec5b82a68370
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 1 14:41:42 2023 -0400
 
-    internal/runtime/maps: initial swiss table map implementation
+    runtime: drop stack-allocated pcvalueCaches
     
-    Add a new package that will contain a new "Swiss Table"
-    (https://abseil.io/about/design/swisstables) map implementation, which
-    is intended to eventually replace the existing runtime map
-    implementation.
+    Now that pcvalue keeps its cache on the M, we can drop all of the
+    stack-allocated pcvalueCaches and stop carefully passing them around
+    between lots of operations. This significantly simplifies a fair
+    amount of code and makes several structures smaller.
     
-    This implementation is based on the fabulous
-    github.com/cockroachdb/swiss package contributed by Peter Mattis.
+    This series of changes has no statistically significant effect on any
+    runtime Stack benchmarks.
     
-    This CL adds an hash map implementation. It supports all the core
-    operations, but does not have incremental growth.
+    I also experimented with making the cache larger, now that the impact
+    is limited to the M struct, but wasn't able to measure any
+    improvements.
     
-    For #54766.
+    This is a re-roll of CL 515277
     
-    Change-Id: I52cf371448c3817d471ddb1f5a78f3513565db41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582415
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia27529302f81c1c92fb9c3a7474739eca80bfca1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520064
+    Auto-Submit: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/go/build/deps_test.go                          |   2 +
- src/internal/runtime/maps/export_test.go           |  56 ++
- src/internal/runtime/maps/fuzz_test.go             | 212 +++++++
- src/internal/runtime/maps/group.go                 | 249 ++++++++
- .../runtime/maps/internal/abi/map_swiss.go         |  44 ++
- src/internal/runtime/maps/map.go                   | 128 ++++
- src/internal/runtime/maps/map_test.go              | 447 ++++++++++++++
- src/internal/runtime/maps/runtime.go               |  24 +
- src/internal/runtime/maps/table.go                 | 669 +++++++++++++++++++++
- src/internal/runtime/maps/table_debug.go           | 128 ++++
- src/runtime/malloc.go                              |   5 +
- src/runtime/mbarrier.go                            |  10 +
- src/runtime/rand.go                                |   5 +
- 13 files changed, 1979 insertions(+)
+ src/runtime/debugcall.go      |  2 +-
+ src/runtime/export_test.go    |  2 +-
+ src/runtime/heapdump.go       |  2 +-
+ src/runtime/mbitmap.go        |  2 +-
+ src/runtime/mgcmark.go        |  2 +-
+ src/runtime/mgcstack.go       |  2 --
+ src/runtime/preempt.go        |  4 ++--
+ src/runtime/race.go           |  2 +-
+ src/runtime/stack.go          |  3 +--
+ src/runtime/stkframe.go       |  4 ++--
+ src/runtime/symtab.go         | 30 ++++++++++++++----------------
+ src/runtime/symtabinl.go      |  7 +++----
+ src/runtime/symtabinl_test.go |  3 +--
+ src/runtime/trace.go          |  3 +--
+ src/runtime/traceback.go      | 17 +++++++----------
+ 15 files changed, 37 insertions(+), 48 deletions(-)

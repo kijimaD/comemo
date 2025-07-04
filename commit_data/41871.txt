@@ -1,16 +1,23 @@
-commit 79b6900cc721b41da0fab67ba706bb3f81190005
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 3 09:23:19 2020 -0400
+commit 70331a31ed04144094f77a94676512d8829d84e2
+Author: Keith Randall <khr@google.com>
+Date:   Tue Oct 29 13:14:58 2019 -0700
 
-    doc: remove darwin/386, darwin/arm from ports list
+    cmd/compile: fix typing of IData opcodes
     
-    Updates #37611.
+    The rules for extracting the interface data word don't leave
+    the result typed correctly. If I do i.([1]*int)[0], the result
+    should have type *int, not [1]*int. Using (IData x) for the result
+    keeps the typing of the original top-level Value.
     
-    Change-Id: I7ae5a61d2e2189fd48ac3548e370e0de1dd79832
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227343
-    Run-TryBot: Austin Clements <austin@google.com>
+    I don't think this would ever cause a real codegen bug, bug fixing it
+    at least makes the typing shown in ssa.html more consistent.
+    
+    Change-Id: I239d821c394e58347639387981b0510d13b2f7b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204042
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/install-source.html | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  6 +++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 24 ++++++++++++------------
+ 2 files changed, 15 insertions(+), 15 deletions(-)

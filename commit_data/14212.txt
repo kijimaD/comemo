@@ -1,13 +1,12 @@
-commit 6653d76ef6c243b2061325c09e9628735218378c
+commit a35f23f34e1dbbbe23ac45563ae00de8e81d55ce
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Oct 24 11:41:05 2012 +0200
+Date:   Wed Oct 24 11:28:18 2012 +0200
 
-    exp/locale/collate/build: fixed problem where blocks for first byte need
-    different indexes for values and index blocks. Fixes many regressions.
+    exp/locale/collate/tools/colcmp: add locale to output of regression failure.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/6737057
+    https://golang.org/cl/6749058
 
- src/pkg/exp/locale/collate/build/trie.go | 35 ++++++++++++++++++++------------
- 1 file changed, 22 insertions(+), 13 deletions(-)
+ src/pkg/exp/locale/collate/tools/colcmp/colcmp.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

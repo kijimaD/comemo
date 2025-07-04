@@ -1,34 +1,25 @@
-commit 7ce361737fad30a78e47f2d12bd797efcc056b1c
-Author: Josh Rickmar <jrick@companyzero.com>
-Date:   Thu Mar 25 14:37:48 2021 +0000
+commit a4171d85d7328ef1ff317d0838fef3b6e623bbc3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 19 16:05:02 2020 +0700
 
-    net: only perform IPv4 map check for AF_INET6 sockets
+    cmd/compile: do not declare func nodes
     
-    This change avoids executing syscalls testing if IPv4 address mapping
-    is possible unless the socket being opened belongs to the AF_INET6
-    family.
+    The primary responsibility of declare() to associate a symbol (Sym) with
+    a declaration (Node), so "oldname" will work. Function literals are
+    anonymous, so their symbols does not need to be declared.
     
-    In a pledged OpenBSD process, this test is only allowed when the
-    "inet" pledge is granted; however this check was also being performed
-    for AF_UNIX sockets (separately permitted under the "unix" pledge),
-    and would cause the process to be killed by the kernel.  By avoiding
-    the IPv4 address mapping check until the socket is checked to be
-    AF_INET6, a pledged OpenBSD process using AF_UNIX sockets without the
-    "inet" pledge won't be killed for this misbehavior.
+    Passes toolstash-check.
     
-    The OpenBSD kernel is not currently ready to support using UNIX domain
-    sockets with only the "unix" pledge (and without "inet"), but this is
-    one change necessary to support this.
-    
-    Change-Id: If6962a7ad999b71bcfc9fd8e10d9c4067fa3f338
-    GitHub-Last-Rev: 3c5541b334fad54606a3d14dfe1b63b28b33a0d1
-    GitHub-Pull-Request: golang/go#45155
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303276
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Aaron Bieber <deftly@gmail.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I739b1054e3953e85fbd74a99148b9cfd7e5a57eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249078
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/sockopt_bsd.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/alg.go     |  3 +--
+ src/cmd/compile/internal/gc/closure.go | 14 +-------------
+ src/cmd/compile/internal/gc/dcl.go     | 14 +++++++++-----
+ src/cmd/compile/internal/gc/init.go    |  1 -
+ src/cmd/compile/internal/gc/subr.go    |  4 +---
+ src/cmd/compile/internal/gc/walk.go    |  3 +--
+ 6 files changed, 13 insertions(+), 26 deletions(-)

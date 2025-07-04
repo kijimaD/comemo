@@ -1,19 +1,18 @@
-commit 08425feae5e10f81e0c7d2b4a0f2cc7179174f45
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Dec 2 14:07:33 2022 -0500
+commit cc2e7f36bad66c24eecf7868e7ac35c74455b212
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 23:40:10 2022 -0500
 
-    runtime/cgo: remove APPLE macros on 386, arm, and ppc64 assembly files
+    cmd/go: diagnose unset GOROOT when built with -trimpath
     
-    We don't support Apple platform on 386, ARM, or PPC64. Remove
-    dead code.
+    For #51483
     
-    Change-Id: I5722bf58c0fb73c5db4ba016cb424e392739c7de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455162
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4546c20cf968b595020a1eba888fe1d9a1c6cfc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391811
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Bryan Mills <bcmills@google.com>
 
- src/runtime/cgo/gcc_386.S          |  4 ++--
- src/runtime/cgo/gcc_arm.S          | 17 ++---------------
- src/runtime/cgo/gcc_linux_ppc64x.S | 13 ++-----------
- 3 files changed, 6 insertions(+), 28 deletions(-)
+ src/cmd/go/internal/cfg/cfg.go                       |  5 ++++-
+ src/cmd/go/main.go                                   |  4 ++++
+ src/cmd/go/script_test.go                            | 12 ++++++++++++
+ src/cmd/go/testdata/script/build_trimpath_goroot.txt |  9 +++++++--
+ 4 files changed, 27 insertions(+), 3 deletions(-)

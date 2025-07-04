@@ -1,23 +1,28 @@
-commit c1e73dd2868fde5cbb00e8c290afdf3171bca5e6
-Author: Jonathan Rudenberg <jonathan@titanous.com>
-Date:   Wed Apr 15 15:00:53 2015 -0400
+commit f7befa43a3e5110379a85cabbbc999cf3b5fb9f6
+Author: Michael MacInnis <michael.p.macinnis@gmail.com>
+Date:   Tue Feb 17 22:23:16 2015 -0500
 
-    crypto/tls: fix test data generation
+    syscall: Add Foreground and Pgid to SysProcAttr
     
-    - Multiple GetCertificate tests shared the same name and were
-      overwriting each other, each test now has a unique name.
-    - expectAlert was not implemented in the data updater, the single
-      test that used it has been replaced with a ClientHello failure
-      test.
+    On Unix, when placing a child in a new process group, allow that group
+    to become the foreground process group. Also, allow a child process to
+    join a specific process group.
     
-    Fixes #10470
+    When setting the foreground process group, Ctty is used as the file
+    descriptor of the controlling terminal. Ctty has been added to the BSD
+    and Solaris SysProcAttr structures and the handling of Setctty changed
+    to match Linux.
     
-    Change-Id: I500738f6302ffa863d7ee45d85fa8773155e0614
-    Reviewed-on: https://go-review.googlesource.com/8959
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I18d169a6c5ab8a6a90708c4ff52eb4aded50bc8c
+    Reviewed-on: https://go-review.googlesource.com/5130
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/handshake_server_test.go            | 47 ++++++-------
- .../tls/testdata/Server-TLSv12-SNI-GetCertificate  | 76 ++++++++++++++++++++++
- .../Server-TLSv12-SNI-GetCertificateNotFound       | 76 ++++++++++++++++++++++
- 3 files changed, 171 insertions(+), 28 deletions(-)
+ src/runtime/syscall2_solaris.go |   2 +
+ src/runtime/syscall_solaris.go  |  12 +++
+ src/syscall/asm_solaris_amd64.s |   3 +
+ src/syscall/exec_bsd.go         |  34 +++++--
+ src/syscall/exec_linux.go       |  31 +++++-
+ src/syscall/exec_solaris.go     |  35 +++++--
+ src/syscall/exec_unix_test.go   | 217 ++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 317 insertions(+), 17 deletions(-)

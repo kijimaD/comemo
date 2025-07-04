@@ -1,19 +1,20 @@
-commit a4ee95c805fb77e594603bcd62d7858dc9e853ab
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Mon May 1 14:27:36 2017 -0500
+commit 945180fe2aa3238bbc23f336a00eba934daa9ccc
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Mar 9 13:03:07 2017 -0500
 
-    runtime: avoid division in gc
+    cmd/compile: fix OffPtr type in 2-field struct Store rule
     
-    Replace int division with (cheaper) byte division in heapBitsSetType.
-    Provides noticeable speed-up:
+    The type of the OffPtr for the first field was incorrect. It should
+    have been a pointer to the field type, rather than the field
+    type itself.
     
-    GrowSlicePtr-6   181ns ± 3%   169ns ± 3%  -6.85%  (p=0.000 n=10+10)
+    Fixes #19475.
     
-    Change-Id: I4064bb72e8e692023783b8f58d19491844c39382
-    Reviewed-on: https://go-review.googlesource.com/42290
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I3960b404da0f4bee759331126cce6140d2ce1df7
+    Reviewed-on: https://go-review.googlesource.com/37869
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mbitmap.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

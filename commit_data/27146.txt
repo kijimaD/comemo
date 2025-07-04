@@ -1,14 +1,18 @@
-commit 707aed0363c31bfef761a86464a09ecf0817267e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 26 19:11:53 2016 -0700
+commit 8ec80176d49d268beb282ec32ee9fe7275ef170b
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Fri Mar 11 01:10:35 2016 +0100
 
-    cmd/compile: fix opnames
+    cmd/compile: move decompose builtin closer to late opt
     
-    Change-Id: Ief4707747338912216a8509b1adbf655c8ffac56
-    Reviewed-on: https://go-review.googlesource.com/22495
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    * Shaves about 10k from pkg/tools/linux_amd64.
+    * Was suggested by drchase before
+    * Found by looking at ssa output of #14758
+    
+    Change-Id: If2c4ddf3b2603d4dfd8fb4d9199b9a3dcb05b17d
+    Reviewed-on: https://go-review.googlesource.com/20570
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/opnames.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

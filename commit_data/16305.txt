@@ -1,14 +1,22 @@
-commit d9d8d4c62c658f7c4015c73fcb2a1b809dbc0182
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 14 21:21:11 2013 -0700
+commit fae362e97e852cf04c6c089e61e92c1ad559b29b
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Wed May 15 13:24:54 2013 +1000
 
-    cmd/godoc: don't warn about HEAD requests
+    os/user: faster user lookup on Windows
     
-    Fixes #5451
+    Trying to lookup user's display name with directory services can
+    take several seconds when user's computer is not in a domain.
+    As a workaround, check if computer is joined in a domain first,
+    and don't use directory services if it is not.
+    Additionally, don't leak tokens in user.Current().
+    Fixes #5298.
     
-    R=gri
-    CC=dsymonds, gobot, golang-dev
-    https://golang.org/cl/9388043
+    R=golang-dev, bradfitz, alex.brainman, lucio.dere
+    CC=golang-dev
+    https://golang.org/cl/8541047
 
- src/cmd/godoc/godoc.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/os/user/lookup_windows.go         | 77 +++++++++++++++++++++----------
+ src/pkg/syscall/security_windows.go       |  9 ++++
+ src/pkg/syscall/zsyscall_windows_386.go   |  9 ++++
+ src/pkg/syscall/zsyscall_windows_amd64.go |  9 ++++
+ 4 files changed, 79 insertions(+), 25 deletions(-)

@@ -1,0 +1,23 @@
+commit eea2e929fae6abbc1422f8ee26de02a4b7e4f8cd
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jul 26 15:57:27 2024 -0400
+
+    debug/buildinfo: reuse buffer in searchMagic
+    
+    Allocating a new buffer for each chunk in searchMagic is very
+    inefficient. Refactor reading to allow us to reuse the same buffer for
+    each iteration.
+    
+    This reduces the runtime of `go version` on a 2.5GB non-Go binary from
+    ~1s and ~25MB RSS to ~250ms and ~15MB RSS.
+    
+    For #68592.
+    
+    Change-Id: Idae5c2c9b3b8a7158d5cc7f2f008998be75fd7af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601460
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/debug/buildinfo/buildinfo.go   | 101 +++++++++++++++++++++++--------------
+ src/debug/buildinfo/search_test.go |  14 +++--
+ 2 files changed, 68 insertions(+), 47 deletions(-)

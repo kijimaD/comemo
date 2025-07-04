@@ -1,28 +1,17 @@
-commit 50d0ee0c98ea21f818d2daa9bc21ef51861a2ef9
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Thu Sep 17 08:32:09 2015 +1000
+commit 3cf15b57f76400b22366ccd8ef5b211c72ab6a7f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 12:54:00 2015 -0400
 
-    os: handle EINTR from open(2).
+    crypto/tls: check cert chain during VerifyHostname
     
-    The man page for sigaction(2) on OS X doesn't guarantee that SA_RESTART
-    will work for open(2) on regular files:
+    Fixes #9063.
     
-        The affected system calls include open(2), read(2), write(2),
-        sendto(2), recvfrom(2), sendmsg(2) and recvmsg(2) on a
-        communications channel or a slow device (such as a terminal, but not
-        a regular file) and during a wait(2) or ioctl(2).
-    
-    I've never observed EINTR from open(2) for a traditional file system
-    such as HFS+, but it's easy to observe with a fuse file system that is
-    slightly slow (cf. https://goo.gl/UxsVgB). After this change, the
-    problem can no longer be reproduced when calling os.OpenFile.
-    
-    Fixes #11180.
-    
-    Change-Id: I967247430e20a7d29a285b3d76bf3498dc4773db
-    Reviewed-on: https://go-review.googlesource.com/14484
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I536ef1f0b30c94c1ebf7922d84cb2f701b7d8a1a
+    Reviewed-on: https://go-review.googlesource.com/12526
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/file_unix.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/crypto/tls/conn.go     |  3 +++
+ src/crypto/tls/tls_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

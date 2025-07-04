@@ -1,13 +1,14 @@
-commit c20c09251c37c60356e8457a3c7cb632c30b69b1
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Tue Jan 3 12:30:18 2012 +1100
+commit 38ff98b4c671dfe237a1737308af0a9de871c8c3
+Author: Michael Shields <mshields@google.com>
+Date:   Tue Jan 3 12:22:02 2012 +1100
 
-    encoding/json: don't marshal special float values
+    encoding/xml: use strings.Reader in tests.
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5500084
+    https://golang.org/cl/5502083
 
- src/pkg/encoding/json/encode.go      | 16 +++++++++++++++-
- src/pkg/encoding/json/encode_test.go | 19 +++++++++++++++++++
- 2 files changed, 34 insertions(+), 1 deletion(-)
+ src/pkg/encoding/xml/embed_test.go | 13 +++++----
+ src/pkg/encoding/xml/read_test.go  | 11 ++++----
+ src/pkg/encoding/xml/xml_test.go   | 54 +++++++++-----------------------------
+ 3 files changed, 27 insertions(+), 51 deletions(-)

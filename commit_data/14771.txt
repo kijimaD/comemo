@@ -1,12 +1,14 @@
-commit 7ced3f12bcc2a667a8eead81e7c995f8c86f756e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 2 15:28:30 2013 -0500
+commit b2e9ca7f2ee9a93b01edaf5d42c94e6a6e848124
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 2 16:38:47 2013 +0400
 
-    api: add go/types to next.txt
+    doc: add race detector manual
     
-    R=golang-dev, dsymonds
+    R=minux.ma, franciscossouza, rsc, adg, adg
     CC=golang-dev
-    https://golang.org/cl/7035045
+    https://golang.org/cl/6948043
 
- api/next.txt | 103 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 103 insertions(+)
+ doc/articles/race_detector.html | 353 ++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                   |   1 +
+ doc/go1.1.html                  |   6 +
+ 3 files changed, 360 insertions(+)

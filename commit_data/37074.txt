@@ -1,53 +1,26 @@
-commit 72f099c36bf2599ce73d054d463fc2950cfdcb05
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Oct 20 20:08:57 2018 +0200
+commit 7e9d55eeeb183ee95d26b3ed4ff171902605decf
+Author: David Chase <drchase@google.com>
+Date:   Mon Jun 25 15:26:45 2018 -0400
 
-    cmd/compile: preallocate in, out arrays in methodfunc
+    cmd/compile: avoid remainder in loopbce when increment=0
     
-    This gives a modest (but measurable) reduction in the number of
-    allocations when building the compilebench packages. It's safe and
-    exact (there's no heuristic or guessing, the lenghts of in and out are
-    known when we enter the function), so it may be worth it.
+    For non-unit increment, loopbce checks to see if the
+    increment evenly divides the difference between (constant)
+    loop start and end.  This test panics when the increment
+    is zero.
     
-    name       old time/op       new time/op       delta
-    Template         236ms ±23%        227ms ± 8%    ~     (p=0.955 n=8+7)
-    Unicode          112ms ± 7%        111ms ± 8%    ~     (p=0.798 n=8+8)
-    GoTypes          859ms ± 6%        874ms ± 6%    ~     (p=0.442 n=8+8)
-    Compiler         3.90s ±12%        3.85s ± 9%    ~     (p=0.878 n=8+8)
-    SSA              12.1s ± 7%        11.9s ± 8%    ~     (p=0.798 n=8+8)
-    Flate            151ms ±13%        157ms ±14%    ~     (p=0.382 n=8+8)
-    GoParser         190ms ±14%        192ms ±10%    ~     (p=0.645 n=8+8)
-    Reflect          554ms ± 5%        555ms ± 9%    ~     (p=0.878 n=8+8)
-    Tar              220ms ±19%        212ms ± 6%    ~     (p=0.867 n=8+7)
-    XML              296ms ±16%        303ms ±13%    ~     (p=0.574 n=8+8)
+    Fix: check for zero, if found, don't optimize the loop.
     
-    name       old alloc/op      new alloc/op      delta
-    Template        35.4MB ± 0%       35.4MB ± 0%  -0.03%  (p=0.021 n=8+8)
-    Unicode         29.2MB ± 0%       29.2MB ± 0%    ~     (p=0.645 n=8+8)
-    GoTypes          123MB ± 0%        123MB ± 0%  -0.02%  (p=0.001 n=7+8)
-    Compiler         514MB ± 0%        514MB ± 0%    ~     (p=0.336 n=8+7)
-    SSA             1.94GB ± 0%       1.94GB ± 0%  -0.00%  (p=0.004 n=8+7)
-    Flate           24.5MB ± 0%       24.5MB ± 0%  -0.03%  (p=0.015 n=8+8)
-    GoParser        28.7MB ± 0%       28.7MB ± 0%    ~     (p=0.279 n=8+8)
-    Reflect         87.4MB ± 0%       87.4MB ± 0%  -0.02%  (p=0.000 n=8+8)
-    Tar             35.2MB ± 0%       35.2MB ± 0%  -0.02%  (p=0.007 n=8+8)
-    XML             47.4MB ± 0%       47.4MB ± 0%    ~     (p=0.083 n=8+8)
+    Also added missing copyright notice to loopbce.go.
     
-    name       old allocs/op     new allocs/op     delta
-    Template          348k ± 0%         348k ± 0%  -0.15%  (p=0.000 n=8+8)
-    Unicode           339k ± 0%         339k ± 0%    ~     (p=0.195 n=8+8)
-    GoTypes          1.28M ± 0%        1.27M ± 0%  -0.20%  (p=0.000 n=8+8)
-    Compiler         4.88M ± 0%        4.88M ± 0%  -0.15%  (p=0.000 n=8+8)
-    SSA              15.2M ± 0%        15.2M ± 0%  -0.02%  (p=0.000 n=8+7)
-    Flate             234k ± 0%         233k ± 0%  -0.34%  (p=0.000 n=8+8)
-    GoParser          291k ± 0%         291k ± 0%  -0.13%  (p=0.000 n=8+8)
-    Reflect          1.05M ± 0%        1.05M ± 0%  -0.20%  (p=0.000 n=8+8)
-    Tar               344k ± 0%         343k ± 0%  -0.22%  (p=0.000 n=8+8)
-    XML               430k ± 0%         429k ± 0%  -0.24%  (p=0.000 n=8+8)
+    Fixes #26043.
     
-    Change-Id: I0044b99079ef211003325a7f136e35b55cc5cb74
-    Reviewed-on: https://go-review.googlesource.com/c/143638
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5f460104879cacc94481949234c9ce8c519d6380
+    Reviewed-on: https://go-review.googlesource.com/120759
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/loopbce.go |  6 +++++-
+ test/fixedbugs/issue26043.go            | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 1 deletion(-)

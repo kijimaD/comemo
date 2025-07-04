@@ -1,15 +1,20 @@
-commit 952c2fd606fad19b930937ca0d5c5571d7f5d4cb
-Author: Ian Gudger <igudger@google.com>
-Date:   Thu Feb 18 11:29:05 2016 -0800
+commit 3af29fb8585f4dff0e845c00b0109d94d85ff6ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 19 15:51:39 2015 -0500
 
-    net: fix packDomainName encoding of root and invalid names
+    runtime: make asmcgocall work without a g
     
-    Fixes #14372
+    Solaris needs to make system calls without a g,
+    and Solaris uses asmcgocall to make system calls.
+    I know, I know.
     
-    Change-Id: I40d594582639e87ef2574d37ac868e37ffaa17dc
-    Reviewed-on: https://go-review.googlesource.com/19623
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    I hope this makes CL 16915, fixing #12277, work on Solaris.
+    
+    Change-Id: If988dfd37f418b302da9c7096f598e5113ecea87
+    Reviewed-on: https://go-review.googlesource.com/17072
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/net/dnsmsg.go      | 36 +++++++++++++++++--
- src/net/dnsmsg_test.go | 97 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 130 insertions(+), 3 deletions(-)
+ src/runtime/asm_amd64.s | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

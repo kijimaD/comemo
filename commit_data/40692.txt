@@ -1,26 +1,19 @@
-commit 81640ea38dc6577bdf1b206b778b968d341c27eb
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 18 17:51:16 2019 +0000
+commit 263db9b6801ed9b05250da6f05ce93038e37c59c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 31 21:25:04 2019 +1000
 
-    runtime: add page cache and tests
+    html/template, text/template: document glob semantics
     
-    This change adds a page cache structure which owns a chunk of free pages
-    at a given base address. It also adds code to allocate to this cache
-    from the page allocator. Finally, it adds tests for both.
+    This change updates the doc comments of the various ParseGlob functions
+    and methods to state that they use the semantics of filepath.Match when
+    matching the file name pattern.
     
-    Notably this change does not yet integrate the code into the runtime,
-    just into runtime tests.
+    Fixes #30608
     
-    Updates #35112.
-    
-    Change-Id: Ibe121498d5c3be40390fab58a3816295601670df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196643
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Iee4bdc0a2a2f8647d1f9a910e4d72a5de9204d11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179739
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/export_test.go     |  22 +++
- src/runtime/mpagecache.go      | 154 +++++++++++++++++
- src/runtime/mpagecache_test.go | 364 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/mpallocbits.go     |  12 ++
- 4 files changed, 552 insertions(+)
+ src/html/template/template.go | 15 ++++++++-------
+ src/text/template/helper.go   | 15 ++++++++-------
+ 2 files changed, 16 insertions(+), 14 deletions(-)

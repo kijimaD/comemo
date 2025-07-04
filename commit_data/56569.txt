@@ -1,19 +1,21 @@
-commit c3591cb30ce1680b97921a20a1a4aa8d96bf6292
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 20 14:00:06 2024 -0700
+commit 298ff30958c32620b624da186cf32b362c0b0685
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 16 20:53:53 2023 +0000
 
-    internal/goexperiment: add aliastypeparams GOEXPERIMENT flag
+    Revert "cmd/compile: build compiler with PGO"
     
-    For #46477.
+    This reverts CL 451292.
     
-    Change-Id: Ic917272cb2cd28dcb39f173b3cdcfb72e52eae2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586955
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reason for revert: causes the racecompile builder failure.
+    https://build.golang.org/log/32d2fc21bd6e3bd415495d04befe806c0f10ea8b
+    
+    Change-Id: I5863437d4b814712b1280a1c21ba86009c332645
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495475
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/internal/goexperiment/exp_aliastypeparams_off.go | 8 ++++++++
- src/internal/goexperiment/exp_aliastypeparams_on.go  | 8 ++++++++
- src/internal/goexperiment/flags.go                   | 5 +++++
- 3 files changed, 21 insertions(+)
+ src/cmd/compile/default.pgo | Bin 355761 -> 0 bytes
+ src/cmd/compile/profile.sh  |  21 ---------------------
+ src/cmd/dist/buildtool.go   |   4 ----
+ 3 files changed, 25 deletions(-)

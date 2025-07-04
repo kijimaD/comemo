@@ -1,15 +1,22 @@
-commit 5405df09afff46d065da1d73d56347f7c859ab6f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 3 10:36:35 2022 +0700
+commit e9674e553ce941c1c0558892852d299a35fa2178
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Sep 8 14:06:52 2021 -0400
 
-    reflect: use doc links to refer to package "unsafe"
+    [dev.fuzz] internal/fuzz: fix panic when marshaling data
     
-    Change-Id: Ide465c4276424f2c437691d440dd100c4db2f091
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420974
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The coordinator needs to marshal data that was provided
+    via f.Add. However, it was also attempting to marshal data
+    that was in testdata, which was not needed,
+    and was causing a panic. This change fixes this.
+    
+    Fixes golang/go#48228
+    
+    Change-Id: I1256c5a287b5a09d2f8cca59beb0f0fc06cc3554
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348381
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/reflect/value.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt | 23 +++++++++++++++++++++++
+ src/internal/fuzz/fuzz.go                |  4 ++--
+ 2 files changed, 25 insertions(+), 2 deletions(-)

@@ -1,22 +1,16 @@
-commit 35ec948de766e7e8854b95edda3a0bb4723a63ec
-Author: Rob Findley <rfindley@google.com>
-Date:   Fri Apr 14 14:25:53 2023 -0400
+commit d23c80b8e4cf1ff69176c78794a2cae10a1f5501
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 17 09:54:11 2022 -0700
 
-    go/types,types2: fix panic in reverse type inference when -lang<go1.18
+    doc: update jump table performance release note
     
-    Due to reverse type inference, we may not have an index expression when
-    type-checking a function instantiation. Fix a panic when the index expr
-    is nil.
+    Just make it clearer that the performance gains are for the switch
+    statement itself, not the whole program.
     
-    Fixes #59639
-    
-    Change-Id: Ib5de5e49cdb7b339653e4fb775bf5c5fdb3c6907
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484757
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I2d1bf2888f61112af3dc37113e740b00b092e2cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406874
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/call.go             |  8 +++++++-
- src/go/types/call.go                                |  8 +++++++-
- src/internal/types/testdata/fixedbugs/issue59639.go | 11 +++++++++++
- 3 files changed, 25 insertions(+), 2 deletions(-)
+ doc/go1.19.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,18 +1,19 @@
-commit 475df0ebccaf0871c86b2c0b55ee841aede324b7
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Sep 12 13:53:55 2017 -0500
+commit 7cd6310014921389392482443ec17defe8422a99
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 30 15:05:42 2017 -0700
 
-    cmd/compile/internal/gc: better inliner diagnostics
+    cmd/compile: don't generate liveness maps when the stack is too large
     
-    When debugging inliner with -m -m print cost of complex functions,
-    instead of simple "function too complex". This helps to understand,
-    how close to inlining is this particular function.
+    Fixes #20529
     
-    Change-Id: I6871f69b5b914d23fd0b43a24d7c6fc928f4b716
-    Reviewed-on: https://go-review.googlesource.com/63330
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I3cb0c037b1737fbc3fa3b1b61ed8a42cfaf8e10d
+    Reviewed-on: https://go-review.googlesource.com/44344
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go |  4 +++-
+ src/cmd/compile/internal/gc/ssa.go  |  7 +++++--
+ src/go/types/stdlib_test.go         |  1 +
+ test/fixedbugs/issue20529.go        | 18 ++++++++++++++++++
+ 4 files changed, 27 insertions(+), 3 deletions(-)

@@ -1,14 +1,29 @@
-commit 5498fa90e9921193be11c6e6a9e017a53c0e1588
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 22 15:50:06 2019 +1000
+commit 5930c7de933c4d826926396f715bae63333143a2
+Author: Andrei Vagin <avagin@google.com>
+Date:   Mon Jan 7 10:18:42 2019 -0800
 
-    strconv: simplify the text for bases in ParseInt
+    syscall: add all ambient capabilities into permitted and inheritable sets
     
-    Followon from a review comment in https://golang.org/cl/191078
+    According to the prctl man page, each capability from the ambient set
+    must already be present in both  the  permitted  and  the  inheritable
+    sets  of the process.
     
-    Change-Id: If115b2ae0df5e5cb9babd60802947ddb687d56c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191219
+    exec_linux_test suggests configuring the capabilities in the parent
+    process. This doesn't look nice, because:
+    * Capabilities are a per-thread attribute, so we need to use
+    LockOSThread.
+    * Need to restore capabilities after creating a process.
+    * Doesn't work with user namespaces, because a process gets capabilities
+    when a namespace is created.
+    
+    Fixes #23152
+    
+    Change-Id: Iba23e530fc7b9f5182d602fe855f82218f354219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/156577
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/strconv/atoi.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/syscall/exec_linux.go      | 51 +++++++++++++++++++++++++++++++++++---
+ src/syscall/exec_linux_test.go | 56 +++++++++++++++++++++++++++++-------------
+ 2 files changed, 87 insertions(+), 20 deletions(-)

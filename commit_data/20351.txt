@@ -1,29 +1,13 @@
-commit 201cfe4afb657fec7bc9535ff0e2312be762c2ca
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 8 16:56:46 2014 -0400
+commit b3f224b2801059bf6b2d1b4001ffd8d34c91d19e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Sep 3 00:56:31 2014 +0200
 
-    runtime: run sighandler on g0 stack on windows
+    runtime: handle empty environment variables on Plan 9
     
-    The sighander has been run at the bottom of the
-    currently executing goroutine stack, but it's in C,
-    and we don't want C on our ordinary goroutine stacks.
-    Worse, it does a lot of stuff, and it might need more
-    stack space. There is scary code in traceback_windows.go
-    that talks about stack splits during sighandler.
-    Moving sighandler to g0 will eliminate the possibility
-    of stack splits and such, and then we can delete
-    traceback_windows.go entirely. Win win.
-    
-    On the builder, all.bat passes with GOARCH=amd64
-    and all.bat gets most of the way with GOARCH=386
-    except for a DLL-loading test that I think is unrelated.
-    
-    Fixes windows build.
-    
-    TBR=brainman, iant
+    LGTM=bradfitz, rsc
+    R=rsc, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/140380043
+    https://golang.org/cl/137920044
 
- src/runtime/sys_windows_386.s   | 47 +++++++++++++++++++++++++++++++++++------
- src/runtime/sys_windows_amd64.s | 47 +++++++++++++++++++++++++++++++++++------
- 2 files changed, 81 insertions(+), 13 deletions(-)
+ src/pkg/runtime/env_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

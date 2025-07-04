@@ -1,13 +1,17 @@
-commit b93fa309f278b7fe3c6a432c0cf7873c23ef8801
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 9 15:42:49 2015 -0400
+commit abf8bbb709137c7212704dd0fb777b9c549a5fe1
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 23 15:32:08 2015 -0800
 
-    cmd/6g: allow componentgen of slice inside struct
+    crypto/x509: make behaviour of absolute DNS names match Chromium.
     
-    Change-Id: I847bf32bd0be913fad277c5e657f44df147eee14
-    Reviewed-on: https://go-review.googlesource.com/7729
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Previously, we didn't handle absolute DNS names in certificates the same
+    way as Chromium, and we probably shouldn't diverge from major browsers.
+    
+    Change-Id: I56a3962ad1002f68b5dbd65ae90991b82c2f5629
+    Reviewed-on: https://go-review.googlesource.com/5692
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/6g/cgen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/verify.go    | 1 +
+ src/crypto/x509/x509_test.go | 8 +++++++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

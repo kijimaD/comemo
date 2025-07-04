@@ -1,43 +1,22 @@
-commit 9e70564f639252aade60369b51a121f3325e9d6c
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 28 17:10:32 2020 +0000
+commit 1c0d664128ed5f1d7c66afb69cb2d15064a1ba43
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 24 12:51:45 2020 -0500
 
-    cmd/compile,cmd/asm: simplify recording of branch targets, take 2
+    doc/go1.14: remove draft notice
     
-    We currently use two fields to store the targets of branches.
-    Some phases use p.To.Val, some use p.Pcond. Rewrite so that
-    every branch instruction uses p.To.Val.
-    p.From.Val is also used in rare instances.
-    Introduce a Pool link for use by arm/arm64, instead of
-    repurposing Pcond.
+    Use consistent indentation for one of the paragraphs.
     
-    This is a cleanup CL in preparation for some stack frame CLs.
+    Include issue number in the visible text, so it is easier to read.
     
-    Change-Id: If8239177e4b1ea2bccd0608eb39553d23210d405
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251437
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #36878
+    
+    Change-Id: Iab857b26b1d27b0137e981126207089db108d530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220646
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go |  4 ++--
- src/cmd/compile/internal/gc/gsubr.go  |  2 +-
- src/cmd/compile/internal/gc/ssa.go    |  2 +-
- src/cmd/compile/internal/s390x/ssa.go |  4 ++--
- src/cmd/compile/internal/x86/ssa.go   |  4 ++--
- src/cmd/internal/obj/arm/asm5.go      | 16 ++++++++--------
- src/cmd/internal/obj/arm/obj5.go      | 10 +++++-----
- src/cmd/internal/obj/arm64/asm7.go    | 36 ++++++++++++++++++++---------------
- src/cmd/internal/obj/arm64/obj7.go    | 16 ++++++++--------
- src/cmd/internal/obj/link.go          | 17 +++++++++++++++--
- src/cmd/internal/obj/mips/asm0.go     | 24 +++++++++++------------
- src/cmd/internal/obj/mips/obj0.go     | 14 +++++++-------
- src/cmd/internal/obj/pass.go          | 17 +++++++----------
- src/cmd/internal/obj/ppc64/asm9.go    | 18 +++++++++---------
- src/cmd/internal/obj/ppc64/obj9.go    | 12 ++++++------
- src/cmd/internal/obj/riscv/obj.go     | 29 ++++++++++++++--------------
- src/cmd/internal/obj/s390x/asmz.go    | 18 +++++++++---------
- src/cmd/internal/obj/s390x/objz.go    | 10 +++++-----
- src/cmd/internal/obj/util.go          |  6 ++----
- src/cmd/internal/obj/x86/asm6.go      | 12 ++++++------
- src/cmd/internal/obj/x86/obj6.go      | 12 ++++++------
- 21 files changed, 149 insertions(+), 134 deletions(-)
+ doc/go1.14.html | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

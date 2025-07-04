@@ -1,19 +1,39 @@
-commit 884530b374501b997422d08833c2a21966bd1069
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Sun May 1 00:11:13 2022 +0800
+commit 5dac279fbdd8a4273253de98a4e44484b20bec5b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 2 16:29:42 2021 -0700
 
-    cmd/compile: mark shape type dupok
+    [dev.typeparams] cmd/compile: formalize "hidden parameters" idea
     
-    Fixes #52633
+    This CL formalizes the closure-var trick used for method-value
+    wrappers to be reusable for defining other functions that take hidden
+    parameters via the closure-context register. In particular, it:
     
-    Change-Id: I3f19804cd7c00cee7e365062402c264d84b596c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403316
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: guangyuan zhou <zhouguangyuan@golangcn.org>
+    1. Adds a new ir.NewHiddenParam function for creating hidden
+    parameters.
+    
+    2. Changes ir.NewClosureVar to copy Type/Typecheck from the closure
+    variable, so that callers can needing to manually copy these.
+    
+    3. Updates existing code accordingly (i.e., method-value wrappers to
+    start using ir.NewHiddenParam, and closure builders to stop copying
+    types).
+    
+    Longer term, I anticipate using this to pass dictionaries to stenciled
+    functions within unified IR.
+    
+    Change-Id: I9da3ffdb2a26d15c6e89a21b4e080686d6dc872c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332612
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/escape/call.go       |  4 +---
+ src/cmd/compile/internal/escape/escape.go     | 10 ++++++++--
+ src/cmd/compile/internal/escape/expr.go       |  3 ---
+ src/cmd/compile/internal/escape/graph.go      |  8 ++++++--
+ src/cmd/compile/internal/ir/name.go           | 24 +++++++++++++++++++++++-
+ src/cmd/compile/internal/noder/reader.go      | 15 ++-------------
+ src/cmd/compile/internal/typecheck/iimport.go |  9 ++-------
+ src/cmd/compile/internal/walk/closure.go      |  9 +--------
+ 8 files changed, 43 insertions(+), 39 deletions(-)

@@ -1,24 +1,22 @@
-commit af8aafd570bca4f78b434e7633bf33b6e186931c
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 1 15:03:53 2021 -0400
+commit aea1259a7288d71736273b494e60bd424ea1946c
+Author: David Chase <drchase@google.com>
+Date:   Sun Feb 28 21:48:20 2021 -0500
 
-    go/types: clarify is/underIs semantics and implementation
+    cmd/link: disable flaky Darwin "symbols" test
     
-    This is a port of CL 358594 to go/types. Some code in conversions.go had
-    to be trivially reorganized to align with types2 -- I'm not sure how
-    go/types diverged from the base.
+    About one run out of 3 it fails on my laptop, and
+    I am tired of having to be a nanny for my tests just
+    because of this one flaky test.  This has been a problem
+    for months.
     
-    Change-Id: I40ce247bbb3b9d0e87ce88c50e440c12774c0745
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360475
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #32218.
+    
+    Change-Id: I2871d4c6f47e9432d189ed7bdcda8f9c0871cfc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297469
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/builtins.go    |  5 ++++-
- src/go/types/conversions.go | 18 ++++++++++++------
- src/go/types/expr.go        |  2 ++
- src/go/types/infer.go       |  2 +-
- src/go/types/operand.go     |  3 +++
- src/go/types/typeparam.go   | 11 +++++++++++
- src/go/types/typeset.go     | 46 +++++++++++++++++++++++----------------------
- 7 files changed, 57 insertions(+), 30 deletions(-)
+ src/cmd/link/dwarf_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

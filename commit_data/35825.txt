@@ -1,24 +1,24 @@
-commit 83092a40ac606d87169fd6d0ee40f20bc93adeaf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 27 14:18:31 2018 -0700
+commit 20046020c4f0b69e89411d9db35b78942392033e
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Mar 8 10:33:37 2018 +0000
 
-    reflect: prevent additional StructOf embedded method cases
+    cmd/compile: fix an issue in MNEG of ARM64
     
-    The current implementation does not generate wrappers for methods of
-    embedded non-interface types. We can only skip the wrapper if
-    kindDirectIface of the generated struct type matches kindDirectIface
-    of the embedded type. Panic if that is not the case.
+    There are two less optimized SSA rules in my previous CL
+    https://go-review.googlesource.com/c/go/+/95075 .
     
-    It would be better to actually generate wrappers, but that can be done
-    later.
+    This CL fixes that issue and a test case gets about 10%
+    performance improvement.
+    name    old time/op  new time/op  delta
+    MNEG-4   263µs ± 3%   235µs ± 3%  -10.53%  (p=0.000 n=20+20)
+    (https://github.com/benshi001/ugo1/blob/master/mneg_7_test.go)
     
-    Updates #15924
-    Fixes #24782
-    
-    Change-Id: I01f5c76d9a07f44e1b04861bfe9f9916a04e65ca
-    Reviewed-on: https://go-review.googlesource.com/121316
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I30087097e281dd9d9d1c870d32e13b4ef4a96ad3
+    Reviewed-on: https://go-review.googlesource.com/99495
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/reflect/all_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++++++++-
- src/reflect/type.go     |  6 ++++
- 2 files changed, 93 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 146 ++++++++++++---------------
+ 2 files changed, 70 insertions(+), 86 deletions(-)

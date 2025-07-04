@@ -1,28 +1,30 @@
-commit 217507eb035933bac6c990844f0d71d6000fd339
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Sep 22 18:32:45 2021 -0400
+commit d6d467372854124795cdd11429244ef1e28b809c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 12 23:55:08 2021 -0800
 
-    runtime: set vdsoSP to caller's SP consistently
+    [dev.regabi] cmd/compile: fix GOEXPERIMENT=regabi builder
     
-    m.vdsoSP should be set to the SP of the caller of nanotime1,
-    instead of the SP of nanotime1 itself, which matches m.vdsoPC.
-    Otherwise the unmatched vdsoPC and vdsoSP would make the stack
-    trace look like recursive.
+    I misread the FIXME comment in InitLSym the first time. It's referring
+    to how InitLSym is supposed to be called exactly once per
+    function (see function documentation), but this is evidently not
+    actually the case currently in GOEXPERIMENT=regabi mode.
     
-    We already do it correctly on AMD64, 386, and RISCV64. This CL
-    fixes the rest.
+    So just move the NeedFuncSym call below the GOEXPERIMENT=regabi
+    workaround.
     
-    Fixes #47324.
+    Also, to fix the linux-arm64-{aws,packet} builders, move the call to
+    reflectdata.WriteFuncSyms() to after the second batch of functions are
+    compiled. This is necessary to make sure we catch all the funcsyms
+    that can be added by late function compilation.
     
-    Change-Id: I98b6fcfbe9fc6bdd28b8fe2a1299b7c505371dd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337590
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I6d6396d48e2ee29c1fb007fa2b99e065b36375db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283552
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/pprof/pprof_test.go | 30 ++++++++++++++++++++++++++++++
- src/runtime/sys_linux_arm.s     |  6 ++++--
- src/runtime/sys_linux_arm64.s   |  6 ++++--
- src/runtime/sys_linux_mips64x.s |  6 ++++--
- src/runtime/sys_linux_ppc64x.s  |  8 +++++---
- 5 files changed, 47 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/obj.go     | 2 +-
+ src/cmd/compile/internal/ssagen/abi.go | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

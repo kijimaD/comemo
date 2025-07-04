@@ -1,16 +1,18 @@
-commit 093ac15a14137b4a9454442ae9fea282e5c09180
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Apr 24 15:09:00 2016 +1000
+commit b354f914174f971b26ac813236627b7cccaf3382
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 10 22:01:41 2016 -0800
 
-    debug/pe: better error messages
+    runtime: limit TestCgoCCodeSIGPROF test to 1 second
     
-    Updates #15345
+    Still fails about 20% of the time on my laptop.
     
-    Change-Id: Iae35d3e378cbc8157ba1ff91e4971ed4515a5e5c
-    Reviewed-on: https://go-review.googlesource.com/22394
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Fixes #14766.
+    
+    Change-Id: I169ab728c6022dceeb91188f5ad466ed6413c062
+    Reviewed-on: https://go-review.googlesource.com/20590
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/debug/pe/file.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ src/runtime/testdata/testprogcgo/aprof.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

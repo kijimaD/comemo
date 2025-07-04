@@ -1,31 +1,14 @@
-commit 79f6a5c7bd684f2e6007ee505b522440beb86bf0
-Author: Wander Lairson Costa <wcosta@mozilla.com>
-Date:   Fri Feb 10 04:10:48 2017 -0200
+commit 398e861d9787d7da62a385110539d74dec34c18c
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Mon Oct 31 08:58:42 2016 -0700
 
-    syscall: only call setgroups if we need to
+    reflect: clarify that NumMethod returns only the number of exported methods
     
-    If the caller set ups a Credential in os/exec.Command,
-    os/exec.Command.Start will end up calling setgroups(2), even if no
-    supplementary groups were given.
+    Fixes #17686.
     
-    Only root can call setgroups(2) on BSD kernels, which causes Start to
-    fail for non-root users when they try to set uid and gid for the new
-    process.
-    
-    We fix by introducing a new field to syscall.Credential named
-    NoSetGroups, and setgroups(2) is only called if it is false.
-    We make this field with inverted logic to preserve backward
-    compatibility.
-    
-    RELNOTES=yes
-    
-    Change-Id: I3cff1f21c117a1430834f640ef21fd4e87e06804
-    Reviewed-on: https://go-review.googlesource.com/36697
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7d07c367e50b448579f9855bea43df76ddb82bd0
+    Reviewed-on: https://go-review.googlesource.com/32420
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/os/exec/exec_posix_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++
- src/syscall/exec_bsd.go        |  8 +++++---
- src/syscall/exec_linux.go      |  5 +----
- src/syscall/exec_solaris.go    |  8 +++++---
- src/syscall/exec_unix.go       |  7 ++++---
- 5 files changed, 60 insertions(+), 13 deletions(-)
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

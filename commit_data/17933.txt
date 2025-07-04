@@ -1,30 +1,18 @@
-commit 274a8e3f56358dd8ab93aad1bbd750bcb2750296
+commit 66c32384dda82752deb3db8ba45acb073e9c4c1e
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Dec 9 18:41:48 2013 -0500
+Date:   Mon Dec 9 18:39:58 2013 -0500
 
-    runtime: do not use memmove in the Plan 9 signal handler
+    build: do not use the host's libbio on Plan 9
     
-    Fixes a regression introduced in revision 4cb93e2900d0.
-    
-    That revision changed runtime·memmove to use SSE MOVOU
-    instructions for sizes between 17 and 256 bytes. We were
-    using memmove to save a copy of the note string during
-    the note handler. The Plan 9 kernel does not allow the
-    use of floating point in note handlers (which includes
-    MOVOU since it touches the XMM registers).
-    
-    Arguably, runtime·memmove should not be using MOVOU when
-    GO386=387 but that wouldn't help us on amd64. It's very
-    important that we guard against any future changes so we
-    use a simple copy loop instead.
-    
-    This change is extracted from CL 9796043 (since that CL
-    is still being ironed out).
-    
-    R=rsc
+    R=jas, lucio.dere, rsc
     CC=golang-dev
-    https://golang.org/cl/34640045
+    https://golang.org/cl/14604047
 
- src/pkg/runtime/os_plan9_386.c   | 18 ++++++++++++------
- src/pkg/runtime/os_plan9_amd64.c | 18 ++++++++++++------
- 2 files changed, 24 insertions(+), 12 deletions(-)
+ include/bio.h         |  2 --
+ include/plan9/bio.h   |  8 ++++++++
+ src/cmd/dist/build.c  | 29 +++++------------------------
+ src/libbio/bgetrune.c |  1 -
+ src/libbio/bprint.c   |  2 ++
+ src/libbio/bputrune.c |  1 -
+ src/libbio/bseek.c    |  2 +-
+ 7 files changed, 16 insertions(+), 29 deletions(-)

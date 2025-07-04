@@ -1,125 +1,30 @@
-commit ae7b6a3b779c4d6de96f59efbfed0b899c3ff6df
-Author: Xiangdong Ji <xiangdong.ji@arm.com>
-Date:   Sat Feb 22 08:12:54 2020 +0000
+commit 218f4572f5d5832c81e13d71690791aea67dacd2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Dec 19 14:13:59 2019 +0000
 
-    math/big: tune addVW/subVW performance on arm64
+    text/template: make reflect.Value indirections more robust
     
-    Add an optimization for addVW and subVW over large-sized vectors, it switches
-    from add/sub with carry to copy the rest of the vector when we are done with
-    carries. Consistent performance improvement are observed on various arm64
-    machines.
+    Always shadow or modify the original parameter name. With code like:
     
-    Add additional tests and benchmarks to increase the test coverage.
-    TestFunVWExt:
-      Testing with various types of input vector, using the result from go-version
-      addVW/subVW as golden reference.
-    BenchmarkAddVWext and BenchmarkSubVWext:
-      Benchmarking using input vector having all 1s or all 0s, for evaluating the
-      overhead of worst case.
+            func index(item reflect.Value, ... {
+                    v := indirectInterface(item)
     
-    1. Perf. comparison over randomly generated input vectors:
+    It was possible to incorrectly use 'item' and 'v' later in the function,
+    which could result in subtle bugs. This is precisely the kind of mistake
+    that led to #36199.
     
-    Server 1:
-    name             old time/op    new time/op    delta
-    AddVW/1            12.3ns ± 3%    12.0ns ± 0%    -2.60%  (p=0.001 n=10+8)
-    AddVW/2            12.5ns ± 2%    12.3ns ± 0%    -1.84%  (p=0.001 n=10+8)
-    AddVW/3            12.6ns ± 2%    12.3ns ± 0%    -1.91%  (p=0.009 n=10+10)
-    AddVW/4            13.1ns ± 3%    12.7ns ± 0%    -2.98%  (p=0.006 n=10+8)
-    AddVW/5            14.4ns ± 1%    13.9ns ± 0%    -3.81%  (p=0.000 n=10+10)
-    AddVW/10           11.7ns ± 0%    11.7ns ± 0%      ~     (all equal)
-    AddVW/100          47.8ns ± 0%    29.9ns ± 2%   -37.38%  (p=0.000 n=10+9)
-    AddVW/1000          446ns ± 0%     207ns ± 0%   -53.59%  (p=0.000 n=10+10)
-    AddVW/10000        4.35µs ± 1%    2.92µs ± 0%   -32.85%  (p=0.000 n=10+10)
-    AddVW/100000       43.6µs ± 0%    29.7µs ± 0%   -31.92%  (p=0.000 n=8+10)
-    SubVW/1            12.6ns ± 0%    12.3ns ± 2%    -2.22%  (p=0.000 n=7+10)
-    SubVW/2            12.7ns ± 0%    12.6ns ± 1%    -0.39%  (p=0.046 n=8+10)
-    SubVW/3            12.7ns ± 1%    12.6ns ± 1%      ~     (p=0.410 n=10+10)
-    SubVW/4            13.3ns ± 3%    13.1ns ± 3%      ~     (p=0.072 n=10+10)
-    SubVW/5            14.2ns ± 0%    14.1ns ± 1%    -0.63%  (p=0.046 n=8+10)
-    SubVW/10           11.7ns ± 0%    11.7ns ± 0%      ~     (all equal)
-    SubVW/100          47.8ns ± 0%    33.1ns ±19%   -30.71%  (p=0.000 n=10+10)
-    SubVW/1000          446ns ± 0%     207ns ± 0%   -53.59%  (p=0.000 n=10+10)
-    SubVW/10000        4.33µs ± 1%    2.92µs ± 0%   -32.66%  (p=0.000 n=10+6)
-    SubVW/100000       43.4µs ± 0%    29.6µs ± 0%   -31.90%  (p=0.000 n=10+9)
+    Instead, don't keep both the old and new reflect.Value variables in
+    scope. Always shadow or modify the original variable.
     
-    Server 2:
-    name             old time/op    new time/op    delta
-    AddVW/1            5.49ns ± 0%    5.53ns ± 2%     ~     (p=1.000 n=9+10)
-    AddVW/2            5.96ns ± 2%    5.92ns ± 1%   -0.69%  (p=0.039 n=10+10)
-    AddVW/3            6.72ns ± 0%    6.73ns ± 0%     ~     (p=0.078 n=10+10)
-    AddVW/4            7.07ns ± 0%    6.75ns ± 2%   -4.55%  (p=0.000 n=10+10)
-    AddVW/5            8.14ns ± 0%    8.17ns ± 0%   +0.46%  (p=0.003 n=8+8)
-    AddVW/10           10.0ns ± 0%    10.1ns ± 1%   +0.70%  (p=0.003 n=10+10)
-    AddVW/100          43.0ns ± 0%    33.5ns ± 0%  -22.09%  (p=0.000 n=9+9)
-    AddVW/1000          394ns ± 0%     278ns ± 0%  -29.44%  (p=0.000 n=10+10)
-    AddVW/10000        4.18µs ± 0%    3.14µs ± 0%  -24.81%  (p=0.000 n=8+8)
-    AddVW/100000       68.3µs ± 3%    62.1µs ± 5%   -9.13%  (p=0.000 n=10+10)
-    SubVW/1            5.37ns ± 2%    5.42ns ± 1%     ~     (p=0.990 n=10+10)
-    SubVW/2            5.89ns ± 0%    5.92ns ± 1%   +0.58%  (p=0.000 n=8+10)
-    SubVW/3            6.64ns ± 1%    6.82ns ± 3%   +2.63%  (p=0.000 n=9+10)
-    SubVW/4            7.17ns ± 0%    6.69ns ± 2%   -6.74%  (p=0.000 n=10+9)
-    SubVW/5            8.22ns ± 0%    8.18ns ± 0%   -0.46%  (p=0.001 n=8+9)
-    SubVW/10           10.0ns ± 1%    10.1ns ± 1%     ~     (p=0.341 n=10+10)
-    SubVW/100          43.0ns ± 0%    33.5ns ± 0%  -22.09%  (p=0.000 n=7+10)
-    SubVW/1000          394ns ± 0%     278ns ± 0%  -29.44%  (p=0.000 n=10+10)
-    SubVW/10000        4.18µs ± 0%    3.15µs ± 0%  -24.62%  (p=0.000 n=9+9)
-    SubVW/100000       67.7µs ± 4%    62.4µs ± 2%   -7.92%  (p=0.000 n=10+10)
+    While at it, simplify the signature of 'length', to receive a
+    reflect.Value directly and save a few redundant lines.
     
-    2. Perf. comparison over input vectors of all 1s or all 0s
-    
-    Server 1:
-    name             old time/op    new time/op    delta
-    AddVWext/1         12.6ns ± 0%    12.0ns ± 0%    -4.76%  (p=0.000 n=6+10)
-    AddVWext/2         12.7ns ± 0%    12.4ns ± 1%    -2.52%  (p=0.000 n=10+10)
-    AddVWext/3         12.7ns ± 0%    12.4ns ± 0%    -2.36%  (p=0.000 n=9+7)
-    AddVWext/4         13.2ns ± 4%    12.7ns ± 0%    -3.71%  (p=0.001 n=10+9)
-    AddVWext/5         14.6ns ± 0%    13.9ns ± 0%    -4.79%  (p=0.000 n=10+8)
-    AddVWext/10        11.7ns ± 0%    11.7ns ± 0%      ~     (all equal)
-    AddVWext/100       47.8ns ± 0%    47.4ns ± 0%    -0.84%  (p=0.000 n=10+10)
-    AddVWext/1000       446ns ± 0%     399ns ± 0%   -10.54%  (p=0.000 n=10+10)
-    AddVWext/10000     4.34µs ± 1%    3.90µs ± 0%   -10.12%  (p=0.000 n=10+10)
-    AddVWext/100000    43.9µs ± 1%    39.4µs ± 0%   -10.18%  (p=0.000 n=10+10)
-    SubVWext/1         12.6ns ± 0%    12.3ns ± 2%    -2.70%  (p=0.000 n=7+10)
-    SubVWext/2         12.6ns ± 1%    12.6ns ± 2%      ~     (p=0.234 n=10+10)
-    SubVWext/3         12.7ns ± 0%    12.6ns ± 2%    -0.71%  (p=0.033 n=10+10)
-    SubVWext/4         13.4ns ± 0%    13.1ns ± 3%    -2.01%  (p=0.006 n=8+10)
-    SubVWext/5         14.2ns ± 0%    14.1ns ± 1%    -0.85%  (p=0.003 n=10+10)
-    SubVWext/10        11.7ns ± 0%    11.7ns ± 0%      ~     (all equal)
-    SubVWext/100       47.8ns ± 0%    47.4ns ± 0%    -0.84%  (p=0.000 n=10+10)
-    SubVWext/1000       446ns ± 0%     399ns ± 0%   -10.54%  (p=0.000 n=10+10)
-    SubVWext/10000     4.33µs ± 1%    3.90µs ± 0%   -10.02%  (p=0.000 n=10+10)
-    SubVWext/100000    43.5µs ± 0%    39.5µs ± 1%    -9.16%  (p=0.000 n=7+10)
-    
-    Server 2:
-    name             old time/op    new time/op    delta
-    AddVWext/1         5.48ns ± 0%    5.43ns ± 1%   -0.97%  (p=0.000 n=9+9)
-    AddVWext/2         5.99ns ± 2%    5.93ns ± 1%     ~     (p=0.054 n=10+10)
-    AddVWext/3         6.74ns ± 0%    6.79ns ± 1%   +0.80%  (p=0.000 n=9+10)
-    AddVWext/4         7.18ns ± 0%    7.21ns ± 1%   +0.36%  (p=0.034 n=9+10)
-    AddVWext/5         7.93ns ± 3%    8.18ns ± 0%   +3.18%  (p=0.000 n=10+8)
-    AddVWext/10        10.0ns ± 0%    10.1ns ± 1%   +0.60%  (p=0.011 n=10+10)
-    AddVWext/100       43.0ns ± 0%    47.7ns ± 0%  +10.93%  (p=0.000 n=9+10)
-    AddVWext/1000       394ns ± 0%     399ns ± 0%   +1.27%  (p=0.000 n=10+10)
-    AddVWext/10000     4.18µs ± 0%    4.50µs ± 0%   +7.73%  (p=0.000 n=9+10)
-    AddVWext/100000    67.6µs ± 2%    68.4µs ± 3%     ~     (p=0.139 n=9+8)
-    SubVWext/1         5.46ns ± 1%    5.43ns ± 0%   -0.55%  (p=0.002 n=9+9)
-    SubVWext/2         5.89ns ± 0%    5.93ns ± 1%   +0.68%  (p=0.000 n=8+10)
-    SubVWext/3         6.72ns ± 1%    6.79ns ± 1%   +1.07%  (p=0.000 n=10+10)
-    SubVWext/4         6.98ns ± 1%    7.21ns ± 0%   +3.25%  (p=0.000 n=10+10)
-    SubVWext/5         8.22ns ± 0%    7.99ns ± 3%   -2.83%  (p=0.000 n=8+10)
-    SubVWext/10        10.0ns ± 1%    10.1ns ± 1%     ~     (p=0.239 n=10+10)
-    SubVWext/100       43.0ns ± 0%    47.7ns ± 0%  +10.93%  (p=0.000 n=8+10)
-    SubVWext/1000       394ns ± 0%     399ns ± 0%   +1.27%  (p=0.000 n=10+10)
-    SubVWext/10000     4.18µs ± 0%    4.51µs ± 0%   +7.86%  (p=0.000 n=8+8)
-    SubVWext/100000    68.3µs ± 2%    68.0µs ± 3%     ~     (p=0.515 n=10+8)
-    
-    Change-Id: I134a5194b8a2deaaebbaa2b771baf72846971d58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229739
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I01416636a9d49f81246d28b91aca6413b1ba1aa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212117
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Roberto Clapis <robclap8@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/arith_arm64.s | 113 +++++++++++++++++++++++++++++++++++++--------
- src/math/big/arith_test.go |  96 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 189 insertions(+), 20 deletions(-)
+ src/text/template/funcs.go | 138 ++++++++++++++++++++++-----------------------
+ 1 file changed, 66 insertions(+), 72 deletions(-)

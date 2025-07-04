@@ -1,30 +1,12 @@
-commit 68fea523fda227ca5fe7a1eadb7542be4b0a840c
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Tue Mar 3 23:05:32 2020 +0800
+commit 974fd1301a52ff72a1ea299db15b2bdb57cb53cc
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Oct 11 14:36:39 2019 -0400
 
-    cmd/asm: add MIPS MSA LD/ST/LDI support for mips64x
+    [dev.boringcrypto] misc/boring: publish to Docker Hub all releases, not only the latest
     
-    This CL adding primitive asm support of MIPS MSA by introducing
-    new sets of register W0-W31 (C_WREG) and 12 new instructions:
-    
-    * VMOV{B,H,W,D} ADDCONST, WREG  (Vector load immediate)
-    * VMOV{B,H,W,D} SOREG, WREG     (Vector load)
-    * VMOV{B,H,W,D} WREG, SOREG     (Vector store)
-    
-    Ref: MIPS Architecture for Programmers Volume IV-j: The MIPS64 SIMD Architecture Module
-    
-    Change-Id: I3362c59a73c82c94769c18a19a0bee7e5029217d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215723
-    Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I67fe3db68dddcf216f7ba8f7fed67b01a114eff1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200763
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/asm/internal/arch/arch.go          |  4 ++
- src/cmd/asm/internal/arch/mips.go          |  4 ++
- src/cmd/asm/internal/asm/testdata/mips64.s | 33 +++++++++++++
- src/cmd/internal/obj/mips/a.out.go         | 48 +++++++++++++++++++
- src/cmd/internal/obj/mips/anames.go        |  4 ++
- src/cmd/internal/obj/mips/anames0.go       |  1 +
- src/cmd/internal/obj/mips/asm0.go          | 74 ++++++++++++++++++++++++++++++
- src/cmd/internal/obj/mips/list0.go         |  3 ++
- 8 files changed, 171 insertions(+)
+ misc/boring/release.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

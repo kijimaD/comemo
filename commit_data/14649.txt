@@ -1,17 +1,14 @@
-commit 19e2f26b21a8bb5f9cfed1808d25534d8fe88c47
-Author: James David Chalfant <james.chalfant@gmail.com>
-Date:   Fri Dec 14 09:00:33 2012 -0800
+commit a719700e8904283ba7aab02d9cf8faeadd6857a8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Dec 14 13:23:43 2012 +0400
 
-    database/sql: adds test for fix in issue 4433.
+    runtime/race: update runtime to r170112.
+    This includes GORACE history_size and log_path flags.
     
-    Tests that here should be automatic retries if a database
-    driver's connection returns ErrBadConn on Begin. See
-    "TestTxErrBadConn" in sql_test.go
-    
-    R=golang-dev
+    R=golang-dev, bradfitz, rsc, remyoudompheng, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6942050
+    https://golang.org/cl/6947046
 
- src/pkg/database/sql/fakedb_test.go | 32 +++++++++++++++++++++++++++-----
- src/pkg/database/sql/sql_test.go    | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 60 insertions(+), 5 deletions(-)
+ src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 145460 -> 180892 bytes
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 123196 -> 121144 bytes
+ 2 files changed, 0 insertions(+), 0 deletions(-)

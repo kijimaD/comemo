@@ -1,19 +1,30 @@
-commit 01e072db5d26c224dfbe7763a5b94ab23c163983
+commit 7e64377903b3abd922150e35601e0df597a8af9f
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 11 07:46:10 2018 -0800
+Date:   Fri Jun 29 21:14:47 2018 -0700
 
-    cmd/cgo: don't cache bad pointer typedefs
+    cmd/compile: only support -race and -msan where they work
     
-    The set of bad pointer typedefs changes as we see more typedefs, so
-    avoid looking in the cache when we find one.
+    Consolidate decision about whether -race and -msan options are
+    supported in cmd/internal/sys. Use consolidated functions in
+    cmd/compile and cmd/go. Use a copy of them in cmd/dist; cmd/dist can't
+    import cmd/internal/sys because Go 1.4 doesn't have it.
     
-    Fixes #29175
+    Fixes #24315
     
-    Change-Id: Idd82289bdd8628d11a983fa5ec96517e3a5bcbf1
-    Reviewed-on: https://go-review.googlesource.com/c/153597
+    Change-Id: I9cecaed4895eb1a2a49379b4848db40de66d32a9
+    Reviewed-on: https://go-review.googlesource.com/121816
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cgo/gcc.go | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/main.go |  8 +++++--
+ src/cmd/dist/test.go                | 45 +++++++++++++++++++++++++++++++------
+ src/cmd/go/go_test.go               | 17 +++++++-------
+ src/cmd/go/internal/work/init.go    |  9 +++-----
+ src/cmd/internal/sys/supported.go   | 29 ++++++++++++++++++++++++
+ test/fixedbugs/issue13265.go        |  1 +
+ test/fixedbugs/issue15091.go        |  1 +
+ test/fixedbugs/issue16008.go        |  1 +
+ test/fixedbugs/issue17449.go        |  1 +
+ test/fixedbugs/issue24651a.go       |  1 +
+ 10 files changed, 89 insertions(+), 24 deletions(-)

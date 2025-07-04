@@ -1,17 +1,24 @@
-commit 5a720d229d5ebc2f8b599aa54a3d807a1d54365f
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Jul 31 21:43:07 2018 -0700
+commit 70f5afa2104ac625190d65d6c19d83196e12482b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 5 16:04:56 2018 -0700
 
-    cmd/go: fix unnecessary plural
+    go/printer, gofmt: handle raw string literals containing newlines better
     
-    "expanded imports paths" should read "expanded import paths." Run
-    mkalldocs.sh to pick up other changes which were not committed to
-    alldocs.go.
+    A raw string containing newlines breaks whatever columns structure
+    has been established so far. Recognize the situation and force a
+    new section of alignment with the first line break seen after the
+    the raw string.
     
-    Change-Id: Iaa61e022d65f9464e8ff93a92cfba27dadf679cf
-    Reviewed-on: https://go-review.googlesource.com/127157
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Applied gofmt to src and misc.
+    
+    Fixes #9064.
+    
+    Change-Id: I961e94b529b1fd421908311f366b113e2ec9b7f0
+    Reviewed-on: https://go-review.googlesource.com/105040
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go            | 20 ++++++++++++--------
- src/cmd/go/internal/list/list.go |  2 +-
- 2 files changed, 13 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386Ops.go |  4 +--
+ src/go/printer/printer.go                  | 40 ++++++++++++++++++++++--------
+ src/go/printer/testdata/linebreaks.golden  | 22 +++++++++++++++-
+ src/go/printer/testdata/linebreaks.input   | 24 ++++++++++++++++--
+ 4 files changed, 75 insertions(+), 15 deletions(-)

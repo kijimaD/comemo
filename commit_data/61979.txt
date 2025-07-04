@@ -1,0 +1,18 @@
+commit f0a9b6df4551cb9559e2012d154972981df9fd4b
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Fri Jan 3 17:23:05 2025 +0100
+
+    internal/fuzz: remove the exp2 method
+    
+    It's not being used anywhere, remove it.
+    
+    Change-Id: I9c3eecacd4e5d44b18243bdec24ad88bc38c82bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639957
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/internal/fuzz/mutators_byteslice_test.go | 6 ------
+ src/internal/fuzz/pcg.go                     | 6 ------
+ 2 files changed, 12 deletions(-)

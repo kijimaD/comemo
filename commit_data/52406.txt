@@ -1,33 +1,44 @@
-commit 0ed364a46379f9561b72a29e7fdad15a1e191325
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Mar 23 15:28:42 2023 -0400
+commit 01359b46815e63307077dfa03972f40d2e0d94fe
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Fri Oct 1 22:52:12 2021 -0400
 
-    runtime: add "sigaction" to sigreturn symbol name
+    runtime: add GC CPU utilization limiter
     
-    In order to identify the sigreturn function, gdb looks for
-    "__restore_rt". However because that symbol is sometimes missing from
-    the symbol table, it also performs the same instruction matching as
-    libgcc, but only in symbols containing "sigaction" (it expects sigaction
-    to preceed __restore_rt).
+    This change adds a GC CPU utilization limiter to the GC. It disables
+    assists to ensure GC CPU utilization remains under 50%. It uses a leaky
+    bucket mechanism that will only fill if GC CPU utilization exceeds 50%.
+    Once the bucket begins to overflow, GC assists are limited until the
+    bucket empties, at the risk of GC overshoot. The limiter is primarily
+    updated by assists. The scheduler may also update it, but only if the
+    GC is on and a few milliseconds have passed since the last update. This
+    second case exists to ensure that if the limiter is on, and no assists
+    are happening, we're still updating the limiter regularly.
     
-    To match this heuristic, we add __sigaction to the sigreturn symbol
-    name.
+    The purpose of this limiter is to mitigate GC death spirals, opting to
+    use more memory instead.
     
-    Fixes #25218.
+    This change turns the limiter on always. In practice, 50% overall GC CPU
+    utilization is very difficult to hit unless you're trying; even the most
+    allocation-heavy applications with complex heaps still need to do
+    something with that memory. Note that small GOGC values (i.e.
+    single-digit, or low teens) are more likely to trigger the limiter,
+    which means the GOGC tradeoff may no longer be respected. Even so, it
+    should still be relatively rare.
     
-    Change-Id: I09cb231ad23f668d451f31dd5633f782355fc91d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479096
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    This change also introduces the feature flag for code to support the
+    memory limit feature.
+    
+    For #48409.
+    
+    Change-Id: Ia30f914e683e491a00900fd27868446c65e5d3c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353989
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/os_linux.go              |   4 +-
- src/runtime/runtime-gdb_unix_test.go | 207 +++++++++++++++++++++++++++++++++++
- src/runtime/sys_linux_386.s          |  12 +-
- src/runtime/sys_linux_amd64.s        |  13 ++-
- src/runtime/sys_linux_arm.s          |   3 -
- src/runtime/sys_linux_arm64.s        |   3 -
- src/runtime/sys_linux_ppc64x.s       |   3 -
- src/runtime/sys_linux_s390x.s        |   3 -
- 8 files changed, 229 insertions(+), 19 deletions(-)
+ src/runtime/export_test.go   |  57 +++++++++-
+ src/runtime/mgc.go           |  22 +++-
+ src/runtime/mgclimit.go      | 263 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mgclimit_test.go | 253 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mgcmark.go       |  14 ++-
+ src/runtime/mgcpacer.go      |  31 +++--
+ src/runtime/proc.go          |   6 +-
+ 7 files changed, 632 insertions(+), 14 deletions(-)

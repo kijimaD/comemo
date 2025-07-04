@@ -1,17 +1,12 @@
-commit 0b762d9523a8b672143556739726d3d4e8ac6c94
+commit ce06e15e2a74de89d13e648760f75da7262d0149
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 26 14:10:27 2012 +1100
+Date:   Mon Mar 26 13:59:30 2012 +1100
 
-    godoc: make 'Overview' section collapsable
-    
-    This makes packages with lengthly package comments easier to browse.
+    doc: make installation instructions more skim-friendly
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5901055
+    https://golang.org/cl/5908052
 
- doc/godocs.js          | 40 ++++++++++++++++++++++------------------
- doc/style.css          | 10 +++++-----
- lib/godoc/example.html |  6 +++---
- lib/godoc/package.html | 13 ++++++++++---
- 4 files changed, 40 insertions(+), 29 deletions(-)
+ doc/install.html | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

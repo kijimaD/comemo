@@ -1,16 +1,22 @@
-commit 60aa2cabbf027c57d3bde0797096116ae5f5e0f2
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Oct 2 11:48:51 2017 +0200
+commit f4f018518d6f8ca220871da072c7afe33e1cdbcb
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 13 11:14:43 2017 -0400
 
-    cmd/objdump: fix and re-enable arm test
+    runtime: move pdesc into p
     
-    Fixes #9021
+    There are currently two arrays indexed by P ID: allp and pdesc.
+    Consolidate these by moving the pdesc fields into type p so they can
+    be indexed off allp along with all other per-P state.
     
-    Change-Id: Id4465857c765342aa8c4b5bc2fdc06754a290025
-    Reviewed-on: https://go-review.googlesource.com/67530
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    For #15131.
+    
+    Change-Id: Ib6c4e6e7612281a1171ba4a0d62e52fd59e960b4
+    Reviewed-on: https://go-review.googlesource.com/45572
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/objdump/objdump_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc.go     | 4 ++--
+ src/runtime/runtime2.go | 7 ++++---
+ 2 files changed, 6 insertions(+), 5 deletions(-)

@@ -1,36 +1,19 @@
-commit 8818cc8885526b79dbe14d3bbb6f44a28435ce5c
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sun Oct 25 20:18:17 2015 +0000
+commit 4e99ed6fef28bc263ec42e63fd717a13367fb659
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 18 14:53:33 2015 -0700
 
-    go/build: fix cgo ${SRCDIR} substitution when that variable contains spaces
+    cmd/doc: don't drop const/var block if first entry is unexported
     
-    When the source directory path contains spaces, cgo directives
-    cannot be properly validated:
+    The code assumed that if the first entry was unexported, all the
+    entries were. The fix is simple: delete a bunch of code.
     
-    $ pwd
-    /root/src/issue 11868
+    Fixes #12286.
     
-    $ cat main.go
-    package main
-    //#cgo CFLAGS: -I${SRCDIR}/../../include
-    import "C"
-    func main() {
-    }
-    
-    $ go build
-    can't load package: package issue 11868: /root/src/issue 11868/main.go:
-     malformed #cgo argument: -I/root/src/issue 11868/../../include
-    
-    Make sure spaces are tolerated in ${SRCDIR} when this variable
-    is expanded. This applies to ${SRCDIR} only. Shell safety
-    checks are still done in the same exact way for anything else.
-    
-    Fixes #11868
-    
-    Change-Id: I93d1d2b5ab167caa7ae353fe46fb8f69f1f06969
-    Reviewed-on: https://go-review.googlesource.com/16302
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Icb09274e99ce97df4d8bddbe59d17a5c0622e4c6
+    Reviewed-on: https://go-review.googlesource.com/14780
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/go/build/build.go      | 37 +++++++++++++++++++++++++++++--------
- src/go/build/build_test.go | 24 +++++++++++++++++++++++-
- 2 files changed, 52 insertions(+), 9 deletions(-)
+ src/cmd/doc/doc_test.go     |  2 ++
+ src/cmd/doc/pkg.go          | 13 +------------
+ src/cmd/doc/testdata/pkg.go | 14 ++++++++++++++
+ 3 files changed, 17 insertions(+), 12 deletions(-)

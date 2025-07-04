@@ -1,20 +1,17 @@
-commit 2b39d86344608423138b648b98157470d3809ee7
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Jan 5 12:25:28 2022 -0800
+commit de7a87ef066d726eddcc47a018a2bc8fbd3793af
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Tue Apr 13 12:52:35 2021 +0200
 
-    cmd/go: add fuzzing coverage test
+    go/internal/gccgoimporter: replace os.MkdirTemp with T.TempDir
     
-    Adds a test script for fuzzing coverage instrumentation.
+    Updates #45402
     
-    Fixes #48654
-    
-    Change-Id: Ieea7b4146bd5581baae869441cc1c652dd7485f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375736
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie84795ed456883c0558fa9b5e3f2186f5f2c0fd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309356
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/go/testdata/script/test_fuzz_cov.txt | 33 ++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ src/go/internal/gccgoimporter/importer_test.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

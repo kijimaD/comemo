@@ -1,57 +1,28 @@
-commit 0af2c78c362481e45339b76d0a210bf462cfe65c
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Jan 25 09:27:01 2023 -0800
+commit 1ac16586421070cdc76c62b5dfd5e74a4b47fca8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 16 10:01:20 2022 -0500
 
-    mime/multipart: limit memory/inode consumption of ReadForm
+    cmd/go: remove arbitrary sleep in TestScript/test_chatty_parallel_success_sleepy
     
-    Reader.ReadForm is documented as storing "up to maxMemory bytes + 10MB"
-    in memory. Parsed forms can consume substantially more memory than
-    this limit, since ReadForm does not account for map entry overhead
-    and MIME headers.
+    (Also rename it to no longer describe itself in terms of sleeping.)
     
-    In addition, while the amount of disk memory consumed by ReadForm can
-    be constrained by limiting the size of the parsed input, ReadForm will
-    create one temporary file per form part stored on disk, potentially
-    consuming a large number of inodes.
+    This test previously relied on the scheduler to wake up a goroutine to
+    write the "--- PASS: TestFast" line within 100ms of TestFast actually
+    finishing. On some platforms, even that long a delay is apparently too
+    short.
     
-    Update ReadForm's memory accounting to include part names,
-    MIME headers, and map entry overhead.
+    Instead, we now use a deterministic "=== RUN" line instead of a
+    timing-dependent "--- PASS" line to interrupt the output.
     
-    Update ReadForm to store all on-disk file parts in a single
-    temporary file.
+    Fixes #51221
     
-    Files returned by FileHeader.Open are documented as having a concrete
-    type of *os.File when a file is stored on disk. The change to use a
-    single temporary file for all parts means that this is no longer the
-    case when a form contains more than a single file part stored on disk.
-    
-    The previous behavior of storing each file part in a separate disk
-    file may be reenabled with GODEBUG=multipartfiles=distinct.
-    
-    Update Reader.NextPart and Reader.NextRawPart to set a 10MiB cap
-    on the size of MIME headers.
-    
-    Thanks to Jakob Ackermann (@das7pad) for reporting this issue.
-    
-    Fixes #58006
-    Fixes CVE-2022-41725
-    
-    Change-Id: Ibd780a6c4c83ac8bcfd3cbe344f042e9940f2eab
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1714276
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    TryBot-Result: Security TryBots <security-trybots@go-security-trybots.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468124
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I3997640fb7577e29e3866a82d4d49a3a70a4b033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386154
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/mime/multipart/formdata.go       | 133 ++++++++++++++++++++++++++-------
- src/mime/multipart/formdata_test.go  | 141 ++++++++++++++++++++++++++++++++++-
- src/mime/multipart/multipart.go      |  25 +++++--
- src/mime/multipart/readmimeheader.go |  14 ++++
- src/net/http/request_test.go         |   2 +-
- src/net/textproto/reader.go          |  20 ++++-
- 6 files changed, 297 insertions(+), 38 deletions(-)
+ .../script/test_chatty_parallel_success_run.txt    | 41 ++++++++++++++++++++++
+ .../script/test_chatty_parallel_success_sleepy.txt | 39 --------------------
+ 2 files changed, 41 insertions(+), 39 deletions(-)

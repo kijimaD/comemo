@@ -1,15 +1,21 @@
-commit b444d438c061fa934130fed17d34c23e77174851
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Sep 19 14:09:07 2016 -0400
+commit 87ee12cece96ec5837fe89c37899d725e7e852d9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 31 13:21:35 2016 +1000
 
-    plugin: darwin support
+    crypto/tls: reduce size of buffer in throughput benchmarks
     
-    Change-Id: I76981d1d83da401178226634d076371a04f5ccb7
-    Reviewed-on: https://go-review.googlesource.com/29392
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The Windows builders run the throughput benchmarks really slowly with a
+    64kb buffer. Lowering it to 16kb brings the performance back into line
+    with the other builders.
+    
+    This is a work-around to get the build green until we can figure out why
+    the Windows builders are slow with the larger buffer size.
+    
+    Update #15899
+    
+    Change-Id: I215ebf115e8295295c87f3b3e22a4ef1f9e77f81
+    Reviewed-on: https://go-review.googlesource.com/23574
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/plugin/plugin_dlopen.go | 17 +++++++++++++----
- src/plugin/plugin_stubs.go  |  2 +-
- 2 files changed, 14 insertions(+), 5 deletions(-)
+ src/crypto/tls/tls_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

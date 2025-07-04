@@ -1,0 +1,29 @@
+commit cd35323be9e2e2fdf65e06b1a966774f2478aff8
+Author: Tim King <taking@google.com>
+Date:   Fri Nov 8 15:53:42 2024 -0800
+
+    internal/exportdata: introduce shared library for exportdata
+    
+    Deduplicates FindPkg and FindExportData which were shared by
+    go/internal/gcimporter and cmd/compile/internal/importer into
+    a new package internal/exportdata.
+    
+    This change only moves code.
+    
+    Change-Id: I1daf24dd79fafbe9014b2b15671dcde46b54711e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626700
+    Commit-Queue: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/importer/exportdata.go    |  76 --------
+ src/cmd/compile/internal/importer/gcimporter.go    | 140 +--------------
+ .../compile/internal/importer/gcimporter_test.go   |   7 +-
+ src/cmd/dist/buildtool.go                          |   1 +
+ src/go/build/deps_test.go                          |   2 +-
+ src/go/internal/gcimporter/exportdata.go           |  87 ---------
+ src/go/internal/gcimporter/gcimporter.go           | 133 +-------------
+ src/go/internal/gcimporter/gcimporter_test.go      |   2 +-
+ src/internal/exportdata/exportdata.go              | 198 +++++++++++++++++++++
+ src/internal/exportdata/support.go                 |  32 ++++
+ 10 files changed, 244 insertions(+), 434 deletions(-)

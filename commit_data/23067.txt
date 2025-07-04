@@ -1,104 +1,30 @@
-commit f0dd002895b48595f6c14f2bf606775289f59d5f
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 15 16:31:17 2015 -0400
+commit ca9128f18fe75878ba2d5e0df09ae755c085f72a
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Fri Apr 17 17:27:07 2015 -0700
 
-    runtime: use separate count and note for forEachP
+    runtime: merge clone0 and clone
     
-    Currently, forEachP reuses the stopwait and stopnote fields from
-    stopTheWorld to track how many Ps have not responded to the safe-point
-    request and to sleep until all Ps have responded.
+    We initially added clone0 to handle the case when G or M don't exist, but
+    it turns out that we could have just modified clone.  (It also helps that
+    the function we're invoking in clone0 no longer needs arguments.)
     
-    It was assumed this was safe because both stopTheWorld and forEachP
-    must occur under the worlsema and hence stopwait and stopnote cannot
-    be used for both purposes simultaneously and callers could always
-    determine the appropriate use based on sched.gcwaiting (which is only
-    set by stopTheWorld). However, this is not the case, since it's
-    possible for there to be a window between when an M observes that
-    gcwaiting is set and when it checks stopwait during which stopwait
-    could have changed meanings. When this happens, the M decrements
-    stopwait and may wakeup stopnote, but does not otherwise participate
-    in the forEachP protocol. As a result, stopwait is decremented too
-    many times, so it may reach zero before all Ps have run the safe-point
-    function, causing forEachP to wake up early. It will then either
-    observe that some P has not run the safe-point function and panic with
-    "P did not run fn", or the remaining P (or Ps) will run the safe-point
-    function before it wakes up and it will observe that stopwait is
-    negative and panic with "not stopped".
+    As a side-effect, newosproc0 is now supported on all linux archs.
     
-    Fix this problem by giving forEachP its own safePointWait and
-    safePointNote fields.
-    
-    One known sequence of events that can cause this race is as
-    follows. It involves three actors:
-    
-    G1 is running on M1 on P1. P1 has an empty run queue.
-    
-    G2/M2 is in a blocked syscall and has lost its P. (The details of this
-    don't matter, it just needs to be in a position where it needs to grab
-    an idle P.)
-    
-    GC just started on G3/M3/P3. (These aren't very involved, they just
-    have to be separate from the other G's, M's, and P's.)
-    
-    1. GC calls stopTheWorld(), which sets sched.gcwaiting to 1.
-    
-    Now G1/M1 begins to enter a syscall:
-    
-    2. G1/M1 invokes reentersyscall, which sets the P1's status to
-       _Psyscall.
-    
-    3. G1/M1's reentersyscall observes gcwaiting != 0 and calls
-       entersyscall_gcwait.
-    
-    4. G1/M1's entersyscall_gcwait blocks acquiring sched.lock.
-    
-    Back on GC:
-    
-    5. stopTheWorld cas's P1's status to _Pgcstop, does other stuff, and
-       returns.
-    
-    6. GC does stuff and then calls startTheWorld().
-    
-    7. startTheWorld() calls procresize(), which sets P1's status to
-       _Pidle and puts P1 on the idle list.
-    
-    Now G2/M2 returns from its syscall and takes over P1:
-    
-    8. G2/M2 returns from its blocked syscall and gets P1 from the idle
-       list.
-    
-    9. G2/M2 acquires P1, which sets P1's status to _Prunning.
-    
-    10. G2/M2 starts a new syscall and invokes reentersyscall, which sets
-        P1's status to _Psyscall.
-    
-    Back on G1/M1:
-    
-    11. G1/M1 finally acquires sched.lock in entersyscall_gcwait.
-    
-    At this point, G1/M1 still thinks it's running on P1. P1's status is
-    _Psyscall, which is consistent with what G1/M1 is doing, but it's
-    _Psyscall because *G2/M2* put it in to _Psyscall, not G1/M1. This is
-    basically an ABA race on P1's status.
-    
-    Because forEachP currently shares stopwait with stopTheWorld. G1/M1's
-    entersyscall_gcwait observes the non-zero stopwait set by forEachP,
-    but mistakes it for a stopTheWorld. It cas's P1's status from
-    _Psyscall (set by G2/M2) to _Pgcstop and proceeds to decrement
-    stopwait one more time than forEachP was expecting.
-    
-    Fixes #10618. (See the issue for details on why the above race is safe
-    when forEachP is not involved.)
-    
-    Prior to this commit, the command
-      stress ./runtime.test -test.run TestFutexsleep\|TestGoroutineProfile
-    would reliably fail after a few hundred runs. With this commit, it
-    ran for over 2 million runs and never crashed.
-    
-    Change-Id: I9a91ea20035b34b6e5f07ef135b144115f281f30
-    Reviewed-on: https://go-review.googlesource.com/10157
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie603af75d8f164310fc16446052d83743961f3ca
+    Reviewed-on: https://go-review.googlesource.com/9164
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/proc1.go    | 30 +++++++++++++++---------------
- src/runtime/runtime2.go |  4 +++-
- 2 files changed, 18 insertions(+), 16 deletions(-)
+ src/runtime/export_linux_test.go |  9 +++++++
+ src/runtime/export_test.go       |  2 ++
+ src/runtime/norace_linux_test.go | 37 +++++++++++++++++++++++++++++
+ src/runtime/os1_linux.go         |  6 ++---
+ src/runtime/os_linux.go          |  3 ---
+ src/runtime/rt0_linux_386.s      |  1 -
+ src/runtime/rt0_linux_amd64.s    | 27 ++++++++++-----------
+ src/runtime/rt0_linux_arm.s      | 28 ++++++++++------------
+ src/runtime/sys_linux_386.s      | 31 ++++++++++++------------
+ src/runtime/sys_linux_amd64.s    | 47 +++++++++++-------------------------
+ src/runtime/sys_linux_arm.s      | 51 ++++++++--------------------------------
+ src/runtime/sys_linux_arm64.s    | 21 ++++++++---------
+ src/runtime/sys_linux_ppc64x.s   | 19 +++++++--------
+ 13 files changed, 135 insertions(+), 147 deletions(-)

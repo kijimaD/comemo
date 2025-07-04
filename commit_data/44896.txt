@@ -1,26 +1,18 @@
-commit 5f646f0a984d43a2e9e99a1338145a862fef425e
+commit c0c396bd6ad2aea40f7f302711c8b89e20feb371
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Mar 31 20:02:26 2021 -0400
+Date:   Fri Sep 11 20:09:40 2020 -0400
 
-    cmd/compile: fix parameter offset calculation
+    misc/ios: quote paths
     
-    For struct like { { a int64; b int16 }; c int32 }, on 64-bit
-    machines the offset of c is 16, as the inner struct takes 16
-    bytes because we round up type size to its alignment. Update the
-    abi package's offset calculation to include this.
+    The paths may contain spaces. Quote them.
     
-    We only need to do this for struct type, because for all other
-    types its size is naturally aligned.
-    
-    TODO: add a test.
-    
-    Change-Id: I0c661768cb1ed3cb409b20a88b7e23e059f8e3e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306449
-    Trust: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1f67085a1e7c40f60282c2fea7104fb44a01e310
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254739
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/ios/clangwrap.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

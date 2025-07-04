@@ -1,15 +1,33 @@
-commit 992320aaa8e30fdd006b5c781b58549a2327d3b6
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 18 16:49:19 2016 -0400
+commit 4c4476c297e0a43bf92e8303da369cdc18e5745c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 12:38:05 2016 -0800
 
-    cmd/internal/objfile: add s390x support
+    runtime: on NetBSD and DragonFly drop signal stack in new thread
     
-    Change-Id: I39aa6569c9a6f327f7aaa01f8b4ace814fd5b766
-    Reviewed-on: https://go-review.googlesource.com/20943
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    On NetBSD and DragonFly a newly created thread inherits the signal stack
+    of the creating thread.  This breaks horribly if both threads get a
+    signal at the same time.  Fix this by dropping the signal stack in the
+    newly created thread.  The right signal stack will then get installed
+    later.
+    
+    Note that cgo code that calls pthread_create will have the wrong,
+    duplicated, signal stack in the newly created thread.  I don't see any
+    way to fix that in Go.  People using cgo to call pthread_create will
+    have to be aware of the problem.
+    
+    Fixes #13945.
+    Fixes #13947.
+    
+    Change-Id: I0c7bd2cdf9ada575d57182ca5e9523060de34931
+    Reviewed-on: https://go-review.googlesource.com/18814
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/objfile/disasm.go | 1 +
- src/cmd/internal/objfile/elf.go    | 2 ++
- 2 files changed, 3 insertions(+)
+ src/runtime/cgo/gcc_dragonfly_amd64.c | 12 ++++++++++++
+ src/runtime/cgo/gcc_netbsd_386.c      | 12 ++++++++++++
+ src/runtime/cgo/gcc_netbsd_amd64.c    | 12 ++++++++++++
+ src/runtime/cgo/gcc_netbsd_arm.c      | 12 ++++++++++++
+ src/runtime/os1_netbsd.go             | 15 ++++++++++++++-
+ src/runtime/sys_dragonfly_amd64.s     | 12 ++++++++++++
+ 6 files changed, 74 insertions(+), 1 deletion(-)

@@ -1,15 +1,19 @@
-commit 66c4031ee97289f26922126111e0510398fb43fd
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Feb 27 21:43:53 2015 +1100
+commit 22f337656d8e4b244e45bc27c21ed3379be58e3d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 3 16:17:08 2015 -0800
 
-    image/draw: optimize drawFillSrc.
+    cmd/go, make: remove ccflags
     
-    benchmark                    old ns/op     new ns/op     delta
-    BenchmarkFillSrc             46781         46000         -1.67%
+    cc is no more.
     
-    Change-Id: I0ab25d42d5763f1a0fe5a67ee00b83f0aa55f1f6
-    Reviewed-on: https://go-review.googlesource.com/6235
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8d1bc0d2e471cd9357274204c9bc1fa67cbc272d
+    Reviewed-on: https://go-review.googlesource.com/3833
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/image/draw/draw.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/go/build.go    | 5 -----
+ src/cmd/go/doc.go      | 2 --
+ src/cmd/go/testflag.go | 6 ------
+ src/make.bash          | 7 ++-----
+ src/make.rc            | 7 ++-----
+ 5 files changed, 4 insertions(+), 23 deletions(-)

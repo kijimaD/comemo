@@ -1,18 +1,12 @@
-commit 212bdd95e00c1b02ae4e797d1d38ac7dcb6d131a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 5 14:15:49 2016 -0800
+commit 73ff7cb1ed56921c82bf6bdfc173ce8e49ea437c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Oct 27 19:47:54 2015 -0400
 
-    spec: New year, new spec update (to refer to Unicode 8.0).
+    runtime: c-shared entrypoint for linux/arm64
     
-    Slightly rephrased sentence to emphasize the contents of the
-    Unicode categories w/o repeating the full category name each
-    time.
-    
-    Fixes #13414.
-    
-    Change-Id: Icd32ff1547fa81e866c5937a631c3344bb6087c6
-    Reviewed-on: https://go-review.googlesource.com/18265
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I7dab124842f5209097a8d5a802fcbdde650654fa
+    Reviewed-on: https://go-review.googlesource.com/16395
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/runtime/rt0_linux_arm64.s | 44 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

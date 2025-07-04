@@ -1,24 +1,56 @@
-commit c0ac33c00614a2f36c88671ef7c520d246cd8bc9
-Author: Frank Viernau <frank_viernau@epam.com>
-Date:   Mon Feb 20 09:08:00 2023 +0000
+commit 89dff118ada91061350aa149b54a2ab4fdbd6810
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 30 19:22:46 2022 -0500
 
-    cmd/go: don't compute Embed fields if they're not needed
+    all: fix TODO comment hanging indents
     
-    If the user provides the -json flag to explicitly specify fields, but doesn't specify any *Embed* field, skip computing the embed fields.
+    For whatever reason (perhaps some tool does this), a handful of comments,
+    including some doc comments, have TODOs formatted like:
     
-    This enhances the initial implementation of #29666.
+            // TODO(name): Text here and
+            //             more text aligned
+            //             under first text.
     
-    Change-Id: I60e86fb25a445689aecbcc7f3f3f88e0f37a0fc5
-    GitHub-Last-Rev: 2795c195bf995f798a45e928becebc253c89b9d6
-    GitHub-Pull-Request: golang/go#58522
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468075
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    In doc comments the second line turns into a <pre> block,
+    which is undesirable in this context.
+    
+    Rewrite those to unindent, like this instead:
+    
+            // TODO(name): Text here and
+            // more text aligned
+            // at left column.
+    
+    For #51082.
+    
+    Change-Id: Ibf5145659a61ebf9496f016752a709a7656d2d4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384258
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/list/list.go                |  5 ++--
- src/cmd/go/internal/load/pkg.go                 | 18 ++++++++----
- src/cmd/go/testdata/script/list_json_fields.txt | 38 +++++++++++++++++++++++++
- 3 files changed, 53 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/func_test.go      |  2 +-
+ src/cmd/compile/internal/syntax/nodes.go       |  2 +-
+ src/cmd/compile/internal/syntax/pos.go         |  2 +-
+ src/cmd/compile/internal/syntax/tokens.go      |  4 ++--
+ src/cmd/compile/internal/syntax/walk.go        |  2 +-
+ src/cmd/compile/internal/types2/assignments.go |  4 ++--
+ src/cmd/compile/internal/types2/lookup.go      |  6 +++---
+ src/cmd/compile/internal/types2/named.go       |  2 +-
+ src/cmd/compile/internal/types2/return.go      |  4 ++--
+ src/cmd/compile/internal/types2/stmt.go        |  2 +-
+ src/cmd/compile/internal/types2/validtype.go   | 10 +++++-----
+ src/go/ast/walk.go                             |  2 +-
+ src/go/constant/value.go                       |  6 +++---
+ src/go/parser/performance_test.go              |  4 ++--
+ src/go/printer/nodes.go                        | 14 +++++++-------
+ src/go/printer/testdata/parser.go              |  2 +-
+ src/go/types/lookup.go                         |  6 +++---
+ src/go/types/named.go                          |  2 +-
+ src/go/types/return.go                         |  4 ++--
+ src/go/types/stmt.go                           |  2 +-
+ src/go/types/validtype.go                      | 10 +++++-----
+ src/math/big/arith_test.go                     |  2 +-
+ src/net/http/transport_test.go                 |  2 +-
+ src/reflect/type.go                            |  2 +-
+ 24 files changed, 49 insertions(+), 49 deletions(-)

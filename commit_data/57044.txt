@@ -1,18 +1,30 @@
-commit 34ddde165d770e0a0dbca1bd64260ed878eb48c8
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Wed Jul 31 14:55:51 2024 +0000
+commit 962753b015407c69dd334578fd32a80aa7905c24
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jun 12 12:33:30 2023 -0400
 
-    cmd/go: fix windows test failure for test_buildinfo_godebug_issue68053
+    go/build: check for invalid import paths again
     
-    Fix required adding $GOEXE because windows will produce a .exe file.
+    The go parser previously checked for invalid import paths, go/build,
+    seeing the parse error would put files with invalid import paths into
+    InvalidGoFiles. golang.org/cl/424855 removed that check from the
+    parser, which meant files with invalid import paths not have any parse
+    errors on them and not be put into InvalidGoFiles. Do a check for
+    invalid import paths in go/build soon after parsing so we can make
+    sure files with invalid import paths go into InvalidGoFiles.
     
-    Fixes: #68673
+    This fixes an issue where the Go command assumed that if a file wasn't
+    invalid it had non empty import paths, leading to a panic.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I25206de362ee4be6a9c54bd1baa405f325d79313
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602095
+    Fixes #60230
+    Fixes #60686
+    
+    Change-Id: I33c1dc9304649536834939cef7c689940236ee20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502615
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/testdata/script/test_buildinfo_godebug_issue68053.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/testdata/script/list_empty_import.txt |  9 +++++++++
+ src/go/build/read.go                             | 22 ++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

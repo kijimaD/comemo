@@ -1,18 +1,97 @@
-commit 61debffd977889cd3f7f63b4f71d5a8ef1fc604e
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Oct 4 01:44:41 2020 +1000
+commit ad91591f34f7c08962a229d6e3b08a8930f8a661
+Merge: 9963add628 1f325af4dd
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu May 14 13:45:27 2020 -0400
 
-    runtime: factor out usesLibcall
+    [dev.link] all: merge master to dev.link
     
-    Rather than inline lists of GOOS values, factor out the code that checks
-    if a runtime makes system calls via libcall.
-    
-    Change-Id: Ib19d7e63a2b4b8314f1841c0ff26e1b3a16b4b22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259239
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ia30d70096e740d012e4d9e070bbc4347805527a7
 
- src/runtime/proc.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ AUTHORS                                            |   1 +
+ CONTRIBUTORS                                       |   1 +
+ misc/wasm/wasm_exec.js                             |  48 ++--
+ src/cmd/asm/internal/asm/testdata/arm64.s          |   3 +
+ src/cmd/compile/internal/gc/noder.go               |   2 +-
+ src/cmd/compile/internal/gc/subr.go                |   8 +-
+ src/cmd/compile/internal/gc/typecheck.go           |   7 +
+ src/cmd/compile/internal/ssa/cse.go                |  92 ++++---
+ src/cmd/compile/internal/ssa/gen/PPC64.rules       |  27 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go       |  24 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules     |  32 ++-
+ src/cmd/compile/internal/ssa/prove.go              |  33 ++-
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |  72 +++---
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go     | 125 +++++++++
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/alldocs.go                              |   8 +-
+ src/cmd/go/go_test.go                              |  27 +-
+ src/cmd/go/internal/modget/get.go                  |  12 +-
+ src/cmd/go/internal/modload/import.go              | 104 ++++++--
+ src/cmd/go/internal/modload/load.go                |  21 +-
+ src/cmd/go/internal/modload/query.go               |  51 ++--
+ src/cmd/go/internal/modload/search.go              |  44 ++--
+ src/cmd/go/internal/search/search.go               |  12 +-
+ src/cmd/go/internal/test/test.go                   |  10 +-
+ src/cmd/go/script_test.go                          | 283 ++++++++++++++-------
+ src/cmd/go/testdata/script/README                  |   5 +-
+ src/cmd/go/testdata/script/list_dedup_packages.txt |   2 +-
+ .../go/testdata/script/list_gofile_in_goroot.txt   |   3 +
+ src/cmd/go/testdata/script/list_permissions.txt    |  84 ++++++
+ src/cmd/go/testdata/script/script_wait.txt         |   7 +-
+ src/cmd/internal/obj/arm64/asm7.go                 |  10 +-
+ src/cmd/internal/obj/arm64/obj7.go                 |   9 +
+ src/cmd/link/internal/ld/macho.go                  |   4 +-
+ src/cmd/link/internal/ld/outbuf_linux.go           |   2 +-
+ src/cmd/link/internal/ld/outbuf_mmap.go            |   8 +-
+ .../vendor/golang.org/x/arch/ppc64/ppc64asm/gnu.go |  15 ++
+ .../golang.org/x/arch/ppc64/ppc64asm/plan9.go      | 165 ++++++++++--
+ .../golang.org/x/arch/ppc64/ppc64asm/tables.go     | 105 ++++++++
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/encoding/json/decode.go                        | 103 ++++----
+ src/encoding/json/decode_test.go                   |  54 ++++
+ src/image/png/reader.go                            |   5 +-
+ src/internal/poll/copy_file_range_linux.go         |   8 +-
+ src/internal/poll/fd_unix.go                       |  59 ++++-
+ src/internal/poll/fd_writev_unix.go                |  13 +-
+ src/internal/poll/sendfile_bsd.go                  |   3 +
+ src/internal/poll/sendfile_linux.go                |   3 +
+ src/internal/poll/splice_linux.go                  |   3 +
+ src/internal/poll/writev.go                        |   5 +-
+ src/internal/trace/writer.go                       |   4 +
+ src/net/http/pprof/pprof.go                        |  10 +-
+ src/net/sockopt_aix.go                             |   7 +-
+ src/net/sockopt_bsd.go                             |   7 +-
+ src/net/sockopt_linux.go                           |   7 +-
+ src/net/sockopt_solaris.go                         |   7 +-
+ src/net/sockopt_windows.go                         |   6 +-
+ src/os/exec_unix.go                                |  15 +-
+ src/os/wait_wait6.go                               |  23 +-
+ src/os/wait_waitid.go                              |   8 +-
+ src/runtime/cgo/gcc_android.c                      |   2 +-
+ src/runtime/crash_cgo_test.go                      |  27 ++
+ src/runtime/export_test.go                         |   6 +-
+ src/runtime/malloc.go                              |   2 +-
+ src/runtime/mheap.go                               |   4 +-
+ src/runtime/mpagealloc.go                          |  12 +-
+ src/runtime/mranges.go                             |  32 +--
+ src/runtime/testdata/testprog/numcpu_freebsd.go    |   8 +-
+ src/runtime/testdata/testprogcgo/eintr.go          | 240 +++++++++++++++++
+ src/runtime/trace/trace_stack_test.go              |   1 +
+ src/strconv/atoc_test.go                           |  39 +--
+ src/strconv/atof.go                                |   2 +-
+ src/strconv/atof_test.go                           |   2 +-
+ src/syscall/exec_linux_test.go                     |   6 +-
+ src/syscall/exec_unix.go                           |   7 +-
+ src/syscall/js/js_test.go                          |  11 +
+ src/syscall/syscall_linux_test.go                  |   9 +-
+ src/testing/testing.go                             |   9 +-
+ test/codegen/arithmetic.go                         |  11 +
+ test/fixedbugs/issue25727.go                       |   8 +-
+ test/fixedbugs/issue31053.dir/f1.go                |  18 ++
+ test/fixedbugs/issue31053.dir/main.go              |  42 +++
+ test/fixedbugs/issue31053.go                       |   7 +
+ test/fixedbugs/issue36437.go                       |  49 ++++
+ test/fixedbugs/issue37246.go                       |  23 ++
+ test/fixedbugs/issue38916.go                       |  14 +
+ test/prove.go                                      |  64 +++++
+ 87 files changed, 1941 insertions(+), 538 deletions(-)

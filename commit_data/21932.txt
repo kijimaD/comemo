@@ -1,26 +1,14 @@
-commit 392434e1d05b14c97c43c43db7b5a0a6168690d9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Feb 27 16:05:30 2015 +0900
+commit 6731063e42e6c9831a19e1cc7b79658bd663ad9b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Feb 13 17:19:33 2015 +0300
 
-    cmd/internal/gc: use crypto/md5 instead of md5.go
+    runtime/race: fix test in preparation for new race runtime
     
-    Note: for simplicity, this CL changes the identifiers assigned to
-    gclocals.* objects; e.g., on amd64, gclocals.ABCDEFGHIJKLMNOP is now
-    gclocals.HGFEDCBAPONMLKJI.  However, since Go requires all packages to
-    be built with the same toolchain version anyway, this should be a
-    non-issue.
+    New race runtime is more scrupulous about env flags format.
     
-    Similarly, type hashes change somewhat, but don't seem to be exposed
-    to users in any detectable manner.
-    
-    Change-Id: Iadb3bce472af9b022b88d52b3c4c5e4113cda330
-    Reviewed-on: https://go-review.googlesource.com/6232
+    Change-Id: I2828bc737a8be3feae5288ccf034c52883f224d8
+    Reviewed-on: https://go-review.googlesource.com/4811
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/gc/md5.go  | 298 --------------------------------------------
- src/cmd/internal/gc/pgen.go |   8 +-
- src/cmd/internal/gc/subr.go |  10 +-
- 3 files changed, 6 insertions(+), 310 deletions(-)
+ src/runtime/race/race_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

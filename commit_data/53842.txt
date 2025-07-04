@@ -1,21 +1,16 @@
-commit 840ec052f6b550859f48fff28559bf18e5ca4b22
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Jun 12 12:09:44 2023 +0000
+commit 91a1b55489dfdc720ee4043390777e903c69222a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 17:47:17 2022 +0800
 
-    archive/tar: narrow trim range for formatter'formatString
+    flag: use strings.Builder
     
-    Trim s[:len(b)-1] rather than s[:len(b)], since s[len(b)-1] is '/'.
-    
-    Change-Id: I055da555810c112774549bd13d4faa8bfa0a60dc
-    GitHub-Last-Rev: 457977514d75a6c72086c2f4d89fb601280b8b90
-    GitHub-Pull-Request: golang/go#60729
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502376
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iee846c4ac0f111ff97aa618dd42f6b2d14aa4342
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428259
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/archive/tar/strconv.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/flag/flag_test.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

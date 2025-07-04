@@ -1,17 +1,20 @@
-commit 6711fa70cecce261662c20613cc63eec0c21a16a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 1 15:06:36 2017 -0700
+commit 7f9832254c78266cf8f3bbd632c806e5c71b6d5a
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon Mar 13 16:30:54 2017 -0500
 
-    test: add test that caused gccgo compiler crash
+    cmd/internal/obj/x86: fix relocation offset for VEX encoded instructions
     
-    Updates #21253
+    VEX encoded instructions don't have a REX byte, so for PC relative
+    addressing we don't need to recalculate relocation offset.
     
-    Change-Id: Iece71a27207b578618cafb378dac2362517363d0
-    Reviewed-on: https://go-review.googlesource.com/52531
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #19518
+    
+    Change-Id: Icf5414962de4350d76fd220817498337f90614fc
+    Reviewed-on: https://go-review.googlesource.com/38138
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/fixedbugs/issue21253.go | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ src/cmd/internal/obj/x86/asm6.go            |   2 +-
+ src/cmd/internal/obj/x86/issue19518_test.go | 110 ++++++++++++++++++++++++++++
+ 2 files changed, 111 insertions(+), 1 deletion(-)

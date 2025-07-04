@@ -1,24 +1,19 @@
-commit 27da3ba5af274ba6702849d708b0004d80c9ca67
-Author: David Chase <drchase@google.com>
-Date:   Mon May 15 13:49:30 2017 -0400
+commit f6698cf3402f2d3049216b599ea1bc06d9de15c2
+Author: Michel Lespinasse <walken@google.com>
+Date:   Sat Jan 21 00:13:36 2017 -0800
 
-    cmd/compile: don't attach lines to SB, SP, similar constants
+    vendor: import golang.org/x/net/proxy
     
-    Attaching positions to SB, SP, initial mem can result in
-    less-good line-numbering when compiled for debugging.
-    This "fix" also removes source position from a zero-valued
-    struct (but not from its fields) and from a zero-length
-    array constant.
+    Add golang.org/x/net/proxy from x/net git rev a689eb3bc4b5
     
-    This may be a general problem for constants in entry blocks.
-    
-    Fixes #20367.
-    
-    Change-Id: I7e9df3341be2e2f60f127d35bb31e43cdcfce9a1
-    Reviewed-on: https://go-review.googlesource.com/43531
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4ceb2cf5686042c545fe69868537a66e083139de
+    Reviewed-on: https://go-review.googlesource.com/35552
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/vendor/golang_org/x/net/proxy/direct.go        |  18 ++
+ src/vendor/golang_org/x/net/proxy/per_host.go      | 140 ++++++++++++++
+ src/vendor/golang_org/x/net/proxy/per_host_test.go |  55 ++++++
+ src/vendor/golang_org/x/net/proxy/proxy.go         |  94 +++++++++
+ src/vendor/golang_org/x/net/proxy/proxy_test.go    | 142 ++++++++++++++
+ src/vendor/golang_org/x/net/proxy/socks5.go        | 213 +++++++++++++++++++++
+ 6 files changed, 662 insertions(+)

@@ -1,19 +1,21 @@
-commit 6502c112863bda754ca3a52ead739f7d6c259117
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Aug 16 16:55:32 2018 +0200
+commit d69760064f85aa19db1c26f86a13c8240682970c
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Apr 13 12:46:49 2018 -0400
 
-    cmd/go: fix typos in go help mod subpages
+    net/http: remove some stderr log spam
     
-    mkalldocs.sh was run and it also picked up a doc change introduced in
-    CL 128935, where it wasn't run.
+    This changes rawResponse to install a logger before
+    Serve()ing and makes the log output available to
+    tests.
     
-    Fixes #27030
+    Updates #24831
+    Updates CL 89275
     
-    Change-Id: Ie13fdb71cd7d5481366a02eb711ca48f094026fd
-    Reviewed-on: https://go-review.googlesource.com/129576
+    Change-Id: I0fb636a35b05959ca9978d5d8552f38b7cf8e8b5
+    Reviewed-on: https://go-review.googlesource.com/106756
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go                  | 7 ++++---
- src/cmd/go/internal/list/list.go       | 2 +-
- src/cmd/go/internal/modcmd/download.go | 2 +-
- 3 files changed, 6 insertions(+), 5 deletions(-)
+ src/net/http/serve_test.go | 43 ++++++++++++++++++++++++++-----------------
+ 1 file changed, 26 insertions(+), 17 deletions(-)

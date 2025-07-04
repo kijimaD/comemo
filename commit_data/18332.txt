@@ -1,26 +1,19 @@
-commit 52125738f3ca6f30364eebf0f4d673f73a71c248
-Author: Jeff Sickel <jas@corpus-callosum.com>
-Date:   Wed Jan 22 22:21:53 2014 +0100
+commit 13516383146b12963ba7ec37c852508b3f946e57
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 22 21:21:18 2014 +0100
 
-    net: plan9 changes for default net directory
+    cmd/gc, cmd/ld: fix Plan 9 warnings
     
-    This change include updates to the probeIPv4Stack
-    and probeIPv6Stack to ensure that one or both
-    protocols are supported by ip(3).
-    The addition of fdMutex to netFD fixes the
-    TestTCPConcurrentAccept failures.
-    Additional changes add support for keepalive.
+    warning: /usr/go/src/cmd/gc/obj.c:23 format mismatch -10d VLONG, arg 9
+    warning: /usr/go/src/cmd/gc/plive.c:1680 set and not used: printed
+    warning: /usr/go/src/cmd/ld/lib.c:332 non-interruptable temporary
+    warning: /usr/go/src/cmd/ld/lib.c:338 non-interruptable temporary
     
-    R=golang-codereviews, 0intro
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/49920048
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/53820046
 
- src/pkg/net/fd_plan9.go         | 111 ++++++++++++++++++++++++++++++++++++++--
- src/pkg/net/file_plan9.go       |  10 ++--
- src/pkg/net/ipsock_plan9.go     |  62 ++++++++++++++++------
- src/pkg/net/lookup_plan9.go     |   8 +--
- src/pkg/net/sockopt_plan9.go    |  13 +++++
- src/pkg/net/tcpsock_plan9.go    |  10 +++-
- src/pkg/net/tcpsockopt_plan9.go |  18 +++++++
- src/pkg/net/udpsock_plan9.go    |   3 +-
- 8 files changed, 202 insertions(+), 33 deletions(-)
+ src/cmd/gc/obj.c   | 2 +-
+ src/cmd/gc/plive.c | 5 ++---
+ src/cmd/ld/lib.c   | 6 ++++--
+ 3 files changed, 7 insertions(+), 6 deletions(-)

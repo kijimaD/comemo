@@ -1,18 +1,12 @@
-commit 3549178e551e359200dc4fd162f14b848ad65b31
-Author: Paolo Martini <mrtnpaolo@gmail.com>
-Date:   Fri Jul 17 17:26:08 2015 +0200
+commit aff7a573d10cc544536a9e562e06984adebab548
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 9 12:10:10 2015 +0900
 
-    doc: fix typo
+    net: disable dualstack listener tests on dragonfly
     
-    The document `doc/go_spec.html` uses "preceeding" instead of the word
-    "preceding" in one place.
-    
-    Fixed another occurrence in `src/go/types/typexpr.go`.
-    
-    Change-Id: Ic67f62026b5c9d002c5c5632299f14ecac8b02ae
-    Reviewed-on: https://go-review.googlesource.com/12354
+    Change-Id: Ia7914156e4369113dea7c17b3aa51096e25f1901
+    Reviewed-on: https://go-review.googlesource.com/10834
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html        | 2 +-
- src/go/types/typexpr.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/net/listen_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

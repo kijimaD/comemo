@@ -1,16 +1,17 @@
-commit f5154edc539e2405e206105617ef7f6188b7e6a6
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Jan 30 21:19:03 2013 +0100
+commit ba05a436084376d0b17acb0fdde0a7bc78ab2fc1
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Jan 30 20:21:08 2013 +0100
 
-    exp/locale/collate/tools/colcmp: fixes some discrepancies between
-    ICU and collate package: ICU requires strings to be in FCD form.
-    Not all NFC strings are in this form, leading to incorrect results.
-    Change to NFD instead.
+    cmd/gc: Error out on division by constant zero.
     
-    R=rsc
+    Fixes #4264.
+    
+    R=cldorian, rsc
     CC=golang-dev
-    https://golang.org/cl/7201043
+    https://golang.org/cl/6845113
 
- src/pkg/exp/locale/collate/tools/colcmp/colcmp.go | 2 +-
- src/pkg/exp/locale/collate/tools/colcmp/gen.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/typecheck.c      |  7 +++++++
+ test/64bit.go               | 25 +++++++++++++++++++++++--
+ test/fixedbugs/bug410.go    |  2 +-
+ test/fixedbugs/issue4264.go | 19 +++++++++++++++++++
+ 4 files changed, 50 insertions(+), 3 deletions(-)

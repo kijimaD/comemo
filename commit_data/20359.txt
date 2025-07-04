@@ -1,45 +1,25 @@
-commit 176020e1b1aa92a92423e7f1920d2a904c634394
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 8 18:07:50 2014 -0400
+commit f44073785a99c2b6656156fe42055f81d29f5e1a
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 3 08:49:43 2014 -0700
 
-    runtime: turn off StackCopyAlways
+    runtime: deferproc/deferreturn in Go
     
-    windows/amd64 failure:
-    http://build.golang.org/log/1ded5e3ef4bd1226f976e3180772f87e6c918255
-    
-    # ..\misc\cgo\testso
-    runtime: copystack: locals size info only for syscall.Syscall
-    fatal error: split stack not allowed
-    
-    runtime stack:
-    runtime.throw(0xa64cc7)
-            c:/go/src/runtime/panic.go:395 +0xad fp=0x6fde0 sp=0x6fdb0
-    runtime.newstack()
-            c:/go/src/runtime/stack.c:1001 +0x750 fp=0x6ff20 sp=0x6fde0
-    runtime.morestack()
-            c:/go/src/runtime/asm_amd64.s:306 +0x73 fp=0x6ff28 sp=0x6ff20
-    
-    goroutine 1 [stack growth, locked to thread]:
-    runtime.freedefer(0xc0820ce120)
-            c:/go/src/runtime/panic.go:162 fp=0xc08201b1a0 sp=0xc08201b198
-    runtime.deferreturn(0xa69420)
-            c:/go/src/runtime/panic.go:211 +0xa8 fp=0xc08201b1e8 sp=0xc08201b1a0
-    runtime.cgocall_errno(0x498c00, 0xc08201b228, 0x0)
-            c:/go/src/runtime/cgocall.go:134 +0x10e fp=0xc08201b210 sp=0xc08201b1e8
-    syscall.Syscall(0x7786b1d0, 0x2, 0xc0820c85b0, 0xc08201b2d8, 0x0, 0x0, 0x0, 0x0)
-            c:/go/src/runtime/syscall_windows.c:74 +0x3c fp=0xc08201b260 sp=0xc08201b210
-    syscall.findFirstFile1(0xc0820c85b0, 0xc08201b2d8, 0x500000000000000, 0x0, 0x0)
-            c:/go/src/syscall/zsyscall_windows.go:340 +0x76 fp=0xc08201b2b0 sp=0xc08201b260
-    syscall.FindFirstFile(0xc0820c85b0, 0xc08210c500, 0xc0820c85b0, 0x0, 0x0)
-            c:/go/src/syscall/syscall_windows.go:907 +0x6a fp=0xc08201b530 sp=0xc08201b2b0
-    os.openDir(0xc0820b2e40, 0x33, 0x0, 0x0, 0x0)
-            c:/go/src/os/file_windows.go:96 +0x110 fp=0xc08201b5e0 sp=0xc08201b530
-    os.OpenFile(0xc0820b2e40, 0x33, 0x0, 0x0, 0x41, 0x0, 0x0)
-            c:/go/src/os/file_windows.go:143 +0x1e9 fp=0xc08201b650 sp=0xc08201b5e0
-    
-    TBR=khr
+    LGTM=rsc
+    R=golang-codereviews, rsc, khr
     CC=golang-codereviews
-    https://golang.org/cl/138230043
+    https://golang.org/cl/139900043
 
- src/runtime/stack.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/api/goapi.go           |   3 +-
+ src/pkg/runtime/asm_386.s      |   4 +
+ src/pkg/runtime/asm_amd64.s    |   4 +
+ src/pkg/runtime/asm_amd64p32.s |   4 +
+ src/pkg/runtime/asm_arm.s      |   3 +
+ src/pkg/runtime/extern.go      |   9 --
+ src/pkg/runtime/malloc.c       |   6 +-
+ src/pkg/runtime/malloc.h       |   1 +
+ src/pkg/runtime/panic.c        | 219 ++++-------------------------------------
+ src/pkg/runtime/panic.go       | 199 +++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/stubs.go       |  18 +++-
+ src/pkg/runtime/traceback.go   |   4 +-
+ src/pkg/runtime/vlrt.go        |   2 -
+ 13 files changed, 259 insertions(+), 217 deletions(-)

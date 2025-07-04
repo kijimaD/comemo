@@ -1,13 +1,14 @@
-commit e315fac7af2ee89cffb9da13749a3d159487b8d1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jul 19 01:12:42 2014 -0700
+commit 9a8a20bdb831144a2e12c3d6f2ac32d7c94e7b21
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jul 18 21:00:35 2014 -0400
 
-    test: add some tests for mismatches between call results and uses
+    codereview: revive the tests.
     
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/111360045
+    https://golang.org/cl/105500043
 
- test/fixedbugs/bug487.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ lib/codereview/codereview.py | 24 ++++++++++++++++++++----
+ lib/codereview/test.sh       | 21 +++++++++++----------
+ 2 files changed, 31 insertions(+), 14 deletions(-)

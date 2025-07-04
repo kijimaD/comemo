@@ -1,17 +1,19 @@
-commit 83c8cc54361b075e6ec9d0d62d3c29803fbbf594
+commit 67a6b4f0ef04e547e671230d84f96b00a2966113
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 1 17:39:22 2013 -0800
+Date:   Fri Mar 1 16:45:14 2013 -0800
 
-    go/types: fixed a few failure checks
+    spec: fallthrough may not appear in last clause of a switch
     
-    More robustness in case of incorrect programs.
+    Replacement for CL 7370053 which attempted to make fallthrough's
+    syntactically a part of switch statements. Because they may be
+    labeled, fixing that CL completely would require too much spec
+    surgery.
     
-    Fixes #4962.
+    Fixes #4923.
     
-    R=dsymonds
+    R=r, iant, rsc, ken
     CC=golang-dev
-    https://golang.org/cl/7429047
+    https://golang.org/cl/7416048
 
- src/pkg/go/types/expr.go | 34 ++++++++++++++++++++++++++++++----
- src/pkg/go/types/stmt.go |  4 ++++
- 2 files changed, 34 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

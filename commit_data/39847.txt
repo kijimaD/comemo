@@ -1,20 +1,19 @@
-commit f668573a5e708db399688c9441cf5ec2eb2f29b0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 9 19:54:41 2019 -0700
+commit 17f888c5a8479b0915f23c4a9a453430f276c53b
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Mon Mar 25 19:16:46 2019 -0700
 
-    cmd/go: for gccgo, look for tool build ID before hashing entire file
+    reflect: fix typeptrdata
     
-    Also fix the key used to store the ID.
+    We can't use ptrdata inside of typeptrdata, because it won't be
+    properly initialized until typeptrdata returns.
     
-    This is a significant speedup in cmd/go run time when using an
-    unreleased toolchain. For example, the TestGoBuildTestOnly cmd/go test
-    goes from 15 seconds to 1 second.
+    Fixes #31039
     
-    Change-Id: Ibfd697d55084db059c6b563f70f71f635e935391
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194441
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib8c89191a7e4cce678a05d351bb6ded81ba23aae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169317
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/work/buildid.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/reflect/type.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

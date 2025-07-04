@@ -1,12 +1,25 @@
-commit 857d0b48dbdf8b41dc5fe4823cd81a8a5298c1eb
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 17 14:08:32 2016 -0400
+commit 9094e3ada2de3cc8129b70730c2c0782a4040201
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 4 13:34:54 2016 -0800
 
-    runtime: document sudog
+    [dev.ssa] cmd/compile: fix spill sizes
     
-    Change-Id: I85c0bcf02842cc32dbc9bfdcea27efe871173574
-    Reviewed-on: https://go-review.googlesource.com/20774
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    In code that does:
+    
+        var x, z int32
+        var y int64
+        z = phi(x, int32(y))
+    
+    We silently drop the int32 cast because truncation is a no-op.
+    The phi operation needs to make sure it uses the size of the
+    phi, not the size of its arguments, when generating spills.
+    
+    Change-Id: I1f7baf44f019256977a46fdd3dad1972be209042
+    Reviewed-on: https://go-review.googlesource.com/18390
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/runtime2.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go              |   3 +
+ src/cmd/compile/internal/gc/ssa_test.go         |   2 +
+ src/cmd/compile/internal/gc/testdata/phi_ssa.go | 103 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go        |   9 ++-
+ 4 files changed, 114 insertions(+), 3 deletions(-)

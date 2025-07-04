@@ -1,25 +1,21 @@
-commit ae4d67c89dfef1cf9f30921e8f717ed5f56b6866
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Jan 4 16:23:01 2021 +0800
+commit 427bd7599d1aa2bc89faecff09777a5a662e5bf8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 15:16:13 2021 -0500
 
-    cmd/link: add -asan option
+    runtime: generate windows/arm64 callback asm
     
-    The -asan option causes the linker to link against the runtime/asan
-    package in order to use the C/C++ address sanitizer.
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
     
-    This CL passes tests but is not usable by itself.  The actual
-    runtime/asan package, and support for -asan in the go tool and the
-    compiler, and tests, are in separate CLs.
-    
-    Updates #44853.
-    
-    Change-Id: Ifc6046c1f75ba52777cbb3d937a4b66e91d5798d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298610
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5e2b589797808626bcca771cdf860d5cb85586cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288826
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/link/doc.go                | 2 ++
- src/cmd/link/internal/ld/config.go | 4 ++++
- src/cmd/link/internal/ld/lib.go    | 7 +++++++
- src/cmd/link/internal/ld/main.go   | 1 +
- 4 files changed, 14 insertions(+)
+ src/runtime/syscall_windows.go        |    4 +-
+ src/runtime/wincallback.go            |   29 +
+ src/runtime/zcallback_windows_arm64.s | 4012 +++++++++++++++++++++++++++++++++
+ 3 files changed, 4043 insertions(+), 2 deletions(-)

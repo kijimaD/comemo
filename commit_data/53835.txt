@@ -1,20 +1,16 @@
-commit 26fc4aa956783268d7a289240a028774e1ea3878
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Jun 6 23:25:42 2023 +0000
+commit 8a323542190ec3ba8f0ff0ec057e75e25ad1f408
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:02:51 2022 +0800
 
-    errors: optimize *joinError's Error method for less allocation and faster execution
+    internal/trace: use strings.Builder
     
-    Handle the case of one error at the beginning.
-    Use unsafe.String to avoid memory allocation when converting byte slice to string.
-    
-    Change-Id: Ib23576f72b1d87489e6f17762be483f62ca4998a
-    GitHub-Last-Rev: ed8003bfbcae8efd42e54895db0554c139b9d3a7
-    GitHub-Pull-Request: golang/go#60026
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493237
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ic7f827b8ee758c991ed76be65026b0330207deea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428262
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/errors/join.go | 21 +++++++++++++++------
- 1 file changed, 15 insertions(+), 6 deletions(-)
+ src/internal/trace/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

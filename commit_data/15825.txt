@@ -1,26 +1,18 @@
-commit 24f476409cf92193471006e0224b14cc6b3884a3
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Tue Mar 19 11:29:28 2013 -0400
+commit 51f14a9fe285cbc5579ae59fc7f72082c29ce266
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Mar 19 07:08:26 2013 +0100
 
-    misc/emacs: Add support for godef
+    runtime: fix erroneous overflow protection on netbsd/openbsd semasleep.
     
-    godef[1][2] is a third party tool for printing information about
-    expressions, especially the location of their definition. This can be
-    used to implement a "jump to definition" function. Unlike
-    cross-language solutions like ctags, godef does not require an index,
-    operates on the Go AST instead of symbols and works across packages,
-    including the standard library.
+    On NetBSD tv_sec is already an int64 so no need for a test.
     
-    This patch implements two new public functions: godef-describe (C-c
-    C-d) and godef-jump (C-d C-j). godef-describe describes the expression
-    at point, printing its type, and godef-jump jumps to its definition.
+    On OpenBSD, semasleep expects a Unix time as argument,
+    and 1<<30 is in 2004.
     
-    [1]: https://code.google.com/p/rog-go/source/browse/exp/cmd/godef/
-    [2]: go get code.google.com/p/rog-go/exp/cmd/godef
-    
-    R=adonovan, cw, patrick.allen.higgins, sameer
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7781043
+    https://golang.org/cl/7810044
 
- misc/emacs/go-mode.el | 73 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 73 insertions(+)
+ src/pkg/runtime/os_netbsd.c  | 7 +------
+ src/pkg/runtime/os_openbsd.c | 4 ++--
+ 2 files changed, 3 insertions(+), 8 deletions(-)

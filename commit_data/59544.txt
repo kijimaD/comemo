@@ -1,20 +1,26 @@
-commit 177d5eb630ab25916b6c44a6fa89ab371433f9fa
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Mon May 19 09:20:04 2025 -0400
+commit 8aeec7c5b0c630bb68798bc4b5fc7531b4d26694
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Mar 22 14:33:50 2024 -0700
 
-    net/http: clarify ServeMux.Handler behavior
+    net/http: ensure server handler is done in TestServerNoWriteTimeout
     
-    Explain that ServeMux.Handler doesn't populate the request with
-    matches.
+    Surprisingly, newClientServerTest doesn't ensure that server handlers
+    are done in its t.Cleanup function. This test's handler can outlive
+    the test and attempt to log after the test has completed, causing
+    race detector failures.
     
-    Fixes #69623.
+    Add an explicit call to Server.Shutdown to ensure the handler
+    has completed.
     
-    Change-Id: If625b3f8e8f4e54b05e1d9a86e8c471045e77763
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674095
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Chressie Himpel <chressie@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    We should also probably add a Shutdown to clientServerTest.close,
+    but that's a larger change; this fixes the immediate problem.
+    
+    Change-Id: Ibe81b4b382c9c8a920b0ff5f76dea6afe69b10f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573895
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/net/http/server.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/net/http/serve_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

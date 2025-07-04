@@ -1,13 +1,22 @@
-commit 66b3fabf17595d68c35ee3ab761f186ebf274f48
+commit 21e671dee6a56622649edfd33377505e9669ea8f
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 8 15:00:49 2011 -0400
+Date:   Thu Sep 8 14:49:51 2011 -0400
 
-    exp/regexp: add MustCompilePOSIX
+    exp/regexp: add CompilePOSIX, more tests
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4962060
+    https://golang.org/cl/4967060
 
- src/pkg/exp/regexp/exec_test.go |  2 +-
- src/pkg/exp/regexp/regexp.go    | 21 ++++++++++++++++++++-
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ src/pkg/exp/regexp/exec_test.go                    |  374 +-
+ src/pkg/exp/regexp/find_test.go                    |    9 +
+ src/pkg/exp/regexp/re2.txt.gz                      |  Bin 960863 -> 0 bytes
+ src/pkg/exp/regexp/regexp.go                       |   44 +-
+ src/pkg/exp/regexp/testdata/README                 |   23 +
+ src/pkg/exp/regexp/testdata/basic.dat              |  221 ++
+ src/pkg/exp/regexp/testdata/nullsubexpr.dat        |   79 +
+ src/pkg/exp/regexp/testdata/re2-exhaustive.txt.bz2 |  Bin 0 -> 394016 bytes
+ src/pkg/exp/regexp/testdata/re2-search.txt         | 3667 ++++++++++++++++++++
+ src/pkg/exp/regexp/testdata/repetition.dat         |  163 +
+ src/pkg/exp/regexp/testdata/testregex.c            | 2286 ++++++++++++
+ 11 files changed, 6837 insertions(+), 29 deletions(-)

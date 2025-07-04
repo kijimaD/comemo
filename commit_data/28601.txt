@@ -1,21 +1,26 @@
-commit ab6ba99484b637bad0c5a5fa2c590834c14746c7
-Author: David Benjamin <davidben@google.com>
-Date:   Fri Jul 1 16:41:09 2016 -0400
+commit cbc26869b7835e45359dad7dfb70e85c02c820cd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jun 8 22:22:35 2016 -0400
 
-    crypto/tls: Fix c.in.decrypt error handling.
+    runtime: set $sp before $pc in gdb python script
     
-    readRecord was not returning early if c.in.decrypt failed and ran
-    through the rest of the function. It does set c.in.err, so the various
-    checks in the callers do ultimately notice before acting on the result,
-    but we should avoid running the rest of the function at all.
+    When setting $pc, gdb does a backtrace using the current value of $sp,
+    and it may complain if $sp does not match that $pc (although the
+    assignment went through successfully).
     
-    Also rename 'err' to 'alertValue' since it isn't actually an error.
+    This happens with ARM SSA backend: when setting $pc it prints
+    > Cannot access memory at address 0x0
     
-    Change-Id: I6660924716a85af704bd3fe81521b34766238695
-    Reviewed-on: https://go-review.googlesource.com/24709
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    As well as occasionally on MIPS64:
+    > warning: GDB can't find the start of the function at 0xc82003fe07.
+    > ...
+    
+    Setting $sp before setting $pc makes it happy.
+    
+    Change-Id: Idd96dbef3e9b698829da553c6d71d5b4c6d492db
+    Reviewed-on: https://go-review.googlesource.com/23940
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/tls/conn.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/runtime-gdb.py | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

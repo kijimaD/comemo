@@ -1,23 +1,37 @@
-commit a30967f4ce319754e9c52967d0d72392e672c2c2
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Oct 5 12:28:42 2023 +0200
+commit fd0c0db4a411eae0483d1cb141e801af401e43d3
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jul 29 09:27:16 2022 -0700
 
-    runtime: unconditionally load AddVectoredContinueHandler on Windows
+    net/http: add ResponseController and per-handler timeouts
     
-    AddVectoredContinueHandler is available since Windows XP [1], there is
-    no need to check if it is available.
+    The ResponseController type provides a discoverable interface
+    to optional methods implemented by ResponseWriters.
     
-    [1]: https://learn.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-addvectoredcontinuehandler
+            c := http.NewResponseController(w)
+            c.Flush()
     
-    Change-Id: I1ddc3d58b3294d9876620cd46159d9692694b475
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532817
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    vs.
+    
+            if f, ok := w.(http.Flusher); ok {
+                    f.Flush()
+            }
+    
+    Add the ability to control per-request read and write deadlines
+    via the ResponseController SetReadDeadline and SetWriteDeadline
+    methods.
+    
+    For #54136
+    
+    Change-Id: I3f97de60d4c9ff150cda559ef86c6620eee665d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436890
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/runtime/os_windows.go     | 8 ++------
- src/runtime/signal_windows.go | 5 ++---
- 2 files changed, 4 insertions(+), 9 deletions(-)
+ api/next/54136.txt                      |   6 +
+ src/net/http/request.go                 |   9 +-
+ src/net/http/responsecontroller.go      | 122 ++++++++++++++
+ src/net/http/responsecontroller_test.go | 277 ++++++++++++++++++++++++++++++++
+ src/net/http/server.go                  |  29 +++-
+ 5 files changed, 434 insertions(+), 9 deletions(-)

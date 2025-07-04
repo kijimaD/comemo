@@ -1,32 +1,16 @@
-commit f5f5a8b6209f84961687d993b93ea0d397f5d5bf
+commit f3ecb298ad3187a6c47f43916480d396ec8c35c3
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 3 19:05:17 2014 -0400
+Date:   Thu Apr 3 19:04:33 2014 -0400
 
-    cmd/gc, runtime: optimize map[string] lookup from []byte key
+    cmd/gc: reject builtin function calls in len(fixed array) constants
     
-    Brad has been asking for this for a while.
-    I have resisted because I wanted to find a more general way to
-    do this, one that would keep the performance of code introducing
-    variables the same as the performance of code that did not.
-    (See golang.org/issue/3512#c20).
-    
-    I have not found the more general way, and recent changes to
-    remove ambiguously live temporaries have blown away the
-    property I was trying to preserve, so that's no longer a reason
-    not to make the change.
-    
-    Fixes #3512.
+    Fixes #7385.
     
     LGTM=iant
-    R=iant
-    CC=bradfitz, golang-codereviews, khr, r
-    https://golang.org/cl/83740044
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/84010044
 
- src/cmd/gc/builtin.c        |  1 +
- src/cmd/gc/go.h             |  1 +
- src/cmd/gc/order.c          | 24 +++++++++++++++++++++---
- src/cmd/gc/runtime.go       |  1 +
- src/cmd/gc/walk.c           |  5 +++++
- src/pkg/runtime/map_test.go | 37 +++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/string.goc  | 19 +++++++++++++++++++
- 7 files changed, 85 insertions(+), 3 deletions(-)
+ src/cmd/gc/const.c | 17 ++++++++++++++++-
+ test/const5.go     |  4 ++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

@@ -1,17 +1,17 @@
-commit 54b7ccd514f6a689347c8d1f876bec90613f28f8
-Author: Erik St. Martin <alakriti@gmail.com>
-Date:   Sat Dec 22 11:14:56 2012 -0500
+commit 8f1d170fc6758842a1dc89075a050716fa4dc6c3
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Dec 22 10:50:11 2012 -0500
 
-          regexp: fix index panic in Replace
+    crypto/des: add an example to demonstrate EDE2 operation.
     
-    When using subexpressions ($1) as replacements, when they either don't exist or values weren't found causes a panic.
-    This patch ensures that the match location isn't -1, to prevent out of bounds errors.
-    Fixes #3816.
+    EDE2 is a rare DES mode that can be implemented with crypto/des, but
+    it's somewhat non-obvious so this CL adds an example of doing so.
     
-    R=franciscossouza, rsc
+    Fixes #3537.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6931049
+    https://golang.org/cl/6721056
 
- src/pkg/regexp/all_test.go | 4 ++++
- src/pkg/regexp/regexp.go   | 2 +-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/pkg/crypto/des/des_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,25 +1,16 @@
-commit 750de28d6ceb5c42637b08fb87f2de2f826ed0eb
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Tue Nov 22 09:27:27 2011 +1100
+commit 86c08e961136f01d34db7759166433d55e8914b2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 22 07:10:25 2011 +1100
 
-    html: ignore whitespace before <head> element
+    goinstall: support googlecode subrepos and add repo match tests
+    goinstall: don't hit network unless a checkout or update is required
     
-    Pass tests2.dat, test 47:
-    " \n "
-    (That is, two spaces separated by a newline)
-    
-    | <html>
-    |   <head>
-    |   <body>
-    
-    Also pass tests through test 49:
-    <!DOCTYPE html><script>
-    </script>  <title>x</title>  </head>
-    
-    R=nigeltao
+    R=rsc, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/5422043
+    https://golang.org/cl/5343042
 
- src/pkg/html/parse.go      | 22 +++++++++++++++++++---
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ src/cmd/goinstall/doc.go           |   4 +
+ src/cmd/goinstall/download.go      | 504 ++++++++++++++++++++++---------------
+ src/cmd/goinstall/download_test.go | 140 +++++++++++
+ src/cmd/goinstall/main.go          |  20 +-
+ 4 files changed, 470 insertions(+), 198 deletions(-)

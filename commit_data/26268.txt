@@ -1,27 +1,12 @@
-commit a0232ea0dddfcc0827fd4094cbf261d85f0ae8f2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 10 11:14:22 2016 -0800
+commit 002e658a917448642afd84960fbc291cf3c24cbd
+Author: Michael McGreevy <mcgreevy@golang.org>
+Date:   Thu Jan 7 13:32:46 2016 +1100
 
-    cmd/compile: allow deduplication of long strings
+    net/http: Minor fix to error messages in test.
     
-    String symbols' names used to appear in the final binary.
-    Using a string's contents as it's symbol's name
-    was a thus a bad idea if the string's name was long.
-    Recent improvements by crawshaw have changed that.
-    
-    Instead of placing long strings behind opaque names
-    in local packages, place them in the global string
-    package and make them content-addressable.
-    Symbol names still occur in the object files,
-    so use a hash to avoid needless length there.
-    
-    Reduces the size of cmd/go by 30k.
-    
-    Change-Id: Ifdbbaf47bf44352418c90ddd903d5106e48db4f1
-    Reviewed-on: https://go-review.googlesource.com/20524
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I995ac0559f89110662d79d136d710ef3a0bb1505
+    Reviewed-on: https://go-review.googlesource.com/18351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/obj.go | 25 +++++++++++--------------
- 1 file changed, 11 insertions(+), 14 deletions(-)
+ src/net/http/serve_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

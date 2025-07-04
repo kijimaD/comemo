@@ -1,17 +1,17 @@
-commit e9f90ba246dab09943a2578a77b017186e8cb661
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Nov 6 08:29:53 2015 +0000
+commit 499845bfe0ad770cb97101303d46d947efed1109
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 20 21:20:25 2015 -0700
 
-    Revert "runtime: simplify buffered channels."
+    cmd/go: -a does apply to the standard library
     
-    Revert for now until #13169 is understood.
+    This changed in https://golang.org/cl/10761.
     
-    This reverts commit 8e496f1d6923172291658f0a785bdb47cc152325.
+    Update #12203.
     
-    Change-Id: Ib3eb2588824ef47a2b6eb9e377a24e5c817fcc81
-    Reviewed-on: https://go-review.googlesource.com/16716
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia37ebb7ecba689ad3cb2559213d675f21cf03a95
+    Reviewed-on: https://go-review.googlesource.com/13799
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/chan.go   | 495 +++++++++++++++++++++++++++-----------------------
- src/runtime/select.go | 118 ++++++++----
- 2 files changed, 349 insertions(+), 264 deletions(-)
+ src/cmd/go/alldocs.go | 1 -
+ src/cmd/go/build.go   | 1 -
+ 2 files changed, 2 deletions(-)

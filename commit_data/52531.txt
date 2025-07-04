@@ -1,25 +1,20 @@
-commit c00e9285eae4599f6a123d0a355633379be998e8
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Mon Apr 3 09:54:53 2023 -0400
+commit c4311a47a0cb97f85e045a6d8f7c284cb6866da9
+Author: Than McIntosh <thanm@google.com>
+Date:   Sat May 7 09:24:05 2022 -0400
 
-    runtime: save frame pointer to the stack in signal handlers for arm64
+    internal/cpu: revise test to make it work properly with -cover
     
-    When taking over the goroutine stack in the panic or preemption signal
-    handlers on arm64, the frame pointer should be saved on the stack (like
-    the link register) so that frame-pointer unwinding from a panic stack
-    works properly. Otherwise, tests like TestStackWrapperStackPanic will
-    fail with the frame pointer check in adjustframe (enabled with
-    debugCheckBP) when checking the sigpanic frame.
+    Fix up a test to insure that it does the right thing when
+    "go test -cover" is in effect.
     
-    Updates #39524, #58432
+    Fixes #52761.
     
-    Change-Id: I8b89e6fc4877af29b1b81e55e591e6398159855c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481635
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Change-Id: I0c141181e2dcaefd592fb04813f812f2800511da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404715
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/signal_arm64.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/internal/cpu/cpu_test.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

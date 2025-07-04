@@ -1,37 +1,51 @@
-commit 10f757486e94f60a5e0af180dcd61c9eef7534c6
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Oct 27 16:58:45 2016 +0300
+commit 791f71d1921a5d4d775167486eab20c1e8f97248
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 9 08:13:16 2016 -0400
 
-    cmd/compile/internal/ssa: generate bswap on AMD64
+    cmd: use obj.GOOS, obj.GOARCH, etc
     
-    Generate bswap+load/store for reading/writing big endian data.
-    Helps encoding/binary.
+    As cmd/internal/obj is coordinating the definition of GOOS, GOARCH,
+    etc across the compiler and linker, turn its functions into globals
+    and use them everywhere.
     
-    name                    old time/op    new time/op    delta
-    ReadSlice1000Int32s-8     5.06µs ± 8%    4.58µs ± 8%   -9.50%        (p=0.000 n=10+10)
-    ReadStruct-8              1.07µs ± 0%    1.05µs ± 0%   -1.51%         (p=0.000 n=9+10)
-    ReadInts-8                 367ns ± 0%     363ns ± 0%   -1.15%          (p=0.000 n=8+9)
-    WriteInts-8                475ns ± 1%     469ns ± 0%   -1.45%        (p=0.000 n=10+10)
-    WriteSlice1000Int32s-8    5.03µs ± 3%    4.50µs ± 3%  -10.45%          (p=0.000 n=9+9)
-    PutUvarint32-8            17.2ns ± 0%    17.2ns ± 0%     ~     (all samples are equal)
-    PutUvarint64-8            46.7ns ± 0%    46.7ns ± 0%     ~           (p=0.509 n=10+10)
-    
-    name                    old speed      new speed      delta
-    ReadSlice1000Int32s-8    791MB/s ± 8%   875MB/s ± 8%  +10.53%        (p=0.000 n=10+10)
-    ReadStruct-8            70.0MB/s ± 0%  71.1MB/s ± 0%   +1.54%         (p=0.000 n=9+10)
-    ReadInts-8              81.6MB/s ± 0%  82.6MB/s ± 0%   +1.21%          (p=0.000 n=9+9)
-    WriteInts-8             63.0MB/s ± 1%  63.9MB/s ± 0%   +1.45%        (p=0.000 n=10+10)
-    WriteSlice1000Int32s-8   796MB/s ± 4%   888MB/s ± 3%  +11.65%          (p=0.000 n=9+9)
-    PutUvarint32-8           233MB/s ± 0%   233MB/s ± 0%     ~           (p=0.089 n=10+10)
-    PutUvarint64-8           171MB/s ± 0%   171MB/s ± 0%     ~            (p=0.137 n=10+9)
-    
-    Change-Id: Ia2dbdef92198eaa7e2af5443a8ed586d4b401ffb
-    Reviewed-on: https://go-review.googlesource.com/32222
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I5db5addda3c6b6435c37fd5581c7c3d9a561f492
+    Reviewed-on: https://go-review.googlesource.com/28854
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go      |   32 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  198 +++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 1064 ++++++++++++++++++++++++--
- 3 files changed, 1232 insertions(+), 62 deletions(-)
+ src/cmd/asm/internal/asm/operand_test.go  |  5 ++---
+ src/cmd/asm/main.go                       |  4 ++--
+ src/cmd/compile/internal/amd64/cgen.go    |  2 +-
+ src/cmd/compile/internal/amd64/galign.go  |  8 ++++----
+ src/cmd/compile/internal/amd64/ggen.go    |  2 +-
+ src/cmd/compile/internal/arm64/ggen.go    |  2 +-
+ src/cmd/compile/internal/gc/main.go       | 22 +++++++-------------
+ src/cmd/compile/internal/gc/obj.go        |  2 +-
+ src/cmd/compile/internal/gc/subr.go       |  2 +-
+ src/cmd/compile/internal/mips64/galign.go |  2 +-
+ src/cmd/compile/internal/ppc64/galign.go  |  2 +-
+ src/cmd/compile/internal/ssa/config.go    |  6 +++---
+ src/cmd/compile/internal/x86/galign.go    |  2 +-
+ src/cmd/compile/main.go                   |  4 ++--
+ src/cmd/internal/obj/arm/asm5.go          |  4 ++--
+ src/cmd/internal/obj/arm/obj5.go          |  4 ++--
+ src/cmd/internal/obj/link.go              |  1 -
+ src/cmd/internal/obj/objfile.go           |  2 +-
+ src/cmd/internal/obj/sym.go               | 16 +++++----------
+ src/cmd/internal/obj/util.go              | 34 ++++++++++---------------------
+ src/cmd/internal/obj/x86/asm6.go          |  2 +-
+ src/cmd/link/internal/amd64/obj.go        |  2 +-
+ src/cmd/link/internal/ld/ar.go            |  2 +-
+ src/cmd/link/internal/ld/data.go          |  4 ++--
+ src/cmd/link/internal/ld/deadcode.go      |  2 +-
+ src/cmd/link/internal/ld/lib.go           | 34 ++++++++++---------------------
+ src/cmd/link/internal/ld/link.go          |  2 --
+ src/cmd/link/internal/ld/main.go          |  4 ++--
+ src/cmd/link/internal/ld/pcln.go          |  2 +-
+ src/cmd/link/internal/ld/pe.go            | 10 ++++-----
+ src/cmd/link/internal/ld/sym.go           | 29 +++++++++-----------------
+ src/cmd/link/internal/mips64/obj.go       |  2 +-
+ src/cmd/link/internal/ppc64/obj.go        |  2 +-
+ src/cmd/link/main.go                      |  4 ++--
+ 34 files changed, 88 insertions(+), 139 deletions(-)

@@ -1,12 +1,20 @@
-commit 107aab6c340a5ea90b7f50761f2c90e0d7e39032
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 3 16:28:45 2015 -0400
+commit 042200145fbf994e3fcbfa87e75b10d042867b3a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 30 12:11:35 2015 -0700
 
-    doc/go1.5.txt: add note about internal
+    text/template: allow newlines in raw quotes
     
-    Change-Id: I6476284a2cf80d50bd0a57fd9a0de9bc74273c7e
-    Reviewed-on: https://go-review.googlesource.com/10680
+    This was disallowed for error-checking reasons but people ask for
+    it, it's easy, and it's clear what it all means.
+    
+    Fixes #7323.
+    
+    Change-Id: I26542f5ac6519e45b335ad789713a4d9e356279b
+    Reviewed-on: https://go-review.googlesource.com/9537
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/text/template/doc.go            |  4 ++--
+ src/text/template/exec_test.go      | 13 +++++++++++++
+ src/text/template/parse/lex.go      |  2 +-
+ src/text/template/parse/lex_test.go | 29 ++++++++++++++++-------------
+ 4 files changed, 32 insertions(+), 16 deletions(-)

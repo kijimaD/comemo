@@ -1,25 +1,15 @@
-commit a091d2e6766786d52909dda532839840963213df
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 6 22:47:39 2013 -0500
+commit 41f32e0dffc3d72d223525d95a6be35dce5ffa9a
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sun Jan 6 22:44:16 2013 -0500
 
-    cmd/gc, cmd/ld: rename -b to -race
+          doc: two minor edits to contribute.html
     
-    There's no b in race detector.
-    The new flag matches the one in the go command
-    (go test -race math).
+    - Missing parenthesis
+    - Fix bad phrasing
     
-    R=golang-dev, dsymonds
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7072043
+    https://golang.org/cl/7063048
 
- src/cmd/5l/obj.c     | 2 +-
- src/cmd/6l/obj.c     | 2 +-
- src/cmd/8l/obj.c     | 2 +-
- src/cmd/gc/go.h      | 1 +
- src/cmd/gc/lex.c     | 6 +++---
- src/cmd/gc/pgen.c    | 2 +-
- src/cmd/gc/reflect.c | 2 +-
- src/cmd/go/build.go  | 4 ++--
- src/cmd/ld/lib.c     | 4 ++--
- src/cmd/ld/lib.h     | 1 +
- 10 files changed, 14 insertions(+), 12 deletions(-)
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

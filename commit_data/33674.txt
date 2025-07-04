@@ -1,19 +1,12 @@
-commit 571ee0436f388a5304a08a3f029113306bfd54d5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 22 15:14:33 2017 -0800
+commit cb3fe3aa0d15f2e827252b2a0b4ba48bad1d8e00
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:49:15 2017 +1000
 
-    os/signal: don't run TestTerminalSignal on Android
+    cmd/link: introduce and use peFile.dataDirectory
     
-    At least some versions of the Android libc do not define posix_openpt.
-    
-    Updates #22845
-    
-    Change-Id: Id21705f47ef0f9694313a7dc7351a952d48d407b
-    Reviewed-on: https://go-review.googlesource.com/79399
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I61f64287a488ed82e71639540697b6ade5a0426a
+    Reviewed-on: https://go-review.googlesource.com/59428
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/signal/internal/pty/pty.go | 2 +-
- src/os/signal/signal_cgo_test.go  | 4 +++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 32 +++++++++++++-------------------
+ 1 file changed, 13 insertions(+), 19 deletions(-)

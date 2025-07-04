@@ -1,17 +1,41 @@
-commit 49be1ebab49c0608a6944c98feebc118432c598e
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Mar 21 19:32:57 2016 +1300
+commit 489f65b52ad28c2a6f4f2dc58a3d939e9a77be47
+Author: Tim Ebringer <tim.ebringer@gmail.com>
+Date:   Mon Jan 18 21:33:25 2016 +1100
 
-    cmd/link: delete more unreachable code
+    net: improve netsh usage in Windows unit tests
     
-    Debugasm can never be set in cmd/link, so delete it and the code it enables.
+    The TestInterfaceAddrsWithNetsh Windows unit test parses and compares the
+    output of the "netsh" command against more low level Windows API calls. In
+    at least two cases, some quirks of netsh cause these comparisons to fail.
     
-    Change-Id: If828db0b09f1a9e512dc660ac2750657a769094c
-    Reviewed-on: https://go-review.googlesource.com/20971
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    One example appears to be wi-fi adapters. After a reboot, before it has
+    been allowed to connect to a network, netsh for IPv4 will not show an
+    address, whereas netsh for IPv6 will. If the interface is allowed to
+    connect, and then disconnected, netsh for IPv4 now shows an address and
+    the test will pass.
+    
+    The fix is to not compare netsh output if the interface is down.
+    
+    A related issue is that the IPv6 version of "netsh" can return an
+    IPv4-embedded IPv6 address where the IPv4 component of the address
+    is in decimal form, whilst the test is expecting hexadecimal form.
+    
+    For example, output might be:
+    
+      Address fe80::5efe:192.168.1.7%6 Parameters
+        ...
+    
+    Whilst this is valid notation, the fix is to recognise this format in the
+    "netsh" output and re-parse the address into the all-hexadecimal
+    representation that the test is expecting.
+    
+    Fixes #13981
+    
+    Change-Id: Ie8366673f4d43d07bad80d6d5d1d6e33f654b6cc
+    Reviewed-on: https://go-review.googlesource.com/18711
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/link.go    |  1 -
- src/cmd/link/internal/ld/objfile.go | 51 -------------------------------------
- 2 files changed, 52 deletions(-)
+ src/net/net_windows_test.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

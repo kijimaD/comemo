@@ -1,17 +1,15 @@
-commit a1a45afd4a0586cea2d238bfa9dd8e584645a562
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 9 16:55:06 2021 -0600
+commit 1ee30d25c517cfa5674a35754602f1a9ba3562f4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 17 16:22:14 2020 -0400
 
-    cmd/internal/obj: remove duplicate ppc64 spr MOV* optab entries
+    runtime: correctly log stderr in TestFakeTime
     
-    The matching rules will match C_SPR for the commonly used SPR
-    entries (xer, lr, ctr).
-    
-    Change-Id: I93759c1ce2891f6825661b99c5cbb89250b64ab7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304429
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
-    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Change-Id: Iaf122ce7a8b8fb431199399aeed67b128a34d20b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255720
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/ppc64/asm9.go | 12 ------------
- 1 file changed, 12 deletions(-)
+ src/runtime/time_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

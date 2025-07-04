@@ -1,14 +1,24 @@
-commit 9192548f803eb9eceee2fcef16fbfdc0947eb468
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 11 17:30:52 2011 -0800
+commit 3df0512469e98361b94e6107d6d12842f7c545b4
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sat Nov 12 12:23:30 2011 +1100
 
-    godoc: document -templates flag
+    html: handle end tags in strange places
     
-    Fixes #2441.
+    Pass tests1.dat, test 111:
+    </strong></b></em></i></u></strike></s></blink></tt></pre></big></small></font></select></h1></h2></h3></h4></h5></h6></body></br></a></img></title></span></style></script></table></th></td></tr></frame></area></link></param></hr></input></col></base></meta></basefont></bgsound></embed></spacer></p></dd></dt></caption></colgroup></tbody></tfoot></thead></address></blockquote></center></dir></div></dl></fieldset></listing></menu></ol></ul></li></nobr></wbr></form></button></marquee></object></html></frameset></head></iframe></image></isindex></noembed></noframes></noscript></optgroup></option></plaintext></textarea>
     
-    R=r
+    | <html>
+    |   <head>
+    |   <body>
+    |     <br>
+    |     <p>
+    
+    Also pass all the remaining tests in tests1.dat.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5376078
+    https://golang.org/cl/5372066
 
- src/cmd/godoc/doc.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/html/parse.go      | 47 +++++++++++++++++-----------------------------
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 18 insertions(+), 31 deletions(-)

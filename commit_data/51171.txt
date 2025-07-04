@@ -1,26 +1,20 @@
-commit 3a41094107237535673bdbbdaabc10e54cb2b67c
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Nov 4 17:01:21 2022 +0800
+commit 8692bacb6a43d1f65e09d0e581ca8b464fd77664
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 9 13:52:18 2021 -0500
 
-    runtime: using wyrand for fastrand on linux/loong64
+    runtime: run gdb with a timeout for TestGdbBacktrace
     
-    Benchmarks on linux/loong64:
-    name               old time/op    new time/op    delta
-    Fastrand           4.06ns ± 0%    3.60ns ± 0%    -11.29%  (p=0.000 n=32+27)
-    Fastrand64         7.20ns ± 0%    7.16ns ± 0%     -0.52%  (p=0.000 n=23+31)
-    FastrandHashiter   49.5ns ± 1%    48.9ns ± 2%     -1.24%  (p=0.000 n=32+32)
-    Fastrandn/2        4.45ns ± 0%    3.81ns ± 0%    -14.37%  (p=0.000 n=32+32)
-    Fastrandn/3        4.45ns ± 0%    3.81ns ± 0%    -14.32%  (p=0.000 n=32+32)
-    Fastrandn/4        4.45ns ± 0%    3.81ns ± 0%    -14.33%  (p=0.000 n=31+32)
-    Fastrandn/5        4.44ns ± 0%    3.81ns ± 0%    -14.26%  (p=0.000 n=31+30)
+    This sometimes times out and we don't have any useful output for
+    debugging it. Hopefully this will help.
     
-    Change-Id: I0aba7d2331221426c44cc0d0dddecca3b585fda4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446896
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #37405.
+    
+    Change-Id: I79074e6fbb9bd16a864c651109a0acbfc8aa6cef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370703
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/stubs.go | 2 +-
+ src/runtime/runtime-gdb_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,24 @@
-commit b565476e2c812f65385595717fff191ac174cab7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Aug 15 10:52:48 2022 +0200
+commit 7d67f8d4354d864fcbe6b218b7f80bcdfde851c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 20 11:33:36 2021 -0400
 
-    cmd/go/internal/mmap: use syscall.Mmap on solaris
+    text/template: implement short-circuit and, or
     
-    Now that syscall.Mmap is defined on solaris (see CL 413374), use it in
-    mmapFile like on other Unix ports.
+    Making the builtin and and or functions use short-circuit
+    evaluation was accepted as a proposal in April 2019,
+    but we never got around to implementing it. Do that.
     
-    For #52875
+    Fixes #31103.
     
-    Change-Id: Ic5c5a84da8613f0c6dc947a52b7fcca50af43d79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413375
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ia43d4a9a6b0ab814f2dd3471ebaca3e7bb1505cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321490
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/mmap/{mmap_other.go => mmap_plan9.go} | 2 --
- src/cmd/go/internal/mmap/mmap_unix.go                     | 2 +-
- 2 files changed, 1 insertion(+), 3 deletions(-)
+ src/text/template/doc.go       | 12 +++++++-----
+ src/text/template/exec.go      | 22 ++++++++++++++++++----
+ src/text/template/exec_test.go |  5 +++++
+ src/text/template/funcs.go     | 30 ++++++------------------------
+ 4 files changed, 36 insertions(+), 33 deletions(-)

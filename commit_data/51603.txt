@@ -1,19 +1,15 @@
-commit 376076f3c6bed06f5256a316af8f1eed53a1135e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 4 18:03:46 2023 -0800
+commit d0c3b0116217a898f2e5d2d00cc5f0356ea5ad1e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 23 12:23:41 2022 -0500
 
-    runtime: skip TestCgoPprofCallback in short mode, don't run in parallel
+    doc/go1.18: drop misplaced period
     
-    Fixes #54778
-    
-    Change-Id: If9aef0c06b993ef2aedbeea9452297ee9f11fa06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460461
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id29f352c8d2e61672f55294120058b1f585f7aeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387655
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/runtime/crash_cgo_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

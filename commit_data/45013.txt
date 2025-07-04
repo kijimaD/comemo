@@ -1,32 +1,20 @@
-commit 31d2556273795ae10709d3bc157ec5d3f0e070a2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Apr 7 19:58:01 2021 +0000
+commit b6632f770f8c490554612a975840ecd05ebe8a32
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Sep 23 14:41:33 2020 +0200
 
-    runtime: set up read-only dummy TLS space for needm on Windows
+    cmd/compile: switch to typed for amd64 flag const rules
     
-    On Windows, TLS is uninitialized for C threads calling into Go code.
-    In this path, before calling into user Go code, we call into needm which
-    runs without an m, but whose purpose is to pick one up. While in Go
-    code, we may occasionally restore the G register from TLS for a number
-    of reasons. Rather than try to flag all these cases, given that needm
-    (and its callees) are already somewhat special, just set up a dummy TLS
-    space for it that's read-only. If it ever actually tries to write to
-    this space (it shouldn't), it will fail loudly. Otherwise, code that
-    restores the G register will simply load a zero value, but that's OK
-    since needm is careful never to require the G at any point, because it
-    doesn't yet have a valid G. Furthermore, by the time needm returns, it
-    will have set up TLS properly for a Windows C thread, so there's no need
-    to do anything extra afterwards.
+    Passes
     
-    For #40724.
+      gotip build -toolexec 'toolstash -cmp' -a std
     
-    Change-Id: I34e8095059817e4ee663505e89cda8785b634b98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307872
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I5a322c9a3922107aa3bfcddfae732dcd6e15ac3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256738
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/asm_amd64.s | 17 +++++++++++++++++
- src/runtime/runtime2.go | 17 ++++++++++++-----
- 2 files changed, 29 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 208 ++++----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 684 +++++++++++++--------------
+ 2 files changed, 446 insertions(+), 446 deletions(-)

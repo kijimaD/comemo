@@ -1,0 +1,23 @@
+commit 4c1b8ca98c716f0499bb30fd141aa6d4dec7390c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 6 00:30:30 2025 +1100
+
+    cmd/internal/obj/riscv: add support for vector fixed-point arithmetic instructions
+    
+    Add support for vector fixed-point arithmetic instructions to the
+    RISC-V assembler. This includes single width saturating addition
+    and subtraction, averaging addition and subtraction and scaling
+    shift instructions.
+    
+    Change-Id: I9aa27e9565ad016ba5bb2b479e1ba70db24e4ff5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646776
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s        | 74 ++++++++++++++++++++++
+ src/cmd/asm/internal/asm/testdata/riscv64error.s   | 32 ++++++++++
+ .../asm/internal/asm/testdata/riscv64validation.s  | 32 ++++++++++
+ src/cmd/internal/obj/riscv/obj.go                  | 51 ++++++++++++++-
+ 4 files changed, 186 insertions(+), 3 deletions(-)

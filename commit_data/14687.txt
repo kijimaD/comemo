@@ -1,12 +1,12 @@
-commit 4ea8538c7f341d6cac355a08f517ef11460180a5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 19 10:14:05 2012 +1100
+commit 326ccebec8986de534c8608ff6f8fe7bd0070b10
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Dec 19 01:48:09 2012 +0800
 
-    C: add Shawn Ledbetter (Google CLA)
+    cmd/go: pass gccgoflags at the end of gccgo command line, warn if user passes the wrong toolchain options
     
-    R=golang-dev, agl, iant
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/6955043
+    https://golang.org/cl/6940082
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/build.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

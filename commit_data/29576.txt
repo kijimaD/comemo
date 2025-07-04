@@ -1,14 +1,19 @@
-commit 7534a72ea8b4ebb71cd8525029717fddd46c9dc6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 17 14:39:11 2016 +0000
+commit 6ba5b32922c438a608a11561100a8a80abf0fd3a
+Author: Anders Pearson <anders@columbia.edu>
+Date:   Sun Jul 3 14:22:06 2016 +0100
 
-    fmt: fix typo
+    expvar: export http.Handler
     
-    Fixes #17955
+    Add a method to expose the handler to allow it to be installed at a
+    non-standard location or used with a different ServeMux.
     
-    Change-Id: Ia1a04796353c83358a38a6b63f2a0cd3c6926f09
-    Reviewed-on: https://go-review.googlesource.com/33338
-    Reviewed-by: Rob Pike <r@golang.org>
+    fixes #15030
+    
+    Change-Id: If778ad6fcc200f124a05c0a493511e364fca6078
+    Reviewed-on: https://go-review.googlesource.com/24722
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/fmt/format.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/expvar/expvar.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

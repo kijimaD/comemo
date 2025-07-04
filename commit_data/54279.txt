@@ -1,18 +1,20 @@
-commit 9aaf5234bf652fc788782fc04a06044879b5957a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 30 11:28:54 2023 -0700
+commit 5f566d35bf7d590c95f4d1b685b995deeb9ba957
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Sep 6 13:17:25 2022 +0000
 
-    os/user: use correct size for initial call in retryWithBuffer
+    crypto/rand: convert r.used to atomic type
     
-    We were accidentally using the sysconf parameter constant.
-    Change to using the value of that sysconf parameter.
+    For #53821
     
-    Change-Id: Id7668e7cced0ce7504df99dbbff0757d29dee8c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524555
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1b5c62288eca20ff50f6d8d979cf82df24d4545b
+    GitHub-Last-Rev: 266148570a6465b8a43e04b39b1ebf85d80fcc76
+    GitHub-Pull-Request: golang/go#54884
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428477
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/user/cgo_lookup_unix.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/rand/rand_unix.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

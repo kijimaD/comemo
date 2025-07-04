@@ -1,16 +1,22 @@
-commit 3290fb870c1b48618f859153d8c0b76c5adb2dfc
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Nov 8 10:45:34 2023 -0500
+commit 1fdae32407191af004252d5fadb0bfaf92202ce6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 21 10:37:37 2022 -0800
 
-    cmd/compile/internal/types: remove dead function
+    go/types, types2: better variable names, cleanups in test
     
-    Remove the function CleanroomDo, which is no longer being
-    used anywhere.
+    For #54258.
     
-    Change-Id: Ie148005793b004bf63ca996101d08c30b87f8575
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540776
+    Change-Id: Ib0d326af2719bca1579f84c125f6573f87dce982
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452455
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types/pkg.go | 9 ---------
- 1 file changed, 9 deletions(-)
+ src/cmd/compile/internal/types2/issues_test.go | 16 ++++++++--------
+ src/go/types/issues_test.go                    | 17 +++++++++--------
+ src/go/types/object.go                         |  7 -------
+ src/go/types/typestring.go                     |  2 +-
+ 4 files changed, 18 insertions(+), 24 deletions(-)

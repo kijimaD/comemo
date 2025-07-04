@@ -1,25 +1,28 @@
-commit 9b88fac00cdbb4025a24fd20e87be121785da579
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jun 17 12:30:27 2016 -0700
+commit c955bb2040e601c474e547b8badbe44677c9fbdf
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 14 12:12:45 2016 -0400
 
-    cmd/internal/obj: reduce per-architecture opcode space
+    runtime: common auxv parser
     
-    s390x took up the last available chunk of int16 opcodes.
-    There are RISC-V and sparc64 ports in progress out of tree,
-    and there will likely be other architectures.
-    Reduce the opcode space to allow more architectures to
-    fit without increasing to int32.
+    Currently several different Linux architectures have separate copies
+    of the auxv parser. Bring these all together into a single copy of the
+    parser that calls out to a per-arch handler for each tag/value pair.
+    This is in preparation for handling common auxv tags in one place.
     
-    This is the smallest power of two that accomodates all
-    existing architectures. All else being equal, smaller is
-    better--smaller numbers are easier to generate immediates
-    for and easier on the eyes when debugging.
+    For #9993.
     
-    Change-Id: I4d0824b28913892fbd0579d3f90bea34e44c8946
-    Reviewed-on: https://go-review.googlesource.com/24223
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iceebc3afad6b4133b70fca7003561ae370445c10
+    Reviewed-on: https://go-review.googlesource.com/22061
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/internal/obj/link.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/os_linux.go         | 23 ++++++++++++++++++
+ src/runtime/os_linux_386.go     | 24 ++++---------------
+ src/runtime/os_linux_arm.go     | 48 ++++++++++++++-----------------------
+ src/runtime/os_linux_arm64.go   | 32 +++++++------------------
+ src/runtime/os_linux_noauxv.go  | 10 ++++++++
+ src/runtime/vdso_linux_amd64.go | 52 +++++++++++++----------------------------
+ src/runtime/vdso_none.go        |  5 +---
+ 7 files changed, 81 insertions(+), 113 deletions(-)

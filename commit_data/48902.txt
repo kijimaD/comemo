@@ -1,16 +1,18 @@
-commit e845750744b648b8b348bbcebe2ff85d4e6247c5
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Mon Apr 25 16:36:01 2022 +0800
+commit 75ad32377378b4d6fa831b67a7f6aaf68cbe07d4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 24 14:32:21 2021 -0700
 
-    cmd/compile: fix the missing size for FuncInfoSym
+    [dev.typeparams] test: skip -G=3 testing under GOEXPERIMENT=unified
     
-    Change-Id: I46543e188bf25384e529a9d5a3095033ac618bbd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402057
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    In normal build configurations, we test both -G=0 and -G=3 so that we
+    can test both typecheck and types2. However, GOEXPERIMENT=unified
+    always uses types2, so testing both is redundant.
+    
+    Change-Id: I697d2ad916d8b17cfaf4f0b6b32eec380d4e7906
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330755
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/obj/objfile.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ test/run.go | 63 ++++++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 39 insertions(+), 24 deletions(-)

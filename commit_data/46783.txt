@@ -1,21 +1,29 @@
-commit 8238f82bf1ddadd906585e3f11600968d95ce98c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 5 13:44:51 2021 -0700
+commit 376518d77fb5d718f90c8b66ea25660aa3734032
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Jan 27 01:48:47 2021 +1100
 
-    runtime: streamline moduledata.textAddr
+    runtime,syscall: convert syscall on openbsd/arm64 to libc
     
-    Accept a uint32 instead of a uintptr to make call sites simpler.
+    Convert the syscall package on openbsd/arm64 to use libc rather than performing
+    direct system calls.
     
-    Do less work in the common case in which len(textsectmap) == 1.
+    Updates #36435
     
-    Change-Id: Idd6cdc3fdad7a9356864c83790463b5d3000171b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354132
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7e1da8537cea9ed9bf2676f181e56ae99383333f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286815
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/plugin.go |  2 +-
- src/runtime/symtab.go | 28 +++++++++++++---------------
- src/runtime/type.go   |  2 +-
- 3 files changed, 15 insertions(+), 17 deletions(-)
+ src/runtime/sys_openbsd3.go           |   2 +-
+ src/runtime/sys_openbsd_arm64.s       | 295 +++++++++++
+ src/syscall/asm_openbsd_arm64.s       | 140 +----
+ src/syscall/exec_bsd.go               |   2 +-
+ src/syscall/exec_libc2.go             |   2 +-
+ src/syscall/mkall.sh                  |   5 +-
+ src/syscall/syscall_openbsd1.go       |   2 +-
+ src/syscall/syscall_openbsd_libc.go   |   2 +-
+ src/syscall/zsyscall_openbsd_arm64.go | 941 +++++++++++++++++++++++++++++-----
+ src/syscall/zsyscall_openbsd_arm64.s  | 233 +++++++++
+ 10 files changed, 1372 insertions(+), 252 deletions(-)

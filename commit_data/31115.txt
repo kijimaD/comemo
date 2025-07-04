@@ -1,20 +1,21 @@
-commit e05de6a5be66c517516e78093606ffc8c89042b2
-Author: Lucas Clemente <lclemente@google.com>
-Date:   Mon Mar 20 13:35:41 2017 +0100
+commit 871300308a6c14ccaaed16e201752ee53b3b4037
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Dec 21 11:07:11 2016 +0100
 
-    hash/fnv: add 128-bit FNV hash support
+    cmd/compile: never report "truncated to real" for toint calls
     
-    The 128bit FNV hash will be used e.g. in QUIC.
+    Whoever called toint() is expecting the {Mpint, Mpflt, Mpcplx} arg to
+    be converted to an integer expression, so it never makes sense to
+    report an error as "constant X truncated to real".
     
-    The algorithm is described at
-    https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+    Fixes #11580
     
-    Change-Id: I13f3ec39b0e12b7a5008824a6619dff2e708ee81
-    Reviewed-on: https://go-review.googlesource.com/38356
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iadcb105f0802358a7f77188c2b1e63fe80c5580c
+    Reviewed-on: https://go-review.googlesource.com/34638
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/hash/fnv/fnv.go      | 122 +++++++++++++++++++++++++++++++++++++++--------
- src/hash/fnv/fnv_test.go |  39 +++++++++++++++
- 2 files changed, 141 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 6 ++----
+ test/fixedbugs/issue16439.go         | 2 +-
+ 2 files changed, 3 insertions(+), 5 deletions(-)

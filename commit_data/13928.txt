@@ -1,46 +1,12 @@
-commit 0b08c9483f5f447083616b7b5e6ddf04edffc379
+commit afa233a8932f181a583ef1b4ee156135c632c102
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 24 14:58:34 2012 -0400
+Date:   Mon Sep 24 14:36:07 2012 -0400
 
-    runtime: prepare for 64-bit ints
+    CONTRIBUTORS: add Jonathan Feinberg (Google CLA)
     
-    This CL makes the runtime understand that the type of
-    the len or cap of a map, slice, or string is 'int', not 'int32',
-    and it is also careful to distinguish between function arguments
-    and results of type 'int' vs type 'int32'.
-    
-    In the runtime, the new typedefs 'intgo' and 'uintgo' refer
-    to Go int and uint. The C types int and uint continue to be
-    unavailable (cause intentional compile errors).
-    
-    This CL does not change the meaning of int, but it should make
-    the eventual change of the meaning of int on amd64 a bit
-    smoother.
-    
-    Update #2188.
-    
-    R=iant, r, dave, remyoudompheng
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6551067
+    https://golang.org/cl/6553067
 
- src/cmd/dist/goc2c.c         | 56 +++++++++++++++++++++++++++++++-------------
- src/pkg/reflect/value.go     | 16 ++++++-------
- src/pkg/runtime/alg.c        |  2 +-
- src/pkg/runtime/chan.c       | 38 +++++++++++++++++-------------
- src/pkg/runtime/cpuprof.c    |  2 +-
- src/pkg/runtime/hashmap.c    |  7 +++---
- src/pkg/runtime/iface.c      |  2 +-
- src/pkg/runtime/malloc.goc   | 10 ++++----
- src/pkg/runtime/malloc.h     | 11 ++++++++-
- src/pkg/runtime/mfinal.c     |  8 +++----
- src/pkg/runtime/mgc0.c       |  4 ++--
- src/pkg/runtime/mprof.goc    |  8 +++----
- src/pkg/runtime/print.c      |  2 +-
- src/pkg/runtime/proc.c       |  2 +-
- src/pkg/runtime/runtime.c    |  4 ++--
- src/pkg/runtime/runtime.h    | 23 ++++++++++--------
- src/pkg/runtime/runtime1.goc |  4 ++--
- src/pkg/runtime/slice.c      | 38 +++++++++++++++++-------------
- src/pkg/runtime/string.goc   | 34 +++++++++++++--------------
- src/pkg/runtime/symtab.c     |  2 +-
- 20 files changed, 161 insertions(+), 112 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

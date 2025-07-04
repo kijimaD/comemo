@@ -1,20 +1,23 @@
-commit b4237b599708b7f8d7d967806e577692db30a4f1
-Author: Philip K. Warren <pkwarren@gmail.com>
-Date:   Tue Mar 12 01:50:10 2013 -0400
+commit e64f3f211ac03f270a2db476e01b34fd1d1c5301
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 12 01:48:48 2013 -0400
 
-    encoding/base32, encoding/base64: fix issues with decoder whitespace handling
+    net: never use backlog > 65535
     
-    Adds a new reader to filter newlines, which fixes errors seen in the
-    decoder chunking code. Found additional issues with whitespace handling
-    after the first padding character.
-    Fixes #4779.
+    The system call takes an int, but the kernel stores it in a uint16.
+    At least one Linux system sets /proc/sys/net/core/somaxconn
+    to 262144, which ends up being 0 in the uint16. Avoid being tricked.
     
-    R=minux.ma, rsc, bradfitz
+    FreeBSD sources also store the backlog in a uint16.
+    Assume the problem is systemic and fix it everywhere.
+    
+    Fixes #5030.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7311069
+    https://golang.org/cl/7480046
 
- src/pkg/encoding/base32/base32.go      | 45 ++++++++++++++++++++----
- src/pkg/encoding/base32/base32_test.go | 63 ++++++++++++++++++++++++++++------
- src/pkg/encoding/base64/base64.go      | 45 ++++++++++++++++++++----
- src/pkg/encoding/base64/base64_test.go | 40 +++++++++++++++++++++
- 4 files changed, 171 insertions(+), 22 deletions(-)
+ src/pkg/net/sock_bsd.go     | 6 ++++++
+ src/pkg/net/sock_linux.go   | 6 ++++++
+ src/pkg/net/sock_windows.go | 1 +
+ 3 files changed, 13 insertions(+)

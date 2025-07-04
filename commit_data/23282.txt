@@ -1,16 +1,12 @@
-commit 11b992818549aa169c96363c9242fe66b4073d34
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 5 13:14:06 2015 -0700
+commit 97fd7b07b69b6285c3993a13a0386afcd7df29e5
+Author: Burcu Dogan <jbd@google.com>
+Date:   Sun May 3 00:13:46 2015 -0700
 
-    cmd/go: update documentation: use 'go doc' rather than 'godoc'
+    misc/ios: fix plist indentation and whitespace
     
-    Change-Id: I318c1ef75b18d4687f13499ac225dde2d053505e
-    Reviewed-on: https://go-review.googlesource.com/10776
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ida727edb592e77918ca5511b41456786d57c97b2
+    Reviewed-on: https://go-review.googlesource.com/9634
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/alldocs.go | 12 ++++++------
- src/cmd/go/fix.go     |  2 +-
- src/cmd/go/fmt.go     |  2 +-
- src/cmd/go/help.go    |  2 +-
- src/cmd/go/test.go    |  4 ++--
- 5 files changed, 11 insertions(+), 11 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

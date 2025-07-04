@@ -1,37 +1,24 @@
-commit ff19f8e7636f0b5797f3b65cee69f41fb650b965
-Author: aimuz <mr.imuz@gmail.com>
-Date:   Tue Nov 7 13:25:32 2023 +0000
+commit bda0235466a9e2e26332f9a2646678ccdc5edaa9
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 1 11:08:00 2022 -0400
 
-    net/http/cgi: eliminate use of Perl in tests
+    cmd/link: add capturehostobjs debugging flag
     
-    Previously, a Perl script was used to test the net/http/cgi package.
-    This sometimes led to hidden failures as these tests were not run
-    on builders without Perl.
-    Also, this approach posed maintenance difficulties for those
-    unfamiliar with Perl.
+    Add a new debugging flag "-capturehostobjs" that instructs the linker
+    to capture copies of all object files loaded in during the host object
+    loading portion of CGO internal linking. The intent is to make it
+    easier to analyze the objects after the fact (as opposed to having to
+    dig around inside archives, which can be a "find needle in haystack"
+    exercise).
     
-    We have now replaced Perl-based tests with a Go handler to simplify
-    maintenance and ensure consistent testing environments.
-    It's part of our ongoing effort to reduce reliance on Perl throughout
-    the Go codebase (see #20032,#25586,#25669,#27779),
-    thus improving reliability and ease of maintenance.
-    
-    Fixes #63800
-    Fixes #63828
-    
-    Change-Id: I8d554af93d4070036cf0cc3aaa9c9b256affbd17
-    GitHub-Last-Rev: a8034083d824da7d68e5995a7997a1199d78de15
-    GitHub-Pull-Request: golang/go#63869
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538861
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Change-Id: I7023a5b72b1b899ea9b3bd6501f069d1f21bbaf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451737
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Commit-Queue: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/cgi/cgi_main.go         | 145 ++++++++++++++++++++++++++++
- src/net/http/cgi/host_test.go        | 180 +++++++++++------------------------
- src/net/http/cgi/integration_test.go |  67 +------------
- src/net/http/cgi/testdata/test.cgi   |  95 ------------------
- 4 files changed, 203 insertions(+), 284 deletions(-)
+ src/cmd/link/internal/ld/ar.go   |  3 +++
+ src/cmd/link/internal/ld/lib.go  | 52 +++++++++++++++++++++++++++++++++++++++-
+ src/cmd/link/internal/ld/main.go |  2 ++
+ 3 files changed, 56 insertions(+), 1 deletion(-)

@@ -1,16 +1,31 @@
-commit e4d489a85fd1825ddcc6c1ffda52fb9e75ad01b4
-Author: Christopher Nelson <nadiasvertex@gmail.com>
-Date:   Tue Mar 15 09:14:22 2016 -0400
+commit 535741a69a1300d1fe2800778b99c8a1b75d7fdd
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 8 16:25:29 2016 -0500
 
-    cmd/go: fix TestShadowingLogic fails when GOROOT path has spaces
+    debug/dwarf: fix nil pointer dereference in cyclic type structures
     
-    Improve the test by also translating " " to "_".
+    Currently readType simultaneously constructs a type graph and resolves
+    the sizes of the types. However, these two operations are
+    fundamentally at odds: the order we parse a cyclic structure in may be
+    different than the order we need to resolve type sizes in. As a
+    result, it's possible that when readType attempts to resolve the size
+    of a typedef, it may dereference a nil Type field of another typedef
+    retrieved from the type cache that's only partially constructed.
     
-    Fixes #14671.
+    To fix this, we delay resolving typedef sizes until the end of the
+    readType recursion, when the full type graph is constructed.
     
-    Change-Id: Ie5997934b93c7663d7b8432244fad47bb5d3ffbe
-    Reviewed-on: https://go-review.googlesource.com/20714
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #13039.
+    
+    Change-Id: I9889af37fb3be5437995030fdd61e45871319d07
+    Reviewed-on: https://go-review.googlesource.com/18459
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/debug/dwarf/testdata/cycle.c   |   7 +++++++
+ src/debug/dwarf/testdata/cycle.elf | Bin 0 -> 2624 bytes
+ src/debug/dwarf/type.go            |  34 +++++++++++++++++++++++++++-------
+ src/debug/dwarf/type_test.go       |  34 ++++++++++++++++++++++++++++++++++
+ src/debug/dwarf/typeunit.go        |   2 +-
+ 5 files changed, 69 insertions(+), 8 deletions(-)

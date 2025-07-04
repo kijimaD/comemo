@@ -1,15 +1,19 @@
-commit 7737e19b15151f5a8578c77c5df99ce364b7d281
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 17 17:52:05 2012 -0800
+commit 793f6f3cc3c2e6a5fc6636f984eadb808c7b62e8
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 18 12:43:08 2012 +1100
 
-    test: add some tests that gccgo failed to handle correctly
+    encoding/gob: fix mutually recursive slices of structs
     
-    R=golang-dev, r
+    Fix by setting the element type if we discover it's zero while building.
+    We could have fixed this better with foresight by doing the id setting in a
+    different sequence, but doing that now would break binary compatibility.
+    
+    Fixes #2995.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5671090
+    https://golang.org/cl/5675083
 
- test/fixedbugs/bug419.go | 17 +++++++++++++++++
- test/fixedbugs/bug420.go | 14 ++++++++++++++
- test/fixedbugs/bug421.go | 17 +++++++++++++++++
- test/fixedbugs/bug422.go | 11 +++++++++++
- 4 files changed, 59 insertions(+)
+ src/pkg/encoding/gob/encoder_test.go | 27 +++++++++++++++++++++++++++
+ src/pkg/encoding/gob/type.go         | 16 ++++++++++++++++
+ 2 files changed, 43 insertions(+)

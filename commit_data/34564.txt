@@ -1,14 +1,12 @@
-commit 5c432fe0e3755255d70d1ad601725b039becb7ad
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Mar 10 11:16:24 2018 +0100
+commit a6b0a1c05a44a504a6bc3b20f509bd4fc1561c40
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Tue Oct 31 09:24:44 2017 +0000
 
-    cmd/compile: gofmt rewriteARM64.go
+    net/http: fix typo in doc string
     
-    Change-Id: I7424257e496f8f40c9601b62335b64d641dcd3b5
-    Reviewed-on: https://go-review.googlesource.com/99996
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I4542f6c095a35a4dec03c67c45a75a155197eb56
+    Reviewed-on: https://go-review.googlesource.com/74650
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/cmd/compile/internal/ssa/rewriteARM64.go | 2 +-
+ src/net/http/client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

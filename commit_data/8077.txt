@@ -1,21 +1,13 @@
-commit a2e286828be99c658b30ecb3daccd1b3dbcedb0e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 13 15:13:59 2011 -0700
+commit 179f0b8a0717567a7d57e65ec83e69371e12ea97
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 13 14:57:47 2011 -0700
 
-    gofmt: gofmt -s -w src misc
+    libmach: fix the windows build.
+    Newly enabled compiler errors need workaround.
     
-    R=r, bradfitzwork
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4406044
+    https://golang.org/cl/4397047
 
- src/cmd/godoc/format.go                       |   2 +-
- src/pkg/crypto/rsa/pkcs1v15.go                |   8 ++++----
- src/pkg/crypto/tls/common.go                  |   2 +-
- src/pkg/crypto/tls/handshake_messages_test.go |   2 +-
- src/pkg/exp/eval/eval                         | Bin 0 -> 3500057 bytes
- src/pkg/hash/fnv/fnv_test.go                  |   2 +-
- src/pkg/http/export_test.go                   |   2 +-
- src/pkg/os/dir_plan9.go                       |   2 +-
- src/pkg/syscall/exec_windows.go               |   2 +-
- src/pkg/syscall/syscall_plan9.go              |   2 +-
- 10 files changed, 12 insertions(+), 12 deletions(-)
+ src/libmach/windows.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

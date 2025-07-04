@@ -1,20 +1,52 @@
-commit 401b20234cc56ac771a0daeec53c200f752500a7
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Dec 11 10:25:32 2014 -0500
+commit fd2bc95d533aa909224310bcc221ed2cc21433bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 01:27:30 2014 -0500
 
-    syscall: check recorded version of ppid instead of 1
+    [dev.cc] cmd/gc: changes for removing runtime C code
     
-    Handles the case where the parent is pid 1 (common in docker
-    containers).
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
     
-    Attempted and failed to write a test for this.
+    export.c, lex.c:
+    Add -asmhdr flag to write assembly header file with struct
+    field offsets and const values. cmd/dist used to construct this
+    file by interpreting output from the C compiler.
+    Generate it from the Go definitions instead.
+    Also, generate the form we need directly, instead of relying
+    on cmd/dist for reprocessing.
     
-    Fixes #9263.
+    lex.c, obj.c:
+    If the C compiler accepted #pragma cgo_xxx, recognize
+    a directive //go:cgo_xxx instead. The effect is the same as
+    in the C compiler: accumulate text into a buffer and emit in the
+    output file, where the linker will find and use it.
     
-    Change-Id: I5c6036446c99e66259a4fab1660b6a594f875020
-    Reviewed-on: https://go-review.googlesource.com/1372
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    lex.c, obj.c:
+    Accept //go:linkname to control the external symbol name
+    used for a particular top-level Go variable. This makes it
+    possible to refer to C symbol names but also symbols from
+    other packages. It has always been possible to do this from
+    C and assembly. To drive home the point that this should not
+    be done lightly, require import "unsafe" in any file containing
+    //go:linkname.
+    
+    plive.c, reflect.c, subr.c:
+    Hard-code that interfaces contain only pointers.
+    This means code handling multiword values in the garbage
+    collector and the stack copier can be deleted instead of being
+    converted. This change is already present in the dev.garbage
+    branch.
+    
+    LGTM=r
+    R=r
+    CC=austin, golang-codereviews, iant, khr
+    https://golang.org/cl/169360043
 
- src/syscall/exec_linux.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/gc/export.c  |  41 +++++++++++
+ src/cmd/gc/go.h      |   7 ++
+ src/cmd/gc/lex.c     | 200 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/obj.c     |  12 ++++
+ src/cmd/gc/plive.c   |  19 ++---
+ src/cmd/gc/reflect.c |  14 ++--
+ src/cmd/gc/subr.c    |  46 +++++-------
+ 7 files changed, 287 insertions(+), 52 deletions(-)

@@ -1,13 +1,16 @@
-commit 2155a0408eb50ce8ae47d5b3b53c3363498cd716
-Author: Rob Pike <r@golang.org>
-Date:   Tue Feb 21 14:53:07 2012 +1100
+commit ce837b308f1f05ff002fb3d2d869d7bf6a778799
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 21 14:28:49 2012 +1100
 
-    net: add diagnostic to try to catch selfConnect bug earlier
-    TBR=dsymonds
+    test: rewrite test/run shell script + errchk (perl) in Go
     
-    R=golang-dev
+    This doesn't run all ~750 of the tests, but most.
+    
+    Progress on issue 2833
+    
+    R=golang-dev, ality, rsc, r, r
     CC=golang-dev
-    https://golang.org/cl/5683057
+    https://golang.org/cl/5625044
 
- src/pkg/net/tcpsock_posix.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ test/run.go | 454 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 454 insertions(+)

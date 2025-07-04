@@ -1,16 +1,19 @@
-commit bbe5c93e93922154d330cc4b7eecf148c830515c
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Jul 1 18:24:43 2014 -0400
+commit e4bc3c462bedb253cb73b2dc290e200d1ffde9fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 1 14:19:27 2014 -0400
 
-    misc/nacl, syscall: lazily initialize fs on nacl.
-    On amd64, the real time is reduced from 176.76s to 140.26s.
-    On ARM, the real time is reduced from 921.61s to 726.30s.
+    encoding/gob: fewer decAlloc calls
     
-    LGTM=rsc
-    R=rsc
+    Move decAlloc calls a bit higher in the call tree.
+    Cleans code marginally, improves speed marginally.
+    The benchmarks are noisy but the median time from
+    20 consective 1-second runs improves by about 2%.
+    
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/101580043
+    https://golang.org/cl/105530043
 
- misc/nacl/mkzip.go         | 10 ++++++++--
- src/pkg/syscall/fs_nacl.go | 23 ++++++++++++++++++++---
- 2 files changed, 28 insertions(+), 5 deletions(-)
+ src/pkg/encoding/gob/codec_test.go |  2 +-
+ src/pkg/encoding/gob/decode.go     | 63 ++++++++++++++++++++++----------------
+ 2 files changed, 37 insertions(+), 28 deletions(-)

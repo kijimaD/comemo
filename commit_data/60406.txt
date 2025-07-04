@@ -1,0 +1,18 @@
+commit 6b97448132736ab24902d0c9016f31f4d1d681b4
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Feb 4 21:08:40 2024 +0800
+
+    sort: add example for Find
+    
+    Change-Id: Id7b12356dd2114dfbab260cff00114b6055ee011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561175
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/sort/example_search_test.go | 21 +++++++++++++++++++++
+ src/sort/sort_test.go           | 18 +++++++++---------
+ 2 files changed, 30 insertions(+), 9 deletions(-)

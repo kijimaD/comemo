@@ -1,15 +1,28 @@
-commit cc874072f3778a2b2cbe972b703dd6552ae63831
-Author: Eng Zer Jun <engzerjun@gmail.com>
-Date:   Sun Jan 12 18:02:45 2025 +0800
+commit d33ad2d8f357d83dfdc14c3358e3956aac76a9b0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Nov 15 13:08:23 2023 +0000
 
-    math/big: use built-in max function
+    syscall: support O_SYNC flag for os.OpenFile on windows
     
-    Change-Id: I65721039dab311762e55c6a60dd75b82f6b4622f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642335
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    os.OpenFile on windows did not use the O_SYNC flag. This meant
+    that even if the user set O_SYNC, os.OpenFile would ignore it.
+    
+    This change adds a new flag FILE_FLAG_WRITE_THROUGH, which is
+    the equivalent of O_SYNC flag on Linux and is documented in
+    https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
+    
+    Fixes #35358
+    
+    Change-Id: Ib338caed5bb2f215723bfe30a2551a83998d92c9
+    GitHub-Last-Rev: 82c6275cb49602d7903b2bff7d60b7c772a5d91a
+    GitHub-Pull-Request: golang/go#64027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541015
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
 
- src/math/big/float.go | 19 ++++++-------------
- 1 file changed, 6 insertions(+), 13 deletions(-)
+ src/syscall/syscall_windows.go | 4 ++++
+ 1 file changed, 4 insertions(+)

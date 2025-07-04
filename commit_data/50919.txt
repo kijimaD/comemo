@@ -1,25 +1,19 @@
-commit da6042e82eb7fe5ba40a5c17959a31e19a44c3e8
-Author: David Chase <drchase@google.com>
-Date:   Fri Oct 14 16:24:44 2022 -0400
+commit 4083a6f3776487e707d4c56c63b1d7dbabb01fb0
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 16 11:24:22 2021 -0500
 
-    cmd/compile: fix position of fake receivers; be more careful in logopt
+    go/types: better error for type assertion/switch on type parameter value
     
-    The src.NoXPos in fake receivers was leaking, through a series of
-    mishaps, all the way to logopt.  If done just so, this can lead to
-    a compiler crash.  This makes logopt crash-proof and eliminates the
-    root cause as well.
+    This is a port of CL 363439 from types2 to go/types.
     
-    I'm reluctant to write a test for this because it's kinda slow
-    and involved; my working test is "compile something that mentions
-    the flag package with -json=0,$TMPDIR flag, then be sure that
-    $TMPDIR/flag/__unnamed__.json was not created".
-    
-    Change-Id: I384b717c0e7522953d22d61f7e06319e11192d7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443156
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ic71871874345e1d0a4a42703e3673aadd11f2bfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364378
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/logopt/log_opts.go | 3 +++
- src/cmd/compile/internal/types/type.go      | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/go/types/expr.go                       | 5 +++++
+ src/go/types/stmt.go                       | 5 +++++
+ src/go/types/testdata/check/typeparams.go2 | 8 ++++----
+ 3 files changed, 14 insertions(+), 4 deletions(-)

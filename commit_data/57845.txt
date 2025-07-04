@@ -1,30 +1,25 @@
-commit b79314289b93e3377f349b1d65c6b2073ac4e6ad
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Oct 31 11:49:44 2024 -0500
+commit 660620dd45dc11f2d889add79bedf2dc771c7d04
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 6 10:15:37 2023 -0400
 
-    os: skip TestPipeThreads on aix
+    cmd/link: avoid deadcode of global map vars for programs using plugins
     
-    This tests fails sporadically on the aix-ppc64 CI. I suspect this is
-    an aix performance related issue. Skip the test.
+    If a program imports the plugin package, the mechanisms in place for
+    detecting and deleting unused global map variables are no longer safe,
+    since it's possibly for a given global map var to be unreferenced in
+    the main program but referenced by a plugin. This patch changes the
+    linker to test for plugin use and to avoid removing any unused global
+    map variables if the main program could possibly load up a plugin.
     
-    AIX seems slow to perform a non-blocking reading on a pipe, and this
-    results in too many threads being created. This happens as far back
-    as go1.22, where I stopped looking.
+    Fixes #62430.
     
-    On the GCC farm machine gcc119, The failure rate seemed coupled to
-    GOMAXPROCS; about 1% for <=8, up to 40%+ for >=30 for all releases
-    tested.
-    
-    For #70131
-    
-    Change-Id: If002b55e5a4586d10cc7876d7c25259e61b17163
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623817
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie00b18b681cb0d259e3c859ac947ade5778cd6c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526115
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/os_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/cgo/internal/testplugin/plugin_test.go     |  7 +++++
+ .../testplugin/testdata/issue62430/main.go         | 35 ++++++++++++++++++++++
+ .../testplugin/testdata/issue62430/plugin.go       | 11 +++++++
+ src/cmd/link/internal/ld/deadcode.go               | 24 ++++++++++++---
+ 4 files changed, 73 insertions(+), 4 deletions(-)

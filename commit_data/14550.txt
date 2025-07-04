@@ -1,12 +1,12 @@
-commit 23ca24018a161ccd60f8c72b39bd66d1660604f1
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Dec 4 20:37:19 2012 +0900
+commit 0420eb3b656a7b0aeb04063df6d5989229cdb393
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 4 17:00:19 2012 +1100
 
-    doc: clear execute bit
+    net: report Accept error during TestVariousDeadlines1Proc test
     
-    R=golang-dev, dave
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6871057
+    https://golang.org/cl/6868057
 
- doc/articles/godoc_documenting_go_code.html | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/pkg/net/timeout_test.go | 17 ++++-------------
+ 1 file changed, 4 insertions(+), 13 deletions(-)

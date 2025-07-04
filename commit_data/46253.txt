@@ -1,27 +1,31 @@
-commit 62ba72b35321bd76de18aa8874b021ee02ab8a4e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 1 00:18:13 2021 +0700
+commit 5fe64298a4a00a7fa1655e9ebffbec7a704eb554
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 18:46:29 2020 -0500
 
-    cmd/compile: fix method expression lookup during import
+    [dev.regabi] cmd/compile: cleanup for concrete types - import/export
     
-    CL 309831 fixed importing of method expressions, by re-using the same
-    code already have for ODOTMETH. But that code does not work with
-    embedded field.
+    An automated rewrite will add concrete type assertions after
+    a test of n.Op(), when n can be safely type-asserted
+    (meaning, n is not reassigned a different type, n is not reassigned
+    and then used outside the scope of the type assertion,
+    and so on).
     
-    To fix this, we need to calculate all methods of the receiver base type
-    of method expression, before looking up the selection.
+    This sequence of CLs handles the code that the automated
+    rewrite does not: adding specific types to function arguments,
+    adjusting code not to call n.Left() etc when n may have multiple
+    representations, and so on.
     
-    Fixes #48088
+    This CL focuses on iimport.go and iexport.go.
     
-    Change-Id: Ia244d36a3ed0f989735eb57becdfa70a81912f57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346489
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I63edee54991ae5d982e99efa7a2894478d511910
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277925
+    Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/typecheck/iimport.go |  6 ++++--
- test/fixedbugs/issue48088.dir/a.go            | 22 ++++++++++++++++++++++
- test/fixedbugs/issue48088.dir/b.go            | 11 +++++++++++
- test/fixedbugs/issue48088.go                  |  7 +++++++
- 4 files changed, 44 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go |   7 +-
+ src/cmd/compile/internal/gc/bimport.go |  20 -----
+ src/cmd/compile/internal/gc/iexport.go | 151 ++++++++++++++++++++++-----------
+ src/cmd/compile/internal/gc/iimport.go |  22 +++--
+ 4 files changed, 122 insertions(+), 78 deletions(-)

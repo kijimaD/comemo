@@ -1,15 +1,13 @@
-commit 86040a091fbc8ba33474b018a1ccb6aa71de90df
-Author: David Leon Gil <coruus@gmail.com>
-Date:   Tue Sep 2 12:23:49 2014 -0700
+commit fee7c69c6c091d93c8c709ed562a477fd199bb3b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 27 23:41:10 2014 -0400
 
-    crypto: Add SHA3 functions in go.crypto/sha3 to the Hash enum.
+    cmd/api: fix for Lock⇒Mutex change
     
-    Reverse dependency of https://golang.org/cl/130950043/
-    
-    LGTM=agl
-    R=golang-codereviews, agl
-    CC=agl, golang-codereviews
-    https://golang.org/cl/138800043
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/133150043
 
- src/pkg/crypto/crypto.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/api/goapi.go               | 2 +-
+ src/pkg/runtime/syscall_windows.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

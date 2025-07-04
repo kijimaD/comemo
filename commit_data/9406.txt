@@ -1,12 +1,18 @@
-commit 8380ff34edc2e8e84fff3a5933e19c4335052731
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 18 11:01:43 2011 +1000
+commit e4a89d7ccaa4e5d3ccd6552cc2d8e108fe0bcd9a
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Thu Aug 18 10:40:29 2011 +1000
 
-    http: remove a TODO due to new behavior of nil maps
+    exp/template/html: defines a parse context for a subset of HTML.
     
-    R=golang-dev, dsymonds, adg
+    This defines just enough context to distinguish HTML URI attributes
+    from parsed character data.
+    
+    It does not affect any public module API as I thought I would get
+    early comment on style for defining enumerations and tables.
+    
+    R=rsc, r, nigeltao, r
     CC=golang-dev
-    https://golang.org/cl/4907049
+    https://golang.org/cl/4906043
 
- src/pkg/http/request.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/exp/template/html/context.go | 98 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 98 insertions(+)

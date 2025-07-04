@@ -1,33 +1,23 @@
-commit b194b5151fdac0c33da0b7359c97f92781ab3b5e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Nov 17 19:10:51 2020 -0500
+commit 19648622d244f301f03d287b075e19d71d79864e
+Author: Tyson Andre <tysonandre775@gmail.com>
+Date:   Sat Apr 25 20:53:42 2020 +0000
 
-    cmd/link: recompute heapPos after copyHeap
+    math/cmplx: fix typo in code comment
     
-    Immediately after a forward Seek, the offset we're writing to is
-    beyond len(buf)+len(heap):
+    Everywhere else is using "cancellation" as of 2019
     
-    |<--- buf --->|<--- heap --->|
-                                        ^
-                                        off
+    The reasoning is mentioned in 170060.
     
-    If we do a copyHeap at this point, the new heapPos should not be
-    0:
+    > Though there is variation in the spelling of canceled,
+    > cancellation is always spelled with a double l.
+    >
+    > Reference: https://www.grammarly.com/blog/canceled-vs-cancelled/
     
-    |<---------- buf ----------->|<-heap->|
-                                        ^
-                                        off
-    
-    Recompute it.
-    
-    For #42082.
-    
-    Change-Id: Icb3e4e1c7bf7d1fd3d76a2e0d7dfcb319c661534
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270941
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I933ea68d7251986ce582b92c33b7cb13cee1d207
+    GitHub-Last-Rev: fc3d5ada2bd0087ea9cfb3f105689876e7a2ee4f
+    GitHub-Pull-Request: golang/go#38661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230199
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/outbuf.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/math/cmplx/sqrt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

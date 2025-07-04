@@ -1,36 +1,22 @@
-commit 2c49bf89ed2aed91bae6a0869d30de927b4a2cbf
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue May 2 14:17:54 2023 +0000
+commit 2882786bf4cd779f166e9ced82a4da2ea0f8b1f9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jun 7 07:25:10 2022 +0200
 
-    net: net remove completed return from cgo lookup functions
+    runtime: remove unused pipe and setNonblock on linux/loong64
     
-    After CL 487196 there is no need anymore to return
-    completed == false from the cgo lookup functions and
-    then fallback to to go resolver.  (Before CL 487196 this
-    change would cause the (only?) tests to fail)
-    Now the cgoAvailable constant guards that correctly.
+    CL 389354 removed the fallback to pipe on all platforms with pipe2. This
+    is the case for linux. Thus, pipe and setNonblock are no longer needed
+    on linux/loong64 too.
     
-    This change will cause a panic when the cgo resolver is being
-    used without the cgo support, so it will be easier to
-    detect bug while changing the code in the net package.
-    
-    I am leaving the completed return from cgoLookupCNAME,
-    because it is super broken now.
-    
-    Change-Id: I2661b9a3725de2b1a229847c12adf64b3f62b136
-    GitHub-Last-Rev: 2a6501a53e1b2c5195c3869d528a40e7f93d6225
-    GitHub-Pull-Request: golang/go#59925
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491275
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I089adf918d0fd8de5d4d61a893707a2660f89183
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410736
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/cgo_stub.go        | 18 +++++++++---------
- src/net/cgo_unix.go        | 30 +++++++++++++++---------------
- src/net/cgo_unix_test.go   | 32 +++++++-------------------------
- src/net/lookup_unix.go     | 31 ++++++++++---------------------
- src/net/netgo_unix_test.go | 28 ----------------------------
- 5 files changed, 41 insertions(+), 98 deletions(-)
+ src/runtime/defs_linux_loong64.go |  1 -
+ src/runtime/sys_linux_loong64.s   | 24 ------------------------
+ 2 files changed, 25 deletions(-)

@@ -1,30 +1,32 @@
-commit 37a2004b431df6cdd3260cbfe2ddb7673e94b9ef
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Feb 21 13:16:22 2023 -0800
+commit 27b7b1fa19b5d8c8855859ca64b52f960a446ce7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 7 17:24:40 2022 -0500
 
-    cmd/compile: relax overly strict assertion
+    go/doc: use go/doc/comment
     
-    The assertion here was to make sure the newly constructed and
-    typechecked expression selected the same receiver-qualified method,
-    but in the case of anonymous receiver types we can actually end up
-    with separate types.Field instances corresponding to each types.Type
-    instance. In that case, the assertion spuriously failed.
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
     
-    The fix here is to relax and assertion and just compare the method's
-    name and type (including receiver type).
+    Use go/doc/comment to implement the existing go/doc comment APIs,
+    as well as adding new APIs more tailored to the new world.
     
-    Fixes #58563.
+    For #51082.
     
-    Change-Id: I67d51ddb020e6ed52671473c93fc08f283a40886
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471676
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I05b97ecedbf7cf7b8dede7ace6736ed6d89204a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384265
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/noder/reader.go | 13 ++++++++++++-
- test/fixedbugs/issue58563.dir/a.go       | 13 +++++++++++++
- test/fixedbugs/issue58563.dir/main.go    | 16 ++++++++++++++++
- test/fixedbugs/issue58563.go             |  7 +++++++
- 4 files changed, 48 insertions(+), 1 deletion(-)
+ api/next/51082.txt                |   6 +
+ src/go/build/deps_test.go         |   2 +-
+ src/go/doc/comment.go             | 543 ++++----------------------------------
+ src/go/doc/comment_test.go        | 274 ++++---------------
+ src/go/doc/doc.go                 | 132 ++++++++-
+ src/go/doc/doc_test.go            |   9 -
+ src/go/doc/reader.go              |  95 ++++++-
+ src/go/doc/synopsis.go            |  91 +++----
+ src/go/doc/synopsis_test.go       |  14 +-
+ src/go/doc/testdata/pkgdoc/doc.go |  19 ++
+ 10 files changed, 390 insertions(+), 795 deletions(-)

@@ -1,31 +1,22 @@
-commit 91c04826723a10f6778a935e743a34de81312489
-Author: Andy Pan <i@andypan.me>
-Date:   Mon Apr 8 11:51:45 2024 +0800
+commit 0e9b2bc39a9f90c49ba7313e2af522dc058988b0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Apr 17 14:06:10 2023 -0400
 
-    net: implement TCP_KEEPIDLE, TCP_KEEPINTVL, and TCP_KEEPCNT on Solaris 11.4
+    Revert "runtime/cgo: use pthread_attr_get_np on Illumos"
     
-    Also simulate TCP_KEEPIDLE, TCP_KEEPINTVL, and TCP_KEEPCNT with
-    TCP_KEEPALIVE_THRESHOLD + TCP_KEEPALIVE_ABORT_THRESHOLD for
-    Solaris prior to 11.4
+    This reverts CL 481795.
     
-    Fixes #9614
-    Fixes #64251
+    Reason for revert: CL 481061 causes C TSAN failures and must be
+    reverted. See CL 485275. This CL depends on CL 481061.
     
-    Change-Id: Ia0777076a7952630bc52761cddd0b06b0d81c6a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/577195
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    For #59678.
+    
+    Change-Id: I5ec1f495154205ebdf19cd44c6e6452a7a3606f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485315
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- .../syscall/unix/kernel_version_solaris.go         |   7 +
- src/net/tcpconn_keepalive_conf_solaris_test.go     | 115 ++++++++++++++++
- src/net/tcpconn_keepalive_conf_unix_test.go        |  11 +-
- src/net/tcpconn_keepalive_solaris_test.go          | 151 ++++++++++++++++-----
- src/net/tcpconn_keepalive_test.go                  |  19 ++-
- src/net/tcpsock.go                                 |   8 +-
- src/net/tcpsock_solaris.go                         |  38 ++++++
- src/net/tcpsock_unix.go                            |   2 +-
- src/net/tcpsockopt_solaris.go                      | 113 +++++++++++----
- 9 files changed, 384 insertions(+), 80 deletions(-)
+ src/runtime/cgo/gcc_stack_unix.c | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

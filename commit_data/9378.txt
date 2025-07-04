@@ -1,21 +1,14 @@
-commit 01dd57b3125892e0dc2054436f29cafb38b0a3ef
-Author: Julian Phillips <julian@quantumfyre.co.uk>
-Date:   Tue Aug 16 14:56:23 2011 -0400
+commit f12e543255894c82533f556b71ffc9f5ce94f286
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Aug 16 14:22:12 2011 -0400
 
-    cgo: omit duplicate symbols in writeDefs
+    5l, 6l, 8l: add varargck for %Z
     
-    When the C API being used includes multiple names for the same
-    underlying symbol (e.g. multiple #define's for the same variable), then
-    cgo will generate the same placeholder variables for each name.  This
-    then prevents the code from compiling due to multiple declarations of
-    the same variable - so change cgo to only create one instance of the
-    variable for the underlying symbol.
-    
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/4826055
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4837044
 
- misc/cgo/test/Makefile            |  1 +
- misc/cgo/test/duplicate_symbol.go | 21 +++++++++++++++++++++
- src/cmd/cgo/out.go                | 14 +++++++++-----
- 3 files changed, 31 insertions(+), 5 deletions(-)
+ src/cmd/5l/l.h | 1 +
+ src/cmd/6l/l.h | 1 +
+ src/cmd/8l/l.h | 5 +----
+ 3 files changed, 3 insertions(+), 4 deletions(-)

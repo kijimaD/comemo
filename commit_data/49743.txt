@@ -1,19 +1,23 @@
-commit b8f4847d6f175d71e0738e944db8e2394846fa36
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 15 14:33:16 2022 -0400
+commit 47f3e1e02c8737fd06397d957506f3724737cae0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 8 13:45:16 2021 -0700
 
-    runtime: convert gcController.globalsScan to atomic type
+    cmd/compile/internal/types2: move NewTypeParam off of Checker
     
-    For #53821.
+    This is a port of CL 347561.
     
-    Change-Id: I92bd33e355c868ae229395fd9c98fdb10768d03d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417779
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    A comment was corrected both in types2 and go/types, and the
+    compiler adjusted for the updated NewTypeParameter function.
+    
+    Change-Id: I4381f0dd8e43228e1d037c5d997d421b7838f905
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348574
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/align_runtime_test.go |  1 -
- src/runtime/export_test.go        |  2 +-
- src/runtime/mgc.go                |  2 +-
- src/runtime/mgcpacer.go           | 16 +++++++---------
- 4 files changed, 9 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go |  2 +-
+ src/cmd/compile/internal/noder/reader2.go    |  2 +-
+ src/cmd/compile/internal/types2/builtins.go  |  2 +-
+ src/cmd/compile/internal/types2/decl.go      |  2 +-
+ src/cmd/compile/internal/types2/typeparam.go | 10 +++++++---
+ src/go/types/typeparam.go                    |  2 +-
+ 6 files changed, 12 insertions(+), 8 deletions(-)

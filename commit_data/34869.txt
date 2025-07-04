@@ -1,17 +1,14 @@
-commit 33eaf75a031694e11981218963f395174baca6e1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 6 00:54:20 2018 -0700
+commit 71aee2a190e6a26858b16a0974afdf976f2b0905
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 22 01:38:40 2017 +0000
 
-    cmd/compile: cleanup method expression type checking
+    doc: update the URL of the latest go1.4 source snapshot
     
-    Passes toolstash-check.
+    Updates golang/go#20672
     
-    Change-Id: I804e73447b6fdbb75af6235c193c4ee7cbcf8d3a
-    Reviewed-on: https://go-review.googlesource.com/105045
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3c62b1606aec93e188255f1701c0af569d540016
+    Reviewed-on: https://go-review.googlesource.com/79276
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go   |   9 +--
- src/cmd/compile/internal/gc/typecheck.go | 117 +++++++++++++++----------------
- 2 files changed, 60 insertions(+), 66 deletions(-)
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

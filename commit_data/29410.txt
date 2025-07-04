@@ -1,33 +1,21 @@
-commit ec77b8e09cace7338ebc39faadd599e5cb676295
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Fri Nov 4 14:53:59 2016 -0500
+commit 33e63ebc20e38d20077c1f184f05a4a0656e189a
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Sep 11 05:06:29 2016 -0700
 
-    cmd/link: don't use trampolines in ppc64le ext linking
+    os: add more examples
     
-    On ppc64x, trampolines are used to resolve too-far
-    branches for internal linking.  The external linking,
-    solution on ppc64x is to split text sections when they
-    get too large, allowing the external linker to handle
-    the long branches.
+    Updates #16360.
     
-    On arm trampolines are generanted for too-far branches
-    for internal and external linking.  When the change
-    was made recently to enable trampolines for external linking
-    on arm, that broke the ppc64x fix for too-far branches
-    with external linking.
+    Adds examples for:
+    + Chmod
+    + Chtimes
+    + FileMode
     
-    The fix adds a check to use trampolines only for internal
-    linking with ppc64x.
-    
-    Fixes #17795
-    
-    Change-Id: Icce968fb96545f10a913e07654514643bce96261
-    Reviewed-on: https://go-review.googlesource.com/32853
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1b61ee0392fa3774593a7f36aaf0fa1e484c778b
+    Reviewed-on: https://go-review.googlesource.com/28963
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/link/internal/ld/data.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/os/example_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

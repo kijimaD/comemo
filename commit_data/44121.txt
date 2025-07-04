@@ -1,21 +1,40 @@
-commit 6aa28d3e06d0757995c54a22d2f2a1f1b396774f
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jan 13 17:07:09 2021 -0500
+commit 69261d1f367ae8b14f943c39d7ab80faf80b2e03
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon May 11 16:00:13 2020 -0400
 
-    go/build: report positions for go:embed directives
+    [dev.link] cmd/link: expand architecture support for elf asmb2 path
     
-    For #43469
-    For #43632
+    Adds in support for remaining architectures to the linker's ELF asmb2
+    path, along with deleting most of the older sym.Symbol based code.
     
-    Change-Id: I9ac2da690344935da0e1dbe00b134dfcee65ec8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283636
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I67c96525db72b7d6dd3187cf2b9f6faddc296291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233362
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- api/go1.16.txt            |  3 ++
- src/go/build/build.go     | 68 +++++++++++++++++++++++++------------------
- src/go/build/read.go      | 74 +++++++++++++++++++++++++++++++++++------------
- src/go/build/read_test.go | 57 ++++++++++++++++++++++++------------
- 4 files changed, 136 insertions(+), 66 deletions(-)
+ src/cmd/link/internal/arm/asm.go     |  17 +-
+ src/cmd/link/internal/arm/obj.go     |   2 +-
+ src/cmd/link/internal/arm64/asm.go   |  11 +-
+ src/cmd/link/internal/arm64/obj.go   |   2 +-
+ src/cmd/link/internal/ld/data.go     |   8 +-
+ src/cmd/link/internal/ld/dwarf2.go   |  28 --
+ src/cmd/link/internal/ld/elf.go      |   8 -
+ src/cmd/link/internal/ld/elf2.go     | 643 +----------------------------------
+ src/cmd/link/internal/ld/lib.go      |   1 -
+ src/cmd/link/internal/ld/lib2.go     |  51 ---
+ src/cmd/link/internal/ld/main.go     |   2 +-
+ src/cmd/link/internal/ld/symtab.go   |   5 +-
+ src/cmd/link/internal/ld/symtab2.go  | 166 ---------
+ src/cmd/link/internal/ld/xcoff2.go   | 113 ------
+ src/cmd/link/internal/mips/asm.go    |   8 +-
+ src/cmd/link/internal/mips/obj.go    |   2 +-
+ src/cmd/link/internal/mips64/asm.go  |   9 +-
+ src/cmd/link/internal/mips64/obj.go  |   2 +-
+ src/cmd/link/internal/ppc64/asm.go   |  13 +-
+ src/cmd/link/internal/ppc64/obj.go   |   2 +-
+ src/cmd/link/internal/riscv64/asm.go |   4 +-
+ src/cmd/link/internal/riscv64/obj.go |   2 +-
+ src/cmd/link/internal/s390x/asm.go   |  31 +-
+ src/cmd/link/internal/s390x/obj.go   |   2 +-
+ src/cmd/link/internal/x86/asm.go     |  23 +-
+ src/cmd/link/internal/x86/obj.go     |   2 +-
+ 26 files changed, 76 insertions(+), 1081 deletions(-)

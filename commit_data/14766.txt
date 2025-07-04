@@ -1,14 +1,14 @@
-commit 267a55397b4343fe37ea89319b9007e649eb101f
-Author: Kamil Kisiel <kamil@kamilkisiel.net>
-Date:   Wed Jan 2 16:00:41 2013 +1100
+commit 52dc13b5f3d9b9cbe26512fc4986372a6e97e96c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jan 1 21:46:18 2013 +1100
 
-    cmd/godoc: ignore misnamed examples and print a warning
+    go/build: disable cgo on freebsd/arm
     
-    Fixes #4211.
+    Under FreeBSD-CURRENT on arm, cgo enabled binaries segfault. Disable cgo support for the moment so we can have a freebsd/arm builder on the dashboard.
     
-    R=golang-dev, adg
+    R=minux.ma, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/6970051
+    https://golang.org/cl/7031044
 
- src/cmd/godoc/godoc.go | 115 ++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 91 insertions(+), 24 deletions(-)
+ src/pkg/go/build/build.go | 1 -
+ 1 file changed, 1 deletion(-)

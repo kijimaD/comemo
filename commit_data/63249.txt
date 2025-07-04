@@ -1,0 +1,26 @@
+commit 21b7e60c6b64dd3221ab5b95d164fb42492029e8
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 22 11:14:53 2025 -0700
+
+    runtime, testing/synctest: breaking bubble isolation with Cond is fatal
+    
+    sync.Cond.Wait is durably blocking. Waking a goroutine out of Cond.Wait
+    from outside its bubble panics.
+    
+    Make this panic a fatal panic, since it leaves the notifyList in an
+    inconsistent state. We could do some work to make this a recoverable
+    panic, but the complexity doesn't seem worth the outcome.
+    
+    For #67434
+    
+    Change-Id: I88874c1519c2e5c0063175297a9b120cedabcd07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675617
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/runtime/crash_test.go                 | 17 +++++++++
+ src/runtime/sema.go                       |  4 +--
+ src/runtime/testdata/testprog/synctest.go | 58 +++++++++++++++++++++++++++++++
+ src/testing/synctest/synctest.go          |  5 ++-
+ 4 files changed, 81 insertions(+), 3 deletions(-)

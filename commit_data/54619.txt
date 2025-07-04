@@ -1,24 +1,30 @@
-commit 0c64ebce7e7007615aba58a19be07372f0febe69
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Oct 4 10:26:17 2023 -0400
+commit d65c0593c4f1dd4a9b381cf654668aa27166b24e
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Thu Nov 3 12:16:06 2022 -0700
 
-    go/printer: parenthesize type in <-((<-chan int)(nil))
+    text/template/parse: fix interaction of break/continue keywords and functions
     
-    When printing synthetic syntax (not created by the parser),
-    the tree for <-((<-chan int)(nil)) without any ParenExpr nodes
-    was misprinted so that it was parsed back as a receive of
-    a receive. This changes emits parens around the channel type.
+    Fixes a bug that was introduced in CL 410414; in that CL, to avoid
+    a race condition in the initialization of the lexer, the setting
+    of the breakOK and continueOK options was moved to before
+    Tree.funcs was populated from parameters. As a result, the parser
+    missed the fact that 'break' and 'continue' were defined as functions.
     
-    Fixes #63362
+    Following CL 421883 race conditions are no longer an issue, so
+    the simplest fix is just to move the initialization where it was
+    before - in startParse, after t.funcs has been set.
     
-    Change-Id: I2041ced224f0bca001cee5d37f7a127265d21020
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532556
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #56538
+    
+    Change-Id: I3b99fe9ad12255a4f6eb9a00eb3f64529ff055c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447775
+    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
+    Auto-Submit: Eli Bendersky‎ <eliben@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/go/printer/nodes.go        | 21 +++++++++++++++------
- src/go/printer/printer_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 6 deletions(-)
+ src/text/template/parse/parse.go      | 10 +++++-----
+ src/text/template/parse/parse_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 5 deletions(-)

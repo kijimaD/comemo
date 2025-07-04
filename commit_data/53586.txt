@@ -1,19 +1,32 @@
-commit 0183c1aa02dc2efd17d9693d960ca6f4266eee8a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 16 15:56:37 2023 -0400
+commit ef22285f31ab16ff6751418705b8a7df8e0d661f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 21 14:17:40 2022 +0100
 
-    cmd/compile/internal/syntax: skip GOROOT/misc in TestStdLib if it doesn't exist
+    all: use go/parser.SkipObjectResolution in more places
     
-    cmd/distpack deletes GOROOT/misc from its distribution.
+    None of cgo, "go test", nor srcimporter make use of go/ast's object
+    resolution via go/ast.Object. As such, we can skip that work during
+    parse time, which should save some CPU time.
     
-    For #24904.
+    We don't have any benchmark numbers, as none of the three packages have
+    any usable benchmarks, but we measured gofmt to be about 5% faster
+    thanks to this tweak in https://go.dev/cl/401454.
+    These three packages are quite different to gofmt, but one can expect
+    similar speed-ups in the 1-5% range.
     
-    Change-Id: I47c60e9a6d39d015683dde7f44bf7c34517b6a8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504059
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Two notable exceptions, which do make use of go/ast.Object, are cmd/fix
+    and cmd/doc - we do not modify those here.
+    
+    See #46485.
+    
+    Change-Id: Ie3e65600d4790641c4e4d6f1c379be477fa02cee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401455
     Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/parser_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/cgo/ast.go                         | 4 ++--
+ src/cmd/go/internal/load/test.go           | 2 +-
+ src/go/internal/srcimporter/srcimporter.go | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

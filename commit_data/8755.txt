@@ -1,53 +1,18 @@
-commit 6e9b1a78ff1a394a60a815b23564ad58a0cf0ce1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 16 13:02:28 2011 -0700
+commit 7f3e109d2f89eb997cd28adc607fd75ba9ac94d1
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Jun 16 12:56:49 2011 -0400
 
-    http: make Headers be source of truth
+    xml: allow attributes without value in non-strict mode.
     
-    Previously Request and Response had redundant fields for
-    Referer, UserAgent, and cookies which caused confusion and
-    bugs.  It also didn't allow us to expand the package over
-    time, since the way to access fields would be in the Headers
-    one day and promoted to a field the next day.  That would be
-    hard to gofix, especially with code ranging over Headers.
+    Attributes without value are commen in html and the xml
+    parser will accept them in non-strict mode and use the
+    attribute name as value. Thus parsing <p nowrap> as
+    <p norwar="nowrap">.
     
-    After a discussion on the mail package's design with a similar
-    problem, we've designed to make the Headers be the source of
-    truth and add accessors instead.
-    
-    Request:
-    change: Referer -> Referer()
-    change: UserAgent -> UserAgent()
-    change: Cookie -> Cookies()
-    new: Cookie(name) *Cookie
-    new: AddCookie(*Cookie)
-    
-    Response:
-    change: Cookie -> Cookies()
-    
-    Cookie:
-    new: String() string
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4620049
+    https://golang.org/cl/4601053
 
- src/cmd/gofix/Makefile            |   1 +
- src/cmd/gofix/httpheaders.go      |  66 ++++++++++++++++++++++
- src/cmd/gofix/httpheaders_test.go |  73 +++++++++++++++++++++++++
- src/cmd/gofix/main.go             |   2 +-
- src/pkg/http/cgi/child.go         |  11 +---
- src/pkg/http/cgi/child_test.go    |   8 +--
- src/pkg/http/cgi/host.go          |  18 ++----
- src/pkg/http/client.go            |   2 +-
- src/pkg/http/client_test.go       |   2 +-
- src/pkg/http/cookie.go            | 112 ++++++++++----------------------------
- src/pkg/http/cookie_test.go       |  93 ++++++++++++++++++-------------
- src/pkg/http/readrequest_test.go  |   5 +-
- src/pkg/http/request.go           | 108 ++++++++++++++++++++----------------
- src/pkg/http/requestwrite_test.go |  14 +++--
- src/pkg/http/response.go          |  14 ++---
- src/pkg/http/reverseproxy.go      |   4 --
- src/pkg/http/reverseproxy_test.go |   4 +-
- src/pkg/http/server.go            |   2 +-
- 18 files changed, 314 insertions(+), 225 deletions(-)
+ src/pkg/xml/xml.go      | 23 ++++++++++++++---------
+ src/pkg/xml/xml_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 9 deletions(-)

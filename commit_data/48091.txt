@@ -1,22 +1,29 @@
-commit 7c9885def52a408532085a566eea107f31ad1556
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 3 17:34:43 2022 -0800
+commit 1eca6aa7472604eb7597cbb3b132c6e28b89ee55
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:13 2021 -0600
 
-    go/types, types2: use identical missingMethod in both type checkers
+    cmd/internal/obj: refactor ppc64 address relocation code generation
     
-    Further simplify and regularize Checker.missingMethod and use the
-    same code in both type checkers.
+    The code for generating a long constant versus generating an address
+    (either via a relocation, or known offset) should be handled in the
+    same place.
     
-    This enables case-folding lookup for go/types.
+    Resolve this by classifying memory arguments as C_LACON (a long
+    address constant) instead of C_LCON (a long constant).
     
-    Adjusted test case that looks for alternative methods.
+    Likewise, reorder AMOVD/AMOVW optab entries to keep similar
+    classifications near each other. An extra optab entry for
+    DWORD is also added to continue handling C_LACON arguments
+    correctly.
     
-    Change-Id: I5b8cc598c295c329ff93b1c65787cc6140f0900e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382858
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I5ce28400492a071f615125a9b8d260826f1600d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312296
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
 
- src/cmd/compile/internal/types2/lookup.go      | 36 ++++++++++--------------
- src/go/types/lookup.go                         | 38 ++++++++++----------------
- src/go/types/testdata/fixedbugs/issue50816.go2 |  4 +--
- 3 files changed, 30 insertions(+), 48 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  2 ++
+ src/cmd/internal/obj/ppc64/asm9.go        | 44 +++++++++++++++----------------
+ 2 files changed, 23 insertions(+), 23 deletions(-)

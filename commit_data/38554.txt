@@ -1,16 +1,27 @@
-commit db7e74696087edefd03162583cc8d45ad5bd2f06
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 25 22:57:27 2019 +0000
+commit 9c89923266a372e9357dc3296b6c53bb931dd4a9
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 5 12:36:42 2018 -0500
 
-    cmd/vet/all: don't use the x/tools vet in GOPATH
+    runtime: deflake TestTracebackAncestors
     
-    Updates golang/go#31040
+    TestTracebackAncestors has a ~0.1% chance of failing with more
+    goroutines in the traceback than expected. This happens because
+    there's a window between each goroutine starting its child and that
+    goroutine actually exiting. The test captures its own stack trace
+    after everything is "done", but if this happens during that window, it
+    will include the goroutine that's in the process of being torn down.
+    Here's an example of such a failure:
+    https://build.golang.org/log/fad10d0625295eb79fa879f53b8b32b9d0596af8
     
-    Change-Id: I76e3044b2cc992e63194654a825e70307075eff3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169237
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This CL fixes this by recording the goroutines that are expected to
+    exit and removing them from the stack trace. With this fix, this test
+    passed 15,000 times with no failures.
+    
+    Change-Id: I71e7c6282987a15e8b74188b9c585aa2ca97cbcd
+    Reviewed-on: https://go-review.googlesource.com/c/147517
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/all/main.go | 25 +++++++++++--------------
- 1 file changed, 11 insertions(+), 14 deletions(-)
+ .../testdata/testprog/traceback_ancestors.go       | 56 ++++++++++++++++++++--
+ 1 file changed, 51 insertions(+), 5 deletions(-)

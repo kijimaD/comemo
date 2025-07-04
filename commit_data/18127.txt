@@ -1,12 +1,18 @@
-commit 36c8c5f063a73ad85a2ac36a8af8de93d348d07b
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Sun Dec 29 22:38:05 2013 +1100
+commit d2fe44d56834b132f3759cef4bcd5dcc1bfeaa5c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Dec 29 15:25:34 2013 +1100
 
-    io: add tests for SectionReader ReadAt and Size
+    runtime: load runtime.goarm as a byte, not a word
     
-    R=golang-codereviews, dave
+    Fixes #6952.
+    
+    runtime.asminit was incorrectly loading runtime.goarm as a word, not a uint8 which made it subject to alignment issues on arm5 platforms.
+    
+    Alignment aside, this also meant that the top 3 bytes in R11 would have been garbage and could not be assumed to be setting up the FPU reliably.
+    
+    R=iant, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/39200045
+    https://golang.org/cl/46240043
 
- src/pkg/io/io_test.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/pkg/runtime/asm_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,26 @@
-commit 0a00926481faaf40189d1d78e738584cb1735f40
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Apr 22 17:42:41 2020 +0200
+commit ceca99bdebf1154879288d108c8506372e1a0173
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 28 00:50:39 2019 -0400
 
-    runtime: fix bad link to issue tracker in test
+    cmd/compile, cmd/internal/obj/ppc64: mark unsafe points
     
-    Change-Id: Ie88ff3f0493f4119be25476a20038877e879c485
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229397
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    We'll use CTR as a scratch register for call injection. Mark code
+    sequences that use CTR as unsafe for async preemption. Currently
+    it is only used in LoweredZero and LoweredMove. It is unfortunate
+    that they are nonpreemptible. But I think it is still better than
+    using LR for call injection and marking all leaf functions
+    nonpreemptible.
+    
+    Also mark the prologue of large frame functions nonpreemptible,
+    as we write below SP.
+    
+    Change-Id: I05a75431499f3f4b2f23651a7b17f7fcf2afbe06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203823
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/panic_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 2 ++
+ src/cmd/internal/obj/ppc64/obj9.go           | 7 +++++++
+ 3 files changed, 11 insertions(+)

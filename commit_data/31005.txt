@@ -1,16 +1,19 @@
-commit 92cf05daf3c96c854f8e2a32d6734a91ef7bb865
+commit a917097b5e5fd42bb4e6f4884a58544330d34984
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 5 09:56:39 2017 -0400
+Date:   Mon Jan 9 19:41:19 2017 -0500
 
-    test: deflake locklinear again
+    [dev.typealias] go/build: add go1.9 build tag
     
-    Fixes #19276.
+    It's earlier than usual but this will help us put the type alias-aware
+    code into x/tools without breaking clients on go1.6, go1.7,
+    or (eventually) go1.8.
     
-    Change-Id: I64f8f80331d09956b6698c0b004ed7f7d70857fc
-    Reviewed-on: https://go-review.googlesource.com/39591
+    Change-Id: I43e7ea804922de07d153c7e356cf95e2a11fc592
+    Reviewed-on: https://go-review.googlesource.com/35050
     Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/locklinear.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/go/build/build.go | 3 ++-
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

@@ -1,26 +1,17 @@
-commit 79c5240799e02feeacfdde3472f22b4b0401f3c7
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Oct 30 14:39:29 2021 -0700
+commit 85f62b09413ea043623f7f6905a4d1426908e6a2
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Mar 2 05:53:49 2021 +0000
 
-    cmd/compile: mark type descriptors as always dupok
+    cmd/compile: remove 8-byte alignment requirement of stack slot on mips
     
-    The types of the two interfaces should be equal, but they aren't.
-    We end up with multiple descriptors for a type when we need type
-    descriptors to be unique.
+    This CL applies CL 267999 to mips.
     
-    Fixes #49241
+    Updates #42385
     
-    Change-Id: I8a6c70da541c6088a92a01392bc83b61cc130eba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360134
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I8096e16c1b4def767b0c20c16add36fa2406bcab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297772
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: eric fang <eric.fang@arm.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  9 +++------
- test/typeparam/issue49241.dir/a.go              | 13 +++++++++++++
- test/typeparam/issue49241.dir/b.go              | 17 +++++++++++++++++
- test/typeparam/issue49241.dir/c.go              | 17 +++++++++++++++++
- test/typeparam/issue49241.dir/main.go           | 21 +++++++++++++++++++++
- test/typeparam/issue49241.go                    |  7 +++++++
- 6 files changed, 78 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssagen/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

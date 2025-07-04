@@ -1,22 +1,44 @@
-commit 428ed1e3d9e31428b3bf81ed55664a4c34238e4c
-Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
-Date:   Fri May 15 00:53:10 2015 +0800
+commit 8f22b5292ffc01ea66bd92fa833d0ec25390173b
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 11 21:29:25 2015 -0700
 
-    cmd/go: support git.apache.org Git repos
+    [dev.ssa] cmd/compiler/internal/ssa: Add auxint field
     
-    This change fixes resolution of secure (https) repo URL for
-    git.apache.org Git repositories.
+    Add an additional int64 auxiliary field to Value.
     
-    E.g. the correct repo URL for git.apache.org/thrift.git/lib/go/thrift is
-    https://git.apache.org/thrift.git, not https://git.apache.org/thrift
+    There are two main reasons for doing this:
+    1) Ints in interfaces require allocation, and we store ints in Aux a lot.
+    2) I'd like to have both *gc.Sym and int offsets included in lots
+       of operations (e.g. MOVQloadidx8).  It will be more efficient to
+       store them as separate fields instead of a pointer to a sym/int pair.
     
-    Fixes #10797
+    It also simplifies a bunch of code.
     
-    Change-Id: I67d5312ad8620eb780e42c2e002c8f286f60645a
-    Reviewed-on: https://go-review.googlesource.com/10092
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This is just the refactoring.  I'll start using this some more in a
+    subsequent changelist.
+    
+    Change-Id: I1ca797ff572553986cf90cab3ac0a0c1d01ad241
+    Reviewed-on: https://go-review.googlesource.com/10929
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/vcs.go      |  8 ++++++++
- src/cmd/go/vcs_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             | 163 +++++----
+ src/cmd/compile/internal/ssa/deadcode_test.go  |  12 +-
+ src/cmd/compile/internal/ssa/deadstore_test.go |  36 +-
+ src/cmd/compile/internal/ssa/func.go           | 115 +++++-
+ src/cmd/compile/internal/ssa/func_test.go      | 116 +++---
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  40 +--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  42 +--
+ src/cmd/compile/internal/ssa/gen/generic.rules |  21 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   8 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  60 ++--
+ src/cmd/compile/internal/ssa/generic.go        | 424 ----------------------
+ src/cmd/compile/internal/ssa/op.go             |  25 --
+ src/cmd/compile/internal/ssa/regalloc.go       |  16 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |   7 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 465 ++++++++++++++-----------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 162 +++++----
+ src/cmd/compile/internal/ssa/schedule_test.go  |  18 +-
+ src/cmd/compile/internal/ssa/shift_test.go     |  16 +-
+ src/cmd/compile/internal/ssa/stackalloc.go     |   4 +-
+ src/cmd/compile/internal/ssa/value.go          |   9 +-
+ 20 files changed, 756 insertions(+), 1003 deletions(-)

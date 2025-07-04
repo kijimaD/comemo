@@ -1,12 +1,14 @@
-commit 366460defbbfabf9db4471ac55c9819e25487ed9
-Author: Brad Fitzpatrick <bradfitz@tailscale.com>
-Date:   Wed Apr 15 14:44:27 2020 -0700
+commit 63546a03cc678718a9c878e91ef1d1839b445f53
+Author: Vitaly Zdanevich <zdanevich.vitaly@ya.ru>
+Date:   Wed Nov 6 20:36:43 2019 +0000
 
-    A: add Tailscale Inc. (Corporate CLA)
+    doc: Effective Go: formatting of code example
     
-    Change-Id: Ic95f6f78fa56169998a6890beb873693852c5798
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228419
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7f5947cef3ec43746f60abca556dda29a705caf7
+    GitHub-Last-Rev: b9aefd06abdaee854671451711579dd5bd33bd26
+    GitHub-Pull-Request: golang/go#35404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205610
+    Reviewed-by: Rob Pike <r@golang.org>
 
- AUTHORS | 1 +
- 1 file changed, 1 insertion(+)
+ doc/progs/eff_qr.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

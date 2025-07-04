@@ -1,26 +1,215 @@
-commit 7cfa7d69259590319524c3715df4a39b39924bc3
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri May 8 14:14:15 2020 +0100
+commit f7672d39ca9eeb05d0605348290335698da98ae8
+Merge: 27c0aeee3f 2ac1ca9160
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Dec 3 10:38:43 2019 -0500
 
-    testing: tests and benchmarks can assume flag.Parsed
+    [dev.link] all: merge branch 'master' into dev.link
     
-    testing.M.Run has this bit of code:
+    Bring in Than's fix of #35779.
     
-            if !flag.Parsed() {
-                    flag.Parse()
-            }
+    The only merge conflict is cmd/link/internal/loadelf/ldelf.go,
+    with a modification-deletion conflict.
     
-    It makes sense, and it's common knowledge for many Go developers that
-    test flags are automatically parsed by the time tests and benchmarks are
-    run. However, the docs didn't clarify that. The previous wording only
-    mentioned that flag.Parse isn't run before TestMain, which doesn't
-    necessarily mean that it's run afterwards.
-    
-    Fixes #38952.
-    
-    Change-Id: I85f7a9dce637a23c5cb9abc485d47415c1a1ca27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232806
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id2fcfd2094a31120966a6ea9c462b4ec76646b10
 
- src/testing/testing.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ doc/go1.14.html                                    |  10 +
+ doc/modules.md                                     | 514 ++++++++++++++-
+ lib/time/update.bash                               |   4 +-
+ lib/time/zoneinfo.zip                              | Bin 781554 -> 781791 bytes
+ misc/cgo/fortran/test.bash                         |   2 +-
+ misc/cgo/life/overlaydir_test.go                   |  11 +-
+ misc/cgo/stdio/overlaydir_test.go                  |  11 +-
+ misc/cgo/test/overlaydir_test.go                   |  11 +-
+ misc/cgo/testasan/main.go                          |   7 +
+ misc/cgo/testcarchive/carchive_test.go             | 239 ++++---
+ misc/cgo/testcarchive/overlaydir_test.go           |  11 +-
+ misc/cgo/testcshared/cshared_test.go               |  43 +-
+ misc/cgo/testcshared/overlaydir_test.go            |  11 +-
+ misc/cgo/testplugin/overlaydir_test.go             |  11 +-
+ misc/cgo/testplugin/plugin_test.go                 |   2 +-
+ misc/cgo/testshared/overlaydir_test.go             |  11 +-
+ misc/cgo/testshared/shared_test.go                 | 200 ++++--
+ misc/cgo/testsigfwd/main.go                        |   1 +
+ misc/cgo/testso/overlaydir_test.go                 |  11 +-
+ misc/cgo/testsovar/overlaydir_test.go              |  11 +-
+ misc/chrome/gophertool/background.js               |   2 +-
+ misc/reboot/overlaydir_test.go                     |   8 +-
+ src/archive/zip/reader_test.go                     |  34 +-
+ src/archive/zip/testdata/go-no-datadesc-sig.zip    | Bin 330 -> 0 bytes
+ .../zip/testdata/go-no-datadesc-sig.zip.base64     |   1 +
+ src/cmd/cgo/out.go                                 |   4 +-
+ src/cmd/compile/internal/gc/fmt.go                 |   2 +-
+ src/cmd/compile/internal/gc/main.go                |   2 +-
+ src/cmd/compile/internal/gc/ssa.go                 |   6 +
+ src/cmd/dist/test.go                               |  23 +-
+ src/cmd/fix/main.go                                |   4 +-
+ src/cmd/fix/main_test.go                           |   1 +
+ src/cmd/go.mod                                     |   4 +-
+ src/cmd/go.sum                                     |   8 +-
+ src/cmd/go/alldocs.go                              |   4 +-
+ src/cmd/go/go_test.go                              | 732 +--------------------
+ src/cmd/go/internal/load/pkg.go                    |   5 +-
+ src/cmd/go/internal/modcmd/download.go             |   6 +-
+ src/cmd/go/internal/modget/get.go                  |   2 +
+ src/cmd/go/internal/modload/list.go                |   4 +-
+ src/cmd/go/internal/work/exec.go                   |   2 +-
+ src/cmd/go/internal/work/init.go                   |  92 +--
+ src/cmd/go/script_test.go                          |  35 +-
+ src/cmd/go/testdata/dep_test.go                    |   7 -
+ src/cmd/go/testdata/local/easy.go                  |   7 -
+ src/cmd/go/testdata/local/easysub/easysub.go       |   7 -
+ src/cmd/go/testdata/local/easysub/main.go          |   9 -
+ src/cmd/go/testdata/local/hard.go                  |   7 -
+ src/cmd/go/testdata/local/sub/sub.go               |  12 -
+ src/cmd/go/testdata/local/sub/sub/subsub.go        |   7 -
+ src/cmd/go/testdata/script/README                  |   7 +-
+ src/cmd/go/testdata/script/build_gcflags.txt       |  21 +
+ src/cmd/go/testdata/script/build_i.txt             |  41 ++
+ src/cmd/go/testdata/script/build_trimpath.txt      | 115 ++--
+ src/cmd/go/testdata/script/cache_vet.txt           |   2 +-
+ src/cmd/go/testdata/script/cover_modes.txt         |  25 +
+ src/cmd/go/testdata/script/devnull.txt             |  26 +
+ src/cmd/go/testdata/script/gopath_install.txt      |  53 ++
+ src/cmd/go/testdata/script/gopath_local.txt        | 117 ++++
+ src/cmd/go/testdata/script/gopath_moved_repo.txt   |  68 ++
+ src/cmd/go/testdata/script/gopath_paths.txt        |  43 ++
+ src/cmd/go/testdata/script/import_main.txt         | 114 ++++
+ src/cmd/go/testdata/script/list_linkshared.txt     |  16 +
+ src/cmd/go/testdata/script/mod_cache_rw.txt        |   4 +-
+ .../testdata/script/mod_convert_tsv_insecure.txt   |   3 +
+ src/cmd/go/testdata/script/mod_download.txt        |   7 +
+ src/cmd/go/testdata/script/mod_issue35317.txt      |   2 +-
+ src/cmd/go/testdata/script/mod_outside.txt         |   7 +
+ src/cmd/go/testdata/script/modfile_flag.txt        |  19 +-
+ src/cmd/go/testdata/script/test_cache_inputs.txt   | 230 +++++++
+ src/cmd/go/testdata/script/test_devnull.txt        |  15 -
+ src/cmd/go/testdata/script/test_main_archive.txt   |  32 +
+ src/cmd/go/testdata/script/test_rebuildall.txt     |  14 +
+ src/cmd/go/testdata/script/vet_flags.txt           |   8 +
+ src/cmd/go/testdata/src/go-cmd-test/helloworld.go  |   5 -
+ src/cmd/go/testdata/src/main_test/m.go             |   4 -
+ src/cmd/go/testdata/src/main_test/m_test.go        |  10 -
+ .../go/testdata/src/testcache/testcache_test.go    |  91 ---
+ src/cmd/internal/buildid/buildid_test.go           |  41 +-
+ src/cmd/internal/buildid/testdata/a.elf            | Bin 12768 -> 0 bytes
+ src/cmd/internal/buildid/testdata/a.elf.base64     |   1 +
+ src/cmd/internal/buildid/testdata/a.macho          | Bin 13472 -> 0 bytes
+ src/cmd/internal/buildid/testdata/a.macho.base64   |   1 +
+ src/cmd/internal/buildid/testdata/a.pe             | Bin 3584 -> 0 bytes
+ src/cmd/internal/buildid/testdata/a.pe.base64      |   1 +
+ src/cmd/internal/buildid/testdata/p.a              | Bin 682 -> 0 bytes
+ src/cmd/internal/buildid/testdata/p.a.base64       |   1 +
+ src/cmd/internal/obj/arm/obj5.go                   |  17 +-
+ src/cmd/internal/obj/arm64/doc.go                  |   5 +
+ src/cmd/internal/obj/arm64/obj7.go                 |  21 +-
+ src/cmd/internal/obj/mips/obj0.go                  |  10 +-
+ src/cmd/internal/obj/plist.go                      |  23 +-
+ src/cmd/internal/obj/ppc64/obj9.go                 |  10 +-
+ src/cmd/internal/obj/riscv/obj.go                  | 137 +++-
+ src/cmd/internal/obj/s390x/objz.go                 |  34 +-
+ src/cmd/internal/obj/x86/obj6.go                   |  27 +-
+ src/cmd/internal/src/xpos.go                       |   4 +
+ src/cmd/internal/sys/supported.go                  |  68 ++
+ src/cmd/link/elf_test.go                           | 130 +++-
+ src/cmd/link/internal/loadelf/ldelf.go             |  14 +-
+ src/cmd/link/internal/loader/loader.go             |  50 +-
+ src/cmd/link/internal/riscv64/asm.go               |  50 +-
+ src/cmd/link/link_test.go                          |   5 +
+ src/cmd/nm/nm_test.go                              |  15 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |  18 +-
+ src/cmd/vendor/golang.org/x/mod/module/module.go   |   6 +-
+ src/cmd/vendor/golang.org/x/mod/zip/zip.go         |  10 +
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |   4 +-
+ .../x/tools/go/analysis/passes/bools/bools.go      |   4 +-
+ .../tools/go/analysis/passes/buildtag/buildtag.go  |   4 +-
+ .../x/tools/go/analysis/passes/cgocall/cgocall.go  |   4 +-
+ .../tools/go/analysis/passes/errorsas/errorsas.go  |   4 +-
+ .../go/analysis/passes/lostcancel/lostcancel.go    |   4 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |   4 +-
+ .../x/tools/go/analysis/passes/shift/shift.go      |   4 +-
+ .../go/analysis/passes/unmarshal/unmarshal.go      |   4 +-
+ src/cmd/vendor/modules.txt                         |   4 +-
+ src/compress/gzip/gunzip_test.go                   |  10 +-
+ src/compress/gzip/testdata/issue6550.gz            | Bin 65536 -> 0 bytes
+ src/compress/gzip/testdata/issue6550.gz.base64     |   1 +
+ src/crypto/tls/common.go                           |   1 -
+ src/crypto/x509/sec1.go                            |   4 +-
+ src/debug/macho/file_test.go                       |  61 +-
+ .../testdata/clang-386-darwin-exec-with-rpath      | Bin 8416 -> 0 bytes
+ .../clang-386-darwin-exec-with-rpath.base64        |   1 +
+ src/debug/macho/testdata/clang-386-darwin.obj      | Bin 464 -> 0 bytes
+ .../macho/testdata/clang-386-darwin.obj.base64     |   1 +
+ .../testdata/clang-amd64-darwin-exec-with-rpath    | Bin 8432 -> 0 bytes
+ .../clang-amd64-darwin-exec-with-rpath.base64      |   1 +
+ src/debug/macho/testdata/clang-amd64-darwin.obj    | Bin 768 -> 0 bytes
+ .../macho/testdata/clang-amd64-darwin.obj.base64   |   1 +
+ .../macho/testdata/fat-gcc-386-amd64-darwin-exec   | Bin 28992 -> 0 bytes
+ .../testdata/fat-gcc-386-amd64-darwin-exec.base64  |   1 +
+ src/debug/macho/testdata/gcc-386-darwin-exec       | Bin 12588 -> 0 bytes
+ .../macho/testdata/gcc-386-darwin-exec.base64      |   1 +
+ src/debug/macho/testdata/gcc-amd64-darwin-exec     | Bin 8512 -> 0 bytes
+ .../macho/testdata/gcc-amd64-darwin-exec-debug     | Bin 4540 -> 0 bytes
+ .../testdata/gcc-amd64-darwin-exec-debug.base64    |   1 +
+ .../macho/testdata/gcc-amd64-darwin-exec.base64    |   1 +
+ src/encoding/base64/base64.go                      |   3 +
+ src/go/build/deps_test.go                          |  13 +-
+ src/hash/maphash/maphash.go                        |   1 +
+ src/html/template/example_test.go                  |   6 +-
+ src/internal/obscuretestdata/obscuretestdata.go    |  51 ++
+ src/io/ioutil/ioutil.go                            |   4 +-
+ src/net/dial_test.go                               |  18 +-
+ src/net/http/h2_bundle.go                          |  51 +-
+ src/net/http/serve_test.go                         |  37 +-
+ src/net/http/server.go                             |   7 +-
+ src/net/http/socks_bundle.go                       |   2 +-
+ src/net/http/transport.go                          |  29 +-
+ src/net/url/url.go                                 |   2 +-
+ src/os/exec/exec.go                                |   2 +
+ src/os/file.go                                     |   2 +-
+ src/path/filepath/path.go                          |  12 +-
+ src/path/path.go                                   |   9 +-
+ src/reflect/type.go                                |   1 -
+ src/runtime/cgo_mmap.go                            |   5 +
+ src/runtime/crash_test.go                          |  20 +-
+ src/runtime/crash_unix_test.go                     |   4 -
+ src/runtime/export_debug_test.go                   |   2 +-
+ src/runtime/export_test.go                         |   6 +-
+ src/runtime/lock_js.go                             |  63 +-
+ src/runtime/malloc.go                              |  22 +-
+ src/runtime/mem_plan9.go                           |   2 +-
+ src/runtime/mgc.go                                 |   8 +-
+ src/runtime/mgcscavenge.go                         |  10 +-
+ src/runtime/mheap.go                               |   2 +
+ src/runtime/os_windows.go                          | 152 ++++-
+ src/runtime/pprof/pprof_test.go                    |  26 +
+ src/runtime/pprof/proto.go                         |  18 +-
+ src/runtime/preempt.go                             |  33 +-
+ src/runtime/proc.go                                |  51 +-
+ src/runtime/proc_test.go                           |   2 -
+ src/runtime/race/timer_test.go                     |  33 +
+ src/runtime/runtime-gdb_test.go                    |   4 +
+ src/runtime/runtime2.go                            |   3 +-
+ src/runtime/signal_unix.go                         |  18 +-
+ src/runtime/stack.go                               |   1 +
+ src/runtime/sys_darwin.go                          |   4 +
+ src/runtime/testdata/testprog/gc.go                |  33 +-
+ src/runtime/testdata/testprog/preempt.go           |   7 +-
+ src/runtime/time.go                                | 386 +----------
+ src/runtime/trace.go                               |   9 +-
+ src/syscall/js/js_test.go                          |  19 +
+ src/syscall/zerrors_linux_riscv64.go               |   2 +-
+ src/syscall/zsysnum_linux_riscv64.go               |   4 +-
+ src/text/template/exec_test.go                     |   2 +
+ src/text/template/funcs.go                         |   8 +-
+ src/time/format_test.go                            |   2 +-
+ src/time/sleep.go                                  |   5 +-
+ src/time/sleep_test.go                             |  71 +-
+ src/time/tick_test.go                              |  76 ++-
+ test/escape_hash_maphash.go                        |  19 +
+ test/fixedbugs/issue35586.dir/a.go                 |   9 +
+ test/fixedbugs/issue35586.dir/b.go                 |  11 +
+ test/fixedbugs/issue35586.go                       |  11 +
+ test/fixedbugs/issue35652.go                       |  28 +
+ test/fixedbugs/issue9355.go                        |  11 +-
+ test/sinit_run.go                                  |  11 +-
+ 200 files changed, 3537 insertions(+), 2007 deletions(-)

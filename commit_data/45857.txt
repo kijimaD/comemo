@@ -1,24 +1,18 @@
-commit 5bd09e5efccf0d3df89085c9f214f94017f6e969
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 21 22:20:11 2021 -0700
+commit 8e2106327cf27b2d281a3e4432fcae552d4b29aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 15:14:24 2020 -0500
 
-    spec: unsafe.Add/Slice are not permitted in statement context
+    [dev.regabi] cmd/compile: clean up tests to know less about Node
     
-    Add unsafe.Add and unsafe.Slice to the list of built-in functions
-    which are not permitted in statement context. The compiler and
-    type checker already enforce this restriction, this just fixes
-    a documentation oversight.
+    We want to refactor a bit, and these tests know too much about
+    the layout of Nodes. Use standard constructors instead.
     
-    For #19367.
-    For #40481.
-    
-    Change-Id: Iabc63a8db048eaf40a5f5b5573fdf00b79d54119
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329925
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I91f0325c89ea60086655414468c53419ebeacea4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272626
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/pgen_test.go | 147 +++++++++++++++++--------------
+ 1 file changed, 79 insertions(+), 68 deletions(-)

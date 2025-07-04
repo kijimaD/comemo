@@ -1,29 +1,23 @@
-commit 98c9f271d67b501ecf2ce995539abd2cdc81d505
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 28 17:45:26 2023 -0400
+commit cc1b20e8adf83865a1dbffa259c7a04ef0699b43
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Sep 17 02:21:12 2022 +0000
 
-    regexp/syntax: use more compact Regexp.String output
+    runtime/internal/sys: make Len64 nosplit
     
-    Compact the Regexp.String output. It was only ever intended for debugging,
-    but there are at least some uses in the wild where regexps are built up
-    using regexp/syntax and then formatted using the String method.
-    Compact the output to help that use case. Specifically:
+    CL 427615 causes failures when Len64 can't be inlined. It's unclear to
+    me why this wasn't a problem before, but it is used in sensitive
+    contexts and therefore really should be marked. Confirmed that the
+    failures in question reproduce without this change, and don't reproduce
+    with it.
     
-     - Compact 2-element character class ranges: [a-b] -> [ab].
-     - Aggregate flags: (?i:A)(?i:B)*(?i:C)|(?i:D)?(?i:E) -> (?i:AB*C|D?E).
+    Fixes #55117.
     
-    Fixes #57950.
-    
-    Change-Id: I1161d0e3aa6c3ae5a302677032bb7cd55caae5fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507015
+    Change-Id: Ic3aa96af1420cc0c39551908d83f954725c712f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431058
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/regexp/syntax/parse.go         |  16 +++
- src/regexp/syntax/parse_test.go    |  36 ++++++
- src/regexp/syntax/regexp.go        | 217 ++++++++++++++++++++++++++++++++-----
- src/regexp/syntax/simplify_test.go |  16 +--
- 4 files changed, 248 insertions(+), 37 deletions(-)
+ src/runtime/internal/sys/intrinsics_common.go | 4 ++++
+ 1 file changed, 4 insertions(+)

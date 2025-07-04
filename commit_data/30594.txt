@@ -1,48 +1,22 @@
-commit 2123a6c64455f6e1cceeefa97e4a033c873e2631
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 7 15:58:28 2017 -0800
+commit 27b68474ca8bffea06a4dd11424b293243ae846c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 14 15:51:30 2016 -0800
 
-    cmd/compile: fix recorded export data position info
+    cmd/cgo: run cgo pointer checks for pointer to union
     
-    The position information recorded now consists of the line-
-    directive relative filename and line number. It would be
-    relatively easy to also encode absolute position information
-    as necessary (by serializing src.PosBase data).
+    If a C union type (or a C++ class type) can contain a pointer field,
+    then run the cgo checks on pointers to that type. This will test the
+    pointer as though it were an unsafe.Pointer, and will crash if it points
+    to Go memory that contains a pointer.
     
-    For example, given $GOROOT/src/tmp/x.go:
+    Fixes #15942.
     
-            package p
-    
-            const C0 = 0
-    
-            //line c.go:10
-            const C1 = 1
-    
-            //line t.go:20
-            type T int
-    
-            //line v.go:30
-            var V T
-    
-            //line f.go:40
-            func F() {}
-    
-    The recorded positions for the exported entities are:
-    
-            C0 $GOROOT/src/tmp/x.go 3
-            C1 c.go 10
-            T t.go 20
-            V v.go 30
-            F f.go 40
-    
-    Fix verified by manual inspection. There's currently no easy way
-    to test this, but it will eventually be tested when we fix #7311.
-    
-    Fixes #19391.
-    
-    Change-Id: I6269067ea58358250fe6dd1f73bdf9e5d2adfe3d
-    Reviewed-on: https://go-review.googlesource.com/37936
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic2d07ed9648d4b27078ae7683e26196bcbc59fc9
+    Reviewed-on: https://go-review.googlesource.com/33237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/errors/ptr.go | 21 +++++++++++++++++++
+ src/cmd/cgo/gcc.go     | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+)

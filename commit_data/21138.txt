@@ -1,15 +1,19 @@
-commit 537ddc945685cea6fd2f3cbc8bfc6f69616671fd
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Dec 30 12:31:17 2014 -0800
+commit 54d731452d0e06ccbf211ac0893a9739ad08bd75
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 18 15:19:09 2014 -0500
 
-    runtime: fix slicecopy return value for zero-width elements
+    [dev.cc] runtime: convert power64 signal handlers from C to Go
     
-    Fixes #8620
+    The power64 equivalent of CL 168500044
     
-    Change-Id: Idb49e586919d21d07e94a39ed9ebb0562f403460
-    Reviewed-on: https://go-review.googlesource.com/2221
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/175280043
 
- src/runtime/slice.go        |  6 +++++-
- test/fixedbugs/issue8620.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 1 deletion(-)
+ src/runtime/signal_linux_power64.h   |  49 ------------
+ src/runtime/signal_linux_power64le.h |  49 ------------
+ src/runtime/signal_linux_power64x.go |  71 +++++++++++++++++
+ src/runtime/signal_power64x.c        | 137 ---------------------------------
+ src/runtime/signal_power64x.go       | 144 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 215 insertions(+), 235 deletions(-)

@@ -1,41 +1,29 @@
-commit 770e0e584a98dfd5e8d0d00558085c339fda0ed7
-Author: Kévin Dunglas <kevin@dunglas.fr>
-Date:   Tue May 17 16:05:20 2022 +0000
+commit aa3d54da07bea208cd7c5860875b2d3fbbfeb825
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 9 20:01:12 2021 -0400
 
-    net/http: allow sending 1xx responses
+    [dev.typeparams] runtime: rewrite softfloat functions to avoid using floats
     
-    Currently, it's not possible to send informational responses such as
-    103 Early Hints or 102 Processing.
+    Currently, most softfloat functions take uint32/64 arguments (for
+    bit representation of float32/64) and operate on uint32/64. But
+    there are exeptions where the function take float arguments and
+    operate on float. So they are only actually softfloat if the
+    helper functions themselves are translated (by the compiler's
+    softfloat mode). These are mostly fine (besides being a bit
+    convoluted). But with register ABIs this inconsistency adds
+    complexity to the compiler to generate such calls, because it
+    needs to be called with the right ABI.
     
-    This patch allows calling WriteHeader() multiple times in order
-    to send informational responses before the final one.
+    Rewrite the functions to operate on uint32/64 directly, using
+    other helper functions. So they all take uint32/64 arguments and
+    return uint32/64.
     
-    If the status code is in the 1xx range, the current content of the header map
-    is also sent. Its content is not removed after the call to WriteHeader()
-    because the headers must also be included in the final response.
-    
-    The Chrome and Fastly teams are starting a large-scale experiment to measure
-    the real-life impact of the 103 status code.
-    Using Early Hints is proposed as a (partial) alternative to Server Push,
-    which are going to be removed from Chrome:
-    https://groups.google.com/a/chromium.org/g/blink-dev/c/K3rYLvmQUBY/m/21anpFhxAQAJ
-    
-    Being able to send this status code from servers implemented using Go would
-    help to see if implementing it in browsers is worth it.
-    
-    Fixes #26089
-    Fixes #36734
-    Updates #26088
-    
-    Change-Id: Ib7023c1892c35e8915d4305dd7f6373dbd00a19d
-    GitHub-Last-Rev: 06d749d3454aa35c177a50ce4a25715df21fd742
-    GitHub-Pull-Request: golang/go#42597
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269997
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id9383b74bcbafee44160cc5b58ab245bffbbdfd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327273
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/clientserver_test.go | 95 +++++++++++++++++++++++++++++++++++++++
- src/net/http/serve_test.go        | 34 +++++++++++++-
- src/net/http/server.go            | 44 +++++++++++++-----
- src/net/http/transfer.go          |  1 +
- 4 files changed, 163 insertions(+), 11 deletions(-)
+ src/runtime/softfloat64.go | 36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)

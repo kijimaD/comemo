@@ -1,17 +1,30 @@
-commit 8644463bb22418023950a399ce18e9d04e26c76b
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 16 08:38:43 2017 -0600
+commit cabf622da864740fdc8b692ee2b8812f15e8a8bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 14 14:03:46 2017 -0700
 
-    cmd/go: remove Action.Objpkg
+    cmd/compile: fix detection of calls to reflect.Method
     
-    This is an intermediate step toward not being able to predict
-    the final generated file name for a package build, so that
-    parent builds can refer directly to cache files.
+    The existing code used Type.String() to obtain the name of a type;
+    specifically type reflect.Method in this case. However, Type.String()
+    formatting is intended for error messages and uses the format
+    pkgpath.name instead of pkgname.name if a package (in this case
+    package reflect) is imported multiple times. As a result, the
+    reflect.Method type detection failed under peculiar circumstances
+    (see the included test case).
     
-    Change-Id: I4dea5e8d8b80e6b995b3d9dc1d8c6f0ac9b88d72
-    Reviewed-on: https://go-review.googlesource.com/56285
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Thanks to https://github.com/ericlagergren for tracking down
+    an easy way to make the bug disappear (which in turn directly
+    led to the underlying cause).
+    
+    Fixes #19028.
+    
+    Change-Id: I1b9c5dfd183260a9be74969fe916a94146fc36da
+    Reviewed-on: https://go-review.googlesource.com/45777
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/work/build.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/walk.go   | 11 ++++++-----
+ test/fixedbugs/issue19028.dir/a.go    |  9 +++++++++
+ test/fixedbugs/issue19028.dir/main.go | 26 ++++++++++++++++++++++++++
+ test/fixedbugs/issue19028.go          | 13 +++++++++++++
+ 4 files changed, 54 insertions(+), 5 deletions(-)

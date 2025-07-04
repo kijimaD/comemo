@@ -1,15 +1,24 @@
-commit 4306352182bf94f86f0cfc6a8b0ed461cbf1d82c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 9 11:49:53 2015 -0500
+commit 29aaf679daa52e877c6596422a06916c343dae41
+Author: Burcu Dogan <jbd@google.com>
+Date:   Mon Oct 12 01:02:51 2015 -0700
 
-    math/big: fix carry propagation in Int.Exp Montgomery code
+    cmd/go: always log dynamic import errors
     
-    Fixes #13515.
+    There is no easy way to understand what user intent was and whether
+    they wanted to use a dynamic import or not.
     
-    Change-Id: I7dd5fbc816e5ea135f7d81f6735e7601f636fe4f
-    Reviewed-on: https://go-review.googlesource.com/17672
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    If we skip logging such errors, it breaks common use cases such as
+    https://golang.org/issue/12810.
+    
+    It's a better approach to expose the underlying mechanism and
+    be more verbose with the error messages.
+    
+    Fixes #12810.
+    
+    Change-Id: I7e922c9e848382690d9d9b006d7046e6cf93223b
+    Reviewed-on: https://go-review.googlesource.com/15756
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/math/big/nat.go      | 29 +++++++++++----
- src/math/big/nat_test.go | 95 +++++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 103 insertions(+), 21 deletions(-)
+ src/cmd/go/vcs.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

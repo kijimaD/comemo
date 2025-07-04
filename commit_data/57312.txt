@@ -1,20 +1,22 @@
-commit 995c816a7a9190db1ac0870cf2c424385b03ac4b
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Fri Aug 30 00:23:50 2024 -0700
+commit 68d50ca271ec160d8b1284b3aa294e876be1dc71
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jul 21 13:49:06 2023 -0400
 
-    internal/testenv: use sync.OnceValues for hasSymlink
+    cmd/dist: handle -json flag in runPending (minimal)
     
-    On some platforms (android, wasip1) this function is called many
-    times which probably results in some slowdown, especially for wasip1.
+    The -json flag is new to Go 1.21, but missed skips in runPending.
+    This CL adds minimal code to fix that. CL 512115 cleans up a bit.
     
-    Wrap it into sync.OnceValues.
+    For #37486.
+    Fixes (via backport) #61557.
     
-    Change-Id: Id290ffd8d1e7ad806302f457e8fff2e3123b49a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609418
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I53e426c9a5585b2703f0ff6661a0470e1993f960
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512719
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/internal/testenv/testenv_notwin.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)

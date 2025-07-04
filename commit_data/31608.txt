@@ -1,51 +1,25 @@
-commit 2ad41a30906ca1d0736f7efc40da60cb519a9f89
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Tue May 2 16:46:01 2017 +0200
+commit d8a0f748013dae2a731a9a37f94ab0e37d096ee2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 3 02:43:44 2017 -0800
 
-    cmd/compile: output DWARF lexical blocks for local variables
+    cmd/compile/internal/gc: remove OHMUL Op
     
-    Change compiler and linker to emit DWARF lexical blocks in .debug_info
-    section when compiling with -N -l.
+    Previously the compiler rewrote constant division into OHMUL
+    operations, but that rewriting was moved to SSA in CL 37015. Now OHMUL
+    is unused, so we can get rid of it.
     
-    Version of debug_info is updated from DWARF v2 to DWARF v3 since
-    version 2 does not allow lexical blocks with discontinuous PC ranges.
-    
-    Remaining open problems:
-    - scope information is removed from inlined functions
-    - variables records do not have DW_AT_start_scope attributes so a
-    variable will shadow other variables with the same name as soon as its
-    containing scope begins, even before its declaration.
-    
-    Updates #6913.
-    Updates #12899.
-    
-    Change-Id: Idc6808788512ea20e7e45bcf782453acb416fb49
-    Reviewed-on: https://go-review.googlesource.com/40095
+    Change-Id: Ib6fc7c2b6435510bafb5735b3b4f42cfd8ed8cdb
+    Reviewed-on: https://go-review.googlesource.com/37750
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/closure.go        |  32 +-
- src/cmd/compile/internal/gc/go.go             |   3 +
- src/cmd/compile/internal/gc/main.go           |   2 +
- src/cmd/compile/internal/gc/noder.go          | 117 ++++++--
- src/cmd/compile/internal/gc/pgen.go           |  24 +-
- src/cmd/compile/internal/gc/scope.go          | 177 +++++++++++
- src/cmd/compile/internal/gc/scope_test.go     | 407 ++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/sizeof_test.go    |   2 +-
- src/cmd/compile/internal/gc/syntax.go         |  34 ++-
- src/cmd/internal/dwarf/dwarf.go               | 169 +++++++++--
- src/cmd/internal/obj/data.go                  |   3 +-
- src/cmd/internal/obj/link.go                  |  17 +-
- src/cmd/internal/obj/objfile.go               |  34 ++-
- src/cmd/internal/obj/plist.go                 |   7 +-
- src/cmd/internal/objabi/symkind.go            |   1 +
- src/cmd/internal/objabi/symkind_string.go     |   4 +-
- src/cmd/link/internal/ld/data.go              |  19 +-
- src/cmd/link/internal/ld/dwarf.go             |  38 ++-
- src/cmd/link/internal/ld/link.go              |   4 +
- src/cmd/link/internal/ld/nooptcgolink_test.go |  32 ++
- src/cmd/link/internal/ld/symkind.go           |   2 +
- src/cmd/link/internal/ld/symkind_string.go    |   4 +-
- 22 files changed, 1021 insertions(+), 111 deletions(-)
+ src/cmd/compile/internal/gc/opnames.go   | 1 -
+ src/cmd/compile/internal/gc/racewalk.go  | 1 -
+ src/cmd/compile/internal/gc/ssa.go       | 9 +--------
+ src/cmd/compile/internal/gc/syntax.go    | 1 -
+ src/cmd/compile/internal/gc/typecheck.go | 1 -
+ src/cmd/compile/internal/gc/universe.go  | 1 -
+ src/cmd/compile/internal/gc/walk.go      | 1 -
+ 7 files changed, 1 insertion(+), 14 deletions(-)

@@ -1,17 +1,25 @@
-commit c0ac39c70eeeaadbebe13efb407a1a272a926d30
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Oct 25 13:26:54 2021 -0400
+commit 2a18e37c4e78e26c9f1e613dfa97aaf275ea0b4d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 17 15:27:42 2021 +0700
 
-    go/types: remove a stale comment
+    cmd/compile: remove backend's "scratch mem" support
     
-    Clean up a comment that was deleted in types2 in CL 353135.
+    This CL rebases CL 273987 on top of master with @mdempsky's permission.
     
-    Change-Id: If339efa133e2a3d1eaa3b1e69458471677018261
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358517
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    The last (only?) use for this feature was 387 support, which was
+    removed in golang.org/cl/258957.
+    
+    Change-Id: I4f79fee8d0c336c9b6082bcd5eb6ece52c032dc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292893
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/typestring.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/compile/internal/ssa/config.go     |  1 -
+ src/cmd/compile/internal/ssa/gen/386Ops.go | 32 +++++++++---------
+ src/cmd/compile/internal/ssa/gen/main.go   |  6 ----
+ src/cmd/compile/internal/ssa/opGen.go      | 54 ++++++++++++------------------
+ src/cmd/compile/internal/ssagen/pgen.go    | 10 ------
+ src/cmd/compile/internal/ssagen/ssa.go     | 27 +++------------
+ 6 files changed, 42 insertions(+), 88 deletions(-)

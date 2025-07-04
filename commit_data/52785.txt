@@ -1,35 +1,17 @@
-commit bb079efbdcc738a236b30f295ccb286df58e2bc3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Apr 2 21:21:24 2023 -0700
+commit a21cf916f418d0d48f46d8f256c5994a80558a94
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 26 09:52:44 2022 -0700
 
-    crypto/sha256: add WriteString and WriteByte method
+    doc: add release note for reflect.Value.{Bytes,Len,Cap}
     
-    This can reduce allocations when hashing a string or byte
-    rather than []byte.
+    Update #47066
+    Update #52411
     
-    For #38776
-    
-    Change-Id: I1c6dd1bc018220784a05939e92b47558c0562110
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481478
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I85139d774c16c9e6d1a2592a5abba58a49338674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408874
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
 
- src/crypto/internal/boring/sha.go        | 14 ++++++++
- src/crypto/sha256/sha256.go              | 59 +++++++++++++++++++++++++++-----
- src/crypto/sha256/sha256_test.go         | 33 +++++++++++++++++-
- src/crypto/sha256/sha256block.go         |  2 +-
- src/crypto/sha256/sha256block_386.s      |  6 ++--
- src/crypto/sha256/sha256block_amd64.s    | 14 ++++----
- src/crypto/sha256/sha256block_arm64.go   | 18 ++++++++--
- src/crypto/sha256/sha256block_arm64.s    |  8 ++---
- src/crypto/sha256/sha256block_decl.go    | 12 ++++++-
- src/crypto/sha256/sha256block_generic.go |  4 +++
- src/crypto/sha256/sha256block_ppc64x.s   |  8 ++---
- src/crypto/sha256/sha256block_s390x.go   |  9 ++++-
- src/crypto/sha256/sha256block_s390x.s    |  8 ++---
- 13 files changed, 157 insertions(+), 38 deletions(-)
+ doc/go1.19.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

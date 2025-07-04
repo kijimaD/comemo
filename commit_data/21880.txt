@@ -1,15 +1,27 @@
-commit b745ab95af0daaddb733f845ad0a5a7123889f8f
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 3 12:25:27 2015 -0800
+commit 6dd31660b054cb3bc9c1f25c6c9302669a7803e3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 9 16:36:25 2015 -0800
 
-    cmd/asm: move some machine-dependent code out of the asm directory
+    runtime: don't put container symbols in functab
     
-    cmd/asm/internal/asm no longer imports obj/$GOARCH, only obj itself.
+    Container symbols shouldn't be considered as functions in the functab.
+    Having them present probably messes up function lookup, as you might get
+    the descriptor of the container instead of the descriptor of the actual
+    function on the stack.  It also messed up the findfunctab because these
+    entries caused off-by-one errors in how functab entries were counted.
     
-    Change-Id: I7c0d107524d833b4a1b6e6a497cca4addadee570
-    Reviewed-on: https://go-review.googlesource.com/6670
+    Normal code is not affected - it only changes (& hopefully fixes) the
+    behavior for libraries linked as a unit, like:
+      net
+      runtime/cgo
+      runtime/race
+    
+    Fixes #9804
+    
+    Change-Id: I81e036e897571ac96567d59e1f1d7f058ca75e85
+    Reviewed-on: https://go-review.googlesource.com/4290
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/arch/arm.go | 24 +++++++++++++++++++++++
- src/cmd/asm/internal/asm/asm.go  | 42 ++++++++++++----------------------------
- 2 files changed, 36 insertions(+), 30 deletions(-)
+ src/cmd/ld/pcln.c     | 107 +++++++++++++++++++++++++++++++++++---------------
+ src/runtime/symtab.go |  10 ++---
+ 2 files changed, 81 insertions(+), 36 deletions(-)

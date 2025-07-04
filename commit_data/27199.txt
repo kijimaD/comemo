@@ -1,14 +1,14 @@
-commit c884f6594a594d2d18c4d21106592bd3cdfcbe9b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 28 22:04:30 2016 -0500
+commit 1f96c83bf68d63180be654802f00477533bce8a5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 14 10:02:47 2016 +0900
 
-    context: produce a nicer panic message for a nil WithValue key
+    net: simplify ipToSockaddr
     
-    Change-Id: I2e8ae403622ba7131cadaba506100d79613183f1
-    Reviewed-on: https://go-review.googlesource.com/22601
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I5dbcdf0ee0b46b760b2a7decb1d937aac2a6fa8d
+    Reviewed-on: https://go-review.googlesource.com/20585
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/context/context.go      | 3 +++
- src/context/context_test.go | 4 ++++
- 2 files changed, 7 insertions(+)
+ src/net/ipsock_posix.go | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

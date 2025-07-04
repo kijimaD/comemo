@@ -1,25 +1,18 @@
-commit a15ec3895b99cd6b49576a6c1a739b46f8afeaf4
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Oct 13 09:15:52 2020 -0400
+commit 5b897ec0171ba92d01c63ed442fab733fe195775
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 23 13:07:06 2020 -0700
 
-    cmd/link: update plt size appropriately on ppc64
+    cmd/compile: disable addressingmodes pass for 386
     
-    When attempting to enable internal linking with cgo on ppc64
-    it was discovered that the plt size was not being updated
-    after adding entries to it, which resulted in this error:
+    Update #37881
     
-      .plt: initialize bounds (16 < 24)
-    
-    This changes fixes that problem.
-    
-    Updates #21961
-    
-    Change-Id: Ie17539c329f5a4802e5defd93852dcdde19ded8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261837
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1f9a3f57f6215a19c31765c257ee78715eab36b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225057
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ppc64/asm.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/addressingmodes.go |  2 +-
+ test/codegen/memcombine.go                      |  5 -----
+ test/codegen/memops.go                          | 23 -----------------------
+ 3 files changed, 1 insertion(+), 29 deletions(-)

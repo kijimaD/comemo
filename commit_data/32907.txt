@@ -1,16 +1,39 @@
-commit 93f1aac246ac93dbd929b0e5e49bcc65f1dd3b57
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Dec 21 10:58:12 2016 -0500
+commit aafd96408feef0785d32fd3e1c5a67d4159a98e7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 10 10:19:43 2017 -0700
 
-    cmd/vet: in rangeloop check, inspect for loop variables too
+    runtime: speed up stack copying
     
-    + Test.
+    I was surprised to see readvarint show up in a cpu profile.
     
-    Change-Id: I42eaea1c716217f7945c008ff4bde6de14df5687
-    Reviewed-on: https://go-review.googlesource.com/34619
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Use a few simple optimizations to speed up stack copying:
+    
+    * Avoid making a copy of the cache.entries array or any of its elements.
+    * Use a shift instead of a signed division in stackmapdata.
+    * Change readvarint to return the number of bytes consumed
+      rather than an updated slice.
+    * Make some minor optimizations to readvarint to help the compiler.
+    * Avoid called readvarint when the value fits in a single byte.
+    
+    The first and last optimizations are the most significant,
+    although they all contribute a little.
+    
+    Add a benchmark for stack copying that includes lots of different
+    functions in a recursive loop, to bust the cache.
+    
+    This might speed up other runtime operations as well;
+    I only benchmarked stack copying.
+    
+    name                old time/op  new time/op  delta
+    StackCopy-8         96.4ms ± 2%  82.7ms ± 1%  -14.24%  (p=0.000 n=20+19)
+    StackCopyNoCache-8   167ms ± 1%   131ms ± 1%  -21.58%  (p=0.000 n=20+20)
+    
+    Change-Id: I13d5c455c65073c73b656acad86cf8e8e3c9807b
+    Reviewed-on: https://go-review.googlesource.com/43150
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/vet/main.go               |  3 ++
- src/cmd/vet/rangeloop.go          | 61 +++++++++++++++++++++++++++++----------
- src/cmd/vet/testdata/rangeloop.go | 38 +++++++++++++++++++-----
- 3 files changed, 79 insertions(+), 23 deletions(-)
+ src/runtime/stack_test.go | 172 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/symtab.go     |  33 ++++++---
+ 2 files changed, 195 insertions(+), 10 deletions(-)

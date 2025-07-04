@@ -1,19 +1,22 @@
-commit 74caf475e3b31a463637bfe3cbdb317674f0930f
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Aug 3 09:34:44 2023 +0000
+commit 2ee075dc47ec686b48746fd261212b044705fcdc
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 14:35:41 2022 +0800
 
-    net: use fake DNS dialer for /etc/hosts aliases tests
+    strings: simplify code using unsafe.StringData
     
-    Change-Id: If9c41bd1e0497e76d901bfd2f749fbeb1ed3ac38
-    GitHub-Last-Rev: f5777d8c20afb47b8cf093e43c7c25bbbb386e91
-    GitHub-Pull-Request: golang/go#61734
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515535
+    Updates #54854
+    
+    Change-Id: I93396dc92bd2decba895f2d059e1aeffcd22312c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428158
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/net/dnsclient_unix_test.go | 26 +++++++++++++++++++++-----
- 1 file changed, 21 insertions(+), 5 deletions(-)
+ src/strings/builder.go      |  2 +-
+ src/strings/clone.go        |  2 +-
+ src/strings/clone_test.go   | 10 +++-------
+ src/strings/compare_test.go |  2 +-
+ src/strings/strings_test.go |  3 +--
+ 5 files changed, 7 insertions(+), 12 deletions(-)

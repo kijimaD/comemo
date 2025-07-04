@@ -1,17 +1,16 @@
-commit 4a2bec9726eca30cd499695f210fe5e26f949229
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 4 17:17:16 2018 -0700
+commit 5b3cd56038fbc76d5094c6a3373776532cbe386d
+Author: Jerrin Shaji George <jerrinsg@gmail.com>
+Date:   Thu Feb 22 15:51:10 2018 -0800
 
-    cmd/compile: fix printing of array types in error messages
+    runtime: fix a few typos in comments
     
-    Fixes #23094.
-    
-    Change-Id: I9aa36046488baa5f55cf2099e10cfb39ecd17b06
-    Reviewed-on: https://go-review.googlesource.com/116256
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I07a1eb02ffc621c5696b49491181300bf411f822
+    Reviewed-on: https://go-review.googlesource.com/96475
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go |  2 +-
- test/fixedbugs/issue23094.go       | 11 +++++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/runtime/mfixalloc.go | 2 +-
+ src/runtime/mgclarge.go  | 2 +-
+ src/runtime/mgcmark.go   | 2 +-
+ src/runtime/mheap.go     | 4 ++--
+ src/runtime/symtab.go    | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

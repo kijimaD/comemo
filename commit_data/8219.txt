@@ -1,12 +1,13 @@
-commit 41e5de21847f34684966615899ce42dfd76be16f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 25 12:37:00 2011 -0700
+commit c2c7ee2736b5032a5e35577b3da54030ed8d3f63
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 13:57:52 2011 -0400
 
-    time: Support Irix 6 location for zoneinfo files.
+    ld: fix 6l -d on Mac, diagnose invalid use of -d
     
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4440066
+    https://golang.org/cl/4430064
 
- src/pkg/time/zoneinfo_unix.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/ld/go.c    | 8 +++++++-
+ src/cmd/ld/macho.c | 4 +++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

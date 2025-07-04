@@ -1,24 +1,74 @@
-commit bacb307b80747deaf6a017f5b3cee4e3cb115f61
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 3 12:02:00 2020 -0800
+commit 9d812cfa5cbb1f573d61c452c864072270526753
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 16 08:13:58 2020 -0400
 
-    test: match gofrontend error messages
+    cmd/compile,runtime: stack maps only at calls, remove register maps
     
-    fixedbugs/bug487.go:17:17: error: function result count mismatch
-    fixedbugs/bug487.go:18:16: error: function result count mismatch
+    Currently, we emit stack maps and register maps at almost every
+    instruction. This was originally intended to support non-cooperative
+    preemption, but was only ever used for debug call injection. Now debug
+    call injection also uses conservative frame scanning. As a result,
+    stack maps are only needed at call sites and register maps aren't
+    needed at all except that we happen to also encode unsafe-point
+    information in the register map PCDATA stream.
     
-    fixedbugs/issue6977.go:37:26: error: duplicate method ‘m’
-    fixedbugs/issue6977.go:38:21: error: duplicate method ‘m’
-    fixedbugs/issue6977.go:39:26: error: duplicate method ‘m’
-    fixedbugs/issue6977.go:40:21: error: duplicate method ‘m’
+    This CL reduces stack maps to only appear at calls, and replace full
+    register maps with just safe/unsafe-point information.
     
-    Change-Id: Ie3c8a4650cd8f4c239bdceac25dc188a6a50ca34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275178
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This is all protected by the go115ReduceLiveness feature flag, which
+    is defined in both runtime and cmd/compile.
+    
+    This CL significantly reduces binary sizes and also speeds up compiles
+    and links:
+    
+    name                      old exe-bytes     new exe-bytes     delta
+    BinGoSize                      15.0MB ± 0%       14.1MB ± 0%   -5.72%
+    
+    name                      old pcln-bytes    new pcln-bytes    delta
+    BinGoSize                      3.14MB ± 0%       2.48MB ± 0%  -21.08%
+    
+    name                      old time/op       new time/op       delta
+    Template                        178ms ± 7%        172ms ±14%  -3.59%  (p=0.005 n=19+19)
+    Unicode                        71.0ms ±12%       69.8ms ±10%    ~     (p=0.126 n=18+18)
+    GoTypes                         655ms ± 8%        615ms ± 8%  -6.11%  (p=0.000 n=19+19)
+    Compiler                        3.27s ± 6%        3.15s ± 7%  -3.69%  (p=0.001 n=20+20)
+    SSA                             7.10s ± 5%        6.85s ± 8%  -3.53%  (p=0.001 n=19+20)
+    Flate                           124ms ±15%        116ms ±22%  -6.57%  (p=0.024 n=18+19)
+    GoParser                        156ms ±26%        147ms ±34%    ~     (p=0.070 n=19+19)
+    Reflect                         406ms ± 9%        387ms ±21%  -4.69%  (p=0.028 n=19+20)
+    Tar                             163ms ±15%        162ms ±27%    ~     (p=0.370 n=19+19)
+    XML                             223ms ±13%        218ms ±14%    ~     (p=0.157 n=20+20)
+    LinkCompiler                    503ms ±21%        484ms ±23%    ~     (p=0.072 n=20+20)
+    ExternalLinkCompiler            1.27s ± 7%        1.22s ± 8%  -3.85%  (p=0.005 n=20+19)
+    LinkWithoutDebugCompiler        294ms ±17%        273ms ±11%  -7.16%  (p=0.001 n=19+18)
+    
+    (https://perf.golang.org/search?q=upload:20200428.8)
+    
+    The binary size improvement is even slightly better when you include
+    the CLs leading up to this. Relative to the parent of "cmd/compile:
+    mark PanicBounds/Extend as calls":
+    
+    name                      old exe-bytes     new exe-bytes     delta
+    BinGoSize                      15.0MB ± 0%       14.1MB ± 0%   -6.18%
+    
+    name                      old pcln-bytes    new pcln-bytes    delta
+    BinGoSize                      3.22MB ± 0%       2.48MB ± 0%  -22.92%
+    
+    (https://perf.golang.org/search?q=upload:20200428.9)
+    
+    For #36365.
+    
+    Change-Id: I69448e714f2a44430067ca97f6b78e08c0abed27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230544
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- test/fixedbugs/bug487.go    | 4 ++--
- test/fixedbugs/issue6977.go | 8 ++++----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go |  44 +++++++++----
+ src/cmd/compile/internal/gc/plive.go | 119 ++++++++++++++++++++++++-----------
+ src/cmd/internal/obj/link.go         |   2 +-
+ src/cmd/internal/objabi/funcdata.go  |  11 +++-
+ src/runtime/debugcall.go             |  40 +++++++-----
+ src/runtime/preempt.go               |  25 ++++++--
+ src/runtime/symtab.go                |  11 +++-
+ 7 files changed, 178 insertions(+), 74 deletions(-)

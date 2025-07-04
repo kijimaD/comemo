@@ -1,36 +1,46 @@
-commit c359d759a77fcec1457f3eb5c5d04fb74f47dad4
-Author: David Chase <drchase@google.com>
-Date:   Tue Jun 12 14:10:33 2018 -0400
+commit 74a92b8e8d0eae6bf9918ef16794b0363886713d
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Sat Mar 3 15:20:26 2018 +0100
 
-    cmd/compile: ensure that operand of ORETURN is not double-walked
+    encoding/json: apply conventional error handling in decoder
     
-    Inlining of switch statements into a RETURNed expression
-    can sometimes lead to the switch being walked twice, which
-    results in a miscompiled switch statement. The bug depends
-    on:
+    name                            old time/op    new time/op    delta
+    CodeEncoder-12                    1.89ms ± 1%    1.91ms ± 0%   +1.16%  (p=0.000 n=20+19)
+    CodeMarshal-12                    2.09ms ± 1%    2.12ms ± 0%   +1.63%  (p=0.000 n=17+18)
+    CodeDecoder-12                    8.43ms ± 1%    8.32ms ± 1%   -1.35%  (p=0.000 n=18+20)
+    UnicodeDecoder-12                  399ns ± 0%     339ns ± 0%  -15.00%  (p=0.000 n=20+19)
+    DecoderStream-12                   281ns ± 1%     231ns ± 0%  -17.91%  (p=0.000 n=20+16)
+    CodeUnmarshal-12                  9.35ms ± 2%    9.15ms ± 2%   -2.11%  (p=0.000 n=20+20)
+    CodeUnmarshalReuse-12             8.41ms ± 2%    8.29ms ± 2%   -1.34%  (p=0.000 n=20+20)
+    UnmarshalString-12                81.2ns ± 2%    74.0ns ± 4%   -8.89%  (p=0.000 n=20+20)
+    UnmarshalFloat64-12               71.1ns ± 2%    64.3ns ± 1%   -9.60%  (p=0.000 n=20+19)
+    UnmarshalInt64-12                 60.6ns ± 2%    53.2ns ± 0%  -12.28%  (p=0.000 n=18+18)
+    Issue10335-12                     96.9ns ± 0%    87.7ns ± 1%   -9.52%  (p=0.000 n=17+20)
+    Unmapped-12                        247ns ± 4%     231ns ± 3%   -6.34%  (p=0.000 n=20+20)
+    TypeFieldsCache/MissTypes1-12     11.1µs ± 0%    11.1µs ± 0%     ~     (p=0.376 n=19+20)
+    TypeFieldsCache/MissTypes10-12    33.9µs ± 0%    33.8µs ± 0%   -0.32%  (p=0.000 n=18+9)
     
-    1) multiple results
-    2) named results
-    3) a return statement whose expression includes a call to a
-    function containing a switch statement that is inlined.
+    name                            old speed      new speed      delta
+    CodeEncoder-12                  1.03GB/s ± 1%  1.01GB/s ± 0%   -1.15%  (p=0.000 n=20+19)
+    CodeMarshal-12                   930MB/s ± 1%   915MB/s ± 0%   -1.60%  (p=0.000 n=17+18)
+    CodeDecoder-12                   230MB/s ± 1%   233MB/s ± 1%   +1.37%  (p=0.000 n=18+20)
+    UnicodeDecoder-12               35.0MB/s ± 0%  41.2MB/s ± 0%  +17.60%  (p=0.000 n=20+19)
+    CodeUnmarshal-12                 208MB/s ± 2%   212MB/s ± 2%   +2.16%  (p=0.000 n=20+20)
     
-    It may also be significant that the default case of that
-    switch is a panic(), though that's not proven.
+    name                            old alloc/op   new alloc/op   delta
+    Issue10335-12                       184B ± 0%      184B ± 0%     ~     (all equal)
+    Unmapped-12                         216B ± 0%      216B ± 0%     ~     (all equal)
     
-    Rearranged the walk case for ORETURN so that double walks are
-    not possible.  Added a test, because this is so fiddly.
-    Added a check against double walks, verified that it fires
-    w/o other fix.
+    name                            old allocs/op  new allocs/op  delta
+    Issue10335-12                       3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    Unmapped-12                         4.00 ± 0%      4.00 ± 0%     ~     (all equal)
     
-    Fixes #25776.
-    
-    Change-Id: I2d594351fa082632512ef989af67eb887059729b
-    Reviewed-on: https://go-review.googlesource.com/118318
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I4b1a87a205da2ef9a572f86f85bc833653c61570
+    Reviewed-on: https://go-review.googlesource.com/98440
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/swt.go  |  5 ++
- src/cmd/compile/internal/gc/walk.go |  5 +-
- test/fixedbugs/issue25776.go        | 99 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 108 insertions(+), 1 deletion(-)
+ src/encoding/json/decode.go | 234 ++++++++++++++++++++++++--------------------
+ src/encoding/json/encode.go |   5 +
+ 2 files changed, 132 insertions(+), 107 deletions(-)

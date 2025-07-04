@@ -1,0 +1,29 @@
+commit e53d10dc0435d69138bcce6375a5ff454d56f687
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jun 5 15:21:25 2024 -0400
+
+    doc: mark range-over-func as documented
+    
+    The language change for the accepted range-over-func proposal #61405
+    was documented in CL 590616. Remove the corresponding 'TODO' entry.
+    
+    Also improve formatting slightly, and switch to preferred relative
+    links. They'll work better in the long term and in more contexts.
+    
+    While here, also simplify the suggested line to preview release notes
+    locally: setting the -content='' flag explicitly is no longer required
+    as of CL 589936.
+    
+    For #65614.
+    
+    Change-Id: I6cee951b9ede33900bca48c9f709e3b2c5e87337
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590756
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/README.md          |  2 +-
+ doc/next/2-language.md | 14 +++++++-------
+ doc/next/9-todo.md     |  3 ---
+ 3 files changed, 8 insertions(+), 11 deletions(-)

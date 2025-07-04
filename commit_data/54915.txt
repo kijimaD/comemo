@@ -1,30 +1,23 @@
-commit 45320c23f21cb89234486b50b8644e879a16ca65
+commit 60be2b465603a56807a8a1a8016c4c8f947579b5
 Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Nov 7 12:01:09 2023 -0500
+Date:   Mon Nov 21 11:54:54 2022 -0500
 
-    all: rename GOEXPERIMENT=range to rangefunc
+    go/types, cmd/compile: skip crypto/internal/bigmod/_asm in TestStdlib
     
-    Range over integer is enabled now without the GOEXPERIMENT. The
-    GOEXPERIMENT is only for range over func. Rename it to rangefunc.
+    Similar to CL 317869, apply to a newly added directory.
     
-    For #61405.
+    Maybe we should skip all directories starting with "_"?
     
-    Change-Id: I9405fb8e2e30827875716786823856090a1a0cad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539277
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #46027.
+    
+    Change-Id: Idcb011fda877c9f2cb3032524bebfcc0c1da70b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452437
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/types2/check_test.go  | 6 +++---
- src/cmd/compile/internal/types2/stmt.go        | 2 +-
- src/go/types/check_test.go                     | 6 +++---
- src/go/types/stmt.go                           | 2 +-
- src/internal/goexperiment/exp_range_off.go     | 8 --------
- src/internal/goexperiment/exp_range_on.go      | 8 --------
- src/internal/goexperiment/exp_rangefunc_off.go | 8 ++++++++
- src/internal/goexperiment/exp_rangefunc_on.go  | 8 ++++++++
- src/internal/goexperiment/flags.go             | 4 ++--
- src/internal/types/testdata/spec/range.go      | 2 +-
- test/range2.go                                 | 2 +-
- test/range4.go                                 | 2 +-
- test/rangegen.go                               | 2 +-
- 13 files changed, 30 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/types2/stdlib_test.go | 1 +
+ src/go/types/stdlib_test.go                    | 1 +
+ 2 files changed, 2 insertions(+)

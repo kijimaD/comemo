@@ -1,27 +1,33 @@
-commit b65e34f03814889f0edd3ddd9778864762511443
+commit ddaf68200a485ae9605a397372b5d59f4dfba759
 Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Aug 18 11:10:23 2023 -0400
+Date:   Fri Sep 16 19:41:55 2022 -0400
 
-    cmd/link: don't mangle string symbol names
+    cmd/internal/objfile: read file/line information for ELF PIE binaries
     
-    String symbol names could contain weird characters as we put the
-    string literal into the symbol name. So it may appear to need
-    mangling. However, as string symbols are grouped into a single
-    "go:string.*" symbol, the individual symbol names actually don't
-    matter. So don't mangle them.
+    For PIE binaries, the .gopclntab section doesn't have the usual
+    name, but .data.rel.ro.gopclntab. Try the relro version as well.
+    If both failed (e.g. for externally linked PIE binaries), try
+    runtime.pclntab symbol.
     
-    Also make the mangling code more defensive in case of weird
-    symbol names.
+    This should make cmd/objdump able to print the file/line
+    information for PIE binaries.
     
-    Fixes #62098.
+    I attempted to do this a few years ago, but that wasn't enough,
+    because the pclntab itself contains dynamic relocations which are
+    not applied by the tool. As of Go 1.18 the pclntab is mostly
+    position independent and does not contain dynamic relocations, so
+    this should be possible now.
     
-    Change-Id: I533012567a9fffab69debda934f426421c7abb04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520856
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #17883.
+    Updates #46639.
+    
+    Change-Id: I85dc3d50ffcc1a4b187a349479a6a162de1ab2b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227483
     Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/internal/testplugin/plugin_test.go     |  6 +++--
- .../testdata/{generic => mangle}/plugin.go         | 26 +++++++++++++++++-----
- src/cmd/link/internal/ld/lib.go                    |  7 +++++-
- 3 files changed, 31 insertions(+), 8 deletions(-)
+ src/cmd/internal/objfile/elf.go | 55 +++++++++++++++++++++++++++++++++++++++--
+ src/cmd/objdump/objdump_test.go | 31 ++++++++++++++++++++++-
+ 2 files changed, 83 insertions(+), 3 deletions(-)

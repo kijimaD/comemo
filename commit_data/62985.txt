@@ -1,0 +1,32 @@
+commit 41bd52b3fa2ac77e0180f29777309f65fda9fad0
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri May 9 16:55:00 2025 +0200
+
+    os: remove NewFile socket detection on Windows
+    
+    NewFile was recently updated (in CL 668195) to detect whether the
+    handle is a socket or not. This special case is not really necessary,
+    given that socket handles can be used as if they were normal file
+    handles on all functions supported by os.File (see https://learn.microsoft.com/en-us/windows/win32/winsock/socket-handles-2).
+    
+    Not only is not necessary, but is can also be problematic, as there is
+    no way to reliably detect whether a handle is a socket or not. For
+    example, the test failure reported in #73630 is caused by a named pipe
+    wrongly detected as a socket.
+    
+    This aligns with the Unix NewFile behavior of returning an os.File that
+    identifies itself as a file handle even if it is a socket. This makes
+    os.File.Close to always return os.ErrClosed in case of multiple calls
+    rather than sometimes returning "use of closed network connection".
+    
+    Updates #10350.
+    Fixes #73630.
+    
+    Change-Id: Ia8329783d5c8ef6dac34ef69ed1ce9d2a9862e11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/os/file_windows.go | 37 +------------------------------------
+ 1 file changed, 1 insertion(+), 36 deletions(-)

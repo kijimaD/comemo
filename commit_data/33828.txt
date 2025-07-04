@@ -1,14 +1,14 @@
-commit 9ce6b5c2ed5d3d5251b9a6a0c548d5fb2c8567e8
-Author: Joe Kyo <xunianzu@gmail.com>
-Date:   Thu Dec 7 16:34:14 2017 +0000
+commit 40a7de7b3a28d2d97b429f7302272188eae56565
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 11 11:58:17 2017 +1000
 
-    net/http/httputil: remove redundant call of setBody in test
+    misc/cgo/testcshared: simlpify cshared_test.go
     
-    Change-Id: I5a38200b9e050b484ec39f47c637e651e237390d
-    Reviewed-on: https://go-review.googlesource.com/82536
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib35bb7fc9c5b4ccc9b8e1bd16443e0b307be9406
+    Reviewed-on: https://go-review.googlesource.com/62593
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/httputil/dump_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 123 ++++++++++-------------------------
+ 1 file changed, 34 insertions(+), 89 deletions(-)

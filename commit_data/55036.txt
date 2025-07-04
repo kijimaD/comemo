@@ -1,39 +1,48 @@
-commit 0b90c7d4453bb21ec3ad4d6c5a3eebf398a89e77
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 16 17:03:06 2023 -0500
+commit dddc1ba847467524c397eda22b69862773e9f21a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 11:04:21 2022 -0700
 
-    cmd/go: use a nil *Origin to represent "uncheckable"
+    cmd/compile: restore test/nested.go test cases
     
-    Previously, we used the presence of individual origin fields
-    to decide whether an Origin could be checked for staleness,
-    with a nil Origin representing “use whatever you have”.
+    [Re-land of CL 424854, which was reverted as CL 425214.]
     
-    However, that turns out to be fairly bug-prone: if we forget
-    to populate an Origin somewhere, we end up with an incomplete
-    check instead of a non-reusable origin (see #61415, #61423).
+    When handling a type declaration like:
     
-    As of CL 543155, the reusability check for a given query
-    now depends on what is needed by the query more than what
-    is populated in the origin. With that in place, we can simplify
-    the handling of the Origin struct by using a nil pointer
-    to represent inconsistent or unavailable origin data, and
-    otherwise always reporting whatever origin information we have
-    regardless of whether we expect it to be reused.
+    ```
+    type B A
+    ```
     
-    Updates #61415.
-    Updates #61423.
+    unified IR has been writing out that B's underlying type is A, rather
+    than the underlying type of A.
     
-    Change-Id: I97c51063d6c2afa394a05bf304a80c72c08f82cf
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543216
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    This is a bit awkward to implement and adds complexity to importers,
+    who need to handle resolving the underlying type themselves. But it
+    was necessary to handle when A was declared like:
+    
+    ```
+    //go:notinheap
+    type A int
+    ```
+    
+    Because we expected A's not-in-heap'ness to be conferred to B, which
+    required knowing that A was on the path from B to its actual
+    underlying type int.
+    
+    However, since #46731 was accepted, we no longer need to support this
+    case. Instead we can write out B's actual underlying type.
+    
+    One stumbling point though is the existing code for exporting
+    interfaces doesn't work for the underlying type of `comparable`, which
+    is now needed to implement `type C comparable`. As a bit of a hack, we
+    we instead export its underlying type as `interface{ comparable }`.
+    
+    Fixes #54512.
+    
+    Change-Id: I9aa087e0a277527003195ebc7f4fbba6922e788c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455279
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/go/internal/modfetch/codehost/codehost.go  | 15 -----
- src/cmd/go/internal/modfetch/coderepo.go           |  2 +-
- src/cmd/go/internal/modload/build.go               | 64 +++++++++++-----------
- src/cmd/go/internal/modload/list.go                |  3 +-
- src/cmd/go/internal/modload/query.go               |  9 ++-
- src/cmd/go/testdata/script/mod_list_issue61423.txt | 13 ++++-
- 6 files changed, 52 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 39 +++++++++++++++++++-------------
+ 1 file changed, 23 insertions(+), 16 deletions(-)

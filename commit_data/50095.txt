@@ -1,19 +1,21 @@
-commit 1dcef7b3bdcea4a829ea22c821e6a9484c325d61
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Sat Jul 9 11:28:50 2022 +0800
+commit cf241a34a2ee8b337e11731958d918cbfd338caf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 30 16:35:52 2021 -0700
 
-    cmd/internal/obj/loong64: add MASKEQZ and MASKNEZ instructions support
+    net: consistently return DNSError on lookup failure
     
-    Change-Id: Ied16c3be47c863a94d46bd568191057ded4b7d0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416734
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Previously if we failed because the context timed out or was canceled,
+    we returned errCanceled or errTimeout.
+    
+    Fixes #39178
+    
+    Change-Id: I11bd7ebfaa7e5775fb05dfbb6b67f8307c8d8697
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353400
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 3 +++
- src/cmd/internal/obj/loong64/a.out.go           | 3 +++
- src/cmd/internal/obj/loong64/anames.go          | 2 ++
- src/cmd/internal/obj/loong64/asm.go             | 8 ++++++++
- 4 files changed, 16 insertions(+)
+ src/net/lookup.go      | 27 ++++++++++++++++---
+ src/net/lookup_test.go | 70 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 93 insertions(+), 4 deletions(-)

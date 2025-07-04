@@ -1,23 +1,125 @@
-commit 6347367be36df608cce84beb097378f8654dd208
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Sep 7 16:35:32 2016 +0300
+commit d2286ea2843569c7d277587f3d3ef06ae4092b78
+Merge: 6a1153acb4 50edddb738
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 4 10:08:20 2016 -0700
 
-    strings: use Index in Count
+    [dev.ssa] Merge remote-tracking branch 'origin/master' into mergebranch
     
-    This simplifies code and provides performance iprovments:
-    Similar to https://go-review.googlesource.com/#/c/28577
+    Semi-regular merge from tip into dev.ssa.
     
-    CountHard1-48               1.74ms ±14%  0.17ms ±14%  -90.16%  (p=0.000 n=19+19)
-    CountHard2-48               1.78ms ±15%  0.25ms ±13%  -86.10%  (p=0.000 n=19+20)
-    CountHard3-48               1.78ms ±12%  0.80ms ±11%  -55.19%  (p=0.000 n=17+20)
-    CountTorture-48             13.5µs ±14%  13.6µs ±11%     ~     (p=0.625 n=18+19)
-    CountTortureOverlapping-48  6.92ms ±13%  8.42ms ±11%  +21.72%  (p=0.000 n=19+17)
-    
-    Change-Id: Ief120aee918a66487c76be56e0796871c8502f89
-    Reviewed-on: https://go-review.googlesource.com/28586
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iadb60e594ef65a99c0e1404b14205fa67c32a9e9
 
- src/strings/strings.go | 46 ++++++++--------------------------------------
- 1 file changed, 8 insertions(+), 38 deletions(-)
+ doc/asm.html                                       |  58 ++++
+ doc/devel/release.html                             |   8 +
+ doc/go1.7.html                                     |  41 ++-
+ misc/trace/trace_viewer_lean.html                  |   2 +-
+ src/cmd/api/goapi.go                               |   2 +-
+ src/cmd/compile/internal/amd64/ssa.go              |  44 ++-
+ .../internal/gc/sparselocatephifunctions.go        |   5 +-
+ src/cmd/compile/internal/ssa/compile.go            |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   4 +-
+ src/cmd/compile/internal/ssa/rewrite.go            |  45 ---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |  13 +-
+ src/cmd/compile/internal/ssa/sparsetreemap.go      | 104 ++++---
+ src/cmd/compile/internal/ssa/tighten.go            |  23 ++
+ src/cmd/doc/doc_test.go                            |  16 +-
+ src/cmd/doc/pkg.go                                 |  28 +-
+ src/cmd/doc/testdata/pkg.go                        |   7 +
+ src/compress/flate/deflate.go                      |  13 +-
+ src/context/context_test.go                        |   6 +
+ src/crypto/x509/root_cgo_darwin.go                 |  60 ++++
+ src/fmt/scan.go                                    |   6 +-
+ src/fmt/scan_test.go                               | 101 +++---
+ src/go/build/build_test.go                         |   8 +-
+ src/go/build/deps_test.go                          |   8 +-
+ src/net/dial_test.go                               |   5 +
+ src/net/dial_unix_test.go                          | 108 +++++++
+ src/net/fd_unix.go                                 |  55 +++-
+ src/net/hook_unix.go                               |   3 +-
+ src/net/http/cgi/host.go                           |   4 +
+ src/net/http/cgi/host_test.go                      |  37 ++-
+ src/net/http/h2_bundle.go                          | 343 ++++++++++++++-------
+ src/net/http/http.go                               |   2 +-
+ src/net/http/serve_test.go                         |  11 +
+ src/net/http/server.go                             |  40 ++-
+ src/net/http/transfer.go                           |   2 +-
+ src/net/http/transport.go                          |  57 +++-
+ src/net/http/transport_internal_test.go            |   9 +-
+ src/net/http/transport_test.go                     |  53 +++-
+ src/net/interface_bsd.go                           |   2 +-
+ src/net/interface_bsdvar.go                        |   2 +-
+ src/net/interface_darwin.go                        |   2 +-
+ src/net/interface_freebsd.go                       |   2 +-
+ src/net/smtp/smtp.go                               |   5 +
+ src/runtime/cgocall.go                             |   3 +-
+ src/runtime/internal/atomic/asm_386.s              |   6 +-
+ src/runtime/internal/atomic/asm_amd64.s            |   2 +-
+ src/runtime/internal/atomic/asm_amd64p32.s         |   4 +-
+ src/runtime/internal/atomic/asm_arm.s              |   6 +-
+ src/runtime/internal/atomic/asm_arm64.s            |   4 +-
+ src/runtime/internal/atomic/asm_ppc64x.s           |   2 +-
+ src/runtime/mbarrier.go                            |   4 +-
+ src/runtime/mem_linux.go                           |  22 +-
+ src/runtime/mgc.go                                 |   9 +-
+ src/runtime/mgcmark.go                             |  11 +-
+ src/runtime/mheap.go                               |   5 +
+ src/runtime/pprof/pprof.go                         |  68 +++-
+ src/runtime/pprof/pprof_test.go                    |   4 +
+ src/runtime/proc.go                                |  28 +-
+ src/runtime/race/README                            |   2 +-
+ src/runtime/race/race_darwin_amd64.syso            | Bin 341304 -> 326172 bytes
+ src/runtime/race/race_freebsd_amd64.syso           | Bin 399904 -> 404216 bytes
+ src/runtime/race/race_linux_amd64.syso             | Bin 371032 -> 376048 bytes
+ src/runtime/race/race_test.go                      |  18 ++
+ src/runtime/race/race_windows_amd64.syso           | Bin 363595 -> 367717 bytes
+ src/runtime/sys_darwin_386.s                       |   7 +-
+ src/runtime/sys_darwin_amd64.s                     |   2 +
+ .../x/net/http2/hpack/encode.go                    |   0
+ .../x/net/http2/hpack/encode_test.go               |   0
+ .../x/net/http2/hpack/hpack.go                     |   0
+ .../x/net/http2/hpack/hpack_test.go                |   0
+ .../x/net/http2/hpack/huffman.go                   |   0
+ .../x/net/http2/hpack/tables.go                    |   0
+ .../x/net/lex/httplex/httplex.go                   |   0
+ .../x/net/lex/httplex/httplex_test.go              |   0
+ .../x/net/route/address.go                         |   0
+ .../x/net/route/address_darwin_test.go             |   0
+ .../x/net/route/address_test.go                    |   0
+ .../x/net/route/binary.go                          |   0
+ .../x/net/route/defs_darwin.go                     |   0
+ .../x/net/route/defs_dragonfly.go                  |   0
+ .../x/net/route/defs_freebsd.go                    |   0
+ .../x/net/route/defs_netbsd.go                     |   0
+ .../x/net/route/defs_openbsd.go                    |   0
+ .../x/net/route/interface.go                       |   0
+ .../x/net/route/interface_announce.go              |   0
+ .../x/net/route/interface_classic.go               |   0
+ .../x/net/route/interface_freebsd.go               |   0
+ .../x/net/route/interface_multicast.go             |   0
+ .../x/net/route/interface_openbsd.go               |   0
+ .../x/net/route/message.go                         |   0
+ .../x/net/route/message_darwin_test.go             |   0
+ .../x/net/route/message_freebsd_test.go            |   0
+ .../x/net/route/message_test.go                    |   0
+ .../x/net/route/route.go                           |   0
+ .../x/net/route/route_classic.go                   |   0
+ .../x/net/route/route_openbsd.go                   |   0
+ .../x/net/route/route_test.go                      |   0
+ .../{golang.org => golang_org}/x/net/route/sys.go  |   0
+ .../x/net/route/sys_darwin.go                      |   0
+ .../x/net/route/sys_dragonfly.go                   |   0
+ .../x/net/route/sys_freebsd.go                     |   0
+ .../x/net/route/sys_netbsd.go                      |   0
+ .../x/net/route/sys_openbsd.go                     |   0
+ .../x/net/route/syscall.go                         |   0
+ .../x/net/route/syscall.s                          |   0
+ .../x/net/route/zsys_darwin.go                     |   0
+ .../x/net/route/zsys_dragonfly.go                  |   0
+ .../x/net/route/zsys_freebsd_386.go                |   0
+ .../x/net/route/zsys_freebsd_amd64.go              |   0
+ .../x/net/route/zsys_freebsd_arm.go                |   0
+ .../x/net/route/zsys_netbsd.go                     |   0
+ .../x/net/route/zsys_openbsd.go                    |   0
+ test/fixedbugs/issue16515.go                       |  53 ++++
+ 113 files changed, 1225 insertions(+), 384 deletions(-)

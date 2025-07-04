@@ -1,19 +1,26 @@
-commit 3d667671ad767d66bf792c5a8d623cb829f6366a
-Author: korzhao <korzhao95@gmail.com>
-Date:   Wed Aug 25 16:01:49 2021 +0800
+commit 6d3d3fb37fc51473f04ffb304cfab41c96a361a4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 10 17:43:09 2020 -0500
 
-    cmd/compile: fix function contains no TParam in generic function
+    doc/go1.16: address some remaining high-level TODOs
     
-    Fixes #47948
+    The tools section TODO can be removed since the tools section looks
+    complete by now.
     
-    Change-Id: I446a9548265d195ae4d88aff6b1361474d1b6214
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344910
-    Trust: Alexander Rakoczy <alex@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    All TODOs in the minor changes to the library section have been done,
+    so the top-level TODO is resolved. Delete it.
+    
+    The currently highlighted entries under Core library section look
+    good. It's worth reviewing this further based on feedback from Go
+    1.16 pre-releases, so keep the TODO but make it non-user-visible
+    to unblock Go 1.16 Beta 1.
+    
+    For #40700.
+    
+    Change-Id: Ie72661bd457b0a93ef92e1bfc0844072f3b618a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277212
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/typecheck/subr.go |  3 ++-
- test/typeparam/issue47948.go               | 18 ++++++++++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ doc/go1.16.html | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)

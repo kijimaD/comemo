@@ -1,14 +1,12 @@
-commit a33cc423b4c0eb5ef74bda96d7335521a9c7978c
+commit 381a555f40bf6357bbea18093ad63dad2b7106fd
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 6 16:40:46 2011 +1000
+Date:   Wed Jul 6 15:56:39 2011 +1000
 
-    exp/template: allow an empty interface value to be the target of range, etc.
-    We extract the concrete value inside.
+    exp/template: improve error message for non-exported field.
     
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4677041
+    https://golang.org/cl/4636086
 
- src/pkg/exp/template/exec.go      |  4 ++++
- src/pkg/exp/template/exec_test.go | 20 ++++++++++++--------
- 2 files changed, 16 insertions(+), 8 deletions(-)
+ src/pkg/exp/template/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,15 @@
-commit 8d321625fdae77d7e4a8c1681fe90bd893b9cdd2
+commit d8e6881166e280cc44056f1a6c9747a103dca340
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Mar 14 23:25:48 2014 +0400
+Date:   Fri Mar 14 21:22:03 2014 +0400
 
-    runtime: fix spans corruption
-    The problem was that spans end up in wrong lists after split
-    (e.g. in h->busy instead of h->central->empty).
-    Also the span can be non-swept before split,
-    I don't know what it can cause, but it's safer to operate on swept spans.
-    Fixes #7544.
+    runtime: report "out of memory" in efence mode
+    Currently processes crash with obscure message.
+    Say that it's "out of memory".
     
-    R=golang-codereviews, rsc
-    CC=golang-codereviews, khr
-    https://golang.org/cl/76160043
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/75820045
 
- src/pkg/runtime/mgc0.c  |  2 +-
- src/pkg/runtime/mheap.c | 96 ++++++++++++++++++++++++++++++++++---------------
- src/pkg/runtime/stack.c | 12 ++-----
- 3 files changed, 70 insertions(+), 40 deletions(-)
+ src/pkg/runtime/stack.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

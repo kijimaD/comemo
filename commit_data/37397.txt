@@ -1,22 +1,20 @@
-commit a063a2284af69d25d4367ff3e7c6da53f37bad03
-Author: Ali Rizvi-Santiago <arizvisa@gmail.com>
-Date:   Wed Nov 14 20:16:14 2018 +0000
+commit c0e5485bd59827d6def05020b201133982a52790
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 25 14:09:02 2018 -0700
 
-    cmd/go: allow the user to specify ar via an environment variable
+    runtime: ignore GNU/Linux sigaction errors for signals 32 and 33
     
-    This allows one to customize which ar to use by fetching its path
-    from the environment. This way one can swap it out for a
-    different implementation.
+    This avoids problems when running under QEMU. It seems that at least
+    some QEMU versions turn the sigaction implementation into a call to
+    the C library sigaction function. The C library function will reject
+    attempts to set the signal handler for signals 32 and 33. Ignore
+    errors in that case.
     
-    Change-Id: I40d8cbd8a69e97b5254e66081d9bf0b726c10366
-    GitHub-Last-Rev: 4aa1d631eaca58be6c3a4be40f7404fa75a0db25
-    GitHub-Pull-Request: golang/go#28746
-    Reviewed-on: https://go-review.googlesource.com/c/149117
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id443a9a32f6fb0ceef5c59a398e7ede30bf71646
+    Reviewed-on: https://go-review.googlesource.com/125955
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go               |  4 ++++
- src/cmd/go/internal/help/helpdoc.go |  4 ++++
- src/cmd/go/internal/work/gccgo.go   | 18 +++++++++++++-----
- 3 files changed, 21 insertions(+), 5 deletions(-)
+ src/runtime/os_linux.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

@@ -1,16 +1,19 @@
-commit b8b3196375e6b5275ae05eba8ca04662f10ab047
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 24 15:45:11 2022 -0800
+commit 83ac59b1a55a4ae728393b445e2d2438f930b767
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 30 13:57:12 2021 -0400
 
-    doc/go1.18: document method set limitation for method selectors
+    cmd/internal/archive: make error message contain printable characters only
     
-    For #51183.
-    For #47694.
+    Use %q instead of %s to print unchecked bytes. Also strip the
+    "\x00" byte, as "go116ld" reads better than "\x00go116ld".
     
-    Change-Id: If47ae074c3cd9f73b2e7f6408749d9a7d56bd8d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387924
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id3d1f426ea91d53a55b928dac4a68e1333b80158
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315750
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.18.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/internal/archive/archive.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

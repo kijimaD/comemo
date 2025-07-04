@@ -1,0 +1,29 @@
+commit 5f50b1e3bf710b4107eb38496d932b3d9bd1fc98
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 25 02:35:19 2024 +0700
+
+    cmd/compile: fix mis-compilation when switching over channels
+    
+    CL 418101 changes Unified IR writer to force mixed tag/case to have
+    common type, emitting the implicit conversion if any of the case values
+    are not assignable to the tag value's type.
+    
+    However, the Go spec definition of equality is non-transitive for
+    channels stored in interfaces, causing incorrect behavior with channel
+    values comparison.
+    
+    To fix it, don't emit the implicit conversions if tag type is channel.
+    
+    Fixes #67190
+    
+    Change-Id: I9a29d9ce3c7978f0689e9502ba6f15660c763d16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594575
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/noder/writer.go | 26 +++++++++++++++++++-------
+ test/fixedbugs/issue67190.go             | 24 ++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 7 deletions(-)

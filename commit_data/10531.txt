@@ -1,17 +1,14 @@
-commit 6d4c18a4af447dab97c10e4bd6c8ce5fbb3bcb13
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Nov 29 10:24:19 2011 +1100
+commit 5a18aef67cbd707cd15e6412ddd089d0b6fb4738
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 29 09:28:58 2011 +1100
 
-    syscall: implement Syscall15
+    goinstall: add -fix flag to run gofix on packages on build failure
+    goinstall: better error handling and reporting
     
-    Fixes #2251.
-    
-    R=golang-dev, rsc
-    CC=golang-dev, jp
-    https://golang.org/cl/5440050
+    R=r, r, rsc, mattn.jp
+    CC=golang-dev
+    https://golang.org/cl/5421051
 
- src/pkg/runtime/windows/amd64/sys.s  |  2 +-
- src/pkg/runtime/windows/syscall.goc  | 26 ++++++++++++++++++++++++++
- src/pkg/syscall/dll_windows.go       |  7 +++++++
- src/pkg/syscall/mksyscall_windows.pl |  5 +++++
- 4 files changed, 39 insertions(+), 1 deletion(-)
+ src/cmd/goinstall/download.go |  13 +-
+ src/cmd/goinstall/main.go     | 271 ++++++++++++++++++++++++++----------------
+ 2 files changed, 176 insertions(+), 108 deletions(-)

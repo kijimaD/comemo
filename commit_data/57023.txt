@@ -1,17 +1,22 @@
-commit 966688a43a8b577c2eb2e7165a57fdae87a1840e
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jul 30 13:47:58 2024 +0000
+commit 7b325ba27d8a5a90d16793267523ebf52a18bf65
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 8 17:08:52 2023 +0000
 
-    internal/coverage: add internal/stringslite to hard-coded coverpkg ID list
+    runtime: apply looser bound to /gc/heap/live:bytes in test
     
-    Add internal/stringslite to the list of hard-coded package IDs to be
-    special cased in coverage package registration. This patch fixes
-    a new -coverpkg=all failure on the darwin longtest builders.
+    /gc/heap/live:bytes may exceed MemStats.HeapAlloc, even when all data is
+    flushed, becuase the GC may double-count objects when marking them. This
+    is an intentional design choice that is largely inconsequential. The
+    runtime is already robust to it, and the condition is rare.
     
-    Change-Id: I56357572f215fab09f46226fe205924136322d9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601755
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #60607.
+    
+    Change-Id: I4da402efc24327328d2d8780e4e49961b189f0ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501858
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/coverage/pkid.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/metrics_test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

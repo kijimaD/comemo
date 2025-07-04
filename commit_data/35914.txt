@@ -1,32 +1,25 @@
-commit 3d5703babe9c5344252db3fb8e96f20cd036535a
-Author: Stephan Renatus <srenatus@chef.io>
-Date:   Mon Nov 27 12:41:10 2017 +0100
+commit 910c3a9dfc4ff8ea4c25d725783bce4887d790f2
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Mar 8 10:33:14 2018 +0000
 
-    net/http: add support for SameSite option in http.Cookie
+    cmd/asm: add ARM64 assembler check for incorrect input
     
-    The same-site cookie attribute prevents a cookie from being sent along with
-    cross-site requests. The main goal is mitigate the risk of cross-origin
-    information leakage and provides some protection against cross-site request
-    forgery attacks.
+    Current ARM64 assembler has no check for the invalid value of both
+    shift amount and post-index immediate offset of LD1/ST1. This patch
+    adds the check.
     
-    This change adds the option to http.Cookie so it can be stored and
-    passed to HTTP clients.
+    This patch also fixes the printing error of register number equals
+    to 31, which should be printed as ZR instead of R31. Test cases
+    are also added.
     
-    Spec: https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00
-    
-    Fixes #15867
-    
-    Based on
-    https://github.com/reedloden/go/commit/eb31a0f063c80058bbb3abff4ca09b3565985500
-    by Reed Loden <reed@hackerone.com>
-    
-    Change-Id: I98c8a9a92358b2f632990576879759e3aff38cff
-    Reviewed-on: https://go-review.googlesource.com/79919
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I476235f3ab3a3fc91fe89c5a3149a4d4529c05c7
+    Reviewed-on: https://go-review.googlesource.com/100255
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/cookie.go        | 34 ++++++++++++++++++++++++++++++++++
- src/net/http/cookie_test.go   | 39 +++++++++++++++++++++++++++++++++++++++
- src/net/http/cookiejar/jar.go | 10 ++++++++++
- 3 files changed, 83 insertions(+)
+ src/cmd/asm/internal/asm/testdata/arm64.s      |   4 +
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 105 +++++++++++++------------
+ src/cmd/internal/obj/arm64/asm7.go             |  42 ++++++++++
+ src/cmd/internal/obj/arm64/list7.go            |  56 +++++++------
+ src/cmd/internal/obj/util.go                   |   3 +-
+ 5 files changed, 135 insertions(+), 75 deletions(-)

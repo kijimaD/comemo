@@ -1,24 +1,18 @@
-commit 90e0b40ab24e9dbd2404e597c76635f4b4e1ba2f
-Author: Ruixin Bao <ruixin.bao@ibm.com>
-Date:   Tue Aug 27 15:22:28 2019 -0400
+commit 93af67783796a48b3f59bd969dc0c528c37571ec
+Author: Daniel Cormier <danielc@knowbe4.com>
+Date:   Fri Nov 10 11:50:13 2017 -0500
 
-    cmd/internal/obj/s390x: use 12 bit load and store instruction when possible on s390x
+    net/textproto: properly write terminating sequence if DotWriter is closed with no writes
     
-    Originally, we default to use load and store instruction with 20 bit displacement.
-    However, that is not necessary. Some instructions have a displacement smaller
-    than 12 bit. This CL allows the usage of 12 bit load and store instruction when
-    that happens.
+    Fixed textproto.Writer.DotWriter() to properly write \r\n.\r\n to the buffer
+    when Close() is called without any bytes written. This properly writes the
+    terminating sequence outlined in RFC 5321 section 4.1.1.4 and RFC 3977
+    section 3.1.1, even when no other bytes are written.
     
-    This change also reduces the size of .text section in go binary by 19 KB.
-    
-    Some tests are also added to verify the functionality of the change.
-    
-    Change-Id: I13edea06ca653d4b9ffeaefe8d010bc2f065c2ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194857
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I262fd2963ee76fff7ffae8e3cb0e86255694b361
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/77350
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 44 +++++++++++++++++++++++------
- src/cmd/internal/obj/s390x/asmz.go        | 47 +++++++++++++++++++++++++++++--
- 2 files changed, 80 insertions(+), 11 deletions(-)
+ src/net/textproto/writer.go      |  5 +++--
+ src/net/textproto/writer_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

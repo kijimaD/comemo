@@ -1,16 +1,17 @@
-commit ec521467e33eee0a62ed426ca0c66b865baedfc7
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Wed Jan 30 17:38:18 2019 +0000
+commit c3304edf10223364bc1989bc1daa6908dbdd9c03
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sat Sep 29 08:35:32 2018 +0000
 
-    net: add missing error check in test
+    cmd/internal/obj/arm: delete unnecessary code
     
-    Change-Id: Id2e57bc8e18e062f60c6ac8a58dc15e049352088
-    GitHub-Last-Rev: 6d33b809cf8a3b5412333b1c3cc237000be8101d
-    GitHub-Pull-Request: golang/go#30016
-    Reviewed-on: https://go-review.googlesource.com/c/160440
-    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    In the arm assembler, "AMOVW" never falls into optab
+    case 13, so the check "if p.As == AMOVW" is useless.
+    
+    Change-Id: Iec241d5b4cffb358a1477f470619dc9a6287884a
+    Reviewed-on: https://go-review.googlesource.com/c/138575
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/dial_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/internal/obj/arm/asm5.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

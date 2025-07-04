@@ -1,12 +1,18 @@
-commit c57d91e34cf9a9d6d39b75e2f401bdf6a27447aa
-Author: Kevin Burke <kev@inburke.com>
-Date:   Wed Feb 8 15:31:33 2017 -0800
+commit 4f1e7be51f401a5374c0def2df0773abc924b03c
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 26 13:51:44 2016 -0700
 
-    database/sql: fix typo
+    crypto/x509: use Certificate.Equals and CertPool.contains.
     
-    Change-Id: I09fdcebb939417f18af09ed57f24460724cab64f
-    Reviewed-on: https://go-review.googlesource.com/36632
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    By using these utility functions, the code can be made a little shorter.
+    Thanks to Omar Shafie for pointing this out in
+    https://golang.org/cl/27393/.
+    
+    Change-Id: I33fd97cf7d60a31d0844ec16c12bba530dcc6f6d
+    Reviewed-on: https://go-review.googlesource.com/32120
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/sql.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/cert_pool.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

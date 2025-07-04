@@ -1,18 +1,99 @@
-commit 4deead7645fbb7302e0e86594445268085ded330
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 16 10:25:45 2014 -0800
+commit ca9975a45e3597fc81418c85d95175249500cd7b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 16 10:32:30 2014 -0500
 
-    net/http: cache transport environment lookup
+    cmd/gc: handle non-escaping address-taken variables better
     
-    Apparently this is expensive on Windows.
+    This CL makes the bitmaps a little more precise about variables
+    that have their address taken but for which the address does not
+    escape to the heap, so that the variables are kept in the stack frame
+    rather than allocated on the heap.
     
-    Fixes #7020
+    The code before this CL handled these variables by treating every
+    return statement as using every such variable and depending on
+    liveness analysis to essentially treat the variable as live during the
+    entire function. That approach has false positives and (worse) false
+    negatives. That is, it's both sloppy and buggy:
     
-    R=golang-codereviews, alex.brainman, mattn.jp, dvyukov
-    CC=golang-codereviews
-    https://golang.org/cl/52840043
+            func f(b1, b2 bool) {   // x live here! (sloppy)
+                    if b2 {
+                            print(0) // x live here! (sloppy)
+                            return
+                    }
+                    var z **int
+                    x := new(int)
+                    *x = 42
+                    z = &x
+                    print(**z) // x live here (conservative)
+                    if b2 {
+                            print(1) // x live here (conservative)
+                            return
+                    }
+                    for {
+                            print(**z) // x not live here (buggy)
+                    }
+            }
+    
+    The first two liveness annotations (marked sloppy) are clearly
+    wrong: x cannot be live if it has not yet been declared.
+    
+    The last liveness annotation (marked buggy) is also wrong:
+    x is live here as *z, but because there is no return statement
+    reachable from this point in the code, the analysis treats x as dead.
+    
+    This CL changes the liveness calculation to mark such variables
+    live exactly at points in the code reachable from the variable
+    declaration. This keeps the conservative decisions but fixes
+    the sloppy and buggy ones.
+    
+    The CL also detects ambiguously live variables, those that are
+    being marked live but may not actually have been initialized,
+    such as in this example:
+    
+            func f(b1 bool) {
+                    var z **int
+                    if b1 {
+                            x := new(int)
+                            *x = 42
+                            z = &x
+                    } else {
+                            y := new(int)
+                            *y = 54
+                            z = &y
+                    }
+                    print(**z) // x, y live here (conservative)
+            }
+    
+    Since the print statement is reachable from the declaration of x,
+    x must conservatively be marked live. The same goes for y.
+    Although both x and y are marked live at the print statement,
+    clearly only one of them has been initialized. They are both
+    "ambiguously live".
+    
+    These ambiguously live variables cause problems for garbage
+    collection: the collector cannot ignore them but also cannot
+    depend on them to be initialized to valid pointer values.
+    
+    Ambiguously live variables do not come up too often in real code,
+    but recent changes to the way map and interface runtime functions
+    are invoked has created a large number of ambiguously live
+    compiler-generated temporary variables. The next CL will adjust
+    the analysis to understand these temporaries better, to make
+    ambiguously live variables fairly rare.
+    
+    Once ambiguously live variables are rare enough, another CL will
+    introduce code at the beginning of a function to zero those
+    slots on the stack. At that point the garbage collector and the
+    stack copying routines will be able to depend on the guarantee that
+    if a slot is marked as live in a liveness bitmap, it is initialized.
+    
+    R=khr
+    CC=golang-codereviews, iant
+    https://golang.org/cl/51810043
 
- src/pkg/net/http/export_test.go    |  5 +++++
- src/pkg/net/http/transport.go      | 43 ++++++++++++++++++++++++++++++++------
- src/pkg/net/http/transport_test.go |  1 +
- 3 files changed, 43 insertions(+), 6 deletions(-)
+ src/cmd/gc/bv.c    |  12 ++
+ src/cmd/gc/go.h    |   1 +
+ src/cmd/gc/pgen.c  |   3 +-
+ src/cmd/gc/plive.c | 543 +++++++++++++++++++++++++++++++++++++++++++----------
+ test/live.go       |  81 ++++++++
+ 5 files changed, 536 insertions(+), 104 deletions(-)

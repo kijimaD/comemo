@@ -1,0 +1,83 @@
+commit a8e0641d5b90da99d5dda96488e87dda761b365b
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Sat Mar 1 14:30:03 2025 -0500
+
+    reflect: optimize IsZero with a pointer comparison to global zeroVal
+    
+    Our prior CL 649078 teaches the compiler to use a pointer to
+    runtime.zeroVal as the data pointer for an interface in cases it where
+    it can see that a zero value struct or array is being used in
+    an interface conversion.
+    
+    This applies to some uses with reflect, such as:
+    
+      s := S{}
+      v := reflect.ValueOf(s)
+    
+    This CL builds on that to do a cheap pointer check in reflect.IsZero
+    to see if the Value points to runtime.zeroVal, which means it is a zero
+    value.
+    
+    An alternative might be to do an initial pointer check in the typ.Equal
+    function for types where it makes sense to do but doesn't already.
+    
+    This CL gives a performance boost of -51.71% geomean for
+    BenchmarkZero/IsZero, with most of the impact there on
+    arrays of structs. (The left column is CL 649078 and the right column
+    is this CL).
+    
+    goos: linux
+    goarch: amd64
+    pkg: reflect
+    cpu: Intel(R) Xeon(R) CPU @ 2.80GHz
+                                             │ find-zeroVal │          check-zeroVal              │
+                                             │    sec/op    │   sec/op     vs base                │
+    Zero/IsZero/ByteArray/size=16-4             4.171n ± 0%   3.123n ± 0%  -25.13% (p=0.000 n=20)
+    Zero/IsZero/ByteArray/size=64-4             3.864n ± 0%   3.129n ± 0%  -19.02% (p=0.000 n=20)
+    Zero/IsZero/ByteArray/size=1024-4           3.878n ± 0%   3.126n ± 0%  -19.39% (p=0.000 n=20)
+    Zero/IsZero/BigStruct/size=1024-4           5.061n ± 0%   3.273n ± 0%  -35.34% (p=0.000 n=20)
+    Zero/IsZero/SmallStruct/size=16-4           4.191n ± 0%   3.275n ± 0%  -21.87% (p=0.000 n=20)
+    Zero/IsZero/SmallStructArray/size=64-4      8.636n ± 0%   3.127n ± 0%  -63.79% (p=0.000 n=20)
+    Zero/IsZero/SmallStructArray/size=1024-4   80.055n ± 0%   3.126n ± 0%  -96.10% (p=0.000 n=20)
+    Zero/IsZero/Time/size=24-4                  3.865n ± 0%   3.274n ± 0%  -15.29% (p=0.000 n=20)
+    geomean                                     6.587n        3.181n       -51.71%
+    
+    Note these are of course micro benchmarks with easily predicted
+    branches. The extra branch we introduce in the CL might hurt if there
+    was for example a tight loop where 50% of the values used the
+    global zeroVal and 50% didn't in a way that is not well predicted,
+    although if the typ.Equal for many types already does an initial
+    pointer check, it might not matter much.
+    
+    For the older BenchmarkIsZero in reflect, this change does not help.
+    (The compiler does not use the global zeroVal as the data word for the
+    interfaces in this benchmark because values are part of a larger value
+    that is too big to be used in the global zeroVal, and also a piece of
+    the larger value is mutated and is not zero).
+    
+                                  │ find-zeroVal │           check-zeroVal            │
+                                  │   sec/op     │   sec/op     vs base               │
+    IsZero/ArrayComparable-4        14.58n ± 0%    14.59n ± 0%       ~ (p=0.177 n=20)
+    IsZero/ArrayIncomparable-4      163.8n ± 0%    167.5n ± 0%  +2.26% (p=0.000 n=20)
+    IsZero/StructComparable-4       6.847n ± 0%    6.847n ± 0%       ~ (p=0.703 n=20)
+    IsZero/StructIncomparable-4     35.41n ± 0%    35.10n ± 0%  -0.86% (p=0.000 n=20)
+    IsZero/ArrayInt_4-4             8.631n ± 0%    8.363n ± 0%  -3.10% (p=0.000 n=20)
+    IsZero/ArrayInt_1024-4          265.5n ± 0%    265.4n ± 0%       ~ (p=0.288 n=20)
+    IsZero/ArrayInt_1024_NoZero-4   135.8n ± 0%    136.2n ± 0%  +0.33% (p=0.000 n=20)
+    IsZero/Struct4Int-4             8.451n ± 0%    8.386n ± 0%  -0.77% (p=0.000 n=20)
+    IsZero/ArrayStruct4Int_1024-4   265.2n ± 0%    266.0n ± 0%  +0.30% (p=0.000 n=20)
+    IsZero/ArrayChanInt_1024-4      265.5n ± 0%    265.4n ± 0%       ~ (p=0.605 n=20)
+    IsZero/StructInt_512-4          135.8n ± 0%    135.8n ± 0%       ~ (p=0.396 n=20)
+    geomean                         55.22n         55.12n       -0.18%
+    
+    Updates #71323
+    
+    Change-Id: Ie083853a5bff03856277a293d94532a681f4a8d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654135
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/value.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

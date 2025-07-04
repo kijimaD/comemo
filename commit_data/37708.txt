@@ -1,22 +1,19 @@
-commit b875991a49ac6d323c9c52c889429eb3b1642ef7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 14 18:33:13 2018 +0000
+commit fd7d3259c93e8901f5645fd5de620cd75053c7ca
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Tue Jul 10 08:32:56 2018 +0300
 
-    net/http/httptest: don't register a flag unless it looks like it's in use
+    runtime: remove redundant explicit deref in trace.go
     
-    We shouldn't pollute people's flags with this debugging flag that was
-    never really meant to be public. It's certainly not documented.
+    Replaces legacy Go syntax for pointer struct member access
+    with more modern auto-deref alternative.
     
-    So keep it for now, but don't register it unless it looks like it's in
-    use (by looking at os.Args). Kinda gross, but less gross than before.
+    Found using https://go-critic.github.io/overview#underef-ref
     
-    Fixes #28619
-    
-    Change-Id: I47498948a26a71ff36f9658a6d9dac73fd0a3016
-    Reviewed-on: https://go-review.googlesource.com/c/154217
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I71a3c424126c4ff5d89f9e4bacb6cc01c6fa2ddf
+    Reviewed-on: https://go-review.googlesource.com/122895
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httptest/server.go | 28 +++++++++++++++++++++++-----
- 1 file changed, 23 insertions(+), 5 deletions(-)
+ src/runtime/trace.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

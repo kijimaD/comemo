@@ -1,21 +1,36 @@
-commit f96987888f343e708c31e42356ba61715ee1f437
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 20 14:18:58 2024 -0800
+commit 657c885fb9278f03d5b18bfb7eeca98c25ef67ac
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 21 15:55:35 2023 -0700
 
-    cmd/cgo/internal/testsanitizers: don't create fuzz corpus
+    cmd/compile: when combining stores, use line number of first store
     
-    The TestASANFuzz test would sometimes create a fuzz corpus
-    in testdata/testdata/FuzzReverse. Avoid modifying the source
-    directory by building the test with "go test -c" and running
-    it in a temporary directory.
+    var p *[2]uint32 = ...
+    p[0] = 0
+    p[1] = 0
     
-    Change-Id: I12e2da4c85165fa35e0dc1aa6b46c6d0fbccaab8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630377
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    When we combine these two 32-bit stores into a single 64-bit store,
+    use the line number of the first store, not the second one.
+    This differs from the default behavior because usually with the combining
+    that the compiler does, we use the line number of the last instruction
+    in the combo (e.g. load+add, we use the line number of the add).
+    
+    This is the same behavior that gcc does in C (picking the line
+    number of the first of a set of combined stores).
+    
+    Change-Id: Ie70bf6151755322d33ecd50e4d9caf62f7881784
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521678
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/cgo/internal/testsanitizers/asan_test.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |  2 ++
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  4 +--
+ src/cmd/compile/internal/ssa/_gen/S390X.rules |  8 ++++++
+ src/cmd/compile/internal/ssa/memcombine.go    |  5 ++++
+ src/cmd/compile/internal/ssa/rewrite.go       |  8 ++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  |  8 +++---
+ src/cmd/compile/internal/ssa/rewriteARM64.go  |  8 +++---
+ src/cmd/compile/internal/ssa/rewriteS390X.go  | 32 ++++++++++++------------
+ test/codegen/memcombine.go                    | 36 ++++++++++++++++++++++-----
+ 9 files changed, 79 insertions(+), 32 deletions(-)

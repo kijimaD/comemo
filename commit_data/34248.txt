@@ -1,40 +1,35 @@
-commit 1b1c8b34d129eefcdbad234914df999581e62b2f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Feb 16 11:26:14 2018 +0100
+commit 4f70a2a699d23bb47eae36c5170086688d2fa764
+Author: Hugues Bruant <hugues.bruant@gmail.com>
+Date:   Mon Sep 18 14:54:10 2017 -0700
 
-    runtime: remove unused getrlimit function
+    cmd/compile: inline calls to local closures
     
-    Follow CL 93655 which removed the (commented-out) usage of this
-    function.
+    Calls to a closure held in a local, non-escaping,
+    variable can be inlined, provided the closure body
+    can be inlined and the variable is never written to.
     
-    Also remove unused constant _RLIMIT_AS and type rlimit.
+    The current implementation has the following limitations:
     
-    Change-Id: Ifb6e6b2104f4c2555269f8ced72bfcae24f5d5e9
-    Reviewed-on: https://go-review.googlesource.com/94775
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+     - closures with captured variables are not inlined because
+       doing so naively triggers invariant violation in the SSA
+       phase
+     - re-assignment check is currently approximated by checking
+       the Addrtaken property of the variable which should be safe
+       but may miss optimization opportunities if the address is
+       not used for a write before the invocation
+    
+    Updates #15561
+    
+    Change-Id: I508cad5d28f027bd7e933b1f793c14dcfef8b5a1
+    Reviewed-on: https://go-review.googlesource.com/65071
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Hugues Bruant <hugues.bruant@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/os2_freebsd.go        | 1 -
- src/runtime/os2_solaris.go        | 1 -
- src/runtime/os3_solaris.go        | 3 ---
- src/runtime/os_dragonfly.go       | 4 ----
- src/runtime/os_freebsd.go         | 2 --
- src/runtime/os_linux.go           | 2 --
- src/runtime/os_linux_be64.go      | 6 ------
- src/runtime/os_linux_generic.go   | 6 ------
- src/runtime/os_linux_mips64x.go   | 6 ------
- src/runtime/os_linux_mipsx.go     | 6 ------
- src/runtime/sys_dragonfly_amd64.s | 8 --------
- src/runtime/sys_freebsd_386.s     | 6 ------
- src/runtime/sys_freebsd_amd64.s   | 8 --------
- src/runtime/sys_freebsd_arm.s     | 9 ---------
- src/runtime/sys_linux_386.s       | 9 ---------
- src/runtime/sys_linux_amd64.s     | 9 ---------
- src/runtime/sys_linux_arm.s       | 9 ---------
- src/runtime/sys_linux_arm64.s     | 9 ---------
- src/runtime/sys_linux_mips64x.s   | 9 ---------
- src/runtime/sys_linux_mipsx.s     | 9 ---------
- src/runtime/sys_linux_ppc64x.s    | 8 --------
- src/runtime/sys_linux_s390x.s     | 9 ---------
- 22 files changed, 139 deletions(-)
+ src/cmd/compile/internal/gc/bitset.go |  10 +++
+ src/cmd/compile/internal/gc/inl.go    | 128 +++++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/syntax.go |  45 ++++++------
+ test/escape4.go                       |   6 +-
+ test/inline.go                        |  49 ++++++++++++-
+ 5 files changed, 211 insertions(+), 27 deletions(-)

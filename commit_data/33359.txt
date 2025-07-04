@@ -1,32 +1,20 @@
-commit 2ff75551030c7e54bd1cec3e88805d4ea3232276
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Thu Sep 21 01:53:13 2017 -0400
+commit 589fc314af46e0d65a91fa1048ba319f1bf390a6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 11 08:43:30 2017 -0700
 
-    net/http: set Content-Type header for HEAD as well
+    runtime: calculate k only once in mapiternext
     
-    In CL 50510, the Content-Type header started to be set in Redirect when
-    request method is GET. (Prior to that, it wasn't set at all, which is
-    what said CL was fixing.) However, according to HTTP specification,
-    the expected response for a HEAD request is identical to that of a
-    GET request, but without the response body.
+    Make the calculation of k and v a bit lazier.
+    None of the following code cares about indirect-vs-direct k,
+    and it happens on all code paths, so check t.indirectkey earlier.
     
-    This CL updates the behavior to set the Content-Type header for HEAD
-    method in addition to GET.
+    Simplifies the code and reduces both machine code and stack size.
     
-    This actually allows a simpler implementation than before. This change
-    largely reverts CL 50510, and applies the simpler implementation.
-    
-    Add a test for Content-Type header and body for GET, HEAD requests.
-    
-    Updates CL 50510.
-    
-    Change-Id: If33ea3f4bbc5246bb5dc751458004828cfe681b9
-    Reviewed-on: https://go-review.googlesource.com/65190
-    Run-TryBot: Dmitri Shuralyov <shurcool@gmail.com>
+    Change-Id: I5ea4c0772848d7a4b15383baedb9a1f7feb47201
+    Reviewed-on: https://go-review.googlesource.com/55092
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 31 +++++++++++++++++++++++++++++++
- src/net/http/server.go     | 13 ++++++-------
- 2 files changed, 37 insertions(+), 7 deletions(-)
+ src/runtime/hashmap.go | 28 ++++++++++------------------
+ 1 file changed, 10 insertions(+), 18 deletions(-)

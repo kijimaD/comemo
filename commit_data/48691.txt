@@ -1,32 +1,17 @@
-commit 1a955bcdb701d788b048a39d7273621729e257bc
-Author: vpachkov <slava.pach@gmail.com>
-Date:   Thu Dec 2 16:18:29 2021 +0300
+commit 0fb3e2c18408cc8ff6cb87962fc13f2684d1df96
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 7 17:04:32 2021 -0400
 
-    reflectdata: unroll a loop in array equal function generation
+    doc/go1.17: add a release note for the '-compat' flag to 'go mod tidy'
     
-    As josharian mentioned, a compare function could benefit from
-    unrolling a loop for arrays. This commit introduces such
-    functionality.
+    Updates #46141
     
-    name                     old time/op  new time/op  delta
-    EqArrayOfStrings5-12     12.5ns ± 1%   8.4ns ± 1%  -33.05%  (p=0.008 n=5+5)
-    EqArrayOfStrings64-12    71.7ns ± 1%  64.1ns ± 1%  -10.57%  (p=0.008 n=5+5)
-    EqArrayOfStrings1024-12  1.12µs ± 1%  1.01µs ± 0%   -9.77%  (p=0.008 n=5+5)
-    [Geo mean]                100ns         81ns       -18.56%
-    
-    name                    old time/op  new time/op  delta
-    EqArrayOfFloats5-12     4.50ns ± 2%  3.32ns ± 1%  -26.09%  (p=0.008 n=5+5)
-    EqArrayOfFloats64-12    41.3ns ± 1%  35.7ns ± 0%  -13.63%  (p=0.016 n=5+4)
-    EqArrayOfFloats1024-12   619ns ± 1%   557ns ± 1%   -9.95%  (p=0.008 n=5+5)
-    [Geo mean]              48.6ns       40.4ns       -16.85%
-    
-    Change-Id: If1b69c5cf3fb246bb0275a292118b0b93ad9c9a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368614
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7a6a84f816e3db19bb492f862366a29dc46ed2ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325910
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/reflectdata/alg.go      | 92 +++++++++++++++---------
- src/cmd/compile/internal/reflectdata/alg_test.go | 76 ++++++++++++++++++++
- 2 files changed, 135 insertions(+), 33 deletions(-)
+ doc/go1.17.html | 33 +++++++++++++++++++++++++++++----
+ 1 file changed, 29 insertions(+), 4 deletions(-)

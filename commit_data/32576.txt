@@ -1,22 +1,18 @@
-commit fda8269cc6b8223ba5125ddadefe8f2f2302a309
-Author: Kenji Yano <kenji.yano@gmail.com>
-Date:   Sat Aug 26 18:44:27 2017 +0900
+commit 9f6fde3a23c7d40eb625ad3a58a6b1ad4e33265a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue May 2 12:38:59 2017 +0200
 
-    archive/zip: support "end of central directory record comment"
+    doc/contribute: directly link to the Agreements page
     
-    This change added support "end of central directory record comemnt" to the Writer.
+    There's no Settings->Agreement path for PolyGerrit users, but if we
+    link directly to the page in the instructions, Gerrit will inform them
+    that they can access the page by switching to the old UI.
     
-    There is a new exported field Writer.Comment in this change.
-    If invalid size of comment was set, Close returns error without closing resources.
+    Fixes #20207
     
-    Fixes #21634
-    
-    Change-Id: Ifb62bc6c7f81b9257ac83eb570ad9915de727f8c
-    Reviewed-on: https://go-review.googlesource.com/59310
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0887ee854e4ac5975b5f305adb6259b81b41618f
+    Reviewed-on: https://go-review.googlesource.com/42412
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/zip/writer.go      | 22 +++++++++++++++------
- src/archive/zip/writer_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 59 insertions(+), 6 deletions(-)
+ doc/contribute.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

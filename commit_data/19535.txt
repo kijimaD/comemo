@@ -1,13 +1,12 @@
-commit 328e86d2625851f8aeb13be6e16d43370311c780
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jun 13 13:30:54 2014 +1000
+commit e209a0fa06f03f098b16381fc79aa6aea9210b18
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 17:19:33 2014 -0700
 
-    tag go1.3rc2
+    time: micro symbol for microseconds
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/101270043
+    https://golang.org/cl/105930043
 
- .hgtags | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.4.txt | 2 ++
+ 1 file changed, 2 insertions(+)

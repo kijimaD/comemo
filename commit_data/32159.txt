@@ -1,19 +1,20 @@
-commit 7d80a2ea18f48d309115bbe950422c54e31a14e8
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Jul 19 00:09:35 2017 +0200
+commit 7e1832d06c0dad102e18e8db0c45f5fcc979718e
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 7 18:06:12 2017 -0400
 
-    runtime: allow crash() to raise SIGABRT on darwin/arm64
+    runtime: say where the compiler knows about var writeBarrier
     
-    To avoid gigantic core dumps, the runtime avoids raising SIGABRT
-    on crashes on 64-bit Darwin systems. Mobile OS'es (probably) don't
-    generate huge core dumps, so to aid crash reporters, allow SIGABRT
-    on crashes on darwin/arm64.
+    The runtime.writeBarrier variable tries to be helpful by telling you
+    that the compiler also knows about this variable, which you could
+    probably guess, but doesn't say how the compiler knows about it. In
+    fact, the compiler has a complete copy in builtin/runtime.go that
+    needs to be kept in sync. Say so.
     
-    Change-Id: I4a29608f400967d76f9bd0643fea22244c2da9df
-    Reviewed-on: https://go-review.googlesource.com/49770
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: Avelino <t@avelino.xxx>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia7fb0c591cb6f9b8230decce01008b417dfcec89
+    Reviewed-on: https://go-review.googlesource.com/40150
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/signal_unix.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/runtime/mgc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

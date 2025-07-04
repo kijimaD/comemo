@@ -1,16 +1,41 @@
-commit 7b2b8edee60788358938dc7d7e04aabeae357b85
+commit 8c3005c4929e26cba74c80703123e150fa3fda1a
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 7 11:07:04 2014 -0400
+Date:   Fri Sep 26 14:41:26 2014 -0400
 
-    encoding/json: fix handling of null with ,string fields
+    cmd/go: make build -a skip standard packages in Go releases
     
-    Fixes #8587.
+    Today, 'go build -a my/pkg' and 'go install -a my/pkg'
+    recompile not just my/pkg and all its dependencies that
+    you wrote but also the standard library packages.
+    Recompiling the standard library is problematic on
+    some systems because the installed copy is not writable.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews, iant, r
-    https://golang.org/cl/152270044
+    The -a behavior means that you can't use 'go install -a all'
+    or 'go install -a my/...' to rebuild everything after a Go
+    release - the rebuild stops early when it cannot overwrite
+    the installed standard library.
+    
+    During development work, however, you do want install -a
+    to rebuild everything, because anything might have changed.
+    
+    Resolve the conflict by making the behavior of -a depend
+    on whether we are using a released copy of Go or a devel copy.
+    In the release copies, -a no longer applies to the standard library.
+    In the devel copies, it still does.
+    
+    This is the latest in a long line of refinements to the
+    "do I build this or not" logic. It is surely not the last.
+    
+    Fixes #8290.
+    
+    LGTM=r
+    R=golang-codereviews, r, tracey.brendan
+    CC=adg, golang-codereviews, iant
+    https://golang.org/cl/151730045
 
- src/encoding/json/decode.go      | 40 ++++++++++++++++++++++++++++++++++++----
- src/encoding/json/decode_test.go | 21 ++++++++++++++-------
- 2 files changed, 50 insertions(+), 11 deletions(-)
+ src/cmd/go/build.go  |  1 +
+ src/cmd/go/doc.go    |  1 +
+ src/cmd/go/pkg.go    | 18 +++++++++++++++++-
+ src/cmd/go/test.bash | 28 +++++++++++++++++++++++++++-
+ src/cmd/go/testgo.go | 21 +++++++++++++++++++++
+ 5 files changed, 67 insertions(+), 2 deletions(-)

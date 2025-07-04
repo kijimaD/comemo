@@ -1,19 +1,15 @@
-commit 2dcf8593acbacc36b970be859711c97e4f266b35
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Feb 24 14:41:10 2014 +0900
+commit bcf3d55ed99b7b7e689e05a8333ba89d337c0cad
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 23 20:37:43 2014 -0500
 
-    syscall: consolidate test cases for Unix-like systems
+    misc/cgo/testso: don't use TLS variables on Darwin and OpenBSD.
+    Fix build for 10.6 Darwin builders and OpenBSD builers.
     
-    As per request from minux in CL 61520049, this CL consolidates
-    existing test cases for Unix-like systems into one file except
-    Linux-specific credential test.
-    
-    LGTM=bradfitz
-    R=iant, minux.ma, bradfitz
+    LGTM=jsing
+    R=golang-codereviews, dave, jsing
     CC=golang-codereviews
-    https://golang.org/cl/67800044
+    https://golang.org/cl/67710043
 
- src/pkg/syscall/consistency_unix_test.go           | 44 ------------
- src/pkg/syscall/rlimit_unix_test.go                | 51 --------------
- .../{passfd_test.go => syscall_unix_test.go}       | 79 +++++++++++++++++++++-
- 3 files changed, 76 insertions(+), 98 deletions(-)
+ misc/cgo/testso/cgoso_c.c     | 4 ++++
+ misc/cgo/testso/cgoso_unix.go | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

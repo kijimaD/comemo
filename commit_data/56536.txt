@@ -1,55 +1,27 @@
-commit dfe781e1ebbb1b14f3c76c1ee730c09e27369062
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon May 6 15:52:09 2024 +0000
+commit c12f53864bf3a7a0612ab7d20b45277fae7ea181
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon May 8 11:17:59 2023 -0400
 
-    runtime: fix coro interactions with thread-locked goroutines
+    time: update windows zoneinfo_abbrs
     
-    This change fixes problems with thread-locked goroutines using
-    newcoro/coroswitch/etc. Currently, the coro paths do not consider
-    thread-locked goroutines at all and can quickly result in broken
-    scheduler state or lost/leaked goroutines.
+    The primary branch of the github.com/unicode-org/cldr repository
+    has changed to main instead of master. This changes the branch used
+    to download the Windows zone file.
     
-    One possible fix to these issues is to fall back on goroutine+channel
-    semantics, but that turns out to be fairly complicated to implement and
-    results in significant performance cliffs. More complex thread-lock
-    state donation tricks also result in some fairly complicated state
-    tracking that doesn't seem worth it given the use-cases of iter.Pull
-    (and even then, there will be performance cliffs).
+    Ran:
+    go generate time
     
-    This change implements a much simpler, but more restrictive semantics.
-    In particular, thread-lock state is tied to the coro at the first call
-    to newcoro (i.e. iter.Pull). From then on, the invariant is that if the
-    coro has any thread-lock state *or* a goroutine calling into coroswitch
-    has any thread-lock state, that the full gamut of thread-lock state must
-    remain the same as it was when newcoro was called (the full gamut
-    meaning internal and external lock counts as well as the identity of the
-    thread that was locked to).
+    For #58113
     
-    This semantics allows the common cases to be always fast, but comes with
-    a non-orthogonality caveat. Specifically, when iter.Pull is used in
-    conjunction with thread-locked goroutines, complex cases (passing next
-    between goroutines or passing yield between goroutines) are likely to
-    fail. Simple cases, where any number of iter.Pull iterators are used in
-    a straightforward way (nested, in series, etc.) from the same
-    goroutine, will work and will be guaranteed to be fast regardless of
-    thread-lock state.
-    
-    This is a compromise for the near-term and we may consider lifting the
-    restrictions imposed by this CL in the future.
-    
-    Fixes #65889.
-    Fixes #65946.
-    
-    Change-Id: I3fb5791e36a61f5ded50226a229a79d28739b24e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583675
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Idb3dcaf44fc52d4b6abfed5a3ca6cd6f745dc3f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493477
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
 
- src/runtime/coro.go                      |  64 +++++++++--
- src/runtime/coro_test.go                 |  71 ++++++++++++
- src/runtime/crash_test.go                |  18 ++-
- src/runtime/proc.go                      |   6 +-
- src/runtime/testdata/testprog/coro.go    | 185 +++++++++++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/coro.go | 185 +++++++++++++++++++++++++++++++
- 6 files changed, 516 insertions(+), 13 deletions(-)
+ src/time/genzabbrs.go              | 2 +-
+ src/time/zoneinfo_abbrs_windows.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

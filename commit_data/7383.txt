@@ -1,15 +1,18 @@
-commit b2b29814bfbe9c94517d0375cfd2ebe915578294
+commit 61c93cac3e25de0b57b83143e71a342d12a7d8ee
 Author: Andrey Mirtchovski <mirtchovski@gmail.com>
-Date:   Mon Feb 7 11:51:17 2011 -0800
+Date:   Mon Feb 7 09:23:18 2011 +0100
 
-    Codelab/wiki: fix typo
+    Codelab: correct function definitions for handlers before closures are introduced.
     
-    Missing closing bracket renders the next code snippet unreadable.
+    A couple of post-closure function definitions were introduced too early, making the resulting
+    code fail compilation.
     
-    R=adg, gri
+    Also, the TitleValidator regexp was missing.
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4119060
+    https://golang.org/cl/4105054
 
- doc/codelab/wiki/index.html | 2 +-
- doc/codelab/wiki/wiki.html  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/codelab/wiki/index.html | 15 ++++++++++++---
+ doc/codelab/wiki/wiki.html  |  6 +++---
+ 2 files changed, 15 insertions(+), 6 deletions(-)

@@ -1,16 +1,25 @@
-commit 9238cbd57a116c63104df6ed5a5a85e7097b8386
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Sun Sep 20 23:28:34 2015 +0200
+commit 35fb514596b970a73be972fa917fa23ca74f7be6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 10 12:15:52 2015 -0700
 
-    cmd/compile/internal/gc: remove "goto ret" in walkexpr
+    [dev.ssa] cmd/compile: add HTML SSA printer
     
-    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
+    This is an initial implementation.
+    There are many rough edges and TODOs,
+    which will hopefully be polished out
+    with use.
     
-    Change-Id: Ib3d2c50601546495e7f1ab153d2978b1e3774101
-    Reviewed-on: https://go-review.googlesource.com/14800
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #12071.
+    
+    Change-Id: I1d6fd5a343063b5200623bceef2c2cfcc885794e
+    Reviewed-on: https://go-review.googlesource.com/13472
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 126 +++++++-----------------------------
- 1 file changed, 25 insertions(+), 101 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go       |  40 +++
+ src/cmd/compile/internal/ssa/compile.go  |   3 +
+ src/cmd/compile/internal/ssa/config.go   |  16 +-
+ src/cmd/compile/internal/ssa/deadcode.go |  17 +-
+ src/cmd/compile/internal/ssa/html.go     | 461 +++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/print.go    |  90 ++++--
+ src/cmd/internal/obj/obj.go              |  25 +-
+ 7 files changed, 607 insertions(+), 45 deletions(-)

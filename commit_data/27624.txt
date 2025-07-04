@@ -1,21 +1,15 @@
-commit 853cd1f4a61396cccb91522ed59af52d61aa8371
-Author: Alexander Morozov <lk4d4math@gmail.com>
-Date:   Fri May 27 15:02:31 2016 -0700
+commit cb284313f7e24319e7d22a551bd04ad9632db659
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 5 20:01:50 2016 +0000
 
-    syscall: call setgroups for no groups on GNU/Linux
+    net/http, net/http/httputil: start with capitals in deprecation sentences
     
-    Skip setgroups only for one particular case: GidMappings != nil and
-    GidMappingsEnableSetgroup == false and list of supplementary groups is
-    empty.
-    This patch returns pre-1.5 behavior for simple exec and still allows to
-    use GidMappings with non-empty Credential.
+    Fixes #15139
     
-    Change-Id: Ia91c77e76ec5efab7a7f78134ffb529910108fc1
-    Reviewed-on: https://go-review.googlesource.com/23524
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I73111137907e612af871b77ccf166572bf78c840
+    Reviewed-on: https://go-review.googlesource.com/21544
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/syscall/exec_linux.go      | 10 +++++--
- src/syscall/exec_linux_test.go | 61 +++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 68 insertions(+), 3 deletions(-)
+ src/net/http/httputil/persist.go | 10 +++++-----
+ src/net/http/request.go          |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

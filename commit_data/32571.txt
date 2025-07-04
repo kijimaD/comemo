@@ -1,29 +1,30 @@
-commit 03876af91c50c6e0227218a856f037dd20a45729
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue May 23 23:01:08 2017 +0900
+commit a93e9f0fad01c0be444d89d1e46d1d357128b4bc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 2 05:35:55 2017 -0700
 
-    cmd/cgo: support niladic function-like macros
+    cmd/dist: spin up fewer test dir runners
     
-    Currently, cgo supports only macros which can be reduced to constants
-    or variables. The CL addresses remaining parts, macros which can be
-    represented as niladic functions.
+    5 shards, each of which spins up NumCPU processes,
+    each of which is running at GOMAXPROCS=NumCPU,
+    is too much for one machine. It makes my laptop unusable.
     
-    The basic idea is simple:
-      1. make a thin wrapper function per macros.
-      2. replace macro expansions with function calls.
+    It might also be in part responsible for test flakes
+    that require a moderately responsive system,
+    like #18589 (backedge scheduling) and #19276 (locklinear).
     
-    Fixes #10715
-    Fixes #18720
+    It's possible that Go should be a better neighbor in general;
+    that's #17969. In the meantime, fix this corner of the world.
     
-    Change-Id: I150b4fb48e9dc4cc34466ef6417c04ac93d4bc1a
-    Reviewed-on: https://go-review.googlesource.com/43970
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Builders snapshot the world and run shards on different
+    machines, so keeping sharding high for them is good.
+    
+    This is a partial reversion of CL 18199.
+    
+    Fixes #20141.
+    
+    Change-Id: I123cf9436f4f4da3550372896265c38117b78071
+    Reviewed-on: https://go-review.googlesource.com/42431
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/progs/run.go            |  7 -------
- misc/cgo/test/issue18720.go | 30 ++++++++++++++++++++++++++++--
- src/cmd/cgo/gcc.go          | 27 +++++++++++++++++----------
- src/cmd/cgo/main.go         |  2 +-
- src/cmd/cgo/out.go          | 32 ++++++++++++++++++++------------
- 5 files changed, 66 insertions(+), 32 deletions(-)
+ src/cmd/dist/test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

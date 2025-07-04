@@ -1,14 +1,17 @@
-commit e871981be9b6c83c60eb089d1ef891ae7443a0e9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 11 16:43:09 2019 -0800
+commit c381ba86572f568a6d6dccd1b8a6bd583955dc69
+Author: Ivy Evans <ivy@ivyevans.net>
+Date:   Thu Sep 13 02:16:27 2018 +0000
 
-    cmd/compile: update compiler's format test (fix long test)
+    net/http: fix minor typos in Request godoc
     
-    Change-Id: Ia546d3f0a12a3c3c291f7b6d5291193fdd47d7dd
-    Reviewed-on: https://go-review.googlesource.com/c/161966
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes missing commas where it wasn't immediately apparent whether
+    "requests" was being used as a verb or a noun.
+    
+    Change-Id: Ic8c99b4f46475f40a6160d26a3cd11c215940dd5
+    GitHub-Last-Rev: 1becf6fabeb6f928e37526e96297dd60397ccf9b
+    GitHub-Pull-Request: golang/go#27649
+    Reviewed-on: https://go-review.googlesource.com/135135
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/fmtmap_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/http/request.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

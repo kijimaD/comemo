@@ -1,18 +1,14 @@
-commit 37a038a3dcbba7148b841e31522b33476ee6ad44
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Feb 23 11:42:49 2018 +0100
+commit a9afa4e933f3eff131f12e24bb0f5b9f3168ca14
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Oct 17 23:11:54 2017 -0300
 
-    cmd/compile: add code generation tests for sqrt intrinsics
+    database/sql: fix example usage of Out
     
-    Add "sqrt-intrisified" code generation tests for mips64 and 386, where
-    we weren't intrisifying math.Sqrt (see CL 96615 and CL 95916), and for
-    mips and amd64, which lacked sqrt intrinsics tests.
+    Fixes #22292
     
-    Change-Id: I0cfc08aec6eefd47f3cd7a5995a89393e8b7ed9e
-    Reviewed-on: https://go-review.googlesource.com/96716
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I016e5f2b8624a6ebaf11a693a0f6d94d7b0d3f92
+    Reviewed-on: https://go-review.googlesource.com/71550
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/cmd/compile/internal/gc/asm_test.go | 48 +++++++++++++++++++++++++++++----
- 1 file changed, 43 insertions(+), 5 deletions(-)
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,13 @@
-commit 80d2eac14d973e672d8d60780c67283fcc58d933
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Mar 1 15:04:14 2013 -0500
+commit 3611553c3b08d615a34581274b553da6c94f193c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 14:57:05 2013 -0500
 
-    cmd/cgo: don't reimplement os/exec in util.go.
+    runtime: add atomics to fix arm
     
-    R=golang-dev, rsc
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7450049
+    https://golang.org/cl/7429046
 
- src/cmd/cgo/util.go | 53 ++++++++++-------------------------------------------
- 1 file changed, 10 insertions(+), 43 deletions(-)
+ src/pkg/runtime/proc.c    | 34 +++++++++++++++++-----------------
+ src/pkg/runtime/runtime.h |  2 +-
+ 2 files changed, 18 insertions(+), 18 deletions(-)

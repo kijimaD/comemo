@@ -1,21 +1,27 @@
-commit 31881f87873b84709a49ca17195bbe5b3f683acf
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Tue Feb 21 23:45:13 2023 +0800
+commit deaec2ecb3cca5b7a151feff2bf195c0fb76d3f5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 14 19:51:37 2022 -0800
 
-    os: ensure File.ReadFrom returns ErrClosed instead of the internal poll.ErrFileClosing
+    go/internal/gcimporter: add support for unified IR
     
-    Fixes #58622
+    This CL ports unified IR's types2 importer back to the go/types
+    API. Notably, it drops support for lazy importing, because those APIs
+    aren't exposed yet via go/types.
     
-    Change-Id: Ibb80296c39614478c75cb6bb04b6d0695cb990d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469795
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Also, it supports unified IR's "final" data format, which wholey
+    replaces the iexport data format rather than the current
+    backwards-compatible hack that cmd/compile uses. The next CL will
+    switch the compiler to using this same format.
+    
+    Change-Id: I44e1744bbdc384c9c354119975e68befdc117cff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386002
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/os/error_posix.go    | 2 +-
- src/os/export_test.go    | 4 ++++
- src/os/file.go           | 6 ++++++
- src/os/readfrom_linux.go | 4 ++--
- 4 files changed, 13 insertions(+), 3 deletions(-)
+ src/go/internal/gcimporter/exportdata.go |   7 +-
+ src/go/internal/gcimporter/gcimporter.go |  35 +-
+ src/go/internal/gcimporter/support.go    |  16 +
+ src/go/internal/gcimporter/ureader.go    | 590 +++++++++++++++++++++++++++++++
+ 4 files changed, 638 insertions(+), 10 deletions(-)

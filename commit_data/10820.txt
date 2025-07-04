@@ -1,18 +1,15 @@
-commit 143f3b38f5fe48d33bff8f76728739694b3e060f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 15 13:54:19 2011 -0500
+commit 11b7c89b262c41ce53d4ac936fce13ae1488c5d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 15 10:51:51 2011 -0800
 
-    go: help messages for 'go test'
+    go spec: be precise about newlines
     
-    The plan is to make 'go test' replace gotest entirely, so it
-    cannot refer to gotest's godoc.  Instead, copy gotest's
-    documentation in as three different help messages:
-    'go help test', 'go help testflag', and 'go help testfunc'.
+    Several places mentioned tokens spanning "multiple lines"
+    which is not a well-defined term in the spec; newline is.
     
-    R=r
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5491048
+    https://golang.org/cl/5490046
 
- src/cmd/go/main.go |   2 +
- src/cmd/go/test.go | 141 +++++++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 139 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

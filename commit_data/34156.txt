@@ -1,25 +1,40 @@
-commit 8cb4327ea3fb9584164fccf3fb4d76c4e567d76d
-Author: Conrado Gouvea <conradoplg@gmail.com>
-Date:   Thu Jul 13 22:14:37 2017 -0300
+commit d153df8e4b5874692f4948e9c8e10720446058e3
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Oct 5 15:50:11 2017 +0200
 
-    crypto/cipher: add NewGCMWithNonceAndTagSize for custom tag sizes.
+    all: revert "all: prefer strings.LastIndexByte over strings.LastIndex"
     
-    GCM allows using tag sizes smaller than the block size. This adds a
-    NewGCMWithNonceAndTagSize function which allows specifying the tag
-    size.
+    This reverts https://golang.org/cl/66372.
     
-    Fixes #19594
+    Updates #22148
     
-    Change-Id: Ib2008c6f13ad6d916638b1523c0ded8a80eaf42d
-    Reviewed-on: https://go-review.googlesource.com/48510
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Run-TryBot: Filippo Valsorda <hi@filippo.io>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3e94af3dfc11a2883bf28e1d5e1f32f98760b3ee
+    Reviewed-on: https://go-review.googlesource.com/68431
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/aes/aes_gcm.go     | 28 ++++++++++++++---------
- src/crypto/aes/gcm_s390x.go   | 46 +++++++++++++++++++++++++-------------
- src/crypto/aes/modes.go       |  2 +-
- src/crypto/aes/modes_test.go  |  2 +-
- src/crypto/cipher/gcm.go      | 52 ++++++++++++++++++++++++++++++++-----------
- src/crypto/cipher/gcm_test.go | 46 +++++++++++++++++++++++++++++++++++++-
- 6 files changed, 134 insertions(+), 42 deletions(-)
+ src/archive/tar/writer.go          | 2 +-
+ src/cmd/doc/main.go                | 2 +-
+ src/cmd/fix/fix.go                 | 2 +-
+ src/cmd/vet/print.go               | 2 +-
+ src/crypto/tls/handshake_client.go | 2 +-
+ src/crypto/tls/tls.go              | 2 +-
+ src/debug/gosym/symtab.go          | 8 ++++----
+ src/encoding/xml/marshal.go        | 2 +-
+ src/go/build/build.go              | 6 +++---
+ src/go/doc/testdata/testing.go     | 2 +-
+ src/go/printer/printer.go          | 2 +-
+ src/go/types/resolver.go           | 4 ++--
+ src/internal/trace/parser.go       | 2 +-
+ src/net/http/cookiejar/jar.go      | 6 +++---
+ src/net/http/cookiejar/jar_test.go | 2 +-
+ src/net/http/http.go               | 2 +-
+ src/net/http/request.go            | 4 ++--
+ src/net/http/transport.go          | 6 +++---
+ src/net/mail/message.go            | 2 +-
+ src/net/rpc/server.go              | 2 +-
+ src/net/url/url.go                 | 6 +++---
+ src/os/exec/lp_windows.go          | 2 +-
+ src/path/path.go                   | 4 ++--
+ src/testing/testing.go             | 2 +-
+ src/time/mono_test.go              | 2 +-
+ 25 files changed, 39 insertions(+), 39 deletions(-)

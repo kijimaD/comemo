@@ -1,30 +1,17 @@
-commit 8f2edf11998a30b497586ac0e9f75036a318280a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Apr 8 19:14:03 2016 +1000
+commit b462744e7088bd899ff14170146e31db5edd867e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 26 11:01:14 2016 -0800
 
-    cmd: replace bio.Buf with bio.Reader and bio.Writer
+    [dev.ssa] test: remove extra tests from non-SSA builds
     
-    Replace the bidirectional bio.Buf type with a pair of unidirectional
-    buffered seekable Reader and Writers.
+    non-SSA backends are all over the map as to whether nil checks
+    get removed or not.  amd64, 386, 386/387, arm are all subtly different.
+    Remove these extra checks for now, they are in nilptr3_ssa.go so they
+    won't get lost.
     
-    Change-Id: I86664a06f93c94595dc67c2cbd21356feb6680ef
-    Reviewed-on: https://go-review.googlesource.com/21720
+    Change-Id: I2e0051f488fb2cb7278c6fdd44cb9d68b5778345
+    Reviewed-on: https://go-review.googlesource.com/19961
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |   4 +-
- src/cmd/compile/internal/gc/go.go      |   4 +-
- src/cmd/compile/internal/gc/obj.go     |  16 ++--
- src/cmd/internal/bio/buf.go            | 137 +++++++++++++++++++--------------
- src/cmd/internal/obj/link.go           |   2 +-
- src/cmd/internal/obj/objfile.go        |   6 +-
- src/cmd/link/internal/ld/ar.go         |   6 +-
- src/cmd/link/internal/ld/go.go         |   2 +-
- src/cmd/link/internal/ld/ldelf.go      |  10 +--
- src/cmd/link/internal/ld/ldmacho.go    |  16 ++--
- src/cmd/link/internal/ld/ldpe.go       |  18 ++---
- src/cmd/link/internal/ld/lib.go        |  49 ++++++------
- src/cmd/link/internal/ld/link.go       |   7 +-
- src/cmd/link/internal/ld/objfile.go    |   8 +-
- 14 files changed, 154 insertions(+), 131 deletions(-)
+ test/nilptr3.go | 18 ------------------
+ 1 file changed, 18 deletions(-)

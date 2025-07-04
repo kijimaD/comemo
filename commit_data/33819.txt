@@ -1,16 +1,24 @@
-commit 0ec59e4c087e8d23715abe896a8c409c99bb989a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 6 16:24:10 2017 -0800
+commit 753bac3a55359b9f19565143eef6179a404bdeea
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 9 15:54:15 2017 +0000
 
-    runtime: sleep longer in dieFromSignal on Darwin
+    misc/cgo/testplugin: pass GO_GCFLAGS
     
-    Fixes #20315
+    The noopt builder sets GO_GCFLAGS when building the standard library.
+    Set it when building plugins to ensure the -shared packages built for it
+    have the same inlining in the export data (and thus the same package
+    version).
     
-    Change-Id: I5d5c82f10902b59168fc0cca0af50286843df55d
-    Reviewed-on: https://go-review.googlesource.com/82375
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Tested locally with GO_GCFLAGS="-N -l" ./all.bash
+    
+    Fixes #17937
+    
+    Change-Id: Id037cfbf4af744c05c47bdc58eea60a5dba69533
+    Reviewed-on: https://go-review.googlesource.com/62511
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/signal_unix.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ misc/cgo/testplugin/test.bash | 30 +++++++++++++++---------------
+ src/cmd/dist/test.go          |  8 --------
+ 2 files changed, 15 insertions(+), 23 deletions(-)

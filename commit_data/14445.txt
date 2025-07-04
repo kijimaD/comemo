@@ -1,13 +1,17 @@
-commit 7bce6f9386153d77ad1293ae1e39cfa214d9d02c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Nov 21 02:18:34 2012 +0800
+commit 54b9c2015194b68135098c4eae564a122a4bccf6
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 20 16:24:12 2012 +1100
 
-    net/http, net/http/httputil: fix TestChunkReaderAllocs failure when GOMAXPROCS > 1
+    net/http/cgi: another attempt to fix windows tests
     
-    R=fullung, bradfitz, dave
-    CC=golang-dev
-    https://golang.org/cl/6846081
+    Also enables TestDirWindows test on windows.
+    
+    Fixes #4401.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev, krautz
+    https://golang.org/cl/6847072
 
- src/pkg/net/http/chunked_test.go          | 2 ++
- src/pkg/net/http/httputil/chunked_test.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/pkg/net/http/cgi/host_test.go      |  5 ++-
+ src/pkg/net/http/cgi/testdata/test.cgi | 77 ++++++++++------------------------
+ 2 files changed, 25 insertions(+), 57 deletions(-)

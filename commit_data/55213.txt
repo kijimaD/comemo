@@ -1,15 +1,33 @@
-commit e418258993cc1a11816baf5d9004cea3b029ae7c
-Author: khr@golang.org <khr@golang.org>
-Date:   Tue Dec 5 22:54:10 2023 +0000
+commit c641d48afdf05de8aa15b4110cb07a2165c5f935
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jan 8 22:56:40 2023 +0000
 
-    doc: document new cmp.Or function
+    go/types: use internal/lazyregexp for goVersionRx
     
-    Change-Id: I41ea06018daae2c929edc24a714007cede9296ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547756
-    TryBot-Bypass: Keith Randall <khr@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    With benchinit, we see a noticeable improvement in init times:
+    
+            name     old time/op    new time/op    delta
+            GoTypes    83.4µs ± 0%    43.7µs ± 1%  -47.57%  (p=0.029 n=4+4)
+    
+            name     old alloc/op   new alloc/op   delta
+            GoTypes    26.5kB ± 0%    18.8kB ± 0%  -29.15%  (p=0.029 n=4+4)
+    
+            name     old allocs/op  new allocs/op  delta
+            GoTypes       238 ± 0%       154 ± 0%  -35.29%  (p=0.029 n=4+4)
+    
+    Port the same change to cmd/compile/internal/types and types2.
+    
+    Updates #26775.
+    
+    Change-Id: Ia1f7c4a4ce9a22d66e2aa9c9b9c341036993adca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460544
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- doc/go1.22.html | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types/goversion.go | 4 ++--
+ src/cmd/compile/internal/types2/version.go  | 4 ++--
+ src/go/build/deps_test.go                   | 2 +-
+ src/go/types/version.go                     | 4 ++--
+ 4 files changed, 7 insertions(+), 7 deletions(-)

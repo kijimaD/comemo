@@ -1,25 +1,31 @@
-commit b9edee32e15eb2ea66fe96563088520fff6f2535
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jul 9 17:41:37 2019 -0400
+commit d1887676d96daf969d886a4ec13cbad4908d51af
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 3 23:52:00 2019 +0000
 
-    cmd/go: check for source files in relative paths before attempting to determine the package path
+    os/exec: less allocs in the common case
     
-    This is a more minimial fix for the immediate symptom of 32917 and
-    30590, but does not improve 'list -e' behavior or error
-    messages resulting from other package loading issues.
+    When Stdin, Stdout, and Stderr are nil, there are no goroutines to keep
+    track of, so we don't need a channel.
     
-    Fixes #32917
-    Fixes #30590
+    And in startProcess, preallocate the right size for sysattr.Files,
+    saving a bit of space and a couple of slice growth allocs.
     
-    Change-Id: I6088d14d864410159ebf228d9392d186322fd2a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185417
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    name            old time/op    new time/op    delta
+    ExecHostname-8     419µs ± 0%     417µs ± 1%    ~     (p=0.093 n=6+6)
+    
+    name            old alloc/op   new alloc/op   delta
+    ExecHostname-8    6.40kB ± 0%    6.28kB ± 0%  -1.86%  (p=0.002 n=6+6)
+    
+    name            old allocs/op  new allocs/op  delta
+    ExecHostname-8      34.0 ± 0%      31.0 ± 0%  -8.82%  (p=0.002 n=6+6)
+    
+    Change-Id: Ic1d617f29e9c6431cdcadc7f9bb992750a6d5f48
+    Reviewed-on: https://go-review.googlesource.com/c/164801
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/load.go                | 66 ++++++++++++++++++----
- src/cmd/go/testdata/script/mod_dot.txt             | 36 ++++++++++++
- src/cmd/go/testdata/script/mod_fs_patterns.txt     |  4 +-
- src/cmd/go/testdata/script/mod_list_dir.txt        |  5 +-
- .../go/testdata/script/mod_list_replace_dir.txt    |  2 +-
- 5 files changed, 96 insertions(+), 17 deletions(-)
+ src/os/exec/exec.go  | 13 ++++++++-----
+ src/os/exec_plan9.go |  1 +
+ src/os/exec_posix.go |  1 +
+ 3 files changed, 10 insertions(+), 5 deletions(-)

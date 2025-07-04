@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 11429: cdbed823bde062cf72f62437261ee9c84007269c
+# Index 11429: 2332439b1b02789f5cfeceb78458eb34981e28c8
 
 echo "🚀 Generating explanation for commit 11429..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 11429
-- **コミットハッシュ**: cdbed823bde062cf72f62437261ee9c84007269c
-- **GitHub URL**: https://github.com/golang/go/commit/cdbed823bde062cf72f62437261ee9c84007269c
+- **コミットハッシュ**: 2332439b1b02789f5cfeceb78458eb34981e28c8
+- **GitHub URL**: https://github.com/golang/go/commit/2332439b1b02789f5cfeceb78458eb34981e28c8
 
 ### 章構成
 

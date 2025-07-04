@@ -1,13 +1,12 @@
-commit 873ceeff543b1fc0dddbc354b674819d302f5362
-Author: Preetam Jinka <pj@preet.am>
-Date:   Sat Jun 28 10:11:26 2014 -0700
+commit 8c8bf3cc760e3cb806d94e2bf9a58664b8953108
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jun 27 18:30:09 2014 -0700
 
-    crypto/cipher: Fix typo in example comment
+    net/http: add TLS benchmark
     
-    LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/101510047
+    https://golang.org/cl/110080045
 
- src/pkg/crypto/cipher/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/serve_test.go | 29 ++++++++++++++++++++++++-----
+ 1 file changed, 24 insertions(+), 5 deletions(-)

@@ -1,17 +1,20 @@
-commit 99fbccbd930fbcf86e41fa7e969894f69bc8b95b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 1 21:11:25 2017 -0800
+commit 3a3f672eda6f720f68950492a85254528ac53dad
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Tue Nov 8 17:46:10 2016 +0530
 
-    cmd/vet: use types.SizesFor
+    os: cleanup directories created by TestLongPath
     
-    This eliminates a duplicate copy of
-    the SizesFor map.
+    Add tmpdir as a parameter to the closure otherwise the subsequent
+    modifications to tmpdir causes only the last subdirectory to be
+    removed.
     
-    Change-Id: I51e44ea8ee860901086616e3f4dfa32aaa9b4d2d
-    Reviewed-on: https://go-review.googlesource.com/37667
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Additionally, add the missing argument for the t.Fatalf call.
+    
+    Change-Id: I3df53f9051f7ea40cf3f846d47d9cefe445e9b9d
+    Reviewed-on: https://go-review.googlesource.com/32892
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/asmdecl.go | 77 +++++++++++++++++++++++++++-----------------------
- 1 file changed, 41 insertions(+), 36 deletions(-)
+ src/os/os_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,23 +1,22 @@
-commit 64db2ec915f7d3a7ea515ac3050afd4063cd7438
+commit ddc01d5b06b7a5206bd100e99ce72bc888da3b05
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jul 29 23:41:12 2013 +0400
+Date:   Mon Jul 29 22:58:58 2013 +0400
 
-    runtime: fix arm build
+    runtime: fix openbsd build
+    notetsleep: nosplit stack overflow
+            120     assumed on entry to notetsleep
+            96      after notetsleep uses 24
+            88      on entry to runtime.semasleep
+            32      after runtime.semasleep uses 56
+            24      on entry to runtime.nanotime
+            -8      after runtime.nanotime uses 32
     
-    The current failure is:
-    fatal error: runtime: stack split during syscall
-    goroutine 2 [stack split]:
-    _addv(0xb6fa0f28, 0xd0a5112e, 0x13156d6e, 0xf8475800, 0xd)
-            /usr/local/go/src/pkg/runtime/vlrt_arm.c:66 fp=0xb6fa0ef8
-    notetsleep(0xb6fa0f9c, 0xf8475800, 0xd, 0x0, 0x0, ...)
-            /usr/local/go/src/pkg/runtime/lock_futex.c:156 +0xd0 fp=0xb6fa0f18
-    runtime.notetsleepg(0xb6fa0f9c, 0xf8475800, 0xd)
-            /usr/local/go/src/pkg/runtime/lock_futex.c:197 +0x74 fp=0xb6fa0f3c
+    Nanotime seems to be using only 24 bytes of stack space.
+    Unless I am missing something.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12052043
+    https://golang.org/cl/12041044
 
- src/pkg/runtime/vlop_arm.s | 2 +-
- src/pkg/runtime/vlrt_arm.c | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/runtime/sys_openbsd_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

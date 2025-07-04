@@ -1,32 +1,22 @@
-commit 4a56ba1c453927256f231a8bcef316bb4b3aa68a
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Mar 14 23:39:03 2022 +0000
+commit 6d9830111402d9bd69893a8ad6074ac92a5ddd0d
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 3 14:50:10 2021 -0400
 
-    runtime: remove intermediate fields in memstats for ReadMemStats
+    cmd/link: use correct alignment in PE DWARF sections
     
-    Currently, the ReadMemStats (really this is all happening in
-    readmemstats_m, but that's just a direct call from ReadMemStats) call
-    chain first populates some fields in memstats, then copies those into
-    the final MemStats location. This used to make a lot of sense when
-    memstats' structure aligned with MemStats, and the values were just
-    copied from one to other. Sometime in the last few releases, we switched
-    to populating the MemStats manually because a lot of fields had diverged
-    from their internal representation. Now, we're left with a lot of fields
-    in memstats that pollute the structure: they only exist to be updated
-    for the sake of ReadMemStats. Since we're going to be adding more fields
-    to memstats in further CLs, this is a good opportunity to clean up.
+    Set the correct section flags to insure that .debug_* sections are
+    using 1-byte alignment instead of the default. This seems to be
+    important for later versions of LLVM-mingw on windows (shows up on the
+    windows/arm64 builder).
     
-    As a result of this change, updatememstats, which used to just update
-    the aforementioned intermediate fields in memstats, is no longer
-    necessary, so it is removed.
+    Updates #46406.
     
-    Change-Id: Ifabfb3ac3002641105af62e9509a6351165dcd87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393397
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I023d5208374f867552ba68b45011f7990159868f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324763
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/heapdump.go |   5 -
- src/runtime/malloc.go   |   5 -
- src/runtime/mstats.go   | 306 ++++++++++++++++++++----------------------------
- 3 files changed, 129 insertions(+), 187 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

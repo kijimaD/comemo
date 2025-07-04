@@ -1,22 +1,18 @@
-commit 2d88f8f21e71f73dc3aa846cdc8c413f1bb584b8
-Author: Himanshu Kishna Srivastava <28himanshu@gmail.com>
-Date:   Wed Mar 31 21:22:49 2021 +0530
+commit ea33523877e4c7a136f2db94a8b5bc4e40220be2
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Tue Sep 8 09:55:20 2020 +0000
 
-    go/src/cmd/go/internal/work: compile "internal/abi" with "-+"
+    cmd/compile: rewrite some ARM64 rules to use typed aux
     
-    "internal/abi" package depends on runtime package and are supposed to
-    compile with "-+" option.Added internal/abi in the known list of package
-    that runtime depends on,so that "internal/abi" compiles with "-+".
+    Passes toolstash-check -all.
     
-    Fixes #45144
-    
-    Change-Id: Iad9e2589f2fbd014260cb8ef9f943d2126015fe1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306289
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I7ec36bc048f3031c8201107e6fc5d1257271dbf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234379
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/gc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 496 +++++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 912 +++++++++++++--------------
+ 2 files changed, 704 insertions(+), 704 deletions(-)

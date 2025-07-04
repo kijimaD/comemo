@@ -1,15 +1,14 @@
-commit 188e2bf89712fcb97bd5329f167fedc6dd90316b
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Apr 10 11:20:20 2018 +0200
+commit 4aac23cc512f661657e0785544dfdd19b6b517b0
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Sun Nov 26 11:30:39 2017 -0500
 
-    test/codegen: port arm64 BIC/EON/ORN and masking tests
+    doc: update URL of the go1.4 source snapshot to use dl.google.com
     
-    And delete them from asm_test.
+    Updates golang/go#20672
     
-    Change-Id: I24f421b87e8cb4770c887a6dfd58eacd0088947d
-    Reviewed-on: https://go-review.googlesource.com/106056
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I88a1d8693ef9d1e4758719603ce1f3c3f6b920bc
+    Reviewed-on: https://go-review.googlesource.com/79936
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 43 ---------------------------------
- test/codegen/bits.go                    | 29 ++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 43 deletions(-)
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

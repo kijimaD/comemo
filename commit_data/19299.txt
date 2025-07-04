@@ -1,24 +1,20 @@
-commit f40f0b26b6d129d48457bf8dfd9ee2f6cbdfdb3b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 9 09:38:29 2014 +0900
+commit 1c2cc125fb2baad78167ee543f1d96aea9135734
+Author: Stephen McQuay <stephen@mcquay.me>
+Date:   Thu May 8 16:52:36 2014 +1000
 
-    net: drop flakey TestDialFailPDLeak
+    encoding/json: add example for Indent, clarify the docs.
     
-    TestDialFailPDLeak was created for testing runtime-integrated netwrok
-    poller stuff and used during Go 1.2 development cycle. Unfortunately
-    it's still flakey because it depends on MemStats of runtime, not
-    pollcache directly, and MemStats accounts and revises its own stats
-    occasionally.
+    There was confusion in the behavior of json.Indent; This change
+    attempts to clarify the behavior by providing a bit more verbiage
+    to the documentation as well as provide an example function.
     
-    For now the codepaths related to runtime-intergrated network poller
-    are pretty stable, so removing this test case never suffers us.
+    Fixes #7821.
     
-    Fixes #6553.
-    
-    LGTM=josharian, iant
-    R=iant, josharian
+    LGTM=robert.hencke, adg
+    R=golang-codereviews, minux.ma, bradfitz, aram, robert.hencke, r, adg
     CC=golang-codereviews
-    https://golang.org/cl/98080043
+    https://golang.org/cl/97840044
 
- src/pkg/net/dial_test.go | 54 ------------------------------------------------
- 1 file changed, 54 deletions(-)
+ src/pkg/encoding/json/example_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/encoding/json/indent.go       |  5 +++--
+ 2 files changed, 35 insertions(+), 2 deletions(-)

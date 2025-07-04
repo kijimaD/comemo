@@ -1,22 +1,18 @@
-commit d5a5a13ad987db9bcdda8c6cecb84ed8583ea68d
-Author: Changkun Ou <hi@changkun.de>
-Date:   Mon Jul 26 10:56:30 2021 +0200
+commit 0089f8b2f5a4e3db944cf4b61314bdef45fa1b81
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 5 11:30:23 2021 -0500
 
-    sync: clarify the validity to call Map methods inside Range
+    cmd/go: test that 'go mod tidy' retains upgraded indirect dependencies
     
-    This change clarifies that calling all Map methods inside the callback
-    of Range is allowed. For further assurance, a nested range call test
-    is also added.
+    For #36460
     
-    Fixes #46399
-    
-    Change-Id: I0a766a5c1470e6b573ec35df1ccd62b2e46f1561
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337389
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I63596e1c95d0c702073cdb016579598d79cc95ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300158
+    Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/sync/map.go      |  5 +++--
- src/sync/map_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/mod_tidy_indirect.txt | 67 ++++++++++++++++++++++++
+ 1 file changed, 67 insertions(+)

@@ -1,16 +1,20 @@
-commit 048cb4ceee652e358d84fbca260fc93d7a0dfbe3
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon May 10 09:59:07 2021 -0700
+commit 8eb846fd37eb7bded8a1cf6932be2c59069863e5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Nov 4 00:26:15 2020 +1100
 
-    crypto/x509: remove duplicate import
+    cmd/compile,cmd/dist,cmd/go: enable pie buildmode for linux/riscv64
     
-    Change-Id: I86742ae7aa4ff49a38f8e3bc1d64fb223feae73e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318409
-    Trust: Roland Shoemaker <roland@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Enable pie as a buildmode for linux/riscv64, along with associated tests.
+    
+    Change-Id: I3fb0234d534dbeb96aa6cee6ae872304fbe02cf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267317
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/crypto/x509/parser.go | 115 +++++++++++++++++++++++-----------------------
- 1 file changed, 57 insertions(+), 58 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 2 +-
+ src/cmd/dist/test.go                | 2 +-
+ src/cmd/go/go_test.go               | 2 +-
+ src/cmd/internal/sys/supported.go   | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

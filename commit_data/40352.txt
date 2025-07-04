@@ -1,21 +1,33 @@
-commit ea726d8dc6f3fb6f02ff816d8bfafed96fc7788a
-Author: Baokun Lee <nototon@gmail.com>
-Date:   Mon Oct 7 22:33:57 2019 +0800
+commit 31c4e099158b0e4999c05ee4daf08531f6640ad4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 18 15:42:58 2019 +0000
 
-    cmd/go/internal/modcmd: error out if one module with two different paths
+    runtime: ensure free and unscavenged spans may be backed by huge pages
     
-    If a single module is imported via two different paths, go mod tidy
-    should have reported this error instead of deferring it until go build.
+    This change adds a new sysHugePage function to provide the equivalent of
+    Linux's madvise(MADV_HUGEPAGE) support to the runtime. It then uses
+    sysHugePage to mark a newly-coalesced free span as backable by huge
+    pages to make the freeHugePages approximation a bit more accurate.
     
-    Fixes #34650.
+    The problem being solved here is that if a large free span is composed
+    of many small spans which were coalesced together, then there's a chance
+    that they have had madvise(MADV_NOHUGEPAGE) called on them at some point,
+    which makes freeHugePages less accurate.
     
-    Change-Id: I9d09df1551b3e2083ed9f0bc77f2989073057717
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199598
-    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    For #30333.
+    
+    Change-Id: Idd4b02567619fc8d45647d9abd18da42f96f0522
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173338
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/modload/load.go               | 18 ++++++++++------
- src/cmd/go/testdata/script/mod_tidy_replace.txt   | 26 +++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_vendor_replace.txt | 22 +++++++++++++++++++
- 3 files changed, 59 insertions(+), 7 deletions(-)
+ src/runtime/mem_aix.go     |  3 +++
+ src/runtime/mem_bsd.go     |  3 +++
+ src/runtime/mem_darwin.go  |  3 +++
+ src/runtime/mem_js.go      |  3 +++
+ src/runtime/mem_linux.go   | 21 ++++++++++++---------
+ src/runtime/mem_plan9.go   |  3 +++
+ src/runtime/mem_windows.go |  3 +++
+ src/runtime/mheap.go       | 14 ++++++++++++++
+ 8 files changed, 44 insertions(+), 9 deletions(-)

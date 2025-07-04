@@ -1,33 +1,22 @@
-commit 6d4d71c5abe104d95ede3aa2f3eaaef7bc613ebb
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue May 16 13:47:46 2023 -0400
+commit 831fdf1dff5e38c6c23922880d97ac99fe30f311
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 25 12:21:21 2022 -0700
 
-    cmd/vet: add slog checker
+    [dev.unified] cmd/compile: extract nil handling from exprType
     
-    Add the slog static analysis pass to `go vet`.
+    Type switches are the only context where exprType was used and `nilOK`
+    was true. It'll simplify subsequent dictionary work somewhat if
+    exprType doesn't need to worry about `nil`, so extract this logic and
+    move it into switchStmt instead.
     
-    Vendor in golang.org/x/tools@master to pick up the pass.
-    
-    Tweak a test in slog to avoid triggering the vet check.
-    
-    Change-Id: I55ceac9a4e6876c8385897784542761ea0af2481
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496156
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I3d810f465173f5bb2e2dee7bbc7843fff6a62ee5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419474
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- src/cmd/go/internal/test/flagdefs.go               |   1 +
- .../vendor/golang.org/x/tools/cmd/bisect/main.go   | 152 +++++++++++--
- .../x/tools/go/analysis/passes/slog/doc.go         |  23 ++
- .../x/tools/go/analysis/passes/slog/slog.go        | 234 +++++++++++++++++++++
- .../x/tools/go/types/objectpath/objectpath.go      |   8 +-
- .../golang.org/x/tools/internal/bisect/bisect.go   |  23 +-
- src/cmd/vendor/modules.txt                         |   3 +-
- src/cmd/vet/doc.go                                 |   1 +
- src/cmd/vet/main.go                                |   2 +
- src/cmd/vet/testdata/slog/slog.go                  |  13 ++
- src/cmd/vet/vet_test.go                            |   1 +
- src/log/slog/logger_test.go                        |   4 +-
- 14 files changed, 449 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 18 +++++++++---------
+ src/cmd/compile/internal/noder/writer.go | 29 +++++++++++++++++------------
+ 2 files changed, 26 insertions(+), 21 deletions(-)

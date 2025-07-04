@@ -1,20 +1,17 @@
-commit bf3909824ccf0c03e372d1a341792a8f783f03f7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 3 15:08:25 2016 -0800
+commit 6094dad0842dd6d233123c175eec830d140e4865
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 14 13:05:25 2015 -0800
 
-    cmd/compile: convert cgen/gen/pgen and friends to nodeListSeq
+    cmd/cgo: use _Complex in rewritten Go code too
     
-    Added Seq method to nodeListIterator. Added new functions nodeSeqLen,
-    nodeSeqFirst, nodeSeqSecond. Allow nil as source argument to setNodeSeq.
+    Followup to CL 17716, which updated cgo's boilerplate prologue code to
+    use standard C's _Complex instead of GCC's __complex extension.
     
-    Change-Id: Ifc1cd4d7207b7a125b3830c92c4d6d6f00eedd54
-    Reviewed-on: https://go-review.googlesource.com/20195
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I74f29b0cc3d13cab2853441cafbfe77853bba4f9
+    Reviewed-on: https://go-review.googlesource.com/17820
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go   | 32 ++++++++--------
- src/cmd/compile/internal/gc/gen.go    | 40 +++++++++-----------
- src/cmd/compile/internal/gc/pgen.go   |  4 +-
- src/cmd/compile/internal/gc/syntax.go | 69 ++++++++++++++++++++++++++++++++++-
- src/cmd/compile/internal/gc/walk.go   | 40 ++++++++++----------
- 5 files changed, 124 insertions(+), 61 deletions(-)
+ src/cmd/cgo/gcc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

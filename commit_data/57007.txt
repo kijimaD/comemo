@@ -1,23 +1,23 @@
-commit 0d8aa5737ecdc03b2723a2af35cb7394335e5411
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jul 25 17:15:35 2024 +0000
+commit 3d78c735fc7d213e23383b9744297bd5251dc0e3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 15 11:49:56 2023 -0400
 
-    cmd/internal/script/scriptest: add new apis for tool test use
+    cmd/cover: error out if a requested source file contains a newline
     
-    Add top level apis to provide a general-purpose "script test" runner
-    for clients within cmd, e.g. tools such as compile, link, nm, and so
-    on. This patch doesn't add any uses of the new apis, this will
-    happen in follow-on CLs.
+    cmd/cover uses '//line' directives to map instrumented source files
+    back to the original source file and line numbers.
+    Line directives have no way to escape newline characters, so cmd/cover
+    must not be used with source file paths that contain such characters.
     
-    Updates #68606.
+    Updates #60167.
     
-    Change-Id: Ib7200a75d4dc7dc50897628f1a6269937be15a76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601359
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6dc039392d59fc3a5a6121ef6ca97b0ab0da5288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501577
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/script/scripttest/doc.go   |  17 ++
- src/cmd/internal/script/scripttest/run.go   | 259 ++++++++++++++++++++++++++++
- src/cmd/internal/script/scripttest/setup.go | 105 +++++++++++
- 3 files changed, 381 insertions(+)
+ src/cmd/cover/cover.go      | 10 ++++++++++
+ src/cmd/cover/cover_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

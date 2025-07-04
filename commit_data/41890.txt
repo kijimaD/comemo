@@ -1,26 +1,17 @@
-commit 376472ddb7252a4a859d89fc5ccb6db802e2b3b0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 8 12:36:35 2020 -0700
+commit 10855608bc9361aec0f17f22bf24313a3d07ec85
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Oct 30 12:45:33 2019 +0000
 
-    cmd/compile: clean up slice and string offsets/sizes
+    runtime/internal/atomic: add tests for And8 and Or8
     
-    Minor cleanup:
+    Add some simple unit tests for these atomic operations. These can't
+    catch all the bugs that are possible with these operations but at
+    least they provide some coverage.
     
-    * Modernize comments.
-    * Change from int to int64 to avoid conversions.
-    * Use idiomatic names.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I93560c81926c0f4e00f33129cb4846b53bea99e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227548
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I94b9f451fcc9fecdb2a1448c5357b019563ad275
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204317
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/align.go    |  6 ++---
- src/cmd/compile/internal/gc/go.go       | 46 ++++++++++++++++-----------------
- src/cmd/compile/internal/gc/sinit.go    | 18 ++++++-------
- src/cmd/compile/internal/gc/ssa.go      |  4 +--
- src/cmd/compile/internal/gc/universe.go | 10 +++----
- 5 files changed, 41 insertions(+), 43 deletions(-)
+ src/runtime/internal/atomic/atomic_test.go | 117 +++++++++++++++++++++++++++++
+ 1 file changed, 117 insertions(+)

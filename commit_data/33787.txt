@@ -1,32 +1,16 @@
-commit 88c2fb9d04c1766574581ba5ed6220e30cf6378e
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Dec 1 15:23:30 2017 -0500
+commit 87dae58662c78c772cb210d685b354ae6916ef2d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Aug 30 11:14:40 2017 +0900
 
-    cmd/compile: fix bug in DWARF inl handling of unused autos
+    cmd/internal/goobj: add tests
     
-    The DWARF inline info generation hooks weren't properly
-    handling unused auto vars in certain cases, triggering an assert (now
-    fixed). Also with this change, introduce a new autom "flavor" to
-    use for autom entries that are added to insure that a specific
-    auto type makes it into the linker (this is a follow-on to the fix
-    for 22941).
-    
-    Fixes #22962.
-    
-    Change-Id: I7a2d8caf47f6ca897b12acb6a6de0eb25f5cac8f
-    Reviewed-on: https://go-review.googlesource.com/81557
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I4a0fe1c8625e7e9adfd84ac6910da83d0268f928
+    Reviewed-on: https://go-review.googlesource.com/60130
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/pgen.go | 15 +++++++++------
- src/cmd/internal/obj/link.go        |  3 +++
- src/cmd/internal/obj/objfile.go     |  2 ++
- src/cmd/internal/objabi/autotype.go |  1 +
- src/cmd/link/internal/ld/dwarf.go   |  2 +-
- src/cmd/link/internal/ld/lib.go     |  9 +++++++++
- test/fixedbugs/issue22962.dir/a.go  | 11 +++++++++++
- test/fixedbugs/issue22962.dir/b.go  |  9 +++++++++
- test/fixedbugs/issue22962.go        |  7 +++++++
- 9 files changed, 52 insertions(+), 7 deletions(-)
+ src/cmd/internal/goobj/goobj_test.go   | 142 +++++++++++++++++++++++++++++++++
+ src/cmd/internal/goobj/testdata/go1.go |  11 +++
+ src/cmd/internal/goobj/testdata/go2.go |  11 +++
+ 3 files changed, 164 insertions(+)

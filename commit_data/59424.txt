@@ -1,40 +1,27 @@
-commit bce8486ebec8b2f62f2305b2a17cc5aec8202507
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Sat Aug 19 09:22:34 2023 +0800
+commit 34d28ba932cc26af9ae6c0233f4967a9b7cd94c2
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Mar 8 11:19:14 2024 +0100
 
-    cmd,runtime: enable race detector on loong64
+    internal/syscall/windows: implement SupportUnixSocket by enumerating protocols
     
-    The race feature depends on llvm. And support for building the tsan library on
-    linux/loong64 has been added in this patch [1], which has been merged into the
-    branch main and has landed in llvm18.
+    windows.SupportUnixSocket is currently implemented using a Windows
+    version check. This approach is not reliable, see #27943 and #28061.
+    Also, it uses the undocumented RtlGetNtVersionNumbers API, which
+    we should try to avoid.
     
-    The support for linux/loong64 in racebuild has been implemented in CL 655775,
-    now racebuild can successfully build race_linux_loong64.syso [2].
+    This PR implements SupportUnixSocket by enumerating the available
+    protocols and checking for AF_UNIX support.
     
-    [1]: https://github.com/llvm/llvm-project/pull/72819
-    [2]: racebuild -platforms linux/loong64 -cherrypick 'refs/changes/16/543316/10' \
-         -rev 83fe85115da9dc25fa270d2ea8140113c8d49670 \
-         -goroot /home/golang/src/go
-    
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    
-    Change-Id: If389318215476890295ed771297c6c088cfc84b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543316
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64
+    Change-Id: I76cd635067309f09571ad0eac4a5699450a2709a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570075
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
 
- src/cmd/dist/test.go                     |   2 +-
- src/internal/platform/supported.go       |   2 +-
- src/race.bash                            |   3 +-
- src/runtime/asm_loong64.s                |   1 +
- src/runtime/race/README                  |   1 +
- src/runtime/race/race.go                 |   2 +-
- src/runtime/race/race_linux_loong64.syso | Bin 0 -> 662040 bytes
- src/runtime/race_loong64.s               | 525 +++++++++++++++++++++++++++++++
- 8 files changed, 532 insertions(+), 4 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go    |  4 ++-
+ src/internal/syscall/windows/version_windows.go    | 22 ++++++++++++---
+ .../syscall/windows/version_windows_test.go        | 31 ++++++++++++++++++++++
+ src/net/unixsock_windows_test.go                   | 20 ++++----------
+ 4 files changed, 58 insertions(+), 19 deletions(-)

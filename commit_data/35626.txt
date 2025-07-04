@@ -1,15 +1,20 @@
-commit 7b08e619bb68a01b1d889aedd97f6c0e13a8c13b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 7 15:29:41 2018 +0000
+commit cbfda7f89284c3e2809a303096632cbe312dbb69
+Author: Rens Rikkerink <Ikkerens@users.noreply.github.com>
+Date:   Mon Feb 26 18:23:00 2018 +0000
 
-    debug/pe: add IMAGE_FILE_MACHINE_ARM64
+    cmd/cgo: clarify implicit "cgo" build constraint
     
-    Fixes #20849
+    When using the special import "C", the "cgo" build constraint is implied for the go file,
+    potentially triggering unclear "undefined" error messages.
+    Explicitly explain this in the documentation.
     
-    Change-Id: If2a330185aa7e95eb84dccdbc4c7f3e9b970cca1
-    Reviewed-on: https://go-review.googlesource.com/117056
-    Reviewed-by: Matti Moell <matti.moell@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #24068
+    
+    Change-Id: Ib656ceccd52c749ffe7fb2d3db9ac144f17abb32
+    GitHub-Last-Rev: 5a13f00a9b917e51246a5fbb642c4e9ed55aa21d
+    GitHub-Pull-Request: golang/go#24072
+    Reviewed-on: https://go-review.googlesource.com/96655
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/pe/pe.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/cgo/doc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

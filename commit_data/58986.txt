@@ -1,42 +1,22 @@
-commit e256e640604bff7916ef09451da7f4a6423152a6
-Author: Than McIntosh <thanm@golang.org>
-Date:   Fri Mar 7 14:16:28 2025 -0500
+commit b89ad464510e643c23df28bc5c181ad0a16773bf
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed Jan 24 18:10:47 2024 +0100
 
-    debug/dwarf: fix problem with DWARF 5 and Seek method
+    cmd/link: add DW_AT_go_runtime_type to unsafe.Pointer and fix it for
+    uintptr
     
-    When clients use debug/dwarf to examine DWARF 5 binaries, we can run
-    into problems when the Seek() method is used to skip ahead from a DIE
-    in one compilation unit to a DIE in another unit. The problem here is
-    that it is common for DWARF 5 comp units to have attributes (ex:
-    DW_AT_addr_base) whose value must be applied as an offset when reading
-    certain forms (ex: DW_FORM_addrx) within that unit. The existing
-    implementation didn't have a good way to recover these attrs following
-    the Seek call, and had to essentially punt in this case, resulting in
-    incorrect attr values.
+    Adds the DW_AT_go_runtime_type attribute to the debug_info entry for
+    unsafe.Pointer (which is special) and fixes the debug_info entry of
+    uintptr so that its DW_AT_go_runtime_type attribute has the proper
+    class (it was accidentally using DW_CLS_ADDRESS instead of
+    DW_CLS_GO_TYPEREF)
     
-    This patch adds new support for reading and caching the key comp unit
-    DIE attributes (DW_AT_addr_base, DW_AT_loclists_base, etc) prior to
-    visiting any of the DIE entries in a unit, storing the cache values of
-    these attrs the main table of units. This base attribute
-    reading/caching behavior also happens (where needed) after Seek calls.
-    
-    Should resolve delve issue 3861.
-    Supercedes Go pull request 70400.
-    
-    Updates #26379.
-    Fixes #57046.
-    
-    Change-Id: I536a57e2ba4fc55132d91c7f36f67a91ac408dc3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655976
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Change-Id: I52e18593935fbda9bc425e849f4c7f50e9144ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558275
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/debug/dwarf/entry.go                       |  88 +++++--------------------
- src/debug/dwarf/entry_test.go                  |  60 +++++++++++++++++
- src/debug/dwarf/testdata/issue57046-clang.elf5 | Bin 0 -> 19360 bytes
- src/debug/dwarf/testdata/issue57046_part1.c    |  42 ++++++++++++
- src/debug/dwarf/testdata/issue57046_part2.c    |  10 +++
- src/debug/dwarf/unit.go                        |  65 +++++++++++++++++-
- 6 files changed, 192 insertions(+), 73 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go   |  1 +
+ src/cmd/link/internal/ld/dwarf.go | 13 +++++++------
+ 2 files changed, 8 insertions(+), 6 deletions(-)

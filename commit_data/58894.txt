@@ -1,21 +1,26 @@
-commit 0ab2253ce1e9183c2cb94f3a594448320cb65962
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 17 17:39:11 2025 -0500
+commit 66d34c7d08d7c536c3165dc49ed318e73ea5acc2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 17 15:00:40 2024 -0500
 
-    math/big: move multiplication to natmul.go
+    cmd/go/internal/modfetch: set protocol.version=2 for shallow git fetches
     
-    No code changes.
+    This works around an apparent bug in the Git HTTP backend, introduced
+    in Git 2.21, that causes responses for the version 1 protocol to
+    provide incomplete tags.
     
-    This CL moves the multiplication (and squaring) code into natmul.go,
-    in preparation for cleaning up Karatsuba and then adding Toom-Cook
-    and FFT-based multiplication.
+    For Git commands older than 2.18, this configuration flag is ignored.
+    (Note that Git 2.29 and above already use protocol version 2 by
+    default.)
     
-    Change-Id: I7f84328284cc4e1ca4da0ebb9f666a5535e8d7f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652055
+    Fixes #56881.
+    
+    Change-Id: I9b241cfb604e5f633ca6a5d799df6706246684a7
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556358
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/math/big/nat.go    | 359 ------------------------------------------------
- src/math/big/natmul.go | 366 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 366 insertions(+), 359 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

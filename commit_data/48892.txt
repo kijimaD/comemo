@@ -1,18 +1,23 @@
-commit 6b1d9aefa8fce9f9c83f46193bec43b9b70068ce
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Apr 25 10:27:34 2022 -0400
+commit a9bb38222a06333176cafc5637083e0322277c09
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 22 21:48:11 2021 -0400
 
-    crypto/ed25519: test fixup
+    net: remove hard-coded timeout in dialClosedPort test helper
     
-    Fix up TestEd25519Vectors to download files into its own temporary mod
-    cache, as opposed relying on whatever GOPATH or GOMODCACHE setting is
-    in effect when the test is run.
+    The helper function claims that dialing a closed port should be
+    "nearly instantaneous", but that is empirically not the case on
+    OpenBSD or Windows. The tests do not appear to be particularly
+    sensitive to the exact upper bound otherwise, so let's just
+    remove the arbitrary latency assumption.
     
-    Change-Id: I523f1862f5874b0635a6c0fa83d35a6cfac6073b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/402154
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #46884
+    
+    Change-Id: If00c9fdc3063da6aaf60d365d4a2ee2c94dc6df1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330250
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/ed25519/ed25519vectors_test.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/net/dial_test.go | 51 ++++++++++++++++-----------------------------------
+ 1 file changed, 16 insertions(+), 35 deletions(-)

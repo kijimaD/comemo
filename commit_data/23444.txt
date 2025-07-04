@@ -1,12 +1,12 @@
-commit dc89350fed5f75c277ceb1367cf7e8a2a88f0c77
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 19 16:03:49 2015 -0400
+commit fb7e2449b62e16313fec593329954f25e595dfff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 14 16:02:53 2015 -0700
 
-    cmd/go: fix build
+    doc: update go1.5.txt
     
-    Change-Id: Ia13d1fa450e88e278b81048b99686395ca474c99
-    Reviewed-on: https://go-review.googlesource.com/11259
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Idbceaa44f4c823510632381b36b42302e63d8a29
+    Reviewed-on: https://go-review.googlesource.com/10057
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/testdata/src/vend/x/vendor/p/p/p.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go1.5.txt | 30 +++++++++++++++++-------------
+ 1 file changed, 17 insertions(+), 13 deletions(-)

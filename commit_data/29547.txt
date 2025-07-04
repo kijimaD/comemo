@@ -1,15 +1,20 @@
-commit 1b66b38e25af567aa30a7b22581c05285be3564a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 15 20:16:15 2016 -0500
+commit 9e028b70ea3c1a81220a63c2ed3a2c1cd216c733
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 21 14:21:11 2016 -0700
 
-    api, doc: update go1.8.txt and next.txt
+    runtime: merge signal[12]_unix.go into signal_unix.go
     
-    Both automated updates with a few tweaks.
+    Requires adding a sigfwd function for Solaris, as previously
+    signal2_unix.go was not built for Solaris.
     
-    Change-Id: I24579a8dcc32a84a4fff5c2212681ef30dda61d1
-    Reviewed-on: https://go-review.googlesource.com/33297
+    Change-Id: Iea3ff0ddfa15af573813eb075bead532b324a3fc
+    Reviewed-on: https://go-review.googlesource.com/29550
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/next.txt  | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++--------
- doc/go1.8.txt | 40 +++++++++++++++++++++++++++--
- 2 files changed, 110 insertions(+), 12 deletions(-)
+ src/runtime/signal1_unix.go     | 350 ----------------------------------
+ src/runtime/signal2_unix.go     |  69 -------
+ src/runtime/signal_unix.go      | 403 +++++++++++++++++++++++++++++++++++++++-
+ src/runtime/sys_solaris_amd64.s |   8 +
+ 4 files changed, 410 insertions(+), 420 deletions(-)

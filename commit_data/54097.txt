@@ -1,24 +1,21 @@
-commit 09b03117b056c9d84c018f55910ffccc29976e4b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 17 23:23:40 2023 -0700
+commit e5deb1556b230642d544c451a83cb79f641727a3
+Author: Tobias Klauser <tobias.klauser@gmail.com>
+Date:   Fri Sep 23 21:56:17 2022 +0000
 
-    cmd/compile/internal/ir: remove Ntype
+    Revert "net/netip: use slice-to-array conversions"
     
-    This type used to provide extra type safety around which syntactic
-    nodes could also represent types, but now the only remaining use is
-    ir.TypeNode, and it always ends up as an ir.Node anyway. So we might
-    as well use Node instead.
+    This reverts commit 3dcf6e2c29f533865aad58488b60ae8d819a566e.
     
-    Change-Id: Ia0842864794365b0e155dc5af154c673ffa2967b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520609
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reason for revert: breaks the longtest builders for x/tools
+    
+    Change-Id: I6b6d5afbe46890b6a59829e3d5ab50d885661696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433478
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ir/mknode.go    |  4 ++--
- src/cmd/compile/internal/ir/node_gen.go  | 24 ------------------------
- src/cmd/compile/internal/ir/type.go      | 19 +++----------------
- src/cmd/compile/internal/noder/reader.go |  5 +----
- 4 files changed, 6 insertions(+), 46 deletions(-)
+ src/net/netip/netip.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

@@ -1,16 +1,26 @@
-commit 84530b4fe262757cb6f788626d3e44fc1016b5e1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 6 00:04:12 2017 +0000
+commit 2de773d45f202d38c981a433880e867a7b5d0745
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 10 15:09:05 2017 -0800
 
-    doc: start of go1.9.html release notes
+    math/big: make nat.setUint64 vet-friendly
     
-    Many TODOs remain.
+    nat.setUint64 is nicely generic.
+    By assuming 32- or 64-bit words, however,
+    we can write simpler code,
+    and eliminate some shifts
+    in dead code that vet complains about.
     
-    Updates #20587
+    Generated code for 64 bit systems is unaltered.
+    Generated code for 32 bit systems is much better.
+    For 386, the routine length drops from 325
+    bytes of code to 271 bytes of code, with fewer loops.
     
-    Change-Id: If49854ae4d36346d9e072a386f413cc85c66b62a
-    Reviewed-on: https://go-review.googlesource.com/45012
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1bc14c06272dee37a7fcb48d33dd1e621eba945d
+    Reviewed-on: https://go-review.googlesource.com/38070
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.9.html | 571 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 571 insertions(+)
+ src/cmd/vet/all/whitelist/64bit.txt |  2 --
+ src/math/big/nat.go                 | 20 +++++---------------
+ 2 files changed, 5 insertions(+), 17 deletions(-)

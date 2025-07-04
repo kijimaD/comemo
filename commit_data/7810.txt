@@ -1,16 +1,12 @@
-commit add8c8db60940e8099f5cb9ff9af80c28763499e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 18 11:50:19 2011 -0700
+commit 8c4a2ae6f8d0dc8043116ec83a6f5a8598eec3f2
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Mar 18 09:28:23 2011 -0700
 
-    net: Use preallocated buffer for epoll.
+    godoc: No need to use filepath.IsAbs()
     
-    Reduces rpc test "mallocs per rpc round trip" by 4.
-    
-    Gains ~8% on a localhost client/server RPC test.
-    
-    R=rsc
+    R=golang-dev, brainman, gri
     CC=golang-dev
-    https://golang.org/cl/4284056
+    https://golang.org/cl/4277062
 
- src/pkg/net/fd_linux.go | 74 ++++++++++++++++++++++++++++---------------------
- 1 file changed, 42 insertions(+), 32 deletions(-)
+ src/cmd/godoc/dirtrees.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

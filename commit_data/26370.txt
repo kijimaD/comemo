@@ -1,30 +1,20 @@
-commit 09a9ce60c7014ddff97690bf023ac5b2bfc142c7
-Author: David Chase <drchase@google.com>
-Date:   Thu Mar 17 14:12:12 2016 -0400
+commit 5f23bc8903c9b7930398c154b884979a1a43946f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 21:02:12 2016 -0500
 
-    cmd/compile: get gcflags to bootstrap; ssa debug opts for "all"
+    cmd/compile: add AVARLIVE to peep for arm, arm64, mips64, ppc64
     
-    This is intended to help debug compiler problems that pop
-    up in the bootstrap phase of make.bash.  GO_GCFLAGS does not
-    normally apply there.  Options-for-all phases is intended
-    to allow crude tracing (and full timing) by turning on timing
-    for all phases, not just one.
+    Fixes build on those systems.
     
-    Phase names can also be specified using a regular expression,
-    for example
-    BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' \
-    GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
+    Also fix printing of AVARLIVE.
     
-    I just added this because it was the fastest way to get
-    me to a place where I could easily debug the compiler.
-    
-    Change-Id: I0781f3e7c19651ae7452fa25c2d54c9a245ef62d
-    Reviewed-on: https://go-review.googlesource.com/20775
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1b38cca0125689bc08e4e1bdd0d0c140b1ea079a
+    Reviewed-on: https://go-review.googlesource.com/18641
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go | 50 +++++++++++++++++++++++++++++----
- src/cmd/dist/build.go                   |  6 ++++
- src/make.bash                           |  3 +-
- 3 files changed, 52 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/arm/peep.go    | 1 +
+ src/cmd/compile/internal/arm64/peep.go  | 1 +
+ src/cmd/compile/internal/mips64/peep.go | 1 +
+ src/cmd/compile/internal/ppc64/peep.go  | 1 +
+ src/cmd/internal/obj/util.go            | 2 +-
+ 5 files changed, 5 insertions(+), 1 deletion(-)

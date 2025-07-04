@@ -1,12 +1,16 @@
-commit 309863aec4802bba22a3e9e5fa75cd5d1a0e1d93
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Feb 10 09:33:51 2012 +1100
+commit aca4a6c933c34f136408653c30595a9471372d5e
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Feb 10 09:19:22 2012 +1100
 
-    compress/gzip: remove dead code
+    database/sql: support ErrSkip in Tx.Exec
+    
+    If the database driver supports the Execer interface but returns
+    ErrSkip, calling Exec on a transaction was returning the error instead
+    of using the slow path.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5645074
+    https://golang.org/cl/5654044
 
- src/pkg/compress/gzip/gunzip.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/database/sql/sql.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

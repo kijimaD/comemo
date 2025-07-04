@@ -1,16 +1,12 @@
-commit eced964c2d6dfc74e64f712f95aed4483c173028
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 14 09:56:05 2015 -0700
+commit ecd630de6dd2e5285f18c650207b5c84649402db
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Wed Mar 18 08:14:07 2015 +1100
 
-    reflect: document reflect.TypeOf((*Foo)(nil)).Elem() idiom
+    bufio: fix incorrect comment on Scanner.Scan
     
-    See also golang-dev discussion:
-    https://groups.google.com/d/msg/golang-dev/Nk9gnTINlTg/SV8rBt-2__kJ
-    
-    Change-Id: I49edd98d73400c1757b6085dec86752de569c01a
-    Reviewed-on: https://go-review.googlesource.com/8923
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I216511a4bce431de0a468f618a7a7c4da79e2979
+    Reviewed-on: https://go-review.googlesource.com/7710
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/example_test.go | 15 +++++++++++++++
- src/reflect/type.go         |  4 ++--
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ src/bufio/scan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

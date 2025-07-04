@@ -1,0 +1,23 @@
+commit 994d1d446663873dd593846a0b94147410e5922a
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Aug 26 13:33:06 2024 +0000
+
+    net/http: simplify http.Request.Clone
+    
+    By using maps.Clone and omitting nil checks when calling
+    http.Header.Clone.
+    
+    I'm not using slices.Clone because the result of slices.Clone
+    may have additional unused capacity.
+    
+    Change-Id: I4aed0fea218404c7270e35324e6bd62d855296c7
+    GitHub-Last-Rev: 9fd5dd59078c69c9a8057f6fc4a90f7c6aac893b
+    GitHub-Pull-Request: golang/go#69070
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608295
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/request.go | 17 ++++-------------
+ 1 file changed, 4 insertions(+), 13 deletions(-)

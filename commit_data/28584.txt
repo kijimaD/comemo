@@ -1,19 +1,21 @@
-commit 2b49d129c48b0036ee595fbf7b91a0e9292f87ee
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Sep 29 19:49:36 2016 +0200
+commit 41dd1696ab13755bf7a129e0c73523ffb9fcbe66
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 7 09:54:09 2016 -0700
 
-    cmd/compile: delete unused (*Node) SetInt, SetBigInt, Bool
+    cmd/compile: fix heap dump test on android
     
-    Introduced in CL 9263 (prepare to unexport gc.Mp*) and CL 9267
-    (prepare Node.Val to be unexported), their only callers were in
-    the old backend and all got deleted in CL 29168 (cmd/compile:
-    delete lots of the legacy backend).
+    go_android_exec is looking for "exitcode=" to decide the result
+    of running a test.  The heap dump test nondeterministically prints
+    "finalized" right at the end of the test.  When the timing is just
+    right, we print "finalizedexitcode=0" and confuse go_android_exec.
     
-    Update #16357
+    This failure happens occasionally on the android builders.
     
-    Change-Id: I0a5d76b98b418e8ec0984c033c3bc0ac3fc5f38a
-    Reviewed-on: https://go-review.googlesource.com/29997
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4f73a4db05d8f40047ecd3ef3a881a4ae3741e26
+    Reviewed-on: https://go-review.googlesource.com/23861
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 28 ----------------------------
- 1 file changed, 28 deletions(-)
+ src/runtime/debug/heapdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

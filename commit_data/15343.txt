@@ -1,14 +1,12 @@
-commit 8473b4487c26f85fa31088da739507d3b218dc29
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 20 17:37:13 2013 -0800
+commit c6f23bb7c1cdc83cea7e0cec5c912a67d1b19988
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 20 15:57:18 2013 -0800
 
-    go/types: export data result types are always parenthesized
+    image/png: use Scanner in reader_test.
     
-    Minor simplification of gcimporter, removed TODO.
-    
-    R=adonovan
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/7363044
+    https://golang.org/cl/7399044
 
- src/pkg/go/types/gcimporter.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/pkg/image/png/reader_test.go | 26 +++++++++++++++-----------
+ 1 file changed, 15 insertions(+), 11 deletions(-)

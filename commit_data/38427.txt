@@ -1,17 +1,21 @@
-commit d06704a3c2c3bb668926c8d20b9d4855b7131148
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 12 19:10:43 2019 -0700
+commit 5c359736f8d67338b53c26aaef52139ae8cd0538
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Oct 28 14:45:12 2018 +1100
 
-    cmd/cover: don't assume duplicate positions are in order
+    os: remove sleep in windows Process.Wait
     
-    Fixes #30746
+    The wait was there, because we discovered that we could not remove
+    finished process executable without the wait on Windows XP. But
+    Windows XP is not supported by Go. Maybe we do not need the wait
+    with modern Windows versions. Remove the sleep.
     
-    Change-Id: I63f2d82f14eeaab6b14e956e21ddeec56fee025b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167257
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #25965
+    
+    Change-Id: I02094abee3592ce4fea98eaff9d15137dc54dc81
+    Reviewed-on: https://go-review.googlesource.com/c/145221
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cover/cover.go      | 52 +++++++++++++++++--------
- src/cmd/cover/cover_test.go | 94 ++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 120 insertions(+), 26 deletions(-)
+ src/os/exec_windows.go | 5 -----
+ 1 file changed, 5 deletions(-)

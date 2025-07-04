@@ -1,21 +1,24 @@
-commit 83e8bf2e7d9a7037fcafa90d3ee2730f8dd1ad90
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Sep 24 14:36:34 2020 +0200
+commit b559a173f9f187e1185f8de00a9cc1f5b05aceef
+Author: Neven Sajko <nsajko@gmail.com>
+Date:   Sat Mar 7 17:23:20 2020 +0000
 
-    cmd/compile: more amd64 typed aux rules
+    internal/xcoff: fix wrong bit masking comparisons
     
-    Passes
+    I do not know much about xcoff, but this was probably the intended
+    behavior. (The comparison is tautologically false, as is.)
     
-      gotip build -toolexec 'toolstash -cmp' -a std
+    Also note: does any other code even depend on the changed code existing?
+    Maybe it should just be removed, as I did not find any uses of fields
+    that are written to if the branch condition tests true.
     
-    Change-Id: Id9da1240ca810fe07f23c56b36900b6e35a10a6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257037
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1f23d33764df40e87f3e64460d63f6efc51a2a78
+    GitHub-Last-Rev: 268909130fd7fb3993fcf7004143ec48dbfe5e2a
+    GitHub-Pull-Request: golang/go#37733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222478
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Clément Chigot <clement.chigot%atos.net@gtempaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  160 ++--
- src/cmd/compile/internal/ssa/op.go           |    7 +
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 1268 +++++++++++++-------------
- 3 files changed, 721 insertions(+), 714 deletions(-)
+ src/internal/xcoff/file.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,22 +1,12 @@
-commit da5a251dde539c91c87caab4abe3d346f88e82fc
+commit 4dfe976d974669e1234fbcd4f95341be41c1e575
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 2 12:30:37 2011 -0500
+Date:   Fri Dec 2 12:30:20 2011 -0500
 
-    doc: do not slice array literal
+    spec: avoid slice of array literal
     
-    The special case in the spec is that you can take the
-    address of a composite literal using the & operator.
-    
-    A composite literal is not, however, generally addressable,
-    and the slice operator requires an addressable argument,
-    so [3]int{1,2,3}[:] is invalid.  This tutorial code and one bug
-    report are the only places in the tree where it appears.
-    
-    R=r, gri
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5437120
+    https://golang.org/cl/5451078
 
- doc/go_tutorial.html | 8 +++++---
- doc/go_tutorial.tmpl | 8 +++++---
- doc/progs/sum.go     | 3 ++-
- 3 files changed, 12 insertions(+), 7 deletions(-)
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

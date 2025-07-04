@@ -1,13 +1,14 @@
-commit 86c0cf10cb8d679039c2d51458435ff221352f81
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Sep 5 21:50:47 2013 +0200
+commit f2380a81d707c40e4f8950a2a01bd28a9f004b12
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 4 17:02:08 2013 -0700
 
-    compress/zlib: add Reset method to Writer.
+    cmd/dist: don't print misleading warning when using GOROOT_FINAL
+    
+    Fixes #5240.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13171046
+    https://golang.org/cl/13546044
 
- src/pkg/compress/zlib/writer.go      | 29 +++++++++++++---
- src/pkg/compress/zlib/writer_test.go | 65 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 90 insertions(+), 4 deletions(-)
+ src/cmd/dist/build.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

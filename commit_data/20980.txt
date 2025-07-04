@@ -1,14 +1,13 @@
-commit 8476d4cf2937fc261bbcf2890ba39d815bce3ae5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Dec 13 19:00:48 2014 +1100
+commit 8985c091e4a83eef27ed2a474e1dd34eae43db3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 31 10:20:36 2014 -0700
 
-    net/http: document Response.Body Read+Close interaction with keep-alive
+    net/http: add missing newline in list of leaked goroutines
     
-    Fixes #5645
-    
-    Change-Id: Ifb46d6faf7ac838792920f6fe00912947478e761
-    Reviewed-on: https://go-review.googlesource.com/1531
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/168860044
 
- src/net/http/response.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/net/http/main_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

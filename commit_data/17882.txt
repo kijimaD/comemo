@@ -1,12 +1,15 @@
-commit b6c7cc3241d898dd89c27cb82e0a3c827314e86c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Nov 14 09:20:29 2013 +1100
+commit 0bdd90bc0a5bdd1844862b36ce69cc9283a9713f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 12 20:07:08 2013 -0800
 
-    encoding/gob: expose encode/decode example
+    src/cmd/?a: link to new assembler document
+    Blocked on 20930043, the CL the new text references.
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/26220045
+    https://golang.org/cl/18430044
 
- src/pkg/encoding/gob/example_encdec_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5a/doc.go | 4 ++++
+ src/cmd/6a/doc.go | 6 +++++-
+ src/cmd/8a/doc.go | 5 +++++
+ 3 files changed, 14 insertions(+), 1 deletion(-)

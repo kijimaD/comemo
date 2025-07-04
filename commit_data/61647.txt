@@ -1,0 +1,28 @@
+commit 245f9ba3c0ec76c7e53b5c6a4bdbc57375e97467
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Jul 27 15:33:47 2024 +0200
+
+    crypto/internal/nistec: put elements directly in point struct in purego P-256
+    
+    Mostly done to make loading the affine table easier, but has a bit of
+    performance advantage.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/internal/nistec
+    cpu: Apple M2
+                          │ edeef4a9d6  │            c85d3a55d6             │
+                          │   sec/op    │   sec/op     vs base              │
+    ScalarMult/P256-8       98.80µ ± 1%   97.40µ ± 0%  -1.41% (p=0.002 n=6)
+    ScalarBaseMult/P256-8   20.69µ ± 0%   19.29µ ± 1%  -6.75% (p=0.002 n=6)
+    
+    Change-Id: Iaee927650e64d0ed4cd3053f32132de8dd7d771d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627940
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/internal/nistec/p256.go | 271 ++++++++++++++++++-------------------
+ 1 file changed, 132 insertions(+), 139 deletions(-)

@@ -1,15 +1,7 @@
-commit ee8e687874b56f7c3ab1dd5585390b84dc74b14e
+commit 61dca94e107170d2ff3beb13bb9fa5ce49d8d6fd
 Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 16 23:51:18 2014 -0700
+Date:   Mon Jun 16 23:03:03 2014 -0700
 
-    undo CL 93380044 / 7f0999348917
-    
-    Partial undo, just of go:nosplit annotation.  Somehow it
-    is breaking the windows builders.
-    
-    TBR=bradfitz
-    
-    ««« original CL description
     runtime: implement string ops in Go
     
     Also implement go:nosplit annotation.  Not really needed
@@ -23,16 +15,26 @@ Date:   Mon Jun 16 23:51:18 2014 -0700
     R=golang-codereviews, dave, bradfitz, minux
     CC=golang-codereviews
     https://golang.org/cl/93380044
-    »»»
-    
-    TBR=bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/105260044
 
- src/cmd/gc/fmt.c   | 2 +-
- src/cmd/gc/go.h    | 2 --
- src/cmd/gc/go.y    | 2 --
- src/cmd/gc/lex.c   | 4 ----
- src/cmd/gc/pgen.c  | 2 --
- src/cmd/gc/y.tab.c | 2 --
- 6 files changed, 1 insertion(+), 13 deletions(-)
+ src/cmd/gc/fmt.c               |   2 +-
+ src/cmd/gc/go.h                |   2 +
+ src/cmd/gc/go.y                |   2 +
+ src/cmd/gc/lex.c               |   4 +
+ src/cmd/gc/pgen.c              |   2 +
+ src/cmd/gc/y.tab.c             |   2 +
+ src/pkg/runtime/asm_386.s      |   6 +
+ src/pkg/runtime/asm_amd64.s    |   6 +
+ src/pkg/runtime/asm_amd64p32.s |   6 +
+ src/pkg/runtime/asm_arm.s      |   4 +
+ src/pkg/runtime/error.go       |   2 -
+ src/pkg/runtime/race.go        |   3 +
+ src/pkg/runtime/race0.go       |  11 ++
+ src/pkg/runtime/rune.c         | 231 -----------------------
+ src/pkg/runtime/rune.go        | 219 +++++++++++++++++++++
+ src/pkg/runtime/string.c       | 199 ++++++++++++++++++++
+ src/pkg/runtime/string.go      | 200 ++++++++++++++++++++
+ src/pkg/runtime/string.goc     | 418 -----------------------------------------
+ src/pkg/runtime/string_test.go |  24 +++
+ src/pkg/runtime/stubs.go       |  30 +++
+ src/pkg/runtime/stubs.goc      |  66 +++++++
+ 21 files changed, 787 insertions(+), 652 deletions(-)

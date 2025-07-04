@@ -1,16 +1,20 @@
-commit 07a7c6f904a4deed9a37bf5c79a1c3d21d623347
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 1 21:02:43 2021 -0700
+commit b268b607743ebf570396750208e0032870653edd
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jan 22 19:32:43 2021 +1100
 
-    test/typeparam: require -G=3 for issue48424.go (fix build)
+    runtime: remove pthread_kill/pthread_self for openbsd
     
-    Change-Id: Icabef5cf75770ffde012b1fc785a72f53f9b2c46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353669
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    We're now using getthrid() and thrkill() instead.
+    
+    Updates #36435
+    
+    Change-Id: I1c6bcfb9b46d149e0a2a10e936a244576489a88e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285692
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/typeparam/issue48424.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/sys_openbsd.go      | 18 ------------------
+ src/runtime/sys_openbsd_amd64.s | 18 ------------------
+ src/runtime/sys_openbsd_arm64.s | 12 ------------
+ 3 files changed, 48 deletions(-)

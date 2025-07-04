@@ -1,19 +1,26 @@
-commit 0d32d9e8a8784cf3ef39c471b73e502c51085b6d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 27 16:55:04 2021 -0700
+commit db7d42acac89bbb516194fa4c332cc79e43ec8bb
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Sep 24 00:22:05 2020 +0800
 
-    os: document that Windows Symlink to missing target creates file symlink
+    cmd/link: remove all constants of elf
     
-    Fixes #39183
+    Use debug/elf instead.
     
-    Change-Id: Iec4a5a561182ade57dc7dc24247710005d6b9f21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314275
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: Ia6580648b6440e4a352f5c5ed59ac4d1c95e0175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252478
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/file_plan9.go   | 2 ++
- src/os/file_unix.go    | 2 ++
- src/os/file_windows.go | 2 ++
- 3 files changed, 6 insertions(+)
+ src/cmd/link/internal/amd64/asm.go |    4 +-
+ src/cmd/link/internal/arm/asm.go   |    4 +-
+ src/cmd/link/internal/arm64/asm.go |    4 +-
+ src/cmd/link/internal/ld/elf.go    | 1140 +++++++++++++-----------------------
+ src/cmd/link/internal/ld/go.go     |    3 +-
+ src/cmd/link/internal/ld/lib.go    |    8 +-
+ src/cmd/link/internal/ld/symtab.go |   67 +--
+ src/cmd/link/internal/ppc64/asm.go |    6 +-
+ src/cmd/link/internal/s390x/asm.go |    2 +-
+ src/cmd/link/internal/x86/asm.go   |    4 +-
+ 10 files changed, 454 insertions(+), 788 deletions(-)

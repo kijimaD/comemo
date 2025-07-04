@@ -1,21 +1,24 @@
-commit 8ce844e88ed8c16bef7febea05b003b50bd0609e
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 14 13:27:36 2016 -0400
+commit 00da3a6ec30bbad224d483a8d23a3b8a516c8e97
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Mar 3 17:06:43 2016 +0100
 
-    runtime: check kernel physical page size during init
+    fmt: optimize byte slice and array formatting for %v and %d
     
-    The runtime hard-codes an assumed physical page size. If this is
-    smaller than the kernel's page size or not a multiple of it, sysUnused
-    may incorrectly release more memory to the system than intended.
+    Instead of calling printArg in fmtBytes to format each byte call
+    the byte formatting functions directly since it is known each
+    element is of type byte.
     
-    Add a runtime startup check that the runtime's assumed physical page
-    is compatible with the kernel's physical page size.
+    Add more tests for byte slice and array formatting.
     
-    For #9993.
+    name            old time/op  new time/op  delta
+    SprintfBytes-2   843ns ±16%   417ns ±11%  -50.58%  (p=0.000 n=20+20)
     
-    Change-Id: Ida9d07f93c00ca9a95dd55fc59bf0d8a607f6728
-    Reviewed-on: https://go-review.googlesource.com/22064
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I5b907dbf52091e3de9710b09d67649c76f4c17e9
+    Reviewed-on: https://go-review.googlesource.com/20176
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/os_linux.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/fmt/fmt_test.go | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/fmt/print.go    | 50 +++++++++++++++------------------------
+ 2 files changed, 86 insertions(+), 32 deletions(-)

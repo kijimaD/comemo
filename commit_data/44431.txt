@@ -1,21 +1,25 @@
-commit 9a7fe196e468c687ad7239b9447c584826331771
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Feb 25 21:32:29 2021 +0000
+commit a4ba411b19fa0111a3c8fe059fcf5489d3bd6bbf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 30 16:51:27 2020 -0400
 
-    Revert "cmd/compile: fix mishandling of unsafe-uintptr arguments with call method in go/defer"
+    cmd/link: skip fallocate test if not supported, and adjust allocation size on darwin
     
-    This reverts commit CL 294849.
+    On Linux, the linker uses fallocate to preallocate the output
+    file storage. The underlying file system may not support
+    fallocate, causing the test to fail. Skip the test in this case.
     
-    Reason for revert: this doesn't actually fix the issue, as revealed
-    by the noopt builder's failures.
+    On darwin, apparently F_PREALLOCATE allocates from the end of the
+    allocation instead of the logical end of the file. Adjust the
+    size calculation.
     
-    Change-Id: Ib4ea9ceb4d75e46b3b91ec348b365fd8c83316ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296629
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #39905.
+    
+    Change-Id: I01e676737fd2619ebbdba05c7cf7f424ec27de35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240618
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/walk/expr.go | 32 ++++++++++++++------------------
- src/cmd/compile/internal/walk/stmt.go |  3 ---
- test/fixedbugs/issue24491a.go         | 30 ------------------------------
- test/fixedbugs/issue44415.go          | 21 ---------------------
- 4 files changed, 14 insertions(+), 72 deletions(-)
+ src/cmd/link/internal/ld/fallocate_test.go | 15 +++++++++++++++
+ src/cmd/link/internal/ld/outbuf_darwin.go  |  7 +++++--
+ 2 files changed, 20 insertions(+), 2 deletions(-)

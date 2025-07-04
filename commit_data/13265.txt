@@ -1,18 +1,13 @@
-commit 6e3d87f315f80ff6b5c0275c98a04f635679ef6b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 4 07:18:06 2012 -0700
+commit 947a3ddf871794c109f85218de42511a9f02f02e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Jun 4 20:53:32 2012 +1000
 
-    net/textproto: add benchmark, cleanup, update comment
+    cmd/gc: recognize u<<1 op u>>31 as a rotate when op is ^, not just |.
     
-    The cleanup also makes it ~5% faster, but that's
-    not the point of this CL.
-    
-    Optimizations can come in future CLs.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6286043
+    https://golang.org/cl/6249071
 
- src/pkg/net/textproto/reader.go      | 31 ++++++++++++++++++-------------
- src/pkg/net/textproto/reader_test.go | 17 +++++++++++++++++
- 2 files changed, 35 insertions(+), 13 deletions(-)
+ src/cmd/gc/walk.c |   6 ++--
+ test/rotate.go    | 105 ++++++++++++++++++++++++++++++++----------------------
+ 2 files changed, 66 insertions(+), 45 deletions(-)

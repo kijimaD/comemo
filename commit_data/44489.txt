@@ -1,26 +1,17 @@
-commit 27dbc4551a37a48cf7c020db0aeac6f2841883dc
-Author: eric fang <eric.fang@arm.com>
-Date:   Thu Feb 4 03:08:20 2021 +0000
+commit 11f92e9dae96939c2d784ae963fa7763c300660b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jul 20 18:32:53 2020 +0200
 
-    cmd/asm: disable scaled register format for arm64
+    cmd/compile: add test for fixed ICE on untyped conversion
     
-    Arm64 doesn't have scaled register format, such as (R1*2), (R1)(R2*3),
-    but currently the assembler doesn't report an error for such kind of
-    instruction operand format. This CL disables the scaled register
-    operand format for arm64 and reports an error if this kind of instruction
-    format is seen.
-    With this CL, the assembler won't print (R1)(R2) as (R1)(R2*1), so that
-    we can make the assembly test simpler.
+    The ICE reported as #33308 was fixed by a related CL; this change adds
+    a regression test with the crasher.
     
-    Change-Id: I6d7569065597215be4c767032a63648d2ad16fed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/289589
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #33308
+    
+    Change-Id: I3260075dbe3823b56b8825e6269e57a0fad185a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243458
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/parse.go            |  8 +++--
- src/cmd/asm/internal/asm/testdata/arm64.s    | 48 ++++++++++++++--------------
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 44 ++++++++++++-------------
- 3 files changed, 51 insertions(+), 49 deletions(-)
+ test/fixedbugs/issue33308.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

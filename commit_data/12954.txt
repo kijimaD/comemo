@@ -1,17 +1,15 @@
-commit 52f122d72ee3fab46603ccd76259d1f9db50be7b
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Wed Apr 25 14:33:33 2012 +1000
+commit b252fe70026a0e7b4bbf3ec6f4f74cf02e3c73b7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 25 12:29:14 2012 +0900
 
-    encoding/json: allow punctuation in tag names
+    net: fix crash of Listen with "" or nil laddr
     
-    everything except backslash and the quote chars is fair game.
+    Fixes #3584.
     
-    Fixes #3546.
-    
-    R=rsc, r
+    R=dave, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/6048047
+    https://golang.org/cl/6119043
 
- src/pkg/encoding/json/encode.go      | 9 ++++++---
- src/pkg/encoding/json/tagkey_test.go | 5 +++++
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ src/pkg/net/ipsock_posix.go |  5 ++++-
+ src/pkg/net/unicast_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

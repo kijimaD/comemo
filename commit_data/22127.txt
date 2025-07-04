@@ -1,34 +1,23 @@
-commit 4224d81fae7bfce98629894d14f4644018037cfb
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 20 00:06:10 2015 -0400
+commit 2fdb728d01df54ee2c9c9b80e75d7bee19727af6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 23 17:05:30 2015 +0900
 
-    cmd/internal/gc: inline x := y.(*T) and x, ok := y.(*T)
+    runtime: simplify NetBSD semaphores
     
-    These can be implemented with just a compare and a move instruction.
-    Do so, avoiding the overhead of a call into the runtime.
+    NetBSD's semaphore implementation is derived from OpenBSD's, but has
+    subsequently diverged due to cleanups that were only applied to the
+    latter (https://golang.org/cl/137960043, https://golang.org/cl/5563).
+    This CL applies analogous cleanups for NetBSD.
     
-    These assertions are a significant cost in Go code that uses interface{}
-    as a safe alternative to C's void* (or unsafe.Pointer), such as the
-    current version of the Go compiler.
+    Notably, we can also remove the scary NetBSD deadlock warning.
+    NetBSD's manual pages document that lwp_unpark on a not-yet-parked LWP
+    will cause that LWP's next lwp_park system call to return immediately,
+    so there's no race hazard.
     
-    *T here includes pointer to T but also any Go type represented as
-    a single pointer (chan, func, map). It does not include [1]*T or struct{*int}.
-    That requires more work in other parts of the compiler; there is a TODO.
-    
-    Change-Id: I7ff681c20d2c3eb6ad11dd7b3a37b1f3dda23965
-    Reviewed-on: https://go-review.googlesource.com/7862
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib06844c420d2496ac289748eba13eb4700bbbbb2
+    Reviewed-on: https://go-review.googlesource.com/5564
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Joel Sing <jsing@google.com>
 
- src/cmd/internal/gc/builtin.go         |   1 +
- src/cmd/internal/gc/builtin/runtime.go |   1 +
- src/cmd/internal/gc/cgen.go            |  38 ++++----
- src/cmd/internal/gc/gen.go             | 163 +++++++++++++++++++++++++++++++++
- src/cmd/internal/gc/go.go              |   1 +
- src/cmd/internal/gc/lex.go             |   5 +-
- src/cmd/internal/gc/order.go           |  12 ++-
- src/cmd/internal/gc/typecheck.go       |   4 +-
- src/cmd/internal/gc/walk.go            |  52 +++++++++--
- src/runtime/error.go                   |  19 ----
- src/runtime/iface.go                   |   8 ++
- test/interface/assertinline.go         |  53 +++++++++++
- 12 files changed, 303 insertions(+), 54 deletions(-)
+ src/runtime/os1_netbsd.go | 102 +++++++++++-----------------------------------
+ 1 file changed, 24 insertions(+), 78 deletions(-)

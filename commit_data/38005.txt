@@ -1,42 +1,17 @@
-commit 34fb5855eb73fe04ee0bcfc0d9ca8be5440a560b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 20 10:44:52 2019 -0800
+commit f493e557232e223e313b4641d12e502c69bfe632
+Author: Keith Randall <khr@google.com>
+Date:   Mon Sep 24 12:26:58 2018 -0700
 
-    text/scanner: don't liberally consume (invalid) floats or underbars
+    cmd/compile: document regalloc fields
     
-    This is a follow-up on https://golang.org/cl/161199 which introduced
-    the new Go 2 number literals to text/scanner.
+    Document what the fields of regalloc mean.
+    Hopefully will help people understand how the register allocator works.
     
-    That change introduced a bug by allowing decimal and hexadecimal floats
-    to be consumed even if the scanner was not configured to accept floats.
-    
-    This CL changes the code to not consume a radix dot '.' or exponent
-    unless the scanner is configured to accept floats.
-    
-    This CL also introduces a new mode "AllowNumberbars" which controls
-    whether underbars '_' are permitted as digit separators in numbers
-    or not.
-    
-    There is a possibility that we may need to refine text/scanner
-    further (e.g., the Float mode now includes hexadecimal floats
-    which it didn't recognize before). We're very early in the cycle,
-    so let's see how it goes.
-    
-    RELNOTE=yes
-    
-    Updates #12711.
-    Updates #19308.
-    Updates #28493.
-    Updates #29008.
-    
-    Fixes #30320.
-    
-    Change-Id: I6481d314f0384e09ef6803ffad38dc529b1e89a3
-    Reviewed-on: https://go-review.googlesource.com/c/163079
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic322ed2019cc839b812740afe8cd2cf0b61da046
+    Reviewed-on: https://go-review.googlesource.com/137016
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/except.txt                   |  1 +
- api/next.txt                     |  3 +++
- src/text/scanner/scanner.go      | 48 ++++++++++++++++++++++------------------
- src/text/scanner/scanner_test.go | 37 +++++++++++++++++++++++++++++++
- 4 files changed, 68 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/gen/main.go |  9 +++++++--
+ src/cmd/compile/internal/ssa/op.go       | 12 ++++++++++--
+ src/cmd/compile/internal/ssa/regalloc.go |  2 ++
+ 3 files changed, 19 insertions(+), 4 deletions(-)

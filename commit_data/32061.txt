@@ -1,27 +1,29 @@
-commit 77ee861ca208fd7f5a674ac0c442f92009ae42d7
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Wed Jun 14 12:41:14 2017 -0700
+commit 3d90378df5bb97ecadf4a4436fbbf2ca6746a99f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 11:10:01 2017 -0700
 
-    doc: add an editor guide
+    cmd/compile: add newnamel, use in tempAt
     
-    The Go ecosystem provides many tools to make Go
-    development more productive and seamless. Document
-    the availability of the editor plugins and IDEs,
-    add an overview of feature support and screencasts.
+    newnamel is newname but with no dependency on lineno or Curfn.
+    This makes it suitable for use in a concurrent back end.
+    Use it now to make tempAt global-free.
     
-    Updates #20398.
-    Updates #20402.
-    Updates #20399.
-    Updates #20401.
-    Updates #20569.
+    The decision to push the assignment to n.Name.Curfn
+    to the caller of newnamel is based on mdempsky's
+    comments in #19683 that he'd like to do that
+    for callers of newname as well.
     
-    Change-Id: I0c6cb48eb4e3848807aaad78390493e14f097916
-    Reviewed-on: https://go-review.googlesource.com/45772
-    Reviewed-by: Steve Francia <spf@golang.org>
+    Passes toolstash-check. No compiler performance impact.
+    
+    Updates #19683
+    Updates #15756
+    
+    Change-Id: Idc461a1716916d268c9ff323129830d9a6e4a4d9
+    Reviewed-on: https://go-review.googlesource.com/39191
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/docs.html            |   6 ++
- doc/editors.html         | 210 +++++++++++++++++++++++++++++++++++++++++++++++
- doc/editors/gogland.png  | Bin 0 -> 9430 bytes
- doc/editors/vimgo.png    | Bin 0 -> 7591 bytes
- doc/editors/vscodego.png | Bin 0 -> 3373 bytes
- 5 files changed, 216 insertions(+)
+ src/cmd/compile/internal/gc/gen.go  | 28 +++++++++++++---------------
+ src/cmd/compile/internal/gc/subr.go | 13 ++++++++++---
+ 2 files changed, 23 insertions(+), 18 deletions(-)

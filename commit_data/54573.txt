@@ -1,21 +1,20 @@
-commit 9d3cc85e51d8285556b818a44dce0fce94f261fe
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Sep 27 22:13:58 2023 -0400
+commit 50c59194758999487f577030ca11d91c65530559
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Nov 1 16:14:06 2022 -0400
 
-    cmd/link: unskip TestBuildForTvOS on dwarin/arm64
+    cmd/dist: fix a variable scope bug:
     
-    TestBuildForTvOS currently runs only on darwin/amd64. It can also
-    run on darwin/arm64, if the SDK is installed. Unskip the test.
+    We reused p so we were deleting the same directory twice instead of two
+    different directories. Fix that.
     
-    Also add logging for the build commands it runs.
+    For #47257
     
-    For #63203.
-    
-    Change-Id: Id41d2e1879f5d39d239f0586d836d33accf5efbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531555
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I315ad87d0a9182e00ae4c11b82986227e2b02e17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447115
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/link_test.go | 17 ++++++++++-------
- 1 file changed, 10 insertions(+), 7 deletions(-)
+ src/cmd/dist/build.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

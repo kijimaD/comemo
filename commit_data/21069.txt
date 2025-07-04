@@ -1,12 +1,39 @@
-commit 8a853aa5cbe4432cd7794e791676821af94f0946
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Dec 14 07:59:11 2014 -0800
+commit e785e3acf8a4845ada7bed96f1a88355b1e0cde3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:08:54 2014 -0500
 
-    runtime: correct ptrSize test in Linux version of sysReserve
+    [dev.cc] runtime: convert operating system support code from C to Go
     
-    Change-Id: I90a8ca51269528a307e0d6f52436fc7913cd7900
-    Reviewed-on: https://go-review.googlesource.com/1541
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    The conversion was done with an automated tool and then
+    modified only as necessary to make it compile and run.
+    
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
+    
+    LGTM=r
+    R=r
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/174830044
 
- src/runtime/mem_linux.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/alg.go              |   3 -
+ src/runtime/os1_darwin.go       | 423 ++++++++++++++++++++++++++++++
+ src/runtime/os1_linux.go        | 277 ++++++++++++++++++++
+ src/runtime/os2_darwin.go       |  14 +
+ src/runtime/os2_linux.go        |  23 ++
+ src/runtime/os_darwin.c         | 567 ----------------------------------------
+ src/runtime/os_darwin.go        |  34 ++-
+ src/runtime/os_darwin.h         |  43 ---
+ src/runtime/os_dragonfly.c      |   2 +-
+ src/runtime/os_freebsd.c        |   2 +-
+ src/runtime/os_linux.c          | 342 ------------------------
+ src/runtime/os_linux.go         |  26 +-
+ src/runtime/os_linux.h          |  41 ---
+ src/runtime/os_linux_386.c      |  38 ---
+ src/runtime/os_linux_386.go     |  41 +++
+ src/runtime/os_linux_amd64.go   |   9 +
+ src/runtime/os_linux_arm.c      |  80 ------
+ src/runtime/os_linux_arm.go     |  75 ++++++
+ src/runtime/vdso_linux_amd64.c  | 371 --------------------------
+ src/runtime/vdso_linux_amd64.go | 328 +++++++++++++++++++++++
+ src/runtime/vdso_none.go        |  10 +
+ 21 files changed, 1248 insertions(+), 1501 deletions(-)

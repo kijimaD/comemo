@@ -1,18 +1,21 @@
-commit 9a9dc36f97bf57e186ab8183a27927abb9aecd61
-Author: Rob Pike <r@golang.org>
-Date:   Thu Oct 11 13:21:54 2018 +1100
+commit c00603607511701ecc9f56fd82ac528ecf6b8fc6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 7 10:55:28 2018 -0400
 
-    text/template: explain that integer constants can overflow
+    cmd/vet: use vet-specific export data to record detected printf wrappers
     
-    This behavior is the same as in Go: constants can be coerced to int
-    and whether overflow occurs depends on how big an int is, but
-    this surprises people sometimes, so document it again here.
+    This CL takes advantage of the ability to record vet-specific export data,
+    added in CL 108558, to save information about observed printf wrappers.
+    Then calls to those wrappers from other packages can be format-checked.
+    This found a few real mistakes using previously-unrecognized printf
+    wrappers in cmd/compile. It will no doubt find real mistakes in external code.
     
-    Fixes #25833.
-    
-    Change-Id: I557995f1a1e8e871b21004953923d16f36cb9037
-    Reviewed-on: https://go-review.googlesource.com/c/141378
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9c29c92d89bbdc984571a174a96e6054585e9cd4
+    Reviewed-on: https://go-review.googlesource.com/108559
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/text/template/doc.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/vet/print.go          | 375 ++++++++++++++++++++++++++++++++----------
+ src/cmd/vet/testdata/print.go |  71 +++++++-
+ 2 files changed, 353 insertions(+), 93 deletions(-)

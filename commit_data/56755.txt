@@ -1,21 +1,17 @@
-commit 98529a8e7cf1cc0b561f26a4bd3ddf8f6dbd2f8a
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri May 24 18:04:11 2024 -0400
+commit 64c95d24f0aab42b26cab0c2262274d0ea2eaa85
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun May 21 15:34:43 2023 +0100
 
-    cmd/link: don't include deadcoded function symbols in shared build mode
+    log/slog: JSONHandler doesn't use special source format
     
-    In shared build mode, we include all symbols. This includes
-    function symbols that are deadcoded by the compiler. They don't
-    really get compiled, and their metadata may be missing, causing
-    linker failures. Skip them.
+    Fixes #60329
     
-    Fixes #67635.
-    
-    Change-Id: Ic0e64bd032be499cca26da5e9e3ffbe9998bac05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588316
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Idb19da4830fa14c459bedbf143d550ce7c1dfdbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496815
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/internal/testshared/testdata/depBase/dep.go | 5 +++++
- src/cmd/link/internal/ld/deadcode.go                    | 6 ++++++
- 2 files changed, 11 insertions(+)
+ src/log/slog/json_handler.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

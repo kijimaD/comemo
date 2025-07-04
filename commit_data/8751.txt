@@ -1,20 +1,16 @@
-commit 95963e6294ce3e2e700dea4055fb62b73f23aa95
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 16 11:10:31 2011 -0400
+commit 2b08e952bbe0b0ec20480d493926bcdb41f71396
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 16 17:48:02 2011 +1000
 
-    runtime/cgo: fix for OS X 10.7
+    sort: change the name of Float64Array to Float64Slice.
+    I missed this before because I used the wrong regexp. What a moron.
     
-    Correct a few error messages (libcgo -> runtime/cgo)
-    and delete old nacl_386.c file too.
-    
-    Fixes #1657.
-    
-    R=iant
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4603057
+    https://golang.org/cl/4639041
 
- src/pkg/runtime/cgo/darwin_386.c   | 72 +++++++++++++++++++-------------------
- src/pkg/runtime/cgo/darwin_amd64.c | 65 ++++++++++++++--------------------
- src/pkg/runtime/cgo/nacl_386.c     | 19 ----------
- src/pkg/runtime/cgo/util.c         |  2 +-
- 4 files changed, 64 insertions(+), 94 deletions(-)
+ src/pkg/sort/search.go      | 12 ++++++------
+ src/pkg/sort/search_test.go |  2 +-
+ src/pkg/sort/sort.go        | 32 ++++++++++++++++----------------
+ src/pkg/sort/sort_test.go   | 10 +++++-----
+ 4 files changed, 28 insertions(+), 28 deletions(-)

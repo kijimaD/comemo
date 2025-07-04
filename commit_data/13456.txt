@@ -1,12 +1,18 @@
-commit 2b4cc6ccb5f86d856eca2fb069b10b11aaa278bd
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jul 11 20:26:51 2012 +0200
+commit 82cbcb0dd5437db1fd2f51d1ff81a38670f7a684
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jul 11 09:41:08 2012 -0700
 
-    spec: correct typo in string conversion examples.
+    website: various html fixes
     
-    R=golang-dev, dave, r
-    CC=golang-dev, remy
-    https://golang.org/cl/6378046
+    Fixes #3424.
+    
+    R=fullung, adg
+    CC=golang-dev
+    https://golang.org/cl/6343088
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/docs.html          | 4 ++--
+ doc/go_faq.html        | 2 +-
+ doc/reference.html     | 4 ++--
+ lib/godoc/godoc.html   | 2 +-
+ lib/godoc/package.html | 4 ++--
+ 5 files changed, 8 insertions(+), 8 deletions(-)

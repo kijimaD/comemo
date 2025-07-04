@@ -1,14 +1,26 @@
-commit 66a1d37bf78b75f4b3f20e67ecf34be5c996f61e
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Aug 14 10:35:17 2017 +0200
+commit 7bd1c210858f308ee9a73b6a3b953c477ebb294e
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 20 15:18:13 2017 -0700
 
-    cmd/compile: fix language in makeslice comment
+    cmd/vendor/arch/x86: pull new version from x repo
     
-    Change-Id: I1929ea7e4ed88631ef729472ffe474016efec3e8
-    Reviewed-on: https://go-review.googlesource.com/56370
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Copied by hand.
+    
+    Update #17410
+    Update #19142
+    Fixes #19986
+    
+    Change-Id: I21d16d254161c75466b31c670f3b2c8c463abd66
+    Reviewed-on: https://go-review.googlesource.com/41205
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../vendor/golang.org/x/arch/x86/x86asm/decode.go  |   90 +-
+ src/cmd/vendor/golang.org/x/arch/x86/x86asm/gnu.go |    4 +-
+ .../vendor/golang.org/x/arch/x86/x86asm/inst.go    |   16 +-
+ .../vendor/golang.org/x/arch/x86/x86asm/intel.go   |   16 +-
+ .../vendor/golang.org/x/arch/x86/x86asm/plan9x.go  |   22 +-
+ .../vendor/golang.org/x/arch/x86/x86asm/tables.go  | 6408 ++++++++++----------
+ .../x/arch/x86/x86asm/testdata/decode.txt          |  338 +-
+ src/cmd/vendor/vendor.json                         |    4 +-
+ 8 files changed, 3595 insertions(+), 3303 deletions(-)

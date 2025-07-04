@@ -1,18 +1,26 @@
-commit 0cc58564f6dff13afdf0a50b702ddd6ef092db19
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Jun 6 14:46:42 2023 -0700
+commit 0a4a57de4d0764a4291e4d8654e88b44e65d8059
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 18:30:21 2022 -0700
 
-    go1.21: document crypto/tls additions
+    cmd/compile/internal/types2: use go/types/testdata/spec tests
     
-    For #60105
-    For #44886
+    Since the spec tests are now identical between the two type checkers,
+    remove the local copy of the spec tests and (for now) use the tests
+    in go/types/testdata/spec instead. Eventually we may decide to move
+    all tests out of the type checker directories and place them in a
+    shared space (e.g. internal/types/testdata).
     
-    Change-Id: I8f6cfc4490535979ee8c0d8381c03b03c9c7b9a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501303
+    For #54511.
+    
+    Change-Id: Ibc62230553a5ff215160dcc97696b333ae9cf685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424676
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- doc/go1.21.html | 77 +++++++++++++++++++++++++++++++++------------------------
- 1 file changed, 45 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go      |   2 +-
+ .../internal/types2/testdata/spec/assignability.go | 264 ---------------------
+ .../internal/types2/testdata/spec/comparisons.go   | 120 ----------
+ .../internal/types2/testdata/spec/conversions.go   | 210 ----------------
+ 4 files changed, 1 insertion(+), 595 deletions(-)

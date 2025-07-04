@@ -1,20 +1,30 @@
-commit 6bad7e82430bb1eb927a2901f44f9664637db27d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 17 13:38:07 2022 -0700
+commit 099b819085e12ca45ac184cab5afb82538bec472
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Aug 24 15:34:52 2021 -0700
 
-    compress/gzip: always close bodyReader in Example_compressingReader
+    cmd/compile: fix CheckSize() calculation for -G=3 and stencils
     
-    For #53362
-    Fixes #53414
+    Because the Align/Width of pointer types are always set when created,
+    CalcSize() never descends past a pointer. Therefore, we need to do
+    CheckSize() at every level when creating type. We need to do this for
+    types creates by types2-to-types1 conversion and also by type
+    substitution (mostly for stenciling). We also need to do
+    Defer/ResumeCheckSize() at the top level in each of these cases to deal
+    with potentially recursive types.
     
-    Change-Id: I352164e70c136eed210c7ee4ceba5dc631f81f94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412955
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Alex Rakoczy <alex@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    These changes fix issue #47929 and also allow us to remove the
+    special-case CheckSize() call that causes the problem for issue #47901.
+    
+    Fixes #47901
+    Fixes #47929
+    
+    Change-Id: Icd8192431c145009cd6df2f4ade6db7da0f4dd3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344829
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/compress/gzip/example_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/types.go    | 24 ++++++--------
+ src/cmd/compile/internal/typecheck/subr.go | 52 ++++++++++++++++--------------
+ test/typeparam/issue47901.go               | 21 ++++++++++++
+ test/typeparam/issue47929.go               | 29 +++++++++++++++++
+ 4 files changed, 88 insertions(+), 38 deletions(-)

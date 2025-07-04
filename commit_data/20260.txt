@@ -1,17 +1,16 @@
-commit d8cbbe68024256ef4ead0a9d4d9d874c28f41a31
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Sep 3 00:56:50 2014 +0200
+commit b53b47f5ac9e11fdcd3f704bc2cb0828bdee6958
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 28 10:36:48 2014 -0400
 
-    runtime: don't allocate a new string in snprintf
+    runtime: finish converting iface.goc to iface.go
     
-    This fixes the Plan 9 build.
-    
-    Fix issue 8621.
-    
-    LGTM=iant
-    R=rsc, mattn.jp, iant
-    CC=golang-codereviews
-    https://golang.org/cl/135280043
+    LGTM=bradfitz, dvyukov
+    R=golang-codereviews, bradfitz, dvyukov
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/131510043
 
- src/pkg/runtime/print1.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/heapdump.c |   5 +-
+ src/pkg/runtime/iface.go   |  13 ++++
+ src/pkg/runtime/iface.goc  | 155 ---------------------------------------------
+ src/pkg/runtime/runtime.h  |   2 +-
+ 4 files changed, 18 insertions(+), 157 deletions(-)

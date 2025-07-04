@@ -1,12 +1,12 @@
-commit a17b7b949160d68fb7877bb3b220364998ac7ac1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sun Mar 3 08:56:08 2013 +1100
+commit 5aacf436511d32e43f27fada87681aea2d391a45
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 2 11:55:25 2013 -0800
 
-    archive/tar: remove execute bit from common.go
+    doc/go1.1.html: document the moving of exp/... and old/....
     
-    R=golang-dev, dave
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7422055
+    https://golang.org/cl/7445050
 
- src/pkg/archive/tar/common.go | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ doc/go1.1.html | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

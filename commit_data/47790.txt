@@ -1,19 +1,18 @@
-commit 46ba32a2ca304b0b73979736d6fb8013529e9172
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Dec 14 12:17:53 2021 -0500
+commit 0da9eff5034521ccc51c32ebaad5fae20d8345fe
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sun Apr 11 14:18:24 2021 +0930
 
-    doc/go1.18: remove residual TODOs
+    runtime: simplify syntax for pointer arithmetic in mapaccess functions
     
-    There doesn't seem anything that still needs to de done there.
+    This harmonizes the syntax between mapaccess1 and mapaccess2, and
+    simplifies the code.
     
-    Updates #47694.
-    
-    Change-Id: I7909f566638332f3904d20a34f61d371af1d2da2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371754
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    Change-Id: I6db25ffdc871018d399f9030259894b3994c5793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308951
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.18.html | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/runtime/map.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,21 +1,25 @@
-commit d22b08bd6449806a300f3e4c5514cdbcbc97c57f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Jun 12 15:31:59 2023 -0400
+commit 4671aa5d06811176b964519fbef066f03d4bf884
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 12:21:01 2022 -0700
 
-    doc/go1.21: clean up remaining TODOs
+    go/parser: remove import path string syntax checking
     
-    These sections are now complete, remove remaining TODOs. Several entries
-    were missing CL numbers.
+    The validity of an import path string is checked by the type checker
+    (and possibly other tools); it doesn't need to be done by the parser.
+    Remove the respective code and tests.
     
-    For #58645
+    Also, adjust a corresponding go/types test which resolves a TODO.
     
-    Change-Id: I67489356016013be876c4bd522afb977becf54ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502696
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    For #54511.
+    
+    Change-Id: Id1fc80df4e3e83be3ef123da3946ccb8f759779f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424855
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go1.21.html | 34 +++++++++-------------------------
- 1 file changed, 9 insertions(+), 25 deletions(-)
+ src/go/parser/parser.go                            | 17 --------
+ src/go/parser/parser_test.go                       | 45 ----------------------
+ .../testdata/check/importdecl0/importdecl0b.go     |  9 ++---
+ 3 files changed, 3 insertions(+), 68 deletions(-)

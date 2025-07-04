@@ -1,20 +1,19 @@
-commit fc34fdb4154ac40711209e9234639285e071daa9
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Aug 19 00:15:53 2022 -0700
+commit b8a601756abdb6f1503e41d86c122c4e7c7409ff
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Sep 21 09:36:40 2021 -0500
 
-    internal/saferio: avoid returning io.EOF from ReadData if data was read
+    internal/bytealg: port bytealg functions to reg ABI on ppc64x
     
-    ReadData follows the error semantics of io.ReadFull for small sizes,
-    it should do so as well for large sizes.
+    This adds support for the reg ABI to the bytes functions for
+    ppc64/ppc64le. These are initially under control of the
+    GOEXPERIMENT macro until all changes are in.
     
-    Change-Id: I6a11b00d903ac5332e1dda074473790dcf21f32a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424919
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id82f31056af8caa8541e27c6735f6b815a5dbf5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351190
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
 
- src/internal/saferio/io.go      |  7 +++++++
- src/internal/saferio/io_test.go | 21 +++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+ src/internal/bytealg/compare_ppc64x.s   | 75 +++++++++++++++++++++++++++------
+ src/internal/bytealg/equal_ppc64x.s     | 21 ++++++---
+ src/internal/bytealg/indexbyte_ppc64x.s | 19 +++++++--
+ 3 files changed, 95 insertions(+), 20 deletions(-)

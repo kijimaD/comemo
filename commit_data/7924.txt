@@ -1,15 +1,12 @@
-commit f61b7e5dc5f6e45f38cbcc32d5dfc3dfb5f74d72
+commit 62ed6ee6c4fcacce444bcc48be0cd490105351c2
 Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 29 13:00:24 2011 -0700
+Date:   Tue Mar 29 12:50:41 2011 -0700
 
-    gotry: move into its own directory, separate from gotest.
+    ngotest: correctly handle packages with tests outside the package.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4327045
+    https://golang.org/cl/4330043
 
- src/cmd/Makefile                |  1 +
- src/cmd/gotest/Makefile         |  2 +-
- src/cmd/gotry/Makefile          | 18 ++++++++++++++++++
- src/cmd/{gotest => gotry}/gotry |  0
- 4 files changed, 20 insertions(+), 1 deletion(-)
+ src/cmd/gotest/ngotest.go | 40 +++++++++++++++++++++++-----------------
+ 1 file changed, 23 insertions(+), 17 deletions(-)

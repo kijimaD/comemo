@@ -1,15 +1,12 @@
-commit 713451a0975d40d2cd5a0da325fee4a6012ec5a4
+commit a3c59779ffdc3d8280f7c32a6aa421ba56bad90d
 Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Mar 25 13:22:32 2015 -0400
+Date:   Thu Feb 26 17:55:11 2015 -0500
 
-    misc/ios: simplify breakpoint timeout
+    syscall: exclude Go tool test on darwin/arm
     
-    The clever partial timer I added interacts badly with iOS app launch
-    timeout termination. A fixed timeout will be easier to debug.
-    
-    Change-Id: I6eb4ee5f1431539f00fa707e8cde6f3cf86983fc
-    Reviewed-on: https://go-review.googlesource.com/8083
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I44c1911beceaedaa35dad71d8be8a814528dce67
+    Reviewed-on: https://go-review.googlesource.com/6192
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/syscall/syscall_unix_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

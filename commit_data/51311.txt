@@ -1,18 +1,30 @@
-commit 9c402305179e4d59bcbefe01629d38fc26808c43
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 13 10:54:11 2022 -0400
+commit 7de2249a08aab44c512d0ea86f50481d76e135f1
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Dec 28 18:40:12 2021 -0800
 
-    cmd/dist: add doc comments to some functions
+    cmd/compile, test: updated comments in crawler.go, added test
     
-    I keep having to reconstruct how dist test's command system works.
-    This CL documents the main functions to help with this.
+    Added a test to make sure that the private methods of a local generic
+    type are properly exported, if there is a global variable with that
+    type.
     
-    Change-Id: Ic1102496d3c7f356e73f3fa2ea76498251f525d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448799
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Added comments in crawler.go, to give more detail and to give more about
+    the overall purpose.
+    
+    Fixed one place where t.isFullyInstantiated() should be replaced by
+    isPtrFullyInstantiated(t), so that we catch pointers to generic types
+    that may be used as a method receiver.
+    
+    Change-Id: I9c42d14eb6ebe14d249df7c8fa39e889f7cd3f22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374754
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/dist/test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/compile/internal/typecheck/crawler.go | 38 ++++++++++++++++++++-------
+ test/typeparam/gencrawler.dir/a.go            | 27 +++++++++++++++++++
+ test/typeparam/gencrawler.dir/main.go         | 12 +++++++++
+ test/typeparam/gencrawler.go                  | 10 +++++++
+ test/typeparam/gencrawler.out                 |  2 ++
+ 5 files changed, 80 insertions(+), 9 deletions(-)

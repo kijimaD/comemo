@@ -1,15 +1,12 @@
-commit 2bcfe8b9357f5f823211157c3b67bb03e2f89a2d
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Feb 18 08:25:30 2015 +0100
+commit e24e299f41fd0198ac2c3391505c01c63c580d0b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Jan 25 19:08:59 2015 -0500
 
-    cmd/gc: replace NULL by nil
+    regexp: update URLs in tests
     
-    In CL 3964, NULL was used instead of nil.
-    However, Plan 9 doesn't declare NULL.
-    
-    Change-Id: Ied3850aca5c8bca5974105129a37d575df33f6ec
-    Reviewed-on: https://go-review.googlesource.com/5150
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I06035d949272157bbb7255563b37ac93cbf07f15
+    Reviewed-on: https://go-review.googlesource.com/3272
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gc/closure.c | 4 ++--
+ src/regexp/exec_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

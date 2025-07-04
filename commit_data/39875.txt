@@ -1,20 +1,16 @@
-commit 28287552bcdaca6efd43e75d6bf427a4d2237536
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 11 21:02:20 2019 +0000
+commit 722b1abbcf842be5276c0d2ebde6aa076a4f4687
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 27 18:00:24 2019 -0700
 
-    Revert "cmd/go/internal/modconv: use modules to examine instead of using only direct source control entries"
+    runtime: fix TestLldbPython test with modules enabled
     
-    This reverts CL 191218.
+    Fixes #30751
     
-    Reason for revert: broke cmd/go/internal/modconv in the 'linux-amd64-longtest' builder.
-    (https://build.golang.org/log/e28011d0f918d4b4c503ab47e479d9e76c769abd)
-    
-    Change-Id: I0d260b0a5ad510d3d304c8aac8286fcab921d2fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194797
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I1f783578df499d52eaec3690303671661c8bf5fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169725
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modconv/convert.go      | 11 +++---
- src/cmd/go/internal/modfetch/repo.go        | 56 +++++++++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_init_dep.txt | 11 +++---
- 3 files changed, 64 insertions(+), 14 deletions(-)
+ src/runtime/runtime-lldb_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

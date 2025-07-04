@@ -1,18 +1,31 @@
-commit 38c766ee0fe22bfcc81e569fccfe9aef2682f63c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 8 13:54:56 2024 -0700
+commit 48dbb6227acf3ebc8ac21924567aa2b6d5064915
+Author: Jelle van den Hooff <jelle@vandenhooff.name>
+Date:   Wed Jun 21 18:28:05 2023 -0700
 
-    types2: move RangeKeyVal func into compilersupport.go
+    runtime: set raceignore to zero when starting a new goroutine
     
-    This function only exists in types2.
+    When reusing a g struct the runtime did not reset
+    g.raceignore. Initialize raceignore to zero when initially
+    setting racectx.
     
-    Change-Id: If0a8b6aaf496142cefdf088bd5656536f4ed101c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604276
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    A goroutine can end with a non-zero raceignore if it exits
+    after calling runtime.RaceDisable without a matching
+    runtime.RaceEnable. If that goroutine's g is later reused
+    the race detector is in a weird state: the underlying
+    g.racectx is active, yet g.raceignore is non-zero, and
+    raceacquire/racerelease which check g.raceignore become
+    no-ops. This causes the race detector to report races when
+    there are none.
+    
+    Fixes #60934
+    
+    Change-Id: Ib8e412f11badbaf69a480f03740da70891f4093f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505055
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/compilersupport.go | 8 ++++++++
- src/cmd/compile/internal/types2/stmt.go            | 7 -------
- 2 files changed, 8 insertions(+), 7 deletions(-)
+ src/runtime/proc.go                   |  1 +
+ src/runtime/race/testdata/mop_test.go | 37 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

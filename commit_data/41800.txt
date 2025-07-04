@@ -1,28 +1,19 @@
-commit 5d2ddcd3f51c1ff7aa0a84604b1d8610a17a7933
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Mar 30 14:04:08 2020 -0400
+commit 316fb95f4fd94fb00f7746c32ae85a82d5be1b81
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 25 20:48:07 2019 +0200
 
-    context: fix a flaky timeout in TestLayersTimeout
+    runtime: define emptyfunc as static function in assembly for freebsd/arm64
     
-    In CL 223019, I reduced the short timeout in the testLayers helper to
-    be even shorter than it was. That exposed a racy (time-dependent)
-    select later in the function, which failed in one of the slower
-    builders (android-386-emu).
+    CL 198544 broke the linux/arm64 build because it declares emptyfunc for
+    GOARCH=arm64, but only freebsd/arm64 defines it. Make it a static
+    assembly function specific for freebsd/arm64 and remove the stub.
     
-    Also streamline the test to make it easier to test with a very high -count flag:
-    - Run tests that sleep for shortDuration in parallel to reduce latency.
-    - Use shorter durations in examples to reduce test running time.
-    - Avoid mutating global state (in package math/rand) in testLayers.
+    Fixes #35160
     
-    After this change (but not before it),
-    'go test -run=TestLayersTimeout -count=100000 context' passes on my workstation.
-    
-    Fixes #38161
-    
-    Change-Id: Iaf4abe7ac308b2100d8828267cda9f4f8ae4be82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226457
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5fd94249b60c6fd259c251407b6eccc8fa512934
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203418
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/context/context_test.go | 27 ++++++++++++++++++---------
- src/context/example_test.go |  6 ++++--
- 2 files changed, 22 insertions(+), 11 deletions(-)
+ src/runtime/stubs_arm64.go      | 1 -
+ src/runtime/sys_freebsd_arm64.s | 4 ++--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

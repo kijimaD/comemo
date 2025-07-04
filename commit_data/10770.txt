@@ -1,16 +1,15 @@
-commit 599c18fa3f7be22478cf39e7cc5f710a7b6f65b7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 13 17:22:11 2011 -0800
+commit 7b5ae29afd389ae09bc20f13d0b1a5eb53daa11f
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Dec 14 10:46:49 2011 +1100
 
-    spec: values of underlying type uintptr can be converted to unsafe.Pointer
+    syscall: regenerate z-files for openbsd
     
-    Not a language change, just stating the facts.
-    
-    Fixes #1793.
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5488071
+    https://golang.org/cl/5414053
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/syscall/zerrors_openbsd_386.go   |  31 ++-
+ src/pkg/syscall/zerrors_openbsd_amd64.go |  31 ++-
+ src/pkg/syscall/zsysnum_openbsd_386.go   | 400 +++++++++++++++----------------
+ src/pkg/syscall/zsysnum_openbsd_amd64.go |   3 +
+ 4 files changed, 249 insertions(+), 216 deletions(-)

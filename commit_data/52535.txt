@@ -1,18 +1,27 @@
-commit d15fcbc79f252fe5c01e099ab89b58f1de61df32
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Feb 27 18:39:09 2023 +1100
+commit f566fe3910593de96b6ab17abc906934de78d27c
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 15 13:03:39 2022 -0700
 
-    cmd/internal/obj/arm64: use more appropriate types for olsr9s/olsr12u
+    runtime: make racereadrange ABIinternal
     
-    This allows for a large number of casts to be removed at call sites.
-    While here, use consistent register naming.
+    CL 266638 marked racewriterange (and some other race functions) as
+    ABIinternal but missed racereadrange.
     
-    Change-Id: I78a2a928b78c9f09f91fb6ed6ad440aa4e63923d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471517
+    arm64 and ppc64le (the other two register ABI platforms at the moment)
+    already have racereadrange marked as such.
+    
+    The other two instrumented calls are to racefuncenter/racefuncexit.
+    Do you think they would need this treatment as well? arm64 already does,
+    but amd64 and ppc64le do not.
+    
+    Fixes #51459
+    
+    Change-Id: I3f54e1298433b6d67bfe18120d9f86205ff66a73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393154
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 37 ++++++++++++++++++-------------------
- 1 file changed, 18 insertions(+), 19 deletions(-)
+ src/runtime/race_amd64.s | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,12 +1,13 @@
-commit ca5179d3f6889185f2aa3fb985f34a963015d133
-Author: Ken Thompson <ken@golang.org>
-Date:   Fri Feb 11 13:22:35 2011 -0800
+commit 9b85d499af923165e643ebb3384e0dd4baff2b38
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 11 16:20:31 2011 -0500
 
-    5ld: stoped generating 64-bit eor
+    syscall: remove obsolete socket IO control
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4182049
+    https://golang.org/cl/4183046
 
- src/cmd/5l/asm.c | 23 ++++++++++++++++-------
- 1 file changed, 16 insertions(+), 7 deletions(-)
+ src/pkg/syscall/zerrors_linux_386.go   | 1 -
+ src/pkg/syscall/zerrors_linux_amd64.go | 1 -
+ 2 files changed, 2 deletions(-)

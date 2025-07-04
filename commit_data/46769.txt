@@ -1,21 +1,17 @@
-commit 7109323af5a8c7e076fa2af7185caa6185df97cd
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Oct 4 10:50:02 2021 -0700
+commit 9b636feafeecd627a72d95ba1fa637e162143027
+Author: David Chase <drchase@google.com>
+Date:   Tue Jan 26 14:04:02 2021 -0500
 
-    all: update golang.org/x/net to pull in CL 353390
+    [dev.regabi] cmd/compile: missing last patch set for cl286013
     
-    Fixes #48564.
-    Fixes #23559.
+    Forgot to mail last patch set before committing, repair that.
     
-    Change-Id: I8e0b646c4791d3a6fb17df1af0a7175b68ce8983
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353870
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Change-Id: I1ef72d0d7df56e89369e6fb4d6e5690f254e6aa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286912
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go.mod                |    2 +-
- src/go.sum                |    6 +
- src/net/http/h2_bundle.go | 1397 ++++++++++++++++++++++++++-------------------
- src/vendor/modules.txt    |    2 +-
- 4 files changed, 807 insertions(+), 600 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)

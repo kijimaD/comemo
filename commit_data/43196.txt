@@ -1,13 +1,39 @@
-commit 8e203884dcd5c525208ffb137fed76fd2d09ffc4
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Oct 1 14:00:48 2020 +0200
+commit 2fbca94db7e14fc1d18162cd203d7afc19b520e8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 23 20:38:20 2020 -0800
 
-    doc: fix typo in contribute.html
+    runtime: add goroutines returned by poller to local run queue
     
-    Change-Id: Ica27c4a9e4c364d94250aebfc4c2b59cff7f4a8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/258679
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    In Go 1.13, when the network poller found a list of ready goroutines,
+    they were added to the global run queue. The timer goroutine would
+    typically sleep in a futex with a timeout, and when the timeout
+    expired the timer goroutine would either be handed off to an idle P
+    or added to the global run queue. The effect was that on a busy system
+    with no idle P's goroutines waiting for timeouts and goroutines waiting
+    for the network would start at the same priority.
+    
+    That changed on tip with the new timer code. Now timer functions are
+    invoked directly from a P, and it happens that the functions used
+    by time.Sleep and time.After and time.Ticker add the newly ready
+    goroutines to the local run queue. When a P looks for work it will
+    prefer goroutines on the local run queue; in fact it will only
+    occasionally look at the global run queue, and even when it does it
+    will just pull one goroutine off. So on a busy system with both active
+    timers and active network connections the system can noticeably prefer
+    to run goroutines waiting for timers rather than goroutines waiting
+    for the network.
+    
+    This CL undoes that change by, when possible, adding goroutines
+    waiting for the network to the local run queue of the P that checked.
+    This doesn't affect network poller checks done by sysmon, but it
+    does affect network poller checks done as each P enters the scheduler.
+    
+    This CL also makes injecting a list into either the local or global run
+    queue more efficient, using bulk operations rather than individual ones.
+    
+    Change-Id: I85a66ad74e4fc3b458256fb7ab395d06f0d2ffac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216198
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/contribute.html | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/runtime/proc.go | 88 ++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 80 insertions(+), 8 deletions(-)

@@ -1,21 +1,24 @@
-commit 41d0bbdc166b8ade1b91f5493e4ad7cb901020de
-Author: David Chase <drchase@google.com>
-Date:   Mon May 8 14:37:02 2017 -0400
+commit 83bc4a2feed1c7dc37026278364772483fe73618
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 11:52:43 2017 -0800
 
-    cmd/link: include DW_AT_producer in .debug_info
+    math/bits: faster LeadingZeros and Len functions
     
-    This can make life easier for Delve (and other debuggers),
-    and can help them with bug reports.
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkLeadingZeros-8       8.43          3.10          -63.23%
+    BenchmarkLeadingZeros8-8      8.13          1.33          -83.64%
+    BenchmarkLeadingZeros16-8     7.34          2.07          -71.80%
+    BenchmarkLeadingZeros32-8     7.99          2.87          -64.08%
+    BenchmarkLeadingZeros64-8     8.13          2.96          -63.59%
     
-    Sample producer field (from objdump):
-    <48> DW_AT_producer : Go cmd/compile devel +8a59dbf41a Mon May 8 16:02:44 2017 -0400
+    Measured on 2.3 GHz Intel Core i7 running macOS 10.12.3.
     
-    Change-Id: I0605843c959b53a60a25a3b870aa8755bf5d5b13
-    Reviewed-on: https://go-review.googlesource.com/33588
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id343531b408d42ac45f10c76f60e85bdb977f91e
+    Reviewed-on: https://go-review.googlesource.com/37582
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go   | 1 +
- src/cmd/link/internal/ld/dwarf.go | 2 ++
- 2 files changed, 3 insertions(+)
+ src/math/bits/bits.go        | 57 ++++++++++++++++++++++++++++++++++++--------
+ src/math/bits/bits_impl.go   | 22 -----------------
+ src/math/bits/bits_tables.go | 19 +++++++++++++++
+ src/math/bits/make_tables.go | 10 +++++++-
+ 4 files changed, 75 insertions(+), 33 deletions(-)

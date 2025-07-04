@@ -1,16 +1,18 @@
-commit 4e15dbe0826d79223b483098bfa9aa3abf9a1261
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Thu May 23 10:19:03 2013 -0700
+commit 876455f3ba0e3ee66e177cf901ff5ea9c5aa9f07
+Author: Nan Deng <monnand@gmail.com>
+Date:   Thu May 23 11:10:41 2013 -0400
 
-    misc/emacs: Do not modify kill ring when programmatically deleting text
+    crypto/rsa: implement PSS signatures.
     
-    Operations like gofmt and go-remove-unused-imports delete entire
-    lines of text. Previously this put them on the kill-ring,
-    negatively affecting user experience.
+    This change contains an implementation of the RSASSA-PSS signature
+    algorithm described in RFC 3447.
     
-    R=adonovan
-    CC=gobot, golang-dev
-    https://golang.org/cl/9605043
+    R=agl, agl
+    CC=gobot, golang-dev, r
+    https://golang.org/cl/9438043
 
- misc/emacs/go-mode.el | 17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
+ src/pkg/crypto/rsa/pss.go                    | 282 +++++++++++++++++++++++++++
+ src/pkg/crypto/rsa/pss_test.go               | 249 +++++++++++++++++++++++
+ src/pkg/crypto/rsa/rsa_test.go               |   6 +-
+ src/pkg/crypto/rsa/testdata/pss-vect.txt.bz2 | Bin 0 -> 28526 bytes
+ 4 files changed, 535 insertions(+), 2 deletions(-)

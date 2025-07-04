@@ -1,20 +1,23 @@
-commit d6f6ef6358f15d6e49d949749869f199d99d5047
-Author: David Chase <drchase@google.com>
-Date:   Tue Mar 2 23:39:12 2021 -0500
+commit 8d4330742c1866faa8b1ef575877e5afb8a4355c
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Thu May 7 12:50:00 2020 +0000
 
-    cmd/compile: remove races introduced in abiutils field update
+    compress/flate: fix deflate Reset consistency
     
-    This fix uses mutex around the problematic store and subsequent access;
-    if this causes performance problems later a better fix is to do all the
-    ABI binding in gc/walk where it is single-threaded.
+    Modify the overflow detection logic to shuffle the contents
+    of the table to a lower offset to avoid leaking the effects
+    of a previous use of compress.Writer past Reset calls.
     
-    Change-Id: I488f28ab75beb8351c856fd50b0095cab463642e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298109
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #34121
+    
+    Change-Id: I9963eadfa5482881e7b7adbad4c2cae146b669ab
+    GitHub-Last-Rev: 8b35798cdd4d5a901d6422647b12984d7e500ba3
+    GitHub-Pull-Request: golang/go#34128
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193605
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go | 21 ++++++++++++++++++++-
- src/cmd/compile/internal/ssagen/ssa.go   | 12 ++++++------
- 2 files changed, 26 insertions(+), 7 deletions(-)
+ src/compress/flate/deflatefast.go | 49 ++++++++++++++++++++----------
+ src/compress/flate/writer_test.go | 63 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 97 insertions(+), 15 deletions(-)

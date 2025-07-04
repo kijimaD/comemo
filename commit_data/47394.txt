@@ -1,27 +1,15 @@
-commit f410786c5f12d0cc4f44ce9daf8d0883df39a2f6
-Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
-Date:   Wed Jul 28 17:03:21 2021 +0300
+commit 15f16706fb93a0720decd175ad2147be96a8e1e4
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Mar 14 13:19:12 2021 +0800
 
-    cmd/go: add 'go mod vendor -o' flag
+    internal/poll: eliminate the redundant type conversions of FD.Sysfd
     
-    Adds a new flag to 'go mod vendor' which overrides the default
-    'vendor' destination directory. This can be helpful for writing the
-    vendor tree to a temporary location for use by other tools.
-    The argument can be a relative or an absolute path.
-    This flag has no other influence on how the command behaves.
-    
-    Fixes #47327
-    
-    Change-Id: I4502931127616b181dc90a2066d2fb57bfe48f96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338149
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ib75662f717320510319c696520e645f54eec97f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301569
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go                     |  7 +++++-
- src/cmd/go/internal/modcmd/vendor.go      | 21 +++++++++++++---
- src/cmd/go/testdata/script/mod_vendor.txt | 42 +++++++++++++++++++++++++++++++
- 3 files changed, 66 insertions(+), 4 deletions(-)
+ src/internal/poll/sendfile_bsd.go     | 2 +-
+ src/internal/poll/sendfile_linux.go   | 2 +-
+ src/internal/poll/sendfile_solaris.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

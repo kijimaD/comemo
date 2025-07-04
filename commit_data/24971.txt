@@ -1,20 +1,23 @@
-commit 9a7893550c506c2fb69711334ace1ae17176ccf4
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 18 14:59:09 2015 -0500
+commit 0b5bcf53ee4af0e244ba1991069741774bf4f164
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Sep 10 02:32:12 2015 -0400
 
-    runtime/pprof: test that stack barriers never appear in profile
+    runtime/cgo: explicitly link msvcrt on windows
     
-    This adds a test that runs CPU profiling with a high load of stack
-    barriers and stack barrier insertion/removal operations and checks
-    that both 1) the runtime doesn't crash and 2) stackBarrier itself
-    never appears in a profile. Prior to the fix for gentraceback starting
-    in the middle of stackBarrier, condition 2 often failed.
+    It's because runtime links to ntdll, and ntdll exports a couple
+    incompatible libc functions. We must link to msvcrt first and
+    then try ntdll.
     
-    Change-Id: Ic28860448859029779844c4bf3bb28ca84611e2c
-    Reviewed-on: https://go-review.googlesource.com/17037
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #12030.
+    
+    Change-Id: I0105417bada108da55f5ae4482c2423ac7a92957
+    Reviewed-on: https://go-review.googlesource.com/14472
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/pprof/pprof_test.go | 45 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue12030.go | 35 +++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/cgo.go      |  4 +++-
+ 3 files changed, 39 insertions(+), 1 deletion(-)

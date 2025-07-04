@@ -1,20 +1,19 @@
-commit b4ea67200977b99ede1885ed77e034a2fdf434f5
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Sep 15 12:59:05 2020 -0400
+commit 7b0b6c2f7e9d925763a2e1d2ba10682019827a9b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 2 13:51:20 2020 -0800
 
-    cmd/go: default to GO111MODULE=on
+    cmd/compile: simplify converted SSA form for 'if false'
     
-    Fixes #41330
+    The goal here is to make it easier for a human to
+    examine the SSA when a function contains lots of dead code.
     
-    Change-Id: Ib66087ac5e1eb827694915f21c32c4d88e1b9a7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255052
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    No significant compiler metric or generated code differences.
+    
+    Change-Id: I81915fa4639bc8820cc9a5e45e526687d0d1f57a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221791
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modload/init.go        | 8 ++++----
- src/cmd/go/testdata/script/mod_enabled.txt | 4 ++--
- src/go/build/build.go                      | 4 ++--
- 3 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

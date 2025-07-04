@@ -1,13 +1,17 @@
-commit 74fe67f22e41f06ab93fc5123964f144040191aa
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu May 15 19:30:09 2014 -0400
+commit 6d63d4f3be32bfd3dbc57fe6872d315369c59c6d
+Author: Guillaume J. Charmes <guillaume@charmes.net>
+Date:   Thu May 15 15:18:05 2014 -0700
 
-    api: update next.txt
+    archive/tar: Do not panic on Read if uninitialized
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    Calling tar.Reader.Read() used to work fine, but without this patch it panics.
+    Simply return EOF to indicate the tar.Reader.Next() needs to be called.
+    
+    LGTM=iant, bradfitz
+    R=golang-codereviews, bradfitz, iant, mikioh.mikioh, dominik.honnef
     CC=golang-codereviews
-    https://golang.org/cl/95490043
+    https://golang.org/cl/94530043
 
- api/next.txt | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 76 insertions(+)
+ src/pkg/archive/tar/reader.go      |  3 +++
+ src/pkg/archive/tar/reader_test.go | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+)

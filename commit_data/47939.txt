@@ -1,27 +1,33 @@
-commit 1a8b4e05b1ff7a52c6d40fad73bcad612168d094
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Dec 16 12:55:15 2021 -0800
+commit 14dbd6e7762662f8bec95d537281f09ad3d508e4
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 15 16:18:30 2021 -0400
 
-    cmd/compile: unique LinkString for renamed, embedded fields
+    internal/buildcfg: make regabi an alias for regabi sub-experiments
     
-    Using type aliases, it's possible to create structs with embedded
-    fields that have no corresponding type literal notation. However, we
-    still need to generate a unique name for these types to use for linker
-    symbols. This CL introduces a new "struct{ Name = Type }" syntax for
-    use in LinkString formatting to represent these types.
+    Currently, specifying GOEXPERIMENT=regabi will turn on all regabi
+    sub-experiments, but GOEXPERIMENT=noregabi won't turn anything off.
+    Regabi also isn't a "real" experiment in the sense that nothing in the
+    code base should depend on it as an experiment flag (it should depend
+    on the appropriate sub-experiments).
     
-    Reattempt at CL 372914, which was rolled back due to race-y
-    LocalPkg.Lookup call that isn't safe for concurrency.
+    Hence, drop Regabi from goexperiment.Flags and make "regabi" in
+    GOEXPERIMENT be a real alias for all of the sub-flags, so regabi will
+    turn on all of the sub-flags and noregabi will turn off all of the
+    sub-flags.
     
-    Fixes #50190.
+    This way, once we enable the sub-experiments in the baseline
+    configuration, it will be easy to turn off with "noregabi".
     
-    Change-Id: I0b7fd81e1b0b3199a6afcffde96ade42495ad8d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378434
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    For #40724.
+    
+    Change-Id: I0fb95be42f756d412e729a396be607d629ae2bab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310609
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types/fmt.go | 45 +++++++++++++++++++++++++++++++++--
- test/fixedbugs/issue50190.go          | 31 ++++++++++++++++++++++++
- 2 files changed, 74 insertions(+), 2 deletions(-)
+ src/internal/buildcfg/exp.go       | 31 +++++++++++++++++--------------
+ src/internal/goexperiment/flags.go |  7 ++++---
+ 2 files changed, 21 insertions(+), 17 deletions(-)

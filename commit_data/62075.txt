@@ -1,0 +1,21 @@
+commit 4f11d5879a01e64cb8bd59911bb205ffedd4f265
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 31 12:39:19 2025 -0800
+
+    crypto/internal/cryptotest: print stderr if go tool fails
+    
+    Trying to find out why "go env GOMODCACHE" is failing
+    on the Windows longtest builder.
+    
+    For #71508
+    
+    Change-Id: I0642d5a5d85a549c6edde0be5bed8f0a16cca200
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645895
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/cryptotest/fetchmodule.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

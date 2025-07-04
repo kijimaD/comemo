@@ -1,20 +1,21 @@
-commit bcda68447b31b86bc3829fca80454ca1a2a572e0
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Mon May 25 15:27:05 2020 +0200
+commit 9641acd6537bc0bf6717ae523956bae94bfc38fe
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Dec 10 15:31:47 2019 -0500
 
-    cmd/link/internal/ld: consider alternative linkers in linkerFlagSupported
+    doc: remove Release History pages (moved to x/website)
     
-    CL 235017 is about to change the default Android linker to lld. lld doesn't
-    support the --compress-debug-sections=zlib-gnu flag, but linkerFlagSupported
-    doesn't take any alternative linkers specified with -fuse-ld into account.
+    These pages were moved to the x/website repo in CL 210797 (commit
+    golang/website@9aef1eefbbe663d448b04b7cc1b2b995f4cf4c0b).
+    Remove the old copies in this repo since they're no longer used.
     
-    Updates #38838
+    Updates #36075
+    Updates #29206
     
-    Change-Id: I5f7422c06d40dedde2e4b070fc48398e8f822190
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235157
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6e3ffaebd92fa753cb5f3b21e4238edfb7f5f0e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210798
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ doc/devel/pre_go1.html |  455 ----
+ doc/devel/release.html |  758 ------
+ doc/devel/weekly.html  | 6200 ------------------------------------------------
+ 3 files changed, 7413 deletions(-)

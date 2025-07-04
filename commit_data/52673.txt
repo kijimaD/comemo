@@ -1,23 +1,33 @@
-commit dd53a439206e9b4bf194eb00fb28577a03d86df5
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Apr 14 05:47:36 2023 +1000
+commit 30b17b6f604e30327df7ea800711526201d19aff
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Mon Nov 15 20:53:47 2021 +0800
 
-    cmd/link/internal/ld: disable execute-only for external linking on openbsd/arm64
+    internal/{cpu, goarch}: add constant definition for loong64
     
-    The Go arm64 assembler places constants into the text section of a binary.
-    OpenBSD 7.3 enabled xonly by default on OpenBSD/arm64. This means that any
-    externally linked Go binary now segfaults. Disable execute-only when invoking
-    the external linker on openbsd/arm64, in order to work around this issue.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Updates #59615
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
     
-    Change-Id: I1a291293da3c6e4409b21873d066ea15e9bfe280
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484555
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #46229
+    
+    Change-Id: I39d42e5959391e47bf621b3bdd3d95de72f023cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342318
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Aaron Bieber <deftly@gmail.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/internal/cpu/cpu_loong64.go       | 11 +++++++++++
+ src/internal/goarch/goarch.go         |  1 +
+ src/internal/goarch/goarch_loong64.go | 15 +++++++++++++++
+ 3 files changed, 27 insertions(+)

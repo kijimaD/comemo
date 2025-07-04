@@ -1,0 +1,24 @@
+commit 447ad32a1db8492ce8549ae27e0b72b611938253
+Author: Lorenz Bauer <oss@lmb.io>
+Date:   Thu May 16 11:22:36 2024 +0100
+
+    encoding/binary: speed up Size
+    
+    Size() is currently not called from the fast path, since the package
+    handles the buffer sizing for Read and Write internally. This will change
+    when adding Append() because callers can use Size to avoid allocations when
+    writing into bytes.Buffer via AvailableBuffer for example.
+    
+    Add a fast path for simple types and extend the existing struct size cache
+    to arrays of structs.
+    
+    Change-Id: I3af16a2b6c9e2dbe6166a2f8c96bcd2e936719e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584358
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/encoding/binary/binary.go      | 93 +++++++++++++++++++++++++++++++++++++-
+ src/encoding/binary/binary_test.go | 63 ++++++++++++++++++++++++++
+ 2 files changed, 155 insertions(+), 1 deletion(-)

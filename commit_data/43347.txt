@@ -1,17 +1,17 @@
-commit fc981654c763c2c1d72df2a6e35ba3dfc78d13ee
-Author: zikaeroh <zikaeroh@gmail.com>
-Date:   Sat Oct 17 00:25:58 2020 -0700
+commit 78a45d8b4592dbd38057a2e9af83c9cf9d62ddc9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 26 09:13:11 2020 -0700
 
-    sort: fix grammar in updated Less comment
+    runtime: lock mtxpoll in AIX netpollBreak
     
-    The rewritten comment didn't sound right to my ears. Tweak it to be
-    grammatically correct.
+    netpollBreak calls netpollwakeup, and netpollwakeup expects the mtxpoll
+    lock to be held, so that it has exclusive access to pendingUpdates.
+    Not acquiring the lock was a mistake in CL 171824. Fortunately it
+    rarely matters in practice.
     
-    Change-Id: Iae7d9f8810fff78cfd964bb3117099bce4479c14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263180
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: I32962ec2575c846ef3d6a91a4d821b2ff02d983c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225618
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/sort/sort.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/netpoll_aix.go | 2 ++
+ 1 file changed, 2 insertions(+)

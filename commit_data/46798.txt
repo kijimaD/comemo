@@ -1,24 +1,15 @@
-commit be571a36c7aa7198aef4712f8c6cde633e2f380b
-Author: Leonard Wang <wangdeyu0907@gmail.com>
-Date:   Thu Oct 7 20:14:22 2021 +0800
+commit 0b6cfea6342a7d95f74bc9e273039236ebd7e64f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jan 28 12:19:49 2021 -0500
 
-    cmd/compile: fix the index variable is shadowed in dictPass
+    doc/go1.16: document that on OpenBSD syscalls are now made through libc
     
-    The CL 349613 causes this problem.
-    In fact, we want to use the outer i to find m.List[i],
-    but the newly created index variable i in the nearest
-    for range shadow the outer i.
+    Updates #36435, #40700.
     
-    Fixes #48838.
-    
-    Change-Id: I10f0bd985340f9443eefaadda6fc56e4e7e9a10c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354549
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: I1e2ded111ad58066cc9f2c9d00e719497b0f34d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287634
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/cmd/compile/internal/noder/stencil.go |  4 ++--
- test/typeparam/issue48838.go              | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 2 deletions(-)
+ doc/go1.16.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

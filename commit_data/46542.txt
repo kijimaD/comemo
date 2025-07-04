@@ -1,17 +1,31 @@
-commit e925c4640d52587e6657bccc40899888b657e6df
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Sep 21 20:58:33 2021 -0400
+commit 25886cf4bd28be373afb80a4c068a785b43bdddf
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 8 13:24:23 2021 -0500
 
-    go/types: add a test for argument error unwrapping
+    cmd/go: preserve sums for indirect deps fetched by 'go mod download'
     
-    Add a sanity-check test that ArgumentErrors unwrap their inner Err.
+    Previously, commands that wrote go.sum (except 'go mod tidy') would
+    retain sums for zip files of directly required modules. Sums of
+    indirect dependencies wouldn't be retained unless they were used to
+    load packages.
     
-    Change-Id: I5a670a490deeabc03a64e42b3843f79d622ba958
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351338
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    With this change, sums for indirect dependencies will be retained if
+    they're available. This allows users to add missing sums with
+    'go mod download example.com/mod', which previously only worked for
+    directly required modules.
+    
+    Note that 'go mod download' without arguments now adds sums for every
+    module in the build list. That matches 1.15 behavior.
+    
+    For #41103
+    
+    Change-Id: I4cce2bf1c73578dae836bdb5adb32da071554f1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282692
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/types/api_test.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/go/internal/modload/init.go              | 53 ++++++++++++------------
+ src/cmd/go/testdata/script/mod_sum_ambiguous.txt |  8 ++++
+ 2 files changed, 34 insertions(+), 27 deletions(-)

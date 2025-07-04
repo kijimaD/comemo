@@ -1,23 +1,15 @@
-commit f271f928d9f1beb892dc576d397f37a3fddd6c0b
-Author: Vincent Batts <vbatts@hashbangbash.com>
-Date:   Wed Mar 4 12:29:16 2015 -0500
+commit 366ba526e88f5b523298d3ad5014e04a495add82
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 18 16:54:59 2015 -0400
 
-    archive/tar: fix round-trip attributes
+    cmd/internal/gc: add missing write barrier in append(x, BigStructWithPointers)
     
-    The issue was identified while
-    working with round trip FileInfo of the headers of hardlinks. Also,
-    additional test cases for hard link handling.
-    (review carried over from http://golang.org/cl/165860043)
+    Fixes #10897.
     
-    Fixes #9027
-    
-    Change-Id: I9e3a724c8de72eb1b0fbe0751a7b488894911b76
-    Reviewed-on: https://go-review.googlesource.com/6790
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5c2d1f9d26333e2b2a0613ebf496daa465e07c24
+    Reviewed-on: https://go-review.googlesource.com/10221
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/archive/tar/common.go             |   4 +--
- src/archive/tar/stat_unix.go          |  46 +++++++++++++++++++------
- src/archive/tar/tar_test.go           |  63 ++++++++++++++++++++++++++++------
- src/archive/tar/testdata/hardlink.tar | Bin 0 -> 2560 bytes
- src/archive/tar/writer_test.go        |  38 ++++++++++++++++++++
- 5 files changed, 127 insertions(+), 24 deletions(-)
+ src/cmd/internal/gc/cgen.go | 31 ++++++++++++++++++++++---------
+ test/writebarrier.go        | 16 ++++++++++++++++
+ 2 files changed, 38 insertions(+), 9 deletions(-)

@@ -1,32 +1,17 @@
-commit 553237aa67a3d0624715973a2dd3e4963e61995d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 22 14:07:36 2018 -0700
+commit 82d1c2a8aafe68daf2ed66df7422cf173d68e014
+Author: Dmitri Shuralyov <dmitri@shuralyov.com>
+Date:   Wed Jun 20 13:15:44 2018 -0400
 
-    go/types: report error for invalid use of ... in parameter lists
+    doc/go1.11: clarify GOOS/GOARCH pair of WebAssembly port
     
-    The parser accepts ...T types in parameter lists whereever a type
-    is permitted; this matches the syntax and allows for more tolerant
-    parsing and error recovery.
+    It's more common to specify GOOS/GOARCH values in that order,
+    rather than the inverse. Fix the order.
     
-    go/types on the other hand assumed that the parser would report
-    those errors and assumed any outstanding such errors would be due
-    to otherwise manipulated ASTs leading to invalid ASTs.
+    Updates #18892.
     
-    go/types further assumed that a parameter list (a, b, c ...int)
-    was permitted (a couple of tests used such parameter lists).
-    
-    With this CL, go/types now correctly refuses invalid parameter lists.
-    
-    Fixes #28281.
-    
-    Change-Id: Ib788255f7b7819fdb972c7801bb153a53ce2ddf7
-    Reviewed-on: https://go-review.googlesource.com/c/143857
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I8551508599e019f6617dc007397b562c9926418d
+    Reviewed-on: https://go-review.googlesource.com/120057
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/api_test.go         |  2 +-
- src/go/types/testdata/issues.src | 11 +++++++++++
- src/go/types/typestring_test.go  |  2 +-
- src/go/types/typexpr.go          |  4 ++--
- 4 files changed, 15 insertions(+), 4 deletions(-)
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

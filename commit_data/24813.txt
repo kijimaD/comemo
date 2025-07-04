@@ -1,27 +1,17 @@
-commit d5cd4ab46ab4deb15b0f1a12cb03126840d8240d
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 11:33:09 2015 -0400
+commit 2511cf03b9c2d5c0e9dcf78533f24f2baaf97d74
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 1 15:18:01 2015 -0700
 
-    cmd/compile: added support for mips64{,le}
+    [dev.ssa] cmd/compile/internal/ssa: make SETEQF and SETNEF clobber flags
     
-    It is based on ppc64 compiler.
+    They do an AND or an OR internally, so they clobber flags.
     
-    Change-Id: I15a101df05f2919ba5292136957ba0009227d067
-    Reviewed-on: https://go-review.googlesource.com/14445
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #12441
+    
+    Change-Id: I6c843bd268496bc13fc7e3c561d76619e961e8ad
+    Reviewed-on: https://go-review.googlesource.com/14180
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/cmd/compile/internal/gc/cgen.go       |  32 +-
- src/cmd/compile/internal/gc/gsubr.go      |   4 +-
- src/cmd/compile/internal/gc/pgen.go       |   4 +-
- src/cmd/compile/internal/gc/reg.go        |   4 +-
- src/cmd/compile/internal/gc/walk.go       |   4 +-
- src/cmd/compile/internal/mips64/cgen.go   |  60 +--
- src/cmd/compile/internal/mips64/galign.go |  32 +-
- src/cmd/compile/internal/mips64/ggen.go   | 240 +++++-------
- src/cmd/compile/internal/mips64/gsubr.go  | 581 ++++++++++++++++--------------
- src/cmd/compile/internal/mips64/opt.go    |  12 -
- src/cmd/compile/internal/mips64/peep.go   | 497 ++++++-------------------
- src/cmd/compile/internal/mips64/prog.go   | 325 +++++------------
- src/cmd/compile/internal/mips64/reg.go    |  20 +-
- src/cmd/compile/main.go                   |   3 +
- 14 files changed, 689 insertions(+), 1129 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 2 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

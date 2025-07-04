@@ -1,31 +1,31 @@
-commit 3bd0eab96f581daafa3045de0c5877254e19054c
-Author: Damien Neil <dneil@google.com>
-Date:   Thu May 29 11:48:06 2025 -0700
+commit 01064622a21f921a54c4442ef9f5436c89e998c7
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Feb 20 10:24:21 2024 -0500
 
-    runtime: randomize order of timers at the same instant in bubbles
+    go/types: add Func.Signature method
     
-    In synctest bubbles, fire timers scheduled for the same instant
-    in a randomized order.
+    Unfortunately we can't enforce the repr invariant
+    that Func.typ != nil without thinking about the
+    object color invariants. For now, return a trivial
+    Signature if typ == nil, which should never happen
+    in bug-free client code.
     
-    Pending timers are added to a heap ordered by the timer's wakeup time.
-    Add a per-timer random value, set when the timer is added to a heap,
-    to break ties between timers scheduled for the same instant.
+    Fixes golang/go#65772
     
-    Only inject this randomness in synctest bubbles. We could do so
-    for all timers at the cost of one cheaprand call per timer,
-    but given that it's effectively impossible to create two timers
-    scheduled for the same instant outside of a fake-time environment,
-    don't bother.
-    
-    Fixes #73876
-    For #73850
-    
-    Change-Id: Ie96c86a816f548d4c31e4e014bf9293639155bd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677276
+    Change-Id: I7f89c6d8fdc8dcd4b8880572e54bb0ed9b6136eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565375
+    Commit-Queue: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/internal/synctest/synctest_test.go | 60 ++++++++++++++++++++++++++++++++++
- src/runtime/time.go                    | 38 ++++++++++++++++-----
- 2 files changed, 89 insertions(+), 9 deletions(-)
+ api/next/65772.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/go/types/65772.md |  4 ++++
+ src/cmd/compile/internal/types2/object.go    | 22 +++++++++++++++++++++-
+ src/cmd/compile/internal/types2/subst.go     |  2 +-
+ src/go/types/api_test.go                     |  8 ++++----
+ src/go/types/issues_test.go                  |  4 ++--
+ src/go/types/object.go                       | 22 +++++++++++++++++++++-
+ src/go/types/resolver.go                     |  4 ++--
+ src/go/types/subst.go                        |  2 +-
+ 9 files changed, 57 insertions(+), 12 deletions(-)

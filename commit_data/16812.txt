@@ -1,23 +1,18 @@
-commit 8c741c97f710c1e197cd7d2d02d8380dbb759859
+commit ef12bbfc9ddbb168fcd2ab0ad0bd364e40a1ab7f
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 18 15:38:19 2013 -0400
+Date:   Thu Jul 18 12:26:47 2013 -0400
 
-    cmd/6a, cmd/6l: make FUNCDATA work
+    runtime: disable preemption during deferreturn
     
-    R=ken2
+    Deferreturn is synthesizing a new call frame.
+    It must not be interrupted between copying the args there
+    and fixing up the program counter, or else the stack will
+    be in an inconsistent state, one that will confuse the
+    garbage collector.
+    
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/11397043
+    https://golang.org/cl/11522043
 
- src/cmd/5a/a.y     |   19 +-
- src/cmd/5a/lex.c   |    1 +
- src/cmd/5a/y.tab.c |  962 ++++++++++++++++++++++----------------------
- src/cmd/5a/y.tab.h |   72 ++--
- src/cmd/6a/a.y     |   21 +-
- src/cmd/6a/lex.c   |    1 +
- src/cmd/6a/y.tab.c | 1132 +++++++++++++++++++++++++++-------------------------
- src/cmd/6a/y.tab.h |   68 ++--
- src/cmd/8a/a.y     |   20 +-
- src/cmd/8a/lex.c   |    1 +
- src/cmd/8a/y.tab.c | 1055 ++++++++++++++++++++++++------------------------
- src/cmd/8a/y.tab.h |   64 +--
- 12 files changed, 1769 insertions(+), 1647 deletions(-)
+ src/pkg/runtime/panic.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)

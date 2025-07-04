@@ -1,21 +1,22 @@
-commit 7377d0c7e972397969382315df915579e32db025
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Sep 12 16:32:33 2017 +0200
+commit c7cae34b194d6b189d5ae3dab5d331ba7c3b4fa9
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue May 16 11:36:54 2017 +0000
 
-    go/*: use sort.Slice to simplify some code
+    cmd/internal/obj/arm: remove illegal form of the SWI instruction
     
-    Skip the ones that have multiple uses for now. Also had to rename the
-    importComment variable as it shadowed the top-level func by the same
-    name.
+    SWI only support "SWI $imm", but currently "SWI (Reg)" is also
+    accepted. This patch fixes it.
     
-    Change-Id: I796285aa7b4fdf2c39e652666390427d37b063ee
-    Reviewed-on: https://go-review.googlesource.com/63150
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    And more instruction tests are added to cmd/asm/internal/asm/testdata/arm.s
+    
+    fixes #20375
+    
+    Change-Id: Id437d853924a403e41da9b6cbddd20d994b624ff
+    Reviewed-on: https://go-review.googlesource.com/43552
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/ast/import.go      | 48 +++++++++++++++++++----------------------------
- src/go/doc/example.go     | 11 ++++-------
- src/go/types/methodset.go | 12 ++++--------
- 3 files changed, 27 insertions(+), 44 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm.s | 49 +++++++++++++++++++++++++--------
+ src/cmd/internal/obj/arm/asm5.go        |  1 -
+ 2 files changed, 38 insertions(+), 12 deletions(-)

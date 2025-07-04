@@ -1,17 +1,19 @@
-commit 1fd8557249a9e8c04fbe7490483443ccc35dea50
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Sun Aug 18 23:20:15 2024 +0300
+commit 9b335433396088d2701e8a058ae107689404ec6a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 14 08:34:39 2023 -0700
 
-    time: fix godoc links; remove redundant Sub mention
+    math: test large negative values as args for trig functions
     
-    The Time.Sub function is mentioned in the previous sentence.
+    Sin/Tan are odd, Cos is even, so it is easy to compute the correct
+    result from the positive argument case.
     
-    Change-Id: Ic79958cea4d1f9f9014f6dafd8e749c204db4f50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606575
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: If851d00fc7f515ece8199cf56d21186ced51e94f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509815
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/time/time.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/math/huge_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

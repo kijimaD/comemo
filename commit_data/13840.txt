@@ -1,15 +1,17 @@
-commit 916ccbf165d3322139381ccd4e0df923354785cd
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Mon Sep 17 13:44:55 2012 -0700
+commit c7631f555f880409fb13143d0d8236ad9fb99c2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 17 12:23:41 2012 -0700
 
-    cmd/go: reject relative values for GOPATH
+    spec: unsafe.Alignof/Sizeof also accept non-variable arguments
     
-    Fixes #4062.
+    Both gc and gccgo permit calls such as unsafe.Sizeof(42). The
+    spec only permits variable arguments. This is a (backward-compatible)
+    spec change reflecting the status quo. Seems preferrable over
+    restricting the compilers.
     
-    R=rsc, dave, r
-    CC=golang-dev, nicksaika
-    https://golang.org/cl/6488129
+    R=r, rsc, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/6494140
 
- src/cmd/go/main.go   |  7 +++++++
- src/cmd/go/test.bash | 11 +++++++++++
- 2 files changed, 18 insertions(+)
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

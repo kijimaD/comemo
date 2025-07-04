@@ -1,23 +1,29 @@
-commit b5842308892e0c4f9e772a42d5826f6f62f57be3
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Apr 26 20:10:56 2021 -0700
+commit f0c9ae5452832f0f9e4dfa38f756ae9137577482
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Thu Oct 22 19:25:56 2020 -0300
 
-    net/http: use relative path in Location redirect
+    net/http: use exponential backoff for polling in Server.Shutdown
     
-    If the cleaned path did not match the requested path, ServeMux.Handler
-    would return a Location header which reflected the hostname in the
-    request, possibly leading to an incorrect redirect. Instead the
-    Location header should be relative, like the other cases in
-    ServeMux.Handler.
+    Instead of always polling 500ms, start with an interval of 1ms and
+    exponentially back off to at most 500ms. 10% jitter is added to each
+    interval.
     
-    Change-Id: I2c220d925e708061bc128f0bdc96cca7a32764d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313950
-    Trust: Roland Shoemaker <roland@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    This makes Shutdown more responsive when connections and listeners
+    close quickly.
+    
+    Also removes the need for the polling interval to be changed in tests
+    since if tests' connections and listeners close quickly Shutdown will
+    also return quickly.
+    
+    Fixes #42156
+    
+    Change-Id: I5e59844a2980c09adebff57ae8b58817965e6db4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264479
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/net/http/serve_test.go | 17 +++++++++++++++++
- src/net/http/server.go     |  5 ++---
- 2 files changed, 19 insertions(+), 3 deletions(-)
+ src/net/http/http_test.go |  5 -----
+ src/net/http/server.go    | 28 +++++++++++++++++++++-------
+ 2 files changed, 21 insertions(+), 12 deletions(-)

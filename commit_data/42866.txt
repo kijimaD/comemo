@@ -1,22 +1,20 @@
-commit 55cf84b0778c382967b46f3f2ffd402fba005a26
-Author: Xiangdong Ji <xiangdong.ji@arm.com>
-Date:   Thu Jun 18 03:36:12 2020 +0000
+commit 31acdcc701cb97040832bce371fdd8985fbea131
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Feb 23 18:14:34 2020 +0100
 
-    cmd/compile: Install testcases for flag constant Ops
+    syscall: use dup3 in forkAndExecInChild1 if available
     
-    Flag constant Ops on arm and arm64 are under refactoring, this change adds
-    a couple of testcases that verify the behavior of 'noov' branches.
+    The dup3 syscall is available since Linux 2.6.27. Fall back to dup2 (if
+    available) if dup3 returns ENOSYS.
     
-    Updates #39505
-    Updates #38740
-    Updates #39303
-    Change-Id: I493344b52276900cd296c32da494d72932dfc9be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238677
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    This allows to omit the additional fcntl call to mark the dup'ed fd as
+    close-on-exec.
+    
+    Change-Id: If318b593edd783f2aa988534c6062498e7119ddb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220422
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue39505.go  |  31 +++++++
- test/fixedbugs/issue39505b.go | 183 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 214 insertions(+)
+ src/syscall/exec_linux.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

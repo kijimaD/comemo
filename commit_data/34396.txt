@@ -1,25 +1,14 @@
-commit c2cdfbd1a75b74bf7b960f6904fcfaaad9edb708
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Wed Feb 28 09:35:55 2018 +0000
+commit 253e605af4533fd9f1276291225c27e972417e97
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 1 09:37:46 2017 +1200
 
-    runtime: don't try to shrink address space with brk in Plan 9
+    cmd/link: shrink SymKind down to a uint8
     
-    Plan 9 won't let brk shrink the data segment if it's shared with
-    other processes (which it is in the go runtime).  So we keep track
-    of the notional end of the segment as it moves up and down, and
-    call brk only when it grows.
-    
-    Corrects CL 94776.
-    
-    Updates #23860.
-    Fixes #24013.
-    
-    Change-Id: I754232decab81dfd71d690f77ee6097a17d9be11
-    Reviewed-on: https://go-review.googlesource.com/97595
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I54c73afd4fb2ad4d5854d2568524f57542c64fe5
+    Reviewed-on: https://go-review.googlesource.com/42182
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mem_plan9.go | 20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
+ src/cmd/link/internal/sym/symkind.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

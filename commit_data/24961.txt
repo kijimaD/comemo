@@ -1,19 +1,15 @@
-commit 5500d46914baf26e164ba6dae22ccd343556b5ab
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 18 10:57:27 2015 -0800
+commit 400bb82678c34988e02d8bd0a6449b00c1965d50
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 12:49:16 2015 +0000
 
-    cmd/compile/internal/gc: fix incorrect parsing of &(T{}) when followed by {
+    crypto/x509: map/slice literals janitoring
     
-    Handling of &(T{}) assumed that the parser would not introduce ()'s.
+    Simplify slice/map literal expression.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
     
-    Also: Better comments around handling of OPAREN syntax tree optimization.
-    
-    Fixes #13261.
-    
-    Change-Id: Ifc5047a0448f5e7d74cd42f6608b87dcc9c2f2fb
-    Reviewed-on: https://go-review.googlesource.com/17040
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: I4472c6003cf66e65f6e69050872ff95c96f01253
+    Reviewed-on: https://go-review.googlesource.com/13836
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 55 +++++++++++++++++++++++------------
- test/fixedbugs/issue13261.go          | 29 ++++++++++++++++++
- 2 files changed, 65 insertions(+), 19 deletions(-)
+ src/crypto/x509/x509_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

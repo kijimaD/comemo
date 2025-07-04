@@ -1,31 +1,27 @@
-commit 751fbf9e5a73991fad24a48f1f523e446eb78291
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 13 00:48:11 2024 +0700
+commit 24f83ed4e29495d5b8b6375aeaa2d34d14629c7d
+Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
+Date:   Thu Aug 3 14:44:01 2023 +0800
 
-    unicode/utf8: use range loop in RuneCountInString
+    cmd/internal/obj/mips: add SEB/SEH instructions
     
-    CL 28490 speeded up non-ASCII rune decoding, and ASCII rune is also
-    decoded faster now.
+    Add support for SEB/SEH instructions, which are introduced in mips32r2.
     
-    Benchmark using:
+    SEB/SEH can be used to sign-extend byte/halfword in registers directly without passing through memory.
     
-        perflock -governor 70% go test -run=NONE -bench=BenchmarkRuneCountInString -count=10
+    Ref: The MIPS32 Instruction Set, Revision 5.04: https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00086-2B-MIPS32BIS-AFP-05.04.pdf
     
-    Result:
+    Updates #60072
     
-    name                                 old time/op  new time/op  delta
-    RuneCountInStringTenASCIIChars-8     10.2ns ± 0%   7.1ns ± 1%  -30.53%  (p=0.000 n=8+9)
-    RuneCountInStringTenJapaneseChars-8  49.3ns ± 2%  38.5ns ± 2%  -21.84%  (p=0.000 n=8+8)
-    
-    Fixes #13162
-    
-    Change-Id: Ifb01f3799c5c93e7f7c7af13a95becfde85ae807
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612617
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Tim King <taking@google.com>
+    Change-Id: I33175ae9d943ead5983ac004bd2a158039046d65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515475
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/unicode/utf8/utf8.go | 31 ++-----------------------------
- 1 file changed, 2 insertions(+), 29 deletions(-)
+ src/cmd/asm/internal/asm/testdata/mips.s   | 4 ++++
+ src/cmd/asm/internal/asm/testdata/mips64.s | 4 ++++
+ src/cmd/internal/obj/mips/a.out.go         | 2 ++
+ src/cmd/internal/obj/mips/anames.go        | 2 ++
+ src/cmd/internal/obj/mips/asm0.go          | 9 ++++++++-
+ 5 files changed, 20 insertions(+), 1 deletion(-)

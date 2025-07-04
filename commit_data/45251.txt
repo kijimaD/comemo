@@ -1,23 +1,22 @@
-commit c18744377afa1f9c2310c122e6932fa663f9294a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 14 14:27:28 2021 -0700
+commit 1bcf6beec53ae811490fcd0ac29328b12b53702c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 22 02:19:14 2020 -0700
 
-    go/types: allow conversion from slice to array ptr
+    cmd/compile: use staticValue for inlining logic
     
-    These match the changes to cmd/compile/internal/types2 in CL 301650.
+    This CL replaces the ad hoc and duplicated logic for detecting
+    inlinable calls with a single "inlCallee" function, which uses the
+    "staticValue" helper function introduced in an earlier commit.
     
-    Updates #395
+    Updates #41474.
     
-    Change-Id: I1e85b6355c8c8fdba0996c26a2505c65fab908d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301651
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I103d4091b10366fce1344ef2501222b7df68f21d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256460
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/api_test.go    |  3 +++
- src/go/types/conversions.go | 12 ++++++++++++
- src/go/types/stdlib_test.go |  4 ----
- 3 files changed, 15 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/inl.go             | 92 +++++++-------------------
+ src/cmd/compile/internal/logopt/logopt_test.go |  1 -
+ test/inline.go                                 |  9 +++
+ 3 files changed, 34 insertions(+), 68 deletions(-)

@@ -1,0 +1,18 @@
+commit ffb3e574012ce9d3d5193d7b8df135189b8a6671
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Aug 29 14:11:15 2024 -0400
+
+    cmd/go/testdata/script: add a test case for issue #68658
+    
+    Test that go files with a //go:build fileVersion earlier than go1.21
+    don't downgrade past go1.21.
+    
+    Fixes #68658
+    
+    Change-Id: If16a1b3867ad2cfa8867e60995f7d1eb801306e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609436
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/testdata/script/build_issue68658.txt | 31 +++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

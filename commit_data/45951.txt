@@ -1,19 +1,24 @@
-commit 9eee0ed4391942c73157c868a9ddcfdef48982f9
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jul 28 11:52:14 2021 -0700
+commit dadfc80bc173ce4475bc76231de5259d797b0522
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 30 20:34:25 2020 -0800
 
-    cmd/go: fix go.mod file name printed in error messages for replacements
+    [dev.regabi] cmd/compile: improve findTypeLoop
     
-    This fixes a logic error introduced in CL 337850.
+    When checking if a defined type is part of a type loop, we can
+    short-circuit if it was defined in another package. We can assume any
+    package we import already successfully compiled, so any types it
+    contains cannot be part of a type loop.
     
-    Fixes #47444
+    This also allows us to simplify the logic for recursing into the type
+    used in the type declaration, because any defined type from this
+    package will have a properly setup node.
     
-    Change-Id: I6a49c8fc71fdde4ecb7f2e3329ad1f2cd286b7eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338189
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ic024814d95533afd9e59f2103c8ddb22bd87e900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274294
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modload/modfile.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/align.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

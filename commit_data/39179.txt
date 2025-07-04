@@ -1,20 +1,17 @@
-commit e7b7f874323bf105bebaf92db23fc4ba6f5c5257
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue May 14 14:46:15 2019 -0700
+commit 34817dd365af2be50605b6c204c7412933a52c9b
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Wed Jan 16 18:53:35 2019 +0800
 
-    cmd/compile: invalidate CFG when fuseIf triggers
+    cmd/go/internal/clean: fix clean -testcache does not clean test cache
     
-    The compiler appears to have a latent bug:
-    fusePlain calls invalidateCFG when it changes block structure,
-    but fuseIf does not.
+    Truncate changes the size of the file. It does not change the I/O offset.
     
-    Fix this by hoisting the call to invalidateCFG to the top level.
+    Fixes #29757
     
-    Change-Id: Ic960fb3ac963b15b4a225aad84863d58efa954e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177198
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1aa9223a86d6a8ce3c0efc3ac1d7d7647b77f589
+    Reviewed-on: https://go-review.googlesource.com/c/158117
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/fuse.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/clean/clean.go             |  4 +++-
+ src/cmd/go/testdata/script/clean_testcache.txt | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

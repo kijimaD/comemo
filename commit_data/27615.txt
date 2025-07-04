@@ -1,14 +1,14 @@
-commit 6a0fd18016794a681580c8ca971c7d2d26f287bf
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 2 14:31:16 2016 +1000
+commit f79b50b8d5bc159561c1dcf7c17e2a0db96a9a11
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 5 11:17:57 2016 -0700
 
-    doc: mention net/http/httptrace package in release notes
+    go/importer: match predeclared type list with gc's list in binary exporter
     
-    Updates #15810
+    I think we had this code before but it may have gone lost somehow.
     
-    Change-Id: I689e18409a88c9e8941aa2e98f472c331efd455e
-    Reviewed-on: https://go-review.googlesource.com/23674
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifde490e686de0d2bfe907cbe19c9197f24f5fa8e
+    Reviewed-on: https://go-review.googlesource.com/21537
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.7.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/go/internal/gcimporter/bimport.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

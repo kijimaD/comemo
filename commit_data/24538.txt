@@ -1,20 +1,13 @@
-commit 243757576da812d16e79a721353edb48f55492ec
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Fri Oct 16 14:01:45 2015 -0700
+commit be39a429207ebb3e6d419e7133d8ad9d60107a13
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 3 18:09:13 2015 -0400
 
-    runtime: merge race1.go -> race.go
+    runtime: fix typos in comments
     
-    * append contents of race1.go to race.go
-    * delete "Implementation of the race detector API." comment
-      from race1.go
-    
-    Updates #12952
-    
-    Change-Id: Ibdd9c4dc79a63c3bef69eade9525578063c86c1c
-    Reviewed-on: https://go-review.googlesource.com/16023
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I66f7937b22bb6e05c3f2f0f2a057151020ad9699
+    Reviewed-on: https://go-review.googlesource.com/13049
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/race.go  | 305 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/race1.go | 315 ---------------------------------------------------
- 2 files changed, 305 insertions(+), 315 deletions(-)
+ src/runtime/mgc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

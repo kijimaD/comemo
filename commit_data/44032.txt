@@ -1,23 +1,19 @@
-commit b0f01e17f8f8165b1ae273282eec00d78105e2fe
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Dec 16 17:19:44 2020 -0500
+commit a6c6e59655e2599bd6dabce51a3a68accff433f8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 29 17:54:24 2020 -0400
 
-    go/types: report error for invalid (but empty) expr switch
+    crypto/tls: enforce TLS 1.3 (and TLS 1.2) downgrade protection checks
     
-    This is a port of CL 278132 from the dev.typeparams branch. A notable
-    addition is a new error code, since no existing codes made sense and we
-    have an analogous code for type switches.
+    Fixes #37763
     
-    Fixes #43110
-    
-    Change-Id: I22b3f9d8777063223f82785504e8b7d299bc5216
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278813
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
+    Change-Id: Ic6bcc9af0d164966f4ae31087998e5b546540038
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231038
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/go/types/errorcodes.go            | 10 ++++++++
- src/go/types/fixedbugs/issue43110.src | 43 +++++++++++++++++++++++++++++++++++
- src/go/types/stmt.go                  |  4 ++++
- 3 files changed, 57 insertions(+)
+ src/crypto/tls/common.go                |  4 +++
+ src/crypto/tls/handshake_client.go      | 14 +++++++++-
+ src/crypto/tls/handshake_client_test.go | 45 +++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server.go      |  2 +-
+ 4 files changed, 63 insertions(+), 2 deletions(-)

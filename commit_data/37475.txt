@@ -1,26 +1,20 @@
-commit 041526c6ef669743afc6c4b757b95011f1475d1a
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Mon Oct 1 09:58:40 2018 +0200
+commit f04a002e5ab99868d89e3263cfe947853d87b2d6
+Author: bill_ofarrell <billo@ca.ibm.com>
+Date:   Tue Jul 31 19:48:52 2018 -0400
 
-    runtime: handle 64bits addresses for AIX
+    math: ensure Erfc is not called with out-of-expected-range arguments on s390x
     
-    This commit allows the runtime to handle 64bits addresses returned by
-    mmap syscall on AIX.
+    The existing implementation produces correct results with a wide range of inputs,
+    but invalid results asymptotically. With this change we ensure correct asymptotic results
+    on s390x
     
-    Mmap syscall returns addresses on 59bits on AIX. But the Arena
-    implementation only allows addresses with less than 48 bits.
-    This commit increases the arena size up to 1<<60 for aix/ppc64.
+    Fixes #26477
     
-    Update: #25893
-    
-    Change-Id: Iea72e8a944d10d4f00be915785e33ae82dd6329e
-    Reviewed-on: https://go-review.googlesource.com/c/138736
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I760c1f8177f7cab2d7622ab9a926dfb1f8113b49
+    Reviewed-on: https://go-review.googlesource.com/127119
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ppc64/galign.go |  2 +-
- src/runtime/lfstack_64bit.go             | 14 +++++++++++++
- src/runtime/malloc.go                    | 34 +++++++++++++++++++++++---------
- test/chancap.go                          |  4 +++-
- test/fixedbugs/bug273.go                 |  2 +-
- test/fixedbugs/issue4085b.go             |  4 +++-
- 6 files changed, 47 insertions(+), 13 deletions(-)
+ src/math/erfc_s390x.s | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

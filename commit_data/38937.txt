@@ -1,16 +1,21 @@
-commit 203b80ab8639ff9dc0710e22c2b33f2df861363b
-Author: Alex Myasoedov <msoedov@gmail.com>
-Date:   Sun Apr 28 15:43:46 2019 +0300
+commit f36a53e95ca86cc57349dc9320f9d87fef783708
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Dec 5 17:27:24 2018 +0100
 
-    strconv: Document ParseFloat's special cases
+    go/internal/gccgoimporter: add XCOFF support
     
-    Updates #30990
+    This commit adds support to read XCOFF files and AIX big archives in
+    go/internal/gccgoimporter.
     
-    Change-Id: I968fb13251ab3796328089046a3f0fc5c7eb9df9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174204
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    Fixes: #29113
+    
+    Change-Id: Id84d40358ff98fae5a576d1ebdd65980896365b9
+    Reviewed-on: https://go-review.googlesource.com/c/152720
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/strconv/example_test.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/go/build/deps_test.go                 |  2 +-
+ src/go/internal/gccgoimporter/ar.go       | 27 ++++++++++++++++++++++++--
+ src/go/internal/gccgoimporter/importer.go | 32 ++++++++++++++++++++++---------
+ 3 files changed, 49 insertions(+), 12 deletions(-)

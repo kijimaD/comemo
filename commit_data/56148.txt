@@ -1,22 +1,28 @@
-commit 20f052c83c380b8b3700b7aca93017178a692d78
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Mar 19 21:07:46 2024 +1100
+commit b3a194aad63d476543be27a935849bd8e3f9534b
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Aug 25 11:14:15 2022 +0800
 
-    cmd/internal/obj/riscv: check immediate for rotation instructions
+    cmd/internal/sys, cmd/dist, misc/cgo/testcshared: enable c-shared feature and test on loong64
     
-    Ensure that the immediate for a RORI or RORIW instruction are within range,
-    adding test coverage. Also use a consistent "immediate out of range" error
-    for both rotations and shifts.
+    Linux kernel on loong64 has no Dup2 syscall support, so we use Dup3 to replace it like arm64 and riscv64.
     
-    Change-Id: Id687d7c6e028786f607e9519bbb64dab62b6cf3d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572735
-    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Updates #53301
+    Fixes #58784
+    
+    Change-Id: I4e0be140a71b86f4626ed39d76cf3ac78f842018
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425478
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
 
- src/cmd/asm/internal/asm/testdata/riscv64error.s | 28 ++++++++++++++----------
- src/cmd/internal/obj/riscv/obj.go                | 18 ++++++++++++---
- 2 files changed, 31 insertions(+), 15 deletions(-)
+ misc/cgo/testcshared/testdata/libgo2/dup2.go | 2 +-
+ misc/cgo/testcshared/testdata/libgo2/dup3.go | 2 +-
+ src/cmd/dist/test.go                         | 2 +-
+ src/internal/platform/supported.go           | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

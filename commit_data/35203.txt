@@ -1,71 +1,17 @@
-commit e3c684777a05ca5a4f9bb59983e07c4e6a7a5e15
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 4 12:15:37 2018 +0100
+commit e7303a72dbd8dd965fbaa2f0cf74c5c0bb70ed8d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 10 11:18:59 2018 -0500
 
-    all: skip unsupported tests for js/wasm
+    doc/go1.10: document that Go 1.11 will remove Windows XP support
     
-    The general policy for the current state of js/wasm is that it only
-    has to support tests that are also supported by nacl.
+    Fixes #23380.
     
-    The test nilptr3.go makes assumptions about which nil checks can be
-    removed. Since WebAssembly does not signal on reading a null pointer,
-    all nil checks have to be explicit.
-    
-    Updates #18892
-    
-    Change-Id: I06a687860b8d22ae26b1c391499c0f5183e4c485
-    Reviewed-on: https://go-review.googlesource.com/110096
+    Change-Id: Ia9a086eada21b5561f110833afcf93e542a04407
+    Reviewed-on: https://go-review.googlesource.com/87175
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/zip_test.go                        |   4 +
- src/cmd/go/go_test.go                              |   2 +-
- src/cmd/go/internal/base/signal_unix.go            |   2 +-
- .../google/pprof/internal/driver/fetch_test.go     |   2 +-
- .../google/pprof/internal/driver/webui_test.go     |   2 +-
- src/debug/elf/file_test.go                         |   2 +-
- src/encoding/gob/encoder_test.go                   |   4 +
- src/internal/testenv/testenv.go                    |   9 +-
- src/log/syslog/syslog_test.go                      |   2 +-
- src/runtime/chanbarrier_test.go                    |   2 +-
- src/runtime/crash_nonunix_test.go                  |   2 +-
- src/runtime/gc_test.go                             |   4 +
- src/runtime/hash_test.go                           |  15 ++
- src/runtime/pprof/pprof_test.go                    |   2 +-
- src/runtime/proc_test.go                           |  26 ++
- src/runtime/runtime_test.go                        |   5 +-
- src/runtime/rwmutex_test.go                        |   3 +
- src/runtime/stack_test.go                          |   4 +
- src/syscall/syscall_test.go                        |   4 +-
- src/text/template/exec.go                          |   9 +-
- test/fixedbugs/bug248.go                           |   2 +-
- test/fixedbugs/bug302.go                           |   2 +-
- test/fixedbugs/bug345.go                           |   2 +-
- test/fixedbugs/bug369.go                           |   2 +-
- test/fixedbugs/bug429_run.go                       |   2 +-
- test/fixedbugs/issue10958.go                       |   2 +-
- test/fixedbugs/issue11656.go                       |   3 +
- test/fixedbugs/issue11771.go                       |   2 +-
- test/fixedbugs/issue14636.go                       |   2 +-
- test/fixedbugs/issue16037_run.go                   |   2 +-
- test/fixedbugs/issue18902.go                       |   2 +-
- test/fixedbugs/issue19182.go                       |   1 +
- test/fixedbugs/issue19658.go                       |   2 +-
- test/fixedbugs/issue21317.go                       |   2 +-
- test/fixedbugs/issue22660.go                       |   2 +-
- test/fixedbugs/issue22662b.go                      |   4 +-
- test/fixedbugs/issue9355.go                        |   2 +-
- test/fixedbugs/issue9604b.go                       |   3 +
- test/fixedbugs/issue9862_run.go                    |   2 +-
- test/gc2.go                                        |   2 +-
- test/linkmain_run.go                               |   2 +-
- test/linkobj.go                                    |   2 +-
- test/linkx_run.go                                  |   2 +-
- test/live_syscall.go                               |   2 +-
- test/nilptr3.go                                    |   2 +
- test/nilptr3_wasm.go                               | 270 +++++++++++++++++++++
- test/nosplit.go                                    |   2 +-
- test/peano.go                                      |   8 +-
- test/sinit_run.go                                  |   2 +-
- 49 files changed, 399 insertions(+), 41 deletions(-)
+ doc/go1.10.html | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

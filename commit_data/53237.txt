@@ -1,19 +1,168 @@
-commit af2bd7bac0d2287b5ec4339542ce62e92abc1535
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 23 11:54:44 2023 -0700
+commit a10afb15e060386615dcc0ecf2bd60ca3abbc04c
+Merge: 85d87b9c75 d558507db4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 4 10:32:51 2022 -0700
 
-    cmd/internal/objabi: regenerate RelocType strings
+    all: REVERSE MERGE dev.unified (d558507) into master
     
-    Change-Id: I6c9a8decb5b261be4548f148739b44e8860c5f8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497595
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This commit is a REVERSE MERGE.
+    It merges dev.unified back into its parent branch, master.
+    This marks the end of development on dev.unified.
+    
+    Merge List:
+    
+    + 2022-08-04 d558507db4 [dev.unified] all: merge master (85d87b9) into dev.unified
+    + 2022-08-03 c9f2150cfb [dev.unified] cmd/compile: start using runtime dictionaries
+    + 2022-07-30 994ff78ba0 [dev.unified] go/internal: set underlying types in proper order
+    + 2022-07-28 23554d4744 [dev.unified] all: merge master (462b78f) into dev.unified
+    + 2022-07-28 c8d5ccf82e [dev.unified] go/internal/gcimporter: flatten imports
+    + 2022-07-28 ac0844ec27 [dev.unified] cmd/compile: move "has init" to private metadata
+    + 2022-07-28 f995946094 [dev.unified] cmd/compile: implement simple inline body pruning heuristic
+    + 2022-07-28 f2851c67fd [dev.unified] cmd/compile: allow inlining to fail gracefully
+    + 2022-07-28 831fdf1dff [dev.unified] cmd/compile: extract nil handling from exprType
+    + 2022-07-28 92798176e7 [dev.unified] cmd/compile: write iface conversion RTTI into unified IR
+    + 2022-07-28 9b70178d58 [dev.unified] cmd/compile: write RTTI into unified IR export data
+    + 2022-07-25 fc72b7705d [dev.unified] cmd/compile: add method expressions to dictionaries
+    + 2022-07-25 f48fa643f1 [dev.unified] cmd/compile: remove obsolete RTTI wiring
+    + 2022-07-22 131f981df0 [dev.unified] cmd/compile: make Unified IR always writes concrete type for const exprs
+    + 2022-07-20 ae43bdc3e3 Merge "[dev.unified] all: merge master (8e1e64c) into dev.unified" into dev.unified
+    + 2022-07-19 7a8ba83b72 [dev.unified] cmd/compile/internal/reflectdata: remove hasRType's `required` param
+    + 2022-07-19 64cd6faa13 [dev.unified] cmd/compile/internal/noder: simplify mixed tag/case RTTI wiring
+    + 2022-07-19 a4c5198a3c [dev.unified] cmd/compile/internal/noder: better switch statements
+    + 2022-07-19 318027044a [dev.unified] cmd/compile/internal/noder: explicit nil handling
+    + 2022-07-19 e971b6a9be [dev.unified] test: add switch test case for tricky nil handling
+    + 2022-07-19 878439cfe5 [dev.unified] cmd/compile/internal/noder: preserve RTTI for select statements
+    + 2022-07-19 e376746e54 [dev.unified] cmd/compile/internal/noder: wire RTTI for implicit conversions
+    + 2022-07-19 c846fd8e13 [dev.unified] cmd/compile/internal/noder: implicit conversions for binary exprs
+    + 2022-07-19 ebd34e3e45 [dev.unified] test: relax panic message expectations
+    + 2022-07-19 76a82f09d6 [dev.unified] cmd/compile/internal/noder: prefer *At functions
+    + 2022-07-19 de649a2a98 [dev.unified] all: merge master (8e1e64c) into dev.unified
+    + 2022-07-19 055a5e55fa [dev.unified] test: change Unicode file/package name to use characters not translated by macOS.
+    + 2022-07-18 2cf632cd57 [dev.unified] cmd/compile/internal/reflectdata: prefer ITabAddrAt in ConvIfaceTypeWord
+    + 2022-07-12 9371a65584 internal/pkgbits: change EnableSync into a dynamic knob
+    + 2022-07-01 d667be8831 [dev.unified] cmd/compile/internal/walk: RType fields for range assignments
+    + 2022-06-30 1b838e9556 [dev.unified] all: merge master (993c387) into dev.unified
+    + 2022-06-30 0a503cf43a [dev.unified] cmd/compile: refactor `range` desugaring
+    + 2022-06-30 3635b07d16 [dev.unified] cmd/compile/internal/noder: implicit conversions for multi-valued expressions
+    + 2022-06-30 e7219cc093 [dev.unified] cmd/compile/internal/noder: refactor N:1 expression handling
+    + 2022-06-30 2f3ef73e18 [dev.unified] test: tweak nilcheck test
+    + 2022-06-30 95d7ce9ab1 [dev.unified] test: break escape_iface.go into unified/nounified variants
+    + 2022-06-30 f751319a0b [dev.unified] test: relax live_regabi.go
+    + 2022-06-30 e3cdc981c8 [dev.unified] cmd/compile/internal/walk: fix typo in debug print
+    + 2022-06-29 2280d897d6 [dev.unified] test: add regress test for generic select statements
+    + 2022-06-27 4b78ece3d7 [dev.unified] cmd/compile: drop package height from Unified IR importer
+    + 2022-06-27 398d46d538 [dev.unified] cmd/compile/internal/types2: remove package height
+    + 2022-06-24 e7100adbca [dev.unified] all: merge master (5a1c5b8) into dev.unified
+    + 2022-06-23 09a838ad86 [dev.unified] cmd/compile: rename haveRType and implicitExpr
+    + 2022-06-23 421e9e9db2 [dev.unified] cmd/compile: implicit conversions for return statements
+    + 2022-06-23 a3fea7796a [dev.unified] cmd/compile/internal/noder: implicit conversions for writer.assignStmt
+    + 2022-06-23 82a958a661 [dev.unified] cmd/compile/internal/noder: refactor stmtAssign generation
+    + 2022-06-23 711dacd8cf [dev.unified] cmd/compile/internal/noder: implicit conversion of call arguments
+    + 2022-06-23 46b01ec667 [dev.unified] cmd/compile/internal/noder: remove needType logic
+    + 2022-06-23 a3e474f867 [dev.unified] cmd/compile/internal/noder: implicit conversions for complits
+    + 2022-06-23 5f5422a2dd [dev.unified] cmd/compile/internal/noder: start writing implicit conversions
+    + 2022-06-23 9cb784ac69 [dev.unified] cmd/compile/internal/noder: add pkgWriter.typeOf helper
+    + 2022-06-23 c70e93ff3d [dev.unified] cmd/compile/internal/typecheck: replace unreachable code with assert
+    + 2022-06-23 20e1d5ac8c [dev.unified] cmd/compile: special case f(g()) calls in Unified IR
+    + 2022-06-23 61ae2b734c [dev.unified] cmd/compile: plumb rtype through OSWITCH/OCASE clauses
+    + 2022-06-23 3d432b6c4b [dev.unified] cmd/compile: plumb rtype through for OMAPLIT
+    + 2022-06-23 7368647ac6 [dev.unified] cmd/compile: start setting RType fields for Unified IR
+    + 2022-06-23 5960f4ec10 [dev.unified] cmd/compile: add RType fields
+    + 2022-06-21 5e0258c700 [dev.unified] cmd/compile: avoid reflectType in ssagen
+    + 2022-06-21 93833cd5d8 [dev.unified] cmd/compile: extract rtype code from walk
+    + 2022-06-21 f70775ff22 [dev.unified] cmd/compile: refactor reflectdata.{TypePtr,ITabAddr}
+    + 2022-06-21 fc5dad6646 [dev.unified] cmd/compile/internal/walk: minor prep refactoring
+    + 2022-06-16 1f4e8afafe [dev.unified] all: merge master (635b124) into dev.unified
+    + 2022-06-15 8a9485c023 [dev.unified] test: extract different inline test between unified and non-unified
+    + 2022-06-14 394ea70cc9 [dev.unified] cmd/compile: more Unified IR docs and review
+    + 2022-06-10 f73ad3d24d [dev.unified] test: add regress tests for #53276 and #53328
+    + 2022-06-09 8ef8b60e18 [dev.unified] cmd/compile/internal/noder: stop handling type expressions as expressions
+    + 2022-06-09 1a6c96bb9b [dev.unified] test: relax issue7921.go diagnostic message
+    + 2022-06-09 c50c6bbc03 [dev.unified] cmd/compile: set base.Pos when process assignDef in Unified IR
+    + 2022-06-09 d6df08693c [dev.unified] cmd/compile: fix unified IR don't report type size too large error
+    + 2022-06-08 e7ef58542c [dev.unified] cmd/compile: restore Unified IR linkname pragma diagnostic
+    + 2022-06-07 9e5c968021 [dev.unified] cmd/compile: visit LHS before RHS/X in assign/for statement
+    + 2022-06-06 46ddf0873e [dev.unified] cmd/compile: export/import implicit attribute for conversion exprs
+    + 2022-06-06 a8780f94c3 [dev.unified] cmd/compile: fix missing method value wrapper in unified IR
+    + 2022-06-06 3a1f1e1575 [dev.unified] cmd/compile: remove package height
+    + 2022-06-06 df7cb59de4 [dev.unified] cmd/compile: only sort symbols by name and package path
+    + 2022-06-06 b39ac80871 [dev.unified] cmd/compile/internal/noder: push exprBlank up into assignment handling
+    + 2022-06-06 55fc07e164 [dev.unified] cmd/compile/internal/noder: add optExpr for optional expressions
+    + 2022-06-06 6c33f1d52e [dev.unified] cmd/compile/internal/noder: rename exprName to exprGlobal
+    + 2022-06-06 4d28fcabb4 [dev.unified] all: update codereview.cfg for dev.unified branch
+    
+    Change-Id: I604d057735e8a365621c91c206f9e46eabb4679b
 
- src/cmd/internal/objabi/reloctype_string.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/base/flag.go            |   1 +
+ src/cmd/compile/internal/gc/main.go              |   5 -
+ src/cmd/compile/internal/importer/iimport.go     |   7 +-
+ src/cmd/compile/internal/importer/ureader.go     |   6 +-
+ src/cmd/compile/internal/inline/inl.go           |  37 +-
+ src/cmd/compile/internal/ir/expr.go              |  41 +-
+ src/cmd/compile/internal/ir/stmt.go              |  20 +
+ src/cmd/compile/internal/noder/codes.go          |  28 +-
+ src/cmd/compile/internal/noder/expr.go           |  29 +-
+ src/cmd/compile/internal/noder/helpers.go        |  35 +-
+ src/cmd/compile/internal/noder/import.go         |   2 +-
+ src/cmd/compile/internal/noder/irgen.go          |   1 -
+ src/cmd/compile/internal/noder/linker.go         | 107 ++-
+ src/cmd/compile/internal/noder/quirks.go         |  10 +-
+ src/cmd/compile/internal/noder/reader.go         | 804 +++++++++++++++++----
+ src/cmd/compile/internal/noder/unified.go        | 110 ++-
+ src/cmd/compile/internal/noder/writer.go         | 851 +++++++++++++++++++----
+ src/cmd/compile/internal/reflectdata/helpers.go  | 226 ++++++
+ src/cmd/compile/internal/reflectdata/reflect.go  |  23 +-
+ src/cmd/compile/internal/ssa/debug_lines_test.go |   4 +-
+ src/cmd/compile/internal/ssagen/ssa.go           |  46 +-
+ src/cmd/compile/internal/typecheck/iexport.go    |   3 +-
+ src/cmd/compile/internal/typecheck/iimport.go    |  10 +-
+ src/cmd/compile/internal/typecheck/subr.go       |  26 +-
+ src/cmd/compile/internal/types/pkg.go            |   9 -
+ src/cmd/compile/internal/types/sym.go            |  12 +-
+ src/cmd/compile/internal/types2/object.go        |   5 +-
+ src/cmd/compile/internal/types2/package.go       |  12 +-
+ src/cmd/compile/internal/types2/resolver.go      |  10 -
+ src/cmd/compile/internal/types2/sizeof_test.go   |   2 +-
+ src/cmd/compile/internal/walk/assign.go          |  13 +-
+ src/cmd/compile/internal/walk/builtin.go         |  16 +-
+ src/cmd/compile/internal/walk/compare.go         |   9 +-
+ src/cmd/compile/internal/walk/complit.go         |  23 +-
+ src/cmd/compile/internal/walk/convert.go         |  26 +-
+ src/cmd/compile/internal/walk/expr.go            |   2 +-
+ src/cmd/compile/internal/walk/order.go           |  10 +-
+ src/cmd/compile/internal/walk/range.go           |  69 +-
+ src/cmd/compile/internal/walk/switch.go          |  19 +-
+ src/go/internal/gcimporter/gcimporter_test.go    |  24 +
+ src/go/internal/gcimporter/testdata/g.go         |  23 +
+ src/go/internal/gcimporter/ureader.go            |  59 +-
+ src/internal/pkgbits/decoder.go                  |  26 +-
+ src/internal/pkgbits/encoder.go                  |  36 +-
+ src/internal/pkgbits/flags.go                    |   9 +
+ src/internal/pkgbits/sync.go                     |  16 +-
+ src/internal/pkgbits/syncmarker_string.go        |  61 +-
+ test/escape_iface.go                             |  10 -
+ test/escape_iface_nounified.go                   |  25 +
+ test/escape_iface_unified.go                     |  24 +
+ test/fixedbugs/issue27836.dir/Äfoo.go            |  13 -
+ test/fixedbugs/issue27836.dir/Ämain.go           |  13 -
+ test/fixedbugs/issue27836.dir/Þfoo.go            |  17 +
+ test/fixedbugs/issue27836.dir/Þmain.go           |  17 +
+ test/fixedbugs/issue32187.go                     |  14 +-
+ test/fixedbugs/issue42284.dir/b.go               |   2 +-
+ test/fixedbugs/issue52128.dir/a.go               |  21 +
+ test/fixedbugs/issue52128.dir/b.go               |  17 +
+ test/fixedbugs/issue52128.dir/p.go               |  14 +
+ test/fixedbugs/issue52128.go                     |   7 +
+ test/fixedbugs/issue7921.go                      |   2 +-
+ test/inline.go                                   |  12 -
+ test/inline_nounified.go                         |  21 +
+ test/inline_unified.go                           |  21 +
+ test/live_regabi.go                              |   3 +-
+ test/nilcheck.go                                 |   3 +-
+ test/run.go                                      |  23 +-
+ test/switch.go                                   |  14 +
+ test/typeparam/mdempsky/16.go                    |  34 +
+ test/typeparam/mdempsky/17.go                    | 110 +++
+ test/typeparam/mdempsky/18.go                    |  26 +
+ test/typeparam/mdempsky/18.out                   |   1 +
+ 72 files changed, 2711 insertions(+), 676 deletions(-)

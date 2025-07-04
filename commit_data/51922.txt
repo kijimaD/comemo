@@ -1,22 +1,29 @@
-commit bf5ad8e491b17ac89644ad8a5c1f51db3b2264b1
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Fri Feb 3 21:14:05 2023 -0800
+commit d14c02a20ca6937d46e4bf67e328627b773786b1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 18 12:37:56 2022 -0700
 
-    crypto/rand: replace shift with constant
+    test: remove obsolete test case that misuses -p
     
-    It was mentioned after CL 463993 was merged that it
-    is uncommon to use shifts for numbers other than
-    powers of ten. Replace the shift with a base 10 constant.
+    bug302 compiles p.go with -p=p, and then manually creates a pp.a
+    archive, and imports it as both "p" and "pp". This is a misuse of
+    cmd/compile's -p flag, and it isn't representative of how any actual
+    Go build systems work anyway.
     
-    Change-Id: I11c90128740109a59add40ed7b680f7bcc9715ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/465275
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    This test made sense back when cmd/compile still wrote out bare object
+    files, which was then split into separate __.PKGDEF and _go_.o archive
+    entries when added to a pack archive. But since CL 102236, cmd/compile
+    always writes out pack files.
+    
+    Updates #51734.
+    
+    Change-Id: I4b5de22d348ecc0a72c98b512351c2d267c77736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393896
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/rand/rand_js.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug302.dir/main.go |   11 -
+ test/fixedbugs/bug302.dir/p.go    | 1011 -------------------------------------
+ test/fixedbugs/bug302.go          |   45 --
+ 3 files changed, 1067 deletions(-)

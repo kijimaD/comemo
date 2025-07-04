@@ -1,30 +1,19 @@
-commit 1cde87b312c5687cd0d70457c48586055e8c53ca
-Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
-Date:   Fri Dec 23 22:28:45 2016 -0800
+commit 640e9169155ea96a6f1156663269dba5babf0632
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 8 17:35:27 2016 -0400
 
-    cmd/compile: Ensure left-to-right assignment
+    cmd/trace: track each G's state explicitly
     
-    Add temporaries to reorder the assignment for OAS2XXX nodes.
-    This makes orderstmt(), rewrite
-      a, b, c = ...
-    as
-      tmp1, tmp2, tmp3 = ...
-      a, b, c = tmp1, tmp2, tmp3
-    and
-      a, ok = ...
-    as
-      t1, t2 = ...
-      a  = t1
-      ok = t2
+    Currently the trace tool tracks an overall counts of goroutine states,
+    but not the states of any individual goroutine. We're about to add
+    more sophisticated blocked-state tracking, so add this tracking and
+    base the state counts off the tracked goroutine states.
     
-    Fixes #13433.
-    
-    Change-Id: Id0f5956e3a254d0a6f4b89b5f7b0e055b1f0e21f
-    Reviewed-on: https://go-review.googlesource.com/34713
-    Run-TryBot: Dhananjay Nakrani <dhananjayn@google.com>
+    Change-Id: I943ed61782436cf9540f4ee26c5561715c5b4a1d
+    Reviewed-on: https://go-review.googlesource.com/30703
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/compile/internal/gc/order.go | 97 +++++++++++++++++++++++++-----------
- test/reorder.go                      | 37 ++++++++++++++
- 2 files changed, 106 insertions(+), 28 deletions(-)
+ src/cmd/trace/trace.go | 68 +++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 42 insertions(+), 26 deletions(-)

@@ -1,14 +1,17 @@
-commit f47807a57f9dacab74ebf7e9d86f3dc0dcb933b0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 18 19:27:16 2012 -0800
+commit b58b5ba997ad5ab5b6419a575cb5829a45097fa6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 19 12:25:37 2012 +0900
 
-    cmd/go: skip _obj directories in package scans
+    net: fix plan9 build
     
-    Fixes #2693
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5557057
+    https://golang.org/cl/5554058
 
- src/cmd/go/main.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/net/iprawsock_plan9.go | 33 +++++++++++++++++----------------
+ src/pkg/net/ipsock_plan9.go    | 22 +++++++---------------
+ src/pkg/net/tcpsock_plan9.go   | 16 ++++++++++++++++
+ src/pkg/net/udpsock_plan9.go   | 20 ++++++++++++++++++--
+ src/pkg/net/unixsock_plan9.go  | 13 +++++++------
+ src/pkg/net/unixsock_posix.go  |  2 +-
+ 6 files changed, 66 insertions(+), 40 deletions(-)

@@ -1,16 +1,22 @@
-commit 8a908efd7462b4476d95a92498aef13c531cc8af
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Mar 19 17:22:56 2014 +0400
+commit cb502775107ce5f6f22e9b47c9c77300859864b4
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Mar 19 05:48:00 2014 +0100
 
-    runtime: add stack growth tests
-    Also move generated code into a separate file,
-    because it's difficult to work with the file otherwise.
+    cmd/gc: check exponent overflow and underflow in mparith
     
-    LGTM=khr
-    R=golang-codereviews, khr
+    A too large float constant is an error.
+    A too small float constant is rounded to zero.
+    
+    Fixes #7419
+    Update #6902
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/76080044
+    https://golang.org/cl/76730046
 
- src/pkg/runtime/stack_gen_test.go | 1473 +++++++++++++++++++++++++++++++++
- src/pkg/runtime/stack_test.go     | 1630 ++++---------------------------------
- 2 files changed, 1623 insertions(+), 1480 deletions(-)
+ src/cmd/gc/go.h             |  1 +
+ src/cmd/gc/mparith1.c       | 11 ++++++++---
+ src/cmd/gc/mparith3.c       | 34 +++++++++++++++++++++++++++++-----
+ test/fixedbugs/issue7419.go | 25 +++++++++++++++++++++++++
+ 4 files changed, 63 insertions(+), 8 deletions(-)

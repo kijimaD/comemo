@@ -1,15 +1,24 @@
-commit 2779e3a4530451959313a1a87787e8eb4f80ef1c
+commit eca5a97340e6b475268a522012f30e8e25bb8b8f
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Nov 15 11:17:37 2024 +0100
+Date:   Mon Sep 18 15:36:38 2023 +0200
 
-    internal/poll: use ignoringEINTR2 in copyFileRange
+    syscall: correctly generate accept on linux/arm
     
-    Change-Id: Id1b2cc4087885f01807f364ce107e4c9421a2ab8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628295
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    CL 457995 introduced syscall_linux_accept.go which is used on linux/arm
+    to generate accept and use it in Accept. However, that CL forgot to
+    include the file in the list of files used with mksyscall.pl to generate
+    the syscall wrappers. This lead to accept no longer being generated when
+    re-running mkall.sh on linux/arm.
+    
+    Change-Id: I7747399afae47a883a7fb079c82e835b90f366cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529055
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Commit-Queue: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/internal/poll/copy_file_range_unix.go | 17 +++++------------
- 1 file changed, 5 insertions(+), 12 deletions(-)
+ src/syscall/mkall.sh | 1 +
+ 1 file changed, 1 insertion(+)

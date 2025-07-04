@@ -1,17 +1,12 @@
-commit 7457767876645b543af84eeb091779610a715348
+commit ba2db584c77feda13f0a6df3ebf5a225bf0a8225
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 17 09:48:05 2018 +0000
+Date:   Wed Dec 6 16:15:08 2017 +0100
 
-    debug/elf: enable TestNoSectionOverlaps on *bsd and solaris
+    doc: fix spelling in editor guide
     
-    cmd/link produces ELF executables on all these geese, so enable
-    TestNoSectionOverlaps for them as well. Also add a skip message.
-    
-    Change-Id: I374651dde3679271ef8c0c375c9cabd1adbca310
-    Reviewed-on: https://go-review.googlesource.com/107535
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If16f069f410d043fd11864a4c1a7d54b5b4922d2
+    Reviewed-on: https://go-review.googlesource.com/82200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/elf/file_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ doc/editors.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,12 @@
-commit b0c674b65d4e90684d8481b8004e12f1374ad23e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Oct 17 15:14:07 2011 -0400
+commit bdf66114c7ad02b41b83522d7e9073cf0957d836
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 14:51:54 2011 -0400
 
-    gc: treat uintptr as potentially containing a pointer
-    Fixes #2376
+    http: do not depend on map iteration order
     
-    R=golang-dev, lvd, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5278048
+    https://golang.org/cl/5284050
 
- src/cmd/gc/reflect.c       |  2 +-
- src/pkg/runtime/gc_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 72 insertions(+), 1 deletion(-)
+ src/pkg/http/client_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,8 +1,12 @@
-commit 0bfee01523d806482fab2703ff7b6b6505f9f726
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon May 13 13:04:08 2013 -0700
+commit 0ae5036b268648305496acc09e0875b258c95e0d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun May 12 21:58:27 2013 -0700
 
-    tag go1.1
+    doc: add a "New packages" section to the 1.1 release notes.
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/9344044
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.1.html | 45 ++++++++++++++++++++++++++++++---------------
+ 1 file changed, 30 insertions(+), 15 deletions(-)

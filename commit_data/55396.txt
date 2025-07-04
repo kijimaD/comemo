@@ -1,21 +1,36 @@
-commit 558919b45474bcdf191e9c9d8865699b036bc054
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Jan 19 10:59:39 2024 +0100
+commit 6d4de4e386cd9e4ec32937ab2d4f79317db461cd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 31 14:59:19 2023 -0800
 
-    runtime: avoid loading winmm.dll on newer Windows versions
+    go/types, types2: use go.dev/issue/nnnnn when referring to an issue (cleanup)
     
-    winmm.dll is only used for timeBeginPeriod and timeEndPeriod, which are
-    not needed on Windows versions supporting high resolution timers, that
-    is Windows 10 version 1803, and later.
+    Follow-up on CL 462856 which missed a few places.
+    Fixed manually.
     
-    Updates #56745.
-    
-    Change-Id: Ie9576638fb8d2b4e648283bec3170aefa76f9f82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556935
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I924560ecae8923d9228027016805a3cc892f8ac2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463749
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/runtime/os_windows.go | 25 +++++++++++++++----------
- 1 file changed, 15 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/decl.go        |  2 +-
+ src/cmd/compile/internal/types2/expr.go        |  8 ++++----
+ src/cmd/compile/internal/types2/infer.go       |  2 +-
+ src/cmd/compile/internal/types2/lookup.go      |  3 ++-
+ src/cmd/compile/internal/types2/signature.go   |  4 ++--
+ src/cmd/compile/internal/types2/stdlib_test.go |  2 +-
+ src/cmd/compile/internal/types2/stmt.go        |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ src/cmd/compile/internal/types2/unify.go       |  2 +-
+ src/go/types/builtins.go                       |  2 +-
+ src/go/types/decl.go                           |  2 +-
+ src/go/types/expr.go                           | 12 ++++++------
+ src/go/types/infer.go                          |  2 +-
+ src/go/types/lookup.go                         |  3 ++-
+ src/go/types/signature.go                      |  4 ++--
+ src/go/types/stdlib_test.go                    |  4 ++--
+ src/go/types/testdata/local/shifts.go          |  2 +-
+ src/go/types/unify.go                          |  2 +-
+ 18 files changed, 31 insertions(+), 29 deletions(-)

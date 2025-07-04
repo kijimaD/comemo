@@ -1,14 +1,19 @@
-commit 8082828ed0b07225c50a991dbe2a176346fba3b8
-Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 21 12:43:22 2016 -0700
+commit e0032df81e64ea90d3a68295c4b6e3323df8857f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 28 15:56:21 2016 -0800
 
-    encoding/gob: document compatibility
+    cmd/compile: make alg gen prologue/epilogue match
     
-    Fixes #13808.
+    With this, the start and end of geneq and genhash
+    are parallel. This removes a few rare nilchecks
+    from generated hash functions, but nothing
+    to write home about.
     
-    Change-Id: Ifbd5644da995a812438a405485c9e08b4503a313
-    Reviewed-on: https://go-review.googlesource.com/22352
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3b4836111d04daa6f6834a579bbec374a3f42c70
+    Reviewed-on: https://go-review.googlesource.com/20456
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/encoding/gob/doc.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/alg.go | 3 +++
+ 1 file changed, 3 insertions(+)

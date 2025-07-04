@@ -1,28 +1,19 @@
-commit 345184496ce358e663b0150f679d5e5cf1337b41
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sun Nov 28 15:19:15 2021 +0100
+commit 4e001a8d9eec1ec165b45a37e804c2cf42351bc5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 3 23:52:34 2021 -0700
 
-    os: add handling of os.Interrupt for windows
+    [dev.typeparams] runtime/race: make test compatible with types2
     
-    Add GenerateConsoleCtrlEvent call to internal syscall package.
-    Define ErrProcessDone while reviewing handling of os.Signal().
-    Update test to run for windows using the added call.
+    types2 correctly distinguishes variable assignment from use even
+    within function literals. Whatever the outcome of #3059, the test
+    cases in runtime/race need to be fixed to accomodate that.
     
-    Fixes #42311
-    Fixes #46354
-    
-    Change-Id: I460955efc76c4febe04b612ac9a0670e62ba5ff3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367495
-    Trust: Patrik Nyblom <pnyb@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibe3547f07b681ff41225caabaf050872a48c98d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325030
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go  |  1 +
- src/internal/syscall/windows/zsyscall_windows.go |  9 +++++++++
- src/os/exec/exec_windows_test.go                 | 18 ++++++++++++++++++
- src/os/exec_posix.go                             |  4 +---
- src/os/exec_windows.go                           | 21 ++++++++++++++-------
- src/os/signal/signal_windows_test.go             | 17 +----------------
- src/runtime/signal_windows_test.go               | 18 +-----------------
- 7 files changed, 45 insertions(+), 43 deletions(-)
+ src/runtime/race/output_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

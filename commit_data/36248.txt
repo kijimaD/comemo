@@ -1,19 +1,19 @@
-commit cb7d0efc2380b1231bc858058ac9f0032a8002ea
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 9 16:16:43 2018 -0400
+commit 73ab594c52a63d0eb385167aa58f7bca07e2a422
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 14 12:48:55 2018 +1000
 
-    cmd/go: fix go.mod corruption using -mod=vendor
+    syscall: remove WSAEMSGSIZE
     
-    If we're using -mod=vendor then we effectively load
-    a fake build list from vendor/modules.txt.
-    Do not write it back to go.mod.
+    CL 92475 added WSAEMSGSIZE const to syscall package. But there
+    is already copy of WSAEMSGSIZE in internal/syscall/windows.
+    So delete syscall.WSAEMSGSIZE
     
-    Fixes #26704.
-    
-    Change-Id: Ie79f2103dc16d0b7fe0c884e77ba726c7e04f2e4
-    Reviewed-on: https://go-review.googlesource.com/128899
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I0b81fa5dcf846887a0cb27d8bbd7e250860627b5
+    Reviewed-on: https://go-review.googlesource.com/106956
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modload/init.go             |  5 ++++-
- src/cmd/go/testdata/script/mod_vendor_build.txt | 27 +++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 1 deletion(-)
+ src/internal/poll/fd_windows.go | 2 +-
+ src/syscall/types_windows.go    | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)

@@ -1,21 +1,29 @@
-commit 3bd08b97921826c1b0a5fbf0789f4b49d7619977
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Dec 13 23:18:59 2024 +0000
+commit f83bbaf3af8d938bd15429254bbbdcc6d4b42144
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed Nov 1 23:19:39 2023 +0000
 
-    runtime: usleep in TestWeakToStrongMarkTermination
+    net/netip: allow only valid prefix digits in ParsePrefix
     
-    There's a subtle bug in this test (big surprise): time.Sleep allocates,
-    so the time.Sleep(100*time.Millisecond) before unblocking gcMarkDone
-    might itself end up in gcMarkDone.
+    The prefix bits for a call to ParsePrefix are passed raw to
+    strconv.Atoi, this means that it can accept +- signs as well as leading
+    zeroes, which are not allowed prefix values following RFC 4632 Section
+    3.1 and RFC 4291 Section 2.3.
     
-    Work around this by using usleep here instead.
+    Validate non-digit characters as well as leading zeroes and return an
+    error accordingly.
     
-    Fixes #70532.
+    Fixes #63850
     
-    Change-Id: I4c642ebb12f737cdb0d79ccff64b6059fc3d8b34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636155
+    Change-Id: I412a7e1cecc6ee9ea1582d4b04cb40d79ee714f1
+    GitHub-Last-Rev: 462d97fc5f412e18376356dbc10b63711c084144
+    GitHub-Pull-Request: golang/go#63859
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538860
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/gc_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/net/netip/netip.go      |  6 ++++++
+ src/net/netip/netip_test.go | 18 +++++++++++++++++-
+ 2 files changed, 23 insertions(+), 1 deletion(-)

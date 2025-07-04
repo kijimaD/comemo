@@ -1,54 +1,36 @@
-commit fece9871bbdb2569d731254575b2e8ea156ac67e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 29 15:42:23 2025 -0400
+commit 334ce510046ad30b1be466634cf313aad3040892
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Apr 4 11:01:28 2024 -0700
 
-    cmd/compile: update default PGO profile
+    net/http: don't cancel Dials when requests are canceled
     
-    Since last time the default.pgo profile is collected, there has
-    been a lot of development in the compiler. It's time to refresh
-    the compiler's PGO profile.
+    Currently, when a Transport creates a new connection for a request,
+    it uses the request's Context to make the Dial. If a request
+    times out or is canceled before a Dial completes, the Dial is
+    canceled.
     
-    Profile collected by running the cmd/compile/profile.sh script on
-    the gotip-linux-amd64_c3h88-perf_vs_release gomote.
+    Change this so that the lifetime of a Dial call is not bound
+    by the request that originated it.
     
-    Benchmark results on Linux/AMD64:
+    This change avoids a scenario where a Transport can start and
+    then cancel many Dial calls in rapid succession:
     
-             │  nopgo.txt  │              old.txt               │              new.txt               │
-             │   sec/op    │   sec/op     vs base               │   sec/op     vs base               │
-    Template   110.4m ± 2%   108.4m ± 1%       ~ (p=0.121 n=20)   107.8m ± 1%  -2.37% (p=0.006 n=20)
-    Unicode    98.78m ± 0%   95.16m ± 1%  -3.67% (p=0.000 n=20)   93.87m ± 1%  -4.98% (p=0.000 n=20)
-    GoTypes    553.8m ± 0%   548.3m ± 0%  -0.99% (p=0.000 n=20)   542.1m ± 0%  -2.11% (p=0.000 n=20)
-    Compiler   88.12m ± 1%   83.22m ± 1%  -5.56% (p=0.000 n=20)   81.81m ± 1%  -7.17% (p=0.000 n=20)
-    SSA         3.592 ± 1%    3.499 ± 0%  -2.58% (p=0.000 n=20)    3.445 ± 0%  -4.08% (p=0.000 n=20)
-    Flate      64.48m ± 1%   64.99m ± 1%       ~ (p=0.341 n=20)   63.10m ± 2%  -2.15% (p=0.000 n=20)
-    GoParser   129.8m ± 1%   127.3m ± 1%  -1.88% (p=0.004 n=20)   126.2m ± 1%  -2.75% (p=0.000 n=20)
-    Reflect    286.0m ± 1%   282.3m ± 1%  -1.30% (p=0.000 n=20)   280.1m ± 1%  -2.06% (p=0.000 n=20)
-    Tar        129.3m ± 1%   128.4m ± 2%       ~ (p=0.565 n=20)   126.3m ± 1%  -2.32% (p=0.000 n=20)
-    XML        152.1m ± 1%   148.2m ± 1%  -2.55% (p=0.000 n=20)   147.9m ± 1%  -2.79% (p=0.000 n=20)
-    geomean    197.4m        193.4m       -2.04%                  190.9m       -3.29%
+      - Request starts a Dial.
+      - A previous request completes, making its connection available.
+      - The new request uses the now-idle connection, and completes.
+      - The request Context is canceled, and the Dial is aborted.
     
-    On Linux/ARM64:
+    Fixes #59017
     
-             │  nopgo.txt  │              old.txt               │              new.txt               │
-             │   sec/op    │   sec/op     vs base               │   sec/op     vs base               │
-    Template   80.78m ± 2%   78.78m ± 1%  -2.47% (p=0.000 n=20)   78.15m ± 1%  -3.25% (p=0.000 n=20)
-    Unicode    80.57m ± 1%   75.79m ± 1%  -5.94% (p=0.000 n=20)   74.85m ± 0%  -7.11% (p=0.000 n=20)
-    GoTypes    426.4m ± 0%   416.1m ± 0%  -2.42% (p=0.000 n=20)   411.0m ± 0%  -3.62% (p=0.000 n=20)
-    Compiler   66.54m ± 1%   64.01m ± 1%  -3.79% (p=0.000 n=20)   62.86m ± 1%  -5.53% (p=0.000 n=20)
-    SSA         2.905 ± 0%    2.772 ± 0%  -4.56% (p=0.000 n=20)    2.759 ± 0%  -5.01% (p=0.000 n=20)
-    Flate      46.68m ± 0%   45.40m ± 1%  -2.75% (p=0.000 n=20)   45.20m ± 0%  -3.16% (p=0.000 n=20)
-    GoParser   95.17m ± 1%   93.54m ± 1%  -1.71% (p=0.000 n=20)   92.50m ± 0%  -2.80% (p=0.000 n=20)
-    Reflect    212.4m ± 0%   206.6m ± 1%  -2.72% (p=0.000 n=20)   205.4m ± 1%  -3.31% (p=0.000 n=20)
-    Tar        95.64m ± 1%   93.19m ± 1%  -2.57% (p=0.000 n=20)   92.55m ± 0%  -3.23% (p=0.000 n=20)
-    XML        111.0m ± 0%   108.0m ± 1%  -2.67% (p=0.000 n=20)   107.2m ± 1%  -3.38% (p=0.000 n=20)
-    geomean    148.9m        144.2m       -3.17%                  142.9m       -4.05%
-    
-    For #60234.
-    
-    Change-Id: I6c4f0609ba578a2848ce6cfcc748dfdda7222182
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677375
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I996ffabc56d3b1b43129cbfd9b3e9ea7d53d263c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/default.pgo | Bin 241719 -> 293923 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/net/http/client_test.go         |  28 +++--
+ src/net/http/export_test.go         |   8 ++
+ src/net/http/transport.go           | 101 ++++++++++++----
+ src/net/http/transport_dial_test.go | 235 ++++++++++++++++++++++++++++++++++++
+ src/net/http/transport_test.go      |  57 ++++++---
+ 5 files changed, 371 insertions(+), 58 deletions(-)

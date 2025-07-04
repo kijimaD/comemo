@@ -1,12 +1,24 @@
-commit 55b56d2b2f88b7c3ee0f0475b3744a470a30b190
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Apr 12 19:17:11 2017 +0200
+commit 90de5e817c257ffea8dbba12a9f012e22b8c0c7c
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Feb 1 12:28:47 2017 +0100
 
-    cmd/compile: remove last c-isms from typecheck.go comments
+    misc/ios: use the default go test timeout
     
-    Change-Id: I0b1ae9d296115000fb30aab39f9eac1200ae68d0
-    Reviewed-on: https://go-review.googlesource.com/40451
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    If -test.timeout is not specified to go test, it will time out after
+    a default 10 minutes.
+    
+    The iOS exec wrapper also contains a fail safe timeout mechanism for
+    a stuck device. However, if no explicit -test.timeout is specified,
+    it will use a timeout of 0, plus some constant amount.
+    
+    Use the same default timeout in the exec wrapper as for go test,
+    10 minutes.
+    
+    Change-Id: I6465ccd9f7b9ce08fa302e6697f7938a0ea9af34
+    Reviewed-on: https://go-review.googlesource.com/36062
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 20 +++++++-------------
- 1 file changed, 7 insertions(+), 13 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

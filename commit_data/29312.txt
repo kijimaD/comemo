@@ -1,18 +1,12 @@
-commit 53cc69170ae1a96163d3b6c14467e85dc8aa7266
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed Nov 2 11:41:40 2016 -0400
+commit ebdc8faf0411d04fa4e2e47d1c7861682141f866
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 15:32:35 2016 -0700
 
-    bytes, strings: update s390x code to match amd64 changes
+    cmd/compile: use fmt.State in nodefmt and stmtfmt
     
-    Updates the s390x-specific files in these packages with the changes
-    to the amd64-specific files made during the review of CL 31690. I'd
-    like to keep these files in sync unless there is a reason to
-    diverge.
-    
-    Change-Id: Id83e5ce11a45f877bdcc991d02b14416d1a2d8d2
-    Reviewed-on: https://go-review.googlesource.com/32574
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iac87007af4ee268b45f11ec05bf4757f2e7eedd8
+    Reviewed-on: https://go-review.googlesource.com/28336
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/bytes/bytes_s390x.go     | 14 +++++++-------
- src/strings/strings_s390x.go | 14 +++++++-------
- 2 files changed, 14 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 110 ++++++++++++++++++-------------------
+ 1 file changed, 55 insertions(+), 55 deletions(-)

@@ -1,25 +1,13 @@
-commit c18fd098401805478fac6a3ff42bfad9a66a16d3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 12 17:43:30 2017 -0700
+commit de479267ef9db0911dac68e94d75186313bae11d
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Wed Feb 1 19:57:11 2017 +0000
 
-    cmd/internal/obj: build ctxt.Text during Sym init
+    doc: mention SHA-256 CBC suites are off by default
     
-    Instead of constructing ctxt.Text in Flushplist,
-    which will be called concurrently,
-    do it in InitTextSym, which must be called serially.
-    This allows us to avoid a mutex for ctxt.Text,
-    and preserves the existing ordering of functions
-    for debug output.
-    
-    Passes toolstash-check.
-    
-    Updates #15756
-    
-    Change-Id: I6322b4da24f9f0db7ba25e5b1b50e8d3be2deb37
-    Reviewed-on: https://go-review.googlesource.com/40502
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I82c41bd1d82adda457ddb5dd08caf0647905da22
+    Reviewed-on: https://go-review.googlesource.com/36091
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/plist.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ doc/go1.8.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

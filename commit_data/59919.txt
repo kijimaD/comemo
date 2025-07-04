@@ -1,0 +1,24 @@
+commit 524a7746349a6ce6d4af76a1840366daac46aa12
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue May 7 22:53:35 2024 +0000
+
+    reflect: add iterative related methods
+    
+    Fixes #66056
+    
+    Change-Id: I1e24636e43e68cd57576c39b014e0826fb6c322c
+    GitHub-Last-Rev: 319ad8ea7cd5326d23f9fddb9607924326aaf927
+    GitHub-Pull-Request: golang/go#66824
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578815
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ api/next/66056.txt                          |   4 +
+ doc/next/6-stdlib/99-minor/reflect/66056.md |   4 +
+ src/reflect/iter.go                         | 140 ++++++++++++++
+ src/reflect/iter_test.go                    | 280 ++++++++++++++++++++++++++++
+ src/reflect/type.go                         |  62 ++++++
+ src/reflect/type_test.go                    |  50 +++++
+ 6 files changed, 540 insertions(+)

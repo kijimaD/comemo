@@ -1,0 +1,22 @@
+commit c62099cfac6b0fd46efbdab7205bb17597096472
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue May 13 10:50:51 2025 +0800
+
+    cmd/intarnal/obj: add new assembly format for VANDV and VANDB on loong64
+    
+    In order to make it easier to write in assembly and to be consistent
+    with the usage of general instructions, a new assembly format is
+    added for the instructions VANDV and VANDB.
+    
+    It also works for instructions XVAND{V,B}, [X]V{OR,XOR,NOR,ANDN,ORN}V
+    and [X]V{OR,XOR,NOR}B.
+    
+    Change-Id: Ia75d607ac918950e58840ec627aaf0be45d837fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671316
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 20 ++++++++++++++++++++
+ src/cmd/internal/obj/loong64/asm.go             |  4 ++++
+ 2 files changed, 24 insertions(+)

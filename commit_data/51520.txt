@@ -1,18 +1,19 @@
-commit e535d6776c060da5f1947c4290159be0eb60ed6c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Dec 6 21:47:29 2022 +0000
+commit 0b7e586e485d4790b240354513acbb8438bb842f
+Author: Adrian Hesketh <adrianhesketh@hushmail.com>
+Date:   Sun Jan 30 19:11:32 2022 +0000
 
-    Revert "runtime/pprof: unskip TestTimeVDSO on Android"
+    os: add examples for Mkdir and MkdirAll
     
-    This reverts CL 455358, commit 98da0fb43fb481a25b3b4399cd9f517fe94d9f3f.
+    Provides example using value for the perm argument that matches the value set by the mkdir command on MacOS and Linux.
     
-    Reason for revert: still failing https://build.golang.org/log/c9f13a76069f523b5b4a37a75ec52b30a1f3427a
-    
-    Change-Id: I8246d233c4fb86781b882f19dea82065cc21bc26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455696
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I98d9ac9668de4dc0efde2484f5b00d005628ac9e
+    GitHub-Last-Rev: 44e617912f3604f4cc05a946d76cd3020acfd722
+    GitHub-Pull-Request: golang/go#50641
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378874
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/runtime/pprof/pprof_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/os/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

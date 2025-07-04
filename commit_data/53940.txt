@@ -1,23 +1,20 @@
-commit 6d8d88a70716bd35708748ba4e0110bdcd9520f3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 1 12:37:15 2023 -0700
+commit 51c34e2f0b51e62ba195a90fa1c1a8d5be83e2dd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 7 20:33:06 2022 +0000
 
-    database/sql: use reflect.TypeFor for known types
+    runtime: remove unused scanSize parameter to gcmarknewobject
     
-    For #60088
+    This was left over from the old pacer, and never removed when the old
+    pacer was removed in Go 1.19.
     
-    Change-Id: Ib05ba3d456b22f7370459037b3d263c4b3ebe3b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514975
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I79e5f0420c6100c66bd06129a68f5bbab7c1ea8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429256
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/database/sql/convert.go      |  2 +-
- src/database/sql/driver/types.go |  2 +-
- src/database/sql/fakedb_test.go  | 28 ++++++++++++++--------------
- src/database/sql/sql.go          |  2 +-
- 4 files changed, 17 insertions(+), 17 deletions(-)
+ src/runtime/malloc.go  | 4 ++--
+ src/runtime/mgcmark.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,25 +1,103 @@
-commit a887579976c0f581ca0eb52094b2c5c63893dcdf
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon May 2 11:40:57 2022 -0700
+commit ad7e5b219e3b4b2fe9775c946e427057154c1c33
+Merge: 8767b87ab5 4711bf30e5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 30 18:19:26 2021 -0700
 
-    compress/flate: move idempotent close logic to compressor
+    [dev.typeparams] all: merge master (4711bf3) into dev.typeparams
     
-    The compressor methods already have logic for handling a sticky error.
-    Merge the logic from CL 136475 into that.
+    Conflicts:
     
-    This slightly changes the error message to be more sensible
-    in the situation where it's returned by Flush.
+    - src/cmd/compile/internal/walk/builtin.go
     
-    Updates #27741
+      On dev.typeparams, CL 330194 changed OCHECKNIL to not require manual
+      SetTypecheck(1) anymore; while on master, CL 331070 got rid of the
+      OCHECKNIL altogether by moving the check into the runtime support
+      functions.
     
-    Change-Id: Ie34cf3164d0fa6bd0811175ca467dbbcb3be1395
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403514
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    - src/internal/buildcfg/exp.go
+    
+      On master, CL 331109 refactored the logic for parsing the
+      GOEXPERIMENT string, so that it could be more easily reused by
+      cmd/go; while on dev.typeparams, several CLs tweaked the regabi
+      experiment defaults.
+    
+    Merge List:
+    
+    + 2021-06-30 4711bf30e5 doc/go1.17: linkify "language changes" in the runtime section
+    + 2021-06-30 ed56ea73e8 path/filepath: deflake TestEvalSymlinksAboveRoot on darwin
+    + 2021-06-30 c080d0323b cmd/dist: pass -Wno-unknown-warning-option in swig_callback_lto
+    + 2021-06-30 7d0e9e6e74 image/gif: fix typo in the comment (io.ReadByte -> io.ByteReader)
+    + 2021-06-30 0fa3265fe1 os: change example to avoid deprecated function
+    + 2021-06-30 d19a53338f image: add Uniform.RGBA64At and Rectangle.RGBA64At
+    + 2021-06-30 c45e800e0c crypto/x509: don't fail on optional auth key id fields
+    + 2021-06-29 f9d50953b9 net: fix failure of TestCVE202133195
+    + 2021-06-29 e294b8a49e doc/go1.17: fix typo "MacOS" -> "macOS"
+    + 2021-06-29 3463852b76 math/big: fix typo of comment (`BytesScanner` to `ByteScanner`)
+    + 2021-06-29 fd4b587da3 cmd/compile: suppress details error for invalid variadic argument type
+    + 2021-06-29 e2e05af6e1 cmd/internal/obj/arm64: fix an encoding error of CMPW instruction
+    + 2021-06-28 4bb0847b08 cmd/compile,runtime: change unsafe.Slice((*T)(nil), 0) to return []T(nil)
+    + 2021-06-28 1519271a93 spec: change unsafe.Slice((*T)(nil), 0) to return []T(nil)
+    + 2021-06-28 5385e2386b runtime/internal/atomic: drop Cas64 pointer indirection in comments
+    + 2021-06-28 956c81bfe6 cmd/go: add GOEXPERIMENT to `go env` output
+    + 2021-06-28 a1d27269d6 cmd/go: prep for 'go env' refactoring
+    + 2021-06-28 901510ed4e cmd/link/internal/ld: skip the windows ASLR test when CGO_ENABLED=0
+    + 2021-06-28 361159c055 cmd/cgo: fix 'see gmp.go' to 'see doc.go'
+    + 2021-06-27 c95464f0ea internal/buildcfg: refactor GOEXPERIMENT parsing code somewhat
+    + 2021-06-25 ed01ceaf48 runtime/race: use race build tag on syso_test.go
+    + 2021-06-25 d1916e5e84 go/types: in TestCheck/issues.src, import regexp/syntax instead of cmd/compile/internal/syntax
+    + 2021-06-25 5160896c69 go/types: in TestStdlib, import from source instead of export data
+    + 2021-06-25 d01bc571f7 runtime: make ncgocall a global counter
+    
+    Change-Id: I1ce4a3b3ff7c824c67ad66dd27d9d5f1d25c0023
 
- src/compress/flate/deflate.go      | 44 +++++++++++---------------------------
- src/compress/flate/deflate_test.go |  4 ++--
- 2 files changed, 14 insertions(+), 34 deletions(-)
+ api/go1.17.txt                                     |   2 +
+ doc/go1.17.html                                    |   8 +-
+ doc/go_spec.html                                   |  10 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s          |   3 +-
+ src/cmd/cgo/main.go                                |   2 +-
+ src/cmd/compile/internal/typecheck/builtin.go      |   5 +-
+ .../compile/internal/typecheck/builtin/runtime.go  |   5 +-
+ src/cmd/compile/internal/typecheck/func.go         |   7 +
+ src/cmd/compile/internal/typecheck/typecheck.go    |  17 +-
+ src/cmd/compile/internal/walk/builtin.go           |  25 +--
+ src/cmd/dist/test.go                               |   6 +-
+ src/cmd/go/alldocs.go                              |   6 +
+ src/cmd/go/internal/cfg/cfg.go                     |   2 +-
+ src/cmd/go/internal/envcmd/env.go                  | 218 ++++++++++++---------
+ src/cmd/go/internal/help/helpdoc.go                |   6 +
+ src/cmd/go/main.go                                 |  64 +++---
+ src/cmd/go/testdata/script/env_exp.txt             |  17 ++
+ src/cmd/go/testdata/script/env_unset.txt           |  30 +++
+ src/cmd/go/testdata/script/env_write.txt           |   6 +
+ src/cmd/internal/obj/arm64/asm7.go                 |   4 +-
+ src/cmd/link/internal/ld/ld_test.go                |   2 +
+ src/crypto/x509/parser.go                          |   8 +-
+ src/crypto/x509/x509_test.go                       |  42 ++++
+ src/go/types/stdlib_test.go                        |   8 +-
+ src/go/types/testdata/check/issues.src             |   8 +-
+ src/image/geom.go                                  |   8 +
+ src/image/gif/reader.go                            |   2 +-
+ src/image/image_test.go                            |  12 ++
+ src/image/names.go                                 |   5 +
+ src/internal/buildcfg/exp.go                       |  60 +++---
+ src/math/big/int.go                                |   2 +-
+ src/net/dnsclient_unix_test.go                     |   8 +-
+ src/os/example_test.go                             |   5 +-
+ src/path/filepath/path_test.go                     |  11 +-
+ src/runtime/cgocall.go                             |   2 +
+ src/runtime/checkptr.go                            |  21 +-
+ src/runtime/checkptr_test.go                       |   2 +
+ src/runtime/debug.go                               |   2 +-
+ src/runtime/internal/atomic/atomic_amd64.s         |   2 +-
+ src/runtime/internal/atomic/atomic_arm64.s         |   2 +-
+ src/runtime/internal/atomic/atomic_mips64x.s       |   2 +-
+ src/runtime/internal/atomic/atomic_ppc64x.s        |   2 +-
+ src/runtime/internal/atomic/atomic_riscv64.s       |   3 +-
+ src/runtime/proc.go                                |   2 +
+ src/runtime/race/syso_test.go                      |  10 +-
+ src/runtime/slice.go                               |  24 ++-
+ src/runtime/testdata/testprog/checkptr.go          |  13 ++
+ src/unsafe/unsafe.go                               |   5 +-
+ test/fixedbugs/issue46957.go                       |  13 ++
+ test/unsafebuiltins.go                             |   7 +-
+ 50 files changed, 508 insertions(+), 228 deletions(-)

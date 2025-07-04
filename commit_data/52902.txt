@@ -1,23 +1,17 @@
-commit 695a53620fda42487f02a40af7fc3bc8da45425a
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 5 11:11:10 2023 -0400
+commit d27128b065010ac6bae8dd648f85302240417294
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jun 10 13:21:14 2022 -0700
 
-    internal/coverage/encodecounter: followup changes from code review
+    doc/go1.19: fix crypto tags
     
-    This patch contains a small set of changes with fixes for some
-    issues that surfaced during the code review for CL 484535. Due
-    to an error on my part, these never got included in the final version
-    that was checked in (I rebased, mailed the rebase, but then never
-    mailed the final patch set with the changes). This patch sends
-    the remaining bits and pieces.
+    Closes an unclosed <code> tag, and tags a type that was untagged.
     
-    Updates #59563.
-    
-    Change-Id: I87dc05a83f8e44c8bfe7203bc2b035defc817af9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492981
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I9a1efda07f783f0ca7a93ffefbda4e29f5fc8d41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411694
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
 
- src/internal/coverage/encodecounter/encode.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ doc/go1.19.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

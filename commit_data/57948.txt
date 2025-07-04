@@ -1,19 +1,19 @@
-commit 5e91059f8b5cc078b4b0bfa38290a98414e441e2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 12 14:14:19 2024 -0800
+commit 584aad5c57f559fd2d6b9215eafd05f25937839f
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Sep 13 13:14:15 2023 +0000
 
-    go/types: adjust type-checking of pointer types
+    go/doc/comment: use slices.BinarySearch
     
-    This matches the behavior of types2.
+    Change-Id: Ifb28dd08faa59d9186a4a2337aab0c536d9a885e
     
-    For #49005.
-    
-    Change-Id: I45661c96124f1c75c4fb6f69cbba7c73984a8231
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626039
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Ifb28dd08faa59d9186a4a2337aab0c536d9a885e
+    GitHub-Last-Rev: dba95de0fbdafbef20a21f35b042a7a59f996a65
+    GitHub-Pull-Request: golang/go#62610
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527956
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/typexpr.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/go/doc/comment/parse.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

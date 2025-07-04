@@ -1,22 +1,14 @@
-commit a7d331b368cb4f16db7bc1919a82af878e382ba4
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Tue Nov 10 00:56:14 2015 +0530
+commit 383a3601dd3567e97c856b5ac05e635ea53e2f8e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Aug 29 10:06:43 2015 +1000
 
-    cmd/go: clean the directory path containing the packages
+    misc/nacl: fix nacl build
     
-    The heuristic for determining if the packages or commands are stale
-    fails as the mtime comparison happens even though the GOROOT and
-    current package paths are the same, since the path name isn't
-    canonicalized before the comparison (GOROOT is).
+    Update testzip.proto to reflect vendoring of golang.org/x/arch.
     
-    Fixes: #12690
-    
-    Change-Id: Ia7d142fbbed8aac2bd2f71d1db4efd1f3ff5aece
-    Reviewed-on: https://go-review.googlesource.com/16483
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I532da1100f74d1e9887eb3cf26974660ae818d92
+    Reviewed-on: https://go-review.googlesource.com/14007
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go | 11 +++++++++++
- src/go/build/build.go |  2 +-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ misc/nacl/testzip.proto | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

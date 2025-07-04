@@ -1,14 +1,18 @@
-commit dace9397b10e85db15c4760eb283ca43855d87d2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 15 11:16:58 2015 -0700
+commit 67bfd6956494173a0e2fa6b20bf61bf7b57589e6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 20 15:24:51 2015 -0700
 
-    src/cmd/compile/internal/gc: fix type assertion in overflow check
+    [dev.ssa] cmd/compile: fix stackalloc handling of zero-aligned variables
     
-    Fixes #11600.
+    Prior to this fix, a zero-aligned variable such as a flags
+    variable would reset n to 0.
     
-    Change-Id: I8871d4e525168fed35115855483a237bbd6e5445
-    Reviewed-on: https://go-review.googlesource.com/14596
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    While we're here, log the stack layout so that debugging
+    and reading the generated assembly is easier.
+    
+    Change-Id: I18ef83ea95b6ea877c83f2e595e14c48c9ad7d84
+    Reviewed-on: https://go-review.googlesource.com/12439
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 15 ++-------------
- 1 file changed, 2 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/stackalloc.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

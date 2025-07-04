@@ -1,13 +1,86 @@
-commit 3463852b7631adbdd65646539fc87d967dcd13e6
-Author: tkawakita <tommycsth61@gmail.com>
-Date:   Wed Jun 30 00:46:05 2021 +0900
+commit 3c240f5d17e4ad3ddd342645b63fe20ecbb7fcae
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 16 01:17:25 2020 -0500
 
-    math/big: fix typo of comment (`BytesScanner` to `ByteScanner`)
+    [dev.regabi] cmd/compile: clean up debug flag (-d) handling [generated]
     
-    Change-Id: I0c2d26d6ede1452008992efbea7392162da65014
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331651
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The debug table is not as haphazard as flags, but there are still
+    a few mismatches between command-line names and variable names.
+    This CL moves them all into a consistent home (var Debug, like var Flag).
+    
+    Code updated automatically using the rf command below.
+    A followup CL will make a few manual cleanups, leaving this CL
+    completely automated and easier to regenerate during merge
+    conflicts.
+    
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+            add main.go var Debug struct{}
+            mv Debug_append Debug.Append
+            mv Debug_checkptr Debug.Checkptr
+            mv Debug_closure Debug.Closure
+            mv Debug_compilelater Debug.CompileLater
+            mv disable_checknil Debug.DisableNil
+            mv debug_dclstack Debug.DclStack
+            mv Debug_gcprog Debug.GCProg
+            mv Debug_libfuzzer Debug.Libfuzzer
+            mv Debug_checknil Debug.Nil
+            mv Debug_panic Debug.Panic
+            mv Debug_slice Debug.Slice
+            mv Debug_typeassert Debug.TypeAssert
+            mv Debug_wb Debug.WB
+            mv Debug_export Debug.Export
+            mv Debug_pctab Debug.PCTab
+            mv Debug_locationlist Debug.LocationLists
+            mv Debug_typecheckinl Debug.TypecheckInl
+            mv Debug_gendwarfinl Debug.DwarfInl
+            mv Debug_softfloat Debug.SoftFloat
+            mv Debug_defer Debug.Defer
+            mv Debug_dumpptrs Debug.DumpPtrs
+    
+            mv flag.go:/parse.-d/-1,/unknown.debug/+2 parseDebug
+    
+            mv debugtab Debug parseDebug \
+                    debugHelpHeader debugHelpFooter \
+                    debug.go
+    
+            # Remove //go:generate line copied from main.go
+            rm debug.go:/go:generate/-+
+    '
+    
+    Change-Id: I625761ca5659be4052f7161a83baa00df75cca91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272246
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/math/big/int.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go   |   2 +-
+ src/cmd/compile/internal/arm/ssa.go     |   2 +-
+ src/cmd/compile/internal/arm64/ssa.go   |   2 +-
+ src/cmd/compile/internal/gc/alg.go      |   4 +-
+ src/cmd/compile/internal/gc/closure.go  |   4 +-
+ src/cmd/compile/internal/gc/debug.go    | 167 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/dwinl.go    |   6 +-
+ src/cmd/compile/internal/gc/export.go   |   8 +-
+ src/cmd/compile/internal/gc/flag.go     |  84 ++--------------
+ src/cmd/compile/internal/gc/fmt.go      |   4 +-
+ src/cmd/compile/internal/gc/go.go       |   5 -
+ src/cmd/compile/internal/gc/inl.go      |   8 +-
+ src/cmd/compile/internal/gc/main.go     |  83 ++--------------
+ src/cmd/compile/internal/gc/order.go    |   4 +-
+ src/cmd/compile/internal/gc/pgen.go     |   2 +-
+ src/cmd/compile/internal/gc/print.go    |   2 +-
+ src/cmd/compile/internal/gc/reflect.go  |   6 +-
+ src/cmd/compile/internal/gc/sinit.go    |   2 +-
+ src/cmd/compile/internal/gc/ssa.go      |  20 ++--
+ src/cmd/compile/internal/gc/subr.go     |   2 +-
+ src/cmd/compile/internal/gc/syntax.go   |   2 +-
+ src/cmd/compile/internal/gc/walk.go     |   6 +-
+ src/cmd/compile/internal/mips/ssa.go    |   2 +-
+ src/cmd/compile/internal/mips64/ssa.go  |   2 +-
+ src/cmd/compile/internal/ppc64/ssa.go   |   2 +-
+ src/cmd/compile/internal/riscv64/ssa.go |   2 +-
+ src/cmd/compile/internal/s390x/ssa.go   |   2 +-
+ src/cmd/compile/internal/wasm/ssa.go    |   2 +-
+ src/cmd/compile/internal/x86/ssa.go     |   2 +-
+ 29 files changed, 226 insertions(+), 213 deletions(-)

@@ -1,17 +1,31 @@
-commit 2f62fe60d666465e030a6ef222ff79d52a4a0844
-Author: Aman Gupta <aman@tmm1.net>
-Date:   Thu Nov 9 22:19:49 2017 -0800
+commit b2174a16c0012c71a6c6baeb5f7e76868dc411a2
+Author: Vlad Krasnov <vlad@cloudflare.com>
+Date:   Fri Aug 18 12:49:59 2017 -0700
 
-    net: mark condFatalf as a test helper
+    crypto/aes: make the GHASH part of AES-GCM faster
     
-    Fixes unintended consequence of CL 76393
+    By processing 8 blocks in parallel GHASH achieves higher throughput on amd64
     
-    Change-Id: I7e4644a0bc6a8b37eb41196687d9661f902ba183
-    Reviewed-on: https://go-review.googlesource.com/76890
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Results on Skylake i7:
+    
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkAESGCMSeal1K-8     316           314           -0.63%
+    BenchmarkAESGCMOpen1K-8     282           281           -0.35%
+    BenchmarkAESGCMSign8K-8     5611          1099          -80.41%
+    BenchmarkAESGCMSeal8K-8     1869          1922          +2.84%
+    BenchmarkAESGCMOpen8K-8     1718          1724          +0.35%
+    
+    benchmark                   old MB/s     new MB/s     speedup
+    BenchmarkAESGCMSeal1K-8     3237.10      3260.94      1.01x
+    BenchmarkAESGCMOpen1K-8     3629.74      3638.10      1.00x
+    BenchmarkAESGCMSign8K-8     1459.82      7452.99      5.11x
+    BenchmarkAESGCMSeal8K-8     4382.45      4260.93      0.97x
+    BenchmarkAESGCMOpen8K-8     4766.41      4750.54      1.00x
+    
+    Change-Id: I479f2a791a968caa1c516115b0b6b96a791a20d2
+    Reviewed-on: https://go-review.googlesource.com/57150
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/net/platform_test.go  |  5 +++--
- src/net/protoconn_test.go | 10 +++++-----
- 2 files changed, 8 insertions(+), 7 deletions(-)
+ src/crypto/aes/gcm_amd64.s          | 83 ++++++++++++++++++++++++++++++++++---
+ src/crypto/cipher/benchmark_test.go | 19 +++++++++
+ 2 files changed, 97 insertions(+), 5 deletions(-)

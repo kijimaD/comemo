@@ -1,15 +1,17 @@
-commit 4a5f85babbe5ca78ad38cb32b1b1f0259c8c1cef
-Author: Filippo Valsorda <filippo@cloudflare.com>
-Date:   Wed Jan 18 16:53:35 2017 +0000
+commit 2ef340f271d0d893ff1dc3cb22dade27db149373
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Tue Apr 18 10:48:16 2017 +0200
 
-    crypto/tls: disallow handshake messages fragmented across CCS
+    reflect: document ptrdata field of rtype
     
-    Detected by BoGo test FragmentAcrossChangeCipherSpec-Server-Packed.
+    This CL adds a simple explanation about what means the ptrdata field of
+    the reflect.rtype type.
+    Also document that rtype needs to be kept in sync with the runtime._type
+    type that rtype mirrors.
     
-    Change-Id: I9a76697b9cdeb010642766041971de5c7e533481
-    Reviewed-on: https://go-review.googlesource.com/48811
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: Icd9663a2e4bb94d922a2417cfe4537861d2ccc97
+    Reviewed-on: https://go-review.googlesource.com/40917
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/conn.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/reflect/type.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

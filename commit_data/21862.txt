@@ -1,41 +1,17 @@
-commit f584c05fcc38fef1582681a7e2841b725f0a827d
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Mar 2 20:16:48 2015 -0800
+commit acfe3a59bd324cc70e8642bc07e8578f0ac64cd9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 6 16:51:00 2015 -0800
 
-    runtime: Update open/close/read/write to return -1 on error.
+    math/big: API cleanup
     
-    Error detection code copied from syscall, where presumably
-    we actually do it right.
+    - better and more consistent documentation
+    - more functions implemented
+    - more tests
     
-    Note that we throw the errno away.  The runtime doesn't use it.
-    
-    Fixes #10052
-    
-    Change-Id: I8de77dda6bf287276b137646c26b84fa61554ec8
-    Reviewed-on: https://go-review.googlesource.com/6571
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If4c591e7af4ec5434fbb411a48dd0f8add993720
+    Reviewed-on: https://go-review.googlesource.com/4140
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/export_test.go        |  5 +++++
- src/runtime/os_nacl.go            |  5 +++++
- src/runtime/os_windows.go         | 16 +++++++++++++++-
- src/runtime/runtime_test.go       | 26 ++++++++++++++++++++++++++
- src/runtime/sys_darwin_386.s      |  8 ++++++++
- src/runtime/sys_darwin_amd64.s    |  8 ++++++++
- src/runtime/sys_darwin_arm.s      |  4 ++++
- src/runtime/sys_dragonfly_386.s   |  8 ++++++++
- src/runtime/sys_dragonfly_amd64.s |  8 ++++++++
- src/runtime/sys_freebsd_386.s     |  8 ++++++++
- src/runtime/sys_freebsd_amd64.s   |  8 ++++++++
- src/runtime/sys_freebsd_arm.s     |  4 ++++
- src/runtime/sys_linux_386.s       | 12 ++++++++++++
- src/runtime/sys_linux_amd64.s     | 12 ++++++++++++
- src/runtime/sys_linux_arm.s       | 12 ++++++++++++
- src/runtime/sys_linux_ppc64x.s    |  8 ++++++++
- src/runtime/sys_netbsd_386.s      |  8 ++++++++
- src/runtime/sys_netbsd_amd64.s    |  8 ++++++++
- src/runtime/sys_netbsd_arm.s      |  4 ++++
- src/runtime/sys_openbsd_386.s     |  8 ++++++++
- src/runtime/sys_openbsd_amd64.s   |  8 ++++++++
- 21 files changed, 187 insertions(+), 1 deletion(-)
+ src/math/big/float.go      | 217 +++++++++++++++++++++++++++------------------
+ src/math/big/float_test.go |  97 ++++++++++++++++++--
+ 2 files changed, 223 insertions(+), 91 deletions(-)

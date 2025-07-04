@@ -1,15 +1,74 @@
-commit ac60900759c29d9c06d9fe131825c4677e47d6a1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 5 15:29:50 2021 -0700
+commit 34704e374f08ea126786b7d454fc9b647663f95a
+Merge: c97af0036b 5e4a0cdde3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 25 17:53:08 2021 -0800
 
-    cmd/go: use os.ErrProcessDone rather than matching error string
+    [dev.typeparams] all: merge dev.regabi (5e4a0cd) into dev.typeparams
     
-    Change-Id: Ied57fb6e71d56618d46aeb36a37a709e08b4346e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354136
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Merge List:
+    
+    + 2021-01-25 5e4a0cdde3 [dev.regabi] all: merge master (bf0f7c9) into dev.regabi
+    + 2021-01-25 bf0f7c9d78 doc/go1.16: mention os.DirFS in os section
+    + 2021-01-25 deaf29a8a8 cmd/compile: fix order-of-assignment issue w/ defers
+    + 2021-01-25 ad2ca26a52 doc/go1.16: mention os.DirEntry and types moved from os to io/fs
+    + 2021-01-25 a51921fa5b doc/go1.16: mention new testing/iotest functions
+    + 2021-01-25 e6b6d107f7 doc/go1.16: mention deprecation of io/ioutil
+    + 2021-01-25 7eaaf28cae [dev.regabi] cmd/compile: disallow taking address of SSA'd values
+    + 2021-01-25 96a276363b doc/go1.16: mention go/build changes
+    + 2021-01-25 3d85c69a0b html/template: revert "avoid race when escaping updates template"
+    + 2021-01-25 54514c6b28 cmd/go: fix TestScript/cgo_path, cgo_path_space when CC set
+    + 2021-01-25 6f5e79f470 [dev.regabi] cmd/compile/internal: specify memory layout
+    + 2021-01-25 cabffc199d [dev.regabi] cmd/compile/internal: add internal ABI specification
+    + 2021-01-25 6de8443f3b doc/asm: add a section on go_asm.h, clean up go_tls.h section
+    + 2021-01-25 6a4739ccc5 [dev.regabi] cmd/compile: enable rational constant arithmetic
+    + 2021-01-25 be9612a832 [dev.regabi] os: disable TestDirFS until #42637 is fixed
+    + 2021-01-25 8ee3d39838 [dev.regabi] cmd/go: workaround -race issue on ppc64le
+    + 2021-01-25 54b251f542 lib/time, time/tzdata: update tzdata to 2021a
+    + 2021-01-25 5a76c3d548 [dev.regabi] cmd/compile: modify abiutils for recently updated ABI
+    + 2021-01-25 ff82cc971a os: force consistent mtime before running fstest on directory on Windows
+    + 2021-01-25 044f937a73 doc/go1.16: fix WalkDir and Walk links
+    + 2021-01-23 b634f5d97a doc/go1.16: add crypto/x509 memory optimization
+    + 2021-01-23 9897655c61 doc/go1.16: reword ambiguously parsable sentence
+    + 2021-01-23 cd99385ff4 cmd/internal/obj/arm64: fix VMOVQ instruction encoding error
+    + 2021-01-23 66ee8b158f runtime: restore cgo_import_dynamic for libc.so on openbsd
+    + 2021-01-22 25c39e4fb5 io/ioutil: fix example test for WriteFile to allow it to run in the playground
+    + 2021-01-22 eb21b31e48 runtime: define dummy msanmove
+    + 2021-01-22 3a778ff50f runtime: check for g0 stack last in signal handler
+    + 2021-01-22 a2cef9b544 cmd/go: don't lookup the path for CC when invoking cgo
+    
+    Change-Id: Iede4f98ba5ddbee2e16075d20186f8a9c095e378
 
- src/cmd/go/script_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/asm.html                                       |    72 +-
+ doc/go1.16.html                                    |   163 +-
+ lib/time/update.bash                               |     4 +-
+ lib/time/zoneinfo.zip                              |   Bin 424205 -> 424214 bytes
+ src/cmd/compile/internal-abi.md                    |   628 +
+ src/cmd/compile/internal/abi/abiutils.go           |   146 +-
+ src/cmd/compile/internal/noder/noder.go            |     8 -
+ src/cmd/compile/internal/ssagen/ssa.go             |     5 +
+ src/cmd/compile/internal/test/abiutils_test.go     |   214 +-
+ src/cmd/compile/internal/test/abiutilsaux_test.go  |    18 +-
+ src/cmd/compile/internal/typecheck/iexport.go      |    51 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |    27 +-
+ src/cmd/compile/internal/walk/assign.go            |    40 +-
+ src/cmd/go/internal/work/action.go                 |     3 -
+ src/cmd/go/internal/work/exec.go                   |    27 +-
+ src/cmd/go/internal/work/gc.go                     |     6 +-
+ src/cmd/go/testdata/script/cgo_path.txt            |    12 +-
+ src/cmd/go/testdata/script/cgo_path_space.txt      |    56 +
+ src/cmd/internal/obj/arm64/asm7.go                 |    38 +-
+ .../obj/arm64/{asm_test.go => asm_arm64_test.go}   |    18 +-
+ src/cmd/internal/obj/arm64/asm_arm64_test.s        |    14 +
+ src/html/template/exec_test.go                     |    35 +
+ src/html/template/template.go                      |    96 +-
+ src/io/ioutil/example_test.go                      |     2 +-
+ src/os/os_test.go                                  |    27 +
+ src/runtime/msan0.go                               |     9 +-
+ src/runtime/proc.go                                |     5 +
+ src/runtime/signal_unix.go                         |    30 +-
+ src/runtime/sys_openbsd.go                         |     1 +
+ src/time/tzdata/zipdata.go                         | 13744 +++++++++----------
+ test/fixedbugs/issue43835.go                       |    45 +
+ test/fixedbugs/issue7740.go                        |     2 +-
+ test/float_lit3.go                                 |     5 +-
+ 33 files changed, 8360 insertions(+), 7191 deletions(-)

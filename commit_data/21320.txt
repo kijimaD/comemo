@@ -1,15 +1,14 @@
-commit 44529d939192c3034a04e2eff865d04ee51ae532
-Author: Rick Hudson <rlh@golang.org>
-Date:   Tue Jan 13 15:36:42 2015 -0500
+commit 5f029deb3950398609d4d3927310dc6ea95e2943
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 22 07:58:26 2014 -0800
 
-    runtime: fix trigger for concurrent GC
+    doc: fix comment type typo
     
-    Adujst triggergc so that we trigger when we have used 7/8
-    of the available memory.
+    Fixes #9418
     
-    Change-Id: I7ca02546d3084e6a04d60b09479e04a9a9837ae2
-    Reviewed-on: https://go-review.googlesource.com/3061
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I044fa1d26d972f012f00388a84c4d0f143cf4f63
+    Reviewed-on: https://go-review.googlesource.com/1970
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/malloc.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

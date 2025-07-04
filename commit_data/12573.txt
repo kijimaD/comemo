@@ -1,13 +1,14 @@
-commit 72801291d6cb2109cc6578b4d1fb508cd4ae4f43
+commit 0359621241d09521978950ebc5e068352a549c64
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Mar 13 03:34:22 2012 +0800
+Date:   Tue Mar 13 03:31:11 2012 +0800
 
-    build: build correct cmd/dist matching GOHOSTARCH
-            Fix for issue 3210 comment #1.
+    build: update Makefile to track source code dependencies better
+          Also update .hgignore to ignore y.output.
     
-    R=adg, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5794057
+    https://golang.org/cl/5797061
 
- src/make.bash | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ .hgignore           | 1 +
+ src/cmd/gc/Makefile | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

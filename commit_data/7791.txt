@@ -1,17 +1,13 @@
-commit 3d1afb76807fa11e56c16cb5008bc64ae5bb84c7
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Mar 17 10:41:23 2011 +1100
+commit 4bd0a544350568e28a49843e7311a8b04517a60f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 17 09:59:18 2011 +1100
 
-    path: work for windows.
+    gofix: httpserver - rewrite rw.SetHeader to rw.Header.Set
     
-    R=brainman, rsc, rsc1
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4249064
+    https://golang.org/cl/4271048
 
- src/pkg/path/filepath/Makefile        |  2 +-
- src/pkg/path/filepath/match_test.go   | 10 +++++++++
- src/pkg/path/filepath/path.go         | 41 +++++++++++++++++++----------------
- src/pkg/path/filepath/path_test.go    | 36 +++++++++++++++++++++++++-----
- src/pkg/path/filepath/path_unix.go    | 18 +++++++++++++++
- src/pkg/path/filepath/path_windows.go | 37 +++++++++++++++++++++++++++++++
- 6 files changed, 118 insertions(+), 26 deletions(-)
+ src/cmd/gofix/httpserver.go      | 17 ++++++++++++++++-
+ src/cmd/gofix/httpserver_test.go |  4 ++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

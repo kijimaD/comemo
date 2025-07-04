@@ -1,19 +1,18 @@
-commit 3b66c00857ff77f8acfc3e6e9491dda3677858a4
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Sun Dec 23 16:48:38 2018 -0500
+commit 61318d7ffe8a49e9dedc5aa8195a164a3821465c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Aug 26 20:38:43 2018 -0700
 
-    reflect: fix panic when Value.IsNil is called for UnsafePointer
+    cmd/go: add GOMIPS value to build id for mipsle
     
-    UnsafePointer is a valid type kind to call IsNil on.
+    Strip a trailing "le" from the GOARCH value when calculating the GOxxx
+    environment variable that affects it.
     
-    Fixes #29381
+    Fixes #27260
     
-    Change-Id: Iaf65d582c67f4be52cd1885badf40f174920500b
-    Reviewed-on: https://go-review.googlesource.com/c/155797
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I081f30d5dc19281901551823f4f56be028b5f71a
+    Reviewed-on: https://go-review.googlesource.com/131379
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/all_test.go | 1 +
- src/reflect/value.go    | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go                  |  4 ++-
+ src/cmd/go/testdata/script/build_cache_gomips.txt | 37 +++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)

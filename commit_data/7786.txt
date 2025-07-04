@@ -1,13 +1,16 @@
-commit de811cc04c30aa5f6a7d92a35817ed0c3e13ab6c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Mar 16 10:38:03 2011 -0700
+commit b8e4fbb79c03259545c78974f3422e35497137bb
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 16 10:32:21 2011 -0700
 
-    go/scanner: use filepath
+    testing: compile regexp only once
+    The -test.run and -test.bench flags were compilng the regexp for ever test
+    function, which was mucking up memory profiles.   Add a simple wrapper
+    to save the compiled state so that the regexp is compiled only once for
+    each flag.
     
-    R=gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4280048
+    https://golang.org/cl/4274063
 
- src/pkg/go/scanner/scanner.go      |  2 +-
- src/pkg/go/scanner/scanner_test.go | 30 +++++++++++++++---------------
- 2 files changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/gotest/gotest | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)

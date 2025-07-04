@@ -1,18 +1,26 @@
-commit 197a5ee2ab8b64c687c74b986bf92139057366b6
+commit 0fb733b7f79001092897282749bf5942953b0675
 Author: Rob Findley <rfindley@google.com>
-Date:   Mon Jun 21 20:14:21 2021 -0400
+Date:   Wed Nov 18 15:02:58 2020 -0500
 
-    cmd/gofmt: remove stale documentation for the -G flag
+    [dev.typeparams] go/parser: support the ParseTypeParams mode
     
-    This documentation remained from the original dev.typeparams merge. This
-    flag no longer exists.
+    Support is added for parsing type parameters only if the ParseTypeParams
+    mode is set, otherwise emitting syntax errors for source code that is
+    invalid without type parameters.
     
-    Change-Id: Ic9a82071c512614dc1382780d69ef13253fca21d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329792
-    Trust: Robert Findley <rfindley@google.com>
+    Rather than have large conditional blocks switching between legacy
+    parser logic and new parser logic, effort is made to minimize special
+    handling for ParseTypeParams.
+    
+    Change-Id: I243f6c4b9b8eb1313b838e8649b6cc1e5e8339ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271218
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/cmd/gofmt/doc.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/go/parser/error_test.go |  13 ++-
+ src/go/parser/parser.go     |  51 +++++++----
+ src/go/parser/short_test.go | 218 +++++++++++++++++++++++++-------------------
+ 3 files changed, 165 insertions(+), 117 deletions(-)

@@ -1,15 +1,28 @@
-commit f1751e7de5c842deecd6f8c96f85f8269e5776cc
+commit 1aa2d887395b55a5967e0c519c479ef95743404d
 Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Thu Jan 20 11:28:30 2011 -0500
+Date:   Thu Jan 20 10:22:20 2011 -0500
 
-    8l: emit DWARF in Windows PE.
+    cgo: windows/386 port
     
-    R=rsc, lvd, brainman, Joe Poirier
+    R=rsc, peterGo, brainman
     CC=golang-dev
-    https://golang.org/cl/2124041
+    https://golang.org/cl/3733046
 
- src/cmd/ld/dwarf.c | 47 +++++++++++++++++++++++++++++++++++----
- src/cmd/ld/dwarf.h |  1 +
- src/cmd/ld/pe.c    | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/ld/pe.h    |  3 +++
- 4 files changed, 111 insertions(+), 4 deletions(-)
+ src/cmd/5l/Makefile               |   1 +
+ src/cmd/6l/Makefile               |   1 +
+ src/cmd/8l/Makefile               |   1 +
+ src/cmd/cgo/main.go               |   8 +
+ src/cmd/cgo/out.go                |  11 +-
+ src/cmd/gopack/ar.c               |   1 +
+ src/cmd/ld/data.c                 |  27 +++
+ src/cmd/ld/ldpe.c                 | 404 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/lib.c                  |   4 +
+ src/cmd/ld/pe.c                   |   7 +
+ src/pkg/Makefile                  |   4 -
+ src/pkg/debug/pe/file.go          |  78 ++++++++
+ src/pkg/runtime/386/asm.s         |   5 +-
+ src/pkg/runtime/cgo/Makefile      |   4 +
+ src/pkg/runtime/cgo/windows_386.c |  13 +-
+ src/pkg/runtime/runtime.c         |   1 +
+ src/pkg/runtime/windows/386/rt0.s |   3 +
+ 17 files changed, 559 insertions(+), 14 deletions(-)

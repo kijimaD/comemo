@@ -1,39 +1,63 @@
-commit f07a99e30a86e302724fbcb189defd5ebb80b8df
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Mar 19 16:36:21 2019 -0400
+commit ad4a58e31501bce5de2aad90a620eaecdc1eecb8
+Author: Keith Randall <khr@google.com>
+Date:   Mon Nov 5 11:00:01 2018 -0800
 
-    cmd/go: recognize android suffix when constructing build list
+    strings,bytes: use inlineable function trampolines instead of linkname
     
-    cmd/go/internal/imports.ScanDir extracts a list of imports from a
-    directory. It's used instead of go/build.ImportDir when constructing
-    the build list. GOOS and GOARCH may be used to filter files.
+    Cleans things up quite a bit.
     
-    With this change, imports.MatchFile understands that when the
-    "android" tag is set, the "linux" tag is implied.
+    There's still a few more, like runtime.cmpstring, which might also
+    be worth fixing.
     
-    Fixes #30888
-    
-    Change-Id: Ia29bd1590b69c9183ab14a879d5fc1b639f8eaef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168378
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ide18dd621efc129cc686db223f47fa0b044b5580
+    Reviewed-on: https://go-review.googlesource.com/c/148578
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/imports/build.go               |  6 ++--
- src/cmd/go/internal/imports/scan_test.go           | 41 ++++++++++++++++++----
- .../internal/imports/testdata/android/a_android.go |  3 ++
- .../imports/testdata/android/b_android_arm64.go    |  3 ++
- .../internal/imports/testdata/android/c_linux.go   |  3 ++
- .../imports/testdata/android/d_linux_arm64.go      |  3 ++
- src/cmd/go/internal/imports/testdata/android/e.go  |  5 +++
- src/cmd/go/internal/imports/testdata/android/f.go  |  5 +++
- src/cmd/go/internal/imports/testdata/android/g.go  |  5 +++
- .../go/internal/imports/testdata/android/tags.txt  |  1 +
- .../go/internal/imports/testdata/android/want.txt  |  6 ++++
- src/cmd/go/internal/imports/testdata/star/tags.txt |  1 +
- src/cmd/go/internal/imports/testdata/star/want.txt |  4 +++
- .../imports/testdata/{import1 => star}/x.go        |  0
- .../imports/testdata/{import1 => star}/x1.go       |  0
- .../imports/testdata/{import1 => star}/x_darwin.go |  0
- .../testdata/{import1 => star}/x_windows.go        |  0
- 17 files changed, 76 insertions(+), 10 deletions(-)
+ src/bytes/bytes.go                          | 19 ++++++++++++
+ src/bytes/bytes_decl.go                     | 24 ---------------
+ src/cmd/vet/all/whitelist/386.txt           |  1 -
+ src/cmd/vet/all/whitelist/all.txt           |  3 --
+ src/cmd/vet/all/whitelist/amd64.txt         |  1 -
+ src/cmd/vet/all/whitelist/arm.txt           |  1 -
+ src/cmd/vet/all/whitelist/arm64.txt         |  1 -
+ src/cmd/vet/all/whitelist/mipsx.txt         |  1 -
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt |  1 -
+ src/cmd/vet/all/whitelist/ppc64x.txt        |  1 -
+ src/cmd/vet/all/whitelist/s390x.txt         |  1 -
+ src/cmd/vet/all/whitelist/wasm.txt          |  1 -
+ src/internal/bytealg/compare_386.s          |  9 ------
+ src/internal/bytealg/compare_amd64.s        |  9 ------
+ src/internal/bytealg/compare_amd64p32.s     | 10 -------
+ src/internal/bytealg/compare_arm.s          |  9 ------
+ src/internal/bytealg/compare_arm64.s        |  9 ------
+ src/internal/bytealg/compare_generic.go     | 28 ------------------
+ src/internal/bytealg/compare_mipsx.s        | 33 ---------------------
+ src/internal/bytealg/compare_ppc64x.s       | 31 --------------------
+ src/internal/bytealg/compare_s390x.s        |  9 ------
+ src/internal/bytealg/compare_wasm.s         | 11 -------
+ src/internal/bytealg/equal_386.s            | 19 ------------
+ src/internal/bytealg/equal_amd64.s          | 19 ------------
+ src/internal/bytealg/equal_amd64p32.s       | 20 -------------
+ src/internal/bytealg/equal_arm.s            |  4 ---
+ src/internal/bytealg/equal_arm64.s          | 21 --------------
+ src/internal/bytealg/equal_mips64x.s        |  4 ---
+ src/internal/bytealg/equal_mipsx.s          |  4 ---
+ src/internal/bytealg/equal_ppc64x.s         | 20 -------------
+ src/internal/bytealg/equal_s390x.s          | 13 ---------
+ src/internal/bytealg/equal_wasm.s           | 21 --------------
+ src/internal/bytealg/indexbyte_386.s        |  8 -----
+ src/internal/bytealg/indexbyte_amd64.s      | 24 ---------------
+ src/internal/bytealg/indexbyte_amd64p32.s   | 18 ------------
+ src/internal/bytealg/indexbyte_arm.s        |  8 -----
+ src/internal/bytealg/indexbyte_arm64.s      | 16 ----------
+ src/internal/bytealg/indexbyte_generic.go   | 22 --------------
+ src/internal/bytealg/indexbyte_mips64x.s    |  8 -----
+ src/internal/bytealg/indexbyte_mipsx.s      |  8 -----
+ src/internal/bytealg/indexbyte_ppc64x.s     | 16 ----------
+ src/internal/bytealg/indexbyte_s390x.s      | 16 ----------
+ src/internal/bytealg/indexbyte_wasm.s       | 45 -----------------------------
+ src/strings/strings.go                      |  5 ++++
+ src/strings/strings_decl.go                 | 10 -------
+ 45 files changed, 24 insertions(+), 538 deletions(-)

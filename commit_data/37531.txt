@@ -1,19 +1,20 @@
-commit 365a1877560e938b683dde76df0b8b71800f8cff
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 28 11:28:47 2018 -0500
+commit e652b7e63f1ea71d487953bf948f371189755446
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 10 12:49:54 2018 -0400
 
-    cmd/go/internal/modcmd: check for errors in Download
+    cmd/go: fix module ... pattern to match standard library
     
-    Also test that Download restores deleted files.
+    The non-module ... pattern always has.
     
-    Updates #27783
+    Fixes #26905.
     
-    Change-Id: If50074dbcffd74ff08fbaa9ad8c314cfdce0b02d
-    Reviewed-on: https://go-review.googlesource.com/c/151559
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7b298747fb33b82c58d3e6a6bc6687b6e825e52c
+    Reviewed-on: https://go-review.googlesource.com/128997
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modcmd/download.go      | 10 ++++++++++
- src/cmd/go/testdata/script/mod_download.txt | 21 +++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/cmd/go/internal/modload/load.go         |  6 ++--
+ src/cmd/go/internal/modload/search.go       | 52 +++++++++++++++++++----------
+ src/cmd/go/testdata/script/mod_patterns.txt |  7 ++--
+ 3 files changed, 40 insertions(+), 25 deletions(-)

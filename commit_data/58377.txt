@@ -1,18 +1,35 @@
-commit a7c4cadce0799a74e48d394ff662ed5128667621
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 11 08:59:04 2024 -0800
+commit 2d428cfd85933cbe5c59a32498c82bda12ca5c96
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Nov 2 14:16:16 2023 -0400
 
-    cmd/compile: update broken link
+    cmd/compile: fix unstable selection of hottest edge
     
-    Fixes #70778
+    When selecting the hottest edge to use for PGO-based devirtualization,
+    edges are order by:
     
-    Change-Id: Ie5ed53aa39446beb0316eb134cc705ea06b37435
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635295
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    1. Edge weight
+    2. If weights are equal, prefer the edge with IR available in the
+       package.
+    3. Otherwise, simply sort lexicographically.
+    
+    The existing logic for (2) is incomplete.
+    
+    If the hottest edge so far is missing IR, but the new edge has IR, then
+    it works as expected and selects the new edge.
+    
+    But if the hottest edge so far has IR and the new edge is missing IR, we
+    want to always keep the hottest edge so far, but this logic will fall
+    through and use lexicographical ordering instead.
+    
+    Adjust the check to always make an explicit choice when IR availability
+    differs.
+    
+    Change-Id: Ia7fcc286aa9a62ac209fd978cfce60463505f4cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539475
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/ssa/_gen/rulegen.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/devirtualize/pgo.go      |   9 +-
+ src/cmd/compile/internal/devirtualize/pgo_test.go | 151 ++++++++++++++++++++++
+ 2 files changed, 157 insertions(+), 3 deletions(-)

@@ -1,19 +1,40 @@
-commit 20137eb4b9cdb2d71264e502333b1353f29a7e35
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jan 21 22:55:50 2014 -0500
+commit f00af3da1cd6b3f09f5d61a6d8bca438c77b34c6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 21 18:54:49 2014 -0800
 
-    cmd/gc: preserve qualified names of unexported methods in imports.
+    syscall: use unsafe.Pointer instead of uintptr in net syscalls
     
-    Fixes #6295.
+    In particular: setsockopt, getsockopt, bind, connect.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    There are probably more.
+    
+    All platforms cross-compile with make.bash, and all.bash still
+    pases on linux/amd64.
+    
+    Update #7169
+    
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/20850043
+    https://golang.org/cl/55410043
 
- src/cmd/gc/dcl.c                   |  2 --
- test/fixedbugs/issue6295.dir/p0.go | 13 +++++++++++++
- test/fixedbugs/issue6295.dir/p1.go | 26 ++++++++++++++++++++++++++
- test/fixedbugs/issue6295.dir/p2.go | 19 +++++++++++++++++++
- test/fixedbugs/issue6295.go        | 10 ++++++++++
- 5 files changed, 68 insertions(+), 2 deletions(-)
+ src/pkg/syscall/lsf_linux.go                |  4 +--
+ src/pkg/syscall/syscall_bsd.go              | 48 ++++++++++++++---------------
+ src/pkg/syscall/syscall_freebsd.go          |  4 +--
+ src/pkg/syscall/syscall_linux.go            | 46 +++++++++++++--------------
+ src/pkg/syscall/syscall_linux_386.go        | 14 ++++-----
+ src/pkg/syscall/syscall_linux_amd64.go      | 10 +++---
+ src/pkg/syscall/syscall_linux_arm.go        | 10 +++---
+ src/pkg/syscall/syscall_unix.go             | 24 +++++++--------
+ src/pkg/syscall/zsyscall_darwin_386.go      | 10 +++---
+ src/pkg/syscall/zsyscall_darwin_amd64.go    | 10 +++---
+ src/pkg/syscall/zsyscall_dragonfly_386.go   | 10 +++---
+ src/pkg/syscall/zsyscall_dragonfly_amd64.go | 10 +++---
+ src/pkg/syscall/zsyscall_freebsd_386.go     | 10 +++---
+ src/pkg/syscall/zsyscall_freebsd_amd64.go   | 10 +++---
+ src/pkg/syscall/zsyscall_linux_amd64.go     | 10 +++---
+ src/pkg/syscall/zsyscall_linux_arm.go       | 10 +++---
+ src/pkg/syscall/zsyscall_netbsd_386.go      | 10 +++---
+ src/pkg/syscall/zsyscall_netbsd_amd64.go    | 10 +++---
+ src/pkg/syscall/zsyscall_openbsd_386.go     | 10 +++---
+ src/pkg/syscall/zsyscall_openbsd_amd64.go   | 10 +++---
+ 20 files changed, 140 insertions(+), 140 deletions(-)

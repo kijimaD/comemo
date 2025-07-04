@@ -1,116 +1,22 @@
-commit 25f6b02ab0db8e22994a3a68f4cb2857b788a63f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 27 11:32:17 2014 -0400
+commit a0dbbeae6785ed7fd15feb4feb4975eded83c191
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 21 11:46:53 2014 +0400
 
-    cmd/cc, runtime: convert C compilers to use Go calling convention
+    runtime: fix deadlock when gctrace
+    Calling ReadMemStats which does stoptheworld on m0 holding locks
+    was not a good idea.
+    Stoptheworld holding locks is a recipe for deadlocks (added check for this).
+    Stoptheworld on g0 may or may not work (added check for this as well).
+    As far as I understand scavenger will print incorrect numbers now,
+    as stack usage is not subtracted from heap. But it's better than deadlocking.
     
-    To date, the C compilers and Go compilers differed only in how
-    values were returned from functions. This made it difficult to call
-    Go from C or C from Go if return values were involved. It also made
-    assembly called from Go and assembly called from C different.
-    
-    This CL changes the C compiler to use the Go conventions, passing
-    results on the stack, after the arguments.
-    [Exception: this does not apply to C ... functions, because you can't
-    know where on the stack the arguments end.]
-    
-    By doing this, the CL makes it possible to rewrite C functions into Go
-    one at a time, without worrying about which languages call that
-    function or which languages it calls.
-    
-    This CL also updates all the assembly files in package runtime to use
-    the new conventions. Argument references of the form 40(SP) have
-    been rewritten to the form name+10(FP) instead, and there are now
-    Go func prototypes for every assembly function called from C or Go.
-    This means that 'go vet runtime' checks effectively every assembly
-    function, and go vet's output was used to automate the bulk of the
-    conversion.
-    
-    Some functions, like seek and nsec on Plan 9, needed to be rewritten.
-    
-    Many assembly routines called from C were reading arguments
-    incorrectly, using MOVL instead of MOVQ or vice versa, especially on
-    the less used systems like openbsd.
-    These were found by go vet and have been corrected too.
-    If we're lucky, this may reduce flakiness on those systems.
-    
-    Tested on:
-            darwin/386
-            darwin/amd64
-            linux/arm
-            linux/386
-            linux/amd64
-    If this breaks another system, the bug is almost certainly in the
-    sys_$GOOS_$GOARCH.s file, since the rest of the CL is tested
-    by the combination of the above systems.
-    
-    LGTM=dvyukov, iant
-    R=golang-codereviews, 0intro, dave, alex.brainman, dvyukov, iant
-    CC=golang-codereviews, josharian, r
-    https://golang.org/cl/135830043
+    LGTM=khr
+    R=golang-codereviews, rsc, khr
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/124670043
 
- src/cmd/5c/cgen.c                       |  34 +-
- src/cmd/5c/gc.h                         |   4 +-
- src/cmd/5c/sgen.c                       |   2 +-
- src/cmd/5c/txt.c                        |  40 +-
- src/cmd/6c/cgen.c                       |  34 +-
- src/cmd/6c/gc.h                         |   4 +-
- src/cmd/6c/sgen.c                       |   2 +-
- src/cmd/6c/txt.c                        |  40 +-
- src/cmd/8c/cgen.c                       |  34 +-
- src/cmd/8c/gc.h                         |   4 +-
- src/cmd/8c/sgen.c                       |   2 +-
- src/cmd/8c/txt.c                        |  40 +-
- src/cmd/api/goapi.go                    |   1 +
- src/cmd/cc/cc.h                         |   2 +-
- src/cmd/cc/dcl.c                        |   3 +-
- src/cmd/cc/pgen.c                       |  44 +-
- src/pkg/runtime/alg.go                  |   3 +
- src/pkg/runtime/asm_386.s               | 143 +++---
- src/pkg/runtime/asm_amd64.s             | 136 +++---
- src/pkg/runtime/asm_amd64p32.s          | 107 +++--
- src/pkg/runtime/asm_arm.s               |  21 +-
- src/pkg/runtime/memclr_plan9_amd64.s    |   4 +-
- src/pkg/runtime/memmove_nacl_amd64p32.s |   2 +-
- src/pkg/runtime/memmove_plan9_386.s     |   2 +-
- src/pkg/runtime/memmove_plan9_amd64.s   |   2 +-
- src/pkg/runtime/os_darwin.go            |  27 ++
- src/pkg/runtime/os_dragonfly.go         |  21 +
- src/pkg/runtime/os_freebsd.go           |  20 +
- src/pkg/runtime/os_linux.go             |  22 +
- src/pkg/runtime/os_nacl.go              |  24 +
- src/pkg/runtime/os_netbsd.go            |  23 +
- src/pkg/runtime/os_openbsd.go           |  20 +
- src/pkg/runtime/os_plan9.go             |  24 +
- src/pkg/runtime/os_solaris.go           |  22 +
- src/pkg/runtime/os_windows.go           |  12 +
- src/pkg/runtime/stubs.go                |  45 ++
- src/pkg/runtime/sys_darwin_386.s        |  33 +-
- src/pkg/runtime/sys_darwin_amd64.s      | 159 ++++---
- src/pkg/runtime/sys_dragonfly_386.s     |  28 +-
- src/pkg/runtime/sys_dragonfly_amd64.s   | 120 ++---
- src/pkg/runtime/sys_freebsd_386.s       |  26 +-
- src/pkg/runtime/sys_freebsd_amd64.s     | 120 ++---
- src/pkg/runtime/sys_freebsd_arm.s       |  15 +-
- src/pkg/runtime/sys_linux_386.s         | 151 +++---
- src/pkg/runtime/sys_linux_amd64.s       | 159 ++++---
- src/pkg/runtime/sys_linux_arm.s         |  33 +-
- src/pkg/runtime/sys_nacl_386.s          |  18 +-
- src/pkg/runtime/sys_nacl_amd64p32.s     | 103 ++--
- src/pkg/runtime/sys_nacl_arm.s          |  92 ++--
- src/pkg/runtime/sys_netbsd_386.s        |  24 +-
- src/pkg/runtime/sys_netbsd_amd64.s      | 118 +++--
- src/pkg/runtime/sys_netbsd_arm.s        |  19 +-
- src/pkg/runtime/sys_openbsd_386.s       |  44 +-
- src/pkg/runtime/sys_openbsd_amd64.s     | 120 ++---
- src/pkg/runtime/sys_plan9_386.s         |  68 ++-
- src/pkg/runtime/sys_plan9_amd64.s       |  44 +-
- src/pkg/runtime/sys_solaris_amd64.s     |   4 +-
- src/pkg/runtime/sys_windows_386.s       |   9 +-
- src/pkg/runtime/sys_windows_amd64.s     |   5 +-
- src/pkg/runtime/vlop_386.s              |   4 +-
- src/pkg/runtime/vlop_arm.s              |  13 +-
- src/pkg/runtime/{vlrt_arm.c => vlrt.c}  | 543 +++++++++++++--------
- src/pkg/runtime/vlrt_386.c              | 819 --------------------------------
- src/pkg/sync/atomic/asm_linux_arm.s     |  24 +-
- 64 files changed, 1947 insertions(+), 1938 deletions(-)
+ src/pkg/runtime/heapdump.c | 2 +-
+ src/pkg/runtime/malloc.go  | 6 ++++++
+ src/pkg/runtime/mheap.c    | 8 ++++----
+ src/pkg/runtime/proc.c     | 8 ++++++++
+ 4 files changed, 19 insertions(+), 5 deletions(-)

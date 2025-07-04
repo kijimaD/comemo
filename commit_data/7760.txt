@@ -1,13 +1,15 @@
-commit 5245b27ed8e8e172f627e247415cbf9c758813ae
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 15 10:06:17 2011 -0700
+commit a5697251411c73fa280de76d1ef86482f5e6ee30
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 15 10:02:44 2011 -0700
 
-    openpgp: add PublicKey KeyId string accessors
+    rpc: add buffering to the encode path.
+    This reduces the number of writes by 2 (1 client, 1 server) on each round trip.
+    A simple test shows 24% higher throughput.
     
-    R=agl, agl1
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4297041
+    https://golang.org/cl/4279057
 
- src/pkg/crypto/openpgp/packet/public_key.go      | 13 +++++++++++++
- src/pkg/crypto/openpgp/packet/public_key_test.go | 12 ++++++++++--
- 2 files changed, 23 insertions(+), 2 deletions(-)
+ src/pkg/rpc/client.go | 24 ++++++++++++++++--------
+ src/pkg/rpc/server.go | 23 +++++++++++++++--------
+ 2 files changed, 31 insertions(+), 16 deletions(-)

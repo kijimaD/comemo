@@ -1,76 +1,73 @@
-commit c5b6c2abe2e5b29f47f9095bbdead5674b7252de
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 10 15:48:30 2017 -0500
+commit c05b06a12d005f50e4776095a60d6bd9c2c91fac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 10 15:17:38 2017 -0800
 
-    encoding/json: parallelize most benchmarks
+    os: use poller for file I/O
     
-    Don't bother with BenchmarkDecoderStream — it's doing something subtle
-    with the input buffer that isn't easy to replicate in a parallel test.
+    This changes the os package to use the runtime poller for file I/O
+    where possible. When a system call blocks on a pollable descriptor,
+    the goroutine will be blocked on the poller but the thread will be
+    released to run other goroutines. When using a non-pollable
+    descriptor, the os package will continue to use thread-blocking system
+    calls as before.
     
-    Results remain comparable with the non-parallel version with -cpu=1:
+    For example, on GNU/Linux, the runtime poller uses epoll. epoll does
+    not support ordinary disk files, so they will continue to use blocking
+    I/O as before. The poller will be used for pipes.
     
-    benchmark                          old ns/op     new ns/op     delta
-    BenchmarkCodeEncoder               22815832      21058729      -7.70%
-    BenchmarkCodeEncoder-6             22190561      3579757       -83.87%
-    BenchmarkCodeMarshal               25356621      25396429      +0.16%
-    BenchmarkCodeMarshal-6             25359813      4944908       -80.50%
-    BenchmarkCodeDecoder               94794556      88016360      -7.15%
-    BenchmarkCodeDecoder-6             93795028      16726283      -82.17%
-    BenchmarkDecoderStream             532           583           +9.59%
-    BenchmarkDecoderStream-6           598           550           -8.03%
-    BenchmarkCodeUnmarshal             97644168      89162504      -8.69%
-    BenchmarkCodeUnmarshal-6           96615302      17036419      -82.37%
-    BenchmarkCodeUnmarshalReuse        91747073      90298479      -1.58%
-    BenchmarkCodeUnmarshalReuse-6      89397165      15518005      -82.64%
-    BenchmarkUnmarshalString           808           843           +4.33%
-    BenchmarkUnmarshalString-6         912           220           -75.88%
-    BenchmarkUnmarshalFloat64          695           732           +5.32%
-    BenchmarkUnmarshalFloat64-6        710           191           -73.10%
-    BenchmarkUnmarshalInt64            635           640           +0.79%
-    BenchmarkUnmarshalInt64-6          618           185           -70.06%
-    BenchmarkIssue10335                916           947           +3.38%
-    BenchmarkIssue10335-6              879           216           -75.43%
-    BenchmarkNumberIsValid             34.7          34.3          -1.15%
-    BenchmarkNumberIsValid-6           34.9          36.7          +5.16%
-    BenchmarkNumberIsValidRegexp       1174          1121          -4.51%
-    BenchmarkNumberIsValidRegexp-6     1134          1119          -1.32%
-    BenchmarkSkipValue                 20506938      20708060      +0.98%
-    BenchmarkSkipValue-6               21627665      22375630      +3.46%
-    BenchmarkEncoderEncode             690           726           +5.22%
-    BenchmarkEncoderEncode-6           649           157           -75.81%
+    Since this means that the poller is used for many more programs, this
+    modifies the runtime to only block waiting for the poller if there is
+    some goroutine that is waiting on the poller. Otherwise, there is no
+    point, as the poller will never make any goroutine ready. This
+    preserves the runtime's current simple deadlock detection.
     
-    benchmark                    old MB/s     new MB/s     speedup
-    BenchmarkCodeEncoder         85.05        92.15        1.08x
-    BenchmarkCodeEncoder-6       87.45        542.07       6.20x
-    BenchmarkCodeMarshal         76.53        76.41        1.00x
-    BenchmarkCodeMarshal-6       76.52        392.42       5.13x
-    BenchmarkCodeDecoder         20.47        22.05        1.08x
-    BenchmarkCodeDecoder-6       20.69        116.01       5.61x
-    BenchmarkCodeUnmarshal       19.87        21.76        1.10x
-    BenchmarkCodeUnmarshal-6     20.08        113.90       5.67x
-    BenchmarkSkipValue           90.55        89.67        0.99x
-    BenchmarkSkipValue-6         90.83        87.80        0.97x
+    This seems to crash FreeBSD systems, so it is disabled on FreeBSD.
+    This is issue 19093.
     
-    benchmark                    old allocs     new allocs     delta
-    BenchmarkIssue10335          4              4              +0.00%
-    BenchmarkIssue10335-6        4              4              +0.00%
-    BenchmarkEncoderEncode       1              1              +0.00%
-    BenchmarkEncoderEncode-6     1              1              +0.00%
+    Using the poller on Windows requires opening the file with
+    FILE_FLAG_OVERLAPPED. We should only do that if we can remove that
+    flag if the program calls the Fd method. This is issue 19098.
     
-    benchmark                    old bytes     new bytes     delta
-    BenchmarkIssue10335          320           320           +0.00%
-    BenchmarkIssue10335-6        320           320           +0.00%
-    BenchmarkEncoderEncode       8             8             +0.00%
-    BenchmarkEncoderEncode-6     8             8             +0.00%
+    Update #6817.
+    Update #7903.
+    Update #15021.
+    Update #18507.
+    Update #19093.
+    Update #19098.
     
-    updates #18177
-    
-    Change-Id: Ia4f5bf5ac0afbadb1705ed9f9e1b39dabba67b40
-    Reviewed-on: https://go-review.googlesource.com/36724
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia5197dcefa7c6fbcca97d19a6f8621b2abcbb1fe
+    Reviewed-on: https://go-review.googlesource.com/36800
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/encoding/json/bench_test.go  | 136 ++++++++++++++++++++++-----------------
- src/encoding/json/stream_test.go |  10 +--
- 2 files changed, 83 insertions(+), 63 deletions(-)
+ src/internal/poll/fd_poll_nacl.go     |   4 +
+ src/internal/poll/fd_poll_runtime.go  |   7 +
+ src/internal/poll/fd_unix.go          |  14 +-
+ src/internal/poll/fd_windows.go       |  10 +-
+ src/os/dir_unix.go                    |   6 +-
+ src/os/dir_windows.go                 |   6 +-
+ src/os/error_posix.go                 |  18 +++
+ src/os/exec/exec_test.go              |   8 ++
+ src/os/export_windows_test.go         |   5 +-
+ src/os/file.go                        |  43 ++----
+ src/os/file_plan9.go                  |  37 ++++-
+ src/os/file_posix.go                  |  39 ++++-
+ src/os/file_unix.go                   | 130 +++++++++--------
+ src/os/file_windows.go                | 258 +++++++---------------------------
+ src/os/os_test.go                     |  75 +++++++++-
+ src/os/os_windows_test.go             |   7 +-
+ src/os/pipe_bsd.go                    |   2 +-
+ src/os/pipe_linux.go                  |   2 +-
+ src/os/stat_unix.go                   |   2 +-
+ src/os/stat_windows.go                |   6 +-
+ src/runtime/netpoll.go                |  39 +++--
+ src/runtime/netpoll_epoll.go          |   4 +
+ src/runtime/netpoll_kqueue.go         |   4 +
+ src/runtime/netpoll_nacl.go           |   4 +
+ src/runtime/netpoll_solaris.go        |   4 +
+ src/runtime/netpoll_stub.go           |   2 +
+ src/runtime/netpoll_windows.go        |   4 +
+ src/runtime/proc.go                   |   4 +-
+ src/runtime/trace/trace_stack_test.go |   1 +
+ 29 files changed, 408 insertions(+), 337 deletions(-)

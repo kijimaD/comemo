@@ -1,12 +1,16 @@
-commit 8f32df5455c08d8bffd17e0bd69aab9386a97b29
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jul 30 16:29:51 2013 +0900
+commit 789e1c351e6fca96fe3cec467029732c03d55d64
+Author: Alex A Skinner <alex@lx.lc>
+Date:   Tue Jul 30 14:11:47 2013 +1000
 
-    net: add missing SetKeepAlivePeriod for Plan 9
+    encoding/xml: Do not pass through invalid utf8 bytes
     
-    R=golang-dev, dave
+    EscapeText now escapes 0xFFFD returned from DecodeRune as 0xFFFD, rather than passing through the original byte.
+    Fixes #5880.
+    
+    R=golang-dev, r, bradfitz, adg
     CC=golang-dev
-    https://golang.org/cl/12082045
+    https://golang.org/cl/11975043
 
- src/pkg/net/tcpsock_plan9.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/encoding/xml/xml.go      |  2 +-
+ src/pkg/encoding/xml/xml_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

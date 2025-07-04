@@ -1,31 +1,30 @@
-commit 8d2066177dda53372469040e9bd18f836f121c58
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jul 28 14:16:47 2021 -0700
+commit 37588ffcb221c12c12882b591a16243ae2799fd1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 15:09:12 2020 -0500
 
-    cmd/go/internal/modfetch/codehost: refactor gitRepo.loadRefs to be harder to misuse
+    cmd/go, embed: exclude .* and _* from embedded directory trees
     
-    Previously, callers of loadRefs were expected to always
-    call via gitRepo.refsOnce.Do and check r.refsErr. This hasn't always
-    been the case.
+    Discussion on #42328 led to a decision to exclude files matching
+    .* and _* from embedded directory results when embedding an
+    entire directory tree.
     
-    This change makes loadRefs cache its own result with r.refsOnce and
-    return refs and refsErr. Callers can use it more like a normal
-    function.
+    This CL implements that new behavior.
     
-    CL 297950 is related. Previously, a commit like 0123456789ab could be
-    resolved to a v0.0.0 pseudo-version when tags couldn't be fetched, but
-    a shorter commit like 0123456 or a branch name like "master" couldn't
-    be resolved the same way. With this change, tags must be fetched
-    successfully ('git ls-remote' must succeed).
+    Fixes #42328.
     
-    For #42751
-    
-    Change-Id: I49c9346e6c72609ee4f8b10cfe1f69781e78457e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338191
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I6188994e96348b3449c7d9d3d0d181cfbf2d4db1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275092
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/git.go | 131 ++++++++++++++-------------
- 1 file changed, 69 insertions(+), 62 deletions(-)
+ src/cmd/go/internal/load/pkg.go                     | 17 +++++++++++++----
+ src/embed/embed.go                                  |  5 ++++-
+ src/embed/internal/embedtest/embed_test.go          | 21 +++++++++++++++++++++
+ .../embedtest/testdata/.hidden/.more/tip.txt        |  1 +
+ .../embedtest/testdata/.hidden/_more/tip.txt        |  1 +
+ .../internal/embedtest/testdata/.hidden/fortune.txt |  2 ++
+ .../embedtest/testdata/.hidden/more/tip.txt         |  1 +
+ .../internal/embedtest/testdata/_hidden/fortune.txt |  2 ++
+ 8 files changed, 45 insertions(+), 5 deletions(-)

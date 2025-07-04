@@ -1,12 +1,13 @@
-commit 8c4a2ae6f8d0dc8043116ec83a6f5a8598eec3f2
+commit b22e29d9bf28a7c4b67d7eb2c6ff5759a7769467
 Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Fri Mar 18 09:28:23 2011 -0700
+Date:   Thu Mar 17 22:27:30 2011 -0700
 
-    godoc: No need to use filepath.IsAbs()
+    godoc: fix path problem for windows.
     
-    R=golang-dev, brainman, gri
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4277062
+    https://golang.org/cl/4299044
 
- src/cmd/godoc/dirtrees.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/godoc/dirtrees.go | 8 ++++----
+ src/cmd/godoc/main.go     | 3 +++
+ 2 files changed, 7 insertions(+), 4 deletions(-)

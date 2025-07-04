@@ -1,26 +1,20 @@
-commit 9137edc986629c18760c4633166b29b556e64567
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 13 15:37:37 2018 -0700
+commit 7b57e21a075b876903c735b3988a5be86c01f078
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 1 19:26:33 2017 +0000
 
-    cmd/internal/objfile: reuse tabwriter across symbols when disassembling
+    runtime: skip gdb tests earlier before blocking goroutines in a t.Parallel
     
-    Since the tabwriter is flushed at every symbol,
-    it can be re-used with no impact on the output.
+    Minor.
     
-    This cuts allocated space when objdump-ing
-    the compiler by almost 40%,
-    and enables further upcoming improvements.
+    Makes reading failing runtime test stacktraces easier (by having fewer
+    goroutines to read) on machines where these gdb tests wouldn't have
+    ever run anyway.
     
-    It also speeds up objdump.
-    
-    name            old time/op       new time/op       delta
-    ObjdumpCompile        9.22s ± 3%        8.77s ± 3%   -4.79%  (p=0.000 n=10+9)
-    
-    Change-Id: Ief114d6c2680a4e762b5f439d3ca8dc7a89b9b27
-    Reviewed-on: https://go-review.googlesource.com/106978
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I3fab0667e017f20ef3bf96a8cc4cfcc614d25b5c
+    Reviewed-on: https://go-review.googlesource.com/81575
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/objfile/disasm.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/runtime-gdb_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

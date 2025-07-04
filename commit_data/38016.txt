@@ -1,43 +1,18 @@
-commit 8f1e2d4ef7c8d415b0a2e4ae08e16e4722c795d5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 22 08:36:41 2019 -0500
+commit eff3de0e63a905fa29715d63393860dbab92294f
+Author: David Heuschmann <heuschmann.d@gmail.com>
+Date:   Wed Sep 19 17:00:09 2018 +0200
 
-    misc/cgo/testsanitizers: move test source files into testdata directory
+    os/user: note in doc that user.Current is being cached
     
-    If we run 'go test ./...' in the misc module, we don't want to see
-    errors for these standalone files.
+    user.Current caches the current user after its first call, so changes to
+    the uid after the first call will not affect its result. As this might
+    be unexpected, it should be mentioned in the docs.
     
-    We could instead add +ignore tags to each file individually, but this
-    is exactly what a testdata directory is for.
+    Fixes #27659
     
-    Updates #30228
-    
-    Change-Id: I7047ad888dd6aff701f5982d58b6a79f6a487c58
-    Reviewed-on: https://go-review.googlesource.com/c/163417
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I8b3323d55441d9a79bc9534c6490884d8561889b
+    Reviewed-on: https://go-review.googlesource.com/136315
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testsanitizers/cc_test.go                       | 2 +-
- misc/cgo/testsanitizers/{src => testdata}/msan.go        | 0
- misc/cgo/testsanitizers/{src => testdata}/msan2.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/msan2_cmsan.go | 0
- misc/cgo/testsanitizers/{src => testdata}/msan3.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/msan4.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/msan5.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/msan6.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/msan_fail.go   | 0
- misc/cgo/testsanitizers/{src => testdata}/msan_shared.go | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan.go        | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan10.go      | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan11.go      | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan12.go      | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan2.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan3.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan4.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan5.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan6.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan7.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan8.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan9.go       | 0
- misc/cgo/testsanitizers/{src => testdata}/tsan_shared.go | 0
- 23 files changed, 1 insertion(+), 1 deletion(-)
+ src/os/user/lookup.go | 4 ++++
+ 1 file changed, 4 insertions(+)

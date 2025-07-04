@@ -1,28 +1,36 @@
-commit f515c1bac708c46f3bb4811439fc75bd013300c9
-Author: Andrew W. Phillips <aphillips801@gmail.com>
-Date:   Tue Aug 29 20:55:59 2023 +1000
+commit cf624a612743d1ff9d010072f978bd4417c0522d
+Author: ruinan <ruinan.sun@arm.com>
+Date:   Wed Apr 12 11:23:13 2023 +0800
 
-    cmd/go/internal/work: avoid panic for a repeated //go:debug setting
+    cmd/asm: refine some APIs related to Prog.RestArgs[]
     
-    The creation of a bytes.Buffer in one code path is missing causing a nil
-    pointer dereference.
+    Before this CL, we use GetFrom3&SetFrom3 to get or set a source operand
+    which not fit into Prog.Reg. Those APIs operate the first element in
+    Prog.RestArgs without checking the type so they're fragile to break if
+    we have more than one different type of operands in the slice, which
+    will be a common case in Arm64.
     
-    Changed (as rec. by Bryan Mills) to use fmt.Appendf() on []byte instead of
-    fmt.Fprintf on *bytes.Buffer - simpler and avoids duplicated code (but
-    requires Go 1.19 or later).
+    This CL deprecates & renames some APIs related to Prog.RestArgs to make
+    those APIs more reasonable and robust than before.
     
-    Added test to verify the change (as rec. by Michael Matloob) at
-    src\cmd\go\testdata\script\build_repeated_godebug_issue62346.txt
-    
-    Fixes #62346
-    
-    Change-Id: Ic3267d878a6f7ebedb1cde64e6206de404176b10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523836
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Change-Id: I70d56edc1f23ccfffbcd6df34844e2cef2288432
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493355
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
 
- src/cmd/go/internal/work/exec.go                           | 13 +++++--------
- .../testdata/script/build_repeated_godebug_issue62346.txt  | 14 ++++++++++++++
- 2 files changed, 19 insertions(+), 8 deletions(-)
+ src/cmd/asm/internal/asm/asm.go         | 44 ++++++++++-----------
+ src/cmd/compile/internal/amd64/ssa.go   | 16 ++++----
+ src/cmd/compile/internal/arm/ssa.go     |  4 +-
+ src/cmd/compile/internal/arm64/ssa.go   | 12 +++---
+ src/cmd/compile/internal/ppc64/ssa.go   | 28 ++++++-------
+ src/cmd/compile/internal/riscv64/ssa.go |  2 +-
+ src/cmd/compile/internal/s390x/ssa.go   | 18 ++++-----
+ src/cmd/compile/internal/x86/ssa.go     |  2 +-
+ src/cmd/internal/obj/link.go            | 70 +++++++++++++++------------------
+ src/cmd/internal/obj/pass.go            |  4 +-
+ src/cmd/internal/obj/riscv/obj.go       |  2 +-
+ src/cmd/internal/obj/x86/obj6.go        |  2 +-
+ 12 files changed, 99 insertions(+), 105 deletions(-)

@@ -1,0 +1,26 @@
+commit 24fd1a043d1a81267d4a8175c114b59a86928ddd
+Author: Tim King <taking@google.com>
+Date:   Thu Aug 15 13:57:53 2024 -0700
+
+    cmd/compile: deprecate has init and derived func instance
+    
+    Removes 'has init' and 'derived func instance' fields from unified IR
+    starting with V2.
+    
+    This should be a no-op at the moment as the writer is hardwired to create V1.
+    
+    Updates #68778
+    
+    Change-Id: I84a606cbc27cd6d8bd6eee2aff44c89f4aa7413c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606035
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/importer/ureader.go | 13 +++++++++---
+ src/cmd/compile/internal/noder/reader.go     |  4 +++-
+ src/cmd/compile/internal/noder/unified.go    | 30 +++++++++++++++++++++-------
+ src/cmd/compile/internal/noder/writer.go     |  4 +++-
+ src/go/internal/gcimporter/ureader.go        | 12 ++++++++---
+ 5 files changed, 48 insertions(+), 15 deletions(-)

@@ -1,0 +1,26 @@
+commit ad27916c24860576a2aec4cff6a295c340aafe3c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 1 14:17:24 2024 -0400
+
+    cmd/go: rename flag counters and add buildmode values separately
+    
+    Rename the subcommand flag counter names from
+    go/flag/<subcommand>/<flagname> to go/<subcommand>/flag/<flagname>.
+    
+    Also remove the special case that adds counters for buildmode flag
+    values and instead add an additional counter for the flag values.
+    The new counter has the form go/<subcommand>/flag/buildmode:<flagvalue>.
+    We use a new CountFlagValue function that's been added to the
+    internal/telemetry package to help with this.
+    
+    Finally add the go/invocations counter
+    
+    Change-Id: I995b6b0009ba0f58faeb3e2a75f3b137e4136209
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583917
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/go/main.go                                | 12 ++++--------
+ src/cmd/internal/telemetry/telemetry.go           | 15 +++++++++++++++
+ src/cmd/internal/telemetry/telemetry_bootstrap.go | 13 +++++++------
+ 3 files changed, 26 insertions(+), 14 deletions(-)

@@ -1,16 +1,39 @@
-commit a1addf15df95418d86fc0d495bc9aa85590d5724
-Author: nogoegst <nogoegst@users.noreply.github.com>
-Date:   Tue Jul 3 19:49:52 2018 +0000
+commit 88315fd105b32ff178f01e82d4f2f47504bd5bb4
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Mon Apr 16 13:40:14 2018 +0300
 
-    bufio: make Reader naming consistent
+    cmd/asm/internal/asm: add AVX512 end2end tests
     
-    All the readers are denoted as `b` while for `Reader.Size()` it is `r`.
+    All test cases are commented-out until real implementation is merged.
     
-    Change-Id: Ib6f97306c11b3abb2ff30edbc9f9362cad36d080
-    GitHub-Last-Rev: 992f88b374b5a309303b7fa1622ee629d0fb741b
-    GitHub-Pull-Request: golang/go#26205
-    Reviewed-on: https://go-review.googlesource.com/122156
+    These files are required to make x86avxgen work: it expects that
+    for each new instruction it enables end2end test cases are available.
+    
+    This test suite is automatically generated.
+    Additional AVX512 tests will be added later.
+    
+    Change-Id: I5f5cb6b90540834585ee5ad4c00ebfbb6efa8094
+    Reviewed-on: https://go-review.googlesource.com/107217
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bufio/bufio.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/endtoend_test.go          |   26 +-
+ .../internal/asm/testdata/avx512enc/aes_avx512f.s  |  336 ++
+ .../asm/testdata/avx512enc/avx512_4fmaps.s         |   66 +
+ .../asm/testdata/avx512enc/avx512_4vnniw.s         |   30 +
+ .../asm/testdata/avx512enc/avx512_bitalg.s         |  154 +
+ .../internal/asm/testdata/avx512enc/avx512_ifma.s  |  194 +
+ .../internal/asm/testdata/avx512enc/avx512_vbmi.s  |  415 ++
+ .../internal/asm/testdata/avx512enc/avx512_vbmi2.s | 1386 +++++
+ .../internal/asm/testdata/avx512enc/avx512_vnni.s  |  400 ++
+ .../asm/testdata/avx512enc/avx512_vpopcntdq.s      |   82 +
+ .../asm/internal/asm/testdata/avx512enc/avx512bw.s | 1939 +++++++
+ .../asm/internal/asm/testdata/avx512enc/avx512cd.s |  190 +
+ .../asm/internal/asm/testdata/avx512enc/avx512dq.s | 2668 +++++++++
+ .../asm/internal/asm/testdata/avx512enc/avx512er.s |  331 ++
+ .../asm/internal/asm/testdata/avx512enc/avx512f.s  | 5639 ++++++++++++++++++++
+ .../asm/internal/asm/testdata/avx512enc/avx512pf.s |   54 +
+ .../internal/asm/testdata/avx512enc/gfni_avx512f.s |  324 ++
+ .../asm/testdata/avx512enc/vpclmulqdq_avx512f.s    |   94 +
+ 18 files changed, 14326 insertions(+), 2 deletions(-)

@@ -1,46 +1,19 @@
-commit 22f447159981a58508ac190f297798cdd5fd668b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 22 13:20:37 2022 -0700
+commit 49a00631b118834010e4d0124ccc04eeaf2cd7ac
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 18:42:51 2021 -0400
 
-    go/types, types2: use "invalid recursive type" instead of "illegal cycle" in error messages
+    go/types: report cause for failing const conversions
     
-    This matches long-standing compiler behavior.
+    This is a port of CL 360795 to go/types. Error messages were adjusted
+    accordingly, with a TODO to fix the discrepancy.
     
-    For #55326.
-    
-    Change-Id: Ic5aa0dfb08d035f2c33532cc463c73a55cc020a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/433055
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ifd7d8248fa11a31fde391021f3c5f1840877892f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360937
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/decl.go            |  5 ++-
- src/cmd/compile/internal/types2/expr.go            |  8 ++--
- src/go/types/decl.go                               |  4 +-
- src/go/types/expr.go                               |  8 ++--
- src/internal/types/testdata/check/cycles0.go       | 52 +++++++++++-----------
- src/internal/types/testdata/check/cycles2.go       |  8 ++--
- src/internal/types/testdata/check/cycles3.go       |  2 +-
- src/internal/types/testdata/check/cycles5.go       | 14 +++---
- src/internal/types/testdata/check/decls0.go        | 16 +++----
- src/internal/types/testdata/check/decls4.go        |  8 ++--
- src/internal/types/testdata/check/issues0.go       |  2 +-
- src/internal/types/testdata/check/issues1.go       |  4 +-
- src/internal/types/testdata/check/typeinst0.go     |  2 +-
- .../types/testdata/fixedbugs/issue39634.go         |  6 +--
- .../types/testdata/fixedbugs/issue39938.go         |  6 +--
- .../types/testdata/fixedbugs/issue41124.go         |  2 +-
- .../types/testdata/fixedbugs/issue45550.go         |  2 +-
- .../types/testdata/fixedbugs/issue46461.go         |  6 +--
- .../types/testdata/fixedbugs/issue47796.go         | 14 +++---
- .../types/testdata/fixedbugs/issue48529.go         |  2 +-
- .../types/testdata/fixedbugs/issue48582.go         |  6 +--
- .../types/testdata/fixedbugs/issue48819.go         |  2 +-
- .../types/testdata/fixedbugs/issue48951.go         | 12 ++---
- .../types/testdata/fixedbugs/issue48962.go         |  2 +-
- .../types/testdata/fixedbugs/issue49043.go         |  6 +--
- .../types/testdata/fixedbugs/issue49276.go         | 10 ++---
- .../types/testdata/fixedbugs/issue49439.go         |  8 ++--
- .../types/testdata/fixedbugs/issue51509.go         |  2 +-
- .../types/testdata/fixedbugs/issue52698.go         |  2 +-
- .../types/testdata/fixedbugs/issue52915.go         |  2 +-
- 30 files changed, 112 insertions(+), 111 deletions(-)
+ src/go/types/conversions.go                | 11 +++++++++--
+ src/go/types/testdata/spec/conversions.go2 | 14 ++++++++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

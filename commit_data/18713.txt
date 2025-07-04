@@ -1,22 +1,25 @@
-commit 76cc0a271286b7facfd5233d56737a3d92dd9670
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 3 11:25:57 2014 -0800
+commit 3656c2db9639c524fe492ce74f485a35e0794cf4
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Mar 3 09:01:44 2014 -0500
 
-    net/http: in Client, consume small redirect bodies before making next request
+    crypto/tls: split connErr to avoid read/write races.
     
-    In Go 1.2, closing a request body without reading to EOF
-    causes the underlying TCP connection to not be reused. This
-    client code following redirects was never updated when that
-    happened.
+    Currently a write error will cause future reads to return that same error.
+    However, there may have been extra information from a peer pending on
+    the read direction that is now unavailable.
     
-    This was part of a previous CL but moved to its own CL at
-    Josh's request.  Now with test too.
+    This change splits the single connErr into errors for the read, write and
+    handshake. (Splitting off the handshake error is needed because both read
+    and write paths check the handshake error.)
     
-    LGTM=josharian
-    R=josharian
+    Fixes #7414.
+    
+    LGTM=bradfitz, r
+    R=golang-codereviews, r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/70800043
+    https://golang.org/cl/69090044
 
- src/pkg/net/http/client.go      |  7 +++++++
- src/pkg/net/http/client_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+)
+ src/pkg/crypto/tls/conn.go             | 127 +++++++++++++++------------------
+ src/pkg/crypto/tls/handshake_client.go |   2 +-
+ src/pkg/crypto/tls/handshake_server.go |   2 +-
+ 3 files changed, 61 insertions(+), 70 deletions(-)

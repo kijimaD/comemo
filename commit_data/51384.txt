@@ -1,24 +1,19 @@
-commit 5f60f844beb0581a19cb425a3338d79d322a7db2
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Nov 15 19:32:43 2022 +0100
+commit 65535bfe6dad2cb7535f6a5647b288e4489608f9
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 19 13:38:05 2022 -0500
 
-    crypto/ecdsa,crypto/x509: add encoding paths for NIST crypto/ecdh keys
+    cmd/go: ignore replaces of main modules in workspace modules
     
-    Fixes #56088
-    Updates #52221
+    And disallow replaces of any main modules in the go.work file itself.
     
-    Change-Id: Id2f806a116100a160be7daafc3e4c0be2acdd6a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450816
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ifa9ba9eaed047e6a75fcde230d96c7c450c1a1ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379534
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- api/next/56088.txt            |  2 ++
- src/crypto/ecdh/ecdh.go       |  8 ++++++++
- src/crypto/ecdsa/ecdsa.go     | 43 +++++++++++++++++++++++++++++++++++++++++++
- src/crypto/x509/pkcs8.go      | 43 ++++++++++++++++++++++++++++---------------
- src/crypto/x509/pkcs8_test.go | 19 +++++++++++++++++++
- src/crypto/x509/sec1.go       | 11 +++++++++++
- src/crypto/x509/x509.go       | 38 ++++++++++++++++++++++++++++++++------
- 7 files changed, 143 insertions(+), 21 deletions(-)
+ src/cmd/go/internal/modload/init.go                |  7 ++++
+ src/cmd/go/internal/modload/modfile.go             |  3 ++
+ .../testdata/script/work_replace_main_module.txt   | 45 ++++++++++++++++++++++
+ 3 files changed, 55 insertions(+)

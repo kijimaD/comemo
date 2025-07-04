@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9001: 0027dc91b05286d4fc3fc50a4802131881efd6e2
+# Index 9001: bf9531f80bc11de82fe739b43156705b1816acf3
 
 echo "🚀 Generating explanation for commit 9001..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 9001
-- **コミットハッシュ**: 0027dc91b05286d4fc3fc50a4802131881efd6e2
-- **GitHub URL**: https://github.com/golang/go/commit/0027dc91b05286d4fc3fc50a4802131881efd6e2
+- **コミットハッシュ**: bf9531f80bc11de82fe739b43156705b1816acf3
+- **GitHub URL**: https://github.com/golang/go/commit/bf9531f80bc11de82fe739b43156705b1816acf3
 
 ### 章構成
 

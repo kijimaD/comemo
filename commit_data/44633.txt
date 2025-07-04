@@ -1,19 +1,26 @@
-commit 86bbf4beee276b9a7f9a427a9d1a9277bd904709
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Mar 12 13:48:32 2021 -0500
+commit 2ac4bf3802f0786a0afb09488173507f40d5d885
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 24 15:58:47 2020 -0400
 
-    cmd/go: fix godoc formatting for text from 'go help install'
+    cmd/go: add span for modload.LoadBuildList
     
-    Fixes #44846
+    This change adds context, and a span to modload.LoadBuildList and
+    propagates context into modload.BuildList. It's the start
+    of a run of CLs to add trace spans for module operations.
     
-    Change-Id: I5a12c6437a91ce59307483ffcc70e084edc32197
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301329
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Updates #38714
+    
+    Change-Id: I0d58dd394051526338092dc9a5ec29a9e087e4e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248325
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/alldocs.go             | 20 ++++++++++++--------
- src/cmd/go/internal/work/build.go | 20 ++++++++++++--------
- 2 files changed, 24 insertions(+), 16 deletions(-)
+ src/cmd/go/internal/list/list.go       |  4 ++--
+ src/cmd/go/internal/modcmd/download.go |  2 +-
+ src/cmd/go/internal/modcmd/graph.go    |  2 +-
+ src/cmd/go/internal/modcmd/verify.go   |  2 +-
+ src/cmd/go/internal/modcmd/why.go      |  2 +-
+ src/cmd/go/internal/modget/get.go      |  8 ++++----
+ src/cmd/go/internal/modload/list.go    |  9 +++++----
+ src/cmd/go/internal/modload/load.go    | 23 ++++++++++++++---------
+ 8 files changed, 29 insertions(+), 23 deletions(-)

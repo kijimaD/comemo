@@ -1,17 +1,24 @@
-commit debc52038b1ae8bab4d6d901d07e5f6f3397e029
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 30 19:03:39 2020 -0800
+commit 90e0b40ab24e9dbd2404e597c76635f4b4e1ba2f
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Tue Aug 27 15:22:28 2019 -0400
 
-    doc/go1.14: mention net/http.Header.Values, net/textproto.MIMEHeader.Values
+    cmd/internal/obj/s390x: use 12 bit load and store instruction when possible on s390x
     
-    These methods are new in Go 1.14.
+    Originally, we default to use load and store instruction with 20 bit displacement.
+    However, that is not necessary. Some instructions have a displacement smaller
+    than 12 bit. This CL allows the usage of 12 bit load and store instruction when
+    that happens.
     
-    Updates #34799
-    Updates #36878
+    This change also reduces the size of .text section in go binary by 19 KB.
     
-    Change-Id: I063f5cb4638d7e0716e6ce2a8c3fffced51bbd34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217129
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Some tests are also added to verify the functionality of the change.
+    
+    Change-Id: I13edea06ca653d4b9ffeaefe8d010bc2f065c2ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194857
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.14.html | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/cmd/asm/internal/asm/testdata/s390x.s | 44 +++++++++++++++++++++++------
+ src/cmd/internal/obj/s390x/asmz.go        | 47 +++++++++++++++++++++++++++++--
+ 2 files changed, 80 insertions(+), 11 deletions(-)

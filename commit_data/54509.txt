@@ -1,17 +1,21 @@
-commit 203c69a6ef7325f254c6f17dea26a72fdf40153b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Sep 19 11:37:25 2023 -0400
+commit 5d59fa143ae1d0d8fdcc677297ce58bbfc592111
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Mon Oct 17 21:58:56 2022 +0800
 
-    cmd/go: in TestGoBuildUmask, create a file using os.WriteFile as a control
+    all: delete riscv64 non-register ABI fallback path
     
-    Fixes #62724.
-    Updates #17909.
-    
-    Change-Id: Ib2e9abec4fb88f418c4251ece7fcdef315190835
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529495
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I9e997b59ffb868575b780b9660df1f5ac322b79a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443556
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/go_unix_test.go | 28 +++++++++++++++++++++++-----
- 1 file changed, 23 insertions(+), 5 deletions(-)
+ src/internal/bytealg/compare_riscv64.s   | 18 ------
+ src/internal/bytealg/count_riscv64.s     | 19 -------
+ src/internal/bytealg/equal_riscv64.s     | 20 -------
+ src/internal/bytealg/indexbyte_riscv64.s | 22 --------
+ src/runtime/asm_riscv64.s                | 97 --------------------------------
+ src/runtime/memclr_riscv64.s             |  6 +-
+ src/runtime/memmove_riscv64.s            |  8 +--
+ 7 files changed, 5 insertions(+), 185 deletions(-)

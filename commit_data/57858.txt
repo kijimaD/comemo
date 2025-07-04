@@ -1,20 +1,56 @@
-commit 47cd14f268722882cc954a46277a80eb95821aa7
-Author: khr@golang.org <khr@golang.org>
-Date:   Thu Oct 31 10:42:23 2024 -0700
+commit da7ee57f40069eda3488b2e51dfa878bdd5816af
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Aug 16 19:20:54 2023 -0700
 
-    internal/runtime/maps: clean up put slot calls
+    syscall: add support to get pidfd from ForkExec on Linux
     
-    Use matchEmptyOrDeleted instead of matchEmpty.
-    Streamline the code a bit.
-    TODO: replicate in all the _fast files.
-    Change-Id: I4df16a13a19df3aaae0c42e0c12f20552f08ead6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624055
+    Add PidFD support, so that if the PidFD pointer in SysProcAttr is not
+    nil, ForkExec (and thus all its users) obtains a pidfd from the kernel
+    during clone(), and writes the result (or -1, if the functionality
+    is not supported by the kernel) into *PidFD.
+    
+    The functionality to get pidfd is implemented for both clone3 and clone.
+    For the latter, an extra argument to rawVforkSyscall is needed, thus the
+    change in asm files.
+    
+    Add a trivial test case checking the obtained pidfd can be used to send
+    a signal to a process, using pidfd_send_signal. To test clone3 code path,
+    add a flag available to tests only.
+    
+    Updates #51246.
+    
+    Change-Id: I2212b69e1a657163c31b4a6245b076bc495777a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520266
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
 
- src/internal/runtime/maps/runtime_fast32_swiss.go  | 158 +++++++++------------
- src/internal/runtime/maps/runtime_fast64_swiss.go  | 158 +++++++++------------
- src/internal/runtime/maps/runtime_faststr_swiss.go |  79 +++++------
- src/internal/runtime/maps/table.go                 | 103 ++++++--------
- 4 files changed, 222 insertions(+), 276 deletions(-)
+ api/next/51246.txt                   |  6 ++++
+ src/syscall/asm_linux_386.s          | 14 ++++----
+ src/syscall/asm_linux_amd64.s        | 14 ++++----
+ src/syscall/asm_linux_arm.s          | 14 ++++----
+ src/syscall/asm_linux_arm64.s        | 14 ++++----
+ src/syscall/asm_linux_loong64.s      | 14 ++++----
+ src/syscall/asm_linux_mips64x.s      | 14 ++++----
+ src/syscall/asm_linux_mipsx.s        | 14 ++++----
+ src/syscall/asm_linux_ppc64x.s       | 14 ++++----
+ src/syscall/asm_linux_riscv64.s      | 14 ++++----
+ src/syscall/asm_linux_s390x.s        | 14 ++++----
+ src/syscall/exec_linux.go            | 35 +++++++++++++------
+ src/syscall/exec_linux_test.go       | 68 ++++++++++++++++++++++++++++++++++++
+ src/syscall/export_linux_test.go     | 10 ++++--
+ src/syscall/syscall_linux.go         |  2 +-
+ src/syscall/syscall_linux_386.go     |  7 ++--
+ src/syscall/syscall_linux_amd64.go   |  7 ++--
+ src/syscall/syscall_linux_arm.go     |  7 ++--
+ src/syscall/syscall_linux_arm64.go   |  7 ++--
+ src/syscall/syscall_linux_loong64.go |  7 ++--
+ src/syscall/syscall_linux_mips64x.go |  7 ++--
+ src/syscall/syscall_linux_mipsx.go   |  7 ++--
+ src/syscall/syscall_linux_ppc64x.go  |  7 ++--
+ src/syscall/syscall_linux_riscv64.go |  7 ++--
+ src/syscall/syscall_linux_s390x.go   |  7 ++--
+ 25 files changed, 218 insertions(+), 113 deletions(-)

@@ -1,18 +1,12 @@
-commit b54cd94d478c95e79e5eea1d77e73d7b2b769f09
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Feb 5 16:45:40 2021 -0500
+commit 65f514edfb0ca5208e961318306eeddfdf79fda7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri May 29 16:09:50 2020 +0200
 
-    embed, io/fs: clarify that leading and trailing slashes are disallowed
+    math: fix dead link to springerlink (now link.springer)
     
-    Fixes #44012
-    
-    Change-Id: I5782cea301a65ae12ba870ff1e6b2e0a2651dc09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/290071
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ie5fd026af45d2e7bc371a38d15dbb52a1b4958cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235717
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/embed/embed.go | 18 +++++++++---------
- src/io/fs/fs.go    |  1 +
- 2 files changed, 10 insertions(+), 9 deletions(-)
+ src/math/exp_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

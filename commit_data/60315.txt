@@ -1,0 +1,26 @@
+commit a85b8810c49515c469d265c399febfa48442a983
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 12 14:41:32 2024 +0000
+
+    cmd/go: fix problems with coverage percentage reporting w/ -coverpkg
+    
+    This patch resolves a set of problems with "percent covered" metrics
+    reported when the "-coverpkg" is in effect; these bugs were introduced
+    in Go 1.22 with the rollout of CL 495452 and related changes.
+    Specifically, for runs with multiple packages selected but without
+    -coverpkg, "percent covered" metrics were generated for package P not
+    based just on P's statements but on the entire corpus of statements.
+    
+    Fixes #65570.
+    
+    Change-Id: I38d61886cb46ebd38d8c4313c326d671197c3568
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592205
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/load/test.go                   | 17 ++++++
+ .../testdata/script/cover_single_vs_multiple.txt   | 63 ++++++++++++++++++++++
+ src/internal/coverage/cfile/testsupport.go         |  4 +-
+ src/internal/coverage/cfile/ts_test.go             |  4 +-
+ src/testing/internal/testdeps/deps.go              |  5 +-
+ 5 files changed, 87 insertions(+), 6 deletions(-)

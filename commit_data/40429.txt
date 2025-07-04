@@ -1,43 +1,16 @@
-commit 36a432f27bbcc65fb03845ebe5e4a3db6f4cc189
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 3 14:00:12 2019 -0400
+commit 8d212c3ac3bacdf8d135e94d1e0a0c3cfba6e13a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 10 15:34:17 2019 -0400
 
-    runtime: make copystack/sudog synchronization more explicit
+    cmd/go/internal/modfetch/codehost: ignore incomplete semver tags in RecentTag
     
-    When we copy a stack of a goroutine blocked in a channel operation, we
-    have to be very careful because other goroutines may be writing to
-    that goroutine's stack. To handle this, stack copying acquires the
-    locks for the channels a goroutine is waiting on.
+    Fixes #31965
     
-    One complication is that stack growth may happen while a goroutine
-    holds these locks, in which case stack copying must *not* acquire
-    these locks because that would self-deadlock.
-    
-    Currently, stack growth never acquires these locks because stack
-    growth only happens when a goroutine is running, which means it's
-    either not blocking on a channel or it's holding the channel locks
-    already. Stack shrinking always acquires these locks because shrinking
-    happens asynchronously, so the goroutine is never running, so there
-    are either no locks or they've been released by the goroutine.
-    
-    However, we're about to change when stack shrinking can happen, which
-    is going to break the current rules. Rather than find a new way to
-    derive whether to acquire these locks or not, this CL simply adds a
-    flag to the g struct that indicates that stack copying should acquire
-    channel locks. This flag is set while the goroutine is blocked on a
-    channel op.
-    
-    For #10958, #24543.
-    
-    Change-Id: Ia2ac8831b1bfda98d39bb30285e144c4f7eaf9ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172982
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I2126903196b630c0bee2c022be1a818e0856ce3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176539
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/chan.go        | 14 ++++++++++--
- src/runtime/runtime2.go    | 54 +++++++++++++++++++++++++---------------------
- src/runtime/select.go      |  4 ++++
- src/runtime/sizeof_test.go |  2 +-
- src/runtime/stack.go       | 30 ++++++++++----------------
- 5 files changed, 58 insertions(+), 46 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

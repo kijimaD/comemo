@@ -1,17 +1,74 @@
-commit 5e10ba996915f25e21808eee6baff950d2895634
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Fri Apr 24 16:57:40 2020 -0400
+commit e6c12c3d0296251f1d5a96ebde811dbfd4a914fe
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Mar 9 22:33:43 2019 -0800
 
-    internal/goversion: update to 1.15
+    net/http: support gzip, x-gzip Transfer-Encodings
     
-    Tests tagged +build go1.15 are currently not running. They should.
+    Support "gzip" aka "x-gzip" as a transfer-encoding for
+    requests and responses as per RFC 7230 Section 3.3.1.
     
-    Change-Id: Ib97ec57a7a35cea65e2d14fb2b067e5fe49ee284
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230024
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    "gzip" and "x-gzip" are equivalents as requested by
+    RFC 7230 Section 4.2.3.
+    
+    Transfer-Encoding is an on-fly property of the body
+    that can be applied by proxies, other servers and basically
+    any intermediary to transport the content e.g. across data centers
+    or backends/machine to machine that need compression.
+    
+    For this change, "gzip" is both explicitly and implicitly combined
+    with transfer-encoding "chunked" in an ordering such as:
+    
+        Transfer-Encoding: gzip, chunked
+    
+    and NOT
+    
+        Transfer-Encoding: chunked, gzip
+    
+    Obviously the latter form is counter-intuitive for streaming.
+    Thus "chunked" is the last value to appear in that transfer-encoding header,
+    if explicitly included.
+    
+    When parsing the response, the chunked body is concatenated as "chunked" does,
+    before finally being decompressed as "gzip".
+    
+    A chunked and compressed body would typically look like this:
+    
+    <LENGTH_1>\r\n<CHUNK_1_GZIPPED_BODY>\r\n<LENGTH_2>\r\n<CHUNK_2_GZIPPED_BODY>\0\r\n
+    
+    which when being processed we would contentate
+    
+        <FULL_BODY>  := <CHUNK_1_GZIPPED_BODY> + <CHUNK_2_GZIPPED_BODY> + ...
+    
+    and then finally gunzip it
+        <FINAL_BODY> := gunzip(<FULL_BODY>)
+    
+    If a "chunked" transfer-encoding is NOT applied but "gzip" is applied,
+    we implicitly assume that they requested using "chunked" at the end.
+    This is as per the recommendation of RFC 3.3.1. which explicitly says
+    that for:
+    
+    * Request:
+    "  If any transfer coding
+       other than chunked is applied to a request payload body, the sender
+       MUST apply chunked as the final transfer coding to ensure that the
+       message is properly framed."
+    
+    * Response:
+    "  If any transfer coding other than
+       chunked is applied to a response payload body, the sender MUST either
+       apply chunked as the final transfer coding or terminate the message
+       by closing the connection."
+    
+    RELNOTE=yes
+    
+    Fixes #29162
+    
+    Change-Id: Icb8b8b838cf4119705605b29725cabb1fe258491
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166517
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/build/doc.go                 | 1 +
- src/internal/goversion/goversion.go | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/net/http/transfer.go      | 125 +++++++++++++++++--
+ src/net/http/transfer_test.go | 284 +++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 394 insertions(+), 15 deletions(-)

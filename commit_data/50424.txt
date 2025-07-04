@@ -1,23 +1,18 @@
-commit 1c59199c919419293075ac9c93b27b033e2733f9
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 7 20:03:25 2022 +0000
+commit 0ec1b62ee28c633265036664c21a5cb22086f231
+Author: gosoon <tianfeiyu0@gmail.com>
+Date:   Wed Oct 20 11:13:29 2021 +0000
 
-    runtime: remove atomic store requirement on pageAlloc.chunks
+    doc/go1.18.html: fix a typo
     
-    pageAlloc.chunks used to require an atomic store when growing the heap
-    because the scavenger would look at the list without locking the heap
-    lock. However, the scavenger doesn't do that anymore, and it looks like
-    nothing really does at all.
+    gofmt -> <code>gofmt</code>
     
-    This change updates the comment and makes the store non-atomic.
-    
-    Change-Id: Ib452d147861060f9f6e74e2d98ee111cf89ce8f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429219
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Idc01b01d8eb185f5e378000d11d622935b14db6e
+    GitHub-Last-Rev: 8d55dc7b86ce0f7dfbdbd57c349b4c472eccf907
+    GitHub-Pull-Request: golang/go#49084
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357251
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/mpagealloc.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

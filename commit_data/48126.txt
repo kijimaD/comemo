@@ -1,20 +1,24 @@
-commit 2e2ef31778800856d9db87ad06cc963ef2530eeb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 9 12:02:10 2022 -0800
+commit 12af403624baa87700fe05db3e21c26e410871fd
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Tue Apr 27 14:48:20 2021 +0200
 
-    go/types, types2: better error messages for append
+    cmd/go/internal/bug: use envcmd instead of go env
     
-    For #49735.
+    Add the printGoEnv function to print the go environment variables, using
+    the envcmd package instead of invoking go env.
     
-    Change-Id: Ib7343061dca0e8d848e0719d39be0393d7cfad93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384615
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Add the PrintEnv function to the envcmd package, to avoid duplicating
+    code.
+    
+    Updates #45803
+    
+    Change-Id: I38d5b936c0ebb16e741ffbee4309b95d6d0ecc6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314230
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go              | 16 +++++++++++++++-
- .../compile/internal/types2/testdata/check/builtins.src  |  8 ++++----
- .../internal/types2/testdata/fixedbugs/issue49735.go2    | 11 +++++++++++
- src/go/types/builtins.go                                 | 16 +++++++++++++++-
- src/go/types/testdata/check/builtins.src                 |  8 ++++----
- src/go/types/testdata/fixedbugs/issue49735.go2           | 11 +++++++++++
- 6 files changed, 60 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/bug/bug.go    | 14 +++++++++-----
+ src/cmd/go/internal/envcmd/env.go | 20 +++++++++++++-------
+ 2 files changed, 22 insertions(+), 12 deletions(-)

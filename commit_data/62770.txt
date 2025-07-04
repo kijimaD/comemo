@@ -1,0 +1,21 @@
+commit ec4a9fb3211e1b7bd4035af7d70f17a21cd26508
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Apr 8 13:39:08 2025 -0700
+
+    context: don't return a nil Cause for a canceled custom context
+    
+    Avoid a case where Cause(ctx) could return nil for a canceled context,
+    when ctx is a custom context implementation and descends from a
+    cancellable-but-not-canceled first-party Context.
+    
+    Fixes #73258
+    
+    Change-Id: Idbd81ccddea82ecabece4373d718baae6ca4b58e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663936
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/context/context.go | 14 +++++---
+ src/context/x_test.go  | 88 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 98 insertions(+), 4 deletions(-)

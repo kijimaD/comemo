@@ -1,19 +1,44 @@
-commit 4b8f80707f315a8f7611da4f977892bbb8d49582
-Author: Clide Stefani <cstefani.sites@gmail.com>
-Date:   Fri Jun 7 16:37:13 2024 -0400
+commit ac17bb6f13979f2ab9fcd45f0758b43ed72d0973
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Mar 21 13:45:18 2023 -0700
 
-    crypto/tls: improve error log produced during TestBogoSuite
+    crypto/x509: properly apply name constrains to roots and intermediates
     
-    The existing implementation logs some errors to the results file created in TestBogoSuite.
-    This change would additionally log json errors to the results file.
+    Name constraints are checked during path building. When a new
+    certificate is considered for inclusion in a chain we check if it has
+    name constraints, and if it does, check that they apply to the certs
+    already in the chain, discarding it if the current chain violates any
+    of the constraints the candidate introduces.
     
-    Change-Id: Ib1a6f612ed83f6c5046531ee259c4e85dd71402a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591379
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This check was not acting as intended in two ways. The first was that
+    we only checked that the constraints on the candidate certificate
+    applied to the leaf certificate, and not the rest of the certiifcates in
+    the chain. This was the intended behavior pre-1.19, but in 1.19 we
+    intended for the constraints to be applied to the entire chain (although
+    obviously they were not).
+    
+    The second was that we checked that the candidates constraints applied
+    to the candidate itself. This is not conformant with RFC 5280, which
+    says that during path building the constraint should only be applied to
+    the certificates which follow the certificate which introduces the
+    constraint (e.g. in the chain A -> B -> C, if certificate Bcontains a
+    name constraint, the constraint should only apply to certificate C).
+    
+    The intended behavior introduced in 1.19 was mainly intended to reject
+    dubious chains which the WebPKI disallows, and are relatively rare, but
+    don't have significant security impact. Since the constraints were
+    properly applied to the leaf certificate, there should be no real impact
+    to the majority of users.
+    
+    Fixes #59171
+    
+    Change-Id: Ie6def55b8ab7f14d6ed2c09351f664e148a4160d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478216
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/tls/bogo_shim_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/verify.go      | 11 ++---
+ src/crypto/x509/verify_test.go | 92 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 86 insertions(+), 17 deletions(-)

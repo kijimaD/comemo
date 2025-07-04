@@ -1,22 +1,18 @@
-commit 9f2e1efd725036c2d71a5d5df39ffe42b12e9383
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 26 22:14:39 2014 -0700
+commit 9d7b9fb7d01c831e67b82f352676097835af01fc
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Sat Apr 26 19:56:06 2014 -0700
 
-    net/http/httputil: tell people not to use ClientConn and ServerConn
+    encoding/ascii85: handle non-data bytes correctly
     
-    A very smart developer at Gophercon just asked me to help debug
-    a problem and I was horrified to learn that he was using httputil's
-    ClientConn. I forgot ClientConn and ServerConn were even included
-    in Go 1! They should've been deleted.
+    Previously Read wouldn't return once its internal input buffer
+    is filled with non-data bytes.
+    Fixes #7875.
     
-    Scare people away from using them. The net/http package does
-    not use them and they're unused, unmaintained and untouched in
-    4+ years.
-    
-    LGTM=r
-    R=r, adg
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/92790043
+    https://golang.org/cl/90820043
 
- src/pkg/net/http/httputil/persist.go | 19 ++++++++++++++-----
- 1 file changed, 14 insertions(+), 5 deletions(-)
+ src/pkg/encoding/ascii85/ascii85.go      | 12 ++++++++++++
+ src/pkg/encoding/ascii85/ascii85_test.go | 11 +++++++++++
+ 2 files changed, 23 insertions(+)

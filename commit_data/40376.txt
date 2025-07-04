@@ -1,22 +1,21 @@
-commit 220150ff3c03a0d2618093689ab129ab5ea7dc7b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 10 21:54:58 2019 -0700
+commit 7498e8f5a2e3de83771b8dd9997fb9c02a39228d
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 8 16:42:53 2019 -0400
 
-    runtime: add new adjusttimers function
+    cmd/link: write memprofile in legacy format for compilebench
     
-    The adjusttimers function is where we check the adjustTimers field in
-    the P struct to see if we need to resort the heap. We walk forward in
-    the heap and find and resort timers that have been modified, until we
-    find all the timers that were modified to run earlier. Along the way
-    we remove deleted timers.
+    compilebench depends on the legacy heap profile format to read the
+    allocation stats of build tools. We're adding a benchmark for the
+    linker to compilebench, so we need the linker to emit the heap profile
+    in the legacy format.
     
-    Updates #27707
+    This is the linker equivalent of CL 35484, which did this for the
+    compiler.
     
-    Change-Id: I1cba7fe77b8112b7e9a9dba80b5dfb08fcc7c568
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171877
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I16ad60c4f0fd80b4b6d608a5677ebe04e1fb5e5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176057
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/time.go | 115 ++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 112 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/main.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

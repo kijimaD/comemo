@@ -1,20 +1,12 @@
-commit dd166b943752e884944672b81ab4783f558985ff
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Sun Jul 29 22:24:19 2012 -0400
+commit 3fe5f3353f8d163ae973d4454d71c691c143e19d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 30 11:37:20 2012 +1000
 
-    cmd/gc: point "no new variables" error at right line number.
+    misc/dashboard/codereview: fix tag nesting.
     
-    Fixes #3856.
-    
-    R=dsymonds, rsc
+    R=golang-dev, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6455056
+    https://golang.org/cl/6454062
 
- src/cmd/gc/dcl.c   |   7 +-
- src/cmd/gc/go.h    |   2 +-
- src/cmd/gc/go.y    |   8 +-
- src/cmd/gc/lex.c   |   1 +
- src/cmd/gc/y.tab.c | 958 ++++++++++++++++++++++++++---------------------------
- src/cmd/gc/y.tab.h |  16 +-
- test/declbad.go    |   6 +
- 7 files changed, 499 insertions(+), 499 deletions(-)
+ misc/dashboard/codereview/dashboard/front.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

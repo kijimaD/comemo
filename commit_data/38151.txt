@@ -1,14 +1,20 @@
-commit b47f31f68ce7a00ce9432e656014d72f1e94734e
-Author: cia-rana <kiwamura0314@gmail.com>
-Date:   Thu Feb 28 01:04:58 2019 +0900
+commit f2c1c7acf84a6ea8092f3b098de177b3265fbace
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 4 12:59:09 2018 -0700
 
-    image/png: delete unused statement
+    go/types: fix recvPtr helper (follow-up on https://golang.org/cl/139422)
     
-    Change-Id: I91378d5d5ecc1fc6741127a3924c631904da736b
-    Reviewed-on: https://go-review.googlesource.com/c/164199
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    The prior CL prepared go/types for the situation where methods might
+    not have a type-checked signature when being looked up. The respective
+    adjustments to recvPtr were not correct (but because so far method
+    signatures are type-checked in time, the bug didn't manifest itself).
+    
+    Updates #23203.
+    Updates #26854.
+    
+    Change-Id: I796691d11e6aac84396bdef802ad30715755fcc6
+    Reviewed-on: https://go-review.googlesource.com/c/139721
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/image/png/writer.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/go/types/methodset.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

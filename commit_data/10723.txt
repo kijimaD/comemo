@@ -1,25 +1,15 @@
-commit c400a0b7db53940ca1ddcafcfd83c55631e214ce
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Dec 13 09:44:06 2011 +1100
+commit 06a9bc683518552991820581cb8a4cf5e6978d47
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 12 13:56:56 2011 -0800
 
-    doc: add Error Handling article
+    sql: fix missing mutex unlock in an error case
     
-    Originally published on The Go Programming Language Blog, July 12, 2011.
-    
-    http://blog.golang.org/2011/07/error-handling-and-go.html
-    
-    Update #2547
+    Fixes #2542
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5475060
+    https://golang.org/cl/5483054
 
- doc/Makefile                     |   9 +-
- doc/articles/error_handling.html | 447 +++++++++++++++++++++++++++++++++++++++
- doc/articles/error_handling.tmpl | 312 +++++++++++++++++++++++++++
- doc/progs/error.go               | 115 ++++++++++
- doc/progs/error2.go              |  53 +++++
- doc/progs/error3.go              |  60 ++++++
- doc/progs/error4.go              |  71 +++++++
- doc/progs/run                    |   8 +
- 8 files changed, 1074 insertions(+), 1 deletion(-)
+ src/pkg/exp/sql/sql.go      |  1 +
+ src/pkg/exp/sql/sql_test.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+)

@@ -1,12 +1,12 @@
-commit be269b2f6d61d2e3fb07fd8dfa9c6cbf50ce2fff
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Aug 5 17:19:17 2011 +1000
+commit 88233e89db2d3df45c2b6d9fdb5b930cf219aabb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 5 15:10:06 2011 +1000
 
-    time: fix windows build
+    asn1: fix build
     
-    R=golang-dev, mattn.jp, dsymonds
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4849042
+    https://golang.org/cl/4830061
 
- src/pkg/time/zoneinfo_windows.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/asn1/asn1_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

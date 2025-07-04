@@ -1,23 +1,17 @@
-commit 2d9255b0eae02861ccae38e54c174624138c1693
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Sep 8 21:33:55 2024 +0700
+commit 2bf8b3985ff25a62d14e0b105c1b4d0637add51a
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Aug 4 14:39:48 2023 -0400
 
-    cmd/compile/internal/typecheck: simplify IndexConst
+    testing/slogtest: reword a confusing explanation
     
-    types2 handles all constant-related bounds checks in user Go code now,
-    so it's safe to remove the check in IndexConst function.
+    Updates #61758.
     
-    Change-Id: I9116493f191c4df1cce7e43c8ac3dc5bf020fd5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611675
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I4ce0359f676b6832e40203e1034ba1c4f6d2b2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516155
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Patrick Ohly <patrick.ohly@googlemail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/staticinit/sched.go    |  3 ---
- src/cmd/compile/internal/typecheck/const.go     | 22 ++--------------------
- src/cmd/compile/internal/typecheck/typecheck.go |  3 ---
- src/cmd/compile/internal/walk/builtin.go        |  3 ---
- src/cmd/compile/internal/walk/complit.go        |  6 ------
- 5 files changed, 2 insertions(+), 35 deletions(-)
+ src/testing/slogtest/slogtest.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

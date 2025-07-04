@@ -1,34 +1,20 @@
-commit 759eaa22adb0ab883959e4a36c19f2dfe77b5895
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Nov 7 20:08:13 2021 -0800
+commit b3896fc331c36a539f825f1f656cef3f9cdffd3f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 11 15:04:16 2021 -0500
 
-    cmd/compile/internal/types2: remove most asX converters (cleanup)
+    net/http: revert change to generated file from CL 296152
     
-    Make it explicit in the code where we call under.
-    The asNamed and asTypeParam converters need to
-    stay: asNamed does resolution if necessary, and
-    asTypeParam may or may not call under() depending
-    on the next CL.
+    This file is generated, so the fix needs to happen upstream.
+    The file can then be regenerated using 'go generate net/http'.
     
-    Reviewed uses of asNamed and .(*Named) for correctness.
-    Removed unnecessary Named.resolve call in lookup.
+    Updates #44143
     
-    Change-Id: I2acf176925e00bd1703a00230a779aa65a8f5a51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362254
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I13a1e7677470ba84a06976e5bbe24f4ce1e7cfb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301069
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/assignments.go |  2 +-
- src/cmd/compile/internal/types2/builtins.go    |  8 +++---
- src/cmd/compile/internal/types2/call.go        |  2 +-
- src/cmd/compile/internal/types2/context.go     |  2 +-
- src/cmd/compile/internal/types2/conversions.go | 21 +++++++-------
- src/cmd/compile/internal/types2/expr.go        |  6 ++--
- src/cmd/compile/internal/types2/index.go       |  8 +++---
- src/cmd/compile/internal/types2/lookup.go      |  9 +++---
- src/cmd/compile/internal/types2/predicates.go  |  5 ++--
- src/cmd/compile/internal/types2/sizes.go       |  2 +-
- src/cmd/compile/internal/types2/type.go        | 39 +-------------------------
- src/cmd/compile/internal/types2/typestring.go  |  2 +-
- src/cmd/compile/internal/types2/typexpr.go     |  2 +-
- 13 files changed, 36 insertions(+), 72 deletions(-)
+ src/net/http/socks_bundle.go | 2 --
+ 1 file changed, 2 deletions(-)

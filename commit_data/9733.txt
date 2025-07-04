@@ -1,12 +1,18 @@
-commit 03178bb4ad968391c1d5f1d16affac101cd1235c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Sep 19 10:32:11 2011 -0400
+commit d072a7082390760c1c00f25b8340deef8d9c408b
+Author: Jeff Hodges <jeff@somethingsimilar.com>
+Date:   Mon Sep 19 10:29:02 2011 -0400
 
-    exp/ssh: fix constant in package documentation
+        crypto/bcrypt: new package
     
-    R=agl
+    A port of Provos and Mazières's adapative hashing algorithm. See http://www.usenix.org/events/usenix99/provos/provos_html/node1.html
+    
+    R=bradfitz, agl, rsc, dchest
     CC=golang-dev
-    https://golang.org/cl/5030054
+    https://golang.org/cl/4964078
 
- src/pkg/exp/ssh/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/Makefile                     |   1 +
+ src/pkg/crypto/bcrypt/Makefile       |  12 ++
+ src/pkg/crypto/bcrypt/base64.go      |  38 +++++
+ src/pkg/crypto/bcrypt/bcrypt.go      | 282 +++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/bcrypt/bcrypt_test.go | 195 ++++++++++++++++++++++++
+ 5 files changed, 528 insertions(+)

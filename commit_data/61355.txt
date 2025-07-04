@@ -1,0 +1,17 @@
+commit f7a14ae0cd2f4a1f39610b1580e15693456c9639
+Author: Adam <bitlux@users.noreply.github.com>
+Date:   Thu Oct 31 07:12:15 2024 +0000
+
+    math/big: properly linkify a reference
+    
+    Change-Id: Ie7649060db25f1573eeaadd534a600bb24d30572
+    GitHub-Last-Rev: c617848a4ec9f5c21820982efc95e0ec4ca2510c
+    GitHub-Pull-Request: golang/go#70134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623757
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

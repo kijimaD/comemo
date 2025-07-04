@@ -1,17 +1,21 @@
-commit 5c20d5faeb3d048a31896f3edfb54dbd960d07cc
-Author: guangwu <guoguangwug@gmail.com>
-Date:   Thu Apr 11 05:36:19 2024 +0000
+commit 750e91152bbd1cb2869660ddb80f2b3adcfd1f9b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 14 16:48:26 2023 +0000
 
-    net/http: fix debugRoundTrip log typo
+    cmd/compile/internal/importer,go/internal/gcimporter: use the 'go' command from build.Default.GOROOT in lookupGorootExport
     
-    Change-Id: I449fcb008fa4c1f51de0bef9f016907d8b99da67
-    GitHub-Last-Rev: b2e84f1a8a96199e1f9e4ae548225273e2ec94c0
-    GitHub-Pull-Request: golang/go#66772
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578135
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Also set GOROOT explicitly in case it is set to something else in the
+    caller's environment.
+    
+    Fixes #59598.
+    
+    Change-Id: I5599ed1183b23187fc3b976786f3c320d42ef4f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484756
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/net/http/transport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/gcimporter.go | 3 ++-
+ src/go/internal/gcimporter/gcimporter.go        | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

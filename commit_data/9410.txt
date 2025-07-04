@@ -1,13 +1,13 @@
-commit 1491a20540f377b6f83f5c4a8e823ca20d27d6c5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 18 14:27:08 2011 +1000
+commit 10622421b5d95cd3fc16879916bc9c067f574f48
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 18 13:48:44 2011 +1000
 
-    weekly.2011-08-17
+    gofix: walk names in ValueSpecs
     
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4914042
+    https://golang.org/cl/4887048
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 1 deletion(-)
+ src/cmd/gofix/fix.go | 15 ++++++++++++---
+ src/cmd/gofix/url.go | 10 ----------
+ 2 files changed, 12 insertions(+), 13 deletions(-)

@@ -1,21 +1,36 @@
-commit d69760064f85aa19db1c26f86a13c8240682970c
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Fri Apr 13 12:46:49 2018 -0400
+commit 1b9f66330b123b042e738eff5e47e869dd301a98
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 15:53:06 2017 -0500
 
-    net/http: remove some stderr log spam
+    cmd/go: disable tests when GOOS/GOARCH != GOHOSTARCH/GOHOSTARCH
     
-    This changes rawResponse to install a logger before
-    Serve()ing and makes the log output available to
-    tests.
+    The whole GOROOT/pkg tree is installed using the GOHOSTOS/GOHOSTARCH
+    toolchain (installed in GOROOT/pkg/tool/GOHOSTOS_GOHOSTARCH).
+    The testgo.exe we run during the cmd/go test will be built
+    for GOOS/GOARCH, which means it will use the GOOS/GOARCH toolchain
+    (installed in GOROOT/pkg/tool/GOOS_GOARCH).
     
-    Updates #24831
-    Updates CL 89275
+    If these are not the same toolchain, then the entire standard library
+    will look out of date to testgo.exe (the compilers in those two different
+    tool directories are built for different architectures and have different
+    buid IDs), which will cause many tests to do unnecessary rebuilds
+    and some tests to attempt to overwrite the installed standard library,
+    which will in turn make it look out of date to whatever runs after the
+    cmd/go test exits.
     
-    Change-Id: I0fb636a35b05959ca9978d5d8552f38b7cf8e8b5
-    Reviewed-on: https://go-review.googlesource.com/106756
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Bail out entirely in this case instead of destroying the world.
+    
+    The changes outside TestMain are checks that might have caught
+    this a bit earlier and made it much less confusing to debug.
+    
+    Fixes #22709.
+    Fixes #22965.
+    
+    Change-Id: Ibf28fa19e29a1f1b8f17875f446d3474dd04a924
+    Reviewed-on: https://go-review.googlesource.com/81516
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/serve_test.go | 43 ++++++++++++++++++++++++++-----------------
- 1 file changed, 26 insertions(+), 17 deletions(-)
+ src/cmd/go/go_test.go | 64 +++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 49 insertions(+), 15 deletions(-)

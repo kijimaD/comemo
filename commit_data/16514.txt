@@ -1,12 +1,12 @@
-commit 177191237e7400d5f277405f7340bd95d9b09676
+commit e880ab112e9eb4ff6f7c6f3410b68238f8e7403f
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Jun 9 23:15:39 2013 +0800
+Date:   Sun Jun 9 22:04:17 2013 +0800
 
-    doc/install-source.html: recent ARM and 386 updates
+    runtime: remove unused file mkversion.c
     
-    R=golang-dev, dave, adg, remyoudompheng, r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6845083
+    https://golang.org/cl/10107044
 
- doc/install-source.html | 63 ++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 47 insertions(+), 16 deletions(-)
+ src/pkg/runtime/mkversion.c | 21 ---------------------
+ 1 file changed, 21 deletions(-)

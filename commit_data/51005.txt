@@ -1,24 +1,13 @@
-commit 2a2b163bb9125389c5f70e65aec21816e2ea09c5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 23:10:13 2022 -0400
+commit 6ea17aa52c5f66c1fd72b74c36f8036e17ddde34
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 23 18:11:07 2021 -0800
 
-    crypto/x509: respect GODEBUG changes for allowing SHA1 certificates
+    spec: adjust type identity rules for type parameters
     
-    This allows programs that want SHA1 support to call os.Setenv at startup
-    instead of insisting that users set the environment variable themselves.
-    
-    For #41682.
-    Fixes #56436.
-    
-    Change-Id: Idcb96212a1d8c560e1dd8eaf7c80b6266f16431e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445496
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I5ffc7f26236487070447eaa0f6b14d1fab44c3c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366794
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/verify_test.go | 4 ++--
- src/crypto/x509/x509.go        | 8 +++-----
- src/crypto/x509/x509_test.go   | 7 ++-----
- 3 files changed, 7 insertions(+), 12 deletions(-)
+ doc/go_spec.html | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)

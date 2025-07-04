@@ -1,34 +1,29 @@
-commit 70ea0ec30fe37326d24249d9c9330be1ad655a90
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 23 10:54:08 2017 -0700
+commit 291254414b2adcea8e36374c6dbcdb3d9ede06c5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 7 22:25:41 2016 -0800
 
-    math/big: replace local versions of bitLen, nlz with math/bits versions
+    io: fix MultiReader panic on nil reader.
     
-    Verified that BenchmarkBitLen time went down from 2.25 ns/op to 0.65 ns/op
-    an a 2.3 GHz Intel Core i7, before removing that benchmark (now covered by
-    math/bits benchmarks).
+    The combination of two prior CLs can cause panics:
+    * CL/17873: make chained multiReader Read more efficient
+    * CL/28533: make MultiReader nil exhausted Readers for earlier GC
     
-    Change-Id: I3890bb7d1889e95b9a94bd68f0bdf06f1885adeb
-    Reviewed-on: https://go-review.googlesource.com/38464
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The first CL allows MultiReader to "inherit" another MultiReader's list of Readers
+    for efficiency reasons. This is problematic when combined with the
+    later CL since that can set prior Readers in that list to nil for GC reasons.
+    This causes panics when two MultiReaders are used together (even synchronously).
+    
+    To fix this, rather than setting consumed Readers as nil, we set them with
+    a special eofReader that always returns EOF.
+    
+    Fixes #18232
+    
+    Change-Id: I2a9357ab217e3d54d38ea9022d18e4d14f4182d3
+    Reviewed-on: https://go-review.googlesource.com/34140
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/arith.go           | 36 ++----------------------------------
- src/math/big/arith_386.s        | 11 -----------
- src/math/big/arith_amd64.s      | 11 -----------
- src/math/big/arith_amd64p32.s   |  3 ---
- src/math/big/arith_arm.s        |  8 --------
- src/math/big/arith_arm64.s      | 10 ----------
- src/math/big/arith_decl.go      |  1 -
- src/math/big/arith_decl_pure.go |  4 ----
- src/math/big/arith_mips64x.s    |  3 ---
- src/math/big/arith_mipsx.s      |  3 ---
- src/math/big/arith_ppc64x.s     |  9 ---------
- src/math/big/arith_s390x.s      | 10 ----------
- src/math/big/arith_test.go      | 29 -----------------------------
- src/math/big/float.go           |  5 +++--
- src/math/big/floatconv_test.go  |  5 +++--
- src/math/big/nat.go             |  2 +-
- src/math/big/natconv_test.go    |  8 ++++++++
- 17 files changed, 17 insertions(+), 141 deletions(-)
+ src/io/multi.go      | 12 ++++++++++--
+ src/io/multi_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

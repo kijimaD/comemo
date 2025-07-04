@@ -1,14 +1,19 @@
-commit 3b089179c4779c09becd395634b0a31f376865f1
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Sep 9 08:48:06 2013 -0700
+commit 5863b7d2ce6679ec94a801bad342a06254700e2a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 9 13:29:08 2013 +1000
 
-    runtime: unbreak build on dragonfly
+    doc/go1.2.html: first cut
+    Lay out the doc and write text for the minor changes.
+    (I left the net ones for someone who understands them better,
+    or for someone to describe them to me better so I can write them.)
+    Much still to do.
     
-    Update dragonfly memory functions to work with new memory statistics.
+    Delete go1.2.txt so there's only one thing to update.
     
-    R=golang-dev, iant
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/13615043
+    https://golang.org/cl/13597044
 
- src/pkg/runtime/mem_dragonfly.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ doc/go1.2.html | 577 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.2.txt  |  82 --------
+ 2 files changed, 577 insertions(+), 82 deletions(-)

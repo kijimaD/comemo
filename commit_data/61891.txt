@@ -1,0 +1,16 @@
+commit 5424f2e200e022e5ddf95088118fb0914343492a
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Wed Dec 11 15:41:05 2024 +0000
+
+    cmd/go: add more tests for GOAUTH's user provided authenticator
+    
+    For #26232
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I4b6eb63d4c1d71983e1ae764a6a38744a5f01317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635255
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/testdata/script/goauth_userauth.txt | 94 ++++++++++++++++++++------
+ 1 file changed, 75 insertions(+), 19 deletions(-)

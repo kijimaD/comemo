@@ -1,32 +1,33 @@
-commit 4510586f930b49a142f991c51d960a3afc18e667
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Oct 21 13:01:56 2024 -0400
+commit 4c5dac72029bb3dd4559a2fafe566bed71f22c42
+Author: korzhao <korzhao95@gmail.com>
+Date:   Wed Aug 2 17:39:09 2023 +0800
 
-    runtime: (re)use unused linear memory on Wasm
+    encoding/json: optimize Marshal for maps
     
-    CL 476717 adopted the memory management mechanism on Plan 9 to
-    manage Wasm's linear memory. But the Plan 9 code uses global
-    variable bloc and blocMax to keep track of the runtime's and the
-    OS's sense of break, whereas the Wasm sbrk function doesn't use
-    those global variables, and directly goes to grow the linear
-    memory instead. This causes that if there is any unused portion at
-    the end of the linear memory, the runtime doesn't use it. This CL
-    fixes it, adopts the same mechanism as the Plan 9 code.
+    Optimize marshaling of maps by using slices.SortFunc.
     
-    In particular, the runtime is not aware of any unused initial
-    memory at startup. Therefore, (most of) the extra initial memory
-    set by the linker are not actually used. This CL fixes this as
-    well.
+    This drops an unnecessary field from reflectWithString,
+    which also reduces the cost of each swap operation.
     
-    For #69018.
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkMarshalMap-10     228           139           -39.24%
     
-    Change-Id: I2ea6a138310627eda5f19a1c76b1e1327362e5f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621635
+    benchmark                  old allocs     new allocs     delta
+    BenchmarkMarshalMap-10     11             8              -27.27%
+    
+    benchmark                  old bytes     new bytes     delta
+    BenchmarkMarshalMap-10     432           232           -46.30%
+    
+    Change-Id: Ic2ba7a1590863c7536305c6f6536372b26ec9b0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515176
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/runtime/mem_sbrk.go | 24 ++++++++++++++++++++++--
- src/runtime/mem_wasm.go | 19 +++++++++++++------
- src/runtime/os_wasm.go  |  1 +
- src/runtime/sys_wasm.s  |  6 ++++++
- 4 files changed, 42 insertions(+), 8 deletions(-)
+ src/encoding/json/bench_test.go | 16 ++++++++++++++++
+ src/encoding/json/encode.go     | 42 ++++++++++++++++++++---------------------
+ 2 files changed, 37 insertions(+), 21 deletions(-)

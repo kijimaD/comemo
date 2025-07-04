@@ -1,16 +1,14 @@
-commit 669ac1228a51f7724baab9325d57ac04025db493
-Author: Benjamin Cable <cable.benjamin@gmail.com>
-Date:   Thu Aug 2 14:54:16 2018 +0100
+commit 641c32264cbdfab2564bef72cd66b6806fc8dd11
+Author: bontequero <bontequero@gmail.com>
+Date:   Sat Apr 7 20:43:45 2018 +0300
 
-    math/rand: improve package documentation
+    container/heap: fix comments style
     
-    Notify readers that interval notation is used.
-    Fixes: #26765
+    Fixes golint warning about comment on exported function.
     
-    Change-Id: Id02a7fcffbf41699e85631badeee083f5d4b2201
-    Reviewed-on: https://go-review.googlesource.com/127549
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia6a910e2dca2cd31d8de64419e36add6191e804d
+    Reviewed-on: https://go-review.googlesource.com/105495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/rand/normal.go | 6 +++---
- src/math/rand/rand.go   | 3 +++
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/container/heap/heap.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

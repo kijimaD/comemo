@@ -1,25 +1,15 @@
-commit 08c43488ee7a273ce41805b0bb2866507521d15c
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Apr 9 10:08:29 2015 +0300
+commit 211df1de124feb20219b77ddf3e8ba6d392bdfb5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Mar 14 10:03:55 2015 +1100
 
-    cmd/gc: fix handling of OGETG in race mode
+    cmd/7g: fix build breakage
     
-    Now that getg is an intrinsic, more runtime functions
-    gets inlined (in particular, LockOSThread).
-    Runtime code gets race instrumented after inlining into
-    other packages. This can lead to false positives,
-    as race detector ignores all internal synchronization in runtime.
-    Inling of LockOSThread lead to false race reports on m contents.
-    See the issue for an example.
+    Update cmd/7g to match the other compilers. Fixes build break in rev 6582d1cf8.
     
-    Fixes #10380
-    
-    Change-Id: Ic9b760b53c28c2350bc54a5d4677fcd1c1f86e5f
-    Reviewed-on: https://go-review.googlesource.com/8690
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I449613cf348254e9de6cc7a6b7737e43ea7d10fe
+    Reviewed-on: https://go-review.googlesource.com/7580
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/internal/gc/inl.go      | 10 ++++++++++
- src/cmd/internal/gc/racewalk.go | 13 +++++--------
- 2 files changed, 15 insertions(+), 8 deletions(-)
+ src/cmd/7g/ggen.go  | 2 +-
+ src/cmd/7g/gsubr.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

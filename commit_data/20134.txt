@@ -1,13 +1,18 @@
-commit 56916feea3ddbc3c2dedbe3b6a57b6c4a31c567b
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Mon Aug 25 16:42:15 2014 -0700
+commit 5d40742728cac9fa351c03d21598937b27b398a7
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 11:49:59 2014 +0400
 
-    regexp: fix imports in the middle of the license header
+    runtime: convert Gosched to Go
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/129620043
+    LGTM=rlh, khr
+    R=golang-codereviews, rlh, bradfitz, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/127490043
 
- src/pkg/regexp/onepass.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/runtime/extern.go |  4 ----
+ src/pkg/runtime/proc.c    | 14 ++++----------
+ src/pkg/runtime/proc.go   | 11 +++++++++++
+ src/pkg/runtime/runtime.h |  2 +-
+ src/pkg/runtime/stack.c   |  2 +-
+ src/pkg/runtime/stubs.go  |  3 ++-
+ 6 files changed, 19 insertions(+), 17 deletions(-)

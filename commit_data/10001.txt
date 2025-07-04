@@ -1,27 +1,14 @@
-commit eea86de656d74bafe7c76a5242eaa51d80e2b454
-Author: Paul Borman <borman@google.com>
-Date:   Mon Oct 17 11:10:39 2011 -0700
+commit 64471ae76204b116ab28c13f7008e90ae826a379
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 17 15:54:36 2011 +1100
 
-    csv: fix issue 2366 - overly aggressive TrimLeadingSpace
+    http: fix panic when recovering from hijacked connection panic
     
-    Address the issue coalescing two records together when TrimLeadingSpace
-    is set to true.
+    Fixes #2375.
     
-    The input
-    
-            a,b,
-            c,d,e
-    
-    Would result with a singled a,b,c,d,e record.
-    With TrailingComma set to true it should give two records.
-    With TrailingComma set to false it should be an error.
-    
-    Fixes #2366.
-    
-    R=golang-dev, go.peter.90, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5284046
+    https://golang.org/cl/5279049
 
- src/pkg/csv/reader.go      |  4 ++--
- src/pkg/csv/reader_test.go | 24 ++++++++++++++++++++----
- 2 files changed, 22 insertions(+), 6 deletions(-)
+ src/pkg/http/server.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

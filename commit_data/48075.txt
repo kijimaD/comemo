@@ -1,21 +1,20 @@
-commit 248ad855b7d0e49839b7b4281d9e60e222368583
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 3 12:43:48 2022 -0800
+commit 0d1280c685c2353a9c982c11e77281ad4d34464a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 26 18:32:28 2021 +0000
 
-    misc/cgo/test: disable unhelpful GCC warning
+    Revert "sync: improve sync.Pool object stealing"
     
-    GCC 9 warns about a change in the ABI of passing structs with bitfields,
-    but we don't care.
+    This reverts CL 303949.
     
-    Fixes #50987
+    Reason for revert: broke linux-arm-aws TryBots.
     
-    Change-Id: Ica658d04172a42a7be788f94d31a714bb8c4766f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382956
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: Ib44949df70520cdabff857846be0d2221403d2f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313630
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- misc/cgo/test/test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/sync/pool.go      | 103 +++++---------------------------------------------
+ src/sync/pool_test.go |  18 ---------
+ 2 files changed, 10 insertions(+), 111 deletions(-)

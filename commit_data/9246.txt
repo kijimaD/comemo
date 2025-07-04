@@ -1,15 +1,20 @@
-commit 71ba47ac9ee705a93dca9b4fba510b4a313e8834
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 28 19:38:14 2011 -0400
+commit 1b4dff0f6923f5d7004d47de5ebeba3758074c86
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 28 16:19:16 2011 -0700
 
-    build: fix noclobber
+    exp/template: simplify the helper functions
+    - create a pair of "Must" functions, one for templates, one for sets
+    - regularize the return values of the parsers so they can be wrapped by Must
+    - delete all the old Must functions and methods.
     
-    I got it backwards last time, and somehow
-    that was leaking into the parent shell?
-    
-    R=golang-dev, iant
+    R=golang-dev, gri, r
     CC=golang-dev
-    https://golang.org/cl/4826054
+    https://golang.org/cl/4826052
 
- src/env.bash | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/template/exec_test.go  |   8 +-
+ src/pkg/exp/template/helper.go     | 217 +++++++++++--------------------------
+ src/pkg/exp/template/parse.go      |   8 +-
+ src/pkg/exp/template/parse_test.go |   3 +-
+ src/pkg/exp/template/set.go        |   5 +-
+ src/pkg/exp/template/set_test.go   |  37 +++----
+ 6 files changed, 92 insertions(+), 186 deletions(-)

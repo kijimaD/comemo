@@ -1,13 +1,16 @@
-commit 87b315a78f91447f072a1a37a4b40ebb38475d01
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Dec 5 15:13:03 2012 +1100
+commit cfc0a59d6e4e11b08b7b7085e6da031643879b0a
+Author: Frithjof Schulze <schulze@math.uni-hannover.de>
+Date:   Tue Dec 4 14:11:33 2012 -0800
 
-    net: add missing close socket code
+    container/heap: Simplify the example.
     
-    R=golang-dev, bradfitz
+    Using append simplifies the code and makes it work if
+    the initial capacity of the slice is smaller than the
+    number of items pushed.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/6868067
+    https://golang.org/cl/6869060
 
- src/pkg/net/fd_windows.go   | 5 +++--
- src/pkg/net/timeout_test.go | 1 +
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/container/heap/example_test.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

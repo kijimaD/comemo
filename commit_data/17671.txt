@@ -1,14 +1,15 @@
-commit 4977f9f926b743a575a2d68920a41806c95d6a76
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 23 14:41:20 2013 +1000
+commit e82031618aff8c69ed09970cce66b9fcaaa939b8
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Sep 23 11:35:17 2013 +1000
 
-    doc/go1.2.html: fix 3-index slice example
-    A number was wrong; adjust as suggested to make things clearer.
-    Fixes #6452
+    misc/notepadplus: fix some number syntax highlight issue
     
-    R=golang-dev, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/13422046
+    notepadplus can only support some normal golang's hex and imaginary numbers.
+    it can't detect some special number, eg. 1./1.e/1.i/1+0.1i (omit "0" in ".0").
+    
+    R=golang-dev, gvdschoot
+    CC=ajstarks, golang-dev
+    https://golang.org/cl/13401047
 
- doc/go1.2.html | 6 +++---
+ misc/notepadplus/userDefineLang.xml | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,20 +1,19 @@
-commit dcc801ef815263eae7f0780a0bbc2f2e753599b0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 9 00:13:50 2021 -0400
+commit f5c3eda4c9519641265279bcb8a484f846750258
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Sep 24 19:32:11 2020 +0200
 
-    cmd/go/internal/modload: actually set the depth field passed to newRequirements
+    cmd/compile: enforce strongly typed rules for ARM (mergesym)
     
-    This was missed in CL 308515, and didn't show up in testing because so
-    few codepaths (and tests) actually depend on this behavior so far.
+    Replace mergeSym by mergeSymTyped.
+    L435-L459
     
-    For #36460
+    toolstash-check successful.
     
-    Change-Id: I98b1962eb64d371884e15a3356c95f7ea80c7d21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308810
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Icbefe5c3589ed4ecdbca3dff9b3a758bdba3b34b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257642
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/go/internal/modload/buildlist.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  50 ++++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 168 ++++++++++++++---------------
+ 2 files changed, 109 insertions(+), 109 deletions(-)

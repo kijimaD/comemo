@@ -1,15 +1,21 @@
-commit 4601776901a4db8b213d66392128a7a2f1c8d1c4
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Dec 28 21:35:48 2015 +0900
+commit d18167fefea5e77388dbc1e323e8527b58494185
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 26 12:38:47 2015 -0700
 
-    os: fix race condition between (*os.File).Stat and os.Chdir on windows
+    runtime: fix tiny allocator
     
-    Fixes #13752
+    When a new tiny block is allocated because we're allocating an object
+    that won't fit into the current block, mallocgc saves the new block if
+    it has more space leftover than the old block.  However, the logic for
+    this was subtly broken in golang.org/cl/2814, resulting in never
+    saving (or consequently reusing) a tiny block.
     
-    Change-Id: I53cfc4ecae90c35b6f1074f3be08489c408a6464
-    Reviewed-on: https://go-review.googlesource.com/18181
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ib5f6769451fb82877ddeefe75dfe79ed4a04fd40
+    Reviewed-on: https://go-review.googlesource.com/16330
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/os_windows_test.go | 29 +++++++++++++++++++++++++++++
- src/os/stat_windows.go    |  2 +-
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/runtime/malloc.go      |  2 +-
+ src/runtime/malloc_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

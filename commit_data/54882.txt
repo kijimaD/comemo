@@ -1,21 +1,115 @@
-commit 934104630291d3bb8b1023e44fe06687e1c0b9c8
-Author: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
-Date:   Wed Nov 1 14:43:42 2023 -0500
+commit b2faff18ce28edad98303d2c3134dec1331fd7b5
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 11 19:22:35 2022 +0800
 
-    cmd/compile: adding rule to eliminate ANDCCconst
+    all: add missing periods in comments
     
-    For example, the Slicemask rule in PPC64 generates a sequence wherein there is andi operation, after an  sradi, which can be replaced by srdi. This new rule eliminates ANDCCconst.
-    
-    Change-Id: I27aaadf76b9c749a60bcdc5e87b1ebb8167d2fd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539055
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I69065f8adf101fdb28682c55997f503013a50e29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449757
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 20 ++++++++++++++++++++
- 2 files changed, 21 insertions(+)
+ src/archive/tar/reader.go                         |  2 +-
+ src/cmd/asm/internal/arch/arm.go                  |  2 +-
+ src/cmd/cgo/gcc.go                                |  2 +-
+ src/cmd/compile/internal/abi/abiutils.go          |  2 +-
+ src/cmd/compile/internal/arm/ssa.go               | 14 +++++++-------
+ src/cmd/compile/internal/arm64/ssa.go             |  8 ++++----
+ src/cmd/compile/internal/base/print.go            |  2 +-
+ src/cmd/compile/internal/escape/leaks.go          |  2 +-
+ src/cmd/compile/internal/ir/func.go               |  2 +-
+ src/cmd/compile/internal/liveness/plive.go        |  2 +-
+ src/cmd/compile/internal/logopt/log_opts.go       |  8 ++++----
+ src/cmd/compile/internal/loong64/ssa.go           |  2 +-
+ src/cmd/compile/internal/mips/ssa.go              |  4 ++--
+ src/cmd/compile/internal/mips64/ssa.go            |  4 ++--
+ src/cmd/compile/internal/ssa/dom.go               |  4 ++--
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
+ src/cmd/compile/internal/ssa/lower.go             |  2 +-
+ src/cmd/compile/internal/ssa/op.go                |  4 ++--
+ src/cmd/compile/internal/ssa/opt.go               |  2 +-
+ src/cmd/compile/internal/ssa/prove.go             |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go           | 20 ++++++++++----------
+ src/cmd/compile/internal/ssa/sparseset.go         |  2 +-
+ src/cmd/compile/internal/ssa/sparsetree.go        |  4 ++--
+ src/cmd/compile/internal/ssa/trim.go              | 10 +++++-----
+ src/cmd/compile/internal/ssa/writebarrier.go      |  2 +-
+ src/cmd/compile/internal/ssagen/nowb.go           |  2 +-
+ src/cmd/compile/internal/ssagen/phi.go            |  2 +-
+ src/cmd/compile/internal/ssagen/ssa.go            |  2 +-
+ src/cmd/compile/internal/typecheck/dcl.go         |  2 +-
+ src/cmd/compile/internal/typecheck/export.go      | 12 ++++++------
+ src/cmd/compile/internal/typecheck/typecheck.go   |  2 +-
+ src/cmd/compile/internal/walk/builtin.go          |  2 +-
+ src/cmd/compile/internal/walk/expr.go             |  4 ++--
+ src/cmd/dist/util.go                              |  2 +-
+ src/cmd/go/internal/modfetch/fetch.go             |  2 +-
+ src/cmd/internal/dwarf/dwarf.go                   |  4 ++--
+ src/cmd/internal/obj/arm64/asm7.go                |  4 ++--
+ src/cmd/internal/obj/loong64/asm.go               |  2 +-
+ src/cmd/internal/obj/ppc64/asm9.go                |  4 ++--
+ src/cmd/internal/obj/s390x/asmz.go                | 16 ++++++++--------
+ src/cmd/link/internal/arm/asm.go                  | 12 ++++++------
+ src/cmd/link/internal/arm64/asm.go                |  2 +-
+ src/cmd/link/internal/ld/data.go                  |  4 ++--
+ src/cmd/link/internal/ld/elf.go                   |  4 ++--
+ src/cmd/link/internal/ld/xcoff.go                 |  8 ++++----
+ src/cmd/link/internal/ppc64/asm.go                |  8 ++++----
+ src/cmd/pprof/pprof.go                            |  2 +-
+ src/compress/flate/deflate.go                     |  2 +-
+ src/compress/flate/huffman_code.go                |  2 +-
+ src/compress/flate/token.go                       |  6 +++---
+ src/crypto/des/block.go                           |  6 +++---
+ src/crypto/internal/boring/boring.go              |  2 +-
+ src/crypto/x509/internal/macos/corefoundation.go  |  2 +-
+ src/encoding/json/scanner.go                      |  2 +-
+ src/go/doc/example.go                             |  2 +-
+ src/go/doc/reader.go                              |  2 +-
+ src/go/types/gotype.go                            |  2 +-
+ src/hash/crc32/crc32_ppc64le.go                   |  2 +-
+ src/html/template/content.go                      |  2 +-
+ src/internal/fuzz/coverage.go                     |  2 +-
+ src/internal/profile/filter.go                    |  2 +-
+ src/math/big/int.go                               |  4 ++--
+ src/math/big/intconv.go                           |  2 +-
+ src/math/big/natconv.go                           |  2 +-
+ src/math/cmplx/sin.go                             |  2 +-
+ src/net/http/client.go                            |  2 +-
+ src/net/http/cookie.go                            |  2 +-
+ src/net/http/transfer.go                          |  8 ++++----
+ src/net/http/transport.go                         |  2 +-
+ src/net/http/triv.go                              |  2 +-
+ src/net/lookup_windows.go                         |  4 ++--
+ src/net/mail/message.go                           |  2 +-
+ src/net/smtp/smtp.go                              |  2 +-
+ src/os/env.go                                     |  2 +-
+ src/plugin/plugin_dlopen.go                       |  4 ++--
+ src/regexp/onepass.go                             |  4 ++--
+ src/regexp/regexp.go                              |  2 +-
+ src/runtime/cgocall.go                            |  4 ++--
+ src/runtime/chan.go                               |  4 ++--
+ src/runtime/debug/mod.go                          |  2 +-
+ src/runtime/heapdump.go                           | 10 +++++-----
+ src/runtime/lock_futex.go                         |  2 +-
+ src/runtime/lock_sema.go                          |  2 +-
+ src/runtime/malloc.go                             |  2 +-
+ src/runtime/map.go                                |  2 +-
+ src/runtime/mfinal.go                             |  2 +-
+ src/runtime/mgcwork.go                            |  2 +-
+ src/runtime/os_aix.go                             |  2 +-
+ src/runtime/os_openbsd_syscall2.go                |  2 +-
+ src/runtime/pprof/pprof.go                        |  2 +-
+ src/runtime/proc.go                               |  4 ++--
+ src/runtime/race.go                               |  2 +-
+ src/runtime/runtime1.go                           |  2 +-
+ src/runtime/stubs2.go                             |  2 +-
+ src/runtime/stubs_ppc64.go                        |  2 +-
+ src/syscall/fs_js.go                              |  2 +-
+ src/time/format.go                                |  2 +-
+ 97 files changed, 174 insertions(+), 174 deletions(-)

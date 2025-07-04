@@ -1,15 +1,15 @@
-commit a99369fdb5137862cf12469afcd96a47852916b2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 28 22:39:57 2015 -0500
+commit 0b2a74e89cf940e1c4cd91785ff3d744684edc49
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Dec 31 21:58:02 2014 -0500
 
-    liblink: fix error message on linux for unknown TLS base
+    runtime/cgo: remove unused variable
     
-    headstr(Hlinux) was reporting "android",
-    making for some confusing error messages.
+    I missed this one in golang.org/cl/2232 and only tested the patch
+    on openbsd/amd64.
     
-    Change-Id: I437095bee7cb2143aa37c91cf786f3a3581ae7b9
-    Reviewed-on: https://go-review.googlesource.com/3513
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I4ff437ae0bfc61c989896c01904b6d33f9bdf0ec
+    Reviewed-on: https://go-review.googlesource.com/2234
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/liblink/sym.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/cgo/gcc_openbsd_386.c | 1 -
+ 1 file changed, 1 deletion(-)

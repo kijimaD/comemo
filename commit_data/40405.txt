@@ -1,21 +1,29 @@
-commit bd622872f4fc2bf09b75f59c461e5c38e10f91ec
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Oct 18 17:39:31 2019 -0400
+commit 56c1cf315d0178ee522f6f305150ed83ec4df816
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 18:40:58 2019 -0400
 
-    doc: add skeleton module documentation with headings
+    runtime: fix vet complaints for all nacl
     
-    Sections will be filled in with individual CLs before Go 1.14.
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
     
-    NOTE: This document is currently in Markdown for ease of writing /
-    reviewing. Before Go 1.14, we will either ensure that x/website
-    can render Markdown (flavor TBD) or check in a rendered HTML file that
-    can be displayed directly.
+    This CL makes "go vet -unsafeptr=false runtime" happy for nacl/*,
+    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
     
-    Updates #33637
+    For #31916.
     
-    Change-Id: Icd43fa2bdb7d256b28a56b93214b70343f43492e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202081
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6adb4a7b0c2b03d901fba37f9c05e74e5b7b6691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176107
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/modules.md | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 61 insertions(+)
+ src/cmd/vet/all/whitelist/nacl_386.txt      | 10 ----------
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt | 18 ------------------
+ src/cmd/vet/all/whitelist/nacl_arm.txt      |  4 ----
+ src/runtime/asm_amd64p32.s                  |  8 +++++---
+ src/runtime/os_nacl.go                      |  2 +-
+ src/runtime/signal_nacl_amd64p32.go         |  2 ++
+ src/runtime/sys_nacl_386.s                  | 15 +++------------
+ src/runtime/sys_nacl_amd64p32.s             |  9 +--------
+ src/runtime/sys_nacl_arm.s                  | 10 ----------
+ 9 files changed, 12 insertions(+), 66 deletions(-)

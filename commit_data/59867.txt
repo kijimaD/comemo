@@ -1,0 +1,22 @@
+commit 8841f50d98b224ecf5ee27d9b7e6f18ad2c98e46
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 12 22:56:49 2023 +1100
+
+    syscall: reroute SYS_IOCTL and SYS_SYSCTL on openbsd
+    
+    OpenBSD 7.5 no longer supports indirect syscalls. A number of Go
+    packages make use of syscall.Syscall with SYS_IOCTL or SYS_SYSCTL,
+    since neither is well supported by golang.org/x/sys/unix. Reroute
+    calls with either of these system call numbers to the respective
+    libc stub so that they continue to work.
+    
+    Updates #63900
+    
+    Change-Id: I3323a3fa311ee9227e6220417834253763866881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582256
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/syscall_openbsd_libc.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

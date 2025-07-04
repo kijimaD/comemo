@@ -1,12 +1,13 @@
-commit 8727b11dfb867f2e20b2f61f275a0a61dd28cd98
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jan 16 14:57:18 2012 +0900
+commit cdf7654062412a3213a217e34ce2c563653d140d
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Mon Jan 16 16:02:31 2012 +1100
 
-    net: consistent log format in test
+    image/color: simplify documentation
     
-    R=golang-dev, adg
+    R=nigeltao, dsymonds, adg
     CC=golang-dev
-    https://golang.org/cl/5545062
+    https://golang.org/cl/5544073
 
- src/pkg/net/server_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/image/color/color.go | 63 ++++++++++++++++++++++----------------------
+ src/pkg/image/color/ycbcr.go | 12 ++++-----
+ 2 files changed, 38 insertions(+), 37 deletions(-)

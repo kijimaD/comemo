@@ -1,17 +1,13 @@
-commit 650b936b0c4f7ee6d4f74d30a71013de300fbb90
-Author: Jeff Hodges <jeff@somethingsimilar.com>
-Date:   Mon Jan 16 12:57:59 2012 -0800
+commit c30ba7e65a1d5562ef28b9fae45873329cb71f41
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jan 17 03:22:34 2012 +1100
 
-    net/http: send cookies in jar on redirect
+    runtime: implement runtime.usleep for FreeBSD/386 and amd64.
     
-    Until a RFC 6265 jar lands, Request.AddCookie() will work incorrectly.
-    
-    Fixes #2692
-    
-    R=bradfitz, rsc
-    CC=golang-dev, r
-    https://golang.org/cl/5544069
+    R=golang-dev, jsing
+    CC=golang-dev
+    https://golang.org/cl/5528106
 
- src/pkg/net/http/client.go      |  6 +--
- src/pkg/net/http/client_test.go | 87 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 90 insertions(+), 3 deletions(-)
+ src/pkg/runtime/sys_freebsd_386.s   | 20 ++++++++++++++++++--
+ src/pkg/runtime/sys_freebsd_amd64.s | 18 ++++++++++++++++--
+ 2 files changed, 34 insertions(+), 4 deletions(-)

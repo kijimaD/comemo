@@ -1,17 +1,14 @@
-commit e279280d0db0a8ffb7b453e789a2e322722d2259
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Nov 16 16:34:02 2016 +0900
+commit b4c9829c2299772eb0aaffcd437085f9f43e7166
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 19 14:08:21 2016 -0400
 
-    net: deflake TestAcceptTimeout
+    runtime: check plugin-loaded moduledata addresses
     
-    This change makes use of synchronization primitive instead of
-    context-based canceling not to depend on defer execution scheduling.
+    Inspired by difficulties with plugin support on darwin.
     
-    Fixes #17927.
-    
-    Change-Id: I5ca9287a48bb5cdda6845a7f12757f95175c5db8
-    Reviewed-on: https://go-review.googlesource.com/33257
+    Change-Id: I2cef8410837946454e75d00e94e46791f03f2267
+    Reviewed-on: https://go-review.googlesource.com/29391
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/timeout_test.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/runtime/plugin.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

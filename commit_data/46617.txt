@@ -1,27 +1,23 @@
-commit a80cbc25bddfa1e6be76cf539ae9276d41b5108f
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 24 14:55:06 2021 -0700
+commit b386c735e7582d08a938ce2bc582f931946854b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 14:40:07 2021 -0500
 
-    runtime: elide instantiated types in tracebacks
+    cmd/go: fix go generate docs
     
-    They tend to be things like ".shape.int" which are noisy, if not
-    otherwise confusing.
+    The docs were never updated for the change to the placement
+    of the DO NOT EDIT line.
     
-    It would be nice to somehow print the real instantiations here, but that
-    requires keeping track of the dictionary argument so the instantiating
-    types could be found. One day, maybe, but not today.
+    Also, the description of the DO NOT EDIT line interrupted the
+    description of the //go:generate line, which made for some
+    confusing references in the text that followed. Move it lower.
     
-    Fixes #48578
+    Fixes #41196.
     
-    Change-Id: I0968d24e110b6d47c9468c45372a6979575a8d29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352118
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Change-Id: I6af2a199fa98d45f5ccac7cdf7e9e54257699e61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283633
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/pcln.go              | 30 +++++++++++++++++++++++++--
- src/cmd/link/internal/loader/loader.go        | 16 --------------
- src/cmd/link/internal/loader/symbolbuilder.go | 10 +++++++++
- 3 files changed, 38 insertions(+), 18 deletions(-)
+ src/cmd/go/alldocs.go                    | 18 +++++++++---------
+ src/cmd/go/internal/generate/generate.go | 18 +++++++++---------
+ 2 files changed, 18 insertions(+), 18 deletions(-)

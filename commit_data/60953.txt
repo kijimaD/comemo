@@ -1,0 +1,20 @@
+commit e9a500f47dadcd73c970649a1072d28997617610
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 4 11:47:47 2024 -0700
+
+    os: check for EACCES, not EPERM, in Getwd test
+    
+    Fixes #69406
+    
+    Change-Id: I1c6b1498d87f94cc9196a933c13df1c3369e19a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610756
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Tim King <taking@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/getwd_unix_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

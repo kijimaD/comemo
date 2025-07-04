@@ -1,24 +1,28 @@
-commit 01e0e8b6b397f2e775d9ccbfcde104d025464382
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Thu May 15 07:01:14 2025 -0400
+commit 6bf8b76b95b22e3a7fbcd7cb95bfdb3f42bba60a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 12 12:56:03 2024 -0700
 
-    runtime/pprof: include PCs for deduplication in TestMutexBlockFullAggregation
+    cmd/compile: don't assume args are always zero-extended
     
-    TestMutexBlockFullAggregation aggregates stacks by function, file, and
-    line number. But there can be multiple function calls on the same line,
-    giving us different sequences of PCs. This causes the test to spuriously
-    fail in some cases. Include PCs in the stacks for this test.
+    On amd64, we always zero-extend when loading arguments from the stack.
+    On arm64, we extend based on the type. This causes problems with
+    zeroUpper*Bits, which reports the top bits are zero when they aren't.
     
-    Also pick up a small "range over int" modernize suggestion while we're
-    looking at the test.
+    Fix it to use the type to decide if the top bits are really zero.
     
-    Fixes #73641
+    For tests, only f32 currently fails on arm64. Added other tests
+    just for future-proofing.
     
-    Change-Id: I50489e19fcf920e27b9eebd9d4b35feb89981cbc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/673115
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Update #66066
+    
+    Change-Id: I2f13fb47198e139ef13c9a34eb1edc932eea3ee3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571135
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/pprof/pprof_test.go | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go |  8 +++--
+ test/fixedbugs/issue66066b.go           | 58 +++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 3 deletions(-)

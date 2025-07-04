@@ -1,22 +1,20 @@
-commit ebc13fb0b83341a444f55cf226f786fdc9782018
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Apr 12 11:56:14 2023 -0400
+commit b6c5a5baa7c2c4df7ec8016e9a766dcc57895582
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 12 14:06:31 2022 -0700
 
-    log/syslog: report hostname mismatch error details
+    cmd/compile/internal/gc: parse command-line flags earlier
     
-    The existing error log in check doesn't report the got/want hostname
-    even though that can be the cause of the error. Log those as well.
+    This CL moves the call to base.ParseFlags() earlier in compiler
+    startup. This is necessary so CL 393715 can use base.Ctxt.Pkgpath to
+    construct types.LocalPkg.
     
-    While we're here, also report os.Hostname() errors.
+    Updates #51734.
     
-    For #59568.
-    
-    Change-Id: Ia277f85eddc541f2e78d719bc731db24e4513754
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483915
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I9f5f75dc9d5fd1b1d22e98523efc95e6cec64385
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406055
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/log/syslog/syslog_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

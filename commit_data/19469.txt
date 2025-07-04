@@ -1,18 +1,108 @@
-commit a68b9be93518300b15b6830648f8e2be7ebbfdf3
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat May 31 01:09:48 2014 -0700
+commit 1afbceb5999f9c9743630ff8ea002d3ec58a08af
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 30 16:41:58 2014 -0400
 
-    runtime: fix empty heap dump bug on windows.
-    Fixes #8119.
+    cmd/6g: treat vardef-initialized fat variables as live at calls
     
-    LGTM=khr, rsc
-    R=alex.brainman, khr, bradfitz, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/93640044
+    This CL forces the optimizer to preserve some memory stores
+    that would be redundant except that a stack scan due to garbage
+    collection or stack copying might look at them during a function call.
+    As such, it forces additional memory writes and therefore slows
+    down the execution of some programs, especially garbage-heavy
+    programs that are already limited by memory bandwidth.
+    
+    The slowdown can be as much as 7% for end-to-end benchmarks.
+    
+    These numbers are from running go1.test -test.benchtime=5s three times,
+    taking the best (lowest) ns/op for each benchmark. I am excluding
+    benchmarks with time/op < 10us to focus on macro effects.
+    All benchmarks are on amd64.
+    
+    Comparing tip (a27f34c771cb) against this CL on an Intel Core i5 MacBook Pro:
+    
+    benchmark                          old ns/op      new ns/op      delta
+    BenchmarkBinaryTree17              3876500413     3856337341     -0.52%
+    BenchmarkFannkuch11                2965104777     2991182127     +0.88%
+    BenchmarkGobDecode                 8563026        8788340        +2.63%
+    BenchmarkGobEncode                 5050608        5267394        +4.29%
+    BenchmarkGzip                      431191816      434168065      +0.69%
+    BenchmarkGunzip                    107873523      110563792      +2.49%
+    BenchmarkHTTPClientServer          85036          86131          +1.29%
+    BenchmarkJSONEncode                22143764       22501647       +1.62%
+    BenchmarkJSONDecode                79646916       85658808       +7.55%
+    BenchmarkMandelbrot200             4720421        4700108        -0.43%
+    BenchmarkGoParse                   4651575        4712247        +1.30%
+    BenchmarkRegexpMatchMedium_1K      71986          73490          +2.09%
+    BenchmarkRegexpMatchHard_1K        111018         117495         +5.83%
+    BenchmarkRevcomp                   648798723      659352759      +1.63%
+    BenchmarkTemplate                  112673009      112819078      +0.13%
+    
+    Comparing tip (a27f34c771cb) against this CL on an Intel Xeon E5520:
+    
+    BenchmarkBinaryTree17              5461110720     5393104469     -1.25%
+    BenchmarkFannkuch11                4314677151     4327177615     +0.29%
+    BenchmarkGobDecode                 11065853       11235272       +1.53%
+    BenchmarkGobEncode                 6500065        6959837        +7.07%
+    BenchmarkGzip                      647478596      671769097      +3.75%
+    BenchmarkGunzip                    139348579      141096376      +1.25%
+    BenchmarkHTTPClientServer          69376          73610          +6.10%
+    BenchmarkJSONEncode                30172320       31796106       +5.38%
+    BenchmarkJSONDecode                113704905      114239137      +0.47%
+    BenchmarkMandelbrot200             6032730        6003077        -0.49%
+    BenchmarkGoParse                   6775251        6405995        -5.45%
+    BenchmarkRegexpMatchMedium_1K      111832         113895         +1.84%
+    BenchmarkRegexpMatchHard_1K        161112         168420         +4.54%
+    BenchmarkRevcomp                   876363406      892319935      +1.82%
+    BenchmarkTemplate                  146273096      148998339      +1.86%
+    
+    Just to get a sense of where we are compared to the previous release,
+    here are the same benchmarks comparing Go 1.2 to this CL.
+    
+    Comparing Go 1.2 against this CL on an Intel Core i5 MacBook Pro:
+    
+    BenchmarkBinaryTree17              4370077662     3856337341     -11.76%
+    BenchmarkFannkuch11                3347052657     2991182127     -10.63%
+    BenchmarkGobDecode                 8791384        8788340        -0.03%
+    BenchmarkGobEncode                 4968759        5267394        +6.01%
+    BenchmarkGzip                      437815669      434168065      -0.83%
+    BenchmarkGunzip                    94604099       110563792      +16.87%
+    BenchmarkHTTPClientServer          87798          86131          -1.90%
+    BenchmarkJSONEncode                22818243       22501647       -1.39%
+    BenchmarkJSONDecode                97182444       85658808       -11.86%
+    BenchmarkMandelbrot200             4733516        4700108        -0.71%
+    BenchmarkGoParse                   5054384        4712247        -6.77%
+    BenchmarkRegexpMatchMedium_1K      67612          73490          +8.69%
+    BenchmarkRegexpMatchHard_1K        107321         117495         +9.48%
+    BenchmarkRevcomp                   733270055      659352759      -10.08%
+    BenchmarkTemplate                  109304977      112819078      +3.21%
+    
+    Comparing Go 1.2 against this CL on an Intel Xeon E5520:
+    
+    BenchmarkBinaryTree17              5986953594     5393104469     -9.92%
+    BenchmarkFannkuch11                4861139174     4327177615     -10.98%
+    BenchmarkGobDecode                 11830997       11235272       -5.04%
+    BenchmarkGobEncode                 6608722        6959837        +5.31%
+    BenchmarkGzip                      661875826      671769097      +1.49%
+    BenchmarkGunzip                    138630019      141096376      +1.78%
+    BenchmarkHTTPClientServer          71534          73610          +2.90%
+    BenchmarkJSONEncode                30393609       31796106       +4.61%
+    BenchmarkJSONDecode                139645860      114239137      -18.19%
+    BenchmarkMandelbrot200             5988660        6003077        +0.24%
+    BenchmarkGoParse                   6974092        6405995        -8.15%
+    BenchmarkRegexpMatchMedium_1K      111331         113895         +2.30%
+    BenchmarkRegexpMatchHard_1K        165961         168420         +1.48%
+    BenchmarkRevcomp                   995049292      892319935      -10.32%
+    BenchmarkTemplate                  145623363      148998339      +2.32%
+    
+    Fixes #8036.
+    
+    LGTM=khr
+    R=golang-codereviews, josharian, khr
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/99660044
 
- src/pkg/runtime/debug/heapdump_test.go | 29 +++++++++++++++++++++++++++++
- src/pkg/runtime/os_plan9.c             |  4 ++--
- src/pkg/runtime/os_solaris.c           |  2 +-
- src/pkg/runtime/os_windows.c           |  6 ++++--
- src/pkg/runtime/runtime.h              |  2 +-
- 5 files changed, 37 insertions(+), 6 deletions(-)
+ src/cmd/5g/reg.c            | 57 +++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/6g/reg.c            | 57 +++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/8g/reg.c            | 57 +++++++++++++++++++++++++++++++++++++++++++--
+ test/fixedbugs/issue8036.go | 45 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 210 insertions(+), 6 deletions(-)

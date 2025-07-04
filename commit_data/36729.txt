@@ -1,18 +1,25 @@
-commit c5a8d1d2f92678b3e17781dd1315f15e24da00f3
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 21 10:48:05 2018 +1000
+commit 3c4aaf8a32851affec9d1a3eb28495f4bf717318
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 19 15:56:19 2018 -0400
 
-    fmt: add a package-level example illustrating basic formats
+    cmd/compile: abstract bvec sets
     
-    There is much left out here—the space of possibilities is very
-    large—but this example shows all that most programmers will need
-    to know for most printing problems.
+    This moves the bvec hash table logic out of Liveness.compact and into
+    a bvecSet type. Furthermore, the bvecSet type has the ability to grow
+    dynamically, which the current implementation doesn't. In addition to
+    making the code cleaner, this will make it possible to incrementally
+    compact liveness bitmaps.
     
-    Update #27554.
+    Passes toolstash -cmp
     
-    Change-Id: Ib6ae651d5c3720cf7fe1a05ffd0859a5b56a9157
-    Reviewed-on: https://go-review.googlesource.com/136616
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #24543.
+    
+    Change-Id: I46c53e504494206061a1f790ae4a02d768a65681
+    Reviewed-on: https://go-review.googlesource.com/110176
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/fmt/example_test.go | 149 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 149 insertions(+)
+ src/cmd/compile/internal/gc/bv.go    | 95 ++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/plive.go | 70 +++-----------------------
+ 2 files changed, 101 insertions(+), 64 deletions(-)

@@ -1,50 +1,23 @@
-commit 1e43cfa15b4b618812e85c00c9e92c2615b324c8
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Mar 20 10:43:19 2023 -0700
+commit ac39dbdf58e50a2575b891675e7d2e1400b20cfe
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu May 5 21:46:51 2022 +0800
 
-    mime/multipart: limit parsed mime message sizes
+    cmd/compile: allow exporting `.rcvr` ident
     
-    The parsed forms of MIME headers and multipart forms can consume
-    substantially more memory than the size of the input data.
-    A malicious input containing a very large number of headers or
-    form parts can cause excessively large memory allocations.
+    Noder pass will build a closure to implement generic function
+    instantiation which may produce `.dict` and `.rcvr` ident.
+    Since we allow `.dict` during exporting, we should allow `.rcvr` too.
     
-    Set limits on the size of MIME data:
+    Fixes #52241.
     
-    Reader.NextPart and Reader.NextRawPart limit the the number
-    of headers in a part to 10000.
-    
-    Reader.ReadForm limits the total number of headers in all
-    FileHeaders to 10000.
-    
-    Both of these limits may be set with with
-    GODEBUG=multipartmaxheaders=<values>.
-    
-    Reader.ReadForm limits the number of parts in a form to 1000.
-    This limit may be set with GODEBUG=multipartmaxparts=<value>.
-    
-    Thanks for Jakob Ackermann (@das7pad) for reporting this issue.
-    
-    For CVE-2023-24536
-    For #59153
-    
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802455
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    Change-Id: I08dd297bd75724aade4b0bd6a7d19aeca5bbf99f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482077
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ifc3912ba5155b5ac1887f20830da64f4fb3fceb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404314
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/mime/multipart/formdata.go       | 30 ++++++++++++++++--
- src/mime/multipart/formdata_test.go  | 61 ++++++++++++++++++++++++++++++++++++
- src/mime/multipart/multipart.go      | 33 ++++++++++++++-----
- src/mime/multipart/readmimeheader.go |  2 +-
- src/net/textproto/reader.go          | 19 ++++++-----
- src/runtime/metrics.go               |  3 ++
- src/runtime/metrics/description.go   | 21 +++++++++++++
- src/runtime/metrics/doc.go           | 15 +++++++++
- 8 files changed, 165 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go |  2 +-
+ test/typeparam/issue52241.go                  | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

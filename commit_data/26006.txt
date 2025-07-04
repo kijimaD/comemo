@@ -1,14 +1,19 @@
-commit 053aef4f1bcaf118210fca7d72f141cb8d260aeb
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 2 09:20:38 2016 -0800
+commit 8233ecd1b284170695d1d1b501dfab03921f3e20
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 10 10:24:03 2015 -0800
 
-    go/ast: fix typo in comment
+    net/http: make NewRequest with empty method mean GET
     
-    Change-Id: I719231466286b3c0135314388a7c560ef44d7c35
-    Reviewed-on: https://go-review.googlesource.com/20130
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Until recently, we always permitted an empty string to NewRequest.
+    Keep that property, since it broke tests within in Google when trying
+    out Go 1.6, and probably would've broken others too.
+    
+    Change-Id: Idddab1ae7b9423d5caac00af2c897fe1065b600b
+    Reviewed-on: https://go-review.googlesource.com/17699
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/ast/commentmap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/request.go      | 6 ++++++
+ src/net/http/request_test.go | 7 +++++++
+ 2 files changed, 13 insertions(+)

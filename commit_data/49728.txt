@@ -1,24 +1,19 @@
-commit 15d395a196f4aba5b8c6bb990380a85fce3282a7
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Jul 14 10:47:28 2022 -0500
+commit 054710ce46d5613db8e861eff49cd9cb3e3d0589
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 7 15:13:24 2021 -0700
 
-    cmd/link: use correct path for dynamic loader on ppc64le
+    cmd/compile/internal/types2: reduce number of delayed functions (optimization)
     
-    The setting of the path for the dynamic loader when building for
-    linux/ppc64le ELF v2 was incorrectly set to the path for
-    PPC64 ELF v1. This has not caused issues in the common cases
-    because this string can be set based on the default GO_LDSO setting.
-    It does result in an incorrect value when cross compiling binaries
-    with -buildmode=pie.
+    Rather than create and delay execution of a closure for each type parameter
+    in a type parameter list, just create one per type parameter list.
     
-    Updates #53813
+    While at it, inline the small amount of code for getting the type constraint
+    and remove the respective function.
     
-    Change-Id: I84de1c97b42e0434760b76a57c5a05e055fbb730
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417614
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I49a00ff0a7b7e43eb53992dd7dbfac25ff23b42c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348018
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/link/internal/ppc64/obj.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/decl.go | 36 +++++++++++++++------------------
+ 1 file changed, 16 insertions(+), 20 deletions(-)

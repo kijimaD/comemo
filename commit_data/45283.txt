@@ -1,22 +1,24 @@
-commit ece59353645d250162e47c792da77cbb44a84f01
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 20 16:18:59 2021 -0700
+commit c8f6135d4fd0be14bfc63c2bbb911cc9647e00a6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Oct 16 17:48:29 2020 +0200
 
-    cmd/compile/internal/types2: better errors for invalid short var decls
+    test: add regression test from #41474
     
-    - rewrite Checker.shortVarDecl core loop for clarity
-    - match compiler error messages (#43087)
-    - don't allow multiple identical redeclarations (#45652)
+    This issue was fixed with multiple individual compiler optimizations,
+    each of which had their own respective test cases. This CL just adds
+    the capstone test case to demonstrate that the issue has been fixed
+    and doesn't regress again.
     
-    For #43087.
-    For #45652.
+    Updates #41474.
     
-    Change-Id: I8c3329a553aa104d7853fbaea8b88049bc9b3b88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312170
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Iae752d4b0e7b83ee356b946843340a4fbc254058
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263097
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/assignments.go     | 98 +++++++++++++---------
- .../internal/types2/fixedbugs/issue43087.src       | 43 ++++++++++
- src/cmd/compile/internal/types2/testdata/stmt0.src |  6 +-
- 3 files changed, 105 insertions(+), 42 deletions(-)
+ src/os/os_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

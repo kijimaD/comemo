@@ -1,25 +1,20 @@
-commit 84db00ffd1c0e11180fc433df1ef7521de37a49b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 30 13:30:48 2022 -0400
+commit f4cd001b57d91d24843325578a7bbd24dfc628fc
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Jun 23 20:01:33 2021 -0700
 
-    cmd/go: add a 'sleep' command for script tests
+    os/user: simplify skipping listGroups test
     
-    Due to mtime skew we don't index mutable packages with an mtime
-    younger than 2 seconds. In order to test indexed packages reliably, we
-    want to be able to sleep long enough for the files in the package to be cached.
+    This is not implemented on AIX and Illumos, and we already have a
+    mechanism to skip the test case -- let's use it.
     
-    (As an alternative we could instead use os.Chtimes to fake old enough
-    timestamps, but sleeping keeps the tests more realistic.)
-    
-    For #53586.
-    
-    Change-Id: I1873f47c55a72d928451593b8c989f0092a557db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415474
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Idb1cc2d716cf6d0731e93dfc3aa7853b9edec41f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330752
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/script_test.go         | 16 ++++++++++++++++
- src/cmd/go/testdata/script/README |  5 +++++
- 2 files changed, 21 insertions(+)
+ src/os/user/listgroups_aix.go     | 6 ++++++
+ src/os/user/listgroups_illumos.go | 6 ++++++
+ src/os/user/user_test.go          | 7 -------
+ 3 files changed, 12 insertions(+), 7 deletions(-)

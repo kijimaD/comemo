@@ -1,12 +1,37 @@
-commit ae4f1c4c3ae2e0c36c5a2cfb2977acef1e87dd28
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 16 15:07:13 2011 -0700
+commit 048ec75801156d9cd10991cca741935b17a9041f
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Sep 16 10:36:54 2011 -0700
 
-    reflect: fix comment
+    http/cgi: clean up environment.
+    clean up duplicate environment for CGI.
+    overriding former by latter.
+    On windows, When there are duplicated environments like following,
     
-    R=r
+    SCRIPT_FILENAME=c:/progra~1/php/php-cgi.exe
+    SCRIPT_FILENAME=/foo.php
+    
+    CreateProcess use first entry.
+    
+    If make cgi.Handle like following,
+    
+            cgih = cgi.Handler{
+                    Path: "c:/strawberry/perl/bin/perl.exe",
+                    Dir:  "c:/path/to/webroot",
+                    Root: "c:/path/to/webroot",
+                    Args: []string{"foo.php"},
+                    Env:  []string{"SCRIPT_FILENAME=foo.php"},
+            }
+    
+    http/cgi should behave "SCRIPT_FILENAME is foo.php".
+    But currently, http/cgi is set duplicate environment entries.
+    So, browser show binary dump of "php-cgi.exe" that is specified indented
+    SCRIPT_FILENAME in first entry.
+    This change clean up duplicates, and use latters.
+    
+    R=golang-dev, bradfitz, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5039045
+    https://golang.org/cl/5010044
 
- src/pkg/reflect/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/cgi/host.go      | 27 +++++++++++++++++++++++++++
+ src/pkg/http/cgi/host_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)

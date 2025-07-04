@@ -1,18 +1,18 @@
-commit 1df438f79c440ddf9bdd342f089a55567254bc9a
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Aug 26 09:04:27 2016 -0400
+commit f117a5359af607d8e62fa9cd66eb327d18a7d6d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 24 03:12:41 2016 -0400
 
-    misc/cgo/testplugin: add test of -buildmode=plugin
+    doc: first draft of Go 1.7 release notes
     
-    Change-Id: Ie9fea9814c850b084562ab2349b54d9ad9fa1f4a
-    Reviewed-on: https://go-review.googlesource.com/27825
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Mostly complete but a few TODOs remain for future CLs.
+    
+    For #15810.
+    
+    Change-Id: I81ee19d1088d192cf709a5f7e6b7bcc44ad892ac
+    Reviewed-on: https://go-review.googlesource.com/23379
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- misc/cgo/testplugin/src/common/common.go   | 11 +++++++
- misc/cgo/testplugin/src/host/host.go       | 51 ++++++++++++++++++++++++++++++
- misc/cgo/testplugin/src/plugin1/plugin1.go | 25 +++++++++++++++
- misc/cgo/testplugin/test.bash              | 27 ++++++++++++++++
- src/cmd/dist/test.go                       |  9 ++++++
- 5 files changed, 123 insertions(+)
+ doc/go1.7.html | 1122 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.7.txt  |   36 --
+ 2 files changed, 1122 insertions(+), 36 deletions(-)

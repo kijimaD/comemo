@@ -1,12 +1,12 @@
-commit 8f9434b6c187b590c542a5d211f771d63a8c5bbf
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Feb 3 16:45:51 2012 +1100
+commit 7207898fe489e967e42877f9a8dc092636c206dc
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Feb 3 03:03:13 2012 -0200
 
-    build: crash if test runs forever
+    cmd/go: add support for release tags via git branches
     
-    R=golang-dev, rsc
+    R=rsc, remyoudompheng, gustavo, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5604051
+    https://golang.org/cl/5617057
 
- src/run.bash | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/vcs.go | 34 +++++++++++++++++++++++++++++-----
+ 1 file changed, 29 insertions(+), 5 deletions(-)

@@ -1,29 +1,26 @@
-commit 72e043e48bf47ce03229b011d2468f46081055ad
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Tue Nov 12 00:52:57 2019 +0530
+commit 93c05627f9e542476d8f88e2e472082d526689ff
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 26 11:11:45 2019 -0400
 
-    cmd/doc: show variables of unexported types for -all
+    sync: fix pool wrap-around test
     
-    We use the typedValue map to prevent showing typed variables
-    and constants from appearing in the VARIABLES/CONSTANTS section
-    because they will be anyways shown in the TYPES section
-    for that type.
+    TestPoolDequeue in long mode does a little more than 1<<21 pushes.
+    This was originally because the head and tail indexes were 21 bits and
+    the intent was to test wrap-around behavior. However, in the final
+    version they were both 32 bits, so the test no longer tested
+    wrap-around.
     
-    However, when a type is unexported, but the variable is exported,
-    then unconditionally setting it to true in the map suppresses it
-    from being shown in the VARIABLES section. Thus, we set the
-    variable or constant in the typedValue map only when
-    the type name is exported.
+    It would take too long to reach 32-bit wrap around in a test, so
+    instead we initialize the poolDequeue with indexes that are already
+    nearly at their limit. This keeps the knowledge of the maximum index
+    in one place, and lets us test wrap-around even in short mode.
     
-    Fixes #31067
-    
-    Change-Id: Id3ec4b313c9ea7e3ce6fe279680d56f65451719f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206129
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib9b8d85b6d9b5be235849c2b32e81c809e806579
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183979
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/doc/doc_test.go     |  1 +
- src/cmd/doc/pkg.go          | 20 ++++++++++----------
- src/cmd/doc/testdata/pkg.go |  2 ++
- 3 files changed, 13 insertions(+), 10 deletions(-)
+ src/sync/export_test.go | 6 +++++-
+ src/sync/pool_test.go   | 4 +---
+ 2 files changed, 6 insertions(+), 4 deletions(-)

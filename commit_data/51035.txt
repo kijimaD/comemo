@@ -1,28 +1,25 @@
-commit 6695cebeec02c62bd440eec8e982028225984dfb
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 31 15:42:13 2022 -0400
+commit 1970e3e3b7b6c42676acc22071ced887ac68b520
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 24 16:18:57 2021 -0800
 
-    encoding/xml: reduce depth limit on wasm
+    go/types: restore original assignment error messages
     
-    Wasm can't handle the recusion for XML nested to depth 10,000.
-    Cut it off at 5,000 instead. This fixes TestCVE202228131 on trybots
-    in certain conditions.
+    This is the missing portion of the port of CL 351669
+    from types2 to go/types, now that we have a local flag
+    to control for compiler error messages.
     
-    Also disable TestCVE202230633 to fix 'go test -v encoding/xml' on gomotes.
+    Mostly a clean port but for adjustments to error reporting
+    which requires error codes in go/types.
     
-    Also rename errExeceededMaxUnmarshalDepth [misspelled and unwieldy]
-    to errUnmarshalDepth.
+    Prerequisite for port of CL 364874.
     
-    For #56498.
-    
-    Change-Id: I7cc337ccfee251bfd9771497be0e5272737114f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446639
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5fc8c83003e4396351f42e9adb08f4ebc8a05653
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367195
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/encoding/xml/read.go      | 12 ++++++++----
- src/encoding/xml/read_test.go |  7 ++++---
- 2 files changed, 12 insertions(+), 7 deletions(-)
+ src/go/types/assignments.go | 35 +++++++++++++++++++++++++++++++++--
+ src/go/types/expr.go        |  6 +++++-
+ 2 files changed, 38 insertions(+), 3 deletions(-)

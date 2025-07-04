@@ -1,24 +1,23 @@
-commit 4e8c6af239b6a941dafc1288bb5e275add530873
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Apr 28 21:35:31 2023 -0400
+commit b39ac808714add90df425298c1f1bdc9d47cfd45
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 3 13:21:09 2022 -0700
 
-    cmd/link, cmd/internal/obj: use aux symbol for global variable DWARF info
+    [dev.unified] cmd/compile/internal/noder: push exprBlank up into assignment handling
     
-    Currently, for a global variable, its debug info symbol is a named
-    symbol with the variable's name with a special prefix. And the
-    linker looks it up by name. This CL makes the debug info symbol an
-    aux symbol of the variable symbol.
+    Blanks can only appear on the LHS of an assignment. Instead of
+    handling them as an arbitrary expression, handle them as part of
+    assignee expression lists.
     
-    Change-Id: I55614d0ef2af9c53eb40144ad80e09339bf3cbee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490816
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Iaeb0a5c471ffa1abd2bbbd9c95f7876533e5a607
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410100
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/internal/obj/dwarf.go          | 11 +++++------
- src/cmd/internal/obj/link.go           | 26 +++++++++++++++++++++++++-
- src/cmd/internal/obj/objfile.go        | 21 ++++++++++++++++-----
- src/cmd/internal/obj/sym.go            |  9 ++++++---
- src/cmd/link/internal/ld/dwarf.go      | 10 +---------
- src/cmd/link/internal/loader/loader.go |  9 +++++++++
- 6 files changed, 62 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/noder/codes.go   | 12 +++++-
+ src/cmd/compile/internal/noder/reader.go  | 47 +++++++++++++++---------
+ src/cmd/compile/internal/noder/writer.go  | 47 ++++++++++++++----------
+ src/internal/pkgbits/sync.go              |  1 +
+ src/internal/pkgbits/syncmarker_string.go | 61 ++++++++++++++++---------------
+ 5 files changed, 99 insertions(+), 69 deletions(-)

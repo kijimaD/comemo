@@ -1,16 +1,16 @@
-commit 33ff63da4ec9cd456cab65b034b80a2fde4ebdea
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 13 17:47:47 2020 -0700
+commit db75205a9b8c4d630fef38aa88ddb66a9b63f487
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Nov 2 00:38:21 2019 -0400
 
-    cmd/cgo: use consistent tag for a particular struct
+    [dev.link] cmd/link: restore -strictdups flag in newobj mode
     
-    For #31891
-    Fixes #38408
-    
-    Change-Id: Ie7498c2cab728ae798e66e7168425e16b063520e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228102
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I93ad769595fa343400afa342af12e1445abff084
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204918
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- misc/cgo/test/testx.go | 10 ++++++++++
- src/cmd/cgo/gcc.go     | 12 ++++++++++--
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go        | 15 ++++++-
+ src/cmd/link/internal/loader/loader.go | 77 +++++++++++++++++++++++++++++-----
+ src/cmd/link/link_test.go              | 65 ++++++++++++++++++++++++++++
+ 3 files changed, 145 insertions(+), 12 deletions(-)

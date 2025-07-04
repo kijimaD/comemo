@@ -1,30 +1,22 @@
-commit cd33b4089caf362203cd749ee1b3680b72a8c502
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Wed Mar 30 16:52:59 2022 +0800
+commit ccfb0ce8df980599750db4fa56a8ab16202f1ba6
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jun 4 17:19:09 2021 -0700
 
-    debug: define ELF relocation for loong64
+    [dev.typeparams] cmd/compile: convert generic values to interface type using dictionary
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    When converting a variable of generic type to an interface, use the
+    entry in the dictionary for the type field instead of using the
+    compile-time type (which we only have when fully stenciling).
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    Note: this isn't all the conversions. Conversions often get processed
+    in the ir.OCALL case. Those aren't handled yet.
     
-    For #46229
-    
-    Change-Id: I0c58305754c20d2a59328adbd82caa527de254ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396735
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Change-Id: I9a6a4c572e3c54a8e8efad98365184dbb94c4487
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325330
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- api/next/46229.txt    | 105 ++++++++++++++++++++++++++++++++++++++++++++++
- src/debug/elf/elf.go  | 114 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/debug/elf/file.go |  50 ++++++++++++++++++++++
- 3 files changed, 269 insertions(+)
+ src/cmd/compile/internal/escape/escape.go |  7 +++
+ src/cmd/compile/internal/noder/stencil.go | 71 +++++++++++++++++++++++++++++--
+ 2 files changed, 74 insertions(+), 4 deletions(-)

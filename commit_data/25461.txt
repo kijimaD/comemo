@@ -1,19 +1,36 @@
-commit 42206598671a44111c8f726ad33dc7b265bdf669
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 15:14:05 2016 -0500
+commit 914db9f060b1fd3eb1f74d48f3bd46a73d4ae9c7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Oct 31 14:44:48 2015 -0700
 
-    cmd/go: do not force use of git master branch (again)
+    cmd/link: support new 386/amd64 relocations
     
-    This time with a test.
-    Also adjust another test to skip when hg is not present,
-    and delete no longer needed fixDetachedHead code.
+    The GNU binutils recently picked up support for new 386/amd64
+    relocations.  Add support for them in the Go linker when doing an
+    internal link.
     
-    Fixes #9032 (again).
+    The 386 relocation R_386_GOT32X was proposed in
+    https://groups.google.com/forum/#!topic/ia32-abi/GbJJskkid4I .  It can
+    be treated as identical to the R_386_GOT32 relocation.
     
-    Change-Id: I481717409e1d44b524f83c70a8dc377699d1a2a5
-    Reviewed-on: https://go-review.googlesource.com/18334
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The amd64 relocations R_X86_64_GOTPCRELX and R_X86_64_REX_GOTPCRELX were
+    proposed in
+    https://groups.google.com/forum/#!topic/x86-64-abi/n9AWHogmVY0 .  They
+    can both be treated as identical to the R_X86_64_GOTPCREL relocation.
+    
+    The purpose of the new relocations is to permit additional linker
+    relaxations in some cases.  We do not attempt to support those cases.
+    
+    While we're at it, remove the unused and in some cases out of date
+    _COUNT names from ld/elf.go.
+    
+    Fixes #13114.
+    
+    Change-Id: I34ef07f6fcd00cdd2996038ecf46bb77a49e968b
+    Reviewed-on: https://go-review.googlesource.com/16529
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/go/go_test.go | 32 +++++++++++++++++++++++++++++++-
- src/cmd/go/vcs.go     | 30 ++----------------------------
- 2 files changed, 33 insertions(+), 29 deletions(-)
+ src/cmd/link/internal/amd64/asm.go |   2 +-
+ src/cmd/link/internal/ld/elf.go    | 140 +++++++++++++++++++++----------------
+ src/cmd/link/internal/ld/ldelf.go  |   3 +
+ src/cmd/link/internal/x86/asm.go   |   2 +-
+ 4 files changed, 83 insertions(+), 64 deletions(-)

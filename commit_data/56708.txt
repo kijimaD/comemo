@@ -1,31 +1,20 @@
-commit 787414ca488dbb819b1ec82ff5d620b32e79de37
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu May 30 03:36:41 2024 +0000
+commit e4e8f9b8ffff9d1bcbaaf4b98307d0b88c26678f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 22 23:28:50 2023 -0400
 
-    cmd/cgo/internal/swig: force use of lld for LTO tests on the builders
+    cmd/go: clear GOOS environment variable in TestScript/env_write
     
-    For whatever reason, on the builders, when using /usr/bin/ld (the
-    default linker) with -flto we end up with problems. Specifically, the
-    linker seems to require LLVMgold.so and can't find it. I'm not really
-    sure why, but what definitely seems to work is forcing use of lld, which
-    ships with our clang installation on the builders.
+    Also clear the GOOS and GOARCH from the env file before testing other
+    environment variables.
     
-    Just enforce this on the builders for now; I've actually had very few
-    problems running this locally (and I think I'm also mixing and matching
-    linkers and toolchains too...), so it may be related to the version of
-    clang we're testing with.
+    This fixes various builders after CL 496957.
     
-    This change, along with CL 589295, should fully fix the clang builders.
-    
-    Fixes #67698.
-    
-    Change-Id: I3bfbcd609e7d0fd70e52ac7e2a0817db95664f20
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-clang15,gotip-linux-386-clang15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589296
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ib0308ca48f9e64c1c872f1d26a92a1dedf6330f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497256
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/cgo/internal/swig/swig_test.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/env_write.txt | 1 +
+ 1 file changed, 1 insertion(+)

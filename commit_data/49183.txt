@@ -1,24 +1,18 @@
-commit 7e33e9e7a39de0dc384f65ddc17c00bdedf85b81
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu May 12 10:03:25 2022 -0700
+commit 5d8f90f90405e9faa9c5425627024d2cfa67faa3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 26 19:37:10 2021 -0700
 
-    cmd/go: don't assume decimal in test_fuzz_mutate_crash
+    [dev.typeparams] cmd/compile: don't need to unshapify append calls
     
-    In the float test in test_fuzz_mutate_crash, don't assume the mutator
-    will generate a decimal during mutation. The probability it will is
-    quite high, but it is not guaranteed, which can cause a flake. Since we
-    are not really testing that the mutator will do this kind of mutation,
-    just that a mutation happens, just check that the input is not the zero
-    value like the rest of the targets.
+    append is fine using shape types.
     
-    Fixes #52852
-    
-    Change-Id: I4640be640204ced01b4dc749c74b46da968ea7df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405855
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iae829b9b5929d4dc7aa74bed57da13d4f6d746be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337669
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 7 -------
+ 1 file changed, 7 deletions(-)

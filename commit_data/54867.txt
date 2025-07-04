@@ -1,34 +1,22 @@
-commit 450f469c3c3e0a328ab99380cc956a77e7943b89
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Nov 1 23:08:53 2023 -0400
+commit 3e5c2c155645ebaed62e4481430c455045b0fff5
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Nov 17 08:49:32 2022 +0000
 
-    misc/wasm: silence Wasmtime 14 CLI warning
+    net: return errNoSuchHost when no entry found in /etc/hosts and order is hostLookupFiles
     
-    The latest version of Wasmtime, 14.0.4 as of writing this, offers a new
-    CLI while also supporting the old CLI. Since this is known and tracked
-    in issue #63718, silence the warning that otherwise causes many tests
-    to fail.
+    When /etc/nsswitch.conf lists: "hosts: files" then LookupHost returns two nils when no entry inside /etc/hosts is found.
     
-    Since Wasmtime 13 and older don't pay attention to WASMTIME_NEW_CLI,
-    this change increases compatibility of the script, letting it work
-    with Wasmtime 9.0.1 as currently tested by the old cmd/coordinator, and
-    with Wasmtime 14.0.4 as currently tested in the new LUCI infrastructure.
-    
-    The rest of the transition is left as future work.
-    
-    For #63718.
-    For #61116.
-    
-    Change-Id: I77d4f74cc1d34a657e48dcaaceb6fbda7d1e9428
-    Cq-Include-Trybots: luci.golang.try:gotip-wasip1-wasm_wasmtime
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538699
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I96d68a079dfe009655c84cf0e697ce19a5bb6698
+    GitHub-Last-Rev: 894f066bbcc7c975f1975bd0d1dcb5726f590bc5
+    GitHub-Pull-Request: golang/go#56747
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450875
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- misc/wasm/go_wasip1_wasm_exec | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/conf_test.go           |  2 +-
+ src/net/dnsclient_unix.go      |  6 ++-
+ src/net/dnsclient_unix_test.go | 91 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 97 insertions(+), 2 deletions(-)

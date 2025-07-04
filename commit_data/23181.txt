@@ -1,18 +1,15 @@
-commit bc8e129366ebc4244026884319c68c31c3127853
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 15 09:30:45 2015 -0700
+commit 282db6273e1194f62af9cebfdd165dea3c63b1a3
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Apr 30 00:59:36 2015 +1000
 
-    encoding/gob: fix infinite recursion caused by ignoring recursive type
+    cmd/objdump: disable external linking test on openbsd/arm
     
-    This was a simple oversight: the algorithm to handle recursive types
-    needed to be applied to the ignore-item case as well.
+    Disable disassembly with external linking test on openbsd/arm, since this
+    platform does not currently support cgo/external linking.
     
-    Fixes #10415.
-    
-    Change-Id: I39ef31cad680ab8334e141f60d2f8707896785d1
-    Reviewed-on: https://go-review.googlesource.com/8942
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I6eab6fcaac21407ce05075a4a1407fbfe0e6142b
+    Reviewed-on: https://go-review.googlesource.com/9481
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/gob/decode.go       | 34 ++++++++++++++++++++--------------
- src/encoding/gob/encoder_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 14 deletions(-)
+ src/cmd/objdump/objdump_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

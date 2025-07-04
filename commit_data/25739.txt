@@ -1,24 +1,14 @@
-commit 53b66616736480152969fe1749f62e3da07644f7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 10 19:58:44 2016 +0000
+commit 342f17eaf75210cf0992f1f2fc1cc15c2780d97c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Nov 18 12:30:23 2015 +1300
 
-    net/http/httptest: make Server.CloseClientConnections wait for conns to close
+    cmd/internal/obj/x86, cmd/link: enable access to global data via GOT when -dynlink on 386
     
-    httptest.Server was rewritten during Go 1.6, but
-    CloseClientConnections was accidentally made async in the rewrite and
-    not caught due to lack of tests.
-    
-    Restore the Go 1.5 behavior and add tests.
-    
-    Fixes #14290
-    Updates #14291
-    
-    Change-Id: I14f01849066785053ccca2373931bc82d78c0a13
-    Reviewed-on: https://go-review.googlesource.com/19432
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I97504a11291ee60e656efb7704e37387e864d74f
+    Reviewed-on: https://go-review.googlesource.com/16385
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/httptest/server.go      | 49 ++++++++++++++++++++++++++++++++----
- src/net/http/httptest/server_test.go | 14 +++++++++++
- 2 files changed, 58 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go |   5 ++
+ src/cmd/internal/obj/x86/obj6.go | 119 ++++++++++++++++++++++++++++++---------
+ src/cmd/link/internal/x86/asm.go |  25 +++++++-
+ 3 files changed, 120 insertions(+), 29 deletions(-)

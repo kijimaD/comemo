@@ -1,19 +1,18 @@
-commit 5e92c411284f1757c3531a70530170f1079ee5fc
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Mon Sep 25 12:30:41 2017 +0200
+commit f939407f34158a79c83e5c1a605861c39f276a44
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jun 7 11:15:55 2017 +0200
 
-    runtime: fix TestGdbConst on windows
+    doc: remove math/bits from 'minor changes' section
     
-    Some (all?) versions of gdb on windows output "\r\n" as line ending
-    instead of "\n".
+    The new math/bits package has a section for itself, and should not be
+    mentioned in the 'Minor changes to the library' section of the release
+    notes.
     
-    Fixes #22012
+    Updates #20587
     
-    Change-Id: I798204fd9f616d6d2c9c28eb5227fadfc63c0d45
-    Reviewed-on: https://go-review.googlesource.com/65850
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I13ecd35f5cee4324e50b2d31800e399c00159126
+    Reviewed-on: https://go-review.googlesource.com/45051
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime-gdb_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.9.html | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

@@ -1,12 +1,15 @@
-commit 1d609f9b9f0c2133cfce86175ad49c8800954a28
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Jun 9 18:30:44 2012 -0700
+commit 014d036d84494f6613174ebe1bf118469a216b52
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 8 13:00:49 2012 -0700
 
-    encoding/gob: fix doc typo
+    math/big: added nat.trailingZeroBits, simplified some code
     
-    R=golang-dev, dsymonds
+    Will simplify implementation of binaryGCD.
+    
+    R=rsc, cswenson
     CC=golang-dev
-    https://golang.org/cl/6300078
+    https://golang.org/cl/6299064
 
- src/pkg/encoding/gob/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/math/big/nat.go      | 58 +++++++++++++++++++-------------------------
+ src/pkg/math/big/nat_test.go | 19 +++++++++++----
+ 2 files changed, 39 insertions(+), 38 deletions(-)

@@ -1,14 +1,15 @@
-commit 034ca39e56d60e3eaa037fa976b8954939ce6d2f
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 10 12:42:31 2011 -0800
+commit bbad6900ce21f6f9dc323185155e3f938ec60d27
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 10 10:19:11 2011 -0800
 
-    flag: visit the flags in sorted order, for better messages.
-    Fixes #1601.
+    http: run tests even with DISABLE_NET_TESTS=1
+    
+    All tests are now localhost only.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4249070
+    https://golang.org/cl/4271042
 
- src/pkg/flag/flag.go      | 27 +++++++++++++++++++++++----
- src/pkg/flag/flag_test.go |  7 +++++++
- 2 files changed, 30 insertions(+), 4 deletions(-)
+ src/pkg/Makefile             |  2 +-
+ src/pkg/http/request_test.go | 37 +++++++++++++++++++++++++++++--------
+ 2 files changed, 30 insertions(+), 9 deletions(-)

@@ -1,21 +1,12 @@
-commit ed238ca4e5e94cbbc0b2d0922e5ae1df2247ca68
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Mar 1 17:36:35 2012 +1100
+commit 532c1b451b0b3e0ca05a29d2d297438b6dc2cf87
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 29 21:51:21 2012 -0800
 
-    os: release process handle at the end of windows (*Process).Wait
+    test: add bug426.go: a gccgo crash on valid code
     
-    Fixes #3154.
-    
-    R=golang-dev, bradfitz, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5707052
+    https://golang.org/cl/5715044
 
- src/cmd/cgo/util.go        | 1 -
- src/cmd/godoc/main.go      | 1 -
- src/pkg/net/http/triv.go   | 1 -
- src/pkg/os/doc.go          | 7 +++++++
- src/pkg/os/exec_plan9.go   | 3 +--
- src/pkg/os/exec_unix.go    | 3 +--
- src/pkg/os/exec_windows.go | 5 +++--
- src/pkg/os/os_test.go      | 2 --
- 8 files changed, 12 insertions(+), 11 deletions(-)
+ test/fixedbugs/bug426.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

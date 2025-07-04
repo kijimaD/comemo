@@ -1,19 +1,18 @@
-commit d69b820e01f5706037d94f9a4155e7f5d96e435d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 11 16:17:21 2011 -0700
+commit 9691312e5318ca2e0ffc6bb0bd1b37afe69e721e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Oct 11 15:47:00 2011 -0400
 
-    try: delete
-    A fun experiment but not carrying its weight.
+    syscall: add #ifdefs to fix the manual corrections in ztypes_linux_arm.go
     
-    R=golang-dev, bradfitz
+    Fixes #1998.
+    
+    ztypes_linux_arm.go has been regenerated on an arm5 debian sid host and
+    includes a few new constants.
+    
+    R=golang-dev, mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/5246054
+    https://golang.org/cl/5240047
 
- src/cmd/Makefile        |   1 -
- src/cmd/gotry/Makefile  |  18 -----
- src/cmd/gotry/gotry     | 168 ----------------------------------------------
- src/pkg/Makefile        |   2 -
- src/pkg/try/Makefile    |  11 ---
- src/pkg/try/try.go      | 174 ------------------------------------------------
- src/pkg/try/try_test.go |  60 -----------------
- 7 files changed, 434 deletions(-)
+ src/pkg/syscall/types_linux.c       | 24 ++++++++++++++++++++++--
+ src/pkg/syscall/ztypes_linux_arm.go | 14 ++++++--------
+ 2 files changed, 28 insertions(+), 10 deletions(-)

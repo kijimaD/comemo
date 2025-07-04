@@ -1,17 +1,20 @@
-commit 056dfe6ff34fd479ec5c86d9b26a03c639b3f3f7
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Oct 28 00:33:19 2021 +0700
+commit c49c7a675a2c8ee7591a2d6243255813856b65ce
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 1 00:45:41 2021 -0800
 
-    reflect: undeprecate Value.{Pointer,UnsafeAddr}
+    runtime: save R15 before checking AVX state
     
-    Fixes #49187
+    When in dynlink mode, reading a global can clobber R15.
+    Just to be safe, save R15 before checking the AVX state to see
+    if we need to VZEROUPPER or not.
     
-    Change-Id: I4d8c87af8a709f1b909dd4fae3734d422eb36900
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359194
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This could cause a problem in buildmodes that aren't supported yet.
+    
+    Change-Id: I8fda62d3fbe808584774fa5e8d9810a4612a84e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288452
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/reflect/value.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mkpreempt.go    | 19 +++++++++++++------
+ src/runtime/preempt_amd64.s | 10 +++++-----
+ 2 files changed, 18 insertions(+), 11 deletions(-)

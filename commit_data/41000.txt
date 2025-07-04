@@ -1,18 +1,97 @@
-commit 4b21702fdcd17aee6a52a74cc68c7c9b0ed1b7e3
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Dec 16 17:20:02 2019 -0500
+commit c683ab8128e3d26a9894f315793b32fb80e4b5b3
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Aug 2 02:41:59 2019 +0000
 
-    src/go/doc: in Examples, check for len of params.List, not nilness
+    cmd/compile: optimize ARM's math.Abs
     
-    This makes the check the same as the one in the tests vet check.
-    It's safer to check the number of arguments rather than for a nil
-    slice.
+    This CL optimizes math.Abs to an inline ABSD instruction on ARM.
     
-    Change-Id: I8e04e9c612573f334770c1c4245238649656c6e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211598
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    The benchmark results of src/math/ show big improvements.
+    name                   old time/op  new time/op  delta
+    Acos-4                  181ns ± 0%   182ns ± 0%   +0.30%  (p=0.000 n=40+40)
+    Acosh-4                 202ns ± 0%   202ns ± 0%     ~     (all equal)
+    Asin-4                  163ns ± 0%   163ns ± 0%     ~     (all equal)
+    Asinh-4                 242ns ± 0%   242ns ± 0%     ~     (all equal)
+    Atan-4                  120ns ± 0%   121ns ± 0%   +0.83%  (p=0.000 n=40+40)
+    Atanh-4                 202ns ± 0%   202ns ± 0%     ~     (all equal)
+    Atan2-4                 173ns ± 0%   173ns ± 0%     ~     (all equal)
+    Cbrt-4                 1.06µs ± 0%  1.06µs ± 0%   +0.09%  (p=0.000 n=39+37)
+    Ceil-4                 72.9ns ± 0%  72.8ns ± 0%     ~     (p=0.237 n=40+40)
+    Copysign-4             13.2ns ± 0%  13.2ns ± 0%     ~     (all equal)
+    Cos-4                   193ns ± 0%   183ns ± 0%   -5.18%  (p=0.000 n=40+40)
+    Cosh-4                  254ns ± 0%   239ns ± 0%   -5.91%  (p=0.000 n=40+40)
+    Erf-4                   112ns ± 0%   112ns ± 0%     ~     (all equal)
+    Erfc-4                  117ns ± 0%   117ns ± 0%     ~     (all equal)
+    Erfinv-4                127ns ± 0%   127ns ± 1%     ~     (p=0.492 n=40+40)
+    Erfcinv-4               128ns ± 0%   128ns ± 0%     ~     (all equal)
+    Exp-4                   212ns ± 0%   206ns ± 0%   -3.05%  (p=0.000 n=40+40)
+    ExpGo-4                 216ns ± 0%   209ns ± 0%   -3.24%  (p=0.000 n=40+40)
+    Expm1-4                 142ns ± 0%   142ns ± 0%     ~     (all equal)
+    Exp2-4                  191ns ± 0%   184ns ± 0%   -3.45%  (p=0.000 n=40+40)
+    Exp2Go-4                194ns ± 0%   187ns ± 0%   -3.61%  (p=0.000 n=40+40)
+    Abs-4                  14.4ns ± 0%   6.3ns ± 0%  -56.39%  (p=0.000 n=38+39)
+    Dim-4                  12.6ns ± 0%  12.6ns ± 0%     ~     (all equal)
+    Floor-4                49.6ns ± 0%  49.6ns ± 0%     ~     (all equal)
+    Max-4                  27.6ns ± 0%  27.6ns ± 0%     ~     (all equal)
+    Min-4                  27.0ns ± 0%  27.0ns ± 0%     ~     (all equal)
+    Mod-4                   349ns ± 0%   305ns ± 1%  -12.55%  (p=0.000 n=33+40)
+    Frexp-4                54.0ns ± 0%  47.1ns ± 0%  -12.78%  (p=0.000 n=38+38)
+    Gamma-4                 242ns ± 0%   234ns ± 0%   -3.16%  (p=0.000 n=36+40)
+    Hypot-4                84.8ns ± 0%  67.8ns ± 0%  -20.05%  (p=0.000 n=31+35)
+    HypotGo-4              88.5ns ± 0%  71.6ns ± 0%  -19.12%  (p=0.000 n=40+38)
+    Ilogb-4                45.8ns ± 0%  38.9ns ± 0%  -15.12%  (p=0.000 n=40+32)
+    J0-4                    821ns ± 0%   802ns ± 0%   -2.33%  (p=0.000 n=33+40)
+    J1-4                    816ns ± 0%   807ns ± 0%   -1.05%  (p=0.000 n=40+29)
+    Jn-4                   1.67µs ± 0%  1.65µs ± 0%   -1.45%  (p=0.000 n=40+39)
+    Ldexp-4                61.5ns ± 0%  54.6ns ± 0%  -11.27%  (p=0.000 n=40+32)
+    Lgamma-4                188ns ± 0%   188ns ± 0%     ~     (all equal)
+    Log-4                   154ns ± 0%   147ns ± 0%   -4.78%  (p=0.000 n=40+40)
+    Logb-4                 50.9ns ± 0%  42.7ns ± 0%  -16.11%  (p=0.000 n=34+39)
+    Log1p-4                 160ns ± 0%   159ns ± 0%     ~     (p=0.828 n=40+40)
+    Log10-4                 173ns ± 0%   166ns ± 0%   -4.05%  (p=0.000 n=40+40)
+    Log2-4                 65.3ns ± 0%  58.4ns ± 0%  -10.57%  (p=0.000 n=37+37)
+    Modf-4                 36.4ns ± 0%  36.4ns ± 0%     ~     (all equal)
+    Nextafter32-4          36.4ns ± 0%  36.4ns ± 0%     ~     (all equal)
+    Nextafter64-4          32.7ns ± 0%  32.6ns ± 0%     ~     (p=0.375 n=40+40)
+    PowInt-4                300ns ± 0%   277ns ± 0%   -7.78%  (p=0.000 n=40+40)
+    PowFrac-4               676ns ± 0%   635ns ± 0%   -6.00%  (p=0.000 n=40+35)
+    Pow10Pos-4             17.6ns ± 0%  17.6ns ± 0%     ~     (all equal)
+    Pow10Neg-4             22.0ns ± 0%  22.0ns ± 0%     ~     (all equal)
+    Round-4                30.1ns ± 0%  30.1ns ± 0%     ~     (all equal)
+    RoundToEven-4          38.9ns ± 0%  38.9ns ± 0%     ~     (all equal)
+    Remainder-4             291ns ± 0%   263ns ± 0%   -9.62%  (p=0.000 n=40+40)
+    Signbit-4              11.3ns ± 0%  11.3ns ± 0%     ~     (all equal)
+    Sin-4                   185ns ± 0%   185ns ± 0%     ~     (all equal)
+    Sincos-4                230ns ± 0%   230ns ± 0%     ~     (all equal)
+    Sinh-4                  253ns ± 0%   246ns ± 0%   -2.77%  (p=0.000 n=39+39)
+    SqrtIndirect-4         41.4ns ± 0%  41.4ns ± 0%     ~     (all equal)
+    SqrtLatency-4          13.8ns ± 0%  13.8ns ± 0%     ~     (all equal)
+    SqrtIndirectLatency-4  37.0ns ± 0%  37.0ns ± 0%     ~     (p=0.632 n=40+40)
+    SqrtGoLatency-4         911ns ± 0%   911ns ± 0%   +0.08%  (p=0.000 n=40+40)
+    SqrtPrime-4            13.2µs ± 0%  13.2µs ± 0%   +0.01%  (p=0.038 n=38+40)
+    Tan-4                   205ns ± 0%   205ns ± 0%     ~     (all equal)
+    Tanh-4                  264ns ± 0%   247ns ± 0%   -6.44%  (p=0.000 n=39+32)
+    Trunc-4                45.2ns ± 0%  45.2ns ± 0%     ~     (all equal)
+    Y0-4                    796ns ± 0%   792ns ± 0%   -0.55%  (p=0.000 n=35+40)
+    Y1-4                    804ns ± 0%   797ns ± 0%   -0.82%  (p=0.000 n=24+40)
+    Yn-4                   1.64µs ± 0%  1.62µs ± 0%   -1.27%  (p=0.000 n=40+39)
+    Float64bits-4          8.16ns ± 0%  8.16ns ± 0%   +0.04%  (p=0.000 n=35+40)
+    Float64frombits-4      10.7ns ± 0%  10.7ns ± 0%     ~     (all equal)
+    Float32bits-4          7.53ns ± 0%  7.53ns ± 0%     ~     (p=0.760 n=40+40)
+    Float32frombits-4      6.91ns ± 0%  6.91ns ± 0%   -0.04%  (p=0.002 n=32+38)
+    [Geo mean]              111ns        106ns        -3.98%
+    
+    Change-Id: I54f4fd7f5160db020b430b556bde59cc0fdb996d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188678
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/doc/example.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/arm/ssa.go        |  1 +
+ src/cmd/compile/internal/gc/ssa.go         |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go      | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go | 13 +++++++++++++
+ test/codegen/math.go                       |  1 +
+ 7 files changed, 32 insertions(+), 1 deletion(-)

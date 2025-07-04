@@ -1,44 +1,30 @@
-commit f04f4c24e36440226baaa181abb1754f8b0f0b41
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Sep 20 18:06:54 2024 +0200
+commit 4f97a7e6eae588784c6bd7f87251b29c1d6c859a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 28 02:33:06 2023 -0700
 
-    crypto/sha256,crypto/sha512: test fallback implementations
+    cmd/compile/internal/ir: set Addrtaken on Canonical ONAME too
     
-    This will be required for #69536 but is also good hygiene and required
-    by go.dev/wiki/AssemblyPolicy.
+    In CL 522879, I moved the logic for setting Addrtaken from typecheck's
+    markAddrOf and ComputeAddrtaken directly into ir.NewAddrExpr. However,
+    I took the logic from markAddrOf, and failed to notice that
+    ComputeAddrtaken also set Addrtaken on the canonical ONAME.
     
-    > The code must be tested in our CI. This means there need to be
-    > builders that support the instructions, and if there are multiple (or
-    > fallback) paths they must be tested separately.
+    The result is that if the only address-of expressions were within a
+    function literal, the canonical variable never got marked Addrtaken.
+    In turn, this could cause the consistency check in ir.Reassigned to
+    fail. (Yay for consistency checks turning mistakes into ICEs, rather
+    than miscompilation.)
     
-    The new crypto/internal/impl registry lets us select alternative
-    implementations from both the same package and importers (such as
-    crypto/sha256 tests once we have crypto/internal/fips/sha256, or
-    crypto/hmac).
+    Fixes #62313.
     
-    Updates #69592
-    Updates #69593
-    
-    Change-Id: Ifea22a9fc9ccffcaf4924ff6bd08da7c9bd39e99
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm64-longtest,gotip-linux-amd64-longtest,gotip-linux-ppc64le_power8,gotip-linux-ppc64_power8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614656
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ieab2854cd7fcc1b6c5d1e61de66453add9890a4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523375
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/cryptotest/implementations.go | 56 +++++++++++++++
- src/crypto/internal/impl/impl.go                  | 88 +++++++++++++++++++++++
- src/crypto/sha256/sha256_test.go                  | 40 +++++------
- src/crypto/sha256/sha256block_amd64.go            | 17 +++--
- src/crypto/sha256/sha256block_arm64.go            | 13 +++-
- src/crypto/sha256/sha256block_ppc64x.go           |  9 ++-
- src/crypto/sha256/sha256block_s390x.go            | 15 +++-
- src/crypto/sha512/sha512_test.go                  | 46 ++++++------
- src/crypto/sha512/sha512block_amd64.go            | 13 +++-
- src/crypto/sha512/sha512block_arm64.go            | 13 +++-
- src/crypto/sha512/sha512block_ppc64x.go           |  9 ++-
- src/crypto/sha512/sha512block_s390x.go            | 15 +++-
- src/go/build/deps_test.go                         |  5 +-
- 13 files changed, 276 insertions(+), 63 deletions(-)
+ src/cmd/compile/internal/ir/expr.go | 13 +++++++++++++
+ test/fixedbugs/issue62313.go        | 13 +++++++++++++
+ 2 files changed, 26 insertions(+)

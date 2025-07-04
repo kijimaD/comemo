@@ -1,17 +1,30 @@
-commit d7fc2205d44e5cc2b1b0161bc71084e8f5eea54e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 5 11:39:59 2018 +0200
+commit 8af0c77df34a85ada2fe7f508ffaa0e337dddccb
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Apr 30 13:27:50 2018 +0100
 
-    test: fix nilptr3 check for wasm
+    cmd/compile: simplify shift lowering on s390x
     
-    CL 131735 only updated nilptr3.go for the adjusted nil check. Adjust
-    nilptr3_wasm.go as well.
+    Use conditional moves instead of subtractions with borrow to handle
+    saturation cases. This allows us to delete the SUBE/SUBEW ops and
+    associated rules from the SSA backend. Using conditional moves also
+    means we can detect when shift values are masked so I've added some
+    new rules to constant fold the relevant comparisons and masking ops.
     
-    Change-Id: I4a6257d32bb212666fe768dac53901ea0b051138
-    Reviewed-on: https://go-review.googlesource.com/133495
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Also use the new shiftIsBounded() function to avoid generating code
+    to handle saturation cases where possible.
+    
+    Updates #25167 for s390x.
+    
+    Change-Id: Ief9991c91267c9151ce4c5ec07642abb4dcc1c0d
+    Reviewed-on: https://go-review.googlesource.com/110070
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/nilptr3_wasm.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/s390x/ssa.go        |    7 -
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  177 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |    5 -
+ src/cmd/compile/internal/ssa/opGen.go        |   22 -
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 3477 ++++++++++++++++++++++----
+ test/codegen/shift.go                        |   99 +
+ 6 files changed, 3108 insertions(+), 679 deletions(-)

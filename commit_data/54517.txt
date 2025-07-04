@@ -1,21 +1,24 @@
-commit 3857a89e7eb872fa22d569e70b7e076bec74ebbb
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue Sep 19 17:23:58 2023 -0400
+commit 2a2b163bb9125389c5f70e65aec21816e2ea09c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 23:10:13 2022 -0400
 
-    net/http: add a benchmark for multi indexing
+    crypto/x509: respect GODEBUG changes for allowing SHA1 certificates
     
-    We don't index multis, so a corpus full of them will take quadratic
-    time to check for conflicts. How slow is that going to be in practice?
+    This allows programs that want SHA1 support to call os.Setenv at startup
+    instead of insisting that users set the environment variable themselves.
     
-    This benchmark indexes and checks a thousand multi patterns, all disjoint.
-    It runs in about 35ms.
+    For #41682.
+    Fixes #56436.
     
-    Change-Id: Id27940ab19ad003627bd5c43c53466e01456b796
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529477
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Idcb96212a1d8c560e1dd8eaf7c80b6266f16431e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445496
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/net/http/pattern_test.go       |  6 +++---
- src/net/http/routing_index_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 3 deletions(-)
+ src/crypto/x509/verify_test.go | 4 ++--
+ src/crypto/x509/x509.go        | 8 +++-----
+ src/crypto/x509/x509_test.go   | 7 ++-----
+ 3 files changed, 7 insertions(+), 12 deletions(-)

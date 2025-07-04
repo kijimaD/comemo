@@ -1,21 +1,16 @@
-commit c969491ed7b0d3c7db951abfb95cf96777efbfbc
-Author: shenleban tongying <shenlebantongying@gmail.com>
-Date:   Tue Nov 12 02:10:06 2024 +0000
+commit 5cc1e99f94be59a65ba291e06af6afec7a978427
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Sep 12 13:52:42 2023 -0400
 
-    doc/go_mem: fix broken paper link in go_mem.html
+    runtime: fix off-by-1 error in textOff
     
-    The link is no longer accessible.
+    The code meant to check if it is the last section, which is
+    i === len(md.textsectmap)-1. The -1 was missing.
     
-    Replace it with the ACM one.
-    
-    Change-Id: I4095fd07a1bc193568cd93fbf69955ba0ba96f2b
-    GitHub-Last-Rev: 33b142d6e864d9c59c5fb2bd21dbe4a6fd65ab36
-    GitHub-Pull-Request: golang/go#70295
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626485
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ifbb9e40df730abe3bec20fde5f56f5c75dfd9e8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527795
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go_mem.html | 2 +-
+ src/runtime/symtab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

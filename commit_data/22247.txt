@@ -1,18 +1,14 @@
-commit 15e66f9d01da995d63683245a429e64d71ac698e
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Fri Jan 9 12:32:19 2015 +0100
+commit dac3f486ac0be26fdbc0cf08d1cfecc43b4c2c53
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 2 04:14:49 2015 -0500
 
-    fmt: improve test coverage of %x and %X format variations for strings
+    runtime: remove unused getenv function
     
-    The tests in the basic string section are now covering more code paths
-    for encoding a string into the hexadecimal representation of its bytes.
-    
-    Changed the basic string and basic bytes tests so that they mirror each other.
-    
-    Change-Id: Ib5dc7b33876769965f9aba2ac270040abc4b2451
-    Reviewed-on: https://go-review.googlesource.com/2611
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I49cda99f81b754e25fad1483de373f7d07d64808
+    Reviewed-on: https://go-review.googlesource.com/6452
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/fmt_test.go | 30 ++++++++++++++++++------------
- 1 file changed, 18 insertions(+), 12 deletions(-)
+ src/runtime/env_plan9.go | 9 ---------
+ src/runtime/env_posix.go | 9 ---------
+ 2 files changed, 18 deletions(-)

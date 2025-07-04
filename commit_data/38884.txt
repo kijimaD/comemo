@@ -1,19 +1,18 @@
-commit 2417b0d0067b192e7cca05c00d9874617607fa81
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Apr 24 22:21:53 2019 +1000
+commit cd47e8944dca019a89222b99b343d9981ac3a8e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 5 09:52:59 2018 -0800
 
-    cmd: re-enable tests with external linking on openbsd/arm
+    cmd/compile: avoid multiple errors regarding misuse of ... in signatures
     
-    Go on openbsd/arm has supported external linking for a while now, so
-    re-enable the external linking related tests that were previously
-    disabled.
+    Follow-up on #28450 (golang.org/cl/152417).
     
-    Fixes #10619
+    Updates #28450.
+    Fixes #29107.
     
-    Change-Id: I304eeabf3b462d53b7feda17ae390bbe2fa22069
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173597
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib4b4fe582c35315a4f71cf6dbc7f7f2f24b37ec1
+    Reviewed-on: https://go-review.googlesource.com/c/152758
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/note_test.go         | 2 --
- src/cmd/objdump/objdump_test.go | 4 ----
- 2 files changed, 6 deletions(-)
+ src/cmd/compile/internal/gc/noder.go | 8 +++++---
+ test/fixedbugs/issue28450.go         | 4 ++--
+ 2 files changed, 7 insertions(+), 5 deletions(-)

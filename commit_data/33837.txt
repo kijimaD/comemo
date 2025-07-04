@@ -1,25 +1,25 @@
-commit 6c877e5da7ab14f0d8a206c09f24cf51fbbc393a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 7 20:30:28 2017 -0800
+commit 2d69e9e259ec0f5d5fbeb3498fbd9fed135fe869
+Author: Adam Langley <agl@golang.org>
+Date:   Wed May 3 18:20:12 2017 -0700
 
-    net: avoid race on test hooks with DNS goroutines
+    crypto/elliptic: fix incomplete addition used in CombinedMult.
     
-    The DNS code can start goroutines and not wait for them to complete.
-    This does no harm, but in tests this can cause a race condition with
-    the test hooks that are installed and unintalled around the tests.
-    Add a WaitGroup that tests of DNS can use to avoid the race.
+    The optimised P-256 includes a CombinedMult function, which doesn't do
+    dual-scalar multiplication, but does avoid an affine conversion for
+    ECDSA verification.
     
-    Fixes #21090
+    However, it currently uses an assembly point addition function that
+    doesn't handle exceptional cases.
     
-    Change-Id: I6c1443a9c2378e8b89d0ab1d6390c0e3e726b0ce
-    Reviewed-on: https://go-review.googlesource.com/82795
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #20215.
+    
+    Change-Id: I4ba2ca1a546d883364a9bb6bf0bdbc7f7b44c94a
+    Reviewed-on: https://go-review.googlesource.com/42611
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/internal/singleflight/singleflight.go | 10 +++++---
- src/net/cgo_unix_test.go                  |  6 +++++
- src/net/dnsclient_unix.go                 |  2 ++
- src/net/dnsclient_unix_test.go            | 41 +++++++++++++++++++++++++++++++
- src/net/lookup.go                         | 12 ++++++++-
- src/net/lookup_test.go                    | 28 +++++++++++++++++++++
- src/net/netgo_unix_test.go                |  1 +
- 7 files changed, 95 insertions(+), 5 deletions(-)
+ src/crypto/ecdsa/ecdsa_test.go       | 22 +++++++++++++
+ src/crypto/elliptic/elliptic_test.go | 63 ++++++++++++++++++++++++++++++++++++
+ src/crypto/elliptic/p256_amd64.go    | 48 ++++++++++++++++++++++++---
+ src/crypto/elliptic/p256_asm_amd64.s | 44 +++++++++++++++++++++++--
+ 4 files changed, 171 insertions(+), 6 deletions(-)

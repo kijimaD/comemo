@@ -1,18 +1,16 @@
-commit 27301e8247580e456e712a07d68890dc1e857000
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 9 12:25:22 2022 -0500
+commit ea9b1f1573736dacb4a6dd3c6e356d55a186ffc9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 10 21:10:34 2022 -0800
 
-    syscall: fix shadowing bugs in forkAndExecInChild
+    spec: add a section on implementing an interface
     
-    Fixes #57208.
-    Updates #23152.
+    Also, fixed several closing header tags and removed a duplicate "the".
+    (Thanks to @hopehook and Hossein Zolfi for pointing these out.)
     
-    Change-Id: Icc9a74aeb26f1b6f151162c5d6bf1b4d7cd54d0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456515
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I85a40ba44b8570a578bce8d211dcc5ea3901fb1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385036
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_freebsd.go | 2 +-
- src/syscall/exec_linux.go   | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 54 ++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 40 insertions(+), 14 deletions(-)

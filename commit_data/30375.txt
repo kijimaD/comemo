@@ -1,14 +1,89 @@
-commit 8ca68c3fec18bec7739ceac0f55681f915baa7f9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 12:52:33 2017 -0800
+commit 688995d1e91fcc36ac33bf34d6303e935d1b0a70
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 28 11:37:45 2016 -0700
 
-    go/types: fix doc string for Named.Obj
+    cmd/compile: do more type conversion inline
     
-    Fixes #19249.
+    The code to do the conversion is smaller than the
+    call to the runtime.
+    The 1-result asserts need to call panic if they fail, but that
+    code is out of line.
     
-    Change-Id: I6327192eca11fa24f1078c016c9669e4ba4bdb4e
-    Reviewed-on: https://go-review.googlesource.com/37399
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The only conversions left in the runtime are those which
+    might allocate and those which might need to generate an itab.
+    
+    Given the following types:
+      type E interface{}
+      type I interface { foo() }
+      type I2 iterface { foo(); bar() }
+      type Big [10]int
+      func (b Big) foo() { ... }
+    
+    This CL inlines the following conversions:
+    
+    was assertE2T
+      var e E = ...
+      b := i.(Big)
+    was assertE2T2
+      var e E = ...
+      b, ok := i.(Big)
+    was assertI2T
+      var i I = ...
+      b := i.(Big)
+    was assertI2T2
+      var i I = ...
+      b, ok := i.(Big)
+    was assertI2E
+      var i I = ...
+      e := i.(E)
+    was assertI2E2
+      var i I = ...
+      e, ok := i.(E)
+    
+    These are the remaining runtime calls:
+    
+    convT2E:
+      var b Big = ...
+      var e E = b
+    convT2I:
+      var b Big = ...
+      var i I = b
+    convI2I:
+      var i2 I2 = ...
+      var i I = i2
+    assertE2I:
+      var e E = ...
+      i := e.(I)
+    assertE2I2:
+      var e E = ...
+      i, ok := e.(I)
+    assertI2I:
+      var i I = ...
+      i2 := i.(I2)
+    assertI2I2:
+      var i I = ...
+      i2, ok := i.(I2)
+    
+    Fixes #17405
+    Fixes #8422
+    
+    Change-Id: Ida2367bf8ce3cd2c6bb599a1814f1d275afabe21
+    Reviewed-on: https://go-review.googlesource.com/32313
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/types/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin.go         | 130 ++++++++--------
+ src/cmd/compile/internal/gc/builtin/runtime.go |  17 +--
+ src/cmd/compile/internal/gc/go.go              |  30 ++--
+ src/cmd/compile/internal/gc/pgen.go            |   5 +
+ src/cmd/compile/internal/gc/racewalk.go        |  12 +-
+ src/cmd/compile/internal/gc/ssa.go             | 196 +++++++++++++++++++++---
+ src/cmd/compile/internal/gc/walk.go            | 131 +---------------
+ src/cmd/compile/internal/ssa/gen/generic.rules |   4 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  32 ++++
+ src/runtime/export_test.go                     |   3 -
+ src/runtime/gc_test.go                         |  42 ------
+ src/runtime/iface.go                           | 200 ++++++-------------------
+ src/runtime/mfinal.go                          |   4 +-
+ test/interface/assertinline.go                 |  33 ++--
+ 14 files changed, 375 insertions(+), 464 deletions(-)

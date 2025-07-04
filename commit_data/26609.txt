@@ -1,38 +1,12 @@
-commit 3efefd9395a14b3abf1f1c59a596d880e78abb73
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 30 14:56:08 2016 -0700
+commit 6b9a0fa356de3c733c14951e42ca31cfafe7ff79
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Wed Feb 17 14:55:16 2016 -0800
 
-    cmd/compile: use t.IsFoo() instead of t.Etype == TFOO
+    doc: fix typo in go1.6 release date.
     
-    CL produced mechanically using gofmt -w -r.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: Ib2e8710ebd844e2149125b41c335b71a02fcab53
-    Reviewed-on: https://go-review.googlesource.com/21338
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If15fdcd3cd49394a0c1dffd39fbbeede11081ccb
+    Reviewed-on: https://go-review.googlesource.com/19528
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/compile/internal/amd64/gsubr.go  |  2 +-
- src/cmd/compile/internal/gc/alg.go       |  2 +-
- src/cmd/compile/internal/gc/bexport.go   |  4 +--
- src/cmd/compile/internal/gc/bimport.go   |  2 +-
- src/cmd/compile/internal/gc/cgen.go      | 18 ++++++-------
- src/cmd/compile/internal/gc/closure.go   |  2 +-
- src/cmd/compile/internal/gc/const.go     |  8 +++---
- src/cmd/compile/internal/gc/dcl.go       | 14 +++++-----
- src/cmd/compile/internal/gc/esc.go       |  2 +-
- src/cmd/compile/internal/gc/export.go    |  2 +-
- src/cmd/compile/internal/gc/fmt.go       |  4 +--
- src/cmd/compile/internal/gc/gsubr.go     |  4 +--
- src/cmd/compile/internal/gc/order.go     |  6 ++---
- src/cmd/compile/internal/gc/racewalk.go  |  4 +--
- src/cmd/compile/internal/gc/sinit.go     |  4 +--
- src/cmd/compile/internal/gc/ssa.go       |  2 +-
- src/cmd/compile/internal/gc/subr.go      | 36 +++++++++++++-------------
- src/cmd/compile/internal/gc/swt.go       |  8 +++---
- src/cmd/compile/internal/gc/typecheck.go | 44 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/walk.go      | 20 +++++++--------
- src/cmd/compile/internal/x86/gsubr.go    |  2 +-
- 21 files changed, 95 insertions(+), 95 deletions(-)
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

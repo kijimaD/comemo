@@ -1,19 +1,22 @@
-commit 9fdf77c3730cbb98f699bbd06db16988b7c590c2
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri May 19 02:13:50 2017 +0200
+commit c8eaeb8cba52a1eb688245e0f6935d560cf1569d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 3 16:18:01 2017 -0500
 
-    cmd/compile: skip TestScopeRanges on Plan 9
+    cmd/compile: remove zeroing after newobject
     
-    TestScopeRanges has been added in CL 40095. This
-    test is failing on Plan 9 because executables don't
-    have a DWARF symbol table.
+    The Zero op right after newobject has been removed. But this rule
+    does not cover Store of constant zero (for SSA-able types). Add
+    rules to cover Store op as well.
     
-    Fixes #20418.
+    Updates #19027.
     
-    Change-Id: I6dd3baa636998134ccd042203c8b5c3199a4d6e1
-    Reviewed-on: https://go-review.googlesource.com/43670
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5d2b62eeca0aa9ce8dc7205b264b779de01c660b
+    Reviewed-on: https://go-review.googlesource.com/36836
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/scope_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 12 +++++
+ src/cmd/compile/internal/ssa/rewrite.go        | 10 ++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 64 ++++++++++++++++++++++++++
+ 3 files changed, 86 insertions(+)

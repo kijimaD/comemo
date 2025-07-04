@@ -1,23 +1,30 @@
-commit cbff713e68a1378713f1692cbfe13499106de7eb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 30 01:29:57 2021 -0400
+commit 79781e8dd382ac34e502ed6a088dff6860a08c05
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Aug 4 17:29:03 2020 +0000
 
-    cmd/go: add GODEBUG tokens for debugging lazy module loading
+    runtime: move malloc stats into consistentHeapStats
     
-    GODEBUG=lazymod=log causes the go command to log a stack dump whenever
-    the full module graph is loaded in a lazy module.
+    This change moves the mcache-local malloc stats into the
+    consistentHeapStats structure so the malloc stats can be managed
+    consistently with the memory stats. The one exception here is
+    tinyAllocs for which moving that into the global stats would incur
+    several atomic writes on the fast path. Microbenchmarks for just one CPU
+    core have shown a 50% loss in throughput. Since tiny allocation counnt
+    isn't exposed anyway and is always blindly added to both allocs and
+    frees, let that stay inconsistent and flush the tiny allocation count
+    every so often.
     
-    GODEBUG=lazymod=strict does the same, but also terminates the command
-    with a nonzero exit code.
-    
-    For #36460
-    
-    Change-Id: Ia5a4c46069044bcc157b285f64c2392990d70bd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315411
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2a4b75f209c0e659b9c0db081a3287bf227c10ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247039
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/modload/buildlist.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/runtime/export_test.go | 37 ++++++++--------------
+ src/runtime/malloc.go      |  2 +-
+ src/runtime/mcache.go      | 70 ++++++++++++++---------------------------
+ src/runtime/mgcsweep.go    | 10 ++++--
+ src/runtime/mstats.go      | 78 ++++++++++++++++++++++++++--------------------
+ src/runtime/proc.go        |  2 +-
+ 6 files changed, 90 insertions(+), 109 deletions(-)

@@ -1,19 +1,33 @@
-commit de050717f1b668dfd196f1dc4d18c77d03f3afb4
-Author: Udalov Max <re.udalov@gmail.com>
-Date:   Tue Apr 23 12:53:35 2019 +0300
+commit be09bdf589a5c25e5d8b68a546e9b84bc1a1977b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Dec 4 15:54:14 2018 -0500
 
-    cmd/go/internal/modcmd: assign module's path and version to fileJSON when modFile's module statement exists
+    cmd/compile: fix unnamed parameter handling in escape analysis
     
-    Fixes panic on nil pointer dereference error when assigning module's path and version pair to fileJSON.
+    For recursive functions, the parameters were iterated using
+    fn.Name.Defn.Func.Dcl, which does not include unnamed/blank
+    parameters. This results in a mismatch in formal-actual
+    assignments, for example,
     
-    Fixes #31623
+    func f(_ T, x T)
     
-    Change-Id: I3f61122ba0676a1270d3ad98900af8c8e9c90935
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173397
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    f(a, b) should result in { _=a, x=b }, but the escape analysis
+    currently sees only { x=a } and drops b on the floor. This may
+    cause b to not escape when it should (or a escape when it should
+    not).
+    
+    Fix this by using fntype.Params().FieldSlice() instead, which
+    does include unnamed parameters.
+    
+    Also add a sanity check that ensures all the actual parameters
+    are consumed.
+    
+    Fixes #29000
+    
+    Change-Id: Icd86f2b5d71e7ebbab76e375b7702f62efcf59ae
+    Reviewed-on: https://go-review.googlesource.com/c/152617
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modcmd/edit.go      |  4 +++-
- src/cmd/go/testdata/script/mod_edit.txt | 16 +++++++++++++++-
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 98 +++++++++++++++++++++++++-------------
+ test/escape5.go                    | 17 +++++++
+ 2 files changed, 81 insertions(+), 34 deletions(-)

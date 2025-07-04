@@ -1,0 +1,30 @@
+commit e966a2773cced08d584e0a462c4b30a84e3a46be
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 7 12:07:07 2025 -0500
+
+    crypto/internal/fips140/drbg: avoid global lock on rand state
+    
+    Having a global lock on the random state (used only in FIPS-140 mode)
+    introduces contention in concurrent programs. Use an approximately
+    per-P random state instead, using sync.Pool to manage per-P state.
+    
+    This code is important to land for the Go 1.24 release because it is
+    part of the FIPS-140 module that will be validated and certified,
+    so it will live for a long time. We otherwise wouldn't be able to
+    correct this contention for at least a year, perhaps more.
+    
+    At the same time, the code is only used in the FIPS-140 mode,
+    so there is no risk to normal programs.
+    
+    Fixes #71155.
+    
+    Change-Id: I6b779f15ddfdf232f608f5cda08f75906e58114f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641097
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips140/drbg/rand.go      | 21 +++++++++++----------
+ src/crypto/internal/fips140/drbg/rand_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 10 deletions(-)

@@ -1,19 +1,19 @@
-commit a813d3c788b4ec58032616e8d269ee65d1b10085
-Author: Jean de Klerk <deklerk@google.com>
-Date:   Tue Jul 31 18:10:42 2018 -0700
+commit dc0388c56513c9ddfa0d84260bbed758a392fc01
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 6 16:26:15 2019 -0700
 
-    testing: stream log output in verbose mode
+    cmd/compile: avoid compiler crash for recursive interface type
     
-    Fixes #24929
+    This change is a simple work-around to avoid a compiler crash
+    and provide a reasonable error message. A future change should
+    fix the root cause for this problem.
     
-    Change-Id: Icc426068cd73b75b78001f55e1e5d81ccebbe854
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/127120
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #23823.
+    
+    Change-Id: Ifc80d9f4d35e063c378e54d5cd8d1cf4c0d2ec6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175518
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go    | 44 ++++++++++++++++++++------------------------
- src/testing/benchmark.go | 22 +++++++++++++++++++++-
- src/testing/sub_test.go  | 32 +++++++++++++++++++++++++-------
- src/testing/testing.go   | 13 ++++++++++---
- 4 files changed, 76 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/gc/align.go | 11 ++++++++++-
+ test/fixedbugs/issue23823.go         |  8 ++------
+ 2 files changed, 12 insertions(+), 7 deletions(-)

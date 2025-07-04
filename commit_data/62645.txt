@@ -1,0 +1,38 @@
+commit 2ffda87f2dce71024f72ccff32cbfe29ee676bf8
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Mar 19 11:15:06 2025 -0700
+
+    os: add Root.Rename
+    
+    For #67002
+    
+    Change-Id: Ifb1042bc5ceaeea64296763319b24634bbcb0bf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659416
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ api/next/67002.txt                                 |   1 +
+ doc/next/6-stdlib/99-minor/os/67002.md             |   1 +
+ src/internal/syscall/unix/asm_darwin.s             |   1 +
+ src/internal/syscall/unix/asm_openbsd.s            |   2 +
+ src/internal/syscall/unix/at.go                    |  22 +++
+ src/internal/syscall/unix/at_darwin.go             |  26 ++++
+ src/internal/syscall/unix/at_libc.go               |  26 +++-
+ src/internal/syscall/unix/at_openbsd.go            |  26 ++++
+ src/internal/syscall/unix/at_solaris.go            |   1 +
+ src/internal/syscall/unix/at_sysnum_dragonfly.go   |   1 +
+ src/internal/syscall/unix/at_sysnum_freebsd.go     |   1 +
+ src/internal/syscall/unix/at_sysnum_netbsd.go      |   1 +
+ src/internal/syscall/unix/at_wasip1.go             |  18 +++
+ .../syscall/unix/renameat2_sysnum_linux.go         |  16 ++
+ src/internal/syscall/unix/renameat_sysnum_linux.go |  13 ++
+ src/internal/syscall/windows/at_windows.go         |  74 +++++++++
+ src/internal/syscall/windows/types_windows.go      |  22 +++
+ src/os/root.go                                     |   7 +
+ src/os/root_noopenat.go                            |  14 ++
+ src/os/root_openat.go                              |  13 ++
+ src/os/root_test.go                                | 168 +++++++++++++++++++--
+ src/os/root_unix.go                                |   4 +
+ src/os/root_windows.go                             |   4 +
+ 23 files changed, 451 insertions(+), 11 deletions(-)

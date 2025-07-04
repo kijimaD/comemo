@@ -1,21 +1,23 @@
-commit 4590abe0723cbe639f88578d9d570b136ba0850b
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Apr 19 14:50:57 2019 -0400
+commit 42e8b9c3a430ccc4a03b2994f7dcbde630410e1e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 29 17:46:14 2018 -0500
 
-    cmd/link: adjust whitelist for -strictdups checking for plan9
+    cmd/go/internal/modfetch: make directories read-only after renaming, not before
     
-    Add a couple of additional entries to the white list used to screen
-    out errors for builtin functions; these correspond to cases
-    that appear to come up only on the plan9 builder.
+    The call to os.Rename was failing on the darwin builders, despite having passed in the TryBots.
+    (I tested this change by running 'go test cmd/go' manually on a darwin gomote.)
     
-    Updates #31503.
+    This fixes the builder failures after CL 146382.
     
-    Change-Id: I48ab942ab2894240efe651ec7b7eace7aa5cb45e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172986
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Updates #26794
+    Fixes #29030
+    
+    Change-Id: I3644773421789f65e56f183d077b4e4fd17b8325
+    Reviewed-on: https://go-review.googlesource.com/c/151798
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/objfile/objfile.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/fetch.go |  9 ++++++++-
+ src/cmd/go/internal/modfetch/unzip.go | 38 +++++++++++++++++++----------------
+ 2 files changed, 29 insertions(+), 18 deletions(-)

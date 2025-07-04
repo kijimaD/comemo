@@ -1,0 +1,19 @@
+commit f12c66fbed546645389cf184b0e2ffd6ad9f78ec
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Apr 22 10:24:37 2025 +0000
+
+    internal/runtime/cgroup: CPU cgroup limit discovery
+    
+    For #73193.
+    
+    Change-Id: I6a6a636ca9fa9cba429cf053468c56c2939cb1ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668638
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/runtime/cgroup/cgroup_linux.go      | 710 +++++++++++++++++++++++
+ src/internal/runtime/cgroup/cgroup_linux_test.go | 476 +++++++++++++++
+ src/internal/runtime/cgroup/export_linux_test.go |  15 +
+ src/internal/runtime/cgroup/runtime.go           |  14 +
+ src/runtime/panic.go                             |   5 +
+ 5 files changed, 1220 insertions(+)

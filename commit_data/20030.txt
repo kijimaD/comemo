@@ -1,15 +1,14 @@
-commit ca85d572d64e6d038ac8216a39a05980320c8a03
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 18 21:06:56 2014 -0400
+commit 91447ab502ee97f0666a807b9a1081cc4e7f7201
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 19:50:18 2014 -0400
 
-    liblink: use pc-relative addressing for all memory references in amd64 code
+    [dev.power64] runtime: auto-generated headers for linux/power64 and linux/power64le
     
-    LGTM=rminnich, iant
-    R=golang-codereviews, rminnich, iant
-    CC=golang-codereviews, r
-    https://golang.org/cl/125140043
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/123280043
 
- src/cmd/6l/asm.c   | 17 +++++++++++++----
- src/cmd/ld/data.c  | 10 +++++++---
- src/liblink/asm6.c | 29 ++++++++---------------------
- 3 files changed, 28 insertions(+), 28 deletions(-)
+ src/pkg/runtime/defs_linux_power64.h   | 211 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/defs_linux_power64le.h | 211 +++++++++++++++++++++++++++++++++
+ 2 files changed, 422 insertions(+)

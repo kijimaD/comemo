@@ -1,12 +1,14 @@
-commit 5495047223935bf3ec96d7a0bd804ea8ab6f5342
-Author: Dmitry Savintsev <dsavints@gmail.com>
-Date:   Fri Aug 4 10:12:21 2017 +0200
+commit 92cffa13917023ca8a894160c71b73670f4e74f2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 4 12:48:38 2017 -0700
 
-    doc/1.9: fix broken html link in CL 53030/53210
+    cmd/internal/obj: remove dead func Copyp
     
-    Change-Id: I7176becd10ad84cbfc3fb9427e190028626e5baf
-    Reviewed-on: https://go-review.googlesource.com/53291
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iaeb7bcbcdbc46c0e0e40b0aa070c706e0ca53013
+    Reviewed-on: https://go-review.googlesource.com/39555
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.9.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/ld.go | 6 ------
+ 1 file changed, 6 deletions(-)

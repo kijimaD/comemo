@@ -1,21 +1,25 @@
-commit 8ff254e30ba9d9c13747fe42213c3f54b47c58e7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Dec 8 11:12:50 2021 -0800
+commit 77b3269fb57d2f5c19a76a80f1d215dc801be3b7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 8 17:16:13 2021 -0400
 
-    cmd/compile: preserve 'any' type alias in unified IR
+    cmd/go: in TestScript, set GOTRACEBACK and use SIGQUIT to terminate hung subprocesses
     
-    When exporting the "any" empty interface type for unified IR, write it
-    out as a reference to the "any" alias, rather than to the underlying
-    empty interface. This matches how "byte" and "rune" are handled.
+    This should produce more useful outputs if a cmd/go invocation hangs
+    during a test.
     
-    Verified to fix the issue demonstrated in CL 369975.
+    (In some cases the outputs will be very verbose, but verbose is still
+    better than uninformative.)
     
-    Change-Id: Ic2844b0acc3b17c20b3a40aaf262f62ec653eb5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370374
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    For #36460
+    For #38768
+    
+    Change-Id: Ibaf2d0fbf7387dfab1aad8981140ecb11901fc4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308809
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/noder/writer.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/go/script_test.go     | 15 ++-------------
+ src/cmd/go/stop_other_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/go/stop_unix_test.go  | 17 +++++++++++++++++
+ 3 files changed, 52 insertions(+), 13 deletions(-)

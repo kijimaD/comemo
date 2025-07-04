@@ -1,0 +1,75 @@
+commit 5b36f613565b98c4f6610aa6c1a203e294b2f5b4
+Author: Vasily Leonenko <vasiliy.leonenko@gmail.com>
+Date:   Wed Apr 2 21:31:41 2025 +0300
+
+    internal/bytealg: optimize Index/IndexString/IndexByte/IndexByteString on arm64
+    
+    Introduce ABIInternal support for Index/IndexString/IndexByte/IndexByteString
+    
+    goos: linux
+    goarch: arm64
+    pkg: bytes
+                                  │   base.txt    │                new.txt                │
+                                  │      B/s      │      B/s       vs base                │
+    IndexByte/10                     1.090Gi ± 0%    1.313Gi ± 0%  +20.51% (p=0.000 n=10)
+    IndexByte/32                     3.714Gi ± 0%    4.289Gi ± 0%  +15.47% (p=0.000 n=10)
+    IndexByte/4K                     22.92Gi ± 0%    23.01Gi ± 0%   +0.37% (p=0.000 n=10)
+    IndexByte/4M                     20.23Gi ± 0%    20.35Gi ± 0%   +0.60% (p=0.000 n=10)
+    IndexByte/64M                    23.82Gi ± 0%    23.81Gi ± 0%   -0.01% (p=0.002 n=10)
+    IndexBytePortable/10             788.5Mi ± 0%    788.5Mi ± 0%        ~ (p=0.722 n=10)
+    IndexBytePortable/32            1002.3Mi ± 0%   1002.3Mi ± 0%        ~ (p=0.137 n=10)
+    IndexBytePortable/4K             1.111Gi ± 0%    1.111Gi ± 0%        ~ (p=0.692 n=10)
+    IndexBytePortable/4M             1.116Gi ± 0%    1.116Gi ± 0%        ~ (p=0.158 n=10)
+    IndexBytePortable/64M            1.116Gi ± 0%    1.116Gi ± 0%   -0.01% (p=0.000 n=10)
+    IndexRune/10                     352.1Mi ± 0%    445.0Mi ± 0%  +26.38% (p=0.000 n=10)
+    IndexRune/32                     1.101Gi ± 0%    1.391Gi ± 0%  +26.43% (p=0.000 n=10)
+    IndexRune/4K                     21.07Gi ± 0%    21.25Gi ± 0%   +0.82% (p=0.000 n=10)
+    IndexRune/4M                     23.81Gi ± 0%    23.81Gi ± 0%        ~ (p=0.218 n=10)
+    IndexRune/64M                    23.81Gi ± 0%    23.81Gi ± 0%        ~ (p=0.271 n=10)
+    IndexRuneASCII/10                1.038Gi ± 0%    1.190Gi ± 1%  +14.63% (p=0.000 n=10)
+    IndexRuneASCII/32                3.643Gi ± 2%    4.203Gi ± 0%  +15.38% (p=0.000 n=10)
+    IndexRuneASCII/4K                22.90Gi ± 0%    22.98Gi ± 0%   +0.34% (p=0.000 n=10)
+    IndexRuneASCII/4M                23.81Gi ± 0%    23.81Gi ± 0%        ~ (p=0.108 n=10)
+    IndexRuneASCII/64M               23.82Gi ± 0%    23.81Gi ± 0%        ~ (p=0.105 n=10)
+    IndexRuneUnicode/Latin/10        404.4Mi ± 0%    493.7Mi ± 0%  +22.10% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/32        1.261Gi ± 0%    1.543Gi ± 0%  +22.31% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4K        6.966Gi ± 0%    8.115Gi ± 0%  +16.50% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4M        6.599Gi ± 0%    7.576Gi ± 0%  +14.80% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/64M       6.297Gi ± 0%    7.070Gi ± 2%  +12.28% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/10     385.9Mi ± 0%    440.1Mi ± 0%  +14.03% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/32     1.206Gi ± 0%    1.375Gi ± 0%  +14.05% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4K     2.468Gi ± 0%    2.921Gi ± 0%  +18.37% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4M     2.386Gi ± 0%    2.845Gi ± 0%  +19.23% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/64M    2.280Gi ± 0%    2.717Gi ± 0%  +19.14% (p=0.000 n=10)
+    IndexRuneUnicode/Han/10          307.1Mi ± 0%    331.5Mi ± 0%   +7.94% (p=0.000 n=10)
+    IndexRuneUnicode/Han/32          982.2Mi ± 0%   1060.2Mi ± 0%   +7.94% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4K          4.986Gi ± 0%    5.957Gi ± 0%  +19.48% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4M          3.822Gi ± 0%    4.198Gi ± 0%   +9.83% (p=0.000 n=10)
+    IndexRuneUnicode/Han/64M         3.765Gi ± 0%    4.140Gi ± 0%   +9.96% (p=0.000 n=10)
+    Index/10                         634.6Mi ± 0%    635.2Mi ± 0%   +0.09% (p=0.000 n=10)
+    Index/32                         375.3Mi ± 0%    385.1Mi ± 0%   +2.63% (p=0.000 n=10)
+    Index/4K                         754.8Mi ± 0%    755.2Mi ± 0%   +0.04% (p=0.001 n=10)
+    Index/4M                         746.5Mi ± 0%    746.3Mi ± 0%   -0.03% (p=0.000 n=10)
+    Index/64M                        746.5Mi ± 0%    746.3Mi ± 0%   -0.03% (p=0.000 n=10)
+    IndexEasy/10                     714.6Mi ± 0%    714.6Mi ± 0%   +0.00% (p=0.001 n=10)
+    IndexEasy/32                     1.221Gi ± 0%    1.524Gi ± 0%  +24.81% (p=0.000 n=10)
+    IndexEasy/4K                     21.06Gi ± 0%    21.47Gi ± 0%   +1.91% (p=0.000 n=10)
+    IndexEasy/4M                     20.23Gi ± 0%    20.24Gi ± 0%        ~ (p=0.684 n=10)
+    IndexEasy/64M                    13.07Gi ± 0%    12.58Gi ± 4%   -3.75% (p=0.000 n=10)
+    IndexHard1                       1.114Gi ± 0%    1.114Gi ± 0%        ~ (p=0.193 n=10)
+    IndexHard2                       1.111Gi ± 0%    1.112Gi ± 0%   +0.04% (p=0.001 n=10)
+    IndexHard3                       1.086Gi ± 0%    1.081Gi ± 0%   -0.37% (p=0.000 n=10)
+    IndexHard4                       607.9Mi ± 0%    607.9Mi ± 0%        ~ (p=0.136 n=10)
+    geomean                          2.536Gi         2.720Gi        +7.26%
+    
+    Change-Id: I1fc246783ebb215882d7144d05dbe2433dc66751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662415
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/internal/bytealg/index_arm64.s     | 45 ++++++++++++++++---------------
+ src/internal/bytealg/indexbyte_arm64.s | 48 ++++++++++++++++------------------
+ 2 files changed, 45 insertions(+), 48 deletions(-)

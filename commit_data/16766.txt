@@ -1,13 +1,25 @@
-commit 3d236aed9a122e1ac4cbff0e4c83b6a656d62f24
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Jul 15 14:37:36 2013 +0800
+commit bbb51ae3a9dc8da80d9f48c122d8a75aead69c09
+Author: Alexandre Normand <alexandre.normand@gmail.com>
+Date:   Mon Jul 15 10:52:38 2013 +1000
 
-    misc/cgo/test: skip test for issue 3250, the runtime isn't ready yet.
-    see issue 5885.
+    dist: fix postinstall script for Darwin
     
-    R=golang-dev, iant
+    The postinstall script causes the installation to fail because the last
+    step that copies files for Xcode is broken. Two details can cause the
+    command to fail:
+      1. The XCODE_MISC_DIR value has a space. Without quotes in the cp
+         command, cp will just complain that this is an invalid syntax.
+      2. The source of the cp is a directory with two subdirectories.
+         We actually want the files for either Xcode 3 or Xcode 4 to be copied.
+         Using xcodebuild -version, we check for the Xcode version and
+         select which of xcode/3/* or xcode/4/* should be the source
+         of the copy.
+    
+    Fixes #5874.
+    
+    R=golang-dev, minux.ma, adg
     CC=golang-dev
-    https://golang.org/cl/10914045
+    https://golang.org/cl/10893044
 
- misc/cgo/test/issue3250.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/dist/darwin/scripts/postinstall | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)

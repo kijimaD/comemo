@@ -1,20 +1,13 @@
-commit 5fe96c640a23eaac4d53d164e9a164e93b1414af
+commit 1161e1172bfc17a23fb38f8e930d230c5bc78eae
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 13 18:02:49 2011 -0500
+Date:   Tue Dec 13 17:53:00 2011 -0500
 
-    test/garbage: move to test/bench/garbage
+    fix build, sorry
     
-    (These are benchmarks for the garbage collector, not tests.)
-    
-    R=golang-dev, adg
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/5484070
+    https://golang.org/cl/5488066
 
- src/clean.bash                     |  2 +-
- test/{ => bench}/garbage/Makefile  |  2 +-
- test/{ => bench}/garbage/parser.go |  0
- test/{ => bench}/garbage/peano.go  | 13 -------------
- test/{ => bench}/garbage/stats.go  |  9 +++++----
- test/{ => bench}/garbage/tree.go   |  0
- test/bench/shootout/timing.sh      |  2 +-
- 7 files changed, 8 insertions(+), 20 deletions(-)
+ src/clean.bash               | 2 +-
+ test/bench/shootout/Makefile | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

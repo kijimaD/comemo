@@ -1,17 +1,16 @@
-commit b412fde53a6b53475e25aaa9e49f3c6df3c48716
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jul 3 10:22:28 2019 -0400
+commit 3415b3556b47c69982d47fb3f4735ec05fecdda1
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Mon Feb 4 12:46:08 2019 +0000
 
-    go/build: document characters allowed in build tags
+    encoding/base32: remove ineffectual assignment in test
     
-    The documentation just said "alphanumeric", but underscores and dots
-    are also accepted.
-    
-    Fixes #32886
-    
-    Change-Id: I1ba872a220d5c5bf64f1d851ddba9eb3b1afb89a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184917
+    Change-Id: I8aaa3d1d2797f3ace34bc09f5123538f6a77efce
+    GitHub-Last-Rev: 2758c462041ff5e444651b7927d53e809d2efe4d
+    GitHub-Pull-Request: golang/go#30009
+    Reviewed-on: https://go-review.googlesource.com/c/160433
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/doc.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/encoding/base32/base32_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

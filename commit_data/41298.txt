@@ -1,27 +1,20 @@
-commit 68fab3e93f6fa5e194cf98889fc703ce896615d1
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jan 9 17:18:12 2020 -0500
+commit 8b6fa668ee1aaf6c00073115cc09957195ee30e1
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Mon Sep 23 19:10:05 2019 +0300
 
-    cmd/go: convert some vet tests to the script framework
+    net: use case-insensitive host string comparison in TestLookupGmailNS
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Some nameservers alter the case of NS records they return, e.g.
+    ns2.google.COm. or ns2.google.coM. Change TestLookupGmailNS to account
+    for this possibility by comparing host names in lower case.
     
-    Updates #36320
-    Updates #17751
+    Fixes #34446
     
-    Change-Id: I1f49a84f91735f39d5922c1347e79298780149c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214218
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I6ccb5b87b42401e04c9b32cecb8b7b4267b654cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196801
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                         | 107 --------------------------
- src/cmd/go/testdata/script/test_vet.txt       |  88 +++++++++++++++++++++
- src/cmd/go/testdata/script/vet.txt            |  58 ++++++++++++++
- src/cmd/go/testdata/src/vetcycle/p.go         |  13 ----
- src/cmd/go/testdata/src/vetfail/p1/p1.go      |   9 ---
- src/cmd/go/testdata/src/vetfail/p2/p2.go      |   6 --
- src/cmd/go/testdata/src/vetfail/p2/p2_test.go |   7 --
- src/cmd/go/testdata/src/vetpkg/a_test.go      |   1 -
- src/cmd/go/testdata/src/vetpkg/b.go           |   7 --
- src/cmd/go/testdata/src/vetpkg/c.go           |   9 ---
- 10 files changed, 146 insertions(+), 159 deletions(-)
+ src/net/lookup_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

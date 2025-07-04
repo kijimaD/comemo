@@ -1,30 +1,19 @@
-commit 816ee0be38a08b2636a1e870cb1dc1e9b27b742e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 13 21:06:40 2023 +0000
+commit 8232a09e3ed7d315a90ac059ee542ecaf0f6b4c2
+Author: csuzhang <csuzhang@tencent.com>
+Date:   Mon Jan 9 01:57:53 2023 +0000
 
-    internal/trace: add task analysis for v2 traces
+    sync/atomic: fix the note of atomic.Store
     
-    For v1 traces, cmd/trace contains code for analyzing tasks separately
-    from the goroutine analysis code present in internal/trace. As I started
-    to look into porting that code to v2 traces, I noticed that it wouldn't
-    be too hard to just generalize the existing v2 goroutine summary code to
-    generate exactly the same information.
-    
-    This change does exactly that.
-    
-    For #60773.
-    For #63960.
-    
-    Change-Id: I0cdd9bf9ba11fb292a9ffc37dbf18c2a6a2483b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542076
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Id485d0f1e06febe97d1a770bc26c138d9613a7dd
+    GitHub-Last-Rev: e57dd3e1abb58031b3d8bec8beace1560faad397
+    GitHub-Pull-Request: golang/go#57679
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461076
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/trace/v2/main.go                           |   12 +-
- src/cmd/trace/v2/pprof.go                          |    4 +-
- src/internal/trace/{goroutinesv2.go => summary.go} |  103 +-
- .../{goroutinesv2_test.go => summary_test.go}      |  173 ++-
- src/internal/trace/v2/testdata/mktests.go          |  120 +-
- .../testdata/tests/go122-annotations-stress.test   | 1179 ++++++++++++++++++++
- 6 files changed, 1554 insertions(+), 37 deletions(-)
+ src/sync/atomic/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

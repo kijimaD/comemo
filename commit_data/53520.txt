@@ -1,27 +1,26 @@
-commit fafa4091abb4ed6de6ff4daef67ef1cf9db40923
-Author: chenguoqi <chenguoqi@loongson.cn>
-Date:   Thu Jun 8 14:04:26 2023 +0800
+commit dee9adc0f73d361d00a4d9230bb3517f2448b3b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 24 17:00:24 2022 -0700
 
-    syscall: implement Ptrace{Set,Get}Regs using PTRACE_{GET,SET}REGSET on all linux platforms
+    encoding/gob: use saferio to read large buffer
     
-    In the ptrace system call, most of the newer architectures (e.g. arm64,riscv64,loong64)
-    do not provide support for the command PTRACE_{GET, SET}REGS.
+    Avoid allocating large amounts of memory for corrupt input.
     
-    The Linux kernel 2.6.33-rc7[1] introduces support for the command PTRACE_{GET,SET}REGSET,
-    which exports different types of register sets depending on the NT_* types, completely
-    overriding the functionality provided by PTRACE_{GET,SET}REGS.
+    No test case because the problem can only happen for invalid data.
+    Let the fuzzer find cases like this.
     
-    [1] https://lore.kernel.org/all/20100211195614.886724710@sbs-t61.sc.intel.com/
+    Fixes #53369
     
-    Fixes #60679.
-    
-    Change-Id: I8c2671d64a7ecd654834740f4f1e1e50c00edcae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501756
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I67c5e75bf181ad84988d6d6da12507df0e6df8e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413979
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/syscall/syscall_linux.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/encoding/gob/decode.go  | 17 ++++++-----------
+ src/encoding/gob/decoder.go |  6 ++++--
+ src/go/build/deps_test.go   |  8 ++++----
+ 3 files changed, 14 insertions(+), 17 deletions(-)

@@ -1,12 +1,15 @@
-commit 08b26e41043281fd85e4af6ac0c6e790f3336a82
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 09:56:51 2013 -0400
+commit 3ee0744c06503eece696a615b1f8b37b4a0ed8a8
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Sep 11 21:20:15 2013 +1000
 
-    cmd/cgo: don't say "gcc produced no output" if we ran clang
+    bytes: additional test coverage
     
-    R=golang-dev, iant
+    Add coverage for some uncovered bytes methods. The increase in actual coverage is disapointing small.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13420048
+    https://golang.org/cl/13651044
 
- src/cmd/cgo/gcc.go | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ src/pkg/bytes/bytes_test.go  | 50 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bytes/reader_test.go | 35 +++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+)

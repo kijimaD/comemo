@@ -1,13 +1,12 @@
-commit d4d5bd1bb78f5c69df66cfb7ce83470504bee5c0
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Jan 6 12:38:01 2012 -0500
+commit e36acdfb56474be234b9c2cd4b88b7af30d1b99f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 5 18:40:17 2012 -0800
 
-    Add Szabolcs Nagy as a contributor.
+    sort: eliminate extra Len() call
     
-    R=iant, gri
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5517056
+    https://golang.org/cl/5521052
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/sort/sort.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

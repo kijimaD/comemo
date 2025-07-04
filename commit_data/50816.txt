@@ -1,32 +1,18 @@
-commit 515e3de2999b23da28e6d15ac485bfdd299ec83a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 5 15:21:06 2022 -0400
+commit d60a4e69f16f5bc958094af206ac7e47f6bc8b04
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 11 08:36:15 2021 -0800
 
-    os/exec: parallelize more tests
+    spec: fix a broken link
     
-    This cuts the wall duration for 'go test os/exec' and
-    'go test -race os/exec' roughly in half on my machine,
-    which is an even more significant speedup with a high '-count'.
+    Thanks for jtagcat@ for finding this.
     
-    For better or for worse, it may also increase the repro rate
-    of #34988.
-    
-    Tests that use Setenv or Chdir or check for FDs opened during the test
-    still cannot be parallelized, but they are only a few of those.
-    
-    Change-Id: I8d284d8bff05787853f825ef144aeb7a4126847f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439196
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: If7324808edbae19ec8bf503b04e0426f3fb3b47a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363394
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec/dot_test.go          |  1 +
- src/os/exec/env_test.go          |  2 ++
- src/os/exec/exec_posix_test.go   |  3 +++
- src/os/exec/exec_test.go         | 49 +++++++++++++++++++++++++++++++++++++++-
- src/os/exec/exec_windows_test.go |  5 ++++
- src/os/exec/lp_linux_test.go     |  2 ++
- src/os/exec/lp_unix_test.go      |  2 ++
- src/os/exec/lp_windows_test.go   | 32 +++++++++++++++++++++-----
- 8 files changed, 89 insertions(+), 7 deletions(-)
+ doc/go1.17_spec.html | 2 +-
+ doc/go_spec.html     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

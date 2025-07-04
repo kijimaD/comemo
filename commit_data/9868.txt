@@ -1,17 +1,17 @@
-commit b2f1eba3248897615f9d7c296b6531021f6c58ae
-Author: Joel Sing <jsing@google.com>
-Date:   Wed Oct 5 13:16:43 2011 -0400
+commit 457dfd7546990e84247695fe2be6952e7ec3e59c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 5 09:47:09 2011 -0700
 
-    runtime: set runtime ncpu on openbsd
+    gob: when possible, allow sequential decoders on the same input stream.
+    This can work only if there is no type info required to initialize the decoder,
+    but it's easy and gains a few percent in the basic benchmarks by avoiding
+    bufio when it's a bytes.Buffer - a testing-only scenario, I admit.
+    Add a comment about what Decode expects from the input.
     
-    Set the runtime ncpu based on the hw.ncpu sysctl.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5191043
+    https://golang.org/cl/5165048
 
- src/pkg/runtime/openbsd/386/sys.s   | 18 ++++++++++++++++++
- src/pkg/runtime/openbsd/amd64/sys.s | 16 ++++++++++++++++
- src/pkg/runtime/openbsd/os.h        |  1 +
- src/pkg/runtime/openbsd/thread.c    | 33 +++++++++++++++++++++++++++++----
- 4 files changed, 64 insertions(+), 4 deletions(-)
+ src/pkg/gob/decoder.go      |  8 +++++++-
+ src/pkg/gob/encoder_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

@@ -1,13 +1,14 @@
-commit ad074e205e4aa4c7762e223df65695d5157b0c4e
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Thu May 26 11:46:19 2016 +0200
+commit fcac88098b1d5eee5f0a546e550c3d95cc13f64b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 5 10:28:19 2016 +1000
 
-    regexp: use Run for benchmark
+    runtime: remove race out of BenchmarkChanToSyscallPing1ms
     
-    Change-Id: I4d19e3221d3789d4c460b421b2d1484253778068
-    Reviewed-on: https://go-review.googlesource.com/23429
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Fixes #15119
+    
+    Change-Id: I31445bf282a5e2a160ff4e66c5a592b989a5798f
+    Reviewed-on: https://go-review.googlesource.com/21448
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/regexp/exec_test.go | 77 ++++++++++++++++++++-----------------------------
- 1 file changed, 31 insertions(+), 46 deletions(-)
+ src/runtime/syscall_windows_test.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

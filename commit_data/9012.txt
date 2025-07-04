@@ -1,12 +1,7 @@
-commit b4f0e8ffd330f73da32d453b6de63034852673fc
+commit 762ea79057e294944c90c59f0d288efde586bc30
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jul 12 09:57:39 2011 +1000
+Date:   Tue Jul 12 09:36:46 2011 +1000
 
-    undo CL 4675045 / 0e11e08951f7
-    
-    Breaks Mercurial 1.8.3.
-    
-    ««« original CL description
     codereview: fix for Mercurial 1.9
     
     Fixes #2038.
@@ -14,11 +9,6 @@ Date:   Tue Jul 12 09:57:39 2011 +1000
     R=rsc, bobbypowers
     CC=golang-dev
     https://golang.org/cl/4675045
-    »»»
-    
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/4685055
 
- lib/codereview/codereview.py | 26 +++++++-------------------
- 1 file changed, 7 insertions(+), 19 deletions(-)
+ lib/codereview/codereview.py | 26 +++++++++++++++++++-------
+ 1 file changed, 19 insertions(+), 7 deletions(-)

@@ -1,30 +1,19 @@
-commit 6378c0e753b75089611c8ca973b6e1777cf5aff8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 8 16:29:00 2022 -0500
+commit 831573cd21e65c37b4e1bf5d44dc23b125084b7a
+Author: Adam Mitha <adam.mitha@gmail.com>
+Date:   Thu May 13 20:52:41 2021 -0700
 
-    go/build: avoid setting Default.GOROOT when runtime.GOROOT() is empty
+    io/fs: added an example for io/fs.WalkDir
     
-    Previously, we called path.Clean on the value of runtime.GOROOT() even
-    if it was empty, which would set it explicitly to ".".
-    That would cause (*Context).importGo to assume that errors resolving
-    paths in GOROOT are fatal and return early:
-    https://cs.opensource.google/go/go/+/master:src/go/build/build.go;l=1121-1127;drc=38174b3a3514629b84dcd76878b2f536b189dd7b
+    The documentation currently does not show how to get an `FS` instance for the operating system's filesystem. This example demonstrates how to accomplish this using the `os` package.
     
-    If we instead leave it empty (and are in module mode), then importGo
-    will fall back to letting the 'go' command resolve the path, which may
-    succeed if the 'go' command can infer the correct GOROOT (from its own
-    stamped-in default GOROOT or executable path).
+    Fixes #46083
     
-    Fixes #51483
-    
-    Change-Id: I44dce7cec6c3d1c86670e629ddfbca8be461130c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391805
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I053111c12ab09ef13f0d04fcdff8a6ea0dccf379
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319989
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- .../go/testdata/script/build_trimpath_goroot.txt   |  4 +--
- src/go/build/build.go                              | 37 +++++++++++++---------
- src/go/build/build_test.go                         | 10 ++----
- 3 files changed, 27 insertions(+), 24 deletions(-)
+ src/io/fs/example_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

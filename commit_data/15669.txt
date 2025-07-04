@@ -1,22 +1,16 @@
-commit 3b85b724c5df8ee4ea9d6720250249de455baff5
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 11 00:51:42 2013 -0400
+commit cea78cb58ec53a564830450a9665d18a198ba266
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Mon Mar 11 12:14:42 2013 +1100
 
-    cmd/ld: darwin support for host linking
+    doc/contribute: add instructions to fix codereview on windows
     
-    R=ken2
+    Tell Windows users how to update Mercurial's library.zip to add some missing dependencies.
+    
+    Fixes #4745.
+    
+    R=golang-dev, patrick.allen.higgins, minux.ma, adg
     CC=golang-dev
-    https://golang.org/cl/7626045
+    https://golang.org/cl/7558043
 
- src/cmd/6l/asm.c          |  61 ++++++++++++
- src/cmd/6l/obj.c          |   5 +-
- src/cmd/8l/asm.c          |  91 +++++++++++++++---
- src/cmd/8l/obj.c          |   3 +
- src/cmd/ld/data.c         |  35 +++++--
- src/cmd/ld/go.c           |   7 +-
- src/cmd/ld/lib.c          |   2 +
- src/cmd/ld/macho.c        | 233 +++++++++++++++++++++++++++++++---------------
- src/cmd/ld/macho.h        |   2 +
- src/pkg/runtime/asm_386.s |   3 +-
- src/run.bash              |   4 +
- 11 files changed, 341 insertions(+), 105 deletions(-)
+ doc/contribute.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

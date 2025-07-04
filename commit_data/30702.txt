@@ -1,22 +1,16 @@
-commit 42e97468a1fd4b9f08bccd076edb1598435c72fb
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Thu Mar 16 22:34:38 2017 -0700
+commit 8a2c34e413bfbcb0ec9b01fd1dac3bc59d921256
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Nov 28 17:23:12 2016 -0500
 
-    cmd/compile: intrinsic for math/bits.Reverse on ARM64
+    os: Executable can use /proc/self/exe on android
     
-    I don't know that it exists for any other architectures.
+    Fixes the os test on the Android builder.
     
-    Update #18616
-    
-    Change-Id: Idfe5dee251764d32787915889ec0be4bebc5be24
-    Reviewed-on: https://go-review.googlesource.com/38323
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ibb9db712156a620fcccf515e035475c5e2f535a5
+    Reviewed-on: https://go-review.googlesource.com/33650
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             | 28 +++++++++++
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  5 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  5 ++
- src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 66 ++++++++++++++++++++++++++
- 5 files changed, 128 insertions(+)
+ src/os/executable_procfs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,31 @@
-commit 8fc35238a701248c847a32d96bf69a11b67965b2
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Mon Aug 26 07:08:51 2019 -0600
+commit 0cd74d1f1181c113352476d2913141e7cc88abc2
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:52:35 2019 +0100
 
-    ld: mark PE executables as terminal services aware
+    cmd, runtime: fix C trampolines on aix/ppc64
     
-    This has been the default in MSVC for a very long time, and it's hard to
-    imagine modern programs actually wanting the old legacy behavior. For
-    example, no modern programs try to install their junk into C:\windows
-    and therefore need to have an emulated writable windows directory.
-    That's not really even allowed by ACLs on modern systems.
+    C trampolines are made by fixup CSECTS which are added between two
+    symbols. If such CSECTS is added inside Go functions, all method
+    offsets stored in moduledatas will be wrong.
+    In order to prevent this, every C code is moved at the end of the
+    executable and long calls are created for GO functions called by C
+    code.
+    The main function can't longer be made in Go as AIX __start isn't using
+    a long call to branch on it. Therefore, a main is defined on
+    runtime/cgo.
     
-    Change-Id: Iadaca6815e39ea5c6b05c1cac5a95cfc35e5b48a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191840
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I214b18decdb83107cf7325b298609eef9f9d1330
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164010
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go |  3 ++
- src/cmd/link/internal/ld/pe.go  | 83 ++++++++++++++++++++++-------------------
- 2 files changed, 47 insertions(+), 39 deletions(-)
+ src/cmd/go/internal/work/exec.go  | 21 +++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go   | 19 +++++++++++++++++++
+ src/cmd/link/internal/ld/pcln.go  |  2 +-
+ src/cmd/link/internal/ld/xcoff.go |  6 +++---
+ src/runtime/asm_ppc64x.s          |  7 +++++++
+ src/runtime/cgo/callbacks_aix.go  | 10 ++++++++++
+ src/runtime/cgo/gcc_aix_ppc64.S   |  4 ++--
+ src/runtime/cgo/gcc_aix_ppc64.c   | 22 ++++++++++++++++++++++
+ 8 files changed, 85 insertions(+), 6 deletions(-)

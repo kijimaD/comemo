@@ -1,18 +1,14 @@
-commit d5479e197d8a9eb98c30d7ec6ddc3fcbde459ebe
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri Jul 12 21:03:38 2024 +0100
+commit 4497b12344c8fe871dd892bee7cec2c08883caa9
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 30 13:00:00 2023 -0700
 
-    net: document ParseIP always returns IPv6 addresses
+    doc: mention the new purego implementation of hash/maphash
     
-    Fixes #65131
-    
-    Change-Id: I050c6459a8e0a6c99425759d3131cf775b05aac9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598076
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ieedddf52ae09cf5a8e9347f0f30aff21e8369787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499281
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
 
- src/net/ip.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.21.html | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

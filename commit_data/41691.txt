@@ -1,31 +1,17 @@
-commit a3a9901c1e82f69e41308f45448f4db618548366
+commit ff9f7bc9da45b66689d8e61b6c674b555517de20
 Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Thu Mar 19 16:51:13 2020 -0700
+Date:   Sat Oct 19 23:50:15 2019 -0700
 
-    net/http: update bundled x/net/http2
+    net/http: make Transport.RoundTrip close body on any invalid request
     
-    Updates bundled http2 to x/net git rev 63522dbf7
+    Fixes #35015
     
-        http2: reduce allocations of (*clientConnReadLoop).handleReponse
-        https://golang.org/cl/223783 (#37853)
-    
-        http2: remove unused errors
-        https://golang.org/cl/220458
-    
-        http2: remove unused stream struct fields
-        https://golang.org/cl/219857
-    
-        http2: fix typo in comment
-        https://golang.org/cl/214602
-    
-        http2: workaround TCPConn CloseWrite not being supported on Plan 9
-        https://golang.org/cl/209417 (#17906, #35904)
-    
-    Change-Id: I0e48f32247938c3858170bf419624367d4faef4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224217
+    Change-Id: I7a1ed9cfa219ad88014aad033e3a01f9dffc3eb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202239
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/h2_bundle.go | 40 +++++++++++++++++++++-------------------
- 1 file changed, 21 insertions(+), 19 deletions(-)
+ src/net/http/transport.go      |  2 +
+ src/net/http/transport_test.go | 92 ++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 81 insertions(+), 13 deletions(-)

@@ -1,67 +1,35 @@
-commit b5a861782312d2b3a4f71e33d9a0c2b01a40fe5f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jun 3 21:46:39 2024 +0000
+commit a6a25869f07beeca8d4a2098d9f896a8a10f5b1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 12:37:01 2023 -0400
 
-    all: update vendored dependencies
+    cmd/go: set default GOTOOLCHAIN in GOROOT/go.env
     
-    The Go 1.23 code freeze has recently started. This is a time to update
-    all golang.org/x/... module versions that contribute packages to the
-    std and cmd modules in the standard library to latest master versions.
+    As part of the work for #57179 we moved configurable defaults
+    to GOROOT/go.env, so that packagers don't have to modify
+    source code to change those defaults. Since packagers may want
+    to modify GOTOOLCHAIN's default, move it to go.env too.
     
-    For #36905.
+    This CL modifies 'go env' to print GOTOOLCHAIN by default.
+    It also refines CL 496957 from yesterday to recognize any env
+    var in either go.env or the user go/env, not just the user go/env.
+    When I put GOTOOLCHAIN in go.env, but before I added it to
+    the default printing list, 'go env GOTOOLCHAIN' was printing
+    an empty string, and it was incredibly confusing.
     
-    [git-generate]
-    go install golang.org/x/build/cmd/updatestd@latest
-    go install golang.org/x/tools/cmd/bundle@latest
-    updatestd -goroot=$(pwd) -branch=master
+    For #57001.
+    Fixes #60361 while we're here.
     
-    Change-Id: I9162f547c148809d6fb1e4157f6f504634cef3b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589935
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Also includes a fix for a review comment on CL 497079 that I forgot to mail.
+    
+    Change-Id: I7b904d9202f05af789aaa33aed93f903b515aa28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497437
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/go.mod                                     |  18 +-
- src/cmd/go.sum                                     |  36 +-
- src/cmd/vendor/golang.org/x/build/relnote/dump.go  |  30 +-
- src/cmd/vendor/golang.org/x/build/relnote/links.go | 163 +++--
- .../vendor/golang.org/x/build/relnote/relnote.go   |   2 +-
- src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   2 +
- .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  20 +-
- .../golang.org/x/sys/unix/zerrors_linux_386.go     |   1 +
- .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |   1 +
- .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |   1 +
- .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  37 +-
- .../golang.org/x/sys/windows/security_windows.go   |   1 +
- .../golang.org/x/sys/windows/zsyscall_windows.go   |   9 +
- .../x/telemetry/internal/counter/counter.go        |   5 +-
- .../x/telemetry/internal/counter/file.go           |  12 +-
- .../golang.org/x/tools/go/analysis/analysis.go     |   2 +-
- .../golang.org/x/tools/go/analysis/diagnostic.go   |   3 +-
- .../tools/go/analysis/passes/copylock/copylock.go  |   7 +-
- .../go/analysis/passes/directive/directive.go      |   9 +-
- .../go/analysis/passes/stringintconv/string.go     |  15 +-
- .../x/tools/internal/analysisinternal/analysis.go  |   6 +-
- .../x/tools/internal/typeparams/coretype.go        |  18 +-
- .../x/tools/internal/versions/types_go122.go       |   2 +-
- src/cmd/vendor/modules.txt                         |  18 +-
- src/cmd/vendor/rsc.io/markdown/inline.go           |  37 +-
- src/go.mod                                         |   8 +-
- src/go.sum                                         |  16 +-
- src/net/http/h2_bundle.go                          | 753 ++++++---------------
- src/vendor/golang.org/x/crypto/sha3/hashes.go      |  34 +-
- .../golang.org/x/crypto/sha3/hashes_generic.go     |  27 -
- .../golang.org/x/crypto/sha3/hashes_noasm.go       |  23 +
- src/vendor/golang.org/x/crypto/sha3/sha3.go        |  62 +-
- src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go  |  48 +-
- src/vendor/golang.org/x/crypto/sha3/shake.go       |  16 +-
- .../golang.org/x/crypto/sha3/shake_generic.go      |  19 -
- src/vendor/golang.org/x/crypto/sha3/shake_noasm.go |  15 +
- src/vendor/golang.org/x/crypto/sha3/xor.go         |  45 +-
- src/vendor/golang.org/x/crypto/sha3/xor_generic.go |  28 -
- .../golang.org/x/crypto/sha3/xor_unaligned.go      |  66 --
- .../golang.org/x/net/http/httpguts/httplex.go      |  13 +-
- src/vendor/golang.org/x/net/nettest/conntest.go    |   5 +-
- src/vendor/golang.org/x/net/nettest/nettest.go     |   3 +-
- src/vendor/modules.txt                             |   8 +-
- 43 files changed, 689 insertions(+), 955 deletions(-)
+ go.env                                     |  4 ++++
+ src/cmd/go/gotoolchain.go                  | 11 ++++++++++-
+ src/cmd/go/internal/cfg/cfg.go             |  5 +++++
+ src/cmd/go/internal/envcmd/env.go          | 14 +++++++++-----
+ src/cmd/go/testdata/script/gotoolchain.txt | 26 +++++++++++++++++---------
+ 5 files changed, 45 insertions(+), 15 deletions(-)

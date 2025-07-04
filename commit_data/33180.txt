@@ -1,24 +1,18 @@
-commit 7dcf406cfea0dd1f84fed0c69d3472b21e1c490d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 17 22:33:21 2017 -0400
+commit 6bb88fc280518150e31bf12744596467796a4528
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 24 10:13:25 2017 -0700
 
-    cmd/go: delete ETXTBSY hack that is no longer needed
+    cmd/link: use full link, not compile, to test for -no-?pie
     
-    This hack existed because cmd/go used to install (write) and then run
-    cmd/cgo in the same invocation, and writing and then running a program
-    is a no-no in modern multithreaded Unix programs (see #22315).
+    This avoids an error from clang when using -nopie during compilation,
+    and permits us to check that the entire build succeeds.
     
-    As of CL 68338, cmd/go no longer installs any programs that it then
-    tries to use. It never did this for any program other than cgo, and
-    CL 68338 removed that special case for cgo.
+    Updates #21042
     
-    Now this special case, added for #3001 long ago, can be removed too.
-    
-    Change-Id: I338f1f8665e9aca823e33ef7dda9d19f665e4281
-    Reviewed-on: https://go-review.googlesource.com/71571
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2e6c7d5c97a85c223ed3288622bbb58ce33b8774
+    Reviewed-on: https://go-review.googlesource.com/50874
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/exec.go | 83 ++++++++--------------------------------
- 1 file changed, 16 insertions(+), 67 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

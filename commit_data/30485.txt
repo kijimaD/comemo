@@ -1,16 +1,23 @@
-commit 0ee9c46cb19f04e713a5db30c8ae0e719c6d228b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 1 21:46:08 2017 -0800
+commit 5d28bc58b6524b2043e2864b8de99fb05e7160d5
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:37 2016 +0200
 
-    cmd/compile: add missing WBs for reflect.{Slice,String}Header.Data
+    cmd/internal/obj/mips: add support for GOARCH=mips{,le}
     
-    Fixes #19168.
+    Implements subset of MIPS32(r1) instruction set.
     
-    Change-Id: I3f4fcc0b189c53819ac29ef8de86fdad76a17488
-    Reviewed-on: https://go-review.googlesource.com/37663
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iba017350f6c2763de05d4d1bc2f123e8eb76d0ff
+    Reviewed-on: https://go-review.googlesource.com/31475
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/ssa.go  |  5 ++++
- src/cmd/compile/internal/gc/walk.go | 41 ++++++++++++++++++++++----
- test/fixedbugs/issue19168.go        | 58 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 98 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/arch/arch.go   |   2 +-
+ src/cmd/internal/obj/link.go        |   6 +-
+ src/cmd/internal/obj/mips/a.out.go  |  22 +-
+ src/cmd/internal/obj/mips/anames.go |  13 +
+ src/cmd/internal/obj/mips/asm0.go   | 740 +++++++++++++++++++++---------------
+ src/cmd/internal/obj/mips/list0.go  |   6 +-
+ src/cmd/internal/obj/mips/obj0.go   | 137 +++++--
+ src/cmd/internal/obj/util.go        |  14 +-
+ 8 files changed, 586 insertions(+), 354 deletions(-)

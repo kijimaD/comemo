@@ -1,26 +1,23 @@
-commit bb4356dbfd03343bef39746f9937e57c93453e97
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 10 21:50:13 2018 +0000
+commit 18b49db18e02c1590119eeda58673bf93c2e41c9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Sep 21 12:33:11 2017 +1000
 
-    net/http: fix "http2: no cached connection..." error with x/net/http2
+    cmd/go: ignore empty path elements in GOPATH
     
-    The net/http Transport was testing for a sentinel x/net/http2 error
-    value with ==, which meant it was only testing the bundled version. If
-    a user enabled http2 via golang.org/x/net/http2, the error value had a
-    different name.
+    go command refuses to use GOPATH with empty path elements
+    (like %GOPATH%=C:\go;). But environment variable change dialog
+    on Windows 10 produces strings ending with ; (see issue #21928
+    for a picture). Just accept GOPATH with empty path elements,
+    and ignore all empty path elements.
     
-    This also updates the bundled x/net/http2 to git rev ab555f36 for:
+    Fixes #21928
     
-        http2: add internal function isNoCachedConnError to test for ErrNoCachedConn
-        https://golang.org/cl/87297
-    
-    Fixes #22091
-    
-    Change-Id: I3fb85e2b7ba7d145dd66767e1795a56de633958c
-    Reviewed-on: https://go-review.googlesource.com/87298
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Change-Id: I1d3c3a19274ed69204d29ae06c3e8ff8c57c1ca0
+    Reviewed-on: https://go-review.googlesource.com/65151
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/h2_bundle.go               | 24 ++++++++++++++++++++++--
- src/net/http/transport.go               |  2 +-
- src/net/http/transport_internal_test.go | 22 +++++++++++++++++-----
- 3 files changed, 40 insertions(+), 8 deletions(-)
+ src/cmd/go/go_test.go | 21 +++++++++++++++++++++
+ src/cmd/go/main.go    |  5 +++++
+ 2 files changed, 26 insertions(+)

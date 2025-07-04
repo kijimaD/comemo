@@ -1,18 +1,35 @@
-commit af7437cc8a62ca21b907628aed3ee484d4220317
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:44:36 2022 -0500
+commit 042548b1fdba21e351368e9f3ecd93059d09083f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 6 10:58:30 2022 -0800
 
-    cmd/pack: use the test binary as 'pack' instead of rebuilding it
+    cmd/compile: report type parameter error for methods only once
     
-    This not only reduces the latency of the test, but also respects
-    build flags like '-race' and '-cover' passed to the 'go test' command.
+    Move switch to enable method type parameters entirely
+    to the parser, by adding the mode AllowMethodTypeParams.
+    Ensure that the error messages are consistent.
+    Remove unnecessary code in the type checker.
     
-    Change-Id: Ifaf396465f54ad0a28977b6c0a4b87dbc359de37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450706
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #50317.
+    
+    Change-Id: I4f3958722400bdb919efa4c494b85cf62f4002bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376054
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/pack/pack_test.go | 52 ++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 40 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go                 | 12 +++++++++---
+ src/cmd/compile/internal/syntax/parser_test.go            |  2 +-
+ src/cmd/compile/internal/syntax/syntax.go                 |  1 +
+ src/cmd/compile/internal/syntax/testdata/issue48382.go2   | 10 +++++-----
+ src/cmd/compile/internal/syntax/testdata/tparams.go2      |  2 +-
+ src/cmd/compile/internal/types2/api_test.go               |  2 +-
+ src/cmd/compile/internal/types2/check_test.go             |  2 +-
+ src/cmd/compile/internal/types2/interface.go              |  7 -------
+ src/cmd/compile/internal/types2/lookup.go                 |  5 +++++
+ src/cmd/compile/internal/types2/resolver.go               |  9 ++-------
+ src/cmd/compile/internal/types2/signature.go              | 10 +---------
+ .../internal/types2/testdata/fixedbugs/issue39634.go2     |  2 +-
+ src/cmd/compile/internal/types2/types_test.go             |  9 ---------
+ test/typeparam/issue50317.go                              | 15 +++++++++++++++
+ 14 files changed, 43 insertions(+), 45 deletions(-)

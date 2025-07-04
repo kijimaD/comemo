@@ -1,28 +1,28 @@
-commit e7173dfdfd1c74b1d301da9b6f295ef99b9cc11c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Dec 18 10:34:12 2014 -0800
+commit d98553a72782efb2d96c6d6f5e12869826a56779
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:04:34 2014 -0500
 
-    test: migrate remaining tests to run.go
+    [dev.cc] runtime: convert panic and stack code from C to Go
     
-    * bug248, bug345, bug369, and bug429 were ported from bash commands to run scripts. bug369 remains disabled.
-    * bug395 is a test for issue 1909, which is still open. It is marked as skip now and will be usable with compile with run.go when issue 1909 is fixed.
+    The conversion was done with an automated tool and then
+    modified only as necessary to make it compile and run.
     
-    Fixes #4139
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
     
-    Updates #1909
-    
-    Change-Id: Ibb5fbfb5cf72ddc285829245318eeacd3fb5a636
-    Reviewed-on: https://go-review.googlesource.com/1774
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=r
+    R=r, dave
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/166520043
 
- test/bugs/bug395.go               |   7 +-
- test/fixedbugs/bug248.go          |  61 ++++++++++++++---
- test/fixedbugs/bug345.go          |  48 +++++++++++--
- test/fixedbugs/bug369.dir/main.go |  54 +++++++++++++++
- test/fixedbugs/bug369.go          |  74 +++++++++-----------
- test/fixedbugs/bug429.go          |   6 +-
- test/fixedbugs/bug429_run.go      |  34 ++++++++++
- test/golden.out                   |  24 -------
- test/run                          | 138 --------------------------------------
- test/run.go                       |  15 +----
- 10 files changed, 222 insertions(+), 239 deletions(-)
+ src/runtime/panic.c      | 200 -----------
+ src/runtime/panic.go     |  36 +-
+ src/runtime/panic1.go    | 168 +++++++++
+ src/runtime/stack.c      | 897 -----------------------------------------------
+ src/runtime/stack.go     |  13 -
+ src/runtime/stack.h      |  97 +----
+ src/runtime/stack1.go    | 807 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/stack2.go    | 106 ++++++
+ src/runtime/symtab.go    |   3 +-
+ src/runtime/traceback.go |   2 +
+ 10 files changed, 1106 insertions(+), 1223 deletions(-)

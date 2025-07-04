@@ -1,20 +1,51 @@
-commit 108efc79c726402e13acae0299e9a7597a4d33ce
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Jan 31 17:56:14 2018 -0500
+commit 4b7325c7e30fcfd3aec4bc5968069c07f0f48e21
+Author: griesemer <gri@golang.org>
+Date:   Wed Oct 11 11:14:30 2017 -0700
 
-    cmd/compile/internal/ssa: shrink commonly-used structs
+    cmd/compile/internal/syntax: cleanups around parser tracing
     
-    Replace the OnStack boolean in VarLoc with a flag bit in StackOffset.
-    This doesn't get much memory savings since it's still 64-bit aligned,
-    but does seem to help a bit anyway.
+    These changes affect the parser only when the internal trace
+    constant is set.
     
-    Change liveSlot to fit into 16 bytes. Because nested structs still get
-    padding, this required inlining it. Fortunately there's not much logic
-    to copy.
+    - factored our printing code used for tracing
+    - streamlined advance function and added trace output
     
-    Change-Id: Ie19a409daa41aa310275c4517a021eecf8886441
-    Reviewed-on: https://go-review.googlesource.com/92401
-    Reviewed-by: David Chase <drchase@google.com>
+    The parser's trace output now more clearly prints what tokens
+    are skipped and which is the next token in case of an error.
+    
+    Example trace:
+    
+        4: . . . . . . . . . . call (
+        4: . . . . . . . . . . . expr (
+        4: . . . . . . . . . . . . unaryExpr (
+        4: . . . . . . . . . . . . . pexpr (
+        4: . . . . . . . . . . . . . . operand name (
+        4: . . . . . . . . . . . . . . )
+        4: . . . . . . . . . . . . . . call (
+        4: . . . . . . . . . . . . . . )
+        4: . . . . . . . . . . . . . )
+        4: . . . . . . . . . . . . )
+        4: . . . . . . . . . . . )
+        4: . . . . . . . . . . . syntax error: expecting comma or )
+        4: . . . . . . . . . . . skip ;
+        6: . . . . . . . . . . . skip name
+        6: . . . . . . . . . . . skip :=
+        6: . . . . . . . . . . . skip literal
+        6: . . . . . . . . . . . skip ;
+        7: . . . . . . . . . . . skip }
+        7: . . . . . . . . . . . skip ;
+        9: . . . . . . . . . . . skip func
+        9: . . . . . . . . . . . skip name
+        9: . . . . . . . . . . . skip (
+        9: . . . . . . . . . . . next )
+        9: . . . . . . . . . . )
+    
+    For #22164.
+    
+    Change-Id: I4a233696b1f989ee3287472172afaf92cf424565
+    Reviewed-on: https://go-review.googlesource.com/70490
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/debug.go | 83 +++++++++++++++++++++--------------
- 1 file changed, 49 insertions(+), 34 deletions(-)
+ src/cmd/compile/fmt_test.go               |  3 +-
+ src/cmd/compile/internal/syntax/parser.go | 62 ++++++++++++++++++++-----------
+ 2 files changed, 42 insertions(+), 23 deletions(-)

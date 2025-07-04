@@ -1,23 +1,19 @@
-commit 08357012247db5c84002b7a4c1693411a1a9b295
-Author: Takeshi Yoneda <t.y.mathetake@gmail.com>
-Date:   Thu Apr 27 13:37:48 2023 +0900
+commit fc66cae490a0cd8b8cefefbc0ace7c3fb030f779
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 4 09:44:11 2022 -0400
 
-    os: fix TestChdirAndGetwd/ReaddirnamesOneAtATime on wasip1 to run on Windows hosts
+    doc/go1.19: remove TODO about LimitedReader
     
-    TestReaddirnamesOneAtATime and TestChdirAndGetwd assumes the underlying file system
-    has /usr/bin but it is not the case when running it on WASI runtime hosted on Windows.
+    Rolled back in CL 410133.
     
-    This change adds wasip1 in the special cased switch case to make them host OS agonstic.
+    For #51115.
     
-    Change-Id: Idb667021b565f939c814b9cd9e637cd75f9a610d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489575
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I009c557acf98a98a9e5648fa82d998d41974ae60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410357
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
 
- src/os/os_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.19.html | 4 ----
+ 1 file changed, 4 deletions(-)

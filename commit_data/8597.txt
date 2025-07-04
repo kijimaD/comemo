@@ -1,13 +1,14 @@
-commit 2a8ea0d1b598938d344edec9428acc4a2d2e8e4e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 2 12:00:26 2011 -0700
+commit 191a6bfc5e99911f905cb582b676b5502c7b5aad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 2 11:07:41 2011 -0700
 
-    http: catch panics
+    big: do not modify divisor
+    
+    Fixes #1907.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4559067
+    https://golang.org/cl/4527096
 
- src/pkg/http/serve_test.go | 18 ++++++++++++++++++
- src/pkg/http/server.go     | 30 +++++++++++++++++++++++++++++-
- 2 files changed, 47 insertions(+), 1 deletion(-)
+ src/pkg/big/nat.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

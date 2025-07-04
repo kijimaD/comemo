@@ -1,15 +1,13 @@
-commit 775719c6009289d76ee181150b5772cc0699ebb7
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Wed May 21 06:18:45 2014 -0700
+commit 80f0a7df26d216c96400d1f7cfbb5106d4b354df
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 21 13:23:24 2014 +1000
 
-    cmd/ld: correctly compute note size on NetBSD.
+    tag go1.3beta1 and go1.3beta2
     
-    Patch from http://gnats.NetBSD.org/48811.
-    
-    LGTM=iant
-    R=golang-codereviews, minux.ma, iant
-    CC=golang-codereviews, tk
-    https://golang.org/cl/94670047
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/100660043
 
- src/cmd/ld/elf.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,55 +1,17 @@
-commit 07f7db3ea99fae98dd041d54cceda7ac5d4ac1fe
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Oct 8 14:12:40 2017 +0200
+commit e7823d656e8118534d9ddbd6d2b948c6fdad0549
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Tue Jun 27 16:49:09 2017 -0700
 
-    cmd/compile: fix OTYPESW Op comment
+    runtime: temporarily skip gdb python-related tests on solaris
     
-    OTYPESW Op comment says
+    Updates #20821
     
-      // List = Left.(type)
-    
-    this seems to be wrong. Adding
-    
-      fmt.Printf("n: %v\n", cond)
-      fmt.Printf("  n.List: %v\n", cond.List)
-      fmt.Printf("  n.Left: %v\n", cond.Left)
-      fmt.Printf("  n.Right: %v\n", cond.Right)
-    
-    to (s *typeSwitch) walk(sw *Node), and compiling the following code
-    snippet
-    
-      var y interface{}
-      switch x := y.(type) {
-      default:
-        println(x)
-      }
-    
-    prints
-    
-      n: <node TYPESW>
-        n.List:
-        n.Left: x
-        n.Right: y
-    
-    The correct OTYPESW Node field positions are
-    
-      // Left = Right.(type)
-    
-    This is confirmed by the fact that, further in the code,
-    typeSwitch.walk() checks that Right (and not Left) is of type
-    interface:
-    
-      cond.Right = walkexpr(cond.Right, &sw.Ninit)
-      if !cond.Right.Type.IsInterface() {
-        yyerror("type switch must be on an interface")
-        return
-      }
-    
-    This patch fixes the OTYPESW comment.
-    
-    Change-Id: Ief1e409cfabb7640d7f7b0d4faabbcffaf605450
-    Reviewed-on: https://go-review.googlesource.com/69112
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I77a5b9a3bbb931845ef52a479549d71069af9540
+    Reviewed-on: https://go-review.googlesource.com/46913
+    Run-TryBot: Shawn Walker-Salas <shawn.walker@oracle.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/syntax.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/runtime-gdb_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

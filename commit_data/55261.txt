@@ -1,23 +1,29 @@
-commit d0ed476f3e08a66e379682d4f7538c23ec1c2284
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Dec 11 15:49:09 2023 -0500
+commit 02704d515952f87bf81195859edcdc49f28af02e
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Wed Jan 18 10:54:17 2023 +0100
 
-    doc/go1.22: add TODOs for missing APIs
+    runtime: switch AMD64's publicationBarrier to ABIInternal
     
-    Add TODOs for APIs mentioned in api/go1.22.txt but missing from the
-    release notes.
+    Shrinks a few runtime functions:
     
-    The issue list was generated with:
+    runtime
+    runtime.mallocgc 2127 -> 2117  (-0.47%)
+    runtime.(*mheap).initSpan 652 -> 639  (-1.99%)
+    runtime.(*mspan).userArenaNextFree 825 -> 808  (-2.06%)
     
-        $ awk '{print substr($NF, 2, length($NF)-1)}' < ../api/go1.22.txt | uniq | xargs -I{} sh -c 'echo -n "{}: " && grep -c {} ../doc/go1.22.html'
+    file      before   after    Δ       %
+    runtime.s 512473   512414   -59     -0.012%
+    total     20843331 20843272 -59     -0.000%
     
-    For #61422.
-    
-    Change-Id: I85d41c28530e6b5e3e388a41206b251278c91dd5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548937
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ifaca7abb6db3467b73945fac71496dd7527e6863
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462296
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.22.html | 21 ++++++++++++++++++---
- 1 file changed, 18 insertions(+), 3 deletions(-)
+ src/runtime/asm_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

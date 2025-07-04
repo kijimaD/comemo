@@ -1,34 +1,23 @@
-commit 96add980ad27faed627f26ef1ab09e8fe45d6bd1
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu May 11 17:01:44 2023 +0000
+commit 7368647ac6eecd57a476616ff1f3ac1aa7f445b6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 00:57:18 2022 -0700
 
-    Revert "runtime: rename getcallerfp to getfp"
+    [dev.unified] cmd/compile: start setting RType fields for Unified IR
     
-    This reverts CL 481617.
+    This CL switches the GOEXPERIMENT=unified frontend to set RType fields
+    in the simpler cases, and to make it fatal if they're missing.
     
-    Reason for revert: breaks test build on Windows
+    Subsequent CLs will handle the remaining more complex cases (e.g.,
+    expressions from later desugaring, and implicit conversions to
+    interface type).
     
-    Change-Id: Ifc1a323b0cc521e7a5a1f7de7b3da667f5fee375
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494377
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: If6257dcb3916905afd9b8371ea64b85f108ebbfb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413359
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/asm_amd64.s      | 2 +-
- src/runtime/asm_arm64.s      | 2 +-
- src/runtime/export_test.go   | 2 +-
- src/runtime/os_wasm.go       | 5 ++---
- src/runtime/stubs_386.go     | 5 ++---
- src/runtime/stubs_amd64.go   | 4 ++--
- src/runtime/stubs_arm.go     | 5 ++---
- src/runtime/stubs_arm64.go   | 4 ++--
- src/runtime/stubs_loong64.go | 5 ++---
- src/runtime/stubs_mips64x.go | 5 ++---
- src/runtime/stubs_mipsx.go   | 5 ++---
- src/runtime/stubs_ppc64x.go  | 5 ++---
- src/runtime/stubs_riscv64.go | 5 ++---
- src/runtime/stubs_s390x.go   | 5 ++---
- src/runtime/trace.go         | 2 +-
- 15 files changed, 26 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/noder/reader.go        | 54 +++++++++++++++++++++++--
+ src/cmd/compile/internal/reflectdata/helpers.go | 22 ++++++----
+ 2 files changed, 65 insertions(+), 11 deletions(-)

@@ -1,30 +1,25 @@
-commit 299117eca0f28b6e379c4d5b7e43e2f13cf0cd36
-Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
-Date:   Wed Aug 27 20:18:56 2014 -0700
+commit 32a092a885c48a8a8798380ded7bf57f0a991a26
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 21 14:54:27 2014 -0700
 
-    debug/elf: support arm64 relocations
+    cmd/gofmt: remove testdata/*.gofmt files
     
-    This adds the minimal support for AArch64/arm64 relocations
-    needed to get cgo to work (when an isomorphic patch is applied
-    to gccgo) and a test.
+    This files were added accidentally and are
+    not required for running the tests (they
+    are produced by failing tests for easier
+    debugging).
     
-    This change uses the "AAarch64" name for the architecture rather
-    than the more widely accepted "arm64" because that's the name that
-    the relevant docs from ARM such as
-    
-       http://infocenter.arm.com/help/topic/com.arm.doc.ihi0056b/IHI0056B_aaelf64.pdf
-    
-    all use.
-    
-    Fixes #8533.
-    
-    LGTM=iant
-    R=golang-codereviews, aram, gobot, iant, minux
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/132000043
+    https://golang.org/cl/131030044
 
- src/pkg/debug/elf/elf.go                           | 338 ++++++++++++++++++---
- src/pkg/debug/elf/file.go                          |  50 ++-
- src/pkg/debug/elf/file_test.go                     |   6 +
- .../testdata/go-relocation-test-gcc482-aarch64.obj | Bin 0 -> 3392 bytes
- 4 files changed, 350 insertions(+), 44 deletions(-)
+ src/cmd/gofmt/testdata/stdin1.golden.gofmt |  3 ---
+ src/cmd/gofmt/testdata/stdin1.input.gofmt  |  3 ---
+ src/cmd/gofmt/testdata/stdin2.golden.gofmt | 10 ----------
+ src/cmd/gofmt/testdata/stdin2.input.gofmt  | 11 -----------
+ src/cmd/gofmt/testdata/stdin3.golden.gofmt |  7 -------
+ src/cmd/gofmt/testdata/stdin3.input.gofmt  |  7 -------
+ src/cmd/gofmt/testdata/stdin4.golden.gofmt |  3 ---
+ src/cmd/gofmt/testdata/stdin4.input.gofmt  |  3 ---
+ 8 files changed, 47 deletions(-)

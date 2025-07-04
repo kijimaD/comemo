@@ -1,19 +1,16 @@
-commit 352dd2d932c1c1c6dbc3e112fcdfface07d4fffb
+commit 9e3b1d53a012e98cfd02de2de8b1bd53522464d4
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 14 17:54:00 2024 -0800
+Date:   Sat Mar 2 18:48:26 2024 -0800
 
-    runtime: only poll network from one P at a time in findRunnable
+    slices: document that Clone can return extra capacity
     
-    For #65064
-    
-    Change-Id: Ifecd7e332d2cf251750752743befeda4ed396f33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564197
+    Change-Id: I8b9aa1f36ce554d8855ee70e15f0dd0a8cf1097a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568342
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Artur M. Wolff <artur.m.wolff@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go     | 8 ++++++--
- src/runtime/runtime2.go | 7 ++++---
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ src/slices/slices.go | 1 +
+ 1 file changed, 1 insertion(+)

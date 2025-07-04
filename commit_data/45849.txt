@@ -1,16 +1,39 @@
-commit 3f9ec83b10c6de2a992b7458eb3be279f48eb6f8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jun 20 12:22:16 2021 -0700
+commit 88a9e2f9ad0ad3ef1e254e9150f4649e57b0a296
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Nov 13 20:38:21 2020 -0800
 
-    cmd/go: document GOPPC64 environment variable
+    [dev.regabi] cmd/compile: replace CTNIL with ONIL
     
-    Change-Id: I2d2c02eec4ac6eca218fa5334d32650c1620692c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329689
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Properly speaking, "nil" is a zero value, not a constant. So
+    go/constant does not have a representation for it. To allow replacing
+    Val with constant.Value, we split out ONIL separately from OLITERAL so
+    we can get rid of CTNIL.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I4c8e60cae3b3c91bbac43b3b0cf2a4ade028d6cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272650
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go               | 3 +++
- src/cmd/go/internal/help/helpdoc.go | 3 +++
- 2 files changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/const.go     | 19 +++++--------------
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/escape.go    |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 12 +++++-------
+ src/cmd/compile/internal/gc/iexport.go   | 17 ++++++++++-------
+ src/cmd/compile/internal/gc/iimport.go   | 22 ++++++++++++++--------
+ src/cmd/compile/internal/gc/inl.go       |  4 ++--
+ src/cmd/compile/internal/gc/obj.go       |  9 ++++++---
+ src/cmd/compile/internal/gc/order.go     |  6 +++---
+ src/cmd/compile/internal/gc/sinit.go     | 26 +++++++++++++++++---------
+ src/cmd/compile/internal/gc/ssa.go       | 22 +++++++++++-----------
+ src/cmd/compile/internal/gc/subr.go      | 16 +++++++++-------
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  9 ++++++---
+ src/cmd/compile/internal/gc/universe.go  |  4 +---
+ src/cmd/compile/internal/gc/walk.go      | 11 ++++++-----
+ src/cmd/compile/internal/types/type.go   |  2 +-
+ 18 files changed, 100 insertions(+), 87 deletions(-)

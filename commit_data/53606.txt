@@ -1,27 +1,26 @@
-commit 78c3aba4704c86874c36e61224966e7e07706bc0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 19 15:35:50 2023 -0700
+commit aa4299735b78189eeac1e2c4edafb9d014cc62d7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 16 12:35:36 2022 -0700
 
-    net/mail: permit more characters in mail headers
+    runtime/pprof: remove round-to-file-start adjustment
     
-    We parse mail messages using net/textproto. For #53188, we tightened
-    up the bytes permitted by net/textproto to match RFC 7230.
-    However, this package uses RFC 5322 which is more permissive.
-    Restore the permisiveness we used to have, so that older code
-    continues to work.
+    This causes a problem in the test sometimes. With a mapping like:
     
-    Fixes #58862
-    Fixes #60332
+    00400000-00411000 r--p 00000000 fe:01 4459044                            /tmp/go-build1710804385/b001/pprof.test
+    00411000-00645000 r-xp 00011000 fe:01 4459044                            /tmp/go-build1710804385/b001/pprof.test
     
-    Change-Id: I5437f5e18a756f6ca61c13c4d8ba727be73eff9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504416
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    The removed code would make the first mapping 0x400000-0x645000. Tests
+    then grab the first few addresses to use as PCs, thinking they are in
+    an executable range. But those addresses are really not in an
+    executable range, causing the tests to fail.
+    
+    Change-Id: I5a69d0259d1fd70ff9745df1cbad4d54c5898e7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424295
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/net/mail/message.go      | 51 +++++++++++++++++++++++++++++++++++++++++++-
- src/net/mail/message_test.go | 28 ++++++++++++++++++++++++
- 2 files changed, 78 insertions(+), 1 deletion(-)
+ src/internal/profile/legacy_profile.go | 8 --------
+ src/runtime/pprof/proto.go             | 9 ++++-----
+ 2 files changed, 4 insertions(+), 13 deletions(-)

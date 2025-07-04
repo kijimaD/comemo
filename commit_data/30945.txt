@@ -1,23 +1,44 @@
-commit 2919132e1b7ade3faa394339d3199f243103dd72
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 30 14:59:53 2017 -0400
+commit 6e36811c37399d60cbce587b7c48e611009c5aec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 21:45:59 2016 +0000
 
-    runtime: don't adjust GC trigger on forced GC
+    net/http: restore Transport's Request.Body byte sniff in limited cases
     
-    Forced GCs don't provide good information about how to adjust the GC
-    trigger. Currently we avoid adjusting the trigger on forced GC because
-    forced GC is also STW and we don't adjust the trigger on STW GC.
-    However, this will become a problem when forced GC is concurrent.
+    In Go 1.8, we'd removed the Transport's Request.Body
+    one-byte-Read-sniffing to disambiguate between non-nil Request.Body
+    with a ContentLength of 0 or -1. Previously, we tried to see whether a
+    ContentLength of 0 meant actually zero, or just an unset by reading a
+    single byte of the Request.Body and then stitching any read byte back
+    together with the original Request.Body.
     
-    Fix this by skipping trigger adjustment if the GC was user-forced.
+    That historically has caused many problems due to either data races,
+    blocking forever (#17480), or losing bytes (#17071). Thus, we removed
+    it in both HTTP/1 and HTTP/2 in Go 1.8. Unfortunately, during the Go
+    1.8 beta, we've found that a few people have gotten bitten by the
+    behavior change on requests with methods typically not containing
+    request bodies (e.g. GET, HEAD, DELETE). The most popular example is
+    the aws-go SDK, which always set http.Request.Body to a non-nil value,
+    even on such request methods. That was causing Go 1.8 to send such
+    requests with Transfer-Encoding chunked bodies, with zero bytes,
+    confusing popular servers (including but limited to AWS).
     
-    For #18216.
+    This CL partially reverts the no-byte-sniffing behavior and restores
+    it only for GET/HEAD/DELETE/etc requests, and only when there's no
+    Transfer-Encoding set, and the Content-Length is 0 or -1.
     
-    Change-Id: I03dfdad12ecd3cfeca4573140a0768abb29aac5e
-    Reviewed-on: https://go-review.googlesource.com/38951
-    Run-TryBot: Austin Clements <austin@google.com>
+    Updates #18257 (aws-go) bug
+    And also private bug reports about non-AWS issues.
+    
+    Updates #18407 also, but haven't yet audited things enough to declare
+    it fixed.
+    
+    Change-Id: Ie5284d3e067c181839b31faf637eee56e5738a6a
+    Reviewed-on: https://go-review.googlesource.com/34668
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/net/http/request.go           |  33 ++++++
+ src/net/http/requestwrite_test.go | 208 ++++++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go          | 153 ++++++++++++++++++++++++++--
+ 3 files changed, 383 insertions(+), 11 deletions(-)

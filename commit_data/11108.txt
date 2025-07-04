@@ -1,20 +1,12 @@
-commit 276f177b9c45218303bd29be128be58602d2afa9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 11 10:06:44 2012 -0800
+commit c7fdbeb6c1acc842dcbe756950e2773eb2419efc
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 11 09:47:08 2012 -0800
 
-    go/scanner: remove (exported) InsertSemis mode
+    cmd/go: fix test documentation
     
-    This is a relic from the times when we switched
-    to automatic semicolon insertion. It's still use-
-    ful to have a non-exported switch for testing.
-    
-    R=golang-dev, r, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5528077
+    https://golang.org/cl/5529067
 
- src/cmd/godoc/format.go            |  2 +-
- src/pkg/exp/types/check_test.go    |  8 +++++++-
- src/pkg/go/parser/parser.go        |  2 +-
- src/pkg/go/scanner/scanner.go      |  8 ++++----
- src/pkg/go/scanner/scanner_test.go | 20 ++++++++++----------
- 5 files changed, 23 insertions(+), 17 deletions(-)
+ src/cmd/go/test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

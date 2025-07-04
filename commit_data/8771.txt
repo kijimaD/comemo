@@ -1,35 +1,13 @@
-commit cf9f38049965c4e69f67c1a62a55954ae4605092
+commit b96ff8458c31bde2e35af33e545abf91c29751ed
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 17 16:12:14 2011 -0400
+Date:   Fri Jun 17 16:05:00 2011 -0400
 
-    gc: unsafe.Alignof, unsafe.Offsetof, unsafe.Sizeof now return uintptr
+    5g, 8g: fix build
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4640045
+    https://golang.org/cl/4627045
 
- src/cmd/gc/builtin.c.boot                 |  6 +++---
- src/cmd/gc/unsafe.c                       |  2 +-
- src/cmd/gc/unsafe.go                      |  8 +++++---
- src/pkg/gob/decode.go                     |  2 +-
- src/pkg/gob/encode.go                     |  2 +-
- src/pkg/hash/fnv/fnv.go                   | 17 ++++++++---------
- src/pkg/reflect/type.go                   |  4 ++--
- src/pkg/reflect/value.go                  |  2 +-
- src/pkg/runtime/malloc.goc                |  2 +-
- src/pkg/runtime/mem.go                    |  2 +-
- src/pkg/runtime/pprof/pprof_test.go       |  2 +-
- src/pkg/syscall/exec_unix.go              |  6 +++---
- src/pkg/syscall/syscall_bsd.go            |  4 ++--
- src/pkg/syscall/syscall_linux.go          |  2 +-
- src/pkg/syscall/syscall_linux_386.go      |  8 ++++----
- src/pkg/syscall/syscall_linux_amd64.go    |  2 +-
- src/pkg/syscall/syscall_linux_arm.go      |  2 +-
- src/pkg/syscall/zsyscall_darwin_386.go    |  2 +-
- src/pkg/syscall/zsyscall_darwin_amd64.go  |  2 +-
- src/pkg/syscall/zsyscall_freebsd_386.go   |  2 +-
- src/pkg/syscall/zsyscall_freebsd_amd64.go |  2 +-
- src/pkg/syscall/zsyscall_linux_amd64.go   |  2 +-
- src/pkg/syscall/zsyscall_linux_arm.go     |  2 +-
- test/sizeof.go                            | 23 +++++++++++++++++++++++
- 24 files changed, 66 insertions(+), 42 deletions(-)
+ src/cmd/5g/gsubr.c | 2 --
+ src/cmd/8g/gsubr.c | 2 --
+ 2 files changed, 4 deletions(-)

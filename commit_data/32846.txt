@@ -1,29 +1,21 @@
-commit 7246585f8c4211df2b678639ba58a72f70573c3c
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Sep 25 15:03:49 2017 -0700
+commit 766e1ae3623f7a30b308200ebdf42901ced6676c
+Author: Joonas Kuorilehto <joneskoo@derbian.fi>
+Date:   Wed May 24 20:37:53 2017 +0300
 
-    archive/tar: avoid empty IO operations
+    sync: remove note about creating with structures
     
-    The interfaces for io.Reader and io.Writer permit calling Read/Write
-    with an empty buffer. However, this condition is often not well tested
-    and can lead to bugs in various implementations of io.Reader and io.Writer.
-    For example, see #22028 for buggy io.Reader in the bzip2 package.
+    Remove note that sync.Cond, sync.Mutex, sync.RWMutex and atomic.Value
+    can be created as part of other data structures. Structs can be embedded
+    by default, and default should not be repeated.
     
-    We reduce the likelihood of hitting these bugs by adjusting
-    regFileReader.Read and regFileWriter.Write to avoid performing
-    Read and Write calls when the buffer is known to be empty.
+    Fixes #20471.
     
-    Fixes #22029
-    
-    Change-Id: Ie4a26be53cf87bc4d2abd951fa005db5871cc75c
-    Reviewed-on: https://go-review.googlesource.com/66111
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If3f5703d3f60abd96482b58ca43450d02a9e645a
+    Reviewed-on: https://go-review.googlesource.com/44071
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/reader.go      |  8 +++++---
- src/archive/tar/reader_test.go | 17 ++++++++++++++---
- src/archive/tar/writer.go      |  8 +++++---
- src/archive/tar/writer_test.go | 17 +++++++++++++++--
- 4 files changed, 39 insertions(+), 11 deletions(-)
+ src/sync/atomic/value.go | 1 -
+ src/sync/cond.go         | 1 -
+ src/sync/mutex.go        | 3 +--
+ src/sync/rwmutex.go      | 3 +--
+ 4 files changed, 2 insertions(+), 6 deletions(-)

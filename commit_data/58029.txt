@@ -1,33 +1,21 @@
-commit 7a20239ce8a877ae82b8c269a8ff28fe59609c69
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Oct 24 16:27:44 2024 +0200
+commit 3857a89e7eb872fa22d569e70b7e076bec74ebbb
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Sep 19 17:23:58 2023 -0400
 
-    crypto/subtle: document and test XORBytes overlap rules
+    net/http: add a benchmark for multi indexing
     
-    XORBytes doesn't say anything about how it deals with destination and
-    source overlaps. Current implementations as written do work if the
-    destination overlaps perfectly with a source, but will unavoidably
-    return nonsensical results if the destination is ahead of the source.
-    Lock in the current behavior with tests, docs, and panics.
+    We don't index multis, so a corpus full of them will take quadratic
+    time to check for conflicts. How slow is that going to be in practice?
     
-    Note that this introduces a new panic, but if any applications run into
-    it we are potentially catching a security issue.
+    This benchmark indexes and checks a thousand multi patterns, all disjoint.
+    It runs in about 35ms.
     
-    Also, expand the tests and move them outside the FIPS module per #69536
-    convention. (We want to minimize changes within the module boundary.)
-    
-    Updates #53021
-    
-    Change-Id: Ibb0875fd38da3818079e31b83b1a227b53755930
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622276
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id27940ab19ad003627bd5c43c53466e01456b796
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529477
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/crypto/internal/fips/subtle/xor.go      |   9 ++
- src/crypto/internal/fips/subtle/xor_test.go |  98 ----------------------
- src/crypto/subtle/xor.go                    |   4 +
- src/crypto/subtle/xor_linux_test.go         |  46 +++++++++++
- src/crypto/subtle/xor_test.go               | 124 ++++++++++++++++++++++++++++
- 5 files changed, 183 insertions(+), 98 deletions(-)
+ src/net/http/pattern_test.go       |  6 +++---
+ src/net/http/routing_index_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 3 deletions(-)

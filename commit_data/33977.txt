@@ -1,16 +1,13 @@
-commit de292613c17c0fd8bf6e5fb9e781866d77dc49b1
+commit 431e071eedf2481af830f183d6f6eb241d8247cc
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 9 15:49:40 2018 -0500
+Date:   Fri Sep 22 14:25:04 2017 -0400
 
-    os: fix grammar nit
+    [dev.boringcrypto] misc/boring: add go1.9rc2b4 release
     
-    There should not be a comma before "and" in the original text,
-    because what follows is not a complete sentence. Rewrite.
-    
-    Change-Id: Ie99f204cc87e911fb46149e2eb65e132fa1eb63a
-    Reviewed-on: https://go-review.googlesource.com/87020
+    Change-Id: Ib3b035909a060d304e42d87b7de8c35626183d39
+    Reviewed-on: https://go-review.googlesource.com/65470
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/boring/RELEASES | 1 +
+ 1 file changed, 1 insertion(+)

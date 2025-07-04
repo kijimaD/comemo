@@ -1,14 +1,21 @@
-commit c850d0f34a7db9f6df54c1ca99e14e19859baaa0
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Dec 21 15:14:38 2012 +1100
+commit 1dcf658f6dbc6b09ead3fb7561cd1832d9a697a1
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Dec 20 23:27:28 2012 +0100
 
-    net/http: simplify serve() connection close
+    cmd/gc: remove an incorrect assertion in escape analysis.
     
-    Followup to 6971049.
+    A fatal error used to happen when escassign-ing a multiple
+    function return to a single node. However, the situation
+    naturally appears when using "go f(g())" or "defer f(g())",
+    because g() is escassign-ed to sink.
     
-    R=bradfitz
+    Fixes #4529.
+    
+    R=golang-dev, lvd, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6970049
+    https://golang.org/cl/6920060
 
- src/pkg/net/http/server.go | 20 +++++++-------------
- 1 file changed, 7 insertions(+), 13 deletions(-)
+ src/cmd/gc/esc.c            |   8 +--
+ test/escape2.go             | 117 +++++++++++++++++++++++++-------------------
+ test/fixedbugs/issue4529.go |  33 +++++++++++++
+ 3 files changed, 104 insertions(+), 54 deletions(-)

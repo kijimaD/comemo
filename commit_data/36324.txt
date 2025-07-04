@@ -1,14 +1,20 @@
-commit a034f310b040a4252843683f59555ded07016eae
-Author: Austin Clements <austin@google.com>
-Date:   Fri Aug 10 10:34:41 2018 -0400
+commit 68c10286c795e286c3efaa7df6d52d12af446d57
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Apr 19 23:46:52 2018 +0200
 
-    runtime: use gList in closechan
+    syscall: avoid extra syscall on send/recvmsg on Linux
     
-    Change-Id: I8148eb17fe9f2cbb659c35d84cdd212b46dc23bf
-    Reviewed-on: https://go-review.googlesource.com/129401
-    Run-TryBot: Austin Clements <austin@google.com>
+    By simply rearranging the logic, we avoid the overhead of a superfluous
+    call to getsockopt. For, if p is already non empty, there's no point
+    in having to check if we need to attach dummy payload. This has
+    performance benefits when using send/recvmsg for high speed
+    communications.
+    
+    Change-Id: Id85cff17328ecbf6d09dd52fbeeaa691dbe69b75
+    Reviewed-on: https://go-review.googlesource.com/108338
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/chan.go | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ src/syscall/syscall_linux.go | 40 ++++++++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 18 deletions(-)

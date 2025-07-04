@@ -1,17 +1,19 @@
-commit fd1abac71c1792527943696c1c84bbbe7dac2ac3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 14 14:09:42 2013 -0800
+commit 7f18f8119257d42e5702b56c246c930904aac15a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 14 09:43:27 2013 -0800
 
-    time: fix race
+    go/types: callback for *ast.Ident -> Object mapping
     
-    Fixes #4622
+    Also re-enabled resolver test.
     
-    R=golang-dev, dave, dvyukov
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7103046
+    https://golang.org/cl/7107043
 
- src/pkg/time/export_test.go   | 19 +++++++++++++++++++
- src/pkg/time/internal_test.go |  2 +-
- src/pkg/time/time.go          |  4 ++--
- src/pkg/time/time_test.go     | 16 ++++++++++++++++
- 4 files changed, 38 insertions(+), 3 deletions(-)
+ src/pkg/go/types/api.go           |   9 ++-
+ src/pkg/go/types/check.go         |  26 +++++++--
+ src/pkg/go/types/expr.go          |   3 +-
+ src/pkg/go/types/resolve.go       |   2 +-
+ src/pkg/go/types/resolver_test.go | 114 ++++++++++++--------------------------
+ src/pkg/go/types/stmt.go          |   7 ++-
+ 6 files changed, 72 insertions(+), 89 deletions(-)

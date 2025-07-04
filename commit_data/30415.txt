@@ -1,34 +1,20 @@
-commit 1e29cd8c2b560825494e6ae079a17d9f3201b73b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 27 11:37:54 2017 -0800
+commit 606f81eef37e5a232f43a208f6eeaddd82dadf34
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 15:01:30 2016 -0400
 
-    cmd/compile: ignore some dead code during escape analysis
+    context: adjust tests to avoid importing "testing" in package context
     
-    This is the escape analysis analog of CL 37499.
+    So that testing can use context in its public API.
     
-    Fixes #12397
-    Fixes #16871
+    For #16221.
     
-    The only "moved to heap" decisions eliminated by this
-    CL in std+cmd are:
-    
-    cmd/compile/internal/gc/const.go:1514: moved to heap: ac
-    cmd/compile/internal/gc/const.go:1515: moved to heap: bd
-    cmd/compile/internal/gc/const.go:1516: moved to heap: bc
-    cmd/compile/internal/gc/const.go:1517: moved to heap: ad
-    cmd/compile/internal/gc/const.go:1546: moved to heap: ac
-    cmd/compile/internal/gc/const.go:1547: moved to heap: bd
-    cmd/compile/internal/gc/const.go:1548: moved to heap: bc
-    cmd/compile/internal/gc/const.go:1549: moved to heap: ad
-    cmd/compile/internal/gc/const.go:1550: moved to heap: cc_plus
-    cmd/compile/internal/gc/export.go:162: moved to heap: copy
-    cmd/compile/internal/gc/mpfloat.go:66: moved to heap: b
-    cmd/compile/internal/gc/mpfloat.go:97: moved to heap: b
-    
-    Change-Id: I0d420b69c84a41ba9968c394e8957910bab5edea
-    Reviewed-on: https://go-review.googlesource.com/37508
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I6263fa7266c336c9490f20164ce79336df44a57e
+    Reviewed-on: https://go-review.googlesource.com/32648
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 19 ++++++++++++++-----
- test/escape2.go                    | 15 +++++++++++++++
- 2 files changed, 29 insertions(+), 5 deletions(-)
+ src/context/benchmark_test.go | 44 ++++++++++++++++++++
+ src/context/context_test.go   | 95 ++++++++++++++++++-------------------------
+ src/context/x_test.go         | 29 +++++++++++++
+ 3 files changed, 112 insertions(+), 56 deletions(-)

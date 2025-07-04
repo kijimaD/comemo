@@ -1,16 +1,26 @@
-commit 099c6116ccb11595620148cd1a321bd216d37e2b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 21 19:03:53 2020 +0000
+commit 6b1d5471b9ab649322def7075d488c65d5f78cbf
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Sun Sep 8 21:50:07 2019 -0600
 
-    Revert "runtime/pprof: speed up CPU profiling shutdown"
+    cmd/compile: add signed indivisibility by power of 2 rules
     
-    This reverts commit 1f0738c1577a55a6b7229b821ddfe762b84771d0.
+    Commit 44343c777c (CL 173557) added rules for handling
+    divisibility checks for powers of 2 for signed integers, x%c ==0.
+    This change adds the complementary indivisibility rules, x%c != 0.
     
-    Reason for revert: This May have caused issue 38567.
+    Fixes #34166
     
-    Change-Id: I2afa6a9d42cb29cfad09e706fb465c57e3774abd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229301
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I87379e30af7aff633371acca82db2397da9b2c07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194219
+    Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/pprof/pprof.go | 27 ++++++---------------------
- 1 file changed, 6 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   16 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |   26 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |   24 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |   24 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |   26 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 2360 +++++++++++++++++-------
+ test/codegen/arithmetic.go                     |   14 +-
+ 7 files changed, 1794 insertions(+), 696 deletions(-)

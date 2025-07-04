@@ -1,24 +1,17 @@
-commit 63f762bcdea96889d8ffa406804665b84bda63ab
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Nov 14 16:58:07 2024 -0800
+commit 251fb8e4112c4728bf46da15a3875c455136ed8d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Sep 16 17:15:09 2023 -0700
 
-    internal/runtime/maps: eliminate a load from the hot path
+    doc/go1.22: correct tipo languague => language
     
-    typ.Group.Size involves two loads.
-    
-    Instead cache GroupSize as a separate fields of the map type
-    so we can get to it in just one load.
-    
-    Change-Id: I10ffdce1c7f75dcf448da14040fda78f0d75fd1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627716
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I11d0947d6d2ffa91745c8e36a3984ffee85abbd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528896
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/reflectdata/map_swiss.go |  1 +
- src/cmd/link/internal/ld/deadcode.go              |  2 +-
- src/internal/abi/map_swiss.go                     | 13 +++++++------
- src/internal/runtime/maps/group.go                |  4 ++--
- src/internal/runtime/maps/map.go                  |  2 +-
- src/internal/runtime/maps/map_test.go             |  6 +++---
- 6 files changed, 15 insertions(+), 13 deletions(-)
+ doc/go1.22.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

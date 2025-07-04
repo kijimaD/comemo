@@ -1,17 +1,15 @@
-commit 9c21ce54dd3625aac3b948b509a9562b684434bc
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Sep 9 20:36:19 2013 +0200
+commit 5b04d670912aaaa87fdc9a8547a7e71094150661
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 13:04:14 2013 -0400
 
-    cmd/6g: handle very wide offsets.
+    cmd/cgo: record full source path to input .go files
     
-    Fixes #6036.
+    Fixes #5122.
     
-    R=golang-dev, bradfitz, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/12992043
+    https://golang.org/cl/13395046
 
- src/cmd/6g/cgen.c           |  3 +++
- src/cmd/6g/gg.h             |  1 +
- src/cmd/6g/gsubr.c          | 27 +++++++++++++++++++++++++++
- test/fixedbugs/issue6036.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 75 insertions(+)
+ src/cmd/cgo/ast.go   |  8 ++++++++
+ src/cmd/go/test.bash | 20 ++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

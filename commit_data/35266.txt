@@ -1,14 +1,23 @@
-commit b44ca1f3b39afab221891695a8079b16ab45c251
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu May 3 12:33:13 2018 +0200
+commit 651ddbdb5056ded455f47f9c494c67b389622a47
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Jan 25 10:50:02 2018 -0800
 
-    cmd/go: update alldocs.go
+    database/sql: buffers provided to Rows.Next should not be modified by drivers
     
-    Ran go generate in order to update docs.
+    Previously we allowed drivers to modify the row buffer used to scan
+    values when closing Rows. This is no longer acceptable and can lead
+    to data races.
     
-    Change-Id: Ideb903427d153d0ff35e5164b7e79426b83b1afb
-    Reviewed-on: https://go-review.googlesource.com/111336
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #23519
+    
+    Change-Id: I91820a6266ffe52f95f40bb47307d375727715af
+    Reviewed-on: https://go-review.googlesource.com/89936
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/alldocs.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ doc/go1.10.html                   |  7 +++++++
+ src/database/sql/driver/driver.go |  4 ++++
+ src/database/sql/fakedb_test.go   |  5 -----
+ src/database/sql/sql_test.go      | 40 +++------------------------------------
+ 4 files changed, 14 insertions(+), 42 deletions(-)

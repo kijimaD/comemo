@@ -1,13 +1,19 @@
-commit a1dbb9201d6cbffce4d7b1396561b0fb99e441f2
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 10 13:24:47 2015 +1100
+commit bfeda9188a054efdb950c9c9727d6bce7ad04961
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 14 14:57:10 2015 -0500
 
-    cmd/go: use current go source code when generating doc.go
+    runtime: fix accounting race in printlock
     
-    Change-Id: Iad1764707d173a09467fd36e8c49a58147f12219
-    Reviewed-on: https://go-review.googlesource.com/4320
-    Reviewed-by: Minux Ma <minux@golang.org>
+    It could happen that mp.printlock++ happens, then on entry to lock,
+    the goroutine is preempted and then rescheduled onto another m
+    for the actual call to lock. Now the lock and the printlock++ have
+    happened on different m's. This can lead to printlock not being
+    unlocked, which either gives a printing deadlock or a crash when
+    the goroutine reschedules, because m.locks > 0.
+    
+    Change-Id: Ib0c08740e1b53de3a93f7ebf9b05f3dceff48b9f
+    Reviewed-on: https://go-review.googlesource.com/2819
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/go/doc.go   | 1 +
- src/cmd/go/mkdoc.sh | 9 ++++++---
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/runtime/print1.go | 2 ++
+ 1 file changed, 2 insertions(+)

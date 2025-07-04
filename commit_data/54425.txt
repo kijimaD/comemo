@@ -1,24 +1,20 @@
-commit 661e3be4974f83c1071cde14da89a6a7b8cfa049
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 12 03:17:23 2023 -0700
+commit abd592b3d7c3e05eaa9dd6a69749e497b1973002
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 15 15:34:07 2022 -0400
 
-    cmd/compile/internal/dwarfgen: remove unversion
+    misc/cgo/testsigfwd: delete unused code
     
-    The unified export data format doesn't rely on embedding version
-    numbers in local variable names anymore, so there's no need to look
-    for them.
+    This code was introduced in CL 17903 but has never executed. It's also
+    fundamentally non-deterministic. Delete it.
     
-    While here, simplify the checking for "~r" or "~b" to just "~",
-    because the next commit is going to eliminate "~b", but introduce
-    "~p".
+    Simplification for #37486.
     
-    Change-Id: I3ac73150ee561c66356a0c4aee5290b44a4893ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527695
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I049564123fb4fba401154e2ea0fc429e552d4749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431258
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/dwarfgen/dwarf.go |  2 +-
- src/cmd/compile/internal/dwarfgen/dwinl.go | 17 +++--------------
- 2 files changed, 4 insertions(+), 15 deletions(-)
+ misc/cgo/testsigfwd/main.go | 52 ---------------------------------------------
+ 1 file changed, 52 deletions(-)

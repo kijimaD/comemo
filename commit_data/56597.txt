@@ -1,37 +1,27 @@
-commit 3128ebfad748b5f160faa8cb8981bd0eaf6e3227
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat May 18 19:35:39 2024 +0200
+commit 93477f0770a1a0514916e458d077d767787d72f5
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 11 16:20:36 2023 -0400
 
-    crypto/tls: clarify group selection logic
+    cmd/dist: add -json flag
     
-    I initially thought the logic was broken, but writing the test I
-    realized it was actually very clever (derogative). It was relying on the
-    outer loop continuing after a supported match without a key share,
-    allowing a later key share to override it (but not a later supported
-    match because of the "if selectedGroup != 0 { continue }").
+    This enables JSON output for all tests run by dist.
     
-    Replaced the clever loop with two hopefully more understandable loops,
-    and added a test (which was already passing).
+    Most the complexity here is that, in order to disambiguate JSON
+    records from different package variants, we have to rewrite the JSON
+    stream on the fly to include variant information. We do this by
+    rewriting the Package field to be pkg:variant so existing CI systems
+    will naturally pick up the disambiguated test name.
     
-    We were however not checking that the selected group is in the supported
-    list if we found it in key shares first. (This was only a MAY.) Fixed.
+    Fixes #37486.
     
-    Fixes #65686
-    
-    Change-Id: I09ea44f90167ffa36809deb78255ed039a217b6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586655
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I0094e5e27b3a02ffc108534b8258c699ed8c3b87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494958
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/tls/boring_test.go                      |  71 ++++++++-------
- src/crypto/tls/common.go                           |   3 +
- src/crypto/tls/conn.go                             |   2 +
- src/crypto/tls/handshake_client_test.go            |   6 ++
- src/crypto/tls/handshake_client_tls13.go           |   1 +
- src/crypto/tls/handshake_server_test.go            |  80 ++++++++++++++--
- src/crypto/tls/handshake_server_tls13.go           |  32 ++++---
- src/crypto/tls/handshake_test.go                   |  14 ++-
- .../tls/testdata/Server-TLSv13-KeySharePreference  | 101 +++++++++++++++++++++
- 9 files changed, 249 insertions(+), 61 deletions(-)
+ src/cmd/dist/test.go          |  96 +++++++++++++++++++----
+ src/cmd/dist/testjson.go      | 176 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/testjson_test.go |  86 +++++++++++++++++++++
+ 3 files changed, 344 insertions(+), 14 deletions(-)

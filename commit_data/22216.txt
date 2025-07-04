@@ -1,14 +1,18 @@
-commit 6d9fd7e65b29af8227a763d754ac7a2fbf8be6f9
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Feb 19 15:44:08 2015 +0300
+commit 184eb0ac9e521715037094860089d756f214668f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 28 19:52:06 2015 -0500
 
-    test: add tests for indirection level computation in escape analysis
+    cmd/cc: delete lexbody, macbody
     
-    The false positive (var incorrectly escapes to heap) is marked with BAD.
+    These files were left behind for the C implementation of the assemblers.
+    They're no longer needed.
     
-    Change-Id: I11877fa8e976094b31a221abd88ae32d351c85ee
-    Reviewed-on: https://go-review.googlesource.com/5292
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This is the last of the cmd/cc directory.
+    
+    Change-Id: I9231b23c27fead5695000097aeb694824747677d
+    Reviewed-on: https://go-review.googlesource.com/6367
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- test/escape_level.go | 108 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 108 insertions(+)
+ src/cmd/cc/lexbody | 736 ------------------------------------------------
+ src/cmd/cc/macbody | 800 -----------------------------------------------------
+ 2 files changed, 1536 deletions(-)

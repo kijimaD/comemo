@@ -1,17 +1,17 @@
-commit f02cf1997d84107cbdd53967748c1d8f3a2a8577
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Nov 26 21:29:13 2012 +0900
+commit 4047f300c9defec5b0fc0d6801f29c03c4873af9
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Nov 26 22:34:01 2012 +1100
 
-    runtime: regenerate defs-files for freebsd
+    runtime: implement SysUnused for netbsd
     
-    R=minux.ma, jsing
+    R=golang-dev, bradfitz, minux.ma, dave
     CC=golang-dev
-    https://golang.org/cl/6855080
+    https://golang.org/cl/6842081
 
- src/pkg/runtime/defs_freebsd.go      |   1 -
- src/pkg/runtime/defs_freebsd_386.h   | 318 ++++++++++++++++----------------
- src/pkg/runtime/defs_freebsd_amd64.h | 340 +++++++++++++++++------------------
- src/pkg/runtime/defs_freebsd_arm.h   | 281 ++++++++++++++---------------
- src/pkg/runtime/signal_freebsd_arm.c |  20 ++-
- src/pkg/runtime/thread_freebsd.c     |   6 +-
- 6 files changed, 477 insertions(+), 489 deletions(-)
+ src/pkg/runtime/defs_netbsd.go      |  2 ++
+ src/pkg/runtime/defs_netbsd_386.h   |  2 ++
+ src/pkg/runtime/defs_netbsd_amd64.h |  2 ++
+ src/pkg/runtime/mem_netbsd.c        |  4 +---
+ src/pkg/runtime/sys_netbsd_386.s    |  9 ++++++++-
+ src/pkg/runtime/sys_netbsd_amd64.s  | 12 +++++++++++-
+ 6 files changed, 26 insertions(+), 5 deletions(-)

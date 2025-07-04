@@ -1,29 +1,36 @@
-commit 8c99421f01aca303240a8f809bc65fa0c56db861
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 13 18:50:06 2021 -0700
+commit 852ce7c2125ef7d59a24facc2b6c3df30d7f730d
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 14 13:22:15 2021 +1100
 
-    cmd/compile/internal/types2: add debugging support for delayed actions
+    cmd/go: provide a more helpful suggestion for "go vet -?"
     
-    Add a simple mechanism to provide formatted descriptions for
-    delayed actions. The comment strings are printed when tracing
-    is enabled and the delayed action is executed. This results
-    in more easily decipherable tracing output.
+    For the command
     
-    Requires debug mode in order to minimize the overhead during normal
-    execution. Use the mechanism in a few places to show typical use.
+            go vet -?
     
-    Also cleaned up a few unrelated comments.
+    the output was,
     
-    Change-Id: Ic273c380c3963341500396ec62b694d143c25de2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355871
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+            usage: go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
+            Run 'go help vet' for details.
+            Run 'go tool vet -help' for the vet tool's flags.
+    
+    but "go help vet" is perfunctory at best. (That's another issue I'm
+    working on—see https://go-review.googlesource.com/c/tools/+/291909—
+    but vendoring is required to sort that out.) Add another line and rewrite
+    a bit to make it actually helpful:
+    
+            usage: go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
+            Run 'go help vet' for details.
+            Run 'go tool vet help' for a full list of flags and analyzers.
+            Run 'go tool vet -help' for an overview.
+    
+    Change-Id: I9d8580f0573321a57d55875ac3185988ce3eaf64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291929
+    Trust: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/check.go       | 40 +++++++++++++++++++++++---
- src/cmd/compile/internal/types2/decl.go        |  2 +-
- src/cmd/compile/internal/types2/instantiate.go |  3 +-
- src/cmd/compile/internal/types2/interface.go   |  2 +-
- src/cmd/compile/internal/types2/struct.go      |  2 +-
- src/cmd/compile/internal/types2/typexpr.go     |  2 --
- 6 files changed, 40 insertions(+), 11 deletions(-)
+ src/cmd/go/internal/vet/vetflag.go  | 3 ++-
+ src/cmd/go/testdata/script/help.txt | 7 ++++---
+ 2 files changed, 6 insertions(+), 4 deletions(-)

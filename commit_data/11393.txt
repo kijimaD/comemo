@@ -1,12 +1,15 @@
-commit 9acea02de2eb5ee0ac3a20613a8e1c3ce44e755b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jan 26 07:38:49 2012 +0900
+commit dbce368ef9c190e5faaa80a1ccce92b04ccd614f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 25 13:56:12 2012 -0800
 
-    net: fix dialing google test
+    go/doc: test cases for sort order
     
-    R=golang-dev, bradfitz, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5573060
+    https://golang.org/cl/5569059
 
- src/pkg/net/dialgoogle_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/doc/testdata/d.0.golden | 104 +++++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/d.1.golden | 104 +++++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/d1.go      |  57 ++++++++++++++++++++
+ src/pkg/go/doc/testdata/d2.go      |  45 ++++++++++++++++
+ 4 files changed, 310 insertions(+)

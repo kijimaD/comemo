@@ -1,24 +1,28 @@
-commit 9e0837f2e9967b883bebf4b8928108d9199ae677
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 7 11:15:01 2020 -0700
+commit 965f4566e94c5b785ac5e55d295ba93f41b42434
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 19 22:33:40 2020 +0100
 
-    syscall: restore EscapeArg behavior for empty string
+    crypto/x509: bump minimum macOS version to 10.11
     
-    Accidentally broken by CL 259978.
+    The minimum macOS supported version is 10.11 as of Go 1.14, see #23011.
+    Thus, bump macosx-version-min to 10.11
     
-    For #41825
+    While at it, drop __MAC_OS_X_VERSION_MAX_ALLOWED as suggested by
+    Filippo:
     
-    Change-Id: Id663514e6eefa325faccdb66493d0bb2b3281046
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260397
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+      In general, I can see why we'd want to tell the libraries which
+      minimum version we target so they drop compatibility with older
+      versions. No idea why we'd specify a max version, unless it's to make
+      sure we don't use APIs added after that version, but then it would
+      have to be 1011 not 1015.
+    
+      Let's try dropping that define and see if anything blows up? ¯\_(ツ)_/¯
+    
+    Change-Id: I6b76623a9404724ccda40311ff95b3475ae8a60c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214059
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/syscall/exec_windows.go      |  3 +++
- src/syscall/exec_windows_test.go | 43 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+)
+ src/crypto/x509/root_cgo_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

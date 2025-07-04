@@ -1,24 +1,18 @@
-commit 18d57bc89235ea04b6db1ef3e2d4a3106f0b739e
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Fri Sep 27 23:39:42 2019 +0200
+commit 9892cd634dbb829a9806f3dacf8f13cfe1b18d4c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 13 11:38:47 2019 -0400
 
-    cmd/compile: in poset, allow multiple aliases in a single pass
+    cmd/go: do not allow version prefixes to match prereleases of that version
     
-    Change aliasnode into aliasnodes, to allow for recording
-    multiple aliases in a single pass. The nodes being aliased
-    are passed as bitset for performance reason (O(1) lookups).
-    It does look worse in the existing case of SetEqual where
-    we now need to allocate a bitset just for a single node,
-    but the new API will allow to fully implement a path-collapsing
-    primitive in next CL.
+    Fixes #31972
     
-    No functional changes, passes toolstash -cmp.
-    
-    Change-Id: I06259610e8ef478106b36852464ed2caacd29ab5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200860
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I3bb9ef3a1134e67d2d062bea2f0e4032647e12e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176898
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/poset.go | 84 +++++++++++++++++++++--------------
- 1 file changed, 51 insertions(+), 33 deletions(-)
+ src/cmd/go/internal/modload/query.go      |  4 ++--
+ src/cmd/go/internal/modload/query_test.go |  7 ++++++-
+ src/cmd/go/testdata/script/mod_query.txt  | 10 +++++++++-
+ 3 files changed, 17 insertions(+), 4 deletions(-)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 44091: fa90aaca7d523eaf81c02b48a412cad4ebc57817
+# Index 44091: ea5f9b666ccf7affca596be3ab0dc523ca4444fb
 
 echo "🚀 Generating explanation for commit 44091..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 44091
-- **コミットハッシュ**: fa90aaca7d523eaf81c02b48a412cad4ebc57817
-- **GitHub URL**: https://github.com/golang/go/commit/fa90aaca7d523eaf81c02b48a412cad4ebc57817
+- **コミットハッシュ**: ea5f9b666ccf7affca596be3ab0dc523ca4444fb
+- **GitHub URL**: https://github.com/golang/go/commit/ea5f9b666ccf7affca596be3ab0dc523ca4444fb
 
 ### 章構成
 

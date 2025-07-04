@@ -1,22 +1,33 @@
-commit 26aadfa0442249d4b55d7135134eb7ec0a43a850
-Author: Joshua Crowgey <jcrowgey@uw.edu>
-Date:   Thu Feb 13 06:02:10 2020 +0000
+commit c8e7c53b40023c92c9d7fa6beb1ca4223bd461ae
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 30 15:16:54 2019 -0400
 
-    cmd/vendor: create modules.txt even for unused deps
+    cmd/compile: preserve statement mark in rematerialized values
     
-    `go mod vendor`  should create vendor/modules.txt even when the only deps
-    in go.mod are unused.
+    Statement markers on rematerializable values were getting lost in
+    register allocation.  This checks for that case (rematerializable
+    input and using value share line number, but mark is on the input)
+    and preserves the mark.
     
-    Fixes: #36580
+    When combined with other CLs in this series, this CL reduces the
+    "nostmt" count (a line appears in the assembly, but no statement
+    marker) for cmd/go from 413 to 277.  The rematerialized input is
+    usually a LEAQ (on AMD64).
     
-    Change-Id: I92a746d3f013bc2bdc3d2cec6e14b16f606c2edd
-    GitHub-Last-Rev: ea39a1c62294f42e5e5aab049f466189de0fd42d
-    GitHub-Pull-Request: golang/go#36920
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217135
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    The cause is "complicated"; for example, a NilCheck originally has the
+    statement mark (a good thing, if the NilCheck  remains) but the
+    NilCheck is removed and the mark floats to a Block end, then to a
+    SliceMake.  The SliceMake decomposes and goes dead without preserving
+    its marker (its component values are elided in other rewrites and may
+    target inputs with different line numbers), but before deadcode
+    removes it from the graph it moves the mark to an input, which at that
+    time happens to be a LocalAddr. This eventually transforms to a LEAQ.
+    
+    Change-Id: Iff91fc2a934357fb59ec46ac87b4a9b1057d9160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198480
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modcmd/vendor.go                  |  5 +++++
- src/cmd/go/testdata/script/mod_vendor_unused_only.txt | 17 +++++++++++++++++
- 2 files changed, 22 insertions(+)
+ src/cmd/compile/internal/ssa/value.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

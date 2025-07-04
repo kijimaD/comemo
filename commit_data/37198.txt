@@ -1,16 +1,14 @@
-commit 21d2e15ee1bed44a7a1b8f775aff4a57cae9533a
-Author: tkivisik <taavi.kivisik@gmail.com>
-Date:   Wed Oct 17 12:42:54 2018 +0000
+commit fb59bccef32780d9f94e5bd22344d514087efd07
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 6 17:06:55 2018 -0700
 
-    doc: improve language in contribute
+    runtime: clarify SetFinalizer docs
     
-    Previous wording was incorrect.
+    Fixes #24480
     
-    Change-Id: I91406c775161d9724ec60824c156e8e9a925bcd7
-    GitHub-Last-Rev: 2b6b4e136a78a431cc847a2717cbeae4341ed7bc
-    GitHub-Pull-Request: golang/go#28248
-    Reviewed-on: https://go-review.googlesource.com/c/142879
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I7db721fb71a17f07472ec7f216478e7887435639
+    Reviewed-on: https://go-review.googlesource.com/122557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/contribute.html | 4 ++--
+ src/runtime/mfinal.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

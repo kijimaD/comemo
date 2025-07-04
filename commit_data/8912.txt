@@ -1,12 +1,14 @@
-commit 51a79d03064a54b60a6a6c5c876cd09ec8899747
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Jun 30 16:19:53 2011 +1000
+commit 4dfdacd2bdfd3acd8686c1d0fa0f872b3ec66c8b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 30 15:39:00 2011 +1000
 
-    misc/vim: allow only utf-8 for fileencoding.
+    build: make version.bash aware of branches
     
-    R=golang-dev, dsymonds
+    Fixes #2026.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4625078
+    https://golang.org/cl/4645074
 
- misc/vim/ftdetect/gofiletype.vim | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/version.bash | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

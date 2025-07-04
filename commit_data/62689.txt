@@ -1,0 +1,99 @@
+commit 1763ee199d33d2592332a29cfc3da7811718a4fd
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Mar 12 14:35:51 2025 +0800
+
+    runtime: optimizing memclrNoHeapPointers implementation using SIMD on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: runtime
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                            |  bench.old   |            bench.new.256             |
+                            |    sec/op    |    sec/op     vs base                |
+    Memclr/5                   3.204n ± 0%    2.804n ± 0%  -12.48% (p=0.000 n=10)
+    Memclr/16                  3.204n ± 0%    3.204n ± 0%        ~ (p=0.465 n=10)
+    Memclr/64                  5.267n ± 0%    4.005n ± 0%  -23.96% (p=0.000 n=10)
+    Memclr/256                10.280n ± 0%    5.400n ± 0%  -47.47% (p=0.000 n=10)
+    Memclr/4096               107.00n ± 1%    30.24n ± 0%  -71.74% (p=0.000 n=10)
+    Memclr/65536              1675.0n ± 0%    431.1n ± 0%  -74.26% (p=0.000 n=10)
+    Memclr/1M                  52.61µ ± 0%    32.82µ ± 0%  -37.62% (p=0.000 n=10)
+    Memclr/4M                  210.3µ ± 0%    131.3µ ± 0%  -37.59% (p=0.000 n=10)
+    Memclr/8M                  420.3µ ± 0%    262.5µ ± 0%  -37.54% (p=0.000 n=10)
+    Memclr/16M                 857.4µ ± 1%    542.9µ ± 3%  -36.68% (p=0.000 n=10)
+    Memclr/64M                 3.658m ± 3%    2.173m ± 0%  -40.59% (p=0.000 n=10)
+    MemclrUnaligned/0_5        4.264n ± 1%    4.359n ± 0%   +2.23% (p=0.000 n=10)
+    MemclrUnaligned/0_16       4.595n ± 0%    4.599n ± 0%   +0.10% (p=0.020 n=10)
+    MemclrUnaligned/0_64       5.356n ± 0%    5.122n ± 0%   -4.37% (p=0.000 n=10)
+    MemclrUnaligned/0_256     10.370n ± 0%    5.907n ± 1%  -43.03% (p=0.000 n=10)
+    MemclrUnaligned/0_4096    107.10n ± 0%    37.35n ± 0%  -65.13% (p=0.000 n=10)
+    MemclrUnaligned/0_65536   1694.0n ± 0%    441.7n ± 0%  -73.93% (p=0.000 n=10)
+    MemclrUnaligned/1_5        4.272n ± 0%    4.348n ± 0%   +1.76% (p=0.000 n=10)
+    MemclrUnaligned/1_16       4.593n ± 0%    4.608n ± 0%   +0.33% (p=0.002 n=10)
+    MemclrUnaligned/1_64       7.610n ± 0%    5.293n ± 0%  -30.45% (p=0.000 n=10)
+    MemclrUnaligned/1_256     12.230n ± 0%    9.012n ± 0%  -26.31% (p=0.000 n=10)
+    MemclrUnaligned/1_4096    114.10n ± 0%    39.50n ± 0%  -65.38% (p=0.000 n=10)
+    MemclrUnaligned/1_65536   1705.0n ± 0%    468.8n ± 0%  -72.50% (p=0.000 n=10)
+    MemclrUnaligned/4_5        4.283n ± 1%    4.346n ± 0%   +1.48% (p=0.000 n=10)
+    MemclrUnaligned/4_16       4.599n ± 0%    4.605n ± 0%   +0.12% (p=0.000 n=10)
+    MemclrUnaligned/4_64       7.572n ± 1%    5.283n ± 0%  -30.24% (p=0.000 n=10)
+    MemclrUnaligned/4_256     12.215n ± 0%    9.212n ± 0%  -24.58% (p=0.000 n=10)
+    MemclrUnaligned/4_4096    114.35n ± 0%    39.48n ± 0%  -65.47% (p=0.000 n=10)
+    MemclrUnaligned/4_65536   1705.0n ± 0%    469.2n ± 0%  -72.48% (p=0.000 n=10)
+    MemclrUnaligned/7_5        4.296n ± 1%    4.349n ± 0%   +1.22% (p=0.000 n=10)
+    MemclrUnaligned/7_16       4.601n ± 0%    4.606n ± 0%   +0.11% (p=0.004 n=10)
+    MemclrUnaligned/7_64       7.609n ± 0%    5.296n ± 1%  -30.39% (p=0.000 n=10)
+    MemclrUnaligned/7_256     12.200n ± 0%    9.011n ± 0%  -26.14% (p=0.000 n=10)
+    MemclrUnaligned/7_4096    114.00n ± 0%    39.51n ± 0%  -65.34% (p=0.000 n=10)
+    MemclrUnaligned/7_65536   1704.0n ± 0%    469.5n ± 0%  -72.45% (p=0.000 n=10)
+    MemclrUnaligned/0_1M       52.57µ ± 0%    32.83µ ± 0%  -37.54% (p=0.000 n=10)
+    MemclrUnaligned/0_4M       210.1µ ± 0%    131.3µ ± 0%  -37.53% (p=0.000 n=10)
+    MemclrUnaligned/0_8M       420.8µ ± 0%    262.5µ ± 0%  -37.62% (p=0.000 n=10)
+    MemclrUnaligned/0_16M      846.2µ ± 0%    528.4µ ± 0%  -37.56% (p=0.000 n=10)
+    MemclrUnaligned/0_64M      3.425m ± 1%    2.187m ± 3%  -36.16% (p=0.000 n=10)
+    MemclrUnaligned/1_1M       52.56µ ± 0%    32.84µ ± 0%  -37.52% (p=0.000 n=10)
+    MemclrUnaligned/1_4M       210.5µ ± 0%    131.3µ ± 0%  -37.62% (p=0.000 n=10)
+    MemclrUnaligned/1_8M       420.5µ ± 0%    262.7µ ± 0%  -37.53% (p=0.000 n=10)
+    MemclrUnaligned/1_16M      845.2µ ± 0%    528.3µ ± 0%  -37.49% (p=0.000 n=10)
+    MemclrUnaligned/1_64M      3.381m ± 0%    2.243m ± 3%  -33.66% (p=0.000 n=10)
+    MemclrUnaligned/4_1M       52.56µ ± 0%    32.85µ ± 0%  -37.50% (p=0.000 n=10)
+    MemclrUnaligned/4_4M       210.1µ ± 0%    131.3µ ± 0%  -37.49% (p=0.000 n=10)
+    MemclrUnaligned/4_8M       420.0µ ± 0%    262.6µ ± 0%  -37.48% (p=0.000 n=10)
+    MemclrUnaligned/4_16M      844.8µ ± 0%    528.7µ ± 0%  -37.41% (p=0.000 n=10)
+    MemclrUnaligned/4_64M      3.382m ± 1%    2.211m ± 4%  -34.63% (p=0.000 n=10)
+    MemclrUnaligned/7_1M       52.59µ ± 0%    32.84µ ± 0%  -37.56% (p=0.000 n=10)
+    MemclrUnaligned/7_4M       210.2µ ± 0%    131.3µ ± 0%  -37.54% (p=0.000 n=10)
+    MemclrUnaligned/7_8M       420.1µ ± 0%    262.7µ ± 0%  -37.47% (p=0.000 n=10)
+    MemclrUnaligned/7_16M      845.1µ ± 0%    528.7µ ± 0%  -37.43% (p=0.000 n=10)
+    MemclrUnaligned/7_64M      3.369m ± 0%    2.313m ± 1%  -31.34% (p=0.000 n=10)
+    MemclrRange/1K_2K         2707.0n ± 0%    972.4n ± 0%  -64.08% (p=0.000 n=10)
+    MemclrRange/2K_8K          8.816µ ± 0%    2.519µ ± 0%  -71.43% (p=0.000 n=10)
+    MemclrRange/4K_16K         8.333µ ± 0%    2.240µ ± 0%  -73.12% (p=0.000 n=10)
+    MemclrRange/160K_228K      83.47µ ± 0%    31.27µ ± 0%  -62.54% (p=0.000 n=10)
+    MemclrKnownSize1          0.4003n ± 0%   0.4004n ± 0%        ~ (p=0.119 n=10)
+    MemclrKnownSize2          0.4003n ± 0%   0.4005n ± 0%        ~ (p=0.069 n=10)
+    MemclrKnownSize4          0.4003n ± 0%   0.4005n ± 0%        ~ (p=0.100 n=10)
+    MemclrKnownSize8          0.4003n ± 0%   0.4004n ± 0%   +0.04% (p=0.047 n=10)
+    MemclrKnownSize16         0.8011n ± 0%   0.8012n ± 0%        ~ (p=0.926 n=10)
+    MemclrKnownSize32          1.602n ± 0%    1.602n ± 0%        ~ (p=0.772 n=10)
+    MemclrKnownSize64          2.405n ± 0%    2.404n ± 0%        ~ (p=0.780 n=10)
+    MemclrKnownSize112         2.804n ± 0%    2.804n ± 0%        ~ (p=0.538 n=10)
+    MemclrKnownSize128         3.204n ± 0%    3.205n ± 0%        ~ (p=0.105 n=10)
+    MemclrKnownSize192         4.808n ± 0%    4.807n ± 0%        ~ (p=0.688 n=10)
+    MemclrKnownSize248         6.347n ± 0%    6.346n ± 0%        ~ (p=0.133 n=10)
+    MemclrKnownSize256         6.560n ± 0%    6.573n ± 0%   +0.19% (p=0.001 n=10)
+    MemclrKnownSize512        13.010n ± 0%    6.809n ± 0%  -47.66% (p=0.000 n=10)
+    MemclrKnownSize1024       25.830n ± 0%    8.412n ± 0%  -67.43% (p=0.000 n=10)
+    MemclrKnownSize4096       102.70n ± 0%    27.64n ± 0%  -73.09% (p=0.000 n=10)
+    MemclrKnownSize512KiB      26.30µ ± 0%    16.42µ ± 0%  -37.59% (p=0.000 n=10)
+    geomean                    629.8n         393.2n       -37.57%
+    
+    Change-Id: I2b9fe834c31d786d2e30cc02c65a6f9c455c4e8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657835
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+
+ src/runtime/cpuflags.go      |   3 +-
+ src/runtime/memclr_loong64.s | 238 +++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 218 insertions(+), 23 deletions(-)

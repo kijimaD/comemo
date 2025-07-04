@@ -1,22 +1,15 @@
-commit c7157bf44926f489c5db1c830748d9072d17852f
+commit 5f1e0fa538991cf2d2f0f48c8e15a3bca3f52918
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 4 09:58:54 2014 -0800
+Date:   Tue Mar 4 08:56:52 2014 -0800
 
-    crypto/cipher: fix AEAD.Open documentation nit
+    net/http: disable an alloc test under the race detector
     
-    It mentioned true and false for error values. Instead, just
-    don't mention the error semantics, as they match normal Go
-    conventions (if error is non-nil, the other value is
-    meaningless). We generally only document error values when
-    they're interesting (where non-nil, non-nil is valid, or the
-    error value can be certain known values or types).
-    
-    Fixes #7464
-    
-    LGTM=agl
-    R=agl
+    LGTM=dvyukov
+    R=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/68440044
+    https://golang.org/cl/70200052
 
- src/pkg/crypto/cipher/gcm.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/http/header.go      |  2 ++
+ src/pkg/net/http/header_test.go |  9 ++++++---
+ src/pkg/net/http/race.go        | 11 +++++++++++
+ 3 files changed, 19 insertions(+), 3 deletions(-)

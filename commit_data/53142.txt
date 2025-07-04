@@ -1,20 +1,38 @@
-commit 944911af5630bec413237b9aba010661a353953e
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Fri May 19 10:07:04 2023 +0800
+commit ebd34e3e4500b3feef4b4f98526ae95172cd8088
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jul 17 19:53:19 2022 -0700
 
-    html/template: expose ErrJSTemplate
+    [dev.unified] test: relax panic message expectations
     
-    Fixes #59584
+    In this test, traditionally the comparison `*l == r[0]` was left as a
+    comparison between `*l` (type `any`) and `r[0]` (type `*int`), and the
+    rest of the compiler needed to handle mixed-typed comparisons.
+    However, this means more complexity for wiring up explicit rtypes.
     
-    Change-Id: Iabe61476c7457dfffbfe5d0b1fe904901a466c73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496395
+    To simplify rtype handling, the next CL will change unified IR to
+    instead handle the expression as `*l == any(r[0])`. However, a
+    consequence of this currently is that walk will now sequence the
+    `any(r[0])` expression first, because it involves a
+    concrete-to-interface conversion. And in turn, this means the `r[0]`
+    panic ("index out of bounds") will take priority over the `*l`
+    panic ("nil pointer dereference").
+    
+    This is a change in user-visible semantics in some cases, but the Go
+    spec leaves this unspecified, so it shouldn't be an issue. Note also:
+    gccgo has the same behavior (i.e., panicking on index out of bounds,
+    not nil pointer dereference), and cmd/compile also already has the
+    same behavior when the interface conversion is explicit (as in the
+    added "nil pointer dereference #3" test case).
+    
+    Updates #23735.
+    Updates #32187.
+    
+    Change-Id: I49e5dcca85b4680f9c8780ef0013e64254d38fe5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418097
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- api/next/59584.txt          |  2 ++
- src/html/template/error.go  | 11 +++--------
- src/html/template/escape.go |  2 +-
- 3 files changed, 6 insertions(+), 9 deletions(-)
+ test/fixedbugs/issue32187.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

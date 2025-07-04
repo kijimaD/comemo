@@ -1,16 +1,17 @@
-commit 35e84546d7c3cc599dd5bf31ad86bf8d3d841d04
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Oct 17 17:46:25 2015 -0400
+commit 0357c38adfd5d368390d82a2ab5b32748e4bb549
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Oct 5 16:07:59 2015 +1300
 
-    runtime: check and fail early with a message if MMX is not available on 386
+    cmd/compile: do not let regopt use REGTMP on ppc64
     
-    Fixes #12970.
+    ppc64 codegen assumes that it is OK to stomp on r31 at any time, but it is not
+    excluded from the set of registers that regopt is allowed to use.
     
-    Change-Id: Id0026e8274e071d65d47df63d65a93110abbec5d
-    Reviewed-on: https://go-review.googlesource.com/15998
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #12597
+    
+    Change-Id: I29c7655e32abd22f3c21d88427b73e4fca055233
+    Reviewed-on: https://go-review.googlesource.com/15245
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/asm_386.s | 42 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ src/cmd/compile/internal/ppc64/reg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,31 @@
-commit e25fa61bb236a12b8d0ae033f05cc8f59557a782
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Jan 8 17:22:34 2017 +0900
+commit a470e5d4b823c7a3ada993d2e76f191d4c51555a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 21 22:23:45 2017 -0700
 
-    net: update documentation on Listen{TCP,UDP,MulticastUDP,IP,Unix,Unixgram}
+    cmd/internal/obj: eliminate Ctxt.Mode
     
-    This change clarifies the documentation on
-    Listen{TCP,UDP,MulticastUDP,IP,Unix,Unixgram} to avoid unnecessary
-    confusion about how the arguments for the connection setup functions
-    are used to make connections.
+    Replace Ctxt.Mode with a method, Ctxt.RegWidth,
+    which is calculated directly off the arch info.
     
-    Change-Id: Ie269453ef49ec2db893391dc3ed2f7b641c14249
-    Reviewed-on: https://go-review.googlesource.com/34878
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    I believe that Prog.Mode can also be removed; future CL.
+    
+    This is a step towards obj.Link immutability.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Ifd7f8f6ed0a2fdc032d1dd306fcd695a14aa5bc5
+    Reviewed-on: https://go-review.googlesource.com/38446
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/iprawsock.go | 17 ++++++++++-------
- src/net/tcpsock.go   | 23 ++++++++++++++---------
- src/net/udpsock.go   | 42 +++++++++++++++++++++++++-----------------
- src/net/unixsock.go  | 36 ++++++++++++++++++------------------
- 4 files changed, 67 insertions(+), 51 deletions(-)
+ src/cmd/internal/obj/link.go       |  1 -
+ src/cmd/internal/obj/mips/a.out.go |  9 ++++++---
+ src/cmd/internal/obj/mips/asm0.go  | 25 +++++++++++++------------
+ src/cmd/internal/obj/mips/obj0.go  | 22 +++++-----------------
+ src/cmd/internal/obj/x86/asm6.go   |  3 ++-
+ src/cmd/internal/obj/x86/obj6.go   |  7 ++-----
+ src/cmd/internal/sys/arch.go       |  3 ++-
+ 7 files changed, 30 insertions(+), 40 deletions(-)

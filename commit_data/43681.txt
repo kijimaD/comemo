@@ -1,30 +1,22 @@
-commit d1efaed17a7a4bf4b2dd8a8f975069dfd8251ca4
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Nov 2 19:19:12 2020 +0000
+commit 7004be998ba708f027c95615d7885efeb9f73e75
+Author: David Finkel <david.finkel@gmail.com>
+Date:   Sat Apr 18 18:52:05 2020 -0400
 
-    cmd/go: support cgo files in overlays
+    cmd/compile: adjust RISCV64 rewrite rules to use typed aux fields
     
-    This is a roll-forward of golang.org/cl/262618, which was reverted in
-    golang.org/cl/267037. The only differences between this CL and the
-    original are the three calls to fflush from the C files in
-    build_overlay.txt, to guarantee that the string we're expecting is
-    actually written out.
+    Also add a typed version of mergeSym to rewrite.go to assist with a few
+    rules that used mergeSym in the untyped-form.
     
-    This requires rewriting the paths of the files passed to the cgo tool
-    toolchain to use the overlaid paths instead of the disk paths of
-    files. Because the directories of the overlaid paths don't exist in
-    general, the cgo tool have been updated to run in base.Cwd instead of
-    the package directory.
+    Remove a few extra int32 overflow checks that no longer make sense, as
+    adding two int8s or int16s should never overflow an int32.
     
-    For #39958
+    Passes toolstash-check -all.
     
-    Change-Id: If7e5e057c62c0c22ddb724f9fe650902fc5f4832
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267197
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Michael Matloob <matloob@golang.org>
+    Change-Id: I72ddd2b0d9001faa87ad0ab54f500057164661b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228882
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/exec.go                  | 48 +++++++++++--
- src/cmd/go/internal/work/gc.go                    |  9 ++-
- src/cmd/go/testdata/script/build_overlay.txt      | 83 ++++++++++++++++++++++-
- src/cmd/go/testdata/script/build_trimpath_cgo.txt | 28 ++++++++
- 4 files changed, 156 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  794 +++++++--------
+ src/cmd/compile/internal/ssa/rewrite.go        |    9 +
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 1293 ++++++++++++------------
+ 3 files changed, 1065 insertions(+), 1031 deletions(-)

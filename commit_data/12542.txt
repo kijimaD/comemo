@@ -1,18 +1,13 @@
-commit 6d4da06d3647607081819e444be60259225d0efe
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Mar 10 03:42:23 2012 +0800
+commit 1e374502f4dac4ed8248b892a39edf65a8fe0183
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Fri Mar 9 11:21:01 2012 -0800
 
-    cmd/dist, cmd/go: move CGO_ENABLED from 'go tool dist env' to 'go env'
-            So that we don't duplicate knowledge about which OS/ARCH combination
-            supports cgo.
-            Also updated src/run.bash and src/sudo.bash to use 'go env'.
+    cmd/vet: fix typo in documentation
+    familiy -> family
     
-    R=golang-dev, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5792055
+    https://golang.org/cl/5783061
 
- src/cmd/dist/build.c | 18 ------------------
- src/cmd/go/env.go    |  6 ++++++
- src/run.bash         |  2 +-
- src/sudo.bash        |  2 +-
- 4 files changed, 8 insertions(+), 20 deletions(-)
+ src/cmd/vet/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

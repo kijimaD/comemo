@@ -1,25 +1,33 @@
-commit 8ec7a39fec2acab98ce5e41363dd1c65c03d7479
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 16 09:29:44 2017 -0700
+commit c3a50ad3c79ed15a413c24d4ae3497d4d629ff04
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 22 16:43:42 2017 -0700
 
-    os/signal: avoid race between Stop and receiving on channel
+    cmd/compile: eliminate Prog-related globals
     
-    When Stop is called on a channel, wait until all signals have been
-    delivered to the channel before returning.
+    Introduce a new type, gc.Progs, to manage
+    generation of Progs for a function.
+    Use it to replace globals pc and pcloc.
     
-    Use atomic operations in sigqueue to communicate more reliably between
-    the os/signal goroutine and the signal handler.
+    Passes toolstash-check -all.
     
-    Fixes #14571
+    Updates #15756
     
-    Change-Id: I6c5a9eea1cff85e37a34dffe96f4bb2699e12c6e
-    Reviewed-on: https://go-review.googlesource.com/46003
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I2206998d7c58fe2a76b620904909f2e1cec8a57d
+    Reviewed-on: https://go-review.googlesource.com/38418
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/signal/signal.go       | 59 ++++++++++++++++++++++++++++-
- src/os/signal/signal_test.go  | 88 +++++++++++++++++++++++++++++++++++++++++++
- src/runtime/sigqueue.go       | 63 +++++++++++++++++++++++++++----
- src/runtime/sigqueue_plan9.go | 20 ++++++++++
- 4 files changed, 221 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go  |  52 ++++++++--------
+ src/cmd/compile/internal/arm/ggen.go    |  38 ++++++------
+ src/cmd/compile/internal/arm64/ggen.go  |  44 ++++++-------
+ src/cmd/compile/internal/gc/dcl.go      |   1 -
+ src/cmd/compile/internal/gc/go.go       |   8 +--
+ src/cmd/compile/internal/gc/gsubr.go    | 107 +++++++++++++++++++++++++++-----
+ src/cmd/compile/internal/gc/pgen.go     |  65 ++-----------------
+ src/cmd/compile/internal/gc/ssa.go      |  44 ++++++-------
+ src/cmd/compile/internal/mips/ggen.go   |  32 +++++-----
+ src/cmd/compile/internal/mips64/ggen.go |  36 +++++------
+ src/cmd/compile/internal/ppc64/ggen.go  |  48 +++++++-------
+ src/cmd/compile/internal/s390x/ggen.go  |  36 +++++------
+ src/cmd/compile/internal/x86/ggen.go    |  36 +++++------
+ 13 files changed, 285 insertions(+), 262 deletions(-)

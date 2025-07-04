@@ -1,14 +1,19 @@
-commit 85ca578d4a71ef8d56bc828a38f42482ff264028
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Nov 12 15:27:51 2015 -0500
+commit 9569b957cba47310bbdaf6f19732dcb0ebbb373b
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 28 22:51:01 2015 -0700
 
-    os: add document for ErrInvalid
+    [dev.ssa] cmd/compile/internal/gc: implement go and defer
     
-    Fixes #12391.
+    TODO: for now, just function calls.  Do method and interface calls.
     
-    Change-Id: I31211cd711c035151785c3083571594d15c7d93e
-    Reviewed-on: https://go-review.googlesource.com/16873
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ib262dfa31cb753996cde899beaad4dc2e66705ac
+    Reviewed-on: https://go-review.googlesource.com/14035
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/os/error.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             | 157 ++++++++++++++++++++-----
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   2 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   2 +
+ src/cmd/compile/internal/ssa/opGen.go          |  24 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  36 ++++++
+ 6 files changed, 192 insertions(+), 31 deletions(-)

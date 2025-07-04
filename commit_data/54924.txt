@@ -1,65 +1,29 @@
-commit 07c388f17c039c0bb9a3fd0fd70bf5494aa7ee2c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Nov 7 13:10:48 2023 +0100
+commit 7656cba9ccec334bb4219489d4488234f42f5302
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 21 16:57:52 2022 -0500
 
-    syscall: use fchmodat2 in Fchmodat
+    cmd/go: do not install .a files for packages in std
     
-    The fchmodat2 syscall was added in Linux kernel 6.6.  Mirror the
-    implementation in golang.org/x/sys/unix.Fchmodat (CL 539635) and use
-    fchmodat2 in Fchmodat if flags are given. It will return ENOSYS on older
-    kernels (or EINVAL or any other bogus error in some container
-    implementations).
+    As of CL 450739, we do not need install targets for cgo files when a C
+    compiler is not present because cgo is not enabled by default.
+    (Without a C compiler, builds will proceed with cgo disabled.)
     
-    Also update ztypes_linux_$GOARCH.go for all linux platforms to add
-    _AT_EMPTY_PATH. It was added to linux/types in CL 407694 but was only
-    updated for linux/loong64 at that time.
+    Fixes #47257.
+    Fixes #56888.
     
-    Updates #61636
-    
-    Change-Id: I863d06e35cd366f1cf99052e9f77c22ab8168b3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540435
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Change-Id: I274c50a60b5b1382e291df86a5464da8ad3695a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452457
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/syscall/syscall_linux.go           | 26 +++++++++++++++++---------
- src/syscall/syscall_linux_386.go       |  1 +
- src/syscall/syscall_linux_amd64.go     |  1 +
- src/syscall/syscall_linux_arm.go       |  1 +
- src/syscall/syscall_linux_arm64.go     |  1 +
- src/syscall/syscall_linux_loong64.go   |  1 +
- src/syscall/syscall_linux_mips64x.go   |  1 +
- src/syscall/syscall_linux_mipsx.go     |  1 +
- src/syscall/syscall_linux_ppc64x.go    |  1 +
- src/syscall/syscall_linux_riscv64.go   |  1 +
- src/syscall/syscall_linux_s390x.go     |  1 +
- src/syscall/zsyscall_linux_386.go      | 15 +++++++++++++++
- src/syscall/zsyscall_linux_amd64.go    | 15 +++++++++++++++
- src/syscall/zsyscall_linux_arm.go      | 15 +++++++++++++++
- src/syscall/zsyscall_linux_arm64.go    | 15 +++++++++++++++
- src/syscall/zsyscall_linux_loong64.go  | 15 +++++++++++++++
- src/syscall/zsyscall_linux_mips.go     | 15 +++++++++++++++
- src/syscall/zsyscall_linux_mips64.go   | 15 +++++++++++++++
- src/syscall/zsyscall_linux_mips64le.go | 15 +++++++++++++++
- src/syscall/zsyscall_linux_mipsle.go   | 15 +++++++++++++++
- src/syscall/zsyscall_linux_ppc64.go    | 15 +++++++++++++++
- src/syscall/zsyscall_linux_ppc64le.go  | 15 +++++++++++++++
- src/syscall/zsyscall_linux_riscv64.go  | 15 +++++++++++++++
- src/syscall/zsyscall_linux_s390x.go    | 15 +++++++++++++++
- src/syscall/ztypes_linux_386.go        |  1 +
- src/syscall/ztypes_linux_amd64.go      |  1 +
- src/syscall/ztypes_linux_arm.go        |  1 +
- src/syscall/ztypes_linux_arm64.go      |  1 +
- src/syscall/ztypes_linux_mips.go       |  1 +
- src/syscall/ztypes_linux_mips64.go     |  1 +
- src/syscall/ztypes_linux_mips64le.go   |  1 +
- src/syscall/ztypes_linux_mipsle.go     |  1 +
- src/syscall/ztypes_linux_ppc64.go      |  1 +
- src/syscall/ztypes_linux_ppc64le.go    |  1 +
- src/syscall/ztypes_linux_riscv64.go    |  1 +
- src/syscall/ztypes_linux_s390x.go      |  1 +
- 36 files changed, 234 insertions(+), 9 deletions(-)
+ misc/cgo/testcshared/cshared_test.go               | 82 +++++++---------------
+ src/cmd/go/go_test.go                              | 32 ---------
+ src/cmd/go/internal/modindex/read.go               |  6 --
+ src/cmd/go/testdata/script/cgo_stale.txt           | 10 +--
+ .../go/testdata/script/install_goroot_targets.txt  |  9 +--
+ src/go/build/build.go                              |  6 --
+ src/go/build/build_test.go                         | 18 -----
+ 7 files changed, 33 insertions(+), 130 deletions(-)

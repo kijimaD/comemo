@@ -1,16 +1,14 @@
-commit 8a8445ba71b18f9a4dcdd7e50a6e821afcbfe2ed
+commit 7d15eda95dd24ef0998631b6ac289fa79f053521
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 2 13:11:30 2011 -0500
+Date:   Fri Dec 2 12:30:56 2011 -0500
 
-    spec: pointer to array can be sliced
+    gc: do not allow slice of array literal
     
-    This has always been true, but we lost it from the spec
-    somewhere along the way, probably when we disallowed
-    the general 'pointer to anything sliceable' slice case.
-    
-    R=gri
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5437121
+    https://golang.org/cl/5440083
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/typecheck.c   |  9 ++++++--
+ test/complit1.go         | 24 ++++++++++++++++++++++
+ test/fixedbugs/bug268.go | 53 ------------------------------------------------
+ 3 files changed, 31 insertions(+), 55 deletions(-)

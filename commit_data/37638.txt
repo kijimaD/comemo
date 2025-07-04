@@ -1,21 +1,28 @@
-commit a11aa2aaecff98d6b46035704d587920c10788f9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 7 14:19:01 2018 -0800
+commit fc5107c27011e1c1b70eb35a6fb7b3efd0cf3cea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 3 19:21:11 2018 +0000
 
-    cmd/link: only create .init_array section if not empty
+    go/doc: compile regexps lazily
     
-    This avoids a warning from old versions of the GNU linker or glibc.
+    Compile go/doc's 4 regexps lazily, on demand.
     
-    No test because these old versions are not readily available.
-    I tested this by hand on CentOS 6.
+    Also, add a test for the one that had no test coverage.
     
-    Fixes #28722
+    This reduces init-time CPU as well as heap by ~20KB when they're not
+    used, which seems to be common enough. As an example, cmd/doc only
+    seems to use 1 of them. (as noted by temporary print statements)
     
-    Change-Id: I16640c9b83a79f759ec68fac64874803e74fbbfb
-    Reviewed-on: https://go-review.googlesource.com/c/153257
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #26775
+    
+    Change-Id: I85df89b836327a53fb8e1ace3f92480374270368
+    Reviewed-on: https://go-review.googlesource.com/127875
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/data.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/deps_test.go |  2 +-
+ src/go/doc/comment.go     |  5 ++---
+ src/go/doc/doc_test.go    |  9 +++++++++
+ src/go/doc/lazyre.go      | 51 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/doc/reader.go      |  7 +++----
+ 5 files changed, 66 insertions(+), 8 deletions(-)

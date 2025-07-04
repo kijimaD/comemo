@@ -1,24 +1,46 @@
-commit 07525e16ba9fcb8924ed872b015dc217d1b01b6b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 6 12:20:14 2022 -0500
+commit 0184b445c04a0f30e34ce624298547f12630f3aa
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Sun Mar 24 23:21:38 2019 +0100
 
-    math/big: fix spurious race in Rat.Denom, Float.SetRat
+    strconv: implement Ryū-like algorithm for fixed precision ftoa
     
-    Rat maintains the invariant that x.b.neg is always false,
-    but Rat.Denom was writing x.b.neg = false itself too.
-    That makes Rat.Denom a writing operation, when it should
-    be a read-only operation. That in turn makes it unsafe to
-    use from multiple goroutines, which is highly unexpected.
-    Make it read-only and therefore race-free again.
+    This patch implements a simplified version of Ulf Adams,
+    "Ryū: Fast Float-to-String Conversion" (doi:10.1145/3192366.3192369)
+    for formatting floating-point numbers with a fixed number of decimal
+    digits.
     
-    Fixes #50473.
+    It uses the same principles but does not need to handle
+    the complex task of finding a shortest representation.
+    This allows to handle a few more cases than Grisu3, notably
+    formatting with up to 18 significant digits.
     
-    Change-Id: I97b87913954511e5200c0665d16b9ed63422e505
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375935
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    name                         old time/op  new time/op  delta
+    AppendFloat/32Fixed8Hard-4   72.0ns ± 2%  56.0ns ± 2%  -22.28%  (p=0.000 n=10+10)
+    AppendFloat/32Fixed9Hard-4   74.8ns ± 0%  64.2ns ± 2%  -14.16%  (p=0.000 n=8+10)
+    AppendFloat/64Fixed1-4       60.4ns ± 1%  54.2ns ± 1%  -10.31%  (p=0.000 n=10+9)
+    AppendFloat/64Fixed2-4       66.3ns ± 1%  53.3ns ± 1%  -19.54%  (p=0.000 n=10+9)
+    AppendFloat/64Fixed3-4       61.0ns ± 1%  55.0ns ± 2%   -9.80%  (p=0.000 n=9+10)
+    AppendFloat/64Fixed4-4       66.9ns ± 0%  52.0ns ± 2%  -22.20%  (p=0.000 n=8+10)
+    AppendFloat/64Fixed12-4      95.5ns ± 1%  76.2ns ± 3%  -20.19%  (p=0.000 n=10+9)
+    AppendFloat/64Fixed16-4      1.62µs ± 0%  0.07µs ± 2%  -95.69%  (p=0.000 n=10+10)
+    AppendFloat/64Fixed12Hard-4  1.27µs ± 1%  0.07µs ± 1%  -94.83%  (p=0.000 n=9+9)
+    AppendFloat/64Fixed17Hard-4  3.68µs ± 1%  0.08µs ± 2%  -97.86%  (p=0.000 n=10+9)
+    AppendFloat/64Fixed18Hard-4  3.67µs ± 0%  3.72µs ± 1%   +1.44%  (p=0.000 n=9+10)
+    
+    Updates #15672
+    
+    Change-Id: I160963e141dd48287ad8cf57bcc3c686277788e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170079
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/math/big/rat.go      |  2 +-
- src/math/big/rat_test.go | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/strconv/ftoa.go          |  13 +-
+ src/strconv/ftoa_test.go     |  16 +++
+ src/strconv/ftoaryu.go       | 311 +++++++++++++++++++++++++++++++++++++++++++
+ src/strconv/ftoaryu_test.go  |  31 +++++
+ src/strconv/internal_test.go |   8 ++
+ 5 files changed, 374 insertions(+), 5 deletions(-)

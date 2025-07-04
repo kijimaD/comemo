@@ -1,0 +1,22 @@
+commit 20da34c6d2f6a4d03304f55a6d6f1418ca11b091
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 27 13:27:21 2024 -0500
+
+    cmd/go: move GOCACHEPROG protocol types to their own package
+    
+    This is a step toward making it easy to point to them in
+    documentation. The other option is that we copy-paste all of these
+    type definitions wholesale, which seems ridiculous.
+    
+    Updates #71032
+    Updates #59719
+    
+    Change-Id: I7117e03308ae0adc721ed7a57792c33ba68ce827
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638995
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/cache/prog.go          | 163 ++++-------------------------
+ src/cmd/go/internal/cacheprog/cacheprog.go | 137 ++++++++++++++++++++++++
+ 2 files changed, 155 insertions(+), 145 deletions(-)

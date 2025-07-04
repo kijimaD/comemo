@@ -1,17 +1,19 @@
-commit b2400c28cffd3ca1beda6176efd663a9df3aad1a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 13 18:56:39 2011 -0700
+commit c35c6720202dfebf8e3f862892fe21d1ee2b5391
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 13 18:33:04 2011 -0700
 
-    fix windows build: http.Get finalURL removal missed earlier
+    go/types: fix (some) builds
     
-    Not sure why this only broke Windows. Make test is only run
-    on windows for that directory?
+    The position (type) for which the "invalid cycle" error
+    message is reported depends on which type in a cycle of
+    types is first checked. Which one is first depends on
+    the iteration order of maps which is different on
+    different platforms. For now, disable this error message.
     
-    TBR=golang-dev
-    
-    R=golang-dev
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4545044
+    https://golang.org/cl/4527059
 
- src/pkg/unicode/maketables.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/go/types/check.go           |  5 ++++-
+ src/pkg/go/types/testdata/test0.src | 16 ++++++++--------
+ 2 files changed, 12 insertions(+), 9 deletions(-)

@@ -1,37 +1,21 @@
-commit a6557a05a03490af3b26f97f9a4ce99c7c773fe5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 30 22:11:41 2016 -0700
+commit 98cc8b4cf219384792e19dec9bc17a0e49c466f6
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Feb 18 13:35:49 2016 -0800
 
-    net/http: allow Handlers to handle http2 upgrade PRI requests
+    cmd/link/internal/ld: remove unused call to os.Getwd
     
-    The http2 spec defines a magic string which initates an http2 session:
+    This call to os.Getwd (or getwd) has been part of the linker since the C
+    implementation in 7d507dc6e6. It stopped being used in 26438d4d80, and
+    survived the conversion to Go in 1f9dbb60ef.
     
-        "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+    Its return value goes unused (the linker gets the value for AT_comp_dir in
+    dwarf.go), remove it.
     
-    It was intentionally chosen to kinda look like an HTTP request, but
-    just different enough to break things not ready for it. This change
-    makes Go ready for it.
-    
-    Notably: Go now accepts the request header (the prefix "PRI *
-    HTTP/2.0\r\n\r\n") as a valid request, even though it doesn't have a
-    Host header. But we now mark it as "Connection: close" and teach the
-    Server to never read a second request from the connection once that's
-    seen. If the http.Handler wants to deal with the upgrade, it has to
-    hijack the request, read out the "body", compare it against
-    "SM\r\n\r\n", and then speak http2. One of the new tests demonstrates
-    that hijacking.
-    
-    Fixes #14451
-    Updates #14141 (h2c)
-    
-    Change-Id: Ib46142f31c55be7d00c56fa2624ec8a232e00c43
-    Reviewed-on: https://go-review.googlesource.com/21327
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3d4594813bb4ee0a6af31a36e19d99ec4b863677
+    Reviewed-on: https://go-review.googlesource.com/19655
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/readrequest_test.go | 21 +++++++++++++++
- src/net/http/request.go          | 16 ++++++++++++
- src/net/http/serve_test.go       | 55 +++++++++++++++++++++++++++++++++++++++-
- src/net/http/server.go           |  6 ++++-
- 4 files changed, 96 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/sym.go | 9 ---------
+ 1 file changed, 9 deletions(-)

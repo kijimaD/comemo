@@ -1,24 +1,20 @@
-commit 38e9a671d7648227f4f5b133e2e6452491cccebf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 12 14:07:13 2024 -0800
+commit 0354ee3aab4b65e288a24c5b4be1296ffbbfd3c3
+Author: Evan Jones <ej@evanjones.ca>
+Date:   Tue Oct 31 09:04:15 2023 -0400
 
-    syscall: on freebsd-386 only update written for certain errors
+    testing: correct comments on runCleanup
     
-    Testing on the freebsd-386 gomote seems to show that sendfile returns
-    a non-zero number of bytes written even when it returns EINVAL.
-    This confuses the caller. Change the Go code to only return non-zero
-    on success or EINTR or EAGAIN, which are the only cases where the
-    man page says that sendfile updates the number of bytes.
+    The comment on runCleanup states "If catchPanic is true ...", but
+    there is no catchPanic argument or variable. This was introduced
+    in CL 214822, which introduced the panicHandling type. The code was
+    updated during code review, but the comment was missed.
     
-    For #70763
-    
-    Change-Id: Icc04e6286b5b29a2029237711d50fe4973234f0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635815
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Id14c5397e7a026bfdf98ea10ecb1e4c61ce2f924
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538695
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/syscall/syscall_freebsd_386.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/testing/testing.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

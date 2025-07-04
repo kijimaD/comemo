@@ -1,21 +1,22 @@
-commit cd24a8a5509376e4d5c492256a0e1e120cab63e7
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Mon Jun 12 10:46:15 2017 -0700
+commit 0cfb23135c67314dbb9fc2e78fd0f364b6882f25
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 15 22:55:21 2017 -0700
 
-    database/sql: ensure a Stmt from a Conn executes on the same driver.Conn
+    cmd/compile: move hasdefer to Func
     
-    Ensure a Stmt prepared on a Conn executes on the same driver.Conn.
-    This also removes another instance of duplicated prepare logic
-    as a side effect.
+    Passes toolstash -cmp.
     
-    Fixes #20647
+    Updates #15756
     
-    Change-Id: Ia00a19e4dd15e19e4d754105babdff5dc127728f
-    Reviewed-on: https://go-review.googlesource.com/45391
+    Change-Id: Ia071dbbd7f2ee0f8433d8c37af4f7b588016244e
+    Reviewed-on: https://go-review.googlesource.com/38231
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/database/sql/sql.go      | 210 ++++++++++++++++++++++++-------------------
- src/database/sql/sql_test.go |  38 +++++++-
- 2 files changed, 154 insertions(+), 94 deletions(-)
+ src/cmd/compile/internal/gc/go.go     | 2 --
+ src/cmd/compile/internal/gc/pgen.go   | 1 -
+ src/cmd/compile/internal/gc/plive.go  | 2 +-
+ src/cmd/compile/internal/gc/ssa.go    | 6 ++++--
+ src/cmd/compile/internal/gc/syntax.go | 3 +++
+ src/cmd/compile/internal/gc/walk.go   | 2 +-
+ 6 files changed, 9 insertions(+), 7 deletions(-)

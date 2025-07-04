@@ -1,19 +1,13 @@
-commit 054516338a8bab18672724142096541bad0009df
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Mar 29 10:33:47 2011 -0400
+commit 61c9d3f08a5a6798c3834972027d30a8fcd3a171
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 29 06:49:21 2011 -0700
 
-    asn1: extensions needed for parsing Kerberos
+    test: adjust bugs/bug322 to match current spec.
     
-    * Adds support for GENERAL STRING
-    * Adds support for APPLICATION tagged values.
-    * Add UnmarshalWithParams to set parameters for the top-level
-      structure
-    
-    R=golang-dev, rsc1, r
+    R=gri, rsc1
     CC=golang-dev
-    https://golang.org/cl/4291075
+    https://golang.org/cl/4328041
 
- src/pkg/asn1/asn1.go      | 34 ++++++++++++++++++++++++++++++++--
- src/pkg/asn1/asn1_test.go |  3 ++-
- src/pkg/asn1/common.go    | 10 ++++++++--
- 3 files changed, 42 insertions(+), 5 deletions(-)
+ test/bugs/bug322.dir/main.go | 10 +++++-----
+ test/golden.out              |  3 +--
+ 2 files changed, 6 insertions(+), 7 deletions(-)

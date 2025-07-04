@@ -1,16 +1,29 @@
-commit 442322276067073a83b944340e82feb300561a15
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jul 18 12:39:00 2014 +0400
+commit 086df1dc77710cb6fa06ca561e1fafd5a4c78d8e
+Author: snyh <snyh@snyh.org>
+Date:   Fri Jul 18 02:47:21 2014 -0400
 
-    encoding/gob: remove unnecessary receivers
-    Encoder compilation must be enc-independent,
-    because the resulting program is reused across
-    different encoders.
+    cmd/cgo: disable inappropriate warnings when the gcc struct is empty
     
-    LGTM=r
-    R=golang-codereviews, r
+    package main
+    //#cgo CFLAGS: -Wall
+    //void test() {}
+    import "C"
+    func main() {
+        C.test()
+    }
+    
+    This code will cause gcc issuing warnings about unused variable.
+    
+    This commit use offset of the second return value of
+    Packages.structType to detect whether the gcc struct is empty,
+    and if it's directly invoke the C function instead of writing an
+    unused code.
+    
+    LGTM=dave, minux
+    R=golang-codereviews, iant, minux, dave
     CC=golang-codereviews
-    https://golang.org/cl/115860043
+    https://golang.org/cl/109640045
 
- src/pkg/encoding/gob/encode.go | 35 +++++++++++++++++------------------
- 1 file changed, 17 insertions(+), 18 deletions(-)
+ misc/cgo/test/empty.go | 18 ++++++++++++++++++
+ src/cmd/cgo/out.go     |  6 ++++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

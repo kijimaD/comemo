@@ -1,18 +1,13 @@
-commit a5b1530557833708050c0e2508ffeaab1bf8bc29
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 16 11:39:43 2014 -0400
+commit a4ff90df286b0accd22b77a8093feac45167f9a4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 16 01:41:47 2014 -0400
 
-    runtime: adjust GC debug print to include source pointers
+    cmd/ld: correct comment.
     
-    Having the pointers means you can grub around in the
-    binary finding out more about them.
-    
-    This helped with issue 7748.
-    
-    LGTM=minux.ma, bradfitz
-    R=golang-codereviews, minux.ma, bradfitz
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/88090045
+    https://golang.org/cl/88360044
 
- src/pkg/runtime/mgc0.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/ld/dwarf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,18 @@
-commit 32d7a7364f10b652c36e1515623586d0db82ef20
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Thu Jan 26 16:50:56 2012 +0000
+commit 974fa755573cbcad4e6ff48e4faae25ffa2cca43
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jan 27 01:31:42 2012 +0900
 
-    net/http: make ParseForm ignore unknown content types.
-    Also fix a shadowed error variable bug.
+    net: make WriteTo fail when UDPConn is already connected
     
-    R=golang-dev, rsc
+    Fixes #2773.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5573072
+    https://golang.org/cl/5571056
 
- src/pkg/net/http/request.go      |  4 +---
- src/pkg/net/http/request_test.go | 19 +++++++++++--------
- 2 files changed, 12 insertions(+), 11 deletions(-)
+ src/pkg/net/fd.go            | 19 +++++-----
+ src/pkg/net/fd_windows.go    | 17 +++++----
+ src/pkg/net/sock.go          |  1 +
+ src/pkg/net/udp_test.go      | 87 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/udpsock_posix.go |  6 +++
+ 5 files changed, 113 insertions(+), 17 deletions(-)

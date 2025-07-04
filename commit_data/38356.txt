@@ -1,25 +1,25 @@
-commit 8b2a2d03947453147e8dcbec50dfe33c19e5fa57
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 12 01:58:38 2019 +0000
+commit 286c7ae10c71a8faeba22e29928afe7fce7e2750
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Oct 22 20:40:03 2018 +0200
 
-    Revert "cmd/go: change the default value of GO111MODULE to 'on'"
+    runtime: use multiplication with overflow check for makechan
     
-    This reverts commit cf4691650c3c556f19844a881a32792a919ee8d1
-    (CL 162698).
+    This improves performance for channels with an element size
+    larger than 32 bytes and removes loading a value from the
+    maxElems array for smaller element sizes.
     
-    Reason for revert: broke make.bash bootstrapping from head.
+    MakeChan/Byte       88.8ns ± 6%  85.2ns ± 1%  -4.03%  (p=0.000 n=10+10)
+    MakeChan/Int         100ns ± 4%    96ns ± 2%  -3.72%  (p=0.000 n=9+10)
+    MakeChan/Ptr         124ns ± 3%   126ns ± 2%    ~     (p=0.068 n=10+10)
+    MakeChan/Struct/0   80.5ns ± 2%  80.7ns ± 2%    ~     (p=0.697 n=10+10)
+    MakeChan/Struct/32   143ns ± 4%   141ns ± 2%    ~     (p=0.221 n=10+10)
+    MakeChan/Struct/40   169ns ± 2%   159ns ± 4%  -6.26%  (p=0.000 n=10+10)
     
-    Change-Id: I3de6d26b1af9038c6b92dec88667bfa734060a41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166985
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #21588
+    
+    Change-Id: Ifbf12a5af2f0ec7e1d2241ecfffab020e9abec48
+    Reviewed-on: https://go-review.googlesource.com/c/144017
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/alldocs.go                             | 331 +++++++++++-----------
- src/cmd/go/help_test.go                           |   5 -
- src/cmd/go/internal/help/help.go                  |   7 +-
- src/cmd/go/internal/modload/help.go               |  39 ++-
- src/cmd/go/internal/modload/init.go               |  35 ++-
- src/cmd/go/main.go                                |  15 +-
- src/cmd/go/mkalldocs.sh                           |   2 +-
- src/cmd/go/testdata/script/mod_find.txt           |   2 +-
- src/cmd/go/testdata/script/mod_gobuild_import.txt |   6 -
- 9 files changed, 232 insertions(+), 210 deletions(-)
+ src/runtime/chan.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

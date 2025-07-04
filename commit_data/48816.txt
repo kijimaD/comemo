@@ -1,19 +1,16 @@
-commit 0670afa1b3aaed740816c5ffc9825d154c47d188
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 18 10:56:19 2022 -0400
+commit 85b12a856313f4410376df8d02a11cc902acefa3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 17 19:13:55 2021 +0000
 
-    doc/go1.19: move the description of the runtime.GOROOT change from 'cmd/go' to 'runtime'
+    [dev.typeparams] runtime,runtime/internal/sys: remove unused BigEndian
     
-    Even though the change in the behavior of 'runtime.GOROOT' was
-    not actually due to a change in the runtime package proper, I
-    suspect that users who notice it will look for the release note
-    in that section, not the 'cmd/go' section.
-    
-    Fixes #51461.
-    
-    Change-Id: I271752968d4152a7fdf3e170537e3072bf87ce86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400814
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1209904326b1563e12d9c7d19a12a10c72d1dbcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329191
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.19.html | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/runtime/export_test.go         | 2 --
+ src/runtime/internal/sys/consts.go | 3 ---
+ 2 files changed, 5 deletions(-)

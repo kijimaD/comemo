@@ -1,16 +1,19 @@
-commit efbf4b0713b76891f2476e54e15117649af94144
-Author: sunnymilk <shaojunyang@google.com>
-Date:   Mon Sep 16 17:10:51 2024 -0700
+commit 6eb31c1a00327fb1c757d78519f8dcc9ace6ceaf
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jul 31 15:26:26 2023 -0400
 
-    cmd/compile: improve the ssa documentation.
+    cmd/compile/internal/inline: refactor inline budget computation
     
-    The auxiliary field could be better documented as it appears in a lot of the operands.
-    This CL documents and points the user to the code for further information.
+    Split out the code that computes the initial inline "hairyness" budget
+    for a function so that it can be reused (in a later patch). This is a
+    pure refactoring; no change in compiler functionality.
     
-    Change-Id: I34a73af488358c9799e286f3b5ee4b08639ce608
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613615
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9b1b7b10a7c480559b837492b10eb08771b7a145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514795
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/README.md | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go | 34 ++++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 12 deletions(-)

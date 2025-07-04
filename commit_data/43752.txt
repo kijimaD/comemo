@@ -1,74 +1,26 @@
-commit 51f41688126afa1de7c4621777189bda17fd3090
-Author: Roland Shoemaker <rolandshoemaker@gmail.com>
-Date:   Sun May 10 11:23:58 2020 -0700
+commit c8dea8198e256b75bf3b21980873caaace9d353e
+Author: Johan Jansson <johan.jansson@iki.fi>
+Date:   Mon Apr 20 21:35:57 2020 +0300
 
-    crypto/x509: add additional convenience fields to CertificateRequest
+    cmd/go: allow generate to process invalid packages
     
-    Adds the following additional convenience fields to CertificateRequest:
-    * KeyUsage
-    * ExtKeyUsage
-    * UnknownExtKeyUsage
-    * IsCA
-    * MaxPathLen
-    * BasicConstraintsValid
-    * MaxPathLenZero
-    * SubjectKeyId
-    * PolicyIdentifier
+    Allow go generate to process packages that contain invalid code. Ignore
+    errors when loading the package, but process only files which have a
+    valid package clause. Set $GOPACKAGE individually for each file, based
+    on the package clause.
     
-    These fields are parsed during ParseCertificateRequest and marshalled
-    during CreateCertificateRequest. The parsing/marshalling code is
-    factored out of parseCertificate and buildExtensions (which is renamed
-    buildCertExtensions). This has the side effect of making these methods
-    somewhat easier to read.
+    Add test script for go generate and invalid packages.
     
-    Documentation for the fields is copied from Certificate.
+    Fixes #36422
     
-    Example CSR created with all of these fields parsed with openssl:
-    $ openssl req -in ~/test-csr.pem -noout -text
-    Certificate Request:
-        Data:
-            Version: 0 (0x0)
-            Subject:
-            Subject Public Key Info:
-                Public Key Algorithm: id-ecPublicKey
-                    Public-Key: (256 bit)
-                    pub:
-                        04:a4:cb:64:35:8e:dd:8c:2b:a6:f1:aa:39:d1:be:
-                        d0:b9:95:1e:59:19:82:76:28:d3:85:1b:c6:88:62:
-                        e1:15:33:be:26:18:80:14:fe:f4:d4:91:66:4e:a4:
-                        a4:47:bd:53:db:f7:2e:e3:31:ce:5f:86:cb:92:59:
-                        93:bb:d0:7f:a2
-                    ASN1 OID: prime256v1
-                    NIST CURVE: P-256
-            Attributes:
-            Requested Extensions:
-                X509v3 Key Usage: critical
-                    Certificate Sign
-                X509v3 Extended Key Usage:
-                    Any Extended Key Usage, 1.2.3
-                X509v3 Basic Constraints: critical
-                    CA:TRUE, pathlen:0
-                X509v3 Subject Key Identifier:
-                    01:02:03
-                X509v3 Certificate Policies:
-                    Policy: 1.2.3
-    
-        Signature Algorithm: ecdsa-with-SHA256
-             30:45:02:21:00:a7:88:e5:96:d4:ad:ae:24:26:ab:5f:15:6a:
-             3f:22:6d:0e:a6:ba:15:64:8d:78:34:f4:c4:7d:ac:37:b0:2a:
-             84:02:20:68:44:f0:8e:8a:1b:c1:68:be:14:a6:e3:83:41:fd:
-             2d:cc:00:aa:bc:50:f6:50:56:12:9e:a4:09:84:5c:bf:c1
-    
-    Fixes #37172
-    
-    Change-Id: Ife79d01e203827ef0ac3c787aa13c00d0751a1ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233163
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
+    Change-Id: I91ea088346a1548ccd6678b4595a527b948331ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229097
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/x509.go      | 434 ++++++++++++++++++++++++++++++-------------
- src/crypto/x509/x509_test.go |  43 +++++
- 2 files changed, 349 insertions(+), 128 deletions(-)
+ src/cmd/go/alldocs.go                           |   3 +
+ src/cmd/go/internal/generate/generate.go        |  33 ++--
+ src/cmd/go/testdata/script/generate_invalid.txt | 199 ++++++++++++++++++++++++
+ 3 files changed, 223 insertions(+), 12 deletions(-)

@@ -1,16 +1,18 @@
-commit 469e3a91d450fb29778ba0d37377ddb40a58f1d5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 28 10:55:39 2012 -0700
+commit cb62365f5737d8c6a803b0737b3f34a64e526b6b
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Mon May 28 10:46:51 2012 -0700
 
-    net/http: correct and faster hasToken
+    net/http: reuse http proxy connections for different http requests
     
-    Fixes #3535
+    Comment on cache keys above connectMethod says "http to proxy, http
+    anywhere after that", however in reality target address was always
+    included, which prevented http requests to different target
+    addresses to reuse the same http proxy connection.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6245060
+    https://golang.org/cl/5901064
 
- src/pkg/net/http/header.go      | 35 +++++++++++++++++++++++++++++++++
- src/pkg/net/http/header_test.go | 43 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/request.go     |  8 --------
- 3 files changed, 78 insertions(+), 8 deletions(-)
+ src/pkg/net/http/proxy_test.go | 30 ++++++++++++++++++++++++++++++
+ src/pkg/net/http/transport.go  |  6 +++++-
+ 2 files changed, 35 insertions(+), 1 deletion(-)

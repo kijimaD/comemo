@@ -1,33 +1,30 @@
-commit e9eed78dc3f4ab9a87f43c7d902025329f622783
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 2 09:52:55 2021 -0500
+commit d85ef2b9790522ef1663076fb70984ff144b88c2
+Merge: a91ad4250c 4b09c8ad6f
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jul 9 21:23:49 2020 -0400
 
-    cmd/go: resolve std-vendored dependencies as std packages except in 'go get' and 'go mod'
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    In CL 251159, I removed a hard-coded special case changing the
-    rewriting behavior for std dependencies in GOROOT/src/vendor and
-    GOROOT/src/cmd/vendor. Unfortunately, that caused packages in 'std' to
-    be reported as stale when run within GOROOT/src.
-    
-    This change restores the special-case behavior, but plumbs it through
-    the PackageOpts explicitly instead of comparing strings stored in
-    global variables.
-    
-    Fixes #44725
-    
-    Change-Id: If084fe74972ce1704715ca79b0b7e092dd90c88b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297869
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I61d6a6d4959fdea8339b9d666385bf6b4ed49d03
 
- src/cmd/go/internal/modcmd/tidy.go            |  9 ++++----
- src/cmd/go/internal/modcmd/vendor.go          |  9 ++++----
- src/cmd/go/internal/modcmd/why.go             |  9 ++++----
- src/cmd/go/internal/modget/get.go             | 14 ++++++------
- src/cmd/go/internal/modload/load.go           |  9 ++++++--
- src/cmd/go/testdata/script/list_std_stale.txt | 31 +++++++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_list_std.txt   | 14 ++++++------
- src/cmd/go/testdata/script/mod_std_vendor.txt |  6 +++---
- 8 files changed, 72 insertions(+), 29 deletions(-)
+ AUTHORS                         |  1 +
+ CONTRIBUTORS                    |  1 +
+ doc/editors.html                |  2 +-
+ doc/go1.15.html                 | 25 +++++++++++++++++++++++--
+ src/crypto/crypto.go            |  2 +-
+ src/crypto/rsa/example_test.go  |  2 +-
+ src/crypto/rsa/pkcs1v15.go      | 14 +++++++-------
+ src/crypto/rsa/rsa.go           | 14 +++++++-------
+ src/crypto/tls/auth.go          |  4 ++--
+ src/crypto/tls/common.go        | 12 ++++++------
+ src/crypto/tls/key_agreement.go |  2 +-
+ src/crypto/tls/tls.go           |  2 +-
+ src/crypto/tls/tls_test.go      |  4 ++--
+ src/crypto/x509/pkcs1.go        | 12 ++++++------
+ src/crypto/x509/pkcs8.go        |  6 +++---
+ src/crypto/x509/pkix/pkix.go    | 14 ++++++++++----
+ src/crypto/x509/x509.go         |  2 +-
+ src/crypto/x509/x509_test.go    | 39 +++++++++++++++++++++++++++++++++++++++
+ src/net/ipsock_plan9.go         | 20 +++++++++++++-------
+ src/net/ipsock_plan9_test.go    | 29 +++++++++++++++++++++++++++++
+ 20 files changed, 155 insertions(+), 52 deletions(-)

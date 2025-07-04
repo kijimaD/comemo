@@ -1,33 +1,17 @@
-commit 8fc6ed4c8901d13fe1a5aa176b0ba808e2855af5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Apr 14 21:13:32 2014 +0400
+commit 41ff456f69218787606d374b01071168f27ebdf5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 14 12:33:51 2014 -0400
 
-    sync: less agressive local caching in Pool
-    Currently Pool can cache up to 15 elements per P, and these elements are not accesible to other Ps.
-    If a Pool caches large objects, say 2MB, and GOMAXPROCS is set to a large value, say 32,
-    then the Pool can waste up to 960MB.
-    The new caching policy caches at most 1 per-P element, the rest is shared between Ps.
+    cmd/dist: mark cmd/link and debug/goobj as unreleased
     
-    Get/Put performance is unchanged. Nested Get/Put performance is 57% worse.
-    However, overall scalability of nested Get/Put is significantly improved,
-    so the new policy starts winning under contention.
+    These are not ready and will not be in Go 1.3.
     
-    benchmark                     old ns/op     new ns/op     delta
-    BenchmarkPool                 27.4          26.7          -2.55%
-    BenchmarkPool-4               6.63          6.59          -0.60%
-    BenchmarkPool-16              1.98          1.87          -5.56%
-    BenchmarkPool-64              1.93          1.86          -3.63%
-    BenchmarkPoolOverlflow        3970          6235          +57.05%
-    BenchmarkPoolOverlflow-4      10935         1668          -84.75%
-    BenchmarkPoolOverlflow-16     13419         520           -96.12%
-    BenchmarkPoolOverlflow-64     10295         380           -96.31%
+    Fixes #6932.
     
-    LGTM=rsc
-    R=rsc
-    CC=golang-codereviews, khr
-    https://golang.org/cl/86020043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, minux.ma
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/87630043
 
- src/pkg/runtime/mgc0.c    |  28 ++------
- src/pkg/sync/pool.go      | 175 ++++++++++++++++++++++------------------------
- src/pkg/sync/pool_test.go |   6 +-
- 3 files changed, 92 insertions(+), 117 deletions(-)
+ src/cmd/dist/build.c | 2 ++
+ 1 file changed, 2 insertions(+)

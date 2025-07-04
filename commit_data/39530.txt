@@ -1,20 +1,20 @@
-commit a005f998cd1a364d5d341eb8f185fb6ae5aa62cb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jul 17 12:53:47 2019 -0400
+commit 94cbfc2f7f6b375426381c81d8efe78b12e058c3
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Sun Mar 3 20:16:13 2019 +0000
 
-    cmd/go/internal/mvs: retain modules required by older versions
+    net/http: support configuring redirect fetch option
     
-    Fixes #29773
-    Updates #31248
+    Adds a magic header value that is translated to the
+    Fetch API redirect option, following existing practices.
     
-    Change-Id: Ic1923119c8cf3a60c586df1b270c3af0c9095f29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186537
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Updates #26769
+    
+    Change-Id: Iaf1c9f710de63ea941a360b73f1b4bb725331a35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164666
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/mvs/mvs.go                   | 17 +++--
- src/cmd/go/internal/mvs/mvs_test.go              | 28 +++++---
- src/cmd/go/testdata/script/mod_indirect.txt      | 81 ++++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_indirect_main.txt | 65 +++++++++++++++++++
- 4 files changed, 174 insertions(+), 17 deletions(-)
+ src/net/http/roundtrip_js.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

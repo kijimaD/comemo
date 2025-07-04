@@ -1,18 +1,16 @@
-commit 2cea6cdb6016708e89c9472cdb0504731699681d
-Author: David Chase <drchase@google.com>
-Date:   Thu Nov 10 11:45:23 2022 -0500
+commit 38c067d178111d48a5ce96feccae1a7abe28ff59
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Tue Dec 14 23:05:03 2021 +0100
 
-    cmd/internal/obj: adjust (*Link).AllPos comment in inl.go
+    doc: fix typo in 1.18 release notes for package testing
     
-    AllPos truncates and overwrites its slice-storage input instead
-    of appending.  This makes that clear.
+    In release notes for Go 1.18, fix typo in changes for package testing to
+    correctly document the change in CL 343883.
     
-    Change-Id: I81653ff49a4a7d14fe9446fd6620943f3b20bbd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449478
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I40d92858ed3f74554a094466c06771f83dd81942
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371616
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/obj/inl.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

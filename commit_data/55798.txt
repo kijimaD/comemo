@@ -1,18 +1,23 @@
-commit b414d044ff6d24ff23531e64d45ad775bc6c96bb
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Tue Feb 27 13:54:42 2024 +0000
+commit a8cd10f2ab66d15ec43c6c6f688c3362f638237f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 14 16:30:38 2023 -0500
 
-    os: remove if nil!=nil in openFileNolog
+    runtime: add arg storage to ppc64le/linux runtime.sigprofNonGoWrapper frame
     
-    Change-Id: I21cecc13570f3b61f3d6c4fede18dc63ddca1b69
-    GitHub-Last-Rev: 3c351e4aa84780d682fd7595ac2091defdcdfc62
-    GitHub-Pull-Request: golang/go#65958
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567355
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    CL 475935 fixed the the ELFv2 ABI violations, but in the process created a
+    Go ABI violation by failing to allocate stack space for arguments.
+    
+    Allocate this space while keeping the frame 16 byte aligned.
+    
+    Updates #58953
+    
+    Change-Id: I9942d9a433118b391ef8cd7bcea5808695cf94d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476296
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/file_windows.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/runtime/sys_linux_ppc64x.s | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

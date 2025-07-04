@@ -1,0 +1,15 @@
+commit 23778fcb276b020d41f7bc8a46fb482a40638017
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 24 13:18:50 2024 -0400
+
+    cmd/link: print the seed in TestRandLayout
+    
+    When the test fails, print the seed, to help debug.
+    
+    Change-Id: I1530ce433f3c6b573fbba061452f57c7649cad77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587925
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/link_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

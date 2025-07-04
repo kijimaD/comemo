@@ -1,33 +1,12 @@
-commit 5288fadbdc1b81993c51d5044035144fccebd75e
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Dec 12 18:41:57 2014 +0100
+commit c7eb9663aa2cf71811fde079b83159ea09cbd106
+Author: Michael Matloob <matloob@google.com>
+Date:   Tue Dec 23 23:19:08 2014 -0800
 
-    runtime: add tracing of runtime events
+    regexp: fix typo in comment: s/onpass/onepass/
     
-    Add actual tracing of interesting runtime events.
-    Part of a larger tracing functionality:
-    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
-    Full change:
-    https://codereview.appspot.com/146920043
-    
-    Change-Id: Icccf54aea54e09350bb698ba6bf11532f9fbe6d3
-    Reviewed-on: https://go-review.googlesource.com/1451
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Idff57050a34d09e7fa9b77e9b53d61bb5ea2a71c
+    Reviewed-on: https://go-review.googlesource.com/2095
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/chan.go     |  12 +--
- src/runtime/malloc.go   |  11 +++
- src/runtime/malloc1.go  |   3 +
- src/runtime/mfinal.go   |   2 +-
- src/runtime/mgc.go      |  28 +++++++
- src/runtime/mgc0.go     |   4 +-
- src/runtime/mheap.go    |   6 ++
- src/runtime/netpoll.go  |   4 +-
- src/runtime/proc.go     |  11 +--
- src/runtime/proc1.go    | 189 ++++++++++++++++++++++++++++++++++++++++++++----
- src/runtime/runtime2.go |   2 +
- src/runtime/select.go   |   4 +-
- src/runtime/sema.go     |   6 +-
- src/runtime/stack1.go   |   2 +-
- src/runtime/time.go     |   4 +-
- src/runtime/trace.go    |   2 +-
- 16 files changed, 252 insertions(+), 38 deletions(-)
+ src/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

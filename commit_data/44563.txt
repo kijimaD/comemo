@@ -1,20 +1,23 @@
-commit 034fffdb490ade3cbccd79eacdb9370850ef51d1
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 9 10:38:30 2021 +0100
+commit b3de3e52c28b87b7849ef5c030cb280763b549ef
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Aug 12 10:34:15 2020 -0400
 
-    net: use io.Discard in TestSendfileOnWriteTimeoutExceeded
+    doc/go1.16: start draft release notes
     
-    Replace ioutil.Discard which is deprecated as of Go 1.16.
+    This template is based on CL 220278 and previous ones like it.
+    Include Compiler and Linker sections proactively, they can be
+    removed if they don't end up being needed for Go 1.16.
     
-    This was already done in CL 263142 but accidentially re-introduced in
-    CL 285914.
+    Use two spaces of indentation for TODOs to set a better precedent
+    for the final text that will take its place.
     
-    Change-Id: Ife0944d416294b1ba7c8f6b602aa68a3b9213c50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/299989
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    'relnote -html' does not report any changes at this time.
+    
+    For #40700.
+    
+    Change-Id: I096b0ce0d33aaaa6fae9c91c0d2dfb89b9c5e94c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248198
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/net/sendfile_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ doc/go1.16.html | 84 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 84 insertions(+)

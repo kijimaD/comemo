@@ -1,20 +1,29 @@
-commit 28a1c36d627f179001a9d7180f81d947e6ecdaaf
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 12 18:13:34 2013 -0700
+commit d67e7e3acff13d845f8952b45daf9b794fa4ad51
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 12 15:22:26 2013 -0400
 
-    testing: add -outputdir flag so "go test" controls where the files are written
-    Obscure misfeature now fixed: When run from "go test", profiles were always
-    written in the package's source directory. This change puts them in the directory
-    where "go test" is run.
-    Also fix a couple of problems causing errors in testing.after to go unreported
-    unless -v was set.
+    runtime: add lr, ctxt, ret to Gobuf
     
-    R=rsc, minux.ma, iant, alex.brainman
+    Add gostartcall and gostartcallfn.
+    The old gogocall = gostartcall + gogo.
+    The old gogocallfn = gostartcallfn + gogo.
+    
+    R=dvyukov, minux.ma
     CC=golang-dev
-    https://golang.org/cl/10234044
+    https://golang.org/cl/10036044
 
- src/cmd/go/doc.go          |  4 ++++
- src/cmd/go/test.go         |  4 ++++
- src/cmd/go/testflag.go     | 13 +++++++++++
- src/pkg/testing/testing.go | 54 ++++++++++++++++++++++++++++++++++++++--------
- 4 files changed, 66 insertions(+), 9 deletions(-)
+ misc/cgo/test/callback.go       |  2 +-
+ src/pkg/runtime/asm_386.s       | 67 ++++++++++++++---------------------------
+ src/pkg/runtime/asm_amd64.s     | 63 ++++++++++++--------------------------
+ src/pkg/runtime/asm_arm.s       | 67 ++++++++++++++---------------------------
+ src/pkg/runtime/mgc0.c          | 14 +++++++--
+ src/pkg/runtime/panic.c         |  3 +-
+ src/pkg/runtime/proc.c          | 51 ++++++++++++++++++++-----------
+ src/pkg/runtime/runtime.h       | 13 +++++---
+ src/pkg/runtime/stack.c         | 24 +++++++++++----
+ src/pkg/runtime/stack.h         |  2 +-
+ src/pkg/runtime/sys_arm.c       | 17 +++++++++++
+ src/pkg/runtime/sys_x86.c       | 21 +++++++++++++
+ src/pkg/runtime/traceback_arm.c | 20 ++++++------
+ src/pkg/runtime/traceback_x86.c | 11 ++-----
+ 14 files changed, 188 insertions(+), 187 deletions(-)

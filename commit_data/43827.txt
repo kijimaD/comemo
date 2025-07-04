@@ -1,20 +1,19 @@
-commit b4f3d52f6a90aa520799f836e5951d5cf65f7fe4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Nov 17 16:47:08 2020 -0500
+commit 925d6b31b04f7ad1558191ed32c3c8ecd6a3800d
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Fri Apr 24 14:52:20 2020 -0400
 
-    sync: document RWMutex race semantics
+    cmd/compile: adopt strong aux typing for some s390x rules
     
-    RWMutex provides explicit acquire/release synchronization events to the
-    race detector to model the mutex. It disables sync events within the
-    methods to avoid e.g., the atomics from adding false synchronization
-    events, which could cause false negatives in the race detector.
+    Convert some Move and Zero Lowering rules to strongly-typed versions.
     
-    Change-Id: I5126ce2efaab151811ac264864aab1fa025a4aaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270865
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
+    Passes toolstash-check.
+    
+    Change-Id: Icaabe05e206d59798e5883a90e9a33bb30270b13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229919
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sync/rwmutex.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 42 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 88 ++++++++++++++--------------
+ 2 files changed, 65 insertions(+), 65 deletions(-)

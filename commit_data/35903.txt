@@ -1,23 +1,17 @@
-commit b001ffb864ce5486c6edbe98202d3e0687313ce2
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Jul 8 01:05:18 2018 +0200
+commit b61b1d2c57131b4fad9269c07ef8429add208017
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 16 12:05:18 2018 +0100
 
-    runtime: fix TestAbort on Plan 9
+    test/codegen: port structs test to codegen
     
-    Since CL 122515, TestAbort is failing on Plan 9
-    because there is no SIGTRAP signal on Plan 9,
-    but a note containing the "sys: breakpoint" string.
+    And delete them from asm_test.
     
-    This change fixes the TestAbort test by handling
-    the Plan 9 case.
-    
-    Fixes #26265.
-    
-    Change-Id: I2fae00130bcee1cf946d8cc9d147a77f951be390
-    Reviewed-on: https://go-review.googlesource.com/122464
-    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Change-Id: Ia286239a3d8f3915f2ca25dbcb39f3354a4f8aea
+    Reviewed-on: https://go-review.googlesource.com/101138
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/crash_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/asm_test.go | 37 --------------------------
+ test/codegen/structs.go                 | 46 +++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 37 deletions(-)

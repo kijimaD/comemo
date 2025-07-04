@@ -1,21 +1,18 @@
-commit 0fc774a68f04fef2731e7d866a2756808a212d31
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 17:42:53 2022 -0400
+commit 74e384f50d3071c97effa3afd43ec29111587d59
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Sep 15 12:37:20 2021 +0800
 
-    runtime: convert schedt.pollUntil to atomic type
+    internal/poll: inject a hook into the runtime finalizer to count the closed pipes
     
-    Note that this converts pollUntil from uint64 to int64, the type used by
-    nanotime().
+    Fixes #48066
     
-    For #53821.
-    
-    Change-Id: Iec9ec7e09d3350552561d0708ba6ea9e8a8ae7ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419443
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Icd6974dfcc496c054bb096e5d70de6e135984517
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349774
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/align_runtime_test.go | 1 -
- src/runtime/proc.go               | 8 ++++----
- src/runtime/runtime2.go           | 3 +--
- 3 files changed, 5 insertions(+), 7 deletions(-)
+ src/internal/poll/splice_linux_test.go | 60 ++++++++++++++++++++--------------
+ 1 file changed, 35 insertions(+), 25 deletions(-)

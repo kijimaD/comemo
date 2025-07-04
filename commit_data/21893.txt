@@ -1,16 +1,13 @@
-commit ef0b03137d18f42337a4cbd4915bf91942bad750
+commit 764a9cf20d448282be65f07370227016055b371d
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 3 12:53:41 2015 -0800
+Date:   Tue Feb 10 16:38:51 2015 -0800
 
-    math/big: remove Float.Lsh/Rsh; added shift example
+    math/big: completed Float.Uint64
     
-    Shifts are trivially implemented by combining
-    Float.MantExp and Float.SetMantExp.
-    
-    Change-Id: Ia2fb49297d8ea7aa7d64c8b1318dc3dc7c8af2f7
-    Reviewed-on: https://go-review.googlesource.com/6671
+    Change-Id: Ib3738492a2ec8fc99323e687168b17b7239db6ad
+    Reviewed-on: https://go-review.googlesource.com/4511
     Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/big/float.go             | 44 ++++-----------------------------------
- src/math/big/floatexample_test.go | 32 ++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 40 deletions(-)
+ src/math/big/float.go      | 63 ++++++++++++++++++++++++++++++++++++++--------
+ src/math/big/float_test.go | 48 +++++++++++++++++++++++++++++++----
+ 2 files changed, 96 insertions(+), 15 deletions(-)

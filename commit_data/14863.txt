@@ -1,20 +1,16 @@
-commit 578f24d5321401b9bb8686fa5e968c8bc63b89f6
+commit ab1385ec95fe5eec367b8c40196a8962c1ca8ee5
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Jan 11 22:42:55 2013 +0100
+Date:   Fri Jan 11 22:05:46 2013 +0100
 
-    test: add rotate.go and fixedbugs/bug313
+    test: adapt old-style tests to new flag parsing.
     
-    Update #4139.
+    The -I. syntax now needs a space to be recognized in the
+    compiler.
     
-    R=golang-dev, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7094047
+    https://golang.org/cl/7098046
 
- test/fixedbugs/bug313.go |  5 +----
- test/rotate.go           | 15 +++++----------
- test/rotate0.go          | 12 ++++++++++++
- test/rotate1.go          | 12 ++++++++++++
- test/rotate2.go          | 12 ++++++++++++
- test/rotate3.go          | 12 ++++++++++++
- test/run.go              |  2 --
- 7 files changed, 54 insertions(+), 16 deletions(-)
+ test/safe/nousesafe.go | 2 +-
+ test/safe/usesafe.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

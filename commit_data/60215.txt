@@ -1,0 +1,19 @@
+commit 5121b45d7426687076c20ae0f4fcae1238f3ed47
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 22 22:01:35 2024 -0400
+
+    crypto/tls: add linkname comments dropped from CL 587220
+    
+    A bad merge syncing before the submit of CL 587220 dropped these.
+    (I forgot to write the file out.)
+    
+    For #67401.
+    
+    Change-Id: I6f2ba69f388907f3d24eeef55c80cbb2cf51f580
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587755
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+
+ src/crypto/tls/defaults.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

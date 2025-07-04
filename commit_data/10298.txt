@@ -1,12 +1,12 @@
-commit 4ac425fcddd7e3a923fe59f2375a2a75fa18ed33
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 8 18:16:25 2011 -0800
+commit 864944400263d9d8d1a31b538841f8ad6edfc76b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 8 16:26:03 2011 -0800
 
-    runtime: add comments for various functions in proc.c
+    FAQ: update
     
-    R=rsc
+    R=bradfitz, r, dsymonds, edsrzf, rsc
     CC=golang-dev
-    https://golang.org/cl/5357047
+    https://golang.org/cl/5345055
 
- src/pkg/runtime/proc.c | 68 +++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 56 insertions(+), 12 deletions(-)
+ doc/go_faq.html | 46 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 28 insertions(+), 18 deletions(-)

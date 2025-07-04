@@ -1,40 +1,19 @@
-commit 24a43e6a7542c2aefd1e2f16f0daae8100e4bdce
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 5 10:39:23 2015 -0800
+commit c2de2f87f08c6ebdae095a84dd8c2c8c5ecfc671
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 15:00:54 2015 -0500
 
-    cmd/internal/obj: delete all Pconv, replace with Prog.String
+    runtime: move checknocurrentwbuf() from scanblock to drainworkbuf
     
-    Remove the per-achitecture formatter for Prog and replace it with
-    a global String method. Clean up and regularize the output. Update
-    tests affected by the format; some tests are made correct now when
-    they were broken before (and known to be).
+    Previously, scanblock called checknocurrentwbuf() after
+    drainworkbuf().  Move this call into drainworkbuf so that every return
+    path from drainworkbuf calls checknocurrentwbuf().  This is equivalent
+    to the previous code because scanblock was the only caller of
+    drainworkbuf.
     
-    Also, related: Change the encoding of the (R1+R2) syntax on ppc64
-    to be equivalent to (R1)(R2*1), which means it needs no special
-    handling.
-    
-    Delete the now unused STRINGSZ constant.
-    
-    Change-Id: I7f6654d11f80065f3914a3f19353f2f12edfe310
-    Reviewed-on: https://go-review.googlesource.com/6931
+    Change-Id: I96ef2168c8aa169bfc4d368f296342fa0fbeafb4
+    Reviewed-on: https://go-review.googlesource.com/4780
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/asm/internal/arch/arch.go           |   4 -
- src/cmd/asm/internal/asm/asm.go             |  15 --
- src/cmd/asm/internal/asm/operand_test.go    |  14 +-
- src/cmd/asm/internal/asm/parse.go           |   4 +-
- src/cmd/asm/internal/asm/testdata/arm.out   | 106 +++++++-------
- src/cmd/asm/internal/asm/testdata/ppc64.out | 220 ++++++++++++++--------------
- src/cmd/internal/asm/asm.go                 |   1 -
- src/cmd/internal/gc/go.go                   |  26 ++--
- src/cmd/internal/obj/arm/5.out.go           |   3 -
- src/cmd/internal/obj/arm/list5.go           |  61 --------
- src/cmd/internal/obj/arm/obj5.go            |   1 -
- src/cmd/internal/obj/link.go                |  12 +-
- src/cmd/internal/obj/ppc64/asm9.go          |  41 ++----
- src/cmd/internal/obj/ppc64/list9.go         |  79 ----------
- src/cmd/internal/obj/ppc64/obj9.go          |   2 -
- src/cmd/internal/obj/util.go                |  82 ++++++++++-
- src/cmd/internal/obj/x86/list6.go           |  48 ------
- src/cmd/internal/obj/x86/obj6.go            |   3 -
- 18 files changed, 283 insertions(+), 439 deletions(-)
+ src/runtime/mgc.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

@@ -1,20 +1,22 @@
-commit c6244b59095a74b77c977d250708ba1858ae2388
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 10 23:57:57 2022 -0500
+commit c92ae885d98d331ec489f6e705f2c5371e5f0e42
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 17 10:47:04 2021 -0700
 
-    runtime/debug: do not require a GOROOT/src prefix in TestStack
+    [dev.typeparams] cmd/compile/internal/types2: better recv Var for method expressions
     
-    When paths are trimmed, the reported file locations begin with the
-    package import path (not GOROOT/src).
+    When synthesizing the Signature to represent a method expression, keep
+    as much of the original parameter as possible, substituting only the
+    receiver type.
     
-    Updates #51461.
+    Fixes #46209.
     
-    Change-Id: Ia6814f970aee11f3d933e75c75136d679d19e220
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391815
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic4531820ae7d203bb0ba25a985f72d219b4aa25f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320489
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/debug/stack_test.go | 82 ++++++++++++++++++++++++++++++++++-------
- 1 file changed, 69 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/types2/call.go                   | 10 ++++++++--
+ src/cmd/compile/internal/types2/testdata/check/decls0.src |  8 ++++----
+ 2 files changed, 12 insertions(+), 6 deletions(-)

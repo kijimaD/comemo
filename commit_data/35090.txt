@@ -1,18 +1,19 @@
-commit 0cd0dc96e00bacaf90af1a21a33f8ad94fc24c52
-Author: ludweeg <mursalimovemeel@gmail.com>
-Date:   Mon Apr 23 20:20:43 2018 +0300
+commit 81c19cc0119d1b88e9cd26f65d93f3eede0d8620
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 11:00:14 2017 -0500
 
-    crypto: make receiver name consistent
+    doc/go1.10: preannounce deprecation of OS X 10.9 Mavericks
     
-    Fixes go lint warning.
+    By the time Go 1.11 is released, OS X 10.9 Mavericks will have gone
+    two years with no security updates.
     
-    Change-Id: I63950e7c70bf431e88a04f32befd50be9beacadf
-    Reviewed-on: https://go-review.googlesource.com/108815
+    For #23011.
+    
+    Change-Id: I6482852a14477985769b72c45c92416aae8be100
+    Reviewed-on: https://go-review.googlesource.com/83795
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/sha1/sha1.go     | 14 +++++++-------
- src/crypto/sha256/sha256.go | 10 +++++-----
- src/crypto/sha512/sha512.go | 12 ++++++------
- 3 files changed, 18 insertions(+), 18 deletions(-)
+ doc/go1.10.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

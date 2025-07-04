@@ -1,22 +1,14 @@
-commit 6013052e7d4c46456ff2c6acb2488c4f580e95f8
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Oct 10 23:04:48 2017 +0100
+commit 1a56a27c58cb7c59d8b073a78b96833f9ebe4b75
+Author: Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
+Date:   Tue Jun 27 18:00:59 2017 -0300
 
-    cmd/compile: eliminate some lineno uses
+    doc: Proper default value for the $GOPATH.
     
-    Focused on ranges, selects and switches for this one.
+    It should be $HOME/go instead of $HOME/work
     
-    While at it, simplify some vars in typecheckselect.
-    
-    Updates #19683.
-    
-    Change-Id: Ib6aabe0f6826cb1930483aeb4bb2de1ff8052d9e
-    Reviewed-on: https://go-review.googlesource.com/69690
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I22e0a89deff30f935c3e25a237d6c0c161103339
+    Reviewed-on: https://go-review.googlesource.com/46890
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/range.go  | 10 +++++-----
- src/cmd/compile/internal/gc/select.go | 27 ++++++++++-----------------
- src/cmd/compile/internal/gc/swt.go    |  7 +++----
- 3 files changed, 18 insertions(+), 26 deletions(-)
+ doc/code.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

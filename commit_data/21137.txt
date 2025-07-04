@@ -1,15 +1,22 @@
-commit 865e5e98b685eb3a7888f5263021049c0694d16f
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Jan 3 00:12:34 2015 -0500
+commit cf06ea68d5eb53937c315baaa80d32e4e7ebe047
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 18 15:18:52 2014 -0500
 
-    runtime: fix TestCgoExternalThreadSIGPROF again
+    [dev.cc] 9a: make RET a synonym for RETURN; use "g" instead of "R30"
     
-    Shell out to `uname -r` this time, so that the test will compile
-    even if the platform doesn't have syscall.Sysctl.
+    Previously, 9a was the only assembler that had a different
+    name for RET, causing unnecessary friction in simple files
+    that otherwise assembled on all architectures.  Add RET so
+    these work on 9a.
     
-    Change-Id: I3a19ab5d820bdb94586a97f4507b3837d7040525
-    Reviewed-on: https://go-review.googlesource.com/2271
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This also renames "R30" to "g" to avoid unintentionally
+    clobbering g in assembly code.  This parallels a change made
+    to 5a.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/178030043
 
- src/runtime/crash_cgo_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/9a/lex.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

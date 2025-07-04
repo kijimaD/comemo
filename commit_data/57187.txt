@@ -1,19 +1,20 @@
-commit 27093581b2828a2752a6d2711def09517eb2513b
-Author: Conrad Irwin <conrad.irwin@gmail.com>
-Date:   Thu Jul 18 20:26:13 2024 -0600
+commit af8f94e3c5885647d6f85d2d5227b5fc6b637c52
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Jul 11 17:12:33 2023 -0400
 
-    cmd/mod/edit: add -tool and -droptool support
+    src/README.vendor: s/latest/master/
     
-    For golang/go#48429
+    Update the README to specify the module query "@master" instead of
+    "@latest".
     
-    Change-Id: I1a7bd8ffddbc65e3b687dc1d40f3853702e1b5dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521958
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Vendoring the highest tagged version is unlikely to be right. Usually
+    one wants to vendor the module at HEAD.
+    
+    Change-Id: Id00d23523a13fd3dcd73d6eacefdf50bcdbfa26e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508823
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go                   | 11 ++++--
- src/cmd/go/internal/modcmd/edit.go      | 60 +++++++++++++++++++++++++++++++--
- src/cmd/go/testdata/script/mod_edit.txt | 45 ++++++++++++++++++++++---
- 3 files changed, 108 insertions(+), 8 deletions(-)
+ src/README.vendor | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

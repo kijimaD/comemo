@@ -1,14 +1,15 @@
-commit f03f0cba2ba03d5e0ddb88c7b1f98d7bbbabb9ce
-Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 18 13:32:00 2014 +1100
+commit 0f66d785cf37c16f1c26905f29750a13a5e3f44e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 27 15:57:07 2014 -0400
 
-    doc/go1.4.html: rewrite first sentence to make it clearer
-    The grammar was atrocious, probably the victim of an editing error.
+    [dev.garbage] runtime: fix TestLFStack on 386
     
-    LGTM=bradfitz
-    R=bradfitz
+    LGTM=rlh
+    R=rlh, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/178910043
+    https://golang.org/cl/157430044
 
- doc/go1.4.html | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/export_test.go  | 2 +-
+ src/runtime/lfstack_test.go | 2 +-
+ src/runtime/runtime.h       | 1 +
+ 3 files changed, 3 insertions(+), 2 deletions(-)

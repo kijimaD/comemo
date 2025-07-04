@@ -1,21 +1,77 @@
-commit bd859439e72a0c48c64259f7de9f175aae3b9c37
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 15 11:55:30 2018 -0700
+commit bd95f889cdd241202fac01b29a3f3d7c03131a20
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 31 22:13:04 2017 -0400
 
-    net: don't let cancelation of a DNS lookup affect another lookup
+    cmd/go: cache successful test results
     
-    Updates #8602
-    Updates #20703
-    Fixes #22724
+    This CL adds caching of successful test results, keyed by the
+    action ID of the test binary and its command line arguments.
     
-    Change-Id: I27b72311b2c66148c59977361bd3f5101e47b51d
-    Reviewed-on: https://go-review.googlesource.com/100840
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Suppose you run:
+    
+            go test -short std
+            <edit a typo in a comment in math/big/float.go>
+            go test -short std
+    
+    Before this CL, the second go test would re-run all the tests
+    for the std packages. Now, the second go test will use the cached
+    result immediately (without any compile or link steps) for any
+    packages that do not transitively import math/big, and then
+    it will, after compiling math/big and seeing that the .a file didn't
+    change, reuse the cached test results for the remaining packages
+    without any additional compile or link steps.
+    
+    Suppose that instead of editing a typo you made a substantive
+    change to one function, but you left the others (including their
+    line numbers) unchanged. Then the second go test will re-link
+    any of the tests that transitively depend on math/big, but it still
+    will not re-run the tests, because the link will result in the same
+    test binary as the first run.
+    
+    The only cacheable test arguments are:
+    
+            -cpu
+            -list
+            -parallel
+            -run
+            -short
+            -v
+    
+    Using any other test flag disables the cache for that run.
+    The suggested argument to mean "turn off the cache" is -count=1
+    (asking "please run this 1 time, not 0").
+    
+    There's an open question about re-running tests when inputs
+    like environment variables and input files change. For now we
+    will assume that users will bypass the test cache when they
+    need to do so, using -count=1 or "go test" with no arguments.
+    
+    This CL documents the new cache but also documents the
+    previously-undocumented distinction between "go test" with
+    no arguments (now called "local directory mode") and with
+    arguments (now called "package list mode"). It also cleans up
+    a minor detail of package list mode buffering that used to change
+    whether test binary stderr was sent to go command stderr based
+    on details like exactly how many packages were listed or
+    how many CPUs the host system had. Clearly the file descriptor
+    receiving output should not depend on those, so package list mode
+    now consistently merges all output to stdout, where before it
+    mostly did that but not always.
+    
+    Fixes #11193.
+    
+    Change-Id: I120edef347b9ddd5b10e247bfd5bd768db9c2182
+    Reviewed-on: https://go-review.googlesource.com/75631
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/internal/singleflight/singleflight.go | 22 +++++++++++++++------
- src/net/lookup.go                         | 32 ++++++++++++++++++++++---------
- src/net/lookup_test.go                    | 25 ++++++++++++++++++++++++
- src/net/tcpsock_unix_test.go              |  1 +
- 4 files changed, 65 insertions(+), 15 deletions(-)
+ misc/cgo/testplugin/test.bash       |   3 +
+ src/cmd/dist/deps.go                |   2 +
+ src/cmd/go/alldocs.go               |  38 ++++-
+ src/cmd/go/go_test.go               |  93 ++++++++++++
+ src/cmd/go/internal/test/test.go    | 286 +++++++++++++++++++++++++++++-------
+ src/cmd/go/internal/work/action.go  |  11 ++
+ src/cmd/go/internal/work/buildid.go |  57 +++++--
+ src/cmd/go/internal/work/exec.go    |  16 +-
+ 8 files changed, 427 insertions(+), 79 deletions(-)

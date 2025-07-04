@@ -1,16 +1,21 @@
-commit fc22fb8f0c6d88bb43d6ce8df606781db58b8408
-Author: Evan Phoenix <evan@phx.io>
-Date:   Fri Jan 30 15:31:47 2015 -0800
+commit d00024bd6097dac81352400e4ee228b6bc613455
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 22 16:54:07 2014 +1100
 
-    expvar: Add benchmarks for perf sensitive operations
+    syscall: use go generate to build zsyscall_windows.go
     
-    These benchmarks are only for functions commonly used in loops. The
-    other functions are typically used for inspection or setup and thus are
-    not performance sensitive.
+    I would like to create new syscalls in src/internal/syscall,
+    and I prefer not to add new shell scripts for that.
     
-    Change-Id: I8d0a0ba2d8234ecacb40fa3aa9077bf93c8fe89c
-    Reviewed-on: https://go-review.googlesource.com/3680
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Replacement for CL 136000043.
+    
+    Change-Id: I840116b5914a2324f516cdb8603c78973d28aeb4
+    Reviewed-on: https://go-review.googlesource.com/1940
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/expvar/expvar_test.go | 217 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 217 insertions(+)
+ src/syscall/mkall.sh             | 28 +++++++++-------------------
+ src/syscall/mkall_windows.bat    | 15 ---------------
+ src/syscall/mksyscall_windows.go | 39 +++++++++++++++++++++++++++++++--------
+ src/syscall/syscall_windows.go   |  2 ++
+ src/syscall/zsyscall_windows.go  |  3 +--
+ 5 files changed, 43 insertions(+), 44 deletions(-)

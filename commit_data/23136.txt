@@ -1,18 +1,18 @@
-commit 972a478ddf689a375dffc1a9923742b896b63bd0
+commit 42da27002428ed27f9aeee5800120e2222c226a0
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 21 15:00:06 2015 -0400
+Date:   Mon Apr 27 16:08:11 2015 -0400
 
-    cmd/compile: don't cater to race detector in write barriers
+    runtime: fix race in BenchmarkPingPongHog
     
-    The new lower-level barriers work fine and don't need special handling,
-    because they appear to the race detector as (visible) ordinary assignments.
+    The master goroutine was returning before
+    the child goroutine had done its final i < b.N
+    (the one that fails and causes it to exit the loop)
+    and then the benchmark harness was updating
+    b.N, causing a read+write race on b.N.
     
-    Change-Id: I7477d73a3deecbebf68716580678c595cc4151e3
-    Reviewed-on: https://go-review.googlesource.com/10316
+    Change-Id: I2504270a0de30544736f6c32161337a25b505c3e
+    Reviewed-on: https://go-review.googlesource.com/9368
     Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/racewalk.go | 25 -------------
- src/cmd/compile/internal/gc/walk.go     | 62 +++------------------------------
- 2 files changed, 4 insertions(+), 83 deletions(-)
+ src/runtime/proc_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

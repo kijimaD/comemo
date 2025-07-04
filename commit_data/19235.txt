@@ -1,18 +1,15 @@
-commit 9d7b9fb7d01c831e67b82f352676097835af01fc
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Sat Apr 26 19:56:06 2014 -0700
+commit 8409dea8ee87dcaf8ecbf16ed59214eb08524973
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 26 10:34:33 2014 -0700
 
-    encoding/ascii85: handle non-data bytes correctly
+    os: cap reads and writes to 2GB on Darwin and FreeBSD
     
-    Previously Read wouldn't return once its internal input buffer
-    is filled with non-data bytes.
-    Fixes #7875.
+    Fixes #7812
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=josharian, iant
+    R=rsc, iant, adg, ruiu, minux.ma, josharian
     CC=golang-codereviews
-    https://golang.org/cl/90820043
+    https://golang.org/cl/89900044
 
- src/pkg/encoding/ascii85/ascii85.go      | 12 ++++++++++++
- src/pkg/encoding/ascii85/ascii85_test.go | 11 +++++++++++
- 2 files changed, 23 insertions(+)
+ src/pkg/os/file_unix.go | 31 ++++++++++++++++++++++++++++---
+ 1 file changed, 28 insertions(+), 3 deletions(-)

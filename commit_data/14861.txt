@@ -1,16 +1,23 @@
-commit ab1385ec95fe5eec367b8c40196a8962c1ca8ee5
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Jan 11 22:05:46 2013 +0100
+commit bef4cb475c0638ab5193f75f2683b35a7c7f6547
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 11 10:03:43 2013 -0800
 
-    test: adapt old-style tests to new flag parsing.
+    net/http: buffer before chunking
     
-    The -I. syntax now needs a space to be recognized in the
-    compiler.
+    This introduces a buffer between writing from a handler and
+    writing chunks.  Further, it delays writing the header until
+    the first full chunk is ready.  In the case where the first
+    full chunk is also the final chunk (for small responses), that
+    means we can also compute a Content-Length, which is a nice
+    side effect for certain benchmarks.
     
-    R=golang-dev, bradfitz
+    Fixes #2357
+    
+    R=golang-dev, dave, minux.ma, rsc, adg, balasanjay
     CC=golang-dev
-    https://golang.org/cl/7098046
+    https://golang.org/cl/6964043
 
- test/safe/nousesafe.go | 2 +-
- test/safe/usesafe.go   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/header.go     |  10 ++
+ src/pkg/net/http/serve_test.go |  16 +-
+ src/pkg/net/http/server.go     | 394 ++++++++++++++++++++++++-----------------
+ 3 files changed, 249 insertions(+), 171 deletions(-)

@@ -1,12 +1,15 @@
-commit a0b2d154e6e3ef2d2b4f43b22e4e6579b7d3ccf4
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 5 13:59:39 2011 -0700
+commit f7467e85e173bb029084b8d255fbb87595592d99
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 5 13:04:43 2011 -0700
 
-    doc: document r60.2
+    encoding/binary: added benchmarks
     
-    R=rsc, dsymonds
+    binary.BenchmarkPutUvarint32 20000000    85.6 ns/op
+    binary.BenchmarkPutUvarint64 10000000   299   ns/op
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5204041
+    https://golang.org/cl/5148049
 
- doc/devel/release.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/encoding/binary/varint_test.go | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

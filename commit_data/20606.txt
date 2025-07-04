@@ -1,13 +1,36 @@
-commit 1a1341afed8454c40d86b20aa3950b75c60068ea
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 1 13:38:00 2014 +1000
+commit 7283e08cbf06bcd32a391183e26080cff301e7f9
+Author: Hector Martin Cantero <hector@marcansoft.com>
+Date:   Wed Sep 24 13:20:25 2014 -0400
 
-    tag go1.3.3
+    runtime: keep g->syscallsp consistent after cgo->Go callbacks
     
-    LGTM=crawshaw
-    R=golang-codereviews, crawshaw
-    CC=golang-codereviews
-    https://golang.org/cl/146610043
+    Normally, the caller to runtime.entersyscall() must not return before
+    calling runtime.exitsyscall(), lest g->syscallsp become a dangling
+    pointer. runtime.cgocallbackg() violates this constraint. To work around
+    this, save g->syscallsp and g->syscallpc around cgo->Go callbacks, then
+    restore them after calling runtime.entersyscall(), which restores the
+    syscall stack frame pointer saved by cgocall. This allows the GC to
+    correctly trace a goroutine that is currently returning from a
+    Go->cgo->Go chain.
+    
+    This also adds a check to proc.c that panics if g->syscallsp is clearly
+    invalid. It is not 100% foolproof, as it will not catch a case where the
+    stack was popped then pushed back beyond g->syscallsp, but it does catch
+    the present cgo issue and makes existing tests fail without the bugfix.
+    
+    Fixes #7978.
+    
+    LGTM=dvyukov, rsc
+    R=golang-codereviews, dvyukov, minux, bradfitz, iant, gobot, rsc
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/131910043
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue7978.go | 99 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/run.bash               |  2 +
+ src/run.bat                |  7 ++++
+ src/runtime/cgocall.go     | 12 +++++-
+ src/runtime/proc.c         | 39 ++++++++++++------
+ src/runtime/runtime.h      |  1 +
+ src/runtime/stubs.go       |  1 +
+ 8 files changed, 149 insertions(+), 13 deletions(-)

@@ -1,19 +1,12 @@
-commit a55de2ba619a9203e7d93fd3efde127d1ad922a2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 4 21:25:11 2011 -0700
+commit 0b534bc9c3a8d02fc449c92a609eb78d2eac4d81
+Author: Paul Borman <borman@google.com>
+Date:   Tue Oct 4 13:58:31 2011 -0700
 
-    5l/6l/8l: add a DT_DEBUG dynamic tag to a dynamic ELF binary
+    pkg/syscall: add Mkfifo for linux platforms
     
-    This requires making the .dynamic section writable, as the
-    dynamic linker will change the value of the DT_DEBUG tag at
-    runtime.  The DT_DEBUG tag is used by gdb to find all loaded
-    shared libraries.
-    
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5189044
+    https://golang.org/cl/5131055
 
- src/cmd/5l/asm.c | 3 ++-
- src/cmd/6l/asm.c | 4 +++-
- src/cmd/8l/asm.c | 4 +++-
- 3 files changed, 8 insertions(+), 3 deletions(-)
+ src/pkg/syscall/syscall_linux.go | 4 ++++
+ 1 file changed, 4 insertions(+)

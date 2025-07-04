@@ -1,15 +1,14 @@
-commit 8d6a12f57012abec3db7bd7a124ac7551faeef04
+commit 750b6c63f9e3c81d055ac73395c82381a5e0281e
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 21 19:57:19 2011 -0700
+Date:   Thu Apr 21 16:01:29 2011 -0700
 
-    http: clarify docs on Request HTTP version
+    http: close underlying gzip Reader too
     
-    Fixes #910
+    Fixes #1724
     
-    R=adg, rsc1
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4439062
+    https://golang.org/cl/4443056
 
- src/pkg/http/dump.go    | 2 ++
- src/pkg/http/request.go | 9 ++++++---
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/pkg/http/transport.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

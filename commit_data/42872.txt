@@ -1,25 +1,21 @@
-commit c8ea03828b0645b1fd5725888e44873b75fcfbb6
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Wed Apr 22 22:17:56 2020 +0300
+commit 821b7994826cf8f9f5f66ca35339ffe088dba02d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun Feb 9 01:40:45 2020 -0500
 
-    text/template: add CommentNode to template parse tree
+    test: clean up run.go
     
-    Fixes #34652
+    • Inline check function because it's more readable.
+    • Delete toolPath because it was unused.
+    • Use strings.TrimPrefix because it's simpler.
+    • Remove out variable because its value was unused.
+    • Rename serr to err because it's more consistent.
     
-    Change-Id: Icf6e3eda593fed826736f34f95a9d66f5450cc98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229398
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I084fb4f8b399578834d5eea29a673c386cf3a357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218701
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Hajime Hoshi <hajimehoshi@gmail.com>
 
- api/next.txt                          | 14 ++++++++++++++
- doc/go1.16.html                       | 10 ++++++++++
- src/html/template/escape.go           |  2 ++
- src/html/template/template_test.go    | 16 ++++++++++++++++
- src/text/template/exec.go             |  1 +
- src/text/template/parse/lex.go        |  8 +++++++-
- src/text/template/parse/lex_test.go   |  7 +++++--
- src/text/template/parse/node.go       | 33 +++++++++++++++++++++++++++++++++
- src/text/template/parse/parse.go      | 22 +++++++++++++++++++---
- src/text/template/parse/parse_test.go | 25 +++++++++++++++++++++++++
- 10 files changed, 132 insertions(+), 6 deletions(-)
+ test/run.go | 48 ++++++++++++++++++++++--------------------------
+ 1 file changed, 22 insertions(+), 26 deletions(-)

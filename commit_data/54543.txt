@@ -1,29 +1,27 @@
-commit 9b883484a8c1c0fb556ac0d04cf24e54dff7eb47
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Sep 19 10:36:19 2023 +0000
+commit 0a6c4c87404ecb018faf002919e5d5db04c69ee2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 31 11:14:35 2022 -0400
 
-    all: clean unnecessary casts for test files
+    cmd/compile/internal/types2: fix tests on js/wasm
     
-    This is a follow up of CL 528696.
+    The js/wasm builder started failing as of CL 432535 due to needing
+    'go build' to import standard-library packages that are no longer
+    installed to GOROOT/pkg. Since js/wasm can't exec subprocesses,
+    it cannot run 'go build' to generate the export data needed for
+    these tests.
     
-    Change-Id: I5b71eabedb12567c4b1b36f7182a3d2b0ed662a5
-    GitHub-Last-Rev: acaf3ac11c38042ad27b99e1c70a3c9f1a554a15
-    GitHub-Pull-Request: golang/go#62713
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529197
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #47257.
+    
+    Change-Id: I804235fd725faf00b27cbed79ee1f43dea8ab734
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446635
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/archive/zip/reader_test.go        |  6 +++---
- src/archive/zip/zip_test.go           |  2 +-
- src/bufio/scan_test.go                |  2 +-
- src/debug/buildinfo/buildinfo_test.go |  2 +-
- src/debug/elf/file_test.go            |  2 +-
- src/internal/fmtsort/sort_test.go     |  2 +-
- src/reflect/export_test.go            |  2 +-
- src/runtime/export_test.go            | 18 +++++++++---------
- src/syscall/dirent_test.go            |  2 +-
- src/syscall/exec_linux_test.go        |  6 +++---
- src/time/time_test.go                 | 18 +++++++++---------
- 11 files changed, 31 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/types2/example_test.go    | 2 +-
+ src/cmd/compile/internal/types2/issues_test.go     | 2 ++
+ src/cmd/compile/internal/types2/self_test.go       | 5 +++++
+ src/cmd/compile/internal/types2/sizes_test.go      | 3 +++
+ src/cmd/compile/internal/types2/typestring_test.go | 1 +
+ 5 files changed, 12 insertions(+), 1 deletion(-)

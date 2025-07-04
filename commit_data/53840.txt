@@ -1,18 +1,16 @@
-commit 913874367959f4f18a0299c91593c841e91b6808
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Jul 31 11:00:40 2023 +0200
+commit a89c3d76ba3c8f75663ebb83ebdbe8432582e9d2
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 17:31:08 2022 +0800
 
-    time: mention time resolution in docs
+    debug: use strings.Builder
     
-    Updates #44343
-    Updates #53824
-    
-    Change-Id: Ia7234fac4b1b88b3c331328aaa98dc85205e09ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514275
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I59db11212758b478248f34c031501a167335348c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428257
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/time/time.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/debug/buildinfo/buildinfo_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

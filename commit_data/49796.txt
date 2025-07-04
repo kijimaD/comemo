@@ -1,21 +1,32 @@
-commit e1a8e0e05d4959d0b669cb968482a5dcfe0c95f8
-Author: Keith Randall <khr@google.com>
-Date:   Tue Aug 9 15:44:16 2022 +0000
+commit 0d8a4bfc962a606584be0a76ed708f86b44164c7
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 4 01:22:45 2021 -0700
 
-    Revert "runtime: process ptr bitmaps one word at a time"
+    bufio: add Writer.AvailableBuffer
     
-    This reverts commit c3833a55433f4b2981253f64444fe5c3d1bc910a.
+    This adds a new Writer.AvailableBuffer method that returns
+    an empty buffer with a possibly non-empty capacity for use
+    with append-like APIs.
     
-    Reason for revert: Bug somewhere in this code, causing wasm and maybe linux/386 to fail.
+    The typical usage pattern is something like:
+            b := bw.AvailableBuffer()
+            b = appendValue(b, v)
+            bw.Write(b)
     
-    Change-Id: I05f7cfa467598ca0c2c84fd4f752cc4ef117cc51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422394
-    Run-TryBot: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    It allows logic combining append-like APIs with bufio.Writer to avoid
+    needing to allocate and manage buffers themselves and allows the
+    append-like APIs to directly write into the buffer for a bufio.Writer.
+    
+    Fixes #47527
+    
+    Change-Id: I9cd169f3f8e8c7cd40818caf3daf1944c826fc66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345569
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  6 +-
- src/reflect/type.go                             | 19 ++----
- src/runtime/mbitmap.go                          | 83 ++++---------------------
- 3 files changed, 17 insertions(+), 91 deletions(-)
+ src/bufio/bufio.go        |  8 ++++++++
+ src/bufio/bufio_test.go   | 33 +++++++++++++++++++++++++++++++++
+ src/bufio/example_test.go | 12 ++++++++++++
+ 3 files changed, 53 insertions(+)

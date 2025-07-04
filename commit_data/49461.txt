@@ -1,23 +1,23 @@
-commit 24b90391495094f1059cb7b09cf6bcfc790f7fe5
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Jun 13 15:39:08 2022 -0400
+commit e17439e0877d6ddb6881d9eb59758c27cc62f930
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 19 21:35:57 2021 -0700
 
-    doc/go1.19: prefer relative links to other parts of the Go website
+    go/types: don't override x.mode before using it
     
-    The Go website can be served on more than one domain (for example,
-    go.dev, golang.google.cn, tip.golang.org, localhost:6060, and so on).
-    Use relative links which work in all contexts.
+    Changing the mode of x before using the old value is clearly wrong.
+    And x is not needed anymore afterward so besides being misplaced,
+    the assignment is not needed in the first place.
     
-    For #51400.
-    Updates #53337.
+    Tested manually as it's a bit complicated to set up a test.
     
-    Change-Id: I100938981447537ac242b4045929f6db8a2674c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411974
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Needs to be back-ported to 1.17.
+    
+    Fixes #47777.
+    
+    Change-Id: I06f1fa9443eb98009b4276f566d557fd52f1d6d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343809
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.19.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/go/types/call.go | 1 -
+ 1 file changed, 1 deletion(-)

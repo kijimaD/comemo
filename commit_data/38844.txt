@@ -1,30 +1,32 @@
-commit d17d41e58d2f69d284398f1d86d93c0f31648b16
-Author: erifan01 <eric.fang@arm.com>
-Date:   Wed May 16 06:25:07 2018 +0000
+commit 6d6c8582dfffeec70d743bb9b03b5e3cc1b0a35e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Dec 1 00:21:29 2018 +0000
 
-    math/big: optimize mulAddVWW on arm64 for better performance
+    net/http: update bundled x/net/http2
     
-    Unroll the cycle 4 times to reduce load overhead.
+    This updates x/net/http2 to x/net git rev 351d144f for:
     
-    Benchmarks:
-    name                old time/op    new time/op    delta
-    MulAddVWW/1-8         15.9ns ± 0%    11.9ns ± 0%  -24.92%  (p=0.000 n=8+8)
-    MulAddVWW/2-8         16.1ns ± 0%    13.9ns ± 1%  -13.82%  (p=0.000 n=8+8)
-    MulAddVWW/3-8         18.9ns ± 0%    17.3ns ± 0%   -8.47%  (p=0.000 n=8+8)
-    MulAddVWW/4-8         21.7ns ± 0%    19.5ns ± 0%  -10.14%  (p=0.000 n=8+8)
-    MulAddVWW/5-8         25.1ns ± 0%    22.5ns ± 0%  -10.27%  (p=0.000 n=8+8)
-    MulAddVWW/10-8        41.6ns ± 0%    40.0ns ± 0%   -3.79%  (p=0.000 n=8+8)
-    MulAddVWW/100-8        368ns ± 0%     363ns ± 0%   -1.36%  (p=0.000 n=8+8)
-    MulAddVWW/1000-8      3.52µs ± 0%    3.52µs ± 0%   -0.14%  (p=0.000 n=8+8)
-    MulAddVWW/10000-8     35.1µs ± 0%    35.1µs ± 0%   -0.01%  (p=0.000 n=7+6)
-    MulAddVWW/100000-8     351µs ± 0%     351µs ± 0%   +0.15%  (p=0.038 n=8+8)
+       http2: revert Transport's strict interpretation of MAX_CONCURRENT_STREAMS
+       https://golang.org/cl/151857
     
-    Change-Id: I052a4db286ac6e4f3293289c7e9a82027da0405e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/155780
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+       http2: don't leak streams on broken body
+       https://golang.org/cl/132715
+    
+       http2: remove support for Go 1.8 and earlier
+       https://golang.org/cl/145677
+    
+       http2: reduce init-time work & allocations
+       https://golang.org/cl/127664
+    
+    And some CLs fixing typos.
+    
+    Fixes #27044
+    Fixes #27208
+    
+    Change-Id: I11cc32576c690199ceb4c0bd1448d01e3cab3097
+    Reviewed-on: https://go-review.googlesource.com/c/152080
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/math/big/arith_arm64.s | 51 ++++++++++++++++++++++++++++++++++++++--------
- src/math/big/arith_test.go | 18 ++++++++++++++++
- 2 files changed, 61 insertions(+), 8 deletions(-)
+ src/net/http/h2_bundle.go | 522 ++++++++++++++++++++--------------------------
+ 1 file changed, 228 insertions(+), 294 deletions(-)

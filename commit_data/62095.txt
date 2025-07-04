@@ -1,0 +1,22 @@
+commit 439d39a719da12c213aeb69a09c5aaef83d9df67
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Dec 1 20:06:26 2024 +0000
+
+    all: replace reflect.Value.Type.Kind with reflect.Value.Kind
+    
+    Fixes #46107
+    
+    Change-Id: I170f3cacda652752cd740e04b565a616a0e43fd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632635
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/fix/cftype.go       | 4 ++--
+ src/encoding/gob/decoder.go | 2 +-
+ src/encoding/gob/encode.go  | 2 +-
+ src/encoding/xml/read.go    | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

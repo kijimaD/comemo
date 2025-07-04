@@ -1,16 +1,18 @@
-commit bee148bf23701f1b82d4d1d1187e3ef60ba724d7
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jan 22 02:48:40 2013 +0800
+commit 0fb6f5f21b20759a0cdbc25df0c152600fd93b4d
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jan 21 11:22:08 2013 -0500
 
-    text/template/parse: don't show itemType in error messages
-    so that the user don't need to decipher something like this:
-    template: main:1: expected %!s(parse.itemType=14) in end; got "|"
-    now they get this:
-    template: main:1: unexpected "|" in end
+    crypto/cipher: don't persist errors in StreamWriter.
     
-    R=golang-dev, r
+    I messed this up from the beginning. The receiver isn't a pointer so
+    setting Err is useless. In order to maintain the API, just remove the
+    superfluous code.
+    
+    Fixes #4657.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7128054
+    https://golang.org/cl/7161043
 
- src/pkg/text/template/parse/parse.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/cipher/io.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

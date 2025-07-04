@@ -1,16 +1,17 @@
-commit ff3db8d12d8e2eacde7eccd47ea4f3e3dd5a6807
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Fri Jun 10 23:13:41 2022 +0200
+commit 30a423eb3934251286bb57954c9d9d4b2385815e
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 16:03:59 2021 -0400
 
-    doc: fix typos in Go memory model
+    go/types: no need to validate substituted instances
     
-    Change-Id: I8e94215d9bee0ea3ad378870fe565e961a9d80c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411595
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    This is a straightforward port of CL 342150 to go/types.
+    
+    Change-Id: I7363e4642ade7ab30ca822a2be71f4d2804cc4a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342669
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go_mem.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/subst.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

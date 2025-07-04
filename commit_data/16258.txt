@@ -1,14 +1,18 @@
-commit 3a32367040a06b55fa93baddba2b57371079af90
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu May 2 13:02:00 2013 +1000
+commit c8942f021e99d1d0388bb6571fc3410de94a88d9
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed May 1 15:48:13 2013 -0700
 
-    cmd/ld: fix SDYNIMPORT symbol test
+    libmach: fix build on Plan 9
     
-    As advised by iant. Fixes windows build.
+    Include libc.h before bio.h in 8.c, because bio.h uses
+    the UTFmax enum, which is declared in libc.h, since
+    the recent switch to 21-bit runes in Plan 9.
+    
+    The 5.c and 6.c files already includes libc.h.
     
     R=golang-dev, r
-    CC=golang-dev, iant
-    https://golang.org/cl/9110044
+    CC=golang-dev
+    https://golang.org/cl/9040047
 
- src/cmd/ld/lib.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/libmach/8.c | 1 +
+ 1 file changed, 1 insertion(+)

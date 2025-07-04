@@ -1,23 +1,20 @@
-commit 3adcce5ae7203e9ee7bee93a4ad913a3145e682e
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Jun 22 17:57:22 2023 +0200
+commit 308352936712476f450aaeac13166f2de019de65
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 23 18:00:34 2022 -0400
 
-    crypto: document non-determinism of GenerateKey
+    cmd/go: avoid overwriting cached Origin metadata
     
-    Fixes #58637
+    Fixes #54631.
     
-    Change-Id: I9eb3905d5b35ea22e22e1d8eb8c33594eac487fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505155
+    Change-Id: I17d2fa282642aeb1ae2a6e29a0756b8960bea34b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425255
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/crypto/ecdh/ecdh.go       |  6 +++++-
- src/crypto/ecdsa/ecdsa.go     | 10 +++++++++-
- src/crypto/ed25519/ed25519.go |  5 ++++-
- src/crypto/rsa/pkcs1v15.go    |  9 ++++++---
- src/crypto/rsa/pss.go         | 10 ++++++++++
- src/crypto/rsa/rsa.go         | 16 +++++++++++++---
- 6 files changed, 47 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go |  4 +++-
+ src/cmd/go/internal/modfetch/codehost/git.go      | 13 +++++++++++--
+ src/cmd/go/internal/modload/build.go              | 22 +++++++++++++---------
+ src/cmd/go/internal/modload/query.go              | 21 ++++++++++++++++-----
+ 4 files changed, 43 insertions(+), 17 deletions(-)

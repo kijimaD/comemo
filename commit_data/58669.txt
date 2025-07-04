@@ -1,67 +1,26 @@
-commit 0f62125487d572168b71be7acb3b9efead55b37c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jan 24 20:36:51 2025 +0000
+commit 46410b78a53a5dff4f0fb1bc181103db4029384a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 27 17:21:08 2023 -0800
 
-    internal/trace: rename go122 to tracev2
+    cmd/compile: use correct type for slice pointer
     
-    This change follows up from the previous one which renamed oldtrace to
-    tracev1, defining everything Go 1.22+ as trace v2.
+    The type of the data pointer field of a slice should be a pointer
+    to the element type, not a *uint8.
     
-    This change also re-maps some packages in preparation for sharing with
-    other parts of the standard library, like the runtime. It also cleans up
-    some other uses of 'go122' that are just a bit misleading. The mappings
-    are as follows:
+    This ensures that the SSA value representing the slice's data pointer
+    can be spilled to the stack slot for the corresponding argument.
+    Before this change the types didn't match so we ended up spilling the
+    argument to an autotmp instead of to the dedicated argument slot.
     
-    - internal/trace/event -> internal/trace/tracev2/event
-    - internal/trace/event/go122 -> internal/trace/tracev2
-    - internal/trace/internal/testgen/go122 ->
-      internal/trace/internal/testgen
+    Fixes #64414
     
-    The CL updates all import paths and runs gofmt -w -s on the entire
-    subdirectory.
-    
-    Change-Id: I35476c679a96d4eafad6b94bac5f88aa7b085d2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644218
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I09ee39e93f05aee07e3eceb14e39736d7fd70a33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545357
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/trace/main.go                              |   2 +-
- src/go/build/deps_test.go                          |  12 +-
- src/internal/trace/base.go                         |   8 +-
- src/internal/trace/batch.go                        |  22 +-
- src/internal/trace/batchcursor.go                  |   6 +-
- src/internal/trace/event.go                        | 236 ++++++++---------
- src/internal/trace/generation.go                   |  24 +-
- .../trace/internal/testgen/{go122 => }/trace.go    |  28 +-
- src/internal/trace/internal/tracev1/parser.go      |   2 +-
- src/internal/trace/order.go                        | 286 ++++++++++-----------
- src/internal/trace/raw/event.go                    |   2 +-
- src/internal/trace/raw/reader.go                   |   2 +-
- src/internal/trace/raw/textreader.go               |   2 +-
- src/internal/trace/raw/writer.go                   |   2 +-
- src/internal/trace/reader.go                       |   4 +-
- src/internal/trace/summary_test.go                 |   8 +-
- .../go122-confuse-seq-across-generations.go        |  16 +-
- .../go122-create-syscall-reuse-thread-id.go        |  10 +-
- .../generators/go122-create-syscall-with-p.go      |   6 +-
- .../generators/go122-fail-first-gen-first.go       |  14 +-
- .../go122-go-create-without-running-g.go           |   6 +-
- .../go122-syscall-steal-proc-ambiguous.go          |  12 +-
- ...go122-syscall-steal-proc-gen-boundary-bare-m.go |  10 +-
- ...-proc-gen-boundary-reacquire-new-proc-bare-m.go |  10 +-
- ...l-steal-proc-gen-boundary-reacquire-new-proc.go |  14 +-
- .../go122-syscall-steal-proc-gen-boundary.go       |  14 +-
- ...syscall-steal-proc-reacquire-new-proc-bare-m.go |  10 +-
- .../go122-syscall-steal-proc-reacquire-new-proc.go |  14 +-
- .../generators/go122-syscall-steal-proc-self.go    |   8 +-
- .../go122-syscall-steal-proc-simple-bare-m.go      |   8 +-
- .../generators/go122-syscall-steal-proc-simple.go  |  12 +-
- .../go122-syscall-steal-proc-sitting-in-syscall.go |   8 +-
- .../generators/go122-task-across-generations.go    |  12 +-
- src/internal/trace/tracev1.go                      | 112 ++++----
- src/internal/trace/tracev1_test.go                 |   6 +-
- .../trace/{event/go122 => tracev2}/event.go        |   4 +-
- src/internal/trace/{ => tracev2}/event/event.go    |   0
- src/internal/trace/version/version.go              |   8 +-
- 38 files changed, 480 insertions(+), 480 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go |  6 +++---
+ src/cmd/compile/internal/ssagen/ssa.go       |  2 +-
+ src/runtime/traceback_test.go                | 24 ++++++++++++++++++++++++
+ 3 files changed, 28 insertions(+), 4 deletions(-)

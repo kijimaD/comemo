@@ -1,16 +1,20 @@
-commit 176d5769d9b0c1ce450423545aa05761f18e516d
+commit ad00644434d5be7df0994f4f8a10c1be732d0c98
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 31 12:38:54 2011 -0500
+Date:   Mon Jan 31 11:50:04 2011 -0500
 
-    lib9: update to Unicode 6.0.0
+    unicode: build maketables during build, take 2
     
-    R=r
+    The "all:" target is the default for running gomake
+    by hand, but it is not used during the build.
+    The build runs make install and make test.
+    
+    Save the build of maketables for the test phase
+    so that the packages it needs will have been
+    installed already.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4121042
+    https://golang.org/cl/4121043
 
- src/lib9/utf/Makefile             |   16 +
- src/lib9/utf/mkrunetype.c         |   10 +-
- src/lib9/utf/runetype.c           |   47 +-
- src/lib9/utf/runetypebody-6.0.0.c | 1565 +++++++++++++++++++++++++++++++++++++
- src/lib9/utf/utf.h                |    6 -
- 5 files changed, 1588 insertions(+), 56 deletions(-)
+ src/pkg/unicode/Makefile | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

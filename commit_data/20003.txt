@@ -1,11 +1,15 @@
-commit 937f0d59fcdeec593640c4b14725aa85ea50c59b
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 13 14:56:58 2014 -0700
+commit 8881e032d43470bdeaabc9b93b5a948094264d2c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 23:32:33 2014 -0400
 
-    doc/go1.4.txt: cmd/go changes, syscall
+    [dev.power64] runtime: ignore rt_sigaction error if it's for SIGRTMAX.
+    Workaround a qemu linux user space emulation bug.
+    ref: http://git.qemu.org/?p=qemu.git;a=blob;f=linux-user/signal.c;h=1141054be2170128d6f7a340b41484b49a255936;hb=HEAD#l82
     
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/129130043
+    https://golang.org/cl/124900043
 
- doc/go1.4.txt | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/runtime/os_linux.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

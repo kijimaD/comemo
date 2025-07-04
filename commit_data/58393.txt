@@ -1,20 +1,15 @@
-commit 08725f9de28726b52c2e62a37cd378d10f10c110
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Dec 13 17:16:44 2024 +0100
+commit f8c5d04e55edcc8eb00a6c8143a2c6d22695f12b
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 3 19:19:58 2023 +0800
 
-    crypto/internal/cryptotest: skip TestAllocations on s390x
+    plugin: add available godoc link
     
-    TestXAESAllocations fails like #70448, and crypto/rand's fails in FIPS
-    mode. We can't keep chasing these without even a LUCI builder.
-    
-    Updates #67307
-    
-    Change-Id: I5d0edddf470180a321dec55cabfb018db62eb940
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636055
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I371b52215d3f9efdcab1439e7215f340dbf1ec08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539598
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/internal/cryptotest/allocations.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/plugin/plugin.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

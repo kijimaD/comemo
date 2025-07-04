@@ -1,19 +1,27 @@
-commit e6138185db7f0c3390109b3324fc7478f7e20f97
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Sep 8 22:00:13 2024 +0700
+commit d367ec6a0ed0c016603c8aba697710a131a70db8
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 1 13:54:32 2023 -0400
 
-    cmd/compile/internal/typecheck: simplify checkmake/checkunsafesliceorstring
+    runtime: move pcvalue cache to M
     
-    types2 handles all constant-related bounds checks in user Go code now,
-    so it's safe to remove the constants check from these functions.
+    Currently, the pcvalue cache is stack allocated for each operation
+    that needs to look up a lot of pcvalues. It's not always clear where
+    to put it, a lot of the time we just pass a nil cache, it doesn't get
+    reused across operations, and we put a surprising amount of effort
+    into threading these caches around.
     
-    Change-Id: I4e3fb5d22f9bbc95878c7df2ee3b0eb1819f8dd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611677
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    This CL moves it to the M, where it can be long-lived and used by all
+    pcvalue lookups, and we don't have to carefully thread it across
+    operations.
+    
+    Change-Id: I675e583e0daac887c8ef77a402ba792648d96027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515276
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 28 -------------------------
- 1 file changed, 28 deletions(-)
+ src/runtime/runtime2.go |  3 +++
+ src/runtime/symtab.go   | 46 ++++++++++++++++++++++++----------------------
+ 2 files changed, 27 insertions(+), 22 deletions(-)

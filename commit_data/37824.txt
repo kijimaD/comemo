@@ -1,19 +1,23 @@
-commit 5073bf388694fd85d4419923c536af481df4e33b
-Author: Jason LeBrun <jblebrun@gmail.com>
-Date:   Thu Jan 3 21:06:29 2019 +0000
+commit 8201b92aae7ba51ed2e2645c1f7815bfe845db72
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Thu Aug 30 21:45:21 2018 +0000
 
-    crypto/sha256: fix casting of d.nx in UnmarshalBinary
+    crypto/x509: clarify docs for SystemCertPool
     
-    Fixes #29517
+    The sentence in the docs for SystemCertPool that states that mutations
+    to a returned pool do not affect any other pool is ambiguous as to who
+    the any other pools are, because pools can be created in multiple ways
+    that have nothing to do with the system certificate pool. Also the use
+    of the word 'the' instead of 'a' early in the sentence implies there is
+    only one shared pool ever returned.
     
-    Change-Id: I7e741d82bb9f8e6ab39b6d9ab37ba6163176a097
-    GitHub-Last-Rev: 764d0bd9579cd90868c6a134cbb06dda584474d7
-    GitHub-Pull-Request: golang/go#29519
-    Reviewed-on: https://go-review.googlesource.com/c/156118
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #27385
+    
+    Change-Id: I43adbfca26fdd66c4adbf06eb85361139a1dea93
+    GitHub-Last-Rev: 2f1ba09fa403d31d2d543dca15727c6c2f896ec7
+    GitHub-Pull-Request: golang/go#27388
+    Reviewed-on: https://go-review.googlesource.com/132378
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/sha256/sha256.go      |  2 +-
- src/crypto/sha256/sha256_test.go | 63 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 64 insertions(+), 1 deletion(-)
+ src/crypto/x509/cert_pool.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

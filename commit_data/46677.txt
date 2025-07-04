@@ -1,22 +1,26 @@
-commit 665626928807c484d31a4bcb3b4b553a7a9d80eb
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Sep 28 13:46:14 2021 +0800
+commit 455c29af83524a484ac407a35f4c69ff710d7acb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 20 17:03:36 2021 -0800
 
-    cmd/asm: add error check for move constant instructions on arm64
+    [dev.typeparams] cmd/compile/internal/types2: convert untyped arguments to delete
     
-    The current Go assembler encodes "MOVK $(0<<16|32|48), Rd" as the
-    same binary with "MOVK $0, Rd", but for arm64 move constant instructions
-    MOVK, MOVN and MOVZ, "op $0, Rd" and "op $(0<<16|32|48), Rd" have
-    different semantics. In order not to change the way the assembler
-    frontend parses constants, this patch adds a check for the zero shifts.
+    For the predeclared "delete" function, types2 was checking that the
+    second argument was assignable to the map's key type, but not actually
+    updating the Types map as appropriate. So this could leave untyped
+    constants in the AST.
     
-    Change-Id: Ia844c419ce49f63605b549e3a2e98d9075dd1cf1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275812
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    The error "cannot convert" is somewhat less precise than the previous
+    "not assignable" error, but it's consistent with how types2 reports
+    other erroneous assignments of untyped constants.
+    
+    Change-Id: Ic3ca3a3611ad0e4646c050e93088cdf992234e5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285059
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64error.s | 2 ++
- src/cmd/internal/obj/arm64/asm7.go             | 3 +++
- 2 files changed, 5 insertions(+)
+ src/cmd/compile/internal/types2/builtins.go           | 4 ++--
+ src/cmd/compile/internal/types2/testdata/builtins.src | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

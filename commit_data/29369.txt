@@ -1,14 +1,15 @@
-commit 3f2b85a8d14cb0435a84501ac9f25d80d6129348
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:50:54 2016 +0200
+commit 8086e7c6ab85646cd53d5cb6d6183750a76e6214
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 12 13:17:02 2016 +1000
 
-    cmd/cgo: add support for GOARCH=mips{,le}
+    testing: improve the documentation for the -run flag
     
-    Change-Id: I47c6867fc653c8388ad32e210a8027baa592eda3
-    Reviewed-on: https://go-review.googlesource.com/31483
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    It's not intuitive, especially in the presence of subtests, so improve the
+    explanation and extend and explain the examples.
+    
+    Change-Id: I6c4d3f8944b60b12311d0c0f0a8e952e7c35a9ed
+    Reviewed-on: https://go-review.googlesource.com/28995
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/cgo/main.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/testing/testing.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

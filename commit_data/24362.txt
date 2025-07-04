@@ -1,20 +1,21 @@
-commit 8560ead38a78ba9d8e3c482014654023881753e3
-Author: Francisco Claude <fclaude@recoded.cl>
-Date:   Wed Sep 16 12:56:06 2015 -0300
+commit da87cf5dcf342a31c82ff7980bdc076558ff6674
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 24 16:27:07 2015 -0700
 
-    multipart: fixes problem parsing mime/multipart of certain lengths
+    net/http: fix a data race when Request.Cancel is used
     
-    When parsing the multipart data, if the delimiter appears but doesn't
-    finish with -- or \n or \r\n, it assumes the data can be consumed. This
-    is incorrect when the peeking buffer finishes with --delimiter-
+    The "add a Request.Cancel channel" change (https://golang.org/cl/11601)
+    added support for "race free" cancellation, but introduced a data race. :)
     
-    Fixes #12662
+    Noticed while running "go test -race net/http". The test is skipped in
+    short mode, so we never saw it on the dashboard.
     
-    Change-Id: I329556a9a206407c0958289bf7a9009229120bb9
-    Reviewed-on: https://go-review.googlesource.com/14652
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ica14579d8723f8f9d1691e8d56c30b585b332c64
+    Reviewed-on: https://go-review.googlesource.com/12663
+    Reviewed-by: Aaron Jacobs <jacobsa@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/multipart/multipart.go      | 16 +++++++++---
- src/mime/multipart/multipart_test.go | 48 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 61 insertions(+), 3 deletions(-)
+ src/net/http/transport.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,29 +1,12 @@
-commit 2f6cbc74f18542b0f79374a2210e420b9500218f
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Oct 7 22:05:32 2012 +0400
+commit e8246569075c98c6cf13b158a11d0b968b1b6297
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 8 01:54:56 2012 +0800
 
-    race: runtime changes
-    This is a part of a bigger change that adds data race detection feature:
-    https://golang.org/cl/6456044
+    test/run.go: use correct executable filename on Windows, fix build
     
-    R=rsc
-    CC=gobot, golang-dev
-    https://golang.org/cl/6535050
+    R=golang-dev, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/6624060
 
- src/pkg/runtime/cgocall.c                   |  24 +++
- src/pkg/runtime/chan.c                      |  53 +++++-
- src/pkg/runtime/hashmap.c                   |  25 ++-
- src/pkg/runtime/malloc.goc                  |  19 ++-
- src/pkg/runtime/mgc0.c                      |   4 +
- src/pkg/runtime/proc.c                      |  16 +-
- src/pkg/runtime/race.c                      | 255 ++++++++++++++++++++++++++++
- src/pkg/runtime/race.go                     |  26 +++
- src/pkg/runtime/race.h                      |  30 ++++
- src/pkg/runtime/race/race.go                | 105 ++++++++++++
- src/pkg/runtime/race/race_darwin_amd64.syso | Bin 0 -> 144548 bytes
- src/pkg/runtime/race/race_linux_amd64.syso  | Bin 0 -> 141800 bytes
- src/pkg/runtime/race0.c                     | 103 +++++++++++
- src/pkg/runtime/runtime.h                   |   5 +-
- src/pkg/runtime/slice.c                     |  56 +++++-
- src/pkg/runtime/time.goc                    |   5 +
- 16 files changed, 714 insertions(+), 12 deletions(-)
+ test/run.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

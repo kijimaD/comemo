@@ -1,20 +1,21 @@
-commit 424738e43ec3c775f7d0c36a90791eaca5dd85d1
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 11:25:58 2015 -0400
+commit 634b50c6e138669d5518c0c02d3bfba79e1278ab
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Sep 1 19:05:44 2015 -0500
 
-    runtime: added assembly part of linux/mips64{,le} support
+    [dev.ssa] cmd/compile: truncate when converting floats to ints
     
-    Change-Id: I9e94027ef66c88007107de2b2b75c3d7cf1352af
-    Reviewed-on: https://go-review.googlesource.com/14467
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Modified to use the truncating conversion.
+    
+    Fixes reflect.
+    
+    Change-Id: I47bf3200abc2d2c662939a2a2351e2ff84168f4a
+    Reviewed-on: https://go-review.googlesource.com/14167
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/asm_mips64x.s       | 820 ++++++++++++++++++++++++++++++++++++++++
- src/runtime/atomic_mips64x.s    |  13 +
- src/runtime/duff_mips64x.s      | 268 +++++++++++++
- src/runtime/memclr_mips64x.s    |  42 ++
- src/runtime/memmove_mips64x.s   | 105 +++++
- src/runtime/mkduff.go           |  23 ++
- src/runtime/rt0_linux_mips64x.s |  31 ++
- src/runtime/sys_linux_mips64x.s | 427 +++++++++++++++++++++
- src/runtime/tls_mips64x.s       |  23 ++
- 9 files changed, 1752 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             |  2 +-
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go |  3 +++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  8 +++----
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   | 20 ++++++++--------
+ src/cmd/compile/internal/ssa/opGen.go          | 24 +++++++++----------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 32 +++++++++++++-------------
+ 6 files changed, 46 insertions(+), 43 deletions(-)

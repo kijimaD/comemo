@@ -1,18 +1,20 @@
-commit 27a0012bd65a44429e78c19ec18ecf87640d8f45
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Fri Jun 19 11:19:22 2020 +0800
+commit 6988e6d57939a9e1c499beab5e9811d6d21274d1
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 10 13:05:54 2020 -0500
 
-    cmd/dist: don't copy arm64 specific files for bootstap build
+    cmd: update golang.org/x/mod to v0.2.0 (latest)
     
-    This patch avoids copying cmd/compile/internal/ssa/flags_arm64_test.s.
+    This pulls in two new commits: a fix for a test broken on plan9 and a
+    correction to a comment.
     
-    Fixes #39701
-    
-    Change-Id: I35d0567e2d3455faf28828c55a0b6d66a5be49e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238679
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    Change-Id: I31cf046a5073872714c758894732b2fcc800ab6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214289
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/dist/buildtool.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go.mod                                     | 2 +-
+ src/cmd/go.sum                                     | 4 ++--
+ src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go | 3 ---
+ src/cmd/vendor/modules.txt                         | 2 +-
+ 4 files changed, 4 insertions(+), 7 deletions(-)

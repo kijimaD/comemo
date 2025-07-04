@@ -1,25 +1,21 @@
-commit 19f795042a24a931dc8a0fea49b01967f0ed9859
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 27 15:26:36 2011 -0700
+commit f795bdb979482d967aea05696b0b0229af74d79b
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Mon Jun 27 16:12:04 2011 -0400
 
-    http: add FileSystem interface, make FileServer use it
+    bufio: do not cache Read errors
     
-    Permits serving from virtual filesystems, such as files linked
-    into a binary, or from a zip file.
+    Reader previously had cached an error from the underlying reader
+    and would return it on every subsequent call to Read.  The Reader
+    will now return the error only once, and subsequent calls will result
+    in a new Read call to the underlying Reader.
     
-    Also adds a gofix for:
+    Fixes #1934.
     
-    http.FileServer(root, prefix) -> http.StripPrefix(prefix, http.FileServer(http.Dir(root)))
-    
-    R=r, rsc, gri, adg, dsymonds, r, gri
+    R=bradfitz, rogpeppe, rsc
     CC=golang-dev
-    https://golang.org/cl/4629047
+    https://golang.org/cl/4528133
 
- src/cmd/godoc/godoc.go           |  2 +-
- src/cmd/gofix/Makefile           |  1 +
- src/cmd/gofix/httpfs.go          | 63 ++++++++++++++++++++++++++++++++++++++
- src/cmd/gofix/httpfs_test.go     | 47 ++++++++++++++++++++++++++++
- src/pkg/http/fs.go               | 60 ++++++++++++++++++++++++++++--------
- src/pkg/http/fs_test.go          | 66 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/http/readrequest_test.go | 48 +++++++++++++++++++++++------
- 7 files changed, 264 insertions(+), 23 deletions(-)
+ src/pkg/bufio/bufio.go           | 22 ++++++++++++++--------
+ src/pkg/bufio/bufio_test.go      | 10 ++++++----
+ src/pkg/testing/iotest/reader.go | 21 ++++++++++++++++++++-
+ 3 files changed, 40 insertions(+), 13 deletions(-)

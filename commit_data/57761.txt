@@ -1,22 +1,21 @@
-commit 2a98a1849f059ffa94ab23a1ab7d8fa0fd0b48dd
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Oct 23 16:28:52 2024 +0000
+commit 111ab754324e5d5646f84354bc1a134907baaa49
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Aug 25 16:42:42 2023 +0000
 
-    runtime: uphold goroutine profile invariants in coroswitch
+    log/slog: use atomic.Pointer instead of atomic.Value
     
-    Goroutine profiles require checking in with the profiler before any
-    goroutine starts running. coroswitch is a place where a goroutine may
-    start running, but where we do not check in with the profiler, which
-    leads to crashes. Fix this by checking in with the profiler the same way
-    execute does.
+    There is no need to use atomic.Value, atomic.Pointer should also
+    be more performant here.
     
-    Fixes #69998.
-    
-    Change-Id: Idef6dd31b70a73dd1c967b56c307c7a46a26ba73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622016
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I04cc1befbe1112665a9d9e16197ea3caef5e5fa3
+    GitHub-Last-Rev: 577902519ff744c936c5e707802f66aeae32c760
+    GitHub-Pull-Request: golang/go#62288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
 
- src/runtime/coro.go             | 12 +++++++++++
- src/runtime/pprof/pprof_test.go | 45 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+)
+ src/log/slog/logger.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

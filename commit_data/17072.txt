@@ -1,17 +1,28 @@
-commit 96c583b84cf976348b781be7c43e7220ce672474
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 7 11:19:07 2013 -0700
+commit 5a54696d78003a1e5c17ea9d818dc00e85624c2c
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 7 10:23:24 2013 -0700
 
-    test: fix return.go to remove unused labels
+    cmd/ld: Put the textflag constants in a separate file.
+    We can then include this file in assembly to replace
+    cryptic constants like "7" with meaningful constants
+    like "(NOPROF|DUPOK|NOSPLIT)".
     
-    The gc compiler only gives an error about an unused label if
-    it has not given any errors in an earlier pass.  Remove all
-    unused labels in this test because they don't test anything
-    useful and they cause gccgo to give unexpected errors.
+    Converting just pkg/runtime/asm*.s for now.  Dropping NOPROF
+    and DUPOK from lots of places where they aren't needed.
+    More .s files to come in a subsequent changelist.
     
-    R=golang-dev, bradfitz
+    A nonzero number in the textflag field now means
+    "has not been converted yet".
+    
+    R=golang-dev, daniel.morsing, rsc, khr
     CC=golang-dev
-    https://golang.org/cl/12580044
+    https://golang.org/cl/12568043
 
- test/return.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/5l/5.out.h          |   7 +--
+ src/cmd/6l/6.out.h          |   6 +--
+ src/cmd/8l/8.out.h          |   6 +--
+ src/cmd/ld/textflag.h       |  19 +++++++
+ src/pkg/runtime/asm_386.s   | 105 ++++++++++++++++++------------------
+ src/pkg/runtime/asm_amd64.s | 127 ++++++++++++++++++++++----------------------
+ src/pkg/runtime/asm_arm.s   |  65 ++++++++++++-----------
+ 7 files changed, 172 insertions(+), 163 deletions(-)

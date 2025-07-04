@@ -1,27 +1,16 @@
-commit 2dc63d15442b6bb4445a6f916c48b656e1ad4c54
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Tue Sep 8 22:22:44 2015 +0200
+commit f35bc3ee87e1771891e2087363381bda616e67ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 22 12:33:21 2015 -0700
 
-    cmd/compile/internal/gc: cleaning; use range when appropriate
+    math/big: document rounding for Rat.FloatToString
     
-    Made use of range statement in for loops.
-    Cleaning along the way:
-    -remove unnecessary variable declarations
-    -rename variables
-    -remove dead code
+    Fixes #11523.
     
-    This change passes go build -toolexec 'toolstash -cmp' -a std.
-    
-    Change-Id: Ife8c2a98482a81ba91f5bbb65142d9f3dc46d6ee
-    Reviewed-on: https://go-review.googlesource.com/14379
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I172f6facd555a1c6db76f25d5097343c20dea59a
+    Reviewed-on: https://go-review.googlesource.com/12507
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/lex.go      | 150 +++++++++++++----------------
- src/cmd/compile/internal/gc/popt.go     |  88 +++++++----------
- src/cmd/compile/internal/gc/racewalk.go |   4 +-
- src/cmd/compile/internal/gc/sinit.go    | 162 +++++++++++++-------------------
- src/cmd/compile/internal/gc/subr.go     |   9 +-
- src/cmd/compile/internal/gc/util.go     |   6 +-
- 6 files changed, 172 insertions(+), 247 deletions(-)
+ src/math/big/ratconv.go      | 3 ++-
+ src/math/big/ratconv_test.go | 2 ++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

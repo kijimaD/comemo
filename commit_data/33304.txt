@@ -1,27 +1,37 @@
-commit c280126557ee53b5b80f9f41eac18d801daa282e
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed Apr 19 14:14:28 2017 -0400
+commit 55f19b8d1d6a773c04228d9122db9288c5e712e7
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 25 16:30:02 2017 -0400
 
-    cmd/asm, cmd/internal/obj/s390x, math: add "test under mask" instructions
+    cmd/trace: update HTML; expand viewer to whole window
     
-    Adds the following s390x test under mask (immediate) instructions:
+    This updates the HTML served for the trace viewer to follow the latest
+    revision of the example from the upstream tracing project.
     
-    TMHH
-    TMHL
-    TMLH
-    TMLL
+    The main thing this adds is CSS for the trace viewer (which was
+    actually in the example at the originally referenced revision, so I'm
+    not sure why it got dropped). In particular, this expands the trace
+    viewer to use the entire browser client area, which fixes several
+    problems with the current page:
     
-    These are useful for testing bits and are already used in the math package.
+    1. The details pane gets cut off at a strange place and can get a
+    scroll bar even if there's plenty of room below it on the page. This
+    fixes the bottom of the details pane to the bottom of the window.
     
-    Change-Id: Idffb3f83b238dba76ac1e42ac6b0bf7f1d11bea2
-    Reviewed-on: https://go-review.googlesource.com/41092
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    2. If the track view is very tall (lots of procs), there's no way to
+    view the top tracks and the details pane at the same time. This fixes
+    this problem by limiting the height of the track view to something
+    less than the height of the window so it gets a scroll bar of its own
+    if necessary.
+    
+    3. Dragging the divider between the track pane and the details pane
+    actually moves the bottom of the details pane without moving the
+    divider. Fixing the height of the trace viewer fixes this problem.
+    
+    Change-Id: Ia811e72a7413417ca21c45e932c9db2724974633
+    Reviewed-on: https://go-review.googlesource.com/54632
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/s390x.s |  5 +++++
- src/cmd/internal/obj/s390x/a.out.go       |  6 ++++++
- src/cmd/internal/obj/s390x/anames.go      |  4 ++++
- src/cmd/internal/obj/s390x/asmz.go        | 21 +++++++++++++++++++++
- src/math/sin_s390x.s                      | 12 ++++++------
- 5 files changed, 42 insertions(+), 6 deletions(-)
+ src/cmd/trace/trace.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

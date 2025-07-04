@@ -1,0 +1,23 @@
+commit ba10a38ed0cf05082e488ed58b68483820024e91
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Sep 30 18:01:10 2024 +0000
+
+    runtime, internal/syscall/unix: mark getrandom vDSO as non-escaping
+    
+    Updates #66779
+    Updates #69577
+    
+    Change-Id: I0dea5a30aab87aaa443e7e6646c1d07aa865ac1c
+    GitHub-Last-Rev: 1cea46deb345369346efb2cb320fae1644466322
+    GitHub-Pull-Request: golang/go#69719
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616696
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/syscall/unix/getrandom.go | 1 +
+ src/runtime/vgetrandom_linux.go        | 1 +
+ 2 files changed, 2 insertions(+)

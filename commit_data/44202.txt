@@ -1,43 +1,20 @@
-commit a5a5e2c968eb14335f4e46606d8edfbdbdcea728
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Jan 25 17:51:03 2021 -0800
+commit ebdb15f7f8db391bfb8282e10f7759ca0aec5a4f
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu May 21 20:20:26 2020 -0400
 
-    runtime: make sure to remove open-coded defer entries in all cases after a recover
+    [dev.link] cmd/link: move asmb2 plan 9 architecture code out of architectures
     
-    We add entries to the defer list at panic/goexit time on-the-fly for
-    frames with open-coded defers. We do this so that we can correctly
-    process open-coded defers and non-open-coded defers in the correct order
-    during panics/goexits. But we need to remove entries for open-coded
-    defers from the defer list when there is a recover, since those entries
-    may never get removed otherwise and will get stale, since their
-    corresponding defers may now be processed normally (inline).
-    
-    This bug here is that we were only removing higher-up stale entries
-    during a recover if all defers in the current frame were done. But we
-    could have more defers in the current frame (as the new test case
-    shows). In this case, we need to leave the current defer entry around
-    for use by deferreturn, but still remove any stale entries further along
-    the chain.
-    
-    For bug 43921, simple change that we should abort the removal loop for
-    any defer entry that is started (i.e. in process by a still
-    not-recovered outer panic), even if it is not an open-coded defer.
-    
-    This change does not fix bug 43920, which looks to be a more complex fix.
-    
-    Fixes #43882
-    Fixes #43921
-    
-    Change-Id: Ie05b2fa26973aa26b25c8899a2abc916090ee4f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/286712
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: I7a8f8edc4511e3ae0c44ec5017167f14d4c60755
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234891
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/crash_test.go                 | 12 ++++++
- src/runtime/defer_test.go                 | 28 ++++++++++++++
- src/runtime/panic.go                      | 63 +++++++++++++++++--------------
- src/runtime/testdata/testprog/deadlock.go | 39 +++++++++++++++++++
- 4 files changed, 113 insertions(+), 29 deletions(-)
+ src/cmd/link/internal/amd64/asm.go | 35 ----------------------------
+ src/cmd/link/internal/amd64/obj.go |  4 +++-
+ src/cmd/link/internal/arm/asm.go   | 29 -----------------------
+ src/cmd/link/internal/arm/obj.go   |  3 ++-
+ src/cmd/link/internal/ld/asmb.go   | 47 ++++++++++++++++++++++++++------------
+ src/cmd/link/internal/ld/lib.go    |  4 ++++
+ src/cmd/link/internal/x86/asm.go   | 25 --------------------
+ src/cmd/link/internal/x86/obj.go   |  3 ++-
+ 8 files changed, 44 insertions(+), 106 deletions(-)

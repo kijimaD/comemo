@@ -1,22 +1,19 @@
-commit bd7de94d7fe8a0ba7742e90b1d6a09baa468bb58
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 8 10:22:50 2015 -0700
+commit 0bd8de10486ec14762e9531fd62e780c2ab5180c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 12:37:05 2015 -0400
 
-    cmd/link: pass -Wl,-z,nodelete when creating an ELF shared library
+    sync/atomic: reenable TestNilDeref everywhere
     
-    Go shared libraries do not support dlclose, and there is no likelihood
-    that they will suppose dlclose in the future.  Set the DF_1_NODELETE
-    flag to tell the dynamic linker to not attempt to remove them from
-    memory.  This makes the shared library act as though every call to
-    dlopen passed the RTLD_NODELETE flag.
+    There is absolutely no information about how this was failing.
+    If we reenable the test then at least we can get a build log from
+    darwin/arm.
     
-    Fixes #12582.
-    Update #11100.
-    Update #12873.
+    There are not even freebsd/arm or netbsd/arm builders,
+    so not too worried about those. (That is another problem.)
     
-    Change-Id: Id4b6e90a1b54e2e6fc8355b5fb22c5978fc762b4
-    Reviewed-on: https://go-review.googlesource.com/15605
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I0e739a4dd2897adbe110aa400d720d8fa02ae65f
+    Reviewed-on: https://go-review.googlesource.com/12920
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/sync/atomic/atomic_test.go | 7 -------
+ 1 file changed, 7 deletions(-)

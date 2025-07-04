@@ -1,13 +1,19 @@
-commit 59129c6a9356af5831b3f0a4bc581ba6abf26c8a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 25 15:11:14 2015 -0700
+commit 0bb2a50a55b15b7a9ea63cfa55a29e13ef29b542
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 24 14:51:51 2015 -0700
 
-    math/big: remove some string conversions in Int encoding
+    [dev.ssa] cmd/compile: respect stack slot width when storing/loading registers
     
-    Change-Id: I1180aa3d30fb8563c8e6ecefeb3296af0a88f5a6
-    Reviewed-on: https://go-review.googlesource.com/14998
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Prior to this, we were smashing our own stack,
+    which caused the crypto/sha256 tests to fail.
+    
+    Change-Id: I7dd94cf466d175b3be0cd65f9c4fe8b1223081fe
+    Reviewed-on: https://go-review.googlesource.com/12660
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/intmarsh.go | 18 ++++++++++++------
- src/math/big/ratmarsh.go |  2 ++
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             | 25 +++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  6 ++----
+ src/cmd/compile/internal/ssa/opGen.go          |  8 ++++----
+ src/cmd/compile/internal/ssa/regalloc.go       |  8 ++++----
+ 4 files changed, 31 insertions(+), 16 deletions(-)

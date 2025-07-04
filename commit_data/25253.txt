@@ -1,19 +1,25 @@
-commit 2190750ce1f52cbbe2d7e3052e85c775d8259b0f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 10 23:51:36 2015 -0500
+commit 7a3dcd2d0f3e311e6f18edf841862ad4b8f90b51
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 14 03:37:10 2015 +0000
 
-    net: add test for CL 17458
+    vendor: import golang.org/x/net/http2
     
-    I thought that we avoided creating on-disk Unix sockets,
-    but I was mistaken. Use one to test CL 17458.
+    golang.org/x/net/http2 becomes net/http/h2_bundle.go (using adonovan's
+    x/tools/cmd/bundle tool), becoming a hidden part of the net/http package.
     
-    Fixes #11826.
+    golang.org/x/net/http2/hpack becomes vendor/golang.org/x/net/http2/hpack.
     
-    Change-Id: Iaa1fb007b95fa6be48200586522a6d4789ecd346
-    Reviewed-on: https://go-review.googlesource.com/17725
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    At git rev 7331ef52 (https://go-review.googlesource.com/15821)
+    
+    Change-Id: Ia6683e6f91a481b11a778638bf65b6a338744eea
+    Reviewed-on: https://go-review.googlesource.com/15822
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/unix_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ src/net/http/h2_bundle.go                          | 4334 ++++++++++++++++++++
+ src/vendor/golang.org/x/net/http2/hpack/encode.go  |  251 ++
+ .../golang.org/x/net/http2/hpack/encode_test.go    |  330 ++
+ src/vendor/golang.org/x/net/http2/hpack/hpack.go   |  512 +++
+ .../golang.org/x/net/http2/hpack/hpack_test.go     |  813 ++++
+ src/vendor/golang.org/x/net/http2/hpack/huffman.go |  190 +
+ src/vendor/golang.org/x/net/http2/hpack/tables.go  |  352 ++
+ 7 files changed, 6782 insertions(+)

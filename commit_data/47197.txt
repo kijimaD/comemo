@@ -1,20 +1,16 @@
-commit 60fd3ed2b167e4bb823600ea6862758a222a48c2
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 2 11:23:19 2021 -0400
+commit 775f11cda1d30f3f9778e737c2280cfe28ead1b4
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Jan 12 02:45:46 2021 +0000
 
-    go/types: rename isNamed predicate to hasName
+    cmd/internal/obj/arm64: remove unncessary class check in addpool
     
-    This is a clean port of CL 358621 to go/types.
+    The argument class check in addpool is unnecessary, remove it so that we don't
+    need to list all the compatiable classes.
     
-    Change-Id: I4e858b1b70cff69b6e0e76bb8a58a70ff54990c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360755
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I36f6594db35e25db22fe898273e024c2db4cb771
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283492
+    Trust: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/operand.go                      | 9 ++++-----
- src/go/types/predicates.go                   | 7 ++++---
- src/go/types/testdata/spec/assignability.go2 | 8 +++++---
- src/go/types/unify.go                        | 8 ++++----
- 4 files changed, 17 insertions(+), 15 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 97 +-------------------------------------
+ 1 file changed, 2 insertions(+), 95 deletions(-)

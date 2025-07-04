@@ -1,12 +1,29 @@
-commit aaa4bf3720bbf69e1ac65414448baf88b5e4cd83
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Dec 22 11:23:43 2014 -0800
+commit 0d49f7b5fcbf5d5efad05dd4416574127bdd9dfd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 01:29:05 2014 -0500
 
-    cmd/gc: update hashmap code location in comments
+    [dev.cc] cmd/dist: adjust for build process without cmd/cc
     
-    Change-Id: I3b81f2e9eb29ee6349d758b68fe7951b34f15a81
-    Reviewed-on: https://go-review.googlesource.com/1974
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
+    
+    - Remove references to C compiler directories.
+    - Remove generation of special header files.
+    - Remove generation of Go source files from C declarations.
+    
+    - Compile Go sources before rest of package (was after),
+      so that Go compiler can write go_asm.h for use in assembly.
+    
+    - Move TLS information from cmd/dist (was embedding in output)
+      to src/runtime/go_tls.h, which it can be maintained directly.
+    
+    LGTM=r
+    R=r, dave
+    CC=austin, golang-codereviews, iant, khr
+    https://golang.org/cl/172960043
 
- src/cmd/gc/walk.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.c        | 140 +++++++--------------
+ src/cmd/dist/buildruntime.c | 299 --------------------------------------------
+ src/runtime/defs.c          |  15 ---
+ src/runtime/go_tls.h        |  22 ++++
+ 4 files changed, 68 insertions(+), 408 deletions(-)

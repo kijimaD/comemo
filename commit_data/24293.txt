@@ -1,17 +1,28 @@
-commit 5b3f29a2e791c2489e6de16d44f3a626ce81a0ec
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 14 16:30:37 2015 -0700
+commit 1421bc10a4f61f92f3a3790a599fd7a02e7909d7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 22 09:44:05 2015 +1000
 
-    go/parser: comma is not permitted at the end of a struct field list
+    misc/makerelease: delete
     
-    Fixes #11611.
+    This is now superseded by golang.org/x/build/cmd/release.
     
-    Change-Id: I63d35cf15c3be759c899e3e561e631330dcc0bbb
-    Reviewed-on: https://go-review.googlesource.com/14565
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Fixes #8472
+    
+    Change-Id: I59664d84996a0fbb5c90582a4702714b3b3cf302
+    Reviewed-on: https://go-review.googlesource.com/12500
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/parser/parser.go     | 71 ++++++++++++++++++++++-----------------------
- src/go/parser/short_test.go | 27 ++++++++++++-----
- 2 files changed, 54 insertions(+), 44 deletions(-)
+ misc/makerelease/darwin/Distribution           |   32 -
+ misc/makerelease/darwin/Resources/bg.png       |  Bin 11466 -> 0 bytes
+ misc/makerelease/darwin/etc/paths.d/go         |    1 -
+ misc/makerelease/darwin/scripts/postinstall    |   10 -
+ misc/makerelease/darwin/scripts/preinstall     |    8 -
+ misc/makerelease/makerelease.go                | 1089 ------------------------
+ misc/makerelease/windows/LICENSE.rtf           |  Bin 1687 -> 0 bytes
+ misc/makerelease/windows/README.txt            |   25 -
+ misc/makerelease/windows/images/Banner.jpg     |  Bin 6643 -> 0 bytes
+ misc/makerelease/windows/images/Dialog.jpg     |  Bin 16428 -> 0 bytes
+ misc/makerelease/windows/images/DialogLeft.jpg |  Bin 12961 -> 0 bytes
+ misc/makerelease/windows/images/gopher.ico     |  Bin 30166 -> 0 bytes
+ misc/makerelease/windows/installer.wxs         |  163 ----
+ 13 files changed, 1328 deletions(-)

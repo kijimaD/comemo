@@ -1,18 +1,21 @@
-commit 40a17eed9392cea198726d7a5a507b3596417fc9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 10 15:45:18 2018 -0800
+commit 24ca86f3083e8dd4ad5ea61e26acf02440d0ad35
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 23 23:04:31 2017 +0100
 
-    crypto: clarify that some files come from CRYPTOGAMS
+    cmd/compile: fix invalid switch case value panic
     
-    and that they are covered by the CRYPTOGAMS license.
+    This is a regression introduced by myself in golang.org/cl/41852,
+    confirmed by the program that reproduces the crash that can be seen in
+    the added test.
     
-    Fixes #22637
+    Fixes #21988.
     
-    Change-Id: I75b8e08d3a8b569edf383c078bb11c796b766c81
-    Reviewed-on: https://go-review.googlesource.com/87315
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I18d5b2b3de63ced84db705b18490b00b16b59e02
+    Reviewed-on: https://go-review.googlesource.com/65655
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/aes/asm_ppc64le.s            | 28 +++++++++++++++-------------
- src/crypto/sha256/sha256block_ppc64le.s | 11 +++++++----
- src/crypto/sha512/sha512block_ppc64le.s | 11 +++++++----
- 3 files changed, 29 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/gc/swt.go |  5 +++++
+ test/fixedbugs/issue21988.go       | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+)

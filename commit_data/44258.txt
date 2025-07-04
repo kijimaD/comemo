@@ -1,18 +1,19 @@
-commit a5c8a15f649ffe29b3a80144e6d422046adb2cf0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jan 28 17:01:54 2021 -0500
+commit 7a2632e11d0214579a0c8041796687709f70e556
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 2 17:15:35 2020 -0400
 
-    cmd/go/internal/mvs: clarify and annotate test cases
+    doc/go1.15: add release notes for plugin
     
-    For #36460
+    Add a blurb to the release notes mentioning that the
+    linker now supports DWARF generation for -buildmode=plugin,
+    and that plugin builds work now for freebsd/amd64.
     
-    Change-Id: I5a8be8f36fb8825ffa08ed1427cb1e15b106b31a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/287732
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Updates #37419.
+    
+    Change-Id: I84da7a52af84a9d765f73ca7ea525e7af8d64f05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236162
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/mvs/mvs_test.go | 94 ++++++++++++++++++++++++++++---------
- 1 file changed, 72 insertions(+), 22 deletions(-)
+ doc/go1.15.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

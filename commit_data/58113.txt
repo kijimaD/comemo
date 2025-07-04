@@ -1,26 +1,18 @@
-commit 9854fc3e86e1ba6d3a186bcadec814e73c562c78
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Oct 21 16:29:23 2024 +0200
+commit 638e0d36d2a6b2efce0550978bf48e7df1166a0b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 2 16:26:27 2023 -0700
 
-    crypto/internal/mlkem768: add -768 suffix to all exported identifiers
+    syscall: return pointer from test function OrigRlimitNofile
     
-    In preparation for introducing ML-KEM-1024.
-    
-    Aside from the constants at the top, all other changes were automated.
-    
-    Change-Id: I0fafce9a776c7b0b9179be1c858709cabf60e80f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621981
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Change-Id: I8740a2a7ebb3045d8daa97bcb0da7f31f6f7b881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531996
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/internal/mlkem768/mlkem768.go      | 108 +++++++++++++-------------
- src/crypto/internal/mlkem768/mlkem768_test.go |  32 ++++----
- src/crypto/tls/handshake_client.go            |   2 +-
- src/crypto/tls/handshake_client_tls13.go      |   2 +-
- src/crypto/tls/handshake_server_tls13.go      |   2 +-
- src/crypto/tls/key_schedule.go                |   6 +-
- src/crypto/tls/key_schedule_test.go           |   2 +-
- 7 files changed, 76 insertions(+), 78 deletions(-)
+ src/syscall/exec_unix_test.go     | 2 +-
+ src/syscall/export_rlimit_test.go | 7 ++-----
+ 2 files changed, 3 insertions(+), 6 deletions(-)

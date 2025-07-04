@@ -1,22 +1,15 @@
-commit ac1f48e2f6ac7cad2fbe072de8d4fbf50c5d8e67
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 4 14:31:05 2015 -0400
+commit 10f6d30315536703065cec19ef48d51561a5219a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 4 10:37:34 2015 +1000
 
-    cmd/link: add -buildid flag to write Go build ID to ELF output, same as cmd/compile
+    cmd/go: Update alldocs.go header to point to the correct shell script.
     
-    Other binary formats to follow.
+    The script was renamed in b3000b6.
     
-    Using our own note instead of the GNU build ID note because
-    we are not the GNU project, and I can't guarantee that the semantics
-    of our note and the semantics of the GNU note will match forever.
-    (Also they don't match today.)
-    
-    For #11048.
-    
-    Change-Id: Iec7e5a2e49d52b6d3a51b0aface2de7c77a45491
-    Reviewed-on: https://go-review.googlesource.com/10706
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I45ecafff7400e4bff14f31906278609abf2bcb9f
+    Reviewed-on: https://go-review.googlesource.com/9667
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/link/internal/ld/elf.go  | 51 ++++++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/pobj.go |  8 ++++---
- 2 files changed, 56 insertions(+), 3 deletions(-)
+ src/cmd/go/alldocs.go | 4 ++--
+ src/cmd/go/main.go    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

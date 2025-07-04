@@ -1,27 +1,21 @@
-commit c0a126b8dce5c7ed8f16d8687331159763d1b19d
-Author: Shuo Wang <wangshuo@kylinos.cn>
-Date:   Fri Oct 18 02:51:35 2024 +0000
+commit 0163b3b32cad2ed3331e2b197c68387f12246cd8
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Aug 20 18:33:50 2023 +0800
 
-    runtime: revise the documentation comments for netpoll
+    all: remove redundant string conversions when formatting []byte with %s
     
-    Supplement to CL 511455.
-    
-    Updates #61454
-    
-    Change-Id: I111cbf297dd9159cffba333d610a7a4542915c55
-    GitHub-Last-Rev: fe8fa184868d665a4d08d534d3bfb5ea446d12c0
-    GitHub-Pull-Request: golang/go#69900
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620495
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I603051a3174b139ffb81d20d42979c7f3f04a09a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521136
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/netpoll.go         | 2 +-
- src/runtime/netpoll_aix.go     | 5 ++++-
- src/runtime/netpoll_epoll.go   | 5 ++++-
- src/runtime/netpoll_kqueue.go  | 5 ++++-
- src/runtime/netpoll_solaris.go | 5 ++++-
- src/runtime/netpoll_stub.go    | 4 +++-
- src/runtime/netpoll_windows.go | 5 ++++-
- 7 files changed, 24 insertions(+), 7 deletions(-)
+ src/bytes/example_test.go                        | 6 +++---
+ src/crypto/rsa/example_test.go                   | 4 ++--
+ src/runtime/testdata/testprogcgo/numgoroutine.go | 2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)

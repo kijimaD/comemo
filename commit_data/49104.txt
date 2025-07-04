@@ -1,20 +1,21 @@
-commit 12eedc00b810a20f5665ef51417812d26999e8e6
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue May 3 21:10:34 2022 +0700
+commit 19b4142f240172d525f81d1b4efb5679f147b474
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 20:22:59 2021 -0400
 
-    cmd/compile: update comment/message that mention betypeinit
+    [dev.typeparams] go/types: implement ch <- x where ch is of type parameter type
     
-    Since when CL 29244 did remove it.
+    This is a port of CL 333712 to go/types, adjusted for the different
+    error reporting API and to position errors on the arrows.
     
-    Change-Id: I5f96d7404209cbc336b0541502943871461cb72e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403714
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #43671
+    
+    Change-Id: I7d2de249e86d272c89a046f60e632e75848ff865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335076
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types/size.go     | 2 +-
- src/cmd/compile/internal/types/universe.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/types/stmt.go                           | 36 ++++++++++++++---------
+ src/go/types/testdata/fixedbugs/issue47115.go2 | 40 ++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 14 deletions(-)

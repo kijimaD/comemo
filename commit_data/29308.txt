@@ -1,16 +1,14 @@
-commit e22b5efb36e5977590d760c98db9f3fabaea7202
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Oct 29 18:37:49 2016 +1100
+commit 97ba3c824265bd6917c13c1ebc59be3085324b4c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 30 15:01:48 2016 -0700
 
-    net: implement Buffers on windows
+    cmd/compile: implement fmt.Formatter for Val formats %s, %v
     
-    Updates #13451
-    
-    Change-Id: I2c3c66d9532c16e616c476e2afe31b3ddc0a8d79
-    Reviewed-on: https://go-review.googlesource.com/32371
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id56e886793161b48b445439e9a12109142064d3f
+    Reviewed-on: https://go-review.googlesource.com/28332
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/fd_windows.go  | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/net/writev_test.go | 21 +++++++++++++----
- 2 files changed, 78 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/const.go  |  2 +-
+ src/cmd/compile/internal/gc/export.go |  2 +-
+ src/cmd/compile/internal/gc/fmt.go    | 65 +++++++++++++++++++++--------------
+ 3 files changed, 41 insertions(+), 28 deletions(-)

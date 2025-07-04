@@ -1,12 +1,17 @@
-commit 7ae4909458849a78daed62a28384bc4a508f62d5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 18 13:30:25 2018 -0700
+commit fdf33730e1f84a5f0cd13bcbf2efbdceedab1114
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Mar 31 15:53:21 2018 -0700
 
-    doc: add a couple of links to go1.11 release notes
+    cmd/compile: refactor constant node constructors
     
-    Change-Id: Ie4e81b88cc8035fddf9c074363a1b35bcae3d470
-    Reviewed-on: https://go-review.googlesource.com/124778
+    Passes toolstash-check.
+    
+    Change-Id: I6a2d46e69d4d3a06858c80c4ea1ad3f5a58f6956
+    Reviewed-on: https://go-review.googlesource.com/103859
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/const.go |  1 +
+ src/cmd/compile/internal/gc/subr.go  | 28 ++++++++--------------------
+ 2 files changed, 9 insertions(+), 20 deletions(-)

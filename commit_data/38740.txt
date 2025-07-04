@@ -1,34 +1,16 @@
-commit ab2f83c387fcc00efbdcc0a5c249af26c84ff425
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Apr 5 23:06:49 2019 +0200
+commit 399fec28e22ac01b7a4fe56028c3016a0df6d2e6
+Author: Markus <m.walther97@gmail.com>
+Date:   Sat Nov 17 19:21:32 2018 +0000
 
-    encoding/json: remove a bounds check in readValue
+    syscall/js: document ValueOf() panic
     
-    readValue is a hot function, clocking in at ~13% flat CPU use in
-    CodeDecoder. In particular, looping over the bytes is slow. That's
-    partially because the code contains a bounds check at the start of the
-    loop.
+    ValueOf() panics if x is not one of the expected types.
     
-    The source of the problem is that scanp is a signed integer, and comes
-    from a field, so the compiler doesn't know that it's non-negative. Help
-    it with a simple and comparatively cheap hint.
-    
-    While at it, use scanp as the index variable directly, removing the need
-    for a duplicate index variable which is later added back into scanp.
-    
-    name           old time/op    new time/op    delta
-    CodeDecoder-8    11.3ms ± 1%    11.2ms ± 1%  -0.98%  (p=0.000 n=9+9)
-    
-    name           old speed      new speed      delta
-    CodeDecoder-8   172MB/s ± 1%   174MB/s ± 1%  +0.99%  (p=0.000 n=9+9)
-    
-    Updates #28923.
-    
-    Change-Id: I138f83babdf316fc97697cc18f595c3403c1ddb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170939
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1105e46bd09a5ab13c162b77c1c50cc45bce27a2
+    GitHub-Last-Rev: 34a88ce8206954d94f0a884ab7f6494116c54a2d
+    GitHub-Pull-Request: golang/go#28846
+    Reviewed-on: https://go-review.googlesource.com/c/150138
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/encoding/json/stream.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/syscall/js/js.go | 2 ++
+ 1 file changed, 2 insertions(+)

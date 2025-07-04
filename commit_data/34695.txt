@@ -1,24 +1,29 @@
-commit 5ce92d0384ecc8aa0247a9c280acbb6a65e4585e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Mar 24 22:09:51 2018 -0700
+commit d8ee5d11e5d13398671346c8c4dff824754a2144
+Author: filewalkwithme <maiconscosta@gmail.com>
+Date:   Fri Nov 3 03:45:04 2017 +0100
 
-    net: deflake lookup tests
+    crypto/tls: limit number of consecutive warning alerts
     
-    The build dashboard is dotted with net test failures.
-    We cannot declare all builders to have flaky networks,
-    although all fundamentally do.
+    In the current implementation, it is possible for a client to
+    continuously send warning alerts, which are just dropped on the floor
+    inside readRecord.
     
-    Instead, add a simple retry/backoff loop to the ones that
-    show up most commonly on the dashboard at this moment.
+    This can enable scenarios in where someone can try to continuously
+    send warning alerts to the server just to keep it busy.
     
-    If this approach works well in practice, we can
-    incrementally apply it to other flaky net tests.
+    This CL implements a simple counter that triggers an error if
+    we hit the warning alert limit.
     
-    Change-Id: I69c1ca6ce5b347ad549c7eb18d0438373f6e2489
-    Reviewed-on: https://go-review.googlesource.com/102397
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #22543
+    
+    Change-Id: Ief0ca10308cf5a4dea21a5a67d3e8f6501912da6
+    Reviewed-on: https://go-review.googlesource.com/75750
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup_test.go | 40 +++++++++++++++++++++++++++++++++++++---
- 1 file changed, 37 insertions(+), 3 deletions(-)
+ src/crypto/tls/common.go   |  9 ++++----
+ src/crypto/tls/conn.go     | 16 ++++++++++++++
+ src/crypto/tls/tls_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 73 insertions(+), 4 deletions(-)

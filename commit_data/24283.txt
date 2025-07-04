@@ -1,18 +1,14 @@
-commit c1ad904bdbc214f78dc19753cd178166e7707a25
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Mon Sep 14 20:53:44 2015 +0200
+commit ac1935b3a7f1873a389e77586ed6e62e9ed5339e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 21 06:58:32 2015 -0700
 
-    cmd/compile/internal/gc: remove unnecessary stringsCompare
+    [dev.ssa] cmd/compile: fix build
     
-    Remove several uses of stringsCompare.
+    Bad rebase in CL 12439.
     
-    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
-    
-    Change-Id: I3f2323df2ad8c03bad77e0a91d6e2e714803705b
-    Reviewed-on: https://go-review.googlesource.com/14556
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I7ad359519c6274be37456b655f19bf0ca6ac6692
+    Reviewed-on: https://go-review.googlesource.com/12449
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/export.go | 34 ++++++--------------------
- src/cmd/compile/internal/gc/popt.go   | 15 ++++--------
- src/cmd/compile/internal/gc/subr.go   | 46 +++++++++++++----------------------
- 3 files changed, 30 insertions(+), 65 deletions(-)
+ src/cmd/compile/internal/ssa/stackalloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

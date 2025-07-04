@@ -1,19 +1,34 @@
-commit 5036ed26bd241cb8eadf4d0f00de6b9d3449bf87
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sun Sep 25 13:14:24 2022 +0800
+commit b29182b54ac343bbc58a30357d9df908f1c3b727
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 1 15:27:13 2021 -0400
 
-    syscall: check if to is nil to prevent panic from Sendto
+    go/types: clean up asT converters (step 1 of 2)
     
-    Fixes #55845
+    This is a port of CL 358597 to go/types. A comment was missing in the
+    base of applyTypeFunc, which had been there since the initial check-in
+    of types2; somehow it was not in go/types.
     
-    Change-Id: If30263b7d34829c40e6606846115ec520f351f2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/433504
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If08efd92d782dd3099b26254ae6e311c6cea8c3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360477
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/syscall/syscall_unix.go | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ src/go/types/assignments.go            |  2 +-
+ src/go/types/builtins.go               | 24 ++++++----
+ src/go/types/call.go                   |  8 ++--
+ src/go/types/conversions.go            | 24 ++++++----
+ src/go/types/expr.go                   |  8 ++--
+ src/go/types/index.go                  |  6 +--
+ src/go/types/infer.go                  |  4 +-
+ src/go/types/lookup.go                 |  8 ++--
+ src/go/types/predicates.go             | 10 ++--
+ src/go/types/sizeof_test.go            |  1 -
+ src/go/types/sizes.go                  |  2 +-
+ src/go/types/subst.go                  |  2 +-
+ src/go/types/testdata/check/issues.go2 |  7 +++
+ src/go/types/type.go                   | 83 ++++++++--------------------------
+ src/go/types/typestring.go             |  5 +-
+ src/go/types/typexpr.go                |  4 +-
+ 16 files changed, 82 insertions(+), 116 deletions(-)

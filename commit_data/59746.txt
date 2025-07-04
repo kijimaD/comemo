@@ -1,23 +1,44 @@
-commit a8e99ab19cbf8568cb452b899d0ed3f0d65848c5
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Fri May 30 16:05:04 2025 -0400
+commit a973b4256e4ad3a5bde270e3358c8cc574c21954
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Mar 27 12:09:26 2024 -0400
 
-    internal/trace: expose the go version read by the reader
+    cmd/dist: allow arbitrary package renames for bootstrap imports
     
-    This change adds a function to expose the version set by the trace
-    reader after reading the trace header (in tests). The trace validator
-    needs to be able to determine what version of the trace it needs to
-    validate against. Clock snapshot checks have been disabled for
-    Windows and WASM.
+    Import declaration matching currently has a list of specific cases. It
+    allows bare imports, dot imports, and renamed imports named "exec" and
+    "rtabi".
     
-    For #63185
+    Keeping a specific allowlist of renamed imports is unnecessary and
+    causes annoyance for developers adding such imports, as the bootstrap
+    build errors do not make it clear that this is where the issue lies.
     
-    Change-Id: Ia3d63e6ed7a5ecd87e63292b84cc417d982aaa5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/677695
+    We can simplify this to be much more general. The body of the condition
+    will still only rewrite imports in cmd/ or in bootstrapDirs.
+    
+    I believe the only downside of this change is that it makes it a bit
+    more likely to match and replace within comments. That said, there
+    should be no harm in replacements within comments.
+    
+    This change results in no change to the resulting bootstrap source tree:
+    
+    $ diff -u -r /tmp/bootstrap.before/src /tmp/bootstrap.after/src
+    diff -u -r /tmp/bootstrap.before/src/bootstrap/internal/buildcfg/zbootstrap.go /tmp/bootstrap.after/src/bootstrap/internal/buildcfg/zbootstrap.go
+    --- /tmp/bootstrap.before/src/bootstrap/internal/buildcfg/zbootstrap.go 2024-03-27 12:29:27.439540946 -0400
+    +++ /tmp/bootstrap.after/src/bootstrap/internal/buildcfg/zbootstrap.go  2024-03-27 12:28:08.516211238 -0400
+    @@ -20,6 +20,6 @@
+     const defaultGOEXPERIMENT = ``
+     const defaultGO_EXTLINK_ENABLED = ``
+     const defaultGO_LDSO = ``
+    -const version = `devel go1.23-38087c80ae Wed Mar 27 12:09:16 2024 -0400`
+    +const version = `devel go1.23-fa64f04409 Wed Mar 27 12:22:52 2024 -0400`
+     const defaultGOOS = runtime.GOOS
+     const defaultGOARCH = runtime.GOARCH
+    
+    Change-Id: Ia933c6373f366f2e607b28d900227c24cb214674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574735
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/internal/trace/export_reader_test.go | 12 ++++++++++++
- src/internal/trace/reader_test.go        |  5 +++++
- 2 files changed, 17 insertions(+)
+ src/cmd/dist/buildtool.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

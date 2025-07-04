@@ -1,12 +1,18 @@
-commit 99f4cf9714825d024bc56cd92920dc9fc2c6d9c2
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Dec 7 18:07:57 2017 +0100
+commit 57fa1c7c949c5ea1efd756e2ed0c4442998690a9
+Author: Anthony Sottile <asottile@umich.edu>
+Date:   Sat Sep 9 21:38:51 2017 -0700
 
-    doc: fix bad html tags in editors.html
+    cmd/cgo: treat simple C typedefs as go aliases
     
-    Change-Id: Ib8ef626ae6bc66571ecf4569e37feb75b4b90d10
-    Reviewed-on: https://go-review.googlesource.com/82555
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #21809
+    
+    Change-Id: Ic43077c6bea3c7cdc9611e74abf07b6deab70433
+    Reviewed-on: https://go-review.googlesource.com/62670
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/editors.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue21809.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/out.go          |  8 +++++++-
+ 3 files changed, 53 insertions(+), 1 deletion(-)

@@ -1,23 +1,23 @@
-commit 9060fa5afd52fcdb60c09e26c73f5980520ca9f9
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 17 17:21:47 2023 -0400
+commit 0f1227c507c62b635a3b4b85f5b7a967df72b59f
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Sep 7 09:27:50 2023 -0700
 
-    cmd/go: track root failing Action
+    context: avoid key collisions in test afterfunc map
     
-    Currently, each Action tracks whether it failed, which is propagated
-    up from dependencies. Shortly, we'll need to know the root cause if a
-    test fails because of a build failure. To support this, replace the
-    Failed boolean with a Failed *Action that tracks the root Action that
-    failed and caused other Actions to fail.
+    The afterFuncContext type, used only in tests, contains a
+    set of registered afterfuncs indexed by an arbitrary unique key.
     
-    For #62067.
+    That key is currently a *struct{}. Unfortunately, all
+    *struct{} pointers are equal to each other, so all registered
+    funcs share the same key. Fortunately, the tests using this
+    type never register more than one afterfunc.
     
-    Change-Id: I8f84a51067354043ae9531a4368c6f8b11d688d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536398
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change the key to a *byte.
+    
+    Change-Id: Icadf7d6f258e328f6e3375846d29ce0f98b60924
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526655
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/test/test.go   |  4 ++--
- src/cmd/go/internal/work/action.go |  4 ++--
- src/cmd/go/internal/work/exec.go   | 14 ++++++++------
- 3 files changed, 12 insertions(+), 10 deletions(-)
+ src/context/afterfunc_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

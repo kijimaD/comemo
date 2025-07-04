@@ -1,47 +1,15 @@
-commit 9189921e4759055141b51fdbb8b7b69ee4fdd477
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Feb 19 22:07:09 2025 +0000
+commit 2c35def7efab9b8305487c23cb0575751642ce1e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jan 24 22:15:19 2024 +0100
 
-    go/types,types2: externalize used objects
+    net/netip: use Addr.appendTo4In6 in Addr.AppendTo
     
-    The 'used' field on Var and PkgName is fundamentally an aspect of the
-    type checking pass: it records when objects are used, for the purposes
-    of reporting errors for unused variables or package names. While
-    expedient and performant, recording this information in the types.Object
-    instances themselves increases the memory footprint of type-checked
-    packages, and (as we saw in golang/go#71817) can lead to data races when
-    Objects are reused in follow-up type checking, such as is done with the
-    CheckExpr and Eval APIs.
-    
-    Fix this by externalizing the 'used' information into two maps (one for
-    variables and one for packages) on the types.Checker, so that they are
-    garbage-collected after type checking, and cannot be a source of data
-    races.
-    
-    Benchmarks showed essentially no change in performance.
-    
-    Fixes golang/go#71817
-    
-    Change-Id: I40daeabe4ecaca3bcb494e2f1c62a04232098e49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650796
+    Change-Id: Ieb1931c40b37b87fc7d0011461d9f583e73aaff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557778
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/types2/assignments.go |  4 ++--
- src/cmd/compile/internal/types2/call.go        |  6 +++---
- src/cmd/compile/internal/types2/check.go       | 21 +++++++++++++++------
- src/cmd/compile/internal/types2/object.go      | 10 +++-------
- src/cmd/compile/internal/types2/resolver.go    |  4 ++--
- src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
- src/cmd/compile/internal/types2/stmt.go        | 11 +++++++----
- src/cmd/compile/internal/types2/typexpr.go     |  6 +++---
- src/go/types/assignments.go                    |  4 ++--
- src/go/types/call.go                           |  6 +++---
- src/go/types/check.go                          | 25 +++++++++++++++++--------
- src/go/types/object.go                         | 10 +++-------
- src/go/types/resolver.go                       |  4 ++--
- src/go/types/sizeof_test.go                    |  2 +-
- src/go/types/stmt.go                           | 14 ++++++++++----
- src/go/types/typexpr.go                        |  6 +++---
- 16 files changed, 77 insertions(+), 58 deletions(-)
+ src/net/netip/netip.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

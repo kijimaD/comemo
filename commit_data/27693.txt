@@ -1,12 +1,15 @@
-commit fca9fc52c831ab6af56e30f8c48062a99ded2580
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 16 15:41:33 2016 -0400
+commit 6c5352f181846b73d532c039df3017befe657d6a
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Apr 8 11:40:51 2016 -0400
 
-    runtime: fix stale comment in lfstack
+    syscall: add assembly for Linux on s390x
     
-    Change-Id: I6ef08f6078190dc9df0b2df4f26a76456602f5e8
-    Reviewed-on: https://go-review.googlesource.com/24176
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I42ade65a91f3effc03dd663ee449410baa9f8ca8
+    Reviewed-on: https://go-review.googlesource.com/21740
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/lfstack.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/asm_linux_s390x.s | 156 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 156 insertions(+)

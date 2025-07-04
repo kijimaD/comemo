@@ -1,32 +1,22 @@
-commit 44483133fd991ec929fb1404e087d08f679c8d28
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 21 13:43:42 2024 -0700
+commit 2a1ba6ebb12994f4df15236f03eb63116b4a0c4d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed May 3 18:19:30 2023 +1000
 
-    syscall: honor prlimit set by a different process
+    cmd/internal/obj/arm64: simplify buildop
     
-    On Linux one process can call prlimit to change the resource limit
-    of another process. With this change we treat that as though the
-    current process called prlimit (or setrlimit) to set its own limit.
-    The cost is one additional getrlimit system call per fork/exec,
-    for cases in which the rlimit Cur and Max values differ at startup.
+    This code stems from the original 7l C code, where one way to determine
+    the end of a table is to put a sentinel entry, then scan for it. This is
+    now Go code and the length of an array is readily available.
     
-    This revealed a bug: the setrlimit (not Setrlimit) function should not
-    change the cached rlimit. That means that it must call prlimit1, not prlimit.
+    Remove the sentinel and sentinel scan, then adjust the remaining code to
+    work accordingly.
     
-    Fixes #66797
-    
-    Change-Id: I46bfd06e09ab7273fe8dd9b5b744dffdf31d828b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607516
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Aleksa Sarai <cyphar@cyphar.com>
-    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8964c787f5149f3548fa78bf8923aa7a93f9482e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512536
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/syscall/exec_linux.go         |  19 +++-
- src/syscall/rlimit.go             |  12 ++-
- src/syscall/syscall_linux.go      |   2 +-
- src/syscall/syscall_linux_test.go | 195 ++++++++++++++++++++++++++++++++++++++
- 4 files changed, 223 insertions(+), 5 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 34 +++++++++++++++-------------------
+ 1 file changed, 15 insertions(+), 19 deletions(-)

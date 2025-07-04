@@ -1,19 +1,14 @@
-commit 50f63a7ae4b7f951fa894b96633b1716adca55fa
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Aug 12 13:30:43 2020 -0400
+commit 96002cd25c343edfb6c06d2bf1f31ae1e345b81f
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Wed Jan 29 17:39:26 2020 -0700
 
-    doc/go1.15: clarify external linking can still be used for building PIE
+    doc/go1.14: fix id attribute of Testing heading
     
-    In Go 1.15 we switched the default linking mode for PIE on
-    Linux/AMD64 and Linux/ARM64 to internal linking. Clarify that
-    the previous behavior (external linking) can still be used with
-    a flag.
+    Some tweaks based on comments from CL 216917.
     
-    Fixes #40719.
-    
-    Change-Id: Ib7042622bc91e1b1aa31f520990d03b5eb6c56bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248199
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I538ea0dfa947b53d5c4a7135c1aec912b0357083
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217121
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/go1.15.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ doc/go1.14.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

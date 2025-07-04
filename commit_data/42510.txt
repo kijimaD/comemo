@@ -1,18 +1,23 @@
-commit a5a9a06d7183a6faf70b3d1231273af247503c19
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 11 12:01:52 2020 -0700
+commit c399afef61dadbc9deb2d5bc0cb8227200af00b9
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 15:47:54 2019 -0500
 
-    cmd/cgo: in -godefs mode, don't change constant to type
+    cmd/go: convert TestCoverageImportMainLoop and TestGoTestMain
     
-    Fixes #39534
+    Convert these two tests to the script framework.
     
-    Change-Id: Icbc1745935dd7098c09e2d35c61cd5bfbaa31c63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237558
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #17751
+    Updates #36320
+    
+    Change-Id: I9cc14360fab949dab91f9e5e667be85002ef5926
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212811
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- misc/cgo/testgodefs/testdata/issue39534.go | 12 ++++++++++++
- misc/cgo/testgodefs/testgodefs_test.go     |  1 +
- src/cmd/cgo/gcc.go                         |  2 +-
- 3 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go                              | 26 ----------------------
+ .../go/testdata/script/cover_import_main_loop.txt  | 22 ++++++++++++++++++
+ .../test_main_twice.txt}                           |  7 ++++++
+ src/cmd/go/testdata/src/importmain/ismain/main.go  |  5 -----
+ src/cmd/go/testdata/src/importmain/test/test.go    |  1 -
+ .../go/testdata/src/importmain/test/test_test.go   |  6 -----
+ 6 files changed, 29 insertions(+), 38 deletions(-)

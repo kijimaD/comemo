@@ -1,25 +1,23 @@
-commit ebeab63d9515b539ae627f10cfc1766eecd243aa
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 5 23:53:07 2021 +0700
+commit 26e29aa15a189b26d3b2400a594d329368e78e79
+Author: Nehal J Wani <nehaljw.kkd1@gmail.com>
+Date:   Tue Jan 26 16:29:05 2021 +0000
 
-    go/types: better error message for invalid untyped nil conversion
+    cmd/link: disable TestPIESize if CGO isn't enabled
     
-    This is port of CL 354049 for types2 to go/type.
+    With CGO disabled, the test throws the following error:
     
-    The change is identical, but for some tweaks to the error message/position
-    in tests, since when go/types reports the exact operation "cannot convert"
-    instead of the general "invalid operation" like types2.
+    elf_test.go:291: # command-line-arguments
+        loadinternal: cannot find runtime/cgo
     
-    Updates #48784
-    
-    Change-Id: I3e99f2721501d23187fd0a8970eb1de28e0c41d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354050
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Iaeb183562ab637c714240b49e73078bdb791b35b
+    GitHub-Last-Rev: f8fe9afad5611411966413d17cb5874f7b0018a0
+    GitHub-Pull-Request: golang/go#43911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286632
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/errorcodes.go            | 2 +-
- src/go/types/expr.go                  | 6 ++++++
- src/go/types/testdata/check/expr2.src | 4 ++--
- 3 files changed, 9 insertions(+), 3 deletions(-)
+ src/cmd/link/elf_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

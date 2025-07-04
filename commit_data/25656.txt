@@ -1,15 +1,16 @@
-commit 830143fa3dd344a72d5c00643983ab62abb88a72
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 26 05:28:20 2016 -0800
+commit d42cc10283b611eb6799a3d46593777dc2174f34
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Nov 12 20:05:06 2015 -0500
 
-    time: fix comment about use of Location.cacheEnd
+    cmd/dist: set timeout for go1 benchmark too
     
-    Fixes #14099.
+    so that GO_TEST_TIMEOUT_SCALE can be applied too.
+    It's for the mips64 builder, which is so slow that the
+    go1 benchmark can't finish startup within 10 minutes.
     
-    Change-Id: I122e918bdc55fb185f4a4a797489b160219542d2
-    Reviewed-on: https://go-review.googlesource.com/18943
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I1b824eb0649460101b294fb442da784e872403e7
+    Reviewed-on: https://go-review.googlesource.com/16901
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/zoneinfo.go | 2 +-
+ src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

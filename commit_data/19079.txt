@@ -1,15 +1,13 @@
-commit c9133e32f68008a0edb586fe71479a8f326d4505
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 9 10:08:35 2014 -0400
+commit 8f8ada008c7b614dea948728ffd69aea22f64ebd
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Apr 9 15:39:28 2014 +0200
 
-    doc: tweak Solaris wording
+    cmd/gc: drop { } around single-line if-statement body
     
-    Suggested in comments on CL 85740043.
-    
-    LGTM=aram
-    R=golang-codereviews, aram
-    CC=dave, golang-codereviews, r
-    https://golang.org/cl/85990044
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/85890043
 
- doc/go1.3.html | 3 +--
+ src/cmd/gc/gen.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)

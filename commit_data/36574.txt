@@ -1,21 +1,31 @@
-commit 67ac554d7978eb93f3dfe7a819c67948dd291d88
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Tue Aug 14 19:22:16 2018 +0300
+commit f41dc711d80cf750a6df994a49608ffd3786bb19
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 12:59:15 2018 +0100
 
-    cmd/compile/internal/gc: fix invalid positions for sink nodes in esc.go
+    cmd/link: add wasm architecture
     
-    Make OAS2 and OAS2FUNC sink locations point to the assignment position,
-    not the nth LHS position.
+    This commit adds the wasm architecture to the link command.
     
-    Fixes #26987
+    Design doc: https://docs.google.com/document/d/131vjr4DH6JFnb-blm_uRdaC0_Nv3OUwjEY5qVCxCup4
     
-    Change-Id: Ibeb9df2da754da8b6638fe1e49e813f37515c13c
-    Reviewed-on: https://go-review.googlesource.com/129315
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Updates #18892
+    
+    Change-Id: I5aef29954984537f2979679b5d393209e462f564
+    Reviewed-on: https://go-review.googlesource.com/103795
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/esc.go |  6 ++++--
- test/escape_because.go             | 18 ++++++++++++++++++
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ misc/wasm/wasm_exec.js             |   2 +-
+ src/cmd/dist/build.go              |   2 +
+ src/cmd/dist/buildtool.go          |   1 +
+ src/cmd/link/internal/ld/data.go   |   4 +
+ src/cmd/link/internal/ld/dwarf.go  |   2 +-
+ src/cmd/link/internal/ld/lib.go    |   3 +
+ src/cmd/link/internal/ld/outbuf.go |   6 +
+ src/cmd/link/internal/ld/sym.go    |   2 +-
+ src/cmd/link/internal/wasm/asm.go  | 485 +++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/wasm/obj.go  |  34 +++
+ src/cmd/link/main.go               |   3 +
+ src/runtime/asm.s                  |   3 +
+ 12 files changed, 544 insertions(+), 3 deletions(-)

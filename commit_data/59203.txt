@@ -1,23 +1,18 @@
-commit 4c1b8ca98c716f0499bb30fd141aa6d4dec7390c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Jan 6 00:30:30 2025 +1100
+commit 5bce5362da7b0fa565c88cf4c12d554a7d6b4c9d
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Feb 26 04:24:44 2024 +0000
 
-    cmd/internal/obj/riscv: add support for vector fixed-point arithmetic instructions
+    sync: simplify the code with atomic.Pointer
     
-    Add support for vector fixed-point arithmetic instructions to the
-    RISC-V assembler. This includes single width saturating addition
-    and subtraction, averaging addition and subtraction and scaling
-    shift instructions.
-    
-    Change-Id: I9aa27e9565ad016ba5bb2b479e1ba70db24e4ff5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646776
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I79797be6b385c9927d68350334d7f7387007085f
+    GitHub-Last-Rev: 3daa3b144f55f527d183d4ff35475ca4af3ee143
+    GitHub-Pull-Request: golang/go#65937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566815
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s        | 74 ++++++++++++++++++++++
- src/cmd/asm/internal/asm/testdata/riscv64error.s   | 32 ++++++++++
- .../asm/internal/asm/testdata/riscv64validation.s  | 32 ++++++++++
- src/cmd/internal/obj/riscv/obj.go                  | 51 ++++++++++++++-
- 4 files changed, 186 insertions(+), 3 deletions(-)
+ src/sync/poolqueue.go | 29 +++++++++++------------------
+ 1 file changed, 11 insertions(+), 18 deletions(-)

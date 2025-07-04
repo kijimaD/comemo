@@ -1,0 +1,19 @@
+commit 4225c6cb372e0fea7586dd646e991faa5df20671
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jan 8 12:30:01 2025 -0800
+
+    encoding/json: improve fidelity of TestUnmarshal for Numbers
+    
+    In particular, cover the behavior of unmarshaling a JSON string
+    into a Number type regardless of whether the `string` option
+    is specified or not.
+    
+    Change-Id: Ibc55f16860442240bcfeea1fd51aaa76f7e50f67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641416
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/json/decode_test.go | 43 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)

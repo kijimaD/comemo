@@ -1,0 +1,19 @@
+commit ac1686752bf65eaefebb340bd642177e2cc27bde
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jun 9 11:10:53 2025 -0400
+
+    cmd/internal/doc: increase version of pkgsite doc command that's run
+    
+    This will incorporate the changes in CL 675957, CL 677596, and
+    CL 675958.
+    
+    For #73848
+    
+    Change-Id: Ie3d313e055a36b5b7aafec4a7462a1ced8a9f923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680176
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/doc/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

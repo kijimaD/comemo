@@ -1,14 +1,13 @@
-commit 64ad58768ead0bfe92ee4cad15f3d2630c72a979
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 15 14:04:35 2015 -0700
+commit a402b58e51e211bd6abdf2fd2f502ffa8facd1f4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 20 15:53:33 2015 -0700
 
-    cmd/go: don't run TestIssue7573 if cgo not supported
+    [dev.ssa] cmd/compile: implement "if SETEQ" branches
     
-    Fixes #12629.
-    
-    Change-Id: Iee96dc4f806a38f3cd8e065b8d0d5f682bb7e29b
-    Reviewed-on: https://go-review.googlesource.com/14597
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I814fd0c2f1a622cca7dfd1b771f81de309a1904c
+    Reviewed-on: https://go-review.googlesource.com/12441
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/go_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+)

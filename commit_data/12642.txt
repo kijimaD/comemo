@@ -1,21 +1,12 @@
-commit 235863cb128bbc00a659ed7446e42cb810cbaa46
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Thu Mar 15 14:51:44 2012 +1100
+commit 1c224ab9dd1833f4548a49d40d2bb0a264a74767
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Wed Mar 14 20:25:57 2012 -0700
 
-    doc: add "Godoc: documenting Go code" article
+    net/http: ensure triv.go compiles and runs
     
-    Originally published on The Go Programming Language Blog, March 31, 2011.
-    
-    http://blog.golang.org/2011/03/godoc-documenting-go-code.html
-    
-    R=golang-dev, adg
+    R=golang-dev, bradfitz, dsymonds, dave, r
     CC=golang-dev
-    https://golang.org/cl/5830043
+    https://golang.org/cl/5795069
 
- doc/Makefile                                |   1 +
- doc/articles/godoc_documenting_go_code.html | 139 ++++++++++++++++++++++++++++
- doc/docs.html                               |   2 +-
- doc/reference.html                          |   2 +-
- misc/dashboard/godashboard/package.html     |   2 +-
- src/cmd/godoc/doc.go                        |   2 +-
- 6 files changed, 144 insertions(+), 4 deletions(-)
+ src/pkg/net/http/triv.go | 28 ++++++----------------------
+ 1 file changed, 6 insertions(+), 22 deletions(-)

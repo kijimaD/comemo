@@ -1,23 +1,20 @@
-commit 08b2f1f761a57b6c547eb5c53109237fe0a17b81
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Nov 1 13:12:43 2023 -0700
+commit fdd8f0219d055f16647c8dfcd11e79cce222d200
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 16 17:27:06 2022 -0500
 
-    os: fix PathError.Op for dirFS.Open
+    cmd/go: disable cgo by default if DefaultCC is absolute and doesn't exist
     
-    This appears to be a copy-paste error from CL 455362.
+    Also fix the autocgo test from CL 450739 when DefaultCC is absolute.
     
-    The operation name used to be "open"
-    but seems to have been accidentally changed to "stat".
-    This CL reverts back to "open".
-    
-    Change-Id: I3fc5168095e2d9eee3efa3cc091b10bcf4e3ecde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539056
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: Ie282a42a1334660225e88680b63b18b7c1ecba2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451219
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/file.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/cfg/cfg.go         |  9 ++++++++-
+ src/cmd/go/scriptconds_test.go         | 14 ++++++++++++++
+ src/cmd/go/testdata/script/README      |  2 ++
+ src/cmd/go/testdata/script/autocgo.txt |  7 +++++--
+ 4 files changed, 29 insertions(+), 3 deletions(-)

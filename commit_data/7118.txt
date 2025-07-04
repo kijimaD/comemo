@@ -1,13 +1,12 @@
-commit 4ed7c59a50706512d8d73a79a1c8dd06624d848b
+commit 8b41055656c0073934ac518f157fd703cfa9ac4d
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 13 17:41:45 2011 -0800
+Date:   Thu Jan 13 17:26:38 2011 -0800
 
-    fix build (this time for real): adjust typechecker test, ogle
+    fix build (submitted a modified parser.go file by mistake)
     
-    R=r, r2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4006041
+    https://golang.org/cl/4005041
 
- src/pkg/exp/ogle/cmd.go                    | 3 ++-
- src/pkg/go/typechecker/typechecker_test.go | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/go/parser/parser.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

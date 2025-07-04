@@ -1,18 +1,21 @@
-commit bbe601789cf7526925192abe0a6bc7e7d9265588
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jul 13 14:23:51 2012 -0700
+commit adc19ac5e3fc4914df4b09400686c964e379532b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Jul 13 11:38:00 2012 +0200
 
-    encoding/gob: disable fuzz tests unless command-line flag is set
+    exp/locale/collate: adjusted contraction trie to support Myanmar (Burmese),
+    which has a rather large contraction table. The value of the next state
+    offset now starts after the current block, instead of before.  This is
+    slightly less efficient (on extra addition per state change), but gives
+    some extra range for the offsets.
+    Also introduced constants for final (0) and noIndex (0xFF).
+    tables.go is updated in a separate CL.
     
-    They can generate huge amounts of memory, causing failure on
-    small machines. Also they can be very slow. So slow that one test
-    was commented out! We uncomment it and use a flag.
-    
-    Fixes #3742.
-    
-    R=golang-dev, bradfitz
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6373044
+    https://golang.org/cl/6346092
 
- src/pkg/encoding/gob/codec_test.go | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ src/pkg/exp/locale/collate/build/contract.go      | 33 +++++++------
+ src/pkg/exp/locale/collate/build/contract_test.go | 56 +++++++++++------------
+ src/pkg/exp/locale/collate/contract.go            | 13 ++++--
+ src/pkg/exp/locale/collate/contract_test.go       | 28 ++++++------
+ 4 files changed, 70 insertions(+), 60 deletions(-)

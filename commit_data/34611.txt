@@ -1,18 +1,21 @@
-commit c830e05a20cbc193a3b0cb4d4bc9b3acab3643b6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 14 17:23:46 2018 -0700
+commit eaf603601bf79216772ba36a9b981f21b50ade96
+Author: Zhengyu He <hzy@google.com>
+Date:   Thu Nov 2 13:39:14 2017 -0700
 
-    runtime: fix another typo in runtime-gdb.py
+    runtime: fix GNU/Linux getproccount if sched_getaffinity does not return a multiple of 8
     
-    tuple, touple,
-    gdb, gdv,
-    let's call the whole thing off.
+    The current code can potentially return a smaller processor count on a
+    linux kernel when its cpumask_size (controlled by both kernel config and
+    boot parameter) is not a multiple of the pointer size, because
+    r/sys.PtrSize will be rounded down. Since sched_getaffinity returns the
+    size in bytes, we can just allocate the buf as a byte array to avoid the
+    extra calculation with the pointer size and roundups.
     
-    Change-Id: I72d12f6c75061777474e7dec2c90d2a8a3715da6
-    Reviewed-on: https://go-review.googlesource.com/100836
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I0c21046012b88d8a56b5dd3dde1d158d94f8eea9
+    Reviewed-on: https://go-review.googlesource.com/75591
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/runtime-gdb.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/os_linux.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

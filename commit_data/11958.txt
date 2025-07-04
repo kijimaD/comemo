@@ -1,14 +1,12 @@
-commit 2f8d94fe4b583a3c94014740db77f6d0e9a69c3f
+commit 7ec5499d36348925cc294faaf96c64d63b2b0628
 Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Feb 16 15:07:54 2012 +1100
+Date:   Thu Feb 16 15:06:12 2012 +1100
 
-    net/url: regularise receiver names.
+    debug/gosym: more carefully build the test binary.
     
-    Update #2946.
-    
-    R=golang-dev, bradfitz, bradfitz
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/5674065
+    https://golang.org/cl/5676062
 
- src/pkg/net/url/url.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/debug/gosym/pclntab_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

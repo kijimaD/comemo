@@ -1,22 +1,20 @@
-commit 6f7ec484f67b7128b4158babd48cbf47f4443f32
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Thu Apr 19 09:08:24 2018 -0600
+commit f7d8098a7b6148811824bf50ec32c8f8d0a35d12
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 10 06:28:59 2018 -0800
 
-    math/big: handle negative moduli in ModInverse
+    cmd/go: check for another GCC error message
     
-    Currently, there is no check for a negative modulus in ModInverse.
-    Negative moduli are passed internally to GCD, which returns 0 for
-    negative arguments. Mod is symmetric with respect to negative moduli,
-    so the calculation can be done by just negating the modulus before
-    passing the arguments to GCD.
+    GCC always recognizes the -fsplit-stack option, but then tests whether
+    it is supported by the selected target. If not, it reports
+        cc1: error: ‘-fsplit-stack’ is not supported by this compiler configuration
+    Check for that error message when deciding whether a compiler option works.
     
-    Fixes #24949
-    
-    Change-Id: Ifd1e64c9b2343f0489c04ab65504e73a623378c7
-    Reviewed-on: https://go-review.googlesource.com/108115
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I2eef8d550bbecba3a087869df2c7351280c77290
+    Reviewed-on: https://go-review.googlesource.com/87136
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/math/big/int.go      | 6 +++++-
- src/math/big/int_test.go | 6 ++++--
- 2 files changed, 9 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/work/exec.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

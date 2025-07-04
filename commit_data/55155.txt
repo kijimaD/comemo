@@ -1,17 +1,19 @@
-commit 7e5b7d7720e07588f752a3672d9983cc20626d89
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Nov 22 20:37:13 2023 +0000
+commit 5ce9d9fee85bbdc952b7b20e94811fa24d36f1f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 11 15:03:18 2023 -0800
 
-    doc: update release notes from the relnote tool
+    go/types: use the same interface method sorting as types2
     
-    For #61422.
+    See also CL 321231 which introduces object.less to match
+    expected compiler behavior.
     
-    Change-Id: I0e091c30a445dbc55054c31837c6f051fea3c07d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544537
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I56fbf332a04596dc96393b71d40acf4df5d950fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461677
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- doc/go1.22.html | 498 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 492 insertions(+), 6 deletions(-)
+ src/go/types/typeset.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

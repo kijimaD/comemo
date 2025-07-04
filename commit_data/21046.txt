@@ -1,14 +1,78 @@
-commit 45eaf500fc7ad0bd0af6087530ca59d6ba9bdd95
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 22 11:16:04 2014 -0800
+commit 4a42fae2cd775e332b5fc05a17d936e425c68b08
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 10 22:40:44 2014 -0500
 
-    cmd/api: fix race in run.go with multiple builders on a machine
+    [dev.cc] cmd/5c, cmd/6c, cmd/8c, cmd/cc: remove
     
-    Fixes #9407
+    Let's just do this up front.
+    This will break the build (here on the dev.cc branch).
+    The CLs that follow will take care of fixing it.
     
-    Change-Id: I765e8009c7ee22473ac8c2d81c7f6c8ec9866c51
-    Reviewed-on: https://go-review.googlesource.com/1980
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Leave behind cmd/cc/lexbody and cmd/cc/macbody for the assemblers.
+    They'll go away later.
+    
+    LGTM=dave, r
+    R=r, dave
+    CC=golang-codereviews
+    https://golang.org/cl/172170043
 
- src/cmd/api/run.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/5c/Makefile   |    5 -
+ src/cmd/5c/cgen.c     | 1213 ----------------
+ src/cmd/5c/doc.go     |   16 -
+ src/cmd/5c/gc.h       |  333 -----
+ src/cmd/5c/list.c     |   39 -
+ src/cmd/5c/mul.c      |  640 ---------
+ src/cmd/5c/peep.c     | 1478 -------------------
+ src/cmd/5c/reg.c      | 1210 ----------------
+ src/cmd/5c/sgen.c     |  265 ----
+ src/cmd/5c/swt.c      |  461 ------
+ src/cmd/5c/txt.c      | 1361 ------------------
+ src/cmd/6c/Makefile   |    5 -
+ src/cmd/6c/cgen.c     | 2046 --------------------------
+ src/cmd/6c/div.c      |  236 ---
+ src/cmd/6c/doc.go     |   16 -
+ src/cmd/6c/gc.h       |  359 -----
+ src/cmd/6c/list.c     |   38 -
+ src/cmd/6c/machcap.c  |  107 --
+ src/cmd/6c/mul.c      |  458 ------
+ src/cmd/6c/peep.c     |  902 ------------
+ src/cmd/6c/reg.c      | 1523 --------------------
+ src/cmd/6c/sgen.c     |  483 -------
+ src/cmd/6c/swt.c      |  353 -----
+ src/cmd/6c/txt.c      | 1674 ----------------------
+ src/cmd/8c/Makefile   |    5 -
+ src/cmd/8c/cgen.c     | 1939 -------------------------
+ src/cmd/8c/cgen64.c   | 2657 ----------------------------------
+ src/cmd/8c/div.c      |  236 ---
+ src/cmd/8c/doc.go     |   16 -
+ src/cmd/8c/gc.h       |  364 -----
+ src/cmd/8c/list.c     |   38 -
+ src/cmd/8c/machcap.c  |  116 --
+ src/cmd/8c/mul.c      |  458 ------
+ src/cmd/8c/peep.c     |  807 -----------
+ src/cmd/8c/reg.c      | 1438 -------------------
+ src/cmd/8c/sgen.c     |  483 -------
+ src/cmd/8c/swt.c      |  341 -----
+ src/cmd/8c/txt.c      | 1537 --------------------
+ src/cmd/cc/Makefile   |   10 -
+ src/cmd/cc/acid.c     |  344 -----
+ src/cmd/cc/bits.c     |  120 --
+ src/cmd/cc/cc.h       |  835 -----------
+ src/cmd/cc/cc.y       | 1220 ----------------
+ src/cmd/cc/com.c      | 1384 ------------------
+ src/cmd/cc/com64.c    |  644 ---------
+ src/cmd/cc/dcl.c      | 1707 ----------------------
+ src/cmd/cc/doc.go     |   13 -
+ src/cmd/cc/dpchk.c    |  793 ----------
+ src/cmd/cc/funct.c    |  431 ------
+ src/cmd/cc/godefs.c   |  367 -----
+ src/cmd/cc/lex.c      | 1593 ---------------------
+ src/cmd/cc/mac.c      |   34 -
+ src/cmd/cc/omachcap.c |   40 -
+ src/cmd/cc/pgen.c     |  622 --------
+ src/cmd/cc/pswt.c     |  140 --
+ src/cmd/cc/scon.c     |  640 ---------
+ src/cmd/cc/sub.c      | 2068 --------------------------
+ src/cmd/cc/y.tab.c    | 3822 -------------------------------------------------
+ src/cmd/cc/y.tab.h    |  230 ---
+ 59 files changed, 42713 deletions(-)

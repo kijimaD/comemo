@@ -1,12 +1,18 @@
-commit faf611a07a7630a075fba3a555db7831e002122a
-Author: Brady Sullivan <brady@bsull.com>
-Date:   Fri Sep 16 15:25:07 2016 -0700
+commit 8a1dc3244725c2afd170025fc616df840b464a99
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 14:54:21 2016 -0400
 
-    net/http: rename Post's parameter from bodyType to contentType
+    runtime: add library startup support for ppc64le
     
-    Change-Id: Ie1b08215c02ce3ec72a4752f4b800f23345ff99d
-    Reviewed-on: https://go-review.googlesource.com/29362
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    I have been running this patch inside Google against Go 1.6 for the last month.
+    
+    The new tests will probably break the builders but let's see
+    exactly how they break.
+    
+    Change-Id: Ia65cf7d3faecffeeb4b06e9b80875c0e57d86d9e
+    Reviewed-on: https://go-review.googlesource.com/23452
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/client.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/dist/test.go            |   6 +-
+ src/runtime/rt0_linux_ppc64le.s | 129 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 133 insertions(+), 2 deletions(-)

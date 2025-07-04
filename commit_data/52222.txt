@@ -1,24 +1,22 @@
-commit 24017148ca8a669debbddba56d69769dc47d5c71
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Feb 25 18:31:13 2023 +0800
+commit f49e802892a225c7fd14a3a8bb8c0e83875d888d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 18 12:55:30 2022 -0400
 
-    cmd/compile: clarify a few redundant deletions of internal/ssagen.state.vars
+    net/http: eliminate arbitrary timeouts in TestServerRequestContextCancel_ConnClose
     
-    Fixes #58729
+    These timeouts are empirically sometimes (but rarely) too short on
+    slower builders, and at any rate if this test fails “for real” we'll
+    want a goroutine dump in order to debug it anyway. A goroutine dump is
+    exactly what we get if we let the test time out on its own.
     
-    The reason why these deletions exist is that the old state.variable method
-    will assign the new value to the given key of map when the key doesn't exist,
-    but after this commit: https://github.com/golang/go/commit/5a6e511c614a158cb58150fb62bfbc207a33922d#diff-e754f9fc8eaf878714250cfc03844eb3b58185ac806a8c1c4f9fbabd86cda921L3972
-    the state.variable doesn't do that anymore, thus these deletions became redundant.
+    Fixes #52414.
     
-    Change-Id: Ie6e2471ca445f907a2bb1607c293f9301f0d73e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471355
-    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Change-Id: Id2dd3839977bd8a41f296d67d1cccbf068fd73f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400816
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/net/http/serve_test.go | 19 +++----------------
+ 1 file changed, 3 insertions(+), 16 deletions(-)

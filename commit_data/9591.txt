@@ -1,12 +1,14 @@
-commit 1f523e2579e8e10b8d9de7f989b711f6d2ee0eb2
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Mon Sep 5 10:56:39 2011 +1000
+commit 8ede0a67a20a3cdb4d584c784f8b9de9629d050b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 5 09:50:22 2011 +1000
 
-    websocket: fix incorrect prints found by govet
+    misc/goplay: Fix template output
     
-    R=golang-dev, dsymonds
+    Fixes #2219.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4963059
+    https://golang.org/cl/4960052
 
- src/pkg/websocket/websocket_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/goplay/goplay.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

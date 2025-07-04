@@ -1,18 +1,17 @@
-commit 8d77d2c8f0f31159025cd0ddfb4d92147d659ca4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 5 19:37:44 2014 -0800
+commit 31731b27cd9001d399e0e3c38c149c51dacb22ac
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 5 16:01:37 2014 -0800
 
-    spec: be more precise about underlying types of predeclared types
+    net/rpc/jsonrpc: add temporarily-disabled failing test
     
-    The underlying type of the predeclared type error is not itself,
-    but the interface it is defined as.
+    To be enabled by https://golang.org/cl/71230045/
     
-    Fixes #7444.
+    Update #7442
     
-    LGTM=r, rsc
-    R=r, rsc, iant, ken
+    LGTM=adg
+    R=adg
     CC=golang-codereviews
-    https://golang.org/cl/71790044
+    https://golang.org/cl/69860056
 
- doc/go_spec.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/net/rpc/jsonrpc/all_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

@@ -1,14 +1,15 @@
-commit 0da73b9f073b2b1e9b78b3a6f6bc077101a05658
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Mar 14 21:21:44 2014 +0400
+commit 22aa54965e1cc7f0a2b194588c1bd8c7c627182d
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Mar 14 16:44:54 2014 +0100
 
-    runtime: fix a race in bgsweep
-    See the comment for description.
+    cmd/go: fix invalid go pack command line in the output of go build -x
     
-    LGTM=rsc
-    R=rsc
+    Fixes #7262
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/75670044
+    https://golang.org/cl/76110043
 
- src/pkg/runtime/mgc0.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

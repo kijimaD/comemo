@@ -1,47 +1,41 @@
-commit bbe1be5c19f04816f5f9162c2be75351480c92a0
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Nov 29 11:45:17 2021 -0800
+commit cf148f3d468f4d0648e7fc6d2858d2afdc37f70d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 3 20:49:03 2021 -0400
 
-    cmd/compile: report channel size errors correctly for -G=3
+    cmd/compile, runtime: use ABI-aware function converting float to interface
     
-    First, we need to set base.Pos in varDecl() and typeDecl(), so it will
-    be correct if we need to report type size errors while converting types.
-    Changed error calls in types/sizes.go to use Errorf, not ErrorfAt, since
-    we want to use base.Pos (which will set from t.Pos(), if that is
-    available).
+    Currently, when converting a float (say float64), we use convT64
+    function. In the runtime convT64 expects a uint64 argument. In
+    the compiler, convT64 is defined as taking an "any" argument (so
+    it works with also uint64-like types such as [1]uint64). The "any"
+    type is instantiated with the concrete type in walk. So the
+    backend will see instances such as convT64([1]uint64).
     
-    Second, we need to add an extra call CalcSize(t1.Elem()) in the
-    TCHANARGS case of CalcSize(). We can use CalcSize() rather than
-    CheckSize(), since we know the top-level recursive type will have been
-    calculated by the time we process the fake TCHANARGS type. In -G=0 mode,
-    the size of the channel element has often been calculated because of
-    some other processing (but not in the case of #49767). But in -G=3 mode,
-    we just calculate sizes during the single noder2 pass, so we are more
-    likely to have not gotten to calculating the size of the element yet,
-    depending on the order of processing of the deferredTypeStack.
+    Currently, float64 is treated as uint64-like. So the backend will
+    see convT64(float64). With a memory-based calling convention this
+    is fine. With a register-based calling convention, however, it
+    will pass the argument in a floating point register, whereas the
+    runtime expects the argument in an integer register (as it is
+    declared as uint64).
     
-    Fixes the tests fixedbugs/issue{42058a,42058b}.go that were
-    disabled for -G=3 mode.
+    To fix this, this CL introduces runtime functions convT32F and
+    convT64F. They behave the same as convT32/convT64, but with a
+    float argument. In the compiler, use convT32F/convT64F to convert
+    float-like type to interface.
     
-    Had to add exceptions in stdlib_test.go for go/types and types2, because
-    the types2 typechecker does not know about type size limits.
+    With this, "GOEXPERIMENT=regabi,regabiargs go test math fmt"
+    works.
     
-    Fixes #49814
-    Fixes #49771
-    Updates #49767
+    Updates #40724.
     
-    Change-Id: I77d058e8ceff68a58c4c386a8cf46799c54b04c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367955
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I8b2e232096a95e4a7c4ab81795d77ef224ffaab3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307232
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/noder/decl.go         |  4 ++++
- src/cmd/compile/internal/types/size.go         | 15 ++++++++++-----
- src/cmd/compile/internal/types2/stdlib_test.go |  2 ++
- src/go/types/stdlib_test.go                    |  2 ++
- test/fixedbugs/issue49767.go                   | 12 ++++++++++++
- test/fixedbugs/issue49814.go                   | 14 ++++++++++++++
- test/run.go                                    | 15 ++++++++-------
- 7 files changed, 52 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/typecheck/builtin.go      |  2 ++
+ .../compile/internal/typecheck/builtin/runtime.go  |  2 ++
+ src/cmd/compile/internal/walk/convert.go           | 23 ++++++++++++++++++++++
+ src/runtime/iface.go                               |  8 ++++++++
+ 4 files changed, 35 insertions(+)

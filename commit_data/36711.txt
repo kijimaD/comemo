@@ -1,16 +1,20 @@
-commit 048c766e660e70e6e3779e479a2ab535b3865a21
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 19 16:19:05 2018 -0700
+commit 97bea970651f0df86e245b2b2596003a174fb5d7
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 22 11:07:43 2018 -0400
 
-    cmd/compile/internal/gc: minor code reorg (cleanup)
+    cmd/compile: fix unsafe-point analysis with -N
     
-    Found while tracking down #26855.
+    Compiling without optimizations (-N) can result in write barrier
+    blocks that have been optimized away but not actually pruned from the
+    block set. Fix unsafe-point analysis to recognize and ignore these.
     
-    Change-Id: Ice137fe390820ba351e1c7439b6a9a1b3bdc966b
-    Reviewed-on: https://go-review.googlesource.com/136396
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    For #24543.
+    
+    Change-Id: I2ca86fb1a0346214ec71d7d6c17b6a121857b01d
+    Reviewed-on: https://go-review.googlesource.com/114076
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

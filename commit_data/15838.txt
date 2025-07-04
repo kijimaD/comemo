@@ -1,15 +1,21 @@
-commit b79afe1b714e225a2b79f639e0956716de34ca64
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 19 13:59:37 2013 -0700
+commit 40d356e9ab116fbf0f44b5b562ceb787f69fdc09
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 19 16:31:52 2013 -0400
 
-    debug/dwarf: support for DWARF 3
+    cmd/ld: generate relocated DWARF in hostobj mode
     
-    R=rsc
+    While we're here, downgrade DWARF to version 2.
+    We're not using any version 3 features, and OS X gdb
+    only supports version 2.
+    
+    Fixes #3436.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7662045
+    https://golang.org/cl/7891044
 
- src/pkg/debug/dwarf/buf.go   | 48 ++++++++++++++++++++++++++++++++---------
- src/pkg/debug/dwarf/entry.go | 26 ++++++++++++++++------
- src/pkg/debug/dwarf/type.go  |  4 +++-
- src/pkg/debug/dwarf/unit.go  | 51 +++++++++++++++++++++++++++++++++++---------
- 4 files changed, 102 insertions(+), 27 deletions(-)
+ src/cmd/ld/dwarf.c      | 192 ++++++++++++++++++++++++++++++++++++++----------
+ src/cmd/ld/dwarf_defs.h |   1 +
+ src/cmd/ld/lib.c        |  20 ++++-
+ src/cmd/ld/macho.c      |  25 ++++---
+ 4 files changed, 184 insertions(+), 54 deletions(-)

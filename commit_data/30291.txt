@@ -1,19 +1,20 @@
-commit 0ad247c6f0335f44a27217d0411b8c92e367ebd8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Feb 14 12:01:01 2017 +1100
+commit 753caecc7e576e46a329b71c49dbf0ea9bfbd867
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Oct 29 22:32:59 2016 -0400
 
-    cmd/link: delay calculating pe file parameters after Linkmode is set
+    cmd/go: set CCACHE_DIR when setting HOME to non-existent dir
     
-    For #10776.
+    This fixes systems for which ccache is the default compiler.
     
-    Change-Id: Id64a7e35c7cdcd9be16cbe3358402fa379090e36
-    Reviewed-on: https://go-review.googlesource.com/36975
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Also remove a couple of temporary files created by TestImportMain.
+    
+    Fixes #17668.
+    
+    Change-Id: I1edefdcec5f417be0533c146253c35ff4928c1c0
+    Reviewed-on: https://go-review.googlesource.com/32328
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/amd64/obj.go | 14 ++------------
- src/cmd/link/internal/ld/lib.go    |  5 +++++
- src/cmd/link/internal/ld/pe.go     | 14 ++++++++++++++
- src/cmd/link/internal/x86/obj.go   | 14 ++------------
- 4 files changed, 23 insertions(+), 24 deletions(-)
+ src/cmd/go/go_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

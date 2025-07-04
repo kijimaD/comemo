@@ -1,24 +1,21 @@
-commit 574fc66b17e25d34d59d69c01978e7cd32cb8f30
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 8 15:55:27 2017 -0800
+commit ded2c65db3cf8c7f03e42d315b22a6b734246a32
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Sep 28 20:17:59 2017 +0100
 
-    go/types: add lookup method to context and factor out LookupParent calls
+    cmd/compile: simplify a few bits of the code
     
-    R=go1.11
+    Remove an unused type, a few redundant returns and replace a few slice
+    append loops with a single append.
     
-    Also: Moved Checker.pos field into context where it belongs.
-    
-    This is a cleanup/code factoring.
-    
-    For #22992.
-    
-    Change-Id: If9d4f0af537cb181f73735e709ebc8258b2a1378
-    Reviewed-on: https://go-review.googlesource.com/83017
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: If07248180bae5631b5b152c6051d9635889997d5
+    Reviewed-on: https://go-review.googlesource.com/66851
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/go/types/call.go       | 2 +-
- src/go/types/check.go      | 8 +++++++-
- src/go/types/interfaces.go | 4 ++--
- src/go/types/stmt.go       | 2 +-
- src/go/types/typexpr.go    | 2 ++
- 5 files changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go            |  4 +---
+ src/cmd/compile/internal/gc/sinit.go              |  1 -
+ src/cmd/compile/internal/gc/typecheck.go          |  1 -
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 --
+ src/cmd/compile/internal/ssa/regalloc.go          | 14 ++------------
+ 5 files changed, 3 insertions(+), 19 deletions(-)

@@ -1,14 +1,19 @@
-commit 3cc2da6397e5ca8efd5d0cf3e919f33bc74dc4b6
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Jun 3 21:36:51 2017 +0200
+commit 027500ce385709ecaa8fe11320a23a12f8e3b3de
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Mar 9 20:50:24 2017 +0000
 
-    encoding/json: clarify unmarshaling behaviour on bad fields
+    src/*.bash: use tabs consistently
     
-    Fixes #19526
+    make.bash used mostly tabs and buildall.bash used mostly spaces, but
+    they were both mixing them. Be consistent and use tabs, as that's what's
+    more common and what the Go code uses.
     
-    Change-Id: Ifaaf454e0e89fdf4309118c2e2e6ac0d0a43c39d
-    Reviewed-on: https://go-review.googlesource.com/44711
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia6affbfccfe64fda800c1ac400965df364d2c545
+    Reviewed-on: https://go-review.googlesource.com/37967
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/decode.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/buildall.bash | 64 +++++++++++++++++++++++++++----------------------------
+ src/make.bash     |  2 +-
+ 2 files changed, 33 insertions(+), 33 deletions(-)

@@ -1,21 +1,20 @@
-commit aa0ba4dcaff56b1e44ad0165516db36b71f99e50
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Aug 23 11:22:04 2023 +0200
+commit 7f7f27f992850a06551c2798a3b874f5d5356ae9
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Sep 27 19:28:39 2022 +0800
 
-    net: use internal/bytealg.CountString
+    cmd/go: using strings.CutSuffix replace strings.HasSuffix and strings.TrimSuffix
     
-    On platforms that provide a native implementation this might be slightly
-    faster. On other platforms it is equivalent to the count func.
-    
-    Change-Id: If46cc65598993e64084cc98533cb8c1e9679a6fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522136
+    Change-Id: I79854419091d6c5c5c2922a1f45a3c5589673f11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435138
+    Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/net/dnsclient_unix.go |  3 ++-
- src/net/ipsock.go         |  4 ++--
- src/net/parse.go          | 11 -----------
- 3 files changed, 4 insertions(+), 14 deletions(-)
+ src/cmd/go/internal/modfetch/cache.go        | 3 +--
+ src/cmd/go/internal/modfetch/codehost/git.go | 4 ++--
+ src/cmd/go/internal/modfetch/fetch.go        | 4 ++--
+ src/cmd/go/internal/work/exec.go             | 8 ++++----
+ 4 files changed, 9 insertions(+), 10 deletions(-)

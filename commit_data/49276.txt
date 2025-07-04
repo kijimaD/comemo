@@ -1,33 +1,31 @@
-commit 00847065287a11353c66b4144f5692848c7e837e
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit 5aac85ad5ebfa9c2ecb01a3292bcf3513d876d7a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 15:18:37 2021 -0700
 
-    runtime: implement signal for linux/loong64
+    [dev.typeparams] cmd/compile/internal/types2: better names for things (cleanup)
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    - use the symbol 𝓤 (as in 𝓤niverse) instead of ⊤ to denote the set
+      of all types (for better readabilty, ⊤ is hard to distinguish from
+      T in some fonts)
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    - use isAll instead of isTop to test for the set of all types
     
-    Updates #46229
+    - use allTermlist instead of topTermlist to denote the termlist
+      representing all types
     
-    Change-Id: Ifa0229d2044dd53683de4a2b3ab965b16263f267
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368075
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idcb0b3398782b38653338e65173c0dbb935e430a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339891
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/defs_linux_loong64.go   | 212 ++++++++++++++++++++++++++++++++++++
- src/runtime/signal_linux_loong64.go |  75 +++++++++++++
- src/runtime/signal_loong64.go       |  98 +++++++++++++++++
- 3 files changed, 385 insertions(+)
+ src/cmd/compile/internal/types2/instantiate.go   |  2 +-
+ src/cmd/compile/internal/types2/interface.go     |  2 +-
+ src/cmd/compile/internal/types2/termlist.go      | 22 +++----
+ src/cmd/compile/internal/types2/termlist_test.go | 78 ++++++++++++------------
+ src/cmd/compile/internal/types2/typeset.go       | 22 ++++---
+ src/cmd/compile/internal/types2/typeterm.go      | 31 +++++-----
+ src/cmd/compile/internal/types2/typeterm_test.go | 42 ++++++-------
+ src/cmd/compile/internal/types2/universe.go      |  2 +-
+ 8 files changed, 100 insertions(+), 101 deletions(-)

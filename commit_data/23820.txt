@@ -1,15 +1,14 @@
-commit dc4dd57594f92c67bfbf443a87e0f614cfddbf95
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 23 17:14:48 2015 -0700
+commit d00e7ad640cf0bb91fff33aaac4bbb6da8d415c2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun May 24 03:58:03 2015 -0400
 
-    cmd/cgo: document how CGO_ENABLED works today
+    cmd/compile: show compiler panics when -d panic=1
     
-    Fixes #9530.
+    Fixes #10683.
     
-    Change-Id: Iadfc027c7164e3ba35adb5c67deb42b51d3498ca
-    Reviewed-on: https://go-review.googlesource.com/12603
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I4cce3f298b787c736dbabe544a11a9215bcd3671
+    Reviewed-on: https://go-review.googlesource.com/10336
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/cgo/doc.go | 24 +++++++++++++-----------
- 1 file changed, 13 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 0c460ad0142b6ca1866272002f90fb8166ce4cc0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 22 17:21:33 2024 -0700
+
+    runtime/debug: document ParseBuildInfo and (*BuildInfo).String
+    
+    For #51026
+    Fixes #69971
+    
+    Change-Id: I47f2938d20cbe9462bf738a506baedad4a7006c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621837
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/debug/mod.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

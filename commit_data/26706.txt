@@ -1,16 +1,31 @@
-commit bbbd572c10e8e28d343a559b9c0ceef9074c719c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Apr 5 14:10:22 2016 +1000
+commit 40f2b57e0b007aaabe2b6ec5650223d047cd1452
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Mon Feb 22 17:14:53 2016 +0100
 
-    cmd/go: leave directory before removing it in TestSharedLibName
+    [dev.ssa] cmd/compile/internal/ssa: eliminate phis during deadcode removal
     
-    Fixes #15124
+    While investigating the differences between 19710 (remove
+    tautological controls) and 12960 (bounds and nil propagation)
+    I observed that part of the wins of 19710 come from missed
+    opportunities for deadcode elimination due to phis.
+    See for example runtime.stackcacherelease. 19710 happens much
+    later than 12960 and has more chances to eliminate bounds.
     
-    Change-Id: I55fe4c2957370f3fb417c3df54f99fb085a5dada
-    Reviewed-on: https://go-review.googlesource.com/21522
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Size of pkg/tool/linux_amd64/* excluding compile:
+    
+    -this -12960 95882248
+    +this -12960 95880120
+    -this +12960 95581512
+    +this +12960 95555224
+    
+    This change saves about 25k.
+    
+    Change-Id: Id2f4e55fc92b71595842ce493c3ed527d424fe0e
+    Reviewed-on: https://go-review.googlesource.com/19728
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/pkg_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/deadcode.go | 66 ++++++++++++++++----------------
+ src/cmd/compile/internal/ssa/phielim.go  |  6 ++-
+ 2 files changed, 37 insertions(+), 35 deletions(-)

@@ -1,27 +1,27 @@
-commit 1c8e6077f67ea33b752ebf93483517b03ad9393f
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Oct 6 22:39:08 2019 +0200
+commit 8515d9cf656dedce3dbcb09ac7dc00f036e454d3
+Author: Keith Randall <khr@google.com>
+Date:   Mon Apr 1 12:22:22 2019 -0700
 
-    runtime: do not omit stack trace of goroutine that handles async events
+    runtime: randomize package initialization order in race mode
     
-    On wasm there is a special goroutine that handles asynchronous events.
-    Blocking this goroutine often causes a deadlock. However, the stack
-    trace of this goroutine was omitted when printing the deadlock error.
+    This is one small step to force people to not depend on the order of
+    initialization of packages which are not explicitly ordered by import
+    directives. Similar to randomizing map iteration order, this makes
+    sure people aren't depending on the behavior of the current release,
+    so that we can change the order in future releases without breaking
+    everyone.
     
-    This change adds an exception so the goroutine is not considered as
-    an internal system goroutine and the stack trace gets printed, which
-    helps with debugging the deadlock.
+    Maybe one day we can randomize always, but for now we do it just in
+    race mode. (We would need to measure the impact on startup time before
+    we enabled it always.)
     
-    Updates #32764
+    RELNOTE=yes
     
-    Change-Id: Icc8f5ba3ca5a485d557b7bdd76bf2f1ffb92eb3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199537
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Change-Id: I99026394796125974c5f2c3660a88becb92c9df3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170318
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/objabi/funcid.go |  3 +++
- src/runtime/lock_js.go            | 16 +++++++++-------
- src/runtime/symtab.go             |  1 +
- src/runtime/traceback.go          |  6 +++---
- 4 files changed, 16 insertions(+), 10 deletions(-)
+ src/runtime/proc.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

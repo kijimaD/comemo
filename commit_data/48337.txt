@@ -1,22 +1,22 @@
-commit 7026eeb8cfdc5801adddaaa678fb6495a998db0e
-Author: Mark Pulford <mark@kyne.com.au>
-Date:   Sun Feb 27 23:22:22 2022 +1030
+commit 603f43cbae1f29c9c167b2b331dc31c8486c888b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 3 18:17:35 2021 +1100
 
-    cmd/go: fix buildvcs when using older git versions
+    runtime: switch runtime to libc for openbsd/arm
     
-    Git versions before v2.10.0 do not support --no-show-signature.
-    Using "-c" allows Git to ignore the configuration option if it does not
-    exist.
+    Use libc rather than performing direct system calls for the runtime on
+    openbsd/arm.
     
-    Fixes #51253
+    Updates #36435
     
-    Change-Id: I2b1adaca0eb18ae31f2e1119e354ce515b00cfc2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388194
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: If64a96a61c80b9748792f8a85a8f16ed6ebca91f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315792
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/vcs/vcs.go                      | 2 +-
- src/cmd/go/testdata/script/version_buildvcs_git.txt | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/defs_openbsd_arm.go    |   5 +
+ src/runtime/os_openbsd_syscall2.go |   4 +-
+ src/runtime/proc.go                |   2 +-
+ src/runtime/sys_openbsd2.go        |   4 +-
+ src/runtime/sys_openbsd_arm.s      | 508 ++++++++++++++++++-------------------
+ 5 files changed, 260 insertions(+), 263 deletions(-)

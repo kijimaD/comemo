@@ -1,14 +1,13 @@
-commit d9ffbc4b3d7f4bf4ba3b695bb8c9ffc04bd16c82
+commit 4ed7c59a50706512d8d73a79a1c8dd06624d848b
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 13 18:34:22 2011 -0800
+Date:   Thu Jan 13 17:41:45 2011 -0800
 
-    godoc: remove tab before <pre>-formatted section
-    
-    Fixes #1321.
+    fix build (this time for real): adjust typechecker test, ogle
     
     R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4003042
+    https://golang.org/cl/4006041
 
- lib/godoc/package.html | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/pkg/exp/ogle/cmd.go                    | 3 ++-
+ src/pkg/go/typechecker/typechecker_test.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

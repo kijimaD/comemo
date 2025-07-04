@@ -1,14 +1,14 @@
-commit 4feb47bc765d2cd7d774b0a28b06e8d81a1affe7
-Author: Eric Lagergren <ericscottlagergren@gmail.com>
-Date:   Tue Feb 23 18:19:52 2016 -0800
+commit 8ae423ef84af732858c49012a947cb1570fd59d9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 15:36:35 2015 -0800
 
-    encoding/csv: clarify that TrimLeadingSpace can trim the delimiter
+    cmd/compile: document parsing decision for imported interfaces
     
-    Fixes #14464
+    Fixes #13245.
     
-    Change-Id: Iafc21641cca7d35b7a5631cfc94742ee8e7d5042
-    Reviewed-on: https://go-review.googlesource.com/19861
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I87be63cc7b27f70ca2f9fb6bc9908b9061fe3d9d
+    Reviewed-on: https://go-review.googlesource.com/17203
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/encoding/csv/reader.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/parser.go | 40 +++++++++++++++++++++--------------
+ 1 file changed, 24 insertions(+), 16 deletions(-)

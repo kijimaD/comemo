@@ -1,39 +1,36 @@
-commit c4012b6bbb3714c5e47f60e3c6946c8c4bc5abef
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 8 10:26:20 2016 -0800
+commit c7b1ef9918893ca58eb36f60c9e8a28371c5325e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 15:10:25 2015 -0500
 
-    cmd/compile: remove nodesOrNodeList outside of syntax.go
+    cmd/link: reject non-package main toplevel.a file, remove dead code
     
-    Passes toolstash -cmp.
+    The test for non-package main top-level inputs is done while parsing
+    the export data. Issue #13468 happened because we were not parsing
+    the export data when using compiler-generated archives
+    (that is, when using go tool compile -pack).
     
-    Update #14473.
+    Fix this by parsing the export data even for archives.
     
-    Change-Id: I717ebd948dfc8faf8b9ef5aa02c67484af618d18
-    Reviewed-on: https://go-review.googlesource.com/20359
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    However, that turns up a different problem: the export data check
+    reports (one assumes spurious) skew errors now, because it has
+    not been run since Go 1.2.
+    (Go 1.3 was the first release to use go tool compile -pack.)
+    
+    Since the code hasn't run since Go 1.2, it can't be that important.
+    Since it doesn't work today, just delete it.
+    
+    Figuring out how to make this code work with Robert's export
+    format was one of the largest remaining TODOs for that format.
+    Now we don't have to.
+    
+    Fixes #13468 and makes the world a better place.
+    
+    Change-Id: I40a4b284cf140d49d48b714bd80762d6889acdb9
+    Reviewed-on: https://go-review.googlesource.com/17976
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/alg.go       |   4 +-
- src/cmd/compile/internal/gc/bexport.go   |   2 +-
- src/cmd/compile/internal/gc/bimport.go   |  27 ++++----
- src/cmd/compile/internal/gc/closure.go   |   2 +-
- src/cmd/compile/internal/gc/dcl.go       |  24 +++----
- src/cmd/compile/internal/gc/esc.go       |  22 +++---
- src/cmd/compile/internal/gc/export.go    |   2 +-
- src/cmd/compile/internal/gc/fmt.go       |   8 ++-
- src/cmd/compile/internal/gc/gen.go       |   6 +-
- src/cmd/compile/internal/gc/init.go      |   2 +-
- src/cmd/compile/internal/gc/inl.go       |  20 +++---
- src/cmd/compile/internal/gc/lex.go       |   2 +-
- src/cmd/compile/internal/gc/order.go     |  35 +++++-----
- src/cmd/compile/internal/gc/parser.go    |  22 +++---
- src/cmd/compile/internal/gc/racewalk.go  |  12 ++--
- src/cmd/compile/internal/gc/range.go     |  20 +++---
- src/cmd/compile/internal/gc/reflect.go   |  12 ++--
- src/cmd/compile/internal/gc/select.go    |   6 +-
- src/cmd/compile/internal/gc/sinit.go     |   8 +--
- src/cmd/compile/internal/gc/ssa.go       |   2 +-
- src/cmd/compile/internal/gc/subr.go      |  10 +--
- src/cmd/compile/internal/gc/swt.go       |  26 +++----
- src/cmd/compile/internal/gc/typecheck.go |  48 ++++++-------
- src/cmd/compile/internal/gc/walk.go      | 115 +++++++++++++++----------------
- 24 files changed, 218 insertions(+), 219 deletions(-)
+ src/cmd/link/internal/ld/go.go  | 227 ++--------------------------------------
+ src/cmd/link/internal/ld/lib.go |   4 +-
+ test/linkmain.go                |  12 +++
+ test/linkmain_run.go            |  65 ++++++++++++
+ 4 files changed, 87 insertions(+), 221 deletions(-)

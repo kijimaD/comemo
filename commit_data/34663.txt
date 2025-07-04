@@ -1,14 +1,39 @@
-commit 65727ab59d20663a76692fea7b8444dbb349080b
-Author: Ross Light <light@google.com>
-Date:   Wed Mar 21 09:54:22 2018 -0700
+commit 4739c0db47edf99be9ac1f4beab9ea990570dd5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 17:09:54 2017 -0500
 
-    net/url: fix contradiction in PathUnescape docs
+    cmd/dist, cmd/cgo, cmd/go: allow per-goos/goarch default CC
     
-    Change-Id: If35e3faa738c5d7d72cf77d14b276690579180a1
-    Reviewed-on: https://go-review.googlesource.com/101921
-    Run-TryBot: Ross Light <light@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Even though cmd/dist has historically distinguished "CC for gohostos/gohostarch"
+    from "CC for target goos/goarch", it has not recorded that distinction
+    for later use by cmd/cgo and cmd/go. Now that content-based staleness
+    includes the CC setting in the decision about when to rebuild packages,
+    the go command needs to know the details of which CC to use when.
+    Otherwise lots of things look out of date and (worse) may be rebuilt with
+    the wrong CC.
+    
+    A related issue is that users may want to be able to build a toolchain
+    capable of cross-compiling for two different non-host targets, and
+    to date we've required that CC_FOR_TARGET apply to both.
+    This CL introduces CC_FOR_${GOOS}_${GOARCH}, so that you can
+    (for example) set CC_FOR_linux_arm and CC_FOR_linux_arm64
+    separately on a linux/ppc64 host and be able to cross-compile to
+    either arm or arm64 with the right toolchain.
+    
+    Fixes #8161.
+    Half of a fix for #22509.
+    
+    Change-Id: I7a43769f39d859f659d31bc96980918ba102fb83
+    Reviewed-on: https://go-review.googlesource.com/76018
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/url/url.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/cgo/doc.go                |  12 ++--
+ src/cmd/cgo/gcc.go                |   2 +-
+ src/cmd/dist/build.go             | 147 +++++++++++++++++++++-----------------
+ src/cmd/dist/buildgo.go           |  34 +++++++--
+ src/cmd/go/internal/envcmd/env.go |   4 +-
+ src/cmd/go/internal/work/exec.go  |   4 +-
+ src/cmd/go/internal/work/gc.go    |   8 +--
+ src/cmd/go/internal/work/gccgo.go |   2 +-
+ 8 files changed, 125 insertions(+), 88 deletions(-)

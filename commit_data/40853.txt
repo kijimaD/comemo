@@ -1,16 +1,21 @@
-commit ce7829fdb2f9acc6a228e0fc8093afe6d2ca989c
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Nov 11 18:32:27 2019 -0500
+commit fbb819ebc443518e9caea3c1b0d0f9e0efec2262
+Author: Andrew Todd <andrew.todd@wework.com>
+Date:   Sat Jul 27 16:20:49 2019 -0700
 
-    doc: add section for major version suffixes to module reference
+    strings: clarify usage of Title and ToTitle
     
-    Updates #33637
+    This is intended to help clear up confusion around the usage of the
+    Title and ToTitle functions. It includes a link to define title case
+    to distinguish it from upper case. It also includes an additional
+    example for the ToTitle function to showcase the difference in behavior
+    between it and the Title function.
     
-    Change-Id: Ieb8fce1b9c44f630cddc5ff6d19daa17185867e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206618
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+    Fixes #33302
+    
+    Change-Id: I44e62962fb04d0d22966a39eda3a2d16de7a2291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187825
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/modules.md | 49 ++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 48 insertions(+), 1 deletion(-)
+ src/strings/example_test.go | 11 ++++++++++-
+ src/strings/strings.go      |  7 ++++---
+ 2 files changed, 14 insertions(+), 4 deletions(-)

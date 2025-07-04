@@ -1,23 +1,30 @@
-commit 90ed541149c781a96b86060a7618f73dcf347f28
-Author: Hans <hzb153@gmail.com>
-Date:   Wed Jul 28 05:57:25 2021 +0000
+commit 55b58018f41e6de63bdaa8f3d9a284077d4e88c1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 15 20:24:33 2020 -0800
 
-    runtime: ensure the fixalloc object size is valid
+    test: for issue11656 try to execute trap, not call it
     
-    Usually, fixalloc is used to allocate small, persistent and reuseable
-    objects. The size is typically between range [sizeof(mlink), _FixAllocChunk].
+    The issue11656 code was using the trap instruction as a PC value,
+    but it is intended to call a PC value that contains the trap instruction.
     
-    It's rare for being out of the range. But if it did happen, we got a
-    hard-to-discover memory corruption. This commit prevents that situation by limiting object's size.
+    It doesn't matter too much as in practice the address is not
+    executable anyhow. But may as well have the code act the way it
+    is documented to act.
     
-    Change-Id: If6ef8b0831596464e0f55d09f79094b79ae08c66
-    GitHub-Last-Rev: cb8b1b01bbf452195f4f098d53cca74affc496ff
-    GitHub-Pull-Request: golang/go#47395
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337429
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Also, don't run the test with gccgo/GoLLVM, as it can't work.
+    The illegal instruction will have no unwind data, so the unwinder
+    won't be able to get past it. In other words, gccgo/GoLLVM suffer
+    from the exact problem that the issue describes, but it seems insoluble.
+    
+    For golang/go#11656
+    
+    Change-Id: Ib2e50ffc91d215fd50e78f742fafe476c92d704e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278473
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/mfixalloc.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ test/fixedbugs/issue11656.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

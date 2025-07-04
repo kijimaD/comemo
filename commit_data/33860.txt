@@ -1,12 +1,19 @@
-commit dbe559e24133e0f931ce7e2fe32b65f7207fca15
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Mon Dec 11 17:05:14 2017 -0500
+commit 1d3ad6733e7b1417444bfe1c5ca85b6108e9ac6c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Sep 10 12:55:16 2017 +0200
 
-    doc: change “substantial” to “significant”
+    runtime: refactor hmap.extra.overflow array into two separate fields
     
-    Change-Id: Ie7f2890eab9ad82da93babc92380b13c611af3d0
-    Reviewed-on: https://go-review.googlesource.com/83375
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    This makes it easier to deduce from the field names which overflow
+    field corresponds to h.buckets and which to h.oldbuckets by aligning
+    the naming with the buckets fields in hmap.
+    
+    Change-Id: I8d6a729229a190db0212bac012ead1a3c13cf5d0
+    Reviewed-on: https://go-review.googlesource.com/62411
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.10.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/reflect.go |  6 ++++--
+ src/runtime/hashmap.go                 | 33 ++++++++++++++++++---------------
+ 2 files changed, 22 insertions(+), 17 deletions(-)

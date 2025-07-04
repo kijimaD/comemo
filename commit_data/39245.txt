@@ -1,15 +1,17 @@
-commit fc58acbe5cb18a8428a81452bdf6e2b84625315c
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Mon Feb 4 12:43:05 2019 +0000
+commit d5a36531b2e0a904d616fec55e64575d6583dd80
+Author: Justin Li <git@justinli.net>
+Date:   Wed Jan 23 15:15:06 2019 +0000
 
-    compress/gzip: add missing error check in test
+    database/sql: document Stmt lifetime
     
-    Change-Id: Ib7be503a46f3609ea29464569e57e1f620e97a53
-    GitHub-Last-Rev: a43cffe45f3b9d208028f7682088cbe537d6deca
-    GitHub-Pull-Request: golang/go#30007
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/160431
-    Run-TryBot: Leon Klingele <git@leonklingele.de>
+    When prepared on a DB, prepared statement code in database/sql handles everything to keep the prepared statement alive as it moves across the connection pool. Understanding this is an important part of using this API correctly, but it was only documented indirectly via `(*Tx) Prepare*`.
+    
+    Change-Id: Ic8757e0150d59e675d9f0252f6c15aef2cc2e831
+    GitHub-Last-Rev: 55dba87458542cb631baac80aeea0c3607d8f421
+    GitHub-Pull-Request: golang/go#29890
+    Reviewed-on: https://go-review.googlesource.com/c/159077
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/compress/gzip/gzip_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/database/sql/sql.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

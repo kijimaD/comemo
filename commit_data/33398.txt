@@ -1,24 +1,21 @@
-commit 25159d3af98335cfe574c66224a8c31df25ecc15
-Author: griesemer <gri@golang.org>
-Date:   Wed Nov 1 17:38:07 2017 -0700
+commit d38d357c787f38eadd511b7dadda4fe3b1d7391b
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Fri May 26 11:33:49 2017 +0200
 
-    cmd/compile: avoid spurious errors for invalid map key types
+    crypto/tls: don't check whether an ec point is on a curve twice
     
-    Instead of trying to validate map key types eagerly in some
-    cases, delay their validation to the end of type-checking,
-    when we all type information is present.
+    The processClientKeyExchange and processServerKeyExchange functions unmarshal an
+    encoded EC point and explicitly check whether the point is on the curve. The explicit
+    check can be omitted because elliptic.Unmarshal fails if the point is not on the curve
+    and the returned error would always be the same.
     
-    Passes go build -toolexec 'toolstash -cmp' -a std .
+    Fixes #20496
     
-    Fixes #21273.
-    Fixes #21657.
-    
-    Change-Id: I532369dc91c6adca1502d6aa456bb06b57e6c7ff
-    Reviewed-on: https://go-review.googlesource.com/75310
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5231a655eace79acee2737dd036a0c255ed42dbb
+    Reviewed-on: https://go-review.googlesource.com/44311
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/align.go     |  1 +
- src/cmd/compile/internal/gc/main.go      |  2 ++
- src/cmd/compile/internal/gc/typecheck.go | 47 +++++++-------------------------
- test/fixedbugs/issue21273.go             | 28 +++++++++++++++++++
- 4 files changed, 41 insertions(+), 37 deletions(-)
+ src/crypto/tls/key_agreement.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

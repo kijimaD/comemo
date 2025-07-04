@@ -1,19 +1,16 @@
-commit b3235b75d109f06eec0d3603c606b2d8373b9d4c
-Author: Aman Karmani <aman@tmm1.net>
-Date:   Tue Mar 2 11:52:34 2021 -0800
+commit 99d6e3eec2cad4387b28759322273d774cc94fe5
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Thu Jun 11 10:16:33 2020 +0800
 
-    encoding/gob: ensure "duplicate type received" decoder errors surface up
+    internal/bytealg: use CBZ instructions
     
-    Previously re-using a decoder with a new stream resulted in a confusing
-    "extra data in buffer" error message.
+    Use CBZ to replace the comparison and jump to the zero instruction in the arm64 assembly file.
     
-    Change-Id: Ia4c4c3a2d4b63c59e37e53faa61a500d5ff6e5f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297949
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: Ie16fb52e27b4d327343e119ebc0f0ca756437bc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237477
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/gob/decoder.go      |  3 +++
- src/encoding/gob/encoder_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+ src/internal/bytealg/compare_arm64.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

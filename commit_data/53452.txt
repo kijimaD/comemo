@@ -1,31 +1,26 @@
-commit 3fd867cecc2b31c767f8a60f49ac4138dea69d0f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 30 16:43:50 2023 -0400
+commit edfeea01be331b8737697d4d74737d7888d7dd6f
+Author: muyizixiu <muyizixiu@gmail.com>
+Date:   Wed Aug 17 01:51:01 2022 +0000
 
-    cmd/go: adjust pruning and switch toolchain when needed in 'go mod tidy'
+    net/http: return ErrNoCookie from Request.Cookie when name is ""
     
-    'go mod tidy' may resolve an imported package by added a dependency
-    that requires a higher 'go' version, which may activate graph pruning
-    (if the version goes from below go 1.16 to above it), and may even
-    require switching to a newer toolchain (if the version is not
-    supported by the current one).
+    Request.Cookie(name string) will return the first cookie
+    when cookie name is "". Since readCookies in
+    file net/http/cookie.go at line 247 return all cookies
+    when second parameter is a empty string.
     
-    For #57001.
+    To fix it, Return ErrNoCookie from Request.Cookie(""),
+    instead of the first cookie in the request.
     
-    Change-Id: Ic8e9b87d5979b3a6d1ee70f1f2bf2eea46b1bb0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499676
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #53181
+    
+    Change-Id: Ie623ca4c53da64ef7623a7863292a2d771f76832
+    GitHub-Last-Rev: 01098cd5dbcc8d65e9c0893e0586601584e5f8b9
+    GitHub-Pull-Request: golang/go#53183
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409754
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/go/internal/modcmd/tidy.go                 |  14 +-
- src/cmd/go/internal/modget/get.go                  |   1 +
- src/cmd/go/internal/modload/buildlist.go           |  12 +-
- src/cmd/go/internal/modload/import.go              |   3 +
- src/cmd/go/internal/modload/init.go                |  13 +-
- src/cmd/go/internal/modload/load.go                | 280 +++++++++++++--------
- .../go/testdata/script/mod_import_toolchain.txt    | 181 +++++++++++++
- .../go/testdata/script/mod_tidy_version_tooold.txt |  23 ++
- src/cmd/go/testdata/script/work.txt                |  16 +-
- 9 files changed, 422 insertions(+), 121 deletions(-)
+ src/net/http/request.go      |  3 +++
+ src/net/http/request_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

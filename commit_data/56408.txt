@@ -1,26 +1,24 @@
-commit acda0107ba065f1e049ab3b6a6fdde72762a6e43
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 24 12:56:44 2024 -0400
+commit dace96b9a12905b34af609eedaa6b43e30e7cdb1
+Author: David Chase <drchase@google.com>
+Date:   Thu May 4 16:08:13 2023 -0400
 
-    cmd/compile: stop using internal/godebug
+    cmd/compile: add "loop-transformed" (for whole loop) to logopt
     
-    The main reason not to use internal/godebug is that
-    people often set GODEBUGs to change the behavior
-    of the programs they are running with 'go run' or 'go test'.
-    We don't want the compiler to behave differently as well
-    in that case: that's too many changes.
+    This is intended to support automated pairing of performance
+    regressions with transformed loops; there is already a POC
+    for doing this in the general missed-optimization case; the
+    difference here is the ability to describe an entire range,
+    which required some extra plumbing to acquire and publish
+    the ending line+column.
     
-    Using internal/godebug also breaks bootstrapping
-    with toolchains that don't have it, or future toolchains
-    that have a different API in that package.
-    
-    Change-Id: Ib5a8a74e2451649d8838b71f274b4e3a78939dfa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581495
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ibe606786f6be917b5a9a69d773560ed716a0754d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492717
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/importer/ureader.go | 18 +++++++++---------
- src/cmd/compile/internal/types2/check.go     |  7 -------
- 2 files changed, 9 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/escape/solve.go    |   5 +-
+ src/cmd/compile/internal/gc/main.go         |  42 +--------
+ src/cmd/compile/internal/logopt/log_opts.go |  57 ++++++++-----
+ src/cmd/compile/internal/loopvar/loopvar.go | 127 +++++++++++++++++++++++++++-
+ 4 files changed, 165 insertions(+), 66 deletions(-)

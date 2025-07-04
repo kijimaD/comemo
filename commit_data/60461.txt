@@ -1,0 +1,23 @@
+commit b73875ff6cae1b9c790e9c8d4e99ecb7185f8cd9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jul 11 00:14:33 2024 +0700
+
+    test: re-enabled fixedbugs/notinheap.go test
+    
+    By using cgo.Incomplete to represent not-in-heap type.
+    
+    While at it, also removing the type conversions tests, since they could
+    not be present without //go:notinheap pragma.
+    
+    Fixes #54846
+    
+    Change-Id: I5ee2a4b6498d4100c9770ed7bd62f52623e42526
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597536
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/internal/testdir/testdir_test.go |  1 -
+ test/fixedbugs/notinheap.go              | 32 ++++++--------------------------
+ 2 files changed, 6 insertions(+), 27 deletions(-)

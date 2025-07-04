@@ -1,13 +1,16 @@
-commit 2511d92ffe52c55ad5d22e585d55aed47c2e24fb
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Tue Aug 26 05:26:48 2014 -0700
+commit 339a24da6611487308b497a2ba7506c5451c637f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 19 08:50:35 2014 -0700
 
-    doc/cmd.html: close a tag.
+    runtime: fix typo in comment
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/130560043
+    https://golang.org/cl/125500043
 
- doc/cmd.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/asm_386.s      | 2 +-
+ src/pkg/runtime/asm_amd64.s    | 2 +-
+ src/pkg/runtime/asm_amd64p32.s | 2 +-
+ src/pkg/runtime/asm_arm.s      | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

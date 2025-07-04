@@ -1,15 +1,15 @@
-commit 250fa82122e1eca680c53f99e79dd08794001cc8
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 29 07:34:28 2012 +1100
+commit 26daf6a03f7c44b04b3654f6bda1f4a11fbf9df1
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 29 02:22:28 2012 +0800
 
-    net/rpc: API changes, all documentation
-    except for hiding one type that is only used internally.
+    cmd/dist: force line-buffering stdout/stderr on Unix
+            If stdout and stderr are indeed the same file (not a tty), which is
+            often the case, fully-buffered stdout will make it harder to see
+            progresses, for example, ./make.bash 2>&1 | tee log
     
-    Fixes #2944.
-    
-    R=golang-dev, rsc, kevlar
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5707044
+    https://golang.org/cl/5700070
 
- src/pkg/net/rpc/server.go | 39 +++++++++++++++++++++++++--------------
- 1 file changed, 25 insertions(+), 14 deletions(-)
+ src/cmd/dist/unix.c | 3 +++
+ 1 file changed, 3 insertions(+)

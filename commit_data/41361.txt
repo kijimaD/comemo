@@ -1,16 +1,33 @@
-commit bc5fc6d48ff4e8612c2f41d06e94578291b595d6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jan 23 22:21:39 2020 -0800
+commit 00b773a4a94b16544a6d1b812e42c068a64efad6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 25 00:21:23 2019 -0700
 
-    cmd/compile: preserve shift boundedness information in dec64
+    cmd/compile: simplify OPTRLIT handling
     
-    For clarity. No differences to generated code.
+    Previously, we would recognize &(T{...}) expressions during type
+    checking, rewrite them into (*T){...}, and then do a lot of extra work
+    to make sure the user doesn't write (*T){...} themselves and
+    resynthesizing the OPTRLIT later on.
     
-    Change-Id: Ie4360681caac091eb82c59fb06e35b725b1850dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217003
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    This CL simply handles &T{...} directly in the straight forward
+    manner, by changing OADDR directly to OPTRLIT when appropriate.
+    
+    While here, match go/types's invalid composite literal type error
+    message.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I902b14c7e2cd9fa93e6915dd58272d2352ba38f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197120
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/dec64.rules | 24 +++++-----
- src/cmd/compile/internal/ssa/rewritedec64.go | 72 ++++++++++++++++++----------
- 2 files changed, 60 insertions(+), 36 deletions(-)
+ src/cmd/compile/internal/gc/closure.go   |  20 ++---
+ src/cmd/compile/internal/gc/fmt.go       |   8 +-
+ src/cmd/compile/internal/gc/iexport.go   |   4 +-
+ src/cmd/compile/internal/gc/iimport.go   |  13 +---
+ src/cmd/compile/internal/gc/noder.go     |   9 ---
+ src/cmd/compile/internal/gc/typecheck.go | 122 +++++++++++++------------------
+ test/complit1.go                         |   4 +-
+ 7 files changed, 67 insertions(+), 113 deletions(-)

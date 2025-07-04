@@ -1,24 +1,15 @@
-commit eabdd05892d7cf2d1e14a135367cf2445fa6c848
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 23 14:04:09 2015 -0400
+commit c3c047a6a32ab1f5344e7c0b074fb9d1ce365bbc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 14:23:23 2015 -0400
 
-    runtime: document memory ordering for h_spans
+    runtime: test and fix heap bitmap for 1-pointer allocation on 32-bit system
     
-    h_spans can be accessed concurrently without synchronization from
-    other threads, which means it needs the appropriate memory barriers on
-    weakly ordered machines. It happens to already have the necessary
-    memory barriers because all accesses to h_spans are currently
-    protected by the heap lock and the unlocks happen in exactly the
-    places where release barriers are needed, but it's easy to imagine
-    that this could change in the future. Document the fact that we're
-    depending on the barrier implied by the unlock.
-    
-    Related to issue #9984.
-    
-    Change-Id: I1bc3c95cd73361b041c8c95cd4bb92daf8c1f94a
-    Reviewed-on: https://go-review.googlesource.com/11361
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ic064fe7c6bd3304dcc8c3f7b3b5393870b5387c2
+    Reviewed-on: https://go-review.googlesource.com/10119
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/mheap.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/runtime/export_test.go |  2 ++
+ src/runtime/gcinfo_test.go | 30 ++++++++++++++++++++++++------
+ src/runtime/mbitmap.go     | 27 ++++++++++++++++++++++-----
+ 3 files changed, 48 insertions(+), 11 deletions(-)

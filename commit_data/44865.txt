@@ -1,21 +1,24 @@
-commit 89b141c06e1f97e7ccd84aa820ea0b64291ac3f8
-Author: David Chase <drchase@google.com>
-Date:   Mon Mar 29 18:46:37 2021 -0400
+commit aa476ba6f43ebc4e7ddb6599a7ad35d9fbf1ec6d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 1 00:34:03 2020 -0400
 
-    cmd/compile: emit writebarriers in specified ABI
+    cmd/go/internal/modload: refactor pathInModuleCache
     
-    old code was always ABI0, new code tracks the default
-    this may cause some write barrier removals to fail to fire
+    I found the control flow of this function a bit tricky to reason about
+    due to nesting and interaction between conditions and iteration. This
+    change factors out a helper function that can return early instead of
+    mixing conditionals and 'continue' statements.
     
-    Updates #40724.
+    Also remove the (unused) ModuleUsedDirectly function.
     
-    Change-Id: I656bdd5511c5bd6ee6e021999e30d842a6b9f0a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305671
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    For #36460
+    
+    Change-Id: I60a2a5a1b32989e5a17a14e1a8c858b280cda8f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251998
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/ssa/writebarrier.go | 48 +++++++++++++++++++---------
- 1 file changed, 33 insertions(+), 15 deletions(-)
+ src/cmd/go/internal/modload/load.go | 33 ++++++++++++++++++++-------------
+ 1 file changed, 20 insertions(+), 13 deletions(-)

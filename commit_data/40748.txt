@@ -1,17 +1,14 @@
-commit 49ac23a3cfeae205324d3ddc848459d2f183ab68
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 11 17:15:03 2019 -0500
+commit 8382ccb0bcc57b5d4240bb662bc1e68c5d921b4c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jun 24 19:04:15 2019 -0400
 
-    cmd/go: convert TestFmtLoadErrors to a script test
+    doc/go1.13: binary-only package are no longer supported
     
-    This test failed in a pending CL, and I would rather debug it as a script.
-    
-    Change-Id: I0ae7486a9949bea40d5dd36afe6919f86f14dfa7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206499
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ieb4a78730a0685627b4730381b72cbd01031c8fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183633
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/go_test.go                          |  8 --------
- src/cmd/go/testdata/script/fmt_load_errors.txt | 19 +++++++++++++++++++
- 2 files changed, 19 insertions(+), 8 deletions(-)
+ doc/go1.13.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

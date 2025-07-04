@@ -1,23 +1,26 @@
-commit c2fdb42b1632b054d382b05ebfb6cb903dbb9531
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue May 1 01:21:02 2018 +0200
+commit bb4356dbfd03343bef39746f9937e57c93453e97
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 10 21:50:13 2018 +0000
 
-    runtime: implement darwin raise with pthread_self and pthread_kill
+    net/http: fix "http2: no cached connection..." error with x/net/http2
     
-    Convert raise from raw syscalls to using the system pthread library.
-    As a bonus, raise will now target the current thread instead of the
-    process.
+    The net/http Transport was testing for a sentinel x/net/http2 error
+    value with ==, which meant it was only testing the bundled version. If
+    a user enabled http2 via golang.org/x/net/http2, the error value had a
+    different name.
     
-    Updates #17490
+    This also updates the bundled x/net/http2 to git rev ab555f36 for:
     
-    Change-Id: I2e44f2000bf870e99a5b4dc5ff5e0799fba91bde
-    Reviewed-on: https://go-review.googlesource.com/110475
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+        http2: add internal function isNoCachedConnError to test for ErrNoCachedConn
+        https://golang.org/cl/87297
+    
+    Fixes #22091
+    
+    Change-Id: I3fb85e2b7ba7d145dd66767e1795a56de633958c
+    Reviewed-on: https://go-review.googlesource.com/87298
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/runtime/os_darwin.go       |  7 ++++++-
- src/runtime/sys_darwin.go      | 24 ++++++++++++++++++++++++
- src/runtime/sys_darwin_386.s   | 38 +++++++++++++++++++++++++++++++++-----
- src/runtime/sys_darwin_amd64.s | 27 ++++++++++++++++++++++-----
- 4 files changed, 85 insertions(+), 11 deletions(-)
+ src/net/http/h2_bundle.go               | 24 ++++++++++++++++++++++--
+ src/net/http/transport.go               |  2 +-
+ src/net/http/transport_internal_test.go | 22 +++++++++++++++++-----
+ 3 files changed, 40 insertions(+), 8 deletions(-)

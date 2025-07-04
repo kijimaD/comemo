@@ -1,28 +1,18 @@
-commit 5a312288799c0a433e2061550ff92689b627e080
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Mar 25 13:47:43 2020 -0400
+commit 00d6b28d4ed7b2e8be9fd2efe8f7b1908b1f3301
+Author: ZYunH <zyunhjob@163.com>
+Date:   Fri Oct 25 07:44:57 2019 +0000
 
-    cmd/objdump: add support for -gnu option on Go objdump
+    internal/singleflight: format someErr
     
-    This adds support for the -gnu option on Go objdump. When
-    this option is used, then output will include gnu
-    assembly in comments alongside the Go assembly.
+    Error string should not be capitalized.
     
-    The objdump test was updated to test this new option.
-    
-    This option is supported for the arches found in
-    golang.org/x that provide the GNUsyntax function.
-    
-    Updates #34372
-    
-    Change-Id: I9e60e1691526607dda3c857c4564dcef408b8391
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225459
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I8e1d148c6b999450bcd702f420c2a240f82aadc7
+    GitHub-Last-Rev: 6ca1b3edb4a61723fa6472a0f54cc6329898edbc
+    GitHub-Pull-Request: golang/go#35147
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203339
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/objfile/disasm.go | 42 +++++++++++++++++----------
- src/cmd/objdump/main.go            |  9 +++---
- src/cmd/objdump/objdump_test.go    | 59 ++++++++++++++++++++++++++++++++++----
- src/cmd/pprof/pprof.go             |  2 +-
- 4 files changed, 87 insertions(+), 25 deletions(-)
+ src/internal/singleflight/singleflight_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

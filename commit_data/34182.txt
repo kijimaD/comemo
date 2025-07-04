@@ -1,22 +1,30 @@
-commit 70a04f6880a2082a76f6282361b607f859db950f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 13 16:37:51 2018 -0800
+commit 320b0cdd77f1ea997acc9bf1fbb8dafbbdddca6c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 8 18:29:45 2017 +0100
 
-    go/types: make gotype continue after syntax errors
+    cmd/vet: skip self-assigns with side effects
     
-    This avoids odd behavior where sometimes a lot of useful
-    errors are not reported simply because of a small syntax
-    error.
+    The existing logic for whether the left and right parts of an assignment
+    were equal only checked that the gofmt representation of the two was
+    equal. This only checks that the ASTs were equal.
     
-    Tested manually with non-existing files. (We cannot easily
-    add an automatic test because this is a stand-alone binary
-    in this directory that must be built manually.)
+    However, that method is flawed. For example, if either of the
+    expressions contains a function call, the expressions may actually be
+    different even if their ASTs are the same. An obvious case is a func
+    call to math/rand to get a random integer, such as the one added in the
+    test.
     
-    Fixes #23593.
+    If either of the expressions may have side effects, simply skip the
+    check. Reuse the logic from bool.go's hasSideEffects.
     
-    Change-Id: Iff90f95413bed7d1023fa0a5c9eb0414144428a9
-    Reviewed-on: https://go-review.googlesource.com/93815
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fixes #22174.
+    
+    Change-Id: Ied7f7543dc2bb8852e817230756c6d23bc801d90
+    Reviewed-on: https://go-review.googlesource.com/69116
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/types/gotype.go | 24 ++++++++++++++++++++----
- 1 file changed, 20 insertions(+), 4 deletions(-)
+ src/cmd/vet/assign.go          |  3 +++
+ src/cmd/vet/testdata/assign.go | 15 ++++++++++++++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

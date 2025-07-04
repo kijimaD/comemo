@@ -1,48 +1,35 @@
-commit ff416a3f192cd331225f8cda7453b4ed3fb43fb6
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Sep 12 00:15:28 2013 +0200
+commit a0bc379d469435b5783da684f59d42f7e985b811
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 15:14:11 2013 -0400
 
-    cmd/gc: inline copy in frontend to call memmove directly.
+    undo CL 13084043 / ef4ee02a5853
     
-    A new node type OSPTR is added to refer to the data pointer of
-    strings and slices in a simple way during walk(). It will be
-    useful for future work on simplification of slice arithmetic.
+    There is a cleaner, simpler way.
     
-    benchmark                  old ns/op    new ns/op    delta
-    BenchmarkCopy1Byte                 9            8  -13.98%
-    BenchmarkCopy2Byte                14            8  -40.49%
-    BenchmarkCopy4Byte                13            8  -35.04%
-    BenchmarkCopy8Byte                13            8  -37.10%
-    BenchmarkCopy12Byte               14           12  -15.38%
-    BenchmarkCopy16Byte               14           12  -17.24%
-    BenchmarkCopy32Byte               19           14  -27.32%
-    BenchmarkCopy128Byte              31           26  -15.29%
-    BenchmarkCopy1024Byte            100           92   -7.50%
-    BenchmarkCopy1String              10            7  -28.99%
-    BenchmarkCopy2String              10            7  -28.06%
-    BenchmarkCopy4String              10            8  -22.69%
-    BenchmarkCopy8String              10            8  -23.30%
-    BenchmarkCopy12String             11           11   -5.88%
-    BenchmarkCopy16String             11           11   -5.08%
-    BenchmarkCopy32String             15           14   -6.58%
-    BenchmarkCopy128String            28           25  -10.60%
-    BenchmarkCopy1024String           95           95   +0.53%
+    ««« original CL description
+    cmd/5g, cmd/6g, cmd/8g: faster compilation
+    Replace linked list walk with memset.
+    This reduces CPU time taken by 'go install -a std' by ~10%.
+    Before:
+    real            user            sys
+    0m23.561s       0m16.625s       0m5.848s
+    0m23.766s       0m16.624s       0m5.846s
+    0m23.742s       0m16.621s       0m5.868s
+    after:
+    0m22.714s       0m14.858s       0m6.138s
+    0m22.644s       0m14.875s       0m6.120s
+    0m22.604s       0m14.854s       0m6.081s
     
-    R=golang-dev, bradfitz, cshapiro, dave, daniel.morsing, rsc, khr, khr
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9101048
+    https://golang.org/cl/13084043
+    »»»
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/13352049
 
- src/cmd/5g/cgen.c              | 17 +++++++++
- src/cmd/5g/gsubr.c             | 10 ++++++
- src/cmd/6g/cgen.c              | 17 +++++++++
- src/cmd/6g/gsubr.c             | 11 ++++++
- src/cmd/8g/cgen.c              | 17 +++++++++
- src/cmd/8g/gsubr.c             | 11 ++++++
- src/cmd/gc/builtin.c           |  1 +
- src/cmd/gc/go.h                |  1 +
- src/cmd/gc/racewalk.c          |  1 +
- src/cmd/gc/runtime.go          |  1 +
- src/cmd/gc/typecheck.c         | 15 +++++++-
- src/cmd/gc/walk.c              | 78 +++++++++++++++++++++++++++++++++++++-----
- src/pkg/runtime/append_test.go | 40 ++++++++++++++++++++++
- 13 files changed, 210 insertions(+), 10 deletions(-)
+ src/cmd/5g/peep.c | 17 +++++------------
+ src/cmd/6g/peep.c | 19 ++++++-------------
+ src/cmd/8g/peep.c | 17 +++++------------
+ 3 files changed, 16 insertions(+), 37 deletions(-)

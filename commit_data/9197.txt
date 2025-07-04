@@ -1,17 +1,13 @@
-commit 33ff947cac2899ab5e921539f55e58fbc0fd2c2d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jul 25 12:25:37 2011 -0400
+commit 770543107d64088cdcfc875dde9c2d867d89946e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 25 12:25:23 2011 -0400
 
-    runtime: fix compilation of send select cases
+    syscall: remove unused windows code and comments
     
-    Fixes #2102.
-    
-    R=fullung, rsc
+    R=golang-dev, vcc.163, rsc
     CC=golang-dev
-    https://golang.org/cl/4825043
+    https://golang.org/cl/4826042
 
- src/cmd/gc/go.h              |  2 +-
- src/cmd/gc/select.c          |  2 +-
- src/cmd/gc/subr.c            | 15 ++++++++-------
- src/pkg/runtime/chan_test.go | 16 ++++++++++++++++
- 4 files changed, 26 insertions(+), 9 deletions(-)
+ src/pkg/syscall/syscall_windows.go | 30 ++--------------
+ src/pkg/syscall/ztypes_windows.go  | 74 +++++++++-----------------------------
+ 2 files changed, 18 insertions(+), 86 deletions(-)

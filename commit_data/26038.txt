@@ -1,35 +1,17 @@
-commit 466c948b558cb2eca089577fda2995133531d4ef
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 3 11:30:17 2016 -0800
+commit 5a88e54fdafb7742e4429fcf9e93019dd58df7b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 14 18:22:23 2015 +0000
 
-    cmd/compile: add nodeSeqIterator interface
+    net: make LookupPort with empty service mean 0
     
-    I tried to write a program to convert *NodeList to Node, but ran into
-    too many problem cases.  I'm backing off and trying a more iterative
-    approach using interfaces.
+    Fixes #13610
     
-    This CL adds an interface for iteration over either a *NodeList or a
-    Nodes.  I changed typechecklist to use it, to show how it works.  After
-    NodeList is eliminated, we can change the typechecklist parameter type
-    to Nodes.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: I5c7593714b020d20868b99151b1e7cadbbdbc397
-    Reviewed-on: https://go-review.googlesource.com/20190
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9c8f924dc1ad515a9697291e981ece34fdbec8b7
+    Reviewed-on: https://go-review.googlesource.com/17755
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/alg.go       |  4 +-
- src/cmd/compile/internal/gc/closure.go   |  2 +-
- src/cmd/compile/internal/gc/inl.go       |  2 +-
- src/cmd/compile/internal/gc/lex.go       |  2 +-
- src/cmd/compile/internal/gc/range.go     |  4 +-
- src/cmd/compile/internal/gc/select.go    |  2 +-
- src/cmd/compile/internal/gc/subr.go      |  2 +-
- src/cmd/compile/internal/gc/swt.go       |  2 +-
- src/cmd/compile/internal/gc/syntax.go    | 69 ++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/typecheck.go | 12 +++---
- src/cmd/compile/internal/gc/walk.go      |  2 +-
- 11 files changed, 86 insertions(+), 17 deletions(-)
+ src/net/lookup.go      | 5 +++++
+ src/net/lookup_test.go | 6 ++++++
+ 2 files changed, 11 insertions(+)

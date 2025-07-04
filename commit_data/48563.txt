@@ -1,25 +1,14 @@
-commit ae9ce822ff4015fbbe7aa4303e6f3c160f2c53af
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Tue Mar 29 10:42:58 2022 -0400
+commit 272552275f56345095b4ea7f404e5b317856cf07
+Author: OneOfOne <oneofone@gmail.com>
+Date:   Fri May 21 15:29:46 2021 -0500
 
-    net/netip: return an error from ParsePrefix with IPv6 zone input
+    A+C: update name
     
-    net.ParseCIDR already rejects input in the form of 2001:db8::%a/32, but
-    netip.ParsePrefix previously accepted the input and silently dropped the
-    zone. Make the two consistent by always returning an error if an IPv6
-    zone is present in CIDR input for ParsePrefix.
-    
-    Fixes #51899.
-    
-    Change-Id: Iee7d8d4a5161e0b54a4ee1bd68b02c1a287ff399
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396299
-    Trust: Matt Layher <mdlayher@gmail.com>
-    Run-TryBot: Matt Layher <mdlayher@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Trust: Damien Neil <dneil@google.com>
+    Change-Id: I1f88304858da5147bfd082c2fc2b7d24ed371cd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321955
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/netip/netip.go          |  7 ++++++
- src/net/netip/netip_pkg_test.go |  6 ++---
- src/net/netip/netip_test.go     | 49 +++++++++++++----------------------------
- 3 files changed, 25 insertions(+), 37 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

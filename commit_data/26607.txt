@@ -1,44 +1,17 @@
-commit 1624a9c9e79c1c5dd9a4e69c359c98838c3eb6f8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 30 14:45:47 2016 -0700
+commit 939a9424de5c3d0a0d2e1769778b5b0aa9c61954
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 17 10:39:13 2016 -0500
 
-    cmd/compile: get rid of redundant Type helper functions
+    doc: remove DRAFT tags from go1.6.html
     
-    Replace Isfixedarray, Isslice, and Isinter with the IsArray, IsSlice,
-    and IsInterface methods added for SSA. Rewrite performed mechanically
-    using gofmt -w -r "Isfoo(t) -> t.IsFoo()".
+    Go 1.6 is soon (but not yet).
     
-    Because the IsFoo methods panic when given a nil pointer, a handful of
-    call sites had to be modified to check for nil Type values. These
-    aren't strictly necessary, because nil Type values should only occur
-    in invalid Go source programs, so it would be okay if we panicked on
-    them and gave up type checking the rest of the package. However, there
-    are a couple regress tests that expect we continue, so add checks to
-    keep those tests passing. (See #15029.)
+    Fixes #14301.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I511c6ac4cfdf3f9cbdb3e52a5fa91b6d09d82f80
-    Reviewed-on: https://go-review.googlesource.com/21336
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I85e329b643adcb5d4fa680c5333fbc1f928d4d9d
+    Reviewed-on: https://go-review.googlesource.com/19550
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/compile/internal/gc/alg.go       |  6 ++--
- src/cmd/compile/internal/gc/cgen.go      | 40 +++++++++++------------
- src/cmd/compile/internal/gc/closure.go   |  4 +--
- src/cmd/compile/internal/gc/const.go     |  4 +--
- src/cmd/compile/internal/gc/esc.go       | 12 +++----
- src/cmd/compile/internal/gc/gen.go       |  4 +--
- src/cmd/compile/internal/gc/order.go     |  8 ++---
- src/cmd/compile/internal/gc/plive.go     |  2 +-
- src/cmd/compile/internal/gc/racewalk.go  |  6 ++--
- src/cmd/compile/internal/gc/range.go     |  2 +-
- src/cmd/compile/internal/gc/reflect.go   | 10 +++---
- src/cmd/compile/internal/gc/sinit.go     |  8 ++---
- src/cmd/compile/internal/gc/ssa.go       |  2 +-
- src/cmd/compile/internal/gc/subr.go      | 22 +++----------
- src/cmd/compile/internal/gc/swt.go       |  6 ++--
- src/cmd/compile/internal/gc/typecheck.go | 56 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/walk.go      | 26 +++++++--------
- 17 files changed, 103 insertions(+), 115 deletions(-)
+ doc/go1.6.html | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

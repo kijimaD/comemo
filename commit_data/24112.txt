@@ -1,13 +1,44 @@
-commit 3d3bc88bb5f06431729585daec436d5a16603dd0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 12 14:29:50 2015 -0700
+commit 9b048527db4122732795211291a02357d995c898
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 9 21:24:12 2015 -0600
 
-    cmd/compile/internal/gc: use slice instead of linked list for nodes to export
+    [dev.ssa] cmd/compile/ssa: handle nested dead blocks
     
-    Change-Id: Ib79ab787fdc90a5a29b25474d91afa9bfaf51276
-    Reviewed-on: https://go-review.googlesource.com/13589
-    Reviewed-by: Minux Ma <minux@golang.org>
+    removePredecessor can change which blocks are live.
+    However, it cannot remove dead blocks from the function's
+    slice of blocks because removePredecessor may have been
+    called from within a function doing a walk of the blocks.
+    
+    CL 11879 did not handle this correctly and broke the build.
+    
+    To fix this, mark the block as dead but leave its actual
+    removal for a deadcode pass. Blocks that are dead must have
+    no successors, predecessors, values, or control values,
+    so they will generally be ignored by other passes.
+    To be safe, we add a deadcode pass after the opt pass,
+    which is the only other pass that calls removePredecessor.
+    
+    Two alternatives that I considered and discarded:
+    
+    (1) Make all call sites aware of the fact that removePrecessor
+    might make arbitrary changes to the list of blocks. This
+    will needlessly complicate callers.
+    
+    (2) Handle the things that can go wrong in practice when
+    we encounter a dead-but-not-removed block. CL 11930 takes
+    this approach (and the tests are stolen from that CL).
+    However, this is just patching over the problem.
+    
+    Change-Id: Icf0687b0a8148ce5e96b2988b668804411b05bd8
+    Reviewed-on: https://go-review.googlesource.com/12004
+    Reviewed-by: Todd Neal <todd@tneal.org>
+    Reviewed-by: Michael Matloob <michaelmatloob@gmail.com>
 
- src/cmd/compile/internal/gc/export.go | 21 ++++++++++++---------
- src/cmd/compile/internal/gc/go.go     |  2 +-
- 2 files changed, 13 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/check.go          | 13 +++++++++
+ src/cmd/compile/internal/ssa/compile.go        |  1 +
+ src/cmd/compile/internal/ssa/deadcode.go       |  8 ++++--
+ src/cmd/compile/internal/ssa/deadcode_test.go  | 39 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          |  2 ++
+ src/cmd/compile/internal/ssa/rewrite.go        |  3 ++
+ 7 files changed, 64 insertions(+), 3 deletions(-)

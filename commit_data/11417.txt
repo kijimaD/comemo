@@ -1,18 +1,12 @@
-commit 974fa755573cbcad4e6ff48e4faae25ffa2cca43
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Jan 27 01:31:42 2012 +0900
+commit 93e547a0c2aec056027558bca5dcfa706d9f6eda
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Jan 26 17:20:48 2012 +0100
 
-    net: make WriteTo fail when UDPConn is already connected
-    
-    Fixes #2773.
+    gc: softer criteria for inlinability.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5571056
+    https://golang.org/cl/5555072
 
- src/pkg/net/fd.go            | 19 +++++-----
- src/pkg/net/fd_windows.go    | 17 +++++----
- src/pkg/net/sock.go          |  1 +
- src/pkg/net/udp_test.go      | 87 ++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/udpsock_posix.go |  6 +++
- 5 files changed, 113 insertions(+), 17 deletions(-)
+ src/cmd/gc/inl.c | 168 +++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 95 insertions(+), 73 deletions(-)

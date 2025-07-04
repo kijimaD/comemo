@@ -1,14 +1,25 @@
-commit c8579e57cb1f1c32a99dd57314c5ced1a457dde3
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Feb 25 00:52:16 2016 -0500
+commit bb6fb929d6e5c2e401f4e3ebe2b7505845970e4b
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 18 16:48:22 2015 -0500
 
-    build: use go tool dist list
+    runtime: fix sanity check in stackBarrier
     
-    Change-Id: I9b79bd301d0b75ca1f16d4a05e3cb687a8428c14
-    Reviewed-on: https://go-review.googlesource.com/19884
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    stackBarrier on amd64 sanity checks that it's unwinding the correct
+    entry in the stack barrier array. However, this check is wrong in two
+    ways that make it unlikely to catch anything, right or wrong:
+    
+    1) It checks that savedLRPtr == SP, but, in fact, it should be that
+       savedLRPtr+8 == SP because the RET that returned to stackBarrier
+       popped the saved LR. However, we didn't notice this check was wrong
+       because,
+    
+    2) the sense of the conditional branch is also wrong.
+    
+    Fix both of these.
+    
+    Change-Id: I38ba1f652b0168b5b2c11b81637656241262af7c
+    Reviewed-on: https://go-review.googlesource.com/17039
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/buildall.bash | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/asm_amd64.s | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

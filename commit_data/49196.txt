@@ -1,19 +1,19 @@
-commit e97ceb278297a357580cd80a651c39158f82d45e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 6 15:43:48 2022 -0700
+commit 9eee0ed4391942c73157c868a9ddcfdef48982f9
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 28 11:52:14 2021 -0700
 
-    time: clarify that monotonic clock is not returned by t.Unix
+    cmd/go: fix go.mod file name printed in error messages for replacements
     
-    Prompted by CL 403996.
+    This fixes a logic error introduced in CL 337850.
     
-    Change-Id: I8b480a9d361863d4770c7c9a4437431424f26994
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404695
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Fixes #47444
+    
+    Change-Id: I6a49c8fc71fdde4ecb7f2e3329ad1f2cd286b7eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338189
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/time/time.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/internal/modload/modfile.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

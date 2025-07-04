@@ -1,20 +1,21 @@
-commit e9407ae514df7d18e162ce03ebd530fe21aed16d
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed May 11 10:23:37 2016 -0700
+commit c1892b9c4b321b03973aa4433ec7cd8fe0a307a9
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Mar 23 11:11:34 2016 +0100
 
-    cmd/pprof: remove tempDir when no longer needed
+    cmd/compile: don't simplify nilchecks in loops
     
-    The pprof tools properly cleans up all files it creates, but forgets
-    to clean up the temporary directory itself. This CL fixes that.
+    khr: Lifting the nil check out of the loop altogether is an admirable
+    goal, and this rewrite is one step on the way. But without lifting it
+    out of the loop, the rewrite is just hurting us.
     
-    Fixes #13863
+    Fixes #14917
     
-    Change-Id: I1151c36cdad5ace7cc97e7e04001cf0149ef0f63
-    Reviewed-on: https://go-review.googlesource.com/23019
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Idb917f37d89f50f8e046d5ebd7c092b1e0eb0633
+    Reviewed-on: https://go-review.googlesource.com/21040
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/pprof/commands/commands.go | 1 +
- src/cmd/internal/pprof/tempfile/tempfile.go | 9 +++++----
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  4 ---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 38 --------------------------
+ 2 files changed, 42 deletions(-)

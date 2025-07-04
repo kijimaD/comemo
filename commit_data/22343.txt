@@ -1,12 +1,16 @@
-commit 2f16ddc58069f9fa380e79db1c58103654b2af5f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 7 16:20:38 2015 -0700
+commit 4a174ee4be7a487a731ff4fe0337f92d0a84ab1d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 5 17:44:02 2015 +1100
 
-    doc: update go1.5.txt (gc constant arithmetic now based on math/big)
+    cmd/internal/gc: make Node.Readonly a bool
     
-    Change-Id: Iff943d15e83e7db1f3c77f509a60e00ee2041d69
-    Reviewed-on: https://go-review.googlesource.com/8592
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Convert Node.Readonly to a bool.
+    
+    Change-Id: Ide9f6f657f498d70d7b9544a38046325d7c82dc8
+    Reviewed-on: https://go-review.googlesource.com/6809
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/gc/gsubr.go  | 2 +-
+ src/cmd/internal/gc/sinit.go  | 2 +-
+ src/cmd/internal/gc/syntax.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

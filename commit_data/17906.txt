@@ -1,33 +1,73 @@
-commit 48279bd567cc4d1efca9f69e713469fc6659eb26
+commit 0368a7ceb6e741a641a07e3ae381bdc9fc160a15
 Author: Carl Shapiro <cshapiro@google.com>
-Date:   Tue Dec 3 14:42:38 2013 -0800
+Date:   Tue Dec 3 14:12:55 2013 -0800
 
-    runtime: add an allocation and free tracing for gc debugging
+    runtime: move stack scanning into the parallel mark phase
     
-    Output for an allocation and free (sweep) follows
+    This change reduces the cost of the stack scanning by frames.
+    It moves the stack scanning from the serial root enumeration
+    phase to the parallel tracing phase.  The output that follows
+    are timings for the issue 6482 benchmark
     
-    MProf_Malloc(p=0xc2100210a0, size=0x50, type=0x0 <single object>)
-            #0 0x46ee15 runtime.mallocgc /usr/local/google/home/cshapiro/go/src/pkg/runtime/malloc.goc:141
-            #1 0x47004f runtime.settype_flush /usr/local/google/home/cshapiro/go/src/pkg/runtime/malloc.goc:612
-            #2 0x45f92c gc /usr/local/google/home/cshapiro/go/src/pkg/runtime/mgc0.c:2071
-            #3 0x45f89e mgc /usr/local/google/home/cshapiro/go/src/pkg/runtime/mgc0.c:2050
-            #4 0x45258b runtime.mcall /usr/local/google/home/cshapiro/go/src/pkg/runtime/asm_amd64.s:179
+    Baseline
     
-    MProf_Free(p=0xc2100210a0, size=0x50)
-            #0 0x46ee15 runtime.mallocgc /usr/local/google/home/cshapiro/go/src/pkg/runtime/malloc.goc:141
-            #1 0x47004f runtime.settype_flush /usr/local/google/home/cshapiro/go/src/pkg/runtime/malloc.goc:612
-            #2 0x45f92c gc /usr/local/google/home/cshapiro/go/src/pkg/runtime/mgc0.c:2071
-            #3 0x45f89e mgc /usr/local/google/home/cshapiro/go/src/pkg/runtime/mgc0.c:2050
-            #4 0x45258b runtime.mcall /usr/local/google/home/cshapiro/go/src/pkg/runtime/asm_amd64.s:179
+    BenchmarkGoroutineSelect              50         108027405 ns/op
+    BenchmarkGoroutineBlocking            50          89573332 ns/op
+    BenchmarkGoroutineForRange            20          95614116 ns/op
+    BenchmarkGoroutineIdle                20         122809512 ns/op
     
-    R=golang-dev, dvyukov, rsc, cshapiro
+    Stack scan by frames, non-parallel
+    
+    BenchmarkGoroutineSelect              20         297138929 ns/op
+    BenchmarkGoroutineBlocking            20         301137599 ns/op
+    BenchmarkGoroutineForRange            10         312499469 ns/op
+    BenchmarkGoroutineIdle                10         209428876 ns/op
+    
+    Stack scan by frames, parallel
+    
+    BenchmarkGoroutineSelect              20         183938431 ns/op
+    BenchmarkGoroutineBlocking            20         170109999 ns/op
+    BenchmarkGoroutineForRange            20         179628882 ns/op
+    BenchmarkGoroutineIdle                20         157541498 ns/op
+    
+    The remaining performance disparity is due to inefficiencies
+    in gentraceback and its callees.  The effect was isolated by
+    using a parallel stack scan where scanstack was modified to do
+    a conservative scan of the stack segments without gentraceback
+    followed by a call of gentrackback with a no-op callback.
+    
+    The output that follows are the top-10 most frequent tops of
+    stacks as determined by the Linux perf record facility.
+    
+    Baseline
+    
+    +  25.19%  gc.test  gc.test            [.] runtime.xchg
+    +  19.00%  gc.test  gc.test            [.] scanblock
+    +   8.53%  gc.test  gc.test            [.] scanstack
+    +   8.46%  gc.test  gc.test            [.] flushptrbuf
+    +   5.08%  gc.test  gc.test            [.] procresize
+    +   3.57%  gc.test  gc.test            [.] runtime.chanrecv
+    +   2.94%  gc.test  gc.test            [.] dequeue
+    +   2.74%  gc.test  gc.test            [.] addroots
+    +   2.25%  gc.test  gc.test            [.] runtime.ready
+    +   1.33%  gc.test  gc.test            [.] runtime.cas64
+    
+    Gentraceback
+    
+    +  18.12%  gc.test  gc.test             [.] runtime.xchg
+    +  14.68%  gc.test  gc.test             [.] scanblock
+    +   8.20%  gc.test  gc.test             [.] runtime.gentraceback
+    +   7.38%  gc.test  gc.test             [.] flushptrbuf
+    +   6.84%  gc.test  gc.test             [.] scanstack
+    +   5.92%  gc.test  gc.test             [.] runtime.findfunc
+    +   3.62%  gc.test  gc.test             [.] procresize
+    +   3.15%  gc.test  gc.test             [.] readvarint
+    +   1.92%  gc.test  gc.test             [.] addroots
+    +   1.87%  gc.test  gc.test             [.] runtime.chanrecv
+    
+    R=golang-dev, dvyukov, rsc
     CC=golang-dev
-    https://golang.org/cl/21990045
+    https://golang.org/cl/17410043
 
- src/pkg/runtime/extern.go  |  3 +++
- src/pkg/runtime/malloc.goc |  5 ++++-
- src/pkg/runtime/malloc.h   |  2 +-
- src/pkg/runtime/mprof.goc  | 55 ++++++++++++++++++++++++++++++++++++++++++++--
- src/pkg/runtime/runtime.c  |  3 ++-
- src/pkg/runtime/runtime.h  |  3 ++-
- 6 files changed, 65 insertions(+), 6 deletions(-)
+ src/pkg/runtime/mgc0.c | 322 +++++++++++++++++++++++++++++--------------------
+ 1 file changed, 190 insertions(+), 132 deletions(-)

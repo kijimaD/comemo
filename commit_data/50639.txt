@@ -1,36 +1,29 @@
-commit 871a3a409ac55fdcaf329596023e56be279b1950
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Sep 26 15:26:05 2022 -0500
+commit 6ba68a0581d537edfd6eb2e5675c408f18eb4eed
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Nov 3 14:47:04 2021 -0700
 
-    cmd/compile: rework PPC64 Mul64uhilo lowering rules
+    cmd/compile: don't inline fn with no shape params, but passed a shape arg
     
-    Remove OpPPC64LoweredMuluhilo as this operation can be done
-    more efficiently with MULHDU and MULLD directly. This has the
-    benefit of not needing to use tuple select operations, and giving
-    the scheduler more freedom to place these operations.
+    Don't inline a function fn that has no shape parameters, but is passed
+    at least one shape arg. This means we must be inlining a non-generic
+    function fn that was passed into a generic function, and can be called
+    with a shape arg because it matches an appropriate type parameter. But
+    fn may include an interface conversion (that may be applied to a shape
+    arg) that was not apparent when we first created the instantiation of
+    the generic function. We can't handle this if we actually do the
+    inlining, since we want to know all interface conversions immediately
+    after stenciling.  So, we avoid inlining in this case.
     
-    The primary reason to avoid using tuples here is to to avoid
-    suboptimal scheduling when carry ops (e.x ADDC/ADDE) are used in
-    the same block as 64->128b multiples. CL 432275 modifies the
-    scheduling priorities which may cause non-flag/non-carry generating
-    tuple ops to interfere with carry opcodes. Thus resulting in excess
-    saving and restoring of the XER register.
+    Fixes #49309.
     
-    This allows CL 432275 to adjust the scheduling priorities without
-    having to workaround odd tuple scheduling behavior.
-    
-    Change-Id: Id04ef009ec4b86416e5436f2b44ae1474e73720e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/434855
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7b8ab7b13e58fdb0111db91bc92a91d313f7c2c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361260
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ppc64/ssa.go        | 18 ------------------
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 ++-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 --
- src/cmd/compile/internal/ssa/opGen.go        | 16 ----------------
- src/cmd/compile/internal/ssa/rewritePPC64.go | 27 ++++++++++++++++++++++++---
- 5 files changed, 26 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 21 +++++++++++++++++++++
+ test/typeparam/issue49309.go           | 25 +++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)

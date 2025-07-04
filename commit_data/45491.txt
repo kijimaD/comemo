@@ -1,15 +1,27 @@
-commit 7eb2d308830003432601f9b40ba5ccf7382b6157
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat May 1 15:37:44 2021 +0200
+commit 8a013233ac53d934e53cd7d118b5ff7836d8973a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Oct 25 00:32:23 2020 +1100
 
-    syscall: add //go:build lines to files generated with with mksyscall_libc.pl
+    cmd/compile: use MOV pseudo-instructions for sign/zero extension
     
-    Change-Id: I2e02d02d9208fc2dbf01c0cea4a67c288967cd07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315276
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Rather than handling sign and zero extension via rules, defer to the assembler
+    and use MOV pseudo-instructions. The instruction can also be omitted where the
+    type and size is already correct. This change results in more than 6,000
+    instructions being removed from the go binary (in part due to omitted
+    instructions, in part due to MOVBU having a more efficient implementation in
+    the assembler than what is used in the current ZeroExt8to{16,32,64} rules).
+    
+    This will also allow for further rewriting to remove redundant sign/zero
+    extension.
+    
+    Change-Id: I05e42fd9f09f40a69948be7de772cce8946c8744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264658
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/mksyscall_libc.pl | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/riscv64/ssa.go        |  33 +++-
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  34 ++--
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   9 +
+ src/cmd/compile/internal/ssa/opGen.go          |  98 +++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 235 +++----------------------
+ 5 files changed, 178 insertions(+), 231 deletions(-)

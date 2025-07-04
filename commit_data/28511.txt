@@ -1,25 +1,17 @@
-commit 73e7a569b4b2917e76f9e1ad95f638127b7638ad
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Sep 19 14:13:07 2016 -0400
+commit 2a6544b604b61898d666ffbe456ccde720c04577
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 31 20:05:39 2016 +1200
 
-    cmd/link: plugin support on darwin/amd64
+    cmd/go, cmd/link: set LC_ALL=C when checking if host compiler supports -no-pie
     
-    This CL turns some special section marker symbols into real symbols
-    laid out in the sections they mark. This is to deal with the fact
-    that dyld on OS X resolves the section marker symbols in any dlopen-ed
-    Go program to the original section marker symbols in the host program.
+    Fixes #15900
     
-    More details in a comment in cmd/link/internal/ld/data.go.
-    
-    Change-Id: Ie9451cfbf06d0bdcccb9959219c791b829f3f771
-    Reviewed-on: https://go-review.googlesource.com/29394
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ieada5f4e3b3b2ae358414e013f3090b4b820569b
+    Reviewed-on: https://go-review.googlesource.com/23536
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/config.go |   6 +++
- src/cmd/link/internal/ld/data.go   | 100 ++++++++++++++++++++++++++++++++++---
- src/cmd/link/internal/ld/dwarf.go  |   3 ++
- src/cmd/link/internal/ld/lib.go    |  18 ++++++-
- src/cmd/link/internal/ld/macho.go  |  15 ++++--
- 5 files changed, 127 insertions(+), 15 deletions(-)
+ src/cmd/go/build.go             | 2 +-
+ src/cmd/link/internal/ld/lib.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

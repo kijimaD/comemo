@@ -1,23 +1,20 @@
-commit c374984e99888bb2e2dd6c331a1328275debe19d
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Thu Jul 26 12:46:50 2018 +0300
+commit 6d379add0fefcc17ed7b763078526800a3c1d705
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 16:03:30 2018 +0200
 
-    cmd/compile: export the Func.Endlineno field
+    cmd/compile: in prove, detect loops with negative increments
     
-    This CL exports the Func.Endlineno value for inlineable functions.
-    It is needed to grab the source code of an imported function
-    inlined into the function specified in $GOSSAFUNC.
+    To be effective, this also requires being able to relax constraints
+    on min/max bound inclusiveness; they are now exposed through a flags,
+    and prove has been updated to handle it correctly.
     
-    See CL 126606 for details.
-    
-    Updates #25904
-    
-    Change-Id: I1e259e20445e4109b4621a95abb5bde1be457af1
-    Reviewed-on: https://go-review.googlesource.com/126605
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Change-Id: I3490e54461b7b9de8bc4ae40d3b5e2fa2d9f0556
+    Reviewed-on: https://go-review.googlesource.com/104041
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/iexport.go | 10 ++++++++++
- src/cmd/compile/internal/gc/iimport.go |  1 +
- 2 files changed, 11 insertions(+)
+ src/cmd/compile/internal/ssa/loopbce.go | 61 +++++++++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/prove.go   | 13 +++++--
+ test/loopbce.go                         | 34 ++++++++++++++++++
+ 3 files changed, 96 insertions(+), 12 deletions(-)

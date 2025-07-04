@@ -1,26 +1,25 @@
-commit c4a8550421ce16f233b48a85dc5dd04b16469b7f
-Author: Sean Liao <seankhliao@gmail.com>
-Date:   Tue Nov 23 20:52:07 2021 +0100
+commit 93466cc1b697836200e73bb103522324d38e894f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 15:15:56 2021 -0700
 
-    .github: use multiple issue templates
+    cmd/compile/internal/types2: review of pos.go and move into syntax package
     
-    There are currently multiple issue templates floating around for
-    different projects, these can sometimes be hard to find.
+    This moves the two helper functions startPos and endPos into
+    the syntax package where they belong. Export the functions and
+    adjust dependent code.
     
-    Fixes #29839
-    
-    Change-Id: I6600b6f78842736d81d35e6a64247d00706d9e0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366736
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8170faeadd7cfa8f53009f81fcffd50ec0fc6a98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305578
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- .../{ISSUE_TEMPLATE => ISSUE_TEMPLATE/00-bug.md}   | 11 +++-
- .github/ISSUE_TEMPLATE/01-pkgsite.md               | 47 +++++++++++++++++
- .github/ISSUE_TEMPLATE/02-pkgsite-removal.md       | 39 ++++++++++++++
- .github/ISSUE_TEMPLATE/03-gopls.md                 | 61 ++++++++++++++++++++++
- .github/ISSUE_TEMPLATE/10-proposal.md              | 13 +++++
- .github/ISSUE_TEMPLATE/11-language-change.md       | 52 ++++++++++++++++++
- .github/ISSUE_TEMPLATE/config.yml                  |  8 +++
- 7 files changed, 229 insertions(+), 2 deletions(-)
+ .../{types2/pos.go => syntax/positions.go}         | 230 ++++++++++-----------
+ src/cmd/compile/internal/types2/assignments.go     |   2 +-
+ src/cmd/compile/internal/types2/decl.go            |   4 +-
+ src/cmd/compile/internal/types2/errors.go          |   4 +-
+ src/cmd/compile/internal/types2/expr.go            |   2 +-
+ src/cmd/compile/internal/types2/labels.go          |   2 +-
+ src/cmd/compile/internal/types2/resolver.go        |   2 +-
+ src/cmd/compile/internal/types2/stmt.go            |  10 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   4 +-
+ 9 files changed, 128 insertions(+), 132 deletions(-)

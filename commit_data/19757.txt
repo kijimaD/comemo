@@ -1,17 +1,16 @@
-commit dc84eca75eab04ec1a0c454ccf135ee9da10951e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jul 17 21:49:45 2014 +0400
+commit 8158b8b68606fa101a89d6e761744ea79f969b77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 17 09:40:27 2014 -0700
 
-    runtime: improve select benchmarks
-    1. Add select on sync channels benchmark.
-    2. Make channels in BenchmarkSelectNonblock shared.
-    With GOMAXPROCS=1 it is the same, but with GOMAXPROCS>1
-    it becomes a more interesting benchmark.
+    gofmt: -s flag simplifies "for _ = range x"
     
-    LGTM=khr
-    R=golang-codereviews, khr
+    LGTM=adonovan, rsc
+    R=rsc, adonovan
     CC=golang-codereviews
-    https://golang.org/cl/115780043
+    https://golang.org/cl/117800043
 
- src/pkg/runtime/chan_test.go | 38 +++++++++++++++++++++++++++++++++-----
- 1 file changed, 33 insertions(+), 5 deletions(-)
+ src/cmd/gofmt/gofmt_test.go          |  1 +
+ src/cmd/gofmt/simplify.go            | 14 ++++++++++++--
+ src/cmd/gofmt/testdata/ranges.golden | 28 ++++++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/ranges.input  | 18 ++++++++++++++++++
+ 4 files changed, 59 insertions(+), 2 deletions(-)

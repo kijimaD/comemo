@@ -1,17 +1,13 @@
-commit 833367e98af838a2511ee7e4e19dc8f1da7b8ed7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 9 00:29:45 2022 -0700
+commit b88a6882a5411d705e4f05d300668f157f476749
+Author: DQNEO <dqneoo@gmail.com>
+Date:   Sat Sep 18 23:24:07 2021 +0900
 
-    internal/buildcfg: enable unified IR by default
+    cmd/internal/obj: fix wording in a comment
     
-    Unified IR is now at feature parity with the non-unified frontend.
-    
-    Change-Id: I2a8cd41267a66f5eb1f425b89d18c6d501676e07
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422235
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I9921ba5c29ada6ff06d147f6d9b46a29101c449c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350694
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: David Chase <drchase@google.com>
 
- src/internal/buildcfg/exp.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/obj/link.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

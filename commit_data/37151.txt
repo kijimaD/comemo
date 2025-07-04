@@ -1,45 +1,35 @@
-commit 9ce87a63b9f440b452ada1ff89ccb1c4f3ca919f
+commit aad71d3163fdeccd9c04ebf326efd58eef3307d9
 Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue May 29 18:25:18 2018 +0200
+Date:   Mon Apr 30 14:48:02 2018 +0900
 
-    cmd/compile: typecheck types and funcs before consts
+    cmd/compile: reorganise and improve ssa/README.md
     
-    This way, once the constant declarations are typechecked, all named
-    types are fully typechecked and have all of their methods added.
+    Since the initial version was written, I've gotten help writing
+    cmd/compile/README.md and I've also learned some more on my own, so it's
+    time to organise this document better and expand it.
     
-    Usually this isn't important, as methods and interfaces cannot be used
-    in constant declarations. However, it can lead to confusing and
-    incorrect errors, such as:
+    First, split up the document in sections, starting from the simplest
+    ideas that can be explained on their own. From there, build all the way
+    up into SSA functions and how they are compiled.
     
-            $ cat f.go
-            package p
+    Each of the sections also gets more detail now; most ideas that were a
+    paragraph are now a section with several paragraphs. No new major
+    sections have been added in this CL.
     
-            type I interface{ F() }
-            type T struct{}
+    While at it, add a copyright notice and make better use of markdown,
+    just like in the other README.md.
     
-            const _ = I(T{})
+    Also fix a file path in value.go, which I noticed to be stale while
+    reading godocs to write the document.
     
-            func (T) F() {}
-            $ go build f.go
-            ./f.go:6:12: cannot convert T literal (type T) to type I:
-                    T does not implement I (missing F method)
+    Finally, leave a few TODO comments for areas that would benefit from
+    extra input from people familiar with the SSA package. They will be
+    taken care of in future CLs.
     
-    The error is clearly wrong, as T does have an F method. If we ensure
-    that all funcs are typechecked before all constant declarations, we get
-    the correct error:
-    
-            $ go build f2.go
-            # command-line-arguments
-            ./f.go:6:7: const initializer I(T literal) is not a constant
-    
-    Fixes #24755.
-    
-    Change-Id: I182b60397b9cac521d9a9ffadb11b42fd42e42fe
-    Reviewed-on: https://go-review.googlesource.com/c/115096
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I85e7a69a0b3260e72139991a625d926099624f71
+    Reviewed-on: https://go-review.googlesource.com/110067
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 21 +++++++++++++++++----
- test/fixedbugs/issue24755.go        | 16 ++++++++++++++++
- 2 files changed, 33 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/README.md | 232 +++++++++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/value.go  |   2 +-
+ 2 files changed, 192 insertions(+), 42 deletions(-)

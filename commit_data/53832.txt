@@ -1,35 +1,18 @@
-commit bac4e2f241ca8df3d5be6ddf83214b9a681f4086
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Tue Jul 25 16:19:10 2023 +0200
+commit e2e69ec82a7360fa8e803c0e98964e223335fe4b
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Sep 1 14:43:39 2022 -0700
 
-    cmd/compile: try to rewrite loops to count down
+    internal/syscall/unix: simplify KernelVersion
     
-    Fixes #61629
+    Since values[2] elements are initialized with 0, the switch statement
+    doesn't do anything. Remove it.
     
-    This reduce the pressure on regalloc because then the loop only keep alive
-    one value (the iterator) instead of the iterator and the upper bound since
-    the comparison now acts against an immediate, often zero which can be skipped.
-    
-    This optimize things like:
-      for i := 0; i < n; i++ {
-    Or a range over a slice where the index is not used:
-      for _, v := range someSlice {
-    Or the new range over int from #61405:
-      for range n {
-    
-    It is hit in 975 unique places while doing ./make.bash.
-    
-    Change-Id: I5facff8b267a0b60ea3c1b9a58c4d74cdb38f03f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512935
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: I41176692cdf0c01fe8e85315f0c0dc8b0f3d41fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427675
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/loopbce.go         |   8 +-
- src/cmd/compile/internal/ssa/prove.go           | 169 ++++++++++++++++++++++--
- test/codegen/compare_and_branch.go              |  22 +--
- test/prove_invert_loop_with_unused_iterators.go |  10 ++
- 4 files changed, 188 insertions(+), 21 deletions(-)
+ src/internal/syscall/unix/kernel_version_linux.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

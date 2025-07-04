@@ -1,20 +1,21 @@
-commit 29cb57c5bda37f1c5a58b315fc5619835cc53467
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 8 16:05:22 2017 -0800
+commit 96b1eff087bd29c43d60b27aad6e53c2ca7e67c7
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Sep 12 12:22:22 2017 -0400
 
-    runtime: don't use MAP_STACK in SigStack test
+    runtime: in cpuProfile.addExtra, set p.lostExtra to 0 after flush
     
-    On DragonFly mmap with MAP_STACK returns the top of the region, not
-    the bottom. Rather than try to cope, just don't use the flag anywhere.
+    After the number of lost extra events are written to the the cpuprof log,
+    the number of lost extra events should be set to zero, or else, the next
+    time time addExtra is logged, lostExtra will be overcounted. This change
+    resets lostExtra after its value is written to the log.
     
-    Fixes #23061
+    Fixes #21836
     
-    Change-Id: Ib5df4dd7c934b3efecfc4bc87f8989b4c37555d7
-    Reviewed-on: https://go-review.googlesource.com/83035
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8a6ac9c61e579e7a5ca7bdb0f3463f8ae8b9f863
+    Reviewed-on: https://go-review.googlesource.com/63270
     Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/testdata/testprogcgo/sigstack.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/runtime/cpuprof.go | 1 +
+ 1 file changed, 1 insertion(+)

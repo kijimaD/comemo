@@ -1,22 +1,14 @@
-commit cc6554f750ccaf63bcdcc478b2a60d71ca76d342
-Author: Srdjan Petrovic <spetrovic@google.com>
-Date:   Tue Jun 16 10:07:45 2015 -0700
+commit 83c7b60f2745e7b0e35e762e3fc2702f59169a7b
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 14 15:45:10 2015 -0700
 
-    cmd/link/internal/ld, cmd/go: -buildmode=c-shared support for darwin/amd64
+    cmd/doc: trim unexported methods from interfaces
     
-    All of the heavy-lifting was done by minux@, with his external-linking support
-    for darwin/arm64: golang.org/cl/8781
+    Fixes #10856.
     
-    Change-Id: I7c9fbc19246f418c065c92fb2c13c00026ff0f82
-    Reviewed-on: https://go-review.googlesource.com/11127
-    Run-TryBot: Srdjan Petrovic <spetrovic@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5de65b8dd94eec3451ee0ba9c75698cdd88f5fea
+    Reviewed-on: https://go-review.googlesource.com/10088
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- misc/cgo/testcshared/test.bash                  | 29 ++++++++++++++++---------
- src/cmd/dist/test.go                            |  2 +-
- src/cmd/go/build.go                             |  1 +
- src/cmd/link/internal/ld/lib.go                 | 14 +++++++++---
- src/cmd/link/internal/ld/macho.go               |  7 +++---
- src/cmd/link/internal/ld/macho_combine_dwarf.go |  3 ++-
- 6 files changed, 38 insertions(+), 18 deletions(-)
+ src/cmd/doc/pkg.go | 56 +++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 32 insertions(+), 24 deletions(-)

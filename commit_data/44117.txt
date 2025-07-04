@@ -1,20 +1,57 @@
-commit 81ea89adf38b90c3c3a8c4eed9e6c093a8634d59
-Author: Jakub Warczarek <jakub.warczarek@gmail.com>
-Date:   Sat Dec 12 17:43:52 2020 +0000
+commit 8c1db77a92b1d17d3fe07999c5f20602a2080be9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 7 21:34:54 2020 -0700
 
-    cmd/go: fix non-script staleness checks interacting badly with GOFLAGS
+    internal/poll, os: loop on EINTR
     
-    Fixes #43012.
+    Historically we've assumed that we can install all signal handlers
+    with the SA_RESTART flag set, and let the system restart slow functions
+    if a signal is received. Therefore, we don't have to worry about EINTR.
     
-    Change-Id: Idc7a64b53c411e6dadd98521a48e15e664737d42
-    GitHub-Last-Rev: b56c0880c3b5ceb86c6fa2ba6bf82f8969e10472
-    GitHub-Pull-Request: golang/go#43155
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/277453
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    This is only partially true, and we've added EINTR checks already for
+    connect, and open/read on Darwin, and sendfile on Solaris.
+    
+    Other cases have turned up in #36644, #38033, and #38836.
+    
+    Also, #20400 points out that when Go code is included in a C program,
+    the C program may install its own signal handlers without SA_RESTART.
+    In that case, Go code will see EINTR no matter what it does.
+    
+    So, go ahead and check for EINTR. We don't check in the syscall package;
+    people using syscalls directly may want to check for EINTR themselves.
+    But we do check for EINTR in the higher level APIs in os and net,
+    and retry the system call if we see it.
+    
+    This change looks safe, but of course we may be missing some cases
+    where we need to check for EINTR. As such cases turn up, we can add
+    tests to runtime/testdata/testprogcgo/eintr.go, and fix the code.
+    If there are any such cases, their handling after this change will be
+    no worse than it is today.
+    
+    For #22838
+    Fixes #20400
+    Fixes #36644
+    Fixes #38033
+    Fixes #38836
+    
+    Change-Id: I7e46ca8cafed0429c7a2386cc9edc9d9d47a6896
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232862
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/internal/poll/copy_file_range_linux.go |   8 +-
+ src/internal/poll/fd_unix.go               |  59 ++++++--
+ src/internal/poll/fd_writev_unix.go        |  13 +-
+ src/internal/poll/sendfile_bsd.go          |   3 +
+ src/internal/poll/sendfile_linux.go        |   3 +
+ src/internal/poll/splice_linux.go          |   3 +
+ src/internal/poll/writev.go                |   5 +-
+ src/os/exec_unix.go                        |  15 +-
+ src/os/wait_wait6.go                       |  23 ++--
+ src/os/wait_waitid.go                      |   8 +-
+ src/runtime/crash_cgo_test.go              |  27 ++++
+ src/runtime/testdata/testprogcgo/eintr.go  | 214 +++++++++++++++++++++++++++++
+ src/runtime/trace/trace_stack_test.go      |   1 +
+ src/syscall/exec_unix.go                   |   7 +-
+ 14 files changed, 359 insertions(+), 30 deletions(-)

@@ -1,17 +1,12 @@
-commit 6592aeb8f3a0398f32a31642695188b361c6c434
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Jan 19 10:02:10 2014 -0800
+commit b51e15780fbb57e4a5226420a007ae49abf2a16e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jan 18 16:02:59 2014 +0900
 
-    net/http, net/http/httputil: make chunked reader alloc test more robust
+    syscall: fix typo
     
-    Use testing.AllocsPerRun now that it exists, instead of doing it by hand.
-    
-    Fixes #6076
-    
-    R=golang-codereviews, alex.brainman
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/53810043
+    https://golang.org/cl/54040043
 
- src/pkg/net/http/chunked_test.go          | 39 ++++++++++++++-----------------
- src/pkg/net/http/httputil/chunked_test.go | 39 ++++++++++++++-----------------
- 2 files changed, 34 insertions(+), 44 deletions(-)
+ src/pkg/syscall/rlimit_unix_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,29 +1,40 @@
-commit 9b16b9c7f95562bb290f5015324a345be855894d
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Mon May 7 13:05:27 2018 +0200
+commit f54f780d2f4ed47da4bed87c37f7219df1b9879b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jan 29 11:14:31 2018 +0000
 
-    misc/ios: uninstall app before installing it
+    cmd/vet: unexported interface{} fields on %s are ok
     
-    Tests can fail because there is leftover data from a previous run.
-    For example:
+    For example, the following program is valid:
     
-    --- FAIL: TestRemoveAll (0.00s)
-            path_test.go:96: RemoveAll "/private/var/mobile/Containers/Data/Application/66247524-5ED7-45A4-82AA-6BF15D6078B2/tmp//_TestRemoveAll_" (first): open /private/var/mobile/Containers/Data/Application/66247524-5ED7-45A4-82AA-6BF15D6078B2/tmp//_TestRemoveAll_/dir: permission denied
-    FAIL
-    FAIL    os      31.275s
+            type T struct {
+                    f interface{}
+            }
     
-    There seem to be no way to simply clear the app data for an app
-    short of uninstalling it, so do that.
+            func main() {
+                    fmt.Printf("%s", T{"foo"}) // prints {foo}
+            }
     
-    This change in effect undoes CL 106676, which means that running iOS
-    is a little slower again, and that another app from the same
-    apple developer account must be present on the device for our app
-    install to succeed.
+    Since the field is of type interface{}, we might have any value in it.
+    For example, if we had T{3}, fmt would complain. However, not knowing
+    what the type under the interface is, we must be conservative.
     
-    Change-Id: Iacc3a6f95c93568f4418db45e1098c7c7fdb88e0
-    Reviewed-on: https://go-review.googlesource.com/111795
+    However, as shown in #17798, we should issue an error if the field's
+    type is statically known to implement the error or fmt.Stringer
+    interfaces. In those cases, the user likely wanted the %s format to call
+    those methods. Keep the vet error in those cases.
+    
+    While at it, add more field type test cases, such as custom error types,
+    and interfaces that extend the error interface.
+    
+    Fixes #23563.
+    
+    Change-Id: I063885955555917c59da000391b603f0d6dce432
+    Reviewed-on: https://go-review.googlesource.com/90516
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/vet/testdata/print.go | 34 +++++++++++++++++++++++++++++++---
+ src/cmd/vet/types.go          | 14 +++++++++++++-
+ 2 files changed, 44 insertions(+), 4 deletions(-)

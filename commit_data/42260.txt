@@ -1,18 +1,21 @@
-commit 9439a7d87f90b97e00717fc0849d4460628d82d0
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Apr 26 04:34:34 2020 +1000
+commit 2933e938bf9451a6f4551056b672cd7fc467e94d
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 19 10:09:28 2019 -0500
 
-    cmd/compile: use SEQZ pseudo instruction in RISCV64 boolean rules
+    cmd/cgo: better handling for '.' in pkgpath for gccgo
     
-    This makes the intent clearer, allows for another ellipsis and will aid
-    in future rewriting. While here, document boolean loads to explain register
-    contents.
+    Update gccgoPkgpathToSymbolNew() to bring it into conformance
+    with the way that gccgo now handles packagepaths with embedded
+    dots (see CL 200838). See also https://gcc.gnu.org/PR61880, a
+    related bug.
     
-    Change-Id: I933db2813826d88819366191fbbea8fcee5e4dda
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230120
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #35623.
+    
+    Change-Id: I32f064320b9af387fc17771530c745a9e3003c20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207957
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++--
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  3 +++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 20 ++++----------------
- 3 files changed, 9 insertions(+), 18 deletions(-)
+ src/cmd/cgo/out.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

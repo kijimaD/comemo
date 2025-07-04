@@ -1,14 +1,19 @@
-commit 718fdd7b48d2a20c5a84a7b516ed29c98d61e359
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 12 15:42:45 2019 -0400
+commit 6155091042b8c341d0320937241a938060847f9c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 24 13:32:24 2018 +0200
 
-    cmd/go/internal/cfg: remove unused Gopath variable
+    internal/syscall/unix: omit unnecessary randomTrap check in GetRandom
     
-    Change-Id: Ib268157674824fd7552d3c36a61eccf8c720eaeb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167083
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    The randomTrap const is initialized to a non-zero value for linux in
+    getrandom_linux_$GOARCH.go and for freebsd in getrandom_freebsd.go
+    directly since CL 16662. Thus, omit the unnecessary check.
+    
+    Change-Id: Id20cd628dfe6fab9908fa5258c3132e3b422a6b4
+    Reviewed-on: https://go-review.googlesource.com/c/144108
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/internal/syscall/unix/getrandom_freebsd.go | 3 ---
+ src/internal/syscall/unix/getrandom_linux.go   | 3 ---
+ 2 files changed, 6 deletions(-)

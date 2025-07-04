@@ -1,19 +1,16 @@
-commit 33f95ec4ecf96c795d69c643f80e4bd7f6a8f1bb
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jul 21 08:49:07 2016 -0700
+commit 6372c821c7cada20e662f9cc37f5d1c202a6b5fe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 13 21:44:35 2016 -0700
 
-    syscall: superficial cleanup of amd64 unix assembly
+    doc: GCC 6 will have the Go 1.6.1 user libraries
     
-    This is preliminary work to unifying them.
+    Update #14759.
     
-    Updates #11041
-    
-    Change-Id: Ibe83da3d626f1da9e8888e26cedd3af2152b42e6
-    Reviewed-on: https://go-review.googlesource.com/25114
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8a174aad721beb62380e10071d9648b6b1c21b8c
+    Reviewed-on: https://go-review.googlesource.com/22072
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/syscall/asm_dragonfly_amd64.s | 22 +++++++++++-----------
- src/syscall/asm_freebsd_amd64.s   | 22 +++++++++++-----------
- 2 files changed, 22 insertions(+), 22 deletions(-)
+ doc/go1.6.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

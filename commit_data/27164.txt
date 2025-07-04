@@ -1,41 +1,18 @@
-commit d3c79d324acd7300b6f705e66af8ca711af00d9f
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Apr 27 15:10:10 2016 +1000
+commit e59c1729ba35549323c5a2facd12c23ef5c06b16
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 19:28:32 2016 -0700
 
-    cmd/compile/internal/gc: remove oconv(op, 0) calls
+    cmd/compile: convert data siz to int
     
-    Updates #15462
+    Follow-up to CL 20645.
     
-    Automatic refactor with sed -e.
+    Passes toolstash -cmp.
     
-    Replace all oconv(op, 0) to string conversion with the raw op value
-    which fmt's %v verb can print directly.
-    
-    The remaining oconv(op, FmtSharp) will be replaced with op.GoString and
-    %#v in the next CL.
-    
-    Change-Id: I5e2f7ee0bd35caa65c6dd6cb1a866b5e4519e641
-    Reviewed-on: https://go-review.googlesource.com/22499
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idc63c41b2be2d52e3a6ac59b3a12eb41aa2efbed
+    Reviewed-on: https://go-review.googlesource.com/20670
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go   |  2 +-
- src/cmd/compile/internal/gc/cgen.go      |  4 ++--
- src/cmd/compile/internal/gc/const.go     |  4 ++--
- src/cmd/compile/internal/gc/cplx.go      |  4 ++--
- src/cmd/compile/internal/gc/dcl.go       |  8 ++++----
- src/cmd/compile/internal/gc/esc.go       |  6 +++---
- src/cmd/compile/internal/gc/export.go    |  2 +-
- src/cmd/compile/internal/gc/fmt.go       | 30 +++++++++++++++---------------
- src/cmd/compile/internal/gc/gen.go       |  2 +-
- src/cmd/compile/internal/gc/gsubr.go     |  6 +++---
- src/cmd/compile/internal/gc/order.go     | 12 ++++++------
- src/cmd/compile/internal/gc/racewalk.go  |  6 +++---
- src/cmd/compile/internal/gc/select.go    |  8 ++++----
- src/cmd/compile/internal/gc/ssa.go       |  4 ++--
- src/cmd/compile/internal/gc/subr.go      | 10 +++++-----
- src/cmd/compile/internal/gc/swt.go       |  2 +-
- src/cmd/compile/internal/gc/typecheck.go | 30 +++++++++++++++---------------
- src/cmd/compile/internal/gc/walk.go      | 14 +++++++-------
- 18 files changed, 77 insertions(+), 77 deletions(-)
+ src/cmd/asm/internal/asm/asm.go    |  6 +++---
+ src/cmd/compile/internal/gc/obj.go | 16 ++++++++--------
+ src/cmd/internal/obj/data.go       | 16 ++++++++--------
+ 3 files changed, 19 insertions(+), 19 deletions(-)

@@ -1,28 +1,18 @@
-commit 4cfff271c2aacd4ef23f7eacd9adf61605c45e74
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue May 12 15:59:15 2015 +1200
+commit 8d7d02f14525874eafb6b0a00916bdb0bc24bc03
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Apr 15 14:43:29 2015 -0400
 
-    cmd/5l, etc, cmd/internal/ld: consolidate implementations of adddynsym
+    go/internal/gcimporter: populate (*types.Package).Imports
     
-    The only essential difference is elf32 vs elf64, I assume the other differences
-    are bugs in one version or another...
+    This is an upstream change to the tools repo:
+    https://go-review.googlesource.com/#/c/8924/
     
-    Change-Id: Ie6ff33d5574a6592b543df9983eff8fdf88c97a1
-    Reviewed-on: https://go-review.googlesource.com/10001
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I01fb1b2e9ec834354994c544f65c8ec8267c9626
+    Reviewed-on: https://go-review.googlesource.com/8954
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/5l/asm.go          | 54 ++--------------------------
- src/cmd/5l/obj.go          |  1 -
- src/cmd/6l/asm.go          | 64 +++-------------------------------
- src/cmd/6l/obj.go          |  1 -
- src/cmd/7l/asm.go          |  4 ---
- src/cmd/7l/obj.go          |  1 -
- src/cmd/8l/asm.go          | 60 +++-----------------------------
- src/cmd/8l/obj.go          |  1 -
- src/cmd/9l/asm.go          | 52 ++-------------------------
- src/cmd/9l/obj.go          |  1 -
- src/cmd/internal/ld/elf.go | 87 ++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/internal/ld/go.go  | 24 ++++++++++---
- src/cmd/internal/ld/lib.go |  1 -
- 13 files changed, 120 insertions(+), 231 deletions(-)
+ src/go/internal/gcimporter/gcimporter.go      | 90 ++++++++++++++++++---------
+ src/go/internal/gcimporter/gcimporter_test.go | 22 +++++--
+ src/go/types/package.go                       |  6 +-
+ 3 files changed, 83 insertions(+), 35 deletions(-)

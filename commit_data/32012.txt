@@ -1,25 +1,28 @@
-commit 9664bc1d1ff8ee2ddcea37d335ca4510a57a1e0c
-Author: David Chase <drchase@google.com>
-Date:   Wed Jun 14 17:28:28 2017 -0400
+commit b28f2f73991c849657e5898dfa2f8cae54e885a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 29 20:53:32 2017 -0400
 
-    cmd/compile: fix phi-function updates for preemptible loops
+    cmd/link: make mach-o dwarf segment properly aligned
     
-    Previous code failed to account for particular control flow
-    involving nested loops when updating phi function inputs.
-    Fix involves:
-    1) remove incorrect shortcut
-    2) generate a "better" order for children in dominator tree
-    3) note inner-loop updates and check before applying
-       outer-loop updates.
+    Without this, the load fails during kernel exec, which results in the
+    mysterious and completely uninformative "Killed: 9" error.
     
-    Fixes #20675.
+    It appears that the stars (or at least the inputs) were properly aligned
+    with earlier versions of Xcode so that this happened accidentally.
+    Make it happen on purpose.
     
-    Change-Id: I2fe21470604b5c259e777ad8b15de95f7706894d
-    Reviewed-on: https://go-review.googlesource.com/45791
-    Run-TryBot: David Chase <drchase@google.com>
+    Gregory Man bisected the breakage to this change in LLVM,
+    which fits the theory nicely:
+    https://github.com/llvm-mirror/llvm/commit/9a41e59c
+    
+    Fixes #19734.
+    
+    Change-Id: Ice67a09af2de29d3c0d5e3fcde6a769580897c95
+    Reviewed-on: https://go-review.googlesource.com/38854
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/loopreschedchecks.go | 72 ++++++++++++++++-------
- src/cmd/compile/internal/ssa/sparsetree.go        | 18 ++++++
- 2 files changed, 69 insertions(+), 21 deletions(-)
+ misc/cgo/testcshared/test.bash                  |  7 ++++
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 52 ++++++++++++++++---------
+ 2 files changed, 41 insertions(+), 18 deletions(-)

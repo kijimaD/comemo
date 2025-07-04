@@ -1,39 +1,13 @@
-commit 754f707f5f6b870892b78814bac4f90086312039
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 4 11:14:19 2015 -0800
+commit c684d4d26c3197039ac2c2f53a862f25dc7d1112
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Tue Sep 8 18:18:59 2015 +0200
 
-    cmd/link, cmd/go, cmd/dist: use copy of libgcc.a for internal linking
+    [dev.ssa] cmd/compile/internal/ssa: fix string slice types.
     
-    Change the linker to use a copy of the C compiler support library,
-    libgcc.a, when doing internal linking.  This will be used to satisfy any
-    undefined symbols referenced by host objects.
-    
-    Change the dist tool to copy the support library into a new directory
-    tree under GOROOT/pkg/libgcc.  This ensures that libgcc is available
-    even when building Go programs on a system that has no C compiler.  The
-    C compiler is required when building the Go installation in the first
-    place, but is not required thereafter.
-    
-    Change the go tool to not link libgcc into cgo objects.
-    
-    Correct the linker handling of a weak symbol in an ELF input object to
-    not always create a new symbol, but to use an existing symbol if there
-    is one; this is necessary on freebsd-amd64, where libgcc contains a weak
-    definition of compilerrt_abort_impl.
-    
-    Fixes #9510.
-    
-    Change-Id: I1ab28182263238d9bcaf6a42804e5da2a87d8778
-    Reviewed-on: https://go-review.googlesource.com/16741
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I28bc6373bb42d9abf4f179664dbaab8d514a6ab9
+    Reviewed-on: https://go-review.googlesource.com/14376
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/test/cgo_test.go         |   1 +
- misc/cgo/test/issue9510.go        |  24 +++++++
- misc/cgo/test/issue9510a/a.go     |  15 +++++
- misc/cgo/test/issue9510b/b.go     |  15 +++++
- src/cmd/dist/build.go             |  49 ++++++++++++++
- src/cmd/go/build.go               |  57 +---------------
- src/cmd/link/internal/ld/ar.go    | 132 ++++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/ldelf.go |   2 +-
- src/cmd/link/internal/ld/lib.go   |  48 +++++++++-----
- 9 files changed, 272 insertions(+), 71 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 |  4 +--
+ src/cmd/compile/internal/gc/testdata/string_ssa.go | 30 ++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

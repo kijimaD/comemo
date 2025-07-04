@@ -1,14 +1,20 @@
-commit 53d318330839b904674dd365f216f62150fe6763
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 6 00:22:31 2017 +0000
+commit 4b50c81356b7e36ae1de1651eb3f5fb9df3211dd
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Feb 21 16:57:37 2017 -0600
 
-    doc: complete remaining Go 1.9 documentation TODOs
+    test/fixedbugs: add a test for 19201
     
-    Updates #20587
+    This was cherry-picked to 1.8 as CL 38587, but on master issue was fixed
+    by CL 37661. Add still relevant part (test) and close issue, since test passes.
     
-    Change-Id: Ie4846f90611390eebf037ffafaed5ddd273565e4
-    Reviewed-on: https://go-review.googlesource.com/47551
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #19201
+    
+    Change-Id: I6415792e2c465dc6d9bd6583ba1e54b107bcf5cc
+    Reviewed-on: https://go-review.googlesource.com/37376
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.9.html | 74 +++++++++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 55 insertions(+), 19 deletions(-)
+ test/fixedbugs/issue19201.go | 52 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)

@@ -1,24 +1,17 @@
-commit 9a4685f22036b4e2577bb79dbfabd7c4e48146e3
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Jun 22 20:57:50 2022 -0700
+commit b32209d22d0418594bd60af152b0f2c90c677941
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 9 15:55:05 2021 -0700
 
-    strings: avoid utf8.RuneError mangling in Split
+    cmd/compile: fix test case for unified IR (fix build)
     
-    Split should only split strings and not perform mangling
-    of invalid UTF-8 into ut8.RuneError.
-    The prior behavior is clearly a bug since mangling is not
-    performed in all other situations (e.g., separator is non-empty).
+    For #48301.
     
-    Fixes #53511
-    
-    Change-Id: I112a2ef15ee46ddecda015ee14bca04cd76adfbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413715
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie5f57dcce86773c06c5140abf13a6cfff79eb323
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348743
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/bytes/bytes_test.go     | 2 ++
- src/strings/strings.go      | 7 ++-----
- src/strings/strings_test.go | 2 ++
- 3 files changed, 6 insertions(+), 5 deletions(-)
+ test/fixedbugs/issue48301.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

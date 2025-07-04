@@ -1,28 +1,22 @@
-commit b6fe2c2c20327d8f85581de848fe9687d4cc7c79
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Mar 21 17:29:29 2016 +1300
+commit 2a09a68dd951a563b2e6fb6d0d3b5a77ec9e67d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 20:14:03 2016 -0500
 
-    cmd/link: re-use duplicate symbol object
+    unsafe: document valid uses of Pointer
     
-    Nothing cares about it.
+    Add docs for valid uses of Pointer.
+    Then document change made for #13372 in CL 18584.
     
-    I did this after looking at the memprof output, but it helps performance a bit:
+    Fixes #8994.
     
-    name       old s/op    new s/op    delta
-    LinkCmdGo   0.44 ± 3%   0.43 ± 3%  -2.20%   (p=0.000 n=94+90)
-    LinkJuju    3.98 ± 5%   3.94 ± 5%  -1.19%  (p=0.000 n=100+91)
-    
-    As well as MaxRSS (i.e. what /usr/bin/time -f '%M' prints):
-    
-    name       old MaxRSS  new MaxRSS  delta
-    LinkCmdGo   130k ± 0%   120k ± 3%  -7.79%   (p=0.000 n=79+90)
-    LinkJuju    862k ± 6%   827k ± 8%  -4.01%  (p=0.000 n=100+99)
-    
-    Change-Id: I6306b7b3369576a688659e2ecdb0815b4152ae96
-    Reviewed-on: https://go-review.googlesource.com/20972
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifba71e5aeafd11f684aed0b7ddacf3c8ec07c580
+    Reviewed-on: https://go-review.googlesource.com/18640
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/link/internal/ld/objfile.go | 10 +++++-----
- src/cmd/link/internal/ld/sym.go     |  6 +-----
- 2 files changed, 6 insertions(+), 10 deletions(-)
+ src/unsafe/unsafe.go | 157 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 152 insertions(+), 5 deletions(-)

@@ -1,22 +1,15 @@
-commit 689fae2d7861fe14032762479011f9e48562e1e0
-Author: Gergely Brautigam <skarlso777@gmail.com>
-Date:   Wed Nov 28 18:10:28 2018 +0000
+commit 7a6fc1f30bc7339726cd3f93f96be3e0d36ff7cb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 13 16:00:34 2018 +0000
 
-    runtime: node ordering in mTreap; adjust code to reflect description.
+    net/http: update request cancelation docs
     
-    Adjust mTreap ordering logic to reflect the description of mTreap ordering.
-    Before it was using unsafe.Pointer in order to gather the base address of
-    a span. This has been changed to use base, which is the startAddress of a
-    span as the description is telling us in mgclarge.go.
+    Fixes #26101
     
-    Fixes: golang/go#28805
-    
-    Change-Id: Ib3cd94a0757e23d135b5d41830f38fc08bcf16a3
-    GitHub-Last-Rev: 93f749b6700b1e179de16607a18395d5e162ecc1
-    GitHub-Pull-Request: golang/go#28973
-    Reviewed-on: https://go-review.googlesource.com/c/151499
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id4def032b846257d2de992b7561ac90a17e08b91
+    Reviewed-on: https://go-review.googlesource.com/129155
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/mgclarge.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/http/client.go  | 8 +++-----
+ src/net/http/request.go | 4 ++++
+ 2 files changed, 7 insertions(+), 5 deletions(-)

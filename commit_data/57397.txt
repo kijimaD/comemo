@@ -1,15 +1,19 @@
-commit 2be9309983f3b8419d83581853657b377d368def
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 4 17:34:29 2024 -0700
+commit 74caf475e3b31a463637bfe3cbdb317674f0930f
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Aug 3 09:34:44 2023 +0000
 
-    cmd/addr2line: use t.TempDir
+    net: use fake DNS dialer for /etc/hosts aliases tests
     
-    Change-Id: I62f1c51be89e9c2f22cc7b0b2e554ffa3da907ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611038
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If9c41bd1e0497e76d901bfd2f749fbeb1ed3ac38
+    GitHub-Last-Rev: f5777d8c20afb47b8cf093e43c7c25bbbb386e91
+    GitHub-Pull-Request: golang/go#61734
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515535
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/addr2line/addr2line_test.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/net/dnsclient_unix_test.go | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)

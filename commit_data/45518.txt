@@ -1,15 +1,39 @@
-commit 138d2c9b88d9e3d5adcebf9cb7c356b43d6a9782
-Author: EndlessCheng <loli.con@qq.com>
-Date:   Tue May 4 01:00:37 2021 +0000
+commit 6e98406ac3e654f4df15f662f51eda46434af332
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 27 11:26:54 2020 -0700
 
-    strconv: fix a typo
+    [dev.typeparams] cmd/compile/internal/types2: review of initorder.go
     
-    Change-Id: I17911dc95fb2126b41dc95f8839c4b3fa8f35d12
-    GitHub-Last-Rev: 88e120329301bd73db39e1081737a83f49a5672b
-    GitHub-Pull-Request: golang/go#45933
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316689
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Difference: errorf now accepts any value that implements
+    the poser interface in place of a position argument. All
+    types2 Objects implement poser.
+    
+    type poser interface {
+            Pos() syntax.Pos
+    }
+    
+    f=initorder.go; diff $f ../../../../go/types/$f
+    5c5
+    < package types2
+    ---
+    > package types
+    154c154
+    <       check.errorf(obj, "initialization cycle for %s", obj.Name())
+    ---
+    >       check.errorf(obj.Pos(), "initialization cycle for %s", obj.Name())
+    157c157
+    <               check.errorf(obj, "\t%s refers to", obj.Name()) // secondary error, \t indented
+    ---
+    >               check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+    161c161
+    <       check.errorf(obj, "\t%s", obj.Name())
+    ---
+    >       check.errorf(obj.Pos(), "\t%s", obj.Name())
+    
+    Change-Id: Id85074fd15a04bb4ff6e8b68a44be6ac5919c71a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265678
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/strconv/atoi.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/initorder.go | 1 -
+ 1 file changed, 1 deletion(-)

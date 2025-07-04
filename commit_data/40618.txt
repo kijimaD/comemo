@@ -1,22 +1,16 @@
-commit cf3be9bbca2f90d87283ae69322616b43702a2f7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 1 16:54:18 2019 -0400
+commit 064ce85c2062cfee8dc87b69a831980e67d3d8a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 13:59:00 2019 -0400
 
-    cmd/go: make commands other than 'tidy' prune go.mod less agressively
+    runtime: fix non-tab indentation in lookup_darwin_*.s
     
-    Updates #31870
-    Updates #33326
-    Fixes #34822
-    
-    Change-Id: I1337f171133c20800eacc6b0955ede5a394ea7eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204878
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ie00494f098bd2bce9bfd1b18dbf9543cf46faad6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180840
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modcmd/tidy.go           |  27 +--
- src/cmd/go/internal/modload/init.go          | 283 ++++++++++++++++++++-------
- src/cmd/go/internal/modload/load.go          |  69 +++++--
- src/cmd/go/testdata/script/mod_readonly.txt  |  44 ++++-
- src/cmd/go/testdata/script/mod_retention.txt | 135 +++++++++++++
- src/cmd/go/testdata/script/mod_tidy.txt      |   1 -
- 6 files changed, 439 insertions(+), 120 deletions(-)
+ src/runtime/lookup_darwin_386.s   | 74 +++++++++++++++++++--------------------
+ src/runtime/lookup_darwin_amd64.s | 54 ++++++++++++++--------------
+ src/runtime/lookup_darwin_arm.s   | 12 +++----
+ src/runtime/lookup_darwin_arm64.s | 12 +++----
+ 4 files changed, 76 insertions(+), 76 deletions(-)

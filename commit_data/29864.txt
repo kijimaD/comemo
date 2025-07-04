@@ -1,41 +1,21 @@
-commit 9c6a5ef9227736f1fd8aa0c36cef78193ec11d62
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 20 19:32:47 2016 +0000
+commit 26c7b4fb1e0553e8f9abe5fdd9008bb1f5bd3228
+Author: Anthony Canino <anthony.canino1@gmail.com>
+Date:   Sat Oct 10 15:24:34 2015 -0400
 
-    A+C: automated update
+    cmd/compile: "abc"[1] is not an ideal constant
     
-    Now with a few more repos included.
+    "abc"[1] is not like 'b', in that -"abc"[1] is uint8 math, not ideal constant math.
+    Delay the constantification until after ideal constant folding is over.
     
-    Add Albert Yu (individual CLA)
-    Add Alessandro Baffa (individual CLA)
-    Add Alexandre Fiori (individual CLA)
-    Add Andrew Austin (individual CLA)
-    Add Andy Finkenstadt (individual CLA)
-    Add Antonio Bibiano (individual CLA)
-    Add Baiju Muthukadan (individual CLA)
-    Add Ben Lubar (individual CLA)
-    Add Euan Kemp (individual CLA)
-    Add Harry Moreno (individual CLA)
-    Add Jason Buberel (corporate CLA for Google Inc.)
-    Add Joop Kiefte (individual CLA)
-    Add Maksym Trykur (individual CLA)
-    Add Mathieu Olivier (individual CLA)
-    Add Nick Leli (individual CLA)
-    Add Nik Nyby (individual CLA)
-    Add Quinn Slack (corporate CLA for Sourcegraph Inc)
-    Add Rafal Jeczalik (individual CLA)
-    Add Raphael Geronimi (individual CLA)
-    Add Ryan Bagwell (individual CLA)
-    Add Steve Francia (corporate CLA for Google Inc.)
-    Add Tristan Colgate (individual CLA)
-    Add Фахриддин Балтаев (individual CLA)
+    Fixes #11370.
     
-    Updates #12042
-    
-    Change-Id: Iab98da8a7a9fd3ee54f716ea358b2d515e1e32c4
-    Reviewed-on: https://go-review.googlesource.com/34658
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iba2fc00ca2455959e7bab8f4b8b4aac14b1f9858
+    Reviewed-on: https://go-review.googlesource.com/15740
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- AUTHORS      | 21 +++++++++++++++++++++
- CONTRIBUTORS | 23 +++++++++++++++++++++++
- 2 files changed, 44 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go  |  6 ++++++
+ src/cmd/compile/internal/gc/walk.go | 14 ++------------
+ test/fixedbugs/issue11370.go        | 13 +++++++++++++
+ 3 files changed, 21 insertions(+), 12 deletions(-)

@@ -1,30 +1,33 @@
-commit a2b615d5270f0bc2ee1dfcdd7849bdd05ee76a14
-Author: Lion Yang <lion@aosc.xyz>
-Date:   Thu Jan 5 05:13:53 2017 +0800
+commit 237d7e34bc7579ec499a029191c33106dc5476a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 15:27:04 2016 -0400
 
-    crypto: detect BMI usability on AMD64 for sha1 and sha256
+    cmd/dist: use debug/pe directly for cmd/link
     
-    The existing implementations on AMD64 only detects AVX2 usability,
-    when they also contains BMI (bit-manipulation instructions).
-    These instructions crash the running program as 'unknown instructions'
-    on the architecture, e.g. i3-4000M, which supports AVX2 but not
-    support BMI.
+    Delete vendored copy.
     
-    This change added the detections for BMI1 and BMI2 to AMD64 runtime with
-    two flags as the result, `support_bmi1` and `support_bmi2`,
-    in runtime/runtime2.go. It also completed the condition to run AVX2 version
-    in packages crypto/sha1 and crypto/sha256.
-    
-    Fixes #18512
-    
-    Change-Id: I917bf0de365237740999de3e049d2e8f2a4385ad
-    Reviewed-on: https://go-review.googlesource.com/34850
+    Change-Id: I06e9d3b709553a1a8d06275e99bd8f617aac5788
+    Reviewed-on: https://go-review.googlesource.com/31011
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/sha1/sha1block_amd64.s     | 18 +++++++++++-------
- src/crypto/sha256/sha256block_amd64.s |  5 ++++-
- src/runtime/asm_amd64.s               | 15 ++++++++++++++-
- src/runtime/runtime2.go               |  2 ++
- 4 files changed, 31 insertions(+), 9 deletions(-)
+ misc/nacl/testzip.proto                            |   5 -
+ src/cmd/dist/buildtool.go                          |   2 +-
+ src/cmd/link/internal/ld/ldpe.go                   |   2 +-
+ src/cmd/link/internal/pe/file.go                   | 343 -----------------
+ src/cmd/link/internal/pe/file_test.go              | 417 ---------------------
+ src/cmd/link/internal/pe/pe.go                     | 110 ------
+ src/cmd/link/internal/pe/section.go                | 112 ------
+ src/cmd/link/internal/pe/string.go                 |  67 ----
+ src/cmd/link/internal/pe/symbol.go                 |  96 -----
+ .../link/internal/pe/testdata/gcc-386-mingw-exec   | Bin 29941 -> 0 bytes
+ .../pe/testdata/gcc-386-mingw-no-symbols-exec      | Bin 8704 -> 0 bytes
+ .../link/internal/pe/testdata/gcc-386-mingw-obj    | Bin 2372 -> 0 bytes
+ .../link/internal/pe/testdata/gcc-amd64-mingw-exec | Bin 273083 -> 0 bytes
+ .../link/internal/pe/testdata/gcc-amd64-mingw-obj  | Bin 736 -> 0 bytes
+ src/cmd/link/internal/pe/testdata/hello.c          |   8 -
+ src/cmd/link/internal/pe/vendor.bash               |  31 --
+ src/debug/pe/file.go                               |   7 +-
+ src/debug/pe/section.go                            |   2 +-
+ src/debug/pe/string.go                             |   2 +-
+ src/debug/pe/symbol.go                             |   2 +-
+ 20 files changed, 10 insertions(+), 1196 deletions(-)

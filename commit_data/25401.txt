@@ -1,14 +1,17 @@
-commit ca9876dd2f1b8f4a00b1ff4be58baaa6ff774a39
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Dec 31 11:25:51 2015 -0500
+commit 53d43cb5565ec4ba77180d8cd53701e3d75c490b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 26 16:00:59 2015 -0700
 
-    doc: fix typo
+    cmd/compile/internal/gc: introduce type for untyped constant kinds
     
-    Fixes #13780.
-    
-    Change-Id: I629e2ba79b74d693e04c3747812c9a686cae5335
-    Reviewed-on: https://go-review.googlesource.com/18218
+    Change-Id: Ia34b6dd099d07d5e1d4bffe775a20fa92705fdb0
+    Reviewed-on: https://go-review.googlesource.com/16335
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go |   2 +-
+ src/cmd/compile/internal/gc/const.go   | 186 +++++++++++++++++----------------
+ src/cmd/compile/internal/gc/go.go      |   9 +-
+ src/cmd/compile/internal/gc/swt.go     |   6 +-
+ 4 files changed, 106 insertions(+), 97 deletions(-)

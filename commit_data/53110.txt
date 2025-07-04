@@ -1,18 +1,30 @@
-commit 917171f5645a70a65cab8cc5f901a905ef6df601
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 26 02:43:06 2023 -0400
+commit 27794c4d4a18c61d8c158d253421d72b5a6a8673
+Author: Jay Conrod <jay@golang.org>
+Date:   Tue Jun 28 18:15:32 2022 -0700
 
-    cmd/go/internal/modload: fix sanity check in rawGoModSummary
+    cmd/go/internal/modload: ignore disallowed errors when checking for updates
     
-    m.Path is never empty for a module in the build list; this fixes a
-    typo from CL 334932.
+    addUpdate calls Query with the query "upgrade". Normally, this returns
+    the highest release version (or prerelease, etc.) that is higher than
+    the current version and is not retracted or excluded. If there is no
+    such version, Query should return the current version. If the current
+    version is retracted or excluded, then Query currently returns an error.
     
-    Change-Id: I5328081ba3bcf5eeac9a1b21a03969ba82ab20ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489076
+    addUpdate should ignore this error, as it ignores ErrNotExist and
+    NoMatchingVersionError. For 'go list -m -u', addRetraction is also
+    called, and that will detect the retraction.
+    
+    Fixes #53594
+    
+    Change-Id: I90a2872cdeabf03894acad9e0cbdd7db4a4e269e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414825
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/modload/modfile.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/modload/build.go                          |  7 ++++++-
+ .../go/testdata/mod/example.com_retract_noupgrade_v1.0.0.txt  |  9 +++++++++
+ src/cmd/go/testdata/script/mod_retract_noupgrade.txt          | 11 +++++++++++
+ 3 files changed, 26 insertions(+), 1 deletion(-)

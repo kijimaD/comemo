@@ -1,14 +1,19 @@
-commit 377eaa749413c1a9e4bbe9466c45980af67bcfd6
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 18 14:30:00 2016 -0700
+commit 5b588e668276b74b69be41fccbbc6135606d7d69
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 18 14:50:52 2016 -0800
 
-    runtime: add space
+    net/http: make http2 Transport send Content Length
     
-    Missed this in review of 20812
+    Updates x/net/http2 to git rev 5c0dae8 for https://golang.org/cl/18709
     
-    Change-Id: I01e220499dcd58e1a7205e2a577dd9630a8b7174
-    Reviewed-on: https://go-review.googlesource.com/20819
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #14003
+    
+    Change-Id: I8bc205d6d089107b017e3458bbc7e05f6d0cae60
+    Reviewed-on: https://go-review.googlesource.com/18730
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/hash_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/clientserver_test.go | 29 ++++++++++++++++++++++++++++
+ src/net/http/h2_bundle.go         | 40 ++++++++++++++++++++++++++++++++-------
+ 2 files changed, 62 insertions(+), 7 deletions(-)

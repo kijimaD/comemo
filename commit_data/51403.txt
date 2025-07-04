@@ -1,23 +1,49 @@
-commit 60be2b465603a56807a8a1a8016c4c8f947579b5
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Nov 21 11:54:54 2022 -0500
+commit 2abfa30f9e0041e932411816ba07d68060eec304
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 14 17:42:20 2022 -0800
 
-    go/types, cmd/compile: skip crypto/internal/bigmod/_asm in TestStdlib
+    go/types, types2: consider type parameters for cycle detection
     
-    Similar to CL 317869, apply to a newly added directory.
+    In validType, when we see an instantiated type, proceed as with
+    non-generic types but provide an environment in which to look up
+    the values (the corresponding type arguments) of type parameters
+    of the instantiated type. For each type parameter for which there
+    is a type argument, proceed with validating that type argument.
+    This corresponds to applying validType to the instantiated type
+    without actually instantiating the type (and running into infinite
+    instantiations in case of invalid recursive types).
     
-    Maybe we should skip all directories starting with "_"?
+    Also, when creating a type instance, use the correct source position
+    for the instance (the start of the qualified identifier if we have an
+    imported type).
     
-    Updates #46027.
+    Fixes #48962.
     
-    Change-Id: Idcb011fda877c9f2cb3032524bebfcc0c1da70b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452437
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I196c78bf066e4a56284d53368b2eb71bd8d8a780
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379414
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/stdlib_test.go | 1 +
- src/go/types/stdlib_test.go                    | 1 +
- 2 files changed, 2 insertions(+)
+ .../internal/types2/testdata/check/issues.go2      |   4 +-
+ .../internal/types2/testdata/check/typeinst.go2    |   2 +-
+ .../types2/testdata/fixedbugs/issue39634.go2       |   2 +-
+ .../types2/testdata/fixedbugs/issue39938.go2       |  34 ++++---
+ .../types2/testdata/fixedbugs/issue48951.go2       |  12 +--
+ .../types2/testdata/fixedbugs/issue48962.go2       |  13 +++
+ .../types2/testdata/fixedbugs/issue49043.go2       |   6 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   3 +-
+ src/cmd/compile/internal/types2/validtype.go       | 112 +++++++++++++++------
+ src/go/types/testdata/check/issues.go2             |   4 +-
+ src/go/types/testdata/check/typeinst.go2           |   2 +-
+ src/go/types/testdata/fixedbugs/issue39634.go2     |   2 +-
+ src/go/types/testdata/fixedbugs/issue39938.go2     |  34 ++++---
+ src/go/types/testdata/fixedbugs/issue48951.go2     |  12 +--
+ src/go/types/testdata/fixedbugs/issue48962.go2     |  13 +++
+ src/go/types/testdata/fixedbugs/issue49043.go2     |   6 +-
+ src/go/types/typexpr.go                            |   3 +-
+ src/go/types/validtype.go                          | 112 +++++++++++++++------
+ test/typeparam/issue48962.dir/a.go                 |  12 +++
+ test/typeparam/issue48962.dir/b.go                 |  51 ++++++++++
+ test/typeparam/issue48962.go                       |  14 +--
+ 21 files changed, 316 insertions(+), 137 deletions(-)

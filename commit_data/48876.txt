@@ -1,39 +1,22 @@
-commit 78fb1d03d39e8357e4790a9f0788ef0a8e7d8ae1
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Wed Nov 10 01:18:42 2021 -0600
+commit 99732b9070ea23c13f7ed9ff8518304e34942ad4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 22 20:53:14 2021 -0700
 
-    internal/bytealg: optimize cmpbody for ppc64le/ppc64
+    [dev.typeparams] cmd/compile: refactor escape analysis of calls
     
-    Vectorize the cmpbody loop for bytes of size greater than or equal
-    to 32 on both POWER8(LE and BE) and POWER9(LE and BE) and improve
-    performance of smaller size compares
+    This CL is a prep refactoring for an upcoming CL to move go/defer
+    wrapping into escape analysis. That CL is unfortunately unavoidably
+    complex and subtle, so this CL takes care of some more mundane
+    refactoring details.
     
-    Performance improves for most sizes with this change on POWER8, 9
-    and POWER10. For the very small sizes (upto 8) the overhead of
-    calling function starts to impact performance.
-    
-    POWER9:
-    name               old time/op  new time/op  delta
-    BytesCompare/1     4.60ns ± 0%  5.49ns ± 0%  +19.27%
-    BytesCompare/2     4.68ns ± 0%  5.46ns ± 0%  +16.71%
-    BytesCompare/4     6.58ns ± 0%  5.49ns ± 0%  -16.58%
-    BytesCompare/8     4.89ns ± 0%  5.46ns ± 0%  +11.64%
-    BytesCompare/16    5.21ns ± 0%  4.96ns ± 0%   -4.70%
-    BytesCompare/32    5.09ns ± 0%  4.98ns ± 0%   -2.14%
-    BytesCompare/64    6.40ns ± 0%  5.96ns ± 0%   -6.84%
-    BytesCompare/128   11.3ns ± 0%   8.1ns ± 0%  -28.09%
-    BytesCompare/256   15.1ns ± 0%  12.8ns ± 0%  -15.16%
-    BytesCompare/512   26.5ns ± 0%  23.3ns ± 5%  -12.03%
-    BytesCompare/1024  50.2ns ± 0%  41.6ns ± 2%  -17.01%
-    BytesCompare/2048  99.3ns ± 0%  86.5ns ± 0%  -12.88%
-    
-    Change-Id: I24f93b2910591e6829ddd8509aa6eeaa6355c609
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362797
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ifbefe1d522a8d57066646be09536437f42e7082c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330251
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/internal/bytealg/compare_ppc64x.s | 552 ++++++++++++++++++++++++----------
- 1 file changed, 388 insertions(+), 164 deletions(-)
+ src/cmd/compile/internal/escape/call.go | 78 +++++++++++++++++++--------------
+ src/cmd/compile/internal/escape/expr.go |  2 +-
+ src/cmd/compile/internal/escape/stmt.go |  7 ++-
+ 3 files changed, 48 insertions(+), 39 deletions(-)

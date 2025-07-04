@@ -1,18 +1,37 @@
-commit 0bcf8bcd998a79f2479c2bb7096eb57a38ffee85
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Thu Mar 1 01:55:33 2018 +0100
+commit c6388d381ee4b62c56b499bc8a8d3127af86faa3
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 24 15:06:26 2017 -0400
 
-    test: in asmcheck, regexp must match from beginning of line
+    [release-branch.go1.9] runtime: capture runtimeInitTime after nanotime is initialized
     
-    This avoid simple bugs like "ADD" matching "FADD". Obviously
-    "ADD" will still match "ADDQ" so some care is still required
-    in this regard, but at least a first class of possible errors
-    is taken care of.
+    CL 36428 changed the way nanotime works so on Darwin and Windows it
+    now depends on runtime.startNano, which is computed at runtime.init
+    time. Unfortunately, the `runtimeInitTime = nanotime()` initialization
+    happened *before* runtime.init, so on these platforms runtimeInitTime
+    is set incorrectly. The one (and only) consequence of this is that the
+    start time printed in gctrace lines is bogus:
     
-    Change-Id: I7deb04c31de30bedac9c026d9889ace4a1d2adcb
-    Reviewed-on: https://go-review.googlesource.com/97817
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    gc 1 18446653480.186s 0%: 0.092+0.47+0.038 ms clock, 0.37+0.15/0.81/1.8+0.15 ms cpu, 4->4->1 MB, 5 MB goal, 8 P
+    
+    To fix this, this commit moves the runtimeInitTime initialization to
+    shortly after runtime.init, at which point nanotime is safe to use.
+    
+    This also requires changing the condition in newproc1 that currently
+    uses runtimeInitTime != 0 simply to detect whether or not the main M
+    has started. Since runtimeInitTime could genuinely be 0 now, this
+    introduces a separate flag to newproc1.
+    
+    Fixes #21554.
+    
+    Change-Id: Id874a4b912d3fa3d22f58d01b31ffb3548266d3b
+    Reviewed-on: https://go-review.googlesource.com/58690
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70848
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- test/run.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/runtime/proc.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

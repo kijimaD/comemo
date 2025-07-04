@@ -1,23 +1,18 @@
-commit 85ce1fd97f6d187e3e2af05440065b0561eff363
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Nov 29 21:23:40 2022 +0000
+commit 54b2a75406a4e347cff2825b698f910549d6bd04
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 1 16:35:02 2022 -0500
 
-    doc/go1.20: add runtime, runtime/trace, and runtime/pprof release notes
+    cmd/go/internal/modload: skip deleted entries in UpdateWorkFile
     
-    This change adds release notes for the "Runtime" section and updated
-    some of the release notes for runtime/trace and runtime/pprof after I
-    looked at the full list of runtime-related changes.
+    Fixes #50958
     
-    For #54202.
-    
-    Change-Id: Id1395f4e6e02d3fcc248855ca98ad0ee26cae574
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454075
+    Change-Id: I25b4f34bea7705525217296471ce97e6a2ab99f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382245
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- doc/go1.20.html | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 51 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/modload/init.go                |  3 +++
+ src/cmd/go/testdata/script/work_use_issue50958.txt | 17 +++++++++++++++++
+ 2 files changed, 20 insertions(+)

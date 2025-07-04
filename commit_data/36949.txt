@@ -1,14 +1,43 @@
-commit 1f95e0a9d99c8307b24e8bf542ae0e093ee95838
-Author: Mihai Todor <todormihai@gmail.com>
-Date:   Fri Oct 12 14:35:16 2018 +0000
+commit bd83774593bca66cc899d5180c77680bc907fab8
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 4 14:55:31 2018 -0400
 
-    encoding/base64: fix typo in decodeQuantum docs
+    cmd/link: separate virtual address layout from file layout
     
-    Change-Id: I643540bcea574d8a70b79237d97097dcc7368766
-    GitHub-Last-Rev: e2be58d1ab84f91dfbba1067aae7145f24fd650d
-    GitHub-Pull-Request: golang/go#28125
-    Reviewed-on: https://go-review.googlesource.com/c/141119
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently these two forms of layout are done in a single pass. This
+    makes it difficult to compress DWARF sections because that must be
+    done after relocations are applied, which must happen after virtual
+    address layout, but we can't layout the file until we've compressed
+    the DWARF sections.
+    
+    Fix this by separating the two layout steps. In the process, we can
+    also unify the copy-pasted code in Link.address to compute file
+    offsets. Currently, each instance of this is slightly different, but
+    there's no reason for it to be. For example, we don't perform
+    PEFILEALIGN alignment on Segrodata or Selreltodata even when HeadType
+    == Hwindows, but it turns out it doesn't matter whether you do or
+    don't because these segments simply don't exist on Windows. Hence, in
+    the unified code path, we do this alignment for all segments.
+    Likewise, there are two ways of computing Fileoff:
+      seg.Vaddr - prev.Vaddr + prev.Fileoff
+    and
+      prev.Fileoff + uint64(Rnd(int64(prev.Filelen), int64(*FlagRound)))
+    At the moment, these always have the same value, but the latter will
+    continue to work after we start compressing sections on disk.
+    
+    Tested by comparing test binaries for all packages in std before and
+    after this change for GOOS={linux,windows,darwin,plan9}. All binaries
+    are identical.
+    
+    For #11799.
+    
+    Change-Id: If09f28771bb4d78dd392fd58b8d7c9d5f22b0b9f
+    Reviewed-on: https://go-review.googlesource.com/111682
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/base64/base64.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go | 68 +++++++++++++++++++++++-----------------
+ src/cmd/link/internal/ld/main.go |  3 +-
+ 2 files changed, 42 insertions(+), 29 deletions(-)

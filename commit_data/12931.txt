@@ -1,14 +1,23 @@
-commit 53372903c70e93704cc32dc229d8d83a03bcc457
-Author: Rob Pike <r@golang.org>
-Date:   Mon Apr 23 12:07:02 2012 +1000
+commit 0cc8ee980886a00387c9b5514c0e3fa44c5c1113
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Apr 22 16:19:21 2012 +1000
 
-    reflect: document and test TypeOf(nil)
-    Fixes #3549.
+    exp/html: add more cases to inBodyIM
     
-    R=golang-dev, dsymonds
+    Don't set framesetOK to false for hidden input elements.
+    
+    Handle <param>, <source>, <track>, <textarea>, <iframe>, <noembed>,
+    and <noscript>
+    
+    Pass 7 additional tests.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6107047
+    https://golang.org/cl/6094045
 
- src/pkg/reflect/all_test.go | 5 +++++
- src/pkg/reflect/type.go     | 1 +
- 2 files changed, 6 insertions(+)
+ src/pkg/exp/html/parse.go                          | 59 +++++++++++++++++++---
+ .../exp/html/testlogs/pending-spec-changes.dat.log |  2 +-
+ src/pkg/exp/html/testlogs/tests19.dat.log          |  4 +-
+ src/pkg/exp/html/testlogs/tests25.dat.log          |  6 +--
+ src/pkg/exp/html/testlogs/webkit01.dat.log         |  2 +-
+ 5 files changed, 58 insertions(+), 15 deletions(-)

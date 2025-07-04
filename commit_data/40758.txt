@@ -1,20 +1,16 @@
-commit e2cac315082a9267135e96249b537d0bd0703175
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 4 00:20:57 2019 -0500
+commit 4047f01d314d72a72beebd26974f3971f5c015e5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 25 17:51:47 2019 -0400
 
-    crypto/tls: add correct names for CHACHA20_POLY1305 cipher suite constants
+    cmd/go: move mod_get_svn test to vcs-test.golang.org
     
-    The cipher suites were apparently renamed late in the standardization
-    process, and we picked up the legacy name. We can't remove the old
-    constants, but add correctly named ones.
+    The test currently usses llvm.org, which seems to be very flaky today.
     
-    Fixes #32061
-    
-    Change-Id: I65ee25c12c10934391af88b76b18565da67453fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205068
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I3d01476d53f94d9170dbb087e3f3cf99581cdb4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183847
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/tls/cipher_suites.go | 51 ++++++++++++++++++++++-------------------
- 1 file changed, 28 insertions(+), 23 deletions(-)
+ src/cmd/go/testdata/script/mod_get_svn.txt | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,23 +1,25 @@
-commit e3769299cd3484e018e0e2a6e1b95c2b18ce4f41
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Apr 28 17:39:46 2021 -0700
+commit 38af45b4cb4ce42b338ba9960419684b2c2c5e72
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 27 11:19:47 2020 -0700
 
-    strconv: add QuotedPrefix
+    [dev.typeparams] cmd/compile/internal/types2: review of package.go
     
-    QuotedPrefix is similar to Unquote, but returns the quoted string verbatim
-    and ignores any data after the quoted string.
+    f=package.go; diff $f ../../../../go/types/$f
+    5c5
+    < package types2
+    ---
+    > package types
+    8a9
+    >       "go/token"
+    25c26
+    <       scope := NewScope(Universe, nopos, nopos, fmt.Sprintf("package %q", path))
+    ---
+    >       scope := NewScope(Universe, token.NoPos, token.NoPos, fmt.Sprintf("package %q", path))
     
-    Fixes #45033
-    
-    Change-Id: I9f69fe9e3e45cbe9e63581cf1b457facb625045d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314775
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I3a34b39e337c2d0224445e5dc5fbd4a6a53f0363
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265677
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/strconv/bytealg.go           |   6 +-
- src/strconv/bytealg_bootstrap.go |   8 +-
- src/strconv/quote.go             | 161 ++++++++++++++++++++++++++-------------
- src/strconv/quote_test.go        |  63 ++++++++-------
- 4 files changed, 153 insertions(+), 85 deletions(-)
+ src/cmd/compile/internal/types2/package.go | 1 -
+ 1 file changed, 1 deletion(-)

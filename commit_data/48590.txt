@@ -1,24 +1,43 @@
-commit 3943d97dc7bb1d0c9574ac5f372a10952ebae7b1
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Feb 17 10:44:13 2022 +0100
+commit 589e32dbdf89484d620c635a966c736085cae5c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 25 17:49:32 2021 -0700
 
-    cmd/go: add comments to C.* special functions
+    [dev.typeparams] cmd/compile/internal/types2: replace Sum type with Union type
     
-    Adding comments to these functions help IDE tooling to display
-    meaningful documentation, p.e. on hover.
+    - We still mostly ignore the tilde information.
     
-    Tested with gopls and vscode.
+    - More consistent naming: A Union term is the pair (type, tilde).
+      Rename Union.terms to Union.types; the Union.types and Union.tilde
+      slices make up the Union terms.
     
-    Updates #51134
+    - Replace Sum.is with Union.underIs: underIs iterates through all
+      union terms and calls its argument function with the underlying
+      type of the term (and thus can ignore the tilde information).
+      This also eliminates the need to call under in the argument
+      function.
     
-    Change-Id: Ie956f7cf192af0e828def4a141783f3a2589f77d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386414
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    - Added Union.is for situations where we need to consider the tilde
+      information for each Union term.
+    
+    Change-Id: I70fcf1813e072651dc0f61d52d5555642ee762fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323274
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/cgo/out.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/compile/internal/types2/builtins.go    |  16 ++--
+ src/cmd/compile/internal/types2/expr.go        |   4 +-
+ src/cmd/compile/internal/types2/index.go       |  18 ++--
+ src/cmd/compile/internal/types2/infer.go       |   5 +-
+ src/cmd/compile/internal/types2/interface.go   |  51 ++----------
+ src/cmd/compile/internal/types2/operand.go     |  19 ++++-
+ src/cmd/compile/internal/types2/predicates.go  |  35 ++++----
+ src/cmd/compile/internal/types2/sanitize.go    |   5 +-
+ src/cmd/compile/internal/types2/sizeof_test.go |   1 -
+ src/cmd/compile/internal/types2/sizes.go       |   4 +-
+ src/cmd/compile/internal/types2/stmt.go        |   6 +-
+ src/cmd/compile/internal/types2/subst.go       |  18 ++--
+ src/cmd/compile/internal/types2/type.go        |  72 ++++------------
+ src/cmd/compile/internal/types2/typestring.go  |   5 +-
+ src/cmd/compile/internal/types2/unify.go       |   7 +-
+ src/cmd/compile/internal/types2/union.go       | 111 +++++++++++++++++++++----
+ 16 files changed, 187 insertions(+), 190 deletions(-)

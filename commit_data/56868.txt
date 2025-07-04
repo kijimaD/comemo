@@ -1,26 +1,19 @@
-commit be152920b90dd0fd73e2b2d6ffea294e09fc36be
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Jul 2 17:17:39 2024 +0700
+commit d8782e7061fab0644af8d20180a4d3821402787a
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 26 15:04:37 2023 -0400
 
-    cmd/compile: fix ICE when compiling global a, b = f()
+    cmd/go: remove stray reference to mkalldocs.sh
     
-    CL 327651 rewrites a, b = f() to use temporaries when types are not
-    identical. That would leave OAS2 node appears in body of init function
-    for global variables initialization. The staticinit pass is not updated
-    to handle OAS2 node, causing ICE when compiling global variables.
+    Clean up a stray reference in the docs to 'mkalldocs.sh', which no
+    longer exists (was replaced by a Go program, in 676794f73e).
     
-    To fix this, handle OAS2 nodes like other OAS2*, since they mostly
-    necessitate dynamic execution anyway.
-    
-    Fixes #68264
-    
-    Change-Id: I1eff8cc3e47035738a2c70d3169e35ec36ee9242
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596055
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I058e86395b14756d7afc184f99f89dbc5ba0184e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498715
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/staticinit/sched.go | 14 ++++++++++++++
- test/fixedbugs/issue68264.go                 | 15 +++++++++++++++
- 2 files changed, 29 insertions(+)
+ src/cmd/go/alldocs.go            | 2 +-
+ src/cmd/go/internal/help/help.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

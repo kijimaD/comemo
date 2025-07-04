@@ -1,28 +1,20 @@
-commit 86c6b4763ed486f20cf018d0810cfd7a1fd91998
-Author: miller <millerresearch@gmail.com>
-Date:   Thu May 18 10:17:42 2023 +0100
+commit e376746e54aae4fb519f50bbe42656a2d34df285
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 30 17:58:47 2022 -0700
 
-    internal/poll: handle SetDeadline to time.Now() in Plan 9
+    [dev.unified] cmd/compile/internal/noder: wire RTTI for implicit conversions
     
-    The implementation of SetDeadline in Plan 9 begins by calculating
-    d = the offset of the requested deadline from time.Now(). If d > 0,
-    a timer is set to interrupt future I/O. If d < 0, the channel is
-    flagged to prevent future I/O and any current I/O is cancelled.
-    But if d = 0, nothing happens and the deadline isn't set.
+    This CL updates Unified IR to set the TypeWord and SrcRType fields on
+    interface conversions, which will be necessary for dictionary support
+    shortly.
     
-    The d = 0 case should be handled the same as d < 0.
-    
-    Fixes #60282
-    Fixes #52896
-    
-    Change-Id: Id8167db3604db1c129d99376fa78a3da75417d20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496137
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I9486b417f514ba4ec2ee8036194aa9ae3ad0ad93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415575
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/poll/fd_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/reader.go | 75 +++++++++++++++++++++++++++++---
+ src/cmd/compile/internal/noder/writer.go |  5 ---
+ 2 files changed, 70 insertions(+), 10 deletions(-)

@@ -1,17 +1,26 @@
-commit a588c6fba6d411245d72b9e071eedc3b4d00a0c8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 7 16:00:53 2025 -0800
+commit 79738217d53f6b2d06d47a2233e51cc859d69e8d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 24 16:29:20 2024 -0500
 
-    go/types, types2: report better error messages for make calls
+    go/version: fix package to accept go1.21.0-bigcorp
     
-    Change-Id: I4593aeb4cad1e2c3f4705ed5249ac0bad910162f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655518
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    The proposal discussion made clear that suffixes should be accepted,
+    so that people who use custom VERSION files can still pass runtime.Version()
+    to this code. But we forgot to do that in the CL. Do that.
+    
+    Note that cmd/go also strips space- and tab-prefixed suffixes,
+    but go.dev/doc/toolchain only mentions dash, so this code only
+    strips dash.
+    
+    Fixes #65061.
+    
+    Change-Id: I6a427b78f964eb41c024890dae30223beaef13eb
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559796
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/builtins.go    | 24 ++++++++++++++++++------
- src/go/types/builtins.go                       | 24 ++++++++++++++++++------
- src/internal/types/testdata/check/builtins1.go | 16 ++++++++++++----
- 3 files changed, 48 insertions(+), 16 deletions(-)
+ src/go/version/version.go      | 10 ++++++----
+ src/go/version/version_test.go |  3 +++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

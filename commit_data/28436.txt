@@ -1,18 +1,20 @@
-commit 569340ebafcd20c01227ed9cbeb5ccd29c52f2bc
+commit 9f38796270a017de8d9e1f102b28576826e6a188
 Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Sep 16 18:53:46 2016 -0400
+Date:   Tue May 24 19:04:51 2016 -0400
 
-    cmd/dist: disable plugin test on arm64
+    reflect: remove type info for unexported methods
     
-    Mysterious error and no time or easy machine access to investigate
-    now, so disabling the -buildmode=plugin test on arm64. (The arm
-    version is working as expected.)
+    Also remove some of the now unnecessary corner case handling and
+    tests I've been adding recently for unexported method data.
     
-    Updates #17138
+    For #15673
     
-    Change-Id: I4cc56ddf47e7597213462e48d4934a765168bd07
-    Reviewed-on: https://go-review.googlesource.com/29363
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie0c7b03f2370bbe8508cdc5be765028f08000bd7
+    Reviewed-on: https://go-review.googlesource.com/23410
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/reflect/all_test.go | 84 ++-----------------------------------------------
+ src/reflect/type.go     | 29 ++++++-----------
+ 2 files changed, 13 insertions(+), 100 deletions(-)

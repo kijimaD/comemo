@@ -1,32 +1,19 @@
-commit f98dd299103f66b86bbef402a63a0c6f8fc8b11e
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Sep 27 13:13:10 2022 -0500
+commit 8e50298f12c9cb8dc8093c00059e46a302977b83
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Apr 1 12:41:35 2022 +0200
 
-    cmd/compile: rework unbounded shift lowering on PPC64
+    os: run TestStatSymlinkLoop on all platforms
     
-    This reduces unbounded shift latency by one cycle, and may
-    generate less instructions in some cases.
+    The test doesn't seem to be specific to Windows, so run in on all
+    platforms supporting symlinks.
     
-    When there is a choice whether to use doubleword or word shifts, use
-    doubleword shifts. Doubleword shifts have fewer hardware scheduling
-    restrictions across P8/P9/P10.
-    
-    Likewise, rework the shift sequence to allow the compare/shift/overshift
-    values to compute in parallel, then choose the correct value.
-    
-    Some ANDCCconst rules also need reworked to ensure they simplify when
-    used for their flag value. This commonly occurs when prove fails to
-    identify a bounded shift (e.g foo32<<uint(x&31)).
-    
-    Change-Id: Ifc6ff4a865d68675e57745056db414b0eb6f2d34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442597
+    Change-Id: I0bbae10040d86e313c285bee2c465df2135fd777
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397574
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  102 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 1623 +++++++++++++------------
- src/cmd/compile/internal/test/shift_test.go   |   89 ++
- 3 files changed, 953 insertions(+), 861 deletions(-)
+ src/os/os_test.go         | 23 +++++++++++++++++++++++
+ src/os/os_windows_test.go | 23 -----------------------
+ 2 files changed, 23 insertions(+), 23 deletions(-)

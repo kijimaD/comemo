@@ -1,15 +1,24 @@
-commit dc50d69119ca8070dd16fb968b46f21f854d89fb
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 7 14:37:37 2021 -0500
+commit 1749f3915e55b473bcc281095f41598357d6b70f
+Author: panchenglong01 <1004907659@qq.com>
+Date:   Thu Apr 8 09:21:05 2021 +0000
 
-    doc/go1.18: drop TODO for "Changes to the language"
+    sync: update misleading comment in map.go about entry type
     
-    For #47694
+    As discussed in: https://github.com/golang/go/issues/45429,  about entry
+    type comments, it is possible for p == nil when m.dirty != nil, so
+    update the commemt about it.
     
-    Change-Id: I142776001eecb451e8722163cfd3f2ecb0ecf35c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369980
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Fixes #45429
+    
+    Change-Id: I7ef96ee5b6948df9ac736481d177a59ab66d7d4d
+    GitHub-Last-Rev: 202c598a0ab98f4634cb56fe2486e8e82f9d991f
+    GitHub-Pull-Request: golang/go#45443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308292
+    Reviewed-by: Changkun Ou <euryugasaki@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.18.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/sync/map.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

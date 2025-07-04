@@ -1,27 +1,29 @@
-commit 8766f96dd72b5d124bf76bf5f88e260a88072683
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Jun 25 17:50:38 2020 -0400
+commit 866920a07351ad5663cc712c31a0f7b5631bc85c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 31 15:41:03 2020 -0800
 
-    cmd/go: migrate to module.MatchPrefixPatterns
+    std,cmd: sync go.mod with new release branches
     
-    In CL 239797, str.GlobsMatchPath was copied to golang.org/x/mod/module
-    as MatchPrefixPatterns. This CL updates x/mod, switches calls to use
-    the new function, and deletes the old function.
+        cd src
+        go get golang.org/x/sys@release-branch.go1.14-std
+        go mod tidy && go mod vendor
+        cd cmd
+        go get golang.org/x/sys@release-branch.go1.14-cmd
+        go get golang.org/x/tools@release-branch.go1.14
+        go mod tidy && go mod vendor
     
-    For #38725
+    Fixes #36851
     
-    Change-Id: I7241032228b574aa539426a92d2f5aad9ee001e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240061
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ib0a78eec90c92515b6f421972102cc8e8d0c08a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217305
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go.mod                                   |  2 +-
- src/cmd/go.sum                                   |  4 +-
- src/cmd/go/internal/modfetch/insecure.go         |  5 ++-
- src/cmd/go/internal/modfetch/repo.go             |  4 +-
- src/cmd/go/internal/modfetch/sumdb.go            |  3 +-
- src/cmd/go/internal/str/path.go                  | 45 -----------------------
- src/cmd/vendor/golang.org/x/mod/module/module.go | 47 ++++++++++++++++++++++++
- src/cmd/vendor/modules.txt                       |  2 +-
- 8 files changed, 57 insertions(+), 55 deletions(-)
+ src/cmd/go.mod                                 | 4 ++--
+ src/cmd/go.sum                                 | 6 ++++--
+ src/cmd/vendor/modules.txt                     | 4 ++--
+ src/go.mod                                     | 2 +-
+ src/go.sum                                     | 4 ++--
+ src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go | 2 +-
+ src/vendor/modules.txt                         | 2 +-
+ 7 files changed, 13 insertions(+), 11 deletions(-)

@@ -1,34 +1,18 @@
-commit e3ea8e68fb91bdc510cb7702981609ce5a9da12e
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Thu Mar 6 11:06:35 2025 +0800
+commit b32ec6c961182e5bca6ae8420d6aa1204d7d2821
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 29 12:14:55 2024 -0500
 
-    cmd/internal/obj/loong64: add {V,XV}SEQI, {V,XV}.{AND,OR,XOR,NOR} instructions support
+    fmt: update docs for %03s
     
-    Go asm syntax:
-             VSEQB  $1, V2, V3
-            XVSEQB  $2, X2, X3
-             V{AND,OR,XOR,NOR}B  $1, V2, V3
-            XV{AND,OR,XOR,NOR}B  $1, V2, V3
-             V{AND,OR,XOR,NOR,ANDN,ORN}V V1, V2, V3
-            XV{AND,OR,XOR,NOR,ANDN,ORN}V V1, V2, V3
+    %03s zero-pads a string with spaces; always has and now always will.
     
-    Equivalent platform assembler syntax:
-             vseqi.b v3, v2, $1
-            xvseqi.b x3, x2 ,$2
-             v{and,or,xor,nor}.b  v3, v2, $1
-            xv{and,or,xor,nor}.b  x3, x2, $1
-             v{and,or,xor,nor,andn,orn}v v3, v2, v1
-            xv{and,or,xor,nor,andn,orn}v x3, x2, x1
+    Fixes #56486.
     
-    Change-Id: I56ae0db72c7f473755cbdc7f7171c1058a9def97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635515
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Change-Id: Ia336581ae7db1c3456699e69e14a3071f50c9f2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559197
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  38 +++++
- src/cmd/internal/obj/loong64/a.out.go           |  21 +++
- src/cmd/internal/obj/loong64/anames.go          |  20 +++
- src/cmd/internal/obj/loong64/asm.go             | 188 +++++++++++++++++++-----
- 4 files changed, 227 insertions(+), 40 deletions(-)
+ src/fmt/doc.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

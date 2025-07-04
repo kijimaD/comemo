@@ -1,12 +1,17 @@
-commit e8b53c92b8086af8c5f279c795951a9aa1a14d58
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jan 23 13:28:14 2016 +0900
+commit a9ca2137aa3ebcf9cf094b20cf30cf50ba577892
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 12 12:24:36 2015 -0500
 
-    net: enable TestLookupDotsWithRemoteSource on builders
+    test: really force heap profile update in heapsampling.go
     
-    Change-Id: I2609660b10a16ec2a256fc9c8e046ba4ae67963f
-    Reviewed-on: https://go-review.googlesource.com/18880
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The heap profile is only guaranteed to be up-to-date after two GC
+    cycles, so force two GCs instead of just one.
+    
+    Updates #13098.
+    
+    Change-Id: I4fb9287b698f4a3b90b8af9fc6a2efb3b082bfe5
+    Reviewed-on: https://go-review.googlesource.com/16848
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/net/lookup_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/heapsampling.go | 3 +++
+ 1 file changed, 3 insertions(+)

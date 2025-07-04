@@ -1,18 +1,16 @@
-commit 7ce02613870a67f26055836ded66591be148b82b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Feb 25 10:59:20 2015 +1100
+commit 925861f3068a397cec0b04154e11114bf3e3ab1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 27 21:07:35 2015 -0500
 
-    cmd/dist: respect runtime.NumCPU when bootstrapping arm hosts
+    liblink: bug fixes for ppc64 %P format
     
-    This is a reproposal of CL 2957. This reproposal restricts the
-    scope of this change to just arm systems.
+    - certain code paths were appending to the string without first clearing it.
+    - some prints were using spaces instead of tabs
     
-    With respect to rsc's comments on 2957, on all my arm hosts they perform
-    the build significantly faster with this change in place.
-    
-    Change-Id: Ie09be1a73d5bb777ec5bca3ba93ba73d5612d141
-    Reviewed-on: https://go-review.googlesource.com/5834
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7a3d38289c8206682baf8942abf5a9950a56b449
+    Reviewed-on: https://go-review.googlesource.com/3511
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/dist/util.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/liblink/list9.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

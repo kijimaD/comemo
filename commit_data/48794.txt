@@ -1,32 +1,33 @@
-commit ac01de5446ec92544768dabee3b0d1faf5f596d9
-Author: João Penteado <4219131+joaopenteado@users.noreply.github.com>
-Date:   Tue Nov 30 18:59:41 2021 +0000
+commit c7a460526eb20752d92fef0456852a3e64bc47a0
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jun 9 18:15:10 2021 -0400
 
-    net/http: optimize StatusText implementation
+    [dev.typeparams] go/types: replace Sum type with Union type
     
-    The current implementation, although more succinct, relies on a runtime
-    lookup to a "constant" unexported map (which also needs to be
-    initialized at runtime).
+    This is a straightforward port of CL 323274 to go/types.
     
-    The proposed implementation is able to be optimized by the compiler at
-    build-time, resulting in *much* more efficient instructions.
-    Additionally, unused string literals may even be removed altogether
-    from the generated binary in some cases.
-    
-    This change is fully backwards-compatible behavior-wise with the
-    existing implementation.
-    
-    Change-Id: I36450320aacff5b322195820552f2831d4fecd52
-    GitHub-Last-Rev: e2058f132ef7a193529d4b0e84329ac93e5d1dcb
-    GitHub-Pull-Request: golang/go#49811
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367201
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ica769d90fd482703f260f105199d2f2229498e95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326677
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/response.go |   5 +-
- src/net/http/server.go   |   4 +-
- src/net/http/status.go   | 198 ++++++++++++++++++++++++++++++-----------------
- 3 files changed, 132 insertions(+), 75 deletions(-)
+ src/go/types/api_typeparams.go |   3 --
+ src/go/types/builtins.go       |  16 +++---
+ src/go/types/expr.go           |   4 +-
+ src/go/types/index.go          |  18 +++----
+ src/go/types/infer.go          |   5 +-
+ src/go/types/interface.go      |  50 +++----------------
+ src/go/types/operand.go        |  19 ++++++-
+ src/go/types/predicates.go     |  35 ++++++-------
+ src/go/types/sanitize.go       |   5 +-
+ src/go/types/sizeof_test.go    |   1 -
+ src/go/types/sizes.go          |   4 +-
+ src/go/types/stmt.go           |   6 +--
+ src/go/types/subst.go          |  18 ++-----
+ src/go/types/type.go           |  72 ++++++--------------------
+ src/go/types/typestring.go     |   5 +-
+ src/go/types/unify.go          |   4 --
+ src/go/types/union.go          | 111 +++++++++++++++++++++++++++++++++++------
+ 17 files changed, 185 insertions(+), 191 deletions(-)

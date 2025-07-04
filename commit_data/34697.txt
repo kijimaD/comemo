@@ -1,20 +1,58 @@
-commit c0ce2925bd975f24d9983d596d84e6b2145cb43a
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sun Mar 25 22:36:33 2018 +0530
+commit 5993251c015dfa1e905bdf44bdb41572387edf90
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 8 10:58:58 2017 -0500
 
-    net/http: use top-level font media type
+    cmd/go: implement per-package asmflags, gcflags, ldflags, gccgoflags
     
-    RFC 8081 declares a top level font media type for all types of fonts.
-    Updating the mime types in sniffer to reflect the new changes.
+    It has always been problematic that there was no way to specify
+    tool flags that applied only to the build of certain packages;
+    it was only to specify flags for all packages being built.
+    The usual workaround was to install all dependencies of something,
+    then build just that one thing with different flags. Since the
+    dependencies appeared to be up-to-date, they were not rebuilt
+    with the different flags. The new content-based staleness
+    (up-to-date) checks see through this trick, because they detect
+    changes in flags. This forces us to address the underlying problem
+    of providing a way to specify per-package flags.
     
-    Fixes #24524
+    The solution is to allow -gcflags=pattern=flags, which means
+    that flags apply to packages matching pattern, in addition to the
+    usual -gcflags=flags, which is now redefined to apply only to
+    the packages named on the command line.
     
-    Change-Id: Iba6cef4c5974e9930e14705720d42550ee87ba56
-    Reviewed-on: https://go-review.googlesource.com/102458
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    See #22527 for discussion and rationale.
+    
+    Fixes #22527.
+    
+    Change-Id: I6716bed69edc324767f707b5bbf3aaa90e8e7302
+    Reviewed-on: https://go-review.googlesource.com/76551
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/http/sniff.go      | 10 +++++-----
- src/net/http/sniff_test.go | 10 +++++-----
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go    |   2 +-
+ src/cmd/compile/internal/gc/ssa_test.go    |  42 +--------
+ src/cmd/compile/internal/ssa/debug_test.go |   8 +-
+ src/cmd/dist/build.go                      |   4 +-
+ src/cmd/dist/buildtool.go                  |   3 +
+ src/cmd/dist/test.go                       |   2 +-
+ src/cmd/go/alldocs.go                      |  43 ++++++---
+ src/cmd/go/go_test.go                      |  24 ++++-
+ src/cmd/go/internal/cfg/cfg.go             |   1 -
+ src/cmd/go/internal/load/flag.go           | 119 +++++++++++++++++++++++++
+ src/cmd/go/internal/load/flag_test.go      | 135 +++++++++++++++++++++++++++++
+ src/cmd/go/internal/load/pkg.go            |  55 +++++++++---
+ src/cmd/go/internal/load/search.go         |  47 ++++++++++
+ src/cmd/go/internal/work/action.go         |  18 +++-
+ src/cmd/go/internal/work/build.go          |  51 +++++++----
+ src/cmd/go/internal/work/exec.go           |  21 +++--
+ src/cmd/go/internal/work/gc.go             |  16 ++--
+ src/cmd/go/internal/work/gccgo.go          |  12 +--
+ src/cmd/go/internal/work/init.go           |  45 ++++------
+ src/cmd/internal/goobj/goobj_test.go       |   2 +-
+ src/cmd/link/internal/ld/dwarf_test.go     |   2 +-
+ src/runtime/crash_test.go                  |   4 +-
+ src/runtime/race/output_test.go            |   4 +-
+ src/runtime/runtime-gdb_test.go            |   4 +-
+ src/runtime/runtime-lldb_test.go           |   2 +-
+ test/inline_callers.go                     |   2 +-
+ 26 files changed, 508 insertions(+), 160 deletions(-)

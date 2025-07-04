@@ -1,21 +1,23 @@
-commit 47efdcbf4c40a718ba6e1c28b8bb7b73e729f2b0
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Sun Mar 20 02:10:17 2022 +0800
+commit b1a398cf0f04ac911be204d3c0ee001a94621683
+Author: Dan Scales <danscales@google.com>
+Date:   Mon May 10 10:17:51 2021 -0700
 
-    internal/reflectlite: fix name of type parameter
+    [dev.typeparams] cmd/compile:  add import/export of calls to builtin functions
     
-    CL 372774 is for reflect, this CL is for internal/reflectlite.
+    For generic functions, we have to leave the builtins in OCALL form,
+    rather than transform to specific ops, since we don't know the exact
+    types involved. Allow export/import of builtins in OCALL form.
     
-    Updates #50208
+    Added new export/import test mapimp.go.
     
-    Change-Id: Ib7e8b1bc031feab218d1addd78388fcfe9b675b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393918
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I571f8eeaa13b4f69389dbdb9afb6cc61924b9bf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321750
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/reflectlite/all_test.go | 5 +++++
- src/internal/reflectlite/type.go     | 9 ++++++++-
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 10 ++++++++++
+ src/cmd/compile/internal/typecheck/iimport.go |  4 ++++
+ test/typeparam/mapimp.dir/a.go                | 15 ++++++++++++++
+ test/typeparam/mapimp.dir/main.go             | 28 +++++++++++++++++++++++++++
+ test/typeparam/mapimp.go                      |  7 +++++++
+ 5 files changed, 64 insertions(+)

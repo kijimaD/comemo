@@ -1,21 +1,27 @@
-commit e0cd90528e1ea9d8e7362391b645178fcd0a7e03
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Nov 3 19:33:51 2023 +0800
+commit 58eaecbf9a9407e4556a2c6afae9186309d6b2fe
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Sat Apr 8 02:06:18 2023 +0800
 
-    reflect: add available godoc link
+    cmd/internal/obj/arm64: improve comment and signature of pcAlignPadLength
     
-    Change-Id: Ib199ce1a781e8e3a66d3dc8bda617e6bc30b290e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539578
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The function just calculates the number of needed padding bytes,
+    instead of actually carrying out the alignment operation. And it has
+    the context argument at the end of the argument list, while contexts
+    idiomatically come first. Indeed, this is the only case in
+    cmd/internal/obj where ctxt is not the only argument and does not come
+    first.
+    
+    Fix those two nits; no functional change intended.
+    
+    Suggested by Ian during review of CL 479815 (that introduces a copy of
+    this helper into the loong64 port).
+    
+    Change-Id: Ieb221ead23282abe6e04804d537e1234c7ab21d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483155
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/reflect/arena.go    |  4 ++--
- src/reflect/makefunc.go |  6 +++---
- src/reflect/type.go     |  2 +-
- src/reflect/value.go    | 12 ++++++------
- 4 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

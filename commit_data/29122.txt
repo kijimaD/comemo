@@ -1,21 +1,33 @@
-commit a7c84668c83c246c142fb4a25a2a6fd52ba0d540
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Oct 26 17:14:35 2016 -0700
+commit 7f27f1dfdd81c978d4868917d7622e09b288ecb0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Aug 25 15:52:45 2016 -0400
 
-    cmd/compile: remove Label type
+    cmd/compile: add MIPS64 optimizations, SSA on by default
     
-    With the removal of the old backend,
-    a Label is just a Node.
+    Add the following optimizations:
+    - fold constants
+    - fold address into load/store
+    - simplify extensions and conditional branches
+    - remove nil checks
     
-    Passes toolstash -cmp.
+    Turn on SSA on MIPS64 by default, and toggle the tests.
     
-    Change-Id: Ia62cb00fbc551efb75a4ed4dc6ed54fca0831dbf
-    Reviewed-on: https://go-review.googlesource.com/32216
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #16359.
+    
+    Change-Id: I7f1e38c2509e22e42cd024e712990ebbe47176bd
+    Reviewed-on: https://go-review.googlesource.com/27870
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/esc.go       | 7 ++++---
- src/cmd/compile/internal/gc/go.go        | 8 ++------
- src/cmd/compile/internal/gc/typecheck.go | 6 ++----
- 3 files changed, 8 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go            |    2 +-
+ src/cmd/compile/internal/mips64/ssa.go        |   86 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  268 ++
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |    4 +-
+ src/cmd/compile/internal/ssa/opGen.go         |    6 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 4630 +++++++++++++++++++++++--
+ test/live.go                                  |    2 +-
+ test/live_ssa.go                              |    2 +-
+ test/nilptr3_ssa.go                           |    2 +-
+ test/sliceopt.go                              |    2 +-
+ 10 files changed, 4777 insertions(+), 227 deletions(-)

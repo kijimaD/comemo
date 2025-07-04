@@ -1,16 +1,19 @@
-commit 96c785de3990248068e4793571d9b3ba1b6cebe8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 25 01:03:54 2011 -0500
+commit ad8b0d915b2e19ec74982611ea0a2e10b3c6cd1b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 24 19:29:25 2011 -0800
 
-    5a, 5l: add LDREXD, STREXD
+    bug324.go: test case for issue 1550
     
-    R=ken2
+    Also: renamed fixedbugs/bug322.go to fixedbugs/bug323.go
+    because we already have a bugs/bug322.go and bug322.dir.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4239041
+    https://golang.org/cl/4219044
 
- src/cmd/5a/lex.c   |  2 ++
- src/cmd/5l/5.out.h |  3 +++
- src/cmd/5l/asm.c   | 21 ++++++++++++++++++++-
- src/cmd/5l/optab.c |  3 +++
- src/cmd/5l/span.c  |  2 ++
- 5 files changed, 30 insertions(+), 1 deletion(-)
+ test/bugs/bug324.dir/main.go            | 48 +++++++++++++++++++++++++++++++++
+ test/bugs/bug324.dir/p.go               | 15 +++++++++++
+ test/bugs/bug324.go                     |  8 ++++++
+ test/fixedbugs/{bug322.go => bug323.go} |  0
+ test/golden.out                         |  3 +++
+ 5 files changed, 74 insertions(+)

@@ -1,21 +1,21 @@
-commit a7fe161ccceb330cd1f19cd103a61f8deacbbdc3
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Oct 1 17:45:09 2021 -0700
+commit 626406b703a418acd41c4163b5c58d832c09e1e4
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Jan 19 17:30:09 2021 -0500
 
-    net: don't use syscall.NET_RT_IFLISTL on FreeBSD
+    [dev.typeparams] go/types: import api_test.go changes from dev.go2go
     
-    The golang.org/x/net/route package can't parse the RIB returned
-    by NET_RT_IFLISTL. Use the route.RIBTypeInterface constant
-    instead, leaving the choice of syscall up to the route package.
+    This CL imports tests for the go/types API from the dev.go2go branch.
+    Only parse type parameters for packages with a magic prefix, with the
+    rationale that while generics are in preview, we want existing
+    (non-generic) tests to exercise the default mode.
     
-    Fixes #48553.
-    
-    Change-Id: Ida4bd6e332c0dc6dc871d3a93cfb56c0fbc93e1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353611
-    Trust: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8ae0d8769b997a8a93b708453a1afaecb262244d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284693
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/interface_freebsd.go | 11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ src/go/types/api_test.go | 255 +++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 248 insertions(+), 7 deletions(-)

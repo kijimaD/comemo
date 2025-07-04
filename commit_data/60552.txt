@@ -1,0 +1,24 @@
+commit 0214749fef334f9879287d6eec3f059e803a5270
+Author: limeidan <limeidan@loongson.cn>
+Date:   Fri Jan 12 09:58:35 2024 +0800
+
+    cmd/internal/obj/loong64: rename Class to represent the external symbol address
+    
+    There is no need to define another C_SECON Class to express short
+    external symbol address, because the external symbol address is unknown
+    in assembler, relocate it in linker.
+    
+    Change-Id: Id9fbd848c43ca63a21f2b6640e947140c26eeaf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565624
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/internal/obj/loong64/a.out.go  |  3 +--
+ src/cmd/internal/obj/loong64/asm.go    | 10 ++++------
+ src/cmd/internal/obj/loong64/cnames.go |  3 +--
+ 3 files changed, 6 insertions(+), 10 deletions(-)

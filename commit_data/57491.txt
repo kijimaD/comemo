@@ -1,34 +1,24 @@
-commit 165bf241f2f7c72cffd83e278d674ae3ddbd72a1
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Aug 28 17:01:15 2024 +0800
+commit 832212df9aba985bdc6a8378a821e1030554fa2f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 01:43:47 2023 -0700
 
-    cmd/objdump: add loong64 disassembler support
+    cmd/compile: make use of types2.InitOrder
     
-    This CL provides vendor support for loong64 disassembler gnu and plan9 syntax.
+    types2 already computes the order that package-level variables need to
+    be initialized in. Start using it.
     
-    cd $GOROOT/src/cmd
-    go get golang.org/x/arch@master
-    go mod tidy
-    go mod vendor
-    
-    Change-Id: Ic8b888de0aa11cba58cbf559f8f69337d1d69309
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609015
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: Idf2740f963b8146f7c927f57effdbf245f41d355
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517617
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go.mod                                     |    2 +-
- src/cmd/go.sum                                     |    4 +-
- src/cmd/internal/objfile/disasm.go                 |   16 +
- src/cmd/internal/objfile/elf.go                    |    2 +
- src/cmd/objdump/objdump_test.go                    |   18 +-
- .../golang.org/x/arch/loong64/loong64asm/arg.go    |   93 ++
- .../golang.org/x/arch/loong64/loong64asm/decode.go |  269 ++++
- .../golang.org/x/arch/loong64/loong64asm/gnu.go    |   16 +
- .../golang.org/x/arch/loong64/loong64asm/inst.go   |  300 ++++
- .../golang.org/x/arch/loong64/loong64asm/plan9x.go |  541 +++++++
- .../golang.org/x/arch/loong64/loong64asm/tables.go | 1613 ++++++++++++++++++++
- src/cmd/vendor/modules.txt                         |    3 +-
- 12 files changed, 2871 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/coverage/cover.go    |   8 +-
+ src/cmd/compile/internal/ir/package.go        |   4 +
+ src/cmd/compile/internal/noder/reader.go      |  44 +--
+ src/cmd/compile/internal/noder/writer.go      |  17 +-
+ src/cmd/compile/internal/pkginit/init.go      |   5 +-
+ src/cmd/compile/internal/pkginit/initorder.go | 369 --------------------------
+ src/cmd/compile/internal/staticinit/sched.go  |  10 +-
+ 7 files changed, 47 insertions(+), 410 deletions(-)

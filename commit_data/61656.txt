@@ -1,0 +1,26 @@
+commit b22c585c2a90ce20acd4d3b7ae7ecc7829e81630
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 16 18:31:41 2024 +0100
+
+    crypto/ecdsa: move s390x assembly to crypto/internal/fips/ecdsa
+    
+    For #69536
+    
+    Change-Id: I85088acb3da788f688f78efff39320bd517e617d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628679
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/ecdsa/ecdsa.go                          |  8 --
+ src/crypto/ecdsa/ecdsa_legacy.go                   |  3 -
+ src/crypto/ecdsa/ecdsa_noasm.go                    | 17 ----
+ src/crypto/ecdsa/ecdsa_s390x_test.go               | 32 --------
+ src/crypto/ecdsa/ecdsa_test.go                     | 13 +++-
+ src/crypto/internal/fips/ecdsa/ecdsa.go            |  6 ++
+ src/crypto/internal/fips/ecdsa/ecdsa_noasm.go      | 17 ++++
+ .../{ => internal/fips}/ecdsa/ecdsa_s390x.go       | 91 +++++++++-------------
+ src/crypto/{ => internal/fips}/ecdsa/ecdsa_s390x.s |  0
+ src/crypto/internal/fipsdeps/cpu/cpu.go            |  1 +
+ 10 files changed, 69 insertions(+), 119 deletions(-)

@@ -1,26 +1,43 @@
-commit 05b6118139d880a5bced23da9d07bdb0db8e7084
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Thu Jun 4 16:59:06 2020 +0200
+commit da8591b61c141ca58e4b3eae382d2827006344fd
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 3 11:58:51 2020 -0400
 
-    debug/dwarf: add support for DWARFv5 to (*Data).Ranges
+    all: remove darwin/arm build-tags and files
     
-    Updates the (*Data).Ranges method to work with DWARFv5 which uses the
-    new debug_rnglists section instead of debug_ranges.
+    This removes all files that are only used on darwin/arm and cleans up
+    build tags in files that are still used on other platforms.
     
-    This does not include supporting DW_FORM_rnglistx.
+    Updates #37611.
     
-    General support for DWARFv5 was added by CL 175138.
-    
-    Change-Id: I01f919a865616a3ff12f5bf649c2c9abf89fcf52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236657
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ic9490cf0edfc157c6276a7ca950c1768b34a998f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227197
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/debug/dwarf/const.go                |  12 ++
- src/debug/dwarf/dwarf5ranges_test.go    |  36 +++++
- src/debug/dwarf/entry.go                | 234 ++++++++++++++++++++++++--------
- src/debug/dwarf/open.go                 |  94 ++++++++++++-
- src/debug/dwarf/testdata/debug_rnglists | Bin 0 -> 23 bytes
- 5 files changed, 317 insertions(+), 59 deletions(-)
+ src/crypto/x509/root_cgo_darwin.go                 |    2 +-
+ .../{root_darwin_armx.go => root_darwin_arm64.go}  |    4 +-
+ src/crypto/x509/root_darwin_arm_gen.go             |    6 +-
+ src/runtime/cgo/gcc_darwin_arm.c                   |  164 --
+ ...l2_darwin_armx.c => gcc_signal2_darwin_arm64.c} |    4 +-
+ ...nal_darwin_armx.c => gcc_signal_darwin_arm64.c} |    2 -
+ src/runtime/cgo/gcc_signal_darwin_lldb.c           |    2 +-
+ src/runtime/cgo/signal_darwin_arm.s                |   49 -
+ ...ignal_darwin_armx.go => signal_darwin_arm64.go} |    3 -
+ src/runtime/defs_darwin_arm.go                     |  231 ---
+ src/runtime/os_darwin_arm.go                       |   23 -
+ src/runtime/rt0_darwin_arm.s                       |   11 -
+ src/runtime/signal_arm.go                          |    2 +-
+ src/runtime/signal_darwin_arm.go                   |   73 -
+ src/runtime/sys_darwin_32.go                       |    2 +-
+ src/runtime/sys_darwin_arm.s                       |  603 ------
+ src/syscall/asm_darwin_arm.s                       |  133 --
+ src/syscall/syscall_darwin_arm.go                  |   71 -
+ src/syscall/zerrors_darwin_arm.go                  | 1351 -------------
+ src/syscall/zsyscall_darwin_arm.go                 | 2067 --------------------
+ src/syscall/zsyscall_darwin_arm.s                  |  251 ---
+ src/syscall/zsysnum_darwin_arm.go                  |  347 ----
+ src/syscall/ztypes_darwin_arm.go                   |  453 -----
+ src/time/zoneinfo_ios.go                           |    2 +-
+ test/fixedbugs/issue14636.go                       |    2 +-
+ 25 files changed, 10 insertions(+), 5848 deletions(-)

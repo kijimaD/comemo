@@ -1,14 +1,22 @@
-commit 9a258f308689d2f1cb13f286baf745aad5fa991b
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Nov 14 23:13:28 2018 +0100
+commit 84374d4de52827147b475c481cf2a00b6d6dfc6b
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Jul 23 03:16:53 2018 +0000
 
-    doc: document GODEBUG options to disable use of instruction set extensions
+    cmd/internal/obj: support more arm64 FP instructions
     
-    Fixes #27218
+    ARM64 also supports float point LDP(load pair) & STP (store pair).
+    The CL adds implementation and corresponding test cases for
+    FLDPD/FLDPS/FSTPD/FSTPS.
     
-    Change-Id: I4eb8e8f2486b20fe0ed6e3e2c6ec521c9e8c0032
-    Reviewed-on: https://go-review.googlesource.com/c/149579
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I45f112012a4e097bfaf023d029b36e6cbc7a5859
+    Reviewed-on: https://go-review.googlesource.com/125438
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/diagnostics.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/asm/internal/asm/testdata/arm64.s      | 72 ++++++++++++++++++++++++++
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  3 ++
+ src/cmd/internal/obj/arm64/a.out.go            |  4 ++
+ src/cmd/internal/obj/arm64/anames.go           |  4 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 34 ++++++++++--
+ 5 files changed, 113 insertions(+), 4 deletions(-)

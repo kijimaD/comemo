@@ -1,15 +1,44 @@
-commit a59ab29bf2164730e3e6d5439c6ec4b1e46adcc4
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Mon Nov 29 11:05:41 2021 -0500
+commit 28c5fed5576483cc696db233d7f6fffecd2833a2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 28 15:23:05 2021 +0000
 
-    doc/go1.18: use <code> instead of <pre> for target specification
+    reflect: add register ABI support for makeFuncStub and methodValueCall
     
-    For #47694.
+    This change finishes off functionality register ABI for the reflect
+    package.
     
-    Signed-off-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Change-Id: I38c2fd9b57fbbacf220a2bc679f67e2dfdcc7cb1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367514
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Specifically, it implements a call on a MakeFunc'd value by performing
+    the reverse process that reflect.Value.Call does, using the same ABI
+    steps. It implements a call on a method value created by reflect by
+    translating between the method value's ABI to the method's ABI.
+    
+    Tests are added for both cases.
+    
+    For #40724.
+    
+    Change-Id: I302820b61fc0a8f94c5525a002bc02776aef41af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298670
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/abi.go         |  27 ++-
+ src/reflect/abi_test.go    | 559 +++++++++++++++++++++++++++++++++++++++++----
+ src/reflect/asm_386.s      |  14 +-
+ src/reflect/asm_amd64.s    |  49 +++-
+ src/reflect/asm_arm.s      |  16 +-
+ src/reflect/asm_arm64.s    |  10 +-
+ src/reflect/asm_mips64x.s  |  12 +-
+ src/reflect/asm_mipsx.s    |  14 +-
+ src/reflect/asm_ppc64x.s   |  14 +-
+ src/reflect/asm_riscv64.s  |  14 +-
+ src/reflect/asm_s390x.s    |  14 +-
+ src/reflect/asm_wasm.s     |  14 +-
+ src/reflect/makefunc.go    |  68 ++++--
+ src/reflect/value.go       | 310 +++++++++++++++++++------
+ src/runtime/asm_amd64.s    |  12 +-
+ src/runtime/stack.go       |  42 +++-
+ src/runtime/stubs_amd64.go |   7 +
+ src/runtime/traceback.go   |   2 +-
+ 18 files changed, 991 insertions(+), 207 deletions(-)

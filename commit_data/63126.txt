@@ -1,0 +1,19 @@
+commit 26e05b95c2a3ae69e6dc0b6169a931e96253917a
+Author: Mark Freeman <mark@golang.org>
+Date:   Tue May 20 14:33:03 2025 -0400
+
+    internal/pkgbits: specify that RelIdx is an element index
+    
+    Without this, it's not clear what this is relative to or the
+    granularity of the index.
+    
+    Change-Id: Ibaabe47e089f0ba9b084523969c5347ed4c9dbee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674636
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/pkgbits/decoder.go | 30 +++++++++++++++---------------
+ src/internal/pkgbits/encoder.go | 22 +++++++++++-----------
+ src/internal/pkgbits/reloc.go   | 18 ++++++++++++------
+ 3 files changed, 38 insertions(+), 32 deletions(-)

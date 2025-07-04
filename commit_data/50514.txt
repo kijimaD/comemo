@@ -1,37 +1,21 @@
-commit 686b38b5b27fe14318adfee57aac780c452fddd6
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Aug 31 18:21:48 2022 +0000
+commit 5ec2427357f4917d0aad40cffddeea73e580129e
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Fri Oct 1 15:07:45 2021 -0400
 
-    runtime: set G wait reason more consistently
+    runtime: pass nanotime and gomaxprocs into startCycle and endCycle explicitly
     
-    Currently, wait reasons are set somewhat inconsistently. In a follow-up
-    CL, we're going to want to rely on the wait reason being there for
-    casgstatus, so the status quo isn't really going to work for that. Plus
-    this inconsistency means there are a whole bunch of cases where we could
-    be more specific about the G's status but aren't.
+    This is to facilitate testing of the pacer, since otherwise this is
+    accessing global state, which is impossible to stub out properly.
     
-    So, this change adds a new function, casGToWaiting which is like
-    casgstatus but also sets the wait reason. The goal is that by using this
-    API it'll be harder to forget to set a wait reason (or the lack thereof
-    will at least be explicit). This change then updates all casgstatus(gp,
-    ..., _Gwaiting) calls to casGToWaiting(gp, ..., waitReasonX) instead.
-    For a number of these cases, we're missing a wait reason, and it
-    wouldn't hurt to add a wait reason for them, so this change also adds
-    those wait reasons.
+    For #44167.
     
-    For #49881.
-    
-    Change-Id: Ia95e06ecb74ed17bb7bb94f1a362ebfe6bec1518
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427617
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I52c3b51fc0ffff38e3bbe534bd66e5761c0003a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353353
+    Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/debugcall.go |  3 +--
- src/runtime/heapdump.go  |  3 +--
- src/runtime/mgc.go       |  7 +++----
- src/runtime/mgcmark.go   |  6 ++----
- src/runtime/proc.go      | 17 ++++++++++++++---
- src/runtime/runtime2.go  |  6 ++++++
- 6 files changed, 27 insertions(+), 15 deletions(-)
+ src/runtime/mgc.go      |  4 ++--
+ src/runtime/mgcpacer.go | 14 +++++++-------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

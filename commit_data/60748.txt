@@ -1,0 +1,74 @@
+commit 64a5d1d7de14ad74b1a77614de0e17c659ef12b6
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Jun 3 17:54:18 2024 +0800
+
+    crypto/sha1: implement sha1block in hardware on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/sha1
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                     │  bench.old   │              bench.new              │
+                     │    sec/op    │   sec/op     vs base                │
+    Hash8Bytes/New      489.8n ± 0%   280.6n ± 0%  -42.71% (p=0.000 n=20)
+    Hash8Bytes/Sum      496.6n ± 0%   288.9n ± 0%  -41.82% (p=0.000 n=20)
+    Hash320Bytes/New   2251.0n ± 0%   992.0n ± 0%  -55.93% (p=0.000 n=20)
+    Hash320Bytes/Sum   2258.0n ± 0%   998.0n ± 0%  -55.80% (p=0.000 n=20)
+    Hash1K/New          6.113µ ± 0%   2.583µ ± 0%  -57.75% (p=0.000 n=20)
+    Hash1K/Sum          6.117µ ± 0%   2.588µ ± 0%  -57.69% (p=0.000 n=20)
+    Hash8K/New          45.42µ ± 0%   18.79µ ± 0%  -58.63% (p=0.000 n=20)
+    Hash8K/Sum          45.43µ ± 0%   18.80µ ± 0%  -58.62% (p=0.000 n=20)
+    geomean             4.192µ        1.926µ       -54.05%
+    
+                     │  bench.old   │               bench.new               │
+                     │     B/s      │     B/s       vs base                 │
+    Hash8Bytes/New     15.57Mi ± 0%   27.19Mi ± 0%   +74.59% (p=0.000 n=20)
+    Hash8Bytes/Sum     15.36Mi ± 0%   26.41Mi ± 0%   +71.88% (p=0.000 n=20)
+    Hash320Bytes/New   135.6Mi ± 0%   307.6Mi ± 0%  +126.90% (p=0.000 n=20)
+    Hash320Bytes/Sum   135.2Mi ± 0%   305.8Mi ± 0%  +126.22% (p=0.000 n=20)
+    Hash1K/New         159.8Mi ± 0%   378.1Mi ± 0%  +136.69% (p=0.000 n=20)
+    Hash1K/Sum         159.7Mi ± 0%   377.4Mi ± 0%  +136.38% (p=0.000 n=20)
+    Hash8K/New         172.0Mi ± 0%   415.8Mi ± 0%  +141.75% (p=0.000 n=20)
+    Hash8K/Sum         172.0Mi ± 0%   415.6Mi ± 0%  +141.65% (p=0.000 n=20)
+    geomean            87.09Mi        189.5Mi       +117.64%
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/sha1
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                     │  bench.old  │              bench.new              │
+                     │   sec/op    │   sec/op     vs base                │
+    Hash8Bytes/New     565.9n ± 0%   374.5n ± 1%  -33.82% (p=0.000 n=20)
+    Hash8Bytes/Sum     571.3n ± 0%   366.7n ± 1%  -35.81% (p=0.000 n=20)
+    Hash320Bytes/New   2.662µ ± 0%   1.201µ ± 0%  -54.88% (p=0.000 n=20)
+    Hash320Bytes/Sum   2.662µ ± 0%   1.194µ ± 0%  -55.15% (p=0.000 n=20)
+    Hash1K/New         7.171µ ± 0%   3.084µ ± 0%  -56.99% (p=0.000 n=20)
+    Hash1K/Sum         7.171µ ± 0%   3.076µ ± 0%  -57.11% (p=0.000 n=20)
+    Hash8K/New         53.10µ ± 0%   22.24µ ± 0%  -58.12% (p=0.000 n=20)
+    Hash8K/Sum         53.09µ ± 0%   22.23µ ± 0%  -58.12% (p=0.000 n=20)
+    geomean            4.900µ        2.348µ       -52.08%
+    
+                     │  bench.old   │               bench.new               │
+                     │     B/s      │     B/s       vs base                 │
+    Hash8Bytes/New     13.48Mi ± 0%   20.38Mi ± 1%   +51.10% (p=0.000 n=20)
+    Hash8Bytes/Sum     13.35Mi ± 0%   20.80Mi ± 1%   +55.82% (p=0.000 n=20)
+    Hash320Bytes/New   114.6Mi ± 0%   254.0Mi ± 1%  +121.61% (p=0.000 n=20)
+    Hash320Bytes/Sum   114.6Mi ± 0%   255.6Mi ± 0%  +123.00% (p=0.000 n=20)
+    Hash1K/New         136.2Mi ± 0%   316.7Mi ± 0%  +132.54% (p=0.000 n=20)
+    Hash1K/Sum         136.2Mi ± 0%   317.5Mi ± 0%  +133.19% (p=0.000 n=20)
+    Hash8K/New         147.1Mi ± 0%   351.3Mi ± 0%  +138.79% (p=0.000 n=20)
+    Hash8K/Sum         147.2Mi ± 0%   351.4Mi ± 0%  +138.78% (p=0.000 n=20)
+    geomean            74.51Mi        155.5Mi       +108.69%
+    
+    Change-Id: I716babd19c18dc2c3314d972ced9d83de2d93cb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/crypto/sha1/sha1block_decl.go    |   2 +-
+ src/crypto/sha1/sha1block_generic.go |   2 +-
+ src/crypto/sha1/sha1block_loong64.s  | 226 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 228 insertions(+), 2 deletions(-)

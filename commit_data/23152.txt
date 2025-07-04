@@ -1,19 +1,49 @@
-commit 0858d8847d0cdcc03ecb336c208706516bc0ab40
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 26 14:57:05 2015 -0700
+commit 6c328efc4c47fe17f0296b8c05f1702f80b66f19
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 24 11:45:11 2015 -0400
 
-    math/big: removed TODO, cleanups
+    cmd/internal/gc: accept comma-separated list of name=value for -d
     
-    - factor out handling of sign
-    - rename bstring, pstring to fmtB, fmtP consistent with fmtE, fmtF
-    - move all float-to-string conversion functions into ftoa.go
-    - no functional changes
+    This should obviously have no performance impact.
+    Listing numbers just as a sanity check for the benchmark
+    comparison program: it should (and does) find nothing
+    to report.
     
-    Change-Id: I5970ecb874dc9c387630b59147d90bda16a5d8e6
-    Reviewed-on: https://go-review.googlesource.com/10387
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    name                                       old                     new          delta
+    BenchmarkBinaryTree17              18.0s × (0.99,1.01)     17.9s × (0.99,1.00)  ~
+    BenchmarkFannkuch11                4.36s × (1.00,1.00)     4.35s × (1.00,1.00)  ~
+    BenchmarkFmtFprintfEmpty           120ns × (0.99,1.06)     120ns × (0.94,1.05)  ~
+    BenchmarkFmtFprintfString          480ns × (0.99,1.01)     477ns × (1.00,1.00)  ~
+    BenchmarkFmtFprintfInt             451ns × (0.99,1.01)     450ns × (0.99,1.01)  ~
+    BenchmarkFmtFprintfIntInt          766ns × (0.99,1.01)     765ns × (0.99,1.01)  ~
+    BenchmarkFmtFprintfPrefixedInt     569ns × (0.99,1.01)     569ns × (0.99,1.01)  ~
+    BenchmarkFmtFprintfFloat           728ns × (1.00,1.01)     728ns × (1.00,1.00)  ~
+    BenchmarkFmtManyArgs              2.81µs × (1.00,1.01)    2.82µs × (0.99,1.01)  ~
+    BenchmarkGobDecode                39.4ms × (0.99,1.01)    39.1ms × (0.99,1.01)  ~
+    BenchmarkGobEncode                39.4ms × (0.99,1.00)    39.4ms × (0.99,1.01)  ~
+    BenchmarkGzip                      660ms × (1.00,1.01)     661ms × (0.99,1.01)  ~
+    BenchmarkGunzip                    143ms × (1.00,1.00)     143ms × (1.00,1.00)  ~
+    BenchmarkHTTPClientServer          132µs × (0.99,1.01)     133µs × (0.99,1.01)  ~
+    BenchmarkJSONEncode               57.1ms × (0.99,1.01)    57.3ms × (0.99,1.04)  ~
+    BenchmarkJSONDecode                138ms × (1.00,1.01)     139ms × (0.99,1.00)  ~
+    BenchmarkMandelbrot200            6.02ms × (1.00,1.00)    6.02ms × (1.00,1.00)  ~
+    BenchmarkGoParse                  9.79ms × (0.92,1.07)    9.72ms × (0.92,1.11)  ~
+    BenchmarkRegexpMatchEasy0_32       210ns × (1.00,1.01)     209ns × (1.00,1.01)  ~
+    BenchmarkRegexpMatchEasy0_1K       593ns × (0.99,1.01)     592ns × (0.99,1.00)  ~
+    BenchmarkRegexpMatchEasy1_32       182ns × (0.99,1.01)     183ns × (0.98,1.01)  ~
+    BenchmarkRegexpMatchEasy1_1K      1.01µs × (1.00,1.01)    1.01µs × (1.00,1.01)  ~
+    BenchmarkRegexpMatchMedium_32      331ns × (1.00,1.00)     330ns × (1.00,1.00)  ~
+    BenchmarkRegexpMatchMedium_1K     92.6µs × (1.00,1.01)    92.4µs × (1.00,1.00)  ~
+    BenchmarkRegexpMatchHard_32       4.58µs × (0.99,1.05)    4.77µs × (0.95,1.01)  ~
+    BenchmarkRegexpMatchHard_1K        136µs × (1.00,1.01)     136µs × (1.00,1.00)  ~
+    BenchmarkRevcomp                   900ms × (0.99,1.06)     906ms × (0.99,1.05)  ~
+    BenchmarkTemplate                  171ms × (1.00,1.01)     171ms × (0.99,1.01)  ~
+    BenchmarkTimeParse                 637ns × (1.00,1.00)     638ns × (1.00,1.00)  ~
+    BenchmarkTimeFormat                742ns × (1.00,1.00)     745ns × (0.99,1.02)  ~
+    
+    Change-Id: I59ec875715cb176bbffa709546370a6a7fc5a75d
+    Reviewed-on: https://go-review.googlesource.com/9309
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/math/big/floatconv.go      | 136 +-----------------------------
- src/math/big/floatconv_test.go |   1 +
- src/math/big/ftoa.go           | 185 +++++++++++++++++++++++++++++++++--------
- 3 files changed, 152 insertions(+), 170 deletions(-)
+ src/cmd/internal/gc/lex.go | 31 ++++++++++++++++++-------------
+ 1 file changed, 18 insertions(+), 13 deletions(-)

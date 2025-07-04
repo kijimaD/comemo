@@ -1,14 +1,18 @@
-commit c5a2f364d3c0ba355f6a1a63e9f4bee96a48e332
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jan 14 12:14:05 2016 -0800
+commit 43ea3054358a3d2dde5787e088dffaba27c4d91e
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:32:32 2015 -0400
 
-    runtime: fix darwin/arm64 build
+    cmd/asm: added support for GOARCH=mips64{,le}
     
-    Fixes #13916.
-    
-    Change-Id: If2cad5473a749460909519ac20aca19dea8a2e7a
-    Reviewed-on: https://go-review.googlesource.com/18671
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I951387f88993715e86b6ab9f18d38ed5c691ee0f
+    Reviewed-on: https://go-review.googlesource.com/14443
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/signal_darwin_arm64.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/asm/internal/arch/arch.go            |  63 +++++
+ src/cmd/asm/internal/arch/mips64.go          |  64 +++++
+ src/cmd/asm/internal/asm/asm.go              |  18 ++
+ src/cmd/asm/internal/asm/endtoend_test.go    |   4 +
+ src/cmd/asm/internal/asm/operand_test.go     |  88 ++++++
+ src/cmd/asm/internal/asm/testdata/mips64.out |  99 +++++++
+ src/cmd/asm/internal/asm/testdata/mips64.s   | 392 +++++++++++++++++++++++++++
+ 7 files changed, 728 insertions(+)

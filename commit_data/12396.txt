@@ -1,18 +1,13 @@
-commit 4863980f16f3bcd371e5ca8880321fa50afe0626
-Author: Emil Hessman <c.emil.hessman@gmail.com>
-Date:   Mon Mar 5 15:11:08 2012 -0800
+commit 286fb69746cc33e8f408f14d7c505aec6fd4d682
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 5 15:10:58 2012 -0800
 
-    Xcode: Example install of language specification for Xcode 4.x.
+    C+A: adding c.emil.hessman@gmail.com
     
-    go.xclangspec is identical to the one in misc/xcode/3/, except for the heading.
-    
-    Partial workaround for issue 2401.
-    
-    R=gri
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5732051
+    https://golang.org/cl/5754044
 
- misc/xcode/4/README        |   2 +
- misc/xcode/4/go.xclangspec | 290 +++++++++++++++++++++++++++++++++++++++++++++
- misc/xcode/4/go4xcode.sh   | 100 ++++++++++++++++
- 3 files changed, 392 insertions(+)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

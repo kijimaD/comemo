@@ -1,29 +1,43 @@
-commit 343b4ba8c1ad8a29b6dd19cb101273b57a26c9b0
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Jun 24 09:16:24 2014 +1000
+commit a712e20a1d1587e115c1295df0850120cdfa3e44
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Jun 23 12:06:26 2014 -0700
 
-    syscall: disable Setuid/Setgid on linux
+    runtime: speed up amd64 memmove
     
-    Update #1435
+    MOV with SSE registers seems faster than REP MOVSQ if the
+    size being copied is less than about 2K. Previously we
+    didn't use MOV if the memory region is larger than 256
+    byte. This patch improves the performance of 257 ~ 2048
+    byte non-overlapping copy by using MOV.
     
-    This proposal disables Setuid and Setgid on all linux platforms.
+    Here is the benchmark result on Intel Xeon 3.5GHz (Nehalem).
     
-    Issue 1435 has been open for a long time, and it is unlikely to be addressed soon so an argument was made by a commenter
+    benchmark               old ns/op    new ns/op    delta
+    BenchmarkMemmove16              4            4   +0.42%
+    BenchmarkMemmove32              5            5   -0.20%
+    BenchmarkMemmove64              6            6   -0.81%
+    BenchmarkMemmove128             7            7   -0.82%
+    BenchmarkMemmove256            10           10   +1.92%
+    BenchmarkMemmove512            29           16  -44.90%
+    BenchmarkMemmove1024           37           25  -31.55%
+    BenchmarkMemmove2048           55           44  -19.46%
+    BenchmarkMemmove4096           92           91   -0.76%
     
-    https://code.google.com/p/go/issues/detail?id=1435#c45
+    benchmark                old MB/s     new MB/s  speedup
+    BenchmarkMemmove16        3370.61      3356.88    1.00x
+    BenchmarkMemmove32        6368.68      6386.99    1.00x
+    BenchmarkMemmove64       10367.37     10462.62    1.01x
+    BenchmarkMemmove128      17551.16     17713.48    1.01x
+    BenchmarkMemmove256      24692.81     24142.99    0.98x
+    BenchmarkMemmove512      17428.70     31687.72    1.82x
+    BenchmarkMemmove1024     27401.82     40009.45    1.46x
+    BenchmarkMemmove2048     36884.86     45766.98    1.24x
+    BenchmarkMemmove4096     44295.91     44627.86    1.01x
     
-    That these functions should made to fail rather than succeed in their broken state.
-    
-    LGTM=ruiu, iant
-    R=iant, ruiu
+    LGTM=khr
+    R=golang-codereviews, gobot, khr
     CC=golang-codereviews
-    https://golang.org/cl/106170043
+    https://golang.org/cl/90500043
 
- src/pkg/syscall/syscall_linux.go        | 15 ++++++++++++++-
- src/pkg/syscall/syscall_linux_386.go    |  1 -
- src/pkg/syscall/syscall_linux_amd64.go  |  1 -
- src/pkg/syscall/syscall_linux_arm.go    |  1 -
- src/pkg/syscall/zsyscall_linux_386.go   | 20 --------------------
- src/pkg/syscall/zsyscall_linux_amd64.go | 20 --------------------
- src/pkg/syscall/zsyscall_linux_arm.go   | 20 --------------------
- 7 files changed, 14 insertions(+), 64 deletions(-)
+ src/pkg/runtime/memmove_amd64.s | 52 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 48 insertions(+), 4 deletions(-)

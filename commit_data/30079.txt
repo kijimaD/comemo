@@ -1,29 +1,17 @@
-commit cc03ba3289eb1a3bd4b6454fff24646912f5bf12
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 18 13:36:46 2017 -0500
+commit 93bca632d9d4662c0e04f6ae24122579130a4bc2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 24 15:36:26 2016 -0700
 
-    cmd/go: split out cmd/go/internal/web
+    cmd/compile: preserve type information in inrange
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    Fixes #17551.
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
-    
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
-    
-    For #18653.
-    
-    Change-Id: I2f349150659b6ddf6be4c675abba38dfe57ff652
-    Reviewed-on: https://go-review.googlesource.com/36201
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I84b7d82654cda3559c119aa56b07f30d0d224865
+    Reviewed-on: https://go-review.googlesource.com/31857
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/bug.go                          |  7 ++++---
- src/cmd/go/get.go                          | 16 ++++++++-------
- src/cmd/go/{ => internal/web}/bootstrap.go | 20 ++++++++----------
- src/cmd/go/{ => internal/web}/http.go      | 33 +++++++++++++++---------------
- src/cmd/go/internal/web/security.go        | 16 +++++++++++++++
- src/cmd/go/vcs.go                          | 33 +++++++++++-------------------
- src/cmd/go/vcs_test.go                     |  4 +++-
- 7 files changed, 69 insertions(+), 60 deletions(-)
+ src/cmd/compile/internal/gc/walk.go |  3 +++
+ test/fixedbugs/issue17551.go        | 21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

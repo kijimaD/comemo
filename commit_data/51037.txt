@@ -1,22 +1,20 @@
-commit 1999f256e4d478251290dfa007c62364810b7bf7
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 28 14:13:59 2022 -0400
+commit 1ab677a797ab5cdb5c0248b2d63b753820e6ed49
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 26 12:43:06 2021 -0800
 
-    cmd/compile/internal/test: clean up TestPGOIntendedInlining
+    go/types: produce empty type set for invalid ~T
     
-    The most important change here is to log output from the child, making
-    it easier to diagnose problems when the child 'go test' fails.
+    This is a clean port of CL 366278 from types2 to go/types.
     
-    We can also eliminate the cmd.Wait goroutine by using an os.Pipe, whose
-    reader will return io.EOF when the child exits.
+    For #49739.
     
-    For #55022.
-    
-    Change-Id: I1573ea444407d545bdca8525c9ff7b0a2baebf5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446300
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2e2cb739c02fcc07e012499c7b65b13b057875ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367197
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/test/pgo_inl_test.go | 94 ++++++++++++---------------
- 1 file changed, 42 insertions(+), 52 deletions(-)
+ src/go/types/testdata/fixedbugs/issue49739.go2 | 23 +++++++++++++++++++++++
+ src/go/types/typeset.go                        | 16 ++++++++++------
+ 2 files changed, 33 insertions(+), 6 deletions(-)

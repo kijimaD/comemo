@@ -1,25 +1,32 @@
-commit 4e141145b731b8adfc5e8ba44334ae63d6da80a2
+commit e69082ffdb2a3a63ce26f69e393fec749a041bd2
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 16 16:24:43 2013 -0400
+Date:   Tue Jul 16 16:23:53 2013 -0400
 
-    cmd/5c, cmd/6c, cmd/8c: record arg size for every call
+    syscall: record argument size for all assembly functions
     
-    R=ken2
+    While we're here, fix Syscall9 on NetBSD and OpenBSD:
+    it was storing the results into the wrong memory locations.
+    I guess no one uses that function's results on those systems.
+    
+    Part of cleaning up stack traces and argument frame information.
+    
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/11364043
+    https://golang.org/cl/11355044
 
- src/cmd/5c/cgen.c |  4 +++-
- src/cmd/5c/gc.h   |  1 +
- src/cmd/5c/sgen.c |  7 ++++++-
- src/cmd/5c/txt.c  |  9 +++++++++
- src/cmd/6c/cgen.c |  3 +++
- src/cmd/6c/gc.h   |  1 +
- src/cmd/6c/sgen.c | 13 ++++++++++---
- src/cmd/6c/txt.c  |  9 +++++++++
- src/cmd/8c/cgen.c |  3 +++
- src/cmd/8c/gc.h   |  1 +
- src/cmd/8c/sgen.c |  9 +++++++--
- src/cmd/8c/txt.c  |  9 +++++++++
- src/cmd/cc/cc.h   |  1 +
- src/cmd/cc/pgen.c | 11 +++++++++++
- 14 files changed, 74 insertions(+), 7 deletions(-)
+ src/pkg/syscall/asm_darwin_386.s    | 10 +++++-----
+ src/pkg/syscall/asm_darwin_amd64.s  |  8 ++++----
+ src/pkg/syscall/asm_freebsd_386.s   | 10 +++++-----
+ src/pkg/syscall/asm_freebsd_amd64.s | 10 +++++-----
+ src/pkg/syscall/asm_freebsd_arm.s   | 10 +++++-----
+ src/pkg/syscall/asm_linux_386.s     | 14 +++++++-------
+ src/pkg/syscall/asm_linux_amd64.s   | 12 ++++++------
+ src/pkg/syscall/asm_linux_arm.s     | 10 +++++-----
+ src/pkg/syscall/asm_netbsd_386.s    | 10 +++++-----
+ src/pkg/syscall/asm_netbsd_amd64.s  | 22 +++++++++++-----------
+ src/pkg/syscall/asm_netbsd_arm.s    | 10 +++++-----
+ src/pkg/syscall/asm_openbsd_386.s   | 10 +++++-----
+ src/pkg/syscall/asm_openbsd_amd64.s | 22 +++++++++++-----------
+ src/pkg/syscall/asm_plan9_386.s     | 12 ++++++------
+ src/pkg/syscall/asm_plan9_amd64.s   | 12 ++++++------
+ 15 files changed, 91 insertions(+), 91 deletions(-)

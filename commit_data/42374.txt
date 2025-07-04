@@ -1,18 +1,24 @@
-commit 13617380cab47a0cfba74650f1539fb2e72bb0fa
+commit ea89ce1ea2924138591cbf7362eb23d4e1399ded
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 19 15:04:48 2020 -0400
+Date:   Fri Dec 6 15:51:34 2019 -0500
 
-    testing: clean up remaining TempDir issues from CL 231958
+    cmd/go/internal/modcmd: loosen path validation in "go mod edit"
     
-    Updates #38850
+    Replaced modules require only valid import paths, not full
+    module paths that can be fetched with 'go get'.
     
-    Change-Id: I33f48762f5520eb0c0a841d8ca1ccdd65ecc20c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234583
+    The 'go' command does not in general reject manually-edited go.mod
+    files with these paths, so 'go mod edit' should not reject them
+    either.
+    
+    Fixes #30513
+    
+    Change-Id: I4f1a5c65937f91d41478f8d218c8018e0c70f320
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210343
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/math/big/link_test.go     | 7 ++++---
- src/os/readfrom_linux_test.go | 5 +++--
- src/testing/testing.go        | 5 ++---
- 3 files changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/modcmd/edit.go      |  8 ++++----
+ src/cmd/go/testdata/script/mod_edit.txt | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+), 4 deletions(-)

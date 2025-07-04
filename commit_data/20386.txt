@@ -1,25 +1,47 @@
-commit 1d550b87dbbe711a1bf2e54e0ba065a27165d2c1
+commit 81ed684a710087eb9745566fa49e57e048088193
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 11 12:08:30 2014 -0400
+Date:   Thu Sep 4 13:51:12 2014 -0400
 
-    runtime: allow crash from gsignal stack
+    runtime: reconvert sigqueue.goc from C to Go
     
-    The uses of onM in dopanic/startpanic are okay even from the signal stack.
+    The original conversion in CL 132090043 cut up
+    the function in an attempt to avoid converting most
+    of the code to Go. This contorts the control flow.
     
-    Fixes #8666.
+    While debugging the onM signal stack bug,
+    I reconverted sigqueue.goc in its entirety.
+    This restores the original control flow, which is
+    much easier to understand.
     
-    LGTM=khr
-    R=khr
-    CC=golang-codereviews
-    https://golang.org/cl/134710043
+    The current conversion is correct, it's just complex
+    and will be hard to maintain. The new one is as
+    readable as the original code.
+    
+    I uploaded sigqueue.goc as the initial copy of
+    sigqueue.go in the CL, so if you view the diffs
+    of sigqueue.go comparing against patch set 2 [sic]
+    it will show the actual starting point.
+    
+    For example:
+    https://golang.org/cl/136160043/diff2/20001:60001/src/pkg/runtime/sigqueue.go
+    
+    LGTM=dvyukov, iant
+    R=golang-codereviews, dvyukov, iant
+    CC=golang-codereviews, khr, r
+    https://golang.org/cl/136160043
 
- src/runtime/asm_386.s      | 17 +++++++++++++++++
- src/runtime/asm_amd64.s    | 17 +++++++++++++++++
- src/runtime/asm_amd64p32.s | 17 +++++++++++++++++
- src/runtime/asm_arm.s      | 15 +++++++++++++++
- src/runtime/crash_test.go  | 16 ++++++++++++++++
- src/runtime/panic.go       |  4 ++--
- src/runtime/proc.c         |  1 +
- src/runtime/runtime.h      |  1 +
- src/runtime/stubs.go       | 18 ++++++++++++++++++
- 9 files changed, 104 insertions(+), 2 deletions(-)
+ src/cmd/api/goapi.go           |   1 +
+ src/pkg/runtime/os_darwin.h    |  15 ++--
+ src/pkg/runtime/os_dragonfly.h |  11 +--
+ src/pkg/runtime/os_freebsd.h   |  12 +--
+ src/pkg/runtime/os_linux.h     |  13 +--
+ src/pkg/runtime/os_netbsd.h    |  23 +++---
+ src/pkg/runtime/os_openbsd.h   |  15 ++--
+ src/pkg/runtime/os_plan9.h     |  18 ++--
+ src/pkg/runtime/os_solaris.h   |  21 ++---
+ src/pkg/runtime/os_windows.h   |   4 +-
+ src/pkg/runtime/proc.go        |   1 +
+ src/pkg/runtime/signal.c       |  25 ++++++
+ src/pkg/runtime/sigqueue.c     | 184 -----------------------------------------
+ src/pkg/runtime/sigqueue.go    | 181 +++++++++++++++++++++++++++++++++++-----
+ 14 files changed, 258 insertions(+), 266 deletions(-)

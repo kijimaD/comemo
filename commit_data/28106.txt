@@ -1,38 +1,24 @@
-commit 4955147291812fd78049d47ef985095e6442264a
-Author: Ethan Miller <eamiller@us.ibm.com>
-Date:   Fri Aug 12 13:45:50 2016 -0500
+commit af6aa0fd745d48c2db70712ebfe6833d30a9a85d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 11:54:24 2016 -0400
 
-    math/big: add assembly implementation of arith for ppc64{le}
+    cmd/go, go/build: add support for binary-only packages
     
-    The existing implementation used a pure go implementation, leading to slow
-    cryptographic performance.
+    See https://golang.org/design/2775-binary-only-packages for design.
     
-    Implemented mulWW, subVV, mulAddVWW, addMulVVW, and bitLen for
-    ppc64{le}.
-    Implemented divWW for ppc64le only, as the DIVDEU instruction is only
-    available on Power8 or newer.
+    Fixes #2775.
     
-    benchcmp output:
-    
-    benchmark                         old ns/op     new ns/op     delta
-    BenchmarkSignP384                 28934360      10877330      -62.41%
-    BenchmarkRSA2048Decrypt           41261033      5139930       -87.54%
-    BenchmarkRSA2048Sign              45231300      7610985       -83.17%
-    Benchmark3PrimeRSA2048Decrypt     20487300      2481408       -87.89%
-    
-    Fixes #16621
-    
-    Change-Id: If8b68963bb49909bde832f2bda08a3791c4f5b7a
-    Reviewed-on: https://go-review.googlesource.com/26951
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Change-Id: I33e74eebffadc14d3340bba96083af0dec5172d5
+    Reviewed-on: https://go-review.googlesource.com/22433
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/ppc64/a.out.go  |   4 +
- src/cmd/internal/obj/ppc64/anames.go |   4 +
- src/cmd/internal/obj/ppc64/asm9.go   |  16 ++++
- src/crypto/ecdsa/ecdsa_test.go       |  12 +++
- src/math/big/arith_ppc64.s           |  14 +++
- src/math/big/arith_ppc64le.s         |  50 ++++++++++
- src/math/big/arith_ppc64x.s          | 178 +++++++++++++++++++++++++++++++----
- 7 files changed, 259 insertions(+), 19 deletions(-)
+ src/cmd/go/build.go        |  8 ++++++
+ src/cmd/go/go_test.go      | 68 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/help.go         | 10 ++++++-
+ src/cmd/go/list.go         |  2 ++
+ src/cmd/go/pkg.go          | 43 ++++++++++++++++++++---------
+ src/go/build/build.go      | 40 +++++++++++++++++++++++----
+ src/go/build/build_test.go |  6 ++--
+ src/go/build/doc.go        | 22 +++++++++++++++
+ 8 files changed, 177 insertions(+), 22 deletions(-)

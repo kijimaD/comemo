@@ -1,31 +1,18 @@
-commit 38e7177c949016c3d74411fa7ea1c300ae85c0fa
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Thu Dec 13 17:55:52 2018 +0100
+commit cfbe3cfbeb6b2de561fc709b8644d4d7a4e182bb
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Aug 16 10:49:35 2018 -0400
 
-    cmd/compile: fix length overflow when appending elements to a slice
+    runtime: fix implementation of cputicks for ppc64x
     
-    Instead of testing len(slice)+numNewElements > cap(slice) use
-    uint(len(slice)+numNewElements) > uint(cap(slice)) to test
-    if a slice needs to be grown in an append operation.
+    The implementation of cputicks has been wrong for ppc64x. The
+    previous code sequence is for 32 bit, not 64 bit.
     
-    This prevents a possible overflow when len(slice) is near the maximum
-    int value and the addition of a constant number of new elements
-    makes it overflow and wrap around to a negative number which is
-    smaller than the capacity of the slice.
-    
-    Appending a slice to a slice with append(s1, s2...) already used
-    a uint comparison to test slice capacity and therefore was not
-    vulnerable to the same overflow issue.
-    
-    Fixes: #29190
-    
-    Change-Id: I41733895838b4f80a44f827bf900ce931d8be5ca
-    Reviewed-on: https://go-review.googlesource.com/c/154037
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I308ae6cf9131f53a0100cd3f8ae4e16601f2d553
+    Reviewed-on: https://go-review.googlesource.com/129595
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go |  4 ++--
- test/fixedbugs/issue29190.go       | 37 +++++++++++++++++++++++++++++++++++++
- test/prove.go                      |  2 +-
- 3 files changed, 40 insertions(+), 3 deletions(-)
+ src/runtime/asm_ppc64x.s | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

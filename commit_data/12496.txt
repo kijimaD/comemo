@@ -1,12 +1,13 @@
-commit a2f03971214a1c090bcdb3a1dff673776bfcc7fc
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Wed Mar 7 18:31:46 2012 -0600
+commit a93047aa72ef696d0973a02fc3997344785c81cd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 8 10:01:15 2012 +1100
 
-    windows: make background of gopher icon transparent
+    doc/go1.tmpl: small change left behind from abf39116ffac
     
-    R=golang-dev, r, jdpoirier
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5762045
+    https://golang.org/cl/5752072
 
- misc/dist/windows/images/gopher.ico | Bin 22486 -> 30166 bytes
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ doc/go1.html | 2 +-
+ doc/go1.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

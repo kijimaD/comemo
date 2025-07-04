@@ -1,17 +1,35 @@
-commit 6baf173b6738cb38089bff4bc836b3f54076b32f
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 2 10:07:02 2014 -0700
+commit f9b9ecc5ee1b3ea8212ee801e719fb748dedc20e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 27 22:50:08 2014 -0400
 
-    runtime: move reflect trampolines into thunk file.
+    runtime: fix nacl build
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    The NaCl "system calls" were assumed to have a compatible
+    return convention with the C compiler, and we were using
+    tail jumps to those functions. Don't do that anymore.
+    
+    Correct mistake introduced in newstackcall duringconversion
+    from (SP) to (FP) notation. (Actually this fix, in asm_amd64p32.s,
+    slipped into the C compiler change, but update the name to
+    match what go vet wants.)
+    
+    Correct computation of caller stack pointer in morestack:
+    on amd64p32, the saved PC is the size of a uintreg, not uintptr.
+    This may not matter, since it's been like this for a while,
+    but uintreg is the correct one. (And on non-NaCl they are the same.)
+    
+    This will allow the NaCl build to get much farther.
+    It will probably still not work completely.
+    There's a bug in 6l that needs fixing too.
+    
+    TBR=minux
     CC=golang-codereviews
-    https://golang.org/cl/133460043
+    https://golang.org/cl/134990043
 
- src/pkg/reflect/asm_386.s      | 29 -----------------------------
- src/pkg/reflect/asm_amd64.s    | 29 -----------------------------
- src/pkg/reflect/asm_amd64p32.s | 29 -----------------------------
- src/pkg/reflect/asm_arm.s      | 29 -----------------------------
- src/pkg/runtime/thunk.s        | 39 +++++++++++++++++++++++++++++++++++++++
- 5 files changed, 39 insertions(+), 116 deletions(-)
+ src/pkg/runtime/asm_amd64p32.s      |  2 +-
+ src/pkg/runtime/os_nacl.go          |  2 +-
+ src/pkg/runtime/stack.c             |  2 +-
+ src/pkg/runtime/sys_nacl_386.s      | 98 ++++++++++++++++++++++++++-----------
+ src/pkg/runtime/sys_nacl_amd64p32.s | 95 +++++++++++++++++++++++++----------
+ src/pkg/runtime/sys_nacl_arm.s      | 96 ++++++++++++++++++++++++++----------
+ 6 files changed, 210 insertions(+), 85 deletions(-)

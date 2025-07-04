@@ -1,15 +1,15 @@
-commit e9bbe3a8da9043e13b74ec4427608364b068bed7
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Thu Apr 25 13:39:09 2013 +0200
+commit 2c5e477f4820484d85704cdada35e814e3926be9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 24 10:40:29 2013 -0700
 
-    runtime: prevent the GC from seeing the content of a frame in runfinq()
+    cmd/vet: clean up the test
+    - clean up the notypes version of the test so it's quiet
+    - change the package in the buildtag test to avoid confusing godoc
     
-    Fixes #5348.
-    
-    R=golang-dev, dvyukov
+    R=golang-dev, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8954044
+    https://golang.org/cl/8671049
 
- src/pkg/runtime/mgc0.c      |  2 +-
- test/fixedbugs/issue5348.go | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 1 deletion(-)
+ src/cmd/vet/Makefile                                  | 6 ++++--
+ src/cmd/vet/{buildtag_bad.go => test_buildtag_bad.go} | 6 +++++-
+ 2 files changed, 9 insertions(+), 3 deletions(-)

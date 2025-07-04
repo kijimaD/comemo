@@ -1,15 +1,38 @@
-commit 93ad702251e3b72bb90df5d7c29204e0edef4351
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 25 13:01:27 2018 -0700
+commit 11b3ee6fec40857af609674292362fb9a096dff6
+Author: Ian Gudger <igudger@google.com>
+Date:   Fri May 18 12:43:13 2018 -0700
 
-    cmd/go: use internal/goroot to check for a standard library package
+    net: fix DNS NXDOMAIN performance regression
     
-    Change-Id: I739728f976162a0b8425a93666e3694d967dceb7
-    Reviewed-on: https://go-review.googlesource.com/137436
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    golang.org/cl/37879 unintentionally changed the way NXDOMAIN errors were
+    handled. Before that change, resolution would fail on the first NXDOMAIN
+    error and return to the user. After that change, the next server would
+    be consulted and resolution would fail only after all servers had been
+    consulted. This change restores the old behavior.
+    
+    Go 10.10.2:
+    BenchmarkGoLookupIP-12                             10000            174883 ns/op   11450 B/op        163 allocs/op
+    BenchmarkGoLookupIPNoSuchHost-12                    3000            670140 ns/op   52189 B/op        544 allocs/op
+    BenchmarkGoLookupIPWithBrokenNameServer-12             1        5002568137 ns/op  163792 B/op        375 allocs/op
+    
+    before this change:
+    BenchmarkGoLookupIP-12                             10000            165501 ns/op    8585 B/op         94 allocs/op
+    BenchmarkGoLookupIPNoSuchHost-12                    1000           1204117 ns/op   83661 B/op        674 allocs/op
+    BenchmarkGoLookupIPWithBrokenNameServer-12             1        5002629186 ns/op  159128 B/op        275 allocs/op
+    
+    after this change:
+    BenchmarkGoLookupIP-12                             10000            158102 ns/op    8585 B/op         94 allocs/op
+    BenchmarkGoLookupIPNoSuchHost-12                    2000            645364 ns/op   42990 B/op        356 allocs/op
+    BenchmarkGoLookupIPWithBrokenNameServer-12             1        5002163437 ns/op  159144 B/op        275 allocs/op
+    
+    Fixes #25336
+    
+    Change-Id: I315cd70330d1f66e54ce5a189a61c99f095bc138
+    Reviewed-on: https://go-review.googlesource.com/113815
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modload/build.go  | 11 +++++------
- src/cmd/go/internal/modload/import.go |  5 +++--
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/net/dnsclient_unix.go      | 21 +++++++++---------
+ src/net/dnsclient_unix_test.go | 48 +++++++++++++++++++++++++++---------------
+ 2 files changed, 42 insertions(+), 27 deletions(-)

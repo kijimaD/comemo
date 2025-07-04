@@ -1,41 +1,23 @@
-commit 90a67d052e6dc3f9d522820ca60cc9862a8016ba
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 4 12:20:18 2022 -0400
+commit e3eaedb5cf623d0836533573db4140749da42768
+Author: Chaoqun Han <hanssccv@gmail.com>
+Date:   Tue Nov 23 22:05:40 2021 +0800
 
-    math/rand: auto-seed global source
+    os/signal: reset SIGURG in TestSignal
     
-    Implement proposal #54880, to automatically seed the global source.
+    Accepting SIGURG signals could cause SIGURG to take up the entire
+    channel buffer.
     
-    The justification for this not being a breaking change is that any
-    use of the global source in a package's init function or exported API
-    clearly must be valid - that is, if a package changes how much
-    randomness it consumes at init time or in an exported API, that
-    clearly isn't the kind of breaking change that requires issuing a v2
-    of that package. That kind of per-package change in the position
-    of the global source is indistinguishable from seeding the global
-    source differently. So if the per-package change is valid, so is auto-seeding.
+    Enhance the stability of test cases by:
+    1.  Stop accepting the SIGURG signal by adding  ‘Reset(sys call.SIGURG)’
+    2.  Close the c1 chan by adding ‘defer Stop(c1)’ (Another bug, NOT this bug)
     
-    And then, of course, auto-seeding means that packages will be
-    far less likely to depend on the specific results of the global source
-    and therefore not break when those kinds of per-package changes
-    happen in the future.
+    Fixes #49724
     
-    Seed(1) can be called in programs that need the old sequence from
-    the global source and want to restore the old behavior.
-    Of course, those programs will still be broken by the per-package
-    changes just described, and it would be better for them to allocate
-    local sources rather than continue to use the global one.
-    
-    Fixes #54880.
-    
-    Change-Id: Ib9dc3307b97f7a45587a9cc50d81f919d3edc7ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443058
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I909a9993f0f6dd109c15e48a861683b87dfc4ab3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366514
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/math/rand/auto_test.go | 40 ++++++++++++++++++++++++++++++++++++++
- src/math/rand/rand.go      | 48 ++++++++++++++++++++++++++++++++++++----------
- src/runtime/stubs.go       |  3 +++
- 3 files changed, 81 insertions(+), 10 deletions(-)
+ src/os/signal/signal_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

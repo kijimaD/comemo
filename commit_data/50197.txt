@@ -1,26 +1,28 @@
-commit d2e0587f77e1cbbd5c7966242c85edba83b37157
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Fri May 13 23:52:48 2022 +0800
+commit 0f52292e72ebbb79b2d41c8dca8e23ef9597e17d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 7 09:55:43 2021 +0200
 
-    cmd/compile: derive relation between x+delta and x in prove
+    os: don't use wait6 on netbsd
     
-    If x+delta cannot overflow/underflow, we can derive:
-      x+delta < x if delta<0 (this CL included)
-      x+delta > x if delta>0 (this CL not included due to
-      a recursive stack overflow)
+    CL 315281 changed the os package use wait6 on netbsd. This seems to be
+    causing frequent test failures as reported in #48789. Revert that change
+    using wait6 on netbsd for now.
     
-    Remove 95 bounds checks during ./make.bat
+    Updates #13987
+    Updates #16028
+    For #48789
     
-    Fixes #51622
-    
-    Change-Id: I60d9bd84c5d7e81bbf808508afd09be596644f09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406175
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ieddffc65611c7f449971eaa8ed6f4299a5f742c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354249
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 20 ++++++++++++++------
- test/prove.go                         | 15 ++++++++++++---
- 2 files changed, 26 insertions(+), 9 deletions(-)
+ src/os/wait_unimp.go | 12 +++++++++---
+ src/os/wait_wait6.go |  4 ++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)

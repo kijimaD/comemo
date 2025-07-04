@@ -1,25 +1,21 @@
-commit a4171d85d7328ef1ff317d0838fef3b6e623bbc3
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 19 16:05:02 2020 +0700
+commit 7485050c0f55492c0fdfc41f7564f3da37a1a308
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 6 15:36:42 2020 -0800
 
-    cmd/compile: do not declare func nodes
+    reflect: when Converting between float32s, don't lose signal NaNs
     
-    The primary responsibility of declare() to associate a symbol (Sym) with
-    a declaration (Node), so "oldname" will work. Function literals are
-    anonymous, so their symbols does not need to be declared.
+    When converting from float32->float64->float32, any signal NaNs
+    get converted to quiet NaNs. Avoid that so using reflect.Value.Convert
+    between two float32 types keeps the signal bit of NaNs.
     
-    Passes toolstash-check.
+    Update #36400
     
-    Change-Id: I739b1054e3953e85fbd74a99148b9cfd7e5a57eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249078
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ic4dd04c4be7189d2171d12b7e4e8f7cf2fb22bb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213497
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/alg.go     |  3 +--
- src/cmd/compile/internal/gc/closure.go | 14 +-------------
- src/cmd/compile/internal/gc/dcl.go     | 14 +++++++++-----
- src/cmd/compile/internal/gc/init.go    |  1 -
- src/cmd/compile/internal/gc/subr.go    |  4 +---
- src/cmd/compile/internal/gc/walk.go    |  3 +--
- 6 files changed, 13 insertions(+), 26 deletions(-)
+ src/reflect/all_test.go | 11 +++++++++++
+ src/reflect/value.go    | 14 ++++++++++++++
+ 2 files changed, 25 insertions(+)

@@ -1,17 +1,15 @@
-commit 20a2b960898a37e646bf76dcf0e3fd067a387c5f
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Aug 5 14:31:58 2013 -0400
+commit 6abbbcdc756fbcd22a7a5c118f5385c70207dcb8
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Aug 5 08:24:55 2013 -0700
 
-    crypto/cipher: add GCM mode.
+    misc/notepadplus: add Function List support
     
-    GCM is Galois Counter Mode, an authenticated encryption mode that is,
-    nearly always, used with AES.
+    Fixes #6045.
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12375043
+    https://golang.org/cl/12463043
 
- src/pkg/crypto/cipher/gcm.go      | 350 ++++++++++++++++++++++++++++++++++++++
- src/pkg/crypto/cipher/gcm_test.go | 175 +++++++++++++++++++
- src/pkg/go/build/deps_test.go     |  14 +-
- 3 files changed, 530 insertions(+), 9 deletions(-)
+ misc/notepadplus/README           | 22 ++++++++++++++++++++++
+ misc/notepadplus/functionList.xml | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

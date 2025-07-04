@@ -1,13 +1,25 @@
-commit 003e7faf53a3e7d0e280871447c60922bff89bcf
+commit 34fb2b2ed5687ec85aa8c1db1481bb4f31b35b29
 Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Nov 20 13:29:02 2021 -0800
+Date:   Mon Mar 29 11:36:44 2021 -0700
 
-    spec: adjust representability rules for type parameters
+    cmd/compile/internal/types2: review of decl.go
     
-    Change-Id: I4423a059527066c4418c195911f8184dfd3f5a15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365914
+    The changes between (equivalent, and reviewed) go/types/decl.go
+    and decl.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker and a minor comment
+    update.
+    
+    The primary differences to go/types/decl.go are:
+    - use of syntax rather than go/ast package
+    - use of error_ objects to collect follow-on error info
+    - use of check.conf.Trace rather than global trace flag
+    - more aggressively marking variables as used in the presence errors
+    - not using a walkDecl abstraction for const/var/type declarations
+    
+    Change-Id: I5cf26779c9939b686a3dbaa4d38fdd0c154a92ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305570
     Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go_spec.html | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/decl.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

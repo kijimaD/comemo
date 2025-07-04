@@ -1,25 +1,22 @@
-commit 5d444e36a664e7f0c4b6e4e53bb76f964028bd22
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 19 16:20:51 2018 -0700
+commit d15d0550544fc6392ff58a99939eeb907a823737
+Author: Keith Randall <khr@google.com>
+Date:   Tue May 29 09:30:12 2018 -0700
 
-    cmd/compile/internal/gc: add alternative node dumper for debugging
+    cmd/compile: reject large argument areas
     
-    dump/fdump is a reflection-based data structure dumper slightly
-    customized for the compiler's Node data structure. It dumps the
-    transitivle closure of Node (and other) data structures using a
-    recursive descent depth first traversal and permits filtering
-    options (recursion depth limitation, filtering of struct fields).
+    Extend stack frame limit of 1GB to include large argument/return areas.
+    Argument/return areas are part of the parent frame, not the frame itself,
+    so they need to be handled separately.
     
-    I have been using it to diagnose compiler bugs and found it more
-    useful than the existing node printing code in some cases because
-    field filtering reduces the output to the interesting parts.
+    Fixes #25507.
     
-    No impact on rest of compiler if functions are not called (which
-    they only should during a debugging session).
-    
-    Change-Id: I79d7227f10dd78dbd4bbcdf204db236102fc97a7
-    Reviewed-on: https://go-review.googlesource.com/136397
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I309298a58faee3e7c1dac80bd2f1166c82460087
+    Reviewed-on: https://go-review.googlesource.com/115036
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dump.go | 287 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 287 insertions(+)
+ src/cmd/compile/internal/gc/pgen.go |  3 ++-
+ src/go/types/stdlib_test.go         |  1 +
+ test/fixedbugs/issue25507.go        | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 32 insertions(+), 1 deletion(-)

@@ -1,19 +1,20 @@
-commit 6722c008c139a8abfe841275d12a601d7ea513a1
-Author: Mark Freeman <mark@golang.org>
-Date:   Wed Mar 26 20:13:16 2025 +0000
+commit d9be60974b694a17e5c6c3e71fb7767e6bfe17e9
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Jan 27 12:52:56 2024 +0800
 
-    cmd/compile: rename some test packages in codegen
+    os: implement CopyFS
     
-    All other files here use the codegen package.
+    Fixes #62484
     
-    Change-Id: I714162941b9fa9051dacc29643e905fe60b9304b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661135
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5d8950dedf86af48f42a641940b34e62aa2cddcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558995
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
 
- test/codegen/issue56440.go | 2 +-
- test/codegen/issue58166.go | 2 +-
- test/codegen/issue66585.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ api/next/62484.txt                     |   1 +
+ doc/next/6-stdlib/99-minor/os/62484.md |   2 +
+ src/os/dir.go                          |  60 +++++++
+ src/os/os_test.go                      | 276 ++++++++++++++++++++++++++++++---
+ 4 files changed, 316 insertions(+), 23 deletions(-)

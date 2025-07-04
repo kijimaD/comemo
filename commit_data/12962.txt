@@ -1,20 +1,15 @@
-commit 689d5b91631ccfaee9b85aa25a06df55769e299e
-Author: Joel Sing <jsing@google.com>
-Date:   Thu Apr 26 00:08:02 2012 +1000
+commit fdce27f7b8f671e3399d2c116dbd15ec2e612af2
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Apr 25 13:19:35 2012 +0200
 
-    runtime: use __tfork() syscall on openbsd
+    exp/locale/collate: Added Builder type for generating a complete
+    collation table. At this moment, it only implements the generation of
+    a root table.
     
-    Switch from using the rfork() syscall on OpenBSD, to the __tfork()
-    syscall.  The __tfork() syscall is the preferred way of creating
-    system threads and the rfork() syscall has recently been removed.
-    
-    Note: this will break compatibility with OpenBSD releases prior to 5.1.
-    
-    R=golang-dev, bradfitz, devon.odell, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6037048
+    https://golang.org/cl/6039047
 
- src/pkg/runtime/sys_openbsd_386.s   | 47 +++++++++++++++++--------------------
- src/pkg/runtime/sys_openbsd_amd64.s | 29 ++++++++++-------------
- src/pkg/runtime/thread_openbsd.c    | 20 +++++++---------
- 3 files changed, 42 insertions(+), 54 deletions(-)
+ src/pkg/exp/locale/collate/build/builder.go      | 501 +++++++++++++++++++++++
+ src/pkg/exp/locale/collate/build/builder_test.go | 265 ++++++++++++
+ 2 files changed, 766 insertions(+)

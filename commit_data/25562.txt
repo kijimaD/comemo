@@ -1,14 +1,39 @@
-commit e405c29ce74bf8145f88e4ce33b292474911ce71
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 11 11:54:29 2016 -0800
+commit 7bacfc640fba4fb2e50bbcc16a4c15fe4bf5b870
+Author: Vlad Krasnov <vlad@cloudflare.com>
+Date:   Fri Apr 17 06:10:35 2015 -0700
 
-    database/sql/driver: clarify DefaultParameterConverter docs
+    crypto/elliptic,crypto/ecdsa: P256 amd64 assembly
     
-    Fixes #11489
+    This is based on the implementation used in OpenSSL, from a
+    submission by Shay Gueron and myself. Besides using assembly,
+    this implementation employs several optimizations described in:
     
-    Change-Id: I887ebac2dcb772e73ee393891c487f694028aaf2
-    Reviewed-on: https://go-review.googlesource.com/18520
-    Reviewed-by: Russ Cox <rsc@golang.org>
+        S.Gueron and V.Krasnov, "Fast prime field elliptic-curve
+                                 cryptography with 256-bit primes"
+    
+    In addition a new and improved modular inverse modulo N is
+    implemented here.
+    
+    The performance measured on a Haswell based Macbook Pro shows 21X
+    speedup for the sign and 9X for the verify operations.
+    The operation BaseMult is 30X faster (and the Diffie-Hellman/ECDSA
+    key generation that use it are sped up as well).
+    
+    The adaptation to Go with the help of Filippo Valsorda
+    
+    Updated the submission for faster verify/ecdh, fixed some asm syntax
+    and API problems and added benchmarks.
+    
+    Change-Id: I86a33636747d5c92f15e0c8344caa2e7e07e0028
+    Reviewed-on: https://go-review.googlesource.com/8968
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/database/sql/driver/types.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/crypto/ecdsa/ecdsa.go            |   39 +-
+ src/crypto/ecdsa/ecdsa_test.go       |   35 +
+ src/crypto/elliptic/elliptic_test.go |   12 +
+ src/crypto/elliptic/p256.go          |    2 +
+ src/crypto/elliptic/p256_amd64.go    |  552 ++++++++
+ src/crypto/elliptic/p256_asm_amd64.s | 2295 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 2930 insertions(+), 5 deletions(-)

@@ -1,19 +1,19 @@
-commit 4d5adf1eb1a955bae08012e568c645eb4d7f3544
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 18 09:28:50 2016 -0700
+commit 7893442011c680a549b50673ec59e8dbf6f4fe95
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 11:36:05 2016 -0800
 
-    cmd/compile: logical operation identities
+    cmd/internal/obj: simplify Optab range handling code
     
-    Some rewrites to simplify logical operations.
+    Use slices as slices, instead of as clumsy pointers.
     
-    Fixes #14363
+    Passes toolstash/buildall.
     
-    Change-Id: I45a1e8f227267cbcca0778101125f7bab776a5dd
-    Reviewed-on: https://go-review.googlesource.com/22188
-    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    Change-Id: If09eacc2d8805d7d5eaa5566f9b6305541074371
+    Reviewed-on: https://go-review.googlesource.com/20322
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  49 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 900 ++++++++++++++++++++++++-
- 2 files changed, 931 insertions(+), 18 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 56 ++++++++++++++------------------------
+ src/cmd/internal/obj/ppc64/asm9.go | 54 +++++++++++++-----------------------
+ 2 files changed, 39 insertions(+), 71 deletions(-)

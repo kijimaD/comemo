@@ -1,31 +1,22 @@
-commit 996a687ebbf81b26f81b41b8e62ef21d8b0826af
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 2 14:43:27 2019 -0700
+commit 440368da526b69fe9a500e29ce9cd84aa7cc6c35
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 10 10:03:27 2018 -0400
 
-    cmd/compile: enable -newescape by default
+    cmd/go/internal/imports: resolve symlinks in ScanDir
     
-    RELNOTE=yes
+    We were using the mode reported by ReadDir to decide whether each
+    entry is a file, but in the case of symlinks that isn't sufficient: a
+    symlink could point to either a file or a directory, and if it is a
+    file we should treat it as such.
     
-    The new escape analysis pass is more precise, which for most Go code
-    should be an improvement. However, it may also break code that
-    happened to work before (e.g., code that violated the unsafe.Pointer
-    safety rules).
+    Fixes #28107
     
-    The old escape analysis pass can be re-enabled with "go build
-    -gcflags=all=-newescape=false". N.B., it's NOT recommended to mix the
-    old and new escape analysis passes such as by omitting "all=". While
-    the old and new escape analysis passes use similar and mostly
-    compatible metadata, there are cases (e.g., closure handling) where
-    they semantically differ and could lead to memory corruption errors in
-    compiled programs.
-    
-    Fixes #23109.
-    
-    Change-Id: I0b1b6a6de5e240cb30c87a165f47bb8795491158
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170448
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Icf6e495dce427a7b1124c9cc9f085e40a215c169
+    Reviewed-on: https://go-review.googlesource.com/c/141097
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/imports/scan.go        | 10 ++++++++++
+ src/cmd/go/testdata/script/mod_symlink.txt | 23 +++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

@@ -1,20 +1,28 @@
-commit ffb8b1c586a61882b6c362c0454f56f89d2693c9
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Oct 16 14:31:44 2024 +0200
+commit 352c8835e7609ad72872b5a63bffeb6142b29d98
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 30 09:57:36 2023 +0100
 
-    crypto/internal/mlkem768: make Decapsulate a method
+    make.bash: use [[ rather than [
     
-    This will make it easier to support multiple sizes if needed.
+    [[ is a compound command part of the language with structure,
+    whereas [ is simply a standard program with string arguments.
+    The former has a few significant advantages over the latter:
     
-    Change-Id: I47495559fdbbf678fd98421ad6cb28172e5c810d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621977
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    * Better syntax, e.g. && and || rather than -a and -o,
+      as well as == rather than = for comparisons
+    * No need for fork+exec to evaluate each conditional
+    * Forgetting the closing token is an early parse error
+    
+    The only advantage of [ over [[ is that [[ is Bash syntax,
+    whereas [ and "test" are portable POSIX Shell utilities.
+    However, this is a Bash script, so that is not a concern.
+    
+    Change-Id: I8a4bdd16845bd67bf67a348d7d96d45d5b131d85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531875
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/crypto/internal/mlkem768/mlkem768.go      |  2 +-
- src/crypto/internal/mlkem768/mlkem768_test.go | 12 ++++++------
- src/crypto/tls/key_schedule.go                |  2 +-
- 3 files changed, 8 insertions(+), 8 deletions(-)
+ src/make.bash | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

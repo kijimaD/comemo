@@ -1,14 +1,16 @@
-commit 15970c8d6d42d0c076585bbccc16a407b8710bec
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 16 11:27:20 2012 +1100
+commit 1f31598e863addd9fe0ddb09f11d2420996cc292
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Oct 15 13:28:30 2012 +1100
 
-    spec: more clarification about deferred functions
-    Proposed new text to make matters clearer. The existing text was
-    unclear about the state of result parameters when panicking.
+    image/jpeg: re-organize the processSOS code.
     
-    R=golang-dev, iant
+    This is a straight copy/paste, and the deletion of a TODO. There are
+    no other changes.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6653047
+    https://golang.org/cl/6687049
 
- doc/go_spec.html | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ src/pkg/image/jpeg/reader.go | 318 ------------------------------------------
+ src/pkg/image/jpeg/scan.go   | 321 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 321 insertions(+), 318 deletions(-)

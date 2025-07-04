@@ -1,24 +1,18 @@
-commit a8b28ebc87854fb6f2ba99f415f046dc2ff63604
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Aug 6 16:47:58 2020 +0000
+commit 30b0c819d13692cc63852f4bfbf5979bffc13acc
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 8 11:56:43 2020 -0400
 
-    runtime,runtime/metrics: add heap goal and GC cycle metrics
+    [dev.link] cmd/link/internal/loader: expand methods for FuncInfo
     
-    This change adds three new metrics: the heap goal, GC cycle count, and
-    forced GC count. These metrics are identical to their MemStats
-    counterparts.
+    Expand the methods for the FuncInfo helper, to support reading the
+    contents of an object file FuncInfo aux symbol using the new style
+    (that is to say, incrementally and without allocating slices to hold
+    the various bits).
     
-    For #37112.
-    
-    Change-Id: I5a5e8dd550c0d646e5dcdbdf38274895e27cdd88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247044
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I953d72c4a53f98c840e6b25b08fd33dc4a833dd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227585
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/metrics.go             | 51 ++++++++++++++++++++++++++++++++------
- src/runtime/metrics/description.go | 23 +++++++++++++++++
- src/runtime/metrics/doc.go         | 12 +++++++++
- src/runtime/metrics_test.go        |  8 ++++++
- 4 files changed, 86 insertions(+), 8 deletions(-)
+ src/cmd/internal/goobj2/funcinfo.go    |  82 ++++++++++++++++++++-
+ src/cmd/link/internal/loader/loader.go | 130 +++++++++++++++++++++++++++++++--
+ 2 files changed, 205 insertions(+), 7 deletions(-)

@@ -1,26 +1,12 @@
-commit c586b5b96b8156a97ef24c69fa315f95b4b6bbd2
-Author: Jaroslavas Počepko <jp@webmaster.ms>
-Date:   Tue Aug 30 22:02:02 2011 +1000
+commit 2d489e67dc14942e62820cb6b521b4e40b831f0f
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Aug 30 08:00:07 2011 -0400
 
-    runtime: windows/amd64 callbacks fixed and syscall fixed to allow using it in callbacks
-    Fixes #2178.
-    Patch2: Fixed allocating shadow space for stdcall (must be at least 32 bytes in any case)
-    Patch3: Made allocated chunk smaller.
-    Patch4: Typo
-    Patch5: suppress linktime warning "runtime.callbackasm: nosplit stack overflow"
-    Patch6: added testcase src/pkg/syscall/callback_windows_test.go
-    Patch7: weakly related files moved to https://golang.org/cl/4965050 https://golang.org/cl/4974041 https://golang.org/cl/4965051
-    Patch8: reflect changes https://golang.org/cl/4926042/
-    Patch9: reflect comments
+    gc: fix for Plan 9 build
     
-    R=golang-dev, alex.brainman, vcc.163
-    CC=golang-dev, hectorchu
-    https://golang.org/cl/4958042
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4975044
 
- src/pkg/runtime/Makefile                 |   1 +
- src/pkg/runtime/syscall_windows_test.go  |  38 +++++++++++
- src/pkg/runtime/windows/386/callback.c   | 107 +++++++++++++++++++++++++++++++
- src/pkg/runtime/windows/amd64/callback.c | 104 ++++++++++++++++++++++++++++++
- src/pkg/runtime/windows/amd64/sys.s      |  75 +++++++++++++++++++++-
- src/pkg/runtime/windows/thread.c         |  99 ----------------------------
- 6 files changed, 323 insertions(+), 101 deletions(-)
+ src/cmd/gc/esc.c | 1 -
+ 1 file changed, 1 deletion(-)

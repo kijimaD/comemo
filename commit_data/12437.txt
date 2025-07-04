@@ -1,12 +1,14 @@
-commit 25f15d5f22ef27a4452dd7924159e85d17f75648
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 6 17:50:11 2012 -0800
+commit 502e29f485c2a3ed5691601a689911199fd5aef0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 6 17:44:47 2012 -0800
 
-    doc: add note about import . to Go 1 compatibility notes
+    database/sql: add docs about connection state, pooling
     
-    R=r
+    Fixes #3223
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5752065
+    https://golang.org/cl/5755063
 
- doc/go1compat.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/pkg/database/sql/sql.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

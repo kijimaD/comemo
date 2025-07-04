@@ -1,30 +1,35 @@
-commit 3aa09489ab3aa13a3ac78b1ff012b148ffffe367
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Sep 18 10:23:58 2020 -0400
+commit bfb903f2521ff24639aa7a5219330df38b06f412
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 10 22:02:47 2020 -0800
 
-    cmd/go: add a '-e' flag to 'mod tidy' and 'mod vendor'
+    cmd/compile/internal/syntax: better scanner error messages
     
-    This flag, like the -e flag to 'go list', instructs the command to
-    make a best effort to continue in spite of errors for specific packages.
+    This is one of several changes that were part of a larger rewrite
+    which I made in early 2019 after switching to the new number literal
+    syntax implementation. The purpose of the rewrite was to simplify
+    reading of source code (Unicode character by character) and speed up
+    the scanner but was never submitted for review due to other priorities.
     
-    Fixes #26603
+    Part 2 of 3:
     
-    Change-Id: I5ee2f50c71870ae8ef3f9b3e5b045474adcca525
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255960
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    This change contains improvements to the scanner error messages:
+    
+    - Use "rune literal" rather than "character literal" to match the
+      spec nomenclature.
+    
+    - Shorter, more to the point error messages.
+      (For instance, "more than one character in rune literal" rather
+      than "invalid character literal (more than one character)", etc.)
+    
+    Change-Id: I1aaf79003374a68dbb05926437ed305cf2a8ec96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221602
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.16.html                      |  7 +++
- src/cmd/go/alldocs.go                | 10 +++-
- src/cmd/go/internal/load/pkg.go      |  2 +-
- src/cmd/go/internal/modcmd/tidy.go   | 13 ++++--
- src/cmd/go/internal/modcmd/vendor.go |  9 +++-
- src/cmd/go/internal/modcmd/why.go    |  8 ++--
- src/cmd/go/internal/modget/get.go    |  2 +-
- src/cmd/go/internal/modload/load.go  | 31 +++++++++----
- src/cmd/go/testdata/script/mod_e.txt | 89 ++++++++++++++++++++++++++++++++++++
- 9 files changed, 150 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/syntax/scanner.go      | 18 ++++-----
+ src/cmd/compile/internal/syntax/scanner_test.go | 54 ++++++++++++-------------
+ test/fixedbugs/bug169.go                        |  2 +-
+ test/fixedbugs/issue15611.go                    |  8 ++--
+ test/fixedbugs/issue32133.go                    |  2 +-
+ 5 files changed, 42 insertions(+), 42 deletions(-)

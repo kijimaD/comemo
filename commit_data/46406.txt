@@ -1,18 +1,48 @@
-commit 5a94a90d84cc65a04ab44737baa406023e9b2001
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 8 22:08:14 2021 -0700
+commit 3383b5c74a4543d7232468201778a8db03cf133d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 23:46:36 2020 -0800
 
-    cmd/compile/internal/types2: better error message for invalid array decls
+    [dev.regabi] cmd/compile: flatten dependency graph [generated]
     
-    Fixes #43527.
+    This CL shuffles a couple functions around to help flatten the package
+    dependency graph somewhat:
     
-    Change-Id: I988a4d49f2f54b4b1741688fb52a55bf313d39e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348731
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    1. ssa.LosesStmtMark is only ever used in associated with an
+    objw.Prog, so we might as well move it to that package. This removes a
+    dependency from objw (a relatively low-level utility package that
+    wraps cmd/internal/obj) on ssa (a large and relatively high-level
+    package).
+    
+    2. Moves liveness.SetTypeBits into a new package typebits. A
+    single-function package is a bit on the silly side, but reflectdata
+    shouldn't need to depend on liveness (nor vice versa).
+    
+    [git-generate]
+    cd src/cmd/compile/internal/ssa
+    rf '
+            mv LosesStmtMark prog.go
+            mv prog.go cmd/compile/internal/objw
+    '
+    
+    cd ../liveness
+    rf '
+            mv SetTypeBits Set
+            mv Set typebits.go
+            rm typebits.go:/Copyright/+4,/^package/-0
+            mv typebits.go cmd/compile/internal/typebits
+    '
+    
+    Change-Id: Ic9a983f0ad6c0cf1a537f99889699a8444699e6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280447
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- .../internal/types2/testdata/fixedbugs/issue43527.go2    | 16 ++++++++++++++++
- src/cmd/compile/internal/types2/typexpr.go               | 10 ++++++++++
- src/go/types/testdata/fixedbugs/issue43527.go2           | 16 ++++++++++++++++
- src/go/types/typexpr.go                                  | 10 ++++++++++
- 4 files changed, 52 insertions(+)
+ src/cmd/compile/internal/liveness/plive.go      | 87 ++-----------------------
+ src/cmd/compile/internal/objw/prog.go           | 12 +++-
+ src/cmd/compile/internal/reflectdata/reflect.go |  4 +-
+ src/cmd/compile/internal/ssa/numberlines.go     | 10 ---
+ src/cmd/compile/internal/ssagen/ssa.go          |  2 +-
+ src/cmd/compile/internal/typebits/typebits.go   | 87 +++++++++++++++++++++++++
+ 6 files changed, 106 insertions(+), 96 deletions(-)

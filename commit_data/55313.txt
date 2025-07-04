@@ -1,53 +1,22 @@
-commit 7058f09a8b2570d4a7bfdd64017300206c22ebfe
-Author: Tim King <taking@google.com>
-Date:   Mon Dec 18 12:01:43 2023 -0800
+commit 6b8b7823c7fd9f3f2317f657120dc2e965d97b77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 26 17:21:51 2023 -0800
 
-    cmd: go get golang.org/x/tools@83bceaf2 and revendor
+    go/types, types2: move tparamIndex from unify.go into infer.go
     
-    go get golang.org/x/tools@83bceaf2 # CL 550395
-    go mod tidy
-    go mod vendor
+    Minor code reorganization: the next version of unify.go doesn't
+    need this function anymore, so move it where it is still used.
     
-    Fixes #64786
-    
-    Change-Id: Ia9879975eb3e8e4130ded7b2d8ba1277b5811eec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/550895
+    Change-Id: I6744a2361b5dfe2564ec73787a7a110e85ac9f1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463230
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tim King <taking@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../go/analysis/passes/composite/composite.go      |   4 +-
- .../tools/go/analysis/passes/copylock/copylock.go  |   2 +-
- .../analysis/passes/ifaceassert/parameterized.go   |   4 +-
- .../analysis/passes/internal/analysisutil/util.go  |   4 +
- .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |   2 +-
- .../x/tools/go/analysis/passes/printf/types.go     |   2 +-
- .../x/tools/go/analysis/passes/shift/shift.go      |   2 +-
- .../go/analysis/passes/stringintconv/string.go     |   2 +-
- .../go/analysis/passes/testinggoroutine/util.go    |   2 +-
- .../x/tools/go/analysis/passes/tests/tests.go      |   5 +-
- .../go/analysis/passes/unmarshal/unmarshal.go      |   3 +-
- .../x/tools/go/analysis/unitchecker/unitchecker.go |   3 +-
- .../golang.org/x/tools/go/ast/astutil/enclosing.go |   8 +-
- .../golang.org/x/tools/go/ast/astutil/rewrite.go   |   8 +-
- .../golang.org/x/tools/go/ast/inspector/typeof.go  |   4 +-
- .../x/tools/go/types/objectpath/objectpath.go      |  14 +-
- .../golang.org/x/tools/go/types/typeutil/callee.go |   2 +-
- .../golang.org/x/tools/go/types/typeutil/map.go    |  20 +-
- .../x/tools/internal/analysisinternal/analysis.go  | 386 +++++++++++++++++++++
- .../analysisinternal}/extractdoc.go                |   2 +-
- .../golang.org/x/tools/internal/facts/imports.go   |  14 +-
- .../x/tools/internal/typeparams/common.go          |  24 +-
- .../x/tools/internal/typeparams/coretype.go        |   8 +-
- .../x/tools/internal/typeparams/enabled_go117.go   |  12 -
- .../x/tools/internal/typeparams/enabled_go118.go   |  15 -
- .../x/tools/internal/typeparams/normalize.go       |  20 +-
- .../tools/internal/typeparams/typeparams_go117.go  | 197 -----------
- .../tools/internal/typeparams/typeparams_go118.go  | 151 --------
- .../versions/{versions_go121.go => versions.go}    |   9 +-
- .../x/tools/internal/versions/versions_go122.go    |  38 --
- src/cmd/vendor/modules.txt                         |   3 +-
- 33 files changed, 473 insertions(+), 503 deletions(-)
+ src/cmd/compile/internal/types2/infer.go | 15 +++++++++++++++
+ src/cmd/compile/internal/types2/unify.go | 15 ---------------
+ src/go/types/infer.go                    | 15 +++++++++++++++
+ src/go/types/unify.go                    | 15 ---------------
+ 4 files changed, 30 insertions(+), 30 deletions(-)

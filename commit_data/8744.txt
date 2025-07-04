@@ -1,18 +1,18 @@
-commit 333167ff356a929ba1b62f8958bd811a5753486b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 15 21:47:29 2011 -0700
+commit 5d9dbe19a7a13596b238748cf73a550a92d9af6a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 00:18:43 2011 -0400
 
-    go/printer, gofmt: print "select {}" on one line
+    gc: work around goto bug
     
-    No impact on existing sources under src, misc.
-    
-    Fixes #1959.
-    
-    R=r, rsc, r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4589056
+    https://golang.org/cl/4629042
 
- src/pkg/go/printer/nodes.go                   | 10 ++++++++--
- src/pkg/go/printer/testdata/statements.golden | 15 +++++++++++++++
- src/pkg/go/printer/testdata/statements.input  | 13 +++++++++++++
- 3 files changed, 36 insertions(+), 2 deletions(-)
+ src/cmd/5g/gsubr.c       | 58 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6g/gsubr.c       | 35 +++++++++++++++++++++++++++++
+ src/cmd/8g/gsubr.c       | 35 +++++++++++++++++++++++++++++
+ src/cmd/gc/dcl.c         |  5 +++++
+ src/cmd/gc/gen.c         |  1 +
+ src/cmd/gc/go.h          |  3 +++
+ test/fixedbugs/bug344.go | 22 ++++++++++++++++++
+ 7 files changed, 159 insertions(+)

@@ -1,17 +1,15 @@
-commit c2e58dc568093cb0d8967d62e7081aa2781de89f
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Feb 14 07:13:57 2012 -0500
+commit db93edfc286e05b6f1a1a8e0973a1dfa1ba8046d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 01:23:25 2012 -0500
 
-    go1.tmpl: fix merge
+    builder: fix windows environment
     
-    hg massively messed up a simple merge for 9d7addec2635 in what I can
-    only imagine was a public service announcement that everyone should
-    use git.
+    Not causing problems yet, but no need to
+    keep using cygwin paths now that we're off cygwin.
     
-    R=golang-dev
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/5668043
+    https://golang.org/cl/5656053
 
- doc/go1.html | 223 +++++++++++++++++++++++++++++++++++++++++++++--------------
- doc/go1.tmpl | 223 +++++++++++++++++++++++++++++++++++++++++++++--------------
- 2 files changed, 346 insertions(+), 100 deletions(-)
+ misc/dashboard/builder/main.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

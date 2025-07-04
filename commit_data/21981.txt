@@ -1,20 +1,15 @@
-commit 5d987f15137332ddf2c93bf9aabf639b1c2dccc5
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 9 12:36:11 2015 -0700
+commit 5c8f9e38eb96d274f82a93c936a8ec8015f90845
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 17 11:15:06 2015 +1100
 
-    cmd/asm: implement MCR instruction on ARM
+    image: fix Rectangle.Overlaps and Rectangle.Union for empty rectangles.
     
-    It's an oddball that needs special treatment because it is not really
-    an opcode, but a variant of MRC.
+    Fixes #9895.
     
-    The String method of Prog still needs updating to print it nicely.
-    
-    Change-Id: I6005b7f2234ccd3d4ac1f658948e3be97cf1f1c2
-    Reviewed-on: https://go-review.googlesource.com/7220
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I37d78ced9ff8196e32d299504908a1c41ad4592d
+    Reviewed-on: https://go-review.googlesource.com/4990
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/asm/internal/arch/arch.go |  4 ++++
- src/cmd/asm/internal/arch/arm.go  | 15 +++++++++++----
- src/cmd/asm/internal/asm/asm.go   |  3 ++-
- 3 files changed, 17 insertions(+), 5 deletions(-)
+ src/image/geom.go      |   9 ++++-
+ src/image/geom_test.go | 103 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 111 insertions(+), 1 deletion(-)

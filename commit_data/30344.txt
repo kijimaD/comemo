@@ -1,17 +1,15 @@
-commit 2774085bdc9f0e64a3dd00633d5d6ae860988c78
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 20 22:55:51 2017 -0800
+commit 655a3b5a55a641962f4ff875490f90af8a2d7ea0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 1 18:13:54 2016 +0000
 
-    cmd/vet/all: update windows whitelist
+    strings: ignore allocation test in cover mode
     
-    A last-minute rollback of a change left some
-    unreachable code that we don't want to remove.
+    Fixes #17699
     
-    Change-Id: Ida0af5b18ed1a2e13ef66c303694afcc49d7bff4
-    Reviewed-on: https://go-review.googlesource.com/37304
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7ea29a3fc2ca13d9d7e3044cbb8ea22e3435d423
+    Reviewed-on: https://go-review.googlesource.com/32484
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/all/whitelist/windows.txt | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/strings/strings_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

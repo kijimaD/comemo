@@ -1,34 +1,21 @@
-commit 9f4ea6c25d7cee2ddb7d478cf03582baad17cc59
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 7 12:01:36 2018 -0400
+commit 70d83eda99d0687ba07348ca773ee8bf3e9bbfa9
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 13:41:30 2018 +0100
 
-    cmd/go: add go mod download
+    time: add wasm architecture
     
-    go mod download provides a way to force downloading
-    of a particular module version into the download cache
-    and also to locate its cached files.
+    This commit adds the wasm architecture to the time package.
     
-    Forcing downloads is useful for warming caches, such as
-    in base docker images.
+    Updates #18892
     
-    Finding the cached files allows caching proxies to use
-    go mod download as the way to obtain module files
-    on cache miss.
-    
-    Fixes #26577.
-    Fixes #26610.
-    
-    Change-Id: Ib8065bcce07c9f5105868ec1d87887ef4871f07e
-    Reviewed-on: https://go-review.googlesource.com/128355
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I86841e096894eacf7f972add9a532491e4d00014
+    Reviewed-on: https://go-review.googlesource.com/106997
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modcmd/download.go      | 123 ++++++++++++++++++++++++++++
- src/cmd/go/internal/modcmd/mod.go           |   1 +
- src/cmd/go/internal/modfetch/cache.go       |  41 ++++++++++
- src/cmd/go/internal/modfetch/fetch.go       |  57 +++++++++----
- src/cmd/go/internal/modfetch/repo.go        |   7 +-
- src/cmd/go/internal/modload/build.go        |  32 ++++----
- src/cmd/go/testdata/script/mod_download.txt |  62 ++++++++++++++
- 7 files changed, 291 insertions(+), 32 deletions(-)
+ src/syscall/time_js_wasm.s | 11 +++++++++++
+ src/syscall/timestruct.go  |  2 +-
+ src/time/sys_unix.go       |  2 +-
+ src/time/zoneinfo_unix.go  |  2 +-
+ 4 files changed, 14 insertions(+), 3 deletions(-)

@@ -1,17 +1,21 @@
-commit cbcc1db41c505cd8e19e27f9844276dc35d527be
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Dec 11 12:55:17 2016 +0100
+commit 672e57944458fc3c5f5ee1dd11d4f32d1aeaebe1
+Author: Tal Shprecher <tshprecher@gmail.com>
+Date:   Wed Jul 13 12:29:39 2016 -0600
 
-    fmt: undo clearflags in catchPanic after error message has been printed
+    cmd/compile: avoid leak of dottype expression on double assignment form
     
-    Fixes #18282
+    This is a followup to issue #13805. That change avoid leaks for types that
+    don't have any pointers for the single assignment form of a dottype expression.
+    This does the same for the double assignment form.
     
-    Change-Id: I024ca4a03bbbcccd48a0a6245bc3ec22c6a90288
-    Reviewed-on: https://go-review.googlesource.com/34254
+    Fixes #15796
+    
+    Change-Id: I27474cade0ff1f3025cb6392f47b87b33542bc0f
+    Reviewed-on: https://go-review.googlesource.com/24906
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/fmt/fmt_test.go | 27 +++++++++++++++++----------
- src/fmt/print.go    |  8 +++++++-
- 2 files changed, 24 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  4 ++--
+ test/escape_iface.go               | 18 ++++++++++++++++--
+ 2 files changed, 18 insertions(+), 4 deletions(-)

@@ -1,26 +1,23 @@
-commit 16ce8b3925deaeb72541ee96b6ee23a08fc21dea
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Apr 28 14:39:56 2024 +0200
+commit 08357012247db5c84002b7a4c1693411a1a9b295
+Author: Takeshi Yoneda <t.y.mathetake@gmail.com>
+Date:   Thu Apr 27 13:37:48 2023 +0900
 
-    net: fix lookupHost on Plan 9
+    os: fix TestChdirAndGetwd/ReaddirnamesOneAtATime on wasip1 to run on Windows hosts
     
-    CL 532217 added the newDNSError function.
+    TestReaddirnamesOneAtATime and TestChdirAndGetwd assumes the underlying file system
+    has /usr/bin but it is not the case when running it on WASI runtime hosted on Windows.
     
-    However, the implementation was not correct on
-    Plan 9, which lead TestLookupNoSuchHost to fail.
+    This change adds wasip1 in the special cased switch case to make them host OS agonstic.
     
-    This change fixes lookupHost on Plan 9.
-    
-    Fixes #67096.
-    
-    Change-Id: I39271f7d588b19c1b1608f18a24d871460be09cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582236
-    Reviewed-by: Joedian Reid <joedian@google.com>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Idb667021b565f939c814b9cd9e637cd75f9a610d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489575
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
 
- src/net/lookup_plan9.go | 19 +++++--------------
- src/net/lookup_test.go  |  4 ++++
- 2 files changed, 9 insertions(+), 14 deletions(-)
+ src/os/os_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,21 +1,20 @@
-commit 16dbd2be3969f4658ced59ddb89871d9f00cf3a5
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Apr 5 08:34:12 2025 -0700
+commit 347ad523e8943090ec9d92cccabc92819889a4d6
+Author: kkhaike <kkhaike@gmail.com>
+Date:   Wed Feb 21 21:40:02 2024 +0800
 
-    cmd/compile: be more conservative about arm64 insns that can take zero register
+    net: Correct the code snippet erroneously rolled back in CL550435
     
-    It's really only needed for stores and store-like instructions
-    (atomic exchange, compare-and-swap, ...).
+    In CL https://golang.org/cl/550435, a segment that had already been reviewed and modified was rolled back due to an erroneous operation. Here, submit a correct code snippet.
     
-    Fixes #73180
-    
-    Change-Id: I8ecd833a301355adf0fa4bff43250091640c6226
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663155
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I46adfad110d532aec5f557c350fe6dccbc583968
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565628
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/ARM64Ops.go |  38 +-
- src/cmd/compile/internal/ssa/opGen.go         | 482 +++++++++++++-------------
- test/fixedbugs/issue73180.go                  |  15 +
- 3 files changed, 275 insertions(+), 260 deletions(-)
+ src/net/dnsclient_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

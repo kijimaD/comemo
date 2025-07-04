@@ -1,22 +1,24 @@
-commit ffc38d8ab47753643687a99c66cecd8e044b5c70
-Author: Rob Findley <rfindley@google.com>
-Date:   Fri Apr 30 14:49:40 2021 -0400
+commit 76bce1dd52b0c2a06d48bf7db4e89e8dec47c507
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jul 14 21:45:16 2020 +0000
 
-    go/types: slice-to-array-pointer conversion requires go1.17
+    runtime: implement addrRanges.findSucc with a binary search
     
-    This is a port of CL 315169 to go/types. It uses a slightly different
-    mechanism for evaluating the convertibility error message, to be
-    consistent with operand.assignableTo.
+    This change modifies addrRanges.findSucc to more efficiently find the
+    successor range in an addrRanges by using a binary search to narrow down
+    large addrRanges and iterate over no more than 8 addrRanges.
     
-    Change-Id: Iea2e2a9fbb4cf17d472b2b7392786118e079528a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315809
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    This change makes the runtime more robust against systems that may
+    aggressively randomize the address space mappings it gives the runtime
+    (e.g. Fuchsia).
+    
+    For #40191.
+    
+    Change-Id: If529df2abd2edb1b1496d8690ddd284ecd7138c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242679
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/go/types/api.go                    |  2 +-
- src/go/types/conversions.go            | 18 ++++++++++++++----
- src/go/types/decl.go                   |  2 +-
- src/go/types/testdata/check/go1_16.src | 13 +++++++++++++
- 4 files changed, 29 insertions(+), 6 deletions(-)
+ src/runtime/mranges.go | 40 +++++++++++++++++++++++++++++++++-------
+ 1 file changed, 33 insertions(+), 7 deletions(-)

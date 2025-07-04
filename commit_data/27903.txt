@@ -1,14 +1,26 @@
-commit 29df4c8f0004aa259093bf8dbf0bf966a392d44d
+commit 3c6e60c0e41ed42d5df6dcbf134e3a664c08c154
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Aug 17 16:23:40 2016 -0700
+Date:   Tue Apr 19 12:08:33 2016 -0700
 
-    unsafe: document use of &^ to round/align pointers
+    cmd/compile: fix isStaticCompositeLiteral
     
-    Follow-up to CL 27156
+    Previously, isStaticCompositeLiteral would
+    return the wrong value for literals like:
     
-    Change-Id: I4f1cfced2dced9c9fc8a05bbc00ec4229e85c5c9
-    Reviewed-on: https://go-review.googlesource.com/27314
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    [1]struct{ b []byte }{b: []byte{1}}
+    
+    Note that the outermost component is an array,
+    but once we recurse into isStaticCompositeLiteral,
+    we never check again that arrays are actually arrays.
+    
+    Instead of adding more logic to the guts of
+    isStaticCompositeLiteral, allow it to accept
+    any Node and return the correct answer.
+    
+    Change-Id: I6af7814a9037bbc7043da9a96137fbee067bbe0e
+    Reviewed-on: https://go-review.googlesource.com/22247
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/unsafe/unsafe.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 25 ++++++++++++++-----------
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 2 files changed, 15 insertions(+), 12 deletions(-)

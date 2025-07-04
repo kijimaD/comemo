@@ -1,28 +1,24 @@
-commit b11d19e03b57d6cec1142002a22c3df732118847
-Author: Ruinan <ruinan.sun@arm.com>
-Date:   Thu Nov 30 15:54:06 2023 +0800
+commit ba913774543d7388b7bb1843fc7c1b935aebedda
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 20 13:54:36 2023 -0800
 
-    cmd/asm: print absolute PC for all patterns "off(PC)" in testEndToEnd
+    test: test that we schedule OpArgIntReg early
     
-    Before this CL, testEndToEnd only turns the relative PC to absolute PC
-    when pattern "off(PC)" is the suffix of an instruction. But there are
-    some instructions like:
+    If OpArgIntReg is incorrectly scheduled, that causes it to be spilled
+    incorrectly, which causes the argument to not be considered live
+    at the start of the function.
     
-      ADR 10(PC), R10
+    This is the test for CL 462858
     
-    it's also acceptable for the assembler while the pattern "off(PC)" is
-    not a suffix, which makes the test fail.
+    Add a brief mention of why CL 462858 is needed in the scheduling code.
     
-    This CL fixes this issue by searching the pattern in the whole string
-    instead of only in the suffix.
-    
-    Change-Id: I0cffedeb7b3c63abca7697671088cf993aff71ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/547235
+    Change-Id: Id199456f88d9ee5ca46d7b0353a3c2049709880e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462899
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ruinan Sun <Ruinan.Sun@arm.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/asm/endtoend_test.go | 14 ++++++++++----
- src/cmd/asm/internal/asm/testdata/arm64.s |  8 ++++++++
- 2 files changed, 18 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go |  6 ++++--
+ test/live_regabi.go                      | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

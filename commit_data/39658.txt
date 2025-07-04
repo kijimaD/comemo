@@ -1,17 +1,22 @@
-commit 8f5353fd1c0598bf5c92d67ffe8cfa1424115694
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 27 15:36:21 2019 -0400
+commit a85afef27726b5870e02e50f8e210e0f16f89981
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Mar 11 03:51:06 2019 +0000
 
-    cmd/go/internal/modload: fix swapped paths in error message
+    cmd/compile: add handling for new floating-point comparisons flags
     
-    Updates #33879
+    The CL 164718 adds new condition flags for floating-point comparisons
+    in arm64 backend, but dose not add the handling in rewrite.go for
+    corresponding Ops, which causes issue 30679. And this CL fixes this
+    issue.
     
-    Change-Id: Ifc91490b1cb791fdf5ffe69ef81c0ec0e6cbecc3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191997
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Fixes #30679
+    
+    Change-Id: I8acc749f78227c3e9e74fa7938f05fb442fb62c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166579
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modload/load.go                  |  2 +-
- .../testdata/mod/example.com_badchain_c_v1.1.0.txt   |  2 +-
- src/cmd/go/testdata/script/mod_load_badchain.txt     | 20 ++++++++++----------
- 3 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 16 ++++++++++++++++
+ test/fixedbugs/issue30679.go            | 18 ++++++++++++++++++
+ 2 files changed, 34 insertions(+)

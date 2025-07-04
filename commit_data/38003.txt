@@ -1,44 +1,25 @@
-commit dace6544b3ff077d8cc02fc37d59187be253ab70
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 19 14:53:26 2019 -0500
+commit 5b3aafe2b51b5455a42a65cca1cf0e8393970c03
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 24 17:30:48 2018 +0000
 
-    cmd/vet: make vet_test module-agnostic
+    net: don't reject domain names with only numbers and hyphens
     
-    vet_test currently uses a custom GOPATH for each test, but it turns
-    out not to be necessary.
+    From https://github.com/golang/go/issues/17659#issuecomment-423113606 ...
     
-    Updates #30228
+    > In kubernetes , isDomainName reject Pods "A Record" "pod-ip-address",
+    > for example: "172-17-0-16", as RFC 3696 section 2 requires
+    > "top-level domain names not be all-numeric", but this example has
+    > three hyphen, so I think it should not be reject.
     
-    Change-Id: Id7a7bf6d759bd94adccf44e197be1728c2f23575
-    Reviewed-on: https://go-review.googlesource.com/c/163038
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Updates #17659
+    
+    Change-Id: Ibd8ffb9473d69c45c91525953c09c6749233ca20
+    Reviewed-on: https://go-review.googlesource.com/136900
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Gudger <igudger@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/vet/testdata/{src => }/asm/asm.go          |  0
- src/cmd/vet/testdata/{src => }/asm/asm1.s          |  0
- src/cmd/vet/testdata/{src => }/assign/assign.go    |  0
- src/cmd/vet/testdata/{src => }/atomic/atomic.go    |  0
- src/cmd/vet/testdata/{src => }/bool/bool.go        |  0
- .../vet/testdata/{src => }/buildtag/buildtag.go    |  0
- src/cmd/vet/testdata/{src => }/cgo/cgo.go          |  0
- .../vet/testdata/{src => }/composite/composite.go  |  0
- .../vet/testdata/{src => }/copylock/copylock.go    |  0
- .../vet/testdata/{src => }/deadcode/deadcode.go    |  0
- .../{src => }/httpresponse/httpresponse.go         |  0
- .../testdata/{src => }/lostcancel/lostcancel.go    |  0
- src/cmd/vet/testdata/{src => }/method/method.go    |  0
- src/cmd/vet/testdata/{src => }/nilfunc/nilfunc.go  |  0
- src/cmd/vet/testdata/{src => }/print/print.go      | 52 +++++++++++-----------
- .../vet/testdata/{src => }/rangeloop/rangeloop.go  |  0
- src/cmd/vet/testdata/{src => }/shift/shift.go      |  0
- .../vet/testdata/{src => }/structtag/structtag.go  |  0
- src/cmd/vet/testdata/{src => }/tagtest/file1.go    |  0
- src/cmd/vet/testdata/{src => }/tagtest/file2.go    |  0
- src/cmd/vet/testdata/{src => }/testingpkg/tests.go |  0
- .../testdata/{src => }/testingpkg/tests_test.go    |  0
- .../vet/testdata/{src => }/unmarshal/unmarshal.go  |  0
- .../vet/testdata/{src => }/unsafeptr/unsafeptr.go  |  0
- src/cmd/vet/testdata/{src => }/unused/unused.go    |  0
- src/cmd/vet/vet_test.go                            | 14 +++---
- 26 files changed, 31 insertions(+), 35 deletions(-)
+ src/net/dnsclient.go    | 7 ++++---
+ src/net/dnsname_test.go | 1 +
+ 2 files changed, 5 insertions(+), 3 deletions(-)

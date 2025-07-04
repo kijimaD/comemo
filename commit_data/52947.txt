@@ -1,26 +1,32 @@
-commit d9dce0cd26a1e5df0aa2dbbecde4515807be929e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 9 14:02:07 2023 -0700
+commit d42a48828f3cff4e57cefaf72bc88cef7d355fd6
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Tue Jun 14 21:29:36 2022 -0700
 
-    go/types, types2: explicitly look for nil type arguments in infer
+    sync: add more notes about Cond behavior
     
-    Don't assume we have all type arguments if the number of type arguments
-    matches the number of type parameters. Instead, look explicitly for nil
-    type arguments in the provided targs.
+    Cond is difficult to use correctly (I was just bitten by it in
+    a production app that I inherited). While several proposals have come
+    up to improve or remove sync.Cond, no action has so far been taken.
     
-    Preparation for type inference with type arguments provided for type
-    parameters of generic function arguments passed to other functions.
+    Update the documentation to discourage use of sync.Cond, and point
+    people in the direction of preferred alternatives. I believe this will
+    help encourage behavior we want (less use of sync.Cond and more use of
+    channels), while also paving the way for, potentially, removing Cond
+    in a future version of the language.
     
-    For #59338.
+    Thanks very much to Bryan Mills and Sean Liao for discussion and
+    recommendations.
     
-    Change-Id: I00918cd5ed06ae3277b4e41a3641063e0f53fef0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494115
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Updates #20491.
+    Updates #21165.
+    
+    Change-Id: Ib4d0631c79d4c4d0a30027255cd43bc47cddebd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412237
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/infer.go | 20 +++++++++++++-------
- src/go/types/infer.go                    | 20 +++++++++++++-------
- 2 files changed, 26 insertions(+), 14 deletions(-)
+ src/sync/cond.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

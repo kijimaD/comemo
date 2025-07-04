@@ -1,30 +1,19 @@
-commit b10c35945de5cfaff6bf135f0b211a798e4c4166
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Mon Dec 16 10:24:17 2024 +0800
+commit 6d498ce8440d05b8b9c4d79446dc6201b8e00945
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 6 12:48:15 2024 -0500
 
-    cmd/internal/obj/loong64: add {V,XV}DIV{B/H/W/V}[U] and {V,XV}MOD{B/H/W/V}[U] instructions support
+    doc: move Go 1.22 release notes to x/website
     
-    Go asm syntax:
-             VDIV{B/H/W/V}[U]       VK, VJ, VD
-            XVDIV{B/H/W/V}[U]       XK, XJ, XD
-             VMOD{B/H/W/V}[U]       VK, VJ, VD
-            XVMOD{B/H/W/V}[U]       XK, XJ, XD
+    Now that the development of the Go 1.22 release is almost done, its
+    release notes are moved to their eventual long-term home in x/website
+    in CL 562195. Delete the initial development copy here.
     
-    Equivalent platform assembler syntax:
-             vdiv.{b/h/w/d}[u]      vd, vj, vk
-            xvdiv.{b/h/w/d}[u]      xd, xj, xk
-             vmod.{b/h/w/d}[u]      vd, vj, vk
-            xvmod.{b/h/w/d}[u]      xd, xj, xk
-    
-    Change-Id: I3676721c3c415de0f2ebbd480ecd1b2400a28dba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636376
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ic8e44ee5d95ff121f96a53f6093fd8764abea004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562155
+    Auto-Submit: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 34 +++++++++
- src/cmd/internal/obj/loong64/a.out.go           | 34 +++++++++
- src/cmd/internal/obj/loong64/anames.go          | 32 +++++++++
- src/cmd/internal/obj/loong64/asm.go             | 96 +++++++++++++++++++++++++
- 4 files changed, 196 insertions(+)
+ doc/go1.22.html | 1019 -------------------------------------------------------
+ 1 file changed, 1019 deletions(-)

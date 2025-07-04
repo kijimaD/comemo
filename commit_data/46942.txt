@@ -1,27 +1,42 @@
-commit fe7df4c4d043fc65800bbec7f575c1ba50327aa9
-Author: wdvxdr <wdvxdr1123@gmail.com>
-Date:   Tue Oct 19 19:39:21 2021 +0800
+commit 5ecb9a788716be799d73c5d8192368ecb9557d48
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Feb 16 19:56:38 2021 -0500
 
-    cmd/compile: use MOVBE instruction for GOAMD64>=v3
+    [dev.typeparams] go/types: use a new ast.ListExpr for multi-type instances
     
-    In CL 354670, I copied some existing rules for convenience but forgot
-    to update the last rule which broke `GOAMD64=v3 ./make.bat`
+    Modify go/parser to consistently represent type instantiation as an
+    ast.IndexExpr, rather than use an ast.CallExpr (with Brackets:true) for
+    instantiations with multiple type parameters. To enable this, introduce
+    a new ast expr type: ListExpr.
     
-    Revive CL 354670
+    This brings go/types in line with types2, with the exception of a small
+    change to funcInst to eliminate redundant errors if values are
+    erroneously used as types. In a subsequent CL, call.go and expr.go will
+    be marked as reviewed.
     
-    Change-Id: Ic1e2047c603f0122482a4b293ce1ef74d806c019
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356810
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    This also catches some type instance syntax using '()' that was
+    previously accepted incorrectly. Tests are updated accordingly.
+    
+    Change-Id: I30cd0181c7608f1be7486a9a8b63df993b412e85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293010
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go           |   7 +-
- src/cmd/compile/internal/amd64/versions_test.go |  27 ++-
- src/cmd/compile/internal/ssa/gen/AMD64.rules    |  26 +++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   6 +
- src/cmd/compile/internal/ssa/opGen.go           |  64 +++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go    | 243 ++++++++++++++++++++++++
- test/codegen/memcombine.go                      |  36 ++--
- 7 files changed, 389 insertions(+), 20 deletions(-)
+ src/go/ast/ast.go                    |  47 +++++---
+ src/go/ast/example_test.go           |  33 +++---
+ src/go/parser/parser.go              |  15 +--
+ src/go/printer/nodes.go              |  43 ++++----
+ src/go/types/api_test.go             |   4 +-
+ src/go/types/assignments.go          |  14 +++
+ src/go/types/call.go                 | 205 ++++++++++++++++-------------------
+ src/go/types/examples/functions.go2  |   4 +-
+ src/go/types/expr.go                 |   5 +-
+ src/go/types/exprstring.go           |  16 ++-
+ src/go/types/resolver.go             |   9 +-
+ src/go/types/testdata/issues.go2     |   8 +-
+ src/go/types/testdata/typeparams.go2 |  12 +-
+ src/go/types/typexpr.go              |  42 ++++---
+ 14 files changed, 232 insertions(+), 225 deletions(-)

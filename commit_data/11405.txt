@@ -1,13 +1,13 @@
-commit 75e9d24213992ea2077283383cb8705fefc2973a
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Jan 25 23:42:36 2012 -0200
+commit eb1227737ef62cf3e84aea4f3c67ccc5f0221190
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 25 17:34:02 2012 -0800
 
-    doc/go1: fix urls
+    A+C: Add James P. Cooper (Individual CLA)
     
-    R=golang-dev, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5577051
+    https://golang.org/cl/5573071
 
- doc/go1.html | 20 ++++++++++----------
- doc/go1.tmpl | 20 ++++++++++----------
- 2 files changed, 20 insertions(+), 20 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,16 +1,20 @@
-commit a48e789635788d4cab23f76b4adc74e5fa343d24
-Author: Stan Schwertly <stan@schwertly.com>
-Date:   Thu Dec 18 19:32:40 2014 +0000
+commit 33e910296e52309d2ef66add9f32723c8ab678bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 01:23:01 2014 -0500
 
-    encoding/binary: check for unsigned integers in intDataSize.
+    [dev.cc] reflect: interfaces contain only pointers
     
-    intDataSize ignores unsigned integers, forcing reads/writes to miss the fast path.
+    [This CL is part of the removal of C code from package runtime.
+    See golang.org/s/dev.cc for an overview.]
     
-    Fixes #8956
+    Adjustments for changes made in CL 169360043.
+    This change is already present in the dev.garbage branch.
     
-    Change-Id: Ie79b565b037db3c469aa1dc6d0a8a5a9252d5f0a
-    Reviewed-on: https://go-review.googlesource.com/1777
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=r
+    R=r
+    CC=austin, golang-codereviews, iant, khr
+    https://golang.org/cl/167520044
 
- src/encoding/binary/binary.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/reflect/type.go        | 13 ++++---------
+ src/runtime/gcinfo_test.go |  9 +++------
+ 2 files changed, 7 insertions(+), 15 deletions(-)

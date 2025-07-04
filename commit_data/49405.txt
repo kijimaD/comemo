@@ -1,107 +1,40 @@
-commit 3651a6117e9a88576615c29c4faf7eeec55d7691
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 3 12:44:58 2022 -0400
+commit d9349175ad13ab228d3224c4bff8e3e1b2936b42
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 26 12:55:16 2021 -0700
 
-    go/doc/comment: add heuristics for common badly formatted comments
+    net: remove allocation from UDPConn.WriteTo
     
-    In a set of 55M Go doc comments drawn from the latest version of
-    all public Go modules known to the module proxy in spring 2020,
-    the current Go 1.19 gofmt reformats about 1.57M of them.
-    Out of those 1.57M comments, inspection of random samples
-    shows that around 5% of the changed comments contain
-    unindented code snippets, multiline shell commands, or lists.
-    For example:
+    Duplicate some code to avoid an interface.
     
-            // Here is a greeting:
-            //
-            // func main() {
-            //      fmt.Println("hello, world")
-            // }
+    name                  old time/op    new time/op    delta
+    WriteToReadFromUDP-8    6.38µs ±20%    5.59µs ±10%  -12.38%  (p=0.001 n=10+9)
     
-            // Run this command:
-            //
-            // path/to/your/program -flag1=longargument1 \
-            //      -flag2=longargument2 \
-            //      -flag3
+    name                  old alloc/op   new alloc/op   delta
+    WriteToReadFromUDP-8     64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.000 n=10+10)
     
-            // There are three possibilities:
-            //
-            // - Unindented code snippets (or JSON objects)
-            //    in which the first and last line are unindented
-            //    but end in { and start with }, respectively.
-            // - Unindented multiline shell commands
-            //    in which the lines end in \
-            // - Unindented lists, in which wrapped lines are indented.
+    name                  old allocs/op  new allocs/op  delta
+    WriteToReadFromUDP-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
     
-    All three of these cases involve unindented lines next to indented
-    lines that would according to the usual rules begin a pre block.
-    Before this CL, they'd be reformatted to:
+    Windows is temporarily stubbed out.
     
-            // Here is a greeting:
-            //
-            // func main() {
-            //
-            //      fmt.Println("hello, world")
-            //
-            // }
+    Updates #43451
     
-            // Run this command:
-            //
-            // path/to/your/program -flag1=longargument1 \
-            //
-            //      -flag2=longargument2 \
-            //      -flag3
-    
-            // There are three possibilities:
-            //
-            // - Unindented code snippets (or JSON objects)
-            //
-            //      in which the first and last line are unindented
-            //      but end in { and start with }, respectively.
-            //
-            // - Unindented multiline shell commands
-            //
-            //      in which the lines end in \
-            //
-            // - Unindented lists, in which wrapped lines are indented.
-    
-    The fact that they are not already in canonical format gives us
-    a signal that they might not mean what the usual rules would say.
-    
-    This CL takes advantage of that opening to apply a few heuristics
-    to better handle these cases:
-    
-     1. If an indented code block immediately follows (without a blank line)
-        an unindented line ending in { or \, include the unindented line
-        in the code block.
-    
-     2. If an indented code block immediately precedes (without a blank line)
-        an unindented line beginning with }, include the unindented line
-        in the code block.
-    
-     3. If an indented line immediately follows (without a blank line)
-        an unindented line that starts with a list marker, assume this is
-        an unindented list with a wrapped indented line, and treat all
-        adjacent unindented lines starting with list markers as part of
-        the list, stopping at any surrounding blank lines.
-    
-    This raises the fraction of “correctly” reformatted doc comments
-    in the corpus from approximately 87% to approximately 93%.
-    
-    Change-Id: I7ac542eb085032d607a7caf3ba9020787b2978b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410360
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ied15ff92268c652cf445836e0446025eaeb60cc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331489
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/go/doc/comment/parse.go            | 294 ++++++++++++++++++++++-----------
- src/go/doc/comment/testdata/code4.txt  |  38 +++++
- src/go/doc/comment/testdata/code5.txt  |  21 +++
- src/go/doc/comment/testdata/code6.txt  |  24 +++
- src/go/doc/comment/testdata/list10.txt |  13 ++
- src/go/doc/comment/testdata/list9.txt  |  30 ++++
- src/go/doc/comment/text.go             |   1 -
- 7 files changed, 322 insertions(+), 99 deletions(-)
+ api/next.txt                    | 52 ++++++++++++++++++++++++++++
+ src/internal/poll/fd_unix.go    | 52 ++++++++++++++++++++++++++++
+ src/internal/poll/fd_windows.go | 10 ++++++
+ src/net/fd_posix.go             | 12 +++++++
+ src/net/ipsock_posix.go         | 76 +++++++++++++++++++++++++----------------
+ src/net/net_fake.go             |  8 +++++
+ src/net/udpsock_posix.go        | 20 ++++++++---
+ src/syscall/net_js.go           |  8 +++++
+ src/syscall/syscall_unix.go     | 16 +++++++++
+ 9 files changed, 220 insertions(+), 34 deletions(-)

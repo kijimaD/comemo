@@ -1,45 +1,22 @@
-commit a19cf510af8182751fefc16ce962f91fe17c1e1b
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Oct 24 10:40:09 2020 +0700
+commit 84fb045763f5a8917b98b82ae08f919a922e8177
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 10 14:12:44 2020 -0400
 
-    cmd/compile: defer lowering OANDNOT until SSA
+    [dev.link] cmd/link: fix aux symbol handling in Funcdata
     
-    Currently, "x &^ y" gets rewriten into "x & ^y" during walk. It adds
-    unnecessary complexity to other parts, which must aware about this.
+    If a Go symbol is cloned to external, we should preserve its Aux
+    symbols for FuncInfo, etc.. We already do this in
+    loader.FuncInfo, but not in FuncInfo.Funcdata. Do it in the
+    latter as well. In fact, since FuncInfo and Funcdata should use
+    the same set of auxs, just record the auxs and reuse.
     
-    Instead, we can just implement "&^" in the conversion to SSA, so "&^"
-    can be handled like other binary operators.
+    Should fix PPC64 build.
     
-    However, this CL does not pass toolstash-check. It seems that implements
-    "&^" in the conversion to SSA causes registers allocation change.
-    
-    With the parent:
-    
-    obj: 00212 (.../src/runtime/complex.go:47)    MOVQ    X0, AX
-    obj: 00213 (.../src/runtime/complex.go:47)    BTRQ    $63, AX
-    obj: 00214 (.../src/runtime/complex.go:47)    MOVQ    "".n(SP), CX
-    obj: 00215 (.../src/runtime/complex.go:47)    MOVQ    $-9223372036854775808, DX
-    obj: 00216 (.../src/runtime/complex.go:47)    ANDQ    DX, CX
-    obj: 00217 (.../src/runtime/complex.go:47)    ORQ AX, CX
-    
-    With this CL:
-    
-    obj: 00212 (.../src/runtime/complex.go:47)    MOVQ    X0, AX
-    obj: 00213 (.../src/runtime/complex.go:47)    BTRQ    $63, AX
-    obj: 00214 (.../src/runtime/complex.go:47)    MOVQ    $-9223372036854775808, CX
-    obj: 00215 (.../src/runtime/complex.go:47)    MOVQ    "".n(SP), DX
-    obj: 00216 (.../src/runtime/complex.go:47)    ANDQ    CX, DX
-    obj: 00217 (.../src/runtime/complex.go:47)    ORQ AX, DX
-    
-    Change-Id: I80acf8496a91be4804fb7ef3df04c19baae2754c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264660
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iab9020eaca15d98fe3bb41f50f0d5bdb4999e8c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227848
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/ssa.go    |  5 +++++
- src/cmd/compile/internal/gc/syntax.go |  2 +-
- src/cmd/compile/internal/gc/walk.go   | 30 ++++++++++++------------------
- test/bounds.go                        |  5 +++++
- 4 files changed, 23 insertions(+), 19 deletions(-)
+ src/cmd/link/internal/ld/pcln.go       |  2 +-
+ src/cmd/link/internal/loader/loader.go | 11 +++++------
+ 2 files changed, 6 insertions(+), 7 deletions(-)

@@ -1,26 +1,20 @@
-commit 90e9669c50fc471e14b358382a60b6354182fb2d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 6 12:38:04 2014 -0800
+commit 991e9a83314216040592e3f303d737cb2dc087ac
+Author: Matthew Cottingham <mattcottingham@gmail.com>
+Date:   Mon Jan 6 10:36:04 2014 -0800
 
-    undo CL 44150043 / 198bdc0984dd
+    net/http: Add more call order tests for request form parsing.
     
-    See https://golang.org/cl/44150043/
+    Adds tests for branches handling call ordering which
+    were shown to be untested by the cover tool.
     
-    ««« original CL description
-    regexp: use sync.Pool
+    This is part of the refactoring of form parsing discussed
+    in CL 44040043. These tests may need to be changed later but
+    should help lock in the current behaviour.
     
-    For machines, not threads.
-    
-    Update #4720
-    
-    R=golang-dev, rsc
-    CC=golang-dev
-    https://golang.org/cl/44150043
-    »»»
-    
-    TBR=golang-dev
+    R=golang-codereviews, dave, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/48190043
+    https://golang.org/cl/46750043
 
- src/pkg/regexp/regexp.go | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ src/pkg/net/http/request.go      |  2 +-
+ src/pkg/net/http/request_test.go | 36 ++++++++++++++++++++++++++++++------
+ 2 files changed, 31 insertions(+), 7 deletions(-)

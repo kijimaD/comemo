@@ -1,24 +1,21 @@
-commit cad4dca518a3a984bfd6b19ee304a59f51937fd8
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 5 13:44:12 2025 -0500
+commit cad6629144ddb79401f90bd0388da14294f9131a
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Dec 2 15:04:52 2023 +0000
 
-    cmd/compile: use inline-Pos-based recursion test
+    runtime: add crash stack support for s390x
     
-    Look at the inlining stack of positions for a call site,
-    if the line/col/file of the call site appears in that
-    stack, do not inline.  This subsumes all the other
-    recently-added recursive inlining checks, but they are
-    left in to make this easier+safer to backport.
-    
-    Fixes #72090
-    
-    Change-Id: I0f487bb0d4c514015907c649312672b7be464abd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655155
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ie923f7bbe5ef22e381ae4f421387fbd570622a28
+    GitHub-Last-Rev: f8f21635025eb6e26c6994679995ade501e870cf
+    GitHub-Pull-Request: golang/go#63908
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539296
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/cmd/compile/internal/inline/inl.go | 22 +++++++++
- test/fixedbugs/issue72090.go           | 85 ++++++++++++++++++++++++++++++++++
- 2 files changed, 107 insertions(+)
+ src/runtime/asm.s       |  2 ++
+ src/runtime/asm_s390x.s | 39 +++++++++++++++++++++++++++++++--------
+ src/runtime/proc.go     |  2 +-
+ 3 files changed, 34 insertions(+), 9 deletions(-)

@@ -1,18 +1,19 @@
-commit 4f0561f9d354233787de7aa9eff8119a2d4cd5c6
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Dec 18 11:28:18 2024 -0500
+commit 993ca35bd43bee9af2db700ac658b0fee896fa4d
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 21 13:15:02 2023 -0400
 
-    cmd/dist: skip fips140test in exe mode on Android
+    cmd/compile/internal/inlheur: regionalize call site analysis
     
-    Android does not support non-PIE linking. Skip the test.
+    Refactor the code that looks for callsites to work on an arbitrary
+    region of IR nodes, as opposed to working on a function. No change in
+    semantics, this is just a refactoring in preparation for a later
+    change.
     
-    Change-Id: I53071538c82f1e1f96eed1a2619f92eacd18d263
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637495
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I73a61345c225dea566ffa6fa50f44dbaf9f1f32b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530578
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/test.go | 22 ++++++++++++----------
- 1 file changed, 12 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  7 ++-
+ .../inline/inlheur/analyze_func_callsites.go       | 53 ++++++++++++++--------
+ 2 files changed, 40 insertions(+), 20 deletions(-)

@@ -1,33 +1,18 @@
-commit b4ac4b4b42bd2b8014cba57991d43f09eb6292f6
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Sat Dec 3 20:57:52 2022 +0800
+commit 6b1d9aefa8fce9f9c83f46193bec43b9b70068ce
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 25 10:27:34 2022 -0400
 
-    cmd/internal/obj/loong64: add the PCALAU12I instruction for reloc use
+    crypto/ed25519: test fixup
     
-    The LoongArch ELF psABI v2.00 revamped the relocation design, largely
-    moving to using the `pcalau12i + addi/ld/st` pair for PC-relative
-    addressing within +/- 32 bits. The "pcala" in `pcalau12i` stands for
-    "PC-aligned add"; the instruction's semantics happen to coincide with
-    arm64's `adrp`.
+    Fix up TestEd25519Vectors to download files into its own temporary mod
+    cache, as opposed relying on whatever GOPATH or GOMODCACHE setting is
+    in effect when the test is run.
     
-    Add support for emitting this instruction as part of the relevant
-    addressing ops, for use with new reloc types later.
-    
-    Updates #58784
-    
-    Change-Id: Ic1747cd9745aad0d1abb9bd78400cd5ff5978bc8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455016
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Auto-Submit: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Change-Id: I523f1862f5874b0635a6c0fa83d35a6cfac6073b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402154
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/internal/obj/loong64/a.out.go  | 1 +
- src/cmd/internal/obj/loong64/anames.go | 1 +
- src/cmd/internal/obj/loong64/asm.go    | 2 ++
- 3 files changed, 4 insertions(+)
+ src/crypto/ed25519/ed25519vectors_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

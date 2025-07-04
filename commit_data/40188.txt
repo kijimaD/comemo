@@ -1,27 +1,20 @@
-commit 421d35cf69f4a18edf96004ba99c01e629a0f79f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 8 14:23:43 2019 -0400
+commit 2be64d36456d6e2ad14476b6d09b9fc4e2ac591e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 24 15:41:26 2019 -0700
 
-    cmd/go: suppress more errors in package-to-module loading
+    unicode/utf8: use binary literals
     
-    In CL 197059, I suppressed errors if the target package was already found.
-    However, that does not cover the case of passing a '/v2' module path to
-    'go get' when the module does not contain a package at its root.
+    We were using hex literals and had the binary literal in a comment.
+    When I was working with this code, I always referred to the comment.
+    That's an indicator that we should just use the binary literal directly.
     
-    This CL is a minimal fix for that case, intended to be backportable to 1.13.
+    Updates #19308
     
-    (Longer term, I intend to rework the version-validation check to treat
-    all mismatched paths as ErrNotExist.)
-    
-    Fixes #34746
-    Updates #34383
-    
-    Change-Id: Ia963c2ea00fae424812b8f46a4d6c2c668252147
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199839
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2279cb8efb4ae5f2e1558c15979058ab09eb4f6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173663
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/query.go         | 8 ++++----
- src/cmd/go/testdata/script/mod_get_major.txt | 5 +++++
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ src/unicode/utf8/utf8.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

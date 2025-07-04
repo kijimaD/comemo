@@ -1,16 +1,12 @@
-commit cf862478c89fd94c4fe8d9ce1cb481d71e5136bf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 3 10:49:24 2016 -0700
+commit fd2bb1e30ae2f489e05ec022a8457a680663c27d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 6 02:39:47 2016 +0000
 
-    runtime/cgo: add TSAN locks around mmap call
+    runtime: rename os1_windows.go to os_windows.go
     
-    Change-Id: I806cc5523b7b5e3278d01074bc89900d78700e0c
-    Reviewed-on: https://go-review.googlesource.com/23736
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I11172f3d0e28f17b812e67a4db9cfe513b8e1974
+    Reviewed-on: https://go-review.googlesource.com/21565
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- misc/cgo/testsanitizers/test.bash | 62 ++++++++++++---------------------------
- misc/cgo/testsanitizers/tsan6.go  | 49 +++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_mmap.c        |  4 +++
- 3 files changed, 71 insertions(+), 44 deletions(-)
+ src/runtime/{os1_windows.go => os_windows.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

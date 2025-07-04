@@ -1,18 +1,22 @@
-commit 0de359da301d1ed5a63c87a8853bedbd829ab906
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Mar 19 23:05:34 2015 +1300
+commit 190357d560b2bf4421c1819ebb9afe7aa175785c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 10:30:47 2015 -0500
 
-    cmd/internal/gc: directly produce importpath of package being compiled
+    cmd/dist, cmd/go: move textdata.h, funcdata.h from pkg/GOOS_GOARCH to pkg/include
     
-    Relying on an importing package being linked at the same time as the
-    imported package does not work in the shared library world.
+    There's no point to having them in every GOOS_GOARCH directory,
+    since they are neither GOOS- nor GOARCH-specific.
+    (There used to be other headers that were.)
     
-    This also lets us remove some obscure code from the linker.
+    This makes building for additional toolchains easier:
+    no need to run make.bash at all.
     
-    Change-Id: I57cd5447b42a1a6129b02951d44efffb10cf64be
-    Reviewed-on: https://go-review.googlesource.com/7797
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #10049.
+    
+    Change-Id: I710ecaafd7a5c8cad85ccd595ea9cb6058f553b3
+    Reviewed-on: https://go-review.googlesource.com/6471
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/reflect.go | 24 +++++++++++++++++++-----
- src/cmd/internal/ld/lib.go     | 18 ------------------
- 2 files changed, 19 insertions(+), 23 deletions(-)
+ src/cmd/dist/build.go | 7 ++++---
+ src/cmd/go/build.go   | 4 ++--
+ 2 files changed, 6 insertions(+), 5 deletions(-)

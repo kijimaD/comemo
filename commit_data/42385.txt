@@ -1,35 +1,31 @@
-commit c847589ad06a1acfcceaac7b230c0d5a826caab8
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 19 16:33:17 2020 +0000
+commit ffa5c85c9227a212fe1a91a6d54da56a9e754f1f
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Fri Dec 6 16:13:44 2019 +0800
 
-    runtime: synchronize StartTrace and StopTrace with sysmon
+    cmd/link: fix loadelf failed on MIPS family
     
-    Currently sysmon is not stopped when the world is stopped, which is
-    in general a difficult thing to do. The result of this is that when
-    tracing starts and the value of trace.enabled changes, it's possible
-    for sysmon to fail to emit an event when it really should. This leads to
-    traces which the execution trace parser deems inconsistent.
+    The relocation of MIPS64 family ELF is different with other architecure according
+    to the document from Linux-MIPS
     
-    Fix this by putting all of sysmon's work behind a new lock sysmonlock.
-    StartTrace and StopTrace both acquire this lock after stopping the world
-    but before performing any work in order to ensure sysmon sees the
-    required state change in tracing. This change is expected to slow down
-    StartTrace and StopTrace, but will help ensure consistent traces are
-    generated.
+    https://www.linux-mips.org/pub/linux/mips/doc/ABI/elf64-2.4.pdf
     
-    Updates #29707.
-    Fixes #38794.
+    In "2.9 Relocation" it shows relocation section contains five parts:
     
-    Change-Id: I64c58e7c3fd173cd5281ffc208d6db24ff6c0284
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234617
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    1. r_sym Elf64_Word Symbol index
+    2. r_ssym Elf64_Byte Special symbol
+    3. r_type3 Elf64_Byte Relocation type
+    4. r_type2 Elf64_Byte Relocation type
+    5. r_type Elf64_Byte Relocation type
+    
+    This CL makes loadelf aware the difference.
+    
+    Update #35779
+    
+    Change-Id: Ib221665641972b1c2bfea5a496e3118e5dc0bc45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209317
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/lockrank.go | 41 ++++++++++++++++++++++-------------------
- src/runtime/proc.go     | 14 ++++++++++++++
- src/runtime/runtime2.go | 20 +++++++++++++-------
- src/runtime/trace.go    | 12 ++++++++++++
- 4 files changed, 61 insertions(+), 26 deletions(-)
+ src/cmd/link/elf_test.go               |  7 ----
+ src/cmd/link/internal/loadelf/ldelf.go | 65 +++++++++++++++++++++++++---------
+ 2 files changed, 48 insertions(+), 24 deletions(-)

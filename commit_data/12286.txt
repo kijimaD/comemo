@@ -1,26 +1,22 @@
-commit fc268acf05adf5d0437ef1bf80c6e919818fe6ff
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 29 16:37:40 2012 -0500
+commit 8c5290502fc1d7cddf416614aab5d2ad3c1b9b08
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 29 13:14:05 2012 -0800
 
-    path/filepath: steer people away from HasPrefix
+    time: skip a often-flaky test in short mode
     
-    The strikes against it are:
+    In -test.short mode, skip measuring the upper bound of time
+    sleeps. The API only guarantees minimum bounds on sleeps,
+    anyway, so this isn't a bug we're ignoring as much as it is
+    simply observing bad builder virtualization and/or loaded
+    machines.
     
-    1. It does not take path boundaries into account.
-    2. It assumes that Windows==case-insensitive file system
-    and non-Windows==case-sensitive file system, neither of
-    which is always true.
-    3. Comparing ToLower against ToLower is not a correct
-    implementation of a case-insensitive string comparison.
-    4. If it returns true on Windows you still don't know how long
-    the matching prefix is in bytes, so you can't compute what
-    the suffix is.
+    We keep the test in full mode where developers will
+    presumably be running on a lightly-loaded, native, fast
+    machine.
     
-    R=golang-dev, r, dsymonds, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5712045
+    https://golang.org/cl/5713044
 
- src/pkg/path/filepath/path_plan9.go   | 2 +-
- src/pkg/path/filepath/path_unix.go    | 2 +-
- src/pkg/path/filepath/path_windows.go | 3 +--
- 3 files changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/time/sleep_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

@@ -1,27 +1,36 @@
-commit aeae46a7e51921b6af1dc1400bdc341fc1e568b0
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 22 14:45:35 2020 -0400
+commit 787e7b048cff392d1cb68c57c99ff71602997475
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Mar 22 09:28:21 2020 +0100
 
-    cmd/go: disable automatic go vet -unreachable during go test of std
+    build: force all Windows batch files to CRLF
     
-    go test runs a limited number of vet checks by default.
-    In the standard library, we run more, both to get additional checking
-    for the standard library and to get experience with whether to enable
-    any others by default.
+    Batch files should use CRLF endings. LF endings mostly
+    work but in some situations they cause random errors like
+    goto commands failing for mysterious reasons. See
+    golang.org/issue/37791 for more information.
     
-    One that experience has shown us should not be enabled by default
-    is go vet -unreachable. When you are testing, it is common to want to
-    put an early return or a panic into code to bypass a section of code.
-    That often causes unreachable code. It's incredibly frustrating if the
-    result is an "unreachable code" error that keeps your test from completing.
+    Next CL triggered one of such bug (a label was not being
+    recognized), so prepare for it by converting to CRLF.
     
-    Change-Id: Ib194e87759eb65f5a193d771a9880b38d2fd3ba9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240550
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    This CL also touches all existing batch files to force git
+    to update the line endings (unfortunately, changing
+    .gitattributes only has effect next time the file is checked
+    out or modified).
+    
+    Fixes #37791
+    Updates #9281
+    
+    Change-Id: I6f9a114351cb7ac9881914400aa210c930eb8cc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/96495
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/go/internal/work/exec.go         | 21 ++++++++++++++++-----
- src/cmd/go/testdata/script/vet_flags.txt | 16 ++++++++++------
- 2 files changed, 26 insertions(+), 11 deletions(-)
+ .gitattributes   |  6 ++++++
+ src/all.bat      |  1 +
+ src/clean.bat    |  1 +
+ src/make.bat     |  1 +
+ src/race.bat     |  1 -
+ src/run.bat      |  1 +
+ test/winbatch.go | 30 ++++++++++++++++++++++++++++++
+ 7 files changed, 40 insertions(+), 1 deletion(-)

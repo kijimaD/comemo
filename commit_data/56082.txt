@@ -1,40 +1,27 @@
-commit d0051be847163f1bedb5a5c68f7827f40b4ef4e4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 27 22:14:27 2024 -0400
+commit 46a49eb52e6402708446a7a71db8a29dbdb99139
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Apr 6 20:26:55 2023 -0400
 
-    runtime: simplify timers.siftDown
+    cmd/internal/objfile: align the load address of ELF binary
     
-    No effect on benchmarks, but the code is clearer.
+    The ELF ABI just requires that the address and the offset of a
+    segment are congruent modulo the alignment, but does not require
+    the start address to be aligned. While usually the segment's
+    start address is aligned, apparently the zig linker generates
+    binary with unaligned address.
     
-    goos: linux
-    goarch: amd64
-    pkg: time
-    cpu: AMD Ryzen 9 7950X 16-Core Processor
-                                       │  s7base.txt  │               s7.txt                │
-                                       │    sec/op    │    sec/op     vs base               │
-    AdjustTimers10000-32                 195.9µ ± 13%   198.1µ ±  2%       ~ (p=0.436 n=10)
-    AdjustTimers10000SingleThread-32     1.573m ± 13%   1.566m ± 10%       ~ (p=0.739 n=10)
-    AdjustTimers10000NoReset-32          170.6µ ±  1%   170.4µ ±  1%       ~ (p=0.912 n=10)
-    AdjustTimers10000NoSleep-32          183.9µ ±  2%   181.4µ ±  2%  -1.39% (p=0.045 n=10)
-    AdjustTimers10000NoResetNoSleep-32   151.3µ ±  1%   150.0µ ±  1%  -0.90% (p=0.007 n=10)
+    At the run time, the memory mapping that contains the segment
+    starts at an aligned address (rounding down). Use the aligned
+    address for the load address, which matches the mapping.
+    Apparently this is what the pprof library expects.
     
-    goos: darwin
-    goarch: arm64
-    pkg: time
-    cpu: Apple M3 Pro
-                                       │ m3base.txt  │               m3.txt               │
-                                       │   sec/op    │   sec/op     vs base               │
-    AdjustTimers10000-12                 234.2µ ± 1%   234.5µ ± 1%       ~ (p=0.796 n=10)
-    AdjustTimers10000SingleThread-12     1.191m ± 1%   1.272m ± 1%  +6.81% (p=0.000 n=10)
-    AdjustTimers10000NoReset-12          239.6µ ± 2%   236.3µ ± 9%       ~ (p=0.971 n=10)
-    AdjustTimers10000NoSleep-12          223.3µ ± 2%   221.4µ ± 3%       ~ (p=0.579 n=10)
-    AdjustTimers10000NoResetNoSleep-12   209.2µ ± 2%   209.0µ ± 4%       ~ (p=0.796 n=10)
+    Fixes #59466.
     
-    
-    Change-Id: Id48aa893235d652814b7fa4605037f09b0b4d73b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/574897
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ife78909b20b7bc975ac4c76f2c5f5db325ddec9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/time.go | 42 +++++++++++++++++++-----------------------
- 1 file changed, 19 insertions(+), 23 deletions(-)
+ src/cmd/internal/objfile/elf.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,21 +1,19 @@
-commit 67e6542467321099c0ffcf77ee660e28ec211588
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Aug 27 15:21:29 2022 +0800
+commit 42515418a99f2540427a5d32189f6d44fb06939e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 18 10:24:31 2021 +0700
 
-    go/ast: add Range token.Pos to RangeStmt
+    reflect: correct documentation of Value.UnsafeAddr
     
-    For #50429
+    The doc mentions that "UnsafeAddr returns a _pointer_ to v's data", but
+    it returns a uintptr instead, which don't have pointer semantic.
     
-    Change-Id: Idb027244f901d9f482c894b5b979a054d0f07de5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426091
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I557d5597cbc485356ca803eb496a99d6db8c63ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350690
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- api/next/50429.txt           |  1 +
- src/go/ast/ast.go            |  1 +
- src/go/parser/parser.go      |  1 +
- src/go/parser/parser_test.go | 30 ++++++++++++++++++++++++++++++
- 4 files changed, 33 insertions(+)
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,35 +1,14 @@
-commit b9daf0a408acb4099eda268ed80203f83ecd3fa5
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Tue Nov 24 02:57:01 2015 -0700
+commit beceea733970b5267e61cd301507b78fc05d8d48
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 2 17:34:48 2016 +0000
 
-    net/http: add more audio/video mime sniffing
+    runtime/pprof: mark dragonfly and solaris as bad at pprof
     
-    Following the spec at
-      https://mimesniff.spec.whatwg.org/#matching-an-audio-or-video-type-pattern
+    Updates #13841
     
-    Adds signatures for:
-    + audio/aiff
-    + audio/basic
-    + audio/midi
-    + audio/mpeg
-    + video/avi
-    
-    Updates the signature for:
-    + application/ogg
-    
-    Also updates the pattern matching algorithm in
-      https://mimesniff.spec.whatwg.org/#matching-a-mime-type-pattern
-    by implementing clause 4 that dictates that the number of bytes in
-    the pattern must match the number of bytes in the mask.
-    
-    Fixes #13383
-    
-    Change-Id: Ie321f392e6570299c17176adf1c75f62f357e1e8
-    Reviewed-on: https://go-review.googlesource.com/17132
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I121bce054e2756c820c76444e51357f474b7f3d6
+    Reviewed-on: https://go-review.googlesource.com/19161
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/sniff.go      | 37 ++++++++++++++++++++++++++++++++++++-
- src/net/http/sniff_test.go | 11 +++++++++++
- 2 files changed, 47 insertions(+), 1 deletion(-)
+ src/runtime/pprof/pprof_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

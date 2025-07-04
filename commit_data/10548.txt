@@ -1,13 +1,19 @@
-commit 12eee9edbc0a63ba5802541ec9bfec4a925637ee
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 30 12:38:54 2011 -0500
+commit ca6de008bae698dd79adf795cd24668f36578d77
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Nov 30 09:29:58 2011 -0800
 
-    os: fix windows build
+    math/big: fix destination leak into result value
+    This code would panic:
+    z := big.NewInt(1)
+    z.SetBit(big.NewInt(0), 2, 1)
+    if z.Cmp(big.NewInt(1<<2)) != 0 {
+            panic("fail")
+    }
     
-    TBR=brainman
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/5449048
+    https://golang.org/cl/5437081
 
- src/pkg/os/export_test.go  |  1 -
- src/pkg/os/stat_windows.go | 14 ++++++++++++--
- 2 files changed, 12 insertions(+), 3 deletions(-)
+ src/pkg/math/big/int_test.go | 8 ++++++--
+ src/pkg/math/big/nat.go      | 6 ++++--
+ 2 files changed, 10 insertions(+), 4 deletions(-)

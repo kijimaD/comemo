@@ -1,111 +1,16 @@
-commit 3f84a3f324ba1f1e5baa919ed66585ed836eba30
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jul 28 13:50:59 2022 -0400
+commit 100d7ea50dbe601164f428f5e4203be7727093f9
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Nov 22 15:37:29 2021 -0500
 
-    cmd/go/internal/script: define GOOS, GOARCH, and compiler conditions using suffixes
+    cmd/go: correct an inaccuracy in the 'go help work' docs
     
-    This replaces a large set of individual GOOS and GOARCH conditions
-    with a smaller set of more verbose conditions. On balance, the more
-    uniform structure and more concise documentation seem worth the
-    verbosity.
-    
-    For #27494.
-    
-    Change-Id: I73fdf9e7180a92cb1baf5d4631aeecb26ce15181
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420054
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: If2c6586b5ad212214b8041f8768fe7d26b877207
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366314
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/script/conds.go                | 50 +++++++++---
- src/cmd/go/scriptconds_test.go                     |  2 -
- src/cmd/go/testdata/script/README                  | 92 ++--------------------
- src/cmd/go/testdata/script/bug.txt                 |  2 +-
- src/cmd/go/testdata/script/build_GOTMPDIR.txt      |  8 +-
- src/cmd/go/testdata/script/build_acl_windows.txt   |  2 +-
- src/cmd/go/testdata/script/build_cache_output.txt  |  2 +-
- .../testdata/script/build_cd_gopath_different.txt  |  4 +-
- .../script/build_cgo_consistent_results.txt        |  4 +-
- .../go/testdata/script/build_darwin_cc_arch.txt    |  2 +-
- src/cmd/go/testdata/script/build_gcflags.txt       |  4 +-
- src/cmd/go/testdata/script/build_internal.txt      |  2 +-
- src/cmd/go/testdata/script/build_issue48319.txt    |  2 +-
- src/cmd/go/testdata/script/build_issue6480.txt     |  2 +-
- .../script/build_link_x_import_path_escape.txt     |  2 +-
- src/cmd/go/testdata/script/build_nocache.txt       | 10 +--
- src/cmd/go/testdata/script/build_output.txt        | 22 +++---
- src/cmd/go/testdata/script/build_tags_no_comma.txt |  2 +-
- src/cmd/go/testdata/script/build_trimpath_cgo.txt  |  2 +-
- .../go/testdata/script/build_unsupported_goos.txt  |  2 +-
- src/cmd/go/testdata/script/cache_unix.txt          |  6 +-
- src/cmd/go/testdata/script/cache_vet.txt           |  2 +-
- src/cmd/go/testdata/script/cgo_bad_directives.txt  | 10 +--
- src/cmd/go/testdata/script/cgo_path.txt            |  8 +-
- src/cmd/go/testdata/script/cgo_path_space.txt      | 20 ++---
- .../go/testdata/script/cgo_stale_precompiled.txt   |  4 +-
- src/cmd/go/testdata/script/cgo_syso_issue29253.txt |  2 +-
- src/cmd/go/testdata/script/cover_asm.txt           |  2 +-
- src/cmd/go/testdata/script/cover_cgo.txt           |  2 +-
- .../go/testdata/script/cover_cgo_extra_file.txt    |  2 +-
- .../go/testdata/script/cover_cgo_extra_test.txt    |  2 +-
- src/cmd/go/testdata/script/cover_cgo_xtest.txt     |  2 +-
- src/cmd/go/testdata/script/cover_dash_c.txt        |  2 +-
- src/cmd/go/testdata/script/cover_dep_loop.txt      |  2 +-
- src/cmd/go/testdata/script/cover_dot_import.txt    |  2 +-
- src/cmd/go/testdata/script/cover_error.txt         |  2 +-
- .../go/testdata/script/cover_import_main_loop.txt  |  2 +-
- src/cmd/go/testdata/script/cover_modes.txt         |  2 +-
- src/cmd/go/testdata/script/cover_pattern.txt       |  2 +-
- src/cmd/go/testdata/script/cover_runs.txt          |  2 +-
- .../testdata/script/cover_sync_atomic_import.txt   |  2 +-
- src/cmd/go/testdata/script/embed_brackets.txt      |  2 +-
- src/cmd/go/testdata/script/env_write.txt           | 60 +++++++-------
- src/cmd/go/testdata/script/gcflags_patterns.txt    |  2 +-
- .../go/testdata/script/generate_bad_imports.txt    |  2 +-
- src/cmd/go/testdata/script/generate_env.txt        |  4 +-
- .../go/testdata/script/generate_goroot_PATH.txt    |  8 +-
- src/cmd/go/testdata/script/get_goroot.txt          | 18 ++---
- src/cmd/go/testdata/script/gopath_local.txt        |  2 +-
- src/cmd/go/testdata/script/gopath_std_vendor.txt   |  2 +-
- src/cmd/go/testdata/script/goroot_executable.txt   |  2 +-
- src/cmd/go/testdata/script/install_cross_gobin.txt |  2 +-
- src/cmd/go/testdata/script/link_syso_deps.txt      |  4 +-
- .../go/testdata/script/link_syso_issue33139.txt    |  4 +-
- src/cmd/go/testdata/script/linkname.txt            |  2 +-
- src/cmd/go/testdata/script/list_ambiguous_path.txt |  6 +-
- .../go/testdata/script/list_gofile_in_goroot.txt   | 12 +--
- src/cmd/go/testdata/script/list_importmap.txt      |  2 +-
- src/cmd/go/testdata/script/list_perm.txt           |  4 +-
- .../script/list_replace_absolute_windows.txt       |  2 +-
- src/cmd/go/testdata/script/list_std.txt            |  2 +-
- src/cmd/go/testdata/script/list_swigcxx.txt        |  4 +-
- src/cmd/go/testdata/script/mod_cache_rw.txt        | 10 +--
- src/cmd/go/testdata/script/mod_doc_path.txt        |  2 +-
- .../script/mod_download_concurrent_read.txt        |  2 +-
- .../go/testdata/script/mod_download_issue51114.txt |  2 +-
- src/cmd/go/testdata/script/mod_file_proxy.txt      |  8 +-
- .../mod_fileproxy_vcs_missing_issue51589.txt       |  6 +-
- src/cmd/go/testdata/script/mod_gomodcache.txt      |  6 +-
- src/cmd/go/testdata/script/mod_list_std.txt        |  2 +-
- src/cmd/go/testdata/script/mod_perm.txt            |  4 +-
- src/cmd/go/testdata/script/mod_permissions.txt     |  4 +-
- src/cmd/go/testdata/script/mod_std_vendor.txt      |  2 +-
- src/cmd/go/testdata/script/mod_sumdb_file_path.txt | 20 ++---
- src/cmd/go/testdata/script/mod_tidy_temp.txt       |  2 +-
- src/cmd/go/testdata/script/std_vendor.txt          |  2 +-
- src/cmd/go/testdata/script/test2json_interrupt.txt |  4 +-
- .../testdata/script/test_fuzz_mutator_repeat.txt   |  2 +-
- .../testdata/script/test_fuzz_non_crash_signal.txt |  2 +-
- src/cmd/go/testdata/script/test_goroot_PATH.txt    |  8 +-
- src/cmd/go/testdata/script/test_json.txt           |  2 +-
- .../go/testdata/script/test_ppc64_linker_funcs.txt |  6 +-
- .../script/test_ppc64le_cgo_inline_plt.txt         |  4 +-
- src/cmd/go/testdata/script/test_profile.txt        |  2 +-
- src/cmd/go/testdata/script/toolexec.txt            |  2 +-
- .../testdata/script/vendor_gopath_issue11409.txt   |  2 +-
- src/cmd/go/testdata/script/version.txt             |  4 +-
- .../go/testdata/script/version_build_settings.txt  |  2 +-
- .../go/testdata/script/version_buildvcs_fossil.txt |  6 +-
- src/cmd/go/testdata/script/vet_asm.txt             |  2 +-
- 90 files changed, 254 insertions(+), 310 deletions(-)
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/workcmd/work.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

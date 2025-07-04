@@ -1,24 +1,37 @@
-commit e572218d1273bf54bf8cafd39f93f22de196dd55
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Sep 26 09:42:59 2020 +0200
+commit fae87a2223e1fa959a20017742455200fe3c35f1
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Mar 5 12:46:04 2020 -0800
 
-    cmd/compile: fix escape reason for MAKESLICE with no cap
+    runtime: fix problem with repeated panic/recover/re-panics and open-coded defers
     
-    When explaining why the slice from a make() call escapes for the -m -m
-    message, we print "non-const size" if any one of Isconst(n.Left) and
-    Isconst(n.Right) return false; but for OMAKESLICE nodes with no cap,
-    n.Right is nil, so Isconst(n.Right, CTINT) will be always false.
+    In the open-code defer implementation, we add defer struct entries to the defer
+    chain on-the-fly at panic time to represent stack frames that contain open-coded
+    defers. This allows us to process non-open-coded and open-coded defers in the
+    correct order. Also, we need somewhere to be able to store the 'started' state of
+    open-coded defers. However, if a recover succeeds, defers will now be processed
+    inline again (unless another panic happens). Any defer entry representing a frame
+    with open-coded defers will become stale once we run the corresponding defers
+    inline and exit the associated stack frame. So, we need to remove all entries for
+    open-coded defers at recover time.
     
-    Only call Isconst on n.Right if it's not nil.
+    The current code was only removing the top-most open-coded defer from the defer
+    chain during recovery. However, with recursive functions that do repeated
+    panic-recover-repanic, multiple stale entries can accumulate on the chain. So, we
+    just adjust the loop to process the entire chain. Since this is at panic/recover
+    case, it is fine to scan through the entire chain (which should usually have few
+    elements in it, since most defers are open-coded).
     
-    Fixes #41635
+    The added test fails with a SEGV without the fix, because it tries to run a stale
+    open-code defer entry (and the stack has changed).
     
-    Change-Id: I8729801a9b234b68ae40adad64d66fa7653adf09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257641
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #37664.
+    
+    Change-Id: I8e3da5d610b5e607411451b66881dea887f7484d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222420
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/compile/internal/gc/escape.go |  2 +-
- test/fixedbugs/issue41635.go          | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/runtime/defer_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic.go      | 14 ++++++------
+ 2 files changed, 62 insertions(+), 6 deletions(-)

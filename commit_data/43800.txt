@@ -1,21 +1,25 @@
-commit 86954d5246339231dc0c45f5547c37a1c3650264
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Nov 13 14:42:45 2020 -0500
+commit 42cca1a7fee916bb4ba769cb2db259ef6ec1c179
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 24 11:07:17 2020 -0400
 
-    cmd/compile: mark plugin-exported types as used in interface
+    [dev.link] cmd/link: create symbol updated lazily in amd64 adddynrel
     
-    Plugin exports symbols as interfaces. Mark their types as used in
-    interfaces, so their methods will be kept alive by the linker.
+    Tweak the code in the amd64 version of adddynrel to avoid creating a
+    symbol updated for the symbol being processed until it's clear we need
+    to alter its relocations. This should help performance for the
+    PIE+internal linking scenario.
     
-    Fixes #42579.
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229866
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     
-    Change-Id: If1b5aacc21510c20c25f88bb131bca61db6f1d56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269819
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Id25adfd81a5bbd2dde0f80a83b976397ba6abfb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230026
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/testplugin/plugin_test.go            | 14 ++++++++++++++
- misc/cgo/testplugin/testdata/method/main.go   | 26 ++++++++++++++++++++++++++
- misc/cgo/testplugin/testdata/method/plugin.go | 13 +++++++++++++
- src/cmd/compile/internal/gc/reflect.go        |  6 +++++-
- 4 files changed, 58 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go | 13 +++++++++++--
+ src/cmd/link/internal/ld/data.go   |  4 ----
+ 2 files changed, 11 insertions(+), 6 deletions(-)

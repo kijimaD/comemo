@@ -1,22 +1,14 @@
-commit 548c65a568e14490f1a6b80e92c175e2410ddf20
+commit 082a4a8a47d03c5fd246b4d079391bdb21f2c3ed
 Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 11 11:33:25 2013 -0700
+Date:   Wed Apr 10 20:58:19 2013 -0700
 
-    spec: add another sentence about BOMs
-    Although one may argue that they should be legal, gc (at least)
-    disallows byte order marks that are not the first code point
-    in the file. Added a sentence to the "Implementation restriction"
-    clause in the "Source code representation" section to document
-    this better.
+    bufio/Scan: fix error handling at EOF
+    Fixes #5268.
     
-    Lifting this restriction (again - the rule has changed at least
-    twice already) would not break any existing programs, should
-    we later decide yet again to fiddle the rules about these little
-    fly specks.
-    
-    R=golang-dev, dsymonds, gri
+    R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8649043
+    https://golang.org/cl/8646045
 
- doc/go_spec.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/bufio/scan.go      |  5 +++--
+ src/pkg/bufio/scan_test.go | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

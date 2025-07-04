@@ -1,22 +1,20 @@
-commit 8f0578ef39a97c3a20032db799b97763e44274b0
-Author: Robert Findley <rfindley@google.com>
-Date:   Fri Aug 13 13:52:55 2021 -0400
+commit 46b6e70e3b9380b5dff6319673e385950b9fb201
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Dec 4 11:38:47 2020 +0700
 
-    cmd/compile/internal/types2: consolidate verification logic
+    [dev.regabi] cmd/compile: replace ir.Node with *ir.Name in Order
     
-    Change an internal call of instantiateLazy to call Instantiate, so that
-    we can consolidate the logic for invoking verification.
+    Passes buildall w/ toolstash -cmp.
     
-    This made verification of signatures lazy, which is not necessary but
-    should be harmless.
+    Updates #42982
     
-    Change-Id: I2e59b04ac859e08c2e2910ded3c183093d1e34a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342149
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I7121c37f72ccbc141a7dd17fba1753f2c6289908
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275353
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/instantiate.go | 49 +++++++++++++-------------
- src/cmd/compile/internal/types2/typexpr.go     |  2 +-
- 2 files changed, 26 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 14 +++++++-------
+ src/cmd/compile/internal/gc/sinit.go |  6 +++---
+ 2 files changed, 10 insertions(+), 10 deletions(-)

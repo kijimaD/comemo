@@ -1,21 +1,14 @@
-commit 78bb91cbd34a8f2f3784ba5df94c0e56c44fc751
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 4 15:59:47 2018 +0000
+commit c5ac91d0e1082914d3eeb8dff9d80974eb1bf9b7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 6 16:32:13 2018 +0000
 
-    runtime: remove npreleased in favor of boolean
+    all: clean up some Deprecated comments
     
-    This change removes npreleased from mspan since spans may now either be
-    scavenged or not scavenged; how many of its pages were actually scavenged
-    doesn't matter. It saves some space in mpsan overhead too, as the boolean
-    fits into what would otherwise be struct padding.
-    
-    For #14045.
-    
-    Change-Id: I63f25a4d98658f5fe21c6a466fc38c59bfc5d0f5
-    Reviewed-on: https://go-review.googlesource.com/c/139737
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ie801fe6a2883d79229ee2955e26948c1b4964802
+    Reviewed-on: https://go-review.googlesource.com/122496
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mheap.go | 77 ++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 47 insertions(+), 30 deletions(-)
+ src/image/jpeg/reader.go |  3 ++-
+ src/net/http/request.go  | 14 +++++++++++---
+ src/net/http/server.go   |  4 +++-
+ 3 files changed, 16 insertions(+), 5 deletions(-)

@@ -1,26 +1,26 @@
-commit 98d914201b98a854c7d172837d19ff7d0096b405
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Jan 22 00:25:08 2015 +0100
+commit 2a617d46f3ed39a71d8af8fb004fdfe8711160c2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 18 13:11:08 2014 -0800
 
-    lib9: build tokenize on Plan 9
+    sort: reduce leaf calls in Stable
     
-    The build was broken on Plan 9 after the
-    CL 2994, because of the use of getfields
-    in src/liblink/go.c.
+    Move the symMerge recursion stopping condition
+    from the beginning of symMerge to the callers.
     
-    This happened when building 8l, because
-    getfield was part of lib9 and tokenize
-    was part of the Plan 9 libc. However,
-    both getfields and tokenize depend on
-    utfrune, causing an incompatibility.
+    This halves the number of calls to symMerge
+    while running 'go test sort'.
     
-    This change enables the build of tokenize
-    as part of lib9, so it doesn't use
-    tokenize from the Plan 9 libc anymore.
+    benchmark                   old ns/op      new ns/op      delta
+    BenchmarkStable1e6          8358117060     7954143849     -4.83%
+    BenchmarkStable1e4          40116117       38583285       -3.82%
+    BenchmarkStableInt1K        119150         115182         -3.33%
+    BenchmarkStableInt64K       9799845        9515475        -2.90%
+    BenchmarkStableString1K     388901         393516         +1.19%
+    BenchmarkStable1e2          124917         123618         -1.04%
     
-    Change-Id: I2a76903b508bd92771c4754cd53dfc64df350892
-    Reviewed-on: https://go-review.googlesource.com/3121
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I7ba2ca277f213b076fe6830e1139edb47ac53800
+    Reviewed-on: https://go-review.googlesource.com/1820
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/lib9/tokenize.c | 2 --
- 1 file changed, 2 deletions(-)
+ src/sort/sort.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

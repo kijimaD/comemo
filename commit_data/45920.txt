@@ -1,15 +1,21 @@
-commit 21a04e33353316635b5f3351e807916f3bb1e844
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 14 16:04:49 2021 -0700
+commit 65ae15ac5d43ad82f664e5a914d74c7549568c93
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 28 07:13:54 2020 -0500
 
-    doc/go1.17: mention GOARCH=loong64
+    [dev.regabi] cmd/compile: move func code from node.go to func.go
     
-    For #46229
+    No code changes here, only copying of text.
+    This will make the diffs in a future CL readable.
     
-    Change-Id: I54d01d90f2b0c892d76121f1350c0e8cf4b2772f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334729
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I325a62e79edd82f1437769891ea63a32f51c0170
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274095
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.17.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/ir/func.go | 216 ++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ir/node.go | 205 ----------------------------------
+ 2 files changed, 216 insertions(+), 205 deletions(-)

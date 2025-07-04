@@ -1,13 +1,14 @@
-commit fbdbb595b6e7e30e31f83777c63c69336b6dd2d6
-Author: Pascal S. de Kloe <pascal@quies.net>
-Date:   Fri Aug 26 16:55:18 2011 -0400
+commit e753512e2d42483eacaca975ff8fd58cc1b7dfed
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Fri Aug 26 16:43:37 2011 -0400
 
-    mime: media type formatter
+    cgo: fixes callback for windows amd64
     
-    R=bradfitz, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4654069
+    https://golang.org/cl/4826041
 
- src/pkg/mime/grammar.go   |  9 +++++++++
- src/pkg/mime/mediatype.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+)
+ misc/cgo/life/Makefile      | 14 ++++++++++++++
+ src/pkg/runtime/amd64/asm.s | 10 +++++-----
+ src/pkg/runtime/cgo/amd64.S | 19 +++++++++++++++++++
+ 3 files changed, 38 insertions(+), 5 deletions(-)

@@ -1,19 +1,24 @@
-commit c12a0e645a9e5e69bb549d69811c54351f562eae
-Author: Philip Hofer <phofer@umich.edu>
-Date:   Tue Mar 29 11:29:28 2016 -0700
+commit 53b66616736480152969fe1749f62e3da07644f7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 10 19:58:44 2016 +0000
 
-    cmp/compile: rewrite CMP $0 with TEST
+    net/http/httptest: make Server.CloseClientConnections wait for conns to close
     
-    The CMP* family of instructions are longer than their TEST counterparts by one byte.
+    httptest.Server was rewritten during Go 1.6, but
+    CloseClientConnections was accidentally made async in the rewrite and
+    not caught due to lack of tests.
     
-    After this change, my go tool has 13 cmp.*$0x0 instructions, compared to 5612 before.
+    Restore the Go 1.5 behavior and add tests.
     
-    Change-Id: Ieb87d65657917e494c0e4b711a7ba2918ae27610
-    Reviewed-on: https://go-review.googlesource.com/21255
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #14290
+    Updates #14291
+    
+    Change-Id: I14f01849066785053ccca2373931bc82d78c0a13
+    Reviewed-on: https://go-review.googlesource.com/19432
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  6 ++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 52 ++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+)
+ src/net/http/httptest/server.go      | 49 ++++++++++++++++++++++++++++++++----
+ src/net/http/httptest/server_test.go | 14 +++++++++++
+ 2 files changed, 58 insertions(+), 5 deletions(-)

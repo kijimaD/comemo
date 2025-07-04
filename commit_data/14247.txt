@@ -1,14 +1,24 @@
-commit 8884fabfd739c232c97158b75a6ad0fe72cf9721
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 30 14:42:47 2012 -0700
+commit db2b6ed854122bc987e0cb8778a9c77b481614ec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 30 13:09:47 2012 -0700
 
-    reflect: improve documentation for DeepEqual regarding maps
-    Keys use ==; values use deep equality. Also remove the word 'member'.
-    Fixes #4258.
+    go/printer, gofmt: trim trailing whitespace in comments
     
-    R=golang-dev, rsc
+    Also: updated go fix testcases to pass tests.
+    
+    Fixes #4310.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6812055
+    https://golang.org/cl/6810055
 
- src/pkg/reflect/deepequal.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/fix/testdata/reflect.encoder.go.in  |  2 +-
+ src/cmd/fix/testdata/reflect.encoder.go.out |  2 +-
+ src/cmd/fix/testdata/reflect.export.go.in   |  2 +-
+ src/cmd/fix/testdata/reflect.export.go.out  |  2 +-
+ src/cmd/fix/testdata/reflect.print.go.in    |  2 +-
+ src/cmd/fix/testdata/reflect.print.go.out   |  2 +-
+ src/pkg/go/printer/printer.go               | 15 ++++++++++++---
+ src/pkg/go/printer/testdata/comments.golden | 11 ++++++++++-
+ src/pkg/go/printer/testdata/comments.input  | 10 +++++++++-
+ 9 files changed, 37 insertions(+), 11 deletions(-)

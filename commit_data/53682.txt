@@ -1,18 +1,26 @@
-commit 4a0f51696e3b46eb8d9b6c152b2b412bfcad1b7f
-Author: cui fliter <imcusg@gmail.com>
-Date:   Wed Jul 12 19:11:05 2023 +0800
+commit 5cfeaed4dec52c8edb3f33bb9cf8ec98d846c50b
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Sat Aug 27 02:42:52 2022 +0000
 
-    all: remove duplicate word and fix comment
+    cmd/go/internal/modfetch: report error on failing to derive pseudo version from recent tag
     
-    Change-Id: I3302b94a47f384ec2519d08af50b3b5725c5b42a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508995
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    The current implementation ignores the error when it tries to get
+    the recent tag on revisions, which results in incorrect pseudo
+    version (v0.0.0-) is derived.
+    
+    Fixes #53935
+    
+    Change-Id: I153d851eb913fb7e40051e194c92b9ca5bf0e906
+    GitHub-Last-Rev: 6ba1d90df56cc0f30557863aa8418c54885abb14
+    GitHub-Pull-Request: golang/go#54701
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426079
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/internal/loadpe/ldpe.go | 2 +-
- src/os/error.go                      | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

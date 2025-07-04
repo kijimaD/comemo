@@ -1,24 +1,17 @@
-commit 1a3558341860357c2400e37773e5076bb3a51628
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jul 15 17:38:36 2020 -0400
+commit a52821569310ca3807f74993af4019dfcaa74cfe
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Wed Feb 5 11:25:01 2020 +0000
 
-    cmd/go: add tracing for querying and downloading from the proxy
+    doc/go1.14: fix inconsistent markup
     
-    This CL adds tracing spans for modload.queryPattern, modload.queryProxy,
-    modload.QueryPattern, modload.QueryPattern.queryModule,
-    modload.queryPrefixModules and modfetch.Download.
+    Unlike the others, the dt tag of reflect is not next to the dl tag.
+    The dd's closing tags may or may not have been omitted. They were unified without omission.
     
-    Updates #38714
+    Updates #36878
     
-    Change-Id: I537c7fa4f466c691c1b60ec73ef8a2277af49cd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242786
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I4e24f93fe8763ae8a1e4392db72e0b4818884f44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217701
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modcmd/download.go             |  2 +-
- src/cmd/go/internal/modfetch/fetch.go              | 21 +++++++++++++++------
- .../internal/modfetch/zip_sum_test/zip_sum_test.go |  3 ++-
- src/cmd/go/internal/modload/query.go               | 22 ++++++++++++++++++----
- 4 files changed, 36 insertions(+), 12 deletions(-)
+ doc/go1.14.html | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

@@ -1,12 +1,18 @@
-commit 2fad8b219ff9f13f10396c97c0a3bca5c6153d78
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Mon Aug 20 01:13:33 2018 +0000
+commit 8bf4b7e6730c33f3f5f3be0cf0b0ea132e241412
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 25 14:40:17 2018 -0700
 
-    runtime: fix typo: there -> the
+    cmd/compile: convert amd64 BSFL and BSRL from tuple to result only
     
-    Change-Id: I2ecbd68b1b30ab64e64ae120101761400c22457b
-    Reviewed-on: https://go-review.googlesource.com/129757
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I220a459f67ecb310b6e9a526a1ff55527d421e70
+    Reviewed-on: https://go-review.googlesource.com/109416
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go        |  8 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 14 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  7 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  2 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 96 ++++++++++------------------
+ 5 files changed, 53 insertions(+), 74 deletions(-)

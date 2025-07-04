@@ -1,0 +1,20 @@
+commit 0de8fc852704d672e3379b05d617ce75dc0b2613
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 19 17:37:49 2025 -0800
+
+    syscall: don't send child signal when testing pidfd
+    
+    Avoid a spurious SIGCHLD the first time we start a process.
+    
+    Fixes #71828
+    
+    Change-Id: I744100d21bf6aaaaafc99bc5eec9f9f807a50682
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650835
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/exec/exec_posix_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++
+ src/syscall/exec_linux.go      |  2 +-
+ 2 files changed, 57 insertions(+), 1 deletion(-)

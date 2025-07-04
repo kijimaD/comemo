@@ -1,30 +1,20 @@
-commit 77ddbf1ff0278f7399509014b7078a3364248f67
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Thu Mar 7 13:12:37 2013 -0500
+commit cb945ba6ba23772336bf02fd2364c3df9e9233e0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 7 21:39:59 2013 +0400
 
-        misc/emacs: Rewrite gofmt to use own function for applying patch instead of using diff-mode.
+    runtime: fix deadlock
+    The deadlock episodically occurs on misc/cgo/test/TestCthread.
+    The problem is that starttheworld() leaves some P's with local work
+    without M's. Then all active M's enter into syscalls, but reject to
+    wake another M's due to the following check (both in entersyscallblock() and in retake()):
+    if(p->runqhead == p->runqtail &&
+            runtime·atomicload(&runtime·sched.nmspinning) +
+            runtime·atomicload(&runtime·sched.npidle) > 0)
+            continue;
     
-        Instead of relying on gofmt's diff output (which is a unified
-        diff), we manually invoke diff -n and produce an RCS format diff,
-        which can easily be parsed in Emacs, with the go--apply-rcs-patch
-        function.
-    
-        This fixes undocumented issues with the old implementation such as
-        skipping over hunks of changes, and it fixes the documented issue
-        of not being able to handle file names that include whitespace.
-    
-        It can also apply the patch on a buffer that has no file name
-        attached at all.
-    
-        Last but not least, it greatly simplifies the gofmt function
-        itself.
-    
-    Fixes #4766.
-    Fixes #4475.
-    
-    R=adonovan, cw, patrick.allen.higgins, sameer
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7516046
+    https://golang.org/cl/7424054
 
- misc/emacs/go-mode.el | 164 ++++++++++++++++++++++++--------------------------
- 1 file changed, 77 insertions(+), 87 deletions(-)
+ src/pkg/runtime/proc.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

@@ -1,41 +1,17 @@
-commit 08a073a180aacd3b17a999687ced6b54a313d842
+commit c06cf03f0bb369be7ddf0b938ea7c32a6c8351e0
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 21:49:08 2011 -0400
+Date:   Tue Nov 1 21:48:52 2011 -0400
 
-    os: use error, io.EOF
+    io: use error, add EOF, avoid os
     
-    R=r
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/5298073
+    https://golang.org/cl/5311068
 
- src/pkg/os/dir_plan9.go    | 19 +++++-----
- src/pkg/os/dir_unix.go     |  5 +--
- src/pkg/os/dir_windows.go  |  2 +-
- src/pkg/os/env_plan9.go    |  8 ++---
- src/pkg/os/env_unix.go     | 11 +++---
- src/pkg/os/env_windows.go  |  8 ++---
- src/pkg/os/error.go        | 25 +++----------
- src/pkg/os/error_plan9.go  |  6 ++--
- src/pkg/os/error_posix.go  | 88 +++++++++++++++++++++++-----------------------
- src/pkg/os/exec_plan9.go   | 22 ++++++------
- src/pkg/os/exec_posix.go   | 12 +++----
- src/pkg/os/exec_unix.go    | 13 +++----
- src/pkg/os/exec_windows.go |  8 ++---
- src/pkg/os/file.go         | 62 ++++++++++++++------------------
- src/pkg/os/file_plan9.go   | 42 +++++++++++-----------
- src/pkg/os/file_posix.go   | 40 ++++++++++-----------
- src/pkg/os/file_unix.go    | 24 ++++++-------
- src/pkg/os/file_windows.go | 25 ++++++-------
- src/pkg/os/getwd.go        |  2 +-
- src/pkg/os/os_test.go      | 26 +++++++-------
- src/pkg/os/path.go         | 10 +++---
- src/pkg/os/path_test.go    |  2 +-
- src/pkg/os/proc.go         |  2 +-
- src/pkg/os/stat_plan9.go   |  6 ++--
- src/pkg/os/stat_windows.go |  6 ++--
- src/pkg/os/sys_bsd.go      |  2 +-
- src/pkg/os/sys_linux.go    |  2 +-
- src/pkg/os/sys_plan9.go    |  2 +-
- src/pkg/os/sys_windows.go  |  2 +-
- src/pkg/os/time.go         |  4 +--
- 30 files changed, 233 insertions(+), 253 deletions(-)
+ src/pkg/io/io.go         | 102 +++++++++++++++++++++++++----------------------
+ src/pkg/io/io_test.go    |  19 +++++----
+ src/pkg/io/multi.go      |  14 +++----
+ src/pkg/io/multi_test.go |   7 ++--
+ src/pkg/io/pipe.go       |  50 +++++++++++------------
+ src/pkg/io/pipe_test.go  |  25 ++++++------
+ 6 files changed, 110 insertions(+), 107 deletions(-)

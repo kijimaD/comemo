@@ -1,0 +1,19 @@
+commit f3c69c2e784cfa8a38a83de6ee253fe4b09e5dff
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Mar 12 15:46:37 2025 +0000
+
+    cmd/go/internal/load,cmd/link/internal/ld: use objabi.LookupPkgSpecial(pkg).Runtime
+    
+    As suggested by Michael in CL 655515.
+    
+    Change-Id: Idf0b879287bd777d03443aebc7351fcb0d724885
+    GitHub-Last-Rev: 58eda020f5310f873674f56903facec4f212d6c0
+    GitHub-Pull-Request: golang/go#72806
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656856
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/load/pkg.go  |  3 ++-
+ src/cmd/link/internal/ld/data.go | 24 +-----------------------
+ 2 files changed, 3 insertions(+), 24 deletions(-)

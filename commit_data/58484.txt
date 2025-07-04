@@ -1,30 +1,23 @@
-commit d93b549f0502ad9f44b7eacc282c304b22d2603b
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 6 16:02:38 2025 -0500
+commit e8298c09b1154e3eb3560352ebbea6d11d87772e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 10 18:48:41 2023 +0000
 
-    cmd/go/internal/cache: handle cacheprog not responding to close
+    internal/trace/v2: don't enforce batch order on Ms
     
-    Allow a gocacheprog to not respond to close. The intention of the code
-    is that after we send the close message we'd ignore errors reading from
-    the cacheprog's stdout. But before this change if a cacheprog
-    did not respond to close and we got an EOF reading from the cacheprog's
-    stdout we'd just ignore all pending requests. The send operation would
-    then block forever waiting for a response. With this change, we close
-    all response channels for pending responses if there's an error reading
-    from the cacheprog's stdout while we're closing. The receives from the
-    response channels would then proceed (but now have to handle a nil
-    value). Then the send operation would return and the (*ProgCache).Close
-    function can proceed.
+    Currently the trace parser enforces that the timestamps for a series of
+    a batches on the same M come in order. We cannot actually assume this in
+    general because we don't trust timestamps. The source of truth on the
+    batch order is the order in which they were emitted. If that's wrong, it
+    should quickly become evident in the trace.
     
-    Fixes #70848
+    For #60773.
+    For #64061.
     
-    Change-Id: I6631d317ba7aea3f25f714f31cd2aeef0f4d4e3e
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640516
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: I7d5a407c9568dd1ce0b79d51b2b538ed6072b26d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541695
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/cache/prog.go                  | 22 +++++++++++++++++-
- .../testdata/script/build_cacheprog_issue70848.txt | 27 ++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 1 deletion(-)
+ src/internal/trace/v2/generation.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

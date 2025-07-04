@@ -1,38 +1,13 @@
-commit 894024f478bff096871e20b5ea7bceb64c70d33f
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Feb 20 20:07:02 2015 +0300
+commit bbd6771621247d77075cc71ad49a6a8d6cc076a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 3 14:29:03 2015 -0800
 
-    runtime: fix traceback from goexit1
+    math/big: implemented decimal rounding for Float-to-string conversion
     
-    We used to not call traceback from goexit1.
-    But now tracer does it and crashes on amd64p32:
-    
-    runtime: unexpected return pc for runtime.getg called from 0x108a4240
-    goroutine 18 [runnable, locked to thread]:
-    runtime.traceGoEnd()
-        src/runtime/trace.go:758 fp=0x10818fe0 sp=0x10818fdc
-    runtime.goexit1()
-        src/runtime/proc1.go:1540 +0x20 fp=0x10818fe8 sp=0x10818fe0
-    runtime.getg(0x0)
-        src/runtime/asm_386.s:2414 fp=0x10818fec sp=0x10818fe8
-    created by runtime/pprof_test.TestTraceStress
-        src/runtime/pprof/trace_test.go:123 +0x500
-    
-    Return PC from goexit1 points right after goexit (+0x6).
-    It happens to work most of the time somehow.
-    
-    This change fixes traceback from goexit1 by adding an additional NOP to goexit.
-    
-    Fixes #9931
-    
-    Change-Id: Ied25240a181b0a2d7bc98127b3ed9068e9a1a13e
-    Reviewed-on: https://go-review.googlesource.com/5460
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id508ca2f6c087861e8c6bc536bc39e54dce09825
+    Reviewed-on: https://go-review.googlesource.com/3840
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/asm_386.s      | 2 ++
- src/runtime/asm_amd64.s    | 2 ++
- src/runtime/asm_amd64p32.s | 2 ++
- src/runtime/asm_arm.s      | 2 ++
- src/runtime/asm_ppc64x.s   | 2 ++
- src/runtime/proc1.go       | 2 --
- 6 files changed, 10 insertions(+), 2 deletions(-)
+ src/math/big/decimal.go      | 88 ++++++++++++++++++++++++++++++++++++++------
+ src/math/big/decimal_test.go | 55 +++++++++++++++++++++++++++
+ 2 files changed, 131 insertions(+), 12 deletions(-)

@@ -1,16 +1,18 @@
-commit afaa30694c7de70ead7272392914230b76934a68
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 16 09:53:58 2011 -0700
+commit df184ff2f0a7ab5ec47a68d29738ccf3dd296fd3
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Mar 16 10:50:06 2011 -0400
 
-    testing: add -test.memprofile and -test.memprofilerate flags.
-    These allow a test to generate memory profiles automatically.
+    crypto/openpgp: add DSA signature support.
     
-    R=golang-dev, rsc1
+    R=bradfitzgo, nsz
     CC=golang-dev
-    https://golang.org/cl/4273064
+    https://golang.org/cl/4280041
 
- src/cmd/gotest/doc.go      | 20 +++++++++++++++++---
- src/pkg/gob/timing_test.go | 26 --------------------------
- src/pkg/rpc/server_test.go | 17 +----------------
- src/pkg/testing/testing.go | 37 ++++++++++++++++++++++++++++++++++---
- 4 files changed, 52 insertions(+), 48 deletions(-)
+ src/pkg/crypto/openpgp/packet/packet.go      |  8 ++-
+ src/pkg/crypto/openpgp/packet/private_key.go | 31 +++++++++-
+ src/pkg/crypto/openpgp/packet/public_key.go  | 31 ++++++----
+ src/pkg/crypto/openpgp/packet/signature.go   | 90 +++++++++++++++++++++++-----
+ src/pkg/crypto/openpgp/read_test.go          | 32 ++++++++--
+ src/pkg/crypto/openpgp/write.go              |  4 ++
+ src/pkg/crypto/openpgp/write_test.go         | 16 ++++-
+ 7 files changed, 180 insertions(+), 32 deletions(-)

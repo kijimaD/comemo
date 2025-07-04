@@ -1,25 +1,21 @@
-commit 05ff6bfe3367837a8bdf8f72ed5ceaecbbd7b5e8
-Author: Hana Kim <hakim@google.com>
-Date:   Thu Aug 24 16:32:54 2017 -0400
+commit 7a92395ddd8354e49d2a928c99027a1a321ea716
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Apr 25 19:32:48 2017 -0400
 
-    misc/trace: update trace-viewer
+    plugin: resolve plugin import path issue
     
-    Generated with
-     github.com/catapult/tracing/bin/vulcanize_trace_viewer
-    catapult @ ab4d571fa
+    Resolve import paths to get plugin symbol prefixes.
     
-    Renamed trace_viewer_lean.html to trace_viewer_full.html
-    to make it clear we are using the full version of trace viewer
-    (waiting for https://github.com/catapult-project/catapult/issues/2247
-    to be fixed).
+    Fixes #19534
     
-    Update #15302
-    
-    Change-Id: Ice808bb27ab79a1dec9fc863e0c5a761027ebfbe
-    Reviewed-on: https://go-review.googlesource.com/58750
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ic25d83e72465ba8f6be0337218a1627b5dc702dc
+    Reviewed-on: https://go-review.googlesource.com/40994
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- misc/trace/trace_viewer_full.html | 9525 +++++++++++++++++++++++++++++++++++++
- misc/trace/trace_viewer_lean.html | 7758 ------------------------------
- src/cmd/trace/trace.go            |    2 +-
- 3 files changed, 9526 insertions(+), 7759 deletions(-)
+ misc/cgo/testplugin/src/issue19534/main.go   | 23 +++++++++++++++
+ misc/cgo/testplugin/src/issue19534/plugin.go |  9 ++++++
+ misc/cgo/testplugin/test.bash                |  8 +++++-
+ src/plugin/plugin_dlopen.go                  | 43 +++++++++++++++++++++++++++-
+ 4 files changed, 81 insertions(+), 2 deletions(-)

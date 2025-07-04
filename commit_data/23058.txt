@@ -1,12 +1,15 @@
-commit 6e8bcbbe8987d9b06ef2c349913cde11e6dd8339
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 15 16:11:25 2015 -0400
+commit 72e867ed8ef16dfefbd83d948ce34f19489eb976
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Apr 17 16:48:55 2015 +1000
 
-    cmd/internal/gc: refine ginscmp comment
+    image/jpeg: ensure that we can't unread a byte if we didn't read a byte.
     
-    Change-Id: I2ebb36c6c5de9d34e52ed523e9c888452591924a
-    Reviewed-on: https://go-review.googlesource.com/10152
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #10413
+    
+    Change-Id: I7a4ecd042c40f786ea7406c670d561b1c1179bf0
+    Reviewed-on: https://go-review.googlesource.com/8998
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/go.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/image/jpeg/reader.go      |  5 ++--
+ src/image/jpeg/reader_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 2 deletions(-)

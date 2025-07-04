@@ -1,15 +1,12 @@
-commit 600de1fb3db279be87f4b9fab0a09463fe1568e1
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Nov 3 00:26:36 2012 +0400
+commit d5449eafb95cf6b622ad7f569c88e596f9a710a3
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Sat Nov 3 02:13:51 2012 +0800
 
-    net/http: fix data race in test
-    The issue is that server still sends body,
-    when client closes the fd.
-    Fixes #4329.
+    misc/benchcmp: show memory statistics, when available
     
-    R=golang-dev, dave, rsc
+    R=minux.ma, dave, extraterrestrial.neighbour, rsc
     CC=golang-dev
-    https://golang.org/cl/6822072
+    https://golang.org/cl/6587069
 
- src/pkg/net/http/fs_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ misc/benchcmp | 36 ++++++++++++++++++++++++++++++++++--
+ 1 file changed, 34 insertions(+), 2 deletions(-)

@@ -1,45 +1,18 @@
-commit 9248ff46a82aec26164a775f3eba43e3fcfb5651
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Apr 18 17:05:31 2017 -0400
+commit 57d06fff3e7e020510fe9460ccfa247370c472ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 7 10:29:32 2017 -0500
 
-    cmd/compile: add rotates to PPC64.rules
+    cmd/go, go/build: better defenses against GOPATH=GOROOT
     
-    This updates PPC64.rules to include rules to generate rotates
-    for ADD, OR, XOR operators that combine two opposite shifts
-    that sum to 32 or 64.
+    Fixes #18863.
     
-    To support this change opcodes for ROTL and ROTLW were added to
-    be used like the rotldi and rotlwi extended mnemonics.
-    
-    This provides the following improvement in sha3:
-    
-    BenchmarkPermutationFunction-8     302.83       376.40       1.24x
-    BenchmarkSha3_512_MTU-8            98.64        121.92       1.24x
-    BenchmarkSha3_384_MTU-8            136.80       168.30       1.23x
-    BenchmarkSha3_256_MTU-8            169.21       211.29       1.25x
-    BenchmarkSha3_224_MTU-8            179.76       221.19       1.23x
-    BenchmarkShake128_MTU-8            212.87       263.23       1.24x
-    BenchmarkShake256_MTU-8            196.62       245.60       1.25x
-    BenchmarkShake256_16x-8            163.57       194.37       1.19x
-    BenchmarkShake256_1MiB-8           199.02       248.74       1.25x
-    BenchmarkSha3_512_1MiB-8           106.55       133.13       1.25x
-    
-    Fixes #20030
-    
-    Change-Id: I484c56f48395d32f53ff3ecb3ac6cb8191cfee44
-    Reviewed-on: https://go-review.googlesource.com/40992
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0723563cd23728b0d43ebcc25979bf8d21e2a72c
+    Reviewed-on: https://go-review.googlesource.com/36427
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s    |  20 ++
- src/cmd/compile/internal/gc/asm_test.go      |  48 +++++
- src/cmd/compile/internal/ppc64/ssa.go        |   8 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules |   9 +
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   3 +
- src/cmd/compile/internal/ssa/opGen.go        |  30 +++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 312 +++++++++++++++++++++++++++
- src/cmd/internal/obj/ppc64/a.out.go          |   2 +
- src/cmd/internal/obj/ppc64/anames.go         |   2 +
- src/cmd/internal/obj/ppc64/asm9.go           |  50 +++--
- 10 files changed, 463 insertions(+), 21 deletions(-)
+ src/cmd/go/go_test.go          | 198 ++++++++++++++---------------------------
+ src/cmd/go/internal/get/get.go |   2 +-
+ src/cmd/go/main.go             |   2 +-
+ src/go/build/build.go          |   2 +-
+ 4 files changed, 71 insertions(+), 133 deletions(-)

@@ -1,21 +1,14 @@
-commit 472354f81e6c413508b3f2f43c0f321c4500bacd
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 4 00:00:55 2013 -0500
+commit 5fad7864521805c31d725ab156d02ac633610367
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 4 15:57:32 2013 +1100
 
-    runtime/debug: add controls for garbage collector
+    regexp: update comment on (*Regexp).Longest
     
-    Fixes #4090.
+    Missed this review comment.
     
-    R=golang-dev, iant, bradfitz, dsymonds
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7229070
+    https://golang.org/cl/7229084
 
- src/pkg/go/build/deps_test.go         |   2 +-
- src/pkg/runtime/debug/debug.c         |   9 +++
- src/pkg/runtime/debug/garbage.go      | 101 ++++++++++++++++++++++++++++++++++
- src/pkg/runtime/debug/garbage_test.go |  98 +++++++++++++++++++++++++++++++++
- src/pkg/runtime/debug/stack_test.go   |   3 +-
- src/pkg/runtime/malloc.h              |   4 +-
- src/pkg/runtime/mgc0.c                |  72 +++++++++++++++++++++---
- src/pkg/runtime/mheap.c               |  70 ++++++++++++++++-------
- 8 files changed, 325 insertions(+), 34 deletions(-)
+ src/pkg/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

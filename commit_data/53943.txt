@@ -1,25 +1,35 @@
-commit 2d5ce9b729c0edded841301bd73d68d5e95aa28b
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Aug 7 15:57:54 2023 -0700
+commit e20106ac001a58e273738cb24ea61096384dc2f8
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 22 18:19:24 2022 -0700
 
-    net/http: sanitize User-Agent header in request writer
+    time: optimize FixedZone by caching unnamed zones by the hour
     
-    Apply the same transformations to the User-Agent header value that we
-    do to other headers.
+    FixedZone is transitively called by Time.UnmarshalJSON or Time.UnmarshalText
+    for any RFC 3339 timestamp that is not in UTC.
+    This function is relatively slow since it allocates 3 times.
     
-    Avoids header and request smuggling in Request.Write and
-    Request.WriteProxy. RoundTrip already validates values in
-    Request.Header, and didn't allow bad User-Agent values to
-    make it as far as the request writer.
+    Given that RFC 3339 never has a zone name and most offsets are by the hour,
+    we can cache unnamed zones on hour offsets.
+    Caching a Location should be safe since it has no exported fields or methods
+    that can mutate the Location. It is functionally immutable.
     
-    Fixes #61824
+    The only way to observe that the Location was cached is either
+    by pointer comparison or by shallow copying the struct value.
+    Neither operation seems sensible to do with a *time.Location.
     
-    Change-Id: I360a915c7e08d014e0532bd5af196a5b59c89395
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516836
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Performance:
+    
+            name           old time/op  new time/op  delta
+            UnmarshalText  268ns ± 2%   182ns ± 1%  -32.01%  (p=0.000 n=10+10)
+    
+    Change-Id: Iab5432f34bdbb485512bb8b5464e076c03fd106f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425116
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/request.go      |  2 ++
- src/net/http/request_test.go | 19 +++++++++++++++++++
- 2 files changed, 21 insertions(+)
+ src/time/time_test.go |  8 ++++++++
+ src/time/zoneinfo.go  | 21 +++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

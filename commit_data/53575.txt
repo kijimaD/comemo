@@ -1,34 +1,21 @@
-commit 6dc2d2aa6b9cbab9dc190276cb5a77b4b4a91cd3
-Author: Achille Roussel <achille.roussel@gmail.com>
-Date:   Tue Jun 13 21:39:54 2023 -0700
+commit 42794f3871c35d1b3837f78f29d781b6ab1c1a64
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 22 16:14:34 2022 -0400
 
-    testing/fstest: fix the Glob test when dir entries are out of order
+    runtime: move traceStackTable.lock to the system stack
     
-    This change adds a test highlighting an issue with the fstest.TestFS
-    test suite which occurred when the fs.FS implementation would expose
-    directories returning unordered directory entries from their ReadDir
-    method.
+    This lock is acquired under trace.lock, which as of CL 418956
+    (6c2e327e35b) must be acquired on the system stack, so this lock must
+    be, too.
     
-    --- FAIL: TestShuffledFS (0.00s)
-        testfs_test.go:76: testing fs.Sub(fsys, tmp): TestFS found errors:
-            .: Glob(`*e*`): wrong output:
-            extra: one
-            missing: one
+    Fixes #54553.
     
-    The issue came from having the wrong variable passed to the checkGlob
-    method. There are two variables named list and list2, the latter is
-    sorted, and the checkGlob method expects a sorted list but was passed
-    list instead of list2.
-    
-    Change-Id: I5e49dccf14077e7d1fee51687eb6a5eeb0330c16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503175
+    Change-Id: I4fb0c0c2dfc3cb94b76673e842ad416305a31238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425097
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/testing/fstest/testfs.go      |  2 +-
- src/testing/fstest/testfs_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ src/runtime/trace.go | 45 +++++++++++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 20 deletions(-)

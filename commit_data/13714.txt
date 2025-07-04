@@ -1,17 +1,22 @@
-commit e29659b3c30a79cdbd61ac6b68d5cead57ef2de7
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 31 12:16:31 2012 -0400
+commit d073677569085642935d5d3b6acfe6df1054ae21
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Aug 31 20:17:59 2012 +1000
 
-    net/http: add (*ServeMux).Handler method
+    cgo/misc/test: burn CPU to improve sleep accuracy
     
-    The Handler method makes the ServeMux dispatch logic
-    available to wrappers that enforce additional constraints
-    on requests.
+    Fixes #4008.
     
-    R=golang-dev, bradfitz, dsymonds
+    Run a background goroutine that wastes CPU to trick the
+    power management into raising the CPU frequency which,
+    by side effect, makes sleep more accurate on arm.
+    
+    === RUN TestParallelSleep
+    --- PASS: TestParallelSleep (1.30 seconds)
+    _cgo_gotypes.go:772:    sleep(1) slept for 1.000458s
+    
+    R=minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/6450165
+    https://golang.org/cl/6498060
 
- src/pkg/net/http/server.go      | 58 ++++++++++++++++---------
- src/pkg/net/http/server_test.go | 95 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 133 insertions(+), 20 deletions(-)
+ misc/cgo/test/issue1560.go | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)

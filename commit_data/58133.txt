@@ -1,25 +1,18 @@
-commit 5610e05936a87744e0ca2b244c92d24f789a8aed
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jul 26 23:34:12 2024 +0200
+commit 3a69dcdc9f487f79fdce82536c97b49ba7f216c7
+Author: edef <edef@edef.eu>
+Date:   Sat Dec 3 00:09:22 2022 +0000
 
-    crypto/internal/nistec: use mixed addition in purego ScalarBaseMult
+    net/http/cgi: set SERVER_PORT to 443 when req.TLS != nil
     
-    The affine addition formula is significantly faster, and sets us up to
-    reuse the precomputed table from the assembly implementation.
+    A hostname without a port leaves the port implied by the protocol.
+    For HTTPS, the implied port is 443, not 80.
     
-    This is an incremental step towards converging the purego and assembly
-    implementations, with the goal of eventually merging them.
-    
-    Very proud of how the conditional AddAffine avoids the whole zero/sel
-    cmov dance, compared to the same logic in the assembly implementation.
-    
-    Change-Id: Iab008e81869cf8c1565b938e4dd392dd4d5787fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627938
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Change-Id: I873a076068f84c8041abf10a435d9499635730a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454975
+    Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/crypto/internal/nistec/p256.go | 101 ++++++++++++++++++++++++++++++++-----
- 1 file changed, 89 insertions(+), 12 deletions(-)
+ src/net/http/cgi/host.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,25 +1,35 @@
-commit 827584e2f3a76c6a94447197fc6dcb8152382369
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue Sep 17 07:49:47 2019 +0000
+commit 3ebb1ad9cddf4711d4b0f44c24da1ceac3d9e069
+Author: Austin Clements <austin@google.com>
+Date:   Sun Dec 30 19:47:27 2018 -0500
 
-    runtime: check for nil g in msancall() on arm64
+    runtime: ring buffer for binary debug logging
     
-    The current msanwrite() segfaults during libpreinit
-    when built with -msan on arm64. The cause is msancall()
-    in runtime/msan_arm64.s called by msanwrite() assumes
-    that it is always called with a valid g, leading to a
-    segfult.
+    This adds an internal runtime debug log. It uses per-M time-stamped
+    ring buffers of binary log records. On panic, these buffers are
+    collected, interleaved, and printed.
     
-    This CL adds a check for nil g in msancall().
+    The entry-point to the debug log is a new "dlog" function. dlog is
+    designed so it can be used even from very constrained corners of the
+    runtime such as signal handlers or inside the write barrier.
     
-    Fixes #34338
+    The facility is only enabled if the debuglog build tag is set.
+    Otherwise, it compiles away to a no-op implementation.
     
-    Change-Id: If4ad7e37556cd1d99346c1a7b4852651d1e4e4aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196157
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    The debug log format is also designed so it would be reasonable to
+    decode from a core dump, though this hasn't been implemented.
+    
+    Change-Id: I6e2737c286358e97a0d8091826498070b95b66a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/157997
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/msan_arm64.s | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/debuglog.go             | 808 ++++++++++++++++++++++++++++++++++++
+ src/runtime/debuglog_off.go         |  19 +
+ src/runtime/debuglog_on.go          |  45 ++
+ src/runtime/debuglog_test.go        | 158 +++++++
+ src/runtime/export_debuglog_test.go |  46 ++
+ src/runtime/panic.go                |   2 +
+ src/runtime/runtime2.go             |   2 +
+ src/runtime/signal_sighandler.go    |   2 +
+ 8 files changed, 1082 insertions(+)

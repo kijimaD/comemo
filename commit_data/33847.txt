@@ -1,39 +1,21 @@
-commit a9410281c2bcf7f56e6fd4bb409559ae362fe8c6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 8 06:40:43 2017 -0800
+commit 7377d0c7e972397969382315df915579e32db025
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Sep 12 16:32:33 2017 +0200
 
-    net: calling File disables the SetDeadline methods
+    go/*: use sort.Slice to simplify some code
     
-    This essentially applies https://golang.org/cl/81636 to the net package.
+    Skip the ones that have multiple uses for now. Also had to rename the
+    importComment variable as it shadowed the top-level func by the same
+    name.
     
-    The full truth seems too complicated to write in this method's doc, so
-    I'm going with a simple half truth.
-    
-    The full truth is that File returns the descriptor in blocking mode,
-    because that is historically how it worked, and existing programs
-    would be surprised if the descriptor is suddenly non-blocking. On Unix
-    systems whether a socket is non-blocking or not is a property of the
-    underlying file description, not of a particular file descriptor, so
-    changing the returned descriptor to blocking mode also changes the
-    existing socket to blocking mode. Blocking mode works fine, althoug I/O
-    operations now take up a thread. SetDeadline and friends rely on the
-    runtime poller, and the runtime poller only works if the descriptor is
-    non-blocking. So it's correct that calling File disables SetDeadline.
-    The other half of the truth is that if the program is willing to work
-    with a non-blocking descriptor, it could call
-    syscall.SetNonblock(f.Fd(), true) to change the descriptor, and
-    the original socket, to non-blocking mode. At that point SetDeadline
-    would start working again. I tried to write that in a way that is
-    short and comprehensible but failed. Since we now have the RawConn
-    approach to frobbing the descriptor, and hopefully most people can use
-    that rather than calling File, I decided to punt.
-    
-    Updates #22934
-    Fixes #21862
-    
-    Change-Id: If269da762f6f5a88c334e7b6d6f3998f7e10b11e
-    Reviewed-on: https://go-review.googlesource.com/82915
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I796285aa7b4fdf2c39e652666390427d37b063ee
+    Reviewed-on: https://go-review.googlesource.com/63150
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/net.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/go/ast/import.go      | 48 +++++++++++++++++++----------------------------
+ src/go/doc/example.go     | 11 ++++-------
+ src/go/types/methodset.go | 12 ++++--------
+ 3 files changed, 27 insertions(+), 44 deletions(-)

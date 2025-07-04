@@ -1,32 +1,19 @@
-commit ef3171c5eb4bc22b79690afb36bbb1e681473ea0
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Mon Oct 2 16:24:26 2023 +0000
+commit 1bfb51f8f79acc13ff1c79576bf0a340d4d6706e
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Nov 3 03:46:23 2022 +0000
 
-    net: handle the network parameter properly in LookupPort
+    all: fix a few function names on comments
     
-    The cgo version (unix) is populating the GetAddrInfo hints
-    based on the network parameter, but windows not quite.
-    
-    This change populates the hints the same way as the
-    cgo unix version does now.
-    
-    This bug was spotted by Bryan in CL 530415.
-    https://go-review.googlesource.com/c/go/+/530415/comment/76640dc7_ed0409ca/
-    
-    Change-Id: I6fc29b1e4cdc879123ab0f5a624b6f37c68c00ba
-    GitHub-Last-Rev: eaa616378b3fa9a5a72192f3d501c591804f45d8
-    GitHub-Pull-Request: golang/go#63284
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531635
+    Change-Id: Ida7e756f01a2c115ac58bf10aa13b2f8fd57b6a1
+    GitHub-Last-Rev: 4694d397bd3ad488fd05ed2cc6ad97909f09e707
+    GitHub-Pull-Request: golang/go#56537
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447436
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/net/cgo_unix.go       |  2 +-
- src/net/lookup.go         | 51 ++++++++++++++++++++++---------------
- src/net/lookup_plan9.go   | 28 ++++++++++++++-------
- src/net/lookup_test.go    | 64 ++++++++++++++++++++++++++++++++++++++++++++---
- src/net/lookup_windows.go | 28 ++++++++++++++-------
- 5 files changed, 130 insertions(+), 43 deletions(-)
+ src/go/printer/printer.go | 2 +-
+ src/image/format.go       | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

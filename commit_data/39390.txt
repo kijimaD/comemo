@@ -1,14 +1,26 @@
-commit bc27b64dba0ac74cd084d5331862d8fbf587c262
-Author: Steve Mynott <steve.mynott@gmail.com>
-Date:   Mon Jun 17 21:05:23 2019 +0000
+commit a73abca37bcdc4016ccf98754c68f21e7abc8c0e
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Wed Feb 13 13:18:17 2019 -0700
 
-    doc: remove a Google+ link since it doesn't exist anymore
+    math/big: handle alias of cofactor inputs in GCD
     
-    Change-Id: I692229a5597a6114a7f4261f7b59c58bf20f3e2b
-    GitHub-Last-Rev: ab173354caa63345d38a625705aea0c660cfdb9b
-    GitHub-Pull-Request: golang/go#32660
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182677
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    If the variables passed in to the cofactor arguments of GCD (x, y)
+    aliased the input arguments (a, b), the previous implementation would
+    result in incorrect results for y.  This change reorganizes the calculation
+    so that the only case that need to be handled is when y aliases b, which
+    can be handled with a simple check.
+    
+    Tests were added for all of the alias cases for input arguments and and
+    and irrelevant test case for a previous binary GCD calculation was dropped.
+    
+    Fixes #30217
+    
+    Change-Id: Ibe6137f09b3e1ae3c29e3c97aba85b67f33dc169
+    Reviewed-on: https://go-review.googlesource.com/c/162517
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/help.html | 3 ---
- 1 file changed, 3 deletions(-)
+ src/math/big/int.go      | 18 ++++++++++++------
+ src/math/big/int_test.go | 41 ++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 50 insertions(+), 9 deletions(-)

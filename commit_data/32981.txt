@@ -1,15 +1,12 @@
-commit 9005b220e495ee260230ccf00e54e85abd6df808
-Author: Jeff <jeffreyh192@gmail.com>
-Date:   Thu Oct 5 10:11:17 2017 -0700
+commit 4b4bb53bf33d77bf3e66ddb670bcc2501139eb2a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jun 21 17:17:22 2017 +0200
 
-    net/smtp: NewClient: set tls field to true when already using a TLS connection
+    sync: make clear that WaitGroup.Done decrements by one
     
-    Change-Id: I34008f56c191df0edcaafc20d569bbc6184f89fc
-    Reviewed-on: https://go-review.googlesource.com/68470
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ief076151739147378f8ca35cd09aabb59c3c9a52
+    Reviewed-on: https://go-review.googlesource.com/46350
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/smtp/smtp.go      |  1 +
- src/net/smtp/smtp_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ src/sync/waitgroup.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

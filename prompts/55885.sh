@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 55885: f82a3616a9fbf593ee40a956b3c7f8d85e81a12f
+# Index 55885: efaca3170fc6d363704153586c7ad94255bf02c6
 
 echo "🚀 Generating explanation for commit 55885..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 55885
-- **コミットハッシュ**: f82a3616a9fbf593ee40a956b3c7f8d85e81a12f
-- **GitHub URL**: https://github.com/golang/go/commit/f82a3616a9fbf593ee40a956b3c7f8d85e81a12f
+- **コミットハッシュ**: efaca3170fc6d363704153586c7ad94255bf02c6
+- **GitHub URL**: https://github.com/golang/go/commit/efaca3170fc6d363704153586c7ad94255bf02c6
 
 ### 章構成
 

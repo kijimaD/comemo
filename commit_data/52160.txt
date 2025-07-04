@@ -1,17 +1,18 @@
-commit e2f2123e256094c64377008c17ca20538c4742d8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 18:55:11 2023 -0800
+commit 11c450fa58b1aa712d7202d71285ae1b0612d201
+Author: yangwenmai <yangwen.yw@gmail.com>
+Date:   Sun Apr 10 16:04:22 2022 +0800
 
-    go/types, types2: simplify unification with constraints
+    A+C: add Wen Yang (individual CLA)
     
-    Change-Id: I399f0ac12e65713f3018a89da55ecd3cdb855c50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471017
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: Iaac18d78b4a11698d0b5f70b1d5143c0da8a6943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399299
+    Reviewed-by: mzh <mzh@golangcn.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/infer.go | 20 ++++++++++----------
- src/go/types/infer.go                    | 20 ++++++++++----------
- 2 files changed, 20 insertions(+), 20 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

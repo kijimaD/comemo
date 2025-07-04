@@ -1,21 +1,21 @@
-commit 20692c22d7407125dba801dadee7413c6bc6b0a6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Aug 30 09:28:26 2013 +0900
+commit 4572e4848364b6098b565a2ef480e9b4e8ff5977
+Author: Tad Glines <tad.glines@gmail.com>
+Date:   Thu Aug 29 17:20:39 2013 -0700
 
-    net: add addrList
+    database/sql: add SetMaxOpenConns
     
-    This CL adds a new type addrList that will carry a short list of IP
-    addresses to dial helper functions in the upcoming CLs.
+    Update #4805
     
-    This is in preparation for TCP connection setup with fast failover on
-    dual IP stack node as described in RFC 6555.
+    Add the ability to set an open connection limit.
+    Fixed case where the Conn finalCloser was being called with db.mu locked.
+    Added seperate benchmarks for each path for Exec and Query.
+    Replaced slice based idle pool with list based idle pool.
     
-    Update #3610
-    Update #5267
-    
-    R=golang-dev, bradfitz
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/13241046
+    https://golang.org/cl/10726044
 
- src/pkg/net/ipsock.go | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/pkg/database/sql/fakedb_test.go |  28 +-
+ src/pkg/database/sql/sql.go         | 261 +++++++++++++---
+ src/pkg/database/sql/sql_test.go    | 594 ++++++++++++++++++++++++++++++++++--
+ 3 files changed, 813 insertions(+), 70 deletions(-)

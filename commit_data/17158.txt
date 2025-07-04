@@ -1,37 +1,26 @@
-commit 8b789e17381f8c609cee24aad9c42e0f02ee6310
+commit db324ccd72c93d34effa24e6f1a2a12c0cd39f04
 Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 12 10:25:36 2013 -0700
+Date:   Mon Aug 12 10:24:30 2013 -0700
 
-    all: change textflags from numbers to symbols.
+    syscall: Convert textflags from numbers to symbols.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12774043
+    https://golang.org/cl/12773043
 
- src/pkg/crypto/aes/asm_amd64.s        | 20 ++++++------
- src/pkg/crypto/md5/md5block_386.s     |  4 ++-
- src/pkg/crypto/md5/md5block_amd64.s   |  4 ++-
- src/pkg/crypto/md5/md5block_arm.s     |  4 ++-
- src/pkg/crypto/rc4/rc4_386.s          |  4 ++-
- src/pkg/crypto/rc4/rc4_amd64.s        |  4 ++-
- src/pkg/crypto/rc4/rc4_arm.s          |  4 ++-
- src/pkg/crypto/sha1/sha1block_386.s   |  4 ++-
- src/pkg/crypto/sha1/sha1block_amd64.s |  4 ++-
- src/pkg/hash/crc32/crc32_amd64.s      |  6 ++--
- src/pkg/math/big/arith_386.s          | 26 ++++++++--------
- src/pkg/math/big/arith_amd64.s        | 26 ++++++++--------
- src/pkg/math/big/arith_arm.s          | 26 ++++++++--------
- src/pkg/os/signal/sig.s               |  8 +++--
- src/pkg/reflect/asm_386.s             |  6 ++--
- src/pkg/reflect/asm_amd64.s           |  6 ++--
- src/pkg/reflect/asm_arm.s             |  6 ++--
- src/pkg/runtime/cgo/asm_386.s         |  4 ++-
- src/pkg/runtime/cgo/asm_amd64.s       |  4 ++-
- src/pkg/runtime/cgo/asm_arm.s         |  4 ++-
- src/pkg/sync/atomic/asm_386.s         | 48 +++++++++++++++--------------
- src/pkg/sync/atomic/asm_amd64.s       | 48 +++++++++++++++--------------
- src/pkg/sync/atomic/asm_arm.s         | 20 ++++++------
- src/pkg/sync/atomic/asm_freebsd_arm.s | 48 +++++++++++++++--------------
- src/pkg/sync/atomic/asm_linux_arm.s   | 58 ++++++++++++++++++-----------------
- src/pkg/sync/atomic/asm_netbsd_arm.s  | 48 +++++++++++++++--------------
- 26 files changed, 248 insertions(+), 196 deletions(-)
+ src/pkg/syscall/asm_darwin_386.s    | 12 +++++++-----
+ src/pkg/syscall/asm_darwin_amd64.s  | 10 ++++++----
+ src/pkg/syscall/asm_freebsd_386.s   | 12 +++++++-----
+ src/pkg/syscall/asm_freebsd_amd64.s | 12 +++++++-----
+ src/pkg/syscall/asm_freebsd_arm.s   | 12 +++++++-----
+ src/pkg/syscall/asm_linux_386.s     | 16 +++++++++-------
+ src/pkg/syscall/asm_linux_amd64.s   | 14 ++++++++------
+ src/pkg/syscall/asm_linux_arm.s     | 12 +++++++-----
+ src/pkg/syscall/asm_netbsd_386.s    | 12 +++++++-----
+ src/pkg/syscall/asm_netbsd_amd64.s  | 12 +++++++-----
+ src/pkg/syscall/asm_netbsd_arm.s    | 12 +++++++-----
+ src/pkg/syscall/asm_openbsd_386.s   | 12 +++++++-----
+ src/pkg/syscall/asm_openbsd_amd64.s | 12 +++++++-----
+ src/pkg/syscall/asm_plan9_386.s     | 14 ++++++++------
+ src/pkg/syscall/asm_plan9_amd64.s   | 14 ++++++++------
+ 15 files changed, 109 insertions(+), 79 deletions(-)

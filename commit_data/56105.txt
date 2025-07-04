@@ -1,41 +1,24 @@
-commit 88b1d6115a9d984780391f11523364dbd509ae14
-Author: Shengyu Zhang <i@silverrainz.me>
-Date:   Sat Mar 30 03:56:30 2024 +0000
+commit 7275b17ebf147bc399e129b1605138b5ce166b7d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Apr 7 21:13:30 2023 -0400
 
-    encoding/json: prevent duplicate slicebytetostring
+    cmd/go: localize computation of deps/depserrors in list
     
-    When storing literal to JSON number v, if s is valid number, the slicebytetostring operation will be performed twice. In fact, the operation is unavoidable on any code path, so just perform it at the very beginning.
+    Stop depending on DepsErrors to report errors to the user and instead
+    only use it and compute it in list. Instead, use Incomplete to figure
+    out when a package or its depencies have an error, and only if they
+    do, do the work of finding all those errors.
     
-    This is not a big optimization, but better than nothing:
+    For #59157
     
-        $ ../bin/go test ./encoding/json/ -bench UnmarshalNumber -run NOTEST -benchtime 10000000x -count 16  > old.txt
-        $ ../bin/go test ./encoding/json/ -bench UnmarshalNumber -run NOTEST -benchtime 10000000x -count 16  > new.txt
-        $ benchstat old.txt new.txt
-                          │   old.txt   │              new.txt               │
-                          │   sec/op    │   sec/op     vs base               │
-        UnmarshalNumber-8   234.5n ± 3%   228.2n ± 4%  -2.67% (p=0.033 n=16)
-    
-                          │  old.txt   │            new.txt             │
-                          │    B/op    │    B/op     vs base            │
-        UnmarshalNumber-8   168.0 ± 0%   168.0 ± 0%  ~ (p=1.000 n=16) ¹
-        ¹ all samples are equal
-    
-                          │  old.txt   │            new.txt             │
-                          │ allocs/op  │ allocs/op   vs base            │
-        UnmarshalNumber-8   2.000 ± 0%   2.000 ± 0%  ~ (p=1.000 n=16) ¹
-        ¹ all samples are equal
-    
-    Change-Id: I1dfdb1ed0883e385f753b2046b7f047c792aa4e3
-    GitHub-Last-Rev: d236dd7265f110dbb6e0b9b0a824aab9ba7c36be
-    GitHub-Pull-Request: golang/go#61242
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508556
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ied927f53e7b1f66fad9248b40dd11ed960b3ef91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483495
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/encoding/json/bench_test.go | 11 +++++++++++
- src/encoding/json/decode.go     |  5 +++--
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/list/list.go | 84 +++++++++++++++++++++++++++------------
+ src/cmd/go/internal/load/pkg.go  | 85 +++++++++-------------------------------
+ src/cmd/go/internal/load/test.go | 42 +++++++++++++-------
+ 3 files changed, 104 insertions(+), 107 deletions(-)

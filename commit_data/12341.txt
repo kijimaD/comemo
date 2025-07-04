@@ -1,12 +1,14 @@
-commit 664481eb6b3e1237a6fcca590326203985a2db5c
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Mar 3 00:12:40 2012 +0100
+commit 95d7d3d658989cb2af98f753b9731a4af3e363be
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 3 09:36:09 2012 +1100
 
-    misc: add zsh completion for go tool.
+    doc/install-source.html: update for go tool
+    Make some updates, get rid of mentions of make.
+    There remain a number of open questions.
     
-    R=golang-dev, minux.ma, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5699079
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5720057
 
- misc/zsh/go | 137 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 137 insertions(+)
+ doc/install-source.html | 104 ++++++++++++++++++++++--------------------------
+ 1 file changed, 48 insertions(+), 56 deletions(-)

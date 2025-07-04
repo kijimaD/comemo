@@ -1,15 +1,17 @@
-commit ecac3512e5454bc8d778a07d641e11579e9d7a4b
-Author: nimelehin <nimelehin@gmail.com>
-Date:   Fri Sep 24 21:11:21 2021 +0300
+commit ff196c3e84b7e8d47285a0833d0458db3286f8ec
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 15 15:23:23 2021 +0100
 
-    cmd/compile: clean up remnants of amd64p32 in OnesCount
+    crypto/x509: update iOS bundled roots to version 55188.40.9
     
-    Change-Id: Ie90d8dd3f644a96cda706c6a5286e99042e070bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352129
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: David Chase <drchase@google.com>
+    Updates #38843
+    
+    Change-Id: If76844e1caf23f98d814de89f77610de59d96a34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284134
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
+ src/crypto/x509/root.go     |   6 +-
+ src/crypto/x509/root_ios.go | 280 +-------------------------------------------
+ 2 files changed, 6 insertions(+), 280 deletions(-)

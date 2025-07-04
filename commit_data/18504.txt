@@ -1,14 +1,15 @@
-commit 9abe6d9dd0ee46b696f8c261417444777af19f6e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Feb 13 15:56:48 2014 -0500
+commit e8ecd9f67ad32008c973bba38b505d53373953e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 14:31:48 2014 -0500
 
-    crypto/rsa: explain random parameter for GenerateKey and GenerateMultiPrimeKey.
-    Fixes #6850.
+    runtime: update malloc comment for MSpan.needzero
     
-    LGTM=agl
-    R=golang-codereviews, agl
+    Missed this suggestion in CL 57680046.
+    
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/60500046
+    https://golang.org/cl/63390043
 
- src/pkg/crypto/rsa/rsa.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/pkg/runtime/malloc.h | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

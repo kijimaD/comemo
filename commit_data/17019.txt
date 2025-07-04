@@ -1,15 +1,18 @@
-commit 49217cf5fd35e17b1e0b97a5eaad968402dc505d
+commit 77f21eea597f374e025497c167caccfd72864e13
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Aug 4 23:32:40 2013 +0400
+Date:   Sun Aug 4 23:31:23 2013 +0400
 
-    runtime: remove unused scheduler knob
-    Blockingsyscall was used in net package on windows,
-    it's not used anymore.
+    net: fix concurrent Accept on windows
+    Runtime netpoll supports at most one read waiter
+    and at most one write waiter. It's responsibility
+    of net package to ensure that. Currently windows
+    implementation allows more than one waiter in Accept.
+    It leads to "fatal error: netpollblock: double wait".
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12436043
+    https://golang.org/cl/12400045
 
- src/pkg/runtime/cgocall.c | 15 +--------------
- src/pkg/runtime/runtime.h |  2 --
- 2 files changed, 1 insertion(+), 16 deletions(-)
+ src/pkg/net/fd_windows.go |  2 ++
+ src/pkg/net/tcp_test.go   | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

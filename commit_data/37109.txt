@@ -1,25 +1,34 @@
-commit f98ac8519257f8e4d2e886b84ccab628eeb61244
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Thu Oct 25 11:32:35 2018 +0200
+commit a79fe5354fad08086c0a2018661f06a5f2e6eaa3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 28 21:01:45 2018 +0000
 
-    syscall: fix TestForeground for AIX
+    net/http: make Server.Shutdown treat new connections as idle after 5 seconds
     
-    On AIX, sys.Pgid must be a int32 and not a int64 as on Solaris for ioctl
-    syscall.
-    Pid_t type can be used to provide the same code in both OS. But pid_t
-    must be added to ztypes_solaris_amd64.go.
+    The Server distinguishes "new" vs "idle" connections. A TCP connection
+    from which no bytes have yet been written is "new". A connection that
+    has previously served a request and is in "keep-alive" state while
+    waiting for a second or further request is "idle".
     
-    Change-Id: I1dbe57f099f9e5ac9491aaf246a521137eea5014
-    Reviewed-on: https://go-review.googlesource.com/c/144539
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The graceful Server.Shutdown historically only shut down "idle"
+    connections, with the assumption that a "new" connection was about to
+    read its request and would then shut down on its own afterwards.
+    
+    But apparently some clients spin up connections and don't end up using
+    them, so we have something that's "new" to us, but browsers or other
+    clients are treating as "idle" to them.
+    
+    This CL tweaks our heuristic to treat a StateNew connection as
+    StateIdle if it's been stuck in StateNew for over 5 seconds.
+    
+    Fixes #22682
+    
+    Change-Id: I01ba59a6ab67755ca5ab567041b1f54aa7b7da6f
+    Reviewed-on: https://go-review.googlesource.com/121419
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_libc.go            | 4 ++--
- src/syscall/syscall_aix.go          | 6 +++---
- src/syscall/types_aix.go            | 2 +-
- src/syscall/types_solaris.go        | 2 ++
- src/syscall/zsyscall_aix_ppc64.go   | 4 ++--
- src/syscall/ztypes_aix_ppc64.go     | 2 +-
- src/syscall/ztypes_solaris_amd64.go | 2 ++
- 7 files changed, 13 insertions(+), 9 deletions(-)
+ src/net/http/export_test.go |  4 +--
+ src/net/http/serve_test.go  | 59 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go      | 32 ++++++++++++++----------
+ 3 files changed, 80 insertions(+), 15 deletions(-)

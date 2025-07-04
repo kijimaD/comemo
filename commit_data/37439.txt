@@ -1,20 +1,12 @@
-commit 3c92bdc7db3ebf062adc9287743d74e60ba5bb03
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Nov 19 14:18:04 2018 +0000
+commit ce06f5a222b48fd16461730c4b0dcb75b005609f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 25 17:00:40 2018 +0000
 
-    cmd/vendor: update to golang.org/x/tools@139d099f
+    doc/go1.11: mention ReverseProxy passing TE: trailers headers to backend
     
-    Mainly to pull the fix for the regression in #28792.
-    
-    Change-Id: If71ae783fd9a9e3935186b49fdf501ba098235a2
-    Reviewed-on: https://go-review.googlesource.com/c/150161
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Idbc507ae3df791a759b967bcbe833b8e08bd9611
+    Reviewed-on: https://go-review.googlesource.com/125817
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- .../go/analysis/passes/composite/composite.go      |   2 +-
- .../go/analysis/passes/lostcancel/lostcancel.go    | 109 +++++++++++----------
- .../go/analysis/passes/stdmethods/stdmethods.go    |   8 +-
- .../go/analysis/passes/unsafeptr/unsafeptr.go      |  44 ++++-----
- .../x/tools/go/analysis/unitchecker/unitchecker.go |   2 +-
- 5 files changed, 87 insertions(+), 78 deletions(-)
+ doc/go1.11.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

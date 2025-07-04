@@ -1,25 +1,65 @@
-commit e0c69587c4b7cfa7e6aada6f63c196d75588ddf5
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Thu Mar 23 21:50:21 2023 +0000
+commit d922c0a8f5035b0533eb6e912ffd7b85487e3942
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 27 13:10:48 2022 -0500
 
-    Revert "os/user: lookup Linux users and groups via systemd userdb"
+    all: use os/exec instead of internal/execabs
     
-    This reverts CL 459455.
+    We added internal/execabs back in January 2021 in order to fix
+    a security problem caused by os/exec's handling of the current
+    directory. Now that os/exec has that code, internal/execabs is
+    superfluous and can be deleted.
     
-    Reason for revert: breaks tests on various platforms, see https://go-review.googlesource.com/c/go/+/459455/74#message-3d9462b24872f6e0b12b4abf5ea3983e1588f91a
+    This commit rewrites all the imports back to os/exec and
+    deletes internal/execabs.
     
-    Change-Id: I4c79b28f750c2369909688f86616d76d7eaf0ab4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479135
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #43724.
+    
+    Change-Id: Ib9736baf978be2afd42a1225e2ab3fd5d33d19df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381375
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/os/user/listgroups_unix.go         |   9 -
- src/os/user/lookup_unix.go             |  30 --
- src/os/user/user.go                    |   4 -
- src/os/user/userdbclient.go            |  22 -
- src/os/user/userdbclient_linux.go      | 772 ---------------------------------
- src/os/user/userdbclient_linux_test.go | 504 ---------------------
- src/os/user/userdbclient_stub.go       |  29 --
- 7 files changed, 1370 deletions(-)
+ src/cmd/api/goapi.go                               |  2 +-
+ src/cmd/api/run.go                                 |  2 +-
+ src/cmd/cgo/out.go                                 |  2 +-
+ src/cmd/cgo/util.go                                |  2 +-
+ src/cmd/compile/internal/ssa/html.go               |  2 +-
+ src/cmd/cover/func.go                              |  2 +-
+ src/cmd/cover/testdata/toolexec.go                 |  2 +-
+ src/cmd/dist/buildtool.go                          |  2 --
+ src/cmd/doc/dirs.go                                |  2 +-
+ src/cmd/fix/typecheck.go                           |  2 +-
+ src/cmd/go/internal/base/base.go                   |  2 +-
+ src/cmd/go/internal/bug/bug.go                     |  2 +-
+ src/cmd/go/internal/generate/generate.go           |  2 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  2 +-
+ src/cmd/go/internal/modfetch/codehost/git.go       |  2 +-
+ src/cmd/go/internal/test/genflags.go               |  2 +-
+ .../go/internal/test/internal/genflags/vetflag.go  |  2 +-
+ src/cmd/go/internal/test/test.go                   |  2 +-
+ src/cmd/go/internal/tool/tool.go                   |  2 +-
+ src/cmd/go/internal/vcs/vcs.go                     |  2 +-
+ src/cmd/go/internal/vet/vetflag.go                 |  2 +-
+ src/cmd/go/internal/work/build.go                  |  2 +-
+ src/cmd/go/internal/work/buildid.go                |  2 +-
+ src/cmd/go/internal/work/exec.go                   |  2 +-
+ src/cmd/go/internal/work/gccgo.go                  |  2 +-
+ src/cmd/go/testdata/addmod.go                      |  2 +-
+ src/cmd/internal/browser/browser.go                |  2 +-
+ src/cmd/internal/dwarf/dwarf.go                    |  2 +-
+ src/cmd/internal/pkgpath/pkgpath.go                |  2 +-
+ src/cmd/link/internal/ld/execarchive.go            |  2 +-
+ src/cmd/link/internal/ld/lib.go                    |  2 +-
+ src/cmd/test2json/main.go                          |  2 +-
+ src/cmd/trace/pprof.go                             |  2 +-
+ src/go/build/build.go                              |  2 +-
+ src/go/build/deps_test.go                          |  7 +----
+ src/go/internal/gccgoimporter/gccgoinstallation.go |  2 +-
+ src/go/internal/srcimporter/srcimporter.go         |  2 +-
+ src/internal/execabs/execabs.go                    | 36 ----------------------
+ src/internal/goroot/gc.go                          |  2 +-
+ 39 files changed, 37 insertions(+), 80 deletions(-)

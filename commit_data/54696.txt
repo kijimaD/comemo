@@ -1,47 +1,41 @@
-commit d1ef967306b401474aafb2a0d351e972bdfeb54c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Sep 11 02:03:10 2021 +1000
+commit 61c57575cd01940d06a327ce61b8923bf4a7553a
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 8 16:10:47 2022 -0800
 
-    cmd/link/internal/ld: assign temporary addresses to per-package text
+    os: remove special casing of NUL in Windows file operations
     
-    If trampolines may be required, the current text addressing second
-    pass resets all assigned addresses, before assigning addresses and
-    laying down trampolines in a linear fashion. However, this approach
-    means that intra-package calls are to a symbol that has not yet
-    been assigned an address, when the symbol is ahead of the current
-    function.
+    Some file operations, notably Stat and Mkdir, special cased their
+    behavior when operating on a file named "NUL" (case-insensitive).
+    This check failed to account for the many other names of the NUL
+    device, as well as other non-NUL device files: "./nul", "//./nul",
+    "nul.txt" (on some Windows versions), "con", etc.
     
-    In the case of RISC-V the JAL instruction is limited to +/-1MiB.
-    As such, if a call is to a symbol with no address currently assigned,
-    we have to assume that a trampoline will be required. During the
-    relocation phase we can fix up and avoid trampolines in some cases,
-    however this results in unused trampolines that are still present
-    in the binary (since removing them would change text addresses).
+    Remove the special case.
     
-    In order to significantly reduce the number of unused trampolines,
-    assign temporary addresses to functions within the same package,
-    based on the maximum number of trampolines that may be required by
-    a function. This allows for better decisions to be made regarding
-    the requirement for intra-package trampolines, as we reset the
-    addressing for a function, assign its final address and lay down
-    any resulting trampolines.
+    os.Mkdir("NUL") now returns no error. This is consonant with the
+    operating system's behavior: CreateDirectory("NUL") succeeds, as
+    does "MKDIR NUL" on the command line.
     
-    This results in ~2,300 unused trampolines being removed from the
-    Go binary and ~5,600 unused trampolines being removed from the
-    compile binary, on linux/riscv64.
+    os.Stat("NUL") now follows the existing path for FILE_TYPE_CHAR devices,
+    returning a FileInfo which correctly reports the file as being a
+    character device.
     
-    This reapplies CL 349650, however does not pass big to assignAddress
-    when assigning temporary addresses, as this can result in side
-    effects such as section splitting.
+    os.Stat and os.File.Stat have common elements of their logic unified.
     
-    Change-Id: Id7febdb65d962d6b1297a91294a8dc27c94d8696
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534760
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    For #24482.
+    For #24556.
+    For #56217.
+    
+    Change-Id: I7e70f45901127c9961166dd6dbfe0c4a10b4ab64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448897
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
 
- src/cmd/link/internal/ld/data.go    | 89 ++++++++++++++++++++++++++-----------
- src/cmd/link/internal/ld/ld_test.go | 68 ++++++++++++++++++++++++++++
- 2 files changed, 132 insertions(+), 25 deletions(-)
+ src/os/file.go            | 21 --------------------
+ src/os/os_test.go         | 24 +++++++++--------------
+ src/os/os_windows_test.go | 44 ++++++++++++++++++++++-------------------
+ src/os/stat_windows.go    | 50 +++++++++++++++++++++++------------------------
+ src/os/types_windows.go   | 12 ------------
+ 5 files changed, 57 insertions(+), 94 deletions(-)

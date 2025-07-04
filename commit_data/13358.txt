@@ -1,13 +1,16 @@
-commit 61809cd182372930fe821b74e182bc3dd7b9f439
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 18 12:54:36 2012 -0700
+commit 417a7f80d20b38168cb0c48bffbcd3e0c469cf57
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 15 16:55:15 2012 -0700
 
-    net/url: sort keys in Encode; don't enumerate map randomly
+    go/ast: Walk: do not walk comment list
     
-    R=golang-dev, adg
+    A comment to that effect was introduced
+    with rev d332f4b9cef5 but the respective
+    code wasn't deleted.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6303098
+    https://golang.org/cl/6304086
 
- src/pkg/net/url/url.go      | 20 ++++++++++++++++----
- src/pkg/net/url/url_test.go | 18 +++++++++++-------
- 2 files changed, 27 insertions(+), 11 deletions(-)
+ src/pkg/go/ast/walk.go | 3 ---
+ 1 file changed, 3 deletions(-)

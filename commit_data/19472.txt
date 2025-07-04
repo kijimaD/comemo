@@ -1,25 +1,13 @@
-commit 19c8f67e25dc25abdca34b1ebbfa6ed8439a7071
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat May 31 09:35:37 2014 -0400
+commit c53111d987ea5b4cf1496325ee3fd9f3cc5348d2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 31 01:55:11 2014 -0700
 
-    runtime: fix error check in freebsd/386 i386_set_ldt
+    C: add another email of mine.
     
-    Update #2675
-    
-    The code here was using the error check for Linux/386,
-    not the one for FreeBSD/386. Most of the time it worked.
-    
-    Thanks to Neel Natu (FreeBSD developer) for finding this.
-    
-    The s/JCC/JAE/ a few lines later is a no-op but makes the
-    test match the rest of the file. Why we write JAE instead of JCC
-    I don't know, but the two are equivalent and the file might
-    as well be consistent.
-    
-    LGTM=bradfitz, minux
-    R=golang-codereviews, bradfitz, minux
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/99680044
+    https://golang.org/cl/102920047
 
- src/pkg/runtime/sys_freebsd_386.s | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,25 +1,20 @@
-commit 4f45b2b7e079fc03d3444642e8a33ce6f959c6a6
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Mar 3 20:45:13 2025 +0700
+commit adead1a93f472affa97c494ef19f2f492ee6f34a
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Jan 18 07:53:50 2024 +0100
 
-    cmd/compile: fix out of memory when inlining closure
+    cmd/cgo/internal/test: skip TestCallbackCallersSEH when internal linking
     
-    CL 629195 strongly favor closure inlining, allowing closures to be
-    inlined more aggressively.
+    TestCallbackCallersSEH is flaky when using the internal linker. Skip
+    it for now until the flakiness is resolved.
     
-    However, if the closure body contains a call to a function, which itself
-    is one of the call arguments, it causes the infinite inlining.
+    Updates #65116
     
-    Fixing this by prevent this kind of functions from being inlinable.
-    
-    Fixes #72063
-    
-    Change-Id: I5fb5723a819b1e2c5aadb57c1023ec84ca9fa53c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654195
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I7628b07eaff8be00757d5604722f30aede25fce5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556635
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/inline/inl.go | 22 +++++++++++++++++++
- test/fixedbugs/issue72063.go           | 40 ++++++++++++++++++++++++++++++++++
- 2 files changed, 62 insertions(+)
+ src/cmd/cgo/internal/test/seh_internal_windows_test.go   | 16 ++++++++++++++++
+ .../test/{cgo_windows_test.go => seh_windows_test.go}    |  2 +-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

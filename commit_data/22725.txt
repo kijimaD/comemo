@@ -1,23 +1,16 @@
-commit 00d4a6b35d519e405aa1702aba114b97f9a8ccce
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 22 17:53:32 2015 -0700
+commit dfc9e264d18a3f9fe7afdb794d227473ce486516
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 6 11:03:24 2015 -0700
 
-    cmd/internal/gc, cmd/internal/ld: add memprofilerate flag
+    cmd/asm/internal/asm: fix comment in ppc64.go
     
-    Also call runtime.GC before exit to ensure
-    that the profiler picks up all allocations.
+    It referred to the wrong architecture.
     
-    Fixes #10537.
+    Fixes #10355.
     
-    Change-Id: Ibfbfc88652ac0ce30a6d1ae392f919df6c1e8126
-    Reviewed-on: https://go-review.googlesource.com/9261
+    Change-Id: I5b9d31c9f04f3106b93f94fa68c848b2518b128e
+    Reviewed-on: https://go-review.googlesource.com/8495
     Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/gc/lex.go  |  1 +
- src/cmd/internal/gc/util.go | 20 ++++++++++----------
- src/cmd/internal/ld/pobj.go |  1 +
- src/cmd/internal/ld/util.go | 12 ++++++++++--
- 4 files changed, 22 insertions(+), 12 deletions(-)
+ src/cmd/asm/internal/arch/ppc64.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,25 +1,19 @@
-commit 549162340690f77dc90a184b8f5ea260d8a16249
+commit 42aa9abae967b27582e1275793a841bd312d18f4
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Thu Apr 26 02:59:13 2012 -0700
+Date:   Thu Apr 26 02:57:23 2012 -0700
 
-    syscall: fix a number of exec bugs on Plan 9
+    gc: use correct line number for EOF syntax error
     
-    1. Readdirnames was erroneously returning an
-       empty slice on every invocation.
+    I also added some debugging code that's turned
+    on with -xx.
     
-    2. The logic for determining which files to
-       close before exec was incorrect.  If the
-       set of files to be kept open (provided by
-       the caller) did not include the files
-       opened at startup, those files would be
-       accidentally closed.
+    Fixes #3392.
     
-    I also cleaned up readdupdevice while I was
-    in the vicinity.
-    
-    R=golang-dev, seed, rsc
+    R=rsc, lvd
     CC=golang-dev
-    https://golang.org/cl/6016044
+    https://golang.org/cl/5909058
 
- src/pkg/syscall/exec_plan9.go | 66 +++++++++++++++++--------------------------
- 1 file changed, 26 insertions(+), 40 deletions(-)
+ src/cmd/gc/lex.c         |  5 ++---
+ src/cmd/gc/subr.c        |  5 +++++
+ test/fixedbugs/bug435.go | 15 +++++++++++++++
+ 3 files changed, 22 insertions(+), 3 deletions(-)

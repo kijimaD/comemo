@@ -1,23 +1,21 @@
-commit e948d2b73ede67f12bff9e4d050f0e1425163010
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Thu Jan 23 16:05:29 2020 -0500
+commit 23bf6af99650c1302bc2120536f128c848b2d28c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 4 15:12:08 2019 -0700
 
-    cmd/link: ensure cgo cflags do not leak into dwarf tests
+    cmd/compile: refactor escape analysis parameter tagging
     
-    Running the dwarf tests with CGO_CFLAGS set
-    with certain values would cause the test to fail. all.bash
-    would fail when CGO_CFLAGS was set to '-mmacosx-version-min=10.10'
-    because the --macosx-version-min flag is incompatible with some dwarf
-    tests. The change guards against using an unintended flag in the unit test.
+    No behavior change; just inverting the loop ordering so the
+    per-parameter behavior is a bit clearer.
     
-    Updates #35459
+    Passes toolstash-check.
     
-    Change-Id: Idc9b354aba44fdab424cb0081a4b3ea7a6d0f8e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216177
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Updates #33981.
+    
+    Change-Id: I9bfcd7d0a4aff65a27ced157767ca2ba8038319a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193177
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/dwarf_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/esc.go | 108 +++++++++++++++++--------------------
+ 1 file changed, 48 insertions(+), 60 deletions(-)

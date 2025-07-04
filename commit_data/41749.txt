@@ -1,38 +1,20 @@
-commit fcb8f8384ac62eb029926bb1f3602825fa61b261
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 20 15:15:35 2020 -0400
+commit 5a5854c2d1a0eed6d48734ab2cc674c25aa670cb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 22 11:59:00 2019 -0700
 
-    cmd/api: make NewWatcher populate its own package and import metadata
+    runtime: fix -d=checkptr failure for testing/quick
     
-    This partially undoes the optimizations of CL 177597, but makes up
-    some of the difference by caching the package list and import metadata
-    and making the initial calls concurrently, including in TestMain.
-    That reduces the critical path from two sequential 'go list'
-    invocations to just one (run many times concurrently), and eliminates
-    the need for assumptions about the consistency of the 'std' dependency
-    graph across platforms (and hard-coded special cases for packages that
-    violate those assumptions).
+    This CL extends checkptrBase to recognize pointers into the stack and
+    data/bss sections. I was meaning to do this eventually anyway, but
+    it's also an easy way to workaround #35068.
     
-    In the process, this simplifies and fixes TestBenchmark (which has
-    been silently broken since CL 164623).
+    Updates #35068.
     
-    This increases 'time go tool dist test api' on my workstation from
-    0m8.4s / 0m13.8s / 0m1.7s to 0m10.5s / 0m23.1s / 0m5.1s,
-    compared to 0m12.4s / 0m23.2s / 0m4.7s before CL 177597.
-    
-    (That is, this change retains about half of the wall-time speedup, but
-    almost none of the user-time speedup.)
-    
-    Tested manually using 'go test -race -bench=. cmd/api'.
-    
-    Fixes #37951
-    
-    Change-Id: Icd537e035e725e1ee7c41d97da5c6651233b927e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224619
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib47f0aa800473a4fbc249da52ff03bec32c3ebe2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202639
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/api/goapi.go      | 226 ++++++++++++++++++++++++++--------------------
- src/cmd/api/goapi_test.go |  49 +++++-----
- 2 files changed, 152 insertions(+), 123 deletions(-)
+ src/runtime/checkptr.go | 40 ++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 36 insertions(+), 4 deletions(-)

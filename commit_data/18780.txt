@@ -1,16 +1,14 @@
-commit 5db255fa3c8b3f5d5aa1560d1e5be4688dfb7925
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 6 11:24:28 2014 -0800
+commit 8ca3372d7b63c8c61ea68daa9e3fc63213eb7965
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 6 21:33:19 2014 +0400
 
-    net/http/cgi: kill child CGI process on copy error
+    runtime: fix bad g status after copystack
     
-    Fixes #7196
-    
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews, iant
-    https://golang.org/cl/69970052
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/69870054
 
- src/pkg/net/http/cgi/host.go            | 12 +++++
- src/pkg/net/http/cgi/matryoshka_test.go | 93 ++++++++++++++++++++++++++++++++-
- 2 files changed, 104 insertions(+), 1 deletion(-)
+ src/pkg/runtime/proc.c  | 6 ++++++
+ src/pkg/runtime/stack.c | 1 +
+ 2 files changed, 7 insertions(+)

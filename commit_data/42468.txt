@@ -1,29 +1,19 @@
-commit 60cbff6f1906ec1bbc939acfb7cc97b18e639ce9
-Author: Roland Shoemaker <rolandshoemaker@gmail.com>
-Date:   Mon May 11 16:21:54 2020 -0700
+commit f376b8510ed7884c69a09fbcf61418f7285f2787
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Jan 2 02:00:55 2020 -0800
 
-    crypto/x509: match cgo and Apple behavior in domain fallback of macOS roots
+    all: fix invalid invocations of Fatalf in goroutines
     
-    This change makes the direct call darwin loadSystemRoots implementation
-    match the existing cgo implementation, which in turn _mostly_ matches
-    the Apple implementation. The main change here is that when
-    SecTrustSettingsCopyTrustSettings the error is ignored, and can either
-    cause a fallback to check admin trust settings, or cause the
-    certificate to be marked kSecTrustSettingsResultUnspecified.
+    Found by running the go vet pass 'testinggoroutine' that
+    I started in CL 212920.
     
-    As well as updating the implementation to match the cgo one, this
-    change also updates the documentation of how the fallbacks work and
-    how they match the Apple implementations. References are made to the
-    Apple source where appropriate. This change does not update the
-    existing comments in the cgo implementation, since the goal is to
-    delete that code once the direct call implementation is matured.
-    
-    Updates #38888
-    
-    Change-Id: Id0344ea9d2eede3b715f341e9cbd3c1c661b7a90
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233360
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ic9462fac85dbafc437fe4a323b886755a67a1efa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213097
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/root_darwin_amd64.go | 41 ++++++++++++++++++++++++++----------
- 1 file changed, 30 insertions(+), 11 deletions(-)
+ src/database/sql/sql_test.go | 6 +++++-
+ src/net/lookup_test.go       | 6 +++++-
+ src/time/sleep_test.go       | 2 +-
+ 3 files changed, 11 insertions(+), 3 deletions(-)

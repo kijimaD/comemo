@@ -1,17 +1,14 @@
-commit c53fab969c31e3f15306a5b5b714928d2fd6b1df
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 20 22:15:36 2013 -0800
+commit 8473b4487c26f85fa31088da739507d3b218dc29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 20 17:37:13 2013 -0800
 
-    database/sql: clarify that DB.Prepare's stmt is safe for concurrent use
+    go/types: export data result types are always parenthesized
     
-    And add a test too, for Alex. :)
+    Minor simplification of gcimporter, removed TODO.
     
-    Fixes #3734
-    
-    R=golang-dev, adg
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7399046
+    https://golang.org/cl/7363044
 
- src/pkg/database/sql/sql.go      |  4 +++-
- src/pkg/database/sql/sql_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ src/pkg/go/types/gcimporter.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

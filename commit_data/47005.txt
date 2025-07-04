@@ -1,24 +1,22 @@
-commit 7b554575e46d1df9b68f71e051c8133aaf953fb7
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Oct 24 13:46:54 2021 +0700
+commit 8654db4555bd0537162a72c4514c601a9a8b5c30
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 18 17:01:54 2021 -0800
 
-    cmd/compile: factor out code to remove phi argument
+    [dev.typeparams] go/types: adjust printing of embedded struct fields (fixes x/tools/cmd/guru tests)
     
-    CL 358117 fixed a bug that Phi's argument wasn't updated correctly after
-    removing a predecessor of Block. This CL factor out the code that
-    updates phi argument into a Block's method, so it's easier to use,
-    maintain and hopefully prevent that kind of bug in the future.
+    Prior to 1.16, go/types printed an embedded struct field by simply
+    printing its type, which may have included a package qualification.
+    Just printing the type is not useful with generic types and we now
+    must print the actual field name derived from the type - this leads
+    to different output for non-generic imported embedded types. Fix by
+    printing a package qualification in that case.
     
-    Change-Id: Ie9741e19ea28f56860425089b6093a381aa10f5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357964
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I2cb2484da7732428d13fdfb5fe4ec1fa1ee813a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293961
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/block.go              | 25 +++++++++++++++++++++-
- src/cmd/compile/internal/ssa/critical.go           | 11 +++++-----
- src/cmd/compile/internal/ssa/deadcode.go           |  6 +-----
- .../compile/internal/ssa/fuse_branchredirect.go    |  6 +-----
- src/cmd/compile/internal/ssa/shortcircuit.go       |  6 +-----
- 5 files changed, 32 insertions(+), 22 deletions(-)
+ src/go/types/typestring.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

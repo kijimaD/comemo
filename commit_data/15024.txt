@@ -1,22 +1,28 @@
-commit 607317651206f32ee11bf97ec0fe8c473bba403d
-Author: Rodrigo Rafael Monti Kochenburger <divoxx@gmail.com>
-Date:   Wed Jan 30 07:57:11 2013 -0800
+commit c74f3c457613638311e3cb2a57a9fca2df849e7a
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Wed Jan 30 02:53:56 2013 -0800
 
-    cmd/vet: detect misuse of atomic.Add*
+    runtime: add support for panic/recover in Plan 9 note handler
     
-    Re-assigning the return value of an atomic operation to the same variable being operated is a common mistake:
+    This change also resolves some issues with note handling: we now make
+    sure that there is enough room at the bottom of every goroutine to
+    execute the note handler, and the `exitstatus' is no longer a global
+    entity, which resolves some race conditions.
     
-    x = atomic.AddUint64(&x, 1)
-    
-    Add this check to go vet.
-    
-    Fixes #4065.
-    
-    R=dvyukov, golang-dev, remyoudompheng, rsc
+    R=rminnich, npe, rsc, ality
     CC=golang-dev
-    https://golang.org/cl/7097048
+    https://golang.org/cl/6569068
 
- src/cmd/vet/Makefile  |  2 +-
- src/cmd/vet/atomic.go | 90 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/vet/main.go   | 16 +++++++++
- 3 files changed, 107 insertions(+), 1 deletion(-)
+ src/cmd/dist/buildruntime.c          |   6 ++
+ src/pkg/runtime/defs_plan9_386.h     |  30 +++++++++-
+ src/pkg/runtime/defs_plan9_amd64.h   |  34 ++++++++++-
+ src/pkg/runtime/os_plan9.h           |  10 +++-
+ src/pkg/runtime/runtime.h            |   3 +
+ src/pkg/runtime/signal_plan9_386.c   | 101 ++++++++++++++++++++++++++++++++
+ src/pkg/runtime/signal_plan9_amd64.c | 108 +++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/signals_plan9.h      |  25 +++++++-
+ src/pkg/runtime/stack.h              |  12 +++-
+ src/pkg/runtime/sys_plan9_386.s      |  54 ++++++++++++++++--
+ src/pkg/runtime/sys_plan9_amd64.s    |  50 +++++++++++++++-
+ src/pkg/runtime/thread_plan9.c       |  63 +++++++-------------
+ 12 files changed, 439 insertions(+), 57 deletions(-)

@@ -1,23 +1,31 @@
-commit c8fb0ec5a005289e9dd890b746e543b38bbd9528
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Apr 15 13:41:01 2021 -0500
+commit 712cba3bf258c0c75bf1a638cb2119dbb11ed6c7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Oct 9 15:16:13 2020 -0400
 
-    cmd/compile: fix ANDI/SRWI merge on ppc64
+    cmd/go: ignore retracted versions when converting revisions to versions
     
-    The shift amount should be masked to avoid rotation values
-    beyond the numer of bits. In this case, if the shift amount
-    is 0, it should rotate 0, not 32.
+    When a module author retracts a version, the go command should act as
+    if it doesn't exist unless it's specifically requested.
     
-    Fixes #45589
+    When converting a revision to a version, we should ignore tags for
+    retracted versions. For example, if the tag v1.0.0 is retracted, and
+    branch B points to the same revision, we should convert B to a
+    pseudo-version, not v1.0.0. Similarly, if B points to a commit after
+    v1.0.0, we should not use v1.0.0 as the base; we can use an earlier
+    non-retracted tag or no base.
     
-    Change-Id: I1e764497a39d0ec128e29af42352b70c70b2ecc5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310569
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Fixes #41700
+    
+    Change-Id: Ia596b05b0780e5acfe6616a04e94d24bd342fbae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261079
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
-    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/rewrite.go      | 2 +-
- src/cmd/compile/internal/ssa/rewrite_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  5 +-
+ src/cmd/go/internal/modfetch/codehost/git.go       |  7 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       |  2 +-
+ src/cmd/go/internal/modfetch/coderepo.go           | 78 ++++++++++++++++++++--
+ .../go/testdata/script/mod_retract_pseudo_base.txt | 62 +++++++++++++++++
+ 5 files changed, 143 insertions(+), 11 deletions(-)

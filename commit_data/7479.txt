@@ -1,12 +1,14 @@
-commit 52ffb6af00b09c8c8447c7d85f5233b430e935a4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 16 14:10:52 2011 -0500
+commit f04b5a3bac0206d507a4984897c60a362a3bdab7
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Feb 16 14:06:50 2011 -0500
 
-    os: remove ENODATA (fixes freebsd build)
+    http: add proxy support
+    Fixes #53.
     
-    R=r, r2
+    R=agl1, jacek.masiulaniec, adg, rsc, agl
     CC=golang-dev
-    https://golang.org/cl/4175053
+    https://golang.org/cl/3794041
 
- src/pkg/os/error.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/http/client.go     | 109 +++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/http/proxy_test.go |  45 +++++++++++++++++++
+ 2 files changed, 146 insertions(+), 8 deletions(-)

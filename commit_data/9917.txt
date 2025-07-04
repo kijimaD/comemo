@@ -1,16 +1,17 @@
-commit 8440fdd9047f574e10c7bb544027a1bd3d86601b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Oct 11 11:11:47 2011 +1100
+commit c832ecf03eb5df16949b785ac017eb2dcb205ba1
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 10 12:38:49 2011 -0700
 
-    godoc: support multiple examples
-    gotest: document examples
-    go/doc: tidy comment
+    gob: avoid one copy for every message written.
+    Plus the need for a second in-memory buffer.
+    Plays a bit fast and loose with the contents of a byte buffer,
+    but saves a potentially huge allocation. The gotest
+    run is about 10% faster overall after this change.
     
-    R=golang-dev, r
+    R=golang-dev, r, gri
     CC=golang-dev
-    https://golang.org/cl/5235055
+    https://golang.org/cl/5236043
 
- src/cmd/godoc/godoc.go    |  9 +++++++--
- src/cmd/gotest/doc.go     | 12 ++++++++++++
- src/pkg/go/doc/example.go |  6 +++---
- 3 files changed, 22 insertions(+), 5 deletions(-)
+ src/pkg/gob/encode.go  |  1 +
+ src/pkg/gob/encoder.go | 36 ++++++++++++++++++++++--------------
+ 2 files changed, 23 insertions(+), 14 deletions(-)

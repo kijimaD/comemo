@@ -1,36 +1,19 @@
-commit beeabbcb2501c89db48a60681183ad161763db79
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 25 12:15:23 2018 -0500
+commit f2af0c178099c0d785efe3b6f5f2282277f9ee9c
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Sep 27 21:44:38 2017 -0300
 
-    runtime: use NOFRAME on arm64
+    bytes: explicitly state if a function expects UTF-8-encoded data
     
-    This replaces frame size -8 with the NOFRAME flag in arm64 assembly.
+    Fixes #21950
     
-    This was automated with:
-    
-    sed -i -e 's/\(^TEXT.*[A-Z]\),\( *\)\$-8/\1|NOFRAME,\2$0/' $(find -name '*_arm64.s')
-    
-    Plus a manual fix to mkduff.go.
-    
-    The go binary is identical before and after this change.
-    
-    Change-Id: I0310384d1a584118c41d1cd3a042bb8ea7227efa
-    Reviewed-on: https://go-review.googlesource.com/92043
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I6fa392abd2c3bf6a4f80f14c6b1419470e9a944d
+    Reviewed-on: https://go-review.googlesource.com/66750
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/test/issue9400/asm_arm64.s   |  2 +-
- src/runtime/asm_arm64.s               | 40 +++++++++++++--------------
- src/runtime/atomic_arm64.s            |  2 +-
- src/runtime/cgo/asm_arm64.s           |  2 +-
- src/runtime/cgo/signal_darwin_arm64.s |  2 +-
- src/runtime/duff_arm64.s              |  2 +-
- src/runtime/memmove_arm64.s           |  2 +-
- src/runtime/mkduff.go                 |  2 +-
- src/runtime/rt0_android_arm64.s       |  4 +--
- src/runtime/rt0_darwin_arm64.s        |  4 +--
- src/runtime/rt0_linux_arm64.s         |  4 +--
- src/runtime/sys_darwin_arm64.s        |  2 +-
- src/runtime/sys_linux_arm64.s         | 52 +++++++++++++++++------------------
- 13 files changed, 60 insertions(+), 60 deletions(-)
+ src/bytes/bytes.go         | 52 ++++++++++++++++++++++++----------------------
+ src/bytes/bytes_amd64.go   |  2 +-
+ src/bytes/bytes_generic.go |  2 +-
+ src/bytes/bytes_s390x.go   |  2 +-
+ 4 files changed, 30 insertions(+), 28 deletions(-)

@@ -1,26 +1,24 @@
-commit f040e439cbf860244d2bd9d6808712b93c31c605
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 26 15:57:35 2018 -0700
+commit cde34780b7a0bbd162321a34c41fc8a6268e2c09
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 8 17:43:55 2018 +0100
 
-    mime/multipart: restore 1.9 handling of missing/empty form-data file name
+    test/codegen: port math/bits.RotateLeft tests to codegen
     
-    Revert the code changes of CL 96975 and CL 70931, but keep the tests,
-    appropriately modified for the code changes. This restores the 1.9
-    handling of form-data entries with missing or empty file names.
+    Only RotateLeft{64,32} were tested, and just for ppc64. This CL adds
+    tests for RotateLeft{64,32,16,8} on arm64 and amd64/386, for the cases
+    where the calls are actually instrinsified.
     
-    Changing the handling of this simply confused existing programs for no
-    useful benefit. Go back to the old behavior.
+    RotateLeft tests (the last ones for math/bits functions) are deleted
+    from asm_test.
     
-    Updates #19183
-    Fixes #24041
+    This CL also adds a space between the "//" and the arch name in the
+    comments, to uniform this file to the style used in all the other
+    files.
     
-    Change-Id: I4ebc32433911e6360b9fd79d8f63a6d884822e0e
-    Reviewed-on: https://go-review.googlesource.com/121055
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifc2a27261d70bcc294b4ec64490d8367f62d2b89
+    Reviewed-on: https://go-review.googlesource.com/99596
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/mime/multipart/formdata.go      |  2 +-
- src/mime/multipart/formdata_test.go |  7 ++-----
- src/mime/multipart/multipart.go     | 10 ----------
- 3 files changed, 3 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go |  24 +----
+ test/codegen/mathbits.go                | 164 +++++++++++++++++++-------------
+ 2 files changed, 99 insertions(+), 89 deletions(-)

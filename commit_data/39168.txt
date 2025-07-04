@@ -1,25 +1,16 @@
-commit 54260c570f1202b992b7b6ee8f837dd717927d24
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 9 21:29:24 2019 -0400
+commit 7cbfa55b5d17c8deaecff05e4221f828467cfa97
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 11 14:26:24 2019 -0800
 
-    cmd/go: add more information to -debug-actiongraph
+    net: pass if at least one matching entry in TestLookupGmailTXT
     
-    Add information about action and build IDs,
-    commands run, time spent in commands,
-    and overall time to -debug-actiongraph output.
+    Fixes #29698
     
-    Also avoid a terrible outcome in:
-    
-            go build -debug-actiongraph x.go
-    
-    Change-Id: I7a3a638f4848d75f2bdc997517f4ab23656da4f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177138
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I0531c0a274b120af8871aa2f5975744ff6c912a3
+    Reviewed-on: https://go-review.googlesource.com/c/157638
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/action.go  | 84 +++++++++++++++++++++++--------------
- src/cmd/go/internal/work/buildid.go | 15 +++++++
- src/cmd/go/internal/work/exec.go    | 63 +++++++++++++++++++++-------
- src/cmd/go/internal/work/gc.go      |  2 +-
- src/cmd/go/internal/work/gccgo.go   |  2 +-
- 5 files changed, 116 insertions(+), 50 deletions(-)
+ src/net/lookup_test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

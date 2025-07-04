@@ -1,50 +1,12 @@
-commit 561ce92fa060f746a58c7301138f145632e79294
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Jan 26 21:44:06 2015 +0300
+commit 7f4c26850a6ede3cf619efd36e5ad853948a608a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 23 15:00:04 2014 +1100
 
-    runtime: fix crash during heapdump
+    runtime: import unsafe in os_windows.go (fixes windows build)
     
-    runtime/debug test crashes with GOMAXPROCS>1:
-    
-    fatal error: unexpected signal during runtime execution
-    [signal 0xb code=0x1 addr=0x0 pc=0x80521b8]
-    runtime stack:
-    runtime.throw(0x8195028, 0x2a)
-            src/runtime/panic.go:508 +0x71 fp=0x18427f24 sp=0x18427f18
-    runtime.sigpanic()
-            src/runtime/sigpanic_unix.go:12 +0x53 fp=0x18427f4c sp=0x18427f24
-    runtime.finq_callback(0x0, 0x0, 0x0, 0x8129140, 0x0)
-            src/runtime/heapdump.go:410 +0x58 fp=0x18427f58 sp=0x18427f4c
-    runtime.iterate_finq(0x81a6860)
-            src/runtime/mfinal.go:89 +0x73 fp=0x18427f78 sp=0x18427f58
-    runtime.dumproots()
-            src/runtime/heapdump.go:448 +0x17a fp=0x18427fa4 sp=0x18427f78
-    runtime.mdump()
-            src/runtime/heapdump.go:652 +0xbc fp=0x18427fb4 sp=0x18427fa4
-    runtime.writeheapdump_m(0x3)
-    
-    This happens because runfinq goroutine nils some elements in allfin after
-    execution of finalizers:
-    
-            // drop finalizer queue references to finalized object
-            f.fn = nil
-            f.arg = nil
-            f.ot = nil
-    
-    Then heapdump crashes trying to dereference fn.fn here:
-    
-    func finq_callback(fn *funcval, obj unsafe.Pointer, nret uintptr, fint *_type, ot *ptrtype) {
-            dumpint(tagQueuedFinalizer)
-            dumpint(uint64(uintptr(obj)))
-            dumpint(uint64(uintptr(unsafe.Pointer(fn))))
-            dumpint(uint64(uintptr(unsafe.Pointer(fn.fn))))
-            dumpint(uint64(uintptr(unsafe.Pointer(fint))))
-            dumpint(uint64(uintptr(unsafe.Pointer(ot))))
-    }
-    
-    Change-Id: I372433c964180d782967be63d4355e568666980d
-    Reviewed-on: https://go-review.googlesource.com/3287
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I55419cb580e6d18cf1c17c3e7bb8777ed6d794e7
+    Reviewed-on: https://go-review.googlesource.com/1995
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mfinal.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/os_windows.go | 2 ++
+ 1 file changed, 2 insertions(+)

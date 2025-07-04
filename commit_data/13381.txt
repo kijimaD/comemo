@@ -1,18 +1,17 @@
-commit bca01cd0bfdb9bfda3f076697bda4fae27d4e768
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jun 24 19:47:50 2012 -0400
+commit d36c095da920cffef16da7f37ce725f9a07f6ae0
+Author: Han-Wen Nienhuys <hanwen@google.com>
+Date:   Sun Jun 24 19:34:06 2012 -0400
 
-    runtime: detect hash map collision problems
+    os: make POSIX StartProcess work with chroot again.
     
-    This can only happen if the hash function we're using is getting
-    far more than it's fair share of collisions, but that has happened
-    to us repeatedly as we've expanded the allowed use cases for
-    hash tables (issue 1544, issue 2609, issue 2630, issue 2883, issue 3695).
-    Maybe this will help the next time we try something new.
+    Skip directory check in startProcess in the presence of
+    SysProcAttr.
     
-    R=golang-dev, r
+    Fixes #3649.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6306083
+    https://golang.org/cl/6297083
 
- src/pkg/runtime/hashmap.c | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/os/exec_posix.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

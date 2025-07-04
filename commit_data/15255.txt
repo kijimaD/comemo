@@ -1,12 +1,12 @@
-commit 817a3f39fd4c9d8825f3db1b8d7f624d6d53ff18
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Thu Feb 14 15:38:57 2013 -0800
+commit 8e2b0e1cb85bc95115c4d6a5c3bf7a5917dc78b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 14 13:35:52 2013 -0800
 
-    src/cmd/gc: fix some typos in the escape analysis comments
+    C: add Cosmos Nicolaou (Google CLA)
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7342044
+    https://golang.org/cl/7314103
 
- src/cmd/gc/esc.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

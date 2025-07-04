@@ -1,22 +1,20 @@
-commit ee4fbbc6211cd978f199dd26ab73ff72cc8d95fd
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 9 15:46:47 2017 -0400
+commit 4c028e565071c80803c975ca9c6431dbc6bb2a88
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 13 13:05:33 2017 -0700
 
-    cmd/go: stop creating nested temp directory trees
+    cmd/go: adjust regexp that cleans cgo-related errors
     
-    Now that we have -importcfg, there's no need for the
-    temporary directory trees that mirror the import path structure,
-    and we can drop a bunch of complex code that was building
-    and maintaining that structure.
+    The compiler now also prints column information - make sure we use
+    the correct regexp for compiler error cleanups. Accept both, error
+    positions with columns and without, since column printing may be
+    disabled with -gcflags=-C.
     
-    This should fix "file name too long" errors on systems with low limits.
-    (For example #10651 and #17070, although we fixed those by
-    adding code to deal with very long file names on Windows instead.)
+    Fixes #20628.
     
-    Change-Id: I11e221c6c1edeb81c3b2f1d89988f5235aa2bbb9
-    Reviewed-on: https://go-review.googlesource.com/56280
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I46dc921dd5c29d7b8172cd19a3df57951f60d889
+    Reviewed-on: https://go-review.googlesource.com/45612
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/test/test.go  | 100 +++++++++++++---------------------
- src/cmd/go/internal/work/build.go | 109 +++++++++++++-------------------------
- 2 files changed, 72 insertions(+), 137 deletions(-)
+ src/cmd/go/internal/work/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

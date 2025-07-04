@@ -1,19 +1,20 @@
-commit 0bede7f34e20a77052b433a3c8ee402aa731183e
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 11 10:34:35 2017 -0400
+commit 19f73a786bbded4c0e6bd5c6a640320b532d0b87
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 28 23:20:59 2017 +0000
 
-    cmd/compile: split TestNexting into subtests
+    encoding/gob: warn about decoding data from untrusted sources
     
-    This makes it more obvious which of the two builds is failing by
-    putting "dbg" or "opt" directly in the test name. It also makes it
-    possible for them to fail independently, so a failure in "dbg" doesn't
-    mask a failure in "opt", and to visibly skip the opt test when run
-    with an unoptimized runtime.
+    And some double space after period cleanup while I'm here.
+    I guess my previous regexps missed these. My next cleaner should
+    probably use go/ast instead of perl.
     
-    Change-Id: I3403a7fd3c1a13ad51a938bb95dfe54c320bb58e
-    Reviewed-on: https://go-review.googlesource.com/69970
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Updates #20221
+    
+    Change-Id: Idb051e7ac3a7fb1fb86e015f709e32139d065d92
+    Reviewed-on: https://go-review.googlesource.com/47094
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/debug_test.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ src/encoding/gob/decoder.go |  4 +++
+ src/encoding/gob/doc.go     | 84 ++++++++++++++++++++++-----------------------
+ 2 files changed, 46 insertions(+), 42 deletions(-)

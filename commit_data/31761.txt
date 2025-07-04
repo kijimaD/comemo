@@ -1,14 +1,15 @@
-commit 1570a27e78a46521c4ab46498e29a1ad7c606f7d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jun 8 17:44:03 2017 +0000
+commit 91d08e3bca1c12f45d105ada3f4f46a73375dac9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 14 12:18:10 2017 -0700
 
-    log/syslog: expand docs a bit to reduce confusion
+    cmd/compile/internal/ssa: remove unused OpFunc
     
-    Fixes #15731
-    
-    Change-Id: I6f4da0cbb3b6c93e175f5e384ffa118f383b7c3b
-    Reviewed-on: https://go-review.googlesource.com/45089
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0f7eec2e0c15a355422d5ae7289508a5bd33b971
+    Reviewed-on: https://go-review.googlesource.com/38171
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/log/syslog/syslog.go | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 7 +++----
+ src/cmd/compile/internal/ssa/opGen.go          | 8 --------
+ 2 files changed, 3 insertions(+), 12 deletions(-)

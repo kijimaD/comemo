@@ -1,17 +1,13 @@
-commit 0622e13b4daa6231dc0de9da6c7f45e29c0774da
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Jul 9 17:00:54 2014 +0400
+commit 29aac3d91bc0ecc1aa5c03321cc0549dda436a4e
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Jul 9 12:48:55 2014 +0200
 
-    runtime: grow heap by 64K instead of 128K
-    When we've switched to 8K pages,
-    heap started to grow by 128K instead of 64K,
-    because it was implicitly assuming that pages are 4K.
-    Fix that and make the code more robust.
+    debug/plan9obj: fix test build
     
-    LGTM=khr
-    R=golang-codereviews, dave, khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/106450044
+    LGTM=0intro, dave
+    R=dave, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/106560044
 
- src/pkg/runtime/mheap.c | 4 ++--
+ src/pkg/debug/plan9obj/file_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

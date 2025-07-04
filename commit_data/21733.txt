@@ -1,17 +1,12 @@
-commit 6eaa09501282b347dc37590f3581557e3b5f1b41
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 23 17:34:49 2015 -0500
+commit da167b00d68e098677840b7a3becb4200c0e8371
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 30 16:01:14 2015 +0000
 
-    cmd/internal/gc: expand DBG macro in lex.go
+    doc: add log.SetOutput to go1.5.txt
     
-    The dummy implementation was causing lots of argument lists
-    to be prepared and thrown away.
-    
-    Change-Id: Id0040dec6b0937f3daa8a8d8911fa3280123e863
-    Reviewed-on: https://go-review.googlesource.com/5700
+    Change-Id: I257211f10b334eb4828be96cd434d588bfb1a378
+    Reviewed-on: https://go-review.googlesource.com/3605
     Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/gc/go.go  |  2 --
- src/cmd/internal/gc/lex.go | 44 +++++++++++++++++++++++++++++++++-----------
- 2 files changed, 33 insertions(+), 13 deletions(-)
+ doc/go1.5.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

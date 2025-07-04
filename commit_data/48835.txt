@@ -1,29 +1,15 @@
-commit ebe1435fbb50bb82bfca53063e8daba4f870ec8d
-Author: zhangyunhao <zhangyunhao@bytedance.com>
-Date:   Mon Apr 18 15:23:20 2022 +0800
+commit e9c01f980403ef88340ded62d78b4cd3a4b592f8
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Jun 13 11:05:45 2021 -0700
 
-    runtime: add fastrand64
+    [dev.typeparams] cmd/compile: add missing copy of Field.Embedded in type substituter.
     
-    Support fastrand64 in the runtime, although fastrand uses wyrand to generate 64-bit random number, it still returns uint32. In some cases, we need to generate a 64-bit random number, the new API would be faster and easier to use, and at least we can use the new function in these places:
-    
-    src/net/dnsclient.go:randInt()
-    src/hash/maphash/maphash.go:MakeSeed()
-    src/runtime/map.go:mapiterinit()
-    
-    name                 time/op
-    Fastrand-16          0.09ns ± 5%
-    Fastrand64-16        0.09ns ± 6%
-    
-    Change-Id: Ibb97378c7ca59bc7dc15535d4872fa58ea112e6a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400734
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I876933370a6bcb6586eda9d8fc28a081bf31b1cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328511
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/runtime/export_test.go |  1 +
- src/runtime/rand_test.go   |  8 ++++++++
- src/runtime/stubs.go       | 39 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 48 insertions(+)
+ src/cmd/compile/internal/typecheck/subr.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,12 +1,13 @@
-commit 699864b696e1d5cf68e295c8552091b36e3ac654
+commit 29cbad6c72a734bda3fe117da7bfe7344f3de26d
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 12 00:25:29 2011 -0800
+Date:   Wed Jan 12 00:25:17 2011 -0800
 
-    encoding/line: fix error call (missing argument)
+    template: give "unexported" error when accessing an unexported field.
     
-    R=agl1, rsc
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/3861044
+    https://golang.org/cl/3903043
 
- src/pkg/encoding/line/line_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/template/template.go      | 12 ++++++------
+ src/pkg/template/template_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 6 deletions(-)

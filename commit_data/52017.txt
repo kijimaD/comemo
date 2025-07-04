@@ -1,29 +1,32 @@
-commit cd77738198ffe0c4a1db58352c89f9b2d2a4e85e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 15 14:05:22 2023 -0800
+commit 1edc2769ca5eb60293747c37e765bc56ce04d2da
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Feb 7 15:00:46 2022 -0500
 
-    cmd/link: don't switch to gold on ARM Linux
+    cmd/link/internal/loadpe: add rudimentary COMDAT support
     
-    The bug in GNU ld appears to have been fixed in GNU binutils 2.28 by
-    GNU binutils revision 5522f910cb539905d6adfdceab208ddfa5e84557.
-    (This may have been accidental as the ChangeLog for the fix makes
-    no reference to it; the fix is from
-    https://sourceware.org/bugzilla/show_bug.cgi?id=19962).
+    Add some rudimentary support to the PE file loader for handling
+    sections in COMDAT when reading host object files. This is needed
+    in order to link programs with support libraries that are of a more
+    modern vintage than GCC 5.X.
     
-    Continue using gold on arm64, at least for now, because as reported in
-    issue #22040 GNU ld still fails there.
+    If a given section XYZ is in COMDAT, the symbol for that section will
+    be flagged, e.g. section 'Characteristics' field will have the
+    IMAGE_SCN_LNK_COMDAT bit set, and the symbol will be followed by an
+    "aux" symbol that includes the COMDAT handling strategy that the
+    linker needs to use.
     
-    For #15696
-    For #22040
+    This patch supports two COMDAT strategies (IMAGE_COMDAT_SELECT_ANY and
+    IMAGE_COMDAT_SELECT_SAME_SIZE); more work will have to be done in the
+    future to support other flavors if it turns out that they are needed.
     
-    Change-Id: I5534bb8b5680daf536a7941aba5c701e8a4138ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468655
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Updates #35006.
+    
+    Change-Id: I516e825c30ed3df94ba08323b8a24fb847e10c1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383835
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/loadpe/ldpe.go | 92 ++++++++++++++++++++++++++++--------
+ 1 file changed, 71 insertions(+), 21 deletions(-)

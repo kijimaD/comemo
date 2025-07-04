@@ -1,27 +1,21 @@
-commit 86ad2d570c79e1687ba0782a2be891195da42cbf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 20 10:54:31 2023 -0700
+commit f0c0e0f255c59c8ee6e463103d0b8491b8f9b1af
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Feb 3 09:57:25 2022 -0800
 
-    Revert "cmd/go: use platform.MustLinkExternal in externalLinkingForced"
+    crypto/elliptic: inline marshaling into nistec pointFromAffine
     
-    This reverts CL 477395.
+    Marshal behavior for invalid points is undefined, so don't use it to
+    check if points are valid.
     
-    Failing on darwin-amd64 builders:
-    https://build.golang.org/log/b07ec5e40a896f5d099e4c85f4094321ecc84f21
+    For #52182
     
-    loadinternal: cannot find runtime/cgo
-    signal: trace/BPT trap
-    FAIL    crypto/x509     0.024s
-    FAIL
-    2023/03/20 12:16:35 Failed: exit status 1
-    
-    Change-Id: Ib9923f9ff7e24c3b5f8690ba1d6b5d0b6693d49c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477736
+    Change-Id: If167893bc4b029f71bb2528564f2bd96bee7221c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382994
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/go/internal/load/pkg.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/crypto/elliptic/nistec.go | 46 +++++++++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 21 deletions(-)

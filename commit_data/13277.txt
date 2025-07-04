@@ -1,30 +1,13 @@
-commit dcc46388df62fafe81426b8dd888ed786f7db9fa
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 4 13:09:19 2012 -0400
+commit de0c1c9cf5598e53a335d14c1fc8d0f42fe81ebc
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Jun 4 18:35:26 2012 +0200
 
-    time: accept .999 in Parse
+    exp/locale/collate: somehow an incorrect version of tables was checked in earlier.
+    Regenerated tables using maketables.
     
-    The recent shuffle in parsing formats exposed probably unintentional
-    behavior in time.Parse, namely that it was mostly ignoring ".99999"
-    in the format, producing the following behavior:
-    
-    fmt.Println(time.Parse("03:04:05.999 MST", "12:00:00.888 PDT")) // error (.888 unexpected)
-    fmt.Println(time.Parse("03:04:05.999", "12:00:00")) // error (input too short)
-    fmt.Println(time.Parse("03:04:05.999 MST", "12:00:00 PDT"))  // ok (extra bytes on input make it ok)
-    
-    http://play.golang.org/p/ESJ1UYXzq2
-    
-    API CHANGE:
-    
-    This CL makes all three examples valid: ".999" can match an
-    empty string or else a fractional second with at most nine digits.
-    
-    Fixes #3701.
-    
-    R=r, r
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/6267045
+    https://golang.org/cl/6248067
 
- src/pkg/time/format.go    | 16 +++++++++++++++-
- src/pkg/time/time_test.go | 10 ++++++++++
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/pkg/exp/locale/collate/tables.go | 122 +++++++++++++++++------------------
+ 1 file changed, 61 insertions(+), 61 deletions(-)

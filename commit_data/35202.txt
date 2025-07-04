@@ -1,35 +1,18 @@
-commit 1b44167d055464f79c026d2023953ba7efdbcfe6
-Author: Austin Clements <austin@google.com>
-Date:   Sat Apr 28 22:00:36 2018 -0400
+commit 6697aa58aef7f15c143f9af6878f1f4e406a6576
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 9 10:28:29 2018 -0800
 
-    cmd/internal/obj/arm: fix/rationalize checkpool distance check
+    go/internal/gccgoimporter: parse optional escape info in export data
     
-    When deciding whether to flush the constant pool, the distance check
-    in checkpool can fail to account for padding inserted before the next
-    instruction by nacl.
+    Fixes #23324.
     
-    For example, see this failure:
-    https://go-review.googlesource.com/c/go/+/109350/2#message-07085b591227824bb1d646a7192cbfa7e0b97066
-    Here, the pool should be flushed before a CALL instruction, but
-    checkpool only considers the CALL instruction to be 4 bytes and
-    doesn't account for the 8 extra bytes of alignment padding added
-    before it by asmoutnacl. As a result, it flushes the pool after the
-    CALL instruction, which is 4 bytes too late.
-    
-    Furthermore, there's no explanation for the rather convoluted
-    expression used to decide if we need to emit the constant pool.
-    
-    This CL modifies checkpool to take the PC following the tentative
-    instruction as an argument. The caller knows this already and this way
-    checkpool doesn't have to guess (and get it wrong in the presence of
-    padding). In the process, it rewrites the test to be structured and
-    commented.
-    
-    Change-Id: I32a3d50ffb5a94d42be943e9bcd49036c7e9b95c
-    Reviewed-on: https://go-review.googlesource.com/110017
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie2383bad35f0bcc1344a8a1683be08d5fd0eea96
+    Reviewed-on: https://go-review.googlesource.com/86977
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/arm/asm5.go | 42 +++++++++++++++++++++++++++-------------
- 1 file changed, 29 insertions(+), 13 deletions(-)
+ src/go/internal/gccgoimporter/importer_test.go        |   1 +
+ src/go/internal/gccgoimporter/parser.go               |   8 ++++++++
+ src/go/internal/gccgoimporter/testdata/escapeinfo.go  |  13 +++++++++++++
+ src/go/internal/gccgoimporter/testdata/escapeinfo.gox | Bin 0 -> 824 bytes
+ 4 files changed, 22 insertions(+)

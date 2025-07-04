@@ -1,18 +1,21 @@
-commit 0e0b1cddf2bd4cdb629922149f17a21762158612
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 22 09:07:30 2022 -0500
+commit b37c6e15477a934f894488751bed8abcf16b4f5c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 27 21:26:27 2022 -0800
 
-    doc/go1.20: add hyperlinks, minor edits
+    go/types, types2: delete TypeList.String
     
-    Add links to all significant documentation symbols.
-    Fix or improve wording a few places.
+    This method is unused and was not discussed in the API
+    proposals. Note that all error output goes through the
+    local sprintf which handles arguments specially.
     
-    Change-Id: I53277125eb75a8223a7464136e99accdb46744b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452757
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Fixes #50760.
+    
+    Change-Id: Iae66b0253cc0ece037d3d280951dc2d223c119fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381634
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go1.20.html | 109 ++++++++++++++++++++++++--------------------------------
- 1 file changed, 47 insertions(+), 62 deletions(-)
+ api/go1.18.txt                               |  1 -
+ src/cmd/compile/internal/types2/typelists.go | 11 -----------
+ src/go/types/typelists.go                    | 11 -----------
+ 3 files changed, 23 deletions(-)

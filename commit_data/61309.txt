@@ -1,0 +1,17 @@
+commit bb46b754bebb0e820d74fd9eb02635afbdf5a3bd
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Aug 12 16:38:58 2024 -0400
+
+    internal/runtime/maps: speed up modulo
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Ic47721e101f6fee650e6825a5a241fcd12fa0009
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611185
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/runtime/maps/table.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

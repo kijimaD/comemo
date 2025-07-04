@@ -1,19 +1,14 @@
-commit c70a7849af56828462ed7d2a5051d917ef6432dc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 12 12:02:49 2019 -0700
+commit 3d72ca9908ba2696e1acafa7d7f8fee21131fe5e
+Author: Xia Bin <snyh@snyh.org>
+Date:   Mon Nov 19 11:24:12 2018 +0800
 
-    cmd/internal/obj: stop plist flushing early on error
+    cmd/link: directly get max pc value in findfunctab
     
-    If preprocessing or assembling has failed, we should not proceed.
-    First, there's no point.
-    Second, I will shortly add some sanity checks to linkpcln
-    that will fail on malformed input.
-    
-    Change-Id: I055eeab1c2f3a66b4b2cadb551bbf4ab55d176f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171886
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I70afd2f7b6783926174c4e66565b711cffeb97c5
+    Reviewed-on: https://go-review.googlesource.com/c/150141
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/plist.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/link/internal/ld/pcln.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

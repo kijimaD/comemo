@@ -1,14 +1,13 @@
-commit 52a73239bbf848ee65053a37e6382639bb3bf238
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 31 14:40:13 2014 -0800
+commit 99a1e76291068d80d027aaba8f1b451f962f1da9
+Author: Nathan John Youngman <nj@nathany.com>
+Date:   Fri Jan 31 17:43:46 2014 +1100
 
-    time: correctly handle timezone before first transition time
+    syscall: add ERROR_MORE_DATA to Windows for os/fsnotify
     
-    LGTM=r
-    R=golang-codereviews, r, arnehormann, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/58450043
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman
+    CC=dave, golang-codereviews
+    https://golang.org/cl/58900044
 
- src/pkg/time/zoneinfo.go      | 68 ++++++++++++++++++++++++++++++++++++++++++-
- src/pkg/time/zoneinfo_test.go | 54 ++++++++++++++++++++++++++++++++++
- 2 files changed, 121 insertions(+), 1 deletion(-)
+ src/pkg/syscall/ztypes_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

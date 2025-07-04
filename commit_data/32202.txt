@@ -1,22 +1,24 @@
-commit 816deacc70f48d14638104e284b3b75d5b1e8036
-Author: Audrey Lim <audreylh@gmail.com>
-Date:   Sat Jul 15 12:33:06 2017 -0600
+commit 49f4b5a4f5257e17cc62ad5d7862fdb4a5cfa7a0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 12 06:11:08 2017 -0700
 
-    archive/zip: fix Writer to validate file
+    cmd/internal/obj: remove Link.Plan9privates
     
-    The ZIP format uses uint16 to contain the length of the file name and
-    the length of the Extra section. This change verifies that the length
-    of these fields fit in an uint16 prior to writing the ZIP file. If not,
-    an error is returned.
+    Move it to the x86 package, matching our handling
+    of deferreturn in x86 and arm.
+    While we're here, improve the concurrency safety
+    of both Plan9privates and deferreturn
+    by eagerly initializing them in instinit.
     
-    Fixes #17402
+    Updates #15756
     
-    Change-Id: Ief9a864d2fe16b89ddb9917838283b801a2c58a4
-    Reviewed-on: https://go-review.googlesource.com/50250
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: If3b1995c1e4ec816a5443a18f8d715631967a8b1
+    Reviewed-on: https://go-review.googlesource.com/40408
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/zip/writer.go   | 13 +++++++++++++
- src/archive/zip/zip_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+)
+ src/cmd/internal/obj/link.go     |  1 -
+ src/cmd/internal/obj/x86/asm6.go | 26 ++++++++++++++------------
+ src/cmd/internal/obj/x86/obj6.go |  4 ----
+ 3 files changed, 14 insertions(+), 17 deletions(-)

@@ -1,22 +1,23 @@
-commit 435b9dd1a1bae81a32eafb59a9de7fb2873cd51e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 6 18:19:03 2019 +0000
+commit 26d5f032e99e68252f20d298bec925f2e1a1613e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 30 14:06:54 2019 +0700
 
-    text/template: avoid a global map to help the linker's deadcode elimination
+    cmd/compile: add test for skipping empty init functions
     
-    Fixes #36021
-    Updates #2559
-    Updates #26775
+    CL 200958 adds skipping empty init function feature without any tests
+    for it. A codegen test sounds ideal, but it's unlikely that we can make
+    one for now, so use a program to manipulate runtime/proc.go:initTask
+    directly.
     
-    Change-Id: I2e6708691311035b63866f25d5b4b3977a118290
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210284
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #34869
+    
+    Change-Id: I2683b9a1ace36af6861af02a3a9fb18b3110b282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204217
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/text/template/funcs.go      | 71 ++++++++++++++++++++++++++---------------
- src/text/template/link_test.go  | 64 +++++++++++++++++++++++++++++++++++++
- src/text/template/multi_test.go |  2 +-
- src/text/template/template.go   |  2 +-
- 4 files changed, 111 insertions(+), 28 deletions(-)
+ src/runtime/proc.go |  1 +
+ test/initempty.go   | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

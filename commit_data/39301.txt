@@ -1,22 +1,42 @@
-commit 27eaffc053d77e967c8bcd71b47087f468accb46
-Author: Tyler Bui-Palsulich <tbp@google.com>
-Date:   Tue May 28 15:50:01 2019 -0400
+commit 34fb5855eb73fe04ee0bcfc0d9ca8be5440a560b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 20 10:44:52 2019 -0800
 
-    cmd/go: document GO{NO}SUMDB in 'go help environment' and 'go help modules'
+    text/scanner: don't liberally consume (invalid) floats or underbars
     
-    GOSUMDB and GONOSUMDB are described in detail by
-    'go help module-auth'. So, this change mentions the two
-    variables and says to see 'go help module-auth'.
+    This is a follow-up on https://golang.org/cl/161199 which introduced
+    the new Go 2 number literals to text/scanner.
     
-    This also adds GONOPROXY to 'go help environment'.
+    That change introduced a bug by allowing decimal and hexadecimal floats
+    to be consumed even if the scanner was not configured to accept floats.
     
-    Fixes #32292 and updates #32056.
+    This CL changes the code to not consume a radix dot '.' or exponent
+    unless the scanner is configured to accept floats.
     
-    Change-Id: I2eae0f906a3fbfcb88ad5c8fb4870917d0d7bbcd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179219
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This CL also introduces a new mode "AllowNumberbars" which controls
+    whether underbars '_' are permitted as digit separators in numbers
+    or not.
+    
+    There is a possibility that we may need to refine text/scanner
+    further (e.g., the Float mode now includes hexadecimal floats
+    which it didn't recognize before). We're very early in the cycle,
+    so let's see how it goes.
+    
+    RELNOTE=yes
+    
+    Updates #12711.
+    Updates #19308.
+    Updates #28493.
+    Updates #29008.
+    
+    Fixes #30320.
+    
+    Change-Id: I6481d314f0384e09ef6803ffad38dc529b1e89a3
+    Reviewed-on: https://go-review.googlesource.com/c/163079
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go               | 18 +++++++++++++++---
- src/cmd/go/internal/help/helpdoc.go | 13 ++++++++++++-
- src/cmd/go/internal/modload/help.go |  5 +++--
- 3 files changed, 30 insertions(+), 6 deletions(-)
+ api/except.txt                   |  1 +
+ api/next.txt                     |  3 +++
+ src/text/scanner/scanner.go      | 48 ++++++++++++++++++++++------------------
+ src/text/scanner/scanner_test.go | 37 +++++++++++++++++++++++++++++++
+ 4 files changed, 68 insertions(+), 21 deletions(-)

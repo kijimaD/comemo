@@ -1,13 +1,18 @@
-commit 850d1026adfb0546bd0a6491ee95890257454282
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jun 4 12:59:28 2013 +1000
+commit fa4a9ff76491f00189e41488e7552ae9aea8c73c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 3 16:44:35 2013 -0400
 
-    doc: add Game of Life to playground toys
+    cmd/ld, runtime: clean up CL 9666047
     
-    R=golang-dev, dsymonds, r
+    Remove unnecessary ( ) around == in && clause.
+    Add { } around multiline if body, even though it's one statement.
+    
+    Add runtime: prefix to printed errors.
+    
+    R=cshapiro, iant
     CC=golang-dev
-    https://golang.org/cl/9961043
+    https://golang.org/cl/9685047
 
- doc/play/life.go | 113 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/root.html    |   1 +
- 2 files changed, 114 insertions(+)
+ src/cmd/ld/lib.c         | 4 ++--
+ src/pkg/runtime/symtab.c | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

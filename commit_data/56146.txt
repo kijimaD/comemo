@@ -1,25 +1,24 @@
-commit 5d18f889276fec9fd478124a0691bd7d1bca37c1
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Apr 3 15:52:28 2024 -0400
+commit da2755b4721bc8f0361690401e4436fec2bbe984
+Author: Nuno Cruces <ncruces@users.noreply.github.com>
+Date:   Tue Apr 11 23:25:07 2023 +0000
 
-    all: update vendored golang.org/x/net to v0.23.0
+    embed: implement openFile.ReadAt
     
-    Pull in CL 576155:
+    Implementation copied from testing/fstest/mapfs.go
     
-            ba872109 http2: close connections when receiving too many headers
+    Fixes #57803
     
-    Fixes CVE-2023-45288.
-    Fixes #65051.
-    
-    Change-Id: I3f4e3d565189b4ed552935fe1d96f94ebac86d48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/576295
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I531682b50ab6663511bac41fce7614ab9197bf38
+    GitHub-Last-Rev: d9bcc1c0bf4d339edcdabaf4d4d67b848ad8818d
+    GitHub-Pull-Request: golang/go#59489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483235
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go.mod                |  2 +-
- src/go.sum                |  4 ++--
- src/net/http/h2_bundle.go | 35 +++++++++++++++++++++++++++++++++--
- src/vendor/modules.txt    |  2 +-
- 4 files changed, 37 insertions(+), 6 deletions(-)
+ src/embed/embed.go                         | 16 +++++++--
+ src/embed/internal/embedtest/embed_test.go | 57 ++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 2 deletions(-)

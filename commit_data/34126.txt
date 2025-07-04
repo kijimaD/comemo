@@ -1,17 +1,27 @@
-commit 544d36514a8aaaa7309cc398e3e23c1c8fc5e3c8
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Sat Jan 27 22:09:25 2018 -0500
+commit 9d9722a2e16fa3f31dc336f4b12ef4d45e770e66
+Author: Sokolov Yura <funny.falcon@gmail.com>
+Date:   Wed Oct 4 14:35:33 2017 +0300
 
-    cmd/go/internal/test: remove redundant if statement
+    runtime: fix using fastrand in sema.go
     
-    Just return the result of the function call as they are
-    both functionally equivalent.
+    Before CL 62530 fastrand always returned non-zero value, and one
+    condition in sema.go depends on this behavior.
     
-    Change-Id: Ia7847c9b018475051bf6f7a7c532b515bd68c024
-    Reviewed-on: https://go-review.googlesource.com/90375
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    fastrand is used to generate random weight for treap of sudog, and
+    it is checked against zero to verify sudog were inserted into treap or
+    wait queue.
+    
+    Since its precision is not very important for correctness, lets just
+    always set its lowest bit in this place.
+    
+    Updates #22047
+    Updates #21806
+    
+    Change-Id: Iba0b56d81054e6ef9c49ffd293fc5d92a6a31e9b
+    Reviewed-on: https://go-review.googlesource.com/68050
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/test/test.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/runtime/sema.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

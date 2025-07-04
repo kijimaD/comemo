@@ -1,21 +1,26 @@
-commit f79c99fe8ae4a5e4380af22ee6cb38c3eb3a0416
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Oct 3 11:20:29 2023 +0200
+commit ebb71ad681ec5711c004537e5800a10e5a3ab533
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Nov 2 17:41:21 2022 +0100
 
-    internal/syscall/unix: implement Eaccess on netbsd
+    cmd/go: update TestScripts/svn to not depend on TZ database
     
-    Like on linux and freebsd, use faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+    `TestScripts/svn` test suite fails if the host does not have a TZ
+    database installed.
     
-    Change-Id: Ia76ba67023b6deba6f0cdaf30a0b9cee0c140bb8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531876
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    This CL updates those tests so SVN formats dates using UTC, which
+    don't require a TZ database.
+    
+    Fixes #56527
+    
+    Change-Id: I20f3c03c3cedd7d748f4623dddc66bd04d1df318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447335
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/internal/syscall/unix/at_sysnum_netbsd.go                  | 10 +++++++---
- .../syscall/unix/{eaccess_freebsd.go => eaccess_bsd.go}        |  2 ++
- src/internal/syscall/unix/eaccess_other.go                     |  2 +-
- 3 files changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/go/testdata/vcstest/svn/hello.txt         |  5 +++--
+ src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt | 14 ++++++++------
+ src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt | 10 ++++++----
+ 3 files changed, 17 insertions(+), 12 deletions(-)

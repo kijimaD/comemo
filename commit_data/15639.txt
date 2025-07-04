@@ -1,29 +1,27 @@
-commit dfc22e29ec2f687375d32c9f7662416d0c9f97d3
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 7 19:57:10 2013 -0800
+commit a566deace1d96cd517e79227937e3036baca7ee2
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Fri Mar 8 00:54:44 2013 +0100
 
-    runtime: change 386 startup convention
+    syscall: Plan 9: use lightweight errstr in entersyscall mode
     
-    Now the default startup is that the program begins at _rt0_386_$GOOS,
-    which behaves as if calling main(argc, argv). Main jumps to _rt0_386.
+    Change 231af8ac63aa (CL 7314062) made runtime.enteryscall()
+    set m->mcache = nil, which means that we can no longer use
+    syscall.errstr in syscall.Syscall and syscall.Syscall6, since it
+    requires a new buffer to be allocated for holding the error string.
+    Instead, we use pre-allocated per-M storage to hold error strings
+    from syscalls made while in entersyscall mode, and call
+    runtime.findnull to calculate the lengths.
     
-    This makes the _rt0_386 entry match the expected semantics for
-    the standard C "main" function, which we can now provide for use when
-    linking against a standard C library.
+    Fixes #4994.
     
-    386 analogue of https://golang.org/cl/7525043
-    
-    R=golang-dev, r
+    R=rsc, rminnich, ality, dvyukov, rminnich, r
     CC=golang-dev
-    https://golang.org/cl/7551045
+    https://golang.org/cl/7567043
 
- src/pkg/runtime/asm_386.s          |  4 ++--
- src/pkg/runtime/rt0_darwin_386.s   | 10 ++++++++--
- src/pkg/runtime/rt0_freebsd_386.s  | 11 ++++++++---
- src/pkg/runtime/rt0_linux_386.s    | 14 ++++++++++----
- src/pkg/runtime/rt0_netbsd_386.s   | 12 ++++++++++--
- src/pkg/runtime/rt0_openbsd_386.s  | 12 ++++++++++--
- src/pkg/runtime/rt0_plan9_386.s    |  7 +++++++
- src/pkg/runtime/rt0_windows_386.s  | 11 ++++++++++-
- src/pkg/runtime/signal_linux_386.c |  3 +--
- 9 files changed, 66 insertions(+), 18 deletions(-)
+ src/pkg/runtime/runtime.h         |  1 +
+ src/pkg/runtime/sys_plan9_386.s   | 20 ++++++++++++++++++++
+ src/pkg/runtime/sys_plan9_amd64.s | 21 +++++++++++++++++++++
+ src/pkg/runtime/thread_plan9.c    |  4 ++++
+ src/pkg/syscall/asm_plan9_386.s   |  4 ++--
+ src/pkg/syscall/asm_plan9_amd64.s |  4 ++--
+ 6 files changed, 50 insertions(+), 4 deletions(-)

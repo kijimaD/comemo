@@ -1,17 +1,23 @@
-commit fc97288e2607480199755dea9dbd5484f0b4de74
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Thu Sep 12 15:46:41 2024 +0000
+commit 6d8d88a70716bd35708748ba4e0110bdcd9520f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 1 12:37:15 2023 -0700
 
-    text/template: make use of maps.Copy for Template.Clone
+    database/sql: use reflect.TypeFor for known types
     
-    Change-Id: I1da668223b599867afe5483384b458482624adc5
-    GitHub-Last-Rev: 0a6bd6e84ac4c744d27d6ac87d877889209f386d
-    GitHub-Pull-Request: golang/go#69423
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612717
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tim King <taking@google.com>
+    For #60088
+    
+    Change-Id: Ib05ba3d456b22f7370459037b3d263c4b3ebe3b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514975
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/text/template/template.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/database/sql/convert.go      |  2 +-
+ src/database/sql/driver/types.go |  2 +-
+ src/database/sql/fakedb_test.go  | 28 ++++++++++++++--------------
+ src/database/sql/sql.go          |  2 +-
+ 4 files changed, 17 insertions(+), 17 deletions(-)

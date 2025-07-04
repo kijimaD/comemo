@@ -1,15 +1,22 @@
-commit efa608e6fe456a9df254445f90dff4a24de77612
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sun Mar 10 23:12:56 2024 +0800
+commit 6615324f79bf16e1c81951c9a18e51d1908f2698
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 17 13:12:13 2023 -0400
 
-    net/http: do not set a deadline when Server.IdleTimeout is negative
+    cmd/go: compute BuildInfo and EmbedFiles when listing export data
     
-    Change-Id: I0d6336e6a21aef14e7229594a335899083fa98b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570396
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    'go list -export' lists the locations of compiled artifacts,
+    so it needs to load all of the metadata needed to compile each package.
+    
+    Fixes #58885.
+    
+    Change-Id: Ie78527e0fb423698fb4195fe50e0b6925b05aa8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477197
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/net/http/server.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/list/list.go                 |  4 ++--
+ src/cmd/go/testdata/script/list_export_embed.txt | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 2 deletions(-)

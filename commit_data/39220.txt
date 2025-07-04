@@ -1,34 +1,12 @@
-commit 6105e8b4193401cf3344471924025c8a293c8e40
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Tue May 21 01:01:12 2019 -0400
+commit d34c0dbc17e61e9e7a15355e75b9578d7d024f52
+Author: kim yongbin <kybinz@gmail.com>
+Date:   Thu Dec 27 11:33:15 2018 +0900
 
-    runtime: revert init order changes
+    doc/go1.12: add notes about 'go doc -src'
     
-    First, remove the randomization of initialization order.
-    
-    Then, revert to source code order instead of sorted package path order.
-    
-    This restores the behavior that was in 1.12.
-    
-    A larger change which will implement the suggestion in #31636 will
-    wait for 1.14. It's too complicated for 1.13 at this point (it has
-    tricky interactions with plugins).
-    
-    Fixes #31636
-    
-    Change-Id: I35b48e8cc21cf9f93c0973edd9193d2eac197628
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178297
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iaf67fcbb145277327e24150b29ff38f6c65f6a03
+    Reviewed-on: https://go-review.googlesource.com/c/155781
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/init.go   |  6 ++----
- src/cmd/compile/internal/types/pkg.go |  3 ++-
- src/runtime/proc.go                   |  9 ---------
- test/fixedbugs/issue31636.dir/a.go    |  9 +++++++++
- test/fixedbugs/issue31636.dir/b.go    |  9 +++++++++
- test/fixedbugs/issue31636.dir/c.go    |  9 +++++++++
- test/fixedbugs/issue31636.dir/main.go | 20 ++++++++++++++++++++
- test/fixedbugs/issue31636.go          |  7 +++++++
- test/fixedbugs/issue31636.out         |  3 +++
- 9 files changed, 61 insertions(+), 14 deletions(-)
+ doc/go1.12.html | 5 +++++
+ 1 file changed, 5 insertions(+)

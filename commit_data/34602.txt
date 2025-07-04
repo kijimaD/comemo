@@ -1,12 +1,26 @@
-commit 7d4d2cb686d2068a9a07dbde9f2a72c237c1f4a4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 14 11:19:42 2018 -0700
+commit d5960e3043768d13a0593a750cbe9dfad6138c97
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Oct 24 17:15:30 2017 +0100
 
-    math/big: add comment about internal assumptions on nat values
+    cmd/compile: turn some pointer params into results
     
-    Change-Id: I7ed40507a019c0bf521ba748fc22c03d74bb17b7
-    Reviewed-on: https://go-review.googlesource.com/100719
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    These are likely from the time when gc was written in C. There is no
+    need for any of these to be passed pointers, as the previous values are
+    not kept in any way, and the pointers are never nil. Others were left
+    untouched as they fell into one of these useful cases.
+    
+    While at it, also turn some 0/1 integers into booleans.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: Id3a9c9e84ef89536c4dc69a7fdbacd0fd7a76a9b
+    Reviewed-on: https://go-review.googlesource.com/72990
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/nat.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/compile/internal/gc/range.go     |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      | 20 ++++++++------------
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ src/cmd/compile/internal/gc/walk.go      | 29 +++++++++++++----------------
+ 4 files changed, 28 insertions(+), 35 deletions(-)

@@ -1,27 +1,21 @@
-commit b8e9ec856c2b2d717ab14e85f43e00b532c4370a
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Wed Mar 10 07:21:56 2021 -0700
+commit c6a11f0dd279f374602794af60c7cde4585a1e6f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 11 13:04:48 2020 -0700
 
-    syscall: use runtime.KeepAlive for ProcThreadAttributeList arguments
+    crypto,internal/bytealg: fix assembly that clobbers BP
     
-    It turns out that if you write Go pointers to Go memory, the Go compiler
-    must be involved so that it generates various calls to the GC in the
-    process. Letting Windows write Go pointers to Go memory violated this.
-    So, we replace that with just a boring call to runtime.KeepAlive. That's
-    not a great API, but this is all internal code anyway. We fix it up
-    more elegantly for external consumption in x/sys/windows with CL 300369.
+    BP should be callee-save. It will be saved automatically if
+    there is a nonzero frame size. Otherwise, we need to avoid this register.
     
-    Fixes #44900.
-    
-    Change-Id: Id6599a793af9c4815f6c9387b00796923f32cb97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300349
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If3f551efa42d830c8793d9f0183cb8daad7a2ab5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248260
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_windows.go         |  3 +++
- src/syscall/syscall_windows.go      |  2 +-
- src/syscall/syscall_windows_test.go | 36 ------------------------------------
- src/syscall/types_windows.go        |  8 +-------
- 4 files changed, 5 insertions(+), 44 deletions(-)
+ src/crypto/elliptic/p256_asm_amd64.s |  5 ++--
+ src/crypto/md5/md5block_amd64.s      |  2 +-
+ src/internal/bytealg/index_amd64.s   | 52 ++++++++++++++++++------------------
+ src/runtime/sys_linux_amd64.s        |  8 +++---
+ 4 files changed, 33 insertions(+), 34 deletions(-)

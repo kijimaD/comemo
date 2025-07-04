@@ -1,29 +1,23 @@
-commit 5f50b1e3bf710b4107eb38496d932b3d9bd1fc98
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Jun 25 02:35:19 2024 +0700
+commit 188066cfbc2589e82de9325f9d7a21a9a1043bbd
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri May 26 09:58:43 2023 -0700
 
-    cmd/compile: fix mis-compilation when switching over channels
+    misc/wasm: set PATH variable in exec
     
-    CL 418101 changes Unified IR writer to force mixed tag/case to have
-    common type, emitting the implicit conversion if any of the case values
-    are not assignable to the tag value's type.
+    The PATH variable is required to run the testenv tests.
+    Set it for all the runtime invocations where we don't
+    already set it by inheriting from the environment.
     
-    However, the Go spec definition of equality is non-transitive for
-    channels stored in interfaces, causing incorrect behavior with channel
-    values comparison.
+    For #59583
+    For #59907
+    For #60097
     
-    To fix it, don't emit the implicit conversions if tag type is channel.
-    
-    Fixes #67190
-    
-    Change-Id: I9a29d9ce3c7978f0689e9502ba6f15660c763d16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594575
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: If582dd8f086e3f40bc58d555f6034dcffe6f8e5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498616
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
 
- src/cmd/compile/internal/noder/writer.go | 26 +++++++++++++++++++-------
- test/fixedbugs/issue67190.go             | 24 ++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 7 deletions(-)
+ misc/wasm/go_wasip1_wasm_exec | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

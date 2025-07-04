@@ -1,21 +1,22 @@
-commit 952f7de3b403d2ffb45708ea5f69168bbdbfe1f0
-Author: Andrei Tudor Călin <mail@acln.ro>
-Date:   Thu Apr 23 04:04:33 2020 +0300
+commit 52d5e76b39a80a7e39754ff9564a7471551b3cdd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Nov 7 17:02:56 2019 -0500
 
-    testing: make TempDir work for subtests
+    runtime: disable async preemption on darwin/arm(64) for now
     
-    ioutil.TempDir doesn't like path separators in its pattern. Modify
-    (*common).TempDir to replace path separators with underscores before
-    using the test name as a pattern for ioutil.TempDir.
+    Enabling async preemption on darwin/arm and darwin/arm64 causes
+    the builder to fail, e.g.
+    https://build.golang.org/log/03f727b8f91b0c75bf54ff508d7d2f00b5cad4bf
     
-    Fixes #38465.
+    Due to the limited resource, I haven't been able to get access on
+    those devices to debug. Disable async preemption for now.
     
-    Change-Id: I9e8ae48b99648b2bf9f561762e845165aff01972
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229399
+    Updates #35439.
+    
+    Change-Id: I5a31ad6962c2bae8e6e9b8303c494610a8a4e50a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205842
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/testing/testing.go      | 7 ++++++-
- src/testing/testing_test.go | 5 +++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/runtime/signal_arm.go   | 4 +++-
+ src/runtime/signal_arm64.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

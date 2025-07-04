@@ -1,19 +1,22 @@
-commit 4861475c1a373f2004ef9f95862fb1b370577d91
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 9 12:51:28 2022 -0400
+commit baeabf3b366fad1eae113f8334451906dac61c0d
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 20:40:58 2021 -0400
 
-    net: avoid racing on port reuse in TestListenConfigControl
+    [dev.typeparams] go/types: cleanups around receiver type checks
     
-    Fixes #52798.
-    Fixes #51441 (until proven otherwise 😅).
+    This is a port of CL 333770 to go/types, adjusted for the error
+    reporting API and to not support compiler error messages. An error
+    message changed (to 'invalid receiver type' from just 'invalid
+    receiver'), so a test had to be adjusted.
     
-    Change-Id: Ic1eadebd0d41c5cbe37340190f8b2bde4b6c5673
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405214
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I166e8831d8c9f98ebfb0270fe5221586fc112825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335079
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/listen_test.go     | 31 ++-----------------------------
- src/net/mockserver_test.go | 31 +++++++++++++++++++++++++++----
- 2 files changed, 29 insertions(+), 33 deletions(-)
+ src/go/types/signature.go                      | 34 +++++++++++++++++---------
+ src/go/types/testdata/examples/methods.go2     | 17 +++++++++++++
+ src/go/types/testdata/fixedbugs/issue28251.src |  2 +-
+ 3 files changed, 40 insertions(+), 13 deletions(-)

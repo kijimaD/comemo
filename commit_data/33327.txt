@@ -1,19 +1,66 @@
-commit 54d04c2fcb7e1e0bebbedeeca6328fd0362254ce
-Author: Joe Kyo <xunianzu@gmail.com>
-Date:   Mon Oct 16 07:25:14 2017 +0100
+commit 67c360594f1cdfa8e663bf5ff51724d3fc31abb9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Aug 11 16:49:01 2017 +0200
 
-    crypto/tls: remove bookkeeping code from pHash function
+    syscall: add utimensat and use it for UtimesNano on BSD and Solaris
     
-    Since copy function can figure out how many bytes of data to copy when
-    two slices have different length, it is not necessary to check how many
-    bytes need to copy each time before copying the data.
+    All the BSDs and Solaris support the utimensat syscall, but Darwin
+    doesn't. Account for that by adding the //sys lines not to
+    syscall_bsd.go but the individual OS's syscall_*.go files and implement
+    utimensat on Darwin as just returning ENOSYS, such that UtimesNano will
+    fall back to use utimes as it currently does unconditionally.
     
-    Change-Id: I5151ddfe46af5575566fe9c9a2648e111575ec3d
-    Reviewed-on: https://go-review.googlesource.com/71090
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Run-TryBot: Filippo Valsorda <hi@filippo.io>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This also adds the previously missing utimensat syscall number for
+    FreeBSD and Dragonfly.
+    
+    Fixes #16480
+    
+    Change-Id: I367454c6168eb1f7150b988fa16cf02abff42f34
+    Reviewed-on: https://go-review.googlesource.com/55130
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/prf.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/syscall/syscall_bsd.go              |  6 ++++--
+ src/syscall/syscall_darwin.go           |  5 +++++
+ src/syscall/syscall_dragonfly.go        |  1 +
+ src/syscall/syscall_freebsd.go          |  1 +
+ src/syscall/syscall_netbsd.go           |  1 +
+ src/syscall/syscall_openbsd.go          |  2 +-
+ src/syscall/syscall_solaris.go          |  1 +
+ src/syscall/types_darwin.go             |  6 ++++++
+ src/syscall/types_dragonfly.go          |  6 ++++++
+ src/syscall/types_freebsd.go            |  6 ++++++
+ src/syscall/types_netbsd.go             |  6 ++++++
+ src/syscall/types_openbsd.go            |  6 ++++++
+ src/syscall/types_solaris.go            |  6 ++++++
+ src/syscall/zsyscall_dragonfly_amd64.go | 15 +++++++++++++++
+ src/syscall/zsyscall_freebsd_386.go     | 15 +++++++++++++++
+ src/syscall/zsyscall_freebsd_amd64.go   | 15 +++++++++++++++
+ src/syscall/zsyscall_freebsd_arm.go     | 15 +++++++++++++++
+ src/syscall/zsyscall_netbsd_386.go      | 15 +++++++++++++++
+ src/syscall/zsyscall_netbsd_amd64.go    | 15 +++++++++++++++
+ src/syscall/zsyscall_netbsd_arm.go      | 17 ++++++++++++++++-
+ src/syscall/zsyscall_openbsd_386.go     | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_amd64.go   | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_arm.go     | 15 +++++++++++++++
+ src/syscall/zsyscall_solaris_amd64.go   | 18 +++++++++++++++++-
+ src/syscall/zsysnum_dragonfly_amd64.go  |  1 +
+ src/syscall/zsysnum_freebsd_386.go      |  1 +
+ src/syscall/zsysnum_freebsd_amd64.go    |  1 +
+ src/syscall/zsysnum_freebsd_arm.go      |  1 +
+ src/syscall/ztypes_darwin_386.go        |  4 ++++
+ src/syscall/ztypes_darwin_amd64.go      |  4 ++++
+ src/syscall/ztypes_darwin_arm.go        |  4 ++++
+ src/syscall/ztypes_darwin_arm64.go      |  4 ++++
+ src/syscall/ztypes_dragonfly_amd64.go   |  4 ++++
+ src/syscall/ztypes_freebsd_386.go       |  4 ++++
+ src/syscall/ztypes_freebsd_amd64.go     |  4 ++++
+ src/syscall/ztypes_freebsd_arm.go       |  4 ++++
+ src/syscall/ztypes_netbsd_386.go        |  4 ++++
+ src/syscall/ztypes_netbsd_amd64.go      |  4 ++++
+ src/syscall/ztypes_netbsd_arm.go        |  4 ++++
+ src/syscall/ztypes_openbsd_386.go       |  4 ++++
+ src/syscall/ztypes_openbsd_amd64.go     |  4 ++++
+ src/syscall/ztypes_openbsd_arm.go       |  4 ++++
+ src/syscall/ztypes_solaris_amd64.go     |  4 ++++
+ 43 files changed, 282 insertions(+), 5 deletions(-)

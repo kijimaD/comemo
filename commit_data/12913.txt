@@ -1,13 +1,16 @@
-commit 3af088dbafd57bfd8167652899c3ef838bdefae4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 19 09:18:49 2012 -0700
+commit c88ca5906cbf022e5b63bddae44c0722054466c9
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Apr 19 11:48:17 2012 +1000
 
-    A+C: Add Michael Chaten (Individual CLA)
+    exp/html: add parseImpliedToken method to parser
     
-    R=golang-dev, kevlar
+    This method will allow us to be explicit about what we're doing when
+    we insert an implied token, and avoid repeating the logic involved in
+    multiple places.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6075044
+    https://golang.org/cl/6060048
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/exp/html/parse.go | 84 ++++++++++++++++++++++++++---------------------
+ 1 file changed, 47 insertions(+), 37 deletions(-)

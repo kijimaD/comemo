@@ -1,20 +1,20 @@
-commit b98c1b22bd1b91e46144537fd3146f5b9e3d8acb
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Mar 20 13:01:14 2023 -0700
+commit f0ee7fda636408b4f04ca3f3b11788f662c90610
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Apr 19 06:26:53 2022 -0400
 
-    all: gofmt
+    crypto/tls: remove tls10default GODEBUG flag
     
-    Change-Id: I926388ee5aeeff11f765cbd4558b66645d1bbc08
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477836
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Updates #45428
+    
+    Change-Id: Ic2ff459e6a3f1e8ded2a770c11d34067c0b39a8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400974
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Auto-Submit: Filippo Valsorda <valsorda@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Filippo Valsorda <valsorda@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go |  6 +++---
- src/internal/godebug/godebug.go          | 10 +++++++---
- src/runtime/cgocheck.go                  |  1 +
- src/runtime/internal/atomic/types.go     |  2 ++
- src/runtime/mbarrier.go                  |  2 ++
- src/runtime/metrics/description_test.go  |  1 +
- src/runtime/start_line_test.go           |  2 +-
- 7 files changed, 17 insertions(+), 7 deletions(-)
+ doc/go1.19.html                         | 10 ++++++++++
+ src/crypto/tls/common.go                |  6 +-----
+ src/crypto/tls/handshake_server_test.go | 10 ----------
+ 3 files changed, 11 insertions(+), 15 deletions(-)

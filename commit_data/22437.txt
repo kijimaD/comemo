@@ -1,12 +1,16 @@
-commit 684473d19bdbf71bdc619448667588fe27d1933a
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:44:18 2015 -0400
+commit 272921b5d8327aa3e444d5ba7d2bf989b5d81e0b
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 13:55:49 2015 +0100
 
-    misc/ios: pick clang arch based on GOARCH
+    go/build: add GOARCH=arm64
     
-    Change-Id: Ia49ab729747acb07bf392d90aea9e752471e152e
-    Reviewed-on: https://go-review.googlesource.com/8789
+    Change-Id: I51db032e3dc2762d94e4000914b30813946250f7
+    Reviewed-on: https://go-review.googlesource.com/7044
     Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/ios/clangwrap.sh | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/go/build/build.go   | 2 ++
+ src/go/build/syslist.go | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

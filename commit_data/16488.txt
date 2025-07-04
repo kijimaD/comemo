@@ -1,30 +1,15 @@
-commit 636169405c370e3010f7a08162ed83b0da013b49
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Jun 4 16:21:04 2013 -0700
+commit 902ee9ae8f21d2a3bb570f66c0d082b9b1cce76b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jun 5 00:40:49 2013 +0200
 
-    build: add intptr typedef for Plan 9
+    misc/pprof: register cnew and runtime.cnewarray as malloc wrappers.
     
-    Revision 01810e5c68e9 added the following to src/pkg/runtime/stack.h:
+    These functions were introduced by revision 139919984600
+    and should not show up on profiles for consistency.
     
-            StackPreempt = (uintptr)(intptr)0xffffade,
-    
-    The typedef for intptr is defined in two places:
-    
-            1. src/pkg/runtime/runtime.h for use by the runtime
-    
-            2. include/u.h for use by the compilers and linkers
-    
-    On Plan 9, we don't use include/u.h but instead augment the host's
-    u.h with extra typedefs. These are in include/plan9/GOARCH/u.h.
-    
-    We forgot to add intptr. It didn't cause a problem until now since
-    that typedef was never used outside the runtime.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/10023043
+    https://golang.org/cl/10003043
 
- include/plan9/386/u.h   | 17 +++++++++--------
- include/plan9/amd64/u.h | 17 +++++++++--------
- include/plan9/arm/u.h   | 17 +++++++++--------
- 3 files changed, 27 insertions(+), 24 deletions(-)
+ misc/pprof | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,19 +1,40 @@
-commit 869932d700cf161c19eec65d66b9fe55482698db
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Fri Sep 27 19:20:58 2024 +0000
+commit 1c0035401358c8bfc2ff646b1d950da5fcd6b355
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 26 17:12:44 2023 -0400
 
-    net: improve documentation of netgo/netcgo build tags
+    runtime: change mutex profile to count every blocked goroutine
     
-    Updates #69680
+    The pprof mutex profile was meant to match the Google C++ (now Abseil)
+    mutex profiler, originally designed and implemented by Mike Burrows.
+    When we worked on the Go version, pjw and I missed that C++ counts the
+    time each thread is blocked, even if multiple threads are blocked on a
+    mutex. That is, if 100 threads are blocked on the same mutex for the
+    same 10ms, that still counts as 1000ms of contention in C++. In Go, to
+    date, /debug/pprof/mutex has counted that as only 10ms of contention.
+    If 100 goroutines are blocked on one mutex and only 1 goroutine is
+    blocked on another mutex, we probably do want to see the first mutex
+    as being more contended, so the Abseil approach is the more useful one.
     
-    Change-Id: If80d43da493cb035164ede4a2cadcbec5831feaf
-    GitHub-Last-Rev: b3853e9487da1006ecece9dd378e3de299d0b1da
-    GitHub-Pull-Request: golang/go#69682
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616262
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This CL adopts "contention scales with number of goroutines blocked",
+    to better match Abseil [1]. However, it still makes sure to attribute the
+    time to the unlock that caused the backup, not subsequent innocent
+    unlocks that were affected by the congestion. In this way it still gives
+    more accurate profiles than Abseil does.
+    
+    [1] https://github.com/abseil/abseil-cpp/blob/lts_2023_01_25/absl/synchronization/mutex.cc#L2390
+    
+    Fixes #61015.
+    
+    Change-Id: I7eb9e706867ffa8c0abb5b26a1b448f6eba49331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506415
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/net.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/export_test.go      |  2 +-
+ src/runtime/mprof.go            |  2 --
+ src/runtime/pprof/pprof_test.go | 74 ++++++++++++++++++++++++++++++++---------
+ src/runtime/runtime2.go         |  9 ++++-
+ src/runtime/sema.go             | 54 ++++++++++++++++++++++++++----
+ 5 files changed, 115 insertions(+), 26 deletions(-)

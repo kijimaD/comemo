@@ -1,19 +1,18 @@
-commit 4b8b2c58647af6f1979d8c53d886c8cd71c99e4b
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Feb 19 13:50:42 2021 +0700
+commit ed6b8af50923cd4f13aed2c9aa5791699ef971fa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jul 21 19:14:18 2020 -0400
 
-    cmd/compile: do not set type for OTYPE
+    [dev.link] cmd/link: stream external relocations on MIPS (32/64)
     
-    That's an invalid operation and depend on gc.hidePanic to report error.
-    
-    Updates #43311
-    
-    Change-Id: Ib0761dcf4d9d2a23c41de7eff0376677a90b942e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/294033
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I47fbeb3a49754395dceff51af371638fd43350ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244097
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/target.go  |  3 ++-
+ src/cmd/link/internal/mips/asm.go   | 38 +++++++++++++++++++++---------
+ src/cmd/link/internal/mips/obj.go   |  1 +
+ src/cmd/link/internal/mips64/asm.go | 46 ++++++++++++++++++++++++-------------
+ src/cmd/link/internal/mips64/obj.go |  1 +
+ 5 files changed, 61 insertions(+), 28 deletions(-)

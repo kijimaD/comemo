@@ -1,63 +1,16 @@
-commit 6f149492bf939d30de3d02049939768041b73aba
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Dec 20 11:37:05 2013 -0500
+commit 487dff18521634c7589a9a65640dce930eb9715a
+Author: Alex A Skinner <alex@lx.lc>
+Date:   Fri Dec 20 21:29:28 2013 +0900
 
-    crypto/tls: rework reference tests.
+    net: ParseIP should return nil if :: doesn't expand in an IPv6 address.
     
-    The practice of storing reference connections for testing has worked
-    reasonably well, but the large blocks of literal data in the .go files
-    is ugly and updating the tests is a real problem because their number
-    has grown.
+    Per RFC 4291, 'The use of "::" indicates one or more groups of 16 bits of zeros.'
+    Fixes #6628
     
-    This CL changes the way that reference tests work. It's now possible to
-    automatically update the tests and the test data is now stored in
-    testdata/. This should make it easier to implement changes that affect
-    all connections, like implementing the renegotiation extension.
-    
-    R=golang-codereviews, r
-    CC=golang-codereviews
-    https://golang.org/cl/42060044
+    R=golang-dev, rsc, minux.ma, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/15990043
 
- src/pkg/crypto/tls/handshake_client_test.go        | 3269 ++---------------
- src/pkg/crypto/tls/handshake_server_test.go        | 3803 ++------------------
- src/pkg/crypto/tls/handshake_test.go               |  167 +
- .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  |  129 +
- .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  125 +
- .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    |  128 +
- .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  124 +
- .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |   86 +
- .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |   97 +
- src/pkg/crypto/tls/testdata/Client-TLSv10-RSA-RC4  |   82 +
- .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |   88 +
- .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |   99 +
- src/pkg/crypto/tls/testdata/Client-TLSv11-RSA-RC4  |   82 +
- .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  |  133 +
- .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  127 +
- .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    |  132 +
- .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  126 +
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |   89 +
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |   84 +
- .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |   99 +
- src/pkg/crypto/tls/testdata/Client-TLSv12-RSA-RC4  |   82 +
- src/pkg/crypto/tls/testdata/Server-SSLv3-RSA-3DES  |   82 +
- src/pkg/crypto/tls/testdata/Server-SSLv3-RSA-AES   |   83 +
- src/pkg/crypto/tls/testdata/Server-SSLv3-RSA-RC4   |   78 +
- .../tls/testdata/Server-TLSv10-ECDHE-ECDSA-AES     |   92 +
- src/pkg/crypto/tls/testdata/Server-TLSv10-RSA-3DES |   78 +
- src/pkg/crypto/tls/testdata/Server-TLSv10-RSA-AES  |   81 +
- src/pkg/crypto/tls/testdata/Server-TLSv10-RSA-RC4  |   75 +
- src/pkg/crypto/tls/testdata/Server-TLSv11-RSA-RC4  |   75 +
- .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   |  106 +
- .../Server-TLSv12-CipherSuiteCertPreferenceRSA     |  117 +
- .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  122 +
- .../Server-TLSv12-ClientAuthRequestedAndGiven      |  120 +
- .../Server-TLSv12-ClientAuthRequestedNotGiven      |   80 +
- .../tls/testdata/Server-TLSv12-ECDHE-ECDSA-AES     |   97 +
- .../crypto/tls/testdata/Server-TLSv12-IssueTicket  |   87 +
- src/pkg/crypto/tls/testdata/Server-TLSv12-RSA-3DES |   82 +
- src/pkg/crypto/tls/testdata/Server-TLSv12-RSA-AES  |   86 +
- .../crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  |  102 +
- src/pkg/crypto/tls/testdata/Server-TLSv12-RSA-RC4  |   78 +
- src/pkg/crypto/tls/testdata/Server-TLSv12-Resume   |   35 +
- src/pkg/crypto/tls/testdata/Server-TLSv12-SNI      |   75 +
- 42 files changed, 4540 insertions(+), 6442 deletions(-)
+ src/pkg/net/ip.go      | 3 +++
+ src/pkg/net/ip_test.go | 1 +
+ 2 files changed, 4 insertions(+)

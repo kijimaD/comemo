@@ -1,0 +1,23 @@
+commit 2d050e91a3cd411d018921b43f3161068b9dcbc6
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 14 17:52:33 2025 -0700
+
+    cmd/compile: allow pointer-containing elements in stack allocations
+    
+    For variable-sized allocations.
+    
+    Turns out that we already implement the correct escape semantics
+    for this case. Even when the result of the "make" does not escape,
+    everything assigned into it does.
+    
+    Change-Id: Ia123c538d39f2f1e1581c24e4135a65af3821c5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657937
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/escape/utils.go    | 37 ++++++++----------
+ src/cmd/compile/internal/test/stack_test.go | 12 ++++++
+ src/cmd/compile/internal/walk/builtin.go    |  4 --
+ test/escape6.go                             | 59 +++++++++++++++++++++++++++++
+ 4 files changed, 86 insertions(+), 26 deletions(-)

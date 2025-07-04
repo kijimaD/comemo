@@ -1,12 +1,18 @@
-commit 9bd1f49e377d86c935d13d0bd0a8e8c3d986c18c
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Sat Sep 28 11:06:50 2013 +1000
+commit 0ab8f2d287159de00dfa64793a64285223f5661e
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Sep 26 21:59:13 2013 -0700
 
-    syscall: Fix one issue detected by vet.
+    reflect: expose reflect.call argument slice to the garbage collector
     
-    R=golang-dev, dsymonds
+    The argument slice was kept hidden from the garbage collector
+    by destroying its referent in an unsafe.Pointer to uintptr
+    conversion.  This change preserves the unsafe.Pointer referent
+    and only performs an unsafe.Pointer to uintptr conversions
+    within expressions that construct new unsafe.Pointer values.
+    
+    R=golang-dev, khr, rsc
     CC=golang-dev
-    https://golang.org/cl/14038044
+    https://golang.org/cl/14008043
 
- src/pkg/syscall/exec_linux.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/pkg/reflect/value.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

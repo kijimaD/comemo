@@ -1,20 +1,16 @@
-commit 93d92d51ddccbbc689f4b9adeded4f310ba0c363
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 22 14:29:38 2013 -0800
+commit 3692dfdd0a0846575595ebc5a9c67ba5dcfe79f3
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Tue Jan 22 17:12:45 2013 -0500
 
-    cmd/api: fix type scrubbing
+    fmt: Remove dead code and make comments and variables consistent.
     
-    It wasn't removing names from func parameters for func types,
-    and it was handling "a, b string" as "string", not "string, string".
-    
-    Fixes #4688
-    
-    R=golang-dev, rsc
+    R=minux.ma, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7181051
+    https://golang.org/cl/7064055
 
- api/go1.txt                                | 20 ++++++++++----------
- src/cmd/api/goapi.go                       | 10 ++++++++--
- src/cmd/api/testdata/src/pkg/p1/golden.txt |  8 +++++---
- src/cmd/api/testdata/src/pkg/p1/p1.go      |  4 ++++
- 4 files changed, 27 insertions(+), 15 deletions(-)
+ src/pkg/fmt/fmt_test.go  | 21 +++++++++++----------
+ src/pkg/fmt/format.go    | 21 ++++-----------------
+ src/pkg/fmt/print.go     | 14 +++++++-------
+ src/pkg/fmt/scan.go      |  9 +++++----
+ src/pkg/fmt/scan_test.go | 18 ++++++++++--------
+ 5 files changed, 37 insertions(+), 46 deletions(-)

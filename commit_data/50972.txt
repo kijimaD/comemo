@@ -1,25 +1,23 @@
-commit 65f863529ce2d66a63d8be0f62b128feb736a575
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Oct 20 17:01:01 2022 -0500
+commit 9e94cc3666cc5ff6ecf5930fb5da48ba62ad8080
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 22 09:50:47 2021 -0500
 
-    runtime: fix usleep on linux/PPC64
+    misc/cgo/test: remove unnecessary forward declaration
     
-    The existing implementation fails to convert the remainder
-    microseconds to nanoseconds. This causes sysmon to consume
-    much more cpu, and generate lots of context switches.
+    This test otherwise fails to build on windows/arm64 as of CL 364774
+    due to a warning (promoted to an error) about a mismatched dllexport
+    attribute. Fortunately, it seems not to need the forward-declared
+    function in this file anyway.
     
-    We can also do a little better here to avoid division by a
-    constant. I used go to determine the magic numbers.
+    Updates #49633
+    Updates #49721
     
-    Fixes #56374
-    
-    Change-Id: I2e37ec218b9027efab6db4634eed1504c0c1b3c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444735
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ia4698b85077d0718a55d2cc667a7950f1d8e50ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366075
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_linux_ppc64x.s | 23 +++++++++++++++--------
- 1 file changed, 15 insertions(+), 8 deletions(-)
+ misc/cgo/test/testx.go | 1 -
+ 1 file changed, 1 deletion(-)

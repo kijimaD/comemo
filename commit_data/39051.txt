@@ -1,23 +1,12 @@
-commit f4a5ae5594a21ea276d473fe9f804a30adbd8d07
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Apr 29 21:02:18 2019 +0000
+commit e2897e4ac0e0c124f3bb06885b4e2ed22e18eabf
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Dec 19 10:33:42 2018 +0530
 
-    runtime: track the number of free unscavenged huge pages
+    doc/go1.12: fix minor grammatical error
     
-    This change tracks the number of potential free and unscavenged huge
-    pages which will be used to inform the rate at which scavenging should
-    occur.
-    
-    For #30333.
-    
-    Change-Id: I47663e5ffb64cac44ffa10db158486783f707479
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170860
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I767bf77aeab62f2d42239fac9d601a8e04fe860f
+    Reviewed-on: https://go-review.googlesource.com/c/154957
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_test.go | 22 ++++++++++++++++++++++
- src/runtime/gc_test.go     | 19 +++++++++++++++++++
- src/runtime/mgclarge.go    |  9 ++++++++-
- src/runtime/mheap.go       |  2 +-
- 4 files changed, 50 insertions(+), 2 deletions(-)
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

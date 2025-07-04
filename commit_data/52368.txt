@@ -1,29 +1,32 @@
-commit ed2442a0e1d1871f3210f26a1e3adb722ea2467d
-Author: Nont Thanonchai <nontkrub@gmail.com>
-Date:   Wed Mar 22 01:04:45 2023 +0000
+commit 0ec08283c8e3a673d9916c186f8d2f5428846862
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 09:02:53 2022 -0400
 
-    os: avoid creating a new file in Truncate on Windows
+    [dev.boringcrypto] crypto/internal/boring: make SHA calls allocation-free
     
-    Truncate() a non existent file on Windows currently creates a new blank
-    file. This behavior is not consistent with other OSes where a file not
-    found error would instead be returned. This change makes Truncate on
-    Windows return a file-not-found error when the specified file doesn't
-    exist, bringing the behavior consistent.
+    The standard Go implementations are allocation-free.
+    Making the BoringCrypto ones the same helps avoid
+    surprises, including in some of our own tests.
     
-    New test cases have been added to prevent a regression.
+    For #51940.
     
-    Fixes #58977
-    
-    Change-Id: Iaf7b41fc4ea86a2b2ccc59f8be81be42ed211b5c
-    GitHub-Last-Rev: 636b6c37c1685096281ad506f3cfe35fd5810cb2
-    GitHub-Pull-Request: golang/go#59085
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477215
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: Ic9c5dc46f5e29ca85f571244be2b380ec2cf89c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395876
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/os/file_windows.go |  2 +-
- src/os/os_test.go      | 20 ++++++++++++++++++++
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ src/crypto/ed25519/ed25519_test.go                 |   7 +-
+ .../internal/edwards25519/edwards25519_test.go     |   1 -
+ src/crypto/internal/boring/boring.go               |  12 ++
+ src/crypto/internal/boring/notboring.go            |   6 +
+ src/crypto/internal/boring/sha.go                  | 205 ++++++++++++++++-----
+ src/crypto/sha1/boring.go                          |   6 +-
+ src/crypto/sha1/notboring.go                       |   6 +-
+ src/crypto/sha1/sha1.go                            |   6 +-
+ src/crypto/sha1/sha1_test.go                       |  25 ++-
+ src/crypto/sha256/sha256.go                        |  15 +-
+ src/crypto/sha256/sha256_test.go                   |  32 +++-
+ src/crypto/sha512/sha512.go                        |  15 +-
+ src/crypto/sha512/sha512_test.go                   |  32 +++-
+ 13 files changed, 265 insertions(+), 103 deletions(-)

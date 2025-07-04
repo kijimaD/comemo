@@ -1,0 +1,23 @@
+commit bd1f9a4963eff6672e7e7b6d1b03ca0c51f28663
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon May 5 15:48:03 2025 -0400
+
+    pkgbits: consolidate doc.go to only relevant details
+    
+    The stated goal for pkgbits is to implement encoding / decoding of
+    primitives. However, pkgbits has knowledge of high-level details like
+    elements, sections, and file layout.
+    
+    This change starts to clarify pkgbits by paring back documentation to
+    only those concepts which pkgbits owns. Further CLs are needed to shift
+    away logic that pkgbits should not own.
+    
+    Change-Id: Id93003d080f58ffbd6327e2db1a4878500511619
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670176
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+
+ src/internal/pkgbits/doc.go | 31 +++++++++----------------------
+ 1 file changed, 9 insertions(+), 22 deletions(-)

@@ -1,22 +1,19 @@
-commit ffb6c798281f1a3ec54421a11573cec7d517d117
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Sun Nov 21 21:06:27 2021 +0800
+commit 9fbd0f64d86d616d9ce1a2636afac43001b22b7c
+Author: 徐志伟 <juwan.xu@qq.com>
+Date:   Mon Mar 29 18:22:15 2021 +0000
 
-    go/types,types2: use allInteger to check type for shifted operand
+    runtime: fix some typos
     
-    Fixes: #49705
-    
-    Change-Id: I35a1c5f29b57f3facc5e89d33a8dec88e0ff4afa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365895
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I31f2081eb7c30a9583f479f9194e636fe721b9b3
+    GitHub-Last-Rev: d09f5fbdc5785dc3963b22ad75309740e0de258e
+    GitHub-Pull-Request: golang/go#45278
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305231
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/types2/check_test.go                 |  1 +
- src/cmd/compile/internal/types2/expr.go                       |  2 +-
- .../compile/internal/types2/testdata/fixedbugs/issue49705.go2 | 11 +++++++++++
- src/go/types/check_test.go                                    |  1 +
- src/go/types/expr.go                                          |  2 +-
- src/go/types/testdata/fixedbugs/issue49705.go2                | 11 +++++++++++
- 6 files changed, 26 insertions(+), 2 deletions(-)
+ src/runtime/mgcwork.go        | 2 +-
+ src/runtime/proc.go           | 2 +-
+ src/runtime/sys_windows_arm.s | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

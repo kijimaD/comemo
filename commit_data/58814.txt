@@ -1,38 +1,25 @@
-commit af00524a6c1660e6a66fd975921df40ac1c3a415
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Feb 20 14:42:19 2025 -0500
+commit b60bf8f8e131b026eb2691e736d3df9dce852297
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Dec 14 13:07:50 2023 -0800
 
-    debug/buildinfo: base64-encode test binaries
+    cmd/asm: fix encoding for arm right shift by constant 0
     
-    Overzealous security scanners don't like the Go 1.17 binary because they
-    think it has every 1.17 security vulnerability. base64-encode the binary
-    to hide from them.
+    Right shifts, for some odd reasons, can encode shifts of constant
+    1-32 instead of 0-31. Left shifts, however, can encode shifts 0-31.
+    When the shift amount is 0, arm recommends encoding right shifts
+    using left shifts.
     
-    I've also extended the instructions to make the binary easier to
-    reproduce.
+    Fixes #64715
     
-    Since we do the Go binary, we might as well do the C binary too, as it
-    apparently makes some virus scanners unhappy.
-    
-    Fixes #71753.
-    For #71734.
-    For #71821.
-    
-    Change-Id: I6a6a636cccbf5312522f52f27f74eded64048fb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651175
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id3825349aa7195028037893dfe01fa0e405eaa51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549955
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/debug/buildinfo/buildinfo_test.go           |    45 +-
- src/debug/buildinfo/testdata/go117              |   Bin 1166278 -> 0 bytes
- src/debug/buildinfo/testdata/go117/README.md    |    15 +
- src/debug/buildinfo/testdata/go117/go.mod       |     3 +
- src/debug/buildinfo/testdata/go117/go117.base64 | 20314 ++++++++++++++++++++++
- src/debug/buildinfo/testdata/go117/main.go      |     7 +
- src/debug/buildinfo/testdata/notgo              |   Bin 15832 -> 0 bytes
- src/debug/buildinfo/testdata/notgo/README.md    |    17 +
- src/debug/buildinfo/testdata/notgo/main.c       |     7 +
- src/debug/buildinfo/testdata/notgo/notgo.base64 |   278 +
- 10 files changed, 20657 insertions(+), 29 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm.s |  8 ++++++++
+ src/cmd/internal/obj/arm/asm5.go        |  8 ++++++++
+ test/fixedbugs/issue64715.go            | 25 +++++++++++++++++++++++++
+ test/fixedbugs/issue64715.out           |  1 +
+ 4 files changed, 42 insertions(+)

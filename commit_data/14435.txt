@@ -1,15 +1,16 @@
-commit 8f3b703323df5831d13a2492019ebe932559ae4f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 19 09:09:04 2012 -0800
+commit c9856e7d2244670a9c8cd8a4e8aa361b7667575d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Nov 19 06:53:58 2012 +1100
 
-    cmd/gc: complain about invalid whitespace chars
+    net: fix data race on fd.sysfd
     
-    Fixes #4405.
+    Fixes #4369.
     
-    R=rsc, bradfitz
+    Remove the check for fd.sysfd < 0, the first line of fd.accept() tests if the fd is open correctly and will handle the fd being closed during accept.
+    
+    R=dvyukov, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6855060
+    https://golang.org/cl/6843076
 
- src/cmd/gc/lex.c            |  8 ++------
- test/fixedbugs/issue4405.go | 15 +++++++++++++++
- 2 files changed, 17 insertions(+), 6 deletions(-)
+ src/pkg/net/tcpsock_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,21 @@
-commit 9faf5cdf9d1f9050a03ae3d420768c846e54646d
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Thu Apr 28 09:41:32 2016 -0300
+commit 04f23b64287b14240b11cd1c14e14f19329d428f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 15 14:02:08 2016 +1100
 
-    net: change type of dnsConfig.timeout from int to time.Duration
+    cmd/internal/obj: remove dead code
     
-    Instead of keeping the desired number of seconds and converting to
-    time.Duration for every query, convert to time.Duration when
-    building the config.
+    Partial automatic cleanup driven by Dominik Honnef's unused tool.
     
-    Updates #15473
+    As _lookup now only has one caller, merge it into the caller and remove
+    the conditional create logic.
     
-    Change-Id: Ib24c050b593b3109011e359f4ed837a3fb45dc65
-    Reviewed-on: https://go-review.googlesource.com/22548
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2ea354d9d4b32a19905271eca74725231b6d8a93
+    Reviewed-on: https://go-review.googlesource.com/20589
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/dnsclient_unix.go      |  3 +--
- src/net/dnsconfig_unix.go      | 24 ++++++++++++------------
- src/net/dnsconfig_unix_test.go | 12 ++++++------
- 3 files changed, 19 insertions(+), 20 deletions(-)
+ src/cmd/internal/obj/flag.go |  5 ----
+ src/cmd/internal/obj/pcln.go | 58 --------------------------------------------
+ src/cmd/internal/obj/sym.go  | 20 ++++-----------
+ 3 files changed, 5 insertions(+), 78 deletions(-)

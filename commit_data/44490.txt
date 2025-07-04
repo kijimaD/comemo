@@ -1,16 +1,12 @@
-commit 775f11cda1d30f3f9778e737c2280cfe28ead1b4
-Author: eric fang <eric.fang@arm.com>
-Date:   Tue Jan 12 02:45:46 2021 +0000
+commit 6e6e0b73d6e19872946e08b65c7cac3b0289e2f0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jul 20 18:18:38 2020 -0400
 
-    cmd/internal/obj/arm64: remove unncessary class check in addpool
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    The argument class check in addpool is unnecessary, remove it so that we don't
-    need to list all the compatiable classes.
-    
-    Change-Id: I36f6594db35e25db22fe898273e024c2db4cb771
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283492
-    Trust: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia1f2d50c1ef777315f601cbb31bbb9f414ec665e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243720
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 97 +-------------------------------------
- 1 file changed, 2 insertions(+), 95 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

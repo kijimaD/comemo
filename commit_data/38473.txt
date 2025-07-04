@@ -1,35 +1,19 @@
-commit 349e7df2c3d0f9b5429e7c86121499c137faac7e
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Tue Mar 19 16:16:50 2019 +0700
+commit f6f27bfb97b8dcaa2350829dd043d7c5a5f341ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 31 11:38:37 2018 -0700
 
-    net/http: fix wrong mime rar signature
+    cmd/compile/internal/gc: more direct noder.nod implementation (cleanup)
     
-    MIME sniffing standard defines the RAR signature as 52 61 72 20 1A 07 00.
+    Also, renamed
     
-    But this signature is wrong, the RARlab spec defines the 4th byte must
-    be 0x21 or "!", not 0x20 or " ". Checking a rar file also indicates that:
+    - noder.lineno -> noder.setlineno (because that's what it does)
+    - noder.setlineno -> noder.pos    (and return the src.XPos)
     
-            $ file abc.rar
-            abc.rar: RAR archive data, v1d, os: Win32
-            $ head -c 7 abc.rar | od -v -t x1
-            0000000 52 61 72 21 1a 07 00
-            0000007
-    
-    There is also an issue to fix this problem in MIME standard.
-    
-    See:
-     - https://www.rarlab.com/technote.htm#rarsign
-     - https://github.com/whatwg/mimesniff/issues/63
-    
-    Fixes #30926
-    
-    Change-Id: Id2e2de7ecbf7f44d37ebaf280efd05e4972c5078
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167781
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5d3442cf2af97028afcab028290152ce8d062927
+    Reviewed-on: https://go-review.googlesource.com/c/146317
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/sniff.go      | 10 ++++++++--
- src/net/http/sniff_test.go |  6 ++++--
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/dcl.go     |  8 +---
+ src/cmd/compile/internal/gc/noder.go   | 68 +++++++++++++++++-----------------
+ 3 files changed, 35 insertions(+), 43 deletions(-)

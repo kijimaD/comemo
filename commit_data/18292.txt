@@ -1,20 +1,15 @@
-commit cfb9cf0f0679b07583b8667487c516b1f77f2292
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 20 09:59:23 2014 -0800
+commit 081e2d01535f648d28813e81fe6e1ce74eb6b579
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Sun Jan 19 09:57:02 2014 -0800
 
-    expvar: sort maps, fix race
+    syscall: add syscall.Termios on netbsd
     
-    It's pretty distracting to use expvar with the output of both
-    the top-level map and map values jumping around randomly.
-    
-    Also fixes a potential race where multiple clients trying to
-    increment a map int or float key at the same time could lose
-    updates.
-    
-    R=golang-codereviews, couchmoney
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/54320043
+    https://golang.org/cl/54290043
 
- src/pkg/expvar/expvar.go      | 56 ++++++++++++++++++++++++++++++-------------
- src/pkg/expvar/expvar_test.go | 26 ++++++++++++++++++++
- 2 files changed, 66 insertions(+), 16 deletions(-)
+ src/pkg/syscall/types_netbsd.go        |  5 +++++
+ src/pkg/syscall/ztypes_netbsd_386.go   | 10 ++++++++++
+ src/pkg/syscall/ztypes_netbsd_amd64.go | 10 ++++++++++
+ src/pkg/syscall/ztypes_netbsd_arm.go   | 10 ++++++++++
+ 4 files changed, 35 insertions(+)

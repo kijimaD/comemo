@@ -1,12 +1,28 @@
-commit 4c332508f92cc39eaa4c10ed005a615776280a04
-Author: Ross Light <light@google.com>
-Date:   Thu Jul 9 10:13:09 2015 -0700
+commit 9378493d1641fd56d5935cb2f6d4f4b2a864894c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 20 23:20:43 2015 +0900
 
-    CONTRIBUTORS: add Ross Light's google.com email
+    net: fix parsing literal IP addresses in local database
     
-    Change-Id: Ide5b0c81405fbf6b83a6f02527d629898e0fcf02
-    Reviewed-on: https://go-review.googlesource.com/12000
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change fixes incorrect parsing of literal IP addresses in local
+    database when the addresses contain IPv6 zone identifiers, are in
+    dotted-decimal notation or in colon-hexadecimal notation with leading
+    zeros.
+    
+    https://golang.org/cl/5851 already fixed the code path using getaddrinfo
+    via cgo. This change fixes the remaining non-cgo code path.
+    
+    Fixes #8243.
+    Fixes #8996.
+    
+    Change-Id: I48443611cbabed0d69667cc73911ba3de396fd44
+    Reviewed-on: https://go-review.googlesource.com/10306
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/hook.go                                    |   1 +
+ src/net/hosts.go                                   |  35 ++++--
+ src/net/hosts_test.go                              | 138 +++++++++++++++------
+ src/net/testdata/ipv4-hosts                        |  12 ++
+ src/net/testdata/ipv6-hosts                        |  11 ++
+ .../{hosts_singleline => singleline-hosts}         |   0
+ 6 files changed, 148 insertions(+), 49 deletions(-)

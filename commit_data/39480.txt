@@ -1,28 +1,24 @@
-commit 54c6b814ac745346a2c7aa077508521779d4ae43
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jul 2 15:41:04 2019 -0400
+commit 249f5d2af4e14a087c462596f142064529609c3b
+Author: Vladimir Varankin <vladimir@varank.in>
+Date:   Tue Feb 26 23:21:59 2019 +0000
 
-    cmd/go: fix TestScript/mod_sumdb_golang to avoid assumptions about @v/list
+    cmd/go: refer to testflag help in go test -help output
     
-    I accidentally fetched an invalid version of rsc.io/quote from
-    proxy.golang.org, which the proxy then cached and now includes in
-    https://proxy.golang.org/rsc.io/quote/@v/list.
+    The change makes it easier for a user to get to the page where
+    she can check supported test flags, by adding 'go test testflag'
+    reference to the 'go test -help' output.
     
-    That causes 'go get rsc.io/quote` to resolve to a different version
-    depending on whether the proxy is used.
+    Fix #30365
     
-    Adjust the test to fetch an explicit version instead, since the choice
-    of 'latest' is mostly irrelevant to the checksum database logic that
-    the test is intended to verify.
-    
-    Updates #32805
-    Fixes #32900
-    
-    Change-Id: I075b1f62e8c71545d0fb2dd4bd77ba525fc2a36d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184719
+    Change-Id: I5b3db7853021ef68d096dcb467d7957d7e1bf623
+    GitHub-Last-Rev: ce3dec59fcae0cca232372f01cdda98773c290c0
+    GitHub-Pull-Request: golang/go#30420
+    Reviewed-on: https://go-review.googlesource.com/c/163858
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/testdata/script/mod_sumdb_golang.txt | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/base/base.go    | 2 +-
+ src/cmd/go/internal/test/test.go    | 8 +++++++-
+ src/cmd/go/testdata/script/help.txt | 2 +-
+ 3 files changed, 9 insertions(+), 3 deletions(-)

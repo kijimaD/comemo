@@ -1,13 +1,14 @@
-commit 83db738786704e6e93434f4c73e285383df2342b
-Author: Alex Jin <toalexjin@gmail.com>
-Date:   Mon Jun 17 16:53:27 2013 -0700
+commit 4bd79e742a50281a2897eb84de7cf81a211c5dd4
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Mon Jun 17 14:56:45 2013 -0700
 
-    net/smtp: close conn in SendMail; add Client.Close method
+    crypto/x509: Added RFC 5280, section 4.2.1.14 to parseCertificate and buildExtensions
+    Support for CRL Distribution Points
     
-    R=rsc, dave, bradfitz
+    R=golang-dev, agl, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10082044
+    https://golang.org/cl/10258043
 
- src/pkg/net/smtp/smtp.go      | 11 +++++++++--
- src/pkg/net/smtp/smtp_test.go |  3 +++
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ src/pkg/crypto/x509/x509.go      | 89 ++++++++++++++++++++++++++++++++++++----
+ src/pkg/crypto/x509/x509_test.go |  6 +++
+ 2 files changed, 86 insertions(+), 9 deletions(-)

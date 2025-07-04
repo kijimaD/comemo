@@ -1,30 +1,16 @@
-commit 8d66a416cb4b84abeaeccaa69dda3783dda1b76a
-Author: Luit van Drongelen <luitvd@gmail.com>
-Date:   Thu Jan 19 17:28:38 2012 -0500
+commit ee09a8cd9fee2f38fd100bd27451c4284f7e9d96
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 20 09:26:17 2012 +1100
 
-    crypto/hmac: Deprecate hmac.NewMD5, hmac.NewSHA1 and hmac.NewSHA256
+    gc: don't emit pkgpath for error type.
     
-    Remove NewMD5, NewSHA1 and NewSHA256 in favor of using New and
-    explicitly importing the used hash-function. This way when using, for
-    example, HMAC with RIPEMD there's no md5, sha1 and sha256 linked in
-    through the hmac package.
+    Fixes #2660.
     
-    A gofix rule is included, and applied to the standard library (3 files
-    altered).
-    
-    This change is the result of a discussion at
-    https://golang.org/cl/5550043/ to pull the discussion about
-    deprecating these functions out of that issue.
-    
-    R=golang-dev, agl
-    CC=golang-dev, r, rsc
-    https://golang.org/cl/5556058
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5557060
 
- src/cmd/gofix/Makefile              |   1 +
- src/cmd/gofix/hmacnew.go            |  61 ++++++++++++++++++++
- src/cmd/gofix/hmacnew_test.go       | 107 ++++++++++++++++++++++++++++++++++++
- src/pkg/crypto/hmac/hmac.go         |  14 +----
- src/pkg/crypto/tls/cipher_suites.go |   2 +-
- src/pkg/exp/ssh/transport.go        |   3 +-
- src/pkg/net/smtp/auth.go            |   3 +-
- 7 files changed, 175 insertions(+), 16 deletions(-)
+ src/cmd/gc/reflect.c        |  2 +-
+ src/pkg/reflect/all_test.go | 15 +++++++++++++--
+ src/pkg/reflect/type.go     |  2 +-
+ 3 files changed, 15 insertions(+), 4 deletions(-)

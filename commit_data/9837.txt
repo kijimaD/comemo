@@ -1,16 +1,14 @@
-commit b0cddb98b9b29c9a153bae83095d5f13cbcc4bda
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Thu Sep 29 21:31:41 2011 -0700
+commit 585294db73b35f5c2992f433739b1e2ac0c8f231
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Sep 30 13:11:20 2011 +1000
 
-    exp/template/html: avoid redundant escaping directives.
+    doc: link to image/draw blog post.
     
-    This is a possible optimization.  I'm not sure the complexity is worth it.
-    The new benchmark in escape_test is 46us without and 35us with the optimization.
-    
-    R=nigeltao
+    R=adg
+    TBR=adg
     CC=golang-dev
-    https://golang.org/cl/5168041
+    https://golang.org/cl/5154046
 
- src/pkg/exp/template/html/escape.go      | 41 ++++++++++++++++++++++++++---
- src/pkg/exp/template/html/escape_test.go | 44 ++++++++++++++++++++++++++++++++
- 2 files changed, 82 insertions(+), 3 deletions(-)
+ doc/docs.html              | 1 +
+ src/pkg/image/draw/draw.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 4 deletions(-)

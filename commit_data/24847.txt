@@ -1,35 +1,17 @@
-commit bbd1a1c706659ae489b174e2a4a707bbc626d5af
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 11 15:34:54 2015 -0500
+commit 876b7cc2273a64cd44c1f7932c612bdf696c27fe
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 1 14:03:38 2015 +1200
 
-    runtime: make SIGPROF skip stacks that are being copied
+    cmd/compile, cmd/go: generate position independent code with -buildmode=c-shared on arm
     
-    sigprof tracebacks the stack across systemstack switches to make
-    profile tracebacks more complete. However, it does this even if the
-    user stack is currently being copied, which means it may be in an
-    inconsistent state that will cause the traceback to panic.
+    All the code was there to do this, it just wasn't hooked up.
     
-    One specific way this can happen is during stack shrinking. Some
-    goroutine blocks for STW, then enters gchelper, which then assists
-    with root marking. If that root marking happens to pick the original
-    goroutine and its stack needs to be shrunk, it will begin to copy that
-    stack. During this copy, the stack is generally inconsistent and, in
-    particular, the actual locations of the stack barriers and their
-    recorded locations are temporarily out of sync. If a SIGPROF happens
-    during this inconsistency, it will walk the stack all the way back to
-    the blocked goroutine and panic when it fails to unwind the stack
-    barriers.
+    Fixes #10914
     
-    Fix this by disallowing jumping to the user stack during SIGPROF if
-    that user stack is in the process of being copied.
-    
-    Fixes #12932.
-    
-    Change-Id: I9ef694c2c01e3653e292ce22612418dd3daff1b4
-    Reviewed-on: https://go-review.googlesource.com/16819
-    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ide8f9bbe50fecb5d11cd579915ee98d4c7efe403
+    Reviewed-on: https://go-review.googlesource.com/14142
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/lex.go | 4 +++-
+ src/cmd/go/build.go                | 5 +----
+ 2 files changed, 4 insertions(+), 5 deletions(-)

@@ -1,25 +1,16 @@
-commit bb00a8d97faa70bf7a1cbdd4a43e95347a9c8709
+commit 16f81b617eadc739b9097ce4b7d67e9a00a91c7c
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 14 22:11:05 2016 +0000
+Date:   Tue Sep 20 23:43:15 2016 +0000
 
-    net/http: update bundled http2, add TestServerKeepAlivesEnabled h1/h2 tests
+    image/draw: add FloydSteinberg Drawer example
     
-    Updates x/net/http2 to x/net git rev 6dfeb344 for:
+    Updates #16360
     
-       http2: make Server respect http1 Server's SetKeepAlivesEnabled
-       https://golang.org/cl/33153
-    
-    And adds a test in std.
-    
-    Fixes #17717
-    
-    Change-Id: I3ba000abb6f3f682261e105d8a4bb93bde6609fe
-    Reviewed-on: https://go-review.googlesource.com/33231
+    Change-Id: I80b981aa291a8e16d2986d4a2dfd84d3819bf488
+    Reviewed-on: https://go-review.googlesource.com/29443
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/net/http/clientserver_test.go | 13 +++++++++++++
- src/net/http/h2_bundle.go         | 40 +++++++++++++++++++++++++++++++--------
- src/net/http/serve_test.go        | 26 +++++++++++++++++++++++++
- 3 files changed, 71 insertions(+), 8 deletions(-)
+ src/image/draw/example_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

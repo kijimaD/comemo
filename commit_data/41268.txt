@@ -1,12 +1,25 @@
-commit a0c9fb6bd359f111f19176ff176244b91a3e7eaa
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Feb 13 10:24:41 2020 -0800
+commit a11644a26557ea436d456f005f39f4e01902bafe
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 18 16:59:17 2019 -0400
 
-    hash/maphash: mention the results are 64-bit integers
+    cmd/go/internal/modload: do not prune the module root when walking directories
     
-    Change-Id: I0d2ba52d79c34d77d475ec8d673286d0e56b826b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219340
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    When walking filesystem paths to locate packages, we normally prune
+    out subdirectories with names beginning with ".", "_", or equal to
+    "testdata". However, we should not prune out such a directory if it is
+    at or above the module root, since its name is not part of the package
+    path.
+    
+    Fixes #28481
+    Updates #27852
+    
+    Change-Id: Ice82b1f908afaab50f5592f6c38ca6a0fe911edf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196297
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/hash/maphash/maphash.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modload/search.go              | 22 ++++++-----
+ src/cmd/go/testdata/script/mod_in_testdata_dir.txt | 45 ++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 9 deletions(-)

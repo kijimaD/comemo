@@ -1,23 +1,16 @@
-commit 6c6089b3fdba9eb0cff863a03074dbac47c92f63
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Fri Apr 1 15:09:19 2016 +0200
+commit 622780b1c1ba73a5e61d26949bbdcc33851d7709
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Fri Feb 26 18:26:04 2016 -0500
 
-    cmd/compile: bce when max and limit are consts
+    crypto/tls: don't log expected errors in test
     
-    Removes 49 more bound checks in make.bash. For example:
+    This is minor cleanup that reduces test output noise.
     
-    var a[100]int
-    for i := 0; i < 50; i++ {
-      use a[i+25]
-    }
-    
-    Change-Id: I85e0130ee5d07f0ece9b17044bba1a2047414ce7
-    Reviewed-on: https://go-review.googlesource.com/21379
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    Change-Id: Ib6db4daf8cb67b7784b2d5b222fa37c7f78a6a04
+    Reviewed-on: https://go-review.googlesource.com/19997
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/loopbce.go | 41 ++++++++++++++++++
- test/checkbce.go                        | 15 ++++++-
- test/loopbce.go                         | 77 +++++++++++++++++++++++++++++++++
- 3 files changed, 132 insertions(+), 1 deletion(-)
+ src/crypto/tls/handshake_server_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

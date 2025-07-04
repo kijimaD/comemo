@@ -1,18 +1,19 @@
-commit fd54936ea523f44835adc39f0a2cebccbcb742c3
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat May 18 08:05:08 2024 +0800
+commit 0e7a2504224716fd233c07b7d19ed9fe317caa9c
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 8 12:07:21 2023 -0400
 
-    doc: simplify links for release notes
+    misc: remove misc/arm/a script
     
-    Change-Id: If9e3c5a58726ae3628d2e835d71f1a4708594c11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586575
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    This appears to be a very old wrapper around adb for testing on
+    Android before we had the go_android_exec wrapper.
+    
+    Change-Id: I847bb15c98febbcffc063f00719a084e5c99a18b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493604
+    Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/next/6-stdlib/2-unique.md                   |  2 +-
- doc/next/6-stdlib/3-iter.md                     | 10 ++++------
- doc/next/6-stdlib/99-minor/sync/atomic/61395.md |  4 ++--
- 3 files changed, 7 insertions(+), 9 deletions(-)
+ misc/arm/a | 58 ----------------------------------------------------------
+ 1 file changed, 58 deletions(-)

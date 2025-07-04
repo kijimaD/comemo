@@ -1,38 +1,24 @@
-commit 09eedc32e13484d9171519e9f07f3210ba5a7afd
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri Jun 3 11:41:26 2016 +0200
+commit 04945edd40fff4d66321a4f98c1bb070b6356008
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Mon Apr 4 19:23:41 2016 +0200
 
-    misc/android: make the exec wrapper exit code parsing more robust
+    cmd/compile: replaces ANDQ with MOV?ZX
     
-    Before, the Android exec wrapper expected the trailing exit code
-    output on its own line, like this:
+    Where possible replace ANDQ with MOV?ZX.
+    Takes care that we don't regress wrt bounds checking,
+    for example [1000]int{}[i&255].
     
-    PASS
-    exitcode=0
+    According to "Intel 64 and IA-32 Architectures Optimization Reference
+    Manual" Section: "3.5.1.13 Zero-Latency MOV Instructions"
+    MOV?ZX instructions have zero latency on newer processors.
     
-    However, some tests can sometimes squeeze in some output after
-    the test harness outputs "PASS" and the newline. The
-    TestWriteHeapDumpFinalizers test is particularly prone to this,
-    since its finalizers println to standard out. When it happens, the
-    output looks like this:
+    Updates #15105
     
-    PASS
-    finalizedexitcode=0
-    
-    Two recent failures caused by this race:
-    
-    https://build.golang.org/log/185605e1b936142c22350eef22d20e982be53c29
-    https://build.golang.org/log/e61cf6a050551d10360bd90be3c5f58c3eb07605
-    
-    Since the "exitcode=" string is always echoed after the test output,
-    the fix is simple: instead of looking for the last newline in the
-    output, look for the last exitcode string instead.
-    
-    Change-Id: Icd6e53855eeba60b982ad3108289d92549328b86
-    Reviewed-on: https://go-review.googlesource.com/23750
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I63539fdbc5812d5563aa1ebc49eca035bd307997
+    Reviewed-on: https://go-review.googlesource.com/21508
+    Reviewed-by: Айнар Гарипов <gugl.zadolbal@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- misc/android/go_android_exec.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 81 ++++++++++++++++++++++++++++
+ 2 files changed, 89 insertions(+)

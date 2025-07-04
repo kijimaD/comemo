@@ -1,40 +1,18 @@
-commit 2520e72d3bbfe6651cd6324077afdb4babb36b9a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon May 10 16:50:32 2021 -0400
+commit f96b62be2edd8acc08b79777d692937e8ed79b4a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 27 19:47:29 2020 -0400
 
-    runtime: hold sched.lock across atomic pidleget/pidleput
+    cmd/internal/objabi, runtime: compact FUNCDATA indices
     
-    As a cleanup, golang.org/cl/307914 unintentionally caused the idle GC
-    work recheck to drop sched.lock between acquiring a P and committing to
-    keep it (once a worker G was found).
+    As we deleted register maps, move FUNCDATA indices of stack
+    objects, inline trees, and open-coded defers earlier.
     
-    This is unsafe, as releasing a P requires extra checks once sched.lock
-    is taken (such as for runSafePointFn). Since checkIdleGCNoP does not
-    perform these extra checks, we can now race with other users.
-    
-    In the case of #45975, we may hang with this sequence:
-    
-    1. M1: checkIdleGCNoP takes sched.lock, gets P1, releases sched.lock.
-    2. M2: forEachP takes sched.lock, iterates over sched.pidle without
-       finding P1, releases sched.lock.
-    3. M1: checkIdleGCNoP puts P1 back in sched.pidle.
-    4. M2: forEachP waits forever for P1 to run the safePointFn.
-    
-    Change back to the old behavior of releasing sched.lock only after we
-    are certain we will keep the P. Thus if we put it back its removal from
-    sched.pidle was never visible.
-    
-    Fixes #45975
-    For #45916
-    For #45885
-    For #45884
-    
-    Change-Id: I191a1800923b206ccaf96bdcdd0bfdad17b532e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318569
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If73797b8c11fd207655c9498802fca9f6f9ac338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265761
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/proc.go | 32 +++++++++++++++++++++-----------
- 1 file changed, 21 insertions(+), 11 deletions(-)
+ src/cmd/internal/objabi/funcdata.go | 6 +++---
+ src/runtime/funcdata.h              | 6 +++---
+ src/runtime/symtab.go               | 6 +++---
+ 3 files changed, 9 insertions(+), 9 deletions(-)

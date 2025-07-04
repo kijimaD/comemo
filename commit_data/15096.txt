@@ -1,13 +1,14 @@
-commit f418c505d0b3b9de226f5c28c2345f00299845fc
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Feb 3 06:11:25 2013 +0800
+commit e5ea2d53358f8c28853ef91b3c325e81858e09ed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 2 11:41:04 2013 -0800
 
-    lib9/main.c: don't show the crash dialog on windows
-    Fixes #3202. (Or rather, work around issue 3202)
+    runtime: fix windows build
     
-    R=alex.brainman, rsc
+    Fixes #4743.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7202053
+    https://golang.org/cl/7284044
 
- src/lib9/main.c | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/pkg/runtime/signal_windows_386.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

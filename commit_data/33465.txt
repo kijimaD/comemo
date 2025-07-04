@@ -1,20 +1,21 @@
-commit 86cd9c11764f16a2dcc551336e3aac7ad9f78d3c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 6 20:51:36 2017 -0800
+commit b6296426a065b85d4c1abbc7012dd633c33bb3c2
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Aug 16 23:52:16 2017 +0200
 
-    runtime: only call netpoll if netpollinited returns true
+    runtime: avoid zeroing hmap fields in makemap twice
     
-    This fixes a race on old Linux kernels, in which we might temporarily
-    set epfd to an invalid value other than -1. It's also the right thing
-    to do. No test because the problem only occurs on old kernels.
+    Stack allocated hmap structs are explicitly zeroed before being
+    passed by pointer to makemap.
     
-    Fixes #22606
+    Heap allocated hmap structs are created with newobject
+    which also zeroes on allocation.
     
-    Change-Id: Id84bdd6ae6d7c5d47c39e97b74da27576cb51a54
-    Reviewed-on: https://go-review.googlesource.com/76319
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Therefore, setting the hmap fields to 0 or nil is redundant
+    since they will have been zeroed when hmap was allocated.
+    
+    Change-Id: I5fc55b75e9dc5ba69f5e3588d6c746f53b45ba66
+    Reviewed-on: https://go-review.googlesource.com/56291
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/runtime/hashmap.go | 5 -----
+ 1 file changed, 5 deletions(-)

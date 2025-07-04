@@ -1,37 +1,16 @@
-commit 897c0ebf61daaaf9c02be577f1afcb2c67ff3ed5
-Author: David Chase <drchase@google.com>
-Date:   Thu Sep 15 16:51:35 2016 -0400
+commit cc0d8c86e3437c1eec697809bdc9b2bcc8e0ed92
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 18:13:49 2016 +0000
 
-    cmd/compile: adapt GOSSAHASH to set a DebugTest flag in ssa.Config
+    net/http: deflake TestTransportEventTrace_h2
     
-    Binary search remains our friend.
-    Suppose you add an ought-to-be-benign pattern to PPC64.rules,
-    and make.bash starts crashing.  You can guard the pattern(s)
-    with config.DebugTest:
+    Fixes #15765
     
-    (Eq8 x y) && config.DebugTest && isSigned(x.Type) &&
-       isSigned(y.Type) ->
-       (Equal (CMPW (SignExt8to32 x) (SignExt8to32 y)))
-    
-    and then
-    
-      gossahash -s ./make.bash
-      ...
-      (go drink beer while silicon minions toil)
-      ...
-      Trying ./make.bash args=[], env=[GOSSAHASH=100110010111110]
-      ./make.bash failed (1 distinct triggers): exit status 1
-      Trigger string is 'GOSSAHASH triggered (*importReader).readByte',
-        repeated 1 times
-      Review GSHS_LAST_FAIL.0.log for failing run
-      Finished with GOSSAHASH=100110010111110
-    
-    Change-Id: I4eff46ebaf496baa2acedd32e217005cb3ac1c62
-    Reviewed-on: https://go-review.googlesource.com/29273
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Id0a89d90ef9d3fffa9af0affca8c10a26fe6b7bc
+    Reviewed-on: https://go-review.googlesource.com/23284
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go     | 1 +
- src/cmd/compile/internal/ssa/config.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/net/http/transport_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

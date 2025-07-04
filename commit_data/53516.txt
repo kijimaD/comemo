@@ -1,26 +1,28 @@
-commit 1f11ea6c41e6ef323e9201649ad4863808342669
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Jun 9 10:30:40 2023 +0200
+commit a409356c548133e188acd7873e73a66ff5982b57
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 21 16:49:48 2022 -0700
 
-    cmd/go: fix TestScript/gotoolchain* when go.env doesn't set GOTOOLCHAIN=auto
+    misc/cgo/testcarchive: permit SIGQUIT for TestSignalForwardingExternal
     
-    Some of the TestScript/gotoolchain* tests assume that go.env contains
-    GOTOOLCHAIN=auto, but that's not always the case, for example CI
-    environments may set it to `local` to avoid downloading a new toolchain.
+    Occasionally the signal will be sent to a Go thread, which will cause
+    the program to exit with SIGQUIT rather than SIGSEGV.
     
-    This commit fixes the tests to work regardless of the value of
-    GOTOOLCHAIN in go.env.
+    Add TestSignalForwardingGo to test the case where the signal is
+    expected to be delivered to a Go thread.
     
-    Fixes #60685
+    Fixes #53907
     
-    Change-Id: Ieda22574f8a028893762274cf9db721c9d69bf7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502035
+    Change-Id: Iaefb964c2be4a815c11c507fa89648f8a7740ba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419014
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/script_test.go                        | 1 +
- src/cmd/go/testdata/script/gotoolchain_local.txt | 8 +-------
- 2 files changed, 2 insertions(+), 7 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go          | 235 ++++++++++++++----------
+ misc/cgo/testcarchive/testdata/libgo2/libgo2.go |   6 +
+ misc/cgo/testcarchive/testdata/main5.c          |  13 +-
+ 3 files changed, 157 insertions(+), 97 deletions(-)

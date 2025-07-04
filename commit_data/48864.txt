@@ -1,45 +1,24 @@
-commit bb004a179a034c799809f42d525801ec4a791987
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Feb 24 16:54:13 2022 -0500
+commit 077100dfcd11b2aba4bd3099d5d28b4ce7de1126
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jun 21 22:03:02 2021 -0700
 
-    syscall: define Syscall in terms of RawSyscall on linux
+    [dev.typeparams] cmd/compile: remove special escape analysis tags
     
-    This is a re-do of CL 388477, fixing #52472.
+    This CL removes the special escape analysis tags added to support
+    //go:uintptrescapes and calls to external functions. Instead, these
+    are kept as function pragmas.
     
-    It is unsafe to call syscall.RawSyscall from syscall.Syscall with
-    -coverpkg=all and -race. This is because:
+    This CL by itself isn't very interesting, but I expect will help with
+    subsequent cleanups I have planned here.
     
-    1. Coverage adds a sync/atomic call in RawSyscall to increment the
-       coverage counter.
-    2. Race mode instruments sync/atomic calls with TSAN runtime calls. TSAN
-       eventually calls runtime.racecallbackfunc, which expects
-       getg().m.p != 0, which is no longer true after entersyscall().
-    
-    cmd/go actually avoids adding coverage instrumention to package runtime
-    in race mode entirely to avoid these kinds of problems. Rather than also
-    excluding all of syscall for this one function, work around by calling
-    RawSyscall6 instead, which avoids coverage instrumention both by being
-    written in assembly and in package runtime/*.
-    
-    For #51087
-    Fixes #52472
-    
-    Change-Id: Iaffd27df03753020c4716059a455d6ca7b62f347
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401654
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ifb960289a27e0a6295ce2d2f5ec233cac590522b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329969
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/proc.go             |  2 +-
- src/syscall/asm_linux_386.s     | 26 --------------------------
- src/syscall/asm_linux_amd64.s   | 27 ---------------------------
- src/syscall/asm_linux_arm.s     | 30 ------------------------------
- src/syscall/asm_linux_arm64.s   | 27 ---------------------------
- src/syscall/asm_linux_mips64x.s | 25 -------------------------
- src/syscall/asm_linux_mipsx.s   | 23 -----------------------
- src/syscall/asm_linux_ppc64x.s  | 25 -------------------------
- src/syscall/asm_linux_riscv64.s | 24 ------------------------
- src/syscall/asm_linux_s390x.s   | 26 --------------------------
- src/syscall/syscall_linux.go    | 35 ++++++++++++++++++++++++++++++++++-
- 11 files changed, 35 insertions(+), 235 deletions(-)
+ src/cmd/compile/internal/escape/escape.go | 21 +++++--------
+ src/cmd/compile/internal/ir/node.go       | 19 +++++------
+ src/cmd/compile/internal/walk/order.go    | 52 ++++++++++++++++++-------------
+ 3 files changed, 48 insertions(+), 44 deletions(-)

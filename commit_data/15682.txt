@@ -1,14 +1,14 @@
-commit 5c667f366a59f05141969cc4f50744b96fd8d2ad
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 11 11:04:34 2013 -0700
+commit 2f0a970bde799031fcbe756644fa8c7ed5fb4ef1
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Mon Mar 11 13:24:52 2013 -0400
 
-    api: update next.txt
+    net: allow concurrent UNIX socket tests if TMPDIR is unique.
     
-    Ton of FreeBSD syscall constants.
+    Only clever enough to allow concurrent stress testing.
     
-    R=golang-dev, minux.ma
+    R=mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/7476046
+    https://golang.org/cl/7703044
 
- api/next.txt | 394 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 394 insertions(+)
+ src/pkg/net/server_test.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

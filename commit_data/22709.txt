@@ -1,12 +1,17 @@
-commit 3787950a9210fcf662ec2b99a0708fa673836a5c
-Author: John Dethridge <jcd@golang.org>
-Date:   Wed Apr 22 16:45:42 2015 +1000
+commit 0c9f3e4972ceaa71d82835c213b9b1617ee07bf1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 2 15:19:10 2015 -0700
 
-    debug/dwarf: update class_string.go to add ClassReferenceSig using stringer.
+    cmd/internal/gc: destutter array initializers
     
-    Change-Id: I677a5ee273a4d285a8adff71ffcfeac34afc887f
-    Reviewed-on: https://go-review.googlesource.com/9235
-    Reviewed-by: Austin Clements <austin@google.com>
+    Aside from removing the superfluous comment near syms, this diff is
+    entirely mechanically generated via Emacs's query-replace-regexp to
+    replace "^\tstruct {\n[^}]*}" with "\t".
+    
+    Change-Id: Ide7e4b5995f6a121b3f57415e033933ac5c7431a
+    Reviewed-on: https://go-review.googlesource.com/8427
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/debug/dwarf/class_string.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/gc/lex.go | 882 ++++++++-------------------------------------
+ 1 file changed, 152 insertions(+), 730 deletions(-)

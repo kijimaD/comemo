@@ -1,22 +1,34 @@
-commit afd090c0c07b86de1cdeb2415d3fc187709832ac
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Dec 19 23:59:56 2017 +0900
+commit 2cb61aa3f77e05f265ccacebf48c2ebf53de1494
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Sep 11 21:23:06 2017 +0100
 
-    cmd/buildid: fix rewrite algorithm
+    cmd/compile: stop rematerializable ops from clobbering flags
     
-    Update rewrite algorithm by coping code from
-    go/internal/work/buildid:updateBuildID.
+    Rematerializable ops can be inserted after the flagalloc phase,
+    they must therefore not clobber flags. This CL adds a check to
+    ensure this doesn't happen and fixes the instances where it
+    does currently.
     
-    Probably, this is not the best option. We could provide high-level API
-    in cmd/internal/buildid in the future.
+    amd64: ADDQconst and ADDLconst were recently changed to be
+    rematerializable in CL 54393 (only in tip, not 1.9). That change
+    has been reverted.
     
-    Fixes #23181
+    s390x: MOVDaddr could clobber flags when using dynamic linking due
+    to a ADD with immediate instruction. Change the code generation to
+    use LA/LAY instead.
     
-    Change-Id: I336a7c50426ab39bc9998b55c372af61a4fb21a7
-    Reviewed-on: https://go-review.googlesource.com/84735
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #21080.
+    
+    Change-Id: Ia85c882afa2a820a309e93775354b3169ec6d034
+    Reviewed-on: https://go-review.googlesource.com/63030
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/cmd/buildid/buildid.go          | 29 +++++++++++++++++++++++------
- src/cmd/go/go_test.go               |  4 +++-
- src/cmd/go/internal/work/buildid.go |  2 ++
- 3 files changed, 28 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  4 ++--
+ src/cmd/compile/internal/ssa/gen/main.go     |  3 +++
+ src/cmd/compile/internal/ssa/opGen.go        | 32 ++++++++++++----------------
+ src/cmd/internal/obj/s390x/objz.go           | 20 ++++++++++++-----
+ 5 files changed, 36 insertions(+), 27 deletions(-)

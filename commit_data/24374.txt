@@ -1,16 +1,12 @@
-commit 8d701f092d5dba49a79fada561e90cfdb84f2bd1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 24 16:36:08 2015 -0700
+commit 0645bdd11007a264988029459844cb78ec06e790
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Fri Jun 19 11:41:41 2015 +0200
 
-    math/big: implement Int.Text, Int.Append
+    html/template: add examples to package and functions
     
-    This makes the Int conversion routines match the respective strconv
-    and big.Float conversion routines.
-    
-    Change-Id: I5cfcda1632ee52fe87c5bb75892bdda76cc3af15
-    Reviewed-on: https://go-review.googlesource.com/14994
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ib4fb8256863d908580a07e6f2e1c92ea109ea989
+    Reviewed-on: https://go-review.googlesource.com/11249
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/intconv.go      | 39 ++++++++++++++++---
- src/math/big/intconv_test.go | 89 ++++++++++++++++++++++++++++++++++----------
- 2 files changed, 102 insertions(+), 26 deletions(-)
+ src/html/template/example_test.go | 122 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 122 insertions(+)

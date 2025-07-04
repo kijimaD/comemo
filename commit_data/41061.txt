@@ -1,22 +1,17 @@
-commit e8729a7e58d3a0212ecc65b3bf5a0b27ba4abf9f
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Dec 30 14:15:11 2019 -0500
+commit bac5b3f0fe7838ecf6e206fa8d2123c7771eb976
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Aug 29 11:26:28 2019 -0700
 
-    cmd/go: convert TestGoGenerateBadImports to script framework
+    os: skip TestPipeThreads on GOOS=darwin
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    Updates #32326.
+    Updates #33953.
     
-    Updates #36320
-    Updates #17751
-    
-    Change-Id: Id1afafad2063d917fd55e08f0725ce3e93201c35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212878
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I97a1cbe682becfe9592e19294d4d94f5e5b16c21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192342
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                               | 14 --------------
- src/cmd/go/testdata/script/generate_bad_imports.txt | 11 +++++++++++
- src/cmd/go/testdata/src/gencycle/gencycle.go        |  5 -----
- 3 files changed, 11 insertions(+), 19 deletions(-)
+ src/os/os_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

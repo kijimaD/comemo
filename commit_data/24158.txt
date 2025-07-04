@@ -1,24 +1,17 @@
-commit d737639c4acce7c9f28de22eabfd623d0ae7ed50
-Author: Chris Hines <chris.cs.guy@gmail.com>
-Date:   Mon Aug 24 21:48:39 2015 -0400
+commit e3c67dda0a2d0ab94ae984d4445ddd8973c6d160
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Jul 11 11:28:16 2015 -0400
 
-    database/sql: close bad connections in commit or rollback:
+    cmd/go: do not create subdirs of $GOBIN
     
-    Previously Tx.close always passed a nil error to tx.db.putConn. As a
-    result bad connections were reused, even if the driver returned
-    driver.ErrBadConn. Adding an err parameter to Tx.close allows it to
-    receive the driver error from Tx.Commit and Tx.Rollback and pass it
-    to tx.db.putConn.
+    Fixes #9769.
     
-    Fixes #11264
-    
-    Change-Id: I142b6b2509fa8d714bbc135cef7281a40803b3b8
-    Reviewed-on: https://go-review.googlesource.com/13912
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2959906c71d0ce62cdb750dab78eab631a26f229
+    Reviewed-on: https://go-review.googlesource.com/12080
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/database/sql/fakedb_test.go | 12 +++++++
- src/database/sql/sql.go         |  8 ++---
- src/database/sql/sql_test.go    | 71 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 87 insertions(+), 4 deletions(-)
+ src/cmd/go/build.go   |  9 ++++++---
+ src/cmd/go/go_test.go | 21 +++++++++++++++++++++
+ src/cmd/go/pkg.go     |  6 ++++++
+ 3 files changed, 33 insertions(+), 3 deletions(-)

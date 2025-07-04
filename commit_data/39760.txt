@@ -1,20 +1,21 @@
-commit d15dfdc023f888b97ce0bc101d97c4631e575d94
-Author: jsign <jsign.uy@gmail.com>
-Date:   Sat Aug 31 22:32:11 2019 +0000
+commit 205d62d58b16afbb4e6232a0591e3e8f4153a591
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:14:46 2019 +0100
 
-    io/ioutil: don't check for short write in WriteFile
+    runtime: disable pprof test with cgo on aix/ppc64
     
-    *os.File already does it.
+    This commit disables new cgo pprof tests and adds an handler in sigtramp
+    to refuse SIGPROF signal.
     
-    Fixes #33064
+    Updates #28555
     
-    Change-Id: I3edf0a31bf6d6e5023f47f01ebc92ed057357278
-    GitHub-Last-Rev: e6a5ba45d7e74def668adf145f46387ef27f5d28
-    GitHub-Pull-Request: golang/go#33065
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185857
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I152a871f8636e93328d411329104c6f023bd1691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164013
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/io/ioutil/ioutil.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/runtime/crash_cgo_test.go   |  3 +++
+ src/runtime/pprof/proto_test.go |  4 ++++
+ src/runtime/sys_aix_ppc64.s     | 17 +++++++++++++++++
+ 3 files changed, 24 insertions(+)

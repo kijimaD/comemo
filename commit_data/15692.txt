@@ -1,54 +1,24 @@
-commit 5183bfda7590bb14f3be77fdc1852c6b314c0762
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 11 13:38:45 2013 -0700
+commit 76374412c36ccbac91c86a033b37732661787246
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Mon Mar 11 13:34:57 2013 -0700
 
-    go/types: update operand types early
+    lib9, cmd/dist, cmd/ld: Plan 9: fix build
     
-    For expressions where the result type is independent
-    of the argument types (comparisons, conversions, rhs
-    of shifts), set the final expression types for those
-    subtrees early.
+    lib9: fix runcmd, removeall, and tempdir functions
     
-    This fixes several bugs where incorrect lhs shift
-    operands where used (say in a comparison), but were
-    not reported.
+    cmd/dist: Include run_plan9.c and tempdir_plan9.c
+            from lib9 for build, and in general consider
+            file names containing "plan9" for building.
     
-    Together with the changes listed below this CL fixes
-    many type-checker bugs.
+    cmd/ld: provide function args for the new functions
+            from lib9.
     
-    Also:
-    - better documented updateExprType
-    - added larger comment to expr.go explaining
-      the basic expression checking algorithm
-    - use latest definition for indices and make
-      arguments; use the same code to check both
-    - use the same mechanism for cycle detection
-      in constant expressions as for variables
-      (new field Constant.visited)
-    - more tests for complex and make builtins
-    - many more and systematic tests for shifts;
-      moved them into separate testfile
-    - in the testing code, don't compare the
-      expected error pattern against itself
-      (the actual message was always ignored...)
-    - fix affected error patterns in the test files
-    - various cleanups along the way
-    
-    R=adonovan
+    R=rsc, rminnich, ality, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7432051
+    https://golang.org/cl/7666043
 
- src/pkg/go/types/builtins.go           |  26 ++-
- src/pkg/go/types/check.go              |  44 ++---
- src/pkg/go/types/check_test.go         |  38 ++--
- src/pkg/go/types/const.go              |  18 --
- src/pkg/go/types/conversions.go        |   5 +-
- src/pkg/go/types/expr.go               | 323 ++++++++++++++++++++++-----------
- src/pkg/go/types/operand.go            |   5 +-
- src/pkg/go/types/stmt.go               |   2 +
- src/pkg/go/types/testdata/builtins.src |  48 +++--
- src/pkg/go/types/testdata/decls1.src   |  10 +-
- src/pkg/go/types/testdata/expr3.src    | 216 +++++-----------------
- src/pkg/go/types/testdata/shifts.src   | 266 +++++++++++++++++++++++++++
- src/pkg/go/types/testdata/stmt0.src    |   8 +-
- 13 files changed, 627 insertions(+), 382 deletions(-)
+ src/cmd/dist/build.c     | 3 ++-
+ src/cmd/ld/lib.c         | 5 +++++
+ src/lib9/run_plan9.c     | 4 ++--
+ src/lib9/tempdir_plan9.c | 4 ++--
+ 4 files changed, 11 insertions(+), 5 deletions(-)

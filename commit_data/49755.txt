@@ -1,25 +1,17 @@
-commit adac8acf881ac48c558a4873b4cc7551c7e592b1
-Author: Ludi Rehak <ludi317@gmail.com>
-Date:   Wed Aug 3 13:48:15 2022 -0700
+commit 6edc57983a39b3cb911ea88b75a7ad39664383ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 8 16:21:33 2021 -0700
 
-    net/http: change conn.curReq type to atomic.Pointer[response]
+    internal/poll: report open fds when TestSplicePipePool fails
     
-    Use the newly added atomic.Pointer[T] type for atomically
-    loading and storing type *T pointers. This has the advantage of
-    avoiding runtime type assertions required by its predecessor,
-    atomic.Value.
+    For #48066
     
-    To fix build failures uncovered by TryBots (caused by "panic:
-    unaligned 64-bit atomic operation"), also change conn.curState to
-    type atomic.Uint64 so that it is 64-bit aligned.
-    
-    Change-Id: I6024d12cd581adfdccc01be7eb0faa7482036614
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420901
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I1152a1c15756df35b71b27d3e7025d97da9e70b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348579
+    Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/net/http/server.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/internal/poll/splice_linux_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

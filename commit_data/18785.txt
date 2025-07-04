@@ -1,15 +1,17 @@
-commit 1d2b7171d500bbd549d6915b3d65340c117807fc
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Mar 7 10:13:00 2014 +1100
+commit 2fb87ddb59218797686f8d725a5accb195ccbaca
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 7 00:01:24 2014 +0400
 
-    cmd/5c: fix arm build
+    runtime: print goroutine header on fault
+    I've just needed the G status on fault to debug runtime bug.
+    For some reason we print everything except header here.
+    Make it more informative and consistent.
     
-    cmd/5c/txt.c was missing from CL 72010043.
-    
-    LGTM=bradfitz
-    R=rsc, bradfitz
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/72220043
+    https://golang.org/cl/67870056
 
- src/cmd/5c/txt.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/runtime/signal_386.c   | 1 +
+ src/pkg/runtime/signal_amd64.c | 1 +
+ src/pkg/runtime/signal_arm.c   | 1 +
+ 3 files changed, 3 insertions(+)

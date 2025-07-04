@@ -1,15 +1,21 @@
-commit a73808e1e06dfca15a51743ced1fab038b5a2392
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 18 15:40:23 2022 -0700
+commit 850a4ffb6346dd53f6f5624c13410d99e6509cae
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Sep 27 13:52:53 2021 -0400
 
-    go/parser: fix spelling in error message
+    cmd/internal/goobj: remove Pcdata from object file
     
-    Make spelling consistent with uses in other error messages.
+    As of CL 247399 we use separate symbols for PCDATA. There is no
+    more need for writing PCDATA directly into the object file as a
+    separate block.
     
-    Change-Id: I584cd22413842fb8bae1632ed34c8b0e7ef163cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424902
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I942d1a372540415e0cc07fb2a01f79718a264142
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352610
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/go/parser/parser.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/goobj/objfile.go |  2 --
+ src/cmd/internal/obj/objfile.go   | 19 -------------------
+ 2 files changed, 21 deletions(-)

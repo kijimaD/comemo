@@ -1,18 +1,17 @@
-commit 85162292af601a1bebb8ec3d63314e39b648829f
-Author: 徐志强 <shore.cloud@gmail.com>
-Date:   Wed Dec 11 05:51:33 2019 +0000
+commit 9f3c2b6d16bd00f77d8c92801425809d4d767baa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 22 13:30:47 2019 -0500
 
-    runtime: call osyield directly in lockextra
+    cmd/go/internal/work: reduce code duplication in buildModeInit by using sys.BuildModeSupported
     
-    The `yield := osyield` line doesn't serve any purpose,  it's committed in `2015`, time to delete that line:)
+    Updates #34347
     
-    Change-Id: I382d4d32cf320f054f011f3b6684c868cbcb0ff2
-    GitHub-Last-Rev: 7a0aa25e555edd901add25a1101e7b145d1f3bd8
-    GitHub-Pull-Request: golang/go#36078
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210837
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6ea02d4737999bf24f5335508b5ed2352b498122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208458
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/proc.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/work/init.go  | 92 +++++++++++++++------------------------
+ src/cmd/internal/sys/supported.go |  5 ---
+ 2 files changed, 36 insertions(+), 61 deletions(-)

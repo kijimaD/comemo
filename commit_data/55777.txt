@@ -1,20 +1,35 @@
-commit 0784fd1b2f6050b8fb91c88c1d02107258a1651a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 27 13:22:40 2024 -0800
+commit 7c019c62fb32db42e946b15763217518a521404e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 8 12:49:10 2023 +0100
 
-    runtime/cgo: ignore unknown warning options
+    syscall: use clone3 syscall with CLONE_NEWTIME
     
-    For #65290
-    Fixes #65971
+    CLONE_NEWTIME can only be used with the clone3 and unshare system calls,
+    see https://github.com/torvalds/linux/commit/769071ac9f20b6a447410c7eaa55d1a5233ef40c:
     
-    Change-Id: If15853f287e06b85bb1cb038b3785516d5812f84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567556
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    > All available clone flags have been used, so CLONE_NEWTIME uses the highest
+    > bit of CSIGNAL. It means that it can be used only with the unshare() and
+    > the clone3() system calls.
+    
+    The clone3 syscall was added in Linux kernel version 5.3 and
+    CLONE_NEWTIME was added in version 5.6. However, it was non-functional
+    until version 6.3 (and stable versions with the corresponding fix [1]).
+    
+    [1] https://lore.kernel.org/lkml/20230308105126.10107-1-tklauser@distanz.ch/
+    
+    In case CLONE_NEWTIME is set in SysProcAttr.Cloneflags on an unsupported
+    kernel version, the fork/exec call will fail.
+    
+    Fixes #49779
+    
+    Change-Id: Ic3ecfc2b601bafaab12b1805d7f9512955a8c7e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474356
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/cgo/gcc_libinit.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/syscall/exec_linux.go      |  5 +++++
+ src/syscall/exec_linux_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

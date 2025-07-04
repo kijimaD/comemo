@@ -1,18 +1,17 @@
-commit e1f22bdcc56b52a163ecccfe6e95aaf75addcdce
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Mar 19 15:57:28 2012 -0700
+commit aa1d4170a4f586bf2d9c68097f049977146bd31c
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Mar 19 12:34:35 2012 -0400
 
-    gc: fix struct and array comparisons for new bool rules
+    crypto/tls: always send a Certificate message if one was requested.
     
-    The two optimizations for small structs and arrays
-    were missing the implicit cast from ideal bool.
+    If a CertificateRequest is received we have to reply with a
+    Certificate message, even if we don't have a certificate to offer.
     
-    Fixes #3351.
+    Fixes #3339.
     
-    R=rsc, lvd
+    R=golang-dev, r, ality
     CC=golang-dev
-    https://golang.org/cl/5848062
+    https://golang.org/cl/5845067
 
- src/cmd/gc/walk.c        |  2 ++
- test/fixedbugs/bug427.go | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+)
+ src/pkg/crypto/tls/handshake_client.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

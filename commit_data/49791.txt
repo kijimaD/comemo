@@ -1,19 +1,24 @@
-commit 9e8020b2d4a4730a7b2c75a0091473dc7583959b
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Fri Jun 17 16:33:14 2022 -0400
+commit d106089fa6aa69cc1b547c68ca19d84f28062c71
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Sep 10 11:05:29 2021 -0400
 
-    cmd/asm: add VTBX instruction on arm64
+    [dev.fuzz] internal/fuzz: write a newline to the end of a corpus file
     
-    Change-Id: Icd9eeb78bfc0c0bbe19dcb9841c9fdc0abc29cc9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413314
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    If someone manually adds/alters a corpus file to add
+    extra spacing or remove the final newline, the file
+    can still be decoded. However, this change ensures that
+    the fuzzing engine correctly writes the final newline.
+    
+    Fixes golang/go#48130
+    
+    Change-Id: Ib5556d4a6e4e0bfd9bc2edab357b7c25bedfd176
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349055
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/asm/internal/arch/arm64.go        |  2 +-
- src/cmd/asm/internal/asm/testdata/arm64.s | 16 ++++++++++++++++
- src/cmd/internal/obj/arm64/a.out.go       |  1 +
- src/cmd/internal/obj/arm64/anames.go      |  1 +
- src/cmd/internal/obj/arm64/asm7.go        | 15 ++++++++++++---
- 5 files changed, 31 insertions(+), 4 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt |  3 +++
+ src/internal/fuzz/encoding.go                     | 12 ++++++------
+ src/internal/fuzz/encoding_test.go                | 20 ++++++++++++++------
+ 3 files changed, 23 insertions(+), 12 deletions(-)

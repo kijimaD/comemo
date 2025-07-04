@@ -1,0 +1,64 @@
+commit dbd50a16dc79d0876f9c523af2aaeb9e1b7b7839
+Author: Garrett Bodley <garrett.bodley@gmail.com>
+Date:   Fri Jun 28 00:46:32 2024 -0400
+
+    crypto/sha256: Avo port of sha256block_amd64.s
+    
+    This implementation utilizes the same registers found in the reference
+    implementation, aiming to produce a minimal semantic diff between the
+    Avo-generated output and the original hand-written assembly.
+    
+    To verify the Avo implementation, the reference and Avo-generated
+    assembly files are fed to `go tool asm`, capturing the debug output into
+    corresponding temp files. The debug output contains supplementary
+    metadata (line numbers, instruction offsets, and source file references)
+    that must be removed in order to obtain a semantic diff of the two
+    files. This is accomplished via a small utility script written in awk.
+    
+    Commands used to verify Avo output:
+    
+    GOROOT=$(go env GOROOT)
+    ASM_PATH="src/crypto/sha256/sha256block_amd64.s"
+    REFERENCE="54fe0fd43fcf8609666c16ae6d15ed92873b1564"
+    
+    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
+      <(git cat-file -p "$REFERENCE:$ASM_PATH") \
+      > /tmp/reference.s
+    
+    go tool asm -o /dev/null -I $GOROOT/src/runtime -debug \
+      "$ASM_PATH" \
+      > /tmp/avo.s
+    
+    normalize(){
+      awk '{
+        $1=$2=$3="";
+        print substr($0,4)
+      }'
+    }
+    
+    diff <(normalize < /tmp/reference.s) <(normalize < /tmp/avo.s)
+    
+    3513c3513
+    < MOVQ $K256<>(SB), BP
+    ---
+    > LEAQ K256<>(SB), BP
+    4572c4572
+    < MOVQ $K256<>(SB), BP
+    ---
+    > LEAQ K256<>(SB), BP
+    
+    Change-Id: I637c01d746ca775b8a09f874f7925ffc3b4965ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595559
+    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/types2/stdlib_test.go  |    3 +-
+ src/crypto/sha256/_asm/go.mod                   |   11 +
+ src/crypto/sha256/_asm/go.sum                   |    8 +
+ src/crypto/sha256/_asm/sha256block_amd64_asm.go | 1214 +++++
+ src/crypto/sha256/sha256block_amd64.s           | 6008 ++++++++++++++++++-----
+ src/go/types/stdlib_test.go                     |    3 +-
+ 6 files changed, 6140 insertions(+), 1107 deletions(-)

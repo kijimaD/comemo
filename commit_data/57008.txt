@@ -1,30 +1,24 @@
-commit f021221a584ede27c18f0e7deb90c438649d5128
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jul 25 18:42:21 2024 +0000
+commit 7f26e9e5fb6502e72546908eb4035d00f4e99f02
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 17:39:21 2023 +0000
 
-    cmd/link: add script testing facility for linker use
+    Revert "internal/poll: remove fallback path in accept"
     
-    Add support for running script tests as part of the linker's suite of
-    tests, hooking in the script test engine packages recently moved from
-    cmd/go to cmd/internal. Linker script tests will use the test binary
-    itself as the linker for Go builds, and can also run the C compiler if
-    needed. New script test cases (*.txt files) should be added to the
-    directory cmd/link/testdata/script.
+    This reverts CL 422375.
     
-    For demo purposes, this patch also adds a new "randlayout_option.txt"
-    script test that replicates the existing linker's TestRandLayout
-    testpoint in script form.
+    Reason for revert: We still need the fallback path on Solaris.
     
-    Updates #68606.
+    For #45964
+    For #59359
     
-    Change-Id: Icf26bf657850e39548d6ea819f2542fc68a3899b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601360
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ie598b9ef180708fb157080015aee44f67f6737c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/dwarf_test.go                         | 54 +++++++++++++++-------
- src/cmd/link/script_test.go                        | 37 +++++++++++++++
- src/cmd/link/testdata/script/randlayout_option.txt | 38 +++++++++++++++
- .../link/testdata/script/script_test_basics.txt    | 24 ++++++++++
- 4 files changed, 136 insertions(+), 17 deletions(-)
+ src/internal/poll/sock_cloexec.go | 30 +++++++++++++++++++++++++++++-
+ 1 file changed, 29 insertions(+), 1 deletion(-)

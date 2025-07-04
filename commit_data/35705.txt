@@ -1,17 +1,18 @@
-commit 67d276c57cda9e05faa84c332ba52791d4713f65
-Author: Sabin Mihai Rapan <sabin.rapan@gmail.com>
-Date:   Sun Jan 28 14:08:14 2018 +0200
+commit 5b071bfa88e3366dec768b9e3304f131b258835b
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Mar 1 09:26:38 2018 -0500
 
-    cgo: update documentation on calling C variadic functions
+    cmd/compile: convert type during finishcompare
     
-    The current implementation does not support calling C variadic
-    functions (as discussed in #975). Document that.
+    When recursively calling walkexpr, r.Type is still the untyped value.
+    It then sometimes recursively calls finishcompare, which complains that
+    you can't compare the resulting expression to that untyped value.
     
-    Fixes #23537
+    Updates #23834.
     
-    Change-Id: If4c684a3d135f3c2782a720374dc4c07ea66dcbb
-    Reviewed-on: https://go-review.googlesource.com/90415
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6b7acd3970ceaff8da9216bfa0ae24aca5dee828
+    Reviewed-on: https://go-review.googlesource.com/97856
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/cgo/doc.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

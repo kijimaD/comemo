@@ -1,15 +1,13 @@
-commit c3b9650caa7715c8961dcb5d7503b90b6dbae7cb
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Jan 25 11:42:00 2012 +1100
+commit 03ea8b1c811007bb0c33effb782628e290f914a4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 24 16:36:40 2012 -0800
 
-    net/http: parse CONNECT requests
+    doc/go1: add more info about hash and net changes, delete reference to html
     
-    Fixes #2755
-    
-    R=dsymonds, rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5571052
+    https://golang.org/cl/5570060
 
- src/pkg/net/http/readrequest_test.go | 69 ++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/request.go          | 22 ++++++++++++
- 2 files changed, 91 insertions(+)
+ doc/go1.html | 39 ++++++++++++++++++++++++++++-----------
+ doc/go1.tmpl | 39 ++++++++++++++++++++++++++++-----------
+ 2 files changed, 56 insertions(+), 22 deletions(-)

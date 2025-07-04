@@ -1,0 +1,20 @@
+commit fac95803ebe49b95fe93f9f8034bace69cb60119
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jul 27 00:09:04 2024 +0700
+
+    runtime: remove darwin-amd64-10_14 builder check
+    
+    By now macOS 11 is the minimum required version.
+    
+    Updates #43926
+    
+    Change-Id: I13716e2e521c26bd9997f0ea1b717cf72ab7e47c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601276
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/crash_cgo_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

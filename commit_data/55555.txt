@@ -1,21 +1,26 @@
-commit 58fea5dfaff26736ff20db6158940ef4f6812a8a
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Feb 8 17:50:44 2024 +0000
+commit 81316ff50a4a81cc2077f8a831b4e1896c56a564
+Author: Hossein Zolfi <hossein.zolfi@gmail.com>
+Date:   Fri Jan 27 18:20:09 2023 +0330
 
-    cmd/go: add telemetry counters for flag names and subcommand
+    testing: add -fullpath to go test
     
-    For #58894,#65586
+    When -test.fullpath flag is provided to go test,
+    go test displays the full file names in error messages.
     
-    This is a revert of CL 560655 which was a revert of CL 559519.
-    CL 559519 was reverted because it was broken on windows/386. But now
-    CL 562715 pulls in x/telemetry CL 560462 which disables telemetry on
-    windows/386, fixing that issue.
+    Fixes #37708
     
-    Change-Id: I094e90c28bca02f2303807d3b008f2ef9d59433c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562735
+    Change-Id: I6096e75ed816fd42205810f20624e495047a73a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463837
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/main.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/alldocs.go                        |  3 +++
+ src/cmd/go/internal/test/flagdefs.go         |  1 +
+ src/cmd/go/internal/test/test.go             |  3 +++
+ src/cmd/go/internal/test/testflag.go         |  1 +
+ src/cmd/go/testdata/script/test_fullpath.txt | 21 +++++++++++++++++++++
+ src/testing/testing.go                       |  7 +++++--
+ 6 files changed, 34 insertions(+), 2 deletions(-)

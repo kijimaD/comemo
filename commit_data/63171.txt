@@ -1,0 +1,14 @@
+commit b6e251b264869fac4ddc158fb9a5c8d5b4ac086f
+Author: Mark Freeman <mark@golang.org>
+Date:   Wed May 21 15:13:45 2025 -0400
+
+    internal/pkgbits: mark element / section ends as delta encoding candidates
+    
+    Change-Id: I165c98a0a5800515bfa33c60b95b534900d0ea59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/internal/pkgbits/encoder.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

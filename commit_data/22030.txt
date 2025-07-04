@@ -1,16 +1,14 @@
-commit 272921b5d8327aa3e444d5ba7d2bf989b5d81e0b
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 13:55:49 2015 +0100
+commit 5dbbb776339fe923293c87b4ccb35673b12c112e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 18 15:29:32 2015 -0800
 
-    go/build: add GOARCH=arm64
+    runtime: don't test gdb on darwin
     
-    Change-Id: I51db032e3dc2762d94e4000914b30813946250f7
-    Reviewed-on: https://go-review.googlesource.com/7044
+    Fixes #9927
+    
+    Change-Id: I2114cc21f7a4772e3d42bcad9642a8a545cd8e16
+    Reviewed-on: https://go-review.googlesource.com/5285
     Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/build/build.go   | 2 ++
- src/go/build/syslist.go | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/runtime-gdb_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,17 +1,29 @@
-commit ddda7980c52414d6de69758c588bca1ba418d95d
+commit 509a1173a33d4fd914409cd941470d440fd5eed3
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 21 15:21:30 2013 -0700
+Date:   Tue May 21 14:32:09 2013 -0700
 
-    net/http: don't send Accept-Encoding on HEAD requests
+    time: remove Time.FormatAppend
     
-    Works around a bug in nginx: http://trac.nginx.org/nginx/ticket/358
+    undo CL 8478044 / 0d28fd55e721
     
-    Fixes #5522
+    Lack of consensus.
     
-    R=iant
+    ««« original CL description
+    time: add Time.FormatAppend
+    
+    This is a version of Time.Format that doesn't require allocation.
+    
+    Fixes #5192
+    Update #5195
+    
+    R=r
     CC=gobot, golang-dev
-    https://golang.org/cl/9627043
+    https://golang.org/cl/8478044
+    »»»
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/9462049
 
- src/pkg/net/http/transport.go      | 7 ++++++-
- src/pkg/net/http/transport_test.go | 9 ++++++---
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/pkg/time/format.go | 27 ++++++++++-----------------
+ 1 file changed, 10 insertions(+), 17 deletions(-)

@@ -1,15 +1,16 @@
-commit 1f0f459a163eb3a1f15b2ad50a6a80c49e8f87e0
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Mar 1 15:57:54 2012 +1100
+commit 984780a589fa46197674a6b6e56a4647954ec08a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 1 15:49:37 2012 +1100
 
-    encoding/gob: more hardening for lengths of input strings.
+    misc/dist: implement binary distribution scripts in go
     
-    Fixes #3160.
-    
-    R=r
+    R=golang-dev, r, alex.brainman, r, mike.rosset
     CC=golang-dev
-    https://golang.org/cl/5716046
+    https://golang.org/cl/5697050
 
- src/pkg/encoding/gob/codec_test.go |  5 ++++-
- src/pkg/encoding/gob/decode.go     | 23 +++++++++++++++++------
- 2 files changed, 21 insertions(+), 7 deletions(-)
+ misc/dist/README           |   4 -
+ misc/dist/bindist.go       | 304 +++++++++++++++++++++++++++++++++++++++++++++
+ misc/dist/darwin/README    |   3 -
+ misc/dist/darwin/dist.bash |  69 ----------
+ misc/dist/linux/dist.bash  |  55 --------
+ 5 files changed, 304 insertions(+), 131 deletions(-)

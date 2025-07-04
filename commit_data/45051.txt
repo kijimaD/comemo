@@ -1,20 +1,30 @@
-commit 554d2c4f060ec42e30970dacff1e782250169323
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 9 11:20:35 2021 -0700
+commit 1f4d035178d2d792a74b6b872f6a213bf5fd9326
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 28 10:11:06 2020 +0200
 
-    reflect: panic on New of go:notinheap type
+    runtime: initialise cpu.HWCap on netbsd/arm64
     
-    For #42076
-    Fixes #45451
+    NetBSD does not supply AT_HWCAP, however we still need to initialise
+    cpu.HWCaps.  For now specify the bare minimum until we add some form of
+    capabilities detection. See
+    https://golang.org/issue/30824#issuecomment-494901591
     
-    Change-Id: I69646226d3480d5403205412ddd13c0cfc2c8a53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308970
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Follows CL 174129 which did the same for openbsd/arm64.
+    
+    Updates #30824
+    
+    Change-Id: I43a86b583bc60d259a66772703de06970124bb7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257998
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/test/cgo_test.go |  1 +
- misc/cgo/test/test.go     | 19 +++++++++++++++++++
- src/reflect/value.go      |  7 ++++++-
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ src/runtime/os_netbsd.go       |  1 +
+ src/runtime/os_netbsd_386.go   |  3 +++
+ src/runtime/os_netbsd_amd64.go |  3 +++
+ src/runtime/os_netbsd_arm.go   |  3 +++
+ src/runtime/os_netbsd_arm64.go | 12 +++++++++++-
+ 5 files changed, 21 insertions(+), 1 deletion(-)

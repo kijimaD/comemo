@@ -1,55 +1,23 @@
-commit b66a892358d2ca5ee7008ceeeda050d9f64ce5a2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 25 10:35:19 2016 -0800
+commit 8854bdbd76d66a39b35980cee6643b4d4bd48fd4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Nov 27 12:06:11 2015 +0900
 
-    cmd/compile: change Func.{Dcl,Inldcl} from NodeList to slice
+    net: fix parsing literal IPv6 address with zone identifier when using cgo
     
-    A slice uses less memory than a NodeList, and has better memory locality
-    when walking the list.
+    Parsing literal IPv6 address with zone identifier is already supported
+    when not using cgo. This change enables it when using cgo too.
     
-    This uncovered a tricky case involving closures: the escape analysis
-    pass when run on a closure was appending to the Dcl list of the OCLOSURE
-    rather than the ODCLFUNC.  This happened to work because they shared the
-    same NodeList.  Fixed with a change to addrescapes, and a check to
-    Tempname to catch any recurrences.
+    Fixes #12241.
     
-    This removes the last use of the listsort function outside of tests.
-    I'll send a separate CL to remove it.
-    
-    Unfortunately, while this passes all tests, it does not pass toolstash
-    -cmp.  The problem is that cmpstackvarlt does not fully determine the
-    sort order, and the change from listsort to sort.Sort, while generally
-    desirable, produces a different ordering.  I could stage this by first
-    making cmpstackvarlt fully determined, but no matter what toolstash -cmp
-    is going to break at some point.
-    
-    In my casual testing the compiler is 2.2% faster.
-    
-    Update #14473.
-    
-    Change-Id: I367d66daa4ec73ed95c14c66ccda3a2133ad95d5
-    Reviewed-on: https://go-review.googlesource.com/19919
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3ed78c9e750e75eff0dae76ba8608df39503cf85
+    Reviewed-on: https://go-review.googlesource.com/17215
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/amd64/ggen.go   |  5 +---
- src/cmd/compile/internal/arm/ggen.go     |  5 +---
- src/cmd/compile/internal/arm64/ggen.go   |  5 +---
- src/cmd/compile/internal/gc/cgen.go      |  6 ++--
- src/cmd/compile/internal/gc/closure.go   | 23 ++++++++-------
- src/cmd/compile/internal/gc/dcl.go       |  2 +-
- src/cmd/compile/internal/gc/esc.go       | 41 +++++++++++++-------------
- src/cmd/compile/internal/gc/gen.go       |  9 +++++-
- src/cmd/compile/internal/gc/gsubr.go     |  4 +--
- src/cmd/compile/internal/gc/inl.go       | 36 +++++++++++++++--------
- src/cmd/compile/internal/gc/parser.go    | 10 +++----
- src/cmd/compile/internal/gc/pgen.go      | 49 +++++++++++++++++---------------
- src/cmd/compile/internal/gc/plive.go     | 44 ++++++++++++++--------------
- src/cmd/compile/internal/gc/popt.go      | 19 ++++---------
- src/cmd/compile/internal/gc/subr.go      |  4 +--
- src/cmd/compile/internal/gc/syntax.go    |  4 +--
- src/cmd/compile/internal/gc/typecheck.go |  6 ++--
- src/cmd/compile/internal/gc/walk.go      | 37 ++++++++++++------------
- src/cmd/compile/internal/mips64/ggen.go  |  5 +---
- src/cmd/compile/internal/ppc64/ggen.go   |  5 +---
- src/cmd/compile/internal/x86/ggen.go     |  5 +---
- 21 files changed, 161 insertions(+), 163 deletions(-)
+ src/net/cgo_socknew.go |  4 ++--
+ src/net/cgo_sockold.go |  4 ++--
+ src/net/cgo_unix.go    | 12 ++++++++----
+ src/net/lookup_test.go | 24 ++++++++++++++++++++++++
+ src/net/testdata/hosts |  3 +--
+ 5 files changed, 37 insertions(+), 10 deletions(-)

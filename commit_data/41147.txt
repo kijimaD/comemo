@@ -1,17 +1,21 @@
-commit 9f1d55c4e73dbaff1f118df7125a2cd4401fcb8e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jan 22 15:30:03 2020 -0800
+commit 5bb59b6d1645144dade71e8d19ccf39338788a0f
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Sep 9 07:22:14 2019 +0000
 
-    cmd/dist: print error if GOROOT is inside a module
+    Revert "compile: prefer an AND instead of SHR+SHL instructions"
     
-    Fixes #36701
+    This reverts commit 9ec7074a946b7c2812a1a044e84276a36f46d14d.
     
-    Change-Id: I22738235e7a7ee06bc5d748213aab523aad8cf12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215939
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reason for revert: broke s390x (copysign, abs) and arm64 (bitfield) tests.
+    
+    Change-Id: I16c1b389c062e8c4aa5de079f1d46c9b25b0db52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193850
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Marwan Sulaiman <marwan.sameer@gmail.com>
 
- src/cmd/dist/build.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   5 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 114 ++++++++++++++++++++++++-
+ test/codegen/math.go                           |   4 +-
+ 4 files changed, 123 insertions(+), 8 deletions(-)

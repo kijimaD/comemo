@@ -1,30 +1,21 @@
-commit 25db5d1a872ed73c6c1d067c0023512732a1eab4
-Author: Andreas Auernhammer <aead@mail.de>
-Date:   Wed May 3 01:08:31 2017 +0200
+commit 2fa09a20e56eb27f7cec635be42fc3137c091085
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 24 10:35:43 2017 -0800
 
-    crypto: document insecure algorithms
+    vendor/golang_org/x/crypto/chacha20poly1305: revendor
     
-    This change explicitly documents that DES, MD5, RC4 and SHA-1 are
-    insecure / broken - at all or at least within a commonly used scenario.
+    Brings in chacha20poly1305 directory from golang.org/x/crypto revision
+    453249f01cfeb54c3d549ddb75ff152ca243f9d8, adding:
     
-    Fixes #14395
+    CL 35874: crypto/chacha20poly1305/internal/chacha20: add missing copyright header
+    CL 35875: crypto/chacha20poly1305: rename test vectors file
     
-    Change-Id: Id1d543c85d67968ba64ed7495313501953c3ef3a
-    Reviewed-on: https://go-review.googlesource.com/42511
+    Fixes #19155.
+    
+    Change-Id: I25cf83d060113f6b2a197f243a25614440008f7e
+    Reviewed-on: https://go-review.googlesource.com/37408
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/des/const.go              |  2 ++
- src/crypto/md5/md5.go                |  2 ++
- src/crypto/rc4/rc4.go                |  5 ++---
- src/crypto/sha1/sha1.go              | 10 ++++++----
- src/crypto/sha1/sha1_test.go         |  2 +-
- src/crypto/sha1/sha1block.go         |  2 +-
- src/crypto/sha1/sha1block_386.s      |  2 +-
- src/crypto/sha1/sha1block_amd64.s    |  2 +-
- src/crypto/sha1/sha1block_amd64p32.s |  2 +-
- src/crypto/sha1/sha1block_arm.s      | 16 ++++++++--------
- src/crypto/sha1/sha1block_s390x.go   |  2 +-
- src/crypto/sha1/sha1block_s390x.s    |  4 ++--
- 12 files changed, 28 insertions(+), 23 deletions(-)
+ ...cha20poly1305_test_vectors.go => chacha20poly1305_vectors_test.go} | 0
+ .../x/crypto/chacha20poly1305/internal/chacha20/chacha_test.go        | 4 ++++
+ 2 files changed, 4 insertions(+)

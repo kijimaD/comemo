@@ -1,21 +1,24 @@
-commit 3f571d1dea775417a171c17632ac3c1fbc84b0fd
-Author: Khaled Yakdan <yakdan@code-intelligence.com>
-Date:   Sat May 21 10:47:25 2022 +0000
+commit 0f34a92df76a7946e55d437264bbf5459b30f302
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Aug 4 10:45:16 2021 -0400
 
-    cmd/link: set coverage counters as expected by the fuzz package
+    [dev.typeparams] go/types: don't expose the TypeSet API for 1.18
     
-    Set _counters and _ecounters to the start and end locations of
-    libfuzzer's 8-bit counters section
+    The TypeSet API is very new and probably not necessary to expose outside
+    of go/types, at least for 1.18. Users can check whether a type is
+    contained within a type set via Implements, and can access the
+    representation of the type set via the embedded Unions.
     
-    Change-Id: Icadb503af1ba22495b1d88b69aad26d89843baa4
-    GitHub-Last-Rev: 4ca6216b7600a3187732ae6d0dc7a5ce60cd5655
-    GitHub-Pull-Request: golang/go#53022
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407674
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Icc7355285785bee5aa7a8fe74052bcb0fedcd0a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341289
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/data.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/go/types/builtins.go    |  2 +-
+ src/go/types/interface.go   |  4 ++--
+ src/go/types/sizeof_test.go |  2 +-
+ src/go/types/typeset.go     | 28 ++++++++++++++--------------
+ src/go/types/universe.go    |  2 +-
+ 5 files changed, 19 insertions(+), 19 deletions(-)

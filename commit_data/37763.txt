@@ -1,20 +1,12 @@
-commit 49abcf1a974fb452e345cb696216bf47a97dc3e2
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Dec 17 20:39:48 2018 +1100
+commit aacc891df29f742a6a128069256436fa369696c2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Aug 24 18:44:17 2018 -0400
 
-    os: adjust TempDir for Z:\
+    doc/go1.11: fix typo
     
-    If TMP environment variable is set to Z:\, TempDir returns Z:.
-    But Z: refers to current directory on Z:, while Z:\ refers to root
-    directory on Z:. Adjust TempDir to return Z:\.
-    
-    Fixes #29291
-    
-    Change-Id: If04d0c7977a8ac2d9d558307502e81beb68776ef
-    Reviewed-on: https://go-review.googlesource.com/c/154384
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I097bd90f62add7838f8c7baf3b777ad167635354
+    Reviewed-on: https://go-review.googlesource.com/131357
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/file_windows.go    |  5 ++++-
- src/os/os_windows_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 1 deletion(-)
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

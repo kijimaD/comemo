@@ -1,0 +1,24 @@
+commit 2eac154b1c8b51d05fa5b110ae065d3610a61e06
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 31 11:19:28 2024 -0700
+
+    cmd/compile: better error message when offending/missing token is a keyword
+    
+    Prefix keywords (type, default, case, etc.) with "keyword" in error
+    messages to make them less ambiguous.
+    
+    Fixes #68589.
+    
+    Change-Id: I1eb92d1382f621b934167b3a4c335045da26be9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623819
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go              | 8 ++++++--
+ src/cmd/compile/internal/syntax/testdata/issue68589.go | 7 +++++++
+ test/fixedbugs/issue11610.go                           | 2 +-
+ test/switch2.go                                        | 4 ++--
+ test/syntax/semi7.go                                   | 2 +-
+ 5 files changed, 17 insertions(+), 6 deletions(-)

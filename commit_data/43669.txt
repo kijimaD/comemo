@@ -1,20 +1,16 @@
-commit 0be8280d8d01ef348fede17aef13aecf15cd7091
-Author: Michał Derkacz <michal@Lnet.pl>
-Date:   Thu Oct 29 01:10:49 2020 +0100
+commit dce26bdbc1d031ae8058035516f6c76f0d709147
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 20 12:06:07 2020 -0400
 
-    cmd/compile: optimize small zeroing/moving on riscv64
+    [dev.link] cmd/oldlink: update with recent linker changes
     
-    Optimize small (s <= 32) zeroing/moving operations on riscv64.
-    Avoid generating unaligned memory accesses.
+    Port CL 228792, CL 228877, and CL 228881 to old linker.
     
-    The code is almost one to one translation of the corresponding
-    mips64 rules with additional rule for s=32.
-    
-    Change-Id: I753b0b8e53cb9efcf43c8080cab90f3d03539fb8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266217
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Id3fdc413a9f7b38887ae8cc7bca5904933be93de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229001
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules | 133 ++++-
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 654 ++++++++++++++++++++++++-
- 2 files changed, 751 insertions(+), 36 deletions(-)
+ src/cmd/oldlink/internal/ld/deadcode.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

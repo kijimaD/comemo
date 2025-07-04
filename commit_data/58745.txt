@@ -1,20 +1,28 @@
-commit 954e2c0b062d21f4914f04f0eb1aa7c5197ee92c
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Mon Jan 6 12:59:07 2025 -0500
+commit 2e4d9a18011a65c42a371bad7b4125acb3c0bc4e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 7 10:24:55 2023 -0500
 
-    sync: use runtime.AddCleanup instead of runtime.SetFinalizer
+    cmd/go: set global .gitconfig location more robustly in tests
     
-    This changes the use of finalizers to the cleanup implementation in
-    tests.
+    Also confirm that setting the location actually worked before
+    proceeding with the rest of the test.
     
-    Updates #70907
+    This fixes a test failure with git versions older than 2.32.0.
     
-    Change-Id: I7d7289999a83fa53f538698f34294f7d9651c921
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640735
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Updates #53955.
+    Fixes #64603.
+    
+    Change-Id: I1a954975a3d8300e8b4dca045d3a15438a0407ec
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548215
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/sync/map_test.go      | 10 ++++------
- src/sync/oncefunc_test.go |  4 +---
- src/sync/pool_test.go     | 10 ++++------
- 3 files changed, 9 insertions(+), 15 deletions(-)
+ src/cmd/go/testdata/script/get_issue53955.txt           | 16 ++++++++++++++--
+ .../testdata/script/mod_download_git_bareRepository.txt | 17 +++++++++++++----
+ .../testdata/script/mod_download_git_decorate_full.txt  | 16 +++++++++++-----
+ src/cmd/go/testdata/script/mod_download_issue51114.txt  | 15 ++++++++++++---
+ src/cmd/go/testdata/script/mod_download_private_vcs.txt | 15 ++++++++++++---
+ 5 files changed, 62 insertions(+), 17 deletions(-)

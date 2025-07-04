@@ -1,23 +1,45 @@
-commit dda2991c2ea0c5914714469c4defc2562a907230
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Thu Dec 3 16:41:57 2020 +0100
+commit 2bad2f7ebaaf9c7112b98bfa48ed8213ef1e5d90
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 27 15:58:16 2020 -0400
 
-    internal/cpu: disable FMA when OSXSAVE is not enabled on x86
+    cmd/compile: mark PanicBounds/Extend as calls
     
-    All instructions in the FMA extension on x86 are VEX prefixed.
-    VEX prefixed instructions generally require OSXSAVE to be enabled.
+    PanicBounds and PanicExtend are lowered to runtime calls (with a
+    non-Go ABI), but are not currently marked as calls. Since liveness
+    analysis only emits stack maps at calls in the runtime, this means
+    these panic call sites in the runtime won't get a stack map. These
+    almost immediately turn into throws in the runtime, but there's still
+    a chance they'll try to grow the stack first, which would lead to a
+    different panic.
     
-    The execution of FMA instructions emitted by the Go compiler on amd64
-    will generate an invalid opcode exception if OSXSAVE is not enabled.
+    To fix this, mark these operations as calls.
     
-    Fixes #41022
+    Outside the runtime, we currently emit stack maps for everything that
+    isn't an unsafe-point, so these panic calls get stack maps by default.
+    However, we're about to move to emitting stack maps only at call
+    sites, at which point this will start to matter outside the runtime as
+    well.
     
-    Change-Id: I49881630e7195c804110a2bd81b5bec8cac31ba8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274479
-    Trust: Martin Möhrmann <moehrmann@google.com>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    I confirmed that this has no effect on anything but PCDATA/FUNCDATA in
+    runtime and net/http.
+    
+    For #36365.
+    
+    Change-Id: Ic5bb463fd152cc320c815dc04cf62005261ae169
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230539
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/internal/cpu/cpu_x86.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/386Ops.go     | 12 ++++----
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  6 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  6 ++--
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     | 12 ++++----
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  6 ++--
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go    | 12 ++++----
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  6 ++--
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  6 ++--
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |  6 ++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +--
+ src/cmd/compile/internal/ssa/opGen.go          | 38 ++++++++++++++++++++++++++
+ 11 files changed, 76 insertions(+), 38 deletions(-)

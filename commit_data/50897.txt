@@ -1,37 +1,29 @@
-commit a8ca70ff98dd088ff6afe57eafd553aa79732086
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Oct 4 12:50:03 2022 -0400
+commit 7c50ef6c8c4c827db45a3327cb950913cf9d489b
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 23:39:22 2021 -0500
 
-    os/signal: rewrite TestTerminalSignal without bash
+    go/types: remove asTypeParam and simplify some code
     
-    The existing version of this test contains several races it tries to
-    control with sleeps. Unfortunately, it is still flaky on darwin because
-    writing `fg` in bash too early can apparently result in failure to
-    actually continue the stopped child.
+    This is a port of CL 363438 from types2 to go/types.
     
-    Rather than continuing to get perfect timing with bash, rewrite this to
-    eliminate bash and instead perform the same PTY operations that bash
-    would do.
-    
-    This test is still quite complex because psuedo-terminals are
-    interminably complicated, but I believe it is no longer racy.
-    Technically there are still two races (waiting for child to enter read()
-    and waiting for the darwin kernel to wake the read after TIOCSPGRP), but
-    loss of either of these races should only mean we fail to test the
-    desired darwin EINTR case, not failure.
-    
-    This test is skipped on DragonflyBSD, as it tickles a Wait hang bug
-    (#56132).
-    
-    Updates #56132.
-    Fixes #37329.
-    
-    Change-Id: I0ceaf5aa89f6be0f1bf68b2140f47db673cedb33
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/440220
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I87c76d31b398b9ce406f96b0030ee458619b3dbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364235
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/signal/signal_cgo_test.go | 391 +++++++++++++++++++++++++--------------
- 1 file changed, 251 insertions(+), 140 deletions(-)
+ src/go/types/builtins.go    |  6 +++---
+ src/go/types/call.go        |  2 +-
+ src/go/types/conversions.go |  6 +++---
+ src/go/types/decl.go        | 11 ++++++-----
+ src/go/types/expr.go        |  5 ++---
+ src/go/types/instantiate.go |  8 ++++----
+ src/go/types/lookup.go      |  8 +-------
+ src/go/types/operand.go     |  6 +++---
+ src/go/types/predicates.go  |  2 +-
+ src/go/types/type.go        |  6 ------
+ src/go/types/typeset.go     |  8 --------
+ src/go/types/typexpr.go     |  2 +-
+ src/go/types/union.go       | 17 ++++++++---------
+ 13 files changed, 33 insertions(+), 54 deletions(-)

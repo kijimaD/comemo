@@ -1,14 +1,19 @@
-commit 9ca9f31f0b4c3fbe78a214a979e5aad409c16a48
-Author: Josh Roppo <joshroppo@gmail.com>
-Date:   Sat Jul 15 13:40:22 2017 -0700
+commit ef1829d1debc0bcd32052d9686adb75704e75984
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 23 21:48:34 2017 -0500
 
-    regexp: example for MatchString function
+    runtime: improve TestMemStats checks
     
-    Change-Id: I5ca5a6689f0679154c24820466f5cf0011d0aaa6
-    Reviewed-on: https://go-review.googlesource.com/48959
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Now that we have a nice predicate system, improve the tests performed
+    by TestMemStats. We add some more non-zero checks (now that we force a
+    GC, things like NumGC must be non-zero), checks for trivial boolean
+    fields, and a few more range checks.
+    
+    Change-Id: I6da46d33fa0ce5738407ee57d587825479413171
+    Reviewed-on: https://go-review.googlesource.com/37513
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/regexp/example_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/runtime/malloc_test.go | 28 ++++++++++++++++++++--------
+ 1 file changed, 20 insertions(+), 8 deletions(-)

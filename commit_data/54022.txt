@@ -1,24 +1,17 @@
-commit 3be2176d92ad318b9085980b0b7f09f30541afb3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 11 18:21:22 2023 -0700
+commit 1fc83690e68de1ce252975c5fd3a232629d6a3d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 16 12:05:57 2022 -0400
 
-    cmd/compile: improve ir.StaticValue and extract ir.StaticCalleeName
+    testing: allow go test -run=^$ testing
     
-    This CL extends ir.StaticValue to also work on closure variables.
+    This should fix the ssacheck builder.
     
-    Also, it extracts the code from escape analysis that's responsible for
-    determining the static callee of a function. This will be useful when
-    go/defer statement normalization is moved to typecheck.
-    
-    Change-Id: I69e1f7fb185658dc9fbfdc69d0f511c84df1d3ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518959
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4b6172df33d6447f7ec8fd8e301c6380efb92588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431336
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/escape/call.go  | 12 ++-------
- src/cmd/compile/internal/inline/inl.go   | 11 ++++++---
- src/cmd/compile/internal/ir/expr.go      | 42 ++++++++++++++++++++++++++++----
- src/cmd/compile/internal/noder/reader.go |  5 ++++
- 4 files changed, 51 insertions(+), 19 deletions(-)
+ src/testing/testing.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

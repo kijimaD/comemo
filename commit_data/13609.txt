@@ -1,12 +1,15 @@
-commit ef96d724e54a3f98d08f4ff2b731df8dbcb614db
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Aug 9 17:00:31 2012 +1000
+commit af92b29fe63bd68b3892f6773b3da5896db52e6e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Aug 9 08:47:43 2012 +0800
 
-    misc/cgo/life: explicitly specify library for assert function (fixes windows/amd64 build)
+    cmd/5l: add PT_PAX_FLAGS ELF header
+    Although I don't use PAX enabled ARM kernels, PAX
+    does have support for ARM, so we're better off add
+    PT_PAX_FLAGS now in case people use PAX kernels.
     
-    R=golang-dev, dave
-    CC=golang-dev, minux.ma
-    https://golang.org/cl/6461065
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6453092
 
- misc/cgo/life/life.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/5l/asm.c | 5 +++++
+ 1 file changed, 5 insertions(+)

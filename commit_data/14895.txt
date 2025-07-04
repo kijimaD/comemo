@@ -1,15 +1,14 @@
-commit 44ff17e6646ae39cf6f703bb0adaa6bd21a11cf4
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Thu Jan 17 14:41:53 2013 +1100
+commit 5a4a197d7b692c5725d0364a51ad1cb76f1b99e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 16 15:08:19 2013 -0800
 
-    time: add Timer.Reset
+    go/types: correct result type for append (bug fix)
     
-    Fixes #4412.
+    Rewrote existing code to prevent similar mistakes.
     
-    R=adg, rsc, rogpeppe, andrewdg, bradfitz
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/7086050
+    https://golang.org/cl/7129046
 
- src/pkg/time/sleep.go      | 15 +++++++++++++--
- src/pkg/time/sleep_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 37 insertions(+), 2 deletions(-)
+ src/pkg/go/types/builtins.go | 50 ++++++++++++++++++++++----------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

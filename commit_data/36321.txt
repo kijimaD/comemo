@@ -1,16 +1,25 @@
-commit 8e8cc9db0fe3c30852d4fc9ad82c9922bff7d26f
-Author: Austin Clements <austin@google.com>
-Date:   Fri Aug 10 10:19:03 2018 -0400
+commit c63e047dac52ff18d55d1c60eef9a8a5e39f0da5
+Author: Jakub Čajka <jcajka@redhat.com>
+Date:   Fri Jan 5 13:38:55 2018 +0100
 
-    runtime: use gList for gfree lists
+    cmd/go/internal/work: support pkgconf 1.4 and later
     
-    Change-Id: I3d21587e02264fe5da1cc38d98779facfa09b927
-    Reviewed-on: https://go-review.googlesource.com/129398
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #23373
+    
+    Fix interfacing with latest(1.4+) pkgconf versions, as they have change the
+    output format, by extending parsing function splitPkgConfigOutput to accommodate
+    more possible fragment escaping formats. Function is based on pkgconfigs own
+    implementation at
+    https://github.com/pkgconf/pkgconf/blob/master/libpkgconf/argvsplit.c. Along
+    with this change test case TestSplitPkgConfigOutput have been expanded. Thanks
+    to ignatenko for help on test cases and insights in to the pkgconfig.
+    
+    Change-Id: I55301bb564b07128d5564ec1454dd247f84a95c3
+    Reviewed-on: https://go-review.googlesource.com/86541
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcmark.go  |  25 ++++++-----
- src/runtime/proc.go     | 117 ++++++++++++++++++++++--------------------------
- src/runtime/runtime2.go |  16 ++++---
- 3 files changed, 77 insertions(+), 81 deletions(-)
+ src/cmd/go/internal/work/build_test.go | 49 +++++++++++++++++++++-
+ src/cmd/go/internal/work/exec.go       | 77 ++++++++++++++++++++++++----------
+ 2 files changed, 101 insertions(+), 25 deletions(-)

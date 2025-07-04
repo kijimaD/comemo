@@ -1,36 +1,22 @@
-commit 972870da11bb4ddd3df393473c494bd2b546cc56
-Author: Kévin Dunglas <kevin@dunglas.fr>
-Date:   Tue Aug 30 10:18:50 2022 +0000
+commit a3bb28e5ffee83c30a2c65963ef032cc2ab73a3c
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Tue Oct 19 18:59:34 2021 +0300
 
-    net/http/httputil: forward 1xx responses in ReverseProxy
+    cmd/compile: allow inlining of ORANGE
     
-    Support for 1xx responses has recently been merged in
-    net/http (CL 269997).
+    Updates #14768
     
-    As discussed in this CL
-    (https://go-review.googlesource.com/c/go/+/269997/comments/1ff70bef_c25a829a),
-    support for forwarding 1xx responses in ReverseProxy has been extracted
-    in this separate patch.
-    
-    According to RFC 7231, "a proxy MUST forward 1xx responses unless the
-    proxy itself requested the generation of the 1xx response".
-    Consequently, all received 1xx responses are automatically forwarded as long as the
-    underlying transport supports ClientTrace.Got1xxResponse.
-    
-    Fixes #26088
-    Fixes #51914
-    
-    Change-Id: I3a35ea023b798bfe56b7fb8696d5a49695229cfd
-    GitHub-Last-Rev: dab8a461fb65b547306cae9b4c664e60020a8fa6
-    GitHub-Pull-Request: golang/go#53164
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409536
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Change-Id: I33831f616eae5eeb099033e2b9cf90fa70d6ca86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356869
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/net/http/httputil/reverseproxy.go      | 20 ++++++++
- src/net/http/httputil/reverseproxy_test.go | 82 ++++++++++++++++++++++++++++++
- 2 files changed, 102 insertions(+)
+ src/cmd/compile/internal/inline/inl.go |  3 +--
+ test/fixedbugs/issue49100b.go          | 27 +++++++++++++++++++++++++++
+ test/fixedbugs/issue49100b.out         |  6 ++++++
+ test/inline.go                         | 13 +++++++++++++
+ test/linkname.dir/linkname1.go         |  2 +-
+ 5 files changed, 48 insertions(+), 3 deletions(-)

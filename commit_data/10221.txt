@@ -1,12 +1,28 @@
-commit 1738dc0e71b0a0356f5f88737c8b10d92b619063
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 3 11:32:37 2011 -0400
+commit 77aabbf217a93d59dd6c9d77e3b91b153291a79e
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Nov 3 17:12:13 2011 +1100
 
-    8a: fix IMULL grammar
+    html: parse <link> elements in <head>
     
-    R=ken2
+    Pass tests1.dat, test 83:
+    <title><meta></title><link><title><meta></title>
+    
+    | <html>
+    |   <head>
+    |     <title>
+    |       "<meta>"
+    |     <link>
+    |     <title>
+    |       "<meta>"
+    |   <body>
+    
+    Also pass test 84:
+    <style><!--</style><meta><script>--><link></script>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5298091
+    https://golang.org/cl/5331061
 
- src/cmd/8a/lex.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/html/parse.go      | 6 ++++--
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

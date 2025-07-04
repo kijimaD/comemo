@@ -1,14 +1,18 @@
-commit 28a55111b25a9f0b6b683509bac25836750eec2e
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Jun 24 11:23:37 2013 +1000
+commit fc0b5ef0fdc3bc90d93759b068f9be486f4252da
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Fri Jun 21 18:07:57 2013 -0700
 
-    os: rename error_posix.go to error_unix.go
+    time: handle integer overflow in Sub
     
-    The tradition is to use _posix when the platform extends beyond unix variants. As windows has its own file, rename to the more usual _unix.
+    If time.Sub results in a value that won't fit in a Duration (int64),
+    return either the min or max int64 value as appropriate.
     
-    R=golang-dev, r
+    Fixes #5011.
+    
+    R=golang-dev, bradfitz, r, rsc
     CC=golang-dev
-    https://golang.org/cl/10320043
+    https://golang.org/cl/10328043
 
- src/pkg/os/{error_posix.go => error_unix.go} | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/pkg/time/time.go      | 20 ++++++++++++++++++--
+ src/pkg/time/time_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 2 deletions(-)

@@ -1,31 +1,25 @@
-commit 553443d41fbe643a29d452a5d4d4ce3b7442b0e9
-Author: khr@golang.org <khr@golang.org>
-Date:   Sat May 18 08:01:27 2024 -0700
+commit 645949401455bb32ce430c7a7eb87fe8102f002c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 16 13:08:23 2023 -0400
 
-    cmd/compile: move limit fact table in prove pass to dense encoding
+    cmd/go: disable sumdb less often for toolchain downloads
     
-    Here begins a pretty major rewrite of the prove pass. The fundamental
-    observation is that although keeping facts about relations between
-    two SSA values could use O(n^2) space, keeping facts about relations
-    between an SSA value and constants needs only O(n) space. We can just
-    keep track of min/max for every SSA value at little cost.
+    There is a chicken and egg problem with always requiring
+    the checksum database for toolchain module downloads, since the
+    checksum database populates its entry by doing its own module
+    download.
     
-    Redo the limit table to just keep track of limits for all SSA values.
-    Use just a slice instead of a map. It may use more space (but still
-    just O(n) space), but accesses are a lot faster. And with the cache
-    in the compiler, that space will be reused quickly.
+    Don't require the checksum database for GOPROXY=file:/// (for local testing)
+    and when running on the Go module mirror.
     
-    This is part of my planning to add lots more constant limits in the
-    prove pass.
+    For #60847.
     
-    Change-Id: Ie36819fad5631a8b79c3630fe0e819521796551a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599255
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I5d67d585169ae0fa73109df233baae8ba5fe5dd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503978
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/allocators.go |  27 ++++---
- src/cmd/compile/internal/ssa/allocators.go      | 102 +++++++++++++++---------
- src/cmd/compile/internal/ssa/cache.go           |   2 +-
- src/cmd/compile/internal/ssa/prove.go           |  64 +++++++--------
- 4 files changed, 111 insertions(+), 84 deletions(-)
+ src/cmd/go/internal/modfetch/sumdb.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

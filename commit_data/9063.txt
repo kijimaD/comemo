@@ -1,19 +1,12 @@
-commit 3f2cc8ba7eb87fad2378723141687ac037c0f1dc
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Wed Jul 13 16:01:29 2011 -0700
+commit 8ba48fb5caa0bf5b1b2a73c788cd753c41373b44
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 13 15:48:57 2011 -0700
 
-    cc: fixes for Plan 9 build
+    fix build from e904b6784768 breakage
     
-    <ctype.h> has been moved into <u.h>, specifically to be able to
-    drop it from these modules.
-    
-    Will someone check platforms other than UBUNTU/386, please?
-    
-    R=bsiegert, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4648078
+    https://golang.org/cl/4696047
 
- src/cmd/cc/dpchk.c | 1 -
- src/cmd/cc/lex.c   | 1 -
- src/cmd/cc/mac.c   | 1 -
- 3 files changed, 3 deletions(-)
+ src/pkg/http/fs_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,40 +1,31 @@
-commit d234f9a75413fdae7643e4be9471b4aeccf02478
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Thu Apr 13 16:04:40 2017 -0700
+commit 948b21a3d7419ba42c574bde89c199b522221dc6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 10 11:44:19 2017 -0800
 
-    database/sql: allow using a single connection from the database
+    testing: only call ReadMemStats if necessary when benchmarking
     
-    Databases have the following concepts: Statement, Batch, and Session.
+    When running benchmarks with -cpuprofile,
+    the entire process gets profiled,
+    and ReadMemStats is surprisingly expensive.
+    Running the sort benchmarks right now with
+    -cpuprofile shows almost half of all execution
+    time in ReadMemStats.
     
-    A statement is often a single line like:
-    SELECT Amount from Account where ID = 50;
+    Since ReadMemStats is not required if the benchmark
+    does not need allocation stats, simply skip it.
+    This will make cpu profiles nicer to read
+    and significantly speed up the process of running benchmarks.
+    It might also make sense to toggle cpu profiling
+    on/off as we begin/end individual benchmarks,
+    but that wouldn't get us the time savings of
+    skipping ReadMemStats, so this CL is useful in itself.
     
-    A batch is one or more statements submitted together for the query
-    to process. It may be a DELETE, INSERT, two UPDATES and a SELECT in
-    a single query text.
-    
-    A session is usually represented by a single database connection.
-    This often is an issue when dealing with scopes in databases.
-    Temporary tables and variables can have batch, session, or global
-    scope depending on the syntax, database, and use.
-    
-    Furthermore, some databases (sybase and derivatives in perticular)
-    that prevent certain statements from being in the same batch
-    and may necessitate being in the same session.
-    
-    By allowing users to extract a Conn from the database they can manage
-    session on their own without hacking around it by making connection
-    pools of single connections (a real workaround presented in issue).
-    It is tempting to just use a transaction, but this isn't always
-    desirable or an option if running an interactive session or
-    alter script set that itself starts transactions.
-    
-    Fixes #18081
-    
-    Change-Id: I9bdf0796632c48d4bcaef3624c629641984ffaf2
-    Reviewed-on: https://go-review.googlesource.com/40694
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I425197b1ee11be4bc91d22b929e2caf648ebd7c5
+    Reviewed-on: https://go-review.googlesource.com/36791
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go      | 200 +++++++++++++++++++++++++++++++++++++++++--
- src/database/sql/sql_test.go |  88 +++++++++++++++++++
- 2 files changed, 283 insertions(+), 5 deletions(-)
+ src/testing/benchmark.go | 29 ++++++++++++++++++++---------
+ src/testing/sub_test.go  | 10 ++++++++--
+ 2 files changed, 28 insertions(+), 11 deletions(-)

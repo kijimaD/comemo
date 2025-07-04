@@ -1,14 +1,20 @@
-commit 9ea306a10ca4d25672641ffbb628718a6665b4f3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 1 04:29:12 2016 +0000
+commit 9abaef93c75b8aef007624b66f99a671eb0cc5d6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 3 16:09:13 2016 -0700
 
-    sort: add Slice example
+    cmd/compile: cleanup artifacts from previous CL
     
-    Change-Id: I34ba4eaf1d232b639998ad3bbb0d075dd097722b
-    Reviewed-on: https://go-review.googlesource.com/33763
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Does not pass toolstash, but only because it causes ATYPE instructions
+    to be emitted in a different order, and it avoids emitting type
+    metadata for unused variables.
+    
+    Change-Id: I3ec8f66a40b5af9213e0d6e852b267a8dd995838
+    Reviewed-on: https://go-review.googlesource.com/30217
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dominik Honnef <dominik@honnef.co>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/sort/example_test.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/cmd/compile/internal/gc/pgen.go        | 13 +------------
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/syntax.go      | 29 ++++++++++++++---------------
+ 3 files changed, 16 insertions(+), 28 deletions(-)

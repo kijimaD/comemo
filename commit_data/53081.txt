@@ -1,30 +1,36 @@
-commit 6a41be228e1f59dae6001e058fd1b27c79592777
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri May 12 08:55:49 2023 -0400
+commit 8ac58de1857637f372a00ea16ab5497193b784a6
+Author: Aaron Gable <aaron@letsencrypt.org>
+Date:   Wed Jul 6 16:59:03 2022 -0700
 
-    cmd: update vendored golang.org/x/mod
+    crypto/x509: populate Number and AKI of parsed CRLs
     
-    Pull in CL 492990. This teaches 'go mod tidy' and other go subcommands
-    that write go.mod files to use semantic sort for exclude blocks, gated
-    on said files declaring Go version 1.21 or higher.
+    The x509.RevocationList type has two fields which correspond to
+    extensions, rather than native fields, of the underlying ASN.1 CRL:
+    the .Number field corresponds to the crlNumber extension, and
+    the .AuthorityKeyId field corresponds to the authorityKeyIdentifier
+    extension.
     
-    go get golang.org/x/mod@e7bea8f1d64f  # includes CL 492990
-    go mod tidy
-    go mod vendor
+    The x509.CreateRevocationList() function uses these fields to populate
+    their respective extensions in the resulting CRL. However, the
+    x509.ParseRevocationList() function does not perform the reverse
+    operation: the fields retain their zero-values even after parsing a CRL
+    which contains the relevant extensions.
     
-    Fixes #60028.
+    Add code which populates these fields when parsing their extensions.
+    Add assertions to the existing tests to confirm that the values are
+    populated appropriately.
     
-    Change-Id: Ia9342dcc23cd68de068a70657b59c25f69afa381
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494578
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #53726
+    
+    Change-Id: Ie5b71081e53034e0b5b9ff3c122065c62f15cf23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416354
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/go.mod                                   |  2 +-
- src/cmd/go.sum                                   |  4 +--
- src/cmd/go/testdata/script/mod_exclude_go121.txt | 34 ++++++++++++++++++++++++
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go  | 26 +++++++++++++++++-
- src/cmd/vendor/modules.txt                       |  2 +-
- 5 files changed, 63 insertions(+), 5 deletions(-)
+ src/crypto/x509/parser.go    | 17 +++++++++++++----
+ src/crypto/x509/x509.go      |  7 +++++--
+ src/crypto/x509/x509_test.go | 13 +++++++++++++
+ 3 files changed, 31 insertions(+), 6 deletions(-)

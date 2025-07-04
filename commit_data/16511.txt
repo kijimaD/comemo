@@ -1,12 +1,13 @@
-commit 37c81d58703106af1bafe4710fc0f487f4665a3d
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Jun 9 22:01:03 2013 +0800
+commit 822da408147e4cf74b38013cbc8b1090b31da738
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Jun 7 19:01:07 2013 +0100
 
-    misc/pprof: fix html5 doctype declaration
+    cmd/go: update go vet documentation
     
-    R=golang-dev, bradfitz
+    R=rsc, minux.ma, r
     CC=golang-dev
-    https://golang.org/cl/10099045
+    https://golang.org/cl/10110043
 
- misc/pprof | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/doc.go | 2 +-
+ src/cmd/go/vet.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

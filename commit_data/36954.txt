@@ -1,18 +1,21 @@
-commit 4fb8b1de3cf629c94910c5389220a07963bd44e2
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Oct 12 18:01:50 2018 +0200
+commit 4f6b9ed5adffbfb38f10fd1843d5f6f731ece884
+Author: Nathan Cantelmo <n.cantelmo@gmail.com>
+Date:   Wed Sep 6 11:19:25 2017 -0400
 
-    internal/cpu: use 'off' for disabling cpu capabilities instead of '0'
+    doc: document the lack of support for symlinks under GOPATH
     
-    Updates #27218
+    In an effort to help others avoid the issues I've hit due to lack of
+    symlink support under GOPATH, I've added a note of warning to the
+    Workspaces section.
     
-    Change-Id: I4ce20376fd601b5f958d79014af7eaf89e9de613
-    Reviewed-on: https://go-review.googlesource.com/c/141818
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    I have not changed the contents of go help gopath, because on reflection
+    it seems this change alone may be sufficient.
+    
+    Fixes #21320
+    
+    Change-Id: Ib8969bf12cecad878e89ff66b5864bbf3caaf219
+    Reviewed-on: https://go-review.googlesource.com/61930
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/cpu/cpu.go          | 10 +++++-----
- src/internal/cpu/cpu_test.go     |  6 +++---
- src/internal/cpu/cpu_x86_test.go |  6 +++---
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ doc/code.html | 4 ++++
+ 1 file changed, 4 insertions(+)

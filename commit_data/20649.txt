@@ -1,21 +1,19 @@
-commit 4731c382f6875863dc27f33088f53bce8f82c620
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Oct 6 15:10:51 2014 -0700
+commit 13a2c1ca78c47a4314e32badddf6c31c4229da7f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 13:48:30 2014 -0400
 
-    strings: use fast path for IndexRune
+    cmd/go: display program name when reporting crash
     
-    Noticed while reviewing https://golang.org/cl/147690043/
+    Fix by atom (from CL 89190044), comment and test by me.
     
-    I'd never seen anybody use IndexRune before, and
-    unsurprisingly it doesn't use the other fast paths in the
-    strings/bytes packages. IndexByte uses assembly.
+    Fixes #6823.
     
-    Also, less code this way.
-    
-    LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/147700043
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=0xe2.0x9a.0x9b, adg, golang-codereviews, iant, r
+    https://golang.org/cl/148180043
 
- src/strings/strings.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/cmd/go/build.go  |  8 ++++++++
+ src/cmd/go/test.bash | 11 +++++++++++
+ src/cmd/ld/pobj.c    |  9 +++++++++
+ 3 files changed, 28 insertions(+)

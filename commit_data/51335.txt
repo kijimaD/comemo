@@ -1,22 +1,21 @@
-commit 3f5b02d09f0d345c2d6bef83eddbd518e9327276
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 16 20:24:03 2022 -0500
+commit a4b6fc7b1ddcec937b605b76068f8e800c1487e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 11 22:19:56 2022 -0800
 
-    cmd/fix: allow cgo commands in tests to fail if 'go build' is not supported
+    go/types, types2: fix tracing output for type and expr lists
     
-    testenv.HasCgo reports whether the test binary may have been built
-    with cgo enabled, but having been built with cgo does not necessarily
-    imply that the test can invoke the cgo tool itself.
+    - support printing of expression and type lists in sprintf
+    - simplified some code in go/types/exprstring.go
+    - fixed a typo in syntax package
     
-    This should fix a test failure on the android builders introduced in
-    CL 450714.
-    
-    Change-Id: I2eed4098736e1cb285ca20bc248b0ab3515f0dea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451221
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ic4bc154200aad95958d5bc2904a9ea17cf518388
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377974
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/fix/main_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/printer.go |  2 +-
+ src/cmd/compile/internal/types2/errors.go  | 22 ++++++++++++++++++++++
+ src/go/types/errors.go                     | 18 ++++++++++++++++++
+ src/go/types/exprstring.go                 |  7 +------
+ 4 files changed, 42 insertions(+), 7 deletions(-)

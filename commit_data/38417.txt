@@ -1,15 +1,21 @@
-commit d98e0720bcd05d0c162e932710a4ca39d9ef0fd2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 14 17:22:00 2019 +0000
+commit 80b83770498dd1d4a4b13ac2d016419a65026f1b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Oct 26 11:41:02 2018 -0400
 
-    cmd/compile/internal/ssa: re-run generator
+    crypto/tls: bump test timeouts from 1s to 1m for slow builders
     
-    CL 163760 was submitted with this file generated from an old version
-    of the code generator.
+    The arm5 and mips builders are can't-send-a-packet-to-localhost-in-1s
+    slow apparently. 1m is less useful, but still better than an obscure
+    test timeout panic.
     
-    Change-Id: I9a3b9a48f794f74567f82ef58637cb1820befd11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167677
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Fixes #28405
+    
+    Change-Id: I2feeae6ea1b095114caccaab4f6709f405faebad
+    Reviewed-on: https://go-review.googlesource.com/c/145037
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/rewritePPC64.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/crypto/tls/handshake_client_test.go | 6 +++---
+ src/crypto/tls/handshake_server_test.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

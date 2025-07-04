@@ -1,12 +1,15 @@
-commit 5d1d040e3af871b62d78ec88ccc32c21f2a78f03
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 19 11:54:07 2011 -0700
+commit 80700eb817a099c74fd71a9a19c3e2a7445c19df
+Author: Dave Grijalva <dgrijalva@ngmoco.com>
+Date:   Mon Sep 19 11:41:09 2011 -0700
 
-    doc: when configuring gold for gccgo, use --enable-gold=default
+    http: always include Content-Length header, even for 0
     
-    R=golang-dev, dsymonds
+    fixes #2221
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5030057
+    https://golang.org/cl/4952052
 
- doc/gccgo_install.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/http/requestwrite_test.go |  5 +++++
+ src/pkg/http/transfer.go          | 35 +++++++++++++++++++++++++++++------
+ 2 files changed, 34 insertions(+), 6 deletions(-)

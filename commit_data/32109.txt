@@ -1,14 +1,72 @@
-commit a279b53a18dbe317180e9e411ca7892294a62901
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 2 17:52:06 2017 -0700
+commit 5b59b32c97c83b6b89bca9cfb0cc6eaaa1d19d55
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 4 14:31:55 2017 -0700
 
-    reflect: document how DeepEqual handles cycles
+    cmd/compile: teach assemblers to accept a Prog allocator
     
-    Fixes #20428
+    The existing bulk Prog allocator is not concurrency-safe.
+    To allow for concurrency-safe bulk allocation of Progs,
+    I want to move Prog allocation and caching upstream,
+    to the clients of cmd/internal/obj.
     
-    Change-Id: Ia450e615728efd4ccb6e42117b547cac162f13a3
-    Reviewed-on: https://go-review.googlesource.com/52931
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    This is a preliminary enabling refactoring.
+    After this CL, instead of calling Ctxt.NewProg
+    throughout the assemblers, we thread through
+    a newprog function that returns a new Prog.
+    
+    That function is set up to be Ctxt.NewProg,
+    so there are no real changes in this CL;
+    this CL only establishes the plumbing.
+    
+    Passes toolstash-check -all.
+    Negligible compiler performance impact.
+    
+    Updates #15756
+    
+    name        old time/op     new time/op     delta
+    Template        213ms ± 3%      214ms ± 4%    ~     (p=0.574 n=49+47)
+    Unicode        90.1ms ± 5%     89.9ms ± 4%    ~     (p=0.417 n=50+49)
+    GoTypes         585ms ± 4%      584ms ± 3%    ~     (p=0.466 n=49+49)
+    SSA             6.50s ± 3%      6.52s ± 2%    ~     (p=0.251 n=49+49)
+    Flate           128ms ± 4%      128ms ± 4%    ~     (p=0.673 n=49+50)
+    GoParser        152ms ± 3%      152ms ± 3%    ~     (p=0.810 n=48+49)
+    Reflect         372ms ± 4%      372ms ± 5%    ~     (p=0.778 n=49+50)
+    Tar             113ms ± 5%      111ms ± 4%  -0.98%  (p=0.016 n=50+49)
+    XML             208ms ± 3%      208ms ± 2%    ~     (p=0.483 n=47+49)
+    [Geo mean]      285ms           285ms       -0.17%
+    
+    name        old user-ns/op  new user-ns/op  delta
+    Template         253M ± 8%       254M ± 9%    ~     (p=0.899 n=50+50)
+    Unicode          106M ± 9%       106M ±11%    ~     (p=0.642 n=50+50)
+    GoTypes          736M ± 4%       740M ± 4%    ~     (p=0.121 n=50+49)
+    SSA             8.82G ± 3%      8.88G ± 2%  +0.65%  (p=0.006 n=49+48)
+    Flate            147M ± 4%       147M ± 5%    ~     (p=0.844 n=47+48)
+    GoParser         179M ± 4%       178M ± 6%    ~     (p=0.785 n=50+50)
+    Reflect          443M ± 6%       441M ± 5%    ~     (p=0.850 n=48+47)
+    Tar              126M ± 5%       126M ± 5%    ~     (p=0.734 n=50+50)
+    XML              244M ± 5%       244M ± 5%    ~     (p=0.594 n=49+50)
+    [Geo mean]       341M            341M       +0.11%
+    
+    Change-Id: Ice962f61eb3a524c2db00a166cb582c22caa7d68
+    Reviewed-on: https://go-review.googlesource.com/39633
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/reflect/deepequal.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/internal/obj/arm/asm5.go   |  44 +++++++--------
+ src/cmd/internal/obj/arm/obj5.go   |  96 ++++++++++++++++----------------
+ src/cmd/internal/obj/arm64/asm7.go |  30 +++++-----
+ src/cmd/internal/obj/arm64/obj7.go |  90 +++++++++++++++---------------
+ src/cmd/internal/obj/ld.go         |   4 +-
+ src/cmd/internal/obj/link.go       |   9 +--
+ src/cmd/internal/obj/mips/asm0.go  |  10 ++--
+ src/cmd/internal/obj/mips/obj0.go  |  84 ++++++++++++++--------------
+ src/cmd/internal/obj/pass.go       |   4 +-
+ src/cmd/internal/obj/plist.go      |  14 +++--
+ src/cmd/internal/obj/ppc64/asm9.go |   6 +-
+ src/cmd/internal/obj/ppc64/obj9.go | 110 ++++++++++++++++++-------------------
+ src/cmd/internal/obj/s390x/asmz.go |   2 +-
+ src/cmd/internal/obj/s390x/objz.go |  82 +++++++++++++--------------
+ src/cmd/internal/obj/x86/asm6.go   |   2 +-
+ src/cmd/internal/obj/x86/obj6.go   | 108 ++++++++++++++++++------------------
+ 16 files changed, 351 insertions(+), 344 deletions(-)

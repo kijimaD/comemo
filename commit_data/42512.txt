@@ -1,16 +1,21 @@
-commit 509ee7064207cc9c8ac81bc76f182a5fbb877e9b
-Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-Date:   Thu Jun 11 15:57:18 2020 +0000
+commit 249c85d3aab2ad2d0bcbf36efe606fdd66f25c72
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 7 12:03:28 2020 -0500
 
-    doc/go1.15: add code tags
+    net/http: avoid writing to Transport.ProxyConnectHeader
     
-    Other command line arguments are written in code tags, so add a code tag for consistency.
+    Previously, we accidentally wrote the Proxy-Authorization header for
+    the initial CONNECT request to the shared ProxyConnectHeader map when
+    it was non-nil.
     
-    For #37419
+    Fixes #36431
     
-    Change-Id: I1948536c3a1860d93726484be2dc7bcb03dfdc2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237539
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I5cb414f391dddf8c23d85427eb6973f14c949025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213638
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.15.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/transport.go      |  7 ++++---
+ src/net/http/transport_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

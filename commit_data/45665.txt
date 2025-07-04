@@ -1,18 +1,41 @@
-commit 7c692cc7ea69ba4d8603fbada112289443a6f526
-Author: Vishal Dalwadi <dalwadivishal26@gmail.com>
-Date:   Fri May 7 10:05:36 2021 +0530
+commit 3ef8562c9c2c7f6897572b05b70ac936a99fd043
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue May 26 14:14:08 2020 -0700
 
-    doc/go1.17: document changes to os package
+    net/mail: avoid ParseDate confusion if day name includes "T"
     
-    Documents the changes to File.WriteString method.
+    Fixes the check for RFC 5322 "obsolete time zone" to ensure
+    that we correctly extract the entire date from the "T" of the
+    implied time zone.
     
-    For #44513.
-    Fixes #46018.
+    Obsolete Time zones come in the form:
+    * GMT
+    * PST
+    * MDT
+    etc, as per Section 4.3 of RFC 5322,
+    https://tools.ietf.org/html/rfc5322#section-4.3.
     
-    Change-Id: I3a8ef9df9f84662614d54802710bd705d626b995
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317910
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    The prior check from CL 117596 erronenously used strings.Index
+    which selects the first "T", and that meant that dates containing
+    days "Tue" or "Thu" could not be parsed.
+    
+    We also now deal with "T" in the CFWS "Comment Folding White Space".
+    
+    Thus we'll now accept dates:
+    * Thu, 20 Nov 1997 09:55:06 MDT
+    * Thu, 20 Nov 1997 09:55:06 MDT (MDT)
+    * Fri, 21 Nov 1997 09:55:06 MDT (This comment)
+    * Fri, 21 Nov 1997 09:55:06 MDT (MDT
+    
+    Fixes #39260
+    
+    Change-Id: I6d59d99bc4f05a82582c826b5c5a080a25fd999b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235200
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- doc/go1.17.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/mail/message.go      | 24 +++++++++++++++++++-----
+ src/net/mail/message_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 5 deletions(-)

@@ -1,26 +1,22 @@
-commit b75ac7a8d588ddda6b3a57969be6fa1d3e6ef31a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 17 19:43:21 2023 +0000
+commit 4b58b3077801b83c7ebc8eca23c7f63913d0778f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 14 11:47:08 2022 +0700
 
-    Revert "cmd/compile: enable zero-copy string->[]byte conversions"
+    spec: describe an edge case of slice-to-array conversions
     
-    This reverts CL 520395.
+    Converting from nil slice to zero element array is ok, so explicitly
+    describe the behavior in the spec.
     
-    Reason for revert: thanm@ pointed out failure cases.
+    For #46505
     
-    Change-Id: I3fd60b73118be3652be2c08b77ab39e793b42110
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520596
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I68f432deb6c21a7549bf7e870185fc62504b37f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430835
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/escape/escape.go | 13 +++++++++----
- src/cmd/compile/internal/ssagen/ssa.go    |  8 --------
- src/cmd/compile/internal/walk/order.go    | 10 ++--------
- src/cmd/compile/internal/walk/switch.go   |  1 -
- test/escape2.go                           |  2 +-
- test/escape2n.go                          |  2 +-
- 6 files changed, 13 insertions(+), 23 deletions(-)
+ doc/go_spec.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

@@ -1,21 +1,16 @@
-commit cea5d26aa21ab224b84c59983ffd1f022e65e008
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Mar 15 18:08:22 2016 +1100
+commit 8971d61835099623768999364e9110f0c713d464
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 7 09:41:45 2016 -0800
 
-    cmd/compile/internal/gc: remove Thearch.Linkarchinit
+    os/signal: clarify signal doc
     
-    Change-Id: I8e990204c7a1e65d6b8e4262f6b5b9bd0cb3540c
-    Reviewed-on: https://go-review.googlesource.com/20725
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Based on comments from Thomas Bushnell.
+    
+    Update #9896.
+    
+    Change-Id: I603b1382d17dff00b5d18f17f8b5d011503e9e4c
+    Reviewed-on: https://go-review.googlesource.com/18365
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/amd64/galign.go  | 28 ++++++++++------------------
- src/cmd/compile/internal/arm/galign.go    |  4 ----
- src/cmd/compile/internal/arm64/galign.go  |  4 ----
- src/cmd/compile/internal/gc/go.go         |  1 -
- src/cmd/compile/internal/gc/main.go       |  1 -
- src/cmd/compile/internal/mips64/galign.go | 25 ++++++-------------------
- src/cmd/compile/internal/ppc64/galign.go  | 25 ++++++-------------------
- src/cmd/compile/internal/x86/galign.go    |  4 ----
- 8 files changed, 22 insertions(+), 70 deletions(-)
+ src/os/signal/doc.go | 50 ++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 30 insertions(+), 20 deletions(-)

@@ -1,0 +1,15 @@
+commit d7f6f6fd54bb888606d882cd73df9dcac229b80a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 6 18:04:00 2025 -0800
+
+    bufio: skip network test if unixpacket socket not supported
+    
+    Change-Id: I03434fdc4916fc8d195de2617edc28ec4b66a172
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647535
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/bufio/net_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,17 +1,15 @@
-commit aea4de80f9137915fa70b114d541833094b88a23
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Jan 15 16:37:47 2016 +0900
+commit b4501ac4a59d78f59b92f00cc4ba1e364298a44d
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:33:17 2015 -0400
 
-    runtime: readjust signal code for dragonfly-2.6 and above
+    cmd/cgo: added support for GOARCH=mips64{,le}
     
-    Also adds missing nosplit to unminit.
+    The actual cgo is not supported for now. This is just the cgo command.
     
-    Fixes #13964.
-    
-    Change-Id: I07d93a8c872a255a89f91f808b66c889f0a6a69c
-    Reviewed-on: https://go-review.googlesource.com/18658
+    Change-Id: I25625100ee552971f47e681b7d613cba16a2132f
+    Reviewed-on: https://go-review.googlesource.com/14446
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/os1_dragonfly.go | 1 +
- src/runtime/os2_dragonfly.go | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/cgo/main.go | 36 ++++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)

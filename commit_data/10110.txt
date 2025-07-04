@@ -1,12 +1,23 @@
-commit 8b92066e31e127f7193c29e716af39a06ec0b82a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Oct 26 16:16:46 2011 +0900
+commit f777be8f83edbeb065ceb9c394c5bd8ebcc67111
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 26 15:27:29 2011 +0900
 
-    gc: fix [568]g -V crash
+    redo CL 5302057 / dac58d9c9e4a
     
-    R=lvd
+    ««« original CL description
+    http: remove Connection header in ReverseProxy
+    
+    Fixes #2342
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5314060
+    https://golang.org/cl/5302057
+    »»»
+    
+    R=bradfitz, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5296055
 
- src/cmd/gc/lex.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/reverseproxy.go      | 25 +++++++++++++++++++------
+ src/pkg/http/reverseproxy_test.go |  5 +++++
+ 2 files changed, 24 insertions(+), 6 deletions(-)

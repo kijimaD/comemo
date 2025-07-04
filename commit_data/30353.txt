@@ -1,15 +1,19 @@
-commit 7603aa7907fa92336fd9f7702b709e559ee0191b
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Feb 21 11:23:04 2017 -0800
+commit 4e584c52036fb2a572fab466e2a291fb695da882
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 28 15:08:28 2016 +1300
 
-    doc: use appropriate type to describe return value
+    cmd/compile: mark go.itab.* symbols local earlier
     
-    Fixes #19223.
+    This feels a bit like a layering violation, but as the bug report shows
+    it is sometimes necessary.
     
-    Change-Id: I4cc8e81559a1313e1477ee36902e1b653155a888
-    Reviewed-on: https://go-review.googlesource.com/37374
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #17642
+    
+    Change-Id: I4ba060bb1ce73a527ce276e5a769c44692b50016
+    Reviewed-on: https://go-review.googlesource.com/32236
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/reflect.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,24 +1,15 @@
-commit 67ee9a7db103b5ae5c8d077fef9e21cf6f137f3a
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Sep 6 17:50:26 2012 +1000
+commit f0a31b5fc2e64ad1c597a5efc72749ab77058b87
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Sep 6 13:16:02 2012 +0900
 
-    crypto/tls: fix data race on conn.err
+    exp/locale/collate/build: moved some of the code to the appropriate file, as
+    promised in CL 13985.
     
-    Fixes #3862.
-    
-    There were many areas where conn.err was being accessed
-    outside the mutex. This proposal moves the err value to
-    an embedded struct to make it more obvious when the error
-    value is being accessed.
-    
-    As there are no Benchmark tests in this package I cannot
-    feel confident of the impact of this additional locking,
-    although most will be uncontended.
-    
-    R=dvyukov, agl
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6497070
+    https://golang.org/cl/6503071
 
- src/pkg/crypto/tls/conn.go             | 59 +++++++++++++++++-----------------
- src/pkg/crypto/tls/handshake_client.go |  4 +--
- 2 files changed, 32 insertions(+), 31 deletions(-)
+ src/pkg/exp/locale/collate/build/builder.go | 176 +---------------------------
+ src/pkg/exp/locale/collate/build/colelem.go |  80 +++++++++++++
+ src/pkg/exp/locale/collate/build/order.go   |  79 ++++++++++++-
+ 3 files changed, 163 insertions(+), 172 deletions(-)

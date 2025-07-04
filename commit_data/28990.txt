@@ -1,39 +1,17 @@
-commit bf9c71cb434a730679f54a3a87c2e9e36ec400d0
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 19 18:27:39 2016 -0400
+commit 94d9cc7741a13206e139efeab84fcc589dc390e5
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Sat Aug 20 19:29:01 2016 +0800
 
-    runtime: make morestack less subtle
+    index/suffixarray: add Lookup example
     
-    morestack writes the context pointer to gobuf.ctxt, but since
-    morestack is written in assembly (and has to be very careful with
-    state), it does *not* invoke the requisite write barrier for this
-    write. Instead, we patch this up later, in newstack, where we invoke
-    an explicit write barrier for ctxt.
+    Updates #16360
     
-    This already requires some subtle reasoning, and it's going to get a
-    lot hairier with the hybrid barrier.
-    
-    Fix this by simplifying the whole mechanism. Instead of writing
-    gobuf.ctxt in morestack, just pass the value of the context register
-    to newstack and let it write it to gobuf.ctxt. This is a normal Go
-    pointer write, so it gets the normal Go write barrier. No subtle
-    reasoning required.
-    
-    Updates #17503.
-    
-    Change-Id: Ia6bf8459bfefc6828f53682ade32c02412e4db63
-    Reviewed-on: https://go-review.googlesource.com/31550
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Idd8523b5a9a496ebd9c6e3b89c30df539842a139
+    Reviewed-on: https://go-review.googlesource.com/27433
+    Reviewed-by: C Cirello <uldericofilho@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/asm_386.s      |  4 +++-
- src/runtime/asm_amd64.s    |  4 +++-
- src/runtime/asm_amd64p32.s |  4 +++-
- src/runtime/asm_arm.s      |  5 ++++-
- src/runtime/asm_arm64.s    |  4 +++-
- src/runtime/asm_mips64x.s  |  6 +++++-
- src/runtime/asm_ppc64x.s   |  4 +++-
- src/runtime/asm_s390x.s    |  6 +++++-
- src/runtime/stack.go       | 21 ++++++++++-----------
- 9 files changed, 39 insertions(+), 19 deletions(-)
+ src/index/suffixarray/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

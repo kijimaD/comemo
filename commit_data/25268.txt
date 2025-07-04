@@ -1,13 +1,19 @@
-commit c1cbe5b577b1bfdc34be18f391ab82904b6530f2
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 11 17:50:02 2015 -0500
+commit d72d299f3ee71cfe7c2fec9451ce941a24766bf0
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Thu Oct 15 19:30:02 2015 -0700
 
-    runtime: check for spanBytesAlloc underflow
+    runtime: rename print1.go -> print.go
     
-    Change-Id: I5e6739ff0c6c561195ed9891fb90f933b81e7750
-    Reviewed-on: https://go-review.googlesource.com/17746
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    It seems that it was called print1.go mistakenly: print.go was deleted
+    in the same commit:
+    https://go.googlesource.com/go/+/597b266eafe7d63e9be8da1c1b4813bd2998a11c
+    
+    Updates #12952
+    
+    Change-Id: I371e59d6cebc8824857df3f3ee89101147dfffc0
+    Reviewed-on: https://go-review.googlesource.com/15950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgcsweep.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/{print1.go => print.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

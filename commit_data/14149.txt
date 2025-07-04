@@ -1,21 +1,12 @@
-commit 7e144bcab0df7efa7255ecfa1ac425931902437f
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Oct 16 07:22:33 2012 +0200
+commit 08d66439b4f0c4e5f73f48dca658c94e344c43ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 15 20:30:41 2012 -0700
 
-    cmd/5g, cmd/6g, cmd/8g: fix out of registers.
+    builder: label the race builder as "race"
     
-    This patch is enough to fix compilation of
-    exp/types tests but only passes a stripped down
-    version of the appripriate torture test.
-    
-    Update #4207.
-    
-    R=dave, nigeltao, rsc, golang-dev
+    R=golang-dev, adg, dave, rsc, minux.ma, dvyukov
     CC=golang-dev
-    https://golang.org/cl/6621061
+    https://golang.org/cl/6648043
 
- src/cmd/5g/cgen.c | 91 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
- src/cmd/6g/cgen.c | 56 +++++++++++++++++++++++-----------
- src/cmd/8g/cgen.c | 18 +++++++++--
- test/torture.go   | 76 +++++++++++++++++++++++++++++++++++++++++++---
- 4 files changed, 212 insertions(+), 29 deletions(-)
+ misc/dashboard/app/build/ui.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,23 +1,17 @@
-commit 14bc4f5e5fd5a113c97bdf1455b4f7d36a81f54b
-Author: Leigh McCulloch <leighmcc@gmail.com>
-Date:   Fri Oct 27 07:04:57 2017 +0000
+commit c3fa6f4ddc4a79f436e842742ae735e617f8522e
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 14 17:26:22 2017 +0900
 
-    encoding/xml: ignore whitespace in values and attrs
+    debug/macho: make Type implements fmt.(Go)Stringer interfaces
     
-    Whitespace is ignored in bool values and attrs. It is convenient and
-    relatively safe since whitespace around a bool value is often
-    unimportant. The same logic can be applied to numeric values of types
-    int, uint, and float.
+    Fixes #21436
     
-    Fixes #22146
-    
-    Change-Id: Ie0462def90304af144b8e2e72d85b644857c27cc
-    Reviewed-on: https://go-review.googlesource.com/73891
-    Reviewed-by: Sam Whited <sam@samwhited.com>
+    Change-Id: I56f43e2852696c28edbcc772a54125a9a9c32497
+    Reviewed-on: https://go-review.googlesource.com/55262
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Sam Whited <sam@samwhited.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/xml/read.go      |   8 +--
- src/encoding/xml/read_test.go | 118 +++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 120 insertions(+), 6 deletions(-)
+ src/debug/macho/file_test.go |  9 +++++++++
+ src/debug/macho/macho.go     | 10 ++++++++++
+ 2 files changed, 19 insertions(+)

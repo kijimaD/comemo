@@ -1,16 +1,16 @@
-commit 31e633464481a0748fb95eda2a2d3d604755d286
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 27 11:14:45 2017 -0800
+commit 322436b78c2b0a8dd346f460df6fc00f49adba8e
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Thu Nov 3 22:25:42 2016 +0530
 
-    go/build: move math/bits into L1 set of dependencies
+    cmd/compile: don't panic if syntax.ReadFile returns an error
     
-    Per suggestion from rsc.
+    Fixes #17772
     
-    Change-Id: I4b61ec6f35ffaaa792b75e011fbba1bdfbabc1f6
-    Reviewed-on: https://go-review.googlesource.com/37501
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0f2094400c454828aa57a8d172dadeac4ddb6d35
+    Reviewed-on: https://go-review.googlesource.com/32691
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/noder.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

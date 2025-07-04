@@ -1,20 +1,14 @@
-commit 7f9832254c78266cf8f3bbd632c806e5c71b6d5a
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Mon Mar 13 16:30:54 2017 -0500
+commit 6cf7918e7335041bd7d40be4c6e976a044cc000c
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Tue Feb 7 11:01:51 2017 -0800
 
-    cmd/internal/obj/x86: fix relocation offset for VEX encoded instructions
+    runtime/pprof: clarify CPU profile's captured during the lifetime of the prog
     
-    VEX encoded instructions don't have a REX byte, so for PC relative
-    addressing we don't need to recalculate relocation offset.
+    Fixes #18504.
     
-    Fixes #19518
-    
-    Change-Id: Icf5414962de4350d76fd220817498337f90614fc
-    Reviewed-on: https://go-review.googlesource.com/38138
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3716fc58fc98472eea15ce3617aee3890670c276
+    Reviewed-on: https://go-review.googlesource.com/36430
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go            |   2 +-
- src/cmd/internal/obj/x86/issue19518_test.go | 110 ++++++++++++++++++++++++++++
- 2 files changed, 111 insertions(+), 1 deletion(-)
+ src/runtime/pprof/pprof.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

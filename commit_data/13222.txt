@@ -1,14 +1,29 @@
-commit b8a02560de8a53be91f1e9b6cf188f5109d14897
-Author: Mats Lidell <mats.lidell@cag.se>
-Date:   Wed May 30 16:04:29 2012 -0400
+commit a768de8347c4aab00e48d4566274198c2e35e9bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 30 14:41:19 2012 -0400
 
-    go-mode: Works for both GNU-Emacs and XEmacs-21.5
+    cmd/6g: avoid MOVSD between registers
     
-    Fixes some portability issues between the Emacsen.
+    MOVSD only copies the low half of the packed register pair,
+    while MOVAPD copies both halves.  I assume the internal
+    register renaming works better with the latter, since it makes
+    our code run 25% faster.
     
-    R=golang-dev, sameer, bradfitz, ryanb
+    Before:
+    mandelbrot 16000
+            gcc -O2 mandelbrot.c    28.44u 0.00s 28.45r
+            gc mandelbrot   44.12u 0.00s 44.13r
+            gc_B mandelbrot 44.17u 0.01s 44.19r
+    
+    After:
+    mandelbrot 16000
+            gcc -O2 mandelbrot.c    28.22u 0.00s 28.23r
+            gc mandelbrot   32.81u 0.00s 32.82r
+            gc_B mandelbrot 32.82u 0.00s 32.83r
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6206043
+    https://golang.org/cl/6248068
 
- misc/emacs/go-mode.el | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/6g/peep.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

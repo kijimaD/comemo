@@ -1,13 +1,14 @@
-commit 2059ffbc8db0dff3fd9780a817f76e95559193ba
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Dec 23 22:22:56 2014 +0300
+commit c0abdd9f29aa584804ab98ff964cd7d590f81260
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 02:50:33 2014 -0500
 
-    runtime/pprof: add tests for tracer
+    doc/go_spec: fix typo
     
-    Change-Id: I832a433f0f2fc10b0a2fea0bfb003a988fc2c81b
-    Reviewed-on: https://go-review.googlesource.com/2039
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #9445
+    
+    Change-Id: If7abd4d4d41cdfd5cf677f03533c930c8b965a01
+    Reviewed-on: https://go-review.googlesource.com/2128
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/trace_parser_test.go | 651 +++++++++++++++++++++++++++++++++
- src/runtime/pprof/trace_test.go        | 223 +++++++++++
- 2 files changed, 874 insertions(+)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,18 @@
-commit a84e9d01f0bb15b192fd2ce202aa3ee095443cca
+commit a5c1fa7f02d3c025f8443cadbd3c09ad682b9c2c
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Jun 14 15:13:54 2011 -0300
+Date:   Tue Jun 14 15:06:39 2011 -0300
 
-    ld: make .rodata section read-only
+    debug/elf: rename test .o files to .obj
     
-    Fixes the respective warning from elflint.
+    .o files are commonly found in default ignore lists by
+    source management tools, including dpkg-source, bzr, etc.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4607048
+    https://golang.org/cl/4568078
 
- src/cmd/ld/data.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/debug/elf/file_test.go                              |   6 +++---
+ ...gcc424-x86-64.o => go-relocation-test-gcc424-x86-64.obj} | Bin
+ ...gcc441-x86-64.o => go-relocation-test-gcc441-x86-64.obj} | Bin
+ ...-test-gcc441-x86.o => go-relocation-test-gcc441-x86.obj} | Bin
+ 4 files changed, 3 insertions(+), 3 deletions(-)

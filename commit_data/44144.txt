@@ -1,32 +1,18 @@
-commit 0575e35e506cb180c5743209684b57dd41b4365f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 8 17:02:41 2021 -0500
+commit 4e03dac77c2a8f5c3a16fc2a66477f2140d8394b
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon May 11 14:35:54 2020 -0400
 
-    cmd/compile: require 'go 1.16' go.mod line for //go:embed
+    [dev.link] cmd/link: move xcoff to loader represenatation
     
-    This will produce better errors when earlier versions of
-    Go compile code using //go:embed. (The import will cause
-    a compilation error but then the go command will add to
-    the output that the Go toolchain in use looks too old
-    and maybe that's the problem.)
-    
-    This CL also adds a test for disallowing embed of a var inside a func.
-    It's a bit too difficult to rebase down into that CL.
-    
-    The build system configuration check is delayed in order to
-    make it possible to use errorcheck for these tests.
-    
-    Change-Id: I12ece4ff2d8d53380b63f54866e8f3497657d54c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282718
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I5b260493ffd7945f665c466e892be18d81e7940a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233340
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/embed.go | 16 ++++++++++++----
- src/go/types/stdlib_test.go          |  2 ++
- test/embedfunc.go                    | 15 +++++++++++++++
- test/embedvers.go                    | 12 ++++++++++++
- 4 files changed, 41 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/data2.go  |  36 ----
+ src/cmd/link/internal/ld/lib.go    |   9 +-
+ src/cmd/link/internal/ld/main.go   |  10 --
+ src/cmd/link/internal/ld/xcoff.go  | 348 +++++++++++++++++++++++--------------
+ src/cmd/link/internal/ppc64/asm.go |  10 +-
+ 5 files changed, 226 insertions(+), 187 deletions(-)

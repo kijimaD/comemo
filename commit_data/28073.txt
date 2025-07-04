@@ -1,29 +1,25 @@
-commit fba8f4deba81b8c5d903ec2f52dcb151f13a147b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 25 17:17:50 2016 -0700
+commit 239fb76ea01b88a2b3dff8b4da357e605435b980
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Apr 25 23:31:36 2016 -0400
 
-    go/internal/gcimporter: fail gracefully on export format skew
+    crypto/md5: add s390x assembly implementation
     
-    Port of changes made to compiler in
-    https://go-review.googlesource.com/27814.
+    Adapted from md5block_amd64.s.
     
-    Correctly handle export format version 0 (we only do this
-    in x/tools/gcimporter15 at the moment - this is a backport
-    of that code for struct fields).
+    name                 old speed      new speed      delta
+    Hash8Bytes           14.0MB/s ± 1%  39.9MB/s ± 0%  +185.52%   (p=0.000 n=9+10)
+    Hash1K                176MB/s ± 1%   661MB/s ± 1%  +274.44%  (p=0.000 n=10+10)
+    Hash8K                196MB/s ± 0%   742MB/s ± 1%  +278.35%   (p=0.000 n=10+9)
+    Hash8BytesUnaligned  14.2MB/s ± 2%  39.8MB/s ± 0%  +180.06%  (p=0.000 n=10+10)
+    Hash1KUnaligned       177MB/s ± 1%   651MB/s ± 0%  +267.38%  (p=0.000 n=10+10)
+    Hash8KUnaligned       197MB/s ± 1%   731MB/s ± 1%  +271.73%  (p=0.000 n=10+10)
     
-    Added tests for version handling and detection of corrupted
-    export data.
-    
-    Fixes #16881.
-    
-    Change-Id: I246553c689c89ef5c7fedd1e43717504c2838804
-    Reviewed-on: https://go-review.googlesource.com/27816
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I45ece98ee10f30fcd192b9c3d743ba61c248f36a
+    Reviewed-on: https://go-review.googlesource.com/22505
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gcimporter/bimport.go              |  94 +++++++++++++++------
- src/go/internal/gcimporter/gcimporter.go           |   4 +-
- src/go/internal/gcimporter/gcimporter_test.go      |  65 ++++++++++++++
- .../internal/gcimporter/testdata/versions/test.go  |  25 ++++++
- .../gcimporter/testdata/versions/test_go1.7_0.a    | Bin 0 -> 1862 bytes
- .../gcimporter/testdata/versions/test_go1.7_1.a    | Bin 0 -> 2316 bytes
- 6 files changed, 158 insertions(+), 30 deletions(-)
+ src/crypto/md5/md5block_decl.go    |   2 +-
+ src/crypto/md5/md5block_generic.go |   2 +-
+ src/crypto/md5/md5block_s390x.s    | 175 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 177 insertions(+), 2 deletions(-)

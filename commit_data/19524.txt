@@ -1,23 +1,13 @@
-commit a5bb1af43214c3da52d1752e58d03ed968e6a11b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jun 12 07:51:32 2014 -0700
+commit b93f83f8e1708969bfcba523ae330aa2a99dd81b
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Jun 11 22:52:01 2014 -0700
 
-    testing: make benchmarking faster
+    encoding/ascii85: remove unused field
     
-    Allow the number of benchmark iterations to grow faster for fast benchmarks, and don't round up twice.
-    
-    Using the default benchtime, this CL reduces wall clock time to run benchmarks:
-    
-    net/http        49s   -> 37s   (-24%)
-    runtime         8m31s -> 5m55s (-30%)
-    bytes           2m37s -> 1m29s (-43%)
-    encoding/json   29s   -> 21s   (-27%)
-    strings         1m16s -> 53s   (-30%)
-    
-    LGTM=crawshaw
-    R=golang-codereviews, crawshaw
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/101970047
+    https://golang.org/cl/105890044
 
- src/pkg/testing/benchmark.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/encoding/ascii85/ascii85.go | 1 -
+ 1 file changed, 1 deletion(-)

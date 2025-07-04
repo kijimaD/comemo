@@ -1,17 +1,18 @@
-commit aa38aeaeaf5d9a87b490fa16de9de850a9f5956c
-Author: Ulf Holm Nielsen <doktor@dyregod.dk>
-Date:   Wed Jul 31 16:11:02 2013 +1000
+commit df4de948a5145519411696b4f741bcdd6480bece
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 31 15:09:13 2013 +1000
 
-    time: Allow Parse and Format to handle time zone offsets with seconds
+    text/template/parse: print TextNodes using %s not %q
+    This means that printing a Node will produce output that can be used as valid input.
+    It won't be exactly the same - some spacing may be different - but it will mean the same.
     
-    Adds layout cases with seconds for stdISO8601 and stdNumTZ with and without colons. Update time.Format to append seconds for those cases.
+    Fixes #4593.
     
-    Fixes #4934.
-    
-    R=golang-dev, r, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/8132044
+    https://golang.org/cl/12006047
 
- src/pkg/time/format.go    | 128 +++++++++++++++++++++++++++++++---------------
- src/pkg/time/time_test.go |  38 ++++++++++++++
- 2 files changed, 126 insertions(+), 40 deletions(-)
+ src/pkg/text/template/multi_test.go       | 4 ++--
+ src/pkg/text/template/parse/node.go       | 4 +++-
+ src/pkg/text/template/parse/parse_test.go | 2 ++
+ 3 files changed, 7 insertions(+), 3 deletions(-)

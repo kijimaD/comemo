@@ -1,28 +1,22 @@
-commit dcb6547b76c5818b55294e203e8f5057794b23cf
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 7 08:54:28 2022 -0800
+commit 6c591f79b0b5327549bd4e94970f7a279efb4ab0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun May 2 11:27:03 2021 -0700
 
-    cmd/compile: remove duplicate const logic from typecheck
+    math/big: check for excessive exponents in Rat.SetString
     
-    Now that we always use types2 to validate user source code, we can
-    remove the constSet logic from typecheck for detecting duplicate
-    expression switch cases and duplicate map literal keys. This logic is
-    redundant with types2, and currently causes unified IR to report
-    inappropriate duplicate constant errors that only appear after type
-    substitution.
+    Found by oss-fuzz https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=33284
     
-    Updates #42758.
+    Fixes #45910.
     
-    Change-Id: I51ee2c5106eec9abf40eba2480dc52603c68ba21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390474
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I61e7b04dbd80343420b57eede439e361c0f7b79c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316149
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/noder/reader.go    |  6 --
- src/cmd/compile/internal/typecheck/const.go | 89 -----------------------------
- src/cmd/compile/internal/typecheck/expr.go  |  2 -
- src/cmd/compile/internal/typecheck/stmt.go  | 11 ----
- test/typeparam/issue42758.go                | 19 ++++++
- 5 files changed, 19 insertions(+), 108 deletions(-)
+ src/math/big/ratconv.go      | 15 ++++++++-------
+ src/math/big/ratconv_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 7 deletions(-)

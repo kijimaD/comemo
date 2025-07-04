@@ -1,12 +1,35 @@
-commit 478c871f02f3b1b9b5c768a5d19fe7450b760dfd
+commit 9364868a07e9fe1cc58d963e4523bc5883201206
 Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 21 08:37:32 2013 +1000
+Date:   Wed Aug 21 08:29:41 2013 +1000
 
-    doc/go1.2.txt: archive/tar's fixed FileInfo
+    archive/tar,zip: implement the os.FileInfo interface correctly.
+    This is potentially an API-breaking change, but it is an important bug fix.
     
-    R=golang-dev, dsymonds
+    The CL https://golang.org/cl/7305072/ added stuff to make
+    the tar file look more like a file system internally, including providing an
+    implementation of os.FileInfo for the file headers within the archive.
+    But the code is incorrect because FileInfo.Name is supposed to return
+    the base name only; this implementation returns the full path. A round
+    trip test added in the same shows this in action, as the slashes are
+    preserved as we create a header using the local implementation of
+    FileInfo.
+    
+    The CL here changes the behavior of the tar (and zip) FileInfo to honor
+    the Go spec for that interface. It also clarifies that the FileInfoHeader
+    function, which takes a FileInfo as an argument, will therefore create
+    a header with only the base name of the file recorded, and that
+    subsequent adjustment may be necessary.
+    
+    There may be code out there that depends on the broken behavior.
+    We can call out the risk in the release notes.
+    
+    Fixes #6180.
+    
+    R=golang-dev, dsymonds, adg, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13140043
+    https://golang.org/cl/13118043
 
- doc/go1.2.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/archive/tar/common.go   |  7 +++++--
+ src/pkg/archive/tar/tar_test.go | 11 ++++++++++-
+ src/pkg/archive/zip/struct.go   |  6 +++++-
+ 3 files changed, 20 insertions(+), 4 deletions(-)

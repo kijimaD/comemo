@@ -1,24 +1,30 @@
-commit 84aac622a40d4707513b02cf056977d852b38e18
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 25 16:02:57 2016 -0700
+commit 4d9bda51ff91f79944a12106b77315c9414b851a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 28 11:15:44 2016 -0700
 
-    cmd/compile: intrinsify the rest of runtime/internal/atomic for amd64
+    net: append ":53" to DNS servers when reading resolv.conf
     
-    Atomic swap, add/and/or, compare and swap.
+    Avoids generating some redundant garbage from re-concatenating the
+    same string for every DNS query.
     
-    Also works on amd64p32.
+    benchmark                                      old allocs     new allocs     delta
+    BenchmarkGoLookupIP-32                         156            154            -1.28%
+    BenchmarkGoLookupIPNoSuchHost-32               456            446            -2.19%
+    BenchmarkGoLookupIPWithBrokenNameServer-32     577            564            -2.25%
     
-    Change-Id: Idf2d8f3e1255f71deba759e6e75e293afe4ab2ba
-    Reviewed-on: https://go-review.googlesource.com/27813
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    benchmark                                      old bytes     new bytes     delta
+    BenchmarkGoLookupIP-32                         10873         10824         -0.45%
+    BenchmarkGoLookupIPNoSuchHost-32               43303         43140         -0.38%
+    BenchmarkGoLookupIPWithBrokenNameServer-32     46824         46616         -0.44%
+    
+    Update #15473.
+    
+    Change-Id: I3b0173dfedf31bd08eaea1069968b416850864a1
+    Reviewed-on: https://go-review.googlesource.com/22556
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/amd64/prog.go         |   5 +
- src/cmd/compile/internal/amd64/ssa.go          |  45 +++-
- src/cmd/compile/internal/gc/ssa.go             |  43 +++
- src/cmd/compile/internal/ssa/func.go           |  12 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  32 +++
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  41 ++-
- src/cmd/compile/internal/ssa/gen/genericOps.go |  20 +-
- src/cmd/compile/internal/ssa/opGen.go          | 146 +++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 348 +++++++++++++++++++++++++
- 9 files changed, 681 insertions(+), 11 deletions(-)
+ src/net/dnsclient_unix.go      | 1 -
+ src/net/dnsclient_unix_test.go | 4 ++--
+ src/net/dnsconfig_unix.go      | 8 ++++----
+ src/net/dnsconfig_unix_test.go | 8 ++++----
+ 4 files changed, 10 insertions(+), 11 deletions(-)

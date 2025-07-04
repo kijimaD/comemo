@@ -1,22 +1,19 @@
-commit baa0fdd0934cb9dca88ea0effb46cf42089c9ccd
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 21 10:15:14 2017 -0700
+commit 2d136ae82e68bc820804b6a38262f240ea2bb5cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 13:03:54 2016 -0800
 
-    cmd/compile/internal/gc: fix liveness regression
+    cmd/compile: correctly parse //line filename:line where filename contains ':'
     
-    During AllocFrame, we drop unused variables from Curfn.Func.Dcl, but
-    there might still be OpVarFoo instructions that reference those
-    variables. This wasn't a problem though because gvardefx used to emit
-    ANOP for unused variables instead of AVARFOO.
+    This was a regression from 1.7. See the issue for details.
     
-    As an easy fix, if we see OpVarFoo (or OpKeepAlive) referencing an
-    unused variable, we can ignore it.
+    Fixes #18149.
     
-    Fixes #19632.
-    
-    Change-Id: I4e9ffabdb4058f7cdcc4663b540f5a5a692daf8b
-    Reviewed-on: https://go-review.googlesource.com/38400
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic8f5a35d14edf9254b1275400316cff7aff32a27
+    Reviewed-on: https://go-review.googlesource.com/33799
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/gc/noder.go |  5 +++--
+ test/fixedbugs/issue18149.go         | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 2 deletions(-)

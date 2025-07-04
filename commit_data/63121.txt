@@ -1,0 +1,21 @@
+commit b22da3f544418aa4d962848cab9e3458a1fe075b
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Fri Feb 28 17:28:43 2025 +0100
+
+    internal/trace/internal/testgen: make generated trace version configurable
+    
+    Replace hard coded references to version.Go122 with the trace version
+    passed to NewTrace. This allows writing testgen tests for newer trace
+    versions.
+    
+    For #69869
+    
+    Change-Id: Id25350cea1c397a09ca23465526ff259e34a4752
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653875
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/internal/testgen/trace.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

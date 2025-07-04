@@ -1,21 +1,13 @@
-commit 495a9dc2b3ac76004e1324ca38761efad848ad96
-Author: Joel Sing <jsing@google.com>
-Date:   Wed May 23 01:33:48 2012 +1000
+commit 5c6162cdd16d7d706342946c0f2a8a944f2796fe
+Author: Benjamin Black <b@b3k.us>
+Date:   Tue May 22 11:03:59 2012 -0400
 
-    syscall: implement nametomib() on netbsd
+    crypto/x509: Add ECDSA support
     
-    Implement nametomib() on NetBSD using the CTL_QUERY node discovery
-    mechanism.
-    
-    R=golang-dev, rsc
+    R=golang-dev, agl, rsc
     CC=golang-dev
-    https://golang.org/cl/6211071
+    https://golang.org/cl/6208087
 
- src/pkg/syscall/mkerrors.sh             |  6 ++--
- src/pkg/syscall/syscall_netbsd.go       | 60 ++++++++++++++++++++++++++++++++-
- src/pkg/syscall/types_netbsd.go         |  5 +++
- src/pkg/syscall/zerrors_netbsd_386.go   |  6 ++++
- src/pkg/syscall/zerrors_netbsd_amd64.go |  6 ++++
- src/pkg/syscall/ztypes_netbsd_386.go    | 13 +++++++
- src/pkg/syscall/ztypes_netbsd_amd64.go  | 13 +++++++
- 7 files changed, 105 insertions(+), 4 deletions(-)
+ src/pkg/crypto/x509/x509.go      | 144 +++++++++++++++++++++++++++++++++++----
+ src/pkg/crypto/x509/x509_test.go | 111 ++++++++++++++++++++++++++++++
+ 2 files changed, 241 insertions(+), 14 deletions(-)

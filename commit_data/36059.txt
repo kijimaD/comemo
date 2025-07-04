@@ -1,12 +1,27 @@
-commit 1de44474c02be548b11ce50d2e65fa015acfd1fc
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Jul 18 16:49:23 2018 -0400
+commit 3c588b3fe7e1394f7df981284f1dc4c0a2b32b14
+Author: jimmyfrasche <soapboxcicero@gmail.com>
+Date:   Sun Apr 1 11:15:17 2018 -0700
 
-    doc: update go1.11 release notes
+    flag: correct zero values when printing defaults
     
-    Change-Id: I3e2a19fe90334f0c1ed1593c7a9a3a458f15d8e8
-    Reviewed-on: https://go-review.googlesource.com/124799
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    When the flag package first begin printing nonzero defaults, the test
+    was against a fixed set of string representations of zero values.
+    This worked until the string representation of a time.Duration
+    changed from "0" to "0s", causing the zero Duration to register as
+    nonzero. The flag package then added reflect-based code that fell back
+    to the old test. This failed to work when a nonzero default for a flag
+    happened to be the string representation of one the original fixed set
+    of zero values in the original test. This change removes the original
+    test, allowing the reflect-based code to be the only deciding factor.
+    
+    Fixes #23543
+    
+    Change-Id: I582ce554d6729e336fdd96fb27340674c15350d8
+    Reviewed-on: https://go-review.googlesource.com/103867
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.11.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/flag/flag.go      | 14 +++-----------
+ src/flag/flag_test.go |  3 +++
+ 2 files changed, 6 insertions(+), 11 deletions(-)

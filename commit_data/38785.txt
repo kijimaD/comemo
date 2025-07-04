@@ -1,25 +1,21 @@
-commit f7c967259254fa90e1f1951f83fb66850ae3809a
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Apr 8 16:57:13 2019 -0400
+commit cfac65bf2fc103411aab9d6913c777f5e78e065a
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Nov 27 16:07:14 2018 +0100
 
-    cmd/go: describe dependencies in build list error messages
+    cmd/link/internal/ld: omit deprecated linker argument for iOS builds
     
-    mvs.BuildList reports errors with a chain of modules to make it
-    clear why the module where the error occurred was part of the
-    build. This is a little confusing with "go get -u" since there are
-    edges in the module graph for requirements and for updates.
+    After CL 151139 introduced a plugin test, the macOS linker for iOS
+    outputs:
     
-    With this change, we now print "requires" or "updates to" between
-    each module version in the chain.
+    ld: warning: -flat_namespace is deprecated on iOS
     
-    Updates #30661
+    Omit the -flat_namespace flag on iOS; plugins are not supported on
+    iOS, and unlikely to ever be.
     
-    Change-Id: Ie689500ea86857e715b250b9e0cae0bc6686dc32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171150
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I2d08f8b984efcfd442d572b4a0f3a2c95c551b9f
+    Reviewed-on: https://go-review.googlesource.com/c/151300
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/mvs/mvs.go                   | 45 ++++++++++++++++--------
- src/cmd/go/testdata/script/mod_load_badchain.txt | 24 ++++++-------
- 2 files changed, 42 insertions(+), 27 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

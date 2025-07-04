@@ -1,24 +1,33 @@
-commit 2e2047a07fea81f65170eca9562a649ba2f5b11d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 27 13:45:50 2017 -0400
+commit 23cd87eb0a2d49a3208824feaf34d8b852da422f
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Aug 12 00:53:45 2017 +0530
 
-    runtime/race: install alternate packages to temp dir
+    archive/tar: optimize formatPAXRecord() call
     
-    The content-based staleness code means that
+    By replacing fmt.Sprintf with a simple string concat, we see
+    pretty good improvements across the board on time and memory.
     
-            go run -gcflags=-l helloworld.go
+    name             old time/op    new time/op    delta
+    FormatPAXRecord     683ns ± 2%     210ns ± 5%  -69.22%  (p=0.000 n=10+10)
     
-    recompiles all of helloworld.go's dependencies with -gcflags=-l,
-    whereas before it would have assumed installed packages were
-    up-to-date. In this test, that means every race iteration rebuilds
-    the runtime and maybe a few other packages. Instead, install them
-    to a temporary location for reuse.
+    name             old alloc/op   new alloc/op   delta
+    FormatPAXRecord      112B ± 0%       32B ± 0%  -71.43%  (p=0.000 n=10+10)
     
-    This speeds the test from 17s to 9s on my MacBook Pro.
+    name             old allocs/op  new allocs/op  delta
+    FormatPAXRecord      8.00 ± 0%      2.00 ± 0%  -75.00%  (p=0.000 n=10+10)
     
-    Change-Id: Ied136ce72650261083bb19cc7dee38dac0ad05ca
-    Reviewed-on: https://go-review.googlesource.com/73992
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Ran with - -cpu=1 -count=10 on an AMD64 i5-5200U CPU @ 2.20GHz
+    
+    Using the following benchmark:
+    func BenchmarkFormatPAXRecord(b *testing.B) {
+      for n := 0; n < b.N; n++ {
+        formatPAXRecord("foo", "bar")
+      }
+    }
+    
+    Change-Id: I828ddbafad2e5d937f0cf5f777b512638344acfc
+    Reviewed-on: https://go-review.googlesource.com/55210
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/runtime/race/output_test.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/archive/tar/strconv.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,14 +1,18 @@
-commit a5bff443c7f23ad5c4abb70d3ce2c59aed2ec13a
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 26 01:17:42 2014 -0500
+commit 2feff0038bb7060bf7050a12b03b827194528732
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 9 15:16:14 2015 -0800
 
-    runtime/cgo: darwin/arm cgo support
+    cmd/gc: fix ARM build
     
-    Change-Id: I936be12eed95b99d1d20ed16fb785182e1817b33
-    Reviewed-on: https://go-review.googlesource.com/2124
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    CL 2520 omitted to set the type for an OCONVNOP node.
+    Typechecking obviously cannot do it for us.
+    
+    5g inserts float64 <--> [u]int64 conversions at walk time.
+    The missing type caused it to crash.
+    
+    Change-Id: Idce381f219bfef2e3a3be38d3ba3c258b71310ae
+    Reviewed-on: https://go-review.googlesource.com/2640
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/cgo/cgo.go           |  2 +-
- src/runtime/cgo/gcc_arm.S        |  4 ++
- src/runtime/cgo/gcc_darwin_arm.c | 99 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 104 insertions(+), 1 deletion(-)
+ src/cmd/gc/range.c | 1 +
+ 1 file changed, 1 insertion(+)

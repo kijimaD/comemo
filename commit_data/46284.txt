@@ -1,28 +1,31 @@
-commit 4fb79569d2fb7a0eabc88729f400addb0162f21e
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Sep 1 16:51:17 2021 -0400
+commit cb95819cf6e969dc7dcc64ec7820d3995379c9f4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Dec 11 14:14:30 2020 -0500
 
-    go/internal/gcimporter: add import tests for type parameters
+    runtime: detect netbsd netpoll overrun in sysmon
     
-    Add a new test TestImportTypeparamTests that compiles and imports
-    packages contained in test/typeparam, and compares the resulting package
-    scope with the scope produced by type-checking directly.
+    The netbsd kernel has a bug [1] that occassionally prevents netpoll from
+    waking with netpollBreak, which could result in missing timers for an
+    unbounded amount of time, as netpoll can't restart with a shorter delay
+    when an earlier timer is added.
     
-    In the process, fix a bug in go/types affecting embedded instances with
-    more than one type argument. This was uncovered by smoketest.go.
+    Prior to CL 232298, sysmon could detect these overrun timers and
+    manually start an M to run them. With this fallback gone, the bug
+    actually prevents timer execution indefinitely.
     
-    To enable this new test it was easiest to move gcimporter_test.go to an
-    external test, which required copying the pkgExts variable.
+    As a workaround, we add back sysmon detection only for netbsd.
     
-    Fixes #48101
+    [1] https://gnats.netbsd.org/cgi-bin/query-pr-single.pl?number=50094
     
-    Change-Id: Ie4d981bf463e886a8d141809805d184dbbf64607
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347070
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Updates #42515
+    
+    Change-Id: I8391f5b9dabef03dd1d94c50b3b4b3bd4f889e66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277332
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/go/internal/gcimporter/gcimporter_test.go | 133 +++++++++++++++++++++++++-
- src/go/types/struct.go                        |   2 +
- 2 files changed, 134 insertions(+), 1 deletion(-)
+ src/runtime/proc.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

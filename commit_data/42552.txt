@@ -1,16 +1,18 @@
-commit 18bcc7c2854f900dfb631d7ef01a839021e24576
-Author: Katie Hockman <katie@golang.org>
-Date:   Thu Jun 18 11:26:07 2020 -0400
+commit 52c4488471ed52085a29e173226b3cbd2bf22b20
+Author: fujimoto kyosuke <kyoro.f@gmail.com>
+Date:   Sun Jan 12 06:49:19 2020 +0000
 
-    net/http: document Dir behavior with symlinks
+    html: update URL in comment
     
-    Based on CL 229377.
+    The comment contained a link that had a file name and ID that no longer existed, so change to the URL of the corresponding part of the latest page.
     
-    Change-Id: I016eec20672c909e8fabe799c277f4d2540fc555
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238698
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: I74e0885aabf470facc39b84035f7a83fef9c6a8e
+    GitHub-Last-Rev: 5681c84d9f1029449da6860c65a1d9a128296e85
+    GitHub-Pull-Request: golang/go#36514
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214181
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/fs.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/html/escape.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

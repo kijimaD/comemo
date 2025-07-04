@@ -1,26 +1,14 @@
-commit 20736fcab966412cb41b8a3c9a051469a5c8f00c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 14 20:41:36 2015 +0000
+commit 9991227229a711b8c606bc93ea0731f8b43823bf
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 3 11:05:05 2015 +1000
 
-    net/http: enable automatic HTTP/2 if TLSNextProto is nil
+    doc: document new linker -X syntax in go1.5.html
     
-    This enables HTTP/2 by default (for https only) if the user didn't
-    configure anything in their NPN/ALPN map. If they're using SPDY or an
-    alternate http2 or a newer http2 from x/net/http2, we do nothing
-    and don't use the standard library's vendored copy of x/net/http2.
+    Fixes #11973.
     
-    Upstream remains golang.org/x/net/http2.
-    
-    Update #6891
-    
-    Change-Id: I69a8957a021a00ac353f9d7fdb9a40a5b69f2199
-    Reviewed-on: https://go-review.googlesource.com/15828
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Icffa3213246663982b7cc795982e0923e272f405
+    Reviewed-on: https://go-review.googlesource.com/12919
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/api/goapi.go       |  9 +++++++--
- src/go/build/deps_test.go  |  1 +
- src/net/http/serve_test.go | 16 ++++++++++++++++
- src/net/http/server.go     | 12 +++++++++++-
- 4 files changed, 35 insertions(+), 3 deletions(-)
+ doc/go1.5.html | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)

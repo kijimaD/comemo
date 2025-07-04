@@ -1,20 +1,26 @@
-commit 169203f3ee022abf66647abc99fd483fd10f9a54
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Feb 18 05:45:34 2023 +1100
+commit cc3a3519af5b8b4cf26bf27133675776fdfcaeb9
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Feb 8 12:41:26 2022 -0500
 
-    runtime/cgo: restore correct build tags for linux/mips*
+    cmd/link/internal/ld: revise recipe for ASLR enable on windows
     
-    The linux build tags were incorrectly removed from these files by CL 460538.
-    Restore the correct build tags so that they are only included in builds
-    for linux/mips* platforms.
+    When doing external linking on windows, the existing Go linker code
+    assumed that the external linker defaulted to "--no-dynamicbase" (if
+    no explicit option was given). This assumption doesn't hold for LLD,
+    which turns on "--dynamicbase" by default for 64-bit apps. Change the
+    linker to detect whether a more modern toolchain is in use and to
+    explicitly pass "--dynamicbase" either way , so as to take the
+    external linker default out of the equation. This also applies to the
+    "--high-entropy-va" option as well.
     
-    Change-Id: I21d8802b0252688d8e2228cf904b47d90b253485
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469175
+    Updates #35006.
+    
+    Change-Id: I3e12cf6d331c9d003e3d2bd566d45de5710588b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384156
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/cgo/gcc_linux_mips64x.c | 2 +-
- src/runtime/cgo/gcc_linux_mipsx.c   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 57 +++++++++++++++++++++++++++++++++--------
+ 1 file changed, 47 insertions(+), 10 deletions(-)

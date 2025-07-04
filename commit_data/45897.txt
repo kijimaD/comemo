@@ -1,18 +1,31 @@
-commit 877688c838c35c48f8c658891ead6c381e21f6fa
+commit 40f5bc4d556a3687ad68d6a6bc074ff4d2a1d06b
+Merge: 41f3af9d04 4481ad6eb6
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 10 15:17:17 2021 -0400
+Date:   Wed Nov 25 16:48:25 2020 -0500
 
-    testing: add TB.Setenv
+    [dev.regabi] merge master 4481ad6eb6 into dev.regabi
     
-    For #41260 and #46688.
-    
-    Change-Id: I6f42742cc3234a90003136ae8798a6b0e1291788
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326790
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia2c251d3809a538c16d05e5dcef59932049b3913
 
- api/go1.17.txt         | 1 +
- src/testing/testing.go | 1 +
- 2 files changed, 2 insertions(+)
+ doc/go1.16.html                                | 484 +++++++++++++++++--------
+ src/cmd/compile/internal/ssa/expand_calls.go   |   3 +
+ src/cmd/internal/objabi/reloctype.go           |   3 +
+ src/cmd/internal/objabi/reloctype_string.go    |  47 +--
+ src/cmd/internal/objabi/util.go                |   7 +-
+ src/cmd/link/internal/arm64/asm.go             |  16 +
+ src/cmd/link/internal/loadelf/ldelf.go         |   1 +
+ src/go/constant/value.go                       |  13 +-
+ src/go/constant/value_test.go                  |  71 +++-
+ src/regexp/syntax/doc.go                       |   3 +-
+ src/runtime/chan.go                            |  48 ++-
+ src/runtime/crash_cgo_test.go                  |  18 +
+ src/runtime/race/testdata/chan_test.go         |  22 ++
+ src/runtime/select.go                          |   4 +-
+ src/runtime/stack_test.go                      |  41 +++
+ src/runtime/sys_windows_386.s                  |  11 +-
+ src/runtime/sys_windows_amd64.s                |  11 +-
+ src/runtime/testdata/testprogcgo/traceback.go  |  79 ++--
+ src/runtime/testdata/testprogcgo/traceback_c.c |  65 ++++
+ src/runtime/traceback.go                       |  15 +-
+ test/fixedbugs/issue42784.go                   |  26 ++
+ 21 files changed, 732 insertions(+), 256 deletions(-)

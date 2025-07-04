@@ -1,19 +1,17 @@
-commit 93bcf912994931780cdd4f5492ae8fcfdf760208
-Author: sjnam <jsunam@gmail.com>
-Date:   Wed Mar 25 21:02:44 2020 +0000
+commit c824420d4744bd3e11128c000d88c24859602d46
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 11 09:02:37 2019 -0700
 
-    test/chan: fix trivial typos
+    runtime: implement timeSleepUntil for new timers
     
-    Substition -> Substitution
+    Updates #27707
     
-    Change-Id: Iede578d733d1c041133742b61eb0573c3bd3b17c
-    GitHub-Last-Rev: 7815bd346dbe23a5412d0602a4f6480b893c447d
-    GitHub-Pull-Request: golang/go#38059
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225417
+    Change-Id: Id4b37594511895f404ee3c09a85263b2b35f835d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171881
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- test/chan/powser1.go | 2 +-
- test/chan/powser2.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/time.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

@@ -1,15 +1,13 @@
-commit 2dc7552f5701c110fd54609fc8eed421cef7f20f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Mar 28 17:35:00 2014 +1100
+commit 753bdc0f47a4224387a31b92403ab543e9fbebfe
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 28 13:27:14 2014 +0900
 
-    runtime: ignore windows exception if not in Go binary
+    syscall: don't generate RTF_BITS constant on OS X Mavericks and beyond
     
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
+    LGTM=iant
+    R=iant, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/80400043
+    https://golang.org/cl/80700044
 
- src/pkg/runtime/os_windows_386.c   | 11 +++++++++--
- src/pkg/runtime/os_windows_amd64.c | 11 +++++++++--
- src/pkg/runtime/sys_windows_386.s  | 31 ++++++-------------------------
- 3 files changed, 24 insertions(+), 29 deletions(-)
+ src/pkg/syscall/mkerrors.sh | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,26 +1,25 @@
-commit 64a832debe1b6bd4002430d65d9447e6e410366e
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun May 20 16:02:35 2018 +0100
+commit 8cb4327ea3fb9584164fccf3fb4d76c4e567d76d
+Author: Conrado Gouvea <conradoplg@gmail.com>
+Date:   Thu Jul 13 22:14:37 2017 -0300
 
-    cmd/trace: fix a few bugs found by staticcheck
+    crypto/cipher: add NewGCMWithNonceAndTagSize for custom tag sizes.
     
-    First, the regions sort was buggy, as its last comparison was
-    ineffective.
+    GCM allows using tag sizes smaller than the block size. This adds a
+    NewGCMWithNonceAndTagSize function which allows specifying the tag
+    size.
     
-    Second, the insyscall and insyscallRuntime fields were unsigned, so the
-    check for them being negative was pointless. Make them signed instead,
-    to also prevent the possibility of underflows when decreasing numbers
-    that might realistically be 0.
+    Fixes #19594
     
-    Third, the color constants were all untyped strings except the first
-    one. Be consistent with their typing.
-    
-    Change-Id: I4eb8d08028ed92589493c2a4b9cc5a88d83f769b
-    Reviewed-on: https://go-review.googlesource.com/113895
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Ib2008c6f13ad6d916638b1523c0ded8a80eaf42d
+    Reviewed-on: https://go-review.googlesource.com/48510
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/trace/annotations.go |  2 +-
- src/cmd/trace/trace.go       | 74 ++++++++++++++++++++++----------------------
- 2 files changed, 38 insertions(+), 38 deletions(-)
+ src/crypto/aes/aes_gcm.go     | 28 ++++++++++++++---------
+ src/crypto/aes/gcm_s390x.go   | 46 +++++++++++++++++++++++++-------------
+ src/crypto/aes/modes.go       |  2 +-
+ src/crypto/aes/modes_test.go  |  2 +-
+ src/crypto/cipher/gcm.go      | 52 ++++++++++++++++++++++++++++++++-----------
+ src/crypto/cipher/gcm_test.go | 46 +++++++++++++++++++++++++++++++++++++-
+ 6 files changed, 134 insertions(+), 42 deletions(-)

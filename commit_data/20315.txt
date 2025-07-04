@@ -1,15 +1,17 @@
-commit 005806cab17a20adaec33a1ee02a19355356fa67
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 5 14:59:31 2014 -0700
+commit 07d86b1f2db73c6a0716aec4d4cd62dfacb04a21
+Author: Evan Kroske <evankroske@google.com>
+Date:   Sat Aug 30 10:34:51 2014 -0700
 
-    runtime: run getgcmask on the M stack.
+    net/url: make Userinfo.String() escape ? and add test for shouldEscape
     
-    LGTM=rsc
-    R=rsc, khr
+    See RFC 3986 §3.2.1.
+    Fixes #6573.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/132660043
+    https://golang.org/cl/126560043
 
- src/pkg/runtime/export_test.go | 13 ++++++++++++-
- src/pkg/runtime/mgc0.c         |  4 ++--
- src/pkg/runtime/stubs.goc      |  7 -------
- 3 files changed, 14 insertions(+), 10 deletions(-)
+ src/pkg/net/url/url.go      | 11 +++++----
+ src/pkg/net/url/url_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 5 deletions(-)

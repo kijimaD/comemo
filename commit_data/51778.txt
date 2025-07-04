@@ -1,22 +1,18 @@
-commit 89de906aa20b18f801b1c44abc03f298ae850954
-Author: Cameron Bedard <cam.bedardca@gmail.com>
-Date:   Thu Jan 26 01:05:20 2023 +0000
+commit 7900576bac4630bbeec7f4f1aa4b1cb0d51bd8a1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Mar 13 22:38:15 2022 +0700
 
-    cmd/go/internal/vcs: fix outdated comment
+    cmd/compile: remove unified IR stmtTypeDeclHack
     
-    Function was was replaced in https://go.dev/cl/12143.
+    After CL 385998, unified IR quirks mode was gone, it's time to remove
+    stmtTypeDeclHack, too.
     
-    Fixes #57718
-    
-    Change-Id: I56ff9390af9ae31803805fa27d2c08b5e1d842e1
-    GitHub-Last-Rev: b8c9dbccbc0b412fd7833d4df9d347953798b17b
-    GitHub-Pull-Request: golang/go#57767
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461610
+    Change-Id: Id73dd1d6c11b91c0c6c6cbe85f1b06977a9876d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392214
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/vcs/vcs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/codes.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,16 +1,15 @@
-commit 5d3033c5907956fd982409dd4a543f6866dd675e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 21 14:52:44 2014 -0800
+commit 2a2a3baac435482697c1d848508c6aac675e4375
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 21 17:12:30 2014 -0500
 
-    syscall: add Flock_t.Lock method
+    cmd/link: add testdata/pclntab.6 (fix build)
     
-    Fixes #7059
+    Sorry, "hg status" hides .6 files by default.
+    We should probably fix that.
     
-    R=golang-codereviews, iant, mikioh.mikioh
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/53470043
+    https://golang.org/cl/55290043
 
- src/pkg/syscall/consistency_unix_test.go |  4 ++--
- src/pkg/syscall/flock.go                 | 22 ++++++++++++++++++++++
- src/pkg/syscall/flock_linux_32bit.go     | 13 +++++++++++++
- 3 files changed, 37 insertions(+), 2 deletions(-)
+ src/cmd/link/testdata/pclntab.6 | Bin 0 -> 4604 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

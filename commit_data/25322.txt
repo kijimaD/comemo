@@ -1,17 +1,17 @@
-commit 0a0f8bae2747191cbc6cda61c1d5ef9512beded8
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 17 00:52:33 2015 -0500
+commit 2bf91afd2bef0e95229da4f6d42e5ffc9aee85a9
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sun Oct 18 15:45:36 2015 -0700
 
-    cmd/go: document that -p applies to test binary execution
+    crypto/cipher: fix CTR infinite loop with large block sizes
     
-    Fixes #11521.
+    Additionally, add a test for CTR mode to cover a range of block sizes.
     
-    Change-Id: I73615b881df4a0d5e2f5bc5059359d150ca8c105
-    Reviewed-on: https://go-review.googlesource.com/17946
-    Reviewed-by: Joe Shaw <joe@joeshaw.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #12975
+    
+    Change-Id: I458aac1616228747e62f92f823768d55e874877a
+    Reviewed-on: https://go-review.googlesource.com/16050
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/go/alldocs.go | 7 ++++++-
- src/cmd/go/build.go   | 3 ++-
- src/cmd/go/test.go    | 4 ++++
- 3 files changed, 12 insertions(+), 2 deletions(-)
+ src/crypto/cipher/ctr.go      |  5 +---
+ src/crypto/cipher/ctr_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 4 deletions(-)

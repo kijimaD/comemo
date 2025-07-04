@@ -1,16 +1,27 @@
-commit d3c2b1f17600fadeebf62d65c85baf3bef879e2b
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed Nov 13 11:57:17 2019 +0100
+commit a2fb5cd823f5223070c3cce741dd5b3879bac21b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 27 18:14:03 2019 -0400
 
-    cmd/link/internal/ld,misc/cgo/testcshared: don't -fuse-ld=gold on Android
+    cmd/cgo: accept weak dynamic imports
     
-    The NDK is switching to ldd, and will stop including the gold linker.
+    cgo produces dynamic imports for Go binaries by scanning the dynamic
+    imports table of a binary produced by the system C compiler and
+    linker. Currently, since it uses elf.File.ImportedSymbols, it only
+    reads global symbols. Unfortunately, recent versions of lld emit weak
+    symbol imports for several pthread symbols, which means the cgo tool
+    doesn't emit dynamic imports for them, which ultimately causes linking
+    of cgo binaries to fail.
     
-    Change-Id: If74168017c9874134b34010906ab1d94001528b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206840
+    Fix this by using elf.File.DynamicSymbols instead and filtering down
+    to both global and weak symbols.
+    
+    Fixes #31912.
+    
+    Change-Id: If346a7eca6733e3bfa2cccf74a9cda02a3e81d38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184100
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 2 +-
- src/cmd/link/internal/ld/lib.go      | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/cgo/out.go | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)

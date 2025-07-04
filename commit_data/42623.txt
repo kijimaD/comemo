@@ -1,18 +1,21 @@
-commit 71218dbc401cbb8f7e052e7a64372d9732082d5d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 21 21:37:58 2020 -0700
+commit a858d15f11f87b53792a6afb156716b80f9634c7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 27 09:32:52 2020 +1100
 
-    runtime: don't mlock on Ubuntu 5.4 systems
+    cmd/compile: disable open-coded defers on riscv64
     
-    For #35777
-    For #37436
-    Fixes #40184
+    Open-coded defers are currently broken on riscv64 - disable them for the
+    time being. All of the standard package tests now pass on linux/riscv64.
     
-    Change-Id: I68561497d9258e994d1c6c48d4fb41ac6130ee3a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/244059
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates issue #27532 and #36786
+    
+    Change-Id: I20fc25ce91dfad48be32409ba5c64ca9a6acef1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216517
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/os_linux_x86.go | 35 ++++++++++++++++++++++++++++++++++-
- 1 file changed, 34 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 7 ++++++-
+ test/defererrcheck.go              | 4 ++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

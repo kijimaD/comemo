@@ -1,36 +1,14 @@
-commit 35cf3843a45d7ef774804bdbd32ece3916fe2bf1
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Apr 30 14:25:57 2017 -0400
+commit 9230ee20f3893814cbfb5e0bdc1a117b092eae35
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Feb 23 19:36:34 2017 +0100
 
-    cmd/{asm,compile}: avoid zeroAuto clobbering flags on s390x
+    website: mention go1.8 in project page
     
-    This CL modifies how MOV[DWHB] instructions that store a constant to
-    memory are assembled to avoid them clobbering the condition code
-    (flags). It also modifies zeroAuto to use MOVD instructions instead of
-    CLEAR (which is assembled as XC).
+    Fixes #19253
     
-    MOV[DWHB]storeconst ops also no longer clobbers flags.
-    
-    Note: this CL modifies the assembler so that it can no longer handle
-    immediates outside the range of an int16 or offsets from SB, which
-    reflects what the machine instructions support. The compiler doesn't
-    need this capability any more and I don't think this affects any existing
-    assembly, but it is easy to workaround if it does.
-    
-    Fixes #20187.
-    
-    Change-Id: Ie54947ff38367bd6a19962bf1a6d0296a4accffb
-    Reviewed-on: https://go-review.googlesource.com/42179
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia473f51bfe4cf42cf64938993a81d9b1dbc2594d
+    Reviewed-on: https://go-review.googlesource.com/37433
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s    |  12 ++-
- src/cmd/compile/internal/s390x/ggen.go       |  23 +++--
- src/cmd/compile/internal/ssa/gen/S390X.rules |  31 +++---
- src/cmd/compile/internal/ssa/gen/S390XOps.go |   8 +-
- src/cmd/compile/internal/ssa/opGen.go        |   4 -
- src/cmd/compile/internal/ssa/rewrite.go      |   5 +
- src/cmd/compile/internal/ssa/rewriteS390X.go |  61 ++++++------
- src/cmd/internal/obj/s390x/asmz.go           | 136 +++++++++++----------------
- 8 files changed, 135 insertions(+), 145 deletions(-)
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

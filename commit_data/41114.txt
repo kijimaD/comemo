@@ -1,17 +1,21 @@
-commit 0c65531ef18f0f4c1d983ca677c601afbe5552bb
-Author: Koya IWAMURA <kiwamura0314@gmail.com>
-Date:   Tue Jan 14 15:57:49 2020 +0900
+commit d21953df047868ed3bcfd0172a6c1672642f5b4a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 4 12:59:41 2019 -0400
 
-    C: add missing name
+    cmd/go/internal/test: prepend -test.timeout rather than appending
     
-    Even though I contributed to golang/go[^1], the rule[^2] did not reflect my name in CONTRIBUTORS, so I added it.
+    Tests may accept positional arguments, in which case the -test.timeout
+    flag must be passed before those arguments.
     
-    [^1]: https://go-review.googlesource.com/c/go/+/164199
-    [^2]: https://github.com/golang/build/blob/e21a90b/cmd/updatecontrib/updatecontrib.go#L118
+    Fixes #34072
     
-    Change-Id: I5d6b5684d61ea5da679519a9e703d977470de175
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214617
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5b92d7c0edc4f9e1efb63b0733937b76236c0eff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193297
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/internal/test/test.go            |  3 ++-
+ src/cmd/go/testdata/script/test_timeout.txt | 11 ++++++-----
+ 2 files changed, 8 insertions(+), 6 deletions(-)

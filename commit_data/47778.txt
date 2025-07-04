@@ -1,32 +1,16 @@
-commit acc65b47e12e2ba061b8ab4f86b183d039072776
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 10 14:13:52 2021 -0500
+commit 5305bdedb0be18c0636d2b4a707bf08228909c27
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 9 19:00:42 2021 -0400
 
-    net: refactor TestWriteToTimeout
+    test: do not run (another) softfloat test with regabiargs
     
-    The test cases for this test had listed specific errors, but the
-    specific error values were ignored in favor of just calling
-    isDeadlineExceeded.
+    I missed one in CL 308710.
     
-    Moreover, ENOBUFS errors (which can legitimately occur in the test if
-    the network interface also happens to be saturated when the timeout
-    occurs) were not handled at all.
-    
-    Now the test relies only on the timeout: we iterate until we have seen
-    two of the expected timeout errors, and if we see ENOBUFS instead of
-    "deadline exceeded" we back off to give the queues time to drain.
-    
-    Fixes #49930
-    
-    Change-Id: I258a6d5c935d9635b02dffd79e197ba9caf83ac8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370882
-    Trust: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia277eaba6982f4944992d1bee1e11775934b789f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309151
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/error_plan9_test.go   |  4 +++
- src/net/error_unix_test.go    |  5 +++
- src/net/error_windows_test.go | 12 ++++++-
- src/net/timeout_test.go       | 78 ++++++++++++++++++++++++-------------------
- 4 files changed, 64 insertions(+), 35 deletions(-)
+ test/fixedbugs/issue26163.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

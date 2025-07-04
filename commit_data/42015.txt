@@ -1,26 +1,23 @@
-commit d8f0a229b5036e42b7bc5371c32c302cead9b635
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Jan 24 06:40:49 2020 -0800
+commit 0ea74401399c6bd66138693e7ca0cc54307d3289
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Oct 22 14:44:29 2019 +0200
 
-    database/sql: prevent Tx statement from committing after rollback
+    runtime: remove stale runtime check in tests
     
-    It was possible for a Tx that was aborted for rollback
-    asynchronously to execute a query after the rollback had completed
-    on the database, which often would auto commit the query outside
-    of the transaction.
+    The check is not relevant anymore.
+    The comment claims that go run does not rebuild packages,
+    but this is not true. And we use go build anyway.
+    We may have added the check because without caching
+    rebuilding everything starting from runtime for each test
+    takes a while. But now we have caching.
+    So from every side this check just adds code and pain.
     
-    By W-locking the tx.closemu prior to issuing the rollback
-    connection it ensures any Tx query either fails or finishes
-    on the Tx, and never after the Tx has rolled back.
-    
-    Fixes #34775
-    Fixes #32942
-    
-    Change-Id: I017b7932082f2f4ead70bae08b61ed9068ac1d01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216240
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ifbbb643724100622e5f9db884339b67cde4ba729
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202450
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/fakedb_test.go | 39 +++++++++++++++++++++--
- src/database/sql/sql.go         | 40 ++++++++++++++++++------
- src/database/sql/sql_test.go    | 69 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 136 insertions(+), 12 deletions(-)
+ src/runtime/crash_test.go      | 30 ------------------------------
+ src/runtime/crash_unix_test.go |  2 --
+ 2 files changed, 32 deletions(-)

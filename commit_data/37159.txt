@@ -1,16 +1,17 @@
-commit d1836e629fdfcf8b13e616630ba15d461700a953
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Mon Oct 29 18:11:12 2018 -0500
+commit 9e5fe6baf1dfd8ea7ba1456845a7e1f7256eeeaa
+Author: John Leidegren <john.leidegren@gmail.com>
+Date:   Tue Jul 3 12:08:37 2018 +0200
 
-    crypto/tls: remove unneeded calls to bytes.NewReader
+    misc/wasm: use "self" instead of "window" in web worker contexts
     
-    Updates #28269
+    There is no "window" global in a web worker context. Use "self" instead.
     
-    Change-Id: Iae765f85e6ae49f4b581161ed489b2f5ee27cdba
-    Reviewed-on: https://go-review.googlesource.com/c/145737
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #26192
+    
+    Change-Id: I6c6f3db6c3d3d9ca00a473f8c18b849bc07a0017
+    Reviewed-on: https://go-review.googlesource.com/122055
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/crypto/tls/tls.go | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ misc/wasm/wasm_exec.js | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

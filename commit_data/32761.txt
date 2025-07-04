@@ -1,22 +1,22 @@
-commit d1731f8cbc1adde72a2b2e7513b6ca73476c7f0d
-Author: hagen1778 <hagen1778@gmail.com>
-Date:   Tue Sep 19 20:28:11 2017 +0300
+commit 5dbdd798168ecd5b594bc89c03c9d56bcc9849b3
+Author: Filip Gruszczyński <gruszczy@gmail.com>
+Date:   Sat Mar 11 13:38:14 2017 -0800
 
-    log: fix data race on log.Output
+    net/http: Don't write 'Connection: close' header multiple times.
     
-    There was unprotected access to Logger.flag in log.Output which
-    could lead to data race in cases when log.SetFlags called simultaneously.
-    For example, "hot" switching on/off debug-mode for Logger by log.SetFlags
-    while application still writing logs.
+    When writing the 'Connection: close' header based on response Close
+    attribute we also check if it is already in the headers scheduled
+    to be written and skip if necessary.
     
-    Fixes #21935
+    Fixes #19499
     
-    Change-Id: I36be25f23cad44cde62ed1af28a30d276400e1b8
-    Reviewed-on: https://go-review.googlesource.com/64710
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I92357344a37ae385454ec8006114fa4cfa585810
+    Reviewed-on: https://go-review.googlesource.com/38076
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/log/log.go      |  6 +-----
- src/log/log_test.go | 11 +++++++++++
- 2 files changed, 12 insertions(+), 5 deletions(-)
+ src/net/http/response_test.go | 26 ++++++++++++++++++++++++++
+ src/net/http/transfer.go      |  5 ++++-
+ 2 files changed, 30 insertions(+), 1 deletion(-)

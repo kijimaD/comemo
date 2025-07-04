@@ -1,19 +1,17 @@
-commit 429bbf331247ef598802a94a23670bfe1cf61d6f
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed May 25 16:33:19 2016 +0300
+commit 72c1180852d5b059cd1e51d1db1956ea208b7f2f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 30 23:08:44 2016 -0700
 
-    strings: fix and reenable amd64 Index for 17-31 byte strings
+    net: don't do DNS for onion and local addresses
     
-    Fixes #15689
+    Fixes #13705
     
-    Change-Id: I56d0103738cc35cd5bc5e77a0e0341c0dd55530e
-    Reviewed-on: https://go-review.googlesource.com/23440
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I86c60c78ce0394f830f904c9cba83ebbf3efc046
+    Reviewed-on: https://go-review.googlesource.com/21328
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_amd64.s      |  3 +--
- src/strings/strings_amd64.go |  2 +-
- src/strings/strings_test.go  | 37 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 39 insertions(+), 3 deletions(-)
+ src/net/dnsclient_unix.go      | 17 ++++++++++++++
+ src/net/dnsclient_unix_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

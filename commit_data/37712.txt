@@ -1,29 +1,20 @@
-commit 281ce28c5048416dce9379405cc061b2f3662c84
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Dec 13 23:55:22 2018 -0500
+commit 28fbf5b831e3c577c2e220daa82a85065047e356
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Aug 22 22:34:39 2018 +0200
 
-    cmd/link: fix in-package syso linking
+    runtime: skip TestGcSys on Windows
     
-    CL 146297 ignored archive members with short names that don't have
-    the .o suffix, however, it also ignored .syso files as well.
-    This change restores the original .syso behavior and adds a test.
+    This is causing failures on TryBots and BuildBots:
+    --- FAIL: TestGcSys (0.06s)
+        gc_test.go:27: expected "OK\n", but got "using too much memory: 39882752 bytes\n"
+    FAIL
     
-    As the test is basically following a shell script, we make use of
-    the existing cmd/go/testdata/script framework. To support running
-    C compiler in the script, we added a `cc` command, which runs the
-    C compiler along with correct platform specific arguments.
+    Updates #27156
     
-    Fixes #29253.
-    
-    Change-Id: If8520151c4d6a74ab9fe84d34bff9a4480688815
-    Reviewed-on: https://go-review.googlesource.com/c/154109
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I418bbec89002574cd583c97422e433f042c07492
+    Reviewed-on: https://go-review.googlesource.com/130875
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/script_test.go                          | 13 ++++++++++
- src/cmd/go/testdata/script/README                  |  4 ++++
- src/cmd/go/testdata/script/cgo_syso_issue29253.txt | 28 ++++++++++++++++++++++
- src/cmd/link/internal/ld/lib.go                    |  6 +++--
- 4 files changed, 49 insertions(+), 2 deletions(-)
+ src/runtime/gc_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

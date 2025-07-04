@@ -1,15 +1,16 @@
-commit a9abbac4c86eb685661f2909d3f5ae59ab507773
-Author: cuishuang <imcusg@gmail.com>
-Date:   Wed Oct 9 11:56:25 2024 +0800
+commit 26d4ce70d41fa65ae8e5d7437610aa2ee146803a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 3 00:42:54 2023 +1000
 
-    net/url: add example for JoinPath
+    cmd/internal/obj/arm64: add test coverage for VMOVS and VMOVD
     
-    Change-Id: Ibbd2bda7ff2ea3c782ad41f6f00ad62849a4f066
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618756
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I31ba6696e124dccf37d674d090fdf04ba0a049a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515616
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/net/url/example_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/internal/obj/arm64/asm_arm64_test.go | 24 ++++++++++++++++++------
+ src/cmd/internal/obj/arm64/asm_arm64_test.s  | 18 ++++++++++++++++++
+ 2 files changed, 36 insertions(+), 6 deletions(-)

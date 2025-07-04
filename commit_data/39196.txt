@@ -1,27 +1,17 @@
-commit 1ab063ce532f72851cef735238ba656cc7680b66
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Fri May 17 13:31:12 2019 -0700
+commit 6718bb22fe36db9f58d4b4263ed9ffa182ca0c1b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 18 17:33:49 2019 -0500
 
-    testing: callerName only needs one PC in the traceback
+    crypto/tls: send a "handshake failure" alert if the RSA key is too small
     
-    callerName requested 2 PCs from Callers, and that causes
-    both to be looked up in the file/line mapping.
-    We really only need to do the work for one PC.
-    (And in fact the caller doesn't need file/line at all, but
-    the Callers API can't express that.)
+    Fixes #29779
     
-    We used to request 2 PCs because in 1.11 and earlier we
-    stored an inline skip count in the second entry.
-    That's not necessary any more (as of 1.12).
-    
-    Fixes #32093
-    
-    Change-Id: I7b272626ef6496e848ee8af388cdaafd2556857b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177858
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I7eb8b4db187597e07d8ec7d3ff651f008e2ca433
+    Reviewed-on: https://go-review.googlesource.com/c/158639
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/handshake_server_test.go  | 43 ++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server_tls13.go |  8 +++++-
+ 2 files changed, 50 insertions(+), 1 deletion(-)

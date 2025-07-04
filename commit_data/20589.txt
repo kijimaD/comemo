@@ -1,16 +1,14 @@
-commit 9b2b0c8c1663330c64c6cec8feb413f4cf464348
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 30 12:08:09 2014 -0400
+commit 651bb8e026f94502ed45db1b6284eeddd74570dc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 19 14:13:51 2014 -0700
 
-    regexp/syntax: reject large repetitions created by nesting small ones
+    spec: add dropped comma
+    The proposed text in the last CL had a comma that was missing from the submitted spec.
     
-    Fixes #7609.
-    
-    LGTM=r
-    R=r
+    LGTM=gri
+    R=gri
     CC=golang-codereviews
-    https://golang.org/cl/150270043
+    https://golang.org/cl/150720043
 
- src/regexp/syntax/parse.go      | 34 ++++++++++++++++++++++++++++++++++
- src/regexp/syntax/parse_test.go | 13 +++++++++++++
- 2 files changed, 47 insertions(+)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

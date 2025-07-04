@@ -1,12 +1,17 @@
-commit d58081cf0a2fecb3917a3032d8c2fff9e312b0b8
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 08:08:48 2015 -0400
+commit 19285efaed7b08535e1b3ba921f584ed8bde6e49
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Sep 2 21:11:32 2015 -0500
 
-    sync/atomic: added support for mips64{,le}
+    [dev.ssa] cmd/compile: fix complex128
     
-    Change-Id: Ibe6c345afd4cbae7e2542a350043fbb6b81d5678
-    Reviewed-on: https://go-review.googlesource.com/14450
-    Reviewed-by: Minux Ma <minux@golang.org>
+    complex128 was being treated as a complex64
+    
+    Fixes math/cmplx.
+    
+    Change-Id: I2996915b4cb6b94198d41cf08a30bd8531b9fec5
+    Reviewed-on: https://go-review.googlesource.com/14206
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/sync/atomic/asm_mips64x.s | 181 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 181 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             |  4 ++--
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go | 29 ++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

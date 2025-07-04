@@ -1,17 +1,21 @@
-commit 723f73caec99e6ff0e930027d470ff48f898a735
+commit 39493be2948231462eec6a0d045fb2b5adafa3c4
 Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Sep 30 16:39:10 2011 -0700
+Date:   Fri Sep 30 13:13:39 2011 -0700
 
-    freebsd: Add stubs for runtime·osyield and runtime·usleep.
+    io: rename Copyn to CopyN.
     
-    These don't do anything useful; they are just here to fix the build.
-    
-    R=golang-dev
-    TBR=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5154048
+    https://golang.org/cl/5157045
 
- src/pkg/runtime/freebsd/386/sys.s   | 4 ++++
- src/pkg/runtime/freebsd/amd64/sys.s | 4 ++++
- src/pkg/runtime/freebsd/thread.c    | 6 ++++++
- 3 files changed, 14 insertions(+)
+ src/cmd/gofix/Makefile              |  1 +
+ src/cmd/gofix/iocopyn.go            | 40 +++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/iocopyn_test.go       | 37 ++++++++++++++++++++++++++++++++++
+ src/pkg/archive/tar/reader.go       |  2 +-
+ src/pkg/http/fs.go                  |  2 +-
+ src/pkg/http/transport_test.go      |  2 +-
+ src/pkg/io/io.go                    |  6 +++---
+ src/pkg/io/io_test.go               | 40 ++++++++++++++++++-------------------
+ src/pkg/mime/multipart/formdata.go  |  4 ++--
+ src/pkg/mime/multipart/multipart.go |  2 +-
+ 10 files changed, 107 insertions(+), 29 deletions(-)

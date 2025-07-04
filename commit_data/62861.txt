@@ -1,0 +1,22 @@
+commit 489917fc400ee25d34dfb06306da3b3cef126963
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue Apr 22 13:42:26 2025 -0700
+
+    Revert "runtime: only poll network from one P at a time in findRunnable"
+    
+    This reverts commit 352dd2d932c1c1c6dbc3e112fcdfface07d4fffb.
+    
+    Reason for revert: cockroachdb benchmark failing. Likely due to CL 564197.
+    
+    For #73474
+    
+    Change-Id: Id5d83cd8bb8fe9ee7fddb8dc01f1a01f2d40154e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667336
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/proc.go     | 8 ++------
+ src/runtime/runtime2.go | 7 +++----
+ 2 files changed, 5 insertions(+), 10 deletions(-)

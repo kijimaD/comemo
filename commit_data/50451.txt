@@ -1,22 +1,20 @@
-commit 59ba97bf3bc9926ace19f5e6b3be277b801b1fde
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Thu Sep 8 02:18:50 2022 +0000
+commit 259735f97a2dfd33849eacef15047f5a0964498e
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Aug 24 14:09:26 2021 -0500
 
-    cmd/go: record the -buildmode flag in debug.BuildInfo
+    cmd/compile: enable branchelim pass on ppc64
     
-    Fixes #53856
+    and fix/cleanup lowering of the SSA operator created by the pass.
     
-    Change-Id: Ib533e9fbe063b74c81f6512464a4dac5e2af0ccc
-    GitHub-Last-Rev: c2ae8d6f75badd55ba6cf8e093c496c9bd1baa49
-    GitHub-Pull-Request: golang/go#54218
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420937
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: xie cui <523516579@qq.com>
+    Change-Id: I7e6153194fd16013e3b24da8aa40683adafa3d15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344573
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/internal/load/pkg.go                                | 9 +++++++++
- src/cmd/go/testdata/script/mod_list_command_line_arguments.txt | 2 +-
- src/cmd/go/testdata/script/version.txt                         | 8 ++++++--
- 3 files changed, 16 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/branchelim.go   |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  7 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 51 ++++++++++++++++++----------
+ 3 files changed, 40 insertions(+), 20 deletions(-)

@@ -1,21 +1,23 @@
-commit 3483ce0a28ebfe287416889e87a51dd3636223aa
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 18 00:08:49 2022 +0200
+commit 880ab6209e618c7dd6e47fa07e66176cd801eba1
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Aug 3 20:36:02 2021 -0400
 
-    net/netip: fix type name in z0, z4, z6noz comment
+    [dev.typeparams] cmd/compile/internal/types2: fix a panic in missingMethod
     
-    This was copied from the respective comment in package inet.af/netaddr
-    where the type is named IP. In net/netip the type is named Addr. Adjust
-    the comment accordingly.
+    When static == false, missingMethod incorrectly continues with a nil
+    Func.
     
-    Change-Id: Ib2d1667e6b8f474b3589dea0b37d5e05e58f2e05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406755
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Also remove some unnecessary type names from typeterm_test.go, which was
+    done in the go/types port.
+    
+    Change-Id: I21fa637ac82b115563d3601314a470a5a43f9ae0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339672
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/netip/netip.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go        |  5 ++++-
+ src/cmd/compile/internal/types2/typeterm_test.go | 10 +++++-----
+ 2 files changed, 9 insertions(+), 6 deletions(-)

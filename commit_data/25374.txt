@@ -1,12 +1,18 @@
-commit bbb88f9091b44e1cb80d767f0ce3c77334e2ccb6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 21 14:38:25 2015 -0800
+commit 6410e67a1eb38df3cc72cef818ed392bea907251
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Sep 17 10:43:18 2015 +1000
 
-    test: add test that gccgo miscompiled
+    runtime: account for cpu affinity in windows NumCPU
     
-    Change-Id: Ic3f006f86a86de628e14b107f88a5923ea856a58
-    Reviewed-on: https://go-review.googlesource.com/18093
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Fixes #11671
+    
+    Change-Id: Ide1f8d92637dad2a2faed391329f9b6001789b76
+    Reviewed-on: https://go-review.googlesource.com/14742
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/bug497.go | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ src/runtime/export_windows_test.go  |   8 ++
+ src/runtime/os1_windows.go          |  17 ++++
+ src/runtime/syscall_windows_test.go | 153 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 178 insertions(+)

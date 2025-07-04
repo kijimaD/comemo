@@ -1,28 +1,15 @@
-commit dc8ceb63a8413664c589059fca5806ff74486884
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Aug 15 02:48:09 2024 +1000
+commit 1ec427e7ee82c00619d850a4e975956cffae4575
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 21 20:07:41 2023 -0400
 
-    cmd/internal/obj/riscv: rework instruction encoding information
+    cmd/go: use Builder.writeFile more extensively
     
-    Currently, instruction encoding is a slice of encoding types, which
-    is indexed by a masked version of the riscv64 opcode. Additional
-    information about some instructions (for example, if an instruction
-    has a ternary form and if there is an immediate form for an instruction)
-    is manually specified in other parts of the assembler code.
-    
-    Rework the instruction encoding information so that we use a table
-    driven form, providing additional data for each instruction where
-    relevant. This means that we can simplify other parts of the code
-    by simply looking up the instruction data and reusing minimal logic.
-    
-    Change-Id: I7b3b6c61a4868647edf28bd7dbae2150e043ae00
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622535
+    Change-Id: Id9dfbb788194e1de5d55daba40dc9f34fd36180c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534656
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 491 ++++++++++++++++++--------------------
- 1 file changed, 234 insertions(+), 257 deletions(-)
+ src/cmd/go/internal/work/buildid.go | 11 +--------
+ src/cmd/go/internal/work/exec.go    | 45 ++++++++++++++++---------------------
+ 2 files changed, 20 insertions(+), 36 deletions(-)

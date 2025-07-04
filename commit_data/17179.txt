@@ -1,14 +1,13 @@
-commit 9707f269c1eb7ee68a2be93e87eb49d481fb1a84
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 13 12:55:57 2013 +0400
+commit c272fd14a8bf06a729706894b8a074472e9c1b79
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Aug 13 16:20:17 2013 +1000
 
-    runtime: fix network timers related crash
-    Fixes #6103.
+    go/doc: permit a package synopsis to end with ":\n".
     
-    R=golang-dev, alex.brainman
+    R=gri, r
     CC=golang-dev
-    https://golang.org/cl/12686045
+    https://golang.org/cl/12822043
 
- src/pkg/net/timeout_test.go | 33 +++++++++++++++++++++++++++++++++
- src/pkg/runtime/netpoll.goc |  9 ++++++---
- 2 files changed, 39 insertions(+), 3 deletions(-)
+ src/pkg/go/doc/synopsis.go      | 9 ++++++---
+ src/pkg/go/doc/synopsis_test.go | 1 +
+ 2 files changed, 7 insertions(+), 3 deletions(-)

@@ -1,12 +1,19 @@
-commit 44009a24138b6c7b5fd5b4be113db44fdfd1678e
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Oct 4 15:38:46 2016 -0700
+commit b31ec5c564f02cf48d177853fd7bff9892be7ce6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 22 06:27:31 2016 -0700
 
-    cmd/cover: fix typo
+    cmd/yacc: error rather than panic when TEMPSIZE is too small
     
-    Change-Id: I3f13488605ab62eba5d3c59d5e9df1bcf69dd571
-    Reviewed-on: https://go-review.googlesource.com/30355
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    I tried simply increasing the size of the slice but then I got an error
+    because NSTATES was too small. Leaving a real fix for after 1.7.
+    
+    Update #16144.
+    
+    Change-Id: I8676772cb79845dd4ca1619977d4d54a2ce6de59
+    Reviewed-on: https://go-review.googlesource.com/24321
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/cover/cover_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/yacc/yacc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

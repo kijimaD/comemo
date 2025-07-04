@@ -1,12 +1,13 @@
-commit fa02bac80953660924a2b00f1f9f8eea8569d717
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 21 17:49:29 2011 -0500
+commit 03805054e30436f445faf3492d66952e3e297c24
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 22 09:38:57 2011 +1100
 
-    os/exec: put the print where it will help
+    dashboard: add /key handler
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5501058
+    https://golang.org/cl/5504066
 
- src/pkg/os/exec/exec_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dashboard/app/app.yaml         |  2 +-
+ misc/dashboard/app/build/handler.go | 35 +++++++++++++++++++++++++++++------
+ 2 files changed, 30 insertions(+), 7 deletions(-)

@@ -1,14 +1,23 @@
-commit 0ffdfe42d169bf54ac60240822bb9032648af4c7
-Author: Miki Tebeka <miki.tebeka@gmail.com>
-Date:   Thu Mar 21 20:06:25 2013 -0700
+commit 985b0992cd78d277c9295234d0aa802109d39fd0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 21 20:02:01 2013 -0700
 
-    cmd/cgo: fix the cgo example on multiple assignment context.
+    net/http: reuse bufio.Reader and bufio.Writer between conns
     
-    Change from atoi to strtol since atoi does not set errno.
+    Saves over 8KB of allocations per new connection.
     
-    R=golang-dev, minux.ma, rsc, bradfitz
+    benchmark                             old ns/op    new ns/op    delta
+    BenchmarkServerFakeConnNoKeepAlive        28777        24927  -13.38%
+    
+    benchmark                            old allocs   new allocs    delta
+    BenchmarkServerFakeConnNoKeepAlive           52           46  -11.54%
+    
+    benchmark                             old bytes    new bytes    delta
+    BenchmarkServerFakeConnNoKeepAlive        13716         5286  -61.46%
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7888047
+    https://golang.org/cl/7799047
 
- src/cmd/cgo/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/server.go | 108 ++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 103 insertions(+), 5 deletions(-)

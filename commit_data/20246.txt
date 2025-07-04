@@ -1,23 +1,15 @@
-commit 649c83530a9c3a71319ed3d2ff53d9ecf2f2fd04
+commit 9e360926972b35d2fd4c8f99f22669417876526b
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 1 21:55:57 2014 -0400
+Date:   Wed Aug 27 17:38:01 2014 -0400
 
-    runtime: fix race detector running Go code on g0 of non-main thread
+    runtime: fix plan9 build
     
-    It looks like this has just always been broken:
-    the race detector handles running Go code on g0 of the main thread
-    and on g0 of any extra threads created by non-Go code, but it does
-    not handle running Go code on g0 of non-main threads created by Go.
-    Handle that.
+    sighandler now returns its value on the stack.
     
-    Should fix the race build failures on the dashboard.
-    
-    We're running into this now because we are running more
-    and more Go code on g0.
-    
-    TBR=dvyukov
+    TBR=0intro
     CC=golang-codereviews
-    https://golang.org/cl/137910043
+    https://golang.org/cl/135900043
 
- src/pkg/runtime/proc.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/runtime/sys_plan9_386.s   | 7 ++++---
+ src/pkg/runtime/sys_plan9_amd64.s | 7 ++++---
+ 2 files changed, 8 insertions(+), 6 deletions(-)

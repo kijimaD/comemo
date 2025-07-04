@@ -1,25 +1,32 @@
-commit 517b6131b2f62d7a57851aca44e590da51e7e849
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 17 00:44:07 2016 -0700
+commit 3425295e915bc16236f2c021317705aca34319af
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 5 14:56:26 2016 -0800
 
-    cmd/compile: add and use new Fields type
+    [dev.ssa] cmd/compile: clean up comparisons
     
-    Analogous to the Nodes type used as a more space efficient []*Node
-    representation.
+    Add new constant-flags opcodes.  These can be generated from
+    comparisons that we know the result of, like x&31 < 32.
     
-    Passes toolstash -cmp.
+    Constant-fold the constant-flags opcodes into all flag users.
     
-    Change-Id: I8341e45304777d6e4200bd36dadc935b07ccf3ff
-    Reviewed-on: https://go-review.googlesource.com/20793
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reorder some CMPxconst args so they read in the comparison direction.
+    
+    Reorg deadcode removal a bit - it needs to remove the OpCopy ops it
+    generates when strength-reducing Phi ops.  So it needs to splice out all
+    the dead blocks and do a copy elimination before it computes live
+    values.
+    
+    Change-Id: Ie922602033592ad8212efe4345394973d3b94d9f
+    Reviewed-on: https://go-review.googlesource.com/18267
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/dcl.go       |   8 +-
- src/cmd/compile/internal/gc/fmt.go       |  49 ++++++------
- src/cmd/compile/internal/gc/reflect.go   |   2 +-
- src/cmd/compile/internal/gc/subr.go      |  57 ++++++--------
- src/cmd/compile/internal/gc/type.go      | 131 ++++++++++++++++++-------------
- src/cmd/compile/internal/gc/typecheck.go |  18 ++---
- 6 files changed, 132 insertions(+), 133 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |    2 +
+ src/cmd/compile/internal/ssa/copyelim.go     |   14 +
+ src/cmd/compile/internal/ssa/deadcode.go     |  144 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  287 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   13 +
+ src/cmd/compile/internal/ssa/lower.go        |    2 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   25 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 3213 +++++++++++++++++++++-----
+ 8 files changed, 3019 insertions(+), 681 deletions(-)

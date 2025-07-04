@@ -1,19 +1,18 @@
-commit 071e43a95809030d3a74b3d526da1497d02d17e4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Feb 26 01:37:28 2016 -0800
+commit c4135dac630d093e01f95ea651d7d4330f616cfb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 11:34:41 2015 -0500
 
-    cmd/compile: stop representing keywords as Syms
+    encoding/json: streamline, unexport valid Number checking
     
-    Instead add a dedicated keywords map for use in lexer.ident and drop
-    Sym's Lexical field.
+    Followup to CL 12250.
     
-    Change-Id: Ia668e65499035ff7167fabbbd0cd027102b21231
-    Reviewed-on: https://go-review.googlesource.com/19935
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For #10281.
+    
+    Change-Id: If25d9cac92f10327bb355f2d11b00c625b464661
+    Reviewed-on: https://go-review.googlesource.com/17199
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/go.go   |   3 +-
- src/cmd/compile/internal/gc/lex.go  | 206 ++++++++++++++++++------------------
- src/cmd/compile/internal/gc/subr.go |   5 +-
- 3 files changed, 104 insertions(+), 110 deletions(-)
+ src/encoding/json/decode.go      | 120 ++++++++++-----------------------------
+ src/encoding/json/encode.go      |   5 +-
+ src/encoding/json/number_test.go |  20 +++----
+ 3 files changed, 44 insertions(+), 101 deletions(-)

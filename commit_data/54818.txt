@@ -1,23 +1,23 @@
-commit 214ce28503c891e2c5c63150f240424f994d4e76
-Author: Quan Tong <quantonganh@gmail.com>
-Date:   Mon Oct 16 15:39:48 2023 +0700
+commit 978ce7e252b0d6ff0a19f66206ed5f3eca281059
+Author: Changkun Ou <hi@changkun.de>
+Date:   Mon Sep 27 11:37:56 2021 +0200
 
-    cmd/go/internal/help: update the documentation to match the design and implementation
+    testing: reject calls to Run within Cleanup callbacks
     
-    The existing documentation imply that the build constraints
-    should be ignored after a block comments, but actually it's not.
+    Calling t.Run inside t.Cleanup can mess up the execution order of
+    registered Cleanup callbacks. Reject calls to Run within Cleanup
+    callbacks.
     
-    Fixes #63502
+    Fixes #48515
     
-    Change-Id: I0597934b7a7eeab8908bf06e1312169b3702bf05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535635
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Mark Pictor <mark.pictor@contrastsecurity.com>
+    Change-Id: I61e4cb35253db1a8bbe3351d59055433030aa289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352349
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Changkun Ou <mail@changkun.de>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/alldocs.go               | 2 +-
- src/cmd/go/internal/help/helpdoc.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/testing/panic_test.go | 17 +++++++++++++++++
+ src/testing/testing.go    | 20 ++++++++++++++------
+ 2 files changed, 31 insertions(+), 6 deletions(-)

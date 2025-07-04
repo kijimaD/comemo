@@ -1,20 +1,27 @@
-commit a21ae28f39fc5a27bb1391802195d1c6e2993f29
-Author: andrius4669 <andrius4669@gmail.com>
-Date:   Thu May 17 14:43:30 2018 +0000
+commit 0d54fb5610fb054e08a77f2a68a4df145182ae8e
+Author: Lubomir I. Ivanov (VMware) <neolit123@gmail.com>
+Date:   Wed Apr 25 20:59:04 2018 +0000
 
-    bufio: avoid rescanning buffer multiple times in ReadSlice
+    path/filepath: fix Win32 tests missing 'chcp'
     
-    When existing data in buffer does not have delimiter,
-    and new data is added with b.fill(), continue search from
-    previous point instead of starting from beginning.
+    '%SystemRoot%/System32/chcp.com' is a tool on Windows that
+    is used to change the active code page in the console.
     
-    Change-Id: Id78332afe2b0281b4a3c86bd1ffe9449cfea7848
-    GitHub-Last-Rev: 08e7d2f50151a00b22800e3f7020d0de8dee7dcf
-    GitHub-Pull-Request: golang/go#25441
-    Reviewed-on: https://go-review.googlesource.com/113535
+    'go test path/filepath' can fail with:
+    "'chcp' is not recognized as an internal or external command"
+    
+    The test uses a custom PATH variable but does not include
+    '%SystemRoot%/System32'. Always append that to PATH.
+    
+    Updates #24709
+    
+    Change-Id: Ib4c83ffdcc5dd6eb7bb34c07386cf2ab61dcae57
+    GitHub-Last-Rev: fac92613cce0d60f6794ad850618ed64d04c76fd
+    GitHub-Pull-Request: golang/go#25089
+    Reviewed-on: https://go-review.googlesource.com/109362
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bufio/bufio.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/path/filepath/path_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

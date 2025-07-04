@@ -1,0 +1,21 @@
+commit ec67622d04ea379ecd0dcff065267371cce69f72
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 10 13:27:56 2024 -0700
+
+    cmd/compile, go/types: add missing space in error message
+    
+    Otherwise "print(nil)" gets an error like
+        use of untyped nil in argument to built-inprint
+    
+    Change-Id: Iaa841df106f90787031dce75a49af69860a9dbc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611918
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/types2/builtins.go | 2 +-
+ src/go/types/builtins.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

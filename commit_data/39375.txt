@@ -1,12 +1,16 @@
-commit f83c44e031ebf1c85d4179cf7174fe89162d654a
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed Jun 12 17:50:55 2019 -0400
+commit b325799cad7a12abb6964b5dd2a6e5b0e913413e
+Author: Jeremy Jay <jeremy@pbnjay.com>
+Date:   Mon Feb 18 03:33:28 2019 +0000
 
-    doc: clarify default go command behavior in the release notes
+    compress/gzip: clarify that Multistream gzip requires a ByteReader
     
-    Change-Id: I2a0bd295ad9737581d149a7165191b878ae2acda
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181880
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib24778f3172c011e6a39ee65dce8764f3cc911ea
+    GitHub-Last-Rev: 9c617c1e60ac48db67e26e64ce240d3845c0e6ac
+    GitHub-Pull-Request: golang/go#30284
+    Reviewed-on: https://go-review.googlesource.com/c/162999
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.13.html | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/compress/gzip/gunzip.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,16 +1,18 @@
-commit e1d16843bdbf85c99bc963b7a343cbffa047e378
-Author: cncal <flycalvin@qq.com>
-Date:   Thu Apr 30 04:19:25 2020 +0000
+commit fff450256a541decd2bb2060c46b788d92692faa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 14:52:16 2019 -0500
 
-    runtime/race: fix comment in select_test.TestNoRaceSelect1
+    cmd/go: convert TestUserOverrideFlags to a script test
     
-    selectGoImpl was merged into selectGo in https://golang.org/cl/37860.
+    Updates #28387
+    Updates #30316
     
-    Change-Id: I39985f37223743f1ea0aba9bee0e2708398a925c
-    GitHub-Last-Rev: ec97b4be3298f5595a5cd6109c311dcb35e06663
-    GitHub-Pull-Request: golang/go#38716
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230340
+    Change-Id: I08eb0e144387735f7a7811a82e547a581991b335
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207697
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/race/testdata/select_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go                        | 30 ----------------------------
+ src/cmd/go/testdata/script/build_gcflags.txt | 21 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 30 deletions(-)

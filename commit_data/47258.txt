@@ -1,22 +1,15 @@
-commit 82481525280e4d0c74cb3f6341ce2f4653a165b8
-Author: Simon Law <sfllaw@sfllaw.ca>
-Date:   Thu Nov 4 11:14:59 2021 -0700
+commit b0df92703c89e42592659ae99cded0d5b68382b7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 4 13:34:29 2021 -0800
 
-    test: fix indentation for -shuffle help text
+    math/big: add shrVU and shlVU benchmarks
     
-    The help text for the go test -shuffle flag is not indented like the
-    other flags. This patch brings it into alignment.
-    
-    Fixes #49357
-    
-    Change-Id: I3f18dc7cd84d5f23099262acf6e2fedccb11379c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361395
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id67d6ac856bd9271de99c3381bde910aa0c166e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296011
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/alldocs.go            | 10 +++++-----
- src/cmd/go/internal/test/test.go | 10 +++++-----
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ src/math/big/arith_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

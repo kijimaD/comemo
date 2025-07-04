@@ -1,58 +1,36 @@
-commit 66165739828b8326b625463beb51ae510b2ab8dd
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Sep 30 00:45:12 2022 +0200
+commit 0e39946e8df426b459103ab94256b697a6a4dd9c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Oct 19 14:05:29 2021 -0400
 
-    cmd/cgo, cmd/compile, cmd/link: remove old style build tags
+    cmd/go: add workspace pruning mode
     
-    The minimum bootstrap version for Go ≥ 1.20 is Go 1.17. That version
-    supports the new style //go:build lines. Thus the old style //+build
-    lines can be dropped in this part of the tree as well. Leave the
-    //+build lines in cmd/dist which will ensure the minimum Go version
-    during bootstrap.
+    This change corrects a bug in the handling of module loading of
+    workspaces. Namely, there is an assumption by the module pruning code
+    that if a root module is selected then the packages of that module can
+    be resolved without loading the whole module graph. This is not true
+    in workspace mode because two workspace modules can require different
+    versions of a dependency. Worse, one workspace module can directly
+    require a depencency that is transitively required by another
+    workspace module, changing the version of that module loaded in the
+    fully expanded graph.
     
-    As suggested by Cherry during review of CL 430496
+    To correct this, a new 'workspace' pruning mode is added where the
+    roots are the workspace modules themselves, satisfying the assumption
+    made by the module pruning logic.
     
-    For #44505
+    The rest of this change accounts for the new pruning mode where it's
+    used and correctly sets the requirements in this pruning mode.
     
-    Change-Id: If53c0b02cacbfb055a33e73cfd38578dfd3aa340
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436915
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I5d4d9877e492e196681f6ee9f8f18a08b4e95c61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357169
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/cgo/ast_go1.go                                | 1 -
- src/cmd/cgo/ast_go118.go                              | 1 -
- src/cmd/compile/internal/base/bootstrap_false.go      | 1 -
- src/cmd/compile/internal/base/bootstrap_true.go       | 1 -
- src/cmd/compile/internal/base/mapfile_mmap.go         | 1 -
- src/cmd/compile/internal/base/mapfile_read.go         | 7 -------
- src/cmd/compile/internal/ir/mknode.go                 | 1 -
- src/cmd/compile/internal/ssa/flags_test.go            | 1 -
- src/cmd/compile/internal/ssa/gen/386Ops.go            | 1 -
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go          | 1 -
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go          | 1 -
- src/cmd/compile/internal/ssa/gen/ARMOps.go            | 1 -
- src/cmd/compile/internal/ssa/gen/LOONG64Ops.go        | 1 -
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go         | 1 -
- src/cmd/compile/internal/ssa/gen/MIPSOps.go           | 1 -
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go          | 1 -
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go        | 1 -
- src/cmd/compile/internal/ssa/gen/S390XOps.go          | 1 -
- src/cmd/compile/internal/ssa/gen/WasmOps.go           | 1 -
- src/cmd/compile/internal/ssa/gen/dec64Ops.go          | 1 -
- src/cmd/compile/internal/ssa/gen/decOps.go            | 1 -
- src/cmd/compile/internal/ssa/gen/genericOps.go        | 1 -
- src/cmd/compile/internal/ssa/gen/main.go              | 1 -
- src/cmd/compile/internal/ssa/gen/rulegen.go           | 1 -
- src/cmd/compile/internal/typecheck/builtin/runtime.go | 1 -
- src/cmd/compile/internal/typecheck/mkbuiltin.go       | 1 -
- src/cmd/compile/internal/types2/example_test.go       | 1 -
- src/cmd/internal/bio/buf_mmap.go                      | 1 -
- src/cmd/internal/bio/buf_nommap.go                    | 7 -------
- src/cmd/link/elf_test.go                              | 1 -
- src/cmd/link/internal/ld/outbuf_mmap.go               | 1 -
- src/cmd/link/internal/ld/outbuf_nofallocate.go        | 1 -
- src/cmd/link/internal/ld/outbuf_nommap.go             | 9 ---------
- 33 files changed, 53 deletions(-)
+ src/cmd/go/internal/modload/buildlist.go  | 86 +++++++++++++++++++++++--------
+ src/cmd/go/internal/modload/init.go       | 44 ++++++++--------
+ src/cmd/go/internal/modload/load.go       | 24 ++++++++-
+ src/cmd/go/internal/modload/modfile.go    | 14 +++--
+ src/cmd/go/testdata/script/work_prune.txt |  2 +-
+ 5 files changed, 121 insertions(+), 49 deletions(-)

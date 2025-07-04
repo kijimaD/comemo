@@ -1,18 +1,21 @@
-commit 784ef4c53135644d70f3476a4bd90010b9acff66
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Apr 26 18:46:22 2021 -0400
+commit 308ec220a2e55e0948505881b051cbefa05cf696
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Oct 16 18:35:30 2020 +0800
 
-    net/http: ignore directory path when parsing multipart forms
+    cmd/asm: refactor some encoding functions for load/store with immediate offset on arm64
     
-    Fixes #45789
+    Some of the current functions for encoding load/store with
+    immediate offset instructions, like opstr12(), opstr9(),
+    opldr12(), opldr9() and opldrpp(), etc., they have the same
+    code, so this patch refactors them and merges them into two
+    functions opstr() and opldr().
     
-    Change-Id: Id588f5dbbecf5fbfb54e957c53903aaa900171f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313809
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: I60367f8b720b77c7ebe6d66905a950dcf7701836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263479
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
 
- src/mime/multipart/multipart.go | 14 +++++++++++---
- src/net/http/request_test.go    | 23 +++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 153 +++++++++++--------------------------
+ 1 file changed, 44 insertions(+), 109 deletions(-)

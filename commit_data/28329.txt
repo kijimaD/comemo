@@ -1,57 +1,12 @@
-commit 6537e18f02448bba92d5ea9c2f224b8c2c7ef888
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 9 21:08:46 2016 -0700
+commit 30ded16596246c719ede90acf45ecb31d8f428f6
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 11 16:29:07 2016 -0400
 
-    cmd/compile: rewrite %1v and %2v formats to %S and %L (short and long)
+    runtime: remove obsolete comment from scanobject
     
-    - also consistently use %v instead of %s when we have a (gc) Formatter
-    - rewrite done automatically using Formats test in -u (update) mode
-    - manual update of format strings that were not single string constants
-    - updated fmt.go, fmt_test.go accordingly
-    - fmt_test: permit "%T" always
-    
-    Change-Id: I8f0704286aba5704600ad0c4a4484005b79b905d
-    Reviewed-on: https://go-review.googlesource.com/28954
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5ebf93b60213c0138754fc20888ae5ce60237b8c
+    Reviewed-on: https://go-review.googlesource.com/23131
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/fmt_test.go              | 33 ++++++++-----------
- src/cmd/compile/internal/amd64/ggen.go   |  2 +-
- src/cmd/compile/internal/amd64/gsubr.go  |  4 +--
- src/cmd/compile/internal/arm/ggen.go     |  2 +-
- src/cmd/compile/internal/arm64/ggen.go   |  2 +-
- src/cmd/compile/internal/arm64/gsubr.go  |  4 +--
- src/cmd/compile/internal/gc/align.go     |  4 +--
- src/cmd/compile/internal/gc/bexport.go   | 12 +++----
- src/cmd/compile/internal/gc/bimport.go   |  8 ++---
- src/cmd/compile/internal/gc/cgen.go      | 10 +++---
- src/cmd/compile/internal/gc/closure.go   |  8 ++---
- src/cmd/compile/internal/gc/const.go     |  6 ++--
- src/cmd/compile/internal/gc/dcl.go       | 16 +++++----
- src/cmd/compile/internal/gc/esc.go       | 54 +++++++++++++++---------------
- src/cmd/compile/internal/gc/export.go    |  6 ++--
- src/cmd/compile/internal/gc/fmt.go       | 50 +++++++++++++---------------
- src/cmd/compile/internal/gc/gen.go       |  2 +-
- src/cmd/compile/internal/gc/gsubr.go     |  2 +-
- src/cmd/compile/internal/gc/inl.go       |  6 ++--
- src/cmd/compile/internal/gc/lex.go       |  2 +-
- src/cmd/compile/internal/gc/noder.go     |  2 +-
- src/cmd/compile/internal/gc/obj.go       |  2 +-
- src/cmd/compile/internal/gc/parser.go    |  2 +-
- src/cmd/compile/internal/gc/plive.go     |  4 +--
- src/cmd/compile/internal/gc/range.go     |  6 ++--
- src/cmd/compile/internal/gc/reflect.go   |  6 ++--
- src/cmd/compile/internal/gc/ssa.go       | 56 ++++++++++++++++----------------
- src/cmd/compile/internal/gc/subr.go      | 14 ++++----
- src/cmd/compile/internal/gc/swt.go       | 18 +++++-----
- src/cmd/compile/internal/gc/type.go      |  2 +-
- src/cmd/compile/internal/gc/typecheck.go | 40 ++++++++++++-----------
- src/cmd/compile/internal/gc/walk.go      |  2 +-
- src/cmd/compile/internal/mips64/ggen.go  |  2 +-
- src/cmd/compile/internal/mips64/gsubr.go | 10 +++---
- src/cmd/compile/internal/ppc64/ggen.go   |  2 +-
- src/cmd/compile/internal/ppc64/gsubr.go  |  4 +--
- src/cmd/compile/internal/s390x/ggen.go   |  2 +-
- src/cmd/compile/internal/s390x/gsubr.go  |  4 +--
- src/cmd/compile/internal/x86/ggen.go     |  2 +-
- src/cmd/compile/internal/x86/gsubr.go    |  2 +-
- 40 files changed, 206 insertions(+), 209 deletions(-)
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

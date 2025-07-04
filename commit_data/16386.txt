@@ -1,14 +1,20 @@
-commit d67e300f28b04c1de1a0ef5fa95f8e882314316d
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu May 23 14:13:02 2013 +1000
+commit e3a72b05f8d7ee2fa235e5592ca85b747f1bb310
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 22 14:22:50 2013 -0700
 
-    cmd/go: check GOROOT directory is present before acting
+    go/doc: fix build
     
-    Fixes #5042.
+    1) go/doc:
+       - create correct ast.FuncType
+       - use more commonly used variable names in a test case
     
-    R=golang-dev, adg, rsc
+    2) make ast.FuncType.Pos robust in case of incorrect ASTs
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7786047
+    https://golang.org/cl/9651044
 
- src/cmd/go/main.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/go/ast/ast.go          |  2 +-
+ src/pkg/go/doc/example.go      |  2 +-
+ src/pkg/go/doc/example_test.go | 10 +++++-----
+ 3 files changed, 7 insertions(+), 7 deletions(-)

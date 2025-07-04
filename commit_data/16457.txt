@@ -1,14 +1,12 @@
-commit b40d98562fe11dad2309aae940dbfcd97e466a26
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Sat Jun 1 12:03:21 2013 -0700
+commit 5b7d422a05652893e27fc8393f9435ec2386bc83
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Sat Jun 1 10:28:04 2013 -0400
 
-    build: remove special definition of Runemax on Plan 9
+    doc/go1.1.html: remove extra space; close some tags.
     
-    The Bell Labs distribution now supports 21-bit runes.
-    
-    R=golang-dev, akumar
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9249045
+    https://golang.org/cl/9941043
 
- include/plan9/libc.h | 7 -------
- 1 file changed, 7 deletions(-)
+ doc/go1.1.html | 38 ++++++++++++++++++++------------------
+ 1 file changed, 20 insertions(+), 18 deletions(-)

@@ -1,15 +1,18 @@
-commit 8eaf4d16bc69724cd450345cbaf55f2e2aef9b9c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Aug 6 15:37:10 2021 -0400
+commit 6ca23a45feebc8672a1851dbc65c5b34d481ca30
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 03:52:20 2020 -0800
 
-    make.bash: do not overwrite GO_LDSO if already set
+    [dev.regabi] cmd/compile: only save ONAMEs on Curfn.Dcl
     
-    Change-Id: I704bdb411bda3d8a40906c12f182e268dca4718f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340450
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    There's not really any use to tracking function-scoped constants and
+    types on Curfn.Dcl, and there's sloppy code that assumes all of the
+    declarations are variables (e.g., cmpstackvarlt).
+    
+    Change-Id: I5d10dc681dac2c161c7b73ba808403052ca0608e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274436
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/make.bash | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go | 2 +-
+ test/live.go                       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,19 +1,20 @@
-commit 4e99ed6fef28bc263ec42e63fd717a13367fb659
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 18 14:53:33 2015 -0700
+commit d5297f726199fd6ef27db82d5d663db83d74e2b1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 22 20:40:18 2015 -0700
 
-    cmd/doc: don't drop const/var block if first entry is unexported
+    [dev.ssa] cmd/compile: speed up liveness analysis
     
-    The code assumed that if the first entry was unexported, all the
-    entries were. The fix is simple: delete a bunch of code.
+    This reduces the wall time to run test/slice3.go
+    on my laptop from >10m to ~20s.
     
-    Fixes #12286.
+    This could perhaps be further reduced by using
+    a worklist of blocks and/or implementing the
+    suggestion in the comment in this CL, but at this
+    point, it's fast enough that there is no need.
     
-    Change-Id: Icb09274e99ce97df4d8bddbe59d17a5c0622e4c6
-    Reviewed-on: https://go-review.googlesource.com/14780
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I741119e0c8310051d7185459f78be8b89237b85b
+    Reviewed-on: https://go-review.googlesource.com/12564
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/doc/doc_test.go     |  2 ++
- src/cmd/doc/pkg.go          | 13 +------------
- src/cmd/doc/testdata/pkg.go | 14 ++++++++++++++
- 3 files changed, 17 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

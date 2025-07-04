@@ -1,18 +1,22 @@
-commit 5f48662c5aab0f8c594b77ca183687264121f6b5
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Dec 14 10:37:33 2023 -0500
+commit 89de906aa20b18f801b1c44abc03f298ae850954
+Author: Cameron Bedard <cam.bedardca@gmail.com>
+Date:   Thu Jan 26 01:05:20 2023 +0000
 
-    doc/go1.22: pre-announce dropping macOS 10.15 support
+    cmd/go/internal/vcs: fix outdated comment
     
-    For #64207.
-    For #23011.
+    Function was was replaced in https://go.dev/cl/12143.
     
-    Change-Id: I17ff221718aef03e9cda0ae4eb7b79896933553a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549655
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Fixes #57718
+    
+    Change-Id: I56ff9390af9ae31803805fa27d2c08b5e1d842e1
+    GitHub-Last-Rev: b8c9dbccbc0b412fd7833d4df9d347953798b17b
+    GitHub-Pull-Request: golang/go#57767
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461610
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- doc/go1.22.html | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/internal/vcs/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

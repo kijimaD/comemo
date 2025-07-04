@@ -1,0 +1,18 @@
+commit 49cdf0c42e320dfed044baa551610f081eafb781
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jun 20 14:44:09 2025 +0100
+
+    testing, testing/synctest: handle T.Helper in synctest bubbles
+    
+    Fixes #74199
+    
+    Change-Id: I6a15fbd59a3a3f8c496440f56d09d695e1504e4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/682576
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/testing/synctest/helper_test.go   | 15 +++++++++++++++
+ src/testing/synctest/synctest_test.go | 12 ++++++++++++
+ src/testing/testing.go                |  3 +++
+ 3 files changed, 30 insertions(+)

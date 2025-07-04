@@ -1,41 +1,18 @@
-commit 1af424c196584cd0b05e559c2740f046d1f32042
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Oct 25 11:40:56 2023 -0400
+commit 40e1e2e93eaa7d42cc2a3c9ff813710d36cace51
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:14:41 2022 -0500
 
-    runtime: clear g0 stack bounds in dropm
+    cmd/internal/goobj: use testenv.Command instead of exec.Command in tests
     
-    After CL 527715, needm uses callbackUpdateSystemStack to set the stack
-    bounds for g0 on an M from the extra M list. Since
-    callbackUpdateSystemStack is also used for recursive cgocallback, it
-    does nothing if the stack is already in bounds.
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
     
-    Currently, the stack bounds in an extra M may contain stale bounds from
-    a previous thread that used this M and then returned it to the extra
-    list in dropm.
-    
-    Typically a new thread will not have an overlapping stack with an old
-    thread, but because the old thread has exited there is a small chance
-    that the C memory allocator will allocate the new thread's stack
-    partially or fully overlapping with the old thread's stack.
-    
-    If this occurs, then callbackUpdateSystemStack will not update the stack
-    bounds. If in addition, the overlap is partial such that SP on
-    cgocallback is close to the recorded stack lower bound, then Go may
-    quickly "overflow" the stack and crash with "morestack on g0".
-    
-    Fix this by clearing the stack bounds in dropm, which ensures that
-    callbackUpdateSystemStack will unconditionally update the bounds in
-    needm.
-    
-    For #62440.
-    
-    Change-Id: Ic9e2052c2090dd679ed716d1a23a86d66cbcada7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/537695
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    TryBot-Bypass: Michael Pratt <mpratt@google.com>
+    Change-Id: I464dc34b50f3360123aca9e8666df9799c15e457
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450701
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/proc.go                            |  8 +++++
- src/runtime/testdata/testprogcgo/stackswitch.c | 43 +++++++++++++++++++++++++-
- 2 files changed, 50 insertions(+), 1 deletion(-)
+ src/cmd/internal/goobj/objfile_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,15 +1,13 @@
-commit 504963e6a466bd0c13c6f36f1ca129602151e598
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Oct 6 18:33:13 2011 +0900
+commit e7042418c5c41cebb6453c5d807b89e2619e7b88
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Oct 6 07:22:48 2011 +0100
 
-    build: clear execute bit from source files
+    cgo: support for mingw-w64 4.5.1 and newer
     
-    R=golang-dev, alex.brainman
+    R=rsc, jp, hectorchu
     CC=golang-dev
-    https://golang.org/cl/5201042
+    https://golang.org/cl/4962051
 
- src/pkg/math/atan2_386.s            | 0
- src/pkg/runtime/cgo/386.S           | 0
- src/pkg/runtime/cgo/windows_386.c   | 0
- src/pkg/runtime/cgo/windows_amd64.c | 0
- 4 files changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/ld/ldpe.c           | 18 ++++++++++--------
+ src/pkg/runtime/cgo/amd64.S |  2 +-
+ 2 files changed, 11 insertions(+), 9 deletions(-)

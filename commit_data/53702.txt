@@ -1,20 +1,25 @@
-commit 8e1ec1cb9385414a7d6b664d8ace6bc9468cc500
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Tue Jul 18 13:38:21 2023 -0400
+commit f21514c7f8c972ce2291d41cf5b6263f0eb350c7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 29 10:48:28 2022 +0700
 
-    net: tolerate permission errors in interface tests
+    cmd/compile: only inline method wrapper if method don't contain closures
     
-    On our linux-arm64 builders, we're getting permission errors despite
-    running as root. Detect those errors and skip the test.
+    CL 327871 changes methodWrapper to always perform inlining after global
+    escape analysis. However, inlining the method may reveal closures, which
+    require walking all function bodies to decide whether to capture free
+    variables by value or by ref.
     
-    For #61414.
+    To fix it, just not doing inline if the method contains any closures.
     
-    Change-Id: I5d7c45789337bee3860b19335bbb9eb884c48986
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/510737
-    Auto-Submit: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #53702
+    
+    Change-Id: I4b0255b86257cc6fe7e5fafbc545cc5cff9113e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426334
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/net/interface_unix_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/reflectdata/reflect.go | 21 ++++++++++++++++++---
+ test/run.go                                     |  5 -----
+ 2 files changed, 18 insertions(+), 8 deletions(-)

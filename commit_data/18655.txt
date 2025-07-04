@@ -1,18 +1,15 @@
-commit 66562b9698ead1b8aec7af289689427d587a01bd
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 26 13:04:39 2014 +1100
+commit 1b135172df75d7d5ca17aa61132a4358c29b598a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 26 10:20:49 2014 +0900
 
-    cmd/go: remove 'go tool benchcmp' and corresponding special case
+    net: clean the dregs of NaCL merge
     
-    See the discussion on the original CL for context:
-            https://golang.org/cl/60100043/
-    
-    LGTM=josharian
-    R=r, josharian
+    LGTM=iant, aram, dave
+    R=golang-codereviews, iant, aram, dave
     CC=golang-codereviews
-    https://golang.org/cl/68890043
+    https://golang.org/cl/68770044
 
- doc/go1.3.txt      |  2 +-
- src/cmd/go/pkg.go  | 23 +++++++++++------------
- src/cmd/go/tool.go |  2 +-
- 3 files changed, 13 insertions(+), 14 deletions(-)
+ src/pkg/net/file_test.go  | 2 +-
+ src/pkg/net/file_unix.go  | 1 -
+ src/pkg/net/ipraw_test.go | 2 +-
+ 3 files changed, 2 insertions(+), 3 deletions(-)

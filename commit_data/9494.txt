@@ -1,12 +1,14 @@
-commit 78963f4f1d3cda3349a24128f57fdadf8dc67415
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Aug 25 19:00:04 2011 -0400
+commit 0462f77e24125d7337fd8956171f3e2fe901f1db
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Aug 25 19:12:03 2011 -0300
 
-    net: make use of IPv4len, IPv6len
+    goinstall: report lack of $GOPATH on errors
     
-    R=golang-dev, rsc
+    Fixes #2175.
+    
+    R=alex.brainman, rsc, gustavo, adg
     CC=golang-dev
-    https://golang.org/cl/4957043
+    https://golang.org/cl/4929047
 
- src/pkg/net/ip.go | 36 ++++++++++++++++++------------------
- 1 file changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/goinstall/main.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

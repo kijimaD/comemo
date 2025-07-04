@@ -1,12 +1,16 @@
-commit cf513387c3839e0815016ec8d9b4cf0cd1802aae
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Oct 2 08:35:20 2012 +1000
+commit b9e423eff30125fbbdae4340d272d7fd076236c1
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Tue Oct 2 08:10:42 2012 +1000
 
-    go/doc: strip example output comment from synthesized main function
+    archive/tar: fix inconsistent namespace usage in example
     
-    R=gri
-    CC=gobot, golang-dev
-    https://golang.org/cl/6524047
+    This fixes some example code in the tar package documentation, which
+    first refers to tar.NewWriter and then to Header, which is inconsistent
+    because NewWriter and Header are both in the tar namespace.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6595050
 
- src/pkg/go/doc/example.go | 38 ++++++++++++++++++++++++++------------
- 1 file changed, 26 insertions(+), 12 deletions(-)
+ src/pkg/archive/tar/writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

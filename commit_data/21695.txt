@@ -1,15 +1,19 @@
-commit ce137592c0ee5fc262675092c6eea7b71f25850b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 23 13:15:10 2015 -0800
+commit 0012b83507f06d5ecb95cf40170b539d58f35881
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 28 11:11:33 2015 -0800
 
-    math/big: fix formatting for 'b' format
+    [dev.cc] cmd/asm: fix the expression parser and add tests
     
-    Fixes #9939.
+    Rewrite the grammar to have one more production so it parses
+            ~0*0
+    correctly and write tests to prove it.
     
-    Change-Id: I9d60722b648fbc00650115da539a7466c6c86552
-    Reviewed-on: https://go-review.googlesource.com/5640
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I0dd652baf65b48a3f26c9287c420702db4eaec59
+    Reviewed-on: https://go-review.googlesource.com/3443
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/floatconv.go      |  27 ++++++--
- src/math/big/floatconv_test.go | 154 ++++++++++++++++++++++++-----------------
- 2 files changed, 110 insertions(+), 71 deletions(-)
+ src/cmd/asm/internal/asm/expr_test.go | 71 +++++++++++++++++++++++++
+ src/cmd/asm/internal/asm/parse.go     | 99 ++++++++++++++++++++---------------
+ src/cmd/asm/internal/lex/input.go     |  4 +-
+ src/cmd/asm/internal/lex/lex.go       |  4 +-
+ 4 files changed, 132 insertions(+), 46 deletions(-)

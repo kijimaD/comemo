@@ -1,12 +1,13 @@
-commit fc6b530f0ff4b73e6bd42c282bf5409e804f989e
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 2 23:09:49 2013 -0500
+commit f418c505d0b3b9de226f5c28c2345f00299845fc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 3 06:11:25 2013 +0800
 
-    cmd/gc: remove spurious newline from node dump
+    lib9/main.c: don't show the crash dialog on windows
+    Fixes #3202. (Or rather, work around issue 3202)
     
-    R=ken2
+    R=alex.brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/7276048
+    https://golang.org/cl/7202053
 
- src/cmd/gc/fmt.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/lib9/main.c | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

@@ -1,12 +1,16 @@
-commit a5e48cf023649bafc4ca606e09d2fe052e8ed0a4
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 17 01:50:16 2015 -0400
+commit e7df05397755c81f9f7006acb2b684a8c8c4fa9d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Mar 13 22:10:48 2015 -0400
 
-    cmd/internal/gc: fix node print
+    cmd/internal/ld, cmd/6l: external linking for windows/amd64
     
-    Change-Id: I0d2b909ceeba9da86c77de4ce23d7c6063f8f10f
-    Reviewed-on: https://go-review.googlesource.com/9017
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e30
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7534
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/gc/fmt.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/6l/asm.go           | 53 +++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/6l/obj.go           |  4 +++-
+ src/cmd/internal/ld/data.go |  9 ++++++--
+ src/cmd/internal/ld/pe.go   | 10 ++++++---
+ 4 files changed, 66 insertions(+), 10 deletions(-)

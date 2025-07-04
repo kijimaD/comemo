@@ -1,22 +1,22 @@
-commit a444da033c0bc1fa5fb1973bd6d0c131ec3c1ccd
-Author: Tamir Duberstein <tamird@gmail.com>
-Date:   Wed May 6 17:54:50 2015 -0400
+commit 137817378548b263f0322d8240a0c503b456f696
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 20 17:35:43 2015 -0700
 
-    cmd/go: fetch git submodules in `go get`
+    cmd/internal/obj: remove F3t field from Prog
     
-    Change createCmd, downloadCmd, tagSyncCmd, tagSyncDefault to allow
-    multiple commands.
+    F3t was effectively a local variable.
+    Remove it.
     
-    When using the vendoring experiment, fetch git submodules in `go get`,
-    and update them in `go get -u`.
+    This shrinks obj.Prog from 456 to 448 bytes,
+    which places it in a smaller malloc class.
     
-    This is a reincarnation of https://codereview.appspot.com/142180043.
+    This reduces the memory usage of the compiler
+    while compiling the rotate tests by ~2.75%.
     
-    For #7764.
-    
-    Change-Id: I8248efb851130620ef762a765ab8716af430572a
-    Reviewed-on: https://go-review.googlesource.com/9815
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I31cc9dd67269851a430b56bcc7d255c9349eb522
+    Reviewed-on: https://go-review.googlesource.com/10255
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/vcs.go | 82 +++++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 58 insertions(+), 24 deletions(-)
+ src/cmd/internal/obj/link.go     | 1 -
+ src/cmd/internal/obj/x86/asm6.go | 5 +----
+ 2 files changed, 1 insertion(+), 5 deletions(-)

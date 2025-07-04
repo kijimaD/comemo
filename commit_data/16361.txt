@@ -1,29 +1,16 @@
-commit 509a1173a33d4fd914409cd941470d440fd5eed3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 21 14:32:09 2013 -0700
+commit bea7b5187283cf73638332e5051c8e9333ccf4dd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 22 00:32:03 2013 +0800
 
-    time: remove Time.FormatAppend
+    cmd/go: fix LDFLAGS handling, enable misc/cgo/testso on Darwin
+    Fixes #5479.
     
-    undo CL 8478044 / 0d28fd55e721
-    
-    Lack of consensus.
-    
-    ««« original CL description
-    time: add Time.FormatAppend
-    
-    This is a version of Time.Format that doesn't require allocation.
-    
-    Fixes #5192
-    Update #5195
-    
-    R=r
-    CC=gobot, golang-dev
-    https://golang.org/cl/8478044
-    »»»
-    
-    R=r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/9462049
+    https://golang.org/cl/9416047
 
- src/pkg/time/format.go | 27 ++++++++++-----------------
- 1 file changed, 10 insertions(+), 17 deletions(-)
+ misc/cgo/testso/cgoso.go  | 10 +++++++++-
+ misc/cgo/testso/test.bash | 18 +++++++++++++++---
+ src/cmd/go/build.go       | 20 +++++++++++++++-----
+ src/run.bash              |  1 -
+ 4 files changed, 39 insertions(+), 10 deletions(-)

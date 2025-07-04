@@ -1,13 +1,16 @@
-commit 13802f565400a91519df86902ece3bd0a8c5aadb
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Sun Jun 24 19:23:09 2012 -0400
+commit e34079bb5919e1cf66b6008a1b7e8ee36a03c487
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 25 08:28:30 2012 +1000
 
-    test/bench/shootout: remove dependency on C libraries in test mode
-    Fixes #3732.
+    runtime: avoid r9/r10 during memmove
     
-    R=golang-dev
+    Fixes #3718.
+    
+    Requires CL 6300043.
+    
+    R=rsc, minux.ma, extraterrestrial.neighbour
     CC=golang-dev
-    https://golang.org/cl/6335053
+    https://golang.org/cl/6305100
 
- test/bench/shootout/timing.sh | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/runtime/memmove_arm.s | 96 ++++++++++++++++++++++---------------------
+ 1 file changed, 50 insertions(+), 46 deletions(-)

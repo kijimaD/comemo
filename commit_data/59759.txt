@@ -1,17 +1,17 @@
-commit 74b70eead70872ccb0b7bfe0435ef3e4a1eb288e
+commit d428a63875d335d1e1b9a3b3b45ad58f46e1e6bc
 Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jun 3 13:08:06 2025 -0400
+Date:   Fri Apr 19 11:39:29 2024 -0400
 
-    go/token: remove unreachable code
+    internal/goexperiment: remove unused range experiment
     
-    Reported by go vet.
+    This experiment was added mistakenly in https://go.dev/cl/537980,
+    probably as the result of a bad rebase on https://go.dev/cl/539277.
     
-    Change-Id: I6a6a636c79923fafd8c649c583383cdf455c6ce2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/678317
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ia3fc75725535ac70a2e6dd655440a2f515405c48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580375
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/go/token/tree.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/internal/goexperiment/flags.go | 3 ---
+ 1 file changed, 3 deletions(-)

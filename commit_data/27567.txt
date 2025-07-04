@@ -1,20 +1,24 @@
-commit 4969b46a316888950bd1910d7ef123883ab6c9f3
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat May 28 02:40:32 2016 -0700
+commit 29267c2131495585ba047a0c55d4e244757a3708
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 2 16:26:30 2016 -0700
 
-    doc/go1.7.html: update documentation regarding compress/flate
+    cmd/compile: add Type.ChanDir
     
-    Document the following:
-    * That the algorithmic changes are still compliant with RFC 1951. I remember
-    people having questions regarding this issue, and it would be good to re-assure
-    them that it is still standards compliant.
-    * io.EOF can now be returned early (c27efce66bce7534dbb357ac1779bbc08395b267)
-    * Use the term "decompress" when referred to as an action. The term "uncompressed"
-    or "decompressed" are both valid as ways to represent the current state of the data.
+    Generated with eg.
     
-    Change-Id: Ie29ebce709357359e7c36d3e7f3d53b260eaadfa
-    Reviewed-on: https://go-review.googlesource.com/23552
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I3af35191e73a558080f777a4eed93bcec7dfe1f5
+    Reviewed-on: https://go-review.googlesource.com/21469
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.7.html | 23 +++++++++++++++++++----
- 1 file changed, 19 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  6 +++---
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/type.go      | 11 +++++++++--
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ 7 files changed, 20 insertions(+), 13 deletions(-)

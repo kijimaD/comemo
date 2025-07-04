@@ -1,14 +1,14 @@
-commit 8e0c4639f11e9febd34fc1e2465138b37411b9d5
-Author: Odin Ugedal <odin@ugedal.com>
-Date:   Wed Dec 7 09:54:42 2016 +0100
+commit 1c09b4dde645b63b34673d0b2c93f4371f7f19df
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 6 18:22:19 2016 +0000
 
-    fmt: remove unnecessary else statement
+    time: document that calendrical calculations are with no leap seconds
     
-    Change-Id: If30ccfcf56d56fb40102ad567a980793bd39f320
-    Reviewed-on: https://go-review.googlesource.com/34071
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #15247
+    
+    Change-Id: I942fb2eacd1b54bab66cc147a6b047a3ffce0b84
+    Reviewed-on: https://go-review.googlesource.com/30595
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/fmt/print.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/time/time.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

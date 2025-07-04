@@ -1,72 +1,53 @@
-commit e45c125a3c343767b3bb68f3512d8cffbf7691b9
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Wed Aug 14 17:11:08 2024 +0800
+commit a65b4904fc2a179289a241aeb010b5a33e377d2c
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Mon Aug 21 10:09:54 2023 +0200
 
-    cmd/compile: add patterns for bitfield opcodes on loong64
+    cmd/compile: use MOVQ + MOVL for 11 byte moves
     
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                    |  bench.old   |              bench.new               |
-                    |    sec/op    |    sec/op     vs base                |
-    LeadingZeros      1.0095n ± 0%   0.8011n ± 0%  -20.64% (p=0.000 n=10)
-    LeadingZeros8      1.201n ± 0%    1.167n ± 0%   -2.83% (p=0.000 n=10)
-    LeadingZeros16     1.201n ± 0%    1.167n ± 0%   -2.83% (p=0.000 n=10)
-    LeadingZeros32     1.201n ± 0%    1.134n ± 0%   -5.58% (p=0.000 n=10)
-    LeadingZeros64    0.8007n ± 0%   1.0115n ± 0%  +26.32% (p=0.000 n=10)
-    TrailingZeros     0.8054n ± 0%   0.8106n ± 1%   +0.65% (p=0.000 n=10)
-    TrailingZeros8     1.067n ± 0%    1.002n ± 1%   -6.09% (p=0.000 n=10)
-    TrailingZeros16   1.0540n ± 0%   0.8389n ± 0%  -20.40% (p=0.000 n=10)
-    TrailingZeros32   0.8014n ± 0%   0.8117n ± 0%   +1.29% (p=0.000 n=10)
-    TrailingZeros64   0.8015n ± 0%   0.8124n ± 1%   +1.36% (p=0.000 n=10)
-    OnesCount          3.418n ± 0%    3.417n ± 0%        ~ (p=0.911 n=10)
-    OnesCount8        0.8004n ± 0%   0.8004n ± 0%        ~ (p=1.000 n=10)
-    OnesCount16        1.440n ± 0%    1.299n ± 0%   -9.79% (p=0.000 n=10)
-    OnesCount32        2.969n ± 0%    2.940n ± 0%   -0.94% (p=0.000 n=10)
-    OnesCount64        3.563n ± 0%    3.558n ± 0%   -0.14% (p=0.000 n=10)
-    RotateLeft        0.6677n ± 0%   0.6670n ± 0%        ~ (p=0.055 n=10)
-    RotateLeft8        1.318n ± 1%    1.321n ± 0%        ~ (p=0.117 n=10)
-    RotateLeft16      0.8457n ± 1%   0.8442n ± 0%        ~ (p=0.325 n=10)
-    RotateLeft32      0.8004n ± 0%   0.8004n ± 0%        ~ (p=0.837 n=10)
-    RotateLeft64      0.6678n ± 0%   0.6670n ± 0%   -0.13% (p=0.000 n=10)
-    Reverse           0.8004n ± 0%   0.8004n ± 0%        ~ (p=1.000 n=10)
-    Reverse8          0.6989n ± 0%   0.6969n ± 1%        ~ (p=0.138 n=10)
-    Reverse16         0.6998n ± 1%   0.7004n ± 1%        ~ (p=0.985 n=10)
-    Reverse32         0.4158n ± 1%   0.4159n ± 1%        ~ (p=0.870 n=10)
-    Reverse64         0.4165n ± 1%   0.4194n ± 2%        ~ (p=0.093 n=10)
-    ReverseBytes      0.8004n ± 0%   0.8004n ± 0%        ~ (p=1.000 n=10)
-    ReverseBytes16    0.4183n ± 2%   0.4148n ± 1%        ~ (p=0.055 n=10)
-    ReverseBytes32    0.4143n ± 2%   0.4153n ± 1%        ~ (p=0.869 n=10)
-    ReverseBytes64    0.4168n ± 1%   0.4177n ± 1%        ~ (p=0.184 n=10)
-    Add                1.201n ± 0%    1.201n ± 0%        ~ (p=0.087 n=10)
-    Add32              1.603n ± 0%    1.601n ± 0%   -0.12% (p=0.000 n=10)
-    Add64              1.201n ± 0%    1.201n ± 0%        ~ (p=0.211 n=10)
-    Add64multiple      1.839n ± 0%    1.835n ± 0%   -0.24% (p=0.001 n=10)
-    Sub                1.202n ± 0%    1.201n ± 0%   -0.04% (p=0.033 n=10)
-    Sub32              2.401n ± 0%    1.601n ± 0%  -33.32% (p=0.000 n=10)
-    Sub64              1.201n ± 0%    1.201n ± 0%        ~ (p=1.000 n=10)
-    Sub64multiple      2.105n ± 0%    2.096n ± 0%   -0.40% (p=0.000 n=10)
-    Mul               0.8008n ± 0%   0.8004n ± 0%   -0.05% (p=0.000 n=10)
-    Mul32             0.8041n ± 0%   0.8014n ± 0%   -0.34% (p=0.000 n=10)
-    Mul64             0.8008n ± 0%   0.8004n ± 0%   -0.05% (p=0.000 n=10)
-    Div                8.977n ± 0%    8.945n ± 0%   -0.36% (p=0.000 n=10)
-    Div32              4.084n ± 0%    4.086n ± 0%        ~ (p=0.445 n=10)
-    Div64              9.316n ± 0%    9.301n ± 0%   -0.17% (p=0.000 n=10)
-    geomean            1.141n         1.117n        -2.09%
+    Instead of using two MOVQ, use a shorter MOVL for the remaining 3 bytes.
     
-    Change-Id: I4dc1eaab6728f771bc722ed331fe5c6429bd1037
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618475
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    compilecmp (linux/amd64):
+    
+    runtime/pprof
+    runtime/pprof.printCountProfile.func1 875 -> 869  (-0.69%)
+    
+    fmt [cmd/compile]
+    fmt.Sprintf 5009 -> 4977  (-0.64%)
+    
+    runtime/pprof [cmd/compile]
+    runtime/pprof.printCountProfile.func1 875 -> 869  (-0.69%)
+    
+    cmd/vendor/github.com/ianlancetaylor/demangle
+    cmd/vendor/github.com/ianlancetaylor/demangle.(*GlobalCDtor).print 957 -> 938  (-1.99%)
+    cmd/vendor/github.com/ianlancetaylor/demangle.(*ImaginaryType).printInner 270 -> 261  (-3.33%)
+    cmd/vendor/github.com/ianlancetaylor/demangle.(*TemplateTemplateParam).print 876 -> 874  (-0.23%)
+    
+    cmd/cgo/internal/test
+    cmd/cgo/internal/test.test18146.func1 73 -> 66  (-9.59%)
+    
+    cmd/go/internal/work
+    cmd/go/internal/work.(*Builder).gccSupportsFlag 3469 -> 3461  (-0.23%)
+    
+    file                                            before   after    Δ       %
+    runtime/pprof.s                                 79729    79723    -6      -0.008%
+    fmt [cmd/compile].s                             83679    83647    -32     -0.038%
+    runtime/pprof [cmd/compile].s                   79729    79723    -6      -0.008%
+    cmd/vendor/github.com/ianlancetaylor/demangle.s 254999   254969   -30     -0.012%
+    cmd/cgo/internal/test.s                         212272   212265   -7      -0.003%
+    cmd/go/internal/work.s                          287700   287692   -8      -0.003%
+    cmd/compile/internal/ssa.s                      3193233  3193553  +320    +0.010%
+    cmd/compile/internal/ssa [cmd/compile].s        3362126  3362446  +320    +0.010%
+    total                                           30810158 30810709 +551    +0.002%
+    
+    Change-Id: Iad09a42fb247c85ca1c649c367aaf75a620dbbc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521475
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/loong64/ssa.go         |  19 ++++
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  14 +++
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   6 ++
- src/cmd/compile/internal/ssa/opGen.go           |  30 ++++++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 120 ++++++++++++++++++++++++
- 5 files changed, 189 insertions(+)
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |  5 ++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 25 +++++++++++++++++++++++--
+ 2 files changed, 27 insertions(+), 3 deletions(-)

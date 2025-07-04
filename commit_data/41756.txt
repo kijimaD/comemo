@@ -1,46 +1,42 @@
-commit b5f2c0f50297fa5cd14af668ddd7fd923626cf8c
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Mar 17 20:34:51 2020 -0400
+commit f91e895de368390a1aa75c3eb55d2b8451adc843
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Oct 23 13:08:46 2019 +0200
 
-    crypto/rsa,crypto/ecdsa,crypto/ed25519: implement PublicKey.Equal
+    syscall: reenable sysctl on iOS
     
-    This makes all modern public keys in the standard library implement a
-    common interface (below) that can be used by applications for better
-    type safety and allows for checking that public (and private keys via
-    Public()) are equivalent.
+    This was disabled due to a report that the App Store rejects the symbol
+    __sysctl. However, we use the sysctl symbol, which is fine. The __sysctl
+    symbol is used by x/sys/unix, which needs fixing instead. So, this
+    commit reenables sysctl on iOS, so that things like net.InterfaceByName
+    can work again.
     
-    interface {
-        Equal(crypto.PublicKey) bool
-    }
+    This reverts CL 193843, CL 193844, CL 193845, and CL 193846.
     
-    Equality for ECDSA keys is complicated, we take a strict interpretation
-    that works for all secure applications (the ones not using the
-    unfortunate non-constant time CurveParams implementation) and fails
-    closed otherwise.
+    Fixes #35101
+    Updates #34133
+    Updates #35103
     
-    Tests in separate files to make them x_tests and avoid an import loop
-    with crypto/x509.
-    
-    Re-landing of CL 223754. Dropped the test that was assuming named curves
-    are not implemented by CurveParams, because it's not true for all
-    curves, and anyway is not a property we need to test. There is still a
-    test to check that different curves make keys not Equal.
-    
-    Fixes #21704
-    Fixes #38035
-    
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223754
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Change-Id: I736759b145bfb4f7f8eecd78c324315d5a05385c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225460
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib8eb9f87b81db24965b0de29d99eb52887c7c60a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202778
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/ecdsa/ecdsa.go          | 18 +++++++++++
- src/crypto/ecdsa/equal_test.go     | 66 ++++++++++++++++++++++++++++++++++++++
- src/crypto/ed25519/ed25519.go      |  9 ++++++
- src/crypto/ed25519/ed25519_test.go | 16 +++++++++
- src/crypto/rsa/equal_test.go       | 42 ++++++++++++++++++++++++
- src/crypto/rsa/rsa.go              |  9 ++++++
- 6 files changed, 160 insertions(+)
+ src/log/syslog/syslog_test.go        |  6 ------
+ src/net/interface_test.go            | 14 ------------
+ src/os/os_test.go                    |  3 ---
+ src/syscall/syscall_darwin.go        |  1 +
+ src/syscall/syscall_darwin_386.go    |  1 -
+ src/syscall/syscall_darwin_amd64.go  |  1 -
+ src/syscall/syscall_darwin_arm.go    |  4 ----
+ src/syscall/syscall_darwin_arm64.go  |  4 ----
+ src/syscall/zsyscall_darwin_386.go   | 42 ++++++++++++++++++------------------
+ src/syscall/zsyscall_darwin_386.s    |  4 ++--
+ src/syscall/zsyscall_darwin_amd64.go | 42 ++++++++++++++++++------------------
+ src/syscall/zsyscall_darwin_amd64.s  |  4 ++--
+ src/syscall/zsyscall_darwin_arm.go   | 21 ++++++++++++++++++
+ src/syscall/zsyscall_darwin_arm.s    |  2 ++
+ src/syscall/zsyscall_darwin_arm64.go | 21 ++++++++++++++++++
+ src/syscall/zsyscall_darwin_arm64.s  |  2 ++
+ 16 files changed, 93 insertions(+), 79 deletions(-)

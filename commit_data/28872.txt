@@ -1,13 +1,12 @@
-commit bb4c40b21a30c02c069270327c5b34acab19b3f2
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Mon Oct 17 13:34:40 2016 -0700
+commit 7c31043ccad67e193cd1d88cb1a62b97cd2ba294
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Aug 16 09:38:26 2016 +0900
 
-    doc: document go1.7.2
+    os/exec: fix nit found by vet
     
-    Change-Id: I34b3650ee9512879ff7528336813a7850c46ea90
-    Reviewed-on: https://go-review.googlesource.com/31311
+    Change-Id: I8085ed43d63215237a4871cc1e44257132a7f5de
+    Reviewed-on: https://go-review.googlesource.com/27130
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/devel/release.html  | 8 ++++++++
- doc/install-source.html | 4 ++--
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ src/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

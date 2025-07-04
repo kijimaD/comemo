@@ -1,0 +1,22 @@
+commit 0d5fc4e1f01f320d9ce8fd14393241ac09cde791
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jul 23 18:03:24 2024 -0400
+
+    cmd/go: fix TestNewReleaseRebuildsStalePackagesInGOPATH for runtime move
+    
+    CL 600436 moved runtime/internal/sys to internal/runtime/sys and updated
+    TestNewReleaseRebuildsStalePackagesInGOPATH in part accordingly. This is
+    the other part that's needed for it to pass.
+    
+    For #65355.
+    
+    Change-Id: I26cff96c15caf185a4ee2c8fb31ec6c877ab87e2
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600595
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/go/go_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

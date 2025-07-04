@@ -1,25 +1,18 @@
-commit 38d35e714a55f2e4bb67caadac7e61f8c1967d88
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Sep 12 15:24:11 2016 -0400
+commit 495e3c60aa61615dd603050ac47f86468f8222b6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 17 12:20:16 2016 +0900
 
-    cmd/compile, runtime/internal/atomic: intrinsify And8, Or8 on ARM64
+    net: use IPv4/IPv6 reserved address blocks for documentation
     
-    Also add assembly implementation, in case intrinsics is disabled.
+    Also replaces google.com with golang.org in package documentation.
     
-    Change-Id: Iff0a8a8ce326651bd29f6c403f5ec08dd3629993
-    Reviewed-on: https://go-review.googlesource.com/28979
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #15228.
+    
+    Change-Id: I554fa960878fa44557a522635ed412d8d7548d3f
+    Reviewed-on: https://go-review.googlesource.com/23126
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/arm64/prog.go       |  2 ++
- src/cmd/compile/internal/arm64/ssa.go        | 34 +++++++++++++++++++++++--
- src/cmd/compile/internal/gc/ssa.go           |  4 +--
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 19 ++++++++++----
- src/cmd/compile/internal/ssa/opGen.go        | 24 ++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 38 ++++++++++++++++++++++++++++
- src/cmd/internal/obj/arm64/asm7.go           |  4 +++
- src/runtime/internal/atomic/atomic_arm64.go  | 36 ++++----------------------
- src/runtime/internal/atomic/atomic_arm64.s   | 19 ++++++++++++++
- 10 files changed, 143 insertions(+), 40 deletions(-)
+ src/net/dial.go |  8 ++++----
+ src/net/ip.go   | 18 +++++++++---------
+ src/net/net.go  |  2 +-
+ 3 files changed, 14 insertions(+), 14 deletions(-)

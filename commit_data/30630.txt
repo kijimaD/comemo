@@ -1,16 +1,23 @@
-commit e831bd1fcae591a4dd985c4f75b455355033c75b
-Author: Marcel Edmund Franke <marcel.edmund.franke@gmail.com>
-Date:   Sun Mar 12 12:19:32 2017 +0100
+commit 4ca3a8f7a807bba55e9db82b9aa8c43b1a186b8e
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Nov 17 13:52:00 2016 +0100
 
-    net/http: fix body close statement is missing
+    misc/cgo: decrease test failure timeouts
     
-    Call body close after ioutil.ReadAll is done
+    CL 33239 changed the polling loops from using sched_yield to a sleep
+    for 1/1000 of a second. The loop counters were not updated, so failing
+    tests now take 100 seconds to complete. Lower the loop counts to 5
+    seconds instead.
     
-    Change-Id: Ieceb1965a6a8f2dbc024e983acdfe22df17d07d1
-    Reviewed-on: https://go-review.googlesource.com/38059
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7c9a343dacc8188603ecf7e58bd00b535cfc87f5
+    Reviewed-on: https://go-review.googlesource.com/33280
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/filetransport_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/testcarchive/main2.c | 2 +-
+ misc/cgo/testcarchive/main3.c | 4 ++--
+ misc/cgo/testcarchive/main4.c | 4 ++--
+ misc/cgo/testcshared/main4.c  | 2 +-
+ misc/cgo/testcshared/main5.c  | 4 ++--
+ 5 files changed, 8 insertions(+), 8 deletions(-)

@@ -1,17 +1,60 @@
-commit c3559f16211888477fc60e348d1dadde9623ba7f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu May 7 16:00:36 2015 +1000
+commit 7e0c11c32fb1c7515c52b6ebe9db0d77c70b63d2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 15 11:05:01 2015 -0700
 
-    net: do not skip TestAcceptIgnoreSomeErrors
+    cmd/6g, runtime: improve duffzero throughput
     
-    No code changes, but the test passes here.
-    And TryBots are happy.
+    It is faster to execute
     
-    Fixes #8662 maybe
+            MOVQ AX,(DI)
+            MOVQ AX,8(DI)
+            MOVQ AX,16(DI)
+            MOVQ AX,24(DI)
+            ADDQ $32,DI
     
-    Change-Id: Id37380f72a951c9ad7cf96c0db153c05167e62ed
-    Reviewed-on: https://go-review.googlesource.com/9778
-    Reviewed-by: Minux Ma <minux@golang.org>
+    than
+    
+            STOSQ
+            STOSQ
+            STOSQ
+            STOSQ
+    
+    However, in order to be able to jump into
+    the middle of a block of MOVQs, the call
+    site needs to pre-adjust DI.
+    
+    If we're clearing a small area, the cost
+    of that DI pre-adjustment isn't repaid.
+    
+    This CL switches the DUFFZERO implementation
+    to use a hybrid strategy, in which small
+    clears use STOSQ as before, but large clears
+    use mostly MOVQ/ADDQ blocks.
+    
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkClearFat8        0.55          0.55          +0.00%
+    BenchmarkClearFat12       0.82          0.83          +1.22%
+    BenchmarkClearFat16       0.55          0.55          +0.00%
+    BenchmarkClearFat24       0.82          0.82          +0.00%
+    BenchmarkClearFat32       2.20          1.94          -11.82%
+    BenchmarkClearFat40       1.92          1.66          -13.54%
+    BenchmarkClearFat48       2.21          1.93          -12.67%
+    BenchmarkClearFat56       3.03          2.20          -27.39%
+    BenchmarkClearFat64       3.26          2.48          -23.93%
+    BenchmarkClearFat72       3.57          2.76          -22.69%
+    BenchmarkClearFat80       3.83          3.05          -20.37%
+    BenchmarkClearFat88       4.14          3.30          -20.29%
+    BenchmarkClearFat128      5.54          4.69          -15.34%
+    BenchmarkClearFat256      9.95          9.09          -8.64%
+    BenchmarkClearFat512      18.7          17.9          -4.28%
+    BenchmarkClearFat1024     36.2          35.4          -2.21%
+    
+    Change-Id: Ic786406d9b3cab68d5a231688f9e66fcd1bd7103
+    Reviewed-on: https://go-review.googlesource.com/2585
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/net_windows_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/6g/ggen.go          |  61 ++++++++-
+ src/runtime/duff_amd64.s    | 310 ++++++++++++++++++++++++++------------------
+ src/runtime/memmove_test.go |  18 +++
+ src/runtime/mkduff.go       |  10 +-
+ 4 files changed, 269 insertions(+), 130 deletions(-)

@@ -1,20 +1,14 @@
-commit ee272bbf36afa97b51669e1e8d1aed4fcb7013ab
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 20 12:14:16 2017 -0700
+commit 583b72dea1a887e235b9bb7e6db6902b89c1d266
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 03:14:58 2016 +0000
 
-    cmd/compile/internal/gc: export interface embedding information
+    doc: clarify zip behavior in go1.8.html
     
-    Fixes #16369.
+    Updates #17929
     
-    Change-Id: I23f8c36370d0da37ac5b5126d012d22f78782782
-    Reviewed-on: https://go-review.googlesource.com/38392
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I03b8847384c6cd8c43fe8bf2d75cd26db7063b8b
+    Reviewed-on: https://go-review.googlesource.com/33762
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/gc/bexport.go        | 68 ++++++++++++---------------
- src/cmd/compile/internal/gc/bimport.go        | 19 ++++----
- src/go/internal/gcimporter/bimport.go         |  9 ++--
- src/go/internal/gcimporter/gcimporter_test.go |  2 +-
- test/fixedbugs/issue16369.go                  |  4 +-
- 5 files changed, 50 insertions(+), 52 deletions(-)
+ doc/go1.8.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

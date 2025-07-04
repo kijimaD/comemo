@@ -1,21 +1,36 @@
-commit a9c3d09d0e9a8bf5986ec54d29ea6c68c2786d57
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 6 14:12:56 2017 -0400
+commit 80832974ac9306f992c797f8394e44d7f63f307e
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 28 15:54:46 2017 -0400
 
-    cmd/go: make cmd/* default to go tool installation
+    runtime: make rwmutex work on Ms instead of Gs
     
-    Every cmd/thing is 'go tool thing' except for go and gofmt.
-    But the table in cmd/go enumerates all the things instead of
-    saying that go and gofmt are the exceptions.
-    Change that, so that when adding new tools it's not
-    necessary to update this table.
+    Currently runtime.rwmutex is written to block the calling goroutine
+    rather than the calling thread. However, rwmutex was intended to be
+    used in the scheduler, which means it needs to be a thread-level
+    synchronization primitive.
     
-    Change-Id: Ia6fef41b4d967249b19971a0d03e5acb0317ea82
-    Reviewed-on: https://go-review.googlesource.com/69052
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Hence, this modifies rwmutex to synchronize threads instead of
+    goroutines. This has the consequence of making it write-barrier-free,
+    which is also important for using it in the scheduler.
+    
+    The implementation makes three changes: it replaces the "w" semaphore
+    with a mutex, since this was all it was being used for anyway; it
+    replaces "writerSem" with a single pending M that parks on its note;
+    and it replaces "readerSem" with a list of Ms that park on their notes
+    plus a pass count that together emulate a counting semaphore. I
+    model-checked the safety and liveness of this implementation through
+    >1 billion schedules.
+    
+    For #20738.
+    
+    Change-Id: I3cf5a18c266a96a3f38165083812803510217787
+    Reviewed-on: https://go-review.googlesource.com/47071
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go   | 47 ++++++++++++++++-----------------------
- src/cmd/go/internal/work/build.go |  2 +-
- 2 files changed, 20 insertions(+), 29 deletions(-)
+ src/runtime/HACKING.md      |  4 +--
+ src/runtime/export_test.go  |  4 ---
+ src/runtime/rwmutex.go      | 77 ++++++++++++++++++++++++++++++++++-----------
+ src/runtime/rwmutex_test.go |  4 ---
+ 4 files changed, 60 insertions(+), 29 deletions(-)

@@ -1,33 +1,18 @@
-commit 9ea4770e144d27877e5fe7635b662d20f6b86a6b
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Mon May 8 06:20:21 2023 +0800
+commit 8af1067698ada0a835a265b49f7913d4d33f32fb
+Author: Jabar Asadi <jasadi@d2iq.com>
+Date:   Tue May 2 17:49:52 2023 +0000
 
-    cmd/internal/obj/loong64: improve the definition of plan9 assembly format in optab
+    net: correct Dialer.ControlContext documentation
     
-    In the three formats corresponding to case 7 of the function asmout, BREAK actually
-    corresponds to the cacop instruction of Loong64, refer to the loong64 instruction
-    manual volume 1 [1], the cacop instruction is a privileged instruction used to
-    maintain the cache, and the user mode does not have permission to execute.
-    
-    Referring to the loong64 instruction manual volume 1 [1], the SYSCALL, BREAK and DBAR
-    instructions have similar formats and can be grouped into one category, the RDTIMED,
-    RDTIMELW and RDTIMEHW instructions can be grouped into one category, and the NOOP and
-    UNDEF instructions can be grouped into one category.
-    
-    [1]: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
-    
-    Change-Id: I0b8998270102d1557fc2b2410cf8c0b078bd0c2e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493435
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I4ec5883fc8713e0f711bb6beff45f426dae8f9f4
+    GitHub-Last-Rev: 9ea0c1505c2f3974e5d224299db5f888a4cf7618
+    GitHub-Pull-Request: golang/go#59819
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488315
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  2 -
- src/cmd/internal/obj/loong64/asm.go             | 76 ++++++++++++++-----------
- 2 files changed, 42 insertions(+), 36 deletions(-)
+ src/net/dial.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

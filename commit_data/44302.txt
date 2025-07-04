@@ -1,18 +1,19 @@
-commit b110a43628526787f73db44e11829520d92e5b2b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 15 11:26:58 2021 -0500
+commit 5b9304e0be5b5e11a82e65ecc626be98b0755e3d
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Sun Jun 7 08:32:28 2020 -0700
 
-    runtime: delete gosave (dead code)
+    crypto/x509: match RFC suggested SKID generation method
     
-    Change-Id: Ie811526534df8622d89c5b1b81dbe19ece1c962b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292110
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Rather than hashing the encoding of the SPKI structure, hash the
+    bytes of the public key itself.
+    
+    Fixes #39429
+    
+    Change-Id: I55a0f8f08ab1f1b5702590b47d8b9a92d1dbcc1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236878
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/runtime/proc.go     | 2 +-
- src/runtime/stack.go    | 2 +-
- src/runtime/stubs.go    | 1 +
- src/runtime/sys_wasm.go | 2 +-
- src/runtime/sys_x86.go  | 2 +-
- 5 files changed, 5 insertions(+), 4 deletions(-)
+ src/crypto/x509/x509.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

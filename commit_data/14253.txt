@@ -1,15 +1,13 @@
-commit 7dc1182c274e469c5b27e2284bc4876118b2ae6d
+commit 9b0f4be2fbab4b428f435287e73a4c2709ae5dc4
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 30 20:56:32 2012 -0700
+Date:   Tue Oct 30 17:24:01 2012 -0700
 
-    test: match gccgo error messages for bug358.go
+    A+C: add Peter Waller (individual CLA)
     
-    I fixed a bug in gccgo that was causing it to only give an
-    error for the first package that was imported and not used.
-    
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6813058
+    https://golang.org/cl/6775083
 
- test/fixedbugs/bug358.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

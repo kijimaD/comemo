@@ -1,12 +1,15 @@
-commit 36f223dace5dcdb7afc381c51e0484ff473e2e88
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 9 15:27:45 2013 -0700
+commit 4a0d06c4c5f457e650ab816b76d4754e7f6cd34c
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Fri Aug 9 14:42:43 2013 -0700
 
-    runtime: Better test tracebackability of jmpdefer when running a nil defer.
+    misc/emacs: add support for mode=count coverage
     
-    R=bradfitz, dvyukov
+    Use the same algorithm that go tool cover uses when producing HTML
+    output to render coverage intensity.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12536046
+    https://golang.org/cl/12712043
 
- test/fixedbugs/issue6055.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ misc/emacs/go-mode.el | 97 +++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 78 insertions(+), 19 deletions(-)

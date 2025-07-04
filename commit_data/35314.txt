@@ -1,25 +1,19 @@
-commit b382fe28a79d97d3ee1f3b79548d63929b0119b1
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 4 13:38:57 2018 +0100
+commit 829b64c1ead819bdf84d950581020c36f00cd02b
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 9 11:21:37 2018 -0800
 
-    internal/bytealg: add wasm architecture
+    cmd/fix: fix cast check
     
-    This commit adds the wasm architecture to the internal/bytealg package.
+    Need 2-result cast so we can check the result correctly.
     
-    Some parts of the assembly code have been extracted from WebAssembly
-    bytecode generated with Emscripten (which uses musl libc).
+    Fixes #23762
     
-    Updates #18892
-    
-    Change-Id: Iba7f7158356b816c9ad03ca9223903a41a024da6
-    Reviewed-on: https://go-review.googlesource.com/103915
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Icac3a5415156fe918988f369d6022a9a29c14089
+    Reviewed-on: https://go-review.googlesource.com/93078
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/bytealg/compare_generic.go   |   2 +-
- src/internal/bytealg/compare_native.go    |   2 +-
- src/internal/bytealg/compare_wasm.s       | 126 ++++++++++++++++
- src/internal/bytealg/equal_wasm.s         | 117 ++++++++++++++
- src/internal/bytealg/indexbyte_generic.go |   2 +-
- src/internal/bytealg/indexbyte_native.go  |   2 +-
- src/internal/bytealg/indexbyte_wasm.s     | 243 ++++++++++++++++++++++++++++++
- 7 files changed, 490 insertions(+), 4 deletions(-)
+ src/cmd/fix/cftype.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

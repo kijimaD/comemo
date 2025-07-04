@@ -1,34 +1,21 @@
-commit 6bbbc5dc70e9e5698818d5c47b6536e72619884b
+commit 62b38000ab42603ec217c99d187e03bd51bfa739
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 21 18:48:38 2023 -0700
+Date:   Wed May 25 15:41:59 2022 -0700
 
-    runtime: call _exit, not exit, on AIX and Solaris
+    runtime/internal/syscall: use correct result names for loong64
     
-    This is the AIX and Solaris equivalent of CL 269378.
+    Fixes "GOARCH=loong64 go vet runtime/internal/syscall"
     
-    On AIX and Solaris, where we use libc for syscalls, when the runtime exits,
-    it calls the libc exit function, which may call back into user code,
-    such as invoking functions registered with atexit. In particular, it
-    may call back into Go. But at this point, the Go runtime is
-    already exiting, so this wouldn't work.
-    
-    On non-libc platforms we use exit syscall directly, which doesn't
-    invoke any callbacks. Use _exit on AIX and Solaris to achieve the same
-    behavior.
-    
-    Test is TestDestructorCallback.
-    
-    For #59711
-    
-    Change-Id: I666f75538d3e3d8cf3b697b4c32f3ecde8332890
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487635
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5879eec3ff07b0c69a5a8ac8e854733261e98fbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408695
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os2_aix.go     | 2 +-
- src/runtime/os3_solaris.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/internal/syscall/asm_linux_loong64.s | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

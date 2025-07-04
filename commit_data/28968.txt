@@ -1,20 +1,22 @@
-commit b7c7949817e5bee801dfb333f483a080fa1f29e7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 21 07:54:46 2016 -0700
+commit 794442375d87e57d012bab2d7424575f6cdff018
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 18 17:05:54 2016 -0700
 
-    cmd/cgo: preserve original call arguments when pointer checking
+    cmd/vet: allow large shifts of constants
     
-    With the old code rewriting refs would rewrite the inner arguments
-    rather than the outer ones, leaving a reference to C.val in the outer
-    arguments.
+    Large shifts of constants are frequently
+    used for fancy 32/64 bit detection.
     
-    Change-Id: I9b91cb4179eccd08500d14c6591bb15acf8673eb
-    Reviewed-on: https://go-review.googlesource.com/31672
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This removes 14 false positives from the
+    standard library.
+    
+    Updates #11041
+    
+    Change-Id: Ib39346e5c161da04c38a6a3067932ef43bf74f2d
+    Reviewed-on: https://go-review.googlesource.com/27155
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/checkconst.go | 33 +++++++++++++++++++++++++++++++++
- src/cmd/cgo/gcc.go          | 13 +++++--------
- 3 files changed, 39 insertions(+), 8 deletions(-)
+ src/cmd/vet/shift.go          | 6 ++++++
+ src/cmd/vet/testdata/shift.go | 2 ++
+ 2 files changed, 8 insertions(+)

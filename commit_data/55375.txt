@@ -1,18 +1,38 @@
-commit f2794207adabc3130e79aa6e701782b8aed69e25
-Author: lxl-renren <gnnu_d13@163.com>
-Date:   Fri Jan 12 15:09:17 2024 +0000
+commit 5f00ce86334aa7e80ab825882db1a080f1b56404
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 20 16:25:33 2023 -0500
 
-    cmp: add test case for uinitptr
+    cmd/go: use Join functions instead of adding path separators to strings
     
-    Change-Id: Iebe79be01eb5208e9b9dea9297c464fe2b2dd3dd
-    GitHub-Last-Rev: 875ab08627b1fb0db3dc2a14ac332fdbc9af8b4b
-    GitHub-Pull-Request: golang/go#65017
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/554595
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Adding a file path separator is incorrect for a file path that may be
+    the root directory on a Unix platform (such as in a container or
+    chroot).
+    
+    Adding a path separator is incorrect for a package path prefix that
+    may be the empty string (as in the "std" module in GOROOT/src).
+    
+    And in both cases, a Join function is arguably clearer and simpler
+    anyway.
+    
+    Fixes #51506 (maybe).
+    
+    Change-Id: Id816930811ad5e4d1fbd206cddf219ecd4ad39a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463178
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmp/cmp_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/go/internal/cfg/cfg.go        | 16 ++++++++++------
+ src/cmd/go/internal/load/pkg.go       |  9 +++++----
+ src/cmd/go/internal/modindex/build.go |  7 ++-----
+ src/cmd/go/internal/modload/load.go   | 20 ++++++++++----------
+ src/cmd/go/internal/modload/search.go | 23 +++++++++++------------
+ src/cmd/go/internal/script/cmds.go    | 18 +++++++++++++++---
+ src/cmd/go/internal/script/state.go   |  6 +++++-
+ src/cmd/go/internal/search/search.go  |  2 +-
+ src/cmd/go/internal/str/path.go       |  9 +++++++++
+ src/cmd/go/internal/work/action.go    |  3 ++-
+ src/cmd/go/testdata/addmod.go         |  3 +--
+ src/cmd/go/testdata/savedir.go        |  3 +--
+ 12 files changed, 72 insertions(+), 47 deletions(-)

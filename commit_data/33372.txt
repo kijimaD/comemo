@@ -1,14 +1,38 @@
-commit b31162d87877828e5cdb1eed9c88bbee8e6e9744
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 1 19:24:07 2017 -0400
+commit e098e5142dd9554352171423f175381fd14fd943
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 14 15:33:46 2017 -0700
 
-    cmd/go/internal/cache: add GetBytes, PutBytes
+    archive/tar: properly handle header-only "files" in Writer
     
-    These are convenience function for small cached items.
+    Certain special type-flags, specifically 1, 2, 3, 4, 5, 6,
+    do not have a data section. Thus, regardless of what the size field
+    says, we should not attempt to write any data for these special types.
     
-    Change-Id: Iba92b7826a9fd6979e627687f2ce72d4b4799385
-    Reviewed-on: https://go-review.googlesource.com/75292
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    The relevant PAX and USTAR specification says:
+    <<<
+    If the typeflag field is set to specify a file to be of type 1 (a link)
+    or 2 (a symbolic link), the size field shall be specified as zero.
+    If the typeflag field is set to specify a file of type 5 (directory),
+    the size field shall be interpreted as described under the definition
+    of that record type. No data logical records are stored for types 1, 2, or 5.
+    If the typeflag field is set to 3 (character special file),
+    4 (block special file), or 6 (FIFO), the meaning of the size field is
+    unspecified by this volume of POSIX.1-2008, and no data logical records shall
+    be stored on the medium.
+    Additionally, for type 6, the size field shall be ignored when reading.
+    If the typeflag field is set to any other value, the number of logical
+    records written following the header shall be (size+511)/512, ignoring
+    any fraction in the result of the division.
+    >>>
+    
+    Fixes #15565
+    
+    Change-Id: Id11886b723b3b13deb15221dca51c25cd778a6b5
+    Reviewed-on: https://go-review.googlesource.com/55553
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/cache/cache.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/archive/tar/writer.go      | 16 +++++++++-------
+ src/archive/tar/writer_test.go | 19 +++++++++++++++++++
+ 2 files changed, 28 insertions(+), 7 deletions(-)

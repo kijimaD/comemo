@@ -1,18 +1,58 @@
-commit bf9800c7931da96e2ddc8363955f43581265b95c
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Sep 18 08:33:44 2020 -0400
+commit 972df38445977cc04414c7b6f469e2a8e5a63861
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sun Mar 1 17:41:44 2020 -0800
 
-    cmd/go: fix review comments in load, modload
+    runtime: during panic, print value instead of address, if kind is printable
     
-    Follow-up to CL 255719, fixing review comments.
+    Make panics more useful by printing values, if their
+    underlying kind is printable, instead of just their memory address.
     
-    Change-Id: I26d3cc622496c3902c6924cf2b746c50705c4d50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255937
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Thus now given any custom type derived from any of:
+        float*, int*, string, uint*
+    
+    if we have panic with such a result, its value will be printed.
+    
+    Thus given any of:
+        type MyComplex128 complex128
+        type MyFloat64 float64
+        type MyString string
+        type MyUintptr uintptr
+    
+        panic(MyComplex128(32.1 + 10i))
+        panic(MyFloat64(-93.7))
+        panic(MyString("This one"))
+        panic(MyUintptr(93))
+    
+    They will now print in the panic:
+    
+        panic: main.MyComplex64(+1.100000e-001+3.000000e+000i)
+        panic: main.MyFloat64(-9.370000e+001)
+        panic: main.MyString("This one")
+        panic: main.MyUintptr(93)
+    
+    instead of:
+    
+        panic: (main.MyComplex128) (0xe0100,0x138cc0)
+        panic: (main.MyFloat64) (0xe0100,0x138068)
+        panic: (main.MyString) (0x48aa00,0x4c0840)
+        panic: (main.MyUintptr) (0xe0100,0x137e58)
+    
+    and anything else will be printed as in the past with:
+    
+        panic: (main.MyStruct) (0xe4ee0,0x40a0e0)
+    
+    Also while here, updated the Go1.15 release notes.
+    
+    Fixes #37531
+    
+    Change-Id: Ia486424344a386014f2869ab3483e42a9ef48ac4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221779
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go     | 9 ++++++---
- src/cmd/go/internal/modload/init.go | 1 -
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ doc/go1.15.html                             |  12 +++
+ src/runtime/error.go                        |  51 +++++++++++--
+ src/runtime/panic_test.go                   |  48 ++++++++++++
+ src/runtime/testdata/testprog/panicprint.go | 111 ++++++++++++++++++++++++++++
+ 4 files changed, 216 insertions(+), 6 deletions(-)

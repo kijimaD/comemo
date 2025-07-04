@@ -1,12 +1,18 @@
-commit b34f0551387fcf043d65cd7d96a0214956578f94
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 2 23:17:37 2013 -0700
+commit 062a86b07d590c0aa711c83c0e7cb875d3552b37
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 3 15:59:17 2013 +1100
 
-    spec: Go has no 'reference types'
+    doc: add prominent download button to getting started page
     
-    R=golang-dev, r
+    Also remove the introduction, which says what the rest of the
+    page says anyway.
+    
+    Fixes #5182.
+    
+    R=golang-dev, kamil.kisiel, r
     CC=golang-dev
-    https://golang.org/cl/8288044
+    https://golang.org/cl/8281044
 
- doc/go_spec.html | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ doc/install.html | 54 ++++++++++++++++++++----------------------------------
+ doc/style.css    |  3 +++
+ 2 files changed, 23 insertions(+), 34 deletions(-)

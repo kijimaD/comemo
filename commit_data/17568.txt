@@ -1,12 +1,14 @@
-commit c0ac667531afaab0658461ea21b0d39b39aec227
+commit a97a7c5eb6e0bca13076c3ce40c8c1f1f020cca6
 Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 12 10:12:26 2013 +1000
+Date:   Thu Sep 12 09:08:59 2013 +1000
 
-    doc/go1.2.html: status of gccgo's support for 1.2
+    doc/go1.2.html: some library changes (fmt, template)
+    Also link it to the landing page for docs.
     
-    R=iant, minux.ma
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/13669043
+    https://golang.org/cl/13652045
 
- doc/go1.2.html | 11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ doc/docs.html  |   6 ++
+ doc/go1.2.html | 224 ++++++++++++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 172 insertions(+), 58 deletions(-)

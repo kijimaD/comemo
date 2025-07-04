@@ -1,0 +1,22 @@
+commit 7b0fdd13230038aabf249f0335097a2cdc233f5c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 22 13:47:13 2024 -0700
+
+    encoding/base32, encoding/base64: document Decode to short buffer
+    
+    Document that if one of the Decode methods in these packages is given
+    a short buffer, it panics.
+    
+    Fixes #69024
+    
+    Change-Id: I1c0e4c74274965c1cfa0422cc8f86af4fefb1d00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607499
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/base32/base32.go | 3 ++-
+ src/encoding/base64/base64.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

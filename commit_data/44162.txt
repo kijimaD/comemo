@@ -1,16 +1,16 @@
-commit 11def3d40b12292a30b305226cd4910b6c5bc14b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 21 18:29:13 2021 -0800
+commit 76a459b361e9cb8aaea0bb4d7d16b88371b30bbb
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 18 18:51:38 2020 -0400
 
-    doc/go1.16: mention syscall.AllThreadsSyscall
+    [dev.link] cmd/link: remove duplicate handling of some specially named symbols
     
-    For #1435
-    For #40700
+    We do it on the symtab pass. Remove duplicate.
     
-    Change-Id: I01d277617ab511c90b9663fc89e418402e5ee2be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285597
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I88cc8cd6e873749e0f6197f809aa812bca9dbbf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234493
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.16.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/link/internal/loader/loader.go | 5 -----
+ 1 file changed, 5 deletions(-)

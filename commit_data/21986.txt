@@ -1,24 +1,12 @@
-commit 9dfbcd8facae22e2be8bc527e1877b1e23812073
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 5 15:07:00 2015 -0500
+commit 412ce1f7d6f4bc5e2dc56d66042633c95586f848
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 15 15:45:06 2015 -0800
 
-    debug/dwarf: factor parsing of unit lengths
+    [dev.cc] cmd/go: enable verifyAsm for asm on ARM
     
-    Many headers in DWARF sections have a "unit length" that can be either
-    4 bytes or 12 bytes and indicates both the length of the unit and
-    whether the unit is in 32-bit or 64-bit format.
-    
-    Currently, we implement unit length parsing in four different places.
-    Add a "unitLength" method to buf that parses a unit length and use it
-    in these four places.
-    
-    Change-Id: I7950b91caaa92aa5e19aa63debc8ae46178ecc4d
-    Reviewed-on: https://go-review.googlesource.com/7281
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I182ea770110255a5ac1c91cf30dd650696a8f1db
+    Reviewed-on: https://go-review.googlesource.com/4961
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/debug/dwarf/buf.go      | 11 +++++++++++
- src/debug/dwarf/line.go     |  9 +--------
- src/debug/dwarf/typeunit.go | 16 +++++-----------
- src/debug/dwarf/unit.go     | 19 ++++++-------------
- 4 files changed, 23 insertions(+), 32 deletions(-)
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

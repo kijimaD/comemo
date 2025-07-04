@@ -1,12 +1,12 @@
-commit 6e2deaa1e132d726ef3a73ec63285a1445d3b03a
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Mar 18 16:40:46 2016 +0100
+commit 28f9d96c750af2155a167641c785d3c94effea38
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 14 09:10:57 2016 -0800
 
-    encoding/binary: don't assume b.N > 0
+    runtime: remove erroneous go:noescape declaration
     
-    Change-Id: I9e887a0b32baf0adc85fa9e4b85b319e8ef333e9
-    Reviewed-on: https://go-review.googlesource.com/20853
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6b1dc789e54a385c958961e7ba16bfd9d0f3b313
+    Reviewed-on: https://go-review.googlesource.com/18629
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/binary/binary_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/os3_solaris.go | 1 -
+ 1 file changed, 1 deletion(-)

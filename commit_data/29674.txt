@@ -1,19 +1,30 @@
-commit 012ec29ad46128265e0ec2dd2ac3a620c01619c5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 30 01:44:15 2016 +0000
+commit 5dcb31b2d555be0c7d1c0c4b2001d078e7ac6078
+Author: Boris Nagaev <nagaev@google.com>
+Date:   Sat Jun 25 13:51:06 2016 +0200
 
-    doc: more go1.8.html additions
+    cmd/dist, cmd/go: add environment variable override for pkg-config
     
-    And start deleting from go1.8.txt.
+    Allow overriding default name of `pkg-config` tool via environment
+    variable PKG_CONFIG (same as used by autoconf pkg.m4 macros). This
+    facilitates easy cross-compilation of cgo code.
     
-    TBR=See https://golang.org/cl/33244
+    Original patch against Go <= 1.4 was written by
+    xnox_canonical <dimitri.ledkov@canonical.com> in 2014.
+    Source: https://codereview.appspot.com/104960043/
     
-    Updates #17929
+    Fixes #16253
     
-    Change-Id: I71011d97b23a7ba94cd51e16ae61fda18e8b96eb
-    Reviewed-on: https://go-review.googlesource.com/33680
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I31c33ffc3ecbff65da31421e6188d092ab4fe7e4
+    Reviewed-on: https://go-review.googlesource.com/29991
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.8.html | 130 +++++++++++++++++++--
- doc/go1.8.txt  | 353 +--------------------------------------------------------
- 2 files changed, 124 insertions(+), 359 deletions(-)
+ src/cmd/cgo/doc.go      |  2 ++
+ src/cmd/dist/build.go   | 55 ++++++++++++++++++++++++++++---------------------
+ src/cmd/dist/buildgo.go |  6 ++++--
+ src/cmd/go/alldocs.go   |  2 ++
+ src/cmd/go/build.go     | 14 +++++++++----
+ src/cmd/go/help.go      |  2 ++
+ src/make.bash           |  2 ++
+ 7 files changed, 53 insertions(+), 30 deletions(-)

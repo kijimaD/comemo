@@ -1,15 +1,19 @@
-commit 94aa15543208c6f2e914539bfeddc3dd1e62a32b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jun 19 21:13:20 2019 -0400
+commit 2c86713303ba0aac0bf112e2f44f04d5fcd4bf42
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 20 13:52:23 2019 -0500
 
-    crypto/x509: normalize and expand docs of Parse and Marshal functions
+    cmd/go: expand tests for standard-library vendoring in GOPATH mode
     
-    Change-Id: I8f0e109053bbbd8bde4fa64059fd070d8f4acef2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183117
-    Reviewed-by: Adam Langley <agl@golang.org>
+    This should help to catch any regressions in the course of implementing #26924.
+    
+    Updates #26924
+    
+    Change-Id: Ide28a9aa0235867e0ce72f855fbed51c50e2c2f2
+    Reviewed-on: https://go-review.googlesource.com/c/163520
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/x509/pkcs1.go | 16 +++++++++++++---
- src/crypto/x509/pkcs8.go | 19 ++++++++++++-------
- src/crypto/x509/sec1.go  | 10 ++++++++--
- src/crypto/x509/x509.go  | 17 ++++++++++-------
- 4 files changed, 43 insertions(+), 19 deletions(-)
+ src/cmd/go/testdata/script/list_std.txt   | 17 ++++++++++++++---
+ src/cmd/go/testdata/script/std_vendor.txt | 24 ++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 3 deletions(-)

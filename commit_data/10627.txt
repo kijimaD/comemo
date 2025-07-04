@@ -1,15 +1,14 @@
-commit ee8b597b1f1ffa634189cdd8ab23f976f65dab7f
+commit 66410bac3d01253af9e1e1cbec65f7a90b2007ec
 Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 6 12:47:12 2011 -0800
+Date:   Tue Dec 6 08:40:16 2011 -0800
 
-    html/template: simplify ExecuteTemplate a little
-    Allow the text template to handle the error case of no template
-    with the given name.
-    Simplification suggested by Mike Samuel.
+    fmt: benchmark floating point.
+    mallocs per Sprintf("%x"): 1
+    mallocs per Sprintf("%g"): 4
     
-    R=mikesamuel
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5437147
+    https://golang.org/cl/5449106
 
- src/pkg/html/template/template.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/pkg/fmt/fmt_test.go | 43 +++++++++++++++++++++++++++++--------------
+ 1 file changed, 29 insertions(+), 14 deletions(-)

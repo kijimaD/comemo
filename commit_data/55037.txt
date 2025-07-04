@@ -1,40 +1,24 @@
-commit 0ef169abb1db6bd4e184ee87204dd883fb20cf1c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Nov 16 17:42:25 2023 +0000
+commit a3989632031c4282a6770e76516238368035d713
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 13:47:43 2022 -0700
 
-    runtime: put allocation headers back at the start the object
+    go/internal/gcimporter: simplify unified IR importer
     
-    A persistent performance regression was discovered on
-    perf.golang.org/dashboard and this was narrowed down to the switch to
-    footers. Using allocation headers instead resolves the issue.
+    CL 424854 changed the unified IR writer's handling of type
+    declarations to write the underlying type rather than the RHS type
+    expression's type. This in turn allows us to simplify the go/types
+    importer, because now there's no need to delay caling SetUnderlying.
     
-    The benchmark results for allocation footers weren't realistic, because
-    they were performed on a machine with enough L3 cache that it completely
-    hid the additional cache miss introduced by allocation footers.
+    Fixes #57015.
     
-    This means that in some corner cases the Go runtime may no longer
-    allocate 16-byte aligned memory. Note however that this property was
-    *mostly* incidental and never guaranteed in any documentation.
-    
-    Allocation headers were tested widely within Google and no issues were
-    found, so we're fairly confident that this will not affect very many
-    users.
-    
-    Nonetheless, by Hyrum's Law some code might depend on it. A follow-up
-    change will add a GODEBUG flag that ensures 16 byte alignment at the
-    potential cost of some additional memory use. Users experiencing both a
-    performance regression and an alignment issue can also disable the
-    GOEXPERIMENT at build time.
-    
-    This reverts commit 1e250a219900651dad27f29eab0877eee4afd5b9.
-    
-    Change-Id: Ia7d62a9c60d1773c8b6d33322ee33a80ef814943
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543255
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I80caa61f6cad5b7f9d829939db733a66cfca621c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424876
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/malloc.go               |  3 ++-
- src/runtime/mbitmap_allocheaders.go | 14 ++++++++------
- src/runtime/mfinal.go               |  8 +++++++-
- 3 files changed, 17 insertions(+), 8 deletions(-)
+ src/go/internal/gcimporter/gcimporter_test.go     | 17 ++++++
+ src/go/internal/gcimporter/testdata/issue57015.go | 16 ++++++
+ src/go/internal/gcimporter/ureader.go             | 68 ++++++++---------------
+ 3 files changed, 56 insertions(+), 45 deletions(-)

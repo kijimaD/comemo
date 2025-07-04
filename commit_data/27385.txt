@@ -1,28 +1,33 @@
-commit 15f2d0e45227f68024f3415d9466055877b70426
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 12 22:12:11 2016 +0000
+commit fc4358951a451c18267c4eb9ef0fb941963cc995
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 23 15:27:23 2016 -0700
 
-    net, net/http: don't trace UDP dials
+    cmd/compile: avoid allocating a Nodes for readonly method receivers
     
-    The httptrace.ConnectStart and ConnectDone hooks are just about the
-    post-DNS connection to the host. We were accidentally also firing on
-    the UDP dials to DNS. Exclude those for now. We can add them back
-    later as separate hooks if desired. (but they'd only work for pure Go
-    DNS)
+    We were allocating a Nodes for common method calls
+    that did not modify the Nodes.
+    Though there is no clear wall time impact,
+    this significantly reduces the number of allocations,
+    so it seems worth doing.
     
-    This wasn't noticed earlier because I was developing on a Mac at the
-    time, which always uses cgo for DNS. When running other tests on
-    Linux, I started seeing UDP dials.
+    Passes toolstash -cmp.
     
-    Updates #12580
+    name       old alloc/op    new alloc/op    delta
+    Template      59.0MB ± 0%     58.6MB ± 0%   -0.81%        (p=0.000 n=25+25)
+    Unicode       41.4MB ± 0%     41.3MB ± 0%   -0.18%        (p=0.000 n=25+25)
+    GoTypes        198MB ± 0%      197MB ± 0%   -0.80%        (p=0.000 n=24+25)
+    Compiler       875MB ± 0%      865MB ± 0%   -1.09%        (p=0.000 n=25+25)
     
-    Change-Id: I2b2403f2483e227308fe008019f1100f6300250b
-    Reviewed-on: https://go-review.googlesource.com/23069
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    name       old allocs/op   new allocs/op   delta
+    Template        581k ± 0%       520k ± 0%  -10.42%        (p=0.000 n=25+25)
+    Unicode         413k ± 0%       403k ± 0%   -2.30%        (p=0.000 n=25+25)
+    GoTypes        1.78M ± 0%      1.58M ± 0%  -11.18%        (p=0.000 n=25+25)
+    Compiler       7.66M ± 0%      6.47M ± 0%  -15.51%        (p=0.000 n=25+25)
+    
+    Change-Id: I012a9f4b333821bdf61b4f2bdff4ce5c3b5d3057
+    Reviewed-on: https://go-review.googlesource.com/21056
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/nettrace/nettrace.go | 12 +++++++-----
- src/net/dial.go                   | 12 +++++++++++-
- src/net/http/transport_test.go    |  4 ++++
- 3 files changed, 22 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/syntax.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

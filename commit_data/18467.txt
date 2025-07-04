@@ -1,22 +1,73 @@
-commit 2ea859a7797472d6c7e401057d313c1d468a7a09
+commit 3c3be622011747f6db4b4cf81ed3a975dfca2b51
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Feb 12 22:24:29 2014 +0400
+Date:   Wed Feb 12 22:16:42 2014 +0400
 
-    runtime: refactor level-triggered IO support
-    Remove GOOS_solaris ifdef from netpoll code,
-    instead introduce runtime edge/level triggered IO flag.
-    Replace armread/armwrite with a single arm(mode) function,
-    that's how all other interfaces look like and these functions
-    will need to do roughly the same thing anyway.
+    runtime: concurrent GC sweep
+    Moves sweep phase out of stoptheworld by adding
+    background sweeper goroutine and lazy on-demand sweeping.
+    
+    It turned out to be somewhat trickier than I expected,
+    because there is no point in time when we know size of live heap
+    nor consistent number of mallocs and frees.
+    So everything related to next_gc, mprof, memstats, etc becomes trickier.
+    
+    At the end of GC next_gc is conservatively set to heap_alloc*GOGC,
+    which is much larger than real value. But after every sweep
+    next_gc is decremented by freed*GOGC. So when everything is swept
+    next_gc becomes what it should be.
+    
+    For mprof I had to introduce 3-generation scheme (allocs, revent_allocs, prev_allocs),
+    because by the end of GC we know number of frees for the *previous* GC.
+    
+    Significant caution is required to not cross yet-unknown real value of next_gc.
+    This is achieved by 2 means:
+    1. Whenever I allocate a span from MCentral, I sweep a span in that MCentral.
+    2. Whenever I allocate N pages from MHeap, I sweep until at least N pages are
+    returned to heap.
+    This provides quite strong guarantees that heap does not grow when it should now.
+    
+    http-1
+    allocated                    7036         7033      -0.04%
+    allocs                         60           60      +0.00%
+    cputime                     51050        46700      -8.52%
+    gc-pause-one             34060569      1777993     -94.78%
+    gc-pause-total               2554          133     -94.79%
+    latency-50                 178448       170926      -4.22%
+    latency-95                 284350       198294     -30.26%
+    latency-99                 345191       220652     -36.08%
+    rss                     101564416    101007360      -0.55%
+    sys-gc                    6606832      6541296      -0.99%
+    sys-heap                 88801280     87752704      -1.18%
+    sys-other                 7334208      7405928      +0.98%
+    sys-stack                  524288       524288      +0.00%
+    sys-total               103266608    102224216      -1.01%
+    time                        50339        46533      -7.56%
+    virtual-mem             292990976    293728256      +0.25%
+    
+    garbage-1
+    allocated                 2983818      2990889      +0.24%
+    allocs                      62880        62902      +0.03%
+    cputime                  16480000     16190000      -1.76%
+    gc-pause-one            828462467    487875135     -41.11%
+    gc-pause-total            4142312      2439375     -41.11%
+    rss                    1151709184   1153712128      +0.17%
+    sys-gc                   66068352     66068352      +0.00%
+    sys-heap               1039728640   1039728640      +0.00%
+    sys-other                37776064     40770176      +7.93%
+    sys-stack                 8781824      8781824      +0.00%
+    sys-total              1152354880   1155348992      +0.26%
+    time                     16496998     16199876      -1.80%
+    virtual-mem            1409564672   1402281984      -0.52%
     
     LGTM=rsc
-    R=golang-codereviews, dave, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/55500044
+    R=golang-codereviews, sameer, rsc, iant, jeremyjackins, gobot
+    CC=golang-codereviews, khr
+    https://golang.org/cl/46430043
 
- src/pkg/runtime/netpoll.goc       | 18 +++++-------------
- src/pkg/runtime/netpoll_epoll.c   |  7 +++++++
- src/pkg/runtime/netpoll_kqueue.c  |  7 +++++++
- src/pkg/runtime/netpoll_windows.c |  7 +++++++
- src/pkg/runtime/runtime.h         |  3 +--
- 5 files changed, 27 insertions(+), 15 deletions(-)
+ src/pkg/runtime/malloc.goc |   4 +
+ src/pkg/runtime/malloc.h   |  27 +++-
+ src/pkg/runtime/mcentral.c |  82 +++++++++---
+ src/pkg/runtime/mgc0.c     | 317 ++++++++++++++++++++++++++++++++++-----------
+ src/pkg/runtime/mheap.c    | 147 +++++++++++++++++++--
+ src/pkg/runtime/mprof.goc  |  47 +++++--
+ 6 files changed, 498 insertions(+), 126 deletions(-)

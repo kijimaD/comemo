@@ -1,17 +1,62 @@
-commit dfded57819dd9111afffc25360cd3e147859d354
-Author: Cheng-Lung Sung <clsung@gmail.com>
-Date:   Wed Apr 6 23:05:20 2016 +0800
+commit 3b3d58e1190f19e31bded9ab7166a736048bc24b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 25 21:01:16 2016 -0500
 
-    cmd/go: revise importPath when ImportPath is 'command-line-arguments'
+    runtime: remove workbuf logging
     
-    Fixes #14613
+    Early in Go 1.5 we had bugs with ownership of workbufs, so we added a
+    system for tracing their ownership to help debug these issues.
+    However, this system has both CPU and space overhead even when
+    disabled, it clutters up the workbuf API, the higher level gcWork
+    abstraction makes it very difficult to mess up the ownership of
+    workbufs in practice, and the tracing hasn't been enabled or needed
+    since 5b66e5d nine months ago. Hence, remove it.
     
-    Change-Id: I40d9696db3879549e78373ef17f6c92bd4b3470b
-    Reviewed-on: https://go-review.googlesource.com/21596
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Benchmarks show the usual noise from changes at this level, but little
+    overall movement.
+    
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  2.48ms ± 1%  2.47ms ± 0%  -0.68%  (p=0.000 n=21+21)
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.98s ± 7%     2.98s ± 6%    ~     (p=0.799 n=20+20)
+    Fannkuch11-12                2.61s ± 3%     2.55s ± 5%  -2.55%  (p=0.003 n=20+20)
+    FmtFprintfEmpty-12          52.8ns ± 6%    53.6ns ± 6%    ~     (p=0.228 n=20+20)
+    FmtFprintfString-12          177ns ± 4%     177ns ± 4%    ~     (p=0.280 n=20+20)
+    FmtFprintfInt-12             162ns ± 5%     162ns ± 3%    ~     (p=0.347 n=20+20)
+    FmtFprintfIntInt-12          277ns ± 7%     273ns ± 4%  -1.62%  (p=0.005 n=20+20)
+    FmtFprintfPrefixedInt-12     237ns ± 4%     242ns ± 4%  +2.13%  (p=0.005 n=20+20)
+    FmtFprintfFloat-12           315ns ± 4%     312ns ± 4%  -0.97%  (p=0.001 n=20+20)
+    FmtManyArgs-12              1.11µs ± 3%    1.15µs ± 4%  +3.41%  (p=0.004 n=20+20)
+    GobDecode-12                8.50ms ± 7%    8.53ms ± 7%    ~     (p=0.429 n=20+20)
+    GobEncode-12                6.86ms ± 9%    6.93ms ± 7%  +0.93%  (p=0.030 n=20+20)
+    Gzip-12                      326ms ± 4%     329ms ± 4%  +0.98%  (p=0.020 n=20+20)
+    Gunzip-12                   43.3ms ± 3%    43.8ms ± 9%  +1.25%  (p=0.003 n=20+20)
+    HTTPClientServer-12         72.0µs ± 3%    71.5µs ± 3%    ~     (p=0.053 n=20+20)
+    JSONEncode-12               17.0ms ± 6%    17.3ms ± 7%  +1.32%  (p=0.006 n=20+20)
+    JSONDecode-12               64.2ms ± 4%    63.5ms ± 3%  -1.05%  (p=0.005 n=20+20)
+    Mandelbrot200-12            4.00ms ± 3%    3.99ms ± 3%    ~     (p=0.121 n=20+20)
+    GoParse-12                  3.74ms ± 5%    3.75ms ± 9%    ~     (p=0.383 n=20+20)
+    RegexpMatchEasy0_32-12       104ns ± 4%     104ns ± 6%    ~     (p=0.392 n=20+20)
+    RegexpMatchEasy0_1K-12       358ns ± 3%     361ns ± 4%  +0.95%  (p=0.003 n=20+20)
+    RegexpMatchEasy1_32-12      86.3ns ± 5%    86.1ns ± 6%    ~     (p=0.614 n=20+20)
+    RegexpMatchEasy1_1K-12       523ns ± 4%     518ns ± 3%  -1.14%  (p=0.008 n=20+20)
+    RegexpMatchMedium_32-12      137ns ± 3%     134ns ± 4%  -1.90%  (p=0.005 n=20+20)
+    RegexpMatchMedium_1K-12     41.0µs ± 3%    40.6µs ± 4%  -1.11%  (p=0.004 n=20+20)
+    RegexpMatchHard_32-12       2.13µs ± 4%    2.11µs ± 5%  -1.31%  (p=0.014 n=20+20)
+    RegexpMatchHard_1K-12       64.1µs ± 3%    63.2µs ± 5%  -1.38%  (p=0.005 n=20+20)
+    Revcomp-12                   555ms ±10%     548ms ± 7%  -1.17%  (p=0.011 n=20+20)
+    Template-12                 84.2ms ± 5%    88.2ms ± 4%  +4.73%  (p=0.000 n=20+20)
+    TimeParse-12                 365ns ± 4%     371ns ± 5%  +1.77%  (p=0.002 n=20+20)
+    TimeFormat-12                361ns ± 4%     365ns ± 3%  +1.08%  (p=0.002 n=20+20)
+    [Geo mean]                  64.7µs         64.8µs       +0.19%
+    
+    Change-Id: Ib043a7a0d18b588b298873d60913d44cd19f3b44
+    Reviewed-on: https://go-review.googlesource.com/19887
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/go/pkg.go         | 10 ++++++++--
- src/cmd/go/vendor_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 2 deletions(-)
+ src/runtime/mgcwork.go | 105 ++++++++++++-------------------------------------
+ 1 file changed, 25 insertions(+), 80 deletions(-)

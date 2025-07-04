@@ -1,17 +1,19 @@
-commit 82f29898ea60e7d92001bf1e4c0d48bc1c8aed0d
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Fri Apr 17 23:06:49 2020 +0200
+commit cfb13126f3798bcb46b4f947aaa16929ab5c147f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 4 20:06:19 2019 -0800
 
-    cmd/compile: rewrite Wasm rules to use typed aux fields
+    runtime: sleep a bit when waiting for running debug call goroutine
     
-    Passes toolstash-check -all.
+    Without this CL, one of the TestDebugCall tests would fail 1% to 2% of
+    the time on the android-amd64-emu gomote. With this CL, I ran the
+    tests for 1000 iterations with no failures.
     
-    Change-Id: Ib731a59eadfffa81914848005b0f757649affa6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228819
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #32985
+    
+    Change-Id: I541268a2a0c10d0cd7604f0b2dbd15c1d18e5730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205248
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/Wasm.rules | 517 ++++++++--------
- src/cmd/compile/internal/ssa/rewriteWasm.go | 882 +++++++++++++++-------------
- 2 files changed, 742 insertions(+), 657 deletions(-)
+ src/runtime/export_debug_test.go | 1 +
+ 1 file changed, 1 insertion(+)

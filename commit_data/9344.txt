@@ -1,37 +1,12 @@
-commit 595e9d50344eb9afe878490296b19c5eac1b38b0
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Fri Aug 12 14:34:29 2011 +1000
+commit 1b13131c6bf7f3e26a38f5afbd1aa561cd77e317
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 12 14:31:12 2011 +1000
 
-    exp/template/html: New package with a toy template transformation.
+    CLA: Add Mike Samuel, Googler.
     
-    func Reverse(*Template) *Template
-    returns a template that produces the reverse of the original
-    for any input.
-    
-    Changes outside exp/template/html include:
-    - Adding a getter for a template's FuncMap so that derived templates
-      can inherit function definitions.
-    - Exported one node factory function, newIdentifier.
-      Deriving tempaltes requires constructing new nodes, but I didn't
-      export all of them because I think shallow copy functions might
-      be more useful for this kind of work.
-    - Bugfix: Template's Name() method ignores the name field so
-      template.New("foo") is a nil dereference instead of "foo".
-    
-    Caveats: Reverse is a toy.  It is not UTF-8 safe, and does not
-    preserve order of calls to funcs in FuncMap.
-    
-    For context, see http://groups.google.com/group/golang-nuts/browse_thread/thread/e8bc7c771aae3f20/b1ac41dc6f609b6e?lnk=gst
-    
-    R=rsc, r, nigeltao, r
-    CC=golang-dev
-    https://golang.org/cl/4808089
+    R=golang-dev, dsymonds
+    CC=golang-dev, mikesamuel
+    https://golang.org/cl/4875042
 
- src/pkg/Makefile                          |   1 +
- src/pkg/exp/template/html/Makefile        |  11 +++
- src/pkg/exp/template/html/reverse.go      | 134 ++++++++++++++++++++++++++++++
- src/pkg/exp/template/html/reverse_test.go |  48 +++++++++++
- src/pkg/exp/template/parse.go             |   2 +-
- src/pkg/exp/template/parse/node.go        |   7 +-
- src/pkg/exp/template/parse/parse.go       |   2 +-
- 7 files changed, 200 insertions(+), 5 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

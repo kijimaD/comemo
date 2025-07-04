@@ -1,54 +1,30 @@
-commit e491c6eea9ad599a0ae766a3217bd9a16ca3a25a
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed Jan 27 10:33:35 2021 -0500
+commit 8f4151ea67e1d498e0880f28d3fd803dc2c5448f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Sep 24 18:14:10 2019 +0100
 
-    math/big: fix comment in divRecursiveStep
+    encoding/xml: only initialize nil struct fields when decoding
     
-    There appears to be a typo in the description of
-    the recursive division algorithm.
+    fieldInfo.value used to initialize nil anonymous struct fields if they
+    were encountered. This behavior is wanted when decoding, but not when
+    encoding. When encoding, the value should never be modified, and these
+    nil fields should be skipped entirely.
     
-    Two things seem suspicious with the original comment:
-      1. It is talking about choosing s, but s doesn't
-         appear anywhere in the equation.
-      2. The math in the equation is incorrect.
+    To fix the bug, add a bool argument to the function which tells the
+    code whether we are encoding or decoding.
     
-    Where
-      B = len(v)/2
-      s = B - 1
+    Finally, add a couple of tests to cover the edge cases pointed out in
+    the original issue.
     
-    Proof that it is incorrect:
-        len(v) - B >= B + 1
-        len(v) - len(v)/2 >= len(v)/2 + 1
+    Fixes #27240.
     
-        This doesn't hold if len(v) is even, e.g. 10:
-        10 - 10/2 >= 10/2 + 1
-        10 - 5 >= 5 + 1
-        5 >= 6  // this is false
-    
-    The new equation will be the following,
-    which will be mathematically correct:
-        len(v) - s >= B + 1
-        len(v) - (len(v)/2 - 1) >= len(v)/2 + 1
-        len(v) - len(v)/2 + 1 >= len(v)/2 + 1
-        len(v) - len(v)/2 >= len(v)/2
-    
-        This holds if len(v) is even or odd.
-    
-        e.g. 10
-        10 - 10/2 >= 10/2
-        10 - 5 >= 5
-        5 >= 5
-    
-        e.g. 11
-        11 - 11/2 >= 11/2
-        11 - 5 >= 5
-        6 >= 5
-    
-    Change-Id: If77ce09286cf7038637b5dfd0fb7d4f828023f56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/287372
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
+    Change-Id: Ic97ae4bfe5f2062c8518e03d1dec07c3875e18f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196809
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/math/big/nat.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/xml/marshal.go      | 16 ++++++++++++----
+ src/encoding/xml/marshal_test.go | 17 +++++++++++++++++
+ src/encoding/xml/read.go         | 16 ++++++++--------
+ src/encoding/xml/typeinfo.go     | 16 +++++++++++++---
+ 4 files changed, 50 insertions(+), 15 deletions(-)

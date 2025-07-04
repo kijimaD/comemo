@@ -1,16 +1,36 @@
-commit 2edd351b92ca22581ffc75c9ff47c99bc9d9ea06
+commit b50fcc88e93eb41a64ff80d74aae36c531c5fe60
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 20 11:06:21 2020 -0700
+Date:   Tue Nov 5 16:05:09 2019 -0800
 
-    runtime: skip TestBigGOMAXPROCS if it runs out of memory
+    runtime: don't hold scheduler lock when calling timeSleepUntil
     
-    Fixes #38541
+    Otherwise, we can get into a deadlock: sysmon takes the scheduler lock
+    and calls timeSleepUntil which takes each P's timer lock. Simultaneously,
+    some P calls runtimer (holding the P's own timer lock) which wakes up
+    the scavenger, calling goready, calling wakep, calling startm, getting
+    the scheduler lock. Now the sysmon thread is holding the scheduler lock
+    and trying to get a P's timer lock, while some other thread running on
+    that P is holding the P's timer lock and trying to get the scheduler lock.
     
-    Change-Id: I0e9ea5865628d953c32f3a5d4b3ccf1c1d0b081e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229077
+    So change sysmon to call timeSleepUntil without holding the scheduler
+    lock, and change timeSleepUntil to use allpLock, which is only held for
+    limited periods of time and should never compete with timer locks.
+    
+    This hopefully
+    
+    Fixes #35375
+    
+    At least it should fix the linux-arm64-packet builder problems,
+    which occurred more reliably as that system has GOMAXPROCS == 96,
+    giving a lot more scope for this deadlock.
+    
+    Change-Id: I7a7917daf7a4882e0b27ca416e4f6300cfaaa774
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205558
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/proc_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/runtime/proc.go |  5 +++--
+ src/runtime/time.go | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

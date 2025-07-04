@@ -1,15 +1,34 @@
-commit 8ed95a942ce331e5581f3f58b1dc7673e2cc97bb
-Author: Austin Clements <austin@google.com>
-Date:   Fri Feb 13 17:30:16 2015 -0500
+commit bd275b238179cdaca2c01a0bf1ac60a16fbf5a98
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 8 14:36:39 2014 -0800
 
-    runtime: rename gcwork.go to mgcwork.go
+    math/big: multi-precision Floats (starting point)
     
-    All of the other memory-related source files start with "m".  Keep up
-    the tradition.
+    Implemented:
+    - +, -, *, /, and some unary ops
+    - all rounding modes
+    - basic conversions
+    - string to float conversion
+    - tests
     
-    Change-Id: Idd88fdbf2a1453374fa12109b949b1c4d149a4f8
-    Reviewed-on: https://go-review.googlesource.com/4853
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Missing:
+    - float to string conversion, formatting
+    - handling of +/-0 and +/-inf (under- and overflow)
+    - various TODOs and cleanups
+    
+    With precision set to 24 or 53, the results match
+    float32 or float64 operations exactly (excluding
+    NaNs and denormalized numbers which will not be
+    supported).
+    
+    Change-Id: I3121e90fc4b1528e40bb6ff526008da18b3c6520
+    Reviewed-on: https://go-review.googlesource.com/1218
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/{gcwork.go => mgcwork.go} | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/math/big/float.go      | 1086 ++++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/float_test.go |  772 +++++++++++++++++++++++++++++++
+ src/math/big/int.go        |   26 +-
+ src/math/big/nat.go        |   40 +-
+ src/math/big/nat_test.go   |   40 ++
+ src/math/big/rat.go        |  108 +++--
+ 6 files changed, 2028 insertions(+), 44 deletions(-)

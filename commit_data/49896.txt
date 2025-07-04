@@ -1,32 +1,26 @@
-commit e99f285d52627aa415f9c1766cbffe375b2f67d9
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Aug 9 19:30:47 2022 +0700
+commit 51ca5706ab2074a624f8a2590a2a81e6a5821e48
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 15 15:30:18 2021 -0700
 
-    cmd/compile: fix ICE when checking implicit dot for method call
+    [dev.fuzz] cmd/go: in 'go test' don't allow multiple packages with -fuzz
     
-    CL 414836 limited the check for implicit dot for method call enabled by
-    a type bound. However, the checking condition for ODOTMETH only is not
-    right. For example, for promoted method, we have a OXDOT node instead,
-    and we still have to check for implicit dot in this case.
+    Until we have a system for managing load across multiple fuzz targets
+    in multiple test executables, we'll only support fuzzing one target in
+    one package at a time. Users can still run multiple 'go test -fuzz'
+    commands concurrently, but this may overwhelm some systems unless
+    -parallel and -p are set carefully.
     
-    However, if the base type and embedded types have the same method name,
-    e.g in issue #53419, typecheck.AddImplicitDots will be confused and
-    result in an ambigus selector.
+    For #46312
     
-    To fix this, we ensure methods for the base type are computed, then only
-    do the implicit dot check if we can find a matched method.
-    
-    Fixes #54348
-    
-    Change-Id: Iefe84ff330830afe35c5daffd499824db108da23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422274
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If84c58d1b3e60498ce955eae5ad4d52100dbd4b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350156
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go |  6 ++++--
- test/fixedbugs/issue54348.go              | 22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/test/test.go                  |  3 ++
+ src/cmd/go/testdata/script/test_fuzz_match.txt    | 20 ---------
+ src/cmd/go/testdata/script/test_fuzz_multiple.txt | 51 +++++++++++++++++++++++
+ 3 files changed, 54 insertions(+), 20 deletions(-)

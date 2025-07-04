@@ -1,13 +1,12 @@
-commit 02b755081764bd1cc36e5e7af2d485f5bc9cabe3
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 26 11:05:06 2013 -0700
+commit a52855535a78ce3519c3d5a4dac99208f75a53d3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 26 09:37:17 2013 -0700
 
-    builtin: add linkable-to declarations for iota and nil
-    Aids godoc.
+    doc: fix typo in go 1.1 doc
     
-    R=golang-dev, gri, bradfitz
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7992044
+    https://golang.org/cl/7725049
 
- src/pkg/builtin/builtin.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ doc/go1.1.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

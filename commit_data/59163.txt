@@ -1,30 +1,24 @@
-commit ac8474c0a2f1428125bae63749e14e96d8690d38
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Mon Mar 17 14:48:01 2025 +0800
+commit 3374dad1d9529b6c2e58eb660117df388faf8d29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 8 15:13:11 2024 -0800
 
-    cmd/internal/obj/loong64: add [X]VMULW{EV/OD} series instructions support
+    go/types: generate builtins_test.go from types2 source
     
-    Go asm syntax:
-             VMULW{EV/OD}{HB/WH/VW/QV}[U]           VK, VJ, VD
-            XVMULW{EV/OD}{HB/WH/VW/QV}[U]           XK, XJ, XD
-             VMULW{EV/OD}{HBUB/WHUH/VWUW/QVUV}      VK, VJ, VD
-            XVMULW{EV/OD}{HBUB/WHUH/VWUW/QVUV}      XK, XJ, XD
+    Added new conversion functions to generate_test.go to handle the
+    translation of builtins_test.go.
     
-    Equivalent platform assembler syntax:
-             vmulw{ev/od}.{h.b/w.h/d.w/q.d}[u]              vd, vj, vk
-            xvmulw{ev/od}.{h.b/w.h/d.w/q.d}[u]              xd, xj, xk
-             vmulw{ev/od}.{h.bu.b/w.hu.h/d.wu.w/q.du.d}     vd, vj, vk
-            xvmulw{ev/od}.{h.bu.b/w.hu.h/d.wu.w/q.du.d}     xd, xj, xk
+    Simplify some existing code by using the renameMap mechanism.
     
-    Change-Id: Ib1b5fb9605417a2b81841deae40e0e2beb90d03c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658375
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 250 LOC.
+    
+    Change-Id: I1a455c1921512fb3647fd92ac7c278b1b80ea884
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562837
+    Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  52 +++++++++
- src/cmd/internal/obj/loong64/a.out.go           |  50 ++++++++
- src/cmd/internal/obj/loong64/anames.go          |  48 ++++++++
- src/cmd/internal/obj/loong64/asm.go             | 144 ++++++++++++++++++++++++
- 4 files changed, 294 insertions(+)
+ src/go/types/builtins_test.go |  6 ++-
+ src/go/types/generate_test.go | 85 +++++++++++++++++++++++++++++++------------
+ 2 files changed, 65 insertions(+), 26 deletions(-)

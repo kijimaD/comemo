@@ -1,14 +1,28 @@
-commit 7758abf3b609528eea2dbad647ddeac6301340ec
-Author: Adrian Hesketh <adrianhesketh@hushmail.com>
-Date:   Sat Sep 2 12:30:37 2017 +0100
+commit 380aa884b8b2935137eee266d0a44e9083fae71f
+Author: Matt Harden <matt.harden@gmail.com>
+Date:   Mon Feb 20 05:58:55 2017 -0800
 
-    time: add a number of new examples
+    net: allow Resolver to use a custom dialer
     
-    Change-Id: I14d19a3951fcae24e2c2ce2eb76312851e050fdd
-    Reviewed-on: https://go-review.googlesource.com/61033
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    In some cases it is desirable to customize the way the DNS server is
+    contacted, for instance to use a specific LocalAddr. While most
+    operating-system level resolvers do not allow this, we have the
+    opportunity to do so with the Go resolver. Most of the code was
+    already in place to allow tests to override the dialer. This exposes
+    that functionality, and as a side effect eliminates the need for a
+    testing hook.
+    
+    Fixes #17404
+    
+    Change-Id: I1c5e570f8edbcf630090f8ec6feb52e379e3e5c0
+    Reviewed-on: https://go-review.googlesource.com/37260
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/example_test.go | 159 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 159 insertions(+)
+ src/go/build/deps_test.go      |   2 +-
+ src/net/dnsclient_unix.go      |  44 +------
+ src/net/dnsclient_unix_test.go | 262 ++++++++++++++++++++++++++---------------
+ src/net/lookup.go              |   9 ++
+ src/net/lookup_unix.go         |  27 +++++
+ 5 files changed, 213 insertions(+), 131 deletions(-)

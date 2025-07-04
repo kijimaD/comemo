@@ -1,17 +1,19 @@
-commit fb96f07e1a45b9ec41158732a34aee8c2ccc2eaf
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Dec 23 17:12:44 2020 +0000
+commit 36c94f842143782819933224a03afc990d1371ce
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 8 17:49:06 2020 -0400
 
-    runtime: fix nStackRoots comment about stack roots
+    [dev.boringcrypto] crypto/internal/boring: reject short signatures in VerifyRSAPKCS1v15
     
-    A comment in mgcmark.go indicates that we scan stacks a second time but
-    we don't, at least not since changing to the hybrid write barrier.
+    This matches the new crypto/rsa behavior introduced in CL 226203.
     
-    Change-Id: I9376adbb6d8b6dd9dc3cee62e077b5dfb8a3fdde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279797
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Updates #21896
+    
+    Change-Id: If04eeff933d7310c2baa0f8fd26907892c2397fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227651
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/mgcmark.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/crypto/internal/boring/rsa.go | 12 ++----------
+ src/crypto/rsa/boring_test.go     | 12 +++++-------
+ 2 files changed, 7 insertions(+), 17 deletions(-)

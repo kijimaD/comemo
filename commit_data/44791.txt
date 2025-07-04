@@ -1,23 +1,19 @@
-commit 0e31de280f8593dcee2bedb120eb929503785abf
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Mar 24 11:02:46 2021 -0400
+commit 45e12e95e683d0720f8c93ba059a87b2b0e58e09
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Aug 28 12:10:31 2020 -0400
 
-    math/big: don't require runtime.(*Frame).Next symbol present
+    go/types: add tests for conversion of non-constant untyped values
     
-    I don't know why the test requires runtime.(*Frame).Next symbol
-    present in the binary under test. I assume it is just some
-    sanity check? With CL 268479 runtime.(*Frame).Next can be pruned
-    by the linker. Replace it with runtime.main which should always
-    be present.
+    This was fixed by CL 242084. Retroactively add some tests that would
+    have failed before the fix.
     
-    May fix the longtest builders.
+    Also, remove some existing duplicate tests.
     
-    Change-Id: Id3104c058b2786057ff58be41b1d35aeac2f3073
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304431
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I95f7a215d4a9651ded6d739f89c574f33f573c60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251397
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/big/link_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/testdata/shifts.src | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

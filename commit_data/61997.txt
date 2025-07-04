@@ -1,0 +1,32 @@
+commit b2aa18b96cefb48641ec69a79bc67d030b93f093
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 7 11:20:07 2025 -0500
+
+    cmd/internal/hash: stop using md5, sha1
+    
+    These break if the tools are run with GODEBUG=fips140=only,
+    which happens if someone sets that during 'go test' (and a test
+    binary must be built).
+    
+    The easiest fix is to make the tools compatible with this GODEBUG
+    by just using sha256 as the underlying hash always. Just in case,
+    I made the wrappers select different sections of the hash, but
+    none of the call sites really care.
+    
+    This CL is for the Go 1.24 release, but a follow-up during the Go 1.25
+    dev cycle could change all the usage sites to only use Sum32/New32.
+    
+    For #70514
+    Fixes #70878
+    
+    Change-Id: Id5fea779c83df51d1680dbe561e0949c56e8d1e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641096
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/internal/hash/hash.go   | 41 +++++++++++++++++++++++++++++------------
+ src/go/build/deps_test.go       |  2 +-
+ src/internal/pkgbits/encoder.go |  4 ++--
+ 3 files changed, 32 insertions(+), 15 deletions(-)

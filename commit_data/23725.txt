@@ -1,20 +1,27 @@
-commit adb1e030136f14ef8434930f15a04a74568a5948
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 15 17:02:06 2015 -0700
+commit b0532a96a850c6c93de2c414f5349562938f0f19
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jun 7 20:13:21 2015 -0400
 
-    net: RFC 6724 address selection
+    runtime: fix write-barrier-enabled phase list in gcmarkwb_m
     
-    At least the most important parts, I think.
+    Commit 1303957 was supposed to enable write barriers during the
+    concurrent scan phase, but it only enabled *calls* to the write
+    barrier during this phase. It failed to update the redundant list of
+    write-barrier-enabled phases in gcmarkwb_m, so it still wasn't greying
+    objects during the scan phase.
     
-    Fixes #10552
+    This commit fixes this by replacing the redundant list of phases in
+    gcmarkwb_m with simply checking writeBarrierEnabled. This is almost
+    certainly redundant with checks already done in callers, but the last
+    time we tried to remove these redundant checks everything got much
+    slower, so I'm leaving it alone for now.
     
-    Change-Id: I1a03c5405bdbef337e0245d226e9247d3d067393
-    Reviewed-on: https://go-review.googlesource.com/12246
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #11105.
+    
+    Change-Id: I00230a3cb80a008e749553a8ae901b409097e4be
+    Reviewed-on: https://go-review.googlesource.com/10801
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/addrselect.go      | 381 +++++++++++++++++++++++++++++++++++++++++++++
- src/net/addrselect_test.go | 218 ++++++++++++++++++++++++++
- src/net/dnsclient_unix.go  |   5 +-
- 3 files changed, 602 insertions(+), 2 deletions(-)
+ src/runtime/mbarrier.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

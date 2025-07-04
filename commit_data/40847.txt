@@ -1,18 +1,17 @@
-commit 39b44e88afc85bfcf18d49478ba914e1529e9527
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 19 13:36:39 2019 -0500
+commit 80f9d32438b85d03ea0310b67411e41619d4066b
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Jul 27 11:55:54 2019 -0700
 
-    cmd/go: make files copied from GOROOT writable in TestNewReleaseRebuildsStalePackagesInGOPATH
+    doc: mention that GOPATH/bin should be in PATH
     
-    The whole point of copying these files is so that we can modify them.
+    As noticed while mentoring at Gophercon, a common mistake for
+    beginners is that, after they install git-codereview, it's not
+    found by git because they haven't put GOPATH/bin in their
+    environment.
     
-    Updates #30316
-    
-    Change-Id: Iaba7ddec5159078f2c3d3451cbab363365b15c9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207963
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I885cee0f532a4069d1a17ea27365d54965ecca22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187818
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/go/go_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/contribute.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

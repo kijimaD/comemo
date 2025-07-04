@@ -1,15 +1,20 @@
-commit 946a4ea0e3a1bf2018a7345aef157cddf3919be5
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Thu Apr 21 10:23:11 2011 -0400
+commit a260de44e96edbd7e4e99e0c73ba2960460ffc25
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Thu Apr 21 10:23:03 2011 -0400
 
-    syscall: Madvise and Mprotect for Linux.
+    net: try /etc/hosts before loading DNS config.
     
-    R=rsc
+    On Mac X 10.6 /etc/resolv.conf is changed dynamically,
+    and may not exist at all when all network connections
+    are turned off, thus any lookup, even for "localhost"
+    would fail with "error reading DNS config: open
+    /etc/resolv.conf: no such file or directory". This
+    change avoids the error by trying to lookup addresses
+    in /etc/hosts before loading DNS config.
+    
+    R=golang-dev, rsc1, rsc
     CC=golang-dev
-    https://golang.org/cl/4369047
+    https://golang.org/cl/4431054
 
- src/pkg/syscall/syscall_linux.go        |  4 +++-
- src/pkg/syscall/zsyscall_linux_386.go   | 28 ++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_amd64.go | 28 ++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_arm.go   | 28 ++++++++++++++++++++++++++++
- 4 files changed, 87 insertions(+), 1 deletion(-)
+ src/pkg/net/dnsclient.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

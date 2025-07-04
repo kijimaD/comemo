@@ -1,20 +1,30 @@
-commit d093bf489b81310b2ce4a78e4a233868e961d0d8
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Oct 24 18:14:51 2015 +0200
+commit 0b46b42943ee9d7ad4e9a19772d22468718173c9
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 11 12:51:33 2015 -0700
 
-    runtime: handle abort note on Plan 9
+    [dev.ssa] cmd/compile/internal/ssa: New register allocator
     
-    Implement an abort note on Plan 9, as an
-    equivalent of the SIGABRT signal on other
-    operating systems.
+    Implement a global (whole function) register allocator.
+    This replaces the local (per basic block) register allocator.
     
-    Updates #11975.
+    Clobbering of registers by instructions is handled properly.
+    A separate change will add the correct clobbers to all the instructions.
     
-    Change-Id: I010c9b10f2fbd2471aacd1d073368d975a2f0592
-    Reviewed-on: https://go-review.googlesource.com/16300
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I38ce4dc7dccb8303c1c0e0295fe70247b0a3f2ea
+    Reviewed-on: https://go-review.googlesource.com/13622
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/runtime/signal_plan9.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go                 |   12 +-
+ .../compile/internal/gc/testdata/regalloc_ssa.go   |   57 ++
+ src/cmd/compile/internal/ssa/deadcode.go           |    8 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   34 +-
+ src/cmd/compile/internal/ssa/gen/main.go           |   42 +-
+ src/cmd/compile/internal/ssa/html.go               |    2 +-
+ src/cmd/compile/internal/ssa/op.go                 |    7 +-
+ src/cmd/compile/internal/ssa/opGen.go              |  909 ++++++++--------
+ src/cmd/compile/internal/ssa/regalloc.go           | 1081 ++++++++++++++------
+ src/cmd/compile/internal/ssa/stackalloc.go         |   18 +-
+ src/cmd/compile/internal/ssa/tighten.go            |    7 -
+ src/cmd/compile/internal/ssa/value.go              |    4 +-
+ 12 files changed, 1439 insertions(+), 742 deletions(-)

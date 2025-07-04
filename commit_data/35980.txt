@@ -1,26 +1,16 @@
-commit 28502b5023b6ddbecf24c68f225762054882ebf5
-Author: Johan Brandhorst <johan.brandhorst@gmail.com>
-Date:   Thu Jul 12 16:32:02 2018 +0000
+commit f0eca373beb94763b71dadcf6504a95a3797dcbb
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Mar 15 11:28:07 2018 -0400
 
-    net/http: correct use of byte slice in js syscall
+    cmd/trace: add /userspans, /userspan pages
     
-    syscall/js does not allow []byte to be used in direct inputs to
-    its JavaScript manipulation methods since
-    https://github.com/golang/go/commit/bafe466a9537d8ea5ac5767504628803302ebb12.
-    Unfortunately, this use of a byte slice was missed, so any
-    uses of the WASM Roundtripper with a body will panic.
-    This ensures the byte slice is appropriately converted
-    before being passed to syscall.
-    
-    Fixes #26349
-    
-    Change-Id: I83847645d71ce310c1eee3decddbac990fae166b
-    GitHub-Last-Rev: 3914bda2ff457deba4b76182a48d26ce8948b4cb
-    GitHub-Pull-Request: golang/go#26350
-    Reviewed-on: https://go-review.googlesource.com/123537
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifbefb659a8df3b079d69679871af444b179deaeb
+    Reviewed-on: https://go-review.googlesource.com/102599
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/net/http/roundtrip_js.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/trace/annotations.go | 243 +++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/trace/main.go        |   1 +
+ src/cmd/trace/trace.go       |   8 +-
+ 3 files changed, 240 insertions(+), 12 deletions(-)

@@ -1,22 +1,18 @@
-commit 7df0a002e64e92f35db5a70e64345651ad2cbf97
-Author: Baokun Lee <bk@golangcn.org>
-Date:   Sun May 1 14:32:02 2022 +0800
+commit 5ae200d5268aa8a2d56a0ba9885466c9b72e79b4
+Author: Watson Ladd <watson@cloudflare.com>
+Date:   Fri Aug 20 15:52:08 2021 -0700
 
-    cmd/go/internal/modfetch: cache latest revinfo in Versions func
+    [dev.boringcrypto] crypto/tls: permit P-521 in FIPS mode
     
-    The responses have been cached by the web2 package before removed
-    it in CL 170879. This change add latest revinfo cache in Versions
-    func.
+    While BoringCrypto has a certification for P-521, the go code disallows
+    certificates with it. This change permits those certificates to be used.
     
-    Fixes #51391
-    
-    Change-Id: I73597e0a6b4938238e69d85e1cbbaa9007776db3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403335
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Lee Baokun <bk@golangcn.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I451c91a845f22ff0e4c3e922eaf8bf82466e80ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343880
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modfetch/proxy.go | 34 ++++++++++++++++++++++++++--------
- 1 file changed, 26 insertions(+), 8 deletions(-)
+ src/crypto/tls/boring.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

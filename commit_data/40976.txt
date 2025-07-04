@@ -1,14 +1,19 @@
-commit 84540f0b0acb4bb4c488b138345197c3e537d837
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Dec 10 16:21:56 2019 +0100
+commit a8c2e5c6adc0d8f9b976a55bf4e22fcf5770ea55
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 27 17:36:07 2019 -0400
 
-    cmd/compile/internal/logopt: gofmt
+    crypto/tls: remove TLS 1.3 opt-out
     
-    Change-Id: Ie9d29645e7702104202ee1f338babdd9e33e1e58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210679
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #30055
+    
+    Change-Id: If757c43b52fc7bf62b0afb1c720615329fb5569d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191999
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/logopt/log_opts.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/crypto/tls/common.go         | 43 --------------------------------
+ src/crypto/tls/handshake_test.go |  1 -
+ src/crypto/tls/tls.go            |  4 ---
+ src/crypto/tls/tls_test.go       | 54 ----------------------------------------
+ 4 files changed, 102 deletions(-)

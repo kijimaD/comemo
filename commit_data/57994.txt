@@ -1,111 +1,21 @@
-commit fd050b3c6d0294b6d72adb014ec14b3e6bf4ad60
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Fri Oct 11 15:31:18 2024 -0700
+commit 1fde99cd6eff725f5cc13748a43b4aef3de557c8
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Sep 14 18:43:14 2023 +0000
 
-    runtime: unify lock2, allow deeper sleep
+    net: use bytealg.LastIndexByteString
     
-    The tri-state mutex implementation (unlocked, locked, sleeping) avoids
-    sleep/wake syscalls when contention is low or absent, but its
-    performance degrades when many threads are contending for a mutex to
-    execute a fast critical section.
+    There is no need to handwrite the "last" function, the bytealg package already provides "LastIndexByteString".
     
-    A fast critical section means frequent unlock2 calls. Each of those
-    finds the mutex in the "sleeping" state and so wakes a sleeping thread,
-    even if many other threads are already awake and in the spin loop of
-    lock2 attempting to acquire the mutex for themselves. Many spinning
-    threads means wasting energy and CPU time that could be used by other
-    processes on the machine. Many threads all spinning on the same cache
-    line leads to performance collapse.
-    
-    Merge the futex- and semaphore-based mutex implementations by using a
-    semaphore abstraction for futex platforms. Then, add a bit to the mutex
-    state word that communicates whether one of the waiting threads is awake
-    and spinning. When threads in lock2 see the new "spinning" bit, they can
-    sleep immediately. In unlock2, the "spinning" bit means we can save a
-    syscall and not wake a sleeping thread.
-    
-    This brings up the real possibility of starvation: waiting threads are
-    able to enter a deeper sleep than before, since one of their peers can
-    volunteer to be the sole "spinning" thread and thus cause unlock2 to
-    skip the semawakeup call. Additionally, the waiting threads form a LIFO
-    stack so any wakeups that do occur will target threads that have gone to
-    sleep most recently. Counteract those effects by periodically waking the
-    thread at the bottom of the stack and allowing it to spin.
-    
-    Exempt sched.lock from most of the new behaviors; it's often used by
-    several threads in sequence to do thread-specific work, so low-latency
-    handoff is a priority over improved throughput.
-    
-    Gate use of this implementation behind GOEXPERIMENT=spinbitmutex, so
-    it's easy to disable. Enable it by default on supported platforms (the
-    most efficient implementation requires atomic.Xchg8).
-    
-    Fixes #68578
-    
-        goos: linux
-        goarch: amd64
-        pkg: runtime
-        cpu: 13th Gen Intel(R) Core(TM) i7-13700H
-                                    │      old       │                 new                  │
-                                    │     sec/op     │    sec/op     vs base                │
-        MutexContention                 17.82n ±   0%   17.74n ±  0%   -0.42% (p=0.000 n=10)
-        MutexContention-2               22.17n ±   9%   19.85n ± 12%        ~ (p=0.089 n=10)
-        MutexContention-3               26.14n ±  14%   20.81n ± 13%  -20.41% (p=0.000 n=10)
-        MutexContention-4               29.28n ±   8%   21.19n ± 10%  -27.62% (p=0.000 n=10)
-        MutexContention-5               31.79n ±   2%   21.98n ± 10%  -30.83% (p=0.000 n=10)
-        MutexContention-6               34.63n ±   1%   22.58n ±  5%  -34.79% (p=0.000 n=10)
-        MutexContention-7               44.16n ±   2%   23.14n ±  7%  -47.59% (p=0.000 n=10)
-        MutexContention-8               53.81n ±   3%   23.66n ±  6%  -56.04% (p=0.000 n=10)
-        MutexContention-9               65.58n ±   4%   23.91n ±  9%  -63.54% (p=0.000 n=10)
-        MutexContention-10              77.35n ±   3%   26.06n ±  9%  -66.31% (p=0.000 n=10)
-        MutexContention-11              89.62n ±   1%   25.56n ±  9%  -71.47% (p=0.000 n=10)
-        MutexContention-12             102.45n ±   2%   25.57n ±  7%  -75.04% (p=0.000 n=10)
-        MutexContention-13             111.95n ±   1%   24.59n ±  8%  -78.04% (p=0.000 n=10)
-        MutexContention-14             123.95n ±   3%   24.42n ±  6%  -80.30% (p=0.000 n=10)
-        MutexContention-15             120.80n ±  10%   25.54n ±  6%  -78.86% (p=0.000 n=10)
-        MutexContention-16             128.10n ±  25%   26.95n ±  4%  -78.96% (p=0.000 n=10)
-        MutexContention-17             139.80n ±  18%   24.96n ±  5%  -82.14% (p=0.000 n=10)
-        MutexContention-18             141.35n ±   7%   25.05n ±  8%  -82.27% (p=0.000 n=10)
-        MutexContention-19             151.35n ±  18%   25.72n ±  6%  -83.00% (p=0.000 n=10)
-        MutexContention-20             153.30n ±  20%   24.75n ±  6%  -83.85% (p=0.000 n=10)
-        MutexHandoff/Solo-20            13.54n ±   1%   13.61n ±  4%        ~ (p=0.206 n=10)
-        MutexHandoff/FastPingPong-20    141.3n ± 209%   164.8n ± 49%        ~ (p=0.436 n=10)
-        MutexHandoff/SlowPingPong-20    1.572µ ±  16%   1.804µ ± 19%  +14.76% (p=0.015 n=10)
-        geomean                         74.34n          30.26n        -59.30%
-    
-        goos: darwin
-        goarch: arm64
-        pkg: runtime
-        cpu: Apple M1
-                                    │     old      │                 new                  │
-                                    │    sec/op    │    sec/op     vs base                │
-        MutexContention               13.86n ±  3%   12.09n ±  3%  -12.73% (p=0.000 n=10)
-        MutexContention-2             15.88n ±  1%   16.50n ±  2%   +3.94% (p=0.001 n=10)
-        MutexContention-3             18.45n ±  2%   16.88n ±  2%   -8.54% (p=0.000 n=10)
-        MutexContention-4             20.01n ±  2%   18.94n ± 18%        ~ (p=0.469 n=10)
-        MutexContention-5             22.60n ±  1%   17.51n ±  9%  -22.50% (p=0.000 n=10)
-        MutexContention-6             23.93n ±  2%   17.35n ±  2%  -27.48% (p=0.000 n=10)
-        MutexContention-7             24.69n ±  1%   17.15n ±  3%  -30.54% (p=0.000 n=10)
-        MutexContention-8             25.01n ±  1%   17.33n ±  2%  -30.69% (p=0.000 n=10)
-        MutexHandoff/Solo-8           13.96n ±  4%   12.04n ±  4%  -13.78% (p=0.000 n=10)
-        MutexHandoff/FastPingPong-8   68.89n ±  4%   64.62n ±  2%   -6.20% (p=0.000 n=10)
-        MutexHandoff/SlowPingPong-8   9.698µ ± 22%   9.646µ ± 35%        ~ (p=0.912 n=10)
-        geomean                       38.20n         32.53n        -14.84%
-    
-    Change-Id: I0058c75eadf282d08eea7fce0d426f0518039f7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620435
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6000705bffe8450a10cf8f3fa716a8d4605ada1f
+    GitHub-Last-Rev: 6627c65fb40fad96239edd28bde27a30f9f8f544
+    GitHub-Pull-Request: golang/go#62647
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527976
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/internal/buildcfg/exp.go       |   7 +
- src/runtime/lock_futex_tristate.go |   2 +
- src/runtime/lock_js.go             |   2 +
- src/runtime/lock_sema.go           |   4 +
- src/runtime/lock_sema_tristate.go  |   8 +-
- src/runtime/lock_spinbit.go        | 369 +++++++++++++++++++++++++++++++++++++
- src/runtime/lock_wasip1.go         |   2 +
- src/runtime/proc.go                |   2 +
- src/runtime/runtime2.go            |   7 +
- 9 files changed, 399 insertions(+), 4 deletions(-)
+ src/net/dial.go   |  3 ++-
+ src/net/ipsock.go |  4 ++--
+ src/net/parse.go  | 11 -----------
+ 3 files changed, 4 insertions(+), 14 deletions(-)

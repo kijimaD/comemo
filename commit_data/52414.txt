@@ -1,64 +1,89 @@
-commit a0c9d153e0c177677701b8a4e6e5eba5a6c44a4f
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Jan 17 19:15:39 2023 -0500
+commit 129dcb7226678d8ccd06c016de3fcfcc43b9aa9c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Mar 21 21:27:06 2022 +0000
 
-    runtime: don't inject a sigpanic if not on user G stack
+    runtime: check the heap goal and trigger dynamically
     
-    If a panicking signal (e.g. SIGSEGV) happens on a g0 stack, we're
-    either in the runtime or running C code. Either way we cannot
-    recover and sigpanic will immediately throw. Further, injecting a
-    sigpanic could make the C stack unwinder and the debugger fail to
-    unwind the stack. So don't inject a sigpanic.
+    As it stands, the heap goal and the trigger are set once by
+    gcController.commit, and then read out of gcController. However with the
+    coming memory limit we need the GC to be able to respond to changes in
+    non-heap memory. The simplest way of achieving this is to compute the
+    heap goal and its associated trigger dynamically.
     
-    If we have cgo traceback and symbolizer attached, if it panics in
-    a C function ("CF" for the example below), previously it shows
-    something like
+    In order to make this easier to implement, the GC trigger is now based
+    on the heap goal, as opposed to the status quo of computing both
+    simultaneously. In many cases we just want the heap goal anyway, not
+    both, but we definitely need the goal to compute the trigger, because
+    the trigger's bounds are entirely based on the goal (the initial runway
+    is not). A consequence of this is that we can't rely on the trigger to
+    enforce a minimum heap size anymore, and we need to lift that up
+    directly to the goal. Specifically, we need to lift up any part of the
+    calculation that *could* put the trigger ahead of the goal. Luckily this
+    is just the heap minimum and minimum sweep distance. In the first case,
+    the pacer may behave slightly differently, as the heap minimum is no
+    longer the minimum trigger, but the actual minimum heap goal. In the
+    second case it should be the same, as we ensure the additional runway
+    for sweeping is added to both the goal *and* the trigger, as before, by
+    computing that in gcControllerState.commit.
     
-            fatal error: unexpected signal during runtime execution
-            [signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x45f1ef]
+    There's also another place we update the heap goal: if a GC starts and
+    we triggered beyond the goal, we always ensure there's some runway.
+    That calculation uses the current trigger, which violates the rule of
+    keeping the goal based on the trigger. Notice, however, that using the
+    precomputed trigger for this isn't even quite correct: due to a bug, or
+    something else, we might trigger a GC beyond the precomputed trigger.
     
-            runtime stack:
-            runtime.throw({0x485460?, 0x0?})
-                    .../runtime/panic.go:1076 +0x5c fp=0x7ffd77f60f58 sp=0x7ffd77f60f28 pc=0x42e39c
-            runtime.sigpanic()
-                    .../runtime/signal_unix.go:821 +0x3e9 fp=0x7ffd77f60fb8 sp=0x7ffd77f60f58 pc=0x442229
+    So this change also adds a "triggered" field to gcControllerState that
+    tracks the point at which a GC actually triggered. This is independent
+    of the precomputed trigger, so it's fine for the heap goal calculation
+    to rely on it. It also turns out, there's more than just that one place
+    where we really should be using the actual trigger point, so this change
+    fixes those up too.
     
-            goroutine 1 [syscall]:
-            CF
-                    /tmp/pp/c.c:6 pc=0x45f1ef
-            runtime.asmcgocall
-                    .../runtime/asm_amd64.s:869 pc=0x458007
-            runtime.cgocall(0x45f1d0, 0xc000053f70)
-                    .../runtime/cgocall.go:158 +0x51 fp=0xc000053f48 sp=0xc000053f10 pc=0x404551
-            main._Cfunc_CF()
-                    _cgo_gotypes.go:39 +0x3f fp=0xc000053f70 sp=0xc000053f48 pc=0x45f0bf
+    Also, because the heap minimum is set by the goal and not the trigger,
+    the maximum trigger calculation now happens *after* the goal is set, so
+    the maximum trigger actually does what I originally intended (and what
+    the comment says): at small heaps, the pacer picks 95% of the runway as
+    the maximum trigger. Currently, the pacer picks a small trigger based
+    on a not-yet-rounded-up heap goal, so the trigger gets rounded up to the
+    goal, and as per the "ensure there's some runway" check, the runway ends
+    up at always being 64 KiB. That check is supposed to be for exceptional
+    circumstances, not the status quo. There's a test introduced in the last
+    CL that needs to be updated to accomodate this slight change in
+    behavior.
     
-    Now it shows
+    So, this all sounds like a lot that changed, but what we're talking about
+    here are really, really tight corner cases that arise from situations
+    outside of our control, like pathologically bad behavior on the part of
+    an OS or CPU. Even in these corner cases, it's very unlikely that users
+    will notice any difference at all. What's more important, I think, is
+    that the pacer behaves more closely to what all the comments describe,
+    and what the original intent was.
     
-            SIGSEGV: segmentation violation
-            PC=0x45f1ef m=0 sigcode=1
-            signal arrived during cgo execution
+    Another note: at first, one might think that computing the heap goal and
+    trigger dynamically introduces some raciness, but not in this CL: the heap
+    goal and trigger are completely static.
     
-            goroutine 1 [syscall]:
-            CF
-                    /tmp/pp/c.c:6 pc=0x45f1ef
-            runtime.asmcgocall
-                    .../runtime/asm_amd64.s:869 pc=0x458007
-            runtime.cgocall(0x45f1d0, 0xc00004ef70)
-                    .../runtime/cgocall.go:158 +0x51 fp=0xc00004ef48 sp=0xc00004ef10 pc=0x404551
-            main._Cfunc_CF()
-                    _cgo_gotypes.go:39 +0x3f fp=0xc00004ef70 sp=0xc00004ef48 pc=0x45f0bf
+    Allocation outside of a GC cycle may now be a bit slower than before, as
+    the GC trigger check is now significantly more complex. However, note
+    that this executes basically just as often as gcController.revise, and
+    that makes up for a vanishingly small part of any CPU profile. The next
+    CL cleans up the floating point multiplications on this path
+    nonetheless, just to be safe.
     
-    I think the new one is reasonable.
+    For #48409.
     
-    For #57698.
-    
-    Change-Id: I4f7af91761374e9b569dce4c7587499d4799137e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462437
+    Change-Id: I280f5ad607a86756d33fb8449ad08555cbee93f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397014
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/crash_cgo_test.go | 10 ++++++++--
- src/runtime/signal_unix.go    |  6 +++++-
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/runtime/export_test.go   |  13 +-
+ src/runtime/metrics.go       |   2 +-
+ src/runtime/mgc.go           |  17 ++-
+ src/runtime/mgcpacer.go      | 302 ++++++++++++++++++++++++++++---------------
+ src/runtime/mgcpacer_test.go |  10 +-
+ src/runtime/mstats.go        |   4 +-
+ src/runtime/trace.go         |   6 +-
+ 7 files changed, 223 insertions(+), 131 deletions(-)

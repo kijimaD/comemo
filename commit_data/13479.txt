@@ -1,18 +1,19 @@
-commit dfd7f18130e538c53a2974988caecacd53d473f1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 18 13:48:39 2012 -0700
+commit f49b7b0acfad77e051df0e91a6784a3c0808d118
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 16 14:03:11 2012 -0700
 
-    net/http: revert back to (and test) Go 1 CheckRedirect behavior
+    cmd/vet: provide flags to control which tests to run
+    By default, all are still run, but a particular test can be
+    selected with the new flags.
     
-    If a Client's CheckRedirect function returns an error, we
-    again return both a non-nil *Response and a non-nil error.
-    
-    Fixes #3795
-    
-    R=golang-dev, n13m3y3r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6429044
+    https://golang.org/cl/6395053
 
- src/pkg/net/http/client.go      | 29 ++++++++++++++++++++---------
- src/pkg/net/http/client_test.go |  6 ++++++
- 2 files changed, 26 insertions(+), 9 deletions(-)
+ src/cmd/vet/doc.go       | 16 ++++++++++++----
+ src/cmd/vet/main.go      | 14 ++++++++++++++
+ src/cmd/vet/method.go    | 10 ++++++++++
+ src/cmd/vet/print.go     | 14 +++-----------
+ src/cmd/vet/structtag.go |  7 +++++++
+ src/cmd/vet/taglit.go    |  7 +++++++
+ 6 files changed, 53 insertions(+), 15 deletions(-)

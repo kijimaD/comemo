@@ -1,16 +1,29 @@
-commit 827248484004300c52162d55dfa05083862062ed
-Author: Kevin Zita <bleedgreenandgold@gmail.com>
-Date:   Fri Aug 3 18:08:09 2018 +0000
+commit cb44c8debb3c3b0157b569bc30367b21e7e3cded
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu Apr 12 20:54:36 2018 +0300
 
-    strings: revise ToUpperSpecial and ToLowerSpecial wording
+    cmd/compile/internal/ssa: add Op{SP,SB} type checks to check.go
     
-    Fixes #26654
+    gc/ssa.go initilizes SP and SB values with TUINTPTR type.
+    Assign same type in SSA tests and modify check.go to catch
+    mismatching types for those ops.
     
-    Change-Id: I4832c45cad40607b83e1a8a9b562fa12e639b7d9
-    GitHub-Last-Rev: c9ceedb7d4b4c01f91ea4fe3dc3496e73eed9120
-    GitHub-Pull-Request: golang/go#26781
-    Reviewed-on: https://go-review.googlesource.com/127716
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This makes SSA tests more consistent.
+    
+    Change-Id: I798440d57d00fb949d1a0cd796759c9b82a934bd
+    Reviewed-on: https://go-review.googlesource.com/106658
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/strings/strings.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/branchelim_test.go   |  6 +++---
+ src/cmd/compile/internal/ssa/check.go             | 11 ++++++++++-
+ src/cmd/compile/internal/ssa/cse_test.go          |  8 ++++----
+ src/cmd/compile/internal/ssa/deadstore_test.go    |  8 ++++----
+ src/cmd/compile/internal/ssa/fuse_test.go         |  8 ++++----
+ src/cmd/compile/internal/ssa/loop_test.go         |  2 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go     | 22 +++++++++++-----------
+ src/cmd/compile/internal/ssa/passbm_test.go       |  2 +-
+ src/cmd/compile/internal/ssa/shift_test.go        |  4 ++--
+ src/cmd/compile/internal/ssa/writebarrier_test.go |  8 ++++----
+ 10 files changed, 44 insertions(+), 35 deletions(-)

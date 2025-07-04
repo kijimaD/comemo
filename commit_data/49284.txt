@@ -1,15 +1,27 @@
-commit a1ceacedd8efb49c66ef9d0ec60ca2c9ee726f07
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu May 19 10:00:18 2022 +0200
+commit 9bd1817e417e9f07c6b3aba0189576bbf06f1592
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 5 18:14:28 2021 -0700
 
-    net/netip: fix receiver name in Addr.{has,without}Zone comments
+    [dev.typeparams] cmd/compile/internal/types2: limit termlist lengths
     
-    Change-Id: I851900cb52abfe75224a9dd9b9760eafd2cfc85f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407175
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    At the moment, operations on termlists are O(n^2).
+    This is fine for normal-sized unions, but overlong
+    termlist lenghts will lead to excessive type checking
+    times.
+    
+    Limit the length of termlists to avoid "compilations
+    that don't finish".
+    
+    Change-Id: I39a7fc61b01c9db06faeb49a0e014b1ede532710
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340254
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/netip/netip.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/interface.go       |  2 +-
+ .../internal/types2/testdata/check/unions.go2      | 66 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go         | 27 ++++++++-
+ src/cmd/compile/internal/types2/typeset_test.go    | 15 +++++
+ src/cmd/compile/internal/types2/union.go           | 12 +++-
+ 5 files changed, 117 insertions(+), 5 deletions(-)

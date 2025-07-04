@@ -1,24 +1,27 @@
-commit 70e022e4a83dc996ac4f108e811fbc399ad5565b
-Author: Christopher Hlubek <christopher.hlubek@networkteam.com>
-Date:   Mon Oct 26 13:44:44 2020 +0100
+commit 14cf804aa047cfdb7be90098d53030773fc1424d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 10 19:13:01 2020 -0400
 
-    time: fix LoadLocationFromTZData with slim tzdata
+    [dev.link] cmd/link: stop populating lib/unit.Textp
     
-    The extend information of a time zone file with last transition < now
-    could result in a wrong cached zone because it used the zone of the
-    last transition.
+    lib.Textp was used for text address assignment and trampoline
+    insertion. Now that it has been converted to using the loader,
+    no need to populate lib.Textp.
     
-    This could lead to wrong zones in systems with slim zoneinfo.
+    Port the logic of canonicalizing dupok symbol's package to the
+    loader.
     
-    Fixes #42216
+    unit.Textp was used for DWARF generation, which has also been
+    converted to using the loader.
     
-    Change-Id: I7c57c35b5cfa58482ac7925b5d86618c52f5444d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264939
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I22d4dd30a52a29dd5b1b7b795d43a19f6215e4ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228140
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/time/zoneinfo_read.go | 13 +++++++++++--
- src/time/zoneinfo_test.go | 19 +++++++++++++++++++
- 2 files changed, 30 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/data.go       |  2 +-
+ src/cmd/link/internal/ld/deadcode.go   | 40 ++------------------------------
+ src/cmd/link/internal/loader/loader.go | 42 ++++++++++++----------------------
+ src/cmd/link/internal/sym/library.go   |  2 --
+ 4 files changed, 17 insertions(+), 69 deletions(-)

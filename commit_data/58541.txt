@@ -1,24 +1,20 @@
-commit b9872221cd024bae5239c001b351a84d32db7bf7
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jan 27 14:21:43 2025 +0100
+commit 1f38fd578be6893c92b3b0d1b9f5ea1f938d52d7
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Nov 14 13:47:44 2023 +0000
 
-    crypto/internal/fips140/rsa: avoid CAST unsetting the service indicator
+    internal/zstd: s/thees/these/
     
-    Without fipsApproved set, when the CAST runs it sets the service
-    indicator to false for the whole span.
-    
-    This is a very late Go 1.24 change, but it is necessary for the frozen
-    FIPS module, and doesn't impact anything else than the FIPS status
-    indicator value.
-    
-    Change-Id: I6a6a46567818135158c3c252b5480431a190572b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644636
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: I0e3dc4aadb7e8082c26653979a5e6caf5172f9df
+    GitHub-Last-Rev: 000a903ab5d529cf434366fe6d3155221a3e250d
+    GitHub-Pull-Request: golang/go#64117
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542195
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/internal/fips140/rsa/cast.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/internal/zstd/fse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

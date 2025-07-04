@@ -1,18 +1,17 @@
-commit 3c4be235be8dcd124fe8d536af3e422729a85785
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Jan 28 12:28:59 2015 -0600
+commit a73c1cef070a33527c869d36a763ea265f689fe3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 22 22:42:05 2014 -0500
 
-    runtime: Add memprofrate value to GODEBUG
+    runtime: add missing write barriers in append's copy of slice data
     
-    Add memprofrate as a value recognized in GODEBUG.  The
-    value provided is used as the new setting for
-    runtime.MemProfileRate, allowing the user to
-    adjust memory profiling.
+    Found with GODEBUG=wbshadow=1 mode.
+    Eventually that will run automatically, but right now
+    it still detects other missing write barriers.
     
-    Change-Id: If129a247683263b11e2dd42473cf9b31280543d5
-    Reviewed-on: https://go-review.googlesource.com/3450
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic8624401d7c8225a935f719f96f2675c6f5c0d7c
+    Reviewed-on: https://go-review.googlesource.com/2064
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/extern.go   |  4 ++++
- src/runtime/runtime1.go | 19 +++++++++++++++----
- 2 files changed, 19 insertions(+), 4 deletions(-)
+ src/runtime/slice.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

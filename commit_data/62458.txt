@@ -1,0 +1,32 @@
+commit 37026a7c563c580bef0fac1e5b60e9498650e3a2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Feb 28 16:57:44 2025 -0500
+
+    cmd/go: skip some tests that run builds in short mode
+    
+    cmd/go tests that run builds are generally skipped in short mode. This
+    change will adds skips for some tests that were running builds.
+    
+    I found these by sorting tests by elapsed time and removing the top
+    tests that invoked go build. It's our practice to skip tests that run go
+    build without the -n flag (which prints but doesn't execute commands).
+    
+    On my work laptop this reduces test run time from about 20 seconds to
+    about 16 seconds. On my linux workstation it reduces test run time from
+    about 10 seconds to about 5 seconds.
+    
+    Change-Id: I18ffcc231df013cb6ac5f5eb3544bed28dadeda8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653775
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/go_test.go                          | 2 ++
+ src/cmd/go/note_test.go                        | 2 ++
+ src/cmd/go/testdata/script/build_GOTMPDIR.txt  | 2 ++
+ src/cmd/go/testdata/script/cgo_path.txt        | 2 ++
+ src/cmd/go/testdata/script/clean_cache_n.txt   | 2 ++
+ src/cmd/go/testdata/script/goauth_userauth.txt | 2 ++
+ src/cmd/go/testdata/script/test_skip.txt       | 2 ++
+ src/cmd/go/testdata/script/vet_flags.txt       | 2 ++
+ src/cmd/go/testdata/script/work.txt            | 2 ++
+ 9 files changed, 18 insertions(+)

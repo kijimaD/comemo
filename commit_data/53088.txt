@@ -1,26 +1,24 @@
-commit f0de4b4f03cdde77305b7ae14bd960130a855182
-Author: Patryk Chelmecki <pat.chelmecki@gmail.com>
-Date:   Wed May 17 20:48:28 2023 +0000
+commit c1a4e0fe014568501b194eb8b04309f54eee6b4c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 8 14:52:23 2022 -0700
 
-    crypto/x509: fix certificate validation with FQDN on Windows
+    cmd/compile: fix libfuzzer instrumentation line number
     
-    Currently certificate verification on Windows fails if the provided dns name ends with a dot (which means it is a Fully Qualified Domain Name). The certificates according to RFC 6066 (https://www.rfc-editor.org/rfc/rfc6066#section-3) do not contain that ending dot. Go uses CertVerifyCertificateChainPolicy Windows system call with CERT_CHAIN_POLICY_SSL option for verification of the certificates. That call fails if the specified domain name contains the dot at the end.
+    Set a reasonable starting line number before processing the body of
+    the function in the order pass.
     
-    Examples of other open source codebases that use the same system call and trim the trailing dot before executing it:
-    MongoDb - https://github.com/mongodb/mongo/blob/master/src/mongo/util/net/ssl_manager_windows.cpp#L1777
-    Dot Net - https://github.com/dotnet/runtime/blob/v7.0.5/src/libraries/System.Net.Security/src/System/Net/Security/SslAuthenticationOptions.cs#L52
+    We update base.Pos each time we process a node, but some of the
+    libfuzzer instrumentation is added before we process any node, so the
+    base.Pos used is junk.
     
-    Change-Id: I5db558eb277cf00f5401ec0ffc96c935023ad100
-    GitHub-Last-Rev: cc69ab9be35f79a93279bd618912a3fd6aaa9f88
-    GitHub-Pull-Request: golang/go#59846
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489135
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Fixes #53688
+    
+    Change-Id: I3654b805eabb8866a9a1574845ef4ff062797319
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416654
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Patryk Chełmecki <patchelmecki@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
 
- src/crypto/x509/root_windows.go      |  3 ++-
- src/crypto/x509/root_windows_test.go | 10 ++++++++++
- src/crypto/x509/verify_test.go       | 12 ++++++++++++
- 3 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/order.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

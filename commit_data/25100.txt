@@ -1,21 +1,20 @@
-commit 7c20ea9311784123b72d9e45c0a29ab5cf838a3c
-Author: David Benjamin <davidben@google.com>
-Date:   Tue Nov 17 23:24:36 2015 -0500
+commit 8560ead38a78ba9d8e3c482014654023881753e3
+Author: Francisco Claude <fclaude@recoded.cl>
+Date:   Wed Sep 16 12:56:06 2015 -0300
 
-    encoding/asn1: Reject invalid INTEGERs.
+    multipart: fixes problem parsing mime/multipart of certain lengths
     
-    The empty string is not a valid DER integer. DER also requires that values be
-    minimally-encoded, so excess padding with leading 0s (0xff for negative
-    numbers) is forbidden. (These rules also apply to BER, incidentally.)
+    When parsing the multipart data, if the delimiter appears but doesn't
+    finish with -- or \n or \r\n, it assumes the data can be consumed. This
+    is incorrect when the peeking buffer finishes with --delimiter-
     
-    Fixes #12622.
+    Fixes #12662
     
-    Change-Id: I041f94e34a8afa29dbf94dd8fc450944bc91c9c3
-    Reviewed-on: https://go-review.googlesource.com/17008
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I329556a9a206407c0958289bf7a9009229120bb9
+    Reviewed-on: https://go-review.googlesource.com/14652
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/asn1/asn1.go      | 38 ++++++++++++++++++++++++++++++-----
- src/encoding/asn1/asn1_test.go | 45 +++++++++++++++++++++++++++---------------
- 2 files changed, 62 insertions(+), 21 deletions(-)
+ src/mime/multipart/multipart.go      | 16 +++++++++---
+ src/mime/multipart/multipart_test.go | 48 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 3 deletions(-)

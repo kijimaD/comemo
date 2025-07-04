@@ -1,22 +1,19 @@
-commit 5d7d50111f123011723989a7d123d6f0a6df38e6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 17:39:12 2022 -0400
+commit 323c6f74d35ec29baac2a1aba4270f89b022815a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 9 14:49:41 2021 -0700
 
-    runtime: convert schedt.lastpoll to atomic type
+    log: don't format if writing to io.Discard
     
-    Note that this changes the type from uint64 to int64, the type used by
-    nanotime(). It also adds an atomic load in pollWork(), which used to use
-    a non-atomic load.
+    Fixes #47164
     
-    For #53821.
-    
-    Change-Id: I6173c90f20bfdc0e0a4bc3a7b1c798d1c429fff5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419442
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ied03842360be4c86f1d9ead816f12c057a1f8dad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348741
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Valentin Deleplace <deleplace@google.com>
 
- src/runtime/align_runtime_test.go |  1 -
- src/runtime/proc.go               | 18 +++++++++---------
- src/runtime/runtime2.go           |  2 +-
- 3 files changed, 10 insertions(+), 11 deletions(-)
+ src/log/log.go      | 53 ++++++++++++++++++++++++++++++++++++++++++-----------
+ src/log/log_test.go | 14 +++++++++++++-
+ 2 files changed, 55 insertions(+), 12 deletions(-)

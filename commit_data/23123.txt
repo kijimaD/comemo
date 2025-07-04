@@ -1,12 +1,12 @@
-commit 1c0498fc05156d99a53d4a5ed728a3dc329c34a0
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri May 22 17:09:36 2015 -0400
+commit 3787950a9210fcf662ec2b99a0708fa673836a5c
+Author: John Dethridge <jcd@golang.org>
+Date:   Wed Apr 22 16:45:42 2015 +1000
 
-    go/build: make ArchChar always return "?" to match docs
+    debug/dwarf: update class_string.go to add ClassReferenceSig using stringer.
     
-    Change-Id: I56f825f81aead9ded7af07a02188a52d3650ccf8
-    Reviewed-on: https://go-review.googlesource.com/10333
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I677a5ee273a4d285a8adff71ffcfeac34afc887f
+    Reviewed-on: https://go-review.googlesource.com/9235
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/build/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/debug/dwarf/class_string.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

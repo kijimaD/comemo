@@ -1,19 +1,22 @@
-commit 91ec6b6321395ba787a9b4c0ae1055ab45382435
-Author: Andy Pan <i@andypan.me>
-Date:   Tue Oct 29 12:27:30 2024 +0800
+commit fb5bdb4cc94d23209d77a73c4148b3f9fbb10173
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 6 13:06:58 2023 -0700
 
-    internal/poll: confine runtime OS-checks to sendFileChunk
+    cmd/compile: absorb InvertFlags into Noov comparisons
     
-    Ref:
-    https://ci.chromium.org/ui/p/golang/builders/ci/gotip-solaris-amd64/b8732788420094473425/overview
-    https://build.golang.org/log/80a05c426ceaebd0906eae80e5a3afd7e92d2f41
+    Unfortunately, there isn't a single op that provides the resulting
+    computation.
+    At least, I couldn't find one.
     
-    Change-Id: I207c0043ce729be7bbba39cf376b6d39440e7f26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623055
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #62469
+    
+    Change-Id: I236f3965b827aaeb3d70ef9fe89be66b116494f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526276
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/internal/poll/sendfile_unix.go | 39 +++++++++++++++++++-------------------
- 1 file changed, 19 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules | 30 +++++++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 46 +++++++++++++++++++++++++++
+ test/fixedbugs/issue62469.go                  | 15 +++++++++
+ 3 files changed, 77 insertions(+), 14 deletions(-)

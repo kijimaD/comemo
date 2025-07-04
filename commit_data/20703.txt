@@ -1,22 +1,18 @@
-commit 96d1e4ab5938d263457a9c18fdf6fdf0581c6ec6
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 14 14:09:56 2014 -0700
+commit cd5b785efe3cf67a8e065f8ff2ee8a39badbec40
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 1 13:18:44 2014 -0700
 
-    math/big: Allow non-prime modulus for ModInverse
+    net/rpc: shut down connection if gob has error
+    The nicest solution would be to buffer the message and only write
+    it if it encodes correctly, but that adds considerable memory and
+    CPU overhead for a very rare condition. Instead, we just shut
+    down the connection if this happens.
+    Fixes #7689.
     
-    The inverse is defined whenever the element and the
-    modulus are relatively prime.  The code already handles
-    this situation, but the spec does not.
-    
-    Test that it does indeed work.
-    
-    Fixes #8875
-    
-    LGTM=agl
-    R=agl
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/155010043
+    https://golang.org/cl/146670043
 
- src/math/big/int.go      | 15 ++++++++-------
- src/math/big/int_test.go | 36 ++++++++++++++++++++++++++----------
- 2 files changed, 34 insertions(+), 17 deletions(-)
+ src/net/rpc/server.go | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)

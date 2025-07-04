@@ -1,12 +1,13 @@
-commit 07dfd8b131937854cb7558d44635ea00fb281f78
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Jan 18 10:25:23 2013 +1100
+commit e487ea84218d5095b6ff05ef1de6d44fc9b64183
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jan 18 02:24:12 2013 +0800
 
-    C: add Carl Shapiro (Google CLA).
+    cmd/vet: don't complain about Error()
+    Fixes #4598.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/7132049
+    https://golang.org/cl/7102050
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/vet/print.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

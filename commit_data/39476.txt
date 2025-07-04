@@ -1,20 +1,19 @@
-commit bc593eac2dc63d979a575eccb16c7369a5ff81e0
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jun 29 09:26:19 2019 -0400
+commit 4aff88ded24c575bed9c1c0d1fc149eab405111a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 13:01:46 2019 -0800
 
-    sync: document implementation of Once.Do
+    misc/cgo/testcshared: delete temporary directory in test
     
-    It's not correct to use atomic.CompareAndSwap to implement Once.Do,
-    and we don't, but why we don't is a question that has come up
-    twice on golang-dev in the past few months.
-    Add a comment to help others with the same question.
+    The deferred os.RemoveAll was accidentally committed as commented out
+    in the original https://golang.org/cl/87158.
     
-    Change-Id: Ia89ec9715cc5442c6e7f13e57a49c6cfe664d32c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184261
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates #30500
+    
+    Change-Id: Idc5195816d7978253760dbfd78fde6d22c456296
+    Reviewed-on: https://go-review.googlesource.com/c/164858
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/sync/once.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ misc/cgo/testcshared/cshared_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

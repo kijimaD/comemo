@@ -1,16 +1,35 @@
-commit adf72bbc9a11fa14de80b1e68fd58f0e4a0248a8
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Fri Jun 15 00:08:26 2018 +0200
+commit 45964e4f9c950863adcaeb62fbe49f3fa913f27d
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Mar 3 10:28:58 2018 -0800
 
-    misc/wasm: add stub for fs.openSync for browsers
+    internal/bytealg: move Count to bytealg
     
-    This stub is necessary so the time package can fail to load
-    the timezone files in a nice way. It transitively makes the
-    log package work in browsers.
+    Move bytes.Count and strings.Count to bytealg.
     
-    Change-Id: I4d360df82989d9b40cd31bb4508a6d057534443e
-    Reviewed-on: https://go-review.googlesource.com/118977
+    Update #19792
+    
+    Change-Id: I3e4e14b504a0b71758885bb131e5656e342cf8cb
+    Reviewed-on: https://go-review.googlesource.com/98495
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/wasm/wasm_exec.js | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/bytes/bytes.go                    |   9 +-
+ src/bytes/bytes_amd64.go              |   9 --
+ src/bytes/bytes_arm64.go              |   9 --
+ src/bytes/bytes_generic.go            |   6 -
+ src/bytes/bytes_s390x.go              |   6 -
+ src/bytes/bytes_test.go               |   8 --
+ src/bytes/export_test.go              |   1 -
+ src/cmd/vet/all/whitelist/amd64.txt   |   3 -
+ src/internal/bytealg/count_amd64.s    | 201 ++++++++++++++++++++++++++++++++++
+ src/internal/bytealg/count_generic.go |  27 +++++
+ src/internal/bytealg/count_native.go  |  33 ++++++
+ src/internal/bytealg/equal_native.go  |   9 +-
+ src/runtime/asm_amd64.s               | 189 --------------------------------
+ src/runtime/runtime2.go               |   1 +
+ src/strings/strings.go                |   9 +-
+ src/strings/strings_amd64.go          |   9 --
+ src/strings/strings_generic.go        |   6 -
+ src/strings/strings_s390x.go          |   6 -
+ 18 files changed, 282 insertions(+), 259 deletions(-)

@@ -1,12 +1,22 @@
-commit 30aacd4ce2d3ecd802aa281d54267608ca35a34c
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 14 14:23:12 2015 -0400
+commit e7ffafdb6e76f62382d47c1bd21626ec7dae4594
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Apr 19 20:57:41 2015 -0700
 
-    runtime: add Node128, Node130 benchmarks
+    cmd/internal/obj: remove useless Trimpath field and fix users
     
-    Change-Id: I815a7ceeea48cc652b3c8568967665af39b02834
-    Reviewed-on: https://go-review.googlesource.com/10045
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    http://golang.org/cl/7623 refactored how line history works and
+    introduced a new TrimPathPrefix field to replace the existing Trimpath
+    field, but never removed the latter or updated its users.
+    
+    Fixes #10503.
+    
+    Change-Id: Ief90a55b6cef2e8062b59856a4c7dcc0df01d3f2
+    Reviewed-on: https://go-review.googlesource.com/9113
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/gc_test.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/cmd/asm/main.go          | 2 +-
+ src/cmd/internal/asm/asm.go  | 2 +-
+ src/cmd/internal/gc/lex.go   | 2 +-
+ src/cmd/internal/obj/link.go | 1 -
+ 4 files changed, 3 insertions(+), 4 deletions(-)

@@ -1,17 +1,16 @@
-commit 80f9d32438b85d03ea0310b67411e41619d4066b
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Jul 27 11:55:54 2019 -0700
+commit a0c227af734669e0b73483ce03c31268c1134339
+Author: Keith Randall <khr@google.com>
+Date:   Tue Mar 5 12:37:25 2019 -0800
 
-    doc: mention that GOPATH/bin should be in PATH
+    cmd/compile: regenerate op_string
     
-    As noticed while mentoring at Gophercon, a common mistake for
-    beginners is that, after they install git-codereview, it's not
-    found by git because they haven't put GOPATH/bin in their
-    environment.
+    I missed regenerating op_string.go in CL 152537 (adding OINLMARK op).
     
-    Change-Id: I885cee0f532a4069d1a17ea27365d54965ecca22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187818
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: I929540087b817b6a1b0256c1e65341615e61ef40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165359
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- doc/contribute.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/op_string.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

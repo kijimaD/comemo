@@ -1,21 +1,21 @@
-commit 3c6883ccbc6a59569222e8295784200b4e662d3e
-Author: Simon Kotwicz <simonkotwicz@gmail.com>
-Date:   Sun Feb 20 08:24:08 2022 +0000
+commit 7e5e4a7cef34727c8de2da218e76da23f826d608
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 9 01:39:18 2022 +0700
 
-    net/http: add doc details regarding Transport retries
+    math/big: disable TestNewIntAllocs on noopt builder
     
-    Add doc details to Transport mentioning retries only occur if a connection
-    has been already been used successfully.
+    Since when that test requires inlining, which is disabled on noopt
+    builder.
     
-    Change-Id: I37afbad50b885248e0e6cd5e799ad848bf97c86b
-    GitHub-Last-Rev: 7c45c32aec2bd3266c525bf28ab1879acbecf193
-    GitHub-Pull-Request: golang/go#51273
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386994
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Updates #29951
+    
+    Change-Id: I9d7a0a64015a30d3bfb5ad5d806ea0955657fda3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422039
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/net/http/transport.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/math/big/int_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

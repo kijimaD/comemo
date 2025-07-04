@@ -1,21 +1,21 @@
-commit c14050646f621db5f54c1a300b80c65f99fbd03b
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat Sep 24 16:59:23 2016 +0200
+commit 3659645cb1f32d7b1eeefdb65f1339fe54f0f6eb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 31 11:23:50 2016 -0700
 
-    runtime: fix newextram PC passed to race detector
+    flag: recognize "0s" as the zero value for a flag.Duration
     
-    PC passed to racegostart is expected to be a return PC
-    of the go statement. Race runtime will subtract 1 from the PC
-    before symbolization. Passing start PC of a function is wrong.
-    Add sys.PCQuantum to the function start PC.
+    Implemented by using a reflect-based approach to recognize the zero
+    value of any non-interface type that implements flag.Value.  Interface
+    types will fall back to the old code.
     
-    Update #17190
+    Fixes #15904.
     
-    Change-Id: Ia504c49e79af84ed4ea360c2aea472b370ea8bf5
-    Reviewed-on: https://go-review.googlesource.com/29712
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I594c3bfb30e9ab1aca3e008ef7f70be20aa41a0b
+    Reviewed-on: https://go-review.googlesource.com/23581
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/flag/flag.go      | 19 +++++++++++++++++--
+ src/flag/flag_test.go |  2 +-
+ 2 files changed, 18 insertions(+), 3 deletions(-)

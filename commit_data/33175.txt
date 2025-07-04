@@ -1,20 +1,19 @@
-commit 916ad62d5182bf2ecc006edf5d7fac874f4e5fa7
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Fri Oct 20 10:21:05 2017 -0400
+commit c522b2bec9e6186a8efb7ddd221295390638a18e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 21 18:52:38 2017 +0000
 
-    cmd/go: skip gold-specific part of TestNoteReading if gold is unavailable
+    net/http: document that after Hijack, Request.Body is invalid
     
-    The test already contained logic to do this however it did not match
-    the error "cannot find 'ld'" which appears to be how gcc fails when
-    ld.gold is missing.
+    We can make it panic with a more explicit and readable error message
+    during Go 1.10, but document it for now. This has always been the
+    case; it's not a new rule.
     
-    Fixes #22340.
+    Updates #20933
     
-    Change-Id: I841248cc489b8fa72bc00a95000ad405f9ef8a4f
-    Reviewed-on: https://go-review.googlesource.com/72111
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I53c1fefb47a8f4aae0bb32fa742afa3a2ed20e8a
+    Reviewed-on: https://go-review.googlesource.com/50634
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/go/note_test.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/net/http/server.go | 3 +++
+ 1 file changed, 3 insertions(+)

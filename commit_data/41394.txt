@@ -1,19 +1,20 @@
-commit 90c71cec5bca21e8c7e984fffbd0ad62d7067f5d
+commit ba18c7c42d4fa70e81b2304ccc3b2c01675a3af0
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jan 20 10:23:41 2020 +0100
+Date:   Mon Sep 30 11:47:04 2019 +0200
 
-    runtime: remove unused _F_SETFL const on linux
+    syscall: fix TestGroupCleanupUserNamespace on CentOS
     
-    This constant is only used on libc-based platforms (aix, darwin,
-    solaris).
+    Update the list of expected "id" outputs in
+    TestGroupCleanupUserNamespace with SELinux context information as used
+    on CentOS.
     
-    Change-Id: Ic57d1fe3b1501c5b552eddb9aba11f1e02510082
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220421
+    Fixes #34547
+    
+    Change-Id: I426bbe2d04e2039c87490362a1891ec3de6e36e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197841
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/defs_linux_386.go   | 1 -
- src/runtime/defs_linux_amd64.go | 1 -
- src/runtime/defs_linux_arm.go   | 1 -
- src/runtime/defs_linux_arm64.go | 1 -
- 4 files changed, 4 deletions(-)
+ src/syscall/exec_linux_test.go | 1 +
+ 1 file changed, 1 insertion(+)

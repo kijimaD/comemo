@@ -1,16 +1,17 @@
-commit 201fd16568b41f536f5ca7809a0bd19fc24b9394
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed May 10 12:05:20 2017 -0700
+commit 32b41c8dc75a731e4053b59b19c542a79eb56c1f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 14:55:00 2017 -0800
 
-    cmd/link: set Fieldtrack symbol type to SDATA
+    math/bits: move left-over functionality from bits_impl.go to bits.go
     
-    Fixes #20316
+    Removes an extra function call for TrailingZeroes and thus may
+    increase chances for inlining.
     
-    Change-Id: I2553ad9a82dfcb30f020c2a3e37b868111425a20
-    Reviewed-on: https://go-review.googlesource.com/43151
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iefd8d4402dc89b64baf4e5c865eb3dadade623af
+    Reviewed-on: https://go-review.googlesource.com/37613
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/go.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/math/bits/bits.go      | 64 +++++++++++++++++++++++++++++++++++++++----
+ src/math/bits/bits_impl.go | 67 ----------------------------------------------
+ 2 files changed, 59 insertions(+), 72 deletions(-)

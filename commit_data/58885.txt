@@ -1,19 +1,20 @@
-commit 11c847e536bff955eab65cc0a3008557362dda22
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Nov 26 17:10:32 2024 +0800
+commit 7e7b16c9723d946031803d46baac91dc1fa80812
+Author: Dan Peterson <danp@danp.net>
+Date:   Thu Dec 21 13:58:00 2023 -0400
 
-    runtime: use correct memory barrier in exitThread function on loong64
+    doc: fill out net/http.Request.PathValue,SetPathValue section
     
-    In the runtime.exitThread function, a storeRelease barrier
-    is required instead of a full barrier.
+    And add a missing code tag wrap elsewhere.
     
-    Change-Id: I2815ddb03e4984c891d71811ccf650a82325e10d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631915
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Updates #61410
+    Updates #61422
+    
+    Change-Id: I70a9c4ecaf4056af2e88d777b8db892a45dfcb9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552195
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dan Peterson <danp@danp.net>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/sys_linux_loong64.s | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ doc/go1.22.html | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

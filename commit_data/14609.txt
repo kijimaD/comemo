@@ -1,15 +1,14 @@
-commit 3c6c88319eeb4b6fe0b599d894bbb0d8f50a116f
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 11 12:19:39 2012 -0500
+commit 1d46fc44b780507c4d09d54c232f73397cbf4e6d
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Tue Dec 11 12:17:53 2012 -0500
 
-    regexp: re-enable TestBadCompile
+    spec: Correct typo in method expressions example.
     
-    The code that was commented out was for the old regexp package.
-    In the new one the errors and the space of valid regexps are different.
+    Also, remove unnecessary whitespace.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6873063
+    https://golang.org/cl/6928045
 
- src/pkg/regexp/all_test.go | 47 +++++++++++++++++++++++-----------------------
- 1 file changed, 23 insertions(+), 24 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,12 +1,12 @@
-commit 8ab6e16cc94f7d8e57246425b7b298e0228b1081
-Author: Rob Pike <r@golang.org>
-Date:   Mon Nov 23 13:12:36 2015 -0800
+commit 9337dc9b5e4a79a071c8eb4879974955b19e3862
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Sep 16 10:29:53 2015 -0400
 
-    doc: update 1.6.txt for fmt.Scanf change
+    runtime/debug: more explicit Stack docs
     
-    Change-Id: Icdce5cdb8676c3bcb73bd943b406000252509521
-    Reviewed-on: https://go-review.googlesource.com/17174
+    Change-Id: I81a7f22be827519b5290b4acbcba357680cad3c4
+    Reviewed-on: https://go-review.googlesource.com/14605
     Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.6.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/debug/stack.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

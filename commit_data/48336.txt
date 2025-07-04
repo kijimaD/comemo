@@ -1,20 +1,20 @@
-commit 0d33a9967540fe06f5ce7b14790e9be8da576936
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Wed Mar 9 07:56:04 2022 -0800
+commit 83df4a590bbd259b82db37e0c6e721ddc267614b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Feb 1 03:51:02 2021 +1100
 
-    runtime/pprof: fix pcDeck's frame indexing
+    runtime: switch openbsd/arm locking to libc
     
-    When building the inlining deck, correctly identify which is the last
-    frame in the deck. Otherwise, when some forms of inlining cause a PC to
-    expand to multiple frames, the length of the deck's two slices will
-    diverge.
+    Switch openbsd/arm to locking via libc, rather than performing direct
+    system calls.
     
-    Fixes #51567
+    Update #36435
     
-    Change-Id: I24e7ba32cb16b167f4307178b3f03c29e5362c4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391134
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Than McIntosh <thanm@google.com>
+    Change-Id: I190abb1aa544d2cb406fe412960ec106c9716f87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315791
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/pprof/proto.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/os_openbsd_syscall1.go |  4 +--
+ src/runtime/sys_openbsd1.go        |  4 +--
+ src/runtime/sys_openbsd_arm.s      | 67 ++++++++++++++++++++------------------
+ 3 files changed, 39 insertions(+), 36 deletions(-)

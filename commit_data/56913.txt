@@ -1,20 +1,17 @@
-commit 3959d54c0bd5c92fe0a5e33fedb0595723efc23b
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Jul 20 00:55:15 2024 +0700
+commit 3cea9e688100aa4db2f459dc77f6ce22dacf1d87
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 31 11:47:14 2023 -0700
 
-    runtime: mark lockWithRankMayAcquire as nosplit
+    doc/go1.21: document new bytes.Buffer methods
     
-    The function is called in nosplit context already.
+    For #53685
     
-    Fixes #68525
-    
-    Change-Id: I8b9e324335b7c605d5a20cacdd58df09b7a7cf52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599675
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I237297d19afeb36ad738074d0c61caa7012f65ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499617
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
 
- src/runtime/lockrank_off.go  |  3 +++
- test/fixedbugs/issue68525.go | 13 +++++++++++++
- 2 files changed, 16 insertions(+)
+ doc/go1.21.html | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

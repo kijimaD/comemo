@@ -1,25 +1,14 @@
-commit b74f01d76f9fa6a38e9828675e21d50ff950be3b
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed May 24 17:43:08 2017 -0400
+commit b1a4424a52687e5abca29cd795c5701b5639a52f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 7 10:44:12 2017 -0800
 
-    cmd/internal/dwarf: update to DWARF4, emit frame_base
+    cmd/internal/obj: change started to bool
     
-    In preparation for CL 41770, upgrade .debug_info to DWARF4, and emit
-    DW_AT_frame_base on subprograms. This should make no semantic
-    difference.
-    
-    Also fix a long-standing bug/inconsistency in puttattr: it didn't
-    add the addend to ref_addrs. Previously this didn't matter because it
-    was only used for types, but now it's used for section offsets into
-    symbols that have multiple entries.
-    
-    RELNOTE=yes
-    
-    Change-Id: Ib10654ac92edfa29c5167c44133648151d70cf76
-    Reviewed-on: https://go-review.googlesource.com/44210
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I90143e3c6e95a1495f300ffeb10de554aa41f56a
+    Reviewed-on: https://go-review.googlesource.com/37889
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go      | 18 ++++++++++--------
- src/cmd/internal/dwarf/dwarf_defs.go |  5 +++++
- src/cmd/link/internal/ld/dwarf.go    |  2 +-
- 3 files changed, 16 insertions(+), 9 deletions(-)
+ src/cmd/internal/obj/pcln.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

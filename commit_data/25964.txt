@@ -1,16 +1,16 @@
-commit 1b417e20ffe052d51835ec84dcc5df08717cb8a3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Feb 28 14:39:38 2016 -0800
+commit 84a875caa6de1b404dad596b1b6949e436168c76
+Author: andrey mirtchovski <mirtchovski@gmail.com>
+Date:   Sun Dec 6 17:44:44 2015 -0700
 
-    cmd/compile: superficial cleanup in maplit
+    go/doc, syscall: change 'more then' to 'more than'
     
-    Mostly renaming variables for clarity.
+    This change modifies comments to use the more gramatically correct "more than"
+    instead of "more then".
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I9867137c34c14985cbbbdb2d34fbbe4cc65cb6fb
-    Reviewed-on: https://go-review.googlesource.com/20023
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie3bddcf25eb6b243a21da934f2f3c76a750c083a
+    Reviewed-on: https://go-review.googlesource.com/17488
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go | 42 ++++++++++++++++--------------------
- 1 file changed, 18 insertions(+), 24 deletions(-)
+ src/go/doc/reader.go       | 6 +++---
+ src/syscall/dll_windows.go | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

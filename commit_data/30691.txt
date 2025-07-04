@@ -1,20 +1,14 @@
-commit 3c7a812485334eb57c0856e6b152aa3d50f9f0a0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 16 17:07:26 2017 -0700
+commit 34aad1686ecf8b209c4a36f926026876558a8221
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Wed Nov 23 16:29:51 2016 -0700
 
-    cmd/compile: eliminate "assignment count mismatch" - not needed anymore
+    net/http: fix receiver for Server.Shutdown and Server.Close
     
-    See https://go-review.googlesource.com/#/c/38313/ for background.
-    It turns out that only a few tests checked for this.
-    
-    The new error message is shorter and very clear.
-    
-    Change-Id: I8ab4ad59fb023c8b54806339adc23aefd7dc7b07
-    Reviewed-on: https://go-review.googlesource.com/38314
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia27ca728bafcf20d001b477787b21d16ae12960d
+    Reviewed-on: https://go-review.googlesource.com/33552
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 2 +-
- test/fixedbugs/bug289.go                 | 4 ++--
- test/fixedbugs/bug487.go                 | 4 ++--
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/net/http/server.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

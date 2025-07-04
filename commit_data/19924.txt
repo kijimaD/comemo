@@ -1,13 +1,14 @@
-commit 7bcaff70ed92156eb98841ecac3fb5e234822ea3
-Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 6 14:43:50 2014 -0700
+commit 2185dbcd8554ef728df06c30ef83e4c61e8c17d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 16:12:24 2014 -0400
 
-    debug/dwarf: fix typos in comment for UnspecifiedType
+    codereview: do not hit upload_complete on first patch
     
-    LGTM=iant, bradfitz
-    R=bradfitz, iant
+    Causes server 500 error, so don't do it.
+    
+    TBR=minux
     CC=golang-codereviews
-    https://golang.org/cl/120700043
+    https://golang.org/cl/125770043
 
- src/pkg/debug/dwarf/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/codereview/codereview.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

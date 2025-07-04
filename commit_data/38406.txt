@@ -1,18 +1,18 @@
-commit 1024b25d0c044484ed9288ac8f78bd9f5ebb5287
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 13 09:48:33 2019 -0700
+commit f8153fcd740483b8c341926acd76b4127c17c789
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 9 15:19:36 2018 -0400
 
-    spec: clarify wording on passing slice arguments to variadic functions
+    cmd/go/internal/modload: skip fetches of replaced modules in moduleInfo
     
-    Per discussion on #30769.
+    Fixes #27859
     
-    Fixes #30769.
-    
-    Change-Id: I620dbac936de1a0b5deec03926dd11d690a918e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167380
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ibb459cf41c3a8fe41bb008f60ef6cdd3437a37b1
+    Reviewed-on: https://go-review.googlesource.com/c/140860
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modload/build.go              | 50 ++++++++++++-----------
+ src/cmd/go/testdata/script/mod_replace.txt        | 28 ++++++++++++-
+ src/cmd/go/testdata/script/mod_vendor_replace.txt | 39 ++++++++++++++++++
+ 3 files changed, 93 insertions(+), 24 deletions(-)

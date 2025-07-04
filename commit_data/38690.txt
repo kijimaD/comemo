@@ -1,16 +1,24 @@
-commit bec67e1130db10dc901c5b214c7df081ed4191ab
-Author: Jingnan Si <jingnan.si@gmail.com>
-Date:   Mon Apr 8 19:02:40 2019 +0000
+commit 0c7762cd184649552309c82671bf81f89d215ff7
+Author: Keith Randall <khr@google.com>
+Date:   Tue Oct 30 13:30:09 2018 -0700
 
-    runtime: follow Windows calling convention for _cgo_sys_thread_create
+    cmd/compile: assume unsafe pointer arithmetic generates non-nil results
     
-    Windows requires space for four pointers on the stack.
+    I've never seen a case where unsafe arithmetic is used to generate a nil.
+    (Something like var x uintptr; unsafe.Pointer(x - x).)
+    We can assume that if someone is doing arithmetic with pointers, the
+    result will be non-nil. Our unsafe rules already forbid this, although
+    we should be more explicit.
     
-    Change-Id: I9f7ba3e09b6c660f86d15139bb51954fffc8ccb1
-    GitHub-Last-Rev: 76d21bcc2b07edfde6daa45000093d070e2337bc
-    GitHub-Pull-Request: golang/go#30944
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168351
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    RELNOTE=It is invalid to convert a nil unsafe.Pointer to uintptr and back, with arithmetic.
+    (This was already invalid, but this statement has been added for clarification.)
+    
+    Fixes #27180
+    
+    Change-Id: I1880b7725a9fd99e4613799930fdad9aaa99e8f0
+    Reviewed-on: https://go-review.googlesource.com/c/146058
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/rt0_windows_amd64.s | 24 +++++++++++++-----------
- 1 file changed, 13 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/ssa/nilcheck.go | 3 ++-
+ src/unsafe/unsafe.go                     | 6 ++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

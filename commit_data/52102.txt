@@ -1,39 +1,26 @@
-commit 8538477d58b97ad7f5c91c9c5b7007404f2a6dac
-Author: miller <millerresearch@gmail.com>
-Date:   Wed Feb 22 14:15:08 2023 +0000
+commit 62bceae32de7bad48fbdc1fe3fae14c81cd093d2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 1 14:54:39 2022 -0400
 
-    internal/poll: avoid race between SetDeadline and timer expiry in Plan 9
+    cmd/go: quote fragments in CGO_ env variables reported by 'go env'
     
-    The mutexes added by CL 235820 aren't sufficient to prevent a race when
-    an i/o deadline timer fires just as the deadline is being reset to zero.
+    These fields have been parsed as quoted fields since CL 334732,
+    but we missed the unparsing side in 'go env'.
     
-    Consider this possible sequence when goroutine S is clearing the
-    deadline and goroutine T has been started by the timer:
+    Certain scripts (notably make.ba{sh,t}) expect to be able to set the
+    environment to exactly what 'go env' reports, so for round-trip
+    purposes it is important to match the marshaling and unmarshaling
+    functions.
     
-    1. S locks the mutex
-    2. T blocks on the mutex
-    3. S sets the timedout flag to false
-    4. S calls Stop on the timer (and fails, because the timer has fired)
-    5. S unlocks the mutex
-    6. T locks the mutex
-    7. T sets the timedout flag to true
+    (Noticed while debugging #52009.)
+    Updates #41400
     
-    Now all subsequent I/O will timeout, although the deadline has been
-    cleared.
-    
-    The fix is for the timeout goroutine to skip setting the timedout
-    flag if the timer pointer has been cleared, or reassigned by
-    another SetDeadline operation.
-    
-    Fixes #57114
-    
-    Change-Id: I4a45d19c3b4b66cdf151dcc3f70536deaa8216a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470215
+    Change-Id: I0ff39b7a6e1328111c285c97cd23f79b723f3c73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398058
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/fd_plan9.go | 44 ++++++++++++++++++++++++-------------------
- 1 file changed, 25 insertions(+), 19 deletions(-)
+ src/cmd/go/internal/envcmd/env.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

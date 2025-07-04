@@ -1,20 +1,18 @@
-commit 4145c5da1f533fafd928769d18d5be60968cb9dc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 28 13:32:31 2019 -0700
+commit 891f99eb43ad86814662549e4121e4e8c30e8b40
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 12 16:37:12 2018 -0500
 
-    cmd/compile: better recovery after := (rather than =) in declarations
+    cmd/compile: fix TestFormats
     
-    Before this fix, a mistaken := in a (const/type/var) declaration
-    ended that declaration with an error from which the parser didn't
-    recover well. This low-cost change will provide a better error
-    message and lets the parser recover perfectly.
+    This fixes the linux-amd64-longtest builder, which was broken by CL
+    147160.
     
-    Fixes #31092.
+    Updates #27539.
     
-    Change-Id: Ic4f94dc5e29dd00b7ef6d53a80dded638e3cea80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169958
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If6e69581ef503bba2449ec9bacaa31f34f59beb1
+    Reviewed-on: https://go-review.googlesource.com/c/149157
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go          | 22 ++++++++++++++++++----
- .../internal/syntax/testdata/issue31092.src        | 16 ++++++++++++++++
- 2 files changed, 34 insertions(+), 4 deletions(-)
+ src/cmd/compile/fmt_test.go          | 1 +
+ src/cmd/compile/internal/gc/gsubr.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,52 +1,20 @@
-commit 60abc6b577895e88f8e029772ff27f9e6917d23b
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Thu Jan 10 17:58:45 2013 -0800
+commit e32d1154ec3176a81659720c1ca665e68ac95c42
+Author: Georg Reinke <guelfey@gmail.com>
+Date:   Thu Jan 10 17:04:55 2013 -0800
 
-    encoding/json: improve performance of Unmarshal on primitive types
+    syscall: implement Pipe2 on Linux and use it in ForkExec
     
-    Skip most of the scanning and parsing logic for simple (non-object/array) JSON values.
+    Fixes #2656.
     
-    benchmark                   old ns/op    new ns/op    delta
-    BenchmarkUnmarshalInt             948          436  -54.01%
-    BenchmarkUnmarshalUint            930          427  -54.09%
-    BenchmarkUnmarshalString         1407          715  -49.18%
-    BenchmarkUnmarshalFloat          1114          536  -51.89%
-    BenchmarkUnmarshalBool            759          266  -64.95%
-    BenchmarkUnmarshalStruct         8165         8181   +0.20%
-    
-    No significant effects on the go1 benchmarks:
-    
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkBinaryTree17    9647362752   9596196417   -0.53%
-    BenchmarkFannkuch11      5623613048   5518694872   -1.87%
-    BenchmarkGobDecode         32944041     33165434   +0.67%
-    BenchmarkGobEncode         21237482     21080554   -0.74%
-    BenchmarkGzip             750955920    749861980   -0.15%
-    BenchmarkGunzip           197369742    197886192   +0.26%
-    BenchmarkJSONEncode        79274091     78891137   -0.48%
-    BenchmarkJSONDecode       180257802    175280358   -2.76%
-    BenchmarkMandelbrot200      7396666      7388266   -0.11%
-    BenchmarkParse             11446460     11386550   -0.52%
-    BenchmarkRevcomp         1605152523   1599512029   -0.35%
-    BenchmarkTemplate         204538247    207765574   +1.58%
-    
-    benchmark                  old MB/s     new MB/s  speedup
-    BenchmarkGobDecode            23.30        23.14    0.99x
-    BenchmarkGobEncode            36.14        36.41    1.01x
-    BenchmarkGzip                 25.84        25.88    1.00x
-    BenchmarkGunzip               98.32        98.06    1.00x
-    BenchmarkJSONEncode           24.48        24.60    1.00x
-    BenchmarkJSONDecode           10.76        11.07    1.03x
-    BenchmarkParse                 5.06         5.09    1.01x
-    BenchmarkRevcomp             158.34       158.90    1.00x
-    BenchmarkTemplate              9.49         9.34    0.98x
-    
-    Fixes #3949.
-    
-    R=golang-dev, dave, bradfitz, timo
+    R=golang-dev, bradfitz, iant, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7068043
+    https://golang.org/cl/7062057
 
- src/pkg/encoding/json/decode.go      | 19 +++++++++++++++++++
- src/pkg/encoding/json/decode_test.go | 17 +++++++++++++++++
- 2 files changed, 36 insertions(+)
+ src/pkg/syscall/exec_bsd.go             | 14 ++++++++++++++
+ src/pkg/syscall/exec_linux.go           | 17 +++++++++++++++++
+ src/pkg/syscall/exec_unix.go            |  8 +-------
+ src/pkg/syscall/syscall_linux.go        | 12 ++++++++++++
+ src/pkg/syscall/zsyscall_linux_386.go   | 10 ++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 10 ++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 10 ++++++++++
+ 7 files changed, 74 insertions(+), 7 deletions(-)

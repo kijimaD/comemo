@@ -1,17 +1,17 @@
-commit 26085fcea3a6afd1afb9c881c502c86fb86188a9
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Apr 15 19:20:05 2018 +0200
+commit bfa7a558bf08dfa17c3a59dd156dcb022b76a433
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 1 06:57:37 2017 -0800
 
-    cmd/compile: remove asmtest infrastructure
+    cmd/cgo: for C bitfields use only valid Go integer types
     
-    Not used anymore, all tests have been migrated to
-    the top-level testsuite.
+    Fixes #22958
     
-    Change-Id: I536e6c14f62153c01e4966ad41e1501b38494c7f
-    Reviewed-on: https://go-review.googlesource.com/107336
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: Ib078a5f6e1105a2afca77c6d9a05f65ddf5d9010
+    Reviewed-on: https://go-review.googlesource.com/81435
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go | 208 --------------------------------
- 1 file changed, 208 deletions(-)
+ misc/cgo/test/issue22958.go | 24 ++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          |  4 +++-
+ 2 files changed, 27 insertions(+), 1 deletion(-)

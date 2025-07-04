@@ -1,19 +1,35 @@
-commit 3e10c1ff8141fae6b4d35a42e2631e7830c79830
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Jun 12 13:08:00 2024 -0400
+commit 15a4e0d9703033e0b2be4dc6830f03570df7943e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 24 11:42:57 2023 -0700
 
-    doc/next: improve wording for proposal 67061
+    spec: re-order built-ins sections alphabetically (more or less)
     
-    For #67061.
-    For #65614.
+    Put the sections for the various built-ins into alphabetical order
+    based on the built-in name, while keeping built-ins that belong
+    together together.
     
-    Change-Id: I0e324b02537e0d40c2092139d31941a1a85a0e69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592196
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    The order is now (captialized letter determines order):
+    
+    - Append
+    - Clear
+    - Close
+    - Complex, real, imag
+    - Delete
+    - Len, cap
+    - Make
+    - Min, max (to be inserted here)
+    - New
+    - Panic, recover
+    - Print, println
+    
+    There are some white space adjustments but no changes to the prose
+    of the moved sections.
+    
+    Change-Id: Iaec509918c6bc965df3f28656374de03279bdc9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498135
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/next/6-stdlib/99-minor/crypto/tls/66214.md | 2 +-
- doc/next/6-stdlib/99-minor/crypto/tls/67061.md | 5 +++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 384 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 195 insertions(+), 189 deletions(-)

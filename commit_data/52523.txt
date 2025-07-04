@@ -1,22 +1,22 @@
-commit a8ca653892a470daf065b7669061d6ce1b4ff2e9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Apr 4 14:49:23 2023 -0400
+commit 507a44dc228a3817e7007f292a404fe6c9f66315
+Author: Jason7602 <jansonzhe@gmail.com>
+Date:   Mon Nov 1 23:27:45 2021 +0800
 
-    net/http: drop client address comparison in TestTransportRemovesDeadIdleConnections
+    sync: remove the redundant logic on sync.(*Pool).Put
     
-    Since the first client connection is explicitly closed before making
-    the second request, we cannot in general assume that the second
-    request uses a different port (it is equally valid to open the new
-    connection on the same port as the old one that was closed).
+    When the procUnpin is placed after shared.pushHead, there is
+    no need for x as a flag to indicate the previous process.
     
-    Fixes #59438.
+    This CL can make the logic clear, and at the same time reduce
+    a redundant judgment.
     
-    Change-Id: I52d5fe493bd8b1b49270d3996d2019d38d375ce9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482175
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I34ec9ba4cb5b5dbdf13a8f158b90481fed248cf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360059
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/transport_test.go | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ src/sync/pool.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

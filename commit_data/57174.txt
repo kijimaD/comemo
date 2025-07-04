@@ -1,20 +1,16 @@
-commit 209ed1a9c75d17046285c416b74a14bb89799757
-Author: Tim King <taking@google.com>
-Date:   Fri Aug 9 10:50:00 2024 -0700
+commit 894d24d617bb72d6e1bed7b143f9f7a0ac16b844
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jul 7 16:33:39 2023 -0400
 
-    cmd/compile/internal/importer: enable aliases
+    src/database/sql: run gofmt
     
-    Flips the pkgReader.enableAlias flag to true when reading unified IR.
-    This was disabled while resolving #66873. This resolves the TODO to
-    flip it back to true.
+    Run gofmt on a source file.
     
-    Updates #66873
-    Updates #68778
-    
-    Change-Id: Ifd52b0f9510d6bcf151de1c9a18d71ab548c14e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604099
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I180d5cc7425fc5d8e9cf63005ac692f361beb1ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508497
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/importer/ureader.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,16 @@
-commit 663680b3d45a276fc2f246c61deeb79acf634591
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 1 17:48:46 2019 -0700
+commit b41eef244319df4f7431728ac7671cdbe8449778
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Mar 18 08:06:49 2019 -0400
 
-    debug/dwarf: add new constants defined in DWARF 5
+    os: add PathError.Unwrap
     
-    Also add a few other missing constants.
+    Add an Unwrap method to PathError so it works with the errors.Is/As
+    functions.
     
-    Also rerun current version of stringer.
-    
-    Change-Id: I004ef27f6b40fe2cab64c52d169255dfea43fa01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175137
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ia6171c0418584f3cd53ee99d97c687941a9e3109
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168097
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/debug/dwarf/attr_string.go  | 322 +++++++++++++++++++++++++++++++---------
- src/debug/dwarf/class_string.go |  21 +++
- src/debug/dwarf/const.go        | 196 ++++++++++++++++++++----
- src/debug/dwarf/tag_string.go   |  81 +++++++++-
- 4 files changed, 518 insertions(+), 102 deletions(-)
+ src/os/error.go      | 2 ++
+ src/os/error_test.go | 8 ++++++++
+ 2 files changed, 10 insertions(+)

@@ -1,12 +1,12 @@
-commit c7a742c5108e2823c466750e6a26b2509b3c8b0f
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Mon Aug 22 12:53:05 2011 -0700
+commit 7bbe2c899832706f93c543e68322bf5ca825d39d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 22 12:40:45 2011 -0700
 
-    go/ast: fix ast.MergePackageFiles to collect infos about imports
+    runtime: Remove extraneous word in comment.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4710047
+    https://golang.org/cl/4938045
 
- src/pkg/go/ast/filter.go | 33 ++++++++++++++++++++++++++++++---
- 1 file changed, 30 insertions(+), 3 deletions(-)
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

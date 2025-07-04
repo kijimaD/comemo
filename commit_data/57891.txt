@@ -1,53 +1,24 @@
-commit d6fb0ab2c7a13658fc808d431bbaf9c5f6b8da62
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Sat Nov 2 14:30:31 2024 +0800
+commit 2fe2f0854293e601bac60bb5d3aa6e276fadf084
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Sep 8 11:17:59 2023 +0300
 
-    cmd/compile: wire up Bswap/ReverseBytes intrinsics for loong64
+    cmd/cgo: silence unaligned-access
     
-    Micro-benchmark results on Loongson 3A5000 and 3A6000:
+    Clang 14+ introduced a warning when using mixed packed and unpacked structs.
+    This can cause problems when taking an address of the unpacked struct, which
+    may end up having a different alignment than expected.
     
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                   |  bench.old   |              bench.new               |
-                   |    sec/op    |    sec/op     vs base                |
-    ReverseBytes     2.0020n ± 0%   0.4040n ± 0%  -79.82% (p=0.000 n=20)
-    ReverseBytes16   0.8866n ± 1%   0.8007n ± 0%   -9.69% (p=0.000 n=20)
-    ReverseBytes32   1.2195n ± 0%   0.8007n ± 0%  -34.34% (p=0.000 n=20)
-    ReverseBytes64   2.0705n ± 0%   0.8008n ± 0%  -61.32% (p=0.000 n=20)
-    geomean           1.455n        0.6749n       -53.62%
+    This is not a problem in cgo, which does not take pointers from the packed
+    struct.
     
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A5000 @ 2500.00MHz
-                   |  bench.old   |              bench.new               |
-                   |    sec/op    |    sec/op     vs base                |
-    ReverseBytes     2.8040n ± 0%   0.5205n ± 0%  -81.44% (p=0.000 n=20)
-    ReverseBytes16   0.7066n ± 0%   0.8011n ± 0%  +13.37% (p=0.000 n=20)
-    ReverseBytes32   1.5500n ± 0%   0.8010n ± 0%  -48.32% (p=0.000 n=20)
-    ReverseBytes64   2.7665n ± 0%   0.8010n ± 0%  -71.05% (p=0.000 n=20)
-    geomean           1.707n        0.7192n       -57.87%
+    Fixes #62480
     
-    Updates #59120
-    
-    This patch is a copy of CL 483357.
-    Co-authored-by: WANG Xuerui <git@xen0n.name>
-    
-    Change-Id: If355354cd031533df91991fcc3392e5a6c314295
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624576
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Change-Id: If5879eea5e1b77bc6dc7430f68f8c916bff9b090
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526915
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/cmd/compile/internal/loong64/ssa.go            |  3 ++
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  1 +
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  4 +++
- src/cmd/compile/internal/ssa/opGen.go              | 42 ++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go     |  9 +++++
- src/cmd/compile/internal/ssagen/intrinsics.go      |  7 +++-
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  5 +++
- test/codegen/mathbits.go                           |  4 +++
- 8 files changed, 74 insertions(+), 1 deletion(-)
+ src/cmd/cgo/out.go | 2 ++
+ 1 file changed, 2 insertions(+)

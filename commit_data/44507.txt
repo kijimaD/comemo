@@ -1,26 +1,27 @@
-commit 9d88a9e2bf89068238ed02a0c960e58f547bb102
-Author: David Chase <drchase@google.com>
-Date:   Mon Feb 22 21:51:35 2021 -0500
+commit 19a932ceb8dc0059754e1f986c86daba3a4fb14e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 27 11:36:41 2020 -0400
 
-    cmd/compile: implement simple register results
+    cmd/link: don't mark shared library symbols reachable unconditionally
     
-    at least for ints and strings
+    During the transitioning period, we mark symbols from Go shared
+    libraries reachable unconditionally. That might be useful when
+    there was still a large portion of the linker using sym.Symbols,
+    and only reachable symbols were converted to sym.Symbols. Marking
+    them reachable brings them to the dynamic symbol table, even if
+    they are not needed, increased the binary size unexpectedly.
     
-    includes simple test
+    That time has passed. Now we largely operate on loader symbols,
+    and it is not needed to mark them reachable anymore.
     
-    For #40724.
+    Fixes #40416.
     
-    Change-Id: Ib8484e5b957b08f961574a67cfd93d3d26551558
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295309
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1e2bdb93a960ba7dc96575fabe15af93d8e95329
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244839
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/abi/abiutils.go     | 64 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/expand_calls.go | 58 ++++++++++++++++---------
- src/cmd/compile/internal/ssa/lower.go        |  3 +-
- src/cmd/compile/internal/ssa/op.go           | 25 ++++++++++-
- src/cmd/compile/internal/ssa/regalloc.go     |  3 ++
- test/abi/fibish.go                           | 33 ++++++++++++++
- test/abi/fibish.out                          |  1 +
- 7 files changed, 164 insertions(+), 23 deletions(-)
+ misc/cgo/testshared/shared_test.go | 13 +++++++++++++
+ src/cmd/link/internal/ld/lib.go    | 11 -----------
+ 2 files changed, 13 insertions(+), 11 deletions(-)

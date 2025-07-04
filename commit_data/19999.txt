@@ -1,20 +1,18 @@
-commit aa549ce449a0edccea03b7f4912ee3f9fa9b9b38
-Author: Thiago Fransosi Farina <thiago.farina@gmail.com>
-Date:   Wed Aug 13 06:47:30 2014 -0700
+commit fce63888cecd22dfc01bf1b6dcb5a1429aecbc17
+Author: Andres Erbsen <andreser@google.com>
+Date:   Mon Aug 11 16:40:42 2014 -0700
 
-    cmd/dist: Reuse streq whenever possible.
+    crypto/tls: implement tls-unique channel binding (RFC 5929 section 3).
+    Tested against GnuTLS and Python.
     
-    Basically this cleanup replaces all the usage usages of strcmp() == 0,
-    found by the following command line:
-    
-    $ grep -R strcmp cmd/dist | grep "0"
-    
-    LGTM=iant
-    R=iant
-    CC=golang-codereviews
-    https://golang.org/cl/123330043
+    LGTM=agl
+    R=golang-codereviews, agl, ashankar
+    CC=agl, golang-codereviews
+    https://golang.org/cl/117100043
 
- src/cmd/dist/plan9.c   |  6 +++---
- src/cmd/dist/unix.c    | 16 ++++++++--------
- src/cmd/dist/windows.c |  4 ++--
- 3 files changed, 13 insertions(+), 13 deletions(-)
+ src/pkg/crypto/tls/common.go           |  8 ++++++
+ src/pkg/crypto/tls/conn.go             |  6 +++++
+ src/pkg/crypto/tls/handshake_client.go | 14 ++++++-----
+ src/pkg/crypto/tls/handshake_server.go | 14 ++++++-----
+ src/pkg/crypto/tls/tls_test.go         | 45 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 75 insertions(+), 12 deletions(-)

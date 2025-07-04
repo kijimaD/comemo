@@ -1,17 +1,21 @@
-commit 39fa3f171c7b790a3f8f22d8398fdf67d680b5a7
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Thu Feb 7 13:11:12 2019 +0530
+commit 2d23ece135076698ea4724b02f07d71d1f2145fb
+Author: Austin Clements <austin@google.com>
+Date:   Sat Sep 22 15:59:01 2018 -0400
 
-    cmd/compile: fix a typo in assignment mismatch error
+    runtime: remove redundant locking in mcache.refill
     
-    Fixes #30087
+    mcache.refill acquires g.m.locks, which is pointless because the
+    caller itself absolutely must have done so already to prevent
+    ownership of mcache from shifting.
     
-    Change-Id: Ic6d80f8e6e1831886af8613420b1bd129a1b4850
-    Reviewed-on: https://go-review.googlesource.com/c/161577
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Also, mcache.refill's documentation is generally a bit out-of-date, so
+    this cleans this up.
+    
+    Change-Id: Idc8de666fcaf3c3d96006bd23a8f307539587d6c
+    Reviewed-on: https://go-review.googlesource.com/138195
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- test/fixedbugs/issue30087.go             | 14 ++++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/runtime/mcache.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

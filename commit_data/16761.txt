@@ -1,12 +1,15 @@
-commit 69c924204b210e9f6d7e3dbc8193e7aa6782ec3f
-Author: Joseph Holsten <joseph@josephholsten.com>
-Date:   Sun Jul 14 12:56:11 2013 +1000
+commit aad4720b5193221c000892e73615322698170d68
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 12 20:58:38 2013 -0400
 
-    log/syslog: fix typo: change Wanring to Warning
+    cmd/6l, cmd/8l: use one-byte XCHG forms when possible
     
-    R=golang-dev, r
+    Pointed out by khr.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/11220044
+    https://golang.org/cl/11145044
 
- src/pkg/log/syslog/syslog.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/6l/optab.c | 10 ++++++----
+ src/cmd/8l/optab.c |  8 +++++---
+ 2 files changed, 11 insertions(+), 7 deletions(-)

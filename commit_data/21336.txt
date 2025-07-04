@@ -1,34 +1,21 @@
-commit bd275b238179cdaca2c01a0bf1ac60a16fbf5a98
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 8 14:36:39 2014 -0800
+commit 326ceeabc46db98cccfbde80fde562c0fb3325c3
+Author: Austin Clements <austin@google.com>
+Date:   Wed Dec 17 12:13:47 2014 -0500
 
-    math/big: multi-precision Floats (starting point)
+    cmd/ld: add a text generation pass
     
-    Implemented:
-    - +, -, *, /, and some unary ops
-    - all rounding modes
-    - basic conversions
-    - string to float conversion
-    - tests
+    This will be used by ppc64 to add call stubs to the .text section.
+    ARM needs a similar pass to generate veneers for arm->thumb
+    transitions.
     
-    Missing:
-    - float to string conversion, formatting
-    - handling of +/-0 and +/-inf (under- and overflow)
-    - various TODOs and cleanups
-    
-    With precision set to 24 or 53, the results match
-    float32 or float64 operations exactly (excluding
-    NaNs and denormalized numbers which will not be
-    supported).
-    
-    Change-Id: I3121e90fc4b1528e40bb6ff526008da18b3c6520
-    Reviewed-on: https://go-review.googlesource.com/1218
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Iaee74036e60643a56fab15b564718f359c5910eb
+    Reviewed-on: https://go-review.googlesource.com/2004
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/float.go      | 1086 ++++++++++++++++++++++++++++++++++++++++++++
- src/math/big/float_test.go |  772 +++++++++++++++++++++++++++++++
- src/math/big/int.go        |   26 +-
- src/math/big/nat.go        |   40 +-
- src/math/big/nat_test.go   |   40 ++
- src/math/big/rat.go        |  108 +++--
- 6 files changed, 2028 insertions(+), 44 deletions(-)
+ src/cmd/5l/asm.c  | 5 +++++
+ src/cmd/6l/asm.c  | 5 +++++
+ src/cmd/8l/asm.c  | 5 +++++
+ src/cmd/9l/asm.c  | 5 +++++
+ src/cmd/ld/lib.h  | 1 +
+ src/cmd/ld/pobj.c | 1 +
+ 6 files changed, 22 insertions(+)

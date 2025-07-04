@@ -1,27 +1,14 @@
-commit 09300d89e94da7b1f32742e80768acc711b5c590
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 14 09:03:37 2023 -0400
+commit 867babe1b1587ab6961c1d6274be2426e90bf5d4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Oct 20 16:48:21 2022 -0400
 
-    net/http: synchronize tests that use reqNum counters
+    runtime: gofmt
     
-    This suppresses the race reported in #62638.
-    
-    I am not 100% certain how that race happens, but here is my theory.
-    The increment of reqNum happens before the server writes the response
-    headers, and the server necessarily writes the headers before the
-    client receives them. However, that write/read pair occurs through I/O
-    syscalls rather than Go synchronization primitives, so it doesn't
-    necessarily create a “happens before” relationship as defined by the
-    Go memory model: although we can establish a sequence of events, that
-    sequence is not visible to the race detector, nor to the compiler.
-    
-    Fixes #62638.
-    
-    Change-Id: I90d66ec3fc32b9b8e1f9bbf0bc2eb289b964b99b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528475
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Ib9bea9e42d8e99b83dc64450baf9fede15156514
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444615
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/net/http/serve_test.go | 29 ++++++++++++++++-------------
- 1 file changed, 16 insertions(+), 13 deletions(-)
+ src/runtime/runtime2.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

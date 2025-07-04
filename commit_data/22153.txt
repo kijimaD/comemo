@@ -1,17 +1,14 @@
-commit b6ed943bef2c984fe9ca48b5f80594bf7ba2a6e5
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Mar 10 03:26:37 2015 -0400
+commit ca0be6f849f227c409b06819d9b2d349a8045098
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 25 11:53:33 2015 -0800
 
-    runtime: use _main instead of main on windows/386
+    math/big: clean up Float.SetPrec, use shorter internal representation
     
-    windows/386 also wants underscore prefix for external names.
-    This CL is in preparation of external linking support.
-    
-    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e2d
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/7282
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I9b78085adc12cbd240d0b8b48db6810ddb2aeadd
+    Reviewed-on: https://go-review.googlesource.com/5991
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/rt0_windows_386.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/math/big/float.go      | 58 ++++++++++++++++++++++++++++++++--------------
+ src/math/big/float_test.go | 52 +++++++++++++++++++++++++++++++++++++++++
+ src/math/big/floatconv.go  |  6 ++---
+ 3 files changed, 95 insertions(+), 21 deletions(-)

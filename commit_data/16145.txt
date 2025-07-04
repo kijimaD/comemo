@@ -1,21 +1,12 @@
-commit e13341edd1f322e4a032c4e98a24db8cde45eb8d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 9 12:41:58 2013 +0900
+commit 384b72e94bf403676fe652fd7efc72cad25365f0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 9 13:01:09 2013 +1000
 
-    net: fix possible runtime.PollDesc leak when connect or listen fails
+    run.bat: make windows runtime test timeout same as other os
     
-    Makes it possible to return the spent runtime.PollDesc to
-    runtime.pollcache descriptor pool when netFD.connect or
-    syscall.Listen fails.
-    
-    Fixes #5219.
-    
-    R=dvyukov, dave, bradfitz, adg
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/8318044
+    https://golang.org/cl/8551043
 
- src/pkg/net/fd_unix.go        | 10 +++++++---
- src/pkg/net/sock_posix.go     |  2 +-
- src/pkg/net/tcpsock_posix.go  |  2 +-
- src/pkg/net/unixsock_posix.go |  2 +-
- 4 files changed, 10 insertions(+), 6 deletions(-)
+ src/run.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

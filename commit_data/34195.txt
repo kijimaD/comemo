@@ -1,18 +1,54 @@
-commit 530927e08a22badb201d65f44ef9c95b620e5ab6
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Jan 29 22:57:54 2018 +0100
+commit 6f3e5e637c6c26d1d24e20e96b86ecd27a7ecabc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 9 15:33:29 2017 -0400
 
-    runtime: improve test file naming
+    cmd/compile: intrinsify runtime.getcallersp
     
-    The runtime builtin functions that are tested in append_test.go
-    are defined in slice.go. Renaming the test file to slice_test.go
-    makes this relation explicit with a common file name prefix.
+    Add a compiler intrinsic for getcallersp. So we are able to get
+    rid of the argument (not done in this CL).
     
-    Change-Id: I2f89ec23a6077fe6b80d2161efc760df828c8cd4
-    Reviewed-on: https://go-review.googlesource.com/90655
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: Ic38fda1c694f918328659ab44654198fb116668d
+    Reviewed-on: https://go-review.googlesource.com/69350
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/{append_test.go => slice_test.go} | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          | 13 ++++
+ src/cmd/compile/internal/arm/ssa.go            |  8 +++
+ src/cmd/compile/internal/arm64/ssa.go          |  8 +++
+ src/cmd/compile/internal/gc/dcl.go             |  7 +-
+ src/cmd/compile/internal/gc/ssa.go             |  6 ++
+ src/cmd/compile/internal/mips/ssa.go           |  8 +++
+ src/cmd/compile/internal/mips64/ssa.go         |  8 +++
+ src/cmd/compile/internal/ppc64/ssa.go          |  9 +++
+ src/cmd/compile/internal/s390x/ssa.go          |  8 +++
+ src/cmd/compile/internal/ssa/gen/386.rules     |  1 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |  2 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  1 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  3 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |  3 +
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |  1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  3 +
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go    |  3 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  3 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |  2 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 94 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go     | 11 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 11 +++
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 11 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 11 +++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    | 11 +++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 11 +++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 11 +++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 11 +++
+ src/cmd/compile/internal/x86/ssa.go            |  9 +++
+ src/runtime/stubs.go                           | 11 +--
+ 37 files changed, 296 insertions(+), 11 deletions(-)

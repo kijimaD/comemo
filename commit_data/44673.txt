@@ -1,24 +1,29 @@
-commit de2b27dee761143116b2ecb303b67e018c5e7473
-Author: Prajwal Koirala <16564273+Prajwal-Koirala@users.noreply.github.com>
-Date:   Mon Mar 15 06:13:23 2021 +0000
+commit fe23ba4a145ce8465d16ea2a92b9a7e96e15c28e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 27 16:19:15 2020 -0700
 
-    all: run gofmt
+    runtime: eliminate scase.kind field
     
-    Fixes #44980
+    Currently, we include a "kind" field on scase to distinguish the three
+    kinds of cases in a select statement: sends, receives, and defaults.
     
-    Change-Id: Icef35319d1582d8367c8911e15d11b0224957327
-    GitHub-Last-Rev: 2113e97e837c1ef5de9ba6a7bd62db92e644c500
-    GitHub-Pull-Request: golang/go#45005
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301632
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    This commit removes by kind field by instead arranging for the
+    compiler to always place sends before receives, and to provide their
+    counts separately. It also passes an explicit "block bool" parameter
+    to avoid needing to include a default case in the array.
+    
+    It's safe to shuffle cases like this because the runtime will
+    randomize the order they're polled in anyway.
+    
+    Fixes #40410.
+    
+    Change-Id: Iaeaed4cf7bddd576d78f2c863bd91a03a5c82df2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245125
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/testplugin/testdata/method2/main.go       |  2 +-
- src/cmd/compile/internal/ssa/gen/S390XOps.go       |  2 +-
- src/cmd/cover/testdata/toolexec.go                 |  2 +-
- src/cmd/go/testdata/addmod.go                      |  2 +-
- .../obj/riscv/testdata/testbranch/branch_test.go   |  8 ++---
- src/cmd/link/internal/ld/elf.go                    | 39 +++++++++++-----------
- .../internal/ld/testdata/deadcode/ifacemethod3.go  |  2 +-
- src/runtime/testdata/testwinsignal/main.go         | 38 ++++++++++-----------
- 8 files changed, 47 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         |   2 +-
+ src/cmd/compile/internal/gc/builtin/runtime.go |   2 +-
+ src/cmd/compile/internal/gc/select.go          | 108 +++++++++++++------------
+ src/reflect/all_test.go                        |   8 ++
+ src/runtime/select.go                          | 104 +++++++++++++-----------
+ 5 files changed, 123 insertions(+), 101 deletions(-)

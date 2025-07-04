@@ -1,24 +1,22 @@
-commit 0c13bd637c87581c9f0f63d9cca57b80b8de2dc0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 8 12:02:02 2023 -0400
+commit 2caaad942e15c148bfce33e06baa03d3a1557fcd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 7 20:31:00 2022 +0000
 
-    cmd/cgo/internal/testplugin: simplify TestForkExec and log stderr output
+    runtime: use searchIdx in scavengeOne
     
-    This test used to run with a separate goroutine for timeout behavior,
-    presumably because it was difficult to set an appropriate timeout.
+    This is an optimization that prevents N^2 behavior within a chunk, but
+    was accidentally skipped. There should be no functional change as a
+    result of this CL.
     
-    Now that the test is in cmd instead of misc, we can use
-    internal/testenv.Command, which makes adding the test timeout much
-    simpler and eliminates the need for the explicit goroutine.
+    Fixes #54892.
     
-    For #61846.
-    
-    Change-Id: I68ea09fcf2aa394bed1e900cf30ef7d143fa249f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517095
+    Change-Id: I861967a2268699fdc3464bd41bc56618b5628e6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429255
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/cgo/internal/testplugin/plugin_test.go | 25 ++++++++-----------------
- 1 file changed, 8 insertions(+), 17 deletions(-)
+ src/runtime/mgcscavenge.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

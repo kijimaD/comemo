@@ -1,27 +1,15 @@
-commit 6e2c3ef428e547c39a41b813831f72ed098f976a
+commit 969b71d906f4ee6b438bc051dc7fff98f4fa503c
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 13 14:28:41 2011 -0500
+Date:   Tue Dec 13 14:20:38 2011 -0500
 
-    go: implement doc, fmt, fix, list, vet
+    build: disable cgo on Windows/amd64
     
-    This CL is concerned with the basic Package structure
-    and applies it to the (trivial) implementations of the
-    doc, fmt, fix, list, and vet commands.
+    Apparently it is broken.  Disable so that dashboard
+    will let us see other breakages on Windows.
     
-    The command as a whole is still very much a work in progress.
-    In particular, work making the error messages look nice
-    is deferred to a future CL.
-    
-    R=golang-dev, adg, dsymonds, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5482048
+    https://golang.org/cl/5477081
 
- src/cmd/go/Makefile |   1 +
- src/cmd/go/doc.go   |   2 +
- src/cmd/go/fix.go   |   9 ++-
- src/cmd/go/fmt.go   |  39 +++++++++++--
- src/cmd/go/list.go  |  61 +++++++++++++++-----
- src/cmd/go/main.go  |  32 +++++++++++
- src/cmd/go/pkg.go   | 163 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/vet.go   |   9 ++-
- 8 files changed, 290 insertions(+), 26 deletions(-)
+ src/Make.inc | 3 +++
+ 1 file changed, 3 insertions(+)

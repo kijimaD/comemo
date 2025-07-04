@@ -1,20 +1,24 @@
-commit c6c602a92612a855d8eb2f649f3dff75bb5fb9ad
-Author: Austin Clements <austin@google.com>
-Date:   Mon Aug 28 12:29:07 2017 -0400
+commit 86a0e67a03370601956133119982167ffadd526d
+Author: Jakub Čajka <jcajka@redhat.com>
+Date:   Fri Jul 13 15:23:12 2018 +0200
 
-    internal/trace: use MU slope to optimize MMU
+    cmd/go: call flag.Parse to properly initialize test environment variables
     
-    This commit speeds up MMU construction by ~10X (and reduces the number
-    of windows considered by ~20X) by using an observation about the
-    maximum slope of the windowed mutator utilization function to advance
-    the window time in jumps if the window's current mean mutator
-    utilization is much larger than the current minimum.
+    Executing tests in src/cmd/go/internal/modfetch/codehost/git_test.go in enviroment
+    witout outside connectivity in to the internet results in tests failure:
     
-    Change-Id: If3cba5da0c4adc37b568740f940793e491e96a51
-    Reviewed-on: https://go-review.googlesource.com/c/60791
-    Run-TryBot: Austin Clements <austin@google.com>
+    2018/07/13 14:31:14 git clone --mirror https://vcs-test.golang.org/git/gitrepo1 /tmp/gitrepo-test-996701800/gitrepo2 in : exit status 128:
+            Cloning into bare repository '/tmp/gitrepo-test-996701800/gitrepo2'...
+            fatal: unable to access 'https://vcs-test.golang.org/git/gitrepo1/': Could not resolve host: vcs-test.golang.org
+    FAIL    cmd/go/internal/modfetch/codehost       0.307s
+    
+    Fixes #26007
+    
+    Change-Id: Ia39d8b3215c920dad6c0c58ffabb0b2ab39bb55c
+    Reviewed-on: https://go-review.googlesource.com/123735
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/traceparser/gc.go | 33 +++++++++++++++++++++++++++++++--
- 1 file changed, 31 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

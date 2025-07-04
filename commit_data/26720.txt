@@ -1,14 +1,28 @@
-commit f79b50b8d5bc159561c1dcf7c17e2a0db96a9a11
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 5 11:17:57 2016 -0700
+commit 1439158120742e5f41825de90a76b680da64bf76
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Feb 23 01:26:50 2016 -0500
 
-    go/importer: match predeclared type list with gc's list in binary exporter
+    runtime, syscall: switch linux/386 to use int 0x80
     
-    I think we had this code before but it may have gone lost somehow.
+    Like bionic, musl also doesn't provide vsyscall helper in %gs:0x10,
+    and as int $0x80 is as fast as calling %gs:0x10, just use int $0x80
+    always.
     
-    Change-Id: Ifde490e686de0d2bfe907cbe19c9197f24f5fa8e
-    Reviewed-on: https://go-review.googlesource.com/21537
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Because we're no longer using vsyscall in VDSO, get rid of VDSO code
+    for linux/386 too.
+    
+    Fixes #14476.
+    
+    Change-Id: I00ec8652060700e0a3c9b524bfe3c16a810263f6
+    Reviewed-on: https://go-review.googlesource.com/19833
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/internal/gcimporter/bimport.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/runtime/os_linux_386.go |  5 -----
+ src/runtime/rt0_linux_386.s |  8 --------
+ src/runtime/runtime1.go     |  2 +-
+ src/runtime/signal_386.go   | 25 +------------------------
+ src/runtime/sys_linux_386.s | 25 ++++++++++---------------
+ src/syscall/asm_linux_386.s | 13 ++-----------
+ 6 files changed, 14 insertions(+), 64 deletions(-)

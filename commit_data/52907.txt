@@ -1,33 +1,23 @@
-commit 1a612783c5c15e4d69d94877154601b7caddae9d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue May 2 16:46:20 2023 -0400
+commit 5ee939b8199266446d7ccc563751a9d3db26bf8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 13 11:06:55 2022 -0700
 
-    cmd/link, runtime: include full symbol name for generic functions in runtime table
+    spec: clarify behavior of map size hint for make built-in
     
-    For generic functions and methods, we replace the instantiated
-    shape type parameter name to "...", to make the function name
-    printed in stack traces looks more user friendly. Currently, this
-    is done in the binary's runtime func table at link time, and the
-    runtime has no way to access the full symbol name. This causes
-    the profile to also contain the replaced name. For PGO, this also
-    cause the compiler to not be able to find out the original fully
-    instantiated function name from the profile.
+    The spec already states that the precise behavior of the map size
+    hint provided to the make built-in is implementation-dependent.
     
-    With this CL, we change the linker to record the full name, and
-    do the name substitution at run time when a printing a function's
-    name in traceback.
+    Exclude requiring specific run-time behavior for maps.
+    (The current Go compiler does not panic if the size hint is negative
+    at run-time.)
     
-    For #58712.
+    Fixes #53219.
     
-    Change-Id: Ia0ea0989a1ec231f3c4fbf59365c9333405396c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491677
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2f3618bf9ba4ed921e18dc4f2273eaa770805bd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411919
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/pcln.go | 26 ++---------------
- src/runtime/error.go             |  2 +-
- src/runtime/symtab.go            |  8 ++---
- src/runtime/traceback.go         | 52 ++++++++++++++++++++++++++-------
- src/runtime/traceback_test.go    | 63 ++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 112 insertions(+), 39 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

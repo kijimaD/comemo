@@ -1,16 +1,14 @@
-commit 964639cc338db650ccadeafb7424bc8ebb2c0f6c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 15 19:50:59 2016 -0400
+commit b7d96b8e059ce446f25e615ab9ef277eae2ef1c9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed May 25 08:03:46 2016 -0400
 
-    cmd/compile: intrinsify runtime/internal/atomic.Xaddint64
+    doc: reflect {Num,}Method skips unexported methods
     
-    This aliases to Xadd64.
+    For #15673
     
-    Change-Id: I95d49e1d03eecc242e9e6fd4b2742b1c1a1d5ade
-    Reviewed-on: https://go-review.googlesource.com/29274
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3ce8d4016854d41860c5a9f05a54cda3de49f337
+    Reviewed-on: https://go-review.googlesource.com/23430
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go1.7.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

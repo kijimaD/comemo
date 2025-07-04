@@ -1,17 +1,16 @@
-commit 50bd17205fd9540615c03461a0047e59d29e6efd
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Aug 26 23:07:27 2023 +0800
+commit 19855072570ca6ec657c09b14fdeb1a5e5271fb7
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:12:10 2022 +0800
 
-    cmd/compile/internal/liveness: remove repetitive word
+    cmd/compile/internal/ppc64: delete useless break
     
-    Change-Id: I27789840d92cc2c1e799db5b58e1eb1570e264df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523235
+    Change-Id: I32ab2f2dcc5e8357b8e832bc40f688a88550007f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436650
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/liveness/plive.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ppc64/ssa.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,23 +1,24 @@
-commit 146e8d4994052ee4a58bec7e2cf37e568ce1e4e5
-Author: Nevkontakte <aleks@nevkontakte.com>
-Date:   Mon Sep 13 22:40:30 2021 +0000
+commit 6f30c9504861d68d13113989a3cf063832d47002
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 29 01:22:50 2020 -0800
 
-    reflect: use Value.Len instead of conversion to slice header
+    [dev.regabi] cmd/compile: remove unneeded indirection
     
-    This change is functionally equivalent, but reduces reliance on unsafe
-    features. This would allow GopherJS to avoid an additional patch to the
-    standard library we'd have to maintain in order to remain compatible
-    with Go 1.17+.
+    Thanks to package reorganizing, we can remove types.TypeLinkSym by
+    simply having its only callers use reflectdata.TypeLinksym directly.
     
-    Change-Id: I4f113db0c572ec0b81ebfecf5a137145f6c8c41d
-    GitHub-Last-Rev: 94ebb393bac93579b6455555822691c0d69e2d42
-    GitHub-Pull-Request: golang/go#48346
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349469
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I5bc5dbb6bf0664af43ae5130cfe1f19bd23b2bfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280644
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/reflect/value.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/abiutils_test.go |  7 -------
+ src/cmd/compile/internal/gc/main.go          |  6 ------
+ src/cmd/compile/internal/ssa/writebarrier.go |  5 +++--
+ src/cmd/compile/internal/types/type.go       |  5 -----
+ src/cmd/compile/internal/types/utils.go      | 11 -----------
+ 5 files changed, 3 insertions(+), 31 deletions(-)

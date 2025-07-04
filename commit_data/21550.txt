@@ -1,13 +1,16 @@
-commit f43a8dea92cd84f6ed53cb51904c7c2ed4c89b07
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Feb 10 17:21:03 2015 +0900
+commit 636de7afb61d3afc354949fb6290afd9554dd5a5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 14 13:30:34 2015 -0800
 
-    net: disable WriteMsgUDP tests on nacl, windows (fix build)
+    runtime: fix *bsd/amd64 build
     
-    Change-Id: I695b89ec2b63233d94c49c4a40a57b50350ec67c
-    Reviewed-on: https://go-review.googlesource.com/4350
-    TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    6g does not implement dead code elimination for const switches like it
+    does for const if statements, so the undefined raiseproc() function
+    was resulting in a link-time failure.
+    
+    Change-Id: Ie4fcb3716cb4fe6e618033071df9de545ab3e0af
+    Reviewed-on: https://go-review.googlesource.com/2830
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/udp_test.go | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ src/runtime/signal_amd64x.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,33 +1,21 @@
-commit 6fe3ccd74c4bf53552da3d9f59463a8a291f59db
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Oct 14 17:30:45 2022 +0200
+commit f6647f2e3bc0b803a67c97a7d5d8733cefbd5d5b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 09:44:58 2021 -0800
 
-    runtime: ignore exceptions from non-Go threads on windows arm/arm64
+    spec: generalize method sets and interface types to type sets
     
-    If there is no current G while handling an exception it means
-    the exception was originated in a non-Go thread.
+    This is the first of several CLs that update the existing
+    Go 1.17 spec for type parameters.
     
-    The best we can do is ignore the exception and let it flow
-    through other vectored and structured error handlers.
+    This CL updates the section on method sets and interface types.
+    It also adds "any", "comparable" to the list of predeclared
+    identifiers.
     
-    I've removed badsignal2 from sigtramp because we can't really know
-    if the signal is bad or not, it might be handled later in the chain.
-    
-    Fixes #50877
-    Updates #56082
-    
-    Change-Id: Ica159eb843629986d1fb5482f0b59a9c1ed91698
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442896
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I0ce25dc02791c33150c0d949528512610faf3eab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362999
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/signal_windows_test.go           | 55 ++++++++++++++++++++++++++++
- src/runtime/sys_windows_arm.s                | 10 ++++-
- src/runtime/sys_windows_arm64.s              | 11 ++++--
- src/runtime/testdata/testwinlibthrow/main.go | 23 ++++++++++++
- src/runtime/testdata/testwinlibthrow/veh.cpp | 53 +++++++++++++++++++++++++++
- 5 files changed, 147 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 245 ++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 207 insertions(+), 38 deletions(-)

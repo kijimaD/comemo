@@ -1,15 +1,18 @@
-commit 3ff943fce0eff41a2392cfe8b280e87a18a7afac
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Sun Feb 23 10:55:29 2025 +0100
+commit 03242506def60494d1b7231e2be57ea2f07f27a8
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Dec 19 10:32:52 2023 -0500
 
-    net: add godoc links for UnixConn, UnixListener
+    doc: comment out remaining TODOs in Go 1.22 relnotes (for now)
     
-    Change-Id: I8f332eb14c0ce4f31a2e0f44ddd227769d7b940f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651875
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This patch comments out the remaining "TODO" items in the Go 1.22
+    release notes temporarily, so as to have RC1 go out with the notes
+    in a clean (TODO-less) state.
+    
+    Change-Id: I88f5fef75860fc78b8077dce704ae71c6194a6a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551257
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
 
- src/net/unixsock.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ doc/go1.22.html | 76 ++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 38 insertions(+), 38 deletions(-)

@@ -1,20 +1,52 @@
-commit b820ef5c33c1b508c7b0df8827b6f13c9480acea
-Author: Lion Yang <lion@aosc.xyz>
-Date:   Thu Jan 5 06:25:59 2017 +0800
+commit 0ce1d79a6a771f7449ec493b993ed2a720917870
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 11 08:34:58 2016 -0700
 
-    x/crypto/chacha20poly1305: fix detection of BMI on AMD64
+    database/sql: accept nil pointers to Valuers implemented on value receivers
     
-    This change uses runtime.support_bmi2 as an additional condition
-    to examine the usability of AVX2 version algorithm, fixes
-    the crash on the platfrom which supports AVX2 but not support BMI2.
+    The driver.Valuer interface lets types map their Go representation to
+    a suitable database/sql/driver.Value.
     
-    Fixes #18512
+    If a user defines the Value method with a value receiver, such as:
     
-    Change-Id: I408c0844ae2eb242dacf70cb9e8cec1b8f3bd941
-    Reviewed-on: https://go-review.googlesource.com/34851
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+        type MyStr string
+    
+        func (s MyStr) Value() (driver.Value, error) {
+            return strings.ToUpper(string(s)), nil
+        }
+    
+    Then they can't use (*MyStr)(nil) as an argument to an SQL call via
+    database/sql, because *MyStr also implements driver.Value, but via a
+    compiler-generated wrapper which checks whether the pointer is nil and
+    panics if so.
+    
+    We now accept (*MyStr)(nil) and map it to "nil" (an SQL "NULL")
+    if the Valuer method is implemented on MyStr instead of *MyStr.
+    
+    If a user implements the driver.Value interface with a pointer
+    receiver, they retain full control of what nil means:
+    
+        type MyStr string
+    
+        func (s *MyStr) Value() (driver.Value, error) {
+            if s == nil {
+                return "missing MyStr", nil
+            }
+            return strings.ToUpper(string(*s)), nil
+        }
+    
+    Adds tests for both cases.
+    
+    Fixes #8415
+    
+    Change-Id: I897d609d80d46e2354d2669a8a3e090688eee3ad
+    Reviewed-on: https://go-review.googlesource.com/31259
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../x/crypto/chacha20poly1305/chacha20poly1305_amd64.s     | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ src/database/sql/convert.go      | 26 ++++++++++++-
+ src/database/sql/convert_test.go | 83 ++++++++++++++++++++++++++++++++++++++++
+ src/database/sql/driver/types.go | 26 ++++++++++++-
+ 3 files changed, 131 insertions(+), 4 deletions(-)

@@ -1,13 +1,14 @@
-commit 29df7bb7ecf311f3c863754fb8215396923a0261
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Tue Aug 9 10:25:53 2011 -0700
+commit 1adda4601aa9c28199f265d5826fd9c31ee73f64
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 9 17:07:29 2011 +1000
 
-    http: add test to serve content in index.html
+    exp/template: do not take address of interface variable to find methods.
+    Also allow struct values as "with" targets.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4798071
+    https://golang.org/cl/4809086
 
- src/pkg/http/fs_test.go          | 21 +++++++++++++++++++++
- src/pkg/http/testdata/index.html |  1 +
- 2 files changed, 22 insertions(+)
+ src/pkg/exp/template/exec.go      |  8 +++++---
+ src/pkg/exp/template/exec_test.go | 25 ++++++++++++++++---------
+ 2 files changed, 21 insertions(+), 12 deletions(-)

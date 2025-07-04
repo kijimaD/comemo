@@ -1,21 +1,27 @@
-commit 5bb59b6d1645144dade71e8d19ccf39338788a0f
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Sep 9 07:22:14 2019 +0000
+commit 88adc33827f1e01953a6a3f40d927a2b7efcce3e
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Feb 27 15:27:42 2019 -0500
 
-    Revert "compile: prefer an AND instead of SHR+SHL instructions"
+    context: remove dependency on reflect
     
-    This reverts commit 9ec7074a946b7c2812a1a044e84276a36f46d14d.
+    Make context depend on reflectlite instead of reflect in effort to
+    eventually make net no longer depend on unicode tables.
     
-    Reason for revert: broke s390x (copysign, abs) and arm64 (bitfield) tests.
+    With this CL we're down to just:
     
-    Change-Id: I16c1b389c062e8c4aa5de079f1d46c9b25b0db52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193850
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+        net -> context -> fmt -> unicode tables
+    
+    The next CL can remove context -> fmt.
+    
+    Updates #30440
+    
+    Change-Id: I7f5df15f975d9dc862c59aa8477c1cfd6ff4967e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164239
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |   5 +-
- src/cmd/compile/internal/ssa/gen/generic.rules |   8 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 114 ++++++++++++++++++++++++-
- test/codegen/math.go                           |   4 +-
- 4 files changed, 123 insertions(+), 8 deletions(-)
+ src/context/context.go           | 4 ++--
+ src/go/build/deps_test.go        | 4 ++--
+ src/internal/reflectlite/type.go | 7 +++++++
+ 3 files changed, 11 insertions(+), 4 deletions(-)

@@ -1,23 +1,18 @@
-commit 1f2445d27bfca7d44f90ed9a6dbb799289bdf548
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 13 15:37:35 2012 -0500
+commit 0a2ffb26385104613ed29bf80da56053566cdb21
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 13 12:24:02 2012 -0800
 
-    gc: delete old unsafe functions
+    go/doc: don't lose exported consts/vars with unexported type
     
-    Also update build to be able to run mkbuiltin again.
-    The export form has changed a little, so builtin.c has
-    more diffs than unsafe.go.
+    Fixes #2998.
     
-    In CL 5650069, I just edited the documentation, a rarely
-    successful method of change.
-    
-    R=ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5662043
+    https://golang.org/cl/5650078
 
- src/cmd/dist/build.c    |   1 +
- src/cmd/gc/builtin.c    | 125 +++++++++++++++++++++++-------------------------
- src/cmd/gc/mkbuiltin    |  13 ++---
- src/cmd/gc/mkbuiltin1.c |  32 +++++++++----
- src/cmd/gc/unsafe.go    |   6 ---
- 5 files changed, 92 insertions(+), 85 deletions(-)
+ src/pkg/go/doc/reader.go           |  2 +-
+ src/pkg/go/doc/testdata/b.0.golden | 28 ++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/b.1.golden | 36 +++++++++++++++++++++++++++++++++++-
+ src/pkg/go/doc/testdata/b.2.golden | 28 ++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/b.go       | 28 ++++++++++++++++++++++++++++
+ 5 files changed, 120 insertions(+), 2 deletions(-)

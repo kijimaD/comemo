@@ -1,43 +1,28 @@
-commit 058f019e45fc1f18842e0339d7d56d804936263b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 30 11:06:06 2022 -0400
+commit 8a3be150775f80850e179bd1860b286be27ca407
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 08:12:21 2021 -0800
 
-    cmd/cgo, cmd/compile, cmd/link: remove old style build tags
+    cmd/compile/internal/types2: rename structure to structuralType
     
-    [Roll-forward of CL 436915 by Tobias Klauser, with builtin and gen
-    directories dropped now that they've been handled separately.]
+    And rename structureString to structuralString.
     
-    The minimum bootstrap version for Go ≥ 1.20 is Go 1.17. That version
-    supports the new style //go:build lines. Thus the old style //+build
-    lines can be dropped in this part of the tree as well. Leave the
-    //+build lines in cmd/dist which will ensure the minimum Go version
-    during bootstrap.
+    Now that we have an updated definition for structural types in
+    the (forthcoming) spec, name the corresponding function accordingly.
     
-    As suggested by Cherry during review of CL 430496
+    No semantic changes.
     
-    For #44505
-    
-    Change-Id: Ifa686656c3e50bf7f92f70747b44d74a7d51bad8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435473
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Iab838f01a37075bedf2d8bc4f166b0217672b85f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362994
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/cgo/ast_go1.go                                 | 1 -
- src/cmd/cgo/ast_go118.go                               | 1 -
- src/cmd/compile/internal/base/bootstrap_false.go       | 1 -
- src/cmd/compile/internal/base/bootstrap_true.go        | 1 -
- src/cmd/compile/internal/base/mapfile_mmap.go          | 1 -
- src/cmd/compile/internal/base/mapfile_read.go          | 7 -------
- src/cmd/compile/internal/ir/mknode.go                  | 1 -
- src/cmd/compile/internal/ssa/flags_test.go             | 1 -
- src/cmd/compile/internal/typecheck/_builtin/runtime.go | 1 -
- src/cmd/compile/internal/typecheck/mkbuiltin.go        | 1 -
- src/cmd/compile/internal/types2/example_test.go        | 1 -
- src/cmd/internal/bio/buf_mmap.go                       | 1 -
- src/cmd/internal/bio/buf_nommap.go                     | 7 -------
- src/cmd/link/elf_test.go                               | 1 -
- src/cmd/link/internal/ld/outbuf_mmap.go                | 1 -
- src/cmd/link/internal/ld/outbuf_nofallocate.go         | 1 -
- src/cmd/link/internal/ld/outbuf_nommap.go              | 9 ---------
- 17 files changed, 37 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go   | 24 ++++++++++++------------
+ src/cmd/compile/internal/types2/call.go       |  2 +-
+ src/cmd/compile/internal/types2/expr.go       |  2 +-
+ src/cmd/compile/internal/types2/index.go      |  2 +-
+ src/cmd/compile/internal/types2/infer.go      |  2 +-
+ src/cmd/compile/internal/types2/predicates.go |  4 ++--
+ src/cmd/compile/internal/types2/stmt.go       |  2 +-
+ 7 files changed, 19 insertions(+), 19 deletions(-)

@@ -1,17 +1,19 @@
-commit 4b8a7eafef039af1834ef9bfa879257c4a72b7b5
-Author: Ryuma Yoshida <ryuma.y1117@gmail.com>
-Date:   Sun Feb 11 16:50:48 2018 +0900
+commit e59fe206e7aeaa8adad28f602d4361f8db2925a6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 27 12:55:23 2017 -0700
 
-    net/http: add StatusMisdirectedRequest (421)
+    cmd/compile: mark closure structs as Noalg
     
-    Fixes #23776
+    Avoids generating useless equality and hash functions.
     
-    Change-Id: Iff03d8b295afc1fd9435694b10246c723d323eda
-    Reviewed-on: https://go-review.googlesource.com/93296
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Kunpei Sakai <namusyaka@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Shrinks cmd/go executable size on linux/amd64 by ~17kB.
+    
+    Change-Id: Ifde5315cc5cbceb3a7260195c8803cace952359f
+    Reviewed-on: https://go-review.googlesource.com/66650
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/status.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/closure.go | 30 +++++++++++++++++-------------
+ src/cmd/compile/internal/gc/dcl.go     |  6 +++++-
+ 2 files changed, 22 insertions(+), 14 deletions(-)

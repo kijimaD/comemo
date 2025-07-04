@@ -1,45 +1,13 @@
-commit 159302f36f2355f35db51d07a892672adffed6ed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 1 15:38:17 2012 -0700
+commit 538a58bb75ea86be27ba24597c4f45f0e84969ea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 1 13:54:09 2012 -0700
 
-    exp/types: move exp/types/staging -> exp/types
+    misc/cgo/test: changes to pass when using gccgo
     
-    - removes exp/types/staging
-    - the only code change is in exp/gotype/gotype.go
-    
-    R=iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6822068
+    https://golang.org/cl/6821067
 
- src/pkg/exp/gotype/gotype.go                             | 2 +-
- src/pkg/exp/types/{staging => }/builtins.go              | 0
- src/pkg/exp/types/{staging => }/check.go                 | 0
- src/pkg/exp/types/{staging => }/check_test.go            | 0
- src/pkg/exp/types/{staging => }/const.go                 | 0
- src/pkg/exp/types/{staging => }/conversions.go           | 0
- src/pkg/exp/types/{staging => }/errors.go                | 0
- src/pkg/exp/types/{staging => }/exportdata.go            | 0
- src/pkg/exp/types/{staging => }/expr.go                  | 0
- src/pkg/exp/types/{staging => }/gcimporter.go            | 0
- src/pkg/exp/types/{staging => }/gcimporter_test.go       | 0
- src/pkg/exp/types/{staging => }/operand.go               | 0
- src/pkg/exp/types/{staging => }/predicates.go            | 0
- src/pkg/exp/types/{staging => }/resolver_test.go         | 0
- src/pkg/exp/types/{staging => }/stmt.go                  | 0
- src/pkg/exp/types/{staging => }/testdata/builtins.src    | 0
- src/pkg/exp/types/{staging => }/testdata/const0.src      | 0
- src/pkg/exp/types/{staging => }/testdata/conversions.src | 0
- src/pkg/exp/types/{staging => }/testdata/decls0.src      | 0
- src/pkg/exp/types/{staging => }/testdata/decls1.src      | 0
- src/pkg/exp/types/{staging => }/testdata/decls2a.src     | 0
- src/pkg/exp/types/{staging => }/testdata/decls2b.src     | 0
- src/pkg/exp/types/{staging => }/testdata/exports.go      | 0
- src/pkg/exp/types/{staging => }/testdata/expr0.src       | 0
- src/pkg/exp/types/{staging => }/testdata/expr1.src       | 0
- src/pkg/exp/types/{staging => }/testdata/expr2.src       | 0
- src/pkg/exp/types/{staging => }/testdata/expr3.src       | 0
- src/pkg/exp/types/{staging => }/testdata/stmt0.src       | 0
- src/pkg/exp/types/{staging => }/types.go                 | 0
- src/pkg/exp/types/{staging => }/types_test.go            | 0
- src/pkg/exp/types/{staging => }/universe.go              | 0
- 31 files changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/test/backdoor/runtime.c       |  2 ++
+ misc/cgo/test/backdoor/runtime_gccgo.c | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+)

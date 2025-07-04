@@ -1,17 +1,24 @@
-commit 8f0fb2c54e5e91c2a545db88e2e31e16f75ba55b
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sat Sep 28 02:37:20 2024 +0800
+commit f9410990e60529d74733e557d26f34d6237548dc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 23:04:08 2023 -0700
 
-    cmd/go: relax the regular expression of TestScript/list_pkgconfig_error
+    cmd/compile/internal/ir: remove OFUNCINST and InstExpr
     
-    Fixes #68283
+    These were only ever used by the pre-unified generics frontend. I
+    initially kept them because I thought they'd be useful for the unified
+    frontend eventually too, but that hasn't manifested.
     
-    Change-Id: I63bd128bd10565ce16a13b5a60d813368db26f26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616339
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Iaa31a76ac4d62533ec269d2a7141442b8e344180
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520608
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/testdata/script/list_pkgconfig_error.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/expr.go             | 19 -----------
+ src/cmd/compile/internal/ir/node.go             |  1 -
+ src/cmd/compile/internal/ir/node_gen.go         | 34 -------------------
+ src/cmd/compile/internal/ir/op_string.go        | 43 ++++++++++++-------------
+ src/cmd/compile/internal/typecheck/typecheck.go |  3 --
+ 5 files changed, 21 insertions(+), 79 deletions(-)

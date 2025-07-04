@@ -1,23 +1,21 @@
-commit 870e12d7bfaea70fb0d743842f5864eb059cb939
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Tue Jul 31 01:11:32 2018 +0700
+commit a44cd6866380c90870ee92a3b053f780a900b282
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Apr 11 01:24:09 2018 +0200
 
-    cmd/go: fix go get fail when GIT_TRACE set
+    misc/ios: don't wait for response to lldb run in the exec wrapper
     
-    GIT_TRACE write message to stderr, while run1 merge both stdout and
-    stderr. So function which call run1 and rely on its output will failed
-    to parse the result when run1 success.
+    CL 106096 changed the iOS exec wrapper to directly run the binary
+    without waiting for a SIGINT signal, but did so in a way that
+    expects a "(lldb)" response from lldb in 2 seconds. Lldb might
+    not out output anything until the program finishes, so change the
+    exec wrapper to just fire and forget the the run command and go
+    straight to waiting for exit, successfully or otherwise.
     
-    By using cmd.Output(), we ensure only cmd standard out is returned.
-    
-    Fixes #19682
-    
-    Change-Id: I7002df17fe68aea1860ddc7382c68cc23548bd90
-    Reviewed-on: https://go-review.googlesource.com/126735
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6a2dc63f9b29fe44edb3591afb048b9a8e2e0822
+    Reviewed-on: https://go-review.googlesource.com/106176
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/get/vcs.go                    | 16 +++++++---------
- src/cmd/go/testdata/script/get_with_git_trace.txt |  7 +++++++
- 2 files changed, 14 insertions(+), 9 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

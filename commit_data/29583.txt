@@ -1,23 +1,21 @@
-commit 7061dc3f6e94dbc369db779ec6799c6f60d3466f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 16 09:55:24 2016 -0800
+commit 1906d93bfda1c7b4af51457bc0a137b8418500b7
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 26 08:32:49 2016 -0700
 
-    cmd/cgo: ignore top-level qualifiers in function args/results
+    cmd/compile: On PPC, nilcheck load should be MOVBZ
     
-    The top-level qualifiers are unimportant for our purposes. If a C
-    function is defined as `const int f(const int i)`, the `const`s are
-    meaningless to C, and we want to avoid using them in the struct we
-    create where the `const` has a completely different meaning.
+    There's no load-signed-byte on PPC, so MOVB
+    causes the assembler to macro-expand in a
+    useless sign extension.
     
-    This unwinds https://golang.org/cl/33097 with regard to top-level
-    qualifiers.
+    Fixes #17211.
     
-    Change-Id: I3d66b0eb43b6d9a586d9cdedfae5a2306b46d96c
-    Reviewed-on: https://go-review.googlesource.com/33325
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibcd73aea4c94ba6df0a998b0091e45508113be2a
+    Reviewed-on: https://go-review.googlesource.com/29762
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/test/issue17537.go |  2 +-
- src/cmd/cgo/gcc.go          | 17 +++++++++++++++--
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

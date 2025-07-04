@@ -1,33 +1,14 @@
-commit 7162c4d05c1fed9db517c92b9a5232243ec453a2
-Author: Tamir Duberstein <tamird@gmail.com>
-Date:   Fri Feb 12 00:37:52 2016 -0500
+commit 2c12b81739ec2cb85073e125748fcbf5d2febb2c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 26 18:55:35 2016 +0000
 
-    database/sql/driver: remove string exclusion
+    net/http: document TimeFormat more
     
-    The exclusion of string from IsScanValue prevents driver authors from
-    writing their drivers in such a way that would allow users to
-    distinguish between strings and byte arrays returned from a database.
-    Such drivers are possible today, but require their authors to deviate
-    from the guidance provided by the standard library.
+    Fixes #14103
     
-    This exclusion has been in place since the birth of this package in
-    https://github.com/golang/go/commit/357f2cb1a385f4d1418e48856f9abe0cce,
-    but the fakedb implementation shipped in the same commit violates the
-    exclusion!
-    
-    Strictly speaking this is a breaking change, but it increases the set
-    of permissible Scan types, and should not cause breakage in practice.
-    
-    No test changes are necessary because fakedb already exercises this.
-    
-    Fixes #6497.
-    
-    Change-Id: I69dbd3a59d90464bcae8c852d7ec6c97bfd120f8
-    Reviewed-on: https://go-review.googlesource.com/19439
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I89963643eccc902b809e04b7a14153acb0d242e1
+    Reviewed-on: https://go-review.googlesource.com/18933
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/driver/driver.go |  6 +-----
- src/database/sql/driver/types.go  | 19 ++++++-------------
- 2 files changed, 7 insertions(+), 18 deletions(-)
+ src/net/http/server.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

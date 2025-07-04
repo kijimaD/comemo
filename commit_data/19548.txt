@@ -1,25 +1,14 @@
-commit b36ed9056ff57c04c34240f2dc6b1bb59e84d0c7
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 16 21:00:37 2014 -0700
+commit 60c0b3b5cf89c8054328e27d7ee58da79a12999e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 16 16:32:47 2014 -0700
 
-    runtime: implement eqstring in assembly.
+    text/scanner: provide facility for custom identifiers
     
-    BenchmarkCompareStringEqual               10.4          7.33          -29.52%
-    BenchmarkCompareStringIdentical           3.99          3.67          -8.02%
-    BenchmarkCompareStringSameLength          9.80          6.84          -30.20%
-    BenchmarkCompareStringDifferentLength     1.09          0.95          -12.84%
-    BenchmarkCompareStringBigUnaligned        75220         76071         +1.13%
-    BenchmarkCompareStringBig                 69843         74746         +7.02%
-    
-    LGTM=bradfitz, josharian
-    R=golang-codereviews, bradfitz, josharian, dave, khr
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/105280044
+    https://golang.org/cl/108030044
 
- src/pkg/runtime/asm_386.s       | 22 ++++++++++++++++++++++
- src/pkg/runtime/asm_amd64.s     | 22 ++++++++++++++++++++++
- src/pkg/runtime/asm_amd64p32.s  | 22 ++++++++++++++++++++++
- src/pkg/runtime/asm_arm.s       | 27 +++++++++++++++++++++++++++
- src/pkg/runtime/runtime_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/string.goc      | 12 ------------
- 6 files changed, 131 insertions(+), 12 deletions(-)
+ src/pkg/text/scanner/scanner.go      | 25 +++++++++++++++++++------
+ src/pkg/text/scanner/scanner_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 6 deletions(-)

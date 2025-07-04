@@ -1,14 +1,16 @@
-commit 8fd53db4cf536ff8f425afc7902cd44b5ca98663
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 13 18:22:53 2018 +0000
+commit 02fecd33f608e3a2f11fcee424d55232f08c28cd
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat Jun 2 15:53:58 2018 +0300
 
-    doc/go1.12: add note about CL 153559's syscall/js.Callback rename
+    test: remove errchk, the perl script
     
-    Updates #28711
+    gc tests do not depend on errchk.
     
-    Change-Id: I03139a394fdf0540db07d6d1e38b3fa223b06d58
-    Reviewed-on: https://go-review.googlesource.com/c/154059
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #25669
+    
+    Change-Id: I99eb87bb9677897b9167d4fc9a6321fa66cd9116
+    Reviewed-on: https://go-review.googlesource.com/115955
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ test/errchk | 161 ------------------------------------------------------------
+ 1 file changed, 161 deletions(-)

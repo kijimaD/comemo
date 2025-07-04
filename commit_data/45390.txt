@@ -1,22 +1,28 @@
-commit 11052d77a307a417a4de94991303949bf697b8ee
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 27 17:05:36 2021 -0400
+commit 6f7b553c82b69b47becbe36d9115971d30fdab48
+Author: Quim Muntal <quimmuntal@gmail.com>
+Date:   Thu Oct 15 23:12:49 2020 +0200
 
-    cmd/link: use R12 as trampoline scratch register on ARM
+    cmd/cgo: avoid exporting all symbols on windows buildmode=c-shared
     
-    The external linker uses R12. Do the same. We previously use R11,
-    the temp register in Go ABI. This does not really matter if the
-    caller is Go code, because all registers are clobbered at call.
-    But it the caller is C code, it may assume R11 live across a call.
-    Using R11 may clobber live value. On the callee side, R12 is not
-    an argument register in both Go and C calling convention.
+    Disable default symbol auto-export behaviour by marking exported
+    function with the __declspec(dllexport) attribute. Old behaviour can
+    still be used by setting -extldflags=-Wl,--export-all-symbols.
     
-    Change-Id: I958c5dad52aa51bb282a7ad420f5423863e69c14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314454
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    See https://sourceware.org/binutils/docs/ld/WIN32.html for more info.
+    
+    This change cuts 50kb of a "hello world" dll.
+    
+    Updates #6853
+    Fixes #30674
+    
+    Change-Id: I9c7fb09c677cc760f24d0f7d199740ae73981413
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262797
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/link/internal/arm/asm.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ misc/cgo/testcshared/cshared_test.go | 96 ++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/out.go                   |  6 ++-
+ 2 files changed, 101 insertions(+), 1 deletion(-)

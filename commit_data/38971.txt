@@ -1,18 +1,23 @@
-commit 55d690d02c30a415319d592f932bf748054539f1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 30 17:49:54 2019 +0000
+commit 571d93e977862f91bb153f0b98937ca655505fcd
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sun Dec 9 03:30:08 2018 +1100
 
-    encoding/gob: adding missing fuzz skip to one of the fuzz tests
+    cmd/go/internal/work: ensure correct group for TestRespectSetgidDir
     
-    It's slow & often times out randomly on longtest builders. Not useful.
+    mkdir(2) inherits the parent directory group on *BSD (including Darwin),
+    and it may inherit on other platforms if the parent directory is SetGID.
     
-    Fixes #31517
+    This can cause TestRespectSetgidDir SetGID to fail when the process does
+    not have have permission for the inherited group on the new temporary
+    directory.
     
-    Change-Id: Icedbb0c94fbe43d04e8b47d5785ac61c5e2d8750
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174522
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #29160
+    
+    Change-Id: Iac05511e501dfe307a753f801223b1049cc0947d
+    Reviewed-on: https://go-review.googlesource.com/c/153357
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/gob/codec_test.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/work/build_test.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

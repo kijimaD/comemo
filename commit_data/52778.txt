@@ -1,28 +1,25 @@
-commit f00e947cdf5cdac794d571c87a81ea8878a6fe4f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Apr 23 12:25:47 2023 -0700
+commit 524210bbb2866156892bbc8d2da24e00a6544f95
+Author: John Bampton <jbampton@gmail.com>
+Date:   Tue May 17 22:33:02 2022 +0000
 
-    runtime: add raceFiniLock to lock ranking
+    doc: lint Markdown for trailing spaces and code blocks
     
-    Also preserve the PC/SP in reentersyscall when doing lock ranking.
-    The test is TestDestructorCallbackRace with the staticlockranking
-    experiment enabled.
+    MD009 Trailing spaces.
+    MD031 Fenced code blocks should be surrounded by blank lines.
     
-    For #59711
+    https://github.com/markdownlint/markdownlint/blob/master/docs/RULES.md
     
-    Change-Id: I87ac1d121ec0d399de369666834891ab9e7d11b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487955
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6a2fff4afa8224442d90b30f84444b4a888fcef2
+    GitHub-Last-Rev: 67cf146b8501096949faf0155239770d4f6a73b4
+    GitHub-Pull-Request: golang/go#44285
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292409
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Alex Rakoczy <alex@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/runtime/lockrank.go     |  3 +++
- src/runtime/lockrank_off.go |  2 ++
- src/runtime/lockrank_on.go  | 10 ++++++++--
- src/runtime/mklockrank.go   |  2 ++
- src/runtime/proc.go         |  6 ++++++
- src/runtime/race.go         |  4 ++--
- 6 files changed, 23 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/README.md | 4 ++--
+ src/cmd/trace/static/README.md         | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

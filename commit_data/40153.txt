@@ -1,31 +1,43 @@
-commit 80fb18e3c0136150965f0bc01c9ef1e6dc4039ac
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Oct 5 15:08:07 2019 +0100
+commit f0e97546962736fe4aa73b7c7ed590f0134515e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 8 11:23:42 2019 -0400
 
-    cmd/go: avoid ssh known_hosts prompts on test
+    cmd/go: add env -w and env -u to set and unset default env vars
     
-    TestScripts/mod_get_svn would stop with the following prompt if the real
-    user didn't have vcs-test.golang.org in their known_hosts file:
+    Setting environment variables for go command configuration
+    is too difficult and system-specific. This CL adds go env -w,
+    to change the default settings more easily, in a portable way.
+    It also adds go env -u, to unset those changes.
     
-            The authenticity of host 'vcs-test.golang.org (35.184.38.56)' can't be established.
-            ECDSA key fingerprint is SHA256:[...]
-            Are you sure you want to continue connecting (yes/no/[fingerprint])?
+    See https://golang.org/design/30411-env for details.
     
-    This was bad because it relied on the user's real ssh known_hosts file.
-    Worse even, if the user didn't expert or notice the prompt, it could
-    hang a 'go test' run for quite a while.
+    Fixes #30411.
     
-    Work around that by forcing svn to not use ssh at all. Other potentially
-    better approaches were tried, but none worked on svn 1.12.2 with openssh
-    8.0p1.
-    
-    Fixes #33883.
-    
-    Change-Id: I2f925fa892f2fa53c77d86b0034141162517ee69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199142
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I36e83f55b666459f8f7f482432a4a6ee015da71d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171137
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/testdata/script/mod_get_svn.txt | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/go/alldocs.go                    |  57 ++++---
+ src/cmd/go/go_test.go                    |  13 +-
+ src/cmd/go/internal/base/goflags.go      |   3 +-
+ src/cmd/go/internal/cache/default.go     |   3 +-
+ src/cmd/go/internal/cfg/cfg.go           | 254 ++++++++++++++++++++++++++++---
+ src/cmd/go/internal/envcmd/env.go        | 240 ++++++++++++++++++++++++++---
+ src/cmd/go/internal/help/helpdoc.go      |  47 +++---
+ src/cmd/go/internal/modfetch/notary.go   |   4 +-
+ src/cmd/go/internal/modfetch/proxy.go    |   4 +-
+ src/cmd/go/internal/modload/init.go      |  27 ++--
+ src/cmd/go/internal/work/action.go       |   2 +-
+ src/cmd/go/internal/work/exec.go         |  35 +++--
+ src/cmd/go/internal/work/gccgo.go        |   6 +-
+ src/cmd/go/internal/work/security.go     |   9 +-
+ src/cmd/go/main.go                       |  10 +-
+ src/cmd/go/testdata/script/env_write.txt |  87 +++++++++++
+ src/cmd/internal/objabi/util.go          |   2 +-
+ src/make.bash                            |   1 +
+ src/make.bat                             |   3 +-
+ src/make.rc                              |   1 +
+ src/runtime/extern.go                    |   3 +
+ 21 files changed, 671 insertions(+), 140 deletions(-)

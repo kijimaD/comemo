@@ -1,23 +1,18 @@
-commit 254fb85c12aa631b5d1596aaf13f6e8666d65d15
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Mon Mar 29 17:00:15 2021 -0400
+commit 0b1cec7ad33a073be15db89da90efcba9797df83
+Author: root <2863768433@qq.com>
+Date:   Sun Aug 30 11:36:45 2020 +0800
 
-    cmd/go: print deprecation notice for 'go get cmd'
+    cmd/compile: rotate phase's title 180 degrees in ssa/html.go
     
-    The notice is shown when 'go get' is invoked with the -d flag, and
-    the arguments match at least one main package.
+    Modify phase's title according to html.go:122 TODO.
     
-    This reverts CL 274552.
+    Fixes #41098
     
-    For #43684
-    
-    Change-Id: I42e6731455f22988bf72dde1d5a76d197e9e3954
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305670
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I58fa365e718600aaaa0a72cce72d35a484cde8b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251657
+    Reviewed-by: Bradford Lamson-Scribner <brad.lamson@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/internal/modget/get.go                  | 28 +++++++++++++++++++---
- .../testdata/script/mod_get_deprecate_install.txt  | 22 +++++++++++++++++
- 2 files changed, 47 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/html.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

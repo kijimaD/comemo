@@ -1,17 +1,16 @@
-commit dc8f87b7493e173d65d3587389cc41468ba16dc0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jun 1 12:22:12 2021 +0200
+commit 8f2db14cd35bbd674cb2988a508306de6655e425
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Nov 10 11:32:04 2020 -0500
 
-    runtime/internal/sys: generate //go:build lines in gengoos.go
+    cmd/go: release note for -mod=readonly by default
     
-    For #41184
+    For #40728
+    Fixes #42466
     
-    Change-Id: If7a1c3980f47bc28d0a13fe497eaba6178c65c91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323750
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If2b21b37a590c243828c4fd278ab10b2705450f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268859
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/internal/sys/gengoos.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ doc/go1.16.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

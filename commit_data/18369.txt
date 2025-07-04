@@ -1,21 +1,19 @@
-commit d176e3d7c5bb50685c95aaf1e0e3133bea0ea57f
+commit ce884036d2199ebec22e4f9200789a532a1225d1
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 28 22:38:39 2014 +0400
+Date:   Tue Jan 28 22:34:32 2014 +0400
 
-    runtime: prefetch next block in mallocgc
+    runtime: adjust malloc race instrumentation for tiny allocs
+    Tiny alloc memory block is shared by different goroutines running on the same thread.
+    We call racemalloc after enabling preemption in mallocgc,
+    as the result another goroutine can act on not yet race-cleared tiny block.
+    Call racemalloc before enabling preemption.
+    Fixes #7224.
     
-    json-1
-    cputime                  99600000     98600000      -1.00%
-    time                    100005493     98859693      -1.15%
-    
-    garbage-1
-    cputime                  15760000     15440000      -2.03%
-    time                     15791759     15471701      -2.03%
-    
-    LGTM=khr
-    R=golang-codereviews, gobot, khr, dave
-    CC=bradfitz, golang-codereviews, iant
-    https://golang.org/cl/57310043
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/57730043
 
- src/pkg/runtime/malloc.goc | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/pkg/runtime/malloc.goc                |  4 ++--
+ src/pkg/runtime/race/testdata/mop_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 5b0b4c01ba44f372343ed003b297f50ee3c8ff67
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Apr 2 01:46:45 2025 +0000
+
+    runtime: add package doc for checkfinalizer mode
+    
+    Fixes #72949.
+    
+    Change-Id: I114eda73c57bc7d596eb1656e738b80c1cbe5254
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662039
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/extern.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

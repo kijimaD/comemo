@@ -1,15 +1,15 @@
-commit 5ad9e2db28a9058547983a85cfd2883788d5a704
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Jan 23 16:56:57 2012 +0100
+commit 858f0b4d9568bb3a2ef9b9ee6ad078eb3b7c5aaa
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Mon Jan 23 10:31:51 2012 -0500
 
-    gc: handle function calls in arguments to builtin complex operations.
-    
-    Fixes #2582
+    compress/flate: delete unused util functions.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5574044
+    https://golang.org/cl/5555071
 
- src/cmd/gc/cplx.c        |  2 ++
- test/fixedbugs/bug401.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/pkg/compress/flate/Makefile              |  1 -
+ src/pkg/compress/flate/huffman_bit_writer.go | 26 +++++++---
+ src/pkg/compress/flate/huffman_code.go       |  4 +-
+ src/pkg/compress/flate/util.go               | 72 ----------------------------
+ 4 files changed, 22 insertions(+), 81 deletions(-)

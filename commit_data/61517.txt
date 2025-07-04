@@ -1,0 +1,30 @@
+commit 47da5a303f642c7c863e0fe9a5554fb85dd45d68
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 17 16:30:36 2023 -0400
+
+    cmd/go: add Printer interface and use for error reporting
+    
+    This replaces the existing Shell print function callback. The
+    interface also gives us a way to report build failures, which is the
+    other type of event that will appear in the build -json output.
+    
+    This CL hooks up error reporting in two places:
+    
+    - In Builder.Do, where all builder errors are reported.
+    
+    - In load.CheckPackageErrors, where most loading errors are reported.
+    
+    For #62067.
+    
+    Change-Id: Id66a31b0d2c3786559c7d2bb376fffeffc9a66ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536396
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/clean/clean.go     |  4 +-
+ src/cmd/go/internal/load/pkg.go        |  2 +-
+ src/cmd/go/internal/load/printer.go    | 74 ++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/build_test.go |  5 +--
+ src/cmd/go/internal/work/exec.go       |  3 +-
+ src/cmd/go/internal/work/shell.go      | 36 +++++++++++------
+ 6 files changed, 104 insertions(+), 20 deletions(-)

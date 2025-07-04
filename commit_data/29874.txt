@@ -1,18 +1,22 @@
-commit 17190343e3db72a3f299e5a4359ae6bc3e5ed194
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Dec 22 08:59:52 2016 +0900
+commit be48aa3f3a16006ab31c424487af352ca374afed
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 12 19:51:02 2016 -0700
 
-    cmd/go: skip flaky TestCgoConsistentResults on FreeBSD
+    cmd/cover: handle gotos
     
-    FreeBSD 11 or above uses clang-3.6 or higher by default.
+    If a labeled statement is the target of a goto, we must treat it as the
+    boundary of a new basic block, but only if it is not already the boundary
+    of a basic block such as a labeled for loop.
     
-    Updates #15405.
+    Fixes #16624
     
-    Change-Id: If49ce298130165f9e1525c7fd0fd5aa39099ad53
-    Reviewed-on: https://go-review.googlesource.com/34675
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Now reports 100% coverage for the test in the issue.
+    
+    Change-Id: If118bb6ff53a96c738e169d92c03cb3ce97bad0e
+    Reviewed-on: https://go-review.googlesource.com/30977
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/cover/cover.go         | 43 ++++++++++++++++++++++++++++++++++++++----
+ src/cmd/cover/testdata/test.go | 19 +++++++++++++++++++
+ 2 files changed, 58 insertions(+), 4 deletions(-)

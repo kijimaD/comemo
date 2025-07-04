@@ -1,12 +1,14 @@
-commit 119917375bd0ecbc4f5631e0e35958a578bebd8c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 8 16:26:00 2012 -0500
+commit 56ade2d8d5ca27a91ab829499cc0b0576f3297aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 16:14:24 2012 -0500
 
-    cmd/dist: redure max background tasks nr. when building on ARM
+    cmd/go: let go tool invocation use stdin
     
-    R=rsc
+    Fixes #2921.
+    
+    R=golang-dev, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5642063
+    https://golang.org/cl/5647057
 
- src/cmd/dist/unix.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/go/tool.go | 1 +
+ 1 file changed, 1 insertion(+)

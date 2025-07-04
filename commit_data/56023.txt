@@ -1,29 +1,30 @@
-commit ac0b2f95a5f25e9e331352c93e38f9b29bee9ccc
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Mar 17 01:02:16 2024 +1100
+commit 3549c613b9d354d9f5410afc54dc9f7e6393c8cf
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 16 14:18:04 2023 -0700
 
-    syscall: export Tc{get,set}pgrp for testing
+    mime/multipart: avoid excessive copy buffer allocations in ReadForm
     
-    Provide appropriate implementations of Tc{get,set}pgrp and export
-    these for use in the TestForeground* tests in exec_unix_test.go.
-    This avoids calling ioctl via syscall.Syscall on BSDs.
+    When copying form data to disk with io.Copy,
+    allocate only one copy buffer and reuse it rather than
+    creating two buffers per file (one from io.multiReader.WriteTo,
+    and a second one from os.File.ReadFrom).
     
-    Fixes #59667
-    Updates #63900
+    Thanks to Jakob Ackermann (@das7pad) for reporting this issue.
     
-    Change-Id: Ice4dcedae1f0931c026bddf33043d3864a52d44e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572155
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    For CVE-2023-24536
+    For #59153
+    
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1802453
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Change-Id: I732bd2e1e7467918cac8ab9d65d089272ba4656f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482075
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/syscall/exec_aix_test.go      | 11 ++++++++++-
- src/syscall/exec_solaris_test.go  | 11 ++++++++++-
- src/syscall/exec_unix_test.go     | 31 ++++++++++++-------------------
- src/syscall/export_bsd_test.go    | 25 +++++++++++++++++++++++++
- src/syscall/export_darwin_test.go | 15 ---------------
- src/syscall/export_linux_test.go  | 20 ++++++++++++++++++++
- src/syscall/export_unix_test.go   | 14 --------------
- 7 files changed, 77 insertions(+), 50 deletions(-)
+ src/mime/multipart/formdata.go      | 15 +++++++++---
+ src/mime/multipart/formdata_test.go | 49 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 3 deletions(-)

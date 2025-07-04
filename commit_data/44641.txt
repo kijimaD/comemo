@@ -1,16 +1,27 @@
-commit 59e012991a31dcf65a0ec79f99b7f4234f46cf2d
-Author: Josh Deprez <DrJosh9000@users.noreply.github.com>
-Date:   Tue Nov 10 21:27:04 2020 +0000
+commit e6d0bd2b8951bde6f0ac6421f20e18efc7ba0cdb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Feb 19 16:37:48 2020 +0000
 
-    net/http: note that "HTTP/2" is invalid for ParseHTTPVersion
+    runtime: clean up old mcentral code
     
-    Change-Id: Ieba05dea892ec9855a63b80e456bcf9188eef855
-    GitHub-Last-Rev: 5f7663ac4aaecb01a27a04309277240fd15759c9
-    GitHub-Pull-Request: golang/go#41806
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259758
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Damien Neil <dneil@google.com>
+    This change deletes the old mcentral implementation from the code base
+    and the newMCentralImpl feature flag along with it.
+    
+    Updates #37487.
+    
+    Change-Id: Ibca8f722665f0865051f649ffe699cbdbfdcfcf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221184
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/net/http/request.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/lockrank.go    |  16 +--
+ src/runtime/malloc.go      |   8 +-
+ src/runtime/mcache.go      |   6 +-
+ src/runtime/mcentral.go    | 239 +--------------------------------------------
+ src/runtime/mgc.go         |  10 +-
+ src/runtime/mgcsweep.go    | 237 ++------------------------------------------
+ src/runtime/mgcsweepbuf.go | 138 --------------------------
+ src/runtime/mheap.go       |  36 +------
+ 8 files changed, 25 insertions(+), 665 deletions(-)

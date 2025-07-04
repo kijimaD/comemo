@@ -1,24 +1,38 @@
-commit 0d9eb8bea26a1fbebc149aa1811e5c0d9201dc40
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 24 14:31:29 2023 -0700
+commit e1e056fa6a2f788a15e17d55b7953712053fd760
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed May 4 17:03:13 2022 +0000
 
-    cmd/compile: casts from slices to array pointers are known to be non-nil
+    cmd/compile: fold constants found by prove
     
-    The cast is proceeded by a bounds check. If the bounds check passes
-    then we know the pointer in the slice is non-nil.
+    It is hit ~70k times building go.
+    This make the go binary, 0.04% smaller.
+    I didn't included benchmarks because this is just constant foldings
+    and is hard to mesure objectively.
     
-    ... except casts to pointers of 0-sized arrays. They are strange, as
-    the bounds check can pass for a nil input.
+    For example, this enable rewriting things like:
+      if x == 20 {
+        return x + 30 + z
+      }
     
-    Change-Id: Ic01cf4a82d59fbe3071d4b271c94efca9cafaec1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479335
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Into:
+      if x == 20 {
+        return 50 + z
+      }
+    
+    It's not just fixing programer's code,
+    the ssa generator generate code like this sometimes.
+    
+    Change-Id: I0861f342b27f7227b5f1c34d8267fa0057b1bbbc
+    GitHub-Last-Rev: 4c2f9b521692bc61acff137a269917895f4da08a
+    GitHub-Pull-Request: golang/go#52669
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403735
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 9 +++++++--
- test/nilptr3.go                        | 7 +++++++
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 64 ++++++++++++++++++++++++++++++++---
+ test/codegen/comparisons.go           | 14 +++++---
+ test/prove_constant_folding.go        | 32 ++++++++++++++++++
+ 3 files changed, 100 insertions(+), 10 deletions(-)

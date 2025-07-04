@@ -1,13 +1,17 @@
-commit e527d49e550d64732ccb2e24c4b152c3c911fd24
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Jul 26 13:28:20 2011 +1000
+commit 003d5411aefbb9d49ef9868bca5f18189c3563b3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 26 11:55:52 2011 +1000
 
-    http: implement MP4 sniffing.
+    net: fix memory corruption in windows *netFD.ReadFrom
     
-    R=rsc
+    We must keep memory used by syscall.WSARecvFrom away from
+    garbage collector until after overlapped call is completed.
+    
+    Fixes #2094.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4809044
+    https://golang.org/cl/4817050
 
- src/pkg/http/sniff.go      | 29 ++++++++++++++++++++++++++++-
- src/pkg/http/sniff_test.go |  2 ++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_windows.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

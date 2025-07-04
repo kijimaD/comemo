@@ -1,20 +1,16 @@
-commit 044d2d5af62001665cc28ce78757fc2831e78eeb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 11 22:51:17 2018 +0000
+commit ac987df87c6aab9658b2e3929d61313e26649825
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Mon May 22 18:31:38 2017 +0200
 
-    os: document that Chown with -1 means to leave values unchanged, like POSIX
+    runtime: implement some soft-float routines (used by GOMIPS=softfloat)
     
-    And fix the nacl implementation.
+    Updates #18162
     
-    Fixes #24710
-    
-    Change-Id: I31ffeea03a72dac5021ffb183fde31e9ffd060ad
-    Reviewed-on: https://go-review.googlesource.com/106464
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iee854f48b2d1432955fdb462f2073ebbe76c34f8
+    Reviewed-on: https://go-review.googlesource.com/37957
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/file_plan9.go   | 4 ++++
- src/os/file_posix.go   | 5 +++--
- src/syscall/fs_nacl.go | 8 ++++++--
- 3 files changed, 13 insertions(+), 4 deletions(-)
+ src/runtime/softfloat64.go | 112 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 112 insertions(+)

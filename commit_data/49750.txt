@@ -1,17 +1,23 @@
-commit 0063b9b036f1bdf5c548530a4f93e0b4a111ae14
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jul 19 13:50:52 2022 -0400
+commit 42563f89d7093ab22e1ac42351e66c4d03e0c80e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 7 17:24:50 2021 -0700
 
-    runtime: remove useless empty string literal
+    cmd/compile: remove 'ext' fields from unified IR reader/writer types
     
-    Assumingly this appears to have been a bug in c2go, as this appeared in
-    https://go.dev/cl/172260043.
+    This is a vestigial artifact of how I initially split apart the public
+    and private data for objects. But now objects are split into more
+    parts, and it's proven easier to just keep them as separate variables.
+    So it's time to cleanup the initial public/private code to follow the
+    same approach.
     
-    Change-Id: I8477ec226ffb31268b9c479af13b0fcf401dbeec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418276
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I3976b19fb433cbe21d299d3799ec616f9e59561e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348412
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/reader.go  | 18 ++++++++---------
+ src/cmd/compile/internal/noder/unified.go |  2 --
+ src/cmd/compile/internal/noder/writer.go  | 32 ++++++++++++-------------------
+ 3 files changed, 20 insertions(+), 32 deletions(-)

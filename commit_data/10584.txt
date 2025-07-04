@@ -1,14 +1,16 @@
-commit 517503dab8cab086b431c9cb1a9292ce9831a629
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Dec 2 13:36:21 2011 +1100
+commit e6b3371781d4f7b07c2c7c4e2f2ef4c4e7233225
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 1 17:24:54 2011 -0800
 
-    doc: correct weekly snapshot notes on hash.Hash change
+    template: move the empty check into parse, which needs it when constructing
+    tree sets.
     
-    I had the wrong idea when I wrote this.
-    
-    R=golang-dev, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5437111
+    https://golang.org/cl/5449062
 
- doc/devel/weekly.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/text/template/multi_test.go       | 29 ----------------------------
+ src/pkg/text/template/parse/parse.go      | 32 +++++++++++++++++++++++++++++--
+ src/pkg/text/template/parse/parse_test.go | 29 ++++++++++++++++++++++++++++
+ src/pkg/text/template/template.go         | 28 ++-------------------------
+ 4 files changed, 61 insertions(+), 57 deletions(-)

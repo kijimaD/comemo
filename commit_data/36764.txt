@@ -1,20 +1,24 @@
-commit 1c8943bd59157878141faab0c93848f45d3d51d1
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Tue Sep 25 11:52:24 2018 +0200
+commit 9eb2c434747cc83aa1e356b9ba7c2a58e8cb6926
+Author: Hana Kim <hakim@google.com>
+Date:   Thu May 24 15:15:45 2018 -0400
 
-    cmd/link: move DIE of global variables to their compile unit
+    runtime/pprof: allow tests to run multiple times
     
-    The DIEs for global variables were all assigned to the first emitted
-    compile unit in debug_info, regardless of what it was. Move them
-    instead to their respective compile units.
+    TestMutexProfile and TestEmptyCallStack couldn't run multiple times
+    because they mutate state in runtime (mutex profile counters and
+    a user-defined profile type) and test whether the state
+    matches what it is supposed to be after the very first run.
     
-    Change-Id: If794fa0ba4702f5b959c6e8c16119b16e7ecf6d8
-    Reviewed-on: https://go-review.googlesource.com/137235
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    We fix TestMutexProfile by relaxing the expected state condition.
+    We fix TestEmptyCallStack by creating a new profile with a different
+    name every time the test runs.
+    
+    For #25520
+    
+    Change-Id: I8e50cd9526eb650c8989457495ff90a24ce07863
+    Reviewed-on: https://go-review.googlesource.com/114495
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/stmtlines_test.go |   3 +
- src/cmd/internal/dwarf/dwarf.go                |  13 +++
- src/cmd/link/dwarf_test.go                     |   3 +
- src/cmd/link/internal/ld/dwarf.go              | 126 +++++++++++++------------
- src/cmd/link/internal/objfile/objfile.go       |   2 +-
- 5 files changed, 88 insertions(+), 59 deletions(-)
+ src/runtime/pprof/pprof_test.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

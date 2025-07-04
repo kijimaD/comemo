@@ -1,22 +1,26 @@
-commit 13bf4ada8075d9365c40b03ecf6641473b2af926
+commit c64e7938505fb31ab869d9305b8e15781bc426ce
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Dec 12 11:13:49 2017 -0800
+Date:   Tue Sep 12 13:36:44 2017 -0700
 
-    cmd/compile: remove broken inlining accounting code
+    cmd/compile: simplify exporting ONAME nodes
     
-    We can't currently inline functions that contain closures anyway, so
-    just delete this budgeting code for now. Re-enable once we can (if
-    ever) inline functions with nested closures.
+    These two special cases are unnecessary:
     
-    Updates #15561.
-    Fixes #23093.
+    1) "~b%d" references only appear during walk, to handle "return"
+    statements implicitly assigning to blank result parameters. Even if
+    they could appear, the "inlined and customized version" accidentally
+    diverged from p.sym in golang.org/cl/33911.
     
-    Change-Id: Idc5f8e042ccfcc8921022e58d3843719d4ab821e
-    Reviewed-on: https://go-review.googlesource.com/83538
+    2) The Vargen case is already identical to the default case, and it
+    never overlaps with the remaining "T.method" case.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I03f7e5b75b707b43afc8ed6eb90f43ba93ed17ae
+    Reviewed-on: https://go-review.googlesource.com/63272
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/inl.go | 23 ++---------------------
- test/fixedbugs/issue23093.go       |  9 +++++++++
- 2 files changed, 11 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

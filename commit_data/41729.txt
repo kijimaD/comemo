@@ -1,21 +1,22 @@
-commit ade988623eb396fc2e11635362ad5162e6ab6a5e
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 16 02:47:40 2020 +1100
+commit 5eec0a91eadd76a45197ee2588306bdc85570549
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 21 17:45:59 2019 -0700
 
-    cmd/compile: provide Load32/Load64/Store32/Store64 atomic intrinsics on riscv64
+    reflect: fix unsafe conversions reported by -d=checkptr
     
-    Updates #36765
+    The code for generating gcdata was (technically) unsafe. It was also
+    rather repetitive. This CL refactors it a bit and abstracts use of
+    gcdata into a helper gcSlice method.
     
-    Change-Id: Id5ce5c5f60112e4f4cf9eec1b1ec120994934950
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223558
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Updates #34972.
+    
+    Change-Id: Ie86d7822eafe263f1d3d150eedf0ec66be1ec85d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202582
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             | 10 ++---
- src/cmd/compile/internal/riscv64/ssa.go        | 23 +++++++++++
- src/cmd/compile/internal/ssa/gen/RISCV64.rules | 12 ++++--
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  4 ++
- src/cmd/compile/internal/ssa/opGen.go          | 54 ++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 18 +++++++++
- 6 files changed, 113 insertions(+), 8 deletions(-)
+ src/reflect/export_test.go |  11 ++--
+ src/reflect/type.go        | 127 ++++++++++++++++++++-------------------------
+ 2 files changed, 62 insertions(+), 76 deletions(-)

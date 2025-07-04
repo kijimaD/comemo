@@ -1,20 +1,20 @@
-commit 7914369e64190ce22e6fd6bba685e3f82338875a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 14 08:22:30 2017 -0700
+commit eca90561c39d4d8cc587fbcc70baa9d90f3f0707
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 07:38:46 2017 -0700
 
-    cmd/go: update BuildContext.GOROOT and build.Tooldir with computed GOROOT
+    cmd/compile: minor init handling cleanup
     
-    This is necessary to make a relocated GOROOT work correctly.
+    Place comments correctly.
+    Simplify control flow.
+    Reduce variable scope.
     
-    Fixes #20997
+    Passes toolstash-check.
     
-    Change-Id: I18624bd2e109721066cd9e4a887a12583ab79f5d
-    Reviewed-on: https://go-review.googlesource.com/48550
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iea47ed3502c15491c2ca6db8149fe0949b8849aa
+    Reviewed-on: https://go-review.googlesource.com/38914
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go              | 32 ++++++++++++++++++++++++++++++++
- src/cmd/go/internal/cfg/cfg.go    | 22 +++++++++++++++++++---
- src/cmd/go/internal/work/build.go | 10 ----------
- 3 files changed, 51 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/init.go | 48 +++++++++++++++++--------------------
+ 1 file changed, 22 insertions(+), 26 deletions(-)

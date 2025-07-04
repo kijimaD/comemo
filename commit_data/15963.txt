@@ -1,16 +1,14 @@
-commit 40cd845eea345d7ae84324c8d37cd0680b243773
+commit 8eaa94293388848485093c3f0c65b1188dccaaea
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 27 10:07:22 2013 -0700
+Date:   Tue Mar 26 23:08:08 2013 -0700
 
-    net/http: improve test leak checker flakiness
+    net/textproto: add "Cookie" to the common headers list
     
-    And make it have more useful output on failure.
+    Seems to have been omitted before.
     
-    Update #5005
-    
-    R=golang-dev, r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/8016046
+    https://golang.org/cl/7749049
 
- src/pkg/net/http/z_last_test.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/pkg/net/textproto/reader.go | 1 +
+ 1 file changed, 1 insertion(+)

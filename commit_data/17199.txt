@@ -1,13 +1,30 @@
-commit 4961483e7d8e0edf5211ab9f92aa010a6f74b59d
+commit cc4e6aad8ec18b4ee7fe0392f30f229ddb979589
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 13 22:37:04 2013 +0400
+Date:   Tue Aug 13 22:12:02 2013 +0400
 
-    runtime: fix LockOSThread
-    Fixes #6100.
+    runtime: do no lose CPU profiling signals
+    Currently we lose lots of profiling signals.
+    Most notably, GC is not accounted at all.
+    But stack splits, scheduler, syscalls, etc are lost as well.
+    This creates seriously misleading profile.
+    With this change all profiling signals are accounted.
+    Now I see these additional entries that were previously absent:
+    161  29.7%  29.7%      164  30.3% syscall.Syscall
+     12   2.2%  50.9%       12   2.2% scanblock
+     11   2.0%  55.0%       11   2.0% markonly
+     10   1.8%  58.9%       10   1.8% sweepspan
+      2   0.4%  85.8%        2   0.4% runtime.newstack
+    It is still impossible to understand what causes stack splits,
+    but at least it's clear how many time is spent on them.
+    Update #2197.
+    Update #5659.
     
-    R=golang-dev, dave, bradfitz, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12703045
+    https://golang.org/cl/12179043
 
- src/pkg/runtime/proc.c | 21 +++++++++++++++------
- 1 file changed, 15 insertions(+), 6 deletions(-)
+ src/pkg/runtime/proc.c         | 31 +++++++++++++++++++++++++------
+ src/pkg/runtime/signal_386.c   |  3 +--
+ src/pkg/runtime/signal_amd64.c |  3 +--
+ src/pkg/runtime/signal_arm.c   |  3 +--
+ 4 files changed, 28 insertions(+), 12 deletions(-)

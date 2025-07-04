@@ -1,0 +1,20 @@
+commit 866e260f92546e5bec910aa526756078eb1a6a0d
+Author: Andy Pan <i@andypan.me>
+Date:   Wed Aug 14 09:41:28 2024 +0800
+
+    os: only employ sendfile(3ext) on illumos when target is regular file
+    
+    Fixes #68863
+    
+    Change-Id: I0ca324137d1f7510bd0b245791fef07d3b5b401a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/readfrom_unix_test.go |  4 ++--
+ src/os/zero_copy_solaris.go  | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

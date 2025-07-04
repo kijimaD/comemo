@@ -1,20 +1,13 @@
-commit ee56b3c51016f1db83150d08db4fdb9921230c71
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Nov 21 22:33:43 2022 -0500
+commit 654d5f4b5dfc30167bbffd0d7aeba3c1e29277c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 30 09:29:45 2021 -0800
 
-    plugin: add warning
+    spec: add section on type inference
     
-    The plugin mechanism has a number of serious drawbacks.
-    This change documents them.
-    
-    Fixes #56893
-    
-    Change-Id: I1309ac8520f7471dd9ace5be28a8dc3339fdf2db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452695
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic338788d6410ed0d09ad129811377ee9ce5ed496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367954
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/plugin/plugin.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 50 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 385 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 382 insertions(+), 3 deletions(-)

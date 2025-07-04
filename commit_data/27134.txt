@@ -1,22 +1,27 @@
-commit 1a2cf91f5e9e3dfb0873e61ed6907cc365857f6c
-Author: Austin Clements <austin@google.com>
-Date:   Fri Mar 11 16:27:51 2016 -0500
+commit eb57a1dd7525595b853963612b277150fa6c50c2
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Wed Mar 9 23:28:05 2016 +0200
 
-    runtime: split gfree list into with-stacks and without-stacks
+    cmd/link: use string map for symbols with single version
     
-    Currently all free Gs are added to one list. Split this into two
-    lists: one for free Gs with cached stacks and one for Gs without
-    cached stacks.
+    Reduces link time by ~3%
     
-    This lets us preferentially allocate Gs that already have a stack, but
-    more importantly, it sets us up to free cached G stacks concurrently.
+    Results with gc on:
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.82 ± 2%  0.78 ± 2%  -3.90%  (p=0.000 n=17+17)
+    LinkJuju   7.11 ± 7%  6.87 ± 6%  -3.41%  (p=0.012 n=20+19)
     
-    Change-Id: Idbe486f708997e1c9d166662995283f02d1eeb3c
-    Reviewed-on: https://go-review.googlesource.com/20664
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Less noisy results with gc turned off:
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.66 ± 2%  0.64 ± 2%  -3.14%  (p=0.000 n=18+20)
+    LinkJuju   5.91 ± 1%  5.72 ± 2%  -3.17%  (p=0.000 n=20+20)
+    
+    Change-Id: I4cac7933b0b22d0aee18255e1ab54550ad364593
+    Reviewed-on: https://go-review.googlesource.com/20478
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/proc.go     | 34 ++++++++++++++++++++++++++--------
- src/runtime/runtime2.go |  7 ++++---
- 2 files changed, 30 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/ld/link.go | 28 +++++++++++++++++-----------
+ src/cmd/link/internal/ld/sym.go  | 32 ++++++++++++++++++++++++--------
+ 2 files changed, 41 insertions(+), 19 deletions(-)

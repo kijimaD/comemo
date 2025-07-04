@@ -1,13 +1,14 @@
-commit 4002014cf8b321ade383a3b2c8223cae7dc8d3ee
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 2 17:34:22 2011 -0400
+commit 12cf1699e7ff6d7fc9f62e52f9ee065cdfa23f00
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 14:22:40 2011 -0700
 
-    http/pprof: fix POST reading bug
+    net: default to 127.0.0.1, not localhost, in TestICMP
     
-    R=bradfitz
+    If localhost resolves to ::1, the IPv4-only test fails.
+    
+    R=rsc, r2
     CC=golang-dev
-    https://golang.org/cl/4430075
+    https://golang.org/cl/4444084
 
- src/cmd/prof/gopprof        |  9 +++++----
- src/pkg/http/pprof/pprof.go | 14 ++++++++++++--
- 2 files changed, 17 insertions(+), 6 deletions(-)
+ src/pkg/net/ipraw_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

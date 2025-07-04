@@ -1,25 +1,23 @@
-commit 9bdbed1d963a840d8c23640bbd20bd4cb9776859
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 09:35:57 2021 -0500
+commit c69515c9fd19d9cca5f509cedd3de0aafd2d487f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 18 17:15:05 2021 -0700
 
-    go/types, types2: complete methods on pointer receivers in missingMethod
+    cmd/compile/internal/types2: review of expr.go
     
-    We were not calling objDecl on methods on pointer receivers in
-    missingMethod. This may not have mattered before, but with lazy
-    completion of instance methods it is necessary.
+    The changes between (equivalent, and reviewed) go/types/expr.go
+    and expr.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
     
-    Fixes #49579
+    The primary differences to go/types/expr.go are:
+    - use of package syntax rather than ast
+    - no reporting of error codes in errors
+    - implicit conversions of untyped nil lead to a typed nil
+      (in go/types, nil remains untyped)
     
-    Change-Id: Icddb1f3b16bef7d8017859734f9879a4f1cc18de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364714
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I1e235b20ebda597eb7ce597d1749f26431addde2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303092
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/lookup.go               | 17 +++++++++++------
- .../internal/types2/testdata/fixedbugs/issue49579.go2   | 17 +++++++++++++++++
- src/go/types/lookup.go                                  |  7 +++++++
- src/go/types/testdata/fixedbugs/issue49579.go2          | 17 +++++++++++++++++
- 4 files changed, 52 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/expr.go | 1 -
+ 1 file changed, 1 deletion(-)

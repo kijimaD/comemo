@@ -1,13 +1,16 @@
-commit e0dcf73d6163beeb4e92715d2f64fdc0ca9573be
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 14 12:58:13 2014 +0400
+commit cefe6ac9a1914864c66b8b3044c3e4755d309f80
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 13 21:18:47 2014 -0800
 
-    runtime: fix comment
-    Void function can not return false.
+    runtime/pprof: fix flaky TestCPUProfileMultithreaded test
     
-    R=golang-codereviews, bradfitz
+    It's too sensitive.
+    
+    Fixes bug 7095
+    
+    R=golang-codereviews, iant, minux.ma, rsc
     CC=golang-codereviews
-    https://golang.org/cl/52000043
+    https://golang.org/cl/50470043
 
- src/pkg/runtime/proc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/pprof/pprof_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

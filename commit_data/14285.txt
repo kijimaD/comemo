@@ -1,48 +1,19 @@
-commit 5d15963a1fff87c94b5fe4e5e9de814c126096ca
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 1 11:23:27 2012 -0700
+commit f284a3ff4d525da4fb1dff6580588cabdbeab423
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 1 11:13:50 2012 -0700
 
-    exp/types/staging: filling in more blanks
+    cmd/go: fixes to gccgo support
     
-    - simplified assignment checking by removing duplicate code
-    - implemented field lookup (methods, structs, embedded fields)
-    - importing methods (not just parsing them)
-    - type-checking functions and methods
-    - typechecking more statements (inc/dec, select, return)
-    - tracing support for easier debugging
-    - handling nil more correctly (comparisons)
-    - initial support for [...]T{} arrays
-    - initial support for method expressions
-    - lots of bug fixes
+    * Use -fgo-pkgpath and -gccgopkgpath rather than -fgo-prefix
+      and -gccgoprefix.
+    * Define GOPKGPATH when compiling .c or .s files for gccgo.
+    * Use -fgo-relative-import-path.
+    * Produce .o files for gccgo, not .[568] files.
+    * Pass -E when linking if using cgo.
     
-    All packages under pkg/go as well as pkg/exp/types typecheck
-    now with pkg/exp/gotype applied to them; i.e., a significant
-    amount of typechecking works now (several statements are not
-    implemented yet, but handling statements is almost trivial in
-    comparison with typechecking expressions).
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6768063
+    https://golang.org/cl/6820064
 
- src/pkg/exp/types/exportdata.go                |   3 +-
- src/pkg/exp/types/staging/builtins.go          |   6 +-
- src/pkg/exp/types/staging/check.go             | 115 ++++++-----
- src/pkg/exp/types/staging/const.go             |   2 +-
- src/pkg/exp/types/staging/conversions.go       |   4 +-
- src/pkg/exp/types/staging/errors.go            |  35 +++-
- src/pkg/exp/types/staging/exportdata.go        |   3 +-
- src/pkg/exp/types/staging/expr.go              | 229 ++++++++++++++-------
- src/pkg/exp/types/staging/gcimporter.go        | 101 +++++----
- src/pkg/exp/types/staging/operand.go           | 153 ++++++++++++--
- src/pkg/exp/types/staging/predicates.go        |  17 +-
- src/pkg/exp/types/staging/stmt.go              | 274 ++++++++++++-------------
- src/pkg/exp/types/staging/testdata/const0.src  |   6 +
- src/pkg/exp/types/staging/testdata/decls2b.src |  13 ++
- src/pkg/exp/types/staging/testdata/expr0.src   |  14 +-
- src/pkg/exp/types/staging/testdata/expr2.src   |   5 +
- src/pkg/exp/types/staging/testdata/expr3.src   |  14 ++
- src/pkg/exp/types/staging/testdata/stmt0.src   |  32 +++
- src/pkg/exp/types/staging/types.go             |  10 +-
- src/pkg/exp/types/staging/types_test.go        |   8 +-
- 20 files changed, 682 insertions(+), 362 deletions(-)
+ src/cmd/go/build.go | 62 ++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 47 insertions(+), 15 deletions(-)

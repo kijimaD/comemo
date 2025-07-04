@@ -1,21 +1,21 @@
-commit 88ccb3c945daeba7c08dfe9b39be18ec78941a45
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Thu Sep 1 16:30:15 2016 -0400
+commit b64c7fc6832902acb8eebc67c887d2ef9114f644
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 3 13:58:28 2016 -0700
 
-    net/http: omit Content-Length in Response.Write for 1xx or 204 status
+    cmd/compile: never CSE two memories
     
-    Per RFC 7230, Section 3.3.2: "A server MUST NOT send a Content-Length
-    header field in any response with a status code of 1xx (Informational)
-    or 204 (No Content).".
+    It never makes sense to CSE two ops that generate memory.
+    We might as well start those ops off in their own partition.
     
-    Fixes #16942
+    Fixes #15520
     
-    Change-Id: I8006c76c126304e13618966e6eafb08a3885d3cd
-    Reviewed-on: https://go-review.googlesource.com/28351
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0091ed51640f2c10cd0117f290b034dde7a86721
+    Reviewed-on: https://go-review.googlesource.com/22741
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/response.go           |  2 +-
- src/net/http/responsewrite_test.go | 21 +++++++++++++++++++--
- 2 files changed, 20 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/subr.go    |  4 ----
+ src/cmd/compile/internal/ssa/config.go |  6 ------
+ src/cmd/compile/internal/ssa/cse.go    | 11 ++++-------
+ 3 files changed, 4 insertions(+), 17 deletions(-)

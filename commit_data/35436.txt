@@ -1,27 +1,18 @@
-commit 02495da6b6b1ee27612c27f24883b9b28c2c1a6e
-Author: Austin Clements <austin@google.com>
-Date:   Sat Apr 21 21:13:56 2018 -0400
+commit 07751f4b582d17289dc19511e2f45d48021f827d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 27 15:40:28 2017 -0800
 
-    cmd/internal/obj: consolidate emitting entry stack map
+    runtime: use private futexes on Linux
     
-    The obj package needs to emit the PCDATA to select the entry stack map
-    before calling morestack. Currently this is copied for every
-    architecture. Since we're about to change how this works, consolidate
-    all of these copies into a single helper function.
+    By default futexes are permitted in shared memory regions, which
+    requires the kernel to translate the memory address. Since our futexes
+    are never in shared memory, set FUTEX_PRIVATE_FLAG, which makes futex
+    operations slightly more efficient.
     
-    For #24543.
-    
-    Change-Id: Ia92d94de78f8e23fd06dba747c43e03e5989f67b
-    Reviewed-on: https://go-review.googlesource.com/109346
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2a82365ed27d5cd8d53c5382ebaca1a720a80952
+    Reviewed-on: https://go-review.googlesource.com/80144
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/internal/obj/arm/obj5.go   |  8 +-------
- src/cmd/internal/obj/arm64/obj7.go |  8 +-------
- src/cmd/internal/obj/mips/obj0.go  |  2 ++
- src/cmd/internal/obj/plist.go      | 15 +++++++++++++++
- src/cmd/internal/obj/ppc64/obj9.go |  2 ++
- src/cmd/internal/obj/s390x/objz.go |  8 +-------
- src/cmd/internal/obj/x86/obj6.go   |  8 +-------
- 7 files changed, 23 insertions(+), 28 deletions(-)
+ src/runtime/os_linux.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

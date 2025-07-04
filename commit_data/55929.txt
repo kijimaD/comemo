@@ -1,30 +1,29 @@
-commit be58fd00707a6e90cd868c279e0fd348a9ae7092
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Mar 13 17:46:29 2024 +0000
+commit d49b11be1d4413ac68d4a3127a506aa78bc7301a
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Mar 27 10:21:10 2023 -0400
 
-    Revert: "cmd/link: add option to enable full RELRO for ELF"
+    src/log/slog: disallow == on Values
     
-    This reverts https://go.dev/cl/c/go/+/473495.
+    Comparing two Values with == is sensitive to the internal
+    representation of Values, and may not correspond to
+    equality on the Go values they represent. For example,
     
-    Reason for revert: breaks some Google-internal tests.
+        StringValue("X") != StringValue(strings.ToUpper("x"))
     
-    This revert will be temporary until we can gather more info on the
-    nature of the failures and hopefully develop an upstream test case,
-    etc.
+    because Go ends up doing a pointer comparison on the data
+    stored in the Values.
     
-    Updates #45681.
+    So make Values non-comparable by adding a non-comparable field.
     
-    Change-Id: Ib628ddc53bc5489e4f76c0f4ad809b75e899102c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571415
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Updates #56345.
+    
+    Change-Id: Ieedbf454e631cda10bc6fcf470b57d3f1d2182cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479516
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/work/security.go      |   3 +-
- src/cmd/go/internal/work/security_test.go |   4 -
- src/cmd/link/doc.go                       |   2 -
- src/cmd/link/internal/ld/elf.go           |  32 ++-----
- src/cmd/link/internal/ld/elf_test.go      | 150 ------------------------------
- src/cmd/link/internal/ld/lib.go           |   8 +-
- src/cmd/link/internal/ld/main.go          |   1 -
- src/internal/testenv/testenv.go           |   9 --
- 8 files changed, 11 insertions(+), 198 deletions(-)
+ src/log/slog/attr.go   | 4 ++++
+ src/log/slog/record.go | 2 +-
+ src/log/slog/value.go  | 3 ++-
+ 3 files changed, 7 insertions(+), 2 deletions(-)

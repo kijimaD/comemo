@@ -1,17 +1,21 @@
-commit b581ca5956e4cf60de2e32f91b51524054efb29c
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Jan 26 11:26:55 2015 +0300
+commit 04cf881fbea55d5bca584c78b15454b189af11f5
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Dec 20 14:13:44 2014 -0500
 
-    cmd/gc: allow map index expressions in for range statements
+    misc/cgo/test: get rid of the backdoor package
     
-    Fixes #9691.
+    For Go 1.5, we can use go:linkname rather than assembly thunk for gc.
+    Gccgo already has support for //extern.
     
-    Change-Id: I22bfc82e05497e91a7b18a668913aed6c723365d
-    Reviewed-on: https://go-review.googlesource.com/3282
+    Change-Id: I5505aa247dd5b555112f7261ed2f192c81cf0bdf
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/1888
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/gc/go.h             |  1 +
- src/cmd/gc/range.c          |  2 ++
- src/cmd/gc/typecheck.c      |  3 +--
- test/fixedbugs/issue9691.go | 21 +++++++++++++++++++++
- 4 files changed, 25 insertions(+), 2 deletions(-)
+ misc/cgo/test/backdoor.go              | 11 +++++++++++
+ misc/cgo/test/backdoor/backdoor.go     |  7 -------
+ misc/cgo/test/backdoor/runtime_gccgo.c | 18 ------------------
+ misc/cgo/test/backdoor/thunk.s         | 17 -----------------
+ misc/cgo/test/callback.go              |  4 ----
+ 5 files changed, 11 insertions(+), 46 deletions(-)

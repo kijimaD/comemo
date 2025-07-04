@@ -1,27 +1,26 @@
-commit ff2070d9398aff1c44691a90761eb35ea3cd4601
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 17 12:07:15 2024 -0400
+commit dc4993e7c633be8c1d77c7242607cc1e23668d9b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 18 16:58:05 2023 -0700
 
-    runtime: move exit hooks into internal/runtime/exithook
+    cmp: new package
     
-    This removes a //go:linkname usage in the coverage implementation.
+    The new cmp package provides types and functions related to
+    comparing ordered values.
     
-    For #67401.
+    For #59488
     
-    Change-Id: I0602172c7e372a84465160dbf46d9fa371582fff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586259
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I43f4b2e6036f63b87c2152672d2b6fa18235cbeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496356
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Eli Bendersky‎ <eliben@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/noder/reader.go           |  5 +-
- src/cmd/internal/objabi/pkgspecial.go              |  1 +
- src/go/build/deps_test.go                          |  2 +
- src/internal/coverage/cfile/hooks.go               | 10 +---
- src/internal/runtime/exithook/hooks.go             | 64 ++++++++++++++++++++
- src/runtime/exithook.go                            | 68 ----------------------
- src/runtime/linkname.go                            |  3 -
- src/runtime/proc.go                                |  7 +++
- .../testdata/testexithooks/testexithooks.go        | 34 +++++------
- 9 files changed, 97 insertions(+), 97 deletions(-)
+ api/next/59488.txt        |  3 ++
+ src/cmp/cmp.go            | 54 +++++++++++++++++++++++++++
+ src/cmp/cmp_test.go       | 95 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go |  2 +-
+ src/go/doc/comment/std.go |  1 +
+ 5 files changed, 154 insertions(+), 1 deletion(-)

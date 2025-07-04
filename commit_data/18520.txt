@@ -1,29 +1,26 @@
-commit eca55f5ac09221155de7b45e143ad863222ed976
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Feb 14 09:20:51 2014 +0400
+commit 02ae91f3424d45820a5b98ddc2595680666a97e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 23:33:20 2014 -0500
 
-    runtime: fix windows cpu profiler
-    Currently it periodically fails with the following message.
-    The immediate cause is the wrong base register when obtaining g
-    in sys_windows_amd64/386.s.
-    But there are several secondary problems as well.
+    cmd/gc: correct liveness for wrappers containing tail jumps
     
-    runtime: unknown pc 0x0 after stack split
-    panic: invalid memory address or nil pointer dereference
-    fatal error: panic during malloc
-    [signal 0xc0000005 code=0x0 addr=0x60 pc=0x42267a]
+    A normal RET is treated as using the return values,
+    but a tail jump RET does not - it is jumping to the
+    function that is going to fill in the return values.
+    If a tail jump RET is recorded as using the return values,
+    since nothing initializes them they will be marked as
+    live on entry to the function, which is clearly wrong.
     
-    runtime stack:
-    runtime.panic(0x7914c0, 0xc862af)
-            c:/src/perfer/work/windows-amd64-a15f344a9efa/go/src/pkg/runtime/panic.c:217 +0x2c
-    runtime: unexpected return pc for runtime.externalthreadhandler called from 0x0
+    Found and tested by the new code in plive.c that looks
+    for variables that are incorrectly live on entry.
+    That code is disabled for now because there are other
+    cases remaining to be fixed. But once it is enabled,
+    test/live1.go becomes a real test of this CL.
     
-    R=rsc, alex.brainman
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/63310043
+    https://golang.org/cl/63570045
 
- src/pkg/runtime/os_windows.c        | 9 ++++++++-
- src/pkg/runtime/proc.c              | 4 +++-
- src/pkg/runtime/sys_windows_386.s   | 6 ++++--
- src/pkg/runtime/sys_windows_amd64.s | 6 ++++--
- 4 files changed, 19 insertions(+), 6 deletions(-)
+ src/cmd/gc/plive.c | 26 +++++++++++++++++++++++++-
+ test/live1.go      | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 1 deletion(-)

@@ -1,18 +1,21 @@
-commit a23f9afd9899160b525dbc10d01045d9a3f072a0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 18 13:20:39 2019 -0500
+commit 0cadf40f4c3613c0170120f4b902cb153338db15
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jul 16 12:51:34 2019 -0400
 
-    cmd/go: convert TestCoverageUses*Mode* to script tests
+    cmd/go: tweak wording of module path mismatch error message
     
-    Updates #28387
-    Updates #30316
+    Changes "was loaded as" to "was required as". This is slightly more
+    precise, since it hints at a requirement edge in the module version
+    graph.
     
-    Change-Id: I5a1a7870928083a98a76225c428ad4d7263fd832
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207610
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #28489
+    
+    Change-Id: I636268c33f1ea9858c214fe275f271538186ed6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186377
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/go_test.go                      | 51 ------------------------------
- src/cmd/go/testdata/script/cover_modes.txt | 25 +++++++++++++++
- 2 files changed, 25 insertions(+), 51 deletions(-)
+ src/cmd/go/internal/modload/load.go              |  2 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

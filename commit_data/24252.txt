@@ -1,24 +1,20 @@
-commit 67ddae87b97b14e228c09d82c9c21ca0b0eaaae9
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 11 11:12:15 2015 -0700
+commit e1ee31400a4258985647a6d699c7df56a81d7a98
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Jul 17 17:53:48 2015 -0700
 
-    all: use one 'l' when cancelling everywhere except Solaris
+    internal/trace: fix fuzzer crashers
     
-    Fixes #11626.
+    Fixes #11766
+    Fixes #11769
+    Fixes #11767
+    Fixes #11770
     
-    Change-Id: I1b70c0844473c3b57a53d7cca747ea5cdc68d232
-    Reviewed-on: https://go-review.googlesource.com/14526
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I441382af58f60deb46dcdd70076763b2c47738d4
+    Reviewed-on: https://go-review.googlesource.com/12378
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/issue6997_linux.go           | 4 ++--
- src/cmd/compile/internal/big/float.go      | 2 +-
- src/math/big/float.go                      | 2 +-
- src/math/cmplx/sqrt.go                     | 2 +-
- src/math/j0.go                             | 4 ++--
- src/math/j1.go                             | 4 ++--
- src/net/fd_windows.go                      | 6 +++---
- src/net/http/httputil/reverseproxy_test.go | 2 +-
- src/runtime/signal_solaris.go              | 2 +-
- 9 files changed, 14 insertions(+), 14 deletions(-)
+ src/internal/trace/parser.go      | 26 +++++++++++++++++++-------
+ src/internal/trace/parser_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 7 deletions(-)

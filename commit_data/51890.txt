@@ -1,18 +1,18 @@
-commit 3c529c53676f809c7df55aac20e8b756462f0583
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Feb 1 11:29:28 2023 +0100
+commit 4a46e6e44c33b49a5953476669ce5943717f7e9a
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Mar 16 16:52:30 2022 -0400
 
-    internal/poll: use atomic.Bool in DupCloseOnExec
+    go/types, types2: add an assertion that named type origin is idempotent
     
-    Invert the meaning of the var to make use of the zero value.
+    For #46794
     
-    Change-Id: If18db09896a67cb37cb3fe7dc0fb3493c6050a87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463847
+    Change-Id: I19edc19640a2dfa6bc7504dd8e1742a261ba29f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393368
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/poll/fd_unix.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/named.go | 1 +
+ src/go/types/named.go                    | 1 +
+ 2 files changed, 2 insertions(+)

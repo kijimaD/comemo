@@ -1,24 +1,25 @@
-commit 33b2b172014c50c42597785a60d9e98288fe737c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat May 5 17:03:21 2018 +1000
+commit 313a4b2b7f6479f13c4d460aebe514aa86543e21
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 15 14:54:24 2017 -0800
 
-    net: stop multiple sends into single capacity channel in lookupIP
+    runtime: buffered write barrier for mips
     
-    ch is of size 1, and has only one read. But current code can
-    write to ch more than once. This makes goroutines that do network
-    name lookups block forever. Only 500 goroutines are allowed, and
-    we eventually run out of goroutines.
+    Updates #22460.
     
-    Rewrite the code to only write into ch once.
-    
-    Fixes #24178
-    
-    Change-Id: Ifbd37db377c8b05e69eca24cc9147e7f86f899d8
-    Reviewed-on: https://go-review.googlesource.com/111718
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ieaca94385c3bb88dcc8351c3866b4b0e2a1412b5
+    Reviewed-on: https://go-review.googlesource.com/92701
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/lookup_test.go    | 40 ++++++++++++++++++++++++++++++++++++++++
- src/net/lookup_windows.go | 25 ++++++++++++++++---------
- 2 files changed, 56 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/main.go         |   2 +-
+ src/cmd/compile/internal/mips/ssa.go        |   5 ++
+ src/cmd/compile/internal/ssa/gen/MIPS.rules |   3 +
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go |   6 ++
+ src/cmd/compile/internal/ssa/opGen.go       |  15 +++++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go |  20 ++++++
+ src/cmd/vet/all/whitelist/mips.txt          |   2 +-
+ src/cmd/vet/all/whitelist/mipsle.txt        |   2 +-
+ src/cmd/vet/all/whitelist/mipsx.txt         |   4 +-
+ src/runtime/asm_mipsx.s                     | 101 ++++++++++++++++++++++++++++
+ 10 files changed, 156 insertions(+), 4 deletions(-)

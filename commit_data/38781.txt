@@ -1,22 +1,18 @@
-commit a16dcc00526dbb5ff411004c987a4182a8d68e7c
-Author: Gergely Brautigam <skarlso777@gmail.com>
-Date:   Sat Mar 9 13:28:50 2019 +0100
+commit 979d9027aecf265214a6dcc27fe037bfd70355f2
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Nov 13 22:51:21 2018 -0700
 
-    cmd/go: report non-Go files as package error
+    math/bits: define Div to panic when y<=hi
     
-    This change modifies cmd/go/list to format the error correctly in case
-    -e flag is set. It also fixes a bug where the package loader was only
-    ever checking the first pattern if it had the go extension. This caused
-    and error when a file without .go extension was not the first argument.
+    Div panics when y<=hi because either the quotient overflows
+    the size of the output or division by zero occurs when y==0.
+    This provides a uniform behavior for all implementations.
     
-    Fixes #29899
+    Fixes #28316
     
-    Change-Id: I029bf4465ad4ad054434b8337c1d2a59369783da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166398
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If23aeb10e0709ee1a60b7d614afc9103d674a980
+    Reviewed-on: https://go-review.googlesource.com/c/149517
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/load/pkg.go                       | 17 ++++++++++++++---
- src/cmd/go/testdata/script/list_test_non_go_files.txt | 13 +++++++++++++
- 2 files changed, 27 insertions(+), 3 deletions(-)
+ src/math/bits/bits.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

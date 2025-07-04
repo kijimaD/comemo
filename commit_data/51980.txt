@@ -1,17 +1,26 @@
-commit 117d5588bde2d1f1f830c3d763bf4f8e999a12c1
-Author: David Chase <drchase@google.com>
-Date:   Fri Feb 10 15:01:40 2023 -0500
+commit dac0220841a44815584c83d26e9f9a45f5560f6d
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Dec 9 16:09:24 2021 -0600
 
-    vendor: add new vendored files from update
+    runtime: avoid potential hang in TestGdbAutotmpTypes
     
-    fixes failing cmd/internal/moddeps TestAllDependencies
+    If a GC related task preempts between hitting the main.main breakpoint
+    and stepping, the test program may halt forever waiting on a GC
+    operation. This happens if gdb is configured to halt other threads
+    while executing a step.
     
-    Change-Id: I70e081469f1aa3b795a5bd28adeb61b31d7f34fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467415
+    Configure gdb to continue running all threads during a step by
+    setting the scheduler-locking option to off.
+    
+    Fixes #49852
+    
+    Change-Id: Iacc9732cbd23526bde0a295e6fa8a0d90f733f59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370775
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/vendor/golang.org/x/sys/cpu/endian_big.go    | 11 +++++++++++
- src/vendor/golang.org/x/sys/cpu/endian_little.go | 11 +++++++++++
- 2 files changed, 22 insertions(+)
+ src/runtime/runtime-gdb_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

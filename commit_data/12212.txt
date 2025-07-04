@@ -1,13 +1,16 @@
-commit bdca78e1a76cd97a20d45d5f6990b52533154aee
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Feb 26 01:36:26 2012 +0800
+commit 4af3dda41bcd3ede5e351afe522c0ff79020a25b
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Fri Feb 24 22:17:21 2012 -0800
 
-    cmd/yacc/units.y: update comment, give better error messages when $GOROOT not set
+    doc: update Go1 release notes to use correct WalkFunc error signature.
     
-    R=r, golang-dev
+    filepath's WalkFunc handler now uses errors package, and not
+    os.Error
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5698062
+    https://golang.org/cl/5696067
 
- src/cmd/yacc/Makefile |  3 +++
- src/cmd/yacc/units.y  | 12 ++++++++----
- 2 files changed, 11 insertions(+), 4 deletions(-)
+ doc/go1.html | 2 +-
+ doc/go1.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,22 +1,16 @@
-commit 67cc1af133a2917e8f6ef4bd08b1251695fd2346
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Fri Apr 6 22:22:03 2018 +0300
+commit ac0f890c578a0e44f5e39b952bc888093897e449
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 23 10:16:02 2017 +0100
 
-    cmd/internal/obj/x86: remove redundant code (fix TODO)
+    cmd/dist: omit dragonfly/386 GOOS/GOARCH pair
     
-    Special cases described in TODO comments are
-    fixed in https://golang.org/cl/6901.
+    dragonfly/386 isn't a valid GOOS/GOARCH pair.
     
-    One of those blocks was needed until old 6a assembler was removed.
-    This happened in https://golang.org/cl/12784.
-    
-    Fixes #24734 (Also contains more details and reasoning)
-    
-    Change-Id: If1f2f155d36ab236b16ae6f309a0716e00aa6371
-    Reviewed-on: https://go-review.googlesource.com/105156
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: I44374a932b20f0d49b2e509484143970eb5464c2
+    Reviewed-on: https://go-review.googlesource.com/79656
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 35 +++--------------------------------
- 1 file changed, 3 insertions(+), 32 deletions(-)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

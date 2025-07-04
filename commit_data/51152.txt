@@ -1,18 +1,18 @@
-commit efe541d4e53f0e229e7069adbdcedb7f0b117d8e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Nov 7 16:46:28 2022 -0500
+commit 9e29dd42df18141506dcfc2513e8a653564fdbf1
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Dec 7 14:29:21 2021 -0500
 
-    cmd/compile/internal/pgo: allow and ignore profiles with no sample
+    doc: document cmd/vet changes for generics in 1.18
     
-    Passing a profile with no sample is arguably not a user error.
-    Accept such a profile, and ignore it as it doesn't indicate any
-    optimizations. This also makes testing easier.
+    Fixes #50011
+    Updates #47694
     
-    Change-Id: Iae49a4260e20757419643153f50d8d5d51478411
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448495
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Id3d43f2f72de61b360b79c2b375ca1372d5f4692
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369979
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Tim King <taking@google.com>
 
- src/cmd/compile/internal/pgo/irgraph.go | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ doc/go1.18.html | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

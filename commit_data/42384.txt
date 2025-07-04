@@ -1,23 +1,23 @@
-commit 39ea0ea05dcfa281dc5977410b60458f2d2adb99
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon May 18 15:23:46 2020 -0400
+commit a3a630b0d2829ab74ac623fc2ae92864bd61d391
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Thu Nov 14 15:43:55 2019 +0100
 
-    cmd/link: fix size calculation for file space preallocation on darwin
+    runtime: use mprotect in sysMap for aix/ppc64
     
-    On darwin, we preallocate file storage space with fcntl
-    F_ALLOCATEALL in F_PEOFPOSMODE mode. This is specified as
-    allocating from the physical end of the file. So the size we give
-    it should be the increment, instead of the total size.
+    AIX doesn't allow to mmap an already mmap address. The previous way to
+    deal with this behavior was to munmap before calling mmap again.
+    However, mprotect syscall is able to change protections on a memory
+    range. Thus, memory mapped by sysReserve can be remap using it. Note
+    that sysMap is always called with a non-nil pointer so mprotect is
+    always possible.
     
-    Fixes #39044.
+    Updates: #35451
     
-    Change-Id: I10c7ee8d51f237b4a7604233ac7abc6f91dcd602
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234481
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1fd1e1363d9ed9eb5a8aa7c8242549bd6dad8cd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207237
     Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/link/internal/ld/fallocate_test.go | 50 ++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/outbuf_darwin.go  | 17 +++++++---
- 2 files changed, 63 insertions(+), 4 deletions(-)
+ src/runtime/mem_aix.go | 11 ++++++-----
+ src/runtime/os2_aix.go | 12 ++++++++++++
+ 2 files changed, 18 insertions(+), 5 deletions(-)

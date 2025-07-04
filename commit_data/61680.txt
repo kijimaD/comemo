@@ -1,0 +1,18 @@
+commit 1d28fa8c43ab11942d967ea112e2e6a05cd8f919
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 19 14:41:37 2024 -0800
+
+    runtime: avoid deadlock in synctest changegstatus when copying stacks
+    
+    For #67434
+    Fixes #70452
+    
+    Change-Id: Ie655a9e55837aa68b6bfb0bb69b6c8caaf3bbea5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629856
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/synctest.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)

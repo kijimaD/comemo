@@ -1,12 +1,16 @@
-commit 5b1f159fb580c14f90227cdc51ea635a474762af
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 5 08:25:49 2011 +1000
+commit b35d49fca158738a6469c2164eec23ba72e73d14
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Aug 4 23:15:19 2011 +0200
 
-    exp/norm: fix build by adding a test placeholder
+    exp/norm: maketables tool for generating tables for normalization.
     
-    R=golang-dev, bradfitz, rsc
+    R=r, bsiegert, r, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4838050
+    https://golang.org/cl/4662080
 
- src/pkg/exp/norm/norm_test.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ .hgignore                      |    1 +
+ src/pkg/Makefile               |    1 +
+ src/pkg/exp/norm/Makefile      |   32 +
+ src/pkg/exp/norm/maketables.go | 1013 ++++++
+ src/pkg/exp/norm/tables.go     | 7544 ++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 8591 insertions(+)

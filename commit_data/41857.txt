@@ -1,24 +1,23 @@
-commit 74d6de03fd7db2c6faa7794620a9bcf0c4f018f2
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Dec 11 13:16:35 2019 -0500
+commit b6bdf4587f7b58b78982553b7d10b73d0a381152
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 28 22:14:04 2019 -0400
 
-    cmd/go: report scan error position in 'go list -e'
+    runtime: unblock SIGUSR1 for TestPreemptM
     
-    This CL extracts some error handling code into a common method for
-    presenting errors encountered when loading package data.
+    TestPreemptM tests signal delivery using SIGUSR1, but (for unknown
+    reasons) SIGUSR1 is blocked by default on android/arm and
+    android/arm64, causing the test to fail.
     
-    Fixes #36087
-    Fixes #36762
+    This fixes the test by ensuring that SIGUSR1 is unblocked for this
+    test.
     
-    Change-Id: I87c8d41e3cc6e6afa152d9c067bc60923bf19fbe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210938
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Updates #10958, #24543.
+    
+    Change-Id: I9f81fbab53f96c74622aabcb6f5276f79e2b6d33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203957
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/base/base.go              | 25 --------
- src/cmd/go/internal/load/pkg.go               | 92 ++++++++++++++++++---------
- src/cmd/go/internal/load/test.go              |  7 +-
- src/cmd/go/testdata/script/list_parse_err.txt | 36 +++++++++--
- 4 files changed, 99 insertions(+), 61 deletions(-)
+ src/runtime/export_unix_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

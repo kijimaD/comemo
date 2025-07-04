@@ -1,16 +1,12 @@
-commit 38e9b0773d486beb1d91ce018586a888bbb20e45
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 20 23:53:27 2013 -0400
+commit bcb39a778cbf06582615e9110a480cedd096bb8b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 20 15:38:51 2013 -0700
 
-    cmd/gc: fix escape analysis of method values
+    runtime: free map structures more aggressively
     
-    R=ken2
+    R=rsc, bradfitz, khr
     CC=golang-dev
-    https://golang.org/cl/7518050
+    https://golang.org/cl/7849047
 
- src/cmd/gc/closure.c     |  3 ++-
- src/cmd/gc/esc.c         | 11 +++++++++++
- src/cmd/gc/fmt.c         |  4 +++-
- test/escape2.go          | 22 ++++++++++++++++++++++
- test/fixedbugs/bug474.go | 29 +++++++++++++++++++++++++++++
- 5 files changed, 67 insertions(+), 2 deletions(-)
+ src/pkg/runtime/hashmap.c | 62 ++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 50 insertions(+), 12 deletions(-)

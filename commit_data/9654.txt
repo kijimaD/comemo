@@ -1,15 +1,30 @@
-commit 817da6657682a1bd8a50893466e92499bc4e5933
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Sep 12 16:18:48 2011 -0300
+commit 7d43b8428247d101217dbaca8ecd864392640287
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 12 11:47:55 2011 -0700
 
-    path/filepath: fix Visitor doc
+    time: make Weekday a method.
+    Weekday is redundant information for a Time structure.
+    When parsing a time with a weekday specified, it can create an
+    incorrect Time value.
+    When parsing a time without a weekday specified, people
+    expect the weekday to be set.
+    Fix all three problems by computing the weekday on demand.
     
-    The path is not in fact relative to the root, but
-    joined to it.
+    This is hard to gofix, since we must change the type of the node.
+    Since uses are rare and existing code will be caught by the compiler,
+    there is no gofix module here.
     
-    R=golang-dev, adg, rsc, gustavo
+    Fixes #2245.
+    
+    R=golang-dev, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4977059
+    https://golang.org/cl/4974077
 
- src/pkg/path/filepath/path.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/asn1/asn1_test.go        | 16 +++++++-------
+ src/pkg/crypto/ocsp/ocsp_test.go |  2 +-
+ src/pkg/http/cookie_test.go      |  2 +-
+ src/pkg/mail/message_test.go     |  1 -
+ src/pkg/time/format.go           | 12 +++++-----
+ src/pkg/time/time.go             | 23 +++++++++++++------
+ src/pkg/time/time_test.go        | 48 ++++++++++++++++++++--------------------
+ 7 files changed, 57 insertions(+), 47 deletions(-)

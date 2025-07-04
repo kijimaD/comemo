@@ -1,13 +1,12 @@
-commit 3d2e75cf922440870596e9bc6145630b2b6a3d5d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jan 16 11:11:58 2012 +0400
+commit 8727b11dfb867f2e20b2f61f275a0a61dd28cd98
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 16 14:57:18 2012 +0900
 
-    exp/inotify: fix data race in linux tests
-    Fixes #2708.
+    net: consistent log format in test
     
-    R=golang-dev, bradfitz
-    CC=golang-dev, mpimenov
-    https://golang.org/cl/5543060
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5545062
 
- src/pkg/exp/inotify/inotify_linux_test.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/net/server_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

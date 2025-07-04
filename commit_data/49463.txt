@@ -1,28 +1,21 @@
-commit 1fe2810f9ca0dcd34e473f852102e2a49d45d7d8
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jun 10 16:21:46 2022 +0000
+commit bcd146d398da2a873bb3f5a6e026c70b411a4486
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 17 19:01:52 2021 +1000
 
-    sync: move lock linearity test and treat it like a performance test
+    cmd/compile: convert branch with zero to more optimal branch zero on riscv64
     
-    This change moves test/locklinear.go into the sync package tests, and
-    adds a bit of infrastructure since there are other linearity-checking
-    tests that could benefit from it too. This infrastructure is also
-    different than what test/locklinear.go does: instead of trying really
-    hard to get at least one success, we instead treat this like a
-    performance test and look for a significant difference via a t-test.
+    Convert BLT and BGE with a zero valued constant to BGTZ/BLTZ/BLEZ/BGEZ as
+    appropriate.
     
-    This makes the methodology behind the tests more rigorous, and should
-    reduce flakiness as transient noise should produce an insignificant
-    result. A follow-up CL does more to make these tests even more robust.
+    Removes over 4,500 instructions from the go binary on riscv64.
     
-    For #32986.
-    
-    Change-Id: I408c5f643962b70ea708930edb4ac9df1c6123ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411396
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Icc266e968b126ba04863ec88529630a9dd44498b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342849
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/internal/testenv/testenv.go |  65 +++++++++++++++
- src/internal/testmath/bench.go  |  38 +++++++++
- src/sync/mutex_test.go          |  90 +++++++++++++++++++++
- test/locklinear.go              | 171 ----------------------------------------
- 4 files changed, 193 insertions(+), 171 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 46 ++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 1 deletion(-)

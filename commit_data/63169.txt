@@ -1,0 +1,20 @@
+commit 1881d680b0b573c32d3002c37902760668ffec0f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 21 15:35:51 2025 +0200
+
+    net/http: add CrossOriginProtection
+    
+    Fixes #73626
+    
+    Change-Id: I6a6a4656862e7a38acb65c4815fb7a1e04896172
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674936
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ api/next/73626.txt                           |   7 +
+ doc/next/6-stdlib/99-minor/net/http/73626.md |   7 +
+ src/net/http/csrf.go                         | 182 +++++++++++++++
+ src/net/http/csrf_test.go                    | 330 +++++++++++++++++++++++++++
+ 4 files changed, 526 insertions(+)

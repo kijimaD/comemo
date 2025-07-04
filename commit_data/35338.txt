@@ -1,37 +1,36 @@
-commit 23e9dc79941be24d381d2e2c85600d4a3d0d6921
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Apr 25 11:45:53 2018 +0900
+commit beeabbcb2501c89db48a60681183ad161763db79
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 25 12:15:23 2018 -0500
 
-    html/template: always write untyped nil as JS null
+    runtime: use NOFRAME on arm64
     
-    text/template recently added support for passing untyped nil as function
-    call arguments, as those would be mixed up with "missing argument"
-    values before. See CL 95215.
+    This replaces frame size -8 with the NOFRAME flag in arm64 assembly.
     
-    html/template now needs a small change to adapt to that new possibility.
-    In particular, when printing values as JS bytes, its code was written
-    under the assumption that the values would never be untyped nil - that
-    is, the reflect.Value would always be valid.
+    This was automated with:
     
-    Short-circuit indirectToJSONMarshaler on an untyped nil, to avoid the
-    panic and fall back to the existing " null " output. Before this change
-    and on 1.10, printing a typed nil and an untyped nil resulted in:
+    sed -i -e 's/\(^TEXT.*[A-Z]\),\( *\)\$-8/\1|NOFRAME,\2$0/' $(find -name '*_arm64.s')
     
-            null ""
+    Plus a manual fix to mkduff.go.
     
-    After this change, one will get:
+    The go binary is identical before and after this change.
     
-            null null
-    
-    Fixes #24717.
-    
-    Change-Id: I03cd10ef64b96e837bacc9ccf4cf25624d80de1c
-    Reviewed-on: https://go-review.googlesource.com/109215
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I0310384d1a584118c41d1cd3a042bb8ea7227efa
+    Reviewed-on: https://go-review.googlesource.com/92043
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/html/template/js.go      | 8 ++++++++
- src/html/template/js_test.go | 1 +
- 2 files changed, 9 insertions(+)
+ misc/cgo/test/issue9400/asm_arm64.s   |  2 +-
+ src/runtime/asm_arm64.s               | 40 +++++++++++++--------------
+ src/runtime/atomic_arm64.s            |  2 +-
+ src/runtime/cgo/asm_arm64.s           |  2 +-
+ src/runtime/cgo/signal_darwin_arm64.s |  2 +-
+ src/runtime/duff_arm64.s              |  2 +-
+ src/runtime/memmove_arm64.s           |  2 +-
+ src/runtime/mkduff.go                 |  2 +-
+ src/runtime/rt0_android_arm64.s       |  4 +--
+ src/runtime/rt0_darwin_arm64.s        |  4 +--
+ src/runtime/rt0_linux_arm64.s         |  4 +--
+ src/runtime/sys_darwin_arm64.s        |  2 +-
+ src/runtime/sys_linux_arm64.s         | 52 +++++++++++++++++------------------
+ 13 files changed, 60 insertions(+), 60 deletions(-)

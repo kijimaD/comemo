@@ -1,19 +1,16 @@
-commit 8e52a5eeb73638c74d135c5ac30eb9232a161240
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 15 16:58:51 2017 -0700
+commit 1db0aae37029339515678ef4682238c2707866ae
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 20 09:19:21 2017 +1000
 
-    cmd/dist: add test that deps.go is up to date
+    cmd/internal/obj: remove unused obj.Linksymfmt
     
-    Test is not run in short mode, except on builders.
+    obj.Linksymfmt is no longer referenced by any packages in cmd/...
     
-    Change-Id: I4456830770188951e05ac13669e834a25bf569ae
-    Reviewed-on: https://go-review.googlesource.com/55973
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Joe Tsai <joetsai@google.com>
-    Reviewed-by: Joe Tsai <joetsai@google.com>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Change-Id: Id4d9213d1577e13580b60755dbf7da313b17cb0e
+    Reviewed-on: https://go-review.googlesource.com/41171
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/deps_test.go | 98 +++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/dist/mkdeps.bash  |  7 +++-
- 2 files changed, 104 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/sym.go | 7 -------
+ 1 file changed, 7 deletions(-)

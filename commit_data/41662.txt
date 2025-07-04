@@ -1,12 +1,18 @@
-commit 7ec4adbc919df7dbd549ccc71a2e17d8a0bafe4d
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 16 03:31:32 2020 +1100
+commit bc529506d21f4393af20becb7f50b6628b27c291
+Author: Keith Randall <khr@google.com>
+Date:   Tue Sep 17 14:10:50 2019 -0700
 
-    cmd/internal/obj/riscv: add comments for Go registers
+    runtime/race: add test for midstack inlining
     
-    Change-Id: Id9aa6ba268eee67f2dc74096d4ec3bc0a80aefe2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223563
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Add test to make sure we get the right traceback when mid-stack inlining.
+    
+    Update #33309
+    
+    Change-Id: I23979cbe6b12fad105dbd26698243648aa86a354
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195984
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/internal/obj/riscv/cpu.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/race/output_test.go | 52 ++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 49 insertions(+), 3 deletions(-)

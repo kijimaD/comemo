@@ -1,13 +1,38 @@
-commit f2147cd740810ac50b56f96f429ef6b47245e904
+commit ee8e687874b56f7c3ab1dd5585390b84dc74b14e
 Author: Keith Randall <khr@golang.org>
-Date:   Tue Jun 17 00:45:39 2014 -0700
+Date:   Mon Jun 16 23:51:18 2014 -0700
 
-    runtime: disable funky wide string test for now.
+    undo CL 93380044 / 7f0999348917
+    
+    Partial undo, just of go:nosplit annotation.  Somehow it
+    is breaking the windows builders.
     
     TBR=bradfitz
-    R=bradfitz
+    
+    ««« original CL description
+    runtime: implement string ops in Go
+    
+    Also implement go:nosplit annotation.  Not really needed
+    for now, but we'll definitely need it for other conversions.
+    
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkRuneIterate      534           474           -11.24%
+    BenchmarkRuneIterate2     535           470           -12.15%
+    
+    LGTM=bradfitz
+    R=golang-codereviews, dave, bradfitz, minux
     CC=golang-codereviews
-    https://golang.org/cl/105280045
+    https://golang.org/cl/93380044
+    »»»
+    
+    TBR=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/105260044
 
- src/pkg/runtime/string_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/fmt.c   | 2 +-
+ src/cmd/gc/go.h    | 2 --
+ src/cmd/gc/go.y    | 2 --
+ src/cmd/gc/lex.c   | 4 ----
+ src/cmd/gc/pgen.c  | 2 --
+ src/cmd/gc/y.tab.c | 2 --
+ 6 files changed, 1 insertion(+), 13 deletions(-)

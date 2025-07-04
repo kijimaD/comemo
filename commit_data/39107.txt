@@ -1,13 +1,18 @@
-commit a4f5c9c40de3fcf4396037ba63dc547225e00375
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 9 09:51:17 2019 -0400
+commit 22738f07c88ac9dd1159da15675fedeeba80c45d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 2 18:47:06 2019 +0000
 
-    runtime: fix vet complaints for js/wasm
+    runtime: add GODEBUG=madvdontneed=1
     
-    Change-Id: Ifc8a731a2efd94fdc4fc6f26ca6e16f0c0292211
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176178
+    Fixes #28466
+    
+    Change-Id: I05b2e0da09394d111913963b60f2ec865c9b4744
+    Reviewed-on: https://go-review.googlesource.com/c/155931
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/vet/all/whitelist/wasm.txt | 11 -----------
- src/runtime/asm_wasm.s             |  3 ++-
- 2 files changed, 2 insertions(+), 12 deletions(-)
+ src/runtime/extern.go    | 5 +++++
+ src/runtime/mem_linux.go | 7 ++++++-
+ src/runtime/runtime1.go  | 2 ++
+ 3 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,32 +1,44 @@
-commit a0402b6bf84d7e51eb9181f5d39fb0037913384e
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Wed Oct 4 18:30:38 2017 -0400
+commit a5179bd0a56d8fae91e860f585cef143ce5ec89b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 5 22:00:21 2017 -0700
 
-    cmd/link: suppress unnecessary DWARF relocs that confuse dsymutil
+    net: don't return IPv4 unspecified addr for Resolve*Addr of [::] or [::]:n
     
-    During Mach-O linking, dsymutil takes the DWARF from individual object
-    files and combines it into a debug archive. Because it's content-aware,
-    it doesn't need our help to do its job. Nonetheless, it does try to
-    honor relocations that are present in its input.
+    ResolveTCPAddr, ResolveUDPAddr, and ResolveIPAddr return at most one
+    address. When given a name like "golang.org" to resolve that might
+    have more than 1 address, the net package has historically preferred
+    IPv4 addresses, with the assumption that many users don't yet have
+    IPv6 connectivity and randomly selecting between an IPv4 address and
+    an IPv6 address at runtime wouldn't be a good experience for IPv4-only
+    users.
     
-    When dsymutil encounters a relocation, it uses the value of that
-    relocation as an index into the debug map to find its final location.
-    When it does that, it's assuming that the value is an address in the
-    object file. But DWARF references are section-relative. So when it
-    processes a relocation for a DWARF reference, it gets confused,
-    and if the value happens to match the address of a function or
-    data symbol, it will rewrite it incorrectly.
+    In CL 45088 (78cf0e56) I modified the resolution of the
+    unspecified/empty address to internally resolve to both IPv6 "::" and
+    0.0.0.0 to fix issue #18806.
     
-    Since the relocations don't help, and can hurt, drop them when
-    externally linking a Mach-O binary.
+    That code has 3 other callers I hadn't considered, though: the
+    Resolve*Addr functions. Since they preferred IPv4, any Resolve*Addr of
+    "[::]:port" or "::" (for ResolveIPAddr) would internally resolve both
+    "::" and 0.0.0.0 and then prefer 0.0.0.0, even though the user was
+    looking up an IPv6 literal.
     
-    Fixes #22068
+    Add tests and fix it, not by undoing the fix to #18806 but by
+    selecting the preference function for Resolve*Addr more explicitly: we
+    still prefer IPv4, but if the address being looked up was an IPv6
+    literal, prefer IPv6.
     
-    Change-Id: I8ec36da626575d9f6c8d0e7a0b76eab8ba22d62c
-    Reviewed-on: https://go-review.googlesource.com/68330
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    The tests are skipped on machines without IPv6.
+    
+    Fixes #20911
+    
+    Change-Id: Ib7036cc43182ae4118cd1390c254e17c04a251a3
+    Reviewed-on: https://go-review.googlesource.com/47554
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/data.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/net/iprawsock.go |  2 +-
+ src/net/ipsock.go    | 24 +++++++++++++++++++++++-
+ src/net/main_test.go |  6 ++++++
+ src/net/tcpsock.go   |  2 +-
+ src/net/udpsock.go   |  2 +-
+ 5 files changed, 32 insertions(+), 4 deletions(-)

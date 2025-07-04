@@ -1,0 +1,21 @@
+commit e90ba1d208f400eee6a9d14d4f41d54166255320
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Mar 4 19:18:22 2025 +0000
+
+    runtime: move some malloc constants to internal/runtime/gc
+    
+    These constants are needed by some future generator programs.
+    
+    Change-Id: I5dccd009cbb3b2f321523bc0d8eaeb4c82e5df81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655276
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/gc/malloc.go | 47 +++++++++++++++++++++++++++++++++++++
+ src/runtime/lock_spinbit.go       |  5 ++--
+ src/runtime/malloc.go             | 22 +++++++++++-------
+ src/runtime/mbitmap.go            | 49 +++++----------------------------------
+ src/runtime/mfinal.go             |  3 ++-
+ src/runtime/msize.go              |  6 ++---
+ 6 files changed, 74 insertions(+), 58 deletions(-)

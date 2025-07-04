@@ -1,50 +1,33 @@
-commit 2181653be637cdcc7a6efee8ec0a719df1d83c00
-Author: Justin Nuß <nuss.justin@gmail.com>
-Date:   Tue Apr 25 21:23:34 2017 +0200
+commit 72aa757dddad7e915f4faad87aacf8010d91561b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 00:17:50 2017 -0500
 
-    encoding/csv: add option to reuse slices returned by Read
+    encoding/xml: fix incorrect indirect code in chardata, comment, innerxml fields
     
-    In many cases the records returned by Reader.Read will only be used between calls
-    to Read and become garbage once a new record is read. In this case, instead of
-    allocating a new slice on each call to Read, we can reuse the last allocated slice
-    for successive calls to avoid unnecessary allocations.
+    The new tests in this CL have been checked against Go 1.7 as well
+    and all pass in Go 1.7, with the one exception noted in a comment
+    (an intentional change to omitempty already present before this CL).
     
-    This change adds a new field ReuseRecord to the Reader struct to enable this reuse.
+    CL 15684 made the intentional change to omitempty.
+    This CL fixes bugs introduced along the way.
     
-    ReuseRecord is false by default to avoid breaking existing code which dependss on
-    the current behaviour.
+    Most of these are corner cases that are arguably not that important,
+    but they've always worked all the way back to Go 1, and someone
+    cared enough to file #19063. The most significant problem found
+    while adding tests is that in the case of a nil *string field with
+    `xml:",chardata"`, the existing code silently stops processing not just
+    that field but the entire remainder of the struct.
+    Even if #19063 were not worth fixing, this chardata bug would be.
     
-    I also added 4 new benchmarks, corresponding to the existing Read benchmarks, which
-    set ReuseRecord to true.
+    Fixes #19063.
     
-    Benchstat on my local machine (old is ReuseRecord = false, new is ReuseRecord = true)
-    
-    name                          old time/op    new time/op    delta
-    Read-8                          2.75µs ± 2%    1.88µs ± 1%  -31.52%  (p=0.000 n=14+15)
-    ReadWithFieldsPerRecord-8       2.75µs ± 0%    1.89µs ± 1%  -31.43%  (p=0.000 n=13+13)
-    ReadWithoutFieldsPerRecord-8    2.77µs ± 1%    1.88µs ± 1%  -32.06%  (p=0.000 n=15+15)
-    ReadLargeFields-8               55.4µs ± 1%    54.2µs ± 0%   -2.07%  (p=0.000 n=15+14)
-    
-    name                          old alloc/op   new alloc/op   delta
-    Read-8                            664B ± 0%       24B ± 0%  -96.39%  (p=0.000 n=15+15)
-    ReadWithFieldsPerRecord-8         664B ± 0%       24B ± 0%  -96.39%  (p=0.000 n=15+15)
-    ReadWithoutFieldsPerRecord-8      664B ± 0%       24B ± 0%  -96.39%  (p=0.000 n=15+15)
-    ReadLargeFields-8               3.94kB ± 0%    2.98kB ± 0%  -24.39%  (p=0.000 n=15+15)
-    
-    name                          old allocs/op  new allocs/op  delta
-    Read-8                            18.0 ± 0%       8.0 ± 0%  -55.56%  (p=0.000 n=15+15)
-    ReadWithFieldsPerRecord-8         18.0 ± 0%       8.0 ± 0%  -55.56%  (p=0.000 n=15+15)
-    ReadWithoutFieldsPerRecord-8      18.0 ± 0%       8.0 ± 0%  -55.56%  (p=0.000 n=15+15)
-    ReadLargeFields-8                 24.0 ± 0%      12.0 ± 0%  -50.00%  (p=0.000 n=15+15)
-    
-    Fixes #19721
-    
-    Change-Id: I79b14128bb9bb3465f53f40f93b1b528a9da6f58
-    Reviewed-on: https://go-review.googlesource.com/41730
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I318cf8f9945e1a4615982d9904e109fde577ebf9
+    Reviewed-on: https://go-review.googlesource.com/36954
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/csv/reader.go      | 69 +++++++++++++++++++++++++++++------------
- src/encoding/csv/reader_test.go | 31 ++++++++++++++++++
- 2 files changed, 80 insertions(+), 20 deletions(-)
+ src/encoding/xml/marshal.go      |  26 +-
+ src/encoding/xml/marshal_test.go | 544 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 554 insertions(+), 16 deletions(-)

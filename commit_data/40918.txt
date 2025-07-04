@@ -1,24 +1,23 @@
-commit 94f4686a77d1d708f240eac388fb5c5b83e2c15f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 2 12:07:22 2019 -0800
+commit c61c29fe563134f752ea14e794d08031982145e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 21 10:43:49 2019 -0400
 
-    runtime: use current P's race context in timer code
+    cmd/go: accept GOSUMDB=sum.golang.google.cn
     
-    We were using the race context of the P that held the timer,
-    but since we unlock the P's timers while executing a timer
-    that could lead to a race on the race context itself.
+    This CL makes the go command understand that
+    GOSUMDB=sum.golang.google.cn should connect
+    to that domain but expect to find a checksum database
+    signed by sum.golang.org there.
     
-    Updates #6239
-    Updates #27707
-    Fixes #35906
+    The host sum.golang.google.cn is not yet completely
+    configured; we hope it will be available in a few weeks.
     
-    Change-Id: I5f9d5f52d8e28dffb88c3327301071b16ed1a913
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209580
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ie0fc4323f0c7084dda59bd3b45fc406717fa16d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191137
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/runtime/race/timer_test.go | 33 +++++++++++++++++++++++++++++++++
- src/runtime/time.go            | 11 ++++++-----
- 2 files changed, 39 insertions(+), 5 deletions(-)
+ src/cmd/go/alldocs.go                 |  8 +++++---
+ src/cmd/go/internal/modfetch/fetch.go |  8 +++++---
+ src/cmd/go/internal/modfetch/sumdb.go | 12 +++++++++++-
+ 3 files changed, 21 insertions(+), 7 deletions(-)

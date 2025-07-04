@@ -1,45 +1,16 @@
-commit 7523baed098789b8b4e2a5b295b14db91ab5e5cf
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Feb 1 16:04:07 2017 +0100
+commit a501fef3455a8e0ff0424bb29a9403d7539c6164
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 10 23:03:06 2016 +0000
 
-    misc/ios,cmd/go, runtime/cgo: fix iOS test harness (again)
+    net/http: deflake TestClientTimeout
     
-    The iOS test harness was recently changed in response to lldb bugs
-    to replace breakpoints with the SIGUSR2 signal (CL 34926), and to
-    pass the current directory in the test binary arguments (CL 35152).
-    Both the signal sending and working directory setup is done from
-    the go test driver.
+    This test was only enabled by default today so it hasn't been hardened
+    by build.golang.org. Welcome to the ring, TestClientTimeout.
     
-    However, the new method doesn't work with tests where a C program is
-    the test driver instead of go test: the current working directory
-    will not be changed and SIGUSR2 is not raised.
-    
-    Instead of copying that logic into any C test program, rework the
-    test harness (again) to move the setup logic to the early runtime
-    cgo setup code. That way, the harness will run even in the library
-    build modes.
-    
-    Then, use the app Info.plist file to pass the working
-    directory, removing the need to alter the arguments after running.
-    
-    Finally, use the SIGINT signal instead of SIGUSR2 to avoid
-    manipulating the signal masks or handlers.
-    
-    Fixes the testcarchive tests on iOS.
-    
-    With this CL, both darwin/arm and darwin/arm64 passes all.bash.
-    
-    This CL replaces CL 34926, CL 35152 as well as the fixup CL
-    35123 and CL 35255. They are reverted in CLs earlier in the
-    relation chain.
-    
-    Change-Id: I8485c7db1404fbd8daa261efd1ea89e905121a3e
-    Reviewed-on: https://go-review.googlesource.com/36090
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I1967f6c825699f13f6c659dc14d3c3c22b965272
+    Reviewed-on: https://go-review.googlesource.com/33101
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/ios/go_darwin_arm_exec.go     | 28 +++++++++-------------------
- src/runtime/cgo/gcc_darwin_arm.c   | 30 ++++++++++++++++++++----------
- src/runtime/cgo/gcc_darwin_arm64.c | 30 ++++++++++++++++++++----------
- 3 files changed, 49 insertions(+), 39 deletions(-)
+ src/net/http/client_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

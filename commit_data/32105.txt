@@ -1,18 +1,19 @@
-commit 9bb98e02defa62f196c5a0b3c56a5ab88ccfc123
-Author: Tristan Colgate <tcolgate@gmail.com>
-Date:   Fri Aug 4 08:27:56 2017 +0100
+commit 10991fd5af24fd01483ab23c9b3d7de52de580b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 5 10:57:03 2017 -0400
 
-    doc/1.9: add CL 43712, ReverseProxy of HTTP/2 trailers to the release notes.
+    cmd/go: add test for test -race -i behavior
     
-    Add https://go-review.googlesource.com/c/43712,
-    "net/http/httputil: ReverseProxy should pass on unannounced Trailers"
-    to the relase notes.
+    This was fixed in CL 37598 but the test was (rightly) dropped
+    because it modified $GOROOT. Here's a variant that does not.
     
-    Fixes #21307
+    For #19151.
     
-    Change-Id: I52c126987a5d0abc4153c0e71b535529c46cd457
-    Reviewed-on: https://go-review.googlesource.com/53290
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iccdbbf9ae8ac4c252e52f4f8ff996963573c4682
+    Reviewed-on: https://go-review.googlesource.com/39592
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.9.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/go/go_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

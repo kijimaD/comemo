@@ -1,15 +1,17 @@
-commit fc47ee23322d668b3b023cd8c1d3541b1ad9703e
-Author: Hajime Hoshi <hajimehoshi@gmail.com>
-Date:   Fri Oct 7 02:06:33 2016 +0900
+commit 25a609556aff7700c864f2dc69be01652fd801ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 28 17:23:01 2016 -0700
 
-    cmd/compile/internal/gc: unexport global variable Pc
+    runtime: correct printing of blocked field in scheduler trace
     
-    Change-Id: Id2a9fc1e9e70eaf5f25ddc7476061e06abcf60e4
-    Reviewed-on: https://go-review.googlesource.com/30573
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    When the blocked field was first introduced back in
+    https://golang.org/cl/61250043 the scheduler trace code incorrectly used
+    m->blocked instead of mp->blocked.  That has carried through the
+    conversion to Go.  This CL fixes it.
+    
+    Change-Id: Id81907b625221895aa5c85b9853f7c185efd8f4b
+    Reviewed-on: https://go-review.googlesource.com/24571
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go   |  2 +-
- src/cmd/compile/internal/gc/go.go    |  2 +-
- src/cmd/compile/internal/gc/gsubr.go | 14 +++++++-------
- src/cmd/compile/internal/gc/ssa.go   | 14 +++++++-------
- 4 files changed, 16 insertions(+), 16 deletions(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

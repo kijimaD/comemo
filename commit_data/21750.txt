@@ -1,32 +1,32 @@
-commit 59e546633d5b41f69971bd9f019f5e54c600fa17
-Author: Carlos Castillo <cookieo9@gmail.com>
-Date:   Tue Feb 24 02:35:55 2015 -0800
+commit 28b51184156e1261bb92e7ec4050a794dd606fa6
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 30 15:30:41 2015 -0500
 
-    os: Use GetComputerNameEx to get Hostname on win32
+    runtime: rename m.gcing to m.preemptoff and make it a string
     
-    The existing Hostname function uses the GetComputerName system
-    function in windows to determine the hostname. It has some downsides:
+    m.gcing has become overloaded to mean "don't preempt this g" in
+    general.  Once the garbage collector is preemptible, the one thing it
+    *won't* mean is that we're in the garbage collector.
     
-      - The name is limited to 15 characters.
-      - The name returned is for NetBIOS, other OS's return a DNS name
+    So, rename gcing to "preemptoff" and make it a string giving a reason
+    that preemption is disabled.  gcing was never set to anything but 0 or
+    1, so we don't have to worry about there being a stack of reasons.
     
-    This change adds to the internal/syscall/windows package a
-    GetComputerNameEx function, and related enum constants. They are used
-    instead of the syscall.ComputerName function to implement os.Hostname
-    on windows.
-    
-    Fixes #9982
-    
-    Change-Id: Idc8782785eb1eea37e64022bd201699ce9c4b39c
-    Reviewed-on: https://go-review.googlesource.com/5852
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Carlos Castillo <cookieo9@gmail.com>
-    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+    Change-Id: I4337c29e8e942e7aa4f106fc29597e1b5de4ef46
+    Reviewed-on: https://go-review.googlesource.com/3660
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/build.go                            |  1 +
- src/go/build/deps_test.go                        |  2 +-
- src/internal/syscall/windows/syscall_windows.go  | 18 ++++++++++++---
- src/internal/syscall/windows/zsyscall_windows.go | 16 ++++++++++++++
- src/os/sys_windows.go                            | 28 +++++++++++++++++++-----
- 5 files changed, 56 insertions(+), 9 deletions(-)
+ src/runtime/debug.go      |  4 ++--
+ src/runtime/lock_futex.go |  2 +-
+ src/runtime/lock_sema.go  |  2 +-
+ src/runtime/malloc.go     |  4 ++--
+ src/runtime/mem.go        |  8 ++++----
+ src/runtime/mgc.go        |  4 ++--
+ src/runtime/mprof.go      |  8 ++++----
+ src/runtime/panic.go      |  7 +++++--
+ src/runtime/panic1.go     |  2 +-
+ src/runtime/proc1.go      |  4 ++--
+ src/runtime/runtime2.go   |  2 +-
+ src/runtime/stack1.go     |  9 +++++----
+ src/runtime/trace.go      | 12 ++++++------
+ 13 files changed, 36 insertions(+), 32 deletions(-)

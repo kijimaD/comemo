@@ -1,14 +1,14 @@
-commit 7736cbafd994873519372980e9eb802c37e4c8c9
+commit aad29eba296df2374e5f7d334d33649d01552c01
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 1 23:27:25 2016 +0000
+Date:   Wed Oct 5 04:35:59 2016 +0000
 
-    cmd/dist: adjust default timeout scale for mips
+    sort: fix a slice benchmark not using the stable variant, add another
     
-    Per recommendation from imgtec.com folk.
-    
-    Change-Id: I9b6f30572f257acce59842ac55362f52fe36c5ab
-    Reviewed-on: https://go-review.googlesource.com/33804
+    Change-Id: I9783d8023d453a72c4605a308064bef98168bcb8
+    Reviewed-on: https://go-review.googlesource.com/30360
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/sort/sort_test.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

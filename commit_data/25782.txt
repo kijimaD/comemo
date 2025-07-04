@@ -1,18 +1,12 @@
-commit 5c5e8d41054940ccf9e1c025bf21c86e85f33bde
-Author: Tal Shprecher <tshprecher@gmail.com>
-Date:   Sat Feb 13 22:39:16 2016 -0800
+commit 85dcc34e0dad613f7f7d0915a52bdacedd570c3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 20 07:00:09 2015 -0800
 
-    cmd/compile: avoid leak of dottype expression if type does not contain pointers.
+    doc: add FAQ entry about covariant result types
     
-    Fixes #13805
-    
-    Change-Id: Ica9aae2e054b74f67d28ab27f72c52a3f03eeb59
-    Reviewed-on: https://go-review.googlesource.com/19489
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If22b8f358e78deca31bd0b1a25e7966987853405
+    Reviewed-on: https://go-review.googlesource.com/17083
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/esc.go       | 15 ++++++++++-----
- src/cmd/compile/internal/gc/typecheck.go |  1 -
- test/escape_iface.go                     | 20 ++++++++++++++++++++
- 3 files changed, 30 insertions(+), 6 deletions(-)
+ doc/go_faq.html | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

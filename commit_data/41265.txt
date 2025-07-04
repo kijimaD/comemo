@@ -1,19 +1,17 @@
-commit 73859478257884608030e5e8d774ffa3321f0ecf
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Feb 12 10:14:12 2020 -0500
+commit bcf6f9fd4c601a2f51d737a6390a7e909096729a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 17 21:12:35 2019 -0700
 
-    cmd/go/internal/modcmd: remove dead function addModFlag
+    internal/goroot: for -compiler=gccgo, only look for .gox files
     
-    This function is never called and should have been removed
-    earlier. work.AddModCommonFlags defines the -modfile flag instead.
+    Fixes #34358
     
-    Fixes #37189
-    
-    Change-Id: I73ad2a727013a849cba44bf70de04160f37c97dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219197
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I3022ac88e1ad595dc72c0063852b8d4a1ec3f0ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196120
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modcmd/mod.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/go/testdata/script/mod_m.txt | 15 +++++++++++++++
+ src/internal/goroot/gc.go            | 15 +++------------
+ 2 files changed, 18 insertions(+), 12 deletions(-)

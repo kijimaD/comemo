@@ -1,23 +1,16 @@
-commit 39fcf8bf0e3a3b447780983c1f88df5bb9f5bc98
-Author: Erik Dubbelboer <erik@dubbelboer.com>
-Date:   Thu Feb 9 12:54:25 2017 +0800
+commit 54f691d69d39bc19c2069384cd702c6fdec0b92d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 23:18:53 2016 -0400
 
-    net: use bytes.Equal instead of bytesEqual
+    runtime: skip TestMemmoveOverflow if mmap of needed page fails
     
-    bytes.Equal is written in assembly and is slightly faster than the
-    current Go bytesEqual from the net package.
+    Fixes #16731.
     
-    benchcmp:
-    benchmark                 old ns/op     new ns/op     delta
-    BenchmarkIPCompare4-8     7.74          7.01          -9.43%
-    BenchmarkIPCompare6-8     8.47          6.86          -19.01%
-    
-    Change-Id: I2a7ad35867489b46f0943aef5776a2fe1b46e2df
-    Reviewed-on: https://go-review.googlesource.com/36850
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6d393357973d008ab7cf5fb264acb7d38c9354eb
+    Reviewed-on: https://go-review.googlesource.com/32104
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/ip.go      | 16 +++++-----------
- src/net/ip_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 11 deletions(-)
+ src/runtime/memmove_linux_amd64_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

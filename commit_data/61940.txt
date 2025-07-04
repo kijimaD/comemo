@@ -1,0 +1,46 @@
+commit e63eb98e98709a68bf7781a34a3297b72521826e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 19 13:35:34 2024 -0500
+
+    net/http: fix nil panic in test
+    
+    Observed on a builder in an unrelated CL.
+    https://logs.chromium.org/logs/golang/buildbucket/cr-buildbucket/8728107031663629713/+/u/step/11/log/2
+    
+    goroutine 27937 gp=0xc00000f6c0 m=20 mp=0xc000085008 [running]:
+    panic({0x560ac0?, 0xa1f400?})
+            C:/b/s/w/ir/x/w/goroot/src/runtime/panic.go:806 +0x168 fp=0xc00043fac8 sp=0xc00043fa18 pc=0xa5f88
+    testing.tRunner.func1.2({0x560ac0, 0xa1f400})
+            C:/b/s/w/ir/x/w/goroot/src/testing/testing.go:1734 +0x219 fp=0xc00043fb78 sp=0xc00043fac8 pc=0x1537f9
+    testing.tRunner.func1()
+            C:/b/s/w/ir/x/w/goroot/src/testing/testing.go:1737 +0x359 fp=0xc00043fce0 sp=0xc00043fb78 pc=0x153259
+    panic({0x560ac0?, 0xa1f400?})
+            C:/b/s/w/ir/x/w/goroot/src/runtime/panic.go:787 +0x132 fp=0xc00043fd90 sp=0xc00043fce0 pc=0xa5f52
+    runtime.panicmem(...)
+            C:/b/s/w/ir/x/w/goroot/src/runtime/panic.go:262
+    runtime.sigpanic()
+            C:/b/s/w/ir/x/w/goroot/src/runtime/signal_windows.go:401 +0x198 fp=0xc00043fdd8 sp=0xc00043fd90 pc=0x87938
+    net/http_test.testTransportIdleConnTimeout.func3(...)
+            C:/b/s/w/ir/x/w/goroot/src/net/http/transport_test.go:5503
+    net/http_test.testTransportIdleConnTimeout(0xc000e83340, {0x5ec863, 0x2})
+            C:/b/s/w/ir/x/w/goroot/src/net/http/transport_test.go:5522 +0x4c1 fp=0xc00043ff20 sp=0xc00043fdd8 pc=0x47a841
+    net/http_test.run[...].func1()
+            C:/b/s/w/ir/x/w/goroot/src/net/http/clientserver_test.go:93 +0xfe fp=0xc00043ff70 sp=0xc00043ff20 pc=0x49a21e
+    testing.tRunner(0xc000e83340, 0xc0004687b0)
+            C:/b/s/w/ir/x/w/goroot/src/testing/testing.go:1792 +0xcb fp=0xc00043ffc0 sp=0xc00043ff70 pc=0x152e4b
+    testing.(*T).Run.gowrap1()
+            C:/b/s/w/ir/x/w/goroot/src/testing/testing.go:1851 +0x25 fp=0xc00043ffe0 sp=0xc00043ffc0 pc=0x153e65
+    runtime.goexit({})
+            C:/b/s/w/ir/x/w/goroot/src/runtime/asm_amd64.s:1700 +0x1 fp=0xc00043ffe8 sp=0xc00043ffe0 pc=0xadfe1
+    created by testing.(*T).Run in goroutine 27899
+            C:/b/s/w/ir/x/w/goroot/src/testing/testing.go:1851 +0x3f6
+    
+    
+    Change-Id: I3f8bd7c7863b5031ff43d4837dfe11d26ac75652
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637897
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/transport_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

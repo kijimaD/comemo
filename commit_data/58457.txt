@@ -1,20 +1,42 @@
-commit 847c357bbb819f8f042b715d6ccdaa8fd89c305d
-Author: Sean Liao <sean@liao.dev>
-Date:   Sat Dec 28 14:25:08 2024 -0500
+commit ff7cf2d4cd8289111e7cef36c8ad50f557b29311
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Oct 6 15:07:28 2023 +0000
 
-    cmd/go: remove references to gopath-get
+    runtime: make it harder to introduce deadlocks with forEachP
     
-    Fixes #70912
+    Currently any thread that tries to get the attention of all Ps (e.g.
+    stopTheWorldWithSema and forEachP) ends up in a non-preemptible state
+    waiting to preempt another thread. Thing is, that other thread might
+    also be in a non-preemptible state, trying to preempt the first thread,
+    resulting in a deadlock.
     
-    Change-Id: Id87a13f7c9bf972502d14c9674a27f743b849715
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/639155
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    This is a general problem, but in practice it only boils down to one
+    specific scenario: a thread in GC is blocked trying to preempt a
+    goroutine to scan its stack while that goroutine is blocked in a
+    non-preemptible state to get the attention of all Ps.
+    
+    There's currently a hack in a few places in the runtime to move the
+    calling goroutine into _Gwaiting before it goes into a non-preemptible
+    state to preempt other threads. This lets the GC scan its stack because
+    the goroutine is trivially preemptible. The only restriction is that
+    forEachP and stopTheWorldWithSema absolutely cannot reference the
+    calling goroutine's stack. This is generally not necessary, so things
+    are good.
+    
+    Anyway, to avoid exposing the details of this hack, this change creates
+    a safer wrapper around forEachP (and then renames it to forEachP and the
+    existing one to forEachPInternal) that performs the goroutine status
+    change, just like stopTheWorld does. We're going to need to use this
+    hack with forEachP in the new tracer, so this avoids propagating the
+    hack further and leaves it as an implementation detail.
+    
+    Change-Id: I51f02e8d8e0a3172334d23787e31abefb8a129ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533455
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/alldocs.go                   | 11 +----------
- src/cmd/go/internal/help/helpdoc.go     |  6 +-----
- src/cmd/go/internal/modget/get.go       |  5 -----
- src/cmd/go/testdata/script/mod_help.txt |  2 +-
- 4 files changed, 3 insertions(+), 21 deletions(-)
+ src/runtime/mgc.go      | 63 ++++++++++++++++++++-----------------------------
+ src/runtime/proc.go     | 29 +++++++++++++++++++++--
+ src/runtime/runtime2.go |  2 ++
+ 3 files changed, 55 insertions(+), 39 deletions(-)

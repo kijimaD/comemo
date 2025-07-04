@@ -1,20 +1,24 @@
-commit 3fa7dbeff53b56edd98f295bd0c34423c080ac57
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Sep 17 22:34:15 2021 +0200
+commit 8fc44cf0fac5357f45cacc445c0900a8fd054bd5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 3 00:53:51 2021 -0800
 
-    cmd/go: fix GOARCH value in GOAMD64 docs
+    [dev.regabi] cmd/compile: remove a couple CloneName calls
     
-    GOAMD64 is for GOARCH=amd64. Fix the GOAMD64 environment variable docs
-    introduced by CL 349595.
+    In inl.go, that code path is unused, since we added ir.BasicLit to
+    represent unnamed OLITERALs.
     
-    Change-Id: I794990ebe2e306d21ed275446fc52373bfe4ae7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350534
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    In race.go, rather than cloning ir.RegFP, we can just create it from
+    scratch again.
+    
+    Passes toolstash -cmp (incl. w/ -race).
+    
+    Change-Id: I8e063e4898d2acf056ceca5bc03df6b40a14eca9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281192
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/alldocs.go               | 2 +-
- src/cmd/go/internal/help/helpdoc.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 9 ---------
+ src/cmd/compile/internal/walk/race.go  | 6 +++++-
+ 2 files changed, 5 insertions(+), 10 deletions(-)

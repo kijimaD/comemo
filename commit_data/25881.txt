@@ -1,16 +1,21 @@
-commit 772cea817d075c496091f4c735800f14159c5051
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 24 16:20:59 2016 -0800
+commit 7c20ea9311784123b72d9e45c0a29ab5cf838a3c
+Author: David Benjamin <davidben@google.com>
+Date:   Tue Nov 17 23:24:36 2015 -0500
 
-    cmd/compile: fix off-by-1 in getr
+    encoding/asn1: Reject invalid INTEGERs.
     
-    Introduced by (and missed during code review of) golang.org/cl/19847.
+    The empty string is not a valid DER integer. DER also requires that values be
+    minimally-encoded, so excess padding with leading 0s (0xff for negative
+    numbers) is forbidden. (These rules also apply to BER, incidentally.)
     
-    Change-Id: I03b76f36e5da69c31730380592dfa1c32570e17f
-    Reviewed-on: https://go-review.googlesource.com/19912
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #12622.
+    
+    Change-Id: I041f94e34a8afa29dbf94dd8fc450944bc91c9c3
+    Reviewed-on: https://go-review.googlesource.com/17008
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/encoding/asn1/asn1.go      | 38 ++++++++++++++++++++++++++++++-----
+ src/encoding/asn1/asn1_test.go | 45 +++++++++++++++++++++++++++---------------
+ 2 files changed, 62 insertions(+), 21 deletions(-)

@@ -1,18 +1,21 @@
-commit 49cdf0c42e320dfed044baa551610f081eafb781
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Jun 20 14:44:09 2025 +0100
+commit 8960925ad8dd1ef234731d94ebbea263e35a3e42
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 23 17:34:38 2024 -0400
 
-    testing, testing/synctest: handle T.Helper in synctest bubbles
+    time: deflake TestChan/asynctimerchan=1 tests
     
-    Fixes #74199
+    The overall time package tests increase from 3.85s to 4.85s on my laptop.
+    But they should be less flaky, and the time is spent sleeping, so it won't
+    slow down the overall machine running multiple package tests in
+    parallel.
     
-    Change-Id: I6a15fbd59a3a3f8c496440f56d09d695e1504e4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/682576
+    For #66322.
+    
+    Change-Id: I66d6647c389c943b53045e8836ede4ba3d4670c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581315
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/testing/synctest/helper_test.go   | 15 +++++++++++++++
- src/testing/synctest/synctest_test.go | 12 ++++++++++++
- src/testing/testing.go                |  3 +++
- 3 files changed, 30 insertions(+)
+ src/time/tick_test.go | 33 +++++++++++++++++++--------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

@@ -1,16 +1,14 @@
-commit 062ae4571168608ca2bcd6fa1a9d122a20a5d677
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Tue Jan 21 22:44:54 2014 -0500
+commit db37050f21466d4890dbe31362b7090a63ad3d8c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jan 22 12:19:11 2014 +1100
 
-    cmd/gc: do not typecheck nil types in multiple assignment
+    cmd/go: do not require a valid archChar when using -compiler gccgo
     
-    Fixes #6572.
+    Fixes #7152.
     
-    LGTM=rsc, daniel.morsing, rsc
-    R=golang-codereviews, bradfitz, minux.ma, iant, rsc, gobot, daniel.morsing
+    R=iant, rsc, gobot
     CC=golang-codereviews
-    https://golang.org/cl/14516055
+    https://golang.org/cl/54790044
 
- src/cmd/gc/typecheck.c      |  2 +-
- test/fixedbugs/issue6572.go | 21 +++++++++++++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/cmd/go/build.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

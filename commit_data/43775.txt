@@ -1,17 +1,17 @@
-commit 1948c00b6e49b4481ab1378247020786db1b7129
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Nov 4 12:40:35 2020 -0500
+commit 82f29898ea60e7d92001bf1e4c0d48bc1c8aed0d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Apr 17 23:06:49 2020 +0200
 
-    doc/go1.16: add release notes for darwin ports
+    cmd/compile: rewrite Wasm rules to use typed aux fields
     
-    Updates #38485, #42100.
-    For #40700.
+    Passes toolstash-check -all.
     
-    Change-Id: I2caaa8482f13f9b79d4c2d2fdd242543981060cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267718
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ib731a59eadfffa81914848005b0f757649affa6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228819
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.16.html | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/cmd/compile/internal/ssa/gen/Wasm.rules | 517 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 882 +++++++++++++++-------------
+ 2 files changed, 742 insertions(+), 657 deletions(-)

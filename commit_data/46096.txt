@@ -1,17 +1,25 @@
-commit 30a423eb3934251286bb57954c9d9d4b2385815e
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 16:03:59 2021 -0400
+commit ef5964dd6b092f7e0d9bd4332a5d258eb80ecef8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 11:37:54 2020 -0500
 
-    go/types: no need to validate substituted instances
+    [dev.regabi] cmd/compile: arrange for typecheck1 to end in switch
     
-    This is a straightforward port of CL 342150 to go/types.
+    Ending typecheck1 in the switch makes it safe for each case
+    to do an appropriate type assertion. The main change is dropping
+    the computation of "ok" and using the syntax nodes themselves
+    to decide what's OK.
     
-    Change-Id: I7363e4642ade7ab30ca822a2be71f4d2804cc4a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342669
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I2a1873a51e3f1194d74bb87a6653cb9857a02a1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275444
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/subst.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 336 +++++++++++++++----------------
+ src/cmd/compile/internal/ir/expr.go      |  12 +-
+ src/cmd/compile/internal/ir/func.go      |   2 +
+ src/cmd/compile/internal/ir/name.go      |   2 +
+ src/cmd/compile/internal/ir/stmt.go      |  11 +
+ test/used.go                             |   7 +-
+ 6 files changed, 195 insertions(+), 175 deletions(-)

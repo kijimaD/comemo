@@ -1,22 +1,16 @@
-commit 4fdcb7b684d7719c0beedf247787be06751f1b2c
-Author: Adam Langley <agl@golang.org>
-Date:   Fri May 20 09:36:20 2011 -0700
+commit b22151f7dc94734ebc67431240282cd569027423
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 09:03:43 2011 -0700
 
-    crypto/openpgp: add key generation support.
+    mime/multipart: add a multipart Writer
     
-    This change adds a function for generating new Entities and inchoate
-    support for reserialising Entities.
+    Fixes #1823
     
-    R=bradfitz, r, bradfitz
+    R=golang-dev, adg, robert.hencke
     CC=golang-dev
-    https://golang.org/cl/4551044
+    https://golang.org/cl/4530054
 
- src/pkg/crypto/openpgp/keys.go               | 103 +++++++++++++++++++++++++++
- src/pkg/crypto/openpgp/packet/private_key.go |  84 ++++++++++++++++++++++
- src/pkg/crypto/openpgp/packet/public_key.go  |  68 ++++++++++++++----
- src/pkg/crypto/openpgp/packet/signature.go   |  40 ++++++++---
- src/pkg/crypto/openpgp/packet/userid.go      |  56 +++++++++++++++
- src/pkg/crypto/openpgp/packet/userid_test.go |  45 ++++++++++++
- src/pkg/crypto/openpgp/write.go              |  15 +---
- src/pkg/crypto/openpgp/write_test.go         |  41 +++++++++++
- 8 files changed, 415 insertions(+), 37 deletions(-)
+ src/pkg/mime/multipart/Makefile       |   1 +
+ src/pkg/mime/multipart/writer.go      | 160 ++++++++++++++++++++++++++++++++++
+ src/pkg/mime/multipart/writer_test.go |  71 +++++++++++++++
+ 3 files changed, 232 insertions(+)

@@ -1,18 +1,18 @@
-commit 979d9027aecf265214a6dcc27fe037bfd70355f2
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Tue Nov 13 22:51:21 2018 -0700
+commit 7eb1677c01c3decc510270d532ed69d0bf42bffa
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Aug 3 19:37:45 2018 -0400
 
-    math/bits: define Div to panic when y<=hi
+    [dev.boringcrypto] crypto/internal/boring: fix aesCipher implementation of gcmAble
     
-    Div panics when y<=hi because either the quotient overflows
-    the size of the output or division by zero occurs when y==0.
-    This provides a uniform behavior for all implementations.
+    In CL 48510 the gcmAble interface was changed to include the tag size.
+    The BoringCrypto aesCipher implementation wasn't updated, causing a
+    failed type assertion and consequently a performance degradation.
     
-    Fixes #28316
-    
-    Change-Id: If23aeb10e0709ee1a60b7d614afc9103d674a980
-    Reviewed-on: https://go-review.googlesource.com/c/149517
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ie5cff9ef242218d60f82795f3eb6760a57fe06f5
+    Reviewed-on: https://go-review.googlesource.com/127821
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/math/bits/bits.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/crypto/internal/boring/aes.go | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)

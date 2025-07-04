@@ -1,16 +1,12 @@
-commit a55a5c8df3d8ced8f0399a523dc4508af1db5904
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 24 12:52:15 2012 +1100
+commit 54eec3db2c631d6d3b16ba0316db0e0e6f3367a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 17:42:14 2012 -0800
 
-    test: add temporary show_skips flag.
+    godoc: fine-tuning .css
     
-    To find test files with legacy headers.
-    
-    We can remove this flag once everything is converted.
-    
-    R=golang-dev, r
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5694060
+    https://golang.org/cl/5699057
 
- test/run.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ doc/style.css | 27 ++++++++-------------------
+ 1 file changed, 8 insertions(+), 19 deletions(-)

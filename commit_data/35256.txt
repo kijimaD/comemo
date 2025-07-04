@@ -1,19 +1,44 @@
-commit 63756e0c8f76856a436274fc47d912815f9f17e6
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 4 13:38:08 2018 +0100
+commit 7eaa8efbe4bb63ca486aab61f83287dd4bf1d609
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jan 23 13:06:21 2018 -0800
 
-    crypto/rand, crypto/x509: add js/wasm architecture
+    cmd/compile: don't let spills clobber arguments
     
-    This commit adds the js/wasm architecture to the crypto packages.
+    The compiler allows code to have multiple differently-typed views of a
+    single argument. For instance, if we have
     
-    Updates #18892
+    func f(x float64) {
+       y := *(*int64)(unsafe.Pointer(&x))
+       ...
+    }
     
-    Change-Id: Id41a9d54920746d5019cbeedcff1b83874f2ef73
-    Reviewed-on: https://go-review.googlesource.com/110095
-    Reviewed-by: Austin Clements <austin@google.com>
+    Then in SSA we get two OpArg ops, one with float64 type and one with
+    int64 type.
+    
+    The compiler will try to reuse argument slots for spill slots. It
+    checks that the argument slot is dead by consulting an interference
+    graph.
+    
+    When building the interference graph, we normally ignore cross-type
+    edges because the values on either end of that edge can't be allocated
+    to the same slot. (This is just a space-saving optimization.) This
+    rule breaks down when one of the values is an argument, because of the
+    multiple views described above. If we're spilling a float64, it is not
+    enough that the float64 version of x is dead; the int64 version of x
+    has to be dead also.
+    
+    Remove the optimization of not recording interference edges if types
+    don't match. That optimization is incorrect if one of the values
+    connected by the edge is an argument.
+    
+    Fixes #23522
+    
+    Change-Id: I361f85d80fe3bc7249014ca2c3ec887c3dc30271
+    Reviewed-on: https://go-review.googlesource.com/89335
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/rand/rand.go      |  1 +
- src/crypto/rand/rand_js.go   | 25 +++++++++++++++++++++++++
- src/crypto/x509/root_js.go   | 10 ++++++++++
- src/crypto/x509/root_unix.go |  2 +-
- 4 files changed, 37 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/stackalloc.go |  6 +++-
+ test/fixedbugs/issue23522.go               | 46 ++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 1 deletion(-)

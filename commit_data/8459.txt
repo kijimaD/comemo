@@ -1,14 +1,12 @@
-commit d4a9bce70ae8eae016aa5cb8d60bb4566bf349fb
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun May 22 14:59:25 2011 +1000
+commit 64d85769dadfbe5f3f456bf079f912ee9d7e54e3
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sun May 22 14:56:12 2011 +1000
 
-    runtime: fix function args not checked warning on arm
+    doc: close paragraph tags in FAQ
     
-    This tiny nit was driving me nuts
-    
-    R=rsc, ken, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4550069
+    https://golang.org/cl/4532076
 
- src/pkg/runtime/arm/closure.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_faq.html | 64 +++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 49 insertions(+), 15 deletions(-)

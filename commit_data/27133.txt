@@ -1,16 +1,33 @@
-commit 3b0efa689ec7a32de30cbda2221452f57abb2532
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 26 14:09:58 2016 -0700
+commit bb48b864b1c79c586b5807f3c78ab15e75e770e2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 11 12:19:08 2016 +1100
 
-    cmd/compile: a rule's line number is at its ->
+    cmd/link: rewrite pe symbol table generating code
     
-    Let's define the line number of a multiline rule as the line
-    number on which the -> appears.  This helps make the rule
-    cover analysis look a bit nicer.
+    Every go executable has COFF symbol table appended at the end. The table is
+    used by nm and addr2line and contains all symbols present in the executable.
+    The table is quite large. For example, my go.exe has 11736 records.
     
-    Change-Id: I4ac4c09f2240285976590ecfd416bc4c05e78946
-    Reviewed-on: https://go-review.googlesource.com/22473
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    To generate symbol table:
+    1) we walk "all symbols" list to count symbols we want for the table;
+    2) we allocate large global array of COFFSym structs (32 bytes each)
+       to fit our symbols;
+    3) we walk "all symbols" list again to fill our array with contents;
+    4) we iterate over our global array to write all records to the file.
+    
+    This CL changes all these steps with single step:
+    - walk "all symbols" list and write each COFF symbol table record to
+      the file as we go.
+    
+    I hope new version is faster and uses less garbage, but I don't know
+    how to benchmark this.
+    
+    Change-Id: Ie4870583250131ea4428e0e83a0696c9df1794e0
+    Reviewed-on: https://go-review.googlesource.com/20580
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/pe.go | 147 ++++++++++++++++++-----------------------
+ 1 file changed, 64 insertions(+), 83 deletions(-)

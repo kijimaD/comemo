@@ -1,21 +1,49 @@
-commit c29370c98ecfc7aa59f32c7a7897e50a0f6eb86b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 1 12:51:19 2018 -0700
+commit c4a3a9c70992958284cedb06fc24b93b2184dc03
+Author: Vlad Krasnov <vlad@cloudflare.com>
+Date:   Thu Mar 8 16:07:42 2018 -0800
 
-    cmd/cgo: don't give inconsistent typedef error for cgo-defined types
+    crypto/elliptic: improve P256 implementation on amd64 a bit
     
-    The cgo tool predefines some C types such as C.uint. Don't give an
-    error if the type that cgo defines does not match the type in a header file.
+    Minor modifications to the optimized amd64 implememntation.
     
-    Fixes #26743
+    * Reduce window size: reduces size of the lookup tables by 40%
+    * Revised scalar inversion formula, with less operations
+    * Field square function now uses intental loop, saving call overhead
     
-    Change-Id: I9ed3b4c482b558d8ffa8bf61eb3209415b7a9e3c
-    Reviewed-on: https://go-review.googlesource.com/127356
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This change will serve as a basis for an arm64 implementation.
+    
+    Performance results on Skylake MacBook Pro:
+    
+    pkg:crypto/elliptic goos:darwin goarch:amd64
+    BaseMultP256      17.8µs ± 1%    17.5µs ± 1%  -1.41%  (p=0.003 n=10+10)
+    ScalarMultP256    70.7µs ± 1%    68.9µs ± 2%  -2.57%  (p=0.000 n=9+9)
+    pkg:crypto/ecdsa goos:darwin goarch:amd64
+    SignP256          32.7µs ± 1%    31.4µs ± 1%  -3.96%  (p=0.000 n=10+8)
+    VerifyP256        95.1µs ± 1%    93.5µs ± 2%  -1.73%  (p=0.001 n=10+9)
+    
+    name            old alloc/op   new alloc/op   delta
+    pkg:crypto/elliptic goos:darwin goarch:amd64
+    BaseMultP256        288B ± 0%      288B ± 0%    ~     (all equal)
+    ScalarMultP256      256B ± 0%      256B ± 0%    ~     (all equal)
+    pkg:crypto/ecdsa goos:darwin goarch:amd64
+    SignP256          2.90kB ± 0%    2.90kB ± 0%    ~     (all equal)
+    VerifyP256          976B ± 0%      976B ± 0%    ~     (all equal)
+    
+    name            old allocs/op  new allocs/op  delta
+    pkg:crypto/elliptic goos:darwin goarch:amd64
+    BaseMultP256        6.00 ± 0%      6.00 ± 0%    ~     (all equal)
+    ScalarMultP256      5.00 ± 0%      5.00 ± 0%    ~     (all equal)
+    pkg:crypto/ecdsa goos:darwin goarch:amd64
+    SignP256            34.0 ± 0%      34.0 ± 0%    ~     (all equal)
+    VerifyP256          17.0 ± 0%      17.0 ± 0%    ~     (all equal)
+    
+    Change-Id: I3f0e2e197a54e7bc7916dedc5dbf085e2c4aea24
+    Reviewed-on: https://go-review.googlesource.com/99622
+    Reviewed-by: Vlad Krasnov <vlad@cloudflare.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Vlad Krasnov <vlad@cloudflare.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/issue26743.go   | 10 ++++++++++
- misc/cgo/test/issue26743/a.go | 11 +++++++++++
- misc/cgo/test/issue26743/b.go |  9 +++++++++
- src/cmd/cgo/main.go           |  4 ++++
- 4 files changed, 34 insertions(+)
+ src/crypto/elliptic/p256_amd64.go    | 203 ++++++++++++++++-------------------
+ src/crypto/elliptic/p256_asm_amd64.s |  11 +-
+ 2 files changed, 99 insertions(+), 115 deletions(-)

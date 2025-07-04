@@ -1,26 +1,38 @@
-commit eda22a06fb507d3ce6a2684bb5e6dbb3cbb57e15
-Author: David Chase <drchase@google.com>
-Date:   Thu Apr 5 11:11:39 2018 -0400
+commit 7eb7f8f5a75fcff520b5b93a7831fa7044d86887
+Author: Michael Schurter <michael.schurter@gmail.com>
+Date:   Sat Jun 3 13:36:54 2017 -0700
 
-    cmd/compile: ensure first instruction of function is stmt
+    encoding/json: reduce allocations by Decoder for \uXXXX
     
-    In gdb, "b f" gets confused if the first instruction of "f"
-    is not marked as a statement in the DWARF line table.
+    Manually convert hex escape sequence to rune instead of calling
+    strconv.ParseUint.
     
-    To ensure gdb is not confused, move the first statement
-    marker in "f" to its first instruction.
+    This inlines the unhex func from docs (and many other packages).
     
-    The screwy-looking conditional for "what's the first
-    instruction with a statement marker" will become simpler in
-    the future.
+    name              old time/op    new time/op    delta
+    UnicodeDecoder-4     468ns ± 1%     402ns ± 1%  -14.26%  (p=0.000
+    n=10+10)
     
-    Fixes #24695.
+    name              old speed      new speed      delta
+    UnicodeDecoder-4  29.9MB/s ± 1%  34.8MB/s ± 1%  +16.59%  (p=0.000
+    n=10+10)
     
-    Change-Id: I2eef81676b64d1bd9bff5da03b89b9dc0c18f44f
-    Reviewed-on: https://go-review.googlesource.com/104955
-    Run-TryBot: David Chase <drchase@google.com>
+    name              old alloc/op   new alloc/op   delta
+    UnicodeDecoder-4     44.0B ± 0%     36.0B ± 0%  -18.18%  (p=0.000
+    n=10+10)
+    
+    name              old allocs/op  new allocs/op  delta
+    UnicodeDecoder-4      4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000
+    n=10+10)
+    
+    Fixes #20567
+    
+    Change-Id: If350978d5bb98ff517485752184d02249f5d1f3a
+    Reviewed-on: https://go-review.googlesource.com/44738
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/encoding/json/bench_test.go | 15 +++++++++++++++
+ src/encoding/json/decode.go     | 18 ++++++++++++++----
+ 2 files changed, 29 insertions(+), 4 deletions(-)

@@ -1,14 +1,14 @@
-commit 61864c09fc312ebfbc978b6d9e01fc0857bbc78c
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Jul 26 17:44:47 2014 -0400
+commit c403af83a67b42887bbe76800d66ce11de61e74e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 25 15:12:45 2014 -0700
 
-    cmd/5l: remove unused noop.c
+    runtime: convert complex128div to go.
     
-    LGTM=dave
-    R=rsc, dave
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/116330043
+    https://golang.org/cl/116320043
 
- src/cmd/5l/l.h    |  1 -
- src/cmd/5l/noop.c | 43 -------------------------------------------
- 2 files changed, 44 deletions(-)
+ src/pkg/runtime/complex.go  | 52 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/complex.goc | 58 ---------------------------------------------
+ 2 files changed, 52 insertions(+), 58 deletions(-)

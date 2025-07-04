@@ -1,44 +1,107 @@
-commit d35dfd405eaa21654807fac3891e198538d3c402
+commit cf4f1d07a189125a8774a923a3259126599e942b
 Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 30 17:59:06 2016 -0400
+Date:   Fri May 27 21:04:40 2016 -0400
 
-    runtime: make assists perform root jobs
+    runtime: bound scanobject to ~100 µs
     
-    Currently, assists can only perform heap marking jobs. However, at the
-    beginning of GC, there are only root jobs and no heap marking jobs. As
-    a result, there's often a period at the beginning of a GC cycle where
-    no goroutine has accumulated assist credit, but at the same time it
-    can't get any credit because there are no heap marking jobs for it to
-    do yet. As a result, many goroutines often block on the assist queue
-    at the very beginning of the GC cycle.
+    Currently the time spent in scanobject is proportional to the size of
+    the object being scanned. Since scanobject is non-preemptible, large
+    objects can cause significant goroutine (and even whole application)
+    delays through several means:
     
-    This commit fixes this by allowing assists to perform root marking
-    jobs. The tricky part of this (and the reason we haven't done this
-    before) is that stack scanning jobs can lead to deadlocks if the
-    goroutines performing the stack scanning are themselves
-    non-preemptible, since two non-preemptible goroutines may try to scan
-    each other. To address this, we use the same insight d6625ca used to
-    simplify the mark worker stack scanning: as long as we're careful with
-    the stacks and only drain jobs while on the system stack, we can put
-    the goroutine into a preemptible state while we drain jobs. This means
-    an assist's user stack can be scanned while it continues to do work.
+    1. If a GC assist picks up a large object, the allocating goroutine is
+       blocked for the whole scan, even if that scan well exceeds that
+       goroutine's debt.
     
-    This reduces the rate of assist blocking in the x/benchmarks HTTP
-    benchmark by a factor of 3 and all remaining blocking happens towards
-    the *end* of the GC cycle, when there may genuinely not be enough work
-    to go around.
+    2. Since the scheduler does not run on the P performing a large object
+       scan, goroutines in that P's run queue do not run unless they are
+       stolen by another P (which can take some time). If there are a few
+       large objects, all of the Ps may get tied up so the scheduler
+       doesn't run anywhere.
     
-    Ideally, assists would get credit for working on root jobs. Currently
-    they do not; however, this change prioritizes heap work over root jobs
-    in assists, so they're likely to mostly perform heap work. In contrast
-    with mark workers, for assists, the root jobs act only as a backstop
-    to create heap work when there isn't enough heap work.
+    3. Even if a large object is scanned by a background worker and other
+       Ps are still running the scheduler, the large object scan doesn't
+       flush background credit until the whole scan is done. This can
+       easily cause all allocations to block in assists, waiting for
+       credit, causing an effective STW.
     
-    Fixes #15361.
+    Fix this by splitting large objects into 128 KB "oblets" and scanning
+    at most one oblet at a time. Since we can scan 1–2 MB/ms, this equates
+    to bounding scanobject at roughly 100 µs. This improves assist
+    behavior both because assists can no longer get "unlucky" and be stuck
+    scanning a large object, and because it causes the background worker
+    to flush credit and unblock assists more frequently when scanning
+    large objects. This also improves GC parallelism if the heap consists
+    primarily of a small number of very large objects by letting multiple
+    workers scan a large objects in parallel.
     
-    Change-Id: If6e169863e4ad75710b0c8dc00f6125b41e9a595
-    Reviewed-on: https://go-review.googlesource.com/32432
+    Fixes #10345. Fixes #16293.
+    
+    This substantially improves goroutine latency in the benchmark from
+    issue #16293, which exercises several forms of very large objects:
+    
+    name                 old max-latency    new max-latency    delta
+    SliceNoPointer-12           154µs ± 1%        155µs ±  2%     ~     (p=0.087 n=13+12)
+    SlicePointer-12             314ms ± 1%       5.94ms ±138%  -98.11%  (p=0.000 n=19+20)
+    SliceLivePointer-12        1148ms ± 0%       4.72ms ±167%  -99.59%  (p=0.000 n=19+20)
+    MapNoPointer-12           72509µs ± 1%        408µs ±325%  -99.44%  (p=0.000 n=19+18)
+    ChanPointer-12              313ms ± 0%       4.74ms ±140%  -98.49%  (p=0.000 n=18+20)
+    ChanLivePointer-12         1147ms ± 0%       3.30ms ±149%  -99.71%  (p=0.000 n=19+20)
+    
+    name                 old P99.9-latency  new P99.9-latency  delta
+    SliceNoPointer-12           113µs ±25%         107µs ±12%     ~     (p=0.153 n=20+18)
+    SlicePointer-12          309450µs ± 0%         133µs ±23%  -99.96%  (p=0.000 n=20+20)
+    SliceLivePointer-12         961ms ± 0%        1.35ms ±27%  -99.86%  (p=0.000 n=20+20)
+    MapNoPointer-12            448µs ±288%         119µs ±18%  -73.34%  (p=0.000 n=18+20)
+    ChanPointer-12           309450µs ± 0%         134µs ±23%  -99.96%  (p=0.000 n=20+19)
+    ChanLivePointer-12          961ms ± 0%        1.35ms ±27%  -99.86%  (p=0.000 n=20+20)
+    
+    This has negligible effect on all metrics from the garbage, JSON, and
+    HTTP x/benchmarks.
+    
+    It shows slight improvement on some of the go1 benchmarks,
+    particularly Revcomp, which uses some multi-megabyte buffers:
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.46s ± 1%     2.47s ± 1%  +0.32%  (p=0.012 n=20+20)
+    Fannkuch11-12                2.82s ± 0%     2.81s ± 0%  -0.61%  (p=0.000 n=17+20)
+    FmtFprintfEmpty-12          50.8ns ± 5%    50.5ns ± 2%    ~     (p=0.197 n=17+19)
+    FmtFprintfString-12          131ns ± 1%     132ns ± 0%  +0.57%  (p=0.000 n=20+16)
+    FmtFprintfInt-12             117ns ± 0%     116ns ± 0%  -0.47%  (p=0.000 n=15+20)
+    FmtFprintfIntInt-12          180ns ± 0%     179ns ± 1%  -0.78%  (p=0.000 n=16+20)
+    FmtFprintfPrefixedInt-12     186ns ± 1%     185ns ± 1%  -0.55%  (p=0.000 n=19+20)
+    FmtFprintfFloat-12           263ns ± 1%     271ns ± 0%  +2.84%  (p=0.000 n=18+20)
+    FmtManyArgs-12               741ns ± 1%     742ns ± 1%    ~     (p=0.190 n=19+19)
+    GobDecode-12                7.44ms ± 0%    7.35ms ± 1%  -1.21%  (p=0.000 n=20+20)
+    GobEncode-12                6.22ms ± 1%    6.21ms ± 1%    ~     (p=0.336 n=20+19)
+    Gzip-12                      220ms ± 1%     219ms ± 1%    ~     (p=0.130 n=19+19)
+    Gunzip-12                   37.9ms ± 0%    37.9ms ± 1%    ~     (p=1.000 n=20+19)
+    HTTPClientServer-12         82.5µs ± 3%    82.6µs ± 3%    ~     (p=0.776 n=20+19)
+    JSONEncode-12               16.4ms ± 1%    16.5ms ± 2%  +0.49%  (p=0.003 n=18+19)
+    JSONDecode-12               53.7ms ± 1%    54.1ms ± 1%  +0.71%  (p=0.000 n=19+18)
+    Mandelbrot200-12            4.19ms ± 1%    4.20ms ± 1%    ~     (p=0.452 n=19+19)
+    GoParse-12                  3.38ms ± 1%    3.37ms ± 1%    ~     (p=0.123 n=19+19)
+    RegexpMatchEasy0_32-12      72.1ns ± 1%    71.8ns ± 1%    ~     (p=0.397 n=19+17)
+    RegexpMatchEasy0_1K-12       242ns ± 0%     242ns ± 0%    ~     (p=0.168 n=17+20)
+    RegexpMatchEasy1_32-12      72.1ns ± 1%    72.1ns ± 1%    ~     (p=0.538 n=18+19)
+    RegexpMatchEasy1_1K-12       385ns ± 1%     384ns ± 1%    ~     (p=0.388 n=20+20)
+    RegexpMatchMedium_32-12      112ns ± 1%     112ns ± 3%    ~     (p=0.539 n=20+20)
+    RegexpMatchMedium_1K-12     34.4µs ± 2%    34.4µs ± 2%    ~     (p=0.628 n=18+18)
+    RegexpMatchHard_32-12       1.80µs ± 1%    1.80µs ± 1%    ~     (p=0.522 n=18+19)
+    RegexpMatchHard_1K-12       54.0µs ± 1%    54.1µs ± 1%    ~     (p=0.647 n=20+19)
+    Revcomp-12                   387ms ± 1%     369ms ± 5%  -4.89%  (p=0.000 n=17+19)
+    Template-12                 62.3ms ± 1%    62.0ms ± 0%  -0.48%  (p=0.002 n=20+17)
+    TimeParse-12                 314ns ± 1%     314ns ± 0%    ~     (p=1.011 n=20+13)
+    TimeFormat-12                358ns ± 0%     354ns ± 0%  -1.12%  (p=0.000 n=17+20)
+    [Geo mean]                  53.5µs         53.3µs       -0.23%
+    
+    Change-Id: I2a0a179d1d6bf7875dd054b7693dd12d2a340132
+    Reviewed-on: https://go-review.googlesource.com/23540
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgcmark.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/runtime/mgc.go     |  9 ++++++++
+ src/runtime/mgcmark.go | 60 +++++++++++++++++++++++++++++++++++++++++++++-----
+ src/runtime/mgcwork.go |  2 +-
+ 3 files changed, 64 insertions(+), 7 deletions(-)

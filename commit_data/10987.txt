@@ -1,12 +1,17 @@
-commit f927d9c1bb71e759ce035d1d6fd497a7ccfbd308
+commit fcd877ea8abd737c0b9dcfa36e27589ae62cffb9
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 22 15:52:56 2011 -0800
+Date:   Thu Dec 22 15:52:33 2011 -0800
 
-    partial build fix: add missing argument to NewPackageDoc
+    fix build: correct build scripts
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/5489112
+    https://golang.org/cl/5498075
 
- misc/dashboard/builder/package.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/buildscript_darwin_amd64.sh  | 1 -
+ src/buildscript_freebsd_amd64.sh | 1 -
+ src/buildscript_linux_amd64.sh   | 1 -
+ src/buildscript_netbsd_amd64.sh  | 1 -
+ src/buildscript_openbsd_amd64.sh | 1 -
+ src/buildscript_windows_amd64.sh | 1 -
+ 6 files changed, 6 deletions(-)

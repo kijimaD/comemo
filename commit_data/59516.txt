@@ -1,24 +1,21 @@
-commit 11fa0de475f9446870bc086bfb42cb67bac40634
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 24 14:34:10 2025 -0700
+commit a245aced26a5dde971e6a47dd045a01eadf19f1b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 28 01:28:43 2024 -0800
 
-    cmd/compile: use OpMove instead of memmove more on arm64
+    cmd/compile/internal/inline: refactor fixpoint algorithm
     
-    OpMove is faster for small moves of fixed size.
+    [Re-land of CL 567695 without further changes.]
     
-    For safety, we have to rewrite the Move rewrite rules a bit so that
-    all the loads are done before any stores happen.
+    This CL refactors the interleaved fixpoint algorithm so that calls can
+    be inlined in any order. This has no immediate effect, but it will
+    allow a subsequent CL to prioritize calls by inlheur score.
     
-    Also use an 8-byte move instead of a 16-byte move if the tail is
-    at most 8 bytes.
-    
-    Change-Id: I7f6c7496ac6d5eb2e0706fd59ca4b5d797c51101
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672997
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I8fd6748f0347fd696daee815bf7c9c183572c1ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573096
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules |  29 +++--
- src/cmd/compile/internal/ssa/rewrite.go       |   4 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 155 ++++++++++++++++++++++----
- 3 files changed, 160 insertions(+), 28 deletions(-)
+ .../internal/inline/interleaved/interleaved.go     | 117 ++++++++++++++++-----
+ src/cmd/compile/internal/ir/expr.go                |  20 ++--
+ 2 files changed, 106 insertions(+), 31 deletions(-)

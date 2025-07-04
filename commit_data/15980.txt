@@ -1,14 +1,16 @@
-commit ab962c8da2f970cfb62450bf63d6c9e48eaab201
+commit b06b77b8cfec55529b437c50348448f0d7ae8b15
 Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 27 16:55:16 2013 -0700
+Date:   Wed Mar 27 16:30:20 2013 -0700
 
-    vet: add a progress message to asmdecl.go
-    Analogous to the one for .go files, it's for .s only and is protected
-    by the verbose flag.
+    vet: fix test_deadcode.go's tests
+    This is a totally mechanical change.
+    Errors are reported for the beginning of the statement, not the end,
+    so the errchk markers need to be on the opening brace, not the closing
+    one. It seems this test was never run.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8030046
+    https://golang.org/cl/7746050
 
- src/cmd/vet/asmdecl.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/vet/test_deadcode.go | 144 +++++++++++++++++++++----------------------
+ 1 file changed, 72 insertions(+), 72 deletions(-)

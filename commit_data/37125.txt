@@ -1,25 +1,14 @@
-commit 6a6cbb995c915a0edc0d0e95130b746ef7f8815a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 9 17:03:48 2018 -0400
+commit 3198b90ea856f1658b4cd3c45231301310b9ab47
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 20 19:36:14 2018 +0000
 
-    cmd/go/internal/modload: use vendorMap in findModule
+    time: clarify Unix, UnixNano, and In a bit
     
-    The build list is very incomplete in vendor mode,
-    so we can't rely on it in general.
-    findModule may be called in modload.PackageModuleInfo, which
-    load.LoadImport invokes relatively early during a build.
+    Fixes #23316
     
-    Before this change, the accompanying test failed at 'go build
-    -mod=vendor' with the message:
-    
-            build diamondpoint: cannot find module for path diamondpoint
-    
-    Change-Id: I5e667d8e406872be703510afeb079f6cbfdbd3c8
-    Reviewed-on: https://go-review.googlesource.com/c/140861
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia1758b406d369bbfaace0bdfea02cd6f40735b65
+    Reviewed-on: https://go-review.googlesource.com/120060
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/build.go      |  4 +++
- src/cmd/go/testdata/script/mod_vendor.txt | 48 +++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+)
+ src/time/time.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

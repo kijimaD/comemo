@@ -1,12 +1,16 @@
-commit 3fca983872ce86e1d73cce4ac0554a5a404fc28c
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Sep 3 16:19:41 2013 -0400
+commit c576bcbad5e7671ae24d499d77a4b2371c4ab981
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Sep 2 16:44:51 2013 +0900
 
-    doc/go1.2.txt: crypto/{x509,tls} changes
+    net: fix TestFirstFavoriteAddr failure on single IP stack kernel
     
-    R=golang-dev, bradfitz
+    Update #3610
+    Update #5267
+    Update #5707
+    
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/13335050
+    https://golang.org/cl/13465043
 
- doc/go1.2.txt | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/net/ipsock_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

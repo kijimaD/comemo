@@ -1,26 +1,15 @@
-commit ad84f84cb4bad9b5a666a2c00d5c48a48537f03a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 15 09:05:33 2015 -0700
+commit 43aac4f9e729eec7914ce6869b1a86f52584e2fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 8 00:14:08 2015 -0400
 
-    cmd/link: don't generate .exe extension for external Windows link
+    runtime: raise maxmem to 512 GB
     
-    On Windows, gcc -o foo will generate foo.exe.  Prevent that from
-    happening by adding a final '.' if necessary so that GCC thinks that
-    the file already has an extension.
+    A workaround for #10460.
     
-    Also remove the initial output file when doing an external link, and
-    use mayberemoveoutfile, not os.Remove, when building an archive
-    (otherwise we will do the wrong thing for -buildmode=c-archive -o
-    /dev/null).
-    
-    I didn't add a test, as it requires using cgo and -o on Windows.
-    
-    Fixes #11725.
-    
-    Change-Id: I6ea12437bb6b4b9b8ee5c3b52d83509fa2437b2d
-    Reviewed-on: https://go-review.googlesource.com/12243
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I607a556561d509db6de047892f886fb565513895
+    Reviewed-on: https://go-review.googlesource.com/10819
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/ld/lib.go | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/runtime/malloc.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

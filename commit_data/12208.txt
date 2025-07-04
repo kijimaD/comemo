@@ -1,12 +1,22 @@
-commit 34e60a81d5b9a3c18d634d89acea9384605f4916
+commit 0a33b703e61c89cc883304eb627826c875aa4bf2
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 24 13:44:36 2012 -0800
+Date:   Fri Feb 24 13:44:22 2012 -0800
 
-    go/ast: examples for ast.Print, ast.Inspect
+    go/doc, godoc: fix range of type declarations
     
-    R=golang-dev, r
+    For grouped type declarations, go/doc introduces
+    fake individual declarations. Don't use the original
+    location of the "type" keyword because it will lead
+    to an overly large source code range for that fake
+    declaration, and thus an overly large selection shown
+    via godoc (e.g.: click on the AssignStmt link for:
+    http://golang.org/pkg/go/ast/#AssignStmt ).
+    
+    Also: Don't create a fake declaration if not needed.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5700057
+    https://golang.org/cl/5694061
 
- src/pkg/go/ast/example_test.go | 136 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 136 insertions(+)
+ src/pkg/go/doc/reader.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

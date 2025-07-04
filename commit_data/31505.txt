@@ -1,19 +1,19 @@
-commit e94b9d41432a0560328c786b908e59c27a0a6c47
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Thu May 4 16:14:59 2017 +0300
+commit 4b2248527ffec97ab0706470e5654bd1aacaa6ab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 26 22:27:13 2017 +0000
 
-    cmd/link/internal/ld: fix external linking on windows
+    os: skip atime-going-backwards test on NetBSD for now
     
-    gcc on windows writes invalid location for .debug_gdb_scripts
-    which causes the executable loading to fail.
+    That failing test is preventing other tests from running.
+    Let's see what else is broken.
     
-    Fixes #20183
+    Updates #19293
     
-    Change-Id: I5134013bc926b44a55b528f66ab79555855d1f4d
-    Reviewed-on: https://go-review.googlesource.com/42651
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I4c5784be94103ef882f29dec9db08d76a48aff28
+    Reviewed-on: https://go-review.googlesource.com/37492
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
 
- src/cmd/link/internal/ld/dwarf.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/os/os_test.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

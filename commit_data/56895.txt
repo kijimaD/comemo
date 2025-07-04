@@ -1,17 +1,14 @@
-commit 5c7f5413866b4b84654705ab49251b48b2b05ed4
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri Jul 12 20:51:45 2024 +0100
+commit 993707a9d62d7541afe47d13caf5e3555e317702
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 30 12:47:34 2023 -0700
 
-    archive/zip: document handling of duplicate names in Writer.Create
+    doc: mention improvements in checking R15 use in assembly when dynamic linking
     
-    Fixes #66810
-    
-    Change-Id: I6a7848dce245ae14941d61d2f78abaf0dc5c1247
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597978
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I223649818763c0620875c034a77a8865252e3e69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499280
+    Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
 
- src/archive/zip/writer.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.21.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

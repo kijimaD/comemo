@@ -1,23 +1,25 @@
-commit 7d57a9ce82cc6841307bc1c3383808b36a884bc9
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Feb 9 09:08:44 2023 -0500
+commit 42ca44494c6ca94c6a1f433e61bc5d95d51b2222
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 23 12:10:02 2022 -0700
 
-    cmd/link: improve error for missing SDYNIMPORT support on mips/mips64
+    internal/pkgbits: add fingerprints to unified IR export format
     
-    Issue an error (instead of crashing) when encountering a symbol that
-    requires dynamic relocations on mips/mips64. The dynimport support is
-    in progress, but is not done yet, so rather than crashing, print a
-    message indicating that the feature is not yet implemented and exit.
+    So far unified IR has been relying on the backwards-compat iexport
+    data to supply package fingerprints for imports. To be able to drop
+    the iexport data and natively use unified IR everywhere.
     
-    Fixes #58240.
+    This CL applies basically the same idea that iexport used: simply
+    hash all of the export data as it's being written out, and then tack
+    on an 8-byte hash at the end.
     
-    Change-Id: I9ad64c89e4f7b4b180964b35ad1d72d375f2df7f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466895
+    Change-Id: Iaca5fbfd7443088bc7f422a1c58be3e762c29014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396196
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/link/internal/mips/obj.go   | 8 ++++++++
- src/cmd/link/internal/mips64/obj.go | 8 ++++++++
- 2 files changed, 16 insertions(+)
+ src/go/build/deps_test.go       | 10 +++++-----
+ src/internal/pkgbits/decoder.go | 10 ++++++++--
+ src/internal/pkgbits/encoder.go | 12 +++++++++++-
+ 3 files changed, 24 insertions(+), 8 deletions(-)

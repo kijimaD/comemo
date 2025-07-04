@@ -1,15 +1,25 @@
-commit 4c56c30b78199c3313c1ee0042f0adcc685bae33
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 18 15:52:49 2011 -0700
+commit fc3ce34903d5f86f398eda87ca6e334f483df604
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Oct 18 17:01:42 2011 -0500
 
-    rpc: don't panic on write error.
-    The mechanism to record the error in the call is already in place.
-    Fixes #2382.
+    exp/template/html: fix bug in cssEscaper
     
-    R=golang-dev, dsymonds, bradfitz, r
+    cssEscaper escapes using the CSS convention: `\` + hex + optional-space
+    
+    It outputs the space when the escape could be followed by
+    a hex digit to distinguish a "\na" from "\u00aa".
+    
+    It did not output a space when the escape is followed by a space
+    character so did not distinguish "\n " from "\n".
+    
+    Currently when doing lookahead, it does not distinguish spaces that
+    will be escaped later by the same function from ones that will not.
+    This is correct but suboptimal.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5307043
+    https://golang.org/cl/5306042
 
- src/pkg/rpc/client.go      | 23 ++++++++++++-----------
- src/pkg/rpc/server_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 11 deletions(-)
+ src/pkg/exp/template/html/css.go      | 11 ++++++++++-
+ src/pkg/exp/template/html/css_test.go | 12 ++++++++----
+ 2 files changed, 18 insertions(+), 5 deletions(-)

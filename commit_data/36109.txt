@@ -1,16 +1,27 @@
-commit 214f7ec554888042a7a54fdca9cba19aee8ebaf1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 23 18:31:23 2018 +0000
+commit b9a365681f57c8705bccbd6d3744afb9dc42eebb
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 2 20:33:15 2018 -0500
 
-    net/http: update Serve docs on when HTTP/2 is enabled
+    cmd/compile: adjust is-statement on Pos's to improve debugging
     
-    Contains portions and modified portions of CL 103815
+    Stores to auto tmp variables can be hoisted to places
+    where the line numbers make debugging look "jumpy".
+    Turning those instructions into ones with is_stmt = 0 in
+    the DWARF (accomplished by marking ssa nodes with NotStmt)
+    makes debugging look better while still attributing the
+    instructions with the correct line number.
     
-    Fixes #24607
+    The same is true for certain register allocator spills and
+    reloads.
     
-    Change-Id: Ic330850a0f098f183315f04ea4780eded46c5b77
-    Reviewed-on: https://go-review.googlesource.com/125515
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I97a394eb522d4911cc40b4bf5bf76d3d7221f6c0
+    Reviewed-on: https://go-review.googlesource.com/98415
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/server.go | 42 +++++++++++++++++++++++++-----------------
- 1 file changed, 25 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 | 36 +++++++++++++++++-----
+ src/cmd/compile/internal/ssa/regalloc.go           | 10 +++---
+ .../internal/ssa/testdata/hist.gdb-opt.nexts       | 24 ---------------
+ .../internal/ssa/testdata/scopes.gdb-opt.nexts     |  2 --
+ 4 files changed, 34 insertions(+), 38 deletions(-)

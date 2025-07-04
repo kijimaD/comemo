@@ -1,18 +1,27 @@
-commit b03f1d1a7e1c84d1fa7e4bcf8c705dfeb1a4565d
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Sep 24 10:48:18 2017 -0400
+commit 31a3b719a008205d4465a9e93dc7d29edc485e37
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 4 11:42:37 2017 -0700
 
-    runtime: remove extraneous stackPreempt setting
+    cmd/compile: cleanup genwrapper slightly
     
-    The stackguard is set to stackPreempt earlier in reentersyscall, and
-    as it comes with throwsplit = true there's no way for the stackguard
-    to be set to anything else by the end of reentersyscall.
+    ORETJMP doesn't need an ONAME if we just set the target method on Sym
+    instead of Left. Conveniently, this is where fmt.go was looking for it
+    anyway.
     
-    Change-Id: I4e942005b22ac784c52398c74093ac887fc8ec24
-    Reviewed-on: https://go-review.googlesource.com/65673
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change the iface parameter and global compiling_wrappers to bool.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I5333f8bcb4e06bf8161808041125eb95c439aafe
+    Reviewed-on: https://go-review.googlesource.com/68252
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/proc.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/compile/internal/gc/go.go        |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  8 +++-----
+ src/cmd/compile/internal/gc/typecheck.go |  4 ++--
+ 5 files changed, 14 insertions(+), 16 deletions(-)

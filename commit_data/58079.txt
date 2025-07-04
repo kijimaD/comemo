@@ -1,16 +1,20 @@
-commit aae088b16a327cc4b1a81928c307d5bd6e54849b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 18 19:26:38 2024 -0800
+commit 48042aa09c2f878c4faa576948b07fe625c4707a
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Sep 26 20:29:05 2023 +0200
 
-    doc/godebug: fix tipo
+    syscall: remove Windows 7 console handle workaround
     
-    Change-Id: Ib67d81d8e3aa33c6a506813194cc5710b3d5cdd0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629575
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Windows 7 is no longer supported, there is no need to complicate the
+    code to support inheriting console handles.
+    
+    Change-Id: Ie9f5cde77a63ea4fa6032bbb7ba5bd48a0989c5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531235
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
 
- doc/godebug.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/exec_windows.go | 29 +----------------------------
+ 1 file changed, 1 insertion(+), 28 deletions(-)

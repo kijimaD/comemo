@@ -1,21 +1,21 @@
-commit 04e993f953060851adb604c6ccc7c96ef89b8c8d
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Mar 29 14:35:57 2018 +0200
+commit 66bfbd9ad7a93ea85175bf1db663ca5f440666e3
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Wed Nov 8 02:17:51 2017 +0000
 
-    test: update list of escape reasons
+    internal/cpu: detect cpu features in internal/cpu package
     
-    The escape_because.go test file (which tests the "because" escape
-    explainations printed by `-m -m`) cointains a machine-generated list
-    of all the escape reasons seen in the escape tests.
+    change hash/crc32 package to use cpu package instead of using
+    runtime internal variables to check crc32 instruction
     
-    The list appears to be outdated; moreove a new escape reason was added
-    in CL 102895. This change re-generates the list.
-    
-    Change-Id: Idc721c6bbfe9516895b5cf1e6d09b77deda5a3dd
-    Reviewed-on: https://go-review.googlesource.com/103375
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8f88d2351bde8ed4e256f9adf822a08b9a00f532
+    Reviewed-on: https://go-review.googlesource.com/76490
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/escape_because.go | 28 ++++++++--------------------
- 1 file changed, 8 insertions(+), 20 deletions(-)
+ src/hash/crc32/crc32_arm64.go  |  5 +++--
+ src/hash/crc32/crc32_arm64.s   |  6 ------
+ src/internal/cpu/cpu.go        | 18 ++++++++++++++++++
+ src/internal/cpu/cpu_arm64.go  | 41 ++++++++++++++++++++++++++++++++++++-----
+ src/runtime/os_darwin_arm64.go |  2 --
+ src/runtime/os_linux_arm64.go  | 20 +++++++++++++++-----
+ 6 files changed, 72 insertions(+), 20 deletions(-)

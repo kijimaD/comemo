@@ -1,27 +1,46 @@
-commit 7fa195c1b9650db3e91b90af6b16405e7e0ba9ce
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 27 17:12:23 2019 -0800
+commit bf9240681dec2664f6acc1695e517e985d2b85d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 3 17:50:02 2018 -0700
 
-    cmd/compile: fix false positives in isGoConst
+    go/types: prepare for delayed type-checking of methods to when they are used
     
-    isGoConst could spuriously return true for variables that shadow a
-    constant declaration with the same name.
+    Remove assumption that methods associated to concrete (non-interface)
+    types have a fully set up signature. Such methods are found through
+    LookupFieldOrMethod or lookupMethod, or indexed method access from
+    a Named type. Make sure that the method's signature is type-checked
+    before use in those cases.
     
-    Because even named constants are always represented by OLITERAL nodes,
-    the easy fix is to just ignore ONAME nodes in isGoConst. We can
-    similarly ignore ONONAME nodes.
+    (MethodSets also hold methods but the type checker is not using
+    them but for internal verification. API clients will be using it
+    after all methods have been type-checked.)
     
-    Confirmed that k8s.io/kubernetes/test/e2e/storage builds again with
-    this fix.
+    Some functions such as MissingMethod may now have to type-check a
+    method and for that they need a *Checker. Add helper functions as
+    necessary to provide the additional (receiver) parameter but permit
+    it to be nil if the respective functions are invoked through the API
+    (at which point we know that all methods have a proper signature and
+    thus we don't need the delayed type-check).
     
-    Fixes #30430.
+    Since all package-level objects eventually are type-checked through
+    the top-level loop in Checker.packageObjects we are guaranteed that
+    all methods will be type-checked as well.
     
-    Change-Id: I899400d749982d341dc248a7cd5a18277c2795ec
-    Reviewed-on: https://go-review.googlesource.com/c/164319
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #23203.
+    Updates #26854.
+    
+    Change-Id: I6e48f0016cefd498aa70b776e84a48215a9042c5
+    Reviewed-on: https://go-review.googlesource.com/c/139425
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/const.go | 13 -------------
- test/fixedbugs/issue30430.go         | 17 +++++++++++++++++
- 2 files changed, 17 insertions(+), 13 deletions(-)
+ src/go/types/api.go         |  6 +++---
+ src/go/types/assignments.go |  2 +-
+ src/go/types/builtins.go    |  4 ++--
+ src/go/types/call.go        |  5 +++++
+ src/go/types/conversions.go | 11 +++++++----
+ src/go/types/decl.go        |  4 ++++
+ src/go/types/expr.go        | 17 +++++++++++++----
+ src/go/types/lookup.go      | 27 ++++++++++++++++++++++++---
+ src/go/types/operand.go     |  8 +++++---
+ src/go/types/type.go        |  2 +-
+ src/go/types/typexpr.go     |  2 +-
+ 11 files changed, 66 insertions(+), 22 deletions(-)

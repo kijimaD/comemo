@@ -1,14 +1,26 @@
-commit 007ee631d6e0fa27973fd9f40f8fbae98547181a
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Oct 5 22:32:19 2015 -0400
+commit 20550cbaf1ebbb51227cb09b6890edd864026f06
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 28 16:04:50 2015 -0700
 
-    cmd/go: given better error when -race is used without cgo
+    [dev.ssa] cmd/compile/internal/ssa: implement lots of small (<8byte) ops.
     
-    Fixes #12844.
+    Lots and lots of ops!
+    Also XOR for good measure.
     
-    Change-Id: Id51b24aae239fd2e1fb1cd0bc9fe443186301044
-    Reviewed-on: https://go-review.googlesource.com/15440
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Add a pass to the compiler generator to check that all of the
+    architecture-specific opcodes are handled by genValue.  We will
+    catch any missing ones if we come across them during compilation,
+    but probably better to catch them statically.
+    
+    Change-Id: Ic4adfbec55c8257f88117bc732fa664486262868
+    Reviewed-on: https://go-review.googlesource.com/12813
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/build.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             |  132 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  154 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  142 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |    5 +
+ src/cmd/compile/internal/ssa/gen/main.go       |   23 +
+ src/cmd/compile/internal/ssa/opGen.go          | 1311 +++++++++++++-----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 1729 +++++++++++++++++++++---
+ 7 files changed, 2865 insertions(+), 631 deletions(-)

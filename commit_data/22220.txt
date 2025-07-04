@@ -1,16 +1,17 @@
-commit ca98dd773a3cc759399897a343bfca27eda42fc1
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat Mar 28 16:14:18 2015 +0300
+commit 3ee9df799fc76e06b216248735e530dd4e1dc504
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 1 08:56:25 2015 -0800
 
-    runtime/pprof: fix data race in test
+    fmt: document existing behavior of nil receivers
     
-    rp.Close happened concurrently with rp.Read. Order them.
+    If a method called by fmt triggers a panic, the output usually says
+    so. However, there is heretofore undocumented special treatment for
+    a panic caused by formatting a nil value with an Error or String
+    method: the output is simply "<nil>". Document that behavior.
     
-    Fixes #10280
-    
-    Change-Id: I7b083bcc336d15396c4e42fc4654ba34fad4a4cc
-    Reviewed-on: https://go-review.googlesource.com/8211
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: Id0f79dd0b3487f9d1c74a0856727bba5cc342be4
+    Reviewed-on: https://go-review.googlesource.com/6410
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/pprof/trace_stack_test.go | 23 +++++++++++++----------
- 1 file changed, 13 insertions(+), 10 deletions(-)
+ src/fmt/doc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

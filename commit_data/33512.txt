@@ -1,18 +1,23 @@
-commit 3af20c06fe206ff92a8111fe230deb0170dac33d
+commit bc38fda367998bf4ab4dd3b42635864dc35f3109
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 10 13:37:28 2017 -0500
+Date:   Fri Aug 18 09:11:40 2017 -0400
 
-    cmd/go: document test -json
+    [dev.boringcrypto] crypto/ecdsa: use unsafe.Pointer instead of atomic.Value
     
-    Added in CL 76873 but forgot to add the flag docs.
+    Using atomic.Value causes vet errors in code copying
+    PublicKey or PrivateKey structures. I don't think the errors
+    are accurate, but it's easier to work around them than
+    to change vet or change atomic.Value.
     
-    Change-Id: I448f85cc8cf51399c0d799691226b94f88f327da
-    Reviewed-on: https://go-review.googlesource.com/77030
+    See #21504.
+    
+    Change-Id: I3a3435c1fc664cc5166c81674f6f7c58dab35f21
+    Reviewed-on: https://go-review.googlesource.com/56671
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Caleb Spare <cespare@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/go/alldocs.go            | 4 ++++
- src/cmd/go/internal/test/test.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ src/crypto/ecdsa/boring.go | 49 +++++++++++++++++++---------------------------
+ src/crypto/ecdsa/ecdsa.go  |  6 +++---
+ 2 files changed, 23 insertions(+), 32 deletions(-)

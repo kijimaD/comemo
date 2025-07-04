@@ -1,25 +1,19 @@
-commit a14efb1be3a59dffbf4dd9121191d6d656049564
-Author: Keith Randall <khr@google.com>
-Date:   Mon Sep 16 14:38:12 2019 -0700
+commit 7bb8fc10331eacc34bd38dc557a3856c8923c605
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Feb 11 17:20:59 2019 +0000
 
-    runtime: allow the Go runtime to return multiple stack frames for a single PC
+    runtime: use iterator instead of raw node for treap find
     
-    Upgrade the thread sanitizer to handle mid-stack inlining correctly.
-    We can now return multiple stack frames for each pc that the thread sanitizer
-    gives us to symbolize.
+    Right now the mTreap structure exposes the treapNode structure through
+    only one interface: find. There's no reason (performance or otherwise)
+    for exposing this, and we get a cleaner abstraction through the
+    iterators this way. This change also makes it easier to make changes to
+    the mTreap implementation without violating its interface.
     
-    To fix #33309, we still need to modify the tsan library with its portion
-    of this fix, rebuild the .syso files on all supported archs, and check
-    them into runtime/race.
-    
-    Update #33309
-    
-    Change-Id: I340013631ffc8428043ab7efe3a41b6bf5638eaf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195781
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I5ef86b8ac81a47d05d8404df65af9ec5f419dc40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164098
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/race.go   | 44 ++++++++++++++++++++++++++++++++++++++++----
- src/runtime/symtab.go | 12 +++++++-----
- 2 files changed, 47 insertions(+), 9 deletions(-)
+ src/runtime/mgclarge.go | 12 ++++++------
+ src/runtime/mheap.go    | 12 ++++++------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

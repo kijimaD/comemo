@@ -1,15 +1,15 @@
-commit 3a72175cdcbfb64cca5968be52ac964f69d3a44a
-Author: wdvxdr <wdvxdr1123@gmail.com>
-Date:   Fri Sep 10 20:56:29 2021 +0800
+commit f83e0f6616b58e7c77684c1f1dc6575439fdf79b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Dec 28 14:33:14 2020 -0500
 
-    cmd/compile: fix test/typeparam/mdempsky/4.go for -G=3
+    misc/ios: add to README how to build ios executables
     
-    Change-Id: I894ee000561a3c6afede8df697b1bce4576ceef0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349012
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Keith Randall <khr@golang.org>
+    Updates #43371, #43343.
+    
+    Change-Id: I19386269245f2c20345c6cac7560089b8223e9f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280153
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/typecheck/iimport.go | 22 +++++++++++++++++++---
- test/run.go                                   |  2 --
- 2 files changed, 19 insertions(+), 5 deletions(-)
+ misc/ios/README | 7 +++++++
+ 1 file changed, 7 insertions(+)

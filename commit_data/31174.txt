@@ -1,35 +1,27 @@
-commit 7e07e635f37d2a2bf886e120f47e322c3a1c3b46
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Mar 29 10:04:17 2017 -0700
+commit 461c3e52633638ee6e385a6fed3d78dc0a02f210
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 14:59:37 2017 -0500
 
-    cmd/compile: implement non-constant rotates
+    cmd/go: split out cmd/go/internal/buildid
     
-    Makes math/bits.Rotate{Left,Right} fast on amd64.
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
     
-    name              old time/op  new time/op  delta
-    RotateLeft-12     7.42ns ± 6%  5.45ns ± 6%  -26.54%   (p=0.000 n=9+10)
-    RotateLeft8-12    4.77ns ± 5%  3.42ns ± 7%  -28.25%   (p=0.000 n=8+10)
-    RotateLeft16-12   4.82ns ± 8%  3.40ns ± 7%  -29.36%  (p=0.000 n=10+10)
-    RotateLeft32-12   4.87ns ± 7%  3.48ns ± 7%  -28.51%    (p=0.000 n=8+9)
-    RotateLeft64-12   5.23ns ±10%  3.35ns ± 6%  -35.97%   (p=0.000 n=9+10)
-    RotateRight-12    7.59ns ± 8%  5.71ns ± 1%  -24.72%   (p=0.000 n=10+8)
-    RotateRight8-12   4.98ns ± 7%  3.36ns ± 9%  -32.55%  (p=0.000 n=10+10)
-    RotateRight16-12  5.12ns ± 2%  3.45ns ± 5%  -32.62%  (p=0.000 n=10+10)
-    RotateRight32-12  4.80ns ± 6%  3.42ns ±16%  -28.68%  (p=0.000 n=10+10)
-    RotateRight64-12  4.78ns ± 6%  3.42ns ± 6%  -28.50%  (p=0.000 n=10+10)
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
     
-    Update #18940
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
     
-    Change-Id: Ie79fb5581c489ed4d3b859314c5e669a134c119b
-    Reviewed-on: https://go-review.googlesource.com/39711
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    For #18653.
+    
+    Change-Id: I20dbc352c3df3c83a75811dd8e78c580a46b2202
+    Reviewed-on: https://go-review.googlesource.com/36195
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |     2 +
- src/cmd/compile/internal/gc/asm_test.go      |    57 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules |   171 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |     8 +
- src/cmd/compile/internal/ssa/opGen.go        |   136 +
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 21068 ++++++++++++++++---------
- 6 files changed, 13619 insertions(+), 7823 deletions(-)
+ src/cmd/go/build.go                       |   5 +-
+ src/cmd/go/internal/buildid/buildid.go    | 201 ++++++++++++++++++++++++++++++
+ src/cmd/go/{ => internal/buildid}/note.go |   4 +-
+ src/cmd/go/note_test.go                   |  13 +-
+ src/cmd/go/pkg.go                         | 200 ++---------------------------
+ 5 files changed, 220 insertions(+), 203 deletions(-)

@@ -1,26 +1,21 @@
-commit b5a0c67fcc2f87b5e2fd04e023f9a0b2f3d759da
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 12 11:30:26 2015 -0500
+commit b8efc006f2cb08a559e2aeea4f0561b0a696c3a8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 4 01:34:36 2015 +0000
 
-    test: force heap profile update in heapsampling.go test
+    all: remove executable bit from several files
     
-    The heapsampling.go test occasionally fails on some architectures
-    because it finds zero heap samples in main.alloc. This happens because
-    the byte and object counts are only updated at a GC. Hence, if a GC
-    happens part way through allocInterleaved, but then doesn't happen
-    after we start calling main.alloc, checkAllocations will see buckets
-    for the lines in main.alloc (which are created eagerly), but the
-    object and byte counts will be zero.
-    
-    Fix this by forcing a GC to update the profile before we collect it.
-    
-    Fixes #13098.
-    
-    Change-Id: Ia7a9918eea6399307f10499dd7abefd4f6d13cf6
-    Reviewed-on: https://go-review.googlesource.com/16846
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Iab669b2a9dd0510c0e54f9ec1cbe2b83b991bceb
+    Reviewed-on: https://go-review.googlesource.com/14283
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- test/heapsampling.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ doc/progs/run.go                               |   0
+ src/cmd/dist/test.go                           |   0
+ src/debug/dwarf/testdata/line-clang.elf        | Bin
+ src/debug/dwarf/testdata/line-gcc.elf          | Bin
+ src/debug/elf/testdata/gcc-386-freebsd-exec    | Bin
+ src/debug/elf/testdata/gcc-amd64-linux-exec    | Bin
+ src/debug/macho/testdata/gcc-386-darwin-exec   | Bin
+ src/debug/macho/testdata/gcc-amd64-darwin-exec | Bin
+ src/debug/plan9obj/testdata/386-plan9-exec     | Bin
+ src/debug/plan9obj/testdata/amd64-plan9-exec   | Bin
+ 10 files changed, 0 insertions(+), 0 deletions(-)

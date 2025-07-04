@@ -1,32 +1,32 @@
-commit fd17a4dc0907967e31d4027e254bf195aeefe684
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Wed Nov 24 16:41:33 2021 +0800
+commit c751e2e6ba30fc319c93b9cfe207dc7d1b48c3fb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 26 14:50:57 2021 -0700
 
-    cmd/compile: register Init function for loong64
+    [dev.typeparams] cmd/compile/internal/types2: use comparable bit rather than ==() method
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    This removes the special "==" methods from comparable interfaces in
+    favor of a "comparable" flag in TypeSets indicating that the interface
+    is or embeds comparable. Fixes various related implementation
+    inaccuracies.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    While at it, fix setup of the predeclared error and comparable
+    interface types by associating their respective type name objects
+    with them.
     
-    Updates #46229
+    For #47411.
     
-    Change-Id: Ia3cb07af626e3422e43e3834baf15b7c8fad2326
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349511
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I409f880c8c8f2fe345621401267e4aaabd17124d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337354
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/main.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/types2/instantiate.go     | 16 +++++++++----
+ src/cmd/compile/internal/types2/interface.go       |  2 +-
+ src/cmd/compile/internal/types2/lookup.go          | 10 +-------
+ src/cmd/compile/internal/types2/predicates.go      | 17 +-------------
+ src/cmd/compile/internal/types2/sizeof_test.go     |  2 +-
+ .../internal/types2/testdata/check/issues.go2      |  6 ++---
+ .../types2/testdata/fixedbugs/issue47411.go2       | 26 +++++++++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go         | 27 ++++++++++++++++++----
+ src/cmd/compile/internal/types2/universe.go        | 12 ++++------
+ 9 files changed, 71 insertions(+), 47 deletions(-)

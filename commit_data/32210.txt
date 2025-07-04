@@ -1,18 +1,22 @@
-commit 6203a79b52a550f05511411a6c7bc3597381ee8e
-Author: Kevin Burke <kev@inburke.com>
-Date:   Sun Aug 13 19:49:27 2017 -0600
+commit 4eb48a336e5a7ac519611cf8360909e0ac37f018
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 12 11:24:03 2017 -0700
 
-    time: remove unused parameter
+    cmd/compile/internal/ssa: refactor ARM64 address folding
     
-    lookupName is only called in one location, and one of the return
-    values is unused, so let's remove it.
+    These patterns are the only uses of isArg and isAuto, and they all
+    follow a common pattern too. Extract out so that we can more easily
+    tweak the interface for isArg/isAuto.
     
-    Change-Id: I35e22c7ec611e8eb349deb4f0561e212f7d9de0b
-    Reviewed-on: https://go-review.googlesource.com/55232
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Passes toolstash -cmp for linux/arm64.
+    
+    Change-Id: I9c509dabdc123c93cb1ad2f34fe8c12a9f313f6d
+    Reviewed-on: https://go-review.googlesource.com/40490
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/time/format.go   | 2 +-
- src/time/zoneinfo.go | 8 ++++----
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 165 ++++++++++-----------------
+ src/cmd/compile/internal/ssa/rewrite.go      |  14 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 156 ++++++++++++-------------
+ 3 files changed, 150 insertions(+), 185 deletions(-)

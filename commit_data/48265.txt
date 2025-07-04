@@ -1,20 +1,19 @@
-commit eeb9f095dc13a6beed41db0e734b6ae1e97f15d1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 2 16:36:27 2022 -0500
+commit 10d625d5b41f17c118da18a592c683e60fcdcb3b
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Tue Apr 20 16:15:29 2021 +0300
 
-    testing: include ERROR_SHARING_VIOLATION in Windows cleanup retries
+    database/sql: add NullInt16 and NullByte
     
-    Fixes #51442
-    Updates #50051
+    Fixes #40082
     
-    Change-Id: I1bfbc08c907077467fd50febbec6299a9b73af41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388916
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I01cd4d0e23c0376a6ee6e0b196c9f840cd662325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311572
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/testing/testing.go         |  2 +-
- src/testing/testing_other.go   |  6 +++---
- src/testing/testing_windows.go | 22 ++++++++++++++++++----
- 3 files changed, 22 insertions(+), 8 deletions(-)
+ src/database/sql/fakedb_test.go |  8 +++++-
+ src/database/sql/sql.go         | 54 +++++++++++++++++++++++++++++++++++++++++
+ src/database/sql/sql_test.go    | 24 ++++++++++++++++++
+ 3 files changed, 85 insertions(+), 1 deletion(-)

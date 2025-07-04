@@ -1,17 +1,12 @@
-commit a1198fcc034747f4a423a0ba7af626f7339fb535
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 20 10:28:04 2011 -0500
+commit b49625663e35fd214aa13481f1dbcd54f9ba0dc8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 19 20:57:59 2011 -0800
 
-    go: build runtime
+    syscall: remove unnecessary semicolon from mksyscall.pl
     
-    R=golang-dev, r, adg
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5495068
+    https://golang.org/cl/5495098
 
- src/cmd/go/build.go            | 75 ++++++++++++++++++++++++++++++++++--------
- src/cmd/go/list.go             |  1 +
- src/cmd/go/main.go             |  8 -----
- src/cmd/go/pkg.go              |  2 ++
- src/pkg/go/build/build_test.go |  1 +
- src/pkg/go/build/dir.go        | 21 ++++++++++--
- 6 files changed, 85 insertions(+), 23 deletions(-)
+ src/pkg/syscall/mksyscall.pl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

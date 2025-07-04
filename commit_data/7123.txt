@@ -1,16 +1,12 @@
-commit b97005c1d3220c5687a0c750c54d9c7868493429
+commit 18941a75b77b32e79800dfc4e5df180668a8b027
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 14 10:51:47 2011 -0800
+Date:   Fri Jan 14 10:50:51 2011 -0800
 
-    runtime/cgo: Don't define crosscall2 in dummy _cgo_main.c.
-    
-    In this specific package crosscall2 is already defined in a .S
-    file anyhow.  This avoids a warning about mismatched
-    alignment.
+    syscall: Correct length of SockaddrUnix.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4000043
+    https://golang.org/cl/4025041
 
- src/pkg/runtime/cgo/Makefile | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/syscall/syscall_linux.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

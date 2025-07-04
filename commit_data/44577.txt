@@ -1,35 +1,20 @@
-commit acd7cb5887f486558fbcd517ed636a96447d695d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 25 14:54:04 2021 -0800
+commit c2e73fb446bffd02c651e51c6641cc90fd065b70
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 23 08:46:36 2020 -0400
 
-    cmd/compile/internal/types2: better error reporting framework (starting point)
+    cmd/compile: remove AttrSeenGlobl (use AttrOnList instead)
     
-    Until now, errors which came with additional details (e.g., a declaration
-    cycle error followed by the list of objects involved in the cycle, one per
-    line) were reported as an ordinary error followed by "secondary" errors,
-    with the secondary errors marked as such by having a tab-indented error
-    message.
+    Minor cleanup: remove the symbol attribute AttrSeenGlobal, since it is
+    redundant with the existing attribute AttrOnList (no need to have what
+    amounts to a separate flag for checking the same property).
     
-    This approach often required clients to filter these secondary errors
-    (as they are not new errors, they are just clarifying a previously
-    reported error).
-    
-    This CL introduces a new internal error_ type which permits accumulating
-    various error information that may then be reported as a single error.
-    
-    Change-Id: I25b2f094facd37e12737e517f7ef8853d465ff77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296689
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ia269b64de37c2bb4a2314bbecf3d2091c6d57424
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239477
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/noder/irgen.go        |  8 ---
- src/cmd/compile/internal/types2/check_test.go  |  6 +-
- src/cmd/compile/internal/types2/decl.go        | 30 +++++----
- src/cmd/compile/internal/types2/errors.go      | 89 ++++++++++++++++++++++----
- src/cmd/compile/internal/types2/errors_test.go | 20 ++++++
- src/cmd/compile/internal/types2/initorder.go   | 10 +--
- src/cmd/compile/internal/types2/labels.go      |  7 +-
- src/cmd/compile/internal/types2/resolver.go    | 18 ++++--
- src/cmd/compile/internal/types2/stmt.go        | 18 ++++--
- src/cmd/compile/internal/types2/typexpr.go     | 24 ++++---
- 10 files changed, 166 insertions(+), 64 deletions(-)
+ src/cmd/compile/internal/gc/obj.go | 2 +-
+ src/cmd/internal/obj/link.go       | 3 ---
+ src/cmd/internal/obj/plist.go      | 4 ----
+ 3 files changed, 1 insertion(+), 8 deletions(-)

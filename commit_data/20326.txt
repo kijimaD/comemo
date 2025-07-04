@@ -1,29 +1,27 @@
-commit b6951bcc0bb081bdd46e3509bd5d4e2c1fa87323
+commit 4dba769b7352b10fa95070f5095b93c4f5908f4d
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Sep 6 21:16:13 2014 -0400
+Date:   Mon Sep 1 00:06:26 2014 -0400
 
-    runtime: increase stack split limit again
+    runtime: paste mprof.goc into mprof.go as comments
     
-    Increase NOSPLIT reservation from 192 to 384 bytes.
-    The problem is that the non-Unix systems (Solaris and Windows)
-    just can't make system calls in a small amount of space,
-    and then worse they do things that are complex enough
-    to warrant calling runtime.throw on failure.
-    We don't have time to rewrite the code to use less stack.
+    NO CODE CHANGES HERE
     
-    I'm not happy about this, but it's still a small amount.
+    The first conversion was not complete.
+    This CL doesn't make any actual changes,
+    but it inserts the missing mprof.goc code
+    as comments so that the next CL will have
+    useful diffs.
     
-    The good news is that we're doing this to get to only
-    using copying stacks for stack growth. Once that is true,
-    we can drop the default stack size from 8k to 4k, which
-    should more than make up for the bytes we're losing here.
+    To make the diffs a bit more useful, removed
+    all semicolons, ->, and runtime· prefixes as well.
     
-    LGTM=r
-    R=iant, r, bradfitz, aram.h
-    CC=golang-codereviews
-    https://golang.org/cl/140350043
+    Also corrected order of a few functions in mprof.go
+    to match original order in mprof.goc.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, iant, khr, r
+    https://golang.org/cl/134200043
 
- src/pkg/runtime/stack.go | 92 ------------------------------------------------
- src/pkg/runtime/stack.h  |  4 +--
- test/nosplit.go          |  4 +--
- 3 files changed, 4 insertions(+), 96 deletions(-)
+ src/pkg/runtime/mprof.go | 424 ++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 384 insertions(+), 40 deletions(-)

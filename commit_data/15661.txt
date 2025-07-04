@@ -1,15 +1,16 @@
-commit 85d83c2e51ae67a8f041e3949ffcaef17c7d9d59
+commit e982ecacd1920d4314c84ecfca316a9bf0698fd3
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 10 14:45:57 2013 -0400
+Date:   Sun Mar 10 12:50:44 2013 -0400
 
-    libmach: fix build
-    
-    I guess it would be too much to ask for gcc on my machine to give
-    the same errors as gcc on the builder machines.
+    cmd/ld: add tmpdir flag to preserve temp files
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7686044
+    https://golang.org/cl/7497044
 
- src/libmach/executable.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/5l/obj.c |  1 +
+ src/cmd/6l/obj.c |  3 ++-
+ src/cmd/8l/obj.c |  1 +
+ src/cmd/ld/lib.c | 11 +++++------
+ src/cmd/ld/lib.h |  4 ++--
+ 5 files changed, 11 insertions(+), 9 deletions(-)

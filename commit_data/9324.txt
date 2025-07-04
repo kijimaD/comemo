@@ -1,29 +1,12 @@
-commit 9c774c3f2665e2ad123e500bef1fdf0ba0072e83
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Aug 10 17:17:28 2011 +1000
+commit 8fced60a722e4ef58e69828235587b0fb39316e8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Aug 10 16:05:31 2011 +1000
 
-    runtime: correct seh installation during callbacks
+    tag weekly.2011-08-10
     
-    Every time we enter callback from Windows, it is
-    possible that go exception handler is not at the top
-    of per-thread exception handlers chain. So it needs
-    to be installed again. At this moment this is done
-    by replacing top SEH frame with SEH frame as at time
-    of syscall for the time of callback. This is incorrect,
-    because, if exception strike, we won't be able to call
-    any exception handlers installed inside syscall,
-    because they are not in the chain. This changes
-    procedure to add new SEH frame on top of existing
-    chain instead.
-    
-    I also removed m sehframe field, because I don't
-    think it is needed. We use single global exception
-    handler everywhere.
-    
-    R=golang-dev, r
-    CC=golang-dev, hectorchu
-    https://golang.org/cl/4832060
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4808088
 
- src/pkg/runtime/runtime.h         |  3 ---
- src/pkg/runtime/windows/386/sys.s | 26 +++++++++++++++-----------
- 2 files changed, 15 insertions(+), 14 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

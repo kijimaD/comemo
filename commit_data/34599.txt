@@ -1,23 +1,92 @@
-commit f0939ba5b18aea6649bf405dd6571030915afd56
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Mar 14 15:35:22 2018 +0000
+commit 08f19bbde1b01227fdc2fa2d326e4029bb74dd96
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 19 17:31:31 2017 -0700
 
-    runtime, syscall: add RawSyscall6 on Solaris and make it panic
+    go/printer: forbid empty line before first comment in block
     
-    The syscall package currently declares RawSyscall6 for every GOOS, but
-    does not define it on Solaris. This leads to code using said function
-    to compile but it will not link. Fix it by adding RawSyscall6 and make
-    it panic.
+    To improve readability when exported fields are removed,
+    forbid the printer from emitting an empty line before the first comment
+    in a const, var, or type block.
+    Also, when printing the "Has filtered or unexported fields." message,
+    add an empty line before it to separate the message from the struct
+    or interfact contents.
     
-    Also remove the obsolete comment above runtime.syscall_syscall as
-    pointed out by Aram.
+    Before the change:
+    <<<
+    type NamedArg struct {
     
-    Updates #24357
+            // Name is the name of the parameter placeholder.
+            //
+            // If empty, the ordinal position in the argument list will be
+            // used.
+            //
+            // Name must omit any symbol prefix.
+            Name string
     
-    Change-Id: I1b1423121d1c99de2ecc61cd9a935dba9b39e3a4
-    Reviewed-on: https://go-review.googlesource.com/100655
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+            // Value is the value of the parameter.
+            // It may be assigned the same value types as the query
+            // arguments.
+            Value interface{}
+            // contains filtered or unexported fields
+    }
+    >>>
+    
+    After the change:
+    <<<
+    type NamedArg struct {
+            // Name is the name of the parameter placeholder.
+            //
+            // If empty, the ordinal position in the argument list will be
+            // used.
+            //
+            // Name must omit any symbol prefix.
+            Name string
+    
+            // Value is the value of the parameter.
+            // It may be assigned the same value types as the query
+            // arguments.
+            Value interface{}
+    
+            // contains filtered or unexported fields
+    }
+    >>>
+    
+    Fixes #18264
+    
+    Change-Id: I9fe17ca39cf92fcdfea55064bd2eaa784ce48c88
+    Reviewed-on: https://go-review.googlesource.com/71990
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/syscall_solaris.go  | 12 ++++++------
- src/syscall/asm_solaris_amd64.s |  3 +++
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ misc/cgo/test/buildid_linux.go              |   1 -
+ src/cmd/compile/internal/ssa/gen/rulegen.go |   1 -
+ src/cmd/internal/obj/ppc64/asm9.go          |   1 -
+ src/cmd/internal/obj/x86/asm6.go            |   1 -
+ src/cmd/link/internal/ld/data.go            |   1 -
+ src/cmd/link/internal/ppc64/asm.go          |   2 -
+ src/encoding/base32/base32.go               |   1 -
+ src/go/doc/testdata/blank.0.golden          |   1 +
+ src/go/doc/testdata/blank.2.golden          |   1 +
+ src/go/doc/testdata/testing.0.golden        |   1 +
+ src/go/doc/testdata/testing.2.golden        |   1 +
+ src/go/printer/nodes.go                     |   2 +
+ src/go/printer/printer.go                   |   9 ++-
+ src/go/printer/testdata/comments.golden     | 103 ++++++++++++++++++++++++++
+ src/go/printer/testdata/comments.input      | 107 ++++++++++++++++++++++++++++
+ src/go/printer/testdata/comments.x          |  70 ++++++++++++++++++
+ src/hash/crc32/crc32_ppc64le.go             |   1 -
+ src/image/internal/imageutil/impl.go        |   2 -
+ src/net/http/httputil/dump_test.go          |   1 -
+ src/net/http/httputil/persist.go            |   1 -
+ src/net/http/internal/chunked.go            |   1 -
+ src/net/http/requestwrite_test.go           |   1 -
+ src/net/http/server.go                      |   1 -
+ src/net/mail/message_test.go                |   1 -
+ src/regexp/syntax/parse.go                  |   1 -
+ src/runtime/symtab.go                       |   2 -
+ src/syscall/syscall_netbsd.go               |   1 -
+ src/syscall/syscall_openbsd.go              |   1 -
+ src/time/sleep_test.go                      |   1 -
+ src/unicode/example_test.go                 |   1 -
+ 30 files changed, 293 insertions(+), 26 deletions(-)

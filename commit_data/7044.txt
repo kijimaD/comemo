@@ -1,16 +1,15 @@
-commit 29d0f02bd24541adbcee5c5b5583371c2b72d7d5
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 5 11:39:57 2011 -0800
+commit 0f26608ebcfbe08aaf1ba2f3b0592cc5ce1feec1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 5 14:35:13 2011 -0500
 
-    effective go: explain the effect of repanicking better.
-    Also fix a <p> error in go_spec.html.
+    io: fix Copyn EOF handling
     
-    Fixes #1370.
+    Fixes #1383.
     
-    R=rsc, gri
+    R=r
     CC=golang-dev
-    https://golang.org/cl/3835043
+    https://golang.org/cl/3821044
 
- doc/effective_go.html | 13 ++++++++++++-
- doc/go_spec.html      |  4 ++--
- 2 files changed, 14 insertions(+), 3 deletions(-)
+ src/pkg/io/io.go      |  7 ++++++-
+ src/pkg/io/io_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

@@ -1,32 +1,15 @@
-commit cf77dd37e7e7ae8eefe8c21a9ff3f04de989b808
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Jan 3 00:44:31 2013 +0100
+commit 5e8ca201d10f7cc5bd555a49aa5202cfc670b4a4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 2 14:40:27 2013 -0800
 
-    cmd/8g: extend elimination of temporaries to SSE2 code.
+    net/http: make NewRequest pick a ContentLength from a *bytes.Reader too
     
-    Before:
-    (erf.go:188)    TEXT     Erf+0(SB),$220
-    (erf.go:265)    TEXT     Erfc+0(SB),$204
-    (lgamma.go:174) TEXT     Lgamma+0(SB),$948
+    It already did so for its sibling, *strings.Reader, as well as *bytes.Buffer.
     
-    After:
-    (erf.go:188)    TEXT     Erf+0(SB),$84
-    (erf.go:265)    TEXT     Erfc+0(SB),$84
-    (lgamma.go:174) TEXT     Lgamma+0(SB),$44
-    
-    SSE before vs. SSE after:
-    
-    benchmark             old ns/op    new ns/op    delta
-    BenchmarkAcosh               81           49  -39.14%
-    BenchmarkAsinh              109          109   +0.00%
-    BenchmarkAtanh               73           74   +0.68%
-    BenchmarkLgamma             138           42  -69.20%
-    BenchmarkModf                24           15  -36.95%
-    BenchmarkSqrtGo             565          556   -1.59%
-    
-    R=rsc
+    R=edsrzf, dave, adg, kevlar, remyoudompheng, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/7028048
+    https://golang.org/cl/7031045
 
- src/cmd/8g/reg.c | 43 ++++++++++++++++++++++++++-----------------
- 1 file changed, 26 insertions(+), 17 deletions(-)
+ src/pkg/net/http/request.go      |  6 ++++--
+ src/pkg/net/http/request_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 2 deletions(-)

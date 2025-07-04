@@ -1,0 +1,26 @@
+commit 0ff1d425075ce830a1f1c5ef3bf54ae812312bc3
+Author: Tim King <taking@google.com>
+Date:   Fri Nov 8 14:00:49 2024 -0800
+
+    cmd/compile/internal/importer: exportdata section ends with the last index of "\n$$\n"
+    
+    This fixes a bug in the test only function Import where it looked for
+    the first instance of the string "\n$$\n" as the end of the exportdata
+    section. This should look for the last instance of "\n$$\n" within
+    the ar file.
+    
+    Adds unit tests that demonstrate the error.
+    
+    Added comments to tests that can correctly use the first instance.
+    
+    Change-Id: I7a85afa41cf1c2902119516b757b7c6625d46d13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/importer/gcimporter.go       | 4 ++--
+ src/cmd/compile/internal/importer/gcimporter_test.go  | 2 ++
+ src/cmd/compile/internal/importer/testdata/exports.go | 1 +
+ src/go/internal/gcimporter/gcimporter_test.go         | 2 ++
+ src/go/internal/gcimporter/testdata/exports.go        | 1 +
+ 5 files changed, 8 insertions(+), 2 deletions(-)

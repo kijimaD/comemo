@@ -1,20 +1,15 @@
-commit ccb6077d11e9e70cb17d3eaadaee4e673ee650c2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 21 12:54:10 2024 -0800
+commit a4b66b14e217391875921d7a87b33adf2eed7b18
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 28 16:21:27 2023 -0500
 
-    go/types, types2: handle Alias types in substitution
+    cmd/compile/internal/pgo: drop unused 'recursive' argument
     
-    Fixes #65854.
-    For #65778. // for x/tools/cmd/gotype
-    
-    Change-Id: I67d4644b28e831926fc6c233098aa1755c57162f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565835
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I7ccde4c6d1506cbd8e14d284a921f06b29b5f495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472258
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/subst.go            | 12 ++++++++++++
- src/go/types/subst.go                               | 12 ++++++++++++
- src/internal/types/testdata/fixedbugs/issue65854.go | 13 +++++++++++++
- 3 files changed, 37 insertions(+)
+ src/cmd/compile/internal/pgo/irgraph.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,25 +1,19 @@
-commit 7e394a23e585485d5a1e09765829c06c104a2758
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 30 23:08:22 2017 +0000
+commit 812b34efaed87584977dd56fbd3b366e13b314f5
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sun Sep 3 23:53:38 2017 +1000
 
-    net/http: update bundled http2
+    cmd/compile: ignore non-code nodes when inlining
     
-    Updates http2 to x/net git rev 894f8ed58 for:
+    Avoid counting nodes that don't generate code (eg, constants) against the
+    inlining budget.
     
-        http2: fix flake in net/http's TestCloseIdleConnections_h2
-        https://golang.org/cl/80139
+    Fixes #21749
     
-        http2: fix leak in activeRes by removing activeRes
-        https://golang.org/cl/80137
-    
-    Fixes #22413
-    Fixes #21543
-    
-    Change-Id: Ic8ea20f8ddae2fde17884ed045f9fa7058a4bd23
-    Reviewed-on: https://go-review.googlesource.com/81276
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I10fca073e64be7d304709ef33e125eb8c78d5e4d
+    Reviewed-on: https://go-review.googlesource.com/61250
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/net/http/h2_bundle.go | 42 +++++++++++++++++++-----------------------
- 1 file changed, 19 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 4 ++++
+ 1 file changed, 4 insertions(+)

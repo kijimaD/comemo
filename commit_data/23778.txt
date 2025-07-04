@@ -1,15 +1,25 @@
-commit 1c890076699a6c63eaf1c19985dbe891ce7314a7
-Author: Carlos C <uldericofilho@gmail.com>
-Date:   Tue Jun 23 23:18:35 2015 +0200
+commit f5c60ff2da4851f9056120a423ce6b48624fb97e
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Wed Jun 3 10:50:39 2015 -0700
 
-    strconv: add examples to package
+    syscall: add GidMappingsEnableSetgroups to Linux SysProcAttr
     
-    Change-Id: I69a2b6a99a53c875162be8a7d86455559cd74504
-    Reviewed-on: https://go-review.googlesource.com/11371
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Linux 3.19 made a change in the handling of setgroups and the 'gid_map' file to
+    address a security issue.
+    The upshot of the 3.19 changes is that in order to update the 'gid_maps' file,
+    use of the setgroups() system call in this user namespace must first be disabled
+    by writing "deny" to one of the /proc/PID/setgroups files for this namespace.
+    
+    Also added tests for remapping uid_map and gid_map inside new user
+    namespace.
+    
+    Fixes #10626
+    
+    Change-Id: I4d2539acbab741a37092d277e10f31fc39a8feb7
+    Reviewed-on: https://go-review.googlesource.com/10670
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/strconv/atof.go               |   2 -
- src/strconv/doc.go                |  57 +++++++
- src/strconv/example_test.go       | 338 ++++++++++++++++++++++++++++++++++++++
- src/strconv/quote_example_test.go |  35 ----
- 4 files changed, 395 insertions(+), 37 deletions(-)
+ src/syscall/exec_linux.go      | 35 ++++++++++++++++++
+ src/syscall/exec_linux_test.go | 84 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 119 insertions(+)

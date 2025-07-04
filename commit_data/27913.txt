@@ -1,16 +1,12 @@
-commit da2a938910f0401ccd0396891c17b8f8974263de
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Aug 18 14:49:01 2016 -0700
+commit 7b0ba1cff86429f0eb39b916fba54e3061fa5787
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 20 09:16:00 2016 +1000
 
-    crypto/tls: fix comment typo.
+    doc: document go1.6.2
     
-    This was pointed out in https://go-review.googlesource.com/#/c/27315/1
-    but I changed and uploaded the wrong branch. This actually makes the
-    fix.
-    
-    Change-Id: Ib615b06c9141b914648b6abbeeb688c5ffa0d2e3
-    Reviewed-on: https://go-review.googlesource.com/27360
+    Change-Id: Ib3063719cf90dfad139dd723b3b16ef0b45e312e
+    Reviewed-on: https://go-review.googlesource.com/22251
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/cipher_suites.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

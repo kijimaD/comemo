@@ -1,19 +1,26 @@
-commit aaf9b46800fe12c11c17bffebc82436204a1e85b
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 20 12:44:07 2025 -0400
+commit 1a8ee033f84d9ea53c15c3b395ddcc42a4cb9cd2
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Feb 17 10:30:01 2024 +0000
 
-    testing: streamline logic in loopSlowPath
+    runtime/internal/atomic: add s390x operators for And/Or
     
-    There's a fair amount of duplication of logic between various return
-    branches of loopSlowPath and stopOrScaleBLoop. Restructure these so
-    there's a single "keep going" path and a single "we're done" path.
+    These primitives will be used by the new And/Or sync/atomic apis.
     
-    Change-Id: I38e4c7a616f8bd7707f3ca886f38ff21dbd78b6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659658
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    For #61395
+    
+    Change-Id: Ia9b4877048002d3d7d1dffa2311d0ec5f38e4ee5
+    GitHub-Last-Rev: 20dea110c824913c0c3d9c259e3e21e7ff8e4ba9
+    GitHub-Pull-Request: golang/go#63318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531678
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/testing/benchmark.go | 48 ++++++++++++++++++++++++++++++------------------
- 1 file changed, 30 insertions(+), 18 deletions(-)
+ .../internal/atomic/atomic_andor_generic.go        |  2 +-
+ src/runtime/internal/atomic/atomic_s390x.go        | 18 +++++++
+ src/runtime/internal/atomic/atomic_s390x.s         | 56 ++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 1 deletion(-)

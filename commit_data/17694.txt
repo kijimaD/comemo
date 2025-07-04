@@ -1,19 +1,15 @@
-commit 20db0f428a28a529146b5016b97061f2b13c54d4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 24 16:35:35 2013 -0700
+commit 828a4b93765c87a96578c1aaa3b0781d3d4e31be
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 24 15:54:48 2013 -0400
 
-    go/ast: add Slice3 field to SliceExpr
+    sync/atomic: adjust for new runtime.cas64 prototype
     
-    If Slice3 is set, the expression is
-    a 3-index slice expression (2 colons).
-    Required for type-checking.
-    
-    Backward-compatible API extension.
-    
-    R=r, rsc
+    R=golang-dev, minux.ma, josharian
     CC=golang-dev
-    https://golang.org/cl/13826050
+    https://golang.org/cl/13859043
 
- src/pkg/go/ast/ast.go       | 1 +
- src/pkg/go/parser/parser.go | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/sync/atomic/asm_linux_arm.s          | 23 ++++++++++++++---------
+ src/pkg/sync/atomic/atomic_linux_arm_test.go | 14 ++++++++++++++
+ src/pkg/sync/atomic/atomic_test.go           | 10 +++++++---
+ src/pkg/sync/atomic/export_linux_arm_test.go |  9 +++++++++
+ 4 files changed, 44 insertions(+), 12 deletions(-)

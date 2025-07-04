@@ -1,30 +1,12 @@
-commit 034a10d44c8f83d2c36ab4e242c14e9744c54949
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 29 15:15:03 2015 -0400
+commit a3c0730435a36fb5b22df35569ba6ad491a52886
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Wed Jun 17 23:51:54 2015 +0200
 
-    cmd/internal/obj/arm64: reject misaligned stack frames, except empty frames
+    html: add examples to the functions
     
-    The layout code has to date insisted on stack frames that are 16-aligned
-    including the saved LR, and it ensured this by growing the frame itself.
-    This breaks code that refers to values near the top of the frame by positive
-    offset from SP, and in general it's too magical: if you see TEXT xxx, $N,
-    you expect that the frame size is actually N, not sometimes N and sometimes N+8.
-    
-    This led to a serious bug in the compiler where ambiguously live values
-    were not being zeroed correctly, which in turn triggered an assertion
-    in the GC about finding only valid pointers. The compiler has been
-    fixed to always emit aligned frames, and the hand-written assembly
-    has also been fixed.
-    
-    Now that everything is aligned, make unaligned an error instead of
-    something to "fix" silently.
-    
-    For #9880.
-    
-    Change-Id: I05f01a9df174d64b37fa19b36a6b6c5f18d5ba2d
-    Reviewed-on: https://go-review.googlesource.com/12848
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I129d70304ae4e4694d9217826b18b341e3834d3c
+    Reviewed-on: https://go-review.googlesource.com/11201
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/internal/obj/arm64/obj7.go | 18 ++++++++++++++----
- test/nosplit.go                    |  2 +-
- 2 files changed, 15 insertions(+), 5 deletions(-)
+ src/html/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

@@ -1,17 +1,20 @@
-commit bb41b4d599f5758e25091666e123c41b401ac890
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Thu Dec 15 09:58:30 2016 -0500
+commit 6ca662ca0e1a41077bd93501a5d04668474bca69
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 21 11:43:12 2016 -0700
 
-    net/http: make Server validate HTTP method
+    net/http: make Redirect escape non-ASCII in Location header
     
-    Fixes #18319
+    Only ASCII is permitted there.
     
-    Change-Id: If88e60a86828f60d8d93fc291932c19bab19e8dc
-    Reviewed-on: https://go-review.googlesource.com/34470
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #4385
+    
+    Change-Id: I63708b04a041cdada0fdfc1f2308fcb66889a27b
+    Reviewed-on: https://go-review.googlesource.com/31732
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/request.go    |  3 +++
- src/net/http/serve_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ src/net/http/http.go       | 25 +++++++++++++++++++++++++
+ src/net/http/serve_test.go | 27 +++++++++------------------
+ src/net/http/server.go     |  2 +-
+ 3 files changed, 35 insertions(+), 19 deletions(-)

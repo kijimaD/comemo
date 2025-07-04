@@ -1,32 +1,18 @@
-commit 55a60cadc3f5d01f76ac9435da2ed941e194a29b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Mar 4 09:49:32 2022 +0100
+commit 784ef4c53135644d70f3476a4bd90010b9acff66
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Apr 26 18:46:22 2021 -0400
 
-    syscall: use dup3 in forkAndExecInChild on OpenBSD
+    net/http: ignore directory path when parsing multipart forms
     
-    Use dup3(oldfd, newfd, O_CLOEXEC) to atomically duplicate the file
-    descriptor and mark is as close-on-exec instead of dup2 & fcntl.
+    Fixes #45789
     
-    The dup3 system call first appeared in OpenBSD 5.7.
-    
-    Change-Id: Ic06c2c7089dcdbd931ee24e5e8c316879d81474e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389974
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id588f5dbbecf5fbfb54e957c53903aaa900171f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313809
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/syscall/exec_bsd.go               | 26 ++++++++++++--------------
- src/syscall/exec_libc2.go             | 23 +++++++++++++++++++----
- src/syscall/syscall_darwin.go         |  2 ++
- src/syscall/syscall_openbsd.go        |  1 +
- src/syscall/syscall_openbsd_libc.go   |  2 ++
- src/syscall/syscall_openbsd_mips64.go |  2 +-
- src/syscall/zsyscall_openbsd_386.go   | 14 ++++++++++++++
- src/syscall/zsyscall_openbsd_386.s    |  2 ++
- src/syscall/zsyscall_openbsd_amd64.go | 14 ++++++++++++++
- src/syscall/zsyscall_openbsd_amd64.s  |  2 ++
- src/syscall/zsyscall_openbsd_arm.go   | 14 ++++++++++++++
- src/syscall/zsyscall_openbsd_arm.s    |  2 ++
- src/syscall/zsyscall_openbsd_arm64.go | 14 ++++++++++++++
- src/syscall/zsyscall_openbsd_arm64.s  |  2 ++
- 14 files changed, 101 insertions(+), 19 deletions(-)
+ src/mime/multipart/multipart.go | 14 +++++++++++---
+ src/net/http/request_test.go    | 23 +++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 3 deletions(-)

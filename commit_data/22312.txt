@@ -1,16 +1,18 @@
-commit dfc9e264d18a3f9fe7afdb794d227473ce486516
-Author: Rob Pike <r@golang.org>
-Date:   Mon Apr 6 11:03:24 2015 -0700
+commit 43941d85cf35fae53005bb51d545614651b3d8c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 3 22:29:03 2015 -0500
 
-    cmd/asm/internal/asm: fix comment in ppc64.go
+    cmd/internal/ld: cache file name construction in linkgetline
     
-    It referred to the wrong architecture.
+    This avoids repeated allocation and map lookups
+    when constructing the pcln tables.
     
-    Fixes #10355.
+    For 6g compiling cmd/internal/gc/*.go this saves about 8% wall time.
     
-    Change-Id: I5b9d31c9f04f3106b93f94fa68c848b2518b128e
-    Reviewed-on: https://go-review.googlesource.com/8495
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I6a1a80e278ae2c2a44bd1537015ea7b4e7a4d6ca
+    Reviewed-on: https://go-review.googlesource.com/6793
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/asm/internal/arch/ppc64.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/link.go |  8 -------
+ src/cmd/internal/obj/obj.go  | 54 ++++++++++++++++++++++++++++++--------------
+ 2 files changed, 37 insertions(+), 25 deletions(-)

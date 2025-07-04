@@ -1,20 +1,30 @@
-commit 99be9cc02cdb42d692a5889500e1b68d6155ae62
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Thu Oct 12 16:51:01 2017 -0300
+commit 57bf6aca711a53aa7fea877b98896cd0445c6ad0
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Sat Aug 5 14:44:00 2017 +0800
 
-    flag: add (*FlagSet).Name, (*FlagSet).ErrorHandling, export (*FlagSet).Output
+    runtime, cmd/compile: add intrinsic getclosureptr
     
-    Allows code that operates on a FlagSet to know the name and error
-    handling behavior of the FlagSet without having to call FlagSet.Init.
+    Intrinsic enabled on all architectures,
+    runtime asm implementation removed on all architectures.
     
-    Fixes #17628
-    Fixes #21888
+    Fixes #21258
     
-    Change-Id: Ib0fe4c8885f9ccdacf5a7fb761d5ecb23f3bb055
-    Reviewed-on: https://go-review.googlesource.com/70391
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2cb86d460b497c2f287a5b3df5c37fdb231c23a7
+    Reviewed-on: https://go-review.googlesource.com/53411
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/flag/flag.go      | 26 +++++++++++++++++++-------
- src/flag/flag_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go |  6 +++---
+ src/cmd/compile/internal/gc/ssa.go |  5 +++++
+ src/runtime/alg.go                 | 10 ++++++----
+ src/runtime/asm_386.s              | 17 -----------------
+ src/runtime/asm_amd64.s            | 17 -----------------
+ src/runtime/asm_amd64p32.s         | 17 -----------------
+ src/runtime/asm_arm.s              | 17 -----------------
+ src/runtime/asm_arm64.s            | 17 -----------------
+ src/runtime/asm_mips64x.s          | 17 -----------------
+ src/runtime/asm_mipsx.s            | 17 -----------------
+ src/runtime/asm_ppc64x.s           | 17 -----------------
+ src/runtime/asm_s390x.s            | 17 -----------------
+ src/runtime/stubs.go               | 16 ++++++++++++++++
+ 13 files changed, 30 insertions(+), 160 deletions(-)

@@ -1,20 +1,17 @@
-commit 7c7081f514c9ec4820a842f7ef07394df4d41bab
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 13 15:12:32 2016 -0400
+commit 1765863e577634e5e0502f7a783979a5fd480618
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 4 01:30:31 2016 -0800
 
-    sync/atomic: don't atomically write pointers twice
+    cmd/compile: replace TypeList with []*Type
     
-    sync/atomic.StorePointer (which is implemented in
-    runtime/atomic_pointer.go) writes the pointer twice (through two
-    completely different code paths, no less). Fix it to only write once.
+    Good riddance to another one-off linked list type.
     
-    Change-Id: Id3b2aef9aa9081c2cf096833e001b93d3dd1f5da
-    Reviewed-on: https://go-review.googlesource.com/21999
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Idf9926a701ab4da8a022be1d61f1257020d58fc5
+    Reviewed-on: https://go-review.googlesource.com/20212
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/atomic_pointer.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/gc/align.go | 30 +++++++-----------------------
+ 1 file changed, 7 insertions(+), 23 deletions(-)

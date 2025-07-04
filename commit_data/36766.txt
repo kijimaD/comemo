@@ -1,20 +1,14 @@
-commit 31d19c0ba34782d16b91e9d41aa88147e858bb34
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Sep 27 08:46:08 2018 -0400
+commit 16de91d35135aeb77af774a224ec8e9ad49d581c
+Author: Jonathan Chen <dijonkitchen@users.noreply.github.com>
+Date:   Thu May 24 14:49:29 2018 +0000
 
-    test: add testcase for gccgo compile failure
+    doc: clarify sentence
     
-    Also includes a small tweak to test/run.go to allow package names
-    with Unicode letters (as opposed to just ASCII chars).
-    
-    Updates #27836
-    
-    Change-Id: Idbf0bdea24174808cddcb69974dab820eb13e521
-    Reviewed-on: https://go-review.googlesource.com/138075
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I6eb182968a8e00fe359d812f1eefc9bda896395b
+    GitHub-Last-Rev: a354b4d2168ed4f1f1744c99c36ece276a24e046
+    GitHub-Pull-Request: golang/go#25540
+    Reviewed-on: https://go-review.googlesource.com/114318
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/fixedbugs/issue27836.dir/Äfoo.go  | 13 +++++++++++++
- test/fixedbugs/issue27836.dir/Ämain.go | 13 +++++++++++++
- test/fixedbugs/issue27836.go           |  7 +++++++
- test/run.go                            |  2 +-
- 4 files changed, 34 insertions(+), 1 deletion(-)
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,22 +1,22 @@
-commit f0ff63ea64c878ebe67db70be8f41f73f21bbaff
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 9 12:50:49 2013 -0700
+commit 6252b41981a5e5566b727de14cda5aece4bee98f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 15:06:05 2013 -0400
 
-    cmd/go: if there are C++ sources, use g++ as default external linker
+    runtime: remove OABI check from ARM startup
     
-    This will bring in the C++ standard library without requiring
-    any special #cgo LDFLAGS options.
+    The code in question is trying to print a nice error message
+    when a Go EABI binary runs on an OABI machine.
+    Unfortunately, the only way to do that is to use
+    ARM Thumb instructions, which we otherwise don't use.
     
-    When using gccgo, just add -lstdc++ to link line; this should
-    do no harm if it is not needed.
+    There exist ARM EABI machines that do not support Thumb.
+    We could run on them if not for this OABI check, so disable it.
     
-    No tests, since we don't want to assume a C++ compiler.
+    Fixes #5685.
     
-    Update #5629
-    
-    R=golang-dev, minux.ma, rsc
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/13394045
+    https://golang.org/cl/13234050
 
- src/cmd/go/build.go | 52 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 51 insertions(+), 1 deletion(-)
+ src/pkg/runtime/rt0_linux_arm.s | 45 +++++++++++++++++++++++------------------
+ 1 file changed, 25 insertions(+), 20 deletions(-)

@@ -1,12 +1,19 @@
-commit 27cb23ceb191074216f462b521dd67380eebed75
-Author: Jamie Wilkinson <jaq@spacepants.org>
-Date:   Fri Sep 13 13:18:02 2013 +1000
+commit c842e43ef6a7e3ac525a0a72e91dc7c482857afd
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 13 12:44:45 2013 +1000
 
-    goyacc: Fix debug printing of the lexed token's ID and name, and add whitespace in the 'stateX saw' message.
+    text/template/parse: mostly roll back the error detection for unmatched right delimiters
+    It's too late to change this behavior: it breaks templates with minimized JavaScript.
     
-    R=golang-dev, r
+    Makes me sad because this common error can never be caught: "{foo}}".
+    Three cheers for compatibility.
+    
+    (Leave in a fix to a broken test.)
+    
+    R=golang-dev, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/13352048
+    https://golang.org/cl/13689043
 
- src/cmd/yacc/yacc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/text/template/parse/lex.go      | 4 ----
+ src/pkg/text/template/parse/lex_test.go | 5 ++++-
+ 2 files changed, 4 insertions(+), 5 deletions(-)

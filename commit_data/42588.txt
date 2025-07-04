@@ -1,25 +1,36 @@
-commit a4ba411b19fa0111a3c8fe059fcf5489d3bd6bbf
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Jun 30 16:51:27 2020 -0400
+commit 895b7c85addfffe19b66d8ca71c31799d6e55990
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 21 16:50:56 2020 -0800
 
-    cmd/link: skip fallocate test if not supported, and adjust allocation size on darwin
+    runtime: don't skip checkTimers if we would clear deleted timers
     
-    On Linux, the linker uses fallocate to preallocate the output
-    file storage. The underlying file system may not support
-    fallocate, causing the test to fail. Skip the test in this case.
+    The timers code used to have a problem: if code started and stopped a
+    lot of timers, as would happen with, for example, lots of calls to
+    context.WithTimeout, then it would steadily use memory holding timers
+    that had stopped but not been removed from the timer heap.
+    That problem was fixed by CL 214299, which would remove all deleted
+    timers whenever they got to be more than 1/4 of the total number of
+    timers on the heap.
     
-    On darwin, apparently F_PREALLOCATE allocates from the end of the
-    allocation instead of the logical end of the file. Adjust the
-    size calculation.
+    The timers code had a different problem: if there were some idle P's,
+    the running P's would have lock contention trying to steal their timers.
+    That problem was fixed by CL 214185, which only acquired the timer lock
+    if the next timer was ready to run or there were some timers to adjust.
     
-    Fixes #39905.
+    Unfortunately, CL 214185 partially undid 214299, in that we could now
+    accumulate an increasing number of deleted timers while there were no
+    timers ready to run. This CL restores the 214299 behavior, by checking
+    whether there are lots of deleted timers without acquiring the lock.
     
-    Change-Id: I01e676737fd2619ebbdba05c7cf7f424ec27de35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240618
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    This is a performance issue to consider for the 1.14 release.
+    
+    Change-Id: I13c980efdcc2a46eb84882750c39e3f7c5b2e7c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215722
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/fallocate_test.go | 15 +++++++++++++++
- src/cmd/link/internal/ld/outbuf_darwin.go  |  7 +++++--
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/runtime/proc.go     |  9 ++++++++-
+ src/runtime/runtime2.go |  6 +++++-
+ src/runtime/time.go     | 32 +++++++++++++++++++++-----------
+ 3 files changed, 34 insertions(+), 13 deletions(-)

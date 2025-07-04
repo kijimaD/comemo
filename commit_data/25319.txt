@@ -1,15 +1,25 @@
-commit 8cdd7d14ac67706163fb91055fb5aba16f6c7f3e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 08:04:21 2015 -0800
+commit 30ee5919bd08fd9d05504f8e0b568cc59a97c1fc
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Fri Oct 16 14:17:25 2015 -0400
 
-    net: fix build
+    runtime: add syscalls needed for android/amd64 logging.
     
-    https://golang.org/cl/16953 broke the world.
+    access, connect, socket.
     
-    Change-Id: I7cbd4105338ff896bd0c8f69a0b126b6272be2e5
-    Reviewed-on: https://go-review.googlesource.com/17914
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    In Android-L, logging is done by writing the log messages to the logd
+    process through a unix domain socket.
+    
+    Also, changed the arg types of those syscall stubs to match linux
+    programming APIs.
+    
+    For golang/go#10743
+    
+    Change-Id: I66368a03316e253561e9e76aadd180c2cd2e48f3
+    Reviewed-on: https://go-review.googlesource.com/15993
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/hook.go      | 3 ---
- src/net/hook_unix.go | 6 +++++-
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/runtime/defs_linux_amd64.go     |  9 +++++++++
+ src/runtime/print1_write_android.go |  2 +-
+ src/runtime/stubs_android.go        |  8 +++++++-
+ src/runtime/sys_linux_amd64.s       | 30 ++++++++++++++++++++++++++++++
+ 4 files changed, 47 insertions(+), 2 deletions(-)

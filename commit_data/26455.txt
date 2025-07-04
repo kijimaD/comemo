@@ -1,17 +1,21 @@
-commit 23a756d856dabd86e3f83480f31c291cbcd6464a
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Jan 29 17:14:51 2016 +0100
+commit e6347659410454cfabc4f4bc04fe37e538f472e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 15:20:36 2016 -0500
 
-    testing: expose subtest and subbenchmark functionality
+    cmd/asm: add amd64 HADDPD/HADDPS
     
-    Fixes #12166
+    Was part of #13822 but not in the first message, so I missed it.
     
-    Change-Id: Ie62cba2c39beb5732447ba3688c93c08ef12abb5
-    Reviewed-on: https://go-review.googlesource.com/18898
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Fixes #13822 again.
+    
+    Change-Id: I775004fa8d47b6af293124605521ec396573e267
+    Reviewed-on: https://go-review.googlesource.com/18900
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/benchmark.go | 11 +++++++----
- src/testing/sub_test.go  |  6 ------
- src/testing/testing.go   |  6 +++---
- 3 files changed, 10 insertions(+), 13 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 64 ++++++++++++++--------------
+ src/cmd/internal/obj/x86/a.out.go            |  4 ++
+ src/cmd/internal/obj/x86/anames.go           |  4 ++
+ src/cmd/internal/obj/x86/asm6.go             |  4 ++
+ 4 files changed, 44 insertions(+), 32 deletions(-)

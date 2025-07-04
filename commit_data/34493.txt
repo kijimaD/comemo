@@ -1,21 +1,25 @@
-commit aa00ca12fe5f342f97fe7335e107848f1b7880bd
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 6 16:20:10 2018 -0800
+commit eac6fe082ba0e54b387eca7604811958fe62a094
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 28 14:23:21 2017 -0400
 
-    cmd/compile: cleanup funccompile and compile
+    cmd/go: adjust default GOROOT to prefer runtime.GOROOT() spelling
     
-    Bring these functions next to each other, and clean them up a little
-    bit. Also, change emitptrargsmap to take Curfn as a parameter instead
-    of a global.
+    If runtime.GOROOT() and the os.Executable method for finding GOROOT
+    find the same directory but with different spellings, prefer the spelling
+    returned by runtime.GOROOT().
     
-    Passes toolstash-check.
+    This avoids an inconsistency if "pwd" returns one spelling but a
+    different spelling is used in $PATH (and therefore in os.Executable()).
+    make.bash runs with GOROOT=$(cd .. && pwd); the goal is to allow
+    the resulting toolchain to use that default setting (unless moved)
+    even if the directory spelling is different in $PATH.
     
-    Change-Id: Ib9c94fda3b2cb6f0dcec1585622b33b4f311b5e9
-    Reviewed-on: https://go-review.googlesource.com/99075
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If96b28b9e8697f4888f153a400b40bbf58a9128b
+    Reviewed-on: https://go-review.googlesource.com/74250
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go  | 23 -----------------
- src/cmd/compile/internal/gc/pgen.go | 51 +++++++++++++++++++++++++++----------
- 2 files changed, 37 insertions(+), 37 deletions(-)
+ src/cmd/go/internal/cfg/cfg.go | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)

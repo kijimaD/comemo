@@ -1,20 +1,19 @@
-commit f60aa7a18cedd8f09dabbef9840893442fd2bda4
-Author: ianwoolf <btw515wolf2@gmail.com>
-Date:   Wed Apr 7 22:32:56 2021 +0800
+commit be01f54c24b7f0e7b4473c6993966cc56a7f1ee4
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun May 10 21:55:55 2020 +0200
 
-    syscall: replace os.MkdirTemp with T.TempDir
+    cmd/compile: enforce strongly typed rules for ARM (3)
     
-    Updates #45402
+    Toolstash-check successful from L270 until L543.
     
-    Change-Id: I573133d6b987e8ac23e3e2018652612af684c755
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307990
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic39ab86c80f970bfb21e318284f6bb3e8a994220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233439
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/syscall/dirent_test.go          | 16 ++++------------
- src/syscall/getdirentries_test.go   |  6 +-----
- src/syscall/syscall_unix_test.go    | 12 ++----------
- src/syscall/syscall_windows_test.go |  6 +-----
- 4 files changed, 8 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 288 +++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM.go | 590 ++++++++++++++---------------
+ 2 files changed, 439 insertions(+), 439 deletions(-)

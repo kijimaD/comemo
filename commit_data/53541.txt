@@ -1,23 +1,21 @@
-commit 886fba5871268c2dccba2675fea5aafacab59189
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jun 12 18:58:50 2023 +0200
+commit bc69ad3a77129cd4cf4d3bdaa592dfc95ff8c769
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 19 13:42:38 2022 +0000
 
-    crypto/ecdsa: properly truncate P-521 hashes
+    Revert "misc/cgo/testcarchive: permit SIGQUIT for TestSignalForwardingExternal"
     
-    Before, if a hash was exactly 66 bytes long, we weren't truncating it
-    for use with P-521, because the byte length was not overflowing.
-    However, the bit length could still overflow.
+    This reverts CL 419014.
     
-    Fixes #60741
+    Reason for revert: broke darwin-amd64 builders
     
-    Change-Id: I37a0ee210add0eb566e6dc1c141e83e992983eb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502478
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I77838e696a55c415d322ebb9846503de25b546d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424954
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/ecdsa/ecdsa.go      |  2 +-
- src/crypto/ecdsa/ecdsa_test.go | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ misc/cgo/testcarchive/carchive_test.go          | 235 ++++++++++--------------
+ misc/cgo/testcarchive/testdata/libgo2/libgo2.go |   6 -
+ misc/cgo/testcarchive/testdata/main5.c          |  13 +-
+ 3 files changed, 97 insertions(+), 157 deletions(-)

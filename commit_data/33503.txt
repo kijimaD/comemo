@@ -1,26 +1,22 @@
-commit 366681cc06357cfdca91c18eff059e11e5470383
+commit 943dd0fe332ebc72a4b02b2a9b6e4344e4cda340
 Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Nov 7 11:34:35 2017 +0000
+Date:   Fri Aug 18 16:05:33 2017 +0100
 
-    cmd/vet: don't warn on escaped newlines in Println
+    cmd/*: remove negative uint checks
     
-    The old code only worked for double-quoted strings, and only checked
-    that the end of the literal value was \n". This worked most of the time,
-    except for some strings like "foo\\n", which doesn't actually translate
-    into a trailing newline when unquoted.
+    All of these are uints of different sizes, so checking >= 0 or < 0 are
+    effectively no-ops.
     
-    To fix this, unquote the string first and look for a real newline at the
-    end of it. Ignore errors, as we don't have anything to do with string
-    literals using back quotes.
+    Found with staticcheck.
     
-    Fixes #22613.
-    
-    Change-Id: I7cf96916dd578b7068216c2051ec2622cce0b740
-    Reviewed-on: https://go-review.googlesource.com/76194
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I16ac900eb7007bc8f9018b302136d42e483a4180
+    Reviewed-on: https://go-review.googlesource.com/56950
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/print.go          | 5 +++--
- src/cmd/vet/testdata/print.go | 5 +++++
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 4 ++--
+ src/cmd/internal/obj/sym.go        | 4 ----
+ src/cmd/trace/trace.go             | 3 ---
+ 3 files changed, 2 insertions(+), 9 deletions(-)

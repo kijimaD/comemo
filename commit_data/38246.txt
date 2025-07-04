@@ -1,19 +1,14 @@
-commit 7ac0a8bc3919e3d22c7492792873a341c9687b5c
-Author: Austin Clements <austin@google.com>
-Date:   Mon Sep 25 15:01:29 2017 -0400
+commit e489a236b40febae0c2df0462ae8dd6cffdd3646
+Author: avsharapov <analytics.kzn@gmail.com>
+Date:   Sat Oct 13 13:31:39 2018 +0300
 
-    runtime: remove unused gcTriggerAlways
+    jpeg: simplify 'x = x op ...' to 'x op= ...'
     
-    This was used during the implementation of concurrent runtime.GC() but
-    now there's nothing that triggers GC unconditionally. Remove this
-    trigger type and simplify (gcTrigger).test() accordingly.
-    
-    Change-Id: I17a893c2ed1f661b8146d7783d529f71735c9105
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/66090
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id431969e42f0d9bd28bbf163d10378a6de2416f2
+    Reviewed-on: https://go-review.googlesource.com/c/141999
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
 
- src/runtime/mgc.go | 17 +++--------------
- 1 file changed, 3 insertions(+), 14 deletions(-)
+ src/image/jpeg/fdct.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

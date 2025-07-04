@@ -1,27 +1,20 @@
-commit cb0a0f52e67f128c6ad69027c9a8c7a5caf58446
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 16 00:41:03 2020 -0400
+commit 7939c43748932c0caf1a1538410eb70fcd5a705f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 31 19:13:39 2020 -0400
 
-    io: adopt Discard, NopCloser, ReadAll from io/ioutil
+    runtime: generate dummy duffcopy
     
-    As proposed and approved in #40025, Discard, NopCloser, and ReadAll
-    do not really fit into io/ioutil, which exists mainly to hold things that
-    would cause an import cycle if implemented in io itself, which is to say
-    things that import "os".
+    Although duffcopy is not used on PPC64, duff_ppc64x.s and
+    mkduff.go don't match. Make it so.
     
-    These three do not import "os" - they are generic io helpers like
-    many of the things in io itself, so it makes sense for them to be there.
+    Fixes #38188.
     
-    Fixes #40025.
-    
-    Change-Id: I77f47e9b2a72839edf7446997936631980047b67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263141
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ic6c08e335795ea407880efd449f4229696af7744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226719
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/example_test.go  |  14 +++++++
- src/io/io.go            |  84 +++++++++++++++++++++++++++++++++++--
- src/io/ioutil/ioutil.go | 107 +++++++++++++++---------------------------------
- 3 files changed, 126 insertions(+), 79 deletions(-)
+ src/runtime/duff_ppc64x.s | 6 ++----
+ src/runtime/mkduff.go     | 4 +++-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

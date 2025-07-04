@@ -1,28 +1,12 @@
-commit 6f59ccb052534f3293e9e0b0e02f35578901ef3c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Jan 15 14:57:41 2016 +0900
+commit 16e2e95dd92bb2cf8b04be611685521adb9ea85a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 4 14:52:28 2016 -0800
 
-    runtime: don't always unblock all signals on dragonfly, freebsd and openbsd
+    cmd/compile/internal/ssa: chmod -x likelyadjust.go
     
-    https://golang.org/cl/10173 intrduced msigsave, ensureSigM and
-    _SigUnblock but didn't enable the new signal save/restore mechanism for
-    SIG{HUP,INT,QUIT,ABRT,TERM} on DragonFly BSD, FreeBSD and OpenBSD.
-    
-    At present, it looks like they have the implementation. This change
-    enables the new mechanism on DragonFly BSD, FreeBSD and OpenBSD the same
-    as Darwin, NetBSD.
-    
-    Change-Id: Ifb4b4743b3b4f50bfcdc7cf1fe1b59c377fa2a41
-    Reviewed-on: https://go-review.googlesource.com/18657
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I01ec7d08884a1e0fbce94ea77281c1ee4a2cfd56
+    Reviewed-on: https://go-review.googlesource.com/20238
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/cgo_linux_test.go                        |  9 ++++-----
- misc/cgo/test/cgo_unix_test.go                         |  1 +
- misc/cgo/test/{sigprocmask_linux.c => sigprocmask.c}   |  2 ++
- misc/cgo/test/{sigprocmask_linux.go => sigprocmask.go} |  4 +++-
- src/runtime/signal_dragonfly.go                        | 14 +++++++-------
- src/runtime/signal_freebsd.go                          | 14 +++++++-------
- src/runtime/signal_openbsd.go                          | 14 +++++++-------
- 7 files changed, 31 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/ssa/likelyadjust.go | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

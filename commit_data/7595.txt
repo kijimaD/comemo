@@ -1,15 +1,13 @@
-commit 2b9ab22732fb5f8fc0c6983c6496a93eef077ad1
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 1 13:25:52 2011 -0800
+commit 7eaecb89157f8e9bd9abaacf74a9a7084acf36fb
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Mar 1 22:38:18 2011 +1100
 
-    fmt: make %#p suppress leading 0x
+    http: export parseHTTPVersion.
     
-    Fixes bug 1567.
-    
-    R=golang-dev, rsc
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/4245048
+    https://golang.org/cl/4244045
 
- src/pkg/fmt/fmt_test.go | 22 ++++++++++++----------
- src/pkg/fmt/print.go    | 18 +++++++++---------
- 2 files changed, 21 insertions(+), 19 deletions(-)
+ src/pkg/http/request.go  | 8 ++++----
+ src/pkg/http/response.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

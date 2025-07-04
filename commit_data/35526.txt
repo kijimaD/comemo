@@ -1,21 +1,32 @@
-commit ef53de8ba4d774e4eedb04192a9f03f28a9652e8
-Author: Keith Randall <khr@golang.org>
-Date:   Sat May 26 11:29:55 2018 -0700
+commit 252ee90971d87f099a2e67c3536a0481a535157f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jan 8 13:03:57 2018 +0100
 
-    runtime: wrap darwin libc calls to keep profiler happy
+    encoding/xml: simplify slice-growing logic in rawToken
     
-    The profiler reports "ExternalCode" when a profiler interrupt happens
-    while in libc code. Instead, keep track of the most recent Go frame
-    for the profiler to use.
+    It appears that old code (from 2009) in xml.(*Decoder).rawToken
+    replicates append's slice-growing functionality by allocating a new,
+    bigger backing array and then calling copy.
     
-    There is a test for this using time.Now (runtime.TestTimePprof),
-    which will work once time.Now is moved to using libc (my next CL).
+    Simplifying the code by replacing it with a single append call does
+    not seem to hurt performance:
     
-    Change-Id: I940ea83edada482a482e2ab103d3a65589979464
-    Reviewed-on: https://go-review.googlesource.com/114798
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    name         old time/op    new time/op    delta
+    Marshal-4      11.2µs ± 1%    11.3µs ±10%    ~     (p=0.069 n=19+17)
+    Unmarshal-4    28.6µs ± 1%    28.4µs ± 1%  -0.60%  (p=0.000 n=20+18)
+    
+    name         old alloc/op   new alloc/op   delta
+    Marshal-4      5.78kB ± 0%    5.78kB ± 0%    ~     (all equal)
+    Unmarshal-4    8.61kB ± 0%    8.27kB ± 0%  -3.90%  (p=0.000 n=20+20)
+    
+    name         old allocs/op  new allocs/op  delta
+    Marshal-4        23.0 ± 0%      23.0 ± 0%    ~     (all equal)
+    Unmarshal-4       189 ± 0%       190 ± 0%  +0.53%  (p=0.000 n=20+20)
+    
+    Change-Id: Ie580d1216a44760e611e63dee2c339af5465aea5
+    Reviewed-on: https://go-review.googlesource.com/86655
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/sys_darwin.go | 58 ++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 42 insertions(+), 16 deletions(-)
+ src/encoding/xml/xml.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

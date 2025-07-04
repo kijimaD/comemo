@@ -1,35 +1,23 @@
-commit 9fcffc53593c5cd103630d0d24ef8bd91e17246d
-Author: Matteo Vaccari <matteo.vaccari@gmail.com>
-Date:   Thu Feb 22 11:36:38 2024 +0000
+commit 8b3961264120d188c3c9739370826e346d8748c2
+Author: Nikola Jokic <jokicnikola07@gmail.com>
+Date:   Mon Mar 6 09:52:12 2023 +0100
 
-    net/http/pprof: avoid panic with user-defined "GET /" route
+    debug/buildinfo: recognize macOS fat binary in go version
     
-    With the new routing style in go 1.22, declaring
+    buildinfo did not check for fat magic, which caused go version to report
+    unrecognized file format.
     
-        http.Handle("GET /", h)
+    This change reads the fat file and passes the first arch file to machoExe.
     
-    generates a conflict with route "/debug/pprof/" and the others declared in
-    the net/http/pprof package. You get an error such as:
+    Fixes #58796
     
-    panic: pattern "GET /" (registered at .../pprof.go:94): GET / matches
-    fewer methods than /debug/pprof/, but has a more general path pattern
-    
-    This patch prevents that error.  Adding GET is correct because no other
-    method makes sense with the /debug/pprof routes. However, a tool using any
-    method other than GET will break.
-    
-    We preserve the traditional behaviour when GODEBUG=httpmuxgo121=1 is
-    specified.
-    
-    Updates #65723
-    
-    Change-Id: I49c21f5f3e802ad7538062d824354b2e4d8a800e
-    GitHub-Last-Rev: 35e4012663f454fee8f00a321c43592ce4754feb
-    GitHub-Pull-Request: golang/go#65791
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565176
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I45cd26729352e46cc7ecfb13f2e9a8d96d62e0a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473615
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/pprof/pprof.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/debug/buildinfo/buildinfo.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

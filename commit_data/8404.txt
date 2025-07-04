@@ -1,13 +1,17 @@
-commit d84415d8f0457993e3d536c66a22a555f17c14aa
-Author: Adam Langley <agl@golang.org>
-Date:   Mon May 16 11:16:48 2011 -0700
+commit 3587085fb75c5d10d73b0508071ba19402dc6bfc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 16 10:27:49 2011 -0700
 
-    crypto/x509: support DSA public keys in X.509 certs.
+    os: fix Windows build from earlier readdir change
     
-    R=agl
+    It worked originally, until I renamed a variable. :/
+    
+    dir_windows.go:11: undefined: e
+    http://godashboard.appspot.com/log/092397f2ac7a1e6e812dc6bebc65b40b02368700a119343d5cee5e2e89e0fde5
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4517072
+    https://golang.org/cl/4535072
 
- src/pkg/crypto/x509/x509.go      | 78 ++++++++++++++++++++++++++++++++--------
- src/pkg/crypto/x509/x509_test.go | 62 ++++++++++++++++++++++++++++++++
- 2 files changed, 125 insertions(+), 15 deletions(-)
+ src/pkg/os/dir_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

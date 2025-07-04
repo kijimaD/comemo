@@ -1,82 +1,23 @@
-commit 6ee8c07c3cb8b20e46cd168a8bf6ebaf8243b2ac
-Author: Garrett Bodley <garrett.bodley@gmail.com>
-Date:   Fri Jul 26 23:17:02 2024 -0400
+commit db25bc19e5221c7df2caed3b1daeda673ec757d9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 31 15:20:54 2023 -0700
 
-    crypto/aes: Avo port of gcm_amd64.s
+    encoding/xml: use reflect.TypeFor for known types
     
-    This implementation utilizes the same registers found in the reference
-    implementation, aiming to produce a minimal semantic diff between the
-    Avo-generated output and the original hand-written assembly.
+    For #60088
     
-    To verify the Avo implementation, the reference and Avo-generated
-    assembly files are fed to `go tool asm`, capturing the debug output into
-    corresponding temp files. The debug output contains supplementary
-    metadata (line numbers, instruction offsets, and source file references)
-    that must be removed in order to obtain a semantic diff of the two
-    files. This is accomplished via a small utility script written in awk.
-    
-    The reference assembly file does not specify a frame size for some of
-    the defined assembly functions. Avo automatically infers the frame size
-    when generating TEXT directives, leading to a diff on those lines. Some
-    metadata not included in the reference assembly has also been added,
-    which leads to a diff in the lines where that parameter symbol is
-    referenced.
-    
-    Commands used to verify Avo output:
-    
-    GOROOT=$(go env GOROOT)
-    ASM_PATH="src/crypto/aes/gcm_amd64.s"
-    REFERENCE="54fe0fd43fcf8609666c16ae6d15ed92873b1564"
-    
-    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
-      <(git cat-file -p "$REFERENCE:$ASM_PATH") \
-      > /tmp/reference.s
-    
-    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
-      "$ASM_PATH" \
-      > /tmp/avo.s
-    
-    normalize(){
-      awk '{
-        $1=$2=$3="";
-        print substr($0,4)
-      }'
-    }
-    
-    diff <(normalize < /tmp/reference.s) <(normalize < /tmp/avo.s)
-    
-    1c1
-    < TEXT <unlinkable>.gcmAesFinish(SB), NOSPLIT, $0
-    ---
-    > TEXT <unlinkable>.gcmAesFinish(SB), NOSPLIT, $0-40
-    44c44
-    < TEXT <unlinkable>.gcmAesInit(SB), NOSPLIT, $0
-    ---
-    > TEXT <unlinkable>.gcmAesInit(SB), NOSPLIT, $0-32
-    131c131
-    < TEXT <unlinkable>.gcmAesData(SB), NOSPLIT, $0
-    ---
-    > TEXT <unlinkable>.gcmAesData(SB), NOSPLIT, $0-40
-    325c325
-    < MOVQ dst+8(FP), DX
-    ---
-    > MOVQ dst_base+8(FP), DX
-    1207c1207
-    < MOVQ dst+8(FP), SI
-    ---
-    > MOVQ dst_base+8(FP), SI
-    
-    Change-Id: Iad8f8c6ea5d50ac093c8535adc9d23fbf2612fc2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601462
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ib2589b994d304cca1f2e2081639959d80818ac7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514639
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
 
- src/cmd/compile/internal/types2/stdlib_test.go |    1 +
- src/crypto/aes/_asm/gcm/gcm_amd64_asm.go       | 1568 +++++++++++++
- src/crypto/aes/_asm/gcm/go.mod                 |   11 +
- src/crypto/aes/_asm/gcm/go.sum                 |    8 +
- src/crypto/aes/gcm_amd64.s                     | 2996 ++++++++++++++----------
- src/go/types/stdlib_test.go                    |    1 +
- 6 files changed, 3384 insertions(+), 1201 deletions(-)
+ src/encoding/xml/marshal.go   | 6 +++---
+ src/encoding/xml/read.go      | 8 ++++----
+ src/encoding/xml/read_test.go | 8 ++++----
+ src/encoding/xml/typeinfo.go  | 2 +-
+ 4 files changed, 12 insertions(+), 12 deletions(-)

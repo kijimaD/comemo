@@ -1,16 +1,26 @@
-commit 98c9e9e74ffbdaeb7ff4af8a478d502123014626
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 23 06:12:11 2015 +1000
+commit 4302fd0409da5e4f1d71471a6770dacdc3301197
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Apr 26 23:52:42 2015 +0200
 
-    cmd/vet: refer info about -printfuncs to the -printf flag
+    encoding/json: fix decoding of types with '[]byte' as underlying type
     
-    And vice versa.
+    All slice types which have elements of kind reflect.Uint8 are marshalled
+    into base64 for compactness. When decoding such data into a custom type
+    based on []byte the decoder checked the slice kind instead of the slice
+    element kind, so no appropriate decoder was found.
     
-    The flags are tightly coupled so make the connection clear.
+    Fixed by letting the decoder check slice element kind like the encoder.
+    This guarantees that already encoded data can still be successfully
+    decoded.
     
-    Change-Id: I505f76be631ffa6e489a441c2f3c717aa09ec802
-    Reviewed-on: https://go-review.googlesource.com/11324
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #8962.
+    
+    Change-Id: Ia320d4dc2c6e9e5fe6d8dc15788c81da23d20c4f
+    Reviewed-on: https://go-review.googlesource.com/9371
+    Reviewed-by: Peter Waldschmidt <peter@waldschmidt.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/doc.go | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/encoding/json/decode.go      |  2 +-
+ src/encoding/json/decode_test.go | 21 +++++++++++++++++++++
+ src/encoding/json/encode.go      |  2 --
+ 3 files changed, 22 insertions(+), 3 deletions(-)

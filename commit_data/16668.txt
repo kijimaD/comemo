@@ -1,16 +1,21 @@
-commit 49b3301f4ce2a9e21ac076ed53d4bd6e775e748d
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Thu Jun 27 15:30:45 2013 -0700
+commit 97c19f0f721b1db634dcae6a766712533a8f1bd5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 27 17:04:39 2013 -0400
 
-    flag: add Getter interface; implement for all Value types
+    cmd/go: add -coverpkg
     
-    Fixes #5383.
+    The new -coverpkg flag allows computing coverage in
+    one set of packages while running the tests of a different set.
     
-    R=golang-dev, 0xjnml, r, rsc
+    Also clean up some of the previous CL's recompileForTest,
+    using packageList to avoid the clumsy recursion.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/10472043
+    https://golang.org/cl/10705043
 
- doc/go1.2.txt             |  1 +
- src/pkg/flag/flag.go      | 25 +++++++++++++++++++++++++
- src/pkg/flag/flag_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 70 insertions(+)
+ src/cmd/go/doc.go      |   7 +-
+ src/cmd/go/test.bash   |   5 +
+ src/cmd/go/test.go     | 259 +++++++++++++++++++++++++++++++++----------------
+ src/cmd/go/testflag.go |   9 ++
+ 4 files changed, 196 insertions(+), 84 deletions(-)

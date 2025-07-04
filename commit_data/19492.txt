@@ -1,19 +1,23 @@
-commit eb54079264896a8e7bd0ea79768ea4f46c47e30a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 2 21:26:32 2014 -0400
+commit 8195ce2b4f430023522f28e6666850bbfb85c31b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 2 16:01:53 2014 -0700
 
-    cmd/gc: fix liveness for address-taken variables in inlined functions
+    cmd/gc: don't generate zillions of linehists for wrapper functions
+    This is a workaround - the code should be better than this - but the
+    fix avoids generating large numbers of linehist entries for the wrapper
+    functions that enable interface conversions. There can be many of
+    them, they all happen at the end of compilation, and they can all
+    share a linehist entry.
+    Avoids bad n^2 behavior in liblink.
+    Test case in issue 8135 goes from 64 seconds to 2.5 seconds (still bad
+    but not intolerable).
     
-    The 'address taken' bit in a function variable was not
-    propagating into the inlined copies, causing incorrect
-    liveness information.
+    Fixes #8135.
     
-    LGTM=dsymonds, bradfitz
-    R=golang-codereviews, bradfitz
-    CC=dsymonds, golang-codereviews, iant, khr, r
-    https://golang.org/cl/96670046
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/104840043
 
- src/cmd/gc/inl.c |  1 +
- test/live.go     | 32 ++++++++++++++++++++++++++++++++
- test/live2.go    | 39 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 72 insertions(+)
+ src/cmd/gc/subr.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,53 +1,16 @@
-commit 02e69c4b536a46f2aef4aa127092fa167ada296e
-Author: Jonathan Rudenberg <jonathan@titanous.com>
-Date:   Thu Apr 16 14:59:22 2015 -0400
+commit 13f749486db9835cad42aeec0d58adc4b73fad24
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Apr 2 20:13:17 2015 -0400
 
-    crypto/tls: add support for Certificate Transparency
+    cmd/7g: FCMPS/FCMPD also should be RegRead instead of RightRead
     
-    This change adds support for serving and receiving Signed Certificate
-    Timestamps as described in RFC 6962.
+    No test cases yet, but I found this while double checking the
+    proginfo table.
     
-    The server is now capable of serving SCTs listed in the Certificate
-    structure. The client now asks for SCTs and, if any are received,
-    they are exposed in the ConnectionState structure.
-    
-    Fixes #10201
-    
-    Change-Id: Ib3adae98cb4f173bc85cec04d2bdd3aa0fec70bb
-    Reviewed-on: https://go-review.googlesource.com/8988
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
-    Reviewed-by: Jonathan Rudenberg <jonathan@titanous.com>
+    Change-Id: Ib59675c117c676c1298bcab8765ca6a8fd234de8
+    Reviewed-on: https://go-review.googlesource.com/8431
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/crypto/tls/common.go                           |  23 ++--
- src/crypto/tls/conn.go                             |   4 +-
- src/crypto/tls/handshake_client.go                 |   2 +
- src/crypto/tls/handshake_client_test.go            |  61 ++++++++++-
- src/crypto/tls/handshake_messages.go               |  82 ++++++++++++++
- src/crypto/tls/handshake_messages_test.go          |  11 ++
- src/crypto/tls/handshake_server.go                 |   3 +
- src/crypto/tls/handshake_server_test.go            |  38 ++++++-
- .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  |  97 ++++++++---------
- .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  57 +++++-----
- .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    |  93 ++++++++--------
- .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  55 +++++-----
- .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |  75 ++++++-------
- .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  75 ++++++-------
- src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  37 +++----
- .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  77 +++++++-------
- .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  75 ++++++-------
- src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  37 +++----
- src/crypto/tls/testdata/Client-TLSv12-ALPN         |  66 ++++++------
- src/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch |  69 ++++++------
- .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 104 +++++++++---------
- .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  57 +++++-----
- .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  87 +++++++--------
- .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 100 ++++++++---------
- .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  55 +++++-----
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  77 +++++++-------
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  69 ++++++------
- .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  69 ++++++------
- .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  75 ++++++-------
- src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  37 +++----
- src/crypto/tls/testdata/Client-TLSv12-SCT          | 118 +++++++++++++++++++++
- 31 files changed, 1106 insertions(+), 779 deletions(-)
+ src/cmd/7g/prog.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

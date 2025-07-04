@@ -1,17 +1,30 @@
-commit 3db3826a57ccb39c1e30fe70dc82f2a6c2785877
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Fri Mar 23 14:37:20 2018 -0500
+commit d58bf64d5acbcad1ae5b605228ce51038d4df631
+Author: Bryan A Ford <brynosaurus@gmail.com>
+Date:   Sat Jun 10 09:34:40 2017 +0200
 
-    cmd/internal/obj/x86: use PutOpBytesLit in more places
+    crypto/subtle: simplify and speed up constant-time primitives
     
-    We already replaced most loops with PutOpBytesLit where possible,
-    do this in a last few places.
+    This changes improves the ConstantTimeByteEq and ConstantTimeEq
+    primitives to both simplify them and improve their performance.
     
-    Change-Id: I8c90de017810145a12394fa6b887755e9111b22a
-    Reviewed-on: https://go-review.googlesource.com/102276
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Also, since there were no benchmarks for this package before,
+    this change adds benchmarks for ConstantTimeByteEq,
+    ConstantTimeEq, and ConstantTimeLessOrEq.
+    
+    benchmarks on darwin/amd64, 10 runs on old vs new code:
+    
+    name                    old time/op  new time/op  delta
+    ConstantTimeByteEq-4    2.28ns ±16%  1.53ns ± 2%  -33.09%  (p=0.000 n=10+9)
+    ConstantTimeEq-4        2.77ns ±10%  1.51ns ± 2%  -45.59%  (p=0.000 n=10+9)
+    ConstantTimeLessOrEq-4  1.52ns ± 8%  1.50ns ± 2%     ~     (p=0.866 n=9+9)
+    
+    Change-Id: I29b8cbcf158e1f30411720db82d38b4ecd166b15
+    Reviewed-on: https://go-review.googlesource.com/45310
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/x86/asm6.go | 18 ++----------------
- 1 file changed, 2 insertions(+), 16 deletions(-)
+ src/crypto/subtle/constant_time.go      | 16 ++--------------
+ src/crypto/subtle/constant_time_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 14 deletions(-)

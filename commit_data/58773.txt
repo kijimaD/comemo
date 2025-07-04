@@ -1,19 +1,23 @@
-commit c47d1aa7878a21e59a48a0a7a23c6bd23b389810
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Nov 22 16:14:21 2024 +0100
+commit d0ed476f3e08a66e379682d4f7538c23ec1c2284
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 15:49:09 2023 -0500
 
-    runtime: remove unused fipstls_runtime_arg0 function
+    doc/go1.22: add TODOs for missing APIs
     
-    fipstls_runtime_arg0 is unused since CL 629675.
+    Add TODOs for APIs mentioned in api/go1.22.txt but missing from the
+    release notes.
     
-    Change-Id: I981e55e95f4d1cbd33f4c438c1947ec39385376b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631215
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    The issue list was generated with:
+    
+        $ awk '{print substr($NF, 2, length($NF)-1)}' < ../api/go1.22.txt | uniq | xargs -I{} sh -c 'echo -n "{}: " && grep -c {} ../doc/go1.22.html'
+    
+    For #61422.
+    
+    Change-Id: I85d41c28530e6b5e3e388a41206b251278c91dd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548937
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/runtime_boring.go | 3 ---
- 1 file changed, 3 deletions(-)
+ doc/go1.22.html | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)

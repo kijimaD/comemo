@@ -1,34 +1,12 @@
-commit 020b39c3f3d3826d02c735c29d1dae7282aeb3f7
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 7 13:45:50 2014 -0800
+commit 39a396d2ba470e24316be700db76aafbec963156
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Tue Jan 7 09:32:15 2014 -0800
 
-    runtime: use special records hung off the MSpan to
-    record finalizers and heap profile info.  Enables
-    removing the special bit from the heap bitmap.  Also
-    provides a generic mechanism for annotating occasional
-    heap objects.
+    encoding/csv: test that carriage return is handled in Write
     
-    finalizers
-            overhead      per obj
-    old     680 B         80 B avg
-    new     16 B/span     48 B
-    
-    profile
-            overhead      per obj
-    old     32KB          24 B + hash tables
-    new     16 B/span     24 B
-    
-    R=cshapiro, khr, dvyukov, gobot
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/13314053
+    https://golang.org/cl/46310043
 
- src/pkg/runtime/malloc.goc |  23 +++--
- src/pkg/runtime/malloc.h   |  62 +++++++++++--
- src/pkg/runtime/mfinal.c   | 219 ---------------------------------------------
- src/pkg/runtime/mgc0.c     | 140 ++++++++++++-----------------
- src/pkg/runtime/mheap.c    | 178 ++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/mprof.goc  | 135 ++--------------------------
- src/pkg/runtime/proc.c     |   1 -
- src/pkg/runtime/runtime.h  |   2 +-
- src/pkg/runtime/type.h     |   5 --
- 9 files changed, 307 insertions(+), 458 deletions(-)
+ src/pkg/encoding/csv/writer_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

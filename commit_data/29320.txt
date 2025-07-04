@@ -1,31 +1,27 @@
-commit 2d3cd51dbe5b5266b9baf68fb42ea19fedf4d23e
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Oct 27 16:23:53 2016 -0700
+commit f27c1bda5165f94115458908b5222d992010cbee
+Author: Dave Day <djd@golang.org>
+Date:   Thu Sep 1 13:13:37 2016 +1000
 
-    archive/tar: disable prefix field in Writer
+    net/url: handle escaped paths in ResolveReference
     
-    The proper fix for the Writer is too involved to be done in time
-    for Go 1.8. Instead, we do a localized fix that simply disables the
-    prefix encoding logic. While this will prevent some legitimate uses
-    of prefix, it will ensure that we don't keep outputting invalid
-    GNU format files that have the prefix field populated.
+    Currently, path resolution is done using the un-escaped version of
+    paths. This means that path elements like one%2ftwo%2fthree are
+    handled incorrectly, and optional encodings (%2d vs. -) are dropped.
     
-    For headers with long filenames that could have used the prefix field,
-    they will be promoted to use the PAX format, which ensures that we
-    will still be able to encode all headers that we were able to do before.
+    This function makes escaped handling consistent with Parse: provided
+    escapings are honoured, and RawPath is only set if necessary.
     
-    Updates #12594
-    Fixes #17630
-    Fixes #9683
+    A helper method setPath is introduced to handle the correct setting of
+    Path and RawPath given the encoded path.
     
-    Change-Id: Ia97b524ac69865390e2ae8bb0dfb664d40a05add
-    Reviewed-on: https://go-review.googlesource.com/32234
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Fixes #16947
+    
+    Change-Id: I40b1215e9066e88ec868b41635066eee220fde37
+    Reviewed-on: https://go-review.googlesource.com/28343
+    Run-TryBot: Dave Day <djd@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/testdata/ustar.issue12594.tar | Bin 0 -> 3072 bytes
- src/archive/tar/testdata/writer-big-long.tar  | Bin 4096 -> 4096 bytes
- src/archive/tar/writer.go                     |  34 +++++++++++-
- src/archive/tar/writer_test.go                |  71 +++++++++++++++++++++++---
- 4 files changed, 98 insertions(+), 7 deletions(-)
+ src/net/url/url.go      | 42 ++++++++++++++++++++++++++++++++----------
+ src/net/url/url_test.go | 17 +++++++++++++----
+ 2 files changed, 45 insertions(+), 14 deletions(-)

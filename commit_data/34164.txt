@@ -1,18 +1,34 @@
-commit 633b38c5d2bd66e0a4688d80f13ccd3c0837948d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Feb 12 17:00:01 2018 -0500
+commit 41fa265db0548d25cb5eb84e80a537128a7172ac
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Tue Oct 3 18:43:33 2017 +0300
 
-    runtime/internal/atomic: add early nil check on ARM
+    obj/x86: make VEX-specified-register explicit
     
-    If nil, fault before taking the lock or calling into the kernel.
+    "VEX.vvvv" field (VSR, VEX-specified-register) made explicit
+    in Optab encoding.
     
-    Change-Id: I013d78a5f9233c2a9197660025f679940655d384
-    Reviewed-on: https://go-review.googlesource.com/93636
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    vexNDS, vexNDD, vexDDS and vexNOVSR do nothing,
+    this change does not produce any noticeable effect.
+    
+    Rationale behind this change:
+    - keep more information inside optab entries
+    - make encodings match SDM more closely
+    - one less special rule to keep in mind
+    
+    Pvex optabs are updated based on the Intel SDM descriptions.
+    
+    Unused VEX combinations are removed;
+    it is problematic to choose VSR combinations for them
+    without actual Optabs that use them.
+    
+    The origin of this idea can be found in:
+    https://go-review.googlesource.com/#/c/arch/+/66972/
+    
+    Change-Id: I54634a72b44d61f4b924a1e45f2240aab7384dc2
+    Reviewed-on: https://go-review.googlesource.com/67890
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/internal/atomic/atomic_arm.go   | 5 +++++
- src/runtime/internal/atomic/sys_linux_arm.s | 5 ++++-
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/x86/asm6.go | 197 +++++++++++++++++++--------------------
+ 1 file changed, 95 insertions(+), 102 deletions(-)

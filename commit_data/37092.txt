@@ -1,16 +1,20 @@
-commit 127c51e48c641675b363fbda62c88263267a4f44
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Tue Oct 23 23:59:07 2018 -0600
+commit 228b4416b7bb21158028714347dac07f06da789a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 26 17:14:43 2018 -0700
 
-    math/bits: correct BenchmarkSub64
+    mime/quotedprintable: accept bytes >= 0x80
     
-    Previously, the benchmark was measuring Add64 instead of Sub64.
+    RFC 2045 doesn't permit non-ASCII bytes, but some systems send them
+    anyhow. With this change, we accept them. This does make it harder to
+    validate quotedprintable data, but on balance this seems like the best
+    approach given the existence of systems that generate invalid data.
     
-    Change-Id: I0cf30935c8a4728bead9868834377aae0b34f008
-    Reviewed-on: https://go-review.googlesource.com/c/144380
+    Fixes #22597
+    
+    Change-Id: I9f80f90a60b76ada2b5dea658b8dc8aace56cdbd
+    Reviewed-on: https://go-review.googlesource.com/121095
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/bits/bits_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/mime/quotedprintable/reader.go      | 4 ++++
+ src/mime/quotedprintable/reader_test.go | 4 +++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

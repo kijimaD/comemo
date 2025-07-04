@@ -1,20 +1,15 @@
-commit 3b50adbc4f1a9d775f0434166ad71220e8a4b8ce
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 19 17:43:04 2016 +0000
+commit bf5f24b98e64fe6e6a580c4309a13e0596f3021b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 28 21:28:54 2016 -0700
 
-    build: unset GOBIN during build
+    cmd/compile: use t.Key() instead of t.Down
     
-    Fixes #14340
+    This was the only unconverted instance.
     
-    Change-Id: I43e1624fafc972fb868708c3857fc8acf1bfbbd7
-    Reviewed-on: https://go-review.googlesource.com/23255
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ic0ba75824614fcd1e055316e62e26acd06801dd1
+    Reviewed-on: https://go-review.googlesource.com/21247
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/make.bash | 3 +++
- src/make.bat  | 1 +
- src/make.rc   | 2 +-
- src/run.bash  | 1 +
- src/run.bat   | 2 ++
- src/run.rc    | 1 +
- 6 files changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/sinit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

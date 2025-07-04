@@ -1,28 +1,65 @@
-commit a17c46169f59579788d0ffb82eab875e4f15fc00
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Feb 19 14:42:05 2013 -0500
+commit 3ee87d02b063e368259486d83e4ea391538f84c2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 19 11:19:58 2013 -0800
 
-    go/types: include package import path in NamedType.String().
+    cmd/godoc: use go/build to determine package and example files
     
-    This avoids ambiguity and makes the diagnostics closer to
-    those issued by gc, but it is more verbose since it qualifies
-    intra-package references.
+    Also:
+    - faster code for example extraction
+    - simplify handling of command documentation:
+      all "main" packages are treated as commands
+    - various minor cleanups along the way
     
-    Without extra context---e.g. a 'from *Package' parameter to
-    Type.String()---we are forced to err on one side or the other.
+    For commands written in Go, any doc.go file containing
+    documentation must now be part of package main (rather
+    then package documentation), otherwise the documentation
+    won't show up in godoc (it will still build, though).
     
-    Also, cosmetic changes to exp/ssa:
-    - Remove package-qualification workaround in Function.FullName.
-    - Always set go/types.Package.Path field to the import path,
-      since we know the correct path at this point.
-    - In Function.DumpTo, show variadic '...' and result type info,
-      and delete now-redundant "# Type: " line.
+    For commands written in C, documentation may still be
+    in doc.go files defining package documentation, but the
+    recommended way is to explicitly ignore those files with
+    a +build ignore constraint to define package main.
     
-    R=gri
+    Fixes #4806.
+    
+    R=adg, rsc, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7325051
+    https://golang.org/cl/7333046
 
- src/pkg/exp/ssa/builder.go | 12 +++++++-----
- src/pkg/exp/ssa/func.go    | 41 ++++++++++++++++++++++++++---------------
- src/pkg/go/types/errors.go |  6 +++++-
- 3 files changed, 38 insertions(+), 21 deletions(-)
+ lib/godoc/package.html        |   2 +-
+ lib/godoc/package.txt         |   2 +-
+ misc/dashboard/builder/doc.go |   2 +-
+ misc/goplay/doc.go            |   2 +-
+ src/cmd/5a/doc.go             |   4 +-
+ src/cmd/5c/doc.go             |   4 +-
+ src/cmd/5g/doc.go             |   4 +-
+ src/cmd/5l/doc.go             |   4 +-
+ src/cmd/6a/doc.go             |   4 +-
+ src/cmd/6c/doc.go             |   4 +-
+ src/cmd/6g/doc.go             |   4 +-
+ src/cmd/6l/doc.go             |   4 +-
+ src/cmd/8a/doc.go             |   4 +-
+ src/cmd/8c/doc.go             |   4 +-
+ src/cmd/8g/doc.go             |   4 +-
+ src/cmd/8l/doc.go             |   4 +-
+ src/cmd/cc/doc.go             |   4 +-
+ src/cmd/cgo/doc.go            |   2 +-
+ src/cmd/cov/doc.go            |   4 +-
+ src/cmd/fix/doc.go            |   2 +-
+ src/cmd/gc/doc.go             |   4 +-
+ src/cmd/go/doc.go             |   2 +-
+ src/cmd/go/main.go            |   2 +-
+ src/cmd/godoc/dirtrees.go     |   8 +-
+ src/cmd/godoc/doc.go          |   2 +-
+ src/cmd/godoc/godoc.go        | 267 +++++++++++++++++-------------------------
+ src/cmd/godoc/parser.go       |  51 ++------
+ src/cmd/gofmt/doc.go          |   2 +-
+ src/cmd/ld/doc.go             |   4 +-
+ src/cmd/nm/doc.go             |   4 +-
+ src/cmd/pack/doc.go           |   4 +-
+ src/cmd/prof/doc.go           |   4 +-
+ src/cmd/vet/doc.go            |   2 +-
+ src/cmd/yacc/doc.go           |   2 +-
+ src/pkg/exp/ebnflint/doc.go   |   2 +-
+ src/pkg/exp/gotype/doc.go     |   2 +-
+ 36 files changed, 193 insertions(+), 237 deletions(-)

@@ -1,12 +1,22 @@
-commit fbdec642a980d73cdd7dbfd18018f18c6d198ffc
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Nov 29 12:57:20 2011 +1100
+commit c32b60768785684342ebf6efdf50a7476326f473
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Nov 29 11:18:49 2011 +1100
 
-    runtime: make sure windows/amd64 stack is 16-byte aligned on syscall entry (fixes build)
+    html: detect quirks mode
     
-    R=golang-dev, vcc.163
+    Pass tests3.dat, test 23:
+    <p><table></table>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <p>
+    |       <table>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5445051
+    https://golang.org/cl/5446043
 
- src/pkg/runtime/windows/amd64/sys.s | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/html/parse.go      | 117 +++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/html/parse_test.go |   2 +-
+ 2 files changed, 109 insertions(+), 10 deletions(-)

@@ -1,14 +1,14 @@
-commit 031b389ac1456981f34f70b3cfd1ccc10b5f3d49
+commit 8696b0844600882ca962d155576a0604efe96922
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 24 12:30:32 2012 -0400
+Date:   Mon Sep 24 11:47:27 2012 -0400
 
-    cmd/gc: fix comment for caninl
+    reflect: fix mistake in error message
     
-    Was describing an old implementation.
+    Pointed out by James Chalfant after submit of CL 6500065.
     
-    R=ken2
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6553066
+    https://golang.org/cl/6543067
 
- src/cmd/gc/inl.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/pkg/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

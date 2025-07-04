@@ -1,42 +1,21 @@
-commit 13d73b2a8a4c84be5c4c9425db91521a44390321
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 14 10:23:44 2020 -0500
+commit 08165932f77aacf82a1e41138e7650e5992b98f7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Sep 25 03:42:45 2019 +1000
 
-    cmd/go: print a "found" line for each package found instead of each module added
+    cmd/internal/obj/riscv: require memory targets for load and store instructions
     
-    We currently print a "go: finding" line for each missing package
-    during import resolution. However, we are only printing a "go: found"
-    line for each module: if a given module provides multiple packages, we
-    don't indicate the module that we found for the second and later
-    packages.
+    This allows for `LD 4(X5), X6' rather than `LD $4, X5, X6'. Similar for other
+    load and store instructions. It is worth noting that none of these are likely
+    to be used directly once the MOV pseudo-instructions are implemented.
     
-    Before this change:
+    Updates #27532
     
-            $ GO111MODULE=on go get golang.org/x/tools/cmd/html2article@78f9822548c13e2c41cc8039d1492a111240db07
-            go: found golang.org/x/tools/cmd/html2article in golang.org/x/tools v0.0.0-20190214195451-78f9822548c1
-            go: finding module for package golang.org/x/net/html
-            go: finding module for package golang.org/x/net/html/atom
-            go: downloading golang.org/x/net v0.0.0-20200202094626-16171245cfb2
-            go: found golang.org/x/net/html in golang.org/x/net v0.0.0-20200202094626-16171245cfb2
-    
-    After:
-    
-            $ GO111MODULE=on go get golang.org/x/tools/cmd/html2article@78f9822548c13e2c41cc8039d1492a111240db07
-            go: found golang.org/x/tools/cmd/html2article in golang.org/x/tools v0.0.0-20190214195451-78f9822548c1
-            go: finding module for package golang.org/x/net/html/atom
-            go: finding module for package golang.org/x/net/html
-            go: found golang.org/x/net/html in golang.org/x/net v0.0.0-20200202094626-16171245cfb2
-            go: found golang.org/x/net/html/atom in golang.org/x/net v0.0.0-20200202094626-16171245cfb2
-    
-    Updates #26152
-    Updates #33284
-    
-    Change-Id: I221548749e36bfd6a79efe5edc3645dc5319fd6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219437
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie043c2dedd2cdaceb258b27976cfb3f74aa1cc1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196842
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/modload/load.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 62 ++++++++++++++--------------
+ src/cmd/internal/obj/riscv/obj.go            | 26 ++++++++++--
+ 2 files changed, 53 insertions(+), 35 deletions(-)

@@ -1,37 +1,12 @@
-commit c9658bee93c169f6efd4654576bf8e9a920ec1de
-Author: Baokun Lee <bk@golangcn.org>
-Date:   Thu Dec 31 11:42:39 2020 +0800
+commit 98d20fb23551a7ab900fcfe9d25fd9cb6a98a07f
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Apr 22 10:22:12 2020 -0700
 
-    cmd/go: make module suggestion more friendly
+    database/sql: form a complete sentence in code comment
     
-    We are trying to avoid by not automatically updating go.mod. The
-    suggestion should be that users actually add the dependencies they
-    need, and the command in an easily copy-pastable form now.
-    
-    Fixes: #43430
-    
-    Change-Id: I2227dab498fcd8d66184c94ebe9e776629ccadfd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/280713
-    Run-TryBot: Baokun Lee <bk@golangcn.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib6d0f81b5f64473f9ee6be26a08d5102e8edadc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229477
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/cmd/go/internal/modload/import.go                  | 12 +++---------
- src/cmd/go/internal/modload/init.go                    |  4 ++--
- src/cmd/go/internal/modload/load.go                    |  4 +---
- src/cmd/go/internal/modload/modfile.go                 |  2 +-
- src/cmd/go/testdata/script/mod_bad_domain.txt          |  2 +-
- src/cmd/go/testdata/script/mod_get_replaced.txt        |  2 +-
- src/cmd/go/testdata/script/mod_gobuild_import.txt      |  2 +-
- src/cmd/go/testdata/script/mod_init_tidy.txt           |  4 ++--
- src/cmd/go/testdata/script/mod_install_pkg_version.txt |  6 +++---
- src/cmd/go/testdata/script/mod_list_bad_import.txt     |  2 +-
- src/cmd/go/testdata/script/mod_readonly.txt            | 10 +++++-----
- src/cmd/go/testdata/script/mod_replace_readonly.txt    |  6 +++---
- src/cmd/go/testdata/script/mod_sum_ambiguous.txt       |  4 ++--
- src/cmd/go/testdata/script/mod_sum_readonly.txt        | 10 +++++-----
- 14 files changed, 31 insertions(+), 39 deletions(-)
+ src/database/sql/sql.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

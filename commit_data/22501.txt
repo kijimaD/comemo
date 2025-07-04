@@ -1,19 +1,24 @@
-commit e629cd0f88d86867f9fc898c6a75fb17060b83ea
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Apr 15 19:11:47 2015 +1000
+commit 77fcf36a5ece3eb2a3c2a427d0b63f417ae7c8c8
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 13:03:50 2015 -0400
 
-    runtime: mark all runtime.cputicks implementations NOSPLIT
+    runtime: don't use cached wbuf in markroot
     
-    Fixes #10450
+    Currently markroot fetches the wbuf to fill from the per-M wbuf
+    cache. The wbuf cache is primarily meant for the write barrier because
+    it produces very little work on each call. There's little point to
+    using the cache in mark root, since each call to markroot is likely to
+    produce a large amount of work (so the slight win on getting it from
+    the cache instead of from the central wbuf lists doesn't matter), and
+    markroot does not dispose the wbuf back to the cache (so most markroot
+    calls won't get anything from the wbuf cache anyway).
     
-    runtime.cputicks is called from runtime.exitsyscall and must not
-    split the stack. cputicks is implemented in several ways and the
-    NOSPLIT annotation was missing from a few of these.
+    Instead, just get the wbuf from the central wbuf lists like other work
+    producers. This will simplify later changes.
     
-    Change-Id: I5cbbb4e5888c5d298fe2fef240782d0e49f59af8
-    Reviewed-on: https://go-review.googlesource.com/8939
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Change-Id: I07a18a4335a41e266a6d70aa3a0911a40babce23
+    Reviewed-on: https://go-review.googlesource.com/7732
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/os_linux_arm.go   | 1 +
- src/runtime/os_linux_arm64.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/runtime/mgcmark.go | 1 -
+ 1 file changed, 1 deletion(-)

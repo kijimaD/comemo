@@ -1,15 +1,15 @@
-commit 576311d72b53c6cec3f11d2fcc0dfd0d0eb76b7d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 14 10:24:17 2011 -0500
+commit 1f6d130b14054f57a530dce20b19a79a55c4fc0d
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Dec 14 15:54:10 2011 +0100
 
-    go/build: make compatible with go/build
+    gc: add forgotten typecheck in a lonely corner of sinit
     
-    The irony!
+    Fixes #2549
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5482062
+    https://golang.org/cl/5484060
 
- src/pkg/go/build/Makefile   | 2 +-
- src/pkg/go/build/syslist.go | 5 +++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/gc/sinit.c       |  7 ++++---
+ test/fixedbugs/bug387.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 3 deletions(-)

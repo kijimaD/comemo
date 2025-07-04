@@ -1,33 +1,22 @@
-commit 385b2e0caccbb5da73b940a756c043a0aaa2d5a8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 24 08:55:30 2019 -0400
+commit 7bc2aa670f47266d3c5a840d748a1f2e805b89d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 23 15:36:41 2019 -0800
 
-    cmd/go: respect default proxy setting, add direct fallback
+    math/big: permit upper-case 'P' binary exponent (not just 'p')
     
-    Getenv("GOPROXY") says what the environment variable is
-    (including looking in the go env file), but it doesn't include
-    the default setting. This code needs to use cfg.GOPROXY
-    to get the actual default. Fix and test that.
+    The current implementation accepted binary exponents but restricted
+    them to 'p'. This change permits both 'p' and 'P'.
     
-    Also, we forgot to include the fallback to direct for when
-    the proxy serves a 404. Add and test that too.
+    R=Go1.13
     
-    Also add HTTP fetch information to -x build flag output.
-    (It does not belong in the -v output, despite the GOPATH go get
-    command doing this.)
+    Updates #29008.
     
-    Change-Id: Ieab7ef13cda3e1ad041dbe04921af206e2232c9c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/178720
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I7a89ccb86af4438f17b0422be7cb630ffcf43272
+    Reviewed-on: https://go-review.googlesource.com/c/159297
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/go/internal/cfg/cfg.go                     |  2 +-
- src/cmd/go/internal/web/http.go                    | 47 ++++++++++++++++++----
- .../go/testdata/script/get_insecure_redirect.txt   |  3 +-
- src/cmd/go/testdata/script/mod_get_private_vcs.txt |  2 +-
- .../go/testdata/script/mod_git_export_subst.txt    |  2 +-
- src/cmd/go/testdata/script/mod_sumdb_golang.txt    | 28 ++++++++++---
- src/cmd/go/testdata/script/mod_vcs_missing.txt     |  2 +-
- 7 files changed, 69 insertions(+), 17 deletions(-)
+ src/math/big/floatconv.go      | 4 ++--
+ src/math/big/floatconv_test.go | 2 ++
+ src/math/big/ratconv.go        | 8 ++++----
+ 3 files changed, 8 insertions(+), 6 deletions(-)

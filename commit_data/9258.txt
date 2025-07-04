@@ -1,12 +1,14 @@
-commit 31442a6737c98ba5297b348b87bc47edecf667c1
-Author: Kyle Lemons <kyle@kylelemons.net>
-Date:   Fri Jul 29 14:09:07 2011 -0400
+commit 2d7ddfa64dcdc480f07c579f298b9019ba737f96
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Jul 29 13:48:00 2011 -0400
 
-    xml: Header: fix close tag and newline
+    libmach: stubs for openbsd
+    
+    Add libmach stubs for openbsd.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4830043
+    https://golang.org/cl/4815065
 
- src/pkg/xml/marshal.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/libmach/openbsd.c | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

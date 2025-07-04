@@ -1,26 +1,34 @@
-commit ec989337c5d3203d52de1a2314813996c711fce6
-Author: Keith Randall <khr@golang.org>
-Date:   Sun May 20 08:57:53 2018 -0700
+commit b3f00c6985a28073c8ac20369597c2e982f4ef68
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 28 11:22:05 2018 -0800
 
-    runtime: use libc's signal functions on Darwin
+    cmd/compile: fix unexpected type alias crash
     
-    sigaction, sigprocmask, sigaltstack, and raiseproc.
+    OCOMPLIT stores the pre-typechecked type in n.Right, and then moves it
+    to n.Type. However, it wasn't clearing n.Right, so n.Right continued
+    to point to the OTYPE node. (Exception: slice literals reused n.Right
+    to store the array length.)
     
-    Fix bug in mstart_stub where we weren't saving callee-saved registers,
-    so if an m finished the pthread library calling mstart_stub would
-    sometimes fail.
+    When exporting inline function bodies, we don't expect to need to save
+    any type aliases. Doing so wouldn't be wrong per se, but it's
+    completely unnecessary and would just bloat the export data.
     
-    Update #17490
-    Update #22805
+    However, reexportdep (whose role is to identify types needed by inline
+    function bodies) uses a generic tree traversal mechanism, which visits
+    n.Right even for O{ARRAY,MAP,STRUCT}LIT nodes. This means it finds the
+    OTYPE node, and mistakenly interpreted that the type alias needs to be
+    exported.
     
-    Change-Id: Ie297ede0997910aa956834e49e85711b90cdfaa7
-    Reviewed-on: https://go-review.googlesource.com/116875
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The straight forward fix is to just clear n.Right when typechecking
+    composite literals.
+    
+    Fixes #24173.
+    
+    Change-Id: Ia2d556bfdd806c83695b08e18b6cd71eff0772fc
+    Reviewed-on: https://go-review.googlesource.com/97719
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/defs_darwin.go     |   1 +
- src/runtime/os_darwin.go       |  29 +++-----
- src/runtime/sys_darwin.go      |  40 +++++++++++
- src/runtime/sys_darwin_386.s   | 151 ++++++++++++++++++++++++++++-------------
- src/runtime/sys_darwin_amd64.s | 141 +++++++++++++++++++++++++-------------
- 5 files changed, 244 insertions(+), 118 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  5 ++++-
+ test/fixedbugs/issue24173.go             | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

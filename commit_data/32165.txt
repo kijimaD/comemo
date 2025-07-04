@@ -1,19 +1,27 @@
-commit 3b87defe4e3f865862cbe2e0627d94a8c456ae0c
+commit 52b33965fdc91c88f6df3cb60ecb0b7289d3004f
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Aug 8 16:40:07 2017 -0700
+Date:   Mon Apr 10 07:31:23 2017 -0700
 
-    cmd/compile: unexport gc.Sysfunc
+    cmd/internal/obj: rename some local variables not c
     
-    Updates #21352
+    I plan to use c as a consistent local variable
+    in this packages. Rename most variables named c,
+    excepting only some simple functions in asm9.go.
     
-    Change-Id: If21342f30be32e25840b4072b932a6d4257b420d
-    Reviewed-on: https://go-review.googlesource.com/54091
+    Changes prepared with gorename.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: If79baac43fca68fad1076e1ff23ae87c2ba638e4
+    Reviewed-on: https://go-review.googlesource.com/40172
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Avelino <t@avelino.xxx>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/gen.go     |  2 +-
- src/cmd/compile/internal/gc/reflect.go |  6 ++---
- src/cmd/compile/internal/gc/ssa.go     | 48 +++++++++++++++++-----------------
- 3 files changed, 28 insertions(+), 28 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 74 +++++++++++++++++++-------------------
+ src/cmd/internal/obj/mips/asm0.go  | 24 ++++++-------
+ src/cmd/internal/obj/mips/obj0.go  | 70 ++++++++++++++++++------------------
+ src/cmd/internal/obj/ppc64/asm9.go | 24 ++++++-------
+ 4 files changed, 96 insertions(+), 96 deletions(-)

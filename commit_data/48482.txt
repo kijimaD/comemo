@@ -1,24 +1,21 @@
-commit a8f019e956db40e9846e635a622489e356cb3c63
-Author: Byoungchan Lee <daniel.l@hpcnt.com>
-Date:   Thu Nov 25 20:40:21 2021 +0900
+commit 15d9d4a009e3d2c9f1ad501143ed97a8b2c6f2c4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 14 16:01:17 2021 -0400
 
-    cmd/link: add DT_NEEDED for all 64-bit ELF dynimplib
+    cmd/go: add tests illustrating what happens when Go 1.16 is used in a Go 1.17 main module
     
-    Also change the relevant test to be tested on the linux-arm64 platform
-    as well.
+    For #46141
+    Updates #46160
     
-    Fixes #49789
-    
-    Change-Id: Id2eac7a45279f037957442862f8ed63838b8e929
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366855
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib22435b8051aaf3fa74d43d3b7f2d091e67f05e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320172
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- AUTHORS                              | 1 +
- CONTRIBUTORS                         | 1 +
- src/cmd/link/internal/ld/elf.go      | 2 +-
- src/cmd/link/internal/ld/elf_test.go | 2 +-
- 4 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/mod_tidy_compat.txt     | 100 +++++++++++++++++
+ .../testdata/script/mod_tidy_compat_implicit.txt   | 120 +++++++++++++++++++++
+ .../script/mod_tidy_compat_incompatible.txt        | 116 ++++++++++++++++++++
+ .../testdata/script/mod_tidy_compat_irrelevant.txt | 105 ++++++++++++++++++
+ 4 files changed, 441 insertions(+)

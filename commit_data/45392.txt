@@ -1,24 +1,26 @@
-commit 12af403624baa87700fe05db3e21c26e410871fd
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Tue Apr 27 14:48:20 2021 +0200
+commit ad36f871512ea54a9044e256b2743b8346b725dd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 22 23:43:11 2020 +1100
 
-    cmd/go/internal/bug: use envcmd instead of go env
+    strconv: increase the Eisel-Lemire exp10 range
     
-    Add the printGoEnv function to print the go environment variables, using
-    the envcmd package instead of invoking go env.
+    This grows the exp10 range for which the Eisel-Lemire algorithm applies
+    from [-307, +288] to [-348, +347], roughly equivalent to the existing
+    powersOfTen table in extfloat.go (which uses a different algorithm).
     
-    Add the PrintEnv function to the envcmd package, to avoid duplicating
-    code.
+    name                  old time/op  new time/op  delta
+    Atof64Decimal-4       48.4ns ± 1%  48.7ns ± 3%   ~     (p=0.698 n=5+5)
+    Atof64Float-4         57.9ns ± 1%  58.1ns ± 2%   ~     (p=0.873 n=5+5)
+    Atof64FloatExp-4      71.8ns ± 2%  72.2ns ± 2%   ~     (p=0.730 n=5+5)
+    Atof64Big-4            165ns ± 1%   164ns ± 1%   ~     (p=0.635 n=5+5)
+    Atof64RandomBits-4     165ns ± 1%   165ns ± 6%   ~     (p=0.143 n=5+5)
+    Atof64RandomFloats-4   147ns ± 2%   147ns ± 1%   ~     (p=0.857 n=5+5)
     
-    Updates #45803
-    
-    Change-Id: I38d5b936c0ebb16e741ffbee4309b95d6d0ecc6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314230
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Idf7dc5297db6db2bd9e0bd4cb0e55e021916fa43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264139
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/go/internal/bug/bug.go    | 14 +++++++++-----
- src/cmd/go/internal/envcmd/env.go | 20 +++++++++++++-------
- 2 files changed, 22 insertions(+), 12 deletions(-)
+ src/strconv/eisel_lemire.go | 124 ++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 119 insertions(+), 5 deletions(-)

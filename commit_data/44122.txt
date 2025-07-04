@@ -1,18 +1,15 @@
-commit c73232d08f84e110707627a23ceae14d2b534889
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jan 13 16:21:16 2021 -0500
+commit cb11c981df7b4dc40550ab71cc097c25d24d7a71
+Author: pj <pj@pjebs.com.au>
+Date:   Tue May 12 05:14:25 2020 +0000
 
-    cmd/go/internal/load: refactor setErrorPos to PackageError.setPos
+    A+C: add Prasanga Siripala (individual CLA)
     
-    Renamed setErrorPos to setPos, made it a method of PackageError,
-    and removed its Package parameter and return value. This makes it
-    more clear that setPos modifies PackageError and does not create a new
-    Package.
-    
-    Change-Id: I26c58d3d456c7c18a5c2598e1e8e158b1e6b4b36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283637
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I15e5788ecfc94d8110dbea277beb14e3d4ff0672
+    GitHub-Last-Rev: 6305c599297730500b4a0372234172ad01fac97b
+    GitHub-Pull-Request: golang/go#39010
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233324
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go | 36 ++++++++++++++++++++----------------
- 1 file changed, 20 insertions(+), 16 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

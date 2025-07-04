@@ -1,22 +1,20 @@
-commit e4a8fb0fa04a95876e8c5cc6ce6850a06d3d670a
-Author: Josh Kraft <joshkraft757@gmail.com>
-Date:   Wed Aug 16 18:36:46 2023 -0600
+commit b8d8c9e79f24dedc3c01e4e26d5a885720c479f0
+Author: Isaiah Becker-Mayer <ibeckermayer@gmail.com>
+Date:   Mon Aug 29 16:41:44 2022 +0000
 
-    os: add tests for UserCacheDir and UserConfigDir
+    sync: clarify Cond.Wait documentation
     
-    Adds basic test scenarios for UserCacheDir and
-    UserConfigDir.
+    The previous wording was unclear and seemingly contradictory.
     
-    Fixes #57638
-    
-    Change-Id: Ieb86e95faff44287bfa13daa0cb26e7b5401373b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520262
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I0781dc4525948f4e8e5698271362a82387688f81
+    GitHub-Last-Rev: c1e032fa9451dd50a69cf572cd80dcdbe6591d2e
+    GitHub-Pull-Request: golang/go#53516
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413774
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- misc/go_android_exec/main.go |  1 +
- src/os/os_test.go            | 47 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ src/sync/cond.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

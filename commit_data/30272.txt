@@ -1,39 +1,22 @@
-commit 5267ac2732edd1ba4a13773987dff08e8b4a2dde
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 13 16:00:53 2017 -0800
+commit ec5b6406b76462a1a97ce19f86c5c23ac1d2c830
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 28 14:22:13 2016 -0700
 
-    cmd/compile/internal/syntax: establish principled position information
+    cmd/compile: improve not enough / too many arguments errors
     
-    Until now, the parser set the position for each Node to the position of
-    the first token belonging to that node. For compatibility with the now
-    defunct gc parser, in many places that position information was modified
-    when the gcCompat flag was set (which it was, by default). Furthermore,
-    in some places, position information was not set at all.
+    Use "have" and "want" and multiple lines like other similar error
+    messages. Also, fix handling of ... and multi-value function calls.
     
-    This change removes the gcCompat flag and all associated code, and sets
-    position information for all nodes in a more principled way, as proposed
-    by mdempsky (see #16943 for details). Specifically, the position of a
-    node may not be at the very beginning of the respective production. For
-    instance for an Operation `a + b`, the position associated with the node
-    is the position of the `+`. Thus, for `a + b + c` we now get different
-    positions for the two additions.
+    Fixes #17650.
     
-    This change does not pass toolstash -cmp because position information
-    recorded in export data and pcline tables is different. There are no
-    other functional changes.
-    
-    Added test suite testing the position of all nodes.
-    
-    Fixes #16943.
-    
-    Change-Id: I3fc02bf096bc3b3d7d2fa655dfd4714a1a0eb90c
-    Reviewed-on: https://go-review.googlesource.com/37017
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I4850e79c080eac8df3b92a4accf9e470dff63c9a
+    Reviewed-on: https://go-review.googlesource.com/32261
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/syntax/nodes.go      |  14 +-
- src/cmd/compile/internal/syntax/nodes_test.go | 321 ++++++++++++++++++++++++++
- src/cmd/compile/internal/syntax/parser.go     | 295 +++++++++++------------
- test/escape_closure.go                        |   8 +-
- 4 files changed, 466 insertions(+), 172 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 28 +++++++++++++++++++---------
+ test/ddd1.go                             |  5 ++---
+ test/fixedbugs/issue4215.go              | 22 +++++++++++-----------
+ test/fixedbugs/issue6750.go              |  2 +-
+ 4 files changed, 33 insertions(+), 24 deletions(-)

@@ -1,19 +1,16 @@
-commit b65934f237f80242a907c46ef9cf103ad6959e9f
+commit eb5925f5ff6e3690ce2d9fa680829560cbb11970
 Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue May 29 17:10:39 2018 +0200
+Date:   Mon Feb 19 21:03:12 2018 +0000
 
-    cmd/go: whitelist -v as a compiler and linker flag
+    text/template: remove associate's error return
     
-    It's harmless, and can be useful to see what's happening under the hood.
+    It's always nil, so simplify its signature. Found with unparam.
     
-    Fixes #24593.
-    
-    Change-Id: Iacff378471e86c33aa048161cd65c504709fb339
-    Reviewed-on: https://go-review.googlesource.com/115075
+    Change-Id: I45dd0f868ec2f5de98a970776be686417c8d73b6
+    Reviewed-on: https://go-review.googlesource.com/95235
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/security.go      | 2 ++
- src/cmd/go/internal/work/security_test.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/text/template/template.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

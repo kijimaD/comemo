@@ -1,25 +1,98 @@
-commit 3cc8b532f9d561397dd0c66496e1e1a82667c926
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Apr 2 17:37:34 2025 -0700
+commit 82e929e4f8ea465c9bd2c34df850cfb0c3d32791
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 3 16:06:23 2024 +0000
 
-    testing: add Attr
+    cmd/compile/internal/liveness: enhance mergelocals for addr-taken candidates
     
-    Add a new Attr method to testing.TB that emits a test attribute.
-    An attribute is an arbitrary key/value pair.
+    It is possible to have situations where a given ir.Name is
+    non-address-taken at the source level, but whose address is
+    materialized in order to accommodate the needs of arch-dependent
+    memory ops. The issue here is that the SymAddr op will show up as
+    touching a variable of interest, but the subsequent memory op will
+    not. This is generally not an issue for computing whether something is
+    live across a call, but it is problematic for collecting the more
+    fine-grained live interval info that drives stack slot merging.
     
-    Fixes #43936
+    As an example, consider this Go code:
     
-    Change-Id: I7ef299efae41f2cf39f2dc61ad4cdd4c3975cdb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/662437
+        package p
+        type T struct {
+                x [10]int
+                f float64
+        }
+        func ABC(i, j int) int {
+                var t T
+                t.x[i&3] = j
+                return t.x[j&3]
+        }
+    
+    On amd64 the code sequences we'll see for accesses to "t" might look like
+    
+        v10 = VarDef <mem> {t} v1
+        v5 = MOVOstoreconst <mem> {t} [val=0,off=0] v2 v10
+        v23 = LEAQ <*T> {t} [8] v2 : DI
+        v12 = DUFFZERO <mem> [80] v23 v5
+        v14 = ANDQconst <int> [3] v7 : AX
+        v19 = MOVQstoreidx8 <mem> {t} v2 v14 v8 v12
+        v22 = ANDQconst <int> [3] v8 : BX
+        v24 = MOVQloadidx8 <int> {t} v2 v22 v19 : AX
+        v25 = MakeResult <int,mem> v24 v19 : <>
+    
+    Note that the the loads and stores (ex: v19, v24) all refer directly
+    to "t", which means that regular live analysis will work fine for
+    identifying variable lifetimes. The DUFFZERO is (in effect) an
+    indirect write, but since there are accesses immediately after it we
+    wind up with the same live intervals.
+    
+    Now the same code with GOARCH=ppc64:
+    
+        v10 = VarDef <mem> {t} v1
+        v20 = MOVDaddr <*T> {t} v2 : R20
+        v12 = LoweredZero <mem> [88] v20 v10
+         v3 = CLRLSLDI <int> [212543] v7 : R5
+        v15 = MOVDaddr <*T> {t} v2 : R6
+        v19 = MOVDstoreidx <mem> v15 v3 v8 v12
+        v29 = CLRLSLDI <int> [212543] v8 : R4
+        v24 = MOVDloadidx <int> v15 v29 v19 : R3
+        v25 = MakeResult <int,mem> v24 v19 : <>
+    
+    Here instead of memory ops that refer directly to the symbol, we take
+    the address of "t" (ex: v15) and then pass the address to memory ops
+    (where the ops themselves no longer refer to the symbol).
+    
+    This patch enhances the stack slot merging liveness analysis to handle
+    cases like the PPC64 one above. We add a new phase in candidate
+    selection that collects more precise use information for merge
+    candidates, and screens out candidates that are too difficult to
+    analyze. The phase make a forward pass over each basic block looking
+    for instructions of the form vK := SymAddr(N) where N is a raw
+    candidate. It then creates an entry in a map with key vK and value
+    holding name and the vK use count. As the walk continues, we check for
+    uses of of vK: when we see one, record it in a side table as an
+    upwards exposed use of N. At each vK use we also decrement the use
+    count in the map entry, and if we hit zero, remove the map entry. If
+    we hit the end of the basic block and we still have map entries, this
+    implies that the address in question "escapes" the block -- at that
+    point to be conservative we just evict the name in question from the
+    candidate set.
+    
+    Although this CL fixes the issues that forced a revert of the original
+    merging CL, this CL doesn't enable stack slot merging by default; a
+    subsequent CL will do that.
+    
+    Updates #62737.
+    Updates #65532.
+    Updates #65495.
+    
+    Change-Id: Id41d359a677767a8e7ac1e962ae23f7becb4031f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576735
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
 
- api/next/43936.txt                            |  4 +++
- doc/next/6-stdlib/99-minor/testing/43936.md   | 10 ++++++
- src/cmd/internal/test2json/test2json.go       |  8 +++++
- src/cmd/internal/test2json/testdata/attr.json | 15 +++++++++
- src/cmd/internal/test2json/testdata/attr.test |  7 ++++
- src/testing/testing.go                        | 26 +++++++++++++++
- src/testing/testing_test.go                   | 47 +++++++++++++++++++++++++++
- 7 files changed, 117 insertions(+)
+ src/cmd/compile/internal/base/debug.go             |   1 +
+ src/cmd/compile/internal/liveness/mergelocals.go   | 608 ++++++++++++++++-----
+ src/cmd/compile/internal/liveness/plive.go         |   2 +-
+ src/cmd/compile/internal/ssagen/pgen.go            |   6 +-
+ src/cmd/compile/internal/test/mergelocals_test.go  |  57 +-
+ .../test/testdata/mergelocals/integration.go       |  25 +-
+ 6 files changed, 521 insertions(+), 178 deletions(-)

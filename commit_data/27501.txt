@@ -1,23 +1,18 @@
-commit 2f9eeea212681927385a4713004438cd864966e0
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Tue May 24 23:46:11 2016 +0600
+commit 2592e0999ea55ea04f03dde364336975357e9c9c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 30 10:59:29 2016 -0700
 
-    cmd/go: document testdata directory in "go help test"
+    cmd/compile: s/typeX/typX/
     
-    Document the correct use of the testdata directory
-    where test writers might be expecting to find it.
+    Apparently I’m having a hard time following my
+    own naming scheme.
     
-    It seems that alldocs.go was out of date, so it
-    has picked up some other changes with this commit.
-    
-    Fixes #14715.
-    
-    Change-Id: I0a22676bb7a64b2a61b56495f7ea38db889d8b37
-    Reviewed-on: https://go-review.googlesource.com/23353
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I99c801bef09fa65c1f0e8ecc2fba154a495e9c17
+    Reviewed-on: https://go-review.googlesource.com/21332
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/alldocs.go | 16 ++++++++++++++--
- src/cmd/go/test.go    |  3 +++
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/parser.go    | 8 ++++----
+ src/cmd/compile/internal/gc/type.go      | 8 ++++----
+ src/cmd/compile/internal/gc/typecheck.go | 4 ++--
+ 3 files changed, 10 insertions(+), 10 deletions(-)

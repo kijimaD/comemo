@@ -1,18 +1,24 @@
-commit a21b275a5b3e1d72e533b681406d88f6507f17bb
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 8 16:35:16 2024 -0500
+commit 9b6231a1ab9d3497816c4f9ebae6815443922dd1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 22 11:13:23 2023 +0700
 
-    runtime: gofmt
+    log/slog: fix window race builder
     
-    CL 565515 introduced these non-gofmt'ed lines. Gofmt them.
+    Bench log file is created non-portably, only works on system where
+    "/tmp" existed and "/" is path separator.
     
-    Change-Id: Id64244c204b2d6a0bd6377caa17869284eb34f45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570216
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixing this by using portable methods from std lib.
+    
+    Updates #56345
+    
+    Change-Id: I1f6b6b97b913ca56a6053beca7025652618ecbf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478355
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/map_fast32.go  | 2 +-
- src/runtime/map_fast64.go  | 2 +-
- src/runtime/map_faststr.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/log/slog/json_handler_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

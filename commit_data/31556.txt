@@ -1,30 +1,17 @@
-commit 978af9c2dbb4982f62dee6b84c48e06e0d4c085c
-Author: Keith Randall <khr@golang.org>
-Date:   Thu May 11 14:46:49 2017 -0700
+commit aada49038c683d048fd0a146366d7ce52dc17e97
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 12:30:30 2017 +1100
 
-    cmd/compile: fix store chain in schedule pass
+    cmd/link: write dwarf relocations
     
-    Tuple ops are weird. They are essentially a pair of ops,
-    one which consumes a mem and one which generates a mem (the Select1).
-    The schedule pass didn't handle these quite right.
+    For #10776.
     
-    Fix the scheduler to include both parts of the paired op in
-    the store chain. That makes sure that loads are correctly ordered
-    with respect to the first of the pair.
-    
-    Add a check for the ssacheck builder, that there is only one
-    live store at a time. I thought we already had such a check, but
-    apparently not...
-    
-    Fixes #20335
-    
-    Change-Id: I59eb3446a329100af38d22820b1ca2190ca46a78
-    Reviewed-on: https://go-review.googlesource.com/43294
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I11dd441d8e5d6316889ffa8418df8b58c57c677d
+    Reviewed-on: https://go-review.googlesource.com/36982
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/check.go    | 33 ++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/schedule.go | 31 +++++++++++++++---------------
- test/fixedbugs/issue20335.go             | 19 ++++++++++++++++++
- 3 files changed, 68 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/amd64/asm.go |  3 +++
+ src/cmd/link/internal/ld/data.go   |  9 ++++++++-
+ src/cmd/link/internal/ld/pe.go     | 23 ++++++++++++++++++-----
+ src/cmd/link/internal/x86/asm.go   |  3 +++
+ 4 files changed, 32 insertions(+), 6 deletions(-)

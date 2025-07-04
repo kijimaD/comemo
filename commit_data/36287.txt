@@ -1,17 +1,18 @@
-commit 5d750db02415e9b3ff5624ecbaf1f5d141145bde
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 17 23:08:24 2018 -0400
+commit 9bff50575e8bf5bf84ade26f737ffa47379b4604
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Apr 16 13:35:35 2018 +0200
 
-    cmd/go: fix go mod tidy crash on empty module
+    fmt: document that Scan etc. accept 'p' format floats
     
-    Fixes #27066.
+    In the Scan functions documentation, clarify that for float/complex
+    literals in scientific notation both decimal (e) and binary (p)
+    exponents are accepted.
     
-    Change-Id: Iede4385ad86b42d7d90814965b161a7e64d29833
-    Reviewed-on: https://go-review.googlesource.com/129799
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #24453
+    
+    Change-Id: Ic6dcdb0c36e088ffb65177038aff7a57ab56b805
+    Reviewed-on: https://go-review.googlesource.com/107416
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/modcmd/tidy.go      | 3 ++-
- src/cmd/go/testdata/script/mod_tidy.txt | 7 +++++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/fmt/doc.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

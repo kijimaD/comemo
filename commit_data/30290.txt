@@ -1,24 +1,25 @@
-commit e31144f128e2a491845dc4fcc57d45e22fc1b963
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Feb 5 14:19:19 2017 +1100
+commit 7db996ee77b20b68ee583c65d59be1d81cef9090
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Mon Sep 26 20:38:57 2016 -0700
 
-    cmd/link: set pe section and file alignment to 0 during external linking
+    net/http: handle 3xx redirects properly
     
-    This is what gcc does when it generates object files.
-    And it is easier to count everything, when it starts from 0.
-    Make go linker do the same.
+    Provides redirection support for 307, 308 server statuses.
+    Provides redirection support for DELETE method.
     
-    gcc also does not output IMAGE_OPTIONAL_HEADER or
-    PE64_IMAGE_OPTIONAL_HEADER for object files.
-    Perhaps we should do the same, but not in this CL.
+    Updates old tests that assumed all redirects were treated
+    the way 301, 302 and 303 are processed.
     
-    For #10776.
+    Fixes #9348
+    Fixes #10767
+    Fixes #13994
     
-    Change-Id: I9789c337648623b6cfaa7d18d1ac9cef32e180dc
-    Reviewed-on: https://go-review.googlesource.com/36974
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iffa8dbe0ff28a1afa8da59869290ec805b1dd2c4
+    Reviewed-on: https://go-review.googlesource.com/29852
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/amd64/obj.go |  2 +-
- src/cmd/link/internal/ld/pe.go     | 25 ++++++++++++++++++-------
- src/cmd/link/internal/x86/obj.go   |  2 +-
- 3 files changed, 20 insertions(+), 9 deletions(-)
+ src/net/http/client.go      | 127 ++++++++++++++-----------------
+ src/net/http/client_test.go | 179 +++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 203 insertions(+), 103 deletions(-)

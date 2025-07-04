@@ -1,29 +1,20 @@
-commit f9f5d1e8442e3268489f3cfab2f9b65922bd4b5b
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Mar 18 10:22:04 2025 -0700
+commit b634f6fdcbebee23b7da709a243f3db217b64776
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Nov 14 16:28:29 2023 -0800
 
-    runtime/race: detect when TestRace fails to run all tests, skip failures
+    syscall: rm obsoleted comment
     
-    TestRace runs a collection of tests, some of which are expected
-    to fail with data races. Make TestRace more robust at detecting
-    when the test run is cut short, such as when a test causes
-    an unhandled panic.
+    The comment being removed is no longer true as of CL 494916.
     
-    Skip TestRaceRangeFuncIterator, which contains an unhandled panic.
-    This test was causing all subsequent tests to not run.
-    
-    Skip TestNoRaceRangeFuncIterator, which contains an unexpected data race.
-    This test was not running due to the above failure.
-    
-    For #72925
-    
-    Change-Id: Id662375cc498ea25ae308619709768588bf6a2f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658875
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4975866c58efb5c9c41db3640564ac7233f5840f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542415
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/race/race_test.go               | 16 ++++++++++------
- src/runtime/race/testdata/main_test.go      | 15 +++++++++++++++
- src/runtime/race/testdata/rangefunc_test.go |  2 ++
- 3 files changed, 27 insertions(+), 6 deletions(-)
+ src/syscall/flock_linux_32bit.go | 3 ---
+ 1 file changed, 3 deletions(-)

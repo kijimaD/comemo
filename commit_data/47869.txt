@@ -1,35 +1,30 @@
-commit f154f8b5bb16833139bb171371691150b1bd9cd5
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Dec 21 07:59:16 2021 -0800
+commit bcbde83c200a7abb2b23666b59992265f3cf3621
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 14 09:34:28 2021 -0400
 
-    cmd/compile: save selector/inst info for generic method/function calls
+    go/ast: fix broken build with typeparams build constraint
     
-    In the dict info, we need to save the SelectorExpr of a generic method
-    call when making its sub-dictionary entry. The generic method call will
-    eventually be transformed into a function call on the method shape
-    instantiation, so we may not always have the selector info available
-    when we need it to create a dictionary. We use this SelectorExpr as
-    needed if the relevant call node has already been transformed.
+    My rebase of https://golang.org/cl/300649 before submitting broke the
+    build (and tests) when using the typeparams build constraint. In a
+    subsequent CL I add test coverage back to cmd/dist.
     
-    Similarly, we save the InstExpr of generic function calls, since the
-    InstExpr will be dropped when the function call is transformed to a call
-    to a shape instantiation. We use this InstExpr if the relevant function
-    call has already been transformed.
+    This time, I've tested by running:
+     - go test -tags=typeparams go/...
+     - go test -tags=typeparams cmd/gofmt
     
-    Added an extra generic function Some2 and a call to it from Some that
-    exercises the generic function case. The existing test already tests the
-    method call case.
+    All tests pass except for the new TestResolution/typeparams.go2, which I
+    will fix in a follow-up CL.
     
-    Fixes #50264
+    For #44933
     
-    Change-Id: I2c7c7d79a8e33ca36a5e88e64e913c57500c97f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373754
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I439d387841604cf43a90e2ce41dbe6bbbdb0306d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310070
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/irgen.go   | 13 ++++-
- src/cmd/compile/internal/noder/stencil.go | 94 ++++++++++++++++++-------------
- test/typeparam/issue50264.go              | 45 +++++++++++++++
- 3 files changed, 113 insertions(+), 39 deletions(-)
+ src/go/ast/walk.go            |  6 +++++-
+ src/go/ast/walk_typeparams.go | 10 ++++++++--
+ 2 files changed, 13 insertions(+), 3 deletions(-)

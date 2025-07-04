@@ -1,16 +1,59 @@
-commit 854ab14b7e20a419620a42b837a9cf45cbca8189
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 20 14:22:20 2016 -0400
+commit 0c7ccbf601976a49ba7db79ad85335ee95d4733e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 11:44:07 2016 -0500
 
-    cmd/link: move pcln declarations into loops
+    cmd/go: ignore C files when CGO_ENABLED=0
     
-    (Split out from CL 22243.)
+    Before, those C files might have been intended for the Plan 9 C compiler,
+    but that option was removed in Go 1.5. We can simplify the maintenance
+    of cgo packages now if we assume C files (and C++ and M and SWIG files)
+    should only be considered when cgo is enabled.
     
-    Change-Id: Idac1748c8db2b2ed0484e4afadb105c471c6ce34
-    Reviewed-on: https://go-review.googlesource.com/22321
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Also remove newly unnecessary build tags in runtime/cgo's C files.
+    
+    Fixes #14123
+    
+    Change-Id: Ia5a7fe62b9469965aa7c3547fe43c6c9292b8205
+    Reviewed-on: https://go-review.googlesource.com/19613
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/pcln.go | 31 +++++++++++--------------------
- 1 file changed, 11 insertions(+), 20 deletions(-)
+ src/cmd/go/build.go                        |  6 +++---
+ src/cmd/go/go_test.go                      |  8 --------
+ src/cmd/go/pkg.go                          | 13 +++++++++++++
+ src/runtime/cgo/gcc_android.c              |  2 --
+ src/runtime/cgo/gcc_android_386.c          |  2 --
+ src/runtime/cgo/gcc_android_amd64.c        |  2 --
+ src/runtime/cgo/gcc_android_arm.c          |  2 --
+ src/runtime/cgo/gcc_android_arm64.c        |  2 --
+ src/runtime/cgo/gcc_darwin_386.c           |  2 --
+ src/runtime/cgo/gcc_darwin_amd64.c         |  2 --
+ src/runtime/cgo/gcc_darwin_arm.c           |  2 --
+ src/runtime/cgo/gcc_darwin_arm64.c         |  2 --
+ src/runtime/cgo/gcc_dragonfly_amd64.c      |  2 --
+ src/runtime/cgo/gcc_fatalf.c               |  2 --
+ src/runtime/cgo/gcc_freebsd_386.c          |  2 --
+ src/runtime/cgo/gcc_freebsd_amd64.c        |  2 --
+ src/runtime/cgo/gcc_freebsd_arm.c          |  2 --
+ src/runtime/cgo/gcc_libinit_linux_ppc64x.c |  2 --
+ src/runtime/cgo/gcc_libinit_openbsd.c      |  2 --
+ src/runtime/cgo/gcc_libinit_windows.c      |  2 --
+ src/runtime/cgo/gcc_linux_386.c            |  2 --
+ src/runtime/cgo/gcc_linux_amd64.c          |  2 --
+ src/runtime/cgo/gcc_linux_arm.c            |  2 --
+ src/runtime/cgo/gcc_linux_arm64.c          |  2 --
+ src/runtime/cgo/gcc_linux_ppc64x.c         |  2 --
+ src/runtime/cgo/gcc_mmap.c                 |  2 --
+ src/runtime/cgo/gcc_netbsd_386.c           |  2 --
+ src/runtime/cgo/gcc_netbsd_amd64.c         |  2 --
+ src/runtime/cgo/gcc_netbsd_arm.c           |  2 --
+ src/runtime/cgo/gcc_openbsd_386.c          |  2 --
+ src/runtime/cgo/gcc_openbsd_amd64.c        |  2 --
+ src/runtime/cgo/gcc_signal_darwin_armx.c   |  2 --
+ src/runtime/cgo/gcc_signal_darwin_lldb.c   |  2 --
+ src/runtime/cgo/gcc_solaris_amd64.c        |  2 --
+ src/runtime/cgo/gcc_util.c                 |  2 --
+ src/runtime/cgo/gcc_windows_386.c          |  2 --
+ src/runtime/cgo/gcc_windows_amd64.c        |  2 --
+ 37 files changed, 16 insertions(+), 79 deletions(-)

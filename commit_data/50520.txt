@@ -1,22 +1,18 @@
-commit a9ca741d311772efb828c4b4f45e737783a89ca3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 14 14:21:23 2022 -0400
+commit 3571ab58b8069fd945427ba49c4d8a702325bdb0
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Oct 29 17:47:32 2021 -0400
 
-    net/http: deflake TestServerCancelsReadHeaderTimeoutWhenIdle
+    go/types: make built-in to accept type sets with single underlying types
     
-    Return errors instead of calling t.Fatalf for timing-sensitive failure
-    modes. Scale the Sleep call to the timeout (so that it isn't too short
-    for the longer durations).
+    This is a straightforward port of CL 357776 to go/types.
     
-    Fixes #54891.
-    
-    Change-Id: I574e85e121becdda9ab8ee6bfd37c18a549d366d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430955
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I64220840a01f57cd7955f7d956b9aa8227473b46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359874
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/serve_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/go/types/builtins.go                 |  6 +++---
+ src/go/types/testdata/check/builtins.go2 | 22 +++++++++++++---------
+ 2 files changed, 16 insertions(+), 12 deletions(-)

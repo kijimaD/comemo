@@ -1,22 +1,23 @@
-commit 28f2869a0d8ae103e0a2aac7c68005d79099f1e1
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Jan 11 10:22:40 2022 +0100
+commit 2f0e5bf907b16a8106ae68920edffe90362e16ce
+Author: Peng Gao <peng.gao.dut@gmail.com>
+Date:   Wed Mar 31 15:00:45 2021 +0000
 
-    cmd/go: skip TestScript/test_fuzz_test_race on !race
+    net/http: using errors.Is in fs error detection
     
-    Skip the test on targets which don't support the race detector. This
-    fixes the linux-386-longtest builder after CL 376554.
+    Compare error by errors.Is to detect wrapped fs errors.
     
-    Updates #50488
+    Fixes #44923
     
-    Change-Id: I08bf6f72cc0731761d49121eb7cfaa8b53906d37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377634
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: Idf32b96a661728278b7006c3b3bcc581b8588259
+    GitHub-Last-Rev: dba01ddae06947fb8c6047ddfba108acd650f446
+    GitHub-Pull-Request: golang/go#45314
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306051
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/testdata/script/test_fuzz_test_race.txt | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/net/http/fs.go      |  6 +++---
+ src/net/http/fs_test.go | 10 ++++++----
+ 2 files changed, 9 insertions(+), 7 deletions(-)

@@ -1,0 +1,15 @@
+commit 87dbfb9fa73c335fd0014445bd34135365c21b84
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Wed Dec 18 13:32:37 2024 +0100
+
+    weak: improve grammar in doc comments
+    
+    Change-Id: I577b8a6bf2b7d899cc7ff7211c73549c90db9d94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637355
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/weak/pointer.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,18 +1,16 @@
-commit 8156e76e44ac0bfffcff331198e904be45808341
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 5 10:29:27 2017 -0500
+commit 43807e0f47e62fe5a33c3f0ebcaf9fafbb46b80d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Sep 9 19:09:07 2017 +0900
 
-    cmd/go: implement time-based trimming of build cache
+    cmd/internal/goobj: skip tests on some $GOOS/arm
     
-    Fixes #22642.
+    Updates #21817
     
-    Change-Id: I2ed6305555a0cf753b9cdce061463b1749d5e53e
-    Reviewed-on: https://go-review.googlesource.com/81975
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I77ffaf8a7e54465a5b73691b896edcb20c29440f
+    Reviewed-on: https://go-review.googlesource.com/62351
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/cache/cache.go      |  95 +++++++++++++++++++++++--
- src/cmd/go/internal/cache/cache_test.go | 121 ++++++++++++++++++++++++++++++++
- src/cmd/go/internal/work/exec.go        |   5 ++
- 3 files changed, 215 insertions(+), 6 deletions(-)
+ src/cmd/internal/goobj/goobj_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

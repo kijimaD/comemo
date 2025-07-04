@@ -1,22 +1,29 @@
-commit 372b0eed175b88ba2654607b05a36416f08c4cea
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 28 12:42:37 2019 +0000
+commit 4ba69a9a17d643e2e18acebac7b176746564b897
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Fri Jan 11 17:16:28 2019 -0200
 
-    Revert "cmd/compile: optimize 386's math.bits.TrailingZeros16"
+    cmd/compile: add processor level selection support to ppc64{,le}
     
-    This reverts CL 189277.
+    ppc64{,le} processor level selection allows the compiler to generate instructions
+    targeting newer processors and processor-specific optimizations without breaking
+    compatibility with our current baseline. This feature introduces a new environment
+    variable, GOPPC64.
     
-    Reason for revert: broke 32-bit builders.
+    GOPPC64 is a GOARCH=ppc64{,le} specific option, for a choice between different
+    processor levels (i.e. Instruction Set Architecture versions) for which the
+    compiler will target. The default is 'power8'.
     
-    Updates #33902
-    
-    Change-Id: Ie5f180d0371a90e5057ed578c334372e5fc3a286
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192097
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Ic152e283ae1c47084ece4346fa002a3eabb3bb9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163758
+    Run-TryBot: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/ssa.go         |  2 +-
- src/cmd/compile/internal/ssa/gen/386.rules |  2 --
- src/cmd/compile/internal/ssa/rewrite386.go | 18 ------------------
- test/codegen/mathbits.go                   |  1 -
- 4 files changed, 1 insertion(+), 22 deletions(-)
+ doc/install-source.html           | 11 +++++++++++
+ src/cmd/dist/build.go             | 11 +++++++++++
+ src/cmd/dist/buildruntime.go      |  2 ++
+ src/cmd/go/internal/cfg/cfg.go    |  1 +
+ src/cmd/go/internal/envcmd/env.go |  2 ++
+ src/cmd/internal/objabi/util.go   | 12 ++++++++++++
+ test/run.go                       |  4 ++--
+ 7 files changed, 41 insertions(+), 2 deletions(-)

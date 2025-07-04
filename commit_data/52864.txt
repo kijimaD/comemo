@@ -1,37 +1,24 @@
-commit 129b597de360d9740240d51b8dc7d215227ec802
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 3 21:00:13 2023 +0000
+commit d4fb93be87c38aaf0f68ad91852f9f83be726262
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 7 10:33:01 2022 -0700
 
-    Revert "crypto/sha1: add WriteString and WriteByte method"
+    go/types, types2: use | rather than ∪ when printing term lists
     
-    This reverts CL 483815
+    With this change, the termlist String() function prints termlists
+    in the usual Go notation and thus we can use it in error reporting.
+    Preparation for fixing #40350.
     
-    Reason for revert: can cause cgo errors when using boringcrypto.
-    See #59954.
+    For #40350.
     
-    For #38776
-    For #59954
-    
-    Change-Id: I1f7e0fb06b627971811623927e3d98c0fdbc730b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492375
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia28318841305de234a71af3146ce0c59f5e601a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410894
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/internal/boring/sha.go    | 14 ---------
- src/crypto/sha1/sha1.go              | 61 ++++++------------------------------
- src/crypto/sha1/sha1_test.go         | 33 +------------------
- src/crypto/sha1/sha1block.go         |  2 +-
- src/crypto/sha1/sha1block_386.s      |  6 ++--
- src/crypto/sha1/sha1block_amd64.go   | 33 +++++--------------
- src/crypto/sha1/sha1block_amd64.s    | 12 +++----
- src/crypto/sha1/sha1block_arm.s      |  9 +++---
- src/crypto/sha1/sha1block_arm64.go   | 18 ++---------
- src/crypto/sha1/sha1block_arm64.s    |  8 ++---
- src/crypto/sha1/sha1block_decl.go    | 12 +------
- src/crypto/sha1/sha1block_generic.go |  4 ---
- src/crypto/sha1/sha1block_s390x.go   |  9 +-----
- src/crypto/sha1/sha1block_s390x.s    |  8 ++---
- 14 files changed, 46 insertions(+), 183 deletions(-)
+ src/cmd/compile/internal/types2/termlist.go      |   2 +-
+ src/cmd/compile/internal/types2/termlist_test.go | 140 +++++++++++------------
+ src/cmd/compile/internal/types2/typeset_test.go  |   6 +-
+ src/go/types/termlist.go                         |   2 +-
+ src/go/types/termlist_test.go                    | 140 +++++++++++------------
+ src/go/types/typeset_test.go                     |   6 +-
+ 6 files changed, 148 insertions(+), 148 deletions(-)

@@ -1,16 +1,23 @@
-commit cbce223da02bb198b9984c161c6cd6291a80b3d9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 29 15:00:52 2018 +0000
+commit 3c16934f1638d3d756fb315b847a3805ac06de88
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 9 17:33:29 2018 -0500
 
-    net/http: update docs on Transport.DisableKeepAlives
+    cmd/compile: fix failure to reset reused bit of storage
     
-    Be super explicit that HTTP keep-alives != TCP keep-alives.
+    This is the "3rd bug" that caused compilations to sometimes
+    produce different results when dwarf location lists were
+    enabled.
     
-    Fixes #26128
+    A loop had not been properly rewritten in an earlier
+    optimization CL, and it accessed uninitialized data,
+    which was deterministically perhaps wrong when single
+    threaded, but variably wrong when multithreaded.
     
-    Change-Id: I77d74a6fe077259d996543f901a58aa3e49c1093
-    Reviewed-on: https://go-review.googlesource.com/121616
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib3da538762fdf7d5e4407106f2434f3b14a1d7ea
+    Reviewed-on: https://go-review.googlesource.com/99935
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/net/http/transport.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

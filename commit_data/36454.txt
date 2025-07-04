@@ -1,12 +1,75 @@
-commit e897d43c37c353a35f211384058475a5093f1adf
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Thu Aug 23 14:31:32 2018 -0400
+commit 8a958bb8a6336eb5b56934a7d129b6e4d1e82164
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Apr 29 14:57:30 2018 +0200
 
-    doc/go1.11: remove draft status
+    cmd/compile: better formatting for ssa phases options doc
     
-    Change-Id: I3f99083b7d8ab06482c2c22eafda8b0141a872bd
-    Reviewed-on: https://go-review.googlesource.com/131076
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change the help doc of
+    
+      go tool compile -d=ssa/help
+    
+    from this:
+    
+      compile: GcFlag -d=ssa/<phase>/<flag>[=<value>|<function_name>]
+      <phase> is one of:
+      check, all, build, intrinsics, early_phielim, early_copyelim
+      early_deadcode, short_circuit, decompose_user, opt, zero_arg_cse
+      opt_deadcode, generic_cse, phiopt, nilcheckelim, prove, loopbce
+      decompose_builtin, softfloat, late_opt, generic_deadcode, check_bce
+      fuse, dse, writebarrier, insert_resched_checks, tighten, lower
+      lowered_cse, elim_unread_autos, lowered_deadcode, checkLower
+      late_phielim, late_copyelim, phi_tighten, late_deadcode, critical
+      likelyadjust, layout, schedule, late_nilcheck, flagalloc, regalloc
+      loop_rotate, stackframe, trim
+      <flag> is one of on, off, debug, mem, time, test, stats, dump
+      <value> defaults to 1
+      <function_name> is required for "dump", specifies name of function to dump after <phase>
+      Except for dump, output is directed to standard out; dump appears in a file.
+      Phase "all" supports flags "time", "mem", and "dump".
+      Phases "intrinsics" supports flags "on", "off", and "debug".
+      Interpretation of the "debug" value depends on the phase.
+      Dump files are named <phase>__<function_name>_<seq>.dump.
+    
+    To this:
+    
+      compile: PhaseOptions usage:
+    
+          go tool compile -d=ssa/<phase>/<flag>[=<value>|<function_name>]
+    
+      where:
+    
+      - <phase> is one of:
+          check, all, build, intrinsics, early_phielim, early_copyelim
+          early_deadcode, short_circuit, decompose_user, opt, zero_arg_cse
+          opt_deadcode, generic_cse, phiopt, nilcheckelim, prove
+          decompose_builtin, softfloat, late_opt, generic_deadcode, check_bce
+          branchelim, fuse, dse, writebarrier, insert_resched_checks, lower
+          lowered_cse, elim_unread_autos, lowered_deadcode, checkLower
+          late_phielim, late_copyelim, tighten, phi_tighten, late_deadcode
+          critical, likelyadjust, layout, schedule, late_nilcheck, flagalloc
+          regalloc, loop_rotate, stackframe, trim
+    
+      - <flag> is one of:
+          on, off, debug, mem, time, test, stats, dump
+    
+      - <value> defaults to 1
+    
+      - <function_name> is required for the "dump" flag, and specifies the
+        name of function to dump after <phase>
+    
+      Phase "all" supports flags "time", "mem", and "dump".
+      Phase "intrinsics" supports flags "on", "off", and "debug".
+    
+      If the "dump" flag is specified, the output is written on a file named
+      <phase>__<function_name>_<seq>.dump; otherwise it is directed to stdout.
+    
+    Also add a few examples at the bottom.
+    
+    Fixes #20349
+    
+    Change-Id: I334799e951e7b27855b3ace5d2d966c4d6ec4cff
+    Reviewed-on: https://go-review.googlesource.com/110062
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/go1.11.html | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go | 50 +++++++++++++++++++++++++--------
+ 1 file changed, 38 insertions(+), 12 deletions(-)

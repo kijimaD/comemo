@@ -1,16 +1,15 @@
-commit 06b280214c653f533370608e294a0759c776f288
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Mon Jun 29 10:08:58 2015 -0700
+commit 8cd191b6caf506210bb50d0506c6354a2cb46a10
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat May 30 15:19:56 2015 +0300
 
-    cmd/go: do not panic on invalid import path containing "/vendor/"
+    doc/go1.5.txt: mention bugs found by go-fuzz
     
-    Fixes #11414
+    I think it's worth mentioning.
+    But the final decision is up to you.
     
-    Change-Id: I45a41b98554f00362d9222e9c68a441dbfc23cb8
-    Reviewed-on: https://go-review.googlesource.com/11700
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I3959132600ecc554988524ede73a7f6e8eac8353
+    Reviewed-on: https://go-review.googlesource.com/10551
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/go/pkg.go                                 |  6 +++++-
- src/cmd/go/testdata/src/vend/x/invalid/invalid.go |  3 +++
- src/cmd/go/vendor_test.go                         | 11 +++++++++++
- 3 files changed, 19 insertions(+), 1 deletion(-)
+ doc/go1.5.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)

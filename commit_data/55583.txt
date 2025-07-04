@@ -1,15 +1,31 @@
-commit 2a5904142043e8998eaa15728150c48bcfdca7d5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Feb 11 19:54:52 2024 -0800
+commit f684f3dc434f9199ceee175c07d28e8b2b0f28dc
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Sat Feb 4 14:52:55 2023 +0000
 
-    internal/safefilepath: use bytealg to search for zero byte
+    image/jpeg: return io.ErrUnexpectedEOF on truncated data
     
-    Change-Id: I20e72d421d89095c460495001969291b99cdf59e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/563139
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Decoder calls fill from readFull, ignore and readByte and
+    readByte did not check returned io.EOF.
+    
+    This change moves io.EOF translation inside fill.
+    
+    name                 old speed      new speed      delta
+    DecodeBaseline-8     67.4MB/s ± 0%  67.3MB/s ± 0%  -0.20%  (p=0.000 n=16+19)
+    DecodeProgressive-8  43.7MB/s ± 0%  43.6MB/s ± 0%  -0.06%  (p=0.013 n=17+19)
+    
+    Fixes #56724
+    
+    Change-Id: Ia0d5cc561f3c2050e25ec3f2b5e6866c3b4941c7
+    GitHub-Last-Rev: 470154373bc1452dffc5293d9a840e972749a76d
+    GitHub-Pull-Request: golang/go#56863
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452335
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/safefilepath/path_other.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/image/jpeg/huffman.go     |  2 +-
+ src/image/jpeg/reader.go      | 11 ++++-------
+ src/image/jpeg/reader_test.go | 14 ++++++++++++++
+ 3 files changed, 19 insertions(+), 8 deletions(-)

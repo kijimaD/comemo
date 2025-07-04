@@ -1,12 +1,12 @@
-commit b20163e9e48fe300112de18f75cfa77c04968f2a
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Apr 17 16:37:35 2012 +1000
+commit 3192cac58732eb44ae68296c79818b288b68a561
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Apr 16 17:36:36 2012 -0700
 
-    flag: update style.
+    cmd/prof: don't build on Plan 9 for now.
     
-    R=golang-dev, r, r
+    R=golang-dev, bradfitz, akumar
     CC=golang-dev
-    https://golang.org/cl/6051044
+    https://golang.org/cl/5629054
 
- src/pkg/flag/flag.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/prof/main.c | 2 ++
+ 1 file changed, 2 insertions(+)

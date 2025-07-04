@@ -1,20 +1,20 @@
-commit 7bd968fbfdfd943d8bfc3f6f48b47c5fe990f9ba
-Author: Максим Федосеев <max.faceless.frei@gmail.com>
-Date:   Mon Jan 30 17:11:01 2017 +0500
+commit c7e0dda45046c539d99b7e8c3bd3e79b3fab9776
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 23 06:04:14 2016 -0700
 
-    crypto/tls: fix link to more info about channel bindings
+    net/http: add Server.ReadHeaderTimeout, IdleTimeout, document WriteTimeout
     
-    Link in the description of TLSUnique field of ConnectionState struct
-    leads to an article that is no longer available, so this commit
-    replaces it with link to a copy of the very same article on another
-    site.
+    Updates #14204
+    Updates #16450
+    Updates #16100
     
-    Fixes #18842.
-    
-    Change-Id: I8f8d298c4774dc0fbbad5042db0684bb3220aee8
-    Reviewed-on: https://go-review.googlesource.com/36052
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Ic283bcec008a8e0bfbcfd8531d30fffe71052531
+    Reviewed-on: https://go-review.googlesource.com/32024
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/tls/common.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/serve_test.go | 54 +++++++++++++++++++++++++++++
+ src/net/http/server.go     | 84 +++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 125 insertions(+), 13 deletions(-)

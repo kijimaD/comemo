@@ -1,24 +1,20 @@
-commit 10da3b64af1aebfd146fa3b7ecf765ee1b0f0d7d
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 3 22:51:03 2023 +0700
+commit 9dcc873413aa390bd9392d1ed6ae4198593e4c5d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 21 15:43:54 2022 -0400
 
-    cmd/compile: some cleanup with old irgen code
+    cmd/dist: simplify cgo_test
     
-     - Un-export Convertop: it's only used by tcConv.
-     - Remove AssignOp1: introduced in CL 349614, only used by irgen.
-     - Un-export Assignop: it was exported to be used by irgen only.
+    Now that misc/cgo/test doesn't invoke any Go builds itself, we don't
+    need to use GOFLAGS to thread build flags down into sub-builds.
     
-    Change-Id: I7e78b35d90f165c537cf32a104156bf2a13ca8b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532516
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Preparation for #37486.
+    
+    Change-Id: I9ecdd215da5c21339cbf76765f8be2190d19539c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447356
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/typecheck/expr.go      |  6 +++---
- src/cmd/compile/internal/typecheck/stmt.go      |  4 ++--
- src/cmd/compile/internal/typecheck/subr.go      | 11 ++++-------
- src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
- 4 files changed, 10 insertions(+), 13 deletions(-)
+ src/cmd/dist/test.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

@@ -1,16 +1,25 @@
-commit 4874d14180282fd426f0bbf279a8ac2e9ea3a5aa
+commit a0e54aaffa3d67b3caf9a30ffa1d0b1f359d34b1
 Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 22 15:27:10 2011 -0800
+Date:   Tue Nov 22 15:12:34 2011 -0800
 
-    go/printer: remove "written" result value - is never used
+    go/printer, gofmt: 20 to 30% faster gofmt
+    
+    Buffer intermediate output via a bytes.Buffer and thus avoid
+    calling through the entire Writer stack for every item printed.
+    There is more opportunity for improvements along the same lines.
+    
+    Before (best of 3 runs):
+    - printer.BenchmarkPrint              50          47959760 ns/op
+    - time gofmt -l $GOROOT/src           real        0m11.517s
+    
+    After (best of 3 runs):
+    - printer.BenchmarkPrint              50          32056640 ns/op (= -33%)
+    - time gofmt -l $GOROOT/src           real        0m9.070s       (= -21%)
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/5436052
+    https://golang.org/cl/5432054
 
- src/cmd/gofix/main.go                  |  4 ++--
- src/cmd/gofmt/gofmt.go                 |  2 +-
- src/pkg/go/printer/performance_test.go |  2 +-
- src/pkg/go/printer/printer.go          | 11 ++++-------
- src/pkg/go/printer/printer_test.go     |  2 +-
- 5 files changed, 9 insertions(+), 12 deletions(-)
+ src/pkg/go/printer/nodes.go   |   2 +-
+ src/pkg/go/printer/printer.go | 136 ++++++++++++++++++------------------------
+ 2 files changed, 58 insertions(+), 80 deletions(-)

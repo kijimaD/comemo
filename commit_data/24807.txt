@@ -1,14 +1,39 @@
-commit 58db5fc94d6038aa0308fc36c25b551a751260c2
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Nov 12 13:05:49 2015 +1300
+commit 3a9d0ac3c807de9c6b91a91fa1e37f75da1941a8
+Author: David Chase <drchase@google.com>
+Date:   Fri Aug 28 14:24:10 2015 -0400
 
-    runtime: run TestCgoExternalThreadSIGPROF on ppc64le
+    [dev.ssa] cmd/compile: add complex arithmetic
     
-    It was disabled because of the lack of external linking.
+    Still to do:
+    details, more testing corner cases. (e.g. negative zero)
+    Includes small cleanups for previous CL.
     
-    Change-Id: Iccb4a4ef8c57d048d53deabe4e0f4e6b9dccce33
-    Reviewed-on: https://go-review.googlesource.com/16797
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Note: complex division is currently done in the runtime,
+    so the division code here is apparently not yet necessary
+    and also not tested.  Seems likely better to open code
+    division and expose the widening/narrowing to optimization.
+    
+    Complex64 multiplication and division is done in wide
+    format to avoid cancellation errors; for division, this
+    also happens to be compatible with pre-SSA practice
+    (which uses a single complex128 division function).
+    
+    It would-be-nice to widen for complex128 multiplication
+    intermediates as well, but that is trickier to implement
+    without a handy wider-precision format.
+    
+    Change-Id: I595a4300f68868fb7641852a54674c6b2b78855e
+    Reviewed-on: https://go-review.googlesource.com/14028
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/crash_cgo_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             | 153 ++++++++++++++++++++++---
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go | 102 ++++++++++++++++-
+ src/cmd/compile/internal/ssa/decompose.go      |   9 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   2 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   7 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   3 +
+ src/cmd/compile/internal/ssa/opGen.go          |  24 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  43 +++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go |   3 +
+ 10 files changed, 325 insertions(+), 23 deletions(-)

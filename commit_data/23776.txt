@@ -1,28 +1,17 @@
-commit 1a99ba55df902a2657d1ccfc52a60024c22dba98
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Tue Apr 28 11:20:19 2015 +0000
+commit 5acba80aa2f1444066a9c28440229baa0f2e008d
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Fri Jun 12 22:49:42 2015 +0200
 
-    encoding/json: fix decoding of JSON null values
+    archive/tar: fix slice bounds out of range
     
-    JSON decoding currently fails for null values bound to any type
-    which does implement the JSON Unmarshaler interface without checking
-    for null values (such as time.Time).
+    Sanity check the pax-header size field before using it.
     
-    It also fails for types implementing the TextUnmarshaler interface.
+    Fixes #11167.
     
-    The expected behavior of the JSON decoding engine in such case is
-    to process null by keeping the value unchanged without producing
-    any error.
-    
-    Make sure null values are handled by the decoding engine itself,
-    and never passed to the UnmarshalText or UnmarshalJSON methods.
-    
-    Fixes #9037
-    
-    Change-Id: I261d85587ba543ef6f1815555b2af9311034d5bb
-    Reviewed-on: https://go-review.googlesource.com/9376
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I9d5d0210c3990e6fb9434c3fe333be0d507d5962
+    Reviewed-on: https://go-review.googlesource.com/10954
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/encoding/json/decode.go      |  2 +-
- src/encoding/json/decode_test.go | 76 +++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 76 insertions(+), 2 deletions(-)
+ src/archive/tar/reader.go      |  2 +-
+ src/archive/tar/reader_test.go | 11 ++++++++---
+ 2 files changed, 9 insertions(+), 4 deletions(-)

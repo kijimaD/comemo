@@ -1,25 +1,28 @@
-commit f588974a521d2626cba2a6ac3219c47eb3004aa1
-Author: surechen <surechen17@gmail.com>
-Date:   Fri May 15 22:59:38 2020 +0800
+commit b2def42d9efcf4540656e26632b744f8e7436814
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Apr 15 13:23:29 2020 -0400
 
-    math/big: reduce allocations for building decimal strings
+    [dev.link] cmd/link: remove buffered file I/O from OutBuf
     
-    Append operations in the decimal String function may cause several allocations.
-    Use make to pre allocate slices in String that have enough capacity to avoid additional allocations in append operations.
-    
-    name                 old time/op  new time/op  delta
-    DecimalConversion-8   139µs ± 7%   109µs ± 2%  -21.06%  (p=0.000 n=10+10)
-    
-    Change-Id: Id0284d204918a179a0421c51c35d86a3408e1bd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233980
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
-    Trust: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I72b1e57631fe4a31597fd0452ee1beb14378febb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228317
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/math/big/decimal.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/link/internal/amd64/asm.go      |  5 --
+ src/cmd/link/internal/arm/asm.go        |  4 --
+ src/cmd/link/internal/arm64/asm.go      |  4 --
+ src/cmd/link/internal/ld/data.go        |  8 ++-
+ src/cmd/link/internal/ld/main.go        | 34 +++++-------
+ src/cmd/link/internal/ld/outbuf.go      | 95 +++++++++------------------------
+ src/cmd/link/internal/ld/outbuf_test.go |  1 +
+ src/cmd/link/internal/ld/xcoff.go       |  3 --
+ src/cmd/link/internal/mips/asm.go       |  2 -
+ src/cmd/link/internal/mips64/asm.go     |  4 --
+ src/cmd/link/internal/ppc64/asm.go      |  5 --
+ src/cmd/link/internal/riscv64/asm.go    |  2 -
+ src/cmd/link/internal/s390x/asm.go      |  2 -
+ src/cmd/link/internal/wasm/asm.go       |  2 -
+ src/cmd/link/internal/x86/asm.go        |  5 --
+ 15 files changed, 41 insertions(+), 135 deletions(-)

@@ -1,19 +1,18 @@
-commit 00fab20582abc614dcf31ca444b4275240de9ae6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 2 09:33:07 2018 -0700
+commit 5a22637cf7014fe5c9722e130f27506466db7b84
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Nov 13 10:56:54 2017 -0800
 
-    runtime: improve StackCopy benchmarks
+    crypto/x509: don't fail to parse addition elements in GeneralSubtree.
     
-    Make the StackCopyNoCache test easier to read.
+    The GeneralSubtree structure can have additional elements after the name
+    (minimum and maximum, which are unused). Previously these fields, if
+    present, would cause a parse error. This change allows trailing data in
+    the GeneralSubtrees structure.
     
-    Add a StackCopyPtr test that actually has some pointers
-    that need adjusting.
-    
-    Change-Id: I5b07c26f40cb485c9de97ed63fac89a9e6f36650
-    Reviewed-on: https://go-review.googlesource.com/104195
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6bfb11ec355fa6812810a090c092a5ee0fdeddc3
+    Reviewed-on: https://go-review.googlesource.com/77333
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/stack_test.go | 197 ++++++++++------------------------------------
- 1 file changed, 43 insertions(+), 154 deletions(-)
+ src/crypto/x509/x509.go      |  3 +--
+ src/crypto/x509/x509_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 2 deletions(-)

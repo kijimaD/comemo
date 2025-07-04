@@ -1,28 +1,17 @@
-commit 0b71ce6768acd33f188e3edfdc40046c7f6ddf57
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Sep 18 11:48:18 2020 -0400
+commit ed91661745790f673f4adf212d0ca499f0bd5ee4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 2 04:26:21 2020 +1100
 
-    cmd/go/internal/modload: don't report path errors when loading retractions
+    cmd/compile/internal/riscv64: correct ssa.BlockRetJmp
     
-    When we load module retractions from the latest version of a module,
-    it's possible that the latest version has a different module path than
-    the version we're loading. This can happen when a module is renamed or
-    a go.mod file is added for the first time.
+    The obj.Prog needs to be an obj.ARET rather than an obj.AJMP, otherwise the
+    epilogue does not get correctly produced.
     
-    We should not report an error in this case. Retractions should still
-    apply to old aliases of a module.
-    
-    Fixes #41350
-    
-    Change-Id: If1bc0b6b2b26fc7023e02fc211aa0cd8eb00796e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255961
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ie1262f2028d3b51720eeb0364a627fbde8b14df9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221683
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modload/modfile.go             | 254 +++++++++++----------
- .../mod/example.com_retract_rename_v1.0.0-bad.txt  |  10 +
- .../mod/example.com_retract_rename_v1.9.0-new.txt  |  13 ++
- src/cmd/go/testdata/script/mod_retract_rename.txt  |  28 +++
- 4 files changed, 189 insertions(+), 116 deletions(-)
+ src/cmd/compile/internal/riscv64/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

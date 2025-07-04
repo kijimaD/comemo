@@ -1,14 +1,12 @@
-commit 64f78c918aa690abf790f0fc20acef379ed858f6
+commit 29fb5d3e0f3ac82a3f6f9ac97e0b74f4dbf3b5f6
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 19:41:39 2011 -0700
+Date:   Thu Oct 27 19:40:41 2011 -0700
 
-    test: error-related fixes
+    xml: simplify test
     
-    R=golang-dev, bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5328051
+    https://golang.org/cl/5320051
 
- test/fixedbugs/bug365.go | 4 ++--
- test/import.go           | 7 +++----
- test/zerodivide.go       | 7 ++-----
- 3 files changed, 7 insertions(+), 11 deletions(-)
+ src/pkg/xml/marshal_test.go | 33 +++++++++++++++------------------
+ 1 file changed, 15 insertions(+), 18 deletions(-)

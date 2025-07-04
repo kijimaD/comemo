@@ -1,14 +1,14 @@
-commit e0e28d2b9323e136be0ff28fbabcdd918d53a691
-Author: Pascal S. de Kloe <pascal@quies.net>
-Date:   Fri Jun 24 11:32:06 2011 -0700
+commit 7a471eadcc4b00c2a998639a0797b4742bfc8aea
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri Jun 24 11:23:49 2011 -0700
 
-    mime: lower-case media type parameters
-            RFC 1521 section 4 states "The type, subtype, and parameter names are not case sensitive.".
+    os: remove duplicate package description
     
-    R=golang-dev, bradfitz
+    file.go contains a more complete package description.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4648047
+    https://golang.org/cl/4645058
 
- src/pkg/mime/mediatype.go      | 11 +++++++----
- src/pkg/mime/mediatype_test.go |  3 ++-
- 2 files changed, 9 insertions(+), 5 deletions(-)
+ src/pkg/os/file_posix.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,17 +1,14 @@
-commit 909bdf56d6aca1546e43a74af4dc46724221ba0e
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Apr 10 20:08:22 2015 -0400
+commit 4d2b3a0b5fc4f17c7806f7e66df0ea272d31cd6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 20 00:59:37 2015 -0400
 
-    cmd/7g: disable duff's device on darwin
+    runtime: fix arm build
     
-    ld64 cannot handle BR26 reloc with non-zero addend. It incorrectly
-    thinks that non-zero addend for BR26 means the code is not PIC, but
-    those BR26 relocs should be fully resolved at link time.
+    Make mask uint32, and move down one line to match atomic_arm64.go.
     
-    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f01
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8780
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I4867de494bc4076b7c2b3bf4fd74aa984e3ea0c8
+    Reviewed-on: https://go-review.googlesource.com/7854
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/7g/ggen.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/atomic_arm.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

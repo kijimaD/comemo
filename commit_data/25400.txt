@@ -1,15 +1,17 @@
-commit 043ae50feb7b5e33e3a665124a6532cc1dd6859e
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Jan 1 00:00:00 2016 +1100
+commit cd7d7382bba1433fee2c4a364c4152857d9f43ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 26 14:57:36 2015 -0700
 
-    doc: 2016 is the Year of the Gopher.
+    cmd/compile/internal/gc: introduce type for decl contexts/storage classes
     
-    Change-Id: I85caba8c743dcd82954de75df947053b3d206bdc
-    Reviewed-on: https://go-review.googlesource.com/18117
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I956e27fa07f16060b8f41b986d991c36557f7c12
+    Reviewed-on: https://go-review.googlesource.com/16332
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go    |  6 +++---
+ src/cmd/compile/internal/gc/export.go |  2 +-
+ src/cmd/compile/internal/gc/go.go     | 24 ++++++++++++++----------
+ src/cmd/compile/internal/gc/plive.go  |  2 +-
+ src/cmd/compile/internal/gc/syntax.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go   |  2 +-
+ 6 files changed, 21 insertions(+), 17 deletions(-)

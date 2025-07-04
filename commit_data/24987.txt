@@ -1,56 +1,16 @@
-commit 5005a339877d8a13826e1af15e47aa64e3819fe3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 19 10:23:20 2015 -0800
+commit 4ac4085f8e75a92bf622622ad10f7aecdda5afdc
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 14 14:28:09 2015 -0400
 
-    cmd/cgo: put the real C function in the dynamic symbol table
+    runtime: minor clarifications of markroot
     
-    In the past, cgo generated Go code and C code.  The C code was linked
-    into a shared library.  The Go code was built into an executable that
-    dynamically linked against that shared library.  C wrappers were
-    exported from the shared library, and the Go code called them.
+    This puts the _Root* indexes in a more friendly order and tweaks
+    markrootSpans to use a for-range loop instead of its own indexing.
     
-    It was all a long time ago, but in order to permit C code to call back
-    into Go, somebody implemented #pragma dynexport (https://golang.org/cl/661043)
-    to export a Go symbol into the dynamic symbol table.  Then that same
-    person added code to cgo to recognize //export comments
-    (https://golang.org/cl/853042).  The //export comments were implemented
-    by generating C code, to be compiled by GCC, that would refer to C code,
-    to be compiled by 6c, that would call the Go code.  The GCC code would
-    go into a shared library.  The code compiled by 6c would be in the Go
-    executable.  The GCC code needed to refer to the 6c code, so the 6c
-    function was marked with #pragma dynexport.  The important point here is
-    that #pragma dynexport was used to expose an internal detail of the
-    implementation of an exported function, because at the time it was
-    necessary.
-    
-    Moving forward to today, cgo no longer generates a shared library and 6c
-    no longer exists.  It's still true that we have a function compiled by
-    GCC that refers to a wrapper function now written in Go.  In the normal
-    case today we are doing an external link, and we use a
-    //go:cgo_export_static function to make the Go wrapper function visible
-    to the C code under a known name.
-    
-    The #pragma dynexport statement has become a //go:cgo_export_dynamic
-    comment on the Go code.  That comment only takes effect when doing
-    internal linking.  The comment tells the linker to put the symbol in the
-    dynamic symbol table.  That still makes sense for the now unusual case
-    of using internal linking with a shared library.
-    
-    However, all the changes to this code have carefully preserved the
-    property that the //go:cgo_export_dynamic comment refers to an internal
-    detail of the implementation of an exported function.  That was
-    necessary a long time ago, but no longer makes sense.
-    
-    This CL changes the code to put the actual C-callable function into the
-    dynamic symbol table.  I considered dropping the comment entirely, but
-    it turns out that there is even a test for this, so I preserved it.
-    
-    Change-Id: I66a7958e366e5974363099bfaa6ba862ca327849
-    Reviewed-on: https://go-review.googlesource.com/17061
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I2c18d55c9a673ea396b6424d51ef4997a1a74825
+    Reviewed-on: https://go-review.googlesource.com/14548
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- misc/cgo/test/issue4029.c  | 10 ++++++++++
- misc/cgo/test/issue4029.go | 17 ++++++++++++-----
- src/cmd/cgo/out.go         |  2 +-
- 3 files changed, 23 insertions(+), 6 deletions(-)
+ src/runtime/mgc.go     | 7 ++++---
+ src/runtime/mgcmark.go | 3 +--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

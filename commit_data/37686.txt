@@ -1,15 +1,18 @@
-commit 57de1af78c30d7f06e788b33c96341f286f36f4d
-Author: dupoxy <dupoxy@users.noreply.github.com>
-Date:   Thu Dec 13 18:52:17 2018 +0000
+commit ed2f84a94e1d0903bc16974dca308a9382b596b6
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Wed Jul 11 23:39:49 2018 +0300
 
-    bytes: add ReplaceAll example
+    cmd/internal/obj/arm64: simplify some bool expressions
     
-    Change-Id: I36cc0b68a5a47ac78982b05118c58723c9c6648c
-    GitHub-Last-Rev: 0704d9569407d8b84d1ddcf845b759f7daa91ec1
-    GitHub-Pull-Request: golang/go#29203
-    Reviewed-on: https://go-review.googlesource.com/c/153842
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Replace `!(o1 != 0)` with `o1 == 0` (for readability).
+    
+    Found using https://go-critic.github.io/overview.html#boolExprSimplify-ref
+    
+    Change-Id: I4fc035458f530973f9be15b38441ec7b5fb591ec
+    Reviewed-on: https://go-review.googlesource.com/123377
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bytes/example_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/internal/obj/arm64/asm7.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

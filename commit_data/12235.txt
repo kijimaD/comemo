@@ -1,16 +1,13 @@
-commit 1f5fde09159fe2a4a87129af307045ca7b12f727
-Author: Yissakhar Z. Beck <yissakhar.beck@gmail.com>
-Date:   Tue Feb 28 07:41:49 2012 +1100
+commit 9aff05e3627d607150d0dbf07901c786d11721cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 28 07:40:44 2012 +1100
 
-    misc/bash: Completion for go tool.
+    A+C: add Yissakhar Z. Beck (Individual CLA)
     
-    This covers most of the tool's functionality. At some point,
-    support should probably be added for testflags and the various go
-    tools.
-    
-    R=golang-dev, bradfitz, kyle, minux.ma
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5646066
+    https://golang.org/cl/5698079
 
- misc/bash/go | 244 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 244 insertions(+)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

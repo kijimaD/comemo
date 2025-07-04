@@ -1,13 +1,17 @@
-commit 5a6af5fc9439f96829bcdc9463a28baee0e41d85
+commit 0d11cd1b6ecede754c3bf24c87a955d175568093
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 20 17:24:25 2014 +1100
+Date:   Thu Feb 20 11:29:37 2014 +1100
 
-    net/http: remove tmp file created in TestMultipartReaderOrder
+    cmd/pack: provide executable name in TestHello
     
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
+    otherwise go build command adds .exe suffix
+    
+    Fixes #7362
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/66470043
+    https://golang.org/cl/66250043
 
- src/pkg/net/http/request_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/pack/pack_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

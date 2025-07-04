@@ -1,26 +1,31 @@
-commit 57646534297a9bd193e6aaa4239c98984f371b97
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Sep 14 10:19:47 2020 -0400
+commit a1e057e585903cd35f4b497904af82117d60d3ba
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 20 00:35:58 2020 +0000
 
-    cmd/api: omit outside dependencies when listing the packages in "std"
+    cmd/go: roll forward "convert TestShadowingLogic to the script framework"
     
-    As of CL 251159, when 'go list -deps std' is run within GOROOT/src, it
-    treats the vendored external dependencies as real module dependencies,
-    not standard-library "vendor/" packages (which still exist in that
-    case, but are treated as distinct packages outside the "std" module).
+    This rolls forward the change golang.org/cl/214431, which was reverted
+    in golang.org/cl/220217. The cl was broken because
+    TestVersionControlErrorMessageIncludesCorrectDirectory, which is going
+    to be removed in golang.org/cl/214429 hadn't been submitted yet.
     
-    Fixes #41358
-    Updates #30241
+    Original change description:
     
-    Change-Id: Ic23eae9829d90e74a340d49ca9052e9191597410
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254738
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I87b3f9acb8575fbcbd58d454b5f9bac4923429b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220178
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/api/goapi.go                | 17 +++++++++++++----
- src/cmd/api/goapi_test.go           | 13 +++++++++++++
- src/cmd/go/internal/modload/load.go |  8 ++++++--
- 3 files changed, 32 insertions(+), 6 deletions(-)
+ src/cmd/go/go_test.go                             | 45 -----------------------
+ src/cmd/go/testdata/script/list_shadow.txt        | 25 +++++++++++++
+ src/cmd/go/testdata/shadow/root1/src/foo/foo.go   |  1 -
+ src/cmd/go/testdata/shadow/root1/src/math/math.go |  1 -
+ src/cmd/go/testdata/shadow/root2/src/foo/foo.go   |  1 -
+ 5 files changed, 25 insertions(+), 48 deletions(-)

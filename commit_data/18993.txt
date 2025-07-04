@@ -1,13 +1,19 @@
-commit cc562e40b49126504f99bf00d8b769142dfe5b38
+commit 15bc7ab957406f293f817885b1f3939632d0fad5
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Apr 1 13:14:45 2014 -0400
+Date:   Tue Apr 1 02:55:38 2014 -0400
 
-    api: update next.txt
+    cmd/gc: fix spurious "bad negated constant" for complex constants.
+    Fixes #7648.
     
-    LGTM=bradfitz
-    R=golang-codereviews, gobot, bradfitz
+    LGTM=r, remyoudompheng
+    R=golang-codereviews, r, remyoudompheng, jscrockett01
     CC=golang-codereviews
-    https://golang.org/cl/81890044
+    https://golang.org/cl/80560045
 
- api/next.txt | 34 ++++++++++++++++++++++++++++++++++
- 1 file changed, 34 insertions(+)
+ src/cmd/gc/go.y                   |    4 +
+ src/cmd/gc/y.tab.c                | 1280 ++++++++++---------------------------
+ src/cmd/gc/y.tab.h                |   46 +-
+ test/fixedbugs/issue7648.dir/a.go |   11 +
+ test/fixedbugs/issue7648.dir/b.go |   11 +
+ test/fixedbugs/issue7648.go       |    9 +
+ 6 files changed, 397 insertions(+), 964 deletions(-)

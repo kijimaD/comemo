@@ -1,0 +1,27 @@
+commit 408739fc96f00a50642673544e803a3c3f3e27df
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 13 11:56:42 2024 -0500
+
+    cmd/compile,cmd/asm: on PPC64, generate compares against constant 0
+    
+    Merge the handling of CMPx r,r,cr and CMPx r,i,cr when assembling.
+    
+    This prevents generating machine code like cmpd rx,r0 when cmpdi rx,0
+    is preferred. The preferred form can be fused on Power10 for faster
+    execution of some instruction sequences.
+    
+    Likewise, update a common case to use $0 instead of R0 to take
+    advantage of this.
+    
+    Change-Id: If2549ca25a5f7d23001885ad444c70d829b3b066
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power10,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585137
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 23 +++++++++++++++++++++--
+ src/cmd/compile/internal/ppc64/ssa.go     |  4 ++--
+ src/cmd/internal/obj/ppc64/asm9.go        | 28 +++++++++-------------------
+ 3 files changed, 32 insertions(+), 23 deletions(-)

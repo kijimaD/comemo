@@ -1,14 +1,14 @@
-commit c049d34006b055cabd6c0f146936ee156231ef13
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Aug 22 11:03:11 2015 +0900
+commit 6fe9c4a7bd7e7054071586c9e90f901fa6043ba9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 1 08:48:19 2015 +1000
 
-    net: drop redundant domain name length check
+    doc: more library in go1.5.html
     
-    It is already validated by isDoaminName.
+    Everything in the library but crypto and net.
     
-    Change-Id: I7a955b632a5143e16b012641cf12bad452900753
-    Reviewed-on: https://go-review.googlesource.com/13789
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I89b21b9621e6d338fa1891da0eabba5d7d2fe349
+    Reviewed-on: https://go-review.googlesource.com/11820
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/dnsclient_unix.go | 3 ---
- 1 file changed, 3 deletions(-)
+ doc/go1.5.html | 109 +++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 94 insertions(+), 15 deletions(-)

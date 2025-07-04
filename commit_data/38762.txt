@@ -1,16 +1,17 @@
-commit e61985427eb734ed686d63908cf15118cabe5db8
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Fri Apr 12 10:49:12 2019 +0100
+commit 1ac84999b93876bb06887e483ae45b27e03d7423
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Thu Oct 25 13:33:09 2018 +0300
 
-    cmd/internal/obj/s390x: remove param field from optab
+    cmd/compile: make ssa blocks collapsable in ssa.html
     
-    The param field isn't useful, we can just use REGSP instead.
+    This CL adds a button that collapses values list of a block.
+    Button is displayed for every block with non-empty values.
     
-    Change-Id: I2ac68131c390209cc84e43aa7620ccbf5ae69120
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171725
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I4b65af81e25349f38341df487d42698c9d006a00
+    Reviewed-on: https://go-review.googlesource.com/c/144557
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/s390x/asmz.go | 527 ++++++++++++++++++-------------------
- 1 file changed, 263 insertions(+), 264 deletions(-)
+ src/cmd/compile/internal/ssa/html.go | 32 +++++++++++++++++++++++++++++++-
+ 1 file changed, 31 insertions(+), 1 deletion(-)

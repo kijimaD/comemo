@@ -1,16 +1,21 @@
-commit 318294286a2d92b24dc98553ac3913cf80c98a7f
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 8 17:23:40 2014 -0400
+commit 2c780a35b986dec270640115fb3f28a9e1affeaf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 3 14:17:04 2014 +1000
 
-    runtime: enable StackCopyAlways
+    runtime: increase windows prof thread priority sooner
     
-    Let's see how close we are to this being ready.
-    Will roll back if it breaks any builds in non-trivial ways.
+    If system is busy burning cpu, it takes long time (about 300ms on
+    windows builders) to adjust prof thread priority. Once adjusted, prof
+    thread runs ahead of everyone else, but due to initial slowness, it
+    does not capture prof snapshots until start-up period is completed.
     
-    LGTM=r, khr
-    R=iant, khr, r
+    Change prof thread priority sooner, so it can start captures straight
+    away.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/138200043
+    https://golang.org/cl/134360043
 
- src/runtime/stack.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/os_windows.c | 1 +
+ 1 file changed, 1 insertion(+)

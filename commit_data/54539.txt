@@ -1,41 +1,20 @@
-commit 21bd01722c957c7899304721745e2deb2c0a57f9
-Author: Tim King <taking@google.com>
-Date:   Thu Sep 21 11:00:01 2023 -0700
+commit c87e69c2b49e27d0e68709eb9623f2f03eb15267
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Jun 27 20:36:27 2022 +0800
 
-    cmd: go get golang.org/x/tools@f9b8da7 and revendor
+    runtime/internal/atomic: enable atomic 64bit types for all functions on linux/loong64
     
-    go get golang.org/x/tools@f9b8da7 # CL 529915
-    go mod tidy
-    go mod vendor
+    ref. CL 356169
     
-    Change-Id: Ib0824e66ab8889bfab438e79bf3f7bb4b4f45879
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530175
-    Run-TryBot: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I813750d3fe191afe50d4029024ba97800211f688
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414414
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Tim King <taking@google.com>
 
- src/cmd/go.mod                                     |   4 +-
- src/cmd/go.sum                                     |   8 +-
- .../vendor/golang.org/x/sys/unix/syscall_unix.go   |   3 +
- .../golang.org/x/sys/windows/syscall_windows.go    |   7 +-
- .../golang.org/x/sys/windows/zsyscall_windows.go   |   7 +-
- .../vendor/golang.org/x/tools/go/analysis/doc.go   |   2 +-
- .../go/analysis/internal/analysisflags/flags.go    |   3 +-
- .../analysis/passes/internal/analysisutil/util.go  |   4 +-
- .../x/tools/go/analysis/unitchecker/unitchecker.go | 108 +++++++++++++--------
- .../golang.org/x/tools/internal/facts/facts.go     |   4 +-
- .../x/tools/internal/typeparams/coretype.go        |   8 +-
- .../x/tools/internal/typeparams/termlist.go        |   2 +-
- .../x/tools/internal/typeparams/typeterm.go        |   9 +-
- src/cmd/vendor/modules.txt                         |   4 +-
- src/go.mod                                         |   2 +-
- src/go.sum                                         |   4 +-
- src/vendor/golang.org/x/sys/cpu/cpu.go             |   5 +-
- src/vendor/golang.org/x/sys/cpu/cpu_x86.go         |   7 ++
- src/vendor/modules.txt                             |   2 +-
- 19 files changed, 117 insertions(+), 76 deletions(-)
+ src/runtime/internal/atomic/atomic_loong64.go | 6 ++++++
+ src/runtime/internal/atomic/atomic_loong64.s  | 7 +++++++
+ src/runtime/internal/atomic/types_64bit.go    | 2 +-
+ 3 files changed, 14 insertions(+), 1 deletion(-)

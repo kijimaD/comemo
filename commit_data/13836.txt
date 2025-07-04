@@ -1,12 +1,15 @@
-commit da1ce837322ccf7424590f96e765f073ca84e573
-Author: Sanjay Menakuru <balasanjay@gmail.com>
-Date:   Mon Sep 17 11:06:42 2012 -0700
+commit f005fedfa94bb2da726024953996bde40fc1e0fd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 17 10:41:47 2012 -0700
 
-    unicode/utf8: add Examples
+    misc/dashboard/builder: add timeout to all external command invocations
+    
+    Fixes #4083.
     
     R=golang-dev, r
-    CC=adg, golang-dev
-    https://golang.org/cl/6493124
+    CC=golang-dev
+    https://golang.org/cl/6498136
 
- src/pkg/unicode/utf8/example_test.go | 192 +++++++++++++++++++++++++++++++++++
- 1 file changed, 192 insertions(+)
+ misc/dashboard/builder/exec.go | 28 ++++++++++++++++++++++++----
+ misc/dashboard/builder/main.go | 32 ++++++++++++++------------------
+ 2 files changed, 38 insertions(+), 22 deletions(-)

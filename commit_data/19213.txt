@@ -1,17 +1,17 @@
-commit d31d19765bf047ed3399a62a9d94db06f893cf1e
+commit 0a8f5177f698086b4f83defb15a6010d6ad863a5
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Apr 21 00:08:59 2014 -0400
+Date:   Mon Apr 21 00:02:21 2014 -0400
 
-    runtime, cmd/ld, cmd/5l, run.bash: enable external linking on FreeBSD/ARM.
-    Update #7331
+    cmd/go: handle -ccflags in 'go test'
+    CL 89050043 only allows -ccflags for 'go test', this
+    CL really handles the flag like the other -??flags.
+    Many thanks to Dobrosław Żybort for pointing this out.
+    Fixes #7810 (again).
     
-    LGTM=dave, iant
-    R=golang-codereviews, dave, gobot, iant
+    LGTM=iant, matrixik
+    R=golang-codereviews, iant, matrixik
     CC=golang-codereviews
-    https://golang.org/cl/89520043
+    https://golang.org/cl/89230044
 
- src/cmd/5l/obj.c                  | 1 +
- src/cmd/ld/elf.c                  | 4 ++--
- src/pkg/runtime/rt0_freebsd_arm.s | 5 +++++
- src/run.bash                      | 7 ++++++-
- 4 files changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/go/testflag.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,17 +1,17 @@
-commit d94078f04017533a89661514035d565261240ebb
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Sep 27 10:36:04 2017 -0700
+commit 27f88731eba585e1d9b5e425f61d270ff170ed68
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 9 11:58:53 2017 -0400
 
-    reflect: add URL scheme for godoc hyperlinking
+    runtime: print pc with fp/sp in traceback
     
-    Adding the "https://" scheme allows godoc to properly detect
-    the URL and provide a hyperlink for it.
+    If we're in a situation where printing the fp and sp in the traceback
+    is useful, it's almost certainly also useful to print the PC.
     
-    Change-Id: I76dc309368c86975de01bc6e6e9196037b2114d7
-    Reviewed-on: https://go-review.googlesource.com/66570
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ie48a0d5de8a54b5b90ab1d18638a897958e48f70
+    Reviewed-on: https://go-review.googlesource.com/45210
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/reflect/type.go | 2 +-
+ src/runtime/traceback.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

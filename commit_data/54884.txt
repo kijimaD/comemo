@@ -1,27 +1,25 @@
-commit 36f3ec59122136d5664fd4c5524b8d0370edffdf
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Wed Nov 1 02:36:36 2023 +0000
+commit f64c2a2ce5dc859315047184e310879dcf747d53
+Author: Gabor Tanz <gabor.tanz@swisscom.com>
+Date:   Fri Nov 18 07:59:03 2022 +0000
 
-    runtime/internal/atomic: add 386/amd64 And/Or operators
+    crypto/tls: add CertificateVerificationError to tls handshake
     
-    This CL adds the atomic primitives for the And/Or operators on x86-64.
-    It also includes missing benchmarks for the ops.
+    Fixes #48152
     
-    For #61395
-    
-    Change-Id: I23ef5192866d21fc3a479d0159edeafc3aeb5c47
-    GitHub-Last-Rev: df800be1925a9f3929456844b4e6d1524e627990
-    GitHub-Pull-Request: golang/go#62621
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528315
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I503f088edeb5574fd5eb5905bff7c3c23b2bc8fc
+    GitHub-Last-Rev: 2b0e982f3f6bca33062b0bbd64ed1804801e2c13
+    GitHub-Pull-Request: golang/go#56686
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449336
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/runtime/internal/atomic/atomic_386.go        | 18 ++++++
- src/runtime/internal/atomic/atomic_386.s         | 81 +++++++++++++++++++++++
- src/runtime/internal/atomic/atomic_amd64.go      | 18 ++++++
- src/runtime/internal/atomic/atomic_amd64.s       | 64 ++++++++++++++++++
- src/runtime/internal/atomic/atomic_andor_test.go | 82 +++++++++++++++++++++++-
- 5 files changed, 262 insertions(+), 1 deletion(-)
+ api/next/48152.txt                 |  5 +++++
+ src/crypto/tls/common.go           | 15 +++++++++++++++
+ src/crypto/tls/handshake_client.go |  2 +-
+ src/crypto/tls/handshake_server.go |  2 +-
+ src/net/http/transport_test.go     |  2 +-
+ 5 files changed, 23 insertions(+), 3 deletions(-)

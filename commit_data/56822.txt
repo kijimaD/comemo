@@ -1,19 +1,55 @@
-commit 20b79fd5775c39061d949569743912ad5e58b0e7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 2 14:29:16 2024 -0400
+commit 9624e67fd25d2962f4470df3d54ff6ed5bad3c24
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat May 20 17:49:21 2023 +0200
 
-    time: provide non-default metric for asynctimerchan
+    crypto/tls: add SessionState and use it on the server side
     
-    The original implementation could not support a non-default metric,
-    but now that it is set during package time, we can. Do that.
+    This change by itself is useless, because the application has no way to
+    access or provide SessionStates to crypto/tls, but they will be provided
+    in following CLs.
     
+    For #60105
     
-    Change-Id: If7929b0afa5b0142d299718d9bd811c5a8d1cf93
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589058
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I8d5de79b1eda0a778420134cf6f346246a1bb296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496818
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
 
- src/internal/godebugs/table.go | 2 +-
- src/runtime/metrics/doc.go     | 4 ++++
- src/time/sleep.go              | 1 +
- 3 files changed, 6 insertions(+), 1 deletion(-)
+ api/next/60105.txt                                 |   3 +
+ src/crypto/tls/handshake_messages_test.go          |  53 ++--
+ src/crypto/tls/handshake_server.go                 |  38 +--
+ src/crypto/tls/handshake_server_tls13.go           |  26 +-
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    |  74 ++---
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  62 ++--
+ .../tls/testdata/Server-TLSv12-ALPN-Fallback       |  62 ++--
+ .../tls/testdata/Server-TLSv12-ALPN-NotConfigured  |  62 ++--
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  72 ++---
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  66 ++--
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   |  66 ++--
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  76 ++---
+ .../tls/testdata/Server-TLSv13-AES128-SHA256       | 166 +++++------
+ .../tls/testdata/Server-TLSv13-AES256-SHA384       | 172 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-ALPN         | 166 +++++------
+ .../tls/testdata/Server-TLSv13-ALPN-Fallback       | 164 +++++-----
+ .../tls/testdata/Server-TLSv13-ALPN-NotConfigured  | 166 +++++------
+ .../tls/testdata/Server-TLSv13-CHACHA20-SHA256     | 166 +++++------
+ .../Server-TLSv13-ClientAuthRequestedAndECDSAGiven | 332 ++++++++++-----------
+ ...erver-TLSv13-ClientAuthRequestedAndEd25519Given | 269 +++++++++--------
+ .../Server-TLSv13-ClientAuthRequestedAndGiven      | 326 ++++++++++----------
+ .../Server-TLSv13-ClientAuthRequestedNotGiven      | 178 +++++------
+ .../tls/testdata/Server-TLSv13-ECDHE-ECDSA-AES     | 158 +++++-----
+ src/crypto/tls/testdata/Server-TLSv13-Ed25519      | 122 ++++----
+ .../testdata/Server-TLSv13-ExportKeyingMaterial    | 166 +++++------
+ .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 188 ++++++------
+ src/crypto/tls/testdata/Server-TLSv13-IssueTicket  | 166 +++++------
+ .../testdata/Server-TLSv13-IssueTicketPreDisable   | 166 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-P256         | 170 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 166 +++++------
+ src/crypto/tls/testdata/Server-TLSv13-Resume       |  84 +++---
+ .../Server-TLSv13-Resume-HelloRetryRequest         | 128 ++++----
+ src/crypto/tls/testdata/Server-TLSv13-X25519       | 166 +++++------
+ src/crypto/tls/ticket.go                           | 112 ++-----
+ 34 files changed, 2254 insertions(+), 2303 deletions(-)

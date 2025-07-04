@@ -1,14 +1,21 @@
-commit 3e5c04313c28e463fa866c2ef669ed66628faf9b
-Author: sergey <sngasuan@gmail.com>
-Date:   Thu May 2 18:07:34 2019 +0300
+commit 2ba9f7c24559c0b024902029489062f239e8fcad
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jun 18 15:31:18 2019 -0400
 
-    net/url: reduce allocs on resolvePath func
+    cmd/go: fix sumdb test failure with misbehaving DNS server
     
-    pregrow result array to avoid small allocation.
+    Broadened the regular expression used to test error messages for
+    failing to connect to "localhost.localdev/sumdb". Some DNS servers
+    resolve unknown domains like "localhost.localdev" to real IP addresses
+    to serve ads. We may get a variety of error messages.
     
-    Change-Id: Ife5f815efa4c163ecdbb3a4c16bfb60a484dfa11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174706
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #31779
+    
+    Change-Id: Ib389c633c9a9f70f8e89bbcba5282a375da4e708
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182799
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/url/url.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/testdata/script/mod_sumdb_proxy.txt | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

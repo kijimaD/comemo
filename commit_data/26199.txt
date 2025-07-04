@@ -1,35 +1,27 @@
-commit 0b281872e6390eb93c8bb176a20c72fef3d726d3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 10 14:35:39 2016 -0800
+commit 58c73de7d09ca750f5d1927448f086ee25977dad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 28 11:29:22 2015 -0800
 
-    cmd/compile: rename ssa.Type's Elem method to ElemType
+    os, runtime: better EPIPE behavior for command line programs
     
-    I would like to add a
+    Old behavior: 10 consecutive EPIPE errors on any descriptor cause the
+    program to exit with a SIGPIPE signal.
     
-        func (t *Type) Elem() *Type
+    New behavior: an EPIPE error on file descriptors 1 or 2 cause the
+    program to raise a SIGPIPE signal.  If os/signal.Notify was not used to
+    catch SIGPIPE signals, this will cause the program to exit with SIGPIPE.
+    An EPIPE error on a file descriptor other than 1 or 2 will simply be
+    returned from Write.
     
-    method to package gc, but that would collide with the existing
+    Fixes #11845.
+    Update #9896.
     
-        func (t *Type) Elem() ssa.Type
-    
-    method needed to make *gc.Type implement ssa.Type.  Because the latter
-    is much less widely used right now than the former will be, this CL
-    renames it to ElemType.
-    
-    Longer term, hopefully gc and ssa will share a common Type interface,
-    and ElemType can go away.
-    
-    Change-Id: I270008515dc4c01ef531cf715637a924659c4735
-    Reviewed-on: https://go-review.googlesource.com/20546
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic85d77e386a8bb0255dc4be1e4b3f55875d10f18
+    Reviewed-on: https://go-review.googlesource.com/18151
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             | 2 +-
- src/cmd/compile/internal/gc/type.go            | 8 ++++++--
- src/cmd/compile/internal/ssa/deadstore.go      | 2 +-
- src/cmd/compile/internal/ssa/gen/generic.rules | 4 ++--
- src/cmd/compile/internal/ssa/rewritegeneric.go | 8 ++++----
- src/cmd/compile/internal/ssa/type.go           | 6 +++---
- src/cmd/compile/internal/ssa/type_test.go      | 2 +-
- 7 files changed, 18 insertions(+), 14 deletions(-)
+ src/os/file_unix.go         |  13 ++---
+ src/os/pipe_test.go         | 114 ++++++++++++++++++++++++++++++++++++++++++++
+ src/os/signal/doc.go        |  12 +++++
+ src/runtime/signal1_unix.go |   3 ++
+ 4 files changed, 134 insertions(+), 8 deletions(-)

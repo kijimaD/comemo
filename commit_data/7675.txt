@@ -1,13 +1,12 @@
-commit 3e042ebb572038c7f680364613e6bbaf8d9c94c5
-Author: Petar Maymounkov <petarm@gmail.com>
-Date:   Mon Mar 7 12:08:39 2011 -0500
+commit ad29ef95617f902e8e3f8f355d83361cdfb854a7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 11:48:35 2011 -0500
 
-    http: adapt Cookie code to follow IETF draft
+    runtime: fix windows/386 build
     
-    R=rsc, bradfitzwork
+    TBR=brainman
     CC=golang-dev
-    https://golang.org/cl/4235055
+    https://golang.org/cl/4237060
 
- src/pkg/http/cookie.go      | 230 ++++++++++++++++----------------------------
- src/pkg/http/cookie_test.go |   4 +-
- 2 files changed, 85 insertions(+), 149 deletions(-)
+ src/pkg/runtime/windows/386/sys.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

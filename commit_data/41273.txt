@@ -1,26 +1,41 @@
-commit a9ea91d571b75d27a49e07f3604b8faa7a48525d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Feb 16 16:18:04 2020 -0500
+commit e53edafb664193e410089d3c2ac0aaca9c5982ff
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 4 14:32:28 2019 -0400
 
-    cmd/link, runtime: skip holes in func table
+    cmd/go/internal/mvs: recompute build list in Reqs before minimizing
     
-    On PPC64 when external linking, for large binaries we split the
-    text section to multiple sections, so the external linking may
-    insert trampolines between sections. These trampolines are within
-    the address range covered by the func table, but not known by Go.
-    This causes runtime.findfunc to return a wrong function if the
-    given PC is from such trampolines.
+    modload.MinReqs was passing modload.buildList to mvs.Reqs explicitly,
+    apparently as an optimization. However, we do not always have the
+    invariant that modload.buildList is complete: in particular, 'go mod
+    tidy' begins by reducing modload.buildList to only the set of modules
+    that provide packages to the build, which may be substantially smaller
+    than the final build list.
     
-    In this CL, we generate a marker between text sections where
-    there could potentially be a hole in the func table. At run time,
-    we skip the hole if we see such a marker.
+    Other operations, such as 'go mod graph', do not load the entire
+    import graph, and therefore call Reqs with the unreduced build list.
     
-    Fixes #37216.
+    Since Reqs retains modules according to a post-order traversal of the
+    list, an incomplete list may produce a different traversal order — and
+    therefore a different minimal solution, when multiple minimal
+    solutions exist. That caused 'go mod tidy' to produce different output
+    from other 'go' subcommands when certain patterns of dependencies are
+    present.
     
-    Change-Id: I95ab3875a84b357dbaa65a4ed339a19282257ce0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219717
-    Reviewed-by: David Chase <drchase@google.com>
+    Since passing in the build list is only an optimization anyway, remove
+    the parameter and recompute the actual (complete) list at the
+    beginning of mvs.Reqs itself. That way, it is guaranteed to be
+    complete and in canonical order.
+    
+    Fixes #34086
+    
+    Change-Id: I3101bb81a1853c4a5e773010da3e44d2d90a570c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193397
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/link/internal/ld/pcln.go | 22 ++++++++++++++++++++++
- src/runtime/symtab.go            | 10 +++++++++-
- 2 files changed, 31 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/init.go           |  2 +-
+ src/cmd/go/internal/mvs/mvs.go                | 13 +++--
+ src/cmd/go/internal/mvs/mvs_test.go           | 30 ++++++++---
+ src/cmd/go/testdata/script/mod_tidy_cycle.txt | 75 +++++++++++++++++++++++++++
+ 4 files changed, 109 insertions(+), 11 deletions(-)

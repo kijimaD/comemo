@@ -1,42 +1,28 @@
-commit d2951740303587fc0c5d14cb5461e39b099e6695
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Fri Sep 2 17:04:41 2016 +0200
+commit 8f955d3664813c831b35cb02c6e7b48dd0341ece
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 11 09:49:48 2016 -0700
 
-    runtime: speed up non-ASCII rune decoding
+    [dev.ssa] cmd/compile: fix fp constant loads for 386+PIC
     
-    Copies utf8 constants and EncodeRune implementation from unicode/utf8.
+    In position-independent 386 code, loading floating-point constants from
+    the constant pool requires two steps: materializing the address of
+    the constant pool entry (requires calling a thunk) and then loading
+    from that address.
     
-    Adds a new decoderune implementation that is used by the compiler
-    in code generated for ranging over strings. It does not handle
-    ASCII runes since these are handled directly before calls to decoderune.
+    Before this CL, the materializing happened implicitly in CX, which
+    clobbered that register.
     
-    The DecodeRuneInString implementation from unicode/utf8 is not used
-    since it uses a lookup table that would increase the use of cpu caches.
-    
-    Adds more tests that check decoding of valid and invalid utf8 sequences.
-    
-    name                              old time/op  new time/op  delta
-    RuneIterate/range2/ASCII-4        7.45ns ± 2%  7.45ns ± 1%     ~     (p=0.634 n=16+16)
-    RuneIterate/range2/Japanese-4     53.5ns ± 1%  49.2ns ± 2%   -8.03%  (p=0.000 n=20+20)
-    RuneIterate/range2/MixedLength-4  46.3ns ± 1%  41.0ns ± 2%  -11.57%  (p=0.000 n=20+20)
-    
-    new:
-    "".decoderune t=1 size=423 args=0x28 locals=0x0
-    old:
-    "".charntorune t=1 size=666 args=0x28 locals=0x0
-    
-    Change-Id: I1df1fdb385bb9ea5e5e71b8818ea2bf5ce62de52
-    Reviewed-on: https://go-review.googlesource.com/28490
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Change-Id: Id094e0fb2d3be211089f299e8f7c89c315de0a87
+    Reviewed-on: https://go-review.googlesource.com/26811
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 160 +++++++++----------
- src/cmd/compile/internal/gc/builtin/runtime.go |   2 +-
- src/cmd/compile/internal/gc/range.go           |   6 +-
- src/runtime/rune.go                            | 204 -------------------------
- src/runtime/string.go                          |  12 +-
- src/runtime/string_test.go                     |   1 +
- src/runtime/utf8.go                            | 123 +++++++++++++++
- src/unicode/utf8/utf8_test.go                  |  91 +++++++++++
- 8 files changed, 305 insertions(+), 294 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules | 11 ++++-
+ src/cmd/compile/internal/ssa/gen/386Ops.go | 12 +++++
+ src/cmd/compile/internal/ssa/opGen.go      | 63 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go | 78 +++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/x86/387.go        | 35 +++++---------
+ src/cmd/compile/internal/x86/ssa.go        | 23 +++++++++
+ 6 files changed, 196 insertions(+), 26 deletions(-)

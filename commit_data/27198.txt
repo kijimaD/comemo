@@ -1,22 +1,12 @@
-commit 694846a548f23cebb9b913999fa4fa6756e2c545
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Apr 28 15:19:11 2016 +1000
+commit 763afe13b97dd0e3795a29afc9a43bb1189230db
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Mar 15 16:57:20 2016 -0500
 
-    debug/pe: .bss section must contain only zeros
+    cmd/compile: change logging of spills for regalloc to Warnl format
     
-    .bss section has no data stored in PE file. But when .bss section data
-    is used by the linker it is assumed that its every byte is set to zero.
-    (*Section).Data returns garbage at this moment. Change (*Section).Data
-    so it returns slice filled with 0s.
-    
-    Updates #15345
-    
-    Change-Id: I1fa5138244a9447e1d59dec24178b1dd0fd4c5d7
-    Reviewed-on: https://go-review.googlesource.com/22544
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I01c000ff3f6dc6b0ed691e289eeef0fa61500337
+    Reviewed-on: https://go-review.googlesource.com/20744
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/debug/pe/file.go      | 17 ++++++++++-
- src/debug/pe/file_test.go | 73 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 89 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

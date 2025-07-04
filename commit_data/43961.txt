@@ -1,16 +1,95 @@
-commit 8d3458517199f5aa2be0ec0f316fd406c9ca6cbb
-Author: Austin Clements <austin@google.com>
-Date:   Sun Dec 6 21:28:36 2020 -0500
+commit 1419445926fe9424dad72b82344c6f52b0679cf3
+Merge: 404f626ee5 ecdbffd4ec
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 30 12:32:09 2020 -0400
 
-    doc/go1.16: announce openbsd/mips64 port
+    [dev.link] all: merge branch 'master' into dev.link
     
-    Updates #40995.
-    For #40700.
+    Clean merge.
     
-    Change-Id: I4dced8d70e2f1fa2da98e2eb1a5f1f829f55bb6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275787
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Change-Id: I9a30645ca0ceb52e45bc6b301f9f15f2f42998e8
 
- doc/go1.16.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ doc/go1.15.html                                   |    25 +-
+ lib/time/update.bash                              |     4 +-
+ lib/time/zoneinfo.zip                             |   Bin 781791 -> 782509 bytes
+ src/bytes/bytes.go                                |     5 +-
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s      |    10 +-
+ src/cmd/compile/internal/gc/gsubr.go              |    43 +-
+ src/cmd/compile/internal/gc/plive.go              |   303 +-
+ src/cmd/compile/internal/gc/ssa.go                |     8 +-
+ src/cmd/compile/internal/ppc64/ssa.go             |     3 +-
+ src/cmd/compile/internal/ssa/gen/386Ops.go        |    12 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go      |     6 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules      |   124 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go      |     6 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go        |    12 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go     |     6 +-
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go       |    12 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules      |    12 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go      |    10 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go    |     6 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules      |    42 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go      |     6 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules    |   416 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go    |     4 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go       |     2 +
+ src/cmd/compile/internal/ssa/magic.go             |    42 +-
+ src/cmd/compile/internal/ssa/opGen.go             |    98 +
+ src/cmd/compile/internal/ssa/rewrite.go           |     4 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go      |   294 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go      |    72 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go      |   343 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go    |   762 +-
+ src/cmd/cover/html.go                             |    23 +-
+ src/cmd/cover/pkgname_test.go                     |    31 +
+ src/cmd/go/go_test.go                             |    32 +-
+ src/cmd/go/internal/modcmd/verify.go              |    55 +-
+ src/cmd/go/internal/modload/mvs.go                |     4 +-
+ src/cmd/go/internal/work/exec.go                  |    33 +
+ src/cmd/go/internal/work/gc.go                    |     4 +
+ src/cmd/go/internal/work/init.go                  |    10 +-
+ src/cmd/go/testdata/script/build_trimpath_cgo.txt |   156 +
+ src/cmd/internal/obj/link.go                      |     2 +-
+ src/cmd/internal/obj/ppc64/a.out.go               |    12 -
+ src/cmd/internal/obj/ppc64/anames.go              |    12 -
+ src/cmd/internal/obj/ppc64/asm9.go                |    55 +-
+ src/cmd/internal/objabi/funcdata.go               |    17 +-
+ src/cmd/link/internal/ld/dwarf_test.go            |     9 +-
+ src/cmd/nm/nm_test.go                             |     2 +-
+ src/crypto/ed25519/ed25519_noasm.go               |     2 +-
+ src/crypto/ed25519/ed25519_s390x.go               |     2 -
+ src/crypto/ed25519/ed25519_s390x.s                |     2 -
+ src/crypto/x509/pkix/pkix.go                      |    44 +-
+ src/debug/gosym/symtab.go                         |     4 +-
+ src/go/ast/ast.go                                 |    47 +-
+ src/go/ast/ast_test.go                            |    29 +
+ src/image/geom.go                                 |    35 +
+ src/image/image.go                                |    96 +-
+ src/image/image_test.go                           |    72 +
+ src/image/jpeg/reader_test.go                     |   170 +
+ src/image/jpeg/scan.go                            |    19 +
+ src/image/names.go                                |     1 +
+ src/image/ycbcr.go                                |    20 +
+ src/math/example_test.go                          |     8 +
+ src/net/http/cgi/host.go                          |    29 +-
+ src/net/http/httputil/reverseproxy.go             |    17 +-
+ src/net/http/httputil/reverseproxy_test.go        |    33 +
+ src/runtime/asm_amd64.s                           |     6 +-
+ src/runtime/debugcall.go                          |   177 +-
+ src/runtime/debuglog.go                           |    20 +-
+ src/runtime/export_debug_test.go                  |    12 +-
+ src/runtime/mgcmark.go                            |     5 +-
+ src/runtime/pprof/pprof_rusage.go                 |    13 +-
+ src/runtime/preempt.go                            |    25 +-
+ src/runtime/proc.go                               |    65 +-
+ src/runtime/runtime2.go                           |     2 +
+ src/runtime/stack.go                              |    23 +-
+ src/runtime/symtab.go                             |    11 +-
+ src/strconv/atof.go                               |   146 +-
+ src/strconv/atof_test.go                          |    21 +
+ src/strconv/internal_test.go                      |     4 +
+ src/strings/strings.go                            |     3 +
+ src/syscall/syscall_linux_arm64.go                |    22 +-
+ src/syscall/zsyscall_linux_arm64.go               |     4 +-
+ src/time/tzdata/zipdata.go                        | 25148 ++++++++++----------
+ 83 files changed, 15547 insertions(+), 13939 deletions(-)

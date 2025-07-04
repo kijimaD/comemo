@@ -1,13 +1,14 @@
-commit de0c1c9cf5598e53a335d14c1fc8d0f42fe81ebc
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Jun 4 18:35:26 2012 +0200
+commit 622ace8ffe6aab56c35bf80c3a9853c833839a15
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jun 5 02:12:23 2012 +1000
 
-    exp/locale/collate: somehow an incorrect version of tables was checked in earlier.
-    Regenerated tables using maketables.
+    net: fix botched cgo netbsd merge
     
-    R=r, rsc
+    Fix botched cgo_netbsd.go merge and remove redundant +build directive.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6248067
+    https://golang.org/cl/6282048
 
- src/pkg/exp/locale/collate/tables.go | 122 +++++++++++++++++------------------
- 1 file changed, 61 insertions(+), 61 deletions(-)
+ src/pkg/net/cgo_netbsd.go | 6 ------
+ 1 file changed, 6 deletions(-)

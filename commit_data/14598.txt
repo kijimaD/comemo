@@ -1,17 +1,19 @@
-commit dffdece81928103398e74d1b462bba03eb24552c
+commit f0d9ccb8da4c2f0b8f900c970073eb4c980dcc38
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 10 20:20:00 2012 -0500
+Date:   Mon Dec 10 17:25:31 2012 -0500
 
-    godoc: move example list into index section
+    bufio: minor fixes
     
-    Putting it before the Index (where it is now) is wrong:
-    we don't even know what's in the package yet.
+    * note end-of-line and EOF behavior for ReadLine
+    * diagnose broken Readers
     
-    Fixes #4484.
+    Fixes #3825.
+    Fixes #4276.
     
-    R=adg, dsymonds
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/6868071
+    https://golang.org/cl/6907060
 
- lib/godoc/package.html | 29 ++++++++++++-----------------
- 1 file changed, 12 insertions(+), 17 deletions(-)
+ src/pkg/bufio/bufio.go      |  8 ++++++++
+ src/pkg/bufio/bufio_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

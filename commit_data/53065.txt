@@ -1,55 +1,32 @@
-commit 547aed18e0db6a18c207731d56b60a24d0c69ba5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 15 16:34:36 2023 -0700
+commit 3cf79d96105d890d7097d274804644b2a2093df1
+Author: Ori Bernstein <ori@eigenstate.org>
+Date:   Sun Jul 3 12:26:30 2022 -0400
 
-    runtime: consistently define fcntl
+    runtime: pass correct string to exits on Plan 9
     
-    Clean up and consolidate on a single consistent definition of fcntl,
-    which takes three int32 arguments and returns either a positive result
-    or a negative errno value.
+    In CL 405901 the definition of exit in the Plan 9 go runtime
+    was changed like so:
     
-    Change-Id: Id9505492712db4b0aab469c6bd15e4fce3c9ff6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495075
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+            -               status = append(itoa(tmp[:len(tmp)-1], uint64(e)), 0)
+            +               sl := itoa(tmp[:len(tmp)-1], uint64(e))
+            +               // Don't append, rely on the existing data being zero.
+            +               status = tmp[:len(sl)+1]
+    
+    However, itoa only puts the converted number "somewhere" in the buffer.
+    Specifically, it builds it from the end of the buffer towards the start,
+    meaning the first byte of the buffer is a 0 byte, and the resulting string
+    that's passed to exits is empty, leading to a falsely successful exit.
+    
+    This change uses the returned value from itoa, rather than the buffer
+    that was passed in, so that we start from the correct location in the
+    string.
+    
+    Fixes #53669
+    
+    Change-Id: I63f0c7641fc6f55250857dc17a1eeb12ae0c2e10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415680
+    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/export_aix_test.go        |  1 -
- src/runtime/export_darwin_test.go     |  8 --------
- src/runtime/export_openbsd_test.go    | 15 ---------------
- src/runtime/export_solaris_test.go    |  9 ---------
- src/runtime/export_unix_test.go       |  1 +
- src/runtime/nbpipe_fcntl_libc_test.go | 18 ------------------
- src/runtime/nbpipe_fcntl_unix_test.go | 17 -----------------
- src/runtime/nbpipe_test.go            | 30 ++++++++++++++++++------------
- src/runtime/netpoll_solaris.go        |  4 ----
- src/runtime/os3_solaris.go            |  9 +++++++++
- src/runtime/os_aix.go                 |  5 ++++-
- src/runtime/os_dragonfly.go           |  1 +
- src/runtime/os_freebsd.go             |  1 +
- src/runtime/os_linux.go               | 10 ++++++++++
- src/runtime/os_netbsd.go              |  1 +
- src/runtime/os_openbsd_syscall2.go    |  1 +
- src/runtime/os_solaris.go             |  2 +-
- src/runtime/sys_darwin_amd64.s        |  6 ++++++
- src/runtime/sys_darwin_arm64.s        |  7 +++++++
- src/runtime/sys_dragonfly_amd64.s     | 12 ++++++++++++
- src/runtime/sys_freebsd_386.s         |  9 +++++++++
- src/runtime/sys_freebsd_amd64.s       | 12 ++++++++++++
- src/runtime/sys_freebsd_arm.s         | 11 +++++++++++
- src/runtime/sys_freebsd_arm64.s       | 13 +++++++++++++
- src/runtime/sys_freebsd_riscv64.s     | 13 +++++++++++++
- src/runtime/sys_netbsd_386.s          |  9 +++++++++
- src/runtime/sys_netbsd_amd64.s        | 12 ++++++++++++
- src/runtime/sys_netbsd_arm.s          | 10 ++++++++++
- src/runtime/sys_netbsd_arm64.s        | 12 ++++++++++++
- src/runtime/sys_openbsd_386.s         |  6 ++++++
- src/runtime/sys_openbsd_amd64.s       |  6 ++++++
- src/runtime/sys_openbsd_arm.s         |  6 ++++++
- src/runtime/sys_openbsd_arm64.s       |  6 ++++++
- src/runtime/sys_openbsd_mips64.s      | 12 ++++++++++++
- 34 files changed, 209 insertions(+), 86 deletions(-)
+ src/runtime/os_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

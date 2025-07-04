@@ -1,18 +1,19 @@
-commit 13558c41ffa29d0af80e7e06d08af8eb0f0055fb
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 26 20:13:33 2016 -0400
+commit d57a4a656a8579b0ea3570c24329252ed536f98c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 14:21:06 2016 -0700
 
-    net: only remove Unix domain socket file on the first call to Close
+    cmd/compile: eliminate addmethod tpkg parameter
     
-    Fixes #17131.
+    It's only needed for a check that can be pushed up into bimport.go,
+    where it makes more sense anyway.
     
-    Change-Id: I60b381687746fadce12ef18a190cbe3f435172f2
-    Reviewed-on: https://go-review.googlesource.com/32098
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I6ef381ff4f29627b0f390ce27fef08902932bea6
+    Reviewed-on: https://go-review.googlesource.com/28177
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/net/unixsock.go       |  8 +++++---
- src/net/unixsock_posix.go |  9 ++++++---
- src/net/unixsock_test.go  | 12 ++++++++++++
- 3 files changed, 23 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go   | 7 ++++++-
+ src/cmd/compile/internal/gc/dcl.go       | 8 +-------
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 3 files changed, 8 insertions(+), 9 deletions(-)

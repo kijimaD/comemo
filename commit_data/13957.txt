@@ -1,15 +1,16 @@
-commit 5490814c3058f4cab756e353b8855e1ba155cdb3
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Sep 26 22:34:25 2012 +0800
+commit ded94b7222eb9ffc7c3a46d4420c12f531f63304
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 26 20:46:49 2012 +1000
 
-    cmd/go, cmd/ld: fix libgcc order and add __image_base__ symbol for windows
-            Fixes #4063.
+    reflect.DeepEqual: rewrite clarification about nil and empty slice.
+    The previous version was created by an idiot. This time, Rog Peppe
+    wrote the text. Thanks, Rog.
+    (== doesn't work on slices in general, so it makes no sense to
+    talk about in the context of DeepEqual.)
     
-    R=alex.brainman, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6543066
+    https://golang.org/cl/6566054
 
- src/cmd/go/build.go | 7 +++++--
- src/cmd/ld/pe.c     | 3 +++
- src/run.bat         | 9 ++++-----
- 3 files changed, 12 insertions(+), 7 deletions(-)
+ src/pkg/reflect/deepequal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

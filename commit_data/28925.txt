@@ -1,21 +1,39 @@
-commit 6c295a9a71924478a344e7b447ff3b44b1e94511
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 22:56:14 2016 -0400
+commit 336dad2a07b17e46e5e81eab8a3209dffbbb928d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 16 22:05:57 2016 -0400
 
-    syscall: for ForkExec on Linux, always use 32-bit setgroups system call
+    runtime: fix check for vacuous page boundary rounding
     
-    Fixes #17092.
+    sysUnused (e.g., madvise MADV_FREE) is only sensible to call on
+    physical page boundaries, so scavengelist rounds in the bounds of the
+    region being released to the nearest physical page boundaries.
+    However, if the region is smaller than a physical page and neither the
+    start nor end fall on a boundary, then rounding the start up to a page
+    boundary and the end down to a page boundary will result in end < start.
+    Currently, we only give up on the region if start == end, so if we
+    encounter end < start, we'll call madvise with a negative length and
+    the madvise will fail.
     
-    Change-Id: If203d802a919e00594ddc1282782fc59a083fd63
-    Reviewed-on: https://go-review.googlesource.com/31458
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Issue #16644 gives a concrete example of this:
+    
+        start = 0x1285ac000
+        end   = 0x1285ae000 (1 8K page)
+    
+    This leads to the rounded values
+    
+        start = 0x1285b0000
+        end   = 0x1285a0000
+    
+    which leads to len = -65536.
+    
+    Fix this by giving up on the region if end <= start, not just if
+    end == start.
+    
+    Fixes #16644.
+    
+    Change-Id: I8300db492dbadc82ac1ad878318b36bcb7c39524
+    Reviewed-on: https://go-review.googlesource.com/27230
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/exec_linux.go            | 2 +-
- src/syscall/syscall_linux_386.go     | 5 +++--
- src/syscall/syscall_linux_amd64.go   | 5 +++--
- src/syscall/syscall_linux_arm.go     | 5 +++--
- src/syscall/syscall_linux_arm64.go   | 5 +++--
- src/syscall/syscall_linux_mips64x.go | 3 ++-
- src/syscall/syscall_linux_ppc64x.go  | 5 +++--
- src/syscall/syscall_linux_s390x.go   | 5 +++--
- 8 files changed, 21 insertions(+), 14 deletions(-)
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

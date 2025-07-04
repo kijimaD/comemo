@@ -1,23 +1,21 @@
-commit c2f28de732749425ea29b5efa982c407964f8560
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 6 20:47:38 2018 -0800
+commit 84e91e1d6b2fed3e19d69194067cc2797f503b95
+Author: Mark Theunissen <mark.theunissen@gmail.com>
+Date:   Tue Jul 25 12:47:39 2017 +0200
 
-    runtime: change from rt_sigaction to sigaction
+    net/url: preserve leading slashes when resolving path
     
-    This normalizes the Linux code to act like other targets. The size
-    argument to the rt_sigaction system call is pushed to a single
-    function, sysSigaction.
+    When doing resolvePath, if there are multiple leading slashes in the
+    target, preserve them. This prevents an issue where the Go http.Client
+    cleans up multiple leading slashes in the Location header in a
+    redirect, resulting in a redirection to the incorrect target.
     
-    This is intended as a simplification step for CL 93875 for #14327.
+    Fixes #21158.
     
-    Change-Id: I594788e235f0da20e16e8a028e27ac8c883907c4
-    Reviewed-on: https://go-review.googlesource.com/99077
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I6a21ea61ca3bc7033f3c8a6ccc21ecaa3e996fa8
+    Reviewed-on: https://go-review.googlesource.com/51050
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/cgo_sigaction.go   | 23 +++++++++--------------
- src/runtime/os_linux.go        | 22 ++++++++++++++++------
- src/runtime/sigaction_linux.go | 11 ++++++++---
- src/runtime/sys_linux_amd64.s  |  2 +-
- 4 files changed, 34 insertions(+), 24 deletions(-)
+ src/net/url/url.go      | 2 +-
+ src/net/url/url_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

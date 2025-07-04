@@ -1,33 +1,22 @@
-commit a81c8b3bf2697b86ac7d3d29d7c0fb71c0716a84
-Author: Koya IWAMURA <kiwamura0314@gmail.com>
-Date:   Wed Apr 24 01:16:08 2024 +0900
+commit 752ef81056691603c8b305a5f894215d3eb64b14
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 27 15:56:34 2023 -0700
 
-    net/url: improve URL.String performance
+    net: re check conf.goos even if it equals runtime.GOOS
     
-    URL.String performs memory allocation many times, but it can improve
-    performance by allocating memory that it clearly knows it needs.
-    This CL achieves 24.6% speedup, 18.3% memory reduction, and 46.7% fewer memory
-    allocations on existing benchmarks.
+    This field is only for testing purposes, where we can't assume
+    that the conf value was initialized as expected for that GOOS.
     
-              │ string_old.txt │           string_new2.txt           │
-              │     sec/op     │   sec/op     vs base                │
-    String-16      3.622µ ± 5%   2.730µ ± 2%  -24.63% (p=0.000 n=10)
+    This fixes the net tests on android.
     
-              │ string_old.txt │           string_new2.txt            │
-              │      B/op      │     B/op      vs base                │
-    String-16     1.406Ki ± 0%   1.148Ki ± 0%  -18.33% (p=0.000 n=10)
-    
-              │ string_old.txt │          string_new2.txt           │
-              │   allocs/op    │ allocs/op   vs base                │
-    String-16       60.00 ± 0%   32.00 ± 0%  -46.67% (p=0.000 n=10)
-    
-    Change-Id: I70199be952eddc44134945077e52740e8921088f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581155
+    Change-Id: I8432587f219a05adbb4d234a813467f876a764b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489975
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Joedian Reid <joedian@google.com>
 
- src/net/url/url.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/net/conf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

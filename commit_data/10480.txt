@@ -1,14 +1,18 @@
-commit c69d6345daf277b947341ba958458b0a500effe1
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 22 12:22:28 2011 -0500
+commit 11e73b89ca8ca5ca80df431e1c78565a9c9028ae
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Nov 22 17:57:49 2011 +0300
 
-    os: make ReadAt comment clearer
+    cgo: add support for callbacks from dynamic libraries
     
-    Fixes #2486.
-    
-    R=golang-dev, hanwen
-    CC=golang-dev
-    https://golang.org/cl/5417064
+    R=golang-dev, rsc
+    CC=golang-dev, mpimenov
+    https://golang.org/cl/5375042
 
- src/pkg/os/file.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testso/Makefile  | 22 ++++++++++++++++++++++
+ misc/cgo/testso/cgoso.go  | 16 ++++++++++++++++
+ misc/cgo/testso/cgoso_c.c |  9 +++++++++
+ misc/cgo/testso/main.go   | 11 +++++++++++
+ src/Make.pkg              |  2 +-
+ src/cmd/cgo/out.go        |  1 +
+ src/run.bash              |  9 +++++++++
+ 7 files changed, 69 insertions(+), 1 deletion(-)

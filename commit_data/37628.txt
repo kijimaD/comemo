@@ -1,25 +1,32 @@
-commit 89df035464e63ea7c90b981266e9a77a227c456b
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Dec 6 16:18:12 2018 -0500
+commit bc276c585b24a5e3adb9c6cdfebc4d69d910cc2e
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu May 17 19:47:52 2018 +0300
 
-    cmd/go: fix errors for commands run outside of modules
+    cmd/link/internal/ld: avoid Reloc copies in range loops
     
-    Since CL 148517, several commands (including list and get) work when
-    GO111MODULE=on even when no go.mod file is present. This broke an
-    assumption made by "fix" and "generate" which caused panics when run
-    with a list of .go files (whether or not the command was run inside a
-    module).
+    Copying sym.Reloc in loops hurts performance as
+    it has 48 byte size (on 64-bit platforms).
     
-    This change fixes those assumptions and adds test cases for other
-    commands run outside modules.
+    There are quite many symbols and each of them has more than 1
+    relocation (so, it's possible to have more than 1kk relocs).
+    The're also traversed more than once in some code paths.
     
-    Fixes #29097
+    By using pointers to them, copies are avoided.
     
-    Change-Id: I7927559769c5d4617d73eb63f3b17e2f26d8c219
-    Reviewed-on: https://go-review.googlesource.com/c/153158
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    For linking "hello world" example from net/http:
+    
+            name      old time/op  new time/op  delta
+            Linker-4   530ms ± 2%   521ms ± 3%  -1.80%  (p=0.000 n=17+20)
+    
+    Change-Id: I6518aec69d6adcd137f84b5c089ceab4cb4ea2dd
+    Reviewed-on: https://go-review.googlesource.com/113636
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/fix/fix.go             |  2 +-
- src/cmd/go/internal/generate/generate.go   |  2 +-
- src/cmd/go/testdata/script/mod_outside.txt | 31 ++++++++++++++++++++++++++++++
- 3 files changed, 33 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/ar.go       | 3 ++-
+ src/cmd/link/internal/ld/data.go     | 3 ++-
+ src/cmd/link/internal/ld/deadcode.go | 4 ++--
+ src/cmd/link/internal/ld/dwarf.go    | 9 ++++++---
+ src/cmd/link/internal/ld/lib.go      | 3 ++-
+ 5 files changed, 14 insertions(+), 8 deletions(-)

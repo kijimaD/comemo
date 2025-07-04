@@ -1,22 +1,23 @@
-commit a2b1dc863fe8effbb2aba2598fd37d3944c1dc4f
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Sep 20 03:25:16 2019 +1000
+commit 53deb812196d857ce8a7c46c1f7c1559bb167630
+Author: David Chase <drchase@google.com>
+Date:   Thu Jun 6 09:56:20 2019 -0400
 
-    cmd/link,cmd/internal/objabi: factor out direct call identification
+    cmd/compile: correct capitalization in recordFlags parameter
     
-    Factor out the direct CALL identification code from objabi.IsDirectJump and
-    use this in two places that have separately maintained lists of reloc types.
-    Provide an objabi.IsDirectCallOrJump function that implements the original
-    behaviour of objabi.IsDirectJump.
+    Tool refactoring smallStacks into smallFrames helpfully
+    "corrected" the capitalization in a string, this undoes
+    the help.
     
-    Change-Id: I48131bae92b2938fd7822110d53df0b4ffb35766
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196577
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    This is necessary to ensure correct (re)building when the
+    flag is used to research stack-marking GC latency bugs.
+    
+    Updates #27732.
+    
+    Change-Id: Ib7c8d4a36c9e4f9612559be68bd481f9d9cc69f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180958
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/objabi/reloctype.go | 30 ++++++++++++++++++++++++------
- src/cmd/link/internal/ld/data.go     |  4 ++--
- src/cmd/link/internal/ld/lib.go      | 10 ++++------
- src/cmd/link/internal/ld/pcln.go     |  2 +-
- 4 files changed, 31 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

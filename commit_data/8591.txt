@@ -1,12 +1,12 @@
-commit ef2d5f68d052412c50d9bf0da417da4c61fd8d7e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 2 12:26:43 2011 -0400
+commit 2653b4fbcc5be866dd478f79bf6854db8ede7ffd
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 2 10:52:46 2011 -0400
 
-    path/filepath: skip permission test in all.bash
+    testing: fix MB/s computation, documentation
     
-    R=golang-dev, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4517132
+    https://golang.org/cl/4529100
 
- src/pkg/path/filepath/path_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/testing/benchmark.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

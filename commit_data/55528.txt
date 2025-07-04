@@ -1,26 +1,23 @@
-commit 39ec246e739a787375b00acd92c10311863575a2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 1 10:24:25 2024 -0500
+commit 3ad6393f8676b1b408673bf40b8a876f29561eef
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Sun Feb 12 15:37:00 2023 +0200
 
-    cmd/go: avoid copying a binary to be exec'd in TestScript/gotoolchain_path
+    src: rename unexported errors by adding prefix err
     
-    Runinng 'go build' writes the binary in a separate process, so avoids
-    the race described in #22315. However, the script engine's 'cp'
-    command currently executes in-process, so it does not avoid that bug
-    and may retain stale file descriptors when running tests in parallel.
+    By convention, use `err` as prefix for variables of type `error`.
     
-    Avoid the race in this particular test by giving the final binary
-    location in the '-o' argument instead of copying it there after the
-    fact.
-    
-    Fixes #64019.
-    
-    Change-Id: I96d276f33c09e39f465e9877356f1d8f2ae55062
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560415
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I9401d5d47e994a27be245b2c8b1edd55cdd52db1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467536
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/testdata/script/gotoolchain_path.txt | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/encoding/binary/varint.go      |  6 +++---
+ src/encoding/binary/varint_test.go |  6 +++---
+ src/fmt/scan.go                    | 14 +++++++-------
+ src/time/format.go                 |  4 ++--
+ src/time/zoneinfo_plan9.go         |  8 ++++----
+ src/time/zoneinfo_read.go          | 34 +++++++++++++++++-----------------
+ 6 files changed, 36 insertions(+), 36 deletions(-)

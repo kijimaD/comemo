@@ -1,31 +1,38 @@
-commit 8d71ae8c775129161fda64e77b2de2276e7362e2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 16 08:02:34 2023 -0500
+commit da6f9a54edb85365bb345b057cdc26e2527401c8
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Tue Sep 28 06:18:30 2021 -0700
 
-    cmd/go/internal/modindex: remove copy of build.Package
+    sort: use a different codegen strategy
     
-    modindex defines its own type Package that must be exactly the
-    same as build.Package (there are conversions between them).
-    The normal reason to do this is to provide a different method set,
-    but there aren't any different methods. And if we needed to do that,
-    we could write
+    The existing codegen strategy in sort.go relied on parsing the sort.go source
+    with go/ast and a combination of an AST rewrite + code text rewrite with regexes
+    to generate zfuncversion -- the same sort functionality with a different variant
+    of data.
     
-            type Package build.Package
+    In preparation for implementing #47619, we need a more robust codegen
+    strategy. To generate variants required for the generic sort functions
+    in the slices package, we'd need significanly more complicated AST
+    rewrites, which would make genzfunc.go much heavier.
     
-    instead of repeating the struct definition. Remove the type entirely
-    in favor of direct use of build.Package.
+    Instead, redo the codegen strategy to use text/template instead of AST rewrites.
+    gen_sort_variants.go now contains the code for the underlying sort functions,
+    and generates multiple versions of them based on Variant configuration structs.
+    With this approach, adding new variants to generate generic sort functions for
+    the slices package becomes trivial.
     
-    This makes the modindex package not break when fields are
-    added to go/build.Package.
+    See the discussion in #47619 for more details on the design decisions.
     
-    Change-Id: I8ffe9f8832bbc62be93a72e6a09d807ddbce216b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462255
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I8af784c41b1dc8ef92aaf6321359e8faa5fe106c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353069
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/modindex/build.go | 81 ++---------------------------------
- src/cmd/go/internal/modindex/read.go  |  6 +--
- src/cmd/go/internal/modindex/scan.go  |  2 +-
- 3 files changed, 8 insertions(+), 81 deletions(-)
+ src/sort/gen_sort_variants.go | 526 ++++++++++++++++++++++++++++++++++++++++++
+ src/sort/genzfunc.go          | 127 ----------
+ src/sort/sort.go              | 337 +--------------------------
+ src/sort/zfuncversion.go      | 265 ---------------------
+ src/sort/zsortfunc.go         | 342 +++++++++++++++++++++++++++
+ src/sort/zsortinterface.go    | 342 +++++++++++++++++++++++++++
+ 6 files changed, 1211 insertions(+), 728 deletions(-)

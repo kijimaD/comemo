@@ -1,16 +1,15 @@
-commit 0fe6b1293a9b65bc8b23be41d111bc9e4914684a
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Mar 2 14:53:07 2015 +1100
+commit 46bff7558ac77a7585d5987fb40cdab39282bfb4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Feb 7 13:32:35 2015 -0800
 
-    image/jpeg: when following component selectors, only consider valid
-    components.
+    net/smtp: document SendMail more
     
-    This fixes decoding JPEG images where the component selector is 0. Such
-    images are rare, but not impossible.
+    Fixes #9776
     
-    Change-Id: I6d221bce01cce8cc0440e117543233371782ca22
-    Reviewed-on: https://go-review.googlesource.com/6421
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I53741fd970244bbfa6874adcb4f1e3d0e7de386b
+    Reviewed-on: https://go-review.googlesource.com/4162
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/image/jpeg/scan.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/smtp/example_test.go | 24 +++++++++++++++++++++++-
+ src/net/smtp/smtp.go         | 21 ++++++++++++++++++---
+ 2 files changed, 41 insertions(+), 4 deletions(-)

@@ -1,22 +1,15 @@
-commit 6defff500536c1210f526fcaaf3ae7f1005f0337
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Apr 30 16:21:20 2024 -0400
+commit 63edd418b6684c0eed6d19d818eaef42e813a2ae
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon May 1 13:09:47 2023 -0400
 
-    cmd/vet: add stdversion analyzer
+    cmd/compile: drop unused arg to mkinlcall
     
-    + release note, test
-    
-    Fixes #46136
-    
-    Change-Id: Ib157c5343dde379f8d6f67bdfa64b3f6a6432bab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582556
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I3cd8d81cc434257d78b34dfaae09a77ab3211121
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490896
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/next/3-tools.md                           | 14 ++++++++++++
- src/cmd/go/internal/test/flagdefs.go          |  1 +
- src/cmd/vet/main.go                           |  2 ++
- src/cmd/vet/testdata/stdversion/go.mod        |  3 +++
- src/cmd/vet/testdata/stdversion/stdversion.go |  5 +++++
- src/cmd/vet/vet_test.go                       | 31 +++++++++++++++++++++++++++
- 6 files changed, 56 insertions(+)
+ src/cmd/compile/internal/inline/inl.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

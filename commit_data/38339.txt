@@ -1,28 +1,18 @@
-commit 1c2d4da10f6edf9a83fb0cffaaf9f631f462d26b
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Mar 9 18:01:26 2019 +0100
+commit 956af978806749448af86d7e2878405ee0bef94d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 23 07:01:35 2018 +1100
 
-    syscall: skip non-root user namespace test if kernel forbids
+    encoding/gob: delete out of memory test
     
-    The unprivileged_userns_clone sysctl prevents unpriviledged users from
-    creating namespaces, which the AmbientCaps test does. It's set to 0 by
-    default in a few Linux distributions (Debian and Arch, possibly
-    others), so we need to check it before running the test.
+    Now that the library allows much larger data, it can kill
+    machines with less memory.
     
-    I've verified that setting
+    Fixes #28321
     
-      echo 1 > /proc/sys/kernel/unprivileged_userns_clone
-    
-    and then running the test *without this patch* makes it pass, which
-    proves that checking unprivileged_userns_clone is indeed sufficient.
-    
-    Fixes #30698
-    
-    Change-Id: Ib2079b5e714d7f2440ddf979c3e7cfda9a9c5005
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166460
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I98e1a5fdf812fd75adfb22bf01542423de405fe2
+    Reviewed-on: https://go-review.googlesource.com/c/143817
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/syscall/exec_linux_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/encoding/gob/encoder_test.go | 22 ----------------------
+ 1 file changed, 22 deletions(-)

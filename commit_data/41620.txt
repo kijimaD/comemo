@@ -1,17 +1,30 @@
-commit 65bd07611c95d66c60eca57932714e6bd0059c54
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 12 11:25:39 2020 +1100
+commit c9470b04833332a8e2287364ccfa3e690f5a2047
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 14 10:06:37 2019 -0400
 
-    io: add a comment about how to turn a Reader into ByteReader
+    [dev.link] cmd/link/internal/objfile: relocate loader to new package
     
-    Offered as an alternative to CL 221380, which was more
-    tutorial than necessary.
+    Third change of several to update the loader API to reflect the final
+    consensus version of the loader API as described in Cherry's doc.
+    This piece:
     
-    Update #37344
+       - move objfile.Loader into its own separate package, and update
+         clients accordingly.
     
-    Change-Id: Ide673b0b97983c2c2319a9311dc3d0a10567e6c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223097
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This includes a few minor cleanups, including converting a couple
+    of loader-related functions to methods, and privatizing some of the
+    loader methods such as ToGlobal/ToLocal.
+    
+    Change-Id: Iae20585751a45491d8b19dcffc096aadae6bbfc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200998
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/io.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/dist/buildtool.go                          |   1 +
+ src/cmd/link/internal/ld/deadcode2.go              | 143 +++++++++++----------
+ src/cmd/link/internal/ld/lib.go                    |   9 +-
+ src/cmd/link/internal/ld/link.go                   |   4 +-
+ .../{objfile/objfile2.go => loader/loader.go}      |  60 ++++-----
+ src/cmd/link/internal/loadmacho/ldmacho.go         |   4 +-
+ 6 files changed, 112 insertions(+), 109 deletions(-)

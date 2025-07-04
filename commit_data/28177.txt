@@ -1,32 +1,18 @@
-commit 03cff2e115277951108d3e00298ae1cb0b0b7fb6
-Author: Sina Siadat <siadat@gmail.com>
-Date:   Sat Aug 27 20:46:25 2016 +0430
+commit 9f8ecd75fcbee462dc9f1f2d1ce1025a14e1cf5b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 3 17:21:36 2016 -0700
 
-    net/http/httputil: remove proxied headers mentioned in connection-tokens
+    cmd/compile: use SSA tests on legacy compiler
     
-    RFC 2616, section 14.10 says:
+    Why not?  Because the 386 backend can't handle one of them.
+    But other than that, it should work.
     
-    >>>
-    HTTP/1.1 proxies MUST parse the Connection header field before a message
-    is forwarded and, for each connection-token in this field, remove any
-    header field(s) from the message with the same name as the
-    connection-token. Connection options are signaled by the presence of a
-    connection-token in the Connection header field, not by any
-    corresponding additional header field(s), since the additional header
-    field may not be sent if there are no parameters associated with that
-    connection option.
-    <<<
-    
-    The same requirement was included in RFC 7230, section 6.1.
-    
-    Fixes #16875
-    
-    Change-Id: I57ad4a4a17775537c8810d0edd7de1604317b5fa
-    Reviewed-on: https://go-review.googlesource.com/27970
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iaeb9735f8c3c281136a0734376dec5ddba21be3b
+    Reviewed-on: https://go-review.googlesource.com/22748
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/httputil/reverseproxy.go      | 10 ++++++++
- src/net/http/httputil/reverseproxy_test.go | 41 ++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+)
+ src/cmd/compile/internal/gc/ssa_test.go                | 10 ++++++----
+ src/cmd/compile/internal/gc/testdata/arithConst_ssa.go |  8 ++++----
+ 2 files changed, 10 insertions(+), 8 deletions(-)

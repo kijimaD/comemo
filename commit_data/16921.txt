@@ -1,12 +1,16 @@
-commit 28138f1364939992e5466bff72b3574079dcc577
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jul 30 16:31:57 2013 +0900
+commit d920d8d8493635ff91194a28332b904dbf819214
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 30 14:22:14 2013 +1000
 
-    net: fix comment on SetKeepAlivePeriod
+    doc: don't block page load on JavaScript fetch
     
-    R=golang-dev, dave
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/12091043
+    https://golang.org/cl/12050045
 
- src/pkg/net/tcpsock_posix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/codewalk/codewalk.js |  2 +-
+ doc/godocs.js            | 63 ++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/root.html            |  2 +-
+ lib/godoc/godoc.html     | 19 ++++++---------
+ lib/godoc/package.html   | 50 --------------------------------------
+ 5 files changed, 72 insertions(+), 64 deletions(-)

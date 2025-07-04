@@ -1,0 +1,18 @@
+commit 2f507985dc24d198b763e5568ebe5c04d788894f
+Author: David Chase <drchase@google.com>
+Date:   Fri Sep 27 19:15:03 2024 -0400
+
+    cmd/go: adjust test with tricky ld flags to not run on Darwin
+    
+    normally this would not run on darwin anyway, but if there
+    happens to be a "pkg-config" binary, then it will.  Darwin's
+    clang/linker does not have this flag.
+    
+    Change-Id: I61929cf193c95b420441187beb8b237fa1037807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616376
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/go_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

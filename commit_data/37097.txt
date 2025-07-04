@@ -1,15 +1,26 @@
-commit 5538ecadca6b500f3ccd428f247f7502c12ae246
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 23 16:01:43 2018 -0700
+commit d144dd785f06300492754d49fb353ab9d5068919
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sun Nov 26 08:22:22 2017 -0500
 
-    cmd/compile: better error for embedded field referring to missing import
+    net: parse IPv6 address with zone using DefaultResolver.Lookup{Host,IPAddr}
     
-    Fixes #27938.
+    Allow a zone to be included with the ip address that is parsed when
+    using DefaultResolver's LookupHost or LookupIPAddr
     
-    Change-Id: I16263ac6c0b8903b8a16f02e8db0e1a16d1c95b4
-    Reviewed-on: https://go-review.googlesource.com/c/144261
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #20790
+    Fixes #20767
+    
+    Change-Id: I4e0baf9ade6a095af10a1b85ca6216788ba680ae
+    Reviewed-on: https://go-review.googlesource.com/79935
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 11 ++++++++---
- test/fixedbugs/issue27938.go         | 23 +++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 3 deletions(-)
+ src/net/cgo_unix.go       |  2 +-
+ src/net/dnsconfig_unix.go |  2 +-
+ src/net/hosts.go          |  2 +-
+ src/net/ip.go             | 60 +++++++++++++++++++++++++++++------------------
+ src/net/ipsock.go         | 28 ++++++++--------------
+ src/net/lookup.go         | 10 ++++----
+ src/net/lookup_test.go    | 26 ++++++++++++++++++++
+ 7 files changed, 81 insertions(+), 49 deletions(-)

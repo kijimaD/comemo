@@ -1,36 +1,19 @@
-commit 67e47124fc5a3ab80dd95dfdb980b6e24eb15467
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Mon May 1 17:28:33 2017 -0400
+commit 13c35a1b204f6e580b220e0df409a2c186e648a4
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 1 13:08:22 2017 -0800
 
-    go/build: return partial information on Import error, for local import paths
+    cmd/compile: ppc64x no longer needs a scratch stack location
     
-    Documentation of build.Import says:
+    After https://go-review.googlesource.com/c/36725/, ppc64x no longer
+    needs a temp stack location for int reg <-> fp reg moves.
     
-            // If the path is a local import path naming a package that can be imported
-            // using a standard import path, the returned package will set p.ImportPath
-            // to that path.
-            // ...
-            // If an error occurs, Import returns a non-nil error and a non-nil
-            // *Package containing partial information.
+    Update #18922
     
-    That behavior was previously untested, and broken by change in CL 33158.
-    
-    Fix that by avoiding returning early on error for local import paths.
-    First, gather partial information, and only then check that the p.Dir
-    directory exists.
-    
-    Add tests for this behavior.
-    
-    Fixes #19769.
-    Fixes #20175 (duplicate of #19769).
-    Updates #17863.
-    
-    Change-Id: I169cb35291099d05e02aaa3cb23a7403d1cc3657
-    Reviewed-on: https://go-review.googlesource.com/42350
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib4319784f7a855f593dfa5231604ca2c24e4c882
+    Reviewed-on: https://go-review.googlesource.com/37651
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/go/build/build.go      | 15 +++++++++++----
- src/go/build/build_test.go | 12 +++++++++++-
- 2 files changed, 22 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/config.go       |  1 -
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  4 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 10 ++++------
+ 3 files changed, 6 insertions(+), 9 deletions(-)

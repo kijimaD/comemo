@@ -1,13 +1,19 @@
-commit f25d78f8e216f5558885ffd2cea39b3ff1a3ff43
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Fri Apr 2 17:36:54 2021 +0900
+commit b6dbaef68fdbb3f14387e4c32a8890144220f54e
+Author: Henrique Vicente <henriquevicente@gmail.com>
+Date:   Mon Feb 17 02:22:47 2020 +0100
 
-    testing: clarify when Cleanup is called
+    os/signal: add NotifyContext to cancel context using system signals
     
-    Change-Id: I2ed394fccec83aac09a49673554cbf504787965b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306810
+    Fixes #37255
+    
+    Change-Id: Ic0fde3498afefed6e4447f8476e4da7c1faa7145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219640
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/signal/example_unix_test.go |  47 +++++++++++
+ src/os/signal/signal.go            |  75 +++++++++++++++++
+ src/os/signal/signal_test.go       | 162 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 284 insertions(+)

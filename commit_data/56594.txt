@@ -1,15 +1,23 @@
-commit bb2b73635f391def286b3adc4eae2e2bb4a4ade0
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue May 21 01:44:41 2024 +0800
+commit 3d46eedbc97ddb25384307dea063021ba7b59c06
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 12 15:04:21 2023 -0400
 
-    reflect: add line breaks for long sentences
+    cmd/dist: simplify work list functions
     
-    Change-Id: Id63ede5d50a8b287bc0b96382f9f3ee6c2e0b834
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586856
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    There are no uses of addCmd, so delete it. The only use of bgDirCmd is
+    dirCmd, so inline it. Now the only function that interacts with the
+    work queue is registerTest and dist's "background commands" are used
+    exclusively in goTest.bgCommand and registerTest (which calls
+    goTest.bgCommand).
+    
+    For #37486.
+    
+    Change-Id: Iebbb24cf9dbee45f3975fe9504d858493e1cd947
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494956
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/reflect/iter.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go | 33 ++++++---------------------------
+ 1 file changed, 6 insertions(+), 27 deletions(-)

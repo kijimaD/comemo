@@ -1,21 +1,31 @@
-commit 79c50c4d5728d785485fce8c75b9c2b2f93641ea
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Mon Jan 7 02:06:38 2019 +0200
+commit 9c833831b2bdaa465349194797cf3894cb85f9c4
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Apr 24 13:05:10 2018 +0200
 
-    os: disable the use of netpoll on regular files on *BSDs.
+    cmd/link: move dwarf part of DWARF generation before type name mangling
     
-    The kqueue based netpoller always registers file descriptors with EVFILT_READ and EVFILT_WRITE.
-    However only EVFILT_READ notification is supported for regular files.
-    On FreeBSD a regular file is always reported as ready for writing, resulting in a busy wait.
-    On Darwin, Dragonfly, NetBSD and OpenBSD, a regular file is reported as ready for both reading and writing only once.
+    Splits part of dwarfgeneratedebugsyms into a new function,
+    dwarfGenerateDebugInfo which is called between deadcode elimination
+    and type name mangling.
+    This function takes care of collecting and processing the DIEs for
+    all functions and package-level variables and also generates DIEs
+    for all types used in the program.
     
-    Updates #19093
+    Fixes #23733
     
-    Change-Id: If284341f60c6c2332fb5499637d4cfa7a4e26b7b
-    Reviewed-on: https://go-review.googlesource.com/c/156379
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I75ef0608fbed2dffc3be7a477f1b03e7e740ec61
+    Reviewed-on: https://go-review.googlesource.com/111237
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/os/file_unix.go | 32 +++++++++++++++++++-------------
- 1 file changed, 19 insertions(+), 13 deletions(-)
+ misc/cgo/testplugin/src/checkdwarf/main.go | 106 ++++++++++
+ misc/cgo/testplugin/test.bash              |   4 +
+ src/cmd/link/internal/ld/data.go           |   2 +-
+ src/cmd/link/internal/ld/dwarf.go          | 320 ++++++++++++++---------------
+ src/cmd/link/internal/ld/lib.go            |   1 -
+ src/cmd/link/internal/ld/link.go           |   3 +
+ src/cmd/link/internal/ld/main.go           |   1 +
+ src/cmd/link/internal/objfile/objfile.go   |   2 +
+ src/cmd/link/internal/sym/symbol.go        |   1 +
+ 9 files changed, 276 insertions(+), 164 deletions(-)

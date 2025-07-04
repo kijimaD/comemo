@@ -1,18 +1,40 @@
-commit b079869dadbb607aecbe9e2d38fbd13b89a5cc91
-Author: Hana Kim <hyangah@gmail.com>
-Date:   Tue Nov 22 16:09:28 2016 -0500
+commit 360f2e43b78a3ea119ea8dce9649f7c1227d793b
+Author: Mike Appleby <mike@app.leby.org>
+Date:   Wed Sep 28 16:01:27 2016 -0500
 
-    internal/pprof/profile: parse mutex profile including comments
+    runtime: sleep on CLOCK_MONOTONIC in futexsleep1 on freebsd
     
-    Skip lines if they are empty or starting with "#" which are valid
-    legacy pprof output format.
+    In FreeBSD 10.0, the _umtx_op syscall was changed to allow sleeping on
+    any supported clock, but the default clock was switched from a monotonic
+    clock to CLOCK_REALTIME.
     
-    Fixes #18025
+    Prior to 10.0, the __umtx_op_wait* functions ignored the fourth argument
+    to _umtx_op (uaddr1), expected the fifth argument (uaddr2) to be a
+    struct timespec pointer, and used a monotonic clock (nanouptime(9)) for
+    timeout calculations.
     
-    Change-Id: I7aee439171496932637b8ae3188700911f569b16
-    Reviewed-on: https://go-review.googlesource.com/33454
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Since 10.0, if callers want a clock other than CLOCK_REALTIME, they must
+    call _umtx_op with uaddr1 set to a value greater than sizeof(struct
+    timespec), and with uaddr2 as pointer to a struct _umtx_time, rather
+    than a timespec. Callers can set the _clockid field of the struct
+    _umtx_time to request the clock they want.
+    
+    The relevant FreeBSD commit:
+        https://svnweb.freebsd.org/base?view=revision&revision=232144
+    
+    Fixes #17168
+    
+    Change-Id: I3dd7b32b683622b8d7b4a6a8f9eb56401bed6bdf
+    Reviewed-on: https://go-review.googlesource.com/30154
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/pprof/profile/legacy_profile.go | 66 +++++++++++++++++-----------
- src/internal/pprof/profile/profile_test.go   | 55 +++++++++++++++++++++++
- 2 files changed, 95 insertions(+), 26 deletions(-)
+ src/runtime/defs_freebsd.go       |  5 +++++
+ src/runtime/defs_freebsd_386.go   |  8 ++++++++
+ src/runtime/defs_freebsd_amd64.go |  8 ++++++++
+ src/runtime/defs_freebsd_arm.go   |  8 ++++++++
+ src/runtime/os_freebsd.go         | 16 ++++++++--------
+ src/runtime/sys_freebsd_amd64.s   |  4 ++--
+ src/runtime/sys_freebsd_arm.s     |  2 +-
+ 7 files changed, 40 insertions(+), 11 deletions(-)

@@ -1,16 +1,56 @@
-commit 0c15d88974e5bb4285d6cdf6ef125e1e4d438c6d
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Apr 25 10:09:44 2025 -0700
+commit 381ba9f64cce0e40889d0eec3efef4ca9bb0cf26
+Author: kwakubiney <kwakubiney@gmail.com>
+Date:   Mon Mar 11 22:53:08 2024 +0000
 
-    runtime: fix tag pointers on aix, take 2
+    encoding/binary: cache struct sizes to speed up Read and Write for slice of structs.
     
-    Previous fix in CL 667715 wasn't correct for aix.
+    A lot of allocations happen in dataSize due to reflection.
     
-    Change-Id: I44042786079463967165507b15756cf24b9a213a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668036
-    Reviewed-by: Keith Randall <khr@google.com>
+    Cache the result of the function when encoding a
+    slice of structs similar to what is done for struct types
+    so that subsequent calls to dataSize can avoid allocations.
+    
+                            │   old.txt   │            new.txt            │
+                            │   sec/op    │   sec/op     vs base          │
+    WriteSlice1000Structs-2   846.7µ ± 4%   856.4µ ± 3%  ~ (p=0.602 n=20)
+    
+                            │   old.txt    │            new.txt             │
+                            │     B/s      │     B/s       vs base          │
+    WriteSlice1000Structs-2   84.48Mi ± 4%   83.52Mi ± 3%  ~ (p=0.602 n=20)
+    
+                            │   old.txt    │               new.txt               │
+                            │     B/op     │     B/op      vs base               │
+    WriteSlice1000Structs-2   80.18Ki ± 0%   80.06Ki ± 0%  -0.15% (p=0.000 n=20)
+    
+                            │   old.txt   │              new.txt               │
+                            │  allocs/op  │ allocs/op   vs base                │
+    WriteSlice1000Structs-2   16.000 ± 0%   1.000 ± 0%  -93.75% (p=0.000 n=2
+    
+                           │   old.txt   │              new.txt               │
+                           │   sec/op    │   sec/op     vs base               │
+    ReadSlice1000Structs-2   847.4µ ± 4%   821.1µ ± 3%  -3.10% (p=0.012 n=20)
+    
+                           │   old.txt    │               new.txt               │
+                           │     B/s      │     B/s       vs base               │
+    ReadSlice1000Structs-2   84.40Mi ± 4%   87.11Mi ± 3%  +3.20% (p=0.012 n=20)
+    
+                           │   old.txt    │               new.txt               │
+                           │     B/op     │     B/op      vs base               │
+    ReadSlice1000Structs-2   80.12Ki ± 0%   80.00Ki ± 0%  -0.15% (p=0.000 n=20)
+    
+                           │   old.txt   │              new.txt               │
+                           │  allocs/op  │ allocs/op   vs base                │
+    ReadSlice1000Structs-2   16.000 ± 0%   1.000 ± 0%  -93.75% (p=0.000 n=20)
+    
+    Fixes #66253
+    
+    Change-Id: I8227e61306db1fe103489ea4fee2429247c3debc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570855
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/runtime/tagptr_64bit.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/encoding/binary/binary.go      | 13 +++++++++++--
+ src/encoding/binary/binary_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 2 deletions(-)

@@ -1,18 +1,20 @@
-commit 877574725ba251be743c47ecbe49958b6cf8b814
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 31 18:06:19 2017 -0700
+commit b820ef5c33c1b508c7b0df8827b6f13c9480acea
+Author: Lion Yang <lion@aosc.xyz>
+Date:   Thu Jan 5 06:25:59 2017 +0800
 
-    cmd/compile: enforce that all nodes are used when generating DWARF
+    x/crypto/chacha20poly1305: fix detection of BMI on AMD64
     
-    No particular need for this,
-    but it's nice to enforce invariants
-    when they are available.
+    This change uses runtime.support_bmi2 as an additional condition
+    to examine the usability of AVX2 version algorithm, fixes
+    the crash on the platfrom which supports AVX2 but not support BMI2.
     
-    Change-Id: Ia6fa88dc4116f65dac2879509746e123e2c1862a
-    Reviewed-on: https://go-review.googlesource.com/39201
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #18512
+    
+    Change-Id: I408c0844ae2eb242dacf70cb9e8cec1b8f3bd941
+    Reviewed-on: https://go-review.googlesource.com/34851
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/pgen.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../x/crypto/chacha20poly1305/chacha20poly1305_amd64.s     | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

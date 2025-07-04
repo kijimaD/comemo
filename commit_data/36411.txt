@@ -1,16 +1,15 @@
-commit bca00def0dcde59312574b98568fd4698a61dfdd
-Author: Diego Siqueira <diego9889@gmail.com>
-Date:   Wed Aug 1 10:52:19 2018 +0000
+commit b4ac02972f223d22933e603fa4b16c219ec8fae4
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 25 11:07:29 2018 -0700
 
-    plugin: remove unused func
+    cmd/link: fix test flag
     
-    Change-Id: Ife29464d581f00940af7ef9251bf99661c1350b6
-    GitHub-Last-Rev: d7747706584b06b619fc78a85b6b9bfe619467c8
-    GitHub-Pull-Request: golang/go#26740
-    Reviewed-on: https://go-review.googlesource.com/127195
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Doesn't cause an error, see #25085.
+    But we should fix it nonetheless.
+    
+    Change-Id: I7b6799e0a95475202cacefc3a7f02487e61bfd31
+    Reviewed-on: https://go-review.googlesource.com/109355
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/plugin/plugin_dlopen.go | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/cmd/link/internal/ld/dwarf_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

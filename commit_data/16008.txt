@@ -1,14 +1,18 @@
-commit 0359af4fdb5cd27fc9dd7b6689149cd00cbf55a1
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 29 14:09:31 2013 -0700
+commit 43e38d5defdeffd7ebfff4803bce120c13b55ff2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 29 13:49:14 2013 -0700
 
-    bytes: document that Buffer.Write grows the buffer
-    Do a little reformatting too.
-    Fixes #5152.
+    bytes: don't compact Buffer so aggressively
     
-    R=golang-dev, bradfitz, gri
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkBufferNotEmptyWriteRead       848416       819983   -3.35%
+    
+    Update #5154
+    
+    R=golang-dev, gri, robryk
     CC=golang-dev
-    https://golang.org/cl/8157044
+    https://golang.org/cl/8173043
 
- src/pkg/bytes/buffer.go | 49 +++++++++++++++++++++----------------------------
- 1 file changed, 21 insertions(+), 28 deletions(-)
+ src/pkg/bytes/buffer.go      | 8 +++++---
+ src/pkg/bytes/buffer_test.go | 6 ++++--
+ 2 files changed, 9 insertions(+), 5 deletions(-)

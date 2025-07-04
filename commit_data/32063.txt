@@ -1,16 +1,21 @@
-commit 5125a967100643cebc4501e3d626b44b5ab15747
-Author: Johnny Luo <johnnyluo1980@gmail.com>
-Date:   Thu Jul 20 17:20:46 2017 +1000
+commit 8ab71304d4f02e4280eb5c04422cdec5feb27c11
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 12:16:29 2017 -0700
 
-    os: remove duplicate check from windows os.Stat
+    cmd/compile: use newnamel in typenamesym
     
-    Fixes #21075
+    The node in typenamesym requires neither
+    a position nor a curfn.
     
-    Change-Id: Idfe5002dfe17943844d9427e27f82ce894b92e80
-    Reviewed-on: https://go-review.googlesource.com/50270
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Passes toolstash-check.
+    
+    Updates #15756
+    
+    Change-Id: I6d39a8961e5578fe5924aaceb29045b6de2699df
+    Reviewed-on: https://go-review.googlesource.com/39194
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/stat_windows.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

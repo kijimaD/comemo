@@ -1,26 +1,27 @@
-commit 6dad55aa25debdeb43e6b7c8348cf923fb8e5cff
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 18 13:39:12 2017 -0500
+commit 426c287eb64abfe54e51fba3014c8eaeff7fc270
+Author: Joshua Boelter <joshua.boelter@intel.com>
+Date:   Wed Jul 13 16:22:28 2016 -0600
 
-    cmd/go: split out cmd/go/internal/get
+    crypto/tls: add VerifyPeerCertificate to tls.Config
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    VerifyPeerCertificate returns an error if the peer should not be
+    trusted. It will be called after the initial handshake and before
+    any other verification checks on the cert or chain are performed.
+    This provides the callee an opportunity to augment the certificate
+    verification.
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
+    If VerifyPeerCertificate is not nil and returns an error,
+    then the handshake will fail.
     
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
+    Fixes #16363
     
-    For #18653.
-    
-    Change-Id: Iec17bf2243de129942ae5fba126ec5f217be7303
-    Reviewed-on: https://go-review.googlesource.com/36202
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I6a22f199f0e81b6f5d5f37c54d85ab878216bb22
+    Reviewed-on: https://go-review.googlesource.com/26654
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/{ => internal/get}/discovery.go |  9 +--------
- src/cmd/go/{ => internal/get}/get.go       | 21 +++++++++++----------
- src/cmd/go/{ => internal/get}/vcs.go       |  2 +-
- src/cmd/go/main.go                         |  3 ++-
- 4 files changed, 15 insertions(+), 20 deletions(-)
+ src/crypto/tls/common.go                |  13 +++
+ src/crypto/tls/handshake_client.go      |   7 ++
+ src/crypto/tls/handshake_client_test.go | 154 ++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server.go      |   7 ++
+ src/crypto/tls/tls_test.go              |   2 +-
+ 5 files changed, 182 insertions(+), 1 deletion(-)

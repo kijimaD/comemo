@@ -1,22 +1,17 @@
-commit 811b785193e04c630f26f1cff83d276a572e150d
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Tue Feb 9 14:39:52 2016 +0100
+commit 3c85e1b186a1b0c153678e3e85ff5819a430dd84
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Nov 11 15:57:42 2015 +1300
 
-    net: make getmac based tests on windows more robust
+    cmd/internal/obj/x86: factor rewriting to use GOT into separate function
     
-    The Windows 7 getmac command may report the physical address of an adapter
-    as "Disabled" or "N/A". Handle these two cases to make the tests more
-    robust when building on Windows with manually disabled adapters or turned
-    off hardware.
+    I was prodded into doing this in review comments for the ARM version, and it's
+    going to make shared libs for 386 easier.
     
-    Addresses issue #14130.
-    
-    Change-Id: I0c2f8554b4b6810568e4e60ed53857599401f296
-    Reviewed-on: https://go-review.googlesource.com/19411
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id12de801b1425b8c6b5736fe91b418fc123a4e40
+    Reviewed-on: https://go-review.googlesource.com/17012
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/net_windows_test.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go      |   5 +-
+ src/cmd/internal/obj/x86/obj6.go      | 154 ++++++++++++++++++----------------
+ src/cmd/internal/obj/x86/obj6_test.go |  10 +--
+ 3 files changed, 93 insertions(+), 76 deletions(-)

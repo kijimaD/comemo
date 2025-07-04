@@ -1,16 +1,20 @@
-commit 90812292e25796f8411f625c062cfc2e2b4bdf5e
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Thu Nov 29 18:41:03 2018 -0500
+commit a68b713ef600a14e15b59f5bac424be73e1acaf5
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 15 16:21:00 2018 -0700
 
-    net: skip flaky TestLookupDotsWithRemoteSource on darwin
+    runtime: load errno as signed 32-bit
     
-    Updates golang/go#27992
+    the function libc_errno returns a pointer to a signed-32 bit quantity,
+    not a 64-bit quantity.
     
-    Change-Id: Ic327df7cc5002a3d537f9117559c25f30e1eab9c
-    Reviewed-on: https://go-review.googlesource.com/c/151799
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Fixes #27004
+    
+    Change-Id: I0623835ee34fd9655532251f096022a5accb58cd
+    Reviewed-on: https://go-review.googlesource.com/129475
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/lookup_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/sys_darwin_amd64.s | 4 ++--
+ src/runtime/sys_darwin_arm64.s | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

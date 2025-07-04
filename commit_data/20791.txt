@@ -1,30 +1,13 @@
-commit 0f698be54742be2d66c044b61267782272777ff8
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 27 18:59:02 2014 -0400
+commit c689abd56c05c34922f6390ac835719c4a48065a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 10 13:12:32 2014 +1100
 
-    test: make maplinear more robust
+    net: link skipped TestReadFromUDP to the issue
     
-    The test just doubled a certain number of times
-    and then gave up. On a mostly fast but occasionally
-    slow machine this may never make the test run
-    long enough to see the linear growth.
-    
-    Change test to keep doubling until the first round
-    takes at least a full second, to reduce the effect of
-    occasional scheduling or other jitter.
-    
-    The failure we saw had a time for the first round
-    of around 100ms.
-    
-    Note that this test still passes once it sees a linear
-    effect, even with a very small total time.
-    The timeout here only applies to how long the execution
-    must be to support a reported failure.
-    
-    LGTM=khr
-    R=khr
-    CC=golang-codereviews, rlh
-    https://golang.org/cl/164070043
+    LGTM=minux
+    R=bradfitz, minux
+    CC=golang-codereviews
+    https://golang.org/cl/154220043
 
- test/maplinear.go | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+ src/net/udp_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

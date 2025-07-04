@@ -1,33 +1,19 @@
-commit 3d5ddffa306dff2a4e3546a0421191fac45ed549
+commit edce6349639e321c3b1a34036a8fbc08ad363cd3
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 24 00:06:22 2012 -0400
+Date:   Sun Sep 23 23:04:28 2012 -0400
 
-    syscall: prepare for 64-bit ints
+    time: prepare for 64-bit ints
     
-    This CL fixes code that incorrectly assumes that int is 32 bits wide.
-    Specifically, the socketpair system call expects a pointer to a pair
-    of int32s, not a pair of ints. Fix this inside the wrappers without
-    changing the APIs.
+    The code was trying to interpret a uint32 n as a signed quantity
+    and then store it in an int. For this, int(n) currently works, but when
+    int becomes 64 bits one must write int(int32(n)) instead, to get
+    the 32-bit sign extension.
     
     Update #2188.
     
-    R=golang-dev, r
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6552063
+    https://golang.org/cl/6551068
 
- src/pkg/syscall/syscall_bsd.go            | 9 +++++++--
- src/pkg/syscall/syscall_linux.go          | 7 ++++++-
- src/pkg/syscall/syscall_linux_386.go      | 2 +-
- src/pkg/syscall/syscall_linux_amd64.go    | 2 +-
- src/pkg/syscall/syscall_linux_arm.go      | 2 +-
- src/pkg/syscall/zsyscall_darwin_386.go    | 2 +-
- src/pkg/syscall/zsyscall_darwin_amd64.go  | 2 +-
- src/pkg/syscall/zsyscall_freebsd_386.go   | 2 +-
- src/pkg/syscall/zsyscall_freebsd_amd64.go | 2 +-
- src/pkg/syscall/zsyscall_linux_amd64.go   | 2 +-
- src/pkg/syscall/zsyscall_linux_arm.go     | 2 +-
- src/pkg/syscall/zsyscall_netbsd_386.go    | 2 +-
- src/pkg/syscall/zsyscall_netbsd_amd64.go  | 2 +-
- src/pkg/syscall/zsyscall_openbsd_386.go   | 2 +-
- src/pkg/syscall/zsyscall_openbsd_amd64.go | 2 +-
- 15 files changed, 26 insertions(+), 16 deletions(-)
+ src/pkg/time/zoneinfo_read.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

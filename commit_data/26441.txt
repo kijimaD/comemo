@@ -1,19 +1,35 @@
-commit e41f527f4d56a94b33ab73efaae3575760916194
-Author: Todd Neal <todd@tneal.org>
-Date:   Wed Mar 16 21:29:17 2016 -0500
+commit 0bae38e094098237c12dbb7344371f35e9663905
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 00:44:23 2016 -0500
 
-    cmd/compile: allow inlining of functions with switch statements
+    cmd/asm: add amd64 PDEP, PEXT, and related integer VEX instructions
     
-    Allow inlining of functions with switch statements as long as they don't
-    contain a break or type switch.
+    Requested off-list.
+    Trivial to add and more importantly trivial to test.
     
-    Fixes #13071
+    ANDNL
+    ANDNQ
+    BEXTRL
+    BEXTRQ
+    BZHIL
+    BZHIQ
+    MULXL
+    MULXQ
+    PDEPL
+    PDEPQ
+    PEXTL
+    PEXTQ
+    SARXL
+    SARXQ
+    SHRXL
+    SHRXQ
     
-    Change-Id: I057be351ea4584def1a744ee87eafa5df47a7f6d
-    Reviewed-on: https://go-review.googlesource.com/20824
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3d46a0f653b81dd003ff6d2a394d8ce96a573b63
+    Reviewed-on: https://go-review.googlesource.com/18857
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go |  2 +-
- src/cmd/compile/internal/gc/inl.go |  3 ++-
- test/inline.go                     | 36 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 39 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 312 +++++++++++++--------------
+ src/cmd/internal/obj/x86/a.out.go            |  24 +++
+ src/cmd/internal/obj/x86/anames.go           |  24 +++
+ src/cmd/internal/obj/x86/asm6.go             |  34 +++
+ 4 files changed, 238 insertions(+), 156 deletions(-)

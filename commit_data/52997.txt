@@ -1,29 +1,27 @@
-commit a76b073712343328a6da1daa597ddfe68d543f32
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 5 21:38:02 2023 -0400
+commit 5a1c5b8ae741df2d5c53f328c57a84d85ae6c44a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 23 15:46:29 2022 -0400
 
-    misc/cgo/test: fix vet error
+    cmd/go: add per-package indexing for modules outside mod cache
     
-    Vet's cgocall check fails on misc/cgo/test with "possibly passing Go
-    type with embedded pointer to C". This error is confusing, but the
-    cgocall check is looking for passing pointers to Go slices to C, which
-    is exactly what this test is doing. Normally we don't notice this
-    because vet doesn't run on misc, but we're about to move this test to
-    cmd/cgo/internal, where vet will start failing.
+    Packages outside the module cache including the standard library will be
+    indexed individually rather than as a whole module.
     
-    I'm not sure why we're passing a pointer to a slice here. It's
-    important that we call a C function with an unsafe.Pointer to memory
-    containing a pointer to test #25941 and that the result is this call
-    is then passed to another C function for #28540. This CL maintains
-    these two properties without the use of a slice.
+    For #52876
     
-    For #37486.
-    
-    Change-Id: I672a3c35931a59f99363050498d6f0c80fb6cd98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493137
+    Change-Id: I142dad6a790e9e8eb4dc6430a588fbfa86552e49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413815
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- misc/cgo/test/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go               |   4 +-
+ src/cmd/go/internal/modindex/index_format.txt |  13 +-
+ src/cmd/go/internal/modindex/read.go          | 248 ++++++++++++++++++++------
+ src/cmd/go/internal/modindex/scan.go          |  10 +-
+ src/cmd/go/internal/modindex/write.go         |  18 +-
+ src/cmd/go/internal/modload/import.go         |   6 +-
+ src/cmd/go/internal/modload/load.go           |   4 +-
+ src/cmd/go/internal/modload/search.go         |   8 +-
+ 8 files changed, 242 insertions(+), 69 deletions(-)

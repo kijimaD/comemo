@@ -1,21 +1,14 @@
-commit 3d5163cf4348b5e697dcbf09897a62893876ac3c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Sep 21 16:12:24 2015 +1000
+commit e893724e7506b8eda2e04ff593df806c561402e0
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Sun Aug 23 19:51:33 2015 -0700
 
-    path/filepath: fix EvalSymlinks(".") on windows
+    math: avoid unused assignment in jn.go
     
-    Also new tests added. So, perhaps, this CL corrects
-    even more broken EvalSymlinks behaviour.
-    
-    Fixes #12451
-    
-    Change-Id: I81b9d92bab74bcb8eca6db6633546982fe5cec87
-    Reviewed-on: https://go-review.googlesource.com/16192
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ie4f21bcd5849e994c63ec5bbda2dee6f3ec4da12
+    Reviewed-on: https://go-review.googlesource.com/13891
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/path/filepath/path_test.go       |  85 +++++++++++++++++++++++-
- src/path/filepath/symlink.go         | 125 ++++++++++++++++++++++-------------
- src/path/filepath/symlink_windows.go |   6 +-
- 3 files changed, 166 insertions(+), 50 deletions(-)
+ src/math/jn.go | 2 --
+ 1 file changed, 2 deletions(-)

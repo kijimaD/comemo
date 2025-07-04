@@ -1,15 +1,13 @@
-commit c489330987eca992cee0bb018a6fdb7ff5401704
-Author: Ainar Garipov <gugl.zadolbal@gmail.com>
-Date:   Wed Aug 26 23:55:09 2020 +0300
+commit 80e67324f0a722950cbf5b3ece461101996cc781
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue Feb 25 11:05:35 2020 -0500
 
-    doc/go1.16: reformat the minor changes section as a definition list
+    doc: add Go 1.14 to release history
     
-    Change the section to use <dl>, <dt>, and <dd> tags to match
-    previous documents.
-    
-    Change-Id: Ide0bea698a84ed6b61b364ef9e2f3801ebb8d4d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250897
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I02afbd08ce9e0cd2af8953693b9c3066f6465914
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220900
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- doc/go1.16.html | 42 +++++++++++++++++++++++-------------------
- 1 file changed, 23 insertions(+), 19 deletions(-)
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

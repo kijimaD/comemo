@@ -1,21 +1,34 @@
-commit 45d42fdceaa60a51c0057222df5dace810ed13de
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sun May 7 19:42:11 2017 +0200
+commit 5ae7cbfff6f98d2a87dca7362e34e48d7bba0d69
+Author: Tom Bergan <tombergan@google.com>
+Date:   Mon Feb 27 11:09:42 2017 -0800
 
-    cmd/link/internal/ld: don't link with -no_pie on darwin/arm64
+    net/http: update bundles http2
     
-    Ever since CL 33301 linking darwin/arm64 excutables has resulted in
-    warnings like:
+    Updates http2 to x/net/http2 git rev 906cda9 for:
     
-    ld: warning: -no_pie ignored for arm64
+    http2: add configurable knobs for the server's receive window
+    https://golang.org/cl/37226
     
-    Remove -no_pie on darwin/arm64.
+    http2/hpack: speedup Encoder.searchTable
+    https://golang.org/cl/37406
     
-    Change-Id: I9f7685351fa8cce29795283e1a24fc7a6753d698
-    Reviewed-on: https://go-review.googlesource.com/42815
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    http2: Add opt-in option to Framer to allow DataFrame struct reuse
+    https://golang.org/cl/34812
+    
+    http2: replace fixedBuffer with dataBuffer
+    https://golang.org/cl/37400
+    
+    http2/hpack: remove hpack's constant time string comparison
+    https://golang.org/cl/37394
+    
+    Updates golang/go#16512
+    Updates golang/go#18404
+    
+    Change-Id: I1ad7c95c404ead4ced7f85af061cf811b299a288
+    Reviewed-on: https://go-review.googlesource.com/37500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/h2_bundle.go | 451 +++++++++++++++++++++++++++++-----------------
+ 1 file changed, 286 insertions(+), 165 deletions(-)

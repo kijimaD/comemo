@@ -1,29 +1,22 @@
-commit 7c50ef6c8c4c827db45a3327cb950913cf9d489b
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 15 23:39:22 2021 -0500
+commit dc289d3dcb59f80b9e23c7e8f237628359d21d92
+Author: Simão Gomes Viana <simaogmv@gmail.com>
+Date:   Tue Mar 23 21:50:41 2021 +0000
 
-    go/types: remove asTypeParam and simplify some code
+    io: fix spelling in documentation for io.Discard
     
-    This is a port of CL 363438 from types2 to go/types.
+    In the process of refactoring ioutil.Discard to io.Discard in
+    CL 263141 "an" should have been changed to "a" but was likely
+    missed in the process.
     
-    Change-Id: I87c76d31b398b9ce406f96b0030ee458619b3dbe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364235
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This commit corrects the spelling of the documentation.
+    
+    Change-Id: I0609c45878291f8f01560efc3f3e6fba191e095b
+    GitHub-Last-Rev: e3257ca272dff42ed7d07b6e6a5fc49493772653
+    GitHub-Pull-Request: golang/go#45190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304209
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/go/types/builtins.go    |  6 +++---
- src/go/types/call.go        |  2 +-
- src/go/types/conversions.go |  6 +++---
- src/go/types/decl.go        | 11 ++++++-----
- src/go/types/expr.go        |  5 ++---
- src/go/types/instantiate.go |  8 ++++----
- src/go/types/lookup.go      |  8 +-------
- src/go/types/operand.go     |  6 +++---
- src/go/types/predicates.go  |  2 +-
- src/go/types/type.go        |  6 ------
- src/go/types/typeset.go     |  8 --------
- src/go/types/typexpr.go     |  2 +-
- src/go/types/union.go       | 17 ++++++++---------
- 13 files changed, 33 insertions(+), 54 deletions(-)
+ src/io/io.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

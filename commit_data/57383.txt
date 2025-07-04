@@ -1,18 +1,22 @@
-commit 0f12e51ce776fed0c3cb5e26225d4906268a2e8a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 4 17:46:28 2024 -0700
+commit 54a540ffa274638992f4af1af8bfb3272ab262c6
+Author: Hiro <laciferin@gmail.com>
+Date:   Tue Aug 1 07:25:46 2023 +0000
 
-    go/types: factor out opPos computation
+    image/jpeg, image/png: replace Fatal with Error in tests
     
-    Adjust Checker.overflow call sites to match types2
-    where possible.
+    Replaced t.Fatalf with t.Errorf for non-critical errors to footprint more failing test cases for better analysis of the error.
     
-    Change-Id: Iaa0d423f2ebf642428c745c4ac4f712e4136dffb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610956
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
+    Change-Id: I6f51d21e37a4ddb95d239d8afed2154f3ef52d31
+    GitHub-Last-Rev: d56aa49bced80c80f1177ae4b9ce038265ead551
+    GitHub-Pull-Request: golang/go#60524
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499336
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/types/expr.go | 24 +++++++++++++++++-------
- 1 file changed, 17 insertions(+), 7 deletions(-)
+ src/image/jpeg/fuzz_test.go | 8 +++++---
+ src/image/png/fuzz_test.go  | 8 +++++---
+ 2 files changed, 10 insertions(+), 6 deletions(-)

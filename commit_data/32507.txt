@@ -1,17 +1,21 @@
-commit 8adaf68570eef206ca8720d5c0c861e04d2a0108
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Aug 22 06:27:48 2017 -0700
+commit bf4cd98c8b5b61f53b98333564f343ec54386acd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 27 19:00:09 2017 +0900
 
-    runtime: remove t.indirectvalue handling in fast evacuation routines
+    net: make zone helpers into methods of ipv6ZoneCache
     
-    Maps with indirect values use the generic map routines.
-    
-    Change-Id: Ib211e93f1dacefb988ba3d279f92a13065168079
-    Reviewed-on: https://go-review.googlesource.com/59135
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Id93e78f0c8bef125f124a0a919053208e24a63cd
+    Reviewed-on: https://go-review.googlesource.com/41836
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/hashmap_fast.go | 18 +++---------------
- 1 file changed, 3 insertions(+), 15 deletions(-)
+ src/net/cgo_unix.go        |  4 ++--
+ src/net/interface.go       | 16 ++++++++--------
+ src/net/iprawsock_posix.go |  6 +++---
+ src/net/ipsock_posix.go    |  2 +-
+ src/net/lookup_windows.go  |  2 +-
+ src/net/main_test.go       |  6 +++---
+ src/net/tcpsock_posix.go   |  2 +-
+ src/net/udpsock_posix.go   |  6 +++---
+ 8 files changed, 22 insertions(+), 22 deletions(-)

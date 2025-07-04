@@ -1,21 +1,19 @@
-commit 370a6959e3edd9d901446661ee9fef3f72d150d4
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Jul 30 12:11:23 2024 -0400
+commit e6ec2a34dc1e1c319588fb0cb449abf55291977f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jul 5 16:03:55 2023 -0400
 
-    cmd/dist, internal/platform: mark windows/arm (32-bit ARM) broken
+    runtime: print output on failure in TestMemPprof
     
-    The port is reportedly broken, and there isn't a builder testing it.
+    If running testprog fails, print the output.
     
-    For #68552.
-    For #67308.
+    For #60901.
     
-    Change-Id: Iababa17cdf855b675aaf85642a667e8081ef5dfe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601777
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Iee80fb09412ce13bae6ac3589779a8cdf7761765
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507978
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/dist/build.go            | 1 +
- src/internal/platform/zosarch.go | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/crash_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

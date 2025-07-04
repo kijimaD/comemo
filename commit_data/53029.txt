@@ -1,20 +1,24 @@
-commit 3e19dc2b237339420fc7e97a2766710a68ac29c2
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Oct 7 18:11:10 2022 -0400
+commit a30f4346674ec43bf576e6f56a9cd1c7ca482e1f
+Author: hidu <duv123@gmail.com>
+Date:   Thu Mar 3 13:33:38 2022 +0800
 
-    reflect: make Value.IsZero not escape
+    cmd/go: pass --no-decorate when listing git tags for a commit
     
-    With CL 408826 reflect.Value not always escape. IsZero still
-    escapes the Value because in some cases it passes the Value
-    pointer to the equal function, which is function pointer. Equal
-    functions are compiler generated and never escapes, but the escape
-    analysis doesn't know. Add noescape to help.
+    This avoids a parse error when the user's global .gitconfig sets
+    log.decorate to true.
     
-    Change-Id: Ica397c2be77cac9e8a46d03d70bac385b0aa9e82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/441937
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Fixes #51312.
+    
+    Change-Id: Ic47b0f604c0c3a404ec50d6e09f4e138045ac2f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387835
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/reflect/value.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git.go       |  2 +-
+ .../script/mod_download_git_decorate_full.txt      | 28 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

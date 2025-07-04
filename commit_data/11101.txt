@@ -1,12 +1,12 @@
-commit 5cf803f438e1afd6ddd46c7536d45fd7a68731f1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 11 15:44:20 2012 +1100
+commit 8fe770130131790761ddefd191d52fc5ea60c420
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 10 20:26:11 2012 -0800
 
-    builder: pass through TMPDIR env var, drop DISABLE_NET_TESTS
+    os: work around inlining bug (issue 2678)
     
-    R=golang-dev, rsc
+    TBR=lvd
     CC=golang-dev
-    https://golang.org/cl/5530076
+    https://golang.org/cl/5534070
 
- misc/dashboard/builder/main.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/os/file_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

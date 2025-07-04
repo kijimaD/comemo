@@ -1,13 +1,12 @@
-commit d7eacee603c1e1d380cf1b1c3321f5f5a163ea09
-Author: Ross Light <rlight2@gmail.com>
-Date:   Tue Mar 8 15:42:23 2011 +1100
+commit 2a36f9df1c2d11b681adb267fe7944eab94cf6e7
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Mar 8 15:41:36 2011 +1100
 
-    misc/vim: Add indent script for Vim
+    flag: replace fail with failf
     
-    R=adg
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4258041
+    https://golang.org/cl/4254061
 
- misc/vim/indent/go.vim | 30 ++++++++++++++++++++++++++++++
- misc/vim/readme.txt    | 13 +++++++++++++
- 2 files changed, 43 insertions(+)
+ src/pkg/flag/flag.go | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

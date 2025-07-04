@@ -1,23 +1,20 @@
-commit d5976429812c5e3df0027cc44268cb624146904c
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Jul 26 12:49:29 2024 -0400
+commit eb413f7bcd27569494c6296c8f2bb3d8f2d8710d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 5 12:42:58 2023 -0400
 
-    net: unskip TestUDPZeroBytePayload on Darwin
+    doc/go1.21: move Ports to end
     
-    From information we have available in the issue, this test was flaky
-    on OS X 10.10 but not newer. By now macOS 11 is the minimum required
-    version, and 1000 local runs of the test passed, so try to unskip as
-    the next step.
+    The most important parts of almost any release notes are the
+    language and tool changes. Those should be the first two sections.
+    Instead Ports interrupts the flow with information that usually
+    matters only to very few users.
     
-    For #29225.
+    Move Ports to the end of the release notes.
     
-    Change-Id: I18a24459f01e53ef9de05b50d1dd8786d0683107
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_11,gotip-darwin-amd64_14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601395
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I78492e91e368184fb5f8e8d44d63f35b8f14eeae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500957
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/udpsock_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.21.html | 113 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 57 insertions(+), 56 deletions(-)

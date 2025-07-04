@@ -1,21 +1,14 @@
-commit 7da03b9fbb5c0f8b771a90be3c3777ffbdde283a
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 21 12:11:52 2017 -0400
+commit 4330866385c2edfd56a0a3c6136db1d034e4712a
+Author: OlgaVlPetrova <OVPpetrova@gmail.com>
+Date:   Sat Oct 13 14:06:30 2018 +0300
 
-    runtime: compute goal first in gcSetTriggerRatio
+    debug/plan9obj: simplify s[:] to s where
     
-    This slightly rearranges gcSetTriggerRatio to compute the goal before
-    computing the other controls. This will simplify implementing the heap
-    limit, which needs to control the absolute goal and flow the rest of
-    the control parameters from this.
-    
-    For #16843.
-    
-    Change-Id: I46b7c1f8b6e4edbee78930fb093b60bd1a03d75e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/46750
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ib2eee1215ba046e4541af8afa3a921c680d2b37e
+    Reviewed-on: https://go-review.googlesource.com/c/142037
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
 
- src/runtime/mgc.go | 22 ++++++++++++----------
- 1 file changed, 12 insertions(+), 10 deletions(-)
+ src/debug/plan9obj/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

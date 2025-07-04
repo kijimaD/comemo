@@ -1,12 +1,15 @@
-commit d660688f14baf29a84d1d7cbeea9eae92c15c60f
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jun 17 17:59:53 2013 +0400
+commit 8a4efed63c02f18c14b3e445f399d421d23dfa32
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Mon Jun 17 19:31:58 2013 +1000
 
-    runtime/race: add tests for method thunks
+    run.bash: raise ulimit for the number of threads.
     
-    R=golang-dev, dave
+    This is needed on NetBSD-current. Support for
+    ulimit -T in bash was added in 4.2nb3.
+    
+    R=golang-dev, minux.ma, rsc, dave
     CC=golang-dev
-    https://golang.org/cl/10257043
+    https://golang.org/cl/10078047
 
- src/pkg/runtime/race/testdata/mop_test.go | 87 +++++++++++++++++++++++++++++++
- 1 file changed, 87 insertions(+)
+ src/run.bash | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,24 @@
+commit 7007dfcd0c32c1be83c921b0859dd48464c7c5aa
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 8 12:12:37 2025 +0200
+
+    os: clean-up NewFile tests
+    
+    This CL removes some unnecessary code and duplicated NewFile tests
+    cases.
+    
+    It also simplifies TestPipeCanceled by removing the need for using
+    SetReadDeadline. Using CancelIoEx instead of CancelIo makes the cancel
+    operations to finish almost instantly. The latter could take more than
+    20s to finish if called from a thread different from the one that
+    called ReadFile.
+    
+    Change-Id: I9033cbcad277666bc2aec89b3e5a3ef529da2cd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663755
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/os/os_windows_test.go | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

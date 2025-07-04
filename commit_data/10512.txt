@@ -1,14 +1,27 @@
-commit f1fecf8d2a128d203dab25b4a3ff4537b4b22e3e
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Sun Nov 27 18:01:08 2011 -0800
+commit 68e7363b56a0a42414620a5a5cb756fb0edf82e7
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Mon Nov 28 10:55:31 2011 +1100
 
-    math: fix typo in Log1p comments
+    html: parse <nobr> elements
     
-    Also note the special case of -0.0.
+    Pass tests3.dat, test 20:
+    <!doctype html><nobr><nobr><nobr>
     
-    R=rsc, golang-dev, gri
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <nobr>
+    |     <nobr>
+    |     <nobr>
+    
+    Also pass tests through test 22:
+    <!doctype html><html><body><p><table></table></body></html>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5435084
+    https://golang.org/cl/5438056
 
- src/pkg/math/log1p.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/html/parse.go      | 7 +++++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

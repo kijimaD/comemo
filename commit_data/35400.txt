@@ -1,14 +1,25 @@
-commit a0b70517729f6860ee1d6ef484575f8f298c4487
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 16 14:10:02 2018 +0200
+commit 7ddd467ef335f9ea2347bb9c2628091568b3370f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Dec 24 16:50:28 2017 +0000
 
-    doc/contribute.html: remove superfluous article
+    cmd/compile: print usage to stderr for consistency
     
-    After CL 113016 the "a" article is no longer necessary.
+    All the other tools and commands print the usage text to standard error.
+    "go tool compile" was the odd one out, so fix it.
     
-    Change-Id: I5a80a210bd2b9eedd73d5f9f3f338d7f22c29ea6
-    Reviewed-on: https://go-review.googlesource.com/113355
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    While at it, make objabi.Flagprint a bit more Go-like with an io.Writer
+    instead of a file descriptor, which is likely a leftover from the C
+    days.
+    
+    Fixes #23234.
+    
+    Change-Id: I9abf2e79461e61c8c8bfaee2c6bf8faf26e0e6c3
+    Reviewed-on: https://go-review.googlesource.com/85418
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go | 4 ++--
+ src/cmd/internal/objabi/flag.go     | 7 +++----
+ src/cmd/link/internal/ld/lib.go     | 2 +-
+ 3 files changed, 6 insertions(+), 7 deletions(-)

@@ -1,37 +1,34 @@
-commit 53374e7e068c032b9e6278e592974e973a554365
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu May 2 17:31:56 2019 -0400
+commit 0dd88cd54d3f247934a75610fbbb7ade67243e15
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 18 15:10:38 2018 -0800
 
-    crypto/ed25519: promote from golang.org/x/crypto/ed25519
+    net: don't accept timeouts in TestUDPZeroBytePayload
     
-    The crypto/tls and crypto/x509 APIs leak PublicKey and PrivateKey types,
-    so in order to add support for Ed25519 certificates we need the ed25519
-    package in the stdlib.
+    Before this CL we accepted timeouts in TestUDPZeroBytePayload to avoid
+    flakiness and because, according to CL 9194, the test didn't work on
+    some platforms. On Windows, before CL 132781, the read would always
+    timeout, and so since the test accepted timeouts it would pass
+    incorrectly. CL 132781 fixed Windows, and changed the test to not
+    accept timeouts in the ReadFrom case.
     
-    It's also a primitive that's reasonable to use directly in applications,
-    as it is a modern, safe and fast signing algorithm, for which there
-    aren't higher level APIs. (The nacl/sign API is limiting in that it
-    repeats the message.)
+    However, the timeout was short, and so on a loaded system the Read
+    might timeout not due to an error in the code, but just because the
+    read was not delivered. So ignoring timeouts made the test flaky, as
+    reported in issue #29225.
     
-    A few docs changes will come in a follow-up, and a CL will land on
-    golang.org/x/crypto/ed25519 to make it a type alias wrapper on Go 1.13+.
+    This CL tries to get to a better state by increasing the timeout to a
+    large value and not permitting timeouts at all. If there are systems
+    where the test fails, we will need to explicitly skip the test on
+    those systems.
     
-    Updates #25355
+    Fixes #29225
     
-    Change-Id: I057f20cc7d1aca2b95c29ce73eb03c3b237e413f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174945
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I26863369898a69cac866b34fcb5b6ffbffab31f6
+    Reviewed-on: https://go-review.googlesource.com/c/154759
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/nacl/testzip.proto                            |   3 +
- src/cmd/go/internal/note/note.go                   |   3 +-
- src/cmd/go/internal/note/note_test.go              |   5 +-
- src/cmd/vendor/modules.txt                         |   2 -
- .../golang.org/x => }/crypto/ed25519/ed25519.go    |   3 +-
- src/crypto/ed25519/ed25519_test.go                 | 219 +++++++++++++++++++++
- .../crypto/ed25519/internal/edwards25519/const.go  |   0
- .../ed25519/internal/edwards25519/edwards25519.go  |   0
- src/crypto/ed25519/testdata/sign.input.gz          | Bin 0 -> 50330 bytes
- src/go/build/deps_test.go                          |   4 +
- 10 files changed, 230 insertions(+), 9 deletions(-)
+ src/net/udpsock_test.go | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)

@@ -1,47 +1,29 @@
-commit 505000b2d38c4c93aa7d30e82c61b76a6925b4e9
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Dec 1 16:26:14 2023 -0800
+commit a76b073712343328a6da1daa597ddfe68d543f32
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 5 21:38:02 2023 -0400
 
-    net/http: simplify HTTP/1 request cancelation
+    misc/cgo/test: fix vet error
     
-    HTTP requests have three separate user cancelation signals:
+    Vet's cgocall check fails on misc/cgo/test with "possibly passing Go
+    type with embedded pointer to C". This error is confusing, but the
+    cgocall check is looking for passing pointers to Go slices to C, which
+    is exactly what this test is doing. Normally we don't notice this
+    because vet doesn't run on misc, but we're about to move this test to
+    cmd/cgo/internal, where vet will start failing.
     
-            Transport.CancelRequest
-            Request.Cancel
-            Request.Context()
+    I'm not sure why we're passing a pointer to a slice here. It's
+    important that we call a C function with an unsafe.Pointer to memory
+    containing a pointer to test #25941 and that the result is this call
+    is then passed to another C function for #28540. This CL maintains
+    these two properties without the use of a slice.
     
-    In addition, a request can be canceled due to errors.
+    For #37486.
     
-    The Transport keeps a map of all in-flight requests,
-    with an associated func to run if CancelRequest is
-    called. Confusingly, this func is *not* run if
-    Request.Cancel is closed or the request context expires.
-    
-    The map of in-flight requests is also used to communicate
-    between roundTrip and readLoop. In particular, if readLoop
-    reads a response immediately followed by an EOF, it may
-    send racing signals to roundTrip: The connection has
-    closed, but also there is a response available.
-    This race is resolved by readLoop communicating through
-    the request map that this request has successfully
-    completed.
-    
-    This CL refactors all of this.
-    
-    In-flight requests now have a context which is canceled
-    when any of the above cancelation events occurs.
-    
-    The map of requests to cancel funcs remains, but is
-    used strictly for implementing Transport.CancelRequest.
-    It is not used to communicate information about the
-    state of a request.
-    
-    Change-Id: Ie157edc0ce35f719866a0a2cb0e70514fd119ff8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546676
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I672a3c35931a59f99363050498d6f0c80fb6cd98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493137
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/transport.go               | 286 ++++++++++++++++----------------
- src/net/http/transport_internal_test.go |   4 +-
- 2 files changed, 145 insertions(+), 145 deletions(-)
+ misc/cgo/test/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

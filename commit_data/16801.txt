@@ -1,12 +1,12 @@
-commit a6f95ad34ea6b8c450a126d5fd783a8fc6e9d953
-Author: Andrew Bonventre <andybons@chromium.org>
-Date:   Thu Jul 18 11:11:23 2013 +1000
+commit 9094941a40d8e9322f0ec90b7b44ecc1093bfad2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jul 18 10:11:43 2013 +1000
 
-    image/gif: don't write superfluous global color table
+    cmd/ld: trivial: fix unused parameter pedantry
     
-    R=r, nigeltao
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/11446043
+    https://golang.org/cl/11436043
 
- src/pkg/image/gif/writer.go | 15 ++++-----------
- 1 file changed, 4 insertions(+), 11 deletions(-)
+ src/cmd/ld/lib.c | 3 +++
+ 1 file changed, 3 insertions(+)

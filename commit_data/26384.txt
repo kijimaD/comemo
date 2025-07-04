@@ -1,12 +1,15 @@
-commit f39d6d961383ab0325ad1ca32372b82e0e667863
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Mar 18 16:43:43 2016 +0100
+commit 594c3aa063befecb6bd51a191781e44d1cd1b566
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 14 15:28:26 2016 -0800
 
-    testing: always ignore RunParallel in probe phase
+    [dev.ssa] runtime: fix windows build
     
-    Change-Id: If45410a2d7e48d1c9e6800cd98f81dd89024832c
-    Reviewed-on: https://go-review.googlesource.com/20852
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Pull the relevant part of https://go-review.googlesource.com/#/c/18304/
+    into the SSA branch.  This fixes the windows SSA build.
+    
+    Change-Id: Iee3834d8e7019cd90307e32029f3d1032ceb46c1
+    Reviewed-on: https://go-review.googlesource.com/18673
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/testing/benchmark.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/sys_windows_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

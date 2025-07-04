@@ -1,19 +1,20 @@
-commit a5d61d75e3d314323d07914ae36daf69c96f0bf8
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Feb 14 19:08:02 2024 -0500
+commit 8e1ec1cb9385414a7d6b664d8ace6bc9468cc500
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Jul 18 13:38:21 2023 -0400
 
-    runtime: deprecate GOROOT
+    net: tolerate permission errors in interface tests
     
-    Fixes #51473.
+    On our linux-arm64 builders, we're getting permission errors despite
+    running as root. Detect those errors and skip the test.
     
-    Change-Id: Ic868790f480b21b472c98b39be797bcffb1fa892
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564142
+    For #61414.
+    
+    Change-Id: I5d7c45789337bee3860b19335bbb9eb884c48986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510737
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/51473.txt                          | 1 +
- doc/next/6-stdlib/99-minor/runtime/51473.md | 3 +++
- src/runtime/extern.go                       | 5 +++++
- 3 files changed, 9 insertions(+)
+ src/net/interface_unix_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

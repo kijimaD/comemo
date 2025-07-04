@@ -1,25 +1,16 @@
-commit 15594df6b4e913d1ed9d7b38fa71868be28e9b63
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 5 17:21:48 2015 -0800
+commit fcff3ba740ed6638cece4dea8478bd1dfb2411bf
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Dec 23 17:14:04 2014 -0500
 
-    math/big: handling of +/-Inf and zero precision, enable zero values
+    cmd/gc: don't recurse infinitely when a recursive type references itself more than once
     
-    - clarified representation of +/-Inf
-    - only 0 and Inf values can have 0 precision
-    - a zero precision value used as result value takes the max precision
-      of the arguments (to be fine-tuned for setters)
-    - the zero precision approach makes Float zero values possible
-      (they represent +0)
-    - more tests
+    Fixes #9432
     
-    Missing: Filling in the blanks. More tests.
-    
-    Change-Id: Ibb4f97e12e1f356c3085ce80f3464e97b82ac130
-    Reviewed-on: https://go-review.googlesource.com/4000
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I08c92481afa7c7fac890aa780efc1cb2fabad528
+    Reviewed-on: https://go-review.googlesource.com/2115
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/float.go          | 179 +++++++++++++++++++++++++++++------------
- src/math/big/float_test.go     |  62 ++++++++++++++
- src/math/big/floatconv.go      |  17 +++-
- src/math/big/floatconv_test.go |   6 +-
- 4 files changed, 206 insertions(+), 58 deletions(-)
+ src/cmd/gc/align.c          |  5 +++++
+ test/fixedbugs/issue9432.go | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+)

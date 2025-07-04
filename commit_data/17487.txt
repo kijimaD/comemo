@@ -1,12 +1,14 @@
-commit 17e5539f7d3e17e3c585b3c4e6d4448d7f953626
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 6 16:15:30 2013 -0400
+commit 8f764fb689ea4313c5a6de2cabdf65aee9f89c5d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Sep 6 15:48:21 2013 -0400
 
-    test: fix build (update for new error message)
+    codereview: update use of promptchoice for Mercurial 2.7
     
-    R=golang-dev
+    Fixes #6186.
+    
+    R=golang-dev, bradfitz, remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/13521044
+    https://golang.org/cl/13112043
 
- test/syntax/chan1.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ lib/codereview/codereview.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

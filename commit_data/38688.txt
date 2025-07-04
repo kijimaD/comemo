@@ -1,17 +1,22 @@
-commit 00530918db29102a0186bcf2b3e699a742d298fa
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Mon Apr 8 15:45:16 2019 +0200
+commit a063a2284af69d25d4367ff3e7c6da53f37bad03
+Author: Ali Rizvi-Santiago <arizvisa@gmail.com>
+Date:   Wed Nov 14 20:16:14 2018 +0000
 
-    misc/cgo/testcshared: use adb exec-out instead of adb shell
+    cmd/go: allow the user to specify ar via an environment variable
     
-    Adb exec-out is like adb shell except non-flaky in non-interactive
-    settings. Don't ask why.
+    This allows one to customize which ar to use by fetching its path
+    from the environment. This way one can swap it out for a
+    different implementation.
     
-    Change-Id: I7ac3c72912883d80bc787c1d0fc101db6bae9c52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170952
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Change-Id: I40d8cbd8a69e97b5254e66081d9bf0b726c10366
+    GitHub-Last-Rev: 4aa1d631eaca58be6c3a4be40f7404fa75a0db25
+    GitHub-Pull-Request: golang/go#28746
+    Reviewed-on: https://go-review.googlesource.com/c/149117
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/alldocs.go               |  4 ++++
+ src/cmd/go/internal/help/helpdoc.go |  4 ++++
+ src/cmd/go/internal/work/gccgo.go   | 18 +++++++++++++-----
+ 3 files changed, 21 insertions(+), 5 deletions(-)

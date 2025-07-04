@@ -1,18 +1,21 @@
-commit dc89b5b48f0c1c9a73c6e0dbbae514ffc55788c8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 5 01:44:52 2016 +0000
+commit a3e7544ea843dd5a17cfeb02bc7774ca8a6eae42
+Author: David Benjamin <davidben@google.com>
+Date:   Sat Oct 31 21:30:00 2015 -0400
 
-    net/http: update bundled http2
+    encoding/asn1: enforce use of short form lengths.
     
-    Updates x/net/http2 to git rev 493a262 for https://golang.org/cl/19223
+    BER allows the sender to choose either short form or long form where
+    both are legal, but DER requires the minimal one be used. Enforce this
+    and add a test. Fix one test which was not minimally-encoded and another
+    which would not distinguish rejecting the input because the long form
+    length wasn't minimally-encoded from rejecting it because long form was
+    chosen when short form was allowed.
     
-    Fixes #14227
-    
-    Change-Id: I626122811138fb3d88e4eea83f8da3fdcf91e0dc
-    Reviewed-on: https://go-review.googlesource.com/19250
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1b56fcca594dcdeddea9378b4fab427cbe7cd26d
+    Reviewed-on: https://go-review.googlesource.com/16517
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/net/http/h2_bundle.go | 117 ++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 97 insertions(+), 20 deletions(-)
+ src/encoding/asn1/asn1.go      | 5 +++++
+ src/encoding/asn1/asn1_test.go | 6 ++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)

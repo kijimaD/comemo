@@ -1,45 +1,16 @@
-commit 13baf4b2cd34dfb41c570e35b48ec287713f4d7f
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Sun Nov 4 19:23:08 2018 -0800
+commit ce09ce4ae0116d2056e8864fe2c2fd3abbc5375a
+Author: EduRam <eduardo.ramalho@gmail.com>
+Date:   Tue Jul 17 22:59:35 2018 +0000
 
-    cmd/compile: encourage inlining of functions with single-call bodies
+    syscall: update check for UserNS support for CentOS 7.5+
     
-    This is a simple tweak to allow a bit more mid-stack inlining.
-    In cases like this:
+    Fixes #26385
     
-    func f() {
-        g()
-    }
-    
-    We'd really like to inline f into its callers. It can't hurt.
-    
-    We implement this optimization by making calls a bit cheaper, enough
-    to afford a single call in the function body, but not 2.
-    The remaining budget allows for some argument modification, or perhaps
-    a wrapping conditional:
-    
-    func f(x int) {
-        g(x, 0)
-    }
-    func f(x int) {
-        if x > 0 {
-            g()
-        }
-    }
-    
-    Update #19348
-    
-    Change-Id: Ifb1ea0dd1db216c3fd5c453c31c3355561fe406f
-    Reviewed-on: https://go-review.googlesource.com/c/147361
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I5594564f42898a71d30531e5132bddb3a6915247
+    GitHub-Last-Rev: fbd7b38b0419e21ecd22fe802ede5c0ee3f14a9a
+    GitHub-Pull-Request: golang/go#26427
+    Reviewed-on: https://go-review.googlesource.com/124555
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/inl.go | 14 +++++++++++---
- src/runtime/extern.go              |  1 +
- src/runtime/runtime-gdb_test.go    |  8 +++-----
- src/runtime/stack_test.go          |  3 +++
- test/closure3.dir/main.go          |  2 ++
- test/fixedbugs/issue7921.go        |  2 +-
- test/inline.go                     | 18 ++++++++++++++++++
- test/live_syscall.go               |  8 ++++----
- 8 files changed, 43 insertions(+), 13 deletions(-)
+ src/syscall/exec_linux_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

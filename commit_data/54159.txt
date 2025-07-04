@@ -1,21 +1,26 @@
-commit 98195ed057cfd30d5cb902766602c1230bb33384
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Aug 20 14:06:17 2023 -0700
+commit b2137e7dad4fce1f366ad432faed4f78f29ac3fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 27 15:23:42 2022 -0700
 
-    cmd/compile/internal/types: remove Funarg
+    go/types, types2: use 2nd operand position for comparison type mismatch errors
     
-    There's no need for the Funarg type anymore. A simple boolean suffices
-    to indicate whether a TSTRUCT represents a parameter tuple.
+    When a comparison is invalid due to mismatched types, we only know
+    when we see the 2nd operand; so use that operand's position for the
+    error message. This matches compiler behavior.
     
-    While here, rename Struct.Funarg to ParamTuple.
+    For #55326.
     
-    Change-Id: I657512d4ba10e51ec4cfd7c7d77e0194bdb0853b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521315
+    Change-Id: I79450756bbdd2b4bb90ed4e960a451be0197b186
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435555
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types/fmt.go  | 20 ++++++++------------
- src/cmd/compile/internal/types/type.go | 25 +++++++------------------
- 2 files changed, 15 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/types2/expr.go         |  5 ----
+ src/go/types/expr.go                            |  5 ----
+ src/internal/types/testdata/check/const0.go     |  4 +--
+ src/internal/types/testdata/check/expr2.go      | 40 ++++++++++++-------------
+ src/internal/types/testdata/spec/comparisons.go | 16 +++++-----
+ 5 files changed, 30 insertions(+), 40 deletions(-)

@@ -1,15 +1,12 @@
-commit 1ce0d72fdf4bde690dad8e922ab7ae7588051964
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 19 23:32:28 2013 -0700
+commit ee5a794fbbde0bc608f91e974a9b12f887b8266c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 19 16:40:19 2013 -0700
 
-    net/http: new benchmark to measure server without network
+    doc/go1.1.html: add links to the text, write some new sections
     
-    No net package involved. And with ReportAllocs we can see
-    how much garbage is created per request.
-    
-    R=adg, dave
+    R=golang-dev, rsc, dave
     CC=golang-dev
-    https://golang.org/cl/7913044
+    https://golang.org/cl/7914043
 
- src/pkg/net/http/serve_test.go | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ doc/go1.1.html | 204 +++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 156 insertions(+), 48 deletions(-)

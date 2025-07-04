@@ -1,24 +1,40 @@
-commit 46fd547d899286982971474b329d7a95da4f2a6b
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Aug 11 17:19:21 2021 -0400
+commit 87bc85a846d5dc2d8fe7dbda900d6066ab98f1a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 30 21:28:32 2020 -0800
 
-    internal/goversion: update Version to 1.18
+    [dev.typeparams] cmd/compile/internal/types2: adjustments toward matching compiler error messages
     
-    This is the start of the Go 1.18 development cycle, so update the
-    Version value accordingly. It represents the Go 1.x version that
-    will soon open up for development (and eventually become released).
+    In order to get types2 usable by the compiler, we need to
+    pass all the compiler tests with respect to error messages.
+    Sometimes the compiler error messages are better, sometimes
+    the types2 error messages are better. Where we can, we decide
+    on a case-by-case basis; but sometimes, for expediency's sake,
+    we just choose the compiler error message as it may reduce the
+    amount of tests that we need to update.
     
-    Updates #40705
-    Updates #47351
+    This CL introduces a new Config flag: CompilerErrorMessages.
+    If set, the typechecker emits an error message that matches
+    the expected errors in the tests most easily. Eventually, we
+    need to get rid of this flag by either adjusting the typechecker
+    errors or the test cases; t.b.d. on a case-by-case basis.
     
-    Change-Id: Icfb99e28529a3c9fb7394e114a34586f613dfcbf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341590
-    Trust: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    This CL also adjust a few error typechecker error messages already.
+    
+    Change-Id: I9d4e491efadf87e999fc0d5b5151ec02a059f891
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274312
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/goversion/goversion.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/api.go                  |  5 +++++
+ src/cmd/compile/internal/types2/api_test.go             |  8 ++++----
+ src/cmd/compile/internal/types2/assignments.go          | 10 +++++++---
+ src/cmd/compile/internal/types2/builtins.go             |  2 +-
+ src/cmd/compile/internal/types2/decl.go                 |  6 +++++-
+ src/cmd/compile/internal/types2/expr.go                 |  8 ++++++--
+ src/cmd/compile/internal/types2/exprstring.go           | 14 ++++++++++----
+ src/cmd/compile/internal/types2/exprstring_test.go      |  6 +++---
+ src/cmd/compile/internal/types2/testdata/decls3.src     | 10 +++++-----
+ src/cmd/compile/internal/types2/testdata/decls4.src     |  4 ++--
+ src/cmd/compile/internal/types2/testdata/issue28251.src |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go              | 14 ++++++++++++--
+ 12 files changed, 61 insertions(+), 28 deletions(-)

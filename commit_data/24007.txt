@@ -1,14 +1,31 @@
-commit 1052b43213ca78035d50cdc3913a6d42c8b502d5
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Aug 11 16:36:40 2015 +1000
+commit d9a704cd40e8d248b473a831f099d8d4ca4c409b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 24 14:34:28 2015 -0700
 
-    net/mail: fix build.
+    [dev.ssa] cmd/compile/ssa: refine type equality in cse
     
-    Change-Id: I8f5c72c6c0db015c06d564523bab35d97d934578
-    Reviewed-on: https://go-review.googlesource.com/13510
-    Reviewed-by: Michael McGreevy <mcgreevy@golang.org>
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    The correct way to compare gc.Types is Eqtype,
+    rather than pointer equality.
+    Introduce an Equal method for ssa.Type to allow
+    us to use it.
+    
+    In the cse pass, use a type's string to build
+    the coarse partition, and then use Type.Equal
+    during refinement.
+    
+    This lets the cse pass do a better job.
+    In the ~20% of the standard library that SSA
+    can compile, the number of common subexpressions
+    recognized by the cse pass increases from
+    27,550 to 32,199 (+17%). The number of nil checks
+    eliminated increases from 75 to 115 (+50%).
+    
+    Change-Id: I0bdbfcf613ca6bc2ec987eb19b6b1217b51f3008
+    Reviewed-on: https://go-review.googlesource.com/11451
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/mail/message.go      | 2 +-
- src/net/mail/message_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/type.go  |  8 ++++++++
+ src/cmd/compile/internal/ssa/TODO    |  1 -
+ src/cmd/compile/internal/ssa/cse.go  | 13 ++++---------
+ src/cmd/compile/internal/ssa/type.go |  9 +++++++++
+ 4 files changed, 21 insertions(+), 10 deletions(-)

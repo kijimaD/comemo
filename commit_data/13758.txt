@@ -1,13 +1,24 @@
-commit afac01df48189013e62f5d2285b8e3b6d38e3f44
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 6 10:37:13 2012 -0700
+commit 67ee9a7db103b5ae5c8d077fef9e21cf6f137f3a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Sep 6 17:50:26 2012 +1000
 
-    spec: ignore BOMS outside of string and rune literals.
-    Happy Birthday UTF-8.
+    crypto/tls: fix data race on conn.err
     
-    R=golang-dev, rsc, 0xjnml
+    Fixes #3862.
+    
+    There were many areas where conn.err was being accessed
+    outside the mutex. This proposal moves the err value to
+    an embedded struct to make it more obvious when the error
+    value is being accessed.
+    
+    As there are no Benchmark tests in this package I cannot
+    feel confident of the impact of this additional locking,
+    although most will be uncontended.
+    
+    R=dvyukov, agl
     CC=golang-dev
-    https://golang.org/cl/6506083
+    https://golang.org/cl/6497070
 
- doc/go_spec.html | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/crypto/tls/conn.go             | 59 +++++++++++++++++-----------------
+ src/pkg/crypto/tls/handshake_client.go |  4 +--
+ 2 files changed, 32 insertions(+), 31 deletions(-)

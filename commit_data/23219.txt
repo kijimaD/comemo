@@ -1,26 +1,21 @@
-commit fd2154f9064ef89c446fa4973d7fba4694dec52c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 27 07:31:56 2015 -0400
+commit ccaaf1f13417b4fdc56ac571f22f8b6dd8c7c8e1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 30 11:57:34 2015 +1000
 
-    cmd/compile: move Node.Curfn into both Node.Func and Node.Name
+    misc/cgo/testcshared, misc/cgo/testshared: fix clang warnings and errors
     
-    $ sizeof -p cmd/compile/internal/gc Node
-    Node 168
-    $
+    Fix several warnings generated on the linux-amd64-clang builder
+    and make it clear to clang that -znow is a linker only flag.
     
-    Change-Id: If624a2d72ec04ef30a1bc7ce76c0d61a526d8a37
-    Reviewed-on: https://go-review.googlesource.com/10532
+    Tested with
+    
+        env CC=clang-3.5 ./all.bash
+        env CC=gcc-4.8 ./all.bash
+    
+    Change-Id: I5ca7366ba8bf6221a36d25a2157dda4b4f3e16fa
+    Reviewed-on: https://go-review.googlesource.com/9523
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/closure.go |  8 ++--
- src/cmd/compile/internal/gc/dcl.go     |  4 +-
- src/cmd/compile/internal/gc/esc.go     | 86 +++++++++++++++-------------------
- src/cmd/compile/internal/gc/gen.go     |  4 +-
- src/cmd/compile/internal/gc/inl.go     |  6 +--
- src/cmd/compile/internal/gc/plive.go   |  6 +--
- src/cmd/compile/internal/gc/sinit.go   |  2 +-
- src/cmd/compile/internal/gc/subr.go    |  5 +-
- src/cmd/compile/internal/gc/syntax.go  |  5 +-
- test/escape2.go                        | 12 ++---
- test/escape2n.go                       | 12 ++---
- 11 files changed, 72 insertions(+), 78 deletions(-)
+ misc/cgo/testcshared/main0.c | 4 ++++
+ src/cmd/internal/ld/lib.go   | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

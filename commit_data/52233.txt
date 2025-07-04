@@ -1,22 +1,19 @@
-commit 5acd2d658ee87e5b4d73ff815e5ed41d4e4b77f3
-Author: Austin Clements <austin@google.com>
-Date:   Sun Jul 17 15:43:01 2022 -0400
+commit 0670afa1b3aaed740816c5ffc9825d154c47d188
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 18 10:56:19 2022 -0400
 
-    runtime: eliminate waspanic from gentraceback
+    doc/go1.19: move the description of the runtime.GOROOT change from 'cmd/go' to 'runtime'
     
-    gentraceback also tracks the funcID of the callee, which is more
-    general. Fix this up to happen in all cases and eliminate waspanic in
-    favor of checking the funcID of the caller.
+    Even though the change in the behavior of 'runtime.GOROOT' was
+    not actually due to a change in the runtime package proper, I
+    suspect that users who notice it will look for the release note
+    in that section, not the 'cmd/go' section.
     
-    For #54466.
+    Fixes #51461.
     
-    Change-Id: Idc98365a6f05022db18ddcd5b3ed8684a6872a88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458216
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I271752968d4152a7fdf3e170537e3072bf87ce86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400814
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/traceback.go | 27 ++++++++++++---------------
- 1 file changed, 12 insertions(+), 15 deletions(-)
+ doc/go1.19.html | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

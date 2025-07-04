@@ -1,17 +1,12 @@
-commit 92926f54722ce3e67765e440d0d6e5ef6da7474b
+commit a07841e21ebe371f7b9f45cba1e0d1a8090c58fb
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 31 17:53:39 2011 -0400
+Date:   Mon Oct 31 17:50:38 2011 -0400
 
-    pkg: minor cleanup
+    test: make bug107 os.Error-proof
     
-    remove some redundant .String()
-    change variable name to make it os.Error-proof
-    
-    R=golang-dev, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5302075
+    https://golang.org/cl/5306087
 
- src/pkg/archive/zip/struct.go | 6 +++---
- src/pkg/big/int_test.go       | 2 +-
- src/pkg/big/rat_test.go       | 2 +-
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ test/fixedbugs/bug107.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

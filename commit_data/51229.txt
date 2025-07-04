@@ -1,26 +1,18 @@
-commit fcd14bdcbdfbb5b0c79cfecff95291837836a76d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 10 17:00:18 2022 -0500
+commit 2e6e9df2c1242274b02b584c617947aeed39c398
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 16 10:50:34 2021 -0800
 
-    cmd/go/internal/vcweb: fix a data race in the overview handler
+    go/types, types2: use compiler error message for undefined operators
     
-    I forgot to lock the scriptResult in the overview handler, and
-    apparently a cmd/go test is incidentally fetching the overview page at
-    some point during test execution, triggering the race.
+    For #48712.
     
-    This race was caught almost immediately by the new
-    linux-amd64-longtest-race builder (see
-    https://build.golang.org/log/85ab78169a6382a73b1a26c89e64138b387da217).
-    
-    Updates #27494.
-    
-    Change-Id: I06ee8d54dba400800284401428ba4a59809983b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449517
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I1596fe8688f093e0e92cf5b8d5501aac8631324e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372894
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/vcweb/vcstest/vcstest_test.go | 19 +++++++++++++++++++
- src/cmd/go/internal/vcweb/vcweb.go                |  3 +++
- 2 files changed, 22 insertions(+)
+ src/cmd/compile/internal/types2/expr.go | 12 ++----------
+ src/go/types/expr.go                    |  4 ++--
+ 2 files changed, 4 insertions(+), 12 deletions(-)

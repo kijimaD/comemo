@@ -1,22 +1,16 @@
-commit 189931296f6b56090d9d7f49b7936b817189d87d
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue Nov 10 02:31:28 2020 -0800
+commit 6677a2a1fc5814417c3ab319e1717104e07a4c3f
+Author: Praveen Kumar <praveen+git@kumar.in>
+Date:   Thu Apr 23 21:49:53 2020 +0000
 
-    cmd/internal/obj/s390x: fix SYNC instruction encoding
+    strings: remove an obsolete doc note for FieldsFunc
     
-    SYNC is supposed to correspond to 'fast-BCR-serialization' which is
-    encoded as 'bcr 14,0'. In CL 197178 I accidentally modified the
-    encoding to 'bcr 7,0' which is a no-op. This CL reverses that change.
+    Fixes #38630
     
-    Fixes #42479.
-    
-    Change-Id: I9918d93d720f5e12acc3014cde20d2d32cc87ee5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268797
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    Trust: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I0b2b693dd88821dcfc035cf552b687565bb55ef6
+    GitHub-Last-Rev: 291b1b4dcf074860492bb67008f4e8228c655652
+    GitHub-Pull-Request: golang/go#38631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229763
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 2 ++
- src/cmd/internal/obj/s390x/asmz.go        | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/strings/strings.go | 2 --
+ 1 file changed, 2 deletions(-)

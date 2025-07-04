@@ -1,12 +1,31 @@
-commit 00547235b7c324cbad108ded016c14d789d7727d
-Author: Kevin Burke <kev@inburke.com>
-Date:   Wed Nov 6 09:33:02 2019 -0800
+commit dde7c770ef44d45b8a9f98bf0f46556f18df2f6e
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 31 15:45:06 2019 -0400
 
-    cmd/go: fix spelling error
+    cmd/compile: make the second argument to go:linkname optional
     
-    Change-Id: Ib29da1ad77c9a243a623d25113c6f8dd0261f42a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205601
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The //go:linkname directive can be used to make a symbol accessible to
+    another package (when it wouldn't normally be). Sometimes you want to
+    do this without actually changing the symbol's object file symbol
+    name; for example, in gccgo this makes unexported symbols non-static,
+    and in gc this provides ABI0 wrappers for Go symbols so they can be
+    called from assembly in other packages. Currently, this results in
+    stutter like
+    
+       //go:linkname entersyscall runtime.entersyscall
+    
+    This CL makes the second argument to go:linkname optional for the case
+    where the intent is simply to expose the symbol rather than to rename
+    it in the object file.
+    
+    Updates #31230.
+    
+    Change-Id: Id06d9c4b2ec3d8e27f9b8a0d65212ab8048d734f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179861
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/modload/init.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/doc.go               |  8 ++++++--
+ src/cmd/compile/internal/gc/noder.go | 32 ++++++++++++++++++++++++++------
+ 2 files changed, 32 insertions(+), 8 deletions(-)

@@ -1,29 +1,19 @@
-commit f61cf6f3138d47e1e72dbd56c12e7d1f3314a813
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 10 16:31:56 2019 -0700
+commit 5073bf388694fd85d4419923c536af481df4e33b
+Author: Jason LeBrun <jblebrun@gmail.com>
+Date:   Thu Jan 3 21:06:29 2019 +0000
 
-    cmd/compile: reduce rulelog noise
+    crypto/sha256: fix casting of d.nx in UnmarshalBinary
     
-    When the SSA rules are re-generated to log rules,
-    they write output like:
+    Fixes #29517
     
-    rewrite AMD64.rules:527
-    rewrite AMD64.rules:427
-    rewrite AMD64.rules:494
-    
-    This is silly; there are no non-rewrite lines in the file.
-    Furthermore, the rulelog file tends to be gigantic
-    for any non-trivial compilation (measured in gigabytes).
-    
-    Remove the "rewrite " prefix.
-    
-    No impact to normal builds.
-    
-    Change-Id: I955995c1cc5f27a4a6a3849e19082ecb3e40bd4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176677
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7e741d82bb9f8e6ab39b6d9ab37ba6163176a097
+    GitHub-Last-Rev: 764d0bd9579cd90868c6a134cbb06dda584474d7
+    GitHub-Pull-Request: golang/go#29519
+    Reviewed-on: https://go-review.googlesource.com/c/156118
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/sha256/sha256.go      |  2 +-
+ src/crypto/sha256/sha256_test.go | 63 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+), 1 deletion(-)

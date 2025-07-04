@@ -1,26 +1,20 @@
-commit 71c1a7b77700ea8e549368c8606d74d7a7b5104f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 22 18:41:20 2012 -0700
+commit 33a89b5fdad1917e292b7a8aea5f164c1460177d
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed May 23 11:11:34 2012 +1000
 
-    cmd/api: add api/next.txt
+    exp/html: adjust the last few insertion modes to match the spec
     
-    This quiets all.bash noise for upcoming features we know about.
+    Handle text, comment, and doctype tokens in afterBodyIM, afterAfterBodyIM,
+    and afterAfterFramesetIM.
     
-    The all.bash warnings will now only print for things not in next.txt
-    (or in next.txt but not in the API).
+    Pass three more tests.
     
-    Once an API is frozen, we rename next.txt to a new frozen file
-    (like go1.txt)
-    
-    Fixes #3651
-    
-    R=golang-dev, r
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6218069
+    https://golang.org/cl/6231043
 
- api/README           |  11 ++
- api/next.txt         | 428 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/api/goapi.go | 107 +++++++++----
- src/run.bash         |   2 +-
- src/run.bat          |   2 +-
- 5 files changed, 515 insertions(+), 35 deletions(-)
+ src/pkg/exp/html/parse.go                  | 22 ++++++++++++++++++----
+ src/pkg/exp/html/testlogs/tests18.dat.log  |  2 +-
+ src/pkg/exp/html/testlogs/tests19.dat.log  |  2 +-
+ src/pkg/exp/html/testlogs/webkit01.dat.log |  2 +-
+ 4 files changed, 21 insertions(+), 7 deletions(-)

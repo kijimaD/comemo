@@ -1,14 +1,16 @@
-commit 484d9399dee5471e88c69f1ef84cabc45709cac8
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Mar 10 04:11:30 2015 -0400
+commit b351e1decf4c1cfb3d5a80f467b49846b5d17f4b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 26 10:40:15 2015 +1100
 
-    cmd/dist: enable external linking test for windows/386
+    encoding/xml: add more marshalTests tests.
     
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e2f
-    Reviewed-on: https://go-review.googlesource.com/7284
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    There are no behavior changes in this CL, only specifying the status
+    quo. A follow-up CL, https://go-review.googlesource.com/#/c/5910/, will
+    change marshaling behavior.
+    
+    Change-Id: Ib3f4d62e8c4758da2f11a6d26b285c10d3b0d98a
+    Reviewed-on: https://go-review.googlesource.com/6040
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/dist/test.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/encoding/xml/marshal_test.go | 73 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 72 insertions(+), 1 deletion(-)

@@ -1,22 +1,23 @@
-commit 6a2fb15475b2868815bc9b76518795839793af95
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Thu Nov 14 09:56:49 2024 -0500
+commit 6192f4615514a7673fb2318ce3491e162d74d438
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Sep 15 12:17:15 2023 -0400
 
-    runtime: implement Stop for AddCleanup
+    net/http: handle MethodNotAllowed
     
-    This change adds the implementation for AddCleanup.Stop. It allows the
-    caller to cancel the call to execute the cleanup. Cleanup will not be
-    stopped if the cleanup has already been queued for execution.
+    If no pattern matches a request, but a pattern would have
+    matched if the request had a different method, then
+    serve a 405 (Method Not Allowed), and populate the
+    "Allow" header with the methods that would have succeeded.
     
-    For #67535
+    Updates #61640.
     
-    Change-Id: I494b77d344e54d772c41489d172286773c3814e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627975
+    Change-Id: I0ae9eb95e62c71ff7766a03043525a97099ac1bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528401
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
 
- src/runtime/mcleanup.go      |  71 +++++++++++++++++++++++----
- src/runtime/mcleanup_test.go | 112 +++++++++++++++++++++++++++++++++++++++++++
- src/runtime/mheap.go         |  16 ++++++-
- 3 files changed, 188 insertions(+), 11 deletions(-)
+ src/net/http/request_test.go      | 55 ++++++++++++++++++++++++++++++++++--
+ src/net/http/routing_tree.go      | 27 ++++++++++++++++++
+ src/net/http/routing_tree_test.go | 59 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go            | 42 +++++++++++++++++++++++++---
+ 4 files changed, 177 insertions(+), 6 deletions(-)

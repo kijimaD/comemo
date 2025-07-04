@@ -1,15 +1,12 @@
-commit b050adeebddb269cfb57f2c84acef7430326b6d5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 9 11:30:24 2016 +1100
+commit e5ef5d46932d8f1fbe581ba22fb1d1144fedac5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 18 11:29:15 2015 -0500
 
-    doc: use new Gerrit URL and mention our instance in CONTRIBUTING.md
+    doc: add mention of debug.SetTraceback
     
-    Fixes #14662
-    
-    Change-Id: I8f7d5e8d2dd8dc763e940e061b424427359246e7
-    Reviewed-on: https://go-review.googlesource.com/20462
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I59829029769ae08c6c54208a1e38a0794868c5db
+    Reviewed-on: https://go-review.googlesource.com/18045
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- CONTRIBUTING.md     | 3 ++-
- doc/contribute.html | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ doc/go1.6.html | 37 ++++++++++++++++++++++++-------------
+ 1 file changed, 24 insertions(+), 13 deletions(-)

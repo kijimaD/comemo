@@ -1,21 +1,21 @@
-commit 135c9f45ecaec719bcc297ec9f9f19042bc9adf6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 29 12:14:58 2021 -0700
+commit d7384f36121d52191097af50d6dc12c0eb08fd75
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Aug 16 13:48:09 2020 +0200
 
-    cmd/compile/internal/types2: review of operand.go
+    os: implement File.Chmod on Windows
     
-    The changes between (equivalent, and reviewed) go/types/operand.go
-    and operand.go can be seen by comparing patchset 1 and 2. The actual
-    changes are removing the "// UNREVIEWED" marker.
+    Fixes: #39606
     
-    The primary differences compared to go/types are:
-    - use of syntax rather than go/ast package
-    - explicit mode for untyped nil (rather than relying on the type)
-    
-    Change-Id: I0c9c1c6153c55cb0550096bd966c9f0f1c766734
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305571
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I4def67ef18bd3ff866b140f6e76cdabe5d51a1c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250077
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/types2/operand.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/internal/poll/fd_posix.go                    | 11 ----------
+ src/internal/poll/fd_unix.go                     | 11 ++++++++++
+ src/internal/poll/fd_windows.go                  | 27 ++++++++++++++++++++++++
+ src/internal/syscall/windows/syscall_windows.go  |  9 ++++++++
+ src/internal/syscall/windows/zsyscall_windows.go | 13 ++++++++++++
+ src/os/os_test.go                                | 27 ++++++++++++++----------
+ 6 files changed, 76 insertions(+), 22 deletions(-)

@@ -1,21 +1,19 @@
-commit 9fe3676bc7de9f648c2e3ce6d4f1aa395b92cefd
-Author: cuishuang <imcusg@gmail.com>
-Date:   Mon Feb 28 12:17:25 2022 +0000
+commit 0d32d9e8a8784cf3ef39c471b73e502c51085b6d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 27 16:55:04 2021 -0700
 
-    all: fix typos
+    os: document that Windows Symlink to missing target creates file symlink
     
-    Change-Id: I93ff3d33a5db130dd57a9545456f2961fc3f668b
-    GitHub-Last-Rev: f95fafc04937a99f82cb992aabb7bac602033d8e
-    GitHub-Pull-Request: golang/go#51394
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388314
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #39183
+    
+    Change-Id: Iec4a5a561182ade57dc7dc24247710005d6b9f21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314275
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.18.html                              | 2 +-
- misc/cgo/testsanitizers/asan_test.go         | 2 +-
- src/cmd/compile/internal/types/fmt.go        | 2 +-
- src/cmd/compile/internal/types2/validtype.go | 2 +-
- src/go/types/validtype.go                    | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ src/os/file_plan9.go   | 2 ++
+ src/os/file_unix.go    | 2 ++
+ src/os/file_windows.go | 2 ++
+ 3 files changed, 6 insertions(+)

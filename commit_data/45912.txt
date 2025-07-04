@@ -1,23 +1,21 @@
-commit ce76298ee7b2cc237b015f798abbfe891a6f5463
-Author: makdon <makdon@makdon.me>
-Date:   Mon May 17 16:27:11 2021 +0000
+commit 0c65a2f31734021654ec5eebc270f8c84e5410c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 28 00:05:15 2020 -0500
 
-    Update oudated comment
+    [dev.regabi] cmd/compile: drop Node.HasOpt method
     
-    Update comment cause gc/select.go has been moved to walk/select.go and gc/reflect.go has been moved to reflectdata/reflect.go
+    Node.HasOpt is only used once, and that use can use Opt instead.
+    Interface is one method smaller.
     
-    Change-Id: I6894527e1e9dbca50ace92a51bf942f9495ce88c
-    GitHub-Last-Rev: 6d6a4471440403218b68ba32d4038ca41eae2901
-    GitHub-Pull-Request: golang/go#45976
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317191
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I6a9d5859a9977a8f4c9db70e166f50f0d8052160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274087
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
- src/cmd/link/internal/ld/decodesym.go           |  4 ++--
- src/internal/reflectlite/type.go                |  4 ++--
- src/reflect/type.go                             | 10 +++++-----
- src/runtime/runtime2.go                         |  4 ++--
- src/runtime/select.go                           |  2 +-
- src/runtime/type.go                             |  6 +++---
- 7 files changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/escape.go | 2 +-
+ src/cmd/compile/internal/ir/node.go   | 9 ++++-----
+ 2 files changed, 5 insertions(+), 6 deletions(-)

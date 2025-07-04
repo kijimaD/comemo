@@ -1,46 +1,42 @@
-commit 29bbca5c2c1ad41b2a9747890d183b6dd3a4ace4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Mar 4 13:24:04 2022 -0500
+commit 1b995f91a526ff165952218848c3173026a8dc53
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jun 27 01:28:38 2021 +0700
 
-    runtime: differentiate "user" and "system" throws
+    [dev.typeparams] cmd/compile: rename OCALLPART to OMETHVALUE
     
-    "User" throws are throws due to some invariant broken by the application.
-    "System" throws are due to some invariant broken by the runtime,
-    environment, etc (i.e., not the fault of the application).
+    Go spec call them "method values", not "partial calls". Note that
+    we use "OMETHVALUE" (as opposed to "OMETHODVALUE") to be consistent
+    with "OMETHEXPR".
     
-    This CL sends "user" throws through the new fatal. Currently this
-    function is identical to throw, but with a different name to clearly
-    differentiate the throw type in the stack trace, and hopefully be a bit
-    more clear to users what it means.
-    
-    This CL changes a few categories of throw to fatal:
-    
-    1. Concurrent map read/write.
-    2. Deadlock detection.
-    3. Unlock of unlocked sync.Mutex.
-    4. Inconsistent results from syscall.AllThreadsSyscall.
-    
-    "Thread exhaustion" and "out of memory" (usually address space full)
-    throws are additional throws that are arguably the fault of user code,
-    but I've left off for now because there is no specific invariant that
-    they have broken to get into these states.
-    
-    For #51485
-    
-    Change-Id: I713276a6c290fd34a6563e6e9ef378669d74ae32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390420
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I1efd985d4b567a1b4b20aeb603eb82db579edbd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330837
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/HACKING.md     |  3 +++
- src/runtime/map.go         | 18 +++++++++---------
- src/runtime/map_fast32.go  | 16 ++++++++--------
- src/runtime/map_fast64.go  | 16 ++++++++--------
- src/runtime/map_faststr.go | 12 ++++++------
- src/runtime/os_linux.go    |  2 +-
- src/runtime/panic.go       | 39 ++++++++++++++++++++++++++++++++-------
- src/runtime/proc.go        |  6 +++---
- src/sync/mutex.go          |  6 ++++--
- src/sync/rwmutex.go        |  4 ++--
- 10 files changed, 76 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/escape/escape.go     |   2 +-
+ src/cmd/compile/internal/escape/expr.go       |   2 +-
+ src/cmd/compile/internal/escape/utils.go      |   2 +-
+ src/cmd/compile/internal/inline/inl.go        |   2 +-
+ src/cmd/compile/internal/ir/expr.go           |   6 +-
+ src/cmd/compile/internal/ir/fmt.go            |   4 +-
+ src/cmd/compile/internal/ir/func.go           |   8 +-
+ src/cmd/compile/internal/ir/node.go           |   4 +-
+ src/cmd/compile/internal/ir/op_string.go      | 168 +++++++++++++-------------
+ src/cmd/compile/internal/ir/scc.go            |   2 +-
+ src/cmd/compile/internal/noder/expr.go        |   4 +-
+ src/cmd/compile/internal/noder/helpers.go     |   4 +-
+ src/cmd/compile/internal/noder/stencil.go     |  10 +-
+ src/cmd/compile/internal/noder/transform.go   |   4 +-
+ src/cmd/compile/internal/pkginit/initorder.go |   2 +-
+ src/cmd/compile/internal/typecheck/const.go   |   2 +-
+ src/cmd/compile/internal/typecheck/crawler.go |   2 +-
+ src/cmd/compile/internal/typecheck/expr.go    |   2 +-
+ src/cmd/compile/internal/typecheck/func.go    |   4 +-
+ src/cmd/compile/internal/typecheck/iexport.go |   4 +-
+ src/cmd/compile/internal/typecheck/iimport.go |   6 +-
+ src/cmd/compile/internal/walk/closure.go      |   2 +-
+ src/cmd/compile/internal/walk/expr.go         |   4 +-
+ src/cmd/compile/internal/walk/order.go        |   2 +-
+ 24 files changed, 126 insertions(+), 126 deletions(-)

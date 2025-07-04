@@ -1,15 +1,14 @@
-commit f58d911698e8e4690675fe276dac4795c39a9dfe
-Author: Lorenzo Stoakes <lstoakes@gmail.com>
-Date:   Wed May 11 23:41:59 2011 -0400
+commit 9d2a697fb9d04f65bb9ba6c7b2b508c263da0503
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 11 23:26:52 2011 -0400
 
-    gc: fix type switch error message for invalid cases.
+    codereview: fetch metadata using JSON API, not XML scraping
     
-    Fixes #1606.
+    Fixes hg clpatch.
     
-    R=rsc
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/4532045
+    https://golang.org/cl/4524045
 
- src/cmd/gc/swt.c         |  5 ++++-
- test/fixedbugs/bug340.go | 17 +++++++++++++++++
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ lib/codereview/codereview.py | 181 ++++++++++++++++++++-----------------------
+ 1 file changed, 82 insertions(+), 99 deletions(-)

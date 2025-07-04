@@ -1,18 +1,16 @@
-commit 76c94eb7064c9f84e41a2329efb0986cad1fb306
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 6 17:24:23 2022 -0700
+commit 1dc77a38d293763b9de50110dd72edd755ce72b7
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Oct 22 11:37:28 2021 -0400
 
-    cmd/asm/internal/asm: don't set testOut in testErrors
+    internal/fuzz: tiny refactor+fix
     
-    It's set but the output is never used.
-    
-    Change-Id: I36ecb9c5f087a85289529907ede9f9bfc295d739
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428637
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8db9c31ead3e5905b7f9d1faed36555e8aaa00cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358054
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Julie Qiu <julie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/endtoend_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/internal/fuzz/fuzz.go   | 2 +-
+ src/internal/fuzz/worker.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

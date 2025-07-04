@@ -1,16 +1,14 @@
-commit ef3571bf076f4255579bedb3409bdccc91555b86
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Nov 20 20:12:38 2019 -0500
+commit 95be9b7559e5df1b2cb6b18b517f4f20de5b99a4
+Author: two <oohcode@gmail.com>
+Date:   Thu Nov 21 06:05:37 2019 +0000
 
-    cmd/internal/obj/mips: mark restartable sequences
+    reflect: remove obsolete comment about gobitVector
     
-    Following CL 208126, do the same for MIPS.
-    
-    Change-Id: I95f8fc99a234524119a4d29c7695676dc0ea1025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208217
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ie3495a51ac2021a55e7c1ee43a66d07a5bf2757a
+    GitHub-Last-Rev: b6a6bab3ab840b361021b25cac37eb6891c0fe4b
+    GitHub-Pull-Request: golang/go#35709
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207853
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/mips/asm0.go | 25 +++++++++++++++++++------
- 1 file changed, 19 insertions(+), 6 deletions(-)
+ src/reflect/type.go | 1 -
+ 1 file changed, 1 deletion(-)

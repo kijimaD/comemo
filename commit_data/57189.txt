@@ -1,30 +1,22 @@
-commit 433c1d3b4ab41fa4272bd61f8ad2918ccd1e390d
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Thu Aug 15 18:47:38 2024 -0700
+commit 230e54914209c134dbb6b09ffb143d7396c079a7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 12 13:56:44 2023 -0400
 
-    runtime: store zero-delay mutex contention events
+    doc/go1.21: add a release note for CL 463177
     
-    Mutex contention events with delay of 0 need more than CL 604355 added:
-    When deciding which event to store in the M's single available slot,
-    always choose to drop the zero-delay event. Store an explicit flag for
-    whether we have an event to store, rather than relying on a non-zero
-    delay.
+    I'm not sure why the relnote tool did not fill in a TODO for that
+    change; one was requested in
+    http://go.dev/cl/c/go/+/463177/3#message-87065dffb06e196fba9a325fefb32f16b41b6b15.
     
-    And, fix a test of sync.Mutex contention that expects those events to
-    have non-zero delay. The reporting of non-runtime contention like this
-    has long allowed zero-delay events, which we see when cputicks has low
-    resolution.
+    Updates #50807.
+    Updates #27225.
     
-    Fixes #68892
-    Fixes #68906
-    
-    Change-Id: Id412141e4eb09724f3ce195899a20d59c92d7b78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606115
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Change-Id: If6be8c126bcafb04ba92de88d2fc74a0557a07b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509098
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/runtime/mprof.go            | 8 +++++++-
- src/runtime/pprof/pprof_test.go | 2 +-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ doc/go1.21.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,15 +1,14 @@
-commit 2281ca169cb9f07755d905dec03d2fc7a168094b
+commit a46102d2094126c7e33cfd9b90e739e7ad1ab9b7
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 6 11:21:18 2011 -0500
+Date:   Thu Jan 6 11:21:04 2011 -0500
 
-    gc: fix &^=
+    crypto/cipher: make NewCBCEncrypter return BlockMode
     
-    Fixes #1394.
+    Fixes #1389.
     
-    R=ken2
+    R=agl1
     CC=golang-dev
-    https://golang.org/cl/3879041
+    https://golang.org/cl/3827043
 
- src/cmd/gc/walk.c        |  8 ++++----
- test/fixedbugs/bug317.go | 16 ++++++++++++++++
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ src/pkg/crypto/cipher/cbc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

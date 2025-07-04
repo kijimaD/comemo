@@ -1,15 +1,16 @@
-commit b421b858417abae1defa75cc2d008cfae2a18174
-Author: davidsbond <davidsbond93@gmail.com>
-Date:   Fri Oct 11 14:12:55 2019 +0100
+commit a4f9c2a29e175272fa1fb49c561733abe88ffe6b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Apr 27 02:36:13 2019 +1000
 
-    errors: fix typo in TODO comment
+    cmd/link: add support for openbsd/arm64
     
-    Fixes #34846
-    Change-Id: I24b3e65fc96ec85b2821480e9396c9d1663611c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200678
-    Run-TryBot: Johan Brandhorst <johan.brandhorst@gmail.com>
+    Updates #31656
+    
+    Change-Id: Iff0b2c2b2ca95f8c246436e35a22b70efb8e61d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174121
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
 
- src/errors/wrap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/arm64/obj.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,29 +1,30 @@
-commit e1c294a56d5d03cdba1f059cdb6b1225477dc546
-Author: Alejandro García Montoro <alejandro.garciamontoro@gmail.com>
-Date:   Fri May 14 18:42:16 2021 +0200
+commit 63de2110148eec432c4954dced7ff674a4942115
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 2 17:26:57 2021 -0500
 
-    cmd/compile: eliminate successive swaps
+    [dev.regabi] runtime/cgo: call setg_gcc in crosscall_amd64
     
-    The code generated when storing eight bytes loaded from memory in big
-    endian introduced two successive byte swaps that did not actually
-    modified the data.
+    Currently, when using cgo, the g pointer is set via a separate
+    call to setg_gcc or with inline assembly in threadentry. This CL
+    changes it to call setg_gcc in crosscall_amd64, like other g-
+    register platforms. When we have an actual g register on AMD64,
+    we'll need to set the register immediately before calling into
+    Go.
     
-    The new rules match this specific pattern both for amd64 and for arm64,
-    eliminating the double swap.
-    
-    Fixes #41684
-    
-    Change-Id: Icb6dc20b68e4393cef4fe6a07b33aba0d18c3ff3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320073
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ib1171e05cd0dabba3b7d12e072084d141051cf3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289192
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  2 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 32 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 32 ++++++++++++++++++++++++++++
- test/codegen/memcombine.go                   | 12 +++++++++++
- 5 files changed, 80 insertions(+)
+ src/runtime/cgo/gcc_amd64.S           |  7 ++++++-
+ src/runtime/cgo/gcc_darwin_amd64.c    | 11 +++++------
+ src/runtime/cgo/gcc_dragonfly_amd64.c |  7 +------
+ src/runtime/cgo/gcc_freebsd_amd64.c   |  7 +------
+ src/runtime/cgo/gcc_linux_amd64.c     |  7 +------
+ src/runtime/cgo/gcc_netbsd_amd64.c    |  7 +------
+ src/runtime/cgo/gcc_openbsd_amd64.c   |  7 +------
+ src/runtime/cgo/gcc_solaris_amd64.c   |  7 +------
+ src/runtime/cgo/gcc_windows_amd64.c   | 10 +++++-----
+ src/runtime/cgo/libcgo.h              |  2 +-
+ 10 files changed, 23 insertions(+), 49 deletions(-)

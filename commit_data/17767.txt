@@ -1,19 +1,19 @@
-commit 8ba6deb1ec6cc48b54e98cb97de5e907e7901c58
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 9 08:37:06 2013 -0400
+commit daa61d1eb33f255247de4acb2236fa5d7e6707b9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 8 13:13:40 2013 -0700
 
-    compress/flate: fix infinite loop on malformed data
+    encoding/gob: add examples
+    Also tweak the package document, putting in section headings and
+    adding a sentence about intended use.
     
-    Test using compress/gzip, because that's how the
-    data arrived.
+    Fixes #4925.
     
-    Fixes #6550.
-    
-    R=golang-dev, r
+    R=golang-dev, iant, adg, ugorji
     CC=golang-dev
-    https://golang.org/cl/14441051
+    https://golang.org/cl/14519044
 
- src/pkg/compress/flate/inflate.go           |   4 ++++
- src/pkg/compress/gzip/gunzip_test.go        |  31 ++++++++++++++++++++++++++++
- src/pkg/compress/gzip/testdata/issue6550.gz | Bin 0 -> 65536 bytes
- 3 files changed, 35 insertions(+)
+ src/pkg/encoding/gob/doc.go                    |  8 +++
+ src/pkg/encoding/gob/example_encdec_test.go    | 61 +++++++++++++++++++
+ src/pkg/encoding/gob/example_interface_test.go | 81 ++++++++++++++++++++++++++
+ src/pkg/encoding/gob/example_test.go           | 60 +++++++++++++++++++
+ 4 files changed, 210 insertions(+)

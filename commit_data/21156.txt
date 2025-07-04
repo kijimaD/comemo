@@ -1,26 +1,13 @@
-commit 3191a235158233bb6f6d960d7ae0cb925606f817
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Dec 23 12:10:36 2014 -0800
+commit cc73a44f67a58198161a159b6ee9e3b18d152ab5
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Nov 20 14:24:01 2014 -0500
 
-    go/doc: propagate types from unexported constants
+    [dev.garbage] runtime: Fix constant overflow on 32 bit machines
     
-    When constants were declared using unexported constants,
-    the type information was lost when those constants were filtered out.
-    This CL propagates the type information of unexported constants
-    so that it is available for display.
-    
-    This is a follow-up to CL 144110044, which fixed this problem
-    specifically for _ constants.
-    
-    Updates #5397.
-    
-    Change-Id: I3f0c767a4007d88169a5634ab2870deea4e6a740
-    Reviewed-on: https://go-review.googlesource.com/2091
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/180040043
 
- src/go/doc/exports.go              | 51 ++++++++++++++++++++++++++++++++++++++
- src/go/doc/testdata/blank.0.golden | 22 +++++++++++++++-
- src/go/doc/testdata/blank.1.golden | 25 ++++++++++++++++++-
- src/go/doc/testdata/blank.2.golden | 22 +++++++++++++++-
- src/go/doc/testdata/blank.go       | 24 +++++++++++++++++-
- 5 files changed, 140 insertions(+), 4 deletions(-)
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

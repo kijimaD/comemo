@@ -1,21 +1,20 @@
-commit ff7b245a31394b700a252fd547cf16ad0ad838b6
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Nov 10 08:32:45 2018 +1100
+commit 4016de0daffd46087e9ee9dc994e39c257191b40
+Author: Jack <jackxbritton@gmail.com>
+Date:   Wed Jul 18 19:12:14 2018 +0000
 
-    Revert "os: remove sleep in windows Process.Wait"
+    filepath: updates doc to give case where WalkFunc info arg may be nil
     
-    This reverts CL 145221 (commit 5c359736f8d67338b53c26aaef52139ae8cd0538)
+    If a filepath.WalkFunc is called with an non-nil err argument, it's possible
+    that the info argument will be nil. The comment above filepath.WalkFunc now
+    reflects this.
     
-    Reason for revert: breaks the build occasionally.
+    Fixes #26425
     
-    Updates #23171
-    Updates #25965
-    
-    Change-Id: Ie1e3c76ab9bcd8d28b6118440b5f80c76f9b1852
-    Reviewed-on: https://go-review.googlesource.com/c/148957
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib9963b3344587d2993f1698c5a801f2d1286856b
+    GitHub-Last-Rev: 553fc266b570d0c47efe12b3b670f88112e3b334
+    GitHub-Pull-Request: golang/go#26435
+    Reviewed-on: https://go-review.googlesource.com/124635
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/exec_windows.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/path/filepath/path.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

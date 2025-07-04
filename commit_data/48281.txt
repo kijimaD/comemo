@@ -1,31 +1,23 @@
-commit 27ec2bf0dd67a11036626cef26899df7280b0000
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Jan 5 08:55:55 2022 -0500
+commit 66ce8aa88d144338868b0d3ab8c895608a460750
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 4 16:18:56 2021 -0400
 
-    crypto/ed25519/internal/edwards25519: sync with filippo.io/edwards25519
+    cmd/compile: handle degenerate entry blocks in -N debug gen
     
-    Import the following commits (and minor comment fixes):
+    The code that created DWARF debug var locations for input parameters
+    in the non-optimized case for regabi was not doing the right thing for
+    degenerate functions with infinite loops. Detect these cases and don't
+    try to emit the normal location data.
     
-        * 17a0e59 - field: fix heap escape in SqrtRatio <Filippo Valsorda>
-        * edec5b9 - field: fix SqrtRatio when arguments and receiver alias <Filippo Valsorda>
-        * 26ce6fc - edwards25519: expand the SetUniformBytes docs <Filippo Valsorda>
-        * c1c1311 - edwards25519: make Scalar and field.Element setters return errors <Filippo Valsorda>
+    Fixes #45948.
     
-    Change-Id: I102eb04818a2bed43467f3eda6fd4c46b09878fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373077
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: I2717fc4bac2e03d5d850a6ec8a09ed05fed0c896
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316752
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/ed25519/ed25519.go                      | 25 +++++++++++---
- .../ed25519/internal/edwards25519/edwards25519.go  |  6 ++--
- .../ed25519/internal/edwards25519/field/fe.go      | 40 ++++++++++++----------
- .../internal/edwards25519/field/fe_alias_test.go   | 18 ++++++++--
- .../internal/edwards25519/field/fe_generic.go      |  2 ++
- .../ed25519/internal/edwards25519/field/fe_test.go | 16 +++++----
- src/crypto/ed25519/internal/edwards25519/scalar.go | 25 ++++++++------
- .../ed25519/internal/edwards25519/scalar_test.go   |  6 ++--
- 8 files changed, 90 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 12 +++++++++---
+ test/fixedbugs/issue45948.go          | 16 ++++++++++++++++
+ 2 files changed, 25 insertions(+), 3 deletions(-)

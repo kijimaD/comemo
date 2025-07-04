@@ -1,15 +1,16 @@
-commit 4b9ab7dd69453186a0e08757ba177b5d3ec25e7e
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Apr 17 23:17:15 2014 -0400
+commit 8f7664123087d1800c214b7dc6fb8ea169208ad6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 17 14:03:05 2014 -0700
 
-    os: change return variable name for Getwd to avoid confusion
-    changed (pwd string) to (dir string), as some think pwd means passwd.
-    Fixes #7811.
+    net/http/httputil: include Content-Length in DumpResponse output
     
-    LGTM=iant
-    R=golang-codereviews, iant, bradfitz
+    Fixes #5357
+    
+    LGTM=nigeltao
+    R=nigeltao
     CC=golang-codereviews
-    https://golang.org/cl/89100043
+    https://golang.org/cl/87910050
 
- src/pkg/os/getwd.go | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ src/pkg/net/http/httputil/dump.go      | 32 +++++++++++---
+ src/pkg/net/http/httputil/dump_test.go | 80 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 106 insertions(+), 6 deletions(-)

@@ -1,37 +1,22 @@
-commit 0a6e1fa986e04add090afa50b8e566dca40df760
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 18 21:38:08 2022 -0700
+commit 665626928807c484d31a4bcb3b4b553a7a9d80eb
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Sep 28 13:46:14 2021 +0800
 
-    cmd/compile: fix "expression has untyped type" ICE in generic code
+    cmd/asm: add error check for move constant instructions on arm64
     
-    During walk, we sometimes desugar OEQ nodes into multiple "untyped
-    bool" expressions, and then use typecheck.Conv to convert back to the
-    original OEQ node's type.
+    The current Go assembler encodes "MOVK $(0<<16|32|48), Rd" as the
+    same binary with "MOVK $0, Rd", but for arm64 move constant instructions
+    MOVK, MOVN and MOVZ, "op $0, Rd" and "op $(0<<16|32|48), Rd" have
+    different semantics. In order not to change the way the assembler
+    frontend parses constants, this patch adds a check for the zero shifts.
     
-    However, typecheck.Conv had a short-circuit path that if the type is
-    already identical to the target type according to types.Identical,
-    then we skipped the conversion. This short-circuit is normally fine;
-    but with generic code and shape types, it considers "untyped bool" and
-    "go.shape.bool" to be identical types. And we could end up leaving an
-    expression of "untyped bool", which then fails an internal consistency
-    check later.
-    
-    The simple fix is to change Conv to use types.IdenticalStrict, so that
-    we ensure "untyped bool" gets converted to "go.shape.bool". And for
-    good measure, make the same change to ConvNop.
-    
-    This issue was discovered and reported against unified IR, but the
-    issue was latent within the non-unified frontend too.
-    
-    Fixes #54537.
-    
-    Change-Id: I7559a346b063349b35749e8a2da704be18e51654
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424937
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ia844c419ce49f63605b549e3a2e98d9075dd1cf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275812
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/typecheck.go |  4 ++--
- test/typeparam/issue54537.go                    | 22 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 2 ++
+ src/cmd/internal/obj/arm64/asm7.go             | 3 +++
+ 2 files changed, 5 insertions(+)

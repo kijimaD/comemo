@@ -1,15 +1,15 @@
-commit 98257750f483238f2895d6077bf42e7c91cd8f3d
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Mon Feb 6 12:10:49 2012 -0500
+commit eac86fd3f0edb3a82d51c3ced90a73fd17e22d81
+Author: Jeff Hodges <jeff@somethingsimilar.com>
+Date:   Mon Feb 6 11:26:15 2012 -0500
 
-    misc/goplay: use go tool "run"
+    cmd/go: pass env CGO_CFLAGS to cgo
     
-    Fixes #2872
+    Passing the CGO_CFLAGS to cgo is required to make alternative include
+    directories work when building a cgo project.
     
-    R=andybalholm, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5608056
+    https://golang.org/cl/5635048
 
- misc/goplay/doc.go    |  6 ++----
- misc/goplay/goplay.go | 56 ++++++++++++---------------------------------------
- 2 files changed, 15 insertions(+), 47 deletions(-)
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

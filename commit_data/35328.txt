@@ -1,26 +1,32 @@
-commit dffc915b2daec7ad81524e97f7f5cf72733d3586
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 8 08:10:17 2018 -0700
+commit caf96f7daead2c7e543a6249b7cd1656725658c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 21 14:35:21 2017 -0800
 
-    cmd/compile: mark modify ops as both read and write
+    go/types: use check.lookup consistently where possible (cleanup)
     
-    If the modify ops operate on a variable, we should tell the liveness
-    pass that the variable is still live before the instruction.
+    This CL converts the last call to scope.LookupParent with no position
+    information to a check.lookup call that respects position information
+    provided by Eval (there's one more LookupParent call that cannot be
+    converted, see the respective comment in the code).
     
-    This looks like a bug, but I don't think there's any way to trigger
-    it at the moment. It only matters for pointer-containing values, and
-    the modify ops don't normally work on pointers. Even when I reach for
-    unsafe.Pointer tricks, I can't get ADDLmodify to work on pointers, as
-    there's always a Convert or VarDef preventing the coalescing.
+    In this case, the lookup is needed to determine the variable on the
+    LHS of an assignment, for adjustment of its `used` information.
     
-    TL;DR I can't figure out a test for this. But we should probably
-    fix it anyway.
+    Outside a types.Eval call, i.e., during normal type-checking, there
+    is no difference between this new code and the old code.
     
-    Change-Id: I971c62616dec51a33788b7634e6478e1bfcd6260
-    Reviewed-on: https://go-review.googlesource.com/112157
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    While in a types.Eval call, it's important to use the correct position
+    to look up the relevant variable. If token.NoPos were used, one might
+    find another variable with the same name, declared later in the scope.
+    
+    Caveat: Types.Eval only accepts expressions, and it's currently not
+    possible to evaluate assignments (except via function literals, but
+    then the scope is different). That is, this change is a fix for a
+    potential future bug, and for now a no-op.
+    
+    Change-Id: I28db1fe1202c07e3f7b3fadfd185728afb9b2ae7
+    Reviewed-on: https://go-review.googlesource.com/85199
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go | 10 +++++-----
- src/cmd/compile/internal/ssa/gen/main.go   |  2 +-
- src/cmd/compile/internal/ssa/opGen.go      | 10 +++++-----
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ src/go/types/assignments.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

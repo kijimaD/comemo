@@ -1,24 +1,52 @@
-commit b5b9d24dc38c63cca6319f2b139cb9b35b3cb058
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Jul 24 10:32:38 2024 +0000
+commit 363713223385476b87dc5f26d267df8c67d13006
+Author: thepudds <thepudds@users.noreply.github.com>
+Date:   Sat Jun 3 00:56:31 2023 +0000
 
-    encoding: use slices and maps to clean up tests
+    cmd/compile/internal/devirtualize: devirtualize  methods in other packages if current package has a concrete reference
     
-    Replace reflect.DeepEqual with slices.Equal/maps.Equal, which is
-    much faster.
+    The new PGO-driven indirect call specialization from CL 492436
+    in theory should allow for devirtualization on methods
+    in another package when those methods are directly referenced
+    in the current package.
     
-    Change-Id: I62ad60a66e28cfb2bb49c36037bafd4b9d201e88
-    GitHub-Last-Rev: 79554baddb1856260a44ba6587c205d223a527b1
-    GitHub-Pull-Request: golang/go#67611
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587818
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    However, inline.InlineImpossible was checking for a zero-length
+    fn.Body and would cause devirtualization to fail
+    with a debug log message like:
+    
+     "should not PGO devirtualize (*Speaker1).Speak: no function body"
+    
+    Previously, the logic in inline.InlineImpossible was only
+    called on local functions, but with PGO-based devirtualization,
+    it can now be called on imported functions, where inlinable
+    imported functions will have a zero-length fn.Body but a
+    non-nil fn.Inl.
+    
+    We update inline.InlineImpossible to handle imported functions
+    by adding a call to typecheck.HaveInlineBody in the check
+    that was previously failing.
+    
+    For the test, we need to have a hopefully temporary workaround
+    of adding explicit references to the callees in another package
+    for devirtualization to work. CL 497175 or similar should
+    enable removing this workaround.
+    
+    Fixes #60561
+    Updates #59959
+    
+    Change-Id: I48449b7d8b329d84151bd3b506b8093c262eb2a3
+    GitHub-Last-Rev: 2d53c55fd895ad8fefd25510a6e6969e89d54a6d
+    GitHub-Pull-Request: golang/go#60565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500155
+    Run-TryBot: thepudds <thepudds1460@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/asn1/marshal_test.go |  3 ++-
- src/encoding/csv/reader_test.go   |  3 ++-
- src/encoding/gob/encoder_test.go  | 15 ++++++++-------
- src/encoding/json/decode_test.go  |  5 +++--
- src/encoding/pem/pem_test.go      |  2 +-
- 5 files changed, 16 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/devirtualize/pgo.go       |   4 +--
+ src/cmd/compile/internal/inline/inl.go             |   5 +--
+ .../compile/internal/test/pgo_devirtualize_test.go |  12 ++++---
+ .../test/testdata/pgo/devirtualize/devirt.go       |  38 ++++++++-------------
+ .../test/testdata/pgo/devirtualize/devirt.pprof    | Bin 682 -> 699 bytes
+ .../test/testdata/pgo/devirtualize/devirt_test.go  |   6 ++--
+ .../test/testdata/pgo/devirtualize/mult/mult.go    |  32 +++++++++++++++++
+ 7 files changed, 62 insertions(+), 35 deletions(-)

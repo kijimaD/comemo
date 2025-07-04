@@ -1,15 +1,19 @@
-commit 834fef80ae025fdeaeeb210803d63634b76ddedd
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Jun 8 17:45:54 2015 +1000
+commit 7eec656bfd111531f548dbb5c7f3b6d18525f4ab
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 13 12:44:45 2015 +0900
 
-    test: add test case for issue 8154
+    net: fix the series of TestLookup and external tests
     
-    Updates #8154
+    On Windows, we need to make sure that the node under test has external
+    connectivity.
     
-    Change-Id: Ie9c731a91b008277e51c723eef6871bb0919fa4c
-    Reviewed-on: https://go-review.googlesource.com/10831
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #10795.
+    
+    Change-Id: I99f2336180c7b56474fa90a4a6cdd5a6c4dd3805
+    Reviewed-on: https://go-review.googlesource.com/10006
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue8154.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/net/external_test.go |  43 ++-------
+ src/net/lookup_test.go   | 236 +++++++++++++++++++++++++++++++++--------------
+ src/net/main_test.go     |   6 ++
+ 3 files changed, 178 insertions(+), 107 deletions(-)

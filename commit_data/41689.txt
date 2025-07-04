@@ -1,18 +1,39 @@
-commit 7f3ca5dfebbf292580d292461815ee184fb32385
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 19 13:58:48 2020 -0700
+commit 7a6da218b191de13f4f3555c55aab958b09b66bd
+Author: smasher164 <aindurti@gmail.com>
+Date:   Tue Sep 25 03:10:33 2018 -0400
 
-    os: merge common Unix/Windows methods
+    cmd/compile: add fma intrinsic for amd64
     
-    Several method implementations were identical in file_unix.go and
-    file_windows.go. Merge them into file_posix.go.
+    To permit ssa-level optimization, this change introduces an amd64 intrinsic
+    that generates the VFMADD231SD instruction for the fused-multiply-add
+    operation on systems that support it. System support is detected via
+    cpu.X86.HasFMA. A rewrite rule can then translate the generic ssa intrinsic
+    ("Fma") to VFMADD231SD.
     
-    Change-Id: I8bcfad468829530f81f52fe426b3a8c042e7bbd6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224138
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    The benchmark compares the software implementation (old) with the intrinsic
+    (new).
+    
+    name   old time/op  new time/op  delta
+    Fma-4  27.2ns ± 1%   1.0ns ± 9%  -96.48%  (p=0.008 n=5+5)
+    
+    Updates #25819.
+    
+    Change-Id: I966655e5f96817a5d06dff5942418a3915b09584
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/137156
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/file_posix.go   | 45 +++++++++++++++++++++++++++++++++++++++++++++
- src/os/file_unix.go    | 44 --------------------------------------------
- src/os/file_windows.go | 44 --------------------------------------------
- 3 files changed, 45 insertions(+), 88 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  8 +++++++
+ src/cmd/compile/internal/gc/builtin.go         |  1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
+ src/cmd/compile/internal/gc/go.go              |  1 +
+ src/cmd/compile/internal/gc/ssa.go             | 31 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  5 +++++
+ src/cmd/compile/internal/ssa/opGen.go          | 17 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 17 ++++++++++++++
+ src/runtime/cpuflags.go                        |  1 +
+ src/runtime/proc.go                            |  1 +
+ test/codegen/math.go                           |  1 +
+ 12 files changed, 85 insertions(+)

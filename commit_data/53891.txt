@@ -1,20 +1,16 @@
-commit a4b6685c4c94152cdb9cb80061478e20c9fc2e88
-Author: David Chase <drchase@google.com>
-Date:   Fri Aug 4 12:57:32 2023 -0400
+commit 6a2ff105f169ac3b607621d6b8cd5bd0a7c800e6
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 19:20:31 2022 +0800
 
-    doc: move Go 1.21 release notes to x/website
+    unicode/utf8: use strings.Builder
     
-    Now that the development of the Go 1.21 release is almost done, its
-    release notes are moved to their eventual long-term home in x/website
-    in CL 516095. Delete the initial development copy here.
-    
-    For golang/go#58645.
-    
-    Change-Id: I5207d21289b2e7b9328c943a088f45bc81c710a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/516075
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I88b55f61eccb5764cac2a9397fd99a62f8735a9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428281
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- doc/go1.21.html | 1339 -------------------------------------------------------
- 1 file changed, 1339 deletions(-)
+ src/unicode/utf8/utf8_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

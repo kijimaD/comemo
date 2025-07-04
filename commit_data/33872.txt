@@ -1,21 +1,18 @@
-commit 8776be153540cf450eafd847cf8efde0a01774dc
-Author: Hanjun Kim <hallazzang@gmail.com>
-Date:   Mon Nov 20 14:23:06 2017 +0900
+commit 107744e94c4e62272962eba9195bc14a7eb69a09
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 13 17:21:07 2017 -0400
 
-    time: add space padding layout strings(using underscore) for not only day but others
+    misc/cgo/errors: test that the Go rune type is not identical to C.int
     
-    As mentioned in #22802, only day component of layout string has space
-    padding(represented by one underscore before its placeholder). This
-    commit expands the rule for month, hour, minute and second.
+    rune has a well-defined size, but C.int is implementation-specified.
+    Using one as the other should require an explicit conversion.
     
-    Updates #22802 (maybe fixes it)
+    updates #13467
     
-    Change-Id: I886998380489862ab9a324a6774f2e4cf7124122
-    Reviewed-on: https://go-review.googlesource.com/78735
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I53ab2478427dca790efdcc197f6b8d9fbfbd1847
+    Reviewed-on: https://go-review.googlesource.com/63730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/format.go      | 72 ++++++++++++++++++++++++++++++++++++++++++-------
- src/time/format_test.go | 34 +++++++++++++++++++++++
- 2 files changed, 96 insertions(+), 10 deletions(-)
+ misc/cgo/errors/errors_test.go    |  1 +
+ misc/cgo/errors/src/issue13467.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+)

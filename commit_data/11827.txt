@@ -1,14 +1,19 @@
-commit fb2caa3244184d73d0185dce2c8b594ff6e60c06
+commit d318ab22647205c4d6d3aa32bb027a434f7b16d3
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 12 23:19:50 2012 -0500
+Date:   Sun Feb 12 23:19:24 2012 -0500
 
-    net/http: fix http_proxy parsing
+    cmd/go: respect test -timeout flag
     
-    Fixes #2919.
+    I thought that -timeout was per-test, but it is for the
+    whole program execution, so cmd/go can adjust its timer
+    (also for whole program execution) accordingly.
     
-    R=golang-dev, bradfitz
+    Fixes #2993.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5645089
+    https://golang.org/cl/5650070
 
- src/pkg/net/http/transport.go | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/go/test.go     | 15 ++++++++++++---
+ src/cmd/go/testflag.go |  2 ++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

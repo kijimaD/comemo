@@ -1,24 +1,23 @@
-commit 1045351cef21a64d954b4477af9f5105ea4287d3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 24 11:53:24 2015 +0200
+commit 6f7b4e893871775b74e57d5d048ff0565d32ef79
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 15 13:30:42 2015 -0700
 
-    net/http: bound the number of bytes read seeking EOF in Handler's Body.Close
+    cmd/doc: put blank lines around comment for types, etc.
     
-    If a client sent a POST with a huge request body, calling
-    req.Body.Close in the handler (which is implicit at the end of a
-    request) would end up consuming it all.
+    Better layout.
     
-    Put a cap on that, using the same threshold used elsewhere for similar
-    cases.
+    Fixes #10859.
     
-    Fixes #9662
+    The issue suggests rearranging so the comment comes out
+    after the methods. I tried this and it looks good but it is less
+    useful, since the stuff you're probably looking for - the methods
+    - are scrolled away by the comment. The most important
+    information should be last because that leaves it on your
+    screen after the print if the output is long.
     
-    Change-Id: I26628413aa5f623a96ef7c2609a8d03c746669e5
-    Reviewed-on: https://go-review.googlesource.com/11412
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I560f992601ccbe2293c347fa1b1018a3f5346c82
+    Reviewed-on: https://go-review.googlesource.com/10160
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/request.go    |   3 +-
- src/net/http/serve_test.go | 159 +++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     |  28 +++++++-
- src/net/http/transfer.go   |  54 ++++++++++++---
- 4 files changed, 231 insertions(+), 13 deletions(-)
+ src/cmd/doc/pkg.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

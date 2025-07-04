@@ -1,37 +1,26 @@
-commit 1e5774889212bdaff5d061b2a45cd0093a291b44
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 22 11:26:40 2021 -0700
+commit 8c5aa42c798cac76cab67f85521c68e9dbff70b0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 8 20:46:03 2021 -0800
 
-    cmd/compile, go/types: allow `any` anywhere (as a type)
+    [dev.typeparams] cmd/compile: calculate variable sizes in walk
     
-    Adjust types2 and go/types and some test cases.
+    Walk already explicitly calculates the size of all expression types,
+    to make sure they're known before SSA generation (which is concurrent,
+    and thus not safe to modify shared state like types). Might as well
+    compute all local variable sizes too, to be consistent.
     
-    Because `any` is not treated specially anymore in constraint
-    position we get additional errors in constraints if `any` is
-    used before Go1.18 (in addition to the error that type parameter
-    lists are not permitted before Go1.18).
+    Reduces the burden of the frontend to make sure it's calculated the
+    size of types that only the backend cares about.
     
-    Fixes #33232.
+    Passes toolstash -cmp.
     
-    Change-Id: I85590c6094b07c3e494fef319e3a38d0217cf6f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351456
+    Change-Id: I68bcca67b4640bfc875467e4ed4d47104b1932f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282912
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/decl.go            |  8 +------
- .../internal/types2/testdata/check/typeparams.go2  |  8 +++----
- .../types2/testdata/examples/constraints.go2       |  6 +++---
- .../internal/types2/testdata/examples/types.go2    |  8 +++----
- .../types2/testdata/fixedbugs/issue47818.go2       |  8 +++----
- src/cmd/compile/internal/types2/typexpr.go         |  6 ------
- src/go/types/decl.go                               | 25 +++++++---------------
- src/go/types/testdata/check/typeparams.go2         |  8 +++----
- src/go/types/testdata/examples/constraints.go2     |  6 +++---
- src/go/types/testdata/examples/types.go2           |  8 +++----
- src/go/types/testdata/fixedbugs/issue47818.go2     |  8 +++----
- src/go/types/typexpr.go                            |  6 ------
- test/fixedbugs/issue14652.go                       |  5 +++--
- test/typeparam/tparam1.go                          | 19 ++++++++--------
- 14 files changed, 49 insertions(+), 80 deletions(-)
+ src/cmd/compile/internal/walk/walk.go | 5 +++++
+ 1 file changed, 5 insertions(+)

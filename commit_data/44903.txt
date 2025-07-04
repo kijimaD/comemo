@@ -1,28 +1,31 @@
-commit 97b3ce430bb64fb6c8dfb244d400468932f2e984
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 1 16:50:53 2021 -0400
+commit 237410547bb81ae3c58e9c5bf0cf59edc989e243
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 14 12:53:36 2020 -0700
 
-    runtime: make gcTestMoveStackOnNextCall not double the stack
+    cmd/compile: better dclcontext handling in func{hdr,body}
     
-    Currently, gcTestMoveStackOnNextCall doubles the stack allocation on
-    each call because stack movement always doubles the stack. That's
-    rather unfortunate if you're doing a bunch of stack movement tests in
-    a row that don't actually have to grow the stack because you'll
-    quickly hit the stack size limit even though you're hardly using any
-    of the stack.
+    funchdr and funcbody currently assume that either (1) Curfn == nil &&
+    dclcontext == PEXTERN, or (2) Curfn != nil && dclcontext == PAUTO.
+    This is a reasonable assumption during parsing. However, these
+    functions end up getting used in other contexts, and not all callers
+    are so disciplined about Curfn/dclcontext handling.
     
-    Fix this by adding a special stack poison value for
-    gcTestMoveStackOnNextCall that newstack recognizes and inhibits the
-    allocation doubling.
+    This CL changes them to save/restore arbitrary Curfn/dclcontext pairs
+    instead. This is necessary for the followup CL, which pushes fninit
+    earlier. Otherwise, Curfn/dclcontext fall out of sync, and funchdr
+    panics.
     
-    Change-Id: Iace7055a0f33cb48dc97b8f4b46e45304bee832c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306672
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Passes toolstash-check.
+    
+    Updates #33485.
+    
+    Change-Id: I19b1be23db1bad6475345ae5c81bbdc66291a3a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254838
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/gc_test.go | 17 +++++++++++++++++
- src/runtime/mgc.go     |  2 +-
- src/runtime/stack.go   | 13 ++++++++++++-
- 3 files changed, 30 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go  | 28 +++++++++++++---------------
+ src/cmd/compile/internal/gc/main.go |  3 +++
+ 2 files changed, 16 insertions(+), 15 deletions(-)

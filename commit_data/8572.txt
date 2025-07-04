@@ -1,19 +1,14 @@
-commit 2c4edb0eea6503da73eec69261b2771ad0c9d973
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Jun 1 17:02:43 2011 +0200
+commit dcbf59cb4e8701b9be26013400fd21d60fa9a55d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 1 14:17:09 2011 +1000
 
-    gc: make merely referencing an outer variable in a closure not force heapallocation.
+    path/filepath: clean up a triple negative.
+    also make the error prints better in the test.
     
-    before: runtime_test.BenchmarkCallClosure1       20000000              135 ns/op
-    after:  runtime_test.BenchmarkCallClosure1      500000000                6 ns/op
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4527091
+    https://golang.org/cl/4556069
 
- src/cmd/gc/closure.c            |  6 ++++-
- src/cmd/gc/dcl.c                |  1 +
- src/cmd/gc/go.h                 | 10 +++++----
- src/cmd/gc/typecheck.c          | 49 ++++++++++++++++++++++++-----------------
- src/pkg/runtime/closure_test.go | 32 +++++++++++++++++++++++++++
- 5 files changed, 73 insertions(+), 25 deletions(-)
+ src/pkg/path/filepath/match.go      | 7 +++----
+ src/pkg/path/filepath/match_test.go | 9 ++++++++-
+ 2 files changed, 11 insertions(+), 5 deletions(-)

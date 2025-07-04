@@ -1,26 +1,40 @@
-commit db56a63547d7ae9f19afd2497c67f717154f9115
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 3 14:45:52 2016 -0400
+commit 2b74de3ed91c495d63868acef0471b0286e7b432
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 28 09:22:46 2016 -0700
 
-    runtime: avoid write barriers to uninitialized finalizer frame memory
+    runtime: rename fastrand1 to fastrand
     
-    runfinq allocates a stack frame on the heap for constructing the
-    finalizer function calls and reuses it for each call. However, because
-    the type of this frame is constantly shifting, it tells mallocgc there
-    are no pointers in it and it acts essentially like uninitialized
-    memory between uses. But runfinq uses pointer writes with write
-    barriers to "initialize" this memory, which is not going to be safe
-    with the hybrid barrier, since the hybrid barrier may see a stale
-    pointer left in the "uninitialized" frame.
-    
-    Fix this by zero-initializing the argument values in the frame before
-    writing the argument pointers.
-    
-    Updates #17503.
-    
-    Change-Id: I951c0a2be427eb9082a32d65c4410e6fdef041be
-    Reviewed-on: https://go-review.googlesource.com/31453
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I37706ff0a3486827c5b072c95ad890ea87ede847
+    Reviewed-on: https://go-review.googlesource.com/28210
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mfinal.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/alg.go              | 4 ++--
+ src/runtime/asm_386.s           | 2 +-
+ src/runtime/asm_amd64.s         | 2 +-
+ src/runtime/asm_amd64p32.s      | 2 +-
+ src/runtime/asm_arm.s           | 2 +-
+ src/runtime/asm_arm64.s         | 2 +-
+ src/runtime/asm_mips64x.s       | 2 +-
+ src/runtime/asm_ppc64x.s        | 2 +-
+ src/runtime/asm_s390x.s         | 2 +-
+ src/runtime/hashmap.go          | 6 +++---
+ src/runtime/malloc.go           | 4 ++--
+ src/runtime/mgc.go              | 2 +-
+ src/runtime/mprof.go            | 2 +-
+ src/runtime/os_darwin_arm.go    | 4 ++--
+ src/runtime/os_darwin_arm64.go  | 4 ++--
+ src/runtime/os_freebsd_arm.go   | 4 ++--
+ src/runtime/os_linux_arm.go     | 4 ++--
+ src/runtime/os_linux_arm64.go   | 4 ++--
+ src/runtime/os_linux_mips64x.go | 4 ++--
+ src/runtime/os_nacl_arm.go      | 4 ++--
+ src/runtime/os_netbsd_arm.go    | 4 ++--
+ src/runtime/os_openbsd_arm.go   | 4 ++--
+ src/runtime/os_plan9_arm.go     | 4 ++--
+ src/runtime/proc.go             | 6 +++---
+ src/runtime/select.go           | 2 +-
+ src/runtime/stubs.go            | 2 +-
+ src/runtime/symtab.go           | 2 +-
+ 27 files changed, 43 insertions(+), 43 deletions(-)

@@ -1,0 +1,25 @@
+commit dc5389d85930752dbd858e2e27c9bcbc30f47f74
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Aug 14 03:49:33 2024 +0000
+
+    crypto,hash: add t.Helper calls to test helpers
+    
+    Use t.Helper to make the reported failure lines more helpful.
+    
+    Change-Id: I6593924b3892b2441a197aee4e05f71ea236d426
+    GitHub-Last-Rev: 2e020ea85cf44c6cc0e90cb919eb0d7bb5a1c315
+    GitHub-Pull-Request: golang/go#68843
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604755
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/dsa/dsa_test.go            | 1 +
+ src/crypto/internal/hpke/hpke_test.go | 1 +
+ src/crypto/tls/tls_test.go            | 1 +
+ src/crypto/x509/boring_test.go        | 2 ++
+ src/crypto/x509/oid_test.go           | 1 +
+ src/crypto/x509/x509_test.go          | 2 ++
+ src/hash/maphash/smhasher_test.go     | 5 +++++
+ 7 files changed, 13 insertions(+)

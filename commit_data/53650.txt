@@ -1,50 +1,17 @@
-commit cd6676126b7e663e6202e98e2f235fff20d5e858
-Author: zikaeroh <zikaeroh@gmail.com>
-Date:   Thu Jun 22 17:09:21 2023 -0700
+commit f50e47308d60d2a043aa3f806069d49e1b7ad0c1
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Mon Aug 8 18:55:56 2022 -0700
 
-    database/sql: prevent internal context error from being returned from Rows.Err()
+    cmd/go/internal/par: change cacheEntry.done type to atomic.Bool
     
-    CL 497675 modified Rows such that context errors are propagated through
-    Rows.Err(). This caused an issue where calling Close meant that an
-    internal cancellation error would (eventually) be returned from Err:
-    
-    1. A caller makes a query using a cancellable context.
-    2. initContextClose sees that either the query context or the
-       transaction context can be canceled, so will need to spawn a
-       goroutine to capture their errors.
-    3. initContextClose derives a context from the query context via
-       WithCancel and sets rs.cancel.
-    4. When a user calls Close, rs.cancel is called. awaitDone's ctx is
-       cancelled, which is good, since we don't want it to hang forever.
-    5. This internal cancellation (after CL 497675) has its error saved on
-       contextDone.
-    6. Later, calling Err will return the error in contextDone if present.
-    
-    This leads to a race condition depending on how quickly Err is called
-    after Close.
-    
-    The docs for Close and Err state that calling Close should have no
-    affect on the return result for Err. So, a potential fix is to ensure
-    that awaitDone does not save the error when the cancellation comes from
-    a Close via rs.cancel.
-    
-    This CL does that, using a new context not derived from the query
-    context, whose error is ignored as the query context's error used to be
-    before the original bugfix.
-    
-    The included test fails before the CL, and passes afterward.
-    
-    Fixes #60932
-    
-    Change-Id: I2bf4c549efd83d62b86e298c9c45ebd06a3ad89a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505397
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I95c941f83f74d57dfdd2d6803c9059691fb649b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422176
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: hopehook <hopehook@qq.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/database/sql/sql.go      | 17 +++++++++++------
- src/database/sql/sql_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/par/work.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

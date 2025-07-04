@@ -1,26 +1,69 @@
-commit 65ffee6f9a949023f10e5b6b918a7a218d9836a1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Oct 1 11:52:56 2021 -0400
+commit ed3e4afa12d655a0c5606bcf3dd4e1cdadcb1476
+Author: Ori Bernstein <ori@eigenstate.org>
+Date:   Wed Jan 6 02:40:05 2021 +0000
 
-    cmd/go: insert goroot to the hash of build cache when the packages include C files
+    syscall/plan9: remove spooky fd action at a distance
     
-    This reverts CL 351851, which itself reverted CL 348991.
+    Change Plan 9 fork/exec to use the O_CLOEXEC file
+    descriptor, instead of relying on spooky at a
+    distance.
     
-    The problem with the original CL, as far as I can tell, was due to a
-    bug in the Go project's builder infrastructure (#33598) and not the
-    change itself. Once the build infrastructure is fixed, this change
-    can be resubmitted.
+    Historically, Plan 9 has set the O_CLOEXEC flag on
+    the underlying channels in the kernel, rather
+    than the file descriptors -- if two fds pointed
+    at a single channel, as with dup, changing the
+    flags on one of them would be observable on the
+    other.
     
-    Fixes #48319
-    Updates #33598
+    The per-Chan semantics are ok, if unexpected,
+    when a chan is only handled within a single
+    process, but this isn't always the case.
     
-    Change-Id: I0fdbcc241eb2bdeb350944aad58bf58774fb591e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353352
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Forked processes share Chans, but even more of
+    a problem is the interaction between /srv and
+    OCEXEC, which can lead to unexectedly closed
+    file descriptors in completely unrelated
+    proceses. For example:
+    
+            func exists() bool {
+                    // If some other thread execs here,
+                    // we don't want to leak the fd, so
+                    // open it O_CLOEXEC
+                    fd := Open("/srv/foo", O_CLOEXEC)
+                    if fd != -1 {
+                            Close(fd)
+                            return true
+                    }
+                    return false
+            }
+    
+    would close the connection to any file descriptor
+    (maybe even for the root fs) in ALL other processes
+    that have it open if an exec were to happen(!),
+    which is quite undesriable.
+    
+    As a result, 9front will be changing this behavior
+    for the next release.
+    
+    Go is the only code observed so far that relies on
+    this behavior on purpose, and  It's easy to make the
+    code work with both semantics: simply using the file
+    descriptor that was opened with O_CEXEC instead of
+    throwing it away.
+    
+    So we do that here.
+    
+    Fixes #43524
+    
+    Change-Id: I4887f5c934a5e63e5e6c1bb59878a325abc928d3
+    GitHub-Last-Rev: 96bb21bd1e8f64dc7e082a56928748a7d54c9272
+    GitHub-Pull-Request: golang/go#43533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281833
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Richard Miller <millerresearch@gmail.com>
+    Reviewed-by: Jacob Moody <j4kem00dy@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/exec.go                |  34 ++++--
- src/cmd/go/testdata/script/build_issue48319.txt | 153 ++++++++++++++++++++++++
- 2 files changed, 177 insertions(+), 10 deletions(-)
+ src/syscall/exec_plan9.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

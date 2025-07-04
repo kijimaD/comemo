@@ -1,21 +1,26 @@
-commit d81ed4d62192cd89dbf664c42e26c35a052dd9ce
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Sep 2 16:59:07 2022 -0400
+commit 85d2751d2ea38b10127df0b27d04b1a26f54bcfa
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Oct 22 17:05:35 2021 +0700
 
-    runtime: rename inlinedCall.func_ to inlinedCall.nameOff
+    cmd/compile: prevent compiling closures more than once
     
-    The meaning of this field is unchanged, this CL simply gives it a more
-    descriptive name, as func_ makes it sound like a reference to the _func.
+    Since CL 282892, functions are always compiled before closures. To do
+    that, when walking the closure, it is added to its outer function queue
+    for scheduling compilation later. Thus, a closure may be added to queue
+    more than once, causing the ICE dues to being compiled twice.
     
-    Change-Id: I70e54f34bede7636ce4d7b9dd0f7557308f02143
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427961
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    To fix this, catching the re-walking of the closure expression and do
+    not add it to the compilation queue.
+    
+    Fixes #49029
+    
+    Change-Id: I7d188e8f5b4d5c4248a0d8e6389da26f1084e464
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357960
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/preempt.go   | 2 +-
- src/runtime/race.go      | 2 +-
- src/runtime/symtab.go    | 6 +++---
- src/runtime/traceback.go | 4 ++--
- 4 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/walk/closure.go | 11 ++++++++++-
+ test/fixedbugs/issue49029.go             | 25 +++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

@@ -1,18 +1,18 @@
-commit b76f8df1334993cb5d43b2d883fdb0ed66b402f6
+commit 8cdce85bdf80f6aa9bd3979d3ecab6565512b736
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 31 09:34:50 2022 -0700
+Date:   Wed Jun 2 16:12:25 2021 -0700
 
-    test: update comments in run.go (cleanup)
+    [dev.typeparams] cmd/compile/internal/types2: convert testdata/check tests to type set sytax
     
-    The -G compiler option doesn't exist anymore. Update some variable
-    names and comments to reflect the new reality.
-    
-    Change-Id: I227e9c59a01615c3a40c3869102e8045cb012980
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397254
+    Change-Id: I0c2dda10ba7cb40330545fd10fbacb8c84f66a2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324569
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- test/run.go | 41 +++++++++++++++++++----------------------
- 1 file changed, 19 insertions(+), 22 deletions(-)
+ .../internal/types2/testdata/check/builtins.go2    |  8 +--
+ .../internal/types2/testdata/check/issues.go2      | 26 +++----
+ .../internal/types2/testdata/check/linalg.go2      | 16 ++---
+ .../internal/types2/testdata/check/tinference.go2  | 20 +++---
+ .../internal/types2/testdata/check/typeinst2.go2   | 29 ++++----
+ .../internal/types2/testdata/check/typeparams.go2  | 80 +++++++++++-----------
+ 6 files changed, 90 insertions(+), 89 deletions(-)

@@ -1,22 +1,20 @@
-commit 77b4beba2fd892a3f8e9da527fdad031f6ecc613
-Author: André Carvalho <asantostc@gmail.com>
-Date:   Fri Jul 28 20:31:20 2017 -0300
+commit 94dd0f0227bb323316df3780d5ee1457f90e617b
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Apr 21 15:42:42 2017 +0900
 
-    reflect: handle types with unexported methods before exported ones
+    os: don't use a symlink's target path for FileInfo#Name on windows
     
-    The method Method expects index to be an index of exported fields,
-    but, before this change, the index used by MethodByName could
-    take into account unexported fields if those happened sort
-    before the exported one.
+    Use an original name instead of a symlink's target path.
     
-    Fixes #21177
+    Fixes #20064
     
-    Change-Id: I90bb64a47b23e2e43fdd2b8a1e0a2c9a8a63ded2
-    Reviewed-on: https://go-review.googlesource.com/51810
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9be3837a156bdcda0e9e065abbb425d535b27be3
+    Reviewed-on: https://go-review.googlesource.com/41310
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/reflect/all_test.go | 19 +++++++++++++++++++
- src/reflect/type.go     |  8 ++++++--
- 2 files changed, 25 insertions(+), 2 deletions(-)
+ src/os/os_test.go         | 31 +++++++++++++++++--------------
+ src/os/os_windows_test.go | 22 ++++++++++++++++------
+ src/os/stat_windows.go    | 16 +++++++++-------
+ 3 files changed, 42 insertions(+), 27 deletions(-)

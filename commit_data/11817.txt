@@ -1,12 +1,12 @@
-commit 62fe6914cb7580fbe57086882f1f99a943695396
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Feb 13 01:21:39 2012 -0200
+commit 71c8b82dd1e59f1864dd347ea76726406f871365
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 13 14:05:57 2012 +1100
 
-    os: clarify docs for link functions
+    strings: more examples
     
-    R=golang-dev, bsiegert, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5643068
+    https://golang.org/cl/5645092
 
- src/pkg/os/file_posix.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/strings/example_test.go | 155 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 155 insertions(+)

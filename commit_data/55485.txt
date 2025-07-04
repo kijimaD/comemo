@@ -1,28 +1,29 @@
-commit ae457e811d44261801bda261731b5006d629930d
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Wed Jan 24 11:22:14 2024 +0800
+commit aa5b22552ac353c79ad1e8b6202ab4fa131338ef
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 9 16:37:51 2023 -0500
 
-    net/textproto: reject HTTP requests with empty header keys
+    cmd/go: remove tests that assume lack of new versions of external modules
     
-    According to RFC 7230, empty field names in HTTP header are invalid.
-    However, there are no specific instructions for developers to deal
-    with that kind of case in the specification. CL 11242 chose to skip
-    it and do nothing about it, which now seems like a bad idea because
-    it has led `net/http` to behave inconsistently with the most widely-used
-    HTTP implementations: Apache, Nginx, Node with llhttp, H2O, Lighttpd, etc.
-    in the case of empty header keys.
+    In general it seems ok to assume that an open-source module that did
+    exist will continue to do so — after all, users of open-source modules
+    already do that all the time. However, we should not assume that those
+    modules do not publish new versions — that's really up to their
+    maintainers to decide.
     
-    There is a very small chance that this CL will break a few existing HTTP clients.
+    Two existing tests did make that assumption for the module
+    gopkg.in/natefinch/lumberjack.v2. Let's remove those two tests.
+    If we need to replace them at some point, we can replace them with
+    hermetic test-only modules (#54503) or perhaps modules owned by the Go
+    project.
     
-    Fixes #65244
+    Fixes #58445.
     
-    Change-Id: Ie01e9a6693d27caea4d81d1539345cf42b225535
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558095
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ica8fe587d86fc41f3d8445a4cd2b8820455ae45f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466860
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/serve_test.go       |  4 ++++
- src/net/textproto/reader.go      | 11 ++++-------
- src/net/textproto/reader_test.go |  5 +++--
- 3 files changed, 11 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo_test.go | 17 -----------------
+ 1 file changed, 17 deletions(-)

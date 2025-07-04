@@ -1,19 +1,17 @@
-commit 87151c82b68023e4224b016a6a66ead2c4b8ece7
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Sun Mar 13 17:59:26 2016 -0700
+commit bb8c2e19a7fe2ca2283eca44dba2047c9f4307fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 20:50:11 2016 -0500
 
-    encoding/base64: correct DecodedLen overestimate for unpadded encodings
+    net: ensure that malformed domain names report a consistent error
     
-    While we're at it, add tests for EncodedLen and DecodedLen.
+    Previously it depended on whether we were using the Go resolver or the Cgo resolver.
     
-    Fixes #14803.
+    Fixes #12421.
     
-    Change-Id: I200c72cf11c51669b8d9f70c6e57ece359f7ae61
-    Reviewed-on: https://go-review.googlesource.com/20649
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib162e336f30f736d7244e29d96651c3be11fc3cd
+    Reviewed-on: https://go-review.googlesource.com/18383
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/base64/base64.go      |  2 +-
- src/encoding/base64/base64_test.go | 45 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 1 deletion(-)
+ src/net/ip_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup.go  | 21 +++++++++++++++++++++
+ 2 files changed, 66 insertions(+)

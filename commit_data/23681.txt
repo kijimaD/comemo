@@ -1,14 +1,17 @@
-commit 91a480c3252c8d67540f41e1761abd7834027d7a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 00:34:36 2015 -0400
+commit ea92f42cc8b36511501644ff0512934619e16cf1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 2 14:43:38 2015 -0700
 
-    doc: add cmd/go's -pkgdir build option
+    cmd/doc: do not show unexported constants
     
-    Also use more consistent language for the new build options.
+    The go/doc package doesn't remove unexported entries from const
+    and var blocks, so we must trim them ourselves.
     
-    Change-Id: I88cbe200c13f452713be73d2e00337ddb793b8c6
-    Reviewed-on: https://go-review.googlesource.com/12172
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #11008
+    
+    Change-Id: Ibd60d87e09333964e2588340a2ca2b8804bbaa28
+    Reviewed-on: https://go-review.googlesource.com/10643
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.5.html | 26 ++++++++++++++++++++------
- 1 file changed, 20 insertions(+), 6 deletions(-)
+ src/cmd/doc/pkg.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

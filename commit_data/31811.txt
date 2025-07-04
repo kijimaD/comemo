@@ -1,28 +1,31 @@
-commit b067ad939d9ba242c5c3bdd8a24220632311c6be
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 14 11:07:24 2017 -0400
+commit ce584e516e79c2b4a3fc9570db695d2d4629485a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 17 11:53:24 2017 -0400
 
-    runtime: record mutex event before readying
+    cmd/compile: using a single Store op for non-pointer non-skip store
     
-    Currently, semrelease1 readies the next waiter before recording a
-    mutex event. However, if the next waiter is expecting to look at the
-    mutex profile, as is the case in TestMutexProfile, this may delay
-    recording the event too much.
+    This makes fewer Values around until decomposing, reducing
+    allocation in compiler.
     
-    Swap the order of these operations so semrelease1 records the mutex
-    event before readying the next waiter. This also means readying the
-    next waiter is the very last thing semrelease1 does, which seems
-    appropriate.
+    name       old alloc/op    new alloc/op    delta
+    Template      41.4MB ± 0%     40.8MB ± 0%  -1.29%  (p=0.000 n=10+10)
+    Unicode       30.3MB ± 0%     30.2MB ± 0%  -0.24%  (p=0.000 n=10+10)
+    GoTypes        118MB ± 0%      115MB ± 0%  -2.23%  (p=0.000 n=10+10)
+    Compiler       505MB ± 0%      493MB ± 0%  -2.47%  (p=0.000 n=10+10)
+    SSA            881MB ± 0%      872MB ± 0%  -1.03%  (p=0.000 n=10+10)
     
-    Fixes #19139.
+    name       old allocs/op   new allocs/op   delta
+    Template        401k ± 1%       400k ± 1%    ~     (p=0.631 n=10+10)
+    Unicode         321k ± 0%       321k ± 1%    ~     (p=0.684 n=10+10)
+    GoTypes        1.18M ± 0%      1.17M ± 0%  -0.34%  (p=0.000 n=10+10)
+    Compiler       4.63M ± 0%      4.61M ± 0%  -0.43%  (p=0.000 n=10+10)
+    SSA            7.83M ± 0%      7.82M ± 0%  -0.13%  (p=0.000 n=10+10)
     
-    Change-Id: I1a62063599fdb5d49bd86061a180c0a2d659474b
-    Reviewed-on: https://go-review.googlesource.com/45751
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Peter Weinberger <pjw@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8f736396294444248a439bd4c90be1357024ce88
+    Reviewed-on: https://go-review.googlesource.com/38294
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/pprof/pprof_test.go | 5 ++++-
- src/runtime/sema.go             | 6 +++---
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           | 8 ++++++++
+ src/cmd/compile/internal/ssa/writebarrier.go | 6 +++---
+ 2 files changed, 11 insertions(+), 3 deletions(-)

@@ -1,19 +1,21 @@
-commit 96567fb3ccdc8d8c052606112db7b39abd725b59
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Mar 20 09:32:00 2022 -0700
+commit f6427426787b292ec28cfd826615e3ae9a66b54a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 21 18:28:25 2021 -0400
 
-    os: skip TestOpenFileLimit on openbsd/mips64
+    [dev.typeparams] reflect: use internal/abi.FuncPCABI0 to take address of assembly functions
     
-    For #46279
-    For #51713
+    makeFuncStub and methodValueCall on AMD64 are marked as
+    ABIInternal, so Go code can get their (unwrapped) addresses
+    (using open-coded funcPC). Ues internal/abi.FuncPCABI0 instead,
+    and un-mark the functions.
     
-    Change-Id: I444f309999bf5576449a46a9808b23cf6537e7dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394094
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Change-Id: Id28b6101ec7e55bc5a357d4236482cec70cd7e5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322350
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/os/rlimit_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/asm_amd64.s |  8 ++------
+ src/reflect/makefunc.go | 12 ++----------
+ 2 files changed, 4 insertions(+), 16 deletions(-)

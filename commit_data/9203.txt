@@ -1,31 +1,18 @@
-commit 75c918c1ae5fdecc5da3d2d214baf0e547d43bfa
+commit eb3f2083f91fa2c48bad4c997f5d8a4378aaf04e
 Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Mon Jul 25 13:45:50 2011 -0400
+Date:   Mon Jul 25 13:45:44 2011 -0400
 
-    ld: fix build on Plan 9
+    build: define getcallerpc in u.h (fix for Plan 9 build)
     
-    ld/data.c:
-    . Format specifier with corresponding cast to cater for all
-      architectures (llux and vlong).
+    . By defining getcallerpc(x) as __builtin_return_address(0)
+      here, it becomes possible to use the Plan 9 compatible form
+      when compiling using GCC.  The alternative is to add conditional
+      compilation based on the compiler identity in "cmd/8g/gsubr.c"
+      to distinguish between the two cases.
     
-    ld/ldelf.c:
-    ld/ldmacho.c:
-    . Missing "pn" argument in diag() calls.
-    
-    ld/ldpe.c:
-    . Dropped "sym->sectnum" in diag() call.
-    . Typo in a comment.
-    
-    ld/lib.h:
-    . Added varargck pragma for "O".
-    
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/4749042
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4800048
 
- src/cmd/ld/data.c    | 2 +-
- src/cmd/ld/ldelf.c   | 4 ++--
- src/cmd/ld/ldmacho.c | 2 +-
- src/cmd/ld/ldpe.c    | 4 ++--
- src/cmd/ld/lib.h     | 2 ++
- 5 files changed, 8 insertions(+), 6 deletions(-)
+ include/u.h | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,16 +1,19 @@
-commit befc43655b6d93f0be883222fbb3fde5768892c1
-Author: cuishuang <imcusg@gmail.com>
-Date:   Tue Jan 14 01:11:22 2025 +0800
+commit 23ca33009571a55eda926b7a41f5ceb04277bbd9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Nov 15 21:35:37 2023 -0500
 
-    testing/fstest: fix function name and comment
+    reflect: remove go121noForceValueEscape
     
-    Change-Id: I17bc68a2e3a96d0dc3d9ddcad40149df37fc4839
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642198
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Before Go 1.21, ValueOf always escapes and a Value's content is
+    always heap allocated. In Go 1.21, we made it no longer always
+    escape, guarded by go121noForceValueEscape. This behavior has
+    been released for some time and there is no issue so far. We can
+    remove the guard now.
+    
+    Change-Id: I81f5366412390f6c63b642f4c7c016da534da76a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542795
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/testing/fstest/testfs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/value.go | 13 -------------
+ 1 file changed, 13 deletions(-)

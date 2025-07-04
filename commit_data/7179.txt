@@ -1,12 +1,15 @@
-commit 0b08119adc2f6d59d1f0f8022fdb8398c19c708c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 20 12:41:59 2011 +1100
+commit 4a7fed4d909ec71f03057692918ac3eb70511190
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jan 19 19:41:27 2011 -0500
 
-    syscall: attempt to fix windows build, supply missing constant
+            crypto/twofish: update with rsc's comments
     
-    R=r, brainman, rsc1
-    CC=golang-dev
-    https://golang.org/cl/4023043
+            TBR=rsc
+    
+    R=rsc
+    CC=berengar.lehr, golang-dev
+    https://golang.org/cl/4050042
 
- src/pkg/syscall/ztypes_windows_386.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/crypto/twofish/twofish.go      | 136 ++++++++++++++++-----------------
+ src/pkg/crypto/twofish/twofish_test.go |   4 +-
+ 2 files changed, 70 insertions(+), 70 deletions(-)

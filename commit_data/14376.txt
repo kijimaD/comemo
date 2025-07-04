@@ -1,14 +1,13 @@
-commit 1e1733a9ac8865d75403494bd29bef0cdec44fbc
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Mon Nov 12 15:29:17 2012 +0000
+commit 20a181583376b6f0027f73e3c80733c252fecceb
+Author: David McLeish <davemc@google.com>
+Date:   Mon Nov 12 12:21:00 2012 +0100
 
-    encoding/pem: write Proc-Type header first.
-    See RFC 1421, section 4.6.1.1
+    archive/zip: Fix bounds check panic for ZIP files with a truncated extra header.
     
-    R=agl, agl
-    CC=golang-dev
-    https://golang.org/cl/6814104
+    R=adg, dave
+    CC=gobot, golang-dev
+    https://golang.org/cl/6811080
 
- src/pkg/encoding/pem/pem.go      |  63 +++++++++++++++---------
- src/pkg/encoding/pem/pem_test.go | 104 ++++++++++++++++++++++-----------------
- 2 files changed, 100 insertions(+), 67 deletions(-)
+ src/pkg/archive/zip/reader.go   |  6 +++++-
+ src/pkg/archive/zip/zip_test.go | 47 ++++++++++++++++++++++++++---------------
+ 2 files changed, 35 insertions(+), 18 deletions(-)

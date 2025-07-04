@@ -1,55 +1,42 @@
-commit d22f287f12f4782082cd93785ad91e78dbe0d4d6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Apr 11 14:27:45 2023 +0000
+commit 7ec6ef432a85a390365f2daed788f0d14c830c73
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Wed May 18 08:54:30 2022 +0000
 
-    cmd/dist: refactor generated cgo-support logic
+    cmd/compile, cmd/link: use libFuzzer 8-bit instead of extra counters
     
-    During bootstrapping, cmd/dist writes a file indicating which
-    GOOS/GOARCH combinations are valid, and which support cgo-enabled
-    builds. That information previously went into the go/build package,
-    but today it fits in more naturally in the internal/platform package
-    (which already has a number of functions indicating feature support
-    for GOOS/GOARCH combinations).
+    By using libFuzzer’s 8-bit counters instead of extra counters, the
+    coverage instrumentation in libFuzzer mode is improved in three ways:
+      1- 8-bit counters are supported on all platforms, including macOS and
+         Windows, with all relevant versions of libFuzzer, whereas extra
+         counters are a Linux-only feature that only recently received
+         support on Windows.
+      2- Newly covered blocks are now properly reported as new coverage by
+         libFuzzer, not only as new features.
+      3- The NeverZero strategy is used to ensure that coverage counters
+         never become 0 again after having been positive once. This resolves
+         issues encountered when fuzzing loops with iteration counts that
+         are multiples of 256 (e.g., larger powers of two).
     
-    Moreover, as of CL 450739 the cmd/go logic for determining whether to
-    use cgo is somewhat more nuanced than the go/build logic: cmd/go
-    checks for the presence of a C compiler, whereas go/build does not
-    (mostly because it determines its configuration at package-init time,
-    and checking $PATH for a C compiler is somewhat expensive).
-    
-    To simplify this situation, this change:
-    
-            - consolidates the “cgo supported” check in internal/platform
-              (alongside many other platform-support checks) instead of making
-              it a one-off in go/build,
-    
-            - and updates a couple of tests to use testenv.HasCGO instead of
-              build.Default.CgoEnabled to decide whether to test a cgo-specific
-              behavior.
-    
-    For #58884.
-    For #59500.
-    
-    Change-Id: I0bb2502dba4545a3d98c9e915727382ce536a0f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483695
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I9021210d7fbffd07c891ad08750402ee91cb3df5
+    GitHub-Last-Rev: 9057e4b21d146ce9ffb3993982bfb84b96705989
+    GitHub-Pull-Request: golang/go#51318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387334
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- .gitignore                                      |  1 +
- src/cmd/dist/build.go                           | 11 ++++---
- src/cmd/dist/buildgo.go                         | 38 +------------------------
- src/cmd/dist/buildruntime.go                    | 24 ++++++++++++++++
- src/cmd/dist/buildtool.go                       |  1 +
- src/cmd/go/internal/cfg/cfg.go                  |  1 +
- src/cmd/go/internal/work/action.go              |  3 +-
- src/cmd/go/internal/work/init.go                |  2 +-
- src/cmd/go/note_test.go                         |  4 +--
- src/cmd/go/testdata/script/list_all_gobuild.txt |  1 +
- src/cmd/go/testdata/script/tooltags.txt         |  2 ++
- src/cmd/objdump/objdump_test.go                 |  3 +-
- src/go/build/build.go                           |  3 +-
- src/go/build/deps_test.go                       |  2 +-
- src/internal/platform/supported.go              |  8 ++++++
- 15 files changed, 55 insertions(+), 49 deletions(-)
+ src/cmd/compile/internal/gc/obj.go           |  4 +--
+ src/cmd/compile/internal/ir/name.go          |  6 ++---
+ src/cmd/compile/internal/ssa/writebarrier.go |  2 +-
+ src/cmd/compile/internal/walk/order.go       | 34 ++++++++++++++++---------
+ src/cmd/internal/objabi/symkind.go           |  2 +-
+ src/cmd/internal/objabi/symkind_string.go    |  8 +++---
+ src/cmd/link/internal/ld/data.go             | 14 +++++-----
+ src/cmd/link/internal/ld/elf.go              |  2 +-
+ src/cmd/link/internal/ld/xcoff.go            |  2 +-
+ src/cmd/link/internal/sym/symkind.go         | 38 ++++++++++++++--------------
+ src/cmd/link/internal/sym/symkind_string.go  |  8 +++---
+ src/runtime/libfuzzer.go                     | 35 ++++++++++++++++++++++++-
+ src/runtime/libfuzzer_amd64.s                | 23 +++++++++++++++++
+ src/runtime/libfuzzer_arm64.s                | 21 +++++++++++++++
+ 14 files changed, 143 insertions(+), 56 deletions(-)

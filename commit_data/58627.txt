@@ -1,19 +1,32 @@
-commit 5c9b13d90f4c751c61ccb4560f79a1189cab2279
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 7 10:47:01 2025 -0800
+commit 64c12bafea06144c0d4e3f3bee80171021800903
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Nov 18 05:50:50 2023 +0000
 
-    crypto/internal/fips140/drbg: add package comment
+    cmd/trace/v2: add support for goroutine filtering
     
-    For #69536
+    This change adds support for the trace?goid=<goid> endpoint to the trace
+    tool for v2 traces.
     
-    Change-Id: I70d2ed10555fed244f08c898899399e3032e17b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640597
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    In effect, this change actually implements a per-goroutine view. I tried
+    to add a link to the main page to enable a "view by goroutines" view
+    without filtering, but the web trace viewer broke the browser tab when
+    there were a few hundred goroutines. The risk of a browser hang probably
+    isn't worth the cases where this is nice, especially since filtering by
+    goroutine already works. Unfortunate, but c'est l'vie. Might be worth
+    revisiting if we change out the web viewer in the future.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: I8e29f4ab8346af6708fd8824505c30f2c43db796
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543595
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/crypto/internal/fips140/drbg/rand.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/trace/v2/goroutinegen.go   | 164 +++++++++++++++++++++++++++++++++++++
+ src/cmd/trace/v2/jsontrace.go      |  63 +++++++++++++-
+ src/cmd/trace/v2/main.go           |   2 +-
+ src/internal/trace/summary.go      |  18 +---
+ src/internal/trace/summary_test.go |  26 +++++-
+ 5 files changed, 249 insertions(+), 24 deletions(-)

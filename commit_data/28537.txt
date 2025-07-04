@@ -1,21 +1,37 @@
-commit e2e11f02a4627e4090083d433e6c66602b514ab7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Sep 26 11:35:55 2016 -0700
+commit 2a8c81ffaadc69add6ff85b241691adb7f9f24ff
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jun 1 14:41:09 2016 -0700
 
-    runtime: unify Unix implementations of unminit
+    crypto/tls: buffer handshake messages.
     
-    Change-Id: I2cbb13eb85876ad05a52cbd498a9b86e7a28899c
-    Reviewed-on: https://go-review.googlesource.com/29772
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This change causes TLS handshake messages to be buffered and written in
+    a single Write to the underlying net.Conn.
+    
+    There are two reasons to want to do this:
+    
+    Firstly, it's slightly preferable to do this in order to save sending
+    several, small packets over the network where a single one will do.
+    
+    Secondly, since 37c28759ca46cf381a466e32168a793165d9c9e9 errors from
+    Write have been returned from a handshake. This means that, if a peer
+    closes the connection during a handshake, a “broken pipe” error may
+    result from tls.Conn.Handshake(). This can mask any, more detailed,
+    fatal alerts that the peer may have sent because a read will never
+    happen.
+    
+    Buffering handshake messages means that the peer will not receive, and
+    possibly reject, any of a flow while it's still being written.
+    
+    Fixes #15709
+    
+    Change-Id: I38dcff1abecc06e52b2de647ea98713ce0fb9a21
+    Reviewed-on: https://go-review.googlesource.com/23609
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os3_solaris.go  | 4 +---
- src/runtime/os_darwin.go    | 4 +---
- src/runtime/os_dragonfly.go | 4 +---
- src/runtime/os_freebsd.go   | 4 +---
- src/runtime/os_linux.go     | 4 +---
- src/runtime/os_netbsd.go    | 4 +---
- src/runtime/os_openbsd.go   | 4 +---
- src/runtime/signal_unix.go  | 9 +++++++++
- 8 files changed, 16 insertions(+), 21 deletions(-)
+ src/crypto/tls/conn.go                  | 37 ++++++++++++++++++++++-----
+ src/crypto/tls/handshake_client.go      |  7 ++++++
+ src/crypto/tls/handshake_client_test.go | 44 ++++++++++++++++++++++++++++++++-
+ src/crypto/tls/handshake_server.go      | 12 +++++++++
+ 4 files changed, 93 insertions(+), 7 deletions(-)

@@ -1,53 +1,24 @@
-commit 2d63305b8446c69d79730ff556385cabe09f54ec
+commit b90c6b99b3fbe60f4782c3e3b85f0ba9bbcf5f50
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 25 10:28:50 2022 -0400
+Date:   Tue Nov 23 10:54:49 2021 -0500
 
-    cmd/go: make vcstest repo scripts compatible with old Git versions
+    misc/reboot: skip TestRepeatBootstrap on short builders
     
-    The scripts added in CL 421455 passed on the TryBots, but failed on a
-    subset of the builders that have older 'git' binaries installed.
+    This test is slow and resource-intensive, and will rarely catch
+    failures. It is important to run sometimes, but probably a waste of
+    time on smaller (and especially reverse) builders.
+    Rather than hard-coding a list of small builders, only run it on the
+    longtest builders.
     
-    Notably, the older versions of git do not support:
-    - 'git branch -m' before the current branch has a commit
-    - 'init.defaultBranch' in the '.gitconfig' file, and
-    - 'git branch -c'.
+    Fixes #35233
+    Fixes #30892
+    Fixes #49753
     
-    We address those by, respectively:
-    - waiting to run 'git branch -m' until after the first commit
-    - always running 'git branch -m' explicitly to set the branch name, and
-    - using 'git checkout' instead of 'git branch -c' to set branch parents.
-    
-    Updates #27494.
-    
-    Change-Id: I42f012f5add8f31e41d077d752d8268aacbce8a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445355
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I25a9702e1f541246ea200fd7c79414ca5f69edae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366538
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/vcstest/git/commit-after-tag.txt    | 2 +-
- src/cmd/go/testdata/vcstest/git/empty-v2-without-v1.txt | 2 +-
- src/cmd/go/testdata/vcstest/git/emptytest.txt           | 2 +-
- src/cmd/go/testdata/vcstest/git/gitrepo1.txt            | 9 +++++----
- src/cmd/go/testdata/vcstest/git/hello.txt               | 2 +-
- src/cmd/go/testdata/vcstest/git/insecurerepo.txt        | 2 +-
- src/cmd/go/testdata/vcstest/git/mainonly.txt            | 2 +-
- src/cmd/go/testdata/vcstest/git/modlegacy1-new.txt      | 2 +-
- src/cmd/go/testdata/vcstest/git/modlegacy1-old.txt      | 2 +-
- src/cmd/go/testdata/vcstest/git/no-tags.txt             | 2 +-
- src/cmd/go/testdata/vcstest/git/odd-tags.txt            | 3 ++-
- src/cmd/go/testdata/vcstest/git/prefixtagtests.txt      | 2 +-
- src/cmd/go/testdata/vcstest/git/querytest.txt           | 4 ++--
- src/cmd/go/testdata/vcstest/git/retract-pseudo.txt      | 1 +
- src/cmd/go/testdata/vcstest/git/semver-branch.txt       | 7 ++++---
- src/cmd/go/testdata/vcstest/git/tagtests.txt            | 4 ++--
- src/cmd/go/testdata/vcstest/git/v2repo.txt              | 2 +-
- src/cmd/go/testdata/vcstest/git/v2sub.txt               | 1 +
- src/cmd/go/testdata/vcstest/git/v3pkg.txt               | 2 +-
- src/cmd/go/testdata/vcstest/git/vgotest1.txt            | 2 +-
- src/cmd/go/testdata/vcstest/hg/hgrepo1.txt              | 9 +++++----
- src/cmd/go/testdata/vcstest/hg/vgotest1.txt             | 8 ++++----
- src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt       | 2 +-
- src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt       | 2 +-
- 24 files changed, 41 insertions(+), 35 deletions(-)
+ misc/reboot/reboot_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

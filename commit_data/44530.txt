@@ -1,28 +1,25 @@
-commit 67b9ecb23b16ed63f974e6741e1f229eab023ff5
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Nov 17 12:28:40 2020 -0500
+commit e49b2308a523c3bb69753caee2eacce41f097039
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 31 13:56:18 2020 -0700
 
-    runtime: update paniclk ordering
+    runtime/race: rebuild some .syso files to remove getauxval dependency
     
-    Now that allglock is no longer taken in throw, paniclk can move to the
-    bottom of the lock order where it belongs.
+    We can't depend on getauxval because it only exists in glibc >= 2.16.
+    Tsan has been updated to avoid that dependency
+    (https://reviews.llvm.org/D84859). This CL rebuilds the affected
+    .syso files, and adds a test to make sure we don't regress.
     
-    There is no fundamental reason that we really need to skip checks on
-    paniclk in lockWithRank (despite the recursive throws that could be
-    caused by lock rank checking, startpanic_m would still allow the crash
-    to complete). However, the partial order of lockRankPanic should be
-    every single lock that may be held before a throw, nil dereference,
-    out-of-bounds access, which our partial order doesn't cover.
+    Fixes #37485
     
-    Updates #42669
-    
-    Change-Id: Ic3efaea873dc2dd9fd5b0d6ccdd5319730b29a22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270862
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I891f54d28ec0d7da50a8df1adadc76dd6e7ab3e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246258
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/lockrank.go    |  8 ++++----
- src/runtime/lockrank_on.go | 11 +++++------
- 2 files changed, 9 insertions(+), 10 deletions(-)
+ src/runtime/race/README                  |   6 ++---
+ src/runtime/race/race_linux_amd64.syso   | Bin 518680 -> 521752 bytes
+ src/runtime/race/race_linux_arm64.syso   | Bin 497656 -> 500584 bytes
+ src/runtime/race/race_linux_ppc64le.syso | Bin 619560 -> 623824 bytes
+ src/runtime/race/syso_test.go            |  39 +++++++++++++++++++++++++++++++
+ 5 files changed, 42 insertions(+), 3 deletions(-)

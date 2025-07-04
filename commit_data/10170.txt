@@ -1,15 +1,12 @@
-commit f753e3facda2a9845caf7e8aed0e8a122d6b6e48
-Author: Mike Solomon <msolo@gmail.com>
-Date:   Tue Nov 1 10:31:29 2011 -0700
+commit cf7281e7289ffe861e2bfcac14d2e1b40416d741
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 1 09:45:04 2011 -0700
 
-    textproto: prevent long lines in HTTP headers from causing HTTP 400 responses.
+    doc/Makefile: add 'all' rule to build all docs
     
-    This fixes the issue without an extra copy in the average case.
-    
-    R=golang-dev, ality, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5272049
+    https://golang.org/cl/5334044
 
- src/pkg/net/textproto/reader.go      | 18 ++++++++++++++++--
- src/pkg/net/textproto/reader_test.go | 17 +++++++++++++++++
- 2 files changed, 33 insertions(+), 2 deletions(-)
+ doc/Makefile | 2 ++
+ 1 file changed, 2 insertions(+)

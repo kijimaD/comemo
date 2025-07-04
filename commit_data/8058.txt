@@ -1,18 +1,17 @@
-commit 328aac3a499a71360e8b966ba422273147b603fa
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Apr 13 10:34:35 2011 +1000
+commit 08b092777168a3377067531307ffd20dd85becba
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Tue Apr 12 16:58:56 2011 -0700
 
-    godashboard: Show packages at launchpad.net
+    os: fix Readdir in Plan 9
     
-    The changes were not tested for real in an App Engine environment,
-    so extra care should be taken.  That said, some static testing
-    was done with pyflakes, and a few existent problems were fixed on
-    the way.
+    'TestReaddir.*' tests now passes.
     
-    R=adg
+    R=golang-dev, lucio, r
     CC=golang-dev
-    https://golang.org/cl/4378053
+    https://golang.org/cl/4381048
 
- misc/dashboard/godashboard/gobuild.py |  4 +---
- misc/dashboard/godashboard/package.py | 21 ++++++++++++---------
- 2 files changed, 13 insertions(+), 12 deletions(-)
+ src/pkg/os/dir_plan9.go   | 80 +++++++++++++++++++----------------------------
+ src/pkg/os/error_plan9.go |  3 ++
+ src/pkg/os/file_plan9.go  |  7 +++++
+ src/pkg/os/os_test.go     | 16 +++++++++-
+ 4 files changed, 57 insertions(+), 49 deletions(-)

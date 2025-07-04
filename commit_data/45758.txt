@@ -1,16 +1,53 @@
-commit e1fa26026db313463a09289c2105591de33cf7b8
-Author: DQNEO <dqneoo@gmail.com>
-Date:   Mon May 31 12:33:28 2021 +0900
+commit 35455fff0ebb7dd1b8e698f245a823ef8c711ac9
+Author: Daniel S Fava <danielsfava@gmail.com>
+Date:   Thu Nov 12 17:25:47 2020 +0100
 
-    spec: improve wording consistency by eliminating "specifier"
+    runtime: swap the order of raceacquire() and racerelease()
     
-    The word "specifier" is used once only here and technically not defined.
+    In chansend() and chanrecv() of chan.go, the order of calls to
+    raceacquire() and racerelease() was swapped, which meant that the
+    code was not following the memory model "by the letter of the law."
+    Similar for bufrecv and bufsend in select.go
     
-    Change-Id: Ifc9f0582f4eb3c3011ba60d8008234de511d4be6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/323730
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
+    The memory model says:
+    
+    - A send happens before the corresponding receive completes, and
+    - the kth receive on a channel with capacity C happens before the
+    k+C send on that channel completes.
+    
+    The operative word here is "completes."  For example, a sender obtains
+    happens-before information on completion of the send-operation, which
+    means, after the sender has deposited its message onto the channel.
+    Similarly for receives.
+    
+    If the order of raceacquire() and racerelease() is incorrect, the race
+    detector may fail to report some race conditions.
+    
+    The fix is minimal from the point of view of Go.  The fix does, however,
+    rely on a new function added to TSan:
+    
+    https://reviews.llvm.org/D76322
+    
+    This commit only affects execution when race detection is enabled.
+    
+    Added two tests into `runtime/race/output_test.go`:
+    
+    - `chanmm` tests for the issue addressed by this patch
+    - `mutex` is a test for inverted semaphores, which must not be broken
+      by this (or any other) patch
+    
+    Fixes #37355
+    
+    Change-Id: I5e886879ead2bd456a4b7dd1d17253641b767f63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220419
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/chan.go             | 18 ++++------
+ src/runtime/race.go             | 17 ++++++++++
+ src/runtime/race/output_test.go | 73 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/race0.go            |  2 ++
+ src/runtime/select.go           |  6 ++--
+ 5 files changed, 100 insertions(+), 16 deletions(-)

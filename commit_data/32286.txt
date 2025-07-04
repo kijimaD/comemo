@@ -1,16 +1,59 @@
-commit d47c9bce812dbbb2d2dde04054875ed5402c10e3
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Thu May 25 07:48:08 2017 +0900
+commit dffe5ac9f2f84a4386889971fd3db3f72a6e32d4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 27 11:38:20 2017 -0700
 
-    encoding/asn1: handle application tag in Marshal
+    cmd/compile: eliminate dead code in if statements after typechecking
     
-    Fixes #20488
+    This is a more thorough and cleaner fix
+    than doing dead code elimination separately
+    during inlining, escape analysis, and export.
     
-    Change-Id: Iae963b612aea3d9e814b08f655e2eb019ece256e
-    Reviewed-on: https://go-review.googlesource.com/44110
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Unfortunately, it does add another full walk of the AST.
+    The performance impact is very small, but not non-zero.
+    
+    If a label or goto is present in the dead code, it is not eliminated.
+    This restriction can be removed once label/goto checking occurs
+    much earlier in the compiler. In practice, it probably doesn't
+    matter much.
+    
+    Updates #19699
+    Fixes #19705
+    
+    name       old alloc/op      new alloc/op      delta
+    Template        39.2MB ± 0%       39.3MB ± 0%  +0.28%  (p=0.008 n=5+5)
+    Unicode         29.8MB ± 0%       29.8MB ± 0%    ~     (p=1.000 n=5+5)
+    GoTypes          113MB ± 0%        113MB ± 0%  -0.55%  (p=0.008 n=5+5)
+    SSA             1.25GB ± 0%       1.25GB ± 0%  +0.02%  (p=0.008 n=5+5)
+    Flate           25.3MB ± 0%       25.3MB ± 0%  -0.24%  (p=0.032 n=5+5)
+    GoParser        31.7MB ± 0%       31.8MB ± 0%  +0.31%  (p=0.008 n=5+5)
+    Reflect         78.2MB ± 0%       78.3MB ± 0%    ~     (p=0.421 n=5+5)
+    Tar             26.6MB ± 0%       26.7MB ± 0%  +0.21%  (p=0.008 n=5+5)
+    XML             42.2MB ± 0%       42.2MB ± 0%    ~     (p=0.056 n=5+5)
+    
+    name       old allocs/op     new allocs/op     delta
+    Template          385k ± 0%         387k ± 0%  +0.51%  (p=0.016 n=5+5)
+    Unicode           321k ± 0%         321k ± 0%    ~     (p=1.000 n=5+5)
+    GoTypes          1.14M ± 0%        1.14M ± 0%    ~     (p=1.000 n=5+5)
+    SSA              9.71M ± 0%        9.72M ± 0%  +0.10%  (p=0.008 n=5+5)
+    Flate             234k ± 1%         234k ± 1%    ~     (p=0.690 n=5+5)
+    GoParser          315k ± 0%         317k ± 0%  +0.71%  (p=0.008 n=5+5)
+    Reflect           980k ± 0%         983k ± 0%  +0.30%  (p=0.032 n=5+5)
+    Tar               251k ± 0%         252k ± 0%  +0.55%  (p=0.016 n=5+5)
+    XML               392k ± 0%         393k ± 0%  +0.30%  (p=0.008 n=5+5)
+    
+    Change-Id: Ia10ff4bbf5c6eae782582cc9cbc9785494d4fb83
+    Reviewed-on: https://go-review.googlesource.com/38773
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/asn1/marshal.go      | 35 ++++++++++++++++++++---------------
- src/encoding/asn1/marshal_test.go |  6 ++++++
- 2 files changed, 26 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   | 18 +--------
+ src/cmd/compile/internal/gc/esc.go       | 19 +++-------
+ src/cmd/compile/internal/gc/inl.go       | 10 -----
+ src/cmd/compile/internal/gc/main.go      |  3 ++
+ src/cmd/compile/internal/gc/typecheck.go | 65 ++++++++++++++++++++++++--------
+ test/fixedbugs/issue19699.dir/a.go       | 12 ++++++
+ test/fixedbugs/issue19699.dir/b.go       | 11 ++++++
+ test/fixedbugs/issue19699.go             |  7 ++++
+ test/fixedbugs/issue19699b.go            | 14 +++++++
+ test/fixedbugs/issue19705.go             | 17 +++++++++
+ 10 files changed, 121 insertions(+), 55 deletions(-)

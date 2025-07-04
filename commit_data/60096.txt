@@ -1,0 +1,25 @@
+commit 7164fad87a3be06220771f2ae497cb15ef467e31
+Author: Damien Neil <dneil@google.com>
+Date:   Tue May 21 14:12:15 2024 -0700
+
+    net/http: disable flaky 100-continue tests
+    
+    Disable three 100-continue tests that aren't exercising the
+    intended behavior because they don't set ExpectContinueTimeout.
+    The tests are flaky right now; setting ExpectContinueTimeout
+    makes them consistently fail.
+    
+    Set ExpectContinueTimeout and t.Skip the tests for now.
+    
+    Fixes #67382
+    For #67555
+    
+    Change-Id: I459a19a927e14af03881e89c73d20c93cf0da43e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587155
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/serve_test.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

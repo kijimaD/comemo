@@ -1,0 +1,42 @@
+commit 32fdcd7ca5156b2a0e928aa34a7b88f301ddc6f1
+Author: Simon Ser <contact@emersion.fr>
+Date:   Sun Dec 22 10:28:56 2024 +0000
+
+    mime/quotedprintable: accept LWSP-char after =
+    
+    SP and HTAB are allowed after a = before the following CRLF.
+    
+    RFC 2045 section 6.7 describes the ABNF for the quoted-printable encoding:
+    
+        qp-line := *(qp-segment transport-padding CRLF)
+                   qp-part transport-padding
+        qp-segment := qp-section *(SPACE / TAB) "="
+        transport-padding := *LWSP-char
+                              ; Composers MUST NOT generate
+                              ; non-zero length transport
+                              ; padding, but receivers MUST
+                              ; be able to handle padding
+                              ; added by message transports.
+    
+    RFC 822 defines LWSP-char as:
+    
+        LWSP-char   =  SPACE / HTAB
+    
+    Dovecot's imaptest contains such a message in
+    src/tests/fetch-binary-mime-qp.mbox.
+    
+    Fixes #70952
+    
+    Change-Id: Ie05921088d7e4d6c92c4bf79b0f4a13586230753
+    GitHub-Last-Rev: e6e6eee8ebc2f629644a1d99129fb57cce58058f
+    GitHub-Pull-Request: golang/go#70951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638276
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+
+ src/mime/quotedprintable/reader.go      |  3 ++-
+ src/mime/quotedprintable/reader_test.go | 14 +++++++++-----
+ 2 files changed, 11 insertions(+), 6 deletions(-)

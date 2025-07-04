@@ -1,17 +1,22 @@
-commit a9d5ea650b39ed144ea32a41fb551c038fb48f0c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Sep 28 17:42:05 2021 -0700
+commit 803d18fc6c656c5410a62157de0328a669e1b56b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 15 19:18:34 2021 -0500
 
-    runtime: use unsafe.Slice in getStackMap
+    cmd/go: set Incomplete field on go list output if no files match embed
     
-    It's not less code, but it is clearer code.
+    If no files match the embed pattern, the Error field will be set on
+    the package output by go list. Also set the Incomplete field for
+    consistency.
     
-    Change-Id: I32239baf92487a56900a4edd8a2593014f37d093
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352953
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #43727
+    
+    Change-Id: I5b4bb2a03a751269641a9bc4ef1d0fa0e37d46aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284257
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/stack.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go      | 1 +
+ src/cmd/go/testdata/script/embed.txt | 2 ++
+ 2 files changed, 3 insertions(+)

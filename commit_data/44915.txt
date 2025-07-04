@@ -1,21 +1,21 @@
-commit 35a8bbc9eaf876ee625d33401081f74a7c4e08f8
-Author: David Chase <drchase@google.com>
-Date:   Fri Apr 2 15:51:45 2021 -0400
+commit 8248b5791cd825f80c55e972c1e96c6fadf5885e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 14 15:56:59 2020 -0400
 
-    runtime: make concatstring{2,3,4,5} consistent w/ compiler's use
+    cmd/go/internal/modget: factor out functions for argument resolution
     
-    Internally the compiler uses a0,a1,a3 string, not [3]string,
-    and this lead to different parameter passing (memory, versus registers)
-    which of course did not work.
+    For #37438
+    For #41315
+    For #36460
     
-    Updates #40724.
-    
-    Change-Id: I1dbf479b88134559ba54b4b00a042b9a0fd128b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306910
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I17041c35ec91ff6ffb547e0f32572673d191b1ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254820
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/string.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/modget/get.go | 340 +++++++++++++++++++++-----------------
+ 1 file changed, 184 insertions(+), 156 deletions(-)

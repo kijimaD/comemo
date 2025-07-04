@@ -1,16 +1,14 @@
-commit 892d146a7aae17e5fe22e04b16ba4da7e3d8c767
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 19 11:22:52 2016 +1000
+commit 10c8b2374f413ef6225555893cad5d2a530f77d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 17:24:11 2016 -0400
 
-    cmd/vet: fix documentation for -structtags
+    runtime: align C library startup calls on amd64
     
-    Was missing a title in the documentation, so it formatted wrong.
+    This makes GOEXPERIMENT=framepointer, GOOS=darwin, and buildmode=carchive coexist.
     
-    Fixes #17124
-    
-    Change-Id: Ie8a9c36fbc54eed7d8a761f89a088e582b8c062d
-    Reviewed-on: https://go-review.googlesource.com/29340
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I9f6fb2f0f06f27df683e5b51f2fa55cd21872453
+    Reviewed-on: https://go-review.googlesource.com/23454
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/vet/doc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/rt0_darwin_amd64.s | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

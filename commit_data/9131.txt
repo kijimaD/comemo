@@ -1,17 +1,14 @@
-commit 9f636598ba2425cbc31e416599f430829fa36b20
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Tue Jul 19 10:47:33 2011 -0400
+commit 0b200b4d0902459551812dd18642332e494c7d12
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 19 22:10:07 2011 +1000
 
-    cgo: windows amd64 port
+    sync/atomic: fix LoadInt32 on ARM
+    R0 is clobbered after cas,
+    while R1 preserves its value.
     
-    R=golang-dev, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/4725041
+    https://golang.org/cl/4782042
 
- src/cmd/6l/asm.c                    |  2 +-
- src/cmd/ld/data.c                   | 40 ++++++++++++++++++++++++++++++++-----
- src/cmd/ld/ldpe.c                   | 29 +++++++++++++++++++++++++++
- src/pkg/runtime/amd64/asm.s         |  4 +++-
- src/pkg/runtime/cgo/windows_amd64.c |  9 ++++++---
- src/pkg/runtime/windows/amd64/rt0.s |  3 +++
- 6 files changed, 77 insertions(+), 10 deletions(-)
+ src/pkg/sync/atomic/asm_linux_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

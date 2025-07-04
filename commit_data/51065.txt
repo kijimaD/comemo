@@ -1,44 +1,39 @@
-commit d73885588ac0a7520ac3e848112e44f5dbe97006
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Oct 31 12:20:09 2022 -0400
+commit c5c1955077cb94736b0f311b3a02419d166f45ac
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Dec 1 15:26:31 2021 +0000
 
-    cmd/compile/internal/pgo: remove ListOfHotCallSites
+    runtime: break out new minimum heap size into a goexperiment
     
-    The global ListOfHotCallSites set is used to communicate between
-    CanInline and InlineCalls the set of call sites that InlineCalls may
-    increase the budget for.
+    The new minimum heap of 512 KiB has been the cause of some build
+    slowdown (~1%) and microbenchmark slowdown (usually ~0%, up to ~50%)
+    because of two reasons:
+    1. Applications with lots of small short-lived processes execute many
+       more GC cycles.
+    2. Applications with heaps <4 MiB GC up to 8x more often.
     
-    CanInline clears this map on each call, thus assuming that
-    InlineCalls(x) is called immediately after CanInline(x). This assumption
-    is false, as CanInline (among other cases) is recursive (CanInline ->
-    hairyVisitor.doNode -> inlCallee -> CanInline).
+    In many ways these consequences are inevitable given how GOGC works,
+    however we need to investigate more as to whether the apparent slowdowns
+    are indeed unavoidable or if the GC has issues scaling down, which it's
+    too late for for this release.
     
-    When this assumption proves false, we will lose the opportunity to
-    inline hot calls.
+    Given that this release is already huge, it's OK to push this back.
+    We'll take a closer look at it next cycle, so place block it behind a
+    new goexperiment to allow users and ourselves to easily experiment with
+    it.
     
-    This CL is the least invasive fix for this. ListOfHotCallSites is
-    actually just a subset of the candHotEdgeMap, with CallSiteInfo.Callee
-    cleared. candHotEdgeMap doesn't actually need to distinguish based on
-    Callee, so we can drop callee from candHotEdgeMap as well and just use
-    that directly [1].
+    Fixes #49744.
+    Updates #44167.
     
-    Later CLs should do more work to remove the globals entirely.
-    
-    For cmd/compile, this inceases the number of PGO inlined functions by
-    ~50% for one set of PGO parameters. I have no evaluated performance
-    impact.
-    
-    [1] This is something that we likely want to change in the future.
-    
-    For #55022.
-    
-    Change-Id: I57735958d651f6dfa9bd296499841213d20e1706
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446755
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: Ibad51f7873de7517490c89802f3c593834e77ff0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368137
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/inline/inl.go  | 21 ++++++++++-----------
- src/cmd/compile/internal/pgo/irgraph.go | 15 ++++-----------
- 2 files changed, 14 insertions(+), 22 deletions(-)
+ src/internal/goexperiment/exp_heapminimum512kib_off.go | 9 +++++++++
+ src/internal/goexperiment/exp_heapminimum512kib_on.go  | 9 +++++++++
+ src/internal/goexperiment/flags.go                     | 7 +++++++
+ src/runtime/mgcpacer.go                                | 4 ++--
+ 4 files changed, 27 insertions(+), 2 deletions(-)

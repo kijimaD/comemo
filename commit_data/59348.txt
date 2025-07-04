@@ -1,18 +1,27 @@
-commit 83b53527fa738ac3364a5f7e4921f2e81f69584e
-Author: 1911860538 <alxps1911@gmail.com>
-Date:   Thu Apr 17 14:51:18 2025 +0000
+commit d463de61b38cc037808970a8aeed8255082a1df5
+Author: Mitar <mitar.git@tnode.com>
+Date:   Tue Mar 5 23:45:51 2024 +0000
 
-    net/http: replace map lookup with switch for scheme port
+    net/http: remove misleading response headers on error
     
-    Improve scheme port lookup by replacing map with switch, reducing overhead and improving performance.
+    ServeContent API is to set some headers you want to see in the response
+    before calling ServeContent. But if there is an error, those headers
+    should be removed otherwise they might confused the client.
     
-    Change-Id: I45c790da15e237d5f32c50d342b3713b98fd2ffa
-    GitHub-Last-Rev: 4c02e4cabf181b365fbf2b722e3051625a289527
-    GitHub-Pull-Request: golang/go#73422
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666356
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Removing those headers is useful in general in the case of an error,
+    so we remove them in http.Error.
+    
+    Fixes #50905.
+    
+    Change-Id: If8d2786c1512906ac93e6b388df6ab1c5ecd1ea9
+    GitHub-Last-Rev: 32b6f045a791cf7bc391f018452a05cc872041ba
+    GitHub-Pull-Request: golang/go#64312
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544019
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/http/transport.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ src/net/http/fs_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go  | 17 +++++++++++---
+ 2 files changed, 76 insertions(+), 3 deletions(-)

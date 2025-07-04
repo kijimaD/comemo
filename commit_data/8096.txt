@@ -1,19 +1,20 @@
-commit 6f921f22ae620fad8b29a8b9873069010266dae1
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Apr 14 14:47:28 2011 -0400
+commit e27702545ac2d1e5f545fa6b3e39dbcf36bdb023
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 14 10:40:23 2011 -0700
 
-    crypto/tls: add server-side OCSP stapling support.
+    http: consume request bodies before replying
     
-    We already had support on the client side. I also changed the name of
-    the flag in the ServerHello structure to match the name of the same
-    flag in the ClientHello (ocspStapling).
+    This fixes our http behavior (even if Handlers forget to
+    consume a request body, we do it for them before we send
+    their response header), fixes the racy TestServerExpect,
+    and adds TestServerConsumesRequestBody.
     
-    R=bradfitzgo
+    With GOMAXPROCS>1, the http tests now seem race-free.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4408044
+    https://golang.org/cl/4419042
 
- src/pkg/crypto/tls/common.go             |  3 +++
- src/pkg/crypto/tls/handshake_client.go   |  2 +-
- src/pkg/crypto/tls/handshake_messages.go | 10 +++++-----
- src/pkg/crypto/tls/handshake_server.go   | 11 +++++++++++
- 4 files changed, 20 insertions(+), 6 deletions(-)
+ src/pkg/http/serve_test.go | 48 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/http/server.go     | 15 +++++++++++++++
+ 2 files changed, 62 insertions(+), 1 deletion(-)

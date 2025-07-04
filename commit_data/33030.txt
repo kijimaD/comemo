@@ -1,12 +1,17 @@
-commit c87fb208c5162e2067138dd8fcea2e5ab8c1d6de
-Author: griesemer <gri@golang.org>
-Date:   Tue Oct 10 15:53:51 2017 -0700
+commit 33b3cc156886a6184a3ee2036e7748cee9b28eec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 27 20:21:39 2017 +0000
 
-    cmd/compile/internal/syntax: remove some outdated comments (cleanup)
+    net/http: whitelist another non-http goroutine in leak checker
     
-    Change-Id: If242bb99d501420827b764c908580f2363e01ac4
-    Reviewed-on: https://go-review.googlesource.com/69730
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #20810
+    
+    Change-Id: I09365b2db50c41aa3383dd730859b6f2cdb78e63
+    Reviewed-on: https://go-review.googlesource.com/46836
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 23 -----------------------
- 1 file changed, 23 deletions(-)
+ src/net/http/main_test.go | 1 +
+ 1 file changed, 1 insertion(+)

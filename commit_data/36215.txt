@@ -1,14 +1,20 @@
-commit 8cc7540ecb592e8f9fdb429c3c7f5ede9548dfca
-Author: Keith Randall <khr@google.com>
-Date:   Mon Aug 6 10:17:52 2018 -0700
+commit 044d2d5af62001665cc28ce78757fc2831e78eeb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 11 22:51:17 2018 +0000
 
-    doc: describe cgo ptr->uintptr changes for 1.11.
+    os: document that Chown with -1 means to leave values unchanged, like POSIX
     
-    Fixes #26721
+    And fix the nacl implementation.
     
-    Change-Id: Icc4660327a9ba668c88f8d9e0b9f206ba8f6dc27
-    Reviewed-on: https://go-review.googlesource.com/127975
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #24710
+    
+    Change-Id: I31ffeea03a72dac5021ffb183fde31e9ffd060ad
+    Reviewed-on: https://go-review.googlesource.com/106464
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.11.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/os/file_plan9.go   | 4 ++++
+ src/os/file_posix.go   | 5 +++--
+ src/syscall/fs_nacl.go | 8 ++++++--
+ 3 files changed, 13 insertions(+), 4 deletions(-)

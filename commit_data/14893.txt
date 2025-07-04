@@ -1,14 +1,18 @@
-commit 5a4a197d7b692c5725d0364a51ad1cb76f1b99e4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 16 15:08:19 2013 -0800
+commit 3b73aaafdcd35ad20329730f5193859f491e59f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 15 09:13:05 2013 -0800
 
-    go/types: correct result type for append (bug fix)
+    net/http: fix racy test
     
-    Rewrote existing code to prevent similar mistakes.
+    We need to wait for the handler to actually finish running,
+    not almost be done running.
     
-    R=adonovan
+    This was always a bug, but now that handler output is buffered
+    it shows up easily on GOMAXPROCS >1 systems.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7129046
+    https://golang.org/cl/7109043
 
- src/pkg/go/types/builtins.go | 50 ++++++++++++++++++++++----------------------
- 1 file changed, 25 insertions(+), 25 deletions(-)
+ src/pkg/net/http/serve_test.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

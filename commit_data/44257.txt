@@ -1,29 +1,24 @@
-commit a76efea1fe18045ecb8d1cf2c1104208e636fbae
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jan 28 10:18:24 2021 -0500
+commit 3949cae4410aa05bc76ccab598ad63618b10416e
+Author: David Chase <drchase@google.com>
+Date:   Tue Jun 2 17:53:47 2020 -0400
 
-    cmd/go/internal/mvs: don't emit duplicates from Req
+    runtime: repair gdb printing fix for 7.12, 8.{1,2,3}.1, 9.2
     
-    Req is supposed to return “a minimal requirement list”
-    that includes each of the module paths listed in base.
-    Currently, if base contains duplicates Req emits duplicates,
-    and a list containing duplicates is certainly not minimal.
+    Hand-verified for listed gdb versions.  Gdb (apparently)
+    changed the way it names certain Go types, and this change
+    broke the pretty-printer-activating code in runtime-gdb.py
     
-    That, in turn, requires callers to be careful to deduplicate the base
-    slice, and there are multiple callers that are already quite
-    complicated to reason about even without the added complication of
-    deduplicating slices.
+    runtime-gdb_test.go now checks channel, map, string, and slice
+    printing unconditionally (i.e., no opt-out for old versions).
     
-    For #36460
+    Updates #39368.
     
-    Change-Id: I391a1dc0641fe1dd424c16b7a1082da0d00c7292
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/287632
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I98d72e1291c66bd40d970990e1a377ff2ed0c5d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236164
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/mvs/mvs.go      |  5 +++++
- src/cmd/go/internal/mvs/mvs_test.go | 13 +++++++++++++
- 2 files changed, 18 insertions(+)
+ src/runtime/runtime-gdb.py      | 16 ++++++++++++++--
+ src/runtime/runtime-gdb_test.go | 33 ++++++++++++++-------------------
+ 2 files changed, 28 insertions(+), 21 deletions(-)

@@ -1,22 +1,28 @@
-commit 77c53c16e98a2371741eb5c2a7a335073d73c351
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Jun 16 23:01:27 2024 +1000
+commit e9c14a77803a3e80d6697c70bb79d8accd0d2290
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Fri Mar 31 17:08:44 2023 +0800
 
-    cmd/internal/obj/riscv: add vector instruction encodings
+    runtime, cmd/go: enable address sanitizer on linux/loong64
     
-    Regenerate the riscv instruction encoding table with the V extension
-    enabled. Add constants and names for the resulting 375 instructions.
+    The recently released llvm-16/LoongArch already supports the asan feature;
+    but gcc13/LoongArch does not yet fully support the asan feature, and asan
+    will be fully supported in gcc14.
     
-    Change-Id: Icce688493aeb1e9880fb76a0618643f57e481273
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595403
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: 鹏程汪 <wangpengcheng.pp@bytedance.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I48a65f2f10e3dc488acd9c02ea1a1f37de192be0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481317
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/obj/riscv/anames.go |  375 ++++++++++
- src/cmd/internal/obj/riscv/cpu.go    |  491 +++++++++++++
- src/cmd/internal/obj/riscv/inst.go   | 1255 +++++++++++++++++++++++++++-------
- 3 files changed, 1869 insertions(+), 252 deletions(-)
+ src/cmd/cgo/internal/testsanitizers/cc_test.go |  6 +++
+ src/cmd/go/alldocs.go                          |  5 +-
+ src/cmd/go/internal/work/build.go              |  5 +-
+ src/internal/platform/supported.go             |  2 +-
+ src/runtime/asan/asan.go                       |  2 +-
+ src/runtime/asan_loong64.s                     | 75 ++++++++++++++++++++++++++
+ 6 files changed, 89 insertions(+), 6 deletions(-)

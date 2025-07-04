@@ -1,20 +1,48 @@
-commit 3e59b20d41c6dc4ed1e528279da3017555df2ceb
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Fri Aug 26 17:44:30 2016 +0900
+commit 3479b065d43f2990ac12e7b00ddff6f63a876ca9
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Feb 11 13:57:58 2016 -0500
 
-    os: fix build error on plan9
+    [dev.garbage] runtime: allocate directly from GC mark bits
     
-    https://go-review.googlesource.com/#/c/27580 added the test.
-    However the test use syscall.ELOOP which is not defined on plan9.
-    Move test code from "os_test.go" to "os_windows_test.go" to prevent
-    build error.
+    Instead of building a freelist from the mark bits generated
+    by the GC this CL allocates directly from the mark bits.
     
-    Change-Id: Ie7f05bfb9ab229e06a8e82a4b3b8a7ca82d4663b
-    Reviewed-on: https://go-review.googlesource.com/27833
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    The approach moves the mark bits from the pointer/no pointer
+    heap structures into their own per span data structures. The
+    mark/allocation vectors consist of a single mark bit per
+    object. Two vectors are maintained, one for allocation and
+    one for the GC's mark phase. During the GC cycle's sweep
+    phase the interpretation of the vectors is swapped. The
+    mark vector becomes the allocation vector and the old
+    allocation vector is cleared and becomes the mark vector that
+    the next GC cycle will use.
+    
+    Marked entries in the allocation vector indicate that the
+    object is not free. Each allocation vector maintains a boundary
+    between areas of the span already allocated from and areas
+    not yet allocated from. As objects are allocated this boundary
+    is moved until it reaches the end of the span. At this point
+    further allocations will be done from another span.
+    
+    Since we no longer sweep a span inspecting each freed object
+    the responsibility for maintaining pointer/scalar bits in
+    the heapBitMap containing is now the responsibility of the
+    the routines doing the actual allocation.
+    
+    This CL is functionally complete and ready for performance
+    tuning.
+    
+    Change-Id: I336e0fc21eef1066e0b68c7067cc71b9f3d50e04
+    Reviewed-on: https://go-review.googlesource.com/19470
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/os/os_test.go         | 23 -----------------------
- src/os/os_windows_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 23 deletions(-)
+ src/runtime/heapdump.go |  10 +-
+ src/runtime/malloc.go   |  36 ++++--
+ src/runtime/mbitmap.go  | 306 ++++++++++++++++++++++++++++++------------------
+ src/runtime/mcache.go   |  13 +-
+ src/runtime/mcentral.go |  35 ++----
+ src/runtime/mgcmark.go  |  10 +-
+ src/runtime/mgcsweep.go |  72 ++++--------
+ src/runtime/mheap.go    |  16 ++-
+ src/runtime/stack.go    |   1 -
+ 9 files changed, 281 insertions(+), 218 deletions(-)

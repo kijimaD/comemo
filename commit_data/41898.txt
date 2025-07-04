@@ -1,37 +1,52 @@
-commit 7c0ee1127bf41bf274b08170de3e42b171a903c0
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Mar 13 11:09:05 2020 -0400
+commit 7de15e362b0bc4ba83c8ca4d7cadc319c99db65a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 23 11:25:38 2019 -0400
 
-    test: deflaking measures for runtime gdb test
+    runtime: atomically set span state and use as publication barrier
     
-    Tweak the runtime's GDB python test to try to reduce flake failures.
+    When everything is working correctly, any pointer the garbage
+    collector encounters can only point into a fully initialized heap
+    span, since the span must have been initialized before that pointer
+    could escape the heap allocator and become visible to the GC.
     
-    Background: the intent of the testpoint in question is to make sure
-    that python-supported commands like "info goroutines" or "goroutine 1
-    backtrace" work properly. The Go code being run under the debugger as
-    part of the test is single-threaded, but the test is written assuming
-    that in addition to the primary goroutine there will be other
-    background goroutines available (owned by the runtime). The flakiness
-    seems to crop up the most when requesting a backtrace for one of these
-    background goroutines; the speculation is that if we catch a
-    runtime-owned goroutine in an odd state, this could interfere with the
-    test.
+    However, in various cases, we try to be defensive against bad
+    pointers. In findObject, this is just a sanity check: we never expect
+    to find a bad pointer, but programming errors can lead to them. In
+    spanOfHeap, we don't necessarily trust the pointer and we're trying to
+    check if it really does point to the heap, though it should always
+    point to something. Conservative scanning takes this to a new level,
+    since it can only guess that a word may be a pointer and verify this.
     
-    The change in this patch is to explicitly start an additional
-    goroutine from the main thread, so that when the debugger stops the
-    main thread we can be sure that there is some other non-main goroutine
-    in a known state.
+    In all of these cases, we have a problem that the span lookup and
+    check can race with span initialization, since the span becomes
+    visible to lookups before it's fully initialized.
     
-    This change authored by Josh Bleecher Snyder <josharian@gmail.com>.
+    Furthermore, we're about to start initializing the span without the
+    heap lock held, which is going to introduce races where accesses were
+    previously protected by the heap lock.
     
-    Updates #24616.
+    To address this, this CL makes accesses to mspan.state atomic, and
+    ensures that the span is fully initialized before setting the state to
+    mSpanInUse. All loads are now atomic, and in any case where we don't
+    trust the pointer, it first atomically loads the span state and checks
+    that it's mSpanInUse, after which it will have synchronized with span
+    initialization and can safely check the other span fields.
     
-    Change-Id: I45682323d5898e5187c0adada7c5d117e92f403b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226558
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    For #10958, #24543, but a good fix in general.
+    
+    Change-Id: I518b7c63555b02064b98aa5f802c92b758fef853
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203286
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/runtime-gdb_test.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/runtime/cgocheck.go    |  2 +-
+ src/runtime/export_test.go |  6 +--
+ src/runtime/heapdump.go    |  8 ++--
+ src/runtime/mbitmap.go     | 18 ++++++---
+ src/runtime/mgcmark.go     | 16 ++++----
+ src/runtime/mgcsweep.go    | 12 +++---
+ src/runtime/mheap.go       | 93 ++++++++++++++++++++++++++++++++--------------
+ src/runtime/signal_unix.go |  2 +-
+ src/runtime/stack.go       |  4 +-
+ 9 files changed, 104 insertions(+), 57 deletions(-)

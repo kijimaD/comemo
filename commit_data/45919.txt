@@ -1,45 +1,51 @@
-commit 2b00a54baf2b677b2aaddd93c25b11ea4642a86f
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Mon Jul 12 04:40:28 2021 +0000
+commit 862f638a89c5ec721a53446fb1a74f9ad15893d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 28 01:41:13 2020 -0500
 
-    go/build, runtime/internal/sys: reserve GOARCH=loong64
+    [dev.regabi] cmd/compile: make ir.Name the ONAME Node implementation
     
-    Per discussion at #46229 we are taking the "loong64" GOARCH value for
-    the upcoming LoongArch 64-bit port. It is not clear whether any 32-bit
-    non-bare-metal userland will exist for LoongArch, so only reserve
-    "loong64" for now.
+    Before this CL, an ONAME Node was represented by three structs
+    linked together: a node, a Name, and a Param. Previous CLs removed
+    OLABEL and OPACK from the set of nodes that knew about Name.
+    Now Name can be repurposed to *be* the ONAME Node implementation,
+    replacing three linked structs totaling 152+64+88 = 304 bytes (64-bit)
+    with a single 232-byte struct.
     
-    Change-Id: I97d262b4ab68ff61c22ccf83e26baf70eefd568d
-    GitHub-Last-Rev: ecdd8c53bdee57fec093ddba18ec8878b8ae7c74
-    GitHub-Pull-Request: golang/go#47129
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/333909
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Many expressions in the code become simpler as well, without having
+    to use .Param. and sometimes even .Name().
+    (For a node n where n.Name() != nil, n.Name() == n.(*Name) now.)
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Ie719f1285c05623b9fd2faaa059e5b360a64b3be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274094
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/build/syslist.go                         |  2 +-
- src/runtime/internal/sys/zgoarch_386.go         |  1 +
- src/runtime/internal/sys/zgoarch_amd64.go       |  1 +
- src/runtime/internal/sys/zgoarch_arm.go         |  1 +
- src/runtime/internal/sys/zgoarch_arm64.go       |  1 +
- src/runtime/internal/sys/zgoarch_arm64be.go     |  1 +
- src/runtime/internal/sys/zgoarch_armbe.go       |  1 +
- src/runtime/internal/sys/zgoarch_loong64.go     | 33 +++++++++++++++++++++++++
- src/runtime/internal/sys/zgoarch_mips.go        |  1 +
- src/runtime/internal/sys/zgoarch_mips64.go      |  1 +
- src/runtime/internal/sys/zgoarch_mips64le.go    |  1 +
- src/runtime/internal/sys/zgoarch_mips64p32.go   |  1 +
- src/runtime/internal/sys/zgoarch_mips64p32le.go |  1 +
- src/runtime/internal/sys/zgoarch_mipsle.go      |  1 +
- src/runtime/internal/sys/zgoarch_ppc.go         |  1 +
- src/runtime/internal/sys/zgoarch_ppc64.go       |  1 +
- src/runtime/internal/sys/zgoarch_ppc64le.go     |  1 +
- src/runtime/internal/sys/zgoarch_riscv.go       |  1 +
- src/runtime/internal/sys/zgoarch_riscv64.go     |  1 +
- src/runtime/internal/sys/zgoarch_s390.go        |  1 +
- src/runtime/internal/sys/zgoarch_s390x.go       |  1 +
- src/runtime/internal/sys/zgoarch_sparc.go       |  1 +
- src/runtime/internal/sys/zgoarch_sparc64.go     |  1 +
- src/runtime/internal/sys/zgoarch_wasm.go        |  1 +
- 24 files changed, 56 insertions(+), 1 deletion(-)
+ src/cmd/compile/fmtmap_test.go             |   1 +
+ src/cmd/compile/internal/gc/alg.go         |   2 +-
+ src/cmd/compile/internal/gc/align.go       |  10 +-
+ src/cmd/compile/internal/gc/closure.go     |  13 +-
+ src/cmd/compile/internal/gc/dcl.go         |  39 +++---
+ src/cmd/compile/internal/gc/embed.go       |   6 +-
+ src/cmd/compile/internal/gc/escape.go      |   6 +-
+ src/cmd/compile/internal/gc/gen.go         |  10 +-
+ src/cmd/compile/internal/gc/iexport.go     |   2 +-
+ src/cmd/compile/internal/gc/inl.go         |   2 +-
+ src/cmd/compile/internal/gc/main.go        |   4 +-
+ src/cmd/compile/internal/gc/noder.go       |  17 ++-
+ src/cmd/compile/internal/gc/pgen.go        |   2 +-
+ src/cmd/compile/internal/gc/plive.go       |   2 +-
+ src/cmd/compile/internal/gc/subr.go        |   2 +-
+ src/cmd/compile/internal/gc/typecheck.go   |  52 ++++----
+ src/cmd/compile/internal/gc/universe.go    |   9 --
+ src/cmd/compile/internal/gc/walk.go        |  24 ++--
+ src/cmd/compile/internal/ir/expr.go        |  47 +++++++
+ src/cmd/compile/internal/ir/fmt.go         |   8 +-
+ src/cmd/compile/internal/ir/mini.go        |   2 -
+ src/cmd/compile/internal/ir/name.go        | 200 +++++++++++++----------------
+ src/cmd/compile/internal/ir/node.go        |  56 +++-----
+ src/cmd/compile/internal/ir/sizeof_test.go |   5 +-
+ 24 files changed, 256 insertions(+), 265 deletions(-)

@@ -1,16 +1,20 @@
-commit a662d3d9a757c0556f27d650a9dfe3bf0f2db1bf
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 13 09:28:37 2012 +1000
+commit e6e8b72377a8235b0dca4bbe485800341c6880cf
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Apr 12 12:35:21 2012 -0400
 
-    fmt: fix crash of %b on huge negative int64
-    The buffer had 64 bytes but needs one more for the sign.
+    crypto/tls: don't always use the default private key.
     
-    Fixes #3510.
+    When SNI based certificate selection is enabled, we previously used
+    the default private key even if we selected a non-default certificate.
     
-    R=golang-dev, dave, dsymonds
+    Fixes #3367.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6011057
+    https://golang.org/cl/5987058
 
- src/pkg/fmt/fmt_test.go | 3 +++
- src/pkg/fmt/format.go   | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/crypto/tls/cipher_suites.go         |   4 +-
+ src/pkg/crypto/tls/handshake_server.go      |  29 ++---
+ src/pkg/crypto/tls/handshake_server_test.go | 158 +++++++++++++++++++++++++++-
+ src/pkg/crypto/tls/key_agreement.go         |  12 +--
+ 4 files changed, 177 insertions(+), 26 deletions(-)

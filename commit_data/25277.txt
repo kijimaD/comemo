@@ -1,62 +1,19 @@
-commit 99fb19194c03c618c0d8faa87b91ba419ae28ee3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 1 19:07:41 2015 +0000
+commit 366dcc4529d09c31f7b0df65003792022bc5ec09
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 17 21:14:56 2015 -0700
 
-    net/http: rework CloseNotifier implementation, clarify expectations in docs
+    [dev.ssa] cmd/compile: Reuse stack slots for spill locations
     
-    CloseNotifier wasn't well specified previously. This CL simplifies its
-    implementation, clarifies the public documentation on CloseNotifier,
-    clarifies internal documentation on conn, and fixes two CloseNotifier
-    bugs in the process.
+    For each type, maintain a list of stack slots used to spill
+    SSA values to the stack.  Reuse those stack slots for noninterfering
+    spills.
     
-    The main change, though, is tightening the rules and expectations for using
-    CloseNotifier:
+    Lowers frame sizes.  As an example, runtime.mSpan_Sweep goes from
+    584 bytes to 392 bytes.  heapBitsSetType goes from 576 bytes to 152 bytes.
     
-    * the caller must consume the Request.Body first (old rule, unwritten)
-    * the received value is the "true" value (old rule, unwritten)
-    * no promises for channel sends after Handler returns (old rule, unwritten)
-    * a subsequent pipelined request fires the CloseNotifier (new behavior;
-      previously it never fired and thus effectively deadlocked as in #13165)
-    * advise that it should only be used without HTTP/1.1 pipelining (use HTTP/2
-      or non-idempotent browsers). Not that browsers actually use pipelining.
-    
-    The main implementation change is that each Handler now gets its own
-    CloseNotifier channel value, rather than sharing one between the whole
-    conn. This means Handlers can't affect subsequent requests. This is
-    how HTTP/2's Server works too. The old docs never clarified a behavior
-    either way. The other side effect of each request getting its own
-    CloseNotifier channel is that one handler can't "poison" the
-    underlying conn preventing subsequent requests on the same connection
-    from using CloseNotifier (this is #9763).
-    
-    In the old implementation, once any request on a connection used
-    ClosedNotifier, the conn's underlying bufio.Reader source was switched
-    from the TCPConn to the read side of the pipe being fed by a
-    never-ending copy. Since it was impossible to abort that never-ending
-    copy, we could never get back to a fresh state where it was possible
-    to return the underlying TCPConn to callers of Hijack. Now, instead of
-    a never-ending Copy, the background goroutine doing a Read from the
-    TCPConn (or *tls.Conn) only reads a single byte. That single byte
-    can be in the request body, a socket timeout error, io.EOF error, or
-    the first byte of the second body. In any case, the new *connReader
-    type stitches sync and async reads together like an io.MultiReader. To
-    clarify the flow of Read data and combat the complexity of too many
-    wrapper Reader types, the *connReader absorbs the io.LimitReader
-    previously used for bounding request header reads.  The
-    liveSwitchReader type is removed. (an unused switchWriter type is also
-    removed)
-    
-    Many fields on *conn are also documented more fully.
-    
-    Fixes #9763 (CloseNotify + Hijack together)
-    Fixes #13165 (deadlock with CloseNotify + pipelined requests)
-    
-    Change-Id: I40abc0a1992d05b294d627d1838c33cbccb9dd65
-    Reviewed-on: https://go-review.googlesource.com/17750
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0e9afe80c2fd84aff9eb368318685de293c363d0
+    Reviewed-on: https://go-review.googlesource.com/16022
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/serve_test.go | 140 +++++++++++++++--
- src/net/http/server.go     | 382 +++++++++++++++++++++++++++------------------
- 2 files changed, 361 insertions(+), 161 deletions(-)
+ src/cmd/compile/internal/ssa/stackalloc.go | 252 +++++++++++++++++++++++------
+ 1 file changed, 203 insertions(+), 49 deletions(-)

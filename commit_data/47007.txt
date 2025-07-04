@@ -1,19 +1,18 @@
-commit 1ed060cf87ec887ad76c51e3f7a2148cc2a7bf9b
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 21 11:11:13 2021 -0400
+commit 7764ee5614df2228e03326487af7670c7c5d268a
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Feb 19 14:31:57 2021 +0800
 
-    testing: reference benchmark format spec
+    runtime: fix invalid nil g check for for mips64x
     
-    This updates the testing package documentation to reference the
-    specification for the benchmark format, and points users to our
-    standard tools for working with benchmark data. (It's somewhat
-    remarkable how widely used benchstat appears to be given that we don't
-    mention it anywhere!)
+    In CL 292109 we removed unnecessary writes to gp.sched.g
+    but put wrong register to save g (R4 saves pointer to g) on mips64x
     
-    Change-Id: Idbb4416d2fde9606ea7e6c15595f3b9e6a38f3b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357589
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9777846a7b0a46e1af83dcfc73b74649e0dba3c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293989
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
 
- src/testing/testing.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/runtime/asm_mips64x.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

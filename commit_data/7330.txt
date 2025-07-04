@@ -1,14 +1,13 @@
-commit bd4e49f524bc0e5b033850cbaa923527f7b80af7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 2 11:02:56 2011 -0800
+commit 7c189a84171fccfebede6ab34a50b3e0ada5d6d1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 1 21:29:46 2011 -0800
 
-    Effective Go: fix typo
+    sync: tidy a couple of comments.
+    no semantic change.
     
-    Fixes #1467.
-    
-    R=r, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3981054
+    https://golang.org/cl/4128048
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/sync/rwmutex.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

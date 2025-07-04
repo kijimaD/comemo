@@ -1,18 +1,20 @@
-commit 2f937d9bfcbb1e95c089a3af37677bacb185aedb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 16 11:36:09 2021 -0800
+commit 63e9f6d5f022a1149a10ddfcc5801aa19ba33223
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 24 13:16:42 2021 -0700
 
-    cmd/compile/internal/types2: add a test for Context deduplication of hash collisions
+    test: recognize cgo build tag
     
-    This CL is a clean port of CL 363517 from go/types to types2,
-    with the exception that types_test.go was not removed because
-    it's still needed to set a types2-specific test flag.
+    This requires us to add a fake argument to issue36705.go so that the
+    test driver will build it with "go run" rather than "go tool compile".
     
-    Change-Id: I12177866537c0f95f3fa36fa0f4aa02016609ca9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364494
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Id08b97d898ee3e9d6c1fbb072a0a9317ed9faedd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304569
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/context_test.go | 69 +++++++++++++++++++++++++
- src/cmd/compile/internal/types2/types_test.go   |  3 --
- 2 files changed, 69 insertions(+), 3 deletions(-)
+ test/fixedbugs/issue36705.go |  2 +-
+ test/run.go                  | 23 +++++++++++++++++------
+ 2 files changed, 18 insertions(+), 7 deletions(-)

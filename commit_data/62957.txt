@@ -1,0 +1,23 @@
+commit 60d3bcdec38eafbffe3086d8aea190ff8bcdece7
+Author: khr@golang.org <khr@golang.org>
+Date:   Thu May 8 10:00:22 2025 -0700
+
+    runtime: remove ptr/scalar bitmap metric
+    
+    We don't use this mechanism any more, so the metric will always be zero.
+    Since CL 616255.
+    
+    Update #73628
+    
+    Change-Id: Ic179927a8bc24e6291876c218d88e8848b057c2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671096
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/align_runtime_test.go |  1 -
+ src/runtime/metrics.go            |  5 ++---
+ src/runtime/mheap.go              | 11 +++--------
+ src/runtime/mstats.go             | 25 +++++++++++--------------
+ 4 files changed, 16 insertions(+), 26 deletions(-)

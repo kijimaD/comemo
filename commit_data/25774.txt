@@ -1,17 +1,19 @@
-commit 0b4f5782664b1e5ff6006cc3a66de520ed1c7c79
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 25 15:21:10 2016 -0500
+commit d6ee6c2d0654b2274fb80a5d1ca6f72f4c2da094
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Nov 19 17:36:59 2015 -0800
 
-    cmd/asm: remove nonexistent amd64 instructions
+    hash/crc32: rename iEEETable to ieeeTable
     
-    These have no accepted input syntax and,
-    as far as I can tell, do not actually exist.
+    iEEETable violates the Go naming conventions and is inconsistent
+    with the rest of the package. Use ieeeTable instead.
     
-    Change-Id: Iafdfb71adccad76230191d922eb7ddf78b7d5898
-    Reviewed-on: https://go-review.googlesource.com/19612
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I04b201aa39759d159de2b0295f43da80488c2263
+    Reviewed-on: https://go-review.googlesource.com/17068
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/a.out.go  | 9 ---------
- src/cmd/internal/obj/x86/anames.go | 9 ---------
- src/cmd/internal/obj/x86/asm6.go   | 2 --
- 3 files changed, 20 deletions(-)
+ src/hash/crc32/crc32.go          | 6 +++---
+ src/hash/crc32/crc32_amd64.go    | 6 +++---
+ src/hash/crc32/crc32_amd64p32.go | 6 +++---
+ src/hash/crc32/crc32_generic.go  | 6 +++---
+ 4 files changed, 12 insertions(+), 12 deletions(-)

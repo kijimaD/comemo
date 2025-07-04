@@ -1,21 +1,40 @@
-commit 977578816ea7d0c2b5e00e612e222a8378abf11e
-Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-Date:   Wed Sep 20 11:10:26 2017 +0200
+commit c31231ccab371b31f5563a91e68720657799fe70
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 24 16:21:01 2017 -0400
 
-    bytes: improve test readability
+    debug/dwarf: heuristically handle both UNIX and Windows paths
     
-    This CL improves the readability of the tests in the bytes package by
-    naming the `data` test variable `testString`, using the same convention
-    as its counterpart, `testBytes`.
+    Currently debug/dwarf assumes all paths in line tables will be
+    UNIX-style paths, which obviously isn't the case for binaries built on
+    Windows. However, we can't simply switch from the path package to the
+    filepath package because we don't know that we're running on the same
+    host type that built the binary and we want this to work even if we're
+    not. This is essentially the approach taken by GDB, which treats paths
+    in accordance with the system GDB itself is compiled for. In fact, we
+    can't even guess the compilation system from the type of the binary
+    because it may have been cross-compiled.
     
-    It additionally removes some type casting which was unnecessary.
+    We fix this by heuristically determining whether paths are UNIX-style
+    or DOS-style by looking for a drive letter or UNC path. If we see a
+    DOS-style path, we use appropriate logic for determining whether the
+    path is absolute and for joining two paths. This is helped by the fact
+    that we should basically always be starting with an absolute path.
+    However, it could mistake a relative UNIX-style path that begins with
+    a directory like "C:" for an absolute DOS-style path. There doesn't
+    seem to be any way around this.
     
-    Change-Id: If38b5606ce8bda0306bae24498f21cb8dbbb6377
-    Reviewed-on: https://go-review.googlesource.com/64931
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #19784.
+    
+    Change-Id: Ie13b546d2f1dcd8b02e668583a627b571b281588
+    Reviewed-on: https://go-review.googlesource.com/44017
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/bytes/buffer_test.go | 54 ++++++++++++++++++++++++------------------------
- src/bytes/reader_test.go |  4 ++--
- 2 files changed, 29 insertions(+), 29 deletions(-)
+ src/debug/dwarf/export_test.go            |   7 +++
+ src/debug/dwarf/line.go                   |  74 ++++++++++++++++++++++++--
+ src/debug/dwarf/line_test.go              |  85 ++++++++++++++++++++++++++++++
+ src/debug/dwarf/testdata/line-gcc-win.bin | Bin 0 -> 133202 bytes
+ src/debug/dwarf/type_test.go              |  14 +++++
+ 5 files changed, 176 insertions(+), 4 deletions(-)

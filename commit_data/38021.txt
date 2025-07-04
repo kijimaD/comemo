@@ -1,23 +1,31 @@
-commit 01f34cbf525bcdef5ca0040960e029ac92b62642
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 22 12:22:10 2019 -0500
+commit 23f75541946884167364a5cc513699661dcfe8ff
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Fri Sep 21 16:06:32 2018 -0300
 
-    misc/cgo/life: fix tests in module mode
+    internal/bytealg: improve performance of IndexByte for ppc64x
     
-    Updates #30228
+    Use addi+lvx instruction fusion and remove register dependencies in
+    the main loop to improve performance.
     
-    Change-Id: Ie972694254d2195ca9760ea7ffb6073e01c52488
-    Reviewed-on: https://go-review.googlesource.com/c/163422
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkIndexByte/10-192      9.86          9.75          -1.12%
+    BenchmarkIndexByte/32-192      15.6          11.2          -28.21%
+    BenchmarkIndexByte/4K-192      155           97.6          -37.03%
+    BenchmarkIndexByte/4M-192      171790        129650        -24.53%
+    BenchmarkIndexByte/64M-192     6530982       5018424       -23.16%
+    
+    benchmark                      old MB/s     new MB/s     speedup
+    BenchmarkIndexByte/10-192      1013.72      1025.76      1.01x
+    BenchmarkIndexByte/32-192      2049.47      2868.01      1.40x
+    BenchmarkIndexByte/4K-192      26422.69     41975.67     1.59x
+    BenchmarkIndexByte/4M-192      24415.17     32350.74     1.33x
+    BenchmarkIndexByte/64M-192     10275.46     13372.50     1.30x
+    
+    Change-Id: Iedf17f01f374d58e85dcd6a972209bfcb7eb6063
+    Reviewed-on: https://go-review.googlesource.com/137415
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- misc/cgo/life/life_test.go            | 60 ++++++++++++++++++++++++++
- misc/cgo/life/overlaydir_test.go      | 81 +++++++++++++++++++++++++++++++++++
- misc/cgo/life/{ => testdata}/c-life.c |  0
- misc/cgo/life/{ => testdata}/life.go  |  2 +-
- misc/cgo/life/{ => testdata}/life.h   |  0
- misc/cgo/life/{ => testdata}/main.go  |  4 +-
- misc/cgo/life/{ => testdata}/main.out |  0
- src/cmd/dist/test.go                  |  2 +-
- 8 files changed, 145 insertions(+), 4 deletions(-)
+ src/internal/bytealg/indexbyte_ppc64x.s | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

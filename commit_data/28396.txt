@@ -1,14 +1,25 @@
-commit a06e931abec6082e8f2db65f29dd6c63be5c0de6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Sep 15 08:46:08 2016 -0700
+commit 16f846a9cbe747b13498761f1dd1a298478ec43e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 19 17:35:23 2016 +0000
 
-    cmd/compile: nodintconst is the new Nodintconst
+    net/http: update bundled http2
     
-    Fixes the build.
+    Updates x/net/http2 to git rev 202ff482 for https://golang.org/cl/23235 (Expect:
+    100-continue support for HTTP/2)
     
-    Change-Id: Ib9aca6cf86d595d20f22dbf730afa8dea4b44672
-    Reviewed-on: https://go-review.googlesource.com/29221
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes a flaky test too, and changes the automatic HTTP/2 behavior to
+    no longer special-case the DefaultTransport, because
+    ExpectContinueTimeout is no longer unsupported by the HTTP/2
+    transport.
+    
+    Fixes #13851
+    Fixes #15744
+    
+    Change-Id: I3522aace14179a1ca070fd7063368a831167a0f7
+    Reviewed-on: https://go-review.googlesource.com/23254
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/h2_bundle.go      | 168 ++++++++++++++++++++++++++++++++++-------
+ src/net/http/transport.go      |  15 +---
+ src/net/http/transport_test.go |  17 +++--
+ 3 files changed, 153 insertions(+), 47 deletions(-)

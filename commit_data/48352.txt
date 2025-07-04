@@ -1,22 +1,40 @@
-commit 8cf11694abbfbdbd4fe0b2c08511f81b8bfe5017
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 10 09:02:34 2022 -0800
+commit 2520e72d3bbfe6651cd6324077afdb4babb36b9a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon May 10 16:50:32 2021 -0400
 
-    cmd/compile: fix transform of OEQ/ONE when one arg is a type param
+    runtime: hold sched.lock across atomic pidleget/pidleput
     
-    At this point in stenciling, we have shape types, not raw type parameters.
-    The code was correct in the other part of this function.
+    As a cleanup, golang.org/cl/307914 unintentionally caused the idle GC
+    work recheck to drop sched.lock between acquiring a P and committing to
+    keep it (once a worker G was found).
     
-    Update #51522
+    This is unsafe, as releasing a P requires extra checks once sched.lock
+    is taken (such as for runSafePointFn). Since checkIdleGCNoP does not
+    perform these extra checks, we can now race with other users.
     
-    Change-Id: Ife495160a2be5f6af5400363c3efb68dda518b5f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/391475
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    In the case of #45975, we may hang with this sequence:
+    
+    1. M1: checkIdleGCNoP takes sched.lock, gets P1, releases sched.lock.
+    2. M2: forEachP takes sched.lock, iterates over sched.pidle without
+       finding P1, releases sched.lock.
+    3. M1: checkIdleGCNoP puts P1 back in sched.pidle.
+    4. M2: forEachP waits forever for P1 to run the safePointFn.
+    
+    Change back to the old behavior of releasing sched.lock only after we
+    are certain we will keep the P. Thus if we put it back its removal from
+    sched.pidle was never visible.
+    
+    Fixes #45975
+    For #45916
+    For #45885
+    For #45884
+    
+    Change-Id: I191a1800923b206ccaf96bdcdd0bfdad17b532e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318569
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/noder/transform.go |  2 +-
- test/typeparam/issue51522a.go               | 42 +++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 1 deletion(-)
+ src/runtime/proc.go | 32 +++++++++++++++++++++-----------
+ 1 file changed, 21 insertions(+), 11 deletions(-)

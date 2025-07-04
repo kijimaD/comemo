@@ -1,18 +1,12 @@
-commit 961195ae6995a72c6f329e6397d93d62ed09135e
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Jan 28 18:00:15 2013 -0500
+commit cf1f542420415826040be93bc2a252ec605a1196
+Author: Vega Garcia Luis Alfonso <vegacom@gmail.com>
+Date:   Mon Jan 28 12:54:27 2013 -0500
 
-    math/big: add Rat.{,Set}Float64 methods for IEEE 754 conversions.
+    xml: differentiate between float32 and float64 for marshalSimple
     
-    Added tests, using input data from strconv.ParseFloat.
-    Thanks to rsc for most of the test code.
-    
-    math/big could use some good package-level documentation.
-    
-    R=remyoudompheng, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6930059
+    https://golang.org/cl/7235045
 
- src/pkg/math/big/rat.go      | 151 ++++++++++++++++
- src/pkg/math/big/rat_test.go | 404 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 555 insertions(+)
+ src/pkg/encoding/xml/marshal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

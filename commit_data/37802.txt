@@ -1,18 +1,21 @@
-commit c6282e7ac5a73809b8423a2abc45940148eb5bc7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Dec 31 18:43:38 2018 -1000
+commit c624f8ff704cd682c0a66a8213c326510800bd8a
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Aug 30 10:08:34 2018 +0000
 
-    doc: 2019 is the Year of the Gopher
+    syscall: skip  TestSyscallNoError on rooted android/arm
     
-    whereas this is a longstanding tradition
-    and insofaras it is worth continuing such traditions
-    and notwithstanding an attempt at future-proofing
-    thetruthofthematter is that I have been waiting for years to send this change
-    so despiteallobjections I have updated the copyright year.
+    The system call geteuid can not work properly on android, which
+    causes a test case failed on rooted android/arm.
     
-    Change-Id: I55961b15a7eda35d84fdd9250afdbe19f0bf8412
-    Reviewed-on: https://go-review.googlesource.com/c/155928
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    This CL disables the test case on android.
+    
+    Fixes #27364
+    
+    Change-Id: Ibfd33ef8cc1dfe8822c8be4280eae12ee30929c1
+    Reviewed-on: https://go-review.googlesource.com/132175
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- doc/contribute.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/syscall/syscall_linux_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

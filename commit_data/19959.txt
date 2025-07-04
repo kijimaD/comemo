@@ -1,13 +1,19 @@
-commit 21f7d83ffd3633869e9861efbe99f035daeb2201
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Aug 8 16:20:20 2014 +0900
+commit bcf7f61f83dbade702b5f5c10ccd04e07d411c63
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 7 14:49:41 2014 -0400
 
-    cmd/go: fix build in airplane mode
+    [dev.power64] cmd/9a: use liblink, add required additional instructions.
     
-    LGTM=iant
-    R=golang-codereviews, adg, iant
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/122190043
+    https://golang.org/cl/127730043
 
- src/cmd/go/vcs_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/9a/Makefile |   10 +
+ src/cmd/9a/a.h      |  126 +-
+ src/cmd/9a/a.y      |   80 +-
+ src/cmd/9a/doc.go   |   21 +
+ src/cmd/9a/lex.c    |  450 ++----
+ src/cmd/9a/y.tab.c  | 3794 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/9a/y.tab.h  |  192 +++
+ 7 files changed, 4234 insertions(+), 439 deletions(-)

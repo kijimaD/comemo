@@ -1,29 +1,26 @@
-commit ca5127cbcdaf54beec8245d97d251988e634c7c0
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Mon Aug 21 12:47:56 2017 +0300
+commit 7e63ce61e640a9e2b14ff545c28bf5d7a6f730f3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 8 17:15:54 2017 +0900
 
-    cmd/asm: add amd64 EXTRACTPS instruction
+    net: update documentation on Dial and its variants
     
-    Adds last missing SSE4 instruction.
-    Also introduces additional ytab set 'yextractps'.
+    This change clarifies the documentation on Dial and its variants to
+    avoid unnecessary confusion about how the arguments for the connection
+    setup functions are used to make connections.
     
-    See https://golang.org/cl/57470 that adds other SSE4 instructions
-    but skips this one due to 'yextractps'.
+    Also replaces "name" or "hostname" with "host name" when the term
+    implies the use of DNS.
     
-    To make EXTRACTPS less "sloppy", Yu2 oclass added to forbid
-    usage of invalid offset values in immediate operand.
+    Updates #17613.
+    Fixes #17614.
+    Fixes #17738.
+    Fixes #17956.
+    Updates #18806.
     
-    Part of the mission to add missing amd64 SSE4 instructions to Go asm.
-    
-    Change-Id: I0e67e3497054f53257dd8eb4c6268da5118b4853
-    Reviewed-on: https://go-review.googlesource.com/57490
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6adb3f2ae04a3bf83b96016ed73d8e59926f3e8a
+    Reviewed-on: https://go-review.googlesource.com/34875
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s   | 16 ++++++++--------
- src/cmd/asm/internal/asm/testdata/amd64error.s |  2 ++
- src/cmd/internal/obj/x86/a.out.go              |  1 +
- src/cmd/internal/obj/x86/anames.go             |  1 +
- src/cmd/internal/obj/x86/asm6.go               | 18 ++++++++++++++++++
- 5 files changed, 30 insertions(+), 8 deletions(-)
+ src/net/dial.go   | 62 +++++++++++++++++++++++++++++++++++++------------------
+ src/net/lookup.go | 14 +++++++------
+ 2 files changed, 50 insertions(+), 26 deletions(-)

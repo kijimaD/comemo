@@ -1,24 +1,19 @@
-commit 09272ae981905dcdc76ab7ffbda996c49d86595c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 17 13:35:36 2017 -0700
+commit d39b7b5347a3e6cc9173224393e4cfaf874a272a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 28 14:54:38 2016 -0500
 
-    cmd/compile/internal/gc: rename Thearch to thearch
+    runtime: extract Linux auxv handling
     
-    Prepared using gorename.
+    This refactoring is in preparation for handling auxv differently in
+    Android shared libraries.
     
-    Change-Id: Id55dac9ae5446a8bfeac06e7995b35f4c249eeca
-    Reviewed-on: https://go-review.googlesource.com/38302
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Updates #18041.
+    
+    Change-Id: If0458a309f9c804e7abd0a58b5a224d89f8da257
+    Reviewed-on: https://go-review.googlesource.com/33651
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/align.go |  6 +++---
- src/cmd/compile/internal/gc/go.go    |  2 +-
- src/cmd/compile/internal/gc/main.go  | 14 +++++++-------
- src/cmd/compile/internal/gc/pgen.go  |  4 ++--
- src/cmd/compile/internal/gc/plive.go |  2 +-
- src/cmd/compile/internal/gc/sinit.go |  2 +-
- src/cmd/compile/internal/gc/ssa.go   | 36 ++++++++++++++++++------------------
- src/cmd/compile/internal/gc/subr.go  |  2 +-
- src/cmd/compile/internal/gc/walk.go  |  4 ++--
- 9 files changed, 36 insertions(+), 36 deletions(-)
+ src/runtime/os_linux.go | 4 ++++
+ 1 file changed, 4 insertions(+)

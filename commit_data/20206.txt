@@ -1,29 +1,13 @@
-commit 7f2e68e9822ce8736d66035d0a3ed3677c2db459
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Aug 29 12:36:30 2014 -0700
+commit 99080c4b6f29aa6ea988747c43475469e761c8a5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 25 17:19:56 2014 +0400
 
-    crypto: add Signer
+    runtime: fix chan alignment on 32 bits
     
-    Signer is an interface to support opaque private keys.
-    These keys typically result from being kept in special hardware
-    (i.e. a TPM) although sometimes operating systems provide a
-    similar interface using process isolation for security rather
-    than hardware boundaries.
-    
-    This changes provides interfaces for representing them and
-    alters crypto/tls so that client certificates can use
-    opaque keys.
-    
-    LGTM=bradfitz
-    R=bradfitz
-    CC=golang-codereviews, jdeprez
-    https://golang.org/cl/114680043
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/128700043
 
- src/pkg/crypto/crypto.go               | 33 +++++++++++++++++++++++++++++++++
- src/pkg/crypto/ecdsa/ecdsa.go          | 24 ++++++++++++++++++++++++
- src/pkg/crypto/rsa/pss.go              | 15 +++++++++++++++
- src/pkg/crypto/rsa/rsa.go              | 19 +++++++++++++++++++
- src/pkg/crypto/tls/common.go           |  7 ++++++-
- src/pkg/crypto/tls/handshake_client.go | 30 ++++++++++++++++--------------
- src/pkg/go/build/deps_test.go          |  2 +-
- 7 files changed, 114 insertions(+), 16 deletions(-)
+ src/pkg/runtime/chan.h | 3 +++
+ 1 file changed, 3 insertions(+)

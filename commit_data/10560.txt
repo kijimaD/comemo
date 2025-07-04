@@ -1,13 +1,12 @@
-commit 9dd07f680a4a8ddb0f750a0de89ccc880e322147
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 1 16:17:24 2011 +1100
+commit 68e30a9765ca2fc596af32e75935b33c27c3d59b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 1 15:26:28 2011 +1100
 
-    weekly.2011-12-01
+    time: fix windows build
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5448067
+    https://golang.org/cl/5440071
 
- .hgtags               |   1 -
- doc/devel/weekly.html | 131 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 131 insertions(+), 1 deletion(-)
+ src/pkg/time/zoneinfo_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,24 +1,50 @@
-commit 2c2e08144f79d8746384c2a483bf03532dc0c443
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 18 18:46:00 2022 -0800
+commit faa4fa1a6e94fce4f6fa22524a2bece5125213b6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 14 14:24:47 2021 -0700
 
-    runtime: remove -tags=threadprof in tests
+    cmd/compile: allow conversion from slice to array ptr
     
-    Use an enviroment variable rather than a build tag to control starting
-    a busy loop thread when testprogcgo starts. This lets us skip another
-    build that invokes the C compiler and linker, which should avoid
-    timeouts running the runtime tests.
+    Panic if the slice is too short.
     
-    Fixes #44422
+    Updates #395
     
-    Change-Id: I516668d71a373da311d844990236566ff63e6d72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379294
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I90f4bff2da5d8f3148ba06d2482084f32b25c29a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301650
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/crash_cgo_test.go                  | 28 ++++----------------------
- src/runtime/testdata/testprogcgo/threadprof.go | 19 ++++++++++-------
- 2 files changed, 16 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/escape/escape.go          |   5 +-
+ src/cmd/compile/internal/ir/expr.go                |   2 +-
+ src/cmd/compile/internal/ir/fmt.go                 |   4 +-
+ src/cmd/compile/internal/ir/node.go                |   1 +
+ src/cmd/compile/internal/ir/op_string.go           | 269 +++++++++++----------
+ src/cmd/compile/internal/ssa/expand_calls.go       |   4 +-
+ src/cmd/compile/internal/ssa/gen/dec.rules         |   1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   4 +
+ src/cmd/compile/internal/ssa/op.go                 |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go              |   6 +
+ src/cmd/compile/internal/ssa/rewritedec.go         |  16 ++
+ src/cmd/compile/internal/ssagen/ssa.go             |  14 ++
+ src/cmd/compile/internal/typecheck/builtin.go      |   1 +
+ .../compile/internal/typecheck/builtin/runtime.go  |   1 +
+ src/cmd/compile/internal/typecheck/subr.go         |  12 +-
+ src/cmd/compile/internal/types2/api_test.go        |   3 +
+ src/cmd/compile/internal/types2/conversions.go     |  12 +
+ src/cmd/compile/internal/walk/expr.go              |   5 +
+ src/go/types/stdlib_test.go                        |   4 +
+ src/runtime/asm_386.s                              |   4 +
+ src/runtime/asm_amd64.s                            |   8 +
+ src/runtime/asm_arm.s                              |   4 +
+ src/runtime/asm_arm64.s                            |   4 +
+ src/runtime/asm_mips64x.s                          |   4 +
+ src/runtime/asm_mipsx.s                            |   4 +
+ src/runtime/asm_ppc64x.s                           |   4 +
+ src/runtime/asm_riscv64.s                          |   4 +
+ src/runtime/asm_s390x.s                            |   4 +
+ src/runtime/error.go                               |   2 +
+ src/runtime/panic.go                               |   7 +
+ test/convert2.go                                   |  14 ++
+ test/convert4.go                                   |  86 +++++++
+ test/escape_slice.go                               |   4 +
+ 33 files changed, 380 insertions(+), 141 deletions(-)

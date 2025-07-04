@@ -1,17 +1,17 @@
-commit f7a266a5aa73d314e77f4c2aa02c2605568d65b2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 27 16:29:33 2011 -0700
+commit 3b980579b42299c3bd31ffd433824c43a7b13523
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri May 27 15:51:00 2011 -0700
 
-    encoding/binary: add a non-reflect fast path for Write
+    big: make Int and Rat implement fmt.Scanner
     
-    before/after:
-    binary.BenchmarkWrite     100000             18312 ns/op
-    binary.BenchmarkWrite     500000              4468 ns/op
-    
-    R=rsc, gri
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4515154
+    https://golang.org/cl/4552056
 
- src/pkg/encoding/binary/binary.go      | 104 +++++++++++++++++++++++++--------
- src/pkg/encoding/binary/binary_test.go |  32 ++++++++++
- 2 files changed, 111 insertions(+), 25 deletions(-)
+ src/pkg/big/int.go      | 79 ++++++++++++++++++++++++++++++++++++----------
+ src/pkg/big/int_test.go | 43 +++++++++++++++++++++++++
+ src/pkg/big/nat.go      | 83 +++++++++++++++++++++++++++++++++----------------
+ src/pkg/big/nat_test.go | 64 +++++++++++++++++++++++++++++++++-----
+ src/pkg/big/rat.go      | 32 +++++++++++++++++--
+ src/pkg/big/rat_test.go | 29 ++++++++++++++++-
+ 6 files changed, 275 insertions(+), 55 deletions(-)

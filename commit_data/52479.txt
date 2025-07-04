@@ -1,28 +1,22 @@
-commit c054f223e7d0480a4d1d037177608c09c86c2ddd
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Thu Mar 16 18:18:04 2023 +0800
+commit 983906fa6db6df56e3912ba5c6be8fada00b232b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 3 16:12:01 2022 -0700
 
-    cmd/internal/obj/loong64: remove Optab.family and reorganize operand class fields
+    cmd/compile/internal/ir: remove FuncType and OTFUNC
     
-    There is currently no support for GOARCH=loong32, so the Optab.family
-    field is unused so far. Remove it to simplify the optab; the loong
-    assembler backend would likely already be overhauled into a sufficiently
-    different shape by the time we start to care for loong32, that the data
-    we have today would be useless anyway.
+    No longer needed. We now always directly construct TFUNC types when
+    needed.
     
-    While at it, add a operand class slot for the 3rd source operand
-    (support for which will arrive in later commits), and rename the other
-    operand class fields to be self-documenting. The changes are being
-    merged into this patch for sake of reducing code churn.
-    
-    Change-Id: Icf0988e34ff1c0f762c8e0708cfcef2e7954760c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477715
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1bb286c08539cbf97e331824f0f5464b5fd9c873
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403936
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/loong64/asm.go | 682 ++++++++++++++++++------------------
- 1 file changed, 346 insertions(+), 336 deletions(-)
+ src/cmd/compile/internal/ir/fmt.go       |   4 --
+ src/cmd/compile/internal/ir/node.go      |   6 --
+ src/cmd/compile/internal/ir/node_gen.go  |  26 -------
+ src/cmd/compile/internal/ir/op_string.go |  49 +++++++------
+ src/cmd/compile/internal/ir/type.go      | 116 ++-----------------------------
+ 5 files changed, 29 insertions(+), 172 deletions(-)

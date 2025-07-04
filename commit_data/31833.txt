@@ -1,19 +1,14 @@
-commit 82abd4152da01cf2fc62ac7ce0988e7925043061
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 14 20:29:42 2017 -0400
+commit 01ac5b8dcfe5342af3770b0834220b87ea328fad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 20 10:58:40 2017 -0700
 
-    unicode: move scripts from FoldCategories to FoldScripts
+    cmd/gofmt: clarify documentation re: tab width
     
-    Copy-and-paste bug was putting scripts in the categories map.
+    Fixes #19618.
     
-    Fixes #18186.
-    
-    Change-Id: Ife9d9bdd346fe24e578dbb2a0aac7ef6e889ae68
-    Reviewed-on: https://go-review.googlesource.com/45830
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0ac450ff717ec1f16eb12758c6bf5e98b5de20e8
+    Reviewed-on: https://go-review.googlesource.com/38374
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/unicode/maketables.go |  2 +-
- src/unicode/tables.go     | 59 ++++++++++++++++++++++++-----------------------
- 2 files changed, 31 insertions(+), 30 deletions(-)
+ src/cmd/gofmt/doc.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

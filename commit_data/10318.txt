@@ -1,13 +1,15 @@
-commit 5524b646e591b614391c1318e3eb9adc1d5af75b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 9 15:59:57 2011 -0500
+commit 300b443ade1dd71963a014b4401614d988b3428c
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Nov 9 15:44:49 2011 -0500
 
-    A+C: Rémy Oudompheng (individual CLA)
+    math: faster Lgamma
     
-    R=golang-dev
+    Converting from polynomial constants to counted array speeds up Lgamma from 51.3 to 37.7 ns/op. Variables renamed in Gamma to avoid overlap in Lgamma.
+    
+    R=rsc, golang-dev
     CC=golang-dev
-    https://golang.org/cl/5376045
+    https://golang.org/cl/5359045
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/math/gamma.go  |  12 ++--
+ src/pkg/math/lgamma.go | 155 +++++++++++++++++++++++++++----------------------
+ 2 files changed, 92 insertions(+), 75 deletions(-)

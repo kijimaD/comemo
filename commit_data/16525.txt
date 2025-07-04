@@ -1,30 +1,20 @@
-commit 46e30c7d70fd30b5d67b93625cf97110dc751f68
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jun 11 02:47:04 2013 +0800
+commit 0f4897ae1a99d5c9de78c33c7b0963e71960c678
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 10 22:38:58 2013 +0400
 
-    syscall: add {Set,Get}priority for Linux, and consistency tests
+    sync: improve race instrumentation of WaitGroup
+    Do not synchronize Add(1) with Wait().
+    Imitate read on first Add(1) and write on Wait(),
+    it allows to catch common misuses of WaitGroup:
+    - Add() called in the additional goroutine itself
+    - incorrect reuse of WaitGroup with multiple waiters
     
-    R=golang-dev, iant, bradfitz, dave
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7430044
+    https://golang.org/cl/10093044
 
- src/pkg/syscall/consistency_unix_test.go | 25 +++++++++++++++++++++++++
- src/pkg/syscall/mkerrors.sh              |  2 ++
- src/pkg/syscall/syscall_linux.go         |  4 ++--
- src/pkg/syscall/zerrors_darwin_386.go    |  3 +++
- src/pkg/syscall/zerrors_darwin_amd64.go  |  3 +++
- src/pkg/syscall/zerrors_freebsd_386.go   |  3 +++
- src/pkg/syscall/zerrors_freebsd_amd64.go |  3 +++
- src/pkg/syscall/zerrors_freebsd_arm.go   |  3 +++
- src/pkg/syscall/zerrors_linux_386.go     |  3 +++
- src/pkg/syscall/zerrors_linux_amd64.go   |  3 +++
- src/pkg/syscall/zerrors_linux_arm.go     |  3 +++
- src/pkg/syscall/zerrors_netbsd_386.go    |  3 +++
- src/pkg/syscall/zerrors_netbsd_amd64.go  |  3 +++
- src/pkg/syscall/zerrors_netbsd_arm.go    |  3 +++
- src/pkg/syscall/zerrors_openbsd_386.go   |  3 +++
- src/pkg/syscall/zerrors_openbsd_amd64.go |  3 +++
- src/pkg/syscall/zsyscall_linux_386.go    | 21 +++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_amd64.go  | 21 +++++++++++++++++++++
- src/pkg/syscall/zsyscall_linux_arm.go    | 21 +++++++++++++++++++++
- 19 files changed, 131 insertions(+), 2 deletions(-)
+ src/pkg/runtime/race/testdata/waitgroup_test.go | 128 +++++++++++++++++++++++-
+ src/pkg/sync/race.go                            |   8 ++
+ src/pkg/sync/race0.go                           |   6 ++
+ src/pkg/sync/waitgroup.go                       |  26 ++++-
+ 4 files changed, 160 insertions(+), 8 deletions(-)

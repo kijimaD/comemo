@@ -1,14 +1,15 @@
-commit e9453e05454acd5039ac0d499990fd93b11ff43b
+commit 51266761fdbe1b22fc354d7536123492a51769cf
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 16 15:55:16 2013 -0400
+Date:   Mon Sep 16 14:22:37 2013 -0400
 
-    cmd/gc: do not report fields when looking for methods
+    cmd/gc: fix divide by zero error in compiler
     
-    Fixes #6395.
+    Fixes #6399.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/13470046
+    https://golang.org/cl/13253055
 
- src/cmd/gc/subr.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/walk.c           |  2 +-
+ test/fixedbugs/issue6399.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

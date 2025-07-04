@@ -1,17 +1,14 @@
-commit a7f1e10d24ea36771c7f146bcf042b6ee32bfbcd
+commit 53523f6a7d6ca6aa6ec4a1d20af773f333284371
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 14 16:10:58 2011 -0500
+Date:   Mon Nov 14 16:03:23 2011 -0500
 
-    fmt: distinguish empty vs nil slice/map in %#v
+    encoding/json: decode [] as empty slice, not nil slice
     
-    Also update Scanf tests to cope with DeepEqual
-    distinguishing empty vs nil slice.
+    Test was already present, but bug in reflect.DeepEqual hid this bug.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5375091
+    https://golang.org/cl/5375090
 
- src/pkg/fmt/fmt_test.go  | 4 ++++
- src/pkg/fmt/print.go     | 8 ++++++++
- src/pkg/fmt/scan_test.go | 8 ++++----
- 3 files changed, 16 insertions(+), 4 deletions(-)
+ src/pkg/encoding/json/decode.go | 4 ++++
+ 1 file changed, 4 insertions(+)

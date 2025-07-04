@@ -1,18 +1,20 @@
-commit 3046ae927d7664a63bb8c3a2fb3b9ca95bcf93de
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Mar 16 14:45:42 2022 -0400
+commit c2966ae272b7ddd44ee6f93beb32da925e8336df
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 18 16:34:44 2021 -0700
 
-    cmd/doc: use the 'go' command from buildCtx.GOROOT, not whatever is in $PATH
+    [dev.typeparams] cmd/compile/internal/ir: more position details in dump
     
-    For #51483.
+    When dumping node positions, include column position and the full
+    inlining tree. These details are helpful for diagnosing "toolstash
+    -cmp" failures due to subtly changing positions.
     
-    Change-Id: I6150fdf97763d858e9ab012e807515da3387c25f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393366
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I953292d6c01899fd98e2f315bafaa123c4d98ffd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321089
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/doc/dirs.go                         | 16 +++++++++++----
- src/cmd/go/testdata/script/mod_doc_path.txt | 30 +++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ir/fmt.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

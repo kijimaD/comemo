@@ -1,31 +1,39 @@
-commit 1aa336209363d9715e145244c7b22620ac0f0584
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Jun 3 15:44:32 2025 -0400
+commit 2b82a4f488179a62a69dd318ea62f0624641ae63
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 18 20:54:55 2024 +0000
 
-    Revert "cmd/compile: Enable inlining of tail calls"
+    runtime: track frame pointer while in syscall
     
-    This reverts CL 650455 and CL 655816.
+    Currently the runtime only tracks the PC and SP upon entering a syscall,
+    but not the FP (BP). This is mainly for historical reasons, and because
+    the tracer (which uses the frame pointer unwinder) does not need it.
     
-    Reason for revert: it causes #73747. Properly fixing it gets into
-    trickiness with defer/recover, wrapper, and inlining. We're late
-    in the Go 1.25 release cycle.
+    Until it did, of course, in CL 567076, where the tracer tries to take a
+    stack trace of a goroutine that's in a syscall from afar. It tries to
+    use gp.sched.bp and lots of things go wrong. It *really* should be using
+    the equivalent of gp.syscallbp, which doesn't exist before this CL.
     
-    Fixes #73747.
+    This change introduces gp.syscallbp and tracks it. It also introduces
+    getcallerfp which is nice for simplifying some code. Because we now have
+    gp.syscallbp, we can also delete the frame skip count computation in
+    traceLocker.GoSysCall, because it's now the same regardless of whether
+    frame pointer unwinding is used.
     
-    Change-Id: Ifb343d522b18fec3fec73a7c886678032ac8e4df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/678575
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Fixes #66889.
+    
+    Change-Id: Ib6d761c9566055e0a037134138cb0f81be73ecf7
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-nocgo
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580255
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/inline/inl.go             |  2 +-
- .../internal/inline/interleaved/interleaved.go     | 28 +++++++---------------
- src/cmd/compile/internal/ir/expr.go                |  1 +
- src/cmd/compile/internal/ir/node_gen.go            |  4 ++--
- src/cmd/compile/internal/ir/stmt.go                |  2 +-
- src/cmd/compile/internal/noder/reader.go           |  3 ++-
- src/cmd/compile/internal/ssagen/ssa.go             |  2 +-
- src/cmd/compile/internal/typecheck/stmt.go         |  2 +-
- src/cmd/compile/internal/walk/stmt.go              |  3 +--
- test/tailcall.go                                   | 10 ++++----
- 10 files changed, 25 insertions(+), 32 deletions(-)
+ src/runtime/cgocall.go             |  3 ++-
+ src/runtime/export_windows_test.go |  7 +------
+ src/runtime/proc.go                | 30 +++++++++++++++++++-----------
+ src/runtime/runtime2.go            | 15 +++++++++++++++
+ src/runtime/sizeof_test.go         |  2 +-
+ src/runtime/traceruntime.go        | 17 +----------------
+ src/runtime/tracestack.go          | 20 +++++++++++++++-----
+ 7 files changed, 54 insertions(+), 40 deletions(-)

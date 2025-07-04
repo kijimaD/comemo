@@ -1,17 +1,16 @@
-commit 5187baeb4e858cb88993392463cf17615ad45e24
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Mon Aug 19 15:46:15 2024 -0700
+commit c3458e35f4166473053dadeb645130b118c43ce7
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 17 10:39:00 2023 -0400
 
-    os: use t.TempDir in TestMkdirTemp, TestCreateTemp
+    doc/go1.21: use consistent capitalization for amd64
     
-    This simplifies tests a little bit.
+    Fixes #61388
     
-    Change-Id: I910e3c97cfd20b26951d2a4909d86b5be06bde56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606899
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I173498b57081aacf772f0d3a9ce0a76ed7b19385
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510295
+    Auto-Submit: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Austin Clements <austin@google.com>
 
- src/os/tempfile_test.go | 30 +++++-------------------------
- 1 file changed, 5 insertions(+), 25 deletions(-)
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

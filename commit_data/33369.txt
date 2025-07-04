@@ -1,27 +1,23 @@
-commit 1114d403fa7d16247a3c569978290d0827f224a1
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Aug 19 00:20:00 2017 -0400
+commit 67b39859ec19d1ac6d5ba64d22955b0456e590bd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 14 09:56:51 2017 -0700
 
-    cmd/go/internal/cache: implement build artifact cache
+    runtime: remove unused global variable emptystring
     
-    The cache is stored in $GOCACHE, which is printed by go env and
-    defaults to a subdirectory named "go-build" in the standard user cache
-    directory for the host operating system.
+    Last runtime use was removed in https://golang.org/cl/133700043,
+    September 2014.
     
-    This CL only implements the cache. Future CLs will store data in it.
+    Replace plan9 syscall uses with plan9-specific variable.
     
-    Change-Id: I0b4965a9e50f852e17e44ec3d6dafe05b58f0d22
-    Reviewed-on: https://go-review.googlesource.com/68116
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ifb910c021c1419a7c782959f90b054ed600d9e19
+    Reviewed-on: https://go-review.googlesource.com/55450
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/dist/deps.go                    |  26 +++-
- src/cmd/go/internal/cache/cache.go      | 238 +++++++++++++++++++++++++++++++-
- src/cmd/go/internal/cache/cache_test.go | 106 ++++++++++++++
- src/cmd/go/internal/cache/default.go    |  77 +++++++++++
- src/cmd/go/internal/cache/hash.go       |  40 +++++-
- src/cmd/go/internal/cache/hash_test.go  |   2 +-
- src/cmd/go/internal/work/action.go      |   8 +-
- src/cmd/go/internal/work/buildid.go     |  18 +--
- 8 files changed, 482 insertions(+), 33 deletions(-)
+ src/runtime/runtime2.go       | 17 ++++++++---------
+ src/syscall/asm_plan9_386.s   |  6 +++---
+ src/syscall/asm_plan9_amd64.s |  6 +++---
+ src/syscall/asm_plan9_arm.s   |  2 +-
+ src/syscall/syscall_plan9.go  |  2 ++
+ 5 files changed, 17 insertions(+), 16 deletions(-)

@@ -1,16 +1,30 @@
-commit 07ced37013b6b3bdb9cd02def52821a09a4e9c58
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 4 11:17:49 2020 -0400
+commit a4c579e8f7c8129b2c27779f206ebd2c9b393633
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Tue Dec 17 16:40:46 2019 -0800
 
-    syscall: document float arguments and results on windows/amd64
+    runtime: emit trace event in direct semaphore handoff
     
-    Updates #6510.
-    Updates #37273.
+    When a goroutine yields the remainder of its time to another goroutine
+    during direct semaphore handoff (as in an Unlock of a sync.Mutex in
+    starvation mode), it needs to signal that change to the execution
+    tracer. The discussion in CL 200577 didn't reach consensus on how best
+    to describe that, but pointed out that "traceEvGoSched / goroutine calls
+    Gosched" could be confusing.
     
-    Change-Id: Id2732fcff0a0c5e4a324cd33ef995c7e528f5e1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236562
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Emit a "traceEvGoPreempt / goroutine is preempted" event in this case,
+    to allow the execution tracer to find a consistent event ordering
+    without being both specific and inaccurate about why the active
+    goroutine has changed.
+    
+    Fixes #36186
+    
+    Change-Id: Ic4ade19325126db2599aff6aba7cba028bb0bee9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211797
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.15.html            |  6 +++---
- src/syscall/dll_windows.go | 10 +++++++++-
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/trace/trace_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/runtime/proc.go         |  5 ++++-
+ src/runtime/sema.go         |  6 +++---
+ 3 files changed, 40 insertions(+), 4 deletions(-)

@@ -1,26 +1,31 @@
-commit 1f83a8c16cf1e9141e081759fb0f6c6f2acb5fdc
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 31 14:09:41 2021 -0700
+commit 5ae70b85c6c40adb4e785bf988799df9c0a57e16
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 14:56:49 2020 -0500
 
-    cmd/compile: use the zero value for results of impossible indexing
+    [dev.regabi] cmd/compile: cleanup preparing for concrete types, 2
     
-    type A [0]int
-    var a A
-    x := a[i]
+    Avoid using the same variable for two different concrete
+    Node types in other files (beyond walk). This will smooth the
+    introduction of specific constructors, replacing ir.Nod and friends.
     
-    Use the zero value for x instead of the "impossible" value. That lets
-    us at least compile code like this with -B, even though it can't
-    possibly run correctly.
+    Passes buildall w/ toolstash -cmp.
     
-    Fixes #48092
+    Replay of CL 275885, lost to the bad-merge history rewrite.
     
-    Change-Id: Idad5cfab49e05f375c069b05addceed68a15299f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346589
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I0da89502a0bd636b8766f01b6f843c7821b3e9ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277955
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go |  3 ++-
- test/fixedbugs/issue48092.go           | 17 +++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/alg.go       | 20 ++++----
+ src/cmd/compile/internal/gc/closure.go   | 32 ++++++-------
+ src/cmd/compile/internal/gc/inl.go       | 19 +++-----
+ src/cmd/compile/internal/gc/order.go     | 45 +++++++-----------
+ src/cmd/compile/internal/gc/range.go     | 30 +++++-------
+ src/cmd/compile/internal/gc/select.go    | 20 +++-----
+ src/cmd/compile/internal/gc/sinit.go     | 82 ++++++++------------------------
+ src/cmd/compile/internal/gc/subr.go      | 26 +++++-----
+ src/cmd/compile/internal/gc/swt.go       |  4 +-
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++--
+ src/cmd/compile/internal/gc/walk.go      | 31 ++++++++----
+ 11 files changed, 126 insertions(+), 191 deletions(-)

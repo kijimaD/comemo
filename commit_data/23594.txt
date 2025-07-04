@@ -1,16 +1,22 @@
-commit 85938714e9619e1db064ad11a94ac987d6c24ac0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 30 16:50:36 2015 -0700
+commit 9b3d9230aac0e8433add721a67f22ad6c27267ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 28 15:25:06 2015 -0700
 
-    mime/multipart: fix bug when body contains prefix of the boundary
+    math/big: rename (*Float).Format to (*Float).Text
     
-    Fixes #10616
+    This paves the way for a fmt-compatible (*Float).Format method.
+    A better name then Text is still desirable (suggestions welcome).
     
-    Change-Id: I4ef25eb0be6ccf474976fdb5087dd2c62c66c510
-    Reviewed-on: https://go-review.googlesource.com/11811
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This is partly fixing issue #10938.
+    
+    Change-Id: I59c20a8cee11f5dba059fe0f38b414fe75f2ab13
+    Reviewed-on: https://go-review.googlesource.com/10493
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/mime/multipart/multipart.go      | 35 +++++++++++++++++++++---
- src/mime/multipart/multipart_test.go | 52 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 84 insertions(+), 3 deletions(-)
+ src/math/big/bits_test.go         |  2 +-
+ src/math/big/float.go             |  2 +-
+ src/math/big/float_test.go        | 50 +++++++++++++++++++--------------------
+ src/math/big/floatconv_test.go    |  8 +++----
+ src/math/big/floatexample_test.go |  6 ++---
+ src/math/big/ftoa.go              | 14 +++++------
+ 6 files changed, 40 insertions(+), 42 deletions(-)

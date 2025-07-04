@@ -1,43 +1,18 @@
-commit a8e55538af40905961c263d980760b76e9c43593
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 6 16:11:17 2021 -0400
+commit fa63d243333a735e81906bafc3951a4697fb6dee
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Sep 22 11:23:29 2020 +0200
 
-    cmd/internal/objabi: make GOEXPERIMENT be a diff from default experiments
+    cmd/compile: switch to typed for const memory folding amd64 rules
     
-    Right now the rules around handling default-on experiments are
-    complicated and a bit inconsistent. Notably, objabi.GOEXPERIMENT is
-    set to a comma-separated list of enabled experiments, but this may not
-    be the string a user should set the GOEXPERIMENT environment variable
-    to get that list of experiments: if an experiment is enabled by
-    default but gets turned off by GOEXPERIMENT, then the string we report
-    needs to include "no"+experiment to capture that default override.
+    Passes
     
-    This complication also seeps into the version string we print for "go
-    tool compile -V", etc. This logic is further complicated by the fact
-    that it only wants to include an experiment string if the set of
-    experiments varies from the default.
+      gotip build -toolexec 'toolstash -cmp' -a std
     
-    This CL rethinks how we handle default-on experiments. Now that
-    experiment state is all captured in a struct, we can simplify a lot of
-    this logic. objabi.GOEXPERIMENT will be set based on the delta from
-    the default set of experiments, which reflects what a user would
-    actually need to pass on the command line. Likewise, we include this
-    delta in the "-V" output, which simplifies this logic because if
-    there's nothing to show in the version string, the delta will be
-    empty.
-    
-    Change-Id: I7ed307329541fc2c9f90edd463fbaf8e0cc9e8ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307819
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ide811e4b4130a0bd2ac560375fd7634bc51be251
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256220
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/script_test.go                          |  2 +-
- src/cmd/go/testdata/script/README                  |  2 +-
- .../go/testdata/script/build_tag_goexperiment.txt  | 16 +++--
- src/cmd/internal/objabi/exp.go                     | 69 +++++++++++++---------
- src/cmd/internal/objabi/flag.go                    | 18 +++---
- src/cmd/internal/objabi/util.go                    |  2 +-
- src/internal/goexperiment/flags.go                 |  5 ++
- 7 files changed, 62 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  116 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1892 +++++++++++++-------------
+ 2 files changed, 1004 insertions(+), 1004 deletions(-)

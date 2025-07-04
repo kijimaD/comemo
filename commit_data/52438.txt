@@ -1,19 +1,27 @@
-commit cd25a3a416d2752cc8a61e1cad09c4fc8b549ecc
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Mar 28 19:57:40 2023 +0000
+commit 8b389eb2be2d66563669c74f6515b5f537542ce9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Apr 18 10:05:24 2022 -0700
 
-    Revert "cmd/link: use path from "cc --print-prog-name ar" for c-archive buildmode"
+    reflect: derive correct Value method in panic messages
     
-    This reverts commit https://go-review.git.corp.google.com/c/go/+/479775
+    methodName was brittle in that it assumed exactly where
+    in the call stack the exported Value method is.
+    This broke since recent inlining optimizations changed
+    exactly which frame the exported method was located.
+    Instead, iterate through a sufficient number of stack entries
+    and dynamically determined the exported Value method name.
     
-    Reason for revert: fails with ios-arm64-corellium builder
+    This is more maintainable, but slightly slower.
+    The slowdown is acceptable since panics are not the common case.
     
-    Change-Id: Iae61b994a39ff6c70af8a302f7a46de0097edf3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479917
-    Auto-Submit: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I9fc939627007d7bae004b4969516ad44be09c270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403494
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 39 ++++++++++++++++-----------------------
- 1 file changed, 16 insertions(+), 23 deletions(-)
+ src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 48 +++++++++++++++++++++++-------------------------
+ 2 files changed, 68 insertions(+), 25 deletions(-)

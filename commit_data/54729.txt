@@ -1,30 +1,35 @@
-commit da7ac77380f68ed855ab4565c4ef2217249c53c2
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Oct 13 10:32:57 2023 +0700
+commit 14018c8becc385f79f62f9cdf24cab93fe3e0cdc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 1 16:04:50 2022 -0700
 
-    cmd/compile: fix funcdata encode for functions with large frame size
+    runtime: retry thread creation on EAGAIN
     
-    The funcdata is encoded as varint, with the upper limit set to 1e9.
-    However, the stack offsets could be up to 1<<30. Thus emitOpenDeferInfo
-    will trigger an ICE for function with large frame size.
+    This copies the logic we use in runtime/cgo, when calling pthread_create,
+    into runtime proper, when calling newosproc.
     
-    By using binary.PutUvarint, the frame offset could be encoded correctly
-    for value larger than 1<<35, allow the compiler to report the error.
+    We only do this in newosproc, not newosproc0, because in newosproc0 we
+    need a nosplit function literal, and we need to pass arguments to it through
+    newosproc, which is a pain. Also newosproc0 is only called at process
+    startup, when thread creation is less likely to fail anyhow.
     
-    Further, the runtime also do validation when reading in the funcdata
-    value, so a bad offset won't likely cause mis-behavior.
+    Fixes #49438
     
-    Fixes #52697
-    
-    Change-Id: I084c243c5d24c5d31cc22d5b439f0889e42b107c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535077
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ia26813952fdbae8aaad5904c9102269900a07ba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447175
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go         | 24 +++++++-----------------
- src/cmd/compile/internal/types2/stdlib_test.go |  1 +
- src/go/types/stdlib_test.go                    |  1 +
- test/fixedbugs/issue52697.go                   | 25 +++++++++++++++++++++++++
- 4 files changed, 34 insertions(+), 17 deletions(-)
+ src/runtime/os3_solaris.go        |  6 ++++--
+ src/runtime/os_aix.go             | 13 +++----------
+ src/runtime/os_darwin.go          |  4 +++-
+ src/runtime/os_dragonfly.go       |  5 ++++-
+ src/runtime/os_freebsd.go         | 10 +++++++---
+ src/runtime/os_linux.go           | 16 ++++++++++++----
+ src/runtime/os_netbsd.go          | 12 ++++++++----
+ src/runtime/os_openbsd_libc.go    |  4 +++-
+ src/runtime/os_openbsd_syscall.go | 12 ++++++++----
+ src/runtime/retry.go              | 23 +++++++++++++++++++++++
+ 10 files changed, 75 insertions(+), 30 deletions(-)

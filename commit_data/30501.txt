@@ -1,28 +1,21 @@
-commit 5bfd1ef036f2cd549f78a0acd3e2666b42bcc07d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Feb 2 19:47:59 2017 -0500
+commit 9c2037fbcf1a732f55e29062f3d30ddd21ca36d3
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Nov 8 17:11:18 2016 -0500
 
-    cmd/compile: get rid of "volatile" in SSA
+    runtime/pprof/internal/protopprof: skip TestTranslateCPUProfileWithSamples if < 2 mappings
     
-    A value is "volatile" if it is a pointer to the argument region
-    on stack which will be clobbered by function call. This is used
-    to make sure the value is safe when inserting write barrier calls.
-    The writebarrier pass can tell whether a value is such a pointer.
-    Therefore no need to mark it when building SSA and thread this
-    information through.
+    A Go binary may only have 1 executable memory region if it has been
+    linked using internal linking. This change means that the test will
+    be skipped if this is the case, rather than fail.
     
-    Passes "toolstash -cmp" on std.
+    Fixes #17852.
     
-    Updates #17583.
-    
-    Change-Id: Idc5fc0d710152b94b3c504ce8db55ea9ff5b5195
-    Reviewed-on: https://go-review.googlesource.com/36835
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I59459a0f90ae8963aeb9908e5cb9fb64d7d0e0f4
+    Reviewed-on: https://go-review.googlesource.com/32920
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             | 112 +++++++++++--------------
- src/cmd/compile/internal/ssa/gen/genericOps.go |   7 +-
- src/cmd/compile/internal/ssa/opGen.go          |   7 --
- src/cmd/compile/internal/ssa/writebarrier.go   |  24 ++++--
- 4 files changed, 69 insertions(+), 81 deletions(-)
+ src/runtime/pprof/internal/protopprof/protopprof_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

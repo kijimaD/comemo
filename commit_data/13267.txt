@@ -1,12 +1,18 @@
-commit 9723de5d8b57263e1bf8e62a82e09a1c637d7a49
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 4 10:41:30 2012 -0400
+commit 6e3d87f315f80ff6b5c0275c98a04f635679ef6b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 4 07:18:06 2012 -0700
 
-    doc/install: we don't print 'The compiler is 6g' anymore
+    net/textproto: add benchmark, cleanup, update comment
     
-    R=golang-dev, bradfitz
+    The cleanup also makes it ~5% faster, but that's
+    not the point of this CL.
+    
+    Optimizations can come in future CLs.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6273050
+    https://golang.org/cl/6286043
 
- doc/install-source.html | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/net/textproto/reader.go      | 31 ++++++++++++++++++-------------
+ src/pkg/net/textproto/reader_test.go | 17 +++++++++++++++++
+ 2 files changed, 35 insertions(+), 13 deletions(-)

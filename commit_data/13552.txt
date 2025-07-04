@@ -1,17 +1,16 @@
-commit a4ac339f438f07e815b14338c5cccb60eeaac0ad
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 1 16:37:06 2012 -0700
+commit 8dbeb0ad072354e84463f38aef790cc1d69352e2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jul 31 23:26:33 2012 -0400
 
-    exp/types: enable cycle checks again
+    test/run.go: fix compiledir test on windows
+        we can't import "./bug0" on windows, as it will trigger
+    "import path contains invalid character ':'" error.
+        instead, we pass "-D." and "-I." to gc to override this
+    behavior. this idea is due to remyoudompheng.
     
-    Process a package's object in a reproducible
-    order (rather then in map order) so that we
-    get error messages in reproducible order.
-    
-    R=r
+    R=golang-dev, r, alex.brainman, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6449076
+    https://golang.org/cl/6441074
 
- src/pkg/exp/types/check.go           | 24 ++++++++++++++++++------
- src/pkg/exp/types/testdata/test0.src | 26 +++++++++++++++-----------
- 2 files changed, 33 insertions(+), 17 deletions(-)
+ test/run.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

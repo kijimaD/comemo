@@ -1,24 +1,20 @@
-commit a4dce128035ebeb61cc3db11bf99d7884839935f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 20 19:41:43 2016 -0700
+commit f8f4cfa5beb64f4413c75400b5ad6d979f65451f
+Author: Olivier Poitrey <rs@dailymotion.com>
+Date:   Wed Jan 20 22:53:50 2016 -0800
 
-    cmd/compile: unexport convlit
+    net/http: make Client propagate Request.Cancel over redirected requests
     
-    Add a special helper for its one external use.
+    On HTTP redirect, the HTTP client creates a new request and don't copy
+    over the Cancel channel. This prevents any redirected request from being
+    cancelled.
     
-    This is in preparation for an upcoming CL.
+    Fixes #14053
     
-    Passes toolstash -cmp / buildall.
-    
-    Change-Id: I9d3463792afe220cc4bc89269bdecf0279abd281
-    Reviewed-on: https://go-review.googlesource.com/20933
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I467cdd4aadcae8351b6e9733fc582b7985b8b9d3
+    Reviewed-on: https://go-review.googlesource.com/18810
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go      |  4 +--
- src/cmd/compile/internal/gc/const.go     | 53 ++++++++++++++++++--------------
- src/cmd/compile/internal/gc/export.go    |  2 +-
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- src/cmd/compile/internal/x86/ggen.go     |  3 +-
- 5 files changed, 35 insertions(+), 29 deletions(-)
+ src/net/http/client.go      |  1 +
+ src/net/http/client_test.go | 18 +++++++++++++++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)

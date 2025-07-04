@@ -1,18 +1,15 @@
-commit 3efe36d4c46c609b036f3d6eb209788aa71ec57f
-Author: Todd Neal <todd@tneal.org>
-Date:   Mon Aug 24 19:11:35 2015 -0500
+commit 0a133cddd5f74760dac2171788cee29bada83ca7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 3 20:28:56 2015 -0700
 
-    runtime: fix nmspinning comparison
+    [dev.ssa] cmd/compile/ssa: mark race/nodfp as unimplemented
     
-    nmspinning has a value range of [0, 2^31-1].  Update the comment to
-    indicate this and fix the comparison so it's not always false.
+    Partly fixes the build, by punting.
+    Other things have broken in the meantime.
     
-    Fixes #11280
-    
-    Change-Id: Iedaf0654dcba5e2c800645f26b26a1a781ea1991
-    Reviewed-on: https://go-review.googlesource.com/13877
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I1e2b8310057cbbbd9ffc501ef51e744690e00726
+    Reviewed-on: https://go-review.googlesource.com/11875
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc1.go    | 2 +-
- src/runtime/runtime2.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,24 +1,26 @@
-commit 40f6fbf147fd72da1f6a898375af9a965c7a4659
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Dec 1 14:04:35 2023 -0500
+commit f2884bf42317011371440d90805e63248d94c45d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 13 14:19:59 2022 -0500
 
-    cmd/link: update flag doc
+    os: deflake TestPipeEOF and TestFifoEOF
     
-    Update the go doc for linker flags. Remove flags that no longer
-    exist. Also remove flags that are intended for debugging the
-    linker from user docs. Add -aslr to the doc.
+    - Consolidate the two test bodies as one helper function.
+    - Eliminate arbitrary timeout.
+    - Shorten arbitrary sleeps in short mode.
+    - Simplify goroutines.
+    - Mark the tests as parallel.
     
-    The -n flag does nothing except print a nearly useless message on
-    XCOFF linking. Deprecate it.
+    Fixes #36107.
+    Updates #24164.
     
-    Fixes #64476.
-    
-    Change-Id: I518c9c6cc009eae50b7c11308348524ad6a62b69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546615
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I14fe4395963a7256cb6d2d743d348a1ade077d5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457336
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/link/doc.go               | 12 ++----------
- src/cmd/link/internal/ld/main.go  |  2 +-
- src/cmd/link/internal/ld/xcoff.go |  2 +-
- 3 files changed, 4 insertions(+), 12 deletions(-)
+ src/os/fifo_test.go | 96 +++++++++++++++--------------------------------------
+ src/os/pipe_test.go | 92 ++++++++++++++++++++++++++------------------------
+ 2 files changed, 75 insertions(+), 113 deletions(-)

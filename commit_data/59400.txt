@@ -1,27 +1,18 @@
-commit 21908c3dec35f19d283051e150143a651cc2a71f
-Author: Stefan Schlosser <bsdcode0@gmail.com>
-Date:   Tue Apr 22 15:49:26 2025 +0000
+commit 065c5d220e802e85d410a5e6adba0819ab71aeda
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Mar 8 16:23:36 2024 -0500
 
-    cmd/go/internal/vcs: include Subversion VCS build information
+    cmd/go: check checkCounters counter read only on supported platforms
     
-    The existing implementation lacks the Status function for retrieving VCS build
-    information for Subversion. As a consequence, binaries aren't stamped with the
-    Revision, CommitTime and Uncommitted information from SVN repositories.
+    Telemetry counters writing is disabled on certain platforms.
+    See x/telemetry/internal/telemetry.DisabledOnPlatform.
     
-    This change provides the svnStatus function and retrieves the information by
-    running svn info and svn status commands.
+    For #66205
     
-    Fixes #73444
-    
-    Change-Id: Ie6d95ffbb3a3c580cc42128ad1f8d82a869c91f2
-    GitHub-Last-Rev: 3472222865638a13b122c8995561166cfe228fa8
-    GitHub-Pull-Request: golang/go#73446
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666875
+    Change-Id: I833e15ae33fb27e09d67fc77b921498476237176
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570196
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
 
- src/cmd/go/internal/vcs/vcs.go                     | 30 +++++++
- .../go/testdata/script/version_buildvcs_svn.txt    | 96 ++++++++++++++++++++++
- 2 files changed, 126 insertions(+)
+ src/cmd/go/script_test.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

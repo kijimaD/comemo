@@ -1,18 +1,21 @@
-commit ef220dc53ed204386b30879ff1882b70a7fd602b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Mar 28 00:21:57 2020 +0000
+commit bd622872f4fc2bf09b75f59c461e5c38e10f91ec
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Oct 18 17:39:31 2019 -0400
 
-    Revert "runtime: lock mtxpoll in AIX netpollBreak"
+    doc: add skeleton module documentation with headings
     
-    This reverts CL 225618.
+    Sections will be filled in with individual CLs before Go 1.14.
     
-    This is causing TestNetpollBreak to fail on AIX more often than not.
+    NOTE: This document is currently in Markdown for ease of writing /
+    reviewing. Before Go 1.14, we will either ensure that x/website
+    can render Markdown (flavor TBD) or check in a rendered HTML file that
+    can be displayed directly.
     
-    Change-Id: Ia3c24041ead4b320202f7f5b17a6b286f639a689
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226198
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #33637
+    
+    Change-Id: Icd43fa2bdb7d256b28a56b93214b70343f43492e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202081
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/netpoll_aix.go | 2 --
- 1 file changed, 2 deletions(-)
+ doc/modules.md | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

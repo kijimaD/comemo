@@ -1,12 +1,12 @@
-commit b38da05ab15e9414ffcbf7f5ea3cf390e16e719c
+commit 4d239bcea270a56f1554524598e49d87e5c48e4f
 Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Thu Jan 2 21:01:18 2014 +1100
+Date:   Wed Jan 1 22:26:22 2014 +1100
 
-    time: add tests for Duration.Nanoseconds, Duration.Minutes, and Duration.Hours
+    bufio: improve NewReaderSize, Peek, and UnreadByte test coverage
     
-    R=golang-codereviews, rsc, dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/42440043
+    https://golang.org/cl/42990045
 
- src/pkg/time/time_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 54 insertions(+)
+ src/pkg/bufio/bufio_test.go | 37 ++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 36 insertions(+), 1 deletion(-)

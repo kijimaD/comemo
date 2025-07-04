@@ -1,46 +1,50 @@
-commit 6a4bc8d17eb6703baf0c483fb40e0d3e1f0f6af3
-Author: Ryan Currah <ryan@currah.ca>
-Date:   Tue Feb 25 15:51:56 2025 +0000
+commit 8e02e7b26af46a1d113057ac49ad440a39a45d58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 24 12:42:11 2024 -0800
 
-    cmd/go: cache coverage profile with tests
+    go/types, types2: use existing case-insensitive lookup (remove TODO)
     
-    This CL stores coverage profile data in the GOCACHE under the
-    'coverprofile' subkey alongside tests. This makes tests which use
-    coverage profiles cacheable. The values of the -coverprofile and
-    -outputdir flags are not included in the cache key to allow cached
-    profile data to be written to any output file.
+    Rather than implementing a new, less complete mechanism to check
+    if a selector exists with different capitalization, use the
+    existing mechanism in lookupFieldOrMethodImpl by making it
+    available for internal use.
     
-    Note: This is a rebase and squash from the original PRs below that
-    was created/closed/abandoned by @jproberts and @macnibblet that I
-    plan to maintain.
+    Pass foldCase parameter all the way trough to Object.sameId and
+    thus make it consistently available where Object.sameId is used.
     
-    - https://github.com/golang/go/pull/50483
-    - https://github.com/golang/go/pull/65657
+    From sameId, factor out samePkg functionality into stand-alone
+    predicate.
     
-    I made improvements to the change based on feedback from @bcmills in Gerrit
-    https://go-review.googlesource.com/c/go/+/563138.
+    Do better case distinction when reporting an error for an undefined
+    selector expression.
     
-    From @macnibblet:
+    Cleanup.
     
-    I don't know if anyone has considered the environmental impact
-    (Yes, of course, dev experience too), but on a team with 3 backend
-    developers, when I replaced our CI Golang version with this build,
-    it reduced the build time by 50%, which would have
-    equated to about 5000 hours of CI reduced in the past year.
-    
-    Fixes #23565
-    
-    Change-Id: I59a20af5ea156f990a17544cf06dc667ae7f8aa3
-    GitHub-Last-Rev: a5a1d1b9c87ff433d16f656fc8988e1cb1ce7100
-    GitHub-Pull-Request: golang/go#69339
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610564
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@golang.org>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Change-Id: I7be3cecb4976a4dce3264c7e0c49a320c87101e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558315
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/alldocs.go                            |  5 +-
- src/cmd/go/internal/test/cover.go                |  9 ++--
- src/cmd/go/internal/test/test.go                 | 64 +++++++++++++++++++-----
- src/cmd/go/testdata/script/test_cache_inputs.txt | 64 ++++++++++++++++++++++++
- 4 files changed, 124 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go   |  2 +-
+ src/cmd/compile/internal/types2/call.go       | 27 +++++-----
+ src/cmd/compile/internal/types2/expr.go       |  2 +-
+ src/cmd/compile/internal/types2/lookup.go     | 33 ++++++------
+ src/cmd/compile/internal/types2/object.go     | 23 +++++----
+ src/cmd/compile/internal/types2/predicates.go | 12 ++++-
+ src/cmd/compile/internal/types2/scope.go      | 34 ++++++-------
+ src/cmd/compile/internal/types2/unify.go      |  2 +-
+ src/go/types/builtins.go                      |  2 +-
+ src/go/types/call.go                          | 28 +++++-----
+ src/go/types/expr.go                          |  2 +-
+ src/go/types/lookup.go                        | 33 ++++++------
+ src/go/types/object.go                        | 23 +++++----
+ src/go/types/predicates.go                    | 12 ++++-
+ src/go/types/scope.go                         | 34 ++++++-------
+ src/go/types/unify.go                         |  2 +-
+ src/internal/types/testdata/check/issues0.go  |  2 +-
+ src/internal/types/testdata/check/lookup.go   | 73 +++++++++++++++++++++++++++
+ test/fixedbugs/issue22794.go                  |  6 +--
+ 19 files changed, 223 insertions(+), 129 deletions(-)

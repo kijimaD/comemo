@@ -1,19 +1,16 @@
-commit 12cd55c062d6062a64076cb37f12ab7646df1be7
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Wed Dec 25 17:24:07 2019 +0100
+commit 5f4aa5d79fba270d6a14f2a55999b5b6ccec2326
+Author: Alex Gaynor <alex@alloy.us>
+Date:   Fri Oct 4 20:33:00 2019 +0000
 
-    io/ioutil: reject path separators in TempDir, TempFile pattern
+    bufio: simplify bufio.Reader.ReadBytes to avoid an extra loop over a slice
     
-    Fixes #33920
-    
-    Change-Id: I2351a1caa80c086ff5a8e02aad70d996be7aac35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212597
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Icb1c3eb30147180ba5949a25c65b48307b14c1ca
+    GitHub-Last-Rev: 937ae8641321139b9165ce7d57abeac5a67dc24d
+    GitHub-Pull-Request: golang/go#34704
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199157
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/io/ioutil/tempfile.go      | 19 ++++++++--
- src/io/ioutil/tempfile_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++
- src/os/os_test.go              |  2 +-
- 3 files changed, 96 insertions(+), 4 deletions(-)
+ src/bufio/bufio.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

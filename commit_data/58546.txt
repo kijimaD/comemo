@@ -1,28 +1,32 @@
-commit 8071f2a1697c2a8d7e93fb1f45285f18303ddc76
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jan 24 16:29:13 2025 -0500
+commit 3ff5632d63b820fbcbb4b69e47ec586d59bf5ea5
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Sep 26 13:58:37 2022 -0500
 
-    runtime: mapiter linkname compatibility layer
+    cmd/internal/obj/ppc64: cleanup and remove usage of getimpliedreg
     
-    This CL reintroduces the various mapiter* linkname functions with a
-    compatibility layer that is careful to maintain compatibility with users
-    of the linkname.
+    getimpliedreg was used to set a default register in cases where
+    one was implied but not set by the assembler or compiler.
     
-    The wrappers are straightforward. Callers of these APIs get an extra
-    layer of indirection, with their hiter containing a pointer to the real
-    maps.Iter. These users will take a minor performance hit from the extra
-    allocation, but this approach should have good long-term
-    maintainability.
+    In most cases with constant values, R0 is implied, and is the value
+    0 by architectural design.  In those cases, R0 is always used, so
+    treat 0 and REG_R0 as interchangeable in those encodings.
     
-    Fixes #71408.
+    Similarly, the pseudo-register SP or FP is used to in place of the
+    stack pointer, always R1 on PPC64. Unconditionally set this during
+    classification of NAME_AUTO and NAME_PARAM as it may be 0.
     
-    Change-Id: I6a6a636c7574bbd670ff5243dfeb63dfba6dc611
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/643899
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The case where REGSB might be returned from getimpliedreg is never
+    used. REGSB is aliased to R2, but in practice it is either R0 or R2
+    depending on buildmode. See symbolAccess in asm9.go for an example.
+    
+    Change-Id: I7283e66d5351f56a7fe04cee38714910eaa73cb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434775
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/linkname_swiss.go | 211 ++++++++++++++++++++++++++++++++++++++++++
- src/runtime/map_swiss.go      | 105 ---------------------
- 2 files changed, 211 insertions(+), 105 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go | 58 ++++++--------------------------------
+ 1 file changed, 8 insertions(+), 50 deletions(-)

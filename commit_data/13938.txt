@@ -1,25 +1,17 @@
-commit 65c7dc4ace97520bc02b8986cb2a825ff70ab7e1
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Sep 24 16:52:43 2012 -0400
+commit 54af752865d4759eb49437904f3a2d04d3779cc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 15:53:12 2012 -0400
 
-    crypto/tls: support session ticket resumption.
+    cmd/gc: fix escape analysis bug
     
-    Session resumption saves a round trip and removes the need to perform
-    the public-key operations of a TLS handshake when both the client and
-    server support it (which is true of Firefox and Chrome, at least).
+    Was not handling &x.y[0] and &x.y.z correctly where
+    y is an array or struct-valued field (not a pointer).
     
-    R=golang-dev, bradfitz, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6555051
+    https://golang.org/cl/6551059
 
- src/pkg/crypto/tls/common.go                  |  19 +
- src/pkg/crypto/tls/conn.go                    |   2 +
- src/pkg/crypto/tls/handshake_client.go        |   5 +-
- src/pkg/crypto/tls/handshake_messages.go      | 101 ++++-
- src/pkg/crypto/tls/handshake_messages_test.go |  21 +
- src/pkg/crypto/tls/handshake_server.go        | 526 +++++++++++++++++++-------
- src/pkg/crypto/tls/handshake_server_test.go   | 413 +++++++++++++++++---
- src/pkg/crypto/tls/prf.go                     |  21 +-
- src/pkg/crypto/tls/prf_test.go                |  15 +-
- src/pkg/crypto/tls/ticket.go                  | 182 +++++++++
- 10 files changed, 1096 insertions(+), 209 deletions(-)
+ src/cmd/gc/esc.c |  8 +++++++-
+ test/escape2.go  | 18 ++++++++++++++++++
+ test/escape4.go  | 18 ++++++++++++++++++
+ 3 files changed, 43 insertions(+), 1 deletion(-)

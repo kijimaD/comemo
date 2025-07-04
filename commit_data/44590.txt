@@ -1,28 +1,34 @@
-commit cd3b4ca9f20fd14187ed4cdfdee1a02ea87e5cd8
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Mar 2 10:00:53 2021 -0800
+commit 407bf0ca67200463cdd451937623078e0240335e
+Author: Alexander Klauer <Alexander.Klauer@googlemail.com>
+Date:   Mon Jun 29 16:02:07 2020 +0000
 
-    archive/zip: fix panic in Reader.Open
+    reflect: add parentheses to properly bind <- in ChanOf’s string
     
-    When operating on a Zip file that contains a file prefixed with "../",
-    Open(...) would cause a panic in toValidName when attempting to strip
-    the prefixed path components.
+    Adds parentheses so as to properly bind <- to the right most
+    channel.
+    This meant that previously given:
     
-    Fixes CVE-2021-27919
-    Fixes #44916
+       ChanOf(<-chan T)
     
-    Change-Id: Ic755d8126cb0897e2cbbdacf572439c38dde7b35
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1004761
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Reviewed-by: Russ Cox <rsc@google.com>
-    Reviewed-by: Katie Hockman <katiehockman@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300489
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    it would mistakenly try to look up the type as
+    
+        chan <-chan T
+    
+    instead of
+    
+        chan (<-chan T)
+    
+    Fixes #39897
+    
+    Change-Id: I8564916055f5fadde3382e41fe8820a1071e5f13
+    GitHub-Last-Rev: f8f2abe8d4c9e3d1414c89cadca8a16ce5cdeab9
+    GitHub-Pull-Request: golang/go#39898
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240280
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/reader.go      |  2 +-
- src/archive/zip/reader_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 1 deletion(-)
+ src/reflect/all_test.go | 16 ++++++++++++++++
+ src/reflect/type.go     | 12 ++++++++++--
+ 2 files changed, 26 insertions(+), 2 deletions(-)

@@ -1,46 +1,19 @@
-commit 093049b3709eda7537ece92a2991918cf53782d6
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Feb 28 16:31:19 2020 -0500
+commit 4a9b30cfc9b429971f03a2fbb0587aba994b3fec
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 14 11:17:18 2019 -0400
 
-    cmd/go: make module zip extraction more robust
+    [dev.link] cmd/internal/goobj2: provide accessor methods for flags
     
-    Currently, we extract module zip files to temporary directories, then
-    atomically rename them into place. On Windows, this can fail with
-    ERROR_ACCESS_DENIED if another process (antivirus) has files open
-    before the rename. In CL 220978, we repeated the rename operation in a
-    loop over 500 ms, but this didn't solve the problem for everyone.
+    Per Jeremy's comment in CL 199643. This makes the code read
+    better.
     
-    A better solution will extract module zip files to their permanent
-    locations in the cache and will keep a ".partial" marker file,
-    indicating when a module hasn't been fully extracted (CL 221157).
-    This approach is not safe if current versions of Go access the module
-    cache concurrently, since the module directory is detected with a
-    single os.Stat.
-    
-    In the interim, this CL makes two changes:
-    
-    1. Flaky file system operations are repeated over 2000 ms to reduce
-    the chance of this error occurring.
-    2. cmd/go will now check for .partial files created by future
-    versions. If a .partial file is found, it will lock the lock file,
-    then remove the .partial file and directory if needed.
-    
-    After some time has passed and Go versions lacking this CL are no
-    longer supported, we can start extracting module zip files in place.
-    
-    Updates #36568
-    
-    Change-Id: I467ee11aa59a90b63cf0e3e761c4fec89d57d3b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221820
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: If270aecd712a27fb52e3faf5a4339200327d9ffe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201023
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modcmd/verify.go               | 11 ++--
- src/cmd/go/internal/modfetch/cache.go              | 40 +++++++++++++--
- src/cmd/go/internal/modfetch/fetch.go              | 58 ++++++++++++++--------
- src/cmd/go/internal/modload/build.go               |  4 +-
- src/cmd/go/internal/robustio/robustio_flaky.go     |  2 +-
- .../go/testdata/script/mod_download_partial.txt    | 54 ++++++++++++++++++++
- 6 files changed, 136 insertions(+), 33 deletions(-)
+ src/cmd/internal/goobj/readnew.go         |  6 +++---
+ src/cmd/internal/goobj2/objfile.go        |  9 +++++++++
+ src/cmd/link/internal/objfile/objfile2.go | 16 ++++++++--------
+ 3 files changed, 20 insertions(+), 11 deletions(-)

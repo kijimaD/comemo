@@ -1,19 +1,19 @@
-commit ac313524fe4997b80a4221647f0da79d0e07b88e
-Author: zlasd <zlasd@hotmail.com>
-Date:   Sun Mar 27 21:17:53 2022 +0800
+commit 991dca0112c9c81c384b32d413a693ff4751c3ab
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 3 11:13:38 2021 -0400
 
-    reflect: fix Value.NumMethod docs
+    [dev.typeparams] go/types: move signature checking into separate file
     
-    NumMethod counts unexported methods for interface types. This
-    behavior is documented in Type.NumMethod
+    This is a port of CL 321590 to go/types. Specifically, the same checker
+    methods were moved.
     
-    Fixes #42123
-    
-    Change-Id: Ia5aba353a8cc64190c701d1521972d57e8903564
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396075
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Change-Id: If4522d316f29c6b6f887580aa037e6b6dedbb6ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324754
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/reflect/type.go  | 4 +++-
- src/reflect/value.go | 6 +++++-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/go/types/signature.go | 274 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/typexpr.go   | 262 --------------------------------------------
+ 2 files changed, 274 insertions(+), 262 deletions(-)

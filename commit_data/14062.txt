@@ -1,12 +1,19 @@
-commit 54191126e49bb6504012fc8aacdadf273683750a
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Oct 7 15:35:01 2012 -0400
+commit 59b87453285d952c5b1bc705ca5ffc87e7f15f61
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Oct 7 22:07:32 2012 +0400
 
-    cmd/gc: avoid crash in %N print
+    race: sync/atomic changes
+    This is a part of a bigger change that adds data race detection feature:
+    https://golang.org/cl/6456044
     
-    R=ken2
-    CC=golang-dev
-    https://golang.org/cl/6609052
+    R=rsc, remyoudompheng
+    CC=gobot, golang-dev
+    https://golang.org/cl/6536059
 
- src/cmd/gc/fmt.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/sync/atomic/asm_386.s       |   2 +
+ src/pkg/sync/atomic/asm_amd64.s     |   2 +
+ src/pkg/sync/atomic/asm_arm.s       |   2 +
+ src/pkg/sync/atomic/asm_linux_arm.s |   2 +
+ src/pkg/sync/atomic/doc.go          |   2 +
+ src/pkg/sync/atomic/race.go         | 191 ++++++++++++++++++++++++++++++++++++
+ 6 files changed, 201 insertions(+)

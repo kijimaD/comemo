@@ -1,17 +1,36 @@
-commit 7bed3c7975780cad3c0adcf548d8b2d324a09265
-Author: Mikhail Faraponov <mikefaraponov@gmail.com>
-Date:   Thu Nov 11 21:45:45 2021 +0000
+commit 7e00049b5545cac8705d6df1e337c5ddc70e65e4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 15 12:40:34 2021 -0400
 
-    net: use Done rather than comparing with context.Background
+    cmd/go: only add a 'go' directive to the main module when the go.mod file will be written
     
-    Fixes #49023
+    Then, write the 'go.mod' file with that version before further
+    processing. That way, if the command errors out due to a change in
+    behavior, the reason for the change in behavior will be visible in the
+    file diffs.
     
-    Change-Id: I3de70f8a25f4ba8a0fb8bb96581371e33fde2f7a
-    GitHub-Last-Rev: b7ec9405adc77ec513df344f2ad33801feb2d3ca
-    GitHub-Pull-Request: golang/go#49024
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356471
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Damien Neil <dneil@google.com>
+    If the 'go.mod' file cannot be written (due to -mod=readonly or
+    -mod=vendor), assume Go 1.11 instead of the current Go release.
+    (cmd/go has added 'go' directives automatically, including in 'go mod
+    init', since Go 1.12.)
+    
+    For #44976
+    
+    Change-Id: If9d4af557366f134f40ce4c5638688ba3bab8380
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302051
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/net/fd_unix.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ doc/go1.17.html                                    |  12 +++
+ src/cmd/go/internal/modload/build.go               |   8 +-
+ src/cmd/go/internal/modload/init.go                | 107 ++++++++++++++-------
+ src/cmd/go/internal/modload/modfile.go             |   5 +-
+ src/cmd/go/internal/work/gc.go                     |  14 ++-
+ src/cmd/go/testdata/script/embed.txt               |   1 +
+ .../go/testdata/script/mod_go_version_missing.txt  |  97 +++++++++++++++++++
+ src/cmd/go/testdata/script/mod_outside.txt         |  14 +++
+ src/cmd/go/testdata/script/mod_test.txt            |   2 +
+ 9 files changed, 219 insertions(+), 41 deletions(-)

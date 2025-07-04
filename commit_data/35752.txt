@@ -1,15 +1,14 @@
-commit 707ca18d97ccc769d78f9d16bdf94b992858977d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 19 10:20:35 2018 -0700
+commit f7739c07c8f6ef9bfa28e8c4a4527b01cf3991bc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 2 15:16:02 2018 -0800
 
-    cmd/compile: more accurate position for select case error message
+    runtime: skip pointless writes in freedefer
     
-    Fixes #25958.
-    
-    Change-Id: I1f4808a70c20334ecfc4eb1789f5389d94dcf00e
-    Reviewed-on: https://go-review.googlesource.com/119755
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I501a0e5c87ec88616c7dcdf1b723758b6df6c088
+    Reviewed-on: https://go-review.googlesource.com/98758
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/select.go | 10 +++++++++-
- test/fixedbugs/issue25958.go          | 17 +++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ src/runtime/panic.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

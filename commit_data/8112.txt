@@ -1,14 +1,13 @@
-commit c09af6631f2e66dab9f68f51c1531f3a73b86997
-Author: Quan Yong Zhai <qyzhai@gmail.com>
-Date:   Thu Apr 14 23:49:51 2011 -0400
+commit 24bb0340b62940a3d0a0daf3ea73c1f683055afa
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 14 23:49:46 2011 -0400
 
-    net: fix ParseIP
-    Fixes #1695.
+    A+C: Quan Yong Zhai (individual CLA)
     
-    R=golang-dev, rsc
-    CC=golang-dev, r
-    https://golang.org/cl/4418042
+    R=golang-dev, r2
+    CC=golang-dev
+    https://golang.org/cl/4405045
 
- src/pkg/net/ip.go      | 2 +-
- src/pkg/net/ip_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

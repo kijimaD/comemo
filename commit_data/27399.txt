@@ -1,21 +1,20 @@
-commit 6cc6ef82ea1ea5c904bb44c14bb6f4eb33937bb1
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun May 15 20:12:34 2016 +0200
+commit 5c8674a497724f509737a3523e7c2ddf94e3a72b
+Author: John Jeffery <jjeffery@sp.com.au>
+Date:   Sun Mar 20 20:24:12 2016 +1000
 
-    mime: fix mime type file name on Plan 9
+    reflect: add method StructTag.Lookup
     
-    There was a typo introduced in the initial
-    implementation of the Plan 9 support of
-    the mime package.
+    The Lookup method provides a way to extract a tag value, while
+    determining whether the tag key exists in the struct field's tag.
     
-    On Plan 9, the mime type file name should be
-    /sys/lib/mimetype instead of /sys/lib/mimetypes.
+    Fixes #14883
     
-    Change-Id: If0f0a9b6f3fbfa8dde551f790e83bdd05e8f0acb
-    Reviewed-on: https://go-review.googlesource.com/23087
-    Run-TryBot: Minux Ma <minux@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I7460cb68f0ca1aaa025935050b9e182efcb64db3
+    Reviewed-on: https://go-review.googlesource.com/20864
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/type_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/example_test.go | 28 ++++++++++++++++++++++++++++
+ src/reflect/type.go         | 18 +++++++++++++++---
+ 2 files changed, 43 insertions(+), 3 deletions(-)

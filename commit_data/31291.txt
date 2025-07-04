@@ -1,15 +1,17 @@
-commit 1dc3b60bd6b33756779cb78bce28af4edd193a85
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 14:42:58 2017 -0700
+commit 866f63e84eb7096e64b7a39b993c2ca3e943e425
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 9 13:22:37 2017 -0800
 
-    cmd/compile: re-use Linksym lookup in dtypesym
+    spec: refer to "not defined type" rather than "unnamed type" in conversions
     
-    Passes toolstash-check.
+    We missed this in https://golang.org/cl/36213.
+    Thanks to Chris Hines for pointing it out.
     
-    Change-Id: I1a5809f15c84f9d26064a567b45468fa56e6d5e9
-    Reviewed-on: https://go-review.googlesource.com/41408
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    For #18130.
+    
+    Change-Id: I6279ab19966c4391c4b4458b21fd2527d3f949dd
+    Reviewed-on: https://go-review.googlesource.com/36691
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 125 ++++++++++++++++-----------------
- 1 file changed, 62 insertions(+), 63 deletions(-)
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

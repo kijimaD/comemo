@@ -1,103 +1,19 @@
-commit e9702c0c85ea1d1f0de523594d645d255e7351b1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Sun Apr 30 19:23:45 2017 -0400
+commit d580972d5933c77d9319ec99ff1b2f111f05c727
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Feb 22 15:48:38 2017 -0800
 
-    expvar: reduce sync.Map overhead for (*Map).Set
+    cmd/internal/browser: use xdg-open only from a desktop session
     
-    Use Load instead of LoadOrStore in the fast path to save 1 alloc/op
-    for existing keys.
+    xdg-open's man page says:
+    > xdg-open is for use inside a desktop session only.
     
-    name                          old time/op    new time/op    delta
-    IntAdd                          6.39ns ± 7%    6.97ns ±19%     ~     (p=0.105 n=8+8)
-    IntAdd-6                        12.3ns ± 1%    12.2ns ± 1%     ~     (p=0.396 n=7+7)
-    IntSet                          6.41ns ± 6%    6.94ns ±21%     ~     (p=0.168 n=8+8)
-    IntSet-6                        12.1ns ± 3%    11.7ns ± 9%     ~     (p=0.496 n=7+8)
-    FloatAdd                        14.3ns ± 9%    14.7ns ± 4%     ~     (p=0.088 n=8+8)
-    FloatAdd-6                      36.5ns ± 1%    36.6ns ± 0%     ~     (p=0.709 n=7+6)
-    FloatSet                        6.59ns ± 7%    6.47ns ± 7%     ~     (p=0.397 n=8+7)
-    FloatSet-6                      12.2ns ± 1%    12.2ns ± 2%     ~     (p=0.748 n=7+7)
-    StringSet                       67.8ns ± 6%    68.7ns ± 6%     ~     (p=0.342 n=8+8)
-    StringSet-6                     41.8ns ± 5%    41.7ns ± 5%     ~     (p=0.979 n=8+8)
-    MapSet                           294ns ± 6%     234ns ± 4%  -20.35%  (p=0.000 n=8+8)
-    MapSet-6                        95.8ns ± 2%    89.4ns ± 3%   -6.73%  (p=0.000 n=8+8)
-    MapSetDifferent                 1.31µs ± 5%    1.07µs ± 4%  -18.21%  (p=0.000 n=8+8)
-    MapSetDifferent-6                260ns ± 8%     210ns ± 9%  -19.44%  (p=0.000 n=8+8)
-    MapSetString                     294ns ± 6%     236ns ± 4%  -19.92%  (p=0.000 n=8+8)
-    MapSetString-6                  95.6ns ± 2%    89.9ns ± 2%   -5.97%  (p=0.000 n=7+8)
-    MapAddSame                      1.46µs ± 3%    1.46µs ± 5%     ~     (p=0.721 n=8+8)
-    MapAddSame-6                     328ns ± 6%     330ns ± 4%     ~     (p=0.776 n=8+8)
-    MapAddDifferent                 4.89µs ± 7%    4.98µs ± 6%     ~     (p=0.505 n=8+8)
-    MapAddDifferent-6               1.02µs ± 3%    1.01µs ± 4%     ~     (p=0.352 n=7+8)
-    MapAddSameSteadyState           62.1ns ± 7%    60.8ns ± 4%     ~     (p=0.521 n=8+8)
-    MapAddSameSteadyState-6         38.1ns ± 3%    37.7ns ± 0%     ~     (p=0.185 n=7+6)
-    MapAddDifferentSteadyState       290ns ± 5%     293ns ± 4%     ~     (p=0.515 n=8+8)
-    MapAddDifferentSteadyState-6    63.0ns ± 7%    63.7ns ±11%     ~     (p=0.482 n=7+8)
-    RealworldExpvarUsage            7.39µs ± 5%    7.51µs ± 5%     ~     (p=0.382 n=8+8)
-    RealworldExpvarUsage-6          3.07µs ±28%    3.04µs ±43%     ~     (p=0.798 n=8+8)
+    Use the DISPLAY environment variable to detect this.
     
-    name                          old alloc/op   new alloc/op   delta
-    IntAdd                           0.00B          0.00B          ~     (all equal)
-    IntAdd-6                         0.00B          0.00B          ~     (all equal)
-    IntSet                           0.00B          0.00B          ~     (all equal)
-    IntSet-6                         0.00B          0.00B          ~     (all equal)
-    FloatAdd                         0.00B          0.00B          ~     (all equal)
-    FloatAdd-6                       0.00B          0.00B          ~     (all equal)
-    FloatSet                         0.00B          0.00B          ~     (all equal)
-    FloatSet-6                       0.00B          0.00B          ~     (all equal)
-    StringSet                        16.0B ± 0%     16.0B ± 0%     ~     (all equal)
-    StringSet-6                      16.0B ± 0%     16.0B ± 0%     ~     (all equal)
-    MapSet                           48.0B ± 0%     32.0B ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapSet-6                         48.0B ± 0%     32.0B ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapSetDifferent                   192B ± 0%      128B ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapSetDifferent-6                 192B ± 0%      128B ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapSetString                     48.0B ± 0%     32.0B ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapSetString-6                   48.0B ± 0%     32.0B ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapAddSame                        480B ± 0%      480B ± 0%     ~     (all equal)
-    MapAddSame-6                      480B ± 0%      480B ± 0%     ~     (all equal)
-    MapAddDifferent                 1.09kB ± 0%    1.09kB ± 0%     ~     (all equal)
-    MapAddDifferent-6               1.09kB ± 0%    1.09kB ± 0%     ~     (all equal)
-    MapAddSameSteadyState            0.00B          0.00B          ~     (all equal)
-    MapAddSameSteadyState-6          0.00B          0.00B          ~     (all equal)
-    MapAddDifferentSteadyState       0.00B          0.00B          ~     (all equal)
-    MapAddDifferentSteadyState-6     0.00B          0.00B          ~     (all equal)
-    RealworldExpvarUsage             0.00B          0.00B          ~     (all equal)
-    RealworldExpvarUsage-6           0.00B          0.00B          ~     (all equal)
+    Updates #19131.
     
-    name                          old allocs/op  new allocs/op  delta
-    IntAdd                            0.00           0.00          ~     (all equal)
-    IntAdd-6                          0.00           0.00          ~     (all equal)
-    IntSet                            0.00           0.00          ~     (all equal)
-    IntSet-6                          0.00           0.00          ~     (all equal)
-    FloatAdd                          0.00           0.00          ~     (all equal)
-    FloatAdd-6                        0.00           0.00          ~     (all equal)
-    FloatSet                          0.00           0.00          ~     (all equal)
-    FloatSet-6                        0.00           0.00          ~     (all equal)
-    StringSet                         1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    StringSet-6                       1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    MapSet                            3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapSet-6                          3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapSetDifferent                   12.0 ± 0%       8.0 ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapSetDifferent-6                 12.0 ± 0%       8.0 ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapSetString                      3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapSetString-6                    3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=8+8)
-    MapAddSame                        11.0 ± 0%      11.0 ± 0%     ~     (all equal)
-    MapAddSame-6                      11.0 ± 0%      11.0 ± 0%     ~     (all equal)
-    MapAddDifferent                   31.0 ± 0%      31.0 ± 0%     ~     (all equal)
-    MapAddDifferent-6                 31.0 ± 0%      31.0 ± 0%     ~     (all equal)
-    MapAddSameSteadyState             0.00           0.00          ~     (all equal)
-    MapAddSameSteadyState-6           0.00           0.00          ~     (all equal)
-    MapAddDifferentSteadyState        0.00           0.00          ~     (all equal)
-    MapAddDifferentSteadyState-6      0.00           0.00          ~     (all equal)
-    RealworldExpvarUsage              0.00           0.00          ~     (all equal)
-    RealworldExpvarUsage-6            0.00           0.00          ~     (all equal)
-    
-    https://perf.golang.org/search?q=upload:20170501.1
-    
-    Change-Id: I28fc3906473f2b7307f6d1ae05a8d9b01ef8a6f8
-    Reviewed-on: https://go-review.googlesource.com/42211
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3926b3e1042393939b2ec6aacd9b63ac8192df3b
+    Reviewed-on: https://go-review.googlesource.com/37390
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/expvar/expvar.go | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/internal/browser/browser.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,24 +1,24 @@
-commit 82833b313e5e23f67d5ed1141d9a2464bf78f277
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 18 15:49:02 2015 -0700
+commit edc53e1f144fe5d1be8c787992ea6e9d9067ebf6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Apr 22 18:03:18 2015 -0400
 
-    cmd/internal/gc: rearrange Node fields
+    runtime: fix build after CL 9164 on Linux
     
-    Rearrange Node fields to enable better struct packing.
-    This reduces readability in favor of shrinking
-    the size of Nodes.
+    There is an assumption that the function executed in child thread
+    created by runtime.close should not return. And different systems
+    enforce that differently: some exit that thread, some exit the
+    whole process.
     
-    This reduces the size of Node from 328 to 312.
-    This reduces the memory usage to compile the
-    rotate tests by about 4.4%.
+    The test TestNewOSProc0 introduced in CL 9161 breaks that assumption,
+    so we need to adjust the code to only exit the thread should the
+    called function return.
     
-    No functional changes. Passes toolstash -cmp.
-    
-    Updates #9933.
-    
-    Change-Id: I2764c5847fb1635ddc898e2ee385d007d67f03c5
-    Reviewed-on: https://go-review.googlesource.com/10141
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id631cb2f02ec6fbd765508377a79f3f96c6a2ed6
+    Reviewed-on: https://go-review.googlesource.com/9246
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/internal/gc/syntax.go | 90 +++++++++++++++++++++++--------------------
- 1 file changed, 49 insertions(+), 41 deletions(-)
+ src/runtime/sys_linux_amd64.s  | 2 +-
+ src/runtime/sys_linux_arm.s    | 2 +-
+ src/runtime/sys_linux_arm64.s  | 4 ++--
+ src/runtime/sys_linux_ppc64x.s | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

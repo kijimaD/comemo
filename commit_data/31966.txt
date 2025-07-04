@@ -1,22 +1,21 @@
-commit 0ff876a8505d61fc20f3176f90bc589d76a4c966
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 30 16:12:28 2017 +0000
+commit 4234d1decd853b2373c17340eb4c0033c0fe9566
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 23 11:20:17 2017 -0400
 
-    testing: revert CL 36791's conditional ReadMemStats
+    runtime: improve systemstack-on-Go stack message
     
-    Now that ReadMemStats is fast (CL 34937), CL 36791 is not so
-    necessary, and causes confusion. See #20863
+    We reused the old C stack check mechanism for the implementation of
+    //go:systemstack, so when we execute a //go:systemstack function on a
+    user stack, the system fails by calling morestackc. However,
+    morestackc's message still talks about "executing C code".
     
-    This was already partially reverted in CL 46612 but missed two of the
-    spots.
+    Fix morestackc's message to reflect its modern usage.
     
-    Fixes #20863
-    
-    Change-Id: I1307a0f7b1f9e86e8b6ceaa6a677f24f13431110
-    Reviewed-on: https://go-review.googlesource.com/47350
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I7e70e7980eab761c0520f675d3ce89486496030f
+    Reviewed-on: https://go-review.googlesource.com/38572
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/testing/benchmark.go | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ src/runtime/stack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

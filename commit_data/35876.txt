@@ -1,24 +1,24 @@
-commit 9a97a2aae9e16ad9cd5fbed7c7ab8a10fe6f2673
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 2 16:48:29 2018 -0700
+commit 463fe95bdd07e255a10ad36d5c51c8811cfee49f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 13 15:07:12 2018 -0700
 
-    cmd/go: add ForceLibrary to build hash
+    cmd/compile: fix duplicate code generation in swt.go
     
-    When a command has a test that is not in package main, the main
-    package is built as a library, with ForceLibrary set. It can of course
-    also be built as an ordinary main package. If we don't record that fact
-    in the hash, then both variants of the command will use the same hash,
-    which causes a GODEBUG=gocacheverify=1 failure. It also seems unsafe
-    although it's not clear to me whether it can cause an actual failure.
+    When combining adjacent type switch cases with the same type hash, we
+    failed to actually remove the combined cases, so we would generate
+    code for them twice.
     
-    Along with CL 121941,
-    Fixes #25666
+    We use MD5 for type hashes, so collisions are rare, but they do
+    currently appear in test/fixedbugs/bug248.dir/bug2.go, which is how I
+    noticed this failure.
     
-    Change-Id: I115ad249012f30fbe45cd0c41da86adc295fe4b2
-    Reviewed-on: https://go-review.googlesource.com/121942
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I66729b3366b96cb8ddc8fa6f3ebea11ef6d74012
+    Reviewed-on: https://go-review.googlesource.com/100461
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/internal/work/exec.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/swt.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

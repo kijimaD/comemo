@@ -1,49 +1,21 @@
-commit 7b4545653c371be73c660bc87356ec467496dbbf
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Thu Oct 27 21:52:33 2016 -0700
+commit 82bc0d4e80870f25805029ef0e1e844ace7bf068
+Author: David Glasser <glasser@meteor.com>
+Date:   Thu Aug 4 16:49:05 2016 -0700
 
-    cmd/compile: improve error message for unknown fields in structs
+    math/rand: document that NewSource sources race
     
-    Improves the error message by moving the field name before the body
-    of a struct, in the error message for unknown fields for structs.
+    While it was previously explicitly documented that "the default Source"
+    is safe for concurrent use, a careless reader can interpret that as
+    meaning "the implementation of the Source interface created by functions
+    in this package" rather than "the default shared Source used by
+    top-level functions". Be explicit that the Source returned by NewSource
+    is not safe for use by multiple goroutines.
     
-    * Exhibit:
-    Given program:
+    Fixes #3611.
     
-    package main
-    
-    import "time"
-    
-    func main() {
-      _ = struct {
-        about      string
-        before     map[string]uint
-        update     map[string]int
-        updateTime time.Time
-        expect     map[string]int
-      }{
-        about:   "this one",
-        updates: map[string]int{"gopher": 10},
-      }
-    }
-    
-    * Before:
-    ./issue17631.go:20: unknown struct { about string; before map[string]uint;
-     update map[string]int; updateTime time.Time; expect map[string]int } field
-    'updates' in struct literal
-    
-    * After:
-    ./issue17631.go:20: unknown field 'updates' in struct literal of type { about string;
-    before map[string]uint; update map[string]int; updateTime time.Time;
-    expect map[string]int }
-    
-    Fixes #17631
-    
-    Change-Id: I76842616411b931b5ad7a76bd42860dfde7739f4
-    Reviewed-on: https://go-review.googlesource.com/32240
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iae4bc04c3887ad6e2491e36e38feda40324022c5
+    Reviewed-on: https://go-review.googlesource.com/25501
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- test/fixedbugs/issue14136.go             |  2 +-
- test/fixedbugs/issue17631.go             | 22 ++++++++++++++++++++++
- 3 files changed, 24 insertions(+), 2 deletions(-)
+ src/math/rand/rand.go | 2 ++
+ 1 file changed, 2 insertions(+)

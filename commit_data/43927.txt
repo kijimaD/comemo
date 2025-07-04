@@ -1,17 +1,21 @@
-commit d0c0dc682c1fb15241d84df11715e706a5bc0da7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Dec 3 11:07:27 2020 +0100
+commit c8b42f9aa5146638c62e8420147595b3533c2a78
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Apr 29 14:43:39 2020 +0200
 
-    doc/go1.16: document os package changes
+    cmd/compile: convert CCop arm64 rules to typed aux
     
-    For #39444
-    For #40700
-    Fixes #42908
+    Passes
     
-    Change-Id: Idae35adecd79e9d7d207f9d78cb009a980e5c8a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274477
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+      GOARCH=arm64 gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: Id88141dfc0dfb02c3e958e48ab4adfbac7ba1380
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230837
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.16.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 124 +++++------
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |   2 +
+ src/cmd/compile/internal/ssa/rewrite.go      |   4 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 294 +++++++++++++--------------
+ 4 files changed, 215 insertions(+), 209 deletions(-)

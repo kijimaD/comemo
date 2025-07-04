@@ -1,26 +1,22 @@
-commit 449e69f1597273f13db684f4a629f3e43beb2987
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 3 17:02:49 2023 -0400
+commit 4c565a5561e33e1d488116ea45c35d3ce408cf93
+Author: rlanhellas <ronaldo.lanhellas@gmail.com>
+Date:   Mon Jan 31 22:47:42 2022 +0000
 
-    cmd/go: suppress calls to collectDeps for test packages
+    time: return ENOENT instead of ERROR_PATH_NOT_FOUND in windows
     
-    Instead, do the cycle checking in recompileForTest once the test
-    variant packages have been poked in the right places in the dependency
-    tree(graph?).
+    When using windows some users got a weird error (File not found) when the timezone database is not found. It happens because some methods in the time package don't treat ERROR_PATH_NOT_FOUND and ENOTDIR. To solve it was added a conversion to ENOTENT error.
     
-    (Pair programming with bcmills@.)
+    Fixes #50248
     
-    For #59157.
-    
-    Change-Id: I0c644cb9f2c0dac3a5b0189e2aa0eef083c669f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482237
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I11c84cf409e01eafb932aea43c7293c8218259b8
+    GitHub-Last-Rev: fe7fff90cbea06c4af41e5b2ecadea0d409e2c05
+    GitHub-Pull-Request: golang/go#50906
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381957
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/list/list.go               |  28 +++---
- src/cmd/go/internal/load/test.go               | 120 +++++++++++++------------
- src/cmd/go/testdata/script/list_test_cycle.txt |  33 +++++++
- src/cmd/go/testdata/script/list_test_err.txt   |  27 +-----
- 4 files changed, 112 insertions(+), 96 deletions(-)
+ src/time/sys_windows.go | 4 ++++
+ 1 file changed, 4 insertions(+)

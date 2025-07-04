@@ -1,15 +1,12 @@
-commit 6f88288a13c6d02e528b86ae662b6af616b34951
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 28 15:43:42 2011 -0400
+commit df2c5d5429cb52abcf5933bef6c6ba701a65f5ab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 28 11:36:06 2011 -0700
 
-    xml: fix reflect error
+    http: update cookie doc to reference new RFC 6265
     
-    Fixes #1749.
-    
-    R=bradfitz
+    R=rsc, r2
     CC=golang-dev
-    https://golang.org/cl/4431075
+    https://golang.org/cl/4442100
 
- src/pkg/xml/read.go     |  9 ++----
- src/pkg/xml/xml_test.go | 81 ++++++++++++++++++++++++++-----------------------
- 2 files changed, 46 insertions(+), 44 deletions(-)
+ src/pkg/http/cookie.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

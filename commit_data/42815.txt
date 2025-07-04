@@ -1,16 +1,19 @@
-commit 02f445258c284f295d8648078d6cc15836670756
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 25 15:19:50 2020 +0200
+commit 1bc116b73ced8ec1ddc46f59acc75c89e5642607
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jan 21 21:44:54 2020 -0800
 
-    cmd/link: remove superfluous check in TestIssue34788Android386TLSSequence
+    cmd/compile: extract function for splitting up x:(Foo) in rewrite rule fragments
     
-    err != nil is already checked in the if condition one line above.
+    We had three implementations.
     
-    Change-Id: If36cdb41016f7be98a65be0a7211d85cd6017f87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250477
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Refactor, and document the shared implementation.
+    
+    While we're here, improve the docs for func unbalanced.
+    
+    Change-Id: I612cce79de15a864247afe377d3739d04a56b9bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216219
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/link/link_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 54 ++++++++++++++++++-----------
+ 1 file changed, 33 insertions(+), 21 deletions(-)

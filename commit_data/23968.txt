@@ -1,15 +1,17 @@
-commit e019767ecb8c8e39c99a1c16960990d63ea8154a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Aug 5 09:40:33 2015 +1000
+commit c248aaef7049c9c90af787d7fa91de378fa7e202
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Fri Jun 26 12:09:45 2015 +0200
 
-    doc: bump minimum requirement to OS X 10.7
+    crypto/ecdsa, crypto/x509: update SEC1 ECC link in comments
     
-    Fixes #11995
+    Updated the document URL in comments to avoid dead link
+    Old: http://www.secg.org/download/aid-780/sec1-v2.pdf
+    New: http://www.secg.org/sec1-v2.pdf
     
-    Change-Id: I9e2901d77ebde705f59822e7d4a8163cbacffcd7
-    Reviewed-on: https://go-review.googlesource.com/13150
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: If13d0da4c0e7831b2bd92c45116c2412a2a965f5
+    Reviewed-on: https://go-review.googlesource.com/11550
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/install-source.html | 2 +-
- doc/install.html        | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/crypto/ecdsa/ecdsa.go | 2 +-
+ src/crypto/x509/sec1.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

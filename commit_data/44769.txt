@@ -1,29 +1,48 @@
-commit b8371d495bb291f61e4fa3ac1b84116c70ac1223
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Thu Feb 11 19:10:10 2021 +0100
+commit 17ae5873833fd9a20aae123faf96f3eca9a149ea
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu May 14 07:58:27 2020 -0700
 
-    runtime: support long paths without fixup on Windows 10 >= 1607
+    cmd/compile: use addressing modes pass on s390x
     
-    Windows 10 >= 1607 allows CreateFile and friends to use long paths if
-    bit 0x80 of the PEB's BitField member is set.
+    Add s390x support to the addressing modes pass. This significantly
+    reduces the number of rules we need to have to handle indexed
+    addressing modes on s390x.
     
-    In time this means we'll be able to entirely drop our long path hacks,
-    which have never really worked right (see bugs below). Until that point,
-    we'll simply have things working well on recent Windows.
+    There are some changes introduced with the new approach. Notably
+    pointer calculations of the form '(ADD x (ADDconst y [c]))' won't
+    get fully merged into address fields right now, the constant offset
+    will remain separate. That is a relatively minor issue though.
     
-    Updates #41734.
-    Updates #21782.
-    Updates #36375.
+    file      before    after     Δ       %
+    addr2line 4120904   4120960   +56     +0.001%
+    api       4944005   4948765   +4760   +0.096%
+    asm       4977431   4984335   +6904   +0.139%
+    buildid   2683760   2683504   -256    -0.010%
+    cgo       4557976   4558408   +432    +0.009%
+    compile   19103577  18916634  -186943 -0.979%
+    cover     4883694   4885054   +1360   +0.028%
+    dist      3545177   3553689   +8512   +0.240%
+    doc       3921766   3921518   -248    -0.006%
+    fix       3295254   3302182   +6928   +0.210%
+    link      6539222   6540286   +1064   +0.016%
+    nm        4105085   4107757   +2672   +0.065%
+    objdump   4546015   4545439   -576    -0.013%
+    pack      2416661   2415485   -1176   -0.049%
+    pprof     13267433  13265489  -1944   -0.015%
+    test2json 2762180   2761996   -184    -0.007%
+    trace     10145090  10135626  -9464   -0.093%
+    vet       6772946   6771738   -1208   -0.018%
+    total     106588176 106418865 -169311 -0.159%
     
-    Change-Id: I765de6ea4859dd4e4b8ca80af7f337994734118e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291291
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #37891.
+    
+    Change-Id: If60d51f31eb2806b011432a6519951b8668cb42f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250958
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/export_windows_test.go |  1 +
- src/os/path_windows.go        |  7 ++++
- src/os/path_windows_test.go   | 23 ++++++++++
- src/runtime/os_windows.go     | 97 ++++++++++++++++++++++++++++++++++++++-----
- 4 files changed, 118 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/addressingmodes.go |   65 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules    |  412 +--
+ src/cmd/compile/internal/ssa/rewriteS390X.go    | 3795 +----------------------
+ 3 files changed, 145 insertions(+), 4127 deletions(-)

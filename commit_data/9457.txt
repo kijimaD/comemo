@@ -1,18 +1,27 @@
-commit 33e9d24ad9007d0dd4eec90b1c755aac7d1a9cbb
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 23 13:13:27 2011 -0400
+commit f6d536bea4efac42c5baee5188293ad7be2f70c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 23 09:22:41 2011 -0700
 
-    runtime: fix void warnings
+    go/parser: fix type switch scoping
     
-    Add -V flag to 6c command line to keep them fixed.
+    Introduce extra scope for the variable declared by a
+    TypeSwitchGuard so that it doesn't conflict with vars
+    declared by the initial SimpleStmt of a type switch.
     
-    R=ken2
+    This is a replacement for CL 4896053 which caused
+    a build breakage.
+    
+    Also:
+    - explicitly detect type switches (as opposed to detecting
+      expression switches and then do extra testing for type switches)
+    - fix all outstanding TODOs in parser.go
+    - ran all tests
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4930046
+    https://golang.org/cl/4914044
 
- src/pkg/runtime/Makefile  |  2 +-
- src/pkg/runtime/chan.c    |  2 +-
- src/pkg/runtime/proc.c    |  2 +-
- src/pkg/runtime/runtime.c | 28 ++++++++++++++--------------
- src/pkg/runtime/runtime.h |  4 ++--
- 5 files changed, 19 insertions(+), 19 deletions(-)
+ src/cmd/gotype/testdata/test1.go | 17 ++++++++++
+ src/pkg/go/parser/parser.go      | 69 ++++++++++++++++++++++++----------------
+ src/pkg/go/parser/parser_test.go |  3 ++
+ 3 files changed, 61 insertions(+), 28 deletions(-)

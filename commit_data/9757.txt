@@ -1,15 +1,15 @@
-commit 76e705310ae7c985ad6eb7bcedbaaa3702f2c8f2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 20 13:02:10 2011 -0700
+commit 762729b50edc462fc76cc0413dae64a3353d28eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 20 14:56:15 2011 -0400
 
-    httptest: add NewUnstartedServer
+    codereview: save CL messages in $(hg root)/last-change
     
-    This allows testing TLS with different http.Server
-    options (timeouts, limits).
+    Fixes #2279.
     
-    R=golang-dev, rsc
+    R=bradfitz, r, r
     CC=golang-dev
-    https://golang.org/cl/5094043
+    https://golang.org/cl/5096042
 
- src/pkg/http/httptest/server.go | 82 +++++++++++++++++++++++++++--------------
- 1 file changed, 54 insertions(+), 28 deletions(-)
+ .hgignore                    |  1 +
+ lib/codereview/codereview.py | 12 ++++++++++++
+ 2 files changed, 13 insertions(+)

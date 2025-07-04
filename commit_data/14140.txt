@@ -1,12 +1,14 @@
-commit 422da762b7dd63c54de9b39a4f7f3283f5d0afeb
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri Oct 12 14:09:24 2012 -0700
+commit ef2ee4526e5e000622dc262a4f60ae6c2d4f5cd2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Oct 12 18:50:41 2012 +0800
 
-    compress/bzip2: use io.ByteReader instead of internal interface
+    doc: remove ExpressivenessOfGo.pdf
+            It has been moved to go.talks/2010/ExpressivenessOfGo-2010.pdf
+            URL: http://talks.golang.org/2010/ExpressivenessOfGo-2010.pdf
     
-    R=golang-dev, bradfitz
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6663044
+    https://golang.org/cl/6660046
 
- src/pkg/compress/bzip2/bit_reader.go | 13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
+ doc/ExpressivenessOfGo.pdf | Bin 859406 -> 0 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

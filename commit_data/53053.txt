@@ -1,22 +1,21 @@
-commit 6042a062dc2556a0a1c06d3b85b6c080644da04e
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 9 13:25:40 2023 -0700
+commit 0a503cf43a58e3a514f254c7dba1daf654557b17
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 29 19:23:34 2022 -0700
 
-    cmd/compile: make memcombine pass a bit more robust to reassociation of exprs
+    [dev.unified] cmd/compile: refactor `range` desugaring
     
-    Be more liberal about expanding the OR tree. Handle any tree shape
-    instead of a fully left or right associative tree.
+    This CL refactors the code responsible for emitting the user-visible
+    assignments within a range statement. This will make it easier to
+    propagate RTTI from the frontend into any implicit conversions.
     
-    Also remove tail feature, it isn't ever needed.
+    Updates #53328.
     
-    Change-Id: If16bebef94b952a604d6069e9be3d9129994cb6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494056
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ryan Berger <ryanbberger@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ibed15e3b4951b0a6a726067b401a630977f4c6c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415158
     Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/memcombine.go | 41 +++++++++++++-----------------
- test/codegen/memcombine.go                 | 26 +++++++++++++++++++
- 2 files changed, 43 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/walk/range.go | 37 ++++++++++++++++++++--------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

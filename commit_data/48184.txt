@@ -1,21 +1,18 @@
-commit d93cc8cb9639212ee674ecbc9149fb897dd8fd77
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Feb 17 19:43:49 2022 -0500
+commit 0dfb6fb4907c770269d5530f210567e371eebeaa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 29 21:38:43 2021 -0700
 
-    runtime: define racefuncenter and racefuncexit as ABIInternal
+    go/ast: print CommentMap contents in source order
     
-    They are called from compiler instrumented code as ABIInternal.
-    Define them as ABIInternal to avoid the wrappers and save some
-    stack space, to avoid nosplit overflow in -race -N -l build.
+    Sort the comment map entries before printing.
+    Makes it easier to use the output for debugging.
     
-    For #51247.
+    For #39753.
     
-    Change-Id: Iadad7d6da8ac03780a7b02b03b004c52d34e020a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386715
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic8e7d27dd2df59173e2c3a04a6b71ae966703885
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315370
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/race_arm64.s | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/go/ast/commentmap.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,18 +1,55 @@
-commit 48d6275952184f1e858c2796d36c6b205d5d7e83
-Author: Austin Clements <austin@google.com>
-Date:   Sun Dec 6 21:20:15 2020 -0500
+commit 2491c5fd2451783e4ba6630345805de1e7761e3b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 19 17:32:17 2019 +0000
 
-    doc/go1.16: improve channel race detector changes description
+    runtime: wake scavenger and update address on sweep done
     
-    Based on text from Daniel Fava.
+    This change modifies the semantics of waking the scavenger: rather than
+    wake on any update to pacing, wake when we know we will have work to do,
+    that is, when the sweeper is done. The current scavenger runs over the
+    address space just once per GC cycle, and we want to maximize the chance
+    that the scavenger observes the most attractive scavengable memory in
+    that pass (i.e. free memory with the highest address), so the timing is
+    important. By having the scavenger awaken and reset its search space
+    when the sweeper is done, we increase the chance that the scavenger will
+    observe the most attractive scavengable memory, because no more memory
+    will be freed that GC cycle (so the highest scavengable address should
+    now be available).
     
-    For #40700.
+    Furthermore, in applications that go idle, this means the background
+    scavenger will be awoken even if another GC doesn't happen, which isn't
+    true today.
     
-    Change-Id: I0bc3a4340b8a777ff96d3cf226a7d51d3f65db2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275786
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Daniel Fava <danielsfava@gmail.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    However, we're unable to wake the scavenger directly from within the
+    sweeper; waking the scavenger involves modifying timers and readying
+    goroutines, the latter of which may trigger an allocation today (and the
+    sweeper may run during allocation!). Instead, we do the following:
+    
+    1. Set a flag which is checked by sysmon. sysmon will clear the flag and
+       wake the scavenger.
+    2. Wake the scavenger unconditionally at sweep termination.
+    
+    The idea behind this policy is that it gets us close enough to the state
+    above without having to deal with the complexity of waking the scavenger
+    in deep parts of the runtime. If the application goes idle and sweeping
+    finishes (so we don't reach sweep termination), then sysmon will wake
+    the scavenger. sysmon has a worst-case 20 ms delay in responding to this
+    signal, which is probably fine if the application is completely idle
+    anyway, but if the application is actively allocating, then the
+    proportional sweeper should help ensure that sweeping ends very close to
+    sweep termination, so sweep termination is a perfectly reasonable time
+    to wake up the scavenger.
+    
+    Updates #35788.
+    
+    Change-Id: I84289b37816a7d595d803c72a71b7f5c59d47e6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207998
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.16.html | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/runtime/mgc.go         |  5 -----
+ src/runtime/mgcscavenge.go | 47 +++++++++++++++++++++++++++++++++-------------
+ src/runtime/mgcsweep.go    | 26 +++++++++++++++++++++++++
+ src/runtime/proc.go        |  4 ++++
+ 4 files changed, 64 insertions(+), 18 deletions(-)

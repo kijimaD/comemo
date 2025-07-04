@@ -1,19 +1,12 @@
-commit 33995fe59eddb3f84e537a8d44e39ef93bc764e8
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Tue Feb 5 09:54:01 2013 -0800
+commit 4360ef8de295ee7929ed408e044e14c8a1044a73
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 6 00:33:25 2013 +0800
 
-    log/syslog: retry once if write fails
+    lib9: fix build for windows
     
-    Implements deferred connections + single-attempt automatic
-    retry. Based on CL 5078042 from kuroneko.
-    
-    Fixes #2264.
-    
-    R=mikioh.mikioh, rsc, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6782140
+    https://golang.org/cl/7311044
 
- src/pkg/log/syslog/syslog.go      | 142 ++++++++++++++--------
- src/pkg/log/syslog/syslog_test.go | 245 ++++++++++++++++++++++++++++++++------
- src/pkg/log/syslog/syslog_unix.go |   8 +-
- 3 files changed, 306 insertions(+), 89 deletions(-)
+ src/lib9/main.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

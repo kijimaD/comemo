@@ -1,18 +1,19 @@
-commit 0ce6c87004245fcbfe0747fa42b2a23d52890154
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 20 14:23:45 2012 +1100
+commit a53317668a9b29cf4633e67d1d83947eee92c951
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 22:13:04 2012 -0500
 
-    html/template: don't indirect past a Stringer
+    strconv: run garbage collection before counting allocations in test
     
-    While we're here, get rid of the old names for the escaping functions.
+    My theory is that the call to f() allocates, which triggers
+    a garbage collection, which itself may do some allocation,
+    which is being counted.  Running a garbage collection
+    before starting the test should avoid this problem.
     
-    Fixes #3073.
+    Fixes #2894 (I hope).
     
-    R=golang-dev, dsymonds, rsc
+    R=golang-dev, bradfitz, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5685049
+    https://golang.org/cl/5685046
 
- src/pkg/html/template/content.go      | 18 ++++++-
- src/pkg/html/template/content_test.go | 40 +++++++++++++++
- src/pkg/html/template/escape.go       | 92 +++++++++++++++++------------------
- 3 files changed, 103 insertions(+), 47 deletions(-)
+ src/pkg/strconv/itoa_test.go | 1 +
+ 1 file changed, 1 insertion(+)

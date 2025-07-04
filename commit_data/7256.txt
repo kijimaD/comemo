@@ -1,16 +1,14 @@
-commit c2ea38ac7ea1f73f82bf017bcdf6a52affb9d1d6
+commit 32a7e464880103415c93219b6e4bb50539f93bd1
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 26 21:49:10 2011 -0800
+Date:   Wed Jan 26 19:17:53 2011 -0800
 
-    token/position: added SetLinesForContent
+    gofmt -r: match(...) arguments may be nil; add missing guards
     
-    godoc uses this to provide full text index position information for
-    non-Go files.
+    Fixes #1446.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4041045
+    https://golang.org/cl/3981043
 
- src/pkg/go/token/position.go      | 38 +++++++++++++++++++++++++------
- src/pkg/go/token/position_test.go | 47 ++++++++++++++++++++++++++++++++-------
- 2 files changed, 70 insertions(+), 15 deletions(-)
+ src/cmd/gofmt/rewrite.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

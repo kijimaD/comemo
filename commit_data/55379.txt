@@ -1,15 +1,22 @@
-commit 8d04110ce16ecc5cc10e6d5da7678f9c39a222cb
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Jan 17 11:03:15 2024 -0800
+commit 34d026862df50e36bdb74f010f746f91b7d6a052
+Author: Bryan Mills <bcmills@google.com>
+Date:   Tue Jan 31 20:55:23 2023 +0000
 
-    doc/go1.22: document net/http/cgi changes
+    Revert "net: move context cancellation logic of blocking calls to a common function."
     
-    For #61422
+    This reverts CL 463231.
     
-    Change-Id: If9c3d3ccbfb2061f42ffc26461209c96d38020e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556395
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reason for revert: introduced a data race on darwin.
+    
+    Fixes #58169.
+    
+    Change-Id: I35f02273db38c257369c166547bb4945f92fdc3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464375
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/go1.22.html | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ src/net/cgo_unix.go | 128 +++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 87 insertions(+), 41 deletions(-)

@@ -1,17 +1,29 @@
-commit 8435a746f5ca03bfd53ddf099bb2e82e6854acbf
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Jan 17 16:16:42 2017 +0900
+commit 1d44c4e37847a975c40f8f15df7914939b540f6b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 11 11:55:59 2017 +1000
 
-    syscall: fix TestCloneNEWUSERAndRemapRootEnableSetgroups on linux
+    cmd/link: actually generate .debug_gdb_scripts section on windows
     
-    Despite its name, it did the same thing as
-    TestCloneNEWUSERAndRemapRootDisableSetgroups in old code. So fix it.
+    Adjust finddebugruntimepath to look for runtime/debug.go file
+    instead of runtime/runtime.go. This actually finds runtime.GOMAXPROCS
+    in every Go executable (including windows).
     
-    Change-Id: I21265e539179c51980e16f07a553a9bf5bb7903f
-    Reviewed-on: https://go-review.googlesource.com/35273
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    I also included "-Wl,-T,fix_debug_gdb_scripts.ld" parameter to gcc
+    invocation on windows to work around gcc bug (see #20183 for details).
+    
+    This CL only fixes windows -buildmode=exe, buildmode=c-archive
+    is still broken.
+    
+    Thanks to Egon Elbre and Nick Clifton for investigation.
+    
+    Fixes #20183
+    Fixes #20218
+    
+    Change-Id: I5369a4db3913226aef3d9bd6317446856b0a1c34
+    Reviewed-on: https://go-review.googlesource.com/43331
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_linux_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go |  8 ++++++--
+ src/cmd/link/internal/ld/lib.go   | 27 +++++++++++++++++++++++++++
+ src/debug/pe/file_test.go         | 10 ++++++++++
+ 3 files changed, 43 insertions(+), 2 deletions(-)

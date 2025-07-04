@@ -1,12 +1,23 @@
-commit 218f08a9875572fdadb5a60055ac735b972d3417
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 17 17:01:09 2012 -0700
+commit 55ca5ab0be6da228c891d04ffd448ce9741d47e9
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Sep 18 09:55:07 2012 +1000
 
-    doc: document OS X tarballs
+    runtime: arm: abort if VFPv3 support missing
     
-    R=golang-dev
+    Fixes #3456.
+    
+    This proposal is a reformulation of CL 5987063. This CL resets
+    the default GOARM value to 6 and allows the use of the VFPv3
+    optimisation if GOARM=7. Binaries built with this CL in place
+    will abort if GOARM=7 was used and the target host does not
+    support VFPv3.
+    
+    R=minux.ma, rsc, ajstarks
     CC=golang-dev
-    https://golang.org/cl/6506129
+    https://golang.org/cl/6501099
 
- doc/install.html | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/5l/asm.c                   | 7 ++++++-
+ src/cmd/5l/l.h                     | 2 ++
+ src/cmd/5l/obj.c                   | 2 +-
+ src/pkg/runtime/signal_linux_arm.c | 8 +++++++-
+ 4 files changed, 16 insertions(+), 3 deletions(-)

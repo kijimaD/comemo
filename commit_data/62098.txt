@@ -1,0 +1,68 @@
+commit c1a5889edbd3e499df10db5ed1d8006c73de5792
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 18 14:28:16 2024 -0800
+
+    net, internal/routebsd: move vendored x/net/route to internal
+    
+    This is a simple move of the contents of the vendored x/net/route
+    to internal/routebsd. I've also added some test files that
+    were not previously vendored.
+    
+    This next CL will simplify the new internal/routebsd, removing the
+    code that is not needed by the new package.
+    
+    This is a step toward simplifying the x/net/route package by
+    permitting it to import x/sys/unix.
+    
+    Change-Id: I4d13df11fa9738cd68876b2ea456d03f82d8d64a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637695
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/build/deps_test.go                          |   8 +-
+ .../x/net/route => internal/routebsd}/address.go   |   2 +-
+ src/internal/routebsd/address_darwin_test.go       | 170 +++++++++
+ src/internal/routebsd/address_test.go              | 104 ++++++
+ .../x/net/route => internal/routebsd}/binary.go    |   2 +-
+ .../x/net/route => internal/routebsd}/empty.s      |   0
+ .../x/net/route => internal/routebsd}/interface.go |   2 +-
+ .../routebsd}/interface_announce.go                |   2 +-
+ .../routebsd}/interface_classic.go                 |   2 +-
+ .../routebsd}/interface_freebsd.go                 |   2 +-
+ .../routebsd}/interface_multicast.go               |   2 +-
+ .../routebsd}/interface_openbsd.go                 |   2 +-
+ .../x/net/route => internal/routebsd}/message.go   |   2 +-
+ src/internal/routebsd/message_darwin_test.go       |  37 ++
+ src/internal/routebsd/message_freebsd_test.go      |  91 +++++
+ src/internal/routebsd/message_test.go              | 238 +++++++++++++
+ .../x/net/route => internal/routebsd}/route.go     |   2 +-
+ .../route => internal/routebsd}/route_classic.go   |   2 +-
+ .../route => internal/routebsd}/route_openbsd.go   |   2 +-
+ src/internal/routebsd/route_test.go                | 382 +++++++++++++++++++++
+ .../x/net/route => internal/routebsd}/sys.go       |   2 +-
+ .../net/route => internal/routebsd}/sys_darwin.go  |   2 +-
+ .../route => internal/routebsd}/sys_dragonfly.go   |   2 +-
+ .../net/route => internal/routebsd}/sys_freebsd.go |   2 +-
+ .../net/route => internal/routebsd}/sys_netbsd.go  |   2 +-
+ .../net/route => internal/routebsd}/sys_openbsd.go |   2 +-
+ .../x/net/route => internal/routebsd}/syscall.go   |   2 +-
+ .../net/route => internal/routebsd}/zsys_darwin.go |   2 +-
+ .../route => internal/routebsd}/zsys_dragonfly.go  |   2 +-
+ .../routebsd}/zsys_freebsd_386.go                  |   2 +-
+ .../routebsd}/zsys_freebsd_amd64.go                |   2 +-
+ .../routebsd}/zsys_freebsd_arm.go                  |   2 +-
+ .../routebsd}/zsys_freebsd_arm64.go                |   2 +-
+ .../routebsd}/zsys_freebsd_riscv64.go              |   2 +-
+ .../net/route => internal/routebsd}/zsys_netbsd.go |   2 +-
+ .../route => internal/routebsd}/zsys_openbsd.go    |   2 +-
+ src/net/interface_bsd.go                           |  21 +-
+ src/net/interface_bsdvar.go                        |   9 +-
+ src/net/interface_darwin.go                        |  19 +-
+ src/net/interface_freebsd.go                       |  19 +-
+ src/vendor/modules.txt                             |   1 -
+ 41 files changed, 1087 insertions(+), 68 deletions(-)

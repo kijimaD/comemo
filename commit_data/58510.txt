@@ -1,43 +1,24 @@
-commit 17ed2159583289d77c994d479c24f7e7c2837332
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 9 15:01:03 2025 -0800
+commit 17eb0a2bac79eda8dc71d628474989d05d9755c5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 15 21:54:45 2023 +0000
 
-    go/types, types2: don't panic when instantiating generic alias with wrong number of type arguments
+    runtime: fix liveness issue in test-only getgcmask
     
-    The existing code assumed the type argument count check in
-    Checker.instance couldn't fail for generic alias types
-    (matching the code for generic signatures), but it actually
-    can.
+    getgcmask stops referencing the object passed to it sometime between
+    when the object is looked up and when the function returns. Notably,
+    this can happen while the GC mask is actively being produced, and thus
+    the GC might free the object.
     
-    Adjust the code accordingly and document that the result of
-    Checker.instance may be invalid.
+    This is easily reproducible by adding a runtime.GC call at just the
+    right place. Adding a KeepAlive on the heap-object path fixes it.
     
-    Review all call sites of Checker.instance and make sure we
-    handle the failure case, or document the code accordingly
-    (in the case of generic signatures).
+    Fixes #64188.
     
-    When reporting an type argument count error, use the alias
-    name rather than the alias string representation to match
-    the error we get for a non-alias type.
-    
-    While at it, update the manual.go template for ease of use.
-    
-    Fixes #71198.
-    
-    Change-Id: I6d19ec6418440e9b49574a2d7dd9825e0af6c2fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641857
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I5ed4cae862fc780338b60d969fd7fbe896352ce4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542716
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/call.go             |  3 +++
- src/cmd/compile/internal/types2/instantiate.go      | 11 ++++++++---
- src/cmd/compile/internal/types2/testdata/manual.go  |  2 +-
- src/cmd/compile/internal/types2/typexpr.go          | 11 ++++++++---
- src/go/types/call.go                                |  3 +++
- src/go/types/instantiate.go                         | 11 ++++++++---
- src/go/types/testdata/manual.go                     |  2 +-
- src/go/types/typexpr.go                             | 11 ++++++++---
- src/internal/types/testdata/fixedbugs/issue71198.go | 16 ++++++++++++++++
- 9 files changed, 56 insertions(+), 14 deletions(-)
+ src/runtime/mbitmap_allocheaders.go   | 5 +++++
+ src/runtime/mbitmap_noallocheaders.go | 5 +++++
+ 2 files changed, 10 insertions(+)

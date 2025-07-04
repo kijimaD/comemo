@@ -1,12 +1,22 @@
-commit 1e09031f7f9293ba032c88abb55b373d341f01bf
-Author: David G. Andersen <dave.andersen@gmail.com>
-Date:   Wed Jan 25 16:09:12 2012 -0800
+commit 9d4ae0ae5cab63013aac9f7682292324f1951666
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jan 25 21:07:00 2012 -0200
 
-    math/big:  return type of bitLen is an int;  use MOVL on amd64.
+    gofix: handle xml.Unmarshal in xmlapi fix
     
-    R=golang-dev, gri
+    This improves the handling of xml.Unmarshal in
+    the xmlapi fix by guessing some of the common
+    types used on it.
+    
+    This also fixes a bug in the partial typechecker.
+    In an expression such as f(&a), it'd mark a as
+    having &T rather than *T.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5577050
+    https://golang.org/cl/5572058
 
- src/pkg/math/big/arith_amd64.s | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gofix/typecheck.go   |  2 +-
+ src/cmd/gofix/xmlapi.go      | 27 +++++++++++++++++++++------
+ src/cmd/gofix/xmlapi_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 64 insertions(+), 9 deletions(-)

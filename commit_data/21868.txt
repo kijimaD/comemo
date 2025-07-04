@@ -1,28 +1,34 @@
-commit 4bbd7ae8e04eb874f4866b198a287bb06eb5d5a3
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 2 15:22:19 2015 -0500
+commit e6fbce3596c1200825db78d338b98cbc80dc5665
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 6 11:44:09 2015 +1100
 
-    cmd/internal/gc: change proginfo to return ProgInfo instead of writing to param
+    cmd/dist: reactivate vfp detection on linux/arm
     
-    This avoids the argument appearing to escape
-    (due to the fact that proginfo is always called
-    via a function pointer).
+    Fixes #9732
+    Fixes #9819
     
-    Change-Id: Ib9351ba18c80fd89e6a1d4f19dea386d4c657337
-    Reviewed-on: https://go-review.googlesource.com/6518
-    Reviewed-by: Rob Pike <r@golang.org>
+    Rather than detecting vfp support via catching SIGILL signals,
+    parse the contents of /proc/cpuinfo.
+    
+    As the GOARM values for NaCl and freebsd are hard coded, this parsing
+    logic only needs to support linux/arm.
+    
+    This change also fixes the nacl/arm build which is broken because the
+    first stage of nacltest.bash is executed with GOARM=5, embedding that
+    into 5g.
+    
+    The second stage of nacltest.bash correctly detects GOARM=7, but this is
+    ignored as we pass --no-clean at that point, and thus do not replace
+    the compiler.
+    
+    Lastyly, include a fix to error message in nacltest.bash
+    
+    Change-Id: I13f306ff07a99b44b493fade72ac00d0d5097e1c
+    Reviewed-on: https://go-review.googlesource.com/3981
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5g/peep.go           |  2 +-
- src/cmd/5g/prog.go           |  6 ++++--
- src/cmd/6g/peep.go           |  8 ++++----
- src/cmd/6g/prog.go           |  6 ++++--
- src/cmd/8g/peep.go           |  6 +++---
- src/cmd/8g/prog.go           |  6 ++++--
- src/cmd/9g/peep.go           |  2 +-
- src/cmd/9g/prog.go           |  8 +++++---
- src/cmd/internal/gc/go.go    |  2 +-
- src/cmd/internal/gc/lex.go   |  5 ++++-
- src/cmd/internal/gc/plive.go |  2 +-
- src/cmd/internal/gc/popt.go  | 20 +++++++++++---------
- src/cmd/internal/gc/reg.go   |  2 +-
- 13 files changed, 44 insertions(+), 31 deletions(-)
+ src/cmd/dist/util.go       | 48 ++++++++++++++++++++++++++++++----------------
+ src/cmd/dist/vfp_arm.s     | 15 ---------------
+ src/cmd/dist/vfp_default.s | 14 --------------
+ src/nacltest.bash          |  2 +-
+ 4 files changed, 32 insertions(+), 47 deletions(-)

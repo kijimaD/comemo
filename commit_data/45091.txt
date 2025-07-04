@@ -1,41 +1,16 @@
-commit 49e933fc57c2f858e19c26f4a2e56ba94fc54989
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 9 14:40:28 2021 -0400
+commit 75ea9953a812dcb2f64ea949054e529d9748d553
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 5 11:42:44 2020 -0400
 
-    cmd/compile: make interface conversion function selection ABI insensitive
+    cmd/compile: enable late expansion for address-of static calls
     
-    Before register ABI, we always pass argument in memory, and the
-    compiler chooses interface conversion functions solely based on
-    the memory layout. As long as the two types have identical memory
-    layout, it is fine to mix and match, e.g. convT64 takes a uint64
-    argument, but it can be used for things like float64 or
-    struct { x [4]struct{}; y int64 }.
+    passes run.bash and race.bash (on Darwin-amd64)
     
-    With register ABI, those types may be passed differently, e.g.
-    uint64 is passed in an integer register, float64 is passed in a
-    floating point register, the struct above is passed in memory.
-    I made a few attempts in the previous CLs to try to choose the
-    right function based on the argument type, but none of them is
-    really correct.
-    
-    Instead, this CL changes it to always pass the argument in the
-    same type the runtime expects, and do conversion before the call
-    in the compiler. The conversion can be no-op (e.g. a named type
-    to its underlying type), direct (e.g. int64 to uint64), or
-    through memory (e.g. *(*uint64)(unsafe.Pointer(&arg))). This way,
-    the front end does not need to know the ABI. (It only needs to
-    know how to convert types, and it already does.)
-    
-    TODO: do something similar for map functions.
-    
-    Change-Id: I33fc780a47c3f332b765e09b5e527f52ea1d6b5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309029
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I2abda9636b681d050e85e88fc357ebe5220d2ba2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246938
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/builtin.go      | 393 +++++++++++----------
- .../compile/internal/typecheck/builtin/runtime.go  |  17 +-
- src/cmd/compile/internal/walk/convert.go           |  90 ++---
- src/cmd/compile/internal/walk/order.go             |   2 +-
- src/runtime/iface.go                               |   8 -
- 5 files changed, 247 insertions(+), 263 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

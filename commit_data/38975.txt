@@ -1,19 +1,34 @@
-commit 8e4f1a71f22683745c863a776878d9c47e737305
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Tue Apr 30 20:36:20 2019 +0200
+commit 7d9649bf0d3acb8b83d966afa945db7f2188b753
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Dec 11 14:23:17 2018 +0100
 
-    time: look for zoneinfo.zip in GOROOT
+    syscall/js: rename js.Callback to js.Func
     
-    The zoneinfo.zip file will be in the $GOROOT in self-hsoted builds
-    on iOS.
+    The name "Callback" does not fit to all use cases of js.Callback.
+    This commit changes its name to Func. Accordingly NewCallback
+    gets renamed to FuncOf, which matches ValueOf and TypedArrayOf.
     
-    Updates #31722
+    The package syscall/js is currently exempt from Go's compatibility
+    promise and js.Callback is already affected by a breaking change in
+    this release cycle. See #28711 for details.
     
-    Change-Id: I991fae92e3dc50581b099a2d8901aed36ecc7cef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174310
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Fixes #28711
+    
+    Change-Id: I2c380970c3822bed6a3893909672c15d0cbe9da3
+    Reviewed-on: https://go-review.googlesource.com/c/153559
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/zoneinfo_ios.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ misc/wasm/wasm_exec.js             | 34 +++++++-------
+ src/cmd/vet/all/whitelist/wasm.txt |  2 +-
+ src/net/http/roundtrip_js.go       | 12 ++---
+ src/runtime/lock_js.go             | 51 +++++++++++----------
+ src/runtime/rt0_js_wasm.s          |  6 +--
+ src/runtime/sys_wasm.s             |  4 +-
+ src/syscall/fs_js.go               |  2 +-
+ src/syscall/js/callback.go         | 92 --------------------------------------
+ src/syscall/js/func.go             | 92 ++++++++++++++++++++++++++++++++++++++
+ src/syscall/js/js.go               |  2 +-
+ src/syscall/js/js_test.go          | 20 ++++-----
+ 11 files changed, 158 insertions(+), 159 deletions(-)

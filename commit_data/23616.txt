@@ -1,12 +1,16 @@
-commit e71276c7417fcaed566478b37b0f68031a7fc157
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 9 10:10:12 2015 +1000
+commit 1831e1ec3725c987c42aef81264433a219756226
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 2 13:28:33 2015 +1000
 
-    doc: add -test.count and get -insecure to go1.5.html
+    cmd/pprof/internal/profile: fix missing error check
     
-    Change-Id: Ie3d603a95826b9b6a7acd4825991f24c3c61408b
-    Reviewed-on: https://go-review.googlesource.com/11956
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fix missing error check.
+    
+    Spotted by Gordon Klass, https://groups.google.com/forum/#!topic/golang-nuts/MdDLbvOjb4o
+    
+    Change-Id: I453a0cf032e0077d2622d5b85030310d159b9c4b
+    Reviewed-on: https://go-review.googlesource.com/10606
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- doc/go1.5.html | 54 +++++++++++++++++++++++++-----------------------------
- 1 file changed, 25 insertions(+), 29 deletions(-)
+ src/cmd/pprof/internal/profile/profile.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

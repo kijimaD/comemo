@@ -1,15 +1,16 @@
-commit 4f572d707661e3e84ff262d6c605eb6fa1f77abd
+commit b641f0dcf48aa748aa8d3db1e332b77044b48e59
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 25 08:21:52 2021 -0800
+Date:   Tue Nov 10 07:51:59 2020 -0800
 
-    io/fs: minor corrections to Sub docs
+    os: clarify that IsExist and friends do not use errors.Is
     
-    Fixes #44376
+    Fixes #41122
     
-    Change-Id: I9cd21adb9d4d434c3d8b8eb8af3042b70c763ea1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296389
+    Change-Id: Ie5cb0b19ac461d321520b1ebfc493a0ca22232a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268897
     Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/io/fs/sub.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/os/error.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

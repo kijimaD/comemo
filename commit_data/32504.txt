@@ -1,17 +1,48 @@
-commit db9f5917fc65c9b856edeb27f150057898faee81
+commit fc08a19cef1b54cf6aad2fc1f8a298458d2e8d95
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Aug 18 21:17:40 2017 -0700
+Date:   Thu Apr 27 15:17:57 2017 -0700
 
-    runtime: remove handling of non-reflexive key types in evacuate_fastX
+    cmd/compile: move Used from gc.Node to gc.Name
     
-    All of the mapfast key types are reflexive.
+    Node.Used was written to from the backend
+    concurrently with reads of Node.Class
+    for the same ONAME Nodes.
+    I do not know why it was not failing consistently
+    under the race detector, but it is a race.
     
-    Change-Id: I8595aed2a9d945cda1b5d08e2067dce0f1c0d585
-    Reviewed-on: https://go-review.googlesource.com/59132
+    This is likely also a problem with Node.HasVal and Node.HasOpt.
+    They will be handled in a separate CL.
+    
+    Fix Used by moving it to gc.Name and making it a separate bool.
+    There was one non-Name use of Used, marking OLABELs as used.
+    That is no longer needed, now that goto and label checking
+    happens early in the front end.
+    
+    Leave the getters and setters in place,
+    to ease changing the representation in the future
+    (or changing to an interface!).
+    
+    Updates #20144
+    
+    Change-Id: I9bec7c6d33dcb129a4cfa9d338462ea33087f9f7
+    Reviewed-on: https://go-review.googlesource.com/42015
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/hashmap_fast.go | 60 +++++----------------------------------------
- 1 file changed, 6 insertions(+), 54 deletions(-)
+ src/cmd/compile/internal/gc/closure.go   |  4 +-
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  6 +--
+ src/cmd/compile/internal/gc/gen.go       |  4 +-
+ src/cmd/compile/internal/gc/inl.go       |  7 ++-
+ src/cmd/compile/internal/gc/main.go      |  6 +--
+ src/cmd/compile/internal/gc/noder.go     |  8 +--
+ src/cmd/compile/internal/gc/pgen.go      | 16 +++---
+ src/cmd/compile/internal/gc/pgen_test.go | 83 ++++++++++++++++++--------------
+ src/cmd/compile/internal/gc/plive.go     |  2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    |  6 +--
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/cmd/compile/internal/gc/universe.go  |  2 +-
+ src/cmd/compile/internal/gc/walk.go      | 10 ++--
+ 15 files changed, 85 insertions(+), 75 deletions(-)

@@ -1,14 +1,15 @@
-commit 2e7d6729d44489277b994856221a06e388b204fd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 29 10:38:07 2011 -0700
+commit 95f544a1997f5c2deffae2449a10ab3600d6897a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 29 09:49:10 2011 -0700
 
-    http/cgi: pass down environment variables for irix and solaris
+    spec: narrow syntax for expression and select statements
     
-    Used by gccgo.
+    This is not a language change, it simply expresses the
+    accepted cases explicitly in the respective productions.
     
-    R=bradfitz
+    R=rsc, r, iant
     CC=golang-dev
-    https://golang.org/cl/4435080
+    https://golang.org/cl/4428057
 
- src/pkg/http/cgi/host.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go_spec.html | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

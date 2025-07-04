@@ -1,16 +1,13 @@
-commit 3492ee5d3a7f7d41194378d9e1d74fadacef0c5e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 7 23:08:07 2014 -0400
+commit 192665ed9980504ca28c20624f3f9e78ba541966
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 29 12:15:25 2014 -0700
 
-    net/rpc: listen on localhost, let kernel pick port
+    C: add Andres Erbsen (Google CLA)
     
-    This avoids a pop-up box on OS X and it avoids
-    a test failure if something is using 5555.
-    I apologize for not noticing this during the review.
-    
-    TBR=r
+    LGTM=bradfitz, minux
+    R=bradfitz, minux
     CC=golang-codereviews
-    https://golang.org/cl/152320044
+    https://golang.org/cl/119540043
 
- src/net/rpc/client_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

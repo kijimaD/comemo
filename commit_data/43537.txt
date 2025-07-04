@@ -1,23 +1,18 @@
-commit 3a63d04d2edcbdb0937d775e852692279f73a2e2
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue May 19 18:55:10 2020 +1000
+commit fced302aa15702056e0d4a264c80e74c462cdd22
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 4 16:33:54 2020 -0500
 
-    cmd/link,cmd/internal/obj/riscv: add TLS support for linux/riscv64
+    cmd/compile: change gc logging to report inline failure instead of success
     
-    Add support for Thread Local Storage (TLS) for linux/riscv64 with external
-    linking, using the initial-exec model.
+    I've been experimenting with this, success is the wrong thing to report
+    even though it seems to log much less.
     
-    Update #36641
-    
-    Change-Id: I3106ef9a29cde73215830b00deff43dbec1c76e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263478
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I7c25a45d2f41e82b6c8dd8b0a56ba848c63fb21a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223298
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/riscv/obj.go           |  7 +++++++
- src/cmd/internal/objabi/reloctype.go        |  8 ++++++++
- src/cmd/internal/objabi/reloctype_string.go | 18 ++++++++++--------
- src/cmd/link/internal/riscv64/asm.go        | 23 +++++++++++++++++++----
- 4 files changed, 44 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/inl.go             | 20 ++++++++++++++++----
+ src/cmd/compile/internal/logopt/logopt_test.go | 17 +++++++++++++----
+ 2 files changed, 29 insertions(+), 8 deletions(-)

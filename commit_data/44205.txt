@@ -1,29 +1,23 @@
-commit 376518d77fb5d718f90c8b66ea25660aa3734032
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Jan 27 01:48:47 2021 +1100
+commit e5a6a94aeb98fbfd2a046bd75042cbcbc2a529d4
+Author: Paul D. Weber <x0bdev@gmail.com>
+Date:   Tue May 26 07:00:30 2020 +0000
 
-    runtime,syscall: convert syscall on openbsd/arm64 to libc
+    cmd/link/internal/ld/lib.go: use lld on Android
     
-    Convert the syscall package on openbsd/arm64 to use libc rather than performing
-    direct system calls.
+    Set linker explicitly to lld because the default does not work on NDK
+    versions r19c, r20, r20b and r21. NDK 18b (or earlier) based builds
+    will need to specify -fuse-ld=gold.
     
-    Updates #36435
+    Fixes #38838
     
-    Change-Id: I7e1da8537cea9ed9bf2676f181e56ae99383333f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/286815
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ib75f71fb9896b843910f41bd12aa1e36868fa9b3
+    GitHub-Last-Rev: eeaa171604b59d8ad3d86944ebf21ee758e92f95
+    GitHub-Pull-Request: golang/go#39217
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235017
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/sys_openbsd3.go           |   2 +-
- src/runtime/sys_openbsd_arm64.s       | 295 +++++++++++
- src/syscall/asm_openbsd_arm64.s       | 140 +----
- src/syscall/exec_bsd.go               |   2 +-
- src/syscall/exec_libc2.go             |   2 +-
- src/syscall/mkall.sh                  |   5 +-
- src/syscall/syscall_openbsd1.go       |   2 +-
- src/syscall/syscall_openbsd_libc.go   |   2 +-
- src/syscall/zsyscall_openbsd_arm64.go | 941 +++++++++++++++++++++++++++++-----
- src/syscall/zsyscall_openbsd_arm64.s  | 233 +++++++++
- 10 files changed, 1372 insertions(+), 252 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,17 +1,19 @@
-commit 3356624df3414a3ca0c8390ca433a0811e552872
-Author: Burcu Dogan <jbd@google.com>
-Date:   Thu Oct 29 00:02:02 2015 -0700
+commit cb867d2fd64adc851f82be3c6eb6e38ec008930b
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sun Jun 21 20:07:29 2015 +0200
 
-    os/signal: don't expect to be notified for os.Kill
+    os/user: don't depend on _SC_GETPW_R_SIZE_MAX on Linux
     
-    os.Kill cannot be caught on Unix systems.
-    The example gives the false impression that it can.
+    Even Linux systems may not have _SC_GETPW_R_SIZE_MAX if using a
+    different libc than glibc (e.g. musl). Instead of having special-cases
+    for the BSDs, handle -1 correctly by always using a default buffer size.
     
-    Fixes #13080.
+    Fixes #11319.
     
-    Change-Id: I3b9e6f38a38f437a463c5b869ae84a0d3fd23f72
-    Reviewed-on: https://go-review.googlesource.com/16467
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I8b1b260eb9830e6dbe7667f3f33d115ae4de4ce8
+    Reviewed-on: https://go-review.googlesource.com/13772
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/signal/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/user/lookup_unix.go | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

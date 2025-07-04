@@ -1,0 +1,27 @@
+commit d13e6d0b089b72d666d0dd46f4965660ab10b712
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 18 16:37:59 2024 -0800
+
+    internal/runtime/maps: hash copy of key instead of key itself
+    
+    Hashing the key means we have to take the address of it. That inhibits
+    subsequent optimizations on the key variable.
+    
+    By hashing a copy, we incur an extra store at the hash callsite, but
+    we no longer need a load of the key in the inner loop. It can live
+    in a register throughout. (Technically, it gets spilled around
+    the call to the hasher, but it gets restored outside the loop.)
+    
+    Maybe one day we can have special hash functions that take
+    int64/int32/string instead of *int64/*int32/*string.
+    
+    Change-Id: Iba3133f6e82328f53c0abcb5eec13ee47c4969d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629419
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/runtime/maps/runtime_fast32_swiss.go  | 12 ++++++++----
+ src/internal/runtime/maps/runtime_fast64_swiss.go  | 12 ++++++++----
+ src/internal/runtime/maps/runtime_faststr_swiss.go |  9 ++++++---
+ 3 files changed, 22 insertions(+), 11 deletions(-)

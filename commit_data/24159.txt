@@ -1,23 +1,15 @@
-commit 36af087aeff187d0881aed51e7822e2b2bb66b27
-Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 2 13:11:26 2015 -0700
+commit 1fff4bb156ae68e27c919bb5f1b153f4e197802a
+Author: Nevins Bartolomeo <nevins.bartolomeo@gmail.com>
+Date:   Wed Jun 3 16:55:41 2015 -0400
 
-    cmd/asm: handle CMPF and CMPD on ARM
+    crypto: add SHA-512/224 and SHA-512/256 as described in FIPS 180-4
     
-    These instructions are special cases that were missed in the translation.
-    The second argument must go into the Reg field not the To field.
-    
-    Fixes #12458
-    
-    For Go 1.5.1
-    
-    Change-Id: Iad57c60c7e38e3bcfafda483ed5037ce670e8816
-    Reviewed-on: https://go-review.googlesource.com/14183
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ifbab8203dea1eb0df4c834df22e12cb7c37c14fd
+    Reviewed-on: https://go-review.googlesource.com/10683
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/arch/arm.go          | 9 +++++++++
- src/cmd/asm/internal/asm/asm.go           | 5 +++++
- src/cmd/asm/internal/asm/testdata/arm.out | 4 +++-
- src/cmd/asm/internal/asm/testdata/arm.s   | 4 ++++
- 4 files changed, 21 insertions(+), 1 deletion(-)
+ src/crypto/crypto.go             |  56 +++---
+ src/crypto/sha512/sha512.go      | 162 +++++++++++++----
+ src/crypto/sha512/sha512_test.go | 372 +++++++++++++++++++++++++++------------
+ 3 files changed, 419 insertions(+), 171 deletions(-)

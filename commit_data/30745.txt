@@ -1,21 +1,18 @@
-commit 325904fe6a6b3fc4324c517a62fa570fd6efb163
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 9 18:32:17 2017 -0800
+commit d4b704e110dea8395d107f5fd3be9f3cf2e8d161
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 30 15:46:37 2016 -0800
 
-    cmd/compile: port liveness analysis to SSA
+    cmd/cgo: fix cgo checking when fetching errno value
     
-    Passes toolstash-check -all.
+    Fixes #18126.
     
-    Change-Id: I92c3c25d6c053f971f346f4fa3bbc76419b58183
-    Reviewed-on: https://go-review.googlesource.com/38087
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I7ae090945ef203673b06eb94817cc5c894b5eadc
+    Reviewed-on: https://go-review.googlesource.com/33752
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmt_test.go          |    1 -
- src/cmd/compile/internal/gc/gsubr.go |    2 +-
- src/cmd/compile/internal/gc/pgen.go  |   65 +-
- src/cmd/compile/internal/gc/plive.go | 1298 ++++++++++------------------------
- src/cmd/compile/internal/gc/ssa.go   |   58 +-
- src/cmd/compile/internal/ssa/func.go |    4 +
- 6 files changed, 424 insertions(+), 1004 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue18126.go | 26 +++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 51 +++++++++++++++++++++++++++++----------------
+ 3 files changed, 60 insertions(+), 18 deletions(-)

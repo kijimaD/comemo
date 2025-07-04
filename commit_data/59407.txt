@@ -1,24 +1,17 @@
-commit 6729fbe93e535080e9e050b3ca0a80ab407dbacc
-Author: khr@golang.org <khr@golang.org>
-Date:   Sun May 4 10:34:41 2025 -0700
+commit b28b4248f94e49de4fa169e2f76e01a49647b20d
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sun Mar 10 07:36:36 2024 +0000
 
-    cmd/compile: on amd64, use flag result of x instead of doing (TEST x x)
+    cmd/trace/v2: fix typo in comment
     
-    So we can avoid using a TEST where it isn't needed.
-    
-    Currently only implemented for ADD{Q,L}const.
-    
-    Change-Id: Ia9c4c69bb6033051a45cfd3d191376c7cec9d423
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669875
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Icbf295e668335945084616a88c3ea2cef1bb2527
+    GitHub-Last-Rev: 0341d0fea71a194d7a85741f6951c8c7c21aee33
+    GitHub-Pull-Request: golang/go#66229
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570356
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go         |  25 +++++
- src/cmd/compile/internal/ssa/_gen/AMD64.rules |  10 ++
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go |   5 +
- src/cmd/compile/internal/ssa/opGen.go         |  34 +++++++
- src/cmd/compile/internal/ssa/rewrite.go       |  19 ++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go  | 128 ++++++++++++++++++++++++++
- 6 files changed, 221 insertions(+)
+ src/cmd/trace/v2/regions.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

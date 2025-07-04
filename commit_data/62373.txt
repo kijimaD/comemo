@@ -1,0 +1,23 @@
+commit 00e793cfe36de845501ea302645094149ed63e91
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Feb 24 15:37:41 2025 +0100
+
+    runtime/cgo: use CreateThread instead of _beginthread
+    
+    _beginthread is intended to be used together with the C runtime.
+    The cgo runtime doesn't use it, so better use CreateThread directly,
+    which is the Windows API for creating threads.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: Ic6cf75f69f62a3babf5e74155da1aac70961886c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651995
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/cgo/gcc_libinit_windows.c | 25 ++++++++++---------------
+ src/runtime/cgo/gcc_windows_386.c     |  6 ++++--
+ src/runtime/cgo/gcc_windows_amd64.c   |  6 ++++--
+ src/runtime/cgo/gcc_windows_arm64.c   |  6 ++++--
+ src/runtime/cgo/libcgo_windows.h      |  2 +-
+ 5 files changed, 23 insertions(+), 22 deletions(-)

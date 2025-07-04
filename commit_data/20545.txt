@@ -1,16 +1,11 @@
-commit 9c3fc838ba982571e704c1674e9f97678f8a6e93
+commit 2107b30e58b4650e14f5ceb8230c5573597d607d
 Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 25 15:18:25 2014 -0700
+Date:   Tue Sep 16 21:49:10 2014 -0700
 
-    encoding/gob: error rather than panic when decoding enormous slices
-    Fixes #8084.
+    doc/go1.4.txt: add sync/atomic.Value
     
-    LGTM=ruiu
-    R=golang-codereviews, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/142710043
+    https://golang.org/cl/145800043
 
- src/encoding/gob/decode.go       | 12 +++++++++++-
- src/encoding/gob/decoder.go      |  9 ++++++---
- src/encoding/gob/encoder_test.go | 22 ++++++++++++++++++++++
- 3 files changed, 39 insertions(+), 4 deletions(-)
+ doc/go1.4.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

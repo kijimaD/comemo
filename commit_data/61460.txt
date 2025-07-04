@@ -1,0 +1,19 @@
+commit 5e91059f8b5cc078b4b0bfa38290a98414e441e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 12 14:14:19 2024 -0800
+
+    go/types: adjust type-checking of pointer types
+    
+    This matches the behavior of types2.
+    
+    For #49005.
+    
+    Change-Id: I45661c96124f1c75c4fb6f69cbba7c73984a8231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626039
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/typexpr.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

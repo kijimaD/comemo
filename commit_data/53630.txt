@@ -1,24 +1,24 @@
-commit 4ad4128d3c09e24f1e901635bd81ba2db7c46764
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Jun 26 11:30:48 2023 +0700
+commit 396b153ec454cd427f97be4d994a903e2c4b244f
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Sat Jul 30 12:47:51 2022 +0800
 
-    cmd/compile: fix bad order of evaluation for min/max builtin
+    testing: add Elapsed method to testing.B
     
-    For float or string, min/max builtin performs a runtime call, so we need
-    to save its result to temporary variable. Otherwise, the runtime call
-    will clobber closure's arguments currently on the stack when passing
-    min/max as argument to closures.
+    Elapsed returns the measured elapsed time of the benchmark,
+    but does not change the running state of the timer.
     
-    Fixes #60990
+    Fixes #43620.
     
-    Change-Id: I1397800f815ec7853182868678d0f760b22afff2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506115
+    Change-Id: Idd9f64c4632518eec759d2ffccbf0050d84fcc03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420254
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/walk/order.go |  4 +++-
- test/fixedbugs/issue60990.go           | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 1 deletion(-)
+ api/next/43620.txt            |  1 +
+ src/testing/benchmark.go      | 11 +++++++++++
+ src/testing/benchmark_test.go |  3 +++
+ 3 files changed, 15 insertions(+)

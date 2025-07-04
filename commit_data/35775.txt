@@ -1,22 +1,21 @@
-commit 4b3428998d46c34efd6cbf219fbd0219d861307d
-Author: Paul Jolly <paul@myitcv.io>
-Date:   Thu Jun 21 18:30:04 2018 +0100
+commit b1335037fad4c81ce296f652372aa631a29dcb48
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Mar 7 23:03:24 2018 +0100
 
-    misc/wasm: fix permissions on wasm_exec.js
+    cmd/go: skip TestVetWithOnlyCgoFiles when cgo is disabled
     
-    Currently wasm_exec.js is executable (0755) yet has no interpreter.
-    Indeed wasm_exec.js is only ever used as an argument to Node or loaded
-    via a <script> tag in a browser-loaded HTML file.  Hence the execute
-    mode bits are superfluous and simply serve to clutter your PATH if
-    $GOROOT/misc/wasm is on your PATH (as is required if you want to run go
-    test syscall/js).
+    CL 99175 added TestVetWithOnlyCgoFiles. However, this
+    test is failing on platforms where cgo is disabled,
+    because no file can be built.
     
-    Change-Id: I279e2457094f8a12b9bf380ad7f1a9f47b22fc96
-    Reviewed-on: https://go-review.googlesource.com/120435
-    Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    This change fixes TestVetWithOnlyCgoFiles by skipping
+    this test when cgo is disabled.
+    
+    Fixes #24304.
+    
+    Change-Id: Ibb38fcd3e0ed1a791782145d3f2866f12117c6fe
+    Reviewed-on: https://go-review.googlesource.com/99275
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/wasm/wasm_exec.js | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/cmd/go/go_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

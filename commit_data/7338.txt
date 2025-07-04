@@ -1,14 +1,17 @@
-commit 259a974292e7d85d50d0273a530e0c068f410689
+commit 8a2891fc56567b9639e23a62606ac9df7956bf86
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 2 18:53:03 2011 -0500
+Date:   Wed Feb 2 18:34:09 2011 -0500
 
-    cgo: rename internal f to avoid conflict with possible C global named f
+    gc: select receive bug fix
     
-    Fixes #1452.
+    Affects receive using := when new variable escapes to heap.
     
-    R=r
+    Fixes #1468.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4023060
+    https://golang.org/cl/4119052
 
- src/cmd/cgo/gcc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/select.c      |  4 ++--
+ test/fixedbugs/bug320.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 2 deletions(-)

@@ -1,18 +1,17 @@
-commit 029c760c7be0d11563ac69fbc0ca5fd98a5cbc2b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 21 15:18:52 2015 -0700
+commit e0e556620aaf9861c422191fc1efb8020c2f1507
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Aug 6 20:13:27 2015 -0500
 
-    cmd/go: if -msan, pass -fsanitize=memory to cgo builds
+    [dev.ssa] cmd/compile/ssa: don't nil check phis with non-nil arguments
     
-    Also fix the msan_fail test.  It was bogus, since it always aborted one
-    way or another.
+    Move the known-non-nil scan outside the work loop to resolve an issue
+    with values that were declared outside the block being operated on.
+    Also consider phis whose arguments are all non-nil, as non-nil.
     
-    Change-Id: Ic693327d1bddb7bc5c7d859ac047fc93cb9b5b1c
-    Reviewed-on: https://go-review.googlesource.com/16172
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4d5b840042de9eb181f2cb918f36913fb5d517a2
+    Reviewed-on: https://go-review.googlesource.com/13441
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/testsanitizers/msan_fail.go | 3 ++-
- src/cmd/go/build.go                  | 5 +++++
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/nilcheck.go      | 37 +++++++++++++--------
+ src/cmd/compile/internal/ssa/nilcheck_test.go | 46 ++++++++++++++++++++++++++-
+ 2 files changed, 69 insertions(+), 14 deletions(-)

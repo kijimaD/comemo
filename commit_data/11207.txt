@@ -1,16 +1,15 @@
-commit 45d739748ebec720fbf459001b480ca0b8821542
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jan 17 10:45:36 2012 -0800
+commit ebc8013edfc009b1190c656e738b15fe9729cc89
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 17 10:44:35 2012 -0800
 
-    fmt: enable and fix malloc test
-    On 32-bit machines, %g takes an extra malloc. I don't know why yet,
-    but this makes the test pass again, and enables it even for -short.
+    exp/sql: copy when scanning into []byte by default
     
-    Fixes #2653.
+    Fixes #2698
     
-    R=golang-dev, bradfitz, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5542055
+    https://golang.org/cl/5539060
 
- src/pkg/fmt/fmt_test.go | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+ src/pkg/exp/sql/sql.go      | 30 +++++++++++++++++++++++++++---
+ src/pkg/exp/sql/sql_test.go | 41 +++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 66 insertions(+), 5 deletions(-)

@@ -1,23 +1,18 @@
-commit 871256210921227802de309d1ae5e94e9b3646f4
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Jan 8 19:59:08 2019 +0100
+commit db3f52db8edfa51c76d1e3e1a417d46b85528132
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Sun Sep 2 16:53:03 2018 +0000
 
-    doc: make link relative in 1.12 cgo release notes
+    go/types: correct misspelling in function doc
     
-    Change a link in the cgo section of the 1.12 release notes from
+    The indirectType function comment uses the phrase 'layed out'. In the
+    context of that phrase, where something is being placed or sprawled,
+    the word should be 'laid'. 'Layed' is a misspelling of 'laid'.
     
-      https://golang.org/cmd/cgo ...
-    
-    to
-    
-      /cmd/cgo/ ...
-    
-    to uniform it with other links on the page, and to ensure correct
-    target when the page is displayed on tip.golang.org.
-    
-    Change-Id: I7653a6ea15ce111a60929c7ae7e9fb0dc9515502
-    Reviewed-on: https://go-review.googlesource.com/c/156858
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I05ecb97637276e2252c47e92a0bd678130714889
+    GitHub-Last-Rev: 6ee67371b42c12ceaf4c6c245319748008ac7e7b
+    GitHub-Pull-Request: golang/go#27444
+    Reviewed-on: https://go-review.googlesource.com/132779
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.12.html | 2 +-
+ src/go/types/typexpr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

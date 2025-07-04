@@ -1,22 +1,12 @@
-commit f5e67e53e79784ceb772fea50fecbd3847ae3bdf
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 24 12:33:23 2015 -0400
+commit bbf79575a56afdd4f2aadbdcee6bdd700160516a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 17 13:19:33 2015 -0700
 
-    runtime: allow GC drain whenever write barrier is enabled
+    math/big: incorporate feedback by josharian (Example_fibonacci)
     
-    Currently we hand-code a set of phases when draining is allowed.
-    However, this set of phases is conservative. The critical invariant is
-    simply that the write barrier must be enabled if we're draining.
-    
-    Shortly we're going to enable mutator assists during the scan phase,
-    which means we may drain during the scan phase. In preparation, this
-    commit generalizes these assertions to check the fundamental condition
-    that the write barrier is enabled, rather than checking that we're in
-    any particular phase.
-    
-    Change-Id: I0e1bec1ca823d4a697a0831ec4c50f5dd3f2a893
-    Reviewed-on: https://go-review.googlesource.com/12673
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I376ff39594b532a5490f13e3985b7a6ff4b6761d
+    Reviewed-on: https://go-review.googlesource.com/11191
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mgcmark.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/math/big/example_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

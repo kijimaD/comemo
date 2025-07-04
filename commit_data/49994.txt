@@ -1,46 +1,26 @@
-commit 39ec97da15e9167e7a17746c643f264baae6ce7b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 16 10:38:02 2022 -0400
+commit dac89a9d7fb253d30e5161e9ff6d80fbdfc79d75
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Sep 24 10:43:55 2021 +1000
 
-    crypto/internal/boring: update to newer boringcrypto, add arm64
+    image/draw: add RGBA64Image fast path for RGBA dst
     
-    Update the version of BoringCrypto to boringssl tag
-    fips-20210429, for which FIPS approval is "in process".
+    This should have been part of https://golang.org/cl/340049 but I
+    overlooked it. That commit added fast path code when the destination
+    image was *not* an *image.RGBA. This commit edits func drawRGBA.
     
-    Add GOARCH=arm64 BoringCrypto support.
+    name               old time/op  new time/op  delta
+    RGBA1-4            5.11ms ± 1%  1.12ms ± 1%  -78.01%  (p=0.008 n=5+5)
+    RGBA2-4            8.69ms ± 1%  2.98ms ± 1%  -65.77%  (p=0.008 n=5+5)
     
-    Shuffle build to run as distinct steps in Docker so that
-    we can rerun later parts like build-goboring.sh without
-    rerunning all the setup.
+    Updates #44808.
+    Updates #46395.
     
-    Strip unnecessary parts of the syso using --strip-unneeded,
-    which cuts the amd64 syso from 10MB to 2.5MB.
-    The new arm64 syso is 2MB, so even though we added a new
-    architecture, we have half as much syso to distribute.
-    
-    Change-Id: I0f7327389a3a485b82577abea9153d006418298f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423362
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I899d46d985634fc81ea47ff4f0d436630e8a961c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351852
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/crypto/boring/boring_test.go                   |   2 +-
- src/crypto/internal/boring/Dockerfile              |  85 +++++---
- src/crypto/internal/boring/README.md               |  19 ++
- src/crypto/internal/boring/aes.go                  |   3 +-
- src/crypto/internal/boring/boring.go               |   3 +-
- src/crypto/internal/boring/build-boring.sh         |  44 ++++
- src/crypto/internal/boring/build-goboring.sh       | 233 +++++++++++++++++++++
- src/crypto/internal/boring/build.sh                | 222 ++++----------------
- src/crypto/internal/boring/div_test.c              |  83 ++++++++
- src/crypto/internal/boring/ecdsa.go                |   3 +-
- src/crypto/internal/boring/goboringcrypto.h        |   2 +-
- src/crypto/internal/boring/hmac.go                 |   3 +-
- src/crypto/internal/boring/notboring.go            |   3 +-
- src/crypto/internal/boring/rand.go                 |   3 +-
- src/crypto/internal/boring/rsa.go                  |   3 +-
- src/crypto/internal/boring/sha.go                  |   3 +-
- .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 10864368 -> 2555552 bytes
- .../boring/syso/goboringcrypto_linux_arm64.syso    | Bin 0 -> 1980184 bytes
- 18 files changed, 477 insertions(+), 237 deletions(-)
+ src/image/draw/bench_test.go |  9 ++++-
+ src/image/draw/draw.go       | 87 ++++++++++++++++++++++++++++++++++++++++++++
+ src/image/draw/draw_test.go  | 84 ++++++++++++++++++++++++++++++++++++------
+ 3 files changed, 166 insertions(+), 14 deletions(-)

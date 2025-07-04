@@ -1,24 +1,23 @@
-commit 1095dd6339dbaf8d7c92214396c0a4dbcfa38521
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 13 10:58:13 2020 -0400
+commit fd18f3ba5031079102ca4dc4cf425c2b496408ba
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 10 14:07:13 2020 -0700
 
-    cmd/go/internal/modload: embed PackageOpts in loaderParams
+    cmd/link: turn ASLR off for netbsd+race
     
-    Instead of duplicating PackageOpts fields in the loaderParams struct,
-    embed the PackageOpts directly. Many of the fields are duplicated, and
-    further fields that would also be duplicated will be added in
-    subsequent changes.
+    The race detector can't handle ASLR (adddress space layout randomization).
+    On some platforms it can re-exec the binary with ASLR off. But not NetBSD.
+    For NetBSD we have to introduce a special ELF header note that tells
+    the kernel not to use ASLR.
     
-    For #36460
+    This works fine for internal linking. For external linking it also works,
+    but "readelf -n" shows multiple notes in the resulting binary. Maybe the
+    last one wins? Not sure, but it appears to work.
     
-    Change-Id: I3b0770d162e901d23ec1643183eb07c413d51e0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263138
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I5fe6dd861e42a8293f64d0dacb166631ea670fcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227864
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/go/internal/modload/buildlist.go |  4 +++-
- src/cmd/go/internal/modload/load.go      | 24 ++++++++++++------------
- 2 files changed, 15 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

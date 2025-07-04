@@ -1,21 +1,26 @@
-commit e980a3d8856ec3b4f11daa7e5ec417ad4f5c5256
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 10 10:27:37 2016 -0700
+commit 121c434f7add815c3147b01a097a8998018bcc6b
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Apr 6 18:58:22 2016 +0100
 
-    go/parser: document that parse functions need valid token.FileSet
+    runtime/pprof: make TestBlockProfile less timing dependent
     
-    + panic with explicit error if no file set it provided
+    The test for profiling of channel blocking is timing dependent,
+    and in particular the blockSelectRecvAsync case can fail on a
+    slow builder (plan9_arm) when many tests are run in parallel.
+    The child goroutine sleeps for a fixed period so the parent
+    can be observed to block in a select call reading from the
+    child; but if the OS process running the parent goroutine is
+    delayed long enough, the child may wake again before the
+    parent has reached the blocking point.  By repeating the test
+    three times, the likelihood of a blocking event is increased.
     
-    (Not providing a file set is invalid use of the API; panic
-    is the appropriate action rather than returning an error.)
+    Fixes #15096
     
-    Fixes #16018.
-    
-    Change-Id: I207f5b2a2e318d65826bdd9522fce46d614c24ee
-    Reviewed-on: https://go-review.googlesource.com/24010
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2ddb9576a83408d06b51ded682bf8e71e53ce59e
+    Reviewed-on: https://go-review.googlesource.com/21604
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/parser/interface.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/runtime/pprof/pprof_test.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

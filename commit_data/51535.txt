@@ -1,26 +1,27 @@
-commit eaf0e3d4650fd223dec84ee52025c7a82bcb24bd
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 8 08:24:57 2022 -0500
+commit 2e9dcb508647dc473a37ecfa244d2bc4a1843ab4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 21 06:52:43 2022 +0000
 
-    runtime: remove arbitrary timeouts in finalizer tests
+    runtime: simplify histogram buckets considerably
     
-    These short timeouts can overrun due to system scheduling delay
-    (or GC latency) on a slow or heavily-loaded host.
+    There was an off-by-one error in the time histogram buckets calculation
+    that caused the linear sub-buckets distances to be off by 2x.
     
-    Moreover, if the test deadlocks we will probably want to know what the
-    GC goroutines were doing at the time. With an arbitrary timeout, we
-    never get that information; however, if we allow the test to time out
-    completely we will get a goroutine dump (and, if GOTRACEBACK is
-    configured in the environment, that may even include GC goroutines).
+    The fix was trivial, but in writing tests I realized there was a much
+    simpler way to express the calculation for the histogram buckets, and
+    took the opportunity to do that here. The new bucket calculation also
+    fixes the bug.
     
-    Fixes #57166.
+    Fixes #50732.
     
-    Change-Id: I136501883373c3ce4e250dc8340c60876b375f44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456118
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Idae89986de1c415ee4e148f778e0e101ca003ade
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380094
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/mfinal_test.go | 26 +++++---------------------
- 1 file changed, 5 insertions(+), 21 deletions(-)
+ src/runtime/export_test.go    |  2 ++
+ src/runtime/histogram.go      | 52 +++++++++++++++++++------------------------
+ src/runtime/histogram_test.go | 40 +++++++++++++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 29 deletions(-)

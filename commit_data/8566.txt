@@ -1,18 +1,18 @@
-commit 9f0cabfab97aa2194d5757c1fcd78018d72d65e2
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jun 1 10:48:15 2011 +1000
+commit 9ec0c01e19db38f809403858fbd4ef6e6d6e03b8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 1 09:49:51 2011 +1000
 
-    goinstall: document GOPATH and support relative/absolute installs
-    goinstall: more verbose logging with -v
+    unicode: guarantee that the 32-bit range tables contain only
+    values >= 16 bits, so the lookup code can be smaller in the
+    common case.
+    Also make CaseRange uint32s rather than ints, so if we go to
+    64-bit ints we don't waste more space.
     
-    Fixes #1901.
-    
-    R=rsc, n13m3y3r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4524078
+    https://golang.org/cl/4550094
 
- src/cmd/goinstall/doc.go  |  55 ++++++++++++++++++++++++-
- src/cmd/goinstall/main.go | 102 ++++++++++++++++++++++++----------------------
- src/cmd/goinstall/make.go |  32 +++------------
- src/cmd/goinstall/path.go |  44 +++++++++++++++++---
- 4 files changed, 151 insertions(+), 82 deletions(-)
+ src/pkg/unicode/letter.go     | 24 ++++++++---------------
+ src/pkg/unicode/maketables.go | 45 ++++++++++++++++++++++++++++---------------
+ src/pkg/unicode/tables.go     | 13 ++++++++-----
+ 3 files changed, 45 insertions(+), 37 deletions(-)

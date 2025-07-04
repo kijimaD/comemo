@@ -1,24 +1,35 @@
-commit e8aa9a533df0ba44857d57ba489b74424b270ac7
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Apr 5 12:11:32 2018 +0100
+commit bd41c6783bcb079aac585948868107df8d30f6d9
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 20 16:47:08 2017 -0500
 
-    cmd/internal/obj: various code cleanups
+    cmd/compile: improve debugging output for GOSSAFUNC
     
-    Mostly replacing C-Style loops with range expressions, but also other
-    simplifications like the introduction of writeBool and unindenting some
-    code.
+    This changes the assembly language output to use the
+    innermost (instead of outermost) position for line
+    number and file.
     
-    Passes toolstash -cmp on std cmd.
+    The file is printed separately, only when it changes,
+    to remove redundant and space-consuming noise from the
+    output.
     
-    Change-Id: I799bccd4e5d411428dcf122b8588a564a9217e7c
-    Reviewed-on: https://go-review.googlesource.com/104936
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Unknown positions have line number "?"
+    
+    The output format was changed slightly to make it
+    easier to read.
+    
+    One source of gratuitous variation in debugging output was
+    removed.
+    
+    Change-Id: I1fd9c8b0ddd82766488582fb684dce4b04f35723
+    Reviewed-on: https://go-review.googlesource.com/78895
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/objfile.go | 58 ++++++++++++++++++++---------------------
- src/cmd/internal/obj/pass.go    | 16 +++++-------
- src/cmd/internal/obj/pcln.go    | 22 ++++++++--------
- src/cmd/internal/obj/util.go    |  4 ---
- 4 files changed, 45 insertions(+), 55 deletions(-)
+ src/cmd/compile/fmt_test.go           |  2 +-
+ src/cmd/compile/internal/gc/main.go   |  2 +-
+ src/cmd/compile/internal/gc/ssa.go    | 16 +++++++++++-----
+ src/cmd/compile/internal/ssa/value.go |  2 ++
+ src/cmd/internal/obj/inl.go           | 16 +++++++++++++++-
+ src/cmd/internal/obj/util.go          | 21 ++++++++++-----------
+ 6 files changed, 40 insertions(+), 19 deletions(-)

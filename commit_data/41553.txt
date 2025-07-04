@@ -1,13 +1,17 @@
-commit c9ece81cc8c1a81ebdebcf6dfc13ebf5c4cbdb61
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Mar 2 04:25:54 2020 +1100
+commit 9036351dd7245c66abec26d607e38c5131f989c6
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 11 09:21:36 2019 -0400
 
-    cmd/compile: absorb SNEZ into branch on riscv64
+    [dev.link] cmd/link/internal/objfile: update deadcode2 to use new reloc hooks
     
-    Change-Id: I55fd93843a7fb574a7dd66ebb87fdd96e944d555
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221682
+    Update the new deadcode pass to use the revised loader interface
+    for querying relocations. Remove some of the previous loader relocation
+    methods, since they are no longer used.
+    
+    Change-Id: I08cec4c05793a17698b2674068f64837a5bf4477
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200718
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules | 3 +++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 9 +++++++++
- 2 files changed, 12 insertions(+)
+ src/cmd/link/internal/ld/deadcode2.go     | 21 +++++++++++----------
+ src/cmd/link/internal/objfile/objfile2.go | 27 ---------------------------
+ 2 files changed, 11 insertions(+), 37 deletions(-)

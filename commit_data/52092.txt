@@ -1,25 +1,27 @@
-commit 5e4e2acc8e53022f57398c4b0f3892f8113687f6
-Author: Xiangdong Ji <jixiangdong@bytedance.com>
-Date:   Thu Feb 9 17:31:14 2023 +0800
+commit ef5505335432572678c19e202e0edde61b7c5b95
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 25 13:22:55 2022 -0400
 
-    cmd/compile/internal/pgo: fix RedirectEdges
+    make.bash: disable GOEXPERIMENT when using bootstrap toolchain
     
-    'RedirectEdges' may range over an out-edge slice under modification, leading to out-of-index
-    panic, and reuse an IREdge object by mistake if there are multiple inlining call-sites.
+    When using Go 1.4 this doesn't matter, but when using Go 1.17,
+    the bootstrap toolchain will complain about unknown GOEXPERIMENT settings.
+    Clearly GOEXPERIMENT is for the toolchain being built, not the bootstrap.
     
-    Fix by rewriting part of the redirecting operation.
+    Already submitted as CL 395879 on the dev.boringcrypto branch,
+    but needed on master to set up GOEXPERIMENT=boringcrypto
+    builder ahead of merge.
     
-    Remove 'redirectEdges' as it's not used now and not working as expected in case of multiple
-    inlining call-sites.
+    For #51940.
     
-    Fixes #58437.
-    
-    Change-Id: Ic344d4c262df548529acdc9380636cb50835ca51
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466915
+    Change-Id: Ib6a4099cca799b4d5df1974cdb5471adb0fd557d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397894
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/pgo/irgraph.go | 41 ++++++++++++++++-----------------
- 1 file changed, 20 insertions(+), 21 deletions(-)
+ src/make.bash | 4 ++--
+ src/make.bat  | 1 +
+ src/make.rc   | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)

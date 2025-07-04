@@ -1,22 +1,23 @@
-commit 213845f7b932c72c5e49445224166d0ae14dfac9
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Dec 11 18:26:42 2018 +0000
+commit c5d38b896df504e3354d7a27f7ad86fa9661ce6b
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu May 10 13:25:39 2018 +0200
 
-    runtime: fix sysUsed for Windows
+    cmd/compile: add convnop helper function
     
-    sysUsed on Windows cares about the result from the VirtualAlloc syscall
-    returning exactly the address that was passed to it. However,
-    VirtualAlloc aligns the address its given to the kernel's allocation
-    granularity, so the returned address may not be the same.
+    Like the conv helper function but for creating OCONVNOP nodes
+    instead of OCONV nodes.
     
-    Note that this wasn't an issue in the past because we only sysUsed
-    regions owned by spans, and spans are always a multiple of 8K, which
-    is a multiple of the allocation granularity on most Windows machines.
+    passes toolstash -cmp
     
-    Change-Id: I3f5ccd63c6bbbd8b7995945ecedee17573b31667
-    Reviewed-on: https://go-review.googlesource.com/c/153677
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ib93ffe66590ebaa2b4fa552c81f1a2902e789d8e
+    Reviewed-on: https://go-review.googlesource.com/112597
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mem_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/closure.go | 10 ++--------
+ src/cmd/compile/internal/gc/range.go   |  3 +--
+ src/cmd/compile/internal/gc/select.go  | 13 +++++--------
+ src/cmd/compile/internal/gc/subr.go    |  3 +--
+ src/cmd/compile/internal/gc/walk.go    | 19 ++++++++++++-------
+ 5 files changed, 21 insertions(+), 27 deletions(-)

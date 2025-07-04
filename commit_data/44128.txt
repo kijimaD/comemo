@@ -1,21 +1,20 @@
-commit e125ccd10ea191101dbc31f0dd39a98f9d3ab929
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Jan 14 13:28:37 2021 -0500
+commit d72ea427c6853742e8e49cb9dbcd64c36bb6270d
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed May 13 11:42:36 2020 -0400
 
-    cmd/go: in 'go mod edit', validate versions given to -retract and -exclude
+    [dev.link] cmd/link/internal/loader: remove Propagate* shim functions
     
-    Fixes #43280
+    Remove the loader's PropagateSymbolChangesBackToLoader and
+    PropagateLoaderChangesToSymbols shim functions. These were used at one
+    point to enable conversion of phases in the linker that were
+    "downstream" of loadlibfull -- given the current wavefront position
+    there's not much point keeping them around.
     
-    Change-Id: Icb6c6807fe32a89202a2709d4a1c8d8af967628f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283853
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I3f01f25b70b1b80240369c8f3a10dca89931610f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233817
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go.mod                                  |  2 +-
- src/cmd/go.sum                                  |  4 ++--
- src/cmd/go/testdata/script/mod_edit.txt         |  6 +++++
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 30 +++++++++++++++++++++++++
- src/cmd/vendor/modules.txt                      |  2 +-
- 5 files changed, 40 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 139 ---------------------------------
+ 1 file changed, 139 deletions(-)

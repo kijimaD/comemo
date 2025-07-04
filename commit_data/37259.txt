@@ -1,18 +1,17 @@
-commit cbe04e8d70c32b9477ebcde5265bc17cc41af4a7
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 26 12:21:15 2017 -0400
+commit ebdba42d9e1de46ebf611baec98d53f01c534cac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 10 21:07:55 2018 -0700
 
-    internal/trace: track worst N mutator utilization windows
+    runtime: check tgkill error in Debug tests
     
-    This will let the trace viewer show specifically when poor utilization
-    happened and link to specific instances in the trace.
+    Updates #25519
     
-    Change-Id: I1f03a0f9d9a7570009bb15762e7b8b6f215e9423
-    Reviewed-on: https://go-review.googlesource.com/c/60793
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ibcdf948fd38d8d02d467b62213566ec0d7ce0d6a
+    Reviewed-on: https://go-review.googlesource.com/123180
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/internal/traceparser/gc.go      | 151 +++++++++++++++++++++++++++++++-----
- src/internal/traceparser/gc_test.go |  32 ++++++--
- 2 files changed, 157 insertions(+), 26 deletions(-)
+ src/runtime/debug_test.go        | 4 ++--
+ src/runtime/export_debug_test.go | 6 ++++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

@@ -1,21 +1,20 @@
-commit 249c85d3aab2ad2d0bcbf36efe606fdd66f25c72
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jan 7 12:03:28 2020 -0500
+commit fa7d40abe098a7d30e6cb492ee8e05306b8e537d
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Sep 1 12:47:49 2019 +0700
 
-    net/http: avoid writing to Transport.ProxyConnectHeader
+    cmd/link: always set .dynsym info field
     
-    Previously, we accidentally wrote the Proxy-Authorization header for
-    the initial CONNECT request to the shared ProxyConnectHeader map when
-    it was non-nil.
+    CL 187979 added set .dynsym info field, but it won't when
+    there are no global symbols. This CL sets that field
+    unconditionally.
     
-    Fixes #36431
+    Fixes #34000
     
-    Change-Id: I5cb414f391dddf8c23d85427eb6973f14c949025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213638
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icc2f8bc74afdade88a377793e6760912b03686ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192600
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/transport.go      |  7 ++++---
- src/net/http/transport_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/elf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

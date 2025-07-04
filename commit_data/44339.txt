@@ -1,20 +1,17 @@
-commit 1901e2647f5724df38e9a9a3756dad01704bc783
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Feb 17 01:14:19 2021 +0700
+commit 97019105884ced2c4658f9763528e7f6983f8773
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Jun 13 12:28:08 2020 +1000
 
-    test: add test for findTypeLoop with symbols from other packages
+    image/gif: speed up initializing test image
     
-    CL 274294 improved findTypeLoop but also fixed a new found bug on master
-    branch. This Cl adds test cases for this.
+    The benchmark throughput numbers don't change, but the set-up time (the
+    time taken before the b.ResetTimer() call) drops from 460ms to 4ms.
     
-    Updates #44266
-    
-    Change-Id: Ie4a07a3487758a1e4ad2f2847dcde975b10d2a77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292889
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I5a6756643dff6127f6d902455d83459c084834fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237757
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue44266.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/image/gif/writer_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

@@ -1,20 +1,16 @@
-commit a0eb662d85fd4815dfec3093e8205b9aed462507
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu May 6 22:52:51 2021 +0000
+commit 09d5e0d1193596bdce3fc9ef65eb0eeea940acf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 29 16:44:08 2020 -0400
 
-    doc/go1.17: move language specification TODO to the right place
+    api: update next.txt
     
-    It was misplaced by the relnote tool.
+    The output from all.bash has gotten big again.
     
-    Also add a TODO for CL 312212, per discussion in golang.org/issue/46020.
-    
-    For #44513.
-    For #46020.
-    
-    Change-Id: I8d766df969f85c351ead18df3e45adb6fb27b7a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317829
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ia2399d78c1fd443fd8de03c25655e2f84bd89886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266397
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.17.html | 16 ++++++----------
- 1 file changed, 6 insertions(+), 10 deletions(-)
+ api/next.txt | 127 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 121 insertions(+), 6 deletions(-)

@@ -1,22 +1,18 @@
-commit 5ad676a7ce1800c7dd6e4f97a6eae52e54f74ef1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 26 16:22:24 2023 -0700
+commit 98e16488237b7f091ec35cbec12030a95b9f8f1b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jul 19 14:19:09 2022 -0400
 
-    doc/go1.21: mention errors.ErrUnsupported
+    runtime: print irrelevant IDs as nil in schedtrace
     
-    Also mention errors that implement it.
+    We currently print these as -1, but some are technically uint64. We can
+    be more explicit about their irrelevance by printing 'nil' rather than
+    -1.
     
-    For #41198
-    
-    Change-Id: I4f01b112f53b19e2494b701bb012cb2cb52f8962
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498775
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I267fd8830564c75032bfe9176af59047f5a90202
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419441
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- doc/go1.21.html | 36 +++++++++++++++++++++++++++++-------
- 1 file changed, 29 insertions(+), 7 deletions(-)
+ src/runtime/proc.go | 54 ++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 31 insertions(+), 23 deletions(-)

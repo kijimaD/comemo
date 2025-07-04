@@ -1,19 +1,16 @@
-commit 79f2f008a31f769ae3db684eb48d8baeda731c00
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 16 14:38:33 2016 -0400
+commit 59d186832b94349d683431e01e084d6ce460f476
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 8 17:50:03 2016 +0000
 
-    cmd/dist: make zosarch.go deterministic
+    context: disable more flaky tests on openbsd
     
-    Currently zosarch.go is written out in non-deterministic map order.
-    Sort the keys and write it out in sorted order to make the generated
-    file contents deterministic.
+    Updates #15158
     
-    Change-Id: Id490f0e8665a2c619c5a7a00a30f4fc64f333258
-    Reviewed-on: https://go-review.googlesource.com/24174
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Icb3788152a7a5a9b0d56ea38da46d770ffdce413
+    Reviewed-on: https://go-review.googlesource.com/21763
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/buildgo.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/context/context_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

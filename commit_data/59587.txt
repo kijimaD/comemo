@@ -1,16 +1,38 @@
-commit 96d2211c61189f056fa3c7c8d8abb351596c0f2c
-Author: Mark Freeman <mark@golang.org>
-Date:   Mon May 19 15:51:03 2025 -0400
+commit 97f1b76b4ba3072ab50d0d248fdce56e73b45baf
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 27 22:00:31 2024 -0400
 
-    cmd/compile/internal/noder: mark Ref[T] as a primitive
+    runtime: optimize timers.cleanHead
     
-    Like Sync, Ref[T] is also used to define things like StringRef.
+    goos: linux
+    goarch: amd64
+    pkg: time
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                                       │ s7base.txt  │               s7.txt                │
+                                       │   sec/op    │   sec/op     vs base                │
+    AdjustTimers10000-32                 291.4µ ± 5%   263.3µ ± 4%   -9.64% (p=0.000 n=10)
+    AdjustTimers10000SingleThread-32     1.728m ± 5%   1.742m ± 3%        ~ (p=0.796 n=10)
+    AdjustTimers10000NoReset-32          253.1µ ± 6%   192.2µ ± 2%  -24.07% (p=0.000 n=10)
+    AdjustTimers10000NoSleep-32          277.3µ ± 3%   237.0µ ± 2%  -14.54% (p=0.000 n=10)
+    AdjustTimers10000NoResetNoSleep-32   241.4µ ± 2%   185.2µ ± 1%  -23.30% (p=0.000 n=10)
     
-    Change-Id: I9e10234504ee4dd03907bb058a6f3ae7e6a287ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674157
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Mark Freeman <mark@golang.org>
-    Auto-Submit: Mark Freeman <mark@golang.org>
+    goos: darwin
+    goarch: arm64
+    pkg: time
+    cpu: Apple M3 Pro
+                                       │ m3base.txt  │               m3.txt                │
+                                       │   sec/op    │   sec/op     vs base                │
+    AdjustTimers10000-12                 288.1µ ± 1%   272.6µ ± 3%   -5.38% (p=0.000 n=10)
+    AdjustTimers10000SingleThread-12     1.195m ± 1%   1.126m ± 1%   -5.74% (p=0.000 n=10)
+    AdjustTimers10000NoReset-12          280.8µ ± 1%   255.1µ ± 2%   -9.14% (p=0.000 n=10)
+    AdjustTimers10000NoSleep-12          292.5µ ± 1%   250.2µ ± 2%  -14.47% (p=0.000 n=10)
+    AdjustTimers10000NoResetNoSleep-12   279.8µ ± 2%   230.3µ ± 1%  -17.69% (p=0.000 n=10)
+    
+    Change-Id: I36edb40ee2cd11ab44d20bff045fa77609dca648
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574739
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/noder/doc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/time.go | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

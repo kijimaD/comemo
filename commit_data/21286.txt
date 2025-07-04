@@ -1,16 +1,17 @@
-commit c3b459d328fefabe877368d907d3f2e10b44a506
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jan 15 21:02:51 2015 -0800
+commit ddd666b122b327c96a845d0d0045f4c2cc12bd19
+Author: Emil Hessman <emil@hessman.se>
+Date:   Thu Dec 18 08:11:42 2014 +0100
 
-    test: generate tests for arithmetic on narrow types
+    path/filepath: remove named result parameter for VolumeName
     
-    Fixes #9607
-    Related to #9604
-    Inadvertently found #9609
+    Fix style by removing unnecessary named result parameter.
     
-    Change-Id: I8a8ddf84ac72d3e18986fd8e9288734459f3f174
-    Reviewed-on: https://go-review.googlesource.com/2962
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fix doc comment while here.
+    
+    Change-Id: If8394e696ab37e00a95484d5137955aa06c59520
+    Reviewed-on: https://go-review.googlesource.com/1781
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue9604b.go | 177 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 177 insertions(+)
+ src/path/filepath/path.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

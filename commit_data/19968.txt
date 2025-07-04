@@ -1,11 +1,11 @@
-commit 5a17aaa830a5951d2dc24aabb6c267d224a6b697
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 8 14:54:04 2014 -0700
+commit 12666cb91d619d85c32a4fb2308ba4c1dd235741
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Aug 7 14:22:15 2014 -0700
 
-    doc/go1.4.txt: go.sys subrepo created
+    doc: add note about crypto/tls cert selection callback.
     
     CC=golang-codereviews
-    https://golang.org/cl/124050043
+    https://golang.org/cl/123950043
 
- doc/go1.4.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

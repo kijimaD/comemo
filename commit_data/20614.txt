@@ -1,16 +1,17 @@
-commit 7e8218aedd30a3dacb2642ef37ff1f68657071b2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 1 16:24:17 2014 -0700
+commit 5917692b98695b606744f638224a82a2472bfeaa
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 16:53:47 2014 -0400
 
-    encoding/json: don't panic on incorrect map argument
+    debug/dwarf: correct name for clang-generated complex type
     
-    Fixes #8305.
+    Fixes #8694.
     
-    LGTM=rsc
-    R=rsc
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/145680044
+    https://golang.org/cl/143570043
 
- src/encoding/json/decode.go      |  6 ++++--
- src/encoding/json/decode_test.go | 12 +++++++++++-
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue8694.go | 32 ++++++++++++++++++++++++++++++++
+ src/debug/dwarf/type.go    | 11 +++++++++++
+ 3 files changed, 44 insertions(+)

@@ -1,16 +1,13 @@
-commit 7ff52e13cdc61af1f63ab27bd91c1f00cf11bd86
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 09:15:19 2015 -0400
+commit 73024083b08509414e98061d894239386ddd8ba0
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 2 20:36:47 2015 -0700
 
-    debug/elf: added MIPS ELF relocations
+    [dev.ssa] cmd/compile: add pxor to list of instructions analyzeable by liveness analysis
     
-    Change-Id: I05352749a852095baae2f67fd71ffcf5f727538d
-    Reviewed-on: https://go-review.googlesource.com/14453
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I6ea0a3482d8813b8555b16fe6c377cad33554619
+    Reviewed-on: https://go-review.googlesource.com/14247
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/debug/elf/elf.go                               | 109 +++++++++++++++++++++
- src/debug/elf/file.go                              |  54 ++++++++++
- src/debug/elf/file_test.go                         |  38 +++++++
- .../testdata/go-relocation-test-gcc492-mips64.obj  | Bin 0 -> 4120 bytes
- .../go-relocation-test-gcc493-mips64le.obj         | Bin 0 -> 4160 bytes
- 5 files changed, 201 insertions(+)
+ src/cmd/compile/internal/amd64/prog.go | 1 +
+ src/cmd/compile/internal/x86/prog.go   | 1 +
+ 2 files changed, 2 insertions(+)

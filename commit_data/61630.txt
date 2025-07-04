@@ -1,0 +1,15 @@
+commit 5fdadffe3d20be9de491835c4351dee5dc81c42c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 14 02:32:25 2024 -0500
+
+    cmd/dist: add FIPS snapshot build tests
+    
+    Check that all the FIPS zips build.
+    
+    Change-Id: Iec22d9295178f95862060e57a8ac9ed657f69943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629197
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/dist/test.go | 40 ++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 38 insertions(+), 2 deletions(-)

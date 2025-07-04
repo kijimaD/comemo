@@ -1,27 +1,17 @@
-commit 6e9960ea632cae58e6f8f494876f45fe05cc10b6
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Nov 12 16:55:11 2017 +0000
+commit 3f972df4a7f4be5db219ebd22625594711b68255
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 19 10:45:38 2017 -0700
 
-    cmd/compile: use stringer on types.EType
+    runtime: don't clear pointer-free memory when growing maps
     
-    Another one that is possible thanks to the new -trimprefix stringer
-    flag.
+    If there are no pointers, then clearing memory doesn't help GC,
+    and the memory is otherwise dead, so don't bother clearing it.
     
-    The only subtle difference is that, in the previous version, some values
-    such as TUNSAFEPTR were stringified as "TUNSAFEPTR" instead of
-    "UNSAFEPTR". The new String method is always consistent in removing the
-    "T" prefix.
-    
-    Passes toolstash -cmp on std cmd.
-    
-    Change-Id: I68407f391795403dfcbbfa68c813018c0235bbb5
-    Reviewed-on: https://go-review.googlesource.com/77250
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I953f4a3264939f2825e82292030eda2e835cbb97
+    Reviewed-on: https://go-review.googlesource.com/57350
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/compile/internal/types/etype_string.go | 16 +++++++++
- src/cmd/compile/internal/types/type.go         |  4 ++-
- src/cmd/compile/internal/types/utils.go        | 48 --------------------------
- 3 files changed, 19 insertions(+), 49 deletions(-)
+ src/runtime/hashmap.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

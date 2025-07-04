@@ -1,33 +1,17 @@
-commit 135ef49fde39c95fe61212376172c6ad333449c0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Feb 4 17:31:37 2015 -0800
+commit 86fdcbedbcb868f7f2e8274d2b50f0ea34043c47
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 12 14:30:10 2015 +1100
 
-    runtime: speed up eqstring
+    log: add global Output function
     
-    eqstring does not need to check the length of the strings.
+    It was just an oversight that this one method of Logger was not
+    made available for the standard (std) Logger.
     
-    6g
+    Fixes #9183
     
-    benchmark                              old ns/op     new ns/op     delta
-    BenchmarkCompareStringEqual            7.03          6.14          -12.66%
-    BenchmarkCompareStringIdentical        3.36          3.04          -9.52%
-    
-    5g
-    
-    benchmark                                 old ns/op     new ns/op     delta
-    BenchmarkCompareStringEqual               238           232           -2.52%
-    BenchmarkCompareStringIdentical           90.8          80.7          -11.12%
-    
-    The equivalent PPC changes are in a separate commit
-    because I don't have the hardware to test them.
-    
-    Change-Id: I292874324b9bbd9d24f57a390cfff8b550cdd53c
-    Reviewed-on: https://go-review.googlesource.com/3955
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2f251becdb0bae459212d09ea0e5e88774d16dea
+    Reviewed-on: https://go-review.googlesource.com/2686
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/gc/walk.c          |  1 +
- src/runtime/asm_386.s      | 10 +++-------
- src/runtime/asm_amd64.s    | 10 +++-------
- src/runtime/asm_amd64p32.s | 10 +++-------
- src/runtime/asm_arm.s      | 12 +++++-------
- 5 files changed, 15 insertions(+), 28 deletions(-)
+ src/log/log.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

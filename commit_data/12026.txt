@@ -1,15 +1,13 @@
-commit 292bd04a434dcd294f243e247d6e3811a0921994
+commit f228ed1a90ad22680a57df85c4796c83e636ef71
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 17 20:35:40 2012 -0800
+Date:   Fri Feb 17 20:35:18 2012 -0800
 
-    test: change bug040 to use errorcheck
-    
-    Because bug040.go was ignoring all error messages, the fact
-    that it got an error about fuction main was being ignored.
+    test: remove a couple of bad tests that duplicate declbad.go
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5675085
+    https://golang.org/cl/5673089
 
- test/fixedbugs/bug040.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ test/fixedbugs/bug036.go | 13 -------------
+ test/fixedbugs/bug038.go | 13 -------------
+ 2 files changed, 26 deletions(-)

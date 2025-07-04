@@ -1,23 +1,12 @@
-commit 88599f184d686339954482d1be067d44b2efb644
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Nov 22 18:21:39 2017 +0000
+commit 64985505b001862b22368ef88746641a0d95cace
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:18:03 2017 +1000
 
-    cmd/vet: add missing %v to the verb regex
+    cmd/link: introduce peFile.ctorsSect and use it in peFile.emitRelocations
     
-    In golang.org/cl/74352, the print rules were overhauled to give better
-    error messages. This also meant adding a regex to find and extract the
-    used formatting verbs.
-    
-    However, %v was missed. Add it to the expression, and add a test too.
-    
-    Fixes #22847.
-    
-    Change-Id: If117cc364db0cb91373742239b8a626c137642b0
-    Reviewed-on: https://go-review.googlesource.com/79455
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I65058c150a19aa4e3083fd8754d08ea23721844b
+    Reviewed-on: https://go-review.googlesource.com/59420
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/print.go          | 2 +-
- src/cmd/vet/testdata/print.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/pe.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

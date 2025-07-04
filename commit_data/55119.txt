@@ -1,22 +1,33 @@
-commit 4e3ac99a3311e60587a296a636e4bbe3f066d2a9
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 20 21:19:35 2023 +0000
+commit 0a0de0fc4241c7531860e3c1a03ab4a4643ec37f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 4 09:18:02 2023 -0500
 
-    cmd/trace/v2: emit regions in the goroutine-oriented task view
+    runtime: revert use of __fork to work around Apple atfork bugs
     
-    This change emits regions in the goroutine-oriented task view (the
-    /trace endpoint with the taskid query variable set) in the same way the
-    old cmd/trace does.
+    An Apple engineer suggests that since __fork is not public API,
+    it would be better to use a different fix. With the benefit of source code,
+    they suggest using xpc_date_create_from_current instead of
+    xpc_atfork_child. The latter sets some flags that disable certain
+    functionality for the remainder of the process lifetime (expecting exec),
+    while the former should do the necessary setup.
     
-    For #60773.
-    Fixes #63960.
+    Reverting the __fork fix in order to prepare a clean fix based
+    on CL 451735 using xpc_date_create_from_current.
     
-    Change-Id: If6c3e7072c694c84a7d2d6c34df668f48d3acc2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543995
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This reverts commit c61d322d5f9e3fcffa4c523892af432dca030c12.
+    
+    Change-Id: I2da293ff537237ffd2d40ad756d827c95c84635b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460475
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/trace/v2/gen.go                   | 53 +++++++++++++++++++++++++++++++
- src/internal/trace/traceviewer/emitter.go | 46 ++++++++++++++++++++++++++-
- 2 files changed, 98 insertions(+), 1 deletion(-)
+ src/syscall/exec_libc2.go            |  4 ++--
+ src/syscall/syscall_darwin.go        | 32 ++------------------------------
+ src/syscall/syscall_openbsd_libc.go  |  6 +-----
+ src/syscall/zsyscall_darwin_amd64.go | 22 ++++------------------
+ src/syscall/zsyscall_darwin_amd64.s  |  6 ++----
+ src/syscall/zsyscall_darwin_arm64.go | 22 ++++------------------
+ src/syscall/zsyscall_darwin_arm64.s  |  6 ++----
+ 7 files changed, 17 insertions(+), 81 deletions(-)

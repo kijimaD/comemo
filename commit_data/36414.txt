@@ -1,17 +1,20 @@
-commit c92354f46e468f89fcf1497e7c9e2f3c66025dfa
-Author: Shivansh Rai <shivansh@freebsd.org>
-Date:   Sun May 20 22:35:02 2018 +0530
+commit 8cd00a5262e7e2af213066ffa1ac9a7dcafcbaed
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Sat Apr 21 09:55:50 2018 +0100
 
-    all: use consistent shebang line across all shell scripts
+    archive/zip: prevent writing data for a directory
     
-    Change-Id: I4aac882b1b618a388d0748a427dc998203d3a1b2
-    Reviewed-on: https://go-review.googlesource.com/113856
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    When creating a directory, Writer.Create now returns a dummy
+    io.Writer that always returns an error on Write.
+    
+    Fixes #24043
+    
+    Change-Id: I7792f54440d45d22d0aa174cba5015ed5fab1c5c
+    Reviewed-on: https://go-review.googlesource.com/108615
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/mkalldocs.sh | 2 +-
- src/naclmake.bash       | 2 +-
- src/nacltest.bash       | 2 +-
- src/runtime/mknacl.sh   | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/archive/zip/writer.go      | 55 +++++++++++++++++++++++++++---------------
+ src/archive/zip/writer_test.go | 11 +++++++++
+ 2 files changed, 46 insertions(+), 20 deletions(-)

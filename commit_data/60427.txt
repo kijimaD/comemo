@@ -1,0 +1,17 @@
+commit a799fa51896b63339f75f9a354c2d70fa8815ac2
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Jul 19 23:34:02 2024 +0100
+
+    slices: explicitly document nil and empty slice equality
+    
+    Fixes #68472
+    
+    Change-Id: I21282621d679d9e2b032256b338c0b5ff107c8f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599816
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/slices/slices.go | 1 +
+ 1 file changed, 1 insertion(+)

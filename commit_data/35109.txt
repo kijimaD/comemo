@@ -1,23 +1,31 @@
-commit 5d4267e4803436e17b87e88b13dc79e528299634
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Mon Apr 23 17:07:12 2018 -0400
+commit c0cda71dab6785c4b7a400b79796b23affe7f664
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Mon Nov 20 06:37:07 2017 +0900
 
-    cmd/link: fix TestRuntimeTypeAttr on ppc64,solaris
+    html/template: add srcset content type
     
-    For ppc64, skip -linkmode=external per
-    https://go-review.googlesource.com/c/go/+/106775#message-f95b9bd716e3d9ebb3f47a50492cde9f2972e859
+    Srcset is largely the same as a URL, but is escaped in URL contexts.
+    Inside a srcset attribute, URLs have their commas percent-escaped to
+    avoid having the URL be interpreted as multiple URLs.  Srcset is placed
+    in a srcset attribute literally.
     
-    For Solaris, apparently type.* isn't the same as runtime.types. I don't
-    know why, but runtime.types is what goes into moduledata, and so it's
-    definitely the more correct thing to use.
+    Fixes #17441
     
-    Fixes: #24983
-    
-    Change-Id: I6b465ac7b8f91ce55a63acbd7fe76e4a2dbb6f22
-    Reviewed-on: https://go-review.googlesource.com/108955
-    Run-TryBot: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I676b544784c7e54954ddb91eeff242cab25d02c4
+    Reviewed-on: https://go-review.googlesource.com/38324
+    Reviewed-by: Kunpei Sakai <namusyaka@gmail.com>
+    Reviewed-by: Mike Samuel <mikesamuel@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/dwarf_test.go | 23 ++++++++++++-----------
- 1 file changed, 12 insertions(+), 11 deletions(-)
+ src/html/template/attr.go         |   1 +
+ src/html/template/content.go      |  11 +++
+ src/html/template/content_test.go | 166 ++++++++++++++++++++++++++++++++++----
+ src/html/template/context.go      |   6 ++
+ src/html/template/escape.go       |   3 +
+ src/html/template/escape_test.go  |   6 ++
+ src/html/template/transition.go   |   4 +
+ src/html/template/url.go          | 108 +++++++++++++++++++++++--
+ src/html/template/url_test.go     |  57 +++++++++++++
+ 9 files changed, 341 insertions(+), 21 deletions(-)

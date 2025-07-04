@@ -1,16 +1,22 @@
-commit bdbea6e41029bd4d4efd2265710c70ccfe36239a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 22 21:10:02 2011 -0500
+commit 23c16cf216488430ae60dfdbf89ecf7fe8d6f9b6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 22 17:25:10 2011 -0800
 
-    arm: fix build
+    go/ast, parser: condition in if statement is mandatory
     
-    Changes on laptop were not sync'ed to machine
-    where I ran hg submit.
+    As a result, parsing a "control clause" is now sufficiently
+    different for if, switch, and for statements that the code
+    is not factored out anymore. The code is a bit longer but
+    clearer in each individual case.
     
-    R=r
+    Reflect the changes in AST.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4195048
+    https://golang.org/cl/4173075
 
- src/cmd/5l/noop.c      |  2 +-
- src/pkg/runtime/chan.c | 23 ++++++++++++-----------
- 2 files changed, 13 insertions(+), 12 deletions(-)
+ src/pkg/go/ast/ast.go            |  2 +-
+ src/pkg/go/ast/walk.go           |  4 +-
+ src/pkg/go/parser/parser.go      | 88 +++++++++++++++++++++++++---------------
+ src/pkg/go/parser/parser_test.go |  1 +
+ 4 files changed, 59 insertions(+), 36 deletions(-)

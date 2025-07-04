@@ -1,18 +1,22 @@
-commit 3a7f8ccf246a5929458a7f818c1d4c125ac72892
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Jul 1 18:10:02 2020 -0400
+commit a63ed10d448d96d2f580e229ed46c02b5cd7a1a4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 6 13:15:49 2020 -0800
 
-    go/types: add tests for AssignableTo and ConvertibleTo
+    cmd/compile: don't generate commutative rules for (Op x x)
     
-    These exported functions are mostly trivial wrappers, but do make
-    certain assumptions about how the underlying Checker APIs can be called.
-    Add some simple tests.
+    If the two commutative arguments are perfectly identical,
+    then swapping them will never have an effect.
     
-    Change-Id: I68e9ae875353c12d118ec961a6f3834385fbbb97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241262
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Passes toolstash-check for the relevant architectures,
+    that is, linux-386, linux-386-387, linux-amd64, linux-s390x.
+    
+    Change-Id: I19f91644867d8d174bd01f872abe4809013872ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213698
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/api_test.go | 35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |   3 +-
+ src/cmd/compile/internal/ssa/rewrite386.go   | 270 --------------------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 270 --------------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 355 +++------------------------
+ 4 files changed, 32 insertions(+), 866 deletions(-)

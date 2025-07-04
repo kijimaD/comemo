@@ -1,18 +1,38 @@
-commit 280e6402240e4e9c40853600186bfffd56dec954
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 5 17:19:07 2022 -0700
+commit 24f9eb2de34d8d92dac4c6ffaa55ff2234c639d2
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jul 15 22:49:00 2021 -0400
 
-    test: add test that crashed gofrontend
+    [dev.typeparams] go/types: introduce type set abstraction for interfaces
     
-    For #52535
+    This is a port of CL 329309 to go/types, with minor updates for API
+    differences and to handle methodset.go, which doesn't exist in types2.
     
-    Change-Id: I6798a8379163497ebebcdadf836b8569735c282b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404496
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    A couple pre-existing comments were adjusted to match types2.
+    
+    Change-Id: I3fd556e1326013a694ff5edb8518ca24c27bd10b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334894
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- test/fixedbugs/issue52535.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/go/types/api_typeparams.go          |   4 --
+ src/go/types/builtins.go                |   2 +-
+ src/go/types/call.go                    |   3 +-
+ src/go/types/expr.go                    |   1 -
+ src/go/types/infer.go                   |  27 +++----
+ src/go/types/interface.go               |  63 ++++++++++-------
+ src/go/types/lookup.go                  |  19 ++---
+ src/go/types/methodset.go               |   4 +-
+ src/go/types/predicates.go              |  20 ++----
+ src/go/types/sanitize.go                |   8 ++-
+ src/go/types/sizeof_test.go             |   3 +-
+ src/go/types/subst.go                   |  15 ++--
+ src/go/types/testdata/check/cycles4.src |  15 +++-
+ src/go/types/type.go                    | 121 ++++++++++----------------------
+ src/go/types/typeset.go                 |  70 ++++++++++++++++++
+ src/go/types/typestring.go              |  13 ++--
+ src/go/types/typexpr.go                 |   8 +--
+ src/go/types/unify.go                   |  13 +---
+ src/go/types/universe.go                |   4 +-
+ 19 files changed, 210 insertions(+), 203 deletions(-)

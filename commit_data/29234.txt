@@ -1,16 +1,42 @@
-commit 5552d08b14b6a5099147934111a34f8362341ae2
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Oct 29 13:53:22 2016 -0400
+commit 0e7e43688d2ad8b6c78bb865591eec96b6ce0e60
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun May 1 18:02:41 2016 -0700
 
-    cmd/go: test fixes dropped from CL 31821
+    runtime: remove a load and shift from scanobject
     
-    Because git.
+    hbits.morePointers and hbits.isPointer both
+    do a load and a shift. Do it only once.
     
-    Change-Id: Ia1e7c6ba0e8c4d47f993487d2483cbb213b465e5
-    Reviewed-on: https://go-review.googlesource.com/32351
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Benchmarks using compilebench (because it is
+    the benchmark I have the most tooling around),
+    on a quiet machine.
+    
+    name       old time/op      new time/op      delta
+    Template        291ms ±14%       290ms ±15%    ~          (p=0.702 n=100+99)
+    Unicode         143ms ± 9%       142ms ± 9%    ~           (p=0.126 n=99+98)
+    GoTypes         934ms ± 4%       933ms ± 4%    ~         (p=0.937 n=100+100)
+    Compiler        4.92s ± 2%       4.90s ± 1%  -0.28%        (p=0.003 n=98+98)
+    
+    name       old user-ns/op   new user-ns/op   delta
+    Template   360user-ms ± 5%  355user-ms ± 4%  -1.37%        (p=0.000 n=97+96)
+    Unicode    178user-ms ± 6%  176user-ms ± 6%  -1.24%        (p=0.001 n=96+99)
+    GoTypes    1.22user-s ± 5%  1.21user-s ± 5%  -0.94%      (p=0.000 n=100+100)
+    Compiler   6.50user-s ± 2%  6.44user-s ± 3%  -0.94%        (p=0.000 n=96+98)
+    
+    On amd64, before:
+    
+    "".scanobject t=1 size=581 args=0x10 locals=0x78
+    
+    After:
+    
+    "".scanobject t=1 size=540 args=0x10 locals=0x78
+    
+    
+    Change-Id: I420ac3704549d484a5d85e19fea82c85da389514
+    Reviewed-on: https://go-review.googlesource.com/22712
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go | 12 ++----------
- 1 file changed, 2 insertions(+), 10 deletions(-)
+ src/runtime/mgcmark.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

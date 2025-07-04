@@ -1,27 +1,21 @@
-commit 4ce49b4a158b3ace253a3302f6092862c8109a94
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Apr 19 17:18:54 2021 -0400
+commit b95f0b123160a67c9e0b1d8c03993fe1e8208800
+Author: Mohamed Attahri <mohamed@attahri.com>
+Date:   Tue Oct 13 02:26:19 2020 +0000
 
-    go/types: support type parameters in NewMethodSet
+    io: add a new ReadSeekCloser interface
     
-    Add handling for TypeParams in NewMethodSet, to bring it in sync with
-    lookupFieldOrMethod. Also add a test, since we had none. I wanted this
-    fix to get gopls completion working with type params, but due to the
-    subtlety of lookupFieldOrMethod, I left a TODO to confirm that there are
-    no behavioral differences between the APIs.
+    Research showed that this interface is defined frequently enough in
+    real-world usage to justify its addition to the standard library.
     
-    Updates #45639
+    Fixes #40962
     
-    Change-Id: I16723e16d4d944ca4ecb4d87fc196815abb6fcff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311455
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I522fe8f9b8753c3fa42ccc1def49611cf88cd340
+    GitHub-Last-Rev: 6a45be66b42e482a06d9809d9da20c195380988b
+    GitHub-Pull-Request: golang/go#41939
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261577
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/types/api_test.go       |   7 +++
- src/go/types/lookup.go         |   2 +
- src/go/types/methodset.go      |  15 ++++--
- src/go/types/methodset_test.go | 109 +++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 129 insertions(+), 4 deletions(-)
+ src/io/io.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

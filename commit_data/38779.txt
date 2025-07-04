@@ -1,95 +1,26 @@
-commit 518ee55d7814a1de66ec9e2fb4829711cc63d0aa
-Author: ShiKaiWi <xykwei@gmail.com>
-Date:   Sun Apr 14 17:09:40 2019 +0000
+commit ead5d1e316873a63471de31f3d70f97aeb7969f5
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Oct 23 20:20:44 2018 -0600
 
-    expvar: improve Map.addKey for large number of keys
+    math/bits: panic when y<=hi in Div
     
-    The existing implementation has poor performance for inserting large
-    number of keys because it chooses to append the new key to the sorted
-    keys array and then sort the new array again (time complexity is
-    O(nlogn)).
+    Explicitly check for divide-by-zero/overflow and panic with the appropriate
+    runtime error.  The additional checks have basically no effect on performance
+    since the branch is easily predicted.
     
-    The improvement tries to utilize the sorted keys array by searching the
-    index and doing an insertion if any (time complexity is O(logn)).
+    name     old time/op  new time/op  delta
+    Div-4    53.9ns ± 1%  53.0ns ± 1%  -1.59%  (p=0.016 n=4+5)
+    Div32-4  17.9ns ± 0%  18.4ns ± 0%  +2.56%  (p=0.008 n=5+5)
+    Div64-4  53.5ns ± 0%  53.3ns ± 0%    ~     (p=0.095 n=5+5)
     
-    Benchmarked on 4-core machine with `go test -cpu 1,2,4,8 -count 5
-    -benchmem -bench=.`(the equal results are omitted):
+    Updates #28316
     
-    name                          old time/op    new time/op    delta
-    MapAddDifferentRandom-8          408µs ±11%      69µs ± 3%  -82.95%  (p=0.008 n=5+5)
-    MapAddDifferentRandom-4          389µs ±19%      69µs ± 2%  -82.28%  (p=0.008 n=5+5)
-    MapAddDifferentRandom-2          365µs ± 4%      75µs ± 6%  -79.51%  (p=0.008 n=5+5)
-    MapSetDifferentRandom-8          365µs ± 4%      76µs ±40%  -79.07%  (p=0.008 n=5+5)
-    MapAddDifferentRandom            366µs ± 3%      78µs ± 6%  -78.66%  (p=0.008 n=5+5)
-    MapSetDifferentRandom            369µs ± 2%      81µs ±34%  -77.99%  (p=0.008 n=5+5)
-    MapSetDifferentRandom-2          378µs ±10%     100µs ±32%  -73.47%  (p=0.008 n=5+5)
-    MapSetDifferentRandom-4          352µs ± 4%     108µs ± 7%  -69.40%  (p=0.008 n=5+5)
-    IntAdd-2                        23.1ns ±21%    15.5ns ±23%  -32.79%  (p=0.032 n=5+5)
-    IntSet-2                        21.4ns ±14%    16.7ns ±17%  -22.00%  (p=0.016 n=5+5)
-    FloatAdd-8                      88.8ns ± 9%    70.8ns ±25%  -20.23%  (p=0.024 n=5+5)
-    FloatSet-2                      22.3ns ±15%    17.8ns ±14%  -20.14%  (p=0.008 n=5+5)
-    IntAdd-8                        21.7ns ± 3%    18.7ns ± 4%  -14.00%  (p=0.008 n=5+5)
-    MapAddDifferent-8               1.58µs ± 7%    1.42µs ± 6%  -10.06%  (p=0.016 n=5+5)
-    StringSet-2                     42.4ns ± 1%    43.7ns ± 5%   +3.07%  (p=0.048 n=4+5)
-    FloatSet                        8.27ns ± 2%    8.60ns ± 1%   +3.94%  (p=0.008 n=5+5)
-    FloatAdd                        12.5ns ± 2%    13.0ns ± 4%   +4.33%  (p=0.032 n=5+5)
-    MapSetString-4                  94.6ns ± 0%   101.7ns ± 4%   +7.55%  (p=0.016 n=4+5)
-    MapAddSameSteadyState-2         34.9ns ± 3%    37.7ns ± 5%   +8.14%  (p=0.008 n=5+5)
-    StringSet-4                     34.5ns ± 0%    37.6ns ± 9%   +9.02%  (p=0.016 n=4+5)
-    MapSetDifferent-8                377ns ± 3%     411ns ± 7%   +9.07%  (p=0.008 n=5+5)
-    MapAddSameSteadyState           39.1ns ± 2%    42.8ns ± 6%   +9.36%  (p=0.008 n=5+5)
-    MapAddDifferentSteadyState       172ns ± 4%     190ns ± 9%  +10.96%  (p=0.016 n=5+5)
-    MapSet                           143ns ± 4%     159ns ± 2%  +11.06%  (p=0.008 n=5+5)
-    MapSet-4                        96.9ns ± 5%   107.8ns ± 6%  +11.25%  (p=0.008 n=5+5)
-    MapSet-2                         102ns ± 6%     114ns ± 8%  +11.94%  (p=0.008 n=5+5)
-    IntSet                          8.18ns ± 1%   12.78ns ±13%  +56.31%  (p=0.008 n=5+5)
-    
-    name                          old alloc/op   new alloc/op   delta
-    MapSetDifferentRandom-4         19.8kB ± 0%    16.6kB ± 0%  -16.21%  (p=0.008 n=5+5)
-    MapSetDifferentRandom           19.8kB ± 0%    16.6kB ± 0%  -16.21%  (p=0.008 n=5+5)
-    MapSetDifferentRandom-8         19.8kB ± 0%    16.6kB ± 0%  -16.20%  (p=0.008 n=5+5)
-    MapSetDifferentRandom-2         19.8kB ± 0%    16.6kB ± 0%  -16.20%  (p=0.008 n=5+5)
-    MapAddDifferentRandom           20.6kB ± 0%    17.4kB ± 0%  -15.57%  (p=0.008 n=5+5)
-    MapAddDifferentRandom-8         20.6kB ± 0%    17.4kB ± 0%  -15.57%  (p=0.008 n=5+5)
-    MapAddDifferentRandom-2         20.6kB ± 0%    17.4kB ± 0%  -15.56%  (p=0.008 n=5+5)
-    MapAddDifferentRandom-4         20.6kB ± 0%    17.4kB ± 0%  -15.56%  (p=0.008 n=5+5)
-    MapAddDifferent                 1.09kB ± 0%    0.96kB ± 0%  -11.76%  (p=0.008 n=5+5)
-    MapAddDifferent-2               1.09kB ± 0%    0.96kB ± 0%  -11.76%  (p=0.008 n=5+5)
-    MapAddDifferent-4               1.09kB ± 0%    0.96kB ± 0%  -11.76%  (p=0.008 n=5+5)
-    MapAddDifferent-8               1.09kB ± 0%    0.96kB ± 0%  -11.76%  (p=0.008 n=5+5)
-    MapAddSame                        480B ± 0%      448B ± 0%   -6.67%  (p=0.008 n=5+5)
-    MapAddSame-2                      480B ± 0%      448B ± 0%   -6.67%  (p=0.008 n=5+5)
-    MapAddSame-4                      480B ± 0%      448B ± 0%   -6.67%  (p=0.008 n=5+5)
-    MapAddSame-8                      480B ± 0%      448B ± 0%   -6.67%  (p=0.008 n=5+5)
-    
-    name                          old allocs/op  new allocs/op  delta
-    MapSetDifferentRandom              423 ± 0%       323 ± 0%  -23.64%  (p=0.008 n=5+5)
-    MapSetDifferentRandom-2            423 ± 0%       323 ± 0%  -23.64%  (p=0.008 n=5+5)
-    MapSetDifferentRandom-4            423 ± 0%       323 ± 0%  -23.64%  (p=0.008 n=5+5)
-    MapSetDifferentRandom-8            423 ± 0%       323 ± 0%  -23.64%  (p=0.008 n=5+5)
-    MapAddDifferentRandom              523 ± 0%       423 ± 0%  -19.12%  (p=0.008 n=5+5)
-    MapAddDifferentRandom-2            523 ± 0%       423 ± 0%  -19.12%  (p=0.008 n=5+5)
-    MapAddDifferentRandom-4            523 ± 0%       423 ± 0%  -19.12%  (p=0.008 n=5+5)
-    MapAddDifferentRandom-8            523 ± 0%       423 ± 0%  -19.12%  (p=0.008 n=5+5)
-    MapAddDifferent                   31.0 ± 0%      27.0 ± 0%  -12.90%  (p=0.008 n=5+5)
-    MapAddDifferent-2                 31.0 ± 0%      27.0 ± 0%  -12.90%  (p=0.008 n=5+5)
-    MapAddDifferent-4                 31.0 ± 0%      27.0 ± 0%  -12.90%  (p=0.008 n=5+5)
-    MapAddDifferent-8                 31.0 ± 0%      27.0 ± 0%  -12.90%  (p=0.008 n=5+5)
-    MapAddSame                        11.0 ± 0%      10.0 ± 0%   -9.09%  (p=0.008 n=5+5)
-    MapAddSame-2                      11.0 ± 0%      10.0 ± 0%   -9.09%  (p=0.008 n=5+5)
-    MapAddSame-4                      11.0 ± 0%      10.0 ± 0%   -9.09%  (p=0.008 n=5+5)
-    MapAddSame-8                      11.0 ± 0%      10.0 ± 0%   -9.09%  (p=0.008 n=5+5)
-    
-    Fixes #31414
-    
-    Change-Id: I2dd655dec9dbbf8d7881a0f3f8edcb3d29199a48
-    GitHub-Last-Rev: a816fe3f62498481500a0ce9695de9fd3aa9f7b7
-    GitHub-Pull-Request: golang/go#31418
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171718
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I36297ee9946cbbc57fefb44d1730283b049ecf57
+    Reviewed-on: https://go-review.googlesource.com/c/144377
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/expvar/expvar.go      | 10 ++++++++--
- src/expvar/expvar_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go  |  2 +-
+ src/math/bits/bits.go      | 18 ++++++++--
+ src/math/bits/bits_test.go | 84 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 101 insertions(+), 3 deletions(-)

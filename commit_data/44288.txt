@@ -1,30 +1,14 @@
-commit 1c659f25257f29003b7012d90072b63f88d12f8b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 11:50:58 2021 -0500
+commit 890707f88b75e7bef51f57ba37afd709502c4e80
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Fri Jun 5 18:05:39 2020 +0200
 
-    cmd/link: clean up windows PE generation
+    doc/go1.15: add release notes for io/ioutil
     
-    A bunch of places are a bit too picky about the architecture.
-    Simplify them.
+    For #37419.
     
-    Also use a large PEBASE for 64-bit systems.
-    This more closely matches what is usually used on Windows x86-64
-    and is required for Windows arm64.
-    Unfortunately, we still need a special case for x86-64 because
-    of some cgo relocations. This may be fixable separately.
-    
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: I65212d28ad4d8c40e2b70dc29f7fce072babecb5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288816
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I6c7a7e9c91f7691a6ba2a7ac4dad92c64b48962f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236658
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 70 +++++++++++++++++++-----------------------
- 1 file changed, 32 insertions(+), 38 deletions(-)
+ doc/go1.15.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

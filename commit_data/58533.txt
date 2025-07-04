@@ -1,24 +1,20 @@
-commit 5a46b17b5f62616bdbc973bbd6a221edc02a0619
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Fri Jan 3 16:53:32 2025 -0500
+commit c50e7ded1f058ff934dd6eec463a00e735b31c82
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Nov 11 01:33:17 2023 +0000
 
-    os: force a goroutine to be scheduled on WASM
+    log/slog: make hex a const
     
-    The TestRootConcurrentClose test can fail when GOARCH=WASM because of
-    goroutine starvation. The spawned goroutine will sometimes run in a
-    loop and never have the main goroutine be scheduled. This causes the
-    test to fail due to a timeout. This change forces the goroutine to be
-    scheduled with each iteration of the loop when  GOARCH=WASM.
+    hex is in fact immutable, declare it as a const to avoid accidental
+    modification, also for consistency with other packages.
     
-    For #71134
-    Fixes #71117
-    
-    Change-Id: I4fb68907c9ac3b33bd0572d5e5db2974a3379191
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/640195
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I88a6fed34d27ac57a0332dc7a27d3bf2ba0d6272
+    GitHub-Last-Rev: 08712be2d4e3951e87b4a4f410ba424d12a320e3
+    GitHub-Pull-Request: golang/go#64069
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541518
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
 
- src/os/root_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/log/slog/json_handler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

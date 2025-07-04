@@ -1,37 +1,15 @@
-commit 484cc6715192efd4bfea57647eeb66c93aecfb0c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Sep 18 19:17:55 2014 +0900
+commit eafa4fff5257ed286618d9027eeaf3cce7c6b8d0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 9 11:45:46 2014 -0700
 
-    net: separate NaCl dependent placeholders from BSD's
+    fmt: fix allocation test
+    With new interface allocation rules, the old counts were wrong and
+    so was the commentary.
     
-    To clarify the dependency of NaCl platform.
-    
-    LGTM=adg
-    R=golang-codereviews, adg
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/143830044
+    https://golang.org/cl/142760044
 
- src/net/dial_test.go                      |  5 ++++
- src/net/dnsclient_unix.go                 |  2 +-
- src/net/dnsconfig_unix.go                 |  2 +-
- src/net/file_stub.go                      | 38 ++++++++++++++++++++++++
- src/net/file_test.go                      |  2 +-
- src/net/file_unix.go                      |  2 +-
- src/net/ipraw_test.go                     |  5 ++++
- src/net/lookup_stub.go                    | 49 +++++++++++++++++++++++++++++++
- src/net/lookup_unix.go                    |  2 +-
- src/net/port_test.go                      |  6 ++++
- src/net/port_unix.go                      |  2 +-
- src/net/sock_bsd.go                       |  2 +-
- src/net/{sock_solaris.go => sock_stub.go} |  2 ++
- src/net/sockopt_bsd.go                    |  2 +-
- src/net/sockopt_posix.go                  |  2 +-
- src/net/sockopt_stub.go                   | 37 +++++++++++++++++++++++
- src/net/sockoptip_bsd.go                  |  2 +-
- src/net/sockoptip_posix.go                |  2 +-
- src/net/sockoptip_stub.go                 | 14 ++++-----
- src/net/tcpsockopt_openbsd.go             | 16 ++++++++++
- src/net/tcpsockopt_posix.go               |  2 +-
- src/net/tcpsockopt_stub.go                |  8 +++--
- src/os/exec/exec_test.go                  |  5 ++--
- 23 files changed, 185 insertions(+), 24 deletions(-)
+ src/fmt/fmt_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

@@ -1,22 +1,40 @@
-commit e06e29b9b4afbb30f5c77551ff8e6bdaafcf8e9b
-Author: Richard Miller <millerresearch@gmail.com>
-Date:   Tue Nov 19 12:15:26 2024 +0000
+commit 3803c858800b90fb8ae1669a3ac1f337be45f886
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 18 16:49:50 2023 -0400
 
-    os: allow for variant plan9 error messages in TestOpenError
+    cmd/go: work around race in fmtCmd
     
-    Different Plan 9 file servers may return different error strings
-    on an attempt to open a directory for writing: EISDIR, EACCES or
-    EPERM. TestOpenError allows for the first two, but it needs to
-    allow for EPERM as well.
+    CL 529219 made an existing race with accessing Builder.scriptDir from
+    Builder.fmtcmd (and now also Builder.Showcmd) much more likely by
+    dropping a theoretically unnecessary condition from the call from
+    Builder.run to Builder.fmtcmd.
     
-    Fixes #70440
+    For an example race report, see
+    https://build.golang.org/log/c3cad62d0fc33a8381d2091661c685ea1fc525c4
     
-    Change-Id: I705cc086e21630ca254499ca922ede78c9901b11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629635
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    The race is between
+    
+      (*Builder).cover2() -> (*Builder).run() -> (*Builder).fmtcmd()
+    
+    and various other call paths of the form
+    
+      (*Builder).build() -> (*gcToolchain).*  (*Builder).Showcmd() -> (*Builder).fmtcmd()
+    
+    The race can be reproduced with
+    
+      go install -race cmd/go
+      stress -p 1 go test -x -cover -a log
+    
+    Return this race to its existing likelihood by putting the condition
+    back. This isn't a "correct" solution because the race could still
+    happen if the "cover" tool invoked by Builder.cover2 emits output. But
+    this will do for a temporary fix.
+    
+    Change-Id: Ifd811dea07f05e1422fd02b63cd958627727aa12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536355
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/os/os_test.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

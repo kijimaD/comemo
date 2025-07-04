@@ -1,15 +1,12 @@
-commit 19c1b163e85ba5a25d95f8174a90b2dc2470a18f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 22 09:16:20 2015 -0800
+commit aaa4bf3720bbf69e1ac65414448baf88b5e4cd83
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Dec 22 11:23:43 2014 -0800
 
-    bytes, strings: improve documentation for Count functions
+    cmd/gc: update hashmap code location in comments
     
-    Fixes #9659.
-    
-    Change-Id: If364d5984a0c9a48858ae524b1560f633e621826
-    Reviewed-on: https://go-review.googlesource.com/3181
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I3b81f2e9eb29ee6349d758b68fe7951b34f15a81
+    Reviewed-on: https://go-review.googlesource.com/1974
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bytes/bytes.go     | 3 ++-
- src/strings/strings.go | 1 +
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/gc/walk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

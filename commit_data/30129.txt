@@ -1,24 +1,23 @@
-commit efb5eae3cf1c5f9be8cc5d4c85a7314204513b4c
+commit 575b1dda4ec845aea6b5c475e9d748dc76d1bc06
 Author: Austin Clements <austin@google.com>
-Date:   Fri Jan 13 15:32:53 2017 -0500
+Date:   Wed Oct 5 21:22:33 2016 -0400
 
-    runtime: make _MaxMem an untyped constant
+    runtime: eliminate allspans snapshot
     
-    Currently _MaxMem is a uintptr, which is going to complicate some
-    further changes. Make it untyped so we'll be able to do untyped math
-    on it before truncating it to a uintptr.
+    Now that sweeping and span marking use the sweep list, there's no need
+    for the work.spans snapshot of the allspans list. This change
+    eliminates the few remaining uses of it, which are either dead code or
+    can use allspans directly, and removes work.spans and its support
+    functions.
     
-    The runtime assembly is identical before and after this change on
-    {linux,windows}/{amd64,386}.
-    
-    Updates #18651.
-    
-    Change-Id: I0f64511faa9e0aa25179a556ab9f185ebf8c9cf8
-    Reviewed-on: https://go-review.googlesource.com/35251
+    Change-Id: Id5388b42b1e68e8baee853d8eafb8bb4ff95bb43
+    Reviewed-on: https://go-review.googlesource.com/30537
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/malloc.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/mgc.go      | 34 ++--------------------------------
+ src/runtime/mgcmark.go  |  4 ++--
+ src/runtime/mgcsweep.go | 21 ++++++---------------
+ src/runtime/mheap.go    |  4 +---
+ 4 files changed, 11 insertions(+), 52 deletions(-)

@@ -1,15 +1,19 @@
-commit 150f45b2c463ba8411738adf637acf651a273e68
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 30 13:03:56 2024 +0200
+commit 19fd96512c4ff96415cd4dacb5fac1854422e1fa
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 28 13:46:38 2023 -0400
 
-    os: use stringslite.HasPrefix
+    cmd/link: put zero-sized data symbols at same address as runtime.zerobase
     
-    Change-Id: I791bdfecc6c94ee9dac592d60d95e97182bf0120
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582496
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Put zero-sized data symbols at same address as runtime.zerobase,
+    so zero-sized global variables have the same address as zero-sized
+    allocations.
+    
+    Change-Id: Ib3145dc1b663a9794dfabc0e6abd2384960f2c49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490435
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/file_plan9.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/data.go | 12 +++++++++---
+ test/zerosize.go                 | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

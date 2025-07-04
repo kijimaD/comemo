@@ -1,14 +1,20 @@
-commit 2d34f3d023586fc001d64b372bd709efaab54a18
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 19 14:42:11 2020 -0700
+commit 1ee337e9b1c4fd494d24340d6b55aabf7bbf6830
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 9 14:28:26 2020 -0500
 
-    cmd/dist: fix tipo in comment
+    cmd/go: convert TestGoTestJSON to the script framework
     
-    Change-Id: I98fbf0dc94cf182adec5d414a56b9cc5126c38f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249437
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I72bbba0a20a8731a89e1b4f4c9ac13b21c080cd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214119
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/buildtool.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_test.go                        | 38 ---------------
+ src/cmd/go/testdata/script/test_json.txt     | 70 ++++++++++++++++++++++++++++
+ src/cmd/go/testdata/src/skipper/skip_test.go |  7 ---
+ 3 files changed, 70 insertions(+), 45 deletions(-)

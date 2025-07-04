@@ -1,19 +1,28 @@
-commit 829adf5047bee5a7cd746e9d6d00d09eb7ac4adb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 7 16:22:21 2017 -0700
+commit 691755304ce49887f65f8f84e18cda3814b46e5c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 9 14:46:43 2017 -0800
 
-    cmd/compile: fix real/imag for untyped constant arguments
+    cmd/compile/internal/ssa: populate SymEffects for SSA Ops
     
-    Fixes #11945.
-    Fixes #17446.
+    Changes to ${GOARCH}Ops.go files were mechanically produced using
+    github.com/mdempsky/ssa-symops, a one-off tool that inserts
+    "SymEffect: X" elements by pattern matching against the Op names.
     
-    Change-Id: Ic674f6ebc0533ab0f97c650689125994941b72e1
-    Reviewed-on: https://go-review.googlesource.com/45081
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ibf3e481ffd588647f2a31662d72114b740ccbfcf
+    Reviewed-on: https://go-review.googlesource.com/38084
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/subr.go      | 13 ------
- src/cmd/compile/internal/gc/typecheck.go | 58 ++++++++++++++++++++------
- test/fixedbugs/issue11945.go             | 71 ++++++++++++++++++++++++++++++++
- 3 files changed, 117 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |  94 +--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   | 176 ++---
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  48 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |  31 +-
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  48 +-
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go    |  40 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  72 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   | 208 +++---
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  36 +-
+ src/cmd/compile/internal/ssa/gen/main.go       |   5 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 894 +++++++++++++++++--------
+ 11 files changed, 985 insertions(+), 667 deletions(-)

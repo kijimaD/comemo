@@ -1,22 +1,31 @@
-commit e3324a4b6640da2dc8d3f086a8ed490aedae7091
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 15:44:14 2016 -0400
+commit e69912e6f44b09d8bafde32f11642579272ab4af
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 23 15:56:43 2016 -0700
 
-    cmd/vet: diagnose non-space-separated struct tag like `json:"x",xml:"y"`
+    os: use runtime.Keepalive for *Process values
     
-    This is not strictly illegal but it probably should be (too late)
-    and doesn't mean what it looks like it means:
-    the second key-value pair has the key ",xml".
+    The os package sets a finalizer on *Process. I looked through all the
+    uses of *Process in the package, looking for each case where a *Process
+    was passed as an argument and the final reference to the argument was
+    not a function or method call. I added a call to runtime.KeepAlive after
+    each such final reference (there were only three).
     
-    Fixes #14466.
+    The code is safe today without the KeepAlive calls because the compiler
+    keeps arguments alive for the duration of the function. However, that is
+    not a language requirement, so adding the KeepAlive calls ensures that
+    this code remains safe even if the compiler changes in the future.
     
-    Change-Id: I174bccc23fd28affeb87f57f77c6591634ade641
-    Reviewed-on: https://go-review.googlesource.com/32031
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    I also removed an existing unnecessry call to runtime.KeepAlive. The
+    syscall.Syscall function is handled specially by the compiler to keep
+    its arguments alive.
+    
+    Change-Id: Ibd2ff20b31ed3de4f6a59dd1633c1b44001d91d9
+    Reviewed-on: https://go-review.googlesource.com/27637
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/cmd/vet/structtag.go          | 11 +++++++++--
- src/cmd/vet/testdata/structtag.go | 10 ++++++----
- 2 files changed, 15 insertions(+), 6 deletions(-)
+ src/os/exec_windows.go | 4 +++-
+ src/os/wait_wait6.go   | 1 +
+ src/os/wait_waitid.go  | 2 +-
+ 3 files changed, 5 insertions(+), 2 deletions(-)

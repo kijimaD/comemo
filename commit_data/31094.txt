@@ -1,18 +1,18 @@
-commit d4a623f99bd0dd60e00e3f6103e49f94d9451ce2
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Sun Apr 9 11:38:06 2017 +0900
+commit 7d8bfdde453445affb50fcaeacc050938ec98467
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Jan 29 20:53:35 2017 +0100
 
-    cmd/cgo: remove unused enums
+    testing: stop timeout-timer after running tests
     
-    Previously, int values of #define macro are retrieved from DWARF via enums.
-    Currently, those values are retrieved from symbol tables.
-    It seems that previous code is unused.
+    Fixes #18845
     
-    Change-Id: Id76c54baa46d6196738ea35aebd5de99b05b9bf8
-    Reviewed-on: https://go-review.googlesource.com/40072
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icdc3e2067807781e42f2ffc94d1824aed94d3713
+    Reviewed-on: https://go-review.googlesource.com/35956
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cgo/gcc.go | 46 +++-------------------------------------------
- 1 file changed, 3 insertions(+), 43 deletions(-)
+ src/cmd/go/go_test.go                    |  7 +++++++
+ src/cmd/go/testdata/timeoutbench_test.go | 10 ++++++++++
+ src/testing/testing.go                   |  1 +
+ 3 files changed, 18 insertions(+)

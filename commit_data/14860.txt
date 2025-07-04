@@ -1,38 +1,16 @@
-commit c3836ed06ea30f5c9a5aacd90e3c48164065971c
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Jan 11 22:00:48 2013 +0100
+commit 98259b92115f24b41c5ba40c3cddb68f6f0077f8
+Author: Georg Reinke <guelfey@gmail.com>
+Date:   Fri Jan 11 08:30:25 2013 -0800
 
-    test: make rundir match compiledir/errorcheckdir.
+    os: use syscall.Pipe2 on Linux
     
-    This allows test/dwarf to be supported by run.go.
+    Update #2656
     
-    Update #4139.
-    
-    R=golang-dev, bradfitz, iant
+    R=golang-dev, iant, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7064067
+    https://golang.org/cl/7065063
 
- test/dwarf/{ => dwarf.dir}/main.go |  0
- test/dwarf/{ => dwarf.dir}/z1.go   |  0
- test/dwarf/{ => dwarf.dir}/z10.go  |  0
- test/dwarf/{ => dwarf.dir}/z11.go  |  0
- test/dwarf/{ => dwarf.dir}/z12.go  |  0
- test/dwarf/{ => dwarf.dir}/z13.go  |  0
- test/dwarf/{ => dwarf.dir}/z14.go  |  0
- test/dwarf/{ => dwarf.dir}/z15.go  |  0
- test/dwarf/{ => dwarf.dir}/z16.go  |  0
- test/dwarf/{ => dwarf.dir}/z17.go  |  0
- test/dwarf/{ => dwarf.dir}/z18.go  |  0
- test/dwarf/{ => dwarf.dir}/z19.go  |  0
- test/dwarf/{ => dwarf.dir}/z2.go   |  0
- test/dwarf/{ => dwarf.dir}/z20.go  |  0
- test/dwarf/{ => dwarf.dir}/z3.go   |  0
- test/dwarf/{ => dwarf.dir}/z4.go   |  0
- test/dwarf/{ => dwarf.dir}/z5.go   |  0
- test/dwarf/{ => dwarf.dir}/z6.go   |  0
- test/dwarf/{ => dwarf.dir}/z7.go   |  0
- test/dwarf/{ => dwarf.dir}/z8.go   |  0
- test/dwarf/{ => dwarf.dir}/z9.go   |  0
- test/dwarf/dwarf.go                | 10 +++++++
- test/run.go                        | 60 +++++++++++++-------------------------
- 23 files changed, 30 insertions(+), 40 deletions(-)
+ src/pkg/os/file_unix.go  | 19 -------------------
+ src/pkg/os/pipe_bsd.go   | 28 ++++++++++++++++++++++++++++
+ src/pkg/os/pipe_linux.go | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 61 insertions(+), 19 deletions(-)

@@ -1,29 +1,33 @@
-commit d6bdae33e918f779e9e50c020d32042e569368e2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 25 18:13:28 2021 -0700
+commit 451b6b38fd3f87957c39fdb6572740f74ea27931
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 11 16:45:28 2020 -0500
 
-    cmd/compile/internal/types2: address some TODOs (cleanup)
+    cmd/go: refactor error reporting in internal/load
     
-    - Address some easy TODOs.
-    - Remove some TODOs that are not correct anymore or are unimportent.
-    - Simplify some code on the way.
+    Replaced load.PackagesForBuild with a new function,
+    load.CheckPackageErrors. Callers should now call PackagesAndErrors,
+    then CheckPackageErrors for the same functionality.
     
-    Change-Id: I4d20de3725b3a735022afe022cbc002b2798936d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345176
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Removed load.Packages. Callers should call base.Errorf and filter the
+    package list as needed.
+    
+    This gives callers more flexibility in handling package load errors.
+    
+    For #42638
+    
+    Change-Id: Id75463ba695adc1ca3f8693ceb2c8978b74a3500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277354
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/check_test.go      |  3 --
- src/cmd/compile/internal/types2/expr.go            |  4 +-
- src/cmd/compile/internal/types2/hilbert_test.go    |  3 +-
- src/cmd/compile/internal/types2/instantiate.go     | 49 +++++++++-------------
- src/cmd/compile/internal/types2/named.go           |  2 -
- src/cmd/compile/internal/types2/self_test.go       |  7 +---
- src/cmd/compile/internal/types2/signature.go       |  7 +---
- src/cmd/compile/internal/types2/stmt.go            |  6 ---
- .../internal/types2/testdata/check/tinference.go2  |  6 +--
- src/cmd/compile/internal/types2/tuple.go           |  2 -
- src/cmd/compile/internal/types2/type.go            |  1 -
- src/cmd/compile/internal/types2/typestring.go      |  1 +
- src/cmd/compile/internal/types2/unify.go           |  3 --
- 13 files changed, 27 insertions(+), 67 deletions(-)
+ src/cmd/go/internal/fix/fix.go    | 14 +++++++++-
+ src/cmd/go/internal/get/get.go    |  7 +++--
+ src/cmd/go/internal/list/list.go  | 17 ++++++++----
+ src/cmd/go/internal/load/pkg.go   | 58 +++++++++++++--------------------------
+ src/cmd/go/internal/modget/get.go |  4 ++-
+ src/cmd/go/internal/test/test.go  |  7 +++--
+ src/cmd/go/internal/vet/vet.go    |  3 +-
+ src/cmd/go/internal/work/build.go | 11 +++++---
+ 8 files changed, 65 insertions(+), 56 deletions(-)

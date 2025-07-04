@@ -1,12 +1,12 @@
-commit 251cdc917de92a6e710fb1bc8d3230c241d00577
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 7 16:18:24 2011 +1100
+commit c4407b7552f272f79eb43d0441f2e43f54f7e681
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 00:14:40 2011 -0500
 
-    release.2011-03-07.1
+    http: close after responding to HTTP/1.0 request without Connection: keep-alive
     
-    R=rsc
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4240082
+    https://golang.org/cl/4245065
 
- .hgtags | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/http/server.go | 3 +++
+ 1 file changed, 3 insertions(+)

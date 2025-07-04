@@ -1,24 +1,14 @@
-commit 5db7572ddfd431e14febbf5f006e0408c5f1ae1b
-Author: Wei Congrui <crvv.mail@gmail.com>
-Date:   Fri Sep 15 15:36:16 2017 +0800
+commit 7be15861f91e53b275b89faee16a315f0a88555d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jun 7 10:54:52 2017 +0200
 
-    path/filepath: ensure Walk report unreadable directories once
+    doc: list testing package changes in 1.9 release notes
     
-    Before this change, if Walk encounters an unreadable directory,
-    it will call walkFn with this directory twice. Argument err in
-    the first call is nil, and the second is the permission error.
+    Updates #20587
     
-    This change removes the former call and makes Walk call walkFn
-    with permission error.
-    
-    Fixes #21758
-    
-    Change-Id: I21e57c67f3c5a8370fc80a43db3c8009fbce6439
-    Reviewed-on: https://go-review.googlesource.com/63994
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I39f7c43a13c887d9d563c108d3575db7f2dffe0e
+    Reviewed-on: https://go-review.googlesource.com/45050
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/path/filepath/path.go      | 24 ++++++++++++------------
- src/path/filepath/path_test.go | 12 ++++++------
- 2 files changed, 18 insertions(+), 18 deletions(-)
+ doc/go1.9.html | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

@@ -1,15 +1,17 @@
-commit 5b2f8d96cec0b1800cc099e022175b3588fd86a2
+commit 9bf3478658a781d38ab0a71bb027d781b8ade14b
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Thu Dec 15 17:38:47 2011 +0100
+Date:   Thu Dec 15 17:35:59 2011 +0100
 
-    gc: omit argument names from function types in error messages
+    gc: better loopdepth analysis for labels
     
-    Fixes #2563
+    This avoids degraded performance caused by extra labels
+    emitted by inlining (breaking strconv ftoa alloc count unittest) and is better in any case.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5495047
+    https://golang.org/cl/5483071
 
- src/cmd/gc/fmt.c         |  2 +-
- test/fixedbugs/bug389.go | 12 ++++++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/gc/esc.c | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/gc/fmt.c |  6 +++++
+ test/escape2.go  | 21 +++++++++++++++++
+ 3 files changed, 96 insertions(+), 3 deletions(-)

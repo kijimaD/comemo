@@ -1,23 +1,63 @@
-commit e831719469a5acfad7d8f73a976e2959815d0e27
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 11 11:57:31 2019 -0700
+commit 159b2de4428d47e422ffd696e0f0c62353c4bb79
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue Jan 22 09:10:59 2019 +0000
 
-    cmd/cgo: do not rewrite call if there are more args than parameters
+    cmd/compile: optimize math/bits.Div32 for arm64
     
-    We already skipped rewriting the call if there were fewer args than
-    parameters. But we can also get a cgo crash if there are more args,
-    if at least one of the extra args uses a name qualified with "C.".
-    Skip the rewrite, since the build will fail later anyhow.
+    Benchmark:
+    name     old time/op  new time/op  delta
+    Div-8    22.0ns ± 0%  22.0ns ± 0%     ~     (all equal)
+    Div32-8  6.51ns ± 0%  3.00ns ± 0%  -53.90%  (p=0.000 n=10+8)
+    Div64-8  22.5ns ± 0%  22.5ns ± 0%     ~     (all equal)
     
-    Fixes #33061
+    Code:
+    func div32(hi, lo, y uint32) (q, r uint32) {return bits.Div32(hi, lo, y)}
     
-    Change-Id: I62ff3518b775b502ad10c2bacf9102db4c9a531c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185797
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Before:
+            0x0020 00032 (test.go:24)       MOVWU   "".y+8(FP), R0
+            0x0024 00036 ($GOROOT/src/math/bits/bits.go:472)        CBZW    R0, 132
+            0x0028 00040 ($GOROOT/src/math/bits/bits.go:472)        MOVWU   "".hi(FP), R1
+            0x002c 00044 ($GOROOT/src/math/bits/bits.go:472)        CMPW    R1, R0
+            0x0030 00048 ($GOROOT/src/math/bits/bits.go:472)        BLS     96
+            0x0034 00052 ($GOROOT/src/math/bits/bits.go:475)        MOVWU   "".lo+4(FP), R2
+            0x0038 00056 ($GOROOT/src/math/bits/bits.go:475)        ORR     R1<<32, R2, R1
+            0x003c 00060 ($GOROOT/src/math/bits/bits.go:476)        CBZ     R0, 140
+            0x0040 00064 ($GOROOT/src/math/bits/bits.go:476)        UDIV    R0, R1, R2
+            0x0044 00068 (test.go:24)       MOVW    R2, "".q+16(FP)
+            0x0048 00072 ($GOROOT/src/math/bits/bits.go:476)        UREM    R0, R1, R0
+            0x0050 00080 (test.go:24)       MOVW    R0, "".r+20(FP)
+            0x0054 00084 (test.go:24)       MOVD    -8(RSP), R29
+            0x0058 00088 (test.go:24)       MOVD.P  32(RSP), R30
+            0x005c 00092 (test.go:24)       RET     (R30)
+    
+    After:
+            0x001c 00028 (test.go:24)       MOVWU   "".y+8(FP), R0
+            0x0020 00032 (test.go:24)       CBZW    R0, 92
+            0x0024 00036 (test.go:24)       MOVWU   "".hi(FP), R1
+            0x0028 00040 (test.go:24)       CMPW    R0, R1
+            0x002c 00044 (test.go:24)       BHS     84
+            0x0030 00048 (test.go:24)       MOVWU   "".lo+4(FP), R2
+            0x0034 00052 (test.go:24)       ORR     R1<<32, R2, R4
+            0x0038 00056 (test.go:24)       UDIV    R0, R4, R3
+            0x003c 00060 (test.go:24)       MSUB    R3, R4, R0, R4
+            0x0040 00064 (test.go:24)       MOVW    R3, "".q+16(FP)
+            0x0044 00068 (test.go:24)       MOVW    R4, "".r+20(FP)
+            0x0048 00072 (test.go:24)       MOVD    -8(RSP), R29
+            0x004c 00076 (test.go:24)       MOVD.P  16(RSP), R30
+            0x0050 00080 (test.go:24)       RET     (R30)
+    
+    UREM instruction in the previous assembly code will be converted to UDIV and MSUB instructions
+    on arm64. However the UDIV instruction in UREM is unnecessary, because it's a duplicate of the
+    previous UDIV. This CL adds a rule to have this extra UDIV instruction removed by CSE.
+    
+    Change-Id: Ie2508784320020b2de022806d09f75a7871bb3d7
+    Reviewed-on: https://go-review.googlesource.com/c/159577
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- misc/cgo/errors/errors_test.go         |  1 +
- misc/cgo/errors/testdata/issue33061.go | 17 +++++++++++++++++
- src/cmd/cgo/gcc.go                     |  6 +++---
- 3 files changed, 21 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  7 ++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 48 ++++++++++++++++++++++++++++
+ test/codegen/mathbits.go                     |  5 +++
+ 3 files changed, 60 insertions(+)

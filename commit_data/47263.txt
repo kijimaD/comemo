@@ -1,31 +1,13 @@
-commit 37634eeff9b7510d2eb224397c2bc8c806da83e1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Nov 3 14:42:52 2021 -0700
+commit 7419a86c824efc6e2696f29e4dc1ac81756f1dfb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 7 20:32:38 2021 -0800
 
-    net: remove the alloc from ReadMsgUDPAddrPort
+    cmd/link/internal/ld: fix typo in a comment
     
-    name                          old time/op    new time/op    delta
-    ReadWriteMsgUDPAddrPort-8       4.95µs ± 5%    4.55µs ± 1%    -7.96%  (p=0.016 n=5+4)
-    
-    name                          old alloc/op   new alloc/op   delta
-    ReadWriteMsgUDPAddrPort-8        32.0B ± 0%      0.0B       -100.00%  (p=0.008 n=5+5)
-    
-    name                          old allocs/op  new allocs/op  delta
-    ReadWriteMsgUDPAddrPort-8         1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
-    
-    Change-Id: Ib968c6f2968926ec9a364dd52063cd0d7c29b10c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360862
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6d0fafd38f0ad9392f163a9d8cd94d103bf2a059
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299669
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/internal/poll/fd_unix.go        | 54 +++++++++++++++++++++++++
- src/internal/poll/fd_windows.go     | 79 +++++++++++++++++++++++++++++++++----
- src/internal/syscall/unix/net.go    |  8 ++++
- src/internal/syscall/unix/net_js.go |  8 ++++
- src/net/fd_posix.go                 | 12 ++++++
- src/net/net_fake.go                 |  8 ++++
- src/net/udpsock_posix.go            | 12 +++---
- src/syscall/syscall_unix.go         | 27 +++++++++++++
- 8 files changed, 195 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,18 @@
-commit cfb087c68324e0af4217ffe75a962ca8383d12c5
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Oct 20 18:18:21 2020 -0400
+commit 6dab0942a43039b8dea365ba8629cdc519cfb143
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 31 20:56:10 2020 -0400
 
-    cmd/go: fix TestScript/test_cache_inputs
+    [dev.link] cmd/internal/goobj2, cmd/link: add and use new Sym accessors
     
-    Small fix for a new failure in CL 263142
+    Along the line with Reloc and Aux, use new-style accessors for
+    the Sym type. They avoid reading unnecessary fields, and also
+    look nicer (to me).
     
-    For #41190
-    
-    Change-Id: I733bc1998d87b505b52d429916c45afe2968a709
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264057
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie37c5149a6edb2184724b3dfa26952015e74c085
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226798
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/testdata/script/test_cache_inputs.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/goobj2/objfile.go     | 30 +++++++++++
+ src/cmd/link/internal/loader/loader.go | 93 ++++++++++++----------------------
+ 2 files changed, 61 insertions(+), 62 deletions(-)

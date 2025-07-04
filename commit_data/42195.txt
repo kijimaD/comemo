@@ -1,18 +1,19 @@
-commit b13ce66d1b3ce01064fd1912055d71447ab62384
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Wed Apr 29 11:20:28 2020 +0100
+commit 9a9a9005058f7b678c9ef89ce49255528fb97a33
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 12 18:17:37 2019 -0800
 
-    cmd/go/internal/modload: use lockedfile to read path-replacement go.mod files
+    os/exec: don't run TestExtraFiles if extra files were open for the test
     
-    When parsing go.mod files found via file-path replacements, it's safer to
-    use lockedfile.Read instead of ioutil.ReadFile, in case of overwriting by
-    other concurrent go commands.
+    Our attempts to close existing open files are flaky. They will fail if,
+    for example, file descriptor 3 is open when the test binary starts.
+    Instead, report any such cases, and skip TestExtraFiles.
     
-    Change-Id: I7dcac3bb5ada84bee1eb634b39f813c461ef103a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230838
+    Updates #35469
+    
+    Change-Id: I7caec083f3f4a31579bf28fc9c82ae89b1bde49a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206939
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/mvs.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/os/exec/exec_test.go | 82 +++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 53 insertions(+), 29 deletions(-)

@@ -1,30 +1,34 @@
-commit 376a079762bf8db387510d50ed718ec1259d1b7c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 3 10:49:32 2021 +0700
+commit 4b1d0fe66f3fcd80febc0e4be2850c06e3469da3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 24 15:42:37 2020 -0800
 
-    cmd/compile: fix unified IR panic when expanding nested inline function
+    [dev.regabi] cmd/compile: new devirtualization pkg [generated]
     
-    When reading body of inlining function, which has another inlined
-    function in the body, the reader still add this inlined function to
-    todoBodies, which it shouldn't because the inlined function was read
-    already.
+    The devirtualization code was only in inl.go because it reused some of
+    the same helper functions as inlining (notably staticValue), but that
+    code all ended up in package ir instead anyway. Beyond that minor
+    commonality, it's entirely separate from inlining.
     
-    To fix this, introduce new flag to signal that we are done construting
-    all functions in todoBodies, thus the addBody shouldn't add anything
-    to todoBodies then.
+    It's definitely on the small side, but consistent with the new
+    micropass-as-a-package approach we're trying.
     
-    Updates #48094
+    [git-generate]
+    cd src/cmd/compile/internal/inline
+    rf '
+      mv Devirtualize Func
+      mv devirtualizeCall Call
+      mv Func Call devirtualize.go
+      mv devirtualize.go cmd/compile/internal/devirtualize
+    '
     
-    Change-Id: I45105dd518f0a7b69c6dcbaf23b957623f271203
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347529
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Iff7b9fe486856660a8107d5391c54b7e8d238706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280212
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/noder/reader.go  | 7 ++++++-
- src/cmd/compile/internal/noder/unified.go | 1 +
- test/typeparam/issue48094b.dir/a.go       | 8 ++++++++
- test/typeparam/issue48094b.dir/b.go       | 9 +++++++++
- test/typeparam/issue48094b.go             | 7 +++++++
- 5 files changed, 31 insertions(+), 1 deletion(-)
+ .../compile/internal/devirtualize/devirtualize.go  | 101 +++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go                |   3 +-
+ src/cmd/compile/internal/inline/inl.go             |  67 --------------
+ 3 files changed, 103 insertions(+), 68 deletions(-)

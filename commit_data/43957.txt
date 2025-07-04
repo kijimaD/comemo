@@ -1,30 +1,39 @@
-commit c15593197453b8bf90fc3a9080ba2afeaf7934ea
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Nov 21 17:44:04 2020 +0100
+commit 5aa59c6a99606d914abb170ee3e15342af3727b8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 29 23:53:33 2020 -0400
 
-    internal/cpu: add darwin/arm64 CPU feature detection support
+    [dev.link] cmd/link: unescape relocs passed to Archreloc2
     
-    Fixes #42747
+    Archreloc2 is a function pointer. It will escape its pointer
+    arguments. In relocsym, as we pass &r and &rr to Archreloc2, it
+    causes them to escape, even if Archreloc2 is not actually called.
     
-    Change-Id: I6b1679348c77161f075f0678818bb003fc0e8c86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271989
-    Trust: Martin Möhrmann <moehrmann@google.com>
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Instead, pass r by value. loader.Reloc2 is a small structure
+    which is intended to be passed by value.
+    
+    For rr, as Archreloc2 will likely return true, we speculatively
+    add it to extRelocs slice and use that space to pass to
+    Archreloc2.
+    
+    Linking cmd/compile,
+    
+    name              old alloc/op   new alloc/op   delta
+    Dwarfcompress_GC     110MB ± 0%      24MB ± 0%   -78.34%  (p=0.008 n=5+5)
+    Reloc_GC            24.6MB ± 0%     0.0MB ± 0%  -100.00%  (p=0.029 n=4+4)
+    
+    Linking cmd/compile using external linking
+    
+    name              old alloc/op   new alloc/op   delta
+    Reloc_GC             152MB ± 0%      36MB ± 0%   -76.07%  (p=0.008 n=5+5)
+    
+    Change-Id: I1415479e0c17ea9787f9a62453dce00ad9ea792f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231077
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/internal/cpu/cpu_android.go                    |  7 --
- src/internal/cpu/cpu_arm64.go                      | 97 +---------------------
- .../cpu/{cpu_linux.go => cpu_arm64_android.go}     |  6 +-
- src/internal/cpu/cpu_arm64_darwin.go               | 34 ++++++++
- src/internal/cpu/cpu_arm64_freebsd.go              | 45 ++++++++++
- src/internal/cpu/cpu_arm64_hwcap.go                | 63 ++++++++++++++
- .../cpu/{cpu_other.go => cpu_arm64_linux.go}       |  8 +-
- src/internal/cpu/cpu_arm64_other.go                | 17 ++++
- src/internal/cpu/cpu_freebsd.go                    |  7 --
- src/internal/cpu/cpu_test.go                       |  7 +-
- src/runtime/os_darwin.go                           | 12 +++
- src/runtime/sys_darwin.go                          | 10 ++-
- src/runtime/sys_darwin_amd64.s                     | 20 ++++-
- src/runtime/sys_darwin_arm64.s                     | 18 +++-
- 14 files changed, 223 insertions(+), 128 deletions(-)
+ src/cmd/link/internal/ld/data.go | 18 +++++++++++++++---
+ src/cmd/link/internal/ld/lib.go  |  2 +-
+ src/cmd/link/internal/x86/asm.go |  2 +-
+ 3 files changed, 17 insertions(+), 5 deletions(-)

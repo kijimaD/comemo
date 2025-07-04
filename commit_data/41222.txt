@@ -1,14 +1,23 @@
-commit 8278627c1589fa881a25a2aa0c62e8a56e6f268a
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Feb 3 19:26:31 2020 -0500
+commit 4ae25ff1405f9d6b25f40141f42196e8f142f207
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 11 17:57:58 2019 -0700
 
-    doc/go1.14: document encoding/asn1 support for BMPString
+    os/signal: split up sleeps waiting for signal
     
-    Updates #36878
+    Try to deflake TestNohup.
     
-    Change-Id: Ib3ea1ef21c4b8ada3d354a0022a19914c1311399
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217637
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    The kernel will deliver a signal as a thread returns from a syscall.
+    If the only active thread is sleeping, and the system is busy,
+    the kernel may not get around to waking up a thread to catch the signal.
+    Try splitting up the sleep, to give the kernel another change to deliver.
+    
+    I don't know if this will help, but it seems worth a try.
+    
+    Fixes #33174
+    
+    Change-Id: I34b3240af706501ab8538cb25c4846d1d30d7691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194879
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.14.html | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/os/signal/signal_test.go | 34 +++++++++++++++++++++++++---------
+ 1 file changed, 25 insertions(+), 9 deletions(-)

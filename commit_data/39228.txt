@@ -1,21 +1,21 @@
-commit 983986f23d81eae6ee202bd31383d04e73187536
-Author: kawakami <kawakami.ozone@gmail.com>
-Date:   Thu May 16 03:11:44 2019 +0900
+commit f2a416b90ac68596ea05b97cefa8c72e7416e98f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 28 12:31:55 2019 -0800
 
-    image/gif: fix transparency loss when encoding a wrapped *image.Paletted
+    cmd/cgo: disable GCC 9 warnings triggered by cgo code
     
-    This keeps transparency of a wrapped image.Image even after it is encoded.
+    GCC 9 has started emitting warnings when taking the address of a field
+    in a packed struct may cause a misaligned pointer. We use packed
+    structs in cgo to ensure that our field layout matches the C
+    compiler's layout. Our pointers are always aligned, so disable the warning
     
-    Fixes #30995
+    Fixes #29962
     
-    Change-Id: I1f7ac98b1741f83ed740f6eda6c36b7e9b16e5af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177377
-    Reviewed-by: Hayato Kawakami <kawakami.ozone@gmail.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: I7e290a7cf694a2c2958529e340ebed9fcd62089c
+    Reviewed-on: https://go-review.googlesource.com/c/159859
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/image/gif/writer.go             |  14 ++++++-
- src/image/gif/writer_test.go        |  81 ++++++++++++++++++++++++++++++++++--
- src/image/testdata/triangle-001.gif | Bin 0 -> 1476 bytes
- 3 files changed, 90 insertions(+), 5 deletions(-)
+ src/cmd/cgo/out.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

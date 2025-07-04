@@ -1,22 +1,12 @@
-commit 321cf6f86dd28248d98e5e24c073740f23c1897b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 4 17:38:53 2015 -0800
+commit 752fe4dcb5c033c56dc3ab76ba912efa82df4d9e
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Aug 25 19:21:45 2015 -0500
 
-    cmd/go: change ar argument to rc
+    [dev.ssa] cmd/compile: support float zeroing
     
-    Put 'r' first because that is the command, and 'c' is the modifier.
-    Keep 'c' because it means to not warn when creating an archive.
-    Drop 'u' because it is unnecessary and fails on Arch Linux.
-    
-    No test because this is only for gccgo (I tested it manually).
-    
-    Fixes #12310.
-    
-    Change-Id: Id740257fb1c347dfaa60f7d613af2897dae2c059
-    Reviewed-on: https://go-review.googlesource.com/16664
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Iacd302350cf0a8a8164d937e5c4ac55e6a07d380
+    Reviewed-on: https://go-review.googlesource.com/13942
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

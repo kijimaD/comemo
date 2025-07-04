@@ -1,25 +1,28 @@
-commit 0bf2eb5d4d1ee166d7649258da61e4712a05f383
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Nov 1 18:37:53 2019 -0400
+commit 4c84d878130287f0c1d22afd83471e891600bf0f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 7 17:56:24 2019 +0000
 
-    cmd/go/internal/modfetch: switch to golang.org/x/mod/zip
+    net/http: support BaseContext & ConnContext for http2 Server
     
-    zip.Create is now used to filter and translate zip files from VCS tools.
+    This is the net/http half of #32476. This supplies the method needed
+    by the other half in x/net/http2 in the already-submitted CL 181259,
+    which this CL also bundles in h2_bundle.go.
     
-    zip.Unzip is now used instead of Unzip.
+    Thanks to Tom Thorogood (@tmthrgd) for the bug report and test.
     
-    Fixes #35290
+    Fixes #32476
+    Updates #30694
     
-    Change-Id: I4aa41b2e96bf147c09db43d1d189b8393cafb06f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204917
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I79d2a280e486fbf75d116f6695fd3abb61278765
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181260
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go.sum                             |   2 -
- src/cmd/go/internal/modfetch/coderepo.go   | 120 ++-----
- src/cmd/go/internal/modfetch/fetch.go      |  43 ++-
- src/cmd/go/internal/modfetch/unzip.go      | 173 ---------
- src/cmd/vendor/golang.org/x/mod/zip/zip.go | 560 +++++++++++++++++++++++++++++
- src/cmd/vendor/modules.txt                 |   1 +
- 6 files changed, 640 insertions(+), 259 deletions(-)
+ src/go.mod                 |  2 +-
+ src/go.sum                 |  2 ++
+ src/net/http/h2_bundle.go  | 26 +++++++++++++++++++++++++-
+ src/net/http/serve_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 13 ++++++++++---
+ src/vendor/modules.txt     |  2 +-
+ 6 files changed, 83 insertions(+), 6 deletions(-)

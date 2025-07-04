@@ -1,35 +1,23 @@
-commit 7c91e1e568fff5667419257d2654d5362dd89536
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 17 14:22:55 2023 +0000
+commit df38614bd7f233f36a3f5ac07f0ec9029043243f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 19 15:35:51 2022 -0700
 
-    runtime: replace raw traceEv with traceBlockReason in gopark
+    test: use go tool from tree, not path
     
-    This change adds traceBlockReason which leaks fewer implementation
-    details of the tracer to the runtime. Currently, gopark is called with
-    an explicit trace event, but this leaks details about trace internals
-    throughout the runtime.
+    Some of our tests do exec.Command("go", "tool", "compile", ...) or
+    similar. That "go" is selected from PATH. When run.go is started
+    from the command line (but not from all.bash), the first "go" is whatever
+    happens to be first in the user's path (some random older version than
+    tip). We really want all these tests to use the "go" tool from the
+    source tree under test. Add GOROOT/bin to the front of the path to
+    ensure that the tools we use come from the source tree under test.
     
-    This change will make it easier to change out the trace implementation.
-    
-    Change-Id: Id633e1704d2c8838c6abd1214d9695537c4ac7db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494185
+    Change-Id: I609261a4add8cd5cb228316752d52b5499aec963
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418474
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/chan.go        |  8 ++++----
- src/runtime/debugcall.go   |  2 +-
- src/runtime/lock_js.go     |  6 +++---
- src/runtime/mfinal.go      |  2 +-
- src/runtime/mgc.go         |  4 ++--
- src/runtime/mgcmark.go     |  2 +-
- src/runtime/mgcscavenge.go |  4 ++--
- src/runtime/mgcsweep.go    |  4 ++--
- src/runtime/netpoll.go     |  2 +-
- src/runtime/proc.go        | 18 +++++++++---------
- src/runtime/runtime2.go    |  8 ++++----
- src/runtime/select.go      |  4 ++--
- src/runtime/sema.go        |  4 ++--
- src/runtime/time.go        |  2 +-
- src/runtime/trace.go       | 37 ++++++++++++++++++++++++++++++++++---
- 15 files changed, 69 insertions(+), 38 deletions(-)
+ test/run.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

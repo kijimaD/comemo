@@ -1,23 +1,24 @@
-commit c10679009ad8a072a45d64a1da57de5e17da9c02
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 6 11:27:36 2011 -0700
+commit 686181edfed0f738fe6aafe76fafded9d0be155b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 6 12:24:24 2011 -0400
 
-    gofmt: indent multi-line signatures
+    url: handle ; in ParseQuery
     
-    There may be more fine-tuning down the line,
-    but this CL fixes the most pressing issue at
-    hand.
+    Most web frameworks allow ; as a synonym for &,
+    following a recommendation in some versions of
+    the HTML specification.  Do the same.
     
-    Also: gofmt -w src misc
+    Remove overuse of Split.
     
-    Fixes #1524.
+    Move ParseQuery tests from package http to package url.
     
-    R=rsc, bradfitz
+    Fixes #2210.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4975053
+    https://golang.org/cl/4973062
 
- misc/cgo/test/helpers.go                        |   2 +-
- src/pkg/go/printer/nodes.go                     |  16 +++-
- src/pkg/go/printer/testdata/declarations.golden | 111 +++++++++++++++++++-----
- src/pkg/go/printer/testdata/declarations.input  |  76 ++++++++++++++++
- 4 files changed, 178 insertions(+), 27 deletions(-)
+ src/pkg/http/request_test.go | 51 ------------------------------------
+ src/pkg/url/url.go           | 30 +++++++++++++--------
+ src/pkg/url/url_test.go      | 62 ++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 76 insertions(+), 67 deletions(-)

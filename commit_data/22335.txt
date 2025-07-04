@@ -1,24 +1,16 @@
-commit 8e95654ac84d5a5ad2303bedc26065a057b263fc
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jan 7 12:44:28 2015 +0900
+commit d970bea88500b21c85d51199d6b0deb1e764950a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 10:45:56 2015 -0500
 
-    net/url: allow Parse, ParseRequestURI to parse ipv6 zone identifiers in URIs
+    cmd/internal/gc: start syntax.go for syntax tree definitions
     
-    Using IPv6 link-local addresses to make connections between on-link
-    nodes is useful for small distributed applications but it requires zone
-    identifiers to distinguish a correct IP link. It's the same for
-    transports using URI for destination discovery such as HTTP, WebSocket.
+    Minor comments added. More to come.
     
-    This change allows Parse, ParseRequestURI functions and String method of
-    URL to parse/return a literal IPv6 address followed by a zone identifier
-    within a URI as described in RFC 6874.
-    
-    Fixes #6530.
-    
-    Change-Id: I2936ea65c1446994770cf2ee2c28a1c73faaa0ca
-    Reviewed-on: https://go-review.googlesource.com/2431
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I97511db54d59e1009ef934da38f306a2dc83a6e9
+    Reviewed-on: https://go-review.googlesource.com/6898
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/url/url.go      |  85 ++++++++++++++++++++++++++++++++------
- src/net/url/url_test.go | 106 +++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 178 insertions(+), 13 deletions(-)
+ src/cmd/internal/gc/go.go     | 362 -------------------------------------
+ src/cmd/internal/gc/subr.go   | 112 ------------
+ src/cmd/internal/gc/syntax.go | 403 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 403 insertions(+), 474 deletions(-)

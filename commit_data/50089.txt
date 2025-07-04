@@ -1,25 +1,36 @@
-commit 790d60537e0888464a1c8a6f98c20baf2eeacdf2
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Aug 22 22:11:03 2022 +0100
+commit dab16c1c90626ca6c9704959500f120fd09546e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 29 20:56:36 2021 -0700
 
-    all: append(bytes, str...) works out of the box
+    cmd/compile/internal/types2: accept constraint literals with elided interfaces
     
-    From the append docs in the builtin package:
+    When collecting type parameters, wrap constraint literals of the
+    form ~T or A|B into interfaces so the type checker doesn't have
+    to deal with these type set expressions syntactically anywhere
+    else but in interfaces (i.e., union types continue to appear
+    only as embedded elements in interfaces).
     
-            As a special case, it is legal to append a string to a byte slice, like this:
+    Since a type constraint doesn't need to be an interface anymore,
+    we can remove the respective restriction. Instead, when accessing
+    the constraint interface via TypeParam.iface, wrap non-interface
+    constraints at that point and update the constraint so it happens
+    only once. By computing the types sets of all type parameters at
+    before the end of type-checking, we ensure that type constraints
+    are in their final form when accessed through the API.
     
-            slice = append([]byte("hello "), "world"...)
+    For #48424.
     
-    Change-Id: Ib14039a7476873b12a3aefccd8863e8d628b9249
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425102
-    Reviewed-by: hopehook <hopehook@qq.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I3a47a644ad4ab20f91d93ee39fcf3214bb5a81f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353139
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/modindex/write.go | 2 +-
- src/cmd/internal/quoted/quoted.go     | 6 +++---
- src/syscall/exec_linux.go             | 2 +-
- src/time/format.go                    | 2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ src/cmd/compile/internal/types2/decl.go            | 22 ++++++++--
+ .../internal/types2/testdata/examples/typesets.go2 | 48 +++++++++++++++++++++
+ .../types2/testdata/fixedbugs/issue39723.go2       |  2 +-
+ src/cmd/compile/internal/types2/typeparam.go       | 49 +++++++++++++++-------
+ test/typeparam/tparam1.go                          |  4 +-
+ 6 files changed, 106 insertions(+), 21 deletions(-)

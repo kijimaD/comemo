@@ -1,17 +1,26 @@
-commit 357ea85892eea7ef8cf0f66c8a35b3912a90e219
+commit 5bd734839d9967f48184431b978c2dabb39c8953
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 15 08:15:06 2022 -0800
+Date:   Sat Feb 12 10:24:38 2022 -0800
 
-    spec: fix typo
+    go/types, types2: add additional tests using core types during unification
     
-    Fixes #57323.
+    This change adds tests that use a type parameter's core type during
+    function argument type inference, not just during constraint type
+    inference.
     
-    Change-Id: I77d3d747aa4746bb9a8cca0c0500ff8fa6ae33a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457915
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Also, fix a typo in a comment.
+    
+    For #50755.
+    
+    Change-Id: I0c3196bdce5338341e0b6dfd7c63efb2e43ace25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385376
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ .../types2/testdata/fixedbugs/issue50755.go2       | 24 ++++++++++++++++++++--
+ src/cmd/compile/internal/types2/unify.go           |  2 +-
+ src/go/types/testdata/fixedbugs/issue50755.go2     | 24 ++++++++++++++++++++--
+ src/go/types/unify.go                              |  2 +-
+ 4 files changed, 46 insertions(+), 6 deletions(-)

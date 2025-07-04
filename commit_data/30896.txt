@@ -1,28 +1,14 @@
-commit 83843b16100d889bc84580c9427e02c7c9cee769
-Author: David Lazar <lazard@golang.org>
-Date:   Wed Mar 8 17:08:31 2017 -0500
+commit 01b006fc181a5a2a3ed4eb619a3b9cb1901a90e2
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Thu Dec 15 17:46:44 2016 +0100
 
-    cmd/compile: fix names of inlined methods from other packages
+    test/fixedbugs: add mipsx case to issue11656
     
-    Previously, an inlined call to wg.Done() in package main would have the
-    following incorrect symbol name:
-    
-        main.(*sync.WaitGroup).Done
-    
-    This change modifies methodname to return the correct symbol name:
-    
-        sync.(*WaitGroup).Done
-    
-    This fix was suggested by @mdempsky.
-    
-    Fixes #19467.
-    
-    Change-Id: I0117838679ac5353789299c618ff8c326712d94d
-    Reviewed-on: https://go-review.googlesource.com/37866
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ifcbd2ea19fc7fa832cd88aa857a5704c32eb4765
+    Reviewed-on: https://go-review.googlesource.com/34511
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go      |  8 ++------
- test/fixedbugs/issue19467.dir/mysync.go | 21 ++++++++++++++++++++
- test/fixedbugs/issue19467.dir/z.go      | 34 +++++++++++++++++++++++++++++++++
- test/fixedbugs/issue19467.go            |  7 +++++++
- 4 files changed, 64 insertions(+), 6 deletions(-)
+ test/fixedbugs/issue11656.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

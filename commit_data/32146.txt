@@ -1,15 +1,18 @@
-commit 53f2d534504f2804ae7ccea45b5a8d6f1e693147
-Author: Austin Clements <austin@google.com>
-Date:   Wed Aug 9 11:19:24 2017 -0400
+commit f96abb40b62ef8b9c782cb115cdc7743dba707bb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 7 20:07:54 2017 +1000
 
-    runtime: document concurrency of mheap.spans
+    cmd/compile/internal/gc: remove queuemethod
     
-    We use lock-free reads from mheap.spans, but the safety of these is
-    somewhat subtle. Document this.
+    queuemethod was unused. As queuemethod is unused, nothing appends to the
+    methodqueue global. As methodqueue is always nil or empty, there are no
+    live callers of domethod, so it can be removed.
     
-    Change-Id: I928c893232176135308e38bed788d5f84ff11533
-    Reviewed-on: https://go-review.googlesource.com/54310
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ic7427ac4621bbf403947815e3988c3a1113487f2
+    Reviewed-on: https://go-review.googlesource.com/39931
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mheap.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/gc/typecheck.go | 54 +-------------------------------
+ 1 file changed, 1 insertion(+), 53 deletions(-)

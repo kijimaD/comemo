@@ -1,12 +1,12 @@
-commit cd269b0c2b0edf4cd85379ffb63b669cbd9d376a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Sep 13 12:42:24 2011 +1000
+commit 29d5d9a5bb874f1e5e84342e6d7684cd4f67d035
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 12 17:18:25 2011 -0700
 
-    time: another attempt to fix windows build
+    time: fix Windows build after ceeedb519c4a
     
-    R=bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4967067
+    https://golang.org/cl/4983060
 
- src/pkg/time/zoneinfo_windows.go | 21 ++++++++++++++++++---
- 1 file changed, 18 insertions(+), 3 deletions(-)
+ src/pkg/time/zoneinfo_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

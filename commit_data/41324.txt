@@ -1,58 +1,21 @@
-commit 6817210edf5b4c54ddb0948fff0ed491456b470c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jan 7 09:27:18 2020 -0800
+commit 95cbcc5c1c5db05e659b769784e57db777c4cd6a
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Fri Sep 6 18:04:51 2019 +0300
 
-    cmd/compile: mark amd64 HMUL ops as not commutative
+    text/template: support all comparable types in eq
     
-    HMUL is commutative. However, it has asymmetric register requirements.
-    There are existing rewrite rules to place arguments in preferable slots.
+    Extends the built-in eq function to support all Go
+    comparable types.
     
-    Due to a bug, the existing rulegen commutativity engine doesn't generate
-    the commuted form of the HMUL rules.
-    The commuted form of those rewrite rules cause infinite loops.
-    In order to fix the rulegen commutativity bug,
-    we need to choose between eliminating
-    those rewrite rules and marking HMUL ops as not commutative.
+    Fixes #33740
     
-    This change chooses the latter, since doing so yields better
-    optimization results on std+cmd.
-    
-    Removing the rewrite rules yields only text size regressions:
-    
-    file                                before  after   Δ       %
-    runtime.s                           477257  477269  +12     +0.003%
-    time.s                              83552   83612   +60     +0.072%
-    encoding/asn1.s                     57378   57382   +4      +0.007%
-    cmd/go/internal/modfetch/codehost.s 89822   89829   +7      +0.008%
-    cmd/internal/test2json.s            9459    9466    +7      +0.074%
-    cmd/go/internal/test.s              57665   57678   +13     +0.023%
-    
-    Marking HMUL as not commutative actually yields (mostly) improvements:
-    
-    file                               before   after    Δ       %
-    runtime.s                          477257   477247   -10     -0.002%
-    math.s                             35985    35992    +7      +0.019%
-    strconv.s                          53486    53462    -24     -0.045%
-    syscall.s                          82483    82446    -37     -0.045%
-    time.s                             83552    83561    +9      +0.011%
-    os.s                               52691    52684    -7      -0.013%
-    archive/zip.s                      42285    42272    -13     -0.031%
-    encoding/asn1.s                    57378    57329    -49     -0.085%
-    encoding/base64.s                  12156    12094    -62     -0.510%
-    net.s                              296286   296276   -10     -0.003%
-    encoding/base32.s                  9720     9658     -62     -0.638%
-    net/http.s                         560931   560907   -24     -0.004%
-    net/smtp.s                         14421    14411    -10     -0.069%
-    cmd/vendor/golang.org/x/sys/unix.s 74307    74266    -41     -0.055%
-    
-    The regressions are minor, and are in functions math.cbrt,
-    time.Time.String, and time.Date.
-    
-    Change-Id: I9f6d9ee71654e5b70381cac77b0ac26011f4ea12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213701
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I522310e313e251c4dc6a013d33d7c2034fe2ec8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193837
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 11 +++++++----
- src/cmd/compile/internal/ssa/opGen.go        |  4 ----
- 2 files changed, 7 insertions(+), 8 deletions(-)
+ src/text/template/doc.go       | 14 ++++++--------
+ src/text/template/exec_test.go | 36 +++++++++++++++++++++++++++++-------
+ src/text/template/funcs.go     | 22 ++++++++++++++--------
+ 3 files changed, 49 insertions(+), 23 deletions(-)

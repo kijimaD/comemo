@@ -1,26 +1,25 @@
-commit d8bee94be2fc2afa6418f0bf2d474c103d38c094
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Mar 16 12:12:50 2022 -0400
+commit f07e4dae3c5cb608b4f0b9db57d1562d2125243b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 19 15:46:44 2021 +0000
 
-    reflect, runtime: drop RegabiArgs conditions
+    syscall: document NewCallback and NewCallbackCDecl limitations
     
-    With the previous CL, internal/abi.IntArgRegs and FloatArgRegs
-    is controlled by RegabiArgs (or always enabled), so there is no
-    need to check for that goexperiment.
+    Currently NewCallback and NewCallbackCDecl may only be called a limited
+    number of times in a single Go process, but this property of the API is
+    not documented. This change fixes that, but does not document the
+    precise limit to avoid making that limit part of the API, leaving us
+    open to increasing or decreasing the limit in the future as needed.
     
-    There are a few places we guard register-ABI specific code and
-    tests with the RegabiArgs flag. Switch to checking for the number
-    of argument registers instead.
+    Although the API avoids documenting a limit, it does guarantee a minimum
+    callback count so users can rely on at least some amount of callbacks
+    working.
     
-    Change-Id: I79fff9fd1e919684ffaf73aba9e7e85d5a9e1629
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393363
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Updates #46184.
+    
+    Change-Id: I5129bf5fe301efff73ac112ba1f207ab32058833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321133
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/abi.go            | 7 +++----
- src/runtime/debug_test.go     | 5 ++---
- src/runtime/stubs.go          | 3 +--
- src/runtime/traceback_test.go | 4 ++--
- 4 files changed, 8 insertions(+), 11 deletions(-)
+ src/syscall/syscall_windows.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

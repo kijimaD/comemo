@@ -1,19 +1,41 @@
-commit 95544cc2c2667872a034887417f383ef14af1212
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 22 10:22:28 2019 -0400
+commit ed7f323c8f4f6bc61a75146bf34f5b8f73063a17
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Sat Mar 9 11:36:37 2019 +0700
 
-    net: ignore or skip known-flaky localhost Dial operations on macOS 10.12 builder
+    all: simplify code using "gofmt -s -w"
     
-    Fixes #22019
-    Fixes #32919
+    Most changes are removing redundant declaration of type when direct
+    instantiating value of map or slice, e.g. []T{T{}} become []T{{}}.
     
-    Change-Id: I60bf6c69b18c3e2d78b494e54adc958fe40134da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202618
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Small changes are removing the high order of subslice if its value
+    is the length of slice itself, e.g. T[:len(T)] become T[:].
+    
+    The following file is excluded due to incompatibility with go1.4,
+    
+    - src/cmd/compile/internal/gc/ssa.go
+    
+    Change-Id: Id3abb09401795ce1e6da591a89749cba8502fb26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166437
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/dial_test.go      | 8 +++++---
- src/net/server_test.go    | 8 ++++++++
- src/runtime/crash_test.go | 8 ++++++++
- 3 files changed, 21 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go    |  20 +-
+ src/cmd/go/internal/modfetch/pseudo.go   |   2 +-
+ src/cmd/internal/obj/s390x/asmz.go       | 484 ++++++++++----------
+ src/cmd/link/internal/ld/dwarf_test.go   |   6 +-
+ src/cmd/link/internal/wasm/asm.go        |  34 +-
+ src/cmd/trace/pprof.go                   |   2 +-
+ src/crypto/md5/md5_test.go               |   4 +-
+ src/crypto/sha1/sha1_test.go             |   4 +-
+ src/crypto/sha256/sha256_test.go         |   6 +-
+ src/crypto/sha512/sha512_test.go         |   4 +-
+ src/crypto/x509/name_constraints_test.go | 758 +++++++++++++++----------------
+ src/crypto/x509/verify.go                |   2 +-
+ src/database/sql/convert_test.go         |  10 +-
+ src/debug/macho/file_test.go             |   6 +-
+ src/encoding/base32/base32_test.go       |  60 +--
+ src/encoding/binary/example_test.go      |  30 +-
+ src/internal/xcoff/ar_test.go            |   4 +-
+ src/reflect/all_test.go                  |  38 +-
+ 18 files changed, 717 insertions(+), 757 deletions(-)

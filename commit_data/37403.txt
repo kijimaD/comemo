@@ -1,22 +1,29 @@
-commit 82c260099d8178c55978e402385b8e19a6259011
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Wed Nov 7 21:25:42 2018 -0800
+commit 911a5fda13d4b71c20cba25c45ddb9b9214d4183
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Jul 20 16:41:26 2018 +0200
 
-    x/net/route: use libc calls on Darwin
+    crypto/x509: skip TestSystemRoots
     
-    Starting with 1.12, we must use syscall versions
-    of sysctl instead of the raw syscall.
+    cgo and non-cgo code paths can disagree
+    on the number of root certificates:
+    === RUN   TestSystemRoots
+    --- FAIL: TestSystemRoots (0.31s)
+        root_darwin_test.go:31:     cgo sys roots: 93.605184ms
+        root_darwin_test.go:32: non-cgo sys roots: 213.998586ms
+        root_darwin_test.go:44: got 168 roots
+        root_darwin_test.go:44: got 427 roots
+        root_darwin_test.go:73: insufficient overlap between cgo and non-cgo roots; want at least 213, have 168
+    FAIL
+    exit status 1
     
-    An identical CL went into the source copy at golang.org/x/net/route.
-    This is just a cherry pick of that CL.
-    (CL: https://go-review.googlesource.com/c/net/+/148597)
+    Updates #21416
+    Updates #24652
     
-    Change-Id: I6286ab3e49f82512491afb5bcf349e89ab5645ab
-    Reviewed-on: https://go-review.googlesource.com/c/149637
+    Change-Id: Idb6d35b17c142dfff79a10cf6b40a42d12f9d17e
+    Reviewed-on: https://go-review.googlesource.com/125259
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/vendor/golang_org/x/net/route/empty.s          |  7 ++++++
- src/vendor/golang_org/x/net/route/syscall.go       |  2 +-
- .../x/net/route/syscall_go1_11_darwin.go           | 28 ++++++++++++++++++++++
- .../x/net/route/syscall_go1_12_darwin.go           | 12 ++++++++++
- 4 files changed, 48 insertions(+), 1 deletion(-)
+ src/crypto/x509/root_darwin_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

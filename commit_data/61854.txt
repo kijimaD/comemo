@@ -1,0 +1,18 @@
+commit 6293a0683171e3a08e275884fddeaa2b57a861f6
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Sat Nov 30 22:13:52 2024 -0700
+
+    doc/next: introduce module tools
+    
+    Fixes #48429
+    
+    Change-Id: Ie1954fc3bedd7d36cafaf3835b6c3a92326393f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632556
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/next/3-tools.md | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

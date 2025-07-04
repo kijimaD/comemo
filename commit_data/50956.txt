@@ -1,23 +1,15 @@
-commit c75b10be0b88c5b6767fd6fdf4e25a82a665fb76
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Oct 20 10:28:59 2022 -0700
+commit ba9f0f6665273ab5202d829ae4aa0c5fa2cebb32
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Nov 12 13:10:30 2021 -0500
 
-    runtime/race: add GOAMD64=v3 version of linux race .syso
+    doc/go1.18: mention register ABI on ARM64 and PPC64
     
-    Makes -race mode faster, in the 15% speedup range.
+    For #47694.
     
-    Update #53743
-    
-    Change-Id: I735eb71902b41c924c9f885ded8f7a350a56b751
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444396
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ide378f4a34587027c3d84fed2126c5b9bd8f7287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363694
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/race/README                           |   3 ++-
- src/runtime/race/internal/amd64v1/race_linux.syso | Bin 557744 -> 563848 bytes
- src/runtime/race/internal/amd64v3/race_linux.syso | Bin 0 -> 563664 bytes
- src/runtime/race/race_v1_amd64.go                 |   8 ++------
- src/runtime/race/race_v3_amd64.go                 |   8 ++------
- 5 files changed, 6 insertions(+), 13 deletions(-)
+ doc/go1.18.html | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

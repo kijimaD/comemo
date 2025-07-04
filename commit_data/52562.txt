@@ -1,25 +1,29 @@
-commit 38dadcc3b5e0f0ed70d224f1eb519a83dcdb52de
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 7 15:37:18 2023 +0000
+commit 51859ec2292d9c1d82a7054ec672ff551a0d7497
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu May 5 10:27:24 2022 -0500
 
-    net/http: fix a race in TestResponseControllerSetPastReadDeadline
+    internal/cpu: report CPU if known on PPC64
     
-    If the Write goroutine is delayed for long enough after its first
-    Write, the handler may have closed both the readc and donec channels
-    by the time it selects over them, and the donec case may be randomly
-    chosen. Handle that case by explicitly checking readc as well.
+    The PPC64 maintainers are testing on P10 hardware, so it is helpful
+    to report the correct cpu, even if this information is not used
+    elsewhere yet.
     
-    This fixes a race accidentally introduced in CL 482935 and observed in
-    https://build.golang.org/log/fa684750994d1fda409722f144b90c65b4c52cf9.
+    Note, AIX will report the current CPU of the host system, so a
+    POWER10 will not set the IsPOWER9 flag. This is existing behavior,
+    and should be fixed in a separate patch.
     
-    For #59447.
-    
-    Change-Id: I5c87a599910cf8c1d037e5bbce68bf35afd55d61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483036
+    Change-Id: Iebe23dd96ebe03c8a1c70d1ed2dc1506bad3c330
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404394
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/net/http/responsecontroller_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/internal/cpu/cpu.go              | 13 +++++++------
+ src/internal/cpu/cpu_no_name.go      |  2 +-
+ src/internal/cpu/cpu_ppc64x.go       | 12 ++++++++++++
+ src/internal/cpu/cpu_ppc64x_aix.go   |  8 ++++++--
+ src/internal/cpu/cpu_ppc64x_linux.go |  2 ++
+ 5 files changed, 28 insertions(+), 9 deletions(-)

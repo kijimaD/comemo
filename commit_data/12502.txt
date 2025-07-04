@@ -1,14 +1,12 @@
-commit d56e0e7e9403236296da426854165b82600699e0
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Mar 8 12:04:49 2012 +0900
+commit 9069721b0eb7c63c669bd8c6752b090918a2f60c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 22:03:35 2012 -0500
 
-    doc: fix freebsd build
-    Also rename it to test.bash, for naming consistency.
+    cmd/gc: delete old map delete in walk
     
-    R=golang-dev, r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5784045
+    https://golang.org/cl/5783047
 
- doc/articles/wiki/{test.sh => test.bash} | 7 +++++--
- src/run.bash                             | 2 +-
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ src/cmd/gc/walk.c | 6 ------
+ 1 file changed, 6 deletions(-)

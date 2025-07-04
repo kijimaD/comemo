@@ -1,23 +1,20 @@
-commit 9e8fa1e99c2003cee53a6630aea9d8a3627492ab
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jun 17 11:07:56 2016 -0400
+commit 59af53d681845a8b0be2a728ca1b59aee5ad9ea6
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Apr 7 23:22:30 2016 -0700
 
-    runtime: eliminate poisonStack checks
+    bytes: add ContainsRune
     
-    We haven't used poisonStack since we switched to 1-bit stack maps
-    (4d0f3a1), but the checks are still there. However, nothing prevents
-    us from genuinely allocating an object at this address on 32-bit and
-    causing the runtime to crash claiming that it's found a bad pointer.
+    Make package bytes consistent with strings
+    by adding missing function ContainsRune.
     
-    Since we're not using poisonStack anyway, just pull it out.
+    Fixes #15189
     
-    Fixes #15831.
-    
-    Change-Id: Ia6ef604675b8433f75045e369f5acd4644a5bb38
-    Reviewed-on: https://go-review.googlesource.com/24211
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie09080b389e55bbe070c57aa3bd134053a805423
+    Reviewed-on: https://go-review.googlesource.com/21710
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mbarrier.go | 4 ++--
- src/runtime/stack.go    | 3 +--
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ src/bytes/bytes.go      |  5 +++++
+ src/bytes/bytes_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

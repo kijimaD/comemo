@@ -1,31 +1,63 @@
-commit 64bdad2011c7450d5f7dd90f992acb057a25a5c2
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Sep 8 09:58:45 2021 -0400
+commit fbc82f03b104ba9bde67ad202e9cb00a13842dca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 00:52:53 2020 -0500
 
-    all: update vendored golang.org/x/tools
+    [dev.regabi] cmd/compile: split out package noder [generated]
     
-    Now that issue #48124 is resolved, ran the
-    following commands inside the cmd module:
+    [git-generate]
+    cd src/cmd/compile/internal/gc
     
-            go get -d golang.org/x/tools@36045662144327e4475f9d356f49ab32ce730049  # main branch
-            go mod tidy
-            go mod vendor
+    rf '
+            mv ArhdrSize HeaderSize
+            mv arsize ReadHeader
+            mv formathdr FormatHeader
+            mv HeaderSize ReadHeader FormatHeader archive.go
+            mv archive.go cmd/internal/archive
     
-    For #36905.
-    Updates #48124.
+            mv makePos main.go
     
-    Change-Id: I9dc736c2c5256f7d9e80fd9c52c6725ecf0b8001
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348409
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+            mv checkDotImports CheckDotImports
+            mv parseFiles ParseFiles
+    
+            mv Pragma pragmas
+            mv PragmaEmbed pragmaEmbed
+            mv PragmaPos pragmaPos
+            mv FuncPragmas funcPragmas
+            mv TypePragmas typePragmas
+    
+            mv fakeRecv noder.funcLit renameinitgen renameinit oldname varEmbed noder.go
+            mv isDriveLetter islocalname findpkg myheight importfile \
+                    reservedimports isbadimport \
+                    pkgnotused \
+                    mkpackage clearImports \
+                    CheckDotImports dotImports importDot \
+                    importName \
+                    import.go
+    
+            mv noder _noder
+            mv import.go lex.go lex_test.go noder.go cmd/compile/internal/noder
+    '
+    cd ../noder
+    rf '
+            mv _noder noder
+    '
+    
+    Change-Id: Iac2b856f7b86143c666d818e4b7c5b261cf387d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279473
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +--
- .../x/tools/go/analysis/passes/printf/printf.go    |  7 ++---
- .../passes/testinggoroutine/testinggoroutine.go    | 30 ++++++++++++++++++--
- .../x/tools/internal/typeparams/typeparams.go      | 33 +++++++++++++++++-----
- src/cmd/vendor/modules.txt                         |  2 +-
- 6 files changed, 60 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/closure.go             |  60 ---
+ src/cmd/compile/internal/gc/dcl.go                 |  64 ---
+ src/cmd/compile/internal/gc/embed.go               |  53 ---
+ src/cmd/compile/internal/gc/init.go                |  12 -
+ src/cmd/compile/internal/gc/main.go                | 380 +---------------
+ src/cmd/compile/internal/gc/obj.go                 |  16 +-
+ src/cmd/compile/internal/gc/subr.go                | 105 -----
+ src/cmd/compile/internal/noder/import.go           | 493 +++++++++++++++++++++
+ src/cmd/compile/internal/{gc => noder}/lex.go      |  17 +-
+ src/cmd/compile/internal/{gc => noder}/lex_test.go |   5 +-
+ src/cmd/compile/internal/{gc => noder}/noder.go    | 225 ++++++++--
+ src/cmd/internal/archive/archive.go                |  21 +
+ 12 files changed, 735 insertions(+), 716 deletions(-)

@@ -1,13 +1,26 @@
-commit d446ba99a4e2b147de3afc29ff8d6ddfa4041203
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 17 16:31:56 2015 -0800
+commit 72193c98248d26c92ced56e0855eac8722269aad
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 9 10:54:25 2015 +1000
 
-    runtime: document stack barrier synchronization rules
+    path/filepath: test EvalSymlinks returns canonical path on windows
     
-    Change-Id: I545e53561f37bceabd26d814d272cecc3ff19847
-    Reviewed-on: https://go-review.googlesource.com/18024
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    When you create C:\A.TXT file on windows, you can open it as c:\a.txt.
+    EvalSymlinks("c:\a.txt") returns C:\A.TXT. This is all EvalSymlinks
+    did in the past, but recently symlinks functionality been implemented on
+    some Windows version (where symlinks are supported). So now EvalSymlinks
+    handles both: searching for file canonical name and resolving symlinks.
+    
+    Unfortunately TestEvalSymlinks has not been adjusted properly. The test
+    tests either canonical paths or symlinks, but not both. This CL separates
+    canonical paths tests into new TestEvalSymlinksCanonicalNames, so all
+    functionality is covered. Tests are simplified somewhat too.
+    
+    Also remove EvalSymlinksAbsWindowsTests - it seems not used anywhere.
+    
+    Change-Id: Id12e9f1441c1e30f15c523b250469978e4511a84
+    Reviewed-on: https://go-review.googlesource.com/14412
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mstkbar.go  | 22 ++++++++++++++++++++++
- src/runtime/runtime2.go |  2 +-
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/path/filepath/path_test.go         | 31 +++--------------
+ src/path/filepath/path_windows_test.go | 63 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+), 26 deletions(-)

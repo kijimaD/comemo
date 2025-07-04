@@ -1,16 +1,18 @@
-commit a501fef3455a8e0ff0424bb29a9403d7539c6164
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 10 23:03:06 2016 +0000
+commit 1df438f79c440ddf9bdd342f089a55567254bc9a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Aug 26 09:04:27 2016 -0400
 
-    net/http: deflake TestClientTimeout
+    misc/cgo/testplugin: add test of -buildmode=plugin
     
-    This test was only enabled by default today so it hasn't been hardened
-    by build.golang.org. Welcome to the ring, TestClientTimeout.
-    
-    Change-Id: I1967f6c825699f13f6c659dc14d3c3c22b965272
-    Reviewed-on: https://go-review.googlesource.com/33101
+    Change-Id: Ie9fea9814c850b084562ab2349b54d9ad9fa1f4a
+    Reviewed-on: https://go-review.googlesource.com/27825
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/client_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testplugin/src/common/common.go   | 11 +++++++
+ misc/cgo/testplugin/src/host/host.go       | 51 ++++++++++++++++++++++++++++++
+ misc/cgo/testplugin/src/plugin1/plugin1.go | 25 +++++++++++++++
+ misc/cgo/testplugin/test.bash              | 27 ++++++++++++++++
+ src/cmd/dist/test.go                       |  9 ++++++
+ 5 files changed, 123 insertions(+)

@@ -1,35 +1,14 @@
-commit fb9af8411eaa3e38d2f72e28a305772f50042657
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Oct 10 10:19:12 2019 +0700
+commit bc48cc770f966e401873436413d31436e84df2d8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 26 06:41:14 2019 -0700
 
-    encoding/json: support TextUnmarshaler for map keys with string underlying types
+    runtime: gofmt defs1_netbsd_arm64.go
     
-    When unmarshaling to a map, the map's key type must either be a string,
-    an integer, or implement encoding.TextUnmarshaler. But for a user
-    defined type, reflect.Kind will not distinguish between the static type
-    and the underlying type. In:
+    Updates #30824
     
-            var x MyString = "x"
-            t := reflect.TypeOf(x)
-            println(t.Kind() == reflect.String)
-    
-    the Kind of x is still reflect.String, even though the static type of x
-    is MyString.
-    
-    Moreover, checking for the map's key type is a string occurs first, so
-    even if the map key type MyString implements encoding.TextUnmarshaler,
-    it will be ignored.
-    
-    To fix the bug, check for encoding.TextUnmarshaler first.
-    
-    Fixes #34437
-    
-    Change-Id: I780e0b084575e1dddfbb433fe03857adf71d05fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200237
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I3d9ad7896d528d8274ec78378a546b0356986b9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174078
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/decode.go      |  4 ++--
- src/encoding/json/decode_test.go | 20 ++++++++++++++++++++
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ src/runtime/defs1_netbsd_arm64.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

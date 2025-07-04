@@ -1,14 +1,12 @@
-commit 20c524c5e29282d3c91e8155c496865dee2c3c73
-Author: Brian G. Merrell <bgmerrell@gmail.com>
-Date:   Mon May 27 11:00:12 2013 +1000
+commit 46137f227bd11777f535271e842eac14fc65fd1c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat May 25 22:47:36 2013 +0400
 
-    effective_go.html: Fix two links
-    This fixes two intra-page "type assertion" links that were broken in
-    different ways.
+    runtime: update comment on stack allocator
     
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/9797043
+    https://golang.org/cl/9665046
 
- doc/effective_go.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/stack.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

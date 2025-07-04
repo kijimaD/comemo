@@ -1,18 +1,19 @@
-commit b78410bda13cc10c1e59dfdcc935b3155450b44e
+commit d9f93b0e0b351de6cfe05c03d8e8f78328178407
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 9 18:44:00 2013 -0400
+Date:   Fri Aug 9 18:34:08 2013 -0400
 
-    cmd/api: eliminate duplicate package import work
+    go/build: add AllTags to Package
     
-    On my Mac, cuts the API checks from 15 seconds to 6 seconds.
-    Also clean up some tag confusion: go run list-of-files ignores tags.
+    AllTags lists all the tags that can affect the decision
+    about which files to include. Tools scanning packages
+    can use this to decide how many variants there are
+    and what they are.
     
-    R=bradfitz, gri
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/12699048
+    https://golang.org/cl/12703044
 
- src/cmd/api/goapi.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++--
- src/cmd/api/run.go   |  4 ++--
- src/run.bash         |  2 +-
- src/run.bat          |  2 +-
- 4 files changed, 60 insertions(+), 6 deletions(-)
+ src/pkg/go/build/build.go        | 66 ++++++++++++++++++++++++++--------------
+ src/pkg/go/build/build_test.go   | 63 ++++++++++++++++++++++++++------------
+ src/pkg/go/build/syslist_test.go |  2 +-
+ 3 files changed, 89 insertions(+), 42 deletions(-)

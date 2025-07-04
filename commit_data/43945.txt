@@ -1,16 +1,17 @@
-commit b67b7ddabcc8e1a4b5819f03d47777bf5ddedbcc
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Dec 1 14:12:22 2020 +0100
+commit 769a1cf7b6b79e747e3a4d886992b2a7e54f33d7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 29 19:47:34 2020 -0700
 
-    doc/go1.16: add reflect changes to release notes
+    debug/gosym: correct comments for Table.{Files,Objs}
     
-    For #40700
-    Fixes #42911
+    The fields aren't too useful for Go 1.2 and later, but they aren't
+    actually nil.
     
-    Change-Id: I1bd729f72ae3a29d190ffc34a40c3d0b59ebbbb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274474
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Fixes #38754
+    
+    Change-Id: Ia13a224f623697a00dea8ba0225633e1b9308c9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230940
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.16.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/debug/gosym/symtab.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,105 +1,69 @@
-commit 638ebb04f24b49a75211775d839f6cb557993a26
+commit 9b15c13dc567d92c6ac628c762d42b4ae2c9469f
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun May 14 14:52:09 2017 -0700
+Date:   Thu Mar 2 15:10:55 2017 -0800
 
-    cmd/compile: don't break up contiguous blocks in looprotate
+    runtime/pprof: fix data race between Profile.Add and Profile.WriteTo
     
-    looprotate finds loop headers and arranges for them to be placed
-    after the body of the loop. This eliminates a jump from the body.
+    p.m is accessed in WriteTo without holding p.mu.
+    Move the access inside the critical section.
     
-    However, if the loop header is a series of contiguously laid out blocks,
-    the rotation introduces a new jump in that series.
-    This CL expands the "loop header" to move to be the entire
-    run of contiguously laid out blocks in the same loop.
+    The race detector catches this bug using this program:
     
-    This shrinks object files a little, and actually speeds up
-    the compiler noticeably. Numbers below.
     
-    Fannkuch performance seems to vary a lot by machine. On my laptop:
+    package main
     
-    name          old time/op  new time/op  delta
-    Fannkuch11-8   2.89s ± 2%   2.85s ± 3%  -1.22%  (p=0.000 n=50+50)
+    import (
+            "os"
+            "runtime/pprof"
+            "time"
+    )
     
-    This has a significant affect on the append benchmarks in #14758:
+    func main() {
+            p := pprof.NewProfile("ABC")
+            go func() {
+                    p.WriteTo(os.Stdout, 1)
+                    time.Sleep(time.Second)
+            }()
+            p.Add("abc", 0)
+            time.Sleep(time.Second)
+    }
     
-    name   old time/op    new time/op    delta
-    Foo-8     312ns ± 3%     276ns ± 2%  -11.37%  (p=0.000 n=30+29)
-    Bar-8     565ns ± 2%     456ns ± 2%  -19.27%  (p=0.000 n=27+28)
     
-    Updates #18977
-    Fixes #20355
+    $ go run -race x.go
+    ==================
+    WARNING: DATA RACE
+    Write at 0x00c42007c240 by main goroutine:
+      runtime.mapassign()
+          /Users/josh/go/tip/src/runtime/hashmap.go:485 +0x0
+      runtime/pprof.(*Profile).Add()
+          /Users/josh/go/tip/src/runtime/pprof/pprof.go:281 +0x255
+      main.main()
+          /Users/josh/go/tip/src/p.go:15 +0x9d
     
-    name        old time/op       new time/op       delta
-    Template          205ms ± 5%        204ms ± 8%    ~     (p=0.903 n=92+99)
-    Unicode          85.3ms ± 4%       85.1ms ± 3%    ~     (p=0.191 n=92+94)
-    GoTypes           512ms ± 4%        507ms ± 4%  -0.93%  (p=0.000 n=95+97)
-    Compiler          2.38s ± 3%        2.35s ± 3%  -1.27%  (p=0.000 n=98+95)
-    SSA               4.67s ± 3%        4.64s ± 3%  -0.62%  (p=0.000 n=95+96)
-    Flate             117ms ± 3%        117ms ± 3%    ~     (p=0.099 n=84+86)
-    GoParser          139ms ± 4%        137ms ± 4%  -0.90%  (p=0.000 n=97+98)
-    Reflect           329ms ± 5%        326ms ± 6%  -0.97%  (p=0.002 n=99+98)
-    Tar               102ms ± 6%        101ms ± 5%  -0.97%  (p=0.006 n=97+97)
-    XML               198ms ±10%        196ms ±13%    ~     (p=0.087 n=100+100)
-    [Geo mean]        318ms             316ms       -0.72%
+    Previous read at 0x00c42007c240 by goroutine 6:
+      runtime/pprof.(*Profile).WriteTo()
+          /Users/josh/go/tip/src/runtime/pprof/pprof.go:314 +0xc5
+      main.main.func1()
+          /Users/josh/go/tip/src/x.go:12 +0x69
     
-    name        old user-time/op  new user-time/op  delta
-    Template          250ms ± 7%        250ms ± 7%    ~     (p=0.850 n=94+92)
-    Unicode           107ms ± 8%        106ms ± 5%  -0.76%  (p=0.005 n=98+91)
-    GoTypes           665ms ± 5%        659ms ± 5%  -0.85%  (p=0.003 n=93+98)
-    Compiler          3.15s ± 3%        3.10s ± 3%  -1.60%  (p=0.000 n=99+98)
-    SSA               6.82s ± 3%        6.72s ± 4%  -1.55%  (p=0.000 n=94+98)
-    Flate             138ms ± 8%        138ms ± 6%    ~     (p=0.369 n=94+92)
-    GoParser          170ms ± 5%        168ms ± 6%  -1.13%  (p=0.002 n=96+98)
-    Reflect           412ms ± 8%        416ms ± 8%    ~     (p=0.169 n=100+100)
-    Tar               123ms ±18%        123ms ±14%    ~     (p=0.896 n=100+100)
-    XML               236ms ± 9%        234ms ±11%    ~     (p=0.124 n=100+100)
-    [Geo mean]        401ms             398ms       -0.63%
+    Goroutine 6 (running) created at:
+      main.main()
+          /Users/josh/go/tip/src/x.go:11 +0x6e
+    ==================
+    ABC profile: total 1
+    1 @ 0x110ccb4 0x111aeee 0x1055053 0x107f031
     
-    name        old alloc/op      new alloc/op      delta
-    Template         38.8MB ± 0%       38.8MB ± 0%    ~     (p=0.222 n=5+5)
-    Unicode          28.7MB ± 0%       28.7MB ± 0%    ~     (p=0.421 n=5+5)
-    GoTypes           109MB ± 0%        109MB ± 0%    ~     (p=0.056 n=5+5)
-    Compiler          457MB ± 0%        457MB ± 0%  +0.07%  (p=0.008 n=5+5)
-    SSA              1.10GB ± 0%       1.10GB ± 0%  +0.05%  (p=0.008 n=5+5)
-    Flate            24.5MB ± 0%       24.5MB ± 0%    ~     (p=0.222 n=5+5)
-    GoParser         30.9MB ± 0%       31.0MB ± 0%  +0.21%  (p=0.016 n=5+5)
-    Reflect          73.4MB ± 0%       73.4MB ± 0%    ~     (p=0.421 n=5+5)
-    Tar              25.5MB ± 0%       25.5MB ± 0%    ~     (p=0.548 n=5+5)
-    XML              40.9MB ± 0%       40.9MB ± 0%    ~     (p=0.151 n=5+5)
-    [Geo mean]       71.6MB            71.6MB       +0.07%
+    Found 1 data race(s)
+    exit status 66
     
-    name        old allocs/op     new allocs/op     delta
-    Template           394k ± 0%         394k ± 0%    ~     (p=1.000 n=5+5)
-    Unicode            344k ± 0%         343k ± 0%    ~     (p=0.310 n=5+5)
-    GoTypes           1.16M ± 0%        1.16M ± 0%    ~     (p=1.000 n=5+5)
-    Compiler          4.42M ± 0%        4.42M ± 0%    ~     (p=1.000 n=5+5)
-    SSA               9.80M ± 0%        9.80M ± 0%    ~     (p=0.095 n=5+5)
-    Flate              237k ± 1%         238k ± 1%    ~     (p=0.310 n=5+5)
-    GoParser           320k ± 0%         322k ± 1%  +0.50%  (p=0.032 n=5+5)
-    Reflect            958k ± 0%         957k ± 0%    ~     (p=0.548 n=5+5)
-    Tar                252k ± 1%         252k ± 0%    ~     (p=1.000 n=5+5)
-    XML                400k ± 0%         400k ± 0%    ~     (p=0.841 n=5+5)
-    [Geo mean]         741k              742k       +0.06%
     
-    name        old object-bytes  new object-bytes  delta
-    Template           386k ± 0%         386k ± 0%  -0.05%  (p=0.008 n=5+5)
-    Unicode            202k ± 0%         202k ± 0%  -0.01%  (p=0.008 n=5+5)
-    GoTypes           1.16M ± 0%        1.16M ± 0%  -0.06%  (p=0.008 n=5+5)
-    Compiler          3.91M ± 0%        3.91M ± 0%  -0.06%  (p=0.008 n=5+5)
-    SSA               7.91M ± 0%        7.92M ± 0%  +0.01%  (p=0.008 n=5+5)
-    Flate              228k ± 0%         227k ± 0%  -0.04%  (p=0.008 n=5+5)
-    GoParser           283k ± 0%         283k ± 0%  -0.06%  (p=0.008 n=5+5)
-    Reflect            952k ± 0%         951k ± 0%  -0.02%  (p=0.008 n=5+5)
-    Tar                187k ± 0%         187k ± 0%  -0.04%  (p=0.008 n=5+5)
-    XML                406k ± 0%         406k ± 0%  -0.05%  (p=0.008 n=5+5)
-    [Geo mean]         648k              648k       -0.04%
+    (Exit status 66?)
     
-    Change-Id: I8630c4291a0eb2f7e7927bc04d7cc0efef181094
-    Reviewed-on: https://go-review.googlesource.com/43491
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I49d884dc3af9cce2209057a3448fe6bf50653523
+    Reviewed-on: https://go-review.googlesource.com/37730
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/likelyadjust.go |  2 +-
- src/cmd/compile/internal/ssa/looprotate.go   | 32 +++++++++++++++++++++++-----
- 2 files changed, 28 insertions(+), 6 deletions(-)
+ src/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

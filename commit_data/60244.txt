@@ -1,0 +1,18 @@
+commit 499de42188ee0b0680aec4c49e25594456fdf15a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu May 23 10:01:09 2024 -0700
+
+    crypto/tls: better bogo test output handling
+    
+    Use the bogo JSON output format to make the test output more readable.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: Ie1a67c6a031bc1d5d8b2cdfaf78d094a0967bc2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587955
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/tls/bogo_config.json  |  7 ----
+ src/crypto/tls/bogo_shim_test.go | 80 +++++++++++++++++++++++++++++++++-------
+ 2 files changed, 66 insertions(+), 21 deletions(-)

@@ -1,41 +1,17 @@
-commit 50b1add5a73f05b0142adf783b6825c0c149882b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed May 4 17:49:37 2022 -0400
+commit 95f8e64fc0ff53e4df6ba03e8dbbaf3d18695d1b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 9 19:03:48 2021 -0700
 
-    crypto/elliptic: precompute ScalarBaseMult doublings
+    [dev.typeparams] cmd/compile/internal/types2: implement delete(m, k) where m is of type parameter type
     
-    name                    old time/op    new time/op    delta
-    pkg:crypto/ecdsa goos:darwin goarch:amd64
-    Sign/P224-16               250µs ± 2%      91µs ± 2%  -63.42%  (p=0.000 n=10+9)
-    Sign/P384-16               955µs ± 3%     311µs ± 2%  -67.48%  (p=0.000 n=10+10)
-    Sign/P521-16              2.74ms ± 2%    0.82ms ± 2%  -69.95%  (p=0.000 n=10+10)
-    Verify/P224-16             440µs ± 3%     282µs ± 5%  -35.94%  (p=0.000 n=9+10)
-    Verify/P384-16            1.72ms ± 2%    1.07ms ± 1%  -38.02%  (p=0.000 n=10+9)
-    Verify/P521-16            5.10ms ± 2%    3.18ms ± 3%  -37.70%  (p=0.000 n=10+10)
-    GenerateKey/P224-16        225µs ± 3%      67µs ± 4%  -70.42%  (p=0.000 n=9+10)
-    GenerateKey/P384-16        881µs ± 1%     241µs ± 2%  -72.67%  (p=0.000 n=10+10)
-    GenerateKey/P521-16       2.62ms ± 3%    0.69ms ± 3%  -73.78%  (p=0.000 n=10+9)
-    pkg:crypto/elliptic/internal/nistec goos:darwin goarch:amd64
-    ScalarMult/P224-16         219µs ± 4%     209µs ± 3%   -4.57%  (p=0.003 n=10+10)
-    ScalarMult/P384-16         838µs ± 2%     823µs ± 1%   -1.72%  (p=0.004 n=10+9)
-    ScalarMult/P521-16        2.48ms ± 2%    2.45ms ± 2%     ~     (p=0.052 n=10+10)
-    ScalarBaseMult/P224-16     214µs ± 4%      54µs ± 4%  -74.88%  (p=0.000 n=10+10)
-    ScalarBaseMult/P384-16     828µs ± 2%     196µs ± 3%  -76.38%  (p=0.000 n=10+10)
-    ScalarBaseMult/P521-16    2.50ms ± 3%    0.55ms ± 2%  -77.96%  (p=0.000 n=10+10)
-    
-    Updates #52424
-    For #52182
-    
-    Change-Id: I2be3c2b8cdeead512063ef489e43805f4ee71d0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404174
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Iaf33c15128af911b6101df9885cb8b5a8495b942
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333729
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/crypto/elliptic/internal/nistec/generate.go | 115 +++++++++++++++++++-----
- src/crypto/elliptic/internal/nistec/p224.go     | 115 +++++++++++++++++++-----
- src/crypto/elliptic/internal/nistec/p256.go     | 115 +++++++++++++++++++-----
- src/crypto/elliptic/internal/nistec/p384.go     | 115 +++++++++++++++++++-----
- src/crypto/elliptic/internal/nistec/p521.go     | 115 +++++++++++++++++++-----
- 5 files changed, 465 insertions(+), 110 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        | 27 ++++++++++++----
+ .../internal/types2/testdata/check/builtins.go2    | 37 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/type.go            |  5 ---
+ 3 files changed, 58 insertions(+), 11 deletions(-)

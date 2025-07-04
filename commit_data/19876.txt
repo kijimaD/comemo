@@ -1,13 +1,13 @@
-commit 3950655bb567a3c3445ee7b952beff0f9c3a9b1b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 5 17:03:06 2014 +0400
+commit ae55858e049179539479c325965407b4b6ebb2ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 4 20:30:26 2014 -0700
 
-    runtime: remove outdated comment
+    syscall: fix typo in comment
     
-    LGTM=bradfitz, khr
-    R=khr, bradfitz
+    LGTM=dave
+    R=golang-codereviews, dave
     CC=golang-codereviews
-    https://golang.org/cl/120400043
+    https://golang.org/cl/120570043
 
- src/pkg/runtime/malloc.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/syscall/syscall_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

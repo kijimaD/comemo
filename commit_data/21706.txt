@@ -1,22 +1,31 @@
-commit e7fae6854008c163ba83e2eac52ae9f12003a9a9
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Feb 23 15:11:39 2015 -0800
+commit 7a71726b1f0b54b9241730e4bf7a5073676f17fa
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 29 11:54:45 2015 -0500
 
-    crypto/x509: allow wildcards only as the first label.
+    runtime: check alignment of 8-byte atomic loads and stores on 386
     
-    RFC 6125 now specifies that wildcards are only allowed for the leftmost
-    label in a pattern: https://tools.ietf.org/html/rfc6125#section-6.4.3.
+    Currently, if we do an atomic{load,store}64 of an unaligned address on
+    386, we'll simply get a non-atomic load/store.  This has been the
+    source of myriad bugs, so add alignment checks to these two
+    operations.  These checks parallel the equivalent checks in
+    sync/atomic.
     
-    This change updates Go to match the behaviour of major browsers in this
-    respect.
+    The alignment check is not necessary in cas64 because it uses a locked
+    instruction.  The CPU will either execute this atomically or raise an
+    alignment fault (#AC)---depending on the alignment check flag---either
+    of which is fine.
     
-    Fixes #9834.
+    This also fixes the two places in the runtime that trip the new
+    checks.  One is in the runtime self-test and shouldn't have caused
+    real problems.  The other is in tickspersecond and could, in
+    principle, have caused a misread of the ticks per second during
+    initialization.
     
-    Change-Id: I37c10a35177133624568f2e0cf2767533926b04a
-    Reviewed-on: https://go-review.googlesource.com/5691
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If1796667012a6154f64f5e71d043c7f5fb3dd050
+    Reviewed-on: https://go-review.googlesource.com/3521
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/x509/verify.go    | 2 +-
- src/crypto/x509/x509_test.go | 9 ++++++---
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/runtime/asm_386.s   |  6 ++++++
+ src/runtime/runtime.go  |  1 +
+ src/runtime/runtime1.go | 42 ++++++++++++++++++++++--------------------
+ 3 files changed, 29 insertions(+), 20 deletions(-)

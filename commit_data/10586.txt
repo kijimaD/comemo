@@ -1,13 +1,15 @@
-commit 6c165d7ac461d86c6ce5c69c09ae170eaf1608dc
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Dec 2 16:05:12 2011 +1100
+commit 2a876beb1899d875b80285b3032192f9dc6d7670
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Fri Dec 2 14:29:24 2011 +1100
 
-    dashboard: make response format consistent, implement commit GET mode
+    os/exec: make LookPath always search the current directory under Windows.
     
-    R=golang-dev, dsymonds, rsc
+    cmd.exe implicitly looks in "." before consulting PATH.
+    LookPath should match this behavior.
+    
+    R=alex.brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/5437113
+    https://golang.org/cl/5434093
 
- misc/dashboard/app/build/build.go | 131 +++++++++++++++++++++-----------------
- misc/dashboard/app/build/test.go  |  37 ++++++++---
- 2 files changed, 102 insertions(+), 66 deletions(-)
+ src/pkg/os/exec/lp_windows.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

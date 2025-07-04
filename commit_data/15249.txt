@@ -1,15 +1,15 @@
-commit 30359a55c264dba2076c86f40a3c7c915889b9df
+commit ac1015e7f3ef68be5d1c0721d76296ad84fe6768
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 14 14:56:01 2013 -0500
+Date:   Thu Feb 14 14:49:04 2013 -0500
 
-    encoding/json: document and test use of unicode.ReplacementChar
+    cmd/8g: fix sse2 compare code gen
     
-    Fixes #4783.
+    Fixes #4785.
     
-    R=golang-dev, bradfitz
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7314099
+    https://golang.org/cl/7300109
 
- src/pkg/encoding/json/decode.go      |  5 +++++
- src/pkg/encoding/json/decode_test.go | 37 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+)
+ src/cmd/8g/ggen.c           | 20 --------------------
+ test/fixedbugs/issue4785.go | 20 ++++++++++++++++++++
+ 2 files changed, 20 insertions(+), 20 deletions(-)

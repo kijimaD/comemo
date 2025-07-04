@@ -1,21 +1,25 @@
-commit f65ad0dda7ffef9397d1aaa47259ad4d4f12474f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun May 24 00:09:20 2020 +0200
+commit 9c8c27a318459e76970a8ac0f171a8fc1a6ef5b9
+Author: Lorenz Bauer <lmb@cloudflare.com>
+Date:   Tue Dec 10 15:58:24 2019 +0000
 
-    cmd/go: fix parallel chatty tests on solaris-amd64 builder
+    syscall: use SOCK_CLOEXEC when creating sockets
     
-    The parallel chatty tests added in CL 229085 fail on the
-    solaris-amd64-oraclerel builder, because a +NN:NN offset time zone is
-    used. Allow for the `+` character in the corresponding regex to fix
-    these tests. Also move the '-' to the end of the character class, so it
-    is not interpreted as the range 9-T.
+    LsfSocket, SetLsfPromisc and NetlinkRIB currently don't force the CLOEXEC
+    flag on the sockets they create. While the former two functions are
+    deprecated, NetlinkRIB is called by various functions related to
+    net.Interface.
     
-    Change-Id: Iec9ae82ba45d2490176f274f0dc6812666eae718
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234978
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Add a helper to create CLOEXEC sockets, and use it from SetLsfPromisc and
+    NetlinkRIB. LsfSocket is unchanged since we don't want to break callers.
+    
+    Fixes #36053
+    
+    Change-Id: I72fe2b167996797698d8a44b0d28165045c42d3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210517
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/test_chatty_parallel_fail.txt    | 6 +++---
- src/cmd/go/testdata/script/test_chatty_parallel_success.txt | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/syscall/lsf_linux.go          |  4 +++-
+ src/syscall/netlink_linux.go      |  2 +-
+ src/syscall/sock_cloexec_linux.go | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 2 deletions(-)

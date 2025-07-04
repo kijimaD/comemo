@@ -1,16 +1,12 @@
-commit 4403e6b6d871fdae0e0bf108fd659bd6fa4b84e2
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Oct 26 10:41:24 2011 -0400
+commit c3733b29d494995859bb6d6241797f67ece4c53d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 26 22:25:20 2011 +1100
 
-    crypto/rsa: change public exponent from 3 to 65537
+    net: document why we do not use SO_REUSEADDR on windows
     
-    Although there's still no concrete security reason not to use 3, I
-    think Bleichenbacher has convinced me that it's a useful defense and
-    it's what everyone else does.
-    
-    R=bradfitz, rsc
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/5307060
+    https://golang.org/cl/5302058
 
- src/pkg/crypto/rsa/rsa.go | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+ src/pkg/net/sock_windows.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

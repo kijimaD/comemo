@@ -1,16 +1,15 @@
-commit 1dc77a38d293763b9de50110dd72edd755ce72b7
-Author: Katie Hockman <katie@golang.org>
-Date:   Fri Oct 22 11:37:28 2021 -0400
+commit f113e9a14f08d23be78f75050185f9796a1d243f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Feb 18 14:18:53 2021 -0500
 
-    internal/fuzz: tiny refactor+fix
+    cmd/dist: match goexperiment.regabi tag when GOEXPERIMENT is on
     
-    Change-Id: I8db9c31ead3e5905b7f9d1faed36555e8aaa00cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358054
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Julie Qiu <julie@golang.org>
+    Change-Id: I5e4347dde6dcb49cd96608e4f67e54c7b3050bc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293851
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/internal/fuzz/fuzz.go   | 2 +-
- src/internal/fuzz/worker.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.go | 5 +++++
+ 1 file changed, 5 insertions(+)

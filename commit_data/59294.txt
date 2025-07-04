@@ -1,63 +1,22 @@
-commit ba7b8ca336123017e43a2ab3310fd4a82122ef9d
-Author: Achille Roussel <achille.roussel@gmail.com>
-Date:   Thu Dec 21 16:54:24 2023 -0800
+commit 2589a89468c4cd7a1132a76288fcf082cdaa2454
+Author: khr@golang.org <khr@golang.org>
+Date:   Tue Feb 27 16:00:52 2024 -0800
 
-    iter: reduce memory footprint of iter.Pull functions
+    runtime: don't re-initialize itab while looking for missing function
     
-    The implementation of iter.Pull and iter.Pull2 functions is based on
-    closures and sharing local state, which results in one heap allocation
-    for each captured variable.
+    The itab we're initializing again, just to figure out which method
+    is missing, might be stored in read-only memory.
+    This can only happen in certain weird generics situations, so it is
+    pretty rare, but it causes a runtime crash when it does happen.
     
-    The number of heap allocations can be reduced by grouping the state
-    shared between closures in a struct, allowing the compiler to allocate
-    all local variables in a single heap region instead of creating
-    individual heap objects for each variable.
+    Fixes #65962
     
-    This approach can sometimes have downsides when it couples unrelated
-    objects in a single memory region, preventing the garbage collector from
-    reclaiming unused memory. While technically only a subset of the local
-    state is shared between the next and stop functions, it seems unlikely
-    that retaining the rest of the state until stop is reclaimed would be
-    problematic in practice, since the two closures would often have very
-    similar lifetimes.
-    
-    The change also reduces the total memory footprint due to alignment
-    rules, the two booleans can be packed in memory and sometimes can even
-    exist within the padding space of the v value. There is also less
-    metadata needed for the garbage collector to track each individual heap
-    allocation.
-    
-    goos: darwin
-    goarch: arm64
-    pkg: iter
-    cpu: Apple M2 Pro
-             │ /tmp/bench.old │           /tmp/bench.new            │
-             │     sec/op     │   sec/op     vs base                │
-    Pull-12       218.6n ± 7%   146.1n ± 0%  -33.19% (p=0.000 n=10)
-    Pull2-12      239.8n ± 5%   155.0n ± 5%  -35.36% (p=0.000 n=10)
-    geomean       229.0n        150.5n       -34.28%
-    
-             │ /tmp/bench.old │           /tmp/bench.new           │
-             │      B/op      │    B/op     vs base                │
-    Pull-12        288.0 ± 0%   176.0 ± 0%  -38.89% (p=0.000 n=10)
-    Pull2-12       312.0 ± 0%   176.0 ± 0%  -43.59% (p=0.000 n=10)
-    geomean        299.8        176.0       -41.29%
-    
-             │ /tmp/bench.old │           /tmp/bench.new           │
-             │   allocs/op    │ allocs/op   vs base                │
-    Pull-12       11.000 ± 0%   5.000 ± 0%  -54.55% (p=0.000 n=10)
-    Pull2-12      12.000 ± 0%   5.000 ± 0%  -58.33% (p=0.000 n=10)
-    geomean        11.49        5.000       -56.48%
-    
-    Change-Id: Iccbe233e8ae11066087ffa4781b66489d0d410a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/552375
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ia86e216fe33950a794ad8e475e76317f799e9136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567615
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/iter/iter.go      | 152 +++++++++++++++++++++++++-------------------------
- src/iter/pull_test.go |  16 ++++++
- 2 files changed, 92 insertions(+), 76 deletions(-)
+ src/runtime/iface.go         | 20 ++++++++++--------
+ test/fixedbugs/issue65962.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 8 deletions(-)

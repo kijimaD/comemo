@@ -1,18 +1,19 @@
-commit c1a068012c67dfc794c0ecfd7d77db451d2cadac
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue May 1 01:59:09 2018 +0200
+commit a90fc6d2d4b7a1a054de50841a8bebfc2c2668e9
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Jan 17 21:00:26 2018 +0100
 
-    runtime: remove darwin workaround for process-wide raise
+    cmd/compile: replace range loop over list of nodes with orderexprlistinplace
     
-    Now that raise on darwin targets the current thread, we can remove
-    the workaround in dieFromSignal.
+    Replace explicit range loop that applies orderexprinplace on a
+    list of nodes with existing helper function orderexprlistinplace.
     
-    Change-Id: I1e468dc05e49403ee0bbe0a3a85e764c81fec4f2
-    Reviewed-on: https://go-review.googlesource.com/110476
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: Ic8098ed08cf67f319de3faa83b00a5b73bbde95d
+    Reviewed-on: https://go-review.googlesource.com/88815
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/signal_unix.go | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

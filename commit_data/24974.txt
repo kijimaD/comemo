@@ -1,24 +1,12 @@
-commit 45c3cf68b024e99ddf046e2a858452ea51d84749
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Nov 19 14:09:33 2015 -0500
+commit 46ffb026b4ffc5a872a74a4ec3892b8ddad8bd8e
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 12 14:06:44 2015 -0700
 
-    cmd/compile: identify the runtime pkg using myimportpath
+    [dev.ssa] cmd/compile/internal/ssa: OCHECKNIL is a statement, not an expression
     
-    Because there are now multiple packages that compose the runtime
-    we need to distinguish between the case where a runtime package
-    is being compiled versus the case the "runtime" package is being
-    compiled. In golang.org/cl/14204 I mistakenly used
-      localpkg.Name == "runtime"
-    to check against the "runtime" package, but doing this would treat
-    a package with the path "foo.org/bar/runtime" as the runtime package.
-    The correct check is
-      myimportpath == "runtime"
-    .
-    
-    Change-Id: If90e95cef768d91206f2df1c06e27be876722e4e
-    Reviewed-on: https://go-review.googlesource.com/17059
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5a683f532a5a0b2bc862d80c871e8dc6721016fc
+    Reviewed-on: https://go-review.googlesource.com/14534
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

@@ -1,30 +1,26 @@
-commit ada5c2edb4c2d3db988805b822e58020e6cd5f49
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sun Nov 19 11:22:05 2023 +0000
+commit eaf0e3d4650fd223dec84ee52025c7a82bcb24bd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 8 08:24:57 2022 -0500
 
-    reflect: optimize Value.IsZero for struct types
+    runtime: remove arbitrary timeouts in finalizer tests
     
-    For some types where the zero value is a value where all bits of this type are 0 optimize it.
+    These short timeouts can overrun due to system scheduling delay
+    (or GC latency) on a slow or heavily-loaded host.
     
-    goos: windows
-    goarch: amd64
-    pkg: reflect
-    cpu: AMD Ryzen 7 7840HS w/ Radeon 780M Graphics
-                             │   old.txt    │               new.txt               │
-                             │    sec/op    │   sec/op     vs base                │
-    IsZero/StructInt_512-16   109.75n ± 0%   72.61n ± 1%  -33.84% (p=0.000 n=12)
+    Moreover, if the test deadlocks we will probably want to know what the
+    GC goroutines were doing at the time. With an arbitrary timeout, we
+    never get that information; however, if we allow the test to time out
+    completely we will get a goroutine dump (and, if GOTRACEBACK is
+    configured in the environment, that may even include GC goroutines).
     
-    Change-Id: I56de8b95f4d4482068960d6f38938763fa1caa90
-    GitHub-Last-Rev: c143f0cd7616cb3be52c59879f748e49a3c5cbf1
-    GitHub-Pull-Request: golang/go#64220
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543355
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #57166.
+    
+    Change-Id: I136501883373c3ce4e250dc8340c60876b375f44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456118
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/reflect/all_test.go       |  8 +++++++-
- src/reflect/benchmark_test.go |  4 ++++
- src/reflect/value.go          | 39 ++++++++++++++++++++++++++++-----------
- 3 files changed, 39 insertions(+), 12 deletions(-)
+ src/runtime/mfinal_test.go | 26 +++++---------------------
+ 1 file changed, 5 insertions(+), 21 deletions(-)

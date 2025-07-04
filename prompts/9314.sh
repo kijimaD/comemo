@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9314: c66917d2b6578b1ceedf6629d43096ebaf71d75a
+# Index 9314: 476150f4bf7d5e26232062781ff04272fd4c35b9
 
 echo "🚀 Generating explanation for commit 9314..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 9314
-- **コミットハッシュ**: c66917d2b6578b1ceedf6629d43096ebaf71d75a
-- **GitHub URL**: https://github.com/golang/go/commit/c66917d2b6578b1ceedf6629d43096ebaf71d75a
+- **コミットハッシュ**: 476150f4bf7d5e26232062781ff04272fd4c35b9
+- **GitHub URL**: https://github.com/golang/go/commit/476150f4bf7d5e26232062781ff04272fd4c35b9
 
 ### 章構成
 

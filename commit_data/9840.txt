@@ -1,18 +1,13 @@
-commit a7a7cc5a55690350eeee4d1aa26ca460f61c4b56
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 30 11:31:28 2011 -0700
+commit 40c26fff1490f68cbb2d6a7942443df567e9bab4
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 30 10:52:36 2011 -0700
 
-    index/suffixarray: 4.5x faster index serialization (to memory)
+    runtime: fix darwin build
+    Add place holder for runtime.osyield.
     
-    Benchmark results (best of 3 runs):
-    
-    old: suffixarray.BenchmarkSaveRestore          1        1931909000 ns/op          28.21 MB/s
-    new: suffixarray.BenchmarkSaveRestore          5         429721800 ns/op         117.14 MB/s
-    
-    R=golang-dev, r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5161043
+    https://golang.org/cl/5149049
 
- src/pkg/index/suffixarray/suffixarray.go      | 133 ++++++++++++++++++--------
- src/pkg/index/suffixarray/suffixarray_test.go |  12 ++-
- 2 files changed, 101 insertions(+), 44 deletions(-)
+ src/pkg/runtime/darwin/thread.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

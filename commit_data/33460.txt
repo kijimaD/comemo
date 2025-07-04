@@ -1,19 +1,24 @@
-commit 17ff23f7c8d6a3310e1fa59fced2fc584b68ac7c
-Author: griesemer <gri@golang.org>
-Date:   Mon Nov 6 15:01:33 2017 -0800
+commit 96d6718e4fa3acefa31f0d168664dff32ecf6c6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 2 23:36:53 2017 -0400
 
-    cmd/compile/internal/syntax: better syntax errors for typos in if/switch/for headers
+    [dev.boringcrypto] crypto/sha1,sha256,sha512: use BoringCrypto
     
-    Be more pessimistic when parsing if/switch/for headers for better error
-    messages when things go wrong.
-    
-    Fixes #22581.
-    
-    Change-Id: Ibb99925291ff53f35021bc0a59a4c9a7f695a194
-    Reviewed-on: https://go-review.googlesource.com/76290
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I80a764971b41f75c3b699797bfed71f509e3407d
+    Reviewed-on: https://go-review.googlesource.com/55474
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go |  4 ++--
- test/fixedbugs/issue22581.go              | 27 +++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 2 deletions(-)
+ src/crypto/internal/boring/notboring.go |  12 ++-
+ src/crypto/internal/boring/sha.go       | 175 ++++++++++++++++++++++++++++++++
+ src/crypto/sha1/boring.go               |  22 ++++
+ src/crypto/sha1/notboring.go            |  17 ++++
+ src/crypto/sha1/sha1.go                 |  12 +++
+ src/crypto/sha1/sha1_test.go            |   7 ++
+ src/crypto/sha256/sha256.go             |  23 +++++
+ src/crypto/sha256/sha256_test.go        |   4 +
+ src/crypto/sha512/sha512.go             |  27 +++++
+ src/crypto/sha512/sha512_test.go        |   4 +
+ src/crypto/tls/cipher_suites.go         |   6 ++
+ 11 files changed, 306 insertions(+), 3 deletions(-)

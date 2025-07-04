@@ -1,32 +1,24 @@
-commit f866958246556ec609b81d31376a39efe9d51a51
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Jun 23 16:36:25 2025 -0700
+commit a8ba163695f605c72156c90de97a06b3e40566ff
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Apr 24 09:36:22 2024 +0200
 
-    cmd/dist: test encoding/json/... with GOEXPERIMENT=jsonv2
+    runtime: fix mcall unwinding on Windows
     
-    This also updates wasip1_wasm to use a 8MiB stack, which is
-    the same stack size as what is used by go_js_wasm_exec.
-    The increase of stack size is necessary because the jsonv2
-    tests exercise that the jsonv2 and jsontext packages support
-    a hard limit of a maximum JSON nesting depth of 10000.
-    However, even with a depth limit of 10000, this still exceeds
-    the previously specified maximum stack size of 1 MiB.
+    The Windows native stack unwinder incorrectly classifies the next
+    instruction after the mcall callback call as being part of the function
+    epilogue, producing a wrong call stack.
     
-    For use of JSON with untrusted inputs in WASM,
-    we really need to support #56733 as there is no right answer
-    for the default max depth limit to use since the max wasm
-    stack size is determined on a per-system basis.
+    Add a NOP after the callback call to work around this issue.
     
-    Updates #71845
+    Fixes #67007.
     
-    Change-Id: I3b32c58cc9f594a5c59bb3e4b20f5e86d85d8209
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/683575
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I6017635da895b272b1852391db9a255ca69e335d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581335
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- lib/wasm/go_wasip1_wasm_exec | 2 +-
- src/cmd/dist/test.go         | 9 +++++++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/runtime/asm_amd64.s | 4 ++++
+ 1 file changed, 4 insertions(+)

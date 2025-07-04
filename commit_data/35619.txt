@@ -1,18 +1,17 @@
-commit 156bbe283cea5237c0461a004aefc3ea3d118023
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Thu Jun 7 12:43:56 2018 +0530
+commit 9cae3aaf47de8c79c31ef53c1ed4e2db46214aea
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Dec 16 10:04:03 2017 +1100
 
-    cmd/go/internal: add wasm magic header
+    os: do not forget to set ModeDevice when using ModeCharDevice
     
-    This is needed when we are re-building to the wasm target.
+    Fixes #23123
     
-    Fixes #25774
-    
-    Change-Id: I5dc47bd7e56c8570b8d2485273ef0d10f2feac6f
-    Reviewed-on: https://go-review.googlesource.com/116915
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia4ac947cc49ef3d150ef60a095b86552dcef397d
+    Reviewed-on: https://go-review.googlesource.com/84435
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/go/internal/work/exec.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/os/os_test.go       | 2 +-
+ src/os/types_windows.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

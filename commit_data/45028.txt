@@ -1,17 +1,29 @@
-commit d67e7399898d819583cdcc377e9ff3c93002f57f
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Wed Apr 7 21:56:59 2021 +0200
+commit 2333c6299f340a5f76a73a4fec6db23ffa388e97
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 24 19:26:33 2020 -0700
 
-    os/exec: replace os.MkdirTemp with T.TempDir
+    runtime: use old capacity to decide on append growth regime
     
-    Updates #45402
+    We grow the backing store on append by 2x for small sizes and 1.25x
+    for large sizes. The threshold we use for picking the growth factor
+    used to depend on the old length, not the old capacity. That's kind of
+    unfortunate, because then doing append(s, 0, 0) and append(append(s,
+    0), 0) do different things. (If s has one more spot available, then
+    the former expression chooses its growth based on len(s) and the
+    latter on len(s)+1.)  If we instead use the old capacity, we get more
+    consistent behavior. (Both expressions use len(s)+1 == cap(s) to
+    decide.)
     
-    Change-Id: Idbd8067759d58bc57c52ede4ddccc98ab0ae18fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308129
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Fixes #41239
+    
+    Change-Id: I40686471d256edd72ec92aef973a89b52e235d4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257338
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/os/exec/lp_windows_test.go | 14 ++------------
- 1 file changed, 2 insertions(+), 12 deletions(-)
+ src/runtime/slice.go         |  2 +-
+ test/fixedbugs/issue41239.go | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

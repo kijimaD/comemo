@@ -1,13 +1,12 @@
-commit f24323c93e524bfa7d24cd7dcea93c11b983d4d5
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Oct 16 14:41:32 2012 +0400
+commit 0c44488ad94fe626a87c046662e714ee2058c8c2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 16 15:53:17 2012 +0800
 
-    runtime: fix spurious deadlock crashes
-    Fixes #4243.
+    misc/dist: support packaging for NetBSD
     
-    R=golang-dev, iant
-    CC=golang-dev, sebastien.paolacci
-    https://golang.org/cl/6682050
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/6650053
 
- src/pkg/runtime/mheap.c | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ misc/dist/bindist.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

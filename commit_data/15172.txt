@@ -1,17 +1,15 @@
-commit 5fa6721a311f1a4a71cf88502c44537e519b4787
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Feb 8 11:58:24 2013 -0500
+commit 0a9f1ab8bb68835bf66faf9c7a925003c6087c4e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 8 19:24:50 2013 +0400
 
-    exp/ssa/interp: fix MS Windows breakage.
+    runtime/race: deflake tests
+    With the new scheduler races in the tests are reported during execution of other tests.
+    The change joins goroutines started during the tests.
     
-    syscall.{Kill,Write} are not portable to MS Windows, so we
-    disable them for now.
-    
-    R=iant, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7312066
+    https://golang.org/cl/7310066
 
- src/pkg/exp/ssa/interp/external.go         | 24 ++++------------------
- src/pkg/exp/ssa/interp/external_unix.go    | 32 ++++++++++++++++++++++++++++++
- src/pkg/exp/ssa/interp/external_windows.go | 19 ++++++++++++++++++
- 3 files changed, 55 insertions(+), 20 deletions(-)
+ src/pkg/runtime/race/testdata/mop_test.go        | 7 ++++++-
+ src/pkg/runtime/race/testdata/regression_test.go | 3 +++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

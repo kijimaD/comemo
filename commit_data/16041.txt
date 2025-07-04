@@ -1,13 +1,14 @@
-commit b91ae5c27c3b21e8364a7dec732d7885ce6a2073
-Author: Rob Pike <r@golang.org>
-Date:   Mon Apr 1 15:52:15 2013 -0700
+commit a23dd4fe4e448d7f696360f2c84c7c57a1ccaacf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 1 15:15:02 2013 -0700
 
-    doc/codewalk/markov: fix slice error in description
-    Fixes #5176.
+    cmd/godoc: better error message for missing index files
     
-    R=golang-dev, bradfitz
+    Fixes #5024.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8118046
+    https://golang.org/cl/8222045
 
- doc/codewalk/markov.xml | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/godoc/godoc.go | 2 ++
+ 1 file changed, 2 insertions(+)

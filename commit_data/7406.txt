@@ -1,14 +1,16 @@
-commit bbb7080b99b377e91c1aadb43d69f55086380659
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 9 00:03:08 2011 -0500
+commit 13c95f452e9351cb1febb16df7bc302e9ddd36fb
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 8 23:50:23 2011 -0500
 
-    misc/dashboard: hide benchmarks link temporarily
+    build: Drop syslog on DISABLE_NET_TESTS=1
     
-    R=rsc
+    Even if local, it requires communication with a daemon
+    which may not be available.  This is creating problems
+    for getting an Ubuntu package going in Launchpad's PPA.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4128061
+    https://golang.org/cl/3989062
 
- misc/dashboard/godashboard/main.html    | 2 +-
- misc/dashboard/godashboard/package.html | 2 +-
- misc/dashboard/godashboard/project.html | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

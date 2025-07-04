@@ -1,14 +1,18 @@
-commit 2917ab204933d345c3fd5ed7ce5a1c4fb46ce043
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 24 12:34:06 2015 +0200
+commit 5f7060afd2dea927ac64804c7e4639f6635c3bb7
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 15 16:03:27 2015 -0400
 
-    net/http: document that FormValue returns the empty string
+    runtime: don't start GC if preemptoff is set
     
-    Fixes #8137
+    In order to avoid deadlocks, startGC avoids kicking off GC if locks
+    are held by the calling M. However, it currently fails to check
+    preemptoff, which is the other way to disable preemption.
     
-    Change-Id: Icd94bbe430a3ef333248425449b5fc678edb0343
-    Reviewed-on: https://go-review.googlesource.com/11410
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fix this by adding a check for preemptoff.
+    
+    Change-Id: Ie1083166e5ba4af5c9d6c5a42efdfaaef41ca997
+    Reviewed-on: https://go-review.googlesource.com/10153
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/request.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

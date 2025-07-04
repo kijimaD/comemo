@@ -1,18 +1,15 @@
-commit 662d25351542d624f397bb0a83ff1c0ca38b6428
-Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
-Date:   Sun Nov 6 19:56:14 2016 -0800
+commit 25d094034bd5d0e4317180a70d41bf774dae1598
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Sep 19 12:12:04 2016 +1200
 
-    cmd/vet: ignore unrecognized verbs for fmt.Formatter
+    cmd/link: remove Linklookup & Linkrlookup
     
-    Updates #17057.
-    
-    Change-Id: I54c838d3a44007d4023754e42971e91bfb5e8612
-    Reviewed-on: https://go-review.googlesource.com/32851
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I25d9f74cb52e6fd4f2ad4b1c8b7102efadbc7481
+    Reviewed-on: https://go-review.googlesource.com/29344
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/print.go          | 21 +++++++++++++++++----
- src/cmd/vet/testdata/print.go | 12 ++++++++++--
- src/cmd/vet/types.go          |  3 +--
- 3 files changed, 28 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/ldelf.go |  2 +-
+ src/cmd/link/internal/ld/sym.go   | 13 -------------
+ 2 files changed, 1 insertion(+), 14 deletions(-)

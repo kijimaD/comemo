@@ -1,23 +1,39 @@
-commit 403f91c24430213b6a8efb3d143b6eae08b02ec2
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Aug 30 15:51:57 2022 -0500
+commit 85b3b4ee036e7460bf7621f64c6781e5dd0eed98
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Jan 4 17:14:35 2021 +0800
 
-    cmd/compile/internal: merge rules in PPC64.rules
+    cmd/compile: add -asan option
     
-    This uses rulegen syntax which allows similar rules
-    to be combined, saving lines in the rules file.
-    The Lsh16x32 rule had an incorrect value and that was
-    fixed.
+    The -asan option causes the compiler to add instrumentation for the
+    C/C++ address sanitizer.  Every memory read/write will be replaced
+    by a call to asanread/asanwrite.
     
-    Change-Id: I637410e39d8554825076aca5ac24083ce05ab186
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429035
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    This CL also inserts asan instrumentation during SSA building.
+    
+    This CL passes tests but is not usable by itself. The actual
+    implementation of asanread/asanwrite in the runtime package, and
+    support for -asan in the go tool and tests, will follow in subsequent
+    CLs.
+    
+    Updates #44853.
+    
+    Change-Id: Ia18c9c5d5c351857420d2f6835f0daec2ad31096
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298611
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules | 441 ++++++++-------------------
- src/cmd/compile/internal/ssa/rewritePPC64.go | 138 ++++-----
- 2 files changed, 193 insertions(+), 386 deletions(-)
+ src/cmd/compile/doc.go                                |  2 ++
+ src/cmd/compile/internal/base/base.go                 |  1 +
+ src/cmd/compile/internal/base/flag.go                 | 16 ++++++++++++----
+ src/cmd/compile/internal/gc/main.go                   |  5 +++--
+ src/cmd/compile/internal/ir/func.go                   |  2 +-
+ src/cmd/compile/internal/ir/symtab.go                 |  2 ++
+ src/cmd/compile/internal/noder/import.go              |  2 ++
+ src/cmd/compile/internal/reflectdata/reflect.go       |  3 +++
+ src/cmd/compile/internal/ssagen/ssa.go                | 18 +++++++++++++++---
+ src/cmd/compile/internal/typecheck/builtin.go         |  2 ++
+ src/cmd/compile/internal/typecheck/builtin/runtime.go |  4 ++++
+ src/cmd/internal/sys/supported.go                     | 11 +++++++++++
+ 12 files changed, 58 insertions(+), 10 deletions(-)

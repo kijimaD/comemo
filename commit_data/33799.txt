@@ -1,23 +1,30 @@
-commit f6be5216279ac0837f895eaeb55be5e9f4ac3ea9
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 5 20:20:56 2017 -0500
+commit 6ea4cfb347fc3f1001c4a9e732e248144cf8061b
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Aug 31 12:44:28 2017 +0200
 
-    net/http: keep testing DetectContentType of empty body
+    cmd/dist: remove trivial variables + functions
     
-    Historically, DetectContentType has returned "text/plain; charset=utf-8"
-    for an empty body, there was a test for this, and there should continue
-    to be one.
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (5).
     
-    CL 46631 changed the content-serving handlers to avoid setting any
-    Content-Type header when serving empty content. Even if that change
-    in behavior is correct, the CL is explicitly not changing DetectContentType,
-    so it must also not change DetectContentType's tests.
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
     
-    Change-Id: I7a19c9fabb43be47e349b40e729e49fceb3f2894
-    Reviewed-on: https://go-review.googlesource.com/82077
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I0efd1271b6a70bb9248d82f8a4d869556f4a557e
+    Reviewed-on: https://go-review.googlesource.com/61011
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/sniff_test.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.go | 24 ++++++++++--------------
+ src/cmd/dist/util.go  | 19 -------------------
+ 2 files changed, 10 insertions(+), 33 deletions(-)

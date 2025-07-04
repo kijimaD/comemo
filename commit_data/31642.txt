@@ -1,26 +1,16 @@
-commit 8a1c5b2e486be7a2df7667582a1b8cd53c8c7745
-Author: Austin Clements <austin@google.com>
-Date:   Thu May 18 13:59:00 2017 -0400
+commit 0332b6cf589a51f421a88176f756f0315c9f1491
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 14:04:56 2017 +0100
 
-    runtime: fix stackFromSystem returning memory
+    encoding/gob: remove unused ut and atyp parameters
     
-    The stackFromSystem debug mode has two problems:
+    Found by github.com/mvdan/unparam.
     
-    1) It rounds the stack allocation to _PageSize. If the physical page
-    size is >8K, this can cause unmapping the memory later to either
-    under-unmap or over-unmap.
-    
-    2) It doesn't return the rounded-up allocation size to its caller, so
-    when we later unmap the memory, we may pass the wrong length.
-    
-    Fix these problems by rounding the size up to the physical page size
-    and putting that rounded-up size in the returned stack bounds.
-    
-    Fixes #17289.
-    
-    Change-Id: I6b854af3b06bb16e3750798397bb5e2a722ec1cb
-    Reviewed-on: https://go-review.googlesource.com/43636
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic97f05a2ecb5b17caa36aafe403e2266abea3e0e
+    Reviewed-on: https://go-review.googlesource.com/37836
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/stack.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/encoding/gob/decode.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

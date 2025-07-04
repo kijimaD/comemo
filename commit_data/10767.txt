@@ -1,13 +1,20 @@
-commit 64776da456682db445462e6d095de1b2b6652a8e
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 13 15:07:17 2011 -0800
+commit 5fe96c640a23eaac4d53d164e9a164e93b1414af
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 13 18:02:49 2011 -0500
 
-    bufio: make the minimum read buffer size 16 bytes.
+    test/garbage: move to test/bench/garbage
     
-    R=gri, rsc
+    (These are benchmarks for the garbage collector, not tests.)
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5485067
+    https://golang.org/cl/5484070
 
- src/pkg/bufio/bufio.go      |  6 ++-
- src/pkg/bufio/bufio_test.go | 95 ++++++++++++++++++++++-----------------------
- 2 files changed, 50 insertions(+), 51 deletions(-)
+ src/clean.bash                     |  2 +-
+ test/{ => bench}/garbage/Makefile  |  2 +-
+ test/{ => bench}/garbage/parser.go |  0
+ test/{ => bench}/garbage/peano.go  | 13 -------------
+ test/{ => bench}/garbage/stats.go  |  9 +++++----
+ test/{ => bench}/garbage/tree.go   |  0
+ test/bench/shootout/timing.sh      |  2 +-
+ 7 files changed, 8 insertions(+), 20 deletions(-)

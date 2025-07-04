@@ -1,15 +1,28 @@
-commit e7628bee6e8ddac41b213d9ed0b2d6e4051674e4
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 13 21:21:59 2017 -0500
+commit 6e9e9dfa46e032657af06aaea669e4d2264cb79e
+Author: Karel Pazdera <pazderak@gmail.com>
+Date:   Thu Aug 24 00:36:28 2017 +0200
 
-    bytes: make ExampleTrimLeft and ExampleTrimRight match
+    encoding/xml: improve package based on the suggestions from metalinter
     
-    ExampleTrimLeft was inexplicably complex.
+    Existing code in encoding/xml packages contains code which breaks
+    various linter rules (comments, constant and variable naming, variable
+    shadowing, etc).
     
-    Change-Id: I13ca81bdeba728bdd632acf82e3a1101d29b9f39
-    Reviewed-on: https://go-review.googlesource.com/78111
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Fixes #21578
+    
+    Change-Id: Id4bd9a9be6d5728ce88fb6efe33030ef943c078c
+    Reviewed-on: https://go-review.googlesource.com/58210
+    Reviewed-by: Sam Whited <sam@samwhited.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Sam Whited <sam@samwhited.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/bytes/example_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/encoding/xml/atom_test.go    |  6 +--
+ src/encoding/xml/marshal.go      |  9 +++--
+ src/encoding/xml/marshal_test.go |  4 +-
+ src/encoding/xml/read.go         | 72 ++++++++++++++++++------------------
+ src/encoding/xml/read_test.go    | 10 ++---
+ src/encoding/xml/typeinfo.go     | 10 +++--
+ src/encoding/xml/xml.go          | 80 +++++++++++++++++++++-------------------
+ src/encoding/xml/xml_test.go     |  6 +--
+ 8 files changed, 103 insertions(+), 94 deletions(-)

@@ -1,19 +1,14 @@
-commit c842e43ef6a7e3ac525a0a72e91dc7c482857afd
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 13 12:44:45 2013 +1000
+commit 73790d407c9271a356eb374006d1b23303229d72
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 13 10:28:30 2013 +1000
 
-    text/template/parse: mostly roll back the error detection for unmatched right delimiters
-    It's too late to change this behavior: it breaks templates with minimized JavaScript.
+    misc/dist: include cover and vet, add -tool flag to specify go.tools tag
     
-    Makes me sad because this common error can never be caught: "{foo}}".
-    Three cheers for compatibility.
+    Fixes #6356.
     
-    (Leave in a fix to a broken test.)
-    
-    R=golang-dev, dsymonds, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13689043
+    https://golang.org/cl/13333052
 
- src/pkg/text/template/parse/lex.go      | 4 ----
- src/pkg/text/template/parse/lex_test.go | 5 ++++-
- 2 files changed, 4 insertions(+), 5 deletions(-)
+ misc/dist/bindist.go | 44 ++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 34 insertions(+), 10 deletions(-)

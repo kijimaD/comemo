@@ -1,14 +1,29 @@
-commit c1abd5ab70e1e8ac59a2960d41fe6d83d68ea69b
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Sat Feb 29 02:32:21 2020 -0800
+commit 24950952759cb26144333b0a47eae7da44808eec
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Sep 24 17:31:12 2019 -0400
 
-    runtime: don't invoke t.Fatal* in goroutine in TestLibraryCtrlHandler
+    [dev.link] cmd/link: load full symbol contents after deadcode pass
     
-    Change-Id: I8bb06c360cab3e5a74b0b0f98bb25cca4741d66d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221605
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    If the new object file format is used, now we load full symbol
+    contents after the deadcode pass, for reachable symbols only.
+    We still load some informations early, like relocations and the
+    contents of type symbols, which are used in the deadcode pass.
+    If we rewrite deadcode to use index directly, we could delay more
+    of the loading (to sym.Symbol), and perhaps delay the creation of
+    sym.Symbol.
+    
+    TODO: internal linking with host objects doesn't work yet.
+    
+    Change-Id: I7d4880e8f150e8709ffac277e62191623440e4cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197258
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/signal_windows_test.go | 24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go      |  10 +-
+ src/cmd/link/internal/ld/go.go            |   6 +-
+ src/cmd/link/internal/ld/lib.go           |  92 ++++++++-------
+ src/cmd/link/internal/ld/link.go          |  29 +++++
+ src/cmd/link/internal/ld/main.go          |   3 +
+ src/cmd/link/internal/objfile/objfile2.go | 189 ++++++++++++++++++++++--------
+ 6 files changed, 228 insertions(+), 101 deletions(-)

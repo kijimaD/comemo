@@ -1,20 +1,43 @@
-commit 19d5c40618568458d758562375c08f8fd610bda1
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Apr 20 18:08:55 2023 +0000
+commit c1d197a96e3b3ed6ce585a5e6115586c85de0363
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Mon May 23 15:04:25 2022 +0000
 
-    crypto/x509: use the RFC 6125 terminology in the VerifyHostname docs
+    cmd/compile: support libFuzzer value profiling mode for integer compares
     
-    RFC6125 uses the "complete left-most label" to describe star and full stop wildcards.
+    libFuzzer provides a special mode known as “value profiling” in which it
+    tracks the bit-wise progress made by the fuzzer in satisfying tracked
+    comparisons. Furthermore, libFuzzer uses the value of the return address
+    in its hooks to distinguish the progress for different comparisons.
     
-    Change-Id: Ib7bcf77288ae7d72fb8664b663de2e52b378aaf6
-    GitHub-Last-Rev: b48c284c42205483fcc5e02b9d68d7bbd6a1c370
-    GitHub-Pull-Request: golang/go#59743
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/487035
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    The original implementation of the interception for integer comparisons
+    in Go simply called the libFuzzer hooks from a function written in Go
+    assembly. The libFuzzer hooks thus always see the same return address
+    (i.e., the address of the call instruction in the assembly snippet) and
+    thus can’t distinguish individual comparisons anymore. This drastically
+    reduces the usefulness of value profiling.
+    
+    This is fixed by using an assembly trampoline that injects synthetic but
+    valid return addresses on the stack before calling the libFuzzer hook,
+    otherwise preserving the calling convention of the respective platform
+    (for starters, x86_64 Windows or Unix). These fake PCs are generated
+    deterministically based on the location of the compare instruction in
+    the IR representation.
+    
+    Change-Id: Iea68057c83aea7f9dc226fba7128708e8637d07a
+    GitHub-Last-Rev: f9184baafd507eb4c31f7d99b3894595689d8f89
+    GitHub-Pull-Request: golang/go#51321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387336
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/crypto/x509/verify.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/builtin.go      |  8 +--
+ .../compile/internal/typecheck/builtin/runtime.go  | 16 ++---
+ src/cmd/compile/internal/walk/compare.go           |  2 +-
+ src/internal/fuzz/trace.go                         | 18 +++---
+ src/runtime/libfuzzer.go                           | 45 ++++++++-----
+ src/runtime/libfuzzer_amd64.s                      | 75 ++++++++++++++++++++--
+ src/runtime/libfuzzer_arm64.s                      | 60 +++++++++++++----
+ 7 files changed, 166 insertions(+), 58 deletions(-)

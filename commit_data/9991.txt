@@ -1,18 +1,14 @@
-commit b5077f82fade43dcfcc40648ffd65dc98a1515df
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri Oct 14 17:09:38 2011 -0700
+commit c5b3a4fb074e7a476a2841ba7ca5161636b7d9e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 14 16:06:39 2011 -0700
 
-    http: avoid panic caused by nil URL
+    godoc: updates for latest Go app-engine release.
     
-    The current code will panic if an invalid
-    request (one with a nil URL) is passed to
-    the doFollowingRedirects function.
-    
-    Also, remove a redundant nil Header check.
-    
-    R=bradfitz
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5270046
+    https://golang.org/cl/5273044
 
- src/pkg/http/client.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/godoc/README.godoc-app     | 42 +++++++++++++++++---------------------
+ src/cmd/godoc/appinit.go           | 38 +++-------------------------------
+ src/cmd/godoc/setup-godoc-app.bash |  2 +-
+ 3 files changed, 23 insertions(+), 59 deletions(-)

@@ -1,35 +1,28 @@
-commit 2222e0601a367ab3e2da52c84cb8d4150dd9c705
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 14 08:16:51 2020 -0700
+commit 177a36a5dc29854489825e8113ecb2cbb7070690
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 12 21:23:29 2019 -0400
 
-    cmd/compile: mark static slice backing arrays as noalg
+    runtime: implement async scheduler preemption
     
-    file      before    after     Δ       %
-    addr2line 4413296   4404160   -9136   -0.207%
-    api       5982648   5978232   -4416   -0.074%
-    asm       5075640   5057656   -17984  -0.354%
-    buildid   2886200   2881304   -4896   -0.170%
-    cgo       4854168   4844936   -9232   -0.190%
-    compile   19694784  19680752  -14032  -0.071%
-    cover     5278008   5269256   -8752   -0.166%
-    dist      3699528   3690984   -8544   -0.231%
-    doc       4694824   4690408   -4416   -0.094%
-    fix       3411336   3411048   -288    -0.008%
-    link      6721496   6703320   -18176  -0.270%
-    nm        4371152   4357904   -13248  -0.303%
-    objdump   4760960   4747680   -13280  -0.279%
-    pack      2340824   2336520   -4304   -0.184%
-    pprof     14810820  14801188  -9632   -0.065%
-    test2json 2861896   2857528   -4368   -0.153%
-    trace     11681076  11676228  -4848   -0.042%
-    vet       8285464   8276184   -9280   -0.112%
-    total     115824120 115665288 -158832 -0.137%
+    This adds signal-based preemption to preemptone.
     
-    Change-Id: I66e1985c3a81cd9b2aa72cb4b4a8aa1781e473b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228222
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Since STW and forEachP ultimately use preemptone, this also makes
+    these work with async preemption.
+    
+    This also makes freezetheworld more robust so tracebacks from fatal
+    panics should be far less likely to report "goroutine running on other
+    thread; stack unavailable".
+    
+    For #10958, #24543. (This doesn't fix it yet because asynchronous
+    preemption only works on POSIX platforms on 386 and amd64 right now.)
+    
+    Change-Id: If776181dd5a9b3026a7b89a1b5266521b95a5f61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201762
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/sinit.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/preempt.go  |  9 +++++++--
+ src/runtime/proc.go     | 11 ++++++++++-
+ src/runtime/runtime2.go |  4 ++++
+ 3 files changed, 21 insertions(+), 3 deletions(-)

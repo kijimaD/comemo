@@ -1,24 +1,16 @@
-commit 0b5fbf7098b10da284f48de604e7d2860d2cd9d0
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 25 10:51:26 2016 -0400
+commit 69f49e1cbcc38be1abb4bd8b2bd3376f53cc55c3
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Sat Mar 12 21:09:14 2016 +0200
 
-    cmd/go: add Package.StaleReason for debugging with go list
+    cmd/pprof: fix crash with invalid source
     
-    It comes up every few months that we can't understand why
-    the go command is rebuilding some package.
-    Add diagnostics so that the go command can explain itself
-    if asked.
+    pprof crashed when running with:
     
-    For #2775, #3506, #12074.
+         go tool pprof %INVALID
     
-    Change-Id: I1c73b492589b49886bf31a8f9d05514adbd6ed70
-    Reviewed-on: https://go-review.googlesource.com/22432
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I47c2a4da7273e3a97a833f320a650b8c6b59d6b9
+    Reviewed-on: https://go-review.googlesource.com/20632
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go |  1 +
- src/cmd/go/build.go   |  2 ++
- src/cmd/go/go_test.go | 91 +++++++++++++++++++++++++++++----------------------
- src/cmd/go/list.go    |  1 +
- src/cmd/go/pkg.go     | 41 +++++++++++++----------
- src/cmd/go/test.go    |  5 ++-
- 6 files changed, 82 insertions(+), 59 deletions(-)
+ src/cmd/pprof/internal/driver/driver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,15 @@
-commit e6e8b72377a8235b0dca4bbe485800341c6880cf
+commit 55af51d5c0f5e2bbe80ae6dd0df6aed48e6ebd09
 Author: Adam Langley <agl@golang.org>
-Date:   Thu Apr 12 12:35:21 2012 -0400
+Date:   Thu Apr 12 12:33:52 2012 -0400
 
-    crypto/tls: don't always use the default private key.
+    encoding/pem: ignore spaces and tabs at the end of header lines.
     
-    When SNI based certificate selection is enabled, we previously used
-    the default private key even if we selected a non-default certificate.
+    Fixes #3502.
     
-    Fixes #3367.
-    
-    R=golang-dev, bradfitz
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5987058
+    https://golang.org/cl/6011046
 
- src/pkg/crypto/tls/cipher_suites.go         |   4 +-
- src/pkg/crypto/tls/handshake_server.go      |  29 ++---
- src/pkg/crypto/tls/handshake_server_test.go | 158 +++++++++++++++++++++++++++-
- src/pkg/crypto/tls/key_agreement.go         |  12 +--
- 4 files changed, 177 insertions(+), 26 deletions(-)
+ src/pkg/encoding/pem/pem.go      |  9 +++++----
+ src/pkg/encoding/pem/pem_test.go | 22 +++++++++++-----------
+ 2 files changed, 16 insertions(+), 15 deletions(-)

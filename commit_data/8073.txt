@@ -1,20 +1,12 @@
-commit 99f069a97f66aa42c88838f1e01059e42a5864dd
+commit 3d4b55ad5b99def7f7e3f8694e590c1b44a1be97
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 13 13:59:59 2011 -0700
+Date:   Wed Apr 13 13:57:53 2011 -0700
 
-    gofmt: add test framework in Go
-    
-    - replaced existing testdata/test.sh with new gofmt_test
-    - added initial test case for rewrite tests
-    
-    TODO: Need to add more tests.
+    gofmt: minor refactor to permit easy testing
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4368063
+    https://golang.org/cl/4397046
 
- src/cmd/gofmt/gofmt_test.go            | 81 ++++++++++++++++++++++++++++++++++
- src/cmd/gofmt/testdata/rewrite1.golden |  8 ++++
- src/cmd/gofmt/testdata/rewrite1.input  |  8 ++++
- src/cmd/gofmt/testdata/test.sh         | 65 ---------------------------
- 4 files changed, 97 insertions(+), 65 deletions(-)
+ src/cmd/gofmt/gofmt.go | 41 +++++++++++++++++++++--------------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

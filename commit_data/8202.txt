@@ -1,19 +1,12 @@
-commit c7008f47eca9fe29e85d522fa78731645390948d
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Sat Apr 23 10:53:49 2011 -0400
+commit 4f7fd3cb7ff2f395668319d0f00792abb365a056
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Apr 23 10:03:51 2011 -0400
 
-    ld: fix Plan 9 symbol table
+    runtime: disable long test (fix arm build)
     
-    Static symbols were not being marked as such.
-    
-    I also made the 'z' symbols use the first byte of
-    the name instead of an explicit NUL so that if
-    the symbol table format is ever changed, the only
-    place that would need updating is addhist().
-    
-    R=rsc
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/4366047
+    https://golang.org/cl/4449051
 
- src/cmd/ld/symtab.c | 20 +++++++-------------
- 1 file changed, 7 insertions(+), 13 deletions(-)
+ src/pkg/runtime/proc_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

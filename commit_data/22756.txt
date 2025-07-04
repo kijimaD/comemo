@@ -1,18 +1,12 @@
-commit baf3814b293e183b2498fe984cdb431285efb3e2
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Apr 28 15:33:03 2015 +1000
+commit 2f16ddc58069f9fa380e79db1c58103654b2af5f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 7 16:20:38 2015 -0700
 
-    image/gif: encode disposal, bg index and Config.
+    doc: update go1.5.txt (gc constant arithmetic now based on math/big)
     
-    The previous CL implemented decoding, but not encoding.
-    
-    Also return the global color map (if present) for DecodeConfig.
-    
-    Change-Id: I3b99c93720246010c9fe0924dc40a67875dfc852
-    Reviewed-on: https://go-review.googlesource.com/9389
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iff943d15e83e7db1f3c77f509a60e00ee2041d69
+    Reviewed-on: https://go-review.googlesource.com/8592
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/image/gif/reader.go      |  87 ++++++++++++--------------
- src/image/gif/writer.go      |  65 +++++++++++++++-----
- src/image/gif/writer_test.go | 143 ++++++++++++++++++++++++++++++++++++++++---
- 3 files changed, 222 insertions(+), 73 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

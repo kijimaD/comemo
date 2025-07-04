@@ -1,17 +1,17 @@
-commit 3caf4e05cf337fa9b395dd887aa3e8d2e26eecdf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Jan 24 16:33:47 2016 +0000
+commit 2ac993107fcae841ca6e81ad75e88d8b5973a115
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 15:54:10 2015 +1300
 
-    net/http: check max size of HTTP chunks
+    cmd/internal/obj, cmd/link: access global data via GOT when dynlinking on ppc64le
     
-    Thanks to Régis Leroy for noticing.
-    
-    Change-Id: I5ca2402efddab4e63d884a9d315fc1394e514cb7
-    Reviewed-on: https://go-review.googlesource.com/18871
+    Change-Id: I79c60241df6c785f35371e70c777a7bd6e93571c
+    Reviewed-on: https://go-review.googlesource.com/15968
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/internal/chunked.go      |  7 +++++--
- src/net/http/internal/chunked_test.go | 38 +++++++++++++++++++++++++----------
- 2 files changed, 32 insertions(+), 13 deletions(-)
+ src/cmd/internal/obj/link.go          |   5 ++
+ src/cmd/internal/obj/ppc64/a.out.go   |   1 +
+ src/cmd/internal/obj/ppc64/anames9.go |   1 +
+ src/cmd/internal/obj/ppc64/asm9.go    |  18 +++++
+ src/cmd/internal/obj/ppc64/obj9.go    | 127 ++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ppc64/asm.go    |   7 ++
+ 6 files changed, 159 insertions(+)

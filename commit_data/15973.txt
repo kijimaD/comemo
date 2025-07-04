@@ -1,15 +1,14 @@
-commit 611e8dbf52a10cd8a4340545e1f6296b671f1fcc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 27 15:14:28 2013 -0700
+commit e7fc9a5c570a3b8031dc7478c42c1c65cd70c719
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 27 14:32:51 2013 -0700
 
-    cmd/godoc: emit id's for constants and variables
+    cmd/6l: fix OpenBSD build
     
-    Fixes #5077.
+    Avoid generating TLS relocations on OpenBSD.
     
-    R=r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8021044
+    https://golang.org/cl/7641055
 
- src/cmd/godoc/linkify.go | 92 ++++++++++++++++++++++++++++++------------------
- src/cmd/godoc/main.go    |  2 +-
- 2 files changed, 59 insertions(+), 35 deletions(-)
+ src/cmd/6l/span.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,32 +1,20 @@
-commit 7c694fbad1ed6f2f825fd09cf7a86da3be549cea
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 24 13:35:16 2022 -0800
+commit 93200b98c75500b80a2bf7cc31c2a72deff2741c
+Author: Matt Harden <matt.harden@gmail.com>
+Date:   Fri Apr 30 01:34:44 2021 +0000
 
-    go/types, types2: delay receiver type validation
+    bufio: mention ErrFinalToken in SplitFunc documentation
     
-    Delay validation of receiver type as it may cause premature expansion
-    of types the receiver type is dependent on. This was actually a TODO.
+    It is documented elsewhere in the package documentation but this additional
+    mention of it will hopefully reduce confusion.
     
-    While the diff looks large-ish, the actual change is small: all the
-    receiver validation code has been moved inside the delayed function
-    body, and a couple of comments have been adjusted.
+    Fixes #44261
     
-    Fixes #51232.
-    Fixes #51233.
-    
-    Change-Id: I44edf0ba615996266791724b832d81b9ccb8b435
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387918
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I4e9d8f4564ebb7fbe047c92ee2cdffedb39f2a31
+    GitHub-Last-Rev: 64b6421503dfb9396e46f94f9805ff7f8bf2b31b
+    GitHub-Pull-Request: golang/go#45839
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314969
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/types2/signature.go       | 105 ++++++++++----------
- .../types2/testdata/fixedbugs/issue51232.go2       |  29 ++++++
- .../types2/testdata/fixedbugs/issue51233.go2       |  25 +++++
- src/go/types/signature.go                          | 107 ++++++++++++---------
- src/go/types/testdata/fixedbugs/issue51232.go2     |  29 ++++++
- src/go/types/testdata/fixedbugs/issue51233.go2     |  25 +++++
- test/typeparam/issue51232.go                       |  31 ++++++
- test/typeparam/issue51233.go                       |  22 +++++
- 8 files changed, 274 insertions(+), 99 deletions(-)
+ src/bufio/scan.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

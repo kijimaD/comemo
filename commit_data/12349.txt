@@ -1,15 +1,13 @@
-commit b1b0b73738b4966a6d8f497d5ede03a6a51ee110
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Sun Mar 4 11:34:21 2012 +1100
+commit f90fd754e3c069399c88497b70b9da860dc24cf3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Mar 4 11:34:10 2012 +1100
 
-    doc: fixed minor typo in article on defer
+    A+C: add Francisco Souza
     
-    Fixes #3176.
-    
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5737043
+    https://golang.org/cl/5729054
 
- doc/articles/defer_panic_recover.html | 2 +-
- doc/articles/defer_panic_recover.tmpl | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

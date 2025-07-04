@@ -1,12 +1,14 @@
-commit bc14989713f92a1797fbf23df6e64815a7307448
-Author: David Chase <drchase@google.com>
-Date:   Tue Mar 17 15:48:06 2015 -0400
+commit 7cec2157b892bbc53a93cea6fbcf1c62377f1d33
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 22 13:17:43 2015 -0500
 
-    cmd/internal/gc: add a comment to esc.go
+    [dev.cc] cmd/go: fix expansion of cmd
     
-    Change-Id: I19e6542e7d79d60e39d62339da51a827c5aa6d3b
-    Reviewed-on: https://go-review.googlesource.com/7668
+    This was supposed to be in the previous CL, but I forgot to 'git rw' it down.
+    
+    Change-Id: Ia5e14ca2c7640f08abbbed1a777a6cf04d71d0e7
+    Reviewed-on: https://go-review.googlesource.com/5570
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/gc/esc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

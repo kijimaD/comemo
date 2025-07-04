@@ -1,20 +1,20 @@
-commit 524956f8b976be2b7be829a2d0d87c2951932ac6
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 24 09:42:33 2016 -0400
+commit ca72f5f5df62181cfc8043e9064b4f847527ec2a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 30 15:13:26 2016 +1100
 
-    io: remove SizedReaderAt
+    internal/testenv: prefer to find go binary in GOROOT
     
-    It's not clear we want to enshrine an io interface in which Size cannot
-    return an error. Because this requires more thought before committing
-    to the API, remove from Go 1.7.
+    Partial revert of https://golang.org/cl/20967 which
+    I can't reproduce and actually breaks me more.
     
-    Fixes #15818.
+    Fixes #14901
     
-    Change-Id: Ic4138ffb0e033030145a12d33f78078350a8381f
-    Reviewed-on: https://go-review.googlesource.com/23392
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I8cce443fbd95f5f6f2a5b6a4b9f2faab36167a12
+    Reviewed-on: https://go-review.googlesource.com/21292
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- api/next.txt |  3 ---
- src/io/io.go | 10 ----------
- 2 files changed, 13 deletions(-)
+ src/internal/testenv/testenv.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

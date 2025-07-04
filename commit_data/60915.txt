@@ -1,0 +1,15 @@
+commit a77b93c0b2e2c50d1b0b9d181a4ee4eaf04f8821
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 18:38:05 2024 -0700
+
+    cmd/internal/script: use sync.OnceValue
+    
+    Change-Id: I384a7391a26f24402c055aec98b37927305e2a39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611042
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/script/conds.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

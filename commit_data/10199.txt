@@ -1,13 +1,7 @@
-commit 4c3ea0008c81e18688fc77f73dd0a8bb0c8ad323
+commit 47f4bf763dcb120d3b005974fec848eefe0858f0
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 23:26:10 2011 -0400
+Date:   Tue Nov 1 23:24:28 2011 -0400
 
-    undo CL 5330066 / 6a5647d82728
-    
-    I promised it wouldn't last very long.
-    People who really need this can sync to 6a5647d82728.
-    
-    ««« original CL description
     gc: add GOEXPERIMENT=os.Error
     
     This won't last long, I promise.
@@ -15,13 +9,8 @@ Date:   Tue Nov 1 23:26:10 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5330066
-    »»»
-    
-    R=ken2
-    CC=golang-dev
-    https://golang.org/cl/5333053
 
- src/cmd/gc/go.h   |  1 -
- src/cmd/gc/lex.c  |  1 -
- src/cmd/gc/subr.c | 11 -----------
- 3 files changed, 13 deletions(-)
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/lex.c  |  1 +
+ src/cmd/gc/subr.c | 11 +++++++++++
+ 3 files changed, 13 insertions(+)

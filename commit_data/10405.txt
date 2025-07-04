@@ -1,17 +1,16 @@
-commit a3fb1aec6bdb680a86758cc330a8c5305f6dd902
+commit 3db596113d1e663969f68df2cfe6fc36b566663f
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 15 13:09:19 2011 -0500
+Date:   Tue Nov 15 12:49:22 2011 -0500
 
-    testing: print test results to standard output
+    misc/benchcmp: benchmark comparison script
     
-    Errors in the code under test go to standard output.
-    Errors in testing or its usage go to standard error.
+    I've been using this since April and posted it on the
+    mailing list, but it seems worth having in the repository.
+    Not sure about the location.
     
-    R=r
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/5374090
+    https://golang.org/cl/5371100
 
- src/pkg/testing/benchmark.go |  8 ++++----
- src/pkg/testing/example.go   | 28 +++++++++++++---------------
- src/pkg/testing/testing.go   | 14 +++++++-------
- 3 files changed, 24 insertions(+), 26 deletions(-)
+ misc/benchcmp | 66 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

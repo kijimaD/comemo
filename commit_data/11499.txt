@@ -1,13 +1,28 @@
-commit 4b2dfd6c2cf9caade6702cede4a9424f4d308fc8
+commit fdb80ea1801889c804907007b980b4fb21b647b8
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 31 00:30:44 2012 -0500
+Date:   Tue Jan 31 00:06:33 2012 -0500
 
-    A+C: Damian Gryski (individual CLA)
+    build: fix again
     
-    R=golang-dev
+    The new cross-compiling bin target was breaking
+    everything but the system where buildscript.sh ran.
+    
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5600055
+    https://golang.org/cl/5598055
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/buildscript.sh               | 3 ++-
+ src/buildscript/darwin_386.sh    | 4 ++--
+ src/buildscript/freebsd_386.sh   | 4 ++--
+ src/buildscript/freebsd_amd64.sh | 4 ++--
+ src/buildscript/linux_386.sh     | 4 ++--
+ src/buildscript/linux_amd64.sh   | 4 ++--
+ src/buildscript/linux_arm.sh     | 4 ++--
+ src/buildscript/netbsd_386.sh    | 4 ++--
+ src/buildscript/netbsd_amd64.sh  | 4 ++--
+ src/buildscript/openbsd_386.sh   | 4 ++--
+ src/buildscript/openbsd_amd64.sh | 4 ++--
+ src/buildscript/plan9_386.sh     | 4 ++--
+ src/buildscript/windows_386.sh   | 4 ++--
+ src/buildscript/windows_amd64.sh | 4 ++--
+ 14 files changed, 28 insertions(+), 27 deletions(-)

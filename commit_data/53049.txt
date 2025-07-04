@@ -1,20 +1,32 @@
-commit 5534f04498cfa71a69a78b9065e7f9138b48f05f
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu May 11 08:21:21 2023 +0000
+commit 95d7ce9ab1dea5dface92736305470965a41f61e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 29 17:16:46 2022 -0700
 
-    net: use and assert correct res state size at compile time when cgo available on darwin
+    [dev.unified] test: break escape_iface.go into unified/nounified variants
     
-    Change-Id: I961bb18604dd1568ea21431545f43aa6a417b3d9
-    GitHub-Last-Rev: 735f3364a4f2182f3e3e1b84f39a042e86987967
-    GitHub-Pull-Request: golang/go#60046
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493415
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The assignment `sink, *(&ok) = y.(int)` should (and does) escape a
+    value to the heap, but this detail is missed because the implicit
+    conversion of the multi-value expression `y.(int)` isn't visible to
+    escape analysis (because it's not inserted until desugaring during
+    walk).
+    
+    For Unified IR, I plan to apply this desugaring earlier (because it's
+    necessary for correct dictionary handling), which means we'll
+    now (correctly) report the heap escape.
+    
+    Due to limitations of the $GOROOT/test harness, the easiest way to
+    handle that GOEXPERIMENT=unified gets this right while
+    GOEXPERIMENT=nounified does not is to split the test case into
+    separate files. Hence this CL.
+    
+    Change-Id: I91f3a6c015cbc646ab018747e152cac2874cf24c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415241
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/syscall/unix/net_darwin.go |  2 +-
- src/net/cgo_unix_cgo_darwin.go          | 21 +++++++++++++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ test/escape_iface.go           | 10 ----------
+ test/escape_iface_nounified.go | 25 +++++++++++++++++++++++++
+ test/escape_iface_unified.go   | 25 +++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 10 deletions(-)

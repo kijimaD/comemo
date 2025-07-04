@@ -1,23 +1,24 @@
-commit 4e3e6b58f7ba16caa58f4c826a63d85e26849036
-Author: kumakichi <xyesan@gmail.com>
-Date:   Thu Apr 29 05:45:35 2021 +0000
+commit fe70866d1dc8c44ab19180ecab2b5c5b8628265a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jul 15 18:56:39 2020 +0000
 
-    cmd/compile/internal/ir: fix doc
+    runtime: throw on zero-sized range passed to addrRanges.add
     
-    Change-Id: I8fc77e29cb44fef264a62ff00452b9fcf6e30be8
-    GitHub-Last-Rev: 414cda8ce6e64fb53d3d1ec01caa7e33c0219236
-    GitHub-Pull-Request: golang/go#45842
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314990
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    addrRanges represents a set of addresses. Currently, passing in a
+    zero-sized range will cause that range to be added to the list, even
+    though it doesn't represent any address (addrRanges.contains will still
+    always return false, and findSucc will give surprising results).
+    
+    We could ignore this input, but it's almost always a bug for the calling
+    code to pass in a zero-sized range, so just throw.
+    
+    Change-Id: I8ed09e15b79a3a33e2d0cf5ed55f9e497388e7a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242817
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ir/dump.go | 4 ++--
- src/cmd/compile/internal/ir/expr.go | 4 ++--
- src/cmd/compile/internal/ir/func.go | 4 ++--
- src/cmd/compile/internal/ir/node.go | 4 ++--
- src/cmd/compile/internal/ir/stmt.go | 2 +-
- src/cmd/compile/internal/ir/val.go  | 6 +++---
- 6 files changed, 12 insertions(+), 12 deletions(-)
+ src/runtime/mranges.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

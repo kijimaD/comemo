@@ -1,12 +1,19 @@
-commit 3096b85d37c3b71fb89e42a830b90e48d12e89b4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 22 10:13:33 2018 -0700
+commit 0cb6b55f43dabdfac8c5afab6d00c9cd65eaadb4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 24 15:01:22 2018 -0400
 
-    cmd/cgo: fix comment grammar
+    cmd/go: add go list -m -f {{.GoMod}} to show path to go.mod file
     
-    Change-Id: I9c881943685177ce14841da53ccaed301c4955dd
-    Reviewed-on: https://go-review.googlesource.com/c/149859
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    "go env GOMOD" gives this for the main module already
+    but it's useful to be able to query other modules.
+    Using {{.Dir}} does not work if the go.mod was auto-synthesized.
+    
+    Change-Id: If4844571e9e429b541de0d40c36ff4c5743b2031
+    Reviewed-on: https://go-review.googlesource.com/125656
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/cgo/gcc.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/list/list.go           |  1 +
+ src/cmd/go/internal/modinfo/info.go        |  1 +
+ src/cmd/go/testdata/script/mod_enabled.txt |  4 ++++
+ src/cmd/go/testdata/script/mod_list.txt    | 18 +++++++++---------
+ 4 files changed, 15 insertions(+), 9 deletions(-)

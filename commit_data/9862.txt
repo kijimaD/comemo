@@ -1,19 +1,19 @@
-commit 319dba47501d3a0966e0d470705532c6474a47bf
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Oct 5 12:07:13 2011 -0400
+commit a55de2ba619a9203e7d93fd3efde127d1ad922a2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 4 21:25:11 2011 -0700
 
-    codereview: fix hg change in Windows console
+    5l/6l/8l: add a DT_DEBUG dynamic tag to a dynamic ELF binary
     
-    lib/codereview: Unable to use vim for 'hg change' from windows console
-    reload(sys) break workaround for windows.
-    see:
-    http://mercurial.selenic.com/bts/issue2888
-    http://mercurial.selenic.com/bts/issue1452
-    Also does not work with backslash paths.
+    This requires making the .dynamic section writable, as the
+    dynamic linker will change the value of the DT_DEBUG tag at
+    runtime.  The DT_DEBUG tag is used by gdb to find all loaded
+    shared libraries.
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5150054
+    https://golang.org/cl/5189044
 
- lib/codereview/codereview.py | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/5l/asm.c | 3 ++-
+ src/cmd/6l/asm.c | 4 +++-
+ src/cmd/8l/asm.c | 4 +++-
+ 3 files changed, 8 insertions(+), 3 deletions(-)

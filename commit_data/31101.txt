@@ -1,24 +1,20 @@
-commit 49f4b5a4f5257e17cc62ad5d7862fdb4a5cfa7a0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 12 06:11:08 2017 -0700
+commit 9f26b9b93e2622ce9d5d5e7824eedf8a4a8957e7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 31 16:20:42 2016 -0700
 
-    cmd/internal/obj: remove Link.Plan9privates
+    cmd/compile: eliminate iota_
     
-    Move it to the x86 package, matching our handling
-    of deferreturn in x86 and arm.
-    While we're here, improve the concurrency safety
-    of both Plan9privates and deferreturn
-    by eagerly initializing them in instinit.
-    
-    Updates #15756
-    
-    Change-Id: If3b1995c1e4ec816a5443a18f8d715631967a8b1
-    Reviewed-on: https://go-review.googlesource.com/40408
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iad9c1961aedcc754ad2f6010a49f94c5a0a4bfee
+    Reviewed-on: https://go-review.googlesource.com/32487
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/internal/obj/link.go     |  1 -
- src/cmd/internal/obj/x86/asm6.go | 26 ++++++++++++++------------
- src/cmd/internal/obj/x86/obj6.go |  4 ----
- 3 files changed, 14 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go       | 18 +++++++-----------
+ src/cmd/compile/internal/gc/go.go        |  2 --
+ src/cmd/compile/internal/gc/main.go      |  1 -
+ src/cmd/compile/internal/gc/noder.go     | 11 +++--------
+ src/cmd/compile/internal/gc/subr.go      | 17 +----------------
+ src/cmd/compile/internal/gc/syntax.go    |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  7 +++++--
+ 7 files changed, 17 insertions(+), 41 deletions(-)

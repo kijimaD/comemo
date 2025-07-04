@@ -1,15 +1,12 @@
-commit ed9a4c91c2e82aabe8ef4a6391d9d3306eff63bc
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jul 18 07:37:51 2015 +1000
+commit b39487b68d8fcdaac0b83ec606ef7f176f9aabff
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jun 5 15:13:57 2015 -0400
 
-    runtime: document that GC blocks the whole program
+    go/build: add big endian variant of arm and arm64 to goarch list
     
-    No code changes. Just make it clear that runtime.GC is not concurrent.
-    
-    Change-Id: I00a99ebd26402817c665c9a128978cef19f037be
-    Reviewed-on: https://go-review.googlesource.com/12345
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: Icda8475a7879d49e3b8b873303eb0bed5dd5a238
+    Reviewed-on: https://go-review.googlesource.com/10792
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go | 2 +-
+ src/go/build/syslist.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

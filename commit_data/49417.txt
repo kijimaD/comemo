@@ -1,15 +1,17 @@
-commit 69bb7c6ef540caa422e5d7fd1127dd71e3ca90fe
-Author: Will Hawkins <whh8b@obs.cr>
-Date:   Sat Jun 4 03:44:18 2022 -0400
+commit cf12b0d1f96242eefbe64dbf449f30cce2756560
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Tue Jul 20 00:05:16 2021 +0800
 
-    sync/atomic: clarify that 8-byte alignment of variables is due to escape
+    cmd/trace: use newTaskDesc to create taskDesc
     
-    For #53223.
-    
-    Change-Id: I79e9b920488581a4d850e4051ee0dd600b5bbcb1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410102
+    Change-Id: I9bec8e2c4a9e1b9aa2baf883504200b5674844f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335609
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/sync/atomic/doc.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/trace/annotations.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

@@ -1,19 +1,12 @@
-commit 507ca082d116c19cbe5cbdd457e6b37d851d2341
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Oct 14 11:43:17 2017 -0700
+commit 15cb18dbfa5d2a371aacd2b52fdd3e9cf29ff19d
+Author: Mat Byczkowski <mbyczkowski@gmail.com>
+Date:   Wed Aug 9 13:09:47 2017 -0700
 
-    crypto/{ecdsa,rsa}: rename argument to PrivateKey.Sign.
+    doc/1.9: add CL 44074 for net/http to the release notes
     
-    The crypto.Signer interface takes pre-hased messages for ECDSA and RSA,
-    but the argument in the implementations was called “msg”, not “digest”,
-    which is confusing.
-    
-    This change renames them to help clarify the intended use.
-    
-    Change-Id: Ie2fb8753ca5280e493810d211c7c66223f94af88
-    Reviewed-on: https://go-review.googlesource.com/70950
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Change-Id: I2eb4f9531372c792a98578560e946d803ad96da8
+    Reviewed-on: https://go-review.googlesource.com/54411
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/crypto/ecdsa/ecdsa.go | 15 +++++++++------
- src/crypto/rsa/rsa.go     | 16 +++++++++-------
- 2 files changed, 18 insertions(+), 13 deletions(-)
+ doc/go1.9.html | 5 +++++
+ 1 file changed, 5 insertions(+)

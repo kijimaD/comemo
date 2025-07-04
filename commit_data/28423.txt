@@ -1,37 +1,13 @@
-commit 6007c8c76beb6e9d8bccc966f0a1cc0f7518c539
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Sep 9 17:34:07 2016 -0400
+commit ba867a86fa28f9edca64b682bc2df66e73967f56
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 24 02:50:17 2016 -0400
 
-    cmd/link: attempt to rationalize linkmode init
+    api: update next.txt
     
-    This CL gives Linkmode a type, switches it to the standard flag
-    handling mechanism, and deduplicates some logic.
-    
-    There is a semantic change in this CL. Previously if a link was
-    invoked explicitly with -linkmode=internal, any condition that forced
-    external linking would silently override this and use external
-    linking. Instead it now fails with a reason why. I believe this is an
-    improvement, but will change it back if there's disagreement.
-    
-    Fixes #12848
-    
-    Change-Id: Ic80e341fff65ecfdd2b6fdd6079674cc7210fc5f
-    Reviewed-on: https://go-review.googlesource.com/28971
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7b38309d927409a92f68f5d26f491b0166eba838
+    Reviewed-on: https://go-review.googlesource.com/23378
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/amd64/obj.go  |  29 -----
- src/cmd/link/internal/arm/obj.go    |  23 ----
- src/cmd/link/internal/arm64/obj.go  |  24 ----
- src/cmd/link/internal/ld/config.go  | 242 ++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/go.go      |  12 --
- src/cmd/link/internal/ld/lib.go     |  48 +------
- src/cmd/link/internal/ld/link.go    |  16 +--
- src/cmd/link/internal/ld/main.go    |   3 +-
- src/cmd/link/internal/ld/sym.go     | 105 ----------------
- src/cmd/link/internal/mips64/obj.go |  20 ---
- src/cmd/link/internal/ppc64/obj.go  |  34 -----
- src/cmd/link/internal/s390x/obj.go  |   6 -
- src/cmd/link/internal/x86/obj.go    |  26 ----
- 13 files changed, 250 insertions(+), 338 deletions(-)
+ api/next.txt | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 55 insertions(+), 4 deletions(-)

@@ -1,23 +1,32 @@
-commit 70ffd852cc85f1c782f4f2e70518d4861939cd1b
-Author: Robert Findley <rfindley@google.com>
-Date:   Thu Oct 21 18:36:14 2021 -0400
+commit 49add6ad90c3c6e150266b35ae98067d7b52c021
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 05:22:35 2021 -0500
 
-    go/types: remove subscripts from type parameter names
+    runtime: fix spurious stack overflow detection
     
-    Now that we've removed the necessity for subscripts in importers, we can
-    effectively eliminate them from the the type parameter API by removing
-    them from the type string.
+    The regabi builders are unhappy about badctxt calling throw
+    calling systemstack calling gosave_systemstack_switch calling
+    badctxt, all nosplit, repeating. This wouldn't actually happen
+    since after one systemstack we'd end up on the system stack
+    and the next one wouldn't call gosave_systemstack_switch at all.
     
-    Change-Id: Ic4491b0dea27b0e0ce2d0636dccfaf05168ef9e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357814
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The badctxt call itself is in a very unlikely assertion failure
+    inside gosave_systemstack_switch.
+    Keep the assertion check but call runtime.abort instead on failure,
+    breaking the detected (but not real) cycle.
+    
+    Change-Id: Iaf5c0fc065783b8c1c6d0f62d848f023a0714b96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294069
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/api_test.go      | 12 ++++++------
- src/go/types/builtins_test.go |  6 +++---
- src/go/types/errors.go        | 10 +++++-----
- src/go/types/instantiate.go   |  2 +-
- src/go/types/typestring.go    | 26 ++++++++++++++++++--------
- 5 files changed, 33 insertions(+), 23 deletions(-)
+ src/runtime/asm_386.s     | 2 +-
+ src/runtime/asm_amd64.s   | 2 +-
+ src/runtime/asm_arm.s     | 2 +-
+ src/runtime/asm_arm64.s   | 2 +-
+ src/runtime/asm_mips64x.s | 2 +-
+ src/runtime/asm_mipsx.s   | 2 +-
+ src/runtime/asm_ppc64x.s  | 2 +-
+ src/runtime/asm_riscv64.s | 2 +-
+ src/runtime/asm_s390x.s   | 2 +-
+ 9 files changed, 9 insertions(+), 9 deletions(-)

@@ -1,19 +1,23 @@
-commit a03f1aeb557e0e4547c7dfdc1bd64d1f6f3a56ec
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 14 03:03:52 2023 -0700
+commit 4c61e079c087052355c137ab8fcd9abf8728e50a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 18 13:29:10 2022 -0700
 
-    cmd/compile/internal/ir: remove Func.ReflectMethod
+    encoding/gob: support large slices in slice decode helpers
     
-    This flag doesn't serve any purpose anymore. The only place that it's
-    currently set happens after it's checked.
+    The slice decode helpers weren't aware of partially allocated slices.
     
-    Change-Id: Idb6455416f68e502e0b0b1d80e2d6bb5956ee45b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528435
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Also add large slice support for []byte.
+    
+    Change-Id: I5044587e917508887c7721f8059d364189831693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443777
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/abi.go    |  3 ---
- src/cmd/compile/internal/ir/func.go   | 11 ++++-------
- src/cmd/compile/internal/walk/expr.go |  2 --
- 3 files changed, 4 insertions(+), 12 deletions(-)
+ src/encoding/gob/codec_test.go  | 66 ++++++++++++++++++++++++++++++++++++
+ src/encoding/gob/dec_helpers.go | 75 +++++++++++++++++++++++++++++++++++++++++
+ src/encoding/gob/decode.go      | 38 ++++++++++++++++++---
+ 3 files changed, 174 insertions(+), 5 deletions(-)

@@ -1,22 +1,17 @@
-commit ec87dbf91330b8f12851b50675c812e4e3aee203
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 6 09:53:48 2015 -0700
+commit bedb6f8aef1f0374e3d4556b3b08dd9e52c16298
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 13 18:38:16 2015 -0400
 
-    os: eradicate smallpox after test
+    runtime: remove unnecessary traceNextGC
     
-    Otherwise:
+    Commit d7e0ad4 removed the next_gc manipulation from mSpan_Sweep, but
+    left in the traceNextGC() for recording the updated next_gc
+    value. Remove this now unnecessary call.
     
-    $ go test  -short -cpu=1,1,2,2
-    --- FAIL: TestLookupEnv (0.00s)
-            env_test.go:102: SMALLPOX="virus"
-    --- FAIL: TestLookupEnv-2 (0.00s)
-            env_test.go:102: SMALLPOX="virus"
-    --- FAIL: TestLookupEnv-2 (0.00s)
-            env_test.go:102: SMALLPOX="virus"
-    
-    Change-Id: Ic1f6dd1bae3c79c4f7da02bc8c30b5e599627a82
-    Reviewed-on: https://go-review.googlesource.com/9794
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I28e0de071661199be9810d7bdcc81ce50b5a58ae
+    Reviewed-on: https://go-review.googlesource.com/8894
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/os/env_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/mgcsweep.go | 1 -
+ 1 file changed, 1 deletion(-)

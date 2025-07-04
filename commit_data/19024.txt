@@ -1,16 +1,15 @@
-commit b8851ad701e0ca73469706c35fb802a81e645225
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 3 15:52:04 2014 -0700
+commit 5fb39cc6a2621602d33c6b226742795318a279ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 3 16:10:45 2014 -0400
 
-    go/doc: fix ToText
+    net: accept a few more errors in Accept4 wrapper
     
-    Fixes #6769.
+    Fixes #7271.
     
     LGTM=bradfitz
-    R=bgarcia, rsc, bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/84220044
+    https://golang.org/cl/84170043
 
- src/pkg/go/doc/comment.go      |  4 ++-
- src/pkg/go/doc/comment_test.go | 68 ++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 69 insertions(+), 3 deletions(-)
+ src/pkg/net/sock_cloexec.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

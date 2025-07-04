@@ -1,20 +1,15 @@
-commit 44213336f06755115e6b9a5407af7a2312c0d896
-Author: Austin Clements <austin@google.com>
-Date:   Thu Dec 14 15:32:12 2017 -0500
+commit aa4a4a80ff4f91d58b9a9e645f1367098183856a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 13 23:06:54 2017 -0400
 
-    runtime: symbolize morestack caller in throwsplit panic
+    [dev.boringcrypto] crypto/internal/boring: fix detection of tests to allow *.test and *_test
     
-    This attempts to symbolize the PC of morestack's caller when there's a
-    stack split at a bad time. The stack trace starts at the *caller* of
-    the function that attempted to grow the stack, so this is useful if it
-    isn't obvious what's being called at that point, such as in #21431.
+    When using the go command, test binaries end in .test,
+    but when using Bazel, test binaries conventionally end in _test.
     
-    Change-Id: I5dee305d87c8069611de2d14e7a3083d76264f8f
-    Reviewed-on: https://go-review.googlesource.com/84115
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic4cac8722fd93ae316169f87b321f68e0b71f0c3
+    Reviewed-on: https://go-review.googlesource.com/63913
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/runtime/stack.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/crypto/internal/boring/boring.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

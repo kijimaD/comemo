@@ -1,28 +1,28 @@
-commit 2122fc6358c926846ea70c8497f94f9b8c8a49c3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 11 07:44:33 2017 -0700
+commit 1cf08182f92698aeba8be040dafb5296707cdbf2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 25 15:05:39 2017 -0800
 
-    cmd/internal/obj/arm64: don't immediate dereference new prog
+    go/printer: fix format with leading comments in composite literal
     
-    Noticed by Cherry while reviewing CL 40252.
+    This fix is less pervasive than it seems. The only change affecting
+    formatting is on printer.go:760. The remaining changes have no effect
+    on formatting since the value of p.level is ignored except on this
+    specific line.
     
-    The alternative to this is to place t on the stack, like
+    The remaining changes are:
+    - renamed adjBlock to funcBody since that's how it is used
+    - introduced new printer field 'level' tracking the composite
+      literal nesting level
+    - update/restore the composite literal nesting level as needed
     
-    t := obj.Prog{Ctxt: ctxt}
+    Fixes #18782.
     
-    However, there are only a couple of places where we
-    manually construct Progs, which is useful.
-    
-    This isn't hot enough code to warrant
-    breaking abstraction layers to avoid an allocation.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I46c79090b60641c90ee977b750ba5c708aca8ecf
-    Reviewed-on: https://go-review.googlesource.com/40373
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie833a9b5a559c4ec0f2eef2c5dc97aa263dca53a
+    Reviewed-on: https://go-review.googlesource.com/35811
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/printer/nodes.go                  | 17 ++++++---
+ src/go/printer/printer.go                | 11 ++++--
+ src/go/printer/testdata/comments2.golden | 59 ++++++++++++++++++++++++++++++
+ src/go/printer/testdata/comments2.input  | 63 ++++++++++++++++++++++++++++++++
+ 4 files changed, 142 insertions(+), 8 deletions(-)

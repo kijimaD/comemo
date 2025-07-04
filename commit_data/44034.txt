@@ -1,17 +1,18 @@
-commit 2ff33f5e443165e55a080f3a649e4c070c4096d1
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Dec 8 22:54:44 2020 -0500
+commit 8627b4c9b50138c75cc7730af7f8db692d33451e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue May 5 13:12:01 2020 -0400
 
-    api: promote next to go1.16
+    cmd/compile: use ReadFull to read fingerprint
     
-    Change-Id: Id7d242ddd4b80a763787513d0a658dd7aea9db7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/276454
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Don't fail on partial read.
+    
+    May fix #38849.
+    
+    Change-Id: Icf075d454e1bfe9299b07eea47bbc4d448c3bd5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232317
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/go1.16.txt | 484 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next.txt   | 452 -----------------------------------------------------
- 2 files changed, 484 insertions(+), 452 deletions(-)
+ src/cmd/compile/internal/gc/iimport.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

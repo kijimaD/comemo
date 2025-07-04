@@ -1,20 +1,27 @@
-commit 7d6b304f123b6d11784b48179059f843493c4790
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 3 16:26:37 2020 -0400
+commit 79b43fa819bca31b5be2b9ed3014d8b7faf4c8cc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 16 21:39:42 2020 +0000
 
-    cmd/link: support plugin on macOS/ARM64
+    runtime: preempt dedicated background mark workers for STW
     
-    Updates #38485.
+    Currently, dedicated background mark workers are essentially always
+    non-preemptible.
     
-    Change-Id: I8295f7fad55b1f9701162f9d2902b3499137c64d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259441
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    This change makes it so that dedicated background mark workers park if
+    their preemption flag is set and someone is trying to STW, allowing them
+    to do so.
+    
+    This change prepares us for allowing a STW to happen (and happen
+    promptly) during GC marking in a follow-up change.
+    
+    Updates #19812.
+    
+    Change-Id: I67fb6085bf0f0aebd18ca500172767818a1f15e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215157
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go               |  2 +-
- src/cmd/internal/sys/supported.go  |  2 +-
- src/cmd/link/internal/arm64/asm.go | 20 ++++++++++--
- src/cmd/link/internal/ld/config.go |  8 ++++-
- src/cmd/link/internal/ld/lib.go    |  4 ++-
- src/cmd/link/internal/ld/macho.go  | 62 ++++++++++++++++++++------------------
- 6 files changed, 62 insertions(+), 36 deletions(-)
+ src/runtime/mgcmark.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,20 +1,24 @@
-commit d145d923f894f3ef2faae52ca05321ef3d5bee7e
-Author: Florin Pățan <florinpatan@gmail.com>
-Date:   Thu Jul 19 12:05:28 2018 +0000
+commit 7f6105f138b3836e9ad85b8da26d44c742bf217b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 30 20:23:37 2018 -0700
 
-    cmd/dist: fix compilation on windows
+    net, syscall: make ECONNRESET/ECONNABORTED only temporary for Accept
     
-    Add missing extensions to binary files in order to allow execution.
+    Updates #6163
+    Fixes #24808
     
-    Change-Id: Idfe4c72c80c26b7b938023bc7bbe1ef85e1aa7b0
-    
-    Change-Id: Idfe4c72c80c26b7b938023bc7bbe1ef85e1aa7b0
-    GitHub-Last-Rev: ed9d8124270c30b7f25f89656432ef5089466c7e
-    GitHub-Pull-Request: golang/go#26464
-    Reviewed-on: https://go-review.googlesource.com/124936
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4f5c686ebf60f72f71f566199ee3e946076202bb
+    Reviewed-on: https://go-review.googlesource.com/110439
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/make.bat | 4 ++--
- src/race.bat | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/net/error_nacl.go          |  9 +++++++++
+ src/net/error_plan9.go         |  9 +++++++++
+ src/net/error_unix.go          | 16 ++++++++++++++++
+ src/net/error_windows.go       | 14 ++++++++++++++
+ src/net/net.go                 |  6 ++++++
+ src/net/net_test.go            | 27 +++++++++++++++++++++++++++
+ src/syscall/syscall_unix.go    |  2 +-
+ src/syscall/syscall_windows.go |  2 +-
+ 8 files changed, 83 insertions(+), 2 deletions(-)

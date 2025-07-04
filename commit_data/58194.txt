@@ -1,62 +1,23 @@
-commit dce30a19200d06b778fa90c96231b3cf71fe72d8
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Nov 4 12:41:33 2024 -0500
+commit a5943e9de13b050c20aa2490082206232af4615c
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Tue Oct 10 22:54:39 2023 +0200
 
-    cmd/compile: intrinsify swissmap match calls with SIMD on amd64
+    io/fs: add godoc links
     
-    Use similar SIMD operations to the ones used in Abseil. We still
-    using 8-slot groups (even though the XMM registers could handle 16-slot
-    groups) to keep the implementation simpler (no changes to the memory
-    layout of maps).
-    
-    Still, the implementations of matchH2 and matchEmpty are shorter than
-    the portable version using standard arithmetic operations. They also
-    return a packed bitset, which avoids the need to shift in bitset.first.
-    
-    That said, the packed bitset is a downside in cognitive complexity, as
-    we have to think about two different possible representations. This
-    doesn't leak out of the API, but we do need to intrinsify bitset to
-    switch to a compatible implementation.
-    
-    The compiler's intrinsics don't support intrinsifying methods, so the
-    implementations move to free functions.
-    
-    This makes operations between 0-3% faster on my machine. e.g.,
-    
-    MapGetHit/impl=runtimeMap/t=Int64/len=6-12                      12.34n ±  1%   11.42n ± 1%   -7.46% (p=0.000 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=12-12                     15.14n ±  2%   14.88n ± 1%   -1.72% (p=0.009 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=18-12                     15.04n ±  6%   14.66n ± 2%   -2.53% (p=0.000 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=24-12                     15.80n ±  1%   15.48n ± 3%        ~ (p=0.444 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=30-12                     15.55n ±  4%   14.77n ± 3%   -5.02% (p=0.004 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=64-12                     15.26n ±  1%   15.05n ± 1%        ~ (p=0.055 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=128-12                    15.34n ±  1%   15.02n ± 2%   -2.09% (p=0.000 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=256-12                    15.42n ±  1%   15.15n ± 1%   -1.75% (p=0.001 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=512-12                    15.48n ±  1%   15.18n ± 1%   -1.94% (p=0.000 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=1024-12                   17.38n ±  1%   17.05n ± 1%   -1.90% (p=0.000 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=2048-12                   17.96n ±  0%   17.59n ± 1%   -2.06% (p=0.000 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=4096-12                   18.36n ±  1%   18.18n ± 1%   -0.98% (p=0.013 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=8192-12                   18.75n ±  0%   18.31n ± 1%   -2.35% (p=0.000 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=65536-12                  26.25n ±  0%   25.95n ± 1%   -1.14% (p=0.000 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=262144-12                 44.24n ±  1%   44.06n ± 1%        ~ (p=0.181 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=1048576-12                85.02n ±  0%   85.35n ± 0%   +0.39% (p=0.032 n=25)
-    MapGetHit/impl=runtimeMap/t=Int64/len=4194304-12                98.87n ±  1%   98.85n ± 1%        ~ (p=0.799 n=25)
-    
-    For #54766.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-amd64-goamd64v3
-    Change-Id: Ic1b852f02744404122cb3672900fd95f4625905e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626277
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Icde42bd33d58f75acdede439f7525f9d06554140
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534096
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go              |   34 +-
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go      |   54 +
- src/cmd/compile/internal/ssa/opGen.go              |  106 +
- src/cmd/compile/internal/ssagen/intrinsics.go      |  292 +++
- src/cmd/compile/internal/ssagen/intrinsics_test.go | 2546 ++++++++++----------
- src/internal/runtime/maps/group.go                 |   97 +-
- src/internal/runtime/maps/runtime_fast32_swiss.go  |    8 +-
- src/internal/runtime/maps/runtime_fast64_swiss.go  |    8 +-
- 8 files changed, 1858 insertions(+), 1287 deletions(-)
+ src/io/fs/format.go   |  2 +-
+ src/io/fs/fs.go       | 14 +++++++-------
+ src/io/fs/glob.go     |  8 ++++----
+ src/io/fs/readdir.go  |  6 +++---
+ src/io/fs/readfile.go |  8 ++++----
+ src/io/fs/stat.go     |  6 +++---
+ src/io/fs/sub.go      | 10 +++++-----
+ src/io/fs/walk.go     | 32 ++++++++++++++++----------------
+ 8 files changed, 43 insertions(+), 43 deletions(-)

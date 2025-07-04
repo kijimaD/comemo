@@ -1,26 +1,22 @@
-commit ea51acbabc687a2270438b05bf765ada2968b69a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Jun 28 16:28:52 2020 +1000
+commit 1e43298df8da93a1de21a5c87c664644195669e7
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 16:59:02 2020 -0500
 
-    cmd/internal/objfile: use pe.FileHeader.Machine to reliably determine GOARCH
+    cmd/go: convert remaining non-parallel tooSlow tests to script framework
     
-    Current peFile.goarch looks for symbols like "_rt0_386_windows" to
-    determine GOARCH. But "_rt0_386_windows" is not present in executables
-    built with cgo.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Use pe.FileHeader.Machine instead. This should work with any Windows
-    executable, not just with Go built executable.
+    Updates #36320
+    Updates #17751
     
-    Fixes #39682
-    
-    Change-Id: Ie0ffce664f4b8b8fed69b2ecc482425b042a38d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240957
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ib1c55a48fafb5ce040ac70707bbc2a3ee5e2ddd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214382
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/internal/objfile/pe.go          | 14 ++++++--------
- src/cmd/objdump/objdump_test.go         | 31 ++++++++++++++++++++-----------
- src/cmd/objdump/testdata/fmthellocgo.go | 21 +++++++++++++++++++++
- 3 files changed, 47 insertions(+), 19 deletions(-)
+ src/cmd/go/go_test.go                              | 107 ---------------------
+ src/cmd/go/testdata/script/build_dash_x.txt        |  49 ++++++++++
+ .../go/testdata/script/cgo_flag_contains_space.txt |  15 +++
+ .../script/test_write_profiles_on_timeout.txt      |  14 +++
+ 4 files changed, 78 insertions(+), 107 deletions(-)

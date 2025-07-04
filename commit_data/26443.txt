@@ -1,32 +1,19 @@
-commit d4663e13536d7d43666e53ae21114008cb65d790
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Mar 21 10:22:03 2016 -0700
+commit 544f28a25ec9421d52bbdd7c6272b4f1d4067964
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 11:02:19 2016 -0500
 
-    cmd/compile: don't write back unchanged slice results
+    misc/cgo/test: fix test on darwin/386 with cgo enabled
     
-    Don't write back parts of a slicing operation if they
-    are unchanged from the source of the slice.  For example:
+    Apparently the darwin/386 builder does not enable cgo.
+    This failure turned up running
     
-    x.s = x.s[0:5]         // don't write back pointer or cap
-    x.s = x.s[:5]          // don't write back pointer or cap
-    x.s = x.s[:5:7]        // don't write back pointer
+            GOARCH=386 GOHOSTARCH=386 ./all.bash
     
-    There is more to be done here, for example:
+    on my Mac.
     
-    x.s = x.s[:len(x.s):7] // don't write back ptr or len
-    
-    This CL can't handle that one yet.
-    
-    Fixes #14855
-    
-    Change-Id: Id1e1a4fa7f3076dc1a76924a7f1cd791b81909bb
-    Reviewed-on: https://go-review.googlesource.com/20954
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ia2487c4fd85d4b0f9f564880f22d9fde379946c3
+    Reviewed-on: https://go-review.googlesource.com/18859
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go            | 102 +++++++++++++++++++++-----
- src/cmd/compile/internal/gc/ssa_test.go       |   2 +
- src/cmd/compile/internal/gc/testdata/slice.go |  50 +++++++++++++
- src/cmd/compile/internal/gc/walk.go           |   7 --
- test/writebarrier.go                          |   9 ++-
- 5 files changed, 141 insertions(+), 29 deletions(-)
+ misc/cgo/test/sigaltstack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

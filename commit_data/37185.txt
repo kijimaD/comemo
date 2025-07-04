@@ -1,46 +1,23 @@
-commit e8ffb8a74c90e3723dd6777af2c894f39d656795
-Author: Oliver Stenbom <ostenbom@pivotal.io>
-Date:   Wed Oct 31 10:55:24 2018 +0000
+commit cae5c7fe88cfdedb517d853730a99e4e319c219f
+Author: Mark Fischer <meirfischer@gmail.com>
+Date:   Sun Apr 22 01:16:46 2018 -0400
 
-    os: add support for long path names on unix RemoveAll
+    net/http: add Transport.MaxConnsPerHost knob
     
-    On unix systems, long enough path names will fail when performing syscalls
-    like `Lstat`. The current RemoveAll uses several of these syscalls, and so
-    will fail for long paths. This can be risky, as it can let users "hide"
-    files from the system or otherwise make long enough paths for programs
-    to fail. By using `Unlinkat` and `Openat` syscalls instead, RemoveAll is
-    safer on unix systems. Initially implemented for linux, darwin, dragonfly,
-    netbsd and openbsd. Not yet implemented on freebsd due to fstatat 64-bit
-    inode compatibility issues.
+    Add field to http.Transport which limits connections per host,
+    including dial-in-progress, in-use and idle (keep-alive) connections.
     
-    Fixes #27029
+    For HTTP/2, this field only controls the number of dials in progress.
     
-    Co-authored-by: Giuseppe Capizzi <gcapizzi@pivotal.io>
-    Co-authored-by: Julia Nedialkova <yulia.nedyalkova@sap.com>
+    Fixes #13957
     
-    Change-Id: I978a6a4986878fe076d3c7af86e7927675624a96
-    GitHub-Last-Rev: 9235489c81b90c228210144b7c25b28a46bb80b7
-    GitHub-Pull-Request: golang/go#28494
-    Reviewed-on: https://go-review.googlesource.com/c/146020
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I7a5e045b4d4793c6b5b1a7191e1342cd7df78e6c
+    Reviewed-on: https://go-review.googlesource.com/71272
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/syscall/unix/at.go                    |  58 +++++
- src/internal/syscall/unix/at_sysnum_darwin.go      |  12 ++
- src/internal/syscall/unix/at_sysnum_dragonfly.go   |  14 ++
- src/internal/syscall/unix/at_sysnum_freebsd.go     |  14 ++
- .../syscall/unix/at_sysnum_fstatat64_linux.go      |  11 +
- .../syscall/unix/at_sysnum_fstatat_linux.go        |  11 +
- src/internal/syscall/unix/at_sysnum_linux.go       |  13 ++
- src/internal/syscall/unix/at_sysnum_netbsd.go      |  14 ++
- .../syscall/unix/at_sysnum_newfstatat_linux.go     |  11 +
- src/internal/syscall/unix/at_sysnum_openbsd.go     |  14 ++
- src/os/path.go                                     |  99 ---------
- src/os/path_test.go                                | 125 -----------
- src/os/path_unix.go                                |  28 ++-
- src/os/removeall_at.go                             | 139 ++++++++++++
- src/os/removeall_noat.go                           | 110 ++++++++++
- src/os/removeall_test.go                           | 237 +++++++++++++++++++++
- 16 files changed, 685 insertions(+), 225 deletions(-)
+ src/net/http/export_test.go    |  14 ++++-
+ src/net/http/transport.go      | 135 ++++++++++++++++++++++++++++++++++++++++-
+ src/net/http/transport_test.go |  86 +++++++++++++++++++++++---
+ 3 files changed, 220 insertions(+), 15 deletions(-)

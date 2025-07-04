@@ -1,76 +1,25 @@
-commit b1df8d6ffa2c4c5be567934bd44432fff8f3c4a7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 26 07:05:19 2018 -0800
+commit b2d3d6e676450cc1a5d5a611d3711dce2800bc0d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Feb 7 15:46:26 2018 +1300
 
-    cmd/compile: add some LEAL{1,2,4,8} rewrite rules for AMD64
+    cmd/link/internal/loadelf: fix logic for computing ELF flags on ARM
     
-    This should improve some 32 bit arithmetic operations.
+    The linker contains complicated logic for figuring out which float ABI to
+    indicate it is using on (32 bit) ARM systems: it parses a special section in
+    host object files to look for a flag indicating use of the hard float ABI. When
+    loadelf got split into its own package a bug was introduced: if the last host
+    object file does not contain a float ABI related tag, the ELF header's flag was
+    set to 0, rather than using the value from the last object file which contained
+    an ABI tag. Fix the code to only change the value used for the ELF header if a
+    tag was found.
     
-    During make.bash, this increases the number of
-    rules firing by 15518:
+    This fixes an extremely confusing build failure on Ubuntu's armhf builders.
     
-    $ wc -l rulelog-*
-     13490514 rulelog-head
-     13474996 rulelog-master
-    
-    compress/flate benchmarks:
-    
-    name                             old time/op    new time/op    delta
-    Decode/Digits/Huffman/1e4-8         103µs ± 4%     102µs ± 0%  -0.95%  (p=0.000 n=30+27)
-    Decode/Digits/Huffman/1e5-8         962µs ± 2%     954µs ± 1%  -0.80%  (p=0.000 n=25+25)
-    Decode/Digits/Huffman/1e6-8        9.55ms ± 1%    9.50ms ± 1%  -0.57%  (p=0.000 n=29+29)
-    Decode/Digits/Speed/1e4-8           110µs ± 2%     110µs ± 2%  -0.41%  (p=0.003 n=28+30)
-    Decode/Digits/Speed/1e5-8          1.15ms ± 1%    1.14ms ± 1%  -0.85%  (p=0.000 n=29+28)
-    Decode/Digits/Speed/1e6-8          11.5ms ± 2%    11.4ms ± 1%  -1.26%  (p=0.000 n=28+27)
-    Decode/Digits/Default/1e4-8         113µs ± 1%     112µs ± 1%  -0.49%  (p=0.001 n=27+30)
-    Decode/Digits/Default/1e5-8        1.13ms ± 0%    1.12ms ± 1%  -0.75%  (p=0.000 n=26+24)
-    Decode/Digits/Default/1e6-8        11.1ms ± 1%    11.1ms ± 1%  -0.47%  (p=0.000 n=28+27)
-    Decode/Digits/Compression/1e4-8     113µs ± 1%     112µs ± 1%  -0.70%  (p=0.000 n=28+29)
-    Decode/Digits/Compression/1e5-8    1.13ms ± 2%    1.12ms ± 1%  -1.41%  (p=0.000 n=28+26)
-    Decode/Digits/Compression/1e6-8    11.1ms ± 1%    11.1ms ± 1%  -0.33%  (p=0.002 n=29+27)
-    Decode/Twain/Huffman/1e4-8          115µs ± 1%     115µs ± 1%  -0.40%  (p=0.000 n=28+26)
-    Decode/Twain/Huffman/1e5-8         1.05ms ± 1%    1.04ms ± 0%  -0.41%  (p=0.000 n=27+25)
-    Decode/Twain/Huffman/1e6-8         10.4ms ± 1%    10.4ms ± 1%    ~     (p=0.993 n=28+24)
-    Decode/Twain/Speed/1e4-8            118µs ± 2%     116µs ± 1%  -1.08%  (p=0.000 n=27+29)
-    Decode/Twain/Speed/1e5-8           1.07ms ± 1%    1.07ms ± 1%  -0.23%  (p=0.041 n=26+27)
-    Decode/Twain/Speed/1e6-8           10.6ms ± 1%    10.5ms ± 0%  -0.68%  (p=0.000 n=29+27)
-    Decode/Twain/Default/1e4-8          110µs ± 1%     109µs ± 0%  -0.49%  (p=0.000 n=29+26)
-    Decode/Twain/Default/1e5-8          906µs ± 1%     902µs ± 1%  -0.48%  (p=0.000 n=27+28)
-    Decode/Twain/Default/1e6-8         8.75ms ± 1%    8.68ms ± 2%  -0.73%  (p=0.000 n=28+28)
-    Decode/Twain/Compression/1e4-8      110µs ± 1%     109µs ± 1%  -0.80%  (p=0.000 n=27+28)
-    Decode/Twain/Compression/1e5-8      905µs ± 1%     906µs ± 5%    ~     (p=0.065 n=27+29)
-    Decode/Twain/Compression/1e6-8     8.75ms ± 2%    8.68ms ± 1%  -0.76%  (p=0.000 n=26+26)
-    Encode/Digits/Huffman/1e4-8        31.8µs ± 1%    32.3µs ± 2%  +1.43%  (p=0.000 n=28+27)
-    Encode/Digits/Huffman/1e5-8         299µs ± 2%     296µs ± 1%  -1.05%  (p=0.000 n=29+29)
-    Encode/Digits/Huffman/1e6-8        2.99ms ± 3%    2.96ms ± 1%  -1.00%  (p=0.000 n=29+28)
-    Encode/Digits/Speed/1e4-8           149µs ± 1%     152µs ± 4%  +2.18%  (p=0.000 n=30+30)
-    Encode/Digits/Speed/1e5-8          1.39ms ± 1%    1.40ms ± 2%  +1.02%  (p=0.000 n=27+27)
-    Encode/Digits/Speed/1e6-8          13.7ms ± 0%    13.8ms ± 1%  +0.81%  (p=0.000 n=27+27)
-    Encode/Digits/Default/1e4-8         297µs ± 7%     297µs ± 7%    ~     (p=1.000 n=30+30)
-    Encode/Digits/Default/1e5-8        4.51ms ± 1%    4.42ms ± 1%  -2.06%  (p=0.000 n=29+29)
-    Encode/Digits/Default/1e6-8        47.5ms ± 1%    46.6ms ± 1%  -1.90%  (p=0.000 n=27+25)
-    Encode/Digits/Compression/1e4-8     302µs ± 7%     303µs ± 9%    ~     (p=0.854 n=30+30)
-    Encode/Digits/Compression/1e5-8    4.52ms ± 1%    4.43ms ± 2%  -1.91%  (p=0.000 n=26+25)
-    Encode/Digits/Compression/1e6-8    47.5ms ± 1%    46.7ms ± 1%  -1.70%  (p=0.000 n=26+27)
-    Encode/Twain/Huffman/1e4-8         46.6µs ± 2%    46.8µs ± 2%    ~     (p=0.114 n=30+30)
-    Encode/Twain/Huffman/1e5-8          357µs ± 3%     352µs ± 2%  -1.13%  (p=0.000 n=29+28)
-    Encode/Twain/Huffman/1e6-8         3.58ms ± 4%    3.52ms ± 1%  -1.43%  (p=0.003 n=30+28)
-    Encode/Twain/Speed/1e4-8            173µs ± 1%     174µs ± 1%  +0.65%  (p=0.000 n=27+28)
-    Encode/Twain/Speed/1e5-8           1.39ms ± 1%    1.40ms ± 1%  +0.92%  (p=0.000 n=28+27)
-    Encode/Twain/Speed/1e6-8           13.6ms ± 1%    13.7ms ± 1%  +0.51%  (p=0.000 n=25+26)
-    Encode/Twain/Default/1e4-8          364µs ± 5%     361µs ± 5%    ~     (p=0.219 n=30+30)
-    Encode/Twain/Default/1e5-8         5.41ms ± 1%    5.43ms ± 5%    ~     (p=0.655 n=27+27)
-    Encode/Twain/Default/1e6-8         57.2ms ± 1%    58.4ms ± 4%  +2.15%  (p=0.000 n=22+28)
-    Encode/Twain/Compression/1e4-8      371µs ± 9%     373µs ± 6%    ~     (p=0.503 n=30+29)
-    Encode/Twain/Compression/1e5-8     5.97ms ± 2%    5.92ms ± 1%  -0.75%  (p=0.000 n=28+26)
-    Encode/Twain/Compression/1e6-8     64.0ms ± 1%    63.8ms ± 1%  -0.36%  (p=0.036 n=27+25)
-    [Geo mean]                         1.37ms         1.36ms       -0.38%
-    
-    
-    Change-Id: I3df4de63f06eaf121c38821bd889453a8de1b199
-    Reviewed-on: https://go-review.googlesource.com/101276
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0845d68d082d1383e4cae84ea85164cdc6bcdddb
+    Reviewed-on: https://go-review.googlesource.com/92515
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  150 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 9602 +++++++++++++++-----------
- 2 files changed, 5554 insertions(+), 4198 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)

@@ -1,14 +1,40 @@
-commit 4e77e0f294c38c1cc10cd48053a1d8c462d9bb42
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 1 07:31:00 2012 -0800
+commit 8dd3de4d4b304989019dac9be49e53a0f280908b
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Feb 1 16:08:31 2012 +0100
 
-    test: test that x := <-c accepts a general expression
+    pkg/math: undo manual inlining of IsInf and IsNaN
     
-    The gccgo compiler used to fail to parse this.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5610051
+    https://golang.org/cl/5484076
 
- test/chan/select3.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/math/acosh.go     |  4 +---
+ src/pkg/math/asinh.go     |  4 +---
+ src/pkg/math/atan2.go     | 14 ++++++--------
+ src/pkg/math/atanh.go     |  4 +---
+ src/pkg/math/cbrt.go      |  4 +---
+ src/pkg/math/dim.go       | 12 ++++--------
+ src/pkg/math/erf.go       | 16 ++++++----------
+ src/pkg/math/exp.go       | 12 ++++--------
+ src/pkg/math/expm1.go     |  6 ++----
+ src/pkg/math/floor.go     |  8 ++------
+ src/pkg/math/frexp.go     |  4 +---
+ src/pkg/math/gamma.go     |  2 +-
+ src/pkg/math/hypot.go     |  6 ++----
+ src/pkg/math/j0.go        | 12 ++++--------
+ src/pkg/math/j1.go        | 12 ++++--------
+ src/pkg/math/jn.go        | 14 +++++---------
+ src/pkg/math/ldexp.go     |  4 +---
+ src/pkg/math/lgamma.go    |  6 ++----
+ src/pkg/math/log.go       |  4 +---
+ src/pkg/math/log1p.go     |  6 ++----
+ src/pkg/math/logb.go      | 12 ++++--------
+ src/pkg/math/mod.go       |  4 +---
+ src/pkg/math/nextafter.go |  4 +---
+ src/pkg/math/pow.go       |  8 +++-----
+ src/pkg/math/remainder.go |  6 ++----
+ src/pkg/math/sin.go       | 10 +++-------
+ src/pkg/math/sincos.go    |  4 +---
+ src/pkg/math/sqrt.go      |  4 +---
+ src/pkg/math/tan.go       |  6 ++----
+ 29 files changed, 69 insertions(+), 143 deletions(-)

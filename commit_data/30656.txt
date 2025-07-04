@@ -1,20 +1,18 @@
-commit 5f5d882f5cbd7f39d8bbbd5481a0884c0a042032
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 14 09:29:23 2017 -0700
+commit 01b4ddb37724b0cd0a1f0a62956f9e0e706bb10c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 14 10:17:23 2016 -0500
 
-    cmd/compile: catch bad pragma combination earlier
+    runtime/internal/atomic: crash on unaligned 64-bit ops on 386 and ARM
     
-    Bad pragmas should never make it to the backend.
-    I've confirmed manually that the error position is unchanged.
+    Updates #17786. Will fix mips(32) when the port is fully landed.
     
-    Updates #15756
-    Updates #19250
-    
-    Change-Id: If14f7ce868334f809e337edc270a49680b26f48e
-    Reviewed-on: https://go-review.googlesource.com/38152
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I00d4ff666ec14a38cadbcd52569b347bb5bc8b75
+    Reviewed-on: https://go-review.googlesource.com/33236
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/noder.go | 3 +++
- src/cmd/compile/internal/gc/pgen.go  | 3 ---
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/internal/atomic/asm_386.s      |  3 +++
+ src/runtime/internal/atomic/atomic_arm.go  | 15 +++++++++++++++
+ src/runtime/internal/atomic/atomic_test.go |  5 +++--
+ 3 files changed, 21 insertions(+), 2 deletions(-)

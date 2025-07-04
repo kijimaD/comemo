@@ -1,24 +1,26 @@
-commit 3c22e5ca271ca4ad17b34d965e6a9baf7b5cf94d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 8 17:56:41 2017 -0800
+commit 829aa6732a47db75dbb649837fa888030659ccf9
+Author: Ben Burkert <ben@benburkert.com>
+Date:   Mon Oct 17 14:47:48 2016 -0700
 
-    cmd/compile/internal/parser: improved syntax error for incorrect if/for/switch header
+    crypto/tls: add CloseWrite method to Conn
     
-    Starting the error message with "expecting" rather than "missing"
-    causes the syntax error mechanism to add additional helpful info
-    (it recognizes "expecting" but not "missing").
+    The CloseWrite method sends a close_notify alert record to the other
+    side of the connection. This record indicates that the sender has
+    finished sending on the connection. Unlike the Close method, the sender
+    may still read from the connection until it recieves a close_notify
+    record (or the underlying connection is closed). This is analogous to a
+    TCP half-close.
     
-    Fixes #17328.
+    This is a rework of CL 25159 with fixes for the unstable test.
     
-    Change-Id: I8482ca5e5a6a6b22e0ed0d831b7328e264156334
-    Reviewed-on: https://go-review.googlesource.com/36637
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #8579
+    
+    Change-Id: I47608d2f82a88baff07a90fd64c280ed16a60d5e
+    Reviewed-on: https://go-review.googlesource.com/31318
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go |  2 +-
- test/fixedbugs/issue17328.go              | 13 +++++++++++++
- test/syntax/semi1.go                      |  2 +-
- test/syntax/semi3.go                      |  2 +-
- test/syntax/semi4.go                      |  4 ++--
- 5 files changed, 18 insertions(+), 5 deletions(-)
+ src/crypto/tls/conn.go     |  44 ++++++++++++++++++-
+ src/crypto/tls/tls_test.go | 107 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 149 insertions(+), 2 deletions(-)

@@ -1,25 +1,16 @@
-commit adff422779709c83db91700fdcc0a0bd5dee6a21
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 25 22:59:19 2016 -0400
+commit f5bd3556f51ce607daa0996bacd1d22563d65ea4
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Mar 30 17:54:11 2016 +0300
 
-    cmd/link/internal/ld: fix DWARF offsets with GOEXPERIMENT=framepointer
+    hash/crc64: Add tests for ECMA polynomial
     
-    The offsets computed by the DWARF expressions for local variables
-    currently don't account for the extra stack slot used by the frame
-    pointer when GOEXPERIMENT=framepointer is enabled.
+    Currently we test crc64 only with ISO polynomial.
     
-    Fix this by adding the extra stack slot to the offset.
-    
-    This fixes TestGdbPython with GOEXPERIMENT=framepointer.
-    
-    Updates #15840.
-    
-    Change-Id: I1b2ebb2750cd22266f4a89ec8d9e8bfa05fabd19
-    Reviewed-on: https://go-review.googlesource.com/23458
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ibc5e202db3b960369cbbb18e31eb0fea07b54dba
+    Reviewed-on: https://go-review.googlesource.com/21309
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/hash/crc64/crc64_test.go | 89 ++++++++++++++++++++++++--------------------
+ 1 file changed, 49 insertions(+), 40 deletions(-)

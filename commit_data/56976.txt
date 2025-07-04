@@ -1,33 +1,20 @@
-commit 2a3e2e9b297955d811f62b1861906a831951ef0e
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jun 24 12:19:00 2024 -0400
+commit 5db1e99bbd84ef7530e11eabad8d3c2a62366e5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 5 12:39:40 2023 -0400
 
-    runtime: allow experimental trace batches to be reused
+    doc/go1.21: document forward and backward compatibility
     
-    Currently, we can only cache regular trace event buffers on each M. As
-    a result, calling unsafeTraceExpWriter will, in effect, always return
-    a new trace batch, with all of the overhead that entails.
+    Also handle go test -c TODO.
     
-    This extends that cache to support buffers for experimental trace
-    data. This way, unsafeTraceExpWriter can return a partially used
-    buffer, which the caller can continue to extend. This gives the caller
-    control over when these buffers get flushed and reuses all of the
-    existing trace buffering mechanism.
+    For #15513.
+    For #56986.
+    For #57001.
     
-    This also has the consequence of simplifying the experimental batch
-    infrastructure a bit. Now, traceWriter needs to know the experiment ID
-    anyway, which means there's no need for a separate traceExpWriter
-    type.
-    
-    Change-Id: Idc2100176c5d02e0fbb229dc8aa4aea2b1cf5231
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594595
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I571ae25d8d8fcd44cb38ac16cdd2a1180016eb94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500956
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/trace.go        |  9 +++++----
- src/runtime/tracebuf.go     | 20 +++++++-------------
- src/runtime/traceexp.go     | 33 +++++++++++++--------------------
- src/runtime/traceruntime.go | 22 ++++++++++++----------
- src/runtime/tracetype.go    |  2 +-
- 5 files changed, 38 insertions(+), 48 deletions(-)
+ doc/go1.21.html | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 84 insertions(+), 10 deletions(-)

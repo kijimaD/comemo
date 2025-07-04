@@ -1,29 +1,14 @@
-commit d7f6d46c5c3381cd9e06e801facfb9399c3093b9
+commit cf6a77b36d3037b7657fe696e929e9e4749f6c85
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 9 00:31:13 2015 -0400
+Date:   Fri Feb 20 12:22:50 2015 -0500
 
-    cmd/...: remove use of func() { ... }() in loop increment
+    [dev.cc] cmd/go: install cmd/asm as a tool
     
-    These were introduced during C -> Go translation when the loop increment
-    contained multiple statements.
+    cmd/dist was doing the right thing, but not cmd/go.
     
-    Change-Id: Ic8abd8dcb3308851a1f7024de00711f0f984e684
-    Reviewed-on: https://go-review.googlesource.com/7627
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5412140cfc07e806152915cc49db7f63352d01ca
+    Reviewed-on: https://go-review.googlesource.com/5451
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/5g/peep.go                 |  4 ++--
- src/cmd/9l/asm.go                  |  2 +-
- src/cmd/internal/gc/bv.go          |  8 ++++----
- src/cmd/internal/gc/esc.go         |  8 ++++----
- src/cmd/internal/gc/reflect.go     | 11 +++++++----
- src/cmd/internal/gc/subr.go        |  6 +++---
- src/cmd/internal/gc/typecheck.go   |  2 +-
- src/cmd/internal/gc/walk.go        |  4 ++--
- src/cmd/internal/ld/data.go        |  2 +-
- src/cmd/internal/ld/elf.go         |  2 +-
- src/cmd/internal/obj/arm/asm5.go   |  2 +-
- src/cmd/internal/obj/arm/obj5.go   |  2 +-
- src/cmd/internal/obj/ppc64/obj9.go |  2 +-
- src/cmd/internal/obj/x86/obj6.go   |  2 +-
- 14 files changed, 30 insertions(+), 27 deletions(-)
+ src/cmd/go/pkg.go | 1 +
+ 1 file changed, 1 insertion(+)

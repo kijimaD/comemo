@@ -1,15 +1,24 @@
-commit 2e3c738649832d13ecaddc0c72f64d0354a89dae
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 13 16:30:21 2015 -0800
+commit 24dfaba6d1dafffe55987ded672c73a9b6087e79
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 21 12:27:36 2015 -0500
 
-    math/big: remove Float.Round (not needed anymore), fix a bug in SetInt64
+    [dev.cc] cmd/internal/obj: reconvert from liblink
     
-    TBR adonovan
+    Using rsc.io/c2go repo revision 60c9302.
     
-    Change-Id: I30020f39be9183b37275e10a4fd1e1a3b4c48c89
-    Reviewed-on: https://go-review.googlesource.com/4880
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    - Export a few symbols needed by assemblers.
+    - Implement Getgoroot etc directly, and add Getgoversion.
+    - Removes dependency on Go 1.4 go/build.
+    - Change magic history name <no name> to <pop>
+    
+    The <pop> change requires adjustment to the liblink serializer.
+    
+    Change-Id: If5fb52ac9e91d50805263070b3fc5cc05d8b7632
+    Reviewed-on: https://go-review.googlesource.com/3141
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/float.go      | 40 ++++++++++++++++++++--------------------
- src/math/big/float_test.go | 37 ++++++++++++++++++++++++++++++++-----
- 2 files changed, 52 insertions(+), 25 deletions(-)
+ src/cmd/internal/obj/obj.go  | 12 ++++++------
+ src/cmd/internal/obj/util.go | 30 ++++++++++++++++++------------
+ src/liblink/objfilego.c      |  2 +-
+ 3 files changed, 25 insertions(+), 19 deletions(-)

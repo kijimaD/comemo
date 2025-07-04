@@ -1,13 +1,15 @@
-commit f5f3c3fe093fc359045a3818d3cd04f7b40b06c2
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Sun Jun 24 19:22:48 2012 -0400
+commit 07826038c39afb5021134b2c403f773f3f9591aa
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 25 07:59:50 2012 +1000
 
-    exp/inotify: prevent data race during testing
-    Fixes #3714.
+    runtime: avoid r9/r10 during memset
     
-    R=golang-dev, rsc
+    Partially fixes issue 3718.
+    
+    R=golang-dev, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6341047
+    https://golang.org/cl/6300043
 
- src/pkg/exp/inotify/inotify_linux_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/runtime/asm_arm.s    | 12 +++--------
+ src/pkg/runtime/memset_arm.s | 47 +++++++++++++++++++++-----------------------
+ 2 files changed, 25 insertions(+), 34 deletions(-)

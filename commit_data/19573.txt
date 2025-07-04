@@ -1,16 +1,26 @@
-commit 57964db3cb2ec2f3cbb1011a17a8c71d9d2c5b07
-Author: Bill Thiede <couchmoney@gmail.com>
-Date:   Thu Jun 19 22:18:24 2014 +1000
+commit 4ecf0b103a3c0a21af9f397420c317a2f742103c
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 19 11:39:03 2014 +1000
 
-    image/jpeg: encode *image.Gray as grayscale JPEGs.
+    image/jpeg: use a look-up table to speed up Huffman decoding. This
+    requires a decoder to do its own byte buffering instead of using
+    bufio.Reader, due to byte stuffing.
     
-    Fixes #8201.
+    benchmark                      old MB/s     new MB/s     speedup
+    BenchmarkDecodeBaseline        33.40        50.65        1.52x
+    BenchmarkDecodeProgressive     24.34        31.92        1.31x
     
-    LGTM=nigeltao
-    R=nigeltao
-    CC=golang-codereviews
-    https://golang.org/cl/105990046
+    On 6g, unsafe.Sizeof(huffman{}) falls from 4872 to 964 bytes, and
+    the decoder struct contains 8 of those.
+    
+    LGTM=r
+    R=r, nightlyone
+    CC=bradfitz, couchmoney, golang-codereviews, raph
+    https://golang.org/cl/109050045
 
- src/pkg/image/jpeg/writer.go      | 131 ++++++++++++++++++++++++++++----------
- src/pkg/image/jpeg/writer_test.go |  28 ++++++++
- 2 files changed, 124 insertions(+), 35 deletions(-)
+ src/pkg/image/jpeg/huffman.go     | 257 +++++++++++++++++++++-----------------
+ src/pkg/image/jpeg/reader.go      | 207 +++++++++++++++++++++++++-----
+ src/pkg/image/jpeg/reader_test.go |   1 -
+ src/pkg/image/jpeg/scan.go        |  18 ++-
+ src/pkg/image/jpeg/writer.go      |   2 +-
+ 5 files changed, 327 insertions(+), 158 deletions(-)

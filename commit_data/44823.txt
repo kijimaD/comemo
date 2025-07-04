@@ -1,20 +1,12 @@
-commit 5cec8b85e5dc75ef21b62efb6bd93f9007385e34
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Mar 25 11:11:03 2021 -0700
+commit 6c76edeb1b67a5751dff215aaa712572d87a4ce8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 2 21:49:30 2020 +1000
 
-    net/http/httptest: wait for user ConnState hooks
+    image/gif: have BenchmarkEncodeRealisticRGBA convert to RGBA
     
-    Ensure that user ConnState callbacks have completed before returning
-    from (*httptest.Server).Close.
-    
-    Fixes: #37510
-    Fixes: #37505
-    Fixes: #45237
-    Change-Id: I8fe7baa089fbe4f3836bf6ae9767c7b1270d1331
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304829
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I98f5d987b92a29dcff06ae23b92f293cc7d6c02f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252597
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- src/net/http/httptest/server.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/image/gif/writer_test.go | 34 ++++++++++++++++++++--------------
+ 1 file changed, 20 insertions(+), 14 deletions(-)

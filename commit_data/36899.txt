@@ -1,81 +1,15 @@
-commit 393330255024d77c963910b2e2de918b5027a17f
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sat Oct 6 13:13:48 2018 +0000
+commit 9417ff55c35e0a1623af2a05c6e714c660ad6b4f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 7 16:24:52 2018 -0400
 
-    cmd/compile: add indexed form for several 386 instructions
+    crypto/tls: expand docs on client-side session ticket support
     
-    This CL implements indexed memory operands for the following instructions.
-    (ADD|SUB|MUL|AND|OR|XOR)Lload -> (ADD|SUB|MUL|AND|OR|XOR)Lloadidx4
-    (ADD|SUB|AND|OR|XOR)Lmodify -> (ADD|SUB|AND|OR|XOR)Lmodifyidx4
-    (ADD|AND|OR|XOR)Lconstmodify -> (ADD|AND|OR|XOR)Lconstmodifyidx4
+    Users are sometimes confused why session tickets are not enabled even if
+    SessionTicketsDisabled is false.
     
-    1. The total size of pkg/linux_386/ decreases about 2.5KB, excluding
-    cmd/compile/ .
-    
-    2. There is little regression in the go1 benchmark test, excluding noise.
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              3.25s ± 3%     3.25s ± 3%    ~     (p=0.218 n=40+40)
-    Fannkuch11-4                3.53s ± 1%     3.53s ± 1%    ~     (p=0.303 n=40+40)
-    FmtFprintfEmpty-4          44.9ns ± 3%    45.6ns ± 3%  +1.48%  (p=0.030 n=40+36)
-    FmtFprintfString-4         78.7ns ± 5%    80.1ns ± 7%    ~     (p=0.217 n=36+40)
-    FmtFprintfInt-4            90.2ns ± 6%    89.8ns ± 5%    ~     (p=0.659 n=40+38)
-    FmtFprintfIntInt-4          140ns ± 5%     141ns ± 5%  +1.00%  (p=0.027 n=40+40)
-    FmtFprintfPrefixedInt-4     185ns ± 3%     183ns ± 3%    ~     (p=0.104 n=40+40)
-    FmtFprintfFloat-4           411ns ± 4%     406ns ± 3%  -1.37%  (p=0.005 n=40+40)
-    FmtManyArgs-4               590ns ± 4%     598ns ± 4%  +1.35%  (p=0.008 n=40+40)
-    GobDecode-4                7.16ms ± 5%    7.10ms ± 5%    ~     (p=0.335 n=40+40)
-    GobEncode-4                6.85ms ± 7%    6.74ms ± 9%    ~     (p=0.058 n=38+40)
-    Gzip-4                      400ms ± 4%     399ms ± 2%  -0.34%  (p=0.003 n=40+33)
-    Gunzip-4                   41.4ms ± 3%    41.4ms ± 4%  -0.12%  (p=0.020 n=40+40)
-    HTTPClientServer-4         64.1µs ± 4%    63.5µs ± 2%  -1.07%  (p=0.000 n=39+37)
-    JSONEncode-4               15.9ms ± 2%    15.9ms ± 3%    ~     (p=0.103 n=40+40)
-    JSONDecode-4               62.2ms ± 4%    61.6ms ± 3%  -0.98%  (p=0.006 n=39+40)
-    Mandelbrot200-4            5.18ms ± 3%    5.14ms ± 4%    ~     (p=0.125 n=40+40)
-    GoParse-4                  3.29ms ± 2%    3.27ms ± 2%  -0.66%  (p=0.006 n=40+40)
-    RegexpMatchEasy0_32-4       103ns ± 4%     103ns ± 4%    ~     (p=0.632 n=40+40)
-    RegexpMatchEasy0_1K-4       830ns ± 3%     828ns ± 3%    ~     (p=0.563 n=40+40)
-    RegexpMatchEasy1_32-4       113ns ± 4%     113ns ± 4%    ~     (p=0.494 n=40+40)
-    RegexpMatchEasy1_1K-4      1.03µs ± 4%    1.03µs ± 4%    ~     (p=0.665 n=40+40)
-    RegexpMatchMedium_32-4      130ns ± 4%     129ns ± 3%    ~     (p=0.458 n=40+40)
-    RegexpMatchMedium_1K-4     39.4µs ± 3%    39.7µs ± 3%    ~     (p=0.825 n=40+40)
-    RegexpMatchHard_32-4       2.16µs ± 4%    2.15µs ± 4%    ~     (p=0.137 n=40+40)
-    RegexpMatchHard_1K-4       65.2µs ± 3%    65.4µs ± 4%    ~     (p=0.160 n=40+40)
-    Revcomp-4                   1.87s ± 2%     1.87s ± 1%  +0.17%  (p=0.019 n=33+33)
-    Template-4                 69.4ms ± 3%    69.8ms ± 3%  +0.60%  (p=0.009 n=40+40)
-    TimeParse-4                 437ns ± 4%     438ns ± 4%    ~     (p=0.234 n=40+40)
-    TimeFormat-4                408ns ± 3%     408ns ± 3%    ~     (p=0.904 n=40+40)
-    [Geo mean]                 65.7µs         65.6µs       -0.08%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4               107MB/s ± 5%   108MB/s ± 5%    ~     (p=0.336 n=40+40)
-    GobEncode-4               112MB/s ± 6%   114MB/s ± 9%  +1.95%  (p=0.036 n=37+40)
-    Gzip-4                   48.5MB/s ± 4%  48.6MB/s ± 2%  +0.28%  (p=0.003 n=40+33)
-    Gunzip-4                  469MB/s ± 4%   469MB/s ± 4%  +0.11%  (p=0.021 n=40+40)
-    JSONEncode-4              122MB/s ± 2%   122MB/s ± 3%    ~     (p=0.105 n=40+40)
-    JSONDecode-4             31.2MB/s ± 4%  31.5MB/s ± 4%  +0.99%  (p=0.007 n=39+40)
-    GoParse-4                17.6MB/s ± 2%  17.7MB/s ± 2%  +0.66%  (p=0.007 n=40+40)
-    RegexpMatchEasy0_32-4     310MB/s ± 4%   310MB/s ± 4%    ~     (p=0.384 n=40+40)
-    RegexpMatchEasy0_1K-4    1.23GB/s ± 3%  1.24GB/s ± 3%    ~     (p=0.186 n=40+40)
-    RegexpMatchEasy1_32-4     283MB/s ± 3%   281MB/s ± 4%    ~     (p=0.855 n=40+40)
-    RegexpMatchEasy1_1K-4    1.00GB/s ± 4%  1.00GB/s ± 4%    ~     (p=0.665 n=40+40)
-    RegexpMatchMedium_32-4   7.68MB/s ± 4%  7.73MB/s ± 3%    ~     (p=0.359 n=40+40)
-    RegexpMatchMedium_1K-4   26.0MB/s ± 3%  25.8MB/s ± 3%    ~     (p=0.825 n=40+40)
-    RegexpMatchHard_32-4     14.8MB/s ± 3%  14.9MB/s ± 4%    ~     (p=0.136 n=40+40)
-    RegexpMatchHard_1K-4     15.7MB/s ± 3%  15.7MB/s ± 4%    ~     (p=0.150 n=40+40)
-    Revcomp-4                 136MB/s ± 1%   136MB/s ± 1%  -0.09%  (p=0.028 n=32+33)
-    Template-4               28.0MB/s ± 3%  27.8MB/s ± 3%  -0.59%  (p=0.010 n=40+40)
-    [Geo mean]               82.1MB/s       82.3MB/s       +0.25%
-    
-    Change-Id: Ifa387a251056678326d3508aa02753b70bf7e5d0
-    Reviewed-on: https://go-review.googlesource.com/c/140303
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3b783d2cf3eed693a3ad6acb40a8003db7e0b648
+    Reviewed-on: https://go-review.googlesource.com/117255
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules |   37 +
- src/cmd/compile/internal/ssa/gen/386Ops.go |   29 +-
- src/cmd/compile/internal/ssa/opGen.go      |  275 ++
- src/cmd/compile/internal/ssa/rewrite386.go | 3739 ++++++++++++++++++++++++----
- src/cmd/compile/internal/x86/ssa.go        |   25 +-
- test/codegen/arithmetic.go                 |    9 +-
- 6 files changed, 3634 insertions(+), 480 deletions(-)
+ src/crypto/tls/common.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

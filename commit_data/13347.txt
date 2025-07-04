@@ -1,17 +1,15 @@
-commit 45969825b5e502a99615fc296bc1acca1881170a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 13 14:53:05 2012 -0700
+commit 10b88888f67ecda0b3dd86b91417cf9bfb20f2ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 13 13:54:36 2012 -0700
 
-    net/http: use index.html modtime (not directory) for If-Modified-Since
+    math/big: correctly test for positive inputs in Int.GCD
     
-    Thanks to Håvid Falch for finding the problem.
+    Also: better GCD tests.
     
-    Fixes #3414
-    
-    R=r, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6300081
+    https://golang.org/cl/6295076
 
- src/pkg/net/http/fs.go      |   8 +--
- src/pkg/net/http/fs_test.go | 117 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 122 insertions(+), 3 deletions(-)
+ src/pkg/math/big/int.go      |  8 ++--
+ src/pkg/math/big/int_test.go | 95 +++++++++++++++++++++++++++++---------------
+ 2 files changed, 66 insertions(+), 37 deletions(-)

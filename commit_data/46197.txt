@@ -1,30 +1,17 @@
-commit c81fa001a7b01be5ce9d2990e706f0ed2c1299e8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 27 17:14:00 2021 -0700
+commit 48906a6d57fdc3c6fd2b6b9fe4c0e31dc225a058
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 14 12:09:17 2020 -0800
 
-    cmd/compile/internal/types: simplify and optimize PtrDataSize
+    net/http/pprof: don't treat os.Args as format string in Cmdline handler
     
-    The current implementation of PtrDataSize checks HasPointers each
-    call, which could lead to exponential blow-up in handling (admittedly
-    contrived) deeply nested structs.
+    Found by @josharian running staticcheck against a fork of this code
+    elsewhere.
     
-    To avoid the duplicate recursion, this CL incorporates the HasPointers
-    logic directly int PtrDataSize, and then re-defines HasPointers as
-    simply "PtrDataSize(t) > 0".
-    
-    This CL also tightens up HasPointers/PtrDataSize to only be valid on
-    actual Go types. Fortunately, there was only one instance where this
-    wasn't already the case (escape analysis), and that's easily fixed
-    with an extra check for untyped types.
-    
-    Change-Id: I0044bf9b558a88333aee2ccb137afb6cb4fea1db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345809
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ica8bae5df71adde1a71e541dd55b0b81b97b3baf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277992
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/escape/expr.go |  2 +-
- src/cmd/compile/internal/types/size.go  | 46 +++++++++++++++++++++------------
- src/cmd/compile/internal/types/type.go  | 38 +--------------------------
- 3 files changed, 32 insertions(+), 54 deletions(-)
+ src/net/http/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

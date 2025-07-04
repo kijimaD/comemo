@@ -1,16 +1,16 @@
-commit ef7705f6dd1dacdc3d3cf97893dd942b37b61744
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Sat Mar 9 05:39:15 2013 +0100
+commit 0406c63ea38520adf040f3f72ea3d8008dd53480
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 8 16:39:54 2013 -0800
 
-    runtime: Plan 9: fix errstr
+    text/template: revert minor change to Name method
+    For  better printing, I recently changed Name to return "<unnamed>" for templates
+    with empty names, but this causes trouble for the many packages that used "" as
+    the template name, so restore the old behavior.
+    It's usually printed as a quoted string anyway, so it should be fine.
     
-    The call to the C function runtime.findnull() requires
-    that we provide the argument at 0(SP).
-    
-    R=rsc, rminnich, ality
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7559047
+    https://golang.org/cl/7577044
 
- src/pkg/runtime/sys_plan9_386.s   | 7 +++++++
- src/pkg/runtime/sys_plan9_amd64.s | 7 +++++++
- 2 files changed, 14 insertions(+)
+ src/pkg/text/template/template.go | 3 ---
+ 1 file changed, 3 deletions(-)

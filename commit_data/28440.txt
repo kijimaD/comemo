@@ -1,22 +1,17 @@
-commit fc5df089da6c02397897f11a875a593353dc0590
-Author: Trey Lawrence <lawrence.trey@gmail.com>
-Date:   Tue Aug 23 16:43:43 2016 -0400
+commit 5dd922c935d28ded082f76a81e0c963938d7c3c3
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 25 14:54:41 2016 +0200
 
-    cmd/compile: fix compiler bug for constant equality comparison
+    compress/lzw: use Run for benchmarks
     
-    The compiler incorrectly will error when comparing a nil pointer
-    interface to a nil pointer of any other type. Example:
-    (*int)(nil) == interface{}(nil)
-    Will error with "gc: illegal constant expression: *int == interface {}"
+    load file only once per group.
     
-    Fixes #16702
-    
-    Change-Id: I1a15d651df2cfca6762b1783a28b377b2e6ff8c6
-    Reviewed-on: https://go-review.googlesource.com/27591
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I965661507055e6e100506bf14d37133ecdd2cc5e
+    Reviewed-on: https://go-review.googlesource.com/23423
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/const.go |  3 +++
- test/const.go                        | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+ src/compress/lzw/reader_test.go | 61 ++++++++++++++++++++---------------------
+ src/compress/lzw/writer_test.go | 55 +++++++++++++++++--------------------
+ 2 files changed, 54 insertions(+), 62 deletions(-)

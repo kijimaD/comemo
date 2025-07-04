@@ -1,25 +1,17 @@
-commit a6e6b11e3a443ef532bc9b710e893e111f8ea2a3
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 23 10:40:31 2022 -0700
+commit 8b2f583ad141b1123b26a75202ead2d4eaf143ef
+Author: wangyuntao <ytcoode@gmail.com>
+Date:   Sat Jul 10 04:11:22 2021 +0000
 
-    runtime: initialize pointer bits of noscan spans
+    cmd/compile: correct comment: walkSwitch -> walkSelect
     
-    Some code paths in the runtime (cgo, heapdump) request heap bits
-    without first checking that the span is !noscan. Instead of trying
-    to find and work around all those cases, just set the pointer bits
-    of noscan spans correctly. It's somewhat safer than ensuring we
-    caught all the possible cases.
+    fix typo
     
-    Fixes #54557
-    Fixes #54558
-    
-    Change-Id: Ibd476e6cdea77c962e4d15aad26f29df66fd94e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425194
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie2470e494ba95eed067ad42677520b35b383555f
+    GitHub-Last-Rev: 831f1973194f55b435dcdc6ef30290848228a114
+    GitHub-Pull-Request: golang/go#47117
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333789
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Keith Randall <khr@golang.org>
 
- src/runtime/mbitmap.go | 23 ++++++++++++++++-------
- src/runtime/mgcmark.go |  2 ++
- 2 files changed, 18 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ir/stmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

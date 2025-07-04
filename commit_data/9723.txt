@@ -1,15 +1,14 @@
-commit b71a805cd5131ff6407a25af540e3dd80fa883c2
-Author: Mike Rosset <mike.rosset@gmail.com>
-Date:   Sat Sep 17 11:43:06 2011 -0700
+commit 6bc0346e288996159492f37db77c986aebd11882
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Sat Sep 17 20:39:29 2011 +1000
 
-    archive/tar: document Header fields and Type flags
+    runtime: increase stack system space on windows/amd64
     
-    Documentation more along the lines of os.FileInfo
-    Fixes #2180.
+    gotest src/pkg/exp/template/html was crashing because the exception handler overflowed the goroutine stack.
     
-    R=golang-dev, dsymonds
-    CC=golang-dev, mike.rosset
-    https://golang.org/cl/4958055
+    R=alex.brainman, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5031049
 
- src/pkg/archive/tar/common.go | 51 ++++++++++++++++++++++---------------------
- 1 file changed, 26 insertions(+), 25 deletions(-)
+ src/pkg/runtime/stack.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

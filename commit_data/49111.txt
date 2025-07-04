@@ -1,21 +1,21 @@
-commit 3f43096f1549ea32229202618d9cd81a5761c697
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 9 13:23:10 2022 -0700
+commit 6bf2667d4ef7dee76d308c0ac7acd0d409213b8a
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jul 19 10:58:40 2021 -0400
 
-    go/doc/comment: don't crash if there are no words to wrap
+    [dev.typeparams] go/types: more consistent handling of predeclared "any"
     
-    Fixes #52783
+    This is a port of CL 334911 to go/types.
     
-    Change-Id: I12e3da40d49cd92776052bf19cb07ee8a07f3ee0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405215
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I2cafdc76cb4d06ba82188c530f35952c1f77d292
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335569
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/doc/comment/testdata/crash1.txt | 16 ++++++++++++++++
- src/go/doc/comment/text.go             |  2 +-
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/go/types/decl.go                       |  5 +++--
+ src/go/types/object_test.go                |  2 +-
+ src/go/types/testdata/check/typeparams.go2 |  8 ++++----
+ src/go/types/typexpr.go                    | 15 +++++++++++++--
+ src/go/types/universe.go                   | 26 ++++++++++----------------
+ 5 files changed, 31 insertions(+), 25 deletions(-)

@@ -1,21 +1,17 @@
-commit a05237f20ae6230238a9e44bc8bfc974e6d51422
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jul 31 23:37:23 2013 +0200
+commit bd65404eef75fb7e37e50cb70721fe707f346792
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 1 07:12:32 2013 +1000
 
-    runtime: save 8 stack bytes in timediv on arm.
+    spec: clarify a couple of issues about channels
     
-    Operations on int64 are very stack consuming with 5c.
-    Fixes netbsd/arm build.
+    1. They are FIFOs.
+    2. They are safe for concurrent access.
     
-    Before: TEXT    runtime.timediv+0(SB),7,$52-16
-    After:  TEXT    runtime.timediv+0(SB),7,$44-16
+    Fixes #5911.
     
-    The stack usage is unchanged on 386:
-            TEXT    runtime.timediv+0(SB),7,$8-16
-    
-    R=golang-dev, dvyukov, bradfitz
+    R=golang-dev, dvyukov, adg
     CC=golang-dev
-    https://golang.org/cl/12182044
+    https://golang.org/cl/11549043
 
- src/pkg/runtime/runtime.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

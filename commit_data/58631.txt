@@ -1,21 +1,22 @@
-commit caf29da4ccf0ca64b422835dfa48fa6e06f87f24
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Dec 22 21:00:58 2024 -0800
+commit 4e3ac99a3311e60587a296a636e4bbe3f066d2a9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 20 21:19:35 2023 +0000
 
-    os: don't store reference count in Process.state
+    cmd/trace/v2: emit regions in the goroutine-oriented task view
     
-    We only need a reference count in processHandle.
+    This change emits regions in the goroutine-oriented task view (the
+    /trace endpoint with the taskid query variable set) in the same way the
+    old cmd/trace does.
     
-    For #70907
-    Fixes #71564
+    For #60773.
+    Fixes #63960.
     
-    Change-Id: I209ded869203dea10f12b070190774fb5f1d3d71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638577
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: If6c3e7072c694c84a7d2d6c34df668f48d3acc2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543995
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/os/exec.go | 94 ++++++++++++++--------------------------------------------
- 1 file changed, 22 insertions(+), 72 deletions(-)
+ src/cmd/trace/v2/gen.go                   | 53 +++++++++++++++++++++++++++++++
+ src/internal/trace/traceviewer/emitter.go | 46 ++++++++++++++++++++++++++-
+ 2 files changed, 98 insertions(+), 1 deletion(-)

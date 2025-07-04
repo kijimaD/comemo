@@ -1,50 +1,15 @@
-commit 2cee5d810974040b10ff8d19119758ac6e7270e1
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Jun 27 20:03:28 2024 +1000
+commit 9ceba95008f97a913e9176c6ced2b76b50db6ca5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jun 7 12:04:44 2023 -0400
 
-    math/big: implement addMulVVW in riscv64 assembly
+    runtime: print debuglog before sighandler crash
     
-    This provides an assembly implementation of addMulVVW for riscv64,
-    processing up to four words per loop, resulting in a significant
-    performance gain.
-    
-    On a StarFive VisionFive 2:
-    
-                       │ addmulvvw.1  │             addmulvvw.2             │
-                       │    sec/op    │   sec/op     vs base                │
-    AddMulVVW/1-4         65.49n ± 0%   50.79n ± 0%  -22.44% (p=0.000 n=10)
-    AddMulVVW/2-4         82.81n ± 0%   66.83n ± 0%  -19.29% (p=0.000 n=10)
-    AddMulVVW/3-4        100.20n ± 0%   82.87n ± 0%  -17.30% (p=0.000 n=10)
-    AddMulVVW/4-4        117.50n ± 0%   84.20n ± 0%  -28.34% (p=0.000 n=10)
-    AddMulVVW/5-4         134.9n ± 0%   100.3n ± 0%  -25.69% (p=0.000 n=10)
-    AddMulVVW/10-4        221.7n ± 0%   164.4n ± 0%  -25.85% (p=0.000 n=10)
-    AddMulVVW/100-4       1.794µ ± 0%   1.250µ ± 0%  -30.32% (p=0.000 n=10)
-    AddMulVVW/1000-4      17.42µ ± 0%   12.08µ ± 0%  -30.68% (p=0.000 n=10)
-    AddMulVVW/10000-4     254.9µ ± 0%   214.8µ ± 0%  -15.75% (p=0.000 n=10)
-    AddMulVVW/100000-4    2.569m ± 0%   2.178m ± 0%  -15.20% (p=0.000 n=10)
-    geomean               1.443µ        1.107µ       -23.29%
-    
-                       │ addmulvvw.1  │              addmulvvw.2              │
-                       │     B/s      │      B/s       vs base                │
-    AddMulVVW/1-4        932.0Mi ± 0%   1201.6Mi ± 0%  +28.93% (p=0.000 n=10)
-    AddMulVVW/2-4        1.440Gi ± 0%    1.784Gi ± 0%  +23.90% (p=0.000 n=10)
-    AddMulVVW/3-4        1.785Gi ± 0%    2.158Gi ± 0%  +20.87% (p=0.000 n=10)
-    AddMulVVW/4-4        2.029Gi ± 0%    2.832Gi ± 0%  +39.59% (p=0.000 n=10)
-    AddMulVVW/5-4        2.209Gi ± 0%    2.973Gi ± 0%  +34.55% (p=0.000 n=10)
-    AddMulVVW/10-4       2.689Gi ± 0%    3.626Gi ± 0%  +34.86% (p=0.000 n=10)
-    AddMulVVW/100-4      3.323Gi ± 0%    4.770Gi ± 0%  +43.54% (p=0.000 n=10)
-    AddMulVVW/1000-4     3.421Gi ± 0%    4.936Gi ± 0%  +44.27% (p=0.000 n=10)
-    AddMulVVW/10000-4    2.338Gi ± 0%    2.776Gi ± 0%  +18.69% (p=0.000 n=10)
-    AddMulVVW/100000-4   2.320Gi ± 0%    2.736Gi ± 0%  +17.93% (p=0.000 n=10)
-    geomean              2.109Gi         2.749Gi       +30.36%
-    
-    Change-Id: I6c7ee48233c53ff9b6a5a9002675886cd9bff5af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595400
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I48e8c314258a033fa0dc5e533e2c5bd06c529a7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501977
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/math/big/arith_riscv64.s | 93 +++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 92 insertions(+), 1 deletion(-)
+ src/runtime/signal_unix.go | 1 +
+ 1 file changed, 1 insertion(+)

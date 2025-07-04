@@ -1,13 +1,15 @@
-commit 868948badf4a033678c7d9510543b747c2157b11
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 25 17:16:27 2014 -0700
+commit 72a2539c38d06be486b180310d5703700f9f1f5f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Sep 17 05:44:42 2014 +0000
 
-    encoding/gob: fix 386 build
+    sync: fix linux/arm build
     
-    LGTM=ruiu
-    R=golang-codereviews, ruiu
+    For real this time.
+    
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/146320043
+    https://golang.org/cl/141640043
 
- src/encoding/gob/decode.go | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+ src/sync/atomic/export_linux_arm_test.go | 2 --
+ 1 file changed, 2 deletions(-)

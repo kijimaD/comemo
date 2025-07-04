@@ -1,22 +1,21 @@
-commit 616da5da94aad1de2464e67e71d8eb1f4292f445
+commit bd859439e72a0c48c64259f7de9f175aae3b9c37
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 29 14:38:56 2018 -0700
+Date:   Thu Mar 15 11:55:30 2018 -0700
 
-    os: increase directory reading block size on Unix systems
+    net: don't let cancelation of a DNS lookup affect another lookup
     
-    Reportedly CIFS on RHEL 7 can fail to report files if directories are
-    read in 4K increments. While this seems to be a CIFS or RHEL bug,
-    reportedly CIFS does not return more than 5760 bytes in a block, so
-    reading in 8K increments should hide the problem from users with
-    minimal cost.
+    Updates #8602
+    Updates #20703
+    Fixes #22724
     
-    Fixes #24015
-    
-    Change-Id: Iaf9f00ffe338d379c819ed9edcd4cc9834e3b0f7
-    Reviewed-on: https://go-review.googlesource.com/121756
+    Change-Id: I27b72311b2c66148c59977361bd3f5101e47b51d
+    Reviewed-on: https://go-review.googlesource.com/100840
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/dir_unix.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/internal/singleflight/singleflight.go | 22 +++++++++++++++------
+ src/net/lookup.go                         | 32 ++++++++++++++++++++++---------
+ src/net/lookup_test.go                    | 25 ++++++++++++++++++++++++
+ src/net/tcpsock_unix_test.go              |  1 +
+ 4 files changed, 65 insertions(+), 15 deletions(-)

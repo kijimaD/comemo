@@ -1,27 +1,17 @@
-commit 3da0ff8e3b05333c378efe17585609598692791e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Oct 14 16:47:47 2021 -0700
+commit 042f88fe300be0ee9669fb4f9c119b4044a2789f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 10 17:59:13 2021 -0800
 
-    cmd/go: don't stamp build or vcs info for GOROOT binaries
+    [dev.typeparams] cmd/compile/internal/types: review of errors_test.go
     
-    Fixes a test failure in cmd/go TestScript/mod_outside.
+    The changes between (equivalent, and reviewed) go/types/errors_test.go
+    and errors_test.go can be seen by comparing patchset 1 and 2. The actual
+    change is just removing the "// UNREVIEWED" marker.
     
-    make.bash (cmd/dist) builds everything with -gcflags=all= -ldflags=all=
-    by default. If those no-op flags aren't used, all GOROOT binaries
-    appear stale.
-    
-    It's likely safe to omit those flags in cmd/dist if they're
-    empty. Checking out a new commit in GOROOT would always cause
-    staleness since the VCS info would change.
-    
-    For #37475
-    
-    Change-Id: Ic9aa0f3b7318e05fbb2f7d2c008ad07a4c61952f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356014
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I74de039b9e655445f0407a0203ac52a95c6c8a40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291179
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/load/pkg.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/errors_test.go | 1 -
+ 1 file changed, 1 deletion(-)

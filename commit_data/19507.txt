@@ -1,17 +1,15 @@
-commit 1e6a19be641b348547563b762b51d2b62de12da4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 10 16:52:37 2014 -0700
+commit b91d2339bb80116d49656e6f07e0f8ff440b431e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 10 11:19:53 2014 -0700
 
-    net/http: fix double Content-Length in response
+    docs: link to the assembler document from the Documents tab
     
-    Fixes #8180
+    Fixes #8156.
     
-    LGTM=rsc
-    R=rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/105040043
+    https://golang.org/cl/108840045
 
- src/pkg/net/http/response.go           |  5 ++++-
- src/pkg/net/http/responsewrite_test.go | 16 ++++++++++++++++
- src/pkg/net/http/transfer.go           |  4 +++-
- 3 files changed, 23 insertions(+), 2 deletions(-)
+ doc/docs.html | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,20 +1,23 @@
-commit 1b2362bb83de47188e7c60a69f46950de542f017
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Oct 26 09:47:18 2021 -0400
+commit 1678829d9555761c0fa6571fd3bcaec016add3d2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 22 17:43:08 2021 -0500
 
-    cmd/compile/internal/typecheck: update doc for the 1.18 export format
+    cmd/compile: correctly use X15 to zero frame
     
-    Update the documentation in iexport.go to use the word 'Constraint'
-    rather than 'Bound', and to account for recent changes to the export
-    format.
+    In CL 288093 we reserve X15 as the zero register and use that to
+    zero values. It only covered zeroing generated in SSA but missed
+    zeroing the frame generated late in the compilation. The latter
+    still uses X0, but now DUFFZERO expects X15, so it doesn't
+    actually zero the frame. Change it to use X15.
     
-    Change-Id: I83fbcd336d5f865af804bc8bef4f5d997cd9f325
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358547
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Should fix #44333.
+    
+    Change-Id: I239d2b78a5f6468bc86b70aecdd294045311759f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295210
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

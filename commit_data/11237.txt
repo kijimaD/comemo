@@ -1,12 +1,13 @@
-commit eaf8295f3d587fcd615dbaa310954e9e6e5cdad5
+commit 0203fbee6439b12c48096482638fecfde7573a52
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 18 14:59:58 2012 -0800
+Date:   Wed Jan 18 14:35:23 2012 -0800
 
-    fix windows build: always use / in filenames of go/doc test output
+    doc/go1.*: documented changes to go/* package tree
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/5554055
+    https://golang.org/cl/5557053
 
- src/pkg/go/doc/doc_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/go1.html | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.tmpl | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 128 insertions(+)

@@ -1,18 +1,19 @@
-commit 456f2f5cb8c2e06e7faba6ba298ffb65c7a19397
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 10 17:10:45 2016 -0800
+commit b625810d28adde8c24da4838525694e74e131520
+Author: Tormod Erevik Lea <tormodlea@gmail.com>
+Date:   Sat Sep 17 19:04:46 2016 +0200
 
-    time: use 1e9 rather than 1e-9 in Duration calculations
+    cmd/vet: hard-code program name in usage message
     
-    1e-9 has a 1 in the last place, causing some Duration calculations to
-    have unnecessary rounding errors.  1e9 does not, so use that instead.
+    Example on linux_amd64 for 'go tool vet -h':
     
-    Change-Id: I96334a2c47e7a014b532eb4b8a3ef9550e7ed057
-    Reviewed-on: https://go-review.googlesource.com/33116
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Before:
+            Usage of /usr/local/go/pkg/tool/linux_amd64/vet:
+    After:
+            Usage of vet:
+    
+    Change-Id: I11cb16b656bd097062d57a8c7441fbe66caaef78
+    Reviewed-on: https://go-review.googlesource.com/29294
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/time/time.go      |  6 +++---
- src/time/time_test.go | 17 +++++++++++++++++
- 2 files changed, 20 insertions(+), 3 deletions(-)
+ src/cmd/vet/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

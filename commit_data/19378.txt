@@ -1,13 +1,13 @@
-commit d1f627f2f3f6fc22ed64e1cc7b17eefca952224b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 16 12:15:21 2014 -0400
+commit 1704368c5d4de51dad3c46d833e93dfe78fddaa2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 16 13:18:14 2014 +0900
 
-    doc/go1.3.html: add note about small map iteration order
+    doc/go1.3.html: add syscall.SendmsgN
     
-    LGTM=r
-    R=r
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/98290048
+    https://golang.org/cl/93430044
 
- doc/go1.3.html | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ doc/go1.3.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,12 +1,18 @@
-commit fb7e2449b62e16313fec593329954f25e595dfff
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 14 16:02:53 2015 -0700
+commit 832c573595157b805634f2c723eac8e7650e472c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Apr 19 23:42:11 2015 +0900
 
-    doc: update go1.5.txt
+    net: add helpers for server testing
     
-    Change-Id: Idbceaa44f4c823510632381b36b42302e63d8a29
-    Reviewed-on: https://go-review.googlesource.com/10057
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also moves a few server test helpers into mockserver_test.go.
+    
+    Change-Id: I5a95c9bc6f0c4683751bcca77e26a8586a377466
+    Reviewed-on: https://go-review.googlesource.com/9106
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.5.txt | 30 +++++++++++++++++-------------
- 1 file changed, 17 insertions(+), 13 deletions(-)
+ src/net/conn_test.go       |  42 ++-------
+ src/net/error_test.go      |   5 +
+ src/net/mockserver_test.go | 225 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/protoconn_test.go  |  22 ++---
+ src/net/tcp_test.go        |   9 +-
+ 5 files changed, 249 insertions(+), 54 deletions(-)

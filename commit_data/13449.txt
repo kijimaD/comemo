@@ -1,23 +1,19 @@
-commit e66d29cdcfc85cdd33f52b7739122a1d2db9197f
-Author: David G. Andersen <dave.andersen@gmail.com>
-Date:   Mon Jul 9 09:16:10 2012 +1000
+commit f83a47cbb9eae6d609019c1ac1a1950f63629e0d
+Author: Matthew William Jibson <matt.jibson@gmail.com>
+Date:   Sun Jul 8 11:57:04 2012 +1000
 
-    pkg: Removing duplicated words ("of of", etc.), mostly from comments.
+    doc: various "the the" and other typos
     
-    Ran 'double.pl' on the pkg tree to identify doubled words.
-    One change to an error string return in x509;  the rest are in comments.
-    Thanks to Matt Jibson for the idea.
-    
-    R=golang-dev, bsiegert
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6344089
+    https://golang.org/cl/6355076
 
- src/pkg/crypto/x509/verify.go       | 2 +-
- src/pkg/database/sql/fakedb_test.go | 6 +++---
- src/pkg/go/doc/reader.go            | 2 +-
- src/pkg/html/template/url.go        | 2 +-
- src/pkg/mime/grammar.go             | 2 +-
- src/pkg/os/exec/exec.go             | 2 +-
- src/pkg/regexp/regexp.go            | 4 ++--
- src/pkg/unsafe/unsafe.go            | 2 +-
- 8 files changed, 11 insertions(+), 11 deletions(-)
+ doc/articles/json_and_go.html           | 4 ++--
+ doc/go_spec.html                        | 2 +-
+ src/pkg/go/doc/testdata/error2.1.golden | 2 +-
+ src/pkg/go/doc/testdata/error2.go       | 2 +-
+ src/pkg/math/remainder.go               | 2 +-
+ src/pkg/net/http/fs.go                  | 2 +-
+ src/pkg/text/tabwriter/tabwriter.go     | 2 +-
+ src/pkg/text/template/funcs.go          | 2 +-
+ 8 files changed, 9 insertions(+), 9 deletions(-)

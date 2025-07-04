@@ -1,14 +1,14 @@
-commit 5d198bf8661be6ad0659793eebaec0ab587eb876
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 10 14:52:08 2012 +1100
+commit 4c7695126d881b4622ed74238d7ce5c4e6b3b259
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 14:45:11 2012 +1100
 
-    os/exec: add Cmd.Waitmsg, fix a misleading comment
+    strings: delete method comments implied by interface satisfaction
     
-    Fixes #2948
+    Fixes #2957.
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5655048
+    https://golang.org/cl/5653053
 
- src/pkg/os/exec/exec.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/pkg/strings/reader.go | 11 -----------
+ 1 file changed, 11 deletions(-)

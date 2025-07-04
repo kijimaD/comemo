@@ -1,19 +1,14 @@
-commit 704e05c6eca05f63ca2017228053a4f5e5be6b5a
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Tue Sep 8 05:54:22 2015 +0200
+commit 3d3a0169bfe4a1cc515ca7a781d4930c6015c57c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 00:04:27 2015 -0400
 
-    cmd/compile/internal/gc: remove unused field Type.Siggen
+    reflect: wait longer before declaring select test stuck
     
-    Remove unused field Type.Siggen in go.go.
+    Fixes #9427.
     
-    This change passes go build -toolexec 'toolstash -cmp' -a std.
-    
-    Change-Id: Ia61fe65a226c913fbf4a11a71d7453c56aa46c0e
-    Reviewed-on: https://go-review.googlesource.com/14372
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: If8094d4d4f6737c03d83e08e177c2a7f0ff9d89f
+    Reviewed-on: https://go-review.googlesource.com/12234
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/go.go        | 1 -
- src/cmd/compile/internal/gc/typecheck.go | 1 -
- 2 files changed, 2 deletions(-)
+ src/reflect/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

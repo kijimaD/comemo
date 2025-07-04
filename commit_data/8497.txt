@@ -1,34 +1,19 @@
-commit 0836b86e8b0456997663b5aa14863251a0bf9b97
+commit 1b6bf88767c5b0df2bfe22299fccad03f0a6e6a8
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 25 12:31:11 2011 -0700
+Date:   Wed May 25 12:24:36 2011 -0700
 
-    http: Transport hook to register non-http(s) protocols
+    encoding/base64: add DecodeString and EncodeToString
     
-    This permits external packages implementing e.g.
-    FTP or gopher to register themselves with the
-    http.DefaultClient:
+    ... like encoding/hex. Same signatures.
     
-    package ftp
-    func init() {
-        http.DefaultTransport.RegisterProtocol("ftp", &ftp{})
-    }
-    
-    Client code would look like:
-    
-    import (
-        _ "github.com/exampleuser/go/gopher"
-        _ "github.com/exampleuser/go/ftp"
-    )
-    
-    func main() {
-        resp, err := http.Get("ftp://example.com/path.txt")
-        ...
-    }
-    
-    R=dsymonds, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4526077
+    https://golang.org/cl/4530070
 
- src/pkg/http/transport.go      | 33 ++++++++++++++++++++++++++++++++-
- src/pkg/http/transport_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 1 deletion(-)
+ src/pkg/encoding/base64/base64.go      | 14 ++++++++++++++
+ src/pkg/encoding/base64/base64_test.go |  9 ++++++---
+ src/pkg/http/client.go                 |  5 +----
+ src/pkg/http/request.go                |  4 +---
+ src/pkg/http/transport.go              |  5 +----
+ src/pkg/smtp/smtp.go                   |  3 +--
+ 6 files changed, 24 insertions(+), 16 deletions(-)

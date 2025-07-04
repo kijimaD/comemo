@@ -1,19 +1,21 @@
-commit 9704d4ec3d42b5b02ae93ec2300add08f72e9449
+commit 81bfbe93331bcf5b67a61ae76af45844af3971e1
 Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Wed Mar 2 14:22:33 2011 -0500
+Date:   Wed Mar 2 10:54:23 2011 -0800
 
-    cgo: put temporary source files in _obj.
-    Fixes #1572.
-    Initially I tried changing things so all object
-    files get put in _obj, but it's too much - everything
-    needs changing. Perhaps some other time.
+    fmt: allow recursive calls to Fscan etc.
+    Add a new Read method to ScanState so that it
+    satisfies the io.Reader interface; rename
+    Getrune and Ungetrune to ReadRune and UnreadRune.
+    Make sure ReadRune does not read past width restrictions;
+    remove now-unnecessary Width method from ScanState.
+    Also make the documentation a little clearer as to
+    how ReadRune and UnreadRune are used.
     
-    R=rsc
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4237050
+    https://golang.org/cl/4240056
 
- src/Make.pkg        | 48 ++++++++++++++++++++++++------------------------
- src/cmd/cgo/gcc.go  |  2 +-
- src/cmd/cgo/main.go |  4 ++++
- src/cmd/cgo/out.go  | 27 +++++++++------------------
- 4 files changed, 38 insertions(+), 43 deletions(-)
+ src/pkg/fmt/doc.go       |  16 ++---
+ src/pkg/fmt/scan.go      | 159 +++++++++++++++++++++++------------------------
+ src/pkg/fmt/scan_test.go |  51 +++++++++------
+ 3 files changed, 118 insertions(+), 108 deletions(-)

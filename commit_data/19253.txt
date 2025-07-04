@@ -1,22 +1,18 @@
-commit fee51f45ab37c77ad8b7967b091ddf19d4e259a3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 29 08:53:38 2014 -0400
+commit 7e41abbc6b9f00f84374c69f3acb63b56fcf4728
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 29 12:37:16 2014 +0900
 
-    cmd/cgo: for gccgo add #define to cgo_export.h for expected name
+    net: make WriteTo, WriteToIP and WriteMsgIP fail when IPConn is already connected
     
-    For gccgo we rename exported functions so that the compiler
-    will make them visible.  This CL adds a #define so that C
-    functions that #include "cgo_export.h" can use the expected
-    names of the function.
+    This CL tries to fill the gap between Linux and other Unix-like systems
+    in the same way UDPConn and UnixConn already did.
     
-    The test for this is the existing issue6833 test in
-    misc/cgo/test.  Without this CL it fails when using
-    -compiler=gccgo.
+    Fixes #7887.
     
-    LGTM=minux.ma, rsc
-    R=golang-codereviews, gobot, rsc, minux.ma
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/91830046
+    https://golang.org/cl/97810043
 
- src/cmd/cgo/out.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/pkg/net/iprawsock_posix.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

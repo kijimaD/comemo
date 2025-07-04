@@ -1,18 +1,24 @@
-commit 253ed02918f2909de500ca36d4867a87877666f6
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Fri Nov 30 11:41:50 2012 -0800
+commit 9e30b708a1123a6c1c7ee52992b976795c786235
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Dec 1 00:38:01 2012 +0800
 
-    net: update docs and sync API for Plan 9
+    all: set GOMAXPROCS to 1 when counting mallocs
+    also fix an annoying test that relies on $GOROOT be set.
+    Fixes #3690.
     
-    R=golang-dev, dave, mikioh.mikioh, bradfitz, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6674043
+    https://golang.org/cl/6844086
 
- src/pkg/net/file_plan9.go      |  4 +--
- src/pkg/net/iprawsock_plan9.go | 64 ++---------------------------------------
- src/pkg/net/net.go             | 12 ++++++++
- src/pkg/net/sock_posix.go      | 12 --------
- src/pkg/net/tcpsock_plan9.go   |  4 +--
- src/pkg/net/udpsock_plan9.go   | 11 +++----
- src/pkg/net/unixsock_plan9.go  | 65 ++----------------------------------------
- 7 files changed, 27 insertions(+), 145 deletions(-)
+ src/pkg/encoding/gob/timing_test.go | 2 ++
+ src/pkg/fmt/fmt_test.go             | 1 +
+ src/pkg/math/big/nat_test.go        | 1 +
+ src/pkg/net/http/header_test.go     | 3 ++-
+ src/pkg/net/rpc/server_test.go      | 1 +
+ src/pkg/path/filepath/path_test.go  | 3 ++-
+ src/pkg/path/path_test.go           | 1 +
+ src/pkg/reflect/all_test.go         | 6 ++----
+ src/pkg/runtime/gc_test.go          | 1 +
+ src/pkg/runtime/mallocrep1.go       | 1 +
+ src/pkg/strconv/strconv_test.go     | 1 +
+ 11 files changed, 15 insertions(+), 6 deletions(-)

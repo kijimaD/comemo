@@ -1,12 +1,12 @@
-commit 104257252822fe311837808c7a7113327dbf7b02
+commit c6fd1e011569e713c9290386bab6a9966504f872
 Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Mon May 30 12:35:55 2011 +1000
+Date:   Mon May 30 12:20:00 2011 +1000
 
-    src: Make.pkg don't create $(TARGDIR) with goinstall.
+    misc/vim: limit Fmt command to Go buffers.
     
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4548071
+    https://golang.org/cl/4548072
 
- src/Make.pkg | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/vim/ftplugin/go/fmt.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

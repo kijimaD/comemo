@@ -1,12 +1,28 @@
-commit 2653b4fbcc5be866dd478f79bf6854db8ede7ffd
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Jun 2 10:52:46 2011 -0400
+commit d1bdff5448e7aadd045155fa4851dabb80fa98f3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jun 2 10:10:17 2011 -0400
 
-    testing: fix MB/s computation, documentation
+    net, syscall: update IP multicast socket options for darwin, freebsd, linux
     
-    R=rsc
+    Add IPv6Mreq and Inet6Pktinfo for specifying the network interface.
+    Rename IpMreq to IPMreq, SetsockoptIpMreq to SetsockoptIPMreq.
+    
+    R=rsc, dave, robert.hencke
     CC=golang-dev
-    https://golang.org/cl/4529100
+    https://golang.org/cl/4532098
 
- src/pkg/testing/benchmark.go | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+ src/pkg/net/udpsock.go                  |  8 ++++----
+ src/pkg/syscall/syscall_bsd.go          |  7 +++++--
+ src/pkg/syscall/syscall_linux.go        |  6 +++++-
+ src/pkg/syscall/syscall_windows.go      | 14 ++++++++++----
+ src/pkg/syscall/types_darwin.c          | 19 +++++++++----------
+ src/pkg/syscall/types_freebsd.c         | 22 ++++++++++------------
+ src/pkg/syscall/types_linux.c           | 11 +++++++----
+ src/pkg/syscall/ztypes_darwin_386.go    | 16 ++++++++++++++--
+ src/pkg/syscall/ztypes_darwin_amd64.go  | 16 ++++++++++++++--
+ src/pkg/syscall/ztypes_freebsd_386.go   | 16 ++++++++++++++--
+ src/pkg/syscall/ztypes_freebsd_amd64.go | 16 ++++++++++++++--
+ src/pkg/syscall/ztypes_linux_386.go     | 16 ++++++++++++++--
+ src/pkg/syscall/ztypes_linux_amd64.go   | 16 ++++++++++++++--
+ src/pkg/syscall/ztypes_linux_arm.go     | 16 ++++++++++++++--
+ 14 files changed, 148 insertions(+), 51 deletions(-)

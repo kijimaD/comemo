@@ -1,16 +1,14 @@
-commit b5aa4789f93be669696f2a9b95eb018b931993d8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Nov 28 17:00:50 2012 +1100
+commit da803e5cd38ff74dfec212c1a04c114ee305b7b4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Nov 28 08:45:23 2012 +0900
 
-    net/http: fix broken TestIssue4191_InfiniteGetToPutTimeout
+    net: fix ResolveIPAddr
     
-    Test creates 2 tcp connections for put and get. Make sure
-    these are closed properly after test is over, otherwise
-    server hangs waiting for connection to be closed.
+    Fixes misedit in CL 6842053.
     
-    R=golang-dev, bradfitz, dave
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6842109
+    https://golang.org/cl/6849115
 
- src/pkg/net/http/transport_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/net/iprawsock.go | 3 +++
+ 1 file changed, 3 insertions(+)

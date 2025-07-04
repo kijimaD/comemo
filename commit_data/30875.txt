@@ -1,103 +1,20 @@
-commit f5c1926e93d4f383ee36d4c0351f2348440cbbe8
-Author: haya14busa <haya14busa@gmail.com>
-Date:   Tue Mar 28 12:35:06 2017 +0900
+commit 79a748fae876ffe38193a8f6a71bb2bfcdb69a52
+Author: Kaviraj <kavirajkanagaraj@gmail.com>
+Date:   Tue Dec 13 17:49:28 2016 +0530
 
-    regexp: reduce allocations at onePassCopy
+    net: document consecutive dialing in net.Dial
     
-    It reduces needless allocations on compiling onepass regex.
+    document about the consecutive dialing introduced in Go 1.5.
+    If address is resolved to multiple addresses,
+    Dial will try each address in order until one succeeds.
+    Deadline is used to try each address (calculated based on
+    total number of resolved addresses)
     
-    name                                      old time/op    new time/op    delta
-    CompileOnepass/^(?:(?:(?:.(?:$))?))...-4    6.31µs ± 3%    6.11µs ± 3%     ~     (p=0.056 n=5+5)
-    CompileOnepass/^abcd$-4                     5.69µs ±12%    4.93µs ± 4%  -13.42%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:a{0,})*?)$-4          7.10µs ±12%    5.82µs ± 5%  -17.95%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:a+)*)$-4              5.99µs ±10%    6.07µs ±11%     ~     (p=1.000 n=5+5)
-    CompileOnepass/^(?:(?:a|(?:aa)))$-4         7.36µs ± 4%    7.81µs ±19%     ~     (p=0.310 n=5+5)
-    CompileOnepass/^(?:[^\s\S])$-4              4.71µs ± 3%    4.71µs ± 5%     ~     (p=1.000 n=5+5)
-    CompileOnepass/^(?:(?:(?:a*)+))$-4          6.06µs ± 2%    6.23µs ± 9%     ~     (p=0.310 n=5+5)
-    CompileOnepass/^[a-c]+$-4                   4.74µs ± 4%    4.64µs ± 6%     ~     (p=0.421 n=5+5)
-    CompileOnepass/^[a-c]*$-4                   5.17µs ± 2%    4.68µs ± 0%   -9.57%  (p=0.016 n=5+4)
-    CompileOnepass/^(?:a*)$-4                   5.34µs ± 3%    5.08µs ±12%     ~     (p=0.151 n=5+5)
-    CompileOnepass/^(?:(?:aa)|a)$-4             7.24µs ± 5%    7.33µs ±12%     ~     (p=0.841 n=5+5)
-    CompileOnepass/^...$-4                      5.28µs ± 3%    4.99µs ± 9%     ~     (p=0.095 n=5+5)
-    CompileOnepass/^(?:a|(?:aa))$-4             7.20µs ± 4%    7.24µs ±10%     ~     (p=0.841 n=5+5)
-    CompileOnepass/^a((b))c$-4                  7.99µs ± 3%    7.76µs ± 8%     ~     (p=0.151 n=5+5)
-    CompileOnepass/^a.[l-nA-Cg-j]?e$-4          8.30µs ± 5%    7.29µs ± 4%  -12.08%  (p=0.008 n=5+5)
-    CompileOnepass/^a((b))$-4                   7.34µs ± 4%    7.24µs ±19%     ~     (p=0.690 n=5+5)
-    CompileOnepass/^a(?:(b)|(c))c$-4            9.80µs ± 6%    9.49µs ±18%     ~     (p=0.151 n=5+5)
-    CompileOnepass/^a(?:b|c)$-4                 5.23µs ± 3%    4.80µs ±10%     ~     (p=0.056 n=5+5)
-    CompileOnepass/^a(?:b?|c)$-4                8.26µs ± 3%    7.30µs ± 3%  -11.62%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:b?|c+)$-4               9.18µs ± 2%    8.16µs ± 2%  -11.06%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:bc)+$-4                 6.16µs ± 3%    6.41µs ±13%     ~     (p=0.548 n=5+5)
-    CompileOnepass/^a(?:[bcd])+$-4              5.75µs ± 5%    5.50µs ±12%     ~     (p=0.151 n=5+5)
-    CompileOnepass/^a((?:[bcd])+)$-4            7.65µs ± 5%    6.93µs ± 9%     ~     (p=0.056 n=5+5)
-    CompileOnepass/^a(:?b|c)*d$-4               13.0µs ± 1%    12.1µs ± 2%   -6.91%  (p=0.008 n=5+5)
-    CompileOnepass/^.bc(d|e)*$-4                9.20µs ± 4%    8.25µs ± 3%  -10.38%  (p=0.008 n=5+5)
-    CompileOnepass/^loooooooooooooooooo...-4     254µs ± 2%     220µs ± 6%  -13.47%  (p=0.008 n=5+5)
+    Fixes: #17617
     
-    name                                      old alloc/op   new alloc/op   delta
-    CompileOnepass/^(?:(?:(?:.(?:$))?))...-4    3.92kB ± 0%    3.41kB ± 0%  -13.06%  (p=0.008 n=5+5)
-    CompileOnepass/^abcd$-4                     3.20kB ± 0%    2.75kB ± 0%  -14.00%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:a{0,})*?)$-4          3.85kB ± 0%    3.34kB ± 0%  -13.31%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:a+)*)$-4              3.46kB ± 0%    2.95kB ± 0%  -14.78%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:a|(?:aa)))$-4         4.20kB ± 0%    3.75kB ± 0%  -10.67%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:[^\s\S])$-4              3.10kB ± 0%    2.46kB ± 0%  -20.62%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:(?:a*)+))$-4          3.64kB ± 0%    3.13kB ± 0%  -14.07%  (p=0.008 n=5+5)
-    CompileOnepass/^[a-c]+$-4                   3.06kB ± 0%    2.48kB ± 0%  -18.85%  (p=0.008 n=5+5)
-    CompileOnepass/^[a-c]*$-4                   3.10kB ± 0%    2.52kB ± 0%  -18.60%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:a*)$-4                   3.21kB ± 0%    2.63kB ± 0%  -17.96%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:aa)|a)$-4             4.09kB ± 0%    3.64kB ± 0%  -10.96%  (p=0.008 n=5+5)
-    CompileOnepass/^...$-4                      3.42kB ± 0%    2.91kB ± 0%  -14.95%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:a|(?:aa))$-4             4.09kB ± 0%    3.64kB ± 0%  -10.96%  (p=0.008 n=5+5)
-    CompileOnepass/^a((b))c$-4                  5.67kB ± 0%    4.39kB ± 0%  -22.59%  (p=0.008 n=5+5)
-    CompileOnepass/^a.[l-nA-Cg-j]?e$-4          5.73kB ± 0%    4.32kB ± 0%  -24.58%  (p=0.008 n=5+5)
-    CompileOnepass/^a((b))$-4                   5.41kB ± 0%    4.06kB ± 0%  -24.85%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:(b)|(c))c$-4            6.40kB ± 0%    5.31kB ± 0%  -17.00%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:b|c)$-4                 3.46kB ± 0%    2.88kB ± 0%  -16.67%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:b?|c)$-4                5.77kB ± 0%    4.36kB ± 0%  -24.41%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:b?|c+)$-4               5.94kB ± 0%    4.59kB ± 0%  -22.64%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:bc)+$-4                 3.60kB ± 0%    3.15kB ± 0%  -12.44%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:[bcd])+$-4              3.46kB ± 0%    2.94kB ± 0%  -14.81%  (p=0.008 n=5+5)
-    CompileOnepass/^a((?:[bcd])+)$-4            5.50kB ± 0%    4.09kB ± 0%  -25.62%  (p=0.008 n=5+5)
-    CompileOnepass/^a(:?b|c)*d$-4               7.24kB ± 0%    6.15kB ± 0%  -15.03%  (p=0.008 n=5+5)
-    CompileOnepass/^.bc(d|e)*$-4                5.75kB ± 0%    4.47kB ± 0%  -22.25%  (p=0.008 n=5+5)
-    CompileOnepass/^loooooooooooooooooo...-4     225kB ± 0%     135kB ± 0%  -39.99%  (p=0.008 n=5+5)
-    
-    name                                      old allocs/op  new allocs/op  delta
-    CompileOnepass/^(?:(?:(?:.(?:$))?))...-4      52.0 ± 0%      49.0 ± 0%   -5.77%  (p=0.008 n=5+5)
-    CompileOnepass/^abcd$-4                       44.0 ± 0%      41.0 ± 0%   -6.82%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:a{0,})*?)$-4            52.0 ± 0%      49.0 ± 0%   -5.77%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:a+)*)$-4                47.0 ± 0%      44.0 ± 0%   -6.38%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:a|(?:aa)))$-4           57.0 ± 0%      54.0 ± 0%   -5.26%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:[^\s\S])$-4                36.0 ± 0%      33.0 ± 0%   -8.33%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:(?:a*)+))$-4            49.0 ± 0%      46.0 ± 0%   -6.12%  (p=0.008 n=5+5)
-    CompileOnepass/^[a-c]+$-4                     39.0 ± 0%      36.0 ± 0%   -7.69%  (p=0.008 n=5+5)
-    CompileOnepass/^[a-c]*$-4                     44.0 ± 0%      41.0 ± 0%   -6.82%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:a*)$-4                     45.0 ± 0%      42.0 ± 0%   -6.67%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:(?:aa)|a)$-4               56.0 ± 0%      53.0 ± 0%   -5.36%  (p=0.008 n=5+5)
-    CompileOnepass/^...$-4                        46.0 ± 0%      43.0 ± 0%   -6.52%  (p=0.008 n=5+5)
-    CompileOnepass/^(?:a|(?:aa))$-4               56.0 ± 0%      53.0 ± 0%   -5.36%  (p=0.008 n=5+5)
-    CompileOnepass/^a((b))c$-4                    57.0 ± 0%      53.0 ± 0%   -7.02%  (p=0.008 n=5+5)
-    CompileOnepass/^a.[l-nA-Cg-j]?e$-4            62.0 ± 0%      58.0 ± 0%   -6.45%  (p=0.008 n=5+5)
-    CompileOnepass/^a((b))$-4                     51.0 ± 0%      47.0 ± 0%   -7.84%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:(b)|(c))c$-4              69.0 ± 0%      65.0 ± 0%   -5.80%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:b|c)$-4                   43.0 ± 0%      40.0 ± 0%   -6.98%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:b?|c)$-4                  61.0 ± 0%      57.0 ± 0%   -6.56%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:b?|c+)$-4                 67.0 ± 0%      63.0 ± 0%   -5.97%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:bc)+$-4                   49.0 ± 0%      46.0 ± 0%   -6.12%  (p=0.008 n=5+5)
-    CompileOnepass/^a(?:[bcd])+$-4                46.0 ± 0%      43.0 ± 0%   -6.52%  (p=0.008 n=5+5)
-    CompileOnepass/^a((?:[bcd])+)$-4              53.0 ± 0%      49.0 ± 0%   -7.55%  (p=0.008 n=5+5)
-    CompileOnepass/^a(:?b|c)*d$-4                  109 ± 0%       105 ± 0%   -3.67%  (p=0.008 n=5+5)
-    CompileOnepass/^.bc(d|e)*$-4                  66.0 ± 0%      62.0 ± 0%   -6.06%  (p=0.008 n=5+5)
-    CompileOnepass/^loooooooooooooooooo...-4     1.10k ± 0%     1.09k ± 0%   -0.91%  (p=0.008 n=5+5)
-    
-    Fixes #19735
-    
-    Change-Id: Ic68503aaa08e42fafcf7e11cf1f584d674f5ea7b
-    Reviewed-on: https://go-review.googlesource.com/38750
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I56b6399edb640c8ef507675f98e0bd45a50d4e2d
+    Reviewed-on: https://go-review.googlesource.com/34176
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/regexp/onepass.go      |  5 +++--
- src/regexp/onepass_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 25 insertions(+), 2 deletions(-)
+ src/net/dial.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

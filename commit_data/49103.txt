@@ -1,24 +1,21 @@
-commit 90a11e921ba3b928706854655bd010f309a96458
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon May 9 12:57:31 2022 -0400
+commit d6d7f8458e9e4360d7b0a4e42c5c850ae27bac8d
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 20:16:27 2021 -0400
 
-    cmd/compile: more fix on boolean ops on ARM64
+    [dev.typeparams] go/types: implement <-ch where ch is of type parameter type
     
-    Following CL 405114, the extension rule is also wrong. It is safe
-    to drop the extension if the value is from a boolean-generating
-    instruction, but not a boolean-typed Value in general (e.g. a Phi
-    or a in-register parameter). Fix it.
+    This is a port of CL 333709 to go/types, adjusted for the different
+    error API.
     
-    Updates #52788.
+    Fixes #43671
     
-    Change-Id: Icf3028fe8e90806f9f57fbe2b38d47da27a97e2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405115
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ifd340149bfbcabe401cec74398cb83f2ae812e51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335075
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |   4 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 148 ++++++++++++++++++++++++++-
- test/fixedbugs/issue52788a.go                |  29 ++++++
- test/fixedbugs/issue52788a.out               |   1 +
- 4 files changed, 177 insertions(+), 5 deletions(-)
+ src/go/types/expr.go                           | 36 ++++++++++++----
+ src/go/types/testdata/fixedbugs/issue43671.go2 | 58 ++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 9 deletions(-)

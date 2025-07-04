@@ -1,37 +1,29 @@
-commit e5febf957f5be9d3325c2d851bff6ec7c55e4662
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 13 12:41:56 2015 -0700
+commit b92a0a8969218c29a3300cc5ec1ba142343375c3
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Apr 5 14:48:42 2015 +1200
 
-    net/http: flush request body chunks in Transport
+    cmd/internal/gc, cmd/go: fix value of importpath symbol
     
-    The Transport's writer to the remote server is wrapped in a
-    bufio.Writer to suppress many small writes while writing headers and
-    trailers. However, when writing the request body, the buffering may get
-    in the way if the request body is arriving slowly.
+    In https://golang.org/cl/7797 I attempted to use myimportpath to set the value
+    of the go.importpath.$foo. symbol for the module being compiled, but I messed
+    it up and only set the name (which the linker rewrites anyway). This lead to
+    the importpath for the module being compiled being "". This was hard to notice,
+    because all modules that import another define the importpath for their
+    imported modules correctly -- but main is not imported, and this meant that the
+    reflect module saw all fields of all types defined in the main module as
+    exported.
     
-    Because the io.Copy from the Request.Body to the writer is already
-    buffered, the outer bufio.Writer is unnecessary and prevents small
-    Request.Body.Reads from going to the server right away. (and the
-    io.Reader contract does say to return when you've got something,
-    instead of blocking waiting for more). After the body is finished, the
-    Transport's bufio.Writer is still used for any trailers following.
+    The fix is to do what I meant to do the first time, add a test and change the
+    go tool to compile main packages with -p main and not -p
+    command-line-arguments.
     
-    A previous attempted fix for this made the chunk writer always flush
-    if the underlying type was a bufio.Writer, but that is not quite
-    correct. This CL instead makes it opt-in by using a private sentinel
-    type (wrapping a *bufio.Writer) to the chunk writer that requests
-    Flushes after each chunk body (the chunk header & chunk body are still
-    buffered together into one write).
+    Fixes #10332
     
-    Fixes #6574
-    
-    Change-Id: Icefcdf17130c9e285c80b69af295bfd3e72c3a70
-    Reviewed-on: https://go-review.googlesource.com/10021
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5fc6e9b1dc2b26f058641e382f9a56a526eca291
+    Reviewed-on: https://go-review.googlesource.com/8481
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/internal/chunked.go | 17 ++++++-
- src/net/http/transfer.go         |  5 ++
- src/net/http/transport_test.go   | 99 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 119 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go            |  3 +++
+ src/cmd/internal/gc/reflect.go | 15 +++++++--------
+ test/fixedbugs/issue10332.go   | 25 +++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 8 deletions(-)

@@ -1,15 +1,15 @@
-commit b6122b0a64449da93d1a2d457239ebb00fce6cbc
-Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 22 14:08:34 2011 -0800
+commit c0589a21c9ec9f075d27037a62c809a7b0db200d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 22 14:00:52 2011 -0800
 
-    path: Dir
+    go/doc: s/typeDoc/typeInfo/
     
-    There was Base but not Dir, so fill in the gap.
+    To avoid confusion between typeDoc and TypeDoc.
+    No semantic change.
     
-    R=golang-dev, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5504076
+    https://golang.org/cl/5502071
 
- src/pkg/path/path.go      | 18 ++++++++++++++++++
- src/pkg/path/path_test.go | 39 +++++++++++++++++++++++++++++++--------
- 2 files changed, 49 insertions(+), 8 deletions(-)
+ src/pkg/go/doc/doc.go | 58 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

@@ -1,22 +1,19 @@
-commit 78c168fc60592bdc75cebd6ba33351493e14719f
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 18 15:52:00 2019 +0200
+commit d2c12634dedad9976dae0621d863d2cfb3a040bc
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu May 2 03:12:12 2019 -0400
 
-    syscall: don't use 32-bit aligned access for cmsgAlignOf on dragonfly after ABI change
+    cmd/dist: don't generate exec wrappers for compatible cross compiles
     
-    Use 32-bit alignment for versions before the September 2019 ABI changes
-    http://lists.dragonflybsd.org/pipermail/users/2019-September/358280.html
+    This change will allow android/arm64 hosts to build for android/arm,
+    and likewise for iOS.
     
-    Fixes #34958
+    Updates #31722
     
-    Change-Id: Iab4b23083a7c9ca7e96a737b03e75cd36d98ee24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201977
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Id410bd112abbab585ebb13b61fe4d3a38a1a81fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174705
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/sockcmsg_dragonfly.go  | 16 ++++++++++++++++
- src/syscall/sockcmsg_unix.go       | 26 --------------------------
- src/syscall/sockcmsg_unix_other.go | 38 ++++++++++++++++++++++++++++++++++++++
- src/syscall/syscall_dragonfly.go   | 20 +++++++++++++++++++-
- 4 files changed, 73 insertions(+), 27 deletions(-)
+ src/cmd/dist/build.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

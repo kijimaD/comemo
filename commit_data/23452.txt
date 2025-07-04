@@ -1,19 +1,81 @@
-commit 626188dd314c26746ad5525721875ac72ee49c9e
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Thu Jun 18 14:28:54 2015 +0200
+commit 497970f4213367d8c6980dd46c43ea522f412ef9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 13 10:48:05 2015 -0400
 
-    net/textproto: skip zero-length keys
+    runtime: use memmove during slice append
     
-    A header of ": value" results in an empty key. Do not add
-    it to the headers, because RFC7230 (section 3.2) says that
-    field-names are tokens, which are one or more characters.
+    The effect of this CL:
     
-    Fixes #11205.
+    name                   old mean              new mean              delta
+    BinaryTree17            5.97s × (0.96,1.04)   5.95s × (0.98,1.02)    ~    (p=0.697)
+    Fannkuch11              4.39s × (1.00,1.01)   4.41s × (1.00,1.01)  +0.52% (p=0.015)
+    FmtFprintfEmpty        90.8ns × (0.97,1.05)  89.4ns × (0.94,1.13)    ~    (p=0.571)
+    FmtFprintfString        305ns × (0.99,1.01)   292ns × (0.98,1.05)  -4.35% (p=0.000)
+    FmtFprintfInt           278ns × (0.96,1.03)   279ns × (0.98,1.04)    ~    (p=0.741)
+    FmtFprintfIntInt        489ns × (0.99,1.02)   482ns × (0.98,1.03)  -1.43% (p=0.024)
+    FmtFprintfPrefixedInt   402ns × (0.98,1.02)   395ns × (0.98,1.03)  -1.67% (p=0.014)
+    FmtFprintfFloat         578ns × (1.00,1.00)   569ns × (0.99,1.01)  -1.48% (p=0.000)
+    FmtManyArgs            1.88µs × (0.99,1.01)  1.88µs × (1.00,1.01)    ~    (p=0.055)
+    GobDecode              15.3ms × (0.99,1.01)  15.2ms × (1.00,1.01)  -0.61% (p=0.007)
+    GobEncode              11.8ms × (0.98,1.05)  11.6ms × (0.99,1.01)    ~    (p=0.075)
+    Gzip                    647ms × (0.99,1.01)   647ms × (1.00,1.00)    ~    (p=0.790)
+    Gunzip                  143ms × (1.00,1.00)   142ms × (1.00,1.00)    ~    (p=0.370)
+    HTTPClientServer       91.2µs × (0.99,1.01)  91.7µs × (0.99,1.02)    ~    (p=0.233)
+    JSONEncode             31.5ms × (0.98,1.01)  31.8ms × (0.99,1.02)  +1.09% (p=0.015)
+    JSONDecode              110ms × (0.99,1.01)   110ms × (0.99,1.02)    ~    (p=0.577)
+    Mandelbrot200          6.00ms × (1.00,1.00)  6.02ms × (1.00,1.00)  +0.24% (p=0.001)
+    GoParse                6.68ms × (0.98,1.02)  6.61ms × (0.99,1.01)  -1.10% (p=0.027)
+    RegexpMatchEasy0_32     162ns × (1.00,1.00)   161ns × (1.00,1.01)  -0.66% (p=0.001)
+    RegexpMatchEasy0_1K     539ns × (1.00,1.00)   539ns × (0.99,1.01)    ~    (p=0.509)
+    RegexpMatchEasy1_32     140ns × (0.99,1.02)   139ns × (0.99,1.02)    ~    (p=0.163)
+    RegexpMatchEasy1_1K     886ns × (1.00,1.00)   887ns × (1.00,1.00)    ~    (p=0.408)
+    RegexpMatchMedium_32    252ns × (1.00,1.00)   255ns × (0.99,1.01)  +1.01% (p=0.000)
+    RegexpMatchMedium_1K   72.6µs × (1.00,1.00)  72.6µs × (1.00,1.00)    ~    (p=0.176)
+    RegexpMatchHard_32     3.84µs × (1.00,1.00)  3.84µs × (1.00,1.00)    ~    (p=0.403)
+    RegexpMatchHard_1K      117µs × (1.00,1.00)   117µs × (1.00,1.00)    ~    (p=0.351)
+    Revcomp                 926ms × (0.99,1.01)   925ms × (0.99,1.01)    ~    (p=0.541)
+    Template                126ms × (0.99,1.02)   130ms × (0.99,1.01)  +3.42% (p=0.000)
+    TimeParse               632ns × (0.99,1.01)   626ns × (1.00,1.00)  -0.88% (p=0.000)
+    TimeFormat              658ns × (0.99,1.01)   662ns × (0.99,1.02)    ~    (p=0.111)
     
-    Change-Id: I883be89da1489dc84f98523786b019d1d0169d46
-    Reviewed-on: https://go-review.googlesource.com/11242
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The effect of this CL combined with CL 9886:
+    
+    name                   old mean              new mean              delta
+    BinaryTree17            5.90s × (0.98,1.03)   5.95s × (0.98,1.02)    ~    (p=0.175)
+    Fannkuch11              4.34s × (1.00,1.00)   4.41s × (1.00,1.01)  +1.69% (p=0.000)
+    FmtFprintfEmpty        87.3ns × (0.97,1.17)  89.4ns × (0.94,1.13)    ~    (p=0.499)
+    FmtFprintfString        288ns × (0.98,1.04)   292ns × (0.98,1.05)    ~    (p=0.292)
+    FmtFprintfInt           290ns × (0.98,1.05)   279ns × (0.98,1.04)  -3.76% (p=0.001)
+    FmtFprintfIntInt        493ns × (0.98,1.04)   482ns × (0.98,1.03)  -2.27% (p=0.017)
+    FmtFprintfPrefixedInt   399ns × (0.98,1.02)   395ns × (0.98,1.03)    ~    (p=0.159)
+    FmtFprintfFloat         569ns × (1.00,1.00)   569ns × (0.99,1.01)    ~    (p=0.847)
+    FmtManyArgs            1.90µs × (0.99,1.03)  1.88µs × (1.00,1.01)  -1.14% (p=0.009)
+    GobDecode              15.2ms × (1.00,1.01)  15.2ms × (1.00,1.01)    ~    (p=0.170)
+    GobEncode              11.8ms × (0.99,1.02)  11.6ms × (0.99,1.01)  -1.47% (p=0.003)
+    Gzip                    649ms × (0.99,1.00)   647ms × (1.00,1.00)    ~    (p=0.200)
+    Gunzip                  144ms × (0.99,1.01)   142ms × (1.00,1.00)  -1.04% (p=0.000)
+    HTTPClientServer       91.1µs × (0.98,1.03)  91.7µs × (0.99,1.02)    ~    (p=0.345)
+    JSONEncode             31.5ms × (0.99,1.01)  31.8ms × (0.99,1.02)  +0.98% (p=0.021)
+    JSONDecode              110ms × (1.00,1.01)   110ms × (0.99,1.02)    ~    (p=0.259)
+    Mandelbrot200          6.02ms × (1.00,1.01)  6.02ms × (1.00,1.00)    ~    (p=0.500)
+    GoParse                6.68ms × (1.00,1.01)  6.61ms × (0.99,1.01)  -1.17% (p=0.001)
+    RegexpMatchEasy0_32     161ns × (1.00,1.00)   161ns × (1.00,1.01)  -0.39% (p=0.033)
+    RegexpMatchEasy0_1K     539ns × (1.00,1.00)   539ns × (0.99,1.01)    ~    (p=0.445)
+    RegexpMatchEasy1_32     138ns × (1.00,1.01)   139ns × (0.99,1.02)    ~    (p=0.281)
+    RegexpMatchEasy1_1K     887ns × (1.00,1.01)   887ns × (1.00,1.00)    ~    (p=0.610)
+    RegexpMatchMedium_32    251ns × (1.00,1.02)   255ns × (0.99,1.01)  +1.42% (p=0.000)
+    RegexpMatchMedium_1K   72.7µs × (1.00,1.00)  72.6µs × (1.00,1.00)    ~    (p=0.097)
+    RegexpMatchHard_32     3.85µs × (1.00,1.00)  3.84µs × (1.00,1.00)  -0.31% (p=0.000)
+    RegexpMatchHard_1K      117µs × (1.00,1.00)   117µs × (1.00,1.00)    ~    (p=0.704)
+    Revcomp                 923ms × (0.98,1.02)   925ms × (0.99,1.01)    ~    (p=0.574)
+    Template                126ms × (0.98,1.03)   130ms × (0.99,1.01)  +3.28% (p=0.000)
+    TimeParse               631ns × (0.99,1.02)   626ns × (1.00,1.00)    ~    (p=0.053)
+    TimeFormat              660ns × (0.99,1.01)   662ns × (0.99,1.02)    ~    (p=0.398)
+    
+    Change-Id: I59c03d329fe7bc178a31477c6f1f01062b881041
+    Reviewed-on: https://go-review.googlesource.com/9993
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/textproto/reader.go      | 7 +++++++
- src/net/textproto/reader_test.go | 9 +++++++++
- 2 files changed, 16 insertions(+)
+ src/runtime/mbarrier.go | 14 ++++++++++++++
+ src/runtime/slice.go    |  9 ++++++---
+ 2 files changed, 20 insertions(+), 3 deletions(-)

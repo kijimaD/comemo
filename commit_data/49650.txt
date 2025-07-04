@@ -1,31 +1,23 @@
-commit 85a482fc244f6f118b1d063063a51eb8b0feadd8
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jul 14 21:19:37 2022 +0000
+commit 90ed541149c781a96b86060a7618f73dcf347f28
+Author: Hans <hzb153@gmail.com>
+Date:   Wed Jul 28 05:57:25 2021 +0000
 
-    runtime: revert to using the precomputed trigger for pacer calculations
+    runtime: ensure the fixalloc object size is valid
     
-    Issue #53738 describes in detail how switching to using the actual
-    trigger point over the precomputed trigger causes a memory regression,
-    that arises from the fact that the PI controller in front of the
-    cons/mark ratio has a long time constant (for overdamping), so it
-    retains a long history of inputs.
+    Usually, fixalloc is used to allocate small, persistent and reuseable
+    objects. The size is typically between range [sizeof(mlink), _FixAllocChunk].
     
-    This change, for the Go 1.19 cycle, just reverts to using the
-    precomputed trigger because it's safer, but in the future we should
-    consider moving away from such a history-sensitive smoothing function.
+    It's rare for being out of the range. But if it did happen, we got a
+    hard-to-discover memory corruption. This commit prevents that situation by limiting object's size.
     
-    See the big comment in the diff and #53738 for more details.
-    
-    Performance difference vs. 1.18 after this change:
-    https://perf.golang.org/search?q=upload:20220714.15
-    
-    Fixes #53738.
-    
-    Change-Id: I636993a730a3eaed25da2a2719860431b296c6f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417557
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: If6ef8b0831596464e0f55d09f79094b79ae08c66
+    GitHub-Last-Rev: cb8b1b01bbf452195f4f098d53cca74affc496ff
+    GitHub-Pull-Request: golang/go#47395
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337429
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/runtime/mgcpacer.go | 22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ src/runtime/mfixalloc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,20 +1,44 @@
-commit 4c8ab993cd881d7eb1b8264f0b716c7cdd638f71
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Nov 9 09:53:09 2024 -0800
+commit 4f9fe6d50965020053ab80bf115f08070ce97f33
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 4 09:55:01 2023 -0400
 
-    internal/runtime/maps: don't hash twice when deleting
+    runtime: allow update of system stack bounds on callback from C thread
     
-                         │  baseline   │             experiment              │
-                         │   sec/op    │   sec/op     vs base                │
-    MapDeleteLargeKey-24   312.0n ± 6%   162.3n ± 5%  -47.97% (p=0.000 n=10)
+    [This is a redo of CL 525455 with the test fixed on darwin by defining
+    _XOPEN_SOURCE, and disabled with android, musl, and openbsd, which do
+    not provide getcontext.]
     
-    Change-Id: I31f1f8e3c344cf8abf2e9eb4b51b78fcd67b93c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625906
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Since CL 495855, Ms are cached for C threads calling into Go, including
+    the stack bounds of the system stack.
+    
+    Some C libraries (e.g., coroutine libraries) do manual stack management
+    and may change stacks between calls to Go on the same thread.
+    
+    Changing the stack if there is more Go up the stack would be
+    problematic. But if the calls are completely independent there is no
+    particular reason for Go to care about the changing stack boundary.
+    
+    Thus, this CL allows the stack bounds to change in such cases. The
+    primary downside here (besides additional complexity) is that normal
+    systems that do not manipulate the stack may not notice unintentional
+    stack corruption as quickly as before.
+    
+    Note that callbackUpdateSystemStack is written to be usable for the
+    initial setup in needm as well as updating the stack in cgocallbackg.
+    
+    Fixes #62440.
+    For #62130.
+    
+    Change-Id: I0fe0134f865932bbaff1fc0da377c35c013bd768
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527715
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/internal/runtime/maps/map.go   |  2 +-
- src/internal/runtime/maps/table.go |  4 +---
- src/runtime/map_benchmark_test.go  | 11 +++++++++++
- 3 files changed, 13 insertions(+), 4 deletions(-)
+ src/runtime/cgocall.go                          |  70 ++++++++++++++++
+ src/runtime/crash_cgo_test.go                   |  17 ++++
+ src/runtime/proc.go                             |  33 ++------
+ src/runtime/testdata/testprogcgo/stackswitch.c  | 104 ++++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/stackswitch.go |  43 ++++++++++
+ 5 files changed, 243 insertions(+), 24 deletions(-)

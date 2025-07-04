@@ -1,14 +1,15 @@
-commit f882d89b768bcfbd02b209acf0d525f4dbdd8f09
-Author: G. Hussain Chinoy <ghchinoy@gmail.com>
-Date:   Thu Aug 30 18:24:53 2018 +0000
+commit 17fbb83693d5d4b880bb128d7afdb137840f76ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 30 19:01:57 2018 +0000
 
-    ghchinoy: add example for ioutil.WriteFile
+    cmd/go, cmd/compile: use Windows response files to avoid arg length limits
     
-    Change-Id: I65c3bda498562fdf39994ec1cadce7947e2d84b5
-    Reviewed-on: https://go-review.googlesource.com/132277
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fixes #18468
+    
+    Change-Id: Ic88a8daf67db949e5b59f9aa466b37e7f7890713
+    Reviewed-on: https://go-review.googlesource.com/110395
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/io/ioutil/example_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/go/internal/work/exec.go | 78 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/objabi/flag.go  | 39 ++++++++++++++++++++
+ 2 files changed, 117 insertions(+)

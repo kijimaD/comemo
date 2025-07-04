@@ -1,12 +1,23 @@
-commit 732f2fa2c19394f938848c2b284e6b76c72a9e99
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 27 23:35:31 2011 -0400
+commit 59a892682908789fe74124f7b97ab11c9c8d2b92
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Sun Mar 27 17:15:48 2011 -0400
 
-    http: avoid crash when asked for multiple file ranges
+    runtime: fix darwin/amd64 thread VM footprint
     
-    R=adg
+    On darwin amd64 it was impossible to create more that ~132 threads. While
+    investigating I noticed that go consumes almost 1TB of virtual memory per
+    OS thread and the reason for such a small limit of OS thread was because
+    process was running out of virtual memory. While looking at bsdthread_create
+    I noticed that on amd64 it wasn't using PTHREAD_START_CUSTOM.
+    If you look at http://fxr.watson.org/fxr/source/bsd/kern/pthread_synch.c?v=xnu-1228
+    you will see that in that case darwin will use stack pointer as stack size,
+    allocating huge amounts of memory for stack. This change fixes the issue
+    and allows for creation of up to 2560 OS threads (which appears to be some
+    Mac OS X limit) with relatively small virtual memory consumption.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4289076
+    https://golang.org/cl/4289075
 
- src/pkg/http/fs.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/runtime/darwin/amd64/sys.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

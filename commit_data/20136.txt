@@ -1,19 +1,16 @@
-commit 87b452537a599522cb155592f1f24bfc8a956e4c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 25 21:38:39 2014 -0700
+commit 9198ed4bd6ec7b7dd37aa2797e96f15ddbb1e6cd
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 14:24:03 2014 +0400
 
-    io: document that Readers and Writers must not retain buffers
+    runtime: allow copying of onM frame
+    Currently goroutines in onM can't be copied/shrunk
+    (including the very goroutine that triggers GC).
+    Special case onM to allow copying.
     
-    There are both many callers and many implementations of these
-    interfaces, so make the contract explicit. Callers generally
-    assume this, and at least the standard library and other
-    implementations obey this, but it's never stated explicitly,
-    making it somewhat risky to assume.
-    
-    LGTM=gri, rsc
-    R=golang-codereviews, gri
-    CC=golang-codereviews, r, rsc
-    https://golang.org/cl/132150043
+    LGTM=daniel.morsing, khr
+    R=golang-codereviews, daniel.morsing, khr, rsc
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/124550043
 
- src/pkg/io/io.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/runtime/stack.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

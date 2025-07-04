@@ -1,23 +1,22 @@
-commit 4c9e757daf813fcc02802d0ff014afa24df56f6e
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Oct 14 09:00:14 2019 -0400
+commit db1514cbf242fccbb9e17ecae280ec5e829b1ed6
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Apr 29 00:23:16 2019 -0400
 
-    test: revise testcase for new gccgo compiler bug
+    net/http: remove "number:" from Response.Status string
     
-    Add to the testcase originally created for issue 34577 so
-    as to also trigger the error condition for issue 34852 (the
-    two bugs are closely related).
+    The behavior of Value.String method on non-string JavaScript types has
+    changed after CL 169757.
     
-    Updates #34577.
-    Updates #34852.
+    Update the implementation of Transport.RoundTrip method to construct the
+    Response.Status string without relying on result.Get("status").String(),
+    since that now returns strings like "<number: 200>" instead of "200".
     
-    Change-Id: I2347369652ce500184347606b2bb3e76d802b204
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201017
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #31736
+    
+    Change-Id: I27b3e6cc95aa65fd1918b1400e88478a154aad12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174218
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- test/fixedbugs/issue34577.dir/a.go | 13 +++++++++++++
- test/fixedbugs/issue34577.dir/b.go |  4 ++++
- 2 files changed, 17 insertions(+)
+ src/net/http/roundtrip_js.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

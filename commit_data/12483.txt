@@ -1,16 +1,15 @@
-commit 72faa0303e4330bbdfd1a79f493ba8529f8208a2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 7 11:16:58 2012 -0800
+commit a6ce691bd4d59dbf36f5672881d1a37c8fe78375
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 13:57:57 2012 -0500
 
-    test: fix testlib to not pass an empty argument to 6g
+    doc: give up on OS X Leopard
     
-    This change is necessary to make the run shell script work
-    again, but it is not sufficient as bug424.go's execution line
-    does not name the package that it imports.
+    Fixes #3206.
     
-    R=golang-dev, gri, rsc
+    R=golang-dev, gri, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5771043
+    https://golang.org/cl/5769046
 
- test/testlib | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/install-source.html | 2 +-
+ doc/install.html        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,12 @@
-commit 248a59447165ebac2779cb54ee2a10c021009d20
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Nov 7 19:08:51 2016 -0500
+commit 1c5ac0827d2d0d2f5fb3b7f2b34b37e170beff1d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 14:10:14 2016 -0700
 
-    doc/devel/release.html: document go1.6.3 doesn't actually support macOS Sierra
+    cmd/vet/all: check platforms concurrently
     
-    Updates #17824.
-    
-    Change-Id: I73cf89c21b418158c7014c3271cd1103a17a5c86
-    Reviewed-on: https://go-review.googlesource.com/32882
+    Change-Id: I63e7fd7f62aa80e1252b0c5b6c472439aa66da73
+    Reviewed-on: https://go-review.googlesource.com/29169
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/devel/release.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vet/all/main.go | 34 +++++++++++++++++++++++++---------
+ 1 file changed, 25 insertions(+), 9 deletions(-)

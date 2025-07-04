@@ -1,57 +1,21 @@
-commit 4d9dd3580624df413d65d83e467fcd6ad4a0168b
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Fri Apr 5 14:05:07 2019 -0600
+commit 9ce38f570f1c62662c1ce04a3fbe62817708ac45
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 13 13:55:15 2018 -0800
 
-    cmd/compile: add signed divisibility rules
+    math: don't run huge argument tests on s390x
     
-    "Division by invariant integers using multiplication" paper
-    by Granlund and Montgomery contains a method for directly computing
-    divisibility (x%c == 0 for c constant) by means of the modular inverse.
-    The method is further elaborated in "Hacker's Delight" by Warren Section 10-17
+    The s390x implementations for Sin/Cos/SinCos/Tan use assembly
+    routines which don't reduce arguments accurately enough for
+    huge inputs.
     
-    This general rule can compute divisibilty by one multiplication, and add
-    and a compare for odd divisors and an additional rotate for even divisors.
+    Fixes #29221.
     
-    To apply the divisibility rule, we must take into account
-    the rules to rewrite x%c = x-((x/c)*c) and (x/c) for c constant on the first
-    optimization pass "opt".  This complicates the matching as we want to match
-    only in the cases where the result of (x/c) is not also needed.
-    So, we must match on the expanded form of (x/c) in the expression x == c*(x/c)
-    in the "late opt" pass after common subexpresion elimination.
-    
-    Note, that if there is an intermediate opt pass introduced in the future we
-    could simplify these rules by delaying the magic division rewrite to "late opt"
-    and matching directly on (x/c) in the intermediate opt pass.
-    
-    On amd64, the divisibility check is 30-45% faster.
-    
-    name                     old time/op  new time/op  delta`
-    DivisiblePow2constI64-4  0.83ns ± 1%  0.82ns ± 0%     ~     (p=0.079 n=5+4)
-    DivisibleconstI64-4      2.68ns ± 1%  1.87ns ± 0%  -30.33%  (p=0.000 n=5+4)
-    DivisibleWDivconstI64-4  2.69ns ± 1%  2.71ns ± 3%     ~     (p=1.000 n=5+5)
-    DivisiblePow2constI32-4  1.15ns ± 1%  1.15ns ± 0%     ~     (p=0.238 n=5+4)
-    DivisibleconstI32-4      2.24ns ± 1%  1.20ns ± 0%  -46.48%  (p=0.016 n=5+4)
-    DivisibleWDivconstI32-4  2.27ns ± 1%  2.27ns ± 1%     ~     (p=0.683 n=5+5)
-    DivisiblePow2constI16-4  0.81ns ± 1%  0.82ns ± 1%     ~     (p=0.135 n=5+5)
-    DivisibleconstI16-4      2.11ns ± 2%  1.20ns ± 1%  -42.99%  (p=0.008 n=5+5)
-    DivisibleWDivconstI16-4  2.23ns ± 0%  2.27ns ± 2%   +1.79%  (p=0.029 n=4+4)
-    DivisiblePow2constI8-4   0.81ns ± 1%  0.81ns ± 1%     ~     (p=0.286 n=5+5)
-    DivisibleconstI8-4       2.13ns ± 3%  1.19ns ± 1%  -43.84%  (p=0.008 n=5+5)
-    DivisibleWDivconstI8-4   2.23ns ± 1%  2.25ns ± 1%     ~     (p=0.183 n=5+5)
-    
-    Fixes #30282
-    Fixes #15806
-    
-    Change-Id: Id20d78263a4fdfe0509229ae4dfa2fede83fc1d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173998
-    Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
+    Change-Id: I340f576899d67bb52a553c3ab22e6464172c936d
+    Reviewed-on: https://go-review.googlesource.com/c/154119
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/testdata/arith_test.go |   154 +-
- src/cmd/compile/internal/ssa/gen/generic.rules     |   208 +-
- src/cmd/compile/internal/ssa/magic.go              |    96 +-
- src/cmd/compile/internal/ssa/magic_test.go         |   107 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go     | 14382 ++++++++++++++-----
- test/codegen/arithmetic.go                         |    25 +-
- 6 files changed, 11084 insertions(+), 3888 deletions(-)
+ src/math/all_test.go  | 84 -------------------------------------------
+ src/math/huge_test.go | 99 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 99 insertions(+), 84 deletions(-)

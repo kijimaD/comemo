@@ -1,19 +1,17 @@
-commit 8befe0e4083a2a61741f03fb4e4cc2814fe27c35
-Author: Xiangdong Ji <xiangdong.ji@gmail.com>
-Date:   Fri Jun 25 21:51:22 2021 +0800
+commit 069bbf543456dd7364dcb728a73b98f0044996ae
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Thu Dec 9 14:25:05 2021 -0500
 
-    runtime: fix uncondition calls to traceGCSTWDone
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    startTheWorldWithSema should call traceGCSTWDone only when
-    the tracing is enabled.
-    
-    Change-Id: Ibc7181834f68af3923e4b2aee01a57492ab6213e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330835
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id5293d1271370adb49489e5902000604827c4836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370660
+    Trust: Alex Rakoczy <alex@golang.org>
+    Run-TryBot: Alex Rakoczy <alex@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/mgc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

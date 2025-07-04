@@ -1,15 +1,12 @@
-commit a25e3c03f3ec8df5241e9cbbfdad98391df6d39a
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:28:35 2015 +0100
+commit ea1306a150bb3ea465dcfad83c1619d9bab943bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 19 20:42:09 2015 -0500
 
-    os/signal, hash/crc32: add arm64 build tags
+    doc: dummy commit in go1.5.txt
     
-    Change-Id: I6ca9caec8ccf12618e56dcf6b83328e7acf8b1ec
-    Reviewed-on: https://go-review.googlesource.com/7148
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I678336daf99f7d7d19f99506f1a604de8e05bf43
+    Reviewed-on: https://go-review.googlesource.com/5400
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/hash/crc32/crc32_generic.go | 2 +-
- src/os/signal/sig.s             | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

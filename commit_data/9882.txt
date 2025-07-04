@@ -1,20 +1,30 @@
-commit ad35cea7622a6fb839f06bb5b46cee9110fa94a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 6 11:30:48 2011 -0400
+commit 56959158331072ed17801aa539a0d6f28064b511
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Oct 6 18:10:14 2011 +0300
 
-    runtime: fix malloc sampling bug
+    runtime: fix spurious deadlock reporting
+    Fixes #2337.
+    Unfortunate sequence of events is:
+    1. maxcpu=2, mcpu=1, grunning=1
+    2. starttheworld creates an extra M:
+       maxcpu=2, mcpu=2, grunning=1
+    4. the goroutine calls runtime.GOMAXPROCS(1)
+       maxcpu=1, mcpu=2, grunning=1
+    5. since it sees mcpu>maxcpu, it calls gosched()
+    6. schedule() deschedules the goroutine:
+       maxcpu=1, mcpu=1, grunning=0
+    7. schedule() call getnextandunlock() which
+       fails to pick up the goroutine again,
+       because canaddcpu() fails, because mcpu==maxcpu
+    8. then it sees that grunning==0,
+       reports deadlock and terminates
     
-    The malloc sample trigger was not being set in a
-    new m, so the first allocation in each new m - the
-    goroutine structure - was being sampled with
-    probability 1 instead of probability sizeof(G)/rate,
-    an oversampling of about 5000x for the default
-    rate of 1 MB.  This bug made pprof graphs show
-    far more G allocations than there actually were.
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5224041
+    https://golang.org/cl/5191044
 
- src/pkg/runtime/malloc.goc | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/pkg/runtime/malloc.h |  2 +-
+ src/pkg/runtime/mgc0.c   |  6 +++---
+ src/pkg/runtime/proc.c   | 19 ++++++++++++-------
+ test/fixedbugs/bug370.go | 18 ++++++++++++++++++
+ 4 files changed, 34 insertions(+), 11 deletions(-)

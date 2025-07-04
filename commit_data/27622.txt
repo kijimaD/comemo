@@ -1,14 +1,14 @@
-commit 04888c9770560e99de63fafdfc2ce39b47844bfd
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Jun 2 14:34:37 2016 +0200
+commit cca4ddb497a2d56654b38991566e45be1ef18f4d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 5 12:48:49 2016 -0700
 
-    doc/go1.7: fix typo in nsswitch.conf name
+    cmd/compile: add comments explaining how declarations/scopes work
     
-    Fixes #15939
-    
-    Change-Id: I120cbeac73a052fb3f328774e6d5e1534f11bf6b
-    Reviewed-on: https://go-review.googlesource.com/23682
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I301760b015eb69ff12eee53473fdbf5e9f168413
+    Reviewed-on: https://go-review.googlesource.com/21542
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.7.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go | 43 +++++++++++++++++++++++++++-----------
+ src/cmd/compile/internal/gc/go.go  | 10 +++++++--
+ 2 files changed, 39 insertions(+), 14 deletions(-)

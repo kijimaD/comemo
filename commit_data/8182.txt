@@ -1,22 +1,15 @@
-commit 380f4ab2ff17e3b23b429de867bcabf611f731d6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 21 16:58:20 2011 -0400
+commit ee154f5df534479d1ef0d956280399bf6a7ad492
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 21 10:45:49 2011 -0700
 
-    syscall: add BPF support for darwin/386, darwin/amd64
+    mime/multipart: limit line length to prevent abuse
     
-    note: due to issue 1466 the Msghdr and BpfProgram
-    struct for src/pkg/syscall/ztypes_darwin_386.go,
-    src/pkg/syscall/ztypes_darwin_amd64.go had to be
-    edited after the godefs generation.
+    Fixes #1528
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4403042
+    https://golang.org/cl/4425060
 
- src/pkg/syscall/mkerrors.sh             |   2 +
- src/pkg/syscall/types_darwin.c          |  18 +++++
- src/pkg/syscall/zerrors_darwin_386.go   | 117 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/zerrors_darwin_amd64.go | 117 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/ztypes_darwin_386.go    |  35 ++++++++++
- src/pkg/syscall/ztypes_darwin_amd64.go  |  45 +++++++++++-
- 6 files changed, 332 insertions(+), 2 deletions(-)
+ src/pkg/mime/multipart/multipart.go      |  6 ++++--
+ src/pkg/mime/multipart/multipart_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 2 deletions(-)

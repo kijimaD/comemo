@@ -1,34 +1,38 @@
-commit b52b77cb953430b76242724394bb66e79fda9f10
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Oct 24 16:08:46 2017 -0400
+commit f776b9d5fa3577fe2fdaa3d2ef9d48adee329f9c
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Aug 8 15:38:21 2017 -0400
 
-    cmd/compile, cmd/link: support for DWARF file reference relocations
+    net/http: log Readdir error to Server.ErrorLog
     
-    New relocation flavor R_DWARFFILEREF, to be applied to DWARF attribute
-    values that correspond to file references (ex: DW_AT_decl_file,
-    DW_AT_call_file). The LSym for this relocation is the file itself; the
-    linker replaces the relocation target with the index of the specified
-    file in the line table's file section.
+    Now that issue #12438 is resolved, this TODO can be completed.
+    Create a logf helper, which is similar to Server.logf method,
+    but takes a *Request to infer the *Server and its ErrorLog from.
     
-    Note: for testing purposes this patch changes the DWARF function
-    subprogram DIE abbrev to include DW_AT_decl_file (allowed by DWARF
-    but not especially useful) so as to have a way to test this
-    functionality. This attribute will be removed once there are other
-    file reference attributes (coming as part of inlining support).
+    Update documentation of Server.ErrorLog to mention a new type
+    of errors that may be logged to it.
     
-    Change-Id: Icf676beb60fcc33f06d78e747ef717532daaa3ba
-    Reviewed-on: https://go-review.googlesource.com/73330
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Also update a statement in documentation of Server.ErrorLog from:
+    
+            // If nil, logging goes to os.Stderr via the log package's
+            // standard logger.
+    
+    To:
+    
+            // If nil, logging is done via the log package's standard logger.
+    
+    The motivation for doing so is to avoid making inaccurate claims.
+    Logging may not go to os.Stderr if anyone overrides the log package's
+    default output via https://godoc.org/log#SetOutput. Saying that
+    the standard logger is used should be sufficient to explain the
+    behavior, and users can infer that os.Stderr is used by default,
+    unless it's changed.
+    
+    Updates #12438.
+    
+    Change-Id: I3a4b0db51d652fd25fb2065fbc2157a3dec4dd38
+    Reviewed-on: https://go-review.googlesource.com/53950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go             |  6 +++-
- src/cmd/internal/obj/objfile.go             | 26 ++++++++++++++--
- src/cmd/internal/objabi/reloctype.go        | 11 +++++--
- src/cmd/internal/objabi/reloctype_string.go |  4 +--
- src/cmd/link/internal/amd64/asm.go          |  2 +-
- src/cmd/link/internal/ld/data.go            | 16 ++++++++--
- src/cmd/link/internal/ld/dwarf.go           | 46 ++++++++++++++++++++++++++---
- src/cmd/link/internal/ld/dwarf_test.go      |  9 +++++-
- src/cmd/link/internal/x86/asm.go            |  2 +-
- 9 files changed, 105 insertions(+), 17 deletions(-)
+ src/net/http/fs.go     |  8 +++-----
+ src/net/http/server.go | 18 +++++++++++++++---
+ 2 files changed, 18 insertions(+), 8 deletions(-)

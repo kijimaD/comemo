@@ -1,54 +1,24 @@
-commit aef24d8f7db4fb895055e4543af958d7dc2eb8cc
-Author: eric fang <eric.fang@arm.com>
-Date:   Mon Jun 21 03:04:42 2021 +0000
+commit a01814975c18ff1a63847eb82e0a57f7c3c746e5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Oct 16 17:42:39 2020 -0400
 
-    cmd/internal/obj/arm64: fix the encoding error when operating with ZR
+    [dev.fuzz] internal/fuzz: send inputs to workers with shared memory
     
-    Some arm64 instructions accept ZR as its destination register, such as MOVD,
-    AND, ADD etc. although it doesn't seem to make much sense, but we should
-    make sure the encoding is correct. However there exists some encoding mistakes
-    in the current assembler, they are:
-    1, 'MOVD $1, ZR' is incorrectly encoded as 'MOVD $1, ZR' + '0x00000000'.
-    2, 'AND $1, R2, ZR' is incorrectly encoded as 'MOVD $1, R27' + 'AND R27, R2, ZR' +
-       '0x00000000'.
-    3, 'AND $1, ZR' is incorrectly encoded as 'AND $1, ZR, RSP'.
+    The coordinator process creates a temporary file for each worker. Both
+    coordinator and worker map the file into memory and use it for input
+    values. Access is synchronized with RPC over pipes.
     
-    Obviously the first two encoding errors can cause SIGILL, and the third one will
-    rewrite RSP.
-    
-    At the same time, I found some weird encodings but they don't cause errors.
-    4, 'MOVD $0x0001000100010001, ZR' is encoded as 'MOVW $1, ZR' + 'MOVKW $(1<<16), ZR'.
-    5, 'AND $0x0001000100010001, R2, ZR' is encoded as 'MOVD $1, R27' + 'MOVK $(1<<16), R27' +
-       'MOVK $(1<<32), R27'.
-    
-    Some of these issues also apply to 32-bit versions of these instructions.
-    
-    These problems are not very complicated, and are basically caused by the improper
-    adaptation of the class of the constant to the entry in the optab. But the relationship
-    between these constant classes is a bit complicated, so I don't know how to deal with
-    issue 4 and 5, because they won't cause errors, so this CL didn't deal with them.
-    
-    This CL fixed the first three issues.
-    Issue 1:
-      before: 'MOVD $1, ZR' => 'MOVD $1, ZR' + '0x00000000'.
-      after:  'MOVD $1, ZR' => 'MOVD $1, ZR'.
-    Issue 2:
-      before: 'AND $1, R2, ZR' => 'MOVD $1, R27' + 'AND R27, R2, ZR' + '0x00000000'.
-      after:  'AND $1, R2, ZR' => 'ORR $1, ZR, R27' + 'AND R27, R2, ZR'.
-    Issue 3:
-      before: 'AND $1, ZR' => 'AND $1, ZR, RSP'.
-      after:  'AND $1, ZR' => 'ORR $1, ZR, R27' + 'AND R27, ZR, ZR'.
-    
-    Change-Id: I3c889079229f847b863ad56c88966be12d947202
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/329750
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I43c10d7291a8760a616b472d11c017a3a7bb19cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263153
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/asm/internal/asm/testdata/arm64.s      |  6 ++++--
- src/cmd/asm/internal/asm/testdata/arm64error.s |  2 +-
- src/cmd/internal/obj/arm64/asm7.go             | 21 ++++++++++++++++-----
- src/cmd/internal/obj/arm64/obj7.go             |  4 +++-
- 4 files changed, 24 insertions(+), 9 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_mutate.txt | 153 ++++++++++++++++++++++++
+ src/internal/fuzz/fuzz.go                       |  59 +++++----
+ src/internal/fuzz/mem.go                        | 107 +++++++++++++++++
+ src/internal/fuzz/sys_posix.go                  |  64 ++++++++--
+ src/internal/fuzz/sys_unimplemented.go          |  31 +++++
+ src/internal/fuzz/sys_windows.go                | 118 +++++++++++++++---
+ src/internal/fuzz/worker.go                     |  87 +++++++++-----
+ src/testing/fuzz.go                             |  27 ++---
+ 8 files changed, 555 insertions(+), 91 deletions(-)

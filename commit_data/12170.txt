@@ -1,18 +1,27 @@
-commit 240b1d5b44f51e6bda24256f276909f64fc4b0ea
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 23 14:43:58 2012 -0500
+commit 436f297d1e8cb941d859a00467395a8c541035e6
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Feb 23 14:28:16 2012 -0500
 
-    runtime: linux signal masking
+    cc: fix an out of bounds array access
     
-    Fixes #3101 (Linux).
+    Alternatively, we could expand the ewidth array
+    in [568]c/txt.c to have NALLTYPES elements and
+    give all types above NTYPE a width of -1.
     
-    R=golang-dev, bradfitz, minux.ma
+    I don't think it's worth it since TDOT and TOLD
+    are the only two type values above NTYPE that
+    are passed to typ:
+    
+    $ /tmp/cctypes
+    cc/dcl.c:683:                   t->down = typ(TOLD, T);
+    cc/dcl.c:919:           return typ(TDOT, T);
+    $
+    
+    Fixes #3063.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5696043
+    https://golang.org/cl/5694047
 
- src/pkg/runtime/os_linux.h        | 11 +++++++++++
- src/pkg/runtime/sys_linux_386.s   | 12 ++++++++++++
- src/pkg/runtime/sys_linux_amd64.s | 12 ++++++++++++
- src/pkg/runtime/sys_linux_arm.s   | 10 ++++++++++
- src/pkg/runtime/thread_linux.c    | 13 ++++++++++++-
- 5 files changed, 57 insertions(+), 1 deletion(-)
+ src/cmd/cc/sub.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

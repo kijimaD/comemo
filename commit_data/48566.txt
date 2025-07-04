@@ -1,18 +1,99 @@
-commit f71daa6fe6eecab08ad47f9dbd584bc11691116a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 28 15:42:30 2022 -0700
+commit c9d1a2bdd256afac8331cff19baa75567c301106
+Merge: 2580e9a160 272552275f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 1 14:58:52 2021 -0400
 
-    go/types, types2: better error message for blank interface method name (cleanup)
+    [dev.typeparams] all: merge master (2725522) into dev.typeparams
     
-    Use the 1.17 compiler error message.
+    Merge List:
     
-    Change-Id: Ic62de5bfc9681674069934afc590f5840729f8e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396297
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    + 2021-06-01 272552275f A+C: update name
+    + 2021-06-01 2bec019fb5 doc/go1.17: add release notes for register ABI
+    + 2021-06-01 2e59cc5fb4 cmd/go: add [-src] to documentation
+    + 2021-06-01 0b80cf1136 cmd/go: make 'go get' save sums for incidentally updated modules
+    + 2021-05-30 3b770f2ccb go/types: don't declare 'comparable' when typeparams are disabled
+    + 2021-05-30 1607c28172 go/types: unexport the GoVersion configuration option for Go 1.17
+    + 2021-05-29 79bda65041 doc/go1.17: mention time.Layout
+    + 2021-05-29 f6cc392d1d doc/go1.17: document text/template/parse.SkipFuncCheck
+    + 2021-05-28 1419ca7cea doc/go1.17: mention new definitions of MSG_CMSG_CLOEXEC
+    + 2021-05-28 6624771c83 doc/go1.17: mention testing.[TB].Setenv methods
+    + 2021-05-28 bbda923592 doc/go1.17: mention new Windows SysProcAttr fields
+    + 2021-05-28 6f58088bd8 doc/go1.17: document new go/build/BuildContext.ToolTags field
+    + 2021-05-28 c295107708 doc/go1.17: mention new encoding/csv/Reader.FieldPos method
+    + 2021-05-28 ccd9784edf doc/go1.17: document new debug/elf constant
+    + 2021-05-28 3de3440fb9 go/ast: remove FuncDecl.IsMethod for Go 1.17
+    + 2021-05-27 639acdc833 doc/go1.17: clarify that compress/lzw Reader and Writer types are new
+    + 2021-05-27 193d514131 net/http: correct Client.Do doc about context cancelation
+    + 2021-05-27 ab2ef4aaa7 doc/go1.17: document reflect changes
+    + 2021-05-27 0ece95a0fe cmd/go: don't let 'go mod download' save sums for inconsistent requirements
+    + 2021-05-27 cdcd02842d net: verify results from Lookup* are valid domain names
+    + 2021-05-27 8bf5bf5173 cmd/compile: improve debug locations for partially live in-params
+    + 2021-05-27 56af34f875 cmd/compile: place reg spills after OpArg{Int,Float}Reg ops
+    + 2021-05-27 db66e9e15d cmd/link: accept Windows line-ending in TestTrampolineCgo
+    + 2021-05-27 6b8c94b6c5 go/types: guard against check==nil in newNamed
+    + 2021-05-27 fca7b8f3e6 Revert "net: verify results from Lookup* are valid domain names"
+    + 2021-05-27 950fa11c4c net/http/httputil: always remove hop-by-hop headers
+    + 2021-05-27 9bc52686da cmd/go,cmd/link: do not check for staleness in most tests
+    + 2021-05-27 6ff0ae2aa4 crypto/elliptic: fix typo in p521Point type name
+    + 2021-05-26 3075ffc93e os: deflake TestFdReadRace
+    + 2021-05-26 a62c08734f src/os: revert accidentally submitted change
+    + 2021-05-26 1d5298d46a doc/go1.17: document net/... changes
+    + 2021-05-26 0fbecece98 doc/go1.17: document syscall changes
+    + 2021-05-26 02beecb397 mime: document use of the Shared MIME-Info Database
+    + 2021-05-26 a92460fd2f doc/go1.17: add release notes for runtime/metrics package
+    + 2021-05-26 55aefbb268 doc/go1.17: mention enabling frame pointer on all ARM64
+    + 2021-05-26 39da9ae513 go/types: ensure that Named.check is nilled out once it is expanded
+    + 2021-05-26 bfd7798a6c runtime,cmd/link/internal/ld: fix typos
+    + 2021-05-26 e4615ad74d math/big: move division into natdiv.go
+    + 2021-05-26 d050238bb6 doc/go1.17: fix formatting for time changes
+    + 2021-05-25 74242baa41 archive/zip: only preallocate File slice if reasonably sized
+    
+    Change-Id: I8a02edee1a6889547c52aa28c53cf8250766ab2c
 
- src/cmd/compile/internal/types2/interface.go             | 6 +-----
- src/cmd/compile/internal/types2/testdata/check/decls0.go | 4 ++--
- src/go/types/interface.go                                | 2 +-
- src/go/types/testdata/check/decls0.go                    | 4 ++--
- 4 files changed, 6 insertions(+), 10 deletions(-)
+ AUTHORS                                            |   2 +-
+ CONTRIBUTORS                                       |   2 +-
+ doc/go1.17.html                                    | 196 ++++++++++--
+ src/archive/zip/reader.go                          |  10 +-
+ src/archive/zip/reader_test.go                     |  59 ++++
+ src/cmd/compile/internal/ssa/debug.go              | 217 +++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go           |  16 +-
+ src/cmd/go/alldocs.go                              |   2 +-
+ src/cmd/go/internal/doc/doc.go                     |   2 +-
+ src/cmd/go/internal/modcmd/download.go             |  16 +-
+ src/cmd/go/internal/modget/get.go                  |  54 +++-
+ src/cmd/go/internal/modload/init.go                |  11 +-
+ .../build_package_not_stale_trailing_slash.txt     |  13 -
+ src/cmd/go/testdata/script/cgo_stale.txt           |  39 +++
+ src/cmd/go/testdata/script/list_std_stale.txt      |  31 --
+ src/cmd/go/testdata/script/list_std_vendor.txt     |  32 ++
+ src/cmd/go/testdata/script/mod_download.txt        |   1 -
+ .../script/mod_get_update_unrelated_sum.txt        | 120 +++++++
+ .../go/testdata/script/test_race_install_cgo.txt   |   2 -
+ src/cmd/go/testdata/script/toolexec.txt            |   6 +
+ src/cmd/link/dwarf_test.go                         |  52 +++-
+ src/cmd/link/internal/ld/data.go                   |   2 +-
+ src/cmd/link/link_test.go                          |   4 +-
+ src/crypto/elliptic/p521.go                        |  18 +-
+ src/go/ast/ast.go                                  |   6 +-
+ src/go/types/api.go                                |   4 +-
+ src/go/types/check.go                              |   4 +-
+ src/go/types/check_test.go                         |  10 +-
+ src/go/types/decl.go                               |  53 +++-
+ src/go/types/resolver.go                           |   2 +-
+ src/go/types/sanitize.go                           |   3 +
+ src/go/types/stdlib_test.go                        |   3 +-
+ src/go/types/type.go                               |  25 +-
+ src/go/types/types_test.go                         |   6 +
+ src/go/types/universe.go                           |   5 +-
+ src/math/big/arith.go                              |  14 -
+ src/math/big/nat.go                                | 325 -------------------
+ src/math/big/natdiv.go                             | 346 +++++++++++++++++++++
+ src/mime/type.go                                   |   6 +-
+ src/net/dnsclient_unix_test.go                     |  48 ++-
+ src/net/http/client.go                             |   7 +-
+ src/net/http/httputil/reverseproxy.go              |  22 +-
+ src/net/http/httputil/reverseproxy_test.go         |  63 +++-
+ src/net/lookup.go                                  |  17 +-
+ src/os/pipe_test.go                                |  11 +-
+ src/runtime/malloc.go                              |   2 +-
+ 46 files changed, 1343 insertions(+), 546 deletions(-)

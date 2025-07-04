@@ -1,34 +1,20 @@
-commit 49e3e436e71a54f16eb15960bd77ecf554ccc905
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Apr 13 19:39:32 2018 +0100
+commit 7684fe0bf1b60495621f888483199867ed52d54a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 13:54:15 2017 -0500
 
-    cmd/doc: skip directories like other go tools
+    cmd/test2json: add ability to run test binary
     
-    It was skipping dirs starting with ".", but it was missing the "_"
-    prefix and the "testdata" name. From "go help packages":
+    Also be clear that go test output is not suitable for piping into test2json.
     
-            Directory and file names that begin with "." or "_" are ignored
-            by the go tool, as are directories named "testdata".
+    Fixes #22710.
+    Fixes #22789.
     
-    Before the change:
-    
-            $ go doc z # using src/cmd/go/testdata/testvendor/src/q/z
-            package z // import "."
-    
-    After the fix, it falls back to the current directory, as expected when
-    a single argument isn't found as a package in $GOPATH.
-    
-    TestMain needs a small adjustment to keep the tests working, as now
-    their use of cmd/doc/testdata would normally not work.
-    
-    Fixes #24462.
-    
-    Change-Id: I1f5d6d1eba0fb59aff55db33b3b1147e300284ef
-    Reviewed-on: https://go-review.googlesource.com/106935
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I3d850c8a2288be7f9a27d638bbf847cb8707dcce
+    Reviewed-on: https://go-review.googlesource.com/81555
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/doc/dirs.go     |  5 +++--
- src/cmd/doc/doc_test.go | 14 ++++++++++++--
- 2 files changed, 15 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go     |  5 +++++
+ src/cmd/test2json/main.go | 48 ++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 44 insertions(+), 9 deletions(-)

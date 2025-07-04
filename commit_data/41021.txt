@@ -1,16 +1,17 @@
-commit 2e320a240d0b99b6810f452cf8554f6e79f0222e
-Author: Isfan Azhabil <isfan.azhabil@tokopedia.com>
-Date:   Tue Dec 24 10:03:33 2019 +0000
+commit 9859f6bedb6b85c9fa6e1a260ae62f1df8c8594e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 28 14:32:10 2019 -0400
 
-    net: fix typo in dns client unix test
+    test/codegen: fix ARM32 RotateLeft32 test
     
-    Fix a typo DNS name, it should be [onion.vegetables.com](http://onion.vegetables.com/)
+    The syntax of a shifted operation does not have a "$" sign for
+    the shift amount. Remove it.
     
-    Change-Id: I4122a2305b8f5e774a834651e70c75b54e9386bd
-    GitHub-Last-Rev: 9907897944275c5f8c54c79667cbb1ef474539de
-    GitHub-Pull-Request: golang/go#36270
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212410
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I50782fe942b640076f48c2fafea4d3175be8ff99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192100
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dnsclient_unix_test.go | 2 +-
+ test/codegen/mathbits.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,13 @@
-commit 41dc7d3a99da6894110085e78c07e711f925948e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 3 15:30:57 2011 -0400
+commit d615a5255d36c976abc988218447f7bb6cf5dbd1
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 3 12:19:07 2011 -0700
 
-    container/heap: document what Push and Pop do
+    deps.bash: attempt to fix the windows build
+    Use simpler shell constructs.
     
-    Now that vector is gone, there is no precedent to refer to.
-    This is a confusing point for people looking to use the
-    package.
-    
-    R=golang-dev, r, cw
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5322069
+    https://golang.org/cl/5297080
 
- src/pkg/container/heap/heap.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/deps.bash | 33 ++++++++++++++++-----------------
+ 1 file changed, 16 insertions(+), 17 deletions(-)

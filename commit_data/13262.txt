@@ -1,17 +1,14 @@
-commit 5612fd770dcf0d89a43bcb01713805883493a3e4
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Jun 4 15:21:58 2012 +0800
+commit 24075d33a502889a54ae25195c3f9ae6bceb6628
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jun 4 09:57:03 2012 +0900
 
-    api: add Linux/ARM to go1 API
-    It's very unfortunate that the type of Data field of struct
-    RawSockaddr is [14]uint8 on Linux/ARM instead of [14]int8
-    on all the others.
-    btw, it should be [14]int8 according to my header files.
+    path/filepath: fix test
     
-    R=golang-dev, bradfitz
+    Make it possible to run test over symlinked GOROOT.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6275050
+    https://golang.org/cl/6268046
 
- api/go1.txt          | 2227 +++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/api/goapi.go |    1 +
- 2 files changed, 2227 insertions(+), 1 deletion(-)
+ src/pkg/path/filepath/path_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

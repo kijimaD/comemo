@@ -1,20 +1,45 @@
-commit 0a24b8c77654dde64acafb394dc681289ca93b34
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 27 16:51:59 2015 -0800
+commit ab0535ae3fb45ba734d47542cc4845f27f708d1b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Dec 29 01:08:40 2014 -0500
 
-    math/big: sketched out complete set of Float/string conversion functions
+    liblink, cmd/ld, runtime: remove stackguard1
     
-    Also:
-    - use io.ByteScanner rather than io.RuneScanner internally
-    - minor simplifications in Float.Add/Sub
+    Now that we've removed all the C code in runtime and the C compilers,
+    there is no need to have a separate stackguard field to check for C
+    code on Go stack.
     
-    Change-Id: Iae0e99384128dba9eccf68592c4fd389e2bd3b4f
-    Reviewed-on: https://go-review.googlesource.com/3380
-    Reviewed-by: Rob Pike <r@golang.org>
+    Remove field g.stackguard1 and rename g.stackguard0 to g.stackguard.
+    Adjust liblink and cmd/ld as necessary.
+    
+    Change-Id: I54e75db5a93d783e86af5ff1a6cd497d669d8d33
+    Reviewed-on: https://go-review.googlesource.com/2144
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/float.go      | 156 ++++++++++++++++++++++++++++++++++++---------
- src/math/big/float_test.go |  12 ++--
- src/math/big/int.go        |  32 ++++++++--
- src/math/big/nat.go        |  14 ++--
- src/math/big/rat.go        |  14 ++--
- 5 files changed, 171 insertions(+), 57 deletions(-)
+ include/link.h                  |  1 -
+ src/cmd/ld/lib.c                | 53 -----------------------------------------
+ src/cmd/ld/lib.h                |  1 -
+ src/cmd/ld/pobj.c               |  1 -
+ src/liblink/obj5.c              | 11 +++------
+ src/liblink/obj6.c              | 19 ++++-----------
+ src/liblink/obj8.c              | 19 ++++-----------
+ src/liblink/obj9.c              | 11 +++------
+ src/liblink/objfile.c           |  7 +-----
+ src/runtime/asm_386.s           |  6 ++---
+ src/runtime/asm_amd64.s         |  6 ++---
+ src/runtime/asm_amd64p32.s      |  3 +--
+ src/runtime/asm_arm.s           |  6 ++---
+ src/runtime/asm_ppc64x.s        |  3 +--
+ src/runtime/lock_futex.go       |  2 +-
+ src/runtime/lock_sema.go        |  2 +-
+ src/runtime/malloc.go           |  6 ++---
+ src/runtime/proc1.go            | 49 +++++++++++++++++--------------------
+ src/runtime/runtime1.go         |  2 +-
+ src/runtime/runtime2.go         | 12 ++++------
+ src/runtime/stack1.go           | 21 ++++++----------
+ src/runtime/stack2.go           |  2 +-
+ src/runtime/sys_plan9_386.s     |  3 +--
+ src/runtime/sys_plan9_amd64.s   |  3 +--
+ src/runtime/sys_solaris_amd64.s |  3 +--
+ src/runtime/sys_windows_386.s   |  6 ++---
+ src/runtime/sys_windows_amd64.s |  6 ++---
+ 27 files changed, 72 insertions(+), 192 deletions(-)

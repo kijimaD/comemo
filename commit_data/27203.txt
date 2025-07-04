@@ -1,46 +1,25 @@
-commit 1fb4e4de26034cb2822bd8a9eadeb8e2b215d796
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Apr 29 17:17:44 2016 +1000
+commit 76b724cc6367309b046a9fc09d81b73f0dcccca4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 9 18:16:00 2016 +0900
 
-    compress/flate: use a constant hash table size for Best Speed.
+    net: prevent spurious TCP connection setup notification on darwin
     
-    This makes compress/flate's version of Snappy diverge from the upstream
-    golang/snappy version, but the latter has a goal of matching C++ snappy
-    output byte-for-byte. Both C++ and the asm version of golang/snappy can
-    use a smaller N for the O(N) zero-initialization of the hash table when
-    the input is small, even if the pure Go golang/snappy algorithm cannot:
-    "var table [tableSize]uint16" zeroes all tableSize elements.
+    On the latest darwin kernels, kevent in runtime-integrated network
+    poller sometimes reports SYN-SENT state sockets as ESTABLISHED ones,
+    though it's still unclear what's the root cause.
     
-    For this package, we don't have the match-C++-snappy goal, so we can use
-    a different (constant) hash table size.
+    This change prevents such spurious notifications by additional connect
+    system calls.
     
-    This is a small win, in terms of throughput and output size, but it also
-    enables us to re-use the (constant size) hash table between
-    encodeBestSpeed calls, avoiding the cost of zero-initializing the hash
-    table altogether. This will be implemented in follow-up commits.
+    Fixes #14548.
     
-    This package's benchmarks:
-    name                    old speed      new speed      delta
-    EncodeDigitsSpeed1e4-8  72.8MB/s ± 1%  73.5MB/s ± 1%  +0.86%  (p=0.000 n=10+10)
-    EncodeDigitsSpeed1e5-8  77.5MB/s ± 1%  78.0MB/s ± 0%  +0.69%  (p=0.000 n=10+10)
-    EncodeDigitsSpeed1e6-8  82.0MB/s ± 1%  82.7MB/s ± 1%  +0.85%   (p=0.000 n=10+9)
-    EncodeTwainSpeed1e4-8   65.1MB/s ± 1%  65.6MB/s ± 0%  +0.78%   (p=0.000 n=10+9)
-    EncodeTwainSpeed1e5-8   80.0MB/s ± 0%  80.6MB/s ± 1%  +0.66%   (p=0.000 n=9+10)
-    EncodeTwainSpeed1e6-8   81.6MB/s ± 1%  82.1MB/s ± 1%  +0.55%  (p=0.017 n=10+10)
-    
-    Input size in bytes, output size (and time taken) before and after on
-    some larger files:
-    1073741824   57269781 (  3183ms)   57269781 (  3177ms) adresser.001
-    1000000000  391052000 ( 11071ms)  391051996 ( 11067ms) enwik9
-    1911399616  378679516 ( 13450ms)  378679514 ( 13079ms) gob-stream
-    8558382592 3972329193 ( 99962ms) 3972329193 ( 91290ms) rawstudio-mint14.tar
-     200000000  200015265 (   776ms)  200015265 (   774ms) sharnd.out
-    
-    Thanks to Klaus Post for the original suggestion on cl/21021.
-    
-    Change-Id: Ia4c63a8d1b92c67e1765ec5c3c8c69d289d9a6ce
-    Reviewed-on: https://go-review.googlesource.com/22604
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie29788e38ca735ca77259befeba3229d6a30ac52
+    Reviewed-on: https://go-review.googlesource.com/20468
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/compress/flate/deflatefast.go | 42 +++++++++++++++++----------------------
- 1 file changed, 18 insertions(+), 24 deletions(-)
+ src/net/error_unix_test.go   | 15 ++++++++-
+ src/net/fd_unix.go           | 11 +++++-
+ src/net/tcpsock_unix_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 103 insertions(+), 2 deletions(-)

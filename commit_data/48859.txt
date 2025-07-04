@@ -1,31 +1,23 @@
-commit aac1d3a1b12a290805ca35ff268738fb334b1ca4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Apr 21 14:50:45 2022 -0400
+commit 1bd5a20e3c8a3a82e87487c381b76c97b720cd52
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 18 17:28:29 2021 -0400
 
-    Revert "syscall: define Syscall in terms of RawSyscall on linux"
+    cmd/go: add a -go flag to 'go mod graph'
     
-    This reverts CL 388477, which breaks cmd/go
-    TestScript/cover_pkgall_runtime.
+    For #46366
     
-    For #51087.
-    For #52472.
-    
-    Change-Id: Id58af419a889281f15df2471c58fece011fcffbc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401636
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8417e6e4dbb8cb56ff7afc16893a01b7bb938217
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329529
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/proc.go             |  2 +-
- src/syscall/asm_linux_386.s     | 26 ++++++++++++++++++++++++++
- src/syscall/asm_linux_amd64.s   | 27 +++++++++++++++++++++++++++
- src/syscall/asm_linux_arm.s     | 30 ++++++++++++++++++++++++++++++
- src/syscall/asm_linux_arm64.s   | 27 +++++++++++++++++++++++++++
- src/syscall/asm_linux_mips64x.s | 25 +++++++++++++++++++++++++
- src/syscall/asm_linux_mipsx.s   | 23 +++++++++++++++++++++++
- src/syscall/asm_linux_ppc64x.s  | 25 +++++++++++++++++++++++++
- src/syscall/asm_linux_riscv64.s | 24 ++++++++++++++++++++++++
- src/syscall/asm_linux_s390x.s   | 26 ++++++++++++++++++++++++++
- src/syscall/syscall_linux.go    | 23 +----------------------
- 11 files changed, 235 insertions(+), 23 deletions(-)
+ doc/go1.17.html                                  |   7 ++
+ src/cmd/go/alldocs.go                            |   6 +-
+ src/cmd/go/internal/modcmd/graph.go              |  13 ++-
+ src/cmd/go/internal/modcmd/verify.go             |   3 +-
+ src/cmd/go/internal/modget/get.go                |   6 +-
+ src/cmd/go/internal/modload/buildlist.go         |  26 +++++-
+ src/cmd/go/testdata/script/mod_graph_version.txt | 101 +++++++++++++++++++++++
+ 7 files changed, 154 insertions(+), 8 deletions(-)

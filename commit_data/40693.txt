@@ -1,26 +1,28 @@
-commit a2cd2bd55d1e932b52f0b7dea45a85e058fc77d5
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Sep 16 21:23:24 2019 +0000
+commit 53f628e56029573729ce6ac8844f87cc08f62a7a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jun 17 17:03:55 2019 -0400
 
-    runtime: add per-p page allocation cache
+    cmd/go/internal/modload: query correct "latest" version through proxy
     
-    This change adds a per-p free page cache which the page allocator may
-    allocate out of without a lock. The change also introduces a completely
-    lockless page allocator fast path.
+    This fixes a regression introduced in CL 180337. When we query a
+    module at "latest" that has no tagged versions, we tried to use ""
+    as the version because we used info.Name instead of info.Version. This
+    only happened when using a proxy: in direct mode, info.Name is set to
+    the underlying VCS revision, which is fine.
     
-    Although the cache contains at most 64 pages (and usually less), the
-    vast majority (85%+) of page allocations are exactly 1 page in size.
+    Also: serve "/mod/path/@latest" through our test proxy.
+    Previously, we served a 404, which made this bug hard to detect.
     
-    Updates #35112.
+    Fixes #32636
     
-    Change-Id: I170bf0a9375873e7e3230845eb1df7e5cf741b78
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195701
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I5c60975656297f862cad66675170e819685ebd39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182697
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/export_test.go | 22 ++++++++++++++
- src/runtime/malloc_test.go |  8 ++++++
- src/runtime/mheap.go       | 72 ++++++++++++++++++++++++++++++++++------------
- src/runtime/proc.go        |  1 +
- src/runtime/runtime2.go    |  3 +-
- 5 files changed, 86 insertions(+), 20 deletions(-)
+ src/cmd/go/internal/modload/query.go               |  2 +-
+ src/cmd/go/proxy_test.go                           | 65 ++++++++++++++++++++--
+ ...m_notags_v0.0.0-20190507143103-cc8cbe209b64.txt |  9 +++
+ .../go/testdata/script/mod_get_latest_pseudo.txt   | 10 ++++
+ 4 files changed, 81 insertions(+), 5 deletions(-)

@@ -1,21 +1,173 @@
-commit bca70a66a7ebd7c8e18aaaac912673f65253373a
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Tue Sep 15 00:16:35 2015 +0200
+commit 00437ebe73944854d58ddb6710a185677317ee6e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 20 18:50:17 2015 -0700
 
-    cmd/compile/internal/gc: use sort.Interface for reflect methods
+    [dev.ssa] cmd/compile: don't combine phi vars from different blocks in CSE
     
-    Generate slices of method *Sig(nature)s instead of linked lists.
-    Remove custom lsort function in favor of sort.Interface.
+    Here is a concrete case in which this goes wrong.
     
-    Eliminates another use of stringsCompare.
+    func f_ssa() int {
+            var n int
+    Next:
+            for j := 0; j < 3; j++ {
+                    for i := 0; i < 10; i++ {
+                            if i == 6 {
+                                    continue Next
+                            }
+                            n = i
+                    }
+                    n += j + j + j + j + j + j + j + j + j + j // j * 10
+            }
+            return n
+    }
     
-    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
+    What follows is the function printout before and after CSE.
     
-    Change-Id: I9ed1664b7f55be9e967dd7196e396a76f6ea3422
-    Reviewed-on: https://go-review.googlesource.com/14559
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Note blocks b8 and b10 in the before case.
+    
+    b8 is the inner loop's condition: i < 10.
+    b10 is the inner loop's increment: i++.
+    v82 is i. On entry to b8, it is either 0 (v19) the first time,
+    or the result of incrementing v82, by way of v29.
+    
+    The CSE pass considered v82 and v49 to be common subexpressions,
+    and eliminated v82 in favor of v49.
+    
+    In the after case, v82 is now dead and will shortly be eliminated.
+    As a result, v29 is also dead, and we have lost the increment.
+    The loop runs forever.
+    
+    BEFORE CSE
+    
+    f_ssa <nil>
+      b1:
+        v1 = Arg <mem>
+        v2 = SP <uint64>
+        v4 = Addr <*int> {~r0} v2
+        v13 = Zero <mem> [8] v4 v1
+        v14 = Const <int>
+        v15 = Const <int>
+        v17 = Const <int> [3]
+        v19 = Const <int>
+        v21 = Const <int> [10]
+        v24 = Const <int> [6]
+        v28 = Const <int> [1]
+        v43 = Const <int> [1]
+        Plain -> b3
+      b2: <- b7
+        Exit v47
+      b3: <- b1
+        Plain -> b4
+      b4: <- b3 b6
+        v49 = Phi <int> v15 v44
+        v68 = Phi <int> v14 v67
+        v81 = Phi <mem> v13 v81
+        v18 = Less <bool> v49 v17
+        If v18 -> b5 b7
+      b5: <- b4
+        Plain -> b8
+      b6: <- b12 b11
+        v67 = Phi <int> v66 v41
+        v44 = Add <int> v49 v43
+        Plain -> b4
+      b7: <- b4
+        v47 = Store <mem> v4 v68 v81
+        Plain -> b2
+      b8: <- b5 b10
+        v66 = Phi <int> v68 v82
+        v82 = Phi <int> v19 v29
+        v22 = Less <bool> v82 v21
+        If v22 -> b9 b11
+      b9: <- b8
+        v25 = Eq <bool> v82 v24
+        If v25 -> b12 b13
+      b10: <- b13
+        v29 = Add <int> v82 v28
+        Plain -> b8
+      b11: <- b8
+        v32 = Add <int> v49 v49
+        v33 = Add <int> v32 v49
+        v34 = Add <int> v33 v49
+        v35 = Add <int> v34 v49
+        v36 = Add <int> v35 v49
+        v37 = Add <int> v36 v49
+        v38 = Add <int> v37 v49
+        v39 = Add <int> v38 v49
+        v40 = Add <int> v39 v49
+        v41 = Add <int> v66 v40
+        Plain -> b6
+      b12: <- b9
+        Plain -> b6
+      b13: <- b9
+        Plain -> b10
+    
+    AFTER CSE
+    
+    f_ssa <nil>
+      b1:
+        v1 = Arg <mem>
+        v2 = SP <uint64>
+        v4 = Addr <*int> {~r0} v2
+        v13 = Zero <mem> [8] v4 v1
+        v14 = Const <int>
+        v15 = Const <int>
+        v17 = Const <int> [3]
+        v19 = Const <int>
+        v21 = Const <int> [10]
+        v24 = Const <int> [6]
+        v28 = Const <int> [1]
+        v43 = Const <int> [1]
+        Plain -> b3
+      b2: <- b7
+        Exit v47
+      b3: <- b1
+        Plain -> b4
+      b4: <- b3 b6
+        v49 = Phi <int> v19 v44
+        v68 = Phi <int> v19 v67
+        v81 = Phi <mem> v13 v81
+        v18 = Less <bool> v49 v17
+        If v18 -> b5 b7
+      b5: <- b4
+        Plain -> b8
+      b6: <- b12 b11
+        v67 = Phi <int> v66 v41
+        v44 = Add <int> v49 v43
+        Plain -> b4
+      b7: <- b4
+        v47 = Store <mem> v4 v68 v81
+        Plain -> b2
+      b8: <- b5 b10
+        v66 = Phi <int> v68 v49
+        v82 = Phi <int> v19 v29
+        v22 = Less <bool> v49 v21
+        If v22 -> b9 b11
+      b9: <- b8
+        v25 = Eq <bool> v49 v24
+        If v25 -> b12 b13
+      b10: <- b13
+        v29 = Add <int> v49 v43
+        Plain -> b8
+      b11: <- b8
+        v32 = Add <int> v49 v49
+        v33 = Add <int> v32 v49
+        v34 = Add <int> v33 v49
+        v35 = Add <int> v34 v49
+        v36 = Add <int> v35 v49
+        v37 = Add <int> v36 v49
+        v38 = Add <int> v37 v49
+        v39 = Add <int> v38 v49
+        v40 = Add <int> v39 v49
+        v41 = Add <int> v66 v40
+        Plain -> b6
+      b12: <- b9
+        Plain -> b6
+      b13: <- b9
+        Plain -> b10
+    
+    Change-Id: I16fc4ec527ec63f24f7d0d79d1a4a59bf37269de
+    Reviewed-on: https://go-review.googlesource.com/12444
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/go.go           |   1 -
- src/cmd/compile/internal/gc/reflect.go      | 216 +++++++++-------------------
- src/cmd/compile/internal/gc/reflect_test.go |  47 ++++++
- 3 files changed, 116 insertions(+), 148 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

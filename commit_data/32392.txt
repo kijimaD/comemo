@@ -1,12 +1,15 @@
-commit 7188e00287ca5bba27b3c1ed07f9c203fba5351e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 5 16:10:49 2017 +1000
+commit 1dc3b60bd6b33756779cb78bce28af4edd193a85
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:42:58 2017 -0700
 
-    cmd/link: introduce and use peFile.nextSectOffset and nextFileOffset
+    cmd/compile: re-use Linksym lookup in dtypesym
     
-    Change-Id: Iecff99e85e2cca1127dca79747bb0d5362cd4125
-    Reviewed-on: https://go-review.googlesource.com/56319
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I1a5809f15c84f9d26064a567b45468fa56e6d5e9
+    Reviewed-on: https://go-review.googlesource.com/41408
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pe.go | 36 +++++++++++++++++-------------------
- 1 file changed, 17 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 125 ++++++++++++++++-----------------
+ 1 file changed, 62 insertions(+), 63 deletions(-)

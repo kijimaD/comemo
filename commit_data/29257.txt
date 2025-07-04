@@ -1,33 +1,19 @@
-commit 7b50bd8abfe8565abdf7a6116e22a6a0fbf582b7
-Author: Mike Strosaker <strosake@us.ibm.com>
-Date:   Fri Oct 28 19:50:16 2016 -0400
+commit 269ff8e6030cacd3a8ef5804f39c50566ce6f57e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 5 20:16:16 2016 +0000
 
-    crypto/sha256: improve performance for sha256.block on ppc64le
+    io: make MultiReader nil exhausted Readers for earlier GC
     
-    Adds an assembly implementation of sha256.block for ppc64le to improve its
-    performance.  This implementation is largely based on the original amd64
-    implementation, which unrolls the 64 iterations of the inner loop.
+    No test because the language spec makes no promises in this area.
     
-    Fixes #17652
+    Fixes #16983
     
-    benchmark               old ns/op     new ns/op     delta
-    BenchmarkHash8Bytes     1263          767           -39.27%
-    BenchmarkHash1K         14048         7766          -44.72%
-    BenchmarkHash8K         102245        55626         -45.60%
-    
-    benchmark               old MB/s     new MB/s     speedup
-    BenchmarkHash8Bytes     6.33         10.43        1.65x
-    BenchmarkHash1K         72.89        131.85       1.81x
-    BenchmarkHash8K         80.12        147.27       1.84x
-    
-    Change-Id: Ib4adf429423b20495580400be10bd7e171bcc70b
-    Reviewed-on: https://go-review.googlesource.com/32318
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I1a6aa7ff87dd14aa27e8400040a6f6fc908aa1fd
+    Reviewed-on: https://go-review.googlesource.com/28533
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/crypto/sha256/sha256block_decl.go    |   2 +-
- src/crypto/sha256/sha256block_generic.go |   2 +-
- src/crypto/sha256/sha256block_ppc64le.s  | 269 +++++++++++++++++++++++++++++++
- 3 files changed, 271 insertions(+), 2 deletions(-)
+ src/io/multi.go | 1 +
+ 1 file changed, 1 insertion(+)

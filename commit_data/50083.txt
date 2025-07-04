@@ -1,27 +1,19 @@
-commit 70de482d17863e501be44450f8e60500a6f1b459
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Jun 15 17:03:27 2022 -0700
+commit 8ac5cbe05d61df0a7a7c9a38ff33305d4dcfea32
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 30 14:21:18 2021 -0700
 
-    bytes: rely on utf8.AppendRune
+    cmd/compile/internal/types2: removed deprecated API entry points
     
-    This is both simpler and more performant.
+    We don't need to keep them around in types2.
+    Switched a couple of uses of NewSignature to NewSignatureType.
     
-    WriteRune                                 23.9µs ± 1%   22.8µs ± 8%   -4.43%  (p=0.006 n=8+10)
-    ToUpper/longɐstringɐwithɐnonasciiⱯchars    573ns ± 4%    474ns ± 6%  -17.27%  (p=0.000 n=10+10)
-    ToUpper/ɐɐɐɐɐ                              236ns ± 6%    202ns ± 5%  -14.12%  (p=0.000 n=10+10)
-    ToUpper/a\u0080\U0010ffff                 98.8ns ± 6%   91.2ns ± 3%   -7.67%  (p=0.000 n=10+10)
-    ToLower/LONGⱯSTRINGⱯWITHⱯNONASCIIⱯCHARS    511ns ± 3%    409ns ± 4%  -20.02%  (p=0.000 n=10+10)
-    ToLower/ⱭⱭⱭⱭⱭ                              178ns ± 4%    173ns ± 2%   -2.76%  (p=0.005 n=10+10)
-    ToLower/A\u0080\U0010ffff                  100ns ± 3%     91ns ± 2%   -8.55%  (p=0.000 n=10+10)
-    
-    Change-Id: I968ef194da2c115cbdcac2d3575c34c65e6a8a56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412337
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: I62880c2b49ec82caa9362ed8a798cfc3bcea300e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353397
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/bytes/buffer.go |  5 ++---
- src/bytes/bytes.go  | 19 +++----------------
- 2 files changed, 5 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/noder/reader2.go    |  2 +-
+ src/cmd/compile/internal/types2/interface.go | 19 -------------------
+ src/cmd/compile/internal/types2/signature.go | 10 ----------
+ src/cmd/compile/internal/types2/universe.go  |  2 +-
+ 4 files changed, 2 insertions(+), 31 deletions(-)

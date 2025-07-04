@@ -1,16 +1,27 @@
-commit ff979626fc14eb0debcce44494ca114879de618d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 29 16:26:25 2014 -0500
+commit adbca13cb36489651ac5b989b6361d81c358d91e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Nov 21 18:13:59 2014 -0500
 
-    cmd/gc: add write barrier for append(slice, slice...)
+    [dev.cc] runtime: explicitly exclude android in zgoos_linux.go
     
-    Found with GODEBUG=wbshadow=2 mode.
-    Eventually that will run automatically, but right now
-    it still detects other missing write barriers.
+    Otherwise both zgoos_linux.go and zgoos_android.go will be compiled
+    for GOOS=android.
     
-    Change-Id: I5624b509a36650bce6834cf394b9da163abbf8c0
-    Reviewed-on: https://go-review.googlesource.com/2310
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    LGTM=crawshaw, rsc
+    R=rsc, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/178110043
 
- src/cmd/gc/walk.c | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/runtime/gengoos.go         | 4 +++-
+ src/runtime/zgoos_android.go   | 2 --
+ src/runtime/zgoos_darwin.go    | 2 --
+ src/runtime/zgoos_dragonfly.go | 2 --
+ src/runtime/zgoos_freebsd.go   | 2 --
+ src/runtime/zgoos_linux.go     | 2 +-
+ src/runtime/zgoos_nacl.go      | 2 --
+ src/runtime/zgoos_netbsd.go    | 2 --
+ src/runtime/zgoos_openbsd.go   | 2 --
+ src/runtime/zgoos_plan9.go     | 2 --
+ src/runtime/zgoos_solaris.go   | 2 --
+ src/runtime/zgoos_windows.go   | 2 --
+ 12 files changed, 4 insertions(+), 22 deletions(-)

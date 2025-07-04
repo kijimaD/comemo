@@ -1,24 +1,21 @@
-commit 6ab049b96578547b78f919810d01f94d94cc1981
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 15 15:10:32 2019 -0400
+commit d82c9a167d9e3a09eb27a00b6125e1a3fea6dc3d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 15 19:37:17 2019 +1100
 
-    testing: panic on calls to Short/Verbose before Parse
+    path/filepath: skip part of TestNTNamespaceSymlink
     
-    CL 121936 added this diagnostic to avoid a panic accessing *short.
-    (Hence the "This shouldn't really be a panic" comment.)
+    Recent CL 156398 extended TestNTNamespaceSymlink. But new code
+    fails, if user running the test does not have sufficient privilege
+    to create file symlink. Skip part of TestNTNamespaceSymlink, if
+    user cannot create symlink.
     
-    That CL was right to produce a clearer error than a plain memory fault,
-    but I think wrong to print+exit instead of panicking. I just ran into
-    one of these in a real program, and there is no indication anywhere
-    of how the program reached this point. The panic will show that.
-    So change print+exit to a panic with a helpful message, in contrast
-    to the original panic with an unhelpful message and the current
-    helpful message without stack trace.
+    Fixes #29745
     
-    Change-Id: Ib2bae1dead4ccde92f00fa3a34c05241ff7690c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177419
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie4176429ba9dd98553ce9e91fd19851cc7353f42
+    Reviewed-on: https://go-review.googlesource.com/c/157917
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/testing/testing.go | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ src/path/filepath/path_windows_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

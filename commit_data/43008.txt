@@ -1,21 +1,41 @@
-commit 396688af7ee121d478e9b8d2cc9d06999ba7fc6e
-Author: David Chase <drchase@google.com>
-Date:   Fri Jun 26 18:19:01 2020 -0400
+commit 95f382139043059a2a0780ba577b53893408f7e4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 25 18:42:24 2020 +1100
 
-    cmd/compile: make translation to calls for SSA look more "value-oriented"
+    cmd/go, cmd/link: implement -buildmode=pie on windows
     
-    The existing translation assumes an in-memory return values, thus it returns
-    the address of the result(s).  Most consumers immediately load from the
-    address to get the value, and in late call expansion that is the favored idiom,
-    and it is also the favored idiom when arguments and results use registers
-    instead of memory.
+    This CL implements windows version of -buildmode=pie code in both
+    cmd/go and cmd/link.
     
-    Change-Id: Ie0ccc70f399682a42509d847b330ef3956462d56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240186
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Windows executables built with -buildmode=pie set (unlike the one
+    built with -buildmode=exe) will have extra .reloc PE section, and
+    will have no IMAGE_FILE_RELOCS_STRIPPED flag set. They will also
+    have IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag set, and
+    IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA flag set for windows/amd64.
+    
+    Both cgo and non-cgo versions are implemented. And TestBuildmodePIE
+    is extended to test both cgo and non-cgo versions on windows and
+    linux.
+    
+    This CL used some code from CLs 152759 and 203602.
+    
+    RELNOTE=yes
+    
+    Fixes #27144
+    Updates #35192
+    
+    Change-Id: I1249e4ffbd79bd4277efefb56db321c390c0f76f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214397
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 44 +++++++++++++++++++++-----------------
- 1 file changed, 24 insertions(+), 20 deletions(-)
+ src/cmd/dist/test.go                   |  4 +++
+ src/cmd/go/go_test.go                  | 57 +++++++++++++++++++++++++++++++--
+ src/cmd/go/internal/work/init.go       |  8 +++--
+ src/cmd/go/testdata/script/version.txt |  6 ++--
+ src/cmd/internal/sys/supported.go      |  3 +-
+ src/cmd/link/internal/ld/config.go     |  3 +-
+ src/cmd/link/internal/ld/lib.go        | 16 ++++++++--
+ src/cmd/link/internal/ld/pe.go         | 58 ++++++++++++++++++++++------------
+ 8 files changed, 122 insertions(+), 33 deletions(-)

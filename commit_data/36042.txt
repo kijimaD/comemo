@@ -1,14 +1,14 @@
-commit bd9a0185d2c1cca6190bff5d89ec931bd80213e5
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Jul 18 10:53:44 2018 +0200
+commit b638760dadce490311655fcbfddc303f36efd4f1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 2 11:17:57 2017 -0700
 
-    doc/go1.11: add space in Go version name
+    cmd/compile: consider full number of struct components to deciding on inlining ==
     
-    Missed in CL 124516.
-    
-    Change-Id: I6488196c8392987d69eca832ab4969aaafe1a26c
-    Reviewed-on: https://go-review.googlesource.com/124658
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6bfbbce2ec5dfc7f9f99dbd82e51c2b0edacc87a
+    Reviewed-on: https://go-review.googlesource.com/59334
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.11.html | 2 +-
+ src/cmd/compile/internal/gc/walk.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

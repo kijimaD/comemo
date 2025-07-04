@@ -1,20 +1,24 @@
-commit 0158ddad9893ea1ab332be39f192aefdbd7b65c8
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat Feb 1 05:26:17 2025 +0000
+commit 40f6fbf147fd72da1f6a898375af9a965c7a4659
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Dec 1 14:04:35 2023 -0500
 
-    internal/trace: move maxArgs into tracev2 and validate specs
+    cmd/link: update flag doc
     
-    This change moves maxArgs to tracev2 and renames it MaxTimedEventArgs.
-    It also updates the tests to make sure the specs conform to this
-    requirement.
+    Update the go doc for linker flags. Remove flags that no longer
+    exist. Also remove flags that are intended for debugging the
+    linker from user docs. Add -aslr to the doc.
     
-    Change-Id: I7b0c888a4dfd83306a470a4c9b0f9e44fe2e7818
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646016
-    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    The -n flag does nothing except print a nearly useless message on
+    XCOFF linking. Deprecate it.
+    
+    Fixes #64476.
+    
+    Change-Id: I518c9c6cc009eae50b7c11308348524ad6a62b69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546615
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/trace/base.go                | 6 +-----
- src/internal/trace/tracev2/events.go      | 3 +++
- src/internal/trace/tracev2/events_test.go | 3 +++
- 3 files changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/link/doc.go               | 12 ++----------
+ src/cmd/link/internal/ld/main.go  |  2 +-
+ src/cmd/link/internal/ld/xcoff.go |  2 +-
+ 3 files changed, 4 insertions(+), 12 deletions(-)

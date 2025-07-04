@@ -1,17 +1,26 @@
-commit 72f448cb48069ddeb0c30e726fc3b9d113aaf51e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 17 21:10:44 2023 -0700
+commit fa2d41d0ca736f3ad6b200b2a4e134364e9acc59
+Author: Julie Qiu <julieqiu@google.com>
+Date:   Thu Jun 23 23:17:53 2022 +0000
 
-    go/types, types2: factor out type matching in binary operations
+    io/fs: fix stack exhaustion in Glob
     
-    Change-Id: Ica61698b6ba00687dcd133245bfc3d87808c7bca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496096
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    A limit is added to the number of path separators allowed by an input to
+    Glob, to prevent stack exhaustion issues.
+    
+    Thanks to Juho Nurminen of Mattermost who reported a similar issue in
+    path/filepath.
+    
+    Fixes CVE-2022-30630
+    Fixes golang/go#53415
+    
+    Change-Id: I5a9d02591fed90cd3d52627f5945f1301e53465d
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1497588
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417065
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/types2/expr.go | 116 +++++++++++++++++---------------
- src/go/types/expr.go                    | 116 +++++++++++++++++---------------
- 2 files changed, 126 insertions(+), 106 deletions(-)
+ src/io/fs/glob.go      | 14 ++++++++++++--
+ src/io/fs/glob_test.go | 10 ++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

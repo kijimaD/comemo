@@ -1,15 +1,12 @@
-commit 96082a6953583b88b73cf45933325648b66c1654
-Author: Christian Himpel <chressie@googlemail.com>
-Date:   Wed Feb 13 19:23:28 2013 +1100
+commit ea1f7b83800f769d16384c759f2e373bb492f336
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 13 16:17:47 2013 +1100
 
-    archive/tar: append a slash when deriving header info from a directory
+    net: change server_test.go so we could see failure messages
     
-    This behavior is identical to GNU tar 1.26.
-    
-    R=dsymonds, dave
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7307101
+    https://golang.org/cl/7323051
 
- src/pkg/archive/tar/common.go   |  2 ++
- src/pkg/archive/tar/tar_test.go | 27 +++++++++++++++++++++++++--
- 2 files changed, 27 insertions(+), 2 deletions(-)
+ src/pkg/net/server_test.go | 48 ++++++++++++++++------------------------------
+ 1 file changed, 17 insertions(+), 31 deletions(-)

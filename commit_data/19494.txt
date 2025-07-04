@@ -1,15 +1,19 @@
-commit 19fe9a2c722ee7612e86b46b7bf8e6b409295ecc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 3 18:11:17 2014 +1000
+commit eb54079264896a8e7bd0ea79768ea4f46c47e30a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 2 21:26:32 2014 -0400
 
-    crypto/tls: fix typo referencing the required Config field
+    cmd/gc: fix liveness for address-taken variables in inlined functions
     
-    Thanks to Frithjof Schulze for noticing.
+    The 'address taken' bit in a function variable was not
+    propagating into the inlined copies, causing incorrect
+    liveness information.
     
-    LGTM=adg
-    R=adg
-    CC=agl, golang-codereviews, r
-    https://golang.org/cl/107740043
+    LGTM=dsymonds, bradfitz
+    R=golang-codereviews, bradfitz
+    CC=dsymonds, golang-codereviews, iant, khr, r
+    https://golang.org/cl/96670046
 
- src/pkg/crypto/tls/tls.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/inl.c |  1 +
+ test/live.go     | 32 ++++++++++++++++++++++++++++++++
+ test/live2.go    | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+)

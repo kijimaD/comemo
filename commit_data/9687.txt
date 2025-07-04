@@ -1,14 +1,15 @@
-commit e076c502dda7da7308599c20c5f482e67edf6855
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 14 15:33:37 2011 -0700
+commit 3be088e35472332a0707479cac616199275e4656
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Sep 15 08:09:43 2011 +1000
 
-    debug/elf: permit another case of SHT_NOBITS section overlap in test
+    json: if a field's tag is "-", never encode it.
     
-    Lets test pass when using gccgo.
-    
-    R=golang-dev, rsc
+    R=adg, r, edsrzf, rsc, r
     CC=golang-dev
-    https://golang.org/cl/5018046
+    https://golang.org/cl/4962052
 
- src/pkg/debug/elf/file_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/json/decode.go      | 46 +++++++++++++++++++++++----------------------
+ src/pkg/json/decode_test.go |  4 ++++
+ src/pkg/json/encode.go      | 16 ++++++++++++----
+ src/pkg/json/encode_test.go |  2 ++
+ 4 files changed, 42 insertions(+), 26 deletions(-)

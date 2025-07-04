@@ -1,69 +1,29 @@
-commit 301370c81cd4f05949a42e0d0222f1fe35c1f761
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 24 17:37:11 2023 -0400
+commit 58a1dabfd1b2bbc2a6a9a2e1cda3e98d93d61258
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 18:01:31 2022 -0400
 
-    cmd/go: switch to newer toolchain in go get as needed
+    runtime: convert schedt.npidle to atomic type
     
-    If we run 'go get go@1.40' or 'go get m@v' where m has a go.mod
-    that says 'go 1.40', we need to write a new go.mod that says 'go 1.40'.
-    But we can't be sure we know how to write a Go 1.40-compatible go.mod.
-    Instead, download the latest point release of Go 1.40 and invoke it to
-    finish the get command.
+    Note that this converts npidle from uint32 to int32 for consistency with
+    the other count fields in schedt and the type of p.id.
     
-    For #57001.
+    Note that this changes previously unsynchronized operations to
+    synchronized operations in:
+      * handoffp
+      * injectglist
+      * schedtrace
+      * schedEnableUser
+      * sync_runtime_canSpin
     
-    Change-Id: I4133fc3c2ecf91226a6c09a3086275ecc517e223
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498118
+    For #53821.
+    
+    Change-Id: I36d1b3b4a28131c9d47884fade6bc44439dd6937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419445
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/envcmd/env.go                  |   6 +
- src/cmd/go/internal/gover/gover.go                 |   9 +-
- src/cmd/go/internal/gover/gover_test.go            |   4 +
- src/cmd/go/internal/gover/mod.go                   |   9 ++
- src/cmd/go/internal/gover/toolchain.go             |   2 +-
- src/cmd/go/internal/modget/get.go                  |  42 ++++++
- src/cmd/go/internal/modload/buildlist.go           |   7 +-
- src/cmd/go/internal/modload/init.go                |  61 ++++++---
- src/cmd/go/internal/modload/modfile.go             |   5 +-
- src/cmd/go/internal/modload/query.go               |   2 +-
- src/cmd/go/internal/toolchain/exec.go              |  55 ++++++++
- .../toolchain/exec_stub.go}                        |   8 +-
- .../toolchain/toolchain.go}                        | 152 ++++++++++++++-------
- src/cmd/go/internal/toolchain/toolchain_test.go    |  66 +++++++++
- src/cmd/go/main.go                                 |   3 +-
- ...g.org_toolchain_v0.0.1-go1.18.1.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.18.3.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.18.5.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.18.7.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.18.9.linux-amd64.txt |   8 ++
- ...ang.org_toolchain_v0.0.1-go1.18.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.22.0.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.22.1.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.22.3.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.22.5.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.22.7.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.22.9.linux-amd64.txt |   8 ++
- ....org_toolchain_v0.0.1-go1.22rc1.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.23.0.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.23.5.linux-amd64.txt |   8 ++
- ...g.org_toolchain_v0.0.1-go1.23.9.linux-amd64.txt |   8 ++
- ....org_toolchain_v0.0.1-go1.24rc1.linux-amd64.txt |   8 ++
- src/cmd/go/testdata/mod/rsc.io_needall_v0.0.1.txt  |  25 ++++
- .../go/testdata/mod/rsc.io_needgo1183_v0.0.1.txt   |  17 +++
- .../go/testdata/mod/rsc.io_needgo118_v0.0.1.txt    |  17 +++
- .../go/testdata/mod/rsc.io_needgo121_v0.0.1.txt    |  17 +++
- .../go/testdata/mod/rsc.io_needgo1223_v0.0.1.txt   |  17 +++
- .../go/testdata/mod/rsc.io_needgo122_v0.0.1.txt    |  17 +++
- .../go/testdata/mod/rsc.io_needgo123_v0.0.1.txt    |  17 +++
- .../go/testdata/mod/rsc.io_needgo124_v0.0.1.txt    |  17 +++
- src/cmd/go/testdata/script/gotoolchain.txt         |   4 +-
- .../go/testdata/script/mod_get_exec_toolchain.txt  | 130 ++++++++++++++++++
- src/cmd/go/testdata/script/mod_get_future.txt      |   2 +-
- src/cmd/go/testdata/script/mod_go_version.txt      |   4 +-
- src/cmd/go/testdata/script/mod_goline_too_new.txt  |   8 +-
- src/cmd/go/testdata/script/mod_toolchain.txt       |  87 ++++++------
- src/cmd/go/testdata/script/old_tidy_toolchain.txt  |  28 ++++
- 47 files changed, 848 insertions(+), 126 deletions(-)
+ src/runtime/mgcpacer.go |  2 +-
+ src/runtime/proc.go     | 29 ++++++++++++++---------------
+ src/runtime/runtime2.go |  2 +-
+ 3 files changed, 16 insertions(+), 17 deletions(-)

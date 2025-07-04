@@ -1,13 +1,28 @@
-commit 33f3afa7afac66f91ba281521db26ea932ead5a4
+commit 6aa6fdcf71c9efa4c61e2db1eaf6a84cc720a855
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 31 17:29:59 2012 -0500
+Date:   Tue Jan 31 16:53:43 2012 -0500
 
-    gc: diagnose \ in import path
+    build: remove ./ from buildscripts
     
-    R=ken2
+    Fixes #2753.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5609044
+    https://golang.org/cl/5609043
 
- src/cmd/gc/lex.c |  5 +++++
- test/import5.go  | 11 +++++++++++
- 2 files changed, 16 insertions(+)
+ src/buildscript.sh               |   1 +
+ src/buildscript/darwin_386.sh    | 212 ++++++++++++++++++-------------------
+ src/buildscript/darwin_amd64.sh  | 210 ++++++++++++++++++-------------------
+ src/buildscript/freebsd_386.sh   | 212 ++++++++++++++++++-------------------
+ src/buildscript/freebsd_amd64.sh | 210 ++++++++++++++++++-------------------
+ src/buildscript/linux_386.sh     | 212 ++++++++++++++++++-------------------
+ src/buildscript/linux_amd64.sh   | 210 ++++++++++++++++++-------------------
+ src/buildscript/linux_arm.sh     | 218 +++++++++++++++++++--------------------
+ src/buildscript/netbsd_386.sh    | 212 ++++++++++++++++++-------------------
+ src/buildscript/netbsd_amd64.sh  | 210 ++++++++++++++++++-------------------
+ src/buildscript/openbsd_386.sh   | 212 ++++++++++++++++++-------------------
+ src/buildscript/openbsd_amd64.sh | 210 ++++++++++++++++++-------------------
+ src/buildscript/plan9_386.sh     | 212 ++++++++++++++++++-------------------
+ src/buildscript/windows_386.sh   | 216 +++++++++++++++++++-------------------
+ src/buildscript/windows_amd64.sh | 214 +++++++++++++++++++-------------------
+ 15 files changed, 1486 insertions(+), 1485 deletions(-)

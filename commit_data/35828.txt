@@ -1,30 +1,22 @@
-commit 11f1fab4dfe59f09f322b6493a2b9c5d0ae99bfa
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Wed Dec 13 09:56:04 2017 +0900
+commit f69ad10377b1817e3db57851226a23973caa584e
+Author: Henry Clifford <h.a.clifford@gmail.com>
+Date:   Fri Mar 9 22:28:55 2018 +0000
 
-    go/doc: make examples that depend on top-level decls playable
+    mime/multipart: test for presence of filename instead of content-type
     
-    Currently, the following example cannot run in playground:
+    Fixes #24041
     
-        func a() {
-            fmt.Println("A")
-        }
+    Preserving the intended fix in https://go.googlesource.com/go/+/81ec7256072ed5e20b8827c583193258769aebc0
     
-        func ExampleA() {
-            a()
-        }
-    
-    This CL solves it.
-    
-    Fixes #23095
-    
-    Change-Id: I5a492ff886a743f20cb4ae646e8453bde9c5f0da
-    Reviewed-on: https://go-review.googlesource.com/83615
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I600d3d7edc74ca072a066739e2ef3235877d808f
+    GitHub-Last-Rev: 14973d7c2bf4022c28ef4b4984ec3cd352c1d4d8
+    GitHub-Pull-Request: golang/go#24104
+    Reviewed-on: https://go-review.googlesource.com/96975
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/doc/example.go      | 122 ++++++++++++++++++++++++++++++++++-----------
- src/go/doc/example_test.go | 114 +++++++++++++++++++++++++++++++++++++++++-
- src/go/doc/reader.go       |   2 +
- 3 files changed, 206 insertions(+), 32 deletions(-)
+ src/mime/multipart/formdata.go      |  3 +--
+ src/mime/multipart/formdata_test.go | 24 ++++++++++++++++++++++++
+ src/mime/multipart/multipart.go     | 10 ++++++++++
+ 3 files changed, 35 insertions(+), 2 deletions(-)

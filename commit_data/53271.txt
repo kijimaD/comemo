@@ -1,25 +1,24 @@
-commit 4042b90001490d3ef7418d1c6ff83aa769213bed
-Author: Sean Liao <sean@liao.dev>
-Date:   Sat Jul 9 19:08:59 2022 +0100
+commit 52d0667e6ba69059422a138dd6589f3f697fc0db
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Aug 8 16:07:05 2022 +0000
 
-    os: implement fs.ReadFileFS for DirFS
+    cmd/compile,runtime: panic when unsafe.Slice param is nil and > 0
     
-    Use the os.ReadFile implementation to handle
-    sysfs files not reporting size properly via stat.
+    Fixes #54092
     
-    Fixes #53761
-    
-    Change-Id: I6f34515e8a211e3659f4f6c3598fae7ec0c86975
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416775
+    Change-Id: Ib917922ed36ee5410e5515f812737203c44f46ae
+    GitHub-Last-Rev: dfd0c3883cf8b10479d9c5b389baa1a04c52dd34
+    GitHub-Pull-Request: golang/go#54107
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419755
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/os/file.go    | 12 ++++++++++++
- src/os/os_test.go | 17 +++++++++++++++++
- 2 files changed, 29 insertions(+)
+ src/cmd/compile/internal/walk/builtin.go | 19 +++++++++++++++++++
+ src/runtime/crash_test.go                |  8 ++++++++
+ src/runtime/slice.go                     |  6 ++++++
+ src/runtime/testdata/testprog/unsafe.go  | 12 ++++++++++++
+ 4 files changed, 45 insertions(+)

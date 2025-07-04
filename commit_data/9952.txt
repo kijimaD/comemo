@@ -1,14 +1,15 @@
-commit 145c18365e09434d1571625b1edea5b770cb17cf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 13 09:03:24 2011 -0700
+commit bf9c778fe22f78925547646e71404773021c2cb9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Oct 13 11:06:55 2011 +0300
 
-    doc: minor homepage tweak
+    gc: pass FlagNoPointers to runtime.new
     
-    Don't imply that the tour isn't browser-based.
-    
-    R=adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5265041
+    https://golang.org/cl/5151043
 
- doc/root.html | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/gc/builtin.c.boot  | 2 +-
+ src/cmd/gc/runtime.go      | 2 +-
+ src/cmd/gc/walk.c          | 2 +-
+ src/pkg/runtime/malloc.goc | 6 ++++--
+ 4 files changed, 7 insertions(+), 5 deletions(-)

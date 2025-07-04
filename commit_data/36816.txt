@@ -1,24 +1,18 @@
-commit 0906d648aa173f65aaafd6296d43247b426f05f3
-Author: Austin Clements <austin@google.com>
-Date:   Sun Aug 26 21:33:26 2018 -0400
+commit fb0d6e4bd18da45fdb2b88640d368e919d3b6c7c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 30 16:55:26 2018 +0200
 
-    runtime: eliminate gchelper mechanism
+    cmd/dist: remove external linking check for macOS 10.6
     
-    Now that we do no mark work during mark termination, we no longer need
-    the gchelper mechanism.
+    This was missed in CL 115236.
     
-    Updates #26903.
-    Updates #17503.
+    Updates #23122
     
-    Change-Id: Ie94e5c0f918cfa047e88cae1028fece106955c1b
-    Reviewed-on: https://go-review.googlesource.com/c/134785
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I5a64bd02d356c21c0e5d02dafafb3721f8dd8e06
+    Reviewed-on: https://go-review.googlesource.com/115276
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go      | 68 +++----------------------------------
- src/runtime/mgcmark.go  |  4 ---
- src/runtime/proc.go     | 89 ++-----------------------------------------------
- src/runtime/runtime2.go |  1 -
- src/runtime/stack.go    |  4 +--
- 5 files changed, 9 insertions(+), 157 deletions(-)
+ src/cmd/dist/test.go | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

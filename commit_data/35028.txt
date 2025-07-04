@@ -1,17 +1,12 @@
-commit 7ba12c16f49dcaddce7009e1d86a63908cba4222
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 17 14:53:56 2018 -0700
+commit 28736053ad2829dcf576d05412a2def8bc3a1549
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Dec 6 10:59:40 2017 +0100
 
-    go/internal/gcimporter: add unit tests for blank parameter names
+    doc: fix two spelling mistakes in contribute.html
     
-    cmd/compile internally rewrites blank return parameters to "~bN". Add
-    a test to make sure this isn't exposed via the go/types API.
-    
-    Change-Id: I319644dc5adf483ed30520fd8e9d88cf5cea9751
-    Reviewed-on: https://go-review.googlesource.com/107616
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ife60468d508f90321733ebdbdb0e6cf443ba1659
+    Reviewed-on: https://go-review.googlesource.com/82156
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/internal/gcimporter/gcimporter_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

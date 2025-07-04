@@ -1,18 +1,16 @@
-commit 54cf7760203c2b138d9ecf653cd3b2402444cf9b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 12 18:38:33 2019 +0000
+commit d410642f498cb96734c55a4c0d91256671a03bae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jun 30 16:19:58 2019 -0700
 
-    net/http: add some debugging to TestDontCacheBrokenHTTP2Conn
+    runtime: use correct register in darwin/386 pipe_trampoline
     
-    Not a fix, but will give us more info when it flakes again.
+    Updates #31264
     
-    Updates #35113
-    
-    Change-Id: I2f90c24530c1bea81dd9d8c7a59f4b0640dfa4c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206819
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I745744dd3fdaa432d70e8dc9336547017bac89ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184377
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
 
- src/net/http/transport_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/runtime/sys_darwin_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

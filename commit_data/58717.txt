@@ -1,19 +1,25 @@
-commit 19f779dd4f44d12070d4302b72d6e0e93ab939f9
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jan 27 13:02:27 2025 +0100
+commit 34416d7f6f93cd6562636e311c362ebe421f1a4c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 5 12:56:04 2023 -0800
 
-    crypto/internal/fips140test: make TestCASTFailures standalone
+    cmd/compile: fix escape analysis of string min/max
     
-    We want it to work even when fips140test.test is cross-compiled and
-    moved to a different machine. Also, make it log more.
+    When I was plumbing min/max support through the compiler, I was
+    thinking mostly about numeric argument types. As a result, I forgot
+    that escape analysis would need to be aware that min/max can operate
+    on string values, which contain pointers.
     
-    Change-Id: I6a6a46566712f05f6b551ecde75672baf2c0fc6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644644
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Fixes #64565.
+    
+    Change-Id: I36127ce5a2da942401910fa0f9de922726c9f94d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547715
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/internal/fips140test/cast_test.go | 65 +++++++++++++++++++++-------
- 1 file changed, 49 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/escape/call.go | 13 ++++++++++---
+ test/escape_calls.go                    |  7 +++++++
+ test/fixedbugs/issue64565.go            | 15 +++++++++++++++
+ test/fixedbugs/issue64565.out           |  3 +++
+ 4 files changed, 35 insertions(+), 3 deletions(-)

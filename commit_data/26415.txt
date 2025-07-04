@@ -1,18 +1,18 @@
-commit ca0f5c97409114f2cd2b30adfca63a4c2bcac0b2
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 21 14:19:57 2016 +1100
+commit 754216d1d7642e8f254d0c8b8cd47ce3426ea051
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 20 16:08:31 2016 -0800
 
-    cmd/internal/obj: move Nocache helper to arm back end
+    text/template: fix documentation for pipelines
     
-    The obj.Nocache helper was only used by the arm back end, move it there.
+    The header was in the wrong place, so the definition of a pipeline
+    was not in the section labeled "Pipelines".
     
-    Change-Id: I5c9faf995499991ead1f3d8c8ffc3b6af7346876
-    Reviewed-on: https://go-review.googlesource.com/20868
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #13972
+    
+    Change-Id: Ibca791a4511ca112047b57091c391f6e959fdd78
+    Reviewed-on: https://go-review.googlesource.com/18775
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go | 17 +++++++++++++----
- src/cmd/internal/obj/arm/obj5.go |  2 +-
- src/cmd/internal/obj/go.go       |  9 ---------
- 3 files changed, 14 insertions(+), 14 deletions(-)
+ src/text/template/doc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

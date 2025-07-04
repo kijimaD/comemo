@@ -1,20 +1,39 @@
-commit a9fdd6bba281c98cbfd61803bbf92bcd6bd8ed49
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 12 11:00:31 2019 -0400
+commit f07a99e30a86e302724fbcb189defd5ebb80b8df
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Mar 19 16:36:21 2019 -0400
 
-    doc/go1.14: start doc; note end of NaCl platform support
+    cmd/go: recognize android suffix when constructing build list
     
-    This skeleton follows the model of CL 174521,
-    with additions from 'relnote -html'.
+    cmd/go/internal/imports.ScanDir extracts a list of imports from a
+    directory. It's used instead of go/build.ImportDir when constructing
+    the build list. GOOS and GOARCH may be used to filter files.
     
-    Updates #33738
-    Updates #30439
+    With this change, imports.MatchFile understands that when the
+    "android" tag is set, the "linux" tag is implied.
     
-    Change-Id: I0f88ff7f231b7728dca0695143f2f2eda74d60c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195058
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Fixes #30888
+    
+    Change-Id: Ia29bd1590b69c9183ab14a879d5fc1b639f8eaef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168378
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.14.html | 140 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 140 insertions(+)
+ src/cmd/go/internal/imports/build.go               |  6 ++--
+ src/cmd/go/internal/imports/scan_test.go           | 41 ++++++++++++++++++----
+ .../internal/imports/testdata/android/a_android.go |  3 ++
+ .../imports/testdata/android/b_android_arm64.go    |  3 ++
+ .../internal/imports/testdata/android/c_linux.go   |  3 ++
+ .../imports/testdata/android/d_linux_arm64.go      |  3 ++
+ src/cmd/go/internal/imports/testdata/android/e.go  |  5 +++
+ src/cmd/go/internal/imports/testdata/android/f.go  |  5 +++
+ src/cmd/go/internal/imports/testdata/android/g.go  |  5 +++
+ .../go/internal/imports/testdata/android/tags.txt  |  1 +
+ .../go/internal/imports/testdata/android/want.txt  |  6 ++++
+ src/cmd/go/internal/imports/testdata/star/tags.txt |  1 +
+ src/cmd/go/internal/imports/testdata/star/want.txt |  4 +++
+ .../imports/testdata/{import1 => star}/x.go        |  0
+ .../imports/testdata/{import1 => star}/x1.go       |  0
+ .../imports/testdata/{import1 => star}/x_darwin.go |  0
+ .../testdata/{import1 => star}/x_windows.go        |  0
+ 17 files changed, 76 insertions(+), 10 deletions(-)

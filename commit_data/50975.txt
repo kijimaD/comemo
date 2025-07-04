@@ -1,22 +1,20 @@
-commit f841722853db7911cb5f65d1045e9ecbb5a0d08c
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Oct 12 11:04:50 2022 -0500
+commit 81031300a7139cfb59f704bcbb97e333590aacd0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 21 16:19:26 2021 -0800
 
-    cmd/compile: enable lateLower pass on PPC64
+    misc/cgo/testcshared: skip TestGo2C2Go on Windows
     
-    This allows new rules to be added which would otherwise
-    greatly overcomplicate the generic rules, like CC opcode
-    conversion or zero register simplification.
+    For #27019
+    Fixes #49457
     
-    Change-Id: I1533f0fa07815aff99ed8ab890077bd22a3bfbf5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442595
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I398abb7b555196ced34a6dd04b68195bf8bbdd38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365994
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Patrik Nyblom <pnyb@google.com>
 
- src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules |  5 +++++
- src/cmd/compile/internal/ssa/config.go                 |  1 +
- src/cmd/compile/internal/ssa/rewritePPC64latelower.go  | 11 +++++++++++
- 3 files changed, 17 insertions(+)
+ misc/cgo/testcshared/cshared_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,17 +1,13 @@
-commit ef48dfa310450b54fcb3eb4b33ca43329df7c824
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Sat Sep 8 10:46:55 2012 +0900
+commit d4cdfcf3d99e357b22e4098ae8dfbb04be02fd5d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 7 17:15:42 2012 -0700
 
-    exp/locale/collate: added indices to builder for reusing blocks between locales.
-    Refactored build + buildTrie into build + buildOrdering.
-    Note that since the tailoring code is not checked in yet, all tailorings are identical
-    to root.  The table therefore should not and does not grow at this point.
+    text/scanner: skip first character if it's a BOM
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/6500087
+    https://golang.org/cl/6493097
 
- src/pkg/exp/locale/collate/build/builder.go      | 124 +++++++++++++----------
- src/pkg/exp/locale/collate/build/builder_test.go |   8 +-
- src/pkg/exp/locale/collate/build/order.go        |   2 +
- 3 files changed, 77 insertions(+), 57 deletions(-)
+ src/pkg/text/scanner/scanner.go      | 12 ++++++------
+ src/pkg/text/scanner/scanner_test.go |  7 +++++--
+ 2 files changed, 11 insertions(+), 8 deletions(-)

@@ -1,14 +1,14 @@
-commit 2a3dbb01d7a9a03c5c2f6439e0a3361bb5a1e245
+commit c80a32b581770248becf79950b7c77f415eed0d4
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Mar 30 14:07:40 2012 +0800
+Date:   Fri Mar 30 14:06:12 2012 +0800
 
-    doc/code.html: fix broken dashboard link
-            Fixes #3420.
+    doc/go1: minor fixes
+            Fixes #3427.
             Part of issue 3424.
     
-    R=golang-dev, cldorian, adg, r
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5958046
+    https://golang.org/cl/5959045
 
- doc/code.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

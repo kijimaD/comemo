@@ -1,20 +1,35 @@
-commit ff6dd7125e70976063c412d9f52f8b19ee2c08fb
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 19 13:43:51 2023 -0400
+commit 01d12c947c2277a46477597c2148083744ccf284
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 24 12:06:27 2022 -0500
 
-    cmd/go: move all Shell methods to shell.go
+    crypto/aes: rewrite ppc64le asm-cbc routine
     
-    This is a pure code movement change.
+    This loads the keys once per call, not once per block. This
+    has the effect of unrolling the inner loop too. This allows
+    decryption to scale better with available hardware.
     
-    Now that we've introduced a Shell type that lives in shell.go, move
-    all of its methods (which used to be on Builder) to shell.go as well.
+    Noteably, encryption serializes crypto ops, thus no
+    performance improvement is seen, but neither is it reduced.
     
-    Change-Id: Ie1802353c8a64590219b08893e8c74649228e5e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536536
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Care is also taken to explicitly clear keys from registers
+    as was done implicitly in the prior version.
+    
+    Also, fix a couple of typos from copying the asm used to
+    load ESPERM.
+    
+    Performance delta on POWER9:
+    
+    name             old time/op    new time/op    delta
+    AESCBCEncrypt1K    1.10µs ± 0%    1.10µs ± 0%   +0.55%
+    AESCBCDecrypt1K     793ns ± 0%     415ns ± 0%  -47.70%
+    
+    Change-Id: I52ca939fefa1d776a390a0869e7f4564058942b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441816
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/go/internal/work/exec.go  | 574 ------------------------------------
- src/cmd/go/internal/work/shell.go | 590 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 590 insertions(+), 574 deletions(-)
+ src/crypto/aes/asm_ppc64x.s | 277 +++++++++++++++++++++++---------------------
+ 1 file changed, 147 insertions(+), 130 deletions(-)

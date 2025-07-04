@@ -1,24 +1,21 @@
-commit 910f041ff0cdf90dbcd3bd22a272b9b7205a5add
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 8 14:36:47 2023 -0500
+commit 0bbd05b8262624bb8e8aea43fa76934fbff8fc81
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Sat Mar 26 02:10:29 2022 +0000
 
-    cmd/go/internal/test: refresh flagdefs.go and fix test
+    time: add Duration.Abs
     
-    The tests for cmd/go/internal/test were not running at all due to a
-    missed call to m.Run in TestMain. That masked two missing vet
-    analyzers ("directive" and "timeformat") and a missed update to the
-    generator script in CL 355452.
+    Fixes #51414
     
-    Fixes #58415.
-    
-    Change-Id: I7b0315952967ca07a866cdaa5903478b2873eb7a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466635
+    Change-Id: Ia3b1674f2a902c8396fe029397536643a3bc1784
+    GitHub-Last-Rev: 67159648af09e7a8ac2825a1fe71b2de3fb9d748
+    GitHub-Pull-Request: golang/go#51739
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393515
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/internal/test/flagdefs.go      | 2 ++
- src/cmd/go/internal/test/flagdefs_test.go | 2 ++
- src/cmd/go/internal/test/genflags.go      | 2 +-
- 3 files changed, 5 insertions(+), 1 deletion(-)
+ api/next/51414.txt    |  1 +
+ src/time/time.go      | 13 +++++++++++++
+ src/time/time_test.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+)

@@ -1,30 +1,24 @@
-commit 659570915481c87559f0197c9980e8cbac8e2c33
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 19 14:06:54 2016 -0400
+commit 0a2a64d85d52ad51de34d39bc5685c39c0e1e32a
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Jul 17 14:22:15 2016 -0700
 
-    net/url: make URL implement encoding.BinaryMarshaler, BinaryUnmarshaler
+    encoding/gob: error out instead of panicking on nil dereference
     
-    This makes it possible to use URLs with gob.
+    Do not panic when we encounter nil interface values which are
+    invalid values for gob. Previously this wasn't caught yet
+    we were calling reflect.*.Type() on reflect.Invalid values
+    thereby causing panic:
+      `panic: reflect: call of reflect.Value.Type on zero Value.`
+    which is a panic not enforced by encoding/gob itself.
+    We can catch this and send back an error to the caller.
     
-    Ideally we'd also implement TextMarshaler and TextUnmarshaler,
-    but that would change the JSON encoding of a URL from something like:
+    Fixes #16204
     
-            {"Scheme":"https","Opaque":"","User":null,"Host":"www.google.com","Path":"/x","RawPath":"","ForceQuery":false,"RawQuery":"y=z","Fragment":""}
-    
-    to something like:
-    
-            "https://www.google.com/x?y=z"
-    
-    That'd be nice, but it would break code expecting the old form.
-    
-    Fixes #10964.
-    
-    Change-Id: I83f06bc2bedd2ba8a5d8eef03ea0056d045c258f
-    Reviewed-on: https://go-review.googlesource.com/31467
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie646796db297759a74a02eee5267713adbe0c3a0
+    Reviewed-on: https://go-review.googlesource.com/24989
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
 
- src/net/url/url.go      | 16 ++++++++++++++
- src/net/url/url_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+)
+ src/encoding/gob/encoder.go      |  3 +++
+ src/encoding/gob/encoder_test.go | 14 ++++++++++++++
+ 2 files changed, 17 insertions(+)

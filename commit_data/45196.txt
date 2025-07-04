@@ -1,26 +1,21 @@
-commit b6e1c336037e53ae095e84cfed4a312d8fd3ad45
-Author: David Chase <drchase@google.com>
-Date:   Fri Apr 16 00:15:31 2021 -0400
+commit 15a11cedc6a9aac722369f134b76a157a559e050
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Oct 6 13:16:46 2020 -0400
 
-    cmd/compile: spill all the parameters around morestack
+    cmd/go: support walking through overlay directories
     
-    former code only spilled those parameters mentioned in code
-    AT THE REGISTER LEVEL, this caused problems with liveness
-    sometimes (which worked on whole variables including
-    aggregates).
-    
-    Updates #40724.
-    
-    Change-Id: Ib9fdc50d95d1d2b1f1e405dd370540e88582ac71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310690
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I7d9d75aa1dbc34fec5073ca36091c626b9dd4920
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261537
+    Trust: Michael Matloob <matloob@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/amd64/ssa.go      |  4 ++--
- src/cmd/compile/internal/ssa/func.go       |  2 +-
- src/cmd/compile/internal/ssa/location.go   | 28 ++++------------------------
- src/cmd/compile/internal/ssa/stackalloc.go |  9 ---------
- src/cmd/compile/internal/ssagen/ssa.go     | 24 ++++++++++++++++++------
- 5 files changed, 25 insertions(+), 42 deletions(-)
+ src/cmd/go/internal/fsys/fsys.go            |  78 ++++++-
+ src/cmd/go/internal/fsys/fsys_test.go       | 338 +++++++++++++++++++++++++++-
+ src/cmd/go/internal/modload/search.go       |   3 +-
+ src/cmd/go/internal/search/search.go        |   8 +-
+ src/cmd/go/testdata/script/list_overlay.txt |  21 +-
+ 5 files changed, 434 insertions(+), 14 deletions(-)

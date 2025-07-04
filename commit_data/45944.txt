@@ -1,35 +1,26 @@
-commit bfbb288574841f2db2499a580d7bf985a5df4556
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jul 25 16:26:13 2021 -0700
+commit 0f9f27287b6eaac1634248e325aaab848e0dfd55
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 30 00:01:26 2020 -0800
 
-    runtime: remove adjustTimers counter
+    [dev.regabi] cmd/compile: remove types.InitSyms
     
-    In CL 336432 we changed adjusttimers so that it no longer cleared
-    timerModifiedEarliest if there were no timersModifiedEarlier timers.
-    This caused some Google internal tests to time out, presumably due
-    to the increased contention on timersLock.  We can avoid that by
-    simply not skipping the loop in adjusttimers, which lets us safely
-    clear timerModifiedEarliest.  And if we don't skip the loop, then there
-    isn't much reason to keep the count of timerModifiedEarlier timers at all.
-    So remove it.
+    It's not types's responsibility to understand how package
+    initialization is implemented. Instead, have gc keep track of the
+    order that packages were imported, and then look for inittask
+    declarations.
     
-    The effect will be that for programs that create some timerModifiedEarlier
-    timers and then remove them all, the program will do an occasional
-    additional loop over all the timers.  And, programs that have some
-    timerModifiedEarlier timers will always loop over all the timers,
-    without the quicker exit when they have all been seen.  But the loops
-    should not occur all that often, due to timerModifiedEarliest.
+    Also, use resolve to force importing of the inittask's export data, so
+    that we can get the appropriate linker symbol index. (This is also why
+    this CL doesn't satisfy "toolstash -cmp".)
     
-    For #47329
-    
-    Change-Id: I7b244c1244d97b169a3c7fbc8f8a8b115731ddee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337309
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5b706497d4a8d1c4439178863b4a8dba4da0f5a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274006
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go     |  1 -
- src/runtime/runtime2.go |  6 ------
- src/runtime/time.go     | 53 ++++++++-----------------------------------------
- 3 files changed, 8 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/gc/init.go   | 14 ++++++++++++--
+ src/cmd/compile/internal/gc/noder.go  |  3 +++
+ src/cmd/compile/internal/types/pkg.go |  6 ------
+ 3 files changed, 15 insertions(+), 8 deletions(-)

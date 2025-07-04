@@ -1,17 +1,31 @@
-commit 8e25f98ba29ae9f11729503d23dada0e24e9bcac
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Thu Feb 29 06:58:29 2024 +0000
+commit 2a30b34e293b6308dd1304dfedc96e0a7858476f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 13 17:36:36 2023 -0400
 
-    cmd/internal/buildid: fix typo in comment
+    net/http: avoid making a request to a closed server in TestServerShutdown
     
-    Change-Id: I271f25aefaace61935d55a1b6b7c026d022d92a7
-    GitHub-Last-Rev: 304e3ee979f4fde58184e7035cd5d0d6b50bca74
-    GitHub-Pull-Request: golang/go#66023
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/567918
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    As soon as the test server closes its listener, its port may be reused
+    for another test server. On some platforms port reuse takes a long
+    time, because they cycle through the available ports before reusing an
+    old one. However, other platforms reuse ports much more aggressively.
+    net/http shouldn't know or care which kind of platform it is on —
+    dialing wild connections is risky and can interfere with other tests
+    no matter what platform we do it on.
+    
+    Instead of making the second request after the server has completely
+    shut down, we can start (and finish!) the entire request while we are
+    certain that the listener has been closed but the port is still open
+    serving an existing request. If everything synchronizes as we expect,
+    that should guarantee that the second request fails.
+    
+    Fixes #56421.
+    
+    Change-Id: I56add243bb9f76ee04ead8f643118f9448fd1280
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476036
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/internal/buildid/buildid_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/serve_test.go | 77 ++++++++++++++++++++++++++++++----------------
+ 1 file changed, 50 insertions(+), 27 deletions(-)

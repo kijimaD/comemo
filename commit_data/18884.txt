@@ -1,13 +1,16 @@
-commit e45f5cd5f17c88f979adcbebaa3bead9b0d7cc1f
-Author: Chris Manghane <cmang@golang.org>
-Date:   Mon Mar 17 18:30:02 2014 -0700
+commit 2701dadbac7d3bf166124f19659f9b906a026e0a
+Author: Luka Zakrajšek <tr00.g33k@gmail.com>
+Date:   Mon Mar 17 15:52:52 2014 -0700
 
-    cmd/gc: Add tests for self-referential array types.
+    net/http: Request Body error should not be ignored.
     
-    LGTM=gri, iant
-    R=gri, iant
+    Fixes #7521.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/77050045
+    https://golang.org/cl/76320043
 
- test/fixedbugs/issue7525.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/pkg/net/http/requestwrite_test.go | 40 +++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/transfer.go          | 15 +++++++++++--
+ 2 files changed, 53 insertions(+), 2 deletions(-)

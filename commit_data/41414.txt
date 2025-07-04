@@ -1,20 +1,22 @@
-commit 088aad5ff65120587aaba2f63aba5cbc41a6b258
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jan 23 14:20:53 2020 -0800
+commit a1b0af9904e3cc1cd169da7f0e5ad81420cd728e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 1 12:52:16 2019 -0400
 
-    cmd/compile: use ellipses in wasm rules
+    internal/goversion: update to 1.14
     
-    Also, explicitly zero AuxInt in some ops (like Div),
-    to make it clear why they do not use an ellipsis.
+    In #33848, we propose to use 'go 1.14' in the go.mod file to enable
+    new default behavior. That means that 'go mod init' needs to start
+    generating that directive by default, which requires the presence of
+    the updated version tag in the build environment.
     
-    Passes toolstash-check -all.
+    Updates #33848
     
-    Change-Id: I2294d10e47d904d03e489e6ca43d46679323f75d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217009
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9f3b8845fdfd843fd76de32f4b55d8f765d691de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198318
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/Wasm.rules |  172 +-
- src/cmd/compile/internal/ssa/rewriteWasm.go | 2451 +++++----------------------
- 2 files changed, 542 insertions(+), 2081 deletions(-)
+ src/go/build/doc.go                 | 1 +
+ src/internal/goversion/goversion.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

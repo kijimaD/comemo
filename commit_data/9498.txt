@@ -1,13 +1,21 @@
-commit f172338a15c0d03bd89264ddcad374c76d4d4584
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Fri Aug 26 11:31:59 2011 +1000
+commit 3a1f29beec0435cc84921de207933a3c56e1bc9b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 17:46:43 2011 -0700
 
-    image/tiff: add a decode benchmark.
+    godoc: added systematic throttling to indexing goroutine
     
-    R=nigeltao
+    - implemented stand-alone Throttle mechanism
+    - added new flag -index_throttle to godoc
+    - index throttling enables index creation when running
+      godoc on app engine as it keeps godoc responsive
+    
+    R=rsc, dsymonds, adg
     CC=golang-dev
-    https://golang.org/cl/4917049
+    https://golang.org/cl/4963043
 
- src/pkg/image/tiff/reader_test.go                  |  25 +++++++++++++++++++++
- .../tiff/testdata/video-001-uncompressed.tiff      | Bin 0 -> 46674 bytes
- 2 files changed, 25 insertions(+)
+ src/cmd/godoc/Makefile    |  1 +
+ src/cmd/godoc/doc.go      |  5 +++
+ src/cmd/godoc/godoc.go    |  7 ++--
+ src/cmd/godoc/index.go    |  5 ++-
+ src/cmd/godoc/throttle.go | 88 +++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 102 insertions(+), 4 deletions(-)

@@ -1,28 +1,20 @@
-commit b6c16068897c370661f03af91e8ba46860408e61
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 8 16:33:45 2022 -0700
+commit 4fbb5c8666eef0267704dd074763442efb2f7c4a
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Aug 20 10:19:12 2021 -0400
 
-    internal/goarch, internal/goos: update generators for syslist.go
+    go/types: use TypeList in the Inferred struct
     
-    Update the generator programs for the changes to syslist.go in CL
-    390274 and the changes to the generated files in CL 344955.
+    This is for consistency with how we report TArgs elsewhere, and in case
+    we ever want to share an internal slice with inference reporting.
     
-    Tested by running the programs and verifying that the files did not
-    change.
-    
-    Fixes #53299
-    
-    Change-Id: I2b2c5769f7e9283aa05c803256d2ea1eb9ad1547
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411334
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia8b705a155f4f82bd8da8dc2457289810f875f5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343934
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/syslist.go          |  4 ++++
- src/internal/goarch/gengoarch.go | 19 +++++++++++--------
- src/internal/goos/gengoos.go     | 19 +++++++++++--------
- 3 files changed, 26 insertions(+), 16 deletions(-)
+ src/go/types/api.go      | 2 +-
+ src/go/types/api_test.go | 9 +++++----
+ src/go/types/check.go    | 4 ++--
+ 3 files changed, 8 insertions(+), 7 deletions(-)

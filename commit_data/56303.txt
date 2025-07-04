@@ -1,16 +1,20 @@
-commit 5419f652b6593a0916f7b2155435b945e8ee0fb4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 23 17:22:02 2024 -0700
+commit d816f85f787bfa5114787687b085194d1cd3b468
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Apr 25 16:41:51 2023 -0500
 
-    spec: clarify prose for range over numeric range expressions
+    cmd/link/internal/loadelf: set AttrExternal on text section symbols
     
-    Fixes #66967.
+    PPC64 processes external object relocations against the section
+    symbols. This needs to be set correctly to determine the type of
+    PLT stub to generate when both Go and External code make PLT calls.
     
-    Change-Id: I7b9d62dcb83bad60b2ce74e2e2bf1a36c6a8ae38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581256
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Change-Id: I5abdd5a0473866164083c33e80324dffcc1707f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488895
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go_spec.html | 38 ++++++++++++++++++++++----------------
- 1 file changed, 22 insertions(+), 16 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 1 +
+ 1 file changed, 1 insertion(+)

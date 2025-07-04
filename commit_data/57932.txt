@@ -1,63 +1,21 @@
-commit fb9b946adcc8389aafaa43866f3cc26b12411439
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Oct 18 16:31:29 2024 +0800
+commit 3602465954016ea1daef407764a7e4f23ab1c198
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Sep 8 08:58:29 2023 -0400
 
-    cmd/compile: optimize math/bits.OnesCount{16,32,64} implementation on loong64
+    net/http: pattern.conflictsWith
     
-    Use Loong64's LSX instruction VPCNT to implement math/bits.OnesCount{16,32,64}
-    and make it intrinsic.
+    Add the conflictsWith method, which determines whether two patterns
+    conflict with each other.
     
-    Benchmark results on loongson 3A5000 and 3A6000 machines:
+    Updates #61410.
     
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A5000-HV @ 2500.00MHz
-                |   bench.old   |   bench.new                          |
-                |    sec/op     |    sec/op       vs base               |
-    OnesCount      4.413n ± 0%     1.401n ± 0%   -68.25% (p=0.000 n=10)
-    OnesCount8     1.364n ± 0%     1.363n ± 0%         ~ (p=0.130 n=10)
-    OnesCount16    2.112n ± 0%     1.534n ± 0%   -27.37% (p=0.000 n=10)
-    OnesCount32    4.533n ± 0%     1.529n ± 0%   -66.27% (p=0.000 n=10)
-    OnesCount64    4.565n ± 0%     1.531n ± 1%   -66.46% (p=0.000 n=10)
-    geomean        3.048n          1.470n        -51.78%
-    
-    goos: linux
-    goarch: loong64
-    pkg: math/bits
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                |   bench.old   |   bench.new                          |
-                |    sec/op     |    sec/op       vs base              |
-    OnesCount       3.553n ± 0%     1.201n ± 0%  -66.20% (p=0.000 n=10)
-    OnesCount8     0.8021n ± 0%    0.8004n ± 0%   -0.21% (p=0.000 n=10)
-    OnesCount16     1.216n ± 0%     1.000n ± 0%  -17.76% (p=0.000 n=10)
-    OnesCount32     3.006n ± 0%     1.035n ± 0%  -65.57% (p=0.000 n=10)
-    OnesCount64     3.503n ± 0%     1.035n ± 0%  -70.45% (p=0.000 n=10)
-    geomean         2.053n          1.006n       -51.01%
-    
-    Change-Id: I07a5b8da2bb48711b896387ec7625145804affc8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620978
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id4f9a471dc9d0420d927a68d2864128a096b74f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526616
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/symtab.go              |   1 +
- src/cmd/compile/internal/loong64/ssa.go            |  12 +
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |   4 +
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  48 ++-
- src/cmd/compile/internal/ssa/opGen.go              | 432 +++++++++++----------
- src/cmd/compile/internal/ssa/rewriteLOONG64.go     |  65 ++++
- src/cmd/compile/internal/ssagen/intrinsics.go      |  40 ++
- src/cmd/compile/internal/ssagen/intrinsics_test.go |   4 +
- src/cmd/compile/internal/ssagen/ssa.go             |   1 +
- .../compile/internal/typecheck/_builtin/runtime.go |   1 +
- src/cmd/compile/internal/typecheck/builtin.go      |   1 +
- src/cmd/internal/goobj/builtinlist.go              |   1 +
- src/internal/cpu/cpu.go                            |   1 +
- src/internal/cpu/cpu_loong64.go                    |   9 +-
- src/internal/cpu/cpu_loong64_hwcap.go              |  10 +
- src/runtime/cpuflags.go                            |   4 +-
- src/runtime/proc.go                                |   2 +
- test/codegen/mathbits.go                           |   4 +
- 18 files changed, 419 insertions(+), 221 deletions(-)
+ src/net/http/pattern.go      | 188 ++++++++++++++++++++++++++++++++++++
+ src/net/http/pattern_test.go | 224 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 412 insertions(+)

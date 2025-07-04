@@ -1,0 +1,28 @@
+commit 8071f2a1697c2a8d7e93fb1f45285f18303ddc76
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jan 24 16:29:13 2025 -0500
+
+    runtime: mapiter linkname compatibility layer
+    
+    This CL reintroduces the various mapiter* linkname functions with a
+    compatibility layer that is careful to maintain compatibility with users
+    of the linkname.
+    
+    The wrappers are straightforward. Callers of these APIs get an extra
+    layer of indirection, with their hiter containing a pointer to the real
+    maps.Iter. These users will take a minor performance hit from the extra
+    allocation, but this approach should have good long-term
+    maintainability.
+    
+    Fixes #71408.
+    
+    Change-Id: I6a6a636c7574bbd670ff5243dfeb63dfba6dc611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643899
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/linkname_swiss.go | 211 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/map_swiss.go      | 105 ---------------------
+ 2 files changed, 211 insertions(+), 105 deletions(-)

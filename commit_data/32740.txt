@@ -1,118 +1,27 @@
-commit a07176b45a105a8e3bd9685c8e2208f4838c7621
-Author: Ben Shi <powerman1st@163.com>
-Date:   Thu Sep 14 06:52:51 2017 +0000
+commit 95d991d30c59edc4943bd8baf5c664c5f8b1cebe
+Author: Joe Richey joerichey@google.com <joerichey@google.com>
+Date:   Mon May 22 14:36:43 2017 -0700
 
-    cmd/compile: optimize ARM code with MULAF/MULSF/MULAD/MULSD
+    crypto/rand: use blocking getrandom call on Linux when supported
     
-    The go compiler can generate better ARM code with those more
-    efficient FP instructions. And there is little improvement
-    in total but big improvement in special cases.
+    By changing getRandomLinux to immediately use the getrandom() syscall
+    without GRND_NONBLOCK, we now only fall back to reading from
+    /dev/urandom on Linux if the kernel does not support the getrandom()
+    syscall. This means reads for crypto/rand will now block if the kernel
+    has insufficient entropy on Linux kernels after v3.16.
     
-    1. The size of pkg/linux_arm/math.a shrinks by 2.4%.
+    Before, if the kernel had insufficient entropy, it would fall back to
+    reading from /dev/urandom. This would potentially return predictable
+    data.
     
-    2. there is neither improvement nor regression in compilecmp benchmark.
-    name        old time/op       new time/op       delta
-    Template          2.32s ± 2%        2.32s ± 1%    ~     (p=1.000 n=9+10)
-    Unicode           1.32s ± 4%        1.32s ± 4%    ~     (p=0.912 n=10+10)
-    GoTypes           7.76s ± 1%        7.79s ± 1%    ~     (p=0.447 n=9+10)
-    Compiler          37.4s ± 2%        37.2s ± 2%    ~     (p=0.218 n=10+10)
-    SSA               84.8s ± 2%        85.0s ± 1%    ~     (p=0.604 n=10+9)
-    Flate             1.45s ± 2%        1.44s ± 2%    ~     (p=0.075 n=10+10)
-    GoParser          1.82s ± 1%        1.81s ± 1%    ~     (p=0.190 n=10+10)
-    Reflect           5.06s ± 1%        5.05s ± 1%    ~     (p=0.315 n=10+9)
-    Tar               2.37s ± 1%        2.37s ± 2%    ~     (p=0.912 n=10+10)
-    XML               2.56s ± 1%        2.58s ± 2%    ~     (p=0.089 n=10+10)
-    [Geo mean]        4.77s             4.77s       -0.08%
+    Fixes #19274
     
-    name        old user-time/op  new user-time/op  delta
-    Template          2.74s ± 2%        2.75s ± 2%    ~     (p=0.856 n=9+10)
-    Unicode           1.61s ± 4%        1.62s ± 3%    ~     (p=0.693 n=10+10)
-    GoTypes           9.55s ± 1%        9.49s ± 2%    ~     (p=0.056 n=9+10)
-    Compiler          45.9s ± 1%        45.8s ± 1%    ~     (p=0.345 n=9+10)
-    SSA                110s ± 1%         110s ± 1%    ~     (p=0.763 n=9+10)
-    Flate             1.68s ± 2%        1.68s ± 3%    ~     (p=0.616 n=10+10)
-    GoParser          2.14s ± 4%        2.14s ± 1%    ~     (p=0.825 n=10+9)
-    Reflect           5.95s ± 1%        5.97s ± 3%    ~     (p=0.951 n=9+10)
-    Tar               2.94s ± 3%        2.93s ± 2%    ~     (p=0.359 n=10+10)
-    XML               3.03s ± 3%        3.07s ± 6%    ~     (p=0.166 n=10+10)
-    [Geo mean]        5.76s             5.77s       +0.12%
-    
-    name        old text-bytes    new text-bytes    delta
-    HelloSize         588kB ± 0%        588kB ± 0%    ~     (all equal)
-    
-    name        old data-bytes    new data-bytes    delta
-    HelloSize        5.46kB ± 0%       5.46kB ± 0%    ~     (all equal)
-    
-    name        old bss-bytes     new bss-bytes     delta
-    HelloSize        72.9kB ± 0%       72.9kB ± 0%    ~     (all equal)
-    
-    name        old exe-bytes     new exe-bytes     delta
-    HelloSize        1.03MB ± 0%       1.03MB ± 0%    ~     (all equal)
-    
-    3. The performance of Mandelbrot200 improves 15%, though little
-       improvement in total.
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              41.7s ± 1%     41.7s ± 1%     ~     (p=0.264 n=29+23)
-    Fannkuch11-4                24.2s ± 0%     24.1s ± 1%   -0.13%  (p=0.050 n=30+30)
-    FmtFprintfEmpty-4           826ns ± 1%     824ns ± 1%   -0.24%  (p=0.038 n=25+30)
-    FmtFprintfString-4         1.38µs ± 1%    1.38µs ± 0%   -0.42%  (p=0.000 n=27+25)
-    FmtFprintfInt-4            1.46µs ± 1%    1.46µs ± 0%     ~     (p=0.060 n=30+23)
-    FmtFprintfIntInt-4         2.11µs ± 1%    2.08µs ± 0%   -1.04%  (p=0.000 n=30+30)
-    FmtFprintfPrefixedInt-4    2.23µs ± 1%    2.22µs ± 1%   -0.51%  (p=0.000 n=30+30)
-    FmtFprintfFloat-4          4.49µs ± 1%    4.48µs ± 1%   -0.22%  (p=0.004 n=26+30)
-    FmtManyArgs-4              8.06µs ± 1%    8.12µs ± 1%   +0.68%  (p=0.000 n=25+30)
-    GobDecode-4                 104ms ± 1%     104ms ± 2%     ~     (p=0.362 n=29+29)
-    GobEncode-4                92.9ms ± 1%    92.8ms ± 2%     ~     (p=0.786 n=30+30)
-    Gzip-4                      4.12s ± 1%     4.12s ± 1%     ~     (p=0.314 n=30+30)
-    Gunzip-4                    602ms ± 1%     603ms ± 1%     ~     (p=0.164 n=30+30)
-    HTTPClientServer-4          659µs ± 1%     655µs ± 2%   -0.64%  (p=0.006 n=25+28)
-    JSONEncode-4                234ms ± 1%     235ms ± 1%   +0.29%  (p=0.050 n=30+30)
-    JSONDecode-4                912ms ± 0%     911ms ± 0%     ~     (p=0.385 n=18+24)
-    Mandelbrot200-4            49.2ms ± 0%    41.7ms ± 0%  -15.35%  (p=0.000 n=25+27)
-    GoParse-4                  46.3ms ± 1%    46.3ms ± 2%     ~     (p=0.572 n=30+30)
-    RegexpMatchEasy0_32-4      1.29µs ± 1%    1.27µs ± 0%   -1.59%  (p=0.000 n=30+30)
-    RegexpMatchEasy0_1K-4      7.62µs ± 4%    7.71µs ± 3%     ~     (p=0.074 n=30+30)
-    RegexpMatchEasy1_32-4      1.31µs ± 0%    1.30µs ± 1%   -0.71%  (p=0.000 n=23+30)
-    RegexpMatchEasy1_1K-4      10.3µs ± 3%    10.3µs ± 5%     ~     (p=0.105 n=30+30)
-    RegexpMatchMedium_32-4     2.06µs ± 1%    2.06µs ± 1%     ~     (p=0.100 n=30+30)
-    RegexpMatchMedium_1K-4      533µs ± 1%     534µs ± 1%     ~     (p=0.254 n=29+30)
-    RegexpMatchHard_32-4       28.9µs ± 0%    28.9µs ± 0%     ~     (p=0.154 n=30+30)
-    RegexpMatchHard_1K-4        868µs ± 1%     867µs ± 0%     ~     (p=0.729 n=30+23)
-    Revcomp-4                  66.9ms ± 1%    67.2ms ± 2%     ~     (p=0.102 n=28+29)
-    Template-4                  1.07s ± 1%     1.06s ± 1%   -0.53%  (p=0.000 n=30+30)
-    TimeParse-4                7.07µs ± 1%    7.01µs ± 0%   -0.85%  (p=0.000 n=30+25)
-    TimeFormat-4               13.1µs ± 0%    13.2µs ± 1%   +0.77%  (p=0.000 n=27+27)
-    [Geo mean]                  721µs          716µs        -0.70%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4              7.38MB/s ± 1%  7.37MB/s ± 2%     ~     (p=0.399 n=29+29)
-    GobEncode-4              8.26MB/s ± 1%  8.27MB/s ± 2%     ~     (p=0.790 n=30+30)
-    Gzip-4                   4.71MB/s ± 1%  4.71MB/s ± 1%     ~     (p=0.885 n=30+30)
-    Gunzip-4                 32.2MB/s ± 1%  32.2MB/s ± 1%     ~     (p=0.190 n=30+30)
-    JSONEncode-4             8.28MB/s ± 1%  8.25MB/s ± 1%     ~     (p=0.053 n=30+30)
-    JSONDecode-4             2.13MB/s ± 0%  2.12MB/s ± 1%     ~     (p=0.072 n=18+30)
-    GoParse-4                1.25MB/s ± 1%  1.25MB/s ± 2%     ~     (p=0.863 n=30+30)
-    RegexpMatchEasy0_32-4    24.8MB/s ± 0%  25.2MB/s ± 1%   +1.61%  (p=0.000 n=30+30)
-    RegexpMatchEasy0_1K-4     134MB/s ± 4%   133MB/s ± 3%     ~     (p=0.074 n=30+30)
-    RegexpMatchEasy1_32-4    24.5MB/s ± 0%  24.6MB/s ± 1%   +0.72%  (p=0.000 n=23+30)
-    RegexpMatchEasy1_1K-4    99.1MB/s ± 3%  99.8MB/s ± 5%     ~     (p=0.105 n=30+30)
-    RegexpMatchMedium_32-4    483kB/s ± 1%   487kB/s ± 1%   +0.83%  (p=0.002 n=30+30)
-    RegexpMatchMedium_1K-4   1.92MB/s ± 1%  1.92MB/s ± 1%     ~     (p=0.058 n=30+30)
-    RegexpMatchHard_32-4     1.10MB/s ± 0%  1.11MB/s ± 0%     ~     (p=0.804 n=30+30)
-    RegexpMatchHard_1K-4     1.18MB/s ± 0%  1.18MB/s ± 0%     ~     (all equal)
-    Revcomp-4                38.0MB/s ± 1%  37.8MB/s ± 2%     ~     (p=0.098 n=28+29)
-    Template-4               1.82MB/s ± 1%  1.83MB/s ± 1%   +0.55%  (p=0.000 n=29+29)
-    [Geo mean]               6.79MB/s       6.79MB/s        +0.09%
-    
-    Change-Id: Ia91991c2c5c59c5df712de85a83b13a21c0a554b
-    Reviewed-on: https://go-review.googlesource.com/63770
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1cb081ce2f3096f18ad2820e52ecdbd993dc2afc
+    Reviewed-on: https://go-review.googlesource.com/43852
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/arm/ssa.go        |  14 ++
- src/cmd/compile/internal/ssa/gen/ARM.rules |  10 +
- src/cmd/compile/internal/ssa/gen/ARMOps.go |   6 +
- src/cmd/compile/internal/ssa/opGen.go      |  68 +++++++
- src/cmd/compile/internal/ssa/rewriteARM.go | 284 +++++++++++++++++++++++++++++
- 5 files changed, 382 insertions(+)
+ src/crypto/rand/rand_linux.go | 28 +++++++---------------------
+ 1 file changed, 7 insertions(+), 21 deletions(-)

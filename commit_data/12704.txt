@@ -1,12 +1,14 @@
-commit 4a59be00917f2da069f272053d70a8563f717b22
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Mar 21 10:10:44 2012 +1100
+commit c5488d4f004e9f38e5fb996dd709a73aed03cd00
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Tue Mar 20 14:23:12 2012 -0700
 
-    html/template: fix typo and make grammar consistent in comments.
+    sort: fix computation of maxDepth to avoid infinite loop
     
-    R=golang-dev, r
+    The current computation loops indefinitely if n > 1<<30 (for 32-bit ints).
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5866044
+    https://golang.org/cl/5848067
 
- src/pkg/html/template/content.go | 4 ++--
+ src/pkg/sort/sort.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

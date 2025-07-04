@@ -1,24 +1,24 @@
-commit 22000f54073985958457168e8e19afa19e97821d
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 14 14:44:22 2017 -0400
+commit 6b742b2f84fc4ddea27076aa1e581197d17bd863
+Author: Quentin Smith <quentin@golang.org>
+Date:   Mon Feb 6 11:59:01 2017 -0500
 
-    runtime: record swept and reclaimed bytes in sweep trace
+    testing: print extra labels on benchmarks
     
-    This extends the GCSweepDone event with counts of swept and reclaimed
-    bytes. These are useful for understanding the duration and
-    effectiveness of sweep events.
+    When running benchmarks, print "goos", "goarch", and "pkg"
+    labels. This makes it easier to refer to benchmark logs and understand
+    how they were generated. "pkg" is printed only for benchmarks located
+    in GOPATH.
     
-    Change-Id: I3c97a4f0f3aad3adbd188adb264859775f54e2df
-    Reviewed-on: https://go-review.googlesource.com/40811
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I397cbdd57b9fe8cbabbb354ec7bfba59f5625c42
+    Reviewed-on: https://go-review.googlesource.com/36356
+    Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/internal/trace/parser.go                       |  21 +++++++++++++--------
- src/internal/trace/testdata/http_1_9_good          | Bin 2368 -> 2187 bytes
- src/internal/trace/testdata/stress_1_9_good        | Bin 594085 -> 365129 bytes
- .../trace/testdata/stress_start_stop_1_9_good      | Bin 5615 -> 6271 bytes
- src/runtime/mgcsweep.go                            |   5 ++++-
- src/runtime/runtime2.go                            |   9 ++++++---
- src/runtime/trace.go                               |  17 +++++++++++------
- 7 files changed, 34 insertions(+), 18 deletions(-)
+ src/cmd/go/go_test.go                   | 22 ++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go        | 17 +++++++++++++++++
+ src/cmd/go/testdata/src/bench/x_test.go |  6 ++++++
+ src/testing/benchmark.go                | 22 +++++++++++++++++-----
+ src/testing/internal/testdeps/deps.go   |  7 +++++++
+ src/testing/testing.go                  |  4 +++-
+ 6 files changed, 72 insertions(+), 6 deletions(-)

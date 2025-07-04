@@ -1,23 +1,32 @@
-commit ce4ef9addd0934997c4d1272ccfe8eab4eaaa8d6
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 17:15:49 2018 +0200
+commit f422bea498b138022135060050bbbc249589a945
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 21 16:12:17 2018 -0700
 
-    cmd/cgo: add AIX operating system
+    cmd/compile: fix compile failure for lazily resolved shadowed types
     
-    This commit adds AIX operating system to cmd/cgo package for ppc64
-    architecture.
+    If expanding an inline function body required lazily expanding a
+    package-scoped type whose identifier was shadowed within the function
+    body, the lazy expansion would instead overwrite the local symbol
+    definition instead of the package-scoped symbol. This was due to
+    importsym using s.Def instead of s.PkgDef.
     
-    It doesn't fully adapt cgo tool to AIX. But it allows to use
-    go tool cgo -godefs which is really usefull for others packages.
+    Unfortunately, this is yet another consequence of the current awkward
+    scope handling code.
     
-    Update: #25893
+    Passes toolstash-check.
     
-    Change-Id: I38e289cf0122d143ba100986d08229b51b03ddfc
-    Reviewed-on: https://go-review.googlesource.com/c/138731
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #25984.
+    
+    Change-Id: Ia7033e1749a883e6e979c854d4b12b0b28083dd8
+    Reviewed-on: https://go-review.googlesource.com/120456
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/cgo/gcc.go | 76 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/cgo/out.go | 21 ++++++++++++++-
- 2 files changed, 95 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/export.go   |  4 ++--
+ src/cmd/compile/internal/types/scope.go | 13 +++++++++++--
+ test/fixedbugs/issue25984.dir/p.go      | 15 +++++++++++++++
+ test/fixedbugs/issue25984.dir/q.go      | 11 +++++++++++
+ test/fixedbugs/issue25984.go            |  7 +++++++
+ 5 files changed, 46 insertions(+), 4 deletions(-)

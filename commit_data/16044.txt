@@ -1,57 +1,24 @@
-commit 4de66875545233a2fadca8768d100efbcd110f67
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Apr 2 21:14:34 2013 +1100
+commit 0e7144a875aae64a0029c7cbbd1b7fa2d5e7f691
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 1 18:59:58 2013 -0700
 
-    cmd/gc: recognize (a.b[0]<<1 | a.b[0]>>31) as a rotate, not just
-    (x<<1 | x>>31).
+    runtime: make map reads multithreaded safe.
     
-    Fixes #5084.
+    Doing grow work on reads is not multithreaded safe.
+    Changed code to do grow work only on inserts & deletes.
     
-    On the SHA3 benchmark proposals at
-    https://golang.org/cl/7760044/
+    This is a short-term fix, eventually we'll want to do
+    grow work in parallel to recover the space of the old
+    table.
     
-    benchmark                       old ns/op    new ns/op    delta
-    BenchmarkPermutationFunction         1288         1191   -7.53%
-    BenchmarkSingleByteWrite             5795         5811   +0.28%
-    BenchmarkBlockWrite512                178          179   +0.56%
-    BenchmarkBlockWrite384                230          233   +1.30%
-    BenchmarkBlockWrite256                282          286   +1.42%
-    BenchmarkBlockWrite224                301          306   +1.66%
-    BenchmarkBulkHashSHA3_512          326885       304548   -6.83%
-    BenchmarkBulkHashSHA3_384          234839       220074   -6.29%
-    BenchmarkBulkHashSHA3_256          186969       175790   -5.98%
-    BenchmarkBulkHashSHA3_224          178133       167489   -5.98%
+    Fixes #5120.
     
-    For a function like
-    
-    func g() {
-            x = a[3]<<20 | a[3]>>12
-    }
-    
-    the asm goes from
-    
-    0006 (main.go:10) TEXT    g+0(SB),$0-0
-    0007 (main.go:10) MOVL    a+12(SB),BP
-    0008 (main.go:10) LOCALS  ,$0
-    0009 (main.go:11) MOVL    BP,BX
-    0010 (main.go:11) SHLL    $20,BX
-    0011 (main.go:11) SHRL    $12,BP
-    0012 (main.go:11) ORL     BP,BX
-    0013 (main.go:11) MOVL    BX,x+0(SB)
-    0014 (main.go:12) RET     ,
-    
-    to
-    
-    0006 (main.go:10) TEXT    g+0(SB),$0-0
-    0007 (main.go:10) LOCALS  ,$0
-    0008 (main.go:11) MOVL    a+12(SB),BX
-    0009 (main.go:11) ROLL    $20,BX
-    0010 (main.go:11) MOVL    BX,x+0(SB)
-    0011 (main.go:12) RET     ,
-    
-    R=rsc, iant, remyoudompheng
-    CC=golang-dev, jcb
-    https://golang.org/cl/7944043
+    R=bradfitz, khr
+    CC=golang-dev
+    https://golang.org/cl/8242043
 
- src/cmd/gc/walk.c | 31 +++++++++++++++++++++++--------
- 1 file changed, 23 insertions(+), 8 deletions(-)
+ src/cmd/gc/range.c             |  4 +--
+ src/pkg/runtime/hashmap.c      | 69 ++++++++++++++++++++++++++++++++++++------
+ src/pkg/runtime/hashmap_fast.c | 28 ++++++++++++-----
+ src/pkg/runtime/map_test.go    |  3 --
+ 4 files changed, 81 insertions(+), 23 deletions(-)

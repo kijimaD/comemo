@@ -1,16 +1,12 @@
-commit 4d59d1fcb1502ea9bb8168f39b58eb7eecbebcc2
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Mar 13 22:12:09 2015 -0400
+commit 9c4aade584ecc34e714d172a1bb87a8430de2f41
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 25 15:45:25 2015 -0800
 
-    cmd/dist: enable external linking test for windows/amd64
+    math/big: fix build for 32bit platforms
     
-    Fixes #4069.
-    
-    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e31
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/7535
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I9c217e5140294a17e4feb65da5b121ee8d8cadc2
+    Reviewed-on: https://go-review.googlesource.com/6050
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/math/big/float_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

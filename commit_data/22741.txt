@@ -1,52 +1,20 @@
-commit 653d56075dbe24239e4cc0a8e020e57383593035
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 24 14:13:06 2015 -0400
+commit 9fa9f966e99eb514f9b6f61821f83d5f9178a4a2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 7 15:30:27 2015 +1000
 
-    cmd/internal/gc: inline writeBarrierEnabled check before calling writebarrierptr
+    misc/cgo/testso: add test for fixed issue 4339
     
-    I believe the benchmarks that get slower are under register pressure,
-    and not making the call unconditionally makes the pressure worse,
-    and the register allocator doesn't do a great job. But part of the point
-    of this sequence is to get the write barriers out of the way so I can work
-    on the register allocator, so that's okay.
+    Update #4339.
     
-    name                                       old                     new          delta
-    BenchmarkBinaryTree17              17.9s × (1.00,1.01)     18.0s × (0.99,1.01)  ~
-    BenchmarkFannkuch11                4.43s × (1.00,1.00)     4.43s × (1.00,1.00)  ~
-    BenchmarkFmtFprintfEmpty           110ns × (1.00,1.06)     114ns × (0.95,1.05)  ~
-    BenchmarkFmtFprintfString          487ns × (0.99,1.00)     468ns × (0.99,1.01)  -4.00%
-    BenchmarkFmtFprintfInt             450ns × (0.99,1.00)     433ns × (1.00,1.01)  -3.88%
-    BenchmarkFmtFprintfIntInt          762ns × (1.00,1.00)     748ns × (0.99,1.01)  -1.84%
-    BenchmarkFmtFprintfPrefixedInt     584ns × (0.99,1.01)     547ns × (0.99,1.01)  -6.26%
-    BenchmarkFmtFprintfFloat           738ns × (1.00,1.00)     756ns × (1.00,1.01)  +2.37%
-    BenchmarkFmtManyArgs              2.80µs × (1.00,1.01)    2.79µs × (1.00,1.01)  ~
-    BenchmarkGobDecode                39.0ms × (0.99,1.00)    39.6ms × (0.99,1.00)  +1.54%
-    BenchmarkGobEncode                37.8ms × (0.98,1.01)    37.6ms × (1.00,1.01)  ~
-    BenchmarkGzip                      661ms × (0.99,1.01)     663ms × (0.99,1.02)  ~
-    BenchmarkGunzip                    142ms × (1.00,1.00)     142ms × (1.00,1.00)  ~
-    BenchmarkHTTPClientServer          132µs × (0.99,1.01)     132µs × (0.99,1.01)  ~
-    BenchmarkJSONEncode               56.3ms × (0.99,1.01)    56.2ms × (0.99,1.01)  ~
-    BenchmarkJSONDecode                138ms × (0.99,1.01)     138ms × (1.00,1.00)  ~
-    BenchmarkMandelbrot200            6.01ms × (1.00,1.00)    6.03ms × (1.00,1.01)  +0.23%
-    BenchmarkGoParse                  10.2ms × (0.87,1.05)     9.8ms × (0.93,1.10)  ~
-    BenchmarkRegexpMatchEasy0_32       208ns × (1.00,1.00)     207ns × (1.00,1.00)  ~
-    BenchmarkRegexpMatchEasy0_1K       588ns × (1.00,1.00)     581ns × (1.00,1.01)  -1.27%
-    BenchmarkRegexpMatchEasy1_32       182ns × (0.99,1.01)     185ns × (0.99,1.01)  +1.65%
-    BenchmarkRegexpMatchEasy1_1K       986ns × (1.00,1.01)     975ns × (1.00,1.01)  -1.17%
-    BenchmarkRegexpMatchMedium_32      323ns × (1.00,1.01)     328ns × (0.99,1.00)  +1.55%
-    BenchmarkRegexpMatchMedium_1K     89.9µs × (1.00,1.00)    88.6µs × (1.00,1.01)  -1.38%
-    BenchmarkRegexpMatchHard_32       4.72µs × (0.95,1.01)    4.69µs × (0.95,1.03)  ~
-    BenchmarkRegexpMatchHard_1K        133µs × (1.00,1.01)     133µs × (1.00,1.01)  ~
-    BenchmarkRevcomp                   900ms × (1.00,1.05)     902ms × (0.99,1.05)  ~
-    BenchmarkTemplate                  168ms × (0.99,1.01)     174ms × (0.99,1.01)  +3.30%
-    BenchmarkTimeParse                 637ns × (1.00,1.00)     639ns × (1.00,1.00)  +0.31%
-    BenchmarkTimeFormat                738ns × (1.00,1.00)     736ns × (1.00,1.01)  ~
-    
-    Change-Id: I03ce152852edec404538f6c20eb650fac82e2aa2
-    Reviewed-on: https://go-review.googlesource.com/9224
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ic1a7535562b8b824ba166777725f7ba5b9623d77
+    Reviewed-on: https://go-review.googlesource.com/8523
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/gc/builtin.go         |  1 +
- src/cmd/internal/gc/builtin/runtime.go |  4 +++-
- src/cmd/internal/gc/cgen.go            | 27 ++++++++++++++++++++++-----
- 3 files changed, 26 insertions(+), 6 deletions(-)
+ misc/cgo/testso/cgoso.c   |  5 +++++
+ misc/cgo/testso/cgoso.go  | 19 +++++++++++++++++++
+ misc/cgo/testso/cgoso_c.c |  4 ++++
+ misc/cgo/testso/cgoso_c.h | 17 +++++++++++++++++
+ misc/cgo/testso/test.bat  |  2 +-
+ 5 files changed, 46 insertions(+), 1 deletion(-)

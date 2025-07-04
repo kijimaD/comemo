@@ -1,21 +1,24 @@
-commit d89ea4100632ccfc1e5dbaf0b95f9f1e9f5a29f9
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Apr 20 14:22:18 2018 -0700
+commit 252f1170e5f13d9b12ec3a117ca2bb2241f74c08
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 15 14:54:24 2017 -0800
 
-    database/sql: add additional Stats to DBStats
+    runtime: buffered write barrier for 386
     
-    Provide better statistics for the database pool. Add counters
-    for waiting on the pool and closes. Too much waiting or too many
-    connection closes could indicate a problem.
+    Updates #22460.
     
-    Fixes #24683
-    Fixes #22138
-    
-    Change-Id: I9e1e32a0487edf41c566b8d9c07cb55e04078fec
-    Reviewed-on: https://go-review.googlesource.com/108536
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: I3c8e90fd6bcda7e28911036591873d63665aaca7
+    Reviewed-on: https://go-review.googlesource.com/92696
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/database/sql/sql.go | 67 ++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 55 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/main.go        |  8 +++--
+ src/cmd/compile/internal/ssa/config.go     | 11 ++++++
+ src/cmd/compile/internal/ssa/gen/386.rules |  3 ++
+ src/cmd/compile/internal/ssa/gen/386Ops.go |  4 +++
+ src/cmd/compile/internal/ssa/opGen.go      | 15 ++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go | 20 +++++++++++
+ src/cmd/compile/internal/x86/ssa.go        |  6 ++++
+ src/cmd/vet/all/whitelist/386.txt          |  2 ++
+ src/runtime/asm_386.s                      | 58 ++++++++++++++++++++++++++++++
+ 9 files changed, 124 insertions(+), 3 deletions(-)

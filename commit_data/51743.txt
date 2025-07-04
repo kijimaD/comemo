@@ -1,23 +1,20 @@
-commit 733ba921875ea11088f1f447cbca418f651aae5c
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jan 3 13:11:10 2023 -0500
+commit 1045faa38c660b8a0ac3fbf5b0a01dde26a3cf75
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Oct 19 10:22:20 2021 +0800
 
-    cmd/compile: flag 'large' functions when -m=2+ in effect
+    cmd/compile/internal: add ABI register information for riscv64
     
-    When -m=N (where N > 1) is in effect, include a note in the trace
-    output if a given function is considered "big" during inlining
-    analysis, since this causes the inliner to be less aggressive. If a
-    small change to a large function happens to nudge it over the large
-    function threshold, it can be confusing for developers, thus it's
-    probably worth including this info in the remark output.
+    This CL adds the defines for ABI registers on riscv64.
     
-    Change-Id: Id31a1b76371ab1ef9265ba28a377f97b0247d0a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460317
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #40724
+    
+    Change-Id: I53a89d88b6feb1a88cf7008b8484d444791e8a55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356519
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 3 +++
- test/inline_big.go                     | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/abi-internal.md | 51 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

@@ -1,26 +1,16 @@
-commit ebb572d82f97d19d0016a49956eb1fddc658eb76
-Author: Bryan Mills <bcmills@google.com>
-Date:   Fri Jan 13 20:20:31 2023 +0000
+commit b8b3196375e6b5275ae05eba8ca04662f10ab047
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 24 15:45:11 2022 -0800
 
-    Revert "internal/fsys: follow root symlink in fsys.Walk"
+    doc/go1.18: document method set limitation for method selectors
     
-    This reverts CL 448360 and adds a regression test for #57754.
+    For #51183.
+    For #47694.
     
-    Reason for revert: broke 'go list' in Debian's distribution of the Go toolchain
-    
-    Fixes #57754.
-    Updates #50807.
-    
-    Change-Id: I3e8b9126294c55f21572774b549fb28f29eded0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461959
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: If47ae074c3cd9f73b2e7f6408749d9a7d56bd8d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387924
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/fsys/fsys.go                   | 28 ++--------
- src/cmd/go/internal/fsys/fsys_test.go              |  4 +-
- src/cmd/go/script_test.go                          |  1 +
- src/cmd/go/testdata/script/list_goroot_symlink.txt | 63 ++++++++++++++++++++++
- .../go/testdata/script/list_symlink_dotdotdot.txt  | 20 -------
- 5 files changed, 70 insertions(+), 46 deletions(-)
+ doc/go1.18.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

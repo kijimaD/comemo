@@ -1,17 +1,51 @@
-commit 21ced9c748951221993dd595e967cc510c5b593f
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 28 10:23:04 2017 -0400
+commit 531e6c06c468badbb1ba180027a93b3f6c5b2615
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Tue Apr 25 18:29:54 2017 +0800
 
-    cmd/trace: encode selection in trace URL
+    cmd/asm: refine Go assembly for ARM64
     
-    This adds the ability to add a #x:y anchor to the trace view URL that
-    causes the viewer to initially select from x ms to y ms.
+    Some ARM64-specific instructions (such as SIMD instructions) are not supported.
+    This patch adds support for the following:
+    1. Extended register, e.g.:
+         ADD        Rm.<ext>[<<amount], Rn, Rd
+         <ext> can have the following values:
+           UXTB, UXTH, UXTW, UXTX, SXTB, SXTH, SXTW and SXTX
+    2. Arrangement for SIMD instructions, e.g.:
+         VADDP      Vm.<T>, Vn.<T>, Vd.<T>
+         <T> can have the following values:
+           B8, B16, H4, H8, S2, S4 and D2
+    3. Width specifier and element index for SIMD instructions, e.g.:
+         VMOV       Vn.<T>[index], Rd // MOV(to general register)
+         <T> can have the following values:
+           S and D
+    4. Register List, e.g.:
+         VLD1       (Rn), [Vt1.<T>, Vt2.<T>, Vt3.<T>]
+    5. Register offset variant, e.g.:
+         VLD1.P     (Rn)(Rm), [Vt1.<T>, Vt2.<T>] // Rm is the post-index register
+    6. Go assembly for ARM64 reference manual
+         new added instructions are required to have according explanation items in
+         the manual and items for existed instructions will be added incrementally
     
-    Change-Id: I4a980d8128ecc85dbe41f224e8ae336707a4eaab
-    Reviewed-on: https://go-review.googlesource.com/60794
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    For more information about the refinement background, please refer to the
+    discussion (https://groups.google.com/forum/#!topic/golang-dev/rWgDxCrL4GU)
+    
+    This patch only adds syntax and doesn't break any assembly that already exists.
+    
+    Change-Id: I34e90b7faae032820593a0e417022c354a882008
+    Reviewed-on: https://go-review.googlesource.com/41654
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/trace/trace.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/asm/internal/arch/arm64.go        | 160 +++++++++++
+ src/cmd/asm/internal/asm/parse.go         | 177 +++++++++++--
+ src/cmd/asm/internal/asm/testdata/arm64.s |  46 +++-
+ src/cmd/internal/obj/arm/list5.go         |  23 ++
+ src/cmd/internal/obj/arm64/a.out.go       |  44 +++-
+ src/cmd/internal/obj/arm64/anames.go      |  14 +
+ src/cmd/internal/obj/arm64/anames7.go     |   3 +
+ src/cmd/internal/obj/arm64/asm7.go        | 423 +++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/arm64/doc.go         | 143 ++++++++++
+ src/cmd/internal/obj/arm64/list7.go       | 141 ++++++++++
+ src/cmd/internal/obj/link.go              |  26 +-
+ src/cmd/internal/obj/util.go              |  57 ++--
+ 12 files changed, 1204 insertions(+), 53 deletions(-)

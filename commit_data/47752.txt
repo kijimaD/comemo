@@ -1,30 +1,15 @@
-commit f5ddd94334a63ac8107c976aa4bd6ee2171d7d64
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Dec 8 15:30:28 2021 -0500
+commit 8518aac3147da163ac5accfacbf0c30f684177e2
+Author: ian woolf <btw515wolf2@gmail.com>
+Date:   Thu Apr 8 20:42:47 2021 +0800
 
-    runtime/pprof: increase systemstack calls in TestLabelSystemstack
+    crypto/x509: replace os.MkdirTemp with T.TempDir
     
-    TestLabelSystemstack needs to collect samples within runtime.systemstack
-    to complete the test.
+    Updates #45402
     
-    The current approach uses fmt.Fprintf, which gets into systemstack
-    through the allocator and GC, but also does lots of other work. In my
-    measurements, approximately 2% of samples contain runtime.systemstack.
-    
-    The new approach uses debug.SetGCPercent, which uses systemstack for
-    most of its work, including contention on mheap_.lock, which extends
-    usage even more. In my measurements, approximately 99% of samples
-    contain runtime.systemstack.
-    
-    Fixes #50050
-    
-    Change-Id: I59e5bb756341b716a12e13d2e3fe0adadd7fe956
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370375
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ifb1fa5232a0fa1be62e886643cec9deaa3b312ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308409
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/runtime/pprof/pprof_test.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/crypto/x509/root_unix_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

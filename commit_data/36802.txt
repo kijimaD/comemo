@@ -1,19 +1,12 @@
-commit a2a2901b252c089e737a1ddf8117f3f6698cb958
-Author: Austin Clements <austin@google.com>
-Date:   Fri Aug 3 15:04:14 2018 -0400
+commit 79fbe92b7e834dd3769807647718bdeb24f0a9d2
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Sat Apr 21 08:20:39 2018 -0300
 
-    runtime: track whether any buffer has been flushed from gcWork
+    os/signal: remove unnecessary else condition
     
-    Nothing currently consumes the flag, but we'll use it in the
-    distributed termination detection algorithm.
-    
-    Updates #26903. This is preparation for eliminating mark 2.
-    
-    Change-Id: I5e149a05b1c878fe1009150da21f8bd8ae2b9b6a
-    Reviewed-on: https://go-review.googlesource.com/c/134317
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I00f0195d54bf9bc30073741974ab941ec4d51a5c
+    Reviewed-on: https://go-review.googlesource.com/108635
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgcwork.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/os/signal/signal.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

@@ -1,19 +1,15 @@
-commit 0d81b72e1bf5518b503dbefd0764bfa7e47dcecf
+commit 609d996fac7f68b34032572b7bde627f658b95f2
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 17 12:54:31 2014 -0400
+Date:   Mon Oct 6 14:17:48 2014 -0400
 
-    reflect: a few microoptimizations
+    cmd/8l: accept R_386_GOT32 in push instruction
     
-    Replace i < 0 || i >= x with uint(i) >= uint(x).
-    Shorten a few other code sequences.
-    Move the kind bits to the bottom of the flag word, to avoid shifts.
+    Fixes #8382.
     
-    LGTM=r
-    R=r, bradfitz
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/159020043
+    https://golang.org/cl/149540045
 
- src/reflect/makefunc.go |   6 +-
- src/reflect/type.go     |   2 +-
- src/reflect/value.go    | 205 ++++++++++++++++++++----------------------------
- 3 files changed, 91 insertions(+), 122 deletions(-)
+ src/cmd/8l/asm.c | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

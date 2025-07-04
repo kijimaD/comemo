@@ -1,23 +1,23 @@
-commit 3dea7c3f690cb35858b122605d1f029df8062293
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 31 18:34:42 2023 +0700
+commit 334d8e453b5d45ede5265debc51b4775195d9ce9
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 10 16:02:48 2022 -0500
 
-    hash/maphash: weaken avalanche test a bit more
+    internal/testpty: move from os/signal/internal/pty
     
-    CL 495415 weaken avalanche, making allowed range from 43% to 57%. Since
-    then, we only see a failure with 58% on linux-386-longtest builder, so
-    let give the test a bit more wiggle room: 40% to 59%.
+    We're going to use this for another test, so make it more accessible.
     
-    Fixes #60170
+    Preparation for #37486.
     
-    Change-Id: I9528ebc8601975b733c3d9fd464ce41429654273
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538655
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If194cc4244c4b9e1b1f253759b813555b39ad67e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449502
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/hash/maphash/smhasher_test.go | 2 +-
- src/runtime/hash_test.go          | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go                                      | 2 +-
+ src/{os/signal/internal/pty => internal/testpty}/pty.go        | 5 ++---
+ src/{os/signal/internal/pty => internal/testpty}/pty_cgo.go    | 2 +-
+ src/{os/signal/internal/pty => internal/testpty}/pty_darwin.go | 2 +-
+ src/os/signal/signal_cgo_test.go                               | 6 +++---
+ 5 files changed, 8 insertions(+), 9 deletions(-)

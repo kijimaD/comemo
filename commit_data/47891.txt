@@ -1,19 +1,20 @@
-commit 2bb7f6b4f1e5ffd90d7ea00a653d7407f496d639
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Dec 17 17:17:41 2021 -0800
+commit 3e0b1cdb5d92ac45a28c3c8224e1b6ab41bff99d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 13 23:46:18 2021 -0400
 
-    doc/go1.18: point to spec in same directory for release notes
+    runtime: minor refactoring of _rt0_amd64_lib
     
-    The release notes explicitly refer to sections updated
-    for generics in the spec but then point to the old spec
-    which is very confusing for beta users.
+    This function bounces between the C and Go ABIs a few times. This CL
+    narrows the scope of the Go -> C transition to just around the branch
+    that calls C. This lets us take advantage of C callee-save registers
+    to simplify the code a little.
     
-    For #47694
-    
-    Change-Id: I5b555db3543cc32f088a8b267ec3f1195a52a812
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373174
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1ffa0b9e50325425c5ec66596978aeb6450a6b57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309929
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/runtime/asm_amd64.s | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

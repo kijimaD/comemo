@@ -1,40 +1,15 @@
-commit 2b74de3ed91c495d63868acef0471b0286e7b432
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jun 28 09:22:46 2016 -0700
+commit 8dc0444a04a8a43887b4ca3753ee63b430cf2602
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:17:44 2016 -0400
 
-    runtime: rename fastrand1 to fastrand
+    cmd/asm, cmd/internal/obj/mips: add an alias of RSB on mips64x
     
-    Change-Id: I37706ff0a3486827c5b072c95ad890ea87ede847
-    Reviewed-on: https://go-review.googlesource.com/28210
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I724ce0a48c1aeed14267c049fa415a6fa2fffbcf
+    Reviewed-on: https://go-review.googlesource.com/19864
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/alg.go              | 4 ++--
- src/runtime/asm_386.s           | 2 +-
- src/runtime/asm_amd64.s         | 2 +-
- src/runtime/asm_amd64p32.s      | 2 +-
- src/runtime/asm_arm.s           | 2 +-
- src/runtime/asm_arm64.s         | 2 +-
- src/runtime/asm_mips64x.s       | 2 +-
- src/runtime/asm_ppc64x.s        | 2 +-
- src/runtime/asm_s390x.s         | 2 +-
- src/runtime/hashmap.go          | 6 +++---
- src/runtime/malloc.go           | 4 ++--
- src/runtime/mgc.go              | 2 +-
- src/runtime/mprof.go            | 2 +-
- src/runtime/os_darwin_arm.go    | 4 ++--
- src/runtime/os_darwin_arm64.go  | 4 ++--
- src/runtime/os_freebsd_arm.go   | 4 ++--
- src/runtime/os_linux_arm.go     | 4 ++--
- src/runtime/os_linux_arm64.go   | 4 ++--
- src/runtime/os_linux_mips64x.go | 4 ++--
- src/runtime/os_nacl_arm.go      | 4 ++--
- src/runtime/os_netbsd_arm.go    | 4 ++--
- src/runtime/os_openbsd_arm.go   | 4 ++--
- src/runtime/os_plan9_arm.go     | 4 ++--
- src/runtime/proc.go             | 6 +++---
- src/runtime/select.go           | 2 +-
- src/runtime/stubs.go            | 2 +-
- src/runtime/symtab.go           | 2 +-
- 27 files changed, 43 insertions(+), 43 deletions(-)
+ src/cmd/asm/internal/arch/arch.go        | 3 +++
+ src/cmd/asm/internal/asm/operand_test.go | 2 +-
+ src/cmd/internal/obj/mips/a.out.go       | 2 +-
+ src/cmd/internal/obj/mips/list0.go       | 4 ++++
+ 4 files changed, 9 insertions(+), 2 deletions(-)

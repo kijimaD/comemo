@@ -1,24 +1,16 @@
-commit c8ae2e82c7262df1fa902b847e09f0aa776e7ccd
-Author: Datong Sun <dndx@idndx.com>
-Date:   Sat Feb 20 02:39:07 2016 -0600
+commit de5b386157c7f86df3f0a93cd01172ff84781459
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 14:50:21 2015 -0500
 
-    crypto/x509: better documentation for ParsePKIXPublicKey
+    misc/cgo/testsanitizers: do not run with clang < 3.8 and Linux ≥ 4.1
     
-    The existing documentation for ParsePKIXPublicKey is difficult to understand
-    and the return type of the parsed public key are not mentioned explicitly.
+    These are simply incompatible. Clang fixed the bug but not in older versions.
     
-    Descriptions about types of public key supported, as well as an example on
-    how to use type assertions to determine return type of a parsed public key
-    has been added.
+    Fixes #12898.
     
-    Fixes #14355
-    
-    Change-Id: Ib9561efb34255292735742c0b3e835c4b97ac589
-    Reviewed-on: https://go-review.googlesource.com/19757
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I74a3fd9134dadab6d0f074f8fd09e00d64558d7a
+    Reviewed-on: https://go-review.googlesource.com/17254
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/example_test.go | 43 +++++++++++++++++++++++++++++++++++++++++
- src/crypto/x509/x509.go         |  6 ++++++
- 2 files changed, 49 insertions(+)
+ misc/cgo/testsanitizers/test.bash | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

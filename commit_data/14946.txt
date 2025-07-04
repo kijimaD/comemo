@@ -1,14 +1,14 @@
-commit fd32ac4bae462672b8b6b3737111f3c213f7230a
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 22 13:44:49 2013 +0400
+commit faaa7c07d7351fcd8a10fd1df27272b09d681061
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jan 22 02:52:34 2013 +0800
 
-    runtime: account stop-the-world time in the "other" GOGCTRACE section
-    Currently it's summed to mark phase.
-    The change makes it easier to diagnose long stop-the-world phases.
+    cmd/cgo: doc updates
+    1. note that to use C.free <stdlib.h> must be included
+    2. can also extract errno from a void C function
     
-    R=golang-dev, bradfitz, dave
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7182043
+    https://golang.org/cl/6935045
 
- src/pkg/runtime/mgc0.c | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+ src/cmd/cgo/doc.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

@@ -1,13 +1,17 @@
-commit 1306279cd14e1e1e5c7645de6697bd3ab09c59aa
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Mar 10 16:02:46 2014 -0700
+commit 9ab4d1d6b3d90cc4837edae0b5857dae33e79ebd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 11 06:57:46 2014 +1100
 
-    runtime: remove unused declarations.
+    runtime: small Native Client fixes
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    mem_nacl.c: add SysFault
+    env_posix.c: add nacl to build tag, from CL 15790043
+    
+    LGTM=remyoudompheng, iant
+    R=rsc, remyoudompheng, iant
     CC=golang-codereviews
-    https://golang.org/cl/73720044
+    https://golang.org/cl/72780043
 
- src/pkg/runtime/mgc0.c | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/runtime/env_posix.c | 2 +-
+ src/pkg/runtime/mem_nacl.c  | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

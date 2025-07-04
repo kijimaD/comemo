@@ -1,13 +1,15 @@
-commit 548c9c862426b9e66c2b6c1cbe2bbff62126e291
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 28 15:02:32 2011 -0700
+commit 98945a2bad1e2f816d1f8ebc71f7a4aaabfb357b
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Apr 28 13:30:53 2011 -0700
 
-    cgi: set Request.TLS and Request.RemoteAddr for children
+    cgi: export RequestFromMap
     
-    R=agl, eds, rsc1, rsc
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4432079
+    https://golang.org/cl/4452056
 
- src/pkg/http/cgi/child.go      | 20 ++++++++++++++++----
- src/pkg/http/cgi/child_test.go |  8 ++++++++
- 2 files changed, 24 insertions(+), 4 deletions(-)
+ src/pkg/http/cgi/child.go      | 52 ++++++++++++++++----------------
+ src/pkg/http/cgi/child_test.go | 18 ++++++-----
+ src/pkg/http/cgi/host.go       |  1 +
+ src/pkg/http/fcgi/child.go     | 68 ++----------------------------------------
+ 4 files changed, 40 insertions(+), 99 deletions(-)

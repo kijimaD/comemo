@@ -1,20 +1,21 @@
-commit 0cf996a9c12d9bc5b38787c2f3b0212c39d87dd5
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 1 00:16:32 2022 +0700
+commit 2feb2cc450e1925b9359957c90bae27e01662171
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 13 16:30:12 2021 +0200
 
-    cmd/compile/internal/abt: use strings.Builder
+    syscall: add support for SysProcAttr.Pdeathsig on FreeBSD
     
-    Since go1.17 is now used for bootstrapping.
+    Fixes #46258
     
-    Change-Id: I5692ff4b38b7d9a279b20662ce5348ff34a2dde6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427134
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: hopehook <hopehook@golangcn.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I63f70e67274a9df39c757243b99b12e50a9e4784
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355570
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/abt/avlint32.go | 31 +++++++------------------------
- 1 file changed, 7 insertions(+), 24 deletions(-)
+ src/syscall/exec_freebsd.go         |  38 +++++++++-
+ src/syscall/exec_linux.go           |   2 +-
+ src/syscall/exec_pdeathsig_test.go  | 135 ++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_freebsd_test.go |  11 +++
+ src/syscall/syscall_linux_test.go   | 117 -------------------------------
+ 5 files changed, 184 insertions(+), 119 deletions(-)

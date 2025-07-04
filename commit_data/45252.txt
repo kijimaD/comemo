@@ -1,36 +1,14 @@
-commit 760d3b2a16544aab553ca7ec6e6ed3bf4dc9aa3f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 14 14:31:50 2021 -0700
+commit e9e58a4d49f518ab6ce3a2b2ed4efb34e022c1d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 14 22:09:47 2020 -0700
 
-    reflect: allow conversion from slice to array ptr
+    [dev.typeparams] cmd/compile/internal/syntax: fix printing of channel types
     
-    Note that this removes an invariant:
-    
-    v.Type().ConvertibleTo(t) might return true,
-    yet v.Convert(t) might panic nevertheless.
-    
-    This is a fairly unavoidable consequence of the decision
-    to add the first-ever conversion that can panic.
-    
-    ConvertibleTo describes a relationship between types,
-    but whether the conversion panics now depends on the value,
-    not just the type.
-    
-    If this turns out to be a problem, we can add v.ConvertibleTo(t),
-    or something similar, to allow callers to avoid the panic.
-    
-    This is the last of the changes needed to complete the implementation.
-    
-    Fixes #395
-    
-    Change-Id: I79b7e4dd87a67a47723e00a65d0b1ac6090371b7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301652
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I80a3ca77d0642711913c9584e70059e4ed668860
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262444
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/reflect/all_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/type.go     |  2 ++
- src/reflect/value.go    | 18 +++++++++++++++++-
- 3 files changed, 63 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/printer.go      | 10 +++++++++-
+ src/cmd/compile/internal/syntax/printer_test.go | 26 ++++++++++++++++++++-----
+ 2 files changed, 30 insertions(+), 6 deletions(-)

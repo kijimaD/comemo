@@ -1,15 +1,12 @@
-commit 1bdb788b2ea5147ff7847f7a401a9da994a5e360
+commit 5d331964e7dc9a4862ce080e6f494bcd7931fa22
 Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Apr 30 22:47:51 2012 +1000
+Date:   Mon Apr 30 22:47:06 2012 +1000
 
-    misc/dashboard/codereview: record Message-ID of code review thread mails.
-    
-    This will allow us to properly thread "R=..." mails at a later time.
+    misc/dashboard/codereview: add handy logout URL.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6135053
+    https://golang.org/cl/6135052
 
- misc/dashboard/codereview/dashboard/cl.go   | 10 +++++++---
- misc/dashboard/codereview/dashboard/mail.go | 18 ++++++++++++++++++
- 2 files changed, 25 insertions(+), 3 deletions(-)
+ misc/dashboard/codereview/dashboard/front.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

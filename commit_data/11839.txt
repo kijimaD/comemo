@@ -1,16 +1,15 @@
-commit c53b73455bdc2ca7ae6bc9f5e92984ba6682dc45
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Feb 12 21:53:33 2012 -0800
+commit b440a650330f288ce1f230673440ec4b356751fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 00:19:18 2012 -0500
 
-    sync/atomic: disable hammer pointer tests on wrong size system
+    strconv: disable issue 2917 test
     
-    hammerCompareAndSwapPointer64 was only passing on
-    little-endian systems.  hammerCompareAndSwapPointer32 was
-    writing 8 bytes to a uint32 value on the heap.
+    It did in fact break on the darwin/386 builder.
+    Will investigate later; reopened issue 2917.
     
-    R=rsc, dvyukov
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5654065
+    https://golang.org/cl/5654070
 
- src/pkg/sync/atomic/atomic_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/strconv/atof_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

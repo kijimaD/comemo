@@ -1,25 +1,23 @@
-commit 1dddd83c494849dd71b72a4415c5238b0716dd30
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 13 12:29:32 2023 -0800
+commit d42c08a2be456d353a7aca3110edeb9bdb66ebd0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Dec 15 18:14:13 2022 +0700
 
-    doc: document version at which new language features were introduced in spec
+    reflect,runtime: add Value.Clear
     
-    Add a new section to the Appendix describing what features were
-    changed or added in which language version.
+    Fixes #55002
     
-    Add short links with references to the required language version
-    where relevant.
-    
-    Fixes #63857.
-    
-    Change-Id: I5250f856d8688a71602076fcc662aa678d96a5d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549518
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I7d0f14cc54f67f2769b51d2efafc4ae3714f0e3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457895
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go_spec.html | 216 ++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 192 insertions(+), 24 deletions(-)
+ api/next/55002.txt      |  1 +
+ src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 24 ++++++++++++++++++++++++
+ src/runtime/map.go      |  5 +++++
+ src/runtime/mbarrier.go |  9 +++++++++
+ 5 files changed, 84 insertions(+)

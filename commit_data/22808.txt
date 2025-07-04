@@ -1,14 +1,23 @@
-commit 125ed11c0abac7580125cb745b725a6fdd8be207
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 30 13:24:58 2015 -0700
+commit b9ba4ed22b2f6237042bafcfa697593a73281f36
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Dec 30 06:14:55 2014 -0800
 
-    net/http: document ServeFile and FileServer index.html redirect behavior
+    syscall: reduce the set of architecture-dependent files on Plan 9
     
-    Fixes #9876
-    
-    Change-Id: I97a354fde827dfccc9e373fadea2e37d094439b0
-    Reviewed-on: https://go-review.googlesource.com/9538
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I98b172181c2fd85aa385341e28bc661dbc274252
+    Reviewed-on: https://go-review.googlesource.com/2167
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/fs.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/syscall/const_plan9.go                         |  59 +++++++++++
+ .../{zerrors_plan9_386.go => errors_plan9.go}      |   0
+ src/syscall/syscall_plan9.go                       |   4 +-
+ src/syscall/types_plan9.c                          | 115 ---------------------
+ src/syscall/zerrors_plan9_amd64.go                 |  48 ---------
+ src/syscall/zsyscall_plan9_386.go                  |   2 +-
+ src/syscall/zsyscall_plan9_amd64.go                |   2 +-
+ .../{zsysnum_plan9_386.go => zsysnum_plan9.go}     |   0
+ src/syscall/zsysnum_plan9_amd64.go                 |  49 ---------
+ src/syscall/ztypes_plan9_386.go                    |  75 --------------
+ src/syscall/ztypes_plan9_amd64.go                  |  75 --------------
+ 11 files changed, 63 insertions(+), 366 deletions(-)

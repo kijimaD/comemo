@@ -1,26 +1,24 @@
-commit e91876f4406a89eb0b0c07e93a6ae4e4f32d48b6
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Mar 15 20:53:10 2023 -0700
+commit 892cd0b63638ec856e6fef1bdaaa20a177695fea
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Apr 25 05:21:35 2022 +0000
 
-    internal/fuzz: release lock when reading file fails
+    reflect: support Len and Cap on pointer-to-array Value
     
-    When corpusEntryData failed in workerClient.fuzz and
-    workerClient.minimize, the shared memory mutex wasn't properly given up,
-    which would cause a deadlock when worker.cleanup was called.
+    Fixes #52411
     
-    This was tickled by #59062, wherein the fuzz cache directory would be
-    removed during operation of the fuzzer, causing corpusEntryData to fail
-    because the entry files no longer existed.
-    
-    Updates #51484
-    
-    Change-Id: Iea284041c20d1581c662bddbbc7e12191771a364
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476815
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: I2fd13a453622992c52d49aade7cd058cfc8a77ca
+    GitHub-Last-Rev: d5987c2ec817ebd01d9e1adb3bd2e75274dbbabd
+    GitHub-Pull-Request: golang/go#52423
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400954
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- .../go/testdata/script/test_fuzz_err_deadlock.txt  | 50 ++++++++++++++++++++++
- src/internal/fuzz/worker.go                        |  3 +-
- 2 files changed, 52 insertions(+), 1 deletion(-)
+ src/reflect/all_test.go | 66 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 14 +++++++++--
+ 2 files changed, 78 insertions(+), 2 deletions(-)

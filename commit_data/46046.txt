@@ -1,21 +1,30 @@
-commit 213e157d3aad3fbb289d184a5cb4b18258162634
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jun 15 16:01:25 2021 -0700
+commit 0d1b44c6457bcfad611252175934e82f73440475
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 12:57:38 2020 -0500
 
-    testing/fstest: allow specifying file for "." in MapFS
+    [dev.regabi] cmd/compile: introduce IR visitors
     
-    Prior to this commit, specifying a file for "." in MapFS
-    created an invalid fs.FS and caused infinite recursion in fs.WalkDir.
+    This CL introduces the general visitor functionality that will replace
+    the Left, SetLeft, Right, SetRight, etc methods in the Node interface.
     
-    Fixes #46776
+    For now, the CL defines the functionality in terms of those methods,
+    but eventually the Nodes themselves will implement DoChildren
+    and EditChildren and be relieved of implementing Left, SetLeft, and so on.
     
-    Change-Id: Ia9e4ae1125355a74dba9ee6b36451b7fda75a862
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/328409
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The CL also updates Inspect (which moved to visit.go) and DeepCopy
+    to use the new functionality.
+    
+    The Find helper is not used in this CL but will be used in a future one.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: Id0eea654a884ab3ea25f48bd8bdd71712b5dcb44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275311
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/testing/fstest/mapfs.go      |  4 +++-
- src/testing/fstest/mapfs_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/copy.go  |  57 ++------
+ src/cmd/compile/internal/ir/node.go  |  20 ---
+ src/cmd/compile/internal/ir/visit.go | 273 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 289 insertions(+), 61 deletions(-)

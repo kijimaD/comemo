@@ -1,17 +1,25 @@
-commit fb79da299127b3ff85e14f37e4616a26e6c2a720
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 8 14:19:59 2023 +1100
+commit 1a9972ec87de1eba7f9f71c8ed4afa88b0c122d4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 28 12:46:46 2022 -0400
 
-    math/rand: rewrite the math/rand package comment to say what it's good for
+    cmd/internal/obj: sort relocations
     
-    It currently says only what it wasn't good for, which is not helpful.
+    At least on some platforms (e.g. PE dynamic loader) relocations
+    need to be sorted in address order. Currently we don't always emit
+    relocations in address order: e.g. for array literal with out-of-
+    order element initializers, or out-of-order DATA instructions in
+    assembly code. Sort them.
     
-    Change-Id: I468c7f385c14eaca99788a94d53c30b729ed0944
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466276
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    No test for now as I can't reproduce the failure for #51923.
+    
+    Fixes #51923.
+    
+    Change-Id: Ifec5d3476e027bb927bcefd6e45c40ebeccee4ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396195
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/math/rand/rand.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/objfile.go | 1 +
+ 1 file changed, 1 insertion(+)

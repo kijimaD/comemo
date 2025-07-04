@@ -1,22 +1,18 @@
-commit 9e26569293c13974d210fd588ebfd29b857d8525
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jul 18 13:58:13 2021 -0700
+commit 7b192f33cf8e1391769353687e5b698d9f677109
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Nov 23 05:47:51 2020 +0000
 
-    cmd/go: don't add C compiler ID to hash for standard library
+    cmd/go: remove trailing whitespace from test script
     
-    No test because a real test requires installing two different compilers.
+    Noticed while skimming through recent master commits.
     
-    For #40042
-    For #47251
-    
-    Change-Id: Iefddd67830d242a119378b7ce20be481904806e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/335409
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I42a99ea7d71c05fc5b6107627105375a21920f5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271990
+    Trust: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/go_test.go            | 32 ++++++++++++++++++++++++++++++++
- src/cmd/go/internal/work/exec.go | 11 +++++++++--
- 2 files changed, 41 insertions(+), 2 deletions(-)
+ src/cmd/go/testdata/script/mod_gonoproxy.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

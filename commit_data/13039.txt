@@ -1,12 +1,18 @@
-commit 80790ab740eb8aa11d07624c2e9cf1eab834992f
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Mon May 7 10:47:58 2012 -0400
+commit 56a76c88f8ff1d0b46168512b370e5a48b8ee2a8
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon May 7 11:51:40 2012 +0200
 
-    C: Jeremy Ellington (Google CLA)
+    exp/locale/collate: from the regression test we derive that the spec
+    dictates a CJK rune is only part of a certain specified range if it
+    is explicitly defined in the Unicode Codepoint Database.
+    Fixed the code and some of the tests accordingly.
     
-    R=golang-dev, rsc
-    CC=golang-dev, jme
-    https://golang.org/cl/6197058
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6160044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/exp/locale/collate/build/builder_test.go |  2 +-
+ src/pkg/exp/locale/collate/build/colelem.go      | 20 ++++++++++----------
+ src/pkg/exp/locale/collate/colelem.go            | 21 ++++++++++-----------
+ src/pkg/exp/locale/collate/colelem_test.go       |  2 +-
+ 4 files changed, 22 insertions(+), 23 deletions(-)

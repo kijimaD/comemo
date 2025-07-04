@@ -1,18 +1,35 @@
-commit b32ec6c961182e5bca6ae8420d6aa1204d7d2821
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 29 12:14:55 2024 -0500
+commit a7fe9ada10c02a7ea61b2909ef7db151d290073f
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Feb 8 15:06:08 2023 -0500
 
-    fmt: update docs for %03s
+    cmd/internal/cov: fix misuse of bufio.Reader.Read in read helper
     
-    %03s zero-pads a string with spaces; always has and now always will.
+    Fix a misuse of bufio.Reader.Read in the helper class
+    cmd/internal/cov.MReader; the MReader method in question should have
+    been using io.ReadFull (passing the bufio.Reader) instead of directly
+    calling Read.
     
-    Fixes #56486.
+    Using the Read method instead of io.ReadFull will result in a "short"
+    read when processing a specific subset of counter data files, e.g.
+    those that are short enough to not trigger the mmap-based scheme we
+    use for larger files, but also with a large args section (something
+    large enough to exceed the default 4k buffer size used by
+    bufio.Reader).
     
-    Change-Id: Ia336581ae7db1c3456699e69e14a3071f50c9f2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/559197
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Along the way, add some additional defered Close() calls for files
+    opened by the CovDataReader.visitPod, to enure we don't leave any open
+    file descriptor following a call to CovDataReader.Visit.
+    
+    Fixes #58411.
+    
+    Change-Id: Iea48dc25c0081be1ade29f3a633df02a681fd941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466677
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/fmt/doc.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/internal/cov/mreader.go        |  2 +-
+ src/cmd/internal/cov/read_test.go      | 98 ++++++++++++++++++++++++++++++++++
+ src/cmd/internal/cov/readcovdata.go    |  4 ++
+ src/cmd/internal/cov/testdata/small.go |  7 +++
+ 4 files changed, 110 insertions(+), 1 deletion(-)

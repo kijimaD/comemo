@@ -1,26 +1,28 @@
-commit f985833dec19b0147db3c5c33d3bf0181891d458
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 16 10:52:01 2022 -0500
+commit a9705e157beb51574233e23cc2e2a412d4681a15
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 29 10:02:01 2021 -0700
 
-    testing: panic in Fuzz if the function returns a value
+    cmd/compile/internal/types2: slice-to-array-pointer conversion requires go1.17
     
-    Otherwise, the behavior of a fuzz target that returns an error could
-    be confusing.
+    Add missing version check. Even though this is a new types2 error
+    we separate between the compiler and the types2 error message: we
+    have the compiler error message to match the compiler style, and
+    we have a types2-specific error message to match the types2 style
+    for these kinds of errors (for now).
     
-    Fuzz is already documented to require a function “with no return
-    value”, so this fixes the implementation to match the existing
-    documentation.
+    Eventually we need to decide which style we like better and clean
+    this up.
     
-    Fixes #51222
+    Follow-up on https://golang.org/cl/301650.
     
-    Change-Id: I44ca7ee10960214c92f5ac066ac8484c8bb9cd6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386175
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Updates #395.
+    
+    Change-Id: I5b779f345994c66b1f4a4db466466f98b7d3c491
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315169
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Nooras Saba‎ <saba@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/testdata/script/test_fuzz_return.txt | 19 +++++++++++++++++++
- src/testing/fuzz.go                             |  3 +++
- 2 files changed, 22 insertions(+)
+ src/cmd/compile/internal/types2/conversions.go          | 17 ++++++++++++++---
+ src/cmd/compile/internal/types2/decl.go                 |  2 +-
+ .../compile/internal/types2/testdata/check/go1_16.src   | 13 +++++++++++++
+ 3 files changed, 28 insertions(+), 4 deletions(-)

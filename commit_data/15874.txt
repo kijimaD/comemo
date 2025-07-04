@@ -1,13 +1,13 @@
-commit 178d8d4f7ad1907cd9c0245b2ee4eacd5ae907df
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 21 13:51:49 2013 -0700
+commit d04ac4b0b74ff7fdb42d9578ddb3f25d15f5b477
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 22 04:00:54 2013 +0800
 
-    doc/go1.1.html: more TODOs done
-    Only the net stuff remains as significant work in the "minor changes" section.
+    cmd/ld: portability fixes
+    fix code that implicitly assumes little-endian machines.
     
-    R=golang-dev, dave, elias.naur, rsc
+    R=golang-dev, bradfitz, rsc, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/7933044
+    https://golang.org/cl/6792043
 
- doc/go1.1.html | 115 ++++++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 90 insertions(+), 25 deletions(-)
+ src/cmd/ld/ldpe.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

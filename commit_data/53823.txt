@@ -1,27 +1,25 @@
-commit e417698e84bcb2b44b263773ff3d69af9354f577
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Jun 14 17:09:30 2023 -0400
+commit 4e7e7ae1406c70d9cc0809ec11105a55a60a0b70
+Author: Eliza Weisman <eliza@buoyant.io>
+Date:   Wed Aug 31 19:16:18 2022 +0000
 
-    cmd/link: fix up more zero-sized local symbols on darwin dynamic linking
+    net/http: don't time out idle server connections after ReadHeaderTimeout
     
-    When dynamic linking on darwin, the darwin linker doesn't link
-    relocations pointing to zero-sized local symbols, like our
-    start/end marker symbols, e.g. runtime.text and runtime.etext.
-    It will choose to resolve to another symbol on the same address
-    that may not be local, therefore that reference may point to a
-    different DSO, which is not what we want. We already fix up some
-    marker symbols, like text/etext, data/edata, bss/ebss. But we
-    currently don't fix up noptrdata and noptrbss. With the new
-    darwin linker ld-prime, this causes problems when building a
-    plugin. Fix up those symbols.
+    Consistently wait for idle connections to become readable before
+    starting the ReadHeaderTimeout timer. Previously, connections with no
+    idle timeout skipped directly to reading headers, so the
+    ReadHeaderTimeout also included time spent idle.
     
-    For #61229.
+    Fixes #54784
     
-    Change-Id: I2181bb9184b85af9a3c3f5dc6d78e4d5a1d56d53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503538
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Iff1a876f00311d03dfa0fbef5b577506c62f7c41
+    GitHub-Last-Rev: 09332743ad6d5a9eb1137adaade2810c583d38ca
+    GitHub-Pull-Request: golang/go#54785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426895
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- src/cmd/link/internal/ld/data.go | 22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
+ src/net/http/serve_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 14 ++++++++++---
+ 2 files changed, 63 insertions(+), 3 deletions(-)

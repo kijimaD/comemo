@@ -1,19 +1,25 @@
-commit d516aa6bdceb4d0a0bf4f714ef4a432a3896c6d7
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Sep 15 19:57:36 2023 -0400
+commit 3617514de07278637b7ead51447d23c8799b1d60
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 31 11:44:43 2022 -0400
 
-    runtime: skip TestG0StackOverflow on iOS
+    cmd/go: replace the 'addcrlf' script command with a more general 'replace' command
     
-    Apparently it falls into infinite printing loop. Skipping for now.
-    Will investigate.
+    This allows the "reuse_git" test to avoid depending on exact JSON
+    blobs, which will be important when the URLs start referring to
+    test-local vcweb servers.
     
-    For #62671.
+    For #27494.
     
-    Change-Id: I5be8e8c1d0f4f2eaa231d6bcdfe13e7f08c28b98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528403
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I22fde5110b3267b8fb9fb9c59fabc3b8a8b492c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427094
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/runtime/crash_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/internal/script/cmds.go       | 38 ++++++++++++++++
+ src/cmd/go/scriptcmds_test.go            | 30 -------------
+ src/cmd/go/testdata/script/README        | 10 +++--
+ src/cmd/go/testdata/script/mod_find.txt  |  2 +-
+ src/cmd/go/testdata/script/reuse_git.txt | 74 +++++---------------------------
+ 5 files changed, 55 insertions(+), 99 deletions(-)

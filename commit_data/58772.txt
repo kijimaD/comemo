@@ -1,28 +1,16 @@
-commit 5295722238446f09197adb2c5a8ba27fe1076973
-Author: Nicolas Hillegeer <aktau@google.com>
-Date:   Thu Dec 12 08:49:03 2024 -0800
+commit 78dcb5327a45a6a9cd7829dbbf62ad853c60793d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 15:03:39 2023 -0500
 
-    runtime: print pp.schedtick in scheddetail even when !detailed
+    doc/go1.22: document syscall changes
     
-    Provides, on one line, an approximation of P scheduling throughput: how
-    many times execute() was called for a given P. Said another way: how
-    many RUNNABLE to RUNNING transitions have happened for this P.
+    For #61422.
     
-    This allows discerning whether a P actually did anything, and how it
-    compares to other periods of a processes operation.
-    
-    This should be useful to analyze (kernel) scheduler hiccups.
-    
-    Investigators will want to subtract the tick values from subsequent
-    schedtrace lines to get a rate of schedulings. I've opted to add a space
-    around the first and last element as well to make it more uniform to do
-    the proposed subtracting with tools like AWK.
-    
-    Change-Id: I69d6dae1509ad285d43799f38bcaa3aa0fb2352e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/635636
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I976b8cc14893b91e5140c7b53d0773bca57cb19d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548936
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Nicolas Hillegeer <aktau@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/proc.go | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ doc/go1.22.html | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

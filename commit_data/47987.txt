@@ -1,20 +1,30 @@
-commit 0ef6dd74409506eb084bd8d2fe61e0e70ed9e5a4
-Author: Bryan Mills <bcmills@google.com>
-Date:   Sat Jan 22 03:42:40 2022 +0000
+commit 69c94ad55f9bf3072a5ad466b779e1427a3a07e0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 15 16:54:41 2021 -0400
 
-    Revert "cmd/go: evaluate root symlink in matchPackages"
+    cmd/go/internal/modload: split updateRoots into separate functions for updating and tidying
     
-    This reverts CL 380057.
+    In CL 293689, I fused the mvs.Reqs calls that were formerly in MinReqs
+    and TidyBuildList into a single function, updateRoots, in the hope
+    that it expressed a fundamental operation. As I have been working on
+    the lazy equivalents, I have come to realize that these functions are
+    deeply related but fundamentally different.
     
-    Reason for revert: appears to have broken x/tools tests on macOS.
+    In order to help me reason about the two different roles, I am making
+    the two functions separate once more, but leaving them colocated in
+    the code.
     
-    Change-Id: If1340bcb9b78f7271798c4dd923553e33db7f72e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380294
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    For #36460
+    
+    Change-Id: I851d6d81fbfd84f39411e0d076ee72a9909c60ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310629
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modload/search.go               |  5 -----
- src/cmd/go/testdata/script/work_root_is_symlink.txt | 20 --------------------
- 2 files changed, 25 deletions(-)
+ src/cmd/go/internal/modload/buildlist.go | 170 +++++++++++++++++--------------
+ src/cmd/go/internal/modload/init.go      |   2 +-
+ src/cmd/go/internal/modload/load.go      |  14 ++-
+ 3 files changed, 106 insertions(+), 80 deletions(-)

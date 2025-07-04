@@ -1,19 +1,15 @@
-commit 1320ce00c44eef3b477f40a409f654ac145cfac5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 9 16:54:24 2012 -0800
+commit 024952fb8a75ca12e30cda9d9b52fb9ad653b6c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 9 16:51:20 2012 -0800
 
-    spec: pointer comparison for pointers to 0-sized variables
+    syscall: make Environ return original order
     
-    - define "0-sized"
-    - add clarifying sentence to pointer comparison
-    - removed notion "location" which was used only in pointer comparisons
-      and which was never defined
+    Fixes #2619
     
-    Fixes #2620.
-    
-    R=r, rsc, iant
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5528053
+    https://golang.org/cl/5528058
 
- doc/go_spec.html | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/pkg/os/env_test.go      | 11 ++++++++
+ src/pkg/syscall/env_unix.go | 64 +++++++++++++++++++++++++++++++--------------
+ 2 files changed, 55 insertions(+), 20 deletions(-)

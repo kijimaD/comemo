@@ -1,27 +1,18 @@
-commit 869c02ce1f635960bfc2f06bb52e2b4e17eaa199
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed Sep 16 15:23:58 2020 +0200
+commit 2b920cba8fa68f8ded28150ec1b1a5cea61ae0f0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 6 04:47:52 2020 +1100
 
-    misc/ios: add support for running programs on the iOS simulator
+    cmd/internal/obj/riscv: store relocation details in obj.Prog.RestArgs
     
-    Update the README to mention the emulator. Remove reference to gomobile
-    while here; there are multiple ways to develop for iOS today, including
-    using the c-archive buildmode directly.
+    Store the relocation offset and symbol in obj.Prog.RestArgs, rather than
+    overloading obj.Prog.From and having to deal with invalid offsets
+    potentially existing when the instruction is encoded.
     
-    Updates #38485
-    
-    Change-Id: Iccef75e646ea8e1b9bc3fc37419cc2d6bf3dfdf4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255257
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Elias Naur <mail@eliasnaur.com>
+    Change-Id: Iff0d678361677e78b41b887f6eba08cee94fccb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218197
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/ios/README                                    |  31 ++-
- misc/ios/clangwrap.sh                              |  20 +-
- misc/ios/detect.go                                 |   2 +-
- misc/ios/{go_darwin_arm_exec.go => go_ios_exec.go} | 277 ++++++++++++++-------
- src/cmd/dist/build.go                              |   2 +-
- src/iostest.bash                                   |   2 +-
- src/runtime/cgo/gcc_darwin_arm64.c                 |   2 +-
- 7 files changed, 213 insertions(+), 123 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 46 ++++++++++++++-------------------------
+ 1 file changed, 16 insertions(+), 30 deletions(-)

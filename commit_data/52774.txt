@@ -1,29 +1,31 @@
-commit 5256f90c98cd19b983d35d2377b3fecfd966671e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Apr 24 10:18:07 2023 -0400
+commit d29d0314c1ee64b2cf925b9c8ee535a6e52c5386
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 25 10:15:28 2022 -0400
 
-    runtime: fix CgoRaceprof and CgoRaceSignal build failures
+    runtime: don't inspect the stack for delayed signals from TSAN
     
-    TestRaceProf and TestRaceSignal were changed to run on all platforms
-    that support the race detector as of CL 487575, but the testprogcgo
-    source files needed to run the test rely on POSIX threads and were
-    still build-constrained to only linux/amd64 and freebsd/amd64.
+    Cgo TSAN (not the Go race detector) intercepts signals and calls
+    the signal handler at a later time. When the signal handler is
+    called, the memory may have changed, but the signal context
+    remains old. As the signal context and the memory don't match, it
+    is unsafe to unwind the stack from the signal PC and SP. We have
+    to ignore the signal.
     
-    Since the C test program appears to require only POSIX APIs, update
-    the constraint to build the source file on all Unix platforms, and
-    update the tests to skip on Windows.
+    It is probably also not safe to do async preemption, which relies
+    on the signal PC, and inspects and even writes to the stack (for
+    call injection).
     
-    This may slightly increase testprogcgo build time on Unix platforms
-    that do not support the race detector.
+    We also inspect the stack for fatal signals (e.g. SIGSEGV), but I
+    think they are not delayed. For other signals we don't inspect
+    the stack, so they are probably fine.
     
-    Change-Id: I704dd496d475a3cd2e2da2a09c7d2e3bb8e96d02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/488115
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #27540.
+    
+    Change-Id: I5c80a7512265b8ea4a91422954dbff32c6c3a0d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408218
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/crash_cgo_test.go                | 11 +++++++++++
- src/runtime/testdata/testprogcgo/raceprof.go |  4 ++--
- src/runtime/testdata/testprogcgo/racesig.go  |  4 ++--
- 3 files changed, 15 insertions(+), 4 deletions(-)
+ src/runtime/signal_unix.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

@@ -1,27 +1,25 @@
-commit 754f870381ef5e2c60c0edd4f902e7063ffb4452
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Sep 17 21:46:35 2023 +0100
+commit 4bd77619b743c3c986742527236568e43db37c44
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Sun Dec 4 15:06:45 2022 +0800
 
-    crypto/tls,regexp: remove always-nil error results
+    cmd/compile, cmd/dist, internal: enable buildmode=pie for linux/loong64
     
-    These were harmless, but added unnecessary verbosity to the code.
-    This can happen as a result of refactors: for example,
-    the method sessionState used to return errors in some cases.
+    This is actually not tied to the ELF psABI v2 upgrade, and can be
+    enabled "for free".
     
-    Change-Id: I4e6dacc01ae6a49b528c672979f95cbb86795a85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528995
-    Reviewed-by: Leo Isla <islaleo93@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Olivier Mengué <olivier.mengue@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: I6906d9eb4bd8655c685b059283e200cb7e210369
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455075
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/tls/handshake_client.go       | 5 +----
- src/crypto/tls/handshake_client_tls13.go | 6 +-----
- src/crypto/tls/handshake_server.go       | 6 ++----
- src/crypto/tls/handshake_server_tls13.go | 9 +++------
- src/crypto/tls/ticket.go                 | 4 ++--
- src/regexp/syntax/parse.go               | 8 ++------
- 6 files changed, 11 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/base/flag.go | 2 +-
+ src/cmd/dist/test.go                  | 2 +-
+ src/internal/platform/supported.go    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

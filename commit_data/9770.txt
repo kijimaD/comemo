@@ -1,32 +1,37 @@
-commit 1f577d26d7c7a935c792dacc6cc50826cfd77af0
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Wed Sep 21 19:04:41 2011 -0700
+commit 9169c27eaa5d3209b687249b5045c27f73327715
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 21 17:25:48 2011 -0700
 
-    exp/template/html: simplify transition functions
+    test: match gccgo error messages
     
-    This simplifies transition functions to make it easier to reliably
-    elide comments in a later CL.
+    bug363.go:13:12: error: invalid context-determined non-integer type for shift operand
+    bug363.go:16:12: error: invalid context-determined non-integer type for shift operand
     
-    Before:
-    - transition functions are responsible for detecting special end tags.
-    After:
-    - the code to detect special end tags is done in one place.
+    pointer.go:34:6: error: incompatible type in initialization (pointer to interface type has no methods)
+    pointer.go:36:6: error: incompatible type in initialization
     
-    We were relying on end tags being skipped which meant we were
-    not noticing comments inside script/style elements that contain no
-    substitutions.
-    This change means we will notice all such comments where necessary,
-    but stripTags will notice none since it does not need to.  This speeds
-    up stripTags.
+    method2.go:15:1: error: invalid pointer or interface receiver type
+    method2.go:16:1: error: invalid pointer or interface receiver type
+    method2.go:21:1: error: invalid pointer or interface receiver type
+    method2.go:22:1: error: invalid pointer or interface receiver type
+    method2.go:28:15: error: type ‘*Val’ has no method ‘val’
+    method2.go:33:11: error: reference to undefined field or method ‘val’
     
-    R=nigeltao
+    shift1.go:19:16: error: invalid context-determined non-integer type for shift operand
+    shift1.go:24:19: error: invalid context-determined non-integer type for shift operand
+    shift1.go:25:17: error: invalid context-determined non-integer type for shift operand
+    shift1.go:18:18: error: shift of non-integer operand
+    shift1.go:26:13: error: floating point constant truncated to integer
+    shift1.go:33:15: error: integer constant overflow
+    shift1.go:34:15: error: integer constant overflow
+    shift1.go:35:17: error: integer constant overflow
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5074041
+    https://golang.org/cl/5081051
 
- src/pkg/exp/template/html/context.go     |   9 +++
- src/pkg/exp/template/html/escape.go      |   9 ++-
- src/pkg/exp/template/html/escape_test.go |   2 +-
- src/pkg/exp/template/html/html.go        |  18 ++++--
- src/pkg/exp/template/html/html_test.go   |   1 +
- src/pkg/exp/template/html/transition.go  | 106 +++++++++----------------------
- 6 files changed, 60 insertions(+), 85 deletions(-)
+ test/fixedbugs/bug363.go  | 4 ++--
+ test/interface/pointer.go | 2 +-
+ test/method2.go           | 8 ++++----
+ test/shift1.go            | 8 ++++----
+ 4 files changed, 11 insertions(+), 11 deletions(-)

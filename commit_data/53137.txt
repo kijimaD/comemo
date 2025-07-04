@@ -1,18 +1,22 @@
-commit 3b9f99ebaa1eb9209f3bab07f09cf27f06ccce0d
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Thu May 18 11:16:31 2023 +0300
+commit 055a5e55faf0f5c8d5bb6db2e17d5d48f13a584c
+Author: David Chase <drchase@google.com>
+Date:   Tue Jul 19 15:20:55 2022 -0400
 
-    go/types: fix typos in comments
+    [dev.unified] test: change Unicode file/package name to use characters not translated by macOS.
     
-    Change-Id: Ifadb11dc8ba8e63c736cb7ac277247bc587ce4b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496136
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    In filenames, macOS translates Ä (U+00c4, c3 84) to Ä (U+0041 U+0308, 41 cc 88).
+    This causes problems for run.go's crude rules for testing the compiler.
+    
+    Fixes #53954.
+    
+    Change-Id: I850421cbf07e022ca5ff8122e0fb4e80deb55adf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418334
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/call.go  | 2 +-
- src/cmd/compile/internal/types2/infer.go | 2 +-
- src/go/types/call.go                     | 2 +-
- src/go/types/infer.go                    | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ test/fixedbugs/issue27836.dir/Äfoo.go  | 13 -------------
+ test/fixedbugs/issue27836.dir/Ämain.go | 13 -------------
+ test/fixedbugs/issue27836.dir/Þfoo.go  | 17 +++++++++++++++++
+ test/fixedbugs/issue27836.dir/Þmain.go | 17 +++++++++++++++++
+ 4 files changed, 34 insertions(+), 26 deletions(-)

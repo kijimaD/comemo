@@ -1,16 +1,16 @@
-commit ada655759393e30ae25296b94c5cc07b27a4d683
-Author: griesemer <gri@golang.org>
-Date:   Tue Oct 17 15:30:12 2017 -0700
+commit 5125a967100643cebc4501e3d626b44b5ab15747
+Author: Johnny Luo <johnnyluo1980@gmail.com>
+Date:   Thu Jul 20 17:20:46 2017 +1000
 
-    spec: simplify paragraph on certain range expressions over arrays
+    os: remove duplicate check from windows os.Stat
     
-    Fixes #22258.
+    Fixes #21075
     
-    Change-Id: I43e68f1cf3163e1a041ebff2734ff2cb7943f695
-    Reviewed-on: https://go-review.googlesource.com/71431
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idfe5002dfe17943844d9427e27f82ce894b92e80
+    Reviewed-on: https://go-review.googlesource.com/50270
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/os/stat_windows.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

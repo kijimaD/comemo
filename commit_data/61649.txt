@@ -1,0 +1,16 @@
+commit 8c2a04f169e15944bdd6f400e6ddc19c922a7676
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Jul 27 23:40:15 2024 +0200
+
+    crypto/internal/nistec: port cleanups and docs from p256_asm.go to purego
+    
+    Change-Id: Ieaad0692f4301cc301a0dd2eadca2f2f9e96bff0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627942
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/internal/nistec/p256.go | 272 ++++++++++++++++++++-----------------
+ 1 file changed, 148 insertions(+), 124 deletions(-)

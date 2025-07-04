@@ -1,15 +1,20 @@
-commit 76659e47971b594aa6855ef77e022420e070e5ea
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 29 05:38:25 2019 +0000
+commit 12c0f1b3e6ace3972bb3d328b2bdcadb6dceb198
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 28 14:19:28 2018 -0800
 
-    cmd/link/internal/s390x: fix s390x build
+    cmd/cgo: set correct column for user-written code
     
-    Fix breakage from CL 173437
+    Take advantage of the new /*line*/ comments.
     
-    Change-Id: If218ffaa1259fbdee641143ffbe4b38030c373b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174278
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #26745
+    
+    Change-Id: I8098642e0f11f7418fe81b9a08dbe07671f930fe
+    Reviewed-on: https://go-review.googlesource.com/c/151598
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/s390x/asm.go | 2 ++
- 1 file changed, 2 insertions(+)
+ misc/cgo/errors/errors_test.go    |  1 +
+ misc/cgo/errors/src/issue26745.go | 17 +++++++++++++++++
+ src/cmd/cgo/gcc.go                | 37 ++++++++++++++++++++++++++++++-------
+ 3 files changed, 48 insertions(+), 7 deletions(-)

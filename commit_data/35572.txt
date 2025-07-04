@@ -1,14 +1,22 @@
-commit a7e0a920ad45482183783c56e4dd39c9457ff4cc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 31 15:07:02 2018 -0700
+commit cacf8127e3ce1b0a69df66bec68dbd80126aac87
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Jan 25 15:38:09 2018 -0500
 
-    archive/zip: remove unnecessary words in (*Writer).Close docs
+    cmd/trace: present the GC time in the usertask view
     
-    Fixes #25599
+    The GC time for a task is defined by the sum of GC duration
+    overlapping with the task's duration.
     
-    Change-Id: I19ac3463682f662515feaf4c6132f55c12ba5386
-    Reviewed-on: https://go-review.googlesource.com/115618
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also, grey out non-overlapping slices in the task-oriented
+    trace view.
+    
+    R=go1.11
+    
+    Change-Id: I42def0eb520f5d9bd07edd265e558706f6fab552
+    Reviewed-on: https://go-review.googlesource.com/90219
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/archive/zip/writer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/trace/annotations.go      | 125 ++++++++++++++++++++++++++++++++++----
+ src/cmd/trace/annotations_test.go |  75 ++++++++++++++++++++++-
+ src/cmd/trace/trace.go            |  13 ++++
+ 3 files changed, 200 insertions(+), 13 deletions(-)

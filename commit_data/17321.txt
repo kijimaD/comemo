@@ -1,29 +1,22 @@
-commit c974b8b6ac01df39fb436995939503febb9190ef
+commit a8fe176156b02011cc6628cb3602acaa6cb50236
 Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 19 15:50:57 2013 +1000
+Date:   Mon Aug 19 12:05:33 2013 +1000
 
-    cmd/go: diagnose import cycles better
+    test: fix build
+    syntax/*: update messages
+    sliceerr3.go: bizarre new error fixed by deleting a space.
     
-    Before this CL, the import stack was a) not printed and b) overwritten later
-    in the build, destroying the information about the cycle. This CL fixes both.
+    I could have sworn I ran all.bash before submitting the CL that triggered these.
     
-    I made time depend on os (os already depends on time) and with this CL the error is:
+    TBR=golang-dev@googlegroups.com
     
-    /Users/r/go/src/pkg/fmt/print.go:10:2: import cycle not allowed
-    package code.google.com/p/XXX/YYY:
-            imports fmt
-            imports os
-            imports time
-            imports os
-    
-    Doesn't give line numbers for the actual imports, as requested in the bug, but
-    I don't believe that's important.
-    
-    Fixes #4292.
-    
-    R=golang-dev, adg
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/13100043
+    https://golang.org/cl/12812044
 
- src/cmd/go/pkg.go | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ test/slice3err.go    | 2 +-
+ test/syntax/semi1.go | 2 +-
+ test/syntax/semi2.go | 2 +-
+ test/syntax/semi3.go | 2 +-
+ test/syntax/semi4.go | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

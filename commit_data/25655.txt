@@ -1,21 +1,19 @@
-commit e6347659410454cfabc4f4bc04fe37e538f472e8
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 24 15:20:36 2016 -0500
+commit 3a3049897c0c62907da398819f61d77199df52ad
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Thu Aug 27 14:52:06 2015 -0400
 
-    cmd/asm: add amd64 HADDPD/HADDPS
+    archive/tar: make output deterministic
     
-    Was part of #13822 but not in the first message, so I missed it.
+    Replaces PID in PaxHeaders with 0.  Sorts PAX header keys before writing
+    them to the archive.
     
-    Fixes #13822 again.
+    Fixes #12358
     
-    Change-Id: I775004fa8d47b6af293124605521ec396573e267
-    Reviewed-on: https://go-review.googlesource.com/18900
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If239f89c85f1c9d9895a253fb06a47ad44960124
+    Reviewed-on: https://go-review.googlesource.com/13975
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 64 ++++++++++++++--------------
- src/cmd/internal/obj/x86/a.out.go            |  4 ++
- src/cmd/internal/obj/x86/anames.go           |  4 ++
- src/cmd/internal/obj/x86/asm6.go             |  4 ++
- 4 files changed, 44 insertions(+), 32 deletions(-)
+ src/archive/tar/writer.go      | 21 +++++++++++------
+ src/archive/tar/writer_test.go | 53 +++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 64 insertions(+), 10 deletions(-)

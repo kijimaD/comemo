@@ -1,17 +1,19 @@
-commit 7b6111a9ddf899235ef2eb9a3c139e8cc9d83391
-Author: Jean-Marc Eurin <jmeurin@google.com>
-Date:   Wed May 30 14:18:58 2012 -0400
+commit deb93b0f7b646faabc7b4c5db49d7a586a17247e
+Author: Joel Sing <jsing@google.com>
+Date:   Thu May 31 03:27:04 2012 +1000
 
-        misc/emacs: Use patch output of gofmt instead of replacing the buffer.
+    runtime: always initialise procid on netbsd
     
-    This uses the patch output of gofmt (-d option) and applies each
-    chunk to the buffer, instead of replacing the whole buffer.  The
-    main advantage is that the undo history is kept across gofmt'ings,
-    so it can really be used as a before-save-hook.
+    The correct procid is needed for unparking LWPs on NetBSD - always
+    initialise procid in minit() so that cgo works correctly. The non-cgo
+    case already works correctly since procid is initialised via
+    lwp_create().
     
-    R=sameer, sameer
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6198047
+    https://golang.org/cl/6257071
 
- misc/emacs/go-mode.el | 71 +++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 49 insertions(+), 22 deletions(-)
+ src/pkg/runtime/sys_netbsd_386.s   | 5 +++++
+ src/pkg/runtime/sys_netbsd_amd64.s | 5 +++++
+ src/pkg/runtime/thread_netbsd.c    | 6 +++---
+ 3 files changed, 13 insertions(+), 3 deletions(-)

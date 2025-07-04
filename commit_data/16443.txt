@@ -1,17 +1,17 @@
-commit d6f89d735e66c7b955f262d38ba95f5e9a793b95
-Author: Keith Randall <khr@golang.org>
-Date:   Thu May 30 21:32:20 2013 -0700
+commit cf5dd6ad644ef0f12e5e1f550a3721b146ad177a
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 30 11:28:08 2013 -0400
 
-    runtime: set MSpan.limit properly for large spans.
-    Then use the limit to make sure MHeap_LookupMaybe & inlined
-    copies don't return a span if the pointer is beyond the limit.
-    Use this fact to optimize all call sites.
+    testing: quantize AllocsPerRun
+    As the code now says:
     
-    R=golang-dev, dvyukov
+    We are forced to return a float64 because the API is silly, but do
+    the division as integers so we can ask if AllocsPerRun()==1
+    instead of AllocsPerRun()<2.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/9869045
+    https://golang.org/cl/9837049
 
- src/pkg/runtime/malloc.goc |  6 +-----
- src/pkg/runtime/mgc0.c     | 10 ++--------
- src/pkg/runtime/mheap.c    |  4 +---
- 3 files changed, 4 insertions(+), 16 deletions(-)
+ src/pkg/testing/allocs.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

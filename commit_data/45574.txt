@@ -1,30 +1,39 @@
-commit 4dbad795100bc0f5f9419bbb44b1ff0beb60a88c
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 6 12:24:20 2021 -0400
+commit 3a819e8998af1db3bdd34eb2ab059a3c534c6def
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Wed Oct 28 13:35:57 2020 -0700
 
-    runtime: call unlockOSThread directly in Windows syscall functions
+    syscall: handle undefined r2 value on linux-ppc64x
     
-    Windows syscall functions (e.g. syscall.Syscall9) are defined as
-    cgo_unsafe_args (because it takes the address of one argument and
-    use that to access all arguments) which makes them ABI0. In some
-    case we may need ABI wrappers for them. Because those functions
-    have a large number of arguments, the wrapper can take a
-    non-trivial amount of stack frame, causing nosplit overflow when
-    inlining is disabled. The overflow call chain involves
-    deferreturn.
+    This change fixes two failng tests on linux-ppc64x:
     
-    This CL changes a deferred call to unlockOSThread to a direct
-    call. If the syscall functions panics, it is likely a fatal error
-    anyway.
+    - TestAllThreadsSyscall() exposed a real bug in the ppc64x support:
+      - It turns out that the r2 syscall return value is not defined
+        on all architectures. Notably linux-ppc64x so address that by
+        introducing a private architectural constant in the syscall
+        package, archHonorsR2: true if r2 has a determanistic value.
     
-    Fixes #45698.
+    - TestSetuidEtc() was sensitive to /proc/<PID>/status content:
+      - The amount of padding space has changed with kernel vintage.
+      - Stress testing revealed a race with /proc files disappearing.
     
-    Change-Id: I280be826644de1205f9c8f5efaa4ec5e1b4eebc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316650
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Fixes #42178
+    
+    Change-Id: Ie6fc0b8f2f94a409ac0e5756e73bfce113274709
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266202
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/syscall_windows.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/syscall/syscall_linux.go         |  8 +++--
+ src/syscall/syscall_linux_386.go     |  6 ++++
+ src/syscall/syscall_linux_amd64.go   |  6 ++++
+ src/syscall/syscall_linux_arm.go     |  6 ++++
+ src/syscall/syscall_linux_arm64.go   |  6 ++++
+ src/syscall/syscall_linux_mips64x.go |  6 ++++
+ src/syscall/syscall_linux_mipsx.go   |  6 ++++
+ src/syscall/syscall_linux_ppc64x.go  |  6 ++++
+ src/syscall/syscall_linux_riscv64.go |  6 ++++
+ src/syscall/syscall_linux_s390x.go   |  6 ++++
+ src/syscall/syscall_linux_test.go    | 60 +++++++++++++++++++-----------------
+ 11 files changed, 91 insertions(+), 31 deletions(-)

@@ -1,17 +1,23 @@
-commit 645cb62ee3926ce88b8c2cf556fed6dea3d525ce
-Author: Julien Tant <julien@craftyx.fr>
-Date:   Tue Apr 27 21:32:18 2021 +0000
+commit b4a06b20897fe7ea3be715cb51040a2ccc52c15b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jul 14 20:27:27 2020 +0000
 
-    testing: document that TestMain can be used with benchmarks
+    runtime: define the AddrRange used for testing in terms of addrRange
     
-    Fixes #45764
+    Currently the AddrRange used for testing is defined separately from
+    addrRange in the runtime, making it difficult to test it as well as
+    addrRanges. Redefine AddrRange in terms of addrRange instead.
     
-    Change-Id: Ie6c18bb5c20721c2ffa8b4a9cf9f97cdc665a450
-    GitHub-Last-Rev: 8bcea7e0ff60227c05437b372c0a3546e151af31
-    GitHub-Pull-Request: golang/go#45808
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314349
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    For #40191.
+    
+    Change-Id: I3aa5b8df3e4c9a3c494b46ab802dd574b2488141
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242677
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/testing/testing.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/export_test.go     | 30 ++++++++++---
+ src/runtime/mpagealloc_test.go | 98 +++++++++++++++++++++---------------------
+ 2 files changed, 72 insertions(+), 56 deletions(-)

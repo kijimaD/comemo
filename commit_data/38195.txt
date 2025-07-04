@@ -1,20 +1,16 @@
-commit 342764a21606ba6f964400cc747ee6c9a88fc959
-Author: Iskander Sharipov <quasilyte@gmail.com>
-Date:   Mon Nov 26 11:40:32 2018 +0300
+commit dc2ae2886fbcd2297d2a0ea67a5d220ae2c74152
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Tue Oct 9 22:12:40 2018 +0530
 
-    runtime/pprof/internal/profile: use idiomatic swapping
+    runtime/cgo: annotate unused variable with __attribute__((unused))
     
-    gogrep found only one such case with the pattern below:
+    Fixes #28095
     
-            $tmp := $x; $x = $y; $y = $tmp
-    
-    R=1.13
-    
-    Change-Id: I6e46fb5ef2887f24fa9fc451323a8cef272e2886
-    Reviewed-on: https://go-review.googlesource.com/c/151200
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Id8668d52986c9805213e8847f49fe42dfde2e01a
+    Reviewed-on: https://go-review.googlesource.com/c/140797
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/pprof/internal/profile/profile.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/runtime/cgo/gcc_libinit.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

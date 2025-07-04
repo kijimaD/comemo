@@ -1,17 +1,20 @@
-commit 06450a82b04dc4b3599ae4864827e6f8a5b7d628
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Apr 24 09:20:30 2025 +0000
+commit cb6d15a747ee7875504fdb4fc28c64c67c5f8d82
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sat Mar 30 04:14:55 2024 +0000
 
-    internal/runtime/cgroup: add line-by-line reader using a single scratch buffer
+    cmd/compile/internal/ssa: fix typos in comment and log
     
-    Change-Id: I6a6a636ca21edcc6f16705fbb72a5241d4f7f22d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668637
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic872bac2989ea1c83f31456eb334e6d756ebd7d1
+    GitHub-Last-Rev: d4098849791d510b9a1f21c3fbce395cd75a04c3
+    GitHub-Pull-Request: golang/go#66612
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575296
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/cmd/internal/objabi/pkgspecial.go           |   1 +
- src/go/build/deps_test.go                       |   1 +
- src/internal/runtime/cgroup/export_test.go      |  24 ++++
- src/internal/runtime/cgroup/line_reader.go      | 179 ++++++++++++++++++++++++
- src/internal/runtime/cgroup/line_reader_test.go | 170 ++++++++++++++++++++++
- 5 files changed, 375 insertions(+)
+ src/cmd/compile/internal/ssa/config.go     | 2 +-
+ src/cmd/compile/internal/ssa/debug_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

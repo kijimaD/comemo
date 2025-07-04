@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 17953: 6ae378050356715a0f8a91f317030a728a89647b
+# Index 17953: ddbad5ef207709ef4fed07e1deba585428588c63
 
 echo "🚀 Generating explanation for commit 17953..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 17953
-- **コミットハッシュ**: 6ae378050356715a0f8a91f317030a728a89647b
-- **GitHub URL**: https://github.com/golang/go/commit/6ae378050356715a0f8a91f317030a728a89647b
+- **コミットハッシュ**: ddbad5ef207709ef4fed07e1deba585428588c63
+- **GitHub URL**: https://github.com/golang/go/commit/ddbad5ef207709ef4fed07e1deba585428588c63
 
 ### 章構成
 

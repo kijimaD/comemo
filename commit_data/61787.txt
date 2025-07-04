@@ -1,0 +1,23 @@
+commit a8eddaf758c15404acbfe61af0739b6d099f2067
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Nov 21 17:32:22 2024 -0800
+
+    runtime, internal/synctest, syscall/js: keep bubble membership in syscalls
+    
+    Propagate synctest bubble membership through syscall/js.Func
+    functions. Avoids panics from cross-bubble channel operations
+    in js syscalls.
+    
+    Fixes #70512
+    
+    Change-Id: Idbd9f95da8bc4f055a635dfac041359f848dad1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631055
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/go/build/deps_test.go         | 10 ++++-----
+ src/internal/synctest/synctest.go | 45 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/synctest.go           | 27 +++++++++++++++++++++++
+ src/syscall/js/func.go            | 27 ++++++++++++++++++-----
+ 4 files changed, 99 insertions(+), 10 deletions(-)

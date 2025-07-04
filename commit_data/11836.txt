@@ -1,21 +1,15 @@
-commit 878153682ecac3fb00bdad50ff8dcc296e30a701
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Feb 12 23:55:33 2012 -0500
+commit c58b6ad02203cc0f4ba3cd0a38ce222d177cc75e
+Author: Hong Ruiqi <hongruiqi@gmail.com>
+Date:   Sun Feb 12 23:45:19 2012 -0500
 
-    cmd/fix: warn about exp, old, deleted packages
+    net/http: use mtime < t+1s to check for unmodified
     
-    Fixes #2776.
+    The Date-Modified header truncates sub-second precision, so
+    use mtime < t+1s instead of mtime <= t to check for unmodified.
     
-    There was a previous attempt at CL 5592043 but that
-    seems to have stalled.  This one is simpler, and more up to date
-    (correct handling of spdy, for example).
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5645091
+    https://golang.org/cl/5655052
 
- doc/go1.html                     |  8 --------
- doc/go1.tmpl                     |  8 --------
- src/cmd/fix/go1pkgrename.go      | 25 ++++++++++++++++++++++++-
- src/cmd/fix/go1pkgrename_test.go | 10 ++++++++++
- 4 files changed, 34 insertions(+), 17 deletions(-)
+ src/pkg/net/http/fs.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

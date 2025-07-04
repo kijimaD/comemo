@@ -1,25 +1,20 @@
-commit 1b2c3e664b08691df57d5999a3b478873dfb06a8
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 24 11:45:52 2011 -0700
+commit 0ac151fd5cb9f6a39927f12016fbe9275229524b
+Author: Sameer Ajmani <ajmani@gmail.com>
+Date:   Thu Mar 24 10:35:39 2011 -0400
 
-    go/parser: resolve identifiers properly
+    misc/emacs: gofmt: don't clobber the current buffer on failure
     
-    Correctly distinguish between lhs and rhs identifiers
-    and resolve/declare them accordingly.
+    Change M-x gofmt to display errors in a new buffer instead of
+    clobbering the current buffer.
     
-    Collect field and method names in respective scopes
-    (will be available after some minor AST API changes).
+    Add gofmt-before-save, which runs gofmt when in go-mode.  This
+    can be used with before-save-hook.  Add to your .emacs:
+      (add-hook 'before-save-hook 'gofmt-before-save)
     
-    Also collect imports since it's useful to have that
-    list directly w/o having to re-traverse the AST
-    (will also be available after some minor AST API changes).
-    
-    No external API changes in this CL.
-    
-    R=rsc, rog
+    R=rsc, aclements, amdragon
     CC=golang-dev
-    https://golang.org/cl/4271061
+    https://golang.org/cl/4276059
 
- src/pkg/go/parser/interface.go |   2 +-
- src/pkg/go/parser/parser.go    | 304 ++++++++++++++++++++++++++++-------------
- 2 files changed, 209 insertions(+), 97 deletions(-)
+ misc/emacs/go-mode-load.el | 19 ++++++++++++---
+ misc/emacs/go-mode.el      | 58 ++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 57 insertions(+), 20 deletions(-)

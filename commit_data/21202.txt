@@ -1,18 +1,19 @@
-commit 583293349bccd62341f53941ccc68556563efd76
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Jan 7 01:23:45 2015 -0500
+commit fa6c54953c756c461073119f02e70930c753bac1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 16:47:50 2014 -0500
 
-    misc/swig/stdio: fix broken nil pointer test
+    [dev.garbage] runtime: reduce stack footprint of write barriers
     
-    SWIG has always returned a typed interface value for a C++ class,
-    so the interface value will never be nil even if the pointer itself
-    is NULL. ptr == NULL in C/C++ should be ptr.Swigcptr() == 0 in Go.
+    This is going to hurt a bit but we'll make it better later.
+    Now the race detector can be run again.
     
-    Fixes #9514.
+    I added the write barrier optimizations from
+    CL 183020043 to try to make it hurt a little less.
     
-    Change-Id: I3778b91acf54d2ff22d7427fbf2b6ec9b9ce3b43
-    Reviewed-on: https://go-review.googlesource.com/2440
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TBR=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/185070043
 
- misc/swig/stdio/file_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/run.bash        |   2 +-
+ src/runtime/mgc0.go | 118 ++++++++++++++++++++++++++++++----------------------
+ 2 files changed, 70 insertions(+), 50 deletions(-)

@@ -1,31 +1,29 @@
-commit 0406d3a8e5301bd5fd697018e6e8fbb9c75eeb42
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Sep 8 15:51:10 2021 -0400
+commit 53f082b0ee81f14d1b1a1c997e2f8e9164af37bc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 23 03:33:03 2020 -0800
 
-    go/ast: rename MultiIndexExpr to IndexListExpr
+    [dev.regabi] cmd/compile: cleanup export code further
     
-    As discussed in #47781, IndexListExpr is one character shorter and has
-    the advantage of being next to IndexExpr in documentation.
+    This CL rips off a number of toolstash bandages:
     
-    Updates #47781
+    - Fixes position information for string concatenation.
     
-    Change-Id: I709d5c1a79b4f9aebcd6445e4ab0cd6dae45bab7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348609
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    - Adds position information for struct literal fields.
+    
+    - Removes unnecessary exprsOrNil calls or replaces them with plain
+      expr calls when possible.
+    
+    - Reorders conversion expressions to put type first, which matches
+      source order and also the order the importer needs for calling the
+      ConvExpr constructor.
+    
+    Change-Id: I44cdc6035540d9ecefd9c1bcd92b8711d6ed813c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279957
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/ast/ast.go                        | 10 +++++-----
- src/go/ast/walk.go                       |  2 +-
- src/go/internal/typeparams/typeparams.go | 13 ++++++-------
- src/go/parser/parser.go                  |  4 ++--
- src/go/printer/nodes.go                  |  2 +-
- src/go/types/call.go                     |  2 +-
- src/go/types/expr.go                     |  2 +-
- src/go/types/exprstring.go               |  2 +-
- src/go/types/resolver.go                 |  2 +-
- src/go/types/signature.go                |  2 +-
- src/go/types/struct.go                   |  2 +-
- src/go/types/typexpr.go                  |  2 +-
- 12 files changed, 22 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 11 +++++------
+ src/cmd/compile/internal/typecheck/iimport.go | 26 ++++++++------------------
+ 2 files changed, 13 insertions(+), 24 deletions(-)

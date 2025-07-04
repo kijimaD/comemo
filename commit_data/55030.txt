@@ -1,41 +1,23 @@
-commit 128d96b3ca9c44bca5ab9bb1da8133aea18f74f5
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Nov 14 22:39:13 2023 +0100
+commit 5167e5cd64b2d4710dd8a20d2a599674d5d94861
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Dec 6 11:58:10 2022 -0800
 
-    net/netip: optimize AddrPort.String for IPv6 addresses
+    archive/zip: only consider UncompressedSize when checking dirs
     
-    Inline the IPv6-case of joinHostPort and avoid the check for a colon in
-    the address. The address is already known to be an IPv6 address. Also
-    use iota.Uitoa to convert the uin16 port.
+    CL 454475 switched from checking CompressedSize to UncompressedSize
+    when determining if we should consider an archive malformed because
+    it contains data and added a test for an example of this (a JAR). We
+    should also remove the hasDataDescriptor check, since that is basically
+    an alias for CompressedSize > 0. The test didn't catch this because we
+    didn't actually attempt to read from the returned reader.
     
-    name                          old time/op    new time/op    delta
-    AddrPortString/v4-8             45.7ns ± 0%    46.6ns ± 1%   +1.97%  (p=0.000 n=10+10)
-    AddrPortString/v6-8              106ns ± 3%      95ns ± 0%  -10.79%  (p=0.000 n=9+10)
-    AddrPortString/v6_ellipsis-8     110ns ± 0%      96ns ± 0%  -12.37%  (p=0.000 n=9+10)
-    AddrPortString/v6_v4-8          85.1ns ± 0%    70.8ns ± 0%  -16.80%  (p=0.000 n=9+10)
-    AddrPortString/v6_zone-8         110ns ± 0%      97ns ± 0%  -12.29%  (p=0.000 n=10+10)
-    
-    name                          old alloc/op   new alloc/op   delta
-    AddrPortString/v4-8              24.0B ± 0%     24.0B ± 0%     ~     (all equal)
-    AddrPortString/v6-8               101B ± 0%       96B ± 0%   -4.95%  (p=0.000 n=10+10)
-    AddrPortString/v6_ellipsis-8     61.0B ± 0%     56.0B ± 0%   -8.20%  (p=0.000 n=10+10)
-    AddrPortString/v6_v4-8           61.0B ± 0%     56.0B ± 0%   -8.20%  (p=0.000 n=10+10)
-    AddrPortString/v6_zone-8         61.0B ± 0%     56.0B ± 0%   -8.20%  (p=0.000 n=10+10)
-    
-    name                          old allocs/op  new allocs/op  delta
-    AddrPortString/v4-8               1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    AddrPortString/v6-8               3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=10+10)
-    AddrPortString/v6_ellipsis-8      3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=10+10)
-    AddrPortString/v6_v4-8            3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=10+10)
-    AddrPortString/v6_zone-8          3.00 ± 0%      2.00 ± 0%  -33.33%  (p=0.000 n=10+10)
-    
-    Change-Id: I96a7f01c4e33bfa157a98558c62e2e0a8147726d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542395
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ibc4c1aa9c3a733f3ebf4a956d1e2f8f4900a29cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455523
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/netip/netip.go      | 11 +----------
- src/net/netip/netip_test.go |  1 +
- 2 files changed, 2 insertions(+), 10 deletions(-)
+ src/archive/zip/reader.go      | 2 +-
+ src/archive/zip/reader_test.go | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

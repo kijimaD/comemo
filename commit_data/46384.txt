@@ -1,20 +1,43 @@
-commit 9e1eea6f8b0d0266c481df5bc3c808defeaa6f44
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Sep 8 18:16:36 2021 -0400
+commit 396b6c2e7c5c368c67e71824471d4f2d48f5c128
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 23 16:14:59 2020 -0800
 
-    go/types: detect constraint type inference cycles
+    [dev.regabi] cmd/compile: cleanup assignment typechecking
     
-    This is a port of CL 347300 to go/types. The test was adjusted to match
-    the differing error positioning in go/types: errors are placed on the
-    ast.CallExpr.Fun, rather than the Lparen.
+    The assignment type-checking code previously bounced around a lot
+    between the LHS and RHS sides of the assignment. But there's actually
+    a very simple, consistent pattern to how to type check assignments:
     
-    Change-Id: I3dee5d7d75bae18817cc1f04ab0d357d3a6a8198
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348689
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    1. Check the RHS expression.
+    
+    2. If the LHS expression is an identifier that was declared in this
+    statement and it doesn't have an explicit type, give it the RHS
+    expression's default type.
+    
+    3. Check the LHS expression.
+    
+    4. Try assigning the RHS expression to the LHS expression, adding
+    implicit conversions as needed.
+    
+    This CL implements this algorithm, and refactors tcAssign and
+    tcAssignList to use a common implementation. It also fixes the error
+    messages to consistently say just "1 variable" or "1 value", rather
+    than occasionally "1 variables" or "1 values".
+    
+    Fixes #43348.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I749cb8d6ccbc7d22cd7cb0a381f58a39fc2696b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280112
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/types/infer.go                          | 124 +++++++++++++++++++++++++
- src/go/types/testdata/fixedbugs/issue48136.go2 |  36 +++++++
- 2 files changed, 160 insertions(+)
+ src/cmd/compile/internal/typecheck/stmt.go      | 235 ++++++++++--------------
+ src/cmd/compile/internal/typecheck/typecheck.go |   5 +
+ test/fixedbugs/issue27595.go                    |   2 +-
+ test/fixedbugs/issue30087.go                    |   6 +-
+ test/used.go                                    |   1 +
+ 5 files changed, 105 insertions(+), 144 deletions(-)

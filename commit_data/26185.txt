@@ -1,23 +1,21 @@
-commit 92dfc12610853d48b7a67912c771cd813371365f
-Author: Paul Marks <pmarks@google.com>
-Date:   Wed Mar 9 14:49:39 2016 -0800
+commit ca471573958c12093b1e3b29bc17926105d80143
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 30 12:13:21 2015 +1100
 
-    net: slowDialTCP should wait forever if no deadline exists.
+    os: change Open(`C:`) to open current directory on C:
     
-    This allows TestDialerFallbackDelay to pass again on machines where IPv6
-    connections to nowhere fail quickly instead of hanging.
+    Open(`C:`) currently opens root directory on C:. Change that to open
+    current directory on C:. Just like cmd.exe's "dir C:" command does.
+    Just like FindFirstFile("C:*") Windows API does. It is also consistent
+    with what filepath.Join("C:", "a") currently does.
     
-    This bug appeared last month, when I deleted the slowTimeout constant.
+    Fixes #13763
     
-    Updates #11225
-    Fixes #14731
-    
-    Change-Id: I840011eee571aab1041022411541736111c7fad5
-    Reviewed-on: https://go-review.googlesource.com/20493
-    Run-TryBot: Paul Marks <pmarks@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I60b6e7d80215d110bbbb6265c9f32717401638c6
+    Reviewed-on: https://go-review.googlesource.com/18184
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
 
- src/net/dial_test.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/os/file_windows.go    |  8 +++++++-
+ src/os/os_windows_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 1 deletion(-)

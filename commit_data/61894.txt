@@ -1,0 +1,31 @@
+commit 0ca521f9c1a6357578b501615f073adb2da6b527
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 10 19:48:11 2024 -0800
+
+    debug/elf: adjust version API per issue discussion
+    
+    This updates the new version API for the discussion on #63952.
+    
+    This change reveals that in fact none of the tests set the
+    VERSYM_HIDDEN bit. The code before this CL set the hidden flag
+    for symbols that appear in DynamicVersionNeed, but that is not
+    an accurate representation of the ELF. The readelf program
+    does print undefined symbols that way (with a single '@'),
+    but that doesn't mean that the hidden flag is set.
+    Leaving tests with the hidden bit set for later.
+    
+    For #63952
+    
+    Change-Id: Ida60831e0c9922dfc10f10c7a64bc76a2b197537
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635079
+    Reviewed-by: Austin Clements <austin@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/go1.24.txt                |  27 +--
+ src/debug/elf/file.go         | 178 +++++++++++++-------
+ src/debug/elf/file_test.go    | 384 +++++++++++++++++++++---------------------
+ src/debug/elf/symbols_test.go | 242 +++++++++++++-------------
+ 4 files changed, 440 insertions(+), 391 deletions(-)

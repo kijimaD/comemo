@@ -1,40 +1,24 @@
-commit ade6bc68b0d71477b3370a20099bcb66de14f517
+commit fcf8a775259b491de580048df8720be7acb5799c
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 16 13:12:18 2014 -0400
+Date:   Wed Apr 16 11:52:27 2014 -0400
 
-    runtime: crash when func main calls Goexit and all other goroutines exit
+    reflect: correct type descriptor for call of interface method
     
-    This has typically crashed in the past, although usually with
-    an 'all goroutines are asleep - deadlock!' message that shows
-    no goroutines (because there aren't any).
+    When preparing a call with an interface method, the argument
+    frame holds the receiver "iword", but funcLayout was being
+    asked to write a descriptor as if the receiver were a complete
+    interface value. This was originally caught by running a large
+    program with Debug=3 in runtime/mgc0.c, but the new panic
+    in funcLayout suffices to catch the mistake with the existing
+    tests.
     
-    Previous discussion at:
-    https://groups.google.com/d/msg/golang-nuts/uCT_7WxxopQ/BoSBlLFzUTkJ
-    https://groups.google.com/d/msg/golang-dev/KUojayEr20I/u4fp_Ej5PdUJ
-    http://golang.org/issue/7711
+    Fixes #7748.
     
-    There is general agreement that runtime.Goexit terminates the
-    main goroutine, so that main cannot return, so the program does
-    not exit.
-    
-    The interpretation that all other goroutines exiting causes an
-    exit(0) is relatively new and was not part of those discussions.
-    That is what this CL changes.
-    
-    Thankfully, even though the exit(0) has been there for a while,
-    some other accounting bugs made it very difficult to trigger,
-    so it is reasonable to replace. In particular, see golang.org/issue/7711#c10
-    for an examination of the behavior across past releases.
-    
-    Fixes #7711.
-    
-    LGTM=iant, r
-    R=golang-codereviews, iant, dvyukov, r
-    CC=golang-codereviews
-    https://golang.org/cl/88210044
+    LGTM=bradfitz, iant
+    R=golang-codereviews, bradfitz, iant
+    CC=golang-codereviews, khr
+    https://golang.org/cl/88100048
 
- doc/go1.3.html                |  9 +++++++++
- src/pkg/runtime/crash_test.go | 14 +++++++-------
- src/pkg/runtime/extern.go     |  5 +++++
- src/pkg/runtime/proc.c        |  2 +-
- 4 files changed, 22 insertions(+), 8 deletions(-)
+ src/pkg/reflect/type.go  |  5 ++++-
+ src/pkg/reflect/value.go | 14 +++++++-------
+ 2 files changed, 11 insertions(+), 8 deletions(-)

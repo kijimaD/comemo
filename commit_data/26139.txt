@@ -1,27 +1,16 @@
-commit f128b5421e4ec7a00d9ff93288ea3f4b38654243
-Author: Ross Light <light@google.com>
-Date:   Mon Mar 7 16:21:30 2016 -0800
+commit ebf64bcc249539b6f66150ee98431301ab6ee679
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 18 11:09:43 2015 -0800
 
-    os/user: make OS-specific getgrouplist calls
+    cmd/vet: add some checks for invalid pointer passing using cgo
     
-    getgrouplist is non-standard and has slightly different semantics on
-    each platform.  Darwin defines the function in terms of ints instead of
-    gid_ts.  Solaris only recently supported the call, so stubbing out for
-    now.
+    Update #12416.
     
-    Fixes #14696
-    Fixes #14709
-    
-    Change-Id: I5a44538d41594909efb6f3f9610c55d638c36757
-    Reviewed-on: https://go-review.googlesource.com/20348
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I21d97cbe211ccc8048e5a78ea4d89664f4d195ba
+    Reviewed-on: https://go-review.googlesource.com/17041
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/user/getgrouplist_darwin.c | 22 ++++++++++++++++
- src/os/user/getgrouplist_unix.c   | 14 ++++++++++
- src/os/user/listgroups_solaris.go | 17 ++++++++++++
- src/os/user/listgroups_unix.go    | 54 +++++++++++++++++++++++++++++++++++++++
- src/os/user/lookup_unix.go        | 37 ---------------------------
- src/os/user/user_test.go          |  3 +++
- 6 files changed, 110 insertions(+), 37 deletions(-)
+ src/cmd/vet/cgo.go          | 127 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/doc.go          |   6 +++
+ src/cmd/vet/testdata/cgo.go |  54 +++++++++++++++++++
+ 3 files changed, 187 insertions(+)

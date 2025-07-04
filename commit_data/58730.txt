@@ -1,28 +1,35 @@
-commit eab8e987c067ca91ad4ed79b384d8a33494bbf39
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 7 11:28:44 2025 -0500
+commit 98fd8f5768169c1c9cc9ae20490bd1b63ea55461
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 14:28:30 2023 -0500
 
-    cmd: use cmd/internal/hash.New32 and Sum32 only
+    runtime: rename GODEBUG=profileruntimelocks to runtimecontentionstacks
     
-    Do not use New16, New20, Sum16, Sum20 anymore.
-    As of CL 641096, these are just wrappers around New32 and Sum32.
-    Change call sites to use them directly.
+    profileruntimelocks is new in CL 544195, but the name is deceptive. Even
+    with profileruntimelocks=0, runtime-internal locks are still profiled.
+    The actual difference is that call stacks are not collected. Instead all
+    contention is reported at runtime._LostContendedLock.
     
-    Change-Id: Icea91a77449f6839b903894997057ba404bd04e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641076
+    Rename this setting to runtimecontentionstacks to make its name more
+    aligned with its behavior.
+    
+    In addition, for this release the default is profileruntimelocks=0,
+    meaning that users are fairly likely to encounter
+    runtime._LostContendedLock. Rename it to
+    runtime._LostContendedRuntimeLock in an attempt to make it more
+    intuitive that these are runtime locks, not locks in application code.
+    
+    For #57071.
+    
+    Change-Id: I38aac28b2c0852db643d53b1eab3f3bc42a43393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547055
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
 
- src/cmd/cgo/main.go                        |  2 +-
- src/cmd/compile/internal/liveness/plive.go |  2 +-
- src/cmd/compile/internal/types/fmt.go      |  4 +-
- src/cmd/internal/hash/hash.go              | 59 ++++--------------------------
- src/cmd/internal/obj/objfile.go            |  2 +-
- src/cmd/internal/obj/sym.go                |  2 +-
- src/cmd/link/internal/ld/elf.go            |  4 +-
- src/cmd/link/internal/ld/lib.go            |  4 +-
- src/cmd/objdump/objdump_test.go            |  4 +-
- 9 files changed, 20 insertions(+), 63 deletions(-)
+ src/runtime/extern.go       | 15 ++++++++-------
+ src/runtime/metrics_test.go |  4 ++--
+ src/runtime/mprof.go        | 10 +++++-----
+ src/runtime/proc.go         |  2 +-
+ src/runtime/runtime1.go     | 46 ++++++++++++++++++++++-----------------------
+ 5 files changed, 39 insertions(+), 38 deletions(-)

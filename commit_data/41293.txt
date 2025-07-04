@@ -1,19 +1,20 @@
-commit d52d5f186c5560619e9c302f3d489033db251646
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 8 16:44:50 2020 -0500
+commit 361ab73305788c4bf35359a02d8873c36d654f1b
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Sat Sep 21 21:17:40 2019 +0300
 
-    cmd/go: convert TestGoGetUpdateInsecure to the script framework
+    net: close correct file descriptor when netpoll registration fails
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    In (*netFD).accept, if initializing the *netFD associated with the
+    new connection fails, the listen FD is closed, rather than the FD
+    associated with the new connection. Close the correct FD instead.
     
-    Updates #36320
-    Updates #17751
+    Fixes #34392
     
-    Change-Id: I1aa423a919e76de5b021d74d6df981d2f7fd43b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213877
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I7bf3469d661e6d30cbd4b12f5f5fd330a81a541b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196778
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                              | 25 ----------------------
- src/cmd/go/testdata/script/get_insecure_update.txt | 11 ++++++++++
- 2 files changed, 11 insertions(+), 25 deletions(-)
+ src/net/fd_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

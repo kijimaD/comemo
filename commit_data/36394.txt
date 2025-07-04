@@ -1,18 +1,26 @@
-commit 1ae2eed0b22023cc06ad7f1a82d2df2b6877b14b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 31 20:40:34 2018 -0800
+commit 9e0e6981fc536c9e51ce24c425141a3d09b39e3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 16:34:45 2018 -0400
 
-    math: test for pos/neg zero return of Ceil/Floor/Trunc
+    cmd/go: fix go list .Stale computation
     
-    Ceil and Trunc of -0.2 return -0, not +0, but we didn't test that.
+    If X depends on Y and X was installed but Y is only present in the cache
+    (as happens when you "go install X") then we should report X as up-to-date,
+    not as stale.
     
-    Updates #23647
+    This applies whether X is a package or a main binary.
     
-    Change-Id: Idbd4699376abfb4ca93f16c73c114d610d86a9f2
-    Reviewed-on: https://go-review.googlesource.com/91335
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #24558.
+    Fixes #23818.
+    
+    Change-Id: I26a0b375b1f7f7ac909cc0db68e92f4e04529208
+    Reviewed-on: https://go-review.googlesource.com/107957
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/math/all_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ misc/cgo/testshared/shared_test.go  |  1 +
+ src/cmd/go/go_test.go               | 22 ++++++++++++++++++++++
+ src/cmd/go/internal/work/buildid.go | 23 +++++++++++++----------
+ src/cmd/go/internal/work/exec.go    |  2 +-
+ 4 files changed, 37 insertions(+), 11 deletions(-)

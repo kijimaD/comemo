@@ -1,28 +1,28 @@
-commit ac08c05d4daa11957fcada6db33f2150936bac27
-Author: Ehden Sinai <ehdens@gmail.com>
-Date:   Thu Feb 1 13:38:56 2024 -0500
+commit 0cd309e12818f988693bf8e4d9f1453331dcf9f2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 13 14:40:01 2023 -0800
 
-    cmd/go: fix build config before creating actions for 'go list -cover'
+    go/internal/gcimporter: restore Go 1.19 Package.SetImports behavior
     
-    When -covermode is set to atomic, instrumented packages need to import
-    sync/atomic. If this is not already imported by a package being
-    instrumented, the build needs to ensure that sync/atomic is compiled
-    whenever 'go list' is run in a way that triggers package builds.
+    This CL is a port of go.dev/cl/465936 from the x/tools importer, which
+    changes the unified importer to (1) only call Package.SetImports on
+    the main package being imported (not any transitively imported
+    packages), and (2) to only populate it with any packages that were
+    referenced by the exported API.
     
-    The build config was already being made to ensure the import, but only
-    after the action graph had been created, so there was no guarantee that
-    sync/atomic would be built when needed.
+    With these changes, it should behave identically to how the indexed
+    importer worked in Go 1.19. It will also allow eventually dropping the
+    serialized import DAG from the export data format, which should help
+    with export data file sizes somewhat.
     
-    Fixes #65264.
+    Updates #54096.
+    Updates #58296.
     
-    Change-Id: Ib3f1e102ce2ef554ea08330d9db69a8c98790ac5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560236
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I70d252a19cada3333ed59b16d1df2abc5a4cff73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467896
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/list/list.go          | 6 +++---
- src/cmd/go/testdata/script/cover_list.txt | 4 ++++
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/go/internal/gcimporter/ureader.go | 47 ++++++++---------------------------
+ 1 file changed, 11 insertions(+), 36 deletions(-)

@@ -1,16 +1,27 @@
-commit b0eeb8b0aaaf4997c25e3048bfc40e53d556a8eb
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 3 12:52:12 2016 -0400
+commit 4e95dfed0197ee6fdf96dc1aa632297a28a1cd95
+Author: Todd Neal <todd@tneal.org>
+Date:   Sat Feb 27 08:04:48 2016 -0600
 
-    net/http/pprof: accept fractional seconds in trace handler
+    [dev.ssa] cmd/compile: add max arg length to opcodes
     
-    For heavily loaded servers, even 1 second of trace is too large
-    to process with the trace viewer; using a float64 here allows
-    fetching /debug/pprof/trace?seconds=0.1.
+    Add the max arg length to opcodes and use it in zcse.  Doesn't affect
+    speed, but allows better checking in checkFunc and removes the need
+    to keep a list of zero arg opcodes up to date.
     
-    Change-Id: I286c07abf04f9c1fe594b0e26799bf37f5c734db
-    Reviewed-on: https://go-review.googlesource.com/21455
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I157c6587154604119720ec6228b767b6e52bb5c7
+    Reviewed-on: https://go-review.googlesource.com/19994
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/pprof/pprof.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/check.go          |    7 +
+ src/cmd/compile/internal/ssa/fuse_test.go      |    6 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  494 ++++++------
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  553 ++++++-------
+ src/cmd/compile/internal/ssa/gen/main.go       |    7 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |    8 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go  |    7 +-
+ src/cmd/compile/internal/ssa/op.go             |    7 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 1023 ++++++++++++++++++------
+ src/cmd/compile/internal/ssa/zcse.go           |   21 +-
+ 10 files changed, 1328 insertions(+), 805 deletions(-)

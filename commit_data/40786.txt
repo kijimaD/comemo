@@ -1,20 +1,12 @@
-commit 62581ee982bef250a1b53af2e3591f1193fe27ee
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Nov 13 10:03:19 2019 -0500
+commit e2fdce9f16fa70af061f3b9cccdcecb4d795d484
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jul 2 17:07:54 2019 +0200
 
-    cmd/link: don't run TestDWARF in c-archive mode on Windows
+    doc/go1.13: fix typo
     
-    Test fix: in dwarf_test.go don't try to run the TestDWARF testpoint on
-    windows with c-archive build mode (linker + debug/pe support for that
-    build mode on Windows is not fully baked it seems).
-    
-    Fixes #35512.
-    
-    Change-Id: I1c87ff3d62e5b98e75062b184d762fb5ed937745
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206899
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I99e76c0c12050289be5b353595eb21fbabe7c01e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184597
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/dwarf_test.go | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
+ doc/go1.13.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

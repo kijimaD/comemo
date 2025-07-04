@@ -1,41 +1,18 @@
-commit aa6a7fa775d8f38225ad74a622187bbe891eaf1c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 18 15:16:23 2022 -0700
+commit 2d6d5584179cf89e44abc2829fcdc68c29dfc5a4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 28 17:26:24 2021 -0700
 
-    cmd/compile: fix reflect naming of local generic types
+    cmd/link: make funcSize a constant
     
-    To disambiguate local types, we append a "·N" suffix to their name and
-    then trim it off again when producing their runtime type descriptors.
+    Now that it no longer depends on the size of a pointer,
+    we can make it a constant, which simplifies a bit of code.
     
-    However, if a local type is generic, then we were further appending
-    the type arguments after this suffix, and the code in types/fmt.go
-    responsible for trimming didn't know to handle this.
-    
-    We could extend the types/fmt.go code to look for the "·N" suffix
-    elsewhere in the type name, but this is risky because it could
-    legitimately (albeit unlikely) appear in struct field tags.
-    
-    Instead, the most robust solution is to just change the mangling logic
-    to keep the "·N" suffix at the end, where types/fmt.go can easily and
-    reliably trim it.
-    
-    Note: the "·N" suffix is still visible within the type arguments
-    list (e.g., the "·3" suffixes in nested.out), because we currently use
-    the link strings in the type arguments list.
-    
-    Fixes #54456.
-    
-    Change-Id: Ie9beaf7e5330982f539bff57b8d48868a3674a37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424901
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I1b7c3b1b648da5c8960378a02b9263e2cc902441
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352952
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/reader.go |  8 ++++++-
- src/cmd/compile/internal/noder/writer.go |  7 ++++--
- src/cmd/compile/internal/types/fmt.go    | 25 +++++++++++++++------
- test/run.go                              |  1 +
- test/typeparam/issue54456.go             | 37 ++++++++++++++++++++++++++++++++
- test/typeparam/nested.out                |  8 +++----
- 6 files changed, 72 insertions(+), 14 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

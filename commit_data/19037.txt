@@ -1,13 +1,13 @@
-commit e25d73d7f90870aeae04d2a788479664adb0a56f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Apr 4 17:36:01 2014 +1100
+commit 72dbc4ccc85be730d12cada215ec7de9fdb872c1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Apr 4 11:45:53 2014 +0900
 
-    net: fix format string in TestAcceptIgnoreSomeErrors
+    net: drop unnecessary indirection from PacketConn tests
     
-    LGTM=mikioh.mikioh
-    R=golang-codereviews, mikioh.mikioh
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/84340043
+    https://golang.org/cl/83880043
 
- src/pkg/net/net_windows_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/packetconn_test.go | 30 +++++++++++-------------------
+ 1 file changed, 11 insertions(+), 19 deletions(-)

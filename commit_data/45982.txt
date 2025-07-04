@@ -1,15 +1,16 @@
-commit 89a4f996405684c117571e3a0813742b6a8269b7
-Author: 180909 <734461790@qq.com>
-Date:   Wed Aug 11 08:52:31 2021 +0000
+commit 036245862aa9db844ee8a6d12809f7d444d33042
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 1 16:07:00 2020 -0800
 
-    lib/time: fix tz-link ftp url
+    [dev.typeparams] cmd/compile/internal/types2: set compiler error message for undeclared variable
     
-    Change-Id: Id09c01192dea6a6f26cbad7222946266587acfda
-    GitHub-Last-Rev: c4f99aedcdc8316f13e8d9bfe9a00e48443fae9e
-    GitHub-Pull-Request: golang/go#47639
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341389
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: Ie2950cdc5406915935f114bfd97ef03d965f9069
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274616
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- lib/time/README | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/typexpr.go | 6 +++++-
+ test/typeparam/tparam1.go                  | 4 ++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

@@ -1,72 +1,23 @@
-commit cc048b32f3de4168de6b0207fd01c65e51d37ac0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 13 16:38:14 2023 -0700
+commit fd6ef06296b55a234d4fd5ebf5dd3e5bfd8f4e25
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Mon Mar 28 18:49:05 2022 +0000
 
-    go/types, types2: reverse inference of function type arguments
+    io: add an Err field to LimitedReader
     
-    This CL implements type inference for generic functions used in
-    assignments: variable init expressions, regular assignments, and
-    return statements, but (not yet) function arguments passed to
-    functions. For instance, given a generic function
+    Fixes #51115
     
-            func f[P any](x P)
-    
-    and a variable of function type
-    
-            var v func(x int)
-    
-    the assignment
-    
-            v = f
-    
-    is valid w/o explicit instantiation of f, and the missing type
-    argument for f is inferred from the type of v. More generally,
-    the function f may have multiple type arguments, and it may be
-    partially instantiated.
-    
-    This new form of inference is not enabled by default (it needs
-    to go through the proposal process first). It can be enabled
-    by setting Config.EnableReverseTypeInference.
-    
-    The mechanism is implemented as follows:
-    
-    - The various expression evaluation functions take an additional
-      (first) argument T, which is the target type for the expression.
-      If not nil, it is the type of the LHS in an assignment.
-    
-    - The method Checker.funcInst is changed such that it uses both,
-      provided type arguments (if any), and a target type (if any)
-      to augment type inference.
-    
-    Change-Id: Idfde61078e1ee4f22abcca894a4c84d681734ff6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476075
+    Change-Id: I3c5296e4adc71c1c1b1808a45abd4801ae43465a
+    GitHub-Last-Rev: 4c197acd51e1cac051302deba57b97da66e004e1
+    GitHub-Pull-Request: golang/go#51990
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396215
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/api.go             |   7 ++
- src/cmd/compile/internal/types2/assignments.go     |  29 ++---
- src/cmd/compile/internal/types2/builtins.go        |   4 +-
- src/cmd/compile/internal/types2/call.go            | 114 ++++++++++++++++----
- src/cmd/compile/internal/types2/check_test.go      |   1 +
- src/cmd/compile/internal/types2/decl.go            |   4 +-
- src/cmd/compile/internal/types2/expr.go            |  63 +++++++----
- src/cmd/compile/internal/types2/index.go           |  10 +-
- src/cmd/compile/internal/types2/stmt.go            |  32 +++---
- src/cmd/compile/internal/types2/typexpr.go         |   2 +-
- src/go/types/api.go                                |   7 ++
- src/go/types/assignments.go                        |  29 ++---
- src/go/types/builtins.go                           |   4 +-
- src/go/types/call.go                               | 119 +++++++++++++++++----
- src/go/types/check_test.go                         |   1 +
- src/go/types/decl.go                               |   4 +-
- src/go/types/eval.go                               |   4 +-
- src/go/types/expr.go                               |  63 +++++++----
- src/go/types/index.go                              |  10 +-
- src/go/types/stmt.go                               |  32 +++---
- src/go/types/typexpr.go                            |   2 +-
- src/internal/types/testdata/examples/inference.go  |   7 ++
- src/internal/types/testdata/examples/inference2.go |  73 +++++++++++++
- 23 files changed, 462 insertions(+), 159 deletions(-)
+ api/next/51115.txt     |  1 +
+ src/io/example_test.go | 14 ++++++++++++++
+ src/io/io.go           | 16 +++++++++++-----
+ 3 files changed, 26 insertions(+), 5 deletions(-)

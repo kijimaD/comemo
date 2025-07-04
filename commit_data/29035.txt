@@ -1,16 +1,25 @@
-commit 02c1d8a1589b47f12deaaa63d4a6a084640f4389
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Oct 24 15:06:20 2016 +1100
+commit 93b753f525b62a2a860fc2ba2d4ea3f788c275f9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 22 21:49:32 2016 -0700
 
-    cmd/link/internal/ld: remove goto from ldpe.go
+    cmd/link: fix handling of cgo_dynamic_interpreter
     
-    Updates #15345
+    CL 27473 accidentally changed `!Debug['I']` to `*flagInterpreter != ""`.
+    Since the old `Debug['I']` was set when the new *flagInterpreter was
+    set, this inverted the sense of the condition. The effect was to always
+    ignore the cgo_dynamic_interpreter setting from runtime/cgo. This worked
+    OK when the default interpreter was the correct one, but failed when it
+    was not, as is currently the case on, at least, PPC64 and ARM.
     
-    Change-Id: I447d133512e99a9900928a910e161a85db6e8b75
-    Reviewed-on: https://go-review.googlesource.com/31792
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This CL restores the old behavior by using a separate variable to track
+    whether the -I flag was used, just as we used to.
+    
+    Change-Id: Icf9b65fa41349ed2e4de477fec0a557ef1eb8189
+    Reviewed-on: https://go-review.googlesource.com/27562
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/ldpe.go | 61 ++++++++++++++++++----------------------
- 1 file changed, 27 insertions(+), 34 deletions(-)
+ src/cmd/link/internal/ld/go.go   |  4 ++--
+ src/cmd/link/internal/ld/main.go | 27 +++++++++++++++------------
+ 2 files changed, 17 insertions(+), 14 deletions(-)

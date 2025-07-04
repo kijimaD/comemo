@@ -1,26 +1,30 @@
-commit ffb4708d1bcf4a391ecf293b01695565c1b7cd04
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Sat Sep 9 00:22:29 2017 +0100
+commit 978af9c2dbb4982f62dee6b84c48e06e0d4c085c
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 11 14:46:49 2017 -0700
 
-    math: fix Abs, Copysign and Signbit benchmarks
+    cmd/compile: fix store chain in schedule pass
     
-    CL 62250 makes constant folding a bit more aggressive and these
-    benchmarks were optimized away. This CL adds some indirection to
-    the function arguments to stop them being folded.
+    Tuple ops are weird. They are essentially a pair of ops,
+    one which consumes a mem and one which generates a mem (the Select1).
+    The schedule pass didn't handle these quite right.
     
-    The Copysign benchmark is a bit faster because I've left one
-    argument as a constant and it can be partially folded.
+    Fix the scheduler to include both parts of the paired op in
+    the store chain. That makes sure that loads are correctly ordered
+    with respect to the first of the pair.
     
-                         old           CL 62250     this CL
-    Copysign             1.24ns ± 0%   0.34ns ± 2%  1.02ns ± 2%
-    Abs                  0.67ns ± 0%   0.35ns ± 3%  0.67ns ± 0%
-    Signbit              0.87ns ± 0%   0.35ns ± 2%  0.87ns ± 1%
+    Add a check for the ssacheck builder, that there is only one
+    live store at a time. I thought we already had such a check, but
+    apparently not...
     
-    Change-Id: I9604465a87d7aa29f4bd6009839c8ee354be3cd7
-    Reviewed-on: https://go-review.googlesource.com/62450
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Fixes #20335
+    
+    Change-Id: I59eb3446a329100af38d22820b1ca2190ca46a78
+    Reviewed-on: https://go-review.googlesource.com/43294
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/math/all_test.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/check.go    | 33 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/schedule.go | 31 +++++++++++++++---------------
+ test/fixedbugs/issue20335.go             | 19 ++++++++++++++++++
+ 3 files changed, 68 insertions(+), 15 deletions(-)

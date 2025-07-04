@@ -1,21 +1,21 @@
-commit a8facc456f07574b802c61b11140a77e8ac93c2a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu May 12 15:43:48 2022 -0700
+commit 40e561d9337afbae221b34d6d0811761f32412f6
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 30 09:06:38 2021 -0700
 
-    cmd/compile/internal/typecheck: remove "name" handling in iimport.go
+    [dev.typeparams] cmd/compile: allow types with the same underlying type to have the same shape
     
-    This hack is no longer needed since CL 393715, because LocalPkg.Prefix
-    is set correctly, so when we write out instantiated objects/types into
-    the export data, they'll already have a proper name.
+    First baby step to sharing the underlying implementation among several types.
     
-    Updates #51734.
-    
-    Change-Id: I26cfa522f1bfdfd162685509757f51093b8b92e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406318
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I6a156176d2b7f0131a87285a03b881ce380c26ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338610
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/typecheck/iimport.go | 23 +++--------------------
- 1 file changed, 3 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/typecheck/subr.go      | 22 ++++++-----------
+ test/typeparam/shape1.go                        | 33 +++++++++++++++++++++++++
+ test/typeparam/shape1.out                       |  2 ++
+ 4 files changed, 44 insertions(+), 15 deletions(-)

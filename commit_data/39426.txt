@@ -1,24 +1,18 @@
-commit 43e53beba53547f2846a18e373c9205ededc20d2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jun 24 10:16:12 2019 -0400
+commit 1d992f2e369e7e518ff57cd7508a15442d5df186
+Author: Juraj Sukop <sukop@users.noreply.github.com>
+Date:   Wed Feb 27 17:43:46 2019 +0000
 
-    cmd/go/internal/modfetch: treat a missing go.mod file as a “not exist” error
+    math/big: better initial guess for nat.sqrt
     
-    If we have found a repository at the requested version but it does not
-    contain a go.mod file in an appropriate subdirectory, then the module
-    with the given path does not exist at that version. Therefore, we
-    should report it with an error equivalent to os.ErrNotExist so that
-    modload.Query will continue to check other possible module paths.
+    The proposed change introduces a better initial guess which is closer to the final value and therefore converges in fewer steps. Consider for example sqrt(8): previously the guess was 8, whereas now it is 4 (and the result is 2). All this change does is it computes the division by two more accurately while it keeps the guess ≥ √x.
     
-    Updates #27173
-    
-    Change-Id: Ica73f4bb97f58e611a7f7d38183ee52fef5ee69a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183618
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I917248d734a7b0488d14a647a063f674e56c4e30
+    GitHub-Last-Rev: c06d9d4876c8e7d6739f0e4b687e370fe1e9aad7
+    GitHub-Pull-Request: golang/go#28981
+    Reviewed-on: https://go-review.googlesource.com/c/163866
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo.go           |  8 +++++++-
- src/cmd/go/internal/modfetch/coderepo_test.go      |  2 +-
- src/cmd/go/testdata/script/mod_invalid_version.txt | 11 +++++++++--
- 3 files changed, 17 insertions(+), 4 deletions(-)
+ src/math/big/nat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

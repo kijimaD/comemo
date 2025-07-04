@@ -1,15 +1,12 @@
-commit 9115a8bca4d10be0aa4b7ae754dc24988867c4a9
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jun 13 10:33:02 2012 +1000
+commit 008c62b2cd728db744dcef53f1226cb1e43ba617
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 12 09:36:35 2012 -0700
 
-    doc/install: mention GOPATH and point to code.html
+    math/big: optimize common case of Int.Bit(0)
     
-    Fixes #3469.
-    
-    R=golang-dev, kevlar, rsc, r
+    R=golang-dev, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/6304049
+    https://golang.org/cl/6306069
 
- doc/install-source.html |  6 ++++++
- doc/install.html        | 10 ++++++----
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/pkg/math/big/int.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,12 +1,14 @@
-commit 4191ff2436be8d825493181ad00e71cf2363b990
+commit d70627e5d0725254baf8c3f133f96afec68518f0
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 6 15:16:45 2012 +1100
+Date:   Tue Mar 6 15:16:02 2012 +1100
 
-    godoc: switch on +1 buttons
+    doc: update install docs for Windows and Go 1, add golang-announce to /project
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5754048
+    https://golang.org/cl/5758044
 
- lib/godoc/godoc.html | 2 --
- 1 file changed, 2 deletions(-)
+ doc/contrib.html        |   9 ++
+ doc/install-source.html | 280 ++++++++++++++++++++++--------------------------
+ doc/install.html        |  18 +++-
+ 3 files changed, 151 insertions(+), 156 deletions(-)

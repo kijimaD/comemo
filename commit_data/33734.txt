@@ -1,32 +1,24 @@
-commit 12abacb5553d6aa2fc68dfba0b96ba7f3ec95c76
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Mon May 22 18:23:31 2017 +0200
+commit 37dbfc51b04e13ad3441cf0080a33ae56de77169
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Jul 26 15:58:25 2017 -0400
 
-    cmd/go, cmd/dist: introduce GOMIPS environment variable
+    cmd/link: emit DW_AT_data_member_location as a constant
     
-    GOMIPS is a GOARCH=mips{,le} specific option, for a choice between
-    hard-float and soft-float. Valid values are 'hardfloat' (default) and
-    'softfloat'. It is passed to the assembler as
-    'GOMIPS_{hardfloat,softfloat}'.
+    Simplify the DWARF representation of structs by emitting field offsets
+    as constants rather than location descriptions.
     
-    Note: GOMIPS will later also be used for a choice of MIPS instruction
-    set (mips32/mips32r2).
+    This was not explicitly mentioned as an option in DWARF2. It is
+    mentioned in DWARF4, but isn't listed in the changes, so it's not clear
+    if this was always intended to work or is an undocumented change. Either
+    way, it should be valid DWARF4.
     
-    Updates #18162
-    
-    Change-Id: I35417db8625695f09d6ccc3042431dd2eaa756a6
-    Reviewed-on: https://go-review.googlesource.com/37954
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idf7fdd397a21c8f8745673ecc77ef65afa3ffe1c
+    Reviewed-on: https://go-review.googlesource.com/51611
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/asm.html                        |  6 ++++++
- src/cmd/dist/build.go               | 16 ++++++++++++++++
- src/cmd/dist/buildruntime.go        |  2 ++
- src/cmd/go/alldocs.go               |  3 +++
- src/cmd/go/internal/cfg/cfg.go      |  5 +++--
- src/cmd/go/internal/envcmd/env.go   |  2 ++
- src/cmd/go/internal/help/helpdoc.go |  3 +++
- src/cmd/go/internal/work/gc.go      |  6 ++++++
- src/cmd/internal/objabi/util.go     | 10 ++++++++++
- 9 files changed, 51 insertions(+), 2 deletions(-)
+ src/cmd/internal/dwarf/dwarf.go   | 2 +-
+ src/cmd/link/internal/ld/dwarf.go | 5 +----
+ 2 files changed, 2 insertions(+), 5 deletions(-)

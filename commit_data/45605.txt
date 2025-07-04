@@ -1,17 +1,30 @@
-commit a9edda3788b7ff6a73686874c9b3dcb1e5e18b87
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 3 17:03:01 2021 -0400
+commit b53df56001a6bd375b1dc2026908f331729cd731
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 29 11:27:17 2020 -0400
 
-    cmd/go: add a test that reproduces #45827
+    runtime, cmd: support race detector on darwin/arm64
     
-    For #45827
+    https://reviews.llvm.org/D90435 is the counterpart in LLVM TSAN.
     
-    Change-Id: I4d3268d66fb0927161f44b353faef11aa4551e40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317298
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    race_linux_arm64.syso is built with LLVM commit
+    00da38ce2d36c07f12c287dc515d37bb7bc410e9 on a macOS/ARM64 machine.
+    (It is not built on a builder with golang.org/x/build/cmd/racebuild
+    as we don't have darwin/arm64 builder for now.)
+    
+    Updates #38485.
+    
+    Change-Id: I391efdacd9480197e308370bfccd05777deb4aee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266373
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/mod_run_pkgerror.txt | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ src/cmd/dist/test.go                       |   4 +++-
+ src/cmd/go/internal/work/init.go           |   2 +-
+ src/cmd/internal/sys/supported.go          |   4 +++-
+ src/cmd/link/internal/ld/config.go         |   2 +-
+ src/cmd/link/internal/loadmacho/ldmacho.go |  12 ++++++++++--
+ src/runtime/race/README                    |   1 +
+ src/runtime/race/race.go                   |   2 +-
+ src/runtime/race/race_darwin_arm64.syso    | Bin 0 -> 438936 bytes
+ src/runtime/race_arm64.s                   |  15 +++++++++++++++
+ 9 files changed, 35 insertions(+), 7 deletions(-)

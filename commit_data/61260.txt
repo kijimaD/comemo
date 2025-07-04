@@ -1,0 +1,16 @@
+commit 28b09d5846da23ed3b8d2b2a93eca5ae94ce43f8
+Author: Sean Liao <sean@liao.dev>
+Date:   Wed Oct 16 00:47:44 2024 +0100
+
+    net/http/pprof: include Symbol in Index
+    
+    Fixes #69897
+    
+    Change-Id: I5887f34504b39018e16f269e087b43bc6a80964b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/http/pprof/pprof.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

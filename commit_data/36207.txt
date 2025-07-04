@@ -1,16 +1,17 @@
-commit 1b870077c896379c066b41657d3c9062097a6943
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Aug 3 16:58:07 2018 +0000
+commit 7a7b63f3e749e3608ee16b1807349a778d562c08
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Mar 29 10:01:27 2018 -0700
 
-    net: skip flaky TestNotTemporaryRead on FreeBSD
+    database/sql: clarify behavior of DB.Close
     
-    Updates #25289
+    It wasn't clear for existing docs if DB.Close forcefully closed
+    connections or waited for them to finish.
     
-    Change-Id: I662760b921be625aca988cd0b43c648ac5dfd814
-    Reviewed-on: https://go-review.googlesource.com/127837
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #23753
+    
+    Change-Id: Id7df31224c93181c8d01bab7b0b23da25b42a288
+    Reviewed-on: https://go-review.googlesource.com/103397
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/net_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/database/sql/sql.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

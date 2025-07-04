@@ -1,34 +1,19 @@
-commit cf1ec173603f950aaccb549602ed0fee57e6b709
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Dec 6 16:30:19 2021 -0800
+commit 1be8be4accf8bc9a625ec96e7655d814c3d5bed1
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 8 10:14:25 2021 -0400
 
-    cmd/compile: deal with unsatisfiable type assertion in some instantiations
+    cmd/go: fix TestNewReleaseRebuildsStalePackagesInGOPATH
     
-    Deal with case where a certain instantiation of a generic
-    function/method leads to an unsatisfiable type assertion or type case.
-    In that case, the compiler was causing a fatal error while trying to
-    create an impossible itab for the dictionary. To deal with that case,
-    allow ITabLsym() to create a dummy itab even when the concrete type
-    doesn't implement the interface. This dummy itab is analogous to the
-    "negative" itabs created on-the-fly by the runtime.
+    CL 307818 added a package that the runtime depends on, but didn't
+    update the list of runtime dependencies in this test.
     
-    We will use the dummy itab in type asserts and type switches in
-    instantiations that use that dictionary entry. Since the dummy itab can
-    never be used for any real value at runtime (since the concrete type
-    doesn't implement the interface), there will always be a failure for the
-    corresponding type assertion or a non-match for the corresponding
-    type-switch case.
+    This should fix the longtest builder failures.
     
-    Fixes #50002
-    
-    Change-Id: I1df05b1019533e1fc93dd7ab29f331a74fab9202
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369894
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5f3be31b069652e05ac3db9b1ce84dd5dfe0f66f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308469
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 30 ++++++++----
- test/run.go                                     |  1 +
- test/typeparam/issue50002.go                    | 64 +++++++++++++++++++++++++
- 3 files changed, 86 insertions(+), 9 deletions(-)
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

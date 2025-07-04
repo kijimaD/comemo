@@ -1,23 +1,24 @@
-commit c8dad424bf01df69af729845acc151a66b87d594
-Author: Michael Munday <mike.munday@lowrisc.org>
-Date:   Sat Jul 1 00:01:26 2023 +0100
+commit 6ba2674ddc5373f261211ba5ebc38496dc660604
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Thu Aug 25 04:17:00 2022 +0000
 
-    math: fix portable FMA when x*y < 0 and x*y == -z
+    cmd/go/internal/imports: include ToolTags in the Tags map
     
-    When x*y == -z the portable implementation of FMA copied the sign
-    bit from x*y into the result. This meant that when x*y == -z and
-    x*y < 0 the result was -0 which is incorrect.
+    This fixes a regression introduced when the "race" mode tag was moved to
+    the ToolTags field in CL 358539.
     
-    Fixes #61130.
+    Fixes #54468
     
-    Change-Id: Ib93a568b7bdb9031e2aedfa1bdfa9bddde90851d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507376
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    Change-Id: I107771948a4fe9d743cc13d1c15f324212b08e03
+    GitHub-Last-Rev: d211e351ef3331f2c38b16d327d992a32ebbfe30
+    GitHub-Pull-Request: golang/go#54618
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425154
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/math/all_test.go | 7 +++++++
- src/math/fma.go      | 5 +++++
- 2 files changed, 12 insertions(+)
+ src/cmd/go/internal/imports/tags.go          |  3 +++
+ src/cmd/go/testdata/script/test_race_tag.txt | 29 ++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

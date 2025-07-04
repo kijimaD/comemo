@@ -1,24 +1,14 @@
-commit fa90f9b909286dc815fde1f83f77b80bd686127d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 19 16:48:21 2016 -0400
+commit 3c55ee642005db840f8d84bbdfaafa66f713559d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 6 09:06:05 2016 -0700
 
-    net: there are no invalid domain names anymore
+    cmd/compile: refactor out method-called-as-function check
     
-    The Go resolver reports invalid domain name for '!!!.local',
-    but that is allowed by multicast DNS. In general we can't predict
-    what future relaxations might come along, and libc resolvers
-    do not distinguish 'no such host' from 'invalid name', so stop
-    making that distinction here too. Always use 'no such host'.
-    
-    Fixes #12421.
-    
-    Change-Id: I8f22604767ec9e270434e483da52b337833bad71
-    Reviewed-on: https://go-review.googlesource.com/31468
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I417aae8622d7d363863704594680bd2502a09049
+    Reviewed-on: https://go-review.googlesource.com/27463
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/dnsclient_unix.go | 10 ++++++++--
- src/net/lookup_test.go    | 17 +++++++++++++++++
- src/net/lookup_windows.go | 28 +++++++++++++++++++---------
- 3 files changed, 44 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

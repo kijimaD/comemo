@@ -1,12 +1,17 @@
-commit ef84fa082caec4d1757377c11e98f3b5ebc934d3
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Mon Jun 10 18:02:43 2019 -0400
+commit 39fa3f171c7b790a3f8f22d8398fdf67d680b5a7
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Feb 7 13:11:12 2019 +0530
 
-    doc: document Go 1.12.6
+    cmd/compile: fix a typo in assignment mismatch error
     
-    Change-Id: I8ae00d2392c20c627d58cf7e79015e982b971802
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181551
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Fixes #30087
+    
+    Change-Id: Ic6d80f8e6e1831886af8613420b1bd129a1b4850
+    Reviewed-on: https://go-review.googlesource.com/c/161577
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/devel/release.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue30087.go             | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

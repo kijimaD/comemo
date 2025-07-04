@@ -1,15 +1,19 @@
-commit 0c77b0d0e078958753b21c712abcc0b1b795e52f
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Oct 14 01:02:53 2023 +0800
+commit 56e900d9f0da967d9152c546db1684653a69ece5
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Apr 1 18:44:20 2023 +0100
 
-    html/template: add available godoc link
+    encoding/gob: report allocs in benchmarks
     
-    Change-Id: I2871e98eaf13f207e467120592d604761be5fe17
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535084
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    I almost exclusively use these benchmarks with -benchtime already.
+    
+    Change-Id: I6539cbba6abbdb6b275502e122f4e16856d8b9e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481375
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/html/template/template.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/encoding/gob/timing_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

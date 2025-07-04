@@ -1,21 +1,28 @@
-commit 89332e037aeaf1223de4c24805719f733e4c0977
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sat Jul 23 09:11:32 2022 +0200
+commit 5b9207ff67bd3df43a95fd403b2e06e2aa4c33bf
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Dec 13 12:42:38 2021 -0800
 
-    encoding/xml: error when more than one colon in qualified names
+    cmd/compile: avoid re-instantiating method that is already imported
     
-    Add test.
+    We can import an shape-instantiated function/method for inlining
+    purposes. If we are instantiating the methods of a instantiated type
+    that we have seen, and it happens to need a shape instantiation that we
+    have imported, then don't re-create the instantiation, since we will end
+    up with conflicting/duplicate definitions for the instantiation symbol.
+    Instead, we can just use the existing imported instantation, and enter
+    it in the instInfoMap[].
     
-    Fixes #20396
+    Fixes #50121
     
-    Change-Id: I89e9013eb338f831e1908e390b284794df78fb6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/103875
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I6eeb8786faad71106e261e113048b579afad04fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371414
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/xml/xml.go      |  2 +-
- src/encoding/xml/xml_test.go | 36 ++++++++++++++++++++++++++++++++++--
- 2 files changed, 35 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 19 +++++++++++++++++--
+ test/typeparam/issue50121.dir/a.go        | 22 ++++++++++++++++++++++
+ test/typeparam/issue50121.dir/main.go     | 18 ++++++++++++++++++
+ test/typeparam/issue50121.go              |  7 +++++++
+ 4 files changed, 64 insertions(+), 2 deletions(-)

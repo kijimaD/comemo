@@ -1,25 +1,25 @@
-commit a10da772a68d692c2c8805b11aba9b6cb9920b15
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Aug 1 16:25:15 2022 -0400
+commit 3f224bbf9a52cf2e19cdd2ada4a6d7372cc70141
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 28 20:42:45 2021 -0700
 
-    runtime: don't race cmd.Wait and cmd.StdoutPipe read
+    go/types: avoid infinite recursion in unification
     
-    os/exec.Cmd.Wait closes the read end of os/exec.Cmd.StdoutPipe, meaning
-    that io.ReadAll can return fs.ErrClosed if the child exits too early,
-    allowing Wait to complete. The StdoutPipe docs already note this sharp
-    edge.
+    This is an almost clean port of CL 352832 from types2 to go/types:
+    The nest files and unify.go where copied verbatim; unify.go was
+    adjusted with correct package name, a slightly different comment
+    was restored to what it was. The test files got adjustments for
+    error position. infer.go got a missing _Todo error code.
     
-    Move cmd.Wait until after we finish waiting on stdout. If the child
-    crashes for some reason, the write end of the pipe will implicitly close
-    causing io.ReadAll to return as well, so we won't get stuck.
+    For #48619.
+    For #48656.
     
-    Fixes #52725.
-    
-    Change-Id: Ifae5745d86206879af2f1523a664236972e07252
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420597
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ia1a2d09e8bb37a85032b4b7e7c7a0b08e8c793a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353029
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/semasleep_test.go | 25 ++++++++++++++++++++-----
- 1 file changed, 20 insertions(+), 5 deletions(-)
+ src/go/types/infer.go                          |  2 +-
+ src/go/types/testdata/fixedbugs/issue48619.go2 | 22 +++++++++++++++
+ src/go/types/testdata/fixedbugs/issue48656.go2 | 13 +++++++++
+ src/go/types/unify.go                          | 39 ++++++++++++++++++++------
+ 4 files changed, 67 insertions(+), 9 deletions(-)

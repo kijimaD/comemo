@@ -1,18 +1,17 @@
-commit db91ee36514e70512615b3e28d0260cfa9270206
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Wed May 9 15:18:59 2018 +0200
+commit 544d36514a8aaaa7309cc398e3e23c1c8fc5e3c8
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Sat Jan 27 22:09:25 2018 -0500
 
-    misc/wasm: pollute global JS namespace less
+    cmd/go/internal/test: remove redundant if statement
     
-    This commit changes wasm_exec.js so it only puts the single
-    name "go" into the global namespace. Other names became private
-    or were turned into a property/method of "go".
+    Just return the result of the function call as they are
+    both functionally equivalent.
     
-    Change-Id: I633829dfd3c06936f092c0a14b9978bf855e41fe
-    Reviewed-on: https://go-review.googlesource.com/112980
+    Change-Id: Ia7847c9b018475051bf6f7a7c532b515bd68c024
+    Reviewed-on: https://go-review.googlesource.com/90375
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
 
- misc/wasm/wasm_exec.html |   4 +-
- misc/wasm/wasm_exec.js   | 619 ++++++++++++++++++++++++-----------------------
- 2 files changed, 315 insertions(+), 308 deletions(-)
+ src/cmd/go/internal/test/test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

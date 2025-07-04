@@ -1,12 +1,13 @@
-commit 1de49311135e8e07e16f065f5c03fab9d7dae5e8
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Thu Jan 19 14:45:59 2012 +1100
+commit 885cbc3be4e37d8ac36265b2b8fdf0582cff0551
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 19 14:44:21 2012 +1100
 
-    doc/codewalk: update urlpoll to use time.Duration.
+    A+C: add Stefan Nilsson's gmail account
     
-    R=adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5545061
+    https://golang.org/cl/5541064
 
- doc/codewalk/urlpoll.go | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

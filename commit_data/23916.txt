@@ -1,14 +1,12 @@
-commit 87fd98d22040d71e5c87e83d194666a96e4f9fdb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 30 12:59:49 2015 -0700
+commit ffbed5c22aec733ae2527f5a1025a4eff8eca93a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 14:42:09 2015 -0400
 
-    go/types: update comment to refer to package go/constant
+    net/http: fix tests for recent URL.RawPath addition
     
-    For #11949.
-    
-    Change-Id: I4329604a24efc7f40cf5bf52fb3c9e30916b3cc2
-    Reviewed-on: https://go-review.googlesource.com/12931
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I35d20ed958c32d464b2c9d849403b6e3f99b6482
+    Reviewed-on: https://go-review.googlesource.com/11343
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/api.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/readrequest_test.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

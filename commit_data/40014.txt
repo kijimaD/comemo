@@ -1,28 +1,22 @@
-commit f346a4c44c7200454d01c05879fbcd76a1ca9237
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 24 17:35:15 2019 -0700
+commit 7b33b6274f36ecc5dd5c24c99c2f72d3edf79b3d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 29 16:02:05 2019 +0000
 
-    test: add regress test for #27557
+    runtime: introduce treapForSpan to reduce code duplication
     
-    This commit just adds a regress test for a few of the important corner
-    cases that I identified in #27557, which turn out to not be tested
-    anywhere.
+    Currently which treap a span should be inserted into/removed from is
+    checked by looking at the span's properties. This logic is repeated in
+    four places. As this logic gets more complex, it makes sense to
+    de-duplicate this, so introduce treapForSpan instead which captures this
+    logic by returning the appropriate treap for the span.
     
-    While here, annotate a few of the existing test cases where we could
-    improve escape analysis.
+    For #30333.
     
-    Updates #27557.
-    
-    Change-Id: Ie57792a538f7899bb17915485fabc86100f469a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197137
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4bd933d93dc50c5fc7c7c7f56ceb95194dcbfbcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170857
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/escape.go |  5 +----
- test/escape2.go                       |  1 +
- test/escape2n.go                      |  1 +
- test/fixedbugs/issue21709.go          |  2 ++
- test/fixedbugs/issue27557.go          | 42 +++++++++++++++++++++++++++++++++++
- 5 files changed, 47 insertions(+), 4 deletions(-)
+ src/runtime/mheap.go | 34 ++++++++++++++--------------------
+ 1 file changed, 14 insertions(+), 20 deletions(-)

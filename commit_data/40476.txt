@@ -1,17 +1,32 @@
-commit a754d2993db1771ca3903d0a5d0e3add1883cf9b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 28 16:55:06 2019 -0700
+commit fba60669751a5362c43e3bdee8455bed3fa275b2
+Author: David Chase <drchase@google.com>
+Date:   Thu May 2 13:35:07 2019 -0400
 
-    cmd/compile/internal/syntax: don't hardwire path separator in test
+    cmd/compile: add debugging and stats output to numberlines
     
-    Windows uses '\' not '/'.
+    This is useful for debugging line number assignment and
+    also for making sense of pathological line number inputs.
     
-    Fixes #35175.
+    Activated with
+    -gcflags=-d=ssa/number_lines/stats=1 (the bit matters)
+    -gcflags=-d=ssa/number_lines/debug
     
-    Change-Id: Ib3d01dcf148fc0675496d5213f5bcc9cf210a6fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203889
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Stats:
+    "SUM_LINE_RANGE",
+       SUM for f in files {MAX line in f {line}-MIN line in f {line}}
+    "MAXMIN_LINE_RANGE",
+       MAX for f in files {MAX line in f {line}} -
+       MIN for f in files {MIN line in f {line}}
+    "MAXFILE", maxfile,
+       MAX for f in files {f}
+    "NFILES", len(entries)
+       | files |
+    
+    Change-Id: I8a7336e6370452fe2e3a62de17606db9bd6a6fd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174947
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/syntax/parser_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/numberlines.go | 75 ++++++++++++++++++++++++++++-
+ 1 file changed, 74 insertions(+), 1 deletion(-)

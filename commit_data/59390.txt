@@ -1,36 +1,19 @@
-commit 90e8b8cdaeb76a57604a461a138c59340daed7ef
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Mar 20 01:09:23 2025 +1100
+commit c961ab3fe9b0355320cde28a588a687dc0d5261f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 16:51:44 2024 -0500
 
-    cmd/compile: intrinsify math/bits.Bswap on riscv64
+    runtime: introduce timers.lock, timers.unlock methods
     
-    For riscv64/rva22u64 and above, we can intrinsify math/bits.Bswap
-    using the REV8 machine instruction.
+    No semantic changes here.
+    Cleaning up for next change.
     
-    On a StarFive VisionFive 2 with GORISCV64=rva22u64:
-    
-                     │     rb.1     │                rb.2                 │
-                     │    sec/op    │   sec/op     vs base                │
-    ReverseBytes-4     18.790n ± 0%   4.026n ± 0%  -78.57% (p=0.000 n=10)
-    ReverseBytes16-4    6.710n ± 0%   5.368n ± 0%  -20.00% (p=0.000 n=10)
-    ReverseBytes32-4   13.420n ± 0%   5.368n ± 0%  -60.00% (p=0.000 n=10)
-    ReverseBytes64-4   17.450n ± 0%   4.026n ± 0%  -76.93% (p=0.000 n=10)
-    geomean             13.11n        4.649n       -64.54%
-    
-    Change-Id: I26eee34270b1721f7304bb1cddb0fda129b20ece
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660855
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Change-Id: I9706009739677ff9eb893bcc007d805f7877511e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568335
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
 
- src/cmd/compile/internal/riscv64/ssa.go            |  3 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules    |  5 +++
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go    |  1 +
- src/cmd/compile/internal/ssa/opGen.go              | 14 ++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go     | 39 +++++++++++++++++
- src/cmd/compile/internal/ssagen/intrinsics.go      | 51 +++++++++++++++++-----
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  5 +++
- test/codegen/mathbits.go                           | 20 +++++----
- 8 files changed, 118 insertions(+), 20 deletions(-)
+ src/runtime/proc.go |  2 +-
+ src/runtime/time.go | 59 ++++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 34 insertions(+), 27 deletions(-)

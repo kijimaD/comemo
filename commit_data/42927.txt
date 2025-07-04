@@ -1,25 +1,29 @@
-commit bdad4285709d1c5e04458268880775087be63027
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Aug 28 15:05:44 2020 -0400
+commit 7a03d79498a32eb099d6f82aa8b19e813630be65
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Mon Nov 4 09:19:59 2019 -0800
 
-    cmd/go: make 'go get' preserve sums for content of new requirements
+    crypto/x509: load roots from colon separated SSL_CERT_DIR in loadSystemRoots
     
-    This preserves zip sums when 'go get' is run on a module that does not
-    have a package in the root directory. The zip must be fetched to
-    determine whether the package should be loaded, so we already load and
-    verify the sum.
+    "SSL_CERT_DIR" is meant to hold more than one directory, when a colon
+    is used as a delimiter. However, we assumed it'd be a single directory
+    for all root certificates.
+    OpenSSL and BoringSSL properly respected the colon separated
+    "SSL_CERT_DIR", as per:
+    * OpenSSL https://github.com/openssl/openssl/blob/12a765a5235f181c2f4992b615eb5f892c368e88/crypto/x509/by_dir.c#L153-L209
+    * BoringSSL https://github.com/google/boringssl/blob/3ba9586bc081f67903c89917f23e74a0662ba953/crypto/x509/by_dir.c#L194-L247
     
-    Note that 'go mod tidy' may still remove these sums, since they
-    aren't needed to load packages.
+    This change adds that parity to loadSystemRoots.
     
-    Fixes #41103
+    RELNOTE=yes
     
-    Change-Id: I78f10a25f0392461fdc98518a7c92a38ee3233c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251880
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Fixes #35325
+    
+    Change-Id: I0d554a00ccc34300a7f0529aa741ee7e2d5762f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205237
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modload/init.go               | 38 +++++++++++++++++------
- src/cmd/go/testdata/script/mod_get_sum_noroot.txt | 11 +++++++
- 2 files changed, 39 insertions(+), 10 deletions(-)
+ src/crypto/x509/root_unix.go      | 17 ++++----
+ src/crypto/x509/root_unix_test.go | 81 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 91 insertions(+), 7 deletions(-)

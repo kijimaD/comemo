@@ -1,0 +1,19 @@
+commit 3033ef00164c5c38a25a33aae1720d216ffafb58
+Author: Alexander Musman <alexander.musman@gmail.com>
+Date:   Fri Mar 7 21:49:56 2025 +0300
+
+    cmd/compile: Remove unused 'NoInline' field from CallExpr stucture
+    
+    Remove the 'NoInline' field from CallExpr stucture, as it's no longer
+    used after enabling of tail call inlining.
+    
+    Change-Id: Ief3ada9938589e7a2f181582ef2758ebc4d03aad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655816
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go | 2 +-
+ src/cmd/compile/internal/ir/expr.go    | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)

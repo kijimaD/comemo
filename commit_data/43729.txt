@@ -1,34 +1,19 @@
-commit 362d25f2c82980860cb4eb5bfd0648116504788d
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 19 01:31:05 2020 -0400
+commit 0329c915a03199d202581d0b33b092371fde08dc
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Tue Apr 21 15:14:11 2020 -0400
 
-    io/fs: add WalkDir
+    math/big: clean up whitespace in arith_s390x.s file
     
-    This commit is a copy of filepath.WalkDir adapted to use fs.FS
-    instead of the native OS file system. It is the last implementation
-    piece of the io/fs proposal.
+    This CL looks big but it only does formatting changes to arith_s390x.s.
+    The file was formatted using asmfmt(https://github.com/klauspost/asmfmt)
+    , so there should not be any functional impact. I verified that the
+    generated assembly of big.test file is identical.
     
-    The original io/fs proposal was to adopt filepath.Walk, but we
-    have since introduced the more efficient filepath.WalkDir (#42027),
-    so this CL adopts that more efficient option instead.
-    
-    (The changes in path/filepath bring the two copies more in line
-    with each other. The main change is unembedding the field
-    in statDirEntry, so that the fs.DirEntry passed to the WalkDirFunc
-    for the root of the tree does not have any extra methods.)
-    
-    For #41190.
-    
-    Change-Id: I9359dfcc110338c0ec64535f22cafb38d0b613a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/243916
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8b4035ef082a4d0357881869327e25253f2d8be1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229302
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/fs/walk.go                | 132 +++++++++++++++++++++++++++++++++
- src/io/fs/walk_test.go           | 155 +++++++++++++++++++++++++++++++++++++++
- src/path/filepath/export_test.go |   2 -
- src/path/filepath/path.go        |  77 +++----------------
- src/path/filepath/path_test.go   |  15 +++-
- 5 files changed, 310 insertions(+), 71 deletions(-)
+ src/math/big/arith_s390x.s | 1869 +++++++++++++++++++++++---------------------
+ 1 file changed, 958 insertions(+), 911 deletions(-)

@@ -1,21 +1,19 @@
-commit 8488309192b0ed4b393e2f7b2a93491139ff8ad0
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sun Jul 23 14:19:57 2023 -0400
+commit f00fa0b98da9f4353839da99e6f6f7f109f9954f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 13 13:36:23 2022 -0400
 
-    net/http: perform streaming body feature detection once per process
+    runtime: document stkframe
     
-    As far a I can tell, there's currently no situation where this feature
-    detection will report a different result per request, so default to
-    doing once per process until there's evidence that doing it more often
-    is worthwhile.
+    The meaning of some of the fields in stkframe is actually quite
+    subtle.
     
-    Change-Id: I567d3dbd847af2f49f2e83cd9eb0ae61d82c1f83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513459
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Change-Id: Iac765ff6fbf4c3b7c9f2453f5b4a2e5e640f5750
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424256
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
 
- src/net/http/roundtrip_js.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/runtime2.go | 59 ++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 48 insertions(+), 11 deletions(-)

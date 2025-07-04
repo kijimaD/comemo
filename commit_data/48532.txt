@@ -1,21 +1,23 @@
-commit 3f69cc7d77fbc569824307e6dca37950003ce5a8
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 24 17:50:06 2022 +0000
+commit 8c99e5db431c28ef563fc4980b05b26f82172864
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 26 21:42:09 2021 -0700
 
-    Revert "cmd/compile: stop interface conversions for generic method calls from allocating"
+    [dev.typeparams] cmd/compile/internal/types2: ensure that Named.check is nilled out once it is expanded
     
-    This reverts commit e550c3054586a224d949cc8fa030bac0887bee51.
+    This is a port of
+    - https://golang.org/cl/318849
+    - https://golang.org/cl/322974
     
-    Reason for revert: Method bound calls are no longer implemented using interface calls, so it is no longer necessary. Leaving the test, though.
+    For #45580.
     
-    Change-Id: I80f1e4cd921063cd27ca8f07998316ca282e075b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/395594
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie0700ed6c8d472305d5ba7ff97da1ae063152aa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323030
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/escape/escape.go |  8 --------
- src/cmd/compile/internal/ir/expr.go       |  3 +--
- src/cmd/compile/internal/noder/stencil.go | 13 +++----------
- 3 files changed, 4 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/types2/decl.go     | 51 ++++++++++++++++++++++-------
+ src/cmd/compile/internal/types2/sanitize.go |  3 ++
+ src/cmd/compile/internal/types2/type.go     | 19 ++++++++++-
+ 3 files changed, 60 insertions(+), 13 deletions(-)

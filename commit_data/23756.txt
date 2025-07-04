@@ -1,19 +1,26 @@
-commit 1a0818a40de3c2e7daa9d22591fb961602c7323b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 20 10:18:26 2015 -0700
+commit bd8e3d028eeca723bb37f72c6d513e32c374af73
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jun 10 22:32:14 2015 +0200
 
-    cmd/dist: increase timeout for standard tests
+    os: fix error returned by dirstat on Plan 9
     
-    The cmd/go tests run too long on a Raspberry Pi.  I've cut times as
-    much as I can see without more serious steps like not running tests.
+    When the Stat or Fstat system calls return -1,
+    dirstat incorrectly returns ErrShortStat.
     
-    Fixes #11779.
+    However, the error returned by Stat or Fstat
+    could be different. For example, when the
+    file doesn't exist, they return "does not exist".
     
-    Change-Id: Ice5da052902decea2e6ac32d0f2ce084c39ea1ab
-    Reviewed-on: https://go-review.googlesource.com/12368
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Dirstat should return the error returned by
+    the system call.
+    
+    Fixes #10911.
+    Fixes #11132.
+    
+    Change-Id: Icf242d203d256f12366b1e277f99b1458385104a
+    Reviewed-on: https://go-review.googlesource.com/10900
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 2 +-
+ src/os/stat_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

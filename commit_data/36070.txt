@@ -1,26 +1,16 @@
-commit 2fe2aa0983588686d11fbeedeb5acaa3fe96d03e
-Author: David Chase <drchase@google.com>
-Date:   Wed Jul 18 11:23:56 2018 -0400
+commit 096d96779aca3baaa14644f64313abf03ff3d49f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 22 12:49:48 2018 -0700
 
-    cmd/compile: avoid compressed dwarf when testing for gdb on OSX
+    cmd/compile: cleanup Order.cleanTempNoPop slightly
     
-    Until we figure out how to deal with gdb on Darwin (doesn't
-    read compressed DWARF from binaries), avoid compressing
-    DWARF in that case so that the test will still yield meaningful
-    results.
+    Passes toolstash-check.
     
-    This is also reported to be a problem for Windows.
-    
-    Problem also exists for lldb, but this test doesn't check
-    lldb.
-    
-    Updates #25925
-    
-    Change-Id: I85c0e5db75f3329957290500626a3ac7f078f608
-    Reviewed-on: https://go-review.googlesource.com/124712
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ia769e719e89e508201711775ea3e2cb3979387fa
+    Reviewed-on: https://go-review.googlesource.com/102215
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/compile/internal/ssa/debug_test.go | 19 +++++++++++++------
- 1 file changed, 13 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 35 +++++++++++++++--------------------
+ 1 file changed, 15 insertions(+), 20 deletions(-)

@@ -1,24 +1,12 @@
-commit 545a1eef6abe1d80b6336ec01696f4787808bae3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Mar 6 18:59:50 2011 -0800
+commit 8b432848f4fe129c9b1dcb82278313eb7890d803
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 7 13:57:15 2011 +1100
 
-    http: add Hijacker type; remove Hijack from ResponseWriter
-    
-    The Hijack functionality wasn't removed, but now you have
-    to test if your ResponseWriter is also a Hijacker:
-    
-    func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-        if hj, ok := rw.(http.Hijacker); ok {
-            hj.Hijack(..)
-        }
-    }
+    tag release.2011-03-07
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4245064
+    https://golang.org/cl/4264048
 
- src/pkg/http/httptest/recorder.go | 9 ---------
- src/pkg/http/server.go            | 3 +++
- src/pkg/rpc/server.go             | 2 +-
- src/pkg/websocket/server.go       | 4 ++--
- 4 files changed, 6 insertions(+), 12 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,35 +1,26 @@
-commit 8e8303e1d04d3368db568aada24b3ccd7f1b4fc4
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sat May 6 17:34:41 2023 +0800
+commit 103cc661f1906837d02133e9c65d0475ac49799c
+Author: Josh Powers <jpowers@influxdata.com>
+Date:   Fri Jun 17 18:22:12 2022 +0000
 
-    cmd/internal/obj/riscv: regenerate instruction encoding table
+    cmd/go/internal/modfetch: prevent duplicate hashes in go.sum
     
-    This CL updates riscv instructions by
-    https://github.com/riscv/riscv-opcodes
+    To write go.sum, each module and then each hash is looped through. The
+    hashes are kept in a slice and there is no check to ensure that hashes
+    were not added or already exist in the file. Therefore, unique the
+    hashes of each module before writing to prevent duplicates.
     
-    which adds instruction:
-            APAUSE
+    Fixes: #28456
     
-    And removes the following unused instructions:
-            AFENCEI
-            AFMVQX
-            AFMVXQ
-            AHFENCEGVMA
-            AHFENCEVVMA
-            ASLLIRV32
-            ASRAIRV32
-            ASRLIRV32
-            AURET
-    
-    Change-Id: I314570c643af3e6bbc9d2cd471b6b39985bcbdff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409415
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Change-Id: I1cf7e7cdee3e7530a0ee605cd76d738627be1e0d
+    GitHub-Last-Rev: 0ed02e9591e966fe5f6ba275635c3974daa2656e
+    GitHub-Pull-Request: golang/go#53291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411154
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
 
- src/cmd/internal/obj/riscv/anames.go |  10 +-
- src/cmd/internal/obj/riscv/cpu.go    |  15 +-
- src/cmd/internal/obj/riscv/inst.go   | 727 +++++++++++++++++------------------
- 3 files changed, 357 insertions(+), 395 deletions(-)
+ src/cmd/go/internal/modfetch/fetch.go              |  1 +
+ src/cmd/go/testdata/script/mod_tidy_duplicates.txt | 38 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

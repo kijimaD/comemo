@@ -1,37 +1,39 @@
-commit a52c0a199271fa0096cd3bfc7901531294d98989
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 23 16:44:51 2019 -0700
+commit cd03664f82a53dbe20d0b828189158ba3863039c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 9 19:55:39 2019 +0000
 
-    math/big: make Rat.Denom side-effect free
+    runtime: fix js/wasm lock implementation
     
-    A Rat is represented via a quotient a/b where a and b are Int values.
-    To make it possible to use an uninitialized Rat value (with a and b
-    uninitialized and thus == 0), the implementation treats a 0 denominator
-    as 1.
+    Trybots started failing on js/wasm after golang.org/cl/175797 landed,
+    but it seemed completely unrelated. It would fail very consistently on
+    the heapsampling.go test.
     
-    Rat.Num and Rat.Denom return pointers to these values a and b. Because
-    b may be 0, Rat.Denom used to first initialize it to 1 and thus produce
-    an undesirable side-effect (by changing the Rat's denominator).
+    Digging deeper it was very difficult to ascertain what was going wrong,
+    but clearly m.locks for some m was non-zero when calling into the
+    scheduler.
     
-    This CL changes Denom to return a new (not shared) *Int with value 1
-    in the rare case where the Rat was not initialized. This eliminates
-    the side effect and returns the correct denominator value.
+    The failure comes from the fact that lock calls into gosched, but it's
+    unclear how exactly we got there in the first place; there should be no
+    preemption in this single-threaded context.
     
-    While this is changing behavior of the API, the impact should now be
-    minor because together with (prior) CL https://golang.org/cl/202997,
-    which initializes Rats ASAP, Denom is unlikely used to access the
-    denominator of an uninitialized (and thus 0) Rat. Any operation that
-    will somehow set a Rat value will ensure that the denominator is not 0.
+    Furthermore, lock shouldn't be calling gosched_m at all because in a
+    single-threaded context, the thread shouldn't be preempted until it
+    actually unlocks.
     
-    Fixes #33792.
-    Updates #3521.
+    But, digging further it turns out the implementation in lock_js.go never
+    incremented or decremented m.locks. This is definitely wrong because
+    many parts of the runtime depend on that value being set correctly.
     
-    Change-Id: I0bf15ac60513cf52162bfb62440817ba36f0c3fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203059
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    So, this change removes the loop which calls into gosched_m (which
+    should be unnecessary) and increments and decrements m.locks
+    appropriately. This appears to fix the aforementioned failure.
+    
+    Change-Id: Id214c0762c3fb2b405ff55543d7e2a78c17443c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176297
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/rat.go      | 13 +++++++++----
- src/math/big/rat_test.go | 30 ++++++++++++++++++++++++++----
- 2 files changed, 35 insertions(+), 8 deletions(-)
+ src/runtime/lock_js.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

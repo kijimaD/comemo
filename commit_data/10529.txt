@@ -1,17 +1,17 @@
-commit 8e515485e277b982ce4265d72b0d92f76242b651
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 28 16:40:39 2011 -0500
+commit c8d2544b269bb4ece49d4804845c3e64b32cd7e5
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Nov 28 13:04:52 2011 -0800
 
-    gc: remove funarg special case in structfield
+    math: update special-conditions comments to use ± symbol
     
-    This should make CL 5431046 a little simpler.
-    
-    R=ken2
+    R=rsc, golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5444048
+    https://golang.org/cl/5445046
 
- src/cmd/gc/dcl.c       |  8 --------
- src/cmd/gc/subr.c      | 11 +++++------
- src/cmd/gc/typecheck.c | 15 +++++++++++++++
- test/blank.go          | 24 ++++++++++++++++++++++++
- 4 files changed, 44 insertions(+), 14 deletions(-)
+ src/pkg/math/abs.go    | 3 +--
+ src/pkg/math/asinh.go  | 3 +--
+ src/pkg/math/floor.go  | 9 +++------
+ src/pkg/math/gamma.go  | 3 +--
+ src/pkg/math/modf.go   | 3 +--
+ src/pkg/math/sincos.go | 3 +--
+ 6 files changed, 8 insertions(+), 16 deletions(-)

@@ -1,17 +1,34 @@
-commit 8b94733bc7c648da47ec312476f22d48785be277
-Author: guoguangwu <guoguangwu@magic-shield.com>
-Date:   Fri Feb 23 01:07:08 2024 +0000
+commit b675a75c3d7c221d8f5734203e25bd690a9a1f83
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Mar 7 15:32:30 2023 -0500
 
-    encoding/xml: remove unnecessary fmt.Sprintf call
+    cmd/compile: enable address folding for globals on ARM64, just not -dynlink mode
     
-    Change-Id: Iba6014340d8b697a3a26b35e8d5a702ccf332e10
-    GitHub-Last-Rev: ef60463c7b98c2bdabe6d04e0f86947b7f395765
-    GitHub-Pull-Request: golang/go#65872
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565841
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    On ARM64, in -dynlink mode (building a shared library or a plugin),
+    accessing global variable is made using the GOT. Currently, the
+    GOT accessing instruction sequence our assembler generates doesn't
+    handle large offset well, so we don't fold the offset into loads
+    and stores in the compiler. Currently, the rewrite rules are
+    guarded with the -shared flag. However, the GOT access
+    instructions are only generated in the -dynlink mode (which
+    implies -shared, but not the other direction).
+    
+    CL 445535 attempted to remove the guard althgether. But that
+    causes build failure for -dynlink mode for the reason above. This
+    CL changes it to guard specifically on -dynlink mode, allowing
+    the optimization in more cases (-shared but not -dynlink build
+    modes).
+    
+    Updates #58826.
+    
+    Change-Id: I1391db6a33e8d0455a304e7cae7fcfdeb49bfdab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473999
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/xml/marshal_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  93 +++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 176 +++++++++++++-------------
+ test/fixedbugs/issue58826.go                  |  23 ++++
+ 3 files changed, 159 insertions(+), 133 deletions(-)

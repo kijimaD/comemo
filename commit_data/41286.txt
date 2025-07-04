@@ -1,23 +1,21 @@
-commit b865bd1fb1ee46158247b7c0e6d9e434502f9beb
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 8 14:01:27 2020 -0500
+commit f1b6d1016ee8d1c25999bc69bd73558476e2cf34
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Thu Sep 19 16:08:45 2019 -0400
 
-    cmd/go: delete testdata/testonly dir: it isn't being used anywhere
+    runtime/debug: correct BuildInfo.Main documentation
     
-    The TestGoBuildTestOnly test seems to be using files in testonly,
-    but it's actually creating different files in a tempdir GOPATH
-    that are completely unrelated.
+    The term "main module" has a special meaning [1]
+    and is not what we intended to refer to with BuildInfo.Main.
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    [1] https://golang.org/cmd/go/#hdr-The_main_module_and_the_build_list
     
-    Updates #36320
-    Updates #17751
+    Updates #33975
     
-    Change-Id: Ie2c6d477bbb2eac7c013ee8dea9330a367b4f663
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213821
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ieaba5fcacee2e87c5c15fa7425527bbd64ada5d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196522
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/testdata/testonly/p_test.go | 1 -
- src/cmd/go/testdata/testonly2/t.go     | 6 ------
- 2 files changed, 7 deletions(-)
+ src/runtime/debug/mod.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

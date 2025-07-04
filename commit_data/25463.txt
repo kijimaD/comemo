@@ -1,14 +1,27 @@
-commit d02193c628c1b442909950f310362d9e7b66e94a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 6 15:51:01 2016 -0500
+commit b50b21d3e130cf19de99c2736d038b636dde75c3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 21 12:51:01 2015 +0900
 
-    doc: document linux/ppc64 kernel requirement (2.6.37 or later)
+    net: make Dial, Listen{,Packet} for TCP/UDP with invalid port fail
     
-    Fixes #13269.
+    This change makes Dial, Listen and ListenPacket with invalid port fail
+    whatever GODEBUG=netdns is.
     
-    Change-Id: I960d1825bda9d8873c2a9005872c45e4c7d30111
-    Reviewed-on: https://go-review.googlesource.com/18339
+    Please be informed that cgoLookupPort with an out of range literal
+    number may return either the lower or upper bound value, 0 or 65535,
+    with no error on some platform.
+    
+    Fixes #11715.
+    
+    Change-Id: I43f9c4fb5526d1bf50b97698e0eb39d29fd74c35
+    Reviewed-on: https://go-review.googlesource.com/12447
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/install-source.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/net/error_test.go | 44 ++++++++++++++++++++++++++++++++++++++------
+ src/net/ipsock.go     |  2 +-
+ src/net/lookup.go     | 13 ++++++++++---
+ src/net/parse.go      | 14 +++++++++++++-
+ src/net/parse_test.go | 22 ++++++++++++++++++++++
+ src/net/port.go       | 24 ------------------------
+ src/net/port_test.go  | 12 +++++++++---
+ 7 files changed, 93 insertions(+), 38 deletions(-)

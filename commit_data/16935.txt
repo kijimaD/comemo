@@ -1,12 +1,16 @@
-commit fa673bd872d738a24a61ca8ed09c7c3b88d10682
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jul 31 12:34:14 2013 +0900
+commit 5fea8c030b2877cdab6463e9f5466f877735e128
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 31 13:04:57 2013 +1000
 
-    net: add simple SetKeepAlivePeriod call test
+    text/template: fix type of ComplexZero in test
+    Was stupidly float64; should be complex128.
+    The tests still pass.
     
-    R=golang-dev, dave
+    Fixes #5649.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12090043
+    https://golang.org/cl/12107044
 
- src/pkg/net/protoconn_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/text/template/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

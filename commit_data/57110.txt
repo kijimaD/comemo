@@ -1,26 +1,19 @@
-commit 9b4268c3df9dcc46a7185a6095ea6e2e685ace66
-Author: khr@golang.org <khr@golang.org>
-Date:   Thu Jul 11 19:38:33 2024 -0700
+commit f3bf18117b284b63f4350a5aa61773a30d91a6d5
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Jun 20 08:55:49 2023 -0400
 
-    cmd/compile: simplify prove pass
+    log/slog: fix HandlerOptions.ReplaceAttr doc
     
-    We don't need noLimit checks in a bunch of places.
-    Also simplify folding of provable constant results.
+    It said that Attrs with an empty key are ignored.
+    In fact, zero Attrs are ignored.
     
-    At this point in the CL stack, compilebench reports no performance
-    changes. The only thing of note is that binaries got a bit smaller.
+    Fixes #60870.
     
-    name                      old text-bytes    new text-bytes    delta
-    HelloSize                       960kB ± 0%        952kB ± 0%  -0.83%  (p=0.000 n=10+10)
-    CmdGoSize                      12.3MB ± 0%       12.1MB ± 0%  -1.53%  (p=0.000 n=10+10)
-    
-    Change-Id: Id4be75eec0f8c93f2f3b93a8521ce2278ee2ee2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599197
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I221d3a25b0f0cc9001e06e9cc76bab29292c0741
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504535
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 97 +++++++++++++++--------------------
- test/codegen/bool.go                  | 43 +++++++++-------
- test/codegen/writebarrier.go          | 10 ++++
- 3 files changed, 76 insertions(+), 74 deletions(-)
+ src/log/slog/handler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

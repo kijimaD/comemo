@@ -1,17 +1,18 @@
-commit 903e0ffbed56df8d3c753b27d6bdedbd0fc614dc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Apr 14 11:06:46 2024 -0700
+commit de788efeac46f18bd3372666cfc2c698de69d8b6
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Jan 12 15:57:51 2023 -0600
 
-    reflect: remove unnecessary type conversions of untyped PtrSize
+    cmd/link/internal/ppc64: Use PCrel relocs in runtime.addmoduledata if supported
     
-    Change-Id: I0f20020c2929b58958ce228b9f175d5b4fd77a1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578855
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    This is another step towards supporting TOC-free operations.
+    
+    Change-Id: I77edcf066c757b8ec815c701d7f6d72cd645eca9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483437
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/reflect/type.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ppc64/asm.go | 77 ++++++++++++++++++++------------------
+ 1 file changed, 40 insertions(+), 37 deletions(-)

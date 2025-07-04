@@ -1,17 +1,30 @@
-commit f45339c1f334432e225f611ee37f6e07d382a7d1
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Mar 31 16:47:26 2013 +0900
+commit b80ce2034bd04b23cb9b4330aea3d390b2f0df3a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 30 22:59:08 2013 -0700
 
-    net: update documentation for TCPConn, TCPListener and related stuff
+    net/http: Transport: be paranoid about any non-100 1xx response
     
-    Closes the API documentation gap between platforms.
-    Also makes the code textual representation same between platforms.
+    Since we can't properly handle anything except 100, treat all
+    1xx informational responses as sketchy and don't reuse the
+    connection for future requests.
     
-    R=golang-dev, r
+    The only other 1xx response code currently in use in the wild
+    is WebSockets' use of "101 Switching Protocols", but our
+    code.google.com/p/go.net/websockets doesn't use Client or
+    Transport: it uses ReadResponse directly, so is unaffected by
+    this CL.  (and its tests still pass)
+    
+    So this CL is entirely just future-proofing paranoia.
+    Also: the Internet is weird.
+    
+    Update #2184
+    Update #3665
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/8147043
+    https://golang.org/cl/8208043
 
- src/pkg/net/tcpsock.go       |  2 --
- src/pkg/net/tcpsock_plan9.go |  2 --
- src/pkg/net/tcpsock_posix.go | 53 +++++++++++++++++++++-----------------------
- 3 files changed, 25 insertions(+), 32 deletions(-)
+ src/pkg/net/http/serve_test.go     |  7 ++++-
+ src/pkg/net/http/transport.go      |  5 +++-
+ src/pkg/net/http/transport_test.go | 54 ++++++++++++++++++++++++++++++--------
+ 3 files changed, 53 insertions(+), 13 deletions(-)

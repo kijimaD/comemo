@@ -1,25 +1,45 @@
-commit 06338941ea0e3d654805b7323761f3c841cc8d58
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 2 11:12:25 2022 -0400
+commit 4b5fdb0b7a362cb6fa6ad551757104e490483121
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 17 17:49:15 2021 -0700
 
-    net/http: fix for recent go.mod update
+    [dev.typeparams] cmd/compile/internal/types2: introduce type set abstraction for interfaces
     
-    cmd/internal/moddeps was failing.
-    Ran the commands it suggested:
+    With this change, interfaces are "completed" on-demand, when needed,
+    and the respective information (set of all methods, type constraints)
+    is recorded in a new typeSet data structure.
     
-    % go mod tidy                               # to remove extraneous dependencies
-    % go mod vendor                             # to vendor dependencies
-    % go generate -run=bundle std               # to regenerate bundled packages
-    % go generate syscall internal/syscall/...  # to regenerate syscall packages
+    As a consequence, interfaces don't need to be explicitly completed
+    anymore and (internal) uses of interfaces have become much simpler.
     
-    cmd/internal/moddeps is happy now.
+    This change also introduces a new field Interface.complete to indicate
+    that all methods and embedded elements have been set up. This prevent
+    the computation and recording (!) of a partial type set for erroneous
+    programs (if we compute the partial type set and store it, subsequent
+    type set accesses use the wrong type set which may lead to follow-on
+    errors).
     
-    Change-Id: I4ee212cdc323f62a6cdcfdddb6813397b23d89e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403454
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1ffc907f7d0fb93b3e987fe5ff9c6fa5cae00d7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329309
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/http/h2_bundle.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        |   2 +-
+ src/cmd/compile/internal/types2/call.go            |   1 -
+ src/cmd/compile/internal/types2/expr.go            |   1 -
+ src/cmd/compile/internal/types2/infer.go           |  27 ++---
+ src/cmd/compile/internal/types2/interface.go       |  64 ++++++-----
+ src/cmd/compile/internal/types2/lookup.go          |  17 ++-
+ src/cmd/compile/internal/types2/predicates.go      |  12 +--
+ src/cmd/compile/internal/types2/sanitize.go        |   8 +-
+ src/cmd/compile/internal/types2/sizeof_test.go     |   3 +-
+ src/cmd/compile/internal/types2/subst.go           |  15 ++-
+ .../internal/types2/testdata/check/cycles4.src     |  15 ++-
+ src/cmd/compile/internal/types2/type.go            | 119 +++++++--------------
+ src/cmd/compile/internal/types2/typeset.go         |  70 ++++++++++++
+ src/cmd/compile/internal/types2/typestring.go      |  13 ++-
+ src/cmd/compile/internal/types2/typexpr.go         |   8 +-
+ src/cmd/compile/internal/types2/unify.go           |  12 +--
+ src/cmd/compile/internal/types2/universe.go        |   4 +-
+ 17 files changed, 205 insertions(+), 186 deletions(-)

@@ -1,13 +1,22 @@
-commit ffc0830c75ce6d0269bd35025f611066dc63d156
-Author: John Asmuth <jasmuth@gmail.com>
-Date:   Mon Aug 8 11:27:09 2011 -0700
+commit 68fea34be3622070a8b54e15bd0a016f7a62adc7
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Aug 8 09:56:45 2011 -0400
 
-    container/vector: removed last instances of vector outside of container/vector itself from the core libs
+    syscall: move bsd mmap syscall
     
-    R=gri
+    The mmap system call varies across BSDs. Move mmap and munmap into
+    the operating system dependent files. This will be needed to add
+    syscall support for OpenBSD.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4810078
+    https://golang.org/cl/4822056
 
- src/pkg/exp/datafmt/parser.go | 41 ++++++++++++++++++++---------------------
- src/pkg/go/scanner/errors.go  | 23 +++++++++++++----------
- 2 files changed, 33 insertions(+), 31 deletions(-)
+ src/pkg/syscall/syscall_bsd.go            |  3 ---
+ src/pkg/syscall/syscall_darwin.go         |  2 ++
+ src/pkg/syscall/syscall_freebsd.go        |  2 ++
+ src/pkg/syscall/zsyscall_darwin_386.go    | 34 +++++++++++++++----------------
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 34 +++++++++++++++----------------
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 34 +++++++++++++++----------------
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 34 +++++++++++++++----------------
+ 7 files changed, 72 insertions(+), 71 deletions(-)

@@ -1,25 +1,26 @@
-commit c03d0e4fec6b02c09d286dae5df2f63164d74ea1
-Author: Iskander Sharipov <iskander.sharipov@intel.com>
-Date:   Mon Sep 17 21:37:30 2018 +0300
+commit 4816eface10125bc915c8a0dfff7fe1489827b8c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 23 17:25:26 2018 -0400
 
-    cmd/compile/internal/gc: handle arith ops in samesafeexpr
+    cmd/compile: derive len/cap relations in factsTable.update
     
-    Teach samesafeexpr to handle arithmetic unary and binary ops.
+    Currently, the prove pass derives implicit relations between len and
+    cap in the code that adds branch conditions. This is fine right now
+    because that's the only place we can encounter len and cap, but we're
+    about to add a second way to add assertions to the facts table that
+    can also produce facts involving len and cap.
     
-    It makes map lookup optimization possible in
+    Prepare for this by moving the fact derivation from updateRestrictions
+    (where it only applies on branches) to factsTable.update, which can
+    derive these facts no matter where the root facts come from.
     
-            m[k+1] = append(m[k+1], ...)
-            m[-k] = append(m[-k], ...)
-            ... etc
+    Passes toolstash -cmp.
     
-    Does not cover "+" for strings (concatenation).
-    
-    Change-Id: Ibbb16ac3faf176958da344be1471b06d7cf33a6c
-    Reviewed-on: https://go-review.googlesource.com/135795
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: If09692d9eb98ffaa93f4cfa58ed2d8ba0887c111
+    Reviewed-on: https://go-review.googlesource.com/102602
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/typecheck.go |  6 ++++--
- test/codegen/mapaccess.go                | 24 ++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 56 +++++++++++++++++++----------------
+ 1 file changed, 31 insertions(+), 25 deletions(-)

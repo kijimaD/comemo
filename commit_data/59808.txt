@@ -1,21 +1,20 @@
-commit 1cf6386b5ee1ba7d367b6456c2c6888ab68c3ec8
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Jun 23 07:04:06 2025 -0700
+commit 8c0da423f77fff5e206ad777cfc496e935cb3af6
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Apr 23 17:52:55 2024 +0000
 
-    Revert "go/types, types2: don't register interface methods in Info.Types map"
+    cmd/go: go env GOMOD should not download newer toolchain
     
-    This reverts commit 4ac729283c807cdbe0f6c7041f21606019b722cf.
+    It is not neccessary to download a newer toolchain to display the path
+    to GOMOD or GOWORK.
     
-    Reason for revert: changes semantics of types.Info.TypeOf; introduces new inconsistency around FieldList types.
+    Fixes: #61455
     
-    For #74303
-    
-    Change-Id: Ib99558c95f1b615fa9a02b028500ed230c8bb185
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/683297
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I0b031651ad9bfeb5565361ecaff6908640ccf9c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581275
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Findley <rfindley@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/types2/interface.go | 18 ++++++++----------
- src/go/types/interface.go                    | 18 ++++++++----------
- 2 files changed, 16 insertions(+), 20 deletions(-)
+ src/cmd/go/internal/toolchain/select.go            |  8 ++++++++
+ .../go/testdata/script/env_gomod_issue61455.txt    | 24 ++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

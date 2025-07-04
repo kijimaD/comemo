@@ -1,49 +1,28 @@
-commit 016d5eea118445f5b3ca46f85b65c6afd180c946
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 18 23:14:20 2021 +0000
+commit 76ab626bfc52fad9ce8c12fac56177ce68ff744b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 11:01:00 2021 -0500
 
-    runtime: retype mheap.reclaimCredit as atomic.Uintptr
+    runtime: factor common code out of defs_windows_*.go
     
-    [git-generate]
-    cd src/runtime
-    mv export_test.go export.go
-    GOROOT=$(dirname $(dirname $PWD)) rf '
-      add mheap.reclaimCredit \
-    // reclaimCredit is spare credit for extra pages swept. Since \
-    // the page reclaimer works in large chunks, it may reclaim \
-    // more than requested. Any spare pages released go to this \
-    // credit pool. \
-    reclaimCredit_ atomic.Uintptr
-      ex {
-        import "runtime/internal/atomic"
+    Also give up on the fiction that these files can be regenerated.
+    They contain many manual edits, and they're fairly small anyway.
     
-        var t mheap
-        var v, w uintptr
-        var d uintptr
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
     
-        t.reclaimCredit -> t.reclaimCredit_.Load()
-        t.reclaimCredit = v -> t.reclaimCredit_.Store(v)
-        atomic.Loaduintptr(&t.reclaimCredit) -> t.reclaimCredit_.Load()
-        atomic.LoadAcquintptr(&t.reclaimCredit) -> t.reclaimCredit_.LoadAcquire()
-        atomic.Storeuintptr(&t.reclaimCredit, v) -> t.reclaimCredit_.Store(v)
-        atomic.StoreReluintptr(&t.reclaimCredit, v) -> t.reclaimCredit_.StoreRelease(v)
-        atomic.Casuintptr(&t.reclaimCredit, v, w) -> t.reclaimCredit_.CompareAndSwap(v, w)
-        atomic.Xchguintptr(&t.reclaimCredit, v) -> t.reclaimCredit_.Swap(v)
-        atomic.Xadduintptr(&t.reclaimCredit, d) -> t.reclaimCredit_.Add(d)
-      }
-      rm mheap.reclaimCredit
-      mv mheap.reclaimCredit_ mheap.reclaimCredit
-    '
-    mv export.go export_test.go
-    
-    Change-Id: I2c567781a28f5d8c2275ff18f2cf605b82f22d09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356712
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ib4e4e20a43d8beb1d5390fd184160c33607641f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288807
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/mgc.go      |  2 +-
- src/runtime/mgcsweep.go |  2 +-
- src/runtime/mheap.go    | 11 +++++------
- 3 files changed, 7 insertions(+), 8 deletions(-)
+ src/runtime/defs_windows.go       | 127 ++++++++++++++++++++------------------
+ src/runtime/defs_windows_386.go   |  84 ++-----------------------
+ src/runtime/defs_windows_amd64.go |  87 ++------------------------
+ src/runtime/defs_windows_arm.go   |  79 +-----------------------
+ src/runtime/signal_windows.go     |   4 +-
+ 5 files changed, 78 insertions(+), 303 deletions(-)

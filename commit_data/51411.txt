@@ -1,18 +1,19 @@
-commit d58f2e741c742aafe5d3247bd184e182da71408d
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 21 16:50:41 2022 -0500
+commit 38729cff96ad38b2d5b530c1009ff0403ebff903
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 24 17:49:11 2022 -0800
 
-    doc: document more cgo, go command changes
+    go/types, types2: all interfaces implement comparable (add tests)
     
-    Also document new cgo changes and reorder go command
-    section to put most important notes first.
+    For #50646.
     
-    Change-Id: I45b0c785bd8bc82c3b174800fc995312ea057f14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452557
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I7420545556e0df2659836364a62ce2c32ad7a8b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380654
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go1.20.html | 128 +++++++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 94 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/types2/issues_test.go     | 27 +++++++++++++++
+ .../types2/testdata/fixedbugs/issue50646.go2       | 29 ++++++++++++++++
+ src/go/types/issues_test.go                        | 27 +++++++++++++++
+ src/go/types/testdata/fixedbugs/issue50646.go2     | 29 ++++++++++++++++
+ test/typeparam/issue50646.go                       | 39 ++++++++++++++++++++++
+ 5 files changed, 151 insertions(+)

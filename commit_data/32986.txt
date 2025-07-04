@@ -1,64 +1,19 @@
-commit 0011cfbe2b57b385bac25a3daf9de581ee263661
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Sat Sep 23 00:34:37 2017 +0300
+commit b3301865a025fda72b8d327fad4461bb7bf68600
+Author: Michael Hendricks <michael@ndrix.org>
+Date:   Wed Jun 21 21:28:41 2017 -0500
 
-    cmd/compile: optimize signed non-negative div/mod by a power of 2
+    os: run more of TestExecutable on OpenBSD
     
-    This CL optimizes assembly for len() or cap() division
-    by a power of 2 constants:
+    On OpenBSD, Executable relies on Args[0].  Removing the forgery on
+    that OS allows the rest of the test to run.
     
-        func lenDiv(s []int) int {
-            return len(s) / 16
-        }
+    See #19453
     
-    amd64 assembly before the CL:
-    
-        MOVQ    "".s+16(SP), AX
-        MOVQ    AX, CX
-        SARQ    $63, AX
-        SHRQ    $60, AX
-        ADDQ    CX, AX
-        SARQ    $4, AX
-        MOVQ    AX, "".~r1+32(SP)
-        RET
-    
-    amd64 assembly after the CL:
-    
-        MOVQ    "".s+16(SP), AX
-        SHRQ    $4, AX
-        MOVQ    AX, "".~r1+32(SP)
-        RET
-    
-    The CL relies on the fact that len() and cap() result cannot
-    be negative.
-    
-    Trigger stats for the added SSA rules on linux/amd64 when running
-    make.bash:
-    
-         46 Div64
-         12 Mod64
-    
-    The added SSA rules may trigger on more cases in the future
-    when SSA values will be populated with the info on their
-    lower bounds.
-    
-    For instance:
-    
-        func f(i int16) int16 {
-            if i < 3 {
-                return -1
-            }
-    
-            // Lower bound of i is 3 here -> i is non-negative,
-            // so unsigned arithmetics may be used here.
-            return i % 16
-        }
-    
-    Change-Id: I8bc6be5a03e71157ced533c01416451ff6f1a7f0
-    Reviewed-on: https://go-review.googlesource.com/65530
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Idf99f86894de5c702893791bc3684f8665f4019d
+    Reviewed-on: https://go-review.googlesource.com/46398
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go        | 104 ++++++++++++
- src/cmd/compile/internal/ssa/gen/generic.rules |  14 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 213 +++++++++++++++++++++++++
- 3 files changed, 331 insertions(+)
+ src/os/executable_test.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

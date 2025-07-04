@@ -1,28 +1,20 @@
-commit 5bfd51147e460bad6615b5baaf68609a413eda1a
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Sun Aug 15 14:57:00 2021 +0800
+commit 2f26adc232988938cff003e15dae75757f76710a
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 3 11:49:52 2021 -0400
 
-    copyright: add Loongson into AUTHORS
+    [dev.typeparams] go/types: re-use existing code for Interface.Complete
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    This is a port of CL 321751 to go/types, adjusted to use token.Pos, and
+    to exclude a missing position from a panic message (an unresolved
+    comment on the original CL).
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
-    
-    Updates #46229
-    
-    Change-Id: I23fb430f1f6e8a587f13e2f020721cbd3a45d4ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342303
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Change-Id: I5814067aecb67aca9d73f2093fb6004b769924f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324756
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- AUTHORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/go/types/interface.go | 48 ++++++++++++++++++++++++++++++++-----
+ src/go/types/type.go      | 60 ++---------------------------------------------
+ 2 files changed, 44 insertions(+), 64 deletions(-)

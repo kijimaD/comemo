@@ -1,25 +1,28 @@
-commit 7731fd9cd344d387fa0e95ec7ae8f8dfcfb5df5f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 8 10:52:19 2024 -0800
+commit feb355c427590df3aee7f3c0ee4adc0290c577a4
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Mon Feb 20 06:55:42 2023 -0500
 
-    go/types, types2: consistently use ast/syntax.Unparen (cleanup)
+    syscall: introduce IoctlPtr for exec_unix tests
     
-    This further reduces the differences between go/types and types2.
+    Avoid passing Go pointers as uintptr in exec_unix_test.go by introducing
+    syscall.IoctlPtr() which accepts arg as unsafe.Pointer.
     
-    Change-Id: I5ed0f621e1d64cd65b6a3e8eaca9926a1ccb5794
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562776
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    For #44834
+    Fixes #58609
+    
+    Change-Id: I6d0ded023e5f3c9989783aee7075bb88100d9ec2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469675
+    Run-TryBot: Dmitri Goutnik <dgoutnik@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/types2/builtins.go | 11 -----------
- src/go/types/assignments.go                 |  8 ++++----
- src/go/types/builtins.go                    |  4 +---
- src/go/types/call.go                        |  2 +-
- src/go/types/expr.go                        |  2 +-
- src/go/types/resolver.go                    |  4 ++--
- src/go/types/return.go                      |  2 +-
- src/go/types/stmt.go                        |  4 ++--
- 8 files changed, 12 insertions(+), 25 deletions(-)
+ src/syscall/exec_aix_test.go      | 2 +-
+ src/syscall/exec_libc.go          | 4 ++++
+ src/syscall/exec_solaris_test.go  | 2 +-
+ src/syscall/exec_unix_test.go     | 8 ++++----
+ src/syscall/export_darwin_test.go | 6 ++++--
+ src/syscall/export_unix_test.go   | 6 ++++--
+ 6 files changed, 18 insertions(+), 10 deletions(-)

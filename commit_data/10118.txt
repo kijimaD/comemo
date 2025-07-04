@@ -1,13 +1,19 @@
-commit 0d8fb375edfa0840b4b44bce6f39cfe52011c402
-Author: Jongmin Kim <atomaths@gmail.com>
-Date:   Thu Oct 27 09:13:06 2011 +1100
+commit 6323a40f31adbb810f79bac557552f96240a5e1f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 14:04:07 2011 -0700
 
-    misc/vim: Add rune keyword
-    According to adding rune type
+    gofix: test import insertion, deletion
     
-    R=adg, dsymonds
+    Small change to go/ast, go/parser, go/printer so that
+    gofix can delete the blank line left from deleting an import.
+    
+    R=golang-dev, bradfitz, adg
     CC=golang-dev
-    https://golang.org/cl/5319048
+    https://golang.org/cl/5321046
 
- misc/vim/syntax/go.vim | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gofix/fix.go         |  41 +++++--
+ src/cmd/gofix/import_test.go | 269 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/ast/ast.go        |   9 +-
+ src/pkg/go/parser/parser.go  |   2 +-
+ src/pkg/go/printer/nodes.go  |   1 +
+ 5 files changed, 312 insertions(+), 10 deletions(-)

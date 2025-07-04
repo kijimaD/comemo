@@ -1,24 +1,19 @@
-commit e18adbf88d35bc200d2b1c07ccb8f55f551942a0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 24 17:50:53 2017 -0800
+commit 5f9fb1ce0293c3d5bc2b0fd81ad7e0aaafd414f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 23:22:18 2016 -0400
 
-    math/bits: faster Reverse8/16 functions using table lookups
+    cmd/go: remove .o and .a files in builder.collect
     
-    Measured on 2.3 GHz Intel Core i7, running macOS 10.12.3:
+    This matches the removal of .so files and makes the processing
+    of '-L/path/to -lfoo' and plain '/path/to/foo.a' match.
     
-    benchmark                old ns/op     new ns/op     delta
-    BenchmarkReverse8-8      1.70          0.99          -41.76%
-    BenchmarkReverse16-8     2.24          1.32          -41.07%
+    Fixes #16463.
     
-    Fixes #19279.
-    
-    Change-Id: I398cf8a3513b7fa63c130efc7846a7c5353999d4
-    Reviewed-on: https://go-review.googlesource.com/37459
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I1464c5390d7eb6a3a33b4b2c951f87ef392ec94a
+    Reviewed-on: https://go-review.googlesource.com/32642
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/bits/bits.go        | 13 +++------
- src/math/bits/bits_tables.go | 26 +++++++++++++++++
- src/math/bits/make_tables.go | 66 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 96 insertions(+), 9 deletions(-)
+ src/cmd/go/build.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

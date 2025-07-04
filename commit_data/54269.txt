@@ -1,17 +1,25 @@
-commit fc486e4758700a1e17b3f80a0ace0426d4f89994
+commit cc90e45f1da8879163ae4ed3b1f7a5045cfc0685
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Aug 29 13:52:07 2023 +0200
+Date:   Fri Sep 30 19:50:03 2022 +0200
 
-    internal/poll, net: use (*FD).SetsockoptInet4Addr in setIPv4MulticastInterface on windows
+    all: use "unix" build tag where appropriate
     
-    Change-Id: Ic29d15bf62d8e693ca969354b415d958823bf41d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523915
+    Convert a few occurrences that were submitted after CL 389935.
+    
+    For #20322
+    For #51572
+    
+    Change-Id: I0047361916c402f8e37f515e6b09d451bd499e6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437235
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/internal/poll/sockopt_windows.go | 9 ---------
- src/net/sockoptip_windows.go         | 3 +--
- 2 files changed, 1 insertion(+), 11 deletions(-)
+ src/cmd/internal/osinfo/os_unix.go | 2 +-
+ src/os/rlimit.go                   | 2 +-
+ src/runtime/pprof/pprof_rusage.go  | 2 +-
+ src/runtime/pprof/rusage_test.go   | 2 +-
+ src/syscall/mmap_unix_test.go      | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

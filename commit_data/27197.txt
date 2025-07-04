@@ -1,18 +1,20 @@
-commit d954f9c4d19bbe459ad4a6de95af47349da1d40b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 28 14:24:19 2016 -0700
+commit a9d0244c334c6d8ac99eb59710d49bb85c707b29
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Thu Mar 10 16:11:35 2016 +0100
 
-    test: added test case for (fixed) issue 15470
+    fmt: replace variables for type bit sizes with constants
     
-    Follow-up to https://golang.org/cl/22543.
+    Use constants instead of dynamically computed values to determine
+    the bit sizes of types similar to how strconv and other packages
+    directly compute these sizes. Move these constants near the code
+    that uses them.
     
-    Change-Id: I873b4fa6616ac2aea8faada2fccd126233bbc07f
-    Reviewed-on: https://go-review.googlesource.com/22583
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I78d113b7e697466097e32653975df5990380c2c1
+    Reviewed-on: https://go-review.googlesource.com/20514
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/fixedbugs/issue15470.dir/a.go | 24 ++++++++++++++++++++++++
- test/fixedbugs/issue15470.dir/b.go |  3 +++
- test/fixedbugs/issue15470.go       | 10 ++++++++++
- 3 files changed, 37 insertions(+)
+ src/fmt/print.go | 5 -----
+ src/fmt/scan.go  | 9 +++++++--
+ 2 files changed, 7 insertions(+), 7 deletions(-)

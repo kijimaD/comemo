@@ -1,13 +1,25 @@
-commit 031c3bc9ae9412caf8a31fc95c5384c93fe5a7b7
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri May 1 15:53:45 2015 +1000
+commit 08c43488ee7a273ce41805b0bb2866507521d15c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Apr 9 10:08:29 2015 +0300
 
-    runtime: fix stackDebug comment
+    cmd/gc: fix handling of OGETG in race mode
     
-    Change-Id: Ia9191bd7ecdf7bd5ee7d69ae23aa71760f379aa8
-    Reviewed-on: https://go-review.googlesource.com/9590
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Now that getg is an intrinsic, more runtime functions
+    gets inlined (in particular, LockOSThread).
+    Runtime code gets race instrumented after inlining into
+    other packages. This can lead to false positives,
+    as race detector ignores all internal synchronization in runtime.
+    Inling of LockOSThread lead to false race reports on m contents.
+    See the issue for an example.
+    
+    Fixes #10380
+    
+    Change-Id: Ic9b760b53c28c2350bc54a5d4677fcd1c1f86e5f
+    Reviewed-on: https://go-review.googlesource.com/8690
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/chan_test.go | 2 +-
- src/runtime/stack1.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/gc/inl.go      | 10 ++++++++++
+ src/cmd/internal/gc/racewalk.go | 13 +++++--------
+ 2 files changed, 15 insertions(+), 8 deletions(-)

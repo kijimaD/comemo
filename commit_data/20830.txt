@@ -1,12 +1,23 @@
-commit ca230d2d6ffeaef0be2f58fd46ba6ed34a8dbf46
+commit 25f79b9dbeb13d5a6a66290848999de2425ad691
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 29 21:02:58 2014 -0400
+Date:   Thu Oct 16 14:58:11 2014 -0400
 
-    cmd/objdump: disable test failing on arm5
+    runtime/pprof: disable new memory test
     
-    TBR=adg
+    It cannot run 'go tool pprof'. There is no guarantee that's installed.
+    It needs to build a temporary pprof binary and run that.
+    It also needs to skip the test on systems that can't build and
+    run binaries, namely android and nacl.
+    
+    See src/cmd/nm/nm_test.go's TestNM for a template.
+    
+    Update #8867
+    Status: Accepted
+    
+    TBR=dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/167890043
+    https://golang.org/cl/153710043
 
- src/cmd/objdump/objdump_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/malloc.go           | 2 ++
+ src/runtime/pprof/mprof_test.go | 1 +
+ 2 files changed, 3 insertions(+)

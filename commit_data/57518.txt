@@ -1,34 +1,22 @@
-commit be86f09e01891390d4842ff760a1272e745c6409
-Author: khr@golang.org <khr@golang.org>
-Date:   Thu Sep 19 10:06:55 2024 -0700
+commit a91931d69297d2ec2e4dda711db9ac938b2ab776
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 19:49:38 2023 +1000
 
-    cmd/compile: use generics for isPowerOfTwo predicates
+    runtime/cgo: rename crosscall_arm1 to crosscall1
     
-    Change-Id: I097b53e9f13de6ff6eb18ae2261842b097f26390
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615197
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    This reduces inconsistency with other architectures and will allow
+    for further code deduplication.
+    
+    Change-Id: Icf0d02f765546c3193cccaa22c79e632e12d6bba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518616
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/_gen/386.rules     |  16 +-
- src/cmd/compile/internal/ssa/_gen/AMD64.rules   |  16 +-
- src/cmd/compile/internal/ssa/_gen/ARM.rules     |  74 ++---
- src/cmd/compile/internal/ssa/_gen/ARM64.rules   | 176 ++++++------
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |   6 +-
- src/cmd/compile/internal/ssa/_gen/MIPS.rules    |   6 +-
- src/cmd/compile/internal/ssa/_gen/MIPS64.rules  |   6 +-
- src/cmd/compile/internal/ssa/_gen/S390X.rules   |   8 +-
- src/cmd/compile/internal/ssa/_gen/generic.rules |  56 ++--
- src/cmd/compile/internal/ssa/rewrite.go         |  13 +-
- src/cmd/compile/internal/ssa/rewrite386.go      |  32 +--
- src/cmd/compile/internal/ssa/rewriteAMD64.go    |  64 ++---
- src/cmd/compile/internal/ssa/rewriteARM.go      | 148 +++++-----
- src/cmd/compile/internal/ssa/rewriteARM64.go    | 352 ++++++++++++------------
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  |  12 +-
- src/cmd/compile/internal/ssa/rewriteMIPS.go     |  12 +-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go   |  12 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go    |  24 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 112 ++++----
- 19 files changed, 568 insertions(+), 577 deletions(-)
+ src/runtime/cgo/gcc_arm.S         | 8 ++++----
+ src/runtime/cgo/gcc_freebsd_arm.c | 4 ++--
+ src/runtime/cgo/gcc_linux_arm.c   | 4 ++--
+ src/runtime/cgo/gcc_netbsd_arm.c  | 4 ++--
+ src/runtime/cgo/gcc_openbsd_arm.c | 4 ++--
+ 5 files changed, 12 insertions(+), 12 deletions(-)

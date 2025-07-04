@@ -1,11 +1,17 @@
-commit e5afecbd0e2253fb5f1be0aa6f6cbb5c00676e42
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 26 14:37:38 2014 -0400
+commit 73a82db1c8eec314700e2d0f92074a901fa112ed
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Sep 18 09:45:58 2014 -0700
 
-    doc/go1.4: add some cmd/go changes
+    fmt: fix allocation tests
     
-    CC=golang-codereviews
-    https://golang.org/cl/143650043
+    Converting an integer to an interface{} allocates as of CL 130240043.
+    
+    Fixes #8617.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews, khr
+    https://golang.org/cl/141700043
 
- doc/go1.4.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ src/fmt/fmt_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

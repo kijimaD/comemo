@@ -1,31 +1,16 @@
-commit 5c2666c18cb6b06a4c05afe86aa1abd4e1addde7
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 7 15:10:01 2011 -0500
+commit 22c45c558b69e7f7bdb0ec37519e02d333188da4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 7 12:08:31 2011 -0800
 
-    gc: unsafe.Pointer is not a pointer
+    gob: support GobEncoder for type T when the receiver is *T.
+    Still to do: **T.
     
-    Change unsafe.Pointer to be its own kind of
-    type, instead of making it equivalent to *any.
-    The change complicates import and export
-    but avoids the need to find all the places that
-    operate on pointers but should not operate on
-    unsafe.Pointer.
-    
-    Fixes #1566. (a different way)
-    Fixes #1582.
-    
-    R=ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4264050
+    https://golang.org/cl/4247061
 
- src/cmd/gc/align.c        | 12 ++++++++++++
- src/cmd/gc/builtin.c.boot |  2 +-
- src/cmd/gc/const.c        |  1 +
- src/cmd/gc/dcl.c          | 11 ++++++++++-
- src/cmd/gc/go.h           |  3 ++-
- src/cmd/gc/reflect.c      | 18 ++++++------------
- src/cmd/gc/subr.c         | 16 ++++++++++++----
- src/cmd/gc/typecheck.c    |  4 ++--
- src/cmd/gc/unsafe.go      |  2 +-
- test/fixedbugs/bug325.go  |  1 +
- 10 files changed, 48 insertions(+), 22 deletions(-)
+ src/pkg/gob/decode.go         | 18 +++++++--
+ src/pkg/gob/encode.go         | 18 +++++++--
+ src/pkg/gob/gobencdec_test.go | 26 ++++++++++++
+ src/pkg/gob/type.go           | 93 +++++++++++++++++++++----------------------
+ 4 files changed, 99 insertions(+), 56 deletions(-)

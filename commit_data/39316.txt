@@ -1,16 +1,27 @@
-commit 064ce85c2062cfee8dc87b69a831980e67d3d8a8
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 5 13:59:00 2019 -0400
+commit c6611b2f7e31aa9152f9279fd9ba0343137af7c0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 22 12:14:23 2019 -0500
 
-    runtime: fix non-tab indentation in lookup_darwin_*.s
+    misc/cgo/stdio: fix tests in module mode
     
-    Change-Id: Ie00494f098bd2bce9bfd1b18dbf9543cf46faad6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180840
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates #30228
+    
+    Change-Id: I4d213c6fe68c47ccb877f13b55128e035f76a26b
+    Reviewed-on: https://go-review.googlesource.com/c/163421
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/lookup_darwin_386.s   | 74 +++++++++++++++++++--------------------
- src/runtime/lookup_darwin_amd64.s | 54 ++++++++++++++--------------
- src/runtime/lookup_darwin_arm.s   | 12 +++----
- src/runtime/lookup_darwin_arm64.s | 12 +++----
- 4 files changed, 76 insertions(+), 76 deletions(-)
+ misc/cgo/stdio/overlaydir_test.go            | 81 ++++++++++++++++++++++++++++
+ misc/cgo/stdio/stdio_test.go                 | 60 +++++++++++++++++++++
+ misc/cgo/stdio/{ => testdata}/chain.go       |  2 +-
+ misc/cgo/stdio/{ => testdata}/chain.out      |  0
+ misc/cgo/stdio/{ => testdata}/fib.go         |  2 +-
+ misc/cgo/stdio/{ => testdata}/fib.out        |  0
+ misc/cgo/stdio/{ => testdata}/hello.go       |  2 +-
+ misc/cgo/stdio/{ => testdata}/hello.out      |  0
+ misc/cgo/stdio/{ => testdata}/run.out        |  0
+ misc/cgo/stdio/{ => testdata/stdio}/file.go  |  0
+ misc/cgo/stdio/{ => testdata/stdio}/stdio.go |  0
+ src/cmd/dist/test.go                         |  2 +-
+ 12 files changed, 145 insertions(+), 4 deletions(-)

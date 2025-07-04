@@ -1,15 +1,12 @@
-commit 68c7e8a2f431577e77273f1860f3f88dc06627ea
+commit d7816039314d46701e99e52d0e1485a158a5fc06
 Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 27 07:31:34 2012 +1100
+Date:   Sun Feb 26 22:24:51 2012 +1100
 
-    doc/go1: add justification discussions to major changes
+    time: add a comment about how to use the Duration constants
     
-    Fixes #3086.
-    
-    R=golang-dev, gri, r, kevlar
+    R=golang-dev, bradfitz, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5700067
+    https://golang.org/cl/5696078
 
- doc/go1.html | 204 +++++++++++++++++++++++++++++++++++++++++++++--------------
- doc/go1.tmpl | 204 +++++++++++++++++++++++++++++++++++++++++++++--------------
- 2 files changed, 314 insertions(+), 94 deletions(-)
+ src/pkg/time/time.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

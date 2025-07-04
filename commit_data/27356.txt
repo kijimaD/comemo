@@ -1,35 +1,25 @@
-commit b6712946c1b46eb629fb010e65e5b3735f94d171
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Apr 7 15:12:32 2016 +1000
+commit 68e86e6dfaf22d9295e3dc4d4387710b15224e93
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 22 16:22:21 2016 -0700
 
-    runtime: make mksyscall_windows.go flags do what they say they do
+    cmd/compile: MOVBload and MOVBQZXload are the same op
     
-    The -systemdll and -xsys flags generate broken code in some situations
-    (see issue for details). Fix all that.
+    No need to have both ops when they do the same thing.
+    Just declare MOVBload to zero extend and we can get rid
+    of MOVBQZXload.  Same for W and L.
     
-    This CL only fixes bugs in existing code, but I have more changes comming:
+    Kind of a followon cleanup for https://go-review.googlesource.com/c/19506/
+    Should enable an easier fix for #14920
     
-    golang.org/x/sys/windows is not the only package that uses mksyscall_windows.go.
-    golang.org/x/exp/shiny and github.com/derekparker/delve do too. I also have
-    few personal packages that use mksyscall_windows.go. None of those packages
-    are aware of new -xsys flag. I would like to change mksyscall_windows.go, so
-    external packages do not need to use -xsys flag. I would love to get rid of
-    -xsys flag altogether, but I don't see how it is possible. So I will, probably,
-    replace -xsys with a flag that means opposite to -xsys, and use new flag
-    everywhere in standard libraries. Flag name suggestions are welcome.
-    
-    -systemdll flag makes users code more "secure". I would like to make -systemdll
-    behaviour a default for all mksyscall_windows.go users. We use that already in
-    standard library. If we think "secure" is important, we should encourage it in
-    all users code. If mksyscall_windows.go user insist on using old code, provide
-    -use_old_loaddll (need good name here) flag for that. So -systemdll flag will
-    be replaced with -use_old_loaddll.
-    
-    Fixes #15167
-    
-    Change-Id: I516369507867358ba1b66aabe00a17a7b477016e
-    Reviewed-on: https://go-review.googlesource.com/21645
+    Change-Id: I7cfac909a8ba387f433a6ae75c050740ebb34d42
+    Reviewed-on: https://go-review.googlesource.com/21004
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/mksyscall_windows.go | 47 +++++++++++++++++++++++++++-------------
- 1 file changed, 32 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |   5 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  44 +++---
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  15 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  45 ------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 220 +++++++++++++--------------
+ 5 files changed, 133 insertions(+), 196 deletions(-)

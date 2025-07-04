@@ -1,45 +1,16 @@
-commit da9c5b142c855496222f0ab167c3f1d9e98403c4
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Mon May 12 11:01:44 2025 +0800
+commit 41bd9a517848e4ac2d9d09f48467a0c20a979d43
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Mar 21 04:03:26 2024 +0000
 
-    cmd/compile: add prefetch intrinsic support on loong64
+    cmd/go: close debug trace file
     
-    This CL enables intrinsic support to emit the following prefetch
-    instructions for loong64 platform:
-      1.Prefetch - prefetches data from memory address to cache;
-      2.PrefetchStreamed - prefetches data from memory address, with a
-        hint that this data is being streamed.
-    
-    Benchmarks picked from go/test/bench/garbage
-    Parameters tested with:
-    GOMAXPROCS=8
-    tree2 -heapsize=1000000000 -cpus=8
-    tree -n=18
-    parser
-    peano
-    
-    Benchmarks Loongson-3A6000-HV @ 2500.00MHz:
-             |   bench.old   |              bench.new               |
-             |    sec/op     |    sec/op      vs base               |
-    Tree2-8    1238.2µ ± 24%   999.9µ ± 453%       ~ (p=0.089 n=10)
-    Tree-8      277.4m ±  1%   275.5m ±   1%       ~ (p=0.063 n=10)
-    Parser-8     3.564 ±  0%    3.509 ±   1%  -1.56% (p=0.000 n=10)
-    Peano-8     39.12m ±  2%   38.85m ±   2%       ~ (p=0.353 n=10)
-    geomean     83.19m         78.28m         -5.90%
-    
-    Change-Id: I59e9aa4f609a106d4f70706e6d6d1fe6738ab72a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671876
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Change-Id: Ia83312e6b0448573d40fe9a58ab42cd0d8f8f44a
+    GitHub-Last-Rev: 30f462817b3500c02445efa1033a1191c5ad5626
+    GitHub-Pull-Request: golang/go#66436
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573215
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/loong64/ssa.go            | 18 ++++++++++++
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules    | 16 +++++++++++
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  9 ++++++
- src/cmd/compile/internal/ssa/opGen.go              | 26 ++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 32 ++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/intrinsics.go      |  4 +--
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  2 ++
- 7 files changed, 105 insertions(+), 2 deletions(-)
+ src/cmd/go/main.go | 1 +
+ 1 file changed, 1 insertion(+)

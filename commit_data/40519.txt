@@ -1,19 +1,18 @@
-commit ce49f9506ab9f9f8133aec8c423ba5a159e9b20f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Oct 31 15:33:25 2019 -0700
+commit 648c7b592a30b2280e8d23419224c657ab0a8332
+Author: Keegan Carruthers-Smith <keegan.csmith@gmail.com>
+Date:   Tue May 7 15:49:56 2019 +0200
 
-    cmd/compile: remove amd64p32 rules
+    regexp/syntax: exclude full range from String negation case
     
-    And simplify the remaining rules.
+    If the char class is 0x0-0x10ffff we mistakenly would String that to `[^]`,
+    which is not a valid regex.
     
-    Updates #30439
+    Fixes #31807
     
-    Change-Id: Ib89dce16b17ae881824178346ed6ab895b79627e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204600
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9ceeaddc28b67b8e1de12b6703bcb124cc784556
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175679
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  45 ++---
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 291 +--------------------------
- 2 files changed, 22 insertions(+), 314 deletions(-)
+ src/regexp/syntax/parse_test.go | 1 +
+ src/regexp/syntax/regexp.go     | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

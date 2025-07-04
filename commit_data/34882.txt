@@ -1,16 +1,20 @@
-commit d8b417e00b3f19f7fb47aaa64fe107ed59f6603f
-Author: Alekseev Artem <a.artem060@gmail.com>
-Date:   Sat Apr 7 17:10:45 2018 +0300
+commit 09739d285085d0a8440bd521d04376c8acc31ecd
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 22 15:26:35 2017 -0500
 
-    cmd/internal/obj/x86: use raw string literals in regexp
+    runtime: call throw on systemstack in exitsyscall
     
-    Found with megacheck (S1007).
+    If exitsyscall tries to grow the stack it will panic, but throw calls
+    print, which can grow the stack. Move the two bare throws in
+    exitsyscall to the system stack.
     
-    Change-Id: Icb15fd5bfefa8e0b39a1bfa9ec3e9af3eff6b390
-    Reviewed-on: https://go-review.googlesource.com/105415
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Updates #21431.
+    
+    Change-Id: I5b29da5d34ade908af648a12075ed327a864476c
+    Reviewed-on: https://go-review.googlesource.com/79517
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/x86/obj6_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/proc.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

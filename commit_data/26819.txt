@@ -1,16 +1,14 @@
-commit 974c201f74f730737964e5239da473fc548b408e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 10 10:43:04 2016 -0700
+commit 8b96bc6818ca673b4d6b832190f7e823c80804ca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 26 21:50:44 2016 -0800
 
-    runtime: avoid unnecessary map iteration write barrier
+    cmd/compile: remove unneeded test binary
     
-    Update #14921
+    Accidentally added in https://golang.org/cl/19968.
     
-    Change-Id: I5c5816d0193757bf7465b1e09c27ca06897df4bf
-    Reviewed-on: https://go-review.googlesource.com/21814
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id70917c4d1f69db149688d797c90a19557d16f72
+    Reviewed-on: https://go-review.googlesource.com/19985
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/hashmap.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/test | Bin 2243120 -> 0 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

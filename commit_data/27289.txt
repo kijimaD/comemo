@@ -1,12 +1,57 @@
-commit 0960c7c7eb30b3d651037c799aaa0d80722f063f
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu May 5 14:22:34 2016 -0400
+commit 5f525ca60db46a569da302acf3413f62897a04fc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 18 16:52:30 2016 -0700
 
-    context: use https in docs
+    cmd/compile: change ODOT and friends to use Sym, not Right
     
-    Change-Id: I9354712768702e3b083c77f30165a34cb414d686
-    Reviewed-on: https://go-review.googlesource.com/22810
+    The Node type ODOT and its variants all represent a selector, with a
+    simple name to the right of the dot.  Before this change this was
+    represented by using an ONAME Node in the Right field.  This ONAME node
+    served no useful purpose.  This CL changes these Node types to store the
+    symbol in the Sym field instead, thus not requiring allocating a Node
+    for each selector.
+    
+    When compiling x/tools/go/types this CL eliminates nearly 5000 calls to
+    newname and reduces the total number of Nodes allocated by about 6.6%.
+    It seems to cut compilation time by 1 to 2 percent.
+    
+    Getting this right was somewhat subtle, and I added two dubious changes
+    to produce the exact same output as before.  One is to ishairy in
+    inl.go: the ONAME node increased the cost of ODOT and friends by 1, and
+    I retained that, although really ODOT is not more expensive than any
+    other node.  The other is to varexpr in walk.go: because the ONAME in
+    the Right field of an ODOT has no class, varexpr would always return
+    false for an ODOT, although in fact for some ODOT's it seemingly ought
+    to return true; I added an && false for now.  I will send separate CLs,
+    that will break toolstash -cmp, to clean these up.
+    
+    This CL passes toolstash -cmp.
+    
+    Change-Id: I4af8a10cc59078c436130ce472f25abc3a9b2f80
+    Reviewed-on: https://go-review.googlesource.com/20890
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/context/context.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/amd64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/gc/alg.go       | 22 +++++------
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/cgen.go      |  7 +---
+ src/cmd/compile/internal/gc/closure.go   | 14 +++----
+ src/cmd/compile/internal/gc/dcl.go       |  2 +-
+ src/cmd/compile/internal/gc/esc.go       |  4 +-
+ src/cmd/compile/internal/gc/fmt.go       | 17 ++++++---
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go     |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  7 ++++
+ src/cmd/compile/internal/gc/parser.go    |  2 +-
+ src/cmd/compile/internal/gc/range.go     | 10 ++---
+ src/cmd/compile/internal/gc/sinit.go     | 18 ++++-----
+ src/cmd/compile/internal/gc/ssa.go       | 14 +++----
+ src/cmd/compile/internal/gc/subr.go      | 17 ++++++---
+ src/cmd/compile/internal/gc/swt.go       |  4 +-
+ src/cmd/compile/internal/gc/syntax.go    | 10 ++---
+ src/cmd/compile/internal/gc/typecheck.go | 64 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/walk.go      | 21 ++++++-----
+ src/cmd/compile/internal/x86/gsubr.go    |  2 +-
+ 22 files changed, 129 insertions(+), 116 deletions(-)

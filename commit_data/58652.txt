@@ -1,24 +1,23 @@
-commit bdbc5ca1bd0547d91441c4785854c82dbd852443
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Dec 22 21:23:55 2024 -0800
+commit 5249947f11b8238c2e2b878665be411fc6ba194b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 22:42:35 2023 +0000
 
-    os: use AddCleanup, not SetFinalizer, for Process
+    runtime: don't hold the table lock in (*traceStackTable).dump
     
-    There is no reason to use a cleanup/finalizer for a Process that
-    doesn't use a handle, because Release doesn't change anything visible
-    about the process.
+    There's a conceptual cycle between traceStackTable.lock and
+    allocation-related locks, but it can't happen in practice because the
+    caller guarantees that there are no more writers to the table at the
+    point that dump is called.
     
-    For #70907
+    But if that's true, then the lock isn't necessary at all. It would be
+    difficult to model this quiesence in the lockrank mode, so just don't
+    hold the lock and expand the documentation of the dump method.
     
-    Change-Id: I3b92809175523ceee2e07d601cc2a8e8b86321e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638579
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Id4db61363f075b7574135529915e8bd4f4f4c082
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544177
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/os/exec.go         | 14 +++++++++++---
- src/os/exec_plan9.go   |  3 ---
- src/os/exec_unix.go    |  4 +---
- src/os/exec_windows.go |  2 --
- 4 files changed, 12 insertions(+), 11 deletions(-)
+ src/runtime/trace2stack.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

@@ -1,13 +1,21 @@
-commit 051df0d722fd2ec4473f2ac0ae868a3487927d68
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Wed Sep 22 09:50:32 2021 +0800
+commit 8f6a9acbb3f63a77175eaa153cace5f3b6d611b2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 8 16:56:24 2021 +0000
 
-    io: fix spelling in documentation for writerFunc
+    runtime/metrics: remove unused StopTheWorld Description field
     
-    Change-Id: I9f55188859944e1b2b140d3547bcfcb335c5ff50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351370
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
+    This change removes the as-of-yet unused StopTheWorld field in the
+    Description struct. Adding a new field to a struct is much easier than
+    removing it, so let's save it for when we actually need it.
+    
+    Change-Id: I8074b8569187c1a148500575fa8a661534e875d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282632
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/io/multi_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/go1.16.txt                     | 1 -
+ src/runtime/metrics/description.go | 4 ----
+ 2 files changed, 5 deletions(-)

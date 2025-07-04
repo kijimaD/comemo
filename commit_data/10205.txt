@@ -1,45 +1,12 @@
-commit ee24bfc0584f368284c2a4bef8e54056876677e9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Nov 2 16:42:01 2011 +0300
+commit 5e4e8f49c5a6a5850e808e2378103c6dd83420e7
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Nov 2 18:03:45 2011 +1100
 
-    runtime: unify mutex code across OSes
-    The change introduces 2 generic mutex implementations
-    (futex- and semaphore-based). Each OS chooses a suitable mutex
-    implementation and implements few callbacks (e.g. futex wait/wake).
-    The CL reduces code duplication, extends some optimizations available
-    only on Linux/Windows to other OSes and provides ground
-    for futher optimizations. Chan finalizers are finally eliminated.
+    json: fix typo in scanner_test.go.
     
-    (Linux/amd64, 8 HT cores)
-    benchmark                      old      new
-    BenchmarkChanContended         83.6     77.8 ns/op
-    BenchmarkChanContended-2       341      328 ns/op
-    BenchmarkChanContended-4       382      383 ns/op
-    BenchmarkChanContended-8       390      374 ns/op
-    BenchmarkChanContended-16      313      291 ns/op
-    
-    (Darwin/amd64, 2 cores)
-    benchmark                      old      new
-    BenchmarkChanContended         159      172 ns/op
-    BenchmarkChanContended-2       6735     263 ns/op
-    BenchmarkChanContended-4       10384    255 ns/op
-    BenchmarkChanCreation          1174     407 ns/op
-    BenchmarkChanCreation-2        4007     254 ns/op
-    BenchmarkChanCreation-4        4029     246 ns/op
-    
-    R=rsc, jsing, hectorchu
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5140043
+    https://golang.org/cl/5303092
 
- src/pkg/runtime/Makefile         |  16 +++++
- src/pkg/runtime/chan.c           |  10 ---
- src/pkg/runtime/darwin/thread.c  | 118 ++--------------------------------
- src/pkg/runtime/freebsd/thread.c |  95 ++-------------------------
- src/pkg/runtime/linux/thread.c   | 135 ++-------------------------------------
- src/pkg/runtime/lock_futex.c     | 118 ++++++++++++++++++++++++++++++++++
- src/pkg/runtime/lock_sema.c      | 128 +++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/openbsd/thread.c | 135 ++++++++-------------------------------
- src/pkg/runtime/plan9/thread.c   |  83 +++---------------------
- src/pkg/runtime/runtime.h        |  39 ++++-------
- src/pkg/runtime/windows/thread.c |  93 ++-------------------------
- 11 files changed, 333 insertions(+), 637 deletions(-)
+ src/pkg/json/scanner_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

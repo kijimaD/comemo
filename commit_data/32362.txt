@@ -1,24 +1,22 @@
-commit 77871cc664b3a87e4972c874369e2ade79038d76
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 17 23:13:57 2017 -0700
+commit 0d50a49f5c3fb6292b43d71579455cf68a1939d9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 07:58:03 2017 -0700
 
-    runtime: no need to protect key/value increments against end of bucket
+    cmd/compile: unexport types.Sym.LSym
     
-    After the key and value arrays, we have an overflow pointer.
-    So there's no way a past-the-end key or value pointer could point
-    past the end of the containing bucket.
+    Response to code review feedback on CL 40693.
     
-    So we don't need this additional protection.
+    Remove the final reference to it from package gc,
+    and manually unexport.
     
-    Update #21459
+    Passes toolstash-check.
     
-    Change-Id: I7726140033b06b187f7a7d566b3af8cdcaeab0b0
-    Reviewed-on: https://go-review.googlesource.com/56772
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I7fc48edd43263d8f7c56b47aeb7573408463dc22
+    Reviewed-on: https://go-review.googlesource.com/41303
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/hashmap.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 3 ++-
+ src/cmd/compile/internal/types/sym.go  | 8 ++++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)

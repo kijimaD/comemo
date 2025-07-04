@@ -1,27 +1,24 @@
-commit 37c033b0a5433ce4132e8694705ad66d4650f670
-Author: Andrew Medvedev <andrew.y.medvedev@gmail.com>
-Date:   Sat Sep 21 20:18:47 2019 +0300
+commit 20995f627422a3dce2039f06b5dfe1dc0ca174c6
+Author: Jannis Andrija Schnitzer <jannis@schnitzer.im>
+Date:   Mon Apr 8 07:31:59 2019 +0000
 
-    crypto/x509: give type hint in error message in marshalPublicKey
+    archive/zip: use Modified in FileHeader.FileInfo
     
-    Currently if type of public key is unsupported, error message is "only
-    RSA and ECDSA public keys supported". After adding Ed25519 this message
-    is no longer correct.
+    The Modified field allows representation of extended timestamps, which provide more accuracy than the legacy MS-DOS timestamps.
+    The FileInfo method provides an implementation of the os.FileInfo interface for files inside archives.
     
-    Moreover, it is superfluous because documentation for
-    MarshalPKIXPublicKey, CreateCertificateRequest and CreateCertificate
-    already lists supported public key types.
+    With this change, we make FileInfo use the Modified field, if present, to return more detailed timestamps from its ModTime method.
     
-    This CL removes unnecessary details from error message.
-    It also adds reporting the type of unsupported key, which helps
-    debugging cases when struct (instead of a pointer) to otherwise correct
-    public key is given.
+    Fixes #28350
     
-    Fixes #32640
-    
-    Change-Id: I45e6e3d756b543688d850009b4da8a4023c05027
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196777
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ia31b5b871a3e61df38a3a1325787ae23ea0b8088
+    GitHub-Last-Rev: 13e94be3f8ba58717911354146670fc2bc594692
+    GitHub-Pull-Request: golang/go#28352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/144382
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/crypto/x509/x509.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/zip/struct.go   | 13 +++++++++----
+ src/archive/zip/zip_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 4 deletions(-)

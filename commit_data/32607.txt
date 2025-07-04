@@ -1,16 +1,42 @@
-commit 0fb82fbcceb2639e76a2cdb46134d95c14bc13c9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 30 17:43:19 2017 -0700
+commit 53003621720ff39c4745a76f76847123c27b01ea
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 27 17:43:33 2017 +1000
 
-    cmd/compile: remove global bout variable
+    os: reimplement windows os.Stat
     
-    Change-Id: I7054bbec080708c3a11ed62d7f6594e82aa33747
-    Reviewed-on: https://go-review.googlesource.com/61691
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Currently windows Stat uses combination of Lstat and Readlink to
+    walk symlinks until it reaches file or directory. Windows Readlink
+    is implemented via Windows DeviceIoControl(FSCTL_GET_REPARSE_POINT, ...)
+    call, but that call does not work on network shares or inside of
+    Docker container (see issues #18555 ad #19922 for details).
+    
+    But Raymond Chen suggests different approach:
+    https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
+    - he suggests to use Windows I/O manager to dereferences the
+    symbolic link.
+    
+    This appears to work for all normal symlinks, but also for network
+    shares and inside of Docker container.
+    
+    This CL implements described procedure.
+    
+    I also had to adjust TestStatSymlinkLoop, because the test is
+    expecting Stat to return syscall.ELOOP for symlink with a loop.
+    But new Stat returns Windows error of ERROR_CANT_RESOLVE_FILENAME
+    = 1921 instead. I could map ERROR_CANT_RESOLVE_FILENAME into
+    syscall.ELOOP, but I suspect the former is broader than later.
+    And ERROR_CANT_RESOLVE_FILENAME message text of "The name of
+    the file cannot be resolved by the system." sounds fine to me.
+    
+    Fixes #10935
+    Fixes #18555
+    Fixes #19922
+    
+    Change-Id: I979636064cdbdb9c7c840cf8ae73fe2c24499879
+    Reviewed-on: https://go-review.googlesource.com/41834
+    Reviewed-by: Harshavardhana <hrshvardhana@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/export.go | 10 +++++-----
- src/cmd/compile/internal/gc/go.go     |  3 ---
- src/cmd/compile/internal/gc/obj.go    |  5 ++---
- 3 files changed, 7 insertions(+), 11 deletions(-)
+ src/os/os_windows_test.go |   4 +-
+ src/os/stat_windows.go    | 111 +++++++++++++++++++++++++++++++---------------
+ 2 files changed, 78 insertions(+), 37 deletions(-)

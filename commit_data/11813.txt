@@ -1,12 +1,14 @@
-commit 9387d11aa6bfae7930342d8175d160c7538e9f56
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Feb 12 15:59:21 2012 +0900
+commit 8bd0109dd078800a0d1b3827b58ba1369530424e
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Feb 11 20:02:50 2012 -0800
 
-    net: fix windows build
+    build: get rid of deps.bash
     
-    R=golang-dev, alex.brainman
+    It doesn't work anymore and it's not used.
+    
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/5653066
+    https://golang.org/cl/5652073
 
- src/pkg/net/sockopt_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/deps.bash | 54 ------------------------------------------------------
+ 1 file changed, 54 deletions(-)

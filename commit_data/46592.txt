@@ -1,22 +1,45 @@
-commit c94543b85fe6f41dc3bc1725f928c6ed98d8d72c
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 24 23:02:08 2021 +0700
+commit f97983249a812c2b079a489fc990fbeb3695be4d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 11 22:58:23 2021 -0800
 
-    cmd/compile: move all usage of delayTransform out of helpers.go
+    [dev.regabi] cmd/compile: move more PAUTOHEAP to SSA construction
     
-    So next CL will make delayTransform to become irgen's method, because
-    the delay transform logic also depends on irgen.topFuncIsGeneric field.
+    This CL moves almost all PAUTOHEAP handling code to SSA construction.
+    Instead of changing Names to PAUTOHEAP, escape analysis now only sets
+    n.Esc() to ir.EscHeap, and SSA handles creating the "&x"
+    pseudo-variables and associating them via Heapaddr.
     
-    For #48609
+    This CL also gets rid of n.Stackcopy, which was used to distinguish
+    the heap copy of a parameter used within a function from the stack
+    copy used in the function calling convention. In practice, this is
+    always obvious from context: liveness and function prologue/epilogue
+    want to know about the stack copies, and everywhere else wants the
+    heap copy.
     
-    Change-Id: I660ed19856bd06c3b6f4279a9184db96175dea2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351854
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Hopefully moving all parameter/result handling into SSA helps with
+    making the register ABI stuff easier.
+    
+    Also, the only remaining uses of PAUTOHEAP are now for closure
+    variables, so I intend to rename it to PCLOSUREVAR or get rid of those
+    altogether too. But this CL is already big and scary enough.
+    
+    Change-Id: Ief5ef6205041b9d0ee445314310c0c5a98187e77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283233
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/noder/expr.go    | 29 +++++++++++++++++++++++++----
- src/cmd/compile/internal/noder/helpers.go | 30 ++++++++----------------------
- 2 files changed, 33 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go |  16 +--
+ src/cmd/compile/internal/escape/escape.go  | 169 ++----------------------
+ src/cmd/compile/internal/gc/compile.go     |  15 +--
+ src/cmd/compile/internal/inline/inl.go     |   7 -
+ src/cmd/compile/internal/ir/name.go        |  46 +++----
+ src/cmd/compile/internal/ir/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/liveness/plive.go |   4 +-
+ src/cmd/compile/internal/ssagen/ssa.go     | 205 ++++++++++++++++++++---------
+ src/cmd/compile/internal/walk/assign.go    |  18 ++-
+ src/cmd/compile/internal/walk/complit.go   |   4 +-
+ src/cmd/compile/internal/walk/stmt.go      |  19 +--
+ src/cmd/compile/internal/walk/walk.go      | 111 ----------------
+ 12 files changed, 192 insertions(+), 424 deletions(-)

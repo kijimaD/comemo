@@ -1,19 +1,21 @@
-commit a3faa80033ae2ffa3ee56439759f0ea0200a3a3e
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 21 09:21:06 2016 -0400
+commit 0b5f2f0d1149bcff3c6b08458d7ffdd96970235c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 15 15:30:53 2016 -0700
 
-    cmd/go: bypass install to os.DevNull entirely, test mayberemovefile(os.DevNull)
+    net/http: if context is canceled, return its error
     
-    Fixes #16811.
+    This permits the error message to distinguish between a context that was
+    canceled and a context that timed out.
     
-    Change-Id: I7d018015f691838482ccf845d621209b96935ba4
-    Reviewed-on: https://go-review.googlesource.com/31657
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates #16381.
+    
+    Change-Id: I3994b98e32952abcd7ddb5fee08fa1535999be6d
+    Reviewed-on: https://go-review.googlesource.com/24978
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/build.go      |  5 +++++
- src/cmd/go/build_test.go | 25 +++++++++++++++++++++++++
- src/cmd/go/go_test.go    |  3 ---
- 3 files changed, 30 insertions(+), 3 deletions(-)
+ src/net/http/client_test.go    |  4 +--
+ src/net/http/transport.go      | 73 +++++++++++++++++++++++++-----------------
+ src/net/http/transport_test.go | 13 ++++++--
+ 3 files changed, 57 insertions(+), 33 deletions(-)

@@ -1,18 +1,16 @@
-commit adcb2b1e7aef2d06ec19cad52f24e8271a12d26a
-Author: Kyle Shannon <kyle@pobox.com>
-Date:   Mon Jul 1 18:45:06 2019 -0600
+commit 44dec304add9b07c404197009f4c7c3e831ebc22
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Mon Feb 4 12:46:00 2019 +0000
 
-    lib/time: update tz data to 2019b
+    encoding/base64: remove ineffectual assignment in test
     
-    Updates #22487
-    
-    Change-Id: I3c933c68b5c3c5e78e3a9656ea2dcdbcbb59533f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184577
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I4a0d5b2f76138895567939920fa5d83cbdec17d2
+    GitHub-Last-Rev: 061d9d1d5655a6a9d8371f08d2f77a0ed7a495cc
+    GitHub-Pull-Request: golang/go#30008
+    Reviewed-on: https://go-review.googlesource.com/c/160432
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 788764 -> 781554 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/encoding/base64/base64_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

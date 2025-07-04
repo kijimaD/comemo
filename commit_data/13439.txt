@@ -1,15 +1,12 @@
-commit 55cc1ff721aaf14b27df31efcf0295c4ff09e35a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jul 3 10:17:55 2012 -0700
+commit d9c4cef67050791892511d1c2cb653dbcb15204c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jul 3 12:50:03 2012 -0400
 
-    net/http: clean up fs tests a bit
+    doc/debugging_with_gdb: mention how to disable gc optimization
     
-    And fix some govet-caught format arg issues.
-    
-    R=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6354068
+    https://golang.org/cl/6353055
 
- src/pkg/net/http/fs_test.go    | 23 ++++++++++++++---------
- src/pkg/net/http/serve_test.go |  6 +++---
- 2 files changed, 17 insertions(+), 12 deletions(-)
+ doc/debugging_with_gdb.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

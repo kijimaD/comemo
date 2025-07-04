@@ -1,18 +1,16 @@
-commit a0127c1921fdba2b4384d599407a3eedfe547803
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Aug 9 17:25:13 2018 +0100
+commit 115b1cd192609624a898954b9759fcd90247badc
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 13:42:51 2018 +0100
 
-    runtime: fix TestGdbPythonCgo failure with ld.gold
+    mime: add wasm architecture
     
-    See the added comment for the reasoning behind the workaround.
+    This commit adds the wasm architecture to the mime package.
     
-    Fixes #26868.
+    Updates #18892
     
-    Change-Id: Idede020ec88a49595dc233d9a1346b12691186f4
-    Reviewed-on: https://go-review.googlesource.com/128815
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0481057bd52e39d84b3d6f5140335e293eff38f3
+    Reviewed-on: https://go-review.googlesource.com/106998
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/runtime-gdb_test.go | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+ src/mime/type_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,29 +1,29 @@
-commit 614f2284d94364f8e245e2c6ea9b4eca50e650d1
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed May 22 11:40:09 2024 -0400
+commit 88f89d87c4e818679b65cfc50a7b0cb554e154d3
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 11:19:54 2023 -0400
 
-    doc/initial, doc/next: add draft notice to introduction
+    cmd/cgo/internal/test: fix TestThreadLock
     
-    Go release notes always start out as a draft with a clear notice.
-    That notice is removed when the final release (go1.N.0) is made.
-    For example, the last time was in CL 562255.
+    This test was introduced in CL 18882, but only recently enabled as of
+    CL 493603. It's intended to check that we don't move executing C code
+    between threads when it re-enters Go, but it has always contained a
+    flake. Go *can* preempt between the Go call to gettid and the C call
+    to gettid and move the goroutine to another thread because there's no
+    C code on the stack during the Go call to gettid. This will cause the
+    test to fail.
     
-    Add this to the Go 1.23 draft and to the future fragment template.
+    Fix this by making both gettid calls in C, with a re-entry to Go
+    between them.
     
-    Also switch to the main pkg.go.dev instance and use a relative issue
-    link in 3-tools.md while here.
+    Fixes #60265
     
-    For #64169.
-    For #65614.
-    
-    Change-Id: I16bc0fa8a3a43ee7a9edd7fa253999041f1892e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587415
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I546621a541ce52b996d68b17d3bed709d2b5b1f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496182
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- doc/initial/1-intro.md | 4 +++-
- doc/next/1-intro.md    | 4 +++-
- doc/next/3-tools.md    | 4 ++--
- 3 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/cgo/internal/test/cgo_thread_lock.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

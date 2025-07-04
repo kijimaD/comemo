@@ -1,15 +1,20 @@
-commit d72c2846f1fac679d6def717b4e9c83fbafdf908
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Sep 14 11:35:11 2016 -0700
+commit d8bd7b24fcc72fb4117f7fc249ceaa79f69d4e00
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 17:59:12 2016 +0000
 
-    cmd/vet/all: update whitelist
+    net/http: update bundled x/net/http2 for Server context changes
     
-    CL 29110 brought the fix into the main tree.
+    Updates x/net/http2 to golang.org/cl/23220
+    (http2: with Go 1.7 set Request.Context in ServeHTTP handlers)
     
-    Change-Id: I7bf02670d40f22d35c63e05173419fdee9f93462
-    Reviewed-on: https://go-review.googlesource.com/29161
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #15134
+    
+    Change-Id: I73bac2601118614528f051e85dab51dc48e74f41
+    Reviewed-on: https://go-review.googlesource.com/23221
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/vet/all/whitelist/all.txt | 4 ----
- 1 file changed, 4 deletions(-)
+ src/net/http/h2_bundle.go  | 49 +++++++++++++++++++++++++++++++++++++++-------
+ src/net/http/serve_test.go | 32 +++++++++++++++++++++---------
+ 2 files changed, 65 insertions(+), 16 deletions(-)

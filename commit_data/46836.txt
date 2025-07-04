@@ -1,18 +1,13 @@
-commit f2141a71c6619617d32c224bd2e272a07904b8e9
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Mon Oct 11 00:05:09 2021 +0300
+commit d4f73546c80eb148e3bad3cfa7bb404878633a0e
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Feb 5 20:59:38 2021 +0000
 
-    doc/go1.18: document FreeBSD 11.x will no longer be supported
+    [dev.boringcrypto] misc/boring: add new releases to RELEASES file
     
-    Mention future versions will require the COMPAT_FREEBSD12 kernel option
-    set in the kernel.
-    
-    For #47694.
-    
-    Change-Id: Ia94c4f9dbb38c68025d3c1d12dd2e241a5480a6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354971
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I23ae197662c681cb91f17b28d0a259f56c2392d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290133
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- doc/go1.18.html | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,39 +1,23 @@
-commit 5bba5053675f102a3a81242e8f7551791ae5a56e
-Author: Ian Davis <nospam@iandavis.com>
-Date:   Mon Sep 24 10:20:46 2018 +0100
+commit 67fe8b5677c8dca1503550ca72d1e460bca0375c
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Tue May 22 19:13:44 2018 +0300
 
-    image/draw: optimize bounds checks in loops
+    cmd/internal/obj/x86: add missing Yi8 for VEX ytabs
     
-    Use subslices with known length and cap to give bounds checking hints
-    to the compiler. Improves over the earlier pointer based optimizations
-    in https://go-review.googlesource.com/c/go/+/14093 for GlyphOver but
-    not for FillOver so the latter is left unchanged.
+    This change adds Yi8 forms for every ytab that had them before AVX-512 patch.
+    The rationale is backwards-compatibility.
     
-    See #27857 for discussion of small caps used in subslices.
+    EVEX forms remain strict and unchanged as they're not bound to any
+    backwards-compatibility issues.
     
-    name               old time/op  new time/op  delta
-    FillOver-8          607µs ± 1%   609µs ± 1%     ~     (p=0.447 n=9+10)
-    FillSrc-8          23.0µs ± 1%  22.9µs ± 2%     ~     (p=0.412 n=9+10)
-    CopyOver-8          647µs ± 0%   560µs ± 0%  -13.43%  (p=0.000 n=9+10)
-    CopySrc-8          19.3µs ± 1%  19.1µs ± 2%   -0.66%  (p=0.029 n=10+10)
-    NRGBAOver-8         697µs ± 1%   651µs ± 1%   -6.64%  (p=0.000 n=10+10)
-    NRGBASrc-8          405µs ± 1%   347µs ± 0%  -14.23%  (p=0.000 n=10+10)
-    YCbCr-8             432µs ± 2%   431µs ± 1%     ~     (p=0.764 n=10+9)
-    Gray-8              164µs ± 1%   139µs ± 1%  -15.44%  (p=0.000 n=10+10)
-    CMYK-8              498µs ± 0%   461µs ± 0%   -7.49%  (p=0.000 n=10+9)
-    GlyphOver-8         220µs ± 0%   199µs ± 0%   -9.52%  (p=0.000 n=9+10)
-    RGBA-8             3.81ms ± 5%  3.79ms ± 5%     ~     (p=0.549 n=9+10)
-    Paletted-8         1.73ms ± 0%  1.73ms ± 1%     ~     (p=0.278 n=10+9)
-    GenericOver-8      11.0ms ± 2%  11.0ms ± 1%     ~     (p=0.842 n=9+10)
-    GenericMaskOver-8  5.29ms ± 1%  5.30ms ± 0%     ~     (p=0.182 n=9+10)
-    GenericSrc-8       4.24ms ± 1%  4.24ms ± 0%     ~     (p=0.436 n=9+9)
-    GenericMaskSrc-8   7.89ms ± 1%  7.90ms ± 2%     ~     (p=0.631 n=10+10)
+    Fixes #25510
     
-    Change-Id: I6fe1b21bb5e255826cbfdd2e73efd5858cd5557c
-    Reviewed-on: https://go-review.googlesource.com/136935
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icd692266010ed64c9fe47cc837afc2edf2ad2d1d
+    Reviewed-on: https://go-review.googlesource.com/114136
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/image/draw/draw.go | 126 ++++++++++++++++++++++++-------------------------
- 1 file changed, 63 insertions(+), 63 deletions(-)
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 54 ++++++++++++++++++++++
+ src/cmd/internal/obj/x86/avx_optabs.go             | 54 ++++++++++++++--------
+ 2 files changed, 90 insertions(+), 18 deletions(-)

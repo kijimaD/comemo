@@ -1,34 +1,22 @@
-commit 4a2915052bcfd1c24d0277be2e4f53f309e7be89
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Sat Dec 5 07:28:25 2015 +0000
+commit f7a39a54e9c75207bdf2f54fbb5e41d947e058f1
+Author: David Chase <drchase@google.com>
+Date:   Wed Sep 30 14:41:00 2015 -0400
 
-    Revert "syscall: route_freebsd switch routing socket sysctl to use NET_RT_IFLISTL"
+    cmd/compile: escape analysis, don't always escape variadic args
     
-    This reverts commit f25f6eab0cb732d24759b2e166a9a644ae96dffe.
+    Turns out the summary information for the ... args was
+    already correctly computed, all that lacked was to make
+    use of it and correct tests that documented our prior
+    deficiencies.
     
-    Sorry, this was not meant to go in without the ztypes_freebsd_arm.go and the copyFromV9 function.
+    Fixes #12006
     
-    Change-Id: I4ac2a8a23809ec1b1b9e42992cd0f3c349848f06
-    Reviewed-on: https://go-review.googlesource.com/17472
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie8adfab7547f179391d470679598f0904aabf9f7
+    Reviewed-on: https://go-review.googlesource.com/15200
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/net/interface_bsd.go             |   4 +-
- src/net/interface_darwin.go          |   2 -
- src/net/interface_dragonfly.go       |   4 -
- src/net/interface_freebsd.go         |   2 -
- src/net/interface_netbsd.go          |   4 -
- src/net/interface_openbsd.go         |   4 -
- src/syscall/route_bsd_test.go        |   7 +-
- src/syscall/route_freebsd.go         | 123 +-------------------
- src/syscall/route_freebsd_32bit.go   |  15 +++
- src/syscall/route_freebsd_64bit.go   |   5 +
- src/syscall/syscall_freebsd_386.go   |   6 -
- src/syscall/syscall_freebsd_amd64.go |   6 -
- src/syscall/syscall_freebsd_arm.go   |   6 -
- src/syscall/types_freebsd.go         | 217 ++++++++---------------------------
- src/syscall/ztypes_freebsd_386.go    | 167 ++++++++++-----------------
- src/syscall/ztypes_freebsd_amd64.go  | 168 ++++++++++-----------------
- 16 files changed, 198 insertions(+), 542 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  23 +++--
+ test/escape2.go                    |  34 ++++----
+ test/escape2n.go                   |  34 ++++----
+ test/fixedbugs/issue12006.go       | 174 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 221 insertions(+), 44 deletions(-)

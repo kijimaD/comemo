@@ -1,17 +1,25 @@
-commit 902d8de79ed9bb6013cdb1952db1538bc1d10677
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue May 26 20:02:43 2020 -0400
+commit c39cd41e5e0c8cdbc910e0e0214a360ec7829c07
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 11 12:14:31 2019 -0500
 
-    cmd/link: actually close the output file
+    cmd/go: restore default vet analyzers for targets in GOROOT
     
-    When the output file is mmap'd, OutBuf.Close currently munmap the
-    file but doesn't actually close the file descriptor. This CL
-    makes it actually close the FD.
+    This fixes a regression introduced in CL 209498,
+    found while investigating #32471.
     
-    Change-Id: I053c5592ae95497228c50ce6a267b3b48f0af6d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235417
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Also fix $WORK replacement in cmd/go/internal/work.(*Builder).Showcmd
+    when b.WorkDir includes a backslash and appears in a quoted string.
+    That fix is needed in order to write a precise test that passes under Windows,
+    since Windows directories nearly always include backslashes.
+    
+    Updates #35837
+    
+    Change-Id: I5fddc5435d5d283a3e598989209d873b59b0a39c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210937
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/link/internal/ld/outbuf.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/go/internal/vet/vet.go           |  1 +
+ src/cmd/go/internal/work/exec.go         |  7 +++++-
+ src/cmd/go/testdata/script/vet_flags.txt | 38 +++++++++++++++++++++++++++-----
+ 3 files changed, 39 insertions(+), 7 deletions(-)

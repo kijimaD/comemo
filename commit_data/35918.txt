@@ -1,36 +1,17 @@
-commit 94076feef53c41c0c558a8686d6f2650b1614414
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 6 21:38:31 2018 -0700
+commit 7673e30503e3864265a842ec3e4200b317fc571d
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Mon Mar 19 06:52:28 2018 +0000
 
-    cmd/cgo: check function argument/return types for bad C pointer types
+    cmd/asm: fix bug about VMOV instruction (move register to vector element) on ARM64
     
-    We need to determine whether arguments to and return values from C
-    functions are "bad" typedef'd pointer types which need to be uintptr
-    on the Go side.
+    This change fixes index error when encoding VMOV instruction which pattern is
+    VMOV Rn, V.<T>[index]. For example VMOV R1, V1.S[1] is assembled as VMOV R1, V1.S[0]
     
-    The type of those arguments are not specified explicitly. As a result,
-    we never look through the C declarations for the GetTypeID functions
-    associated with that type, and never realize that they are bad.
-    However, in another function in the same package there might be an
-    explicit reference. Then we end up with the declaration being uintptr
-    in one file and *struct{...} in another file. Badness ensues.
-    
-    Fix this by doing a 2-pass algorithm. In the first pass, we run as
-    normal, but record all the argument and result types we see. In the
-    second pass, we include those argument types also when reading the C
-    types.
-    
-    Fixes #24161
-    
-    Change-Id: I8d727e73a2fbc88cb9d9899f8719ae405f59f753
-    Reviewed-on: https://go-review.googlesource.com/122575
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #24400
+    Change-Id: I82b5edc8af4e06862bc4692b119697c6bb7dc3fb
+    Reviewed-on: https://go-review.googlesource.com/101297
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/test/issue24161_darwin_test.go | 19 +++++++++++++++++++
- misc/cgo/test/issue24161arg/def.go      | 17 +++++++++++++++++
- misc/cgo/test/issue24161arg/use.go      | 19 +++++++++++++++++++
- misc/cgo/test/issue24161res/restype.go  | 23 +++++++++++++++++++++++
- src/cmd/cgo/gcc.go                      | 29 +++++++++++++++++++++++++++++
- src/cmd/cgo/main.go                     |  1 +
- 6 files changed, 108 insertions(+)
+ src/cmd/asm/internal/asm/testdata/arm64.s | 1 +
+ src/cmd/internal/obj/arm64/asm7.go        | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

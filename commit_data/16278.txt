@@ -1,16 +1,13 @@
-commit 8a28085a0fdfea041ff923353c7e482455322c2e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 8 06:28:33 2013 -0700
+commit 2f326da27e61194320cf925b1e2362603d9306b3
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 7 11:41:36 2013 -0700
 
-    cmd/cgo: pass -Wsystem-headers when looking for errors
+    effective_go.html: be more accepting in the guidelines for interface names
+    Fixes #5421.
     
-    This works around a bug in GCC 4.8.0.
-    
-    Fixes #5118.
-    
-    R=golang-dev, r, minux.ma
+    R=golang-dev, bradfitz, adg
     CC=golang-dev
-    https://golang.org/cl/9120045
+    https://golang.org/cl/9274043
 
- src/cmd/cgo/gcc.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ doc/effective_go.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

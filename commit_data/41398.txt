@@ -1,25 +1,16 @@
-commit d243408ae5ec14131dfd83923d2c140325158c0d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Feb 23 13:36:46 2020 -0800
+commit f91c850be62416d0aaa70e77831c8ba3e1ee2b1e
+Author: Pantelis Sampaziotis <psampaz@gmail.com>
+Date:   Mon Sep 30 21:37:40 2019 +0000
 
-    go/types: report correct argument types for make() built-in calls
+    text/template/parse: specify slice capacity in Pipenode.CopyPipe()
     
-    Change Checker.index to return the type and constant index value
-    rather than just a boolean valid flag and the constant value.
-    While at it, rename some variables and simplify the control flow.
+    The required vars slice capacity is known so it can be specified before appending.
     
-    Adjust all uses of Checker.index to new signature. In code for
-    make() built-in, collect type information for signature reporting.
-    
-    Fixes #37393.
-    
-    Change-Id: Id70196faa9539ed5a0d6b59e0f3ea05e05f2f6a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220585
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifa2fe97602e84198c4d01e5a1b0529f3f65f2df1
+    GitHub-Last-Rev: a0580df208a1d498968138d63508ae4e30df2ec5
+    GitHub-Pull-Request: golang/go#34613
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197997
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/go/types/builtins.go      | 10 ++++++----
- src/go/types/builtins_test.go | 13 ++++++-------
- src/go/types/expr.go          | 42 ++++++++++++++++++++++++------------------
- 3 files changed, 36 insertions(+), 29 deletions(-)
+ src/text/template/parse/node.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,15 @@
-commit d3cd0c0752d6f22522178bb9de4e8caf4465b323
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Apr 8 10:27:47 2011 +1000
+commit 35c880b1e2c00752cd8961780e4c26ea5b287377
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 7 18:53:47 2011 -0400
 
-    syscall: fix Windows Signalled
+    gc: bug327
     
-    Thanks to fhs.
+    Fixes #1674.
     
-    R=golang-dev, r2
-    CC=ality, fhs, golang-dev
-    https://golang.org/cl/4375044
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4368057
 
- src/pkg/syscall/syscall_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/subr.c        |  5 +++--
+ test/fixedbugs/bug327.go | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

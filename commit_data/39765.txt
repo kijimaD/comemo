@@ -1,15 +1,17 @@
-commit a806c213e7dd32520d204890fb953c8e9d1142f2
-Author: Alex Gaynor <alex.gaynor@gmail.com>
-Date:   Sun Sep 1 13:57:21 2019 +0000
+commit b2453c058839683cafd8a77600f2cee29cc3c668
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Mar 19 14:00:03 2019 +0100
 
-    doc: make the draft 1.13 release notes expected release date accurate
+    runtime/cgo: correct cgo_export directives in callbacks_aix.go
     
-    Change-Id: I17148bb2b8021ed305ed0d230675d51c41736a11
-    GitHub-Last-Rev: 2998d46d10587a850fb36f5784df23b371244479
-    GitHub-Pull-Request: golang/go#34004
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192797
-    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    This commit removes spaces which were wrongly added in
+    //go:cgo_export_static during CL 164010.
+    
+    Change-Id: Iadd18efdde9ff32e907d793a72ef0f9efda35fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168317
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.13.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/cgo/callbacks_aix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

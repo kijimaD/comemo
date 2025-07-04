@@ -1,15 +1,18 @@
-commit f8f0a2bc7bbb587836312747600d0e084b30baef
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Feb 14 20:23:45 2012 +0100
+commit 9f8c2c8bbfacf6eb320361ba93aef2f70c7b1f4f
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Feb 14 14:22:34 2012 -0500
 
-    cgo: add support for returning errno with gccgo.
+    os: rename SyscallError.Errno to SyscallError.Err
     
-    Also eliminate some warnings in builds.
+    This lets us get rid of the OS-dependent implementations
+    of SyscallError.  The name "Err" was chosen to match the
+    PathError type.
     
-    R=golang-dev, fullung, iant, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5650066
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5651084
 
- src/cmd/cgo/out.go  | 50 +++++++++++++++++++++++++++++++++++++++-----------
- src/cmd/go/build.go | 11 +++++++----
- 2 files changed, 46 insertions(+), 15 deletions(-)
+ src/pkg/os/error.go       | 18 ++++++++++++++++++
+ src/pkg/os/error_plan9.go | 18 ------------------
+ src/pkg/os/error_posix.go | 20 +-------------------
+ 3 files changed, 19 insertions(+), 37 deletions(-)

@@ -1,22 +1,25 @@
-commit 5e74bc1a08f43dc98780d02785cfc9c75103c403
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Mar 3 16:04:56 2023 +0100
+commit f66925e854e71e0c54b581885380a490d7afa30c
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Apr 12 13:38:17 2022 -0700
 
-    runtime: skip TestGdbPanic on Windows
+    syscall: check correct group in Faccessat
     
-    TestGdbPanic expects crash() to raise a SIGABRT signal interceptable
-    by gdb, but Windows doesn't have signals.
+    The Faccessat call checks the user, group, or other permission bits of a
+    file to see if the calling process can access it. The test to see if the
+    group permissions should be used was made with the wrong group id, using
+    the process's group id rather than the file's group id. Fix this to use
+    the correct group id.
     
-    Windows builders haven't caught this failing test because they still
-    don't have gdb installed (tracked in #22021).
+    No test since we cannot easily change file permissions when not running
+    as root and the test is meaningless if running as root.
     
-    Change-Id: I7c7f2523a54d61aea0a9821c4db7c79e58a7217c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473116
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    For #52313
+    
+    Change-Id: I4e2c84754b0af7830b40fd15dedcbc58374d75ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399539
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
 
- src/runtime/runtime-gdb_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/syscall/syscall_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

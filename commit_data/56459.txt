@@ -1,20 +1,26 @@
-commit 9f9afbf3329b3d6d00fbcba069dbdd428cc1dd76
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon May 13 18:00:46 2024 +0200
+commit d9dce0cd26a1e5df0aa2dbbecde4515807be929e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 9 14:02:07 2023 -0700
 
-    net/netip: test that Addr.AsSlice is inlineable
+    go/types, types2: explicitly look for nil type arguments in infer
     
-    CL 584995 made Addr.AsSlice inlineable as a side effect. Make sure we
-    don't regress.
+    Don't assume we have all type arguments if the number of type arguments
+    matches the number of type parameters. Instead, look explicitly for nil
+    type arguments in the provided targs.
     
-    Updates #56136
+    Preparation for type inference with type arguments provided for type
+    parameters of generic function arguments passed to other functions.
     
-    Change-Id: Ib5f77a430db66ffe45c4cbb264da7a401945fec9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585057
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    For #59338.
+    
+    Change-Id: I00918cd5ed06ae3277b4e41a3641063e0f53fef0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494115
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/netip/inlining_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/types2/infer.go | 20 +++++++++++++-------
+ src/go/types/infer.go                    | 20 +++++++++++++-------
+ 2 files changed, 26 insertions(+), 14 deletions(-)

@@ -1,14 +1,17 @@
-commit ded941158042d8b09164a9f8049fd7108b715680
-Author: Eric Ponce <tricokun@gmail.com>
-Date:   Sun Aug 26 19:32:07 2018 +0200
+commit 836fe697c4ec34fb30fcba65052cb42822edf752
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed May 2 12:45:47 2018 +0200
 
-    math: add Round and RoundToEven examples
+    cmd/link: let writelines work when pcstmt symbol doesn't exist
     
-    Change-Id: Ibef5f96ea588d17eac1c96ee3992e01943ba0fef
-    Reviewed-on: https://go-review.googlesource.com/131496
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The assembler does not produce pcstmt symbols, writeline should be able
+    to work even if no pcstmt symbol exists for a given function.
+    
+    Fixes #25216, #25191
+    
+    Change-Id: I41e16df1e7c8ca59d27e7514537609e309a51c51
+    Reviewed-on: https://go-review.googlesource.com/110816
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/math/example_test.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/cmd/link/internal/ld/dwarf.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

@@ -1,23 +1,26 @@
-commit 4b209dbf0bf3e5fd4cffda1e11f11bf45ddf212d
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 29 21:25:33 2016 -0700
+commit 5bbb98df0960f57dca73cb7640456608d4cc0917
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Feb 8 17:20:59 2016 -0800
 
-    runtime: don't use REP;MOVSB if CPUID doesn't say it is fast
+    cmd/go, cmd/link: make builds deterministic
     
-    Only use REP;MOVSB if:
-     1) The CPUID flag says it is fast, and
-     2) The pointers are unaligned
-    Otherwise, use REP;MOVSQ.
+    Add the following flags when supported by the compiler:
+      -gno-record-gcc-switches
+      -fdebug-prefix-map=$WORK=/tmp/go-build
     
-    Update #14630
+    Add an empty NAME symbol to the ELF .symtab. GNU ld will add a NAME
+    symbol when one is not present; including one of our own prevents it
+    from adding a reference to the link tempdir.
     
-    Change-Id: I946b28b87880c08e5eed1ce2945016466c89db66
-    Reviewed-on: https://go-review.googlesource.com/21300
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Fixes #13247 for compilers that support -fdebug-prefix-map. (gcc, clang
+    in the near future.)
+    
+    Change-Id: I221c71fc59cd23ee8c99bcc038793ff4623c9ffc
+    Reviewed-on: https://go-review.googlesource.com/19363
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/runtime/asm_386.s       | 10 ++++++++++
- src/runtime/asm_amd64.s     | 21 ++++++++++++++-------
- src/runtime/memmove_386.s   | 19 ++++++++++++-------
- src/runtime/memmove_amd64.s | 24 ++++++++++++++----------
- src/runtime/runtime2.go     |  1 +
- 5 files changed, 51 insertions(+), 24 deletions(-)
+ src/cmd/go/build.go                | 40 ++++++++++++++++++++++++++------------
+ src/cmd/go/go_test.go              | 27 +++++++++++++++++++++++++
+ src/cmd/link/internal/ld/symtab.go |  5 +++++
+ 3 files changed, 60 insertions(+), 12 deletions(-)

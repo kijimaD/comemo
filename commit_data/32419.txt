@@ -1,24 +1,16 @@
-commit 15d5fa0291119f195d2d9b9827b650d0e98b85a3
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Aug 23 13:48:05 2017 +0200
+commit 6a48019ea5d92a26a3e15330519a822460c41f75
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 24 21:50:33 2017 +0000
 
-    runtime: fix makemap64 function signature
+    runtime/debug: mark TestSetGCPercent as flaky
     
-    During rebase of golang.org/cl/55152 the bucket argument
-    which was removed in golang.org/cl/56290 from makemap
-    was not removed from the argument list of makemap64.
+    Updates #20076
     
-    This did lead to "pointer in unallocated span" errors
-    on 32bit platforms since the compiler did only generate
-    calls to makemap64 without the bucket argument.
-    
-    Fixes #21568
-    
-    Change-Id: Ia964a3c285837cd901297f4e16e40402148f8c1c
-    Reviewed-on: https://go-review.googlesource.com/57990
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I4eb98abbb49174cc6433e5da2c3660893ef88fd1
+    Reviewed-on: https://go-review.googlesource.com/41615
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/hashmap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/debug/garbage_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

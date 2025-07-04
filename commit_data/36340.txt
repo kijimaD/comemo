@@ -1,29 +1,15 @@
-commit d169a429c5f9f1d20114e09fb131bc205b5a74f9
-Author: Kevin Burke <kev@inburke.com>
-Date:   Sat Aug 4 10:01:54 2018 -0700
+commit 21fa1481c3a91c2b2e398d06fed6173cb2509140
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sat Apr 14 11:07:52 2018 +0300
 
-    cmd/go: test whether alldocs.go is up to date
+    cmd/internal/obj/x86: add named consts for Prog.Back flags
     
-    A common error is to update the help text for a command in cmd/go, but
-    fail to update alldocs.go, which actually prints the help text for the
-    most common commands.
+    Passes toolstash-check.
     
-    Add a test that the long-form documentation help text matches the
-    contents of alldocs.go, which will fail the build if we fail to keep
-    the documentation in sync. We can get fancier with the test output if
-    this is not sufficient.
-    
-    Fixes golang/go#26735.
-    
-    Change-Id: I2509765315eeb0f362633d812343d1324a01b73b
-    Reviewed-on: https://go-review.googlesource.com/127920
-    Run-TryBot: Kevin Burke <kev@inburke.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7232ba43895a54b03cc328bb2e99c05c44eb6e8e
+    Reviewed-on: https://go-review.googlesource.com/107057
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
 
- src/cmd/go/alldocs.go            |  5 ++++-
- src/cmd/go/help_test.go          | 28 ++++++++++++++++++++++++++++
- src/cmd/go/internal/help/help.go | 20 ++++++++++----------
- src/cmd/go/main.go               |  4 ++--
- src/cmd/go/mkalldocs.sh          |  2 ++
- 5 files changed, 46 insertions(+), 13 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)

@@ -1,22 +1,42 @@
-commit 16330817aa6588651a09df03b556091c16052ce6
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 14 12:33:51 2021 -0400
+commit 0bf507efe9f995076e3a65bcf61baf3e905b58c7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Oct 19 15:06:02 2020 +0100
 
-    runtime: add windows/arm64 cgo-linking code
+    cmd/go: add BuildID to list -json -export
     
-    This code is needed for use with cgo proper
-    (as opposed to hand-written DLL calls, which
-    we always use but only exercise cgo execution,
-    not cgo linking).
+    That is, the following two pieces of shell code are now equivalent:
     
-    Change-Id: Iddc31d9c1c924d83d032b80dca65ddfda6624046
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312041
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+            $ go tool buildid $(go list -export -f {{.Export}} strings)
+            v_0VqA6yzwuMg2dn4u57/PXcIR2Pb8Mi9yRdcdkwe
+    
+            $ go list -export -f {{.BuildID}} strings
+            v_0VqA6yzwuMg2dn4u57/PXcIR2Pb8Mi9yRdcdkwe
+    
+    This does not expose any information that wasn't available before, but
+    makes this workflow simpler and faster. In the first example, we have to
+    execute two programs, and 'go tool buildid' has to re-open the export
+    data file to read the build ID.
+    
+    With the new mechanism, 'go list -export' already has the build ID
+    ready, so we can simply print it out. Moreover, when listing lots of
+    related packages like './...', we can now obtain all their build IDs at
+    once.
+    
+    Fixes #37281.
+    
+    Change-Id: I8e2f65a08391b3df1a628c6e06e708b8c8cb7865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263542
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/cgo/gcc_windows_arm64.c | 46 +++++++++++++++++++++++++++++++++++++
- src/runtime/rt0_windows_arm64.s     | 17 ++++++++++++++
- src/runtime/sys_windows_arm.s       |  2 +-
- 3 files changed, 64 insertions(+), 1 deletion(-)
+ src/cmd/go/alldocs.go               |  1 +
+ src/cmd/go/go_test.go               | 12 ++++++++++++
+ src/cmd/go/internal/list/list.go    |  1 +
+ src/cmd/go/internal/load/pkg.go     |  1 +
+ src/cmd/go/internal/work/buildid.go |  1 +
+ src/cmd/go/internal/work/exec.go    |  1 +
+ 6 files changed, 17 insertions(+)

@@ -1,14 +1,36 @@
-commit b3f98d7a42d04f6f173cd61ce3fe2106e4877496
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon May 30 15:17:14 2016 +1000
+commit af74dca49732d5953331d14dc06ec635838c357c
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Mar 30 23:56:49 2016 -0400
 
-    sync: document that RWMutex read locks may not be held recursively
+    syscall: add support for s390x
     
-    Fixes #15418
+    On s390x char is unsigned. We cannot force it to be signed using
+    -fsigned-char (see arm64) because the s390x gccgo API is already
+    public and we need to stick as closely as possible to it to avoid
+    breaking existing projects. In order to match the gccgo API we
+    also force the RawSockaddr.Data and RawSockaddrUnix.Path fields
+    to be signed.
     
-    Change-Id: Ibc51d602eb28819d0e44e5ca13a5c61573e4111c
-    Reviewed-on: https://go-review.googlesource.com/23570
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    This CL adds a post-processing pass (mkpost.go) to mkall.sh in
+    order to export the types of fields in PtraceRegs on s390x
+    without affecting the API on other platforms. The types of these
+    fields match their counterparts in gccgo. mkpost.go also cleans
+    up the Pad_cgo* fields and X_* fields (these fields are not
+    exported by gccgo currently). It could be extended to add build
+    tags on platforms that need them.
+    
+    Change-Id: I66bdf5b86ec98af70baf666989027bb354df9e3e
+    Reviewed-on: https://go-review.googlesource.com/20961
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sync/rwmutex.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/syscall/mkall.sh                |    9 +-
+ src/syscall/mkpost.go               |   63 ++
+ src/syscall/syscall_linux_s390x.go  |  299 ++++++
+ src/syscall/types_linux.go          |   23 +-
+ src/syscall/zerrors_linux_s390x.go  | 1940 +++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_s390x.go | 1576 ++++++++++++++++++++++++++++
+ src/syscall/zsysnum_linux_s390x.go  |  326 ++++++
+ src/syscall/ztypes_linux_s390x.go   |  619 +++++++++++
+ 8 files changed, 4852 insertions(+), 3 deletions(-)

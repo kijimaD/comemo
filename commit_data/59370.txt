@@ -1,39 +1,18 @@
-commit 3f3782feed6e0726ddb08afd32dad7d94fbb38c6
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Feb 11 15:02:08 2025 -0800
+commit 80a91d34f4cb3134f6b88b075893077cc3ab47d8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 5 10:54:22 2024 +0100
 
-    cmd/compile: allow all of the preamble to be preemptible
+    os: use goarch.BigEndian
     
-    We currently make some parts of the preamble unpreemptible because
-    it confuses morestack. See comments in the code.
-    
-    Instead, have morestack handle those weird cases so we can
-    remove unpreemptible marks from most places.
-    
-    This CL makes user functions preemptible everywhere if they have no
-    write barriers (at least, on x86). In cmd/go the fraction of functions
-    that need preemptible markings drops from 82% to 36%. Makes the cmd/go
-    binary 0.3% smaller.
-    
-    Update #35470
-    
-    Change-Id: Ic83d5eabfd0f6d239a92e65684bcce7e67ff30bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648518
-    Auto-Submit: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I83c23ae0933f6abe4c07144f69c3d9c18aece6e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569175
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/internal/obj/arm/obj5.go    | 15 ++------------
- src/cmd/internal/obj/arm64/obj7.go  | 15 ++------------
- src/cmd/internal/obj/loong64/obj.go | 11 +----------
- src/cmd/internal/obj/mips/obj0.go   |  8 --------
- src/cmd/internal/obj/plist.go       | 25 ++----------------------
- src/cmd/internal/obj/ppc64/obj9.go  |  8 --------
- src/cmd/internal/obj/riscv/obj.go   |  8 --------
- src/cmd/internal/obj/s390x/objz.go  | 10 ----------
- src/cmd/internal/obj/x86/obj6.go    | 21 ++++----------------
- src/runtime/preempt.go              |  1 +
- src/runtime/runtime2.go             | 39 ++++++++++++++++++++++---------------
- src/runtime/stack.go                | 23 ++++++++++++++++++++++
- 12 files changed, 58 insertions(+), 126 deletions(-)
+ src/os/dir_unix.go      | 3 ++-
+ src/os/endian_big.go    | 9 ---------
+ src/os/endian_little.go | 9 ---------
+ 3 files changed, 2 insertions(+), 19 deletions(-)

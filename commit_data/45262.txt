@@ -1,28 +1,27 @@
-commit 4d56576ec02e3e3b4459bc23eb1601e6e96f3cfc
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Apr 8 16:57:57 2021 -0400
+commit 20819440fc65d28fabe8f7410ea8fe193cdc53c6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 15 18:04:08 2020 -0400
 
-    runtime: move timer recheck after GC recheck
+    cmd/internal/objfile: correct file table reading for Go object file
     
-    When rechecking for work after transitioning from a spinning to
-    non-spinning M, checking timers before GC isn't useful. That is, if
-    there is GC work available, it will run immediately and the updated
-    pollUntil is unused.
+    Apparently I never actually understood the new file table in Go
+    object files. The PC value stream actually encodes the file index
+    in the per-CU table. I thought it was indexing into a per-function
+    table, which then contains index to the per-CU table. Remove the
+    extra indirection.
     
-    Move this check to just before netpoll, where pollUntil is used. While
-    this technically improves efficiency in the (rare) case that we find
-    GC work in this block, the primary motivation is simply to improve
-    clarity by moving the update closer to use.
-    
-    For #43997
-    
-    Change-Id: Ibc7fb308ac4a582875c200659c9e272121a89f3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308654
-    Trust: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I0aea5629f7b3888ebe3a04fea437aa15ce89519e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262779
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/proc.go | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ src/cmd/internal/objfile/goobj.go           |  4 +--
+ src/cmd/objdump/objdump_test.go             | 38 +++++++++++++++++++++++++++++
+ src/cmd/objdump/testdata/testfilenum/a.go   |  7 ++++++
+ src/cmd/objdump/testdata/testfilenum/b.go   |  7 ++++++
+ src/cmd/objdump/testdata/testfilenum/c.go   |  7 ++++++
+ src/cmd/objdump/testdata/testfilenum/go.mod |  3 +++
+ 6 files changed, 63 insertions(+), 3 deletions(-)

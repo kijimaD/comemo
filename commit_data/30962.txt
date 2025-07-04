@@ -1,21 +1,27 @@
-commit 8ab71304d4f02e4280eb5c04422cdec5feb27c11
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 31 12:16:29 2017 -0700
+commit d698e614a21cd50055c7c5e7100069d2bcdb9b83
+Author: Rob Pike <r@golang.org>
+Date:   Sun Dec 25 08:51:21 2016 +1100
 
-    cmd/compile: use newnamel in typenamesym
+    cmd/vet: include function name or value in copylock message
     
-    The node in typenamesym requires neither
-    a position nor a curfn.
+    Given
+            var t struct{ lock sync.Mutex }
+            var fntab []func(t)
+            f(a(), b(&t), c(), fntab[0](t))
     
-    Passes toolstash-check.
+    Before:
+            function call copies lock value: struct{lock sync.Mutex} contains sync.Mutex
     
-    Updates #15756
+    After:
+            call of fntab[0] copies lock value: struct{lock sync.Mutex} contains sync.Mutex
     
-    Change-Id: I6d39a8961e5578fe5924aaceb29045b6de2699df
-    Reviewed-on: https://go-review.googlesource.com/39194
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This will make diagnosis easier when there are multiple function calls per line.
+    
+    Change-Id: I9881713c5671b847b84a0df0115f57e7cba17d72
+    Reviewed-on: https://go-review.googlesource.com/34730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/vet/copylock.go               | 2 +-
+ src/cmd/vet/testdata/copylock.go      | 6 +++---
+ src/cmd/vet/testdata/copylock_func.go | 6 ++++--
+ 3 files changed, 8 insertions(+), 6 deletions(-)

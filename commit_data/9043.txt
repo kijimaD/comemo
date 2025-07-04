@@ -1,15 +1,16 @@
-commit 2e9388e32124bcc946d18388a2a18eb17a999148
+commit 41efecf51c507f4abeec51247540ece7943d7c8e
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 13 13:50:05 2011 +1000
+Date:   Wed Jul 13 13:21:18 2011 +1000
 
-    exp/template: add Set.AddSet and Set.Union.
-    Document and test that Set.Parse can be called multiple times.
+    exp/template: allow variables as template names.
+    Just an oversight it wasn't already there.
+    Thanks to islandberry@live.com for pointing out the omission.
     
     R=golang-dev, dsymonds
-    CC=golang-dev
-    https://golang.org/cl/4703044
+    CC=golang-dev, islandberry
+    https://golang.org/cl/4703043
 
- src/pkg/exp/template/doc.go      |  4 ++++
- src/pkg/exp/template/set.go      | 31 +++++++++++++++++++++++++++++--
- src/pkg/exp/template/set_test.go | 11 +++++++++--
- 3 files changed, 42 insertions(+), 4 deletions(-)
+ src/pkg/exp/template/parse.go      | 38 +++++++++++++++++++++-----------------
+ src/pkg/exp/template/parse_test.go |  3 +++
+ src/pkg/exp/template/set_test.go   |  1 +
+ 3 files changed, 25 insertions(+), 17 deletions(-)

@@ -1,30 +1,18 @@
-commit 24a6ca09d0151f2dc6a524217b8523abd33403bb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jul 15 14:06:58 2019 -0400
+commit 88da9ccb98ffaf84bb06b98c9a24af5d0a7025d2
+Author: Carrie Bynon <cbynon@gmail.com>
+Date:   Fri Feb 15 22:16:54 2019 +1100
 
-    cmd/go/internal/modfetch: always check for a go.mod file when fetching from version control
+    doc: make path platform dependent
     
-    If the module path declared in the go.mod file does not match the path
-    we are trying to resolve, a build using that module is doomed to fail.
-    Since we know that the module path does not match in the underlying
-    repo, we also know that the requested module does not exist at the
-    requested version.
+    Path should now appear with the correct slash, depending on which
+    platform install document is being viewed - keeping in line with the
+    rest of the document.
     
-    Therefore, we should reject that version in Stat with a “not exist”
-    error — sooner rather than later — so that modload.Query will continue
-    to check other candidate paths (for example, with a major-version
-    suffix added or removed).
+    Fixes #30160
     
-    Fixes #33099
-    
-    Change-Id: I43c980f78ed75fa6ace90f237cc3aad46c22d83a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186237
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ib10e5a4adf366c700bff6f8d246bd5e3111ed61c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/162918
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo.go       | 37 ++++++++-----
- src/cmd/go/internal/modfetch/coderepo_test.go  | 75 +++++++++++++++-----------
- src/cmd/go/internal/modload/query_test.go      | 10 +++-
- src/cmd/go/testdata/script/mod_list_direct.txt | 24 +++++++++
- 4 files changed, 100 insertions(+), 46 deletions(-)
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

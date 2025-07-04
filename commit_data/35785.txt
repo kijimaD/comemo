@@ -1,25 +1,17 @@
-commit 78a579316b84f68eaf8ee401e77fdb85bb13483f
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Jun 21 10:59:19 2018 -0400
+commit 3772b2e1d5e5ebf45d69eb4720cf81804169be01
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 8 10:57:10 2018 +0100
 
-    cmd/compile: convert uint32 to int32 in ARM constant folding rules
+    test/codegen: port 2^n muls tests to codegen harness
     
-    MOVWconst's AuxInt is Int32. SSA check complains if the AuxInt
-    does not fit in int32. Convert uint32 to int32 to make it happy.
+    And delete them from the asm_test.go file.
     
-    The generated code is unchanged. MOVW only cares low 32 bits.
-    
-    Passes "toolstash -cmp" std cmd for ARM.
-    
-    Fixes #25993.
-    
-    Change-Id: I2b6532c9c285ea6d89652505fb7c553f85a98864
-    Reviewed-on: https://go-review.googlesource.com/120335
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I124c8c352299646ec7db0968cdb0fe59a3b5d83d
+    Reviewed-on: https://go-review.googlesource.com/99475
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules | 10 +++++-----
- src/cmd/compile/internal/ssa/rewriteARM.go | 20 ++++++++++----------
- test/fixedbugs/issue25993.go               | 21 +++++++++++++++++++++
- 3 files changed, 36 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 80 ---------------------------------
+ test/codegen/arithmetic.go              | 26 +++++++++++
+ 2 files changed, 26 insertions(+), 80 deletions(-)

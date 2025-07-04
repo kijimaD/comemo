@@ -1,19 +1,25 @@
-commit 1fadbc1a76b2d9a11453ef4e21b77c353493ac2c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 1 22:22:44 2018 +0000
+commit d80889341c7ce6f2cfdd0a9d2e0feb20c4805bbc
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 2 15:47:41 2017 -0700
 
-    Revert "runtime: use bytes.IndexByte in findnull"
+    [release-branch.go1.9] cmd/compile: fix merge rules for panic calls
     
-    This reverts commit 7365fac2dbd01960268ee051ed03d961258d4ef4.
+    Use entire inlining call stack to decide whether two panic calls
+    can be merged. We used to merge panic calls when only the leaf
+    line numbers matched, but that leads to places higher up the call
+    stack being merged incorrectly.
     
-    Reason for revert: breaks the build on some architectures, reading unmapped pages?
+    Fixes #22083
     
-    Change-Id: I3a8c02dc0b649269faacea79ecd8213defa97c54
-    Reviewed-on: https://go-review.googlesource.com/97995
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia41400a80de4b6ecf3e5089abce0c42b65e9b38a
+    Reviewed-on: https://go-review.googlesource.com/67632
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70980
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/test/basic.go    | 14 --------------
- misc/cgo/test/cgo_test.go |  3 +--
- src/runtime/error.go      |  1 -
- src/runtime/string.go     |  9 ++++++---
- 4 files changed, 7 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go |  4 ++--
+ test/fixedbugs/issue22083.go       | 41 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 2 deletions(-)

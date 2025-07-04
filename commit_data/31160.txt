@@ -1,17 +1,22 @@
-commit 6bfd65631ffcf4a3dad32c661a0c155088f83131
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 16 06:42:25 2017 -0700
+commit 69e1634985f8d839f74f342925bd7546faea0a19
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 2 18:50:45 2017 -0800
 
-    cmd/go: disable compiler DWARF generation on some platforms
+    runtime: darwin/amd64, don't depend on outarg slots being unmodified
     
-    The linker disables DWARF for these platforms.
-    Given that, we can spare the compiler some work.
+    sigtramp was calling sigtrampgo and depending on the fact that
+    the 3rd argument slot will not be modified on return.  Our calling
+    convention doesn't guarantee that.  Avoid that assumption.
     
-    Change-Id: Ic5a6b675150aca199bdc1dd2cdf5eeb4e215bdff
-    Reviewed-on: https://go-review.googlesource.com/40859
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    There's no actual bug here, as sigtrampgo does not in fact modify its
+    argument slots.  But I found this while working on the dead stack slot
+    clobbering tool.  https://go-review.googlesource.com/c/23924/
+    
+    Change-Id: Ia7e791a2b4c1c74fff24cba8169e7840b4b06ffc
+    Reviewed-on: https://go-review.googlesource.com/36216
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/build.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/sys_darwin_amd64.s | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

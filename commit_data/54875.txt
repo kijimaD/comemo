@@ -1,23 +1,20 @@
-commit 4cd201b14b6216e72ffa175747c20d1191e5eb57
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Sun Nov 5 16:48:15 2023 +0000
+commit 205f636e0ab491b7a06e7b7879abb897cdaaf1b4
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Aug 8 07:42:43 2022 +0000
 
-    runtime: fix badmorestackg0 never called on wasm
+    cmd/internal/obj/arm64: tidy literal pool
     
-    Previously, badmorestackg0 was never called since it was behind a g ==
-    R1 check, R1 holding g.m. This is clearly wrong, since we want to check
-    if g == g0. Fixed by using R2 that holds the value of g0.
+    This CL cleans up the literal pool implementation and inserts an UNDEF
+    instruction before the literal pool if the last instruction of the
+    function is not an unconditional jump instruction, RET or ERET
+    instruction.
     
-    Fixes #63953
-    
-    Change-Id: I1e2a1c3be7ad9e7ae8dbf706ef6783e664a44764
-    GitHub-Last-Rev: b3e92cf28603ef6f6fafc9f9b724b84253a4355c
-    GitHub-Pull-Request: golang/go#63954
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539840
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ifecb9e3372478362dde246c1bc9bc8d527a469d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424134
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/asm_wasm.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/arm64/asm7.go | 89 +++++++++++++++++++-------------------
+ 1 file changed, 45 insertions(+), 44 deletions(-)

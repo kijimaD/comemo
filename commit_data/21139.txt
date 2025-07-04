@@ -1,14 +1,16 @@
-commit 2958860ee86a732e4a5ef55e48f40559858fa82a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Dec 31 16:46:19 2014 +0900
+commit 3f27c3ae373fb32f55739c8695e7baaa33e2b2e3
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 18 15:19:26 2014 -0500
 
-    net: add test cases for parsing ipv4-mapped ipv6 address
+    [dev.cc] runtime: convert power64 assembly files for C to Go transition
     
-    This CL adds missing ipv4-mapped ipv6 address test cases to TestParseIP.
+    The power64 equivalent of CL 168510043
     
-    Change-Id: I3144d2a88d409bd515cf52f8711d407bfa81ed68
-    Reviewed-on: https://go-review.googlesource.com/2205
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/178940043
 
- src/net/ip_test.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/runtime/asm_power64x.s       | 13 +++++++++----
+ src/runtime/sys_linux_power64x.s |  3 ++-
+ 2 files changed, 11 insertions(+), 5 deletions(-)

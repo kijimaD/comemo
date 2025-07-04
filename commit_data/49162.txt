@@ -1,15 +1,36 @@
-commit 2bea43b0e7f3e636ffc8239f9d3fccdd5d763c8b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 11 16:21:45 2022 -0700
+commit 77e0bf294cc431d5608c183d56b6aadbb95b09b0
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 23 18:10:58 2021 -0700
 
-    spec: state that variable names must be unique in short var decls
+    [dev.typeparams] cmd/compile: introduce OCONVIDATA op
     
-    Fixes #45652.
+    This operation computes just the data field needed to put its argument
+    into an interface. Used by generics because we produce the type field
+    of an interface using dictionaries (instead of statically).
     
-    Change-Id: I5e1434480c12815369a6ce204f3729eb63139125
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405757
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    With this operation defined, we can now assert that shape types
+    are never marked as used in interfaces (the only previous use
+    was IDATA(CONVIFACE(t))).
+    
+    Change-Id: Idb1eb5f3b238285cb99413d382599c0621b7681a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337109
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- doc/go_spec.html | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/escape/expr.go         |   2 +-
+ src/cmd/compile/internal/ir/expr.go             |   2 +-
+ src/cmd/compile/internal/ir/fmt.go              |   4 +-
+ src/cmd/compile/internal/ir/node.go             |   1 +
+ src/cmd/compile/internal/ir/op_string.go        | 233 ++++++++++++------------
+ src/cmd/compile/internal/noder/stencil.go       |  22 +--
+ src/cmd/compile/internal/reflectdata/reflect.go |   6 +-
+ src/cmd/compile/internal/typecheck/iexport.go   |   2 +-
+ src/cmd/compile/internal/typecheck/iimport.go   |   2 +-
+ src/cmd/compile/internal/walk/assign.go         |   1 +
+ src/cmd/compile/internal/walk/convert.go        |  14 +-
+ src/cmd/compile/internal/walk/expr.go           |   7 +
+ src/cmd/compile/internal/walk/order.go          |  10 +-
+ 13 files changed, 161 insertions(+), 145 deletions(-)

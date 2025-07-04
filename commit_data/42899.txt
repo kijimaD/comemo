@@ -1,20 +1,50 @@
-commit ace37d35f18675ac935dc2c6b534dda32ebe84e5
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 2 12:45:07 2020 +0700
+commit 2aa7c6c5488d3ef5d3eeb53488f74d39facd9301
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 6 11:23:08 2020 -0800
 
-    cmd/compile: do not push functions literal node to Func.Dcl
+    cmd/compile: don't allow NaNs in floating-point constant ops
     
-    They are skipped while processing Func.Dcl anyway.
+    We store 32-bit floating point constants in a 64-bit field, by
+    converting that 32-bit float to 64-bit float to store it, and convert
+    it back to use it.
     
-    This CL does not pass toolstash-check, because it reduces the length
-    of Func.Dcl length, while that length is used to generate autotmp
-    variables name.
+    That works for *almost* all floating-point constants. The exception is
+    signaling NaNs. The round trip described above means we can't represent
+    a 32-bit signaling NaN, because conversions strip the signaling bit.
     
-    Change-Id: I408183e62ce6c34e5f04c89814ebb9570957e37b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252418
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    To fix this issue, just forbid NaNs as floating-point constants in SSA
+    form. This shouldn't affect any real-world code, as people seldom
+    constant-propagate NaNs (except in test code).
+    
+    Additionally, NaNs are somewhat underspecified (which of the many NaNs
+    do you get when dividing 0/0?), so when cross-compiling there's a
+    danger of using the compiler machine's NaN regime for some math, and
+    the target machine's NaN regime for other math. Better to use the
+    target machine's NaN regime always.
+    
+    This has been a bug since 1.10, and there's an easy workaround
+    (declare a global varaible containing the signaling NaN pattern, and
+    use that as the argument to math.Float32frombits) so we'll fix it in
+    1.15.
+    
+    Fixes #36400
+    Update #36399
+    
+    Change-Id: Icf155e743281560eda2eed953d19a829552ccfda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213477
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/dcl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/float_test.go      | 60 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/check.go          | 10 ++++-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/Wasm.rules    | 21 ++++-----
+ src/cmd/compile/internal/ssa/gen/generic.rules | 14 +++---
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  7 ++-
+ src/cmd/compile/internal/ssa/rewrite.go        |  6 +++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  4 ++
+ src/cmd/compile/internal/ssa/rewriteWasm.go    | 41 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 28 ++++++++++--
+ test/codegen/math.go                           | 33 +++++++++++++-
+ 11 files changed, 200 insertions(+), 26 deletions(-)

@@ -1,62 +1,61 @@
-commit 39986d28e435d23e1d1dc41b8f16c0cf30181208
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Apr 4 18:31:46 2023 -0400
+commit 0c43878baa035db39d9bbf84ce8721cd8a97c78a
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jun 8 13:16:01 2021 -0500
 
-    cmd/compile: allow more inlining of functions that construct closures
+    cmd/compile: lower Add64/Sub64 into ssa on PPC64
     
-    [This is a roll-forward of CL 479095, which was reverted due to a bad
-    interaction between inlining and escape analysis since fixed in CL 482355.]
+    math/bits.Add64 and math/bits.Sub64 now lower and optimize
+    directly in SSA form.
     
-    Currently, when the inliner is determining if a function is
-    inlineable, it descends into the bodies of closures constructed by
-    that function. This has several unfortunate consequences:
+    The optimization of carry chains focuses around eliding
+    XER<->GPR transfers of the CA bit when used exclusively as an
+    input to a single carry operations, or when the CA value is
+    known.
     
-    - If the closure contains a disallowed operation (e.g., a defer), then
-      the outer function can't be inlined. It makes sense that the
-      *closure* can't be inlined in this case, but it doesn't make sense
-      to punish the function that constructs the closure.
+    This also adds support for handling XER spills in the assembler
+    which could happen if carry chains contain inter-dependencies
+    on each other (which seems very unlikely with practical usage),
+    or a clobber happens (SRAW/SRAD/SUBFC operations clobber CA).
     
-    - The hairiness of the closure counts against the inlining budget of
-      the outer function. Since we currently copy the closure body when
-      inlining the outer function, this makes sense from the perspective
-      of export data size and binary size, but ultimately doesn't make
-      much sense from the perspective of what should be inlineable.
+    With PPC64 Add64/Sub64 lowering into SSA and this patch, the net
+    performance difference in crypto/elliptic benchmarks on P9/ppc64le
+    are:
     
-    - Since the inliner walks into every closure created by an outer
-      function in addition to starting a walk at every closure, this adds
-      an n^2 factor to inlinability analysis.
+    name                                old time/op    new time/op    delta
+    ScalarBaseMult/P256                   46.3µs ± 0%    46.9µs ± 0%   +1.34%
+    ScalarBaseMult/P224                    356µs ± 0%     209µs ± 0%  -41.14%
+    ScalarBaseMult/P384                   1.20ms ± 0%    0.57ms ± 0%  -52.14%
+    ScalarBaseMult/P521                   3.38ms ± 0%    1.44ms ± 0%  -57.27%
+    ScalarMult/P256                        199µs ± 0%     199µs ± 0%   -0.17%
+    ScalarMult/P224                        357µs ± 0%     212µs ± 0%  -40.56%
+    ScalarMult/P384                       1.20ms ± 0%    0.58ms ± 0%  -51.86%
+    ScalarMult/P521                       3.37ms ± 0%    1.44ms ± 0%  -57.32%
+    MarshalUnmarshal/P256/Uncompressed    2.59µs ± 0%    2.52µs ± 0%   -2.63%
+    MarshalUnmarshal/P256/Compressed      2.58µs ± 0%    2.52µs ± 0%   -2.06%
+    MarshalUnmarshal/P224/Uncompressed    1.54µs ± 0%    1.40µs ± 0%   -9.42%
+    MarshalUnmarshal/P224/Compressed      1.54µs ± 0%    1.39µs ± 0%   -9.87%
+    MarshalUnmarshal/P384/Uncompressed    2.40µs ± 0%    1.80µs ± 0%  -24.93%
+    MarshalUnmarshal/P384/Compressed      2.35µs ± 0%    1.81µs ± 0%  -23.03%
+    MarshalUnmarshal/P521/Uncompressed    3.79µs ± 0%    2.58µs ± 0%  -31.81%
+    MarshalUnmarshal/P521/Compressed      3.80µs ± 0%    2.60µs ± 0%  -31.67%
     
-    This CL simply drops this behavior.
+    Note, P256 uses an asm implementation, thus, little variation is expected.
     
-    In std, this makes 57 more functions inlinable, and disallows inlining
-    for 10 (due to the basic instability of our bottom-up inlining
-    approach), for an net increase of 47 inlinable functions (+0.6%).
-    
-    This will help significantly with the performance of the functions to
-    be added for #56102, which have a somewhat complicated nesting of
-    closures with a performance-critical fast path.
-    
-    The downside of this seems to be a potential increase in export data
-    and text size, but the practical impact of this seems to be
-    negligible:
-    
-                   │    before    │           after            │
-                   │    bytes     │    bytes      vs base      │
-    Go/binary        15.12Mi ± 0%   15.14Mi ± 0%  +0.16% (n=1)
-    Go/text          5.220Mi ± 0%   5.237Mi ± 0%  +0.32% (n=1)
-    Compile/binary   22.92Mi ± 0%   22.94Mi ± 0%  +0.07% (n=1)
-    Compile/text     8.428Mi ± 0%   8.435Mi ± 0%  +0.08% (n=1)
-    
-    Updates #56102.
-    
-    Change-Id: I1f4fc96c71609c8feb59fecdb92b69ba7e3b5b41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482356
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I88a24f6bf0f4f285c649e40243b1ab69cc452b71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346870
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/inline/inl.go    | 11 +++++------
- src/cmd/compile/internal/test/inl_test.go | 22 +++++++++-------------
- test/closure3.dir/main.go                 | 26 +++++++++++++++-----------
- 3 files changed, 29 insertions(+), 30 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s    |   5 +
+ src/cmd/compile/internal/ppc64/ssa.go        |  25 ----
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  17 ++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   3 -
+ src/cmd/compile/internal/ssa/opGen.go        |  17 ---
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 207 ++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssagen/ssa.go       |   2 +-
+ src/cmd/internal/obj/ppc64/asm9.go           |  26 ++++
+ test/codegen/mathbits.go                     |  56 +++++++-
+ 9 files changed, 302 insertions(+), 56 deletions(-)

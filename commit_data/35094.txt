@@ -1,23 +1,15 @@
-commit d292f77e95fd9afdbfcfa12c9552d5926cdde8b1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 23 13:49:51 2018 -0700
+commit c6ea277ac1bb81b6773d100819fcec57c8e2c95e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 14:38:58 2017 -0500
 
-    cmd/compile: rewrite 2*x+c into LEAx1 on amd64
+    test: skip "# package/path" output from cmd/go in errchk
     
-    Rewrite x<<1+c into x+x+c, which can be expressed as a single LEAQ/LEAL.
+    This allows errchk to be used with "go vet" output (as opposed to "go tool vet").
     
-    Bit of a special case, but the single-instruction
-    LEA is both shorter and faster than SHL then ADD.
-    
-    Triggers 293 times during make.bash.
-    
-    Change-Id: I3f09c8e9a8f3859d1eeed336f095fc3ada79c2c1
-    Reviewed-on: https://go-review.googlesource.com/108938
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0009a53c9cb74accd5bd3923c137d6dbf9e46326
+    Reviewed-on: https://go-review.googlesource.com/83836
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 43 +++++++++++++++++++++++++++-
- test/codegen/arithmetic.go                   |  5 ++++
- 3 files changed, 48 insertions(+), 1 deletion(-)
+ test/errchk | 3 +++
+ 1 file changed, 3 insertions(+)

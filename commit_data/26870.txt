@@ -1,16 +1,22 @@
-commit be7c786dd04db51076012618ea29ee528a654978
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Apr 12 13:38:24 2016 -0400
+commit 33c0ef2de3ba30a70b20433b14c45ccb06d02222
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Feb 27 20:55:50 2016 +0100
 
-    cmd/objdump: skip TestDisasm* on s390x
+    fmt: make identification of string arguments consistent
     
-    The disassembler is not yet implemented on s390x.
+    Use only reflect.TypeOf to detect if argument is a string.
     
-    Updates #15255.
+    The wasString return is only needed in doPrint with the 'v' verb.
+    This type of string detection is handled correctly by reflect.TypeOf
+    which is used already in doPrint for identifying a string argument.
     
-    Change-Id: Ibab319c8c087b1a619baa1529398305c1e721877
-    Reviewed-on: https://go-review.googlesource.com/21894
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Remove now obsolete wasString computations and return values.
+    
+    Change-Id: Iea2de7ac0f5c536a53eec63f7e679d628f5af8dc
+    Reviewed-on: https://go-review.googlesource.com/19976
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/objdump/objdump_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/fmt/print.go | 68 +++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 33 insertions(+), 35 deletions(-)

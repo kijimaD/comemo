@@ -1,66 +1,21 @@
-commit 81c92352a7c6aadc434e7d0921d046a599ba2807
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 16 14:07:43 2024 -0400
+commit 7c2b69080a0b9e35174cc9c93497b6e7176f8275
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 9 17:22:20 2023 -0400
 
-    runtime: move getcallerpc to internal/runtime/sys
+    cmd/go/internal/web: remove a redundant return value
     
-    Moving these intrinsics to a base package enables other internal/runtime
-    packages to use them.
+    The URL return value from the fetch helper in web.get was always
+    either the passed in URL (on success) or nil (on failure).
+    Remove it to reduce code complexity.
     
-    For #54766.
+    For #61877.
     
-    Change-Id: I0b3eded3bb45af53e3eb5bab93e3792e6a8beb46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613260
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I0ce4602b921d1c996aa988e7d3f83996511ccd72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518016
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/inline/inl.go             | 54 +++++++++++++-------
- src/cmd/compile/internal/ssa/_gen/386Ops.go        |  2 +-
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go      |  2 +-
- src/cmd/compile/internal/ssa/_gen/ARM64Ops.go      |  2 +-
- src/cmd/compile/internal/ssa/_gen/ARMOps.go        |  2 +-
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  2 +-
- src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go     |  2 +-
- src/cmd/compile/internal/ssa/_gen/MIPSOps.go       |  2 +-
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |  2 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go    |  2 +-
- src/cmd/compile/internal/ssa/_gen/S390XOps.go      |  2 +-
- src/cmd/compile/internal/ssa/_gen/genericOps.go    |  2 +-
- src/cmd/compile/internal/ssagen/intrinsics.go      | 18 ++++---
- src/cmd/compile/internal/ssagen/intrinsics_test.go | 28 +++++------
- src/cmd/internal/testdir/testdir_test.go           |  2 +-
- src/internal/runtime/sys/empty.s                   |  1 +
- src/internal/runtime/sys/intrinsics.go             | 25 ++++++++++
- src/runtime/asan.go                                |  9 ++--
- src/runtime/chan.go                                |  9 ++--
- src/runtime/coro.go                                |  7 ++-
- src/runtime/debugcall.go                           |  3 +-
- src/runtime/error.go                               |  3 +-
- src/runtime/export_test.go                         |  2 +-
- src/runtime/export_windows_test.go                 |  7 ++-
- src/runtime/iface.go                               |  4 +-
- src/runtime/map_fast32_noswiss.go                  | 11 ++--
- src/runtime/map_fast64_noswiss.go                  | 11 ++--
- src/runtime/map_faststr_noswiss.go                 |  9 ++--
- src/runtime/map_noswiss.go                         | 19 +++----
- src/runtime/map_swiss.go                           | 19 +++----
- src/runtime/mbarrier.go                            |  7 +--
- src/runtime/mprof.go                               | 12 ++---
- src/runtime/os2_aix.go                             | 15 +++---
- src/runtime/os_solaris.go                          | 19 ++++---
- src/runtime/os_windows.go                          |  3 +-
- src/runtime/panic.go                               | 58 +++++++++++-----------
- src/runtime/panic32.go                             | 36 ++++++++------
- src/runtime/proc.go                                | 12 ++---
- src/runtime/race_amd64.s                           |  8 +--
- src/runtime/select.go                              |  3 +-
- src/runtime/slice.go                               |  6 +--
- src/runtime/string.go                              |  7 +--
- src/runtime/stubs.go                               |  1 -
- src/runtime/sys_libc.go                            |  7 ++-
- src/runtime/traceback.go                           |  4 +-
- src/runtime/unsafe.go                              | 15 +++---
- test/internal/runtime/sys/README                   |  7 +++
- test/internal/runtime/sys/inlinegcpc.go            | 20 ++++++++
- test/runtime/inlinegcpc.go                         | 11 +---
- 49 files changed, 303 insertions(+), 211 deletions(-)
+ src/cmd/go/internal/web/http.go | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

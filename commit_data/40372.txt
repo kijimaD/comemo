@@ -1,19 +1,16 @@
-commit daeb5efb20a561ffc865f94163e836b68eee4193
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 22 12:47:05 2019 -0700
+commit 7f5434c44c75f25172d5d6106ad179d2e813bdd1
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue May 7 09:41:46 2019 +0200
 
-    runtime: somewhat better checkptr error messages
+    regexp: clarify docs re Submatch result
     
-    They're still lacking in details, but at least better than being
-    printed as raw interface values.
+    Currently we say that a negative index means no match,
+    but we don't say how "no match" is expressed when 'Index'
+    is not present. Say how it is expressed.
     
-    Updates #22218.
-    
-    Change-Id: I4fd813253afdd6455c0c9b5a05c61659805abad1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202677
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I82b6c9038557ac49852ac03642afc0bc545bb4a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175677
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/checkptr.go | 24 ++++++++++++++++++------
- 1 file changed, 18 insertions(+), 6 deletions(-)
+ src/regexp/regexp.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

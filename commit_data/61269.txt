@@ -1,0 +1,22 @@
+commit 76f320836720635b30896d91493c02c1f9578cca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 23 17:27:44 2024 -0700
+
+    runtime: support cgo index into pointer-to-array
+    
+    We were missing a case for calling a C function with an index
+    into a pointer-to-array.
+    
+    Fixes #70016
+    
+    Change-Id: I9c74d629e58722813c1aaa0f0dc225a5a64d111b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621576
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/cgo/internal/testerrors/ptr_test.go | 17 +++++++++++++++++
+ src/runtime/cgocall.go                      | 11 +++++++++++
+ 2 files changed, 28 insertions(+)

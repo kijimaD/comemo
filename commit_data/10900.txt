@@ -1,35 +1,32 @@
-commit 54fb9940cf315546f43c724e670518acedfa185e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 20 14:25:23 2011 -0500
+commit 6b772462e420d15f5e1669a5f03e4f1cb7d8f2af
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 20 10:36:25 2011 -0800
 
-    go: build runtime/cgo
+    panics: use the new facilities of testing.B instead
     
-    Also rename -v to -x in the build and install commands,
-    to match the flag in go test (which we can't change
-    because -v is taken).  Matches sh -x anyway.
+    Lots of panics go away.
+    Also fix a name error in html/template.
     
-    R=r, iant, ality
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5504045
+    https://golang.org/cl/5498045
 
- src/cmd/cgo/main.go                                |   2 +-
- src/cmd/cgo/out.go                                 |  10 +-
- src/cmd/go/build.go                                | 188 ++++++++++++---------
- src/cmd/go/pkg.go                                  |  18 +-
- src/cmd/go/run.go                                  |   8 +-
- src/cmd/go/test.go                                 |  10 +-
- src/pkg/runtime/cgo/Makefile                       |  14 +-
- src/pkg/runtime/cgo/{amd64.S => gcc_amd64.S}       |   0
- .../runtime/cgo/{darwin_386.c => gcc_darwin_386.c} |   0
- .../cgo/{darwin_amd64.c => gcc_darwin_amd64.c}     |   1 +
- .../cgo/{freebsd_386.c => gcc_freebsd_386.c}       |   0
- .../cgo/{freebsd_amd64.c => gcc_freebsd_amd64.c}   |   0
- .../runtime/cgo/{linux_386.c => gcc_linux_386.c}   |   0
- .../cgo/{linux_amd64.c => gcc_linux_amd64.c}       |   0
- .../runtime/cgo/{linux_arm.c => gcc_linux_arm.c}   |   0
- src/pkg/runtime/cgo/{setenv.c => gcc_setenv.c}     |   0
- src/pkg/runtime/cgo/{util.c => gcc_util.c}         |   0
- .../cgo/{windows_386.c => gcc_windows_386.c}       |   0
- .../cgo/{windows_amd64.c => gcc_windows_amd64.c}   |   0
- src/pkg/runtime/cgo/trigger.go                     |  10 ++
- 20 files changed, 156 insertions(+), 105 deletions(-)
+ src/pkg/bytes/bytes_test.go            | 17 ++++++-----------
+ src/pkg/crypto/aes/aes_test.go         |  2 +-
+ src/pkg/encoding/binary/binary_test.go |  4 ++--
+ src/pkg/encoding/gob/timing_test.go    |  2 +-
+ src/pkg/encoding/json/bench_test.go    | 10 +++++-----
+ src/pkg/html/template/error.go         |  6 +++---
+ src/pkg/html/template/escape_test.go   | 10 +++++-----
+ src/pkg/image/draw/bench_test.go       |  6 +++---
+ src/pkg/image/jpeg/writer_test.go      |  2 +-
+ src/pkg/image/png/writer_test.go       |  4 ++--
+ src/pkg/image/tiff/reader_test.go      |  2 +-
+ src/pkg/math/big/nat_test.go           |  3 +--
+ src/pkg/net/http/serve_test.go         |  6 +++---
+ src/pkg/net/rpc/server_test.go         | 20 ++++++++------------
+ src/pkg/old/regexp/all_test.go         | 12 ++++--------
+ src/pkg/regexp/all_test.go             | 12 ++++--------
+ src/pkg/regexp/exec_test.go            |  2 +-
+ src/pkg/strings/strings_test.go        |  7 +++----
+ 18 files changed, 54 insertions(+), 73 deletions(-)

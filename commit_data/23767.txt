@@ -1,13 +1,17 @@
-commit 2e38b3511afd32a6e9cbb97e01da411495427259
-Author: Ingo Krabbe <ikrabbe.ask@gmail.com>
-Date:   Tue Jul 21 12:49:59 2015 +0200
+commit 117506aab6ea27885491bc7ca50f0a462bf1bfbb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 11 12:20:42 2015 +1000
 
-    misc/cgo/testsovar: needs the `extern` keyword to export variables on non-windows platforms
+    cmd/go: clean up after 'go build' even on windows
     
-    Change-Id: I87fa25214fbf24469148a63f4e1e61e261105c16
-    Reviewed-on: https://go-review.googlesource.com/12470
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This CL makes CL 10682 work on windows.
+    
+    Fixes #9645 (again)
+    
+    Change-Id: Ie9b9af8b041c483a236b46adad4a50aa6e598c92
+    Reviewed-on: https://go-review.googlesource.com/10930
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testsovar/cgoso_c.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/build.go   | 6 ++++--
+ src/cmd/go/go_test.go | 8 ++------
+ 2 files changed, 6 insertions(+), 8 deletions(-)

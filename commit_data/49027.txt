@@ -1,26 +1,28 @@
-commit 0e90ba933565ab6e719d6981d8d6195e06625f47
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu May 5 01:00:38 2022 +0700
+commit 42fe1327878dc0956d2c6407a54112fa5e75bd34
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 7 16:15:53 2021 -0700
 
-    cmd/compile: fix constructing expr side-effects when comparing 0-size types
+    [dev.typeparams] cmd/compile: cleanup ABI utils tests
     
-    In walkCompare, any ir.OCONVNOP was removed from both operands. So when
-    constructing assignments for them to preserve any side-effects, using
-    temporary variables can cause type mismatched with original type.
+    This CL cleans a few minor nits with the ABI utils tests that are now
+    necessary because of cleanups that happened on master:
     
-    Instead, using blank assignments will prevent that issue and still make
-    sure that the operands will be evaluated.
+    1. Initialize types.LocalPkg; this needs to be set for selector names
+    to be handled correctly.
     
-    Fixes #52701
+    2. In TestABIUtilsInterfaces, switch to using an exported identifier,
+    so it doesn't need to be package qualified.
     
-    Change-Id: I229046acb154890bb36fe441d258563687fdce37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403997
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    3. While here, change the method result type from "untyped string" to
+    just "string". Constants are the only declared object that can ever
+    have an untyped type.
+    
+    Change-Id: Iabed46594361a516317a1c2d20c3d59bdb519844
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333189
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/walk/compare.go |  5 ++---
- test/fixedbugs/issue52701.go             | 16 ++++++++++++++++
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/test/abiutils_test.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

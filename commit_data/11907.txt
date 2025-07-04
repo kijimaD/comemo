@@ -1,16 +1,23 @@
-commit 0ab3ea9738bb28211c156faf38923bb6c28952cb
-Author: David Symonds <dsymonds@golang.org>
-Date:   Wed Feb 15 09:06:24 2012 +1100
+commit 3a582a768be7c95cbaf1a450140f367d9b7221d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 14 13:57:21 2012 -0800
 
-    build: create the correct $GOTOOLDIR.
+    godoc: make godoc go work
     
-    Before this, make.bash --dist-tool would fail,
-    because $GOROOT/bin/tool was being mkdir'd
-    instead of $GOROOT/pkg/tool/linux_amd64.
+    - if a package path leads to subdirectories only,
+      show command instead, if any
+    - to force documentation for a command, use the
+      cmd/ prefix, as in: godoc cmd/go
+      (note that for the go command, the prefix is
+      not required since there is no actual go library
+      package at the moment)
+    
+    Fixes #3012.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5666046
+    https://golang.org/cl/5665049
 
- src/make.bash | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/godoc/doc.go  |  9 ++++++---
+ src/cmd/godoc/main.go | 41 +++++++++++++++++++++++++++++++----------
+ 2 files changed, 37 insertions(+), 13 deletions(-)

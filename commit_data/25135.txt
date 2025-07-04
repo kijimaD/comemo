@@ -1,17 +1,28 @@
-commit a778ac5d76c47f6cc88846d58263c63ae8eaec86
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 3 18:58:05 2015 +0000
+commit 5d5889c4d98e77997270ee6fa73fd02e1372573f
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Aug 30 09:21:35 2015 -0700
 
-    net/http: make Client follow redirects even if Request.Method is empty
+    math/big: correct documentation for ProbablyPrime.
     
-    Fixes #12705
+    As akalin points out in the bug, the comment previously claimed that the
+    probability that the input is prime given that the function returned
+    true is 1 - ¼ⁿ. But that's wrong: the correct statement is that the
+    probability of the function returning false given a composite input is
+    1 - ¼ⁿ.
     
-    Change-Id: I69639d2b03777835b2697ff349a00ccab410aa49
-    Reviewed-on: https://go-review.googlesource.com/17318
-    Reviewed-by: Burcu Dogan <jbd@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This is not nearly as helpful, but at least it's truthful. A number of
+    other (correct) expressions are suggested on the bug, but I think that
+    the simplier one is preferable.
+    
+    This change also notes that the function is not suitable for
+    adversarial inputs since it's deterministic.
+    
+    Fixes #12274.
+    
+    Change-Id: I6a0871d103b126ee5a5a922a8c6993055cb7b1ed
+    Reviewed-on: https://go-review.googlesource.com/14052
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/client.go      | 5 ++++-
- src/net/http/client_test.go | 7 +++++++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/math/big/int.go | 7 +++++--
+ src/math/big/nat.go | 9 ++++++---
+ 2 files changed, 11 insertions(+), 5 deletions(-)

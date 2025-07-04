@@ -1,21 +1,18 @@
-commit f23373985037221899b42cd8f33384f850ff89b4
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Mar 19 16:56:21 2025 -0700
+commit 3b51581261704bfc3e6feeb29b6d2588b163777d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Feb 15 17:05:05 2024 -0500
 
-    internal/syscall/unix: fix number of params for unlinkat
+    cmd/link: replace function pointers to static calls in loadelf
     
-    This reverts the change to Unlinkat done in CL 659415, as it appears
-    to be wrong.
+    When transitioning between the old object loader and the new
+    object loader, to support both we made loadelf to take symbol
+    loading functions as function pointers. Now we only have the new
+    object loader. Change the function pointers back to static calls.
     
-    While at it, let's unify argument formatting for better readability
-    (and also so those parameters are easier to count).
-    
-    Change-Id: I092105f85de107e0495afed3cd66c039343250f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659357
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: Ia623a6010376a3d7c0be5eacae002144d956f28a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564635
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/syscall/unix/at_libc.go | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

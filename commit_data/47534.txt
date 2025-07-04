@@ -1,20 +1,21 @@
-commit 2463b4fcafbd59998ea4c81b0fd91a697ad02c15
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 19:20:52 2021 -0500
+commit 0fc595ec9999df08f25c2a981b8c9bf006079939
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 12:11:26 2021 -0700
 
-    go/types: simplify under() and fix a crash
+    cmd/compile/internal/types2: review of check.go
     
-    This is a port of CL 363665 from types2 to go/types.
+    The changes between (equivalent, and reviewed) go/types/check.go
+    and check.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
     
-    Change-Id: I20c4e20ab97f1e4de66a29095dc4a9b160810fe5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364897
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    The primary differences to go/types/check.go are:
+    - use of syntax instead of go/ast package
+    - tracing is controlled via flag not the "trace" constant
+    
+    Change-Id: I1c9998afb3e0b7e29f5b169d3a4054cf22841490
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304109
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/go/types/lookup.go                 | 7 +++++++
- src/go/types/testdata/check/cycles.src | 1 +
- src/go/types/type.go                   | 7 ++-----
- src/go/types/typexpr.go                | 1 +
- 4 files changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/check.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

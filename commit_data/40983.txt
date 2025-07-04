@@ -1,38 +1,15 @@
-commit 1b1fbb3192984624871ab92518499d4bd6e6e65c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 18 19:23:39 2019 +0000
+commit b9ef4c0f5605efeb5e7e0a4ab817401d5e353b94
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Jun 16 11:44:17 2019 +0530
 
-    runtime: use inUse ranges to map in summary memory only as needed
+    cmd/compile: coalesce a few shift rules for wasm
     
-    Prior to this change, if the heap was very discontiguous (such as in
-    TestArenaCollision) it's possible we could map a large amount of memory
-    as R/W and commit it. We would use only the start and end to track what
-    should be mapped, and we would extend that mapping as needed to
-    accomodate a potentially fragmented address space.
-    
-    After this change, we only map exactly the part of the summary arrays
-    that we need by using the inUse ranges from the previous change. This
-    reduces the GCSys footprint of TestArenaCollision from 300 MiB to 18
-    MiB.
-    
-    Because summaries are no longer mapped contiguously, this means the
-    scavenger can no longer iterate directly. This change also updates the
-    scavenger to borrow ranges out of inUse and iterate over only the
-    parts of the heap which are actually currently in use. This is both an
-    optimization and necessary for correctness.
-    
-    Fixes #35514.
-    
-    Change-Id: I96bf0c73ed0d2d89a00202ece7b9d089a53bac90
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207758
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I1b76daba90afd474390db8d9c238445abaac7ca6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182557
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/export_test.go      |   1 +
- src/runtime/mgcscavenge.go      | 131 ++++++++++++++++++++++++++--------------
- src/runtime/mpagealloc.go       |  60 +++---------------
- src/runtime/mpagealloc_64bit.go |  91 +++++++++++++++++++---------
- src/runtime/mpagealloc_test.go  |  17 +++++-
- src/runtime/mranges.go          |  25 ++++++++
- 6 files changed, 196 insertions(+), 129 deletions(-)
+ src/cmd/compile/internal/ssa/gen/Wasm.rules | 48 ++++++++---------------------
+ 1 file changed, 12 insertions(+), 36 deletions(-)

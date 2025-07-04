@@ -1,33 +1,24 @@
-commit 0b80659832ec72532ee1210cdb51422ee6012c66
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 19 18:05:10 2016 +0000
+commit 093a9a1f5673d71377d4f0ef3f41a5618bf2512c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 28 21:48:47 2016 -0700
 
-    net/http/httptest: restore historic ResponseRecorder.HeaderMap behavior
+    cmd/compile: encapsulate map value type
     
-    In Go versions 1 up to and including Go 1.6,
-    ResponseRecorder.HeaderMap was both the map that handlers got access
-    to, and was the map tests checked their results against. That did not
-    mimic the behavior of the real HTTP server (Issue #8857), so HeaderMap
-    was changed to be a snapshot at the first write in
-    https://golang.org/cl/20047. But that broke cases where the Handler
-    never did a write (#15560), so revert the behavior.
+    Passes toolstash -cmp.
     
-    Instead, introduce the ResponseWriter.Result method, returning an
-    *http.Response. It subsumes ResponseWriter.Trailers which was added
-    for Go 1.7 in CL 20047. Result().Header now contains the correct
-    answer, and HeaderMap is unchanged in behavior from previous Go
-    releases, so we don't break people's tests. People wanting the correct
-    behavior can use ResponseWriter.Result.
-    
-    Fixes #15560
-    Updates #8857
-    
-    Change-Id: I7ea9b56a6b843103784553d67f67847b5315b3d2
-    Reviewed-on: https://go-review.googlesource.com/23257
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I83af544974e1e91e0810e13321afb3e665dcdf12
+    Reviewed-on: https://go-review.googlesource.com/21248
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/httptest/recorder.go      | 101 ++++++++++++++++++++++-----------
- src/net/http/httptest/recorder_test.go |  62 ++++++++++++++++++--
- 2 files changed, 124 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/gc/align.go     |  3 +--
+ src/cmd/compile/internal/gc/bexport.go   |  4 ++--
+ src/cmd/compile/internal/gc/fmt.go       |  8 ++++----
+ src/cmd/compile/internal/gc/range.go     |  4 ++--
+ src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
+ src/cmd/compile/internal/gc/sinit.go     |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      |  1 +
+ src/cmd/compile/internal/gc/type.go      | 11 +++++++++--
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
+ src/cmd/compile/internal/gc/walk.go      | 16 ++++++++--------
+ 10 files changed, 40 insertions(+), 33 deletions(-)

@@ -1,0 +1,15 @@
+commit 49adb8e4602d1a525e5dcb841947c8645fd95c0b
+Author: limeidan <limeidan@loongson.cn>
+Date:   Wed Aug 7 17:59:54 2024 +0800
+
+    cmd/internal/obj/loong64: add testcases for assembler
+    
+    Change-Id: Ib2c8e0bc314c0f2b58f69a5340355cac4786a91f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604175
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/loong64/asm_test.go | 115 +++++++++++++++++++++++++++++++
+ 1 file changed, 115 insertions(+)

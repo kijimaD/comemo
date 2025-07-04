@@ -1,41 +1,17 @@
-commit dbaa2d3e6525a29defdff16f354881a93974dd2e
-Author: Keith Randall <khr@golang.org>
-Date:   Wed May 28 17:09:05 2025 -0700
+commit 50c20dc3824d25811dad52be6afaa05ff709744a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 16 10:06:09 2024 +0200
 
-    cmd/compile: do nil check before calling duff functions, on arm64 and amd64
+    os: remove unused issueNo field
     
-    On these platforms, we set up a frame pointer record below
-    the current stack pointer, so when we're in duffcopy or duffzero,
-    we get a reasonable traceback. See #73753.
+    It's no longer set since CL 31118.
     
-    But because this frame pointer record is below SP, it is vulnerable.
-    Anything that adds a new stack frame to the stack might clobber it.
-    Which actually happens in #73748 on amd64. I have not yet come across
-    a repro on arm64, but might as well be safe here.
-    
-    The only real situation this could happen is when duffzero or duffcopy
-    is passed a nil pointer. So we can just avoid the problem by doing the
-    nil check outside duffzero/duffcopy. That way we never add a frame
-    below duffzero/duffcopy. (Most other ways to get a new frame below the
-    current one, like async preempt or debugger-generated calls, don't
-    apply to duffzero/duffcopy because they are runtime functions; we're
-    not allowed to preempt there.)
-    
-    Longer term, we should stop putting stuff below SP. #73753 will
-    include that as part of its remit. But that's not for 1.25, so we'll
-    do the simple thing for 1.25 for this issue.
-    
-    Fixes #73748
-    
-    Change-Id: I913c49ee46dcaee8fb439415a4531f7b59d0f612
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/676916
+    Change-Id: Ibe77b1454b5e7fd02eaed432f04cf993f53791fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579135
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 12 ++++----
- src/cmd/compile/internal/ssa/_gen/ARM64Ops.go | 10 +++----
- src/cmd/compile/internal/ssa/opGen.go         | 40 ++++++++++++---------------
- test/fixedbugs/issue73748a.go                 | 32 +++++++++++++++++++++
- test/fixedbugs/issue73748b.go                 | 32 +++++++++++++++++++++
- 5 files changed, 92 insertions(+), 34 deletions(-)
+ src/os/os_windows_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

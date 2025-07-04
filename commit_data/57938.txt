@@ -1,21 +1,27 @@
-commit 3efbc30f3d6a35cb5b0fc29d8bb3f43d59304771
-Author: Tim King <taking@google.com>
-Date:   Fri Nov 8 11:49:00 2024 -0800
+commit c8396b51888e4d6ab8b4675b111f329eb23408f6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 12 04:51:16 2023 -0700
 
-    cmd/compile/internal/noder,go/internal/gcimporter: return an error if not an archive file
+    cmd/compile/internal/ir: add NewZero
     
-    Return an error from FindExportData variants if the contents are not
-    an archive file.
+    This constructs a zero value of any type, which helps address some
+    corner case scenarios.
     
-    Change-Id: I2fa8d3553638ef1de6a03e2ce46341f00ed6965f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626697
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    It should also eventually handle the predeclared "zero" value, at
+    least as currently implemented in go.dev/cl/520336.
+    
+    For #61372.
+    
+    Change-Id: I3a86a94fd8fa388c9c6bf281da8aa532b3da00fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527696
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Commit-Queue: Tim King <taking@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/importer/exportdata.go    | 42 +++++++++++-----------
- .../compile/internal/importer/gcimporter_test.go   | 22 +++++++++---
- src/cmd/compile/internal/noder/import.go           | 37 +++++++++----------
- src/go/internal/gcimporter/exportdata.go           | 41 +++++++++++----------
- src/go/internal/gcimporter/gcimporter_test.go      | 13 +++++--
- 5 files changed, 88 insertions(+), 67 deletions(-)
+ src/cmd/compile/internal/ir/const.go      | 30 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/noder/codes.go   |  2 +-
+ src/cmd/compile/internal/noder/helpers.go |  4 ----
+ src/cmd/compile/internal/noder/reader.go  | 15 ++++-----------
+ src/cmd/compile/internal/noder/writer.go  |  2 +-
+ 5 files changed, 36 insertions(+), 17 deletions(-)

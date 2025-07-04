@@ -1,41 +1,16 @@
-commit 5a597e2d2995309c4cc02a4c367157908ad4add2
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Sep 17 09:39:33 2016 -0400
+commit bfccf4071eb9401cb906b203659010f9422c524f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 26 15:02:55 2016 -0400
 
-    cmd/link: replace ld.Link.Diag with ld.Errorf
+    cmd/dist: drop ppc64le from testcshared
     
-    Instead of using ctxt.Cursym, Errorf takes an explicit *Symbol
-    parameter. This removes most uses of Cursym and means the *Link
-    context object is needed in fewer parts of the linker.
+    I'm glad my CL fixed the library use case inside Google.
+    It fixes neither of the two tests here.
     
-    All transformations done manually, as wiring Cursym is tricky.
-    
-    Change-Id: Ief88b00b73904224675c0035684c3a84c19249d7
-    Reviewed-on: https://go-review.googlesource.com/29369
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ica91722dced8955a0a8ba3aad3d288816b46564e
+    Reviewed-on: https://go-review.googlesource.com/23482
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/amd64/asm.go  |  32 +++---
- src/cmd/link/internal/arm/asm.go    |  42 ++++----
- src/cmd/link/internal/arm64/asm.go  |  28 ++---
- src/cmd/link/internal/ld/data.go    | 103 +++++++++---------
- src/cmd/link/internal/ld/dwarf.go   |  13 ++-
- src/cmd/link/internal/ld/elf.go     | 204 ++++++++++++++++++------------------
- src/cmd/link/internal/ld/go.go      |   6 +-
- src/cmd/link/internal/ld/ld.go      |   2 +-
- src/cmd/link/internal/ld/ldelf.go   |  34 +++---
- src/cmd/link/internal/ld/ldmacho.go |  12 +--
- src/cmd/link/internal/ld/ldpe.go    |  10 +-
- src/cmd/link/internal/ld/lib.go     | 105 +++++++------------
- src/cmd/link/internal/ld/macho.go   |  19 ++--
- src/cmd/link/internal/ld/pcln.go    |  10 +-
- src/cmd/link/internal/ld/pe.go      |  24 ++---
- src/cmd/link/internal/ld/symtab.go  |   6 +-
- src/cmd/link/internal/ld/util.go    |  37 ++++++-
- src/cmd/link/internal/mips64/asm.go |  16 +--
- src/cmd/link/internal/ppc64/asm.go  |  40 +++----
- src/cmd/link/internal/s390x/asm.go  |  41 ++++----
- src/cmd/link/internal/x86/asm.go    |  30 +++---
- 21 files changed, 410 insertions(+), 404 deletions(-)
+ src/cmd/dist/test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

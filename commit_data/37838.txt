@@ -1,24 +1,14 @@
-commit fd752d5ede482cdf52a920c75486677cbcb441b0
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Jan 6 18:19:35 2019 +0100
+commit 4d01f9243c6dfcd82993483063421fc8aceeb353
+Author: Venil Noronha <veniln@vmware.com>
+Date:   Fri Aug 31 10:11:22 2018 -0700
 
-    cmd/vendor: update to golang.org/x/tools@3ef68632
+    fmt: add example for Fscanf
     
-    Mainly to pull in the bug fix in the structtag pass, where filenames
-    could sometimes be wrong. The bug wasn't present in 1.11, so it was a
-    regression and needs fixing before 1.12 is out.
-    
-    Fixes #29130.
-    
-    Change-Id: Ie9d9bff84873f34d748ebd8f056b6bc2ac822a55
-    Reviewed-on: https://go-review.googlesource.com/c/156378
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ia3dcb3a82e452fdcf0d087e8cd01ac01ca831c84
+    Reviewed-on: https://go-review.googlesource.com/132597
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Kevin Burke <kev@inburke.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
 
- .../vendor/golang.org/x/tools/go/analysis/doc.go    |  4 ----
- .../x/tools/go/analysis/passes/asmdecl/asmdecl.go   |  4 ++--
- .../x/tools/go/analysis/passes/bools/bools.go       |  2 +-
- .../tools/go/analysis/passes/structtag/structtag.go | 21 +++++++++++++++++----
- .../x/tools/go/analysis/unitchecker/unitchecker.go  |  2 +-
- 5 files changed, 21 insertions(+), 12 deletions(-)
+ src/fmt/example_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

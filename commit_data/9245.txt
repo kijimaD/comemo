@@ -1,20 +1,24 @@
-commit 1b4dff0f6923f5d7004d47de5ebeba3758074c86
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jul 28 16:19:16 2011 -0700
+commit 28a23675cdf370b27d97b28c0029e1175032e03e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 18:22:12 2011 -0400
 
-    exp/template: simplify the helper functions
-    - create a pair of "Must" functions, one for templates, one for sets
-    - regularize the return values of the parsers so they can be wrapped by Must
-    - delete all the old Must functions and methods.
+    5g, 6g, 8g: shift, opt fixes
     
-    R=golang-dev, gri, r
+    Fixes #1808.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4826052
+    https://golang.org/cl/4813052
 
- src/pkg/exp/template/exec_test.go  |   8 +-
- src/pkg/exp/template/helper.go     | 217 +++++++++++--------------------------
- src/pkg/exp/template/parse.go      |   8 +-
- src/pkg/exp/template/parse_test.go |   3 +-
- src/pkg/exp/template/set.go        |   5 +-
- src/pkg/exp/template/set_test.go   |  37 +++----
- 6 files changed, 92 insertions(+), 186 deletions(-)
+ src/cmd/5g/cgen64.c      |  6 +++---
+ src/cmd/5g/ggen.c        | 52 +++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/5g/gsubr.c       |  7 ++++++-
+ src/cmd/5g/peep.c        |  5 ++++-
+ src/cmd/5g/reg.c         | 17 ++++++----------
+ src/cmd/6g/gsubr.c       |  2 +-
+ src/cmd/8g/gg.h          |  2 +-
+ src/cmd/8g/ggen.c        | 30 ++++++++++++++++++++++------
+ src/cmd/8g/reg.c         |  6 ++----
+ src/cmd/gc/bits.c        |  5 ++++-
+ test/fixedbugs/bug356.go | 41 ++++++++++++++++++++++++++++++++++++++
+ 11 files changed, 132 insertions(+), 41 deletions(-)

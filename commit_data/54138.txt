@@ -1,23 +1,182 @@
-commit e7240ed8868f8c1df9e3421711eb8d0a537c3414
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 21 13:51:21 2023 -0700
+commit dcb90152a444be97fcc45bb12d176641c1b0d90e
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Fri Jul 22 14:18:33 2022 +0900
 
-    cmd/compile/internal/ssagen: share runtime._defer types
+    bytes,strings: optimize Repeat
     
-    Rather than constructing a new runtime._defer struct type at each
-    defer statement, we can use a single shared one. Also, by naming it
-    runtime._defer, we avoid emitting new runtime and DWARF type
-    descriptors in every package that contains a "defer" statement.
+    When generating long strings or slices with Repeat we
+    currently reuse intermediate states as a way to quickly
+    build exponentially longer results.
     
-    Shaves ~1kB off cmd/go.
+    This works well as long as the intermediate states fit into
+    the processor D-cache. If they don't we start thrashing the
+    D-cache by reading in the whole intermediate state over and
+    over on each iteration.
     
-    Change-Id: I0bd819aec9f856546e684abf620e339a7555e73f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521676
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Instead, once we reach a large enough intermediate state (that
+    allows the memcpy operation to perform at peak) we cap the
+    size of chunk of the state that is used as source for subsequent
+    appends. This ensures that this smaller source chunk is always
+    present in the D-cache, and the append operation does not need
+    to read the state contents from memory.
+    
+    Currently the cap is set to 8KB, a number derived via
+    experimentation to yield the highest performance across a
+    a large range of result sizes. Slightly higher caps also
+    produced similar results: 8KB was chosen as the smallest one
+    in this performance plateau with the intention to minimize
+    D-cache pollution.
+    
+    For result sizes larger than the fastest cache levels we get
+    significantly higher performance compared to the current
+    implementation:
+    strings:
+    name                            old speed      new speed      delta
+    RepeatLarge/256/1-16            1.73GB/s ± 1%  1.73GB/s ± 0%      ~     (p=0.556 n=5+4)
+    RepeatLarge/256/16-16           2.02GB/s ± 0%  1.95GB/s ± 8%      ~     (p=0.222 n=5+5)
+    RepeatLarge/512/1-16            2.30GB/s ±13%  2.47GB/s ± 1%      ~     (p=0.548 n=5+5)
+    RepeatLarge/512/16-16           2.38GB/s ±16%  2.77GB/s ± 1%   +16.27%  (p=0.032 n=5+5)
+    RepeatLarge/1024/1-16           3.17GB/s ± 1%  3.18GB/s ± 0%      ~     (p=0.730 n=4+5)
+    RepeatLarge/1024/16-16          3.39GB/s ± 2%  3.38GB/s ± 1%      ~     (p=0.548 n=5+5)
+    RepeatLarge/2048/1-16           3.32GB/s ± 2%  3.32GB/s ± 2%      ~     (p=1.000 n=5+5)
+    RepeatLarge/2048/16-16          3.41GB/s ± 4%  3.46GB/s ± 2%      ~     (p=0.310 n=5+5)
+    RepeatLarge/4096/1-16           3.60GB/s ± 4%  3.67GB/s ± 3%      ~     (p=0.690 n=5+5)
+    RepeatLarge/4096/16-16          3.74GB/s ± 3%  3.71GB/s ± 5%      ~     (p=0.690 n=5+5)
+    RepeatLarge/8192/1-16           3.94GB/s ± 4%  4.01GB/s ± 1%      ~     (p=0.222 n=5+5)
+    RepeatLarge/8192/16-16          3.94GB/s ± 6%  4.05GB/s ± 1%      ~     (p=0.222 n=5+5)
+    RepeatLarge/8192/4097-16        4.25GB/s ± 6%  4.32GB/s ± 3%      ~     (p=0.690 n=5+5)
+    RepeatLarge/16384/1-16          4.96GB/s ± 1%  5.02GB/s ± 2%      ~     (p=0.421 n=5+5)
+    RepeatLarge/16384/16-16         4.99GB/s ± 2%  5.07GB/s ± 1%      ~     (p=0.421 n=5+5)
+    RepeatLarge/16384/4097-16       5.15GB/s ± 3%  5.17GB/s ± 1%      ~     (p=1.000 n=5+5)
+    RepeatLarge/32768/1-16          5.44GB/s ± 2%  5.42GB/s ± 1%      ~     (p=0.841 n=5+5)
+    RepeatLarge/32768/16-16         5.46GB/s ± 4%  5.44GB/s ± 1%      ~     (p=0.905 n=5+4)
+    RepeatLarge/32768/4097-16       4.84GB/s ± 2%  4.59GB/s ±12%    -5.05%  (p=0.032 n=5+5)
+    RepeatLarge/65536/1-16          5.85GB/s ± 0%  5.84GB/s ± 1%      ~     (p=0.690 n=5+5)
+    RepeatLarge/65536/16-16         5.81GB/s ± 2%  5.84GB/s ± 2%      ~     (p=0.421 n=5+5)
+    RepeatLarge/65536/4097-16       5.38GB/s ± 6%  5.45GB/s ± 1%      ~     (p=1.000 n=5+5)
+    RepeatLarge/131072/1-16         6.20GB/s ± 1%  6.31GB/s ± 1%    +1.80%  (p=0.008 n=5+5)
+    RepeatLarge/131072/16-16        6.12GB/s ± 3%  6.25GB/s ± 3%      ~     (p=0.095 n=5+5)
+    RepeatLarge/131072/4097-16      5.95GB/s ± 1%  5.85GB/s ±10%      ~     (p=1.000 n=5+5)
+    RepeatLarge/262144/1-16         6.33GB/s ± 1%  6.56GB/s ± 0%    +3.62%  (p=0.016 n=5+4)
+    RepeatLarge/262144/16-16        6.42GB/s ± 0%  6.65GB/s ± 1%    +3.58%  (p=0.016 n=4+5)
+    RepeatLarge/262144/4097-16      6.31GB/s ± 1%  6.44GB/s ± 1%    +1.94%  (p=0.008 n=5+5)
+    RepeatLarge/524288/1-16         6.23GB/s ± 1%  6.92GB/s ± 3%   +11.02%  (p=0.008 n=5+5)
+    RepeatLarge/524288/16-16        6.24GB/s ± 1%  6.97GB/s ± 2%   +11.77%  (p=0.016 n=4+5)
+    RepeatLarge/524288/4097-16      6.14GB/s ± 2%  6.73GB/s ± 3%    +9.50%  (p=0.008 n=5+5)
+    RepeatLarge/1048576/1-16        5.23GB/s ± 1%  6.53GB/s ± 6%   +24.85%  (p=0.008 n=5+5)
+    RepeatLarge/1048576/16-16       5.21GB/s ± 1%  6.56GB/s ± 4%   +25.93%  (p=0.008 n=5+5)
+    RepeatLarge/1048576/4097-16     5.22GB/s ± 1%  6.26GB/s ± 2%   +20.09%  (p=0.008 n=5+5)
+    RepeatLarge/2097152/1-16        3.95GB/s ± 1%  5.96GB/s ± 1%   +51.01%  (p=0.008 n=5+5)
+    RepeatLarge/2097152/16-16       3.94GB/s ± 1%  5.98GB/s ± 2%   +51.99%  (p=0.008 n=5+5)
+    RepeatLarge/2097152/4097-16     4.94GB/s ± 1%  5.71GB/s ± 2%   +15.63%  (p=0.008 n=5+5)
+    RepeatLarge/4194304/1-16        3.10GB/s ± 1%  5.89GB/s ± 1%   +89.90%  (p=0.008 n=5+5)
+    RepeatLarge/4194304/16-16       3.09GB/s ± 1%  5.86GB/s ± 1%   +89.89%  (p=0.008 n=5+5)
+    RepeatLarge/4194304/4097-16     3.13GB/s ± 1%  5.89GB/s ± 1%   +88.36%  (p=0.008 n=5+5)
+    RepeatLarge/8388608/1-16        3.06GB/s ± 1%  6.31GB/s ±16%  +105.84%  (p=0.008 n=5+5)
+    RepeatLarge/8388608/16-16       3.08GB/s ± 1%  6.62GB/s ± 1%  +114.66%  (p=0.008 n=5+5)
+    RepeatLarge/8388608/4097-16     3.13GB/s ± 2%  6.87GB/s ± 1%  +119.62%  (p=0.008 n=5+5)
+    RepeatLarge/16777216/1-16       3.21GB/s ± 3%  5.88GB/s ± 1%   +83.27%  (p=0.008 n=5+5)
+    RepeatLarge/16777216/16-16      3.23GB/s ± 2%  5.84GB/s ± 2%   +80.49%  (p=0.008 n=5+5)
+    RepeatLarge/16777216/4097-16    3.30GB/s ± 6%  5.88GB/s ± 2%   +78.18%  (p=0.008 n=5+5)
+    RepeatLarge/33554432/1-16       3.71GB/s ± 3%  5.91GB/s ± 2%   +59.17%  (p=0.008 n=5+5)
+    RepeatLarge/33554432/16-16      3.67GB/s ± 3%  5.91GB/s ± 2%   +61.13%  (p=0.008 n=5+5)
+    RepeatLarge/33554432/4097-16    3.71GB/s ± 1%  5.77GB/s ± 6%   +55.51%  (p=0.008 n=5+5)
+    RepeatLarge/67108864/1-16       4.61GB/s ±11%  6.00GB/s ± 5%   +30.15%  (p=0.008 n=5+5)
+    RepeatLarge/67108864/16-16      4.62GB/s ± 7%  6.11GB/s ± 2%   +32.35%  (p=0.008 n=5+5)
+    RepeatLarge/67108864/4097-16    4.71GB/s ± 2%  6.24GB/s ± 2%   +32.60%  (p=0.008 n=5+5)
+    RepeatLarge/134217728/1-16      4.53GB/s ± 8%  6.28GB/s ±11%   +38.57%  (p=0.008 n=5+5)
+    RepeatLarge/134217728/16-16     4.78GB/s ± 3%  6.36GB/s ± 3%   +33.16%  (p=0.008 n=5+5)
+    RepeatLarge/134217728/4097-16   4.73GB/s ± 6%  6.46GB/s ± 3%   +36.63%  (p=0.008 n=5+5)
+    RepeatLarge/268435456/1-16      4.09GB/s ±25%  6.37GB/s ±19%   +56.00%  (p=0.008 n=5+5)
+    RepeatLarge/268435456/16-16     4.50GB/s ± 4%  6.86GB/s ± 0%   +52.49%  (p=0.016 n=5+4)
+    RepeatLarge/268435456/4097-16   4.73GB/s ± 5%  6.90GB/s ± 0%   +45.94%  (p=0.008 n=5+5)
+    RepeatLarge/536870912/1-16      4.38GB/s ±36%  6.52GB/s ± 8%   +48.68%  (p=0.008 n=5+5)
+    RepeatLarge/536870912/16-16     4.69GB/s ±12%  6.90GB/s ± 1%   +46.97%  (p=0.008 n=5+5)
+    RepeatLarge/536870912/4097-16   4.87GB/s ± 8%  6.98GB/s ± 0%   +43.36%  (p=0.008 n=5+5)
+    RepeatLarge/1073741824/1-16     3.87GB/s ±28%  6.96GB/s ± 1%   +79.94%  (p=0.016 n=5+4)
+    RepeatLarge/1073741824/16-16    4.79GB/s ± 9%  6.93GB/s ± 0%   +44.79%  (p=0.008 n=5+5)
+    RepeatLarge/1073741824/4097-16  4.65GB/s ± 8%  7.02GB/s ± 1%   +51.02%  (p=0.008 n=5+5)
+    
+    bytes:
+    name                            old speed      new speed      delta
+    RepeatLarge/256/1-16            1.93GB/s ± 1%  1.84GB/s ± 1%    -4.81%  (p=0.000 n=10+10)
+    RepeatLarge/256/16-16           2.25GB/s ± 2%  2.15GB/s ± 1%    -4.45%  (p=0.000 n=9+8)
+    RepeatLarge/512/1-16            2.71GB/s ± 1%  2.62GB/s ± 1%    -3.27%  (p=0.000 n=10+9)
+    RepeatLarge/512/16-16           2.96GB/s ± 4%  2.91GB/s ± 1%      ~     (p=0.243 n=9+10)
+    RepeatLarge/1024/1-16           3.35GB/s ± 1%  3.27GB/s ± 1%    -2.61%  (p=0.000 n=9+10)
+    RepeatLarge/1024/16-16          3.56GB/s ± 2%  3.52GB/s ± 1%    -1.10%  (p=0.010 n=10+9)
+    RepeatLarge/2048/1-16           3.52GB/s ± 1%  3.45GB/s ± 1%    -1.92%  (p=0.000 n=10+10)
+    RepeatLarge/2048/16-16          3.61GB/s ± 1%  3.58GB/s ± 0%    -0.82%  (p=0.008 n=9+8)
+    RepeatLarge/4096/1-16           3.85GB/s ± 2%  3.80GB/s ± 2%      ~     (p=0.165 n=10+10)
+    RepeatLarge/4096/16-16          3.88GB/s ± 3%  3.84GB/s ± 4%      ~     (p=0.393 n=10+10)
+    RepeatLarge/8192/1-16           4.12GB/s ± 2%  4.04GB/s ± 1%    -1.96%  (p=0.000 n=10+10)
+    RepeatLarge/8192/16-16          4.11GB/s ± 2%  4.09GB/s ± 1%      ~     (p=0.278 n=9+10)
+    RepeatLarge/8192/4097-16        4.38GB/s ± 1%  4.39GB/s ± 4%      ~     (p=0.720 n=9+10)
+    RepeatLarge/16384/1-16          5.06GB/s ± 2%  4.95GB/s ± 3%    -2.29%  (p=0.001 n=10+9)
+    RepeatLarge/16384/16-16         5.11GB/s ± 3%  5.06GB/s ± 3%      ~     (p=0.315 n=10+9)
+    RepeatLarge/16384/4097-16       5.22GB/s ± 3%  5.26GB/s ± 3%      ~     (p=0.211 n=9+10)
+    RepeatLarge/32768/1-16          5.54GB/s ± 2%  5.50GB/s ± 3%      ~     (p=0.353 n=10+10)
+    RepeatLarge/32768/16-16         5.55GB/s ± 1%  5.60GB/s ± 1%    +0.91%  (p=0.035 n=10+9)
+    RepeatLarge/32768/4097-16       4.88GB/s ± 2%  4.85GB/s ± 2%      ~     (p=0.447 n=10+9)
+    RepeatLarge/65536/1-16          5.86GB/s ± 1%  5.93GB/s ± 2%    +1.18%  (p=0.043 n=8+10)
+    RepeatLarge/65536/16-16         5.83GB/s ± 2%  5.98GB/s ± 1%    +2.67%  (p=0.000 n=10+10)
+    RepeatLarge/65536/4097-16       5.57GB/s ± 0%  5.56GB/s ± 3%      ~     (p=0.696 n=8+10)
+    RepeatLarge/131072/1-16         6.23GB/s ± 1%  6.38GB/s ± 2%    +2.51%  (p=0.000 n=9+10)
+    RepeatLarge/131072/16-16        6.21GB/s ± 2%  6.37GB/s ± 1%    +2.72%  (p=0.000 n=9+10)
+    RepeatLarge/131072/4097-16      6.04GB/s ± 1%  6.09GB/s ± 3%      ~     (p=0.356 n=9+10)
+    RepeatLarge/262144/1-16         6.47GB/s ± 1%  6.63GB/s ± 2%    +2.57%  (p=0.003 n=10+10)
+    RepeatLarge/262144/16-16        6.45GB/s ± 2%  6.69GB/s ± 2%    +3.65%  (p=0.000 n=10+10)
+    RepeatLarge/262144/4097-16      6.35GB/s ± 1%  6.51GB/s ± 2%    +2.48%  (p=0.000 n=9+10)
+    RepeatLarge/524288/1-16         6.21GB/s ± 2%  6.95GB/s ± 1%   +11.95%  (p=0.000 n=10+10)
+    RepeatLarge/524288/16-16        6.24GB/s ± 2%  6.93GB/s ± 2%   +11.11%  (p=0.000 n=10+10)
+    RepeatLarge/524288/4097-16      6.18GB/s ± 2%  6.82GB/s ± 1%   +10.39%  (p=0.000 n=9+10)
+    RepeatLarge/1048576/1-16        5.34GB/s ± 2%  6.41GB/s ± 2%   +20.05%  (p=0.000 n=10+10)
+    RepeatLarge/1048576/16-16       5.33GB/s ± 1%  6.45GB/s ± 2%   +20.84%  (p=0.000 n=10+9)
+    RepeatLarge/1048576/4097-16     5.28GB/s ± 1%  6.17GB/s ± 2%   +16.75%  (p=0.000 n=10+10)
+    RepeatLarge/2097152/1-16        4.04GB/s ± 1%  6.21GB/s ± 1%   +53.89%  (p=0.000 n=9+8)
+    RepeatLarge/2097152/16-16       4.02GB/s ± 1%  6.20GB/s ± 2%   +54.37%  (p=0.000 n=10+9)
+    RepeatLarge/2097152/4097-16     4.94GB/s ± 1%  6.04GB/s ± 1%   +22.36%  (p=0.000 n=10+10)
+    RepeatLarge/4194304/1-16        3.10GB/s ± 1%  5.74GB/s ± 0%   +85.04%  (p=0.000 n=10+9)
+    RepeatLarge/4194304/16-16       3.10GB/s ± 2%  5.72GB/s ± 1%   +84.26%  (p=0.000 n=9+10)
+    RepeatLarge/4194304/4097-16     3.03GB/s ± 4%  5.61GB/s ± 1%   +85.06%  (p=0.000 n=10+9)
+    RepeatLarge/8388608/1-16        3.08GB/s ± 2%  6.25GB/s ± 1%  +103.09%  (p=0.000 n=9+9)
+    RepeatLarge/8388608/16-16       3.07GB/s ± 2%  6.26GB/s ± 3%  +104.07%  (p=0.000 n=10+9)
+    RepeatLarge/8388608/4097-16     3.08GB/s ± 2%  6.23GB/s ± 2%  +102.09%  (p=0.000 n=9+10)
+    RepeatLarge/16777216/1-16       3.25GB/s ± 2%  5.78GB/s ± 3%   +78.03%  (p=0.000 n=9+9)
+    RepeatLarge/16777216/16-16      3.25GB/s ± 1%  5.75GB/s ± 1%   +77.21%  (p=0.000 n=9+10)
+    RepeatLarge/16777216/4097-16    3.29GB/s ± 3%  5.72GB/s ± 2%   +73.74%  (p=0.000 n=10+10)
+    RepeatLarge/33554432/1-16       3.68GB/s ± 2%  5.90GB/s ± 1%   +60.20%  (p=0.000 n=10+10)
+    RepeatLarge/33554432/16-16      3.69GB/s ± 3%  5.88GB/s ± 1%   +59.54%  (p=0.000 n=10+9)
+    RepeatLarge/33554432/4097-16    3.74GB/s ± 1%  5.94GB/s ± 2%   +58.68%  (p=0.000 n=7+10)
+    RepeatLarge/67108864/1-16       4.62GB/s ±12%  6.11GB/s ± 3%   +32.23%  (p=0.000 n=10+9)
+    RepeatLarge/67108864/16-16      4.77GB/s ± 2%  6.09GB/s ± 2%   +27.88%  (p=0.000 n=9+9)
+    RepeatLarge/67108864/4097-16    4.78GB/s ± 1%  6.19GB/s ± 1%   +29.51%  (p=0.000 n=9+10)
+    RepeatLarge/134217728/1-16      4.60GB/s ±16%  6.52GB/s ± 9%   +41.67%  (p=0.000 n=10+10)
+    RepeatLarge/134217728/16-16     4.80GB/s ± 4%  6.81GB/s ± 2%   +41.82%  (p=0.000 n=10+9)
+    RepeatLarge/134217728/4097-16   4.79GB/s ± 4%  6.81GB/s ± 2%   +42.31%  (p=0.000 n=9+10)
+    RepeatLarge/268435456/1-16      4.43GB/s ±25%  6.27GB/s ±14%   +41.52%  (p=0.000 n=10+10)
+    RepeatLarge/268435456/16-16     4.75GB/s ± 4%  6.68GB/s ± 4%   +40.50%  (p=0.000 n=9+10)
+    RepeatLarge/268435456/4097-16   4.75GB/s ± 3%  6.58GB/s ± 4%   +38.68%  (p=0.000 n=9+10)
+    RepeatLarge/536870912/1-16      4.96GB/s ± 9%  6.39GB/s ±16%   +28.90%  (p=0.000 n=8+10)
+    RepeatLarge/536870912/16-16     4.66GB/s ± 6%  6.57GB/s ± 7%   +40.82%  (p=0.000 n=10+9)
+    RepeatLarge/536870912/4097-16   4.68GB/s ±11%  6.88GB/s ± 3%   +47.01%  (p=0.000 n=10+9)
+    RepeatLarge/1073741824/1-16     4.39GB/s ±23%  6.57GB/s ± 5%   +49.75%  (p=0.000 n=10+8)
+    RepeatLarge/1073741824/16-16    4.73GB/s ±13%  6.89GB/s ± 1%   +45.68%  (p=0.000 n=9+8)
+    RepeatLarge/1073741824/4097-16  4.97GB/s ±15%  6.73GB/s ± 9%   +35.45%  (p=0.000 n=10+10)
+    
+    The results above come from a Intel i9-9980HK (256KB L2) with
+    TurboBoost disabled.
+    
+    Change-Id: I79dd57da0429aee9020ffd7bc458a034b999b740
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419054
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 39 ++++++++++++++++++++++------------
- 1 file changed, 25 insertions(+), 14 deletions(-)
+ src/bytes/bytes.go          | 39 +++++++++++++++++++++++++++++++++------
+ src/bytes/bytes_test.go     | 24 ++++++++++++++++++++++++
+ src/strings/strings.go      | 42 ++++++++++++++++++++++++++++++++++--------
+ src/strings/strings_test.go | 24 ++++++++++++++++++++++++
+ 4 files changed, 115 insertions(+), 14 deletions(-)

@@ -1,13 +1,15 @@
-commit 128eed2749fa1bc38b3b605c9749441a009ac791
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Fri Jun 27 11:21:57 2014 -0700
+commit a7186dc3035dffef8ac9033966da52e4cc935ef0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 26 17:16:43 2014 -0700
 
-    net/http: [Post]FormValue ignores parse errors
+    runtime: improve scheduler trace
+    Output number of spinning threads,
+    this is useful to understanding whether the scheduler
+    is in a steady state or not.
     
-    LGTM=r
-    R=golang-codereviews, bradfitz, r
-    CC=golang-codereviews
-    https://golang.org/cl/102640046
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/103540045
 
- src/pkg/net/http/request.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/runtime/proc.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

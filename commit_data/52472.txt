@@ -1,56 +1,23 @@
-commit ba71817390f78bf8c479dc65d1bc51db98d667a7
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Thu Mar 9 07:54:51 2023 +0000
+commit 27b844f767d4930e6a0f3bf6f793eb89cf43e817
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 18:17:05 2022 -0700
 
-    runtime/trace: enable frame pointer unwinding on amd64
+    cmd/compile: remove ir.CompLitExpr.Ntype field
     
-    Change tracer to use frame pointer unwinding by default on amd64. The
-    expansion of inline frames is delayed until the stack table is dumped at
-    the end of the trace. This requires storing the skip argument in the
-    stack table, which now resides in pcBuf[0]. For stacks that are not
-    produced by traceStackID (e.g. CPU samples), a logicalStackSentinel
-    value in pcBuf[0] indicates that no inline expansion is needed.
+    It's no longer needed, since type expressions are all evaluated by
+    types2. We can just use Node.Type instead.
     
-    Add new GODEBUG=tracefpunwindoff=1 option to use the old unwinder if
-    needed.
-    
-    Benchmarks show a considerable decrease in CPU overhead when using frame
-    pointer unwinding for trace events:
-    
-    GODEBUG=tracefpunwindoff=1 ../bin/go test -run '^$' -bench '.+PingPong' -count 20 -v -trace /dev/null ./runtime | tee tracefpunwindoff1.txt
-    GODEBUG=tracefpunwindoff=0 ../bin/go test -run '^$' -bench '.+PingPong' -count 20 -v -trace /dev/null ./runtime | tee tracefpunwindoff0.txt
-    
-    goos: linux
-    goarch: amd64
-    pkg: runtime
-    cpu: Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz
-                   │ tracefpunwindoff1.txt │        tracefpunwindoff0.txt        │
-                   │        sec/op         │   sec/op     vs base                │
-    PingPongHog-32            3782.5n ± 0%   740.7n ± 2%  -80.42% (p=0.000 n=20)
-    
-    For #16638
-    
-    Change-Id: I2928a2fcd8779a31c45ce0f2fbcc0179641190bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463835
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Change-Id: If523bd96f96fc4f2337a26f563f84e4f194e654a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403841
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/asm_amd64.s      |   4 ++
- src/runtime/asm_arm64.s      |   4 ++
- src/runtime/extern.go        |   5 ++
- src/runtime/os_js.go         |   3 +
- src/runtime/runtime1.go      |   2 +
- src/runtime/stubs_386.go     |   3 +
- src/runtime/stubs_amd64.go   |   4 ++
- src/runtime/stubs_arm.go     |   3 +
- src/runtime/stubs_arm64.go   |   4 ++
- src/runtime/stubs_loong64.go |   3 +
- src/runtime/stubs_mips64x.go |   3 +
- src/runtime/stubs_mipsx.go   |   3 +
- src/runtime/stubs_ppc64x.go  |   3 +
- src/runtime/stubs_riscv64.go |   3 +
- src/runtime/stubs_s390x.go   |   3 +
- src/runtime/trace.go         | 151 +++++++++++++++++++++++++++++++++++++------
- 16 files changed, 183 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ir/expr.go             |  3 +-
+ src/cmd/compile/internal/ir/fmt.go              |  7 +----
+ src/cmd/compile/internal/ir/node_gen.go         |  6 ----
+ src/cmd/compile/internal/typecheck/expr.go      | 23 ++-------------
+ src/cmd/compile/internal/typecheck/iimport.go   |  9 ++----
+ src/cmd/compile/internal/typecheck/typecheck.go | 38 -------------------------
+ 6 files changed, 7 insertions(+), 79 deletions(-)

@@ -1,12 +1,18 @@
-commit 66fdf433b09c72e29b7e5bb5238ec9b3cf745479
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:50:29 2016 +0200
+commit d185cc3b643abbd88efcc1d9b92c87422a25d955
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 12 13:27:31 2016 -0400
 
-    cmd/internal/sys: add support for GOARCH=mips{,le}
+    cmd/link: disable internal PIE for now
     
-    Change-Id: I8c6b8839c68818430510702719dca15b8d748fb8
-    Reviewed-on: https://go-review.googlesource.com/31473
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    There's more work to do.
+    
+    Updates #17068
+    
+    Change-Id: I4e16c0e8e9ac739e1fe266224c3769f6c5b2e070
+    Reviewed-on: https://go-review.googlesource.com/29076
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/sys/arch.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

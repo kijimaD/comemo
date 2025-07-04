@@ -1,19 +1,19 @@
-commit 250977690bbd86b7af22b4feb69c409996d3d3f5
+commit 677935034962a5a89eb92fdfe5d96b41cf5e6b71
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 16 13:21:20 2011 -0500
+Date:   Wed Feb 16 13:21:13 2011 -0500
 
-    runtime: fix memory allocator for GOMAXPROCS > 1
+    runtime: minor cleanup
     
-    Bitmaps were not being updated safely.
-    Depends on 4188053.
+    implement runtime.casp on amd64.
+    keep simultaneous panic messages separate.
     
-    Fixes #1504.
-    May fix issue 1479.
-    
-    R=r, r2
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4184048
+    https://golang.org/cl/4188053
 
- src/pkg/runtime/malloc.goc |  8 ++++++-
- src/pkg/runtime/mgc0.c     | 58 +++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 56 insertions(+), 10 deletions(-)
+ src/pkg/runtime/amd64/asm.s | 20 ++++++++++++++++++++
+ src/pkg/runtime/mfinal.c    |  4 +++-
+ src/pkg/runtime/proc.c      | 17 +++++++++--------
+ src/pkg/runtime/runtime.c   | 39 ++++++++++++++++++++++++++++++++-------
+ src/pkg/runtime/runtime.h   |  4 +++-
+ 5 files changed, 67 insertions(+), 17 deletions(-)

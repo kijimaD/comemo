@@ -1,22 +1,40 @@
-commit bba7396fbd4c3245dbedd3cc2a1fb25137331ebb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Oct 3 15:19:04 2011 -0700
+commit e419535f2ae5c8aef1f64cdb207049c8712ffb48
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 3 17:46:36 2011 -0400
 
-    strings: implement a faster byte->string Replacer
+    5g, 6g, 8g: registerize variables again
     
-    This implements a replacer for when all old strings are single
-    bytes, but new values are not.
+    My previous CL:
     
-    BenchmarkHTMLEscapeNew   1000000   1090 ns/op
-    BenchmarkHTMLEscapeOld   1000000   2049 ns/op
+    changeset:   9645:ce2e5f44b310
+    user:        Russ Cox <rsc@golang.org>
+    date:        Tue Sep 06 10:24:21 2011 -0400
+    summary:     gc: unify stack frame layout
     
-    R=rsc
+    introduced a bug wherein no variables were
+    being registerized, making Go programs 2-3x
+    slower than they had been before.
+    
+    This CL fixes that bug (along with some others
+    it was hiding) and adds a test that optimization
+    makes at least one test case faster.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5176043
+    https://golang.org/cl/5174045
 
- src/pkg/http/header.go           |   5 +-
- src/pkg/http/server.go           |  15 +++---
- src/pkg/mime/multipart/writer.go |   6 +--
- src/pkg/strings/replace.go       | 110 ++++++++++++++++++++++++++++++++++++++-
- src/pkg/strings/replace_test.go  |  32 +++++++++++-
- 5 files changed, 154 insertions(+), 14 deletions(-)
+ src/cmd/5g/gobj.c                |  2 ++
+ src/cmd/5g/gsubr.c               |  7 +++--
+ src/cmd/5g/reg.c                 | 12 +++++----
+ src/cmd/6g/gobj.c                |  2 ++
+ src/cmd/6g/gsubr.c               |  7 +++--
+ src/cmd/6g/reg.c                 | 13 +++++----
+ src/cmd/8g/gobj.c                |  2 ++
+ src/cmd/8g/gsubr.c               |  8 ++++--
+ src/cmd/8g/reg.c                 | 12 +++++----
+ src/cmd/gc/bits.c                |  4 +--
+ src/cmd/gc/gen.c                 |  1 +
+ src/cmd/gc/obj.c                 |  1 +
+ test/fixedbugs/bug369.dir/pkg.go | 15 +++++++++++
+ test/fixedbugs/bug369.go         | 57 ++++++++++++++++++++++++++++++++++++++++
+ 14 files changed, 120 insertions(+), 23 deletions(-)

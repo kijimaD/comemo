@@ -1,15 +1,17 @@
-commit ad7dea1e96fdebc682b10e02dd14456cdccf4dfa
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 19 11:50:53 2011 -0400
+commit f554c90cefd27ba6ee884d00dd4c55fa10a86202
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 19 11:50:45 2011 -0400
 
-    gc: handle complex CONVNOP
+    8l: remove left over debugging
     
-    Fixes #2256.
+            This line was triggering a null dereference warning
+            under clang-3.0. The line was added in a46819aa9150
+            but compared to it's sibling in 6l it appears to be
+            leftover debugging.
     
-    R=ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5044047
+    https://golang.org/cl/5049042
 
- src/cmd/gc/cplx.c |  3 +++
- test/ken/cplx2.go | 12 ++++++++++++
- 2 files changed, 15 insertions(+)
+ src/cmd/8l/asm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,24 @@
-commit 7a92287a4812853e4591e7054dd9b1bcf25f2066
+commit 8d64e73f9417f945419217b0723dfda3435a8e02
 Author: Rob Pike <r@golang.org>
-Date:   Sat Jun 4 09:28:27 2011 +1000
+Date:   Sat Jun 4 07:46:22 2011 +1000
 
-    unicode: for consistency with MaxRune, s/Latin1Max/MaxLatin1/ and
-    s/ASCIIMax/MaxASCII/
+    unicode: add the first few property tests for printing.
     
-    R=golang-dev, r, gri
+    The long-term goal is that %q will use IsPrint to decide
+    what to show natively vs. as hexadecimal.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4539109
+    https://golang.org/cl/4526095
 
- src/pkg/unicode/digit.go        |  2 +-
- src/pkg/unicode/digit_test.go   |  2 +-
- src/pkg/unicode/graphic.go      | 16 ++++++++--------
- src/pkg/unicode/graphic_test.go | 20 ++++++++++----------
- src/pkg/unicode/letter.go       | 18 +++++++++---------
- src/pkg/unicode/letter_test.go  |  2 +-
- src/pkg/unicode/maketables.go   |  4 ++--
- src/pkg/unicode/tables.go       |  2 +-
- 8 files changed, 33 insertions(+), 33 deletions(-)
+ src/pkg/unicode/Makefile        |    1 +
+ src/pkg/unicode/digit.go        |    2 +-
+ src/pkg/unicode/digit_test.go   |    2 +-
+ src/pkg/unicode/graphic.go      |  132 ++++
+ src/pkg/unicode/graphic_test.go |  122 +++
+ src/pkg/unicode/letter.go       |   43 +-
+ src/pkg/unicode/letter_test.go  |    2 +-
+ src/pkg/unicode/maketables.go   |  105 ++-
+ src/pkg/unicode/script_test.go  |   17 +-
+ src/pkg/unicode/tables.go       | 1623 ++++++++++++++++++++++++++++++---------
+ 10 files changed, 1634 insertions(+), 415 deletions(-)

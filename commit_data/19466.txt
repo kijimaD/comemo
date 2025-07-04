@@ -1,16 +1,56 @@
-commit aad4609c086cc5069aecb66cd1b7c32700fda1d5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 30 07:56:05 2014 -0700
+commit 9dd062b82e9fc126c787449cc3b4730d0d0525c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 28 21:46:20 2014 -0400
 
-    runtime: add zero field to rtype
+    undo CL 102820043 / b0ce6dbafc18
     
-    The rtype struct is meant to be a copy of reflect.rtype.  The
-    zero field was added to reflect.rtype in 18495:6e50725ac753.
+    Breaks 386 and arm builds.
+    The obvious reason is that this CL only edited 6g/gsubr.c
+    and failed to edit 5g/gsubr.c and 8g/gsubr.c.
+    However, the obvious CL applying the same edit to those
+    files (CL 101900043) causes mysterious build failures
+    in various of the standard package tests, usually involving
+    reflect. Something deep and subtle is broken but only on
+    the 32-bit systems.
     
-    LGTM=rsc
-    R=khr, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/93660045
+    Undo this CL for now.
+    
+    ««« original CL description
+    cmd/gc: fix x=x crash
+    
+    The 'nodarg' function is used to obtain a Node*
+    representing a function argument or result.
+    It returned a brand new Node*, but that violates
+    the guarantee in most places in the compiler that
+    two Node*s refer to the same variable if and only if
+    they are the same Node* pointer. Reestablish that
+    invariant by making nodarg return a preexisting
+    named variable if present.
+    
+    Having fixed that, avoid any copy during x=x in
+    componentgen, because the VARDEF we emit
+    before the copy marks the lhs x as dead incorrectly.
+    
+    The change in walk.c avoids modifying the result
+    of nodarg. This was the only place in the compiler
+    that did so.
+    
+    Fixes #8097.
+    
+    LGTM=r, khr
+    R=golang-codereviews, r, khr
+    CC=golang-codereviews, iant
+    https://golang.org/cl/102820043
+    »»»
+    
+    TBR=r
+    CC=golang-codereviews, khr
+    https://golang.org/cl/95660043
 
- src/pkg/runtime/type.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/5g/cgen.c  |  8 --------
+ src/cmd/6g/cgen.c  |  7 -------
+ src/cmd/6g/gsubr.c |  9 ---------
+ src/cmd/8g/cgen.c  |  7 -------
+ src/cmd/gc/walk.c  |  3 +--
+ test/live.go       | 26 --------------------------
+ 6 files changed, 1 insertion(+), 59 deletions(-)

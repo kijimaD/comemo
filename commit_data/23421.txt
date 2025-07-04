@@ -1,14 +1,12 @@
-commit ee1ef8fe676e20c82d381b839b02e8967f1dcf43
-Author: ALTree <alb.donizetti@gmail.com>
-Date:   Thu Jun 18 17:22:25 2015 +0200
+commit f6d1009431c4d4677a292be5a78f57c239929d4b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 13 10:06:20 2015 +0900
 
-    math/big: Add small complete example of big.Float usage
+    doc: mention net.SocketConn, net.SocketPacketConn in go1.5.txt
     
-    Updates #11241
-    
-    Change-Id: I573be85d0cfcf410f6125ecd2be8a3d292c40bbb
-    Reviewed-on: https://go-review.googlesource.com/11245
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I6bda19877ae5148ad349cfb8929f1103740422bb
+    Reviewed-on: https://go-review.googlesource.com/10005
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/example_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 47 insertions(+)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

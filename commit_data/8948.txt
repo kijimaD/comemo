@@ -1,12 +1,13 @@
-commit 1e6d946594953e5bc7f4b33c52b0d6280ff6c0bd
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Jul 6 13:08:52 2011 +1000
+commit 329990d52509cd454022e0b6bbcd06e5b7092dc6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 6 11:02:53 2011 +1000
 
-    html: parse start tags that aren't explicitly otherwise dealt with.
+    exp/template: remove the need for a goroutine.
     
-    R=golang-dev, nigeltao
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4626080
+    https://golang.org/cl/4626095
 
- src/pkg/html/parse.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/exp/template/lex.go      | 25 +++++++++++++------------
+ src/pkg/exp/template/lex_test.go |  9 +++++++--
+ 2 files changed, 20 insertions(+), 14 deletions(-)

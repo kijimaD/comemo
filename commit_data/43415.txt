@@ -1,19 +1,20 @@
-commit 214136b7412d56151d5443741feb0ed873facf2e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 21 10:07:02 2020 -0400
+commit 2681efaf0e0457ef7f4246033fe0e97e8d352172
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 31 10:49:31 2020 -0700
 
-    cmd/go/internal/fsys: use a root other than "." in Walk tests
+    os/signal, runtime: remove runtime sigqueue initialization
     
-    Fixes #42115
+    We can initialize the runtime sigqueue packages on first use.
+    We don't require an explicit initialization step. So, remove it.
     
-    Change-Id: Icf4c9eac5ed3295acbc8377c7a06f82c6bddc747
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264177
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I484e02dc2c67395fd5584f35ecda2e28b37168df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226540
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/fsys/fsys_test.go | 74 +++++++++++++++++++----------------
- 1 file changed, 40 insertions(+), 34 deletions(-)
+ src/os/signal/signal.go       | 14 ++++++++------
+ src/os/signal/signal_plan9.go |  4 +---
+ src/os/signal/signal_unix.go  |  2 --
+ src/runtime/sigqueue.go       |  9 +++------
+ src/runtime/sigqueue_plan9.go |  5 +----
+ 5 files changed, 13 insertions(+), 21 deletions(-)

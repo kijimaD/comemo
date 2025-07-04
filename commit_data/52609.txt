@@ -1,28 +1,40 @@
-commit 05cd6cbb98a78f04fcfe018527fc8a50364bd0ee
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Apr 7 06:15:59 2023 +1000
+commit 016d7552138077741a9c3fdadc73c0179f5d3ff7
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 28 15:50:52 2021 -0700
 
-    cmd/asm,cmd/internal/obj/x86: add RDPID instruction to x86 assembler
+    runtime: measure stack usage; start stacks larger if needed
     
-    Add support for the Read Processor ID (RDPID) instruction to the x86
-    assembler. This returns the current logical processor's ID in the
-    specified register, as a faster alternative to RDTSCP.
+    Measure the average stack size used by goroutines at every GC. When
+    starting a new goroutine, allocate an initial goroutine stack of that
+    average size. Intuition is that we'll waste at most 2x in stack space
+    because only half the goroutines can be below average. In turn, we
+    avoid some of the early stack growth / copying needed in the average
+    case.
     
-    Fixes #56525
+    More details in the design doc at: https://docs.google.com/document/d/1YDlGIdVTPnmUiTAavlZxBI1d9pwGQgZT7IKFKlIXohQ/edit?usp=sharing
     
-    Change-Id: I43482e42431dfc385ce2e7f6d44b9746b0cc4548
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482955
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    name        old time/op  new time/op  delta
+    Issue18138  95.3µs ± 0%  67.3µs ±13%  -29.35%  (p=0.000 n=9+10)
+    
+    Fixes #18138
+    
+    Change-Id: Iba34d22ed04279da7e718bbd569bbf2734922eaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345889
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/asm/internal/asm/testdata/386enc.s         | 3 +++
- src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 4 ++++
- src/cmd/asm/internal/asm/testdata/amd64error.s     | 3 +++
- src/cmd/internal/obj/x86/aenum.go                  | 1 +
- src/cmd/internal/obj/x86/anames.go                 | 1 +
- src/cmd/internal/obj/x86/asm6.go                   | 3 ++-
- src/cmd/internal/obj/x86/obj6.go                   | 1 +
- 7 files changed, 15 insertions(+), 1 deletion(-)
+ src/runtime/export_test.go         |  2 +-
+ src/runtime/metrics.go             |  6 +++++
+ src/runtime/metrics/description.go |  6 +++++
+ src/runtime/metrics/doc.go         |  3 +++
+ src/runtime/mgc.go                 |  4 +++-
+ src/runtime/mgcmark.go             | 24 ++++++++++++-------
+ src/runtime/mgcpacer.go            | 48 +++++++++++++++++++-------------------
+ src/runtime/proc.go                | 17 +++++++++++---
+ src/runtime/runtime1.go            |  3 +++
+ src/runtime/runtime2.go            | 16 +++++++++----
+ src/runtime/stack.go               | 46 ++++++++++++++++++++++++++++++++++++
+ src/runtime/stack_test.go          | 33 ++++++++++++++++++++++++++
+ 12 files changed, 167 insertions(+), 41 deletions(-)

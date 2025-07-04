@@ -1,17 +1,15 @@
-commit b1159bad99db43e3f1b114e16c913d0e28387160
+commit a6ad626bac7b32ded33b493cabc905b249a8de5a
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 11 11:08:20 2019 -0500
+Date:   Mon Jun 24 17:47:52 2019 -0400
 
-    cmd/dist: write binaries to to GOTMPDIR instead of GOROOT in runHostTest
+    doc/go1.13: describe changes to 'go get'
     
-    Updates #32407
-    Updates #28387
+    Also fix up markup in the “Version validation” section to correct
+    indentation on Chrome.
     
-    Change-Id: I2ab933896940787b67ab5464c8213670e6e108c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206459
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib930d324567c086bbd0c67b105272bdfcca77b12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183630
     Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/test.go | 24 +++++++++++++++++++++---
- 1 file changed, 21 insertions(+), 3 deletions(-)
+ doc/go1.13.html | 103 ++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 77 insertions(+), 26 deletions(-)

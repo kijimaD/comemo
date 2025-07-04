@@ -1,19 +1,12 @@
-commit be8a1c61392c97328db0026c7c80cd7d69c0aa36
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Sep 3 16:31:56 2016 -0700
+commit c5a95e47a02fa32a5a560d1e1cccc30f0a502dda
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed May 4 12:48:20 2016 -0400
 
-    test: add test for issue 15895
+    doc: update go1.7.txt
     
-    It was fixed earlier in the Go 1.8 cycle.
-    Add a test.
-    
-    Fixes #15895
-    
-    Change-Id: I5834831235d99b9fcf21b435932cdd7ac6dc2c6e
-    Reviewed-on: https://go-review.googlesource.com/28476
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I78efbfe0d7e9825126109a568c99f548a099b0fb
+    Reviewed-on: https://go-review.googlesource.com/22771
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- test/fixedbugs/issue15895.go | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ doc/go1.7.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

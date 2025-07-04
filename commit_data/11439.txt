@@ -1,12 +1,13 @@
-commit c4303aa59ff4c6ddb350a7d670e455426c16962b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 27 16:11:17 2012 -0500
+commit 68aff958ae7076ded8b4f051554106625c8dd56d
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jan 27 10:12:27 2012 -0800
 
-    reflect: add comment about Type.Field allocation
+    doc: update Go1 release notes in light of the crypto/hmac change.
     
-    R=golang-dev, bradfitz, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5586044
+    https://golang.org/cl/5532108
 
- src/pkg/reflect/type.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ doc/go1.html | 13 +++++++++++++
+ doc/go1.tmpl | 13 +++++++++++++
+ 2 files changed, 26 insertions(+)

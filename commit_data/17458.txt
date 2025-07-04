@@ -1,16 +1,15 @@
-commit 8272c14f7e70fef1dd102e10936577d5156d649f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Sep 3 09:11:25 2013 -0700
+commit 23f9751e832e47fa3f433485f9c7e93cb7a92817
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 31 14:09:34 2013 -0700
 
-    net/http: sniff less
+    runtime: clean up map code.  Remove hashmap.h.
+    Use cnew/cnewarray instead of mallocgc.
     
-    We were reading 1024 bytes but only using 512.
-    
-    Fixes #6311
-    
-    R=golang-dev, iant
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/13289047
+    https://golang.org/cl/13396045
 
- src/pkg/net/http/fs.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/runtime/hashmap.c | 19 +++++++++----------
+ src/pkg/runtime/hashmap.h |  4 ----
+ src/pkg/runtime/mgc0.c    |  1 -
+ 3 files changed, 9 insertions(+), 15 deletions(-)

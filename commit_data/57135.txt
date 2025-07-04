@@ -1,23 +1,20 @@
-commit 3de175f38348f82f6cc7bfb49c3609e72a5f8f41
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 9 13:11:03 2024 -0700
+commit b3ca8d2b3c78d36595c534de0ca604e7d3e37123
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jun 25 22:59:33 2023 +0700
 
-    cmd/compile: in prove pass, check for unsat before adding local facts
+    types2, go/types: record final type for min/max arguments
     
-    Local facts can get us to unsatisfiable because there is an
-    unconditional panic in the block. That shouldn't declare the whole
-    block as unreachable, because we do still need to enter it to get
-    that panic.
+    Fixes #60991
     
-    Fixes #68816
-    
-    Change-Id: I9220edb46089690702d2eb61d112815c7ac91f16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604118
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Change-Id: I6130ccecbdc209996dbb376491be9df3b8988327
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506055
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go |  6 ++---
- test/fixedbugs/issue68816.go          | 41 +++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go |  5 +++++
+ src/go/types/builtins.go                    |  5 +++++
+ test/fixedbugs/issue60991.go                | 13 +++++++++++++
+ 3 files changed, 23 insertions(+)

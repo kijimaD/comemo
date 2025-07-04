@@ -1,30 +1,18 @@
-commit 0c428a56176353d52170f318e998f342b08dacd2
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 10 22:34:17 2015 -0500
+commit 26205cb3c098b4d02d658658fd938f58e8dcdd68
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Oct 19 12:53:36 2015 -0400
 
-    go/build: support vendor directories in Import
+    cmd/link: PIE executables for android/arm
     
-    This fix, plus a one-line change to golang.org/x/tools/go/loader,
-    is sufficient to let that loader package process source code
-    using vendored packages. For example,
+    For #10807
     
-            GOPATH="" ssadump net/http # uses vendored http2
-    
-    used to fail, not able to find net/http's import of the vendored
-    copy of golang.org/x/net/http2/hpack.
-    
-    This CL plus the fix to loader (CL 17727) suffices to get ssadump working,
-    as well as - I expect - most other source code processing built
-    on golang.org/x/tools/go/loader.
-    
-    Fixes #12278.
-    
-    Change-Id: I83715e757419171159f67d49bb453636afdd91f0
-    Reviewed-on: https://go-review.googlesource.com/17726
+    Change-Id: Ied826d06cb622edf6413b6f2cdcc46987ab0b05a
+    Reviewed-on: https://go-review.googlesource.com/16054
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/pkg.go          | 56 +++++++++++------------------
- src/cmd/go/vendor_test.go  |  2 +-
- src/go/build/build.go      | 89 +++++++++++++++++++++++++++++++++++++++-------
- src/go/build/build_test.go | 27 ++++++++++++++
- 4 files changed, 124 insertions(+), 50 deletions(-)
+ src/cmd/link/internal/ld/elf.go    |  5 +----
+ src/cmd/link/internal/ld/lib.go    | 28 ++++++++++++++++++++++++----
+ src/cmd/link/internal/ld/symtab.go |  5 +++--
+ 3 files changed, 28 insertions(+), 10 deletions(-)

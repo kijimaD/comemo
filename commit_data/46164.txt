@@ -1,17 +1,18 @@
-commit bf0bc4122fd4b3a75c2f9c107895cd5e2f89b90e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 24 13:52:07 2021 -0700
+commit e508c1c67b02dceea146ce3472c0f8ce9e60632c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Dec 8 04:23:36 2020 +1100
 
-    go/types, types2: don't re-evaluate context string for each function argument (optimization)
+    cmd/link/internal/loadelf: support additional ELF relocations on mips64
     
-    Change-Id: Ie1b4d5b64350ea42484adea14df84cacd1d2653b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344576
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    LLVM on openbsd/mips64 generates R_MIPS_GOT_HI16 and R_MIPS_GOT_LO16 relocations,
+    so teach cmd/link/internal/loadelf about both of these.
+    
+    Updates #43005
+    
+    Change-Id: Ic45ea8b901d44dcbdbf355411ee434dcd7670a92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275894
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/call.go | 7 +++++--
- src/go/types/call.go                    | 7 +++++--
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/loadelf/ldelf.go | 4 ++++
+ 1 file changed, 4 insertions(+)

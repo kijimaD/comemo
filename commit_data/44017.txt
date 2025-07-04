@@ -1,20 +1,15 @@
-commit a508840c671f4ec4b923daa04c0ac17378ab52b4
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Dec 15 10:41:54 2020 +0100
+commit 8f697c7ac8e077e8b8d856aa25ad410fab312892
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 29 18:41:30 2020 -0400
 
-    doc/go1.16: fix path, path/filepath release notes
+    [dev.link] cmd/link: use new reloc pass on MIPS64
     
-    The path package doesn't have a Glob function. Adjust the release notes
-    re. CL 264397 accordingly.
-    
-    Also add links to the documentation of all mentioned functions.
-    
-    For #40700.
-    
-    Change-Id: Ibf3e0530fa6fab36a3f6fbc664f0800869ce9ec7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278213
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I1c5da63d88e917877c70c1783bb350a697d6e207
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231937
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.16.html | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/data.go    |  8 ++---
+ src/cmd/link/internal/ld/main.go    |  2 +-
+ src/cmd/link/internal/mips64/asm.go | 64 ++++++++++++++++++-------------------
+ src/cmd/link/internal/mips64/obj.go |  2 +-
+ 4 files changed, 38 insertions(+), 38 deletions(-)

@@ -1,21 +1,31 @@
-commit fdc9cf3c3aaf779387f0341125680f018e5f0275
-Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
-Date:   Wed Aug 9 08:15:51 2023 -0700
+commit e2f602003bb81dc3385c488a6635e2504d0abfbd
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 7 00:50:53 2022 +0200
 
-    runtime/pprof: fix build breakage on ios
+    internal/poll, syscall: convert writev to direct libc call on openbsd (except mips64)
     
-    CL 503919 breaks tests for ios, this change fixes that.
+    Add and use a writev libc wrapper instead of using syscall(2).
     
-    Fixes #61891
+    Updates golang/go#36435
     
-    Change-Id: I58508a780abb7a2150faec83c0f002cb22abafb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517795
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I3c67665388ac276d9ef36868e368e91efb92800e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428776
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/runtime/pprof/proto_test.go         | 2 +-
- src/runtime/pprof/vminfo_darwin_test.go | 7 +++++--
- 2 files changed, 6 insertions(+), 3 deletions(-)
+ .../poll/{fd_writev_darwin.go => fd_writev_libc.go} |  4 +---
+ src/internal/poll/fd_writev_unix.go                 |  2 +-
+ src/syscall/syscall_openbsd.go                      |  1 +
+ src/syscall/zsyscall_openbsd_386.go                 | 21 +++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_386.s                  |  2 ++
+ src/syscall/zsyscall_openbsd_amd64.go               | 21 +++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_amd64.s                |  2 ++
+ src/syscall/zsyscall_openbsd_arm.go                 | 21 +++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_arm.s                  |  2 ++
+ src/syscall/zsyscall_openbsd_arm64.go               | 21 +++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_arm64.s                |  2 ++
+ 11 files changed, 95 insertions(+), 4 deletions(-)

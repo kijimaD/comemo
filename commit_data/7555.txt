@@ -1,12 +1,13 @@
-commit 162d510d7e8d67c5a144e728c5866b7703bc317c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 24 10:17:45 2011 +1100
+commit c7978584c3a8ec6a41ef06632ef8dd2b6dcad2ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 23 15:03:30 2011 -0800
 
-    net: *netFD.Read to return os.EOF on eof (fixes windows build)
+    http: set method GET on Get() requests
     
-    R=golang-dev, rsc
+    R=adg, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4210041
+    https://golang.org/cl/4229042
 
- src/pkg/net/fd_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/client.go      |  3 +++
+ src/pkg/http/client_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

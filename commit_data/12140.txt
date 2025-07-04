@@ -1,14 +1,18 @@
-commit 024df9f6c4abbfa2ba2a753d8231f52e99ca6ebc
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Wed Feb 22 17:10:25 2012 -0200
+commit 0c2f3b7ffdae1c796f077c08d0cf4b5e7830ee4a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 22 10:49:37 2012 -0800
 
-    cgo: fix definition of opaque types
+    go/doc: move firstSentence into go/doc
     
-    Fixes #3082.
+    - renamed firstSentence -> Synopsis
+    - also deal with common abbreviations
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5683074
+    https://golang.org/cl/5676088
 
- src/cmd/cgo/gcc.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/pkg.go               | 29 ++---------------------
+ src/cmd/godoc/dirtrees.go       |  3 ++-
+ src/pkg/go/doc/synopsis.go      | 52 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/synopsis_test.go | 44 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 100 insertions(+), 28 deletions(-)

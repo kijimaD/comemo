@@ -1,19 +1,18 @@
-commit 92a63bdfee9f8347df70293e5733661ae31ae285
-Author: Andy Pan <i@andypan.me>
-Date:   Wed Mar 5 16:14:42 2025 +0800
+commit 6a861010be9eed02d5285509cbaf3fb26d2c5041
+Author: Zxilly <zxilly@outlook.com>
+Date:   Wed Jan 24 21:27:41 2024 +0000
 
-    runtime: explicitly disable async preempt for internal/runtime
+    debug/gosym: add detailed doc for text argument in NewLineTable
     
-    For #71591
-    Relevant CL 560155
+    Fixes #65232
     
-    Change-Id: Iebc497d56b36d50c13a6dd88e7bca4578a03cf63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654916
+    Change-Id: I9ef76355cec4bea2d77811a69c61c1806c486be8
+    GitHub-Last-Rev: 9c617b65be9b01e9708e05a540316f98c8a0d165
+    GitHub-Pull-Request: golang/go#65263
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557957
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/cmd/internal/objabi/pkgspecial.go |  3 +++
- src/runtime/preempt.go                | 11 +++++++++--
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ src/debug/gosym/pclntab.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

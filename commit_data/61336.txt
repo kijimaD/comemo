@@ -1,0 +1,30 @@
+commit b5fec2cf54ff9f7b562cb904a2a025266aec2763
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 17 18:00:21 2024 -0400
+
+    cmd/compile,runtime: add indirect key/elem to swissmap
+    
+    We use the same heuristics as existing maps.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I44bb51483cae2c1714717f1b501850fb9e55a39a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616461
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  28 ++++-
+ src/internal/abi/map_swiss.go                     |  13 +++
+ src/internal/runtime/maps/export_test.go          |   6 +-
+ src/internal/runtime/maps/map.go                  |  66 +++++++++++-
+ src/internal/runtime/maps/map_test.go             |  71 +++++++++++++
+ src/internal/runtime/maps/runtime.go              |   3 +
+ src/internal/runtime/maps/runtime_swiss.go        |  26 ++++-
+ src/internal/runtime/maps/table.go                | 120 +++++++++++++++++++++-
+ src/internal/runtime/maps/table_debug.go          |   3 +
+ src/reflect/map_swiss.go                          |  16 ++-
+ src/runtime/malloc.go                             |   5 +
+ 11 files changed, 343 insertions(+), 14 deletions(-)

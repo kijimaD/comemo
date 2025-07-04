@@ -1,21 +1,27 @@
-commit 2d26a65f8f1a6fcb0948803589061d99b94fa993
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Apr 5 10:07:41 2018 +1200
+commit 5bd66e5e1e815f25b1a3973220ba803cfeeb98e4
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Thu Nov 2 19:17:39 2017 -0400
 
-    cmd/link: do not pass -no-pie to host linker when -linkshared is passed
+    cmd/trace: compute pprof-style output per goroutine type
     
-    As the comment above the code I'm changing says, when building with
-    -buildmode=exe, the default compiler flags produce code incompatible with PIE.
-    But when -linkshared is passed, the default compiler flags are not used so this
-    does not apply. And now I've found a system (linux/arm64 with glibc 2.27) where
-    this combination of flags causes a problem, albeit for reasons I don't really
-    understand, so stop passing -no-pie when -linkshared is passed.
+    The trace command computes IO, Schedule, Block, and Syscall profiles
+    by following the unblocking links in the execution trace and summing
+    up the duration.  This change offers variations of those profiles
+    that include only selected goroutine types. The id parameter takes the
+    goroutine type - i.e. pc of the goroutine.
     
-    Change-Id: I412ec7941dc0cb89e6d1b171fc29288aadcb9f20
-    Reviewed-on: https://go-review.googlesource.com/104815
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The output is available from the /goroutine view. So, users can see
+    where the goroutines of interest typically block.
+    
+    Also, these profiles are available for download so users can use
+    pprof or other tools to interpret the output. This change adds links
+    for download of global profile in the main page.
+    
+    Change-Id: I35699252056d164e60de282b0406caf96d629c85
+    Reviewed-on: https://go-review.googlesource.com/75710
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/trace/goroutines.go | 17 +++++----
+ src/cmd/trace/main.go       | 12 +++---
+ src/cmd/trace/pprof.go      | 92 +++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 101 insertions(+), 20 deletions(-)

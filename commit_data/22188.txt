@@ -1,22 +1,13 @@
-commit 9b0ea6aa271c811abc180eb46a4d114890870ec5
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 24 11:51:24 2015 -0400
+commit b1517c39fbde96508b93588ae66b02a09915590b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Feb 27 09:08:35 2015 -0500
 
-    runtime: remove write barrier on G in sighandler
+    crypto/x509: skip tests not made for darwin/arm
     
-    sighandler may run during a stop-the-world without a P, so it's not
-    allowed to have write barriers. Fix the G write to disable the write
-    barrier (this is safe because the G is reachable from allgs) and mark
-    the function nowritebarrier.
-    
-    Change-Id: I907f05d3829e24eeb15fa4d020598af36710e87e
-    Reviewed-on: https://go-review.googlesource.com/8020
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I8b18dc840425b72d7172a35cb0ba004bd156492d
+    Reviewed-on: https://go-review.googlesource.com/6252
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/runtime/os3_plan9.go     | 4 +++-
- src/runtime/signal_386.go    | 4 +++-
- src/runtime/signal_amd64x.go | 4 +++-
- src/runtime/signal_arm.go    | 4 +++-
- src/runtime/signal_arm64.go  | 4 +++-
- src/runtime/signal_ppc64x.go | 4 +++-
- 6 files changed, 18 insertions(+), 6 deletions(-)
+ src/crypto/x509/root_darwin_test.go | 9 ++++++++-
+ src/crypto/x509/x509_test.go        | 4 ++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

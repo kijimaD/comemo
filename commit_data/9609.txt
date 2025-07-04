@@ -1,15 +1,14 @@
-commit f2460a8c5797888638ee5073460580d494470939
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Sep 7 19:03:11 2011 +0200
+commit e85fb2137b6e824e47a6791502900e0174a5a79e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Sep 7 14:10:14 2011 +1000
 
-    gc: treat DOTMETH like DOT in escape analysis.
+    weekly.html: remove note about exp/template -> template move.
     
-    Fixes #2225
+    It actually occurred with the previous weekly snapshot.
     
-    R=rsc, nigeltao, dave
-    CC=bradfitz, golang-dev, mikioh.mikioh
-    https://golang.org/cl/4972056
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4961066
 
- src/cmd/gc/esc.c | 2 ++
- test/escape2.go  | 8 ++++++++
- 2 files changed, 10 insertions(+)
+ doc/devel/weekly.html | 1 -
+ 1 file changed, 1 deletion(-)

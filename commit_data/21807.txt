@@ -1,51 +1,19 @@
-commit 1f9dbb60ef5cf8b0027c1149fdb1d6f08c41cfed
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 27 22:57:28 2015 -0500
+commit da4abda2a1718c74b39134764ae6f694041a25e4
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Feb 4 21:30:22 2015 -0500
 
-    cmd/new5l etc: convert from C to Go
+    liblink, cmd/5a: fix reglist parsing/printing after changing REG_R0 to 32
     
-    Using rsc.io/c2go rev fc8cbfa's run.ld script.
+    Fixes #9759.
     
-    Change-Id: I4d4d14fce96f8ce7a934bf8b9701b84fa9cf772d
-    Reviewed-on: https://go-review.googlesource.com/6335
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I263f1251b9401371231374551c4f71c70cb6e359
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/3931
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/internal/ld/ar.go         |   51 +
- src/cmd/internal/ld/arch.go       |   67 +
- src/cmd/internal/ld/data.go       | 1798 ++++++++++++++++++++++++
- src/cmd/internal/ld/decodesym.go  |  183 +++
- src/cmd/internal/ld/dwarf.go      | 2744 +++++++++++++++++++++++++++++++++++++
- src/cmd/internal/ld/dwarf_defs.go |  500 +++++++
- src/cmd/internal/ld/elf.go        | 2448 +++++++++++++++++++++++++++++++++
- src/cmd/internal/ld/fmt.go        |   60 +
- src/cmd/internal/ld/go.go         |  929 +++++++++++++
- src/cmd/internal/ld/ld.go         |  123 ++
- src/cmd/internal/ld/ldelf.go      | 1004 ++++++++++++++
- src/cmd/internal/ld/ldmacho.go    |  919 +++++++++++++
- src/cmd/internal/ld/ldpe.go       |  550 ++++++++
- src/cmd/internal/ld/lib.go        | 1751 +++++++++++++++++++++++
- src/cmd/internal/ld/link.go       |  299 ++++
- src/cmd/internal/ld/macho.go      |  892 ++++++++++++
- src/cmd/internal/ld/objfile.go    |  366 +++++
- src/cmd/internal/ld/pcln.go       |  487 +++++++
- src/cmd/internal/ld/pe.go         | 1060 ++++++++++++++
- src/cmd/internal/ld/pobj.go       |  224 +++
- src/cmd/internal/ld/sym.go        |  238 ++++
- src/cmd/internal/ld/symtab.go     |  440 ++++++
- src/cmd/internal/ld/textflag.go   |  133 ++
- src/cmd/internal/ld/util.go       |  369 +++++
- src/cmd/internal/ld/z.go          |    1 +
- src/cmd/new5l/asm.go              |  777 +++++++++++
- src/cmd/new5l/l.go                |   78 ++
- src/cmd/new5l/obj.go              |  182 +++
- src/cmd/new6l/asm.go              |  829 +++++++++++
- src/cmd/new6l/l.go                |   78 ++
- src/cmd/new6l/obj.go              |  215 +++
- src/cmd/new6l/z.go                |    1 +
- src/cmd/new8l/asm.go              |  734 ++++++++++
- src/cmd/new8l/l.go                |   78 ++
- src/cmd/new8l/obj.go              |  191 +++
- src/cmd/new9l/asm.go              |  851 ++++++++++++
- src/cmd/new9l/l.go                |   77 ++
- src/cmd/new9l/obj.go              |  165 +++
- 38 files changed, 21892 insertions(+)
+ src/cmd/5a/a.y      | 10 +++++-----
+ src/cmd/5a/y.tab.c  | 10 +++++-----
+ src/cmd/5a/y.tab.h  |  2 +-
+ src/liblink/asm5.c  |  4 ++--
+ src/liblink/list5.c |  5 +++--
+ 5 files changed, 16 insertions(+), 15 deletions(-)

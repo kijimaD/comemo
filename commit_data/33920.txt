@@ -1,14 +1,22 @@
-commit 38c561cb2caa8019e44059e2be71c909ceef30a6
-Author: Igor Vashyst <ivashyst@gmail.com>
-Date:   Sat Dec 30 23:13:28 2017 +0200
+commit d1731f8cbc1adde72a2b2e7513b6ca73476c7f0d
+Author: hagen1778 <hagen1778@gmail.com>
+Date:   Tue Sep 19 20:28:11 2017 +0300
 
-    encoding/xml: remove duplicate test of element presence
+    log: fix data race on log.Output
     
-    Change-Id: If0d9ff107fc6bbdf0231cd48abc23a44816bfe77
-    Reviewed-on: https://go-review.googlesource.com/85755
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    There was unprotected access to Logger.flag in log.Output which
+    could lead to data race in cases when log.SetFlags called simultaneously.
+    For example, "hot" switching on/off debug-mode for Logger by log.SetFlags
+    while application still writing logs.
+    
+    Fixes #21935
+    
+    Change-Id: I36be25f23cad44cde62ed1af28a30d276400e1b8
+    Reviewed-on: https://go-review.googlesource.com/64710
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/xml/marshal_test.go | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/log/log.go      |  6 +-----
+ src/log/log_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 5 deletions(-)

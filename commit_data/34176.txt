@@ -1,19 +1,42 @@
-commit de4edf3de7acda2cc7da8764ecdb3ff2e85c7a2d
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Dec 7 10:56:45 2017 -0600
+commit ca360c39924bc1a4658c14ff023c4628c11f13a3
+Author: David Chase <drchase@google.com>
+Date:   Fri Jul 21 12:00:38 2017 -0400
 
-    cmd/compile/internal/amd64: update popcnt code generation
+    cmd/compile: better XPos for rematerialized values and JMPs
     
-    Popcnt has false dependency on output register and generates
-    MOVQ $0, reg to break it. But recently we switched MOVQ $0, reg
-    encoding from xor reg, reg  to actual mov $0, reg. This CL updates
-    code generation for popcnt to use actual XOR.
+    This attempts to choose better values for values that are
+    rematerialized (uses the XPos of the consumer, not the
+    original) and for unconditional branches (uses the last
+    assigned XPos in the block).
     
-    Change-Id: I4c1fc11e85758b53ba2679165fa55614ec54b27d
-    Reviewed-on: https://go-review.googlesource.com/82516
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    The JMP branches seem to sometimes end up with a PC in the
+    destination block, I think because of register movement
+    or rematerialization that gets placed in predecessor blocks.
+    This may be acceptable because (eyeball-empirically) that is
+    often the line number of the target block, so the line number
+    flow is correct.
+    
+    Added proper test, that checks both -N -l and regular compilation.
+    The test is also capable (for gdb, delve soon) of tracking
+    variable printing based on comments in the source code.
+    
+    There's substantial room for improvement in debugger behavior.
+    
+    Updates #21098.
+    
+    Change-Id: I13abd48a39141583b85576a015f561065819afd0
+    Reviewed-on: https://go-review.googlesource.com/50610
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 |  60 +-
+ src/cmd/compile/internal/ssa/debug_test.go         | 786 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go           |   4 +-
+ .../internal/ssa/testdata/hist-dbg.delve-nexts     | 383 ++++++++++
+ .../internal/ssa/testdata/hist-dbg.gdb-nexts       | 409 +++++++++++
+ .../internal/ssa/testdata/hist-opt.delve-nexts     | 248 +++++++
+ .../internal/ssa/testdata/hist-opt.gdb-nexts       | 215 ++++++
+ src/cmd/compile/internal/ssa/testdata/hist.go      |  68 ++
+ src/cmd/compile/internal/ssa/value.go              |   8 +-
+ 9 files changed, 2175 insertions(+), 6 deletions(-)

@@ -1,30 +1,36 @@
-commit 2ba00e47545406b3dd11436e3f1acf841d4932c6
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Mar 21 13:22:14 2020 +0100
+commit c357b363cf1027afe3296e973ea6f6613cc757ad
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 22 11:30:20 2019 -0400
 
-    doc: decrease prominence of GOROOT_BOOTSTRAP
+    cmd/go: add -modfile flag that sets go.mod file to read/write
     
-    Go build scripts on UNIX (make.bash, all.bash) have not required
-    GOROOT_BOOTSTRAP since August 2017 (CL 57753). Windows build scripts
-    have followed suit since CL 96455. Most people building Go will have
-    a Go toolchain in their PATH and will not need to specify a different
-    toolchain.
+    This change adds the -modfile flag to module aware build commands and
+    to 'go mod' subcommands. -modfile may be set to a path to an alternate
+    go.mod file to be read and written. A real go.mod file must still
+    exist and is used to set the module root directory. However, it is not
+    opened.
     
-    This CL removes the GOROOT_BOOTSTRAP mention from the contribution guide
-    (it was there for Windows only, but it's not required anymore). The guide
-    is meant to be light and clear for beginners and is not supposed to be
-    a reference, so there's not need to keep mentioning GOROOT_BOOTSTRAP.
+    When -modfile is set, the effective location of the go.sum file is
+    also changed to the -modfile with the ".mod" suffix trimmed (if
+    present) and ".sum" added.
     
-    Also update install-source.html to reflect the current status quo,
-    where using the PATH is probably the first and most used default, and
-    GOROOT_BOOTSTRAP is just an option.
+    Updates #34506
     
-    Change-Id: Iab453e61b0c749c256aaaf81ea9b2ae58822cb89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224717
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I2d1e044e18af55505a4f24bbff09b73bb9c908b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202564
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/contribute.html     |  4 +---
- doc/install-source.html | 22 ++++++++--------------
- 2 files changed, 9 insertions(+), 17 deletions(-)
+ doc/go1.14.html                             | 16 ++++--
+ src/cmd/go/alldocs.go                       |  7 +++
+ src/cmd/go/internal/cfg/cfg.go              |  3 +-
+ src/cmd/go/internal/modcmd/edit.go          |  3 +-
+ src/cmd/go/internal/modcmd/init.go          |  3 +-
+ src/cmd/go/internal/modcmd/mod.go           |  9 +++-
+ src/cmd/go/internal/modload/init.go         | 78 +++++++++++++++++++++++++++--
+ src/cmd/go/internal/work/build.go           |  8 +++
+ src/cmd/go/internal/work/init.go            |  3 ++
+ src/cmd/go/main.go                          |  2 +-
+ src/cmd/go/testdata/script/modfile_flag.txt | 67 +++++++++++++++++++++++++
+ 11 files changed, 186 insertions(+), 13 deletions(-)

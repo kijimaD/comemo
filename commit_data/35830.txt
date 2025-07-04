@@ -1,16 +1,27 @@
-commit 1a3957b828389fb38df0f60d43f08da15bc125c1
-Author: Adam Shannon <adamkshannon@gmail.com>
-Date:   Wed Jun 27 21:40:22 2018 -0500
+commit 0c5cfec84424bb453ccd270f4b5c439f21ccf617
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 3 19:53:53 2018 +0000
 
-    crypto/x509: better debug output for verify-cert calls
+    cmd/internal/test2json: support subtests containing colons
     
-    Now that pkix.Name offers String() we should use that as some CN's are blank.
+    The "updates" lines, such as RUN, do not contain a colon. However,
+    test2json looked for one anyway, meaning that it would be thrown off if
+    it encountered a line like:
     
-    Updates #24084
+            === RUN   TestWithColons/[::1]
     
-    Change-Id: I268196f04b98c2bd4d5d0cf1fecd2c9bafeec0f1
-    Reviewed-on: https://go-review.googlesource.com/121357
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    In that case, it must not use the first colon it encounters to separate
+    the action from the test name.
+    
+    Fixes #23920.
+    
+    Change-Id: I82eff23e24b83dae183c0cf9f85fc5f409f51c25
+    Reviewed-on: https://go-review.googlesource.com/98445
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/root_darwin.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/test2json/test2json.go             |  7 ++++++-
+ src/cmd/internal/test2json/testdata/issue23920.json | 14 ++++++++++++++
+ src/cmd/internal/test2json/testdata/issue23920.test |  7 +++++++
+ 3 files changed, 27 insertions(+), 1 deletion(-)

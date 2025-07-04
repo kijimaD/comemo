@@ -1,19 +1,13 @@
-commit d5c7abf73a3f65cb7d5b9c3193e59ac9e0729c7a
-Author: ianzapolsky <ianzapolsky@gmail.com>
-Date:   Thu Aug 30 12:57:16 2018 -0600
+commit 166c37a7d0f2753be9fc5b16a9ab65e9e3d6975c
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Fri May 4 08:55:11 2018 +0000
 
-    fmt: add an example for Errorf
+    src/*.bash: remove some trailing whitespace
     
-    The errors package has an example for Errorf, but the fmt
-    package does not. Copy the Errorf example from errors to
-    fmt. Move existing Stringer example into separate file, so as
-    not to break the assumption that the entire file will be
-    presented as the example.
-    
-    Change-Id: I8a210a69362017fa08615a8c3feccdeee8427e22
-    Reviewed-on: https://go-review.googlesource.com/132239
+    Change-Id: I11793daafdb69156b1dafaa80fe501fcaeeff202
+    Reviewed-on: https://go-review.googlesource.com/111435
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/example_test.go          | 25 +++++++------------------
- src/fmt/stringer_example_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 18 deletions(-)
+ src/make.bash | 2 +-
+ src/race.bash | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

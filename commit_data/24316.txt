@@ -1,30 +1,17 @@
-commit 49580db149b177b0bbebb9fc61094b1e6c5a38d2
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 17 10:37:07 2015 -0700
+commit 954d5ada291a969b2933f43d9a8f53c28fcb0982
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Tue Jul 21 16:58:18 2015 +0200
 
-    asm: give error message for unadorned symbol reference
+    [dev.ssa] cmd/compile/internal/ssa/gen: implement OMINUS
     
-    On amd64, the program
-    
-    TEXT    foo0(SB),7,$-8
-        ADDQ R520, R1
-        RET
-    
-    used to trigger this error because R520 was being passed through to obj:
-    
-    asm: doasm: notfound ft=23 tt=23 00000 (x.s:2)  ADDQ    0, 0 23 23
-    
-    Now it gets this one, as it is indeed a parse error:
-    
-    x.s:2: illegal addressing mode for symbol R520
-    
-    This couldn't be fixed until #12632 had been fixed for arm64.
-    
-    Fixes #12470.
-    
-    Change-Id: I19830c4ae9337887b93f85d9a239e2b89dbb2219
-    Reviewed-on: https://go-review.googlesource.com/14691
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Change-Id: Ibc645d6cf229ecc18af3549dd3750be9d7451abe
+    Reviewed-on: https://go-review.googlesource.com/12472
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/asm/parse.go | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             |  17 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   9 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  28 ++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   9 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 208 +++++++++++++++++--------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 137 ++++++++++++++++
+ 6 files changed, 330 insertions(+), 78 deletions(-)

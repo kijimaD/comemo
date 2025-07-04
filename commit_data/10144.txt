@@ -1,19 +1,12 @@
-commit 0e81e508bedec7e25aafc5b3939901dbc1d67914
+commit 853c84631f1afda1672930e8e509beeb0e9d44f9
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 21:20:44 2011 -0700
+Date:   Thu Oct 27 21:17:47 2011 -0700
 
-    fmt: handle os.Error values
-    
-    Handling os.Error is no different than handling fmt.Stringer
-    here, so the code is redundant now, but it will be necessary
-    once error goes in.
-    
-    Adding it now will make gofix fix it.
+    template: do not use error as stringer
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/5331045
+    https://golang.org/cl/5305069
 
- src/pkg/fmt/doc.go   | 10 +++++++---
- src/pkg/fmt/print.go | 17 ++++++++++++++---
- 2 files changed, 21 insertions(+), 6 deletions(-)
+ src/pkg/template/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

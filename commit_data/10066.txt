@@ -1,14 +1,13 @@
-commit e8a426aebe4968d5a27068e5aed2970a4c38f686
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 20 12:37:13 2011 -0700
+commit 22dd0ba90dfd832e5a60ec8ef5b986611e0e8fe9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 20 10:30:01 2011 -0700
 
-    go/ast: use single-element map in test
+    go/ast, go/token: actually run tests; fix go/ast test
     
-    Avoids test failure due to undefined map iteration order.
-    
-    R=rsc, iant, iant
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5297048
+    https://golang.org/cl/5292048
 
- src/pkg/go/ast/print_test.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/pkg/Makefile             | 2 --
+ src/pkg/go/ast/print_test.go | 8 ++++----
+ 2 files changed, 4 insertions(+), 6 deletions(-)

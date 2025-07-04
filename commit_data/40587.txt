@@ -1,18 +1,20 @@
-commit 9a0a82445650eebedf5633fdfe6e73b5836dc5c9
+commit f61fa116ea613c501884ad32687ee33c6edf10a2
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 28 14:41:49 2019 -0400
+Date:   Fri May 31 12:32:30 2019 -0400
 
-    cmd/internal/obj/mips: add a flag field to Optab
+    test: add a test for gccgo bug #32347
     
-    The flag field will be used for marking unsafe points. This CL
-    just adds the field, not doing anything with it. The next CL will
-    make use of it. This is for making the diff simpler.
+    The gccgo compiler crashes with int-to-string conversion with
+    large integer constant operand. CL 179777 is the fix. This CL
+    adds a test.
     
-    Change-Id: I6ff5406ba2e53ae8a882184733d88482a2ca8e2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203938
+    Updates #32347.
+    
+    Change-Id: Id1d9dbbcdd3addca4636f1b9c5fdbc450cc48c1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179797
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/internal/obj/mips/asm0.go | 627 +++++++++++++++++++-------------------
- 1 file changed, 314 insertions(+), 313 deletions(-)
+ test/fixedbugs/issue32347.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

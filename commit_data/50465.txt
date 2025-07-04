@@ -1,19 +1,19 @@
-commit 5bbee7a095435e52322b3a7c1e028b19c22e86e5
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 9 10:49:50 2022 +0700
+commit de1abf76fb69739c6cad463454a55fe9c33f63ac
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Oct 22 11:21:28 2021 +1100
 
-    reflect: move benchmarks to its own file
+    cmd/go: stamp Fossil VCS status into binaries
     
-    all_test.go is quite big, so let it contain tests only.
+    For #37475
     
-    Change-Id: I5003db4a8b1e2384ea8470f5e89e1c26d61d10ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429759
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I09fa1344051088ce37727176d9ec6b38891d1a9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357955
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/reflect/all_test.go       | 385 ----------------------------------------
- src/reflect/benchmark_test.go | 397 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 397 insertions(+), 385 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go                     | 55 +++++++++++++
+ .../go/testdata/script/version_buildvcs_fossil.txt | 90 ++++++++++++++++++++++
+ 2 files changed, 145 insertions(+)

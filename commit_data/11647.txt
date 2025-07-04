@@ -1,18 +1,19 @@
-commit facee93a8627881ae39abda13cba115274fe20cf
+commit 48bd13911de978effd30402253de523b8eb4bb11
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 6 11:24:34 2012 -0500
+Date:   Mon Feb 6 11:24:14 2012 -0500
 
-    runtime: fix float64 hash on 32-bit machine
+    runtime: use GOTRACEBACK to decide whether to show runtime frames
     
-    Multiplying by the low 32 bits was a bad idea
-    no matter what, but it was a particularly unfortunate
-    choice because those bits are 0 for small integer values.
+    Right now, GOTRACEBACK=0 means do not show any stack traces.
+    Unset means the default behavior (declutter by hiding runtime routines).
     
-    Fixes #2883.
+    This CL makes GOTRACEBACK=2 mean include the runtime routines.
+    It avoids having to recompile the runtime when you want to see
+    the runtime in the tracebacks.
     
-    R=ken2
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5634047
+    https://golang.org/cl/5633050
 
- src/pkg/runtime/alg.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/symtab.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

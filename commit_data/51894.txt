@@ -1,23 +1,16 @@
-commit 18772915a1b9ca211a4bb707de59ee0941b4773b
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Feb 1 14:15:41 2023 -0500
+commit 2da1e47fb06bef29a99eaa1395ef1f7d11b05929
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Mar 8 16:16:49 2022 -0500
 
-    go/token: add (*File).Lines method
+    go/types, types: add additional generic cases for the Selections API
     
-    This method returns the array updated by SetLines, for
-    use in exporter packages.
-    
-    Fixes #57708
-    
-    Change-Id: I12ed5e7e1bae7517f40cb25e76e51997c25d84f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464515
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Change-Id: Icc5240db7447846061d0d81f5e15f788758d4d64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393372
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
 
- api/next/57708.txt            | 1 +
- src/go/token/position.go      | 9 +++++++++
- src/go/token/position_test.go | 3 +++
- 3 files changed, 13 insertions(+)
+ src/cmd/compile/internal/types2/api_test.go | 61 ++++++++++++++++++-----------
+ src/go/types/api_test.go                    | 61 ++++++++++++++++++-----------
+ 2 files changed, 78 insertions(+), 44 deletions(-)

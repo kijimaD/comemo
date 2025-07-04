@@ -1,19 +1,23 @@
-commit 7eec656bfd111531f548dbb5c7f3b6d18525f4ab
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 13 12:44:45 2015 +0900
+commit da0e37fa8d284e92972877c4be3d031ecf1c8334
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 22 16:38:04 2015 -0400
 
-    net: fix the series of TestLookup and external tests
+    runtime: benchmark for ping-pong in the presence of a CPU hog
     
-    On Windows, we need to make sure that the node under test has external
-    connectivity.
+    This benchmark demonstrates a current problem with the scheduler where
+    a set of frequently communicating goroutines get very little CPU time
+    in the presence of another goroutine that hogs that CPU, even if one
+    of those communicating goroutines is always runnable.
     
-    Fixes #10795.
+    Currently it takes about 0.5 milliseconds to switch between
+    ping-ponging goroutines in the presence of a CPU hog:
     
-    Change-Id: I99f2336180c7b56474fa90a4a6cdd5a6c4dd3805
-    Reviewed-on: https://go-review.googlesource.com/10006
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    BenchmarkPingPongHog        2000            684287 ns/op
+    
+    Change-Id: I278848c84f778de32344921ae8a4a8056e4898b0
+    Reviewed-on: https://go-review.googlesource.com/9288
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/external_test.go |  43 ++-------
- src/net/lookup_test.go   | 236 +++++++++++++++++++++++++++++++++--------------
- src/net/main_test.go     |   6 ++
- 3 files changed, 178 insertions(+), 107 deletions(-)
+ src/runtime/proc_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

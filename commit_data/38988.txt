@@ -1,19 +1,33 @@
-commit 43b9fcf6fe9feb0ec67a7ddb01e5b542542b47c8
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Sat Oct 6 13:32:19 2018 -0400
+commit 190a5f8fd2f360c22c11b290796ae7fc0fa5607c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Feb 16 14:52:10 2018 -0800
 
-    net/http: make Transport.MaxConnsPerHost work for HTTP/2
+    go/doc: simplify and robustify link detection logic
     
-    Treat HTTP/2 connections as an ongoing persistent connection. When we
-    are told there is no cached connections, cleanup the associated
-    connection and host connection count.
+    To fix #5043, we added logic to allow balanced pairs of parenthesis
+    so that we could match URLs like:
+            http://example.com/some_resource(foo)
     
-    Fixes #27753
+    Howewer, such logic breaks when parsing something like the following:
+            art by [https://example.com/person][Person Name]].
+    such that the following is considered the link:
+            https://example.com/person][Person
     
-    Change-Id: I6b7bd915fc7819617cb5d3b35e46e225c75eda29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/140357
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Since the logic added in #5043 was just a heuristic, we adjust
+    the heuristic that in addition to requiring balanced pairs,
+    the first parenthesis must be an opening one.
+    
+    For further robustness, we apply this heuristic to
+    parenthesis, braces, and brackets.
+    
+    Fixes #22285
+    
+    Change-Id: I23b728a644e35ce3995b05a79129cad2c1e3b1ce
+    Reviewed-on: https://go-review.googlesource.com/c/94876
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/transport.go      |  19 ++++----
- src/net/http/transport_test.go | 101 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 112 insertions(+), 8 deletions(-)
+ src/go/doc/comment.go      | 51 +++++++++++++++++++---------------------------
+ src/go/doc/comment_test.go | 38 +++++++---------------------------
+ 2 files changed, 28 insertions(+), 61 deletions(-)

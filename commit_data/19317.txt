@@ -1,23 +1,13 @@
-commit 4118665775dd21b2f244e763bfcccba18902d682
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Sat May 10 18:06:58 2014 -0700
+commit 8dfd5184abb7d363741cb1a71045a5bea3cd4271
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 10 13:35:40 2014 -0400
 
-    cmd/go: simplify code, reduce allocations.
+    cmd/addr2line: accept optional "0x" prefix for addresses.
     
-    This is a trivial change to make use of an existing `nl` byte slice
-    containing a single '\n' character. It's already declared and
-    used in another place in this file, so it might as well be used
-    in the other location instead of
-    a new slice literal. There should be no change in behavior,
-    aside from potentially less allocations.
-    
-    This is my first CL, so I wanted to use a simple, hopefully non-controversial,
-    minor improvement to get more comfortable with golang contribution process.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/97280043
+    https://golang.org/cl/91250043
 
- src/cmd/go/list.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/addr2line/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

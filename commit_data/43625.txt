@@ -1,18 +1,24 @@
-commit 9a1596689e7700dad70270325542898bd2afcd7d
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 29 14:54:47 2020 -0400
+commit 71a671839f95fb43091316c72cae87c049c81bce
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Wed Apr 15 18:31:29 2020 -0400
 
-    go/build: remove two erroneous uses of os.Stat
+    go/types: add detail to missing method error messages
     
-    go/build should use the ctxt routines, not os directly.
-    These snuck in.
+    When a concrete type doesn't exactly implement an interface, the error
+    messages produced by go/types are often unhelpful. The compiler shows
+    the expected signature versus the one found, which is useful, so add
+    this behavior here.
     
-    Change-Id: I918d4de923eb485bfd524e4f1b1310a7a165ad03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266357
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Fixes golang/go#38475
+    
+    Change-Id: I8b780b7e1f1f433a0efe670de3b1437053f42fba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228457
+    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/build.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/go/types/expr.go             |  8 ++++----
+ src/go/types/lookup.go           | 17 ++++++++++-------
+ src/go/types/operand.go          |  5 +++--
+ src/go/types/testdata/issues.src |  5 ++++-
+ 4 files changed, 21 insertions(+), 14 deletions(-)

@@ -1,15 +1,20 @@
-commit c799e4a577e325d4ef3fd74ebd5415994096cd16
+commit a59a27564b6d2a2fdf53eb43b3f8d6e7d0117e10
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 6 00:25:24 2016 +0000
+Date:   Thu Oct 29 13:02:28 2015 -0700
 
-    net/http/pprof: stop profiling if client's connection closes
+    math: fix typo and braino in my earlier commit
     
-    Fixes #13833
+    The bug number was a typo, and I forgot to switch the implementation
+    back to if statements after the change from Float64bits in the first
+    patchset back to branching.
     
-    Change-Id: If0bd5f7dcfc39d34680d11eb998050f0900d5a26
-    Reviewed-on: https://go-review.googlesource.com/18283
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    if statements can currently be inlined, but switch cannot (#13071)
+    
+    Change-Id: I81d0cf64bda69186c3d747a07047f6a694f8fa70
+    Reviewed-on: https://go-review.googlesource.com/16446
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/pprof/pprof.go | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ src/math/abs.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

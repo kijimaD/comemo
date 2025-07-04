@@ -1,21 +1,21 @@
-commit 131d7e0d0ee4471dc97f24d223aeef47ba6809d5
-Author: Paul Jolly <paul@myitcv.io>
-Date:   Fri May 11 15:02:45 2018 +0100
+commit c55505bae23940a0e253a9ea6f25577c7123c6c0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Nov 22 21:00:36 2017 +0000
 
-    cmd/go: set DepOnly on package when calling go list -deps
+    cmd/vet: type conversions never have side effects
     
-    Currently .DepOnly is set when go list -test is invoked to help
-    distinguish those packages that matched the command line spec from those
-    which are dependencies (of test packages). This is also useful when
-    calling go list -deps for the same reason.
+    Make the hasSideEffects func use type information to see if a CallExpr
+    is a type conversion or not. In case it is, there cannot be any side
+    effects.
     
-    Change-Id: Ifc0e68dad0fd01355928793ef803691dee5f4f29
-    Reviewed-on: https://go-review.googlesource.com/112755
-    Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Now that vet always has type information, we can afford to use it here.
+    Update the tests and remove the TODO there too.
+    
+    Change-Id: I74fdacf830aedf2371e67ba833802c414178caf1
+    Reviewed-on: https://go-review.googlesource.com/79536
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go            | 4 ++++
- src/cmd/go/internal/list/list.go | 1 +
- 2 files changed, 5 insertions(+)
+ src/cmd/vet/assign.go        |  2 +-
+ src/cmd/vet/bool.go          | 29 ++++++++++++++++++++---------
+ src/cmd/vet/testdata/bool.go | 14 +++++++++++++-
+ 3 files changed, 34 insertions(+), 11 deletions(-)

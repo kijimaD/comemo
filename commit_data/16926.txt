@@ -1,14 +1,13 @@
-commit a20784bdafc9a594a2c70be1e91f4b86182e6a21
+commit 3b6de5e847bb8bf12f2299e2026ebf35c2026463
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 30 22:17:38 2013 +0400
+Date:   Tue Jul 30 19:47:16 2013 +0400
 
-    runtime: enable goroutine preemption
-    All known issues with preemption have beed fixed.
+    net: fix memory leak on unix
+    If netFD is closed by finalizer, runtime netpoll descriptor is not freed.
     
-    R=golang-dev, rsc
+    R=golang-dev, dave, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/12008044
+    https://golang.org/cl/12037043
 
- src/pkg/runtime/proc.c       | 2 +-
- src/pkg/runtime/proc_test.go | 2 --
- 2 files changed, 1 insertion(+), 3 deletions(-)
+ src/pkg/net/fd_unix.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

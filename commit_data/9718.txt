@@ -1,12 +1,15 @@
-commit 46eb718c99355315f7a26de4745b95eac8a54081
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 16 20:30:17 2011 -0700
+commit bfe9f228a40398cadeff125425678eaea9acc971
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 16 18:28:57 2011 -0700
 
-    CONTRIBUTORS: add googler Michael Shields
+    test: match gccgo error messages for bug330.go.
     
-    R=golang-dev, dsymonds
-    CC=golang-dev, mshields
-    https://golang.org/cl/5042045
+    bug330.go:11:6: error: expected numeric type
+    bug330.go:12:6: error: expected numeric type
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5031050
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ test/fixedbugs/bug330.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

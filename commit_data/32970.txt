@@ -1,52 +1,37 @@
-commit 555c16d8cbd8372c1f57beb059a23b56bf1e909f
+commit a2a3ace51aa0600765d44a71f47fd830fa6217c5
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 5 10:07:19 2017 -0400
+Date:   Fri Jun 16 14:46:24 2017 -0400
 
-    cmd/dist, cmd/go: treat cmd/cgo like other build tools
+    testing: harmonize handling of prefix-matched benchmarks
     
-    The primary build tools cmd/asm, cmd/compile, and cmd/link are
-    built during cmd/dist bootstrap and then assumed by cmd/go to
-    be available for any future builds.
+    If you have BenchmarkX1 with sub-benchmark Y
+    and you have BenchmarkX2 with no sub-benchmarks,
+    then
     
-    The only tool invoked by cmd/go during a build and not in this list
-    is cmd/cgo; instead of being built during cmd/dist and assumed by
-    cmd/go, cmd/go arranges to build cmd/cgo if needed as part of
-    the regular build. We got here because at the time cmd/go was written,
-    cmd/cgo was the only build tool written in Go (the others were in C),
-    and so it made some sense to put cmd/dist in charge of building
-    the C tools and to have custom code in cmd/go to build cmd/cgo
-    just in time for it to be used by a particular build.
+            go test -bench=X/Y
     
-    This custom code has historically been quite subtle, though, because
-    the build of cmd/cgo inherits whatever build flags apply to the
-    build that wants to use cmd/cgo. If you're not careful,
-    "go install -race strings" might under the wrong circumstances
-    also install a race-enabled cmd/cgo binary, which is unexpected
-    at the least.
+    runs BenchmarkX1 once with b.N=1 (to find out about Y)
+    and then not again, because it has sub-benchmarks,
+    but arguably also because we're interested in Y.
     
-    The custom code is only going to get more problematic as we
-    move toward more precise analysis of whether dependencies are
-    up-to-date. In that case, "go build -race strings" will check to
-    see if there is not just a cmd/cgo already but a race-enabled
-    cmd/cgo, which makes no sense.
+    In contrast, it runs BenchmarkX2 in full, even though clearly
+    that is not relevant to the match X/Y. We do have to run X2
+    once with b.N=1 to probe for having X2/Y, but we should not
+    run it with larger b.N.
     
-    Instead of perpetuating the special case, treat cgo like all the
-    other build tools: build it first in cmd/dist, and then assume it is present.
-    This simplifies cmd/go.
+    Fixes #20589.
     
-    Building cmd/cgo during bootstrap also allows the default
-    build of cmd/cgo to be built using cgo, which may be necessary
-    on future essentially-cgo-only systems.
-    
-    Change-Id: I414e22c10c9920f4e98f97fa35ff22058c0f143d
-    Reviewed-on: https://go-review.googlesource.com/68338
+    Change-Id: Ib86907e844f34dcaac6cd05757f57db1019201d0
+    Reviewed-on: https://go-review.googlesource.com/46031
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/cmd/dist/build.go             |  2 ++
- src/cmd/dist/buildgo.go           | 27 +++++++++++++--------------
- src/cmd/dist/buildtool.go         |  9 +++++++++
- src/cmd/go/internal/load/pkg.go   |  9 +++++++++
- src/cmd/go/internal/test/test.go  |  4 ----
- src/cmd/go/internal/work/build.go | 34 ++++++----------------------------
- 6 files changed, 39 insertions(+), 46 deletions(-)
+ src/cmd/go/go_test.go                        | 58 ++++++++++++++++++++++++
+ src/cmd/go/testdata/src/testregexp/x_test.go | 17 +++++++
+ src/cmd/go/testdata/src/testregexp/z_test.go | 19 ++++++++
+ src/testing/benchmark.go                     | 11 +++--
+ src/testing/match.go                         |  9 ++--
+ src/testing/match_test.go                    | 67 ++++++++++++++--------------
+ src/testing/sub_test.go                      |  2 -
+ src/testing/testing.go                       |  2 +-
+ 8 files changed, 142 insertions(+), 43 deletions(-)

@@ -1,22 +1,16 @@
-commit cbb9cd03f80c0487cee0adcfef9a2a5de9fe2cc1
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Feb 13 23:27:51 2023 -0800
+commit d85694ab4fdf1d8f99d6cb96878bfb7acab8df13
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 8 16:02:59 2022 -0400
 
-    cmd/compile: ensure FuncForPC works on closures that start with NOPs
+    doc/go1.19: document cmd/go changes involving -trimpath
     
-    A 0-sized no-op shouldn't prevent us from detecting that the first
-    instruction is from an inlined callee.
+    Updates #51461.
     
-    Update #58300
-    
-    Change-Id: Ic5f6ed108c54a32c05e9b2264b516f2cc17e4619
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467977
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ie878a9f630062d62027de895750a070b50428a9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399214
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go |  2 +-
- test/fixedbugs/issue58300b.go          | 35 ++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue58300b.out         |  2 ++
- 3 files changed, 38 insertions(+), 1 deletion(-)
+ doc/go1.19.html | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

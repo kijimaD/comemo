@@ -1,33 +1,24 @@
-commit b37a5391f9e452aa779205add12bd89f44e3fcf0
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 6 13:38:04 2021 -0500
+commit 8752454ece0c4516769e1260a14763cf9fe86770
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 6 16:31:40 2021 -0400
 
-    cmd/link, cmd/go: make version info easier to extract
+    cmd/internal/objabi: clarify initialization of Experiments
     
-    Reading the version information to date has required evaluating
-    two pointers to strings (which themselves contain pointers to data),
-    which means applying relocations, which can be very system-dependent.
+    Currently objabi.Experiments is set via side-effect from an init
+    function, which makes their initialization process somewhat unclear
+    (indeed, I've messed this up before) and opens the possibility of
+    accessing them from another init function before it's initialized.
     
-    To simplify the lookup, inline the string data into the build info blob.
+    Originally, this init function set several variables, but at this
+    point it sets only objabi.Experiments, so switch to just using a
+    variable initializer to make the initialization process clear.
     
-    This makes go version work on binaries built with external linking
-    on darwin/arm64.
-    
-    Also test that at least the very basics work on a trivial binary,
-    even in short mode.
-    
-    Change-Id: I463088c19e837ae0ce57e1278c7b72e74a80b2c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369977
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Id0d2ac76ae463824bbf37a9305e8643a275f1365
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307821
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/modload/build.go   | 35 ++++++++--------------
- src/cmd/go/internal/work/exec.go       | 10 +++++--
- src/cmd/go/testdata/script/version.txt | 13 +++++++-
- src/cmd/link/internal/ld/data.go       | 29 +++++++++++-------
- src/cmd/link/internal/ld/deadcode.go   |  6 ----
- src/cmd/link/internal/ld/ld.go         |  6 ++++
- src/debug/buildinfo/buildinfo.go       | 54 ++++++++++++++++++++++++----------
- 7 files changed, 93 insertions(+), 60 deletions(-)
+ src/cmd/internal/objabi/exp.go | 41 +++++++++++++++++++++--------------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

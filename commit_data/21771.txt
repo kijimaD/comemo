@@ -1,14 +1,50 @@
-commit 3a3c9d6d66fb50a9cd6f475a0ee7301ca50259e4
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Feb 27 08:06:58 2015 +1100
+commit 76fed5426ceaea6cd08be0d22da57062d4ae29a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 29 16:16:24 2015 -0500
 
-    runtime/debug: fix nacl build
+    liblink: the zero Prog is now valid and ready for use
     
-    Disable the test properly on nacl systems, tested on nacl/amd64p32.
+    Use AXXX instead of AGOK (neither is a valid instruction but AXXX is zero)
+    for the initial setting of Prog.as, and now there are no non-zero default
+    field settings.
     
-    Change-Id: Iffe210be4f9c426bfc47f2dd3a8f0c6b5a398cc3
-    Reviewed-on: https://go-review.googlesource.com/6093
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Remove the arch-specific zprog/zprg in favor of a single global zprog.
+    Remove the arch-specific prg constructor in favor of emallocz(sizeof(Prog)).
+    
+    Change-Id: Ia73078726768333d7cdba296f548170c1bea9498
+    Reviewed-on: https://go-review.googlesource.com/3575
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/debug/garbage_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ include/link.h      |  3 ++-
+ src/cmd/5g/galign.c |  5 -----
+ src/cmd/5g/gg.h     |  1 -
+ src/cmd/5g/gsubr.c  |  2 +-
+ src/cmd/5g/peep.c   |  1 -
+ src/cmd/5l/5.out.h  |  1 -
+ src/cmd/6g/galign.c |  9 ---------
+ src/cmd/6g/gg.h     |  1 -
+ src/cmd/6g/gsubr.c  |  2 +-
+ src/cmd/6l/6.out.h  |  1 -
+ src/cmd/8g/galign.c |  9 ---------
+ src/cmd/8g/gg.h     |  1 -
+ src/cmd/8g/gsubr.c  |  4 ++--
+ src/cmd/8l/8.out.h  |  1 -
+ src/cmd/9a/lex.c    |  4 ++--
+ src/cmd/9g/galign.c |  4 ----
+ src/cmd/9g/gg.h     |  1 -
+ src/cmd/9g/gsubr.c  |  2 +-
+ src/cmd/9l/9.out.h  |  1 -
+ src/cmd/gc/go.h     |  1 -
+ src/cmd/gc/popt.c   |  2 +-
+ src/liblink/asm5.c  | 33 ++++++++++++++-------------------
+ src/liblink/asm6.c  |  1 -
+ src/liblink/asm8.c  |  1 -
+ src/liblink/asm9.c  |  4 ++--
+ src/liblink/go.c    |  1 +
+ src/liblink/ld.c    |  6 ++++--
+ src/liblink/obj5.c  | 28 ++++++----------------------
+ src/liblink/obj6.c  | 28 ++--------------------------
+ src/liblink/obj8.c  | 27 ++-------------------------
+ src/liblink/obj9.c  | 34 +++++++++-------------------------
+ 31 files changed, 50 insertions(+), 169 deletions(-)

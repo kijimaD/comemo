@@ -1,16 +1,29 @@
-commit 361d2738d5d750bd249661e725d3d9070fc3f2f5
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Sep 8 22:25:50 2016 -0400
+commit e2848de9efc599e1af54079ab1f8e79e0e26764c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 6 10:13:31 2016 -0700
 
-    cmd/link: remove the -shared flag
+    [dev.ssa] cmd/compile: implement the following for SSA on ARM
     
-    The -shared flag has been superseded by the -buildmode flag.
+    - generic Ops: Phi, CALL variants, NilCheck
+    - generic Blocks: Plain, Check
+    - 32-bit arithmetics
+    - CMP and conditional branches
+    - load/store
+    - zero/sign-extensions (8 to 16, 8 to 32, 16 to 32)
     
-    Change-Id: I3682cc0367b919084c280d7dc64746485c1d4ddd
-    Reviewed-on: https://go-review.googlesource.com/28852
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Progress on SSA backend for ARM. Still not complete. Now "errors"
+    package compiles and tests passed.
+    
+    Updates #15365.
+    
+    Change-Id: If126fd17f8695cbf55d64085bb3f1a4a53205701
+    Reviewed-on: https://go-review.googlesource.com/22856
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/main.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go            |  189 ++-
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  112 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |  158 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |    8 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  660 +++++++-
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 1915 ++++++++++++++++++++++--
+ 6 files changed, 2862 insertions(+), 180 deletions(-)

@@ -1,21 +1,16 @@
-commit 97c19f0f721b1db634dcae6a766712533a8f1bd5
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 27 17:04:39 2013 -0400
+commit 4eb17ecd1f1c5d130a0fe5c6bbd03714d315c41a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jun 28 00:49:53 2013 +0400
 
-    cmd/go: add -coverpkg
+    runtime: fix goroutine status corruption
+    runtime.entersyscall() sets g->status = Gsyscall,
+    then calls runtime.lock() which causes stack split.
+    runtime.newstack() resets g->status to Grunning.
+    This will lead to crash during GC (world is not stopped) or GC will scan stack incorrectly.
     
-    The new -coverpkg flag allows computing coverage in
-    one set of packages while running the tests of a different set.
-    
-    Also clean up some of the previous CL's recompileForTest,
-    using packageList to avoid the clumsy recursion.
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/10705043
+    https://golang.org/cl/10696043
 
- src/cmd/go/doc.go      |   7 +-
- src/cmd/go/test.bash   |   5 +
- src/cmd/go/test.go     | 259 +++++++++++++++++++++++++++++++++----------------
- src/cmd/go/testflag.go |   9 ++
- 4 files changed, 196 insertions(+), 84 deletions(-)
+ src/pkg/runtime/stack.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

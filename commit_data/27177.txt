@@ -1,18 +1,22 @@
-commit 5ec87ba554c2a83cdc188724f815e53fede91b66
-Author: David Chase <drchase@google.com>
-Date:   Thu Apr 28 10:46:08 2016 -0400
+commit ac47f66abcd98cc5f0e121691acd3e8dced09b4b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 15 15:55:47 2016 +1100
 
-    cmd/compile: fix.gc.Type.cmp for map.notBucket cmp map.Bucket
+    cmd/compile/internal: clean up galign.go constants
     
-    Comparison of certain map types could fail to be antisymmetric.
-    This corrects that.
+    Move the C header style architecture constants to the per arch Main
+    methods.
     
-    Change-Id: I88c6256053ce29950ced4ba4d538e241ee8591fe
-    Reviewed-on: https://go-review.googlesource.com/22552
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ie7ff39baa275ceaa6680e7d16441ca9f0aa12597
+    Reviewed-on: https://go-review.googlesource.com/20722
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: jcd . <jcd@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/type.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/amd64/galign.go  | 22 ++++++++--------------
+ src/cmd/compile/internal/arm/galign.go    | 17 ++++-------------
+ src/cmd/compile/internal/arm64/galign.go  | 17 ++++-------------
+ src/cmd/compile/internal/mips64/galign.go | 15 ++++++---------
+ src/cmd/compile/internal/ppc64/galign.go  | 15 ++++++---------
+ src/cmd/compile/internal/x86/galign.go    | 16 ++++------------
+ 6 files changed, 32 insertions(+), 70 deletions(-)

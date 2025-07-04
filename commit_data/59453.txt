@@ -1,26 +1,19 @@
-commit d65c209b4b5bc99e7e5587817b79e0850cff32cb
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Tue May 6 10:47:07 2025 +0800
+commit 412623c53fbb1b3ff29035022ef70374db35e826
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 14 14:24:22 2024 -0700
 
-    cmd/internal/obj/loong64: add [X]VF{ADD/SUB/MUL/DIV}.{S/D} instructions
+    test/fixedbugs: add regress test for inlining failure
     
-    Go asm syntax:
-             V{ADD/SUB/MUL/DIV}{F/D}        VK, VJ, VD
-            XV{ADD/SUB/MUL/DIV}{F/D}        XK, XJ, XD
+    Still investigating, but adding the minimized reproducer as a regress
+    test case for now.
     
-    Equivalent platform assembler syntax:
-             vf{add/sub/mul/div}.{s/d}      vd, vj, vk
-            xvf{add/sub/mul/div}.{s/d}      xd, xj, xk
+    Updates #66261.
     
-    Change-Id: I4607884212167ac97d7b6448ea3c849fc0fdd506
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670255
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I20715b731f8c5b95616513d4a13e3ae083709031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571815
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s | 18 ++++++++++
- src/cmd/internal/obj/loong64/a.out.go           | 17 +++++++++
- src/cmd/internal/obj/loong64/anames.go          | 16 +++++++++
- src/cmd/internal/obj/loong64/asm.go             | 48 +++++++++++++++++++++++++
- 4 files changed, 99 insertions(+)
+ test/fixedbugs/issue66261.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

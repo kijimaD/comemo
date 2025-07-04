@@ -1,15 +1,12 @@
-commit 54875a7a7f64ed3ae2f4d3b66f9de4b3c30c3a22
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Sun Mar 4 14:40:14 2012 +1100
+commit dd29609244b72e57ebda3551eb84d4bed716f4bf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Mar 4 11:53:07 2012 +1100
 
-        doc: fix another typo in article on defer, panic and recover
+    godoc: fix codewalks
     
-    Fixes #3177
-    
-    R=adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5728057
+    https://golang.org/cl/5732056
 
- doc/articles/defer_panic_recover.html | 2 +-
- doc/articles/defer_panic_recover.tmpl | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/godoc/codewalk.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

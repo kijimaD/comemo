@@ -1,15 +1,15 @@
-commit 2edc04ccb1b091acaddc47b961607a69cbd2ddc4
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 29 17:18:00 2014 -0700
+commit d2204e6c0ee18d9a1728e01d233d03062936961c
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 29 14:38:08 2014 -0700
 
-    A+C: fixed doubled entry
-    Delete an erroneously doubled name in both files. Once is enough.
+    cmd/gc: don't allow escaping arguments in the runtime package.
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    This is a case that was missed in https://golang.org/cl/105280047/
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/118420043
+    https://golang.org/cl/120910043
 
- AUTHORS      | 1 -
- CONTRIBUTORS | 1 -
- 2 files changed, 2 deletions(-)
+ src/cmd/gc/walk.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,18 +1,15 @@
-commit 605d1aaea26ef775369a3d1da6cf53f2a7b1e640
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 30 18:07:54 2021 -0700
+commit 75e16f5127eb6affb4b473c93565a8d29a802e51
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 15 17:48:38 2020 +0100
 
-    go/types, types2: union terms must be instantiated
+    doc/go1.16: add link to reflect.StructTag
     
-    Fixes #48083.
+    For #40700.
     
-    Change-Id: I77899d3e6edc806dee770403b3c3c4e2974d0e50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346293
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I67dd55b435304e428929c9a54b8881f9b78efdfb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278392
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../compile/internal/types2/testdata/fixedbugs/issue48083.go2    | 9 +++++++++
- src/cmd/compile/internal/types2/union.go                         | 2 +-
- src/go/types/testdata/fixedbugs/issue48083.go2                   | 9 +++++++++
- src/go/types/union.go                                            | 2 +-
- 4 files changed, 20 insertions(+), 2 deletions(-)
+ doc/go1.16.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

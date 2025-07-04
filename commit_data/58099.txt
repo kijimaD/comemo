@@ -1,21 +1,35 @@
-commit 050109c4fba02652007a4e7bfac9404ef334721a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Nov 10 11:02:44 2024 +0100
+commit c9c885f92f540878d85c02b510c62a3ebf87baf6
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jul 5 11:56:03 2023 -0700
 
-    crypto/internal/fips/hkdf: correctly set the service indicator for short salts
+    html/template: support parsing complex JS template literals
     
-    For #69536
+    This change undoes the restrictions added in CL 482079, which added a
+    blanket ban on using actions within JS template literal strings, and
+    adds logic to support actions while properly applies contextual escaping
+    based on the correct context within the literal.
     
-    Change-Id: Ibe2623311c8be5fb3e7411b33e61bf66d026e14d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626877
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Since template literals can contain both normal strings, and nested JS
+    contexts, logic is required to properly track those context switches
+    during parsing.
+    
+    ErrJsTmplLit is deprecated, and the GODEBUG flag jstmpllitinterp no
+    longer does anything.
+    
+    Fixes #61619
+    
+    Change-Id: I0338cc6f663723267b8f7aaacc55aa28f60906f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507995
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/crypto/internal/fips/hkdf/hkdf.go      |  2 ++
- src/crypto/internal/fips/hkdf/hkdf_test.go | 28 ++++++++++++++++++++++++
- src/crypto/internal/fips/hmac/hmac.go      | 35 +++++++++++++++++-------------
- src/crypto/internal/fips/indicator.go      |  5 +++++
- 4 files changed, 55 insertions(+), 15 deletions(-)
+ api/next/61619.txt                |   1 +
+ src/html/template/context.go      |  24 +++----
+ src/html/template/error.go        |   4 ++
+ src/html/template/escape.go       |  48 +++++++-------
+ src/html/template/escape_test.go  | 135 ++++++++++++++++++++++++++++++++++----
+ src/html/template/js.go           |  30 +++++++++
+ src/html/template/state_string.go |   6 +-
+ src/html/template/transition.go   |  63 ++++++++++++++++--
+ 8 files changed, 253 insertions(+), 58 deletions(-)

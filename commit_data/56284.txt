@@ -1,24 +1,26 @@
-commit 62dfa43101ce0abe5c919b4c996a9ba157e6a5e0
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Apr 23 15:42:22 2024 -0700
+commit ddd822e5ca0e686ae64d921bcfe28119c34278fb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 21 16:28:57 2023 -0400
 
-    bytes: add test to ensure shallow copy of NewBuffer does not allocate
+    cmd/link: don't sort data symbols by name
     
-    At present, there is no API to reset the underlying []byte
-    of an existing Buffer struct, except to shallow copy
-    the entire Buffer struct.
+    For data symbols, we currently sort them by size, then by name if
+    the size is the same. Sorting by name is not really necessary.
+    Instead, we sort by symbol index. Like name, the symbol index is
+    deterministic, and pretty stable if only a small portion of the
+    input is changed, and also naturally partitioned by packages. This
+    reduces the CPU time for reading the symbol names and comparing
+    strings.
     
-    Updates #67004
+    Linking cmd/compile (on macOS/amd64),
     
-    Change-Id: I08998f7a95ae5bde0897d86247d47f23cd784583
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581297
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Joedian Reid <joedian@google.com>
+    Dodata    57.2ms ± 6%    54.5ms ± 4%   -4.74%  (p=0.000 n=19+17)
+    
+    Change-Id: I1c4f2b83dbbb4b984b2c8ab4a7e8543b9f7f22b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487515
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/bytes/buffer_test.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/link/internal/ld/data.go | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)

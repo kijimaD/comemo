@@ -1,28 +1,24 @@
-commit 72c29fc8cde7a02c760915e7b3e63de5502496bb
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jun 13 08:20:23 2018 -0700
+commit bff29f2d1798cb0c8b6a4a8440c076f4b9460158
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Feb 28 16:32:11 2018 -0500
 
-    runtime: move darwin kevent calls to libc
+    cmd/compile/internal/ssa: avoid accidental list ends
     
-    kqueue, kevent, closeonexec, setitimer, with sysctl and fcntl helpers.
+    Some SSA values don't translate into any instructions. If a function
+    began with two of them, and both modified the storage of the same
+    variable, we'd end up with a location list entry that started and ended
+    at 0. That looks like an end-of-list entry, which would then confuse
+    downstream tools, particularly the fixup in the linker.
     
-    TODO:arm,arm64
+    "Fix" this by changing the end of such entries to 1. Should be harmless,
+    since AFAIK we don't generate any 1-byte instructions. Later CLs will
+    reduce the frequency of these entries anyway.
     
-    Change-Id: I9386f377186d6ac7cb99064c524a67e0c8282eba
-    Reviewed-on: https://go-review.googlesource.com/118561
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9b7e5e69f914244cc826fb9f4a6acfe2dc695f81
+    Reviewed-on: https://go-review.googlesource.com/97955
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/defs_darwin.go       |   4 ++
- src/runtime/defs_darwin_386.go   |   3 +
- src/runtime/defs_darwin_amd64.go |   3 +
- src/runtime/netpoll_kqueue.go    |   6 --
- src/runtime/os_darwin.go         |   6 --
- src/runtime/os_dragonfly.go      |   6 ++
- src/runtime/os_freebsd.go        |   6 ++
- src/runtime/os_netbsd.go         |   6 ++
- src/runtime/os_openbsd.go        |   6 ++
- src/runtime/sys_darwin.go        |  46 +++++++++++++++
- src/runtime/sys_darwin_386.s     | 120 ++++++++++++++++++++++++++-------------
- src/runtime/sys_darwin_amd64.s   | 100 ++++++++++++++++----------------
- 12 files changed, 211 insertions(+), 101 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

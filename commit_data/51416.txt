@@ -1,26 +1,30 @@
-commit f41fdc126786ced31e58649d2a1f5ec8da13c439
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 15 11:30:55 2022 -0500
+commit 0f4bd92c4d9a16efe05e397354dec87737338d2c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 26 09:18:14 2022 -0500
 
-    doc/go1.20: document changes to the loopclosure vet analysis
+    cmd/go: avoid recording GOROOT_FINAL in precompiled C archives
     
-    Address the release notes TODO regarding the loopclosure analyzer,
-    documenting the new warning for parallel subtests.
+    C archives for packages in GOROOT are shipped along with binary
+    releases of the Go toolchain. Although we build the toolchain with
+    GOROOT_FINAL set, we don't know actually know where the release will
+    be installed: the user's real GOROOT can differ arbitrarily from our
+    GOROOT_FINAL.
     
-    In doing so, choose a structure for the vet section, opting for h4
-    headings. In recent years, we have used either h4 headings or simple
-    paragraphs to document vet changes. This year, I thought it worthwhile
-    to put the timeformat and loopclosure changes into separate sections.
+    (In the specific case of toolchains installed through golang.org/dl
+    wrappers, the release's GOROOT_FINAL is /usr/local/go but the actual
+    GOROOT to which the release is installed is
+    $HOME/sdk/$(go env GOVERSION).)
     
-    Also document the improvements to reference capture detection introduced
-    in CL 452615.
+    Fixes #50183
+    Updates #48319
     
-    Change-Id: I05886f7025d66bb7f2609f787f69d1a769ca6f5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450735
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: If10a42f90c725300bbcb89c3b5b01a2d93ab6ef7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380915
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go1.20.html | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go                     | 16 ++++++++--------
+ src/cmd/go/testdata/script/cgo_stale_precompiled.txt | 17 +++++++++++++++++
+ 2 files changed, 25 insertions(+), 8 deletions(-)

@@ -1,22 +1,26 @@
-commit 5d8d3d52b0075de122d1536dff1a9fab942ab700
-Author: Paul Jolly <paul@myitcv.io>
-Date:   Thu Mar 29 15:29:23 2018 +0100
+commit 8cdd999bf54f5fae0acbf4a6d5a3911e4692ca28
+Author: Tw <tw19881113@gmail.com>
+Date:   Sat Jun 24 14:23:17 2017 +0800
 
-    cmd/go: make generate pass correct GOPACKAGE to XTest files
+    net/http: don't set Content-Type with empty body automatically
     
-    The existing behaviour of go generate is to pass GOPACKAGE=p
-    to all package files, including XTest files. This however is
-    incorrect as the package name for the XTest files is p_test.
+    We set Content-Type to "text/plain; charset=utf-8" even with blank body
+    before. Let's strip this unnecessary header though it's harmless in most
+    cases.
     
-    Fixes #24594
+    Fixes #20784
     
-    Change-Id: I96b6e5777ec511cdcf1a6267a43f4d8c544c4af3
-    Reviewed-on: https://go-review.googlesource.com/103415
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Signed-off-by: Tw <tw19881113@gmail.com>
+    
+    Change-Id: Ic58a410dcbc89f457c6ddd92961d9cbf545b2f4f
+    Reviewed-on: https://go-review.googlesource.com/46631
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go                    | 16 ++++++++++++++++
- src/cmd/go/internal/generate/generate.go | 12 +++++++++++-
- src/cmd/go/internal/load/pkg.go          |  8 +++++++-
- 3 files changed, 34 insertions(+), 2 deletions(-)
+ src/net/http/fs_test.go    | 11 ++++-------
+ src/net/http/h2_bundle.go  |  2 +-
+ src/net/http/serve_test.go |  3 ---
+ src/net/http/server.go     |  2 +-
+ src/net/http/sniff_test.go |  1 -
+ 5 files changed, 6 insertions(+), 13 deletions(-)

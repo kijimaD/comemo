@@ -1,12 +1,14 @@
-commit 5d14b899333c0d59dd7414d328d622ece83ba61c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jul 22 20:08:58 2013 +0900
+commit ae5991695c8efcb8aed3a58bbb6b93b0ffd3c60b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 22 12:42:42 2013 +1000
 
-    net: remove unnecessary bit masking
+    runtime: add a missing newline in a debug printf.
     
-    R=dave
+    Trivial, but annoying while debugging this code.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/11537044
+    https://golang.org/cl/11656043
 
- src/pkg/net/ipraw_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

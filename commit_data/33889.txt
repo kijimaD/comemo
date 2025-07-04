@@ -1,17 +1,84 @@
-commit 513a46911904347d81691c5046e9fb76f77a76d0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 13 21:18:28 2017 +0000
+commit 8c67f210a181f4d3e003e46e544ae03ce231ca42
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Wed Sep 13 14:32:08 2017 +0300
 
-    doc/go1.10: note that netbsd/arm is definitely broken
+    cmd/internal/obj: change Prog.From3 to RestArgs ([]Addr)
     
-    Remove the ambiguity, know that we know it's actually broken,
-    per https://github.com/golang/go/issues/23073#issuecomment-351045421
+    This change makes it easier to express instructions
+    with arbitrary number of operands.
     
-    Updates #23073
+    Rationale: previous approach with operand "hiding" does
+    not scale well, AVX and especially AVX512 have many
+    instructions with 3+ operands.
     
-    Change-Id: I9b904da2f4c7105a0727d2a9056aaa6895d3dadc
-    Reviewed-on: https://go-review.googlesource.com/83856
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    x86 asm backend is updated to handle up to 6 explicit operands.
+    It also fixes issue with 4-th immediate operand type checks.
+    All `ytab` tables are updated accordingly.
+    
+    Changes to non-x86 backends only include these patterns:
+    `p.From3 = X` => `p.SetFrom3(X)`
+    `p.From3.X = Y` => `p.GetFrom3().X = Y`
+    
+    Over time, other backends can adapt Prog.RestArgs
+    and reduce the amount of workarounds.
+    
+    -- Performance --
+    
+    x/benchmark/build:
+    
+    $ benchstat upstream.bench patched.bench
+    name      old time/op                 new time/op                 delta
+    Build-48                  21.7s ± 2%                  21.8s ± 2%   ~     (p=0.218 n=10+10)
+    
+    name      old binary-size             new binary-size             delta
+    Build-48                  10.3M ± 0%                  10.3M ± 0%   ~     (all equal)
+    
+    name      old build-time/op           new build-time/op           delta
+    Build-48                  21.7s ± 2%                  21.8s ± 2%   ~     (p=0.218 n=10+10)
+    
+    name      old build-peak-RSS-bytes    new build-peak-RSS-bytes    delta
+    Build-48                  145MB ± 5%                  148MB ± 5%   ~     (p=0.218 n=10+10)
+    
+    name      old build-user+sys-time/op  new build-user+sys-time/op  delta
+    Build-48                  21.0s ± 2%                  21.2s ± 2%   ~     (p=0.075 n=10+10)
+    
+    Microbenchmark shows a slight slowdown.
+    
+    name        old time/op  new time/op  delta
+    AMD64asm-4  49.5ms ± 1%  49.9ms ± 1%  +0.67%  (p=0.001 n=23+15)
+    
+    func BenchmarkAMD64asm(b *testing.B) {
+      for i := 0; i < b.N; i++ {
+        TestAMD64EndToEnd(nil)
+        TestAMD64Encoder(nil)
+      }
+    }
+    
+    Change-Id: I4f1d37b5c2c966da3f2127705ccac9bff0038183
+    Reviewed-on: https://go-review.googlesource.com/63490
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.10.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/arch/amd64.go    |  28 --
+ src/cmd/asm/internal/asm/asm.go       |  50 +--
+ src/cmd/compile/internal/arm64/ssa.go |   2 +-
+ src/cmd/compile/internal/ppc64/ssa.go |   6 +-
+ src/cmd/compile/internal/s390x/ssa.go |  17 +-
+ src/cmd/internal/obj/arm/asm5.go      |   8 +-
+ src/cmd/internal/obj/arm/obj5.go      |   2 +-
+ src/cmd/internal/obj/arm64/asm7.go    |  20 +-
+ src/cmd/internal/obj/arm64/obj7.go    |   2 +-
+ src/cmd/internal/obj/go.go            |   2 +-
+ src/cmd/internal/obj/link.go          |  84 +++--
+ src/cmd/internal/obj/pass.go          |   4 +-
+ src/cmd/internal/obj/ppc64/asm9.go    |  50 +--
+ src/cmd/internal/obj/ppc64/obj9.go    |   2 +-
+ src/cmd/internal/obj/s390x/asmz.go    |  46 +--
+ src/cmd/internal/obj/s390x/objz.go    |   2 +-
+ src/cmd/internal/obj/sizeof_test.go   |   2 +-
+ src/cmd/internal/obj/util.go          |  17 +-
+ src/cmd/internal/obj/x86/asm6.go      | 584 +++++++++++++++++-----------------
+ src/cmd/internal/obj/x86/obj6.go      |  26 +-
+ src/cmd/internal/obj/x86/ytab.go      |  40 +++
+ 21 files changed, 513 insertions(+), 481 deletions(-)

@@ -1,12 +1,16 @@
-commit 8545ea9cee087fd0fbac41bba7616d2fc4f2bc19
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 11 01:34:16 2015 -0500
+commit c478c48597e2fb7c52ea39d1dde51448949860ce
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 10 11:25:47 2015 +1100
 
-    doc/go1.6.txt: remove fmt.Scanf change (reverted)
+    image: add NYCbCrA types.
     
-    Change-Id: I26fc120e66f559e4da90883ed5c8457a99426a25
-    Reviewed-on: https://go-review.googlesource.com/17729
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #12722
+    
+    Change-Id: I6a630d8b072ef2b1c63de941743148f8c96b8e5f
+    Reviewed-on: https://go-review.googlesource.com/15671
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.6.txt | 1 -
- 1 file changed, 1 deletion(-)
+ src/image/color/ycbcr.go |  40 +++++++++++++++
+ src/image/image.go       |  21 ++++----
+ src/image/ycbcr.go       | 126 +++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 174 insertions(+), 13 deletions(-)

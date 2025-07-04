@@ -1,21 +1,29 @@
-commit 490035b0b9dd27e8868ccc5dced45a29e9b21227
-Author: Mark Pulford <mark@kyne.com.au>
-Date:   Sat Aug 4 00:19:21 2018 +1000
+commit ea5825b0b64e1a017a76eac0ad734e11ff557c8e
+Author: Nick Patavalis <nick.patavalis@gmail.com>
+Date:   Sun Mar 11 19:11:33 2018 +0200
 
-    cmd/go: disable ccache when setting HOME to non-existent dir
+    os: use poller when NewFile is called with a blocking descriptor.
     
-    This fixes tests on systems where ccache is the default compiler.
+    If NewFile is called with a file descriptor that is already set to
+    non-blocking mode, it tries to return a pollable file (one for which
+    SetDeadline methods work) by adding the filedes to the poll/netpoll
+    mechanism. If called with a filedes in blocking mode, it returns a
+    non-pollable file, as it always did.
     
-    Also simplify a prior workaround for this fault.
+    Fixes #22939
+    Updates #24331
     
-    Fixed #26789
-    
-    Change-Id: I031ff0b65ace7fc5e284393298e004aa2ad3b6f5
-    Reviewed-on: https://go-review.googlesource.com/127775
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id54c8be1b83e6d35e14e76d7df0e57a9fd64e176
+    Reviewed-on: https://go-review.googlesource.com/100077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go     | 10 ++++------
- src/cmd/go/script_test.go |  1 +
- 2 files changed, 5 insertions(+), 6 deletions(-)
+ src/go/build/deps_test.go                     |  2 +-
+ src/internal/syscall/unix/empty.s             |  7 ++++
+ src/internal/syscall/unix/nonblocking.go      | 23 ++++++++++++
+ src/internal/syscall/unix/nonblocking_nacl.go |  9 +++++
+ src/os/exec/exec_test.go                      |  6 +++
+ src/os/file_unix.go                           | 17 +++++++--
+ src/os/os_unix_test.go                        | 54 +++++++++++++++++++++++++++
+ 7 files changed, 114 insertions(+), 4 deletions(-)

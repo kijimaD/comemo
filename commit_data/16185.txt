@@ -1,13 +1,14 @@
-commit f29013d19b79c960030e528b9106f8d0273cc21e
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 16 13:59:10 2013 -0700
+commit a5fe79ef787ab6b9048368648736ca66f3622f5b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 16 13:30:52 2013 -0700
 
-    doc/effective_go: another doubled word
-    It's clear that that should never happen.
+    cmd/dist, make.bash: pass -mmacosx-version-min=10.6 to gcc on Darwin
+    Fixes #5261.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8798045
+    https://golang.org/cl/8798044
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/build.c | 4 ++++
+ src/make.bash        | 4 ++++
+ 2 files changed, 8 insertions(+)

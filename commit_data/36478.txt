@@ -1,35 +1,36 @@
-commit 45e7e668440e79717e950162e6d42fb8773a109a
-Author: Keith Randall <khr@google.com>
-Date:   Tue Jul 31 12:40:20 2018 -0700
+commit 3aa53b31350dff905deefb97e6670a14f166d2a9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 7 13:44:53 2017 -0800
 
-    cmd/compile: unify compilation of compiler tests
+    runtime: eliminate runtime.hselect
     
-    Before this CL we would build&run each test file individually.
-    Building the test takes most of the time, a significant fraction of a
-    second. Running the tests are really fast.
+    Now the registration phase looks like:
     
-    After this CL, we build all the tests at once, then run each
-    individually. We only have to run the compiler&linker once (or twice,
-    for softfloat architectures) instead of once per test.
+        var cases [4]runtime.scases
+        var order [8]uint16
+        selectsend(&cases[0], c1, &v1)
+        selectrecv(&cases[1], c2, &v2, nil)
+        selectrecv(&cases[2], c3, &v3, &ok)
+        selectdefault(&cases[3])
+        chosen := selectgo(&cases[0], &order[0], 4)
     
-    While we're here, organize these tests to fit a bit more into the
-    standard testing framework.
+    Primarily, this is just preparation for having the compiler open-code
+    selectsend, selectrecv, and selectdefault.
     
-    This is just the organizational CL that changes the testing framework
-    and migrates 2 tests.  Future tests will follow.
+    As a minor benefit, order can now be layed out separately on the stack
+    in the pointer-free segment, so it won't take up space in the
+    function's stack pointer maps.
     
-    R=go1.12
-    
-    Update #26469
-    
-    Change-Id: I1a1e7338c054b51f0c1c4c539d48d3d046b08b7d
-    Reviewed-on: https://go-review.googlesource.com/126995
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I5552ba594201efd31fcb40084da20b42ea569a45
+    Reviewed-on: https://go-review.googlesource.com/37933
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/ssa_test.go            | 125 ++++++++++++++++++++-
- .../gc/testdata/{break.go => break_test.go}        |  17 +--
- src/cmd/compile/internal/gc/testdata/short.go      |  60 ----------
- src/cmd/compile/internal/gc/testdata/short_test.go |  57 ++++++++++
- 4 files changed, 184 insertions(+), 75 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         | 114 ++++++++++-----------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   9 +-
+ src/cmd/compile/internal/gc/inl_test.go        |   1 -
+ src/cmd/compile/internal/gc/select.go          |  81 +++++++--------
+ src/runtime/select.go                          | 135 +++++++------------------
+ test/live.go                                   |   8 +-
+ 6 files changed, 144 insertions(+), 204 deletions(-)

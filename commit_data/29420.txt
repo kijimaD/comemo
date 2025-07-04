@@ -1,16 +1,20 @@
-commit 2058511e4e5966a7d482beb6033c68e324aa09ac
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Nov 1 04:16:52 2015 -0500
+commit 9a7ce41d6c74ef30af361677d2077ad8dd0e92b7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 14 18:03:26 2016 +0000
 
-    runtime: os.Executable runtime support for Darwin
+    bytes: cut 10 seconds off the race builder's benchmark test
     
-    Change-Id: Ie21df37016c90cd0479c23ec4845f8195dd90fda
-    Reviewed-on: https://go-review.googlesource.com/16518
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Don't benchmark so many sizes during the race builder's benchmark run.
+    
+    This package doesn't even use goroutines.
+    
+    Cuts off 10 seconds.
+    
+    Updates #17104
+    
+    Change-Id: Ibb2c7272c18b9014a775949c656a5b930f197cd4
+    Reviewed-on: https://go-review.googlesource.com/29158
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/os_darwin.go | 18 ++++++++++++++++++
- src/runtime/vdso_none.go |  1 +
- 2 files changed, 19 insertions(+)
+ src/bytes/bytes_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

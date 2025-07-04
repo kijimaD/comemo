@@ -1,20 +1,31 @@
-commit a69222d949bcc2c4453248ee233b63b75d79967e
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Apr 28 12:43:06 2017 +1200
+commit 11b283092a29a9d402ce05706fd3a85683576218
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 21 15:22:52 2017 -0500
 
-    cmd/link: replace SHIDDEN bit in SymKind with a bit of Attribute
+    cmd/compile: add opcode flag hasSideEffects for do-not-remove
     
-    Change-Id: I02dab81393cc9339895f0076df41a652aded5b60
-    Reviewed-on: https://go-review.googlesource.com/42025
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Added a flag to generic and various architectures' atomic
+    operations that are judged to have observable side effects
+    and thus cannot be dead-code-eliminated.
+    
+    Test requires GOMAXPROCS > 1 without preemption in loop.
+    
+    Fixes #19182.
+    
+    Change-Id: Id2230031abd2cca0bbb32fd68fc8a58fb912070f
+    Reviewed-on: https://go-review.googlesource.com/37333
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/arm64/asm.go  | 2 +-
- src/cmd/link/internal/ld/data.go    | 2 +-
- src/cmd/link/internal/ld/ldelf.go   | 9 ++++-----
- src/cmd/link/internal/ld/link.go    | 6 ++++++
- src/cmd/link/internal/ld/pe.go      | 4 +++-
- src/cmd/link/internal/ld/symkind.go | 1 -
- src/cmd/link/internal/ld/symtab.go  | 8 ++++++--
- 7 files changed, 21 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/ssa/deadcode.go       |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  16 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  20 ++---
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go    |  16 ++--
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |  16 ++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  28 +++----
+ src/cmd/compile/internal/ssa/gen/main.go       |   4 +
+ src/cmd/compile/internal/ssa/op.go             |   1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 111 +++++++++++++++++--------
+ test/fixedbugs/issue19182.go                   |  36 ++++++++
+ 10 files changed, 168 insertions(+), 82 deletions(-)

@@ -1,28 +1,20 @@
-commit 2598ed07584bb18a94455fb05df741054eae3a0f
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Jul 14 17:18:45 2018 -0700
+commit 6e59c73a9fe4eab3e09c6287f69c48837580dbb4
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sun Mar 25 17:19:47 2018 -0700
 
-    misc/cgo: fix test on iOS
+    database/sql: check to see if ctx is cancelable before await
     
-    The test in CL 123715 doesn't work on iOS, it needs to use a different
-    version scheme to determine whether SecKeyAlgorithm and friends exist.
-    Restrict the old version test to OSX only.
+    Prevent queries from starting a goroutine if the context is
+    not able to be canceled.
     
-    The same problem occurs on iOS: the functions tested don't exist before
-    iOS 10.  But we don't have builders below iOS 10, so it isn't a big issue.
-    If we ever get older builders, or someone wants to run all.bash on an
-    old iOS, they'll need to figure out the right incantation.
+    Fixes #23879
     
-    Update #24161
-    Update #26355
-    
-    Change-Id: Ia3ace86b00486dc172ed00c0c6d668a95565bff7
-    Reviewed-on: https://go-review.googlesource.com/123959
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I392047bd53d7f796219dd12ee11b07303658fdaf
+    Reviewed-on: https://go-review.googlesource.com/102478
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/issue24161e0/main.go | 3 ++-
- misc/cgo/test/issue24161e1/main.go | 3 ++-
- misc/cgo/test/issue24161e2/main.go | 3 ++-
- 3 files changed, 6 insertions(+), 3 deletions(-)
+ src/database/sql/sql.go | 3 +++
+ 1 file changed, 3 insertions(+)

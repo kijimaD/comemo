@@ -1,23 +1,17 @@
-commit 4212a3c3d9a520c3124134c97bb48677c0c1203f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 7 22:40:54 2015 -0400
+commit 46b4f675bf49a851bcda4812bd015061f1f30171
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 16 15:53:05 2015 -0400
 
-    runtime: use heap bitmap for typedmemmove
+    cmd/internal/ld: use usual flooding for c-archive
     
-    The current implementation of typedmemmove walks the ptrmask
-    in the type to find out where pointers are. This led to turning off
-    GC programs for the Go 1.5 dev cycle, so that there would always
-    be a ptrmask. Instead of also interpreting the GC programs,
-    interpret the heap bitmap, which we know must be available and
-    up to date. (There is no point to write barriers when writing outside
-    the heap.)
+    I said I removed this from cl/8711 in response to your comment, but
+    apparently I did not.
     
-    This CL is only about correctness. The next CL will optimize the code.
+    misc/cgo/testcarchive continues to pass on darwin/amd64.
     
-    Change-Id: Id1305c7c071fd2734ab96634b0e1c745b23fa793
-    Reviewed-on: https://go-review.googlesource.com/9886
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I6410782f2a78bf117741628fb71cac56e289b590
+    Reviewed-on: https://go-review.googlesource.com/9010
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mbarrier.go | 98 +++++++------------------------------------------
- src/runtime/mbitmap.go  | 61 +++++++++++++++---------------
- 2 files changed, 45 insertions(+), 114 deletions(-)
+ src/cmd/internal/ld/go.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,12 @@
-commit c6810e76edffb2777fc0c3bf0344fa3f107c5d72
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Wed Mar 23 14:33:48 2011 -0400
+commit f2483c74f66c838d6415b1ae949a3129b25122e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 23 14:28:38 2011 -0400
 
-    syscall: GetsockoptInt.
+    gofmt: add profiling flag
     
-    R=rsc, iant
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4271060
+    https://golang.org/cl/4295062
 
- src/pkg/syscall/syscall_linux.go        |  8 +++++++-
- src/pkg/syscall/syscall_linux_386.go    |  5 +++++
- src/pkg/syscall/syscall_linux_amd64.go  |  1 +
- src/pkg/syscall/syscall_linux_arm.go    |  1 +
- src/pkg/syscall/zsyscall_linux_386.go   |  2 +-
- src/pkg/syscall/zsyscall_linux_amd64.go | 10 +++++++++-
- src/pkg/syscall/zsyscall_linux_arm.go   | 10 +++++++++-
- 7 files changed, 33 insertions(+), 4 deletions(-)
+ src/cmd/gofmt/gofmt.go | 30 +++++++++++++++++++++++++++---
+ 1 file changed, 27 insertions(+), 3 deletions(-)

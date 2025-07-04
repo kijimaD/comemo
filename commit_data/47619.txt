@@ -1,16 +1,26 @@
-commit 77038044ca7b11fce7eb11f3e6115ed753c2c2bd
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Thu Nov 25 13:05:58 2021 +0100
+commit 5579ee169f12815660eb9ee66afd5f2abc77864f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 1 14:21:12 2021 -0400
 
-    doc/go1.18: document non-cooperative preemption on windows/arm{,64}
+    cmd/compile: in expand calls, preserve pointer store type but decompose aggregate args
     
-    For #47694.
-    Updates #49759.
+    In CL 305672 we preserve the pointer type of a store by just not
+    decomposing it. But this can be problematic when the source of
+    the store is a direct interface aggregate type (e.g.
+    struct { x map[int]int }.
     
-    Change-Id: I7accd81b8ea6c31e4a2b5e155cf93fe9c447813b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367095
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    In this CL we take a different approach: we preserve the store
+    type when generating the new store, but also decompose the source.
+    
+    Fixes #45344.
+    
+    Change-Id: If5dd496458dee95aa649c6d106b96a6cdcf3e60d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306669
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.18.html | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 11 ++++++++---
+ test/fixedbugs/issue45344.go                 | 20 ++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 3 deletions(-)

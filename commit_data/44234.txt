@@ -1,21 +1,28 @@
-commit 26ceae85a89dc4ea910cc0bfa209c85213a93725
-Author: DQNEO <dqneoo@gmail.com>
-Date:   Wed Feb 10 14:46:54 2021 +0900
+commit 0452f9460f50f0f0aba18df43dc2b31906fb66cc
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Apr 25 18:53:53 2020 +0200
 
-    spec: More precise wording in section on function calls.
+    runtime: fix race condition between timer and event handler
     
-    A caller is not always in a function.
+    This change fixes a race condition between beforeIdle waking up the
+    innermost event handler and a timer causing a different goroutine to
+    wake up at the exact same moment. This messes up the wasm event handling
+    and leads to memory corruption. The solution is to make beforeIdle
+    return the goroutine that must run next and have findrunnable pick
+    this goroutine without considering timers again.
     
-    For example, a call can appear in top level declarations.
+    Fixes #38093
+    Fixes #38574
     
-    e.g. var x = f()
-    
-    Change-Id: I29c4c3b7663249434fb2b8a6d0003267c77268cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/290849
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: Iffbe99411d25c2730953d1c8b0741fd892f8e540
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230178
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/lock_futex.go    |  4 ++--
+ src/runtime/lock_js.go       | 11 +++++-----
+ src/runtime/lock_sema.go     |  4 ++--
+ src/runtime/proc.go          | 14 ++++++++++---
+ test/fixedbugs/issue38093.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 70 insertions(+), 12 deletions(-)

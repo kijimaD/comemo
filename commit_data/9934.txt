@@ -1,20 +1,20 @@
-commit af1232fe38b1decdeceaf7dc0050622a79c04b10
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Oct 12 17:40:02 2011 +0300
+commit 77fac21e82b94a8c1f481e9eeaafc1bad6db274c
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Oct 12 15:59:23 2011 +0200
 
-    runtime: faster strings
-    Use FlagNoPointers and do not zeroize memory when allocate strings.
-    test/garbage/parser.out        old         new
-    run #1                     32.923s     32.065s
-    run #2                     33.047s     31.931s
-    run #3                     32.702s     31.841s
-    run #4                     32.718s     31.838s
-    run #5                     32.702s     31.868s
+    runtime: append([]byte, string...)
     
-    R=golang-dev, rsc
+    Fixes #2274
+    
+    R=rsc, gri, dsymonds, bradfitz, lvd
     CC=golang-dev
-    https://golang.org/cl/5259041
+    https://golang.org/cl/5149045
 
- src/cmd/prof/gopprof       |  1 -
- src/pkg/runtime/string.goc | 49 +++++++++++++++++++++++++++-------------------
- 2 files changed, 29 insertions(+), 21 deletions(-)
+ doc/go_spec.html          | 11 +++++--
+ src/cmd/gc/builtin.c.boot |  1 +
+ src/cmd/gc/runtime.go     |  1 +
+ src/cmd/gc/typecheck.c    |  8 +++--
+ src/cmd/gc/walk.c         | 74 +++++++++++++++++++++++++----------------------
+ src/pkg/runtime/slice.c   | 49 +++++++++++++++++++++----------
+ test/append.go            |  5 ++++
+ 7 files changed, 94 insertions(+), 55 deletions(-)

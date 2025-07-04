@@ -1,20 +1,21 @@
-commit 7c46f0349844f950cc811727ded2393cff7e0369
-Author: Quentin Smith <quentin@golang.org>
-Date:   Fri Oct 14 15:13:30 2016 -0400
+commit 3dc082f8fea3ee2710f1d1929169fb49ddf2622a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 15 15:22:35 2016 -0700
 
-    strconv: strip \r in raw strings passed to Unquote
+    go/types: minor cleanups
     
-    To match the language spec, strconv.Unquote needs to strip carriage
-    returns from the raw string.
+    1) Removed mark field from declInfo struct. Instead use a visited map
+       in ordering.go which was the only use place for the mark field.
     
-    Also fixes TestUnquote to not be a noop.
+    2) Introduced objSet type for the common map[Object]bool type.
     
-    Fixes #15997
+    3) Improved comments.
     
-    Change-Id: I2456f50f2ad3830f37e545f4f6774ced9fe609d7
-    Reviewed-on: https://go-review.googlesource.com/31210
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7544e7458d844b0ca08193f11de6238d317eaf2d
+    Reviewed-on: https://go-review.googlesource.com/24153
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/strconv/quote.go      | 10 ++++++++++
- src/strconv/quote_test.go |  3 ++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/go/types/initorder.go |  4 ++--
+ src/go/types/ordering.go  | 20 ++++++++------------
+ src/go/types/resolver.go  | 11 ++++++++---
+ 3 files changed, 18 insertions(+), 17 deletions(-)

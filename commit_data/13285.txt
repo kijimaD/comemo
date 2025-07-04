@@ -1,28 +1,14 @@
-commit 09f48db3e17c71e2ab709efb760e2a305c67aace
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Jun 5 18:55:14 2012 +1000
+commit 6763e5b6cde9fbd4f65527a2c01f3d700d8e90fd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jun 5 11:56:32 2012 +1000
 
-    runtime: use uintptr for block length in scanblock
+    gc: fix typo.
     
-    Using an int64 for a block size doesn't make
-    sense on 32bit platforms but extracts a performance
-    penalty dealing with double word quantities on Arm.
+    There already is a "Phase 6" a few lines above.
     
-    linux/arm
-    
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkGobDecode        155401600    144589300   -6.96%
-    BenchmarkGobEncode         72772220     62460940  -14.17%
-    BenchmarkGzip               5822632      2604797  -55.26%
-    BenchmarkGunzip              326321       151721  -53.51%
-    
-    benchmark                  old MB/s     new MB/s  speedup
-    BenchmarkGobDecode             4.94         5.31    1.07x
-    BenchmarkGobEncode            10.55        12.29    1.16x
-    
-    R=golang-dev, rsc, bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6272047
+    https://golang.org/cl/6270054
 
- src/pkg/runtime/mgc0.c | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

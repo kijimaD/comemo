@@ -1,22 +1,41 @@
-commit 02deb77f6db19f5894d836790a64bd4dea86feb0
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 8 11:47:16 2017 -0700
+commit 8304d10763650eb3f50553fa689500f09d8fdd06
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Apr 24 15:11:39 2017 -0400
 
-    cmd/compile: fix println()
+    cmd/compile: ppc64x intrinsics for math/bits
     
-    println with no arguments accidentally doesn't print a newline.
+    This adds math/bits intrinsics for OnesCount, Len, TrailingZeros on
+    ppc64x.
     
-    Introduced at CL 55097
+    benchmark                       old ns/op     new ns/op     delta
+    BenchmarkLeadingZeros-16        4.26          1.71          -59.86%
+    BenchmarkLeadingZeros16-16      3.04          1.83          -39.80%
+    BenchmarkLeadingZeros32-16      3.31          1.82          -45.02%
+    BenchmarkLeadingZeros64-16      3.69          1.71          -53.66%
+    BenchmarkTrailingZeros-16       2.55          1.62          -36.47%
+    BenchmarkTrailingZeros32-16     2.55          1.77          -30.59%
+    BenchmarkTrailingZeros64-16     2.78          1.62          -41.73%
+    BenchmarkOnesCount-16           3.19          0.93          -70.85%
+    BenchmarkOnesCount32-16         2.55          1.18          -53.73%
+    BenchmarkOnesCount64-16         3.22          0.93          -71.12%
     
-    Fixes #21808
+    Update #18616
     
-    Change-Id: I9fc7b4271b9b31e4c9b6078f055195dc3907b62c
-    Reviewed-on: https://go-review.googlesource.com/62390
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    I also made a change to bits_test.go because when debugging some failures
+    the output was not quite providing the right argument information.
+    
+    Change-Id: Ia58d31d1777cf4582a4505f85b11a1202ca07d3e
+    Reviewed-on: https://go-review.googlesource.com/41630
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/walk.go |  8 ++++----
- test/fixedbugs/issue21808.go        | 17 +++++++++++++++++
- test/fixedbugs/issue21808.out       |  3 +++
- 3 files changed, 24 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |  34 ++++--
+ src/cmd/compile/internal/ppc64/ssa.go        |   2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  11 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   7 ++
+ src/cmd/compile/internal/ssa/opGen.go        |  72 ++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 162 +++++++++++++++++++++++++++
+ src/math/bits/bits_test.go                   |   8 +-
+ 7 files changed, 279 insertions(+), 17 deletions(-)

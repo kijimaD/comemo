@@ -1,17 +1,25 @@
-commit 3fb17cfd17108c0c49d8a58cf25610fe5c84755a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Dec 21 13:13:01 2021 +0100
+commit eb433ed5a2ab13567cd5d7f0413308174750d5dd
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Apr 11 09:47:13 2021 -0700
 
-    os: enable TestPipeThreads on FreeBSD
+    cmd/compile: set types properly for imported funcs with closures
     
-    This test works on FreeBSD since CL 165801 was submitted.
+    For the new export/import of node types, we were just missing setting
+    the types of the closure variables (which have the same types as the
+    captured variables) and the OCLOSURE node itself (which has the same
+    type as the Func node).
     
-    Updates #19093
+    Re-enabled inlining of functions with closures.
     
-    Change-Id: I45ffeb403c1de4385cdb21b9647f21976061e1ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373358
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I687149b061f3ffeec3244ff02dc6e946659077a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308974
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/os_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/inline/inl.go        |  2 +-
+ src/cmd/compile/internal/typecheck/iimport.go | 11 +++++++
+ test/closure3.dir/main.go                     | 44 +++++++++++++--------------
+ test/inline.go                                | 22 +++++++-------
+ 4 files changed, 45 insertions(+), 34 deletions(-)

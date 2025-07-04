@@ -1,20 +1,43 @@
-commit 29ed12d4c7e61f6b4cc38d5b3d5eb885294f7878
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 23 15:44:46 2021 -0700
+commit 9e70564f639252aade60369b51a121f3325e9d6c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 28 17:10:32 2020 +0000
 
-    testing: update permitted number of -race goroutines
+    cmd/compile,cmd/asm: simplify recording of branch targets, take 2
     
-    The value 8128 appears to be correct as of 2021-03-23. The value is
-    determined by the value of kMaxTid currently at
+    We currently use two fields to store the targets of branches.
+    Some phases use p.To.Val, some use p.Pcond. Rewrite so that
+    every branch instruction uses p.To.Val.
+    p.From.Val is also used in rare instances.
+    Introduce a Pool link for use by arm/arm64, instead of
+    repurposing Pcond.
     
-    https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/tsan/rtl/tsan_defs.h#L68
+    This is a cleanup CL in preparation for some stack frame CLs.
     
-    Fixes #45193
-    
-    Change-Id: If4a30d7dbebd6775bede42f565dc8a741b8b036c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304254
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: If8239177e4b1ea2bccd0608eb39553d23210d405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251437
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go |  4 ++--
+ src/cmd/compile/internal/gc/gsubr.go  |  2 +-
+ src/cmd/compile/internal/gc/ssa.go    |  2 +-
+ src/cmd/compile/internal/s390x/ssa.go |  4 ++--
+ src/cmd/compile/internal/x86/ssa.go   |  4 ++--
+ src/cmd/internal/obj/arm/asm5.go      | 16 ++++++++--------
+ src/cmd/internal/obj/arm/obj5.go      | 10 +++++-----
+ src/cmd/internal/obj/arm64/asm7.go    | 36 ++++++++++++++++++++---------------
+ src/cmd/internal/obj/arm64/obj7.go    | 16 ++++++++--------
+ src/cmd/internal/obj/link.go          | 17 +++++++++++++++--
+ src/cmd/internal/obj/mips/asm0.go     | 24 +++++++++++------------
+ src/cmd/internal/obj/mips/obj0.go     | 14 +++++++-------
+ src/cmd/internal/obj/pass.go          | 17 +++++++----------
+ src/cmd/internal/obj/ppc64/asm9.go    | 18 +++++++++---------
+ src/cmd/internal/obj/ppc64/obj9.go    | 12 ++++++------
+ src/cmd/internal/obj/riscv/obj.go     | 29 ++++++++++++++--------------
+ src/cmd/internal/obj/s390x/asmz.go    | 18 +++++++++---------
+ src/cmd/internal/obj/s390x/objz.go    | 10 +++++-----
+ src/cmd/internal/obj/util.go          |  6 ++----
+ src/cmd/internal/obj/x86/asm6.go      | 12 ++++++------
+ src/cmd/internal/obj/x86/obj6.go      | 12 ++++++------
+ 21 files changed, 149 insertions(+), 134 deletions(-)

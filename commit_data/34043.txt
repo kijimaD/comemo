@@ -1,12 +1,35 @@
-commit 236abdb46bc13c3e3afe019950d3c3db126190c4
-Author: Kevin Burke <kev@inburke.com>
-Date:   Tue Jan 23 22:19:34 2018 -0800
+commit 6471ace2ea449ea9b7e5b77b9e59c97eafa6392f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 26 14:55:41 2017 -0700
 
-    go/types: fix spelling mistake in comment
+    reflect: fix mutability of non-exported embedded fields
     
-    Change-Id: If8609dd7c4bdc261056804759ec254f8af0156df
-    Reviewed-on: https://go-review.googlesource.com/89417
+    The reflect API normally grants only read-only access to non-exported
+    fields, but it specially handles non-exported embedded fields so that
+    users can still fully access promoted fields and methods. For example,
+    if v.Field(i) refers to a non-exported embedded field, it would be
+    limited to RO access. But if v.Field(i).Field(j) is an exported field,
+    then the resulting Value will have full access.
+    
+    However, the way this was implemented allowed other operations to be
+    interspersed between the Field calls, which could grant inappropriate
+    access.
+    
+    Relatedly, Elem() is safe to use on pointer-embeddings, but it was
+    also being allowed on embeddings of interface types. This is
+    inappropriate because it could allow accessing methods of the dynamic
+    value's complete method set, not just those that were promoted via the
+    interface embedding.
+    
+    Fixes #22031.
+    Fixes #22053.
+    
+    Change-Id: I9db9be88583f1c1d80c1b4705a76f23a4379182f
+    Reviewed-on: https://go-review.googlesource.com/66331
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/stmt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/all_test.go | 28 +++++++++++++++++++----
+ src/reflect/value.go    | 61 +++++++++++++++++++++++++++----------------------
+ 2 files changed, 57 insertions(+), 32 deletions(-)

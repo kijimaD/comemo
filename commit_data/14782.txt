@@ -1,15 +1,18 @@
-commit 5e46d540c844df8a6dc6009e52b60e6cd67a012e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 2 17:52:54 2013 -0500
+commit cdec0850f8d1e7b95d6dde7333bb229d92982464
+Author: Thomas Kappler <tkappler@gmail.com>
+Date:   Wed Jan 2 17:39:41 2013 -0500
 
-    cmd/dist: use separate args for separate compiler flags
+    encoding/json: don't panic marshaling anonymous non-struct field
     
-    This makes dist safe for CL 7035043 (but keeps working now too).
+    Add a check for this case and don't try to follow the anonymous
+    type's non-existent fields.
     
-    R=golang-dev, remyoudompheng
+    Fixes #4474.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7029047
+    https://golang.org/cl/6945065
 
- src/cmd/dist/build.c        | 31 +++++++++++++++++++++----------
- src/cmd/dist/buildruntime.c | 22 ++++++++++++++--------
- 2 files changed, 35 insertions(+), 18 deletions(-)
+ src/pkg/encoding/json/encode.go      | 16 +++++++++-------
+ src/pkg/encoding/json/encode_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 7 deletions(-)

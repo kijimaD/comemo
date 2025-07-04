@@ -1,22 +1,17 @@
-commit 66770f4b1de37d9c5c962edb2980a70102e09ec3
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Sep 28 13:10:30 2020 -0400
+commit e440f052517a5e914715229176c66dc939a95824
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 11 16:37:41 2020 -0400
 
-    cmd/compile: mark type namedata symbols content-addressable
+    [dev.link] cmd/link: remove legacy newdie function
     
-    Type namedata symbols are for type/field/method names and package
-    paths. We can use content-addressable symbol mechanism for them.
+    Remove the linker's "newdie" function (no longer called).
     
-    Change-Id: I923fda17b7094c7a0e46aad7c450622eb3826294
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257960
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ide8be6019f512339b8356b0af812426f353af47d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223057
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/reflect.go | 2 ++
- src/cmd/internal/obj/objfile.go        | 7 +++++++
- src/cmd/internal/obj/sym.go            | 5 ++++-
- src/cmd/link/internal/loader/loader.go | 4 ++--
- 4 files changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/dwarf2.go | 30 ------------------------------
+ 1 file changed, 30 deletions(-)

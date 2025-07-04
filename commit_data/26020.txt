@@ -1,27 +1,20 @@
-commit a40b27e304fc2cbfed84c8c253128d470be0b8c8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 2 18:03:50 2016 -0800
+commit dcc821faf84b147cc8a887cb0e576497cfc6cbfd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 10 19:24:06 2015 -0800
 
-    cmd/compile: eliminate arch-specific typedefs
+    misc/cgo/gmp: change pi.go to use standard Go copyright header
     
-    Arch backends already provide us Widthint and Widthptr, which is ample
-    information to figure out how to define the universal "int", "uint",
-    and "uintptr" types.  No need for providing a generic typedef
-    mechanism beyond that.
+    This file is not part of the benchmark shootout, and we wrote it, so use
+    the usual copyright header, not a partial version of the shootout
+    license.
     
-    Change-Id: I35c0c17a67c80605a9208b93d77d6960b2cbb17d
-    Reviewed-on: https://go-review.googlesource.com/20153
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #13575.
+    
+    Change-Id: Ib610e2ad82914b4ef096a2424cfffe3383db2d5b
+    Reviewed-on: https://go-review.googlesource.com/17715
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/amd64/galign.go  | 14 -----------
- src/cmd/compile/internal/arm/galign.go    | 11 ---------
- src/cmd/compile/internal/arm64/galign.go  | 11 ---------
- src/cmd/compile/internal/gc/align.go      | 33 -------------------------
- src/cmd/compile/internal/gc/go.go         |  7 ------
- src/cmd/compile/internal/gc/lex.go        | 41 ++++++++++++++++++++++++++-----
- src/cmd/compile/internal/mips64/galign.go | 11 ---------
- src/cmd/compile/internal/ppc64/galign.go  | 11 ---------
- src/cmd/compile/internal/x86/galign.go    | 11 ---------
- 9 files changed, 35 insertions(+), 115 deletions(-)
+ misc/cgo/gmp/pi.go | 41 ++++-------------------------------------
+ 1 file changed, 4 insertions(+), 37 deletions(-)

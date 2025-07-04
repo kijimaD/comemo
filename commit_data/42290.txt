@@ -1,17 +1,20 @@
-commit 7d232ab276fe81c1c8552d4a809af7a593bb294b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Apr 30 16:01:02 2020 -0400
+commit 300f5d5b4bac870aa146c14cbb50dbb3902f1feb
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Nov 21 18:54:38 2019 -0500
 
-    crypto/x509: improve VerifyOptions and VerifyHostname docs
+    cmd/go: add 'go generate' commands to modfile_flag test
     
-    Before going around making changes, surface the current behavior in the
-    docs as a starting point. No behavior changes.
+    Verify that 'go generate' works with -modfile. Also check that
+    go commands starts with 'go generate' do not inherit -modfile, but
+    they should still work if -modfile is set in GOFLAGS.
     
-    Change-Id: If8096cedbba7eda37694dbb7f438046d590c3bcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231377
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Updates #34506
+    
+    Change-Id: I5e1f897b4e38e4fdaccc0fbb7a71b8d0e9fc0660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208236
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/crypto/x509/verify.go | 32 +++++++++++++++++++++++++++-----
- 1 file changed, 27 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/script/modfile_flag.txt | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

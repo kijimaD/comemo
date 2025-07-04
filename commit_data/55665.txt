@@ -1,28 +1,24 @@
-commit 7fd62ba821b1044e8e4077df052b0a1232672d57
-Author: Alex Bozhenko <alexbozhenko@gmail.com>
-Date:   Wed Feb 7 15:19:06 2024 +0000
+commit cf3d0655f8ca2de555549f6e8a91bf8654da7e6c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 1 08:39:04 2023 -0800
 
-    cmd/fix: support go versions with patch release
+    crypto/x509: fix broken tests
     
-    Support go version with patch release(e.g. 1.21.0)
-    and release candidates(e.g. 1.21rc1)
-    when parsing the go version in the fix command
-    by using new "go/version" package.
+    Convert TestUnknownAuthorityError to use subtests, avoiding continuing
+    the test after an unrecoverable failure.
     
-    Fixes #62584
+    Skip TestIssue51759 on pre-macOS 11 builders, which don't enforce the
+    behavior we were testing for.
     
-    Change-Id: I0ec16137c7a396c68039d374c770c4021fb54b4e
-    GitHub-Last-Rev: 76bced5c48334c0937289bce8bcf50f82e3f0b98
-    GitHub-Pull-Request: golang/go#62586
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527342
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Alex Bozhenko <alexbozhenko@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Updates #58791
+    Fixes #58812
+    
+    Change-Id: I4e3e5bc371aa139d38052184c8232f8cb564138f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472496
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/fix/buildtag.go      |  5 +++--
- src/cmd/fix/buildtag_test.go |  4 ++--
- src/cmd/fix/main.go          | 29 ++++++-----------------------
- src/cmd/fix/main_test.go     | 10 +++++-----
- 4 files changed, 16 insertions(+), 32 deletions(-)
+ src/crypto/x509/verify_test.go | 54 +++++++++++++++++++++++-------------------
+ 1 file changed, 30 insertions(+), 24 deletions(-)

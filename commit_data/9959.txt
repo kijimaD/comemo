@@ -1,12 +1,22 @@
-commit fa538114edce01d7556e61bcd96b1593a0c47d1a
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 13 15:44:17 2011 -0400
+commit 38fb09b4122ed6f6bfac02f9d0b82723c17988ad
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Thu Oct 13 13:59:13 2011 -0400
 
-    spec: define order of multiple assignment
+    crypto/tls: fetch root certificates using Mac OS API
     
-    R=golang-dev, r, gri
+    Fixes #1009.
+    
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/5240055
+    https://golang.org/cl/5262041
 
- doc/go_spec.html | 28 +++++++++++++++++++++++-----
- 1 file changed, 23 insertions(+), 5 deletions(-)
+ src/pkg/crypto/tls/Makefile                 | 18 ++++++
+ src/pkg/crypto/tls/common.go                | 37 ++++-------
+ src/pkg/crypto/tls/handshake_client.go      |  6 +-
+ src/pkg/crypto/tls/handshake_server_test.go |  1 +
+ src/pkg/crypto/tls/root_darwin.go           | 95 +++++++++++++++++++++++++++++
+ src/pkg/crypto/tls/root_stub.go             |  8 +++
+ src/pkg/crypto/tls/root_test.go             | 36 +++++++++++
+ src/pkg/crypto/tls/root_unix.go             | 27 ++++++++
+ src/pkg/http/serve_test.go                  | 11 +++-
+ 9 files changed, 208 insertions(+), 31 deletions(-)

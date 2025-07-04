@@ -1,18 +1,27 @@
-commit 5b071bfa88e3366dec768b9e3304f131b258835b
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Thu Mar 1 09:26:38 2018 -0500
+commit d487b15a61eee87c304277842a4624dca0c6bddd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 13 14:47:45 2017 -0700
 
-    cmd/compile: convert type during finishcompare
+    [release-branch.go1.9] cmd/compile: omit ICE diagnostics after normal error messages
     
-    When recursively calling walkexpr, r.Type is still the untyped value.
-    It then sometimes recursively calls finishcompare, which complains that
-    you can't compare the resulting expression to that untyped value.
+    After we detect errors, the AST is in a precarious state and more
+    likely to trip useless ICE failures. Instead let the user fix any
+    existing errors and see if the ICE persists.  This makes Fatalf more
+    consistent with how panics are handled by hidePanic.
     
-    Updates #23834.
+    While here, also fix detection for release versions: release version
+    strings begin with "go" ("go1.8", "go1.9.1", etc), not "release".
     
-    Change-Id: I6b7acd3970ceaff8da9216bfa0ae24aca5dee828
-    Reviewed-on: https://go-review.googlesource.com/97856
+    Fixes #22252.
+    
+    Change-Id: I1c400af62fb49dd979b96e1bf0fb295a81c8b336
+    Reviewed-on: https://go-review.googlesource.com/70850
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/70985
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/walk.go | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

@@ -1,13 +1,13 @@
-commit fa9c44d831edf4f0208c16547e1195ef026f24db
+commit f03a5796e399d613172aa9a7bb33760bdb5f0d09
 Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 20 08:08:30 2012 +1100
+Date:   Mon Feb 20 07:44:41 2012 +1100
 
-    doc/install.html: fix link
-    Fixes #3072.
+    test/initsyscall.go: delete
+    It's testing an old property of the language and is no longer relevant.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5684044
+    https://golang.org/cl/5676104
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/initsyscall.go | 26 --------------------------
+ 1 file changed, 26 deletions(-)

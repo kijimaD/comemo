@@ -1,14 +1,20 @@
-commit 480df2c2b4bc668e6b3a9d2f9ade1593da875be9
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Apr 12 11:32:48 2019 +0200
+commit 8bb3ae18db3ae1457ad56fc32a6380159589aa70
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Nov 19 12:25:37 2018 -0500
 
-    runtime: remove debug prints in netpoll_aix.go
+    cmd/vendor: eliminate vet-lite
     
-    Change-Id: I80cca386de23cde39ab4ed3be9878374dc7607ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171721
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    cmd/vet, now simplified to a single function call is now authoritative,
+    not a copy of vet-lite.
+    
+    The update-xtools.sh script now uses the imports of cmd/vet as the
+    roots for vendoring.
+    
+    Change-Id: I4faef3fcf3db10b3a3930726e8d0720a3c8395da
+    Reviewed-on: https://go-review.googlesource.com/c/150297
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/runtime/netpoll_aix.go | 41 -----------------------------------------
- 1 file changed, 41 deletions(-)
+ .../x/tools/go/analysis/cmd/vet-lite/main.go       | 74 ----------------------
+ src/cmd/vendor/update-xtools.sh                    | 12 ++--
+ 2 files changed, 8 insertions(+), 78 deletions(-)

@@ -1,0 +1,20 @@
+commit c7227bc72c5ceaf9f957473cdde4753edc6155cd
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 23 23:09:07 2024 -0400
+
+    runtime: make TestDebugLogInterleaving much more robust
+    
+    The current test often doesn't actually generate enough interleaving
+    to result in multiple log shards. This CL rewrites this test to
+    forcibly create at least 10 log shards with interleaved log messages.
+    It also tests dlog's robustness to being held across M and P switches.
+    
+    Change-Id: Ia913b17c0392384ff679832047f359945669bb15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600699
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/runtime/debuglog_test.go        | 70 +++++++++++++++++++++++++++----------
+ src/runtime/export_debuglog_test.go | 10 ++++++
+ 2 files changed, 62 insertions(+), 18 deletions(-)

@@ -1,19 +1,15 @@
-commit f30a2b9ca7ccfd325a5ebcc8eb57e39d8e9c7af3
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Dec 12 18:11:27 2014 +0100
+commit 31f8310c45205a38311e4b82f24eabe29c7c79a0
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 23 13:45:58 2014 -0800
 
-    runtime: add execution tracing functionality
+    reflect: fix func layout test for nacl build
     
-    This is first patch of series of patches that implement tracing functionality.
-    Design doc:
-    https://docs.google.com/document/u/1/d/1FP5apqzBgr7ahCCgFO-yoVhk4YZrNIDNf9RybngBc14/pub
-    Full change:
-    https://codereview.appspot.com/146920043
+    This test code is ugly.  There must be a better way.
+    But for now, fix the build.
     
-    Change-Id: I84588348bb05a6f6a102c230f3bca6380a3419fe
-    Reviewed-on: https://go-review.googlesource.com/1450
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I33064145ea37f11abf040ec97caa87669be1a9fa
+    Reviewed-on: https://go-review.googlesource.com/2114
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/runtime2.go |   3 +
- src/runtime/trace.go    | 790 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 793 insertions(+)
+ src/reflect/all_test.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

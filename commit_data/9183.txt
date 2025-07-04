@@ -1,18 +1,12 @@
-commit a667e44e7592fd6c40815d9f774a64a18edf1f17
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 22 21:21:17 2011 -0400
+commit 4e5e12e305d2847a95a986d0e32b036b29ecd6ba
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Fri Jul 22 21:21:08 2011 -0400
 
-    lib9: use $PWD in getwd
+    ld: fixes ldpe link with SXREF global values.
     
-    This makes the full file paths recorded by 6g
-    prefer $PWD over the actual directory name
-    (relevant when $PWD gets to the current directory
-    via symlinks).  It's what everyone else does, and
-    what people expect.
-    
-    R=iant, r, mattn.jp
+    R=golang-dev, mattn.jp, rsc
     CC=golang-dev
-    https://golang.org/cl/4824041
+    https://golang.org/cl/4794052
 
- src/lib9/getwd.c | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/cmd/ld/ldpe.c | 4 ++++
+ 1 file changed, 4 insertions(+)

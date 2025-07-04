@@ -1,21 +1,13 @@
-commit 0c8f4694282aebd131fee8400cfc6ca0b0c41775
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 15 12:53:57 2012 -0400
+commit f47346c5fce2eafc57bd0b6da14d531a49237345
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue May 15 12:52:18 2012 -0400
 
-    cmd/go: invoke godoc with import path when possible
-    Also add -n -x flags to doc, fmt, vet.
-    Also shorten unknown command error.
+    8l,5l: 2% faster
     
-    Fixes #3612.
-    Fixes #3613.
-    
-    R=golang-dev, bradfitz, r
+    R=golang-dev, for.go.yong
     CC=golang-dev
-    https://golang.org/cl/6211053
+    https://golang.org/cl/6197080
 
- src/cmd/go/build.go |  5 +++++
- src/cmd/go/doc.go   | 15 ++++++++++++---
- src/cmd/go/fmt.go   | 21 ++++++++++++++++++---
- src/cmd/go/main.go  | 12 ++++++++++--
- src/cmd/go/vet.go   |  9 ++++++++-
- 5 files changed, 53 insertions(+), 9 deletions(-)
+ src/cmd/5l/obj.c | 20 ++++++++++----------
+ src/cmd/8l/obj.c | 18 +++++++++---------
+ 2 files changed, 19 insertions(+), 19 deletions(-)

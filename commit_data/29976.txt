@@ -1,14 +1,17 @@
-commit 314180e7f66b6768b0db026138a6fedc52b0c08b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jan 24 19:46:27 2017 +0900
+commit f2f8d58b92cd7fd9616c98fb012467656de5a3cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 08:48:25 2016 -0400
 
-    net/http: fix a nit
+    reflect: update FieldByNameFunc comment
     
-    Change-Id: I31fa5f906ad2e8dc475dbbeb91f568f91e16861b
-    Reviewed-on: https://go-review.googlesource.com/35514
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This was supposed to be in CL 31354
+    but was dropped due to a Git usage error.
+    
+    For #16573.
+    
+    Change-Id: I3d99087c8efc8cbc016c55e8365d0005f79d1b2f
+    Reviewed-on: https://go-review.googlesource.com/31461
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/serve_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/type.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,16 +1,14 @@
-commit c88ca5906cbf022e5b63bddae44c0722054466c9
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Apr 19 11:48:17 2012 +1000
+commit e03dd509d48f854b90d3e0537d672f6786490195
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Apr 19 11:04:42 2012 +1000
 
-    exp/html: add parseImpliedToken method to parser
+    doc/articles/image_draw.html: Change ColorImage to Uniform
     
-    This method will allow us to be explicit about what we're doing when
-    we insert an implied token, and avoid repeating the logic involved in
-    multiple places.
+    Fixes #3474.
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6060048
+    https://golang.org/cl/6048050
 
- src/pkg/exp/html/parse.go | 84 ++++++++++++++++++++++++++---------------------
- 1 file changed, 47 insertions(+), 37 deletions(-)
+ doc/articles/image_draw.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

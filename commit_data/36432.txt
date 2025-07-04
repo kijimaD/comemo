@@ -1,15 +1,25 @@
-commit 7b8930ed4587a7f423380220be170daedc620c49
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 22 19:53:45 2018 +0000
+commit a835c7396d884b29e861594228fac89ba3f0d28d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 31 23:36:44 2018 +0100
 
-    runtime: fix build, rename a since-renamed hasprefix to hasPrefix
+    cmd/compile: add initial README
     
-    I merged CL 115835 without testing it after a rebase. My bad.
+    As a follow-up to the first README for cmd/compile/internal/ssa.
     
-    Change-Id: I0acc6ed78ea7d718ac2df11d509cfcf4364dfaee
-    Reviewed-on: https://go-review.googlesource.com/130815
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Since this is the parent package for all the compiler packages, this
+    README serves as an overview of the compiler and its packages. As more
+    READMEs are added for specific parts with more detail, such as ssa's,
+    they can be linked from this one.
+    
+    Thanks to Iskander Sharipov, Josh Bleecher Snyder, Matthew Dempsky,
+    Alberto Donizetti, and Robert Griesemer for helping with all the details
+    in this document.
+    
+    Change-Id: I820a535e25dce86ccc667ce1c6e92b75fc32f3af
+    Reviewed-on: https://go-review.googlesource.com/103935
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/panic.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/README.md | 116 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 116 insertions(+)

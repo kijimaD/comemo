@@ -1,16 +1,19 @@
-commit 39f2032c17516a55c165d329dd5e2e07f49132b0
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Jan 7 14:29:23 2025 -0800
+commit c32362125ba694d62a3f28ac35bb2734daf2056a
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Nov 13 14:51:33 2023 +0000
 
-    testing/synctest: add some examples
+    cmd/link/internal/loadpe: remove unused dynimports in peImportSymsState
     
-    For #67434
+    dynimports is a leftover from a previous implementation, so remove it
+    for now.
     
-    Change-Id: Iebcfc2559a62405fea7e3ceff8cf6c2f50b61def
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/641176
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I6419e3fa35ce6a9e46aa387377e436415221e3a2
+    GitHub-Last-Rev: ba429bfb122b75cc759d69a41615cb1ddbd18f6c
+    GitHub-Pull-Request: golang/go#64097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541895
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/testing/synctest/context_example_test.go | 78 ++++++++++++++++++++++++++++
- 1 file changed, 78 insertions(+)
+ src/cmd/link/internal/loadpe/ldpe.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

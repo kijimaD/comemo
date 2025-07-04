@@ -1,23 +1,21 @@
-commit 8898450841e2febb86028389e358d9d906fddbfb
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed Oct 23 22:45:58 2024 +0800
+commit 51df232b122b77c1bb066e53300247ec68695743
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:00 2024 -0500
 
-    cmd/go: only print GOCACHE value in env -changed if it's not the default
+    runtime: use timer.lock in deltimer
     
-    When other environment variables are set to default values,
-    we will not print it in go env -changed,
-    GOCACHE should do the same.
+    The state set is now simplified enough that all the CAS loops
+    are starting to look the same: they are just spin locks.
+    So introduce an actual timer.lock method and use it in deltimer.
     
-    For #69994
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
     
-    Change-Id: I16661803cf1f56dd132b4db1c2d5cb4823fc0e58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621997
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Auto-Submit: Sean Liao <sean@liao.dev>
+    Change-Id: Ifd7f20eeede5c764ef10ecba64855c29a5ddbe39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564124
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/cache/default.go       | 27 ++++++++++++++-------------
- src/cmd/go/testdata/script/env_changed.txt |  5 +++++
- 2 files changed, 19 insertions(+), 13 deletions(-)
+ src/runtime/time.go | 178 ++++++++++++++++++++++++----------------------------
+ 1 file changed, 83 insertions(+), 95 deletions(-)

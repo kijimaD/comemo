@@ -1,19 +1,37 @@
-commit 3d62c76736717613c4a921e45f59d40190c0792e
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Aug 1 12:00:57 2023 -0400
+commit af668c689c66588f8adb9f5cd6db812706536338
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Tue Sep 6 11:43:28 2022 +0800
 
-    cmd/compile/internal/ir: add "never returns" func flag
+    cmd/compile: fold constant shift with extension on riscv64
     
-    Add a flag to ir.Func's flags field to record whether a given function
-    is deemed to never return (e.g. always calls exit or panic or
-    equivalent on all control paths). So as to not increase the amount of
-    flag storage, this new flag replaces the existing "ExportInline" flag,
-    which is currently unused.
+    For example:
     
-    Change-Id: Idd336e47381048cfc995eda05faf8b62f06ba206
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518256
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+      movb a0, a0
+      srai $1, a0, a0
+    
+    the assembler will expand to:
+    
+      slli $56, a0, a0
+      srai $56, a0, a0
+      srai $1, a0, a0
+    
+    this CL optimize to:
+    
+      slli $56, a0, a0
+      srai $57, a0, a0
+    
+    Remove 270+ instructions from Go binary on linux/riscv64.
+    
+    Change-Id: I375e19f9d3bd54f2781791d8cbe5970191297dc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428496
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/func.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ .../internal/ssa/_gen/RISCV64latelower.rules       |  19 ++
+ src/cmd/compile/internal/ssa/config.go             |   1 +
+ .../internal/ssa/rewriteRISCV64latelower.go        | 253 +++++++++++++++++++++
+ test/codegen/shift.go                              |   6 +-
+ 4 files changed, 276 insertions(+), 3 deletions(-)

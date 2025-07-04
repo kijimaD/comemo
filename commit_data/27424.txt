@@ -1,20 +1,21 @@
-commit ac66bb343181bef154342638d45dcc2c695ded00
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Tue May 17 20:22:48 2016 -0600
+commit c61a55d831d8042e4af48442e3a0db7d80539e5d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 15:57:25 2016 -0700
 
-    crypto/x509: fix typo in docs for CreateCertificateRequest
+    misc/cgo/testcarchive: more robust TestSignalForwardingExternal
     
-    Update the doc for CreateCertificateRequest
-    to state that it creates a
-      `new certificate request`
-    instead of just a
-      `new certificate`
+    Try to avoid a race condition in the test.  Passed 500 times on my
+    laptop.
     
-    Fixes #14649.
+    Fixes #14956.
     
-    Change-Id: Ibbbcf91d74168998990990e78e5272a6cf294d51
-    Reviewed-on: https://go-review.googlesource.com/23204
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5de2e1e3623832f0ab4f180149f7c57ce7cd23c0
+    Reviewed-on: https://go-review.googlesource.com/21171
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/x509.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go     | 78 +++++++++++++++++++-----------
+ misc/cgo/testcarchive/main5.c              | 23 +++++++--
+ misc/cgo/testcarchive/src/libgo2/libgo2.go |  5 ++
+ 3 files changed, 74 insertions(+), 32 deletions(-)

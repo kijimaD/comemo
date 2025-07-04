@@ -1,12 +1,42 @@
-commit 83634e9cf2fb7bf1d45737589291da8bdbee132b
-Author: Davor Kapsa <davor.kapsa@gmail.com>
-Date:   Sat Nov 18 20:48:08 2017 +0100
+commit 99da8730b0b95da2c366135c8dc95dcfaf9c3715
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Aug 19 22:33:51 2017 +0200
 
-    runtime/pprof: fix doc typo
+    all: remove some double spaces from comments
     
-    Change-Id: I6e814182d89c3e7ff184141af097af0afb844d00
-    Reviewed-on: https://go-review.googlesource.com/78620
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Went mainly for the ones that make no sense, such as the ones
+    mid-sentence or after commas.
+    
+    Change-Id: Ie245d2c19cc7428a06295635cf6a9482ade25ff0
+    Reviewed-on: https://go-review.googlesource.com/57293
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/pprof/pprof.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/asm.go                | 2 +-
+ src/cmd/compile/fmt_test.go                    | 2 +-
+ src/cmd/compile/internal/amd64/ssa.go          | 2 +-
+ src/cmd/compile/internal/gc/builtin/runtime.go | 2 +-
+ src/cmd/compile/internal/gc/const.go           | 2 +-
+ src/cmd/compile/internal/gc/main.go            | 2 +-
+ src/cmd/compile/internal/gc/ssa.go             | 2 +-
+ src/cmd/compile/internal/ssa/copyelim.go       | 2 +-
+ src/cmd/compile/internal/ssa/regalloc.go       | 2 +-
+ src/cmd/compile/internal/x86/ssa.go            | 2 +-
+ src/cmd/internal/obj/x86/obj6.go               | 2 +-
+ src/cmd/internal/objfile/goobj.go              | 4 ++--
+ src/encoding/gob/decoder.go                    | 2 +-
+ src/encoding/json/decode.go                    | 6 +++---
+ src/encoding/xml/read.go                       | 2 +-
+ src/flag/flag.go                               | 8 ++++----
+ src/fmt/print.go                               | 2 +-
+ src/net/http/server.go                         | 2 +-
+ src/runtime/cputicks.go                        | 2 +-
+ src/runtime/lock_sema.go                       | 2 +-
+ src/runtime/mgc.go                             | 2 +-
+ src/runtime/panic.go                           | 2 +-
+ src/strconv/quote.go                           | 2 +-
+ src/sync/atomic/atomic_test.go                 | 2 +-
+ src/syscall/mksyscall_windows.go               | 2 +-
+ src/unsafe/unsafe.go                           | 2 +-
+ 26 files changed, 32 insertions(+), 32 deletions(-)

@@ -1,15 +1,15 @@
-commit 8edb72587f500a1afcd0209a3c18310eafe95e08
-Author: Todd Neal <todd@tneal.org>
-Date:   Mon Mar 14 21:59:20 2016 -0500
+commit a120beaa8db6b723c120c8d3bf3324dfa503cb2d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 17:17:53 2016 +0000
 
-    cmd/compile: add logging to critical and phielim
+    Revert "net: ensure that malformed domain names report a consistent error"
     
-    Change-Id: Ieefeceea40bd29657fd519368b0920dad8443844
-    Reviewed-on: https://go-review.googlesource.com/20712
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This reverts commit bb8c2e19a7fe2ca2283eca44dba2047c9f4307fe.
+    
+    Change-Id: I9bc089e9f2296805ef055b98e8c86ba73af30226
+    Reviewed-on: https://go-review.googlesource.com/18439
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ssa/critical.go | 3 +++
- src/cmd/compile/internal/ssa/phielim.go  | 4 ++++
- 2 files changed, 7 insertions(+)
+ src/net/ip_test.go | 45 ---------------------------------------------
+ src/net/lookup.go  | 21 ---------------------
+ 2 files changed, 66 deletions(-)

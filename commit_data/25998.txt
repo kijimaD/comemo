@@ -1,23 +1,15 @@
-commit 62ac107a34823a692957c53662650a208cbe3151
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 1 15:59:15 2016 -0800
+commit 371e44e5a1bf4201ade2ebb67e110176825eef9c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 9 17:51:23 2015 +0000
 
-    cmd/compile: some SSA cleanup
+    runtime/race: update two stale references
     
-    Do some easy TODOs.
-    Move a bunch of other TODOs into bugs.
+    Fixes #13550
     
-    Change-Id: Iaba9dad6221a2af11b3cbcc512875f4a85842873
-    Reviewed-on: https://go-review.googlesource.com/20114
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Todd Neal <todd@tneal.org>
+    Change-Id: I407daad8b94f6773d7949ba27981d26cbfd2cdf4
+    Reviewed-on: https://go-review.googlesource.com/17682
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             |  2 +-
- src/cmd/compile/internal/ssa/TODO              | 19 -------------------
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 +-
- src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |  6 +++---
- src/cmd/compile/internal/ssa/opGen.go          |  5 +++--
- src/cmd/compile/internal/ssa/rewritegeneric.go | 24 ++++++++++++------------
- 7 files changed, 21 insertions(+), 39 deletions(-)
+ src/runtime/race/race.go                 | 2 +-
+ src/runtime/race/testdata/select_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

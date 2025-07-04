@@ -1,39 +1,45 @@
-commit 85b3b4ee036e7460bf7621f64c6781e5dd0eed98
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Jan 4 17:14:35 2021 +0800
+commit 9fd6cc105db89107bf163d2f0c1f8f55e442ec4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 26 16:22:35 2020 -0400
 
-    cmd/compile: add -asan option
+    go/printer: canonicalize //go:build and // +build lines while formatting
     
-    The -asan option causes the compiler to add instrumentation for the
-    C/C++ address sanitizer.  Every memory read/write will be replaced
-    by a call to asanread/asanwrite.
+    Part of //go:build change (#41184).
+    See https://golang.org/design/draft-gobuild
     
-    This CL also inserts asan instrumentation during SSA building.
+    Gofmt and any other go/printer-using program will now:
     
-    This CL passes tests but is not usable by itself. The actual
-    implementation of asanread/asanwrite in the runtime package, and
-    support for -asan in the go tool and tests, will follow in subsequent
-    CLs.
+     - move //go:build and //+build lines to the appropriate file location
+     - if there's no //go:build line, add one derived from the // +build lines
+     - if there is a //go:build line, recompute and replace any // +build lines
+       to match what the //go:build line says
     
-    Updates #44853.
+    For Go 1.17.
     
-    Change-Id: Ia18c9c5d5c351857420d2f6835f0daec2ad31096
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/298611
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ide5cc3b4a07507ba9ed6f8b0de846e840876f49f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240608
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/doc.go                                |  2 ++
- src/cmd/compile/internal/base/base.go                 |  1 +
- src/cmd/compile/internal/base/flag.go                 | 16 ++++++++++++----
- src/cmd/compile/internal/gc/main.go                   |  5 +++--
- src/cmd/compile/internal/ir/func.go                   |  2 +-
- src/cmd/compile/internal/ir/symtab.go                 |  2 ++
- src/cmd/compile/internal/noder/import.go              |  2 ++
- src/cmd/compile/internal/reflectdata/reflect.go       |  3 +++
- src/cmd/compile/internal/ssagen/ssa.go                | 18 +++++++++++++++---
- src/cmd/compile/internal/typecheck/builtin.go         |  2 ++
- src/cmd/compile/internal/typecheck/builtin/runtime.go |  4 ++++
- src/cmd/internal/sys/supported.go                     | 11 +++++++++++
- 12 files changed, 58 insertions(+), 10 deletions(-)
+ src/go/build/deps_test.go               |   8 +-
+ src/go/format/format_test.go            |   4 +
+ src/go/printer/gobuild.go               | 170 ++++++++++++++++++++++++++++++++
+ src/go/printer/printer.go               |  14 +++
+ src/go/printer/printer_test.go          |  20 ++--
+ src/go/printer/testdata/gobuild1.golden |   6 ++
+ src/go/printer/testdata/gobuild1.input  |   7 ++
+ src/go/printer/testdata/gobuild2.golden |   8 ++
+ src/go/printer/testdata/gobuild2.input  |   9 ++
+ src/go/printer/testdata/gobuild3.golden |  10 ++
+ src/go/printer/testdata/gobuild3.input  |  11 +++
+ src/go/printer/testdata/gobuild4.golden |   6 ++
+ src/go/printer/testdata/gobuild4.input  |   5 +
+ src/go/printer/testdata/gobuild5.golden |   4 +
+ src/go/printer/testdata/gobuild5.input  |   4 +
+ src/go/printer/testdata/gobuild6.golden |   5 +
+ src/go/printer/testdata/gobuild6.input  |   4 +
+ src/go/printer/testdata/gobuild7.golden |  11 +++
+ src/go/printer/testdata/gobuild7.input  |  11 +++
+ 19 files changed, 307 insertions(+), 10 deletions(-)

@@ -1,18 +1,15 @@
-commit f9066fe1c0a7181242f77d8534e0b6e112c982a9
+commit 1da1030b5dd9d9610ccada4413a23e77b21c7f3b
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 13 22:14:04 2013 +0400
+Date:   Tue Aug 13 22:07:42 2013 +0400
 
-    runtime: more reliable preemption
-    Currently it's possible that a goroutine
-    that periodically executes non-blocking
-    cgo/syscalls is never preempted.
-    This change splits scheduler and syscall
-    ticks to prevent such situation.
+    runtime: fix false deadlock crash
+    Fixes #6070.
+    Update #6055.
     
-    R=golang-dev, rsc
+    R=golang-dev, nightlyone, rsc
     CC=golang-dev
-    https://golang.org/cl/12658045
+    https://golang.org/cl/12602043
 
- src/pkg/runtime/proc.c    | 34 +++++++++++++++++++++-------------
- src/pkg/runtime/runtime.h |  5 +++--
- 2 files changed, 24 insertions(+), 15 deletions(-)
+ src/pkg/net/tcp_test.go | 75 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/proc.c  | 42 +++++++++++++++++----------
+ 2 files changed, 102 insertions(+), 15 deletions(-)

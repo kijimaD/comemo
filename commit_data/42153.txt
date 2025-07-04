@@ -1,21 +1,18 @@
-commit 40f2dab0e1740965c014ce22d194cc3fa2976868
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Mar 31 02:00:50 2020 +1100
+commit aacffb65767d107f6b37235f6a6def22bcf962cb
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Nov 11 14:32:30 2019 -0500
 
-    cmd/compile: implement multi-control branches for riscv64
+    [dev.link] cmd/link: remove old objs from host obj loaders
     
-    Implement multi-control branches for riscv64, switching to using the BNEZ
-    pseudo-instruction when rewriting conditionals. This will allow for further
-    branch optimisations to later be performed via rewrites.
-    
-    Change-Id: I7f2c69f3c77494b403f26058c6bc8432d8070ad0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226399
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: I9ee853e37090ea015aba817d9aeb2f4cc9ff5a1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206539
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/riscv64/ssa.go        | 50 +++++++++++++++++++++-----
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 ++--
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 14 +++++++-
- src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++++++-
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 12 +++----
- 5 files changed, 86 insertions(+), 20 deletions(-)
+ src/cmd/link/internal/ld/lib.go            | 114 ++++++++---------------------
+ src/cmd/link/internal/loadelf/ldelf.go     |  29 +++-----
+ src/cmd/link/internal/loadmacho/ldmacho.go |  20 ++---
+ src/cmd/link/internal/loadpe/ldpe.go       |  15 +---
+ src/cmd/link/internal/loadxcoff/ldxcoff.go |  22 ++----
+ 5 files changed, 55 insertions(+), 145 deletions(-)

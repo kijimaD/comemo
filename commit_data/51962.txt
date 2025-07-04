@@ -1,30 +1,21 @@
-commit da47cd6192822daef997df6bbbc0d3a6bdbdae13
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 8 16:51:58 2023 -0800
+commit e84a37068b05409add29f44d33853c1d30739baa
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Mar 25 10:29:27 2022 -0500
 
-    go/types, types2: simplify unify.inferred signature
+    cmd/compile: make F0,F27-F31 allocatable on PPC64
     
-    Rather than referring back to the type parameter list stored with
-    the unifier, return inferred types for a given list of type parameters.
-    This decouples the unifier more and opens the door for inference to
-    consider type parameters from multiple types for inference.
+    These FP registers on PPC64 have no restrictions, they can
+    be used like the others. F27-F31 were sequested long ago for
+    scratch storage which has long since been reverted, but they
+    weren't added back to the allocator pool.
     
-    While at it, introduce an internal flag to control whether
-    inference results of the two inference implementations should
-    be compared or not.
-    
-    Change-Id: I23b254c6c1c750f5bd1360aa2bb088cc466434f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466795
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I9074660e2fc91a2044c9768f700a8215802cba51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395834
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/types2/infer.go  | 19 +++++++--------
- src/cmd/compile/internal/types2/infer2.go | 40 ++++++++++++++++++-------------
- src/cmd/compile/internal/types2/unify.go  | 25 ++++++++-----------
- src/go/types/infer.go                     | 19 +++++++--------
- src/go/types/infer2.go                    | 40 ++++++++++++++++++-------------
- src/go/types/unify.go                     | 25 ++++++++-----------
- 6 files changed, 86 insertions(+), 82 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 202 +++++++++++++--------------
+ 2 files changed, 102 insertions(+), 102 deletions(-)

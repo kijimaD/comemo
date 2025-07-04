@@ -1,41 +1,35 @@
-commit 95f382139043059a2a0780ba577b53893408f7e4
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Feb 25 18:42:24 2020 +1100
+commit 1736f3a126ce0980e2584aebb35c94e8b33b1bfb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 1 15:48:17 2019 -0400
 
-    cmd/go, cmd/link: implement -buildmode=pie on windows
+    cmd/go: automatically check and use vendored packages
     
-    This CL implements windows version of -buildmode=pie code in both
-    cmd/go and cmd/link.
+    This implements the proposal described in
+    https://golang.org/issue/33848#issuecomment-537222782.
     
-    Windows executables built with -buildmode=pie set (unlike the one
-    built with -buildmode=exe) will have extra .reloc PE section, and
-    will have no IMAGE_FILE_RELOCS_STRIPPED flag set. They will also
-    have IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag set, and
-    IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA flag set for windows/amd64.
+    Fixes #33848
     
-    Both cgo and non-cgo versions are implemented. And TestBuildmodePIE
-    is extended to test both cgo and non-cgo versions on windows and
-    linux.
-    
-    This CL used some code from CLs 152759 and 203602.
-    
-    RELNOTE=yes
-    
-    Fixes #27144
-    Updates #35192
-    
-    Change-Id: I1249e4ffbd79bd4277efefb56db321c390c0f76f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214397
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia34d6500ca396b6aa644b920233716c6b83ef729
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198319
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/test.go                   |  4 +++
- src/cmd/go/go_test.go                  | 57 +++++++++++++++++++++++++++++++--
- src/cmd/go/internal/work/init.go       |  8 +++--
- src/cmd/go/testdata/script/version.txt |  6 ++--
- src/cmd/internal/sys/supported.go      |  3 +-
- src/cmd/link/internal/ld/config.go     |  3 +-
- src/cmd/link/internal/ld/lib.go        | 16 ++++++++--
- src/cmd/link/internal/ld/pe.go         | 58 ++++++++++++++++++++++------------
- 8 files changed, 122 insertions(+), 33 deletions(-)
+ doc/go1.14.html                                    |  30 ++-
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go/internal/modcmd/vendor.go               |  63 +++++-
+ src/cmd/go/internal/modload/import.go              |   2 +-
+ src/cmd/go/internal/modload/init.go                | 148 ++++++++++--
+ src/cmd/go/internal/modload/load.go                | 115 +++++++---
+ src/cmd/go/internal/work/init.go                   |   4 +-
+ .../go/testdata/script/mod_ambiguous_import.txt    |   2 +-
+ src/cmd/go/testdata/script/mod_internal.txt        |  12 +-
+ src/cmd/go/testdata/script/mod_test_files.txt      |   1 +
+ src/cmd/go/testdata/script/mod_vendor.txt          |  10 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     | 248 +++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_vendor_build.txt    |   2 +-
+ src/cmd/go/testdata/script/mod_vendor_unused.txt   |  67 ++++++
+ src/cmd/vendor/modules.txt                         |   6 +
+ src/go.mod                                         |   2 +-
+ src/vendor/modules.txt                             |   4 +
+ 17 files changed, 632 insertions(+), 86 deletions(-)

@@ -1,19 +1,25 @@
-commit b8fe88393b122a06e00163dc464bf8cd14187f4b
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Nov 18 14:39:20 2024 -0800
+commit 54f78cf8f1b8deea787803aeff5fb6150d7fac8f
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Sep 22 13:53:22 2023 +0000
 
-    os: correctly handle errno==0 in (*Process).blockUntilWaitable
+    SECURITY.md: update the Reporting a Vulnerability link
     
-    CL 627478 inadvertently returns a non-nil error
-    containing a syscall.Errno(0).
+    The https://go.dev/security is about: "This page provides
+    resources for Go developers to improve security for their
+    projects.", https://go.dev/security/policy is about Go Security Policy.
     
-    Change-Id: I1d6a9d0575d3ed651ddc02f30505437d0d266bb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629515
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    go.dev/security links to go.dev/security/policy,
+    but I think it is better to link directly to go.dev/security/policy
+    in this case.
+    
+    Change-Id: Ic6515961dc48055236bb06cc814072caa10a8f54
+    GitHub-Last-Rev: 37ac8ab440a42679833b67ce96b7fd19ecac6ca3
+    GitHub-Pull-Request: golang/go#63163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530119
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/os/wait_wait6.go  | 5 ++++-
- src/os/wait_waitid.go | 5 ++++-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ SECURITY.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

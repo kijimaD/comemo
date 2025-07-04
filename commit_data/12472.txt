@@ -1,14 +1,16 @@
-commit f4b40d92c812fa71d67a967ef8a813a7dcdf4dd4
+commit e8d1852d6a46caf5d7a00642dd9abf75b5a28098
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 11:44:47 2012 -0500
+Date:   Wed Mar 7 11:38:39 2012 -0500
 
-    cmd/cgo: document CGO_LDFLAGS and CGO_CFLAGS
+    doc: update Effective Go init section
     
-    Fixes #3203.
+    Goroutines are no longer excluded from init.
+    
+    Fixes #3232.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5769043
+    https://golang.org/cl/5764044
 
- src/cmd/cgo/doc.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/effective_go.html | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

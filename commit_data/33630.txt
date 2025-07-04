@@ -1,21 +1,14 @@
-commit e4a3043d1d8691bb1fc39a8542e378f713de7aa0
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Mon Oct 23 15:27:04 2017 +0900
+commit 6eef2bb5eeb4831a4d61dc2ffb14772e1270e634
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Aug 22 19:50:43 2017 +0900
 
-    testing: fix invalid error message about argument of TestMain
+    cmd/link: avoid leaking file in ldshlibsyms
     
-    Also, this commit adds a test for ensuring that TestMain(t *testing.T) is a normal test.
-    
-    Fixes #22388
-    
-    Change-Id: Iffcb1db5cdcf34b9c822fcdb58f8926535415177
-    Reviewed-on: https://go-review.googlesource.com/72591
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If27f7fbf94ede6f9a57f2520aaf75e6506e0b3f8
+    Reviewed-on: https://go-review.googlesource.com/59374
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/go/go_test.go                              | 15 +++++++++++++++
- src/cmd/go/internal/test/test.go                   | 11 ++++++++++-
- src/cmd/go/testdata/standalone_main_normal_test.go | 10 ++++++++++
- src/cmd/go/testdata/standalone_main_wrong_test.go  | 10 ++++++++++
- 4 files changed, 45 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 1 +
+ 1 file changed, 1 insertion(+)

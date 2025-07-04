@@ -1,17 +1,20 @@
-commit f2bcab5fb3436144c750e48934b4829111d407d6
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Jul 11 11:32:41 2024 -0700
+commit 51114a3fa58b196ec5ab4b5205617f98e2cdc5ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 09:38:29 2023 -0400
 
-    regexp: more cross-references in docstrings
+    cmd/go: clean up handling of go mod tidy -go=v during modload
     
-    Change-Id: I93f617bb6d82b00d44ce9a54c2ddcc8a61209783
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597776
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Slight cleanup of the special case for "mod tidy" during modload
+    of a module with no go version. Now it's clearer what is special.
+    
+    For #57001.
+    
+    Change-Id: I4a3ad0a948ccb5c62365f2a7f7f7de5582cc57c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499535
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/regexp/regexp.go   | 16 ++++++----------
- src/strings/strings.go |  2 +-
- 2 files changed, 7 insertions(+), 11 deletions(-)
+ src/cmd/go/internal/modload/init.go | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)

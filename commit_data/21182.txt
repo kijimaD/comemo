@@ -1,26 +1,19 @@
-commit ce5cb037d171273f1a5294723234be5495c9d336
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 6 09:06:44 2015 -0800
+commit c8af6de2e8f315a6e8282004e8e90d9c567531ea
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Nov 25 08:42:00 2014 +0100
 
-    runtime: use some startup randomness in the fallback hashes
+    [dev.cc] cmd/5g,cmd/6g,cmd/9g: fix warnings on Plan 9
     
-    Fold in some startup randomness to make the hash vary across
-    different runs.  This helps prevent attackers from choosing
-    keys that all map to the same bucket.
+    warning: src/cmd/5g/reg.c:461 format mismatch d VLONG, arg 5
+    warning: src/cmd/6g/reg.c:396 format mismatch d VLONG, arg 5
+    warning: src/cmd/9g/reg.c:440 format mismatch d VLONG, arg 5
     
-    Also, reorganize the hash a bit.  Move the *m1 multiply to after
-    the xor of the current hash and the message.  For hash quality
-    it doesn't really matter, but for DDOS resistance it helps a lot
-    (any processing done to the message before it is merged with the
-    random seed is useless, as it is easily inverted by an attacker).
-    
-    Update #9365
-    
-    Change-Id: Ib19968168e1bbc541d1d28be2701bb83e53f1e24
-    Reviewed-on: https://go-review.googlesource.com/2344
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=minux
+    R=rsc, minux
+    CC=golang-codereviews
+    https://golang.org/cl/179300043
 
- src/runtime/alg.go    | 20 +++++++++------
- src/runtime/hash32.go | 66 ++++++++++++++++++++++-------------------------
- src/runtime/hash64.go | 71 +++++++++++++++++++++++----------------------------
- 3 files changed, 75 insertions(+), 82 deletions(-)
+ src/cmd/5g/reg.c | 2 +-
+ src/cmd/6g/reg.c | 2 +-
+ src/cmd/9g/reg.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

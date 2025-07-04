@@ -1,32 +1,13 @@
-commit cbdbdc4f616f65906e6e6d7c958368c033add4e8
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jan 11 09:53:32 2012 +0900
+commit 6a0e6cc7f41d49590c12c7affa9d145371a88cad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 10 15:50:44 2012 -0800
 
-    net: add IP-level socket option helpers for Unix variants
+    A+C: add Yoshiyuki Kanno (Individual CLA)
     
-    Also reorganize socket options stuff but there are no API behavioral
-    changes.
-    
-    R=rsc, fullung
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5494067
+    https://golang.org/cl/5534066
 
- src/pkg/net/Makefile                               |  34 +++-
- src/pkg/net/interface.go                           |  20 ++-
- src/pkg/net/multicast_test.go                      |  87 +++++++++-
- src/pkg/net/sock.go                                |  86 ----------
- src/pkg/net/sockopt.go                             | 171 +++++++++++++++++++
- src/pkg/net/{sock_bsd.go => sockopt_bsd.go}        |   2 +-
- src/pkg/net/{sock_linux.go => sockopt_linux.go}    |   2 +-
- .../net/{sock_windows.go => sockopt_windows.go}    |   2 +-
- src/pkg/net/sockoptip.go                           | 187 +++++++++++++++++++++
- src/pkg/net/sockoptip_bsd.go                       |  54 ++++++
- src/pkg/net/sockoptip_darwin.go                    |  78 +++++++++
- src/pkg/net/sockoptip_freebsd.go                   |  80 +++++++++
- src/pkg/net/sockoptip_linux.go                     | 120 +++++++++++++
- src/pkg/net/sockoptip_openbsd.go                   |  78 +++++++++
- src/pkg/net/sockoptip_windows.go                   |  61 +++++++
- src/pkg/net/udpsock_posix.go                       |  51 +-----
- src/pkg/net/unicast_test.go                        |  99 +++++++++++
- src/pkg/syscall/syscall_windows.go                 |  12 ++
- 18 files changed, 1071 insertions(+), 153 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

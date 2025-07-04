@@ -1,16 +1,15 @@
-commit e2c09749af8c50fc2c0b515f2adc990cb0cb3cf6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 7 09:00:32 2016 -0700
+commit 7b74921d561fa3e8df4242cef692987f1f5975b4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 26 14:05:16 2016 +1100
 
-    context: mark more tests as flaky on OpenBSD
+    doc: add issue and pull request templates
     
-    Updates #15158
+    Fixes #14365
     
-    Change-Id: I53e9e68d36efbf52736822e6caa047cfff501283
-    Reviewed-on: https://go-review.googlesource.com/21653
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I082329fe7a1e06c774a32e0e24e5c8736bb5a037
+    Reviewed-on: https://go-review.googlesource.com/19877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/context/context_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ .github/ISSUE_TEMPLATE        | 18 ++++++++++++++++++
+ .github/PULL_REQUEST_TEMPLATE |  7 +++++++
+ 2 files changed, 25 insertions(+)

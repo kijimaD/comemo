@@ -1,16 +1,15 @@
-commit 8bbb6d3ed04ed0d79438045bb8d56b8c03a42944
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 14 14:35:47 2013 -0400
+commit cdc642453bacfad6561eb4275bc55d752a9e92fb
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Thu Mar 14 09:42:29 2013 -0700
 
-    cmd/ld: another use-after-free
+    net: deflake TestDialTimeout
     
-    This only shows up in the duplicate symbol error message.
+    Fixes #3867.
+    Fixes #3307.
     
-    R=golang-dev, r
+    R=bradfitz, dvyukov
     CC=golang-dev
-    https://golang.org/cl/7486053
+    https://golang.org/cl/7735044
 
- src/cmd/5l/obj.c | 1 +
- src/cmd/6l/obj.c | 1 +
- src/cmd/8l/obj.c | 2 +-
- 3 files changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/net/dial_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

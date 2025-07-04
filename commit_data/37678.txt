@@ -1,21 +1,32 @@
-commit 5dc144c607cb355e9f4a01bfa0b8f054899156a2
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Dec 12 16:18:19 2018 -0500
+commit de16b3223375235a823658ab4e84716d7fb62dc4
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Tue Aug 21 14:50:04 2018 -0600
 
-    os/signal: increase wait time for signal delivery time in testcase
+    crypto/tls: make ConnectionState.ExportKeyingMaterial a method
     
-    This increases the time to wait from 1 to 2 seconds in the
-    TestAtomicStop testcase. When running with gccgo on ppc64
-    & ppc64le on a loaded systems these testcases can
-    intermittently fail with the current value.
+    The unexported field is hidden from reflect based marshalers, which
+    would break otherwise. Also, make it return an error, as there are
+    multiple reasons it might fail.
     
-    Updates #29046
+    Fixes #27125
     
-    Change-Id: If420274dd65926d933a3024903b5c757c300bd60
-    Reviewed-on: https://go-review.googlesource.com/c/153826
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I92adade2fe456103d2d5c0315629ca0256953764
+    Reviewed-on: https://go-review.googlesource.com/130535
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/signal/signal_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ api/go1.11.txt                                     |  2 +-
+ doc/go1.11.html                                    |  3 +-
+ src/crypto/tls/common.go                           | 15 ++--
+ src/crypto/tls/conn.go                             |  6 +-
+ src/crypto/tls/handshake_client_test.go            | 18 +++++
+ src/crypto/tls/handshake_server_test.go            | 18 +++++
+ src/crypto/tls/prf.go                              | 16 ++--
+ src/crypto/tls/prf_test.go                         | 12 +--
+ .../testdata/Client-TLSv10-ExportKeyingMaterial    | 89 +++++++++++++++++++++
+ .../testdata/Client-TLSv12-ExportKeyingMaterial    | 84 ++++++++++++++++++++
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    | 92 ++++++++++++++++++++++
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    | 92 ++++++++++++++++++++++
+ src/crypto/tls/tls_test.go                         |  9 +++
+ 13 files changed, 432 insertions(+), 24 deletions(-)

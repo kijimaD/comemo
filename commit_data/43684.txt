@@ -1,38 +1,20 @@
-commit 39a5ee52b9b41b1e4f4cf821c78ef5b7be68d181
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Nov 2 19:03:16 2020 +0000
+commit 0cffc95109966c91852ff7f2b183a7f929de189b
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 20 21:45:01 2020 +0000
 
-    runtime: decouple consistent stats from mcache and allow P-less update
+    Revert "cmd/compile: adjust RISCV64 rewrite rules to use typed aux fields"
     
-    This change modifies the consistent stats implementation to keep the
-    per-P sequence counter on each P instead of each mcache. A valid mcache
-    is not available everywhere that we want to call e.g. allocSpan, as per
-    issue #42339. By decoupling these two, we can add a mechanism to allow
-    contexts without a P to update stats consistently.
+    This reverts commit 7004be998ba708f027c95615d7885efeb9f73e75.
     
-    In this CL, we achieve that with a mutex. In practice, it will be very
-    rare for an M to update these stats without a P. Furthermore, the stats
-    reader also only needs to hold the mutex across the update to "gen"
-    since once that changes, writers are free to continue updating the new
-    stats generation. Contention could thus only arise between writers
-    without a P, and as mentioned earlier, those should be rare.
+    Reason for revert: causing failures on many builders
     
-    A nice side-effect of this change is that the consistent stats acquire
-    and release API becomes simpler.
-    
-    Fixes #42339.
-    
-    Change-Id: Ied74ab256f69abd54b550394c8ad7c4c40a5fe34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267158
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I9216bd5409bb6814bac18a6a13ef5115db01b5fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229120
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mcache.go      | 16 +++-----
- src/runtime/mgcscavenge.go |  8 +---
- src/runtime/mgcsweep.go    | 10 ++---
- src/runtime/mheap.go       | 27 +++----------
- src/runtime/mstats.go      | 95 +++++++++++++++++++++++++++++-----------------
- src/runtime/proc.go        |  4 ++
- src/runtime/runtime2.go    |  8 +++-
- 7 files changed, 88 insertions(+), 80 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  794 +++++++--------
+ src/cmd/compile/internal/ssa/rewrite.go        |    9 -
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 1293 ++++++++++++------------
+ 3 files changed, 1031 insertions(+), 1065 deletions(-)

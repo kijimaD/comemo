@@ -1,18 +1,29 @@
-commit 9c663e8bf7bc3ebc205bc578a63b4a7a43e5c0e0
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Tue Jan 16 00:32:40 2024 +0100
+commit fc86770d87360ddf0346bf407a80935fe2dddec8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 2 10:09:39 2023 -0500
 
-    hash/crc32: fix codegen to align with manual changes
+    runtime: eliminate arbitrary timeout in TestCgoLockOSThreadExit
     
-    Update gen_const_ppc64le.go to match the manual changes applied in
-    CL 478976.
+    This test previously failed if running a new pthread took longer than
+    a hard-coded 100ms. On some slow or heavily-loaded builders, that
+    scheduling latency is too short.
     
-    Change-Id: I79a0d014a2a151750f898517b2771b312f3437bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555996
+    Since the point of this test is to verify that the background thread
+    is not reused after it terminates (see #20395), the arbitrary time
+    limit does not seem helpful: if the background thread fails to
+    terminate the test will time out on its own, and if the main goroutine
+    is scheduled on the background thread the test will fail regardless of
+    how long it takes.
+    
+    Fixes #58247.
+    
+    Change-Id: I626af52aac55af7a4c0e7829798573c479750c20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464735
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/hash/crc32/gen_const_ppc64le.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/crash_test.go                        | 5 ++++-
+ src/runtime/testdata/testprogcgo/lockosthread.go | 4 +---
+ 2 files changed, 5 insertions(+), 4 deletions(-)

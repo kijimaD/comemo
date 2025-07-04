@@ -1,13 +1,21 @@
-commit 486caa26d7cd40e7aa9b1ca5d1360d093562eef4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Nov 12 21:36:20 2017 -0800
+commit 083338cb976763e7a77e787827b24228fbaa7bf3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 23 09:39:13 2017 -0400
 
-    runtime: short-circuit typedmemmove when dst==src
+    cmd/internal/obj/arm64: handle global address in LDP/STP
     
-    Change-Id: I855268a4c0d07ad602ec90f5da66422d3d87c5f2
-    Reviewed-on: https://go-review.googlesource.com/94595
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The addressing mode of global variable was missing, whereas the
+    compiler may make use of it, causing "illegal combination" error.
+    This CL adds support of that addressing mode.
+    
+    Fixes #22390.
+    
+    Change-Id: Ic8eade31aba73e6fb895f758ee7f277f8f1832ef
+    Reviewed-on: https://go-review.googlesource.com/72610
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/mbarrier.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/asm/internal/asm/testdata/arm64.s | 14 ++++++++++++++
+ src/cmd/internal/obj/arm64/asm7.go        | 24 ++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

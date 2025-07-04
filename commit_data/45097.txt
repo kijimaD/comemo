@@ -1,17 +1,20 @@
-commit 39dd96ca5a60502d66494bff83257379df660eea
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Apr 10 18:26:01 2021 -0700
+commit c78c79f152dff010820a22e9a79cfffe48322914
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 1 16:22:19 2020 -0400
 
-    cmd/compile/internal/types: add example test for type inference
+    cmd/compile: activate revert switch for late call expansion regression
     
-    Follow-up on https://golang.org/cl/308372.
+    Not a fix, but things will work while I fix it.
+    Credit @andybons "for we revert switches for scary stuff".
     
-    For #44799.
+    Updates #41736
     
-    Change-Id: I27d149241d465ee31e9c21d5f0935f31efcb5b60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308973
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I55f90860eae919765aac4f6d9f108a54139027e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258897
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- .../compile/internal/types2/examples/inference.go2 | 101 +++++++++++++++++++++
- 1 file changed, 101 insertions(+)
+ src/cmd/compile/internal/ssa/config.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

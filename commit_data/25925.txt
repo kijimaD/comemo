@@ -1,14 +1,14 @@
-commit 5c72c6f889ad854ba16e4ed560e6ad10ebb6dcc4
-Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
-Date:   Fri Feb 26 16:09:54 2016 -0300
+commit 4bf81f4941270339750e4e88716d3cb1270cc643
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Dec 3 16:47:22 2015 -0800
 
-    cmd/go: show position in error for wrong signature in test functions
+    doc: correct ordering of go1.5 minor revisions
     
-    Change-Id: Ie915dc2fc32a31d31f566ac931ccecb506559645
-    Reviewed-on: https://go-review.googlesource.com/19888
+    Fixes #13474
+    
+    Change-Id: Ic86e54f6bc67db46504f7d43a0666647af308177
+    Reviewed-on: https://go-review.googlesource.com/17404
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/test.go | 19 +++++++++++++++----
- 1 file changed, 15 insertions(+), 4 deletions(-)
+ doc/devel/release.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,19 +1,14 @@
-commit 90a59d448e152d790c2043a5777d9ee496365bcf
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Wed Mar 9 16:23:25 2016 +0200
+commit b4c9d01d81d90a78a4330d3e3567bc5533e8c659
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 23 23:43:08 2016 -0500
 
-    cmd/link: use stdlib sort in dodata
+    crypto: document that Signer.Sign does not hash
     
-    Speeds up linking cmd/go by 1.7%
+    Fixes #13938.
     
-    name       old s/op   new s/op   delta
-    LinkCmdGo  0.58 ± 4%  0.57 ± 5%  -1.74%  (p=0.000 n=96+97)
-    
-    Change-Id: I7844cf4e2eeac260318de2b6ddf52ce07a6e00f5
-    Reviewed-on: https://go-review.googlesource.com/20915
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I0b4842b8bc22dc79323d6894c123cde638f52d3f
+    Reviewed-on: https://go-review.googlesource.com/18856
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/link/internal/ld/data.go | 84 +++++++++++++++++++++++++++++++---------
- src/cmd/link/internal/ld/util.go | 11 ------
- 2 files changed, 65 insertions(+), 30 deletions(-)
+ src/crypto/crypto.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

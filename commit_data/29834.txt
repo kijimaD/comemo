@@ -1,23 +1,171 @@
-commit c1d449c42c6ea3c61f4636d1e9412b660be6f6bd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 15 16:18:45 2016 +0000
+commit be302e6d43790c3398e5b03c955f257868855a80
+Author: Momchil Velikov <momchil.velikov@gmail.com>
+Date:   Wed Sep 7 15:10:07 2016 +0300
 
-    net/http: deflake TestServerTimeouts maybe
+    cmd/compile: trim more blocks
     
-    I haven't been able to reproduce this one, but change a few suspect
-    things in this test. Notably, using the global "Get" function and thus
-    using the DefaultTransport was buggy in a parallel test. Then add some error
-    checks and close a TCP connection.
+     - trim blocks with multiple predecessors
+     - trim blocks, which contain only phi-functions
+     - trim blocks, which can be merged into the successor block
     
-    Hopefully the failure wasn't timing-related.
+    As an example, compiling the following source:
     
-    Fixes #18036 (I hope)
+    ---8<------
+    package p
     
-    Change-Id: I4904e42e40b26d488cf82111424a1d4d46f42dae
-    Reviewed-on: https://go-review.googlesource.com/34490
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    type Node struct {
+            Key         int
+            Left, Right *Node
+    }
+    
+    func Search(r *Node, k int) *Node {
+            for r != nil {
+                    switch {
+                    case k == r.Key:
+                            return r
+                    case k < r.Key:
+                            r = r.Left
+                    default:
+                            r = r.Right
+                    }
+            }
+            return nil
+    }
+    ---8<------
+    
+    with `GOSSAFUNC=Search" go tool compile t.go`, results in the following
+    code:
+    
+    ---8<------
+    genssa
+    
+          00000 (t.go:8)    TEXT    "".Search(SB), $0
+          00001 (t.go:8)    FUNCDATA        $0, "".gcargs·0(SB)
+          00002 (t.go:8)    FUNCDATA        $1, "".gclocals·1(SB)
+          00003 (t.go:8)    TYPE    "".r(FP)type.*"".Node, $8
+          00004 (t.go:8)    TYPE    "".k+8(FP)type.int, $8
+          00005 (t.go:8)    TYPE    "".~r2+16(FP)type.*"".Node, $8
+    v40   00006 (t.go:9)    MOVQ    "".k+8(FP), AX
+    v34   00007 (t.go:9)    MOVQ    "".r(FP), CX
+    v33   00008 (t.go:9)    TESTQ   CX, CX
+    b2    00009 (t.go:9)    JEQ     $0, 22
+    v16   00010 (t.go:11)   MOVQ    (CX), DX
+    v21   00011 (t.go:11)   CMPQ    DX, AX
+    b9    00012 (t.go:11)   JEQ     $0, 19
+    v64   00013 (t.go:13)   CMPQ    AX, DX
+    b13   00014 (t.go:13)   JGE     17
+    v36   00015 (t.go:14)   MOVQ    8(CX), CX
+    b4    00016 (t.go:9)    JMP     8                  <---+
+    v42   00017 (t.go:16)   MOVQ    16(CX), CX             |
+    b21   00018 (t.go:10)   JMP     16                 ----+
+    v28   00019 (t.go:12)   VARDEF  "".~r2+16(FP)
+    v29   00020 (t.go:12)   MOVQ    CX, "".~r2+16(FP)
+    b10   00021 (t.go:12)   RET
+    v44   00022 (t.go:19)   VARDEF  "".~r2+16(FP)
+    v45   00023 (t.go:19)   MOVQ    $0, "".~r2+16(FP)
+    b5    00024 (t.go:19)   RET
+    00025 (<unknown line number>)   END
+    ---8<------
+    
+    Note the jump at 18 jumps to another jump at 16.
+    
+    Looking at the function after trimming:
+    
+    --8<------
+    after trim [199 ns]
+    
+    b1:
+    v1 = InitMem <mem>
+    v2 = SP <uintptr> : SP
+    v67 = Arg <*Node> {r} : r[*Node]
+    v59 = Arg <int> {k} : k[int]
+    v40 = LoadReg <int> v59 : AX
+    v34 = LoadReg <*Node> v67 : CX
+    Plain → b2
+    
+    b2: ← b1 b4
+    v8 = Phi <*Node> v34 v68 : CX
+    v33 = TESTQ <flags> v8 v8
+    NE v33 → b9 b5 (likely)
+    
+    b9: ← b2
+    v16 = MOVQload <int> v8 v1 : DX
+    v21 = CMPQ <flags> v16 v40
+    EQ v21 → b10 b13 (unlikely)
+    
+    b13: ← b9
+    v64 = CMPQ <flags> v40 v16
+    LT v64 → b19 b21
+    
+    b19: ← b13
+    v36 = MOVQload <*Node> [8] v8 v1 : CX
+    Plain → b4
+    
+    b4: ← b21 b19                       <
+    v68 = Phi <*Node> v42 v36 : CX      <- no actual code
+    Plain → b2                          <
+    
+    b21: ← b13
+    v42 = MOVQload <*Node> [16] v8 v1 : CX
+    Plain → b4
+    
+    b10: ← b9
+    v28 = VarDef <mem> {~r2} v1
+    v29 = MOVQstore <mem> {~r2} v2 v8 v28
+    v30 = Copy <mem> v29
+    Ret v30
+    
+    b5: ← b2
+    v44 = VarDef <mem> {~r2} v1
+    v45 = MOVQstoreconst <mem> {~r2} [val=0,off=0] v2 v44
+    v47 = Copy <mem> v45
+    Ret v47
+    
+    --8<------
+    
+    The jump at 16 corresponds to the edge b21 -> b4. The block b4 contains
+    only phi-ops, i.e. no actual code besides the jump to b2. However b4 is
+    not trimmed, because it a) has more than one predecessor, and b) it is
+    not empty.
+    
+    This change enhances trim.go to remove more blocks, subject to the
+    following criteria:
+    
+     - block has predecessors (i.e. not the start block)
+    
+     - block is BlockPlain
+    
+     - block does not loop back to itself
+    
+     - block is the single predecessor of its successor; the instructions of
+       the block are merged into the successor
+    
+     - block does no emit actual code, besides a possible unconditional
+       jump.
+         Currently only OpPhi are considered to not be actual code,
+       perhaps OpKeepAlive/others should be considered too?
+    
+    As an example, after the change, the block b4 is trimmed and the jump at
+    18 jumps directly to 8.
+    
+    Revision 1: Adjust phi-ops arguments after merge
+    
+    Ensure the number of phi-ops arguments matches the new number of
+    predecessors in the merged block.
+    When moving values, make them refer to the merged block.
+    
+    Revision 2:
+     - Make clear the intent that we do not want to trim the entry block
+     - Double check that we are merging a phi operation
+     - Minor code style fix
+     - Fix a potentially dangerous situation when a blocks refers to the
+       inline value space in another block
+    
+    Change-Id: I0ab91779f931f404d11008f5c45606d985d7fbaa
+    Reviewed-on: https://go-review.googlesource.com/28812
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/trim.go | 126 ++++++++++++++++++++++++++++++++---
+ 1 file changed, 115 insertions(+), 11 deletions(-)

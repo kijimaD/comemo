@@ -1,21 +1,18 @@
-commit 6f4d986a5af3245a3c66172e5fab9609652ff219
-Author: miller <millerresearch@gmail.com>
-Date:   Wed Mar 1 09:46:14 2023 +0000
+commit 8f1d5d0a41840c1e6b36c94d493af8aae1302fd0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 29 08:51:16 2022 +0200
 
-    net: re-enable TestVariousDeadlines on Plan 9
+    cmd/go/internal/modload: remove aix from stat_openfile.go comment
     
-    After CL 470215 it should be safe to run this test on Plan 9.
+    syscall.Access is supported and used on aix since CL 263540.
     
-    Fixes #26945
-    
-    Change-Id: I17880b696d2e91e6c4862fac05e6372f44e69b22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472436
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ie50cc3da68b49b22d622d94faec0231c52502037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396374
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/timeout_test.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/go/internal/modload/stat_openfile.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

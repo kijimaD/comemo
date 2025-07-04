@@ -1,0 +1,20 @@
+commit a9bd84e03786e8bd4bfb3780ce3283b0f3e1f3bf
+Author: Tim King <taking@google.com>
+Date:   Tue Sep 10 22:56:40 2024 +0000
+
+    Revert "runtime: Goexit on C-created thread report more useful error message"
+    
+    This reverts CL 602296.
+    
+    Reason for revert: Failing on several builders.
+    
+    Change-Id: I889c566d34294032c330d4f9402300ad0d5d3bf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611919
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/panic.go                         |  2 --
+ src/runtime/proc.go                          |  3 ---
+ src/runtime/proc_test.go                     | 10 ----------
+ src/runtime/testdata/testprogcgo/callback.go | 11 -----------
+ 4 files changed, 26 deletions(-)

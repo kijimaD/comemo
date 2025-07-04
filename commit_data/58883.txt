@@ -1,20 +1,21 @@
-commit 2e71ae33ca3339cc2f7554ec6a8a39c5938f1001
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 26 14:02:14 2025 -0800
+commit 202b4359696bcd2945244b42299e35e338331019
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Nov 9 22:04:38 2023 +0100
 
-    runtime/cgo: avoid errors from -Wdeclaration-after-statement
+    runtime: more godoc links
     
-    CL 652181 accidentally missed this iPhone only code.
-    
-    For #71961
-    
-    Change-Id: I567f8bb38958907442e69494da330d5199d11f54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/653135
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I8fe66326994894b17ce0eda991bba942844d26b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541475
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/cgo/gcc_darwin_arm64.c | 24 ++++++++++++++++--------
- 1 file changed, 16 insertions(+), 8 deletions(-)
+ src/runtime/cpuprof.go |  6 +++---
+ src/runtime/extern.go  | 17 +++++++++--------
+ src/runtime/mprof.go   |  4 ++--
+ src/runtime/pinner.go  |  4 ++--
+ src/runtime/proc.go    |  2 +-
+ src/runtime/symtab.go  | 10 +++++-----
+ src/runtime/trace.go   |  4 ++--
+ src/runtime/trace2.go  |  4 ++--
+ 8 files changed, 26 insertions(+), 25 deletions(-)

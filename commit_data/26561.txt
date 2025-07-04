@@ -1,19 +1,12 @@
-commit 7043d2bb5e8275df308abe9a2367fb1622be0313
-Author: Michel Lespinasse <walken@google.com>
-Date:   Fri Mar 18 15:16:53 2016 -0700
+commit fa5e5478c8791d644c3d7b07a73680f87eb5a43b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 5 09:37:13 2016 +0900
 
-    runtime: insert itabs into hash table during init
+    runtime: don't call testing.Fatal from worker goroutines
     
-    See #14874
-    
-    This change makes the runtime register all compiler generated itabs
-    (as obtained from the moduledata) during init.
-    
-    Change-Id: I9969a0985b99b8bda820a631f7fe4c78f1174cdf
-    Reviewed-on: https://go-review.googlesource.com/20900
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Michel Lespinasse <walken@google.com>
+    Change-Id: I630d4d2d8a914d6c07f22351a56d5e44a937123e
+    Reviewed-on: https://go-review.googlesource.com/19245
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/iface.go | 55 +++++++++++++++++++++++++++++++++++-----------------
- src/runtime/proc.go  |  1 +
- 2 files changed, 38 insertions(+), 18 deletions(-)
+ src/runtime/stack_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

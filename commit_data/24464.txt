@@ -1,30 +1,21 @@
-commit a5cb76243af54a6729f5668317fb87baa242b9cc
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Sep 2 11:23:15 2015 +1200
+commit ab714a70dcad78e2bd7004638843052343c6f2c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 11:08:15 2015 -0400
 
-    cmd/internal/obj, cmd/link, runtime: lots of TLS cleanup
+    crypto/x509: mark root_darwin_armx.go as cgo-only
     
-    It's particularly nice to get rid of the android special cases in the linker.
+    This allows running a cross-compile like
+            GOOS=darwin GOARCH=arm go build std
+    to check that everything builds.
     
-    Change-Id: I516363af7ce8a6b2f196fe49cb8887ac787a6dad
-    Reviewed-on: https://go-review.googlesource.com/14197
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Otherwise there is a redefinition error because both
+    root_nocgo_darwin.go and root_darwin_armx.go
+    supply initSystemRoots.
+    
+    Change-Id: Ic95976b2b698d28c629bfc93d8dac0048b023578
+    Reviewed-on: https://go-review.googlesource.com/12897
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/arm/asm5.go   | 17 +----------------
- src/cmd/internal/obj/arm/obj5.go   | 18 ------------------
- src/cmd/internal/obj/arm64/asm7.go |  3 ---
- src/cmd/internal/obj/link.go       | 26 +++++++++-----------------
- src/cmd/internal/obj/mips/asm0.go  |  3 ---
- src/cmd/internal/obj/ppc64/asm9.go |  3 ---
- src/cmd/internal/obj/x86/obj6.go   |  4 ----
- src/cmd/link/internal/arm/asm.go   | 13 +------------
- src/cmd/link/internal/ld/data.go   | 25 -------------------------
- src/cmd/link/internal/ld/elf.go    |  6 ++----
- src/cmd/link/internal/ld/lib.go    | 25 ++++++++-----------------
- src/runtime/asm_arm64.s            |  4 ++--
- src/runtime/tls_arm.s              |  3 ---
- src/runtime/tls_arm64.s            |  3 ---
- src/runtime/tls_ppc64x.s           |  6 ++++--
- 15 files changed, 27 insertions(+), 132 deletions(-)
+ src/crypto/x509/root_darwin_arm_gen.go | 1 +
+ src/crypto/x509/root_darwin_armx.go    | 1 +
+ 2 files changed, 2 insertions(+)

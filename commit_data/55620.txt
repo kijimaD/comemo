@@ -1,23 +1,27 @@
-commit 968b71bce4489dd201c5247c6142a830d90a1ee1
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Fri Feb 2 15:54:24 2024 +0000
+commit 1a5cf03b1bbf2f8a28a6c369871e1a61d74f1fb6
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 8 16:42:45 2023 +0100
 
-    strings: make use of sizeclasses in (*Builder).Grow
+    runtime: use explicit NOFRAME on solaris/amd64
     
-    Fixes #64833
+    This CL marks some solaris assembly functions as NOFRAME to avoid
+    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
     
-    Change-Id: Ice3f5dfab65f5525bc7a6f57ddeaabda8d64dfa3
-    GitHub-Last-Rev: 38f1d6c19d8ec29ae5645ce677839a301f798df3
-    GitHub-Pull-Request: golang/go#64835
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/552135
-    Reviewed-by: Keith Randall <khr@google.com>
+    While here, I've reduced the stack usage of runtime·sigtramp by
+    16 bytes to compensate the additional 8 bytes from the stack-allocated
+    frame pointer. There were two unused 8-byte slots on the stack, one
+    at 24(SP) and the other at 80(SP).
+    
+    Updates #58378
+    
+    Change-Id: If9230e71a8b3c72681ffc82030ade6ceccf824db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466456
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/bytes/bytes.go              |  8 ++++----
- src/internal/bytealg/bytealg.go |  3 ++-
- src/runtime/slice.go            |  3 ++-
- src/strings/builder.go          |  6 +++++-
- src/strings/builder_test.go     | 13 +++++++++++++
- 5 files changed, 26 insertions(+), 7 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go |  2 +-
+ src/runtime/sys_solaris_amd64.s  | 94 +++++++++++++++++++---------------------
+ 2 files changed, 46 insertions(+), 50 deletions(-)

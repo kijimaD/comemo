@@ -1,16 +1,14 @@
-commit e0820ac8d1cc383f9003ff8f3245cc4b246b0c32
-Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 30 19:10:59 2015 -0700
+commit 969f10140c69eff3c151fac994d64e6edf775532
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 9 18:18:24 2015 -0700
 
-    cmd/cover: fix build
+    runtime: fix arm64 build
     
-    TBR=rsc
+    Broken by CL 8541.
     
-    Change-Id: I6ec69013027213c5e7adedd2edb89dea6af876d9
-    Reviewed-on: https://go-review.googlesource.com/9563
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ie2e89a22b91748e82f7bc4723660a24ed4135687
+    Reviewed-on: https://go-review.googlesource.com/8734
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/cover/doc.go  | 2 +-
- src/cmd/cover/func.go | 2 --
- src/cmd/cover/html.go | 2 --
- 3 files changed, 1 insertion(+), 5 deletions(-)
+ src/runtime/asm_arm64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

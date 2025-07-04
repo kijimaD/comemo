@@ -1,13 +1,26 @@
-commit 47c7cf435705860dc143e8741616b8d6157de671
-Author: Peter Armitage <peter.armitage@gmail.com>
-Date:   Tue Dec 16 14:12:48 2014 +0000
+commit 37186d91fab5850012b32c21657633d18272537e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 10 14:59:36 2014 -0500
 
-    syscall: fs_nacl: Unlock() should be deferred.
+    [dev.garbage] runtime: add write barrier to casp
     
-    Change-Id: Iea08b8f4e74a8cd4b4d317273046457c8db956a1
-    Reviewed-on: https://go-review.googlesource.com/1640
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Also rewrite some casp that don't use real pointers
+    to use casuintptr instead.
+    
+    LGTM=rlh
+    R=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/166440044
 
- src/syscall/fs_nacl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_386.s      |  6 +++---
+ src/runtime/asm_amd64.s    |  6 +++---
+ src/runtime/asm_amd64p32.s |  6 +++---
+ src/runtime/asm_power64x.s |  6 +++---
+ src/runtime/atomic.go      | 38 ++++++++++++++++++++++++++++++++++----
+ src/runtime/mgc0.c         |  1 -
+ src/runtime/mgc0.go        | 14 ++++++++++++--
+ src/runtime/proc.c         | 14 +++++++-------
+ src/runtime/runtime.h      |  1 +
+ src/runtime/string.c       |  2 +-
+ src/runtime/stubs.go       |  3 ---
+ 11 files changed, 67 insertions(+), 30 deletions(-)

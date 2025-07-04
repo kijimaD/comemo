@@ -1,22 +1,22 @@
-commit 35a4d1b3bc37b09d56cf045f845be1dfb282c44f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 20:47:17 2023 -0800
+commit ea7e3e3c0f561d1115d647e3e24ca61d0382e1ac
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 11 14:56:11 2022 -0700
 
-    go/types, types2: simplify unification when x == y (pointer identity)
+    runtime: align m.procid to 8 bytes on 32-bit systems
     
-    Because we rename type parameters to avoid problems with self-recursive
-    function calls, there's no need anymore for special (and hard to follow)
-    logic for pointer-identical types. If they are identical, we have a
-    match. Simplify the code accordingly.
+    https://go-review.googlesource.com/c/go/+/383434 started using
+    atomic Load64 on this field, which breaks 32 bit platforms which
+    require 64-bit alignment of uint64s that are passed to atomic operations.
     
-    Change-Id: I2e1838a43e90fa4abfae3ab9e4f7da6463508966
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471018
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Not sure why this doesn't break everywhere, but I saw it break on
+    my laptop during all.bash.
+    
+    Change-Id: Ida27b23068b3cc7208fce3c97b69a464ccf68209
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399754
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/types2/unify.go | 28 ++++++++++++++--------------
- src/go/types/unify.go                    | 28 ++++++++++++++--------------
- 2 files changed, 28 insertions(+), 28 deletions(-)
+ src/runtime/runtime2.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,20 +1,16 @@
-commit 2425a2e32f57a5df3a048a06431089fd83e8cec9
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 18 13:05:21 2014 +0400
+commit 442322276067073a83b944340e82feb300561a15
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 18 12:39:00 2014 +0400
 
-    runtime: fix gctrace=1
+    encoding/gob: remove unnecessary receivers
+    Encoder compilation must be enc-independent,
+    because the resulting program is reused across
+    different encoders.
     
-    updatememstats is called on both the m and g stacks.
-    Call into flushallmcaches correctly.  flushallmcaches
-    can only run on the M stack.
-    
-    This is somewhat temporary.  once ReadMemStats is in
-    Go we can have all of this code M-only.
-    
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/116880043
+    https://golang.org/cl/115860043
 
- src/pkg/runtime/mgc0.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/encoding/gob/encode.go | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)

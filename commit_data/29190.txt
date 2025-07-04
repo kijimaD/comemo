@@ -1,24 +1,18 @@
-commit ef3df18944d2d210f99de88fee01414ab1fa8f66
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 23:15:30 2016 -0400
+commit be23e98e06b1e1c65de19d460537c4df21ebf555
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 29 13:29:46 2016 -0700
 
-    mime/multipart: simplify Part.Read
+    reflect: cleanup wording for type identity/equality
     
-    The basic structure of Part.Read should be simple:
-    do what you can with the current buffered data,
-    reading more as you need it. Make it that way.
+    Use terms like "equal" and "identical types" to match the Go spec,
+    rather than inventing a new explanation. See also discussion on
+    golang.org/cl/27170.
     
-    Working entirely in the bufio.Reader's buffer eliminates
-    the need for an additional bytes.Buffer.
+    Updates #16348.
     
-    This structure should be easier to extend in the future as
-    more special cases arise.
-    
-    Change-Id: I83cb24a755a1767c4c037f9ece6716460c3ecd01
-    Reviewed-on: https://go-review.googlesource.com/32092
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0fe0bd01c0d1da3c8937a579c2ba44cf1eb16b71
+    Reviewed-on: https://go-review.googlesource.com/28054
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/mime/multipart/multipart.go | 219 ++++++++++++++++++++--------------------
- 1 file changed, 108 insertions(+), 111 deletions(-)
+ src/reflect/type.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

@@ -1,20 +1,20 @@
-commit abd592b3d7c3e05eaa9dd6a69749e497b1973002
-Author: Austin Clements <austin@google.com>
-Date:   Thu Sep 15 15:34:07 2022 -0400
+commit 9c60a0968987ca3245b115a46d358d63b6b31b0f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 16 11:18:53 2021 -0800
 
-    misc/cgo/testsigfwd: delete unused code
+    cmd/compile/internal/types2: don't set a Config.Context if none is provided
     
-    This code was introduced in CL 17903 but has never executed. It's also
-    fundamentally non-deterministic. Delete it.
+    This CL is a clean port of CL 363175 from go/types to types2.
     
-    Simplification for #37486.
-    
-    Change-Id: I049564123fb4fba401154e2ea0fc429e552d4749
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431258
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I149789be07c0ca7ddef7bfaa4ea9507778a63775
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364454
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- misc/cgo/testsigfwd/main.go | 52 ---------------------------------------------
- 1 file changed, 52 deletions(-)
+ src/cmd/compile/internal/types2/call.go      | 2 +-
+ src/cmd/compile/internal/types2/check.go     | 8 +++-----
+ src/cmd/compile/internal/types2/decl.go      | 2 +-
+ src/cmd/compile/internal/types2/named.go     | 8 +++++---
+ src/cmd/compile/internal/types2/signature.go | 2 +-
+ src/cmd/compile/internal/types2/typexpr.go   | 9 +++++----
+ 6 files changed, 16 insertions(+), 15 deletions(-)

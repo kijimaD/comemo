@@ -1,21 +1,19 @@
-commit f6f141ab80853b0b45f7e33aa148e497ceeb7d38
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Aug 15 21:09:16 2023 +0800
+commit 6d3139b203912835b19e32fcb9bb709f89f0bc11
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Dec 21 23:31:48 2022 -0500
 
-    runtime: support regABI and add spill functions in runtime for loong64
+    misc/cgo/testshared: test build std in shared mode
     
-    Update #40724
+    Test that "go install -buildmode=shared std" works.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: I709b818ef15c33f95251186d749ac13260ad36be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521783
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Run-TryBot: David Chase <drchase@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #57334.
+    
+    Change-Id: I465a07cf2e9035995916ef9940b4c1eeba998099
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459056
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tim Scharfenort <timscharfenort89@googlemail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/asm_loong64.s    | 295 ++++++++++++++++++++++++++++++++++---------
- src/runtime/stubs_loong64.go |   7 +
- 2 files changed, 243 insertions(+), 59 deletions(-)
+ misc/cgo/testshared/shared_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

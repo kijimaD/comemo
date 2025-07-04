@@ -1,29 +1,20 @@
-commit 51b027116c2c90e7cb938362b0134ff710fea54e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Mar 2 11:27:15 2018 +0100
+commit 060d1a57401180bc003c0d882033b35ca19374a2
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Oct 25 12:42:14 2017 -0400
 
-    runtime: use vDSO for clock_gettime on linux/arm
+    io: flatten MultiWriter writers
     
-    Use the __vdso_clock_gettime fast path via the vDSO on linux/arm to
-    speed up nanotime and walltime. This results in the following
-    performance improvement for time.Now on a RaspberryPi 3 (running
-    32bit Raspbian, i.e. GOOS=linux/GOARCH=arm):
+    Replace any nested Writer that is a MultiWriter with its associated
+    Writers.
     
-    name     old time/op  new time/op  delta
-    TimeNow  0.99µs ± 0%  0.39µs ± 1%  -60.74%  (p=0.000 n=12+20)
+    Fixes #22431
     
-    Change-Id: I3598278a6c88d7f6a6ce66c56b9d25f9dd2f4c9a
-    Reviewed-on: https://go-review.googlesource.com/98095
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ida7c4c83926363c1780689e216cf0c5241a5b8eb
+    Reviewed-on: https://go-review.googlesource.com/73470
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_linux.go        |  1 +
- src/runtime/os_linux_noauxv.go |  2 +-
- src/runtime/os_linux_novdso.go | 10 +++++
- src/runtime/sys_linux_arm.s    | 88 +++++++++++++++++++++++++++++++++++-------
- src/runtime/vdso_elf32.go      |  2 +-
- src/runtime/vdso_linux.go      |  4 +-
- src/runtime/vdso_linux_arm.go  | 19 +++++++++
- src/runtime/vdso_linux_test.go |  2 +-
- 8 files changed, 110 insertions(+), 18 deletions(-)
+ src/io/multi.go      | 12 +++++++++---
+ src/io/multi_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 3 deletions(-)

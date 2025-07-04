@@ -1,18 +1,15 @@
-commit 9e857dbdcc66b8fa2da927e07531c6b8dc894cae
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jun 6 21:33:02 2011 +0000
+commit f35a3df80c9df2c5bf2651746b2df047d356c8a4
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Mon Jun 6 12:59:58 2011 -0700
 
-    template: rearrange the code into separate files.
-    The single file was getting unwieldy.
-    Also remove use of vector; a slice works fine - although
-    it's an unusual one.
+    big: Rat always outputs the requested precision from FloatString
     
-    R=golang-dev, r, gri
+    Fixes #1922.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4576042
+    https://golang.org/cl/4551098
 
- src/pkg/template/Makefile                  |   4 +-
- src/pkg/template/doc.go                    |  91 ++++++
- src/pkg/template/execute.go                | 346 ++++++++++++++++++++
- src/pkg/template/{template.go => parse.go} | 486 ++---------------------------
- 4 files changed, 474 insertions(+), 453 deletions(-)
+ src/pkg/big/rat.go      | 6 +++++-
+ src/pkg/big/rat_test.go | 5 +++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)

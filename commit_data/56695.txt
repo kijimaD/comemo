@@ -1,19 +1,19 @@
-commit 8e2b3ac705af8548139209d74c686c14864ff7e7
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri May 24 12:01:36 2024 -0400
+commit 2f1e643229d19f40a5f80dc3784daaff83d5cc02
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri May 19 07:31:44 2023 -0400
 
-    cmd/go: add release notes for go telemetry, and telemetry env values
+    log/slog: fix check for nil prefix
     
-    This change fills in the release notes for the go telemetry command as
-    well as the unsettable GOTELEMETRY and GOTELEMETRYDIR go env values.
+    Previously, handleState.prefix was nil if and only if the length of
+    the prefix was zero. Now, prefix is never nil.
     
-    For #67111
+    Fix the nil check in the code by also checking if the length is non-zero.
     
-    Change-Id: Id6943f79f7ab2457787e1639d8d5fb1c1e2649dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587923
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9f69c0029cb1c73fe6c2919c78fee7d4085bfd85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495977
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- doc/next/3-tools.md | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/log/slog/handler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

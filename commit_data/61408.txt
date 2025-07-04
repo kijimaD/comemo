@@ -1,0 +1,24 @@
+commit 2c7b5ba8ca7268d7d38a48a7e6f31bb53e858af0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Nov 6 20:15:59 2024 +0100
+
+    crypto/internal/fips: fix Avo generators
+    
+    They needed their package names updated after packages were moved to
+    crypto/internal/fips. Also, mitigated mmcloughlin/avo#450 which would
+    require setting GOARCH=amd64 at generation time.
+    
+    Change-Id: Ib903ef113ebb5a24844204f231f2507cea03a67e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626075
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/internal/fips/sha256/_asm/sha256block_amd64_asm.go | 10 ++++++++--
+ src/crypto/internal/fips/sha256/sha256block_amd64.s           |  2 +-
+ src/crypto/internal/fips/sha3/_asm/keccakf_amd64_asm.go       | 10 ++++++++--
+ src/crypto/internal/fips/sha3/sha3_amd64.s                    |  2 +-
+ src/crypto/internal/fips/sha512/_asm/sha512block_amd64_asm.go | 10 ++++++++--
+ src/crypto/internal/fips/sha512/sha512block_amd64.s           |  2 +-
+ 6 files changed, 27 insertions(+), 9 deletions(-)

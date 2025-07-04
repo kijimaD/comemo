@@ -1,35 +1,25 @@
-commit efe5929dbd23054395ea128325edba8d23b6d5fc
-Author: eric fang <eric.fang@arm.com>
-Date:   Fri Jul 29 04:05:03 2022 +0000
+commit ee91bb83198f61aa8f26c3100ca7558d302c0a98
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 10 08:34:03 2021 +0700
 
-    cmd/compile/internal/ssa: optimize ARM64 code with TST
+    cmd/compile: prevent typecheck importer reading type parameter twice
     
-    For signed comparisons, the following four optimization rules hold:
+    This is a port of CL 349009 to typecheck importer.
     
-    (CMPconst [0] z:(AND x y)) && z.Uses == 1 => (TST x y)
-    (CMPWconst [0] z:(AND x y)) && z.Uses == 1 => (TSTW x y)
-    (CMPconst [0] x:(ANDconst [c] y)) && x.Uses == 1 => (TSTconst [c] y)
-    (CMPWconst [0] x:(ANDconst [c] y)) && x.Uses == 1 => (TSTWconst [int32(c)] y)
+    Fixes #48306
     
-    But currently they only apply to jump instructions, not to conditional
-    instructions within a block, such as cset, csel, etc. This CL extends
-    the above rules into blocks so that conditional instructions can also be
-    optimized.
-    
-    name                       old time/op  new time/op  delta
-    DivisiblePow2constI64-160  1.04ns ± 0%  0.86ns ± 0%  -17.30%  (p=0.008 n=5+5)
-    DivisiblePow2constI32-160  1.04ns ± 0%  0.87ns ± 0%  -16.16%  (p=0.016 n=4+5)
-    DivisiblePow2constI16-160  1.04ns ± 0%  0.87ns ± 0%  -16.03%  (p=0.008 n=5+5)
-    DivisiblePow2constI8-160   1.04ns ± 0%  0.86ns ± 0%  -17.15%  (p=0.008 n=5+5)
-    
-    Change-Id: I6bc34bff30862210e8dd001e0340b8fe502fe3de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420434
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Change-Id: Iec3f078089346bd85f0ab739896e079940325011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349011
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  55 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 896 +++++++++++++++++++++------
- test/codegen/arithmetic.go                   |  22 +-
- 3 files changed, 774 insertions(+), 199 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go |  6 +-----
+ src/go/internal/gcimporter/gcimporter_test.go |  2 --
+ test/run.go                                   |  2 --
+ test/typeparam/issue48306.dir/a.go            |  9 +++++++++
+ test/typeparam/issue48306.dir/main.go         | 15 +++++++++++++++
+ test/typeparam/issue48306.go                  |  7 +++++++
+ 6 files changed, 32 insertions(+), 9 deletions(-)

@@ -1,21 +1,20 @@
-commit 3309658d3912c1a029ac4126ed64219fbe1a2d1b
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 18 14:04:26 2025 -0700
+commit 0286a0822b30b63e49be77384ca6f69bcc039b41
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Fri Dec 15 02:02:41 2023 +0000
 
-    doc: document change in nil-ptr checking behavior
+    runtime/cgo: mark fatalf as noreturn
     
-    This could bite people during the 1.25 release, so make sure it
-    has good documentation in the release notes.
+    Fixes #64553
     
-    Update #72860
-    
-    Change-Id: Ie9aaa219025a631e81ebc48461555c5fb898f43f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658955
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I7860cd9ba74d70a7d988538ea4df8e122f94cde6
+    GitHub-Last-Rev: 06164374734aef5b94566930426005ad66d0a5b6
+    GitHub-Pull-Request: golang/go#64727
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/next/5-toolchain.md | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/runtime/cgo/libcgo.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,33 +1,36 @@
-commit dc548bb322387039a12000c04e5b9083a0511639
-Author: aimuz <mr.imuz@gmail.com>
-Date:   Mon May 6 03:57:08 2024 +0000
+commit 2c49bf89ed2aed91bae6a0869d30de927b4a2cbf
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue May 2 14:17:54 2023 +0000
 
-    os: use filepathlite.Base
+    net: net remove completed return from cgo lookup functions
     
-    Replace custom basename implementations with filepathlite.Base across
-    all relevant os/stat files to unify path processing across platforms.
+    After CL 487196 there is no need anymore to return
+    completed == false from the cgo lookup functions and
+    then fallback to to go resolver.  (Before CL 487196 this
+    change would cause the (only?) tests to fail)
+    Now the cgoAvailable constant guards that correctly.
     
-    Change-Id: I7c4795661926949bae71e66d8b4f9363e7caef15
-    GitHub-Last-Rev: 1236e93ebcd4137f9cbbbab2163cadf4e4d02674
-    GitHub-Pull-Request: golang/go#67195
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583415
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This change will cause a panic when the cgo resolver is being
+    used without the cgo support, so it will be easier to
+    detect bug while changing the code in the net package.
+    
+    I am leaving the completed return from cgoLookupCNAME,
+    because it is super broken now.
+    
+    Change-Id: I2661b9a3725de2b1a229847c12adf64b3f62b136
+    GitHub-Last-Rev: 2a6501a53e1b2c5195c3869d528a40e7f93d6225
+    GitHub-Pull-Request: golang/go#59925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491275
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/os/path_unix.go      | 18 ------------------
- src/os/path_windows.go   | 24 ------------------------
- src/os/stat_aix.go       |  3 ++-
- src/os/stat_darwin.go    |  3 ++-
- src/os/stat_dragonfly.go |  3 ++-
- src/os/stat_freebsd.go   |  3 ++-
- src/os/stat_js.go        |  3 ++-
- src/os/stat_linux.go     |  3 ++-
- src/os/stat_netbsd.go    |  3 ++-
- src/os/stat_openbsd.go   |  3 ++-
- src/os/stat_solaris.go   |  3 ++-
- src/os/stat_wasip1.go    |  3 ++-
- src/os/stat_windows.go   |  3 ++-
- src/os/types_windows.go  |  4 ++--
- 14 files changed, 24 insertions(+), 55 deletions(-)
+ src/net/cgo_stub.go        | 18 +++++++++---------
+ src/net/cgo_unix.go        | 30 +++++++++++++++---------------
+ src/net/cgo_unix_test.go   | 32 +++++++-------------------------
+ src/net/lookup_unix.go     | 31 ++++++++++---------------------
+ src/net/netgo_unix_test.go | 28 ----------------------------
+ 5 files changed, 41 insertions(+), 98 deletions(-)

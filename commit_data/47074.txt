@@ -1,20 +1,25 @@
-commit 79ff663754f4238bd1fe2e56f460c2f603c71b80
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 27 14:11:33 2021 -0700
+commit c584f42dcf43351e4cd1e5df22a063f020c00777
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 30 23:47:27 2020 +1100
 
-    constraints: remove Slice/Map/Chan
+    cmd/compile: change riscv64 Eq32/Neq32 to zero extend before subtraction
     
-    Now that we permit arbitrary types as constraints, we no longer need them.
+    As done with other equality tests, zero extend before subtraction rather than
+    after (or in this case, at the same time). While at face value this appears to
+    require more instructions, in reality it allows for most sign extensions to
+    be completely eliminated due to correctly typed loads. Existing optimisations
+    (such as subtraction of zero) then become more effective.
     
-    For #48424
+    This removes more than 10,000 instructions from the Go binary and in particular,
+    a writeBarrier check only requires three instructions (AUIPC, LWU, BNEZ) instead
+    of the current four (AUIPC, LWU, NEGW, BNEZ).
     
-    Change-Id: I15fef26a563988074650cb0801895b002c44148a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359258
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7afdc1921c4916ddbd414c3b3f5c2089107ec016
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274066
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- src/constraints/constraints.go      | 15 ---------
- src/constraints/constraints_test.go | 62 +++++++------------------------------
- test/typeparam/issue48609.go        |  4 +--
- 3 files changed, 13 insertions(+), 68 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 22 ++++++++++++++++------
+ 2 files changed, 18 insertions(+), 8 deletions(-)

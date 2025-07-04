@@ -1,19 +1,29 @@
-commit 023047d14b0f01cd220b4bd75a85b8e25f4b6dfe
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 13 22:39:17 2015 -0400
+commit ec745fc4cb7de5f1c15d9d7da7d10a26d7029d89
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 3 23:21:30 2015 -0700
 
-    cmd/go: diagnose trivial test import cycle
+    test: make test/run.go support sharding
     
-    Was detecting only non-trivial ones.
+    Also modifies 'dist test' to use that sharding, and removes some old
+    temporary stuff from dist test which are no longer required.
     
-    Fixes #9690.
+    'dist test' now also supports running a list of tests given in
+    arguments, mutually exclusive with the existing -run=REGEXP flag. The
+    hacky fast paths for avoiding the 1 second "go list" latency are now
+    removed and only apply to the case where partial tests are run via
+    args, instead of regex.  The build coordinator will use both styles
+    for awhile. (the statically-sharded ARM builders on scaleway will
+    continue to use regexps, but the dynamically-shared builders on GCE
+    will use the list of tests)
     
-    Change-Id: I662d81dd4818ddf29592057c090805772c84287b
-    Reviewed-on: https://go-review.googlesource.com/12147
-    Reviewed-by: Rob Pike <r@golang.org>
+    Updates #10029
+    
+    Change-Id: I557800a54dfa6f3b5100ef4c26fe397ba5189813
+    Reviewed-on: https://go-review.googlesource.com/10688
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                           | 3 +++
- src/cmd/go/test.go                              | 2 +-
- src/cmd/go/testdata/src/testcycle/q1/q1.go      | 1 +
- src/cmd/go/testdata/src/testcycle/q1/q1_test.go | 6 ++++++
- 4 files changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 143 ++++++++++++++++++++++-----------------------------
+ test/run.go          |  16 +++++-
+ 2 files changed, 77 insertions(+), 82 deletions(-)

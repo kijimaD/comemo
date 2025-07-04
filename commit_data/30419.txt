@@ -1,17 +1,16 @@
-commit f81466ce9c663ddc1d136d2c435c60d988cf316a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 20:25:09 2017 -0800
+commit 9788e3d4d72792da22a12e54f8a86e25a03b58ab
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:51:06 2016 +0200
 
-    go/importer: support importing directly from source
+    sync/atomic: add support for GOARCH=mips{,le}
     
-    For #11415.
-    
-    Change-Id: I5da39dad059113cfc4276152390aa4925bd18862
-    Reviewed-on: https://go-review.googlesource.com/37405
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I10f36710dd95b9bd31b3b82a3c32edcadb90ffa9
+    Reviewed-on: https://go-review.googlesource.com/31510
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/build/deps_test.go   |  2 +-
- src/go/importer/importer.go | 32 +++++++++++++++++++++++++-------
- 2 files changed, 26 insertions(+), 8 deletions(-)
+ src/runtime/internal/atomic/atomic_test.go |  7 +--
+ src/sync/atomic/asm_mipsx.s                | 85 ++++++++++++++++++++++++++++++
+ src/sync/atomic/atomic_test.go             | 15 +++---
+ 3 files changed, 98 insertions(+), 9 deletions(-)

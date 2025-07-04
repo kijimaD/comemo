@@ -1,41 +1,19 @@
-commit 840e99ed742e55ddd00a57210a706e14234c8bc5
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jun 9 10:59:05 2022 -0400
+commit e9e0d1ef704c4bba3927522be86937164a61100c
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Aug 16 06:41:15 2021 +0000
 
-    api: promote next to go1.19
+    cmd/asm/internal/arch: adds the missing type check for arm64 SXTB extension
     
-    Change-Id: I3d80f0691b399fe4ee4a0d161b5cee907ae6b94f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411394
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Operands of memory type do not support SXTB extension. This CL adds this
+    missing check.
+    
+    Change-Id: I1fa438dd314fc8aeb889637079cc67b538e83a89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342769
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- api/go1.19.txt     | 288 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next/30715.txt |   3 -
- api/next/35044.txt |   1 -
- api/next/42710.txt |   2 -
- api/next/43401.txt |   1 -
- api/next/43724.txt |   2 -
- api/next/45628.txt |   1 -
- api/next/45754.txt |   2 -
- api/next/46057.txt |   1 -
- api/next/46059.txt |   1 -
- api/next/46121.txt |   2 -
- api/next/46229.txt | 105 -------------------
- api/next/47005.txt |   2 -
- api/next/47579.txt |   3 -
- api/next/48409.txt |   1 -
- api/next/50062.txt |   1 -
- api/next/50340.txt |   1 -
- api/next/50599.txt |   1 -
- api/next/50601.txt |   5 -
- api/next/50674.txt |   9 --
- api/next/50860.txt |  40 --------
- api/next/51082.txt |  61 ------------
- api/next/51414.txt |   1 -
- api/next/51644.txt |   2 -
- api/next/51682.txt |   2 -
- api/next/51684.txt |   2 -
- api/next/51868.txt |  36 -------
- 27 files changed, 288 insertions(+), 288 deletions(-)
+ src/cmd/asm/internal/arch/arm64.go | 31 +++++--------------------------
+ 1 file changed, 5 insertions(+), 26 deletions(-)

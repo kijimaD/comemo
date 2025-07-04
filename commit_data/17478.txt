@@ -1,15 +1,24 @@
-commit a3834a2e8a730a4e6a9be9f7ebba96ec3c942d32
-Author: Kamil Kisiel <kamil@kamilkisiel.net>
-Date:   Fri Sep 6 12:00:03 2013 -0700
+commit fd7ddad160bfcfd861db00e5d4df01ceaf0a66e9
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Sep 6 16:15:44 2013 +1000
 
-    net: Fix inaccurate docs for AcceptTCP and AcceptUnix.
+    cmd/dist: Plan 9 build needs an additional include path
+    cmd/cc: bv.c imports libc.h twice
     
-    R=golang-dev, bradfitz
+    When using the Plan 9 compiler, the invocation
+    
+            #include <../ld/textflag.h>
+    
+    works for the toolchain, but not for the MACH library.
+    
+    Module cmd/cc/bv.c includes libc.h and "cc.h", which in
+    turn also includes libc.h.  In the Plan 9 context, this
+    causes a number of duplicate definitions.
+    
+    R=golang-dev, rsc, r
     CC=golang-dev
-    https://golang.org/cl/13592043
+    https://golang.org/cl/13303047
 
- src/pkg/net/tcpsock_plan9.go  | 2 +-
- src/pkg/net/tcpsock_posix.go  | 2 +-
- src/pkg/net/unixsock_plan9.go | 2 +-
- src/pkg/net/unixsock_posix.go | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/cc/bv.c      | 1 -
+ src/cmd/dist/build.c | 2 ++
+ 2 files changed, 2 insertions(+), 1 deletion(-)

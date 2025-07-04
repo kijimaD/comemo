@@ -1,15 +1,23 @@
-commit 505f6e335e788c87881d4aa53cfa06a8c645009a
+commit a9267db56abaa2ee68a27d78a5b12083f2a25a49
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 15:43:33 2015 -0400
+Date:   Thu Jun 4 14:17:51 2015 -0400
 
-    cmd/pprof: store temporary files in temporary directory
+    cmd/go: simplify ELF note reading and enable during bootstrap
     
-    Fixes #9180.
+    The bootstrap restriction is to avoid needing cgo for package net.
+    There's no problem with building debug/elf and debug/dwarf,
+    so do that.
     
-    Change-Id: Id5adaea0ca9005946fb89c88a10c6f59d8c0943c
-    Reviewed-on: https://go-review.googlesource.com/12202
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    An upcoming CL is going to add more note processing code,
+    and it simplifies things not to have to think about the code being
+    missing half the time.
+    
+    Change-Id: I0e2f120ac23f14db6ecfcec7bfe254a69abcf7b6
+    Reviewed-on: https://go-review.googlesource.com/10703
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/pprof/internal/commands/commands.go | 20 +++++++++++++++++++-
- src/cmd/pprof/internal/driver/driver.go     |  2 +-
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.go   |  2 ++
+ src/cmd/go/bootstrap.go |  4 ----
+ src/cmd/go/build.go     |  4 ++--
+ src/cmd/go/note.go      | 28 +++++-----------------------
+ 4 files changed, 9 insertions(+), 29 deletions(-)

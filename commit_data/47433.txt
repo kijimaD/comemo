@@ -1,26 +1,16 @@
-commit 8b66b3d49f931715c52b4ed71bc1dc935132c30f
-Author: Robert Findley <rfindley@google.com>
-Date:   Thu Nov 11 19:07:28 2021 -0500
+commit 42c25e65f321a75b9be1725d77ea3e7175dc34ad
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Mar 17 01:39:11 2021 +1100
 
-    cmd/compile/internal/types2: unexport Context.TypeHash
+    cmd/compile: actually intrinsify runtime/internal/atomic.{And,Or}{8,} on RISCV64
     
-    Context.TypeHash is not being used outside of the type checker, so
-    unexport it.
+    Actually enable intrinsics for runtime/internal/atomic.{And,Or}{8,} on RISCV64.
+    This seems to have been lost when CL 268098 was rebased.
     
-    The TypeHash method is meant to hash instances, not arbitrary types, and
-    will soon be modified to differentiate origin types by pointer identity
-    (even if they are *Signature types).
-    
-    Change-Id: Ia8d4a7c6350ce7f278b70630585efb0009fef63a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363516
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: If072daa79c8964b186c127d5e065a7cc9e23ba27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302229
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/context.go     | 4 ++--
- src/cmd/compile/internal/types2/instantiate.go | 2 +-
- src/cmd/compile/internal/types2/named.go       | 2 +-
- src/cmd/compile/internal/types2/subst.go       | 2 +-
- src/cmd/compile/internal/types2/typexpr.go     | 2 +-
- 5 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,14 +1,13 @@
-commit 5bd5ed2b579f656e5804ec6c1f715b5b43161932
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 18 10:28:18 2013 +1100
+commit d46d0f15a7be51d898c7a14f8a3f4875130351dd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jan 18 02:41:17 2013 +0800
 
-    testing: catch panicking example and report, just like tests
+    all: remove exec bit on files
     
-    Fixes #4670.
-    
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7148043
+    https://golang.org/cl/7128048
 
- src/pkg/testing/example.go | 79 +++++++++++++++++++++++++++-------------------
- 1 file changed, 47 insertions(+), 32 deletions(-)
+ src/cmd/gofmt/testdata/crlf.input           | 0
+ src/pkg/mime/multipart/testdata/nested-mime | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)

@@ -1,22 +1,48 @@
-commit 6c591f79b0b5327549bd4e94970f7a279efb4ab0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun May 2 11:27:03 2021 -0700
+commit 50af50d136551e2009b2b52e829570536271cdaa
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 14 08:36:11 2020 -0400
 
-    math/big: check for excessive exponents in Rat.SetString
+    reflect,runtime: use internal ABI for selected ASM routines
     
-    Found by oss-fuzz https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=33284
+    Change the definitions of selected runtime assembly routines
+    from ABI0 (the default) to ABIInternal. The ABIInternal def is
+    intended to indicate that these functions don't follow the existing Go
+    runtime ABI. In addition, convert the assembly reference to
+    runtime.main (from runtime.mainPC) to ABIInternal. Finally, for
+    functions such as "runtime.duffzero" that are called directly from
+    generated code, make sure that the compiler looks up the correct
+    ABI version.
     
-    Fixes #45910.
+    This is intended to support the register abi work, however these
+    changes should not have any issues even when GOEXPERIMENT=regabi is
+    not in effect.
     
-    Change-Id: I61e7b04dbd80343420b57eede439e361c0f7b79c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316149
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Updates #27539, #40724.
+    
+    Change-Id: I9846f8dcaccc95718cf2e61a18b7e924a0677e4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262319
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/math/big/ratconv.go      | 15 ++++++++-------
- src/math/big/ratconv_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go   | 86 ++++++++++++++++----------------
+ src/cmd/internal/obj/wasm/wasmobj.go |  6 +--
+ src/reflect/asm_amd64.s              | 12 +++--
+ src/runtime/asm_amd64.s              | 96 ++++++++++++++++++++++--------------
+ src/runtime/asm_wasm.s               |  4 +-
+ src/runtime/duff_amd64.s             |  4 +-
+ src/runtime/mkpreempt.go             |  3 +-
+ src/runtime/preempt_386.s            |  3 +-
+ src/runtime/preempt_amd64.s          |  3 +-
+ src/runtime/preempt_arm.s            |  3 +-
+ src/runtime/preempt_arm64.s          |  3 +-
+ src/runtime/preempt_mips64x.s        |  3 +-
+ src/runtime/preempt_mipsx.s          |  3 +-
+ src/runtime/preempt_ppc64x.s         |  3 +-
+ src/runtime/preempt_riscv64.s        |  3 +-
+ src/runtime/preempt_s390x.s          |  3 +-
+ src/runtime/preempt_wasm.s           |  3 +-
+ src/runtime/race_amd64.s             | 12 +++--
+ src/runtime/sys_linux_amd64.s        | 13 +++--
+ 19 files changed, 154 insertions(+), 112 deletions(-)

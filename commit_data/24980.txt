@@ -1,18 +1,14 @@
-commit e9aef43d873c6e3a0d1a299908e542b48b3562fd
-Author: Austin Clements <austin@google.com>
-Date:   Tue Nov 17 17:27:11 2015 -0500
+commit c7081409bb58edc0fcbccbba230b1667845e94a6
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 10 10:01:15 2015 -0700
 
-    runtime: eliminate traceAllocBlock write barriers
+    [dev.ssa] cmd/compile/internal/ssa: fix string index
     
-    This replaces *traceAllocBlock with traceAllocBlockPtr.
-    
-    Updates #10600.
-    
-    Change-Id: I94a20d90f04cca7c457b29062427748e315e4857
-    Reviewed-on: https://go-review.googlesource.com/17004
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I984d3e0410ac38c4e42ae8e3670ea47e2140de76
+    Reviewed-on: https://go-review.googlesource.com/14466
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/runtime/trace.go | 29 +++++++++++++++++++----------
- 1 file changed, 19 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 | 23 ++++++------
+ src/cmd/compile/internal/gc/testdata/string_ssa.go | 41 ++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 10 deletions(-)

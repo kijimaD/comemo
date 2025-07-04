@@ -1,14 +1,125 @@
-commit 183fd6f19b6a88c0174cf3fd5a3b141b159b8225
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Mar 13 21:21:25 2018 -0700
+commit aec345d638fa624f08b7d758e9e173897edc80e8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Aug 20 12:27:32 2017 +0200
 
-    runtime: print goid when throwing for split stack overflow
+    cmd/vendor/github.com/google/pprof: refresh from upstream
     
-    Change-Id: I66515156c2fc6886312c0eccb86d7ceaf7947042
-    Reviewed-on: https://go-review.googlesource.com/100465
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Update vendored pprof to commit 4fc39a00b6b8c1aad05260f01429ec70e127252c
+    from github.com/google/pprof (2017-11-01).
+    
+    Fixes #19380
+    Updates #21047
+    
+    Change-Id: Ib64a94a45209039e5945acbcfa0392790c8ee41e
+    Reviewed-on: https://go-review.googlesource.com/57370
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/stack.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vendor/github.com/google/pprof/.gitignore  |   8 +
+ .../google/pprof/{CONTRIBUTING => CONTRIBUTING.md} |  16 +-
+ src/cmd/vendor/github.com/google/pprof/README.md   |  29 +-
+ .../google/pprof/doc/developer/profile.proto.md    |   8 +-
+ .../vendor/github.com/google/pprof/doc/pprof.md    |  97 ++-
+ .../github.com/google/pprof/driver/driver.go       |   8 +-
+ .../google/pprof/internal/binutils/addr2liner.go   |  19 +-
+ .../pprof/internal/binutils/addr2liner_llvm.go     |   5 +
+ .../pprof/internal/binutils/addr2liner_nm.go       |  15 +-
+ .../google/pprof/internal/binutils/binutils.go     |  80 +-
+ .../pprof/internal/binutils/binutils_test.go       | 161 +++-
+ .../google/pprof/internal/binutils/disasm_test.go  |   4 +-
+ .../binutils/testdata/fake-llvm-symbolizer         |  34 +
+ .../google/pprof/internal/binutils/testdata/hello  | Bin 0 -> 9503 bytes
+ .../github.com/google/pprof/internal/driver/cli.go |  84 +-
+ .../google/pprof/internal/driver/commands.go       |  33 +-
+ .../google/pprof/internal/driver/driver.go         |  71 +-
+ .../google/pprof/internal/driver/driver_focus.go   |  73 +-
+ .../google/pprof/internal/driver/driver_test.go    | 561 ++++++++++--
+ .../google/pprof/internal/driver/fetch.go          | 126 ++-
+ .../google/pprof/internal/driver/fetch_test.go     | 245 +++++-
+ .../google/pprof/internal/driver/interactive.go    |   3 +-
+ .../internal/driver/testdata/cppbench.contention   |  24 +
+ .../driver/testdata/cppbench.small.contention      |  19 +
+ .../driver/testdata/pprof.contention.cum.files.dot |   6 +-
+ ...prof.contention.flat.addresses.dot.focus.ignore |   8 +-
+ .../driver/testdata/pprof.cpu.call_tree.callgrind  |  99 +++
+ .../internal/driver/testdata/pprof.cpu.comments    |   1 +
+ .../testdata/pprof.cpu.cum.lines.text.focus.hide   |   8 +
+ .../driver/testdata/pprof.cpu.cum.lines.text.hide  |   2 +
+ .../driver/testdata/pprof.cpu.cum.lines.text.show  |   2 +
+ .../testdata/pprof.cpu.cum.lines.topproto.hide     |   2 +
+ .../testdata/pprof.cpu.flat.addresses.disasm       |   6 +-
+ .../testdata/pprof.cpu.flat.addresses.weblist      |  69 +-
+ .../pprof.cpu.flat.functions.call_tree.dot         |  21 +
+ .../driver/testdata/pprof.cpu.flat.functions.dot   |  30 +-
+ .../driver/testdata/pprof.cpu.flat.functions.text  |  12 +-
+ .../pprof/internal/driver/testdata/pprof.cpu.peek  |  16 +-
+ .../pprof/internal/driver/testdata/pprof.cpu.tags  |  20 +-
+ .../driver/testdata/pprof.cpu.tags.focus.ignore    |   8 +-
+ .../internal/driver/testdata/pprof.cpu.traces      |  32 +-
+ .../testdata/pprof.heap.cum.lines.tree.focus       |   2 +
+ .../pprof.heap.cum.relative_percentages.tree.focus |  22 +-
+ .../testdata/pprof.heap.flat.files.text.focus      |   8 +
+ .../testdata/pprof.heap.flat.inuse_objects.text    |  12 +-
+ .../testdata/pprof.heap.flat.inuse_space.dot.focus |  18 +-
+ .../pprof.heap.flat.inuse_space.dot.focus.ignore   |  22 +-
+ .../testdata/pprof.heap.flat.lines.dot.focus       |  18 +-
+ .../pprof/internal/driver/testdata/pprof.heap.tags |  10 +-
+ .../internal/driver/testdata/pprof.heap.tags.unit  |  10 +-
+ .../pprof.heap_alloc.flat.alloc_objects.text       |  12 +-
+ .../testdata/pprof.heap_alloc.flat.alloc_space.dot |  14 +
+ .../pprof.heap_alloc.flat.alloc_space.dot.focus    |  26 +-
+ .../pprof.heap_alloc.flat.alloc_space.dot.hide     |  12 +-
+ .../driver/testdata/pprof.heap_request.tags.focus  |   8 +
+ .../driver/testdata/pprof.heap_sizetags.dot        |  30 +
+ .../driver/testdata/pprof.heap_tags.traces         |  32 +
+ .../pprof.unknown.flat.functions.call_tree.text    |   8 +
+ .../testdata/pprof.unknown.flat.functions.text     |   8 -
+ .../google/pprof/internal/driver/webhtml.go        | 965 +++++++++++++++++++++
+ .../google/pprof/internal/driver/webui.go          | 393 +++++++++
+ .../google/pprof/internal/driver/webui_test.go     | 232 +++++
+ .../google/pprof/internal/elfexec/elfexec.go       |  25 +-
+ .../google/pprof/internal/elfexec/elfexec_test.go  |   3 +-
+ .../google/pprof/internal/graph/dotgraph.go        |  59 +-
+ .../google/pprof/internal/graph/dotgraph_test.go   | 123 ++-
+ .../google/pprof/internal/graph/graph.go           |  41 +-
+ .../google/pprof/internal/graph/graph_test.go      |   4 +-
+ .../pprof/internal/graph/testdata/compose1.dot     |   6 +-
+ .../pprof/internal/graph/testdata/compose2.dot     |   6 +-
+ .../pprof/internal/graph/testdata/compose3.dot     |  10 +-
+ .../pprof/internal/graph/testdata/compose4.dot     |   2 +-
+ .../pprof/internal/graph/testdata/compose5.dot     |  10 +-
+ .../pprof/internal/graph/testdata/compose6.dot     |   7 +
+ .../pprof/internal/measurement/measurement.go      |  22 +-
+ .../pprof/internal/measurement/measurement_test.go |  47 +
+ .../google/pprof/internal/plugin/plugin.go         |  25 +
+ .../google/pprof/internal/proftest/proftest.go     |  26 +-
+ .../google/pprof/internal/report/report.go         | 246 ++++--
+ .../google/pprof/internal/report/report_test.go    |  21 +
+ .../google/pprof/internal/report/source.go         | 247 ++++--
+ .../google/pprof/internal/report/source_html.go    |  41 +-
+ .../google/pprof/internal/report/source_test.go    |  89 ++
+ .../pprof/internal/report/testdata/README.md       |  10 +
+ .../pprof/internal/report/testdata/sample.bin      | Bin 0 -> 2342380 bytes
+ .../pprof/internal/report/testdata/sample.cpu      | Bin 0 -> 1836 bytes
+ .../internal/report/testdata/sample/sample.go      |  41 +
+ .../pprof/internal/report/testdata/source.dot      |  14 +-
+ .../google/pprof/internal/symbolizer/symbolizer.go |  57 +-
+ .../pprof/internal/symbolizer/symbolizer_test.go   |  70 +-
+ .../google/pprof/internal/symbolz/symbolz.go       |  28 +-
+ .../google/pprof/internal/symbolz/symbolz_test.go  |  98 ++-
+ .../github.com/google/pprof/profile/encode.go      |  40 +-
+ .../github.com/google/pprof/profile/filter.go      |   3 +-
+ .../google/pprof/profile/legacy_java_profile.go    |   5 +-
+ .../github.com/google/pprof/profile/merge.go       |  43 +-
+ .../github.com/google/pprof/profile/profile.go     | 293 +++++--
+ .../google/pprof/profile/profile_test.go           | 557 +++++++++++-
+ .../github.com/google/pprof/profile/proto.go       |  14 +-
+ .../github.com/google/pprof/profile/proto_test.go  |  19 +-
+ .../github.com/google/pprof/profile/prune.go       |  47 +-
+ .../github.com/google/pprof/profile/prune_test.go  |  91 ++
+ .../github.com/google/pprof/proto/profile.proto    |   9 +
+ src/cmd/vendor/github.com/google/pprof/test.sh     |  19 +
+ src/cmd/vendor/vendor.json                         |   4 +-
+ 105 files changed, 5491 insertions(+), 958 deletions(-)

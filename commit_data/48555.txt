@@ -1,18 +1,22 @@
-commit 3c7f9b80222376fa01f8c6e3b411281c23dd74ed
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 28 10:18:03 2022 -0700
+commit f6cc392d1ddd53a003c413fba4c1fc244ce2d85e
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Mon Apr 19 22:26:47 2021 +0300
 
-    net/mail: accept UT as a timezone
+    doc/go1.17: document text/template/parse.SkipFuncCheck
     
-    Fixes #39906
+    Documents the newly added mode that skips type checking
+    functions as per CL 301493.
     
-    Change-Id: I8fcaf4c1ccc4131d770cff08d9c80f520885a6b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396214
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #46025
+    For #34652
+    For #44513
+    For #38627
+    
+    Change-Id: I56c4f65924702a931944796e39f43cfeb66abc8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311569
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/net/mail/message.go      |  2 +-
- src/net/mail/message_test.go | 12 +++++++++++-
- 2 files changed, 12 insertions(+), 2 deletions(-)
+ doc/go1.17.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

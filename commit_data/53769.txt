@@ -1,19 +1,27 @@
-commit a6e49b653afabb30fe502bb4cd91b092e1ce6f05
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat Jul 22 10:43:45 2023 +0000
+commit d98bf7d0151c3feeceba6348519bb5c16e8ddc3f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 15:05:23 2022 -0700
 
-    cmd/compile/internal/base: add comma in comment for consistency
+    go/types, types2: consolidate testdata/fixedbugs/issue46404.go
     
-    Change-Id: I9e2ca7eee50f1a642ae2c7468d0a4ea931cbd33e
-    GitHub-Last-Rev: 93fabec69c861bbecf29df8c2c71bc3286d50b32
-    GitHub-Pull-Request: golang/go#61523
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/512195
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Rename .../issue46404.go1 to .../issue46404.go so that it is
+    not skipped anymore when running tests, and copy for types2.
+    
+    Disable the code for now due to a difference in error
+    reporting due to the slightly different handling of index
+    expressions. This allows us to make progress with test
+    consolidation.
+    
+    For #54511.
+    
+    Change-Id: Ib5c9ffa49b1b24ec680ddb5001bc3dcb1df7eb1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426656
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/base/base.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../compile/internal/types2/testdata/fixedbugs/issue46404.go}  |  4 +++-
+ src/go/types/testdata/fixedbugs/issue46404.go                  | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

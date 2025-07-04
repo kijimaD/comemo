@@ -1,0 +1,22 @@
+commit 1972493904b41a34e35a1f62b18f5d91d84a26bd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon May 19 15:31:37 2025 -0400
+
+    cmd/doc: show page for the requested object
+    
+    This fixes a bug where we start pkgsite for every requested object,
+    rather than the one that we would have printed the documentation for.
+    To make things simple, we'll run the logic that prints the
+    documentation, but with an io.Discard writer. Then we can tell if the
+    documentation was found based on the return values of those functions.
+    
+    For #68106
+    
+    Change-Id: Ibf2ab1720f381d7214fc9239b9c2e915c91f7f7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/cmd/doc/main.go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

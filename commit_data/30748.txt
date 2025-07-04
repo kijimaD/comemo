@@ -1,16 +1,14 @@
-commit cce4c319d6aa2fbcf16fbab6a3dc74baf482ce51
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 10 15:52:26 2017 -0800
+commit 9ea306a10ca4d25672641ffbb628718a6665b4f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 04:29:12 2016 +0000
 
-    cmd/internal/obj: remove unneeded AVARFOO ops
+    sort: add Slice example
     
-    Change-Id: I10e36046ebce8a8741ef019cfe266b9ac9fa322d
-    Reviewed-on: https://go-review.googlesource.com/38088
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I34ba4eaf1d232b639998ad3bbb0d075dd097722b
+    Reviewed-on: https://go-review.googlesource.com/33763
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Dominik Honnef <dominik@honnef.co>
 
- src/cmd/internal/obj/link.go     | 3 ---
- src/cmd/internal/obj/util.go     | 3 ---
- src/cmd/internal/obj/x86/asm6.go | 2 --
- 3 files changed, 8 deletions(-)
+ src/sort/example_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

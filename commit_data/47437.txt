@@ -1,30 +1,20 @@
-commit 95196512b6163dbeff2e7ce5cea65072305905f2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Nov 10 17:35:13 2021 -0500
+commit db4adb1a9ba2ecd8809aab9bf26cc25d2f0c877b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 17 23:55:07 2021 -0400
 
-    runtime/pprof: mark TestCPUProfileMultithreadMagnitude as flaky
+    cmd/link: print symbol versions in stack bound check
     
-    The Linux kernel starting in 5.9 and fixed in 5.16 has a bug that can
-    break CPU timer signal delivery on new new threads if the timer
-    interrupt fires during handling of the clone system call.
+    When the stack bound check fails, print the call chain with
+    symbol versions (along with the names). Now that we have ABI
+    wrappers and wrappers do consume stack space, it is clearer to
+    distinguish the wrappers vs. the underlying functions.
     
-    Broken CPU timer signal deliver will skew CPU profile results and cause
-    this test to fail.
-    
-    There is currently no known workaround, so mark the test as flaky on
-    builders with known broken kernels.
-    
-    For #49065
-    
-    Change-Id: I37ceb9ea244869b0aab5cd9a36b27ca2f7e5d315
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363214
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: Id1d922e3e7934b31317f233aff3d9667b6ac90c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302869
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/pprof/pprof_test.go       | 24 ++++++++++++++
- src/runtime/pprof/uname_linux_test.go | 61 +++++++++++++++++++++++++++++++++++
- src/runtime/pprof/uname_other_test.go | 15 +++++++++
- 3 files changed, 100 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

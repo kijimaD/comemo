@@ -1,29 +1,28 @@
-commit 6af088bfc66c13143c9ef46b4cf0805df77a8fbe
-Author: Kevin Burke <kev@inburke.com>
-Date:   Mon Oct 19 13:29:40 2020 -0700
+commit a7a0f0305035948f4c86e08e6e64409ab11a6f67
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Apr 1 03:21:03 2020 -0700
 
-    encoding/json: add "json: " prefix to SyntaxError messages
+    cmd/compile: mark 'store multiple' as clobbering flags on s390x
     
-    The other named errors - UnmarshalTypeError, etc - in this package do
-    the same, so we should prepend the package prefix to error messages
-    for consistency.
+    Store multiple instructions can clobber flags on s390x when the
+    offset passed into the assembler is outside the range representable
+    with a signed 20 bit integer. This is because the assembler uses
+    the agfi instruction to implement the large offset. The assembler
+    could use a different sequence of instructions, but for now just
+    mark the instruction as 'clobberFlags' since this is risk free.
     
-    Add a note to the release docs in case this is interpreted as
-    a breaking change.
+    Noticed while investigating #38195.
     
-    Fixes #36221.
+    No test yet since I'm not sure how to get this bug to trigger and
+    I haven't seen it affect real code.
     
-    Change-Id: Ie24b532bbf9812e108c259fa377e2a6b64319ed4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263619
-    Run-TryBot: Kevin Burke <kev@inburke.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Kevin Burke <kev@inburke.com>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I4a6ab96455a3ef8ffacb76ef0166b97eb40ff925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226759
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.16.html                                  | 8 ++++++++
- src/cmd/go/testdata/script/mod_proxy_invalid.txt | 4 ++--
- src/cmd/go/testdata/script/mod_query_empty.txt   | 2 +-
- src/encoding/json/scanner.go                     | 2 +-
- src/html/template/escape_test.go                 | 2 +-
- 5 files changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390XOps.go | 6 ++++++
+ src/cmd/compile/internal/ssa/opGen.go        | 6 ++++++
+ 2 files changed, 12 insertions(+)

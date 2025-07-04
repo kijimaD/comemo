@@ -1,0 +1,20 @@
+commit f1039180bd9613bd23dbf47b240f3801172d2706
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 29 17:35:52 2024 -0700
+
+    cmd/compile/internal/types2: enable Alias types for TestStdlib
+    
+    This is expected to eliminate a potential race condition
+    which is causing a flaky test.
+    
+    Fixes #67260.
+    
+    Change-Id: I3fd76047136e2d4659a1c551491e371b67e8a7ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589236
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/stdlib_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

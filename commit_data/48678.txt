@@ -1,27 +1,22 @@
-commit ef5505335432572678c19e202e0edde61b7c5b95
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 25 13:22:55 2022 -0400
+commit bcb3927cb51af39f44d810aab809dff27c950697
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jun 4 23:01:13 2021 -0700
 
-    make.bash: disable GOEXPERIMENT when using bootstrap toolchain
+    [dev.typeparams] cmd/compile: introduce IsTypeParam() helper
     
-    When using Go 1.4 this doesn't matter, but when using Go 1.17,
-    the bootstrap toolchain will complain about unknown GOEXPERIMENT settings.
-    Clearly GOEXPERIMENT is for the toolchain being built, not the bootstrap.
+    better than Kind() == types.TTYPEPARAM
     
-    Already submitted as CL 395879 on the dev.boringcrypto branch,
-    but needed on master to set up GOEXPERIMENT=boringcrypto
-    builder ahead of merge.
-    
-    For #51940.
-    
-    Change-Id: Ib6a4099cca799b4d5df1974cdb5471adb0fd557d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397894
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4f35a177cd0cda3be615a92b7b2af1b5a60a3bbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325410
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/make.bash | 4 ++--
- src/make.bat  | 1 +
- src/make.rc   | 2 +-
- 3 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go     | 2 +-
+ src/cmd/compile/internal/typecheck/iexport.go | 8 ++++----
+ src/cmd/compile/internal/typecheck/iimport.go | 2 +-
+ src/cmd/compile/internal/typecheck/subr.go    | 2 +-
+ src/cmd/compile/internal/types/type.go        | 4 ++++
+ 5 files changed, 11 insertions(+), 7 deletions(-)

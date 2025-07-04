@@ -1,19 +1,20 @@
-commit cef41e0d4b121ed31173a613039c32f5dd2e07f5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 3 11:23:15 2018 -0800
+commit 239b8f2edc70046484d5bcc5bf0cac06f8e1ace4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 21:25:52 2018 -0400
 
-    misc/cgo/testcshared: don't run TestGo2C2Go on Darwin
+    cmd/go: fix and reenable TestAccidentalGitCheckout
     
-    Darwin doesn't support the multiple copies of the runtime package
-    implied by linking a c-shared library into a Go program.
+    This is an important security problem so we shouldn't disable the test.
+    The second half was failing on case-sensitive file systems but the
+    first half is still good.
     
-    Updates #29061
+    Fixes #22983.
     
-    Change-Id: I6cf5d00babf82f1de05689c1345aaa5ae0b0659c
-    Reviewed-on: https://go-review.googlesource.com/c/152159
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I437bb4c9f78eb3177aa8b619e2357b2539566ca9
+    Reviewed-on: https://go-review.googlesource.com/129797
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/go/go_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

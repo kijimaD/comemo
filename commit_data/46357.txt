@@ -1,32 +1,81 @@
-commit a1a6540bf1c38c2c8ad7fced983d2e3206ab1d2b
-Author: Robert Findley <rfindley@google.com>
-Date:   Thu Sep 2 18:39:58 2021 -0400
+commit 37f138df6bcd7bb7cf62148cd8388f3916388ab6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 23 01:09:46 2020 -0500
 
-    go/types: implement deduplication of instances using the Environment
+    [dev.regabi] cmd/compile: split out package test [generated]
     
-    Implement deduplication of type instances via the Environment by
-    recording a map of unique IDs for *Named types. This avoids an issue
-    with the existing type hash, where qualified names alone were not
-    sufficient to differentiate two *Named types that have the same fully
-    qualified name but which are distinct pointers. It also allows us to
-    drop the scope accounting for local types.
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+            mv bench_test.go constFold_test.go dep_test.go \
+                    fixedbugs_test.go iface_test.go float_test.go global_test.go \
+                    inl_test.go lang_test.go logic_test.go \
+                    reproduciblebuilds_test.go shift_test.go ssa_test.go \
+                    truncconst_test.go zerorange_test.go \
+                    cmd/compile/internal/test
+    '
+    mv testdata ../test
     
-    A subtle bug is also fixed in subst.go, where the instance t was passed
-    to typeHash rather than t.orig.
-    
-    Change-Id: I85639ccc1c9bfee470babd2fc85375484c8ed0b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344390
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I041971b7e9766673f7a331679bfe1c8110dcda66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279480
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/check.go            |  4 +--
- src/go/types/decl.go             |  2 +-
- src/go/types/environment.go      | 56 +++++++++++++++++++++++++++++++
- src/go/types/instantiate.go      | 38 ++++++++-------------
- src/go/types/instantiate_test.go | 72 ++++++++++++++++++++++++++++++++++++++++
- src/go/types/named.go            | 22 +++++++-----
- src/go/types/subst.go            | 44 ++++++++++++------------
- src/go/types/typestring.go       | 55 ++++++++++++------------------
- 8 files changed, 203 insertions(+), 90 deletions(-)
+ src/cmd/compile/internal/{gc => test}/bench_test.go               | 2 +-
+ src/cmd/compile/internal/{gc => test}/constFold_test.go           | 2 +-
+ src/cmd/compile/internal/{gc => test}/dep_test.go                 | 2 +-
+ src/cmd/compile/internal/{gc => test}/fixedbugs_test.go           | 2 +-
+ src/cmd/compile/internal/{gc => test}/float_test.go               | 2 +-
+ src/cmd/compile/internal/{gc => test}/global_test.go              | 2 +-
+ src/cmd/compile/internal/{gc => test}/iface_test.go               | 8 +++-----
+ src/cmd/compile/internal/{gc => test}/inl_test.go                 | 2 +-
+ src/cmd/compile/internal/{gc => test}/lang_test.go                | 2 +-
+ src/cmd/compile/internal/{gc => test}/logic_test.go               | 2 +-
+ src/cmd/compile/internal/{gc => test}/reproduciblebuilds_test.go  | 2 +-
+ src/cmd/compile/internal/{gc => test}/shift_test.go               | 2 +-
+ src/cmd/compile/internal/{gc => test}/ssa_test.go                 | 2 +-
+ src/cmd/compile/internal/{gc => test}/testdata/addressed_test.go  | 0
+ src/cmd/compile/internal/{gc => test}/testdata/append_test.go     | 0
+ .../compile/internal/{gc => test}/testdata/arithBoundary_test.go  | 0
+ src/cmd/compile/internal/{gc => test}/testdata/arithConst_test.go | 0
+ src/cmd/compile/internal/{gc => test}/testdata/arith_test.go      | 0
+ src/cmd/compile/internal/{gc => test}/testdata/array_test.go      | 0
+ src/cmd/compile/internal/{gc => test}/testdata/assert_test.go     | 0
+ src/cmd/compile/internal/{gc => test}/testdata/break_test.go      | 0
+ src/cmd/compile/internal/{gc => test}/testdata/chan_test.go       | 0
+ src/cmd/compile/internal/{gc => test}/testdata/closure_test.go    | 0
+ src/cmd/compile/internal/{gc => test}/testdata/cmpConst_test.go   | 0
+ src/cmd/compile/internal/{gc => test}/testdata/cmp_test.go        | 0
+ src/cmd/compile/internal/{gc => test}/testdata/compound_test.go   | 0
+ src/cmd/compile/internal/{gc => test}/testdata/copy_test.go       | 0
+ src/cmd/compile/internal/{gc => test}/testdata/ctl_test.go        | 0
+ .../compile/internal/{gc => test}/testdata/deferNoReturn_test.go  | 0
+ src/cmd/compile/internal/{gc => test}/testdata/divbyzero_test.go  | 0
+ src/cmd/compile/internal/{gc => test}/testdata/dupLoad_test.go    | 0
+ .../internal/{gc => test}/testdata/flowgraph_generator1.go        | 0
+ src/cmd/compile/internal/{gc => test}/testdata/fp_test.go         | 0
+ .../internal/{gc => test}/testdata/gen/arithBoundaryGen.go        | 0
+ .../compile/internal/{gc => test}/testdata/gen/arithConstGen.go   | 0
+ src/cmd/compile/internal/{gc => test}/testdata/gen/cmpConstGen.go | 0
+ .../compile/internal/{gc => test}/testdata/gen/constFoldGen.go    | 0
+ src/cmd/compile/internal/{gc => test}/testdata/gen/copyGen.go     | 0
+ src/cmd/compile/internal/{gc => test}/testdata/gen/zeroGen.go     | 0
+ src/cmd/compile/internal/{gc => test}/testdata/loadstore_test.go  | 0
+ src/cmd/compile/internal/{gc => test}/testdata/map_test.go        | 0
+ .../compile/internal/{gc => test}/testdata/namedReturn_test.go    | 0
+ src/cmd/compile/internal/{gc => test}/testdata/phi_test.go        | 0
+ src/cmd/compile/internal/{gc => test}/testdata/regalloc_test.go   | 0
+ .../internal/{gc => test}/testdata/reproducible/issue20272.go     | 0
+ .../internal/{gc => test}/testdata/reproducible/issue27013.go     | 0
+ .../internal/{gc => test}/testdata/reproducible/issue30202.go     | 0
+ .../internal/{gc => test}/testdata/reproducible/issue38068.go     | 0
+ src/cmd/compile/internal/{gc => test}/testdata/short_test.go      | 0
+ src/cmd/compile/internal/{gc => test}/testdata/slice_test.go      | 0
+ src/cmd/compile/internal/{gc => test}/testdata/sqrtConst_test.go  | 0
+ src/cmd/compile/internal/{gc => test}/testdata/string_test.go     | 0
+ src/cmd/compile/internal/{gc => test}/testdata/unsafe_test.go     | 0
+ src/cmd/compile/internal/{gc => test}/testdata/zero_test.go       | 0
+ src/cmd/compile/internal/{gc => test}/truncconst_test.go          | 2 +-
+ src/cmd/compile/internal/{gc => test}/zerorange_test.go           | 6 ++----
+ 56 files changed, 18 insertions(+), 22 deletions(-)

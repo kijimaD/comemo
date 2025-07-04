@@ -1,19 +1,20 @@
-commit 3eb0b2e80d39f62ac7561e85215e3e7222dba2db
-Author: Kevin Burke <kev@inburke.com>
-Date:   Thu Aug 30 15:39:45 2018 -0600
+commit a9fc37525891e47b4277cde040a06db585e1780d
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri May 4 15:01:44 2018 +0300
 
-    fmt: remove spelling mistake in example
+    runtime: fast clock_gettime on FreeBSD, always call getHPETTimecounter on systemstack
     
-    "someting" is misspelled and the error handling both clobbers the
-    error that occurs and distracts from the point of the example, which
-    is to demonstrate how Printf works. It's better to just panic with the
-    error.
+    CL 108095 goes to some length inorder to keep the stack usage of getHPETTimecounter code paths bellow a limit
+    being checked by the linker analysis. That limit is spurious, when running on the system or signal stack.
     
-    Change-Id: I5fb0a4a1a8b4772cbe0302582fa878d95e3a4060
-    Reviewed-on: https://go-review.googlesource.com/132376
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    In a similar scenario, cgocallback_gofunc performs an indirect call through AX to hide the call from the linker analysis.
+    Here instead, mark getHPETTimecounter //go:systemstack and call it appropriately.
+    
+    Change-Id: I80bec5e4974eee3c564d94f6e1142f322df88b2f
+    Reviewed-on: https://go-review.googlesource.com/111495
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/fmt/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/vdso_freebsd_x86.go | 37 +++++++++++++++++++------------------
+ 1 file changed, 19 insertions(+), 18 deletions(-)

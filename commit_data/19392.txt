@@ -1,15 +1,16 @@
-commit 7f1d62dcefc868361e15db12608a8c8261be0e10
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 19 08:54:19 2014 -0700
+commit d54b67df0cc2f9cfa7785919e20d152305bd72e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 19 09:36:47 2014 -0400
 
-    spec: clarify when a program exits
+    reflect: test, fix access to nil maps
     
-    Fixes #8023.
+    Fixes #8010.
     
-    LGTM=rsc
-    R=r, iant, ken, rsc
+    LGTM=bradfitz, khr
+    R=khr, bradfitz, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/98340043
+    https://golang.org/cl/91450048
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/reflect/all_test.go | 22 ++++++++++++++++++++++
+ src/pkg/runtime/hashmap.goc | 12 ++++++++----
+ 2 files changed, 30 insertions(+), 4 deletions(-)

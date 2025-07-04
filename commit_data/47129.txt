@@ -1,23 +1,25 @@
-commit 5d6d9f5610066584374c2dfe7624fa9f251089a0
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Oct 27 19:16:27 2021 -0700
+commit ee2a45e5fbee473b81c8ab81da8d83699d64e01f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Feb 24 09:43:59 2021 +0100
 
-    cmd/compile: use Structure() to get single underlying type of typeparam.
+    runtime: use pipe2 for nonblockingPipe on dragonfly
     
-    Use types2.Structure() to get single underlying type of typeparams, to
-    handle some unusual cases where a type param is constrained to a single
-    underlying struct or map type.
+    The pipe2 syscall is available since DragonflyBSD 4.2, see
+    https://www.dragonflybsd.org/release42/
     
-    Fixes #48538
-    
-    Change-Id: I289fb7b31d489f7586f2b04aeb1df74e15a9f965
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359335
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: Ifc67c4935cc59bae29be459167e2fa765843ac03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295471
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/noder/expr.go |  2 +-
- test/run.go                            |  1 +
- test/typeparam/issue48538.go           | 60 ++++++++++++++++++++++++++++++++++
- 3 files changed, 62 insertions(+), 1 deletion(-)
+ src/runtime/defs_dragonfly.go       |  4 ++++
+ src/runtime/defs_dragonfly_amd64.go |  4 ++++
+ src/runtime/export_pipe2_test.go    |  4 ++--
+ src/runtime/export_pipe_test.go     |  4 ++--
+ src/runtime/nbpipe_pipe.go          |  4 ++--
+ src/runtime/nbpipe_pipe2.go         |  4 ++--
+ src/runtime/os_dragonfly.go         |  5 +++--
+ src/runtime/sys_dragonfly_amd64.s   | 18 ++++++++++++++++++
+ 8 files changed, 37 insertions(+), 10 deletions(-)

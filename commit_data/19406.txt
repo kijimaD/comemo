@@ -1,16 +1,15 @@
-commit 82854d7b398ff49896c6b10e954891aa36fb1ade
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 20 11:38:34 2014 -0400
+commit 9cd759aecc97c2044df015d624d323277444740f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 20 15:52:08 2014 +1000
 
-    syscall: fix Write(nil) on NaCl
+    misc/makerelease: handle update tour file layout
     
-    Fixes #7050.
+    Fixes #7835.
     
-    LGTM=crawshaw, r
-    R=golang-codereviews, crawshaw, r
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/91590043
+    https://golang.org/cl/94670044
 
- src/pkg/syscall/fd_nacl.go  |  6 ++++++
- test/fixedbugs/issue7050.go | 19 +++++++++++++++++++
- 2 files changed, 25 insertions(+)
+ misc/makerelease/makerelease.go | 1 -
+ 1 file changed, 1 deletion(-)

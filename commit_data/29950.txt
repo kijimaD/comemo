@@ -1,30 +1,29 @@
-commit 467109bf56fb560d1fd8a27c6184dbfe4f64ffef
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Jan 13 22:08:27 2017 -0500
+commit 3d1ae4b75c77a88ba3b20ada874f1027365a8060
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Oct 17 19:15:37 2016 +0200
 
-    all: test adjustments for the iOS builder
+    net: close the connection gracefully on Plan 9
     
-    The working directory is now adjusted to match the typical Go test
-    working directory in main, as the old trick for adjusting earlier
-    stopped working with the latest version of LLDB bugs.
+    Previously, we used to write the "hangup" message to
+    the TCP connection control file to be able to close
+    a connection, while waking up the readers.
     
-    That means the small number of places where testdata files are
-    read before main is called no longer work. This CL adjusts those
-    reads to happen after main is called. (This has the bonus effect of
-    not reading some benchmark testdata files in all.bash.)
+    The "hangup" message closes the TCP connection with a
+    RST message. This is a problem when closing a connection
+    consecutively to a write, because the reader may not have
+    time to acknowledge the message before the connection is
+    closed, resulting in loss of data.
     
-    Fixes compress/bzip2, go/doc, go/parser, os, and time package
-    tests on the iOS builder.
+    We use a "close" message, newly implemented in the Plan 9
+    kernel to be able to close a TCP connection gracefully with a FIN.
     
-    Change-Id: If60f026aa7848b37511c36ac5e3985469ec25209
-    Reviewed-on: https://go-review.googlesource.com/35255
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #15464.
+    
+    Change-Id: I2050cc72fdf7a350bc6c9128bae7d14af11e599c
+    Reviewed-on: https://go-review.googlesource.com/31271
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/ios/go_darwin_arm_exec.go    |  6 ++----
- src/compress/bzip2/bzip2_test.go  | 24 +++++++++++++++---------
- src/go/doc/doc_test.go            |  5 ++++-
- src/go/parser/performance_test.go | 13 ++++---------
- src/os/os_test.go                 |  5 ++++-
- 5 files changed, 29 insertions(+), 24 deletions(-)
+ src/net/fd_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

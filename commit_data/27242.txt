@@ -1,24 +1,30 @@
-commit e50346d26a935cd43023856d0df65a158d867c00
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun May 1 17:03:46 2016 -0700
+commit cb1f2afc99f844be5f78b701adbe0b7b75259a4c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 17 13:46:43 2016 +1100
 
-    cmd/cgo, misc/cgo/test: make -Wdeclaration-after-statement clean
+    cmd/compile/internal/gc: disable logProgs debug flag
     
-    I got a complaint that cgo output triggers warnings with
-    -Wdeclaration-after-statement.  I don't think it's worth testing for
-    this--C has permitted declarations after statements since C99--but it is
-    easy enough to fix.  It may break again; so it goes.
+    Spotted while splunking in the compiler with GOGC=off.
     
-    This CL also fixes errno handling to avoid getting confused if the tsan
-    functions happen to change the global errno variable.
+    name       old time/op     new time/op     delta
+    Template       407ms ± 5%      402ms ± 6%     ~           (p=0.301 n=20+20)
+    GoTypes        1.33s ± 2%      1.29s ± 1%   -3.47%        (p=0.000 n=20+20)
+    Compiler       6.21s ± 1%      5.91s ± 2%   -4.83%        (p=0.000 n=20+20)
     
-    Change-Id: I0ec7c63a6be5653ef44799d134c8d27cb5efa441
-    Reviewed-on: https://go-review.googlesource.com/22686
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    name       old alloc/op    new alloc/op    delta
+    Template      66.8MB ± 0%     63.9MB ± 0%   -4.46%        (p=0.000 n=19+20)
+    GoTypes        232MB ± 0%      220MB ± 0%   -5.16%        (p=0.000 n=19+17)
+    Compiler      1.02GB ± 0%     0.97GB ± 0%   -5.81%        (p=0.000 n=20+20)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        789k ± 0%       708k ± 0%  -10.28%        (p=0.000 n=19+20)
+    GoTypes        2.49M ± 0%      2.20M ± 0%  -11.57%        (p=0.000 n=20+20)
+    Compiler       10.8M ± 0%       9.4M ± 0%  -12.82%        (p=0.000 n=20+20)
+    
+    Change-Id: I76615cab912dde10595ca6ab9979ff6c5f1aec49
+    Reviewed-on: https://go-review.googlesource.com/20782
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/test/issue3250.go |  2 +-
- misc/cgo/test/issue5986.go |  3 ++-
- src/cmd/cgo/out.go         | 20 +++++++++++++++-----
- 3 files changed, 18 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

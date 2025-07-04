@@ -1,17 +1,24 @@
-commit 678cd71d11f927fcde0c1fa5d380860ce77f8391
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Nov 15 13:56:48 2022 -0500
+commit 2c58bb2e428c1f587dc30817bc211570f6fd4793
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Dec 30 11:09:42 2021 +0800
 
-    crypto/rsa: fix loop variable capture in test
+    src/runtime: mark asanread and asanwrite functions as NOSPLIT
     
-    Should fix builds.
+    The asan runtime functions may run on stacks that cannot grow, and
+    they do not have large local variables, so it is safe to mark them
+    as NOSPLIT.
     
-    Change-Id: I309eccec8d08931b1ef8fee9327a08a97c6bf871
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450738
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Add test case.
+    
+    Fixes #50391
+    
+    Change-Id: Iadcbf1ae0c837d9b64da5be208c7f424e6ba11de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374398
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Fannie Zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/rsa/rsa_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/testsanitizers/asan_test.go           |  1 +
+ misc/cgo/testsanitizers/testdata/asan5_fail.go | 21 +++++++++++++++++++++
+ src/runtime/asan.go                            |  4 ++++
+ 3 files changed, 26 insertions(+)

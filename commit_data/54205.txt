@@ -1,45 +1,50 @@
-commit ddad9b618cce0ed91d66f0470ddb3e12cfd7eeac
-Author: korzhao <korzhao95@gmail.com>
-Date:   Fri Aug 11 17:20:36 2023 +0800
+commit f2ee3414689add84c6e6d2d3f44dacde5129b18d
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed May 18 18:48:56 2022 -0400
 
-    encoding/json: avoid allocation when decoding number types
+    cmd{cover,covdata,go}: better coverage for tests that build tools
     
-    In CL 345488, we optimized strconv.ParseXXX for []byte arguments.
-    That allows immediate casting of a []byte to a string that does not escape to be copied on the stack.
+    Some of the unit tests in Go's "cmd" tree wind up building a separate
+    copy of the tool being tested, then exercise the freshly built tool as
+    a way of doing regression tests. The intent is to make sure that "go
+    test" is testing the current state of the source code, as opposed to
+    whatever happened to be current when "go install <tool>" was last run.
     
-    Performance:
+    Doing things this way is unfriendly for coverage testing. If I run "go
+    test -cover cmd/mumble", and the cmd/mumble test harness builds a
+    fresh copy of mumble.exe, any runs of that new executable won't
+    generate coverage data.
     
-            goos: darwin
-            goarch: arm64
-            pkg: encoding/json
-                                    old sec/op      new sec/op      delta
-            CodeUnmarshal-10        3.019m ± 6%   2.865m ± 10%   -5.10% (p=0.043 n=10)
-            CodeUnmarshalReuse-10   2.528m ± 4%   2.274m ± 13%  -10.03% (p=0.009 n=10)
-            geomean                 2.762m        2.553m         -7.60%
+    This patch updates the test harnesses to use the unit test executable
+    as a stand-in for the tool itself, so that if "go test -cover" is in
+    effect, we get the effect of building the tool executable for coverage
+    as well. Doing this brings up the overall test coverage number for
+    cmd/cover quite dramatically:
     
-                                    old B/s         new B/s         delta
-            CodeUnmarshal-10        613.1Mi ± 5%   646.0Mi ±  9%   +5.37% (p=0.043 n=10)
-            CodeUnmarshalReuse-10   732.1Mi ± 4%   813.7Mi ± 12%  +11.15% (p=0.009 n=10)
-            geomean                 669.9Mi        725.0Mi         +8.22%
+    before change:
     
-                                    old B/op        new B/op        delta
-            CodeUnmarshal-10         2.782Mi ± 0%   1.918Mi ± 0%  -31.04% (p=0.000 n=10)
-            CodeUnmarshalReuse-10   1600.8Ki ± 0%   713.3Ki ± 0%  -55.44% (p=0.000 n=10)
-            geomean                  2.085Mi        1.156Mi       -44.57%
+      $ go test -cover .
+      ok    cmd/cover       1.100s  coverage: 1.5% of statements
     
-                                    old allocs/op   new allocs/op   delta
-            CodeUnmarshal-10        91.31k ± 0%   39.99k ± 0%  -56.20% (p=0.000 n=10)
-            CodeUnmarshalReuse-10   76.58k ± 0%   25.23k ± 0%  -67.06% (p=0.000 n=10)
-            geomean                 83.62k        31.76k       -62.02%
+    after change:
     
-    Change-Id: I208c57089040daee0f9d979d1df725e3acf34f81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518277
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+      $ go test -cover .
+      ok    cmd/cover       1.299s  coverage: 84.2% of statements
+    
+    Getting this to work requires a small change in the Go command as
+    well, to set GOCOVERDIR prior to executing a test binary.
+    
+    Updates #51430.
+    
+    Change-Id: Ifcf0ea85773b80fcda794aae3702403ec8e0b733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404299
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/encoding/json/decode.go | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+ src/cmd/covdata/export_test.go     |   7 +
+ src/cmd/covdata/tool_test.go       |  67 +++++++++-
+ src/cmd/cover/cfg_test.go          |   6 +-
+ src/cmd/cover/cover_test.go        | 259 ++++++++++++++++++-------------------
+ src/cmd/cover/export_test.go       |   7 +
+ src/cmd/cover/testdata/toolexec.go |  33 -----
+ src/cmd/go/internal/test/test.go   |   9 ++
+ 7 files changed, 215 insertions(+), 173 deletions(-)

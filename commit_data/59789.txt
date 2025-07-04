@@ -1,16 +1,22 @@
-commit d166a0b03e88e3ffe17a5bee4e5405b5091573c6
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Jun 10 13:55:09 2025 -0700
+commit 0304d035cd1a35762b0d1e394f13345e29107b63
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Apr 22 15:24:42 2024 +0000
 
-    encoding/json/jsontext, encoding/json/v2: document experimental nature
+    runtime: switch to systemstack before throw in casgstatus
     
-    Change-Id: I7b2c391749e0113e006f37b2ac1ebfe3ee0a4e0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/680715
-    TryBot-Bypass: Damien Neil <dneil@google.com>
+    CL 580255 increased the frame size of entersyscall and reentersyscall,
+    which is causing the x/sys repository to fail to build for
+    windows/arm64 because of an overflow of the nosplit stack reservation.
+    
+    Fix this by wrapping the other call to throw in casgstatus in a system
+    stack switch. This is a fatal throw anyway indicating a core runtime
+    invariant is broken, so this path is basically never taken. This cuts
+    off the nosplit frame chain and allows x/sys to build.
+    
+    Change-Id: I00b16c9db3a7467413ed48953c7f8a9a750f000a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580775
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/encoding/json/jsontext/doc.go | 5 +++++
- src/encoding/json/v2/doc.go       | 5 +++++
- 2 files changed, 10 insertions(+)
+ src/runtime/proc.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

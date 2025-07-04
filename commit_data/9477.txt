@@ -1,17 +1,18 @@
-commit 4946b420f217e65e581bd6299b71f74654570717
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 24 16:47:12 2011 -0400
+commit f78e7d36a6808b1f45b05186f2d82805bdf72e77
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Aug 24 13:59:52 2011 -0400
 
-    misc/emacs: refine label detection
+    math: fix Pow10 loop
     
-    Based on idea in
-    http://patch-tracker.debian.org/patch/series/view/golang/1:59-1/008-emacs-mode-key-literal-indent.patch
+    Pow10 failed for MinInt32 (endless loop until out of
+    memory).  Fix by returning 0 and +Inf for all arguments
+    where the result is not representable in a float64.
+    Fixes #2159.
     
-    Fixes #2174.
-    
-    R=amdragon, ajmani, amdragon
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4922049
+    https://golang.org/cl/4930041
 
- misc/emacs/go-mode.el | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/math/all_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/math/pow10.go    |  6 ++++++
+ 2 files changed, 40 insertions(+)

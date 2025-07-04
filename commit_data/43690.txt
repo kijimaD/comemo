@@ -1,27 +1,28 @@
-commit 393f2bb067088cdbdb8d5848e6880b2ce65ddaf9
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue May 19 18:56:01 2020 +1000
+commit 50b11318febd74c26cc466cc4557347bcb53181a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 20 14:43:30 2020 -0700
 
-    cmd/dist,cmd/go,runtime: add support for cgo on linux/riscv64
+    cmd/compile: use oneBit instead of isPowerOfTwo in bit optimization
     
-    Fixes #36641
+    This optimization works on any integer with exactly one bit set.
+    This is identical to being a power of two, except in the
+    most negative number. Use oneBit instead.
     
-    Change-Id: I51868d83ce341d78d33b221d184c5a5110c60d14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263598
-    Trust: Joel Sing <joel@sing.id.au>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    The rule now triggers in a few more places in std+cmd,
+    in packages encoding/asn1, crypto/elliptic, and
+    vendor/golang.org/x/crypto/cryptobyte.
+    
+    This change obviates the need for CL 222479
+    by doing this optimization consistently in the compiler.
+    
+    Change-Id: I983c6235290fdc634fda5e11b10f1f8ce041272f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229124
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/testdata/issue9400/asm_riscv64.s     |  31 ++++
- src/cmd/dist/build.go                              |   2 +-
- src/cmd/dist/test.go                               |   6 +-
- .../go/testdata/script/build_plugin_non_main.txt   |   3 +-
- src/cmd/nm/nm_cgo_test.go                          |   2 +-
- src/runtime/asm_riscv64.s                          | 190 +++++++++++++++++++--
- src/runtime/cgo/asm_riscv64.s                      |  84 +++++++++
- src/runtime/cgo/gcc_linux_riscv64.c                |  74 ++++++++
- src/runtime/cgo/gcc_riscv64.S                      |  80 +++++++++
- src/runtime/cgocall.go                             |   2 +-
- src/runtime/tls_riscv64.s                          |  16 +-
- 11 files changed, 469 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 16 ++++++-------
+ src/cmd/compile/internal/ssa/rewrite.go        |  8 ++++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 32 +++++++++++++-------------
+ test/codegen/bits.go                           |  5 ++++
+ 4 files changed, 34 insertions(+), 27 deletions(-)

@@ -1,18 +1,15 @@
-commit 6cb2e1d015b87f4627f40d7b208b58ecb4e102e1
-Author: Todd Neal <todd@tneal.org>
-Date:   Tue Mar 8 22:13:20 2016 -0600
+commit 4601776901a4db8b213d66392128a7a2f1c8d1c4
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Dec 28 21:35:48 2015 +0900
 
-    cmd/compile: remove values from const cache upon free
+    os: fix race condition between (*os.File).Stat and os.Chdir on windows
     
-    When calling freeValue for possible const values, remove them from the
-    cache as well.
+    Fixes #13752
     
-    Change-Id: I087ed592243e33c58e5db41700ab266fc70196d9
-    Reviewed-on: https://go-review.googlesource.com/20481
-    Run-TryBot: Todd Neal <tolchz@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I53cfc4ecae90c35b6f1074f3be08489c408a6464
+    Reviewed-on: https://go-review.googlesource.com/18181
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/ssa/func.go      | 16 ++++++++++++++++
- src/cmd/compile/internal/ssa/func_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+ src/os/os_windows_test.go | 29 +++++++++++++++++++++++++++++
+ src/os/stat_windows.go    |  2 +-
+ 2 files changed, 30 insertions(+), 1 deletion(-)

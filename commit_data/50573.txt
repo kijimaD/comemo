@@ -1,30 +1,19 @@
-commit 533cd80315904661e3d644a140bdf52c8ac7aad6
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 22 18:53:12 2022 +0700
+commit c406380fa984d14a1f104fd2502d832565b45eb2
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 1 14:46:35 2021 -0400
 
-    cmd/compile/internal/walk: remove reduceSlice
+    go/types: better error messages for empty type sets
     
-    After CL 22425, there're two optimizations for slice expr which are
-    never applied during walk pass:
+    This is a clean port of CL 358175 to go/types.
     
-            s[i:len(s)]
-            s[i:j:cap(s)]
-    
-    The order pass have already rewritten len/cap expression to use autotmp,
-    thus the same safe expression check will never fire. The code can now be
-    simplified by moving the only case left from reduceSlice to walkSlice,
-    then removing reduceSlice entirely.
-    
-    Passes toolstash-check.
-    
-    Change-Id: Ia8cfb15c8e96c186a214c17b42d0fee51b0d3a1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432695
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If1b4e51d1579fd168e651d79d031335ff09ca128
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360474
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/walk/expr.go | 33 ++++++---------------------------
- 1 file changed, 6 insertions(+), 27 deletions(-)
+ src/go/types/instantiate.go                    | 32 ++++++++++++++++++--------
+ src/go/types/testdata/check/typeinst2.go2      | 28 ++++++++++++++++++----
+ src/go/types/testdata/fixedbugs/issue47411.go2 |  2 +-
+ src/go/types/typeset.go                        |  2 +-
+ 4 files changed, 48 insertions(+), 16 deletions(-)

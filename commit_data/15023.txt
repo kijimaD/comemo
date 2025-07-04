@@ -1,17 +1,12 @@
-commit 660c4cde9ce10ff158fc76bf8f75c9d0e880d346
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Wed Jan 30 07:56:08 2013 -0800
+commit c5da34eabeb35dea137bb1a217173fc29bf44ca1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 30 17:26:22 2013 +1100
 
-    include: Plan 9: hide any previous definition of Runemax
+    C: add Hossein Sheikh Attar (Google CLA)
     
-    Runemax is already defined in libc on 64-bit version of
-    Plan 9, but is not defined on other versions.
-    To accommodate, we make sure to rename any previous
-    instance of Runemax and re-define it subsequently.
-    
-    R=rsc, ality, rminnich
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7232059
+    https://golang.org/cl/7241048
 
- include/plan9/libc.h | 2 ++
- 1 file changed, 2 insertions(+)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,21 +1,17 @@
-commit b0543ddd8acedc547e409ad930df5763badf08d9
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 18 15:59:19 2011 -0500
+commit 3426b80dd9483a25d8d12fa0f39be7686f26c97b
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 18 15:39:38 2011 -0500
 
-    gc, runtime: make range on channel safe for multiple goroutines
+    xml: support for > in tags
     
-    Fixes #397.
+    This introduces support for selecting which subelement
+    to unmarshal into a given struct field by providing a
+    nesting path separated by the > character.
     
-    R=ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3994043
+    https://golang.org/cl/4066041
 
- src/cmd/gc/builtin.c.boot   |  1 +
- src/cmd/gc/go.h             |  2 +-
- src/cmd/gc/range.c          | 13 ++++++++++---
- src/cmd/gc/runtime.go       |  1 +
- src/cmd/gc/walk.c           | 14 ++++++++++++++
- src/pkg/runtime/chan.c      | 27 ++++++++++++++++++++++++---
- src/pkg/runtime/reflect.goc |  2 +-
- src/pkg/runtime/runtime.h   |  2 +-
- 8 files changed, 53 insertions(+), 9 deletions(-)
+ src/pkg/xml/read.go      | 88 +++++++++++++++++++++++++++++++++++++++++++++---
+ src/pkg/xml/read_test.go | 68 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 152 insertions(+), 4 deletions(-)

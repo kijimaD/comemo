@@ -1,26 +1,21 @@
-commit 72193c98248d26c92ced56e0855eac8722269aad
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Sep 9 10:54:25 2015 +1000
+commit 40aba8c4e7ac5babf9901d1948ff56c117e3bcf9
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 5 22:11:14 2015 -0400
 
-    path/filepath: test EvalSymlinks returns canonical path on windows
+    [dev.ssa] cmd/compile: add support for LROT, and tests
     
-    When you create C:\A.TXT file on windows, you can open it as c:\a.txt.
-    EvalSymlinks("c:\a.txt") returns C:\A.TXT. This is all EvalSymlinks
-    did in the past, but recently symlinks functionality been implemented on
-    some Windows version (where symlinks are supported). So now EvalSymlinks
-    handles both: searching for file canonical name and resolving symlinks.
+    Hardcoded the limit on constants only allowed.
     
-    Unfortunately TestEvalSymlinks has not been adjusted properly. The test
-    tests either canonical paths or symlinks, but not both. This CL separates
-    canonical paths tests into new TestEvalSymlinksCanonicalNames, so all
-    functionality is covered. Tests are simplified somewhat too.
-    
-    Also remove EvalSymlinksAbsWindowsTests - it seems not used anywhere.
-    
-    Change-Id: Id12e9f1441c1e30f15c523b250469978e4511a84
-    Reviewed-on: https://go-review.googlesource.com/14412
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idb9b07b4871db7a752a79e492671e9b41207b956
+    Reviewed-on: https://go-review.googlesource.com/13257
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/path/filepath/path_test.go         | 31 +++--------------
- src/path/filepath/path_windows_test.go | 63 ++++++++++++++++++++++++++++++++++
- 2 files changed, 68 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                | 24 ++++++-
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 52 +++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  5 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go      |  5 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go    | 25 +++++++
+ src/cmd/compile/internal/ssa/opGen.go             | 72 ++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 80 +++++++++++++++++++++++
+ 7 files changed, 262 insertions(+), 1 deletion(-)

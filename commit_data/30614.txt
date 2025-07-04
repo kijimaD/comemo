@@ -1,18 +1,18 @@
-commit c63ad970f6dc497b2cd529357201dd46bc3ee9b0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 8 12:45:12 2017 -0800
+commit 49b77a87974c310b1d6a8437f3490f81811b2058
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Nov 16 11:33:38 2016 -0800
 
-    cmd/compile: rename Func.constVal arg for clarity
+    database/sql: guard against driver.Stmt.Close panics
     
-    Values have an Aux and an AuxInt.
-    We're setting AuxInt, not Aux.
-    Say so.
+    Do not retain a lock when driver.Stmt.Close panic as the rest
+    of the sql package ensures.
     
-    Change-Id: I41aa783273bb7e1ba47c941aa4233f818e37dadd
-    Reviewed-on: https://go-review.googlesource.com/37997
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #16019
+    
+    Change-Id: Idc7ea9258ae23f491e79cce3efc365684a708428
+    Reviewed-on: https://go-review.googlesource.com/33328
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/func.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/database/sql/sql.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

@@ -1,25 +1,27 @@
-commit 7b40b0c3a332cbfaa1eb17bdafd2ddf12119ec45
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Wed Sep 28 01:54:38 2016 -0700
+commit c40dcff2f23c75e15785687eee7d56b524c54634
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 6 22:36:45 2016 -0400
 
-    strings, bytes: panic if Repeat overflows or if given a negative count
+    [dev.ssa] cmd/compile: use MOVWaddr for address on ARM
     
-    Panic if Repeat is given a negative count or
-    if the value of (len(*) * count) is detected
-    to overflow.
-    We panic because we cannot change the
-    signature of Repeat to return an error.
+    Introduce an op MOVWaddr for addresses on ARM, instead of overuse
+    ADDconst.
     
-    Fixes #16237
+    Mark MOVWaddr as rematerializable. This fixes a liveness problem: if
+    it were not rematerializable, the address of a variable may be spilled
+    and later use of the address may just load the spilled value without
+    mentioning the variable, and the liveness code may think it is dead
+    prematurely.
     
-    Change-Id: I9f5ba031a5b8533db0582d7a672ffb715143f3fb
-    Reviewed-on: https://go-review.googlesource.com/29954
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Update #15365.
+    
+    Change-Id: Ib0b0fa826bdb75c9e6bb362b95c6cf132cc6b1c0
+    Reviewed-on: https://go-review.googlesource.com/23942
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/bytes/bytes.go          | 13 ++++++++++++
- src/bytes/bytes_test.go     | 48 ++++++++++++++++++++++++++++++++++++++++++++
- src/strings/strings.go      | 13 ++++++++++++
- src/strings/strings_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 123 insertions(+)
+ src/cmd/compile/internal/arm/ssa.go        |  73 +++---
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  71 +++---
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |   6 +-
+ src/cmd/compile/internal/ssa/opGen.go      |  20 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go | 349 ++++++++++++++++++++++++++---
+ 5 files changed, 426 insertions(+), 93 deletions(-)

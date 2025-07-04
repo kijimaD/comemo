@@ -1,20 +1,15 @@
-commit 55fa7659c990701b3b7fb21e5364585793b9e452
-Author: Rob Pike <r@golang.org>
-Date:   Wed Sep 3 15:57:03 2014 -0700
+commit 5db510f1344daf6b5b8f3150adc941fa68954c36
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Aug 28 14:55:02 2014 -0700
 
-    text/template: 0xef is an integer, not a floating-point value.
-    The discriminator in the execution engine was stupid.
-    Add a test to the parse package too. The problem wasn't there
-    but the particular case ('e' in a hex integer) was not covered.
+    strconv: use go generate to create isprint.go
     
-    Fixes #8622.
-    
-    LGTM=ruiu
-    R=golang-codereviews, ruiu
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/133530043
+    https://golang.org/cl/132230043
 
- src/pkg/text/template/exec.go             | 6 +++++-
- src/pkg/text/template/exec_test.go        | 5 +++++
- src/pkg/text/template/parse/parse_test.go | 2 ++
- 3 files changed, 12 insertions(+), 1 deletion(-)
+ src/pkg/strconv/isprint.go     |  2 +-
+ src/pkg/strconv/makeisprint.go | 70 +++++++++++++++++++++++++++---------------
+ src/pkg/strconv/quote.go       |  2 ++
+ 3 files changed, 49 insertions(+), 25 deletions(-)

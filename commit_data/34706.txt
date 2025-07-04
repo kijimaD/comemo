@@ -1,24 +1,22 @@
-commit 8afa8a3374a926eda39e1449842a1c70b1fac37f
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Mar 26 17:00:29 2018 +0100
+commit 821e3f7d85e4f05d83f5f93e99bf299a6bfc9034
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 10 10:26:05 2017 +1100
 
-    cmd/compile: use 32-bit comparisons where possible on s390x
+    cmd/go: close unintentionally left open file
     
-    We use 32-bit operations for 8- and 16-bit arithmetic, so use them
-    for comparisons too. This won't change performance but it is more
-    consistent and makes testing 8- and 16-bit comparison codegen
-    slightly more straightforward (for follow up CL).
+    cmd/go/internal/work.Builder.updateBuildID left a file opened.
+    But opened files cannot be deleted on Windows, so cmd/go just
+    leaves these files in %TMP% directory.
     
-    Also fix a typo and add some additional double sign and zero
-    extension rules to remove the operations inserted by the comparison
-    rules.
+    Close the file so deletion can succeed.
     
-    Change-Id: I89ec1b0e09cb8be8090cf007be283ad88bba75a4
-    Reviewed-on: https://go-review.googlesource.com/102556
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Fixes #22650
+    
+    Change-Id: Ia3ea62f6ec7208d73972eae2e17fb4a766407914
+    Reviewed-on: https://go-review.googlesource.com/76810
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  93 ++++++-------
- src/cmd/compile/internal/ssa/rewriteS390X.go | 197 +++++++++++++++++++--------
- 2 files changed, 183 insertions(+), 107 deletions(-)
+ src/cmd/go/internal/work/buildid.go | 1 +
+ 1 file changed, 1 insertion(+)

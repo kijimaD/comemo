@@ -1,28 +1,20 @@
-commit 47bdae942242eca4be94989bab485bb1335f354d
-Author: Francesc Campoy <campoy@golang.org>
-Date:   Mon Nov 7 23:37:21 2016 -0800
+commit 1bd91d4ccc57d3dbb2e5452c16ff6281d53e9763
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 15 19:00:05 2016 -0700
 
-    cmd/vet: detect defer resp.Body.Close() before error check
+    cmd/internal/obj: remove Addr.Etype and Addr.Width
     
-    This check detects the code
+    Since the legacy backends were removed, these fields are write-only.
     
-            resp, err := http.Get("http://foo.com")
-            defer resp.Body.Close()
-            if err != nil {
-                    ...
-            }
-    
-    For every call to a function on the net/http package or any method
-    on http.Client that returns (*http.Response, error), it checks
-    whether the next line is a defer statement that calls on the response.
-    
-    Fixes #17780.
-    
-    Change-Id: I9d70edcbfa2bad205bf7f45281597d074c795977
-    Reviewed-on: https://go-review.googlesource.com/32911
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I4816c39267b7c10a4da2a6d22cd367dc475e564d
+    Reviewed-on: https://go-review.googlesource.com/29246
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/vet/doc.go                   |  15 +++-
- src/cmd/vet/httpresponse.go          | 153 +++++++++++++++++++++++++++++++++++
- src/cmd/vet/testdata/httpresponse.go |  85 +++++++++++++++++++
- 3 files changed, 249 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go | 39 ------------------------------------
+ src/cmd/compile/internal/gc/obj.go   |  1 -
+ src/cmd/internal/obj/link.go         |  2 --
+ src/cmd/internal/obj/sizeof_test.go  |  4 ++--
+ 4 files changed, 2 insertions(+), 44 deletions(-)

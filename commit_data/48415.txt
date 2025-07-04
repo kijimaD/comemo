@@ -1,21 +1,23 @@
-commit 0fca8a8f25cf4636fd980e72ba0bded4230922de
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 17 09:39:46 2022 -0700
+commit 90b6e7260553a742522830ddd38f5854657f2985
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 17 14:25:49 2021 -0700
 
-    crypto/x509: fix Certificate.Verify crash
+    [dev.typeparams] cmd/compile/internal/types2: tweak anonymous parameter position
     
-    (Primarily from Josh)
+    When declaring anonymous parameters, use the syntax.Field's Pos
+    directly rather than its Type field's Pos. When the type expression is
+    a qualified identifier (i.e., SelectorExpr), its Pos returns the
+    position of the dot, whereas we typically declare the anonymous
+    parameter at the starting position of the type. (We could equivalently
+    use syntax.StartPos(field.Type), but we already have this as
+    field.Pos().)
     
-    Fixes #51759
-    
-    Co-authored-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Change-Id: I0a6f2623b57750abd13d5e194b5c6ffa3be6bf72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393655
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: If6ac9635b6e9c2b75a1989d5893a78e0b21cba88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320611
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/root_darwin.go |  7 ++++++-
- src/crypto/x509/verify_test.go | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/typexpr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

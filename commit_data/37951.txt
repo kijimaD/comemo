@@ -1,15 +1,17 @@
-commit c7026f9d14795c7e50839cbcc37b04be65c4f7d7
-Author: alkesh26 <alkesh26@gmail.com>
-Date:   Sat Feb 9 17:33:42 2019 +0000
+commit adcecbe05ef812bc8ff477dec47720a2cfc273e3
+Author: Rob Pike <r@golang.org>
+Date:   Sun Sep 16 11:14:19 2018 +1000
 
-    doc: fix typos
+    doc: add a go/golang entry to the FAQ
     
-    Change-Id: I46046cddceff2d44a7b2517db1ebf7acdf5f2b90
-    GitHub-Last-Rev: 7fb9f26476d2764f07d068ce612bf79b1e7f44b4
-    GitHub-Pull-Request: golang/go#30144
-    Reviewed-on: https://go-review.googlesource.com/c/161718
+    It's worth clarifying that the language is called "Go".
+    
+    Fixes #27616.
+    
+    Change-Id: Ie4a9cb5e7e6afa437c60e06914125ef7490f27d0
+    Reviewed-on: https://go-review.googlesource.com/135517
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/debugging_with_gdb.html | 2 +-
- doc/go1.3.html              | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/go_faq.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

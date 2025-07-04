@@ -1,22 +1,15 @@
-commit 4f0d3bcd6d2d6bc726044153bf6875d195203b32
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Nov 18 18:34:15 2022 -0500
+commit e4ab8b0fe6d34c6cbfe29031a9c4df58ac1c452f
+Author: luochuanhang <chuanhangluo@gmail.com>
+Date:   Tue Jan 18 01:59:20 2022 +0000
 
-    net/http: regenerate h2_bundle.go
+    regexp: add the missing is
     
-    Done with:
-    
-            go generate -run=bundle std
-    
-    After CL 452096 updated the x/net version.
-    
-    Change-Id: I1c1cd76d4ec9e14f45dc66c945c74e41ff689a30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452195
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I23264972329aa3414067cd0e0986b69bb39bbeb5
+    GitHub-Last-Rev: d1d668a3cbe852d9a06f03369e7e635232d85139
+    GitHub-Pull-Request: golang/go#50650
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378935
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/net/http/h2_bundle.go | 237 ++++++++++++++++++++++++++++++++++------------
- 1 file changed, 177 insertions(+), 60 deletions(-)
+ src/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

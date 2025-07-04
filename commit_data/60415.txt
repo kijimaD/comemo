@@ -1,0 +1,17 @@
+commit 9915b8705948f9118d7f4865d433d05a31ce0433
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Jul 11 11:31:46 2024 -0700
+
+    bytes: more cross-references in docstrings
+    
+    Change-Id: Iea0243edcf8bf73ce325695178a3ea5cfe420d31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597775
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/bytes/buffer.go | 16 ++++++++--------
+ src/bytes/bytes.go  |  8 ++++----
+ src/bytes/reader.go |  4 ++--
+ 3 files changed, 14 insertions(+), 14 deletions(-)

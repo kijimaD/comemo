@@ -1,23 +1,29 @@
-commit 02298ae11a0d63afe42431791dad92dcf9714c3d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 15 17:53:30 2017 +0000
+commit 14cb41584dbf6b0ced5a6467034c1821210fd01c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Aug 25 01:56:50 2017 +0200
 
-    Revert "time: enable ZONEINFO tzdata file support and error reporting"
+    cmd/compile: don't use MOVOstore instruction on plan9/amd64
     
-    This reverts commit 630d176e7d5e42e21d176d1b9d48de0e03e7cec8.
+    CL 54410 and CL 56250 recently added use of the MOVOstore
+    instruction to improve performance.
     
-    Reason for revert: the CL moves a parser for what appears to be an
-    Android-specific file format into the main code and makes it available
-    on all platforms. Android-specific file formats should be limited to
-    Android.
+    However, we can't use the MOVOstore instruction on Plan 9,
+    because floating point operations are not allowed in the
+    note handler.
     
-    Change-Id: I3f19fe03673d65ed1446a0dcf95e5986053e10c0
-    Reviewed-on: https://go-review.googlesource.com/77950
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This change adds a configuration flag useSSE to enable the
+    use of SSE instructions for non-floating point operations.
+    This flag is enabled by default and disabled on Plan 9.
+    When this flag is disabled, the MOVOstore instruction is
+    not used and the MOVQstoreconst instruction is used instead.
+    
+    Fixes #21599
+    
+    Change-Id: Ie609e5d9b82ec0092ae874bab4ce01caa5bc8fb8
+    Reviewed-on: https://go-review.googlesource.com/58850
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/time/zoneinfo.go         | 13 ++++----
- src/time/zoneinfo_android.go | 55 ++++++++++++++++++++++++++++++++++
- src/time/zoneinfo_read.go    | 71 ++++++++++----------------------------------
- 3 files changed, 77 insertions(+), 62 deletions(-)
+ src/cmd/compile/internal/ssa/config.go       |   7 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  36 ++++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 176 +++++++++++++++++++++++----
+ 3 files changed, 185 insertions(+), 34 deletions(-)

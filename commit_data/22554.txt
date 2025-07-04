@@ -1,18 +1,26 @@
-commit 3185cfbfbbf7ab7067ea96a2198dbbd510a78515
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 16 16:24:45 2015 +0900
+commit db454afd2353364ad1c3bcd6002def81871ed2b2
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Sat Feb 28 00:41:31 2015 +0100
 
-    net: rename netFD.proto to netFD.net on Plan 9
+    cmd/go: allow go get with local path
     
-    In followup changes, we'll move OpError around from the netFD layer to
-    the Conn layer for fixing #4856. Before doing that, this change makes
-    netFD of Plan 9 match netFD for POSIX platforms to avoid conflict.
+    Previously, running 'go get' with a local path would correctly
+    download the package but fail to install it.
+    This is because a sticky error - resulting from discovering that the
+    package needed to be downloaded - was still around.
+    Theoretically, such sticky errors would be cleared but they weren't
+    because the map tracking these errors were indexed with the correct
+    canonical import path of the package (e.g. "ex.com/x/pkg") whereas the
+    clearing was done with the local path (e.g. "./pkg".)
     
-    Change-Id: Iea7632716d48722a1758e52effefec964a3a9442
-    Reviewed-on: https://go-review.googlesource.com/8990
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Always use the canonical import path.
+    
+    Fixes #9767
+    
+    Change-Id: Ia0e8a51ac591d4c833d11285da5b767ef7ed8ad2
+    Reviewed-on: https://go-review.googlesource.com/6266
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/fd_plan9.go     | 10 +++++-----
- src/net/ipsock_plan9.go | 12 ++++++------
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/go/get.go    | 10 ++++++++++
+ src/cmd/go/test.bash | 10 ++++++++++
+ 2 files changed, 20 insertions(+)

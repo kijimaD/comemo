@@ -1,29 +1,14 @@
-commit 4ae49b592110055d2461c708bc2b85b049deb535
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Oct 10 13:47:18 2018 -0400
+commit ac1cb992ea3ff1d0dd9ddc2af9da4dd1354f7761
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 18 18:27:20 2018 +0000
 
-    cmd/compile: use ANDCC, ORCC, XORCC to avoid CMP on ppc64x
+    doc/go1.11: remove unnecessary absolute link
     
-    This change makes use of the cc versions of the AND, OR, XOR
-    instructions, omitting the need for a CMP instruction.
+    This doesn't auto-deploy to golang.org, only tip.golang.org.
     
-    In many test programs and in the go binary, this reduces the
-    size of 20-30 functions by at least 1 instruction, many in
-    runtime.
-    
-    Testcase added to test/codegen/comparisons.go
-    
-    Change-Id: I6cc1ca8b80b065d7390749c625bc9784b0039adb
-    Reviewed-on: https://go-review.googlesource.com/c/143059
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I112743ada2c1393e21edcc9075127f40da9e6270
+    Reviewed-on: https://go-review.googlesource.com/124755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go        |   2 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules |   7 +
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  39 +-
- src/cmd/compile/internal/ssa/opGen.go        |  48 ++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 922 +++++++++++++++++++++++++--
- test/codegen/comparisons.go                  |  33 +
- 6 files changed, 982 insertions(+), 69 deletions(-)
+ doc/go1.11.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,23 +1,29 @@
-commit c63066123bb5c2ef7a6d26d1a6e3e5f1012a1e23
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Fri Apr 28 07:14:08 2023 -0600
+commit a8780f94c3eb19dda8aaa15ad83468b2d54a0e5a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue May 24 00:41:13 2022 +0700
 
-    net/http: avoid leaking the writing goroutine
+    [dev.unified] cmd/compile: fix missing method value wrapper in unified IR
     
-    The test will wait for all goroutines.
-    A race can occur if the writing goroutine uses the Log after the test exits.
+    Unified IR uses to generate wrappers after the global inlining pass, so
+    it needs to apply inlining for the wrappers itself. However, inlining
+    may reveal new method value nodes which have not been seen yet, thus
+    unified IR never generates wrappers for them.
     
-    For #58264
-    For #59883
-    For #59884
+    To fix it, just visiting the wrapper function body once more time after
+    inlining, and generate wrappers for any new method value nodes.
     
-    Change-Id: I9b8ec7c9d024ff74b922b69efa438be5a4fa3483
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490255
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
+    Fixes #52128
+    
+    Change-Id: I78631c4faa0b00357d4f84704d3525fd38a52cd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410344
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/serve_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/noder/reader.go |  9 +++++++++
+ test/fixedbugs/issue52128.dir/a.go       | 21 +++++++++++++++++++++
+ test/fixedbugs/issue52128.dir/b.go       | 17 +++++++++++++++++
+ test/fixedbugs/issue52128.dir/p.go       | 14 ++++++++++++++
+ test/fixedbugs/issue52128.go             |  7 +++++++
+ 5 files changed, 68 insertions(+)

@@ -1,0 +1,39 @@
+commit 548158c4a57580e8c8bd0e9b2f91d03b31efa879
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 23 15:39:51 2024 -0400
+
+    runtime: switch debuglog from const-toggled to type-toggled
+    
+    Currently, the debuglog build tag controls the dlogEnabled const, and
+    all methods of dlogger first check this const and immediately return
+    if dlog is not enabled. With constant folding and inlining, this makes
+    the whole dlog implementation compile away if it's not enabled.
+    
+    However, we want to be able to test debuglog even when the build tag
+    isn't set. For that to work, we need a different mechanism.
+    
+    This CL changes this mechanism so the debuglog build tag instead
+    controls the type alias for dlogger to be either dloggerImpl or
+    dloggerFake. These two types have the same method set, but one is just
+    stubs. This way, the methods of dloggerImpl don't need to be
+    conditional dlogEnabled, which sets us up to use the now
+    fully-functional dloggerImpl type in the test.
+    
+    I confirmed that this change has no effect on the final size of the
+    cmd/go binary. It does increase the size of the runtime.a file by 0.9%
+    and make the runtime take ever so slightly longer to compile because
+    the compiler can no longer simply eliminate the bodies of the all of
+    dlogger during early deadcode. However, this all gets eliminated by
+    the linker. I consider this worth it to always get build and test
+    coverage of debuglog.
+    
+    Change-Id: I81759e9e1411b7d369a23383a18b022ab7451421
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600696
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/debuglog.go             | 115 +++++++++++++++++++++++++-----------
+ src/runtime/debuglog_off.go         |   6 ++
+ src/runtime/debuglog_on.go          |  11 ++++
+ src/runtime/export_debuglog_test.go |   6 +-
+ 4 files changed, 102 insertions(+), 36 deletions(-)

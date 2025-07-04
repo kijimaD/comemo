@@ -1,15 +1,17 @@
-commit c39d6692306e479ebd9282f1195206abdd424853
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sun Jan 25 19:01:58 2015 -0500
+commit 13e16b39fc269fcba3383bd6c133da3e0e0345e9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Dec 22 12:30:16 2014 +0900
 
-    archive/tar: set Header.Mode in example
+    syscall: fix the deprecated way of parsing routing message on openbsd
     
-    Creating a tar containing files with 0000 permission bits is
-    not going to be useful.
+    OpenBSD 5.5 changed its kernel ABI and OpenBSD 5.6 enabled it.
+    This CL works on both 5.5 and 5.6.
     
-    Change-Id: Ie489c2891c335d32270b18f37b0e32ecdca536a6
-    Reviewed-on: https://go-review.googlesource.com/3271
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #9102.
+    
+    Change-Id: I4a295be9ab8acbc99e550d8cb7e8f8dacf3a03c5
+    Reviewed-on: https://go-review.googlesource.com/1932
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/archive/tar/example_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/syscall/route_openbsd.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

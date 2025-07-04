@@ -1,25 +1,27 @@
-commit 962dc4b44d5260e72dad8d636cb09bcf7f4aa6bb
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Sep 27 20:30:01 2016 -0400
+commit 1bdf1c3024d75a3c4913d031d55257b311f0133f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 9 11:19:26 2016 -0700
 
-    cmd/compile: improve load/store merging on s390x
+    cmd/cgo: fix use of unsafe argument in new deferred function
     
-    This commit makes the process of load/store merging more incremental
-    for both big and little endian operations. It also adds support for
-    32-bit shifts (needed to merge 16- and 32-bit loads/stores).
+    The combination of https://golang.org/cl/23650 and
+    https://golang.org/cl/23675 did not work--they were tested separately
+    but not together.
     
-    In addition, the merging of little endian stores is now supported.
-    Little endian stores are now up to 30 times faster.
+    The problem was that 23650 introduced deferred argument checking, and
+    the deferred function loses the type that 23675 started requiring. The
+    fix is to go back to using an empty interface type in a deferred
+    argument check.
     
-    Change-Id: Iefdd81eda4a65b335f23c3ff222146540083ad9c
-    Reviewed-on: https://go-review.googlesource.com/29956
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    No new test required--fixes broken build.
+    
+    Change-Id: I5ea023c5aed71d70e57b11c4551242d3ef25986d
+    Reviewed-on: https://go-review.googlesource.com/23961
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/s390x/ssa.go        |    2 +
- src/cmd/compile/internal/ssa/gen/S390X.rules |  330 +-
- src/cmd/compile/internal/ssa/gen/S390XOps.go |   37 +-
- src/cmd/compile/internal/ssa/opGen.go        |   90 +
- src/cmd/compile/internal/ssa/rewriteS390X.go | 4891 +++++++++++++++++---------
- 5 files changed, 3488 insertions(+), 1862 deletions(-)
+ src/cmd/cgo/gcc.go  | 28 +++++++++++++++++++++-------
+ src/cmd/cgo/main.go |  5 ++++-
+ src/cmd/cgo/out.go  |  8 +++++++-
+ 3 files changed, 32 insertions(+), 9 deletions(-)

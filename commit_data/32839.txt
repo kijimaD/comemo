@@ -1,17 +1,19 @@
-commit b71f39612adb671c176586cd9b0018eb3c716f3c
-Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-Date:   Mon Sep 25 13:01:36 2017 +0200
+commit 7579f96676eb2ea932cfa02e805bbae02c0d310c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 7 18:13:38 2017 +0000
 
-    bytes: improve readability of IndexAny and LastIndexAny functions
+    net/http: don't crash in Request.WithContext if Request.URL is nil
     
-    This change removes the check of len(chars) > 0 inside the Index and
-    IndexAny functions which was redundant.
+    Fixes #20601
     
-    Change-Id: Ic4bf8b8a37d7f040d3ebd81b4fc45fcb386b639a
-    Reviewed-on: https://go-review.googlesource.com/65851
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I296d50dc5210a735a2a65d64bfef05d14c93057b
+    Reviewed-on: https://go-review.googlesource.com/45073
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/bytes/bytes.go | 66 +++++++++++++++++++++++++-----------------------------
- 1 file changed, 31 insertions(+), 35 deletions(-)
+ src/net/http/request.go      | 8 +++++---
+ src/net/http/request_test.go | 7 +++++++
+ 2 files changed, 12 insertions(+), 3 deletions(-)

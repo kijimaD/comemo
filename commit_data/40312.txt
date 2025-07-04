@@ -1,20 +1,41 @@
-commit 6a24de92a21f1762a61fbff171d26957b6dcee53
-Author: Umang Parmar <umangjparmar@gmail.com>
-Date:   Sun Oct 20 11:34:23 2019 +0000
+commit d2765de863355f8ae6e4354ae64c2099cd850382
+Author: erifan01 <eric.fang@arm.com>
+Date:   Wed Sep 26 10:12:18 2018 +0000
 
-    cmd/go: allow passing -U flag in cgo CFLAGS
+    cmd/link: support PIE mode with internal link on linux arm64
     
-    Fixes #34730
+    This CL improves internal link to provide basic support for cgo and PIE:
+    1, add support for GOT, PLT and GOTPLT.
+    2, add support for following ELF relocation types which have been used by std
+       packages:
+         R_AARCH64_ADR_GOT_PAGE
+         R_AARCH64_LD64_GOT_LO12_NC
+         R_AARCH64_ADR_PREL_PG_HI21
+         R_AARCH64_ADD_ABS_LO12_NC
+         R_AARCH64_LDST8_ABS_LO12_NC
+         R_AARCH64_LDST32_ABS_LO12_NC
+         R_AARCH64_LDST64_ABS_LO12_NC
+         R_AARCH64_JUMP26
+         R_AARCH64_ABS64
+         R_AARCH64_PREL32
+         R_AARCH64_PREL64
     
-    Change-Id: I2a16bbbd7af386e0abf59e1cc4b7d6e4ca3047c6
-    GitHub-Last-Rev: 096ff5a59ace36ac6ed5a0c87b4eef061be6b937
-    GitHub-Pull-Request: golang/go#34899
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201039
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    With this change, Go toolchain can be built in internal linking mode, and
+    pure Go programs can be built with PIE mode in internal linking mode on arm64.
+    
+    Updates #10373
+    The prototype of this CL is contributed by Wei Xiao <wei.xiao@arm.com>
+    
+    Change-Id: I2253923c69e855fd1524d54def309a961dce6247
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163579
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/cgo/doc.go                        | 2 +-
- src/cmd/go/internal/work/security.go      | 3 +++
- src/cmd/go/internal/work/security_test.go | 2 ++
- 3 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go                        |   6 +-
+ src/cmd/internal/objabi/reloctype.go        |  17 ++
+ src/cmd/internal/objabi/reloctype_string.go |   6 +-
+ src/cmd/link/internal/arm64/asm.go          | 420 +++++++++++++++++++++++++++-
+ src/cmd/link/internal/ld/config.go          |   7 +-
+ src/cmd/link/internal/ld/lib.go             |   2 +-
+ src/cmd/link/internal/loadelf/ldelf.go      | 146 +++++-----
+ 7 files changed, 521 insertions(+), 83 deletions(-)

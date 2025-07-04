@@ -1,25 +1,22 @@
-commit 1387b5e91d76ba6727a7434c06f7c368d6c53d5c
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Dec 16 13:24:40 2021 -0800
+commit d948b8633d4ae3d4501d0a5382b24431a96c0cba
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Apr 12 14:50:57 2021 -0400
 
-    cmd/compile: only avoid escaping package paths for "go.shape"
+    cmd/go: fix 'go help mod edit' JSON documentation
     
-    We have code that intends to avoid escaping the package path for
-    built-in packages. But it is hard to determine which packages are
-    built-in from a general rule, and we really only want to avoid escaping
-    for the "go.shape" package (since that gives ugly shape type names). So,
-    fix the code to only avoid escaping the package path specifically for
-    the "go.shape" package.
+    The object representing a module directive may have a "Deprecated"
+    field but not a "Version" field. Other objects representing module
+    versions have "Path" and "Version" fields but not "Deprecated".
     
-    Fixes #50200
+    For #40357
     
-    Change-Id: Ibaedd7690b99a173007c608c5dfa783ef82b326d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/372934
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Iad8063dfa6f7ceea22981a8a8f99e65fa3b7ffa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309337
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types/pkg.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/go/alldocs.go              | 11 ++++++++---
+ src/cmd/go/internal/modcmd/edit.go | 11 ++++++++---
+ 2 files changed, 16 insertions(+), 6 deletions(-)

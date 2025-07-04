@@ -1,23 +1,24 @@
-commit c3833a55433f4b2981253f64444fe5c3d1bc910a
-Author: Keith Randall <khr@golang.org>
-Date:   Fri May 6 18:40:17 2022 -0700
+commit a295b3cec80b048048bf51a0462764dc337ca6ef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 8 14:03:53 2021 -0700
 
-    runtime: process ptr bitmaps one word at a time
+    test: re-enable AsmCheck tests for types2-based frontends
     
-    Read the bitmaps one uintptr at a time instead of one byte at a time.
+    run.go has logic for being able to run tests with various -G flags,
+    but not all test types (in particular, "asmcheck" tests) support
+    configuring non-default -G levels. The intention was that these tests
+    would continue running in the default mode (at the time -G=0), but at
+    some point it seems like we accidentally disabled them all
+    together (if it ever worked correctly in the first place).
     
-    Performance so far:
-     Allocation heavy, no retention: ~30% faster in heapBitsSetType
-     Scan heavy, ~no allocation: ~even in scanobject
+    Fixes #48247.
     
-    Change-Id: I40d492b50d7f89d1b4261c2de58f6d255fa5e93e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407036
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I13917cb0012cbe522d29b23b888de6136872ead4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348671
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  6 +-
- src/reflect/type.go                             | 19 ++++--
- src/runtime/mbitmap.go                          | 83 +++++++++++++++++++++----
- 3 files changed, 91 insertions(+), 17 deletions(-)
+ test/run.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

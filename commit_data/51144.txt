@@ -1,19 +1,28 @@
-commit e6f662d7b071c659f4146408e31671cb32e2104c
-Author: tk <tk103331@gmail.com>
-Date:   Fri Sep 9 03:02:56 2022 +0000
+commit f5b5939c28ecb8b8c0897584fed78589c27348f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 6 13:36:42 2021 -0500
 
-    net/http: remove redundant code
+    build: for default bootstrap, use Go 1.17 if present, falling back to Go 1.4
     
-    Remove redundant code at line 365, `oldCtx := req.Context()`,  because it's the same as line 349.
+    Preparation for #44505, but safe for Go 1.18.
+    Also fixes the default build on Macs, at least for
+    people who have a $HOME/go1.17 or have run
     
-    Change-Id: I9b028e8c8740c22945708b143e4e86a0baa40f64
-    GitHub-Last-Rev: 4ad0f3871b1d473246af7cf27c158140c7248cf1
-    GitHub-Pull-Request: golang/go#54925
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428977
+            go install golang.org/dl/go1.17@latest
+            go1.17 download
+    
+    Replay of CL 369914 after revert in CL 370138.
+    Only change is adding 'export GOROOT_BOOTSTRAP' in make.bash.
+    
+    Change-Id: I8ced4e87a9dc0f05cc49095578b401ae6212ac85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370274
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/net/http/client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/buildtool.go | 13 ++++++++++++-
+ src/make.bash             | 11 ++++++++++-
+ src/make.bat              |  2 ++
+ src/make.rc               |  3 +++
+ 4 files changed, 27 insertions(+), 2 deletions(-)

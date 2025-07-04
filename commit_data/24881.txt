@@ -1,12 +1,29 @@
-commit d75391af736757ab46f17394b476c697f620de7f
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Nov 13 03:12:26 2015 -0500
+commit 932c1e3dd32f636ab3f25b23d9dcef194a577bca
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Sun Sep 6 16:59:57 2015 +0200
 
-    doc: add mips64/mips64le to supported GOARCHes
+    cmd/compile/internal: some janitoring
     
-    Change-Id: If9dc08d6c29bf60b63d75d973033897ad8bf8cc4
-    Reviewed-on: https://go-review.googlesource.com/16905
+    Nicer swaps, loops (removed tmp variables). Use of bool instead of int.
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I541904c74b57297848decc51a8a4913a8eca4af3
+    Reviewed-on: https://go-review.googlesource.com/14316
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/install-source.html | 17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go   | 36 ++++++++++----------------------
+ src/cmd/compile/internal/arm/cgen.go     |  7 +------
+ src/cmd/compile/internal/arm/ggen.go     |  4 +---
+ src/cmd/compile/internal/arm64/cgen.go   |  8 +------
+ src/cmd/compile/internal/arm64/ggen.go   | 18 +++++++---------
+ src/cmd/compile/internal/gc/cgen.go      |  4 +---
+ src/cmd/compile/internal/gc/plive.go     |  6 ++----
+ src/cmd/compile/internal/gc/subr.go      |  7 +------
+ src/cmd/compile/internal/gc/typecheck.go | 10 ++++-----
+ src/cmd/compile/internal/ppc64/cgen.go   |  8 +------
+ src/cmd/compile/internal/ppc64/ggen.go   | 18 +++++++---------
+ src/cmd/compile/internal/x86/ggen.go     | 36 ++++++++++----------------------
+ 12 files changed, 50 insertions(+), 112 deletions(-)

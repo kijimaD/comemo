@@ -1,13 +1,15 @@
-commit 329990d52509cd454022e0b6bbcd06e5b7092dc6
+commit 4657d7d7db3b28206c7fc98907f998140843ed88
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 6 11:02:53 2011 +1000
+Date:   Wed Jul 6 10:13:53 2011 +1000
 
-    exp/template: remove the need for a goroutine.
+    exp/template: remove the visibility of the token channel from the parser.
     
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4626095
+    https://golang.org/cl/4675053
 
- src/pkg/exp/template/lex.go      | 25 +++++++++++++------------
- src/pkg/exp/template/lex_test.go |  9 +++++++--
- 2 files changed, 20 insertions(+), 14 deletions(-)
+ src/pkg/exp/template/lex.go      |  9 +++++++--
+ src/pkg/exp/template/lex_test.go |  4 ++--
+ src/pkg/exp/template/parse.go    | 17 +++++++----------
+ src/pkg/exp/template/set.go      |  4 ++--
+ 4 files changed, 18 insertions(+), 16 deletions(-)

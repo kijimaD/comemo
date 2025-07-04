@@ -1,28 +1,31 @@
-commit d06b0db5bd4c898bd162e16ab603081ab62a527c
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Mar 14 15:08:22 2016 -0400
+commit 81adfa508a81e24b8257571dd717845647607cbd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 10:19:55 2016 -0500
 
-    cmd/link: when pruning methods also prune funcType
+    runtime: allow signal.Ignore of user-generated throwing signals
     
-    Remove method type information for pruned methods from any program
-    that does not reflect on methods. This can be a significant saving:
+    Today, signal.Ignore(syscall.SIGTRAP) does nothing
+    while signal.Notify(make(chan os.Signal), syscall.SIGTRAP)
+    correctly discards user-generated SIGTRAPs.
+    The same applies to any signal that we throw on.
     
-            addr2line: -310KB (8.8%)
+    Make signal.Ignore work for these signals.
     
-    A future update might want to consider a more aggressive variant of
-    this: setting the Type and Func fields of reflect.Method to nil for
-    unexported methods. That would shrink cmd/go by 2% and jujud by 2.6%
-    but could be considered an API change. So this CL sticks to the
-    uncontroversial change.
+    Fixes #12906.
     
-    For #6853.
-    
-    Change-Id: I5d186d9f822dc118ee89dc572c4912a3b3c72577
-    Reviewed-on: https://go-review.googlesource.com/20701
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iba244813051e0ce23fa32fbad3e3fa596a941094
+    Reviewed-on: https://go-review.googlesource.com/18348
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 16 ++------
- src/cmd/link/internal/ld/deadcode.go   | 74 ++++++++++++++++++++++++----------
- 2 files changed, 57 insertions(+), 33 deletions(-)
+ src/runtime/crash_unix_test.go             |  8 ++++++++
+ src/runtime/signal_386.go                  |  4 ++++
+ src/runtime/signal_amd64x.go               |  4 ++++
+ src/runtime/signal_arm.go                  |  4 ++++
+ src/runtime/signal_arm64.go                |  4 ++++
+ src/runtime/signal_mips64x.go              |  4 ++++
+ src/runtime/signal_ppc64x.go               |  4 ++++
+ src/runtime/sigqueue.go                    | 20 ++++++++++++++------
+ src/runtime/testdata/testprognet/signal.go | 26 ++++++++++++++++++++++++++
+ 9 files changed, 72 insertions(+), 6 deletions(-)

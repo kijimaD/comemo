@@ -1,12 +1,14 @@
-commit a7d4c3f43dbcab516b6bbd4723fbff30469898a7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Sep 27 15:34:18 2012 -0700
+commit 617b7cf166a99e1fe3326b6fc6985be9f83e51ca
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Sep 27 08:34:00 2012 +0200
 
-    doc: clarify that the displayed tar file name is an example
+    cmd/[568]g: header cleanup.
     
-    R=golang-dev, dave, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6573065
+    https://golang.org/cl/6573059
 
- doc/install.html | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/5g/gg.h |  3 ---
+ src/cmd/6g/gg.h |  7 +++----
+ src/cmd/8g/gg.h | 11 ++++++-----
+ 3 files changed, 9 insertions(+), 12 deletions(-)

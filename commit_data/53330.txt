@@ -1,31 +1,19 @@
-commit a5be6dbbafaec51344c82a860f80c210b904f5d2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 22 12:34:17 2023 -0400
+commit f19f6c79e48b0c7aeeeb26e07b626af11653dc99
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 9 15:40:19 2022 -0700
 
-    cmd/go: refuse to download zip files for too-new modules
+    runtime: fix gofmt error
     
-    In general an older version of Go does not know how to construct
-    a module written against a newer version of Go: the details may
-    change over time, such as for issues like #42965 (an ignore mechanism).
+    Introduced in https://go-review.googlesource.com/c/go/+/419755
     
-    For #57001.
-    
-    Change-Id: Id43fcfb71497375ad2eb5dfd292bad0adca0652e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497795
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I7ca353d495dd7e833e46b3eeb972eac38b3a7a24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422474
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/go/gotoolchain.go                        | 14 ++++---
- src/cmd/go/internal/gover/toolchain.go           | 48 +++++++++++++++++++++++-
- src/cmd/go/internal/modfetch/coderepo.go         | 12 ++++++
- src/cmd/go/internal/modfetch/fetch.go            | 13 ++++++-
- src/cmd/go/internal/modload/init.go              |  8 +++-
- src/cmd/go/internal/modload/modfile.go           |  7 +++-
- src/cmd/go/internal/modload/vendor.go            |  2 +-
- src/cmd/go/testdata/mod/rsc.io_future_v1.0.0.txt | 16 ++++++++
- src/cmd/go/testdata/script/gotoolchain.txt       |  4 +-
- src/cmd/go/testdata/script/mod_get_future.txt    | 12 ++++++
- src/cmd/go/testdata/script/mod_go_version.txt    |  9 +++--
- 11 files changed, 130 insertions(+), 15 deletions(-)
+ src/runtime/slice.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

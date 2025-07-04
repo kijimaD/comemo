@@ -1,26 +1,18 @@
-commit b7a66be69c5857105c4b357d87bb76da87b1dbed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 30 17:00:07 2023 -0700
+commit 9c402305179e4d59bcbefe01629d38fc26808c43
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 13 10:54:11 2022 -0400
 
-    cmd/compile/internal/syntax: set up dummy name and type if func name is missing
+    cmd/dist: add doc comments to some functions
     
-    We do the same elsewhere (e.g. in parser.name when a name is missing).
-    This ensures functions have a (dummy) name and a non-nil type.
-    Avoids a crash in the type-checker (verified manually).
-    A test was added here (rather than the type checker) because type-
-    checker tests are shared between types2 and go/types and error
-    recovery in this case is different.
+    I keep having to reconstruct how dist test's command system works.
+    This CL documents the main functions to help with this.
     
-    Fixes #63835.
-    
-    Change-Id: I1460fc88d23d80b8d8c181c774d6b0a56ca06317
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538059
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Ic1102496d3c7f356e73f3fa2ea76498251f525d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448799
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go              | 3 +++
- src/cmd/compile/internal/syntax/testdata/issue63835.go | 9 +++++++++
- 2 files changed, 12 insertions(+)
+ src/cmd/dist/test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

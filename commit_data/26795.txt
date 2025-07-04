@@ -1,16 +1,14 @@
-commit dae98d5c3b02b39f53168a9403d24e1ddd4a16d4
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Mar 20 19:35:59 2016 -0400
+commit ee177279a00398d7a986fbaa1db527845c6a888b
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Sun Aug 16 14:59:23 2015 +0200
 
-    test: skip nilptr3 test on s390x
+    misc/cgo: fix wrong quote character
     
-    Fails for the same reason as ppc64 and mips64 (incomplete
-    optimization).
+    Single quotes to not expand variables inside of them.
     
-    Change-Id: Ieb4d997fc27d4f2b756e63dd7f588abe10c0213a
-    Reviewed-on: https://go-review.googlesource.com/20963
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4a0622c0aebfc1c3f9d299f93f7a8253893b5858
+    Reviewed-on: https://go-review.googlesource.com/13661
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/nilptr3.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testcshared/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,12 @@
-commit f7ad816c5c13d334f1c0d350041e95cb507e47bc
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 12 17:57:13 2013 -0400
+commit e1a5aa8105bba0be8d1fd064824983c3c685d953
+Author: Robert Figueiredo <robfig@gmail.com>
+Date:   Tue Mar 12 14:35:14 2013 -0700
 
-    cmd/ld: fix 'use after free' error in new obj code
-    
-    Many thanks to Elias Naur for finding this with Valgrind on Linux.
-    Perhaps this is what is breaking the windows/amd64 builder.
+    html/template: Ensure release of namespace mutex in Template.Execute()
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7595044
+    https://golang.org/cl/6727046
 
- src/cmd/ld/lib.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/html/template/template.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

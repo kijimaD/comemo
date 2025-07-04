@@ -1,24 +1,22 @@
-commit ef4cb2f776f1c7e861604d1b46ab8fcf2672f10d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 27 17:57:04 2021 -0700
+commit 033390d9adb0e7a96d0558bb1702e270ef986c90
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Nov 8 02:48:09 2020 +0100
 
-    cmd/compile/internal/types: change NewNamed to use TypeObject
+    cmd/link: recognize arm header of PE objects
     
-    Semantically, TypeObject is the interface that go/types.TypeName would
-    implement, so we might as well use that instead of the more generic
-    Object (analog to go/types.Object) for NewNamed. In practice, this
-    doesn't really matter though, because we use *ir.Name for almost all
-    Objects anyway.
+    The linker recognizes headers for 386 and amd64 PE objects, but not arm
+    objects. This is easily overlooked, since its the same as the 386 header
+    value, except the two nibbles of the first word are swapped. This commit
+    simply adds the check for this. Without it, .syso objects are rejected,
+    which means Windows binaries can't have resources built into them. At
+    the same time, we add comments to better indicate which condition
+    applies to which arch.
     
-    Also, remove VarObject: its last use was removed in CL 302071 (March
-    2021).
-    
-    Change-Id: I6e987ecd419105e09f74fc8d60cadb61bcbc751f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345810
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I210411d978504c1a9540e23abc5a180e24f159ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268237
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/cmd/compile/internal/types/type.go | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

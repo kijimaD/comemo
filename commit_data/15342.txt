@@ -1,14 +1,20 @@
-commit a2ade45205e24b80a1242f5d8cd41f343e969bcd
+commit f7a7716317dede4687a7fed38aea8d256f4d09e5
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 20 16:39:33 2013 -0800
+Date:   Wed Feb 20 15:35:27 2013 -0800
 
-    net/http: improve test reliability
+    database/sql: refcounting and lifetime fixes
     
-    Fixes #4852
+    Simplifies the contract for Driver.Stmt.Close in
+    the process of fixing issue 3865.
     
-    R=golang-dev, adg
+    Fixes #3865
+    Update #4459 (maybe fixes it; uninvestigated)
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7374045
+    https://golang.org/cl/7363043
 
- src/pkg/net/http/transport_test.go | 24 ++++++++++++++++++++++--
- 1 file changed, 22 insertions(+), 2 deletions(-)
+ src/pkg/database/sql/driver/driver.go |  19 +---
+ src/pkg/database/sql/sql.go           | 196 +++++++++++++++++++++++++++++-----
+ src/pkg/database/sql/sql_test.go      |  14 +--
+ 3 files changed, 174 insertions(+), 55 deletions(-)

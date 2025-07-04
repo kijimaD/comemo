@@ -1,22 +1,14 @@
-commit f1e880386b668a26dd6b7afdea43c9041a917fa5
-Author: Kenny Grant <kennygrant@gmail.com>
-Date:   Wed Mar 15 21:55:04 2017 +0000
+commit e12ce1e4005fcefd7a3537c433e6a60044160086
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Dec 8 13:07:35 2016 -0800
 
-    net/http: strip port from host in mux Handler
+    database/sql: document that drivers may not return right after cancel
     
-    This change strips the port in mux.Handler before attempting to
-    match handlers and adds a test for a request with port.
+    Fixes #18168
     
-    CONNECT requests continue to use the original path and port.
-    
-    Fixes #10463
-    
-    Change-Id: Iff3a2ca2b7f1d884eca05a7262ad6b7dffbcc30f
-    Reviewed-on: https://go-review.googlesource.com/38194
+    Change-Id: Idbfe3d4daedd93c7caf6f1770ecd988e9af39949
+    Reviewed-on: https://go-review.googlesource.com/34144
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/serve_test.go |  1 +
- src/net/http/server.go     | 42 +++++++++++++++++++++++++++++++++---------
- 2 files changed, 34 insertions(+), 9 deletions(-)
+ src/database/sql/sql.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

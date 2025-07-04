@@ -1,38 +1,20 @@
-commit 52a46bb77352bd911a478d870acb7453234c52f3
+commit e213a0c0fcd51f43d38b9423561989ed0b9e616c
 Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Sun Sep 18 12:04:40 2011 -0700
+Date:   Sun Sep 18 11:55:14 2011 -0700
 
-    exp/template/html: normalize '<' in text and RCDATA nodes.
+    exp/template/html: recognize whitespace at start of URLs.
     
-    The template
+    HTML5 uses "Valid URL potentially surrounded by spaces" for
+    attrs: http://www.w3.org/TR/html5/index.html#attributes-1
     
-      <{{.}}
+        <a href=" {{.}}">
     
-    would violate the structure preservation property if allowed and not
-    normalized, because when {{.}} emitted "", the "<" would be part of
-    a text node, but if {{.}} emitted "a", the "<" would not be part of
-    a text node.
-    
-    This change rewrites '<' in text nodes and RCDATA text nodes to
-    '&lt;' allowing template authors to write the common, and arguably more
-    readable:
-    
-        Your price: {{.P1}} < list price {{.P2}}
-    
-    while preserving the structure preservation property.
-    
-    It also lays the groundwork for comment elision, rewriting
-    
-        Foo <!-- comment with secret project details --> Bar
-    
-    to
-    
-        Foo  Bar
+    should be escaped to filter out "javascript:..." as data.
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5043043
+    https://golang.org/cl/5027045
 
- src/pkg/exp/template/html/escape.go      | 94 ++++++++++++++++++++++----------
- src/pkg/exp/template/html/escape_test.go | 19 ++++++-
- 2 files changed, 81 insertions(+), 32 deletions(-)
+ src/pkg/exp/template/html/escape_test.go | 5 +++++
+ src/pkg/exp/template/html/transition.go  | 4 +++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

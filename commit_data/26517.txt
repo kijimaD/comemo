@@ -1,26 +1,53 @@
-commit 6b0688f7421aeef904d40a374bae75c37ba0b8b4
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Mar 24 17:42:01 2016 +0100
+commit f962f33035bccd67c08fa3e0002659d6b9978bbc
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Jan 28 22:19:46 2016 -0600
 
-    runtime: speed up growslice by avoiding divisions 2
+    [dev.ssa] cmd/compile: reuse sparse sets across compiler passes
     
-    This is a follow-up of https://go-review.googlesource.com/#/c/20653/
+    Cache sparse sets in the function so they can be reused by subsequent
+    compiler passes.
     
-    Special case computation for slices with elements of byte size or
-    pointer size.
+    benchmark                        old ns/op     new ns/op     delta
+    BenchmarkDSEPass-8               206945        180022        -13.01%
+    BenchmarkDSEPassBlock-8          5286103       2614054       -50.55%
+    BenchmarkCSEPass-8               1790277       1790655       +0.02%
+    BenchmarkCSEPassBlock-8          18083588      18112771      +0.16%
+    BenchmarkDeadcodePass-8          59837         41375         -30.85%
+    BenchmarkDeadcodePassBlock-8     1651575       511169        -69.05%
+    BenchmarkMultiPass-8             531529        427506        -19.57%
+    BenchmarkMultiPassBlock-8        7033496       4487814       -36.19%
     
-    name                      old time/op  new time/op  delta
-    GrowSliceBytes-4          86.2ns ± 3%  75.4ns ± 2%  -12.50%  (p=0.000 n=20+20)
-    GrowSliceInts-4            161ns ± 3%   136ns ± 3%  -15.59%  (p=0.000 n=19+19)
-    GrowSlicePtr-4             239ns ± 2%   233ns ± 2%   -2.52%  (p=0.000 n=20+20)
-    GrowSliceStruct24Bytes-4   258ns ± 3%   256ns ± 3%     ~     (p=0.134 n=20+20)
+    benchmark                        old allocs     new allocs     delta
+    BenchmarkDSEPass-8               11             4              -63.64%
+    BenchmarkDSEPassBlock-8          599            120            -79.97%
+    BenchmarkCSEPass-8               18             18             +0.00%
+    BenchmarkCSEPassBlock-8          2700           2700           +0.00%
+    BenchmarkDeadcodePass-8          4              3              -25.00%
+    BenchmarkDeadcodePassBlock-8     30             9              -70.00%
+    BenchmarkMultiPass-8             24             20             -16.67%
+    BenchmarkMultiPassBlock-8        1800           1000           -44.44%
     
-    Change-Id: Ice5fa648058fe9d7fa89dee97ca359966f671128
-    Reviewed-on: https://go-review.googlesource.com/21101
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    benchmark                        old bytes     new bytes     delta
+    BenchmarkDSEPass-8               221367        142           -99.94%
+    BenchmarkDSEPassBlock-8          3695207       3846          -99.90%
+    BenchmarkCSEPass-8               303328        303328        +0.00%
+    BenchmarkCSEPassBlock-8          5006400       5006400       +0.00%
+    BenchmarkDeadcodePass-8          84232         10506         -87.53%
+    BenchmarkDeadcodePassBlock-8     1274940       163680        -87.16%
+    BenchmarkMultiPass-8             608674        313834        -48.44%
+    BenchmarkMultiPassBlock-8        9906001       5003450       -49.49%
+    
+    Change-Id: Ib1fa58c7f494b374d1a4bb9cffbc2c48377b59d3
+    Reviewed-on: https://go-review.googlesource.com/19100
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/append_test.go | 24 ++++++++++++++++++++++--
- src/runtime/slice.go       | 32 ++++++++++++++++++++------------
- 2 files changed, 42 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/deadcode.go    |   3 +-
+ src/cmd/compile/internal/ssa/deadstore.go   |   9 ++-
+ src/cmd/compile/internal/ssa/func.go        |  25 +++++++
+ src/cmd/compile/internal/ssa/layout.go      |   6 +-
+ src/cmd/compile/internal/ssa/passbm_test.go | 101 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go    |   3 +-
+ src/cmd/compile/internal/ssa/sparseset.go   |   4 ++
+ src/cmd/compile/internal/ssa/stackalloc.go  |   9 ++-
+ 8 files changed, 150 insertions(+), 10 deletions(-)

@@ -1,22 +1,38 @@
-commit ac53c9673d77dd37f7dd46b397fa64370129dc8c
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Mon Nov 13 01:54:08 2017 +0100
+commit 3d741349f5c7bf198a1c85acd374d1bee215f30e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Sep 14 15:51:18 2017 +0100
 
-    crypto/x509: update iOS root certs.
+    cmd/compile: collect reasons in inlining test
     
-    Apple changed the format of its support page, so we need to
-    restructure the HTML parser. The HTML table is now parsed using
-    regular expressions, and certificates are then found in macOS
-    trust store by their fingerprint.
+    If we use -gcflags='-m -m', the compiler should give us a reason why a
+    func couldn't be inlined. Add the extra -m necessary for that extra info
+    and use it to give better test failures. For example, for the func in
+    the TODO:
     
-    Fixes #22181
+            --- FAIL: TestIntendedInlining (1.53s)
+                    inl_test.go:104: runtime.nextFreeFast was not inlined: function too complex
     
-    Change-Id: I29e7a40d37770bb005d728f1832299c528691f7e
-    Reviewed-on: https://go-review.googlesource.com/77252
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    We might increase the number of -m flags to get more information at some
+    later point, such as getting details on how close the func was to the
+    inlining budget.
+    
+    Also started using regexes, as the output parsing is getting a bit too
+    complex for manual string handling.
+    
+    While at it, also refactored the test to not buffer the entire output
+    into memory. This is fine in practice, but it won't scale well as we add
+    more packages or we depend more on the compiler's debugging output.
+    
+    For example, "go build -a -gcflags='-m -m' std" prints nearly 40MB of
+    plaintext - and we only need to see the output line by line anyway.
+    
+    Updates #21851.
+    
+    Change-Id: I00986ff360eb56e4e9737b65a6be749ef8540643
+    Reviewed-on: https://go-review.googlesource.com/63810
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/x509/root_darwin_arm_gen.go |   90 +-
- src/crypto/x509/root_darwin_armx.go    | 8131 +++++++++++++++-----------------
- 2 files changed, 3810 insertions(+), 4411 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go | 63 ++++++++++++++++++++++-----------
+ 1 file changed, 43 insertions(+), 20 deletions(-)

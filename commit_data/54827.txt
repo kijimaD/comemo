@@ -1,18 +1,41 @@
-commit cbc403af1d9fa73b99cc07f80a2126771b73adfd
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sun Oct 29 06:51:14 2023 +0000
+commit cd9d26f0da769c5644ab7956433991385259ee0a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 11 11:51:28 2022 -0500
 
-    cmd/compile/internal/ssa: adjust default to the end in *Block.AuxIntString
+    cmd/go: make testterminal18153 a normal test
     
-    Change-Id: Id48cade7811e2dfbf78d3171fe202ad272534e37
-    GitHub-Last-Rev: ea6abb2dc216ebd4a42fc3dc25f39ea6869d2dad
-    GitHub-Pull-Request: golang/go#63808
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538377
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Currently, cmd/go's testterminal18153 is implemented as a special test
+    that doesn't run as part of cmd/go's regular tests. Because the test
+    requires stdout and stderr to be a terminal, it is currently run
+    directly by "dist test" so it can inherit the terminal of all.bash.
+    
+    This has a few problems. It's yet another special case in dist test.
+    dist test also has to be careful to not apply its own buffering to
+    this test, so it can't run in parallel and it limits dist test's own
+    scheduler. It doesn't run as part of regular "go test", which means it
+    usually only gets coverage from running all.bash. And since we have to
+    skip it if all.bash wasn't run at a terminal, I'm sure it often gets
+    skipped even when running all.bash.
+    
+    Fix all of this by rewriting this test to create its own PTY and
+    re-exec "go test" to check that PTY passes through go test. This makes
+    the test self-contained, so it can be a regular cmd/go test, we can
+    drop it from dist test, and it's not sensitive to the environment of
+    all.bash.
+    
+    Preparation for #37486.
+    Updates #18153.
+    
+    Change-Id: I6493dbb0143348e299718f6e311ac8a63f5d69c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449503
+    Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/block.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go                               |  27 -----
+ src/cmd/dist/test_linux.go                         |  28 -----
+ src/cmd/go/terminal_test.go                        | 119 +++++++++++++++++++++
+ .../go/testdata/testterminal18153/terminal_test.go |  40 -------
+ src/internal/testpty/pty.go                        |  12 ++-
+ src/internal/testpty/pty_none.go                   |  13 +++
+ 6 files changed, 139 insertions(+), 100 deletions(-)

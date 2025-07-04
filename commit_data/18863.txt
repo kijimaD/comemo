@@ -1,16 +1,34 @@
-commit 1483747f3c62fb6149cce8027e98adeda77cc343
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Mar 14 16:42:42 2014 +0100
+commit 199e70308351c2780f19ee0471febfd3cfd8f30f
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Fri Mar 14 17:53:05 2014 +0400
 
-    cmd/gc: fix spurious 'not enough arguments to return' error
+    runtime: fix use after close race in Solaris network poller
     
-    Fixes #6405
+    The Solaris network poller uses event ports, which are
+    level-triggered. As such, it has to re-arm itself after each
+    wakeup. The arming mechanism (which runs in its own thread) raced
+    with the closing of a file descriptor happening in a different
+    thread. When a network file descriptor is about to be closed,
+    the network poller is awaken to give it a chance to remove its
+    association with the file descriptor. Because the poller always
+    re-armed itself, it raced with code that closed the descriptor.
     
-    LGTM=rsc
-    R=rsc, iant
+    This change makes the network poller check before re-arming if
+    the file descriptor is about to be closed, in which case it will
+    ignore the re-arming request. It uses the per-PollDesc lock in
+    order to serialize access to the PollDesc.
+    
+    This change also adds extensive documentation describing the
+    Solaris implementation of the network poller.
+    
+    Fixes #7410.
+    
+    LGTM=dvyukov, iant
+    R=golang-codereviews, bradfitz, iant, dvyukov, aram.h, gobot
     CC=golang-codereviews
-    https://golang.org/cl/72920046
+    https://golang.org/cl/69190044
 
- src/cmd/gc/typecheck.c      | 14 ++++++++++----
- test/fixedbugs/issue6405.go | 13 +++++++++++++
- 2 files changed, 23 insertions(+), 4 deletions(-)
+ src/pkg/runtime/netpoll.goc       |  18 +++++
+ src/pkg/runtime/netpoll_solaris.c | 142 +++++++++++++++++++++++++++++---------
+ src/pkg/runtime/runtime.h         |   3 +
+ 3 files changed, 132 insertions(+), 31 deletions(-)

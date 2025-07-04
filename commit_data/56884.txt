@@ -1,24 +1,18 @@
-commit a71bb570d064f6d0c1cf59cef4b7a044be7a39d3
-Author: cuishuang <imcusg@gmail.com>
-Date:   Thu Jul 4 14:10:55 2024 +0800
+commit 30db6f202637251d57ee6c17ce666dacb0c59b46
+Author: Marten Seemann <martenseemann@gmail.com>
+Date:   Thu May 25 11:06:41 2023 +0300
 
-    all: make struct comments match struct names
+    crypto/tls: fix cipher suite check when doing 0-RTT resumption
     
-    Change-Id: I011f66854a9af5f3baa20abebd4b315c15db571f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596715
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ia50898308b80149f862457f9cd9f1123da4e6b6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498215
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Macrombi Lux <macrentals502@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/trace/gstate.go                | 2 +-
- src/internal/coverage/defs.go          | 2 +-
- src/log/slog/internal/buffer/buffer.go | 5 ++++-
- src/runtime/arena.go                   | 2 +-
- src/sync/export_test.go                | 2 +-
- 5 files changed, 8 insertions(+), 5 deletions(-)
+ src/crypto/tls/handshake_client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

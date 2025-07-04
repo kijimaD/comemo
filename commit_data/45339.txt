@@ -1,20 +1,26 @@
-commit d02026414cc0b292ee2aef4fbc36f185c56db0c8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 23 12:03:48 2021 -0700
+commit 7211694a1e3f9eaebff7074944feead968e00e72
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 09:51:45 2020 -0400
 
-    cmd/go: don't add generated SWIG C++ files to CompiledGoFiles
+    net/http: add FS to convert fs.FS to FileSystem
     
-    Also include SWIG C++ files in cgo hash.
+    Two different functions in the http API expect a FileSystem:
+    http.FileSystem and http.NewFileTransport.
+    Add a general converter http.FS to turn an fs.FS into an http.FileSystem
+    for use with either of these functions.
     
-    For #28749
-    Fixes #37098
+    (The original plan was to add http.HandlerFS taking an fs.FS directly,
+    but that doesn't help with NewFileTransport.)
     
-    Change-Id: I6d912db2788200c2abdf328e382d4fbefda0a9ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313131
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    For #41190.
+    
+    Change-Id: I5f242eafe9b963f4387419a2615bdb487c358f16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243939
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/work/exec.go            |  8 ++++++--
- src/cmd/go/testdata/script/list_swigcxx.txt | 27 +++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 2 deletions(-)
+ src/net/http/fs.go      | 133 +++++++++++++++++++++++++++++++++++++++++++++---
+ src/net/http/fs_test.go |  37 ++++++++++++++
+ 2 files changed, 162 insertions(+), 8 deletions(-)

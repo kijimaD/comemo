@@ -1,28 +1,19 @@
-commit c0602603b20186228b4f89f265cb3f7665e06768
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Aug 23 11:52:53 2020 -0700
+commit e5f5607b635139154584c599b2ebf71fe573ca97
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 10:51:28 2020 -0500
 
-    runtime: implement StorepNoWB for wasm in assembly
+    cmd/go: convert TestIssue11709 to the script framework
     
-    The second argument of StorepNoWB must be forced to escape.
-    The current Go code does not explicitly enforce that property.
-    By implementing in assembly, and not using go:noescape, we
-    force the issue.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Test is in CL 249761. Issue #40975.
+    Updates #36320
+    Updates #17751
     
-    This CL is needed for CL 249917, which changes how go:notinheap
-    works and breaks the previous StorepNoWB wasm code.
-    
-    I checked for other possible errors like this. This is the only
-    go:notinheap that isn't in the runtime itself.
-    
-    Change-Id: I43400a806662655727c4a3baa8902b63bdc9fa57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249962
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I16fb0910196c96caef6ed380f96010a548407f9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214424
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/internal/atomic/asm_wasm.s     | 10 ++++++++++
- src/runtime/internal/atomic/atomic_wasm.go | 13 +++++--------
- 2 files changed, 15 insertions(+), 8 deletions(-)
+ src/cmd/go/go_test.go                         | 15 ---------------
+ src/cmd/go/testdata/script/run_issue11709.txt | 15 +++++++++++++++
+ 2 files changed, 15 insertions(+), 15 deletions(-)

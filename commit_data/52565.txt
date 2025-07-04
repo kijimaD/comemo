@@ -1,23 +1,21 @@
-commit 97df9c0b051b6c06bff7ec7e61522e7bbef40c91
-Author: Akihiro Suda <akihiro.suda.cz@hco.ntt.co.jp>
-Date:   Fri Apr 7 01:19:21 2023 +0000
+commit e0f99775f24cd19ad96847b0a5b00952aac9d548
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Mon May 9 23:22:14 2022 +0300
 
-    net/http: expose "http: server gave HTTP response to HTTPS client" error
+    runtime: store pointer-size words in memclr
     
-    Expose "http: server gave HTTP response to HTTPS client" error as `ErrSchemeMismatch`, so that it can be compared with `errors.Is` .
+    GC requires the whole zeroed word to be visible for a memory subsystem.
+    While the implementation of Enhanced REP STOSB tries to use as efficient
+    stores as possible, e.g writing the whole cache line and not byte-after-byte,
+    we should use REP STOSQ to guarantee the requirements of the GC.
     
-    Fixes #44855
+    The performance is not affected.
     
-    Change-Id: If96e0d000fdef641fea407310faf9e1c4f7ad0f0
-    GitHub-Last-Rev: 22879fc88367d77817d7d96c9164f22e55f3a192
-    GitHub-Pull-Request: golang/go#50939
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382117
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I1b0fd1444a40bfbb661541291ab96eba11bcc762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405274
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- api/next/44855.txt     | 1 +
- src/net/http/client.go | 5 ++++-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/memclr_amd64.s | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

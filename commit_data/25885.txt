@@ -1,19 +1,22 @@
-commit 4accfe1be5d6324a31543a6bfd9eadfa00d90342
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 19 17:39:27 2016 +0900
+commit 0680e9c0c16a7d900e3564e1836b8cb93d962a2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 12:32:34 2015 -0500
 
-    net: re-enable TestDualStack{TCP,UDP}Listener on dragonfly
+    regexp/syntax: fix handling of \Q...\E
     
-    It looks like the latest DragonFly BSD kernels, at least 4.4 and above,
-    have finished working on handling of shared IP control blocks. Let's
-    re-enbale test cases referring to IP control blocks and see what
-    happens.
+    It's not a group: must handle the inside as a sequence of literal chars,
+    not a single literal string.
     
-    Updates #13146.
+    That is, \Qab\E+ is the same as ab+, not (ab)+.
     
-    Change-Id: Icbe2250e788f6a445a648541272c99b598c3013d
-    Reviewed-on: https://go-review.googlesource.com/19406
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #11187.
+    
+    Change-Id: I5406d05ccf7efff3a7f15395bdb0cfb2bd23a8ed
+    Reviewed-on: https://go-review.googlesource.com/17233
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/listen_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/regexp/syntax/parse.go      | 9 ++++++++-
+ src/regexp/syntax/parse_test.go | 2 ++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

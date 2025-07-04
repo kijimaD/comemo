@@ -1,17 +1,28 @@
-commit 37e9c1d6fe453458a203595277147ae713650a3a
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Aug 20 17:04:35 2021 +0000
+commit 7c8f5356abd7aadf32b028ce76a8a76cd5438258
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 01:55:44 2020 -0500
 
-    cmd/internal/obj/riscv: avoid obj.Prog rewriting for address to register loads
+    [dev.regabi] cmd/compile: separate dowidth better
     
-    Rather than rewriting the obj.Prog for a MOV pseudo-instruction targeting
-    an address to register load, generate the appropriate machine instruction
-    sequence directly.
+    Having a global MaxWidth lets us avoid needing to
+    refer to thearch from split-out packages when all
+    they need is thearch.MAXWIDTH.
     
-    Change-Id: I507195b6d24ff3253eadcc807ddbe27dca97d220
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344456
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    And make a couple interface changes to let dowidth
+    avoid importing package ir directly.
+    Then it can move into package types.
+    
+    Change-Id: I2c12e8e22252597530e648848320e19bdd490a01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279302
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 149 ++++++++++++++++++++------------------
- 1 file changed, 79 insertions(+), 70 deletions(-)
+ src/cmd/compile/internal/gc/abiutils_test.go |  1 +
+ src/cmd/compile/internal/gc/align.go         | 29 +++++++++++++++-------------
+ src/cmd/compile/internal/gc/main.go          |  1 +
+ src/cmd/compile/internal/gc/pgen.go          |  2 +-
+ src/cmd/compile/internal/gc/reflect.go       |  3 +--
+ src/cmd/compile/internal/gc/sinit.go         |  2 +-
+ src/cmd/compile/internal/ir/name.go          | 18 +++++++++++++++++
+ src/cmd/compile/internal/types/type.go       | 12 ++++++++++++
+ 8 files changed, 51 insertions(+), 17 deletions(-)

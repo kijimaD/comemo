@@ -1,16 +1,18 @@
-commit 0e18cf6d093c217cb7f093382cc83f0ea072c2e6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 12:59:50 2022 -0400
+commit 66401719143692f1b892fb47aaef286f885395c9
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Sep 7 07:46:27 2021 -0700
 
-    runtime: trivial replacements of _g_ in GC files
+    cmd/compile: fix type substituter to copy Funarg value for structs
     
-    Change-Id: Iedf10558d9a1d3b80a151927b99660b688ed9ccb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418585
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    We were missing copying the Funarg value when substituting for a struct
+    type.
+    
+    Change-Id: Id0c2d9e55fb15987acb9edba6f74cf57cfd3417e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347913
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/runtime/heapdump.go | 8 ++++----
- src/runtime/mbitmap.go  | 5 ++---
- src/runtime/mgcsweep.go | 8 ++++----
- 3 files changed, 10 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/typecheck/subr.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

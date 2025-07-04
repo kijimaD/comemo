@@ -1,26 +1,18 @@
-commit 5654114d04291be151ff1b1dda09d5b96e0601fa
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Wed May 16 11:21:18 2018 +0100
+commit b03f1d1a7e1c84d1fa7e4bcf8c705dfeb1a4565d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Sep 24 10:48:18 2017 -0400
 
-    cmd/compile: use math/bits functions where possible
+    runtime: remove extraneous stackPreempt setting
     
-    Use the math/bits functions to calculate the number of leading/
-    trailing zeros, bit length and the population count.
+    The stackguard is set to stackPreempt earlier in reentersyscall, and
+    as it comes with throwsplit = true there's no way for the stackguard
+    to be set to anything else by the end of reentersyscall.
     
-    The math/bits package is built as part of the bootstrap process
-    so we do not need to provide an alternative implementation for
-    Go versions prior to 1.9.
-    
-    Passes toolstash-check -all.
-    
-    Change-Id: I393b4cc1c8accd0ca7cb3599d3926fa6319b574f
-    Reviewed-on: https://go-review.googlesource.com/113336
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I4e942005b22ac784c52398c74093ac887fc8ec24
+    Reviewed-on: https://go-review.googlesource.com/65673
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/bits_bootstrap.go | 24 -----------------
- src/cmd/compile/internal/ssa/bits_go19.go      | 13 ----------
- src/cmd/compile/internal/ssa/debug.go          | 11 ++++----
- src/cmd/compile/internal/ssa/rewrite.go        | 36 ++++++--------------------
- 4 files changed, 14 insertions(+), 70 deletions(-)
+ src/runtime/proc.go | 4 ----
+ 1 file changed, 4 deletions(-)

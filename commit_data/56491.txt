@@ -1,25 +1,34 @@
-commit 36b06c3d2f7fc1089e63a9040ad04ef6194b932f
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed May 15 15:06:14 2024 -0400
+commit 96add980ad27faed627f26ef1ab09e8fe45d6bd1
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu May 11 17:01:44 2023 +0000
 
-    cmd/vendor/golang.org/x/telemetry: update to ac8fed8
+    Revert "runtime: rename getcallerfp to getfp"
     
-    Updates #67182
+    This reverts CL 481617.
     
-    Change-Id: I14f6a35491e3a58fff2f33285bd13ac706668df6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585818
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reason for revert: breaks test build on Windows
+    
+    Change-Id: Ifc1a323b0cc521e7a5a1f7de7b3da667f5fee375
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494377
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +--
- .../telemetry/internal/crashmonitor/crash_go123.go |  7 +++--
- .../golang.org/x/telemetry/internal/upload/date.go |  6 ++--
- .../x/telemetry/internal/upload/findwork.go        |  2 +-
- .../x/telemetry/internal/upload/reports.go         |  6 ++--
- .../golang.org/x/telemetry/internal/upload/run.go  | 31 ++++++++++++++------
- .../x/telemetry/internal/upload/upload.go          |  6 ++--
- src/cmd/vendor/golang.org/x/telemetry/start.go     |  2 +-
- .../vendor/golang.org/x/telemetry/upload/upload.go | 33 ----------------------
- src/cmd/vendor/modules.txt                         |  3 +-
- 11 files changed, 43 insertions(+), 59 deletions(-)
+ src/runtime/asm_amd64.s      | 2 +-
+ src/runtime/asm_arm64.s      | 2 +-
+ src/runtime/export_test.go   | 2 +-
+ src/runtime/os_wasm.go       | 5 ++---
+ src/runtime/stubs_386.go     | 5 ++---
+ src/runtime/stubs_amd64.go   | 4 ++--
+ src/runtime/stubs_arm.go     | 5 ++---
+ src/runtime/stubs_arm64.go   | 4 ++--
+ src/runtime/stubs_loong64.go | 5 ++---
+ src/runtime/stubs_mips64x.go | 5 ++---
+ src/runtime/stubs_mipsx.go   | 5 ++---
+ src/runtime/stubs_ppc64x.go  | 5 ++---
+ src/runtime/stubs_riscv64.go | 5 ++---
+ src/runtime/stubs_s390x.go   | 5 ++---
+ src/runtime/trace.go         | 2 +-
+ 15 files changed, 26 insertions(+), 35 deletions(-)

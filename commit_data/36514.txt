@@ -1,20 +1,19 @@
-commit cb7f9ec4b71e81760fa36ebff60a7e41a07df238
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Aug 17 11:12:43 2018 -0400
+commit 8cd0094b4ee6b51c49f96de98308701108b45995
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed May 2 20:13:14 2018 +0200
 
-    cmd/compile: add a test for reproducible build with anonymous interfaces
+    misc/ios: don't override TMPDIR on idevice
     
-    Duplicated anonymous interfaces caused nondeterministic build.
-    The fix is CL 129515. This CL adds a test.
+    If TMPDIR is not set, the iOS runtime will automatically set TMPDIR
+    to a valid app temporary path.
     
-    Updates #27013.
+    For the iOS builders.
     
-    Change-Id: I6b7e1bbfc943c22e8e6f32c145f7aebb567cef15
-    Reviewed-on: https://go-review.googlesource.com/129680
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia82404059dcb10678f0a6e0c96d5efc79a5485fd
+    Reviewed-on: https://go-review.googlesource.com/110956
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../compile/internal/gc/reproduciblebuilds_test.go | 55 +++++++++++++---------
- .../gc/testdata/reproducible/issue27013.go         | 15 ++++++
- 2 files changed, 48 insertions(+), 22 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

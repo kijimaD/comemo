@@ -1,17 +1,17 @@
-commit 9a5654abeff85c8ac9b1b43bf7da9aa9f4bdfa15
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Aug 27 09:31:32 2014 -0700
+commit 99e9bac8c42ccc950315dff1ee6933d7de180026
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 21 11:55:05 2014 +0400
 
-    runtime: restore header to first goroutine in Stack
+    runtime: init GC later
+    Init GC later as it needs to read GOGC env var.
+    Fixes #8562.
     
-    It appears to have been accidentally lost when converting
-    Stack from C to Go in https://golang.org/cl/129510043
-    
-    LGTM=rsc
-    R=golang-codereviews
-    CC=golang-codereviews, josharian, khr, remyoudompheng, rsc
-    https://golang.org/cl/136870043
+    LGTM=daniel.morsing, rsc
+    R=golang-codereviews, daniel.morsing, rsc
+    CC=golang-codereviews, khr, rlh
+    https://golang.org/cl/130990043
 
- src/pkg/runtime/mprof.go | 1 +
- src/pkg/runtime/stubs.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/env_posix.c |  2 ++
+ src/pkg/runtime/proc.c      |  6 +-----
+ src/pkg/runtime/runtime.c   | 34 +++++++++++++---------------------
+ 3 files changed, 16 insertions(+), 26 deletions(-)

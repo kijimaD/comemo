@@ -1,21 +1,19 @@
-commit c0b3c17184735e1f4352aea6a9ecf5779f098cd5
+commit d815a147187c0237a81e84e39035f6275b3fee42
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Mar 25 22:12:47 2013 +0100
+Date:   Mon Mar 25 22:09:55 2013 +0100
 
-    cmd/gc: instrument logical && and ||.
+    cmd/5l, cmd/6l, cmd/8l: fix segfault on reading LOCALS for a duplicate definition.
     
-    The right operand of a && and || is only executed conditionnally,
-    so the instrumentation must be more careful. In particular
-    it should not turn nodes assumed to be cheap after walk into
-    expensive ones.
+    Fixes #5105.
     
-    Update #4228
-    
-    R=dvyukov, golang-dev
+    R=golang-dev, dave, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/7986043
+    https://golang.org/cl/7965043
 
- src/cmd/gc/racewalk.c                     | 41 +++++++++++++++++++++++++++----
- src/cmd/gc/subr.c                         |  7 ++++++
- src/pkg/runtime/race/testdata/mop_test.go |  6 ++---
- 3 files changed, 45 insertions(+), 9 deletions(-)
+ src/cmd/5l/obj.c                  |  4 ++++
+ src/cmd/6l/obj.c                  |  4 ++++
+ src/cmd/8l/obj.c                  |  4 ++++
+ test/fixedbugs/issue5105.dir/a.go |  7 +++++++
+ test/fixedbugs/issue5105.dir/b.go | 15 +++++++++++++++
+ test/fixedbugs/issue5105.go       | 10 ++++++++++
+ 6 files changed, 44 insertions(+)

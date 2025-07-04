@@ -1,33 +1,16 @@
-commit a7fc71092dfb6c6d5fef09b8c85b7d9e78908717
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 15 14:58:40 2019 -0400
+commit e4c1feef74d7415ba134aa0950f7f285a3e1902a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Nov 10 07:45:19 2018 -0800
 
-    cmd/go/internal/modget: support the suffix '@patch' in 'go get'
+    cmd/compile: re-run stringer
     
-    As of this change, an explicit '@patch' suffix is to '-u=patch' as
-    '@latest' is to '-u'.
+    Some of the Ops got re-ordered with OSLICEHEADER. Re-generate.
     
-    RELNOTE='go get' in module mode now supports the version suffix '@patch'.
-    
-    Fixes #26812
-    
-    Change-Id: Ib5eee40de640440f7470d37a574b311ef8a67f67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167747
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I8ec3f5056537dd0b18cac2d4267453451ade2b00
+    Reviewed-on: https://go-review.googlesource.com/c/148824
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
 
- src/cmd/go/alldocs.go                              |  17 +-
- src/cmd/go/internal/modget/get.go                  | 173 +++++++++++++++------
- src/cmd/go/internal/modload/load.go                |  11 +-
- .../patch.example.com_depofdirectpatch_v1.0.0.txt  |  11 ++
- .../patch.example.com_depofdirectpatch_v1.0.1.txt  |  11 ++
- .../mod/patch.example.com_direct_v1.0.0.txt        |  21 +++
- .../mod/patch.example.com_direct_v1.0.1.txt        |  27 ++++
- .../mod/patch.example.com_direct_v1.1.0.txt        |  21 +++
- .../mod/patch.example.com_indirect_v1.0.0.txt      |  11 ++
- .../mod/patch.example.com_indirect_v1.0.1.txt      |  11 ++
- .../mod/patch.example.com_indirect_v1.1.0.txt      |  11 ++
- src/cmd/go/testdata/script/mod_upgrade_patch.txt   |  29 ----
- .../go/testdata/script/mod_upgrade_patch_mod.txt   |  85 ++++++++++
- .../go/testdata/script/mod_upgrade_patch_pkg.txt   |  88 +++++++++++
- 14 files changed, 444 insertions(+), 83 deletions(-)
+ src/cmd/compile/internal/gc/op_string.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

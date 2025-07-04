@@ -1,24 +1,39 @@
-commit a1b53d85dad7648d545ee5e0d7e768f300bfcd84
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jan 15 19:41:26 2021 -0500
+commit dfd613e0e4fd93ef945e9fbd6d42b79bcaf73905
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon May 18 16:06:11 2020 +0000
 
-    cmd/go: add documentation for test and xtest fields output by go list
+    runtime: don't use (addrRange).subtract in removeGreaterEqual
     
-    The TestEmbedPatterns, TestEmbedFiles, XTestEmbedPatterns, and
-    XTestEmbedFiles fields were left out of golang.org/cl/282195 which was
-    supposed to document the embed fields available in the go list
-    output. Add documentation for them in this CL.
+    Currently in (*addrRanges).removeGreaterEqual we use
+    (addrRange).subtract with a range from specified address to "infinity"
+    which is supposed to be maxOffAddr. However, maxOffAddr is necessarily
+    an inclusive bound on the address space, because on many platforms an
+    exclusive bound would overflow back to 0.
     
-    Fixes #43081
+    On some platforms like mips and mipsle, the address space is smaller
+    than what's representable in a pointer, so if there's a range which hits
+    the top of the address space (such as in the pageAlloc tests), the limit
+    doesn't overflow, but maxOffAddr is inclusive, so any attempt to prune
+    this range with (*addrRange).removeGreaterEqual causes a failure, since
+    the range passed to subtract is contained within the address range which
+    touches the top of the address space.
     
-    Change-Id: Ifc256c476daec7c0f0e2c41f86b82f958b3e2b1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284258
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Another problem with using subtract here is that addr and
+    maxOffAddr.addr() may not be in the same segment which could cause
+    makeAddrRange to panic. While this unlikely to happen, on some platforms
+    such as Solaris it is possible.
+    
+    Fix these issues by not using subtract at all. Create a specific
+    implementation of (addrRange).removeGreaterEqual which side-steps all of
+    this by not having to worry about the top of the address space at all.
+    
+    Fixes #39128.
+    
+    Change-Id: Icd5b587b1a3d32a5681fb76cec4c001401f5756f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234457
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go            | 8 ++++++--
- src/cmd/go/internal/list/list.go | 8 ++++++--
- src/cmd/go/internal/load/pkg.go  | 6 +++---
- 3 files changed, 15 insertions(+), 7 deletions(-)
+ src/runtime/mranges.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

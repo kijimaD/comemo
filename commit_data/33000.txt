@@ -1,42 +1,25 @@
-commit ca360c39924bc1a4658c14ff023c4628c11f13a3
-Author: David Chase <drchase@google.com>
-Date:   Fri Jul 21 12:00:38 2017 -0400
+commit 53e4b8fc02bb9440a35b20f383c0bc86eece80a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 22 15:49:42 2017 -0400
 
-    cmd/compile: better XPos for rematerialized values and JMPs
+    cmd/go: require -buildmode=c-shared to take one main package
     
-    This attempts to choose better values for values that are
-    rematerialized (uses the XPos of the consumer, not the
-    original) and for unconditional branches (uses the last
-    assigned XPos in the block).
+    The current behavior is to filter out the non-main packages silently,
+    which is confusing if there are only non-main packages.
+    Instead, report an error unless it's used with a single main package.
     
-    The JMP branches seem to sometimes end up with a PC in the
-    destination block, I think because of register movement
-    or rematerialization that gets placed in predecessor blocks.
-    This may be acceptable because (eyeball-empirically) that is
-    often the line number of the target block, so the line number
-    flow is correct.
+    To be clear, I don't really know what I'm doing.
+    It might be that multiple main packages are allowed, or even
+    that we do want the filtering, but all.bash passes with this change,
+    so I am taking that as a sign that we don't need that extra flexibility.
     
-    Added proper test, that checks both -N -l and regular compilation.
-    The test is also capable (for gdb, delve soon) of tracking
-    variable printing based on comments in the source code.
+    Fixes #15082.
     
-    There's substantial room for improvement in debugger behavior.
-    
-    Updates #21098.
-    
-    Change-Id: I13abd48a39141583b85576a015f561065819afd0
-    Reviewed-on: https://go-review.googlesource.com/50610
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I984d0f444a01c0ee0c3cd6646a75527ea99a9ebe
+    Reviewed-on: https://go-review.googlesource.com/46421
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go                 |  60 +-
- src/cmd/compile/internal/ssa/debug_test.go         | 786 +++++++++++++++++++++
- src/cmd/compile/internal/ssa/regalloc.go           |   4 +-
- .../internal/ssa/testdata/hist-dbg.delve-nexts     | 383 ++++++++++
- .../internal/ssa/testdata/hist-dbg.gdb-nexts       | 409 +++++++++++
- .../internal/ssa/testdata/hist-opt.delve-nexts     | 248 +++++++
- .../internal/ssa/testdata/hist-opt.gdb-nexts       | 215 ++++++
- src/cmd/compile/internal/ssa/testdata/hist.go      |  68 ++
- src/cmd/compile/internal/ssa/value.go              |   8 +-
- 9 files changed, 2175 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/work/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

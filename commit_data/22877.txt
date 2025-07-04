@@ -1,14 +1,15 @@
-commit fe3446bda29ceadc5ffcd70874532484927b5ae7
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed May 6 00:02:30 2015 +0900
+commit 0a81d31b66566cc62f028825612b9c1c858870ef
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:04:25 2015 -0400
 
-    syscall: fix TestSCMCredentials
+    runtime/pprof: skip fork test on darwin/arm64
     
-    Fixes #10703.
+    Just like darwin/arm.
     
-    Change-Id: I55c0f07625a0847fb27defa9891af6db6eb21f82
-    Reviewed-on: https://go-review.googlesource.com/9714
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic75927bd6457d37cda7dd8279fd9b4cd52edc1d1
+    Reviewed-on: https://go-review.googlesource.com/8813
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/syscall/creds_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/runtime/pprof/pprof_test.go | 10 +++++++---
+ src/runtime/pprof/trace_test.go |  5 +++++
+ 2 files changed, 12 insertions(+), 3 deletions(-)

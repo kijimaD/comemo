@@ -1,32 +1,18 @@
-commit 7ce38641564e5c0183bb09df8c523caf5e0ab8e1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 16 15:25:28 2022 -0400
+commit 5805efc78e11e54c2c887ae10f277b09bbf81cf4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Aug 12 12:12:56 2021 -0400
 
-    cmd/go/internal/modfetch: wrap errors from HTTP response bodies
+    doc/go1.17: remove draft notice
     
-    The Read method on the Body returned from a net/http.Transport does
-    not wrap errors returned by the underlying io.Reader and returns a
-    bare io.ErrUnexpectedEOF if the body is shorter than the declared
-    Content-Length.
+    Fixes #44513.
     
-    Since we can't feasibly add detail on the net/http side without
-    breaking established users, we must instead add detail on the caller
-    side. Since the net/http client uses url.Error for most of its own
-    errors, we use that same error type here.
-    
-    I have not added a regression test for this change. (While it is
-    theoretically possible to set up a GOPROXY that returns incorrect
-    Content-Length headers, the change seems straightforward enough that
-    it isn't worth the complex test setup.)
-    
-    Fixes #52727.
-    
-    Change-Id: Id00b04ae4fd518148106a49188fe169aadbcce2c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406675
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I82c44a681b1fa67df123af86ee02a980b13acdc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341673
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/modfetch/proxy.go | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ doc/go1.17.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

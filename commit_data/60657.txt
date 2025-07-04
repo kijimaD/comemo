@@ -1,0 +1,19 @@
+commit 82dcd147b684c6e61d42f41ce940946dd2916106
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Aug 10 16:31:28 2024 -0700
+
+    cmd/cgo: clarify that strings and slices may contain C pointers
+    
+    Fixes #68832
+    
+    Change-Id: I74b6aad9a18953c263cbbe795268017a72261f7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604715
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/doc.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

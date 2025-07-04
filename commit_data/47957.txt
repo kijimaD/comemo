@@ -1,56 +1,27 @@
-commit 46f138f288cf5c8a34cf5688cb6bea9deafb4f84
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 18 10:49:57 2022 -0500
+commit b3a5640397e887514a860b9eb73e125c2b650f7b
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Mar 8 23:38:42 2021 -0500
 
-    cmd/compile, go/types: fix checking of bad type switch
+    go/types: remove the concept of finals
     
-    Consider the following program:
+    Checker.finals and the corresponding atEnd were added in CL 191418 as a
+    mechanism to postpone interface type comparison until after all
+    interfaces were complete. In the intervening CL 195837 we've adopted a
+    convention of ensuring that interfaces are complete before comparing
+    them. Since then we've also added the additional case of expansion for
+    lazily resolving syntax.
     
-            package p
+    Checker.later defers resolution of types until points in the checking
+    pass where all reachable types can be fully type checked, so the concept
+    of finals should no longer be necessary.
     
-            func f() {
-                    x := 1
-                    v := 2
-                    switch v.(type) {
-                    case int:
-                            println(x)
-                            println(x / 0)
-                    case 1:
-                    }
-            }
-    
-    Before this CL, the compiler prints:
-    
-            x.go:4:2: x declared but not used
-            x.go:6:9: v (variable of type int) is not an interface
-    
-    x is in fact used, and other errors in the switch go undiagnosed.
-    
-    This commit fixes that problem by processing the switch statement
-    even when the 'not an interface' error is reported.
-    
-    Now the compiler drops the spurious 'declared but not used'
-    and adds two previously undiagnosed problems:
-    
-            x.go:6:9: v (variable of type int) is not an interface
-            x.go:9:15: invalid operation: division by zero
-            x.go:10:7: 1 is not a type
-    
-    go/types was printing roughly the same thing the compiler did before,
-    and now still prints roughly the same thing the compiler does after.
-    (The only differences are in the exact reported columns.)
-    
-    Fixes #50493.
-    
-    Change-Id: I317883f29077b1b4bbd0e8793617fd3bb31aa0f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379117
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I58818c1a6b605dccc9b0ecb3a1f6859c138175d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299590
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/stmt.go                  | 15 ++++++++-------
- src/cmd/compile/internal/types2/testdata/check/stmt0.src | 14 +++++++++++++-
- src/go/types/stmt.go                                     | 14 +++++++-------
- src/go/types/testdata/check/stmt0.src                    | 14 +++++++++++++-
- 4 files changed, 41 insertions(+), 16 deletions(-)
+ src/go/types/check.go   | 21 ---------------------
+ src/go/types/typexpr.go | 12 ++++++------
+ 2 files changed, 6 insertions(+), 27 deletions(-)

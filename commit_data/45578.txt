@@ -1,17 +1,24 @@
-commit 832c70e33d8265116f0abce436215b8e9ee4bb08
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Thu May 6 23:15:37 2021 +0800
+commit 5cc43c51c9929ce089ce2fc17a0f5631d21cd27d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 28 18:49:10 2020 -0700
 
-    internal/poll: cast off the last reference of SplicePipe in test
+    cmd/compile: early devirtualization of interface method calls
     
-    Updates #45059
+    After inlining, add a pass that looks for interface calls where we can
+    statically determine the interface value's concrete type. If such a
+    case is found, insert an explicit type assertion to the concrete type
+    so that escape analysis can see it.
     
-    Change-Id: I9f377abcc7b77136ae6cf4896b968f73c758b559
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317510
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #33160.
+    
+    Change-Id: I36932c691693f0069e34384086d63133e249b06b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264837
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/poll/splice_linux_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/inl.go  | 53 +++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go |  7 +++++
+ test/escape_iface.go                | 19 ++++++-------
+ 3 files changed, 68 insertions(+), 11 deletions(-)

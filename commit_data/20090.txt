@@ -1,14 +1,13 @@
-commit 98bebcc90a4e50e3fd458585744829f2065f2b09
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Aug 24 11:47:06 2014 +0400
+commit 6edd1c6d1a0443086734221887b3b0a38b182281
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 14 15:29:05 2014 -0400
 
-    runtime: convert parfor to Go
+    [dev.power64] syscall: fix power64 page size
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews, khr
-    https://golang.org/cl/132100043
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/128260043
 
- src/pkg/runtime/export_test.go | 54 +++++++++++++++++++++++++++++++++++-------
- src/pkg/runtime/parfor.c       | 45 ++++++++++++++++++++++++++++++++---
- 2 files changed, 87 insertions(+), 12 deletions(-)
+ src/pkg/syscall/syscall_linux_power64x.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

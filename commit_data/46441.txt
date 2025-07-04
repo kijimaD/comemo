@@ -1,20 +1,37 @@
-commit cb4e1de0213c836983d1b441386c53e1a66e1b0a
-Author: Robert Findley <rfindley@google.com>
-Date:   Sat Sep 11 23:06:41 2021 -0400
+commit 499851bac88dfa2a85c39a2123f092071098cada
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 29 15:36:48 2020 -0800
 
-    go/types: minor cleanup of instantiation
+    [dev.regabi] cmd/compile: generalize ir/mknode.go
     
-    This CL addresses a couple TODOs related to instantiation:
-     - factor out resolving the best environment
-     - don't eagerly resolve substituted instances
+    This CL generalizes ir/mknode.go to get rid of most of almost all of
+    its special cases for node field types. The only remaining speciale
+    case now is Field, which doesn't implement Node any more, but perhaps
+    should.
     
-    Change-Id: I4a5de7ea7939b6f272991071f591d622dec04b53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349429
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    To help with removing special cases, node fields can now be tagged
+    with `mknode:"-"` so that mknode ignores them when generating its
+    helper methods. Further, to simplify skipping all of the orig fields,
+    a new origNode helper type is added which declares an orig field
+    marked as `mknode:"-"` and also provides the Orig and SetOrig methods
+    needed to implement the OrigNode interface.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ic68d4f0a9d2ef6e57e9fe87cdc641e5c4859830b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280674
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/go/types/named.go | 38 ++++++++++++++++++++++----------------
- src/go/types/subst.go | 31 +++++++------------------------
- 2 files changed, 29 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/ir/copy.go     |    8 +
+ src/cmd/compile/internal/ir/expr.go     |   57 +-
+ src/cmd/compile/internal/ir/func.go     |    4 +
+ src/cmd/compile/internal/ir/mknode.go   |  256 +++---
+ src/cmd/compile/internal/ir/name.go     |    4 +
+ src/cmd/compile/internal/ir/node_gen.go | 1329 ++++++++++++++++++++-----------
+ src/cmd/compile/internal/ir/stmt.go     |    7 +-
+ src/cmd/compile/internal/ir/type.go     |   62 +-
+ src/cmd/compile/internal/ir/visit.go    |   22 +-
+ 9 files changed, 1057 insertions(+), 692 deletions(-)

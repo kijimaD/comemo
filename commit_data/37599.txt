@@ -1,25 +1,14 @@
-commit aa2415807781ba84bf917c62cb983dc1a44f2ad1
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Mon Aug 6 18:38:18 2018 -0400
+commit d02169d380a762863147d57b7665cb31de0a4ee7
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 10 10:28:44 2018 -0400
 
-    crypto/x509: fix root CA extraction on macOS (no-cgo path)
+    runtime: use gList for work.sweepWaiters
     
-    Certificates without any trust settings might still be in the keychain
-    (for example if they used to have some, or if they are intermediates for
-    offline verification), but they are not to be trusted. The only ones we
-    can trust unconditionally are the ones in the system roots store.
-    
-    Moreover, the verify-cert invocation was not specifying the ssl policy,
-    defaulting instead to the basic one. We have no way of communicating
-    different usages in a CertPool, so stick to the WebPKI use-case as the
-    primary one for crypto/x509.
-    
-    Updates #24652
-    
-    Change-Id: Ife8b3d2f4026daa1223aa81fac44aeeb4f96528a
-    Reviewed-on: https://go-review.googlesource.com/c/128116
-    Reviewed-by: Adam Langley <agl@google.com>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Ibae474a5c9a3528a042ddf19ddb4a88913a87606
+    Reviewed-on: https://go-review.googlesource.com/129399
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/crypto/x509/root_darwin.go | 113 +++++++++++++++++++++++++----------------
- 1 file changed, 69 insertions(+), 44 deletions(-)
+ src/runtime/mgc.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

@@ -1,20 +1,18 @@
-commit ee2e8ecb19d986c42941af96ad8647cb0bf81996
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 12 16:40:52 2018 -0400
+commit c15984c6c67205a19382ba350680dcfb0090325a
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Mar 1 12:30:19 2018 -0600
 
-    cmd/go: fix go list usage line
+    math: remove unused variable
     
-    CL 108156 added -cgo and -export,
-    but in the usage line it added -cgo and -list.
-    CL 117015 correctly added -export to the usage line.
-    All that remains is to remove -list.
+    useSSE41 was used inside asm implementation of floor to select between base and ss4 code path.
+    We intrinsified floor and left asm functions as a backup for non-sse4 systems.
+    This made variable unused, so remove it.
     
-    Change-Id: I8cc5cfc78bc6b52080ae1b861f92620a8f18b53f
-    Reviewed-on: https://go-review.googlesource.com/118375
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia2633de7c7cb1ef1d5b15a2366b523e481b722d9
+    Reviewed-on: https://go-review.googlesource.com/97935
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/alldocs.go            | 2 +-
- src/cmd/go/internal/list/list.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/math/floor_asm.go | 11 -----------
+ 1 file changed, 11 deletions(-)

@@ -1,55 +1,14 @@
-commit a228e733b9908c3839cbca9c3545de0a3f1aba47
-Author: Jeremiah Harmsen <jeremiah@google.com>
-Date:   Mon May 6 10:15:16 2013 -0700
+commit 1294f14f1fb632a963df2af39a97b496e49fe9a8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 6 09:59:33 2013 -0700
 
-    go/doc/example: Fix bug causing false negatives for Example playability.
+    image/png: fix error message to not return width twice
     
-    Allows Examples with KeyValue expressions to be playable in godoc.
+    Fixes #5413
     
-    During the traversal of the abstract syntax tree any KeyValueExpr Key.Name was incorrectly being added as an unresolved identifier.
-    Since this identifier could not be provided the Example was marked as unplayable.
-    This updates the AST traversal to skip Keys (but continue traversing the Values).
-    
-    Example of problematic AST now fixed (see L99 where "UpperBound" was being added as a missing identifier):
-    
-     81  .  .  .  .  .  .  .  .  .  Values: []ast.Expr (len = 1) {
-     82  .  .  .  .  .  .  .  .  .  .  0: *ast.UnaryExpr {
-     83  .  .  .  .  .  .  .  .  .  .  .  OpPos: 12:19
-     84  .  .  .  .  .  .  .  .  .  .  .  Op: &
-     85  .  .  .  .  .  .  .  .  .  .  .  X: *ast.CompositeLit {
-     86  .  .  .  .  .  .  .  .  .  .  .  .  Type: *ast.SelectorExpr {
-     87  .  .  .  .  .  .  .  .  .  .  .  .  .  X: *ast.Ident {
-     88  .  .  .  .  .  .  .  .  .  .  .  .  .  .  NamePos: 12:20
-     89  .  .  .  .  .  .  .  .  .  .  .  .  .  .  Name: "t_proto"
-     90  .  .  .  .  .  .  .  .  .  .  .  .  .  }
-     91  .  .  .  .  .  .  .  .  .  .  .  .  .  Sel: *ast.Ident {
-     92  .  .  .  .  .  .  .  .  .  .  .  .  .  .  NamePos: 12:41
-     93  .  .  .  .  .  .  .  .  .  .  .  .  .  .  Name: "BConfig"
-     94  .  .  .  .  .  .  .  .  .  .  .  .  .  }
-     95  .  .  .  .  .  .  .  .  .  .  .  .  }
-     96  .  .  .  .  .  .  .  .  .  .  .  .  Lbrace: 12:79
-     97  .  .  .  .  .  .  .  .  .  .  .  .  Elts: []ast.Expr (len = 2) {
-     98  .  .  .  .  .  .  .  .  .  .  .  .  .  0: *ast.KeyValueExpr {
-     99  .  .  .  .  .  .  .  .  .  .  .  .  .  .  Key: *ast.Ident {
-    100  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  NamePos: 13:3
-    101  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  Name: "UpperBound"
-    102  .  .  .  .  .  .  .  .  .  .  .  .  .  .  }
-    103  .  .  .  .  .  .  .  .  .  .  .  .  .  .  Colon: 13:13
-    104  .  .  .  .  .  .  .  .  .  .  .  .  .  .  Value: *ast.CallExpr {
-    105  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  Fun: *ast.SelectorExpr {
-    106  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  X: *ast.Ident {
-    107  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  NamePos: 13:15
-    108  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  Name: "proto"
-    109  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  }
-    110  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  Sel: *ast.Ident {
-    111  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  NamePos: 13:21
-    112  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  Name: "Float32"
-    113  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  }
-    
-    R=adg
-    CC=gobot, golang-dev, gri
-    https://golang.org/cl/8569045
+    R=golang-dev, dave, adg
+    CC=golang-dev
+    https://golang.org/cl/9153045
 
- src/pkg/go/doc/example.go      |  7 ++++
- src/pkg/go/doc/example_test.go | 80 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 87 insertions(+)
+ src/pkg/image/png/writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,40 +1,26 @@
-commit afd2d2b6df3ebfe99faf347030f15adfdf422fa0
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 21 22:53:47 2015 +0900
+commit d5ef69814204f1bf8bee75bc89efcbcb33a64606
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Jan 11 11:29:00 2015 +0100
 
-    net: add Source field to OpError
+    time: unify formatting of decimals for timestamps
     
-    Not only by network, transport-layer intermediaries but by
-    virtualization stuff in a node, it is hard to identify the root cause of
-    weird faults without information of packet flows after disaster
-    happened.
+    Change function appendUint to appendInt with variable-width 0-padding.
     
-    This change adds Source field to OpError to be able to represent a
-    5-tuple of internet transport protocols for helping dealing with
-    complicated systems.
+    This allows the decimal for the year to be generated without extra code
+    to handle the wider padding and directly handles negative numbers.
     
-    Also clarifies the usage of Source and Addr fields.
+    Removes the special casing for numbers with one and two digits.
+    The special case for 0 was unreachable.
     
-    Updates #4856.
+    The new version is slightly slower.
     
-    Change-Id: I96a523fe391ed14406bfb21604c461d4aac2fa19
-    Reviewed-on: https://go-review.googlesource.com/9231
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    benchmark              old ns/op     new ns/op     delta
+    BenchmarkFormat        444           454           +2.25%
+    BenchmarkFormatNow     398           415           +4.27%
+    
+    Change-Id: I4ddef96bf07ad35dca76053321d510441ec6d4f5
+    Reviewed-on: https://go-review.googlesource.com/2751
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/dial.go            | 14 ++++++------
- src/net/dial_gen.go        |  4 ++--
- src/net/error_test.go      | 35 ++++++-----------------------
- src/net/file.go            |  6 ++---
- src/net/interface.go       | 24 ++++++++++----------
- src/net/iprawsock_plan9.go | 16 +++++++-------
- src/net/iprawsock_posix.go | 36 +++++++++++++++---------------
- src/net/ipsock_plan9.go    | 40 ++++++++++++++++-----------------
- src/net/net.go             | 55 ++++++++++++++++++++++++----------------------
- src/net/pipe.go            |  6 ++---
- src/net/tcpsock_plan9.go   | 28 +++++++++++------------
- src/net/tcpsock_posix.go   | 34 ++++++++++++++--------------
- src/net/udpsock_plan9.go   | 26 +++++++++++-----------
- src/net/udpsock_posix.go   | 42 +++++++++++++++++------------------
- src/net/unixsock_plan9.go  | 36 ++++++++++++++++--------------
- src/net/unixsock_posix.go  | 50 ++++++++++++++++++++---------------------
- 16 files changed, 218 insertions(+), 234 deletions(-)
+ src/time/format.go | 111 ++++++++++++++++++++++-------------------------------
+ 1 file changed, 45 insertions(+), 66 deletions(-)

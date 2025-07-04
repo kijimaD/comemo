@@ -1,35 +1,17 @@
-commit 497b608faba2a9c450d03e2bca2ef005ea32b933
-Author: Kenny Grant <kennygrant@gmail.com>
-Date:   Sun Dec 18 07:24:58 2016 +0000
+commit 9dba33872a6a762e27b42a01ec50ac815916aec4
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Mon Oct 31 11:38:22 2016 -0700
 
-    go/doc: allow : in godoc links
+    doc: replace code.google.com/p/sitesearch with its new destination
     
-    The emphasize function used a complex regexp to find URLs, which
-    truncated some types of URL and did not match others.
-    This has been simplified and adjusted to allow valid punctuation
-    like :: or ! in the path part and :[] in the host part.
-    Comments were added to clarify what this regexp allows.
-    The path part matches query and fragment also so document this.
-    Removed news, telnet, wais, and prospero protocols.
+    Fixes #16910.
     
-    Tests were added for:
-     IPV6 URLs
-     URLs surrounded by brackets
-     URLs containing ::
-     URLs containing :;!- in the path
-    
-    In order to allow punctuation and yet preserve current behaviour,
-    URLs are not permitted to end in .,:;?! to allow the use of
-    normal punctuation surrounding URLs in comments.
-    
-    Fixes #18139
-    
-    Change-Id: I38b2d7a85fe0d171e4bf4aac420f8c2d3ced8a2f
-    Reviewed-on: https://go-review.googlesource.com/37192
+    Change-Id: I0e97e88bee0361cd3621cacd1d4b84e6e42af718
+    Reviewed-on: https://go-review.googlesource.com/32424
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/doc/comment.go      | 19 +++++++++++++------
- src/go/doc/comment_test.go |  6 ++++++
- 2 files changed, 19 insertions(+), 6 deletions(-)
+ doc/articles/go_command.html | 46 ++++++++++++++++++++++----------------------
+ src/cmd/go/get.go            |  2 +-
+ 2 files changed, 24 insertions(+), 24 deletions(-)

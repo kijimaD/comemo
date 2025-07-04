@@ -1,21 +1,25 @@
-commit 49dd7726a9e2e4371de984871082ea0e3791cbdd
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Sep 28 16:50:03 2024 +0000
+commit 4e336b8e1ee9bde0d8b797ea0131f6859361e368
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 15 14:02:37 2023 -0700
 
-    internal/testlog: use atomic.Pointer instead of atomic.Value
+    cmd/compile/internal/escape: flip transient to !persists
     
-    We know the type (*Interface), so we can use the generic atomic.Pointer.
-    This change also makes sure that concurrent use of SetLogger also
-    causes a panic, currently it races (Load, then Store).
+    I want to add more location properties (e.g., to track indirect stores
+    and calls), and it's easier to reason about them if they're all
+    consistent that "true" means more consequences than less.
     
-    Change-Id: I6fae5ce0587b37eede2060342c3fcd0cde4386ff
-    GitHub-Last-Rev: 0c053be03e22d4afcee235a247a377d7bd4d5aea
-    GitHub-Pull-Request: golang/go#69701
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/616516
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I3f8674bb11877ba33082a0f5f7d8e55ad6d7a4cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520257
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/internal/testlog/log.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/escape/call.go   |  2 +-
+ src/cmd/compile/internal/escape/escape.go |  8 ++++----
+ src/cmd/compile/internal/escape/expr.go   |  4 ++--
+ src/cmd/compile/internal/escape/graph.go  | 16 ++++++++--------
+ src/cmd/compile/internal/escape/solve.go  | 11 +++++------
+ src/cmd/compile/internal/escape/stmt.go   |  5 +++--
+ 6 files changed, 23 insertions(+), 23 deletions(-)

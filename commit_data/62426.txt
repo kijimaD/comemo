@@ -1,0 +1,25 @@
+commit 4b1ac7bbfe3e8e4872b1a4651c527ea8be4a045f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 26 09:57:31 2025 -0800
+
+    go/types, types2: remove references to core type in append
+    
+    Writing explicit code for this case turned out to be simpler
+    and easier to reason about then relying on a helper functions
+    (except for typeset).
+    
+    While at it, make append error messages more consistent.
+    
+    For #70128.
+    
+    Change-Id: I3dc79774249929de5061b4301ab2506d4b3da0d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653095
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go        | 68 ++++++++++++++--------
+ src/go/types/builtins.go                           | 68 ++++++++++++++--------
+ .../types/testdata/fixedbugs/issue49735.go         |  9 +--
+ 3 files changed, 93 insertions(+), 52 deletions(-)

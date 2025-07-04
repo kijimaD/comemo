@@ -1,31 +1,21 @@
-commit 4bf1ca4b0ce9a08f4c45d68fe49857914f668f69
-Author: Raghvender <raghvenders@gmail.com>
-Date:   Mon Nov 20 19:43:13 2023 -0600
+commit 5e03c634b841f60125d69865abf85e3c39fd6376
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Mon Jan 23 16:52:33 2023 +0000
 
-    cmd/compile: fix error message for mismatch between the number of type params and arguments
+    math/big: validate result of Float.GobDecode
     
-    Fixes #64276
+    Fixes #57946
     
-    Change-Id: Ib6651669904e6ea0daf275d85d8bd008b8b21cc6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/544018
-    Reviewed-by: raghvender sundarjee <raghvenders@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ia499ebfd8801432122f89fdf6bda4d1e7b6dd832
+    GitHub-Last-Rev: 29e099388680bc5b7075e0fa63499b39697579ca
+    GitHub-Pull-Request: golang/go#57951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463017
     Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/instantiate.go     | 35 ++++++++++++++--------
- src/cmd/compile/internal/types2/typexpr.go         |  2 +-
- src/go/types/instantiate.go                        | 35 ++++++++++++++--------
- src/go/types/typexpr.go                            |  2 +-
- src/internal/types/testdata/check/typeinference.go | 34 +++++++++++++--------
- src/internal/types/testdata/check/typeinst0.go     |  2 +-
- .../types/testdata/fixedbugs/issue49541.go         |  4 +--
- .../types/testdata/fixedbugs/issue50929.go         | 12 ++++----
- .../types/testdata/fixedbugs/issue51232.go         | 10 +++----
- .../types/testdata/fixedbugs/issue51233.go         |  8 ++---
- .../types/testdata/fixedbugs/issue51339.go         |  8 +++--
- test/typeparam/issue51232.go                       | 10 +++----
- test/typeparam/issue51233.go                       |  8 ++---
- 13 files changed, 100 insertions(+), 70 deletions(-)
+ src/math/big/float.go           | 15 +++++++++++----
+ src/math/big/floatmarsh.go      |  4 ++++
+ src/math/big/floatmarsh_test.go | 22 ++++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 4 deletions(-)

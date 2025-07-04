@@ -1,28 +1,15 @@
-commit db4cda2ec0955854c8ff556ac19ec5e67d48d090
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Mon Aug 17 12:25:49 2020 -0700
+commit 5a8b1509ddf6ed8da410d274d62fe096cadbca0c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 12 17:50:21 2020 -0500
 
-    testing/iotest: correct ErrReader signature and remove exported error
+    [dev.link] cmd/link: clean up unused function and arguments
     
-    Corrects ErrReader's signature to what was accepted in the approved
-    proposal, and also removes an exported ErrIO which wasn't part of
-    the proposal and is unnecessary.
-    
-    The new signature allows users to customize their own errors.
-    
-    While here, started examples, with ErrReader leading the way.
-    
-    Updates #38781
-    
-    Change-Id: Ia7f84721f11061343cfef8b1adc2b7b69bc3f43c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248898
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idacb027c5ae11e029ee4ab10f6c9a76ff435e5b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219228
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/testing/iotest/example_test.go | 22 ++++++++++++++++++++++
- src/testing/iotest/logger_test.go  |  4 ++--
- src/testing/iotest/reader.go       | 17 ++++++++---------
- src/testing/iotest/reader_test.go  | 27 +++++++++++++++++++++------
- 4 files changed, 53 insertions(+), 17 deletions(-)
+ src/cmd/link/internal/ld/lib.go        |  4 ++--
+ src/cmd/link/internal/loader/loader.go | 16 ++++------------
+ 2 files changed, 6 insertions(+), 14 deletions(-)

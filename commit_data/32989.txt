@@ -1,17 +1,19 @@
-commit e33b01651cccce4293eb7a2ae7b40774e1dbeec9
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Fri Oct 6 19:07:29 2017 +0300
+commit 1ed79b87f5310bd0118bf3163861c5376b3be0ba
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 8 17:18:20 2017 +0900
 
-    cmd/asm: fix build error caused by yextractps
+    net: update documentation on Dial{TCP,UDP,IP,Unix}
     
-    Fix ytab table for EXTRACTPS.
-    Related to https://go-review.googlesource.com/#/c/go/+/63490/.
+    This change clarifies the documentation on Dial{TCP,UDP,IP,Unix} to
+    avoid unnecessary confusion about how the arguments for the connection
+    setup functions are used to make connections.
     
-    Change-Id: I11672d6bb731a204a08905f8321450f02c5bed76
-    Reviewed-on: https://go-review.googlesource.com/68950
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e378182948fbe221f6ae786ab55e77ae90c3f3b
+    Reviewed-on: https://go-review.googlesource.com/34877
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/iprawsock.go | 16 ++++++++++------
+ src/net/tcpsock.go   | 22 +++++++++++++---------
+ src/net/udpsock.go   | 22 +++++++++++++---------
+ src/net/unixsock.go  | 19 +++++++++++--------
+ 4 files changed, 47 insertions(+), 32 deletions(-)

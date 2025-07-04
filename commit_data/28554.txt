@@ -1,20 +1,14 @@
-commit 17a8ec2c4f702039652a4bc9630d233b454cfae8
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Sep 26 00:45:01 2016 -0400
+commit 04888c9770560e99de63fafdfc2ce39b47844bfd
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Jun 2 14:34:37 2016 +0200
 
-    cmd/asm, cmd/internal/obj/s390x: improve add/multiply-immediate codegen
+    doc/go1.7: fix typo in nsswitch.conf name
     
-    Use the A{,G}HI instructions where possible (4 bytes instead of 6 bytes
-    for A{,G}FI). Also, use 32-bit operations where appropriate for
-    multiplication.
+    Fixes #15939
     
-    Change-Id: I4041781cda26be52b54e4804a9e71552310762d0
-    Reviewed-on: https://go-review.googlesource.com/29733
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I120cbeac73a052fb3f328774e6d5e1534f11bf6b
+    Reviewed-on: https://go-review.googlesource.com/23682
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/s390x.s | 20 ++++----
- src/cmd/internal/obj/s390x/asmz.go        | 80 +++++++++++++++++--------------
- 2 files changed, 55 insertions(+), 45 deletions(-)
+ doc/go1.7.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

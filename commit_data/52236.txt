@@ -1,33 +1,52 @@
-commit f52bede354102a5e16e19381b93d4a469d1286d4
-Author: Austin Clements <austin@google.com>
-Date:   Sun Feb 5 15:54:33 2023 -0500
+commit e858c14f916d424b33ad7e2450895b3117a5f727
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Mon Apr 18 17:46:43 2022 +0000
 
-    runtime: create an API for unwinding inlined frames
+    cmd/compile: more negation related generic SSA rewrite rules
     
-    We've replicated the code to expand inlined frames in many places in
-    the runtime at this point. This CL adds a simple iterator API that
-    abstracts this out.
+    The x + (-y) => x - y rule is hitted 75 times while building stage 3 and tools
+    and make the linux-amd64 go binary 0.007% smaller.
+    It transform:
+      NEG AX
+      ADD BX, AX
+    Into:
+      SUB BX, AX
+    Which is 2X faster (assuming this assembly in a vacum).
     
-    We also use this to try out a new idea for structuring tests of
-    runtime internals: rather than exporting this whole internal data type
-    and API, we write the test in package runtime and import the few bits
-    of std we need. The idea is that, for tests of internals, it's easier
-    to inject public APIs from std than it is to export non-public APIs
-    from runtime. This is discussed more in #55108.
+    The x ^ (-1) => ^x rule is not hitted in the toolchain.
+    It transforms:
+      XOR $-1, AX
+    Into:
+      NOT AX
+    Which is more compact as it doesn't encode the immediate.
+    Cache usage aside, this does not affect performance
+    (assuming this assembly in a vacum).
+    On my ryzen 3600, with some surrouding code, this randomly might be 2X faster,
+    I guess this has to do with loading the immediate into a temporary register.
+    Combined to an other rule that already exists it also rewrite manual two's
+    complement negation from:
+      XOR $-1, AX
+      INC AX
+    Into:
+      NEG AX
+    Which is 2X faster.
     
-    For #54466.
+    The other rules just eliminates similar trivial cases and help constants
+    folding.
     
-    Change-Id: Iebccc04ff59a1509694a8ac0e0d3984e49121339
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466096
+    This should generalise to other architectures.
+    
+    Change-Id: Ia1e51b340622e7ed88e5d856f3b1aa424aa039de
+    GitHub-Last-Rev: ce35ff2efdd8911f1e812806ec41a41e8cabc4c7
+    GitHub-Pull-Request: golang/go#52395
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400714
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/import_test.go    |  41 ++++++++++++++
- src/runtime/importx_test.go   |  33 ++++++++++++
- src/runtime/runtime2.go       |   2 +
- src/runtime/string.go         |   4 ++
- src/runtime/symtab.go         |  33 ++++++++----
- src/runtime/symtabinl.go      | 114 +++++++++++++++++++++++++++++++++++++++
- src/runtime/symtabinl_test.go | 122 ++++++++++++++++++++++++++++++++++++++++++
- 7 files changed, 340 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  14 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 500 +++++++++++++++++++++++++
+ 2 files changed, 512 insertions(+), 2 deletions(-)

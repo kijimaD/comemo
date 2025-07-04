@@ -1,13 +1,16 @@
-commit e522a477c298dac1e26e8bbd6ac262911d7ed8f9
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Nov 11 16:06:47 2014 +1100
+commit a08783f078cb9069a0d439cb5e3f2a394be86ab3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Oct 23 08:58:10 2014 +1100
 
-    doc: update go1.4.html's minor library changes.
+    [dev.power64] runtime: fix SigaltstackT definition for power64le
     
-    LGTM=r
-    R=r
+    Also updated defs3_linux.go but had to manually edit defs_linux_power64le.h. Will regenerate the file when cgo is working natively on ppc64.
+    
+    LGTM=austin
+    R=rsc, austin
     CC=golang-codereviews
-    https://golang.org/cl/173920043
+    https://golang.org/cl/158360043
 
- doc/go1.4.html | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 55 insertions(+)
+ src/runtime/defs3_linux.go         | 2 +-
+ src/runtime/defs_linux_power64le.h | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

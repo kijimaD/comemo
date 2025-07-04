@@ -1,22 +1,19 @@
-commit be0b569caa0eab1a7f30edf64e550bbf5f6ff235
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Mon May 13 12:23:58 2024 -0700
+commit 51fe7062d3bdcf3c1fc6de5b8ef8aa689a1d2b73
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 12 15:09:03 2023 -0400
 
-    runtime: prepare for extensions to waiting M list
+    doc/go1.21: document reflect.Value escape improvements
     
-    Move the nextwaitm field into a small struct, in preparation for
-    additional metadata to track how long Ms need to wait for locks.
+    With CL 408826, CL 413474, etc. reflect.ValueOf no longer
+    unconditionally escapes its argument, allowing a Value's content
+    to be allocated on the stack.
     
-    For #66999
-    
-    Change-Id: Ib40e43c15cde22f7e35922641107973d99439ecd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585635
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I3a0af85c11e2fd0df42b056095565f0ce5548886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494657
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/lock_sema.go | 10 +++++-----
- src/runtime/mprof.go     | 11 +++++++++++
- src/runtime/runtime2.go  |  2 +-
- 3 files changed, 17 insertions(+), 6 deletions(-)
+ doc/go1.21.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

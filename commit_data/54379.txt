@@ -1,24 +1,19 @@
-commit 2fe2f0854293e601bac60bb5d3aa6e276fadf084
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Fri Sep 8 11:17:59 2023 +0300
+commit 69fc74f3eefc3d08b9233992e47d660bf3d449a1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Aug 13 16:20:48 2022 +0000
 
-    cmd/cgo: silence unaligned-access
+    runtime: factor out mheap span initialization
     
-    Clang 14+ introduced a warning when using mixed packed and unpacked structs.
-    This can cause problems when taking an address of the unpacked struct, which
-    may end up having a different alignment than expected.
+    This change refactors span heap initialization. This change should just
+    be a no-op and just prepares for adding support for arenas.
     
-    This is not a problem in cgo, which does not take pointers from the packed
-    struct.
+    For #51317.
     
-    Fixes #62480
-    
-    Change-Id: If5879eea5e1b77bc6dc7430f68f8c916bff9b090
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526915
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie6f877ca10f86d26e7b6c4857b223589a351e253
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423364
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/cgo/out.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/runtime/mheap.go | 112 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 60 insertions(+), 52 deletions(-)

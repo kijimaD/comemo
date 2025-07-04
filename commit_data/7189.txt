@@ -1,12 +1,13 @@
-commit b15c851db2538cc57fa4cf46334ff2ee666525d8
+commit 34c1b13c2a0d8d66db353b7b62e9379c2a887a2e
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 20 00:07:57 2011 -0500
+Date:   Thu Jan 20 00:02:59 2011 -0500
 
-    tag release.2011-01-20
+    release.2011-01-20
     
-    R=adg
+    R=r, adg
     CC=golang-dev
-    https://golang.org/cl/4047044
+    https://golang.org/cl/3998045
 
- .hgtags | 2 ++
- 1 file changed, 2 insertions(+)
+ .hgtags                |  1 -
+ doc/devel/release.html | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

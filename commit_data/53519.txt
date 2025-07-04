@@ -1,28 +1,18 @@
-commit 82dc37c0d05c33c00b585664cba1c647bf8ac99e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Jun 8 16:20:17 2023 -0400
+commit f324355d1f482362b87ec4f95ceac00d4b4de797
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 19 18:35:42 2022 +0700
 
-    cmd/go: don't assume ImportStack always set on PackageError
+    runtime: remove pageAlloc.scav padding for atomic field alignment
     
-    When determining DepsErrors for packages, we were trying to sort
-    errors by the top package on their ImportStack (which would likely be
-    the package the error was generated for) to get a deterministic
-    error order.
+    CL 404096 makes atomic.Int64 8 bytes aligned everywhere.
     
-    The problem is that some PackageErrors don't have ImportStacks set on
-    them. Fall back to sorting the errors by the error text (instead of
-    making things more complicated by tracking the packages that produced
-    the errors more closely).
-    
-    Fixes #59905
-    
-    Change-Id: Id305e1e70801f8909fd6463383b8eda193559787
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501978
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I5a676f646260d6391bb071f9376cbdb1553e6e6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424925
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/list/list.go                |  9 ++++
- src/cmd/go/testdata/script/list_issue_59905.txt | 66 +++++++++++++++++++++++++
- 2 files changed, 75 insertions(+)
+ src/runtime/mpagealloc.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,12 +1,15 @@
-commit a5a94f5d57842e0914767cbe78fd821bfd291c9f
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 19 11:47:15 2011 +1000
+commit 7a18fc3bcb75bb92dc382dac5c6e9105ab861e5f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 19 11:12:10 2011 +1000
 
-    gif: fix local color map and coordinates
+    dashboard: list "most installed this week" with rolling count
     
-    R=nigeltao
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4759051
+    https://golang.org/cl/4631085
 
- src/pkg/image/gif/reader.go | 33 +++++++++++++++++++--------------
- 1 file changed, 19 insertions(+), 14 deletions(-)
+ misc/dashboard/godashboard/app.yaml     |   6 +-
+ misc/dashboard/godashboard/cron.yaml    |   4 ++
+ misc/dashboard/godashboard/package.html |  20 +++++-
+ misc/dashboard/godashboard/package.py   | 109 ++++++++++++++++++++++++++------
+ 4 files changed, 115 insertions(+), 24 deletions(-)

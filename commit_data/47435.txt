@@ -1,22 +1,16 @@
-commit b1b6d928bd4fb368f8ada0a554fc85405e7a3688
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Nov 12 13:27:07 2021 +0700
+commit 732ea4c2dcc1bcbcff65c31047ebb54364e7865d
+Author: Rabin Gaire <rabingaire20@gmail.com>
+Date:   Sun Dec 6 23:17:20 2020 +0545
 
-    cmd/compile: fix missing transformEarlyCall for OXDOT in subster.node
+    sort: add example tests for SearchFloat64s and SearchInts
     
-    Like OFUNCINST, in case of OXDOT call expression, the arguments need
-    to be transformed earlier, so any needed CONVIFACE nodes are exposed.
-    
-    Fixes #49538
-    
-    Change-Id: I275ddf6f53a9cadc8708e805941cdf7bdffabba9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363554
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I5fa4773467e3f515250deead72fdce3e4bd0973b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275457
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go | 12 ++++++++----
- test/typeparam/issue49538.go              | 23 +++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 4 deletions(-)
+ src/sort/example_search_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

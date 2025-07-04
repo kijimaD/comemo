@@ -1,12 +1,13 @@
-commit c26b504b0d6a678be85f71cb02a7ca32e2a6979a
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Mon Mar 26 09:52:29 2012 +0800
+commit 7b8f8bf5b55fb4fb2b74472c51366bde6ccff561
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 25 11:35:16 2012 +1100
 
-    cmd/go: add missing error check
+    doc/reference-cmd: use vet as example, not fmt
+    "go tool fmt" doesn't work, "go tool vet" does.
     
-    R=golang-dev, minux.ma, bradfitz
+    R=golang-dev, rogpeppe, r, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5874055
+    https://golang.org/cl/5900049
 
- src/cmd/go/get.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/reference-cmd.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

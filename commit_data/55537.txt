@@ -1,20 +1,39 @@
-commit 1ffc1104699603631305aba9cc380217693b9e45
-Author: Nasfame <laciferin@gmail.com>
-Date:   Tue Feb 6 18:51:22 2024 +0000
+commit d3daeb5267b626db36adf2f39c36f6caf94447e3
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 25 17:58:07 2022 -0700
 
-    doc/next: add release note for sync/Map.Clear
+    runtime: remove the restriction that write barrier ptrs come in pairs
     
-    Fix https://go-review.git.corp.google.com/c/go/+/561456
+    Future CLs will remove the invariant that pointers are always put in
+    the write barrier in pairs.
     
-    For #61696
+    The behavior of the assembly code changes a bit, where instead of writing
+    the pointers unconditionally and then checking for overflow, check for
+    overflow first and then write the pointers.
     
-    Change-Id: I573bd14cf0e5c41adcc8c2b9481e85c5792c2a82
-    GitHub-Last-Rev: c6fce6d25f8c071c92926ec3341855ad2303b876
-    GitHub-Pull-Request: golang/go#65534
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/561755
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Also changed the write barrier flush function to not take the src/dst
+    as arguments.
+    
+    Change-Id: I2ef708038367b7b82ea67cbaf505a1d5904c775c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447779
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
 
- doc/next/6-stdlib/99-minor/sync/61696.md | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/test/inl_test.go |  2 +
+ src/runtime/asm_386.s                     | 16 +++----
+ src/runtime/asm_amd64.s                   | 17 ++++----
+ src/runtime/asm_arm.s                     | 19 ++++----
+ src/runtime/asm_arm64.s                   | 20 ++++-----
+ src/runtime/asm_loong64.s                 | 18 ++++----
+ src/runtime/asm_mips64x.s                 | 18 ++++----
+ src/runtime/asm_mipsx.s                   | 18 ++++----
+ src/runtime/asm_ppc64x.s                  | 20 ++++-----
+ src/runtime/asm_riscv64.s                 | 27 ++++++------
+ src/runtime/asm_s390x.s                   | 14 +++---
+ src/runtime/asm_wasm.s                    | 72 +++++++++++++++++++------------
+ src/runtime/atomic_pointer.go             |  6 +--
+ src/runtime/mbitmap.go                    | 33 +++++++-------
+ src/runtime/mwbbuf.go                     | 69 ++++++++++++++---------------
+ 15 files changed, 189 insertions(+), 180 deletions(-)

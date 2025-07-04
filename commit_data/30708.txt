@@ -1,58 +1,28 @@
-commit 193510f2f6a0d01bb03595ba12dd2b05109980e3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 17 10:50:20 2017 -0700
+commit 6f287fa2bb5b0b74506ecc586d036dcd11a761e2
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 28 18:03:16 2016 -0500
 
-    cmd/compile: evaluate config as needed in rewrite rules
+    runtime: fall back to /proc/self/auxv in Android libs
     
-    Prior to this CL, config was an explicit argument
-    to the SSA rewrite rules, and rules that needed
-    a Frontend got at it via config.
-    An upcoming CL moves Frontend from Config to Func,
-    so rules can no longer reach Frontend via Config.
-    Passing a Frontend as an argument to the rewrite rules
-    causes a 2-3% regression in compile times.
-    This CL takes a different approach:
-    It treats the variable names "config" and "fe"
-    as special and calculates them as needed.
-    The "as needed part" is also important to performance:
-    If they are calculated eagerly, the nilchecks themselves
-    cause a regression.
+    Android's libc doesn't provide access to auxv, so currently the Go
+    runtime synthesizes a fake, minimal auxv when loaded as a library on
+    Android. This used to be sufficient, but now we depend on auxv to
+    retrieve the system physical page size and panic if we can't retrieve
+    it.
     
-    This introduces a little bit of magic into the rewrite
-    generator. However, from the perspective of the rules,
-    the config variable was already more or less magic.
-    And it makes the upcoming changes much clearer.
+    Fix this by falling back to reading auxv from /proc/self/auxv if the
+    loader-provided auxv is empty and removing the synthetic auxv vectors.
     
-    Passes toolstash -cmp.
+    Fixes #18041.
     
-    Change-Id: I173f2bcc124cba43d53138bfa3775e21316a9107
-    Reviewed-on: https://go-review.googlesource.com/38326
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia2ec2c764a6609331494a5d359032c56cbb83482
+    Reviewed-on: https://go-review.googlesource.com/33652
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/ssa/config.go         |   51 +-
- src/cmd/compile/internal/ssa/gen/386.rules     |    4 +-
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   20 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules     |   38 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |   12 +-
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |   88 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  124 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |   98 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules   |    2 +-
- src/cmd/compile/internal/ssa/gen/dec.rules     |   66 +-
- src/cmd/compile/internal/ssa/gen/dec64.rules   |  314 +--
- src/cmd/compile/internal/ssa/gen/generic.rules |  342 +--
- src/cmd/compile/internal/ssa/gen/rulegen.go    |   62 +-
- src/cmd/compile/internal/ssa/rewrite.go        |    7 +-
- src/cmd/compile/internal/ssa/rewrite386.go     | 1644 ++++++--------
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 2430 +++++++++-----------
- src/cmd/compile/internal/ssa/rewriteARM.go     | 2382 ++++++++++----------
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 2568 +++++++++++----------
- src/cmd/compile/internal/ssa/rewriteMIPS.go    | 2288 ++++++++++---------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 2844 +++++++++++++-----------
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 2486 +++++++++++----------
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 2826 +++++++++++------------
- src/cmd/compile/internal/ssa/rewritedec.go     |  162 +-
- src/cmd/compile/internal/ssa/rewritedec64.go   | 1202 +++++-----
- src/cmd/compile/internal/ssa/rewritegeneric.go | 1782 ++++++++-------
- 25 files changed, 11847 insertions(+), 11995 deletions(-)
+ src/runtime/os_linux.go         | 28 +++++++++++++++++++++++++---
+ src/runtime/rt0_android_amd64.s | 15 ++++-----------
+ src/runtime/rt0_android_arm.s   | 15 ++++-----------
+ src/runtime/rt0_android_arm64.s |  7 ++++---
+ 4 files changed, 37 insertions(+), 28 deletions(-)

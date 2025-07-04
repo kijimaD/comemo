@@ -1,20 +1,44 @@
-commit 40e7f6493b95399c9e71482dba06b10ee2ead14a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri May 16 06:49:15 2014 +0900
+commit 7ad60b72831e10373e765775b213c11a46af16bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 15 16:47:53 2014 -0400
 
-    syscall: regenerate z-files for openbsd
+    syscall: fix stack frame sizes in assembly
     
-    This CL restores dropped constants not supported in OpenBSD 5.5
-    and tris to keep the promise of API compatibility.
+    for GOOS in darwin freebsd linux nacl netbsd openbsd plan9 solaris windows
+    do
+            for GOARCH in 386 amd64 amd64p32 arm
+            do
+                    go vet
+            done
+    done
     
-    Update #7049
+    These are all real mistakes being corrected, but none
+    of them should be able to cause problems today
+    due to the NOSPLIT on the functions.
     
-    LGTM=jsing, bradfitz, rsc
-    R=rsc, jsing, robert.hencke, minux.ma, bradfitz, iant
+    However, vet has also identified a few important problems.
+    I'm sending this CL to get rid of the trivial 'go vet' results
+    before attacking the real ones.
+    
+    LGTM=r
+    R=golang-codereviews, r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/96970043
+    https://golang.org/cl/95460046
 
- src/pkg/syscall/mkerrors.sh              | 13 +++++++++++++
- src/pkg/syscall/zerrors_openbsd_386.go   |  9 +++++++++
- src/pkg/syscall/zerrors_openbsd_amd64.go |  9 +++++++++
- 3 files changed, 31 insertions(+)
+ src/pkg/syscall/asm_darwin_386.s     | 13 ++++++++-----
+ src/pkg/syscall/asm_darwin_amd64.s   | 11 +++++++----
+ src/pkg/syscall/asm_freebsd_386.s    | 13 ++++++++-----
+ src/pkg/syscall/asm_freebsd_amd64.s  | 13 ++++++++-----
+ src/pkg/syscall/asm_linux_386.s      | 15 +++++++++------
+ src/pkg/syscall/asm_linux_amd64.s    | 11 +++++++----
+ src/pkg/syscall/asm_nacl_386.s       |  6 +++---
+ src/pkg/syscall/asm_nacl_amd64p32.s  |  6 +++---
+ src/pkg/syscall/asm_netbsd_386.s     | 13 ++++++++-----
+ src/pkg/syscall/asm_netbsd_amd64.s   | 13 ++++++++-----
+ src/pkg/syscall/asm_openbsd_386.s    | 13 ++++++++-----
+ src/pkg/syscall/asm_openbsd_amd64.s  | 13 ++++++++-----
+ src/pkg/syscall/asm_plan9_386.s      |  9 ++++++---
+ src/pkg/syscall/asm_plan9_amd64.s    | 11 +++++++----
+ src/pkg/syscall/syscall_linux_386.go |  3 +++
+ src/pkg/syscall/syscall_plan9.go     |  2 +-
+ 16 files changed, 102 insertions(+), 63 deletions(-)

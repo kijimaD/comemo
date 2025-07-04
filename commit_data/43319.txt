@@ -1,22 +1,19 @@
-commit af8748054b40e9a1e529e42a0f83cc2c90a35af6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 15 12:09:56 2020 -0400
+commit 89f7bd578189423e8699e64e58bfb992de9dce6d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 25 11:47:02 2020 -0400
 
-    sort: update comments
+    cmd/internal/obj/arm64: write test output to temp dir
     
-    - Describe requirements on Less more precisely.
-    - Standardize on x for the variable name of the data being sorted
-      (was variously a, p, slice).
-    - Many other minor wording changes.
+    Write the test output to the temporary directory, not the current
+    directory.
     
-    Fixes #41951.
+    May fix linux-mips64le-mengzhuo builder.
     
-    Change-Id: Ic9e222a53ec035fcc3b5ddfc7f0eefbe1bb2890d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262657
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ibfeb3d2879c11d498abc31df4efe776fc09a6ad6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225440
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/sort/slice.go |  40 ++++++++++---------
- src/sort/sort.go  | 114 ++++++++++++++++++++++++++++++------------------------
- 2 files changed, 86 insertions(+), 68 deletions(-)
+ src/cmd/internal/obj/arm64/asm_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

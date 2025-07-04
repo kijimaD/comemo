@@ -1,19 +1,34 @@
-commit f4becf15bdbcb098ec6cfb5373ad113b3d991d43
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Sep 15 23:28:49 2022 +0200
+commit f582778ee991e8a443e691f9a45c8f0600a748a0
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 6 17:01:25 2021 -0400
 
-    internal/syscall/unix: reuse existing {Fstat,Open,Unlink}at on freebsd
+    cmd/compile: emit sensible go_asm.h consts for big ints
     
-    Change-Id: I517e75faca18bf0fdcd4e6c837f50f824aa6348c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431236
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Currently, the compiler will emit any const that doesn't fit in an
+    int64 to go_asm.h like
+    
+        #define const_stackPreempt constant.intVal{val:(*big.Int)(0xc000c06c40)}
+    
+    This happens because dumpasmhdr formats the constant.Value using the
+    verb "%#v". Since constant.Value doesn't implement the GoString()
+    method, this just prints the Go-syntax representation of the value.
+    This happens to work for small integer constants, which go/constant
+    represents directly as an int64, but not for integer constants that
+    don't fit in an int64, which go/constant represents as a big.Int.
+    
+    Make these constants usable by changing the formatting verb to "%v",
+    which will call the String() method, giving a reasonable result in all
+    cases.
+    
+    Change-Id: I365eeb88c8acfc43ff377cc873432269bde3f541
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359954
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/syscall/unix/at.go                    |  2 +-
- src/internal/syscall/unix/at_freebsd.go            | 47 ----------------------
- .../syscall/unix/{at_statx.go => at_fstatat2.go}   |  6 +--
- src/internal/syscall/unix/at_sysnum_freebsd.go     | 15 +++++++
- 4 files changed, 18 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/gc/export.go |  2 +-
+ test/asmhdr.dir/main.go               | 66 +++++++++++++++++++++++++++++++++++
+ test/asmhdr.dir/main.s                | 27 ++++++++++++++
+ test/asmhdr.go                        |  9 +++++
+ 4 files changed, 103 insertions(+), 1 deletion(-)

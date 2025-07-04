@@ -1,25 +1,14 @@
-commit 394706b646c31ec129d0cdedc3b8eb09897322c0
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Jun 3 20:38:00 2013 +0200
+commit 44b7d5b41a0dd9e559ea191e79e85c310f8f0716
+Author: Robert Obryk <robryk@gmail.com>
+Date:   Mon Jun 3 07:07:31 2013 -0700
 
-    compress/bzip2: faster decoding.
+    test/stress: fix a goroutine leak in threadRing stresstest
     
-    benchmark                old ns/op    new ns/op    delta
-    BenchmarkDecodeDigits     19451173     14347829  -26.24%
-    BenchmarkDecodeTwain      57516800     42619978  -25.90%
+    Fixes #5527
     
-    benchmark                 old MB/s     new MB/s  speedup
-    BenchmarkDecodeDigits         2.22         3.01    1.36x
-    BenchmarkDecodeTwain          2.17         2.93    1.35x
-    
-    R=golang-dev, dave, bradfitz, agl
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/9915043
+    https://golang.org/cl/9955043
 
- src/pkg/compress/bzip2/bit_reader.go               |   8 +++++
- src/pkg/compress/bzip2/bzip2_test.go               |  29 +++++++++++++++++
- src/pkg/compress/bzip2/huffman.go                  |   9 ++++--
- src/pkg/compress/bzip2/move_to_front.go            |  35 +++++++++------------
- .../bzip2/testdata/Mark.Twain-Tom.Sawyer.txt.bz2   | Bin 0 -> 124744 bytes
- src/pkg/compress/bzip2/testdata/e.txt.bz2          | Bin 0 -> 43149 bytes
- 6 files changed, 57 insertions(+), 24 deletions(-)
+ test/stress/runstress.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

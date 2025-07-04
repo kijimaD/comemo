@@ -1,18 +1,25 @@
-commit 02014706f012a90bcd48025200d28e471dd96e09
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sun Mar 16 14:40:40 2025 +0800
+commit e4ebd13f7a6f216f7ddbaa1f2a3c97fd10bc3d23
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Feb 9 14:17:18 2024 -0500
 
-    doc: go 1.26 remove support for windows/arm
+    cmd/dist,cmd/go: define assembly macros, handle GOARM value with soft/hardfloat
     
-    For #71671
+    CL 525637 added GOARM_x assembly macros based on GOARM value. But
+    it did not define the macro in cmd/dist, so the macro is not set
+    during bootstrapping. This CL defines them.
     
-    Change-Id: I690aa24c0d9dd62749244c92d26a5a353f0d5c47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658275
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    With CL 514907, cfg.GOARM can also take a soft/hardfloat suffix,
+    like "7,hardfloat". Handle that case.
+    
+    For #65601.
+    
+    Change-Id: I60ffe7e8b623ae693d91d6e8595067a6f76565b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562995
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/next/7-ports.md | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/dist/build.go          | 18 ++++++++++++++++--
+ src/cmd/go/internal/work/gc.go |  9 +++++----
+ 2 files changed, 21 insertions(+), 6 deletions(-)

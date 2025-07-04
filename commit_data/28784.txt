@@ -1,22 +1,19 @@
-commit 14204662c8a73ea6d5b6489b0c5a6b0345b99a0d
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Sep 2 21:03:57 2016 -0700
+commit ff227b8a56b66e72de744a39f5b68d6e6ce7f3fe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 20 15:40:10 2016 -0700
 
-    archive/tar: handle integer overflow on 32bit machines
+    runtime: add explicit `INT $3` at end of Darwin amd64 sigtramp
     
-    Most calls to strconv.ParseInt(x, 10, 0) should really be
-    calls to strconv.ParseInt(x, 10, 64) in order to ensure that they
-    do not overflow on 32b architectures.
+    The omission of this instruction could confuse the traceback code if a
+    SIGPROF occurred during a signal handler.  The traceback code would
+    trace up to sigtramp, but would then get confused because it would see a
+    PC address that did not appear to be in the function.
     
-    Furthermore, we should document a bug where Uid and Gid may
-    overflow on 32b machines since the type is declared as int.
+    Fixes #16453.
     
-    Change-Id: I99c0670b3c2922e4a9806822d9ad37e1a364b2b8
-    Reviewed-on: https://go-review.googlesource.com/28472
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2b3d53e0b272fb01d9c2cb8add22bad879d3eebc
+    Reviewed-on: https://go-review.googlesource.com/25104
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/archive/tar/common.go |  4 ++++
- src/archive/tar/reader.go | 14 +++++++-------
- 2 files changed, 11 insertions(+), 7 deletions(-)
+ src/runtime/sys_darwin_amd64.s | 1 +
+ 1 file changed, 1 insertion(+)

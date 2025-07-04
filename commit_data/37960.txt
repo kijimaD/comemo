@@ -1,23 +1,28 @@
-commit 1f701200d979d550e13f37e9be3da99b5a1304cb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 29 15:41:50 2019 -0800
+commit e57f24ab39ff6e0ea50c84518e7f91b3a40cf547
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Mon Sep 17 14:46:50 2018 -0400
 
-    go/constant: accept new Go2 number literals
+    cmd/trace: don't drop sweep slice details
     
-    This CL introduces go/constant support for the new binary and octal integer
-    literals, hexadecimal floats, and digit separators for all number literals.
+    For sweep events, we used to modify the ViewerEvent returned from
+    ctx.emitSlice later in order to embed more details about the sweep
+    operation. The trick no longer works after the change
+    https://golang.org/cl/92375 and caused a regression.
     
-    R=Go1.13
+    ctx.emit method encodes the ViewerEvent, so any modification to the
+    ViewerEvent object after ctx.emit returns will not be reflected.
     
-    Updates #12711.
-    Updates #19308.
-    Updates #28493.
-    Updates #29008.
+    Refactor ctx.emitSlice, so ctx.makeSlice can be used when producing
+    slices for SWEEP. ctx.emit* methods are meant to truely emit
+    ViewerEvents.
     
-    Change-Id: I7a55f91b8b6373ae6d98ba923b626d33c5552946
-    Reviewed-on: https://go-review.googlesource.com/c/160239
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #27711
+    
+    Change-Id: I0b733ebbbfd4facd8714db0535809ec3cab0833d
+    Reviewed-on: https://go-review.googlesource.com/135775
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/constant/value.go      |  36 ++++++++++-
- src/go/constant/value_test.go | 146 +++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 179 insertions(+), 3 deletions(-)
+ src/cmd/trace/trace.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

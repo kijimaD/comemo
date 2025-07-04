@@ -1,24 +1,16 @@
-commit c011270fa56303c0f16a8cfa9b37f37f470a45bb
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Aug 29 20:36:51 2022 +1000
+commit 24999c3a8a811807ce096c5a39c5e2f2f213d2e3
+Author: Amelia Downs <adowns@vmware.com>
+Date:   Mon Oct 18 13:06:58 2021 -0400
 
-    cmd/compile: improve Slicemask on riscv64
+    net/url: add testable examples for url pkg funcs
     
-    Implement Slicemask the same way every other architecture does - negate
-    then arithmetic right shift. This sets or clears the sign bit, before
-    extending it to the entire register.
-    
-    Removes around 2,500 instructions from the Go binary on linux/riscv64.
-    
-    Change-Id: I4d675b826e7eb23fe2b1e6e46b95dcd49ab49733
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426354
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I61011b75128478aa50308d84f4cba23b3e241b3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356536
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  9 +--------
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 13 +++++--------
- 2 files changed, 6 insertions(+), 16 deletions(-)
+ src/net/url/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

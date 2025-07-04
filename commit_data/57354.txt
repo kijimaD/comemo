@@ -1,54 +1,21 @@
-commit 3b78ca06262988992ac3427a0acb4e1c7ac482ac
-Author: Garrett Bodley <garrett.bodley@gmail.com>
-Date:   Wed Jul 17 20:00:53 2024 -0400
+commit 840ec052f6b550859f48fff28559bf18e5ca4b22
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Jun 12 12:09:44 2023 +0000
 
-    crypto/sha512: Avo port of sha512block_amd64.s
+    archive/tar: narrow trim range for formatter'formatString
     
-    This implementation utilizes the same registers found in the reference
-    implementation, aiming to produce a minimal semantic diff between the
-    Avo-generated output and the original hand-written assembly.
+    Trim s[:len(b)-1] rather than s[:len(b)], since s[len(b)-1] is '/'.
     
-    To verify the Avo implementation, the reference and Avo-generated
-    assembly files are fed to `go tool asm`, capturing the debug output into
-    corresponding temp files. The debug output contains supplementary
-    metadata (line numbers, instruction offsets, and source file references)
-    that must be removed in order to obtain a semantic diff of the two
-    files. This is accomplished via a small utility script written in awk.
-    
-    Commands used to verify Avo output:
-    
-    GOROOT=$(go env GOROOT)
-    ASM_PATH="src/crypto/sha512/sha512block_amd64.s"
-    REFERENCE="54fe0fd43fcf8609666c16ae6d15ed92873b1564"
-    
-    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
-      <(git cat-file -p "$REFERENCE:$ASM_PATH") \
-      > /tmp/reference.s
-    
-    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
-      "$ASM_PATH" \
-      > /tmp/avo.s
-    
-    normalize(){
-      awk '{
-        $1=$2=$3="";
-        print substr($0,4)
-      }'
-    }
-    
-    diff <(normalize < /tmp/reference.s) <(normalize < /tmp/avo.s)
-    
-    Change-Id: I172f0cb97252635c657efe82d1b547e6b6f40ebb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/598958
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I055da555810c112774549bd13d4faa8bfa0a60dc
+    GitHub-Last-Rev: 457977514d75a6c72086c2f4d89fb601280b8b90
+    GitHub-Pull-Request: golang/go#60729
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502376
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/types2/stdlib_test.go  |    1 +
- src/crypto/sha512/_asm/go.mod                   |   11 +
- src/crypto/sha512/_asm/go.sum                   |    8 +
- src/crypto/sha512/_asm/sha512block_amd64_asm.go | 1604 ++++++
- src/crypto/sha512/sha512block_amd64.s           | 6808 ++++++++++++++++++-----
- src/go/types/stdlib_test.go                     |    1 +
- 6 files changed, 6993 insertions(+), 1440 deletions(-)
+ src/archive/tar/strconv.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

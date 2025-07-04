@@ -1,18 +1,23 @@
-commit 4187e1f49f45b1cfa66e7cdf8c118ee926285019
-Author: Billy Lynch <wlynch@google.com>
-Date:   Fri Aug 19 01:40:08 2016 -0400
+commit caef4496fcdaca8dc5b86f60b07760e5434ca1f3
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Fri Apr 22 12:44:31 2016 +0200
 
-    net/http/httptrace: add simple example and fix copyright header
+    cmd/compile: convert some Phis into And8.
     
-    Partially addresses #16360
+    See discussion at [1]. True value must have a fixed non-zero
+    representation meaning that a && b can be implemented as a & b.
     
-    Change-Id: I67a328302d7d91231f348d934e4232fcb844830a
-    Reviewed-on: https://go-review.googlesource.com/27398
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    [1] https://groups.google.com/forum/#!topic/golang-dev/xV0vPuFP9Vg
+    
+    This change helps with m := a && b, but it's more common to see
+    if a && b { do something } which is not handled.
+    
+    Change-Id: Ib6f9ff898a0a8c05d12466e2464e4fe781035394
+    Reviewed-on: https://go-review.googlesource.com/22313
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/httptrace/example_test.go | 25 +++++++++++++++++++++++++
- src/net/http/httptrace/trace.go        |  2 +-
- src/net/http/httptrace/trace_test.go   |  2 +-
- 3 files changed, 27 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/phiopt.go | 17 ++++++++++++++
+ test/phiopt.go                         | 43 ++++++++++++++++++++++++++++++----
+ 2 files changed, 55 insertions(+), 5 deletions(-)

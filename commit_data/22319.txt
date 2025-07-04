@@ -1,12 +1,16 @@
-commit ee54d5710117aa409e1608c7c97cf7d18ebfe3b2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 6 16:20:45 2015 -0700
+commit de7f6c77bcf5fe7de77ce5eae2d2846e963906cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 1 21:45:08 2015 -0500
 
-    doc/go1.5.txt: add Reader.Size to bytes and strings
+    [dev.ssa] remove dummy file
     
-    Change-Id: Idd42e0f5c6ed55be2e153ac83022439e5272c1a7
-    Reviewed-on: https://go-review.googlesource.com/8444
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    The CL that created this branch (not code reviewed,
+    since the branch did not yet exist) created this file,
+    in order to have a change to make. Remove it.
+    
+    Change-Id: I7498f1cdf6cbfba895a18c457c30e3e4ee95f7d3
+    Reviewed-on: https://go-review.googlesource.com/6406
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ dev.ssa | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

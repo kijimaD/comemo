@@ -1,18 +1,23 @@
-commit 85fa418fd5bec603dd87254178e64afd1782bd35
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jun 21 20:42:45 2024 +0000
+commit 77a1104975ebf5646f38978a054afe7ca4501fd8
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Sep 12 18:36:44 2023 -0700
 
-    internal/sync: add CompareAndSwap to HashTrieMap
+    cmd/go/internal/fsys: improve initOverlay test helper
     
-    This change adds the CompareAndSwap operation (with the same semantics
-    as sync.Map's CompareAndSwap) to HashTrieMap.
+    1. Remove the use of fmt.Sprintf from t.Fatal.
     
-    Change-Id: I86153799fc47304784333d17f0c6a7ad7682f04a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594063
-    Reviewed-by: David Chase <drchase@google.com>
+    2. Check for errors from initFromJSON.
+    
+    3. Move 'overlay=0' to a separate cleanup function, for clarity.
+    
+    Change-Id: I4d0daad248e8f26b6f159b4cc7e77fd60dc1ed98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527700
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/sync/hashtriemap.go      |  81 ++++++++++++--
- src/internal/sync/hashtriemap_test.go | 191 +++++++++++++++++++++++++++++++++-
- 2 files changed, 263 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/fsys/fsys_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

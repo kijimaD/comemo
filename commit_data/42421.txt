@@ -1,24 +1,25 @@
-commit 8da78625b1fe2a6141d331f54248913936dc49c7
-Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
-Date:   Thu May 21 15:33:39 2020 +0300
+commit b658c62e9c5861f8c2bcc6323572998ef5ee0567
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 11 14:05:14 2019 -0500
 
-    net/http: reject HTTP/1.1 Content-Length with sign in response
+    [dev.link] cmd/link: expand set of symbol attributes in loader
     
-    Enforces section 14.13 of RFC 2616 so that Content-Length header
-    values with a sign such as "+5" will be rejected.
+    Add in a collection of new loader interfaces for getting/setting
+    symbol attributes, e.g. properties that would normally be part of the
+    sym.Symbol "Attr" field. This change also moves references to the
+    loaders 'reachable' bitmap behind a pair of loader methods, so that we
+    a consistent way of accessing symbol attributes overall. It is worth
+    noting that not every symbol attribute is backed by a bitmap; for some
+    infrequently used attributes, a map[Sym]struct{} is used instead.
     
-    Updates #39017
-    
-    Change-Id: Icce9f00d03c8475fe704b33f9bed9089ff8802f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234817
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I0010c9cd928d41b4bb6cdf45db4581e11c3c5db3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210778
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/net/http/httptest/recorder.go      |  4 ++--
- src/net/http/httptest/recorder_test.go | 36 ++++++++++++++++++++++++++++++++++
- src/net/http/transfer.go               |  6 +++---
- src/net/http/transfer_test.go          | 36 ++++++++++++++++++++++++++++++++++
- src/net/http/transport_test.go         | 19 ++++++++++++++++++
- 5 files changed, 96 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go       |  10 +-
+ src/cmd/link/internal/loader/loader.go      | 285 +++++++++++++++++++++++++---
+ src/cmd/link/internal/loader/loader_test.go |  44 +++++
+ 3 files changed, 312 insertions(+), 27 deletions(-)

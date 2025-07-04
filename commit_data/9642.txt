@@ -1,12 +1,20 @@
-commit 75dd952d1617b658b62dc5cf8f4445cbd2942ef1
-Author: Jaroslavas Počepko <jp@webmaster.ms>
-Date:   Fri Sep 9 09:39:23 2011 +1000
+commit 041dc0a1c2ee8e34fb5e34f4b5fd3e2734889bf2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 15:35:56 2011 -0700
 
-    os: forgotten file of submitted CL 4984051
+    godoc: show packages matching a query at the top
     
-    R=alex.brainman
+    Also: fix layout of textual search results and
+    fix a field reference in the respective template.
+    
+    Fixes #1987.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4983053
+    https://golang.org/cl/4962061
 
- src/pkg/syscall/ztypes_windows.go | 1 -
- 1 file changed, 1 deletion(-)
+ lib/godoc/search.html  | 11 +++++++++++
+ lib/godoc/search.txt   | 28 +++++++++++++++++-----------
+ src/cmd/godoc/godoc.go |  3 ++-
+ src/cmd/godoc/index.go | 25 ++++++++++++++++++-------
+ 4 files changed, 48 insertions(+), 19 deletions(-)

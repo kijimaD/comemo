@@ -1,15 +1,15 @@
-commit bc2c3388f4ead47c1344a061d305cc9f535af987
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 23 16:05:23 2013 -0400
+commit e07b5baf4fb02bec51d69136d191d709e8818053
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Mon Sep 23 13:19:08 2013 -0400
 
-    crypto/tls: document that the package supports TLS 1.2
+    reflect: add example for StructTag
     
-    Fixes #6456.
+    Fix a few minor vet quibbles while I'm here.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13740047
+    https://golang.org/cl/13235059
 
- src/pkg/crypto/tls/common.go | 2 +-
- src/pkg/crypto/tls/tls.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/reflect/all_test.go     |  6 +++---
+ src/pkg/reflect/example_test.go | 14 ++++++++++++++
+ 2 files changed, 17 insertions(+), 3 deletions(-)

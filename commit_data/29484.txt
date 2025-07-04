@@ -1,13 +1,22 @@
-commit 66477ec8307e18f751996d92ac8741596a23615a
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Nov 10 19:02:07 2016 -0500
+commit 08feadbd6e724fd0377f37fbe88a3114dd7b45bb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 16 14:08:10 2016 -0700
 
-    reflect: rename, document TestUnaddressableField
+    cmd/compile: remove Arch.REGCTXT
     
-    Change-Id: I94e0f3e4bccd44a67934ddb4d5fc7da57bb8ac9f
-    Reviewed-on: https://go-review.googlesource.com/33112
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Update #16357.
+    
+    Change-Id: I507676212d7137a62c76de7bfa0ba8dbd68e840f
+    Reviewed-on: https://go-review.googlesource.com/29358
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/reflect/all_test.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/amd64/galign.go  | 1 -
+ src/cmd/compile/internal/arm/galign.go    | 1 -
+ src/cmd/compile/internal/arm64/galign.go  | 1 -
+ src/cmd/compile/internal/gc/go.go         | 1 -
+ src/cmd/compile/internal/mips64/galign.go | 1 -
+ src/cmd/compile/internal/ppc64/galign.go  | 1 -
+ src/cmd/compile/internal/s390x/galign.go  | 1 -
+ src/cmd/compile/internal/x86/galign.go    | 1 -
+ 8 files changed, 8 deletions(-)

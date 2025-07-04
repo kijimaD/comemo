@@ -1,16 +1,17 @@
-commit f9b384f554143901ddf771214bfacf8041862f0c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Feb 26 07:56:41 2014 +1100
+commit 8a8b5cba67da4e16aef2ab7704bb079cc8771cf3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 25 10:55:26 2014 -0800
 
-    syscall: fix solaris build
+    crypto/sha1: restore accidental removal of arm build tag
     
-    Solaris does not define syscall.{Mmap,Munmap}. Move the Mmap test to a new file and exclude solaris as discussed.
+    Regression from https://golang.org/cl/68490043/diff/60001/src/pkg/crypto/sha1/sha1block_decl.go
     
-    LGTM=aram
-    R=aram, mikioh.mikioh, iant
+    Fixes arm build.
+    
+    TBR=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/68720043
+    https://golang.org/cl/68080046
 
- src/pkg/syscall/mmap_unix_test.go    | 22 ++++++++++++++++++++++
- src/pkg/syscall/syscall_unix_test.go | 12 +-----------
- 2 files changed, 23 insertions(+), 11 deletions(-)
+ src/pkg/crypto/sha1/sha1block_decl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

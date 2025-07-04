@@ -1,14 +1,15 @@
-commit d866cd6817e5b139fe70b79f125318a4d2a15a96
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Tue Feb 17 11:04:07 2015 +0900
+commit dcb37f94e0a981b322f4c15c343695c70cca09d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 22 21:54:26 2015 -0800
 
-    all: fix typo in doc
+    go/parser: report error for var/const decls with missing init exprs
     
-    Change-Id: I89fdda2914030dfea3183a8b4681dd4b33489729
-    Reviewed-on: https://go-review.googlesource.com/4996
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #9639.
+    
+    Change-Id: I311045d3df26b29b9380c159ef4727e85650d13b
+    Reviewed-on: https://go-review.googlesource.com/3211
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/ip.go        | 2 +-
- src/os/env.go        | 2 +-
- src/runtime/race1.go | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/go/parser/parser.go     | 12 ++++++++++++
+ src/go/parser/short_test.go |  7 ++++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)

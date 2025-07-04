@@ -1,14 +1,13 @@
-commit 689a2ec8c3896b122907fcb5e3d1399ca4598099
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jul 13 17:41:33 2011 -0700
+commit 125e8277d57cb98d1342687fd0468d6aa50c05d2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 14 10:38:15 2011 +1000
 
-    json: allow using '$' and '-' as the struct field's tag
+    reflect: trivial addition: Value.NumMethod.
+    Just an oversight it was missing.
     
-    R=adg, rsc, bradfitz, mattn.jp, gustavo
+    R=rsc, dsymonds, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/4625081
+    https://golang.org/cl/4695059
 
- src/pkg/json/decode_test.go | 10 -----
- src/pkg/json/encode.go      | 12 +++---
- src/pkg/json/tagkey_test.go | 95 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 101 insertions(+), 16 deletions(-)
+ src/pkg/reflect/value.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

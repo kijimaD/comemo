@@ -1,19 +1,23 @@
-commit bdcd6d1b653dd7a5b3eb9a053623f85433ff9e6b
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Feb 24 13:05:31 2025 +0000
+commit f6509cf5cdbb5787061b784973782933c47f1782
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 20 15:38:50 2023 -0800
 
-    strconv: use builtin min function in commonPrefixLenIgnoreCase
+    cmd/compile: handle constant-folding of an out-of-range jump table index
     
-    To make code a bit simpler.
+    The input index to a jump table can be out of range for unreachable code.
     
-    Change-Id: I33b3e04bc810a4838584c477854ef612b355579a
-    GitHub-Last-Rev: 6d5bbc2a2877193e1319b9e626f408eda399666e
-    GitHub-Pull-Request: golang/go#71927
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651975
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Dynamically the compiler ensures that an out-of-range index can never
+    reach a jump table, but that guarantee doesn't extend to the static
+    realm.
+    
+    Fixes #64826
+    
+    Change-Id: I5829f3933ae5124ffad8337dfd7dd75e67a8ec33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552055
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/strconv/atof.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/sccp.go |  7 +++++++
+ test/fixedbugs/issue64826.go         | 38 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

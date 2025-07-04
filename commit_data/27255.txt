@@ -1,14 +1,12 @@
-commit 4d5ac10f690bbc742a3cbf186ad8f3169a45ee26
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 3 23:33:32 2016 +0000
+commit 2d03b5b572c029a1612c89d76028ead20feed04b
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Thu Mar 17 20:40:02 2016 +0100
 
-    cmd/vet: fix test's dependence on perl
+    cmd/compile: fix comment
     
-    Change-Id: I774dbd4f90ef271a0969c3c8e65d145669312e3e
-    Reviewed-on: https://go-review.googlesource.com/22745
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ross Light <light@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I32fd5c36f055fdb1dfe56524085676aa4111089a
+    Reviewed-on: https://go-review.googlesource.com/20830
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/vet/vet_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

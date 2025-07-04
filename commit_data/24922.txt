@@ -1,23 +1,18 @@
-commit 45d1c8ab59cd08ef4a7976f44c8c19ed53b118f8
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Tue Oct 20 00:23:11 2015 -0700
+commit fd8c71be865386b5545571c9ff3b5c604809e133
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 8 21:37:37 2015 -0700
 
-    crypto/tls: return a typed error on invalid record headers
+    [dev.ssa] cmd/compile/internal/ssa: eval defer args before setting argsize and func
     
-    The user can inspect the record data to detect that the other side is
-    not using the TLS protocol.
+    Evaluating args can overwrite arg area, so we can't write argsize and func
+    until args are evaluated.
     
-    This will be used by the net/http client (in a follow-on CL) to detect
-    when an HTTPS client is speaking to an HTTP server.
+    Fixes test/recover.go, test/recover1.go, and test/fixedbugs/issue4066.go
     
-    Updates #11111.
-    
-    Change-Id: I872f78717aa8e8e98cebd8075436209a52039a73
-    Reviewed-on: https://go-review.googlesource.com/16078
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I862e4934ccdb8661431bcc3e1e93817ea834ea3f
+    Reviewed-on: https://go-review.googlesource.com/14405
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/tls/conn.go | 27 +++++++++++++++++++++++----
- 1 file changed, 23 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 8 ++++----
+ test/run.go                        | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

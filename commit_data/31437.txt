@@ -1,20 +1,18 @@
-commit c44d031bf08a916c01ee53a33fc54d46e0833d1b
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 2 11:07:41 2016 -0400
+commit d0a978f5b503028bb9c34944edb59e52c4070f6f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 11:44:09 2017 +1100
 
-    runtime: eliminate heapBits.hasPointers
+    cmd/link: reorder pe sections
     
-    This is no longer necessary now that we can more efficiently consult
-    the span's noscan bit.
+    dwarf writing code assumes that dwarf sections follow
+    .data and .bss, not .ctors. Make pe section writing code
+    match that assumption.
     
-    This is a cherry-pick of dev.garbage commit 312aa09996.
+    For #10776.
     
-    Change-Id: Id0b00b278533660973f45eb6efa5b00f373d58af
-    Reviewed-on: https://go-review.googlesource.com/41252
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I128c3ad125f7d0db19e922f165704a054b2af7ba
+    Reviewed-on: https://go-review.googlesource.com/36980
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mbitmap.go | 11 -----------
- src/runtime/mgcmark.go |  4 ++--
- 2 files changed, 2 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

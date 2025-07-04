@@ -1,14 +1,28 @@
-commit fa3ad1ebb582b96d1eda471c68ea250561db28b1
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Fri Mar 20 15:27:35 2015 +0100
+commit aedee3087008fd5493976a3c9e732f2fa5deb883
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 15 09:35:18 2015 -0800
 
-    mime/quotedprintable: add binary mode to the writer
+    net: deflake TestPacketConn, increase timeout
     
-    Change-Id: Id82c3111d7571263208ced3d011ad80f3fe55984
-    Reviewed-on: https://go-review.googlesource.com/7892
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Tests sometimes failed with:
+    
+    ok   mime/internal/quotedprintable      0.606s
+    ok   mime/multipart                     0.819s
+    --- FAIL: TestPacketConn (0.10s)
+        packetconn_test.go:96: PacketConn.ReadFrom failed: WSARecvFrom udp 127.0.0.1:64156: i/o timeout
+    FAIL
+    FAIL    net     3.602s
+    ok      net/http        4.618s
+    ok      net/http/cgi    0.576s
+    
+    Theory: 100 ms is too short. Small timer granularity on Wnidows, or an
+    allocation in the middle causing a GC sometimes?
+    
+    In any case, increase it to 500 ms.
+    
+    Change-Id: I48cc4d600eb168db9f85c0fd05335dd630254c3c
+    Reviewed-on: https://go-review.googlesource.com/4922
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/mime/quotedprintable/writer.go      |  6 ++++-
- src/mime/quotedprintable/writer_test.go | 43 +++++++++++++++++++++++----------
- 2 files changed, 35 insertions(+), 14 deletions(-)
+ src/net/packetconn_test.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

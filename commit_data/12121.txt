@@ -1,12 +1,12 @@
-commit 43cfbb0fb50b468830b52a568b283c4514a3c481
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 22 12:45:01 2012 +1100
+commit 9c8923f7dc4b983dca233085560adf4dc079dc25
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 22 11:22:09 2012 +1100
 
-    godoc: adjust line height in pre blocks
+    net/http: update test to use time.Duration better
     
-    R=gri, dsymonds
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5687071
+    https://golang.org/cl/5688063
 
- doc/style.css | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/net/http/serve_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

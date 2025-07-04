@@ -1,0 +1,39 @@
+commit 26fdb07d4ce58885305283ba18960f582f4eaa73
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Mar 25 10:31:00 2025 -0700
+
+    os: add Root.Symlink
+    
+    For #67002
+    
+    Change-Id: Ia1637b61eae49e97e1d07f058ad2390e74cd3403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660635
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ api/next/67002.txt                               |   1 +
+ doc/next/6-stdlib/99-minor/os/67002.md           |   1 +
+ src/internal/syscall/unix/asm_darwin.s           |   1 +
+ src/internal/syscall/unix/asm_openbsd.s          |   2 +
+ src/internal/syscall/unix/at.go                  |  19 +++
+ src/internal/syscall/unix/at_aix.go              |   1 +
+ src/internal/syscall/unix/at_darwin.go           |  26 ++++
+ src/internal/syscall/unix/at_libc.go             |  24 ++-
+ src/internal/syscall/unix/at_openbsd.go          |  26 ++++
+ src/internal/syscall/unix/at_solaris.go          |   1 +
+ src/internal/syscall/unix/at_sysnum_dragonfly.go |   1 +
+ src/internal/syscall/unix/at_sysnum_freebsd.go   |   1 +
+ src/internal/syscall/unix/at_sysnum_linux.go     |   1 +
+ src/internal/syscall/unix/at_sysnum_netbsd.go    |   1 +
+ src/internal/syscall/unix/at_wasip1.go           |  33 ++++-
+ src/internal/syscall/windows/at_windows.go       | 175 ++++++++++++++++++++++
+ src/os/os_test.go                                |  37 +++--
+ src/os/root.go                                   |  12 ++
+ src/os/root_noopenat.go                          |  11 ++
+ src/os/root_test.go                              |  42 ++++++
+ src/os/root_unix.go                              |  14 ++
+ src/os/root_windows.go                           |  46 ++++++
+ src/os/root_windows_test.go                      | 177 +++++++++++++++++++++++
+ 23 files changed, 635 insertions(+), 18 deletions(-)

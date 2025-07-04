@@ -1,26 +1,17 @@
-commit 4f65fb3b309050f26d41885243df99f917727a53
-Author: pj <pj@pjebs.com.au>
-Date:   Fri May 8 16:34:57 2020 +0000
+commit 3edd1d8d993386098cd9e3603e65bbb588e0f52b
+Author: Xudong Zhang <zxdvd_zhang@163.com>
+Date:   Mon Dec 2 09:32:04 2019 +0000
 
-    strconv: add ParseComplex and FormatComplex
+    time: fix comment in test
     
-    Adds two functions to deal with complex numbers:
-    * FormatComplex
-    * ParseComplex
+    The commit de36d1 (CL 4635083) changed the test time
+    from 2009 to 2010 but forgot to update the comment.
     
-    ParseComplex accepts complex numbers in this format: N+Ni
-    
-    Fixes #36771
-    
-    Change-Id: Id184dc9e277e5fa01a714ad656a88255ead05085
-    GitHub-Last-Rev: 036a075d36363774a95f6000b7c4098896474744
-    GitHub-Pull-Request: golang/go#36815
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216617
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ia2928773dd184f168fddde126d0bb936de8cfc29
+    GitHub-Last-Rev: bf8eb57140dc531d1af449308b79c646d3b64d02
+    GitHub-Pull-Request: golang/go#35930
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209517
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strconv/atoc.go      | 105 +++++++++++++++++++++++++
- src/strconv/atoc_test.go | 195 +++++++++++++++++++++++++++++++++++++++++++++++
- src/strconv/atof.go      |   4 +-
- src/strconv/atoi.go      |   2 +-
- src/strconv/ctoa.go      |  27 +++++++
- 5 files changed, 330 insertions(+), 3 deletions(-)
+ src/time/format_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,36 +1,27 @@
-commit d4d16688641738c2ea8bd69a86ee9c10195c898d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Oct 19 15:30:21 2015 -0700
+commit d57f03730265c4677ab2ec1ad74cf8cbf592f798
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 5 11:07:47 2015 -0400
 
-    net/http: add Transport.TLSNextProto, ErrSkipAltProtocol
+    runtime: don't recheck heap trigger for periodic GC
     
-    This is the start of wiring up the HTTP/2 Transport. It is still
-    disabled in this commit.
+    88e945f introduced a non-speculative double check of the heap trigger
+    before actually starting a concurrent GC. This was necessary to fix a
+    race for heap-triggered GC, but broke sysmon-triggered periodic GC,
+    since the heap check will of course fail for periodically triggered
+    GC.
     
-    This change does two main things:
+    Fix this by telling startGC whether or not this GC was triggered by
+    heap size or a timer and only doing the heap size double check for GCs
+    triggered by heap size.
     
-    1) Transport.RegisterProtocol now permits registering "http" or
-       "https" (they previously paniced), and the semantics of the
-       registered RoundTripper have been extended to say that the new
-       sentinel error value (ErrSkipAltProtocol, added in this CL) means
-       that the Transport's RoundTrip method proceeds as if the alternate
-       protocol had not been registered. This gives us a place to register
-       an alternate "https" RoundTripper which gets first dibs on using
-       HTTP/2 if there's already a cached connection.
+    Fixes #12026.
     
-    2) adds Transport.TLSNextProto, a map keyed by TLS NPN/ALPN protocol
-       strings, similar in feel to the existing Server.TLSNextProto map.
-       This map is the glue between the HTTP/1 and HTTP/2 clients, since
-       we don't know which protocol we're going to speak (and thus which
-       Transport type to use) until we've already made the TCP connection.
-    
-    Updates #6891
-    
-    Change-Id: I7328c7ff24f52d9fe4899facabf7ecc5dcb989f3
-    Reviewed-on: https://go-review.googlesource.com/16090
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7c3f6ec364545c36d619f2b4b3bf3b758e3bcbd6
+    Reviewed-on: https://go-review.googlesource.com/13168
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/transport.go | 99 +++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 83 insertions(+), 16 deletions(-)
+ src/runtime/malloc.go |  2 +-
+ src/runtime/mgc.go    | 11 ++++++++---
+ src/runtime/mheap.go  |  2 +-
+ src/runtime/proc.go   |  2 +-
+ 4 files changed, 11 insertions(+), 6 deletions(-)

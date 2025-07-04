@@ -1,0 +1,23 @@
+commit 4f327f271d5cf0f6cc6e1bbac72aecaa25ca6e6f
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed Aug 28 10:16:10 2024 +0200
+
+    debug/macho: fix DWARF for section names longer than 16 chars
+    
+    The Mach-O file format truncates section names to 16 characters
+    maximum, which makes some sections unrecognizable to debug/dwarf.
+    This CL works around this problem by re-expanding the truncated section
+    names.
+    
+    This problem was originally reported as:
+    https://github.com/go-delve/delve/issues/3797
+    
+    Change-Id: I8c4a02493b8d5c3f63c831da43f6292124edf670
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608995
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/debug/macho/file.go | 28 +++++++++++++++++++++++-----
+ 1 file changed, 23 insertions(+), 5 deletions(-)

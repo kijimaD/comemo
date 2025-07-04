@@ -1,23 +1,23 @@
-commit aaf8e844edaa7cbd09d0fdeb9bd0b7458cbfb466
-Author: kkhaike <kkhaike@gmail.com>
-Date:   Sat Dec 16 18:08:16 2023 +0800
+commit 83907206de003555c73a16b1b6d97662b5511cf7
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Sep 1 12:26:43 2022 +0800
 
-    net: prevent unintended retries upon receiving an empty answer response from the DNS server.
+    cmd/compile: improve logical shift with MASKEQZ on loong64
     
-    CL https://golang.org/cl/37879 migrates DNS message parsing to the golang.org/x/net/dns/dnsmessage package. However, during the modification of the "lame referral" error check introduced by CL https://golang.org/cl/22428, a condition was overlooked. This omission results in unexpected retries when a DNS server returns an empty response (not an invalid response, but one that includes an additional section).
+    Using MASKEQZ instruction can save one instruction in calculation of
+    shift operations.
     
-    Fixes #57697
-    Fixes #64783
+    Reference: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
     
-    Change-Id: I203896aa2902c305569005c1712fd2f9f13a9b6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/550435
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dexter Ouyang <kkhaike@gmail.com>
+    Change-Id: Ic5349c6f5ebd7af608c7d75a9b3a862305758275
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427396
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
 
- src/net/dnsclient_unix.go      | 13 ++++++++-----
- src/net/dnsclient_unix_test.go | 23 ++++++++++++++++++++++-
- 2 files changed, 30 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  80 +--
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 775 ++++++++++++------------
+ 2 files changed, 412 insertions(+), 443 deletions(-)

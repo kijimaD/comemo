@@ -1,18 +1,22 @@
-commit 70deaa33ebd91944484526ab368fa19c499ff29f
-Author: David Chase <drchase@google.com>
-Date:   Wed Apr 21 10:30:25 2021 -0400
+commit 7a131acfd142f0fc7612365078b9f00e371fc0e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 11:26:56 2020 -0400
 
-    cmd/compile: extend GOSSAFUNC match to well-formed package suffix match.
+    io/fs: add ReadDir and ReadDirFS
     
-    e.g., LeadingZeros, bits.LeadingZeros, math/bits.LeadingZeros
-    but not its.LeadingZeros
+    Add ReadDir helper function, ReadDirFS interface, and test.
+    Add ReadDir method to fstest.MapFS.
+    Add testing of ReadDir method to fstest.TestFS.
     
-    Change-Id: Ib9a57e4db0af03c55bf5b5027aa6f8a5a84f2134
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312291
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    For #41190.
+    
+    Change-Id: Ib860770ec7433ba77b29e626682b238f1b3bf54f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243914
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/io/fs/readdir.go         | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ src/io/fs/readdir_test.go    | 35 +++++++++++++++++++++++++++++++++
+ src/testing/fstest/mapfs.go  |  4 ++++
+ src/testing/fstest/testfs.go | 42 ++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 127 insertions(+), 1 deletion(-)

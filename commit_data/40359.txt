@@ -1,22 +1,22 @@
-commit 5eec0a91eadd76a45197ee2588306bdc85570549
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 21 17:45:59 2019 -0700
+commit a88cb1d8e117685134b719e1042b022e5189d804
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 30 14:56:12 2019 -0400
 
-    reflect: fix unsafe conversions reported by -d=checkptr
+    cmd/cgo: fix unexpected semicolon in rewritten line
     
-    The code for generating gcdata was (technically) unsafe. It was also
-    rather repetitive. This CL refactors it a bit and abstracts use of
-    gcdata into a helper gcSlice method.
+    Followup to CL 157961 and CL 158457.
+    Finish the list of operators and punctuation
+    that disable semicolon insertion at end-of-line
+    The reported case was "(" but "." was also missing.
     
-    Updates #34972.
+    Fixes #31017.
     
-    Change-Id: Ie86d7822eafe263f1d3d150eedf0ec66be1ec85d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202582
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0c06443f38dc8250c62e3aadd104abfa0e3be074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174524
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/export_test.go |  11 ++--
- src/reflect/type.go        | 127 ++++++++++++++++++++-------------------------
- 2 files changed, 62 insertions(+), 76 deletions(-)
+ misc/cgo/test/issue29781.go | 11 +++++++++++
+ src/cmd/cgo/godefs.go       | 36 +++++++++++++++++++++++-------------
+ 2 files changed, 34 insertions(+), 13 deletions(-)

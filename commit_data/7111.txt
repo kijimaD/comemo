@@ -1,20 +1,15 @@
-commit b448263f7929554c1a54474826722cebb751f4e7
-Author: Brad Fitzpatrick <brad@danga.com>
-Date:   Fri Jan 14 09:10:02 2011 +1100
+commit f6f1401286adc6e67fc2a9f5b9651ef8ead309c9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 13 12:44:04 2011 -0800
 
-    http: fix scheme-relative URL parsing; add ParseRequestURL
+    godoc: don't double HTML-escape search result snippets
     
-    Also adds some tests for Issue 900 which was the reason
-    the current URL parsing is broken.  (the previous fix
-    was wrong)
+    Fixes #1412.
     
-    R=rsc, adg, dangabrad, bradfitzwork
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/3910042
+    https://golang.org/cl/3994041
 
- src/pkg/http/readrequest_test.go | 35 +++++++++++++++++
- src/pkg/http/request.go          |  2 +-
- src/pkg/http/serve_test.go       | 85 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/http/url.go              | 30 +++++++++++++-
- src/pkg/http/url_test.go         | 80 ++++++++++++++++++++++++++++++++++---
- 5 files changed, 223 insertions(+), 9 deletions(-)
+ src/cmd/godoc/format.go  | 2 +-
+ src/cmd/godoc/snippet.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

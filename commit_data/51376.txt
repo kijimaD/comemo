@@ -1,22 +1,19 @@
-commit dccc58e1b9d3fbc88c6a86c02f77ed0f26d07a4a
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Nov 18 14:54:14 2022 -0500
+commit a4d3c73ac3cc109ac2088beadf4d51987a60c625
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 18 19:14:25 2022 -0800
 
-    cmd/go: don't report non-go files in CompiledGoFiles
+    doc/go1.18: don't mention -buildinfo flag
     
-    We save non-go files in the cached srcfiles file because we want the
-    non-go files for vet, but we shouldn't report them in CompiledGoFiles.
-    Filter them out before adding them to CompiledGoFiles.
+    It was removed in CL 378576.
     
-    Fixes #28749
+    For #50501
     
-    Change-Id: I889d4bbf8c4ec1348584a62ef5e4f8b3f05e97da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451285
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I26b8f0e99a40fa5c616aa4849a6ab15dd0d072f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379314
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/work/exec.go                       | 18 ++++++++++--------
- .../testdata/script/list_compiled_files_issue28749.txt | 10 ++++++++++
- 2 files changed, 20 insertions(+), 8 deletions(-)
+ doc/go1.18.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

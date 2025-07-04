@@ -1,23 +1,25 @@
-commit d33e2192a71c33a604af247161ba1d2c1969e4c7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 9 17:23:04 2021 -0500
+commit 954db9fe51154e5d4663c0c1a62c82a99eef1ed4
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Aug 12 16:37:42 2020 -0400
 
-    cmd/go: allow '+' in package import paths in module mode
+    [dev.link] debug/gosym: fix file mappings
     
-    This change upgrades x/mod to pull in the fix from CL 300149.
+    CL 246497 introduced bugs in gosym that the long tests caught. These two
+    bugs were:
     
-    Fixes #44776.
+    1) In 1.16, 0 is now a valid file number from pcfile tables.
+    2) Also, in 1.16, when we scan all functions looking for a pc/file pair,
+       the values returned from pcfile are no longer the direct offset into
+       the file table. Rather, the values from pcfile are the offset into
+       the cu->file look-up table.
     
-    Change-Id: I273f41df2abfff76d91315b7f19fce851c8770d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300176
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This CL fixes those two issues.
+    
+    Change-Id: I0cd280bdcaeda89faaf9fac41809abdb87734499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248317
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +--
- .../go/testdata/script/mod_invalid_path_plus.txt   | 32 ++++++++++++++++++
- src/cmd/vendor/golang.org/x/mod/module/module.go   | 38 +++++++++++++++++-----
- src/cmd/vendor/modules.txt                         |  2 +-
- 5 files changed, 66 insertions(+), 12 deletions(-)
+ src/debug/gosym/pclntab.go | 41 ++++++++++++++++++++++++++++-------------
+ 1 file changed, 28 insertions(+), 13 deletions(-)

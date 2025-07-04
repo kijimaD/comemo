@@ -1,28 +1,20 @@
-commit 61f0409c31cad8729d7982425d353d7b2ea80534
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Mar 2 13:01:48 2022 -0800
+commit a2b8231b91e8c4c9e95875b8063bf364f5b0db97
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Nov 16 13:01:57 2021 -0800
 
-    reflect: add Value.Grow
+    runtime: remove defer test log spam
     
-    The Grow method is like the proposed slices.Grow function
-    in that it ensures that the slice has enough capacity to append
-    n elements without allocating.
+    This appears to be leftover debugging
+    from CL 356011.
     
-    The implementation of Grow is a thin wrapper over runtime.growslice.
-    This also changes Append and AppendSlice to use growslice under the hood.
-    
-    Fixes #48000
-    
-    Change-Id: I992a58584a2ff1448c1c2bc0877fe76073609111
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389635
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ieeda0b7e297e0cb943827b28644135e6cad12e3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364555
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- api/next/48000.txt      |   1 +
- src/reflect/all_test.go | 120 ++++++++++++++++++++++++++++++++++++++++--------
- src/reflect/value.go    |  86 +++++++++++++++++++++-------------
- src/runtime/slice.go    |  39 ++++++++++++----
- 4 files changed, 188 insertions(+), 58 deletions(-)
+ src/runtime/defer_test.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,93 +1,22 @@
-commit 6722d4563190d952334ff0642dc2e2664b173b57
+commit ef3c0e7e61ba1a670d69144b5ad8318166490ae8
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 27 14:05:57 2014 -0400
+Date:   Thu Mar 27 14:05:14 2014 -0400
 
-    cmd/gc: liveness-related bug fixes
+    regexp/syntax: remove InstLast
     
-    1. On entry to a function, only zero the ambiguously live stack variables.
-    Before, we were zeroing all stack variables containing pointers.
-    The zeroing is pretty inefficient right now (issue 7624), but there are also
-    too many stack variables detected as ambiguously live (issue 7345),
-    and that must be addressed before deciding how to improve the zeroing code.
-    (Changes in 5g/ggen.c, 6g/ggen.c, 8g/ggen.c, gc/pgen.c)
+    This was added by the one-pass CL (post Go 1.2)
+    so it can still be removed.
     
-    Fixes #7647.
+    Removing because surely there will be new operations
+    added later, and we can't change the constant value
+    once we define it, so "last" is a bad concept to expose.
     
-    2. Make the regopt word-based liveness analysis preserve the
-    whole-variable liveness property expected by the garbage collection
-    bitmap liveness analysis. That is, if the regopt liveness decides that
-    one word in a struct needs to be preserved, make sure it preserves
-    the entire struct. This is particularly important for multiword values
-    such as strings, slices, and interfaces, in which all the words need
-    to be present in order to understand the meaning.
-    (Changes in 5g/reg.c, 6g/reg.c, 8g/reg.c.)
+    Nothing uses it.
     
-    Fixes #7591.
-    
-    3. Make the regopt word-based liveness analysis treat a variable
-    as having its address taken - which makes it preserved across
-    all future calls - whenever n->addrtaken is set, for consistency
-    with the gc bitmap liveness analysis, even if there is no machine
-    instruction actually taking the address. In this case n->addrtaken
-    is incorrect (a nicer way to put it is overconservative), and ideally
-    there would be no such cases, but they can happen and the two
-    analyses need to agree.
-    (Changes in 5g/reg.c, 6g/reg.c, 8g/reg.c; test in bug484.go.)
-    
-    Fixes crashes found by turning off "zero everything" in step 1.
-    
-    4. Remove spurious VARDEF annotations. As the comment in
-    gc/pgen.c explains, the VARDEF must immediately precede
-    the initialization. It cannot be too early, and it cannot be too late.
-    In particular, if a function call sits between the VARDEF and the
-    actual machine instructions doing the initialization, the variable
-    will be treated as live during that function call even though it is
-    uninitialized, leading to problems.
-    (Changes in gc/gen.c; test in live.go.)
-    
-    Fixes crashes found by turning off "zero everything" in step 1.
-    
-    5. Do not treat loading the address of a wide value as a signal
-    that the value must be initialized. Instead depend on the existence
-    of a VARDEF or the first actual read/write of a word in the value.
-    If the load is in order to pass the address to a function that does
-    the actual initialization, treating the load as an implicit VARDEF
-    causes the same problems as described in step 4.
-    The alternative is to arrange to zero every such value before
-    passing it to the real initialization function, but this is a much
-    easier and more efficient change.
-    (Changes in gc/plive.c.)
-    
-    Fixes crashes found by turning off "zero everything" in step 1.
-    
-    6. Treat wide input parameters with their address taken as
-    initialized on entry to the function. Otherwise they look
-    "ambiguously live" and we will try to emit code to zero them.
-    (Changes in gc/plive.c.)
-    
-    Fixes crashes found by turning off "zero everything" in step 1.
-    
-    7. An array of length 0 has no pointers, even if the element type does.
-    Without this change, the zeroing code complains when asked to
-    clear a 0-length array.
-    (Changes in gc/reflect.c.)
-    
-    LGTM=khr
-    R=khr
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/80160044
+    https://golang.org/cl/81160043
 
- src/cmd/5g/ggen.c        | 47 ++++++++++++++++++-------
- src/cmd/5g/reg.c         | 86 ++++++++++++++++++++++++++++++++++++++++++---
- src/cmd/6g/ggen.c        | 45 ++++++++++++++----------
- src/cmd/6g/reg.c         | 78 +++++++++++++++++++++++++++++++++++++++--
- src/cmd/8g/ggen.c        | 45 ++++++++++++++----------
- src/cmd/8g/reg.c         | 78 +++++++++++++++++++++++++++++++++++++++--
- src/cmd/gc/gen.c         |  6 ----
- src/cmd/gc/go.h          |  2 +-
- src/cmd/gc/pgen.c        | 14 +-------
- src/cmd/gc/plive.c       | 10 ++++--
- src/cmd/gc/reflect.c     |  4 +++
- test/fixedbugs/bug484.go | 90 ++++++++++++++++++++++++++++++++++++++++++++++++
- test/live.go             | 22 ++++++++++--
- 13 files changed, 447 insertions(+), 80 deletions(-)
+ src/pkg/regexp/syntax/prog.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

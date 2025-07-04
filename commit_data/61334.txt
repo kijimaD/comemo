@@ -1,0 +1,21 @@
+commit 3a6795554daf96d4e01ab02f999a1ea7dde2660c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 17 15:42:26 2024 -0400
+
+    internal/runtime/maps: enable race for map functions in internal/runtime/maps
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Iebc7f5482299cb7c4ecccc4c2eb46b4bc42c5fc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616459
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/race/norace.go                | 13 +++++++++++++
+ src/internal/race/race.go                  | 13 +++++++++++++
+ src/internal/runtime/maps/runtime_swiss.go | 27 ++++++++++++++-------------
+ src/runtime/race.go                        | 20 ++++++++++++++++++++
+ 4 files changed, 60 insertions(+), 13 deletions(-)

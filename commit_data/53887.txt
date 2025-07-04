@@ -1,59 +1,18 @@
-commit 55d08e5010c3169e648a66433322530ca5054e9e
-Author: Klaus Post <klauspost@gmail.com>
-Date:   Wed Oct 6 16:11:40 2021 +0000
+commit ba1ef54c1ee0e5ed8fd572dbb4ec67548cd5a55e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 18:18:30 2022 +0800
 
-    crypto/md5: optimize amd64 assembly
+    syscall: simplify code using unsafe.Slice
     
-    * Use two ADDL instead of LEAL
-    * Keep ones in R11
-    * Use XORL with lower latency instead of NOTL
-    * Remove loads and load the correct value in the previous round
-    * Reduce dependency chain in round 2.
-    * Remove MOVL in round 3.
+    Updates #54854
     
-    name                    old time/op    new time/op    delta
-    Hash8Bytes-32              104ns ± 0%      96ns ± 1%   -7.83%   (p=0.000 n=9+10)
-    Hash64-32                  169ns ± 0%     155ns ± 0%   -7.97%  (p=0.000 n=10+10)
-    Hash128-32                 244ns ± 0%     224ns ± 0%   -8.16%   (p=0.000 n=9+10)
-    Hash256-32                 396ns ± 0%     360ns ± 1%   -9.01%  (p=0.000 n=10+10)
-    Hash512-32                 700ns ± 1%     634ns ± 1%   -9.43%  (p=0.000 n=10+10)
-    Hash1K-32                 1.30µs ± 0%    1.18µs ± 1%   -9.32%   (p=0.000 n=9+10)
-    Hash8K-32                 9.77µs ± 0%    8.81µs ± 0%   -9.78%   (p=0.000 n=9+10)
-    Hash1M-32                 1.24ms ± 1%    1.12ms ± 1%   -9.54%  (p=0.000 n=10+10)
-    Hash8M-32                 10.0ms ± 1%     9.0ms ± 1%  -10.04%  (p=0.000 n=10+10)
-    Hash8BytesUnaligned-32     104ns ± 0%      96ns ± 0%   -7.50%  (p=0.000 n=10+10)
-    Hash1KUnaligned-32        1.32µs ± 1%    1.18µs ± 1%  -10.42%  (p=0.000 n=10+10)
-    Hash8KUnaligned-32        9.80µs ± 0%    8.79µs ± 1%  -10.29%  (p=0.000 n=10+10)
-    
-    name                    old speed      new speed      delta
-    Hash8Bytes-32           77.1MB/s ± 0%  83.6MB/s ± 1%   +8.49%   (p=0.000 n=9+10)
-    Hash64-32                379MB/s ± 0%   412MB/s ± 0%   +8.66%  (p=0.000 n=10+10)
-    Hash128-32               525MB/s ± 0%   572MB/s ± 0%   +8.89%   (p=0.000 n=9+10)
-    Hash256-32               646MB/s ± 0%   710MB/s ± 1%   +9.90%  (p=0.000 n=10+10)
-    Hash512-32               732MB/s ± 1%   808MB/s ± 1%  +10.41%  (p=0.000 n=10+10)
-    Hash1K-32                786MB/s ± 0%   866MB/s ± 1%  +10.30%   (p=0.000 n=9+10)
-    Hash8K-32                839MB/s ± 0%   930MB/s ± 0%  +10.79%  (p=0.000 n=10+10)
-    Hash1M-32                849MB/s ± 1%   938MB/s ± 1%  +10.54%  (p=0.000 n=10+10)
-    Hash8M-32                841MB/s ± 1%   935MB/s ± 1%  +11.16%  (p=0.000 n=10+10)
-    Hash8BytesUnaligned-32  77.1MB/s ± 0%  83.4MB/s ± 0%   +8.12%  (p=0.000 n=10+10)
-    Hash1KUnaligned-32       778MB/s ± 1%   869MB/s ± 1%  +11.64%  (p=0.000 n=10+10)
-    Hash8KUnaligned-32       836MB/s ± 0%   932MB/s ± 1%  +11.47%  (p=0.000 n=10+10)
-    
-    Change-Id: I02b31229b857e9257dc9d36538883eb3af4ad993
-    
-    This PR will be imported into Gerrit with the title and first
-    comment (this text) used to generate the subject and body of
-    the Gerrit change.
-    
-    Change-Id: I02b31229b857e9257dc9d36538883eb3af4ad993
-    GitHub-Last-Rev: ec8b15d789181d0dac57bf0ba5041ee7aeb305c9
-    GitHub-Pull-Request: golang/go#43690
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283538
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ibaf4eea14a6259cdbca79e9e95db1602966f18e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428176
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/crypto/md5/md5block_amd64.s | 64 +++++++++++++++++++++++++----------------
- 1 file changed, 40 insertions(+), 24 deletions(-)
+ src/syscall/syscall_darwin.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

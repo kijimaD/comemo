@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 56972: deed521ea3daf42cb9c8388ae48fe57f17e252f5
+# Index 56972: 587c1c191adb8a069beed925b9c402a7e8e4d871
 
 echo "🚀 Generating explanation for commit 56972..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 56972
-- **コミットハッシュ**: deed521ea3daf42cb9c8388ae48fe57f17e252f5
-- **GitHub URL**: https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5
+- **コミットハッシュ**: 587c1c191adb8a069beed925b9c402a7e8e4d871
+- **GitHub URL**: https://github.com/golang/go/commit/587c1c191adb8a069beed925b9c402a7e8e4d871
 
 ### 章構成
 

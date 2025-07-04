@@ -1,15 +1,20 @@
-commit bec4481dd39cdbbee2c0bc6e2c392ff73ca3f2f7
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Sat Apr 4 20:51:00 2015 +1300
+commit 818eff0367528dea7b0d05d601d6dbf7fc41c699
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 22:56:49 2015 -0500
 
-    cmd/internal/ld: remove extraneous parentheses
+    cmd/internal/obj/i386: delete
     
-    Ian complained about these in a review and then submitted the change
-    before I could fix them.
+    Now unused.
     
-    Change-Id: I23d890db2f3648ed1003ed3d13e7247435b913e5
-    Reviewed-on: https://go-review.googlesource.com/8480
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0ba27e58721ad66cc3068346d6d31ba0ac37ad64
+    Reviewed-on: https://go-review.googlesource.com/6893
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/internal/ld/symtab.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/i386/8.out.go   |  594 ------
+ src/cmd/internal/obj/i386/anames8.go |  507 -----
+ src/cmd/internal/obj/i386/asm8.go    | 3462 ----------------------------------
+ src/cmd/internal/obj/i386/list8.go   |  161 --
+ src/cmd/internal/obj/i386/obj8.go    |  942 ---------
+ src/cmd/internal/obj/i386/util.go    |   12 -
+ 6 files changed, 5678 deletions(-)

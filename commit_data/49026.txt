@@ -1,26 +1,53 @@
-commit d544591d72ade40d34d7a8ee70e7239ae63b4116
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Tue May 11 11:44:24 2021 +0800
+commit d4f6d161e439b3c2a56a4583d4b5acebe3fdeeee
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Jul 7 11:49:57 2021 -0700
 
-    cmd/dist: add asan tests for global objects in testsanitizers package
+    [dev.typeparams] cmd/compile: fix bunch of -G=3 bugs for test cases in test/typeparams/mdempsky
     
-    Add tests to test that -asan in Go can detect the error memory access
-    to the global objects.
+    1.go, 12.go: similar to calculating type sizes, we delay computing
+    instantiations during import until we get up to a top-level type, in
+    order to make sure recursive types are complete. But we should always
+    delay calculating sizes when we delay instantiating types, since
+    otherwise we may try to calculate the size of an incomplete type. So,
+    needed to add Defer/ResumeCheckSize in (*importReader).typ where we also
+    defer instantiations. (iimport.go)
     
-    Updates #44853.
+    2.go: when doing type substition, we have to handle named, parameterized
+    basic types i.e. the type has a type parameter even though the
+    underlying type is a basic type that doesn't depend on the parameter.
+    (subr.go)
     
-    Change-Id: I612a048460b497d18389160b66e6f818342d3941
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321716
-    Run-TryBot: Fannie Zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    3.go: for go 1.18, we allow arbitrary types in interfaces. We had
+    already allowed union types and tilde types, but didn't allow regular
+    non-interface types in Go 1.17 for compatibility.  Just skip an error
+    in the case of 1.18. (size.go)
+    
+    5.go: types2 and types1 differ in how they print out interfaces. types1
+    puts a space between "interface" and "{", types2 does not. So, since
+    some typenames come from types2 and some from types1, we need to remove
+    the space when printing out type arguments. (iimport.go/subr.go)
+    
+    9.go: in subst.node(), we were missing the KeyExpr case where a node has
+    no type. The assertion is just there, to make sure we understand all the
+    cases where there is no type to translate. We could just remove the
+    whole error check. (stencil.go)
+    
+    13.go: in subst.node(), missed handling the case where a method
+    expression is immediate called (which of course, is quite unusual, since
+    then there's no real reason to have used the method expression syntax in
+    that case). Just needed to add ir.OMETHEXPR in the OCALL switch
+    statement.  (stencil.go)
+    
+    Change-Id: I202cbe9541dfafe740e3b84b44982d6181738ea0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333165
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
 
- misc/cgo/testsanitizers/asan_test.go               |  5 ++++
- .../testsanitizers/testdata/asan_global1_fail.go   | 25 +++++++++++++++++
- .../testsanitizers/testdata/asan_global2_fail.go   | 31 ++++++++++++++++++++++
- .../testsanitizers/testdata/asan_global3_fail.go   | 28 +++++++++++++++++++
- .../testsanitizers/testdata/asan_global4_fail.go   | 25 +++++++++++++++++
- misc/cgo/testsanitizers/testdata/asan_global5.go   | 22 +++++++++++++++
- 6 files changed, 136 insertions(+)
+ src/cmd/compile/internal/noder/stencil.go     |  5 +++--
+ src/cmd/compile/internal/typecheck/iimport.go |  8 +++++++-
+ src/cmd/compile/internal/typecheck/subr.go    | 10 +++++++++-
+ src/cmd/compile/internal/types/size.go        |  7 +++++--
+ test/run.go                                   | 11 ++---------
+ 5 files changed, 26 insertions(+), 15 deletions(-)

@@ -1,18 +1,26 @@
-commit c7f870ebc41029e07e7ffd8ff2d96b91fd83cd40
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 17 12:51:10 2022 -0400
+commit ee69b09424f611d02d4b0f0da3eff875e075438f
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Sep 22 08:52:41 2021 -0700
 
-    cmd/go: skip test cases that depend on gopkg.in
+    cmd/compile: break out constants for local and global dictionary prefixes
     
-    Updates #54503.
+    Create constant LocalDictName for the pname/refix for dictionary
+    parameters or local variables, and constant GlobalDictPrefix for the
+    prefix for names of global dictionaries. I wanted to make sure these
+    constants were set up as we add more reference to dictionaries for
+    debugging, etc.
     
-    Change-Id: Ie13d028b09260d2d316c343b3ea812bb9cce4e6d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424594
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ide801f842383300a2699c96943ec06decaecc358
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351450
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/modfetch/coderepo_test.go     | 10 +++++++++-
- src/cmd/go/testdata/script/mod_gopkg_unstable.txt |  2 ++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/stencil.go     | 11 ++++-------
+ src/cmd/compile/internal/typecheck/iexport.go |  5 ++++-
+ src/cmd/compile/internal/typecheck/subr.go    |  3 ++-
+ src/cmd/internal/obj/objfile.go               |  2 +-
+ src/cmd/internal/objabi/util.go               |  3 ++-
+ 5 files changed, 13 insertions(+), 11 deletions(-)

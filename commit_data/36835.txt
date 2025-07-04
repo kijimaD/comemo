@@ -1,37 +1,25 @@
-commit 9dac0a8132d7db5225b27bdd8faeb3158e624159
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Tue Sep 11 15:14:28 2018 -0700
+commit 6b4828a206c2c5a5b6bf3cd4bd92b9530ecca5e5
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat May 19 13:59:29 2018 +0200
 
-    runtime: on a signal, set traceback address to a deferreturn call
+    encoding/asn1: fix returned type for an Object Identifier
     
-    When a function triggers a signal (like a segfault which translates to
-    a nil pointer exception) during execution, a sigpanic handler is just
-    below it on the stack.  The function itself did not stop at a
-    safepoint, so we have to figure out what safepoint we should use to
-    scan its stack frame.
+    Unmarshal/Marshal/Unmarshal was not idempotent as the Object Identifier
+    type was not returned through the interface. The limit case OID = 0
+    returns an error. The zero OID is 0.0
     
-    Previously we used the site of the most recent defer to get the live
-    variables at the signal site. That answer is not quite correct, as
-    explained in #27518. Instead, use the site of a deferreturn call.
-    It has all the right variables marked as live (no args, all the return
-    values, except those that escape to the heap, in which case the
-    corresponding PAUTOHEAP variables will be live instead).
+    A test is fixed to use the Object Identifier type.
+    Other related test are added.
     
-    This CL requires stack objects, so that all the local variables
-    and args referenced by the deferred closures keep the right variables alive.
+    Fixes #11130
     
-    Fixes #27518
-    
-    Change-Id: Id45d8a8666759986c203181090b962e2981e48ca
-    Reviewed-on: https://go-review.googlesource.com/c/134637
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I15483a3126066c9b99cf5bd9c4b0cc15ec1d61ca
+    Reviewed-on: https://go-review.googlesource.com/113837
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/internal/objabi/funcid.go |  2 +-
- src/cmd/link/internal/ld/pcln.go  | 97 +++++++++++++++++++++++----------------
- src/runtime/runtime2.go           |  8 ++--
- src/runtime/symtab.go             |  4 +-
- src/runtime/traceback.go          |  8 ++--
- test/fixedbugs/issue27518a.go     | 45 ++++++++++++++++++
- test/fixedbugs/issue27518b.go     | 72 +++++++++++++++++++++++++++++
- 7 files changed, 188 insertions(+), 48 deletions(-)
+ src/encoding/asn1/asn1.go         |  2 +-
+ src/encoding/asn1/asn1_test.go    |  2 +-
+ src/encoding/asn1/marshal_test.go | 57 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 2 deletions(-)

@@ -1,13 +1,12 @@
-commit 2065b0a094e119b7796b53d021a58fbcbefa2ed3
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Thu Dec 8 22:06:33 2011 -0500
+commit a933635579355dc152ab0ad6571d92015bb88cb8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 8 21:48:19 2011 -0500
 
-    math: special cases for Pow10; delete BUG
+    spec: var x = 'a' defaults to type rune
     
-    R=rsc, golang-dev
+    R=gri, r, r, adg, iant, ken
     CC=golang-dev
-    https://golang.org/cl/5477046
+    https://golang.org/cl/5444053
 
- src/pkg/math/const.go | 2 --
- src/pkg/math/pow10.go | 4 ++++
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 67 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 33 insertions(+), 34 deletions(-)

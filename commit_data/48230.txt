@@ -1,20 +1,32 @@
-commit d81464e1eb69faab8bcf04015575d8a491e882b5
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Feb 9 11:42:54 2022 -0800
+commit 9ed736ac2a99aa2e7ef7d8bed3b01ca8b20a6f80
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Apr 29 16:07:25 2021 -0500
 
-    cmd/compile: don't panic when printing package-less symbols
+    cmd/link/internal: fix use of DynlinkingGo with ppc64le trampolines
     
-    Some of the SSA pseudo-variables like the memory variable don't
-    have a package. Print those gracefully instead of printing a panic.
+    When creating programs with large text sections on ppc64le,
+    trampolines are needed for calls that are too far; however
+    they are not created if the code is generated such that the TOC
+    register r2 is initialized and maintained in the code because
+    then the external linker can create the trampolines. Previously
+    the function DynlinkingGo was used to determine this but in the
+    case where plugins are used, this could return true even though
+    r2 is not valid.
     
-    Fixes #51108
+    To fix this problem I've added a new function r2Valid which returns
+    true when the build options indicate that the r2 is
+    initialized and maintained. Because of the ways that
+    DynlinkingGo is used I wanted to maintain its previous
+    behavior.
     
-    Change-Id: I5c29029356e045c5cf70909d6e63666ebc58ffaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384614
-    Trust: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #45850
+    
+    Change-Id: I6d902eba6ad41757aa6474948b79acdbd479cb38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315289
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types/fmt.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/link/internal/ppc64/asm.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

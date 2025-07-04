@@ -1,22 +1,21 @@
-commit e30a09013b24853cbe6d3d3a919e639df0bdf41c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 8 15:59:11 2021 -0700
+commit 30c99cbb7a7bd795a772bbc0f32a1266d86b29bb
+Author: markruler <csu0414@gmail.com>
+Date:   Tue Dec 22 17:22:17 2020 +0000
 
-    cmd/compile: extrapolate $GOROOT in unified IR
+    cmd/go: add the Retract field to 'go help mod edit' definition of the GoMod struct
     
-    This ensures that diagnostics for files within $GOROOT continue to be
-    reported using their full filepath, rather than the abbreviated
-    filepath. Notably, this is necessary for test/run.go, which has tests
-    that expect to see the full filepath.
+    Fixes #43281
     
-    Updates #48247.
-    
-    Change-Id: I440e2c6dd6109ca059d81cee49e476bba805d703
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348670
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ife26ca174a8818b56aaea9547976d97978478a5f
+    GitHub-Last-Rev: 85a3d30001672b371a58d1c8a2092fc9b937af6f
+    GitHub-Pull-Request: golang/go#43315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279592
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/noder/reader.go | 24 +++++++++++++++++++++---
- 1 file changed, 21 insertions(+), 3 deletions(-)
+ src/cmd/go/alldocs.go              | 1 +
+ src/cmd/go/internal/modcmd/edit.go | 1 +
+ 2 files changed, 2 insertions(+)

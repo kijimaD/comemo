@@ -1,15 +1,15 @@
-commit 3a67d595f50ff7d589d4a097e162707342f1bbc4
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Sep 3 12:01:27 2016 -0700
+commit 7a964e1df4c94941d7ca53491de4ff7f12bc0941
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Apr 27 13:47:19 2016 -0400
 
-    strconv: fix function name in errors for Atoi
+    cmd/vet: add mips64x assembly check support
     
-    Fixes #16980
-    
-    Change-Id: I902a02b157c2c7d1772f5122b850dc48b1d7a224
-    Reviewed-on: https://go-review.googlesource.com/28474
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0a6a92604dbfa4b0f9c5ae483b574331f246dcad
+    Reviewed-on: https://go-review.googlesource.com/22502
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/strconv/atoi.go         |  4 ++++
- src/strconv/strconv_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+)
+ src/cmd/vet/asmdecl.go      |  15 ++++
+ src/cmd/vet/testdata/asm5.s | 193 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 208 insertions(+)

@@ -1,30 +1,14 @@
-commit 57bf6aca711a53aa7fea877b98896cd0445c6ad0
-Author: Cholerae Hu <choleraehyq@gmail.com>
-Date:   Sat Aug 5 14:44:00 2017 +0800
+commit 092405a9affad56d18ee3d28b93b706c2887ba7d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Apr 12 16:03:46 2017 +1000
 
-    runtime, cmd/compile: add intrinsic getclosureptr
+    runtime/cgo: actually remove gcc_libinit_openbsd.c
     
-    Intrinsic enabled on all architectures,
-    runtime asm implementation removed on all architectures.
+    This was unintentionally emptied rather than removed in 9417c022.
     
-    Fixes #21258
-    
-    Change-Id: I2cb86d460b497c2f287a5b3df5c37fdb231c23a7
-    Reviewed-on: https://go-review.googlesource.com/53411
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ie6fdcf7ef55e58f12e2a2750ab448aa2d9f94d15
+    Reviewed-on: https://go-review.googlesource.com/40413
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go |  6 +++---
- src/cmd/compile/internal/gc/ssa.go |  5 +++++
- src/runtime/alg.go                 | 10 ++++++----
- src/runtime/asm_386.s              | 17 -----------------
- src/runtime/asm_amd64.s            | 17 -----------------
- src/runtime/asm_amd64p32.s         | 17 -----------------
- src/runtime/asm_arm.s              | 17 -----------------
- src/runtime/asm_arm64.s            | 17 -----------------
- src/runtime/asm_mips64x.s          | 17 -----------------
- src/runtime/asm_mipsx.s            | 17 -----------------
- src/runtime/asm_ppc64x.s           | 17 -----------------
- src/runtime/asm_s390x.s            | 17 -----------------
- src/runtime/stubs.go               | 16 ++++++++++++++++
- 13 files changed, 30 insertions(+), 160 deletions(-)
+ src/runtime/cgo/gcc_libinit_openbsd.c | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,21 +1,14 @@
-commit cf2c2ea89d09d486bb018b1817c5874388038c3a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Jun 3 07:26:16 2018 -0700
+commit ef3ab3f5e2e612532733b3cdd38eefa387595fe3
+Author: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+Date:   Tue Feb 6 08:56:53 2018 +0300
 
-    text/tabwriter: fix BenchmarkPyramid and BenchmarkRagged again
+    database/sql: add String method to IsolationLevel
     
-    These were added in CL 106979. I got them wrong.
-    They were fixed in CL 111643. They were still wrong.
-    Hopefully this change will be the last fix.
+    Fixes #23632
     
-    With this fix, CL 106979 is allocation-neutral for BenchmarkRagged.
-    The performance results for BenchmarkPyramid reported in CL 111643 stand.
-    
-    Change-Id: Id6a522e6602e5df31f504adf5a3bec9969c18649
-    Reviewed-on: https://go-review.googlesource.com/116015
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7197e13df6cf28400a6dd86c110f41129550abb6
+    Reviewed-on: https://go-review.googlesource.com/92235
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/text/tabwriter/tabwriter_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/database/sql/sql.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

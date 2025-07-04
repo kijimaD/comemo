@@ -1,19 +1,14 @@
-commit f71bd516b7003abed2c86b64ade6c0026075b6e8
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Tue Nov 5 18:02:15 2019 +0100
+commit 195e7538bab20ce914c2e503091a86e17d2be8c8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 5 10:09:08 2019 -0700
 
-    src/vendor: update to latest version of net
+    doc: remove CL 159258 from 1.13 release notes list
     
-    Change-Id: Ide3b689dd6808fc82f6310e4608e6d3574fafa82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205339
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    It was rolled back.
+    
+    Change-Id: I8372bb7e11bab7be242f4af7093a73d2fa093067
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180760
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go.mod                                       |    2 +-
- src/go.sum                                       |    4 +-
- src/vendor/golang.org/x/net/idna/tables11.0.0.go |    2 +-
- src/vendor/golang.org/x/net/idna/tables12.00.go  | 4733 ++++++++++++++++++++++
- src/vendor/golang.org/x/net/nettest/nettest.go   |   36 +-
- src/vendor/modules.txt                           |    2 +-
- 6 files changed, 4757 insertions(+), 22 deletions(-)
+ doc/go1.13.html | 1 -
+ 1 file changed, 1 deletion(-)

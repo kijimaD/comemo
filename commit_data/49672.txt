@@ -1,24 +1,27 @@
-commit ceefd3a37bb2a77b1e9a76fc74360c68ef16ddb8
-Author: Muhammed Can Küçükaslan <32893303+Kucukaslan@users.noreply.github.com>
-Date:   Sun Jul 24 21:44:11 2022 +0000
+commit 17910ed4ff5a3cb3dcf4367d4af23ad5a7fe5809
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 11 10:54:39 2021 -0700
 
-    bytes: document that Reader.Reset affects the result of Size
+    refect: rename Ptr Kind to Pointer (but keep Ptr)
     
-    The Reader.Reset changes the underlying byte slice, so it actually
-    changes the return value of the Size method.
+    reflect.Ptr didn't match reflect.UnsafePointer or unsafe.Pointer
+    so rename it to reflect.Pointer. Keep reflect.Ptr for compatibility.
     
-    Fixes #54018
+    Likewise with PtrTo.
     
-    Change-Id: I160deaa2244e95cb93303cb5dfb67a8d90a375ef
-    GitHub-Last-Rev: b04724a072d956db1f84a8f5db0afa0dbb158e96
-    GitHub-Pull-Request: golang/go#54020
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419237
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change to use it in std will come in a subsequent CL.
+    
+    Fixes #47651
+    
+    Change-Id: I5d4abe2b2fe10948bd68bb12c557165bedffbcba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341333
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/bytes/reader.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/internal/reflectlite/type.go  |  4 +++-
+ src/internal/reflectlite/value.go |  8 +++----
+ src/reflect/type.go               | 50 ++++++++++++++++++++++++---------------
+ 3 files changed, 38 insertions(+), 24 deletions(-)

@@ -1,23 +1,16 @@
-commit e181852dd487b97c0ed3662573793ca77f3299b0
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Fri Feb 2 16:26:58 2018 -0500
+commit f8f0d6c4deab0837b03ddccfe0edf775c3bbd49f
+Author: griesemer <gri@golang.org>
+Date:   Wed Oct 11 15:02:10 2017 -0700
 
-    cmd/compile/internal: use sparseSet, optimize isSynthetic
+    cmd/compile/internal/syntax: match argument and parameter parsing (cleanup)
     
-    changedVars was functionally a set, but couldn't be iterated over
-    efficiently. In functions with many variables, the wasted iteration was
-    costly. Use a sparseSet instead.
+    No semantic change. Move functionality not related to argument
+    out of the argument parsing function, and thus match parameter
+    parsing. Also, use a better function name.
     
-    (*gc.Node).String() is very expensive: it calls Sprintf, which does
-    reflection, etc, etc. Instead, just look at .Sym.Name, which is all we
-    care about.
-    
-    Change-Id: Ib61cd7b5c796e1813b8859135e85da5bfe2ac686
-    Reviewed-on: https://go-review.googlesource.com/92402
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ic550875251d64e6fe1ebf91c11d33a9e4aec9fdd
+    Reviewed-on: https://go-review.googlesource.com/70491
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/syntax.go       |  5 +++++
- src/cmd/compile/internal/ssa/config.go      |  1 +
- src/cmd/compile/internal/ssa/debug.go       | 35 ++++++++++-------------------
- src/cmd/compile/internal/ssa/export_test.go |  4 ++++
- 4 files changed, 22 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go | 24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)

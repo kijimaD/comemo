@@ -1,20 +1,47 @@
-commit 0ab0d4e33ff6982880e6140ec560729412192080
-Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Aug 11 22:46:32 2023 +1000
+commit 3a067b288ef235fdbc88220ea5bb384e0474f09b
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri May 21 11:26:01 2021 -0500
 
-    runtime/cgo: consolidate netbsd cgo code
+    cmd/internal/obj/ppc64: add ISA 3.1 instructions
     
-    All netbsd architectures now use the same code, deduplicate accordingly.
+    Use ppc64map (from x/arch) to generate ISA 3.1 support for the
+    assembler. A new file asm9_gtables.go is added which contains
+    generated code to encode ISA 3.1 instructions, a function to assist
+    filling out the oprange structure, a lookup table for the fixed
+    bits of each instructions, and a slice of string name. Generated
+    functions are shared if their bitwise encoding match, and the
+    translation from an obj.Prog structure matches.
     
-    Change-Id: Ieb179fd76885b7af6d388d7f2aee0f9fac6f1264
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518621
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The generated file is entirely self-contained, and does not require
+    regenerating any other files for changes within it. If opcodes in
+    a.out.go are reordered or changed, anames.go must be updated in
+    the same way as before.
+    
+    Future improvements could shrink the generated opcode table
+    to 32 bit entries as there is much less variation of the
+    encoding of the prefix word, but it is not always identical
+    for instructions which share a similar encoding of arguments
+    (e.g PLWA and PLWZ).
+    
+    Updates #44549
+    
+    Change-Id: Ie83fa02497c9ad2280678d68391043d3aae63175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419535
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
 
- src/runtime/cgo/{gcc_netbsd_386.c => gcc_netbsd.c} |  2 +
- src/runtime/cgo/gcc_netbsd_amd64.c                 | 72 ---------------------
- src/runtime/cgo/gcc_netbsd_arm.c                   | 72 ---------------------
- src/runtime/cgo/gcc_netbsd_arm64.c                 | 73 ----------------------
- 4 files changed, 2 insertions(+), 217 deletions(-)
+ src/cmd/asm/internal/arch/arch.go             |    5 +
+ src/cmd/asm/internal/asm/endtoend_test.go     |    3 +
+ src/cmd/asm/internal/asm/testdata/ppc64_p10.s |  266 ++++
+ src/cmd/internal/obj/ppc64/a.out.go           |   11 +-
+ src/cmd/internal/obj/ppc64/anames.go          |    3 +-
+ src/cmd/internal/obj/ppc64/asm9.go            |   59 +-
+ src/cmd/internal/obj/ppc64/asm9_gtables.go    | 1616 +++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/list9.go           |    4 +-
+ src/cmd/internal/obj/ppc64/obj9.go            |   12 +
+ 9 files changed, 1934 insertions(+), 45 deletions(-)

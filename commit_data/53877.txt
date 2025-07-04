@@ -1,38 +1,18 @@
-commit b7c826d2c4576dbe04a79ab7d0dfa03c722c0ab9
-Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
-Date:   Wed Jun 14 14:33:43 2023 -0700
+commit ccf82d53233234e563c0d394cb5a3b6da888e3d6
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Sep 7 01:16:14 2022 +0800
 
-    runtime,runtime/pprof: get memory mappings on darwin.
+    net: fix a typo in BenchmarkSendFile
     
-    Displaying assembly language has never worked for Apple Silicon
-    macs (see #50891). This change uses mach_vm_region to obtain the
-    necessary VM mappings to allow for locating assembly instructions
-    for a cpu profile.
-    
-    Fixes #50891
-    
-    Change-Id: Ib968c55a19b481b82f63337276b552f3b18f69d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503919
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ic463bd6d52e7d1d50d2dbd2122b4d514e0b4af60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428755
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/internal/objfile/macho.go       |   3 +
- src/cmd/pprof/pprof_test.go             |   3 +-
- src/runtime/defs_darwin.go              |  11 +++
- src/runtime/defs_darwin_amd64.go        |  11 +++
- src/runtime/defs_darwin_arm64.go        |  11 +++
- src/runtime/pprof/defs_darwin.go        |  30 ++++++++
- src/runtime/pprof/defs_darwin_amd64.go  |  26 +++++++
- src/runtime/pprof/defs_darwin_arm64.go  |  26 +++++++
- src/runtime/pprof/proto_darwin.go       |  36 ++++++++++
- src/runtime/pprof/proto_other.go        |   6 +-
- src/runtime/pprof/proto_test.go         |  13 ++--
- src/runtime/pprof/proto_windows.go      |  13 ++--
- src/runtime/pprof/vminfo_darwin.go      |  71 +++++++++++++++++++
- src/runtime/pprof/vminfo_darwin_test.go | 122 ++++++++++++++++++++++++++++++++
- src/runtime/sys_darwin.go               |  55 ++++++++++++++
- src/runtime/sys_darwin_amd64.s          |  22 ++++++
- src/runtime/sys_darwin_arm64.s          |  23 ++++++
- 17 files changed, 464 insertions(+), 18 deletions(-)
+ src/net/sendfile_linux_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

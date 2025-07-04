@@ -1,51 +1,20 @@
-commit 26bbe7ac9b78db96023427e9dced8afeea3195af
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 13:58:16 2015 +0100
+commit d7eb51e70e02887b15d6e23548c74ff86471ced9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 19 15:12:42 2015 -0500
 
-    cmd/internal/obj, cmd/internal/obj/arm64: add support for GOARCH=arm64
+    [dev.cc] test: disable rotate tests
     
-    ARM64 (ARMv8) has 32 general purpose, 64-bit integer registers
-    (R0-R31), 32 64-bit scalar floating point registers (F0-F31), and
-    32 128-bit vector registers (unused, V0-V31).
+    They use too much memory in the current Go compiler draft.
+    This should fix some builders.
     
-    R31 is either the stack pointer (RSP), or the zero register (ZR),
-    depending on the instruction. Note the distinction between the
-    hardware stack pointer, RSP, and the virtual stack pointer SP.
+    Reenabling is #9933.
     
-    The (hardware) stack pointer must be 16-byte aligned at all times;
-    the RSP register itself must be aligned, offset(RSP) only has to
-    have natural alignment.
-    
-    Instructions are fixed-width, and are 32-bit wide. ARM64 supports
-    ARMv7 too (32-bit ARM), but not in the same process. In general,
-    there is not much in common between 32-bit ARM and ARM64, it's a
-    new architecture.
-    
-    All implementations have floating point instructions.
-    
-    This change adds a Prog.To3 field analogous to Prog.To. It is used
-    by exclusive load/store instructions such as STLXR which read from
-    one register, and write to both a register and a memory address.
-    
-            STLXRW  R1, (R0), R3
-    
-    This will store the word contained in R1 to the memory address
-    pointed by R0. R3 will be updated with the status result of the
-    store. It is used to implement atomic operations.
-    
-    No other changes are made to the portable Prog and Addr structures.
-    
-    Change-Id: Ie839029aa5265bbad35769d9689eca11e1c48c47
-    Reviewed-on: https://go-review.googlesource.com/7046
+    Change-Id: Ib5ef348b2c55d2012ffed765f2a6df99dec171f4
+    Reviewed-on: https://go-review.googlesource.com/5302
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/arm64/7.out.go   |  711 ++++++
- src/cmd/internal/obj/arm64/anames.go  |  379 +++
- src/cmd/internal/obj/arm64/anames7.go |   62 +
- src/cmd/internal/obj/arm64/asm7.go    | 4194 +++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/arm64/list7.go   |  114 +
- src/cmd/internal/obj/arm64/obj7.go    |  829 +++++++
- src/cmd/internal/obj/arm64/util.go    |   12 +
- src/cmd/internal/obj/link.go          |    2 +
- src/cmd/internal/obj/util.go          |   10 +-
- 9 files changed, 6309 insertions(+), 4 deletions(-)
+ test/rotate0.go | 2 ++
+ test/rotate1.go | 2 ++
+ test/rotate2.go | 2 ++
+ test/rotate3.go | 2 ++
+ 4 files changed, 8 insertions(+)

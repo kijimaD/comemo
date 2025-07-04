@@ -1,14 +1,16 @@
-commit f8ff6893a579184d1ba62b0e178fe7ddfd695a1b
+commit 5e6a1a3f4894b3995c546178dd6de52d0f77493b
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 21 16:56:59 2013 -0700
+Date:   Thu Mar 21 15:56:15 2013 -0700
 
-    test: more systematic shift tests
+    go/doc: use regexp for -notes instead of comma-sep. list
     
-    To be submitted once gc agrees.
+    -notes="BUG|TODO" instead of -notes="BUG,TODO".
+    Permits -notes=".*" to see all notes.
     
-    R=rsc, iant, remyoudompheng
+    R=cnicolaou
     CC=golang-dev
-    https://golang.org/cl/7861045
+    https://golang.org/cl/7951043
 
- test/shift1.go | 191 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 187 insertions(+), 4 deletions(-)
+ src/cmd/godoc/doc.go   |  3 +++
+ src/cmd/godoc/godoc.go | 21 +++++++++++----------
+ 2 files changed, 14 insertions(+), 10 deletions(-)

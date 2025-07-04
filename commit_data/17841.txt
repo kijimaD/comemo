@@ -1,36 +1,16 @@
-commit adda33483dbf9fe4753ecc54b56590d60c962acb
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 28 22:21:26 2013 -0400
+commit 5644774ea5c954a08c1e068be9771429a232ca7c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 28 19:31:25 2013 -0400
 
-    cmd/cgo: stop using -fno-eliminate-unused-debug-types
+    net: handle single-line non-\n-terminated files correctly in readLine
     
-    This flag was added in January 2010, in CL 181102, to fix issue 497.
-    (Numbers were just shorter back then.) The fix was for OS X machines
-    and the llvm-gcc frontend.
+    Fixes #6646.
     
-    In July 2011 we had to change the way we get enum values, because
-    there were no flags available to force Xcode's llvm-gcc to include the
-    enum names and values in DWARF debug output.
-    
-    We now use clang, not llvm-gcc, on OS X machines.
-    Earlier versions of clang printed a warning about not knowing the flag.
-    Newer versions of clang now make that an error.
-    
-    That is:
-     - The flag was added for OS X machines.
-     - The flag is no longer necessary on OS X machines.
-     - The flag now breaks some OS X machines.
-    
-    Remove it.
-    
-    I have run the original program from issue 497 successfully
-    without the flag on both OS X and Linux machines.
-    
-    Fixes #6678.
-    
-    R=golang-dev, minux.ma
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/18850043
+    https://golang.org/cl/15960047
 
- src/cmd/cgo/gcc.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/pkg/net/hosts_test.go             | 13 +++++++++++++
+ src/pkg/net/parse.go                  |  2 +-
+ src/pkg/net/testdata/hosts_singleline |  1 +
+ 3 files changed, 15 insertions(+), 1 deletion(-)

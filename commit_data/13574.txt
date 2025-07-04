@@ -1,17 +1,21 @@
-commit ea392b8849e886e2548246666026db5dfca929f7
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Aug 5 14:32:09 2012 -0400
+commit 74db9d298b1b5aedd1d63f0a7257e4b51e21ca0c
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Aug 5 22:32:35 2012 +1000
 
-    bufio: discourage use of ReadLine
+    exp/html: don't treat SVG <title> like HTML <title>
     
-    Too many people use it without reading what it does.
-    Those people want ReadBytes or ReadString.
+    The content of an HTML <title> element is RCDATA, but the content of an SVG
+    <title> element is parsed as tags. Now the parser doesn't go into RCDATA
+    mode in foreign content.
     
-    Fixes #3906.
+    Pass 4 additional tests.
     
-    R=golang-dev, iant, r
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6442087
+    https://golang.org/cl/6448111
 
- src/pkg/bufio/bufio.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/exp/html/parse.go                  | 5 +++++
+ src/pkg/exp/html/render.go                 | 2 +-
+ src/pkg/exp/html/testlogs/tests10.dat.log  | 2 +-
+ src/pkg/exp/html/testlogs/webkit01.dat.log | 6 +++---
+ 4 files changed, 10 insertions(+), 5 deletions(-)

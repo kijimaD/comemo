@@ -1,40 +1,18 @@
-commit 6688efd5df1ef82dbe5d1f47b4c9bf4321a44126
+commit f9dcda3fd83e83fb29cc6b0f710faa49ba98a54b
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 6 16:21:35 2022 -0700
+Date:   Thu Nov 11 16:32:16 2021 -0800
 
-    cmd/compile/internal/types2: use internal/types/errors instead of local error codes
+    cmd/compile/internal/types2: better error for type assertion/switch on type parameter value
     
-    Change-Id: If9b5c2c5d1b89146250bcd19965797baab315876
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439564
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I98751d0b2d8aefcf537b6d5200d0b52ffacf1105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363439
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/assignments.go |   33 +-
- src/cmd/compile/internal/types2/builtins.go    |   71 +-
- src/cmd/compile/internal/types2/call.go        |   41 +-
- src/cmd/compile/internal/types2/check.go       |    5 +-
- src/cmd/compile/internal/types2/conversions.go |    5 +-
- src/cmd/compile/internal/types2/decl.go        |   25 +-
- src/cmd/compile/internal/types2/errorcodes.go  | 1423 ------------------------
- src/cmd/compile/internal/types2/errors.go      |   13 +-
- src/cmd/compile/internal/types2/expr.go        |  139 +--
- src/cmd/compile/internal/types2/index.go       |   27 +-
- src/cmd/compile/internal/types2/infer.go       |   11 +-
- src/cmd/compile/internal/types2/initorder.go   |    5 +-
- src/cmd/compile/internal/types2/instantiate.go |    3 +-
- src/cmd/compile/internal/types2/interface.go   |    7 +-
- src/cmd/compile/internal/types2/labels.go      |   17 +-
- src/cmd/compile/internal/types2/mono.go        |    3 +-
- src/cmd/compile/internal/types2/operand.go     |   21 +-
- src/cmd/compile/internal/types2/resolver.go    |   31 +-
- src/cmd/compile/internal/types2/signature.go   |   19 +-
- src/cmd/compile/internal/types2/stmt.go        |   71 +-
- src/cmd/compile/internal/types2/struct.go      |   11 +-
- src/cmd/compile/internal/types2/typeset.go     |    7 +-
- src/cmd/compile/internal/types2/typexpr.go     |   49 +-
- src/cmd/compile/internal/types2/union.go       |   23 +-
- src/cmd/dist/buildtool.go                      |    1 +
- 25 files changed, 333 insertions(+), 1728 deletions(-)
+ src/cmd/compile/internal/types2/expr.go                       |  7 ++++++-
+ src/cmd/compile/internal/types2/stmt.go                       | 11 ++++++-----
+ src/cmd/compile/internal/types2/testdata/check/typeparams.go2 |  8 ++++----
+ test/interface/explicit.go                                    |  2 +-
+ test/typeswitch3.go                                           |  4 ++--
+ 5 files changed, 19 insertions(+), 13 deletions(-)

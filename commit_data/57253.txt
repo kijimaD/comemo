@@ -1,20 +1,26 @@
-commit c586dbb8b7342584c04e014afd2d75fd04f146bc
+commit 5c2b43a761544a7b172971a91f2e3ceb40190f28
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Aug 25 21:05:00 2024 +0700
+Date:   Tue Jun 27 10:03:55 2023 +0700
 
-    internal/pkgbits: add DerivedInfoNeeded
+    cmd/compile/internal/typecheck: cleanup code
     
-    So next CL can use it to remove unnecessary derivedInfo needed field.
+    Removing a lot of functions/variables/constants which are un-unsed
+    anymore in Unified IR frontend.
     
-    Updates #68778
-    
-    Change-Id: Ia4e0f638beaf4a448fbf10a9aa1bc9425349a5e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608215
+    Change-Id: Iccf73754196bf4fa40fe701a6468f4c8a1a0c655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506477
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/pkgbits/pkgbits_test.go | 3 +++
- src/internal/pkgbits/version.go      | 6 ++++++
- 2 files changed, 9 insertions(+)
+ src/cmd/compile/internal/typecheck/const.go    |  29 ------
+ src/cmd/compile/internal/typecheck/dcl.go      |  21 ----
+ src/cmd/compile/internal/typecheck/export.go   |  25 -----
+ src/cmd/compile/internal/typecheck/func.go     |  20 ----
+ src/cmd/compile/internal/typecheck/iexport.go  | 136 -------------------------
+ src/cmd/compile/internal/typecheck/subr.go     |   4 -
+ src/cmd/compile/internal/typecheck/universe.go |  20 ----
+ 7 files changed, 255 deletions(-)

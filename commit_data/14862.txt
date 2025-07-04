@@ -1,14 +1,38 @@
-commit 7f0449a1086dce557c6071c951cfec8664e8d456
-Author: Gwenael Treguier <gwenn.kahz@gmail.com>
-Date:   Fri Jan 11 13:28:33 2013 -0800
+commit c3836ed06ea30f5c9a5aacd90e3c48164065971c
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 11 22:00:48 2013 +0100
 
-    database/sql: check NumInput on Stmt.Exec
+    test: make rundir match compiledir/errorcheckdir.
     
-    Fixes #3678.
+    This allows test/dwarf to be supported by run.go.
     
-    R=golang-dev, bradfitz
+    Update #4139.
+    
+    R=golang-dev, bradfitz, iant
     CC=golang-dev
-    https://golang.org/cl/6460087
+    https://golang.org/cl/7064067
 
- src/pkg/database/sql/sql.go | 26 ++++++--------------------
- 1 file changed, 6 insertions(+), 20 deletions(-)
+ test/dwarf/{ => dwarf.dir}/main.go |  0
+ test/dwarf/{ => dwarf.dir}/z1.go   |  0
+ test/dwarf/{ => dwarf.dir}/z10.go  |  0
+ test/dwarf/{ => dwarf.dir}/z11.go  |  0
+ test/dwarf/{ => dwarf.dir}/z12.go  |  0
+ test/dwarf/{ => dwarf.dir}/z13.go  |  0
+ test/dwarf/{ => dwarf.dir}/z14.go  |  0
+ test/dwarf/{ => dwarf.dir}/z15.go  |  0
+ test/dwarf/{ => dwarf.dir}/z16.go  |  0
+ test/dwarf/{ => dwarf.dir}/z17.go  |  0
+ test/dwarf/{ => dwarf.dir}/z18.go  |  0
+ test/dwarf/{ => dwarf.dir}/z19.go  |  0
+ test/dwarf/{ => dwarf.dir}/z2.go   |  0
+ test/dwarf/{ => dwarf.dir}/z20.go  |  0
+ test/dwarf/{ => dwarf.dir}/z3.go   |  0
+ test/dwarf/{ => dwarf.dir}/z4.go   |  0
+ test/dwarf/{ => dwarf.dir}/z5.go   |  0
+ test/dwarf/{ => dwarf.dir}/z6.go   |  0
+ test/dwarf/{ => dwarf.dir}/z7.go   |  0
+ test/dwarf/{ => dwarf.dir}/z8.go   |  0
+ test/dwarf/{ => dwarf.dir}/z9.go   |  0
+ test/dwarf/dwarf.go                | 10 +++++++
+ test/run.go                        | 60 +++++++++++++-------------------------
+ 23 files changed, 30 insertions(+), 40 deletions(-)

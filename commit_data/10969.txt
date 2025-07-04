@@ -1,23 +1,14 @@
-commit 7350c771f89e1a068677121341908a8846905c2c
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Dec 22 11:23:57 2011 -0500
+commit f1ebbf80bd8fcc6b38e958f170ee755cf28c27f7
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Dec 23 02:47:48 2011 +1100
 
-    exp/terminal: several cleanups
+    syscall: make pipe work on netbsd
     
-    1) Add EscapeCodes to the terminal so that applications don't wire
-       them in.
-    2) Add a callback for auto-complete
-    3) Fix an issue with input lines longer than the width of the
-       terminal.
-    4) Have Write() not stomp the current line. It now erases the current
-       input, writes the output and reprints the prompt and partial input.
-    5) Support prompting without local echo in Terminal.
-    6) Add GetSize to report the size of terminal.
-    
-    R=bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5479043
+    https://golang.org/cl/5504070
 
- src/pkg/exp/terminal/terminal.go | 204 ++++++++++++++++++++++++++++++++++-----
- src/pkg/exp/terminal/util.go     |  12 ++-
- 2 files changed, 189 insertions(+), 27 deletions(-)
+ src/pkg/syscall/syscall_netbsd.go        | 4 ++--
+ src/pkg/syscall/zsyscall_netbsd_386.go   | 4 ++--
+ src/pkg/syscall/zsyscall_netbsd_amd64.go | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

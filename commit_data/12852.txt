@@ -1,12 +1,72 @@
-commit 149983f13682ecd1cf19db3fb9a7788f614f1aa9
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Apr 10 01:49:49 2012 +0800
+commit 342658bbb609dc7910951219be5d03c6cb6250b4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Apr 9 13:05:43 2012 +0400
 
-    build: run.bash no longer accepts --no-banner
+    runtime: preparation for parallel GC
+    make MHeap.allspans an array instead on a linked-list,
+    it's required for parallel for
     
-    R=golang-dev, rsc
+    benchmark                              old ns/op    new ns/op    delta
+    
+    garbage.BenchmarkTree                  494435529    487962705   -1.31%
+    garbage.BenchmarkTree-2                499652705    485358000   -2.86%
+    garbage.BenchmarkTree-4                468482117    454093117   -3.07%
+    garbage.BenchmarkTree-8                488533235    471872470   -3.41%
+    garbage.BenchmarkTree-16               507835176    492558470   -3.01%
+    
+    garbage.BenchmarkTree2                  31453900     31404300   -0.16%
+    garbage.BenchmarkTree2-2                21440600     21477000   +0.17%
+    garbage.BenchmarkTree2-4                10982000     11117400   +1.23%
+    garbage.BenchmarkTree2-8                 7544700      7456700   -1.17%
+    garbage.BenchmarkTree2-16                7049500      6805700   -3.46%
+    
+    garbage.BenchmarkParser               4448988000   4453264000   +0.10%
+    garbage.BenchmarkParser-2             4086045000   4057948000   -0.69%
+    garbage.BenchmarkParser-4             3677365000   3661246000   -0.44%
+    garbage.BenchmarkParser-8             3517253000   3540190000   +0.65%
+    garbage.BenchmarkParser-16            3506562000   3463478000   -1.23%
+    
+    garbage.BenchmarkTreePause              20969784     21100238   +0.62%
+    garbage.BenchmarkTreePause-2            20215875     20139572   -0.38%
+    garbage.BenchmarkTreePause-4            17240709     16683624   -3.23%
+    garbage.BenchmarkTreePause-8            18196386     17639306   -3.06%
+    garbage.BenchmarkTreePause-16           20621158     20215056   -1.97%
+    
+    garbage.BenchmarkTree2Pause            173992142    173872380   -0.07%
+    garbage.BenchmarkTree2Pause-2          131281904    131366666   +0.06%
+    garbage.BenchmarkTree2Pause-4           93484952     95109619   +1.74%
+    garbage.BenchmarkTree2Pause-8           88950523     86533333   -2.72%
+    garbage.BenchmarkTree2Pause-16          86071238     84089190   -2.30%
+    
+    garbage.BenchmarkParserPause           135815000    135255952   -0.41%
+    garbage.BenchmarkParserPause-2          92691523     91451428   -1.34%
+    garbage.BenchmarkParserPause-4          53392190     51611904   -3.33%
+    garbage.BenchmarkParserPause-8          36059523     35116666   -2.61%
+    garbage.BenchmarkParserPause-16         30174300     27340600   -9.39%
+    
+    garbage.BenchmarkTreeLastPause          28420000     29142000   +2.54%
+    garbage.BenchmarkTreeLastPause-2        23514000     26779000  +13.89%
+    garbage.BenchmarkTreeLastPause-4        21773000     18660000  -14.30%
+    garbage.BenchmarkTreeLastPause-8        24072000     21276000  -11.62%
+    garbage.BenchmarkTreeLastPause-16       25149000     28541000  +13.49%
+    
+    garbage.BenchmarkTree2LastPause        314491000    313982000   -0.16%
+    garbage.BenchmarkTree2LastPause-2      214363000    214715000   +0.16%
+    garbage.BenchmarkTree2LastPause-4      109778000    111115000   +1.22%
+    garbage.BenchmarkTree2LastPause-8       75390000     74522000   -1.15%
+    garbage.BenchmarkTree2LastPause-16      70333000     67880000   -3.49%
+    
+    garbage.BenchmarkParserLastPause       327247000    326815000   -0.13%
+    garbage.BenchmarkParserLastPause-2     217039000    212529000   -2.08%
+    garbage.BenchmarkParserLastPause-4     119722000    111535000   -6.84%
+    garbage.BenchmarkParserLastPause-8      70806000     69613000   -1.68%
+    garbage.BenchmarkParserLastPause-16     62813000     48009000  -23.57%
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5986063
+    https://golang.org/cl/5992055
 
- src/all.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/malloc.h |  5 +++--
+ src/pkg/runtime/mgc0.c   | 16 +++++++++-------
+ src/pkg/runtime/mheap.c  | 17 +++++++++++++++--
+ 3 files changed, 27 insertions(+), 11 deletions(-)

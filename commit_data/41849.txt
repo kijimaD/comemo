@@ -1,18 +1,20 @@
-commit 5f3354d1bf2e6a61e4b9e1e31ee04b99dfe7de35
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 3 12:52:17 2020 -0700
+commit fd1e60f6e3bd42075e335a90ad36719ffed0eb1a
+Author: Mikhail Fesenko <proggga@gmail.com>
+Date:   Mon Oct 28 21:51:00 2019 +0000
 
-    time, runtime: only call resetTimer from (*Timer).Reset
+    cmd/fix, cmd/go, cmd/gofmt: refactor common code into new internal diff package
     
-    Previously we stopped the timer and then reset it. With the current
-    timer implementation that is no longer required.
-    
-    Change-Id: Ie7aba61ad53ce835f6fcd0b6bce7fe0a15b10e24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227180
+    Change-Id: Idac8473d1752059bf2f617fd7a781000ee2c3af4
+    GitHub-Last-Rev: 02a3aa1a3241d3ed4422518f1c954cd54bbe858e
+    GitHub-Pull-Request: golang/go#35141
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203218
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/time.go | 19 ++++++++++++++-----
- src/time/sleep.go   |  6 ++----
- 2 files changed, 16 insertions(+), 9 deletions(-)
+ src/cmd/fix/main.go                      | 49 ++-------------------------
+ src/cmd/fix/main_test.go                 |  4 ++-
+ src/cmd/go/internal/modfile/read_test.go | 33 ++----------------
+ src/cmd/gofmt/gofmt.go                   | 46 ++++---------------------
+ src/cmd/gofmt/gofmt_test.go              |  4 +--
+ src/cmd/internal/diff/diff.go            | 58 ++++++++++++++++++++++++++++++++
+ 6 files changed, 75 insertions(+), 119 deletions(-)

@@ -1,35 +1,26 @@
-commit da0c375c571037ec5ea6f8ef2be8f07593b40eb6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 27 15:25:57 2023 -0500
+commit d8bee94be2fc2afa6418f0bf2d474c103d38c094
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Mar 16 12:12:50 2022 -0400
 
-    cmd/dist: leave cgo enabled if external linking is required
+    reflect, runtime: drop RegabiArgs conditions
     
-    Certain ios and android configurations do not yet support internal
-    linking.
+    With the previous CL, internal/abi.IntArgRegs and FloatArgRegs
+    is controlled by RegabiArgs (or always enabled), so there is no
+    need to check for that goexperiment.
     
-    On ios, attempting to build without cgo causes tests to fail on
-    essentially every run (#57961).
+    There are a few places we guard register-ABI specific code and
+    tests with the RegabiArgs flag. Switch to checking for the number
+    of argument registers instead.
     
-    On android, it produces a lot of warning spam from the linker,
-    obscuring real problems.
-    
-    Since external linking makes the result of `go install` depend on the
-    installed C toolchain either way, the reproducibility benefit of
-    disabling cgo seems minimal on these platforms anyway.
-    
-    Fixes #57961.
-    For #24904.
-    Updates #57007.
-    
-    Change-Id: Ied2454804e958dd670467db3d5e9ab50a40bb899
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463739
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Change-Id: I79fff9fd1e919684ffaf73aba9e7e85d5a9e1629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393363
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/dist/build.go      | 88 +++++++++++++++++++++++++++++++---------------
- src/cmd/dist/build_test.go | 24 +++++++++++++
- src/cmd/dist/test.go       |  8 ++---
- 3 files changed, 87 insertions(+), 33 deletions(-)
+ src/reflect/abi.go            | 7 +++----
+ src/runtime/debug_test.go     | 5 ++---
+ src/runtime/stubs.go          | 3 +--
+ src/runtime/traceback_test.go | 4 ++--
+ 4 files changed, 8 insertions(+), 11 deletions(-)

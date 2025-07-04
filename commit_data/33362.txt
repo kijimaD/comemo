@@ -1,19 +1,17 @@
-commit 776cdefc072fc916b5f74a7d7fb6e4573a6c8e89
-Author: Leigh McCulloch <leighmcc@gmail.com>
-Date:   Fri Oct 27 07:04:49 2017 +0000
+commit 90ffc40e4f3d81ad6b9f57092074f8fef68cf128
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Aug 13 00:19:51 2017 +0900
 
-    encoding/xml: add docs and tests for bool whitespace
+    cmd/link: correct Mach-O file flag
     
-    Whitespace is ignored in bool values and attrs, but there are no tests
-    capturing this behavior.
+    Only set MH_NOUNDEFS if there are no undefined symbols.
+    Doesn't seem to matter, but may as well do it right.
     
-    Change-Id: I7a7249de4886f510869e91de937e69b83c3254c8
-    Reviewed-on: https://go-review.googlesource.com/73890
-    Reviewed-by: Sam Whited <sam@samwhited.com>
+    Change-Id: I6c472e000578346c28cf0e10f24f870e3a0de628
+    Reviewed-on: https://go-review.googlesource.com/55310
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Sam Whited <sam@samwhited.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/xml/read.go      |  3 ++-
- src/encoding/xml/read_test.go | 57 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 59 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/macho.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

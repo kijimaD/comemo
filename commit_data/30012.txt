@@ -1,21 +1,27 @@
-commit 6d6360648a6820306a5ead6e2a0bf75ad0bb78d1
-Author: Jeff Johnson <jrjohnson@google.com>
-Date:   Tue Jan 24 11:45:20 2017 -0800
+commit 584e3ea2581c858688803d41e207eeaa881a2a85
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 20 16:57:55 2016 +1100
 
-    time: defer loading ZONEINFO until first time.LoadLocation call
+    image/color: tweak the formula for converting to gray.
     
-    A user application can now use os.Setenv("ZONEINFO", ..) becase the
-    value is no longer read on init of the time package.
+    This makes grayModel and gray16Model in color.go use the exact same
+    formula as RGBToYCbCr in ycbcr.go. They were the same formula in theory,
+    but in practice the color.go versions used a divide by 1000 and the
+    ycbcr.go versions used a (presumably faster) shift by 16.
     
-    Fixes #18619
+    This implies the nice property that converting an image.RGBA to an
+    image.YCbCr and then taking only the Y channel is equivalent to
+    converting an image.RGBA directly to an image.Gray.
     
-    Change-Id: Id8e303d67e6fb9c5d6ea9f969d8c94f6fff1bee3
-    Reviewed-on: https://go-review.googlesource.com/35639
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The difference between the two formulae is non-zero, but small:
+    https://play.golang.org/p/qG7oe-eqHI
+    
+    Updates #16251
+    
+    Change-Id: I288ecb957fd6eceb9626410bd1a8084d2e4f8198
+    Reviewed-on: https://go-review.googlesource.com/31538
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/time/export_test.go   |  9 +++++++++
- src/time/zoneinfo.go      | 11 ++++++++---
- src/time/zoneinfo_test.go | 26 ++++++++++++++++++++++++++
- 3 files changed, 43 insertions(+), 3 deletions(-)
+ src/image/color/color.go | 23 ++++++++++++++++++++---
+ src/image/color/ycbcr.go |  5 +++++
+ 2 files changed, 25 insertions(+), 3 deletions(-)

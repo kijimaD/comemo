@@ -1,17 +1,17 @@
-commit fd24e6d561d672362ebe4a8231aa43f1c54b164a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 3 18:56:24 2016 -0800
+commit 888aadfa6088cc1654bb4f0c6bb61675ce360dfb
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Wed Nov 11 16:34:06 2015 -0500
 
-    doc: correct old function names in strconv comments in go1.6 doc
+    cmd: enable android/386 build (buildmode=pie by default)
     
-    Fixes #14219.
+    no buildmode=c-shared yet.
     
-    Change-Id: Id398dcfe6e9978d7eefddcdaaaa2256c16237cf3
-    Reviewed-on: https://go-review.googlesource.com/19207
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Update golang/go#9327.
+    
+    Change-Id: I9989d954d574807bac105da401c3463607fe8a99
+    Reviewed-on: https://go-review.googlesource.com/16700
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- doc/go1.6.html | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ src/cmd/go/build.go                | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

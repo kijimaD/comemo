@@ -1,45 +1,36 @@
-commit 2bad2f7ebaaf9c7112b98bfa48ed8213ef1e5d90
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 27 15:58:16 2020 -0400
+commit 71c59ee6fce79dddd7a39167e8658e3cfbba3c0f
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Tue Nov 12 17:42:08 2019 -0500
 
-    cmd/compile: mark PanicBounds/Extend as calls
+    runtime/pprof: fix the inlined frame merge logic
     
-    PanicBounds and PanicExtend are lowered to runtime calls (with a
-    non-Go ABI), but are not currently marked as calls. Since liveness
-    analysis only emits stack maps at calls in the runtime, this means
-    these panic call sites in the runtime won't get a stack map. These
-    almost immediately turn into throws in the runtime, but there's still
-    a chance they'll try to grow the stack first, which would lead to a
-    different panic.
+    tryAdd shouldn't succeed (and accept the new frame) if the last
+    existing frame on the deck is not an inlined frame.
     
-    To fix this, mark these operations as calls.
+    For example, when we see the followig stack
+    [300656 300664 300655 300664]
     
-    Outside the runtime, we currently emit stack maps for everything that
-    isn't an unsafe-point, so these panic calls get stack maps by default.
-    However, we're about to move to emitting stack maps only at call
-    sites, at which point this will start to matter outside the runtime as
-    well.
+    with each PC corresponds to
     
-    I confirmed that this has no effect on anything but PCDATA/FUNCDATA in
-    runtime and net/http.
+    [{PC:300656 Func:nil Function:runtime.nanotime File:/workdir/go/src/runtime/time_nofake.go Line:19 Entry:300416 {0x28dac8 0x386c80}}]
+    [{PC:300664 Func:0x28dac8 Function:runtime.checkTimers File:/workdir/go/src/runtime/proc.go Line:2623 Entry:300416 {0x28dac8 0x386c80}}]
+    [{PC:300655 Func:nil Function:runtime.nanotime File:/workdir/go/src/runtime/time_nofake.go Line:19 Entry:300416 {0x28dac8 0x386c80}}]
+    [{PC:300664 Func:0x28dac8 Function:runtime.checkTimers File:/workdir/go/src/runtime/proc.go Line:2623 Entry:300416 {0x28dac8 0x386c80}}]
     
-    For #36365.
+    PC:300656 and PC:300664 belong to a single location entry,
+    but the bug in the current tryAdd logic placed the entire stack into one
+    location entry.
     
-    Change-Id: Ic5bb463fd152cc320c815dc04cf62005261ae169
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230539
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Also adds tests - this crash is a tricky case to test because I think it
+    should happen with normal go code. The new TestTryAdd simulates it by
+    using fake call sequences. The test crashed without the fix.
+    
+    Update #35538
+    
+    Change-Id: I6d3483f757abf4c429ab91616e4def90832fc04a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206958
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go     | 12 ++++----
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  6 ++--
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  6 ++--
- src/cmd/compile/internal/ssa/gen/ARMOps.go     | 12 ++++----
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  6 ++--
- src/cmd/compile/internal/ssa/gen/MIPSOps.go    | 12 ++++----
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  6 ++--
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  6 ++--
- src/cmd/compile/internal/ssa/gen/S390XOps.go   |  6 ++--
- src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +--
- src/cmd/compile/internal/ssa/opGen.go          | 38 ++++++++++++++++++++++++++
- 11 files changed, 76 insertions(+), 38 deletions(-)
+ src/runtime/pprof/pprof_test.go | 105 ++++++++++++++++++++++++++++++++++++----
+ src/runtime/pprof/proto.go      |   5 +-
+ 2 files changed, 97 insertions(+), 13 deletions(-)

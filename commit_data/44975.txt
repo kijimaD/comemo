@@ -1,22 +1,25 @@
-commit bcc4422ee1bdb8051a6c870cf00e837814614a0f
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 6 14:55:46 2021 -0400
+commit 331614c4daa5504ddfe35a96371cc34783d14cf1
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Fri Sep 18 19:15:41 2020 +0300
 
-    runtime: deflake TestGCTestIsReachable
+    runtime: improve error messages after allocating a stack that is too big
     
-    This is a simple workaround for a bug where runtime.GC() can return
-    before finishing a full sweep, causing gcTestIsReachable to throw. The
-    right thing is to fix runtime.GC(), but this should get this test
-    passing reliably in the meantime.
+    In the current implementation, we can observe crashes after calling
+    debug.SetMaxStack and allocating a stack larger than 4GB since
+    stackalloc works with 32-bit sizes. To avoid this, we define an upper
+    limit as the largest feasible point we can grow a stack to and provide a
+    better error message when we get a stack overflow.
     
-    Updates #45315.
+    Fixes #41228
     
-    Change-Id: Iae141e6dbb26a9c2649497c1feedd4aaeaf540c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307809
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I55fb0a824f47ed9fb1fcc2445a4dfd57da9ef8d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255997
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/debug/garbage.go |  2 ++
+ src/runtime/proc.go          |  5 +++++
+ src/runtime/stack.go         | 10 ++++++++--
+ 3 files changed, 15 insertions(+), 2 deletions(-)

@@ -1,21 +1,19 @@
-commit 71c19b610f1f5c0d61cc339d122eba730fc78c71
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 1 11:43:40 2012 -0800
+commit 9fb24b944812fe555b09395ff341c9818d98e25b
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Feb 1 16:07:32 2012 -0200
 
-    mat/big: add raw access to Int bits
+    cmd/go: fix including of _cgo_export.h
     
-    This is a minimal API extension, it makes it possible
-    to implement missing Int functionality externally w/o
-    compromising efficiency. It is the hope that this will
-    reduce the number of feature requests going directly
-    into the big package.
+    This will add the temporary object directory into the lookup
+    path so that cgo-exported function declarations may be
+    included from C files.
     
-    Also: Fixed some naming inconsistencies: The receiver
-    is only called z when it is also the result.
+    This was previously applied by CL 5600043, and apparently
+    removed by mistake on CL 5598045.
     
-    R=golang-dev, agl
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5607055
+    https://golang.org/cl/5610054
 
- src/pkg/math/big/int.go | 62 ++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 41 insertions(+), 21 deletions(-)
+ src/cmd/go/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

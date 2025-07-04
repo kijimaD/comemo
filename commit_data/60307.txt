@@ -1,0 +1,33 @@
+commit 956f8a67dd7319bad60c015d982f0b2e95b9f382
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 12 18:19:24 2024 +0000
+
+    internal/coverage/cfile: harden the coverage snapshot test
+    
+    The existing testpoint TestCoverageSnapshot will fail if we happen to
+    be selecting a set of packages for inclusion in the profile that don't
+    include internal/coverage/cfile. Example:
+    
+     $ cd `go env GOROOT`
+     $ cd src/internal/coverage
+     $ go test -coverpkg=internal/coverage/decodecounter ./...
+     ...
+      --- FAIL: TestCoverageSnapshot (0.00s)
+          ts_test.go:102: 0.276074 0.276074
+          ts_test.go:104: erroneous snapshots, C1 >= C2 = true C1=0.276074 C2=0.276074
+    
+    To ensure that this doesn't happen, extract the test in question out
+    into a separate file with a special build tag, and then have the
+    original testpoint do a "go test -cover -tags ... " run to make sure
+    that for that specific test run the cfile package is instrumented.
+    
+    Fixes #67951.
+    
+    Change-Id: I8ac6e07e1a6d93275b8c6acabfce85e04c70a102
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592200
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/coverage/cfile/snapshot_test.go | 49 +++++++++++++++++++++++++
+ src/internal/coverage/cfile/ts_test.go       | 55 ++++++++++------------------
+ 2 files changed, 68 insertions(+), 36 deletions(-)

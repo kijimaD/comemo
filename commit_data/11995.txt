@@ -1,13 +1,23 @@
-commit a0c13b9d499f88cc5aa4cc060f5fcacb62b1af70
+commit b27bd42a9a4bd3e358499f517e8102fa152dd2ba
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 16 23:48:24 2012 -0500
+Date:   Thu Feb 16 23:46:28 2012 -0500
 
-    test: add testlib
+    net/url: API
     
-    R=golang-dev, bradfitz
+    Convert cryptotype to general go1rename fix.
+    Add os.Exec -> syscall.Exec fix along with new
+    URL fixes.
+    
+    Fixes #2946.
+    
+    R=golang-dev, r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5676077
+    https://golang.org/cl/5672072
 
- test/run     |  3 ++-
- test/testlib | 22 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/fix/go1pkgrename_test.go                   |  4 +--
+ src/cmd/fix/{cryptotype.go => go1rename.go}        | 33 ++++++++++++++++---
+ .../fix/{cryptotype_test.go => go1rename_test.go}  | 18 +++++++++--
+ src/pkg/net/http/request.go                        |  4 +--
+ src/pkg/net/url/url.go                             | 37 +++++++++-------------
+ src/pkg/net/url/url_test.go                        | 35 +++-----------------
+ 6 files changed, 67 insertions(+), 64 deletions(-)

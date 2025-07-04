@@ -1,20 +1,30 @@
-commit 78d749fbe978bf6eac9c5e11aa4641dc126c9128
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 7 17:02:53 2021 -0700
+commit 5ef7357b50015e91b096a4f14f554db78ba18b5f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Feb 1 18:00:37 2021 -0500
 
-    go/types: partial revert of incorrect unification "fix"
+    [dev.fuzz] internal/fuzz: refactor CorpusEntry type
     
-    This is a port of CL 354690 from types2 to go/types.
+    CorpusEntry is now a struct type with Name and Data fields. In the
+    future, it may have more fields describing multiple values with
+    different types added with f.Add.
     
-    Change-Id: I50e7297a67e37d261335260e285b9cb1c0d2a62d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354691
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    CorpusEntry must be the same type in testing and
+    internal/fuzz. However, we don't want to export it from testing, and
+    testing can't import internal/fuzz. We define it to be a type alias of
+    a struct type instead of a defined type. We need to define it to the
+    same thing in both places. We'll get a type error when building cmd/go
+    if there's a difference.
+    
+    Change-Id: I9df6cd7aed67a6aa48b77ffb3a84bd302d2e5d94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288534
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/go/types/testdata/fixedbugs/issue48619.go2 | 18 ++++++++++--------
- src/go/types/testdata/fixedbugs/issue48656.go2 | 11 +++++------
- src/go/types/testdata/fixedbugs/issue48695.go2 | 14 ++++++++++++++
- src/go/types/unify.go                          | 26 +++-----------------------
- 4 files changed, 32 insertions(+), 37 deletions(-)
+ src/internal/fuzz/fuzz.go             | 61 +++++++++++++++++++++--------------
+ src/internal/fuzz/worker.go           |  8 ++---
+ src/testing/fuzz.go                   | 33 +++++++------------
+ src/testing/internal/testdeps/deps.go |  4 +--
+ src/testing/testing.go                | 10 +++---
+ 5 files changed, 59 insertions(+), 57 deletions(-)

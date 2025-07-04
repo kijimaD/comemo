@@ -1,29 +1,12 @@
-commit f0bd95b8b98dc3155c873724b6f9eff7bf83529e
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Mar 1 17:30:47 2015 +0100
+commit f083a0e364445a9d841ccae732a0391a9e4ddd09
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 4 17:17:38 2015 -0800
 
-    syscall: fix mount working directory on Plan 9
+    math/big: add "smoke test" for big.Float division
     
-    In CL 6350, Brad fixed the following system calls
-    to use the program-wide workding directory:
-    
-    - bind
-    - chdir
-    - create
-    - open
-    - remove
-    - stat
-    - umount
-    - wstat
-    
-    However, Russ Cox pointed out that the mount
-    system call should be fixed as well.
-    
-    Change-Id: I6139ed11ba449f18c46e95269f4d0e51be7cec48
-    Reviewed-on: https://go-review.googlesource.com/6385
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ica419a1215ca33dc1cff1e9e4137f204591e3cee
+    Reviewed-on: https://go-review.googlesource.com/3942
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/syscall/syscall_plan9.go        |  7 +++++-
- src/syscall/zsyscall_plan9_386.go   | 44 ++++++++++++++++++-------------------
- src/syscall/zsyscall_plan9_amd64.go | 44 ++++++++++++++++++-------------------
- 3 files changed, 50 insertions(+), 45 deletions(-)
+ src/math/big/float_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

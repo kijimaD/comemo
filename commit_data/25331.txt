@@ -1,16 +1,21 @@
-commit 0d641c754f73a71ffd21a9f9d58ea3fe38d727b4
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 17 01:53:47 2015 -0500
+commit cf59c1f9ccac9a9078d783061c7715f4d6b7e5e2
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Tue Oct 20 09:02:28 2015 -0700
 
-    cmd/go: allow ~ as first char of path element in general git import paths
+    html/template: include itself while cloning
     
-    This makes go get gitserver/~user/repo.git/foo work.
+    template.Clone() initialized template set incorrectly:
+    it didn't include itself.
     
-    Fixes #9193.
+    * include itself in template set while cloning
+    * add a test
     
-    Change-Id: I8c9d4096903288f7f0e82d6ed1aa78bf038fb81a
-    Reviewed-on: https://go-review.googlesource.com/17952
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #12996
+    
+    Change-Id: I932530e4f7f1bbebf833e12b000a5ce052bc9223
+    Reviewed-on: https://go-review.googlesource.com/16104
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/vcs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/html/template/template.go      |  1 +
+ src/html/template/template_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

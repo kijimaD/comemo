@@ -1,20 +1,15 @@
-commit 3080b7d0af65858400b13134c1c471e2cb35e647
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 26 21:20:41 2018 -0400
+commit 6009a261e9b3ed228ed1532d5574db25d32e8b3d
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Feb 1 12:21:44 2018 -0800
 
-    runtime: unify fetching of locals and arguments maps
+    crypto/tls: handle errors in generate_cert.go
     
-    Currently we have two nearly identical copies of the code that fetches
-    the locals and arguments liveness maps for a frame, plus a third
-    that's a poor knock-off. Unify these all into a single function.
+    I don't expect these to hit often, but we should still alert users if
+    we fail to write the correct data to the file, or fail to close it.
     
-    Change-Id: Ibce7926a0b0e3d23182112da4e25df899579a585
-    Reviewed-on: https://go-review.googlesource.com/109698
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I33774e94108f7f18ed655ade8cca229b1993d4d2
+    Reviewed-on: https://go-review.googlesource.com/91456
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mbitmap.go |  22 ++------
- src/runtime/mgcmark.go |  79 +++-----------------------
- src/runtime/stack.go   | 149 +++++++++++++++++++++++++++++--------------------
- 3 files changed, 101 insertions(+), 149 deletions(-)
+ src/crypto/tls/generate_cert.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

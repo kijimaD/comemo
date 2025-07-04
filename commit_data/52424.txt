@@ -1,22 +1,22 @@
-commit 0393934fa49fce48986c8f48ff6e61971d6dbdc9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Mar 25 20:05:38 2023 -0700
+commit 35d02791b990082fe80da54352050bd095ebd1e7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 3 11:47:44 2022 +0200
 
-    net: don't assume that NOFILE rlimit fits in an int
+    net: remove fallback path in sysSocket
     
-    No test because a test requires a system on which we can set RLIMIT_NOFILE
-    to RLIM_INFINITY, which we normally can't.
+    Support for operating system versions requiring this fallback path was
+    dropped from recent Go versions. The minimum Linux kernel version is
+    2.6.32 as of Go 1.18. FreeBSD 10 is no longer supported as of Go 1.13.
     
-    Fixes #59242
-    
-    Change-Id: I8fc30e4206bb2be46369b5342360de556ce75a96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479436
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7e74768146dd43a36d0d26fcb08eed9ace82189f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403634
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/lookup_unix.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/sock_cloexec.go | 25 -------------------------
+ 1 file changed, 25 deletions(-)

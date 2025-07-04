@@ -1,0 +1,28 @@
+commit 07398d2e57ac5df6f95b0344252f1560376328f3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Dec 7 02:58:00 2024 +0000
+
+    weak: align weak.Pointer documentation with runtime.AddCleanup
+    
+    In hindsight, I think the "advice" I wrote is a bit heavy-handed and
+    better suited for something like the GC guide. Listing the use-cases
+    seems good, and all the possible things that go wrong seems to do the
+    trick in terms of deterrence, like it does with finalizers.
+    
+    Also, include some points I missed, like the tiny allocator warning and
+    the fact that weak pointers are not guaranteed to ever return nil.
+    
+    Also, a lot of this actually shouldn't have been in the package docs.
+    Many of the warnings only apply to weak pointers, but not other data
+    structures that may live in this package in the future, like weak-keyed
+    maps.
+    
+    Change-Id: Id245661540ffd93de4b727cd272284491d085c1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634376
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/weak/doc.go     | 27 ++-------------------------
+ src/weak/pointer.go | 42 +++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 37 insertions(+), 32 deletions(-)

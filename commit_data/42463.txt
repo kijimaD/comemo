@@ -1,17 +1,23 @@
-commit 7e477573244000da3cfe60c0d4cb4007097245d9
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 4 11:16:43 2020 -0400
+commit bf268472408b0f46767d46ae1d14439e5eb84014
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jan 1 00:00:00 2020 -0500
 
-    syscall: hide internal comment from Syscall documentation
+    doc: 2020 is the Year of the Gopher
     
-    There's a comment on the Syscall function that's supposed to be an
-    internal implementation note, but since it's not separated from the
-    function definition, it appears in godoc. Add a blank line to prevent
-    this.
+    Starting with 2014 (golang.org/cl/46660043), we have enjoyed 6
+    consecutive years of the gopher. Now, the slice¹ of gophers is
+    ready to make its way into the next decade, as 2020 is the new
+    Year of the Gopher.
     
-    Change-Id: Iba307f1cc3844689ec3c6d82c21d441852e35bca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236561
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    ¹ https://en.wikipedia.org/w/index.php?title=List_of_English_terms_of_venery,_by_animal&oldid=932675028#G
+    
+    Change-Id: I5f9598dbedb373bd13021964193fa9e44c67693e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213017
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/dll_windows.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

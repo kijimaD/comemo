@@ -1,12 +1,14 @@
-commit cfefe6a7633abc8964166720769df60e56a50583
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 12 12:24:57 2013 -0700
+commit 0ce56e60b80d65c9677d148e885b575e21583260
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jul 13 02:00:07 2013 +0800
 
-    cmd/dist: allow assembly code to use enumerated constants.
+    run.bash: enlarge timeout of runtime tests
+    Recently addition to runtime test makes it take very close to 720s
+    of timeout limit on the netbsd-arm-qemu builder.
     
-    R=golang-dev, rsc
+    R=golang-dev, go.peter.90, rsc
     CC=golang-dev
-    https://golang.org/cl/11056044
+    https://golang.org/cl/10935043
 
- src/cmd/dist/buildruntime.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

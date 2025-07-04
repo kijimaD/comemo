@@ -1,18 +1,19 @@
-commit cc38c68ae09fa591697a4239a7dedd2efe386995
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jan 11 15:00:17 2024 -0500
+commit 8fb9565832e6dbacaaa057ffabc251a9341f8d23
+Author: Adin Scannell <ascannell@google.com>
+Date:   Wed Feb 8 19:15:23 2023 +0000
 
-    cmd/go/internal/toolchain: apply the -modcacherw flag when downloading a module to determine what toolchain it needs
+    runtime: fix signature for linked functions
     
-    Fixes #64282.
+    These functions are linked using go:linkname, but do not match the
+    original declarations. This change brings these in sync.
     
-    Change-Id: I3f211c599ee70cb58254d0bc07eeb3c135124e58
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/555436
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I16651304c3dba2f9897c2c42e30555d2f7805c2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466615
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/toolchain/select.go            | 148 +++++++++++++++------
- .../script/install_modcacherw_issue64282.txt       |  45 +++++++
- 2 files changed, 149 insertions(+), 44 deletions(-)
+ src/internal/poll/fd_poll_runtime.go | 2 +-
+ src/sync/atomic/value.go             | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

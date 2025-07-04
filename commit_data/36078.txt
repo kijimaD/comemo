@@ -1,17 +1,31 @@
-commit 9039c2c0bfc0c55e93756d9391fc71f13e87fcda
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 18 16:18:29 2018 -0400
+commit 19ee2ef9502795dd9517b6b7fa789922241d2a03
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Oct 23 19:57:07 2017 +0100
 
-    cmd/go/internal/modget: fix get pkg@none
+    cmd/compile: introduce gc.Node.copy method
     
-    Now pkg@none actually removes the pkg instead of dying.
+    When making a shallow copy of a node, various methods were used,
+    including calling nod(OXXX, nil, nil) and then overwriting it, or
+    "n1 := *n" and then using &n1.
     
-    For #26342.
+    Add a copy method instead, simplifying all of those and making them
+    consistent.
     
-    Change-Id: I9df7281ed8fd24480109b36f33a563f92e279244
-    Reviewed-on: https://go-review.googlesource.com/124796
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I3f3fc88bad708edc712bf6d87214cda4ddc43b01
+    Reviewed-on: https://go-review.googlesource.com/72710
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/modget/get.go                |  9 +++++----
- src/cmd/go/testdata/script/mod_get_downgrade.txt | 11 +++++++++--
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/const.go     |  6 ++---
+ src/cmd/compile/internal/gc/dcl.go       |  6 ++---
+ src/cmd/compile/internal/gc/inl.go       | 10 +++-----
+ src/cmd/compile/internal/gc/order.go     | 24 +++++++++---------
+ src/cmd/compile/internal/gc/racewalk.go  |  6 ++---
+ src/cmd/compile/internal/gc/sinit.go     | 43 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/subr.go      | 20 ++++++++-------
+ src/cmd/compile/internal/gc/typecheck.go |  4 +--
+ src/cmd/compile/internal/gc/walk.go      |  4 +--
+ 9 files changed, 57 insertions(+), 66 deletions(-)

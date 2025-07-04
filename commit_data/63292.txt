@@ -1,0 +1,22 @@
+commit a189516d3a1623f2560f80569c4b64bdffc4ac78
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jun 9 21:45:33 2025 +0000
+
+    runtime: don't do a direct G handoff in semrelease on systemstack
+    
+    semrelease is safe to call on the system stack (since it just readies
+    goroutines) except for the fact that it might perform a direct G
+    handoff and call into the scheduler. If handoff is set to false this is
+    exceptionally rare, but could happen, and has happened for the trace
+    reader goroutine which releases a trace.doneSema.
+    
+    Fixes #73469.
+    
+    Change-Id: I37ece678bc4721bbb6e5879d74daac762b7d742a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680315
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/sema.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

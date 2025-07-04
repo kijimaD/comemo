@@ -1,15 +1,14 @@
-commit bf9c778fe22f78925547646e71404773021c2cb9
+commit cd5f144fe26d05bf22f8129c312ce6f8ecaf3216
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Oct 13 11:06:55 2011 +0300
+Date:   Thu Oct 13 10:09:43 2011 +0300
 
-    gc: pass FlagNoPointers to runtime.new
+    doc: remove link to http://golanguage.ru/
+    I check it for several months and it always says
+    ERR_NAME_RESOLUTION_FAILED
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5151043
+    https://golang.org/cl/5272041
 
- src/cmd/gc/builtin.c.boot  | 2 +-
- src/cmd/gc/runtime.go      | 2 +-
- src/cmd/gc/walk.c          | 2 +-
- src/pkg/runtime/malloc.goc | 6 ++++--
- 4 files changed, 7 insertions(+), 5 deletions(-)
+ doc/docs.html | 5 -----
+ 1 file changed, 5 deletions(-)

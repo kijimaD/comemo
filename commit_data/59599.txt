@@ -1,40 +1,20 @@
-commit 74304cda29381fd5ba07a4090b701f8a670896c6
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Wed Mar 12 17:29:25 2025 -0400
+commit 29fcd1569af7025dc0730449ddc7912e8c4791da
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 29 21:31:56 2024 +0000
 
-    cmd/compile/internal/escape: improve order of work to speed up analyzing many locations
+    Revert "cmd/compile: add missing OINLCAll case in mayModifyPkgVar"
     
-    For the package github.com/microsoft/typescript-go/internal/checker,
-    compilation currently spends most of its time in escape analysis.
+    This reverts CL 575175.
     
-    Here, we re-order work to be more efficient when analyzing many
-    locations, and delay visiting some locations to prioritize locations
-    that might be more likely to reach a terminal point of reaching the
-    heap and possibly reduce the count of intermediate states for each location.
+    Reason for revert: causes crypto/ecdh failures on longtest builders.
     
-    Action graph reported build times show roughly a 5x improvement for
-    compilation of the typescript-go/internal/checker package:
-    
-      go1.24.0:      91.792s
-      cl-657179-ps1: 17.578s
-    
-    with timing via:
-    
-      go build -a -debug-actiongraph=/tmp/actiongraph-cl-657179-ps1 -v github.com/microsoft/typescript-go/internal/checker
-    
-    There are some additional adjustments to make here, including we can
-    consider a follow-on CL I have that parallelizes the operations of the
-    core loop, but this seems to be a nice win as is, and my understanding
-    is the desire is to merge this as it stands.
-    
-    Updates #72815
-    
-    Change-Id: I1753c5354b495b059f68fb97f3103ee7834f9eee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657179
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ieed326fedf91760ac73095a42ba0237cf969843b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575316
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/escape/graph.go |  12 ++-
- src/cmd/compile/internal/escape/solve.go | 123 ++++++++++++++++++++++++++-----
- 2 files changed, 113 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/staticinit/sched.go |  3 ---
+ test/fixedbugs/issue66585.go                 | 25 -------------------------
+ 2 files changed, 28 deletions(-)

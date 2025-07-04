@@ -1,34 +1,41 @@
-commit 26b1694d9ad06b4f237526f507494edb948a4866
+commit e08642cae18460778ba3f7808c91cbf6d9ee9f67
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 30 11:00:56 2023 -0500
+Date:   Thu Jan 5 14:00:25 2023 -0500
 
-    testing: add regression tests for reentrant calls to T.Run
+    net: delete TestTCPSelfConnect
     
-    These tests represent two patterns of usage, found in Google-internal
-    tests, that deadlocked after CL 506755.
+    This test is flaky, apparently due to a typo'd operator in CL 21447
+    that causes it to compare “same port OR IP” instead of
+    “same port AND IP”.
     
-    TestConcurrentRun is a minor variation on TestParallelSub, with the
-    additional expectation that the concurrent calls to Run (without
-    explicit calls to Parallel) proceed without blocking. It replaces
-    TestParallelSub.
+    If we merely fixed the comparison, the test would hopefully stop being
+    flaky itself, but we would still be left with another problem:
+    repeatedly dialing a port that we believe to be unused can interfere
+    with other tests, which may open the previously-unused port and then
+    attempt a single Dial and expect it to succeed. Arbitrary other Dial
+    calls for that port may cause the wrong connection to be accepted,
+    leading to spurious test failures.
     
-    TestParentRun is similar, but instead of calling Run concurrently it
-    calls Run from within the subtest body. It almost certainly represents
-    an accidental misuse of T.Run, but since that pattern used to run to
-    completion we don't want to break it accidentally. (Perhaps it should
-    be diagnosed with a vet check instead?)
+    Moreover, the test can be extremely expensive for the amount of data
+    we hope to get from it, depending on the system's port-reuse
+    algorithms and dial implementations. It is already scaled back by up
+    to 1000x on a huge number of platforms due to latency, and may even be
+    ineffective on those platforms because of the arbitrary 1ms Dial
+    timeout. And the incremental value from it is quite low, too: it tests
+    the workaround for what is arguably a bug in the Linux kernel, which
+    ought to be fixed (and tested) upstream instead of worked around in
+    every open-source project that dials local ports.
     
-    While we are testing concurrency, this also cleans up
-    TestConcurrentCleanup to use a clearer synchronization pattern.
+    Instead of trying to deflake this test, let's just get rid of it.
     
-    Fixes #64402.
+    Fixes #18290.
     
-    Change-Id: I14fc7e7085a994c284509eac28190c3a8feb04cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546019
+    Change-Id: I8a58b93d67916a33741c9ab29ef99c49c46b32c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460657
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/testing/sub_test.go     | 28 ++++++++--------------------
- src/testing/testing_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 20 deletions(-)
+ src/net/tcpsock_test.go | 44 --------------------------------------------
+ 1 file changed, 44 deletions(-)

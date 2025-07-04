@@ -1,24 +1,21 @@
-commit 57236fe9f72c7dae447f07899e9b5b3bcd06f2af
-Author: liu-xuewen <liiuxuewen@gmail.com>
-Date:   Sat Nov 5 07:40:49 2022 +0000
+commit 1e122e3894bd12407b0043ab25c2a5f665b3f6e5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 10:03:32 2022 -0800
 
-    runtime: remove 104 byte stack guard
+    syscall: remove TestRlimit
     
-    The number 104 appears to date back to the
-    first implementation of split stacks in
-    https://go.googlesource.com/go/+/b987f7a757f53f460973622a36eebb696f9b5060.
-    That change introduces a 104 byte stack guard.
-    it doesn't makes any sense today.
+    It's more trouble than it's worth. New code should be using x/sys/unix
+    anyhow.
     
-    Change-Id: I73069f6d1a827653af63e616f0119fbac809882e
-    GitHub-Last-Rev: bcf900059047548c1709c6d4cf4649a96ad85e57
-    GitHub-Pull-Request: golang/go#56594
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448036
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #40564
+    Fixes #51479
+    
+    Change-Id: I1c0e13f494380c1565e98359f088af9f52790b79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390020
+    Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/asm_amd64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/syscall_unix_test.go | 27 ---------------------------
+ 1 file changed, 27 deletions(-)

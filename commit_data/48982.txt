@@ -1,39 +1,28 @@
-commit 973dcbb87c0097c783abe35e319725c68167f718
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sun Mar 27 20:52:52 2022 +0000
+commit 30e5f266ed202740cfe0b7a9fde6117d6e1d6064
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 30 13:26:11 2021 -0700
 
-    runtime: remove float64 multiplication in heap trigger compute path
+    [dev.typeparams] cmd/compile/internal/types2: move (remaining) type decls into their own files (cleanup)
     
-    As of the last CL, the heap trigger is computed as-needed. This means
-    that some of the niceties we assumed (that the float64 computations
-    don't matter because we're doing this rarely anyway) are no longer true.
-    While we're not exactly on a hot path right now, the trigger check still
-    happens often enough that it's a little too hot for comfort.
+    This change moves the type declarations and associated methods for
+    each of the remaining Type types into their respective files. Except
+    for import and comment adjustments, and receiver name adjustments for
+    the Underlying and String methods, no functional changes are made.
     
-    This change optimizes the computation by replacing the float64
-    multiplication with a shift and a constant integer multiplication.
-    
-    I ran an allocation microbenchmark for an allocation size that would hit
-    this path often. CPU profiles seem to indicate this path was ~0.1% of
-    cycles (dwarfed by other costs, e.g. zeroing memory) even if all we're
-    doing is allocating, so the "optimization" here isn't particularly
-    important. However, since the code here is executed significantly more
-    frequently, and this change isn't particularly complicated, let's err
-    on the size of efficiency if we can help it.
-    
-    Note that because of the way the constants are represented now, they're
-    ever so slightly different from before, so this change technically isn't
-    a total no-op. In practice however, it should be. These constants are
-    fuzzy and hand-picked anyway, so having them shift a little is unlikely
-    to make a significant change to the behavior of the GC.
-    
-    For #48409.
-    
-    Change-Id: Iabb2385920f7d891b25040226f35a3f31b7bf844
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397015
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I3b9ccab3c85abea4852bacd28c2e47cec05c0bac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332093
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/mgcpacer.go | 41 +++++++++++++++++++++++++++++------------
- 1 file changed, 29 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/types2/array.go     |  25 ++
+ src/cmd/compile/internal/types2/basic.go     |  82 +++++
+ src/cmd/compile/internal/types2/chan.go      |  35 ++
+ src/cmd/compile/internal/types2/instance.go  |  58 ++++
+ src/cmd/compile/internal/types2/map.go       |  24 ++
+ src/cmd/compile/internal/types2/named.go     | 144 ++++++++
+ src/cmd/compile/internal/types2/pointer.go   |  19 +
+ src/cmd/compile/internal/types2/slice.go     |  19 +
+ src/cmd/compile/internal/types2/tuple.go     |  36 ++
+ src/cmd/compile/internal/types2/type.go      | 501 +--------------------------
+ src/cmd/compile/internal/types2/typeparam.go |  80 +++++
+ 11 files changed, 540 insertions(+), 483 deletions(-)

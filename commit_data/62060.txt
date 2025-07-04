@@ -1,0 +1,32 @@
+commit 50455385b0e668656cac03d3012e48e071df6aa4
+Author: Than McIntosh <thanm@golang.org>
+Date:   Tue Nov 12 12:32:39 2024 -0500
+
+    internal/coverage: fix bug in text-format coverage output with multiple packages
+    
+    In ProcessCoverTestDir pass the selected set of packages to
+    EmitTextual in addition to EmitPercent, so that when we have runs with
+    multiple packages selected but without -coverpkg, text format output
+    for package P was incorrectly including output for P's covered
+    dependencies. This is in effect an extension of the fix for issue
+    65570.
+    
+    Includes a cmd/go script test to verify correct behavior; ideally it
+    would be nice to locate this test in .../internal/coverage somewhere
+    but at the moment script tests are only supported for
+    cmd/{go,compile,link}.
+    
+    Updates #65570.
+    Fixes #70244.
+    
+    Change-Id: Ia0bb10155353aa0f2ead46e81a2aaa71bde4ef82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627316
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Than McIntosh <thanm@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../script/cover_coverprofile_nocoverpkg.txt       | 50 ++++++++++++++++++++++
+ src/internal/coverage/cfile/testsupport.go         |  2 +-
+ 2 files changed, 51 insertions(+), 1 deletion(-)

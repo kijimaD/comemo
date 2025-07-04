@@ -1,26 +1,14 @@
-commit 30c0d2315e1c6bdd7a0ba4f7c9e498486cecb750
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 21 10:39:31 2012 -0700
+commit 8f8640a057f813e0238b6d3a77643ac07b52f56b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 21 12:59:26 2012 -0400
 
-    net/http: fix regression and mute known test failure for now
+    cmd/6g: allow use of R14, R15 now
     
-    Two tests added in 820ffde8c are expected to fail until the fix
-    for Issue 3540 goes back in (pending Windows net fixes), so
-    make those tests just Logf for now, with a TODO to re-enable.
+    We stopped reserving them in 2009 or so.
     
-    Add a new client test.
-    
-    Rearrange the transport code to be more readable, and fix the
-    bug from 820ffde8c where the persistConn was being closed before
-    the body was fully ready.
-    
-    Fixes #3644
-    Updates #1967 (not yet fixed, but should be after Issue 3540)
-    
-    R=golang-dev, adg
+    R=ken
     CC=golang-dev
-    https://golang.org/cl/6211069
+    https://golang.org/cl/6215061
 
- src/pkg/net/http/transport.go      | 48 ++++++++++++++--------------
- src/pkg/net/http/transport_test.go | 65 ++++++++++++++++++++++++++------------
- 2 files changed, 69 insertions(+), 44 deletions(-)
+ src/cmd/6g/reg.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

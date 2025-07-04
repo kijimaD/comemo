@@ -1,19 +1,14 @@
-commit ad3ea0134f5013ab14c38e72a4daddf95b8443ce
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 9 14:44:46 2023 -0800
+commit 7a062432059e0a7f6217424733d3a01030897741
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 4 15:41:08 2022 -0400
 
-    cmd/compile/internal/types2: record error code in Error struct
+    test/nosplit: add more complicated recursion tests
     
-    go/types already does this, if slightly differently.
-    
-    Change-Id: I9cf5f493714d865deec5ad23e2ee9b5c5d3f2f0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475197
+    Change-Id: I301ed8bcc93f31147d247e60a7aab8ed42421bbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398175
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/api.go    | 2 ++
- src/cmd/compile/internal/types2/errors.go | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ test/nosplit.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

@@ -1,13 +1,19 @@
-commit 0d9b9aafd575099fcbd05e0c8f05f087d8d2b922
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Tue Feb 18 21:51:47 2014 -0500
+commit a7fb31833b6c2c39e3f3dc5ab0bc2e1abcaf8ef6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 18 15:16:07 2014 -0800
 
-    misc/emacs: actually use point argument that is passed to godef--call
+    crypto/rc4: test the portable version too
     
-    LGTM=adonovan
-    R=adonovan
+    Prevent bitrot. (similar to the previous sha1 and md5 CLs)
+    
+    Fixes #6642
+    
+    LGTM=agl
+    R=agl, dave
     CC=golang-codereviews
-    https://golang.org/cl/62600043
+    https://golang.org/cl/65690043
 
- misc/emacs/go-mode.el | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/rc4/rc4.go      | 17 +++++++++++++++++
+ src/pkg/crypto/rc4/rc4_ref.go  |  9 +--------
+ src/pkg/crypto/rc4/rc4_test.go | 19 +++++++++++++++----
+ 3 files changed, 33 insertions(+), 12 deletions(-)

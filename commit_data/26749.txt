@@ -1,17 +1,14 @@
-commit 63cea5ac2b8ed0cf257c7bfe7ed13bdd42373a0c
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Apr 6 09:59:32 2016 +0200
+commit 9e173f9db97b98b25efd708b72108012a8b5d7f6
+Author: Burcu Dogan <jbd@google.com>
+Date:   Wed Feb 24 15:06:03 2016 -0800
 
-    testing: fixed bug introduced by CL 21504
+    doc: add android/arm as a valid GOOS/GOARCH combination
     
-    This broke T.Run
+    Fixes #14497.
     
-    Change-Id: I12c8fe3612f3fa2caa83049c1c7003056daf2b0c
-    Reviewed-on: https://go-review.googlesource.com/21600
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibdd55acf9e416873c64f8751c2f65f7ccdb1d500
+    Reviewed-on: https://go-review.googlesource.com/19914
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/testing/sub_test.go | 24 ++++++++++++++++++++++++
- src/testing/testing.go  |  2 +-
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ doc/install-source.html | 3 +++
+ 1 file changed, 3 insertions(+)

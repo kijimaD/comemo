@@ -1,20 +1,19 @@
-commit fad0a14d92a8e02d422410f9dbdcec1eb3977590
+commit d86c35e5232744674907fec5bd738dd3fbbf0f53
 Author: Than McIntosh <thanm@google.com>
-Date:   Wed Sep 25 09:13:31 2019 -0400
+Date:   Thu Apr 11 15:47:33 2019 -0400
 
-    test: add testcase for gccgo compiler buglet
+    test: add testcases for gccgo bug
     
-    New test containing code that caused a gccgo compiler failure.
+    Add a couple of testcase for a gccgo type checking bug.
     
-    Updates #34503.
+    Updates #31412.
     
-    Change-Id: Id895a1e1249062b7fb147e54bcaa657e774ed0d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197217
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I7a813dafde78e4add1432602d2af5fe879415e1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171761
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/fixedbugs/issue34503.dir/a.go | 15 +++++++++++++++
- test/fixedbugs/issue34503.dir/b.go | 11 +++++++++++
- test/fixedbugs/issue34503.go       |  9 +++++++++
- 3 files changed, 35 insertions(+)
+ test/fixedbugs/issue31412a.go | 32 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue31412b.go | 20 ++++++++++++++++++++
+ 2 files changed, 52 insertions(+)

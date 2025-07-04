@@ -1,60 +1,17 @@
-commit 7e0c11c32fb1c7515c52b6ebe9db0d77c70b63d2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 15 11:05:01 2015 -0700
+commit 01af72705255fbb48ea3ff3558766537dd0a8ee0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 19 23:38:24 2015 +0000
 
-    cmd/6g, runtime: improve duffzero throughput
+    Revert "cmd/internal/gc: add internConcat for alloc-free string concatenation"
     
-    It is faster to execute
+    This reverts commit 42fcc6fea03673eeed1447eaab78a7df9385246e.
     
-            MOVQ AX,(DI)
-            MOVQ AX,8(DI)
-            MOVQ AX,16(DI)
-            MOVQ AX,24(DI)
-            ADDQ $32,DI
-    
-    than
-    
-            STOSQ
-            STOSQ
-            STOSQ
-            STOSQ
-    
-    However, in order to be able to jump into
-    the middle of a block of MOVQs, the call
-    site needs to pre-adjust DI.
-    
-    If we're clearing a small area, the cost
-    of that DI pre-adjustment isn't repaid.
-    
-    This CL switches the DUFFZERO implementation
-    to use a hybrid strategy, in which small
-    clears use STOSQ as before, but large clears
-    use mostly MOVQ/ADDQ blocks.
-    
-    benchmark                 old ns/op     new ns/op     delta
-    BenchmarkClearFat8        0.55          0.55          +0.00%
-    BenchmarkClearFat12       0.82          0.83          +1.22%
-    BenchmarkClearFat16       0.55          0.55          +0.00%
-    BenchmarkClearFat24       0.82          0.82          +0.00%
-    BenchmarkClearFat32       2.20          1.94          -11.82%
-    BenchmarkClearFat40       1.92          1.66          -13.54%
-    BenchmarkClearFat48       2.21          1.93          -12.67%
-    BenchmarkClearFat56       3.03          2.20          -27.39%
-    BenchmarkClearFat64       3.26          2.48          -23.93%
-    BenchmarkClearFat72       3.57          2.76          -22.69%
-    BenchmarkClearFat80       3.83          3.05          -20.37%
-    BenchmarkClearFat88       4.14          3.30          -20.29%
-    BenchmarkClearFat128      5.54          4.69          -15.34%
-    BenchmarkClearFat256      9.95          9.09          -8.64%
-    BenchmarkClearFat512      18.7          17.9          -4.28%
-    BenchmarkClearFat1024     36.2          35.4          -2.21%
-    
-    Change-Id: Ic786406d9b3cab68d5a231688f9e66fcd1bd7103
-    Reviewed-on: https://go-review.googlesource.com/2585
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If860b7cbff5b5d288c1df1405c1765275dfba7cb
+    Reviewed-on: https://go-review.googlesource.com/7860
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/6g/ggen.go          |  61 ++++++++-
- src/runtime/duff_amd64.s    | 310 ++++++++++++++++++++++++++------------------
- src/runtime/memmove_test.go |  18 +++
- src/runtime/mkduff.go       |  10 +-
- 4 files changed, 269 insertions(+), 130 deletions(-)
+ src/cmd/internal/gc/lex.go      |  9 ---------
+ src/cmd/internal/gc/lex_test.go | 22 ----------------------
+ src/cmd/internal/gc/subr.go     |  6 +++---
+ src/cmd/internal/gc/walk.go     | 19 +++++++++----------
+ 4 files changed, 12 insertions(+), 44 deletions(-)

@@ -1,19 +1,14 @@
-commit a175fa3bc3a69b4090eb594af9203d0f0fb9cf44
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Apr 4 01:47:55 2015 -0400
+commit 90e02e85130fb18d51a331c279e513bc396e7504
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 5 20:01:11 2015 -0800
 
-    cmd/asm/internal/asm: parse arm64 register pairs for LDP/STP
+    cmd/internal/ld: remove unused files
     
-    Add test, and while we're at here, also add a test for ARM.
-    
-    Fixes #10343.
-    
-    Change-Id: Ic914df8233d4f1f495e2cc0743fbd37b7671bc91
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8472
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Id27861d5449cc3565bc9e80aad671229598dbeb1
+    Reviewed-on: https://go-review.googlesource.com/7060
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/asm/operand_test.go |  2 ++
- src/cmd/asm/internal/asm/parse.go        | 10 ++++++----
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/internal/ld/fmt.go | 60 ----------------------------------------------
+ src/cmd/internal/ld/z.go   |  1 -
+ 2 files changed, 61 deletions(-)

@@ -1,90 +1,23 @@
-commit fd59c6cf8cb600f2911864948303016581abf016
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Wed Nov 9 16:07:11 2022 +0100
+commit 3df44722013b54790e97a32aff945708bd1b62f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 7 18:20:22 2022 -0800
 
-    cmd/compile: elide unnecessary Not in Phi block controls
+    spec: adjust rules for specific types once more
     
-    For a BlockIf, we can change the order of the successors if all OpPhi args are an OpNot and this allows us to elide said OpNots.
+    Introduce a (local) notion of a set of representative types,
+    which serves as a representation/approximation of an
+    interface's actual type set. If the set of representative
+    types is is non-empty and finite, it corresponds to the set
+    of specific types of the interface.
     
-    When compiling Go itself, there were no hits for (If (Phi (Not x) (Not y) (Not z)) or any other longer patterns.
+    In the implementation, the set of representative types serves
+    as a finite representation of an interface's type set, together
+    with the set of methods.
     
-    compilecmp:
-    
-    errors
-    errors.As changed
-    
-    reflect
-    reflect.Value.FieldByIndex changed
-    reflect.Value.Method changed
-    reflect.cvtI2I changed
-    reflect.Value.FieldByIndexErr changed
-    reflect.deepValueEqual.func1 496 -> 502  (+1.21%)
-    reflect.deepValueEqual changed
-    
-    internal/fmtsort
-    internal/fmtsort.nilCompare 652 -> 648  (-0.61%)
-    
-    database/sql
-    database/sql.convertAssignRows changed
-    
-    encoding/json
-    encoding/json.interfaceEncoder changed
-    encoding/json.(*decodeState).unmarshal 574 -> 571  (-0.52%)
-    encoding/json.mapEncoder.encode changed
-    encoding/json.ptrEncoder.encode changed
-    encoding/json.encodeByteSlice changed
-    encoding/json.addrMarshalerEncoder changed
-    encoding/json.addrTextMarshalerEncoder changed
-    encoding/json.(*decodeState).object changed
-    encoding/json.sliceEncoder.encode changed
-    encoding/json.indirect 1303 -> 1286  (-1.30%)
-    
-    encoding/gob
-    encoding/gob.encOpFor.func3 changed
-    encoding/gob.encIndirect changed
-    encoding/gob.encOpFor.func5 changed
-    encoding/gob.(*Encoder).encodeInterface changed
-    encoding/gob.(*Decoder).decodeMap changed
-    
-    encoding/xml
-    encoding/xml.(*printer).marshalStruct changed
-    encoding/xml.(*fieldInfo).value changed
-    encoding/xml.(*printer).marshalAttr changed
-    encoding/xml.indirect changed
-    encoding/xml.(*printer).marshalValue changed
-    
-    encoding/asn1
-    encoding/asn1.UnmarshalWithParams 837 -> 845  (+0.96%)
-    
-    text/template
-    text/template.indirectInterface changed
-    text/template.indirect changed
-    text/template.safeCall changed
-    
-    net/http/httptrace
-    net/http/httptrace.(*ClientTrace).compose changed
-    
-    cmd/fix
-    main.typefix.func2 changed
-    
-    cmd/compile/internal/ir
-    cmd/compile/internal/ir.dumpNode changed
-    
-    cmd/gofmt
-    main.match changed
-    main.subst changed
-    
-    cmd/compile/internal/ssa
-    cmd/compile/internal/ssa.rewriteBlockgeneric 626 -> 1030  (+64.54%)
-    
-    Change-Id: I645b3b3e37302a63e06b79ce74674882fb603ef3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449055
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ib4c6cd5e17b81197672e4247be9737dd2cb6b56f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376834
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |  1 +
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 29 +++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ doc/go_spec.html | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)

@@ -1,24 +1,28 @@
-commit 8e2333b2825d6a58d98845b448d03545e10de43d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 12 16:45:10 2018 -0700
+commit 15f2cbf43752cd69ba7b00a713f5db82fd535f1f
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Sun Apr 22 22:48:56 2018 +0100
 
-    go/types: fix scope printing (debugging support)
+    testing: allow marking subtest and subbenchmark functions as Helpers
     
-    Printing of scopes was horribly wrong: If a scope contained
-    no object declarations, it would abort printing even if the
-    scope had children scopes. Also, the line breaks were not
-    inserted consistently. The actual test case (ExampleScope)
-    was incorrect as well.
+    Since subtests and subbenchmarks run in a separate goroutine, and thus
+    a separate stack, this entails capturing the stack trace at the point
+    tb.Run is called. The work of getting the file and line information from
+    this stack is only done when needed, however.
     
-    Fixed and simplified printing, and adjusted example which
-    tests the printing output.
+    Continuing the search into the parent test also requires temporarily
+    holding its mutex. Since Run does not hold it while waiting for the
+    subtest to complete, there should be no risk of a deadlock due to this.
     
-    Change-Id: If21c1d4ad71b15a517d4a54da16de5e6228eb4b5
-    Reviewed-on: https://go-review.googlesource.com/135115
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Fixes #24128
+    
+    Change-Id: If0bb169f3ac96bd48794624e619ade7edb599f83
+    Reviewed-on: https://go-review.googlesource.com/108658
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/go/types/example_test.go | 21 ++++++++++++++++-----
- src/go/types/scope.go        | 10 ++--------
- 2 files changed, 18 insertions(+), 13 deletions(-)
+ src/testing/benchmark.go        | 15 ++++----
+ src/testing/helper_test.go      |  8 ++---
+ src/testing/helperfuncs_test.go | 18 +++++-----
+ src/testing/testing.go          | 78 ++++++++++++++++++++++++++++++-----------
+ 4 files changed, 81 insertions(+), 38 deletions(-)

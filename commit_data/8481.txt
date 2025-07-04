@@ -1,12 +1,15 @@
-commit 2f655c4bb7e2002da4329c9deec9513601172a26
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 25 10:58:58 2011 +1000
+commit d2b2b3f4a8e177b38694ad57909ab920cae4b232
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 24 19:50:13 2011 -0400
 
-    spec: delete spurious tag.
+    6l, 8l: fix Mach-O binaries with many dynamic libraries
     
-    R=golang-dev, bradfitz
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4536082
+    https://golang.org/cl/4529084
 
- doc/go_spec.html | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/6l/obj.c   |  2 +-
+ src/cmd/8l/obj.c   |  2 +-
+ src/cmd/ld/macho.c | 23 +++++++++++++++++++++--
+ src/cmd/ld/macho.h |  2 +-
+ 4 files changed, 24 insertions(+), 5 deletions(-)

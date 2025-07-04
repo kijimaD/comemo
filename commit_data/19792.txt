@@ -1,19 +1,25 @@
-commit 7bcbdbd904eeaf671c608b183ae363dfa1b53ad6
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 22 01:56:19 2014 +0400
+commit 8e0e09ae7db8f0498d8aab1d15b21c53d6dd9556
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 21 17:38:48 2014 -0400
 
-    runtime: pass correct size to malloc
-    In both cases we lie to malloc about the actual size that we need.
-    In panic we ask for less memory than we are going to use.
-    In slice we ask for more memory than we are going to use
-    (potentially asking for a fractional number of elements).
-    This breaks the new GC.
+    liblink: remove some gotos + other fixes
     
-    LGTM=khr
-    R=golang-codereviews, dave, khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/116940043
+    Rewrite gotos that violate Go's stricter rules.
+    Use uchar* instead of char* in a few places that aren't strings.
+    Remove dead opcross code from asm5.c.
+    Declare regstr (in both list6 and list8) static.
+    
+    LGTM=minux, dave
+    R=minux, dave
+    CC=golang-codereviews
+    https://golang.org/cl/113230043
 
- src/pkg/runtime/panic.c   | 2 +-
- src/pkg/runtime/slice.goc | 6 +++++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ include/link.h      |   4 +-
+ src/liblink/asm5.c  | 111 ++++++++++++++++++++++++++++++----------------------
+ src/liblink/asm6.c  |  27 ++++++-------
+ src/liblink/asm8.c  |  26 ++++++------
+ src/liblink/list6.c |   2 +-
+ src/liblink/list8.c |   2 +-
+ src/liblink/obj5.c  |  34 ++++++++--------
+ src/liblink/sym.c   |   7 +---
+ 8 files changed, 112 insertions(+), 101 deletions(-)

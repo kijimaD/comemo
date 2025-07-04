@@ -1,17 +1,28 @@
-commit ab0d057e64e74e2a5f3d71db99ed00dfce06f36d
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 20:09:40 2022 +0800
+commit 72b6a89ca5cd3c3bfd13b9b17be976e8feb91ecc
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 21 18:09:07 2021 -0700
 
-    cmd/link: use strings.Builder
+    cmd/compile: revert most of CL 349169
     
-    Change-Id: I5780c3f26302fd5cf21e4a1f0bc1777abb658c82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428290
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The method of using references to dictionaries to hold methods
+    live during linker deadcode elimination wasn't working very well.
+    I implemented a new scheme in the CL below this, so this CL strips
+    out the old method.
+    
+    The new method has the added benefit of having 0 runtime overhead
+    (unlike the stuff we're ripping out here, which does have a small overhead).
+    
+    Update #48047
+    
+    Change-Id: I68ac57119792d53c58f1480f407de6ab2bb53211
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357836
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/link/internal/ld/go.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go   |  2 +-
+ src/cmd/compile/internal/noder/stencil.go   | 20 ++++++++++----------
+ src/cmd/compile/internal/noder/transform.go | 15 +--------------
+ 3 files changed, 12 insertions(+), 25 deletions(-)

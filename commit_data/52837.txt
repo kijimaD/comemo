@@ -1,18 +1,31 @@
-commit 3494a726009d049887bb3fb95181f71e07b21da3
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Apr 28 22:15:48 2023 -0400
+commit ea5d7cbc2644643331bd675b1ebdf0aaac7419f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 4 08:58:02 2022 -0400
 
-    cmd/compile: don't generate DWARF info for static vars
+    all: boringcrypto post-merge cleanup
     
-    Static data symbols are compiler generated, not user symbols. The
-    linker already does not include them in the final DWARF section.
-    Don't generate the DWARF info in the first place.
+    This CL addresses the comments on CL 403154.
     
-    Change-Id: Id2ae36683bfc1ed60b9924b7305eae5e8aa14d80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490817
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    For #51940.
+    
+    Change-Id: I99bb3530916d469077bfbd53095bfcd1d2aa82ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403976
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/gc/obj.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modindex/build.go      |  4 +--
+ src/cmd/internal/notsha256/example_test.go | 41 ------------------------------
+ src/crypto/aes/cipher.go                   |  3 +--
+ src/crypto/aes/cipher_asm.go               |  3 +--
+ src/crypto/ecdsa/ecdsa.go                  |  3 +--
+ src/crypto/hmac/hmac.go                    |  3 +--
+ src/crypto/internal/boring/aes.go          |  7 ++---
+ src/crypto/internal/boring/notboring.go    |  1 +
+ src/crypto/rand/rand_unix.go               |  3 +--
+ src/crypto/rsa/pkcs1v15.go                 | 34 ++++++++++++-------------
+ src/crypto/rsa/pss.go                      |  4 +--
+ src/crypto/tls/cipher_suites.go            | 10 +++-----
+ src/go/build/build.go                      |  6 +++--
+ 13 files changed, 35 insertions(+), 87 deletions(-)

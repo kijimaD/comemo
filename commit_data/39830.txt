@@ -1,16 +1,24 @@
-commit 2711fababd21c471dc0c64b33972c74a7c4eee20
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sun Sep 8 00:21:57 2019 +0200
+commit fbd74a8922434ada5871a875598b58cbca4ff0d6
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 22 15:24:36 2019 -0400
 
-    net,os: disable more sysctl tests on iOS
+    test: support -ldflags for "rundir" tests, new -P option
     
-    Updates #34133
+    For "rundir" tests, allow users to add in linker flags as well as
+    compiler flags, e.g.
     
-    Change-Id: I27c75993176cf876f2d80f70982528258c509b68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193845
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    // rundir -m -ldflags -w
+    
+    The directive above will pass "-m" to the compiler on each package compilation
+    and "-w" to the linker for the final link.
+    
+    In addition, if "-P" is specified with 'rundir', then for each compile
+    pass in "-p <X>" to set the packagepath explicitly, which is closer to
+    how the compiler is run by 'go build'.
+    
+    Change-Id: I04720011a89d1bd8dcb4f2ccb4af1d74f6a01da1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168977
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/interface_test.go | 12 ++++++++++++
- src/os/os_test.go         |  3 +++
- 2 files changed, 15 insertions(+)
+ test/run.go | 56 +++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 43 insertions(+), 13 deletions(-)

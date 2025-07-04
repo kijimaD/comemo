@@ -1,19 +1,12 @@
-commit b8b329451ca9f98388213627b8790d9e7900b5a0
+commit bc0783dbe5c0b1319843f9a97df946549a24b7b1
 Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Oct 31 14:28:44 2012 +0100
+Date:   Wed Oct 31 14:02:43 2012 +0100
 
-    exp/locale/collate: implementation of tailorings and table generation.
-    Tailorings are represented by removing and reinserting entries from a linked list.
-    After all tailorings are done, missing weights are computed and verified.
-    This implementation assumes that entries that are used in expansions are not
-    reinserted at a later point.  This considerably simplifies the implementation.
+    exp/locale/collate: add context to entry.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/6739052
+    https://golang.org/cl/6727049
 
- src/pkg/exp/locale/collate/build/builder.go    |   167 +-
- src/pkg/exp/locale/collate/build/order.go      |   106 +-
- src/pkg/exp/locale/collate/build/order_test.go |    31 +
- src/pkg/exp/locale/collate/tables.go           | 52771 ++++++++++++++++++++---
- 4 files changed, 46611 insertions(+), 6464 deletions(-)
+ src/pkg/exp/locale/collate/maketables.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

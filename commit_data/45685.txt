@@ -1,28 +1,18 @@
-commit 873401df5b202a751523b8cbd92bf3a8aaf989c8
-Author: Keith Randall <khr@golang.org>
-Date:   Sun May 23 12:38:59 2021 -0700
+commit b7e0adfee28b516a0dcceb5ecf0e5a695b38c61f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Nov 5 16:41:32 2020 +1100
 
-    cmd/compile: ensure equal functions don't do unaligned loads
+    cmd/dist: remove openbsd/mips64 from incomplete ports
     
-    On architectures which don't support unaligned loads, make sure we
-    don't generate code that requires them.
+    Remove openbsd/mips64 from incomplete ports lists - all of the necessary code
+    has landed and we want to run tests so we can see/deal with remaining failures.
     
-    Generated hash functions also matter in this respect, but they all look ok.
+    Update #40995
     
-    Update #37716
-    Fixes #46283
-    
-    Change-Id: I6197fdfe04da4428092c99bd871d93738789e16b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322151
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I5d4f89af82ff3abe57570a9a8abf889498093d32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267606
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/reflectdata/alg.go | 20 ++++++
- src/cmd/compile/internal/test/align_test.go | 96 +++++++++++++++++++++++++++++
- src/cmd/internal/sys/arch.go                | 19 ++++++
- 3 files changed, 135 insertions(+)
+ src/cmd/dist/build.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

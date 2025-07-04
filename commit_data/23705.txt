@@ -1,15 +1,12 @@
-commit 7feb424928605b51979e0bda3bbad139fcf2bb51
+commit 48f2d30d4389d57b60afe69cab74a008a2f47047
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 15 00:01:54 2015 -0400
+Date:   Fri Jun 5 09:58:47 2015 -0400
 
-    cmd/compile: fix PtrTo(t) for unnamed t with embedded fields
+    cmd/go: fix detection of ELF binaries
     
-    Fixes #8427.
-    
-    Change-Id: I826a3bc4519845ad30d6dbaf058fe7ed7bee8db0
-    Reviewed-on: https://go-review.googlesource.com/12233
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0e6f1a39b3d6b15d05891c8b25ab6644356bde5f
+    Reviewed-on: https://go-review.googlesource.com/10751
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |  7 ++++---
- src/reflect/all_test.go                | 13 +++++++++++++
- 2 files changed, 17 insertions(+), 3 deletions(-)
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

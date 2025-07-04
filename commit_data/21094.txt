@@ -1,13 +1,17 @@
-commit e26e3fa25a2ab428ab04103757b08ed938b356ae
-Author: mattn <mattn.jp@gmail.com>
-Date:   Fri Dec 26 11:44:55 2014 +0900
+commit 743bdf612a63d631bac88a6b857094152ac33d5c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 13 13:51:44 2014 -0500
 
-    reflect, runtime: gofmt
+    [dev.power64] 9g: implement regopt
     
-    Change-Id: I5437b3a36181373d8ff33225d7520ab321459de9
-    Reviewed-on: https://go-review.googlesource.com/2084
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This adds registerization support to 9g equivalent to what the
+    other compilers have.
+    
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/174980043
 
- src/reflect/export_test.go | 6 +++---
- src/runtime/hashmap.go     | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/9g/opt.h |   49 ++-
+ src/cmd/9g/reg.c | 1212 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 1232 insertions(+), 29 deletions(-)

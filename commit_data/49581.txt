@@ -1,21 +1,41 @@
-commit e822b1e26e20ef1c76672c0b77b0fd8a97a1fe84
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Thu Oct 14 22:01:49 2021 +0000
+commit 61120c634cde434b78d9fcfe53a53aade58ef6be
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 27 15:07:15 2021 -0400
 
-    net/http: omit invalid header value from error message
+    cmd/go/internal/modload: use "pruned" instead of "lazy" to describe pruned module graphs
     
-    Updates #43631
+    The level of support for pruning — not the lazy/eager loading behavior
+    — is the more fundamental property, and what matters in terms of what
+    invariants we need to maintain.
     
-    Change-Id: I0fe3aafdf7ef889fed1a830128721393f8d020e6
-    GitHub-Last-Rev: c359542d741b17f4e2cb0d50982bf341246233b0
-    GitHub-Pull-Request: golang/go#48979
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355929
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    If the main module supports pruned module graphs we load its
+    dependencies lazily, and if it does not support pruned module graphs
+    we load its dependencies eagerly. However, in principle we could also
+    load the module graph lazily even in modules that do not support graph
+    pruning — we would just be more likely to overlook inconsistent
+    requirements introduced by hand-edits or bad VCS merges to the go.mod
+    file.
+    
+    (After this change, a “lazy” module is just one in which we happen not
+    to have loaded the module graph, and an “eager” one is one in which we
+    happen to load the module graph more aggressively.)
+    
+    Updates #36460
+    For #47397
+    
+    Change-Id: I0d2ffd21acc913f72ff56b59a6bdc539ebc3d377
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345393
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/http/transport.go      |  3 ++-
- src/net/http/transport_test.go | 16 ++++++++--------
- 2 files changed, 10 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/modload/build.go       |   2 +-
+ src/cmd/go/internal/modload/buildlist.go   | 217 +++++++++++++++--------------
+ src/cmd/go/internal/modload/edit.go        | 114 +++++++--------
+ src/cmd/go/internal/modload/import_test.go |   2 +-
+ src/cmd/go/internal/modload/init.go        |  26 ++--
+ src/cmd/go/internal/modload/list.go        |   4 +-
+ src/cmd/go/internal/modload/load.go        |  83 ++++++-----
+ src/cmd/go/internal/modload/modfile.go     |  39 +++---
+ 8 files changed, 257 insertions(+), 230 deletions(-)

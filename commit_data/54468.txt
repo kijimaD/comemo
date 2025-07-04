@@ -1,18 +1,23 @@
-commit 02561981291600d901db7d4886147480cf3de332
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Sep 13 13:07:09 2023 +0000
+commit c75b10be0b88c5b6767fd6fdf4e25a82a665fb76
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 20 10:28:59 2022 -0700
 
-    regexp: use built-in clear to clear b.visited in *bitState.reset
+    runtime/race: add GOAMD64=v3 version of linux race .syso
     
-    Change-Id: I1a723124f7050aeb971377db8c3cd04ebf9f7a16
-    GitHub-Last-Rev: 465da88feb20b4a3ebea3c3e36560f6c82f7fa2e
-    GitHub-Pull-Request: golang/go#62611
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527975
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Makes -race mode faster, in the 15% speedup range.
+    
+    Update #53743
+    
+    Change-Id: I735eb71902b41c924c9f885ded8f7a350a56b751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444396
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/regexp/backtrack.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/runtime/race/README                           |   3 ++-
+ src/runtime/race/internal/amd64v1/race_linux.syso | Bin 557744 -> 563848 bytes
+ src/runtime/race/internal/amd64v3/race_linux.syso | Bin 0 -> 563664 bytes
+ src/runtime/race/race_v1_amd64.go                 |   8 ++------
+ src/runtime/race/race_v3_amd64.go                 |   8 ++------
+ 5 files changed, 6 insertions(+), 13 deletions(-)

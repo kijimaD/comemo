@@ -1,12 +1,14 @@
-commit f574371544f943b7280c1fdedac3220eccda9e86
-Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 20 13:38:19 2013 -0800
+commit 9dcf3eee4164479ae627bf3f3c16fa3d8eee41d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 20 12:28:12 2013 -0800
 
-    strconv: use Scanner in fp_test
+    cmd/godoc: better console error message for example error
     
-    R=rsc
+    (per r's suggestion)
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/7385045
+    https://golang.org/cl/7376045
 
- src/pkg/strconv/fp_test.go | 19 ++++++-------------
- 1 file changed, 6 insertions(+), 13 deletions(-)
+ src/cmd/godoc/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

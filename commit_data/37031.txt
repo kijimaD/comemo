@@ -1,21 +1,22 @@
-commit 95dda75bde8a6625b857b5f8013eed5e9563fd02
-Author: Ben Shi <powerman1st@163.com>
-Date:   Thu Oct 18 05:11:38 2018 +0000
+commit 65d55a13a92a3bbc2a3750fd3318d63bd3e664c9
+Author: David Carlier <devnexen@gmail.com>
+Date:   Sun Jun 17 17:27:13 2018 +0000
 
-    cmd/compile: optimize store combination on 386/amd64
+    runtime: fix FreeBSDNumCPU test
     
-    This CL add 3 rules to combine byte-store to word-store on386 and
-    amd64.
+    num cpu unit test fixes for FreeBSD.
+    cpuset -g can possibly output more
+    data than expected.
     
-    Change-Id: Iffd9cda42f1961680c81def4edc773ad58f211b3
-    Reviewed-on: https://go-review.googlesource.com/c/143057
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Fixes #25924
+    
+    Change-Id: Iec45a919df68648759331da7cd1fa3b9f3ca4241
+    GitHub-Last-Rev: 4cc275b519cda13189ec48b581ab9ce00cacd7f6
+    GitHub-Pull-Request: golang/go#25931
+    Reviewed-on: https://go-review.googlesource.com/119376
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules   |  10 ++
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  19 +++
- src/cmd/compile/internal/ssa/rewrite386.go   |  62 +++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 236 ++++++++++++++++++++++++++-
- test/codegen/memcombine.go                   |   6 +
- 5 files changed, 332 insertions(+), 1 deletion(-)
+ src/runtime/testdata/testprog/numcpu_freebsd.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

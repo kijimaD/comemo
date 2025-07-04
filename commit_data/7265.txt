@@ -1,14 +1,14 @@
-commit c9bf30cf19949221a4ffdd109b131496c40c5521
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Thu Jan 27 14:00:31 2011 -0800
+commit 19d9a408451662d09b49fe3b0f1971728e28213f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 27 15:34:28 2011 -0500
 
-    bytes: Add Buffer.ReadBytes, Buffer.ReadString
+    spec: remove non-blocking channel operators
     
-    R=golang-dev, r
+    Add intended changes for close + closed, commented out.
+    
+    R=golang-dev, niemeyer, r, gri1
     CC=golang-dev
-    https://golang.org/cl/4000046
+    https://golang.org/cl/4013045
 
- src/pkg/bufio/bufio.go       |  6 ++++--
- src/pkg/bytes/buffer.go      | 29 +++++++++++++++++++++++++++++
- src/pkg/bytes/buffer_test.go | 27 ++++++++++++++++++++++++++-
- 3 files changed, 59 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 59 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 29 insertions(+), 30 deletions(-)

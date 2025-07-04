@@ -1,13 +1,13 @@
-commit 03805054e30436f445faf3492d66952e3e297c24
+commit ddc85f419fe85be64ddaee5c9ad556a4b6e2d59d
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 22 09:38:57 2011 +1100
+Date:   Thu Dec 22 09:38:35 2011 +1100
 
-    dashboard: add /key handler
+    dashboard: deprecation notice for the old dashboard
     
-    R=golang-dev, rsc
+    R=golang-dev, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/5504066
+    https://golang.org/cl/5505056
 
- misc/dashboard/app/app.yaml         |  2 +-
- misc/dashboard/app/build/handler.go | 35 +++++++++++++++++++++++++++++------
- 2 files changed, 30 insertions(+), 7 deletions(-)
+ misc/dashboard/godashboard/main.html        |  3 +++
+ misc/dashboard/godashboard/static/style.css | 11 +++++++++++
+ 2 files changed, 14 insertions(+)

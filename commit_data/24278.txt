@@ -1,32 +1,14 @@
-commit 6044dd098d93d12c26ae8378a6c99338350e8280
-Author: Austin Clements <austin@google.com>
-Date:   Sun Sep 13 12:12:13 2015 -0400
+commit a794074da0800fda3cb204b20b3f73af2175383b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 20 15:21:49 2015 -0700
 
-    debug/dwarf: return ClassUnknown if attribute class cannot be determined
+    [dev.ssa] cmd/compile: implement genValue for AMD64SETxx
     
-    Currently, if the .debug_abbrev section of an ELF file contains
-    attributes that aren't known to the dwarf package and that have form
-    formSecOffset, the dwarf package will fail to open the DWARF data with
-    an error like "decoding dwarf section abbrev at offset 0x17: cannot
-    determine class of unknown attribute with formSecOffset". For the most
-    part, the class is implied by the form encoded in the abbrev section,
-    but formSecOffset can imply many different DWARF classes. Hence,
-    debug/dwarf disambiguates these using a table of known attributes.
-    However, it will reject the entire image if it encounters an attribute
-    it can't determine the class of. This is particularly unfortunate
-    because the caller may never even uses the offending attribute.
-    
-    Fix this by introducing a ClassUnknown attribute class to use as a
-    fallback in these cases. This allows the dwarf package to load the
-    DWARF data and isolates the problem to just the affected attributes.
-    
-    Fixes #12592.
-    
-    Change-Id: I766227b136e9757f8b89c0b3ab8e9ddea899d94f
-    Reviewed-on: https://go-review.googlesource.com/14541
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: jcd . <jcd@golang.org>
+    Change-Id: I591f2c0465263dcdeef46920aabf1bbb8e7ac5c0
+    Reviewed-on: https://go-review.googlesource.com/12436
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/debug/dwarf/class_string.go |  7 +++----
- src/debug/dwarf/entry.go        | 11 ++++++++---
- 2 files changed, 11 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |  7 +++++++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 14 +++++++-------
+ src/cmd/compile/internal/ssa/opGen.go        |  7 +++++++
+ 3 files changed, 21 insertions(+), 7 deletions(-)

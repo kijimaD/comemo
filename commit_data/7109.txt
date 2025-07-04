@@ -1,13 +1,12 @@
-commit cdb0bbf4d55f772283de42364d9d154ce42e8dd0
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 13 14:34:31 2011 -0500
+commit 97025ebfef22363efd3ece2fac302c4e0efc1893
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 13 10:24:04 2011 -0800
 
-    http: handle HEAD requests correctly
+    go_spec: specify that int and uint have the same size
     
-    R=r, r2
+    R=r, rsc, iant, ken2
     CC=golang-dev
-    https://golang.org/cl/3939042
+    https://golang.org/cl/3992041
 
- src/pkg/http/fs.go     |  4 +++-
- src/pkg/http/server.go | 14 ++++++++------
- 2 files changed, 11 insertions(+), 7 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

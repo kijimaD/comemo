@@ -1,30 +1,48 @@
-commit 79781e8dd382ac34e502ed6a088dff6860a08c05
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Aug 4 17:29:03 2020 +0000
+commit 28157b3292a9da90a7ceea89e9b01d9dd03b4979
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 19 16:25:08 2020 -0700
 
-    runtime: move malloc stats into consistentHeapStats
+    cmd/compile: start implementing strongly typed aux and auxint fields
     
-    This change moves the mcache-local malloc stats into the
-    consistentHeapStats structure so the malloc stats can be managed
-    consistently with the memory stats. The one exception here is
-    tinyAllocs for which moving that into the global stats would incur
-    several atomic writes on the fast path. Microbenchmarks for just one CPU
-    core have shown a 50% loss in throughput. Since tiny allocation counnt
-    isn't exposed anyway and is always blindly added to both allocs and
-    frees, let that stay inconsistent and flush the tiny allocation count
-    every so often.
+    Right now the Aux and AuxInt fields of ssa.Values are typed as
+    interface{} and int64, respectively. Each rule that uses these values
+    must cast them to the type they actually are (*obj.LSym, or int32, or
+    ValAndOff, etc.), use them, and then cast them back to interface{} or
+    int64.
     
-    Change-Id: I2a4b75f209c0e659b9c0db081a3287bf227c10ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247039
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    We know for each opcode what the types of the Aux and AuxInt fields
+    should be. So let's modify the rule generator to declare the types to
+    be what we know they should be, autoconverting to and from the generic
+    types for us. That way we can make the rules more type safe.
+    
+    It's difficult to make a single CL for this, so I've coopted the "=>"
+    token to indicate a rule that is strongly typed. "->" rules are
+    processed as before. That will let us migrate a few rules at a time in
+    separate CLs.  Hopefully we can reach a state where all rules are
+    strongly typed and we can drop the distinction.
+    
+    This CL changes just a few rules to get a feel for what this
+    transition would look like.
+    
+    I've decided not to put explicit types in the rules. I think it
+    makes the rules somewhat clearer, but definitely more verbose.
+    In particular, the passthrough rules that don't modify the fields
+    in question are verbose for no real reason.
+    
+    Change-Id: I63a1b789ac5702e7caf7934cd49f784235d1d73d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190197
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/export_test.go | 37 ++++++++--------------
- src/runtime/malloc.go      |  2 +-
- src/runtime/mcache.go      | 70 ++++++++++++++---------------------------
- src/runtime/mgcsweep.go    | 10 ++++--
- src/runtime/mstats.go      | 78 ++++++++++++++++++++++++++--------------------
- src/runtime/proc.go        |  2 +-
- 6 files changed, 90 insertions(+), 109 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             |  16 +--
+ src/cmd/compile/internal/ssa/check.go          |   8 +-
+ src/cmd/compile/internal/ssa/config.go         |   2 +-
+ src/cmd/compile/internal/ssa/export_test.go    |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  11 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  16 +--
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 159 +++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/op.go             |   3 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  64 +++++-----
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  54 +++++----
+ 10 files changed, 235 insertions(+), 100 deletions(-)

@@ -1,107 +1,23 @@
-commit 78ddf2741f51fdb0f6db4190ef2053a36be91751
-Author: Wei Xiao <wei.xiao@arm.com>
-Date:   Wed Jun 21 03:30:14 2017 +0000
+commit 579120323fdf0c6939fa3e3c6c63b669b6437e31
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 5 09:58:41 2017 -0700
 
-    bytes: add optimized Equal for arm64
+    runtime: mapassign_* should use typedmemmove to update keys
     
-    Use SIMD instructions when comparing chunks bigger than 16 bytes.
-    Benchmark results of bytes:
+    We need to make sure that when the key contains a pointer, we use
+    a write barrier to update the key.
     
-    name                 old time/op    new time/op    delta
-    Equal/0-8              6.52ns ± 1%    5.51ns ± 0%   -15.43%  (p=0.000 n=8+9)
-    Equal/1-8              11.5ns ± 0%    10.5ns ± 0%    -8.70%  (p=0.000 n=10+10)
-    Equal/6-8              19.0ns ± 0%    13.5ns ± 0%   -28.95%  (p=0.000 n=10+10)
-    Equal/9-8              31.0ns ± 0%    13.5ns ± 0%   -56.45%  (p=0.000 n=10+10)
-    Equal/15-8             40.0ns ± 0%    15.5ns ± 0%   -61.25%  (p=0.000 n=10+10)
-    Equal/16-8             41.5ns ± 0%    14.5ns ± 0%   -65.06%  (p=0.000 n=10+10)
-    Equal/20-8             47.5ns ± 0%    17.0ns ± 0%   -64.21%  (p=0.000 n=10+10)
-    Equal/32-8             65.6ns ± 0%    17.0ns ± 0%   -74.09%  (p=0.000 n=10+10)
-    Equal/4K-8             6.17µs ± 0%    0.57µs ± 1%   -90.76%  (p=0.000 n=10+10)
-    Equal/4M-8             6.41ms ± 0%    1.11ms ±14%   -82.71%  (p=0.000 n=8+10)
-    Equal/64M-8             104ms ± 0%      33ms ± 0%   -68.64%  (p=0.000 n=10+10)
-    EqualPort/1-8          13.0ns ± 0%    13.0ns ± 0%      ~     (all equal)
-    EqualPort/6-8          22.0ns ± 0%    22.7ns ± 0%    +3.06%  (p=0.000 n=8+9)
-    EqualPort/32-8         78.1ns ± 0%    78.1ns ± 0%      ~     (all equal)
-    EqualPort/4K-8         7.54µs ± 0%    7.61µs ± 0%    +0.92%  (p=0.000 n=10+8)
-    EqualPort/4M-8         8.16ms ± 2%    8.05ms ± 1%    -1.31%  (p=0.023 n=10+10)
-    EqualPort/64M-8         142ms ± 0%     142ms ± 0%    +0.37%  (p=0.000 n=10+10)
-    CompareBytesEqual-8    39.0ns ± 0%    41.6ns ± 2%    +6.67%  (p=0.000 n=9+10)
+    Also mapdelete_* should use typedmemclr.
     
-    name                 old speed      new speed      delta
-    Equal/1-8            86.9MB/s ± 0%  95.2MB/s ± 0%    +9.53%  (p=0.000 n=8+8)
-    Equal/6-8             315MB/s ± 0%   444MB/s ± 0%   +40.74%  (p=0.000 n=9+10)
-    Equal/9-8             290MB/s ± 0%   666MB/s ± 0%  +129.63%  (p=0.000 n=8+10)
-    Equal/15-8            375MB/s ± 0%   967MB/s ± 0%  +158.09%  (p=0.000 n=10+10)
-    Equal/16-8            385MB/s ± 0%  1103MB/s ± 0%  +186.24%  (p=0.000 n=10+9)
-    Equal/20-8            421MB/s ± 0%  1175MB/s ± 0%  +179.44%  (p=0.000 n=9+10)
-    Equal/32-8            488MB/s ± 0%  1881MB/s ± 0%  +285.34%  (p=0.000 n=10+8)
-    Equal/4K-8            664MB/s ± 0%  7181MB/s ± 1%  +981.32%  (p=0.000 n=10+10)
-    Equal/4M-8            654MB/s ± 0%  3822MB/s ±16%  +484.15%  (p=0.000 n=8+10)
-    Equal/64M-8           645MB/s ± 0%  2056MB/s ± 0%  +218.90%  (p=0.000 n=10+10)
-    EqualPort/1-8        76.8MB/s ± 0%  76.7MB/s ± 0%    -0.09%  (p=0.023 n=10+10)
-    EqualPort/6-8         272MB/s ± 0%   264MB/s ± 0%    -2.94%  (p=0.000 n=8+10)
-    EqualPort/32-8        410MB/s ± 0%   410MB/s ± 0%    +0.01%  (p=0.004 n=9+10)
-    EqualPort/4K-8        543MB/s ± 0%   538MB/s ± 0%    -0.91%  (p=0.000 n=9+9)
-    EqualPort/4M-8        514MB/s ± 2%   521MB/s ± 1%    +1.31%  (p=0.023 n=10+10)
-    EqualPort/64M-8       473MB/s ± 0%   472MB/s ± 0%    -0.37%  (p=0.000 n=10+10)
+    Fixes #21297
     
-    Benchmark results of go1:
-    
-    name                     old time/op    new time/op    delta
-    BinaryTree17-8              6.53s ± 0%     6.52s ± 2%    ~     (p=0.286 n=4+5)
-    Fannkuch11-8                6.35s ± 1%     6.33s ± 0%    ~     (p=0.690 n=5+5)
-    FmtFprintfEmpty-8           108ns ± 1%      99ns ± 1%  -8.31%  (p=0.008 n=5+5)
-    FmtFprintfString-8          172ns ± 1%     188ns ± 0%  +9.43%  (p=0.016 n=5+4)
-    FmtFprintfInt-8             207ns ± 0%     202ns ± 0%  -2.42%  (p=0.008 n=5+5)
-    FmtFprintfIntInt-8          277ns ± 1%     271ns ± 1%  -2.02%  (p=0.008 n=5+5)
-    FmtFprintfPrefixedInt-8     386ns ± 0%     380ns ± 0%  -1.55%  (p=0.008 n=5+5)
-    FmtFprintfFloat-8           492ns ± 0%     494ns ± 1%    ~     (p=0.175 n=4+5)
-    FmtManyArgs-8              1.32µs ± 1%    1.31µs ± 2%    ~     (p=0.651 n=5+5)
-    GobDecode-8                16.8ms ± 2%    16.9ms ± 1%    ~     (p=0.310 n=5+5)
-    GobEncode-8                14.1ms ± 1%    14.1ms ± 1%    ~     (p=1.000 n=5+5)
-    Gzip-8                      788ms ± 0%     789ms ± 0%    ~     (p=0.548 n=5+5)
-    Gunzip-8                   83.6ms ± 0%    83.6ms ± 0%    ~     (p=0.548 n=5+5)
-    HTTPClientServer-8          120µs ± 0%     120µs ± 1%    ~     (p=0.690 n=5+5)
-    JSONEncode-8               33.2ms ± 0%    33.6ms ± 0%  +1.20%  (p=0.008 n=5+5)
-    JSONDecode-8                152ms ± 1%     146ms ± 1%  -3.70%  (p=0.008 n=5+5)
-    Mandelbrot200-8            10.0ms ± 0%    10.0ms ± 0%    ~     (p=0.151 n=5+5)
-    GoParse-8                  7.97ms ± 0%    8.06ms ± 0%  +1.15%  (p=0.008 n=5+5)
-    RegexpMatchEasy0_32-8       233ns ± 1%     239ns ± 4%    ~     (p=0.135 n=5+5)
-    RegexpMatchEasy0_1K-8      1.86µs ± 0%    1.86µs ± 0%    ~     (p=0.167 n=5+5)
-    RegexpMatchEasy1_32-8       250ns ± 0%     263ns ± 1%  +5.28%  (p=0.008 n=5+5)
-    RegexpMatchEasy1_1K-8      2.28µs ± 0%    2.13µs ± 0%  -6.64%  (p=0.000 n=4+5)
-    RegexpMatchMedium_32-8      332ns ± 1%     319ns ± 0%  -3.97%  (p=0.008 n=5+5)
-    RegexpMatchMedium_1K-8     85.5µs ± 2%    79.1µs ± 1%  -7.42%  (p=0.008 n=5+5)
-    RegexpMatchHard_32-8       4.34µs ± 1%    4.42µs ± 7%    ~     (p=0.881 n=5+5)
-    RegexpMatchHard_1K-8        130µs ± 1%     127µs ± 0%  -2.18%  (p=0.008 n=5+5)
-    Revcomp-8                   1.35s ± 1%     1.34s ± 0%  -0.58%  (p=0.016 n=5+4)
-    Template-8                  160ms ± 2%     158ms ± 1%    ~     (p=0.222 n=5+5)
-    TimeParse-8                 795ns ± 2%     772ns ± 2%  -2.87%  (p=0.024 n=5+5)
-    TimeFormat-8                782ns ± 0%     784ns ± 0%    ~     (p=0.198 n=5+5)
-    
-    name                     old speed      new speed      delta
-    GobDecode-8              45.8MB/s ± 2%  45.5MB/s ± 1%    ~     (p=0.310 n=5+5)
-    GobEncode-8              54.3MB/s ± 1%  54.4MB/s ± 1%    ~     (p=0.984 n=5+5)
-    Gzip-8                   24.6MB/s ± 0%  24.6MB/s ± 0%    ~     (p=0.540 n=5+5)
-    Gunzip-8                  232MB/s ± 0%   232MB/s ± 0%    ~     (p=0.548 n=5+5)
-    JSONEncode-8             58.4MB/s ± 0%  57.7MB/s ± 0%  -1.19%  (p=0.008 n=5+5)
-    JSONDecode-8             12.8MB/s ± 1%  13.3MB/s ± 1%  +3.85%  (p=0.008 n=5+5)
-    GoParse-8                7.27MB/s ± 0%  7.18MB/s ± 0%  -1.13%  (p=0.008 n=5+5)
-    RegexpMatchEasy0_32-8     137MB/s ± 1%   134MB/s ± 4%    ~     (p=0.151 n=5+5)
-    RegexpMatchEasy0_1K-8     551MB/s ± 0%   550MB/s ± 0%    ~     (p=0.222 n=5+5)
-    RegexpMatchEasy1_32-8     128MB/s ± 0%   121MB/s ± 1%  -5.09%  (p=0.008 n=5+5)
-    RegexpMatchEasy1_1K-8     449MB/s ± 0%   481MB/s ± 0%  +7.12%  (p=0.016 n=4+5)
-    RegexpMatchMedium_32-8   3.00MB/s ± 0%  3.13MB/s ± 0%  +4.33%  (p=0.016 n=4+5)
-    RegexpMatchMedium_1K-8   12.0MB/s ± 2%  12.9MB/s ± 1%  +7.98%  (p=0.008 n=5+5)
-    RegexpMatchHard_32-8     7.38MB/s ± 1%  7.25MB/s ± 7%    ~     (p=0.952 n=5+5)
-    RegexpMatchHard_1K-8     7.88MB/s ± 1%  8.05MB/s ± 0%  +2.21%  (p=0.008 n=5+5)
-    Revcomp-8                 188MB/s ± 1%   189MB/s ± 0%  +0.58%  (p=0.016 n=5+4)
-    Template-8               12.2MB/s ± 2%  12.3MB/s ± 1%    ~     (p=0.183 n=5+5)
-    
-    Change-Id: I65e79f3f8f8b2914678311c4f1b0a2d98459e220
-    Reviewed-on: https://go-review.googlesource.com/71110
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I63dc90bec1cb909c2c6e08676c9ec853d736cdf8
+    Reviewed-on: https://go-review.googlesource.com/53414
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_arm64.s | 132 +++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 103 insertions(+), 29 deletions(-)
+ src/runtime/hashmap_fast.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

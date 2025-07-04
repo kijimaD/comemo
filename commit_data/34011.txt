@@ -1,19 +1,205 @@
-commit 165e7523fb627cc7f6be56b7318fea34d73d7167
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 16 22:57:44 2018 +0000
+commit 1ae67965e47a8a8eb71c92e44134c89cd1c67657
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Sep 22 15:15:23 2017 -0500
 
-    sync: consistently use article "a" for RWMutex
+    regexp: make (*bitState).push inlinable
     
-    We used a mix of both before.
+    By refactoring job.arg from int with 0/1 as the only valid values into bool
+    and simplifying (*bitState).push, we reduce the number of nodes below the inlining threshold.
+    This improves backtracking regexp performance by 5-10% and go1 geomean  by 1.7%
+    Full performance data below:
     
-    I've never heard anybody say "an arr-double you mutex" when speaking.
+    name                                      old time/op    new time/op     delta
+    Find-6                                       510ns ± 0%      480ns ± 1%   -5.90%  (p=0.000 n=10+10)
+    FindString-6                                 504ns ± 1%      479ns ± 1%   -5.10%  (p=0.000 n=10+10)
+    FindSubmatch-6                               689ns ± 1%      659ns ± 1%   -4.27%  (p=0.000 n=9+10)
+    FindStringSubmatch-6                         659ns ± 0%      628ns ± 1%   -4.69%  (p=0.000 n=8+10)
+    Literal-6                                    174ns ± 1%      171ns ± 1%   -1.50%  (p=0.000 n=10+10)
+    NotLiteral-6                                2.89µs ± 1%     2.72µs ± 0%   -5.84%  (p=0.000 n=10+9)
+    MatchClass-6                                4.65µs ± 1%     4.28µs ± 1%   -7.96%  (p=0.000 n=10+10)
+    MatchClass_InRange-6                        4.15µs ± 1%     3.80µs ± 0%   -8.61%  (p=0.000 n=10+8)
+    ReplaceAll-6                                2.72µs ± 1%     2.60µs ± 1%   -4.68%  (p=0.000 n=10+10)
+    AnchoredLiteralShortNonMatch-6               158ns ± 1%      153ns ± 1%   -3.03%  (p=0.000 n=10+10)
+    AnchoredLiteralLongNonMatch-6                176ns ± 1%      176ns ± 0%     ~     (p=1.000 n=10+9)
+    AnchoredShortMatch-6                         260ns ± 0%      255ns ± 1%   -1.84%  (p=0.000 n=9+10)
+    AnchoredLongMatch-6                          456ns ± 0%      455ns ± 0%   -0.19%  (p=0.008 n=8+10)
+    OnePassShortA-6                             1.13µs ± 1%     1.12µs ± 0%   -0.57%  (p=0.046 n=10+8)
+    NotOnePassShortA-6                          1.14µs ± 1%     1.14µs ± 1%     ~     (p=0.162 n=10+10)
+    OnePassShortB-6                              908ns ± 0%      893ns ± 0%   -1.60%  (p=0.000 n=8+9)
+    NotOnePassShortB-6                           857ns ± 0%      803ns ± 1%   -6.34%  (p=0.000 n=8+10)
+    OnePassLongPrefix-6                          190ns ± 0%      190ns ± 1%     ~     (p=0.059 n=8+10)
+    OnePassLongNotPrefix-6                       722ns ± 1%      722ns ± 1%     ~     (p=0.451 n=10+10)
+    MatchParallelShared-6                        810ns ± 2%      807ns ± 2%     ~     (p=0.643 n=10+10)
+    MatchParallelCopied-6                       72.1ns ± 1%     69.4ns ± 1%   -3.81%  (p=0.000 n=10+10)
+    QuoteMetaAll-6                               213ns ± 2%      216ns ± 3%     ~     (p=0.284 n=10+10)
+    QuoteMetaNone-6                             89.7ns ± 1%     89.8ns ± 1%     ~     (p=0.616 n=10+10)
+    Match/Easy0/32-6                             127ns ± 1%      127ns ± 1%     ~     (p=0.977 n=10+10)
+    Match/Easy0/1K-6                             566ns ± 0%      566ns ± 0%     ~     (p=1.000 n=8+8)
+    Match/Easy0/32K-6                           9.30µs ± 1%     9.28µs ± 1%     ~     (p=0.529 n=10+10)
+    Match/Easy0/1M-6                             460µs ± 1%      460µs ± 1%     ~     (p=0.853 n=10+10)
+    Match/Easy0/32M-6                           15.0ms ± 0%     15.1ms ± 0%   +0.77%  (p=0.000 n=9+8)
+    Match/Easy0i/32-6                           2.10µs ± 1%     1.98µs ± 0%   -6.02%  (p=0.000 n=10+8)
+    Match/Easy0i/1K-6                           61.5µs ± 0%     57.2µs ± 0%   -6.97%  (p=0.000 n=10+9)
+    Match/Easy0i/32K-6                          2.75ms ± 0%     2.72ms ± 0%   -1.10%  (p=0.000 n=9+9)
+    Match/Easy0i/1M-6                           88.0ms ± 0%     86.9ms ± 1%   -1.29%  (p=0.000 n=8+10)
+    Match/Easy0i/32M-6                           2.82s ± 0%      2.77s ± 1%   -1.81%  (p=0.000 n=8+10)
+    Match/Easy1/32-6                             123ns ± 1%      124ns ± 1%   +0.90%  (p=0.001 n=10+10)
+    Match/Easy1/1K-6                            1.70µs ± 1%     1.65µs ± 0%   -3.18%  (p=0.000 n=9+10)
+    Match/Easy1/32K-6                           69.1µs ± 0%     68.4µs ± 1%   -0.95%  (p=0.000 n=8+10)
+    Match/Easy1/1M-6                            2.46ms ± 1%     2.42ms ± 1%   -1.66%  (p=0.000 n=10+10)
+    Match/Easy1/32M-6                           78.4ms ± 1%     77.5ms ± 0%   -1.08%  (p=0.000 n=10+9)
+    Match/Medium/32-6                           2.07µs ± 1%     1.91µs ± 1%   -7.69%  (p=0.000 n=10+10)
+    Match/Medium/1K-6                           62.8µs ± 0%     58.0µs ± 1%   -7.70%  (p=0.000 n=8+10)
+    Match/Medium/32K-6                          2.63ms ± 1%     2.58ms ± 1%   -2.14%  (p=0.000 n=10+10)
+    Match/Medium/1M-6                           84.6ms ± 0%     82.5ms ± 0%   -2.37%  (p=0.000 n=8+9)
+    Match/Medium/32M-6                           2.71s ± 0%      2.64s ± 0%   -2.46%  (p=0.000 n=10+9)
+    Match/Hard/32-6                             3.26µs ± 1%     2.98µs ± 1%   -8.49%  (p=0.000 n=10+10)
+    Match/Hard/1K-6                              100µs ± 0%       90µs ± 1%   -9.55%  (p=0.000 n=9+10)
+    Match/Hard/32K-6                            3.82ms ± 0%     3.82ms ± 1%     ~     (p=0.515 n=8+10)
+    Match/Hard/1M-6                              122ms ± 1%      123ms ± 0%   +0.66%  (p=0.000 n=10+8)
+    Match/Hard/32M-6                             3.89s ± 1%      3.91s ± 1%     ~     (p=0.105 n=10+10)
+    Match/Hard1/32-6                            18.1µs ± 1%     16.1µs ± 1%  -11.31%  (p=0.000 n=10+10)
+    Match/Hard1/1K-6                             565µs ± 0%      493µs ± 1%  -12.65%  (p=0.000 n=8+10)
+    Match/Hard1/32K-6                           18.8ms ± 0%     18.8ms ± 1%     ~     (p=0.905 n=9+10)
+    Match/Hard1/1M-6                             602ms ± 1%      602ms ± 1%     ~     (p=0.278 n=9+10)
+    Match/Hard1/32M-6                            19.1s ± 1%      19.2s ± 1%   +0.31%  (p=0.035 n=9+10)
+    Match_onepass_regex/32-6                    6.32µs ± 1%     6.34µs ± 1%     ~     (p=0.060 n=10+10)
+    Match_onepass_regex/1K-6                     204µs ± 1%      204µs ± 1%     ~     (p=0.842 n=9+10)
+    Match_onepass_regex/32K-6                   6.53ms ± 0%     6.55ms ± 1%   +0.36%  (p=0.005 n=10+10)
+    Match_onepass_regex/1M-6                     209ms ± 0%      208ms ± 1%   -0.65%  (p=0.034 n=8+10)
+    Match_onepass_regex/32M-6                    6.72s ± 0%      6.68s ± 1%   -0.74%  (p=0.000 n=9+10)
+    CompileOnepass/^(?:(?:(?:.(?:$))?))...-6    7.02µs ± 1%     7.02µs ± 1%     ~     (p=0.671 n=10+10)
+    CompileOnepass/^abcd$-6                     5.65µs ± 1%     5.65µs ± 1%     ~     (p=0.411 n=10+9)
+    CompileOnepass/^(?:(?:a{0,})*?)$-6          7.06µs ± 1%     7.06µs ± 1%     ~     (p=0.912 n=10+10)
+    CompileOnepass/^(?:(?:a+)*)$-6              6.40µs ± 1%     6.41µs ± 1%     ~     (p=0.699 n=10+10)
+    CompileOnepass/^(?:(?:a|(?:aa)))$-6         8.18µs ± 2%     8.16µs ± 1%     ~     (p=0.529 n=10+10)
+    CompileOnepass/^(?:[^\s\S])$-6              5.08µs ± 1%     5.17µs ± 1%   +1.77%  (p=0.000 n=9+10)
+    CompileOnepass/^(?:(?:(?:a*)+))$-6          6.86µs ± 1%     6.85µs ± 0%     ~     (p=0.190 n=10+9)
+    CompileOnepass/^[a-c]+$-6                   5.14µs ± 1%     5.11µs ± 0%   -0.53%  (p=0.041 n=10+10)
+    CompileOnepass/^[a-c]*$-6                   5.62µs ± 1%     5.63µs ± 1%     ~     (p=0.382 n=10+10)
+    CompileOnepass/^(?:a*)$-6                   5.76µs ± 1%     5.73µs ± 1%   -0.41%  (p=0.008 n=9+10)
+    CompileOnepass/^(?:(?:aa)|a)$-6             7.89µs ± 1%     7.84µs ± 1%   -0.66%  (p=0.020 n=10+10)
+    CompileOnepass/^...$-6                      5.38µs ± 1%     5.38µs ± 1%     ~     (p=0.857 n=9+10)
+    CompileOnepass/^(?:a|(?:aa))$-6             7.80µs ± 2%     7.82µs ± 1%     ~     (p=0.342 n=10+10)
+    CompileOnepass/^a((b))c$-6                  7.75µs ± 1%     7.78µs ± 1%     ~     (p=0.172 n=10+10)
+    CompileOnepass/^a.[l-nA-Cg-j]?e$-6          8.39µs ± 1%     8.42µs ± 1%     ~     (p=0.138 n=10+10)
+    CompileOnepass/^a((b))$-6                   6.92µs ± 1%     6.95µs ± 1%     ~     (p=0.159 n=10+10)
+    CompileOnepass/^a(?:(b)|(c))c$-6            10.0µs ± 1%     10.0µs ± 1%     ~     (p=0.896 n=10+10)
+    CompileOnepass/^a(?:b|c)$-6                 5.62µs ± 1%     5.66µs ± 1%   +0.71%  (p=0.023 n=10+10)
+    CompileOnepass/^a(?:b?|c)$-6                8.49µs ± 1%     8.43µs ± 1%   -0.69%  (p=0.010 n=10+10)
+    CompileOnepass/^a(?:b?|c+)$-6               9.26µs ± 1%     9.28µs ± 1%     ~     (p=0.448 n=10+10)
+    CompileOnepass/^a(?:bc)+$-6                 6.52µs ± 1%     6.46µs ± 2%   -1.02%  (p=0.003 n=10+10)
+    CompileOnepass/^a(?:[bcd])+$-6              6.29µs ± 1%     6.32µs ± 1%     ~     (p=0.256 n=10+10)
+    CompileOnepass/^a((?:[bcd])+)$-6            7.77µs ± 1%     7.79µs ± 1%     ~     (p=0.105 n=10+10)
+    CompileOnepass/^a(:?b|c)*d$-6               14.0µs ± 1%     13.9µs ± 1%   -0.69%  (p=0.003 n=10+10)
+    CompileOnepass/^.bc(d|e)*$-6                8.96µs ± 1%     9.06µs ± 1%   +1.20%  (p=0.000 n=10+9)
+    CompileOnepass/^loooooooooooooooooo...-6     219µs ± 1%      220µs ± 1%   +0.63%  (p=0.006 n=9+10)
+    [Geo mean]                                  31.6µs          31.1µs        -1.82%
     
-    Fixes #23457
+    name                                      old speed      new speed       delta
+    QuoteMetaAll-6                            65.5MB/s ± 2%   64.8MB/s ± 3%     ~     (p=0.315 n=10+10)
+    QuoteMetaNone-6                            290MB/s ± 1%    290MB/s ± 1%     ~     (p=0.755 n=10+10)
+    Match/Easy0/32-6                           250MB/s ± 0%    251MB/s ± 1%     ~     (p=0.277 n=8+9)
+    Match/Easy0/1K-6                          1.81GB/s ± 0%   1.81GB/s ± 0%     ~     (p=0.408 n=8+10)
+    Match/Easy0/32K-6                         3.52GB/s ± 1%   3.53GB/s ± 1%     ~     (p=0.529 n=10+10)
+    Match/Easy0/1M-6                          2.28GB/s ± 1%   2.28GB/s ± 1%     ~     (p=0.853 n=10+10)
+    Match/Easy0/32M-6                         2.24GB/s ± 0%   2.23GB/s ± 0%   -0.76%  (p=0.000 n=9+8)
+    Match/Easy0i/32-6                         15.2MB/s ± 1%   16.2MB/s ± 0%   +6.43%  (p=0.000 n=10+9)
+    Match/Easy0i/1K-6                         16.6MB/s ± 0%   17.9MB/s ± 0%   +7.48%  (p=0.000 n=10+9)
+    Match/Easy0i/32K-6                        11.9MB/s ± 0%   12.0MB/s ± 0%   +1.11%  (p=0.000 n=9+9)
+    Match/Easy0i/1M-6                         11.9MB/s ± 0%   12.1MB/s ± 1%   +1.31%  (p=0.000 n=8+10)
+    Match/Easy0i/32M-6                        11.9MB/s ± 0%   12.1MB/s ± 1%   +1.84%  (p=0.000 n=8+10)
+    Match/Easy1/32-6                           260MB/s ± 1%    258MB/s ± 1%   -0.91%  (p=0.001 n=10+10)
+    Match/Easy1/1K-6                           601MB/s ± 1%    621MB/s ± 0%   +3.28%  (p=0.000 n=9+10)
+    Match/Easy1/32K-6                          474MB/s ± 0%    479MB/s ± 1%   +0.96%  (p=0.000 n=8+10)
+    Match/Easy1/1M-6                           426MB/s ± 1%    433MB/s ± 1%   +1.68%  (p=0.000 n=10+10)
+    Match/Easy1/32M-6                          428MB/s ± 1%    433MB/s ± 0%   +1.09%  (p=0.000 n=10+9)
+    Match/Medium/32-6                         15.4MB/s ± 1%   16.7MB/s ± 1%   +8.23%  (p=0.000 n=10+9)
+    Match/Medium/1K-6                         16.3MB/s ± 1%   17.7MB/s ± 1%   +8.43%  (p=0.000 n=9+10)
+    Match/Medium/32K-6                        12.5MB/s ± 1%   12.7MB/s ± 1%   +2.15%  (p=0.000 n=10+10)
+    Match/Medium/1M-6                         12.4MB/s ± 0%   12.7MB/s ± 0%   +2.44%  (p=0.000 n=8+9)
+    Match/Medium/32M-6                        12.4MB/s ± 0%   12.7MB/s ± 0%   +2.52%  (p=0.000 n=10+9)
+    Match/Hard/32-6                           9.82MB/s ± 1%  10.73MB/s ± 1%   +9.29%  (p=0.000 n=10+10)
+    Match/Hard/1K-6                           10.2MB/s ± 0%   11.3MB/s ± 1%  +10.56%  (p=0.000 n=9+10)
+    Match/Hard/32K-6                          8.58MB/s ± 0%   8.58MB/s ± 1%     ~     (p=0.554 n=8+10)
+    Match/Hard/1M-6                           8.59MB/s ± 1%   8.53MB/s ± 0%   -0.70%  (p=0.000 n=10+8)
+    Match/Hard/32M-6                          8.62MB/s ± 1%   8.59MB/s ± 1%     ~     (p=0.098 n=10+10)
+    Match/Hard1/32-6                          1.77MB/s ± 1%   1.99MB/s ± 1%  +12.40%  (p=0.000 n=10+8)
+    Match/Hard1/1K-6                          1.81MB/s ± 1%   2.08MB/s ± 1%  +14.55%  (p=0.000 n=10+10)
+    Match/Hard1/32K-6                         1.74MB/s ± 0%   1.74MB/s ± 0%     ~     (p=0.108 n=9+10)
+    Match/Hard1/1M-6                          1.74MB/s ± 0%   1.74MB/s ± 1%     ~     (p=1.000 n=9+10)
+    Match/Hard1/32M-6                         1.75MB/s ± 0%   1.75MB/s ± 1%     ~     (p=0.157 n=9+10)
+    Match_onepass_regex/32-6                  5.05MB/s ± 0%   5.05MB/s ± 1%     ~     (p=0.262 n=8+10)
+    Match_onepass_regex/1K-6                  5.02MB/s ± 1%   5.02MB/s ± 1%     ~     (p=0.677 n=9+10)
+    Match_onepass_regex/32K-6                 5.02MB/s ± 0%   4.99MB/s ± 0%   -0.47%  (p=0.000 n=10+9)
+    Match_onepass_regex/1M-6                  5.01MB/s ± 0%   5.04MB/s ± 1%   +0.68%  (p=0.017 n=8+10)
+    Match_onepass_regex/32M-6                 4.99MB/s ± 0%   5.03MB/s ± 1%   +0.74%  (p=0.000 n=10+10)
+    [Geo mean]                                29.1MB/s        29.8MB/s        +2.44%
     
-    Change-Id: I802b5eb2339f885ca9d24607eeda565763165298
-    Reviewed-on: https://go-review.googlesource.com/87896
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    go1 data for reference
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-6              4.39s ± 1%     4.37s ± 0%   -0.58%  (p=0.006 n=9+9)
+    Fannkuch11-6                5.13s ± 0%     5.18s ± 0%   +0.87%  (p=0.000 n=8+8)
+    FmtFprintfEmpty-6          74.2ns ± 0%    71.7ns ± 3%   -3.41%  (p=0.000 n=10+10)
+    FmtFprintfString-6          120ns ± 1%     122ns ± 2%     ~     (p=0.333 n=10+10)
+    FmtFprintfInt-6             127ns ± 1%     127ns ± 1%     ~     (p=0.809 n=10+10)
+    FmtFprintfIntInt-6          186ns ± 0%     188ns ± 1%   +1.02%  (p=0.002 n=8+10)
+    FmtFprintfPrefixedInt-6     223ns ± 1%     222ns ± 2%     ~     (p=0.421 n=10+10)
+    FmtFprintfFloat-6           374ns ± 0%     376ns ± 1%   +0.43%  (p=0.030 n=8+10)
+    FmtManyArgs-6               795ns ± 0%     788ns ± 1%   -0.79%  (p=0.000 n=8+9)
+    GobDecode-6                10.9ms ± 1%    10.9ms ± 0%     ~     (p=0.079 n=10+9)
+    GobEncode-6                8.60ms ± 1%    8.56ms ± 0%   -0.52%  (p=0.004 n=10+10)
+    Gzip-6                      378ms ± 1%     386ms ± 1%   +2.28%  (p=0.000 n=10+10)
+    Gunzip-6                   63.7ms ± 0%    62.3ms ± 0%   -2.22%  (p=0.000 n=9+8)
+    HTTPClientServer-6          120µs ± 3%     114µs ± 3%   -4.99%  (p=0.000 n=10+10)
+    JSONEncode-6               20.3ms ± 1%    19.9ms ± 0%   -1.90%  (p=0.000 n=9+10)
+    JSONDecode-6               84.3ms ± 0%    83.7ms ± 0%   -0.76%  (p=0.000 n=8+8)
+    Mandelbrot200-6            6.91ms ± 0%    6.89ms ± 0%   -0.31%  (p=0.000 n=9+8)
+    GoParse-6                  5.49ms ± 0%    5.47ms ± 1%     ~     (p=0.101 n=8+10)
+    RegexpMatchEasy0_32-6       130ns ± 0%     128ns ± 0%   -1.54%  (p=0.002 n=8+10)
+    RegexpMatchEasy0_1K-6       322ns ± 1%     322ns ± 0%     ~     (p=0.525 n=10+9)
+    RegexpMatchEasy1_32-6       124ns ± 0%     124ns ± 0%   -0.32%  (p=0.046 n=8+10)
+    RegexpMatchEasy1_1K-6       570ns ± 0%     548ns ± 1%   -3.76%  (p=0.000 n=10+10)
+    RegexpMatchMedium_32-6      196ns ± 0%     183ns ± 1%   -6.61%  (p=0.000 n=8+10)
+    RegexpMatchMedium_1K-6     64.3µs ± 0%    59.0µs ± 1%   -8.31%  (p=0.000 n=8+10)
+    RegexpMatchHard_32-6       3.08µs ± 0%    2.80µs ± 0%   -8.96%  (p=0.000 n=8+9)
+    RegexpMatchHard_1K-6       93.0µs ± 0%    84.5µs ± 1%   -9.17%  (p=0.000 n=8+9)
+    Revcomp-6                   647ms ± 2%     646ms ± 1%     ~     (p=0.720 n=10+9)
+    Template-6                 92.3ms ± 0%    91.7ms ± 0%   -0.65%  (p=0.000 n=8+8)
+    TimeParse-6                 490ns ± 0%     488ns ± 0%   -0.43%  (p=0.000 n=10+10)
+    TimeFormat-6                513ns ± 0%     513ns ± 1%     ~     (p=0.144 n=9+10)
+    [Geo mean]                 79.1µs         77.7µs        -1.73%
+    
+    name                     old speed      new speed      delta
+    GobDecode-6              70.1MB/s ± 1%  70.3MB/s ± 0%     ~     (p=0.078 n=10+9)
+    GobEncode-6              89.2MB/s ± 1%  89.7MB/s ± 0%   +0.52%  (p=0.004 n=10+10)
+    Gzip-6                   51.4MB/s ± 1%  50.2MB/s ± 1%   -2.23%  (p=0.000 n=10+10)
+    Gunzip-6                  304MB/s ± 0%   311MB/s ± 0%   +2.27%  (p=0.000 n=9+8)
+    JSONEncode-6             95.8MB/s ± 1%  97.7MB/s ± 0%   +1.93%  (p=0.000 n=9+10)
+    JSONDecode-6             23.0MB/s ± 0%  23.2MB/s ± 0%   +0.76%  (p=0.000 n=8+8)
+    GoParse-6                10.6MB/s ± 0%  10.6MB/s ± 1%     ~     (p=0.111 n=8+10)
+    RegexpMatchEasy0_32-6     244MB/s ± 0%   249MB/s ± 0%   +2.06%  (p=0.000 n=9+10)
+    RegexpMatchEasy0_1K-6    3.18GB/s ± 1%  3.17GB/s ± 0%     ~     (p=0.211 n=10+9)
+    RegexpMatchEasy1_32-6     257MB/s ± 0%   258MB/s ± 0%   +0.37%  (p=0.000 n=8+8)
+    RegexpMatchEasy1_1K-6    1.80GB/s ± 0%  1.87GB/s ± 1%   +3.91%  (p=0.000 n=10+10)
+    RegexpMatchMedium_32-6   5.08MB/s ± 0%  5.43MB/s ± 1%   +7.03%  (p=0.000 n=8+10)
+    RegexpMatchMedium_1K-6   15.9MB/s ± 0%  17.4MB/s ± 1%   +9.08%  (p=0.000 n=8+10)
+    RegexpMatchHard_32-6     10.4MB/s ± 0%  11.4MB/s ± 0%   +9.82%  (p=0.000 n=8+9)
+    RegexpMatchHard_1K-6     11.0MB/s ± 0%  12.1MB/s ± 1%  +10.10%  (p=0.000 n=8+9)
+    Revcomp-6                 393MB/s ± 2%   394MB/s ± 1%     ~     (p=0.720 n=10+9)
+    Template-6               21.0MB/s ± 0%  21.2MB/s ± 0%   +0.66%  (p=0.000 n=8+8)
+    [Geo mean]               74.2MB/s       76.2MB/s        +2.70%
+    
+    Updates #21851
+    
+    Change-Id: Ie88455db925f422a828f8528293790726a9c036b
+    Reviewed-on: https://go-review.googlesource.com/65491
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/rwmutex.go | 2 +-
- src/sync/rwmutex.go    | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go |  3 ++
+ src/regexp/backtrack.go                 | 59 ++++++++++++++-------------------
+ 2 files changed, 27 insertions(+), 35 deletions(-)

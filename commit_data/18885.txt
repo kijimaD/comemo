@@ -1,25 +1,15 @@
-commit 1f1f69e389a30fd8941789fd04bfd946c9aa39fc
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Tue Mar 18 13:03:03 2014 +1100
+commit 0de0de0907a9e7b644ce0ce8f9862b4d70f531c7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 18 11:25:04 2014 +1100
 
-    build: fix race in doc/articles/wiki test
+    fmt: document GoStringer and explain application of formats to compound objects
+    %q quotes each element of a string slice; this was never explained in the docs.
+    Fixes #7015.
     
-    The original test would open a local port and then immediately close it
-    and use the port number in subsequent tests. Between the port being closed
-    and reused by the later process, it could be opened by some other program
-    on the machine.
-    
-    Changed the test to run the server process directly and have it save the
-    assigned port to a text file to be used by client processes.
-    
-    Fixes #5564.
-    
-    LGTM=adg
-    R=golang-codereviews, gobot, adg
+    LGTM=josharian
+    R=golang-codereviews, josharian
     CC=golang-codereviews
-    https://golang.org/cl/72290043
+    https://golang.org/cl/77140044
 
- doc/articles/wiki/Makefile  |  2 +-
- doc/articles/wiki/final.go  | 23 +++++++++++++++++++++++
- doc/articles/wiki/test.bash | 24 ++++++++++++++++++------
- 3 files changed, 42 insertions(+), 7 deletions(-)
+ src/pkg/fmt/doc.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

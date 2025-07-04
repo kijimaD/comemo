@@ -1,25 +1,17 @@
-commit 722d59436bc5881914619d2b95c9d01a46036428
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Wed May 15 17:36:53 2024 +0000
+commit 70247126415246c7716ec4d28d6bc1f4077aee1f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 10 01:06:21 2023 +0000
 
-    crypto/x509: add text and binary marshal methods to OID
+    runtime: remove unused traceFutileWakeup
     
-    Fixes #66249
+    Also, document traceEvFutileWakeup as not currently used.
     
-    Change-Id: I5973a19a087a35ad951e8a220d3e6e4456c7577f
-    GitHub-Last-Rev: 921ca8bd0c08687bb727dbfb0890c3355eebe95b
-    GitHub-Pull-Request: golang/go#66599
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/575295
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: I75831a43d39b6c6ceb5a9b6320c3ae9455681572
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494184
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- api/next/66249.txt                              |   5 +
- doc/next/6-stdlib/99-minor/crypto/x509/66249.md |   3 +
- src/crypto/x509/oid.go                          | 112 ++++++++++
- src/crypto/x509/oid_test.go                     | 259 +++++++++++++++++++-----
- src/encoding/gob/encode.go                      |   2 +-
- src/encoding/gob/type.go                        |  14 +-
- 6 files changed, 329 insertions(+), 66 deletions(-)
+ src/runtime/trace.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

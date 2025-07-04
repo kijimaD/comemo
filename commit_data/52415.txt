@@ -1,43 +1,39 @@
-commit 171850f16983a24bf2cf0340b0982838faa7f3c5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 23 10:43:56 2023 -0700
+commit 973dcbb87c0097c783abe35e319725c68167f718
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Mar 27 20:52:52 2022 +0000
 
-    cmd/compile: don't panic if unsafe.Sizeof/Offsetof is used with oversize types
+    runtime: remove float64 multiplication in heap trigger compute path
     
-    In the Sizes API, recognize an overflow (to a negative value) as a
-    consequence of an oversize value, and specify as such in the API.
+    As of the last CL, the heap trigger is computed as-needed. This means
+    that some of the niceties we assumed (that the float64 computations
+    don't matter because we're doing this rarely anyway) are no longer true.
+    While we're not exactly on a hot path right now, the trigger check still
+    happens often enough that it's a little too hot for comfort.
     
-    Adjust the various size computations to take overflow into account.
+    This change optimizes the computation by replacing the float64
+    multiplication with a shift and a constant integer multiplication.
     
-    Recognize a negative size or offset as an error and report it rather
-    than panicking.
+    I ran an allocation microbenchmark for an allocation size that would hit
+    this path often. CPU profiles seem to indicate this path was ~0.1% of
+    cycles (dwarfed by other costs, e.g. zeroing memory) even if all we're
+    doing is allocating, so the "optimization" here isn't particularly
+    important. However, since the code here is executed significantly more
+    frequently, and this change isn't particularly complicated, let's err
+    on the size of efficiency if we can help it.
     
-    Use the same protocol for results provided by the default (StdSizes)
-    and external Sizes implementations.
+    Note that because of the way the constants are represented now, they're
+    ever so slightly different from before, so this change technically isn't
+    a total no-op. In practice however, it should be. These constants are
+    fuzzy and hand-picked anyway, so having them shift a little is unlikely
+    to make a significant change to the behavior of the GC.
     
-    Add a new error code TypeTooLarge for the new errors.
+    For #48409.
     
-    Fixes #59190.
-    Fixes #59207.
-    
-    Change-Id: I8c33a9e69932760275100112dde627289ac7695b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478919
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Iabb2385920f7d891b25040226f35a3f31b7bf844
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397015
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/noder/sizes.go            |  35 +++++-
- src/cmd/compile/internal/types2/builtins.go        |  14 ++-
- src/cmd/compile/internal/types2/expr.go            |  12 +-
- src/cmd/compile/internal/types2/sizes.go           | 135 ++++++++++++++-------
- src/go/types/builtins.go                           |  14 ++-
- src/go/types/expr.go                               |  12 +-
- src/go/types/sizes.go                              | 135 ++++++++++++++-------
- src/internal/types/errors/code_string.go           |   9 +-
- src/internal/types/errors/codes.go                 |  21 ++++
- .../types/testdata/fixedbugs/issue59190.go         |  36 ++++++
- .../types/testdata/fixedbugs/issue59207.go         |  12 ++
- test/fixedbugs/issue59190.go                       |  39 ++++++
- 12 files changed, 367 insertions(+), 107 deletions(-)
+ src/runtime/mgcpacer.go | 41 +++++++++++++++++++++++++++++------------
+ 1 file changed, 29 insertions(+), 12 deletions(-)

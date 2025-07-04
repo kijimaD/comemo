@@ -1,16 +1,13 @@
-commit c073a1602a63562c7ee66a2821c4b400b3c3f34e
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Mar 5 19:58:04 2012 +0100
+commit cae604f734ac4e444a36bc3dc18afa42c6f4c737
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 13:51:44 2012 -0500
 
-    cmd/go: honor buildflags in go test.
+    cmd/gc: must not inline panic, recover
     
-    Fixes #3196.
-    
-    R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5725044
+    R=lvd, gri
+    CC=golang-dev
+    https://golang.org/cl/5731061
 
- src/cmd/go/build.go    |  1 +
- src/cmd/go/test.go     | 10 +++-------
- src/cmd/go/testflag.go | 44 ++++++++++++++++++++++++++++----------------
- 3 files changed, 32 insertions(+), 23 deletions(-)
+ src/cmd/gc/inl.c |  2 ++
+ test/escape4.go  | 20 +++++++++++++-------
+ 2 files changed, 15 insertions(+), 7 deletions(-)

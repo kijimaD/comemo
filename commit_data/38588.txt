@@ -1,35 +1,45 @@
-commit 4d23cbc67100c1ce50b7d4fcc67e50091f92eb5b
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sat Mar 23 15:25:42 2019 +0100
+commit 13baf4b2cd34dfb41c570e35b48ec287713f4d7f
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sun Nov 4 19:23:08 2018 -0800
 
-    cmd/compile: add sign-extension operators on wasm
+    cmd/compile: encourage inlining of functions with single-call bodies
     
-    This change adds the GOWASM option "signext" to enable
-    the generation of experimental sign-extension operators.
+    This is a simple tweak to allow a bit more mid-stack inlining.
+    In cases like this:
     
-    The feature is in phase 4 of the WebAssembly proposal process:
-    https://github.com/WebAssembly/meetings/blob/master/process/phases.md
+    func f() {
+        g()
+    }
     
-    More information on the feature can be found at:
-    https://github.com/WebAssembly/sign-extension-ops/blob/master/proposals/sign-extension-ops/Overview.md
+    We'd really like to inline f into its callers. It can't hurt.
     
-    Change-Id: I6b30069390a8699fbecd9fb4d1d61e13c59b0333
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168882
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    We implement this optimization by making calls a bit cheaper, enough
+    to afford a single call in the function body, but not 2.
+    The remaining budget allows for some argument modification, or perhaps
+    a wrapping conditional:
+    
+    func f(x int) {
+        g(x, 0)
+    }
+    func f(x int) {
+        if x > 0 {
+            g()
+        }
+    }
+    
+    Update #19348
+    
+    Change-Id: Ifb1ea0dd1db216c3fd5c453c31c3355561fe406f
+    Reviewed-on: https://go-review.googlesource.com/c/147361
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/install-source.html                     |  2 +-
- src/cmd/compile/internal/ssa/gen/Wasm.rules |  3 ++
- src/cmd/compile/internal/ssa/gen/WasmOps.go |  4 ++
- src/cmd/compile/internal/ssa/opGen.go       | 42 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteWasm.go | 72 +++++++++++++++++++++++++++++
- src/cmd/compile/internal/wasm/ssa.go        |  5 +-
- src/cmd/go/alldocs.go                       |  3 ++
- src/cmd/go/internal/help/helpdoc.go         |  3 ++
- src/cmd/internal/obj/wasm/a.out.go          |  7 ++-
- src/cmd/internal/obj/wasm/anames.go         |  6 +++
- src/cmd/internal/obj/wasm/wasmobj.go        |  2 +-
- src/cmd/internal/objabi/util.go             |  9 ++--
- 12 files changed, 151 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 14 +++++++++++---
+ src/runtime/extern.go              |  1 +
+ src/runtime/runtime-gdb_test.go    |  8 +++-----
+ src/runtime/stack_test.go          |  3 +++
+ test/closure3.dir/main.go          |  2 ++
+ test/fixedbugs/issue7921.go        |  2 +-
+ test/inline.go                     | 18 ++++++++++++++++++
+ test/live_syscall.go               |  8 ++++----
+ 8 files changed, 43 insertions(+), 13 deletions(-)

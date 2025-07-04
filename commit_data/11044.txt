@@ -1,13 +1,15 @@
-commit 1379d90651e80f0e47c296523d7902ee024536e9
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Sat Jan 7 20:53:53 2012 -0500
+commit a15448d65ed02435a79e79dafaa6634715d03504
+Author: Ryan Hitchman <hitchmanr@gmail.com>
+Date:   Fri Jan 6 14:34:16 2012 -0800
 
-    time: fix godoc for After and NewTicker.
+    gc: improve unsafe.Pointer type-check error messages
     
-    R=golang-dev, gri, bradfitz, iant
-    CC=golang-dev, rsc
-    https://golang.org/cl/5523049
+    Fixes #2627.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5498088
 
- src/pkg/time/sleep.go | 4 ++--
- src/pkg/time/tick.go  | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/typecheck.c   |  1 +
+ test/fixedbugs/bug390.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)

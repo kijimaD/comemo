@@ -1,20 +1,15 @@
-commit 39ffa8be78d2f54220c99b828e5346cabcf1598c
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Aug 26 08:34:46 2014 +0200
+commit 8c25e08fbdf3511394f5ea5fc69c3ff988a61a5a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 19:32:27 2014 +0400
 
-    runtime: convert Stack to Go.
+    runtime: fix TestGcLastTime on windows
+    Intended to fix:
+    http://build.golang.org/log/d6718ea67541b8c6be2bb14bcbc4e1c4261f67d7
     
     LGTM=khr
-    R=khr, josharian
+    R=golang-codereviews, khr
     CC=golang-codereviews
-    https://golang.org/cl/129510043
+    https://golang.org/cl/127520043
 
- src/pkg/runtime/asm_386.s      |  6 ++++++
- src/pkg/runtime/asm_amd64.s    |  6 ++++++
- src/pkg/runtime/asm_amd64p32.s |  6 ++++++
- src/pkg/runtime/asm_arm.s      |  7 +++++++
- src/pkg/runtime/debug.go       |  6 ------
- src/pkg/runtime/mprof.go       | 41 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/mprof.goc      | 33 ---------------------------------
- src/pkg/runtime/stubs.go       |  6 ++++++
- 8 files changed, 72 insertions(+), 39 deletions(-)
+ src/pkg/runtime/gc_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,33 +1,43 @@
-commit a21cf5b6a281df2c3506105cecfbeeda70afca1c
-Author: David Chase <drchase@google.com>
-Date:   Fri May 15 12:19:07 2015 -0400
+commit 677839353e013b13e0fb3d28e01a01a5ccf0c7a1
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Apr 22 11:25:29 2015 -0400
 
-    cmd/internal/gc: extend escape analysis to pointers in slices
+    go/constants: rename go/exact to go/constants
     
-    Modified esc.go to allow slice literals (before append)
-    to be non-escaping.  Modified tests to account for changes
-    in escape behavior and to also test the two cases that
-    were previously not tested.
+    since the "precision" parameter means constant arithmetic is not
+    necessarily exact.
     
-    Also minor cleanups to debug-printing within esc.go
+    As requested by gri, within go/types, the local import name 'exact'
+    has been kept, to reduce the diff with the x/tools branch.  This may
+    be changed later.
     
-    Allocation stats for running compiler
-    ( cd src/html/template;
-      for i in {1..5} ; do
-         go tool 6g -memprofile=testzz.${i}.prof  -memprofilerate=1 *.go ;
-         go tool pprof -alloc_objects -text  testzz.${i}.prof ;
-         done ; )
-    before about 86k allocations
-    after  about 83k allocations
+    Since the go/types.bash script was already obsolete, I added a comment
+    to this effect.
     
-    Fixes #8972
+    Tested with all.bash.
     
-    Change-Id: Ib61dd70dc74adb40d6f6fdda6eaa4bf7d83481de
-    Reviewed-on: https://go-review.googlesource.com/10118
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I45153688d9d8afa8384fb15229b0124c686059b4
+    Reviewed-on: https://go-review.googlesource.com/9242
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/esc.go | 100 +++++++++++++++++++++------------------------
- test/escape2.go            |  14 +++----
- test/escape2n.go           |  14 +++----
- test/escape_slice.go       |  81 ++++++++++++++++++++++++++++++++++--
- 4 files changed, 138 insertions(+), 71 deletions(-)
+ src/go/build/deps_test.go                               | 6 +++---
+ src/go/{exact => constants}/go13.go                     | 2 +-
+ src/go/{exact => constants}/go14.go                     | 2 +-
+ src/go/{exact/exact.go => constants/value.go}           | 6 +++---
+ src/go/{exact/exact_test.go => constants/value_test.go} | 2 +-
+ src/go/internal/gcimporter/gcimporter.go                | 2 +-
+ src/go/types.bash                                       | 4 ++++
+ src/go/types/api.go                                     | 2 +-
+ src/go/types/builtins.go                                | 2 +-
+ src/go/types/check.go                                   | 2 +-
+ src/go/types/conversions.go                             | 2 +-
+ src/go/types/decl.go                                    | 2 +-
+ src/go/types/expr.go                                    | 2 +-
+ src/go/types/object.go                                  | 2 +-
+ src/go/types/operand.go                                 | 2 +-
+ src/go/types/resolver.go                                | 2 +-
+ src/go/types/self_test.go                               | 2 +-
+ src/go/types/stmt.go                                    | 2 +-
+ src/go/types/typexpr.go                                 | 2 +-
+ src/go/types/universe.go                                | 2 +-
+ 20 files changed, 27 insertions(+), 23 deletions(-)

@@ -1,14 +1,14 @@
-commit 3c2febb748600a051e276347b0bf0960421ca723
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Oct 8 12:43:57 2015 -0700
+commit bdb2d2810de66864cd77fbe95a602d53c851d889
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 30 10:36:37 2015 -0700
 
-    syscall: fix vet warning in UnixRights
+    [dev.ssa] cmd/compile/internal/ssa: update generated code
     
-    Change-Id: Ic19c94fe0af55e17f6c2fcfd36085ccb1584da6f
-    Reviewed-on: https://go-review.googlesource.com/15608
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Missed somehow in #12813
+    
+    Change-Id: I28f2789e33822a4ff884d8a3f474522747f61c73
+    Reviewed-on: https://go-review.googlesource.com/12868
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/sockcmsg_unix.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 340 +++++++++++++++++++++++++++
+ 1 file changed, 340 insertions(+)

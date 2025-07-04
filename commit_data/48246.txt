@@ -1,23 +1,13 @@
-commit 6da16b6ad5787a043fc9978d2d009934e3b2e165
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Feb 27 21:08:29 2022 -0800
+commit ed5ebd32b3b8f66515522e8f09bc9dc023c0901c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 26 09:14:12 2021 -0700
 
-    go/types, types2: clarify a comment and add an extra test
+    os: update some docs to reference fs.ErrFoo instead of os.ErrFoo
     
-    Confirm that the current implementation of core type unification
-    looks correct and update the respective comment. Add an extra test.
-    
-    Fixes #51376.
-    
-    Change-Id: I6a603a4baeee2ede5bb4a1d60766204a808936d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388294
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8b771f407028406a6ec9a1f2500c806054961267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313569
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../types2/testdata/fixedbugs/issue51376.go2       | 24 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/unify.go           | 12 +++++------
- src/go/types/testdata/fixedbugs/issue51376.go2     | 24 ++++++++++++++++++++++
- src/go/types/unify.go                              | 12 +++++------
- 4 files changed, 60 insertions(+), 12 deletions(-)
+ src/os/error.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

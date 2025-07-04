@@ -1,16 +1,18 @@
-commit a599b4890a06486b1f888216ae87b4cbf3df418a
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Fri Apr 11 15:57:30 2014 +0200
+commit 388d5330ac64eb4f2e3ad0635bf1a440c07923ca
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Apr 11 13:01:10 2014 +0400
 
-    cmd/gc: increase specificity of errors in function call context
+    net/http/httptest: add test for issue 7264
+    The test fails now with -race, so it's disabled.
+    The intention is that the fix for issue 7264
+    will also modify this test the same way and enable it.
+    Reporduce with 'go test -race -issue7264 -cpu=4'.
+    Update #7264
     
-    Fixes #7129
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/86470044
+    https://golang.org/cl/86770043
 
- src/cmd/gc/typecheck.c      |  8 ++++++--
- test/fixedbugs/issue7129.go | 21 +++++++++++++++++++++
- 2 files changed, 27 insertions(+), 2 deletions(-)
+ src/pkg/net/http/httptest/server_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

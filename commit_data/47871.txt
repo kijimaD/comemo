@@ -1,24 +1,27 @@
-commit 2c58bb2e428c1f587dc30817bc211570f6fd4793
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu Dec 30 11:09:42 2021 +0800
+commit 892cad7a9b6632533f87bf89d98c43f21c749a80
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 13 17:48:45 2021 -0700
 
-    src/runtime: mark asanread and asanwrite functions as NOSPLIT
+    cmd/compile/internal/types2: add Named.SetTParams and Named.Orig methods
     
-    The asan runtime functions may run on stacks that cannot grow, and
-    they do not have large local variables, so it is safe to mark them
-    as NOSPLIT.
+    Named.SetTParams sets the type parameters for a named type.
     
-    Add test case.
+    Named.Orig returns the original generic type an instantiated
+    type is derived from. Added a new field orig for that purpose
+    and renamed the already existing orig field to fromRHS.
     
-    Fixes #50391
+    Finally, updated various comments.
     
-    Change-Id: Iadcbf1ae0c837d9b64da5be208c7f424e6ba11de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374398
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Fannie Zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ic9d173e42740422d195713d8bdc62a54dc8c5f54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309832
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- misc/cgo/testsanitizers/asan_test.go           |  1 +
- misc/cgo/testsanitizers/testdata/asan5_fail.go | 21 +++++++++++++++++++++
- src/runtime/asan.go                            |  4 ++++
- 3 files changed, 26 insertions(+)
+ src/cmd/compile/internal/types2/decl.go        |  9 +++---
+ src/cmd/compile/internal/types2/issues_test.go |  2 +-
+ src/cmd/compile/internal/types2/sanitize.go    |  4 +--
+ src/cmd/compile/internal/types2/stdlib_test.go |  2 +-
+ src/cmd/compile/internal/types2/subst.go       |  5 ++-
+ src/cmd/compile/internal/types2/type.go        | 42 ++++++++++++++++----------
+ src/cmd/compile/internal/types2/typexpr.go     |  4 +--
+ 7 files changed, 38 insertions(+), 30 deletions(-)

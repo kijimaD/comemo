@@ -1,31 +1,36 @@
-commit 79d4e894ed9d31396c3e25e7b9a9e99a7c6537e7
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Mar 2 17:09:22 2023 -0500
+commit 5bf6c97e76c721242a9b064950cd901c33f6f0b9
+Author: tenkoh <tenkoh.go@gmail.com>
+Date:   Wed Mar 30 15:30:19 2022 +0900
 
-    all: move //go: function directives directly above functions
+    cmd/go: open correct path when loading embeds from root directory
     
-    These directives affect the next declaration, so the existing form is
-    valid, but can be confusing because it is easy to miss. Move then
-    directly above the declaration for improved readability.
+    The existing implementation of `load.resolveEmbed`
+    uses an expression like `path[len(pkgdir)+1:]`.
+    Though the `+1` is intended to remove a prefix slash,
+    the expression returns an incorrect path when `pkgdir`
+    is "/". (ex.: when removing "/" from "/foo", want "foo",
+    but got "oo")
     
-    CL 69120 previously moved the Gosched nosplit away to hide it from
-    documentation. Since CL 224737, directives are automatically excluded
-    from documentation.
+    It seems that `str.TrimFilePathPrefix` would solve
+    the problem, but the function contains the same bug.
     
-    Change-Id: I8ebf2d47fbb5e77c6f40ed8afdf79eaa4f4e335e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472957
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    So, this commit fixes `str.TrimFilePathPrefix` then
+    applies it to `load.resolveEmbed` to solve the issue.
+    The fix is quite simple. First, remove prefix. Then
+    check whether the remained first letter is equal to
+    `filepath.Separator`. If so, remove it then return.
+    
+    Fixed #49570
+    
+    Change-Id: I26ab727ee4dfcbf51ed9bd0a573957ced2154515
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396694
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/notsha256/sha256block_decl.go |  1 -
- src/crypto/md5/md5block_decl.go                |  1 -
- src/crypto/sha1/sha1block_decl.go              |  1 -
- src/crypto/sha256/sha256block_decl.go          |  1 -
- src/crypto/sha512/sha512block_decl.go          |  1 -
- src/internal/bytealg/index_native.go           |  8 ++++----
- src/runtime/os_solaris.go                      |  4 ++--
- src/runtime/proc.go                            | 12 ++++++------
- src/runtime/race.go                            | 20 ++++++++++----------
- src/syscall/dll_windows.go                     |  8 ++++----
- 10 files changed, 26 insertions(+), 31 deletions(-)
+ src/cmd/go/internal/load/pkg.go     |  5 +--
+ src/cmd/go/internal/str/path.go     |  9 +++--
+ src/cmd/go/internal/str/str_test.go | 71 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 80 insertions(+), 5 deletions(-)

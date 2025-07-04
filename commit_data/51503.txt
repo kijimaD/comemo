@@ -1,18 +1,18 @@
-commit c0497d1a81b1104a3981be33abfd66252cea90c8
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 29 15:13:52 2022 -0500
+commit 8f374aa27f887d78ef709115c140fd5862691df0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 6 19:33:03 2022 -0800
 
-    runtime/debug: add missing period
+    runtime: don't assume that 0.25 * 100 is representable as int
     
-    Pointed out in review of CL 453602,
-    but it looks like I forgot to re-upload before submitting.
+    For the gofrontend, it's not; there are some trailing one bits,
+    which is permitted by the spec.
     
-    Change-Id: I8f4fac52ea0f904f6f9b06e13fc8ed2e778f2360
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454835
+    Change-Id: I58f5a5347068bb488306ec8e73da7c59376f1ae1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383635
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/debug/mod.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgcpacer.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,34 @@
+commit 84e58c84fdbe4681b4cbfeb615aaba3437c8ac85
+Author: chenguoqi <chenguoqi@loongson.cn>
+Date:   Thu Oct 24 11:16:00 2024 +0800
+
+    cmd/internal/obj: add tool to generate Cnames string
+    
+    Add cmd/internal/obj/mkcnames.go to do the generation and update
+    the architecture packages to use it to maintain the Cnames tables.
+    
+    Currently works correctly on arm64,loong64,mips,ppc64 and s390x.
+    
+    Change-Id: I5220b0ba6d8a8a5fcc4d9774731eb2af69a671af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622256
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/arm64/a.out.go    |   1 +
+ src/cmd/internal/obj/arm64/anames7.go  |  10 +--
+ src/cmd/internal/obj/loong64/a.out.go  |   1 +
+ src/cmd/internal/obj/loong64/cnames.go |   4 +-
+ src/cmd/internal/obj/mips/a.out.go     |   1 +
+ src/cmd/internal/obj/mips/anames0.go   |   5 +-
+ src/cmd/internal/obj/mkcnames.go       | 136 +++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go    |   1 +
+ src/cmd/internal/obj/ppc64/anames9.go  |   7 +-
+ src/cmd/internal/obj/s390x/a.out.go    |   1 +
+ src/cmd/internal/obj/s390x/anamesz.go  |   5 +-
+ 11 files changed, 153 insertions(+), 19 deletions(-)

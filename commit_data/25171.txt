@@ -1,34 +1,18 @@
-commit f25f6eab0cb732d24759b2e166a9a644ae96dffe
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Sat Sep 19 16:43:43 2015 +0300
+commit 89a68e9f1adb939e5a58ed38cf6c03119c324480
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Oct 3 09:35:40 2015 -0700
 
-    syscall: route_freebsd switch routing socket sysctl to use NET_RT_IFLISTL
+    cmd/compile/internal/gc: fix the build
     
-    Switch IfMsghdr and IfaMsghdr to their 'l' variants, make the IfData layout
-    to be based on FreeBSD-11.0 (freebsdVersion >= 1100011).
-    Using freebsdVersion, detect the appropriate layout at runtime and decode
-    routing socket messages into the new IfData layout.
+    Commit acc90c5 passed the trybots, lingered for weeks, and in the
+    meantime the type of this variable changed to a bool. I didn't rebase
+    and re-run the trybots before submitting.
     
-    Fixes #11641
+    Fixes #12832
     
-    Change-Id: Ic7ec550f00c0d15f46a36f560d835e4f138f61e1
-    Reviewed-on: https://go-review.googlesource.com/14757
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If24fda227edd8207f8069c67f1c45f08e6ac215a
+    Reviewed-on: https://go-review.googlesource.com/15286
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/interface_bsd.go             |   4 +-
- src/net/interface_darwin.go          |   2 +
- src/net/interface_dragonfly.go       |   4 +
- src/net/interface_freebsd.go         |   2 +
- src/net/interface_netbsd.go          |   4 +
- src/net/interface_openbsd.go         |   4 +
- src/syscall/route_bsd_test.go        |   7 +-
- src/syscall/route_freebsd.go         | 123 +++++++++++++++++++-
- src/syscall/route_freebsd_32bit.go   |  15 ---
- src/syscall/route_freebsd_64bit.go   |   5 -
- src/syscall/syscall_freebsd_386.go   |   6 +
- src/syscall/syscall_freebsd_amd64.go |   6 +
- src/syscall/syscall_freebsd_arm.go   |   6 +
- src/syscall/types_freebsd.go         | 217 +++++++++++++++++++++++++++--------
- src/syscall/ztypes_freebsd_386.go    | 167 +++++++++++++++++----------
- src/syscall/ztypes_freebsd_amd64.go  | 168 +++++++++++++++++----------
- 16 files changed, 542 insertions(+), 198 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

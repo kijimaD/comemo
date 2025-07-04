@@ -1,13 +1,15 @@
-commit 41170c91e5f7854b2cdf980f314ae33907305018
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 7 15:28:25 2011 +1100
+commit 1b2d5b4c9389aecc56a4547a9770d0c73925b248
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 6 16:37:05 2011 -0800
 
-    release.2011-01-06
+    ld: Permit an ELF symbol to be exported in the dynamic symbol table.
     
-    R=nigeltao, nigeltao_gnome
+    This permits exporting crosscall2 from the runtime/cgo
+    package.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3829043
+    https://golang.org/cl/3885041
 
- .hgtags                |  1 -
- doc/devel/release.html | 40 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 1 deletion(-)
+ src/cmd/ld/ldelf.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

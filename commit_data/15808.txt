@@ -1,12 +1,15 @@
-commit 36ed57931b1f9ae95e2eaf7beb88dbd5b63fa701
-Author: Rob Pike <r@golang.org>
-Date:   Sat Mar 16 14:53:12 2013 -0700
+commit f98b8a00db9283930ee8f00046e9d87c673b0dca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 15 16:50:54 2013 -0700
 
-    make.bash: delete vestigial TODO, now resolved
+    net/http: don't test for goroutine leaks in short mode
     
-    R=golang-dev, minux.ma
+    Too annoying and flaky to debug for now. Later. This
+    tangent has taken enough time.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7789050
+    https://golang.org/cl/7863043
 
- src/make.bash | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/net/http/z_last_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

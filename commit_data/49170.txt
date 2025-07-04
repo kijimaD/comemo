@@ -1,28 +1,33 @@
-commit 1e5fcefcd188f3fba85156523bf57deb454b9cd4
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue May 3 17:51:14 2022 -0400
+commit 996b0dbc65954bbf538278bcc41f832f79a1ca03
+Merge: bfcb7c4c8a ecaa6816bf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 26 12:13:55 2021 -0700
 
-    cmd/go: copy files from go/build into new modindex package
+    [dev.typeparams] all: merge master (ecaa681) into dev.typeparams
     
-    These files are all copied as is from the go/build package, to files
-    with the same name in modindex (with the exception of build_read, which
-    was copied from go/build/read.go).
+    Conflicts:
     
-    This is being done so that the next CL can show exactly the changes that
-    were made against the go/build versions.
+    - src/cmd/compile/internal/ssagen/ssa.go
     
-    Unfortunately, git doesn't recognize these as copies, which is annoying.
+      CL 336629 touched code that had already been removed on dev.typeparams.
     
-    Change-Id: I27b05b23dc5ccefe5252956bf75025bd57b36c66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403777
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Merge List:
+    
+    + 2021-07-26 ecaa6816bf doc: clarify non-nil zero length slice to array pointer conversion
+    + 2021-07-26 1868f8296e crypto/x509: update iOS bundled roots to version 55188.120.1.0.1
+    + 2021-07-25 849b791129 spec: use consistent capitalization for rune literal hex constants
+    + 2021-07-23 0914646ab9 doc/1.17: fix two dead rfc links
+    + 2021-07-22 052da5717e cmd/compile: do not change field offset in ABI analysis
+    
+    Change-Id: Ie570ec3f6a3241e0495e39e8a73b3a09a9368605
 
- src/cmd/go/internal/modindex/build.go        | 2007 ++++++++++++++++++++++++++
- src/cmd/go/internal/modindex/build_read.go   |  578 ++++++++
- src/cmd/go/internal/modindex/stubs.go        |   10 +
- src/cmd/go/internal/modindex/syslist.go      |   75 +
- src/cmd/go/internal/modindex/syslist_test.go |   62 +
- 5 files changed, 2732 insertions(+)
+ doc/go1.17.html                          |  4 ++--
+ doc/go_spec.html                         |  9 +++++---
+ src/cmd/compile/internal/abi/abiutils.go | 21 +++---------------
+ src/cmd/compile/internal/ssagen/ssa.go   |  2 +-
+ src/crypto/x509/root.go                  |  2 +-
+ src/crypto/x509/root_ios.go              | 37 +++++++++++++++++++++++++++++++-
+ test/fixedbugs/issue47317.dir/a.s        |  6 ++++++
+ test/fixedbugs/issue47317.dir/x.go       | 17 +++++++++++++++
+ test/fixedbugs/issue47317.go             |  7 ++++++
+ 9 files changed, 79 insertions(+), 26 deletions(-)

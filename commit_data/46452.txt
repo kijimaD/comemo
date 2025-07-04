@@ -1,32 +1,18 @@
-commit 72bb8185b5fb2fe84ee7cfdc8e9605f2c81b32fe
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Wed Aug 25 10:08:07 2021 +0200
+commit 8fe119765404d29c5efe0fb86afebfa523f83a7f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Dec 30 14:52:50 2020 +0700
 
-    cmd/compile: emit DWARF info about dictionary entries
+    [dev.regabi] cmd/compile: remove Name.orig
     
-    When emitting the DIE of the instantiation of a generic function also
-    emit one DW_TAG_typedef_type entry for each dictionary entry in use,
-    referencing the shape type and having a custom attribute containing the
-    index inside the dictionary.
+    Passes toolstash -cmp.
     
-    When emitting the DIE of variables that have an instantiated parametric
-    type, instead of referencing the shape type directly go through the
-    DW_TAG_typedef_type entry emitted for the dictionary entry describing
-    the real type of the variable.
-    
-    Change-Id: Ia45d157ecd4c25e2b60300469e43bbb27a663582
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344929
-    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: Ie563ece7e4da14af46adc660b3d39757eb47c067
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280734
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/dwarfgen/dwarf.go |  3 ++
- src/cmd/compile/internal/ir/name.go        |  1 +
- src/cmd/compile/internal/noder/stencil.go  | 18 +++++--
- src/cmd/internal/dwarf/dwarf.go            | 67 +++++++++++++++++++++++-
- src/cmd/link/internal/ld/dwarf_test.go     | 84 ++++++++++++++++++++++++++++++
- 5 files changed, 168 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ir/name.go        | 4 +---
+ src/cmd/compile/internal/ir/sizeof_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 4 deletions(-)

@@ -1,14 +1,28 @@
-commit b2843becab6f4571be1c117da870393198edf01f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 10 19:47:13 2015 -0700
+commit ae2b145da20b292b2a6349b5d19b67b6c82e10e0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 13 16:55:33 2015 -0800
 
-    cmd/yacc/testdata/expr: fix handling of negative numbers
+    [dev.cc] cmd/asm: fix macro definition bug in the lexer
     
-    Fixes #10129.
+    Because text/scanner hides the spaces, the lexer treated
+            #define A(x)
+    and
+            #define A (x)
+    the same, but they are not: the first is an argument with macros, the
+    second is a simple one-word macro whose definition contains parentheses.
+    Fix this by noticing the relative column number as we move from A to (.
+    Hacky but simple.
     
-    Change-Id: I9f56c483726f14b6c1909740549de236d5bf9cfb
-    Reviewed-on: https://go-review.googlesource.com/7340
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Also add a helper to recognize the peculiar ARM shifted register operators.
+    
+    Change-Id: I2cad22f5f1e11d8dad40ad13955793d178afb3ae
+    Reviewed-on: https://go-review.googlesource.com/4872
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/yacc/testdata/expr/expr.y | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/asm/internal/lex/input.go     | 11 ++++++++++-
+ src/cmd/asm/internal/lex/lex.go       |  7 +++++++
+ src/cmd/asm/internal/lex/lex_test.go  | 10 ++++++++++
+ src/cmd/asm/internal/lex/slice.go     |  5 +++++
+ src/cmd/asm/internal/lex/stack.go     |  4 ++++
+ src/cmd/asm/internal/lex/tokenizer.go |  4 ++++
+ 6 files changed, 40 insertions(+), 1 deletion(-)

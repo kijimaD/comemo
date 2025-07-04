@@ -1,17 +1,25 @@
-commit fcbf04f9b93b4cd8addd05c2ed784118eb50a46c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 4 12:56:04 2015 -0800
+commit 26fe24cbe2ce13fba899e46055132226cf88c6d9
+Author: Thorben Krueger <thorben.krueger@gmail.com>
+Date:   Wed Oct 14 19:18:59 2015 +0000
 
-    cmd/cgo: gccgo support for cgoCheckPointer
+    fmt: Add support for capital '%X' format verb for scanning
     
-    This uses weak declarations so that it will work with current versions
-    of gccgo that do not support pointer checking.
+    For printing, the format verb '%X' results in a capitalized
+    hex-representation of the formatted value. Conversely, using
+    '%X' in a Scanf function should scan a hex-representation
+    into the given interface{}. The existing implementation
+    however only supports '%X' for scanning hex values into
+    integers; strings or byte slices remain empty. On the other
+    hand, lower-case '%x' supports strings and byte slices just
+    fine. This is merely an oversight, which this commit fixes.
+    (Additional tests also included.)
     
-    Change-Id: Ia34507e3231ac60517cb6834f0b673764715a256
-    Reviewed-on: https://go-review.googlesource.com/17429
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+        Fixes #12940
+    
+    Change-Id: I178a7f615bae950dfc014ca8c0a038448cf0452a
+    Reviewed-on: https://go-review.googlesource.com/15689
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/cgo/out.go | 43 ++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 42 insertions(+), 1 deletion(-)
+ src/fmt/scan.go      | 4 ++--
+ src/fmt/scan_test.go | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)

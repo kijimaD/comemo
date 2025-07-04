@@ -1,21 +1,56 @@
-commit 81bfbe93331bcf5b67a61ae76af45844af3971e1
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Wed Mar 2 10:54:23 2011 -0800
+commit 324cc3d0408ff45392590d4f38e199f286d3eb57
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 2 13:42:02 2011 -0500
 
-    fmt: allow recursive calls to Fscan etc.
-    Add a new Read method to ScanState so that it
-    satisfies the io.Reader interface; rename
-    Getrune and Ungetrune to ReadRune and UnreadRune.
-    Make sure ReadRune does not read past width restrictions;
-    remove now-unnecessary Width method from ScanState.
-    Also make the documentation a little clearer as to
-    how ReadRune and UnreadRune are used.
+    runtime: record goroutine creation pc and display in traceback
     
-    R=r, r2
+    package main
+    
+    func main() {
+            go func() { *(*int)(nil) = 0 }()
+            select{}
+    }
+    
+    panic: runtime error: invalid memory address or nil pointer dereference
+    
+    [signal 0xb code=0x1 addr=0x0 pc=0x1c96]
+    
+    runtime.panic+0xac /Users/rsc/g/go/src/pkg/runtime/proc.c:1083
+            runtime.panic(0x11bf0, 0xf8400011f0)
+    runtime.panicstring+0xa3 /Users/rsc/g/go/src/pkg/runtime/runtime.c:116
+            runtime.panicstring(0x29a57, 0x0)
+    runtime.sigpanic+0x144 /Users/rsc/g/go/src/pkg/runtime/darwin/thread.c:470
+            runtime.sigpanic()
+    main._func_001+0x16 /Users/rsc/g/go/src/pkg/runtime/x.go:188
+            main._func_001()
+    runtime.goexit /Users/rsc/g/go/src/pkg/runtime/proc.c:150
+            runtime.goexit()
+    ----- goroutine created by -----
+    main.main+0x3d /Users/rsc/g/go/src/pkg/runtime/x.go:4
+    
+    goroutine 1 [4]:
+    runtime.gosched+0x77 /Users/rsc/g/go/src/pkg/runtime/proc.c:598
+            runtime.gosched()
+    runtime.block+0x27 /Users/rsc/g/go/src/pkg/runtime/chan.c:680
+            runtime.block()
+    main.main+0x44 /Users/rsc/g/go/src/pkg/runtime/x.go:5
+            main.main()
+    runtime.mainstart+0xf /Users/rsc/g/go/src/pkg/runtime/amd64/asm.s:77
+            runtime.mainstart()
+    runtime.goexit /Users/rsc/g/go/src/pkg/runtime/proc.c:150
+            runtime.goexit()
+    ----- goroutine created by -----
+    _rt0_amd64+0x8e /Users/rsc/g/go/src/pkg/runtime/amd64/asm.s:64
+    
+    Fixes #1563.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4240056
+    https://golang.org/cl/4243046
 
- src/pkg/fmt/doc.go       |  16 ++---
- src/pkg/fmt/scan.go      | 159 +++++++++++++++++++++++------------------------
- src/pkg/fmt/scan_test.go |  51 +++++++++------
- 3 files changed, 118 insertions(+), 108 deletions(-)
+ src/pkg/runtime/amd64/traceback.c | 11 +++++++++++
+ src/pkg/runtime/arm/traceback.c   | 11 +++++++++++
+ src/pkg/runtime/mgc0.c            |  2 +-
+ src/pkg/runtime/proc.c            |  5 +++--
+ src/pkg/runtime/runtime.h         |  3 ++-
+ 5 files changed, 28 insertions(+), 4 deletions(-)

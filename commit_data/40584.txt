@@ -1,22 +1,23 @@
-commit 4a7ed1fab766a7a908e2cb20294e43b43ce7cf6c
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 25 00:51:10 2019 -0400
+commit 2165452a37b156d154a6e2dc85495b23a4a61565
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 31 20:59:35 2019 +1000
 
-    cmd/compile: mark architecture-specific unsafe points
+    strconv: document handling of NaN and ±Inf
     
-    Introduce a mechanism for marking architecture-specific Ops
-    unsafe. And mark ones that use REGTMP on ARM64, as for async
-    preemption we will be using REGTMP as a temporary register in the
-    injected call.
+    In addition to the example that was added in 203b80ab, mention these
+    special cases in the doc comment. This change also adjusts the example
+    to include "+Inf", as it was not otherwise mentioned that the plus
+    symbol may be present.
     
-    Change-Id: I8ff22e87d8f9cb10d02a2f0af7c12ad6d7d58f54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203459
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fix #30990
+    
+    Change-Id: I97d66f4aff6a17a6ccc0ee2e7f32e39ae91ae454
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179738
+    Reviewed-by: Alex Miasoedov <msoedov@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/plive.go         |  9 +++++++++
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 16 ++++++++--------
- src/cmd/compile/internal/ssa/gen/main.go     |  5 +++++
- src/cmd/compile/internal/ssa/op.go           |  1 +
- src/cmd/compile/internal/ssa/opGen.go        |  9 +++++++++
- 5 files changed, 32 insertions(+), 8 deletions(-)
+ src/strconv/atof.go         | 3 +++
+ src/strconv/example_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

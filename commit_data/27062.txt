@@ -1,12 +1,63 @@
-commit 0ef041cfa5d51d86c25b039d7ae8aef8a92c085e
-Author: Rob Pike <r@golang.org>
-Date:   Thu Apr 21 15:09:49 2016 -0700
+commit 0ac0e22fa767b36e38e6d12fb30e386bf7456509
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 23:16:16 2016 +0000
 
-    doc/go1.7.txt: 0s for zero duration, go doc groups constructors with types
+    cmd/compile: shrink tables
     
-    Change-Id: I4fc35649ff5a3510f5667b62e7e84e113e95dffe
-    Reviewed-on: https://go-review.googlesource.com/22358
-    Reviewed-by: Rob Pike <r@golang.org>
+    Drops cmd/binary size from 14.41 MiB to 11.42 MiB.
+    
+    Before:
+    
+       text    data     bss     dec     hex filename
+    8121210 3521696  737960 12380866         bceac2 ../pkg/tool/linux_amd64/compile
+    
+    bradfitz@dev-bradfitz-debian2:~/go/src$ ls -l ../pkg/tool/linux_amd64/compile
+    -rwxr-xr-x 1 bradfitz bradfitz 15111272 Mar  8 23:32 ../pkg/tool/linux_amd64/compile
+    
+      a2afc0      51312 R html.statictmp_0085
+      6753f0      56592 T cmd/internal/obj/x86.doasm
+      625480      58080 T cmd/compile/internal/gc.typecheck1
+      f34c40      65688 D runtime.trace
+      be0a20     133552 D cmd/compile/internal/ppc64.varianttable
+      c013e0     265856 D cmd/compile/internal/arm.progtable
+      c42260     417280 D cmd/compile/internal/amd64.progtable
+      ca8060     417280 D cmd/compile/internal/x86.progtable
+      f44ce0     500640 D cmd/internal/obj/arm64.oprange
+      d0de60     534208 D cmd/compile/internal/ppc64.progtable
+      d90520     667520 D cmd/compile/internal/arm64.progtable
+      e334a0     790368 D cmd/compile/internal/mips64.progtable
+      a3e8c0    1579362 r runtime.pclntab
+    
+    After:
+    
+       text    data     bss     dec     hex filename
+    8128226  375954  246432 8750612  858614 ../pkg/tool/linux_amd64/compile
+    
+    -rwxr-xr-x 1 bradfitz bradfitz 11971432 Mar  8 23:35 ../pkg/tool/linux_amd64/compile
+    
+      6436d0      43936 T cmd/compile/internal/gc.walkexpr
+      c13ca0      45056 D cmd/compile/internal/ssa.opcodeTable
+      5d8ea0      50256 T cmd/compile/internal/gc.(*state).expr
+      818c50      50448 T cmd/compile/internal/ssa.rewriteValueAMD64_OpMove
+      a2d0e0      51312 R html.statictmp_0085
+      6753d0      56592 T cmd/internal/obj/x86.doasm
+      625460      58080 T cmd/compile/internal/gc.typecheck1
+      c38fe0      65688 D runtime.trace
+      a409e0    1578810 r runtime.pclntab
+    
+    Fixes #14703
+    
+    Change-Id: I2177596d5c7fd67db0a3c423cd90801cf52adb12
+    Reviewed-on: https://go-review.googlesource.com/20450
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.7.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/amd64/prog.go  | 434 +++++++++++++------------
+ src/cmd/compile/internal/arm/prog.go    | 154 +++++----
+ src/cmd/compile/internal/arm64/prog.go  | 156 ++++-----
+ src/cmd/compile/internal/mips64/prog.go | 176 +++++------
+ src/cmd/compile/internal/ppc64/prog.go  | 318 ++++++++++---------
+ src/cmd/compile/internal/x86/prog.go    | 416 ++++++++++++------------
+ src/cmd/internal/obj/arm64/asm7.go      | 540 ++++++++++++++++----------------
+ 7 files changed, 1103 insertions(+), 1091 deletions(-)

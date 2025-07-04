@@ -1,13 +1,12 @@
-commit ceb4377556c6a6dad87df17c73d86692d8d64ead
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 13 12:33:03 2011 -0700
+commit a6e60916c1a5ad15819ad34d63e0c2e064263a29
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed Jul 13 11:44:44 2011 -0700
 
-    A+C: Matthew Horsnell (individual CLA)
+    runtime: stdcall_raw stack 16byte align for Win64
     
-    R=golang-dev, iant
+    R=alex.brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/4700044
+    https://golang.org/cl/4681049
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/windows/amd64/sys.s | 1 +
+ 1 file changed, 1 insertion(+)

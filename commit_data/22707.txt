@@ -1,20 +1,22 @@
-commit ac2bf8ad06e435f1cfdcd1acc87f7e9f51794a79
-Author: Jonathan Rudenberg <jonathan@titanous.com>
-Date:   Sun Apr 26 12:05:37 2015 -0400
+commit ca0adeddd5515a02b76f30e5b72eb202c65f5f2f
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Apr 3 12:43:43 2015 -0400
 
-    crypto/tls: add OCSP response to ConnectionState
+    cmd/7g: reserve registers R26 to R32
     
-    The OCSP response is currently only exposed via a method on Conn,
-    which makes it inaccessible when using wrappers like net/http. The
-    ConnectionState structure is typically available even when using
-    wrappers and contains many of the other handshake details, so this
-    change exposes the stapled OCSP response in that structure.
+    These registers are not available for programs to use. Prior to this
+    change, the compiler would crash attempting to use ZR as a general
+    purpose register. Other programs would compile but on execution would
+    overwrite the G register and cause havoc.
     
-    Change-Id: If8dab49292566912c615d816321b4353e711f71f
-    Reviewed-on: https://go-review.googlesource.com/9361
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Fixes linux/arm64 build.
+    Fixes #10304
+    Fixes #10320
+    
+    Change-Id: I5cf51d3b77cfe3db7dd6377324950cafb02f8d8b
+    Reviewed-on: https://go-review.googlesource.com/8456
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/crypto/tls/common.go | 1 +
- src/crypto/tls/conn.go   | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/7g/reg.go            |  5 ++++
+ test/fixedbugs/issue10320.go | 55 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+)

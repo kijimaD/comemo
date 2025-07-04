@@ -1,24 +1,17 @@
-commit c8aba85e4a83c2023bed4e1e8ae3c480ecf835ec
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Apr 16 22:01:20 2015 -0400
+commit b6ed943bef2c984fe9ca48b5f80594bf7ba2a6e5
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 10 03:26:37 2015 -0400
 
-    runtime: export main.main for android
+    runtime: use _main instead of main on windows/386
     
-    Previously we started the Go runtime from a JNI function call, which
-    eventually called the program's main function. Now the runtime is
-    initialized by an ELF initialization function as a c-shared library,
-    and the program's main function is not called. So now we export main
-    so it can be called from JNI.
+    windows/386 also wants underscore prefix for external names.
+    This CL is in preparation of external linking support.
     
-    This is necessary for all-Go apps because unlike a normal shared
-    library, the program loading the library is not written by or known
-    to the programmer. As far as they are concerned, the .so is
-    everything. In fact the same code is compiled for iOS as a normal Go
-    program.
-    
-    Change-Id: I61c6a92243240ed229342362231b1bfc7ca526ba
-    Reviewed-on: https://go-review.googlesource.com/9015
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e2d
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7282
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/os_android_arm.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/rt0_windows_386.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

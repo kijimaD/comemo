@@ -1,14 +1,14 @@
-commit 825373e4f02d415b687806d8f5ebe9bc19f1d336
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jul 10 10:14:31 2013 +1000
+commit c7065e927d1e8bbee6365bc8acfdf0b58ffdce8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 9 16:20:19 2013 -0700
 
-    encoding/xml: fix typo in docs
+    builtin: document print and println
     
-    Fixes #5843.
+    Fixes #5787.
     
-    R=golang-dev, bradfitz
+    R=r
     CC=golang-dev
-    https://golang.org/cl/11073043
+    https://golang.org/cl/11057043
 
- src/pkg/encoding/xml/read.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/builtin/builtin.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

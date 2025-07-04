@@ -1,17 +1,61 @@
-commit fc2d9cdf50c968dd07c1b76ad9e5a316b39a28b5
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Apr 17 14:01:07 2017 -0400
+commit 0e3355903d2ebcf5ee9e76096f51ac9a116a9dbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 2 16:20:58 2017 -0500
 
-    cmd/compile: remove underscore from variable names in constant comparison test
+    time: record monotonic clock reading in time.Now, for more accurate comparisons
     
-    The leading underscores aren't necessary.
+    See https://golang.org/design/12914-monotonic for details.
     
-    Change-Id: I1d4c4b681e2a29ef40a0a6cf705c3b17a49c9f65
-    Reviewed-on: https://go-review.googlesource.com/40873
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Fixes #12914.
+    
+    Change-Id: I80edc2e6c012b4ace7161c84cf067d444381a009
+    Reviewed-on: https://go-review.googlesource.com/36255
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/testdata/cmpConst.go   | 1836 ++++++++++----------
- .../internal/gc/testdata/gen/cmpConstGen.go        |   14 +-
- 2 files changed, 925 insertions(+), 925 deletions(-)
+ src/archive/tar/tar_test.go        |  15 +-
+ src/encoding/gob/gobencdec_test.go |   2 +-
+ src/go/types/testdata/expr3.src    |   2 +-
+ src/runtime/stubs.go               |   5 +-
+ src/runtime/sys_darwin_386.s       |   4 +-
+ src/runtime/sys_darwin_amd64.s     |   4 +-
+ src/runtime/sys_darwin_arm.s       |   2 +-
+ src/runtime/sys_darwin_arm64.s     |   2 +-
+ src/runtime/sys_dragonfly_amd64.s  |   4 +-
+ src/runtime/sys_freebsd_386.s      |   4 +-
+ src/runtime/sys_freebsd_amd64.s    |   4 +-
+ src/runtime/sys_freebsd_arm.s      |   4 +-
+ src/runtime/sys_linux_386.s        |   4 +-
+ src/runtime/sys_linux_amd64.s      |   4 +-
+ src/runtime/sys_linux_arm.s        |   2 +-
+ src/runtime/sys_linux_arm64.s      |   4 +-
+ src/runtime/sys_linux_mips64x.s    |   4 +-
+ src/runtime/sys_linux_mipsx.s      |   4 +-
+ src/runtime/sys_linux_ppc64x.s     |   4 +-
+ src/runtime/sys_linux_s390x.s      |   4 +-
+ src/runtime/sys_nacl_386.s         |   4 +-
+ src/runtime/sys_nacl_amd64p32.s    |   4 +-
+ src/runtime/sys_nacl_arm.s         |   4 +-
+ src/runtime/sys_netbsd_386.s       |   4 +-
+ src/runtime/sys_netbsd_amd64.s     |   4 +-
+ src/runtime/sys_netbsd_arm.s       |   4 +-
+ src/runtime/sys_openbsd_386.s      |   4 +-
+ src/runtime/sys_openbsd_amd64.s    |   4 +-
+ src/runtime/sys_openbsd_arm.s      |   4 +-
+ src/runtime/sys_plan9_386.s        |   4 +-
+ src/runtime/sys_plan9_amd64.s      |   4 +-
+ src/runtime/sys_plan9_arm.s        |   2 +-
+ src/runtime/sys_solaris_amd64.s    |   4 +-
+ src/runtime/sys_windows_386.s      |   4 +-
+ src/runtime/sys_windows_amd64.s    |   4 +-
+ src/runtime/time.go                |   8 +
+ src/time/export_test.go            |   2 +
+ src/time/format.go                 |  43 +++++-
+ src/time/mono_test.go              | 252 ++++++++++++++++++++++++++++++
+ src/time/time.go                   | 307 ++++++++++++++++++++++++++++++-------
+ src/time/zoneinfo_plan9.go         |   2 +-
+ src/time/zoneinfo_read.go          |   2 +-
+ src/time/zoneinfo_windows.go       |   2 +-
+ 43 files changed, 629 insertions(+), 129 deletions(-)

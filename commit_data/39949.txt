@@ -1,40 +1,28 @@
-commit 3c6eaa7c0dd93ad40a46940c4d7a62d966de82e7
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Sep 18 16:33:54 2019 +0100
+commit 1abf3aa55bb8b346bb1575ac8db5022f215df65a
+Author: Leo Antunes <leo@costela.net>
+Date:   Thu Apr 4 08:50:27 2019 +0000
 
-    cmd/compile: parallelize one more bit of rulegen
+    net: add KeepAlive field to ListenConfig
     
-    'go tool trace' pointed at an obvious inefficiency; roughly the first
-    fifth of the program's life was CPU-heavy and making use of only one CPU
-    core at a time.
+    This commit adds a KeepAlive field to ListenConfig and uses it
+    analogously to Dialer.KeepAlive to set TCP KeepAlives per default on
+    Accept()
     
-    This was due to genOp being run before genLower. We did make genLower
-    use goroutines to parallelize the work between architectures, but we
-    didn't make genOp run in parallel too.
+    Fixes #23378
     
-    Do that. To avoid having two layers of goroutines, simply fire off all
-    goroutines from the main function, and inline genLower, since it now
-    becomes just two lines of code.
-    
-    Overall, this shaves another ~300ms from 'go run *.go' on my laptop.
-    
-            name     old time/op         new time/op         delta
-            Rulegen          2.04s ± 2%          1.76s ± 2%  -13.93%  (p=0.008 n=5+5)
-    
-            name     old user-time/op    new user-time/op    delta
-            Rulegen          9.04s ± 1%          9.25s ± 1%   +2.37%  (p=0.008 n=5+5)
-    
-            name     old sys-time/op     new sys-time/op     delta
-            Rulegen          235ms ±14%          245ms ±16%     ~     (p=0.690 n=5+5)
-    
-            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
-            Rulegen          179MB ± 1%          190MB ± 2%   +6.21%  (p=0.008 n=5+5)
-    
-    Change-Id: I057e074c592afe06c831b03ca447fba12005e6f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196177
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I57eaf9508c979e7f0e2b8c5dd8e8901f6eb27fd6
+    GitHub-Last-Rev: e9e035d53ee8aa3d899d12db08b293f599daecb6
+    GitHub-Pull-Request: golang/go#31242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170678
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/main.go | 58 ++++++++++++++++++--------------
- 1 file changed, 32 insertions(+), 26 deletions(-)
+ src/net/dial.go          |  8 ++++++++
+ src/net/file_plan9.go    |  2 +-
+ src/net/file_unix.go     |  2 +-
+ src/net/http/server.go   | 22 ++--------------------
+ src/net/tcpsock.go       |  1 +
+ src/net/tcpsock_plan9.go | 14 ++++++++++++--
+ src/net/tcpsock_posix.go | 14 ++++++++++++--
+ 7 files changed, 37 insertions(+), 26 deletions(-)

@@ -1,0 +1,19 @@
+commit 011b7ce8d12c14e9bd9b95a2519a6513a407bfc9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 19 09:38:51 2025 -0700
+
+    go/types, types2: fix silly logic error in commonUnder
+    
+    Fixes #72936.
+    
+    Change-Id: I79ed8d559c8565fa960b974f8c1207ee442f4c26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/under.go           | 10 ++++++----
+ src/go/types/under.go                              | 10 ++++++----
+ .../types/testdata/fixedbugs/issue72936.go         | 23 ++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 8 deletions(-)

@@ -1,24 +1,16 @@
-commit 9741f0275c79786e16bdbe7b8ddfeecda421181f
+commit 2817e77024a53aae31cc02c01a26fce0ebb11a79
 Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 16 14:55:10 2017 -0400
+Date:   Mon Dec 19 22:55:53 2016 -0500
 
-    runtime: initialize more fields of stack spans
+    runtime: debug prints for spanBytesAlloc underflow
     
-    Stack spans don't internally use many of the fields of the mspan,
-    which means things like the size class and element size get left over
-    from whatever last used the mspan. This can lead to confusing crashes
-    and debugging.
+    Updates #18043.
     
-    Zero these fields or initialize them to something reasonable. This
-    also lets us simplify some code that currently has to distinguish
-    between heap and stack spans.
-    
-    Change-Id: I9bd114e76c147bb32de497045b932f8bf1988bbf
-    Reviewed-on: https://go-review.googlesource.com/38573
+    Change-Id: I24e687fdd5521c48b672987f15f0d5de9f308884
+    Reviewed-on: https://go-review.googlesource.com/34612
     Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mheap.go | 8 +++++---
- src/runtime/stack.go | 4 +++-
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/runtime/mgcsweep.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

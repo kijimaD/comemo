@@ -1,21 +1,20 @@
-commit 3abec31097a2b7e7bff74050eb14751ebd45ce5e
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Jan 23 13:33:11 2020 -0800
+commit 148ec3e3bc8083ccb9ac9b7050ce540d1e0f0539
+Author: Kyohei Kadota <lufia@lufia.org>
+Date:   Thu Sep 26 13:39:52 2019 +0900
 
-    cmd/compile: use ellipses in PPC64 rules
+    net/http/cgi: skip tests if not functional perl
     
-    Also, explicitly zero AuxInt in some ops (like Div),
-    to make it clear why they do not use an ellipsis.
+    TestEnvOverride sets PATH to /wibble before executing a CGI.
+    So customized Perl that is starting with '#!/usr/bin/env bash' will fail
+    because /usr/bin/env can't lookup bash.
     
-    Passes toolstash-check -all.
+    Fixes #27790
     
-    Change-Id: I2e234e7b779422f7577037813f277e7586061880
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217012
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I25e433061a7ff9da8c86429e934418fc15f12f90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196845
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  126 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go | 1677 ++++----------------------
- 2 files changed, 309 insertions(+), 1494 deletions(-)
+ src/net/http/cgi/host_test.go | 33 +++++++++++++++++++--------------
+ 1 file changed, 19 insertions(+), 14 deletions(-)

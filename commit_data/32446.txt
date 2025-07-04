@@ -1,33 +1,28 @@
-commit f1517ec6e5d1ccf04c1266e710545436b972750f
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 24 15:23:27 2017 -0700
+commit 7fc82104ea87d51893f6d0664c5753be7c67b297
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 25 06:11:09 2017 +0000
 
-    cmd/compile: remove more nil ptr checks after newobject
+    cmd/go, cmd/dist: temporarily disable race and PIE internal link tests on Alpine
     
-    For code like the following (where x escapes):
+    In an effort to at least understand the complete set of things not
+    working on Alpine Linux, I've been trying to get the build passing
+    again, even with tests disabled.
     
-       x := []int{1}
+    The race detector is broken on Alpine. That is #14481 (and #9918).
+    So disable those tests for now.
     
-    We're currently generating a nil check.  The line above is really 3 operations:
+    Also, internal linking with PIE doesn't work on Alpine yet.
+    That is #18243. So disable that test for now.
     
-            t := new([1]int)
-            t[0] = 1
-            x := t[:]
+    With this CL, all.bash almost passes. There's some cgo test failing
+    still, but there's no bug yet, so that can be a separate CL.
     
-    We remove the nil check for t[0] = 1, but not for t[:].
-    
-    Our current nil check removal rule is too strict about the possible
-    memory arguments of the nil check. Unlike zeroing or storing to the
-    result of runtime.newobject, the nilness of runtime.newobject is
-    always false, even after other stores have happened in the meantime.
-    
-    Change-Id: I95fad4e3a59c27effdb37c43ea215e18f30b1e5f
-    Reviewed-on: https://go-review.googlesource.com/58711
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I3ffbb0e787ed54cb82f298b6bd5bf3ccfbc82622
+    Reviewed-on: https://go-review.googlesource.com/41678
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 10 ++++------
- src/cmd/compile/internal/ssa/rewritegeneric.go | 22 ++++++++++++----------
- test/nilptr3.go                                |  7 +++++++
- 3 files changed, 23 insertions(+), 16 deletions(-)
+ src/cmd/dist/test.go  | 18 ++++++++++++++++--
+ src/cmd/go/go_test.go | 24 +++++++++++++-----------
+ 2 files changed, 29 insertions(+), 13 deletions(-)

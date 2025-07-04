@@ -1,40 +1,19 @@
-commit 633ab7426a906b72dcf6f1d54e87f4ae926dc4e1
-Author: Sebastien Binet <seb.binet@gmail.com>
-Date:   Sat Mar 5 13:37:38 2016 +0100
+commit 9194421eedfd64d2d71e66cbf060d19502610c30
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 19 17:41:44 2016 +0900
 
-    reflect: implement StructOf
+    net: deflake TestDialerDualStackFDLeak
     
-    This change exposes a facility to create new struct types from a slice of
-    reflect.StructFields.
+    We need to stop the mock listener certainly for preventing it from
+    pulling up pending connections during measurement.
     
-    - reflect: first stab at implementing StructOf
-    - reflect: tests for StructOf
+    Fixes #14223.
     
-    StructOf creates new struct types in the form of structTypeWithMethods
-    to accomodate the GC (especially the uncommonType.methods slice field.)
-    
-    Creating struct types with embedded interfaces with unexported methods
-    is not supported yet and will panic.
-    Creating struct types with non-ASCII field names or types is not yet
-    supported (see #15064.)
-    
-    Binaries' sizes for linux_amd64:
-    
-    old=tip (0104a31)
-    
-                old bytes     new bytes     delta
-    bin/go      9911336       9915456       +0.04%
-    reflect     781704        830048        +6.18%
-    
-    Updates #5748.
-    Updates #15064.
-    
-    Change-Id: I3b8fd4fadd6ce3b1b922e284f0ae72a3a8e3ce44
-    Reviewed-on: https://go-review.googlesource.com/9251
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ia40db01d1262963697b83ca867563dec77d772e3
+    Reviewed-on: https://go-review.googlesource.com/19246
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go |   2 +-
- src/reflect/all_test.go                | 575 +++++++++++++++++++++++++++++++++
- src/reflect/type.go                    | 473 ++++++++++++++++++++++++++-
- 3 files changed, 1043 insertions(+), 7 deletions(-)
+ src/net/dial_test.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

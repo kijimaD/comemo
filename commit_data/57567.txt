@@ -1,18 +1,28 @@
-commit 327074551a2f22f2c0b8e444d1673c86f77ca745
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Mon Apr 15 13:19:48 2024 +0000
+commit 99b80993f607e1c6e2f4c14445de103ba6856cfc
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Aug 17 15:30:04 2023 +0700
 
-    cmd/go: exit non-zero if version -m is used with a non-Go file
+    cmd: go get golang.org/x/tools@74c255b and revendor
     
-    Fixes #66426
+    go get golang.org/x/tools@74c255b # CL 519295
+    go mod tidy
+    go mod vendor
     
-    Change-Id: I5c65d5ae7863f90d654063d6385ffb6ec1308d7c
-    GitHub-Last-Rev: 114b30eb5531b924befb12fbda28cea4663d3608
-    GitHub-Pull-Request: golang/go#66443
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573295
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Pulling in the fix for unnecessary dependency on *types.StdSizes, which
+    is non guaranteed behavior.
+    
+    Updates #61035
+    
+    Change-Id: Ifb04bab060343b6a849980db6bb65da9889b4665
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/version/version.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/go.mod                                                        | 2 +-
+ src/cmd/go.sum                                                        | 4 ++--
+ .../vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go | 4 +++-
+ src/cmd/vendor/modules.txt                                            | 2 +-
+ 4 files changed, 7 insertions(+), 5 deletions(-)

@@ -1,36 +1,20 @@
-commit b8e4df01dd1aa61b3de978e4874c81b0d23349d5
-Author: Mark Hansen <markhansen@google.com>
-Date:   Fri Oct 8 03:53:09 2021 +0000
+commit 9b967d12a9f1a13c79104b834a17c4356585cc7a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Feb 9 10:23:40 2021 -0500
 
-    cmd/pprof: update vendored github.com/google/pprof
+    [dev.fuzz] internal/fuzz: worker exiting 0 should not be a crasher
     
-    Pull in the latest published version of github.com/google/pprof
+    If a worker process exits with status 0, treat it as a communication
+    error. Previously, we treated this as a crasher, but it seems more
+    likely to be caused by a bug in the fuzz function rather than a bug in
+    the code being tested.
     
-    This adds the tagroot and tagleaf options from
-    https://github.com/google/pprof/commit/7fe48b4c820be13151ae35ce5a5e3f54f1b53eef
-    
-    Done with:
-    
-      go get -d github.com/google/pprof@latest
-      go mod tidy
-      go mod vendor
-    
-    Fixes #48839
-    
-    Change-Id: I85bf0e0689310014eb198c8d5e0bb3a86b0aef1c
-    GitHub-Last-Rev: b26260f30514eb71be76c9b2f74f9d3aace205b9
-    GitHub-Pull-Request: golang/go#48856
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354692
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I0c4efeaef85537f8a0e9c6def6aac41d75b2b307
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290690
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../google/pprof/internal/driver/commands.go       |   8 ++
- .../google/pprof/internal/driver/config.go         |   4 +
- .../google/pprof/internal/driver/driver.go         |  23 ++++
- .../google/pprof/internal/driver/tagroot.go        | 124 +++++++++++++++++++++
- src/cmd/vendor/modules.txt                         |   2 +-
- 7 files changed, 163 insertions(+), 4 deletions(-)
+ src/internal/fuzz/worker.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

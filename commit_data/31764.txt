@@ -1,32 +1,26 @@
-commit 78cf0e56ce5372ed3bf81e41e4ab23f68d3eaa77
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 7 21:01:48 2017 +0000
+commit a9824cd47c1927ffc4eca040d60aecaa26130329
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 10 17:15:46 2017 +0000
 
-    net: make Dial("tcp", ln.Addr().String()) work even with bad IPv6 config
+    *.bash: always use the same string equality operator
     
-    Some machines can be configured (or came/come configured) in such a
-    state that IPv6 only half works: you can bind on [::]:n but not
-    connect back to it.
+    POSIX Shell only supports = to compare variables inside '[' tests. But
+    this is Bash, where == is an alias for =. In practice they're the same,
+    but the current form is inconsisnent and breaks POSIX for no good
+    reason.
     
-    This implements a fallback such that it's guaranteed that this pattern
-    works:
-    
-       ln, err := Listen("tcp", ":0")
-       ...
-       addr := ln.Addr().String() // "[::]:n"
-       c, err := Dial("tcp", addr)
-    
-    ... which is also now tested. It will first try to dial "[::]:n", as
-    before, but if that dial fails, it will also try "0.0.0.0:n".
-    
-    Fixes #18806 (contains more details)
-    Fixes #20611 (I was going to fix nacl later, but it was easy enough)
-    
-    Change-Id: I1107eb197e902ae8185c781ad1bc4e2bc61d1f4c
-    Reviewed-on: https://go-review.googlesource.com/45088
-    Reviewed-by: Paul Marks <pmarks@google.com>
+    Change-Id: I38fa7a5a90658dc51acc2acd143049e510424ed8
+    Reviewed-on: https://go-review.googlesource.com/38031
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/dial_test.go    | 18 ++++++++++++++++++
- src/net/ipsock.go       |  7 +++++++
- src/syscall/net_nacl.go | 13 +++++++++++++
- 3 files changed, 38 insertions(+)
+ doc/articles/wiki/test.bash       |  2 +-
+ lib/time/update.bash              |  2 +-
+ misc/cgo/fortran/test.bash        |  2 +-
+ misc/cgo/testcshared/test.bash    | 18 +++++++++---------
+ misc/cgo/testsanitizers/test.bash |  4 ++--
+ src/iostest.bash                  |  6 +++---
+ src/make.bash                     |  4 ++--
+ src/run.bash                      |  6 +++---
+ 8 files changed, 22 insertions(+), 22 deletions(-)

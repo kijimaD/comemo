@@ -1,20 +1,14 @@
-commit 4ad13555184eb0697c2e92c64c1b0bdb287ccc10
-Author: Romain Baugue <romain.baugue@elwinar.com>
-Date:   Tue Apr 30 13:51:05 2019 +0200
+commit e123ccbfe0856da67446374d39e9d3e738046e9e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 12 22:28:50 2018 +0000
 
-    html: add a Fuzz function
+    strings: revert accidental example change from CL 153840
     
-    Adds a sample Fuzz test function to package html based on
-    https://github.com/dvyukov/go-fuzz-corpus/blob/master/stdhtml/main.go
-    
-    Updates #19109
-    Updates #31309
-    
-    Change-Id: I8c49fff8f70fc8a8813daf1abf0044752003adbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174301
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2ff29aa9909be3062fcd5f65af261f5d8c46fbc1
+    Reviewed-on: https://go-review.googlesource.com/c/153843
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/html/fuzz.go | 31 +++++++++++++++++++++++++++++++
- 1 file changed, 31 insertions(+)
+ src/strings/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

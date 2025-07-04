@@ -1,29 +1,21 @@
-commit 6d1c507bfc360ba72ca716bb7cb7bd9105a45af4
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 16 15:16:06 2023 -0700
+commit e822b1e26e20ef1c76672c0b77b0fd8a97a1fe84
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Thu Oct 14 22:01:49 2021 +0000
 
-    slices: for Insert and Replace, grow slices like append does
+    net/http: omit invalid header value from error message
     
-    At least when we're inserting/replacing near the end of a slice, when
-    we have to grow it use the same multiplicative growth factor that the
-    runtime uses for append.
+    Updates #43631
     
-    Before this CL, we would grow the slice one page (8192 bytes) at a time
-    for large slices. This would cause O(n^2) work when appending near the
-    end should only take O(n) work.
-    
-    This doesn't fix the problem if you insert/replace near the start of the
-    array, but maybe that doesn't need fixing because it is O(n^2) anyway.
-    
-    Fixes #60134
-    
-    Change-Id: If05376bc512ab839769180e5ce4cb929f47363b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495296
+    Change-Id: I0fe3aafdf7ef889fed1a830128721393f8d020e6
+    GitHub-Last-Rev: c359542d741b17f4e2cb0d50982bf341246233b0
+    GitHub-Pull-Request: golang/go#48979
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355929
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/slices/slices.go      |  6 ++----
- src/slices/slices_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 4 deletions(-)
+ src/net/http/transport.go      |  3 ++-
+ src/net/http/transport_test.go | 16 ++++++++--------
+ 2 files changed, 10 insertions(+), 9 deletions(-)

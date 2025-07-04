@@ -1,152 +1,18 @@
-commit 8f4fd3f34e8e218cb90435b5a8c6ba9be23a1e1e
-Author: Zheng Xu <zheng.xu@arm.com>
-Date:   Wed Aug 29 14:55:03 2018 +0800
+commit 4704149e04b89a2c3f3d361facdab55b659fb527
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu May 3 11:43:25 2018 +0200
 
-    build: support frame-pointer for arm64
+    misc/ios: retry lldb launch if the iOS app is busy
     
-    Supporting frame-pointer makes Linux's perf and other profilers much more useful
-    because it lets them gather a stack trace efficiently on profiling events. Major
-    changes include:
-    1. save FP on the word below where RSP is pointing to (proposed by Cherry and Austin)
-    2. adjust some specific offsets in runtime assembly and wrapper code
-    3. add support to FP in goroutine scheduler
-    4. adjust link stack overflow check to take the extra word into account
-    5. adjust nosplit test cases to enable frame sizes which are 16 bytes aligned
+    Sometimes, a newly installed the test app is not ready to launch
+    or the reported app path is stale. Pause and retry the launch if
+    the lldb script did not run the program.
     
-    Performance impacts on go1 benchmarks:
-    
-    Enable frame-pointer (by default)
-    
-    name                      old time/op    new time/op    delta
-    BinaryTree17-46              5.94s ± 0%     6.00s ± 0%  +1.03%  (p=0.029 n=4+4)
-    Fannkuch11-46                2.84s ± 1%     2.77s ± 0%  -2.58%  (p=0.008 n=5+5)
-    FmtFprintfEmpty-46          55.0ns ± 1%    58.9ns ± 1%  +7.06%  (p=0.008 n=5+5)
-    FmtFprintfString-46          102ns ± 0%     105ns ± 0%  +2.94%  (p=0.008 n=5+5)
-    FmtFprintfInt-46             118ns ± 0%     117ns ± 1%  -1.19%  (p=0.000 n=4+5)
-    FmtFprintfIntInt-46          181ns ± 0%     182ns ± 1%    ~     (p=0.444 n=5+5)
-    FmtFprintfPrefixedInt-46     215ns ± 1%     214ns ± 0%    ~     (p=0.254 n=5+4)
-    FmtFprintfFloat-46           292ns ± 0%     296ns ± 0%  +1.46%  (p=0.029 n=4+4)
-    FmtManyArgs-46               720ns ± 0%     732ns ± 0%  +1.72%  (p=0.008 n=5+5)
-    GobDecode-46                9.82ms ± 1%   10.03ms ± 2%  +2.10%  (p=0.008 n=5+5)
-    GobEncode-46                8.14ms ± 0%    8.72ms ± 1%  +7.14%  (p=0.008 n=5+5)
-    Gzip-46                      420ms ± 0%     424ms ± 0%  +0.92%  (p=0.008 n=5+5)
-    Gunzip-46                   48.2ms ± 0%    48.4ms ± 0%  +0.41%  (p=0.008 n=5+5)
-    HTTPClientServer-46          201µs ± 4%     201µs ± 0%    ~     (p=0.730 n=5+4)
-    JSONEncode-46               17.1ms ± 0%    17.7ms ± 1%  +3.80%  (p=0.008 n=5+5)
-    JSONDecode-46               88.0ms ± 0%    90.1ms ± 0%  +2.42%  (p=0.008 n=5+5)
-    Mandelbrot200-46            5.06ms ± 0%    5.07ms ± 0%    ~     (p=0.310 n=5+5)
-    GoParse-46                  5.04ms ± 0%    5.12ms ± 0%  +1.53%  (p=0.008 n=5+5)
-    RegexpMatchEasy0_32-46       117ns ± 0%     117ns ± 0%    ~     (all equal)
-    RegexpMatchEasy0_1K-46       332ns ± 0%     329ns ± 0%  -0.78%  (p=0.008 n=5+5)
-    RegexpMatchEasy1_32-46       104ns ± 0%     113ns ± 0%  +8.65%  (p=0.029 n=4+4)
-    RegexpMatchEasy1_1K-46       563ns ± 0%     569ns ± 0%  +1.10%  (p=0.008 n=5+5)
-    RegexpMatchMedium_32-46      167ns ± 2%     177ns ± 1%  +5.74%  (p=0.008 n=5+5)
-    RegexpMatchMedium_1K-46     49.5µs ± 0%    53.4µs ± 0%  +7.81%  (p=0.008 n=5+5)
-    RegexpMatchHard_32-46       2.56µs ± 1%    2.72µs ± 0%  +6.01%  (p=0.008 n=5+5)
-    RegexpMatchHard_1K-46       77.0µs ± 0%    81.8µs ± 0%  +6.24%  (p=0.016 n=5+4)
-    Revcomp-46                   631ms ± 1%     627ms ± 1%    ~     (p=0.095 n=5+5)
-    Template-46                 81.8ms ± 0%    86.3ms ± 0%  +5.55%  (p=0.008 n=5+5)
-    TimeParse-46                 423ns ± 0%     432ns ± 0%  +2.32%  (p=0.008 n=5+5)
-    TimeFormat-46                478ns ± 2%     497ns ± 1%  +3.89%  (p=0.008 n=5+5)
-    [Geo mean]                  71.6µs         73.3µs       +2.45%
-    
-    name                      old speed      new speed      delta
-    GobDecode-46              78.1MB/s ± 1%  76.6MB/s ± 2%  -2.04%  (p=0.008 n=5+5)
-    GobEncode-46              94.3MB/s ± 0%  88.0MB/s ± 1%  -6.67%  (p=0.008 n=5+5)
-    Gzip-46                   46.2MB/s ± 0%  45.8MB/s ± 0%  -0.91%  (p=0.008 n=5+5)
-    Gunzip-46                  403MB/s ± 0%   401MB/s ± 0%  -0.41%  (p=0.008 n=5+5)
-    JSONEncode-46              114MB/s ± 0%   109MB/s ± 1%  -3.66%  (p=0.008 n=5+5)
-    JSONDecode-46             22.0MB/s ± 0%  21.5MB/s ± 0%  -2.35%  (p=0.008 n=5+5)
-    GoParse-46                11.5MB/s ± 0%  11.3MB/s ± 0%  -1.51%  (p=0.008 n=5+5)
-    RegexpMatchEasy0_32-46     272MB/s ± 0%   272MB/s ± 1%    ~     (p=0.190 n=4+5)
-    RegexpMatchEasy0_1K-46    3.08GB/s ± 0%  3.11GB/s ± 0%  +0.77%  (p=0.008 n=5+5)
-    RegexpMatchEasy1_32-46     306MB/s ± 0%   283MB/s ± 0%  -7.63%  (p=0.029 n=4+4)
-    RegexpMatchEasy1_1K-46    1.82GB/s ± 0%  1.80GB/s ± 0%  -1.07%  (p=0.008 n=5+5)
-    RegexpMatchMedium_32-46   5.99MB/s ± 0%  5.64MB/s ± 1%  -5.77%  (p=0.016 n=4+5)
-    RegexpMatchMedium_1K-46   20.7MB/s ± 0%  19.2MB/s ± 0%  -7.25%  (p=0.008 n=5+5)
-    RegexpMatchHard_32-46     12.5MB/s ± 1%  11.8MB/s ± 0%  -5.66%  (p=0.008 n=5+5)
-    RegexpMatchHard_1K-46     13.3MB/s ± 0%  12.5MB/s ± 1%  -6.01%  (p=0.008 n=5+5)
-    Revcomp-46                 402MB/s ± 1%   405MB/s ± 1%    ~     (p=0.095 n=5+5)
-    Template-46               23.7MB/s ± 0%  22.5MB/s ± 0%  -5.25%  (p=0.008 n=5+5)
-    [Geo mean]                82.2MB/s       79.6MB/s       -3.26%
-    
-    Disable frame-pointer (GOEXPERIMENT=noframepointer)
-    
-    name                      old time/op    new time/op    delta
-    BinaryTree17-46              5.94s ± 0%     5.96s ± 0%  +0.39%  (p=0.029 n=4+4)
-    Fannkuch11-46                2.84s ± 1%     2.79s ± 1%  -1.68%  (p=0.008 n=5+5)
-    FmtFprintfEmpty-46          55.0ns ± 1%    55.2ns ± 3%    ~     (p=0.794 n=5+5)
-    FmtFprintfString-46          102ns ± 0%     103ns ± 0%  +0.98%  (p=0.016 n=5+4)
-    FmtFprintfInt-46             118ns ± 0%     115ns ± 0%  -2.54%  (p=0.029 n=4+4)
-    FmtFprintfIntInt-46          181ns ± 0%     179ns ± 0%  -1.10%  (p=0.000 n=5+4)
-    FmtFprintfPrefixedInt-46     215ns ± 1%     213ns ± 0%    ~     (p=0.143 n=5+4)
-    FmtFprintfFloat-46           292ns ± 0%     300ns ± 0%  +2.83%  (p=0.029 n=4+4)
-    FmtManyArgs-46               720ns ± 0%     739ns ± 0%  +2.64%  (p=0.008 n=5+5)
-    GobDecode-46                9.82ms ± 1%    9.78ms ± 1%    ~     (p=0.151 n=5+5)
-    GobEncode-46                8.14ms ± 0%    8.12ms ± 1%    ~     (p=0.690 n=5+5)
-    Gzip-46                      420ms ± 0%     420ms ± 0%    ~     (p=0.548 n=5+5)
-    Gunzip-46                   48.2ms ± 0%    48.0ms ± 0%  -0.33%  (p=0.032 n=5+5)
-    HTTPClientServer-46          201µs ± 4%     199µs ± 3%    ~     (p=0.548 n=5+5)
-    JSONEncode-46               17.1ms ± 0%    17.2ms ± 0%    ~     (p=0.056 n=5+5)
-    JSONDecode-46               88.0ms ± 0%    88.6ms ± 0%  +0.64%  (p=0.008 n=5+5)
-    Mandelbrot200-46            5.06ms ± 0%    5.07ms ± 0%    ~     (p=0.548 n=5+5)
-    GoParse-46                  5.04ms ± 0%    5.07ms ± 0%  +0.65%  (p=0.008 n=5+5)
-    RegexpMatchEasy0_32-46       117ns ± 0%     112ns ± 4%  -4.27%  (p=0.016 n=4+5)
-    RegexpMatchEasy0_1K-46       332ns ± 0%     330ns ± 1%    ~     (p=0.095 n=5+5)
-    RegexpMatchEasy1_32-46       104ns ± 0%     110ns ± 1%  +5.29%  (p=0.029 n=4+4)
-    RegexpMatchEasy1_1K-46       563ns ± 0%     567ns ± 2%    ~     (p=0.151 n=5+5)
-    RegexpMatchMedium_32-46      167ns ± 2%     166ns ± 0%    ~     (p=0.333 n=5+4)
-    RegexpMatchMedium_1K-46     49.5µs ± 0%    49.6µs ± 0%    ~     (p=0.841 n=5+5)
-    RegexpMatchHard_32-46       2.56µs ± 1%    2.49µs ± 0%  -2.81%  (p=0.008 n=5+5)
-    RegexpMatchHard_1K-46       77.0µs ± 0%    75.8µs ± 0%  -1.55%  (p=0.008 n=5+5)
-    Revcomp-46                   631ms ± 1%     628ms ± 0%    ~     (p=0.095 n=5+5)
-    Template-46                 81.8ms ± 0%    84.3ms ± 1%  +3.05%  (p=0.008 n=5+5)
-    TimeParse-46                 423ns ± 0%     425ns ± 0%  +0.52%  (p=0.008 n=5+5)
-    TimeFormat-46                478ns ± 2%     478ns ± 1%    ~     (p=1.000 n=5+5)
-    [Geo mean]                  71.6µs         71.6µs       -0.01%
-    
-    name                      old speed      new speed      delta
-    GobDecode-46              78.1MB/s ± 1%  78.5MB/s ± 1%    ~     (p=0.151 n=5+5)
-    GobEncode-46              94.3MB/s ± 0%  94.5MB/s ± 1%    ~     (p=0.690 n=5+5)
-    Gzip-46                   46.2MB/s ± 0%  46.2MB/s ± 0%    ~     (p=0.571 n=5+5)
-    Gunzip-46                  403MB/s ± 0%   404MB/s ± 0%  +0.33%  (p=0.032 n=5+5)
-    JSONEncode-46              114MB/s ± 0%   113MB/s ± 0%    ~     (p=0.056 n=5+5)
-    JSONDecode-46             22.0MB/s ± 0%  21.9MB/s ± 0%  -0.64%  (p=0.008 n=5+5)
-    GoParse-46                11.5MB/s ± 0%  11.4MB/s ± 0%  -0.64%  (p=0.008 n=5+5)
-    RegexpMatchEasy0_32-46     272MB/s ± 0%   285MB/s ± 4%  +4.74%  (p=0.016 n=4+5)
-    RegexpMatchEasy0_1K-46    3.08GB/s ± 0%  3.10GB/s ± 1%    ~     (p=0.151 n=5+5)
-    RegexpMatchEasy1_32-46     306MB/s ± 0%   290MB/s ± 1%  -5.21%  (p=0.029 n=4+4)
-    RegexpMatchEasy1_1K-46    1.82GB/s ± 0%  1.81GB/s ± 2%    ~     (p=0.151 n=5+5)
-    RegexpMatchMedium_32-46   5.99MB/s ± 0%  6.02MB/s ± 1%    ~     (p=0.063 n=4+5)
-    RegexpMatchMedium_1K-46   20.7MB/s ± 0%  20.7MB/s ± 0%    ~     (p=0.659 n=5+5)
-    RegexpMatchHard_32-46     12.5MB/s ± 1%  12.8MB/s ± 0%  +2.88%  (p=0.008 n=5+5)
-    RegexpMatchHard_1K-46     13.3MB/s ± 0%  13.5MB/s ± 0%  +1.58%  (p=0.008 n=5+5)
-    Revcomp-46                 402MB/s ± 1%   405MB/s ± 0%    ~     (p=0.095 n=5+5)
-    Template-46               23.7MB/s ± 0%  23.0MB/s ± 1%  -2.95%  (p=0.008 n=5+5)
-    [Geo mean]                82.2MB/s       82.3MB/s       +0.04%
-    
-    Frame-pointer is enabled on Linux by default but can be disabled by setting: GOEXPERIMENT=noframepointer.
-    
-    Fixes #10110
-    
-    Change-Id: I1bfaca6dba29a63009d7c6ab04ed7a1413d9479e
-    Reviewed-on: https://go-review.googlesource.com/61511
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic7745d4b5a02f2e3cb8134341859039812f65a65
+    Reviewed-on: https://go-review.googlesource.com/111216
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/arm64/ggen.go |   8 +-
- src/cmd/compile/internal/gc/pgen.go    |   6 +-
- src/cmd/internal/obj/arm64/asm7.go     |  10 +-
- src/cmd/internal/obj/arm64/obj7.go     | 183 ++++++++++++++++++++++++++++++---
- src/cmd/internal/objabi/util.go        |   2 +-
- src/cmd/link/internal/ld/lib.go        |   4 +
- src/runtime/asm_arm64.s                |  34 ++++--
- src/runtime/cgocall.go                 |   3 +-
- src/runtime/rt0_darwin_arm64.s         |   2 +
- src/runtime/rt0_linux_arm64.s          |   2 +
- src/runtime/sys_linux_arm64.s          |   8 +-
- src/runtime/traceback.go               |   2 +-
- test/codegen/stack.go                  |  10 +-
- test/nosplit.go                        |  26 ++---
- 14 files changed, 243 insertions(+), 57 deletions(-)
+ misc/ios/go_darwin_arm_exec.go | 81 ++++++++++++++++++++++++++----------------
+ 1 file changed, 51 insertions(+), 30 deletions(-)

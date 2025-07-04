@@ -1,19 +1,46 @@
-commit 002bc94e0c345f282bcf3a6bf46f40cdb9de3327
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Feb 26 09:39:07 2023 +0700
+commit 65153e478e302eaf3556372ff257ebfc893943c1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 2 13:20:02 2022 -0800
 
-    internal/syscall/execenv: refactor handling env variables
+    crypto/x509: rework path building
     
-    Discover while working on CL 471335.
+    This change does four things:
+      * removes the chain cache
+      * during path building, equality is determined by checking if the
+        subjects and public keys match, rather than checking if the entire
+        certificates are equal
+      * enforces EKU suitability during path building
+      * enforces name constraints on intermediates and roots which have
+        SANs during path building
     
-    Change-Id: I006077a5aa93cafb7be47813ab0c4714bb00d774
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/471435
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    The chain cache is removed as it was causing duplicate chains to be
+    returned, in some cases shadowing better, shorter chains if a longer
+    chain was found first.
+    
+    Checking equality using the subjects and public keys, rather than the
+    entire certificates, allows the path builder to ignore chains which
+    contain cross-signature loops.
+    
+    EKU checking is done during path building, as the previous behavior
+    of only checking EKUs once the path had been built caused the path
+    builder to incorrectly ignore valid paths when it encountered a path
+    which would later be ruled invalid because of unacceptable EKU usage.
+    
+    Name constraints are applied uniformly across all certificates, not
+    just leaves, in order to be more consistent.
+    
+    Fixes #48869
+    Fixes #45856
+    
+    Change-Id: I4ca1cd43510d061e148f953d6c1ed935100fdb10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389555
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/internal/syscall/execenv/execenv_windows.go | 24 +++++++++---------------
- 1 file changed, 9 insertions(+), 15 deletions(-)
+ src/crypto/x509/verify.go      | 208 ++++++++++---------
+ src/crypto/x509/verify_test.go | 449 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 556 insertions(+), 101 deletions(-)

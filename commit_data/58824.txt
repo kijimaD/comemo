@@ -1,22 +1,20 @@
-commit 38825ef34715f024be0767f2bb94bb8c299f6f6b
-Author: Than McIntosh <thanm@golang.org>
-Date:   Sun Nov 17 13:20:17 2024 -0500
+commit 761e10be8805bf0b3afd015cf9f09856a6066ad2
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Dec 17 17:51:25 2023 +0100
 
-    cmd/link, cmd/internal/objabi: remove R_DWARFFILEREF relocation type
+    cmd/link/internal/loadpe: update comment about @feat.00 symbol handling
     
-    Get rid of the R_DWARFFILEREF relocation type -- we have not used this
-    relocation for a while now, ever since jfaller's revamp of the DWARF
-    line table file section in Go 1.15. No change in compiler or linker
-    functionality; this is purely a dead code cleanup.
+    The @feat.00 comment is outdated, as Go does support SEH on
+    windows/amd64. While here, simplify it and add a link to the
+    relevant documentation.
     
-    Change-Id: I178760c87f3aa79694cfabe7364ca382605c6975
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633876
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6e3c786ca4f4809baf46015edf569d06b12f1239
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550635
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/internal/objabi/reloctype.go        |   5 --
- src/cmd/internal/objabi/reloctype_string.go | 133 ++++++++++++++--------------
- src/cmd/link/internal/ld/data.go            |   4 -
- src/cmd/link/internal/ld/pe.go              |   3 -
- 4 files changed, 66 insertions(+), 79 deletions(-)
+ src/cmd/link/internal/loadpe/ldpe.go | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

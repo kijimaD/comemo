@@ -1,16 +1,21 @@
-commit 6cce1911b77dad1afd3cf6dd34699d933f060978
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 17 09:57:01 2024 +0200
+commit 1d3a77e5e6548a4720e74c55bed0145b570f6287
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Aug 10 02:01:04 2023 +0000
 
-    cmd/cgo: use strings.CutPrefix
+    math/big: using the min built-in function
     
-    Change-Id: Ie3f35183e88d544559743394c34b55483fdf59aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613775
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I9e95806116a8547ec782f66226d1b1382c6156de
+    
+    Change-Id: I9e95806116a8547ec782f66226d1b1382c6156de
+    GitHub-Last-Rev: 5b4ce994c162775e91aa00c942571bc0ac8b1eca
+    GitHub-Pull-Request: golang/go#61829
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516895
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/cgo/gcc.go | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ src/math/big/ftoa.go | 7 -------
+ 1 file changed, 7 deletions(-)

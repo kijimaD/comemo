@@ -1,21 +1,24 @@
-commit 3ca5b7c5b21574da0b29ea1d2d53ffce8711d225
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 19 20:43:24 2018 -0700
+commit 083f3957b8266d591db4147bd03dd16874635189
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Wed Mar 7 15:07:31 2018 +0200
 
-    internal/poll: better panic message for lock overflow
+    runtime: add missing build constraints to os_linux_{be64,noauxv,novdso,ppc64x}.go files
     
-    Instead of "inconsistent poll.fdMutex", panic with
-    "too many concurrent operations on a single file or socket (max 1048575)".
+    They do not match the file name patterns of
+      *_GOOS
+      *_GOARCH
+      *_GOOS_GOARCH
+    therefore the implicit linux constraint was not being added.
     
-    Fixes #25558
-    
-    Change-Id: I5cad3633aa539fb6f48cca236c6656c86acfb663
-    Reviewed-on: https://go-review.googlesource.com/119956
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ie506c51cee6818db445516f96fffaa351df62cf5
+    Reviewed-on: https://go-review.googlesource.com/99116
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/internal/poll/fd_mutex.go      | 10 ++++++----
- src/internal/poll/fd_mutex_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 4 deletions(-)
+ src/runtime/os_linux_be64.go   | 1 +
+ src/runtime/os_linux_noauxv.go | 1 +
+ src/runtime/os_linux_novdso.go | 1 +
+ src/runtime/os_linux_ppc64x.go | 1 +
+ 4 files changed, 4 insertions(+)

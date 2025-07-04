@@ -1,16 +1,19 @@
-commit 05ecf534566c0cd05b4afdaa9619522e4204328e
-Author: Raul Silvera <rsilvera@google.com>
-Date:   Mon Jun 27 19:06:17 2016 -0700
+commit 7f53391f6b7f2387a5ed00398d34b046c321966f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 11 12:22:26 2016 -0700
 
-    net/http/pprof: remove comments pointing to gperftools
+    cmd/compile: fix -N build
     
-    The version of pprof in gperftools has been deprecated.
-    No need to have a pointer to that version since go tool pprof
-    is included with the Go distro.
+    The decomposer of builtin types is confused by having structs
+    still around from the user-type decomposer.  They're all dead though,
+    so just enabling a deadcode pass fixes things.
     
-    Change-Id: I6d769a68f64280f5db89ff6fbc67bfea9c8f1526
-    Reviewed-on: https://go-review.googlesource.com/24509
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2df6bc7e829be03eabfd24c8dda1bff96f3d7091
+    Reviewed-on: https://go-review.googlesource.com/21839
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/pprof/pprof.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/ssa/compile.go   | 6 +++---
+ src/cmd/compile/internal/ssa/decompose.go | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

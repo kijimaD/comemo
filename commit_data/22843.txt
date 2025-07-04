@@ -1,15 +1,12 @@
-commit 169adec231562565c0ee2486b1da832618b584c5
+commit c3ddb970223cd7c8fa86a4ada31f6e00ebde71da
 Author: Shenghou Ma <minux@golang.org>
-Date:   Sun May 3 17:53:19 2015 -0400
+Date:   Fri Apr 10 20:03:28 2015 -0400
 
-    hash/crc32: move reverse representation docs to an example
+    api: update next.txt
     
-    Updates #8229.
-    
-    Change-Id: I3e691479d3659ed1b3ff8ebbb71b4fc03f2e67af
-    Reviewed-on: https://go-review.googlesource.com/9680
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ibfb5a96995a954c8c1dc563c33bdddbdb4866425
+    Reviewed-on: https://go-review.googlesource.com/8765
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/hash/crc32/crc32.go        |  7 -------
- src/hash/crc32/example_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 7 deletions(-)
+ api/next.txt | 696 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 696 insertions(+)

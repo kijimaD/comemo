@@ -1,21 +1,17 @@
-commit 2d5688952db33fc967a23011c22fa8fc71251fb1
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Apr 1 10:55:21 2016 -0400
+commit 36694064e52c721b337f882473280b7da8282d1f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 4 18:16:50 2015 -0700
 
-    cmd/link: keep types together when dynamic linking
+    cmd/compile: disable checknils during alg eq generation
     
-    To refer to types and names by offsets, we want to keep the symbols in
-    the same sections. Do this by making all types .relro for now.
+    Cuts 20k off cmd/go and 32k off golang.org/x/tools/cmd/godoc, approx 0.15% each.
     
-    Once name offsets are further along, name data can move out of relro.
+    For #6853 and #9930
     
-    Change-Id: I1cbd2e914bd180cdf25c4aeb13d9c1c734febe69
-    Reviewed-on: https://go-review.googlesource.com/21394
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ic510b76b80a9153b1ede7b3533d2dbc16caa5c63
+    Reviewed-on: https://go-review.googlesource.com/19768
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/link/internal/ld/data.go   | 2 +-
- src/cmd/link/internal/ld/lib.go    | 2 +-
- src/cmd/link/internal/ld/symtab.go | 6 ++++--
- 3 files changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

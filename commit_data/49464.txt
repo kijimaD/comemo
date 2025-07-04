@@ -1,23 +1,23 @@
-commit 56bc3098f4ed42b272a45c246dcd42d28d89a69a
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jun 10 18:47:37 2022 +0000
+commit 8fff20ffebadfea2c5c3dd58f7007246f3408495
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 17 19:09:33 2021 +1000
 
-    sync: improve linearity test robustness
+    cmd/compile: absorb NEG into branch when possible on riscv64
     
-    This change improves the robustness of the locklinear test in the
-    following ways:
+    We can end up with this situation due to our equality tests being based on
+    'SEQZ (SUB x y)' - if x is a zero valued constant, 'SUB x y' can be converted
+    to 'NEG x'. When used with a branch the SEQZ can be absorbed, leading to
+    'BNEZ (NEG x)' where the NEG is redundant.
     
-    * It removes allocations from the timing, which may be very variable if
-      we're unlucky.
-    * It ensures that goroutines are properly cleaned up before the test
-      function returns, reducing the chance that they bleed into repeat
-      attempts. It also stops timing before this cleanup.
+    Removes around 1700 instructions from the go binary on riscv64.
     
-    Fixes #32986.
-    
-    Change-Id: I3a8096e6922f23d899ad602e2845bdfc639ed742
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409894
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I947a080d8bf7d2d6378ab114172e2342ce2c51db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342850
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/sync/mutex_test.go | 36 +++++++++++++++++++++++++++++-------
- 1 file changed, 29 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

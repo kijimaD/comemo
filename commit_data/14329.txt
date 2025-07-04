@@ -1,26 +1,12 @@
-commit eb2e6e59ee4154d0cfa017d1c1a84c52ed2f624b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Nov 7 16:58:20 2012 +1100
+commit 451b91b4d1e37996129368f8de4b7b5335ac8a5f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 6 15:58:18 2012 -0800
 
-    net: implement IPv6 support for windows
+    CONTRIBUTORS: Add Carl Mastrangelo (Google CLA).
     
-    Thank you zhoumichaely for original CL 5175042.
-    
-    Fixes #1740.
-    Fixes #2315.
-    
-    R=golang-dev, bradfitz, mikioh.mikioh
-    CC=golang-dev, zhoumichaely
-    https://golang.org/cl/6822045
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6812095
 
- src/pkg/net/dialgoogle_test.go            |  7 +++++-
- src/pkg/net/fd_unix.go                    |  3 +++
- src/pkg/net/fd_windows.go                 |  5 +++-
- src/pkg/net/ipsock.go                     |  7 +++++-
- src/pkg/net/ipsock_plan9.go               |  3 +++
- src/pkg/net/lookup_windows.go             | 35 +++++++++++++++++++++++++--
- src/pkg/syscall/syscall_windows.go        | 39 ++++++++++++++++++++++++++++---
- src/pkg/syscall/zsyscall_windows_386.go   | 15 ++++++++++++
- src/pkg/syscall/zsyscall_windows_amd64.go | 15 ++++++++++++
- src/pkg/syscall/ztypes_windows.go         | 17 ++++++++++++++
- 10 files changed, 138 insertions(+), 8 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

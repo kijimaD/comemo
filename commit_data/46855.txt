@@ -1,23 +1,92 @@
-commit 6e0adde1e9467f5a0b9bdbe3d64f9093981ba5df
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Oct 12 12:38:42 2021 -0400
+commit ca18c4205442dc49eb35272b9f4b7f0cd8f2c079
+Merge: a360eeb528 618e3c15bd
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Feb 8 21:22:01 2021 -0500
 
-    cmd/compile: do not reuse dead value in expand_calls pass
+    [dev.typeparams] merge dev.regabi (618e3c1) into dev.typeparams
     
-    We reuse a value for the same selector on the same arg. But if the
-    value is already marked dead, don't reuse it. A use of an
-    OpInvalid will confuse the compiler.
+    This involved a couple non-trivial fixes in go/types:
+     - move the check for main function signature to resolver.go, to be
+       consistent with init. Also, update uses of _InvalidInitSig to
+       _InvalidInitDecl, consistent with what we decided for dev.regabi.
+     - Update some tests in api_test.go which newly fail after CL 289715
+       (fixing reporting of untyped nil) In all cases but one, these updates
+       were consistent with types2. However, in one case types2 seems to be
+       able to resolve more type information than go/types for a broken
+       package. I left a TODO to investigate this further.
     
-    Fixes #48916.
-    
-    Change-Id: I15b9e15b49f6e1991fe91df246cd12a193385e85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355409
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I8244b7c81654194edd5af8de689a13c262117dff
 
- src/cmd/compile/internal/ssa/expand_calls.go | 10 ++++++--
- test/fixedbugs/issue48916.go                 | 37 ++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 2 deletions(-)
+ doc/go1.16.html                                 |    2 +
+ src/cmd/asm/internal/arch/arch.go               |    4 +
+ src/cmd/asm/internal/asm/operand_test.go        |    1 +
+ src/cmd/compile/internal/amd64/ggen.go          |    4 +-
+ src/cmd/compile/internal/amd64/ssa.go           |  104 +-
+ src/cmd/compile/internal/ssa/config.go          |    4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |   28 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   83 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go     |    1 +
+ src/cmd/compile/internal/ssa/op.go              |    4 +-
+ src/cmd/compile/internal/ssa/opGen.go           | 2287 ++++++++++++-----------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    |  116 +-
+ src/cmd/compile/internal/ssagen/abi.go          |   15 +-
+ src/cmd/compile/internal/ssagen/ssa.go          |    5 +-
+ src/cmd/dist/build.go                           |    2 +
+ src/cmd/internal/obj/link.go                    |   64 +-
+ src/cmd/internal/obj/x86/a.out.go               |    1 +
+ src/cmd/internal/obj/x86/obj6.go                |   29 +-
+ src/cmd/internal/objabi/path.go                 |    2 +
+ src/cmd/link/internal/ld/lib.go                 |   44 +-
+ src/crypto/x509/internal/macos/corefoundation.s |   21 +-
+ src/crypto/x509/internal/macos/security.s       |   11 +-
+ src/embed/embed.go                              |   18 +-
+ src/go/types/api_test.go                        |   66 +-
+ src/go/types/assignments.go                     |    1 +
+ src/go/types/conversions.go                     |    4 +-
+ src/go/types/decl.go                            |   14 +
+ src/go/types/errorcodes.go                      |    7 +-
+ src/go/types/expr.go                            |    3 +-
+ src/go/types/resolver.go                        |   12 +-
+ src/go/types/testdata/main.src                  |    9 +
+ src/go/types/testdata/vardecl.src               |   14 +-
+ src/io/fs/fs.go                                 |    1 +
+ src/math/big/nat.go                             |    2 +-
+ src/runtime/asm.s                               |    5 +
+ src/runtime/asm_386.s                           |   19 -
+ src/runtime/asm_amd64.s                         |   93 +-
+ src/runtime/asm_arm.s                           |   17 -
+ src/runtime/asm_arm64.s                         |   17 -
+ src/runtime/asm_mips64x.s                       |   15 -
+ src/runtime/asm_mipsx.s                         |   15 -
+ src/runtime/asm_ppc64x.s                        |   17 -
+ src/runtime/asm_riscv64.s                       |   15 -
+ src/runtime/asm_s390x.s                         |   15 -
+ src/runtime/cgo/gcc_amd64.S                     |    7 +-
+ src/runtime/cgo/gcc_darwin_amd64.c              |   11 +-
+ src/runtime/cgo/gcc_dragonfly_amd64.c           |    7 +-
+ src/runtime/cgo/gcc_freebsd_amd64.c             |    7 +-
+ src/runtime/cgo/gcc_linux_amd64.c               |    7 +-
+ src/runtime/cgo/gcc_netbsd_amd64.c              |    7 +-
+ src/runtime/cgo/gcc_openbsd_amd64.c             |    7 +-
+ src/runtime/cgo/gcc_solaris_amd64.c             |    7 +-
+ src/runtime/cgo/gcc_windows_amd64.c             |   10 +-
+ src/runtime/cgo/libcgo.h                        |    2 +-
+ src/runtime/duff_amd64.s                        |  128 +-
+ src/runtime/histogram.go                        |    2 +-
+ src/runtime/metrics/example_test.go             |    2 +-
+ src/runtime/mkduff.go                           |   14 +-
+ src/runtime/race_amd64.s                        |   26 +-
+ src/runtime/signal_amd64.go                     |    7 +-
+ src/runtime/stubs.go                            |    5 +-
+ src/runtime/sys_darwin_amd64.s                  |   96 +-
+ src/runtime/sys_linux_amd64.s                   |   17 +
+ src/syscall/exec_plan9.go                       |    5 +-
+ src/syscall/mkasm.go                            |    3 +-
+ src/syscall/zsyscall_darwin_amd64.s             |  250 +--
+ src/syscall/zsyscall_darwin_arm64.s             |  250 +--
+ src/syscall/zsyscall_openbsd_amd64.s            |  230 +--
+ src/syscall/zsyscall_openbsd_arm64.s            |  230 +--
+ src/testing/fstest/testfs.go                    |   25 +-
+ src/testing/fstest/testfs_test.go               |   31 +
+ test/codegen/structs.go                         |    4 +-
+ 72 files changed, 2393 insertions(+), 2215 deletions(-)

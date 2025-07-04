@@ -1,16 +1,21 @@
-commit f9dbbdb1d330865b3a2a363badba280179cc0d53
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Feb 15 15:52:54 2013 +1100
+commit e49f94560346696fe326f307ba24f1be951d2a6d
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Feb 14 23:37:14 2013 -0500
 
-    mime: use .wav instead of .bmp during windows tests
+    runtime: expand error for signal received on non-Go thread.
     
-    Some systems do not have .bmp mime.
+    We call runtime.findnull dynamically to avoid exceeding the
+    static nosplit stack limit check.  (Thanks minux!)
     
-    Update #4723.
+    Fixes #4048.
     
-    R=golang-dev, bradfitz, dave
+    R=rsc, minux.ma, ality
     CC=golang-dev
-    https://golang.org/cl/7326047
+    https://golang.org/cl/7232066
 
- src/pkg/mime/type_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/thread_darwin.c  | 8 +++++++-
+ src/pkg/runtime/thread_freebsd.c | 8 +++++++-
+ src/pkg/runtime/thread_linux.c   | 8 +++++++-
+ src/pkg/runtime/thread_netbsd.c  | 8 +++++++-
+ src/pkg/runtime/thread_openbsd.c | 8 +++++++-
+ 5 files changed, 35 insertions(+), 5 deletions(-)

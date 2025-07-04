@@ -1,17 +1,29 @@
-commit 297d1d736e3e6db6fa390dd54b1e3de9ea8f1fba
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Jul 9 17:09:35 2016 -0700
+commit d0e8d3a7ae2194b1753bc4e419d5f00aa2d5cb86
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Apr 2 16:47:51 2016 -0700
 
-    net/http: use keyed composite literal
+    compress/gzip: fix Reader to properly check FHCRC
     
-    Makes vet happy.
+    RFC 1952, section 3.2.3 says:
+    >>>
+    If FHCRC is set, a CRC16 for the gzip header is present,
+    immediately before the compressed data. The CRC16 consists of the two
+    least significant bytes of the CRC32 for all bytes of the
+    gzip header up to and not including the CRC16.
+    <<<
     
-    Updates #11041
+    Thus, instead of computing the CRC only over the first 10 bytes
+    of the header, we compute it over the whole header (minus CRC16).
     
-    Change-Id: I23ca413c03ff387359440af8114786cd7880a048
-    Reviewed-on: https://go-review.googlesource.com/27124
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #15070
+    
+    Change-Id: I55703fd30b535b12abeb5e3962d4da0a86ed615a
+    Reviewed-on: https://go-review.googlesource.com/21466
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transfer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/compress/gzip/gunzip.go      | 121 ++++++++++++++++++---------------------
+ src/compress/gzip/gunzip_test.go |  47 +++++++++++++++
+ src/compress/gzip/gzip.go        |  21 ++-----
+ 3 files changed, 107 insertions(+), 82 deletions(-)

@@ -1,26 +1,34 @@
-commit b7a85e0003cedb1b48a1fd3ae5b746ec6330102e
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Jul 7 16:34:34 2021 -0700
+commit 4da41fb3f8aa2e81b6ed371b617643042ba5e170
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 21:18:48 2020 -0500
 
-    net/http/httputil: close incoming ReverseProxy request body
+    [dev.regabi] cmd/compile: use ir.Copy instead of direct use of RawCopy
     
-    Reading from an incoming request body after the request handler aborts
-    with a panic can cause a panic, becuse http.Server does not (contrary
-    to its documentation) close the request body in this case.
+    The ONIL export bug happened because the logic about
+    maintaining an “implicit” orig pointer in the comments
+    around ir.Orig only applies to Copy and SepCopy, not to
+    direct use of RawCopy. I'd forgotten those could exist.
     
-    Always close the incoming request body in ReverseProxy.ServeHTTP to
-    ensure that any in-flight outgoing requests using the body do not
-    read from it.
+    The sole direct use of RawCopy was for the OLITERAL/ONIL case.
+    The ONIL is now provably indistinguishable from Copy, since
+    NilExpr does not have an explicit Orig field, so for NilExpr
+    RawCopy and Copy are the same.
+    The OLITERAL is not, but we can reconstruct the effect
+    with Copy+SetOrig to be explicit that we need the orig link.
     
-    Updates #46866
-    Fixes CVE-2021-36221
+    The next CL will unexport RawCopy.
     
-    Change-Id: I310df269200ad8732c5d9f1a2b00de68725831df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/333191
-    Trust: Damien Neil <dneil@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Also fix a typo in MapType doc comment.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I876a85ff188e6d1cd4c0dfa385be32482e0de0d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274292
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/net/http/httputil/reverseproxy.go      |  9 +++++++
- src/net/http/httputil/reverseproxy_test.go | 39 ++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ src/cmd/compile/internal/gc/const.go | 7 ++++++-
+ src/cmd/compile/internal/ir/type.go  | 2 +-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

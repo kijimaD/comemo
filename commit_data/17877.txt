@@ -1,16 +1,12 @@
-commit c72bce901eb0e6be6bc544ace561a1ce88209cb8
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Nov 13 11:53:01 2013 +1100
+commit 885e462e474ba2fa940af331085f73715753b77d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 12 10:03:13 2013 -0800
 
-    doc: use the same wording for OS X as the other OSes
+    CONTRIBUTORS: add additional e-mail address for Richard Musiol
     
-    I used "and above" when I should have said "or later".
-    
-    Sorry for the churn.
-    
-    R=golang-dev, bradfitz
+    R=adonovan
     CC=golang-dev
-    https://golang.org/cl/25670043
+    https://golang.org/cl/25360043
 
- doc/install.html | 2 +-
+ CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

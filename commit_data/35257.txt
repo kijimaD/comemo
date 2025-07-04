@@ -1,21 +1,17 @@
-commit 3c0bf181b79406a71b7b2fd22b4d222722b96649
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu May 3 12:28:43 2018 +0200
+commit c46952172dbf4a134d423134e404bd518568e99a
+Author: Kyle Shannon <kyle@pobox.com>
+Date:   Tue Jan 23 17:54:57 2018 -0700
 
-    strconv: simplify and optimize Itoa(small)
+    lib/time: follow redirects in curl
     
-    Use substring of digits for values < 10.
+    Starting on or about the 2018c archives, www.iana.org is redirected to
+    data.iana.org.  Tell curl to follow the redirect.
     
-    name                 old time/op  new time/op  delta
-    FormatIntSmall/7-4   4.54ns ± 1%  3.70ns ± 1%  -18.41%  (p=0.000 n=18+17)
-    FormatIntSmall/42-4  4.54ns ± 1%  4.13ns ± 1%   -9.02%  (p=0.000 n=16+18)
+    Updates: #22487
     
-    Change-Id: I0b521b563c13ef88aa2701049fa4a43760e884af
-    Reviewed-on: https://go-review.googlesource.com/111285
+    Change-Id: I00acada1a3ba01ef701d6d4ffae6cc2cbb6a068f
+    Reviewed-on: https://go-review.googlesource.com/89375
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/strconv/itoa.go      |  5 ++---
- src/strconv/itoa_test.go | 12 ++++++++----
- 2 files changed, 10 insertions(+), 7 deletions(-)
+ lib/time/update.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

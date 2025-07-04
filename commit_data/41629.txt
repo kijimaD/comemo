@@ -1,21 +1,23 @@
-commit 1f231d74f6e6b7ce1ccdbf49fc12b022dd875196
-Author: Johan Jansson <johan.jansson@iki.fi>
-Date:   Wed Mar 11 21:05:21 2020 +0200
+commit 02196d36575636a64f868ee0ffe6bb61442e7245
+Author: Eugene Kalinin <e.v.kalinin@gmail.com>
+Date:   Fri Jun 28 23:59:49 2019 +0300
 
-    runtime: emit more specific errors from checkptr
+    encoding/json: correct caller's name in encoding errors
     
-    Update error messages for pointer alignment checks and pointer
-    arithmetic checks so that each type of error has a unique error
-    message.
+    1. Change mapencode.encode to use fmt.Error rather than MarshalerError.
+    MarshalerError refer to MarshalJSON, but mapencode.encode does not use that.
     
-    Fixes #37488
+    2. Add sourceFunc field to MarshalerError to record the name of the function
+    that creates the error, so that the Error method can report it correctly.
     
-    Change-Id: Ida2c2fa3f041a3307d665879a463f9e8f2c1fd03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223037
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #29753
+    
+    Change-Id: I186c2fac8470ae2f9e300501de3730face642230
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184119
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/checkptr.go      | 8 ++++----
- src/runtime/checkptr_test.go | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/encoding/json/encode.go      | 24 ++++++++++++++++--------
+ src/encoding/json/encode_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 8 deletions(-)

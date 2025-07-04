@@ -1,24 +1,23 @@
-commit 68a98d52794fc324841f62732411f6bba23fc62c
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Mar 22 08:14:45 2019 -0400
+commit f2cd0fa7b773eabcce1b99874188aedcf9acb1ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 3 09:33:31 2018 -0700
 
-    cmd/compile: better handling for PAUTOHEAP in DWARF inline gen
+    cmd/compile/internal/gc: don't print "internal error" twice
     
-    When generating DWARF inline info records, the post-SSA code looks
-    through the original "pre-inline" dcl list for the function so as to
-    handle situations where formal params are promoted or optimized away.
-    This code was not properly handling the case where an output parameter
-    was promoted to the heap -- in this case the param node is converted
-    in place from class PPARAMOUT to class PAUTOHEAP. This caused
-    inconsistencies later on, since the variable entry in the abstract
-    subprogram DIE wound up as a local and not an output parameter.
+    The Fatalf mechanism already prints "compiler internal error:"
+    when reporting an error. There's no need to have "internal error"
+    in the error message passed to Fatalf calls. Removed them.
     
-    Fixes #30908.
+    Fixes #28575.
     
-    Change-Id: Ia70b89f0cf7f9b16246d95df17ad6e307228b8c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168818
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I12b1bea37bc839780f257c27ef9e2005bf334925
+    Reviewed-on: https://go-review.googlesource.com/c/147287
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/compile/internal/gc/dwinl.go |  2 +-
- src/cmd/compile/internal/gc/pgen.go  | 16 +++++++++++++++-
- 2 files changed, 16 insertions(+), 2 deletions(-)
+ src/cmd/compile/fmt_test.go            | 60 ++++++++++++++++++----------------
+ src/cmd/compile/internal/gc/dwinl.go   |  2 +-
+ src/cmd/compile/internal/gc/iexport.go |  2 +-
+ src/cmd/compile/internal/gc/plive.go   |  6 ++--
+ 4 files changed, 36 insertions(+), 34 deletions(-)

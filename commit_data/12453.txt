@@ -1,15 +1,20 @@
-commit c10650979f3d66f231b8e69e1cd8293cde4ca778
+commit 85ae6a18b5878a3fecd62ffc6887906e0c8c4d15
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 00:02:07 2012 -0500
+Date:   Wed Mar 7 00:01:57 2012 -0500
 
-    net: disable another external network test
+    cmd/go: fix run errors
     
-    I don't know enough about multicast.
-    Should this be disabled on all systems, not just Windows?
+    $ go run
+    go run: no go files listed
+    $ go run ../../pkg/math/bits.go
+    go run: cannot run non-main package
+    $
     
-    R=golang-dev
+    Fixes #3168.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5754060
+    https://golang.org/cl/5755064
 
- src/pkg/net/multicast_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/go/run.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

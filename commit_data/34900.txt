@@ -1,27 +1,20 @@
-commit 07029254a0f8991fb93f0838e469d2fcff514e0f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 5 14:29:32 2018 -0700
+commit 4aa5dcc2592587c9ef98a9526b26e0dfb5470bf8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Nov 23 18:21:52 2017 +1100
 
-    cmd/compile: add package height to export data
+    internal/poll: do not use Windows TransmitFile with pipes
     
-    A package's height is defined as the length of the longest import path
-    between itself and a leaf package (i.e., package with no imports).
+    It appears that TransmitFile Windows API does not work with Windows
+    pipes. So just copy data from pipe and into TCP connection manually.
     
-    We can't rely on knowing the path of the package being compiled, so
-    package height is useful for defining a package ordering.
+    Fixes #22278
     
-    Updates #24693.
-    
-    Change-Id: I965162c440b6c5397db91b621ea0be7fa63881f1
-    Reviewed-on: https://go-review.googlesource.com/105038
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4810caca5345eac5bffb3176956689b8ae993256
+    Reviewed-on: https://go-review.googlesource.com/79775
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  4 +++-
- src/cmd/compile/internal/gc/bimport.go | 21 +++++++++++++++++++--
- src/cmd/compile/internal/gc/main.go    | 13 +++++++++++++
- src/cmd/compile/internal/gc/noder.go   |  2 ++
- src/cmd/compile/internal/types/pkg.go  | 24 +++++++++++++++++-------
- src/go/internal/gcimporter/bimport.go  |  7 +++++--
- 6 files changed, 59 insertions(+), 12 deletions(-)
+ src/internal/poll/sendfile_windows.go |  9 +++++
+ src/net/tcpsock_test.go               | 72 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+)

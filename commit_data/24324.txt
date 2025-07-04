@@ -1,21 +1,22 @@
-commit c742ff6adc1487fbdbeca7e71fa61d80bbb41624
-Author: Austin Clements <austin@google.com>
-Date:   Fri Sep 18 21:17:07 2015 -0400
+commit 7334cb3a6fe75ab8343d397041dd94ec935b942b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 20:20:05 2015 -0400
 
-    runtime: remove flaky TestInvalidptrCrash to fix build
+    runtime/trace: fix TestTraceSymbolize networking
     
-    This test fails on arm64 and some amd64 OSs and fails on Linux/amd64
-    if you remove the first runtime.GC(), which should be unnecessary, and
-    run it in all.bash (but not if you run it in isolation). I don't
-    understand any of these failures, so for now just remove this test.
+    We use 127.0.0.1 instead of localhost in Go networking tests.
+    The reporter of #11774 has localhost defined to be 120.192.83.162,
+    for reasons unknown.
     
-    TBR=rlh
+    Also, if TestTraceSymbolize calls Fatalf (for example because Listen
+    fails) then we need to stop the trace for future tests to work.
+    See failure log in #11774.
     
-    Change-Id: Ibed00671126000ed7dc5b5d4af1f86fe4a1e30e1
-    Reviewed-on: https://go-review.googlesource.com/14767
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #11774.
+    
+    Change-Id: Iceddb03a72d31e967acd2d559ecb78051f9c14b7
+    Reviewed-on: https://go-review.googlesource.com/12521
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/crash_test.go | 37 -------------------------------------
- 1 file changed, 37 deletions(-)
+ src/runtime/trace/trace_stack_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

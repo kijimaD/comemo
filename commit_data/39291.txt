@@ -1,15 +1,16 @@
-commit ee46250e06eeaaf40a4b7610a9c7e51e11c8895e
-Author: frennkie <mail@rhab.de>
-Date:   Sun Jun 2 12:10:58 2019 +0000
+commit 165a8d93cde73208487d854b71fc4142f2c39c6b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 19 14:43:52 2019 -0500
 
-    net: fix the doc string on parseIPv6
+    cmd/vet: do not write test vet binary to GOROOT
     
-    Change-Id: Ie9fef7767f3263ef7daed8415ab2f59c5377a3cb
-    GitHub-Last-Rev: a4d13b7452f0fe060cb7575acfc200e3353fdde0
-    GitHub-Pull-Request: golang/go#32385
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180037
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #28387
+    
+    Change-Id: Ie5a5f1f798eb5900f9c7bdef165abcca02dd0dde
+    Reviewed-on: https://go-review.googlesource.com/c/163037
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/ip.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vet/vet_test.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

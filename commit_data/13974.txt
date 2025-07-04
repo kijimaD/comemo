@@ -1,14 +1,12 @@
-commit 617b7cf166a99e1fe3326b6fc6985be9f83e51ca
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Sep 27 08:34:00 2012 +0200
+commit 348e31f8f70f9e06d90aa03419907ce91122c402
+Author: Josh Holland <jrh@joshh.co.uk>
+Date:   Thu Sep 27 15:47:54 2012 +1000
 
-    cmd/[568]g: header cleanup.
+    text/template: fix typo of errorf as error in comment.
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/6573059
+    R=r, minux.ma
+    CC=gobot, golang-dev
+    https://golang.org/cl/6506120
 
- src/cmd/5g/gg.h |  3 ---
- src/cmd/6g/gg.h |  7 +++----
- src/cmd/8g/gg.h | 11 ++++++-----
- 3 files changed, 9 insertions(+), 12 deletions(-)
+ src/pkg/text/template/parse/lex.go | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)

@@ -1,42 +1,20 @@
-commit 684332f47cff7a2aff1fddfe8b002ed07fb6e4a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 13 03:54:55 2014 +0000
+commit 5bf35df491cb41b696979764be7dddaf128781ba
+Author: Robert Sesek <rsesek@google.com>
+Date:   Thu Feb 13 11:04:13 2014 +1100
 
-    cmd/5g: fix regopt bug in copyprop
+    debug/macho: Add support for opening fat/universal binaries.
     
-    copyau1 was assuming that it could deduce the type of the
-    middle register p->reg from the type of the left or right
-    argument: in CMPF F1, F2, the p->reg==2 must be a D_FREG
-    because p->from is F1, and in CMP R1, R2, the p->reg==2 must
-    be a D_REG because p->from is R1.
+    New testdata was created from existing using:
+    $ lipo gcc-386-darwin-exec gcc-amd64-darwin-exec -create -output fat-gcc-386-amd64-darwin-exec
     
-    This heuristic fails for CMP $0, R2, which was causing copyau1
-    not to recognize p->reg==2 as a reference to R2, which was
-    keeping it from properly renaming the register use when
-    substituting registers.
+    Fixes #7250.
     
-    cmd/5c has the right approach: look at the opcode p->as to
-    decide the kind of register. It is unclear where 5g's copyau1
-    came from; perhaps it was an attempt to avoid expanding 5c's
-    a2type to include new instructions used only by 5g.
-    
-    Copy a2type from cmd/5c, expand to include additional instructions,
-    and make it crash the compiler if asked about an instruction
-    it does not understand (avoid silent bugs in the future if new
-    instructions are added).
-    
-    Should fix current arm build breakage.
-    
-    While we're here, fix the print statements dumping the pred and
-    succ info in the asm listing to pass an int arg to %.4ud
-    (Prog.pc is a vlong now, due to the liblink merge).
-    
-    TBR=ken2
+    LGTM=dave
+    R=golang-codereviews, dave, josharian, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/62730043
+    https://golang.org/cl/60190043
 
- src/cmd/5g/peep.c | 88 +++++++++++++++++++++++++++++++++++++++++--------------
- src/cmd/5g/reg.c  |  6 ++--
- src/cmd/6g/reg.c  |  4 +--
- src/cmd/8g/reg.c  |  4 +--
- 4 files changed, 73 insertions(+), 29 deletions(-)
+ src/pkg/debug/macho/fat.go       | 146 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/debug/macho/file_test.go |  43 ++++++++++++
+ src/pkg/debug/macho/macho.go     |  13 ++--
+ 3 files changed, 197 insertions(+), 5 deletions(-)

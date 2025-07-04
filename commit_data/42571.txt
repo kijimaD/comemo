@@ -1,23 +1,15 @@
-commit 12c01f7698cd257b7d2e4795b0f8a971ec8533b6
+commit 316fd8cc4a7fab2e1bb45848bc30ea8b8a0b231a
 Author: Keith Randall <khr@golang.org>
-Date:   Fri Jun 26 16:38:40 2020 -0700
+Date:   Tue Jan 14 09:50:43 2020 -0800
 
-    runtime: ensure arenaBaseOffset makes it into DWARF (for viewcore)
+    cmd/compile: mark ... argument to checkptrArithmetic as not escaping
     
-    This constant does not make it into DWARF because it is an ideal
-    constant larger than maxint (1<<63-1). DWARF has no way to represent
-    signed values that large. Define a different typed constant that
-    is unsigned and so can represent this constant properly.
+    Fixes #36516
     
-    Viewcore needs this constant to interrogate the heap data structures.
-    In addition, the sign of arenaBaseOffset changed in 1.15, and providing
-    a new name lets viewcore detect the sign change easily.
-    
-    Change-Id: I4274a2f6e79ebbf1411e85d64758fac1672fb96b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240198
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ibf4f86fb3a25fa30e0cd54e2dd2e12c60ee75ddb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214679
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/malloc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 14 ++++++++++----
+ test/fixedbugs/issue36516.go        | 27 +++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 4 deletions(-)

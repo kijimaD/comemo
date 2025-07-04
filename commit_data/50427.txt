@@ -1,22 +1,28 @@
-commit 2caaad942e15c148bfce33e06baa03d3a1557fcd
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Sep 7 20:31:00 2022 +0000
+commit adfb85b3150d5ebe36440f82d83be88403951319
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Jan 4 17:53:37 2021 +0800
 
-    runtime: use searchIdx in scavengeOne
+    runtime, runtime/asan: add asan runtime support
     
-    This is an optimization that prevents N^2 behavior within a chunk, but
-    was accidentally skipped. There should be no functional change as a
-    result of this CL.
+    These are the runtime support functions for letting Go code interoperate
+    with the C/C++ address sanitizer. Calls to asanread/asanwrite are now
+    inserted by the compiler with the -asan option.  Calls to
+    asanunpoison/asanpoison will be from other runtime functions in a
+    subsequent CL.
     
-    Fixes #54892.
+    Updates #44853.
     
-    Change-Id: I861967a2268699fdc3464bd41bc56618b5628e6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429255
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I9e8fc0ce937828bc7f4a8b6637453ddc3862c47b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298613
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcscavenge.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/build/deps_test.go |  2 +-
+ src/runtime/asan.go       | 43 +++++++++++++++++++++++++++
+ src/runtime/asan/asan.go  | 52 ++++++++++++++++++++++++++++++++
+ src/runtime/asan0.go      | 23 ++++++++++++++
+ src/runtime/asan_amd64.s  | 76 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/asan_arm64.s  | 63 +++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 258 insertions(+), 1 deletion(-)

@@ -1,17 +1,27 @@
-commit 9b8cdad8aa619beb3be7e912fcb23a76cb73e622
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 11 16:45:01 2011 -0700
+commit f4cb96b4380efa8e78431124dabb6d654f05b705
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 11 16:41:48 2011 -0700
 
-    exp/spdy: move http/spdy to exp/spdy
+    container/vector: delete
+    Slices are better:
+    http://code.google.com/p/go-wiki/wiki/SliceTricks
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5238051
+    https://golang.org/cl/5248060
 
- src/pkg/Makefile                        | 2 +-
- src/pkg/{http => exp}/spdy/Makefile     | 2 +-
- src/pkg/{http => exp}/spdy/read.go      | 0
- src/pkg/{http => exp}/spdy/spdy_test.go | 0
- src/pkg/{http => exp}/spdy/types.go     | 0
- src/pkg/{http => exp}/spdy/write.go     | 0
- 6 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/goinstall/main.go                     |   2 +-
+ src/pkg/Makefile                              |   2 -
+ src/pkg/container/vector/Makefile             |  69 ------
+ src/pkg/container/vector/defs.go              |  43 ----
+ src/pkg/container/vector/intvector.go         | 188 ---------------
+ src/pkg/container/vector/intvector_test.go    | 331 --------------------------
+ src/pkg/container/vector/nogen_test.go        |  67 ------
+ src/pkg/container/vector/numbers_test.go      | 123 ----------
+ src/pkg/container/vector/stringvector.go      | 188 ---------------
+ src/pkg/container/vector/stringvector_test.go | 331 --------------------------
+ src/pkg/container/vector/vector.go            | 188 ---------------
+ src/pkg/container/vector/vector_test.go       | 331 --------------------------
+ src/pkg/old/template/template_test.go         |   7 +-
+ test/vectors.go                               |  64 -----
+ 14 files changed, 3 insertions(+), 1931 deletions(-)

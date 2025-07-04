@@ -1,14 +1,14 @@
-commit 9acd2d60e76649663a1e64b1ad00d2173c68c5fe
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 26 15:25:16 2019 -0400
+commit 1f3d38fdaaff88d7ce711612fbe9b7fc7182efd7
+Author: Ketan Parmar <ketanbparmar@gmail.com>
+Date:   Fri Feb 8 11:58:23 2019 +0530
 
-    misc/cgo/errors: fix TestPointerChecks when GO111MODULE=on
+    bytes: add examples for ToTitleSpecial, ToUpperSpecial and ToLowerSpecial
     
-    Change-Id: I4e9e46f03c9c43df1d0c6995f3baedd2e1a04c6a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183985
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If700a150492181f68e23e90ef829ff9eaf7ca7b5
+    Reviewed-on: https://go-review.googlesource.com/c/161737
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- misc/cgo/errors/ptr_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/bytes/example_test.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

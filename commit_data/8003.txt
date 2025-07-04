@@ -1,16 +1,26 @@
-commit c45a08e5ba4dca55bbc4e8156092d0f8d7357ced
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Wed Apr 6 16:19:22 2011 -0400
+commit cf56f06ab6d79ab2bf189081482329d22c609952
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 6 15:44:40 2011 -0400
 
-    syscall: Add DT_* and MADV_* constants on Linux.
+    os, syscall: refactor Unix directory parsing
     
-    R=rsc, agl1
+    Moved the details of how to read a directory
+    and how to parse the results behind the new
+    syscall functions ReadDirent and ParseDirent.
+    
+    Now os needs just one copy of Readdirnames
+    for the three Unix variants, and it no longer
+    imports "unsafe".
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4370041
+    https://golang.org/cl/4368048
 
- src/pkg/syscall/mkerrors.sh            |  2 +-
- src/pkg/syscall/zerrors_linux_386.go   | 20 ++++++++++++++++++++
- src/pkg/syscall/zerrors_linux_amd64.go | 20 ++++++++++++++++++++
- src/pkg/syscall/zsysnum_linux_386.go   |  2 +-
- src/pkg/syscall/zsysnum_linux_amd64.go |  2 +-
- 5 files changed, 43 insertions(+), 3 deletions(-)
+ src/pkg/os/Makefile                       |  6 ++-
+ src/pkg/os/dir_freebsd.go                 | 65 -----------------------------
+ src/pkg/os/dir_linux.go                   | 68 -------------------------------
+ src/pkg/os/{dir_darwin.go => dir_unix.go} | 32 ++++-----------
+ src/pkg/os/os_test.go                     |  3 +-
+ src/pkg/syscall/syscall_bsd.go            | 35 ++++++++++++++++
+ src/pkg/syscall/syscall_linux.go          | 34 ++++++++++++++++
+ 7 files changed, 83 insertions(+), 160 deletions(-)

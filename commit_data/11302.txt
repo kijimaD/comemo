@@ -1,12 +1,16 @@
-commit 14d7e869ebd37d0dbe14c884eb97fec39485aeb0
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Fri Jan 20 14:44:05 2012 -0800
+commit 0a1376a1df34d84a85ca7195f0499f012e62275d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 20 14:28:48 2012 -0800
 
-    doc: fix typo in Go for C++ programmers
+    doc/go1: rearrange a bit, sort the packages
+    This should make it easier to add the zillion little changes coming.
+    No content change here beyond a couple of introductory sentences.
+    Sections have been moved wholesale without editing them.
     
-    R=iant
+    R=golang-dev, rsc, gri
     CC=golang-dev
-    https://golang.org/cl/5555062
+    https://golang.org/cl/5557074
 
- doc/go_for_cpp_programmers.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.html | 545 +++++++++++++++++++++++++++++++++--------------------------
+ doc/go1.tmpl | 510 +++++++++++++++++++++++++++++--------------------------
+ 2 files changed, 569 insertions(+), 486 deletions(-)

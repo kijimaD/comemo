@@ -1,14 +1,18 @@
-commit 01ca4da0efc6036bf22a99593a583c1efc2750c5
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 11:02:45 2016 -0500
+commit 3534e2bef494da0dfb9de5be2d055d45611127b3
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Aug 27 21:09:46 2015 +1200
 
-    doc: mention ServeFile change in go1.6.html
+    cmd/internal/obj, cmd/link: access global data via a GOT in -dynlink mode on arm64
     
-    Also fix a few bad links.
-    
-    Change-Id: If04cdd312db24a827a3c958a9974c50ab148656c
-    Reviewed-on: https://go-review.googlesource.com/18979
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6ca9406207e40c7c2c661075ccfe57b6600235cf
+    Reviewed-on: https://go-review.googlesource.com/13997
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.6.html | 30 +++++++++++++++++++-----------
- 1 file changed, 19 insertions(+), 11 deletions(-)
+ src/cmd/internal/obj/arm64/a.out.go   |   3 +
+ src/cmd/internal/obj/arm64/anames7.go |   1 +
+ src/cmd/internal/obj/arm64/asm7.go    |  14 ++++
+ src/cmd/internal/obj/arm64/obj7.go    | 117 ++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/link.go          |   6 ++
+ src/cmd/link/internal/arm64/asm.go    |  11 +++-
+ src/cmd/link/internal/ld/elf.go       |   6 ++
+ 7 files changed, 156 insertions(+), 2 deletions(-)

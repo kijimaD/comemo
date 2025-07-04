@@ -1,21 +1,14 @@
-commit eaf603601bf79216772ba36a9b981f21b50ade96
-Author: Zhengyu He <hzy@google.com>
-Date:   Thu Nov 2 13:39:14 2017 -0700
+commit 34920b8713fa93ee50ee8963949728c1569e6017
+Author: Martins Sipenko <martins.sipenko@gmail.com>
+Date:   Fri May 26 14:35:29 2017 +0300
 
-    runtime: fix GNU/Linux getproccount if sched_getaffinity does not return a multiple of 8
+    crypto/x509: add PublicKeyAlgorithm.String()
     
-    The current code can potentially return a smaller processor count on a
-    linux kernel when its cpumask_size (controlled by both kernel config and
-    boot parameter) is not a multiple of the pointer size, because
-    r/sys.PtrSize will be rounded down. Since sched_getaffinity returns the
-    size in bytes, we can just allocate the buf as a byte array to avoid the
-    extra calculation with the pointer size and roundups.
-    
-    Change-Id: I0c21046012b88d8a56b5dd3dde1d158d94f8eea9
-    Reviewed-on: https://go-review.googlesource.com/75591
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I77d9c77875519d77bac49cc8870c2e0c4563fe55
+    Reviewed-on: https://go-review.googlesource.com/44313
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/runtime/os_linux.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/crypto/x509/x509.go | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)

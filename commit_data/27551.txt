@@ -1,20 +1,28 @@
-commit 36a80c5941ec36d9c44d6f3c068d13201e023b5f
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 27 00:56:19 2016 -0400
+commit 58394fd7d56ff233a5e32aa3001ec8ad5988e8f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 1 08:33:25 2016 -0700
 
-    cmd/compile: clean up, document Node closure fields
+    runtime/cgo: only build _cgo_callers if x_cgo_callers is defined
     
-    Requested during CL 23431.
+    Fixes a problem when using the external linker on Solaris.  The Solaris
+    external linker still doesn't work due to issue #14957.
     
-    Change-Id: I513ae42166b3a9fcfe51231ff55c163ab672e7d2
-    Reviewed-on: https://go-review.googlesource.com/23485
-    Reviewed-by: David Chase <drchase@google.com>
+    The problem is, for example, with `go test cmd/objdump`:
+    
+            objdump_test.go:71: go build fmthello.go: exit status 2
+                    # command-line-arguments
+                    /var/gcc/iant/go/pkg/tool/solaris_amd64/link: running gcc failed: exit status 1
+                    Undefined                       first referenced
+                     symbol                             in file
+                    x_cgo_callers                       /tmp/go-link-355600608/go.o
+                    ld: fatal: symbol referencing errors
+                    collect2: error: ld returned 1 exit status
+    
+    Change-Id: I54917cfd5c288ee77ea25c439489bd2c9124fe73
+    Reviewed-on: https://go-review.googlesource.com/21392
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/closure.go   | 49 ++++++++++++++----
- src/cmd/compile/internal/gc/dcl.go       | 23 +++++----
- src/cmd/compile/internal/gc/esc.go       |  8 +--
- src/cmd/compile/internal/gc/fmt.go       |  2 +-
- src/cmd/compile/internal/gc/gen.go       |  2 +-
- src/cmd/compile/internal/gc/syntax.go    | 89 ++++++++++++++++++++++++++++----
- src/cmd/compile/internal/gc/typecheck.go | 16 +++---
- 7 files changed, 144 insertions(+), 45 deletions(-)
+ src/runtime/cgo/callbacks.go           |  8 --------
+ src/runtime/cgo/callbacks_traceback.go | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 8 deletions(-)

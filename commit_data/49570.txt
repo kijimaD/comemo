@@ -1,23 +1,22 @@
-commit 31b8c23c5702f129aca9241bbb2132c90b1929cc
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jun 29 13:22:59 2022 -0700
+commit 6df3aac4ae8d0ca695751ef828a500cd438b00f9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 28 15:27:55 2021 +0700
 
-    cmd/compile: fix prove pass when upper condition is <= maxint
+    cmd/compile: fix offset-generator for storeOneLoad
     
-    When the terminating condition is <= X, we need to make sure that
-    X+step doesn't overflow.
+    storeOneLoad decompose Load that is then stored, the offset value must
+    be created on the same block with the Load to be dominated, otherwise,
+    it's unsafe if one does not dominate the other.
     
-    Fixes #53600
+    Fixes #48026
     
-    Change-Id: I36e5384d05b4d7168e48db6094200fcae409bfe5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415219
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Iee5e6c5d3e1b09862afe4e65f7bcd771b4c57367
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345434
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/loopbce.go |  7 ++++++
- test/fixedbugs/issue53600.go            | 42 +++++++++++++++++++++++++++++++++
- test/fixedbugs/issue53600.out           |  8 +++++++
- 3 files changed, 57 insertions(+)
+ src/cmd/compile/internal/ssa/expand_calls.go |  2 +-
+ test/fixedbugs/issue48026.go                 | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

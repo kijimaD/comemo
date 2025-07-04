@@ -1,16 +1,12 @@
-commit 31f8b07e55d6f712315eea021ee84bff73f87c51
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Nov 3 02:22:37 2012 +0800
+commit 90d959be78bc358b02e8a9225c30060999419477
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 2 20:46:47 2012 +1100
 
-    runtime/cgo, go/build: cgo support for FreeBSD/ARM
-    This is the last CL for FreeBSD/ARM support.
-    Also update cmd/ld/doc.go for 5l support of -Hfreebsd.
+    net: add missing locking in windows Shutdown
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6650051
+    https://golang.org/cl/6811069
 
- src/cmd/ld/doc.go                     |   2 +-
- src/pkg/go/build/build.go             |   1 +
- src/pkg/runtime/cgo/gcc_freebsd_arm.c | 109 ++++++++++++++++++++++++++++++++++
- 3 files changed, 111 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_windows.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

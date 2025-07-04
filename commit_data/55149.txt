@@ -1,19 +1,36 @@
-commit 0c7e5d3b8db6668d6bdb16410d59c0ae4133400a
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Nov 3 19:18:00 2023 +0800
+commit 4210ebcd089f216798152b5e523eaa71fbefe65d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 9 13:02:08 2023 -0800
 
-    path: add available godoc link
+    go/types: make tracing configurable (matching types2)
     
-    Change-Id: I6d40a59cde4c3f1d5094f5126fdbc1195285195f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539577
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    This CL replaces the internal trace flag with Config.trace.
+    While unexported, it can still be set for testing via reflection.
+    The typical use is for manual tests, where -v (verbose) turns on
+    tracing output. Typical use:
+    
+            go test -run Manual -v
+    
+    This change makes go/types match types2 behavior.
+    
+    Change-Id: I22842f4bba8fd632efe5929c950f4b1cab0a8569
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461081
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/path/filepath/match.go |  8 ++++----
- src/path/filepath/path.go  | 34 +++++++++++++++++-----------------
- src/path/match.go          |  2 +-
- src/path/path.go           |  2 +-
- 4 files changed, 23 insertions(+), 23 deletions(-)
+ src/go/types/api.go        |  3 +++
+ src/go/types/call.go       |  2 +-
+ src/go/types/check.go      | 11 ++++-------
+ src/go/types/check_test.go | 10 ++++++----
+ src/go/types/decl.go       |  6 +++---
+ src/go/types/errors.go     |  2 +-
+ src/go/types/expr.go       |  2 +-
+ src/go/types/named.go      |  2 +-
+ src/go/types/stmt.go       |  2 +-
+ src/go/types/subst.go      |  2 +-
+ src/go/types/typeset.go    |  2 +-
+ src/go/types/typexpr.go    |  4 ++--
+ 12 files changed, 25 insertions(+), 23 deletions(-)

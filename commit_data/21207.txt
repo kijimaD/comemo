@@ -1,21 +1,8 @@
-commit d00024bd6097dac81352400e4ee228b6bc613455
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Dec 22 16:54:07 2014 +1100
+commit 258f53dee33b9055ea168cb186f8c076edee5905
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 8 13:50:49 2014 +1100
 
-    syscall: use go generate to build zsyscall_windows.go
-    
-    I would like to create new syscalls in src/internal/syscall,
-    and I prefer not to add new shell scripts for that.
-    
-    Replacement for CL 136000043.
-    
-    Change-Id: I840116b5914a2324f516cdb8603c78973d28aeb4
-    Reviewed-on: https://go-review.googlesource.com/1940
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    remove .hgtags.
 
- src/syscall/mkall.sh             | 28 +++++++++-------------------
- src/syscall/mkall_windows.bat    | 15 ---------------
- src/syscall/mksyscall_windows.go | 39 +++++++++++++++++++++++++++++++--------
- src/syscall/syscall_windows.go   |  2 ++
- src/syscall/zsyscall_windows.go  |  3 +--
- 5 files changed, 43 insertions(+), 44 deletions(-)
+ .hgtags | 140 ----------------------------------------------------------------
+ 1 file changed, 140 deletions(-)

@@ -1,17 +1,22 @@
-commit 06dbf6121ad77e9ea3288df99bfe4e94f8776f38
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Thu Dec 2 13:18:33 2021 -0500
+commit d446cb7cff024412c0a80c3971dac3049db9f18c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 4 12:10:32 2021 -0400
 
-    doc/go1.18: remove some TODOs for changes we aren't mentioning
+    reflect: call ABI0 callReflect/callMethod
     
-    Updates #47694
+    Currently the assembly code marshals arguments in ABI0 layout.
+    Call the ABI0 functions. We may want to move to ABIInternal at
+    some point (maybe when register args is always enabled).
     
-    Change-Id: I8fdbded4aaf974425ee317a1cdd940a5ac88c0b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368794
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #40724.
+    
+    Change-Id: I23bb3073f3f6420a8d0c119b65ae3e577578aadb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307237
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.18.html | 8 --------
- 1 file changed, 8 deletions(-)
+ src/reflect/asm_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

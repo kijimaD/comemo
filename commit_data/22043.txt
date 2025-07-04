@@ -1,16 +1,24 @@
-commit ddf6d8005dc25ddc0a72e70cf3fc55343119867d
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:27:51 2015 +0100
+commit 5b9429d122ae5e4d9a296857343a96b8c1d3dbd6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 19 16:34:51 2015 -0800
 
-    test: fix nosplit test, and disable nilptr3 test on arm64
+    [dev.cc] cmd/asm: bring asm on ppc64 in sync with 9a
     
-    Change-Id: I5d40e04395de743a8fdcfa8bdc0e580729bc66a3
-    Reviewed-on: https://go-review.googlesource.com/7147
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    I created a .s file that covered every instruction and operand production
+    in 9a/a.y and made sure that 9a and asm give bit-identical results for it.
+    I found a few things, including one addressing mode (R1+R2) that was
+    not present in the source we use. Fixed those
+    
+    I also found quite a few things where 9a's grammar accepts the instruction
+    but liblink rejects it. These need to be sorted out, and I will do that separately.
+    Once that's done, I'll turn my test file into a proper test.
+    
+    Change-Id: Ib093271b0f7ffd64ffed164ed2a820ebf2420e34
+    Reviewed-on: https://go-review.googlesource.com/5361
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/nilptr3.go | 5 +++--
- test/nosplit.go | 3 +++
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/arch/ppc64.go       | 18 ++++++++
+ src/cmd/asm/internal/asm/asm.go          | 74 +++++++++++++++++++++++++++-----
+ src/cmd/asm/internal/asm/operand_test.go | 12 ++++++
+ src/cmd/asm/internal/asm/parse.go        | 44 ++++++++++++++-----
+ 4 files changed, 126 insertions(+), 22 deletions(-)

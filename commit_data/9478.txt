@@ -1,23 +1,17 @@
-commit 42687d6ce4632cdb7ca428c16cad7c1b2db77263
+commit 4946b420f217e65e581bd6299b71f74654570717
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 24 16:47:32 2011 -0400
+Date:   Wed Aug 24 16:47:12 2011 -0400
 
-    gc: simplify escape analysis recursion
+    misc/emacs: refine label detection
     
-    Merge escassign(N, x), escassign(x, N), escexpr(n), and escstmt(n) into esc(n).
+    Based on idea in
+    http://patch-tracker.debian.org/patch/series/view/golang/1:59-1/008-emacs-mode-key-literal-indent.patch
     
-    1. Renaming
-    https://golang.org/cl/4917050/diff2/1:2001/src/cmd/gc/esc.c
+    Fixes #2174.
     
-    2. Merging.
-    https://golang.org/cl/4917050/diff2/2001:4001/src/cmd/gc/esc.c
-    
-    3. Simplify esccall.
-    https://golang.org/cl/4917050/diff2/4001:5002/src/cmd/gc/esc.c
-    
-    R=lvd
+    R=amdragon, ajmani, amdragon
     CC=golang-dev
-    https://golang.org/cl/4917050
+    https://golang.org/cl/4922049
 
- src/cmd/gc/esc.c | 548 ++++++++++++++++++++++---------------------------------
- 1 file changed, 218 insertions(+), 330 deletions(-)
+ misc/emacs/go-mode.el | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

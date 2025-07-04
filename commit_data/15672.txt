@@ -1,16 +1,14 @@
-commit 960d7082ee9b8fda91444167b3c253d5cf5e115d
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Mar 11 14:24:51 2013 +0800
+commit 761c38677021c438b965762bf52ab814c46c871c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 01:12:18 2013 -0400
 
-    cmd/ld, runtime/cgo: allow a symbol to be both cgo_export and cgo_import.
-    Fixes #4878.
+    build: enable host linking test for all BSDs
     
-    R=golang-dev, rsc
+    Let's just see what breaks.
+    
+    R=golang-dev, bradfitz, adg
     CC=golang-dev
-    https://golang.org/cl/7420052
+    https://golang.org/cl/7693043
 
- src/cmd/ld/go.c                         | 11 ++++++++---
- src/pkg/runtime/cgo/gcc_openbsd_386.c   |  6 +++---
- src/pkg/runtime/cgo/gcc_openbsd_amd64.c |  6 +++---
- src/run.bash                            |  1 -
- 4 files changed, 14 insertions(+), 10 deletions(-)
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

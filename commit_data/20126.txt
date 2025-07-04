@@ -1,17 +1,14 @@
-commit 6bddb13bc4f315726aae22ac0342fb044440e8fc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 25 11:44:08 2014 -0700
+commit 04d5796b2988a20175b8cb03eb7080cf4cca2179
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 18 22:24:15 2014 -0400
 
-    net/http: populate Request.Close in ReadRequest
+    [dev.power64] liblink: recognize add instruction as adjusting SP
     
-    Fixes #8261
-    
-    LGTM=r
-    R=r
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/126620043
+    https://golang.org/cl/128360043
 
- src/pkg/net/http/readrequest_test.go | 41 ++++++++++++++++++++++++++++++------
- src/pkg/net/http/request.go          |  1 +
- src/pkg/net/http/transfer.go         |  8 ++++---
- 3 files changed, 40 insertions(+), 10 deletions(-)
+ src/liblink/list9.c | 2 ++
+ src/liblink/obj9.c  | 4 ++++
+ 2 files changed, 6 insertions(+)

@@ -1,16 +1,18 @@
-commit ac987df87c6aab9658b2e3929d61313e26649825
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Mon May 22 18:31:38 2017 +0200
+commit f316e1a88f5f9d014468a270b39b3af6fdc3a384
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 31 13:35:56 2017 -0700
 
-    runtime: implement some soft-float routines (used by GOMIPS=softfloat)
+    go/types: escape +build sequence to silence vet warning
     
-    Updates #18162
+    Appease the vet builder until we figure out the ideal solution.
     
-    Change-Id: Iee854f48b2d1432955fdb462f2073ebbe76c34f8
-    Reviewed-on: https://go-review.googlesource.com/37957
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #21716.
+    
+    Change-Id: I64ecdf9b6efb0933c5c79e11c860966ff1980305
+    Reviewed-on: https://go-review.googlesource.com/60776
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/softfloat64.go | 112 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 112 insertions(+)
+ src/go/types/hilbert_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

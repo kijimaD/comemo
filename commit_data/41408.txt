@@ -1,20 +1,19 @@
-commit 1cfe8e91b6d742140153d943e1b09ad48c670b1f
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Nov 30 14:04:35 2019 -0800
+commit a49067aab6eeff36d7219142ed52cc3db4d6c1d8
+Author: Nuno Cruces <ncruces@users.noreply.github.com>
+Date:   Tue Oct 1 09:31:50 2019 +0000
 
-    cmd/compile: use ADDQ instead of LEAQ when we can
+    net/http: avoid sending unspecified time for directories
     
-    The address calculations in the example end up doing x << 4 + y + 0.
-    Before this CL we use a SHLQ+LEAQ. Since the constant offset is 0,
-    we can use SHLQ+ADDQ instead.
+    Change applies to sendFile.
+    This is already done for sendContent.
     
-    Change-Id: Ia048c4fdbb3a42121c7e1ab707961062e8247fca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209959
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: If43d9ab99e6e66a1363b08e0bdcceb57df1f855c
+    GitHub-Last-Rev: 1c47620a09a6f5e2b3d777fadaad6e0189de4af5
+    GitHub-Pull-Request: golang/go#34631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198139
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 17 +++++++++++++++++
- test/codegen/addrcalc.go                     | 14 ++++++++++++++
- 3 files changed, 34 insertions(+)
+ src/net/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

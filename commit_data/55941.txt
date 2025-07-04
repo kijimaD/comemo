@@ -1,19 +1,31 @@
-commit 412623c53fbb1b3ff29035022ef70374db35e826
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 14 14:24:22 2024 -0700
+commit f7156f63b52af3242e8415a209ff6fea119f5903
+Author: Michael Teichgraeber <mteichgraeber@gmx.de>
+Date:   Fri Apr 20 01:22:30 2018 +0200
 
-    test/fixedbugs: add regress test for inlining failure
+    encoding/asn1: support fractions of a second when unmarshaling GeneralizedTime
     
-    Still investigating, but adding the minimized reproducer as a regress
-    test case for now.
+    A GeneralizedTime value may contain an optional fractional seconds
+    element (according to X.680 46.2, restricted by X.690 11.7.3). This
+    change adds support for this fractional part, up to nine digits, so that
+    Unmarshal won't fail when decoding a DER encoded GeneralizedTime value
+    with fractional digits.  Also, test cases related to this change have
+    been added.
     
-    Updates #66261.
+    X.680 and X.690 can be found at:
+            https://www.itu.int/rec/T-REC-X.680
+            https://www.itu.int/rec/T-REC-X.690
     
-    Change-Id: I20715b731f8c5b95616513d4a13e3ae083709031
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571815
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #15842
+    
+    Change-Id: If217c007e01b686db508a940e9e2ed3bfb901879
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/108355
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- test/fixedbugs/issue66261.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/encoding/asn1/asn1.go      | 2 +-
+ src/encoding/asn1/asn1_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

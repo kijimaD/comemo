@@ -1,13 +1,12 @@
-commit d2933e99021f9d1048cc25e0d0b0724f5bfc6ed6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Dec 20 07:42:00 2011 +0900
+commit 355ed5da82d5bcf3cafd409c799ac694d69728f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 19 14:09:12 2011 -0800
 
-    syscall: regenerate z-files for linux/arm
+    exec: disable new test to fix build
     
-    R=golang-dev, dave, rsc
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5496062
+    https://golang.org/cl/5494075
 
- src/pkg/syscall/zerrors_linux_arm.go |  99 +++---
- src/pkg/syscall/ztypes_linux_arm.go  | 593 ++++++++++++++++++-----------------
- 2 files changed, 354 insertions(+), 338 deletions(-)
+ src/pkg/os/exec/exec_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

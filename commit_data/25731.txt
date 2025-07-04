@@ -1,17 +1,12 @@
-commit 41191e192cb3d499ca8a2552117029493c6be1a9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 8 14:50:45 2016 -0800
+commit 53c21df12153871bf3bfcc8de25ebab0ffc008c7
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Nov 17 18:41:00 2015 -0800
 
-    go/constant: fix String() implementation
+    strings: fix period placement in Search doc comment
     
-    Fixes #14262.
-    
-    Change-Id: Id590995dd4460e81f6b91bcfb3f02515a97650fe
-    Reviewed-on: https://go-review.googlesource.com/19361
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ieba62c0cb668daeb343f72fdd568e46b0b21b7d6
+    Reviewed-on: https://go-review.googlesource.com/16998
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/go/constant/value.go      | 2 +-
- src/go/constant/value_test.go | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/sort/search.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

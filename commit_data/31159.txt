@@ -1,14 +1,18 @@
-commit 87065a3c13f373072c1db81dbf3832f0b9e17492
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 16 06:14:27 2017 -0700
+commit 64c5280844aa7d6cbec18c47750f9d3e65f5f72a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 2 20:37:29 2017 -0500
 
-    cmd/go: don't generate DWARF in the compiler if the linker will discard it
+    net/http: fix dns hijacking test
     
-    Change-Id: I7610f968f5c22b51a6a8813d6f31ccb772a12ba9
-    Reviewed-on: https://go-review.googlesource.com/40858
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    The name lookups are unrooted; the test should be unrooted too.
+    Correctly skips the tests if the DNS config specifies a domain
+    suffix that has a wildcard entry causing all unrooted names to resolve.
+    
+    Change-Id: I80470326a5d332f3b8d64663f765fd304c5e0811
+    Reviewed-on: https://go-review.googlesource.com/36253
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/build.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/http/transport_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

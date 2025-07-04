@@ -1,37 +1,25 @@
-commit a1c481d85139f77ab27210526f9dfa2f3b375ef9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 28 13:18:37 2019 -0400
+commit 13aa235ae0b441989f6ac3cb5ea953836dcdfdde
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 30 09:50:05 2018 -0500
 
-    cmd/go: only add a 'go' directive on 'go mod tidy' or when a conversion occurs
+    go/internal/gccgoimporter: fix bug reading V1 export data
     
-    If the go.mod file exists and is empty, we initialize it from any of
-    various formats supported by legacy dependency-management tools.
+    Fix a bug in the reading of elderly export data. In such export data
+    when reading type information it's possible to encounter a named type N1
+    defined as a typedef of some other named type N2 at a point when the
+    underying type of N1 has not yet been finalized. Handle this case by
+    generating a fixup, then process fixups at the end of parsing to
+    set the correct underlying type.
     
-    We also initialize the 'go' directive at that point: we know that the
-    go.mod file is incomplete, because it does not reflect the information
-    in the legacy configuration file, and since we know that the go.mod
-    file is incomplete, we should complete it with as much information as
-    we have — including the version of the language currently in use.
+    Fixes #29006.
     
-    However, if there is no legacy configuration file present, then we
-    cannot infer that the go.mod file is incomplete: it may correctly
-    specify a module without external dependencies. In that case, we
-    should not initialize the 'go' directive either: the user will not be
-    expecting unnecessary edits to the go.mod file, and we generally do
-    not make unnecessary-but-helpful edits unless 'go mod tidy' is invoked
-    explicitly.
-    
-    Fixes #30790
-    Fixes #31100
-    
-    Change-Id: I05a7872bce54a917c10d910cd9a616cab52e2730
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169877
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I6a505c897bd95eb161ee04637bb6eebad9f20d52
+    Reviewed-on: https://go-review.googlesource.com/c/151997
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modcmd/tidy.go            |  1 +
- src/cmd/go/internal/modload/init.go           | 12 ++++++++----
- src/cmd/go/testdata/script/mod_init_empty.txt | 16 ++++++++++++++++
- src/cmd/go/testdata/script/mod_std_vendor.txt |  2 +-
- 4 files changed, 26 insertions(+), 5 deletions(-)
+ src/go/internal/gccgoimporter/importer_test.go     |   1 +
+ src/go/internal/gccgoimporter/parser.go            |  38 ++++++++++++++++++++-
+ .../internal/gccgoimporter/testdata/v1reflect.gox  | Bin 0 -> 10872 bytes
+ 3 files changed, 38 insertions(+), 1 deletion(-)

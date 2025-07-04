@@ -1,12 +1,20 @@
-commit 32ffc62348632898fa420aaea4f8b2f406979e7a
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Feb 7 17:50:04 2012 +1100
+commit 9ce23548cb74fd7832794bc4d510c7fb7c379c62
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 7 16:15:55 2012 +1100
 
-    flag: describe valid input for Duration flags.
+    encoding/gob: document CommonType
+    Also bring the names in doc.go in line with the source.
+    More radical resolutions are possible but require substantial internal
+    changes for very little benefit. Fixing it this way lets us keep the
+    embedding, which has a huge simplifying effect, and guarantees
+    binary compatibility.
     
-    R=golang-dev, r
+    Fixes #2848.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5639046
+    https://golang.org/cl/5644045
 
- src/pkg/flag/flag.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/encoding/gob/doc.go  | 20 ++++++++++----------
+ src/pkg/encoding/gob/type.go |  5 ++++-
+ 2 files changed, 14 insertions(+), 11 deletions(-)

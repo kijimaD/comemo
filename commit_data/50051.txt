@@ -1,22 +1,20 @@
-commit e21c1f789664c11a0f704c87a775e03d705ef9b4
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 22 15:19:34 2022 -0700
+commit aeb4fbabc0aaa5293dd34821c450855e9ff82230
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 28 14:35:03 2021 -0400
 
-    cmd/compile: rip out support for OVARKILL from compiler frontend
+    runtime: drop nowritebarrier from gcParkAssist
     
-    Change-Id: I2c5b1064084bade68aaa065cf74dca6886fb752f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419236
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Nothing in this function is at odds with having write barriers. It
+    originally inherited the annotation from gcAssistAlloc
+    http://golang.org/cl/30700, which subsequently dropped the annotation in
+    http://golang.org/cl/32431 as it was unnecessary.
+    
+    Change-Id: Ie464e6b4ed957f57e922ec043728ff4e15bf35ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352811
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ir/expr.go             |  2 +-
- src/cmd/compile/internal/ir/node.go             |  1 -
- src/cmd/compile/internal/ir/op_string.go        | 31 ++++++++++++-------------
- src/cmd/compile/internal/ssagen/ssa.go          |  4 ++--
- src/cmd/compile/internal/typecheck/typecheck.go |  3 +--
- src/cmd/compile/internal/walk/order.go          |  2 +-
- src/cmd/compile/internal/walk/stmt.go           |  1 -
- src/cmd/compile/internal/walk/switch.go         | 13 ++---------
- 8 files changed, 22 insertions(+), 35 deletions(-)
+ src/runtime/mgcmark.go | 2 --
+ 1 file changed, 2 deletions(-)

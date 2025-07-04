@@ -1,14 +1,14 @@
-commit 571d02d9fef357ffb7ffe341d30164123f686efb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 23 11:45:00 2015 -0800
+commit 6c78443b3e13c43ea887f6b73099e0c1297327c5
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 22 16:46:25 2014 -0500
 
-    go/ast: document that ast.FilterFile always filters imports
+    liblink: code for debugging bad returns
     
-    Fixes #9248.
+    Disabled by default, but invaluable when you need it.
     
-    Change-Id: Id1c50af5eb35d7720b8f0a4d4881414baf061d56
-    Reviewed-on: https://go-review.googlesource.com/3241
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: If4a75d11d14f70b6840d339aaec4b940dc406493
+    Reviewed-on: https://go-review.googlesource.com/2012
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/ast/filter.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/liblink/obj9.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

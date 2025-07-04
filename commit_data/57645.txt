@@ -1,19 +1,20 @@
-commit 0fd2d4d6c2101fb615a7546f49e92a2187191fb0
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Oct 9 10:12:57 2024 +0200
+commit 47645420348778a9b289e979ac5f757e64a78696
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 10:23:03 2023 -0700
 
-    syscall: implement Ftruncate using a single syscall on Windows
+    cmd/compile/internal/compare: simplify unit test framework
     
-    Ftruncate can be implemented on Windows using a single syscall. This
-    makes the implementation more efficient and less prone to races when
-    used in combination with other Seek calls.
+    This CL refactors the compare unit tests to be simpler and to stop
+    using the types API in non-idiomatic ways, to facilitate further
+    refactoring of the API.
     
-    Change-Id: I5d9f780fba2710403fce89d3325e519f33ad9ae8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/618835
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I864a66b2842a0d8dd45f4e3d773144d71666caf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521275
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/syscall/syscall_windows.go  | 20 +++++++-------------
- src/syscall/zsyscall_windows.go |  9 +++++++++
- 2 files changed, 16 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/compare/compare_test.go | 155 ++++++-----------------
+ 1 file changed, 37 insertions(+), 118 deletions(-)

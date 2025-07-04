@@ -1,22 +1,30 @@
-commit 4605ce2d344d9e25c1d58898acb28edab93af97f
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sun Dec 17 13:04:20 2023 +0000
+commit 88a36c9e9a511ec6ad218633bce1e82f25e54d35
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 1 16:44:21 2023 -0500
 
-    cmd/compile: use MapMaxKeyBytes,MapMaxElemBytes,MapBucketCount of internal/abi
+    cmd/go/internal/test: scale the WaitDelay for test subprocesses
     
-    For #59670
+    Prior to CL 456116 we had an arbitrary 5-second delay after a test
+    times out before we kill the test. In CL 456116, I reused that
+    arbitrary 5-second delay as the WaitDelay as well, but on slower
+    builders it does not seem to be generous enough.
     
-    Change-Id: I651e211650e69989c598ab16202105bc6e68d67e
-    GitHub-Last-Rev: fba087a35fa563cba0dc5f70e8c9d9108dc1f1d4
-    GitHub-Pull-Request: golang/go#64776
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/550615
-    Reviewed-by: Keith Randall <khr@google.com>
+    Instead of hard-coding the delay, for tests with a finite timout we
+    now use a hard-coded fraction of the overall timeout. That will
+    probably give delays that are longer than strictly necessary for very
+    long timeouts, but if the user is willing to wait for a very long
+    timeout they can probably wait a little longer for I/O too.
+    
+    Fixes #58230.
+    Updates #24050.
+    
+    Change-Id: Ifbf3e576c034c721aa00cd17bf88563474b09955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464555
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go | 62 +++++++++++--------------
- src/cmd/compile/internal/walk/builtin.go        |  7 +--
- 2 files changed, 32 insertions(+), 37 deletions(-)
+ src/cmd/go/internal/test/test.go                  | 36 +++++++++++++++++++++--
+ src/cmd/go/testdata/script/test_timeout_stdin.txt |  4 +--
+ 2 files changed, 35 insertions(+), 5 deletions(-)

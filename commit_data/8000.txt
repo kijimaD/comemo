@@ -1,12 +1,58 @@
-commit 2671ddd10b955e33bbeda98aa1af7c4936d3bffa
+commit 0ea7bf486708dfbdd6e652812eaa8514eeed00a9
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 6 15:13:18 2011 -0400
+Date:   Wed Apr 6 15:06:28 2011 -0400
 
-    fix build (sorry)
+    src/pkg/Makefile: trim per-directory make output except on failure
     
-    TBR=r
+    Not committed to this but it sure makes
+    the output easier to skim.  With this CL:
+    
+    $ make
+    install runtime
+    install sync/atomic
+    install sync
+    install unicode
+    install utf16
+    install syscall
+    install os
+    ...
+    install ../cmd/govet
+    install ../cmd/goyacc
+    install ../cmd/hgpatch
+    $ make test
+    test archive/tar
+    test archive/zip
+    test asn1
+    test big
+    test bufio
+    ...
+    test path
+    test path/filepath
+    TEST FAIL reflect
+    gotest
+    rm -f _test/reflect.a
+    6g -o _gotest_.6 deepequal.go type.go value.go
+    rm -f _test/reflect.a
+    gopack grc _test/reflect.a _gotest_.6
+    all_test.go:210: invalid type assertion: reflect.NewValue(tt.i).(*StructValue) (non-interface type reflect.Value on left)
+    all_test.go:217: cannot type switch on non-interface value v (type reflect.Value)
+    all_test.go:218: undefined: IntValue
+    all_test.go:221: cannot use 132 (type int) as type reflect.Value in function argument
+    all_test.go:223: cannot use 8 (type int) as type reflect.Value in function argument
+    all_test.go:225: cannot use 16 (type int) as type reflect.Value in function argument
+    all_test.go:227: cannot use 32 (type int) as type reflect.Value in function argument
+    all_test.go:229: cannot use 64 (type int) as type reflect.Value in function argument
+    all_test.go:231: undefined: UintValue
+    all_test.go:234: cannot use 132 (type int) as type reflect.Value in function argument
+    all_test.go:234: too many errors
+    gotest: "/Users/rsc/g/go/bin/6g -I _test -o _xtest_.6 all_test.go tostring_test.go" failed: exit status 1
+    make[1]: *** [test] Error 2
+    make: *** [reflect.test] Error 1
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4378042
+    https://golang.org/cl/4343046
 
- src/pkg/Makefile | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/Make.pkg     | 2 +-
+ src/pkg/Makefile | 9 ++++++---
+ 2 files changed, 7 insertions(+), 4 deletions(-)

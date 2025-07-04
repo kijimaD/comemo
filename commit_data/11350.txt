@@ -1,13 +1,14 @@
-commit 2257e7670f35def119b43566e9e755a1432e9522
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 23 16:11:49 2012 -0800
+commit d191ad11aeb75959621777a9da17dcd8efdb6304
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 23 16:08:05 2012 -0800
 
-    doc/go1: image changes
+    lib/godoc: use Type.Name directly
     
-    R=nigeltao, christoph, rsc, r, tux21b
+    Also: remove an unused template variable declaration.
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5573048
+    https://golang.org/cl/5572043
 
- doc/go1.html | 120 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- doc/go1.tmpl | 120 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 238 insertions(+), 2 deletions(-)
+ lib/godoc/package.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

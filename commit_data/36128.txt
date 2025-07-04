@@ -1,21 +1,46 @@
-commit ead59f4bf368f13bbabea3f8a59f9f29ccdd3900
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 25 15:24:27 2018 -0700
+commit 7818b82fc8f7d2f33f3ddfb99755b1ef06e2d281
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Nov 30 09:32:07 2017 -0700
 
-    cmd/cgo: don't resolve typedefs in -godefs mode
+    math/big: clean up z.div(z, x, y) calls
     
-    In -godefs mode any typedefs that appear in struct fields and the like
-    will presumably be defined in the input file. If we resolve to the
-    base type, those cross-references will not work. So for -godefs mode,
-    keep the Go 1.10 behavior and don't resolve the typedefs in a loop.
+    Updates #22830
     
-    Fixes #26644
+    Due to not checking if the output slices alias in divLarge,
+    calls of the form z.div(z, x, y) caused the slice z
+    to attempt to be used to store both the quotient and the
+    remainder of the division.  CL 78995 applies an alias
+    check to correct that error.  This CL cleans up the
+    additional div calls that attempt to supply the same slice
+    to hold both the quotient and remainder.
     
-    Change-Id: I48cf72d9eb5016353c43074e6aff6495af326f35
-    Reviewed-on: https://go-review.googlesource.com/125995
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Note that the call in expNN was responsible for the reported
+    error in r.Exp(x, 1, m) when r was initialized to a non-zero value.
+    
+    The second instance in expNNMontgomery did not result in an error
+    due to the size of the arguments.
+    
+            // RR = 2**(2*_W*len(m)) mod m
+            RR := nat(nil).setWord(1)
+            zz := nat(nil).shl(RR, uint(2*numWords*_W))
+            _, RR = RR.div(RR, zz, m)
+    
+    Specifically,
+    
+    cap(RR) == 5 after setWord(1) due to const e = 4 in z.make(1)
+    len(zz) == 2*len(m) + 1 after shifting left, numWords = len(m)
+    
+    Reusing the backing array for z and z2 in div was only triggered if
+    cap(RR) >= len(zz) + 1 and len(m) > 1 so that divLarge was called.
+    
+    But, 5 < 2*len(m) + 2 if len(m) > 1, so new arrays were allocated
+    and the error was never triggered in this case.
+    
+    Change-Id: Iedac80dbbde13216c94659e84d28f6f4be3aaf24
+    Reviewed-on: https://go-review.googlesource.com/81055
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/testgodefs/fieldtypedef.go | 18 ++++++++++++++++++
- misc/cgo/testgodefs/test.bash       |  2 +-
- src/cmd/cgo/gcc.go                  |  7 +++++++
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ src/math/big/nat.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

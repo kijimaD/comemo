@@ -1,31 +1,27 @@
-commit 5a9fc946b42cc987db41eabcfcbaffd2fb310d94
+commit d9bfda81249f25959090b1493ac8e261dd4542f4
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 23 11:55:08 2022 -0500
+Date:   Fri Apr 30 01:51:16 2021 -0400
 
-    cmd/go: avoid +incompatible major versions if a go.mod file exists in a subdirectory for that version
+    cmd/go: remove the special case for "unsafe" in importFromModules
     
-    Previous versions of the 'go' command would reject a pseudo-version
-    passed to 'go get' if that pseudo-version had a mismatched major
-    version and lacked a "+incompatible" suffix. However, they would
-    erroneously accept a version *with* a "+incompatible" suffix even if
-    the repo contained a vN/go.mod file for the same major version, and
-    would generate a "+incompatible" pseudo-version or version if the user
-    requested a tag, branch, or commit hash.
+    The comment for this special case claims:
+    > There's no directory for import "C" or import "unsafe".
     
-    This change uniformly rejects "vN.…" without "+incompatible", and also
-    avoids resolving to "vN.…+incompatible", when vN/go.mod exists.
-    To maintain compatibility with existing go.mod files, it still accepts
-    "vN.…+incompatible" if the version is requested explicitly as such
-    and the repo root lacks a go.mod file.
+    However, there clearly is a directory for "unsafe" in
+    GOROOT/src/unsafe, and all of our integration tests seem to pass
+    without this special case. As far as I can tell, it's just confusing.
     
-    Fixes #51324
-    Updates #36438
+    Also note that the internal/goroot package explicitly considers
+    package "unsafe" to be in the standard library; see CL 137435.
     
-    Change-Id: I2b16150c73fc2abe4d0a1cd34cb1600635db7139
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387675
-    Trust: Bryan Mills <bcmills@google.com>
+    For #36460
+    
+    Change-Id: Ib857d18f731a7f3c911c1bd116a34e3a9b3d74a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315412
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/modfetch/coderepo.go      | 53 +++++++++++++++++++++------
- src/cmd/go/internal/modfetch/coderepo_test.go | 48 ++++++++++++++++++++++++
- 2 files changed, 89 insertions(+), 12 deletions(-)
+ src/cmd/go/internal/modload/import.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

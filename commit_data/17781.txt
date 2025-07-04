@@ -1,13 +1,12 @@
-commit 7dba510c7b4110ddda93ce9829636e33411267e5
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Oct 10 22:43:34 2013 -0400
+commit 5516349fe72050afcb3d67145920ffcf37c8cf66
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Oct 11 11:30:03 2013 +1100
 
-    cmd/gc: re-word some error messages
-    Fixes #6557.
+    misc/vim: complete packages in src directory
     
-    R=golang-dev, rsc, tracey.brendan
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/14432053
+    https://golang.org/cl/14454059
 
- src/cmd/gc/dcl.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ misc/vim/autoload/go/complete.vim | 1 +
+ 1 file changed, 1 insertion(+)

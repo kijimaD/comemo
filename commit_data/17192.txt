@@ -1,13 +1,21 @@
-commit 66c58cea67cb48d1cce2f96036557dafbfbf8c19
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 13 21:15:47 2013 +0400
+commit c18dc11ef210ca91b251996ff2a2546d0bcde848
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Tue Aug 13 12:42:21 2013 -0400
 
-    sync/atomic: trigger paging fault early on linux/arm
-    so that we don't need to traceback through __kuser_cmpxchg
+    cmd/cgo: Add support for C function pointers
     
-    R=golang-dev, bradfitz
+    * Add a new kind of Name, "fpvar" which stands for function pointer variable
+    * When walking the AST, find functions used as expressions and create a new Name object for them
+    * Track functions which are only used in expr contexts, and avoid generating bridge code for them
+    
+    R=golang-dev, minux.ma, fullung, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/12869043
+    https://golang.org/cl/9835047
 
- src/pkg/sync/atomic/asm_linux_arm.s | 6 ++++++
- 1 file changed, 6 insertions(+)
+ misc/cgo/test/cgo_test.go |  1 +
+ misc/cgo/test/fpvar.go    | 50 +++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/doc.go        | 27 ++++++++++++++++++++
+ src/cmd/cgo/gcc.go        | 63 +++++++++++++++++++++++++++++++++++++----------
+ src/cmd/cgo/main.go       |  7 +++++-
+ src/cmd/cgo/out.go        | 19 ++++++++++----
+ 6 files changed, 148 insertions(+), 19 deletions(-)

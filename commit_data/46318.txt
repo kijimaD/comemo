@@ -1,25 +1,17 @@
-commit 43b05173a219e19697c2f9c6d98cf4d8667b7ca5
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Sep 6 11:06:16 2021 +0800
+commit c40934b33d4d9f85ef5e891f8d26c3035ccce5bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 22 00:07:40 2020 -0500
 
-    cmd/compile: merge zero/sign extensions with UBFX/SBFX on arm64
+    [dev.regabi] cmd/compile: adjust one case in walkexpr
     
-    The UBFX and SBFX already zero/sign extend the result. Further
-    zero/sign extensions are thus unnecessary as long as they leave
-    the top bits unaltered. This patch absorbs zero/sign extensions
-    into UBFX/SBFX.
+    The mid-case n := n.(*ir.AssignExpr) does not lend itself
+    well to pulling the code into a new function, because n will
+    be a function argument and will not be redeclarable.
     
-    Add the related test cases.
-    
-    Change-Id: I7c4516c8b52d677f77bf3aaedab87c4a28056ec0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265039
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I673f2aa37eea64b083725326ed3fa36447bcc7af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279426
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |   9 +++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 102 +++++++++++++++++++++++++++
- test/codegen/bitfield.go                     |  16 +++++
- 3 files changed, 127 insertions(+)
+ src/cmd/compile/internal/gc/walk.go | 38 ++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

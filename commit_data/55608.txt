@@ -1,22 +1,21 @@
-commit a0226c5680f3ce6b0d8a8341f8c69611f3008393
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Feb 16 10:58:56 2024 -0500
+commit 8367e2dfc72f626cba75be71112d42fdb2ed82f7
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Feb 24 01:46:09 2023 -0800
 
-    runtime/internal/atomic: correct GOARM=7 guard at a DMB instruction
+    encoding/json: remove legacy fuzz.go file
     
-    CL 525637 changed to the guard of DMB instruction from the
-    compiled-in runtime.goarm value to GOARM_7 macro and CPU feature
-    detection. It missed a place where runtime.goarm is loaded to a
-    register and reused later. This CL corrects the condition.
+    With native support for fuzzing in the Go toolchain,
+    rely instead on the fuzz tests declared in fuzz_test.go.
     
-    Fixes #65601.
-    
-    Change-Id: I2ddefd03a1eb1048dbec0254c6e234c65b054279
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564855
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I601842cd0bc7e64ea3bfdafbbbc3534df11acf59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471197
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/internal/atomic/atomic_arm.s | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/encoding/json/fuzz.go | 42 ------------------------------------------
+ 1 file changed, 42 deletions(-)

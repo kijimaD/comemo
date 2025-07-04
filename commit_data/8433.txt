@@ -1,14 +1,12 @@
-commit 82ddf970947dd4502ac966d5d90d5e3f1dd3d99a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 18 11:02:08 2011 -0700
+commit 8e26a644caa8644d3c1e3794cbd6b3971f505544
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed May 18 10:56:20 2011 -0700
 
-    big: support %v and # modifier, better handling of unknown formats
+    image/jpeg: make writeDQT do fewer array copies.
     
-    R=r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4536065
+    https://golang.org/cl/4536069
 
- src/pkg/big/int.go      | 40 +++++++++++++++++++++++++-------
- src/pkg/big/int_test.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/big/nat.go      |  5 ++--
- 3 files changed, 96 insertions(+), 10 deletions(-)
+ src/pkg/image/jpeg/writer.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

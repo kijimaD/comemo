@@ -1,20 +1,24 @@
-commit be94dac4e945a2921b116761e41f1c22f0af2add
-Author: Guoliang Wang <iamwgliang@gmail.com>
-Date:   Tue Aug 28 01:03:37 2018 +0000
+commit 500d79c410f8e9ad762ba318a0a4b05d0d4d1751
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Apr 30 15:48:56 2018 +0200
 
-    os: add ExitCode method to ProcessState
+    cmd/compile: refactor memclrrange for arrays and slices
     
-    Fixes #26539
+    Rename memclrrange to signify that it does not handle
+    all types of range clears.
     
-    Change-Id: I6d403c1bbb552e1f1bdcc09a7ccd60b50617e0fc
-    GitHub-Last-Rev: 0b5262df5d99504523fd7a4665cb70a3cc6b0a09
-    GitHub-Pull-Request: golang/go#26544
-    Reviewed-on: https://go-review.googlesource.com/125443
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Simplify checks to detect the range clear idiom for
+    arrays and slices.
+    
+    Add tests to verify the optimization for the slice
+    range clear idiom is being applied by the compiler.
+    
+    Change-Id: I5c3b7c9a479699ebdb4c407fde692f30f377860c
+    Reviewed-on: https://go-review.googlesource.com/110477
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec/exec_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
- src/os/exec_plan9.go     | 10 ++++++++++
- src/os/exec_posix.go     | 10 ++++++++++
- 3 files changed, 63 insertions(+)
+ src/cmd/compile/internal/gc/range.go | 11 ++++++++---
+ test/codegen/slices.go               | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 3 deletions(-)

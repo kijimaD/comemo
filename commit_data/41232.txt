@@ -1,28 +1,52 @@
-commit a864cc756083632c543f2ad582cddd81bd2f3840
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Feb 5 05:23:42 2020 -0500
+commit 8f3d9855a10a7a77bffe635bb37f4cfe1090ea0e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 10 16:03:03 2019 -0700
 
-    doc: rename HTML element IDs to avoid duplicates
+    cmd/compile: major refactoring of switch walking
     
-    These 3 release notes have had an element ID collision because both
-    the runtime changes and changes to the package "runtime" used the
-    same ID. Fix it by using a "pkg-" prefix for the runtime package.
+    There are a lot of complexities to handling switches efficiently:
     
-    Move the "runtime-again" ID from CL 129635 to a nearby <dt> element
-    so that existing links to https://golang.org/doc/go1.11#runtime-again
-    don't break.
+    1. Order matters for expression switches with non-constant cases and
+    for type expressions with interface types. We have to respect
+    side-effects, and we also can't allow later cases to accidentally take
+    precedence over earlier cases.
     
-    Fixes #37036
-    Updates #36878
+    2. For runs of integers, floats, and string constants in expression
+    switches or runs of concrete types in type switches, we want to emit
+    efficient binary searches.
     
-    Change-Id: Ib68d93acfac802fd84c0a57485937e45dea2064a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217797
-    Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    3. For runs of consecutive integers in expression switches, we want to
+    collapse them into range comparisons.
+    
+    4. For binary searches of strings, we want to compare by length first,
+    because that's more efficient and we don't need to respect any
+    particular ordering.
+    
+    5. For "switch true { ... }" and "switch false { ... }", we want to
+    optimize "case x:" as simply "if x" or "if !x", respectively, unless x
+    is interface-typed.
+    
+    The current swt.go code reflects how these constraints have been
+    incrementally added over time, with each of them being handled ad
+    hocly in different parts of the code. Also, the existing code tries
+    very hard to reuse logic between expression and type switches, even
+    though the similarities are very superficial.
+    
+    This CL rewrites switch handling to better abstract away the logic
+    involved in constructing the binary searches. In particular, it's
+    intended to make further optimizations to switch dispatch much easier.
+    
+    It also eliminates the need for both OXCASE and OCASE ops, and a
+    subsequent CL can collapse the two.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ifcd1e56f81f858117a412971d82e98abe7c4481f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194660
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.11.html | 2 +-
- doc/go1.13.html | 2 +-
- doc/go1.14.html | 2 +-
- doc/go1.9.html  | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/swt.go      | 970 +++++++++++++-------------------
+ src/cmd/compile/internal/gc/swt_test.go |  50 --
+ 2 files changed, 387 insertions(+), 633 deletions(-)

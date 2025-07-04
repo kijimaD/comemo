@@ -1,41 +1,15 @@
-commit cedf5008a84d3726f98fac551a4016bf0a91157f
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 21 09:25:43 2023 -0700
+commit 7791e934c882fd103357448aee0fd577b20013ce
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 24 00:09:30 2022 +0200
 
-    cmd/compile: introduce separate memory op combining pass
+    hash/crc32: fix typo in arm64 archInitCastagnoli panic message
     
-    Memory op combining is currently done using arch-specific rewrite rules.
-    Instead, do them as a arch-independent rewrite pass. This ensures that
-    all architectures (with unaligned loads & stores) get equal treatment.
-    
-    This removes a lot of rewrite rules.
-    
-    The new pass is a bit more comprehensive. It handles things like out-of-order
-    writes and is careful not to apply partial optimizations that then block
-    further optimizations.
-    
-    Change-Id: I780ff3bb052475cd725a923309616882d25b8d9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478475
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I5291216d5416eccd5a67b45b2f32cf2932b3747f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407974
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/_gen/386.rules      |   155 +-
- src/cmd/compile/internal/ssa/_gen/AMD64.rules    |   492 +-
- src/cmd/compile/internal/ssa/_gen/ARM64.rules    |   916 +-
- src/cmd/compile/internal/ssa/_gen/PPC64.rules    |   324 +-
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go    |    12 +-
- src/cmd/compile/internal/ssa/_gen/S390X.rules    |   375 +-
- src/cmd/compile/internal/ssa/compile.go          |     5 +
- src/cmd/compile/internal/ssa/config.go           |    42 +
- src/cmd/compile/internal/ssa/memcombine.go       |   737 ++
- src/cmd/compile/internal/ssa/opGen.go            |    12 -
- src/cmd/compile/internal/ssa/rewrite386.go       |   786 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go     |  8573 ++++---------
- src/cmd/compile/internal/ssa/rewriteARM64.go     | 14137 +++++++--------------
- src/cmd/compile/internal/ssa/rewritePPC64.go     |  2427 +---
- src/cmd/compile/internal/ssa/rewriteS390X.go     |  1780 +--
- src/cmd/compile/internal/ssa/value.go            |    16 +-
- src/cmd/compile/internal/test/memcombine_test.go |    73 +
- 17 files changed, 8907 insertions(+), 21955 deletions(-)
+ src/hash/crc32/crc32_arm64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

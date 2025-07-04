@@ -1,12 +1,24 @@
-commit 74607d18c5355aed38b3354c64b307af96780e68
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Apr 16 17:36:02 2012 -0700
+commit 4cf577edf98fbb642840b55b474d9fd19b2f6606
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Mon Apr 16 17:35:15 2012 -0700
 
-    os: avoid panic when testing errors on Plan 9
+    syscall: fix duplicate fd bug for Plan 9
     
-    R=golang-dev, bradfitz, akumar
-    CC=golang-dev
-    https://golang.org/cl/6017043
+    This change comes from CL 5536043,
+    created by Andrey Mirtchovski. His
+    description follows:
+    
+    "The plan9 exec child handler does not manage
+    dup-ed fds from the parent correctly: when a
+    dup-ed file descriptor appears in the child's fd
+    list it is closed when first encountered and then
+    subsequent attempt to dup it later in Pass 2 fails,
+    resulting in 'fork/exec: fd out of range or not
+    open'."
+    
+    R=golang-dev, rminnich, ality
+    CC=golang-dev, mirtchovski, rsc
+    https://golang.org/cl/6009046
 
- src/pkg/os/error_plan9.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/pkg/syscall/exec_plan9.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

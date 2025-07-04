@@ -1,42 +1,29 @@
-commit 9c5eb16f6cba2b3d75f440dfec157183cc6d0f35
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Feb 11 19:34:22 2021 -0800
+commit 4725c3ffd1b8baf87204936e59bf00c96e3bf4a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 21:02:19 2020 -0500
 
-    net: reduce allocation size in ReadFromUDP
+    [dev.regabi] cmd/compile: implement doChildren for nodes
     
-    Switch to concrete types. Bring your own object to fill in.
+    Put each node in charge of its DoChildren implementation.
+    This removes a generic use of Left, Right, and so on
+    in func DoChildren, heading toward removing those even from
+    being used in package ir.
     
-    Allocate just enough for the IP byte slice.
-    The allocation is now just 4 bytes for IPv4,
-    which puts it in the tiny allocator, which is much faster.
+    Passes buildall w/ toolstash -cmp.
     
-    name                  old time/op    new time/op    delta
-    WriteToReadFromUDP-8    13.7µs ± 1%    13.4µs ± 2%   -2.49%  (p=0.000 n=10+10)
-    
-    name                  old alloc/op   new alloc/op   delta
-    WriteToReadFromUDP-8     32.0B ± 0%      4.0B ± 0%  -87.50%  (p=0.000 n=10+10)
-    
-    name                  old allocs/op  new allocs/op  delta
-    WriteToReadFromUDP-8      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    
-    Windows is temporarily stubbed out.
-    
-    Updates #43451
-    
-    Change-Id: Ief506f891b401d28715d22dce6ebda037941924e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331490
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ibdf56f36801217cf24549e063da0078c1820a56b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275375
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- api/next.txt                    | 52 +++++++++++++++++++++++++++++++++++++++
- src/internal/poll/fd_unix.go    | 54 +++++++++++++++++++++++++++++++++++++++++
- src/internal/poll/fd_windows.go | 18 ++++++++++++++
- src/net/fd_posix.go             | 11 +++++++++
- src/net/net_fake.go             |  8 ++++++
- src/net/udpsock_posix.go        | 26 ++++++++++++++------
- src/syscall/net_js.go           |  8 ++++++
- src/syscall/syscall_unix.go     | 27 +++++++++++++++++++++
- 8 files changed, 197 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/ir/copy.go  |   6 +-
+ src/cmd/compile/internal/ir/expr.go  | 171 ++++++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ir/func.go  |  22 +++--
+ src/cmd/compile/internal/ir/name.go  |  44 +++++----
+ src/cmd/compile/internal/ir/node.go  |   2 +
+ src/cmd/compile/internal/ir/stmt.go  | 137 +++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ir/type.go  |  74 ++++++++++++++-
+ src/cmd/compile/internal/ir/visit.go |  30 +-----
+ 8 files changed, 419 insertions(+), 67 deletions(-)

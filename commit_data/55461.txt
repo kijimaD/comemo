@@ -1,20 +1,23 @@
-commit 99efe7c39e80b92511bb06153da4d4d8db6138a6
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sat Jan 27 03:27:17 2024 +0000
+commit 9d81ccbf51b08bb29efad5fa9acc8fa69bbd8f6b
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Thu Feb 2 19:33:01 2023 +0000
 
-    cmd/internal/moddeps: fix test fail when the last element of GOROOT start with a dot or underscore
+    internal/xcoff: use unsigned integers in file structs to avoid negative values
     
-    Fixes #54221
+    Fixes #58137
+    Updates #54584
     
-    Change-Id: Id16f553251daf0b7c51f45232a4133f7dfb1ebb9
-    GitHub-Last-Rev: 675c2bfcbb4fd31da0442dd0e612874934cc0d87
-    GitHub-Pull-Request: golang/go#65298
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558696
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ifeee1be22051b842e0707d1907dbfa58bfeb336b
+    GitHub-Last-Rev: 9768e7c4a4954824fa1a2c41c0ad72e496408f91
+    GitHub-Pull-Request: golang/go#58164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464336
+    Reviewed-by: Ayappan Perumal <ayappanec@gmail.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/internal/moddeps/moddeps_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/internal/xcoff/file.go  | 14 ++++--------
+ src/internal/xcoff/xcoff.go | 56 ++++++++++++++++++++++-----------------------
+ 2 files changed, 32 insertions(+), 38 deletions(-)

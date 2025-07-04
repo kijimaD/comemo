@@ -1,16 +1,15 @@
-commit cefe6ac9a1914864c66b8b3044c3e4755d309f80
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jan 13 21:18:47 2014 -0800
+commit 7dcc652f10a5ca74101381bb27b6755ee2ab4691
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 13 23:08:10 2014 -0500
 
-    runtime/pprof: fix flaky TestCPUProfileMultithreaded test
+    cmd/link: implement dead code removal
     
-    It's too sensitive.
-    
-    Fixes bug 7095
-    
-    R=golang-codereviews, iant, minux.ma, rsc
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/50470043
+    https://golang.org/cl/51470043
 
- src/pkg/runtime/pprof/pprof_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/link/dead.go         |  63 ++++++++++++++++++++++++++++
+ src/cmd/link/dead_test.go    |  97 +++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/testdata/dead.6 | Bin 0 -> 1062 bytes
+ src/cmd/link/testdata/dead.s |  49 ++++++++++++++++++++++
+ 4 files changed, 209 insertions(+)

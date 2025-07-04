@@ -1,18 +1,29 @@
-commit e45c262fe55ada091a4ae53bf140ff22d9f74b35
+commit 778a60c1033f21ed0a8977d6292e9964476dda68
 Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Feb 12 14:32:22 2024 -0500
+Date:   Wed Feb 22 17:11:28 2023 -0500
 
-    runtime/cgo: add note about default stack bounds
+    cmd/link/internal/ld: split TestInlinedRoutineRecords
     
-    The default case in x_cgo_getstackbound does not actually get the stack bound of
-    the current thread, but estimates the bound based on the default stack size. Add
-    a comment noting this.
+    A later CL will add additional test cases for CallFile and CallLine with
+    a //line directive. The parameter/variable checks have nothing to do
+    with line numbers and will only serve to make the test more difficult to
+    follow, so split this single mega-test into two: one for testing
+    file/line and the other for testing parameters/variables.
     
-    Change-Id: I7d886461f0bbc795834bed37b554417cf3837a2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/563376
+    There are a few additional minor changes:
+    
+    1. A missing AttrName is now an error.
+    2. Check added for AttrCallLine, which was previously untested.
+    
+    For #58648.
+    
+    Change-Id: I35e75ead766bcf910c58eb20541769349841f2b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/cgo/gcc_stack_unix.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/link/internal/ld/dwarf_test.go | 263 ++++++++++++++++++++++-----------
+ 1 file changed, 179 insertions(+), 84 deletions(-)

@@ -1,23 +1,19 @@
-commit ed2f913b4c7259c14bb6654253f8588bb499595d
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Apr 4 08:34:55 2017 -0400
+commit 33c036867f11e1e6b874af68a606be7605cd6daf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 28 17:58:51 2016 -0800
 
-    syscall: update comments for x/sys migration
+    [dev.inline] cmd/internal/obj: remove vestiges of LineHist - not used anymore
     
-    The comments in this package state that users should be
-    migrating code that uses the syscall package to its
-    corresponding package in x/sys. However, the syscall.Signal
-    and syscall.Errno types and the syscall.SysProcAttr struct is
-    not defined in the x/sys package and still need to be referenced
-    from within syscall.  This adds a change to the comments to
-    clarify that the migration will need to continue to use some
-    references to syscall for now.
-    
-    Fixes #19560
-    
-    Change-Id: I8abb96b93bea90070ce461da16dc7bcf7b4b29c1
-    Reviewed-on: https://go-review.googlesource.com/39450
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9d3fcdd5b002953fa9d2f001bf7a834073443794
+    Reviewed-on: https://go-review.googlesource.com/34722
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go |   9 +-
+ src/cmd/compile/internal/gc/subr.go |   8 --
+ src/cmd/internal/obj/line.go        | 232 ------------------------------------
+ src/cmd/internal/obj/link.go        |   4 +-
+ src/cmd/internal/obj/sym.go         |   4 -
+ 5 files changed, 7 insertions(+), 250 deletions(-)

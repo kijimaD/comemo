@@ -1,18 +1,15 @@
-commit 829cc349c5990ecba52141bd978a99ee1571bc08
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 29 17:34:32 2015 -0700
+commit 15dcdfba0fd1c0949c094b4c07c7d10be565ccf3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 21 07:37:47 2015 -0700
 
-    go/format: handle whitespace-only input correctly
+    [dev.ssa] cmd/compile: implement OCALLMETH
     
-    Applied identical change to cmd/gofmt/internal.go.
+    This mimics the way the old backend
+    compiles OCALLMETH.
     
-    Fixes #11275.
-    
-    Change-Id: Icb4bf0460c94c9e2830dd0d62c69376774cbda30
-    Reviewed-on: https://go-review.googlesource.com/15154
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I635c8e7a48c8b5619bd837f78fa6eeba83a57b2f
+    Reviewed-on: https://go-review.googlesource.com/12549
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/gofmt/internal.go    | 12 +++++++++++-
- src/go/format/format_test.go | 23 ++++++++++++++++++-----
- src/go/format/internal.go    | 12 +++++++++++-
- 3 files changed, 40 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 31 ++++++++++++++++++++++++-------
+ 1 file changed, 24 insertions(+), 7 deletions(-)

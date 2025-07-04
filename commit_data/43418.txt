@@ -1,17 +1,48 @@
-commit 612a363bef9ae29d190f6daa2a5a1623f78c874b
-Author: hk <hk@tinyclouds.cn>
-Date:   Wed Oct 21 16:18:34 2020 +0000
+commit 801cd7c84d42dcf18256416524aa0d31d6305830
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Mar 7 11:08:06 2020 +1100
 
-    cmd/compile/internal/gc: fix comments
+    internal/syscall/windows: change WSAMsg.Name type
     
-    Change-Id: Id7b0ead39e961a16a85da3e308db10dd4f9b55c3
-    GitHub-Last-Rev: e640c4a61ade361ac17b7eb95d0ce8913d0b4d6f
-    GitHub-Pull-Request: golang/go#42120
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264080
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    The problem was discovered while running
+    
+    go test -a -short -gcflags=all=-d=checkptr -run=TestUDPConnSpecificMethods net
+    
+    WSAMsg is type defined by Windows. And WSAMsg.Name could point to two
+    different structures for IPv4 and IPV6 sockets.
+    
+    Currently WSAMsg.Name is declared as *syscall.RawSockaddrAny. But that
+    violates
+    
+    (1) Conversion of a *T1 to Pointer to *T2.
+    
+    rule of
+    
+    https://golang.org/pkg/unsafe/#Pointer
+    
+    When we convert *syscall.RawSockaddrInet4 into *syscall.RawSockaddrAny,
+    syscall.RawSockaddrInet4 and syscall.RawSockaddrAny do not share an
+    equivalent memory layout.
+    
+    Same for *syscall.SockaddrInet6 into *syscall.RawSockaddrAny.
+    
+    This CL changes WSAMsg.Name type to *syscall.Pointer. syscall.Pointer
+    length is 0, and that at least makes type checker happy.
+    
+    After this change I was able to run
+    
+    go test -a -short -gcflags=all=-d=checkptr std cmd
+    
+    without type checker complaining.
+    
+    Updates #34972
+    
+    Change-Id: Ic5c2321c20abd805c687ee16ef6f643a2f8cd93f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222457
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go    | 2 +-
- src/cmd/compile/internal/gc/subr.go   | 2 +-
- src/cmd/compile/internal/gc/syntax.go | 6 +++---
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/internal/poll/fd_windows.go                 | 4 ++--
+ src/internal/syscall/windows/syscall_windows.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

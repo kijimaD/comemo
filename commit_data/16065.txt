@@ -1,14 +1,12 @@
-commit 949ae8cced70fdd06cdd220e1e06467bb332d91c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Apr 3 19:13:37 2013 +1100
+commit b34f0551387fcf043d65cd7d96a0214956578f94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 2 23:17:37 2013 -0700
 
-    go/build: disable cgo when cross compiling
+    spec: Go has no 'reference types'
     
-    Fixes #5141.
-    
-    R=golang-dev, minux.ma, ality, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8134043
+    https://golang.org/cl/8288044
 
- src/pkg/go/build/build.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

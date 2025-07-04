@@ -1,23 +1,27 @@
-commit 8bcc490667d4dd44c633c536dd463bbec0a3838f
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Dec 12 10:53:17 2022 -0500
+commit 3d7f83612390d913e7e8bb4ffa3dc69c41b3078d
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jan 19 11:26:46 2022 -0800
 
-    os/user,net: add -fno-stack-protector to CFLAGS
+    net/http: deflake request-not-written path
     
-    Some compilers default to having -fstack-protector on, which breaks
-    when using internal linking because the linker doesn't know how to
-    find the support functions.
+    When we receive an error writing the first byte of a request to a
+    reused connection, we retry the request on a new connection. Remove
+    a flaky path which could cause the request to not be retried if
+    persistConn.roundTrip reads the error caused by closing the connection
+    before it reads the write error that caused the connection to be
+    closed.
     
-    Updates #52919.
-    Updates #54313.
-    Fixes #57261.
+    Fixes #30938.
     
-    Change-Id: Iaae731851407af4521fff2dfefc5b7e3e92cf284
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456855
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Iafd99e3239cd9dba4a4c9ddd950a877ca9815e59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379554
+    Trust: Bryan Mills <bcmills@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/cgo_unix_cgo.go       | 1 +
- src/os/user/cgo_lookup_cgo.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/net/http/transport.go               | 6 ++++++
+ src/net/http/transport_internal_test.go | 9 +++++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)

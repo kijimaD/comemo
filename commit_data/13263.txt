@@ -1,13 +1,14 @@
-commit 947a3ddf871794c109f85218de42511a9f02f02e
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Jun 4 20:53:32 2012 +1000
+commit 290115fdf4609c1fb0ba87aa1940a24308213543
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jun 3 22:40:16 2012 -0700
 
-    cmd/gc: recognize u<<1 op u>>31 as a rotate when op is ^, not just |.
+    net/http: change a Del to delete
     
-    R=rsc
+    No need to fix case of "Host" string literal.
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6249071
+    https://golang.org/cl/6278049
 
- src/cmd/gc/walk.c |   6 ++--
- test/rotate.go    | 105 ++++++++++++++++++++++++++++++++----------------------
- 2 files changed, 66 insertions(+), 45 deletions(-)
+ src/pkg/net/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

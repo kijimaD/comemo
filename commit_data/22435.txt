@@ -1,25 +1,12 @@
-commit ce469fadd8491dbe099d50402c0914d3746d49a1
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 10 15:25:10 2015 -0700
+commit dcf1ab316760e362f3ae52107510b9d9a151155d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Mar 15 17:23:02 2015 -0400
 
-    cmd/5g, cmd/internal/ld, cmd/internal/obj: destutter composite literals
+    doc/go1.5: correct archive/zip change
     
-    While here, this changes DWAbbrev's attr field from a [30]DWAttrForm
-    with zero-termination to a simple []DWAttrForm, and updates its users
-    accordingly.
-    
-    Passes "go build -toolexec 'toolstash -cmp' -a std" on linux/amd64.
-    
-    Change-Id: I52b5f7a749bdb3e7588fc8ebdb8fee2cf8cab602
-    Reviewed-on: https://go-review.googlesource.com/8762
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I7bac7b659b7ff425c6f896c286d0f89f05eff6bd
+    Reviewed-on: https://go-review.googlesource.com/7601
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/5g/peep.go           | 112 ++-----------
- src/cmd/internal/ld/dwarf.go | 369 ++++++++++++++-----------------------------
- src/cmd/internal/obj/go.go   |  10 +-
- src/cmd/internal/obj/sym.go  |  65 ++------
- 4 files changed, 153 insertions(+), 403 deletions(-)
+ doc/go1.5.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

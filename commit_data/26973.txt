@@ -1,27 +1,38 @@
-commit 2cdcb6f8296b6528bb7d256a45e339c4aefb9109
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 14 13:41:36 2016 -0400
+commit bd6d84282a441a35b4629eaa958d3ce24d396a6f
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Feb 27 14:37:10 2016 +0100
 
-    runtime: scavenge memory on physical page-aligned boundaries
+    fmt: refactor and unify float and complex formatting
     
-    Currently the scavenger marks memory unused in multiples of the
-    allocator page size (8K). This is safe as long as the true physical
-    page size is 4K (or 8K), as it is on many platforms. However, on
-    ARM64, PPC64x, and MIPS64, the physical page size is larger than 8K,
-    so if we attempt to mark memory unused, the kernel will round the
-    boundaries of the region *out* to all pages covered by the requested
-    region, and we'll release a larger region of memory than intended. As
-    a result, the scavenger is currently disabled on these platforms.
+    Removes specialized functions for each verb and float/complex size
+    and replaces them with generic variants fmtFloat and
+    fmtComplex similar to other generic fmt functions.
     
-    Fix this by first rounding the region to be marked unused *in* to
-    multiples of the physical page size, so that when we ask the kernel to
-    mark it unused, it releases exactly the requested region.
+    Simplifies the complex formatting by relying on fmtFloat
+    to handle the verb and default precision selection.
     
-    Fixes #9993.
+    Complex imaginary formatting does not need to clear the f.space flag
+    because the set f.plus flag will force a sign instead of a space.
     
-    Change-Id: I96d5fdc2f77f9d69abadcea29bcfe55e68288cb1
-    Reviewed-on: https://go-review.googlesource.com/22066
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Sets default precision for %b to -1 (same as %g and %G)
+    since precision for %b has no affect in strconv.AppendFloat.
+    
+    Add more tests and group them a bit better.
+    Use local copies of +Inf,-Inf and NaN instead
+    of math package functions for testing.
+    
+    Saves around 8kb in the go binary.
+    
+    name              old time/op  new time/op  delta
+    SprintfFloat-2     200ns ± 4%   196ns ± 4%  -1.55%  (p=0.007 n=20+20)
+    SprintfComplex-2   569ns ± 4%   570ns ± 3%    ~     (p=0.804 n=20+20)
+    
+    Change-Id: I36d35dab6f835fc2bd2c042ac97705868eb2446f
+    Reviewed-on: https://go-review.googlesource.com/20252
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
 
- src/runtime/mheap.go | 34 ++++++++++++++++++++++------------
- 1 file changed, 22 insertions(+), 12 deletions(-)
+ src/fmt/fmt_test.go | 100 +++++++++++++++++++++++++++++++++++++---------------
+ src/fmt/format.go   |  99 ++++-----------------------------------------------
+ src/fmt/print.go    | 100 +++++++++++++++++++---------------------------------
+ 3 files changed, 115 insertions(+), 184 deletions(-)

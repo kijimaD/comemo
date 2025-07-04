@@ -1,39 +1,44 @@
-commit 48a1dcb92778a349e13bcb8be10a40047f0cf7d1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 3 14:29:44 2023 -0800
+commit 946b4baaf6521d521928500b2b57429c149854e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 18 16:46:20 2022 -0400
 
-    debug/elf: support zstd compression
+    all: gofmt main repo
     
-    Test cases added to debug/dwarf because that is where it matters in practice.
+    Excluding vendor and testdata.
+    CL 384268 already reformatted most, but these slipped past.
     
-    The new test binary line-gcc-zstd.elf built with
+    The struct in the doc comment in debug/dwarf/type.go
+    was fixed up by hand to indent the first and last lines as well.
     
-        gcc -g -no-pie -Wl,--compress-debug-sections=zstd line[12].c
+    For #51082.
     
-    using
-    
-        gcc (Debian 12.2.0-10) 12.2.0
-    
-    with a development version of the GNU binutils.
-    
-    Fixes #55107
-    
-    Change-Id: I48507c96902e1f83a174e5647b5cc403d965b52b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473256
+    Change-Id: Iad020f83aafd671ff58238fe491907e85923d0c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407137
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- api/next/55107.txt                         |   2 ++
- src/cmd/dist/buildtool.go                  |   1 +
- src/debug/dwarf/entry_test.go              |  15 ++++++++++
- src/debug/dwarf/line_test.go               |  46 +++++++++++++++++++++++++++--
- src/debug/dwarf/testdata/line-gcc-zstd.elf | Bin 0 -> 17168 bytes
- src/debug/elf/elf.go                       |   2 ++
- src/debug/elf/elf_test.go                  |   2 +-
- src/debug/elf/file.go                      |   5 ++++
- src/go/build/deps_test.go                  |   2 +-
- 9 files changed, 71 insertions(+), 4 deletions(-)
+ src/archive/zip/reader.go                |  2 +-
+ src/cmd/compile/internal/ir/stmt.go      | 12 ++++++----
+ src/cmd/compile/internal/types2/api.go   |  6 ++---
+ src/cmd/pprof/doc.go                     |  2 +-
+ src/crypto/aes/cbc_ppc64x.go             |  1 +
+ src/debug/dwarf/type.go                  | 39 ++++++++++++++++----------------
+ src/debug/dwarf/type_test.go             |  1 -
+ src/debug/pe/symbol.go                   | 18 +++++++--------
+ src/go/internal/gcimporter/exportdata.go |  1 -
+ src/internal/diff/diff.go                |  1 -
+ src/io/multi.go                          |  2 +-
+ src/math/big/alias_test.go               |  4 ++--
+ src/net/net.go                           |  4 +++-
+ src/runtime/debug/garbage.go             |  5 ++--
+ src/runtime/mem.go                       |  2 ++
+ src/runtime/mgcpacer.go                  |  2 ++
+ src/runtime/os_linux.go                  |  1 +
+ src/runtime/string.go                    |  2 +-
+ src/runtime/vdso_linux_s390x.go          |  3 +--
+ src/sort/search.go                       | 17 +++++++-------
+ src/sync/atomic/doc.go                   |  1 -
+ src/syscall/syscall_linux.go             |  1 +
+ 22 files changed, 66 insertions(+), 61 deletions(-)

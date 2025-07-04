@@ -1,20 +1,25 @@
-commit 8bb3ae18db3ae1457ad56fc32a6380159589aa70
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Nov 19 12:25:37 2018 -0500
+commit 344d0e0bf78ce479310496e8c767fc5e7410b527
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 26 16:33:27 2018 -0700
 
-    cmd/vendor: eliminate vet-lite
+    cmd/cgo: make sure we FinishType everything
     
-    cmd/vet, now simplified to a single function call is now authoritative,
-    not a copy of vet-lite.
+    Ensure that we call FinishType on all the types added to the ptrs map.
+    We only add a key to ptrKeys once. Once we FinishType for that key,
+    we'll never look at that key again. But we can add a new type under that
+    key later, and we'll never finish it.
     
-    The update-xtools.sh script now uses the imports of cmd/vet as the
-    roots for vendoring.
+    Make sure we add the key to the ptrKeys list every time we make the list
+    of types for that key non-empty.
     
-    Change-Id: I4faef3fcf3db10b3a3930726e8d0720a3c8395da
-    Reviewed-on: https://go-review.googlesource.com/c/150297
-    Run-TryBot: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    This makes sure we FinishType each pointer type exactly once.
+    
+    Fixes #26517
+    
+    Change-Id: Iad86150d516fcfac167591daf5a26c38bec7d143
+    Reviewed-on: https://go-review.googlesource.com/126275
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../x/tools/go/analysis/cmd/vet-lite/main.go       | 74 ----------------------
- src/cmd/vendor/update-xtools.sh                    | 12 ++--
- 2 files changed, 8 insertions(+), 78 deletions(-)
+ misc/cgo/test/issue26517.go | 23 +++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          |  6 ++++--
+ 2 files changed, 27 insertions(+), 2 deletions(-)

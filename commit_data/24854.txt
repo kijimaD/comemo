@@ -1,15 +1,36 @@
-commit d95888127195f5f0e032e280ef969eee669c8474
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Thu Nov 5 22:47:45 2015 -0800
+commit 6fd82d83d697edebbe826a028e752c96f195111f
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Thu Sep 3 01:19:51 2015 +0300
 
-    runtime: use WriteConsole to implement print and panic on windows
+    net/http: optimize some io.Copy calls by reusing buffers
     
-    Fixes #7864
+    Optimize two calls of io.Copy which cannot make use of neither
+    io.ReaderFrom nor io.WriterTo optimization tricks by replacing them with
+    io.CopyBuffer with reusable buffers.
     
-    Change-Id: Id13369352aeccac8387876f0b911e383c543c28e
-    Reviewed-on: https://go-review.googlesource.com/16714
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    First is fallback call to io.Copy when server misses the optimized case
+    of using sendfile to copy from a regular file to net.TCPConn; second is
+    use of io.Copy on piped reader/writer when handler implementation uses
+    http.CloseNotifier interface. One of the notable users of
+    http.CloseNotifier is httputil.ReverseProxy.
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkCloseNotifier-4     309591        303388        -2.00%
+    
+    benchmark                    old allocs     new allocs     delta
+    BenchmarkCloseNotifier-4     50             49             -2.00%
+    
+    benchmark                    old bytes     new bytes     delta
+    BenchmarkCloseNotifier-4     36168         3140          -91.32%
+    
+    Fixes #12455
+    
+    Change-Id: I512e6aa2f1aeed2ed00246afb3350c819b65b87e
+    Reviewed-on: https://go-review.googlesource.com/14177
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os1_windows.go | 83 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 83 insertions(+)
+ src/net/http/serve_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 15 +++++++++++++--
+ 2 files changed, 45 insertions(+), 2 deletions(-)

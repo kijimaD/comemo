@@ -1,19 +1,12 @@
-commit 0cbca268d8aba5d7ffb24be58ea1ea92fcd5f6f5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 31 11:48:55 2012 -0700
+commit 7ea65e5154deaed1ebe283a933f2a5a1a3b90625
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 31 10:32:15 2012 -0700
 
-    gofmt: simplify slices of the form s[a : len(s)] to s[a:]
+    spec: we're now at Unicode 6.2.0
     
-    Fixes #4314.
-    
-    R=r, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6822059
+    https://golang.org/cl/6812060
 
- src/cmd/gofmt/gofmt_test.go           |  2 ++
- src/cmd/gofmt/simplify.go             | 54 +++++++++++++++++++++++++------
- src/cmd/gofmt/testdata/slices1.golden | 58 +++++++++++++++++++++++++++++++++
- src/cmd/gofmt/testdata/slices1.input  | 58 +++++++++++++++++++++++++++++++++
- src/cmd/gofmt/testdata/slices2.golden | 61 +++++++++++++++++++++++++++++++++++
- src/cmd/gofmt/testdata/slices2.input  | 61 +++++++++++++++++++++++++++++++++++
- 6 files changed, 285 insertions(+), 9 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

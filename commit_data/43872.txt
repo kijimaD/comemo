@@ -1,19 +1,26 @@
-commit 1d3baf20dcac2d9ad88634ac3fe75e9f6d966971
-Author: Tom Payne <twpayne@gmail.com>
-Date:   Fri Oct 23 23:40:00 2020 +0100
+commit 287d1ec96c1271de532c6b1160cd9cbbe717ee34
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Apr 22 21:36:11 2020 +0000
 
-    regexp/syntax: add note about Unicode character classes
+    runtime: ensure allocToCache updates searchAddr in a valid way
     
-    As proposed on golang-nuts:
-    https://groups.google.com/g/golang-nuts/c/M3lmSUptExQ/m/hRySV9GsCAAJ
+    Currently allocToCache assumes it can move the search address past the
+    block it allocated the cache from, which violates the property that
+    searchAddr should always point to mapped memory (i.e. memory represented
+    by pageAlloc.inUse).
     
-    Includes the latest updates from re2's mksyntaxgo:
-    https://code.googlesource.com/re2/+/refs/heads/master/doc/mksyntaxgo
+    This bug was already fixed once for pageAlloc.alloc in the Go 1.14
+    release via CL 216697, but that changed failed to take into account
+    allocToCache.
     
-    Change-Id: Ib7b79aa6531f473feabd0a7f1d263cd65c4388e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264678
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Fixes #38605.
+    
+    Change-Id: Id08180aa10d19dc0f9f551a1d9e327a295560dff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229577
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/regexp/syntax/doc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/mpagecache.go      | 13 +++++++++----
+ src/runtime/mpagecache_test.go | 33 +++++++++++++++++++++++++++++++--
+ 2 files changed, 40 insertions(+), 6 deletions(-)

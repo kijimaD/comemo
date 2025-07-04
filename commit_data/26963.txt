@@ -1,50 +1,20 @@
-commit b6b4004d5a5bf7099ac9ab76777797236da7fe63
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 14 17:47:25 2016 -0700
+commit 8b51ee831518584ebe063ac972b3b2ab28637853
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Feb 16 16:05:56 2016 -0600
 
-    net: context plumbing, add Dialer.DialContext
+    crypto/cipher: xorBytes performance ppc64le/ppc64
     
-    For #12580 (http.Transport tracing/analytics)
-    Updates #13021
+    Update supportsUnaligned in xor.go to be true for
+    GOARCH values ppc64le and ppc64.  This allows the
+    xor of long buffers to be done on double words
+    (8 bytes) instead of a single byte at a time, which
+    significantly improves performance.
     
-    Change-Id: I126e494a7bd872e42c388ecb58499ecbf0f014cc
-    Reviewed-on: https://go-review.googlesource.com/22101
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Fixes #14350
+    
+    Change-Id: Iccc6b9d3df2e604a55f4c1e4890bdd3bb0d77ab0
+    Reviewed-on: https://go-review.googlesource.com/19519
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/go/build/deps_test.go      |   4 +-
- src/net/cgo_unix_test.go       |   7 +-
- src/net/dial.go                | 283 +++++++++++++++++++++++------------------
- src/net/dial_test.go           |  59 ++++-----
- src/net/dnsclient_unix.go      |  15 ++-
- src/net/dnsclient_unix_test.go |  22 ++--
- src/net/error_test.go          |   7 +-
- src/net/fd_unix.go             |  54 ++++----
- src/net/fd_windows.go          |  43 ++++---
- src/net/hook.go                |  16 ++-
- src/net/iprawsock.go           |  11 +-
- src/net/iprawsock_plan9.go     |   6 +-
- src/net/iprawsock_posix.go     |  10 +-
- src/net/ipsock.go              |   8 +-
- src/net/ipsock_posix.go        |   7 +-
- src/net/lookup.go              |  41 +++---
- src/net/lookup_plan9.go        |   6 +-
- src/net/lookup_stub.go         |   9 +-
- src/net/lookup_test.go         |  14 +-
- src/net/lookup_unix.go         |  14 +-
- src/net/lookup_windows.go      | 113 ++++++++++------
- src/net/net.go                 |  17 +++
- src/net/netgo_unix_test.go     |   7 +-
- src/net/sock_posix.go          |  10 +-
- src/net/tcpsock.go             |   7 +-
- src/net/tcpsock_plan9.go       |  15 ++-
- src/net/tcpsock_posix.go       |  19 ++-
- src/net/udpsock.go             |  13 +-
- src/net/udpsock_plan9.go       |  10 +-
- src/net/udpsock_posix.go       |  14 +-
- src/net/unixsock.go            |   7 +-
- src/net/unixsock_plan9.go      |   8 +-
- src/net/unixsock_posix.go      |  18 +--
- 33 files changed, 517 insertions(+), 377 deletions(-)
+ src/crypto/cipher/xor.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

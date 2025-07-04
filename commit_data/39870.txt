@@ -1,17 +1,17 @@
-commit 85c60bd0f3b375448dd38579acbaafdddc20b42f
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Sep 9 03:17:43 2019 +1000
+commit 3089d189569ed272eaf2bc6c4330e848a46e9999
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 27 17:41:12 2019 +0000
 
-    cmd/internal/obj/riscv: fix up instruction groupings
+    net: fix test after 8.8.8.8 changed its reverse DNS name
     
-    Some of the instructions were incorrectly grouped - untangle this and
-    separate the RV64I instructions, which are under separate sections of
-    the RISC-V specification.
+    Google's 8.8.8.8 DNS server used to reports its reverse DNS name
+    as ending in ".google.com". Now it's "dns.google.".
     
-    Change-Id: I232962ab4054bf0b4745887506f51e74ea73f73d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194238
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I7dd15f03239e5c3f202e471618ab867690cb4f9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169679
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/internal/obj/riscv/anames.go | 60 ++++++++++++++++----------------
- src/cmd/internal/obj/riscv/cpu.go    | 67 +++++++++++++++++++-----------------
- 2 files changed, 66 insertions(+), 61 deletions(-)
+ src/net/lookup_test.go | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

@@ -1,15 +1,15 @@
-commit 4d355836610a2c675f02cfcf75771504a4b69586
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Mar 5 07:42:07 2012 +0900
+commit 54875a7a7f64ed3ae2f4d3b66f9de4b3c30c3a22
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Sun Mar 4 14:40:14 2012 +1100
 
-    net: move MAC address parser into distinct file
+        doc: fix another typo in article on defer, panic and recover
     
-    R=golang-dev, bradfitz
+    Fixes #3177
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5727054
+    https://golang.org/cl/5728057
 
- src/pkg/net/interface.go      | 77 +--------------------------------------
- src/pkg/net/interface_test.go | 45 -----------------------
- src/pkg/net/mac.go            | 84 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/mac_test.go       | 54 ++++++++++++++++++++++++++++
- 4 files changed, 139 insertions(+), 121 deletions(-)
+ doc/articles/defer_panic_recover.html | 2 +-
+ doc/articles/defer_panic_recover.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

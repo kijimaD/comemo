@@ -1,14 +1,20 @@
-commit cb14bd8306b7d5fb7b23afadb347dfb697b252af
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed May 6 19:06:29 2020 -0400
+commit 688aa748579f07552a50d2534eccb16afda4174b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 22 14:31:13 2019 -0500
 
-    crypto/tls: fix sessionState marshaling
+    cmd/link: add new linker testpoint for "ld -r" host object
     
-    Change-Id: I2910f322256c521dd03b1dc23d117defdcd0aa54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232662
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    This adds a new test that builds a small Go program with linked
+    against a *.syso file that is the result of an "ld -r" link. The
+    sysobj in question has multiple static symbols in the same section
+    with the same name, which triggered a bug in the loader in -newobj
+    mode.
+    
+    Updates #35779.
+    
+    Change-Id: Ibe1a75662dc1d49c4347279e55646ee65a81508e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208478
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/tls/ticket.go | 32 +++++++++++++++-----------------
- 1 file changed, 15 insertions(+), 17 deletions(-)
+ src/cmd/link/elf_test.go | 124 +++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 108 insertions(+), 16 deletions(-)

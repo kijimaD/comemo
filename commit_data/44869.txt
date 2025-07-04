@@ -1,20 +1,12 @@
-commit 3300390ec70c6b8e2392e4ab32342d426e2d3532
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Mar 30 08:49:42 2021 -0400
+commit 9b2df72b63ff977004756e9b847f926b4fb8d8a8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 10 11:07:48 2020 -0400
 
-    cmd/compile: make amd64 version of zerorange regabi-friendly
+    cmd/link: add copyright header
     
-    Change the amd64 version of 'zerorange' to avoid using RAX/RDI, since
-    it can be called in a context when one of these registers is live
-    (contains an incoming parameter).
-    
-    Updates #40724.
-    
-    Change-Id: Ibfa2b4e156b876354d4f8bd04eb8773c7056d948
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305829
-    Trust: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I44f57019bb8e659d4aa3da8b13e8bd9a20b9d2e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253920
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/amd64/ggen.go | 32 +++++++++++++++++++-------------
- 1 file changed, 19 insertions(+), 13 deletions(-)
+ src/cmd/link/link_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

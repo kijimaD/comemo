@@ -1,29 +1,24 @@
-commit 749925701606fae9c71559704a094279bc775512
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 11 14:39:06 2023 -0700
+commit 6d58aea5d412d135ec08463db515ee9453c508b5
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 4 16:42:52 2022 -0400
 
-    cmd/compile: pass only the itab to the assertI2I-style functions
+    cmd/go: use clean GOCACHE in TestNewReleaseRebuildsStalePackagesInGOPATH
     
-    It is currently slightly better to pass the whole interface to these
-    functions, so that we don't need to spill/restore the data word across
-    the function call.
+    Now that most GOROOT packages do not have install targets, their
+    staleness depends on whether their builds have been cached. That means
+    that, from a clean cache, once
+    TestNewReleaseRebuildsStalePackagesInGOPATH builds certain targets, they
+    will stay non-stale for the second run of the test, becasue the will
+    still be in the cache. So the first run of the test from a clean cache
+    will pass and the second will fail. Set GOCACHE to a temporary directory
+    in the test to use a clean cache and avoid this.
     
-    I'm adding a cache in front of these calls, which means we'll no longer
-    need a spill/restore in the common case, so it is better to just pass
-    the itab word.
-    
-    It also makes unifying the logic between I2I and I2I2 versions easier.
-    
-    Change-Id: I3c3e9fbb1e54890482840d76a1df79f4325bb5bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528075
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I91f954138a4723d81545134441148badbfc515f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448018
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go             |  27 +-
- .../compile/internal/typecheck/_builtin/runtime.go |   4 +-
- src/cmd/compile/internal/typecheck/builtin.go      | 415 ++++++++++-----------
- src/runtime/iface.go                               |  34 +-
- src/runtime/mfinal.go                              |   2 +-
- 5 files changed, 231 insertions(+), 251 deletions(-)
+ src/cmd/go/go_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

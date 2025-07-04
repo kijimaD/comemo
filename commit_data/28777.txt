@@ -1,23 +1,16 @@
-commit 898ca6ba0af0ea1180fea1f226ff6ef731018ac2
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sun Sep 11 19:05:29 2016 -0700
+commit 1b0404c4cab18bae9c9e11d0699a1aeb32f08908
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 18 14:00:25 2016 -0700
 
-    runtime: update mkduff legacy comments
+    [dev.ssa] cmd/compile: fix verbose typing of DIV
     
-    Update comments for duffzero and duffcopy
-    which referred to legacy locations:
-    + cmd/?g/cgen.go
-    + cmd/?g/ggen.go
+    Use Cherry's awesome pair type constructor.
     
-    Remnants of the old days when we had 5g, 6g etc.
-    
-    Those locations have since moved to:
-    + cmd/compile/internal/<arch>/cgen.go
-    + cmd/compile/internal/<arch>/ggen.go
-    
-    Change-Id: Ie2ea668559d52d42b747260ea69a6d5b3d70e859
-    Reviewed-on: https://go-review.googlesource.com/29073
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I282156a570ee4dd3548bd82fbf15b8d8eb5bedf6
+    Reviewed-on: https://go-review.googlesource.com/25009
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/mkduff.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 32 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 12 +++++------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 32 ++++++++++++++--------------
+ 3 files changed, 38 insertions(+), 38 deletions(-)

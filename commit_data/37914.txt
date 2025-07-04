@@ -1,18 +1,20 @@
-commit 9d23975d89e6cc3df4f2156b2ae0df5d2cef16fb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jan 17 14:39:31 2019 -0500
+commit 13de5e7f7f664011b2c8ecf9b97956a6023e2a4e
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Aug 14 16:39:13 2018 -0600
 
-    cmd/go/internal/modload: ensure that __debug_modinfo__ is not discarded during linking
+    math/bits: add extended precision Add, Sub, Mul, Div
     
-    Fixes #28753
-    Updates #29628
+    Port math/big pure go versions of add-with-carry, subtract-with-borrow,
+    full-width multiply, and full-width divide.
     
-    Change-Id: I4a561be7d491a0d088e656b00151ae1bdbd16a84
-    Reviewed-on: https://go-review.googlesource.com/c/158357
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #24813
+    
+    Change-Id: Ifae5d2f6ee4237137c9dcba931f69c91b80a4b1c
+    Reviewed-on: https://go-review.googlesource.com/123157
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modload/build.go       | 11 +++-
- src/cmd/go/testdata/script/mod_modinfo.txt | 85 +++++++++++++++++++++++-------
- 2 files changed, 77 insertions(+), 19 deletions(-)
+ src/math/bits/bits.go      | 194 +++++++++++++++++++++++++++++++++
+ src/math/bits/bits_test.go | 266 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 460 insertions(+)

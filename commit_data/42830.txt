@@ -1,16 +1,17 @@
-commit 63828096f61593cd766d6e25fce74133efeb17f8
-Author: zhouzhongyuan <zhouzhongyuan96@gmail.com>
-Date:   Fri May 8 18:13:58 2020 +0800
+commit f5ff00583fa6d4e9b4acb98b96757d98b1f55d28
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Thu Feb 20 17:25:33 2020 -0500
 
-    math/big: add function example
+    net/http/pprof: set content type for /debug/pprof
     
-    While reading the source code of the math/big package, I found the SetString function example of float type missing.
+    Fixes #37311
     
-    Change-Id: Id8c16a58e2e24f9463e8ff38adbc98f8c418ab26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232804
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9e1f37e991e5c203fe72061692f47584fbadfc58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220324
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/math/big/example_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/net/http/pprof/pprof.go      | 3 +++
+ src/net/http/pprof/pprof_test.go | 1 +
+ 2 files changed, 4 insertions(+)

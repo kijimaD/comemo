@@ -1,29 +1,13 @@
-commit 87404c98871a1b912aaae93aea34561952fde0b8
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Aug 30 10:14:45 2013 -0400
+commit 2df3d800378fda123395609189fabdd403634d80
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 30 17:12:42 2013 +1000
 
-    crypto/x509: expose arbitary X.509 extensions.
+    go/build: fix deps_test for Plan 9's os/user dependencies and to
+    include the new image/color/palette package.
     
-    This change allows people who want to parse or set odd X.509 extensions
-    to do so without having to add support for them all to the package.
-    
-    I tried to make it so that only a single member: Extensions would be
-    needed. However, that would mean detecting when the caller had altered
-    the contents of it so that parsing and marshaling a certificate
-    wouldn't ignore all changes to the other members. This ended up being
-    messy, thus the current design where there are two members: one for
-    reading and another for writing.
-    
-    As crypto/x509 adds support for more extensions in the future, the raw
-    extensions will still be in Extensions for older code that expects it
-    there. Also, future extensions will be overridden by any raw extensions
-    added to ExtraExtensions by code that was written before support was
-    added.
-    
-    R=golang-dev, r
-    CC=golang-dev, jpsugar
-    https://golang.org/cl/12056043
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/13314044
 
- src/pkg/crypto/x509/x509.go      | 54 ++++++++++++++++++++++++++++++++--------
- src/pkg/crypto/x509/x509_test.go | 27 ++++++++++++++++++++
- 2 files changed, 70 insertions(+), 11 deletions(-)
+ src/pkg/go/build/deps_test.go | 35 +++++++++++++++++++----------------
+ 1 file changed, 19 insertions(+), 16 deletions(-)

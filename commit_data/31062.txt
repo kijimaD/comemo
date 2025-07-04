@@ -1,29 +1,21 @@
-commit 62aeb77764dcb5487e6557d207aa19879745e03e
-Author: Rob Pike <r@golang.org>
-Date:   Sat Apr 8 20:31:09 2017 -0700
+commit ec654e2251f0104ee63eff57fba2749da2f177e5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 19 22:04:45 2017 -0800
 
-    cmd/go: allow full flag processing in go vet
+    misc/cgo/test: fix test when using GCC 7
     
-    This allows the go tool to run "go vet" with both the build flags
-    that make sense, such as -x and -tags, and vet with all its flags.
+    With GCC 7 (not yet released), cgo fails with errors like
     
-    To do this, create a new package cmd/go/internal/cmdflag to
-    hold functionality common to flag handling for test and vet.
+    ./sigaltstack.go:65:8: call of non-function C.restoreSignalStack
     
-    Fixes #19350
+    I do not know precisely why. Explicitly declaring that there are no
+    arguments to the static function is a simple fix for the debug info.
     
-    RELNOTES=yes
-    
-    Change-Id: Ia1ae213bd3f6cab1c5e492501c8d43ce61a7ee89
-    Reviewed-on: https://go-review.googlesource.com/40112
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id96e1cb1e55ee37a9f1f5ad243d7ee33e71584ac
+    Reviewed-on: https://go-review.googlesource.com/35480
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/deps.go                 |   5 +-
- src/cmd/go/alldocs.go                |   6 +-
- src/cmd/go/go_test.go                |  25 ++++-
- src/cmd/go/internal/cmdflag/flag.go  | 123 +++++++++++++++++++++++
- src/cmd/go/internal/test/testflag.go | 187 +++++++++--------------------------
- src/cmd/go/internal/vet/vet.go       |  27 +++--
- src/cmd/go/internal/vet/vetflag.go   |  99 +++++++++++++++++++
- src/cmd/vet/main.go                  |   2 +
- 8 files changed, 306 insertions(+), 168 deletions(-)
+ misc/cgo/test/sigaltstack.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

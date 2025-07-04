@@ -1,30 +1,17 @@
-commit 34fe8295c5ac099109d7f8a1f967edec96f2a71d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Sep 23 13:22:13 2019 +0000
+commit f70d457a366a498ff91c4fb8dd03eca576b898bb
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 8 09:54:33 2019 +0200
 
-    Revert "compile: prefer an AND instead of SHR+SHL instructions"
+    strings: unindent Fields
     
-    This reverts CL 194297.
+    CL 56470 unindented bytes.Fields, but not strings.Fields. Do so now to
+    make it easier to diff the two functions for potential differences.
     
-    Reason for revert: introduced register allocation failures on PPC64LE builders.
-    
-    Updates #33826
-    Updates #32781
-    Updates #34468
-    
-    Change-Id: I7d0b55df8cdf8e7d2277f1814299b083c2692e48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196957
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ifef81f50cee64e8277e91efa5ec5521d8d21d3bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170951
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |   7 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules   |   4 -
- src/cmd/compile/internal/ssa/gen/generic.rules |   8 +
- src/cmd/compile/internal/ssa/rewriteARM64.go   |  27 -
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 746 ++++++-------------------
- src/cmd/compile/internal/ssa/rewritegeneric.go | 114 +++-
- test/codegen/math.go                           |   4 +-
- 7 files changed, 289 insertions(+), 621 deletions(-)
+ src/strings/strings.go | 54 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 27 deletions(-)

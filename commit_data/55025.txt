@@ -1,87 +1,18 @@
-commit 11e9c8e6a13466ddd310f4b6f5e2c071c2ec8683
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Fri Nov 10 10:41:19 2023 +0000
+commit 1eb0465fa596a2d6e9c1a632499989544f0d7e68
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 5 16:26:26 2022 -0800
 
-    internal/bytealg: use PCALIGN in memequal
+    cmd/compile: turn off jump tables when spectre retpolines are on
     
-    goos: linux
-    goarch: amd64
-    pkg: bytes
-    cpu: Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz
-                                    │    master     │                 HEAD                  │
-                                    │    sec/op     │    sec/op      vs base                │
-    Equal/0-8                         0.2800n ± 22%   0.2865n ± 26%        ~ (p=0.075 n=10)
-    Equal/1-8                          18.57n ±  2%    19.34n ±  6%   +4.15% (p=0.014 n=10)
-    Equal/6-8                          19.07n ±  1%    19.38n ±  2%   +1.63% (p=0.014 n=10)
-    Equal/9-8                          19.39n ±  2%    19.05n ±  1%   -1.78% (p=0.005 n=10)
-    Equal/15-8                         19.46n ±  1%    19.10n ±  1%   -1.85% (p=0.000 n=10)
-    Equal/16-8                         19.36n ±  2%    18.95n ±  1%   -2.09% (p=0.011 n=10)
-    Equal/20-8                         20.20n ±  1%    19.83n ±  1%   -1.86% (p=0.001 n=10)
-    Equal/32-8                         20.95n ±  1%    20.84n ±  1%   -0.57% (p=0.010 n=10)
-    Equal/4K-8                         97.40n ±  2%    81.34n ±  3%  -16.49% (p=0.000 n=10)
-    Equal/4M-8                         81.74µ ±  3%    71.52µ ±  4%  -12.49% (p=0.000 n=10)
-    Equal/64M-8                        1.319m ±  1%    1.139m ±  3%  -13.68% (p=0.000 n=10)
-    EqualBothUnaligned/64_0-8          8.707n ±  4%    8.588n ±  3%        ~ (p=0.353 n=10)
-    EqualBothUnaligned/64_1-8          8.513n ±  3%    8.614n ±  2%        ~ (p=0.481 n=10)
-    EqualBothUnaligned/64_4-8          8.752n ±  3%    8.637n ±  4%        ~ (p=0.148 n=10)
-    EqualBothUnaligned/64_7-8          8.742n ±  3%    8.514n ±  2%        ~ (p=0.052 n=10)
-    EqualBothUnaligned/4096_0-8        89.87n ±  3%    70.44n ±  5%  -21.63% (p=0.000 n=10)
-    EqualBothUnaligned/4096_1-8        91.67n ±  5%    70.89n ±  3%  -22.67% (p=0.000 n=10)
-    EqualBothUnaligned/4096_4-8        90.43n ±  2%    70.52n ±  3%  -22.01% (p=0.000 n=10)
-    EqualBothUnaligned/4096_7-8        89.53n ±  3%    72.02n ±  5%  -19.56% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_0-8     86.43µ ±  3%    73.40µ ±  4%  -15.07% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_1-8     85.48µ ±  2%    75.35µ ±  1%  -11.85% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_4-8     86.51µ ±  3%    75.44µ ±  4%  -12.80% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_7-8     86.40µ ±  3%    74.41µ ±  3%  -13.88% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_0-8    1.374m ±  3%    1.171m ±  3%  -14.75% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_1-8    1.401m ±  4%    1.198m ±  4%  -14.49% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_4-8    1.393m ±  4%    1.205m ±  4%  -13.53% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_7-8    1.396m ±  3%    1.199m ±  4%  -14.11% (p=0.000 n=10)
-    geomean                            735.7n          666.7n         -9.39%
+    Fixes #57097
     
-                                    │    master    │                 HEAD                 │
-                                    │     B/s      │     B/s       vs base                │
-    Equal/1-8                         51.36Mi ± 2%   49.32Mi ± 6%   -3.98% (p=0.015 n=10)
-    Equal/6-8                         300.0Mi ± 1%   295.3Mi ± 2%   -1.57% (p=0.011 n=10)
-    Equal/9-8                         442.5Mi ± 2%   450.6Mi ± 1%   +1.82% (p=0.005 n=10)
-    Equal/15-8                        734.9Mi ± 1%   748.8Mi ± 1%   +1.90% (p=0.000 n=10)
-    Equal/16-8                        788.4Mi ± 2%   805.2Mi ± 1%   +2.14% (p=0.011 n=10)
-    Equal/20-8                        944.2Mi ± 1%   961.8Mi ± 1%   +1.87% (p=0.002 n=10)
-    Equal/32-8                        1.422Gi ± 0%   1.430Gi ± 1%   +0.58% (p=0.011 n=10)
-    Equal/4K-8                        39.17Gi ± 2%   46.90Gi ± 3%  +19.74% (p=0.000 n=10)
-    Equal/4M-8                        47.79Gi ± 3%   54.62Gi ± 4%  +14.27% (p=0.000 n=10)
-    Equal/64M-8                       47.38Gi ± 1%   54.89Gi ± 3%  +15.85% (p=0.000 n=10)
-    EqualBothUnaligned/64_0-8         6.845Gi ± 4%   6.940Gi ± 3%        ~ (p=0.353 n=10)
-    EqualBothUnaligned/64_1-8         7.002Gi ± 3%   6.919Gi ± 2%        ~ (p=0.481 n=10)
-    EqualBothUnaligned/64_4-8         6.811Gi ± 3%   6.901Gi ± 4%        ~ (p=0.165 n=10)
-    EqualBothUnaligned/64_7-8         6.819Gi ± 3%   7.002Gi ± 2%        ~ (p=0.052 n=10)
-    EqualBothUnaligned/4096_0-8       42.45Gi ± 3%   54.16Gi ± 5%  +27.60% (p=0.000 n=10)
-    EqualBothUnaligned/4096_1-8       41.61Gi ± 6%   53.82Gi ± 3%  +29.33% (p=0.000 n=10)
-    EqualBothUnaligned/4096_4-8       42.19Gi ± 2%   54.09Gi ± 3%  +28.22% (p=0.000 n=10)
-    EqualBothUnaligned/4096_7-8       42.61Gi ± 3%   52.97Gi ± 5%  +24.33% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_0-8    45.20Gi ± 3%   53.22Gi ± 4%  +17.75% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_1-8    45.70Gi ± 2%   51.84Gi ± 1%  +13.43% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_4-8    45.15Gi ± 3%   51.78Gi ± 4%  +14.68% (p=0.000 n=10)
-    EqualBothUnaligned/4194304_7-8    45.21Gi ± 3%   52.50Gi ± 4%  +16.12% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_0-8   45.50Gi ± 3%   53.37Gi ± 3%  +17.30% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_1-8   44.63Gi ± 4%   52.17Gi ± 4%  +16.89% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_4-8   44.86Gi ± 4%   51.88Gi ± 4%  +15.65% (p=0.000 n=10)
-    EqualBothUnaligned/67108864_7-8   44.76Gi ± 3%   52.12Gi ± 4%  +16.43% (p=0.000 n=10)
-    geomean                           9.734Gi        10.79Gi       +10.88%
-    
-    For #63678
-    
-    Change-Id: I427b8756e361fd4d36984c2bdb8bc3661ac3a0b8
-    GitHub-Last-Rev: 981d272d172a9e07c17fab04d6dbab032ecb2426
-    GitHub-Pull-Request: golang/go#63757
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/537995
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Change-Id: I6ab659abbca1ae0ac8710674d39aec116fab0baa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455336
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/internal/bytealg/equal_amd64.s | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/walk/switch.go |  2 +-
+ test/codegen/retpoline.go               | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

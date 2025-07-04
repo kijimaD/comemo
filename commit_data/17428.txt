@@ -1,30 +1,16 @@
-commit c51152f438bf7b348de915b7b25fed343ea2a758
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Thu Aug 29 13:52:38 2013 -0700
+commit f5f0e40e803125e47c64372fc7d808cbd8b9577a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 29 21:09:23 2013 +0200
 
-    runtime: check bitmap word for allocated bit in markonly
+    compress/flate: implement Reset method on Writer.
     
-    When searching for an allocated bit, flushptrbuf would search
-    backward in the bitmap word containing the bit of pointer
-    being looked-up before searching the span.  This extra check
-    was not replicated in markonly which, instead, after not
-    finding an allocated bit for a pointer would directly look in
-    the span.
+    Fixes #6138.
     
-    Using statistics generated from godoc, before this change span
-    lookups were, on average, more common than word lookups.  It
-    was common for markonly to consult spans for one third of its
-    pointer lookups.  With this change in place, what were
-    previously span lookups are overwhelmingly become by the word
-    lookups making the total number of span lookups a relatively
-    small fraction of the whole.
-    
-    This change also introduces some statistics gathering about
-    lookups guarded by the CollectStats enum.
-    
-    R=golang-dev, khr
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13311043
+    https://golang.org/cl/12953048
 
- src/pkg/runtime/mgc0.c | 43 ++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 40 insertions(+), 3 deletions(-)
+ src/pkg/compress/flate/deflate.go            | 67 +++++++++++++++++++++++++++-
+ src/pkg/compress/flate/deflate_test.go       | 64 ++++++++++++++++++++++++++
+ src/pkg/compress/flate/huffman_bit_writer.go | 25 +++++++++++
+ 3 files changed, 154 insertions(+), 2 deletions(-)

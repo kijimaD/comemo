@@ -1,23 +1,14 @@
-commit 9e5db8c90a319b30a409a266853e8053f7b534d9
+commit b7b36524143e64738997ce3dbcfe38437e070f3c
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 15 15:22:30 2012 -0400
+Date:   Thu Mar 15 15:10:19 2012 -0400
 
-    5l, 6l, 8l: fix stack split logic for stacks near default segment size
+    os: do not assume syscall.Write will write everything
     
-    Fixes #3310.
+    Fixes #3323.
     
-    R=golang-dev, r
+    R=golang-dev, remyoudompheng, gri
     CC=golang-dev
-    https://golang.org/cl/5823051
+    https://golang.org/cl/5837047
 
- src/cmd/5l/noop.c              |    3 +-
- src/cmd/6l/pass.c              |   13 +-
- src/cmd/8l/pass.c              |   14 +-
- src/pkg/runtime/asm_386.s      |    9 +
- src/pkg/runtime/asm_amd64.s    |    9 +
- src/pkg/runtime/asm_arm.s      |    7 +
- src/pkg/runtime/export_test.go |    2 +
- src/pkg/runtime/proc.c         |    5 +
- src/pkg/runtime/stack.h        |    5 +
- src/pkg/runtime/stack_test.go  | 1528 ++++++++++++++++++++++++++++++++++++++++
- 10 files changed, 1587 insertions(+), 8 deletions(-)
+ src/pkg/os/file_unix.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

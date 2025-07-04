@@ -1,29 +1,12 @@
-commit 24e549a717d1e083e7bef9003bce124294e9e975
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 28 00:49:13 2019 -0400
+commit 5f94d44722c49db52700a9e100029394a97fd5a3
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Jun 10 17:37:34 2019 -0400
 
-    cmd/compile, cmd/internal/obj/ppc64: use LR for indirect calls
+    doc: add release notes for os and os/exec
     
-    On PPC64, indirect calls can be made through LR or CTR. Currently
-    both are used. This CL changes it to always use LR.
-    
-    For async preemption, to return from the injected call, we need
-    an indirect jump back to the PC we preeempted. This jump can be
-    made through LR or CTR. So we'll have to clobber either LR or CTR.
-    Currently, LR is used more frequently. In particular, for a leaf
-    function, LR is live throughout the function. We don't want to
-    make leaf functions nonpreemptible. So we choose CTR for the call
-    injection. For code sequences that use CTR, if it is ok to use
-    another register, change it to.
-    
-    Plus, it is a call so it will clobber LR anyway. It doesn't need
-    to also clobber CTR (even without preemption).
-    
-    Change-Id: I07bd0e93b94a1a3aa2be2cd465801136165d8ab8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203822
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I34fd45ee252474c12f2e9c8d9b1a75b9eabb57f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181549
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go |  4 ++--
- src/cmd/internal/obj/ppc64/obj9.go    | 30 ++++++++++++------------------
- 2 files changed, 14 insertions(+), 20 deletions(-)
+ doc/go1.13.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

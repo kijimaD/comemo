@@ -1,58 +1,19 @@
-commit 6953ef86cd72a835d398319c4da560c8b78ba28e
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Apr 25 14:11:31 2025 +0200
+commit 48b10c9af7955bcab179b60a148a633a0a75cde7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 23:08:13 2024 -0500
 
-    net,os: support converting between *os.File and net.Conn on Windows
+    net/http: update bundle
     
-    The runtime poller and os.NewFile recently gained support for
-    disassociating the handle from the runtime poller IOCP (see CL 664455).
-    This was the main blocker for allowing the conversion between *os.File
-    and net.Conn.
+    go install golang.org/x/tools/cmd/bundle@latest
+    go generate net/http
     
-    Implementing the conversion is now trivial. The only remaining work,
-    implemented in this CL, is improving os.NewFile to also support
-    socket handles and updating some build tags so that Windows can share
-    almost the same net's File implementation as Unix.
+    This fixes the longtest builders, which broke at CL 570156.
     
-    There is one important limitation, though: the duplicated socket handle
-    returned by the various File methods in the net package is not
-    usable on other process. If someone needs to pass a socket handle to
-    another process, they should manually call the WSADuplicateSocket
-    Windows API passing the process ID of the target process.
-    
-    Fixes #9503.
-    Fixes #10350.
-    Updates #19098.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race,gotip-windows-amd64-longtest,gotip-windows-arm64
-    Change-Id: Ic43cadaac2662b925d57a9d362ddc7ae21d1b56e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668195
+    Change-Id: I85e6a1c20bd0080228400a561efd750342ae2d67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570276
     Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- doc/next/6-stdlib/99-minor/net/10350.md          |   3 +
- doc/next/6-stdlib/99-minor/net/9503.md           |   2 +
- src/internal/syscall/windows/net_windows.go      |   1 +
- src/internal/syscall/windows/syscall_windows.go  |   1 +
- src/internal/syscall/windows/zsyscall_windows.go |   9 ++
- src/net/error_test.go                            |   5 --
- src/net/fd_posix.go                              |  11 +++
- src/net/fd_unix.go                               |  11 ---
- src/net/fd_windows.go                            |  22 ++++-
- src/net/file.go                                  |   2 +-
- src/net/file_posix.go                            | 104 +++++++++++++++++++++++
- src/net/file_test.go                             |   8 +-
- src/net/file_unix.go                             |  95 +--------------------
- src/net/file_windows.go                          |  27 +++---
- src/net/main_plan9_test.go                       |   4 +
- src/net/main_unix_test.go                        |   7 +-
- src/net/main_wasm_test.go                        |   4 +
- src/net/main_windows_test.go                     |  17 +++-
- src/net/mockserver_test.go                       |  32 +++++--
- src/net/net.go                                   |   3 +
- src/net/tcpsock.go                               |   3 +
- src/net/unixsock.go                              |   3 +
- src/net/unixsock_test.go                         |   9 --
- src/os/file_windows.go                           |  37 +++++++-
- 24 files changed, 272 insertions(+), 148 deletions(-)
+ src/net/http/h2_bundle.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

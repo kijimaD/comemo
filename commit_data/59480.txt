@@ -1,29 +1,15 @@
-commit 3474c52e4b082421aa948eb178279f6a879701e2
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Apr 25 10:53:04 2025 +0800
+commit efa608e6fe456a9df254445f90dff4a24de77612
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Mar 10 23:12:56 2024 +0800
 
-    cmd/internal/obj/loong64: Add preld{,x} instructions support
+    net/http: do not set a deadline when Server.IdleTimeout is negative
     
-    Go asm syntax:
-            PRELD   16(R4), $8
-            PRELDX  (R4)(R5), $8
-    
-    Equivalent platform assembler syntax:
-            preld   $8, $r4, 16
-            preldx  $8, $r4, $r5
-    
-    Change-Id: Ie81d22ebaf4153388a7e9d8fa0f618a0ae7a1c9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671875
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I0d6336e6a21aef14e7229594a335899083fa98b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570396
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/asm/internal/arch/loong64.go            |  8 +++++++
- src/cmd/asm/internal/asm/asm.go                 |  6 +++++
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  8 +++++++
- src/cmd/internal/obj/loong64/a.out.go           |  4 ++++
- src/cmd/internal/obj/loong64/anames.go          |  2 ++
- src/cmd/internal/obj/loong64/asm.go             | 32 ++++++++++++++++++++++++-
- 6 files changed, 59 insertions(+), 1 deletion(-)
+ src/net/http/server.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

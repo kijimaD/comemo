@@ -1,22 +1,37 @@
-commit 79e5ef293545dd4f96b10e0bf82582e5dd57757a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Apr 23 05:03:11 2017 -0700
+commit d03c1248604679e1e6a01253144065bc57da48b8
+Author: Sokolov Yura <funny.falcon@gmail.com>
+Date:   Thu Jan 5 09:36:27 2017 +0300
 
-    cmd/compile: lazily create true and false Values in shortcircuit
+    runtime: implement fastrand in go
     
-    It is mildly wasteful to always create values
-    that must sometimes then be dead code eliminated.
-    Given that it is very easy to avoid, do so.
+    So it could be inlined.
     
-    Noticed when examining a package with thousands
-    of generated wrappers, each of which uses
-    only a handful of Values to compile.
+    Using bit-tricks it could be implemented without condition
+    (improved trick version by Minux Ma).
     
-    Change-Id: If02eb4aa786dfa20f7aa43e8d729dad8b3db2786
-    Reviewed-on: https://go-review.googlesource.com/41502
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Simple benchmark shows it is faster on i386 and x86_64, though
+    I don't know will it be faster on other architectures?
+    
+    benchmark                       old ns/op     new ns/op     delta
+    BenchmarkFastrand-3             2.79          1.48          -46.95%
+    BenchmarkFastrandHashiter-3     25.9          24.9          -3.86%
+    
+    Change-Id: Ie2eb6d0f598c0bb5fac7f6ad0f8b5e3eddaa361b
+    Reviewed-on: https://go-review.googlesource.com/34782
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/shortcircuit.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/runtime/asm_386.s      | 14 --------------
+ src/runtime/asm_amd64.s    | 13 -------------
+ src/runtime/asm_amd64p32.s | 13 -------------
+ src/runtime/asm_arm.s      |  9 ---------
+ src/runtime/asm_arm64.s    | 12 ------------
+ src/runtime/asm_mips64x.s  | 10 ----------
+ src/runtime/asm_mipsx.s    | 10 ----------
+ src/runtime/asm_ppc64x.s   | 11 -----------
+ src/runtime/asm_s390x.s    | 11 -----------
+ src/runtime/export_test.go |  2 ++
+ src/runtime/rand_test.go   | 32 ++++++++++++++++++++++++++++++++
+ src/runtime/stubs.go       | 11 +++++++++--
+ 12 files changed, 43 insertions(+), 105 deletions(-)

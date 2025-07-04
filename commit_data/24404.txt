@@ -1,37 +1,15 @@
-commit 0c1f0549b893d9ddaab42a7765ba82234fbcc10d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 29 21:24:13 2015 -0700
+commit a01d90744fe5d12ce8b48e7d3c6e67e954a9fe55
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 24 14:52:57 2015 -0700
 
-    runtime, runtime/cgo: support using msan on cgo code
+    all: cleanup usage of dashes in package documentation
     
-    The memory sanitizer (msan) is a nice compiler feature that can
-    dynamically check for memory errors in C code.  It's not useful for Go
-    code, since Go is memory safe.  But it is useful to be able to use the
-    memory sanitizer on C code that is linked into a Go program via cgo.
-    Without this change it does not work, as msan considers memory passed
-    from Go to C as uninitialized.
-    
-    To make this work, change the runtime to call the C mmap function when
-    using cgo.  When using msan the mmap call will be intercepted and marked
-    as returning initialized memory.
-    
-    Work around what appears to be an msan bug by calling malloc before we
-    call mmap.
-    
-    Change-Id: I8ab7286d7595ae84782f68a98bef6d3688b946f9
-    Reviewed-on: https://go-review.googlesource.com/15170
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I58453f7ed71eaca15dd3f501e4ae88d1fab19908
+    Reviewed-on: https://go-review.googlesource.com/12683
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/testsanitizers/msan.go   | 34 ++++++++++++++++++++++++++++++++++
- misc/cgo/testsanitizers/test.bash | 22 ++++++++++++++++++++++
- src/cmd/dist/test.go              |  3 +++
- src/runtime/cgo/gcc_linux_amd64.c | 32 +++++++++++++++++++++++++++-----
- src/runtime/cgo/gcc_mmap.c        | 21 +++++++++++++++++++++
- src/runtime/cgo/mmap.go           | 22 ++++++++++++++++++++++
- src/runtime/cgo_mmap.go           | 34 ++++++++++++++++++++++++++++++++++
- src/runtime/mmap.go               | 16 ++++++++++++++++
- src/runtime/stubs2.go             |  1 -
- src/runtime/sys_linux_amd64.s     | 16 +++++++++++++++-
- 10 files changed, 194 insertions(+), 7 deletions(-)
+ src/debug/elf/elf.go         | 2 +-
+ src/mime/multipart/writer.go | 3 ++-
+ src/net/http/request.go      | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)

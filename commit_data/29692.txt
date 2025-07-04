@@ -1,16 +1,28 @@
-commit e207032589ed927a66d2f04ac3621872213c6b51
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 1 01:59:07 2016 +0000
+commit f0636bf6f97478aca313052a9661828d01357d75
+Author: Dhananjay Nakrani <dhananjayn@google.com>
+Date:   Sat Oct 1 18:01:30 2016 -0700
 
-    doc: go1.8.html review feedback
+    cmd/cover: Fix compiler directives handling.
     
-    TBR=See https://golang.org/cl/33244
+    Currently, it separates comments from rest of the AST. This causes problems when
+    long counter increment statements are added before compiler directives.
+    See Issue #17315.
     
-    Updates #17929
+    This change moves comments handling into AST Visitor so that when printer prints
+    code from AST, position of compiler directives relative to the associated function
+    is preserved.
     
-    Change-Id: Ic6d449e7822daa70f3fe17e942e9d29233547019
-    Reviewed-on: https://go-review.googlesource.com/33759
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Tested with https://gist.github.com/dhananjay92/837df6bc1f171b1350f85d7a7d59ca1e
+    and unit test.
+    
+    Fixes #17315
+    
+    Change-Id: I61a80332fc1923de6fc59ff63b953671598071fa
+    Reviewed-on: https://go-review.googlesource.com/30161
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.8.html | 52 ++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 34 insertions(+), 18 deletions(-)
+ src/cmd/cover/cover.go         | 35 ++++++++++++++---------------------
+ src/cmd/cover/cover_test.go    | 19 +++++++++++++++++--
+ src/cmd/cover/testdata/main.go |  6 +++++-
+ src/cmd/cover/testdata/test.go | 12 ++++++++++++
+ 4 files changed, 48 insertions(+), 24 deletions(-)

@@ -1,66 +1,14 @@
-commit faa9d1eca9368fee5bffc016dd465571db050d5d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 2 17:22:18 2015 -0800
+commit 3eb84c8908dbe585ef156c8a3bad83ca7f4da288
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Mar 13 14:38:25 2015 +1100
 
-    strconv: use 64bit uint for decimal conversion if available
+    image/jpeg: reject bad Tq values in SOF data.
     
-    The existing code used ints for the (slow) decimal conversion and
-    assumed that they were 32bit wide.
+    Fixes #10154
     
-    This change uses uints and the appropriate width (32 or 64bit)
-    depending on platform.
-    
-    The performance difference is in the noise for the usual (optimized)
-    case which does not use the slow path conversion:
-    
-    benchmark                               old ns/op     new ns/op     delta
-    BenchmarkFormatFloatDecimal             298           299           +0.34%
-    BenchmarkFormatFloat                    388           392           +1.03%
-    BenchmarkFormatFloatExp                 365           364           -0.27%
-    BenchmarkFormatFloatNegExp              364           362           -0.55%
-    BenchmarkFormatFloatBig                 482           476           -1.24%
-    BenchmarkAppendFloatDecimal             100           102           +2.00%
-    BenchmarkAppendFloat                    199           201           +1.01%
-    BenchmarkAppendFloatExp                 174           175           +0.57%
-    BenchmarkAppendFloatNegExp              169           174           +2.96%
-    BenchmarkAppendFloatBig                 286           286           +0.00%
-    BenchmarkAppendFloat32Integer           99.9          102           +2.10%
-    BenchmarkAppendFloat32ExactFraction     161           164           +1.86%
-    BenchmarkAppendFloat32Point             199           201           +1.01%
-    BenchmarkAppendFloat32Exp               167           168           +0.60%
-    BenchmarkAppendFloat32NegExp            163           169           +3.68%
-    BenchmarkAppendFloat64Fixed1            137           134           -2.19%
-    BenchmarkAppendFloat64Fixed2            144           146           +1.39%
-    BenchmarkAppendFloat64Fixed3            138           140           +1.45%
-    BenchmarkAppendFloat64Fixed4            144           145           +0.69%
-    
-    The performance difference is significant if the fast path conversion is
-    explicitly turned off (ftoa.go:101):
-    
-    benchmark                               old ns/op     new ns/op     delta
-    BenchmarkFormatFloatDecimal             459           427           -6.97%
-    BenchmarkFormatFloat                    1560          1180          -24.36%
-    BenchmarkFormatFloatExp                 5501          3128          -43.14%
-    BenchmarkFormatFloatNegExp              24085         14360         -40.38%
-    BenchmarkFormatFloatBig                 1409          1081          -23.28%
-    BenchmarkAppendFloatDecimal             248           226           -8.87%
-    BenchmarkAppendFloat                    1315          982           -25.32%
-    BenchmarkAppendFloatExp                 5274          2869          -45.60%
-    BenchmarkAppendFloatNegExp              23905         14054         -41.21%
-    BenchmarkAppendFloatBig                 1194          860           -27.97%
-    BenchmarkAppendFloat32Integer           167           175           +4.79%
-    BenchmarkAppendFloat32ExactFraction     182           184           +1.10%
-    BenchmarkAppendFloat32Point             556           564           +1.44%
-    BenchmarkAppendFloat32Exp               1134          918           -19.05%
-    BenchmarkAppendFloat32NegExp            2679          1801          -32.77%
-    BenchmarkAppendFloat64Fixed1            274           238           -13.14%
-    BenchmarkAppendFloat64Fixed2            494           368           -25.51%
-    BenchmarkAppendFloat64Fixed3            1833          1008          -45.01%
-    BenchmarkAppendFloat64Fixed4            6133          3596          -41.37%
-    
-    Change-Id: I829b8abcca882b1c10d8ae421d3249597c31f3c9
-    Reviewed-on: https://go-review.googlesource.com/3811
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ibb8ea9bcf512e7639c57a6f17afbe4495fa329cd
+    Reviewed-on: https://go-review.googlesource.com/7494
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/strconv/decimal.go | 111 ++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 73 insertions(+), 38 deletions(-)
+ src/image/jpeg/reader.go | 4 ++++
+ 1 file changed, 4 insertions(+)

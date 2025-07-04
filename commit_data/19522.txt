@@ -1,13 +1,13 @@
-commit b93f83f8e1708969bfcba523ae330aa2a99dd81b
+commit f837078c505aae1f2fae3d35c525d4666d582989
 Author: Rui Ueyama <ruiu@google.com>
-Date:   Wed Jun 11 22:52:01 2014 -0700
+Date:   Wed Jun 11 20:33:44 2014 -0700
 
-    encoding/ascii85: remove unused field
+    net: do not call time.Now() twice
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/105890044
+    https://golang.org/cl/104080043
 
- src/pkg/encoding/ascii85/ascii85.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/net/hosts.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

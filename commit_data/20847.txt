@@ -1,19 +1,26 @@
-commit 489ff75ab8310b678a955b37094d2c72a1c18b11
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 3 13:26:46 2014 -0500
+commit e330cc16f477471c11f78a88c8a71a155a9ca8ec
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 18 21:02:49 2014 -0700
 
-    runtime: make Go and C mallocgc signatures match
+    runtime: dequeue the correct SudoG
     
-    Previously, the flags argument to mallocgc was an int in Go,
-    but a uint32 in C.  Change the Go type to use uint32 so these
-    agree.  The largest flag value is 2 (and of course no flag
-    values are negative), so this won't change anything on little
-    endian architectures, but it matters on big endian.
+    select {
+           case <- c:
+           case <- c:
+    }
     
-    LGTM=rsc
-    R=khr, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/169920043
+    In this case, c.recvq lists two SudoGs which have the same G.
+    So we can't use the G as the key to dequeue the correct SudoG,
+    as that key is ambiguous.  Dequeueing the wrong SudoG ends up
+    freeing a SudoG that is still in c.recvq.
+    
+    The fix is to use the actual SudoG pointer as the key.
+    
+    LGTM=dvyukov
+    R=rsc, bradfitz, dvyukov, khr
+    CC=austin, golang-codereviews
+    https://golang.org/cl/159040043
 
- src/runtime/malloc.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/chan_test.go | 29 +++++++++++++++++++++++++++++
+ src/runtime/select.go    |  8 ++++----
+ 2 files changed, 33 insertions(+), 4 deletions(-)

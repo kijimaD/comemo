@@ -1,29 +1,24 @@
-commit 4d54f27b35d4d6849b37daf09a4babc5ddc5117b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Feb 26 17:52:26 2015 +0900
+commit f9cc72ccfef0e1aa68f8c726c430bb7e59b734a8
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 26 20:29:58 2015 +1100
 
-    net/internal/socktest: new package
+    runtime: disable scavenger on 64k page size kernels
     
-    Package socktest provides utilities for socket testing.
+    Update #9993
     
-    This package allows test cases in the net package to simulate
-    complicated network conditions such as that a destination address is
-    resolvable/discoverable but is not routable/reachable at network layer.
-    Those conditions are required for testing functionality of timeout,
-    multiple address families.
+    If the physical page size of the machine is larger than the logical
+    heap size, for example 8k logical, 64k physical, then madvise(2) will
+    round up the requested amount to a 64k boundary and may discard pages
+    close to the page being madvised.
     
-    Change-Id: Idbe32bcc3319b41b0cecac3d058014a93e13288b
-    Reviewed-on: https://go-review.googlesource.com/6090
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This patch disables the scavenger in these situations, which at the moment
+    is only ppc64 and ppc64le systems. NaCl also uses a 64k page size, but
+    it's not clear if it is affected by this problem.
+    
+    Change-Id: Ib897f8d3df5bd915ddc0b510f2fd90a30ef329ca
+    Reviewed-on: https://go-review.googlesource.com/6091
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/net/internal/socktest/main_test.go         |  40 +++++++
- src/net/internal/socktest/main_unix_test.go    |  24 ++++
- src/net/internal/socktest/main_windows_test.go |  22 ++++
- src/net/internal/socktest/switch.go            | 150 +++++++++++++++++++++++
- src/net/internal/socktest/switch_stub.go       |  10 ++
- src/net/internal/socktest/switch_unix.go       |  29 +++++
- src/net/internal/socktest/switch_windows.go    |  29 +++++
- src/net/internal/socktest/sys_cloexec.go       |  41 +++++++
- src/net/internal/socktest/sys_unix.go          | 157 +++++++++++++++++++++++++
- src/net/internal/socktest/sys_windows.go       | 121 +++++++++++++++++++
- 10 files changed, 623 insertions(+)
+ src/runtime/debug/garbage_test.go | 4 ++++
+ src/runtime/mheap.go              | 9 +++++++++
+ 2 files changed, 13 insertions(+)

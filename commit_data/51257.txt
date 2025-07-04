@@ -1,37 +1,19 @@
-commit 6a9c76524fab12553108199352fc1faa3a76d783
-Author: Tim King <taking@google.com>
-Date:   Mon Nov 14 13:07:36 2022 -0800
+commit d2ce93960448559a7cb5685661502d8fc0c2ebc1
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Wed Dec 22 04:23:26 2021 +0000
 
-    cmd: update vendored golang.org/x/tools for loopclosure improvements
+    doc/go1.18: fix broken HTML in net/http.MaxBytesHandler
     
-    Updates vet to report errors where a loop variable escapes the current
-    loop iteration by a call to testing.T.Run where the subtest body invokes
-    t.Parallel().
+    For #47694
     
-    Change-Id: I727f01d0cdd479ff1b5b1e4f1872c530bfefb263
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450435
-    Run-TryBot: Tim King <taking@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Sorry about that! I guess the autocompleter in VSCode auto-closed the paragraph and I didn't notice.
+    
+    Change-Id: I1e834e47deb708cd5285d26201a442305f8c3b24
+    GitHub-Last-Rev: ab8873155191072efd51270c85fc6feaed318cdc
+    GitHub-Pull-Request: golang/go#50305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374014
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go.mod                                     | 13 ++-
- src/cmd/go.sum                                     | 18 ++--
- src/cmd/vendor/golang.org/x/crypto/LICENSE         | 27 ------
- src/cmd/vendor/golang.org/x/crypto/PATENTS         | 22 -----
- .../vendor/golang.org/x/crypto/ed25519/ed25519.go  | 71 ----------------
- src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go |  3 +-
- .../vendor/golang.org/x/sys/unix/sockcmsg_unix.go  | 14 ++++
- .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  1 +
- .../go/analysis/passes/loopclosure/loopclosure.go  | 96 ++++++++++++++++++----
- .../x/tools/go/analysis/passes/tests/tests.go      |  4 +-
- .../x/tools/go/analysis/unitchecker/unitchecker.go |  8 +-
- .../golang.org/x/tools/go/types/typeutil/map.go    | 77 ++++++++++++++++-
- .../x/tools/internal/analysisinternal/analysis.go  |  4 -
- .../{go/analysis => }/internal/facts/facts.go      | 35 +++++---
- .../{go/analysis => }/internal/facts/imports.go    |  3 +
- src/cmd/vendor/modules.txt                         | 13 ++-
- src/go.mod                                         |  2 +-
- src/go.sum                                         |  4 +-
- src/vendor/modules.txt                             |  2 +-
- 19 files changed, 228 insertions(+), 189 deletions(-)
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

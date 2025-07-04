@@ -1,16 +1,17 @@
-commit ec1b9452658dfa6ca865a9dd2711726ab71de99c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jan 21 18:21:35 2021 -0800
+commit 8fa468d511b8b1197137ce0ad0ea4260167d2348
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 19 13:29:29 2020 +0200
 
-    doc/go1.16: mention path/filepath.WalkDir
+    doc/go1.15: consolidate notes regarding package testing
     
-    For #40700
-    For #42027
+    Fold the descriptions of testing.T.Deadline and TestMain related changes
+    into the existing section for package testing.
     
-    Change-Id: Ifb73050dfdab21784fa52d758ad9c408e6489684
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285595
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also link T.Deadline to its godoc.
+    
+    Change-Id: I732c45fb879305099cb8a51a77ef11fba1b2f1e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234557
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.16.html | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ doc/go1.15.html | 30 ++++++++++++++----------------
+ 1 file changed, 14 insertions(+), 16 deletions(-)

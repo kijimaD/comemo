@@ -1,41 +1,20 @@
-commit 2b462646edefe47650851e8ba23cc787c57ae745
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Sep 8 14:54:29 2023 -0400
+commit 51af90445696772703ed88d967e8c23c8e9e992d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 25 21:07:11 2022 -0700
 
-    runtime: set stackguard1 on extra M g0
+    go/types, types2: use correct shift value when typechecking constant shift
     
-    [This is an unmodified redo of CL 527056.]
+    Fixes #56425.
     
-    Standard Ms set g0.stackguard1 to the same value as stackguard0 in
-    mstart0. For consistency, extra Ms should do the same for their g0. Do
-    this in needm -> callbackUpdateSystemStack.
-    
-    Background: getg().stackguard1 is used as the stack guard for the stack
-    growth prolouge in functions marked //go:systemstack [1]. User Gs set
-    stackguard1 to ^uintptr(0) so that the check always fail, calling
-    morestackc, which throws to report a //go:systemstack function call on a
-    user stack.
-    
-    g0 setting stackguard1 is unnecessary for this functionality. 0 would be
-    sufficient, as g0 is always allowed to call //go:systemstack functions.
-    However, since we have the check anyway, setting stackguard1 to the
-    actual stack bound is useful to detect actual stack overflows on g0
-    (though morestackc doesn't detect this case and would report a
-    misleading message about user stacks).
-    
-    [1] cmd/internal/obj calls //go:systemstack functions AttrCFunc. This is
-    a holdover from when the runtime contained actual C functions. But since
-    CL 2275, it has simply meant "pretend this is a C function, which would
-    thus need to use the system stack". Hence the name morestackc. At this
-    point, this terminology is pretty far removed from reality and should
-    probably be updated to something more intuitive.
-    
-    Change-Id: If315677217354465fbbfbd0d406d79be20db0cc3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527716
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ieae3fdb5326d4b6f6ec1cdcd579051559e34b35b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445515
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/cgocall.go  | 2 ++
- src/runtime/runtime2.go | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/expr.go             | 5 +++--
+ src/go/types/expr.go                                | 5 +++--
+ src/internal/types/testdata/fixedbugs/issue56425.go | 8 ++++++++
+ 3 files changed, 14 insertions(+), 4 deletions(-)

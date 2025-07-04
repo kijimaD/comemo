@@ -1,19 +1,21 @@
-commit a02516a3797571b5c88b0fc44a225daf401ab457
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 16 14:14:27 2024 -0400
+commit fdc9cf3c3aaf779387f0341125680f018e5f0275
+Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
+Date:   Wed Aug 9 08:15:51 2023 -0700
 
-    runtime: remove go:noescape from getcallerpc/sp
+    runtime/pprof: fix build breakage on ios
     
-    getcallerpc and getcallerps dropped their arguments in CL 65474 and CL
-    109596, respectively.
+    CL 503919 breaks tests for ios, this change fixes that.
     
-    Without an argument there is nothing to escape.
+    Fixes #61891
     
-    Change-Id: I24f300d039a2a0615ca0c3ea247125676a6237d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613497
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I58508a780abb7a2150faec83c0f002cb22abafb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517795
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/runtime/stubs.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/runtime/pprof/proto_test.go         | 2 +-
+ src/runtime/pprof/vminfo_darwin_test.go | 7 +++++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

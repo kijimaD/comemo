@@ -1,15 +1,13 @@
-commit 4a695d2c18713ea85029922c0e0758423dcd99ab
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 25 09:36:22 2013 -0700
+commit cdd35983341cf64cb5c68ea71f15a14988d753d8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jul 26 00:21:37 2013 +0900
 
-    go/parser: restrict ParseDir to files with suffix ".go"
+    net: give more detail when test panics
     
-    Fixes #5956.
-    
-    R=rsc, r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/11813043
+    https://golang.org/cl/11811043
 
- src/pkg/go/parser/interface.go   | 15 +++++++++------
- src/pkg/go/parser/parser_test.go | 18 ++++++++++--------
- 2 files changed, 19 insertions(+), 14 deletions(-)
+ src/pkg/net/interface_linux_test.go | 2 +-
+ src/pkg/net/unicast_posix_test.go   | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

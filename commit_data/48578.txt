@@ -1,16 +1,17 @@
-commit c05c0ca8cfba2c9b78e92e71907c3a1ee344aa23
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Mar 30 11:57:48 2022 -0400
+commit dc8f87b7493e173d65d3587389cc41468ba16dc0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jun 1 12:22:12 2021 +0200
 
-    go/types, types2: add commentary on (non-)guarantees when using contexts
+    runtime/internal/sys: generate //go:build lines in gengoos.go
     
-    Change-Id: I29347e340725fa2892eb115b530de82969835412
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396776
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #41184
+    
+    Change-Id: If7a1c3980f47bc28d0a13fe497eaba6178c65c91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323750
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/types2/context.go | 20 ++++++++++++++++++++
- src/go/types/context.go                    | 20 ++++++++++++++++++++
- 2 files changed, 40 insertions(+)
+ src/runtime/internal/sys/gengoos.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

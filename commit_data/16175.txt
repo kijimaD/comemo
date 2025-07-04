@@ -1,12 +1,19 @@
-commit 03640c58e3dce5a7e6e6dfa8c4171bcf537a4b20
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 13 23:09:08 2013 -0700
+commit 7b8e08617ea0d2b119766e0fd893fbf4502280e8
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Apr 13 08:22:16 2013 +0200
 
-    crypto/ecdsa: doc cleanup
+    cmd/gc: disable inlining of method values
     
-    R=golang-dev, dsymonds, r
+    They caused internal compiler errors and they're expensive enough that inlining them doesn't make sense.
+    
+    Fixes #5259.
+    
+    R=golang-dev, r, iant, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/8592044
+    https://golang.org/cl/8636043
 
- src/pkg/crypto/ecdsa/ecdsa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/inl.c                     |  1 +
+ test/fixedbugs/issue5259.dir/bug.go  | 17 +++++++++++++++++
+ test/fixedbugs/issue5259.dir/main.go | 16 ++++++++++++++++
+ test/fixedbugs/issue5259.go          |  9 +++++++++
+ 4 files changed, 43 insertions(+)

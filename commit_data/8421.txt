@@ -1,17 +1,12 @@
-commit 1242c76794936f7bdd4406aa8914500eefe655d4
-Author: Rob Pike <r@golang.org>
-Date:   Tue May 17 11:15:14 2011 -0400
+commit b96fc594ba3b61755e784d84ce45bb9a78094bc8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 17 14:24:32 2011 +1000
 
-    reflect: make allocation test less fragile.
-    When GOMAXPROCS>1, the testing framework runs in parallel with the
-    test itself and may do a small number of allocations, so allow the
-    "noAllocs" condition to admit just a few.
+    doc: add Korean Go site
     
-    Fixes #1782.
-    
-    R=rsc
-    CC=golang-dev, rsc
-    https://golang.org/cl/4533041
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4515092
 
- src/pkg/reflect/all_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ doc/docs.html | 5 +++++
+ 1 file changed, 5 insertions(+)

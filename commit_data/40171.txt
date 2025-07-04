@@ -1,25 +1,16 @@
-commit ecba83520d4c34870e0f5f0997d59d4496957240
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Tue Oct 8 00:58:26 2019 +0200
+commit 24513d33b1d6f4b5231baf7c1b896968b35841b6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 23 14:06:12 2019 -0700
 
-    syscall: on wasm, do not panic if "process" global is not defined
+    cmd/compile: don't call hcrash in Warn
     
-    When running wasm in the browser, the "process" global is not defined.
-    This causes functions like os.Getpid() to panic, which is unusual.
-    For example on Windows os.Getpid() returns -1 and does not panic.
+    Fixes #31638.
     
-    This change adds a dummy polyfill for "process" which returns -1 or an
-    error. It also extends the polyfill for "fs".
-    
-    Fixes #34627
-    Replaces CL 199357
-    
-    Change-Id: Ifeb12fe7e152c517848933a9ab5f6f749896dcef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199698
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Change-Id: I748f64b48b75241a9db31c9f37555379a841677a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173443
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/wasm/wasm_exec.js    | 60 ++++++++++++++++++++++++++++++++++++-----------
- src/syscall/syscall_js.go |  5 ++--
- 2 files changed, 49 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,18 +1,14 @@
-commit d0d38f0f707e69965a5f5a637fa568c646899d39
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 14 14:27:06 2021 -0700
+commit 613388315e29d4e906805e602602500ca1e7e334
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Mon May 11 11:18:57 2020 +0800
 
-    cmd/compile: fix whitespace in comment
+    runtime: reduce critical path in injectglist
     
-    The whitespace was there to align with the following comment,
-    but the extra whitespace was unnecessary; it wasn't gofmt'd.
-    Then the file got gofmt'd, but the whitespace didn't get fixed.
-    
-    Change-Id: I45aad9605b99d83545e4e611ae3ea1b2ff9e6bf6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301649
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: Ia3fb30ac9add39c803f11f69d967c6604fdeacf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233217
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

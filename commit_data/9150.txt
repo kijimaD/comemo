@@ -1,20 +1,17 @@
-commit 816c972ff04c3975b29605a6cb9b16382460e47c
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Jul 21 09:10:49 2011 +1000
+commit 78c89d21bcb33b71d716165a9204c397cf1eaf63
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jul 21 08:38:35 2011 +1000
 
-    html: handle character entities without semicolons
+    http: sniffing algorithm.
     
-    Fix the TODO: unescape("&notit;") should be "¬it;"
+    This follows draft-ietf-websec-mime-sniff-03 in its intent,
+    though not its algorithmic specification.
     
-    Also accept digits in entity names.
-    
-    R=nigeltao
-    CC=golang-dev, rsc
-    https://golang.org/cl/4781042
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4746042
 
- src/pkg/html/entity.go      |  3 +++
- src/pkg/html/entity_test.go |  3 +++
- src/pkg/html/escape.go      | 28 +++++++++++++++++++++-------
- src/pkg/html/token.go       |  2 +-
- src/pkg/html/token_test.go  | 10 ++++++++++
- 5 files changed, 38 insertions(+), 8 deletions(-)
+ src/pkg/http/server.go     |   5 +-
+ src/pkg/http/sniff.go      | 170 +++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/http/sniff_test.go |  40 +++++++++++
+ 3 files changed, 205 insertions(+), 10 deletions(-)

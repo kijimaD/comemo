@@ -1,24 +1,29 @@
-commit 331f0c69769fb856f00c75f29085665f60a7af7b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 2 10:14:58 2023 -0800
+commit e8534640557939755917edc3e6afc16d93b2e70b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 21 13:45:50 2022 -0400
 
-    go/types, types2: simplify symmetric code
+    cmd/compile, cmd/link: produce unlinkable object when compile without -p
     
-    Because unification is symmetric, in cases where we have symmetric
-    code for x and y depending on some property we can swap x and y as
-    needed and simplify the code.
+    CL 391014 requires the compiler to be invoked with the -p flag, to
+    specify the package path. People are used to run "go tool compile"
+    from the command line with the -p flag. This is mostly for simple
+    testing, or debugging the compiler. The produced object file is
+    almost never intended to be linked.
     
-    Also, change u.depth increment/decrement position for slightly
-    nicer tracing ooutput.
+    This CL makes the compiler allow "go tool compile" without the -p
+    flag again. It will produce an unlinkable object. If the linker
+    sees such an object it will error out.
     
-    Change-Id: I2e84570d463d1c32f6556108f3cb54062b57c718
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464896
+    Change-Id: I7bdb162c3cad61dadd5c456d903b92493a3df20f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394217
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/unify.go | 68 ++++++++++++++++----------------
- src/go/types/unify.go                    | 68 ++++++++++++++++----------------
- 2 files changed, 66 insertions(+), 70 deletions(-)
+ src/cmd/compile/internal/base/flag.go  |  3 ++-
+ src/cmd/internal/goobj/objfile.go      |  2 ++
+ src/cmd/internal/obj/objfile.go        |  5 +++++
+ src/cmd/link/internal/loader/loader.go |  4 ++++
+ src/cmd/link/link_test.go              | 28 ++++++++++++++++++++++++++++
+ 5 files changed, 41 insertions(+), 1 deletion(-)

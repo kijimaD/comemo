@@ -1,19 +1,18 @@
-commit e29dd78ffedb504ccad69a0791dd22b88cc6336e
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Aug 24 09:22:36 2022 +0800
+commit 72d1cb092e0008419676be353703298cadccf3a2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 5 11:54:11 2022 -0700
 
-    cmd/internal/obj: remove redundant cnames on loong64
+    cmd/compile/internal/pkginit: fix typecheck.DeclFunc call
     
-    Change-Id: I5aa6328a12e74b2801ab60b5a5bb8571d382d5ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425301
-    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    CL 403935 changed the API for typecheck.DeclFunc, while CL 403851 was
+    submitted in the mean time and added another call to it.
+    
+    Change-Id: I0de59f34197bf241c1dd42cffbab7a91f9eb825d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404434
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/loong64/cnames.go | 2 +-
+ src/cmd/compile/internal/pkginit/init.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

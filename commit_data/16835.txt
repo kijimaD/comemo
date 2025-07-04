@@ -1,49 +1,14 @@
-commit 6ea7bf253c67ab85a4ba99bb1716112ca139de9f
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jul 22 12:49:57 2013 +1000
+commit 01cc462bfcfe805ea86723b0c7553dfbe63a3464
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 22 12:22:14 2013 +1000
 
-    net: implement netpoll for windows
+    doc: fix wiki content error
     
-    Moves the network poller from net package into runtime.
+    Fixes #5898.
     
-    benchmark                           old ns/op    new ns/op    delta
-    BenchmarkTCP4OneShot                   316386       287061   -9.27%
-    BenchmarkTCP4OneShot-2                 339822       313424   -7.77%
-    BenchmarkTCP4OneShot-3                 330057       306589   -7.11%
-    BenchmarkTCP4OneShotTimeout            341775       287061  -16.01%
-    BenchmarkTCP4OneShotTimeout-2          380835       295849  -22.32%
-    BenchmarkTCP4OneShotTimeout-3          398412       328070  -17.66%
-    BenchmarkTCP4Persistent                 40622        33392  -17.80%
-    BenchmarkTCP4Persistent-2               44528        35736  -19.74%
-    BenchmarkTCP4Persistent-3               44919        36907  -17.84%
-    BenchmarkTCP4PersistentTimeout          45309        33588  -25.87%
-    BenchmarkTCP4PersistentTimeout-2        50289        38079  -24.28%
-    BenchmarkTCP4PersistentTimeout-3        51559        37103  -28.04%
-    BenchmarkTCP6OneShot                   361305       345645   -4.33%
-    BenchmarkTCP6OneShot-2                 361305       331976   -8.12%
-    BenchmarkTCP6OneShot-3                 376929       347598   -7.78%
-    BenchmarkTCP6OneShotTimeout            361305       322212  -10.82%
-    BenchmarkTCP6OneShotTimeout-2          378882       333928  -11.86%
-    BenchmarkTCP6OneShotTimeout-3          388647       335881  -13.58%
-    BenchmarkTCP6Persistent                 47653        35345  -25.83%
-    BenchmarkTCP6Persistent-2               49215        35736  -27.39%
-    BenchmarkTCP6Persistent-3               38474        37493   -2.55%
-    BenchmarkTCP6PersistentTimeout          56637        34369  -39.32%
-    BenchmarkTCP6PersistentTimeout-2        42575        38079  -10.56%
-    BenchmarkTCP6PersistentTimeout-3        44137        37689  -14.61%
-    
-    R=dvyukov
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8670044
+    https://golang.org/cl/11556043
 
- src/pkg/net/fd_poll_runtime.go       |   2 +-
- src/pkg/net/fd_windows.go            | 237 +++++++++++++----------------------
- src/pkg/net/sendfile_windows.go      |   2 +-
- src/pkg/net/sockopt_windows.go       |  19 ---
- src/pkg/runtime/defs_windows.go      |   8 +-
- src/pkg/runtime/defs_windows_386.h   |  10 ++
- src/pkg/runtime/defs_windows_amd64.h |  10 ++
- src/pkg/runtime/netpoll.goc          |   2 +-
- src/pkg/runtime/netpoll_stub.c       |   2 +-
- src/pkg/runtime/netpoll_windows.c    | 110 ++++++++++++++++
- 10 files changed, 229 insertions(+), 173 deletions(-)
+ doc/articles/wiki/index.html | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

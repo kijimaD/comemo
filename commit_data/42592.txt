@@ -1,17 +1,16 @@
-commit fcf1cb2cf51bae37a8d5d0425a39e21ce5073bff
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jul 5 23:39:45 2020 -0400
+commit fa610c776e4bc659211b65a2dfbc74051ef99159
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 23 03:33:54 2020 +1100
 
-    go/build: remove use of package log
+    cmd/internal/obj/riscv: add missing instructions to the ternary expansion list
     
-    package log does not belong here,
-    even for an impossible condition.
+    Updates #27532
     
-    Change-Id: I6180a4f7766a8e5759db4f33d03703d0b678d0b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241077
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I5beb7941c204755948350b181c713b046bc4f1f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215841
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/build.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

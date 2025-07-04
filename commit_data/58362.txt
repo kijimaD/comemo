@@ -1,22 +1,33 @@
-commit 8c3e391573403cf1cf85b3256e99d0c0b7d79b3a
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 6 20:43:16 2024 -0500
+commit 54452b963c16834935b0589897b9ced9c4066a0d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Nov 1 23:43:15 2023 +1100
 
-    runtime: improve AddCleanup documentation
+    syscall: call getfsstat via libc on openbsd
     
-    Steer people from SetFinalizer to AddCleanup. Address some of the
-    *non*-constraints on AddCleanup. Add some of the subtlety from the
-    SetFinalizer documentation to the AddCleanup documentation.
+    On openbsd, call getfsstat directly via libc, instead of calling it
+    via syscall.Syscall.
     
-    Updates #67535.
-    Updates #70425.
+    Updates #63900
     
-    Change-Id: I8d13b756ca866051b8a5c19327fd5a76f5e0f3d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634318
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: Ib4c581160b170e6cc6017c42e959e647d97ac993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538736
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Josh Rickmar <jrick@zettaport.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/runtime/mcleanup.go | 37 ++++++++++++++++++++++++++++++-------
- src/runtime/mfinal.go   |  3 +++
- 2 files changed, 33 insertions(+), 7 deletions(-)
+ src/syscall/syscall_openbsd.go          | 12 ++++--------
+ src/syscall/zsyscall_openbsd_386.go     | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_386.s      |  2 ++
+ src/syscall/zsyscall_openbsd_amd64.go   | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_amd64.s    |  2 ++
+ src/syscall/zsyscall_openbsd_arm.go     | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_arm.s      |  2 ++
+ src/syscall/zsyscall_openbsd_arm64.go   | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_arm64.s    |  2 ++
+ src/syscall/zsyscall_openbsd_ppc64.go   | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_ppc64.s    |  3 +++
+ src/syscall/zsyscall_openbsd_riscv64.go | 15 +++++++++++++++
+ src/syscall/zsyscall_openbsd_riscv64.s  |  2 ++
+ 13 files changed, 107 insertions(+), 8 deletions(-)

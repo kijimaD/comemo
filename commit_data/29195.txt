@@ -1,23 +1,19 @@
-commit d3836aba316a6a5ee9410b9abd2f42120af4ffe6
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 14 13:39:07 2016 -0400
+commit 8e6948fe88f8300c8a939f062b9c58d688bbab62
+Author: Bryan Alexander <Kozical@msn.com>
+Date:   Sun Aug 28 14:11:31 2016 -0500
 
-    runtime: ensure finalizers are zero-initialized before reuse
+    crypto/x509: Fix bug in UnknownAuthorityError.Error
     
-    We reuse finalizers in finblocks, which are allocated off-heap. This
-    means they have to be zero-initialized before becoming visible to the
-    garbage collector. We actually already do this by clearing the
-    finalizer before returning it to the pool, but we're not careful to
-    enforce correct memory ordering. Fix this by manipulating the
-    finalizer count atomically so these writes synchronize properly with
-    the garbage collector.
+    Fix bug in UnknownAuthorityError.Error that would never allow Org
+    Name to be inserted into error message if the Common Name was empty.
+    Create tests for all three paths in UnknownAuthorityError.Error
     
-    Updates #17503.
-    
-    Change-Id: I7797d31df3c656c9fe654bc6da287f66a9e2037d
-    Reviewed-on: https://go-review.googlesource.com/31454
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Id8afc444e897ef549df682d93a8563fd9de22a2b
+    Reviewed-on: https://go-review.googlesource.com/27992
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mfinal.go  | 15 +++++++++------
- src/runtime/mgcmark.go |  3 ++-
- 2 files changed, 11 insertions(+), 7 deletions(-)
+ src/crypto/x509/verify.go      |  3 +-
+ src/crypto/x509/verify_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 90 insertions(+), 1 deletion(-)

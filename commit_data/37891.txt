@@ -1,55 +1,16 @@
-commit 6e9f664b9a68f2de84be9697c6ac851c7c7e1c26
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Jan 16 00:15:34 2019 +0000
+commit 9facf35592457f0cdd1a9da665fd946002123007
+Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
+Date:   Wed Sep 5 13:40:29 2018 +0700
 
-    runtime: don't coalesce scavenged spans with unscavenged spans
+    fmt: add example for Fprint
     
-    As a result of changes earlier in Go 1.12, the scavenger became much
-    more aggressive. In particular, when scavenged and unscavenged spans
-    coalesced, they would always become scavenged. This resulted in most
-    spans becoming scavenged over time. While this is good for keeping the
-    RSS of the program low, it also causes many more undue page faults and
-    many more calls to madvise.
+    Updates #27376
     
-    For most applications, the impact of this was negligible. But for
-    applications that repeatedly grow and shrink the heap by large amounts,
-    the overhead can be significant. The overhead was especially obvious on
-    older versions of Linux where MADV_FREE isn't available and
-    MADV_DONTNEED must be used.
-    
-    This change makes it so that scavenged spans will never coalesce with
-    unscavenged spans. This  results in fewer page faults overall. Aside
-    from this, the expected impact of this change is more heap growths on
-    average, as span allocations will be less likely to be fulfilled. To
-    mitigate this slightly, this change also coalesces spans eagerly after
-    scavenging, to at least ensure that all scavenged spans and all
-    unscavenged spans are coalesced with each other.
-    
-    Also, this change adds additional logic in the case where two adjacent
-    spans cannot coalesce. In this case, on platforms where the physical
-    page size is larger than the runtime's page size, we realign the
-    boundary between the two adjacent spans to a physical page boundary. The
-    advantage of this approach is that "unscavengable" spans, that is, spans
-    which cannot be scavenged because they don't cover at least a single
-    physical page are grown to a size where they have a higher likelihood of
-    being discovered by the runtime's scavenging mechanisms when they border
-    a scavenged span. This helps prevent the runtime from accruing pockets
-    of "unscavengable" memory in between scavenged spans, preventing them
-    from coalescing.
-    
-    We specifically choose to apply this logic to all spans because it
-    simplifies the code, even though it isn't strictly necessary. The
-    expectation is that this change will result in a slight loss in
-    performance on platforms where the physical page size is larger than the
-    runtime page size.
-    
-    Update #14045.
-    
-    Change-Id: I64fd43eac1d6de6f51d7a2ecb72670f10bb12589
-    Reviewed-on: https://go-review.googlesource.com/c/158078
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I0ceb672a9fcd7bbf491be1577d7f135ef35b2561
+    Reviewed-on: https://go-review.googlesource.com/133455
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mheap.go | 74 ++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 66 insertions(+), 8 deletions(-)
+ src/fmt/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

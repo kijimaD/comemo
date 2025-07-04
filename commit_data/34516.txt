@@ -1,43 +1,14 @@
-commit 5b14c7b324dc645dd7c90b22ddd86affac0637c2
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Feb 19 11:10:31 2018 -0500
+commit 94d937178039a8f8754dcba8e1d9d491cb7bebfc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 30 16:31:57 2017 -0700
 
-    cmd/asm, cmd/internal/obj/ppc64: avoid unnecessary load zeros
+    os: clarify that OpenFile reqires one of O_RDONLY/O_WRONLY/O_RDWR
     
-    When instructions add, and, or, xor, and movd have
-    constant operands in some cases more instructions are
-    generated than necessary by the assembler.
+    Fixes #21322.
     
-    This adds more opcode/operand combinations to the optab
-    and improves the code generation for the cases where the
-    size and sign of the constant allows the use of 1
-    instructions instead of 2.
-    
-    Example of previous code:
-            oris r3, r0, 0
-            ori  r3, r3, 65533
-    
-    now:
-            ori r3, r0, 65533
-    
-    This does not significantly reduce the overall binary size
-    because the improvement depends on the constant value.
-    Some procedures show a 1-2% reduction in size. This improvement
-    could also be significant in cases where the extra instructions
-    occur in a critical loop.
-    
-    Testcase ppc64enc.s was added to cmd/asm/internal/asm/testdata
-    with the variations affected by this change.
-    
-    Updates #23845
-    
-    Change-Id: I7fdf2320c95815d99f2755ba77d0c6921cd7fad7
-    Reviewed-on: https://go-review.googlesource.com/95135
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ia589c576be0b5cdb7cde5d35cd857ad7c93c372b
+    Reviewed-on: https://go-review.googlesource.com/74550
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/asm/internal/asm/endtoend_test.go    |   4 ++
- src/cmd/asm/internal/asm/testdata/ppc64enc.s |  87 ++++++++++++++++++++++
- src/cmd/internal/obj/ppc64/asm9.go           | 104 ++++++++++++++++++++-------
- 3 files changed, 170 insertions(+), 25 deletions(-)
+ src/os/file.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

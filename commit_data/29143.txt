@@ -1,26 +1,22 @@
-commit eac59508199f77f55d986ab1a7439c7488a20650
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 26 14:32:43 2016 -0400
+commit 8c15a1725147692e1106f2e32fae657e1b7f27aa
+Author: Radu Berinde <radu@cockroachlabs.com>
+Date:   Sun Aug 28 11:47:14 2016 -0400
 
-    mime: preserve unnecessary backslash escapes as literals
+    hash/crc32: fix nil Castagnoli table problem
     
-    When MSIE sends a full file path (in "intranet mode"), it does not
-    escape backslashes: "C:\dev\go\foo.txt", not "C:\\dev\\go\\foo.txt".
+    When SSE is available, we don't need the Table. However, it is
+    returned as a handle by MakeTable. Fix this to always generate
+    the table.
     
-    No known MIME generators emit unnecessary backslash escapes
-    for simple token characters like numbers and letters.
+    Further cleanup is discussed in #16909.
     
-    If we see an unnecessary backslash escape, assume it is from MSIE
-    and intended as a literal backslash. This makes Go servers deal better
-    with MSIE without affecting the way they handle conforming MIME
-    generators.
-    
-    Fixes #15664.
-    
-    Change-Id: Ia3b03b978317d968dc11b2f6de1df913c6bcbfcc
-    Reviewed-on: https://go-review.googlesource.com/32175
+    Change-Id: Ic05400d68c6b5d25073ebd962000451746137afc
+    Reviewed-on: https://go-review.googlesource.com/27934
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/mediatype.go      | 37 +++++++++++++++++++++++--------------
- src/mime/mediatype_test.go | 14 +++++++++-----
- 2 files changed, 32 insertions(+), 19 deletions(-)
+ src/hash/crc32/crc32.go            | 5 ++++-
+ src/hash/crc32/crc32_amd64_test.go | 9 ++++-----
+ src/hash/crc32/crc32_test.go       | 3 +++
+ 3 files changed, 11 insertions(+), 6 deletions(-)

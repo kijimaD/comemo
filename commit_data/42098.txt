@@ -1,18 +1,26 @@
-commit e47a17aeee8bea72b82eeceb5380805b2ba758b3
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Apr 23 11:12:04 2020 +0200
+commit a2cd2bd55d1e932b52f0b7dea45a85e058fc77d5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Sep 16 21:23:24 2019 +0000
 
-    cmd/compile: convert remaining mips rules to typed aux
+    runtime: add per-p page allocation cache
     
-    Passes
+    This change adds a per-p free page cache which the page allocator may
+    allocate out of without a lock. The change also introduces a completely
+    lockless page allocator fast path.
     
-      GOARCH=mips gotip build -toolexec 'toolstash -cmp' -a std
-      GOARCH=mipsle gotip build -toolexec 'toolstash -cmp' -a std
+    Although the cache contains at most 64 pages (and usually less), the
+    vast majority (85%+) of page allocations are exactly 1 page in size.
     
-    Change-Id: I35df0522e299aa755491cd25f47f1f1bf447848c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229637
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #35112.
+    
+    Change-Id: I170bf0a9375873e7e3230845eb1df7e5cf741b78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195701
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/gen/MIPS.rules |  510 +++++-----
- src/cmd/compile/internal/ssa/rewriteMIPS.go | 1364 +++++++++++++--------------
- 2 files changed, 921 insertions(+), 953 deletions(-)
+ src/runtime/export_test.go | 22 ++++++++++++++
+ src/runtime/malloc_test.go |  8 ++++++
+ src/runtime/mheap.go       | 72 ++++++++++++++++++++++++++++++++++------------
+ src/runtime/proc.go        |  1 +
+ src/runtime/runtime2.go    |  3 +-
+ 5 files changed, 86 insertions(+), 20 deletions(-)

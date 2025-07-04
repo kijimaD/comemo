@@ -1,25 +1,16 @@
-commit 070cc8eb02248698480957dd7cd6ada07de309de
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 22 18:10:08 2017 -0400
+commit c9f8a6cdd7303b91bbc3e2e6314e7439255b94bf
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Aug 9 23:00:39 2017 -0700
 
-    runtime: allow write barriers in startpanic_m
+    time: remove extra space in docstring
     
-    We're about to start tracking nowritebarrierrec through systemstack
-    calls, which will reveal write barriers in startpanic_m prohibited by
-    various callers.
+    Probably went unnoticed because HTML normalizes multiple space
+    characters into one, unless you explicitly ask for them with &nbsp;.
     
-    We actually can allow write barriers here because the write barrier is
-    a no-op when we're panicking. Let the compiler know.
-    
-    Updates #22384.
-    For #22460.
-    
-    Change-Id: Ifb3a38d3dd9a4125c278c3680f8648f987a5b0b8
-    Reviewed-on: https://go-review.googlesource.com/72770
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I3f97b24a111da3f0f28894f1246388018beb084e
+    Reviewed-on: https://go-review.googlesource.com/54570
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mbarrier.go | 2 ++
- src/runtime/panic.go    | 6 ++++++
- 2 files changed, 8 insertions(+)
+ src/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

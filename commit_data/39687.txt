@@ -1,23 +1,43 @@
-commit 1abe22c3c17091e46c0abec897691c23ad6ebc01
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Aug 22 18:04:57 2019 -0400
+commit 04f1b65cc6ffbaa3693bbcb57ae26fb59466531b
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Mar 13 10:32:48 2019 +0000
 
-    cmd/compile: don't mark stack object symbol DUPOK
+    cmd/compile: try and access last argument first in rulegen
     
-    Stack object symbol is named as <FunctionName>.stkobj. If the
-    function itself is not DUPOK, its stack object symbol should only
-    be defined in the package where the function is defined,
-    therefore no duplicates.
+    This reduces the number of extra bounds check hints we need to
+    insert. For example, rather than producing:
     
-    If in the future we change the stack object symbol to
-    content-hash naming, as other gcdata symbols, we can mark it as
-    DUPOK.
+            _ = v.Args[2]
+            x := v.Args[0]
+            y := v.Args[1]
+            z := v.Args[2]
     
-    Change-Id: I5aee96578940e2f76e7115d96cd2716021672c03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191437
+    We now produce:
+    
+            z := v.Args[2]
+            x := v.Args[0]
+            y := v.Args[1]
+    
+    This gets rid of about 7000 lines of code from the rewrite rules.
+    
+    Change-Id: I1291cf0f82e8d035a6d65bce7dee6cedee04cbcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167397
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/obj.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   13 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     | 2210 ++++-------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 4846 ++++++++----------------
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 2708 +++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 2787 +++++---------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  760 ++--
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  919 ++---
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 1713 +++------
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 3215 ++++++----------
+ src/cmd/compile/internal/ssa/rewriteWasm.go    |  676 ++--
+ src/cmd/compile/internal/ssa/rewritedec.go     |   49 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  202 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1740 +++------
+ 13 files changed, 7351 insertions(+), 14487 deletions(-)

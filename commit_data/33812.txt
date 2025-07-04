@@ -1,12 +1,14 @@
-commit dfd6b6efe1908d4e0dccdefed59923e25d2da676
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Dec 6 11:42:42 2017 +0100
+commit 7758abf3b609528eea2dbad647ddeac6301340ec
+Author: Adrian Hesketh <adrianhesketh@hushmail.com>
+Date:   Sat Sep 2 12:30:37 2017 +0100
 
-    doc: fix dead link in go_faq
+    time: add a number of new examples
     
-    Change-Id: I8a9e4d00247fe9bda6e19551850bdec0367df2e1
-    Reviewed-on: https://go-review.googlesource.com/82157
+    Change-Id: I14d19a3951fcae24e2c2ce2eb76312851e050fdd
+    Reviewed-on: https://go-review.googlesource.com/61033
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_faq.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/time/example_test.go | 159 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 159 insertions(+)

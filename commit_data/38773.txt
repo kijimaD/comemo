@@ -1,33 +1,29 @@
-commit 64dc4ba73f9086709cd0cbcdc80dc116511d9081
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue Jan 29 15:58:57 2019 +0000
+commit 1602e497012a27071e200d54ebfe13ca23d1f8af
+Author: Keith Randall <khr@google.com>
+Date:   Mon Nov 26 12:59:54 2018 -0800
 
-    math: use new mnemonics for 'rotate then insert' on s390x
+    cmd/compile: don't constant-fold non-Go constants in the frontend
     
-    Mnemonics for these instructions were added to the assembler in
-    CL 159357.
+    Abort evconst if its argument isn't a Go constant. The SSA backend
+    will do the optimizations in question later. They tend to be weird
+    cases, like uintptr(unsafe.Pointer(uintptr(1))).
     
-    Change-Id: Ie11c45ecc9cead9a8850fcc929b0211cfd980fe5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/160157
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Fix OADDSTR and OCOMPLEX cases in isGoConst.
+    OADDSTR has its arguments in n.List, not n.Left and n.Right.
+    OCOMPLEX might have a 2-result function as its arg in List[0]
+    (in which case it isn't a Go constant).
+    
+    Fixes #24760
+    
+    Change-Id: Iab312d994240d99b3f69bfb33a443607e872b01d
+    Reviewed-on: https://go-review.googlesource.com/c/151338
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/acosh_s390x.s | 28 ++++++----------------
- src/math/asinh_s390x.s | 20 ++++------------
- src/math/atan2_s390x.s | 16 ++++---------
- src/math/atan_s390x.s  |  8 ++-----
- src/math/atanh_s390x.s |  8 ++-----
- src/math/cbrt_s390x.s  | 12 +++-------
- src/math/cosh_s390x.s  | 32 +++++++------------------
- src/math/erf_s390x.s   | 12 +++-------
- src/math/erfc_s390x.s  |  8 ++-----
- src/math/exp_s390x.s   | 16 ++++---------
- src/math/expm1_s390x.s | 16 ++++---------
- src/math/log10_s390x.s | 28 ++++++----------------
- src/math/log1p_s390x.s | 12 +++-------
- src/math/log_s390x.s   | 24 +++++--------------
- src/math/pow_s390x.s   | 64 +++++++++++++-------------------------------------
- src/math/sinh_s390x.s  | 20 ++++------------
- src/math/tanh_s390x.s  |  8 ++-----
- 17 files changed, 83 insertions(+), 249 deletions(-)
+ src/cmd/compile/internal/gc/const.go  | 25 ++++++++++++++++++++++---
+ src/cmd/compile/internal/gc/fmt.go    |  9 ++++++++-
+ src/cmd/compile/internal/gc/syntax.go |  2 +-
+ test/fixedbugs/issue17038.go          |  2 +-
+ test/fixedbugs/issue24760.go          | 12 ++++++++++++
+ 5 files changed, 44 insertions(+), 6 deletions(-)

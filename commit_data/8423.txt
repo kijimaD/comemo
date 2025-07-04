@@ -1,16 +1,22 @@
-commit 83fd82b349009ad2a0f7da1d11499cc9e3d0ca1b
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Tue May 17 13:38:21 2011 -0700
+commit 8f57f493981704fa1118c1f916edc787d4c2bccd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 17 11:22:52 2011 -0700
 
-    big: add Int methods to act on numbered bits.
-    Speeds up setting individual bits by ~75%, useful
-    when using big.Int as a bit set.
+    go/ast resolver: properly maintain map of package global imports
     
-    R=gri, rsc
+    - add Data field to ast.Object
+    - for package objects, the Data field holds the package scope
+    - resolve several TODOs
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4538053
+    https://golang.org/cl/4538069
 
- src/pkg/big/int.go      |  36 +++++++++++++
- src/pkg/big/int_test.go | 136 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/big/nat.go      |  37 +++++++++++++
- 3 files changed, 209 insertions(+)
+ src/pkg/go/ast/ast.go               |  8 ++--
+ src/pkg/go/ast/resolve.go           | 73 ++++++++++++++----------------
+ src/pkg/go/ast/scope.go             | 11 +++++
+ src/pkg/go/parser/parser.go         | 21 ++++-----
+ src/pkg/go/types/gcimporter.go      | 90 +++++++++++++++++++++++--------------
+ src/pkg/go/types/gcimporter_test.go |  7 ++-
+ src/pkg/go/types/universe.go        | 16 ++++---
+ 7 files changed, 131 insertions(+), 95 deletions(-)

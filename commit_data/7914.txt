@@ -1,16 +1,19 @@
-commit a7bb288f99e338f39a53a97e27977208679cf2eb
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Tue Mar 29 10:35:34 2011 -0400
+commit 054516338a8bab18672724142096541bad0009df
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Mar 29 10:33:47 2011 -0400
 
-    crypto/x509: Parse Extended Key Usage extension
+    asn1: extensions needed for parsing Kerberos
     
-    This changeset makes it possible for crypto/x509 to parse
-    certificates that include the 'Extended Key Usage' extension
-    with the critical bit set.
+    * Adds support for GENERAL STRING
+    * Adds support for APPLICATION tagged values.
+    * Add UnmarshalWithParams to set parameters for the top-level
+      structure
     
-    R=agl1
+    R=golang-dev, rsc1, r
     CC=golang-dev
-    https://golang.org/cl/4277075
+    https://golang.org/cl/4291075
 
- src/pkg/crypto/x509/x509.go | 77 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 77 insertions(+)
+ src/pkg/asn1/asn1.go      | 34 ++++++++++++++++++++++++++++++++--
+ src/pkg/asn1/asn1_test.go |  3 ++-
+ src/pkg/asn1/common.go    | 10 ++++++++--
+ 3 files changed, 42 insertions(+), 5 deletions(-)

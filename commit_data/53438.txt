@@ -1,60 +1,24 @@
-commit 8035de592fbc782d27eb78e914ca4e04ec991a3f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 1 13:25:56 2023 -0400
+commit 0d8efa6e842169e61cbe343441092b6f7c9b886c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 23 16:36:08 2022 -0700
 
-    cmd/go: add base.Error and base.Fatal
+    internal/xcoff: use saferio to read string table
     
-    Many many places in the go command use
+    No test case because the problem can only happen for invalid data.
+    Let the fuzzer find cases like this.
     
-            base.Errorf("go: %v", err)
+    For #47653
+    Fixes #52526
     
-    or
-    
-            base.Fatalf("go: %v", err)
-    
-    Introduce Error(error) and Fatal(error) to do this
-    and update all call sites (global search and replace).
-    
-    The new Error gives us the opportunity to unwrap
-    a multierror and add the go prefix to each line,
-    which is the motivation for this change.
-    (We want to start returning a multierror from LoadModFile
-    and LoadModGraph.)
-    
-    For #57001.
-    
-    Change-Id: I9613653b94808224146077c30d22f814d4e19eed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499980
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Id90a5e391a4f684f45f8d7e32608eb03b8081076
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413875
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/base/base.go         | 23 +++++++++++++++++++++++
- src/cmd/go/internal/clean/clean.go       | 14 +++++++-------
- src/cmd/go/internal/envcmd/env.go        | 14 +++++++-------
- src/cmd/go/internal/list/list.go         |  9 +++++----
- src/cmd/go/internal/load/pkg.go          |  2 +-
- src/cmd/go/internal/modcmd/download.go   | 13 +++++++------
- src/cmd/go/internal/modcmd/edit.go       |  6 +++---
- src/cmd/go/internal/modcmd/graph.go      |  4 ++--
- src/cmd/go/internal/modcmd/vendor.go     | 32 ++++++++++++++++----------------
- src/cmd/go/internal/modcmd/verify.go     |  2 +-
- src/cmd/go/internal/modcmd/why.go        |  2 +-
- src/cmd/go/internal/modfetch/fetch.go    |  2 +-
- src/cmd/go/internal/modget/get.go        | 16 ++++++++--------
- src/cmd/go/internal/modload/build.go     |  2 +-
- src/cmd/go/internal/modload/buildlist.go |  2 +-
- src/cmd/go/internal/modload/init.go      | 22 +++++++++++-----------
- src/cmd/go/internal/modload/load.go      |  8 ++++----
- src/cmd/go/internal/modload/vendor.go    |  2 +-
- src/cmd/go/internal/run/run.go           |  4 ++--
- src/cmd/go/internal/test/test.go         |  2 +-
- src/cmd/go/internal/vet/vet.go           |  2 +-
- src/cmd/go/internal/work/action.go       |  2 +-
- src/cmd/go/internal/work/build.go        |  6 +++---
- src/cmd/go/internal/work/init.go         |  2 +-
- src/cmd/go/internal/workcmd/sync.go      |  6 +++---
- src/cmd/go/internal/workcmd/use.go       |  6 +++---
- src/cmd/go/main.go                       |  2 +-
- 27 files changed, 116 insertions(+), 91 deletions(-)
+ src/internal/xcoff/file.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

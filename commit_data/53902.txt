@@ -1,34 +1,20 @@
-commit 834a3f844a77823bf57c323d0927bc1f42b10e61
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Fri Aug 4 05:15:41 2023 +0000
+commit 0752f4a12cfd212ed5a5fdfc8696811d89b12acf
+Author: Jinzhu <wosmvp@gmail.com>
+Date:   Mon Sep 5 09:02:11 2022 +0000
 
-    archive/tar: add FileInfoNames interface
+    database/sql: simplify retry logic when the connection is bad
     
-    An optional interface FileInfoNames has been added.
+    Simplify retry logic when got bad connection
     
-    If the parameter fi of FileInfoHeader implements the interface
-    the Gname and Uname of the return value Header are
-    provided by the method of the interface.
-    
-    Also added testing.
-    
-    Fixes #50102
-    
-    Change-Id: I6fd06c7c9aaf29b22b7384542fe57affed33009a
-    
-    Change-Id: I6fd06c7c9aaf29b22b7384542fe57affed33009a
-    GitHub-Last-Rev: 5e82257948759e13880d8af12743b9524ae3df5a
-    GitHub-Pull-Request: golang/go#61662
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514235
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I92494c6c020576ec01bc4868334ee920ded7aa57
+    GitHub-Last-Rev: 7499b0c9419a31c9adce6d5096a1924aa3612f1d
+    GitHub-Pull-Request: golang/go#54043
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419182
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- api/next/50102.txt           |  9 +++++++++
- src/archive/tar/common.go    | 32 +++++++++++++++++++++++++++++
- src/archive/tar/stat_unix.go | 10 +++++++++
- src/archive/tar/tar_test.go  | 48 ++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 99 insertions(+)
+ src/database/sql/sql.go | 160 +++++++++++++++++++-----------------------------
+ 1 file changed, 64 insertions(+), 96 deletions(-)

@@ -1,22 +1,24 @@
-commit a8fe176156b02011cc6628cb3602acaa6cb50236
+commit d00bd1d1f4a39fb81b34150aca89dcc5e45b727e
 Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 19 12:05:33 2013 +1000
+Date:   Mon Aug 19 11:49:59 2013 +1000
 
-    test: fix build
-    syntax/*: update messages
-    sliceerr3.go: bizarre new error fixed by deleting a space.
+    cmd/gc: better error messages for C-style if statements.
+    Given
+            if (i == 0)
+                    x++
+    The old message was
+            x.go:6: syntax error: unexpected semicolon or newline before {
+    Now we see
+            x.go:6: syntax error: missing { after if clause
     
-    I could have sworn I ran all.bash before submitting the CL that triggered these.
+    Fixes #5687
     
-    TBR=golang-dev@googlegroups.com
-    
-    R=golang-dev
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/12812044
+    https://golang.org/cl/12822045
 
- test/slice3err.go    | 2 +-
- test/syntax/semi1.go | 2 +-
- test/syntax/semi2.go | 2 +-
- test/syntax/semi3.go | 2 +-
- test/syntax/semi4.go | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/gc/go.errors |    8 +-
+ src/cmd/gc/y.tab.c   | 1866 +++++++++++++++++---------------------------------
+ src/cmd/gc/y.tab.h   |   46 +-
+ src/cmd/gc/yerr.h    |    8 +-
+ 4 files changed, 662 insertions(+), 1266 deletions(-)

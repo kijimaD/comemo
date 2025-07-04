@@ -1,21 +1,24 @@
-commit d29f72f4728b75314b72337e9768c73eb22338e0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 2 23:30:09 2016 +0000
+commit b662e524e4d393f7c99fe281f8c95f7b2f7015a8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 28 11:20:58 2016 -0400
 
-    cmd/dist: remove special test timeout scale for Windows
+    cmd/compile: use CBZ/CBNZ instrunctions on ARM64
     
-    In https://golang.org/cl/33804 I screwed up a GOOS == "windows"
-    check into a bogus comparison against GOARCH == "windows".
+    These are conditional branches that takes a register instead of
+    flags as control value.
     
-    But turns out the builders are happy anyway, so remove the windows
-    special case.
+    Reduce binary size by 0.7%, text size by 2.4% (cmd/go as an
+    exmaple).
     
-    Change-Id: I820b1d49d5b3e8cbffe4516fc39f514326dc39f8
-    Reviewed-on: https://go-review.googlesource.com/33893
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0020cfde745f9eab680b8b949ad28c87fe183afd
+    Reviewed-on: https://go-review.googlesource.com/30030
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/arm64/prog.go       |  36 ++-
+ src/cmd/compile/internal/arm64/ssa.go        |  12 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  36 ++-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   4 +
+ src/cmd/compile/internal/ssa/opGen.go        |   8 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 455 ++++++++++++++++++---------
+ src/cmd/internal/obj/arm64/obj7.go           |   4 +
+ 7 files changed, 385 insertions(+), 170 deletions(-)

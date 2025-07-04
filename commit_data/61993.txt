@@ -1,0 +1,29 @@
+commit 1d20bce981005777424b9c8da199015ab2148810
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 6 13:25:08 2025 -0800
+
+    go/types, types2: expand documentation for Info.Types map
+    
+    Function types for function (and method) declarations do not
+    appear in Info.Types maps, only Info.Defs maps, because the
+    function type is implicit in the declaration and not a proper
+    (function) type expression. This is true even though the AST
+    represents these types via an (artificial) FuncType node.
+    
+    Document this explicitly in the API.
+    
+    No functional code changes.
+    
+    Fixes #70908.
+    
+    Change-Id: I2aa897daed04e7ad0fa8b625d9adc7b423c57387
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640776
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/api.go | 18 +++++++++++++-----
+ src/go/types/api.go                    | 18 +++++++++++++-----
+ 2 files changed, 26 insertions(+), 10 deletions(-)

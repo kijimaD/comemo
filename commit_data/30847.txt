@@ -1,21 +1,29 @@
-commit 0b647ffb98fa40077b521ea0b4aa1dfa5dcb7912
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 24 16:22:08 2017 -0700
+commit 48d029fe431f2c19e0ccc62a33de059c7725ee93
+Author: David Lazar <lazard@golang.org>
+Date:   Fri Dec 9 14:30:40 2016 -0500
 
-    cmd/compile: combine walkexpr cases
+    [dev.inline] cmd/internal/obj: rename Prog.Lineno to Prog.Pos
     
-    The type switch in walkexpr is giant.
-    Shrink it a little by coalescing identical cases
-    and removing some vertical whitespace.
-    
-    No functional changes.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I7f7efb4faae1f8657dfafac04585172f99d8b37d
-    Reviewed-on: https://go-review.googlesource.com/38652
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7585d85907869f5a286b36936dfd035f1e8e9906
+    Reviewed-on: https://go-review.googlesource.com/34197
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/walk.go | 55 +++++--------------------------------
- 1 file changed, 7 insertions(+), 48 deletions(-)
+ src/cmd/asm/internal/asm/asm.go      | 40 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/gsubr.go |  4 ++--
+ src/cmd/compile/internal/gc/plive.go |  6 +++---
+ src/cmd/internal/obj/arm/asm5.go     |  4 ++--
+ src/cmd/internal/obj/arm/obj5.go     | 16 +++++++--------
+ src/cmd/internal/obj/arm64/asm7.go   |  4 ++--
+ src/cmd/internal/obj/arm64/obj7.go   | 16 +++++++--------
+ src/cmd/internal/obj/ld.go           |  2 +-
+ src/cmd/internal/obj/link.go         |  4 ++--
+ src/cmd/internal/obj/mips/asm0.go    |  4 ++--
+ src/cmd/internal/obj/mips/obj0.go    | 14 ++++++-------
+ src/cmd/internal/obj/pcln.go         |  6 +++---
+ src/cmd/internal/obj/ppc64/obj9.go   | 28 ++++++++++++-------------
+ src/cmd/internal/obj/s390x/objz.go   |  4 ++--
+ src/cmd/internal/obj/util.go         |  2 +-
+ src/cmd/internal/obj/x86/obj6.go     |  6 +++---
+ 16 files changed, 80 insertions(+), 80 deletions(-)

@@ -1,25 +1,26 @@
-commit fe4e59e78b30fb76936fdc02fa0ce044ca465c09
-Author: Matthew Horsnell <matthew.horsnell@gmail.com>
-Date:   Tue Jun 28 14:25:58 2022 +0100
+commit c473ca087733236a6524900d037d92f32d5f6b70
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 3 14:02:58 2021 -0500
 
-    runtime internal/cpu: rename "Zeus" "NeoverseV1".
+    net: ignore EADDRINUSE errors when dialing to IPv4 from IPv6 on FreeBSD
     
-    Rename "Zeus" to "NeoverseV1" for the partnum 0xd40 to be
-    consistent with the documentation of MIDR_EL1 as described in
-    https://developer.arm.com/documentation/101427/0101/?lang=en
+    The failure mode in #34264 appears to match
+    https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=210726.
     
-    Change-Id: I2e3d5ec76b953a831cb4ab0438bc1c403648644b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414775
-    Reviewed-by: Jonathan Swinney <jswinney@amazon.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    That bug was supposed to have been fixed in FreeBSD 12, but we're
+    still observing failures specifically for the 6-to-4 case on FreeBSD
+    12.2. It is not clear to me whether FreeBSD 13.0 is also affected.
+    
+    For #34264
+    
+    Change-Id: Iba7c7fc57676ae628b13c0b8fe43ddf2251c3637
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369157
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/cpu/cpu.go             | 2 +-
- src/internal/cpu/cpu_arm64.go       | 2 +-
- src/internal/cpu/cpu_arm64_hwcap.go | 2 +-
- src/runtime/cpuflags_arm64.go       | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/net/dial_test.go      | 17 +++++++++++++++--
+ src/net/dial_unix_test.go |  7 +++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

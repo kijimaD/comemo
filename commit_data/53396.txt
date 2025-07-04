@@ -1,19 +1,15 @@
-commit 39bafed1021a49d7fd7458a34989601a8493f79a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 30 10:42:57 2023 -0700
+commit 2f6783c098696790223eae6986700868e9da0472
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Aug 13 03:56:02 2022 +0800
 
-    doc/go1.21: document io/fs formatting functions
+    runtime: fix a comment typo in runqget()
     
-    Also document the new String methods that call them.
-    
-    For #54451
-    
-    Change-Id: I5cd7e0fc6c84097bba6d29c4d6012ed3c8bb1e0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499177
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I79695e1cfda3b4cd911673f6e14dc316c451e2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423436
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.21.html | 109 ++++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 99 insertions(+), 10 deletions(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

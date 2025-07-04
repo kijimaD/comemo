@@ -1,15 +1,17 @@
-commit 55cac5395215c04a6a3c7daf1ede241335da0822
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Jan 28 19:21:25 2013 -0500
+commit 1c6b6b125eea1de587734ea7b16c05831e91ecf9
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Jan 28 15:47:25 2013 -0800
 
-    exp/ssa: fix breakage due to https://code.google.com/p/go/source/detail?r=ca5e5de48173
+    cmd/ld: avoid a segfault when dumping the symbol table
     
-    I don't understand why this didn't show up during my testing.
+    The dumping routine incorrectly assumed that all incoming
+    symbols would be non-nil and load through it to retrieve the
+    symbol name.  Instead of using the symbol to retrieve a name,
+    use the name provided by the caller.
     
-    R=bradfitz
-    TBR=bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7237047
+    https://golang.org/cl/7224043
 
- src/pkg/exp/ssa/func.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/ld/symtab.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

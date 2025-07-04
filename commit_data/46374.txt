@@ -1,28 +1,29 @@
-commit 4c52eac49b7e3f2a107419583012e5251ccbfde9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 7 13:23:08 2021 -0700
+commit d1502b3c7270e655d3306d65f5dd61438626a1a9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Dec 23 09:30:22 2020 +0100
 
-    cmd/compile: simplify value coding for unified IR
+    lib/time, time/tzdata: update tzdata to 2020e
     
-    In indexed export, values are always exported along with their type
-    and are encoded in a type-sensitive manner, because this matches how
-    cmd/compile handled constants internally.
+    Changelog:
     
-    However, go/types intentionally differs from this, decoupling type
-    from value representation. As unified IR strives to be more
-    go/types-centric, it makes sense to embrace this and make values a
-    more first-class encoding.
+      Volgograd switches to Moscow time on 2020-12-27 at 02:00.
+      Small changes to past timestamps and abbreviations.
     
-    Change-Id: If21d849c4f610358bd776d5665469d180bcd5f6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348014
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    See
+    
+      http://mm.icann.org/pipermail/tz-announce/2020-December/000063.html
+    
+    Updates #22487
+    
+    Change-Id: I709abe899ca498698463e945ccbcf4bc5fe60b92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279794
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/noder/decoder.go |  3 ++-
- src/cmd/compile/internal/noder/encoder.go |  3 ++-
- src/cmd/compile/internal/noder/reader.go  | 12 ++++--------
- src/cmd/compile/internal/noder/reader2.go | 10 ++--------
- src/cmd/compile/internal/noder/writer.go  | 12 ++++--------
- 5 files changed, 14 insertions(+), 26 deletions(-)
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 422449 -> 424205 bytes
+ src/time/tzdata/zipdata.go | 13714 ++++++++++++++++++++++---------------------
+ 3 files changed, 6874 insertions(+), 6844 deletions(-)

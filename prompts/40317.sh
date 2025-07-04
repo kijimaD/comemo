@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40317: 6917b3c839af615e22ef479b23983d186e578bd6
+# Index 40317: 16bf0d5e0396fb35a9ca92bbf626f83f4f401253
 
 echo "🚀 Generating explanation for commit 40317..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 40317
-- **コミットハッシュ**: 6917b3c839af615e22ef479b23983d186e578bd6
-- **GitHub URL**: https://github.com/golang/go/commit/6917b3c839af615e22ef479b23983d186e578bd6
+- **コミットハッシュ**: 16bf0d5e0396fb35a9ca92bbf626f83f4f401253
+- **GitHub URL**: https://github.com/golang/go/commit/16bf0d5e0396fb35a9ca92bbf626f83f4f401253
 
 ### 章構成
 

@@ -1,35 +1,17 @@
-commit 8fa14ea8b4744576bd28073901154c15813e29de
+commit 873483c682747e8ce881c1bf8ac4428a01836324
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri May 15 10:02:19 2015 -0700
+Date:   Mon Apr 20 10:20:36 2015 -0700
 
-    cmd/internal/gc: unembed Name field
+    cmd/internal/obj: reuse the varint encoding buffer
     
-    This is an automated follow-up to CL 10120.
-    It was generated with a combination of eg and gofmt -r.
+    This reduces the number of allocations in the compiler
+    while building the stdlib by 15.66%.
     
     No functional changes. Passes toolstash -cmp.
     
-    Change-Id: I0dc6d146372012b4cce9cc4064066daa6694eee6
-    Reviewed-on: https://go-review.googlesource.com/10144
+    Change-Id: Ia21b37134a8906a4e23d53fdc15235b4aa7bbb34
+    Reviewed-on: https://go-review.googlesource.com/9085
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/5g/ggen.go               |  2 +-
- src/cmd/5g/gsubr.go              |  2 +-
- src/cmd/6g/ggen.go               |  2 +-
- src/cmd/7g/ggen.go               |  2 +-
- src/cmd/8g/ggen.go               |  2 +-
- src/cmd/8g/gsubr.go              |  2 +-
- src/cmd/9g/ggen.go               |  2 +-
- src/cmd/internal/gc/cgen.go      |  4 ++--
- src/cmd/internal/gc/closure.go   | 28 ++++++++++++++--------------
- src/cmd/internal/gc/esc.go       |  2 +-
- src/cmd/internal/gc/gen.go       |  8 ++++----
- src/cmd/internal/gc/gsubr.go     |  4 ++--
- src/cmd/internal/gc/inl.go       | 22 +++++++++++-----------
- src/cmd/internal/gc/pgen.go      |  4 ++--
- src/cmd/internal/gc/plive.go     |  4 ++--
- src/cmd/internal/gc/sinit.go     |  2 +-
- src/cmd/internal/gc/syntax.go    |  2 +-
- src/cmd/internal/gc/typecheck.go |  6 +++---
- src/cmd/internal/gc/walk.go      |  2 +-
- 19 files changed, 51 insertions(+), 51 deletions(-)
+ src/cmd/internal/obj/objfile.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

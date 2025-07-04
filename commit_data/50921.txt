@@ -1,19 +1,31 @@
-commit d5ba1d8d6fe1d36294fa639f2d4936b331a543ea
-Author: ezz-no <115773618+ezz-no@users.noreply.github.com>
-Date:   Mon Oct 17 11:28:52 2022 +0000
+commit ab75484d7130496ac9b204b0d418b1ec95bee2f8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 15 17:47:15 2021 -0800
 
-    cmd/compile: fix a typo in comment
+    internal/fuzz: limit number of consecutive mutations
     
-    Change-Id: I9b18b29e14a47765dc09ac401989e0439fbf7d03
-    GitHub-Last-Rev: 7d9792ccb97f8e20bc5300cb4fa29a0c49d9934b
-    GitHub-Pull-Request: golang/go#56267
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443296
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    This makes two changes: (1) mutator.mutate now only applies a single
+    mutation to the input, and (2) in workerServer.fuzz if, after five
+    mutations are applied to the input, no new coverage is found the input
+    is reset to its initial state. This process is repeated until new
+    coverage is found, or the fuzz call times out.
+    
+    This results in finding new coverage expanding inputs which have less
+    divergence from the initial input they were mutated from, which makes
+    traversing certain types of call graphs significantly more efficient.
+    
+    Fixes #49601
+    Fixes #48179
+    Fixes #47090
+    
+    Change-Id: I74d18a56ca2669f20192951090b281f58ee0b5dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364214
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/inline/inl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/fuzz/mutator.go | 39 +++++++++++++++------------------------
+ src/internal/fuzz/worker.go  | 23 ++++++++++++++++++++---
+ 2 files changed, 35 insertions(+), 27 deletions(-)

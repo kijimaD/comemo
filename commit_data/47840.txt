@@ -1,20 +1,29 @@
-commit e0879490904495d26f762e19a997d4384bffa932
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Dec 20 19:08:14 2021 -0500
+commit f5f76471074c4f475404fb2488846b38f57f9720
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 31 21:47:41 2021 +0000
 
-    runtime: check the correct environment variable in TestCgoCallbackGC
+    runtime: break out GC pacer into its own file
     
-    The test checks RUNTIME_TESTING_SHORT, whereas the test runner
-    actually set RUNTIME_TEST_SHORT. Check the correct one.
+    This change breaks out the GC pacer into its own file so that it'll be
+    easier to see the full implementation and change it. It also suggests an
+    obvious place to put tests (mgcpacer_test.go).
     
-    Updates #32023.
+    This includes all of gcControllerState, gcSetTriggerRatio, anything
+    related to GOGC, and all related globals and constants.
     
-    Change-Id: Ie8ab00e1f5b8c02112a9aa1ee0e56028185c8a44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373614
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This is almost a clean move, except that globals and constants are
+    formatted into blocks instead of having a separate "var" declaration for
+    each one.
+    
+    For #44167.
+    
+    Change-Id: I85aa84ce85c6cfbe0b33e8a3c91cbe9dc41de8cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306596
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/testdata/testprogcgo/callback.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go      | 720 -----------------------------------------------
+ src/runtime/mgcpacer.go | 735 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 735 insertions(+), 720 deletions(-)

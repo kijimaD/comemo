@@ -1,21 +1,20 @@
-commit c720875b76d1a003cdcde38687ae537dda6a59fa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 22 17:47:38 2015 -0700
+commit 3dcfb72fa3d7781e048a05f3ffcfceebc724332c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 24 14:37:58 2015 +1000
 
-    spec: minor adjustment of prose in composite literal section
+    cmd/go: mention go tool compile etc. in the help text for build
     
-    The prose discussing composite literals referred to the composite
-    literal type with 'LiteralType', denoting the literal type's EBNF
-    production explicitly. Changed 'LiteralType' to 'literal type' to
-    remove the literal (no pun intended) connection and instead mean
-    the underlying type. Seems a simpler and more readable change
-    than referring to the underlying type everywhere explicitly.
+    Not everyone is aware that go build is a wrapper for other
+    tools. Mention this in the text for go help build so people using
+    other build systems won't just wrap go build, which is usually a
+    mistake (it doesn't do incremental builds by default, for instance).
     
-    Fixes #12717.
+    Update #11854.
     
-    Change-Id: I225df95f9ece2664b19068525ea8bda5ca05a44a
-    Reviewed-on: https://go-review.googlesource.com/14851
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I759f91f23ccd3671204c39feea12a3bfaf9f0114
+    Reviewed-on: https://go-review.googlesource.com/12625
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/go/alldocs.go | 11 +++++++++--
+ src/cmd/go/build.go   | 11 +++++++++--
+ 2 files changed, 18 insertions(+), 4 deletions(-)

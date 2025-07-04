@@ -1,17 +1,19 @@
-commit 157e018fc3497994f4e51548310e8a84ea60c27e
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Thu Sep 29 20:03:44 2022 +0800
+commit 2e210b41ea5ca2fd3dcac5bc24ea932c2cac1234
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 8 08:05:24 2021 -0800
 
-    cmd/compile/internal/noder: remove unnecessary assignment to the blank identifier
+    crypto/x509: remove ios build tag restriction
     
-    Change-Id: I51dd087e630bf433c30d0aaaf3715b62524eb432
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436647
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #49435
+    
+    Change-Id: I77ce12f447e727e7dc3b23de947357c27a268bd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362294
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/noder/stencil.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/internal/macos/corefoundation.go | 2 +-
+ src/crypto/x509/internal/macos/corefoundation.s  | 2 +-
+ src/crypto/x509/internal/macos/security.go       | 2 +-
+ src/crypto/x509/internal/macos/security.s        | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

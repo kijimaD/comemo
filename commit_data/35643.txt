@@ -1,31 +1,23 @@
-commit b3562658fddef6e9008379cac16c04c26784b7ed
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed May 16 19:29:41 2018 +0530
+commit c5d6c42d35059bb911cf9f4a77704438ab4f9de0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 24 10:50:38 2018 -0800
 
-    net/http: add application/wasm mime type
+    runtime: improve 386/amd64 systemstack
     
-    Although not part of http://mimesniff.spec.whatwg.org,
-    for WASM streaming compilation to happen, the response
-    needs to have the application/wasm MIME type
-    as mentioned here:
-    https://webassembly.github.io/spec/web-api/index.html#streaming-modules.
+    Minor improvements, noticed while investigating other things.
     
-    And all current browsers prevent streaming compilation
-    from happening if this MIME type is not present in the response.
+    Shorten the prologue.
     
-    The magic number is mentioned here:
-    https://webassembly.org/docs/binary-encoding
+    Make branch direction better for static branch prediction;
+    the most common case by far is switching stacks (g==curg).
     
-    Since we are already adding WASM support, it makes sense
-    to support this MIME type.
-    
-    Change-Id: I8dd7b413a8c438a5c23c29d843b42f6da2a20ba4
-    Reviewed-on: https://go-review.googlesource.com/113396
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib2211d3efecb60446355cda56194221ccb78057d
+    Reviewed-on: https://go-review.googlesource.com/97377
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/sniff.go      | 2 ++
- src/net/http/sniff_test.go | 1 +
- 2 files changed, 3 insertions(+)
+ src/runtime/asm_386.s      | 21 ++++++++++-----------
+ src/runtime/asm_amd64.s    | 20 ++++++++++----------
+ src/runtime/asm_amd64p32.s | 21 ++++++++++-----------
+ 3 files changed, 30 insertions(+), 32 deletions(-)

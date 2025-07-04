@@ -1,22 +1,31 @@
-commit aea286b449c5ffe6d69fb7bb0c5b05e480ed3ad9
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Wed Jun 14 06:44:43 2017 +0000
+commit ba8ff87dbeb87813a4604e36adb609b1e8fcb7be
+Author: Brandon Bennett <bbennett@fb.com>
+Date:   Thu Apr 20 10:26:10 2017 -0600
 
-    cmd/internal/obj/arm64: fix assemble fcsels/fcseld bug
+    testing: add argument to list tests, benchmarks, and examples
     
-    The current code treats the type of SIMD&FP register as C_REG incorrectly.
+    Some large testing/build systems require some form of test discovery before
+    running tests.  This usually allows for analytics, history, and stats on a per
+    tests basis.  Typically these systems are meant used in multi-language
+    environments and the original source code is not known or available.
     
-    The fix code converts C_REG type into C_FREG type.
+    This adds a -test.list option which takes a regular expression as an
+    argument. Any tests, benchmarks, or examples that match that regular
+    expression will be printed, one per line, to stdout and then the program
+    will exit.
     
-    Uncomment fcsels/fcseld test cases.
+    Since subtests are named/discovered at run time this will only show
+    top-level tests names and is a known limitation.
     
-    Fixes #21582
-    Change-Id: I754c51f72a0418bd352cbc0f7740f14cc599c72d
-    Reviewed-on: https://go-review.googlesource.com/58350
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Fixes #17209
+    
+    Change-Id: I7e607f5f4f084d623a1cae88a1f70e7d92b7f13e
+    Reviewed-on: https://go-review.googlesource.com/41195
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64enc.s | 4 ++--
- src/cmd/internal/obj/arm64/asm7.go           | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/test/test.go     |  8 +++++++-
+ src/cmd/go/internal/test/testflag.go |  3 +++
+ src/testing/testing.go               | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)

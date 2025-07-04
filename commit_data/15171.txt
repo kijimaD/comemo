@@ -1,18 +1,14 @@
-commit c8f2449ea7e0d61c959062f82a4cf6579f22596c
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Feb 8 10:43:53 2013 -0500
+commit 45636db01bdf4bd50426067af72afbde3900ceb9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 8 19:05:19 2013 +0400
 
-    exp/ssa: (#5 of 5): the SSA interpreter and 'ssadump' tool.
+    runtime: fix integer overflow
+    The problem happens when end=0, then end-1 is very big number.
+    Observed with the new scheduler.
     
-    R=gri, iant
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7226065
+    https://golang.org/cl/7307073
 
- src/pkg/exp/ssa/interp/external.go |  312 ++++++++
- src/pkg/exp/ssa/interp/interp.go   |  588 +++++++++++++++
- src/pkg/exp/ssa/interp/map.go      |  101 +++
- src/pkg/exp/ssa/interp/ops.go      | 1373 ++++++++++++++++++++++++++++++++++++
- src/pkg/exp/ssa/interp/reflect.go  |  413 +++++++++++
- src/pkg/exp/ssa/interp/value.go    |  492 +++++++++++++
- src/pkg/exp/ssa/ssadump.go         |  121 ++++
- 7 files changed, 3400 insertions(+)
+ src/pkg/runtime/parfor.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

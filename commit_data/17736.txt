@@ -1,45 +1,24 @@
-commit 408238e20bb794d91199c892c68a0989fc924d65
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 3 09:19:10 2013 -0400
+commit 0a033a18adc0a5c79607a94cda405119a47f908b
+Author: Dave Day <djd@golang.org>
+Date:   Thu Oct 3 13:48:47 2013 +1000
 
-    runtime: change default stack segment size to 8 kB
+    cmd/gc: support -installsuffix in the compiler and builder
     
-    Changing from 4 kB to 8 kB brings significant improvement
-    on a variety of the Go 1 benchmarks, on both amd64
-    and 386 systems.
+    Add the -installsuffix flag to gc and {5,6,8}l, which overrides -race
+    for the suffix if both are supplied.
+    Pass this flag from the go tool for build and install.
     
-    Significant runtime reductions:
-    
-              amd64  386
-    GoParse    -14%  -1%
-    GobDecode  -12% -20%
-    GobEncode  -64%  -1%
-    JSONDecode  -9%  -4%
-    JSONEncode -15%  -5%
-    Template   -17% -14%
-    
-    In the longer term, khr's new stacks will avoid needing to
-    make this decision at all, but for Go 1.2 this is a reasonable
-    stopgap that makes performance significantly better.
-    
-    Demand paging should mean that if the second 4 kB is not
-    used, it will not be brought into memory, so the change
-    should not adversely affect resident set size.
-    The same argument could justify bumping as high as 64 kB
-    on 64-bit machines, but there are diminishing returns
-    after 8 kB, and using 8 kB limits the possible unintended
-    memory overheads we are not aware of.
-    
-    Benchmark graphs at
-    http://swtch.com/~rsc/gostackamd64.html
-    http://swtch.com/~rsc/gostack386.html
-    
-    Full data at
-    http://swtch.com/~rsc/gostack.zip
-    
-    R=golang-dev, khr, dave, bradfitz, dvyukov
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/14317043
+    https://golang.org/cl/14246044
 
- src/pkg/runtime/stack.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/5l/obj.c       |  1 +
+ src/cmd/6l/obj.c       |  1 +
+ src/cmd/8l/obj.c       |  1 +
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/lex.c       | 19 +++++++++++++------
+ src/cmd/go/build.go    |  6 ++++++
+ src/cmd/go/testflag.go |  1 +
+ src/cmd/ld/lib.c       | 16 +++++++++++-----
+ src/cmd/ld/lib.h       |  1 +
+ 9 files changed, 36 insertions(+), 11 deletions(-)

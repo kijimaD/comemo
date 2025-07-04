@@ -1,20 +1,27 @@
-commit 972639fc4cf257f04f9690e63bea7cd729b3edd2
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed May 14 15:22:36 2025 -0400
+commit 1c864333cac25273ebfcefa53d50a82c270ebdab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 21 11:33:24 2024 -0700
 
-    go/token: add FileSet.AddExistingFiles
+    runtime: add fast path for (*timers).adjust
     
-    + test, doc, relnote
+    Affected benchmark results, including new benchmark (some of these may
+    just be noise, of course):
     
-    Fixes #73205
+    AdjustTimers10000-12           797.7µ ±  2%   709.6µ ±   2%  -11.04% (p=0.000 n=10)
+    TickerResetNaive-12            62.69n ±  1%   63.56n ±   1%   +1.40% (p=0.018 n=10)
+    NowUnixMicro-12                29.95n ±  1%   30.25n ±   4%   +1.00% (p=0.024 n=10)
+    ParseDuration-12               81.88n ±  0%   81.45n ±   0%   -0.51% (p=0.006 n=10)
+    UnmarshalText-12               186.9n ±  1%   185.2n ±   1%   -0.88% (p=0.006 n=10)
+    geomean                        151.8n         151.2n          -0.40%
     
-    Change-Id: Id3a4cc6290c55ffa518ad174a02ccca85e8636f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672875
+    Change-Id: I3ef8356249c5d703b314498e34ee8095093671c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573455
+    Reviewed-by: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
 
- api/next/73205.txt                           |  1 +
- doc/next/6-stdlib/99-minor/go/token/73205.md |  4 ++
- src/go/token/position.go                     | 66 ++++++++++++++++++++++++++++
- src/go/token/position_test.go                | 42 ++++++++++++++++++
- 4 files changed, 113 insertions(+)
+ src/runtime/time.go    |  5 +++++
+ src/time/sleep_test.go | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+)

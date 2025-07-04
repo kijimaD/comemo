@@ -1,16 +1,16 @@
-commit a301b329e5c99693cf5a35ad93e9db5198f0b284
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 16 14:14:16 2016 -0700
+commit 3b0efa689ec7a32de30cbda2221452f57abb2532
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 26 14:09:58 2016 -0700
 
-    cmd/compile: simplify isglobal
+    cmd/compile: a rule's line number is at its ->
     
-    Passes toolstash -cmp.
+    Let's define the line number of a multiline rule as the line
+    number on which the -> appears.  This helps make the rule
+    cover analysis look a bit nicer.
     
-    Change-Id: I16ec0c11096bf4c020cf41392effeb67436f32ba
-    Reviewed-on: https://go-review.googlesource.com/26750
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4ac4c09f2240285976590ecfd416bc4c05e78946
+    Reviewed-on: https://go-review.googlesource.com/22473
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/walk.go | 15 +++------------
- 1 file changed, 3 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

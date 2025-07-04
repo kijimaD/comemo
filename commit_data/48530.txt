@@ -1,34 +1,20 @@
-commit 7fc38802e15be1a221290b0a9da1f587ace19488
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Feb 10 16:40:18 2022 -0800
+commit 963f33b03b88e2c010d6a9876c3f0cc8d1f36f2d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 25 19:19:08 2021 -0400
 
-    cmd/compile: implement generic method expressions with closures in dictionary
+    [dev.typeparams] cmd/compile: enable register args on ARM64
     
-    Currently we do quite a dance for method expressions on generic
-    types. We write a new closure, and in that closure convert the
-    receiver to an interface with the required method, then call the
-    target using an interface call.
+    Now it will be used for functions marked go:registerparams.
     
-    Instead in this CL, we just allocate a (captureless) closure in the
-    dictionary which implements that method expression.
+    test/abi tests are passing with it.
     
-    This CL makes method expressions faster and simpler. But the real win
-    is some followon CLs, where we can use the same closure to implement
-    bound method calls using the same closure, instead of converting to
-    interface and having wrappers convert back. Much faster and simpler.
-    
-    Still thinking about how to do method values. The receiver still
-    needs to be captured, so there must be some closure involved, I think.
-    
-    Update #50182
-    
-    Change-Id: I1fbd57e7105663f8b049955b8f4111649a5f4aa8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385254
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5af37ae6b79a1064832a42c7ef5f2cc0b5b6a342
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322854
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/noder/irgen.go   |  23 +++--
- src/cmd/compile/internal/noder/stencil.go | 154 ++++++++++++++++--------------
- 2 files changed, 101 insertions(+), 76 deletions(-)
+ src/cmd/compile/internal/ssa/config.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

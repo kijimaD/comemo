@@ -1,24 +1,12 @@
-commit 4aa521a77d1fdc36d68f9ad2591bb28addb327e5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 27 08:49:47 2013 -0800
+commit f485e9859a4cbb1154541afb0c3659578e035f63
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Fri Dec 27 08:40:03 2013 -0800
 
-    net: use DialTimeout in TestSelfConnect
-    
-    This avoids problems with systems that take a long time to
-    find out nothing is listening, while still testing for the
-    self-connect misfeature since a self-connect should be fast.
-    With this we may be able to remove the test for non-Linux
-    systems.
-    
-    Tested (on GNU/Linux) by editing selfConnect in
-    tcpsock_posix.go to always return false and verifying that
-    TestSelfConnect then fails with and without this change.
-    
-    Idea from Uros Bizjak.
+    strconv: remove unused atof32int function
     
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/39200044
+    https://golang.org/cl/44200044
 
- src/pkg/net/dial_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/strconv/atof.go | 11 -----------
+ 1 file changed, 11 deletions(-)

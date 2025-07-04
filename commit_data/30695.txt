@@ -1,41 +1,14 @@
-commit ccaa8e3c6fbba08f238c5ccea437b7cac513685f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 15 23:01:31 2017 -0700
+commit 7e455163dedfe0ba73f13adbd1d9f0728a383bc9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Nov 22 14:07:03 2016 -0800
 
-    cmd/compile: avoid calling unnecessary Sym format routine
+    net: update documentation on Conn and PacketConn
     
-    Minor cleanup only.
+    Fixes #17982
     
-    No reason to go through String() when it is
-    just as easy to do a direct string comparison.
-    
-    Eliminates a surprising number of allocations.
-    
-    name       old alloc/op    new alloc/op    delta
-    Template      40.9MB ± 0%     40.9MB ± 0%    ~     (p=0.190 n=10+10)
-    Unicode       30.3MB ± 0%     30.3MB ± 0%    ~     (p=0.218 n=10+10)
-    GoTypes        116MB ± 0%      116MB ± 0%  -0.09%  (p=0.000 n=10+10)
-    SSA            871MB ± 0%      869MB ± 0%  -0.14%  (p=0.000 n=10+9)
-    Flate         26.2MB ± 0%     26.2MB ± 0%  -0.15%  (p=0.002 n=10+10)
-    GoParser      32.5MB ± 0%     32.5MB ± 0%    ~     (p=0.165 n=10+10)
-    Reflect       80.5MB ± 0%     80.4MB ± 0%  -0.12%  (p=0.003 n=9+10)
-    Tar           27.3MB ± 0%     27.3MB ± 0%  -0.13%  (p=0.008 n=10+9)
-    XML           43.1MB ± 0%     43.1MB ± 0%    ~     (p=0.218 n=10+10)
-    
-    name       old allocs/op   new allocs/op   delta
-    Template        402k ± 1%       400k ± 1%  -0.64%  (p=0.002 n=10+10)
-    Unicode         322k ± 1%       321k ± 1%    ~     (p=0.075 n=10+10)
-    GoTypes        1.19M ± 0%      1.18M ± 0%  -0.90%  (p=0.000 n=10+10)
-    SSA            7.94M ± 0%      7.81M ± 0%  -1.66%  (p=0.000 n=10+9)
-    Flate           246k ± 0%       242k ± 1%  -1.42%  (p=0.000 n=10+10)
-    GoParser        325k ± 1%       323k ± 1%  -0.84%  (p=0.000 n=10+10)
-    Reflect        1.02M ± 0%      1.01M ± 0%  -0.99%  (p=0.000 n=10+10)
-    Tar             259k ± 0%       257k ± 1%  -0.72%  (p=0.009 n=10+10)
-    XML             406k ± 1%       403k ± 1%  -0.69%  (p=0.001 n=10+10)
-    
-    Change-Id: Ia129a4cd272027d627e1f3b27e9f07f93e3aa27e
-    Reviewed-on: https://go-review.googlesource.com/38230
+    Change-Id: I4884a6b57905420ac0e37210c411de98c582de1d
+    Reviewed-on: https://go-review.googlesource.com/33473
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/net.go | 40 ++++++++++++++++++++++++++--------------
+ 1 file changed, 26 insertions(+), 14 deletions(-)

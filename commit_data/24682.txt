@@ -1,61 +1,33 @@
-commit 8e7a3ea11ec1a3bf8455cdde251a54e9baac1dda
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Sep 24 23:21:18 2015 +0200
+commit 5b920281558aa24a4cd422a7ecf9d651355d9936
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Sat May 9 17:55:05 2015 +0200
 
-    cmd/compile/internal: named types for Etype and Op in struct Node
+    html: speed up UnescapeString
     
-    Type Op is enfored now.
-    Type EType will need further CLs.
-    Added TODOs where Node.EType is used as a union type.
-    The TODOs have the format `TODO(marvin): Fix Node.EType union type.`.
+    Add benchmarks for for sparsely escaped and densely escaped strings.
+    Then speed up the sparse unescaping part heavily by using IndexByte and
+    copy to skip the parts containing no escaping very fast.
     
-    Furthermore:
-    -The flag of Econv function in fmt.go is removed, since unused.
-    -Some cleaning along the way, e.g. declare vars first when getting initialized.
+    Unescaping densely escaped strings slower because of
+    the new function call overhead. But sparsely encoded strings are seen
+    more often in the utf8 enabled web.
     
-    Passes go build -toolexec 'toolstash -cmp' -a std.
+    We win part of the speed back by looking up entityName differently.
     
-    Fixes #11846
+            benchmark                  old ns/op    new ns/op    delta
+            BenchmarkEscape                31680        31396   -0.90%
+            BenchmarkEscapeNone             6507         6872   +5.61%
+            BenchmarkUnescape              36481        48298  +32.39%
+            BenchmarkUnescapeNone            332          325   -2.11%
+            BenchmarkUnescapeSparse         8836         3221  -63.55%
+            BenchmarkUnescapeDense         30639        32224   +5.17%
     
-    Change-Id: I908b955d5a78a195604970983fb9194bd9e9260b
-    Reviewed-on: https://go-review.googlesource.com/14956
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Change-Id: If606cb01897a40eefe35ba98f2ff23bb25251606
+    Reviewed-on: https://go-review.googlesource.com/10172
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/ggen.go   |   9 +-
- src/cmd/compile/internal/amd64/gsubr.go  | 613 ++++++++++++++++---------------
- src/cmd/compile/internal/arm/cgen64.go   |   6 +-
- src/cmd/compile/internal/arm/ggen.go     |   4 +-
- src/cmd/compile/internal/arm/gsubr.go    | 375 ++++++++++---------
- src/cmd/compile/internal/arm64/ggen.go   |   4 +-
- src/cmd/compile/internal/arm64/gsubr.go  | 440 +++++++++++-----------
- src/cmd/compile/internal/gc/align.go     |  90 +++--
- src/cmd/compile/internal/gc/bimport.go   |   2 +-
- src/cmd/compile/internal/gc/cgen.go      |  64 ++--
- src/cmd/compile/internal/gc/const.go     | 201 +++++-----
- src/cmd/compile/internal/gc/cplx.go      |  23 +-
- src/cmd/compile/internal/gc/export.go    |   4 +-
- src/cmd/compile/internal/gc/fmt.go       |  19 +-
- src/cmd/compile/internal/gc/gen.go       |   4 +-
- src/cmd/compile/internal/gc/go.go        |  24 +-
- src/cmd/compile/internal/gc/go.y         |   8 +-
- src/cmd/compile/internal/gc/gsubr.go     |  12 +-
- src/cmd/compile/internal/gc/inl.go       |   6 +-
- src/cmd/compile/internal/gc/lex.go       | 107 +++---
- src/cmd/compile/internal/gc/obj.go       |  10 +-
- src/cmd/compile/internal/gc/order.go     |   3 +-
- src/cmd/compile/internal/gc/reflect.go   |   2 +-
- src/cmd/compile/internal/gc/reg.go       |  16 +-
- src/cmd/compile/internal/gc/subr.go      |  60 +--
- src/cmd/compile/internal/gc/syntax.go    |   8 +-
- src/cmd/compile/internal/gc/typecheck.go |  54 +--
- src/cmd/compile/internal/gc/walk.go      |  63 ++--
- src/cmd/compile/internal/gc/y.go         |   6 +-
- src/cmd/compile/internal/mips64/ggen.go  |   4 +-
- src/cmd/compile/internal/mips64/gsubr.go | 425 +++++++++++----------
- src/cmd/compile/internal/ppc64/ggen.go   |   4 +-
- src/cmd/compile/internal/ppc64/gsubr.go  | 425 +++++++++++----------
- src/cmd/compile/internal/x86/cgen64.go   |   6 +-
- src/cmd/compile/internal/x86/ggen.go     |  40 +-
- src/cmd/compile/internal/x86/gsubr.go    | 515 ++++++++++++++------------
- 36 files changed, 1927 insertions(+), 1729 deletions(-)
+ src/html/escape.go      | 60 +++++++++++++++++++++++++------------------------
+ src/html/escape_test.go | 20 +++++++++++++++--
+ 2 files changed, 49 insertions(+), 31 deletions(-)

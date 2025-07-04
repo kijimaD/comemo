@@ -1,46 +1,20 @@
-commit d6b06f025475d62c9d4615d23b463af4395b0c23
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 22 23:02:37 2019 -0400
+commit e546ef123e6e3a28dc7722fb6bbf1161b7024163
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 7 07:25:50 2018 -0800
 
-    cmd/link: make it easy to find binary versions
+    cmd/internal/obj/s390x: don't crash on invalid instruction
     
-    It is useful to be able to dig the Go version out of a binary,
-    even a stripped binary. rsc.io/goversion does this for x86
-    binaries by disassembling the binary to find runtime/proc.go's
-    startup-time reference to runtime.buildVersion's address.
-    That approach is quite fragile: the implementation doesn't
-    work for non-x86 and must be updated as the generated
-    code changes.
+    I didn't bother with a test as there doesn't seem to be an existing
+    framework for testing assembler failures, and tests for invalid code
+    aren't all that interesting.
     
-    rsc.io/goversion finds the module version string by looking
-    for random 16-byte framing around the actual string.
-    This is less fragile but fairly kludgy and requires scanning
-    the entire data segment.
+    Fixes #26700
     
-    cmd/buildid finds the build ID by looking for an ELF note
-    or else falling back to scanning the beginning of the text
-    segment for a magic string. This has proved quite reliable
-    and doesn't require scanning much of the binary.
-    
-    This CL makes it possible to find the Go and module versions
-    using a scan more like the build ID scan: a symbol early in
-    the writable data segment starts with a magic number and
-    then has pointers to the two string variables.
-    
-    Setting up for "go version <binary>".
-    
-    For #31624.
-    
-    Change-Id: I78ea8c52fe1686b5cc5a829ca5f198104d10ebf0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173342
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I719410d83527802a09b9d38625954fdb36a3c0f7
+    Reviewed-on: https://go-review.googlesource.com/c/153177
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/data.go     | 34 ++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/elf.go      |  2 ++
- src/cmd/link/internal/ld/macho.go    |  2 +-
- src/cmd/link/internal/ld/main.go     |  1 +
- src/cmd/link/internal/sym/symkind.go |  2 ++
- 5 files changed, 40 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/s390x/asmz.go | 4 ++++
+ 1 file changed, 4 insertions(+)

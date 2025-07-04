@@ -1,25 +1,28 @@
-commit a896219b3828165b568a35d2b80c1151f639eef8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Dec 1 17:32:47 2022 -0800
+commit 914195c132cbec651aa43c409e8aac2614b53b38
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 10 12:43:10 2022 -0800
 
-    cmd/compile: revert package typecheck part of CL 422914
+    go/types, types2: remove incorrect assertion (don't crash)
     
-    This code path is unreachable anyway, and it adds new uses of
-    Type.Pkg, which shouldn't be used anymore.
+    The removed assertion was never incorrect, as signatures may
+    be from methods in interfaces, and (some) interfaces set the
+    receivers of their methods (so we have a position for error
+    reporting).
     
-    Mark Type.Pkg as deprecated while here.
+    This CL changes the issue below from a release blocker to an
+    issue for Go 1.19.
     
-    Updates #57410.
+    For #51593.
     
-    Change-Id: I1eec1c8ed99207d58d0ba0c44822bbad29dc64f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458575
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I0c5f2913b397b9ab557ed74a80cc7a715e840412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391615
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/expr.go | 16 ++--------------
- src/cmd/compile/internal/typecheck/stmt.go |  4 ++--
- src/cmd/compile/internal/typecheck/subr.go |  3 ++-
- src/cmd/compile/internal/types/type.go     |  3 +++
- 4 files changed, 9 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/types2/infer.go                    |  2 --
+ .../internal/types2/testdata/fixedbugs/issue51593.go2       | 13 +++++++++++++
+ src/go/types/infer.go                                       |  2 --
+ src/go/types/testdata/fixedbugs/issue51593.go2              | 13 +++++++++++++
+ 4 files changed, 26 insertions(+), 4 deletions(-)

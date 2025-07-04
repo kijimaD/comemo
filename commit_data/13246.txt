@@ -1,14 +1,15 @@
-commit d87bc2f0c0e12672592e7dbf30d2c439376891d9
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Jun 2 12:54:28 2012 -0400
+commit 0e45890c8bafbaeed18c22f462d5435e43705264
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 1 18:34:14 2012 -0700
 
-    cmd/5c, cmd/5g, cmd/5l: enable use of R12, F8-F15
+    text/template/parse: restore the goroutine
+    To avoid goroutines during init, the nextItem function was a
+    clever workaround. Now that init goroutines are permitted,
+    restore the original, simpler design.
     
-    R=dave, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6248070
+    https://golang.org/cl/6282043
 
- src/cmd/5c/reg.c   |  9 +++++----
- src/cmd/5g/reg.c   | 21 +++++++++++++++------
- src/cmd/5l/5.out.h |  3 +--
- 3 files changed, 21 insertions(+), 12 deletions(-)
+ src/pkg/text/template/parse/lex.go | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)

@@ -1,28 +1,37 @@
-commit c79c5e1aa427eceb585f839a81d02c5390457a9c
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Apr 14 15:32:29 2020 -0400
+commit 210e3677f997fcce48e749437853203358f1b7b4
+Author: Wang Xuerui <git@xen0n.name>
+Date:   Mon Nov 4 13:29:20 2019 +0000
 
-    cmd/internal/obj/ppc64: add support for PCALIGN 32
+    runtime: use vDSO clock_gettime on linux/mips64x
     
-    This adds support support for the PCALIGN value 32. When this
-    directive occurs code will be aligned to 32 bytes unless
-    too many NOPs are needed, and then will fall back to 16
-    byte alignment.
+    Speed up nanotime1 and walltime1 on MIPS64 with vDSO, just like the
+    other vDSO-enabled targets.
     
-    On Linux the function's alignment is promoted from 16 to 32
-    in functions where PCALIGN 32 appears. On AIX the function's
-    alignment is left at 16 due to complexity with modifying its
-    alignment, which means code will be aligned to at least 16,
-    possibly 32 at times, which is still good.
+    Benchmark numbers on Loongson 3A3000 (GOARCH=mips64le, 1.4GHz) against
+    current master:
     
-    Test was updated to accept new value.
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkNow             868           293           -66.24%
+    BenchmarkNowUnixNano     851           296           -65.22%
     
-    Change-Id: I28e72d5f30ca472ed9ba736ddeabfea192d11797
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228258
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Performance hit on fallback case, tested by using a wrong vDSO symbol name:
+    
+    benchmark                old ns/op     new ns/op     delta
+    BenchmarkNow             868           889           +2.42%
+    BenchmarkNowUnixNano     851           893           +4.94%
+    
+    Change-Id: Ibfb48893cd060536359863ffee7624c00def646b
+    GitHub-Last-Rev: 03a58ac2e4e036a4f61227cfd013082871e92863
+    GitHub-Pull-Request: golang/go#35181
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203578
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/obj/ppc64/asm9.go     | 31 +++++++++++++++++++++----
- src/cmd/internal/obj/ppc64/asm_test.go | 42 ++++++++++++++++++++++++++++------
- 2 files changed, 62 insertions(+), 11 deletions(-)
+ src/runtime/os_linux_novdso.go    |  2 +-
+ src/runtime/sys_linux_mips64x.s   | 78 +++++++++++++++++++++++++++++++++++++--
+ src/runtime/vdso_elf64.go         |  2 +-
+ src/runtime/vdso_in_none.go       |  2 +-
+ src/runtime/vdso_linux.go         |  2 +-
+ src/runtime/vdso_linux_mips64x.go | 28 ++++++++++++++
+ 6 files changed, 106 insertions(+), 8 deletions(-)

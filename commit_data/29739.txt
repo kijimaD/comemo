@@ -1,39 +1,18 @@
-commit 7cba779cea52e827382a73804d06697e15444247
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 2 15:32:55 2016 -0800
+commit ce645534e481368b4ec6141d48eb361422e423b8
+Author: Quentin Smith <quentin@golang.org>
+Date:   Wed Oct 5 18:04:54 2016 -0400
 
-    runtime/cgo: retry pthread_create on EAGAIN
+    crypto/x509: support RHEL 7 cert bundle
     
-    Update #18146.
+    RHEL 7 introduces a new tool, update-ca-trust(8), which places the
+    certificate bundle in a new location. Add this path to the list of
+    locations that are searched for the certificate bundle.
     
-    Change-Id: Ib447aabae9f203a8b61fb8c984b57d8e2bfe69c2
-    Reviewed-on: https://go-review.googlesource.com/33894
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #15749
+    
+    Change-Id: Idc97f885ee48ef085f1eb4dacbd1c2cf55f94ff5
+    Reviewed-on: https://go-review.googlesource.com/30375
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/test/cgo_unix_test.go           |  1 +
- misc/cgo/test/issue18146.go              | 87 ++++++++++++++++++++++++++++++++
- src/runtime/cgo/gcc_darwin_386.c         |  3 +-
- src/runtime/cgo/gcc_darwin_amd64.c       |  3 +-
- src/runtime/cgo/gcc_darwin_arm.c         |  3 +-
- src/runtime/cgo/gcc_darwin_arm64.c       |  3 +-
- src/runtime/cgo/gcc_dragonfly_amd64.c    |  3 +-
- src/runtime/cgo/gcc_freebsd_386.c        |  3 +-
- src/runtime/cgo/gcc_freebsd_amd64.c      |  3 +-
- src/runtime/cgo/gcc_freebsd_arm.c        |  3 +-
- src/runtime/cgo/gcc_libinit.c            | 25 ++++++++-
- src/runtime/cgo/gcc_linux_386.c          |  3 +-
- src/runtime/cgo/gcc_linux_amd64.c        |  3 +-
- src/runtime/cgo/gcc_linux_arm.c          |  3 +-
- src/runtime/cgo/gcc_linux_arm64.c        |  3 +-
- src/runtime/cgo/gcc_linux_mips64x.c      |  3 +-
- src/runtime/cgo/gcc_linux_ppc64x.c       |  3 +-
- src/runtime/cgo/gcc_linux_s390x.c        |  3 +-
- src/runtime/cgo/gcc_netbsd_386.c         |  3 +-
- src/runtime/cgo/gcc_netbsd_amd64.c       |  3 +-
- src/runtime/cgo/gcc_netbsd_arm.c         |  3 +-
- src/runtime/cgo/gcc_signal_darwin_armx.c |  3 +-
- src/runtime/cgo/gcc_solaris_amd64.c      |  3 +-
- src/runtime/cgo/libcgo_unix.h            |  8 +++
- 24 files changed, 160 insertions(+), 21 deletions(-)
+ src/crypto/x509/root_linux.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

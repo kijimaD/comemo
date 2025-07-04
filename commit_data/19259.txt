@@ -1,17 +1,16 @@
-commit 70f6c430248d57d40bef52fbd8c2c03c72badc16
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Wed Apr 30 11:30:36 2014 -0400
+commit bdff7f91d8e6b9a9cd4647f473be4a4b8808b5db
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Apr 29 21:41:54 2014 -0400
 
-    time: MeST is a time zone name
+    lib/time: update time zone info to v.2014b
     
-    Not only ChST but also MeST (America/Metlakatla) is a zone
-    name containing a lower case letter.
+    Fixes #7412.
     
-    LGTM=robert.hencke, r
-    R=golang-codereviews, robert.hencke, bradfitz, r
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/99910043
+    https://golang.org/cl/92850043
 
- src/pkg/time/format.go      | 4 ++--
- src/pkg/time/format_test.go | 1 +
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ lib/time/update.bash  |   6 ++----
+ lib/time/zoneinfo.zip | Bin 374754 -> 352541 bytes
+ 2 files changed, 2 insertions(+), 4 deletions(-)

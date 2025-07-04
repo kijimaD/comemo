@@ -1,42 +1,24 @@
-commit 4671276c5d5f2e51dd43e856267eac44cff18652
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Mon Nov 18 22:18:56 2024 +0100
+commit cc47df017da343ee33eee0f4f59974633ca5a486
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 13 10:34:30 2023 -0700
 
-    crypto/tls: FIPS 140-3 mode
+    runtime: use real type size in map keys and values functions
     
-    Consolidates handling of FIPS 140-3 considerations for the tls package.
-    Considerations specific to certificates are now handled in tls instead
-    of x509 to limit the area-of-effect of FIPS as much as possible.
-    Boringcrypto specific prefixes are renamed as appropriate.
+    We were using the size stored in the map, which is the smaller
+    of the real type size and 128.
     
-    For #69536
+    As of CL 61538 we don't use these functions, but we expect to
+    use them again in the future after #61626 is resolved.
     
-    Co-authored-by: Filippo Valsorda <filippo@golang.org>
-    Change-Id: I1b1fef83c3599e4c9b98ad81db582ac93253030b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629675
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I7bfb4af5f0e3a56361d4019a8ed7c1ec59ff31fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535215
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/crypto/internal/boring/fipstls/stub.s       |  12 --
- src/crypto/internal/boring/fipstls/tls.go       |  51 --------
- src/crypto/tls/auth.go                          |   3 +-
- src/crypto/tls/boring.go                        |  15 ---
- src/crypto/tls/common.go                        |  66 +++++++++-
- src/crypto/tls/defaults.go                      |   4 +-
- src/crypto/tls/{boring_test.go => fips_test.go} | 156 +++++++++++++-----------
- src/crypto/tls/fipsonly/fipsonly.go             |   4 +-
- src/crypto/tls/fipsonly/fipsonly_test.go        |   6 +-
- src/crypto/tls/handshake_client.go              |  25 ++--
- src/crypto/tls/handshake_server.go              |  11 +-
- src/crypto/tls/handshake_server_tls13.go        |   3 +-
- src/crypto/tls/internal/fips140tls/fipstls.go   |  37 ++++++
- src/crypto/tls/notboring.go                     |   9 --
- src/crypto/x509/boring.go                       |  39 ------
- src/crypto/x509/boring_test.go                  | 144 ----------------------
- src/crypto/x509/notboring.go                    |   9 --
- src/crypto/x509/verify.go                       |   7 --
- src/go/build/deps_test.go                       |   8 +-
- 19 files changed, 225 insertions(+), 384 deletions(-)
+ src/runtime/export_test.go |  3 +++
+ src/runtime/map.go         |  4 ++--
+ src/runtime/map_test.go    | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 2 deletions(-)

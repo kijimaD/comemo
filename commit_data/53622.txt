@@ -1,26 +1,29 @@
-commit ee361ce66ca5c8923e636348aba559a5e5c76c15
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 22 16:07:29 2023 -0700
+commit bdf2db7255565db3d7ca1ffb721203e6d9460ccc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 24 11:53:42 2022 -0700
 
-    go/types, types2: more readable inference trace
+    go/internal/gcimporter: call Interface.Complete in unified importer
     
-    Print the unification mode in human-readable form.
-    Use a tab and // instead of ()'s to show unification mode
-    and whether operands where swapped.
+    To support concurrent use of the go/types API, importers need to call
+    Interface.Complete on constructed interfaces before returning.
     
-    These changes only affect inference trace output, which is
-    disabled by default. For easier debugging.
+    There's an issue that the interfaces may contain embedded defined
+    types, whose underlying type isn't known yet. This issue will
+    eventually go away once CL 424876 lands, but that CL needs to wait for
+    CL 424854 to re-land, which needs to wait for CL 421879 to land...
     
-    For #60933.
+    In the mean time, this CL implements the same solution used by the
+    indexed importer: maintaining a list of constructed interfaces, and
+    calling Interface.Complete on them after the SetUnderlying loop and
+    just before returning the imported package.
     
-    Change-Id: I95299c6e09b90670fc45addc4f9196b6cdd3b59f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505395
+    Updates #54653.
+    
+    Change-Id: I0f42c915a4b7d28c628bbab7ac2eab2415c7858f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425360
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/unify.go | 20 +++++++++++++++++---
- src/go/types/unify.go                    | 20 +++++++++++++++++---
- 2 files changed, 34 insertions(+), 6 deletions(-)
+ src/go/internal/gcimporter/ureader.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

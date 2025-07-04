@@ -1,0 +1,20 @@
+commit c8bf388bad9bf350b513c562bba22868bc976247
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 16 22:48:06 2025 -0700
+
+    cmd/compile: align stack-allocated backing stores higher than required
+    
+    Because that's what mallocgc did and some user code came to rely on it.
+    
+    Fixes #73199
+    
+    Change-Id: I45ca00d2ea448e6729ef9ac4cec3c1eb0ceccc89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666116
+    Reviewed-by: t hepudds <thepudds1460@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/walk/builtin.go | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

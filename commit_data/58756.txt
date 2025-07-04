@@ -1,19 +1,25 @@
-commit 5f65e5cb56f98381970de5485e704f3c7e20ca9a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 11 15:53:20 2025 -0800
+commit 6cdf2ccae8a30b20c82bf01e7989f0971d1a4764
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 8 12:20:35 2023 -0500
 
-    doc/godebug: mention GODEBUG=fips140
+    cmd/go: relax version regexp from CL 547998
     
-    Fixes #71666
+    In CL 547998 I relaxed cmd/go's parsing of version lines to allow it
+    to recognize clang versions with vendor prefixes. To prevent false-positives,
+    I added a check for a version 3-tuple following the word "version".
+    However, it appears that some releases of GCC use only a 2-tuple instead.
     
-    Change-Id: Ice816cf2943c5b6660f05934b4c7ca38545714b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/648520
+    Updates #64423.
+    Fixes #64619.
+    
+    Change-Id: I5f1d0881b6295544a46ab958c6ad4c2155cf51fe
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548120
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/godebug.md | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/go/internal/work/buildid.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

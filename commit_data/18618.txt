@@ -1,16 +1,13 @@
-commit 69257d17fe1fbd81e7f720f1a7f4e4f003997ea3
+commit 51b9879a905f35c4572d7cbaa4179b05970de7f5
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 24 20:50:12 2014 +0400
+Date:   Mon Feb 24 20:46:56 2014 +0400
 
-    runtime: use RunParallel in more benchmarks
+    math/big: use RunParallel in benchmarks
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/68020043
+    https://golang.org/cl/67830044
 
- src/pkg/runtime/chan_test.go   | 52 ++++++++++-------------------------
- src/pkg/runtime/mfinal_test.go | 62 +++++++++++++-----------------------------
- src/pkg/runtime/norace_test.go | 36 ++++++++----------------
- src/pkg/runtime/proc_test.go   | 23 ++++------------
- 4 files changed, 50 insertions(+), 123 deletions(-)
+ src/pkg/math/big/nat_test.go | 19 +++++--------------
+ 1 file changed, 5 insertions(+), 14 deletions(-)

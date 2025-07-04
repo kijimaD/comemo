@@ -1,17 +1,12 @@
-commit 64c02460d703f718a44326646d19c417eeb1999a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 2 18:37:59 2017 +1100
+commit f030eb634f6c0e8de9cebd7fa7c2ac7890cabcc7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Oct 30 09:46:36 2016 +0900
 
-    debug/pe: add test to check dwarf info
+    net: fix nit
     
-    For #10776.
-    
-    Change-Id: I7931558257c1f6b895e4d44b46d320a54de0d677
-    Reviewed-on: https://go-review.googlesource.com/36973
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iec469846dc8b5a747ad81690000f1f6f53721ea1
+    Reviewed-on: https://go-review.googlesource.com/32372
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/pe/file_cgo_test.go | 33 +++++++++++++++++
- src/debug/pe/file_test.go     | 85 +++++++++++++++++++++++++++++++++++++------
- 2 files changed, 106 insertions(+), 12 deletions(-)
+ src/net/writev_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

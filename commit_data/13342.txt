@@ -1,17 +1,14 @@
-commit f5f23e075e179ddbb518683e0762f27cd59018dd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 13 13:32:29 2012 -0700
+commit 51fe5444fac3474a538b55cdd3045ba1d3a9a264
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Jun 13 15:52:32 2012 -0400
 
-    go/ast: comment map implementation
+    runtime: improved continuity in hash computation
     
-    A comment map associates comments with AST nodes
-    and permits correct updating of the AST's comment
-    list when the AST is manipulated.
+    Fixes #3695.
     
-    R=rsc
+    R=r, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6281044
+    https://golang.org/cl/6304062
 
- src/pkg/go/ast/commentmap.go      | 268 ++++++++++++++++++++++++++++++++++++++
- src/pkg/go/ast/commentmap_test.go | 143 ++++++++++++++++++++
- 2 files changed, 411 insertions(+)
+ src/pkg/runtime/alg.c | 28 +++++++++++-----------------
+ 1 file changed, 11 insertions(+), 17 deletions(-)

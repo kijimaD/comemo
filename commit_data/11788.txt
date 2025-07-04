@@ -1,17 +1,12 @@
-commit 22636be8b03c2581ed0f6c93d90689b0202b87b0
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sat Feb 11 12:09:11 2012 +1100
+commit 0846e275a88b1b0b92a8cacab5b7e4cfc747e072
+Author: Bjorn Tipling <bjorn.tipling@gmail.com>
+Date:   Fri Feb 10 22:39:57 2012 -0200
 
-    flate: delete WrongValueError type.
+    net/http: fix reference to URL.RawPath in docs
     
-    Fixes #2838.
-    
-    R=rsc, r
+    R=go.peter.90, n13m3y3r, gustavo
     CC=golang-dev
-    https://golang.org/cl/5651060
+    https://golang.org/cl/5655053
 
- doc/go1.html                                 | 13 +++++++++----
- doc/go1.tmpl                                 | 13 +++++++++----
- src/pkg/compress/flate/deflate.go            |  3 ++-
- src/pkg/compress/flate/huffman_bit_writer.go | 13 -------------
- 4 files changed, 20 insertions(+), 22 deletions(-)
+ src/pkg/net/http/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

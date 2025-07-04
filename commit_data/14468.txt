@@ -1,17 +1,16 @@
-commit c8fa7dcc25cc7655abf55b541149ad248c9830f2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Nov 25 09:04:13 2012 -0800
+commit 74fcf82dd9c551fb0e2c2f8c323bba5b91da60bf
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Nov 25 13:27:32 2012 +0400
 
-    bytes, strings: fix Reader WriteTo return value on 0 bytes copied
+    net: add unit tests for read/write deadlines
+    The tests verify that deadlines are "persistent",
+    read/write deadlines do not interfere, can be reset,
+    read deadline can be set with both SetDeadline()
+    and SetReadDeadline(), etc.
     
-    Fixes #4421
-    
-    R=golang-dev, dave, minux.ma, mchaten, rsc
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/6855083
+    https://golang.org/cl/6850070
 
- src/pkg/bytes/reader.go        |  2 +-
- src/pkg/bytes/reader_test.go   | 36 ++++++++++++++++++++++++++++++++----
- src/pkg/strings/reader.go      |  2 +-
- src/pkg/strings/reader_test.go |  4 ++--
- 4 files changed, 36 insertions(+), 8 deletions(-)
+ src/pkg/net/timeout_test.go | 147 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 146 insertions(+), 1 deletion(-)

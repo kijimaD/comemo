@@ -1,17 +1,12 @@
-commit 2be13a80c78e22a89fba27450cf813a2fe22ebca
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 4 13:53:52 2011 -0700
+commit d3ca620bafa28393acb726455a1d875df87ed653
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 4 16:35:40 2011 -0400
 
-    os: add Seek whence constants
+    gotest: fix build
     
-    R=r, r2, rsc1, rsc, jacek.masiulaniec
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/4344062
+    https://golang.org/cl/4351047
 
- src/pkg/archive/tar/reader.go | 2 +-
- src/pkg/archive/zip/reader.go | 4 ++--
- src/pkg/debug/elf/file.go     | 6 +++---
- src/pkg/debug/pe/file.go      | 8 ++++----
- src/pkg/http/fs.go            | 4 ++--
- src/pkg/os/file.go            | 7 +++++++
- 6 files changed, 19 insertions(+), 12 deletions(-)
+ src/cmd/gotest/gotest.go | 1 +
+ 1 file changed, 1 insertion(+)

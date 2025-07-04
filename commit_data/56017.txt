@@ -1,27 +1,17 @@
-commit 5d29578fd54d5774ff0ecbe2b1407317bf64ead8
-Author: sivchari <shibuuuu5@gmail.com>
-Date:   Mon Feb 26 15:08:13 2024 +0900
+commit 311145cf0d0c9e80efb23b959f58bfa33d7f4c88
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Apr 1 16:19:52 2023 +0100
 
-    testing: add TB.SetGOMAXPROCS function
+    database/sql,testing/quick: use reflect.Value.SetZero
     
-    Add a new method TB.SetGOMAXPROCS which sets variable of GOMAXPROCS.
-    This method aims to set a variable for the isolated lifetime of the test and cleans up.
-    And unset this when the test ends.
-    This method disables the test or benchmark from running in
-    parallel.
-    
-    Fixes: #62020
-    
-    Change-Id: Iae44109d0def35cc47049c3ca4cd5306173d52ee
-    Signed-off-by: sivchari <shibuuuu5@gmail.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519235
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I2893a6aa8c2715f69745f424262c20c21370b05f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481355
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
 
- api/next/62020.txt                          |  4 ++
- doc/next/6-stdlib/99-minor/testing/62020.md |  1 +
- src/testing/testing.go                      | 49 ++++++++++++++-
- src/testing/testing_test.go                 | 97 +++++++++++++++++++++++++++++
- 4 files changed, 149 insertions(+), 2 deletions(-)
+ src/database/sql/convert.go | 2 +-
+ src/testing/quick/quick.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,24 +1,19 @@
-commit fe2c686b63804b0e22295f02e4e58ddbb3da5898
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 24 11:09:41 2023 -0400
+commit 5612215d32643f2a5b729730c3bfdefda78e75d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 28 14:49:50 2022 -0700
 
-    test/fixedbugs: require cgo for issue10607.go
+    go/types, types2: remove (C/c)ompilerErrorMessages flag - not needed anymore
     
-    This test passes "-linkmode=external" to 'go run' to link the binary
-    using the system C linker.
+    Fixes #55326.
     
-    CGO_ENABLED=0 explicitly tells cmd/go not to use the C toolchain,
-    so the test should not be run in that configuration.
-    
-    Updates #46330.
-    
-    Change-Id: I16ac66aac91178045f9decaeb28134061e9711f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522495
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ic300976ddf504224faadc5bae21736fe94dac6bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435416
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- test/fixedbugs/issue10607.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go | 7 +++----
+ src/cmd/compile/internal/types2/api.go  | 5 -----
+ src/go/types/check.go                   | 4 ----
+ 3 files changed, 3 insertions(+), 13 deletions(-)

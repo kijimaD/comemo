@@ -1,50 +1,17 @@
-commit 298fe517a9333c05143a8a8e1f9d5499f0c6e59b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 23 15:12:47 2023 -0700
+commit 0063b9b036f1bdf5c548530a4f93e0b4a111ae14
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jul 19 13:50:52 2022 -0400
 
-    database/sql: make RawBytes safely usable with contexts
+    runtime: remove useless empty string literal
     
-    sql.RawBytes was added the very first Go release, Go 1. Its docs
-    say:
+    Assumingly this appears to have been a bug in c2go, as this appeared in
+    https://go.dev/cl/172260043.
     
-    > RawBytes is a byte slice that holds a reference to memory owned by
-    > the database itself. After a Scan into a RawBytes, the slice is only
-    > valid until the next call to Next, Scan, or Close.
-    
-    That "only valid until the next call" bit was true at the time,
-    until contexts were added to database/sql in Go 1.8.
-    
-    In the past ~dozen releases it's been unsafe to use QueryContext with
-    a context that might become Done to get an *sql.Rows that's scanning
-    into a RawBytes. The Scan can succeed, but then while the caller's
-    reading the memory, a database/sql-managed goroutine can see the
-    context becoming done and call Close on the database/sql/driver and
-    make the caller's view of the RawBytes memory no longer valid,
-    introducing races, crashes, or database corruption. See #60304
-    and #53970 for details.
-    
-    This change does the minimal surgery on database/sql to make it safe
-    again: Rows.Scan was already acquiring a mutex to check whether the
-    rows had been closed, so this change make Rows.Scan notice whether
-    *RawBytes was used and, if so, doesn't release the mutex on exit
-    before returning. That mean it's still locked while the user code
-    operates on the RawBytes memory and the concurrent context-watching
-    goroutine to close the database still runs, but if it fires, it then
-    gets blocked on the mutex until the next call to a Rows method (Next,
-    NextResultSet, Err, Close).
-    
-    Updates #60304
-    Updates #53970 (earlier one I'd missed)
-    
-    Change-Id: Ie41c0c6f32c24887b2f53ec3686c2aab73a1bfff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497675
+    Change-Id: I8477ec226ffb31268b9c479af13b0fcf401dbeec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418276
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/database/sql/fakedb_test.go | 13 +++++++-
- src/database/sql/sql.go         | 72 ++++++++++++++++++++++++++++++++++++++++-
- src/database/sql/sql_test.go    | 58 +++++++++++++++++++++++++++++++++
- 3 files changed, 141 insertions(+), 2 deletions(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,23 @@
-commit 7d0642d9d6a7a9c06d422904632ab61668e24a9e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 4 05:21:58 2016 +0000
+commit 9e8fa1e99c2003cee53a6630aea9d8a3627492ab
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 17 11:07:56 2016 -0400
 
-    regexp: remove dead code
+    runtime: eliminate poisonStack checks
     
-    Wasn't convenient enough.
+    We haven't used poisonStack since we switched to 1-bit stack maps
+    (4d0f3a1), but the checks are still there. However, nothing prevents
+    us from genuinely allocating an object at this address on 32-bit and
+    causing the runtime to crash claiming that it's found a bad pointer.
     
-    Change-Id: I78270dc22cdb2e264641148e50029a9e4de953cd
-    Reviewed-on: https://go-review.googlesource.com/30251
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Since we're not using poisonStack anyway, just pull it out.
+    
+    Fixes #15831.
+    
+    Change-Id: Ia6ef604675b8433f75045e369f5acd4644a5bb38
+    Reviewed-on: https://go-review.googlesource.com/24211
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/regexp/onepass.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/runtime/mbarrier.go | 4 ++--
+ src/runtime/stack.go    | 3 +--
+ 2 files changed, 3 insertions(+), 4 deletions(-)

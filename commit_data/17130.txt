@@ -1,19 +1,12 @@
-commit 2db5e4bb0b8acda435da4cc6d8a06bd082187214
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Fri Aug 9 13:02:33 2013 -0700
+commit ecf3274143a512153b4b85b77a06aacd620fcfa9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 9 11:27:29 2013 -0700
 
-    cmd/cc: use a temporary bitmap when constructing pointer maps
+    io/ioutil: add WriteString to Discard
     
-    This change makes the way cc constructs pointer maps closer to
-    what gc does and is being done in preparation for changes to
-    the internal content of the pointer map such as a change to
-    distinguish interface pointers from ordinary pointers.
-    
-    R=golang-dev, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/12692043
+    https://golang.org/cl/12580045
 
- src/cmd/cc/bv.c   |  46 +++++++++++++++++++++
- src/cmd/cc/cc.h   |  13 ++++++
- src/cmd/cc/pgen.c | 119 ++++++++++++++++++++++++------------------------------
- 3 files changed, 111 insertions(+), 67 deletions(-)
+ src/pkg/io/ioutil/ioutil.go | 4 ++++
+ 1 file changed, 4 insertions(+)

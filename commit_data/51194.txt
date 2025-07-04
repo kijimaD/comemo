@@ -1,25 +1,17 @@
-commit c3d444d09852981daa6ed9e0ba65d90c89a7d917
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 9 20:55:17 2022 -0800
+commit becaeea1199b875bc24800fa88f2f4fea119bf78
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 14 12:24:08 2021 -0500
 
-    os/user: allocate buffers in Go memory, not C memory
+    api: promote next to go1.18
     
-    Since the first implementation of os/user, it's called C malloc
-    to allocate memory for buffers. However, the buffers are just
-    used for temporary storage, and we can just a []byte instead.
-    
-    To make this work without causing cgo pointer errors, we move
-    the pwd and grp structs into C stack memory, and just return them.
-    It's OK to store a Go pointer on the C stack temporarily.
-    
-    Change-Id: I9f8ffb6e51df1e585276c259fe99359d7835df87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449335
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ifc61e67413e5e56afbd0d4954f0150303d1a3a27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371755
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/os/user/cgo_lookup_unix.go | 158 +++++++++++++++++------------------------
- 1 file changed, 67 insertions(+), 91 deletions(-)
+ api/go1.18.txt | 238 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt   |  47 ------------
+ 2 files changed, 238 insertions(+), 47 deletions(-)

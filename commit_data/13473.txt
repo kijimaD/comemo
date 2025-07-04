@@ -1,12 +1,18 @@
-commit e726197858759794d245da0f1d57e0699b1f227f
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Sun Jul 15 09:48:31 2012 -0700
+commit 8c777066cb7d4ef8a39bd03f3d76b45e0a4810f4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jul 14 15:46:53 2012 +0400
 
-    os: add missing full stop in comment
+    build: add few tests with GOMAXPROCS=32 to run.bash
+    Some class of bugs (data races, runtime bugs) can be found
+    only with real parallelism.
+    Note that GOMAXPROCS=32 is somewhat different from go test -cpu=32,
+    this intentionally uses GOMAXPROCS to stress program bootstrap,
+    testing code, garbage collections, etc.
+    Package selection is mostly random.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dave, r
     CC=golang-dev
-    https://golang.org/cl/6399047
+    https://golang.org/cl/6346070
 
- src/pkg/os/types.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/run.bash | 5 +++++
+ 1 file changed, 5 insertions(+)

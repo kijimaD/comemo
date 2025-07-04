@@ -1,28 +1,15 @@
-commit dfd7f3562645ebd587d7d883bbaa8915fcf8c84b
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Nov 29 17:11:45 2017 -0800
+commit 23c9db657ea7c7552cb8e00debce945b97d61116
+Author: Awn <awn@cryptolosophy.io>
+Date:   Mon Jul 3 01:36:52 2017 +0100
 
-    os: add ModeIrregular flag
+    archive/tar: remove useless type conversions
     
-    There is currently no way for os.FileMode.IsRegular to report false
-    without being one of the following types:
-            ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
-    
-    This makes it difficult for custom implementations of os.FileInfo to return
-    a Mode that is explicitly not regular without resorting to setting one
-    of the types listed above. However, every one of the aforementioned types
-    are ill-suited as a general-purpose "not regular" file type.
-    
-    Thus, add a ModeIrregular to serve exactly for that purpose.
-    The ModeIrregular type carries no information other than the fact that the
-    file is not regular.
-    
-    Updates #22903
-    Fixes #23878
-    
-    Change-Id: I4f34d88f960bcb014816d8e7b5de8b1035077948
-    Reviewed-on: https://go-review.googlesource.com/94856
+    Change-Id: I259a6ed6a1abc63d2dc39eca7e85f94cf38001cc
+    Reviewed-on: https://go-review.googlesource.com/47342
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/types.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/archive/tar/format.go  | 2 +-
+ src/archive/tar/strconv.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

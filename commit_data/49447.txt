@@ -1,37 +1,21 @@
-commit 91019cc13d9de72d5e43a0068311dc9e6012777a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jun 3 16:03:55 2022 -0400
+commit 303446395d8bfdd05da8c69f1f3f862e7e7a35db
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Aug 19 17:01:26 2021 +0700
 
-    runtime/cgo: merge bodies of cgo_sys_thread_start on windows
+    cmd/compile: use typeAndStr directly in signatslice
     
-    The bodies of cgo_sys_thread_start (and x_cgo_sys_thread_create) are
-    nearly identical on all of the windows ports.
+    Currently, we store *types.Type in signatslice, then convert it to
+    typeAndStr during write runtime type process.
     
-    Create a single _cgo_beginthread implementation that contains the body
-    and is used on all ports. This will reduce churn in an upcoming CL to
-    add retry logic.
+    Instead, we can just store typeAndStr directly in signatslice when
+    adding type to signatset. Not a big win, but simplify the code a bit.
     
-    We could theoretically have a single implementation of
-    _cgo_sys_thread_start shared by all ports, but I keep them separate for
-    ease of searching. Right now every single port implements this function
-    in their gcc_GOOS_GOARCH.c file, so it is nice to keep this symmetry.
-    
-    _cgo_dummy_export must move out of libcgo_windows.h because it is a
-    definition and the inclusion of libcgo_windows.h in multiple files
-    creates duplicate definitions.
-    
-    For #52572.
-    
-    Change-Id: I9fa22009389349c754210274c7db2631b061f9c7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410354
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie1c8cfa5141da32b6ec3ce5844ba150d2765fe90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343529
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/cgo/gcc_libinit_windows.c | 28 +++++++++++++++++++++-------
- src/runtime/cgo/gcc_windows_386.c     | 10 ++--------
- src/runtime/cgo/gcc_windows_amd64.c   |  8 +-------
- src/runtime/cgo/gcc_windows_arm64.c   |  8 +-------
- src/runtime/cgo/libcgo_windows.h      | 10 ++--------
- 5 files changed, 27 insertions(+), 37 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

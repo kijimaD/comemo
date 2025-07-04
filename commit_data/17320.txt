@@ -1,13 +1,16 @@
-commit a790388afb85f04ed65d3795eb22edee44df69af
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Aug 19 13:47:43 2013 +1000
+commit f316a7ea87c192c62868331540db3ecc2fb2c08b
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Aug 19 11:53:34 2013 +1000
 
-    cmd/gc: regenerate y.tab.{c,h} with Bison 2.5.
+    cmd/gc: don't attempt to generate wrappers for blank interface methods
     
-    R=golang-dev, r
+    Fixes #5691.
+    
+    R=golang-dev, bradfitz, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/12744048
+    https://golang.org/cl/10255047
 
- src/cmd/gc/y.tab.c | 1256 ++++++++++++++++++++++++++++++++++++++--------------
- src/cmd/gc/y.tab.h |   46 +-
- 2 files changed, 953 insertions(+), 349 deletions(-)
+ src/cmd/gc/reflect.c       |  4 ++--
+ test/interface/explicit.go | 19 +++++++++++++++++++
+ test/interface/fail.go     | 19 +++++++++++++++++--
+ 3 files changed, 38 insertions(+), 4 deletions(-)

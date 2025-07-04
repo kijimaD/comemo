@@ -1,30 +1,20 @@
-commit ec0ebc2281f79294c299ece35c5a690a6415e0e0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 20 21:32:22 2015 -0800
+commit 401b20234cc56ac771a0daeec53c200f752500a7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Dec 11 10:25:32 2014 -0500
 
-    cmd/gc: treat non-local vars inlined into wrapper as escaping
+    syscall: check recorded version of ppid instead of 1
     
-    The compiler has a phase ordering problem.  Escape analysis runs
-    before wrapper generation.  When a generated wrapper calls a method
-    defined in a different package, if that call is inlined, there will be
-    no escape information for the variables defined in the inlined call.
-    Those variables will be placed on the stack, which fails if they
-    actually do escape.
+    Handles the case where the parent is pid 1 (common in docker
+    containers).
     
-    There are probably various complex ways to fix this.  This is a simple
-    way to avoid it: when a generated wrapper calls a method defined in a
-    different package, treat all local variables as escaping.
+    Attempted and failed to write a test for this.
     
-    Fixes #9537.
+    Fixes #9263.
     
-    Change-Id: I530f39346de16ad173371c6c3f69cc189351a4e9
-    Reviewed-on: https://go-review.googlesource.com/3092
+    Change-Id: I5c6036446c99e66259a4fab1660b6a594f875020
+    Reviewed-on: https://go-review.googlesource.com/1372
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/gc/go.h                   |  1 +
- src/cmd/gc/inl.c                  |  9 +++++---
- src/cmd/gc/subr.c                 |  9 ++++++++
- test/fixedbugs/issue9537.dir/a.go | 25 +++++++++++++++++++++++
- test/fixedbugs/issue9537.dir/b.go | 43 +++++++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue9537.go       | 10 +++++++++
- 6 files changed, 94 insertions(+), 3 deletions(-)
+ src/syscall/exec_linux.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

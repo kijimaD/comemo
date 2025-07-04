@@ -1,23 +1,23 @@
-commit a5943e9de13b050c20aa2490082206232af4615c
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Tue Oct 10 22:54:39 2023 +0200
+commit 268f4629df14f5b256ba51b78e1cf5799ce9818b
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sat Jul 9 19:26:47 2022 +0800
 
-    io/fs: add godoc links
+    cmd/compile: enable brachelim pass on loong64
     
-    Change-Id: Icde42bd33d58f75acdede439f7525f9d06554140
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534096
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I4fd1c307901c265ab9865bf8a74460ddc15e5d14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416735
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Auto-Submit: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
 
- src/io/fs/format.go   |  2 +-
- src/io/fs/fs.go       | 14 +++++++-------
- src/io/fs/glob.go     |  8 ++++----
- src/io/fs/readdir.go  |  6 +++---
- src/io/fs/readfile.go |  8 ++++----
- src/io/fs/stat.go     |  6 +++---
- src/io/fs/sub.go      | 10 +++++-----
- src/io/fs/walk.go     | 32 ++++++++++++++++----------------
- 8 files changed, 43 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/loong64/ssa.go         |  7 ++++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  4 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  3 ++
+ src/cmd/compile/internal/ssa/branchelim.go      | 11 ++++-
+ src/cmd/compile/internal/ssa/opGen.go           | 30 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 55 +++++++++++++++++++++++++
+ test/codegen/condmove.go                        | 18 ++++++++
+ 7 files changed, 127 insertions(+), 1 deletion(-)

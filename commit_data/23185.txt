@@ -1,32 +1,28 @@
-commit f6853369c315d69a77163756e916e784bfe2e281
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Thu May 21 21:35:49 2015 +0000
+commit 06946aad1973c42e26ddb0890c57ef37fecbb48a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 28 20:55:01 2015 -0700
 
-    html/template: prevent panic when escaping actions involving chain nodes
+    cmd/go: better UI for go doc
     
-    The current escape code panics when an action involves chain nodes.
-    Such nodes can be seen in the following situation:
+    Print it out much like godoc so there isn't a single block of text.
+    Print the symbol before its comment and indent the comment so
+    individual symbols separate visually.
     
-    {{ . | AAA.B }} - AAA being a registered function
+    Buffer the output.
     
-    The above expression is actually valid, because AAA could return a
-    map containing a B key. The tests in text/template explicitly
-    demonstrate this case.
+    Add a -c option to force case-sensitive matching.
     
-    Fix allIdents to cover also chain nodes.
+    Allow two arguments, like godoc, to help disambiguate cases
+    where path and symbol may be confused.
     
-    While I was investigating this issue, I realized that the tests
-    introduced in similar CL 9621 were incorrect. Parse errors were
-    caught as expected, but for the wrong reason. Fixed them as well.
-    No changes in text/template code itself.
+    Improve the documentation printed by go help doc.
     
-    Fixes #10801
-    
-    Change-Id: Ic9fe43b63669298ca52c3f499e2725dd2bb818a8
-    Reviewed-on: https://go-review.googlesource.com/10340
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: If687aad04bbacdf7dbe4bf7636de9fe96f756fd0
+    Reviewed-on: https://go-review.googlesource.com/9471
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/html/template/escape.go           |  4 +++-
- src/html/template/escape_test.go      | 12 ++++++++++++
- src/text/template/parse/parse_test.go |  4 ++--
- 3 files changed, 17 insertions(+), 3 deletions(-)
+ src/cmd/doc/main.go   |  66 ++++++++++++++++-----------
+ src/cmd/doc/pkg.go    | 124 ++++++++++++++++++++++++++++++++++----------------
+ src/cmd/go/alldocs.go |  66 +++++++++++++++++----------
+ src/cmd/go/doc.go     |  67 +++++++++++++++++----------
+ 4 files changed, 213 insertions(+), 110 deletions(-)

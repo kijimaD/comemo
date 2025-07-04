@@ -1,18 +1,27 @@
-commit ea48c9d2325dfe3ccd64a2bfeea9516cb5a1d2e3
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Feb 21 11:28:49 2017 -0500
+commit 689947d5652e51980fbfc7b350871fe2baa06a74
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 1 14:13:34 2016 -0700
 
-    runtime: more detail for crash_test.go
+    cmd/cgo: only record typedef name for pointer to struct
     
-    This updates the testcase to display the timestamps for the
-    runtime.a, it dependent packages atomic.a and sys.a, and
-    source files.
+    In a function argument, we handle a typedef for a pointer specially,
+    using the pointer type rather than the typedef, to permit the Go calls
+    to match the laxer type conversions permitted in C. We record the
+    typedef so that we use that type in the C code, in case it has a special
+    attribute. However, using the typedef is wrong when using a pointer to a
+    basic type, because the C code may sometimes use the typedef and
+    sometimes not, and using the typedef in all cases will cause incorrect
+    type errors on the Go side. Fortunately we only really need to use the
+    typedef when pointing to a struct/union/class, and in such a case
+    confusion is unlikely.
     
-    Change-Id: Id2901b4e8aa8eb9775c4f404ac01cc07b394ba91
-    Reviewed-on: https://go-review.googlesource.com/37332
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #17723.
+    
+    Change-Id: Id2eaeb156faeaf2e8eb9cf0b8f95b44caf8cfbd2
+    Reviewed-on: https://go-review.googlesource.com/32536
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/crash_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ misc/cgo/test/api.go | 6 ++++++
+ src/cmd/cgo/gcc.go   | 9 ++++++---
+ 2 files changed, 12 insertions(+), 3 deletions(-)

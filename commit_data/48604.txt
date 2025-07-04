@@ -1,23 +1,17 @@
-commit 5138401209a70475451561b18d2c6d92bda93810
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Feb 7 16:32:01 2022 -0500
+commit 9a99e728fecccb992a175f9d39c5c64d78d429fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 2 15:36:11 2021 -0700
 
-    runtime: remove use of -mnop-fun-dllimport from cgotest win.go
+    [dev.typeparams] cmd/compile/internal/types2: convert testdata/examples tests to type set sytax
     
-    This flag is not supported by clang, so remove it from the cgo cflags
-    when building for windows. It is clear that it was needed at some
-    point in the past, but it doesn't appear to be needed at the moment,
-    since all.bash passes on windows without it now.
-    
-    Updates #35006.
-    
-    Change-Id: Ib06c891f516654138e3363e06645cd187e46ce4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383838
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ida3837c9cbb970a2b49cd1598c6e6e9de8aa9690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324529
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/testdata/testprogcgo/windows/win.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/types2/testdata/examples/functions.go2 | 2 +-
+ src/cmd/compile/internal/types2/testdata/examples/inference.go2 | 6 +++---
+ src/cmd/compile/internal/types2/testdata/examples/types.go2     | 8 ++++----
+ 3 files changed, 8 insertions(+), 8 deletions(-)

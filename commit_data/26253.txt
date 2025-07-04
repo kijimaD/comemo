@@ -1,17 +1,28 @@
-commit d1341d6cf300ea29e4ac50037d950b4d7a110073
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Mar 13 15:22:45 2016 -0700
+commit a7cad52e04dd1890420452b38563997930edb2ca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 23 18:38:18 2015 -0800
 
-    cmd/compile, runtime: eliminate growslice_n
+    runtime: preserve signal stack when calling Go on C thread
     
-    Fixes #11419.
+    When calling a Go function on a C thread, if the C thread already has an
+    alternate signal stack, use that signal stack instead of installing a
+    new one.
     
-    Change-Id: I7935a253e3e96191a33f5041bab203ecc5f0c976
-    Reviewed-on: https://go-review.googlesource.com/20647
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Update #9896.
+    
+    Change-Id: I62aa3a6a4a1dc4040fca050757299c8e6736987c
+    Reviewed-on: https://go-review.googlesource.com/18108
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         |  1 -
- src/cmd/compile/internal/gc/builtin/runtime.go |  1 -
- src/cmd/compile/internal/gc/walk.go            | 58 +++++++++++++-------------
- src/runtime/slice.go                           | 11 -----
- 4 files changed, 29 insertions(+), 42 deletions(-)
+ misc/cgo/testcarchive/main4.c              | 194 +++++++++++++++++++++++++++++
+ misc/cgo/testcarchive/src/libgo4/libgo4.go |  52 ++++++++
+ misc/cgo/testcarchive/test.bash            |   8 ++
+ src/runtime/os1_darwin.go                  |  21 +++-
+ src/runtime/os1_dragonfly.go               |  20 ++-
+ src/runtime/os1_freebsd.go                 |  20 ++-
+ src/runtime/os1_linux.go                   |  21 +++-
+ src/runtime/os1_netbsd.go                  |  20 ++-
+ src/runtime/os1_openbsd.go                 |  20 ++-
+ src/runtime/os3_solaris.go                 |  20 ++-
+ src/runtime/runtime2.go                    |   1 +
+ 11 files changed, 383 insertions(+), 14 deletions(-)

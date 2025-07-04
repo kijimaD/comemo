@@ -1,29 +1,21 @@
-commit 5224875055d5738f18f194b4d5dbfb5babd33a21
+commit 7f710c2de99b747fe98111c1aa143365c615e4ba
 Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Oct 7 18:01:43 2012 -0700
+Date:   Sun Oct 7 17:59:33 2012 -0700
 
-    /exp/types/staging: expression and statement type checking
+    exp/locale/collate: use gofmt -w -s (rather than just gofmt -w)
     
-    Still lots of pieces missing, but basic framework working.
-    Lots of tests.
+    Also: apply gofmt -w -s to existing tables.
     
-    R=rsc
+    R=mpvl, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6594054
+    https://golang.org/cl/6611051
 
- src/pkg/exp/types/staging/conversions.go           |  39 +
- src/pkg/exp/types/staging/expr.go                  | 793 +++++++++++++++++++++
- src/pkg/exp/types/staging/stmt.go                  | 465 ++++++++++++
- src/pkg/exp/types/staging/stubs.go                 |  55 --
- src/pkg/exp/types/staging/testdata/const0.src      | 209 ++++++
- src/pkg/exp/types/staging/testdata/conversions.src |  18 +
- src/pkg/exp/types/staging/testdata/decls0.src      | 168 +++++
- src/pkg/exp/types/staging/testdata/decls1.src      | 123 ++++
- src/pkg/exp/types/staging/testdata/decls2a.src     |  66 ++
- src/pkg/exp/types/staging/testdata/decls2b.src     |  15 +
- src/pkg/exp/types/staging/testdata/expr0.src       | 135 ++++
- src/pkg/exp/types/staging/testdata/expr1.src       |   7 +
- src/pkg/exp/types/staging/testdata/expr2.src       |   7 +
- src/pkg/exp/types/staging/testdata/expr3.src       |  43 ++
- src/pkg/exp/types/staging/testdata/stmt0.src       |  42 ++
- 15 files changed, 2130 insertions(+), 55 deletions(-)
+ src/pkg/exp/locale/collate/Makefile               |   2 +-
+ src/pkg/exp/locale/collate/build/builder_test.go  |  14 +-
+ src/pkg/exp/locale/collate/build/contract_test.go |   4 +-
+ src/pkg/exp/locale/collate/build/order.go         |   2 +-
+ src/pkg/exp/locale/collate/maketables.go          |   2 +-
+ src/pkg/exp/locale/collate/tables.go              | 154 ++++-----
+ src/pkg/exp/locale/collate/tools/colcmp/Makefile  |   2 +-
+ src/pkg/exp/locale/collate/tools/colcmp/chars.go  | 396 +++++++++++-----------
+ 8 files changed, 288 insertions(+), 288 deletions(-)

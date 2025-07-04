@@ -1,17 +1,21 @@
-commit 9ec5f5b35fd19f42d066ce2bb2558ae89df40480
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Sep 21 17:11:39 2017 +0200
+commit 3820191839a5b87acab5106b5fb43113d4f18b08
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Jun 9 18:45:46 2017 +0000
 
-    runtime: delete unused function dumpbvtypes
+    Revert "database/sql: Use Tx.ctx in Tx non-context methods"
     
-    The function dumpbvtypes has no use case anymore, so we remove it with
-    this change.
+    This reverts commit ef0f7fb92b9458d7d35ee3c10ae853e3dc3077eb.
     
-    Change-Id: I1e0323542be2bcc683b75dffde76b222e087c285
-    Reviewed-on: https://go-review.googlesource.com/66370
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Reason for revert: Altered behavior of Queries prior to Tx commit. See #20631.
+    
+    Change-Id: I2548507c2935a7c60b92aae377dcc8e9aca66331
+    Reviewed-on: https://go-review.googlesource.com/45231
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Bulat Gaifullin <gaifullinbf@gmail.com>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/heapdump.go | 18 ------------------
- 1 file changed, 18 deletions(-)
+ src/database/sql/sql.go      | 10 +++++-----
+ src/database/sql/sql_test.go | 29 -----------------------------
+ 2 files changed, 5 insertions(+), 34 deletions(-)

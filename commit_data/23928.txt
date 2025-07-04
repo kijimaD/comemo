@@ -1,15 +1,18 @@
-commit abdc77a28859e1117c4bb99c23643c1b726323c1
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 30 19:39:16 2015 -0400
+commit 4ba1f258881b7cd82e22be3bff25b84fe6f21219
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 23 13:59:18 2015 -0700
 
-    runtime: avoid reference to stale stack after GC shrinkstack
+    go/types: better error message for certain unary/binary expression errors
     
-    Dangling pointer error. Unlikely to trigger in practice, but still.
-    Found by running GODEBUG=efence=1 GOGC=1 trace.test.
+    Port of https://go-review.googlesource.com/11363.
     
-    Change-Id: Ice474dedcf62dd33ab77526287a023ba3b166db9
-    Reviewed-on: https://go-review.googlesource.com/12991
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #11367.
+    
+    Change-Id: Ie0a82bcfab782c514d1947e7a6b190e286afd159
+    Reviewed-on: https://go-review.googlesource.com/11367
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/go/types/expr.go            | 16 ++++++++++++----
+ src/go/types/stmt.go            |  4 ++--
+ src/go/types/testdata/expr0.src |  6 ++++++
+ 3 files changed, 20 insertions(+), 6 deletions(-)

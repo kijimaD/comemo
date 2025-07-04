@@ -1,30 +1,14 @@
-commit 4b2fde945a79657cf77b8a173c0143208e7b88b1
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 16 14:22:00 2015 -0400
+commit 130538bb9a17d6ac894aecf0f5535cc6b04bed5c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 18:14:13 2015 +0300
 
-    runtime: proportional mutator assist
+    test: add escape analysis tests form maps
     
-    Currently, mutator allocation periodically assists the garbage
-    collector by performing a small, fixed amount of scanning work.
-    However, to control heap growth, mutators need to perform scanning
-    work *proportional* to their allocation rate.
+    False positives (var incorrectly escapes) are marked with BAD.
     
-    This change implements proportional mutator assists. This uses the
-    scan work estimate computed by the garbage collector at the beginning
-    of each cycle to compute how much scan work must be performed per
-    allocation byte to complete the estimated scan work by the time the
-    heap reaches the goal size. When allocation triggers an assist, it
-    uses this ratio and the amount allocated since the last assist to
-    compute the assist work, then attempts to steal as much of this work
-    as possible from the background collector's credit, and then performs
-    any remaining scan work itself.
-    
-    Change-Id: I98b2078147a60d01d6228b99afd414ef857e4fba
-    Reviewed-on: https://go-review.googlesource.com/8836
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I8383fa3f77e2156d781d994968636ba9a17bb975
+    Reviewed-on: https://go-review.googlesource.com/5297
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/malloc.go   | 13 ++++----
- src/runtime/mgc.go      | 28 ++++++++++++++--
- src/runtime/mgcmark.go  | 87 ++++++++++++++++++++++++++++++++++---------------
- src/runtime/runtime2.go |  4 +++
- 4 files changed, 95 insertions(+), 37 deletions(-)
+ test/escape_map.go | 107 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 107 insertions(+)

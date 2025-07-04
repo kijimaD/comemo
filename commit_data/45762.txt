@@ -1,22 +1,18 @@
-commit 909dd5e010c99d48f1dc72d7da61fd8d3fd8f030
+commit 782cf560db4c919790fdb476d1bbe18e5ddf5ffd
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 7 10:51:33 2021 -0700
+Date:   Fri Nov 13 11:05:37 2020 -0800
 
-    strconv: ParseFloat: always return ErrSyntax for bad syntax
+    cmd/go: permit CGO_LDFLAGS to appear in //go:ldflag
     
-    Previously we would sometimes return ErrRange if the parseable part of
-    the floating point number was out of range.
+    Fixes #42565
     
-    Fixes #46628
-    
-    Change-Id: I15bbbb1e2a56fa27c19fe25ab5554d988cbfd9d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/325750
+    Change-Id: If7cf39905d124dbd54dfac6a53ee38270498efed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269818
     Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/strconv/atof.go      | 2 +-
- src/strconv/atof_test.go | 3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go      | 15 ++++++++++++
+ src/cmd/go/testdata/script/ldflag.txt | 44 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+)

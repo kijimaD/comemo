@@ -1,32 +1,30 @@
-commit 3e2ceaf4def85005d90d37b8b4510d3e40b16fb7
-Author: Rens Rikkerink <1952177+ikkerens@users.noreply.github.com>
-Date:   Tue Apr 9 20:16:35 2019 +0000
+commit 2b58ca6e3de3d93817a4e6cc55378015eb3c2040
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 26 12:00:07 2018 -0400
 
-    cmd/go: mod init outside of GOPATH silently fails
+    cmd/compile: begin OpArg and OpPhi location lists at block start
     
-    Running `go mod init` outside of GOPATH with `GO111MODULE=off`
-    silently fails. This behavior was undocumented.
+    For the entry block, make the "first instruction" be truly
+    the first instruction.  This allows printing of incoming
+    parameters with Delve.
     
-    This CL makes go mod fail with the error:
+    Also be sure Phis are marked as being at the start of their
+    block.  This is observed to move location list pointers,
+    and where moved, they become correct.
     
-       go: modules disabled by GO111MODULE=off; see 'go help modules'
-    Comparing with already erroring GO111MODULE=<value> conditions:
+    Leading zero-width instructions include LoweredGetClosurePtr.
+    Because this instruction is actually architecture-specific,
+    and it is now tested for in 3 different places, also created
+    Op.isLoweredGetClosurePtr() to reduce future surprises.
     
-    * With GO111MODULE=auto, inside GOPATH:
-        go modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'
-    * With GO111MODULE=auto outside of GOPATH:
-        go: cannot determine module path for source directory /path/to/dir (outside GOPATH, no import comments)
-    
-    Fixes #31342
-    
-    Change-Id: I749787d2a8640913c4ac263072d051314d76e778
-    GitHub-Last-Rev: b38447457d8cabed367ea4872cf7f238a49539c7
-    GitHub-Pull-Request: golang/go#31255
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170697
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ic043b7265835cf1790382a74334b5714ae4060af
+    Reviewed-on: https://go-review.googlesource.com/c/145179
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/go/internal/modcmd/init.go          | 3 +++
- src/cmd/go/testdata/script/mod_off_init.txt | 7 +++++++
- 2 files changed, 10 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go       |  6 ++++-
+ src/cmd/compile/internal/ssa/debug.go    | 43 ++++++++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/schedule.go | 20 ++++++++++-----
+ src/cmd/compile/internal/ssa/tighten.go  | 13 +++++-----
+ 4 files changed, 60 insertions(+), 22 deletions(-)

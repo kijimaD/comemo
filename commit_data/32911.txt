@@ -1,19 +1,42 @@
-commit d851f10b8170c8fdd48a2016fbdd84f9ea71c21a
-Author: Martin Kreichgauer <martinkr@google.com>
-Date:   Fri Sep 29 14:30:51 2017 -0700
+commit 738739f56543a768be1eeb9a9e33f3252f4c6da1
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Jun 8 08:26:19 2017 -0400
 
-    crypto/x509: add string conversion of PKIX names
+    cmd/link: implement trampolines for ppc64le with ext linking
     
-    Fixes #21615
+    When using golang on ppc64le there have been issues
+    when building executables that generate extremely large text
+    sections.  This is due to the call instruction and the limitation
+    on the offset field, which is smaller than most platforms.  If the
+    size of the call target offset is too big for the offset field in
+    the call instruction, then link errors can occur.
     
-    Change-Id: Ic13190617d9b446b35f5dd00f142597c187ab669
-    Reviewed-on: https://go-review.googlesource.com/67270
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Martin Kreichgauer <martinkr@google.com>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    The original solution to this problem in golang was to split the
+    text section when it became too large, allowing the external (GNU)
+    linker to insert the necessary stub to handle the long call.  That
+    worked fine until the another size limit for the program size was hit,
+    where a plt_branch was created instead of a long branch.  In that case
+    the plt_branch code sequence expects r2 to contain the address of the
+    TOC, but when golang creates dynamic executables by default
+    (-buildmode=exe) r2 does not always contain the address of the TOC
+    and as a result when building programs that reach this extremely
+    large size, a runtime SEGV or SIGILL can occur due to branching to a bad
+    address.
+    
+    When using internal linking, trampolines are generated to handle the
+    long calls but the text sections are not split.  With this change,
+    text sections will still be split approrpriately with external linking
+    but if the buildmode being used does not maintain r2 as the TOC
+    addresses, then trampolines will be created for those calls.
+    
+    Fixes #20497
+    
+    Change-Id: If5400b0f86c2c08e106b332be6db0b259b07d93d
+    Reviewed-on: https://go-review.googlesource.com/45130
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/x509/pkix/pkix.go | 77 ++++++++++++++++++++++++++++++++++++++
- src/crypto/x509/x509_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++++
- src/go/build/deps_test.go    |  2 +-
- 3 files changed, 166 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go   | 38 ++++++++++++++------
+ src/cmd/link/internal/ppc64/asm.go | 73 +++++++++++++++++++++++++++++---------
+ 2 files changed, 84 insertions(+), 27 deletions(-)

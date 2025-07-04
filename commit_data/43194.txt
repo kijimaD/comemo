@@ -1,16 +1,26 @@
-commit 5d12434eee031e3db9e0bfe753c663b565b6a0f9
-Author: Alexey Vilenskiy <bynovhack@gmail.com>
-Date:   Fri Aug 14 11:37:31 2020 +0300
+commit 61a0b0d62461a8697db9869cfaf39471228e7903
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Mar 16 12:09:52 2020 -0400
 
-    reflect: support multiple keys in struct tags
+    [dev.link] cmd/link: use new relocation accessors in DWARF generation
     
-    Fixes #40281
+    This gives some speedup and reduces some allocations:
     
-    Change-Id: Ie624bce3a78a06d7ed71bba1f501e66802dffd13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248341
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    (linking cmd/compile)
+    DwarfGenerateDebugInfo    63.2ms ± 3%    41.7ms ± 3%  -34.04%  (p=0.008 n=5+5)
+    
+    DwarfGenerateDebugInfo    20.0MB ± 0%    10.1MB ± 0%  -49.62%  (p=0.008 n=5+5)
+    
+    There are code that modify relocations, which are still using
+    the earlier loader.Reloc slice for now.
+    
+    Change-Id: I3359ba305bf82cc882ae3c0f548d6ccfc8add789
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223663
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/reflect/all_test.go | 170 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/type.go     |  27 +++++++-
- 2 files changed, 194 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go  | 10 ++--
+ src/cmd/link/internal/ld/decodesym2.go | 99 ++++++----------------------------
+ src/cmd/link/internal/ld/dwarf.go      | 55 +++++++++----------
+ 3 files changed, 46 insertions(+), 118 deletions(-)

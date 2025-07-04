@@ -1,18 +1,23 @@
-commit a0205e650a2a802b82e7f924e43d4a9adfb3ac36
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Apr 17 21:02:31 2024 +0800
+commit 4f9a966926e2537c435e60e75e5c866374be07e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 19 16:05:37 2023 -0400
 
-    doc: simplify symbol links for relnotes
+    go/types: fix version downgrade bug without Config.GoVersion
     
-    This is a follow-up to CL 578195.
+    The gVisor team reported a regression in their checkers,
+    which don't set Config.GoVersion, processing files that say
+    //go:build go1.13 but still use 'any' (which happened in Go 1.18).
+    That situation should continue to work, since it worked before,
+    so add a special case for not knowing the GoVersion.
     
-    Change-Id: Iab38ee008df8b06c300b0027019cc0464bdadca1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579796
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I8820d8ccbdf76d304e2c7e45f6aaa993ff3d16a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486398
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- doc/next/6-stdlib/99-minor/net/63116.md | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/api.go   | 2 +-
+ src/cmd/compile/internal/types2/check.go | 5 ++++-
+ src/go/types/api.go                      | 2 +-
+ src/go/types/check.go                    | 5 ++++-
+ 4 files changed, 10 insertions(+), 4 deletions(-)

@@ -1,13 +1,14 @@
-commit c691ae6764a862567e9157791f1ed84914ee0e57
-Author: Jonathan Hseu <jhseu@google.com>
-Date:   Tue May 14 17:14:59 2013 -0700
+commit 0bbf0ec0ed5c17a76942d9ae8a6e6b9559dacb9e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 16:35:31 2013 -0700
 
-    testing/quick: fix for aliased types, delete duplicate uint8 test, and fix randFloat64() to give random numbers from (-math.MaxFloat64, math.MaxFloat64).
+    database/sql: use method values instead of generating closures
     
-    R=r, agl
-    CC=agl, bradfitz, golang-dev
-    https://golang.org/cl/9296046
+    Reduces garbage.
+    
+    R=adg, r
+    CC=dsymonds, gobot, golang-dev
+    https://golang.org/cl/9088045
 
- src/pkg/testing/quick/quick.go      |  66 +++++++++++-----------
- src/pkg/testing/quick/quick_test.go | 107 +++++++++++++++++++++++++++++++++++-
- 2 files changed, 137 insertions(+), 36 deletions(-)
+ src/pkg/database/sql/sql.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

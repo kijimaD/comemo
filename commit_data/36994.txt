@@ -1,25 +1,25 @@
-commit 4b36e129f865f802eb87f7aa2b25e3297c5d8cfd
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Oct 11 14:43:47 2018 +0100
+commit 5fdacfa89f871888d6f8fde726b8f95f11e674d6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 14 11:09:28 2018 +1000
 
-    encoding/json: always verify we can get a field's value
+    cmd/cover: remove use of diff in cover_test.go
     
-    Calling .Interface on a struct field's reflect.Value isn't always safe.
-    For example, if that field is an unexported anonymous struct.
+    It's non-portable, and the test isn't hard to write without diff.
+    It still produces helpful output in case of trouble:
     
-    We only descended into this branch if the struct type had any methods,
-    so this bug had gone unnoticed for a few release cycles.
+    --- FAIL: TestCoverHTML (0.75s)
+        cover_test.go:325: line 4 differs: got:
+                    case &lt;-ch:<span class="cov0" title="0"></span>
+            want:
+                    case &lt;-ch:<span class="cov0" xitle="0"></span>
     
-    Add the check, and add a simple test case.
+    This makes the test operating-system independent.
     
-    Fixes #28145.
-    
-    Change-Id: I02f7e0ab9a4a0c18a5e2164211922fe9c3d30f64
-    Reviewed-on: https://go-review.googlesource.com/c/141537
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iff35f00cb76ba89bc1b93db01c6f994e74341f4a
+    Reviewed-on: https://go-review.googlesource.com/118795
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/decode.go      |  2 +-
- src/encoding/json/decode_test.go | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/cover/cover_test.go | 34 ++++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 12 deletions(-)

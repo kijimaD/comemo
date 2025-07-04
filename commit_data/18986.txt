@@ -1,25 +1,18 @@
-commit 83ac901fb9298bf29059d52bc8b084c885586d1b
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Mar 29 13:04:25 2014 +0900
+commit f074565158ed611d7324de8e1297b103b5ed23f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 28 12:23:51 2014 -0700
 
-    net: tweak the ephemeral port range on dragonfly
+    bytes, strings: allow Reader.Seek past 1<<31
     
-    On DragonFly BSD, we adjust the ephemeral port range because
-    unlike other BSD systems its default ephemeral port range
-    doesn't conform to IANA recommendation as described in RFC 6355
-    and is pretty narrow.
+    Fixes #7654
     
-    On DragonFly BSD 3.6: default range [1024, 5000], high range [49152, 65535]
-    On FreeBSD 10: default range [10000, 65535], high range [49152, 65535]
-    On Linux 3.11: default range [32768, 61000]
-    
-    Fixes #7541.
-    
-    LGTM=iant
-    R=jsing, gobot, iant
+    LGTM=rsc
+    R=rsc, dan.kortschak
     CC=golang-codereviews
-    https://golang.org/cl/80610044
+    https://golang.org/cl/81530043
 
- src/pkg/net/sockopt_bsd.go  | 13 +++++++++++++
- src/pkg/syscall/net_nacl.go |  8 ++++++++
- 2 files changed, 21 insertions(+)
+ src/pkg/bytes/reader.go        | 33 +++++++++++++++------------------
+ src/pkg/bytes/reader_test.go   | 14 ++++++++++++--
+ src/pkg/strings/reader.go      | 33 +++++++++++++++------------------
+ src/pkg/strings/reader_test.go | 14 ++++++++++++--
+ 4 files changed, 54 insertions(+), 40 deletions(-)

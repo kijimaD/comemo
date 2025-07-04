@@ -1,17 +1,21 @@
-commit cfc0d6d8847eb959da2b6bd1c0fe1c0c7a19873e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 9 11:28:07 2016 -0700
+commit 0efc16284bc4fd5b8b31d3f6b6763f98700c5664
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 11 15:19:32 2016 +1000
 
-    cmd/compile/internal/syntax: remove strbyteseql
+    syscall: remove mksyscall_windows.go -xsys flag
     
-    cmd/compile already optimizes "string(b) == s" to avoid allocating a
-    temporary string.
+    Also run "go generate" in
+    internal/syscall/windows and internal/syscall/windows/registry
     
-    Change-Id: I4244fbeae8d350261494135c357f9a6e2ab7ace3
-    Reviewed-on: https://go-review.googlesource.com/28931
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #15167
+    
+    Change-Id: I0109226962f81857fe11d308b869d561ea8ed9f9
+    Reviewed-on: https://go-review.googlesource.com/23021
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/scanner.go | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+ .../syscall/windows/registry/zsyscall_windows.go   |  8 ++++---
+ src/internal/syscall/windows/zsyscall_windows.go   |  8 ++++---
+ src/syscall/mksyscall_windows.go                   | 28 +++++++++++++++++++---
+ 3 files changed, 35 insertions(+), 9 deletions(-)

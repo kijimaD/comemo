@@ -1,24 +1,30 @@
-commit 700e969d5b23732179ea86cfe67e8d1a0a1cc10a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 21 09:16:56 2019 -0700
+commit 21f7f01289577698eb70a4558d588bd00b6fed01
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 15:07:57 2018 +0100
 
-    cmd/compile: regenerate rewrite rules
+    runtime: avoid runtimeNano call on a common netpoll path
     
-    Change-Id: I7e921b7b4665ff76dc8bae493b2a49318690770b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168637
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    runtimeNano is slower than nanotime, so pass the duration
+    to runtime_pollSetDeadline as is. netpoll can add nanotime itself.
+    Arguably a bit simpler because, say, a negative duration
+    clearly represents already expired timer, no need to compare to
+    nanotime again.
+    This may also fix an obscure corner case when a deadline in past
+    which happens to be nanotime 0 is confused with no deadline at all,
+    which are radically different things.
+    Also don't compute any durations and times if Time is zero
+    (currently we first compute everything and then reset d back to 0,
+    which is wasteful).
+    
+    name                  old time/op  new time/op  delta
+    TCP4OneShotTimeout-6  17.1µs ± 0%  17.0µs ± 0%     ~     (p=0.421 n=5+5)
+    SetReadDeadline-6      230ns ± 0%   205ns ± 1%  -10.63%  (p=0.008 n=5+5)
+    
+    Change-Id: I2aad699270289a5b9ead68f5e44ec4ec6d96baa0
+    Reviewed-on: https://go-review.googlesource.com/c/146344
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/compile/internal/ssa/rewrite386.go         | 18 ++++------
- .../compile/internal/ssa/rewrite386splitload.go    | 30 ++++------------
- src/cmd/compile/internal/ssa/rewriteAMD64.go       | 18 ++++------
- .../compile/internal/ssa/rewriteAMD64splitload.go  | 40 +++++-----------------
- src/cmd/compile/internal/ssa/rewriteARM.go         | 18 ++++------
- src/cmd/compile/internal/ssa/rewriteARM64.go       |  9 ++---
- src/cmd/compile/internal/ssa/rewriteMIPS.go        | 18 ++++------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go      |  9 ++---
- src/cmd/compile/internal/ssa/rewritePPC64.go       |  9 ++---
- src/cmd/compile/internal/ssa/rewriteS390X.go       |  9 ++---
- 10 files changed, 50 insertions(+), 128 deletions(-)
+ src/internal/poll/fd_poll_runtime.go | 15 ++++++---------
+ src/runtime/netpoll.go               |  9 +++++++--
+ 2 files changed, 13 insertions(+), 11 deletions(-)

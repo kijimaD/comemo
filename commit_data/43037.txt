@@ -1,25 +1,15 @@
-commit 789d77a87e5417c10377a9f9de07ec37c65048f2
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 17 21:34:52 2020 -0400
+commit 5b15941c61f478b8ed08b76a27186527ba73d273
+Author: yuz <re.yuz77777@gmail.com>
+Date:   Sun Mar 1 21:35:56 2020 +0900
 
-    cmd/link: propagate UsedInIface through method descriptor
+    flag: changed flag variable name in package doc, for clarity
     
-    The linker prunes methods that are not directly reachable if the
-    receiver type is never converted to interface. A type can be
-    converted to interface using reflection through other types.
-    The linker already takes this into consideration but it missed
-    the case that the intermediate is a method descriptor. Handle
-    this case.
+    Changed the flag variable name to nFlag instead of flagname,
+    because flagname was confusing.
     
-    Change-Id: I590efc5da163c326db8d43583908a2ef67f65d9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255858
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I20dd4c4b4f605395d427a125ba4fd14580e5d766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221678
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/deadcode.go               | 19 ++++++++++++++
- src/cmd/link/internal/ld/deadcode_test.go          |  1 +
- .../internal/ld/testdata/deadcode/ifacemethod3.go  | 29 ++++++++++++++++++++++
- 3 files changed, 49 insertions(+)
+ src/flag/flag.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

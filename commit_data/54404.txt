@@ -1,39 +1,21 @@
-commit dfb2e4265bf7654001c77925dfbbb9c38c0d1a95
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sat Sep 9 00:58:21 2023 +0000
+commit a4b4717f23334547f40f90f1457f3dc086259fa3
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Wed Jun 8 10:56:36 2022 -0500
 
-    cmd/go: cache results of exec.LookPath
+    cmd/dist, misc/cgo/testsanitizers: enable msan tests on freebsd/amd64
     
-    This CL package exec.LookPath to internal/cfg.LookPath and adds cache.
+    Adjust os/arch checks to enable msan tests on freebsd/amd64.
     
-    BenchmarkLookPath-4     24149096                50.48 ns/op            0 B/op          0 allocs/op
+    R=go1.20
     
-    Fixes #36768
+    For #53298
     
-    Change-Id: I199a780d1eab9bd5397bb3759bb42191fff716e9
-    
-    Change-Id: I199a780d1eab9bd5397bb3759bb42191fff716e9
-    GitHub-Last-Rev: d67aa826f431affe829c23d1fdf2241fbb611303
-    GitHub-Pull-Request: golang/go#61464
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511458
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3d0f5259db73d526d006a12de5ba6284528cf819
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411276
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/cfg/bench_test.go               | 21 +++++++++++++++++++++
- src/cmd/go/internal/cfg/cfg.go                      |  3 +--
- src/cmd/go/internal/cfg/lookpath.go                 | 21 +++++++++++++++++++++
- src/cmd/go/internal/generate/generate.go            |  2 +-
- src/cmd/go/internal/load/pkg.go                     |  3 +--
- src/cmd/go/internal/script/cmds.go                  |  3 ++-
- src/cmd/go/internal/script/scripttest/scripttest.go |  4 ++--
- src/cmd/go/internal/toolchain/select.go             |  3 +--
- src/cmd/go/internal/vcs/vcs.go                      |  2 +-
- src/cmd/go/internal/work/build.go                   |  3 +--
- src/cmd/go/internal/work/buildid.go                 |  2 +-
- src/cmd/go/internal/work/exec.go                    | 10 +++++++---
- src/cmd/go/internal/work/gccgo.go                   |  2 +-
- 13 files changed, 61 insertions(+), 18 deletions(-)
+ misc/cgo/testsanitizers/cc_test.go   | 2 ++
+ misc/cgo/testsanitizers/msan_test.go | 6 +++++-
+ src/cmd/dist/test.go                 | 5 +++--
+ 3 files changed, 10 insertions(+), 3 deletions(-)

@@ -1,21 +1,17 @@
-commit 775ab8eeaaea970ddfcb339c275f79cd98e6bca5
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 11 11:48:47 2014 -0400
+commit 1e6a19be641b348547563b762b51d2b62de12da4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 10 16:52:37 2014 -0700
 
-    cmd/gc: fix escape analysis for &x inside switch x := v.(type)
+    net/http: fix double Content-Length in response
     
-    The analysis for &x was using the loop depth on x set
-    during x's declaration. A type switch creates a list of
-    implicit declarations that were not getting initialized
-    with loop depths.
+    Fixes #8180
     
-    Fixes #8176.
-    
-    LGTM=iant
-    R=iant
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/108860043
+    https://golang.org/cl/105040043
 
- src/cmd/gc/esc.c | 18 ++++++++++++++++--
- test/escape2.go  | 10 ++++++++++
- 2 files changed, 26 insertions(+), 2 deletions(-)
+ src/pkg/net/http/response.go           |  5 ++++-
+ src/pkg/net/http/responsewrite_test.go | 16 ++++++++++++++++
+ src/pkg/net/http/transfer.go           |  4 +++-
+ 3 files changed, 23 insertions(+), 2 deletions(-)

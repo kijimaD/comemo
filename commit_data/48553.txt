@@ -1,25 +1,16 @@
-commit 1a9972ec87de1eba7f9f71c8ed4afa88b0c122d4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Mar 28 12:46:46 2022 -0400
+commit 6624771c8346d69ef41526b1134c505bca399340
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 27 17:33:01 2021 -0700
 
-    cmd/internal/obj: sort relocations
+    doc/go1.17: mention testing.[TB].Setenv methods
     
-    At least on some platforms (e.g. PE dynamic loader) relocations
-    need to be sorted in address order. Currently we don't always emit
-    relocations in address order: e.g. for array literal with out-of-
-    order element initializers, or out-of-order DATA instructions in
-    assembly code. Sort them.
+    For #41260
+    For #44513
     
-    No test for now as I can't reproduce the failure for #51923.
-    
-    Fixes #51923.
-    
-    Change-Id: Ifec5d3476e027bb927bcefd6e45c40ebeccee4ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396195
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I47ac0c751dafeb05abfe66fdf77938774164915f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323353
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
 
- src/cmd/internal/obj/objfile.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.17.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

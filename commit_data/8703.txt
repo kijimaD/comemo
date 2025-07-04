@@ -1,15 +1,16 @@
-commit 8834bb0bfa7cbbfeb9df0c6d1fa2296e24a431d5
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Jun 13 13:04:59 2011 -0400
+commit d164b6081de197612b99b405feb9a2d6e73028a3
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Jun 13 16:56:43 2011 +0200
 
-    crypto/openpgp: flesh out Encrypt by adding support for signing.
+    ld: dwarf emit filenames in debug_line header instead of as extended opcodes.
     
-    R=bradfitz
+    Makes it possible for older tools like objdump to find the filenames,
+    fixes  objdump -d -l --start-address=0x400c00 --stop-address=0x400c36 6.out
+    fixes #1950
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4572059
+    https://golang.org/cl/4609043
 
- src/pkg/crypto/openpgp/keys.go                     |   2 +-
- .../crypto/openpgp/packet/one_pass_signature.go    |  27 +++++-
- src/pkg/crypto/openpgp/write.go                    | 104 +++++++++++++++++++--
- src/pkg/crypto/openpgp/write_test.go               |  36 ++++++-
- 4 files changed, 158 insertions(+), 11 deletions(-)
+ src/cmd/ld/dwarf.c | 27 ++++++++++++++-------------
+ 1 file changed, 14 insertions(+), 13 deletions(-)

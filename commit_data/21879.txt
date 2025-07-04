@@ -1,18 +1,13 @@
-commit f05f273525e7547d5dd4ee17d97f53dd210bde97
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 3 09:14:31 2015 -0800
+commit f43a8dea92cd84f6ed53cb51904c7c2ed4c89b07
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 10 17:21:03 2015 +0900
 
-    cmd/internal/obj: print g for the g register on arm and ppc64
+    net: disable WriteMsgUDP tests on nacl, windows (fix build)
     
-    The name g is an alias for R10 and R30, respectively. Have Rconv
-    print the alias, for consistency with the input language.
-    
-    Change-Id: Ic3f40037884a0c8de5089d8c8a8efbcdc38c0d56
-    Reviewed-on: https://go-review.googlesource.com/6630
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I695b89ec2b63233d94c49c4a40a57b50350ec67c
+    Reviewed-on: https://go-review.googlesource.com/4350
+    TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/operand_test.go | 8 ++++----
- src/cmd/internal/obj/arm/list5.go        | 4 ++++
- src/cmd/internal/obj/ppc64/list9.go      | 4 ++++
- 3 files changed, 12 insertions(+), 4 deletions(-)
+ src/net/udp_test.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

@@ -1,14 +1,12 @@
-commit 6ed6cb4550f5f65c7e51d4f9b9b70d7418ddbf50
-Author: Joel Sing <jsing@google.com>
-Date:   Sun Mar 15 17:38:05 2015 +1100
+commit 1b205857a46d0241a980c1c8e548ad2e225bcbb8
+Author: Austin Clements <austin@google.com>
+Date:   Wed Feb 18 21:59:41 2015 -0500
 
-    cmd/dist: use GOARM=5 for openbsd/arm
+    runtime: drop unused workbufhdr.id field
     
-    OpenBSD/arm only currently supports softfloat, hence make the default GOARM=5.
-    
-    Change-Id: Ie3e8f457f001b3803d17ad9bc4ab957b2da18c6a
-    Reviewed-on: https://go-review.googlesource.com/7614
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: If7729b3c7df6dc7fcd41f293e2ef2472c769fe8b
+    Reviewed-on: https://go-review.googlesource.com/5261
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/dist/util.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/mgcwork.go | 1 -
+ 1 file changed, 1 deletion(-)

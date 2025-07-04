@@ -1,18 +1,22 @@
-commit 21f2cb60eaf6636f66062585cce575af3e11edb5
-Author: Benoit Sigoure <tsunanet@gmail.com>
-Date:   Sun Feb 28 21:30:32 2016 -0800
+commit b2492d16a01ff102b15dbe9cb1b20465e1cfeda0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sun Dec 6 07:51:30 2015 -0800
 
-    syscall: Fix generator for Linux syscalls.
+    cmd/go: always show current value for GO15VENDOREXPERIMENT
     
-    In golang.org/cl/14449 the `getdents' system call got changed to use
-    _SYS_getdents as a layer of indirection instead of SYS_GETDENTS64 for
-    compatibility with mips64, but this broke mksyscall.pl, which then
-    died with with:
-      syscall_linux.go:840: malformed //sys declaration
+    Prior behavior would show empty string when unset. In go1.5 this
+    would result in "off". In go1.6 this will result in "on". This
+    change will make empty or "0" off and "1" on for go1.5 and go1.6.
+    Vendor tools can then rely on this value.
     
-    Change-Id: Icb61965d8730f6e81f9fb0fa28c7bab635470f09
-    Reviewed-on: https://go-review.googlesource.com/20051
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Discussion:
+    https://groups.google.com/forum/#!topic/golang-dev/oZzcXrlRrkA
+    
+    Change-Id: I7e145a32e813dfde02dc262a9186c7af28db7b92
+    Reviewed-on: https://go-review.googlesource.com/17487
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/mksyscall.pl | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/env.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

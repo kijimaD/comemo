@@ -1,24 +1,19 @@
-commit 5159c836410535fad0ae0b23329ef91347c1b133
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 6 17:04:52 2021 -0400
+commit 150bd4ffd4ea10ce18038c3efb2d792c73fd4b0c
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Jul 4 11:29:40 2020 +0200
 
-    runtime,cmd/link: include GOEXPERIMENTs in runtime.Version(), "go version X"
+    cmd/compile: enforce strongly typed rules for ARM (4)
     
-    This adds the set of GOEXPERIMENTs to the build version if it differs
-    from the default set of experiments. This exposes the experiment
-    settings via runtime.Version() and "go version <binary>".
+    "mul by constant" until "div by constant"
+    L547-L609
     
-    Change-Id: I143dbbc50f66a4cf175469199974e18848075af6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307820
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I19ebb5694e383878f505d34df2591a51fe38431a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254662
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/dist/buildruntime.go                        |  2 --
- src/cmd/go/testdata/script/version_goexperiment.txt | 16 ++++++++++++++++
- src/cmd/link/internal/ld/main.go                    |  6 ++++++
- src/internal/goexperiment/flags.go                  |  3 +++
- src/runtime/extern.go                               | 12 +++++++++++-
- src/runtime/proc.go                                 |  2 --
- 6 files changed, 36 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 118 ++++----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 464 ++++++++++++++---------------
+ 2 files changed, 291 insertions(+), 291 deletions(-)

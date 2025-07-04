@@ -1,29 +1,19 @@
-commit 4864decf04f3691045bc6f95effa9c6e2ba0ad33
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 17 14:47:31 2018 -0400
+commit aba0775ad8a9b76df34df44d102526efc8a93493
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 17 07:16:40 2018 +1000
 
-    cmd/go: remove go mod fix, add go help go.mod
+    doc/contribute.html: adjust wording from previous CL
     
-    "go mod fix" does work already done by nearly every other go command.
-    It was also confusing why we had both "go mod fix" and "go mod tidy".
-    Delete "go mod fix".
+    The previous CL, 107197, overclarified the need for short subject
+    lines. Tweak the wording to be a guideline (keep it short) rather
+    than a limit (76 characters), which is more the Go way.
     
-    The main reason we kept "go mod fix" this long was for the discussion
-    of automatic go.mod updates in its documentation, which is now moved
-    into a new "go help go.mod".
+    Also be strict about avoiding markup language.
     
-    Fixes #26831.
-    
-    Change-Id: Ic95ca8918449ab79791d27998e02eb3377ac7972
-    Reviewed-on: https://go-review.googlesource.com/129682
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0da1132db8d86052647d96f1caac60289f2209ce
+    Reviewed-on: https://go-review.googlesource.com/107378
+    Reviewed-by: Mohit Bajoria <mohitbajo36@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go                         | 156 +++++++++++++++-----------
- src/cmd/go/internal/modcmd/fix.go             |  65 -----------
- src/cmd/go/internal/modcmd/mod.go             |   1 -
- src/cmd/go/internal/modload/help.go           |  77 ++++++++++++-
- src/cmd/go/main.go                            |   1 +
- src/cmd/go/testdata/script/mod_get_commit.txt |   4 +-
- 6 files changed, 163 insertions(+), 141 deletions(-)
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

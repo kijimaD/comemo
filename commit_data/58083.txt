@@ -1,37 +1,21 @@
-commit 7ded55f941889db8223aca28b319c09d89158ee1
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 15 13:49:28 2024 -0500
+commit 1176052bb40378272cfbe83d873b65fcc2ed8502
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 27 09:03:11 2023 +0200
 
-    cmd/go/internal/fsys: convert to proper ReadDir
+    internal/syscall/unix: implement Eaccess on freebsd
     
-    Many releases ago we migrated
-    from ioutil.ReadDir, which returned []os.FileInfo,
-    to os.ReadDir, which returns []fs.DirEntry.
-    The latter is faster, but the former is expected by go/build.Context.
+    Like on linux, use faccessat(AT_FDCWD, path, mode, AT_EACCESS)
     
-    Convert fsys to use the new ReadDir signature.
-    This should make the go command faster when scanning
-    source trees, and it brings cmd/go up to date with the rest
-    of the tree.
-    
-    Similarly, convert Walk to WalkDir.
-    
-    Change-Id: I767a8548d7ca7cc3c05f2ff073d18070a4e8a0da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628698
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Bypass: Russ Cox <rsc@golang.org>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: I98c8af5008bfa7940abffa6fcb3766254955cb08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531155
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/go/internal/cfg/cfg.go        | 27 ++++++++++++++++-
- src/cmd/go/internal/fsys/fsys.go      | 36 ++++++++--------------
- src/cmd/go/internal/fsys/fsys_test.go | 57 ++++++++++++++++++-----------------
- src/cmd/go/internal/fsys/walk.go      | 49 ++++++++++++++++++------------
- src/cmd/go/internal/imports/scan.go   | 17 ++++++-----
- src/cmd/go/internal/load/pkg.go       | 10 +++---
- src/cmd/go/internal/modindex/read.go  | 12 +++++---
- src/cmd/go/internal/modindex/scan.go  | 16 +++++-----
- src/cmd/go/internal/modload/search.go |  8 ++---
- src/cmd/go/internal/search/search.go  | 12 ++++----
- src/cmd/go/internal/workcmd/use.go    |  6 ++--
- 11 files changed, 141 insertions(+), 109 deletions(-)
+ src/internal/syscall/unix/at_sysnum_freebsd.go |  2 ++
+ src/internal/syscall/unix/eaccess_freebsd.go   | 26 ++++++++++++++++++++++++++
+ src/internal/syscall/unix/eaccess_other.go     |  2 +-
+ 3 files changed, 29 insertions(+), 1 deletion(-)

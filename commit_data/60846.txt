@@ -1,0 +1,21 @@
+commit 700920bbb73b39af4794854e79b76dc9b66b19ca
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Sep 2 12:37:51 2024 +0000
+
+    go/printer: do not panic on *ast.ParenExpr in combinesWithName
+    
+    Fixes #69206
+    
+    Change-Id: I1b5a664c22d5739e2c6748d562591f57345b536e
+    GitHub-Last-Rev: 1798e2c65b3c2c0c1ef674b000dce2636c834783
+    GitHub-Pull-Request: golang/go#69208
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610115
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/go/printer/nodes.go                 | 4 +---
+ src/go/printer/testdata/generics.golden | 2 ++
+ src/go/printer/testdata/generics.input  | 2 ++
+ 3 files changed, 5 insertions(+), 3 deletions(-)

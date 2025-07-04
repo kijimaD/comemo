@@ -1,12 +1,12 @@
-commit 4d3c9990867d77844fba1bbf0d8f7794f2492d11
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Nov 2 15:03:36 2011 +0900
+commit c4845c1c49093e129f04c4892d636b5d3572dee8
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Nov 2 16:25:24 2011 +1100
 
-    builtin: document built-in error type
+    gc: fix spelling of "GOEXPERIMENT" in a comment.
     
-    R=golang-dev, dsymonds, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5307080
+    https://golang.org/cl/5323070
 
- src/pkg/builtin/builtin.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

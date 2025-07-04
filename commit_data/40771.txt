@@ -1,20 +1,27 @@
-commit 405a2f2161b6a12965e7a91bfe5d14b626e176fb
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Nov 12 19:59:02 2019 +0100
+commit f1a8ca30fcaa91803c353999448f6f3a292f1db1
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jun 27 15:28:08 2019 -0400
 
-    syscall: fix epoll_event padding on linux/arm64
+    go/build: don't check if srcDir in GOPATH when deciding to use modules
     
-    EpollEvent needs padding before Fd as was already done for x/sys/unix in
-    CL 21971.
+    go/build.Context.Import loads package information using 'go list' when
+    in module mode. It does this when GO111MODULE is not "off", there is a
+    go.mod file in any parent directory, and neither the path nor the
+    source directory are in GOROOT. Import no longer checks whether the
+    source directory is in GOPATH if GO111MODULE=auto or unset.
     
-    Fixes #35479
+    Also fixed subdirectory checks that did not handle relative source
+    directory paths. mod_gobuild_import should have failed when we changed
+    the meaning of GO111MODULE=auto but didn't because of this.
     
-    Change-Id: Iee963f9e26d0a23d16d6bab736fd71ae7f502894
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206838
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #32799
+    
+    Change-Id: Ic5210b7e00cb58f91ea9455b67b49d5aed4eec63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184098
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/types_linux.go        | 2 +-
- src/syscall/ztypes_linux_arm64.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/mod_gobuild_import.txt | 20 +++++++++++--
+ src/go/build/build.go                             | 36 ++++++++++-------------
+ 2 files changed, 34 insertions(+), 22 deletions(-)

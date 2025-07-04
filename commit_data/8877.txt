@@ -1,12 +1,17 @@
-commit 546c78b74441475a933300ce5e0a1ff50f35941d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jun 28 16:01:52 2011 +1000
+commit 6282292f8da9dc8254bcbef51318504a17cb18b0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 27 21:59:51 2011 -0700
 
-    builder: minor fixes
+    mime/multipart: parse LF-delimited messages, not just CRLF
     
-    R=golang-dev, gri, bradfitz
+    Against the spec, but appear in the wild.
+    
+    Fixes #1966
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4634050
+    https://golang.org/cl/4662059
 
- misc/dashboard/builder/package.go | 19 +++++++++++++------
- 1 file changed, 13 insertions(+), 6 deletions(-)
+ src/pkg/mime/multipart/multipart.go      | 32 +++++++++++++++++++++-----------
+ src/pkg/mime/multipart/multipart_test.go | 32 ++++++++++++++++++++++----------
+ 2 files changed, 43 insertions(+), 21 deletions(-)

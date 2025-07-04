@@ -1,17 +1,13 @@
-commit 8b11e0b42d6466726639ac702c073047d9fadedb
-Author: Anmol Sethi <anmol@aubble.com>
-Date:   Sun Jan 8 14:46:54 2017 -0500
+commit 7ea58297171ef9ba2680abd5e2490d48c1c9f24c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 20 15:27:26 2016 -0700
 
-    net/http: remove check for null bytes in Dir.Open()
+    cmd/compile: a couple of minor comment fixes
     
-    The syscall package checks for null bytes now.
-    This was added in https://codereview.appspot.com/6458050
-    
-    Change-Id: I59a2fed3757a25b85e2668905ff5cf2ec8c3a0d3
-    Reviewed-on: https://go-review.googlesource.com/34978
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If1d08a84c9295816489b1cfdd031ba12892ae963
+    Reviewed-on: https://go-review.googlesource.com/31598
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/fs.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/go.go        | 4 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 9 ++-------
+ 2 files changed, 4 insertions(+), 9 deletions(-)

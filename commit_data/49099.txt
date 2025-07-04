@@ -1,23 +1,24 @@
-commit 50203976777808f03b01974076ddeb26f24be311
-Author: miller <millerresearch@gmail.com>
-Date:   Sun May 8 13:29:27 2022 +0100
+commit 41ff0aac13fd0537702a7f28091a841bef233548
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 19:49:43 2021 -0400
 
-    path/filepath: simplify EvalSymlinks for plan9
+    [dev.typeparams] go/types: replace types2.Instantiate with Checker.Instantiate
     
-    Plan 9 doesn't have symbolic links, so EvalSymlinks can be simplified
-    just to check validity of the path and call Clean. This saves a lot
-    of redundant file system activity.
+    This is a partial port of CL 333569 containing just changes to go/types.
+    Changes to the importer wil be made in a separate CL.
     
-    Updates #50775
-    
-    Change-Id: I84c24ef1d5e6e38fd19df2d37c72fbf883f0140d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404954
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Change-Id: I9383e260b76402875ca6eb23c4478a6a3e8c1f0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335071
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/path/filepath/symlink_plan9.go | 27 +++++++++++++++++++++++++++
- src/path/filepath/symlink_unix.go  |  2 +-
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/go/types/api_test.go    |  4 ++-
+ src/go/types/call.go        |  4 +--
+ src/go/types/instance.go    |  3 ++-
+ src/go/types/instantiate.go | 64 +++++----------------------------------------
+ src/go/types/sizeof_test.go |  2 +-
+ src/go/types/subst.go       | 54 ++++++++++++++++++++++++++------------
+ src/go/types/typexpr.go     |  2 ++
+ 7 files changed, 53 insertions(+), 80 deletions(-)

@@ -1,17 +1,17 @@
-commit 331c187b173e5128ed24a0670c3e5010498c1954
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue Mar 27 11:52:56 2018 +0100
+commit d96ebf8a6d26f6f5bcf46f9da04def4ad8ec08d9
+Author: Edan B <3d4nb3@gmail.com>
+Date:   Sat Nov 11 10:10:14 2017 +0200
 
-    cmd/compile: simplify Neg lowering on s390x
+    net/http/httputil: make ReverseProxy close response body if ModifyResponse returns an error
     
-    No need to sign extend input to Neg8 and Neg16.
+    Fixes #22658
     
-    Change-Id: I7896c83c9cdf84a34098582351a4aabf61cd6fdd
-    Reviewed-on: https://go-review.googlesource.com/102675
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I00e2b007d77b6f54798f7755d0b08e4fea824392
+    Reviewed-on: https://go-review.googlesource.com/77170
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  6 ++----
- src/cmd/compile/internal/ssa/rewriteS390X.go | 20 ++++----------------
- 2 files changed, 6 insertions(+), 20 deletions(-)
+ src/net/http/httputil/reverseproxy.go      |  1 +
+ src/net/http/httputil/reverseproxy_test.go | 44 ++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

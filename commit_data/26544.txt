@@ -1,29 +1,18 @@
-commit 2e90192b0e774f44a2d918509e0bd32823ce5c2c
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Sun Mar 27 10:06:12 2016 +0300
+commit d4a95e78fa176e02a19cd94c9c273743f3a983c1
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Feb 3 19:43:46 2016 +0100
 
-    cmd/link: refactor symbol lookup
+    [dev.ssa] cmd/compile/internal/ssa: simplify comparisons with constants
     
-    Calling the read only Linkrlookup will now not cause the name
-    string to escape. So a lookup can be performed on a []byte
-    casted to a string without allocating. This will help a followup
-    cl and it is also much simpler and cleaner.
-    Performance not impacted by this.
+    * Simplify comparisons of form a + const1 == const2 or a + const1 != const2.
+    * Canonicalize Eq, Neq, Add, Sub to have a constant as first argument.
+    Needed for the above new rules and helps constant folding.
     
-    name       old s/op   new s/op   delta
-    LinkCmdGo  0.51 ± 6%  0.51 ± 5%   ~     (p=0.192 n=98+98)
-    
-    Change-Id: I7846ba3160eb845a3a29cbf0be703c47369ece16
-    Reviewed-on: https://go-review.googlesource.com/21187
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8078702a5daa706da57106073a3e9f640a67f486
+    Reviewed-on: https://go-review.googlesource.com/19192
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/ldelf.go   |  2 +-
- src/cmd/link/internal/ld/ldmacho.go |  2 +-
- src/cmd/link/internal/ld/ldpe.go    |  2 +-
- src/cmd/link/internal/ld/link.go    | 12 ++++----
- src/cmd/link/internal/ld/objfile.go |  2 +-
- src/cmd/link/internal/ld/sym.go     | 59 +++++++++++--------------------------
- 6 files changed, 28 insertions(+), 51 deletions(-)
+ src/cmd/compile/internal/gc/testdata/cmp_ssa.go |  48 ++
+ src/cmd/compile/internal/ssa/gen/generic.rules  |  31 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 704 ++++++++++++++++++++++++
+ 3 files changed, 783 insertions(+)

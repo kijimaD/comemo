@@ -1,39 +1,12 @@
-commit efe3d35fc590bf8b439f56070aa1f070125c6e8e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 30 11:59:44 2011 -0500
+commit 849fc19cab2c3059379b21dde019f521ce772f5c
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Nov 30 17:00:37 2011 +1100
 
-    time: new Time, Duration, ZoneInfo types
+    html: clean up the z.rawTag calculation in the tokenizer.
     
-    R=r, bradfitz, gri, dsymonds, iant
+    R=andybalholm
     CC=golang-dev
-    https://golang.org/cl/5392041
+    https://golang.org/cl/5440064
 
- src/pkg/runtime/darwin/386/sys.s    |   16 +
- src/pkg/runtime/darwin/amd64/sys.s  |   13 +
- src/pkg/runtime/freebsd/386/sys.s   |   17 +
- src/pkg/runtime/freebsd/amd64/sys.s |   15 +
- src/pkg/runtime/linux/386/sys.s     |   17 +
- src/pkg/runtime/linux/amd64/sys.s   |   15 +
- src/pkg/runtime/linux/arm/sys.s     |   17 +
- src/pkg/runtime/openbsd/386/sys.s   |   17 +
- src/pkg/runtime/openbsd/amd64/sys.s |   15 +
- src/pkg/runtime/time.goc            |    5 +-
- src/pkg/runtime/windows/thread.c    |   12 +
- src/pkg/time/Makefile               |    6 +-
- src/pkg/time/example_test.go        |   58 ++
- src/pkg/time/format.go              |  439 +++++++++------
- src/pkg/time/internal_test.go       |    2 +-
- src/pkg/time/sleep.go               |   23 +-
- src/pkg/time/sleep_test.go          |   56 +-
- src/pkg/time/sys.go                 |   40 +-
- src/pkg/time/sys_unix.go            |    7 +-
- src/pkg/time/tick.go                |   26 +-
- src/pkg/time/tick_test.go           |   14 +-
- src/pkg/time/time.go                | 1003 +++++++++++++++++++++++++++--------
- src/pkg/time/time_test.go           |  326 ++++++++----
- src/pkg/time/zoneinfo.go            |  191 +++++++
- src/pkg/time/zoneinfo_plan9.go      |   15 +-
- src/pkg/time/zoneinfo_posix.go      |   64 ---
- src/pkg/time/zoneinfo_unix.go       |  141 +++--
- src/pkg/time/zoneinfo_windows.go    |  269 +++-------
- 28 files changed, 1967 insertions(+), 872 deletions(-)
+ src/pkg/html/token.go | 51 ++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 42 insertions(+), 9 deletions(-)

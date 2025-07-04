@@ -1,54 +1,21 @@
-commit a947912d8ad5398a78f14ceaa80369f60a3f85f8
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 12 23:39:27 2024 +0100
+commit 09aada24aa156e0f754688487088badd969caad8
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Sun Oct 8 17:51:00 2023 +0200
 
-    internal/byteorder: use canonical Go casing in names
+    testing/fstest: MapFS: set perm 0555 on synthetized dirs
     
-    If Be and Le stand for big-endian and little-endian,
-    then they should be BE and LE.
+    As MapFS ignores filemodes and always grant read and traverse access on
+    directories, let's make synthetized directory entries to expose filemode
+    0555 instead of 0000.
+    Fixes #63468.
     
-    Change-Id: I723e3962b8918da84791783d3c547638f1c9e8a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627376
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: I5d64a6bf2f2ac6082ca5dde55b3062669fb50b8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534075
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/inline/inl.go             | 12 +--
- src/crypto/cipher/gcm.go                           |  8 +-
- src/crypto/des/block.go                            |  6 +-
- src/crypto/des/cipher.go                           |  8 +-
- src/crypto/internal/boring/sha.go                  | 88 +++++++++++-----------
- .../internal/fips140deps/byteorder/byteorder.go    | 22 +++---
- src/crypto/internal/hpke/hpke.go                   | 14 ++--
- src/crypto/internal/sysrand/rand_plan9.go          |  4 +-
- src/crypto/md5/gen.go                              |  2 +-
- src/crypto/md5/md5.go                              | 24 +++---
- src/crypto/md5/md5block.go                         | 32 ++++----
- src/crypto/sha1/sha1.go                            | 28 +++----
- src/crypto/tls/bogo_shim_test.go                   |  2 +-
- src/crypto/tls/handshake_client.go                 |  2 +-
- src/crypto/tls/handshake_client_test.go            |  2 +-
- src/crypto/tls/handshake_server.go                 |  2 +-
- src/crypto/tls/handshake_server_tls13.go           |  2 +-
- src/hash/adler32/adler32.go                        |  4 +-
- src/hash/crc32/crc32.go                            | 10 +--
- src/hash/crc32/crc32_generic.go                    |  2 +-
- src/hash/crc64/crc64.go                            | 12 +--
- src/hash/fnv/fnv.go                                | 48 ++++++------
- src/hash/maphash/maphash.go                        | 14 ++--
- src/hash/maphash/maphash_purego.go                 |  6 +-
- src/image/gif/writer.go                            | 16 ++--
- src/internal/byteorder/byteorder.go                | 36 ++++-----
- src/internal/chacha8rand/chacha8.go                | 16 ++--
- src/internal/poll/fd_wasip1.go                     |  6 +-
- src/math/big/floatmarsh.go                         |  8 +-
- src/math/big/nat.go                                |  4 +-
- src/math/big/ratmarsh.go                           |  4 +-
- src/math/rand/v2/chacha8.go                        |  4 +-
- src/math/rand/v2/pcg.go                            |  8 +-
- src/net/netip/netip.go                             | 26 +++----
- src/os/dir_unix.go                                 | 12 +--
- src/runtime/rand.go                                |  2 +-
- src/syscall/dir_plan9.go                           | 12 +--
- src/syscall/dirent.go                              | 12 +--
- 38 files changed, 260 insertions(+), 260 deletions(-)
+ src/testing/fstest/mapfs.go      | 4 ++--
+ src/testing/fstest/mapfs_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

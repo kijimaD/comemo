@@ -1,13 +1,19 @@
-commit d708e926764381876e24e85ccf86ae39d7a85230
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 10 09:29:35 2014 +1100
+commit 09f6f05c1fdd394ec512642e0cf086e0cf2d3d79
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Oct 30 14:01:14 2014 -0400
 
-    [release-branch.go1.4] [release-branch.go1.4] doc: update contribution guidelines
+    cmd/cgo: avoid worklist nondeterminism.
     
-    LGTM=minux, adg, rsc
-    R=rsc, r, dsymonds, minux, bradfitz, adg, dave, iant
+    + Regression test.
+    
+    Fixes #9026.
+    
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/185190043
+    https://golang.org/cl/162490043
 
- doc/contribute.html | 660 ++++++++++++++++++++++++++--------------------------
- 1 file changed, 333 insertions(+), 327 deletions(-)
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue9026.go | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go         | 24 +++++++++++++++---------
+ 3 files changed, 49 insertions(+), 9 deletions(-)

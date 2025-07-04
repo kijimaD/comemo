@@ -1,12 +1,17 @@
-commit 0d4de70c1c2522bb965cb683070b316d77909649
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 26 15:00:01 2019 -0400
+commit c04e47f82159f1010d7403276b3dff5ab836fd00
+Author: Vladimir Kuzmin <vkuzmin@uber.com>
+Date:   Thu Jan 10 00:52:39 2019 -0800
 
-    misc/cgo/errors: align code snippets in ptr_test.go
+    net/http: add StatusEarlyHints (103)
     
-    Change-Id: Ic3e2819617375df653116d21d7361a46085250d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183986
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    HTTP status code 103 (Early Hints) from RFC 8297.
+    
+    Fixes #29655
+    
+    Change-Id: Ia1edbb561ee46f42d7fa1aae3ab9586497fcdb6c
+    Reviewed-on: https://go-review.googlesource.com/c/157339
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/errors/ptr_test.go | 70 ++++++++++++++++++++++-----------------------
- 1 file changed, 35 insertions(+), 35 deletions(-)
+ src/net/http/status.go | 2 ++
+ 1 file changed, 2 insertions(+)

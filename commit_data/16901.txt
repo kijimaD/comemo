@@ -1,14 +1,12 @@
-commit b8734748b6b151a7fd724fc41e2555e6cd34385f
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jul 29 20:01:13 2013 +0400
+commit 3398322d5ebaf7b870f07aebae92fc2fd047704c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jul 29 23:26:11 2013 +0900
 
-    net: fix memory leaks on windows
-    Close netpoll descriptor along with socket.
-    Ensure that error paths close the descriptor as well.
+    net: remove redundant comment on isWildcard
     
-    R=golang-dev, mikioh.mikioh, alex.brainman
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/11987043
+    https://golang.org/cl/11985043
 
- src/pkg/net/fd_windows.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/pkg/net/unixsock_posix.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,22 +1,30 @@
-commit 257b01f8f47ace2ddd75efe37d8a0353888bce14
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 6 09:36:23 2017 -0400
+commit f011e0c6c378427f32bbf09f24ba211f7bd96b9c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 27 16:53:33 2016 -0800
 
-    cmd/compile: use ANDconst to mask out leading/trailing bits on ARM64
+    [dev.typealias] cmd/compile, go/types, go/importer: various alias related fixes
     
-    For an AND that masks out leading or trailing bits, generic rules
-    rewrite it to a pair of shifts. On ARM64, the mask actually can
-    fit into an AND instruction. So we rewrite it back to AND.
+    cmd/compile:
+    - remove crud from prior alias implementation
+    - better comments in places
     
-    Fixes #19857.
+    go/types:
+    - fix TypeName.IsAlias predicate
+    - more tests
     
-    Change-Id: I479d7320ae4f29bb3f0056d5979bde4478063a8f
-    Reviewed-on: https://go-review.googlesource.com/39651
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    go/importer (go/internal/gcimporter15):
+    - handle "@" format for anonymous fields using aliases
+      (currently tested indirectly via x/tools/gcimporter15 tests)
+    
+    For #18130.
+    
+    Change-Id: I23a6d4e3a4c2a5c1ae589513da73fde7cad5f386
+    Reviewed-on: https://go-review.googlesource.com/35101
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go      | 16 +++++++++++
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  7 +++--
- src/cmd/compile/internal/ssa/rewriteARM64.go | 42 +++++++++++++++++++++-------
- 3 files changed, 53 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go | 37 ++++++----------------------------
+ src/cmd/compile/internal/gc/bimport.go |  9 +++++----
+ src/go/internal/gcimporter/bimport.go  | 30 ++++++++++++++-------------
+ src/go/types/object.go                 | 20 ++++++++----------
+ src/go/types/object_test.go            | 29 ++++++++++++++++----------
+ 5 files changed, 53 insertions(+), 72 deletions(-)

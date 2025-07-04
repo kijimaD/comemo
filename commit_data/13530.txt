@@ -1,12 +1,14 @@
-commit 67d8a2d4c14fe98cb4035869ce5e6daf883dfb14
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jul 30 15:36:56 2012 +1000
+commit 7711e61031ef20dfa802a53e7c5eb932454112db
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 30 00:22:42 2012 -0400
 
-    doc: remove mention of weekly tag from source install doc
+    cmd/go: show $GOPATH in 'go env' output
     
-    R=golang-dev, dsymonds, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/6442062
+    Also, sort output.
+    
+    R=golang-dev, patrick, dave, iant
+    CC=golang-dev, patrick
+    https://golang.org/cl/6446064
 
- doc/install-source.html | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ src/cmd/go/env.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

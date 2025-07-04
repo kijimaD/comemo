@@ -1,18 +1,22 @@
-commit 6b5b7b3240ed635f58d25d292a345450c0937979
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Oct 9 18:43:34 2022 -0700
+commit 0a5bbba366de5bf833a742e9001538ea10122d6c
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Feb 2 13:26:16 2022 -0500
 
-    cmd/compile: reorganize write barrier code a bit
+    cmd/link/internal/loadpe: refactor readpesym()
     
-    This exposes mightBeHeapPointer and mightContainHeapPointer which
-    I plan to use in future CLs.
+    Rewrite the helper "readpesym()" and the code that calls it to pass in
+    most of the values it needs via a state object (the signature was
+    getting a bit too busy/lengthy). No change in functionality, this is
+    just a refactor.
     
-    Change-Id: Ice4ae3b33127936868fff6cc045d8703d0b1a79a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447776
+    Updates #35006.
+    
+    Change-Id: I6153ee3a9be3eb885694323ae8e07ec4c8eed646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382836
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/writebarrier.go | 109 ++++++++++++++++++---------
- 1 file changed, 73 insertions(+), 36 deletions(-)
+ src/cmd/link/internal/loadpe/ldpe.go | 86 +++++++++++++++++++++---------------
+ 1 file changed, 51 insertions(+), 35 deletions(-)

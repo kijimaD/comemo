@@ -1,26 +1,23 @@
-commit 2ac1ca9160f52907ce1cd04738c80b1c055b5ba6
-Author: Xiangdong Ji <xiangdong.ji@arm.com>
-Date:   Fri Nov 22 17:02:06 2019 +0000
+commit e764432605cb26478067890b49f4f16019c9a9b9
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Aug 20 23:09:31 2019 -0600
 
-    cmd/vet: honor analyzer flags when running vet outside $GOROOT/src
+    doc/go1.13: document _ between digits for math/big, strconv
     
-    Additional vet flags specified by user are discarded if 'go vet'
-    is invoked outside $GOROOT/src to check a package under $GOROOT
-    (including those under "vendor" of $GOROOT), fix it by avoiding the
-    overwriting, the logic of detemining if the package under vetting
-    comes from $GOROOT remains untouched.
+    Document that:
+    * math/big.Float.Parse
+    * math/big.Int.SetString
+    * strconv.ParseFloat
+    * strconv.ParseInt
+    * strconv.ParseUint
+    now accept underscores to group digits only if base = 0,
+    as per the Go 2 language changes.
     
-    Also checked 'go tool vet <options> <cfg>' and 'go vet <options>
-    <user pkg>', both worked w./w.o this fix.
+    Updates #32815
     
-    Fixes #35837.
-    
-    Change-Id: I549af7964e40440afd35f2d1971f77eee6f8de34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209498
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Id45bd803a18442436419739297e8aed0d32ca56c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191077
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/work/exec.go         | 2 +-
- src/cmd/go/testdata/script/vet_flags.txt | 8 ++++++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ doc/go1.13.html | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

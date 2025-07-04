@@ -1,22 +1,18 @@
-commit 4ff4e5072590ca885f807d1619106d4d8a52217c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 27 13:33:32 2018 +0000
+commit 3af20c06fe206ff92a8111fe230deb0170dac33d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 13:37:28 2017 -0500
 
-    runtime: parse auxv for page size on netbsd
+    cmd/go: document test -json
     
-    Decode AT_PAGESZ to determine physPageSize on netbsd.
+    Added in CL 76873 but forgot to add the flag docs.
     
-    Also rename vdso_none.go to auxv_none.go which matches its purpose more
-    closely.
-    
-    Akin to CL 99780 which did the same for freebsd.
-    
-    Change-Id: Iea4322f861ff0f3515e9051585dbb442f024326b
-    Reviewed-on: https://go-review.googlesource.com/102677
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I448f85cc8cf51399c0d799691226b94f88f327da
+    Reviewed-on: https://go-review.googlesource.com/77030
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/{vdso_none.go => auxv_none.go} |  1 +
- src/runtime/os_netbsd.go                   | 36 +++++++++++++++++++++++++++++-
- 2 files changed, 36 insertions(+), 1 deletion(-)
+ src/cmd/go/alldocs.go            | 4 ++++
+ src/cmd/go/internal/test/test.go | 4 ++++
+ 2 files changed, 8 insertions(+)

@@ -1,12 +1,16 @@
-commit a61dcef23275880d901db5a158fd1d9a9e71a00d
-Author: Dustin Shields-Cloues <dcloues@gmail.com>
-Date:   Tue Jan 22 14:43:37 2013 -0500
+commit 85f86399f417b0bf494a62bcbb90b91928a067e4
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Tue Jan 22 14:03:30 2013 -0500
 
-    cmd/go: add hg ssh support
+    syscall: fix arithmetic errors in assembly for seek function for 64-bit Plan 9
     
-    R=golang-dev, rsc, bradfitz
+    Offsets for return values from seek were miscalculated
+    and a translation from 32-bit code for error handling
+    was incorrect.
+    
+    R=rsc, rminnich, npe
     CC=golang-dev
-    https://golang.org/cl/7133048
+    https://golang.org/cl/7181045
 
- src/cmd/go/vcs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/asm_plan9_amd64.s | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

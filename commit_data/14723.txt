@@ -1,18 +1,18 @@
-commit a6d986bd8a5db918a92456b4a4c44075c13a20da
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Sat Dec 22 13:34:48 2012 -0500
+commit ced8004a00c62b7aff4e6f6a702f0824b2312fd5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Dec 22 19:13:45 2012 +0100
 
-    flag: add implicit boolFlag interface
+    cmd/gc: do not accept (**T).Method expressions.
     
-    Any flag.Value that has an IsBoolFlag method that returns true
-    will be treated as a bool flag type during parsing.
+    The typechecking code was doing an extra, unnecessary
+    indirection.
     
-    Fixes #4262.
+    Fixes #4458.
     
-    R=bradfitz, rsc
+    R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
-    https://golang.org/cl/6944064
+    https://golang.org/cl/6998051
 
- src/pkg/flag/flag.go      | 15 ++++++++++++++-
- src/pkg/flag/flag_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+), 1 deletion(-)
+ src/cmd/gc/typecheck.c      | 10 ++++------
+ test/fixedbugs/issue4458.go | 20 ++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 6 deletions(-)

@@ -1,43 +1,14 @@
-commit 40f1d0ca9f978376f7db24de3737b58589c8542b
+commit b594b8b0396647cabdda719d20888b1476d5d2c2
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 18 14:02:08 2016 -0700
+Date:   Wed Mar 9 01:15:23 2016 -0800
 
-    cmd/compile: split TSLICE into separate Type kind
+    cmd/compile: switch Eqtype and (*Type).Compare to use recvParamsResults
     
-    Instead of using TARRAY for both arrays and slices, create a new
-    TSLICE kind to handle slices.
-    
-    Also, get rid of the "DDDArray" distinction. While kinda ugly, it
-    seems likely we'll need to defer evaluating the constant bounds
-    expressions for golang.org/issue/13890.
-    
-    Passes toolstash/buildall.
-    
-    Change-Id: I8e45d4900e7df3a04cce59428ec8b38035d3cc3a
-    Reviewed-on: https://go-review.googlesource.com/22329
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I5365b94b815bfb4795db643415c2df51fc815ea1
+    Reviewed-on: https://go-review.googlesource.com/20459
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/gc/alg.go         |  15 +---
- src/cmd/compile/internal/gc/align.go       |  38 ++++-----
- src/cmd/compile/internal/gc/bexport.go     |  12 +--
- src/cmd/compile/internal/gc/bimport.go     |  18 ++---
- src/cmd/compile/internal/gc/const.go       |   5 +-
- src/cmd/compile/internal/gc/export.go      |   4 +-
- src/cmd/compile/internal/gc/fmt.go         |   7 +-
- src/cmd/compile/internal/gc/gen.go         |  13 ++--
- src/cmd/compile/internal/gc/gsubr.go       |   2 +-
- src/cmd/compile/internal/gc/order.go       |   2 +-
- src/cmd/compile/internal/gc/plive.go       |  21 +++--
- src/cmd/compile/internal/gc/range.go       |   4 +-
- src/cmd/compile/internal/gc/reflect.go     |  65 +++++++---------
- src/cmd/compile/internal/gc/sinit.go       |   8 +-
- src/cmd/compile/internal/gc/sizeof_test.go |   1 -
- src/cmd/compile/internal/gc/ssa.go         |   7 +-
- src/cmd/compile/internal/gc/subr.go        |  12 +--
- src/cmd/compile/internal/gc/type.go        | 121 ++++++++++-------------------
- src/cmd/compile/internal/gc/typecheck.go   |  50 +++++-------
- src/cmd/compile/internal/gc/universe.go    |   7 +-
- src/cmd/compile/internal/gc/walk.go        |   7 +-
- 21 files changed, 168 insertions(+), 251 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 2 +-
+ src/cmd/compile/internal/gc/type.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

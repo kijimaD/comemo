@@ -1,37 +1,16 @@
-commit 8ba43eaad8263f26e16846e345389146ec234364
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Oct 22 14:45:31 2019 -0400
+commit bc588d4d921ba85affbdab5eafddd840d2ea84b5
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed May 8 09:21:06 2019 +0200
 
-    cmd/go: support -modcacherw in 'go mod' subcommands
+    cmd/link/internal/ld: add missing Close
     
-    The -modcacherw flag is now registered in work.AddModCommonFlags,
-    which is called from work.AddBuildFlags, where it was registered
-    before. 'go mod' subcommands register the flag by calling
-    work.AddModCommonFlags directly.
+    Noticed while working on issue 30488.
     
-    Also, build commands now exit with an error if -modcacherw is set
-    explicitly (not in GOFLAGS) in GOPATH mode.
-    
-    Updates #31481
-    
-    Change-Id: I461e59a51ed31b006fff4d5c57c2a866be0bbf38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202563
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ia3655e07c939d03925b3560eeba24c60e24c136c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175917
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go              |  3 ++-
- src/cmd/go/internal/get/get.go              |  2 +-
- src/cmd/go/internal/modcmd/download.go      |  3 +++
- src/cmd/go/internal/modcmd/edit.go          |  2 ++
- src/cmd/go/internal/modcmd/graph.go         |  5 +++++
- src/cmd/go/internal/modcmd/init.go          |  5 +++++
- src/cmd/go/internal/modcmd/tidy.go          |  2 ++
- src/cmd/go/internal/modcmd/vendor.go        |  2 ++
- src/cmd/go/internal/modcmd/verify.go        |  5 +++++
- src/cmd/go/internal/modcmd/why.go           |  2 ++
- src/cmd/go/internal/modfetch/fetch.go       |  2 +-
- src/cmd/go/internal/work/build.go           | 13 +++++++++++--
- src/cmd/go/internal/work/init.go            |  7 ++++++-
- src/cmd/go/testdata/script/mod_cache_rw.txt | 10 ++++++++++
- 14 files changed, 57 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,20 +1,15 @@
-commit 300f5d5b4bac870aa146c14cbb50dbb3902f1feb
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Nov 21 18:54:38 2019 -0500
+commit fc821667dd73987d1e579a813b50e403f8ff3c22
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 30 06:28:57 2019 -0700
 
-    cmd/go: add 'go generate' commands to modfile_flag test
+    os: change Readdirnames doc to follow that of Readdir
     
-    Verify that 'go generate' works with -modfile. Also check that
-    go commands starts with 'go generate' do not inherit -modfile, but
-    they should still work if -modfile is set in GOFLAGS.
+    The two methods act the same, so make their documentation similar so
+    that people don't think they act differently.
     
-    Updates #34506
-    
-    Change-Id: I5e1f897b4e38e4fdaccc0fbb7a71b8d0e9fc0660
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208236
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If224692ef50870faf855d789380a614d1e724132
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188137
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/testdata/script/modfile_flag.txt | 19 ++++++++++++++++++-
- 1 file changed, 18 insertions(+), 1 deletion(-)
+ src/os/dir.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

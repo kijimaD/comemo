@@ -1,38 +1,19 @@
-commit ab9d31da9e088a271e656120a3d99cd3b1103ab6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Apr 19 15:11:37 2022 +1000
+commit 57aaa19aae32a6c75a07ea8e3006fdcda7583385
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 17 17:34:18 2021 -0700
 
-    cmd/go/internal/test: wrap os.Stdout always
+    runtime: disable CPU profiling before removing the SIGPROF handler
     
-    There is an issue where 'go test' will hang after the tests complete if
-    a test starts a sub-process that does not exit (see #24050).
+    Otherwise, in c-archive or c-shared mode, there is the chance of
+    getting a SIGPROF just after the signal handler is removed but before
+    profiling is disabled, in which case the program will die.
     
-    However, go test only exhibits that behavior when a package name is
-    explicitly passed as an argument. If 'go test' is invoked without any
-    package arguments then the package in the working directory is assumed,
-    however in that case (and only that case) os.Stdout is used as the test
-    process's cmd.Stdout, which does *not* cause 'go test' wait for the
-    sub-process to exit (see #23019).
+    Fixes #46498
     
-    This change wraps os.Stdout in an io.Writer struct in this case, hiding
-    the *os.File from the os/exec package, causing cmd.Wait to always wait
-    for the full output from the test process and any of its sub-processes.
-    
-    In other words, this makes 'go test' exhibit the same behavior as
-    'go test .' (or 'go test ./...' and so on).
-    
-    Update #23019
-    Update #24050
-    
-    Change-Id: Ica09bf156f3b017f9a31aad91ed0f16a7837195b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400877
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
-    Auto-Submit: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I5492beef45fec9fb9a7f58724356d6aedaf799ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329290
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/test/test.go                |  6 ++++-
- src/cmd/go/testdata/script/test_output_wait.txt | 35 +++++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 1 deletion(-)
+ src/runtime/signal_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

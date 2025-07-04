@@ -1,15 +1,15 @@
-commit 8f037fa1ab223f48750117219cd4fff8c6575970
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 5 21:55:09 2015 -0400
+commit db1f9cdd3fc3b7238b5fbd58447e6b742a90f422
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 16 16:58:16 2015 +0000
 
-    runtime: fix TestLFStack on 386
+    Revert "fmt: add a few more reflect.Value tests"
     
-    The new(uint64) was moving to the stack, which may not be aligned.
+    This reverts commit 3e6b7f35de96414a3a393f0ad25326f411101776.
     
-    Change-Id: Iad070964202001b52029494d43e299fed980f939
-    Reviewed-on: https://go-review.googlesource.com/9787
+    Change-Id: Icad2b235b9880729fbdf80d7dfd71e56df4b1231
+    Reviewed-on: https://go-review.googlesource.com/8944
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/lfstack_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/fmt/fmt_test.go | 8 --------
+ src/fmt/print.go    | 2 --
+ 2 files changed, 10 deletions(-)

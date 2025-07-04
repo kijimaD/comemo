@@ -1,12 +1,15 @@
-commit 2187f43e63a4a9b02a3ede7ba88312cb11d38dac
+commit b889a9f94174823fc68c1dfe340750165ab4019c
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Mar 21 11:25:00 2011 -0300
+Date:   Mon Mar 21 00:27:50 2011 -0300
 
-    exec: document dir option for Run
+    build: reenable clean.bash without gomake
     
-    R=golang-dev, bradfitzwork, rsc1, peterGo
+    This change had already been made in revision 7371, but
+    was then undone with changes in revision 7606.
+    
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4271056
+    https://golang.org/cl/4239064
 
- src/pkg/exec/exec.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/clean.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

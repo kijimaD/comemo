@@ -1,30 +1,20 @@
-commit 0c68b79e9ce91ea471b2c1dcfa9da6a375300ad5
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Oct 25 11:28:56 2017 +0200
+commit 380525598ca917fe3226842f91695f4851b34e89
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 6 06:17:42 2017 -0700
 
-    runtime/internal/sys: use boolean constants for sys.BigEndian
+    all: remove some manual hyphenation
     
-    The BigEndian constant is only used in boolean context so assign it
-    boolean constants.
+    Manual hyphenation doesn't work well when text gets reflown,
+    for example by godoc.
     
-    Change-Id: If19d61dd71cdfbffede1d98b401f11e6535fba59
-    Reviewed-on: https://go-review.googlesource.com/73270
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    There are a few other manual hyphenations in the tree,
+    but they are in local comments or comments for unexported functions.
+    
+    Change-Id: I17c9b1fee1def650da48903b3aae2fa1e1119a65
+    Reviewed-on: https://go-review.googlesource.com/53510
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/internal/atomic/atomic_test.go | 2 +-
- src/runtime/internal/sys/arch_386.go       | 2 +-
- src/runtime/internal/sys/arch_amd64.go     | 2 +-
- src/runtime/internal/sys/arch_amd64p32.go  | 2 +-
- src/runtime/internal/sys/arch_arm.go       | 2 +-
- src/runtime/internal/sys/arch_arm64.go     | 2 +-
- src/runtime/internal/sys/arch_mips.go      | 2 +-
- src/runtime/internal/sys/arch_mips64.go    | 2 +-
- src/runtime/internal/sys/arch_mips64le.go  | 2 +-
- src/runtime/internal/sys/arch_mipsle.go    | 2 +-
- src/runtime/internal/sys/arch_ppc64.go     | 2 +-
- src/runtime/internal/sys/arch_ppc64le.go   | 2 +-
- src/runtime/internal/sys/arch_s390x.go     | 2 +-
- src/runtime/mstats.go                      | 4 ++--
- 14 files changed, 15 insertions(+), 15 deletions(-)
+ src/go/ast/ast.go       | 8 ++++----
+ src/go/parser/parser.go | 4 ++--
+ src/math/big/ratconv.go | 4 ++--
+ 3 files changed, 8 insertions(+), 8 deletions(-)

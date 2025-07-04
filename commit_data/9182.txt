@@ -1,12 +1,16 @@
-commit 4e5e12e305d2847a95a986d0e32b036b29ecd6ba
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Fri Jul 22 21:21:08 2011 -0400
+commit b9b204d55daaab264239f322cb3c13c57452cb2f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 22 21:18:03 2011 -0400
 
-    ld: fixes ldpe link with SXREF global values.
+    ld: detect all import cycles
     
-    R=golang-dev, mattn.jp, rsc
+    Fixes #2052.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4794052
+    https://golang.org/cl/4812053
 
- src/cmd/ld/ldpe.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/ld/go.c  | 161 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/ld/lib.c |   3 ++
+ src/cmd/ld/lib.h |   2 +
+ 3 files changed, 165 insertions(+), 1 deletion(-)

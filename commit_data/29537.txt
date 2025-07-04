@@ -1,24 +1,12 @@
-commit b687d6a7886fe7ffea0e36072c2a882c8c485838
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 14 16:50:15 2016 -0800
+commit 43d9c29abb57e797075d9cc15f6e21362d4be136
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 21 13:04:38 2016 +0900
 
-    misc/cgo/testcarchive, misc/cgo/testcshared: sleep instead of sched_yield
+    doc: add note about CL 29491 to go1.8.txt
     
-    Apparently when GOMAXPROCS == 1 a simple sched_yield in a tight loop is
-    not necessarily sufficient to permit a signal handler to run. Instead,
-    sleep for 1/1000 of a second.
-    
-    Fixes #16649.
-    
-    Change-Id: I83910144228556e742b7a92a441732ef61aa49d9
-    Reviewed-on: https://go-review.googlesource.com/33239
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I808fab97076493a95b0b5eb0ad15645099f54aee
+    Reviewed-on: https://go-review.googlesource.com/29492
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testcarchive/main2.c |  7 ++++---
- misc/cgo/testcarchive/main3.c | 14 ++++++++------
- misc/cgo/testcarchive/main4.c | 15 +++++++++------
- misc/cgo/testcshared/main4.c  |  7 ++++---
- misc/cgo/testcshared/main5.c  | 14 ++++++++------
- 5 files changed, 33 insertions(+), 24 deletions(-)
+ doc/go1.8.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

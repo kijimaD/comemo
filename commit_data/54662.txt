@@ -1,18 +1,53 @@
-commit 025e8ad6e9aa08d57614628c4027f63ad79940a2
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sun Oct 8 15:52:43 2023 +0000
+commit 6939659a085de15ba7e08ebe0c8864616ba21b76
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 28 10:57:14 2022 -0400
 
-    go/token: use "// Output:" instead of "//Output:" in examples
+    net: unify CNAME handling across ports
     
-    Change-Id: I86eb365650749bb4f41e9ae62123674581dffe2b
-    GitHub-Last-Rev: 7a9d6800ab3f2c8e6c738d36c2f882486ce2703a
-    GitHub-Pull-Request: golang/go#63449
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533120
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Unix and Windows differ in how they handle LookupCNAME(name).
+    
+    If name exists in DNS with an A or AAAA record but no CNAME,
+    then on all operating systems and in the pure Go resolver,
+    LookupCNAME returns the name associated with the A/AAAA record
+    (the original name).
+    
+    TestLookupCNAME has been testing this, because www.google.com
+    has no CNAME. I think it did at one point, but not anymore, and the
+    tests are still passing. Also added google.com as a test, since
+    top-level domains are disallowed from having CNAMEs.
+    
+    If name exists in DNS with a CNAME record pointing to a record that
+    does not exist or that has no A or AAAA record,
+    then Windows has always reported the CNAME value,
+    but Unix-based systems and the pure Go resolver have reported
+    a failure instead. cname-to-txt.go4.org is an test record that is
+    a CNAME to a non-A/AAAA target (the target only has a TXT record).
+    
+    This CL changes the Unix-based systems and the pure Go resolver
+    to match the Windows behavior, allowing LookupCNAME to succeed
+    whenever a CNAME exists.
+    
+    TestLookupCNAME nows tests the new behavior by looking up
+    cname-to-txt.go4.org (run by bradfitz).
+    
+    Fixes #50101.
+    
+    Change-Id: Ieff5026c8535760e6313c7a41ebd5ff24de6d9be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446179
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/go/token/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/syscall/unix/asm_darwin.s  |  9 +++++
+ src/internal/syscall/unix/net_darwin.go | 45 ++++++++++++++++++++++
+ src/net/cgo_unix.go                     | 68 +++++++++++++++++++++++++--------
+ src/net/cgo_unix_cgo.go                 |  1 -
+ src/net/cgo_unix_cgo_res.go             | 38 ++++++++++++++++++
+ src/net/cgo_unix_cgo_resn.go            | 39 +++++++++++++++++++
+ src/net/cgo_unix_syscall.go             | 34 ++++++++++-------
+ src/net/dnsclient_unix.go               | 32 +++++++++++++---
+ src/net/dnsclient_unix_test.go          |  4 ++
+ src/net/lookup.go                       | 12 ++++++
+ src/net/lookup_test.go                  |  2 +
+ 11 files changed, 249 insertions(+), 35 deletions(-)

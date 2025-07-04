@@ -1,27 +1,17 @@
-commit 0f1056667fb8952046e5360ebf9f3285b6f7de33
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 31 17:40:36 2012 -0500
+commit e818536500ed22363d688ce2f5a024c60e899408
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jan 31 23:37:01 2012 +0100
 
-    cmd/go: improvements
+    go: record location of failed imports for error reporting.
     
-    Do not treat $GOROOT/src/pkg, $GOROOT/src/cmd,
-    $GOPATH/src as package directories (only subdirectories
-    of those can be package directories).  Fixes issue 2602.
+    Fixes #2664.
     
-    Accept additional compiler and linker arguments during
-    cgo from $CGO_CFLAGS and $CGO_LDFLAGS, as the
-    Makefiles used to do.
-    
-    Show failed pkg-config output.  Fixes issue 2785.
-    
-    Use different (perhaps better) git commands.  Fixes issue 2109.
-    
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/5605045
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5593047
 
- src/cmd/go/build.go | 17 +++++++++++++----
- src/cmd/go/get.go   |  6 +-----
- src/cmd/go/main.go  |  6 +++---
- src/cmd/go/vcs.go   | 25 ++++++++++++++-----------
- 4 files changed, 31 insertions(+), 23 deletions(-)
+ src/cmd/go/get.go              |  2 +-
+ src/cmd/go/pkg.go              | 10 ++++++++++
+ src/pkg/go/build/build_test.go |  2 ++
+ src/pkg/go/build/dir.go        | 26 +++++++++++++++-----------
+ 4 files changed, 28 insertions(+), 12 deletions(-)

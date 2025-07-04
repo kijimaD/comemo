@@ -1,39 +1,28 @@
-commit 30a2750a91616f8120266b79ea52d293a2398b86
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Apr 22 09:13:48 2022 -0400
+commit 3e06338c5ddb6cfd639015ba24655f9c9df87ef7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jul 9 15:24:15 2021 -0700
 
-    go/doc: move example tests into files
+    [dev.fuzz] internal/fuzz: add more benchmarks for workers
     
-    Move the test cases for doc.Examples from example_test.go into
-    their own files under testdata/examples.
+    * Benchmark{Marshal,Unmarshal}CorpusFile - measures time it takes to
+      serialize and deserialize byte slices of various lengths.
+    * BenchmarkWorkerPing - spins up a worker and measures time it takes
+      to ping it N times as a rough measure of RPC latency.
+    * BenchmarkWorkerFuzz - spins up a worker and measures time it takes
+      to mutate an input and call a trivial fuzz function N times.
     
-    This makes example_test.go easier to read and collapses several
-    similar test functions into one.
+    Also a few small fixes to make this easier.
     
-    It will also make it less cumbersome to add large examples later.
-    
-    Change-Id: Id220c1205e94027d14291898e541b69344842686
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401756
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Id7f2dc6c6c05005cf286f30e6cc92a54bf44fbf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333670
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/go/doc/example_test.go                         | 555 +++------------------
- src/go/doc/testdata/examples/README.md             |  12 +
- src/go/doc/testdata/examples/empty.go              |   8 +
- src/go/doc/testdata/examples/empty.golden          |   6 +
- src/go/doc/testdata/examples/import_groups.go      |  23 +
- src/go/doc/testdata/examples/import_groups.golden  |  27 +
- .../doc/testdata/examples/import_groups_named.go   |  23 +
- .../testdata/examples/import_groups_named.golden   |  27 +
- src/go/doc/testdata/examples/inspect_signature.go  |  23 +
- .../doc/testdata/examples/inspect_signature.golden |  24 +
- src/go/doc/testdata/examples/multiple.go           |  98 ++++
- src/go/doc/testdata/examples/multiple.golden       | 129 +++++
- src/go/doc/testdata/examples/whole_file.go         |  23 +
- src/go/doc/testdata/examples/whole_file.golden     |  21 +
- src/go/doc/testdata/examples/whole_function.go     |  13 +
- src/go/doc/testdata/examples/whole_function.golden |  11 +
- .../testdata/examples/whole_function_external.go   |  12 +
- .../examples/whole_function_external.golden        |   8 +
- 18 files changed, 549 insertions(+), 494 deletions(-)
+ src/internal/fuzz/encoding_test.go | 42 ++++++++++++++++
+ src/internal/fuzz/fuzz.go          | 32 +++----------
+ src/internal/fuzz/worker.go        | 26 ++++++++--
+ src/internal/fuzz/worker_test.go   | 98 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 170 insertions(+), 28 deletions(-)

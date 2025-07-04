@@ -1,26 +1,23 @@
-commit 244c8b050093ec546311707760afaafabcbf2fef
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jul 20 12:46:33 2022 -0700
+commit 014a9720f9526563ea5d9bff3d4d2d47b4e7752d
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Aug 26 15:59:36 2021 -0400
 
-    cmd/cgo: allow cgo to pass strings or []bytes bigger than 1<<30
+    cmd/link: avoid crash on undefined func sym with external linking
     
-    There's no real reason to limit to 1<<30 bytes. Maybe it would catch
-    some mistakes, but probably ones that would quickly manifest in other
-    ways.
+    Fix a buglet in relocation processing that crops up with external
+    linking when you have an undefined function symbol that also has a
+    prototype (as if it were being defined in assembly src).
     
-    We can't use the fancy new unsafe.Slice function because this code
-    may still be generated for people with 1.16 or earlier in their go.mod file.
-    Use unsafe shenanigans instead.
+    Fixes #47993.
     
-    Fixes #53965
-    Fixes #53958
-    
-    Change-Id: Ibfa095192f50276091d6c2532e8ccd7832b57ca8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418557
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib655492a63b205ffdc124cfd0cb7f7b731571821
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345473
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/cgo/out.go | 23 ++++++++++++++++++-----
- 1 file changed, 18 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/script/link_external_undef.txt | 48 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go                   |  5 +++
+ 2 files changed, 53 insertions(+)

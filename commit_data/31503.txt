@@ -1,15 +1,14 @@
-commit 6d9b900a6f25274ca28a33c2cb5550dbb5f01be1
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri May 5 16:44:42 2017 +1000
+commit bf584b15d6104661c272e2ab900c3d83d015b7d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 24 21:52:37 2017 -0800
 
-    image/gif: don't panic on large or nil-containing color.Palettes.
+    cmd/dist: ran mkdeps.bash
     
-    Fixes #20249
-    
-    Change-Id: I5dceaef31de96345f8e6c155e12775dc4cc31bfb
-    Reviewed-on: https://go-review.googlesource.com/42790
+    Change-Id: Iae9fe2db69c02cd442cba01a78820dc7c0fdda51
+    Reviewed-on: https://go-review.googlesource.com/37462
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/image/gif/writer.go      | 37 +++++++++++++++++++++++++++++--------
- src/image/gif/writer_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 62 insertions(+), 8 deletions(-)
+ src/cmd/dist/deps.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

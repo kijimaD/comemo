@@ -1,17 +1,14 @@
-commit 427b5bddcd0b0a565c82fe79edc7a8b563b8ea76
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 23 09:19:02 2012 -0500
+commit 2a9c0124989a917ee0890690bce3efed44acffb8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Jan 22 19:36:34 2012 -0800
 
-    gc: fix recursion loop in interface comparison
+    godoc: log node printing error
     
-    iant's idea.
+    Invaluable when changing template files.
     
-    Fixes #2745.
-    
-    R=iant, dsymonds
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5536085
+    https://golang.org/cl/5571044
 
- src/cmd/gc/subr.c        | 67 ++++++++++++++++++++++++++++++++++++++++--------
- test/fixedbugs/bug398.go | 24 +++++++++++++++++
- 2 files changed, 81 insertions(+), 10 deletions(-)
+ src/cmd/godoc/godoc.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

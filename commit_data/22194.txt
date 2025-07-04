@@ -1,14 +1,32 @@
-commit 2f34e606faa8cf676010fba04c5c3ca355a9cc84
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Mar 26 09:47:24 2015 +1100
+commit 5f55011aeaa221407430503a09b1ee3fe020a679
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 27 22:44:15 2015 +0000
 
-    image/color: have YCbCr.RGBA work in 16-bit color, per the Color
-    interface.
+    cmd/internal/gc, cmd/internal/obj: clean up string returns
     
-    Change-Id: Ie025753df08ae93e7a5095a3426aff15fa2016fd
-    Reviewed-on: https://go-review.googlesource.com/8073
-    Reviewed-by: Rob Pike <r@golang.org>
+    An artifact of the c2go translation was
+    a handful of instances of code like:
+    
+    var s string
+    s += "foo"
+    return s
+    
+    This CL converts those to simply 'return "foo"'.
+    
+    The conversion was done mechanically with the
+    quick-and-dirty cleanup script at
+    https://gist.github.com/josharian/1fa4408044c163983e62.
+    
+    I then manually moved a couple of comments in fmt.go.
+    
+    toolstash -cmp thinks that there are no functional changes.
+    
+    Change-Id: Ic0ebdd10f0fb8de0360a1041ce5cd10ae1168be9
+    Reviewed-on: https://go-review.googlesource.com/6265
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/image/color/color.go |  4 +--
- src/image/color/ycbcr.go | 83 ++++++++++++++++++++++++++++++++++--------------
- 2 files changed, 62 insertions(+), 25 deletions(-)
+ src/cmd/internal/gc/fmt.go         | 308 ++++++++++---------------------------
+ src/cmd/internal/gc/mparith1.go    |   5 +-
+ src/cmd/internal/obj/i386/list8.go |   5 +-
+ src/cmd/internal/obj/x86/list6.go  |   5 +-
+ 4 files changed, 82 insertions(+), 241 deletions(-)

@@ -1,16 +1,26 @@
-commit e79a4f71b7af648ef594f824951800ccc555d727
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 23 17:42:01 2022 -0500
+commit 4fea5935f5f03b5037c792f8d5f5aa4cba90f1d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 31 15:12:53 2022 -0800
 
-    context: canceLLation
+    go/types, types2: disallow real, imag, complex on type parameters
     
-    Fixes post-review comment on CL 375977.
+    We can type-check these fine but the API implications are unclear.
     
-    Change-Id: If7117fd7b505670eb676a73d991917505bc18a4b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453296
+    Fixes #50912.
+    For #50937.
+    
+    Change-Id: If29bbb4a257ff6a85e3bfcd4755fd8f90c80fb87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382116
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/context/context.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        | 18 +++++++++-----
+ .../types2/testdata/fixedbugs/issue50912.go2       | 19 ++++++++++++++
+ src/go/types/builtins.go                           | 29 +++++++++++++++++-----
+ src/go/types/testdata/fixedbugs/issue50912.go2     | 19 ++++++++++++++
+ test/typeparam/absdiff2.go                         | 20 +++++++++++++--
+ test/typeparam/absdiff3.go                         | 20 +++++++++++++--
+ test/typeparam/absdiffimp2.dir/a.go                | 20 +++++++++++++--
+ 7 files changed, 127 insertions(+), 18 deletions(-)

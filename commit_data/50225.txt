@@ -1,24 +1,20 @@
-commit ca634fa2c550cd85a1a2cc03c208304ee38c6a82
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 31 15:48:35 2022 -0700
+commit ba2c9fef035da3ef93e0eb0dbf4d583663829139
+Author: Jake Ciolek <jakub@ciolek.dev>
+Date:   Sat Oct 9 17:57:06 2021 +0200
 
-    cmd/compile: reject not-in-heap types as type arguments
+    cmd/compile: mark NOT as an op that doesn't clobber flags on i386/AMD64
     
-    After running the types2 type checker, walk info.Instances to reject
-    any not-in-heap type arguments. This is feasible to check using the
-    types2 API now, thanks to #46731.
+    NOT does not affect any FLAGS register values on i386/AMD64 so we do not
+    need to mark it as an Op that clobbers them.
     
-    Fixes #54765.
-    
-    Change-Id: Idd2acc124d102d5a76f128f13c21a6e593b6790b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427235
+    Change-Id: I6d99cad49cfa2568b01e58190256582b18fb3b7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354831
     Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/noder/helpers.go | 25 +++++++++++++++++++++++++
- src/cmd/compile/internal/noder/irgen.go   | 26 ++++++++++++++++++++++++++
- test/typeparam/issue54765.go              | 28 ++++++++++++++++++++++++++++
- 3 files changed, 79 insertions(+)
+ src/cmd/compile/internal/ssa/gen/386Ops.go   | 2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 3 ---
+ 3 files changed, 3 insertions(+), 6 deletions(-)

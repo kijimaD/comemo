@@ -1,15 +1,13 @@
-commit d5b28ad2b6da460ef10f9b94bb067053fb1a2e13
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Mon Feb 20 08:33:28 2012 +1100
+commit 3c831f6395dcda1742c6737e367cd804ea87fd82
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 16:10:45 2012 -0500
 
-    doc: update contrib.html
+    cmd/fix: add runtime renamings
     
-    Fix all the local links, as contrib.html is served as
-    /project/
-    
-    R=golang-dev, adg
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5656105
+    https://golang.org/cl/5685043
 
- doc/contrib.html | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/fix/go1rename.go      | 12 ++++++++++++
+ src/cmd/fix/go1rename_test.go |  6 ++++++
+ 2 files changed, 18 insertions(+)

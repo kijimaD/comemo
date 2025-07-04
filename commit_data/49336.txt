@@ -1,25 +1,32 @@
-commit e6d8b05a61e3977f5769e8e896d24d2d26dcb23c
+commit 2eb4d68833e28fce2701a9c39755413630921371
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 26 17:52:28 2022 +0000
+Date:   Wed Aug 11 15:34:29 2021 -0700
 
-    Revert "reflect: deprecate (Slice|String)Header"
+    runtime: don't use systemstack for BeforeFork/AfterFork
     
-    This reverts CL 401434.
+    In https://golang.org/cl/140930043 syscall.BeforeFork was changed to
+    call beforefork via onM. This was done because at the time BeforeFork
+    was written in C but was called from Go. While the runtime was being
+    converted to Go, calls to complex C functions used onM to ensure that
+    enough stack space was available.
     
-    Reason for revert: We should't deprecate these without a replacement.
+    In https://golang.org/cl/172260043 the syscall.BeforeFork and
+    beforefork functions were rewritten into Go. In this rewrite
+    syscall.BeforeFork continue to call beforefork via onM, although
+    because both functions were now in Go that was no longer necessary.
     
-    Fixes #53079
+    In https://golang.org/cl/174950043 onM was renamed to systemstack,
+    producing essentially the code we have today.
     
-    Change-Id: I5515b03e39787d4e528a98c733cdb643b86b17ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408815
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Therefore, the use of systemstack in syscall.BeforeFork (and
+    syscall.AfterFork) is a historical relic.  Remove it.
+    
+    Change-Id: Ia570f556b20e8405afa6c5e707bd6f4ad18fd7ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341335
+    Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.19.html      | 5 -----
- src/reflect/value.go | 6 ------
- 2 files changed, 11 deletions(-)
+ src/runtime/proc.go | 22 +++++++---------------
+ 1 file changed, 7 insertions(+), 15 deletions(-)

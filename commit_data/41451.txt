@@ -1,65 +1,23 @@
-commit 44fe355694798b5e1c55fc087e697886e93e633e
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Sun Feb 23 22:08:24 2020 +0000
+commit 72dc3a0919bebbf166302a6fdac41ab8046d4a0f
+Author: Vojtech Bocek <vbocek@gmail.com>
+Date:   Fri Oct 4 05:24:55 2019 +0000
 
-    cmd/compile: canonicalize comparison argument order
+    crypto/x509: truncate signed hash before DSA signature verification
     
-    Ensure that any comparison between two values has the same argument
-    order. This helps ensure that they can be eliminated during the
-    lowered CSE pass which will be particularly important if we eliminate
-    the Greater and Geq ops (see #37316).
+    According to spec, the hash must be truncated, but crypto/dsa
+    does not do it. We can't fix it in crypto/dsa, because it would break
+    verification of previously generated signatures.
+    In crypto/x509 however, go can't generate DSA certs, only verify them,
+    so the fix here should be safe.
     
-    Example:
+    Fixes #22017
     
-      CMP R0, R1
-      BLT L1
-      CMP R1, R0 // different order, cannot eliminate
-      BEQ L2
-    
-      CMP R0, R1
-      BLT L1
-      CMP R0, R1 // same order, can eliminate
-      BEQ L2
-    
-    This does have some drawbacks. Notably comparisons might 'flip'
-    direction in the assembly output after even small changes to the
-    code or compiler. It should help make optimizations more reliable
-    however.
-    
-    compilecmp master -> HEAD
-    master (218f4572f5): text/template: make reflect.Value indirections more robust
-    HEAD (f1661fef3e): cmd/compile: canonicalize comparison argument order
-    platform: linux/amd64
-    
-    file      before    after     Δ       %
-    api       6063927   6068023   +4096   +0.068%
-    asm       5191757   5183565   -8192   -0.158%
-    cgo       4893518   4901710   +8192   +0.167%
-    cover     5330345   5326249   -4096   -0.077%
-    fix       3417778   3421874   +4096   +0.120%
-    pprof     14889456  14885360  -4096   -0.028%
-    test2json 2848138   2844042   -4096   -0.144%
-    trace     11746239  11733951  -12288  -0.105%
-    total     132739173 132722789 -16384  -0.012%
-    
-    Change-Id: I11736b3fe2a4553f6fc65018f475e88217fa22f9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220425
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iee7e20a5d76f45da8901a7ca686063639092949f
+    GitHub-Last-Rev: 8041cde8d25d3a336b81d86bd52bff5039568246
+    GitHub-Pull-Request: golang/go#34630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198138
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules   |  3 ++
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ++
- src/cmd/compile/internal/ssa/gen/ARM.rules   |  3 ++
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 ++
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 ++
- src/cmd/compile/internal/ssa/gen/S390X.rules |  3 ++
- src/cmd/compile/internal/ssa/rewrite386.go   | 48 +++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 64 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM.go   | 16 +++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go | 32 ++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 64 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go | 64 ++++++++++++++++++++++++++++
- test/codegen/compare_and_branch.go           |  8 ++--
- test/codegen/condmove.go                     |  6 +--
- 14 files changed, 313 insertions(+), 7 deletions(-)
+ src/crypto/x509/x509.go      |  5 +++++
+ src/crypto/x509/x509_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

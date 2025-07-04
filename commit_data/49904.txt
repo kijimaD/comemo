@@ -1,21 +1,16 @@
-commit 69a8954282dc4500bb645e67fb912d53a7f78a5c
-Author: Martin Möhrmann <martin@golang.org>
-Date:   Fri Aug 12 19:08:35 2022 +0200
+commit 2f87b9c942366ddf38f49d34671252663fca7889
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 20 17:08:11 2021 -0700
 
-    runtime: document GODEBUG=cpu.* in runtime package
+    go/types, types2: remove duplicate resolve call
     
-    So far was only documented in doc/diagnostics.
-    
-    Fixes: #54183
-    
-    Change-Id: Iab67a1500547f30325453c614a2f2f6621dfadb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423275
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I8afe8bf6304b6a3645bbd8d4d19f152862c58725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351119
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/extern.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/types2/subst.go | 1 -
+ src/go/types/subst.go                    | 1 -
+ 2 files changed, 2 deletions(-)

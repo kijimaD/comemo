@@ -1,22 +1,18 @@
-commit 7e48cb5ffe8add9cab09155511bab063f6f1314c
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Oct 8 10:06:53 2011 -0400
+commit 060ffabd18a6ab629aba4e2f4fb5d36b8a9ac61e
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Oct 9 00:56:13 2011 +1100
 
-    crypto/tls: add server side SNI support.
+    runtime: improve locking on openbsd
     
-    With this in place, a TLS server is capable of selecting the correct
-    certificate based on the client's ServerNameIndication extension.
+    Implement a locking model based on the current linux model - a
+    tri-state mutex with active spinning, passive spinning and sleeping.
     
-    The need to call Config.BuildNameToCertificate is unfortunate, but
-    adding a sync.Once to the Config structure made it uncopyable and I
-    felt that was too high a price to pay. Parsing the leaf certificates
-    in each handshake was too inefficient to consider.
-    
-    R=bradfitz, rsc
+    R=golang-dev, dvyukov, rsc
     CC=golang-dev
-    https://golang.org/cl/5151048
+    https://golang.org/cl/4974043
 
- src/pkg/crypto/tls/common.go           | 66 ++++++++++++++++++++++++++++++++++
- src/pkg/crypto/tls/conn_test.go        | 54 ++++++++++++++++++++++++++++
- src/pkg/crypto/tls/handshake_server.go |  7 +++-
- 3 files changed, 126 insertions(+), 1 deletion(-)
+ src/pkg/runtime/openbsd/386/sys.s    | 10 ++++
+ src/pkg/runtime/openbsd/amd64/defs.h |  2 +
+ src/pkg/runtime/openbsd/amd64/sys.s  | 20 ++++----
+ src/pkg/runtime/openbsd/thread.c     | 99 ++++++++++++++++++++++++++++++------
+ 4 files changed, 106 insertions(+), 25 deletions(-)

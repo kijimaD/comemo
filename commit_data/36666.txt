@@ -1,25 +1,25 @@
-commit 7df585d13d6b85b58045c00460f7c9fed7ecb2ae
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sun Jul 1 01:35:38 2018 +0530
+commit 4102e6ff56eee8fd6a1689f4bcf9d5a92cc44a6c
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed May 16 11:43:02 2018 +0200
 
-    time: improve error message for LoadLocation
+    runtime/cgo: use size_t in sizeof result comparison
     
-    Currently, when a tz file was being checked inside a zoneInfo dir,
-    a syscall.ENOENT error was being returned, which caused it to look
-    in the zoneinfo.zip file and return an error for that case.
+    When a variable of type int is compared with sizeof's return
+    value, gcc warns:
     
-    We return a syscall.ENOENT error for the zip file case too, so that
-    it falls through to the end of the loop and returns an uniform error
-    for both cases.
+      comparison between signed and unsigned integer expressions
     
-    Fixes #20969
+    Change the type of a couple loop indices that looped over sizeof from
+    int to size_t to silence the warnings.
     
-    Change-Id: If1de068022ac7693caabb5cffd1c929878460140
-    Reviewed-on: https://go-review.googlesource.com/121877
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #25411
+    
+    Change-Id: I2c7858f84237e77945651c7b1b6a75b97edcef65
+    Reviewed-on: https://go-review.googlesource.com/113335
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/zoneinfo_read.go |  2 +-
- src/time/zoneinfo_test.go | 11 +++++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/runtime/cgo/gcc_freebsd_sigaction.c | 2 +-
+ src/runtime/cgo/gcc_sigaction.c         | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

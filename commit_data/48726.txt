@@ -1,29 +1,23 @@
-commit 615d3c304077f1f3ca249151fb87d7d7a802cab2
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Mon Apr 4 16:32:29 2022 +0800
+commit 8d11b1d1172817359d08231deaf29f72d315b762
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 8 15:53:08 2021 -0400
 
-    test: adjust load and store test
+    cmd/go: report the imports of CompiledGoFiles in ImportMap
     
-    In the load tests, we only want to test the assembly produced by
-    the load operations. If we use the global variable sink, it will produce
-    one load operation and one store operation(assign to sink).
+    Ideally we should encode the load.PackageInternal data in a way that
+    doesn't rely on 1:1 correlations of slices, but this is a minimal fix
+    to unblock Go 1.17.
     
-    For example:
+    Fixes #46462
     
-    func load_be64(b []byte) uint64 {
-            sink64 = binary.BigEndian.Uint64(b)
-    }
-    
-    If we compile this function with GOAMD64=v3, it may produce MOVBEQload
-    and MOVQstore or MOVQload and MOVBEQstore, but we only want MOVBEQload.
-    Discovered when developing CL 395474.
-    
-    Same for the store tests.
-    
-    Change-Id: I65c3c742f1eff657c3a0d2dd103f51140ae8079e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397875
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6e029c69f757aadc54d4be02c01d6b294c217542
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326610
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- test/codegen/memcombine.go | 92 ++++++++++++++++++++++------------------------
- 1 file changed, 44 insertions(+), 48 deletions(-)
+ src/cmd/go/internal/list/list.go                   | 14 ++++++--
+ src/cmd/go/internal/load/pkg.go                    |  4 +--
+ .../script/list_cgo_compiled_importmap.txt         | 38 ++++++++++++++++++++++
+ 3 files changed, 52 insertions(+), 4 deletions(-)

@@ -1,19 +1,19 @@
-commit 15a3a5cf6c3ba9ef29f086d20dd41a377428fadb
+commit e281576b9acaba6a7d088c8446fc2c3bfa2e3b96
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 1 14:33:24 2011 -0800
+Date:   Thu Dec 1 13:46:57 2011 -0800
 
-    gofmt: applied gofmt -w -s src misc
+    go/doc: switch ToHTML from []byte to string argument
+    
+    - this removes extra conversions from strings to bytes and vice versa
+      for each comment
+    - minor cleanups
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5451070
+    https://golang.org/cl/5434096
 
- misc/cgo/gmp/pi.go                   | 2 +-
- misc/swig/callback/run.go            | 2 +-
- src/cmd/godoc/httpzip.go             | 4 ++--
- src/cmd/gofix/timefileinfo.go        | 2 +-
- src/pkg/archive/zip/writer_test.go   | 4 ++--
- src/pkg/html/render_test.go          | 8 ++++----
- src/pkg/html/template/escape.go      | 2 +-
- src/pkg/html/template/escape_test.go | 2 +-
- 8 files changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/godoc/godoc.go         |  2 +-
+ src/pkg/go/doc/comment.go      | 92 ++++++++++++++----------------------------
+ src/pkg/go/doc/comment_test.go |  2 +-
+ src/pkg/go/doc/headscan.go     |  2 +-
+ 4 files changed, 33 insertions(+), 65 deletions(-)

@@ -1,24 +1,13 @@
-commit ddde52ae5612706cb529b964dd3a27adb3e0ae0b
-Author: Jonathan Mark <jhmark@xenops.com>
-Date:   Tue Jun 7 21:50:10 2011 -0700
+commit bac24da2acec0fc3a6ef4c0243ac103e7a031de9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 7 21:49:24 2011 -0700
 
-    runtime: SysMap uses MAP_FIXED if needed on 64-bit Linux
+    A+C: Jonathan Mark (individual CLA)
     
-    This change was adapted from gccgo's libgo/runtime/mem.c at
-    Ian Taylor's suggestion.  It fixes all.bash failing with
-    "address space conflict: map() =" on amd64 Linux with kernel
-    version 2.6.32.8-grsec-2.1.14-modsign-xeon-64.
-    With this change, SysMap will use MAP_FIXED to allocate its desired
-    address space, after first calling mincore to check that there is
-    nothing else mapped there.
-    
-    R=iant, dave, n13m3y3r, rsc
+    R=adg, rsc
     CC=golang-dev
-    https://golang.org/cl/4438091
+    https://golang.org/cl/4595042
 
- src/pkg/runtime/linux/386/sys.s   |  8 ++++++++
- src/pkg/runtime/linux/amd64/sys.s |  8 ++++++++
- src/pkg/runtime/linux/arm/sys.s   |  9 +++++++++
- src/pkg/runtime/linux/mem.c       | 34 +++++++++++++++++++++++++++++-----
- src/pkg/runtime/runtime.h         |  1 +
- 5 files changed, 55 insertions(+), 5 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,22 +1,16 @@
-commit 0398a771d2fb4c4702e31bbb485924198b1b2603
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Feb 17 21:03:59 2021 +1100
+commit e25aa4fcea5a3ee5cfaf3e566c83d8a71166d4ab
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 16 14:54:57 2020 -0400
 
-    cmd/internal/obj/riscv: prevent constant loads that do not target registers
+    doc/go1.15: enumerate ELF-based OSes
     
-    Check that the target of a constant load is a register and add test coverage
-    for this error condition. While here, rename the RISC-V testdata and tests
-    to be consistent with other platforms.
+    Users don't necessarily know if their OS is ELF-based.
     
-    Change-Id: I7fd0bfcee8cf9df0597d72e65cd74a2d0bfd349a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292895
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    For #37419.
+    
+    Change-Id: I4a4256c5f5eb34211729e1311582bb0e210f1f8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238240
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/asm/internal/asm/endtoend_test.go                  |  8 ++++++--
- .../asm/internal/asm/testdata/{riscvenc.s => riscv64.s}    |  0
- src/cmd/asm/internal/asm/testdata/riscv64error.s           | 14 ++++++++++++++
- src/cmd/internal/obj/riscv/obj.go                          |  5 ++++-
- 4 files changed, 24 insertions(+), 3 deletions(-)
+ doc/go1.15.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

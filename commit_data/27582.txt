@@ -1,17 +1,25 @@
-commit 2a6544b604b61898d666ffbe456ccde720c04577
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue May 31 20:05:39 2016 +1200
+commit f229e46783a12b7604bf99f0b7329965d5a2b1f6
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Sat Apr 2 11:27:02 2016 -0300
 
-    cmd/go, cmd/link: set LC_ALL=C when checking if host compiler supports -no-pie
+    cmd/compile: better error when assigning to struct field in map
     
-    Fixes #15900
+    Identify this assignment case and instead of the more general error
     
-    Change-Id: Ieada5f4e3b3b2ae358414e013f3090b4b820569b
-    Reviewed-on: https://go-review.googlesource.com/23536
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+        prog.go:6: cannot assign to students["sally"].age
+    
+    produce
+    
+        prog.go:6: cannot directly assign to struct field students["sally"].age in map
+    
+    that explains why the assignment is not possible.
+    
+    Fixes #13779.
+    
+    Change-Id: I90c10b445f907834fc1735aa66e44a0f447aa74f
+    Reviewed-on: https://go-review.googlesource.com/21462
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/build.go             | 2 +-
- src/cmd/link/internal/ld/lib.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/typecheck.go |  5 +++++
+ test/fixedbugs/issue13779.go             | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+)

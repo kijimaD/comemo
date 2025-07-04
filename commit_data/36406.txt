@@ -1,16 +1,17 @@
-commit 39eda0dac12a53f7f0c3189e5929d171e8e0b844
-Author: Cholerae Hu <choleraehyq@gmail.com>
-Date:   Fri Aug 3 14:49:47 2018 +0800
+commit 279b530d6822dd381c049f3c0b5a7ef677574e18
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 20 10:16:00 2018 -0400
 
-    net/mail: lazily initialize dateLayouts
+    cmd/go: respect vet typecheck failures again
     
-    Saves 6KB of memory in stdlib packages.
+    Now that #18395 is fixed, let's see if we can insist
+    on vet during go test being able to type-check
+    packages again.
     
-    Updates #26775
-    
-    Change-Id: I1a6184cefa78e9a3c034fa84506fdfe0fec27add
-    Reviewed-on: https://go-review.googlesource.com/127736
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iaa55a4d9c582ba743df2347d28c24f130e16e406
+    Reviewed-on: https://go-review.googlesource.com/108555
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/mail/message.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/exec.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

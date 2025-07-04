@@ -1,16 +1,23 @@
-commit 7fb16406139e934d84f7ec66ba440a772747270a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 4 10:13:18 2017 -0800
+commit fe4307f0607dff7742d047b04df06e721aea7906
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Oct 16 05:00:27 2016 -0700
 
-    testing: add missing newlines to error messages
+    net/http: support multiple identical Content-Length headers
     
-    No test because in practice these errors never occur.
+    Referencing RFC 7230 Section 3.3.2, this CL
+    deduplicates multiple identical Content-Length headers
+    of a message or rejects the message as invalid if the
+    Content-Length values differ.
     
-    Change-Id: I11c77893ae931fc621c98920cba656790d18ed93
-    Reviewed-on: https://go-review.googlesource.com/34811
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #16490
+    
+    Change-Id: Ia6b0f58ec7d35710b11a36113d2bd9128f693f64
+    Reviewed-on: https://go-review.googlesource.com/31252
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/testing/testing.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/http/request_test.go  | 64 ++++++++++++++++++++++++++++++++++++++-----
+ src/net/http/response_test.go | 34 ++++++++++++++++++++---
+ src/net/http/transfer.go      | 30 +++++++++++++++-----
+ 3 files changed, 110 insertions(+), 18 deletions(-)

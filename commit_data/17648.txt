@@ -1,13 +1,17 @@
-commit c742179c49e4b67ce7230e5529657a00d4eaaccc
+commit 9add729a1f537f05941d80a10818cf1562a7ea6b
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Sep 19 02:27:53 2013 -0400
+Date:   Wed Sep 18 22:27:25 2013 -0400
 
-    cmd/ld: handle IMAGE_SYM_CLASS_LABEL symbols.
-    Was causing "invalid symbol binding" and thus "malformed pe file" error.
+    cmd/ld: handle duplicate static symbols in COFF and Mach-O files.
+    Fixes #5740.
     
-    R=golang-dev, alex.brainman, adg
-    CC=golang-dev
-    https://golang.org/cl/13722050
+    R=iant, rsc, luisbebop
+    CC=gobot, golang-dev
+    https://golang.org/cl/10345046
 
- src/cmd/ld/ldpe.c | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/test/issue5740.go | 15 +++++++++++++++
+ misc/cgo/test/issue5740a.c |  9 +++++++++
+ misc/cgo/test/issue5740b.c |  9 +++++++++
+ src/cmd/ld/ldmacho.c       |  2 ++
+ src/cmd/ld/ldpe.c          |  1 +
+ 5 files changed, 36 insertions(+)

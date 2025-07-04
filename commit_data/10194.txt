@@ -1,17 +1,12 @@
-commit abd32609900775043a46a6c97367d079a5597c0a
+commit f7b7338ec247ddd8f47f4747e74b882ac562c2d2
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 22:19:40 2011 -0400
+Date:   Tue Nov 1 22:18:16 2011 -0400
 
-    os: fixes for error (plan9)
-    
-    The Plan 9 build stops in runtime,
-    but might as well fix these anyway.
+    net: update for error (linux)
     
     R=adg
     CC=golang-dev
-    https://golang.org/cl/5336045
+    https://golang.org/cl/5303091
 
- src/pkg/os/dir_plan9.go   |  3 ++-
- src/pkg/os/env_plan9.go   |  7 +++++--
- src/pkg/os/error_plan9.go | 33 ++++++++++++++++++---------------
- 3 files changed, 25 insertions(+), 18 deletions(-)
+ src/pkg/net/fd_linux.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

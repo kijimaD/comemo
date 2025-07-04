@@ -1,15 +1,17 @@
-commit 1247354a08a377e4731e3004528ef28e83a47dec
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Thu May 26 17:41:07 2022 -0700
+commit 48dfddbab3569798267798a5d8828bf35355eb9d
+Author: 180909 <734461790@qq.com>
+Date:   Sun Aug 15 01:57:33 2021 +0000
 
-    doc/go1.19: mention runtime/trace's CPU samples
+    lib/time: fix RFC 6557 url
     
-    Change-Id: Ia8becc3e28523e9b1da4f7a274c800309add331a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408994
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Change-Id: I59406ee7dbab7b2a0404b62061af552b6b4ecf5f
+    GitHub-Last-Rev: 7cad5ae9bac19fdffb072413095fe5b223c95eca
+    GitHub-Pull-Request: golang/go#47696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342209
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.19.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ lib/time/README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

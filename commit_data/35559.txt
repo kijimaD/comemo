@@ -1,27 +1,18 @@
-commit caf968616a3ee09d6c820428b4edebb68cfbde09
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Wed May 30 19:46:59 2018 +0300
+commit cab7ba0b28d65bcb1d2a02ec945f43625869172e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 20 21:27:28 2018 +0100
 
-    test: eliminate use of Perl in fixedbugs/bug345.go
+    cmd/compile: use | in the most repetitive arm rules
     
-    To allow testing of fixedbugs/bug345.go in Go,
-    a new flag -n is introduced. This flag disables setting
-    of relative path for local imports and imports search path
-    to current dir, namely -D . -I . are not passed to the compiler.
-    Error regexps are fixed to allow running the test in temp directory.
+    For now, limited to the most repetitive rules that are also short and
+    simple, so that we can have a substantial conciseness win without
+    compromising rules readability.
     
-    This change eliminates the last place where Perl
-    script "errchk" was used.
+    Ran rulegen, no change in the actual compiler code (as expected).
     
-    Fixes #25586.
-    
-    Change-Id: If085f466e6955312d77315f96d3ef1cb68495aef
-    Reviewed-on: https://go-review.googlesource.com/115277
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib1d2b9fbc787379105ec9baf10d2c1e2ff3c4c5c
+    Reviewed-on: https://go-review.googlesource.com/95615
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/bug345.dir/main.go |  7 +++---
- test/fixedbugs/bug345.go          | 45 +++------------------------------------
- test/run.go                       | 21 +++++++++++++-----
- 3 files changed, 23 insertions(+), 50 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 79 ++++++++----------------------
+ 1 file changed, 21 insertions(+), 58 deletions(-)

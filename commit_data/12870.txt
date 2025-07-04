@@ -1,13 +1,13 @@
-commit c9ad57ff2c1c00e6f4eadcea5e0be87de9733347
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 10 15:14:04 2012 -0400
+commit e133ee95384c98aed9306043cda130a4f74df6d5
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Tue Apr 10 15:05:22 2012 -0400
 
-    A+C: Akshat Kumar (individual CLA)
+    runtime: unregister the SIGILL handler after ARM EABI test
+    Part of issue 3381
     
-    R=golang-dev, bradfitz
+    R=rsc, minux.ma, dave
     CC=golang-dev
-    https://golang.org/cl/6004043
+    https://golang.org/cl/5969064
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/runtime/rt0_linux_arm.s | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

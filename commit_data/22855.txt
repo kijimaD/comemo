@@ -1,14 +1,14 @@
-commit 135389d0ff6d06646170ca10b432cddaac22a121
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 30 10:41:57 2015 -0700
+commit 2f14b161493057e00a58fbe102c8a782e1410de0
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:40:16 2015 -0400
 
-    cmd/internal/gc: Use shifts for powers-of-two indexing
+    cmd/internal/obj/x86: skip test on darwin/arm64
     
-    Fixes #10638
+    Just like darwin/arm, cannot fork..
     
-    Change-Id: I7bbaad7e5a599aa94d1d158e903596231c7e9897
-    Reviewed-on: https://go-review.googlesource.com/9535
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If565afbceb79013b9e3103e1e28d93691e9fc0a5
+    Reviewed-on: https://go-review.googlesource.com/8826
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/internal/gc/cgen.go | 42 ++++++++++++++++++++++++++++++++++--------
- 1 file changed, 34 insertions(+), 8 deletions(-)
+ src/cmd/internal/obj/x86/obj6_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,19 +1,28 @@
-commit 754776850a62fa37ff6d68a8d5250497b2869b26
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Sep 22 12:43:16 2020 +0700
+commit 4ab7ab54b04ce7e203056e84f84c79c75641e243
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Feb 24 21:06:21 2020 -0500
 
-    cmd/compile: consistently use typekind when reporting invalid operation
+    [dev.link] cmd/link: remove *Link from architecture relocers
     
-    While at it, make "typekind" awares of "types.Ideal*" types.
+    Also correct a few places I hadn't switched over to Target from *Link
+    context.
     
-    Passes toolstash-check.
-    
-    Change-Id: I092fa8c57ab6b8d9ba0f25d8e1ea44fba48675e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256438
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I6de6b39723762de3fa5f8d12800085421aca76fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220840
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/typecheck.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   |  4 +--
+ src/cmd/link/internal/arm/asm.go     | 14 +++++-----
+ src/cmd/link/internal/arm64/asm.go   |  8 +++---
+ src/cmd/link/internal/ld/data.go     |  4 +--
+ src/cmd/link/internal/ld/lib.go      | 27 ++++++++++++++++--
+ src/cmd/link/internal/ld/link.go     |  1 +
+ src/cmd/link/internal/ld/main.go     |  1 +
+ src/cmd/link/internal/mips/asm.go    |  6 ++--
+ src/cmd/link/internal/mips64/asm.go  |  6 ++--
+ src/cmd/link/internal/ppc64/asm.go   | 54 ++++++++++++------------------------
+ src/cmd/link/internal/riscv64/asm.go |  4 +--
+ src/cmd/link/internal/s390x/asm.go   |  6 ++--
+ src/cmd/link/internal/x86/asm.go     |  6 ++--
+ 13 files changed, 74 insertions(+), 67 deletions(-)

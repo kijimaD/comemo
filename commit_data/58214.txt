@@ -1,19 +1,24 @@
-commit 02df9bbdbdb0a46b86b34d0cf236b599311c0ecb
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Nov 21 09:51:44 2024 -0500
+commit 22344034c547da2e656e2a63a69b555ee974d1a8
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Oct 12 12:18:18 2023 +0800
 
-    reflect: set swissmap GroupSize
+    archive: add available godoc link
     
-    This was missed in CL 627716.
-    
-    For #54766.
-    
-    Change-Id: Ib987efa8abe6e89367e2e1b71a33b64ac6b01b1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630279
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I813aa09f8a65936796469fa637d0f23004d26098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534757
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
 
- src/reflect/map_swiss.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/archive/tar/common.go   |  2 +-
+ src/archive/tar/format.go   |  2 +-
+ src/archive/tar/reader.go   | 14 +++++++-------
+ src/archive/tar/writer.go   | 16 ++++++++--------
+ src/archive/zip/reader.go   | 20 ++++++++++----------
+ src/archive/zip/register.go |  6 +++---
+ src/archive/zip/struct.go   | 18 +++++++++---------
+ src/archive/zip/writer.go   | 36 ++++++++++++++++++------------------
+ 8 files changed, 57 insertions(+), 57 deletions(-)

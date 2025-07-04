@@ -1,18 +1,23 @@
-commit f330a3a987aa980d6c1adfb4ed509b461d5c13cf
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 7 00:02:29 2022 -0400
+commit c2bd9ee2dbec88d4fd1b21aefa21cd988d01b880
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 18 13:10:04 2021 -0700
 
-    doc/go1.19: complete most remaining TODOs
+    cmd/compile: only sort methods/interfaces during export for -d=unifiedquirks
     
-    The ones I left behind are almost entirely ones that I see pending CLs for.
-    Also make various fixes to existing text.
+    These sorts are only important for 'toolstash -cmp' testing of unified
+    IR against -G=0 mode, but they were added before I added
+    -d=unifiedquirks to allow altering small "don't care" output details
+    like this.
     
-    For #51400.
+    This CL should help mitigate issues with #44195 until package
+    objectpath is updated and deployed.
     
-    Change-Id: I555e0074c9df82b5bdb345e21a08c8757ca147b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410814
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ia3dcf359481ff7abad5ddfca8e673fd2bb30ae01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343390
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.19.html | 325 ++++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 199 insertions(+), 126 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

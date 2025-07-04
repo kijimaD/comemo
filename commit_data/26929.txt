@@ -1,17 +1,16 @@
-commit 170c1b479bcd089eb8f76c8de6e5d44c6c4dbaa8
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Apr 14 13:41:32 2016 -0400
+commit 7e92c86df25b70f486b99ed6a10b623b9fd20de4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 26 13:03:11 2016 -0800
 
-    go/types: record CallExpr result type even if argument is invalid
+    cmd/compile: remove listsort
     
-    + test
+    The listsort function is no longer used, except in a test.  Change the
+    test to use sort.Sort instead.
     
-    Fixes #15305
-    
-    Change-Id: Ica657c00c92f0b19f0df7452cdbe5a95d23cc8a4
-    Reviewed-on: https://go-review.googlesource.com/22085
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ib634705cc1bc3b1d8fc3795bd4ed2894e6abc284
+    Reviewed-on: https://go-review.googlesource.com/19964
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/api_test.go | 25 +++++++++++++++++++++++++
- src/go/types/call.go     |  9 ++++-----
- 2 files changed, 29 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/pgen_test.go | 15 ++++----
+ src/cmd/compile/internal/gc/syntax.go    | 63 --------------------------------
+ 2 files changed, 7 insertions(+), 71 deletions(-)

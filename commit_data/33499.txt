@@ -1,12 +1,19 @@
-commit 17f35c6993cdaf197db79cc6e62108f05f60bd0b
-Author: Ian Kent <iankent85@gmail.com>
-Date:   Sat Sep 23 21:45:35 2017 +0100
+commit 43d4c9f4f18cad9ac738e15e1721b8ef32c5e31c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 17 10:24:13 2017 -0700
 
-    net/http: fix copy-paste error in the ServeTLS docs
+    runtime: tiny refactor in evacuate
     
-    Change-Id: Id7f0d978ce5b0471a404d6e6673b789e7db04650
-    Reviewed-on: https://go-review.googlesource.com/65653
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Since oldbucket == h.nevacuate, we can just increment h.nevacuate here.
+    This removes oldbucket from scope, which will be useful shortly.
+    
+    Change-Id: I70f81ec3995f17845ebf5d77ccd20ea4338f23e6
+    Reviewed-on: https://go-review.googlesource.com/56932
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 2 +-
+ src/runtime/hashmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

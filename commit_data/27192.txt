@@ -1,17 +1,58 @@
-commit 6ed79fbd1abf018b018088c6a1699cd34ee6d56c
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 28 15:04:10 2016 -0700
+commit 63142027de3a65de14298c5447a39cefe49ea1e3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 15 13:06:58 2016 -0700
 
-    cmd/compile: remove BlockDead state
+    cmd: collapse internal/obj/fmt.go into compile/internal/gc/fmt.go
     
-    It is unused, remove the clutter.
+    The obj.Fmt* values are only used by gc/fmt.go, so just move them
+    there. Also, add comments documenting the correspondance between
+    FmtFoo names and their flag characters to make understanding the
+    existing documentation slightly less confusing.
     
-    Change-Id: I51a44326b125ef79241459c463441f76a289cc08
-    Reviewed-on: https://go-review.googlesource.com/22586
+    While here, add a new FmtFlag named type to represent these values.
+    
+    Change-Id: I9631214b892557d094823f1ac575d0c43a84007b
+    Reviewed-on: https://go-review.googlesource.com/20717
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/check.go          | 13 -------------
- src/cmd/compile/internal/ssa/gen/genericOps.go |  3 +--
- src/cmd/compile/internal/ssa/opGen.go          |  2 --
- src/cmd/compile/internal/ssa/rewrite.go        |  3 ---
- 4 files changed, 1 insertion(+), 20 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go   |   2 +-
+ src/cmd/compile/internal/amd64/gsubr.go  |   4 +-
+ src/cmd/compile/internal/arm/ggen.go     |   2 +-
+ src/cmd/compile/internal/arm64/ggen.go   |   2 +-
+ src/cmd/compile/internal/arm64/gsubr.go  |   4 +-
+ src/cmd/compile/internal/gc/align.go     |   6 +-
+ src/cmd/compile/internal/gc/bexport.go   |   2 +-
+ src/cmd/compile/internal/gc/cgen.go      |  10 +-
+ src/cmd/compile/internal/gc/closure.go   |   9 +-
+ src/cmd/compile/internal/gc/const.go     |  14 +--
+ src/cmd/compile/internal/gc/dcl.go       |  12 +-
+ src/cmd/compile/internal/gc/esc.go       |  61 +++++----
+ src/cmd/compile/internal/gc/export.go    |  24 ++--
+ src/cmd/compile/internal/gc/fmt.go       | 204 +++++++++++++++++--------------
+ src/cmd/compile/internal/gc/gen.go       |   2 +-
+ src/cmd/compile/internal/gc/gsubr.go     |   2 +-
+ src/cmd/compile/internal/gc/inl.go       |  47 ++++---
+ src/cmd/compile/internal/gc/mpfloat.go   |   7 +-
+ src/cmd/compile/internal/gc/mpint.go     |   5 +-
+ src/cmd/compile/internal/gc/pgen.go      |   2 +-
+ src/cmd/compile/internal/gc/plive.go     |   4 +-
+ src/cmd/compile/internal/gc/popt.go      |  10 +-
+ src/cmd/compile/internal/gc/range.go     |   8 +-
+ src/cmd/compile/internal/gc/reflect.go   |  10 +-
+ src/cmd/compile/internal/gc/reg.go       |   6 +-
+ src/cmd/compile/internal/gc/sinit.go     |   3 +-
+ src/cmd/compile/internal/gc/subr.go      |  10 +-
+ src/cmd/compile/internal/gc/swt.go       |  17 ++-
+ src/cmd/compile/internal/gc/typecheck.go |  38 +++---
+ src/cmd/compile/internal/gc/unsafe.go    |   4 +-
+ src/cmd/compile/internal/gc/walk.go      |  16 +--
+ src/cmd/compile/internal/mips64/ggen.go  |   2 +-
+ src/cmd/compile/internal/mips64/gsubr.go |   4 +-
+ src/cmd/compile/internal/ppc64/ggen.go   |   2 +-
+ src/cmd/compile/internal/ppc64/gsubr.go  |   4 +-
+ src/cmd/compile/internal/x86/ggen.go     |   2 +-
+ src/cmd/compile/internal/x86/gsubr.go    |   2 +-
+ src/cmd/internal/obj/fmt.go              |  28 -----
+ 38 files changed, 284 insertions(+), 307 deletions(-)

@@ -1,20 +1,19 @@
-commit f32ec41df52379f957a5544cdc53992c57bb629e
-Author: khr@golang.org <khr@golang.org>
-Date:   Thu Jul 11 12:10:10 2024 -0700
+commit 8484f2fe0250f16304f3112b1caee5a32e685823
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 12 15:57:00 2023 -0700
 
-    cmd/compile: reorganize prove pass domain relation table
+    cmd/go: add comment for intentional misspelling
     
-    Move some code from when we learn that we take a branch, to when
-    we learn that a boolean is true or false. It is more consistent
-    this way (and may lead to a few more cases where we can derive
-    useful relations).
+    Try to avoid fixes from automatic spell checkers.
     
-    Change-Id: Iea7b2d6740e10c9c71c4b1546881f501da81cd21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/599098
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I1d134fb2721decffa865a3f4d78bca4fce8e8fee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502658
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 121 ++++++++++++++++++----------------
- test/prove.go                         |  12 ++++
- 2 files changed, 75 insertions(+), 58 deletions(-)
+ src/cmd/go/testdata/script/build_unsupported_goos.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

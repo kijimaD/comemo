@@ -1,19 +1,17 @@
-commit aaabe3d84988332ea26b84985a98b9d71a99cd71
-Author: Kevin Vu <kevin.m.vu@gmail.com>
-Date:   Sun Jan 3 18:44:15 2016 -0800
+commit 3356624df3414a3ca0c8390ca433a0811e552872
+Author: Burcu Dogan <jbd@google.com>
+Date:   Thu Oct 29 00:02:02 2015 -0700
 
-    cmd/compile/internal/gc: fix initialization logic
+    os/signal: don't expect to be notified for os.Kill
     
-    Also add relevant test.
+    os.Kill cannot be caught on Unix systems.
+    The example gives the false impression that it can.
     
-    Fixes #13343.
+    Fixes #13080.
     
-    Change-Id: Ib1e65af1d643d501de89adee3618eddbf6c69c9e
-    Reviewed-on: https://go-review.googlesource.com/18159
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3b9e6f38a38f437a463c5b869ae84a0d3fd23f72
+    Reviewed-on: https://go-review.googlesource.com/16467
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go |  5 +++--
- test/fixedbugs/bug13343.go           | 18 ++++++++++++++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ src/os/signal/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

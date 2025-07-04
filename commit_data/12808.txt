@@ -1,14 +1,14 @@
-commit 8a686792e08f1114fd7819a32d8c2e3c4ddddc14
-Author: Ryan Hitchman <hitchmanr@gmail.com>
-Date:   Mon Apr 2 11:00:55 2012 -0400
+commit a9de5bb3eb36fcae6d0744603a5bd7a5be606796
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 2 22:33:38 2012 +0800
 
-    gc: improve error message for composite literals with unexpected newlines
+    cmd/dist, sudo.bash: don't mention sudo.bash if cov or prof is not present
+            Fixes #3422.
     
-    R=golang-dev, r, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5857045
+    https://golang.org/cl/5967057
 
- src/cmd/gc/go.errors     |  3 +++
- src/cmd/gc/yerr.h        |  3 +++
- test/syntax/composite.go | 11 +++++++++++
- 3 files changed, 17 insertions(+)
+ src/cmd/dist/build.c | 13 ++++++++-----
+ src/sudo.bash        |  7 ++++++-
+ 2 files changed, 14 insertions(+), 6 deletions(-)

@@ -1,20 +1,21 @@
-commit cc4bdf0226f192432a0d7c95b02cf3ecced81c15
+commit a509026ff0010dc29068983bd748c1360e692602
 Author: Rui Ueyama <ruiu@google.com>
-Date:   Wed Mar 19 12:13:47 2014 -0700
+Date:   Wed Mar 19 09:00:58 2014 -0700
 
-    strings, bytes: ReadAt should not mutate receiver
+    strings, bytes: fix Reader.UnreadRune
     
-    CL 77580046 caused a data race issue with tests that assumes ReadAt
-    does not mutate receiver. This patch partially revert CL 77580046
-    to fix it.
+    UnreadRune should return an error if previous operation is not
+    ReadRune.
+    
+    Fixes #7579.
     
     LGTM=bradfitz
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/77900043
+    https://golang.org/cl/77580046
 
- src/pkg/bytes/reader.go         | 1 -
- src/pkg/bytes/reader_test.go    | 1 -
- src/pkg/strings/reader.go       | 1 -
- src/pkg/strings/strings_test.go | 1 -
- 4 files changed, 4 deletions(-)
+ src/pkg/bytes/reader.go         |  7 +++++--
+ src/pkg/bytes/reader_test.go    | 27 +++++++++++++++++++++++++++
+ src/pkg/strings/reader.go       |  7 +++++--
+ src/pkg/strings/strings_test.go | 27 +++++++++++++++++++++++++++
+ 4 files changed, 64 insertions(+), 4 deletions(-)

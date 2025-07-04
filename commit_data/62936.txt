@@ -1,0 +1,40 @@
+commit bce8486ebec8b2f62f2305b2a17cc5aec8202507
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Sat Aug 19 09:22:34 2023 +0800
+
+    cmd,runtime: enable race detector on loong64
+    
+    The race feature depends on llvm. And support for building the tsan library on
+    linux/loong64 has been added in this patch [1], which has been merged into the
+    branch main and has landed in llvm18.
+    
+    The support for linux/loong64 in racebuild has been implemented in CL 655775,
+    now racebuild can successfully build race_linux_loong64.syso [2].
+    
+    [1]: https://github.com/llvm/llvm-project/pull/72819
+    [2]: racebuild -platforms linux/loong64 -cherrypick 'refs/changes/16/543316/10' \
+         -rev 83fe85115da9dc25fa270d2ea8140113c8d49670 \
+         -goroot /home/golang/src/go
+    
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    
+    Change-Id: If389318215476890295ed771297c6c088cfc84b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543316
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+
+ src/cmd/dist/test.go                     |   2 +-
+ src/internal/platform/supported.go       |   2 +-
+ src/race.bash                            |   3 +-
+ src/runtime/asm_loong64.s                |   1 +
+ src/runtime/race/README                  |   1 +
+ src/runtime/race/race.go                 |   2 +-
+ src/runtime/race/race_linux_loong64.syso | Bin 0 -> 662040 bytes
+ src/runtime/race_loong64.s               | 525 +++++++++++++++++++++++++++++++
+ 8 files changed, 532 insertions(+), 4 deletions(-)

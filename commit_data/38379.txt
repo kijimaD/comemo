@@ -1,15 +1,25 @@
-commit bea58ef352ddf35e9de5ce3cec7eafa036d5491c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Mar 10 10:19:31 2019 -0700
+commit 4be3851d197c331a8789799b9bc54683f6fdd45b
+Author: Denys Smirnov <denis.smirnov.91@gmail.com>
+Date:   Wed Oct 24 20:09:00 2018 +0000
 
-    cmd/compile: don't report redundant error for invalid integer literals
+    syscall/js: add Wrapper interface to support external Value wrapper types
     
-    Fixes #30722.
+    The Callback and TypedArray are the only JavaScript types supported by
+    the library, thus they are special-cased in a type switch of ValueOf.
     
-    Change-Id: Ia4c6e37282edc44788cd8af3f6cfa10895a19e4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166519
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Instead, a Ref interface is defined to allow external wrapper types
+    to be handled properly by ValueOf.
+    
+    Change-Id: I03240ba7ec46979336b88389a70b7bcac37fc715
+    GitHub-Last-Rev: c8cf08d8ccfaab2af98df9eec8bc7b60dbce2c64
+    GitHub-Pull-Request: golang/go#28181
+    Reviewed-on: https://go-review.googlesource.com/c/141644
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/mpint.go | 14 +++++---------
- test/fixedbugs/issue30722.go         | 17 +++++++++++++++++
- 2 files changed, 22 insertions(+), 9 deletions(-)
+ src/syscall/js/callback.go   |  2 ++
+ src/syscall/js/js.go         | 19 ++++++++++++++-----
+ src/syscall/js/typedarray.go |  2 ++
+ 3 files changed, 18 insertions(+), 5 deletions(-)

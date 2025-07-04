@@ -1,0 +1,17 @@
+commit 5187baeb4e858cb88993392463cf17615ad45e24
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 19 15:46:15 2024 -0700
+
+    os: use t.TempDir in TestMkdirTemp, TestCreateTemp
+    
+    This simplifies tests a little bit.
+    
+    Change-Id: I910e3c97cfd20b26951d2a4909d86b5be06bde56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606899
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/tempfile_test.go | 30 +++++-------------------------
+ 1 file changed, 5 insertions(+), 25 deletions(-)

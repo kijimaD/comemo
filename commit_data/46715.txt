@@ -1,29 +1,20 @@
-commit 2dc91a25f619c49b5d64af1b92497705a3325951
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Sep 30 13:26:19 2021 -0400
+commit eb21b31e487344fb0045b3ef7b14df9521b94952
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 22 16:35:21 2021 -0500
 
-    cmd/api: set architecture sizes when type checking
+    runtime: define dummy msanmove
     
-    Otherwise the type checker defaults to amd64, which can break
-    type-checking for definitions using unsafe.Sizeof.
+    In msan mode we instrument code with msan* functions, including
+    msanmove. In some configurations the code is instrumented by the
+    compiler but msan is not actually linked in, so we need dummy
+    definitions for those functions so the program links. msanmove is
+    newly added in CL 270859 but a dummy definition in msan0.go was
+    not added, causing link failures. Add it.
     
-    This has the side effect of changing the API output: constants with
-    different values across architectures (e.g., MaxInt) are now
-    individually listed per-arch. This actually makes the API file more
-    accurate, but does introduce a one-time discontinuity. These changes
-    have been integrated into the API files where the constants were added.
-    
-    Change-Id: I4bbb0b7a7f405d3adda2d83869475c8bacdeb6a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353331
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Change-Id: I91f8e749919f57f1182e90b43412b0282cf4767c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285955
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- api/go1.1.txt        | 31 +++++++++++++++++--
- api/go1.17.txt       | 87 ++++++++++++++++++++++++++++++++++++++++++++++++++--
- api/go1.9.txt        | 29 +++++++++++++++++-
- src/cmd/api/goapi.go |  5 +++
- 4 files changed, 146 insertions(+), 6 deletions(-)
+ src/runtime/msan0.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

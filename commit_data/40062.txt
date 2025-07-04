@@ -1,21 +1,18 @@
-commit cdd59205c48a4504925b1d65fdb68ff1f1250870
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Sep 26 09:53:37 2019 -0400
+commit 9c843f031d31d85891d08f68ca5e6009a83bb0ce
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Apr 12 11:04:11 2019 +0100
 
-    cmd/compile: don't emit autom's into object file
+    cmd/internal/obj/s390x: handle RestArgs in s390x assembler
     
-    Don't write Autom records when writing a function to the object file;
-    we no longer need them in the linker for DWARF processing. So as to
-    keep the object file format unchanged, write out a zero-length list of
-    automs to the object, as opposed to removing all references.
+    Allow up to 3 RestArgs arguments to be specified. This is needed to
+    for us to add the 'rotate and ... bits' instructions, which require
+    5 arguments, cleanly.
     
-    Updates #34554.
-    
-    Change-Id: I42a1d67207ea7114ae4f3a315cf37effba57f190
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197499
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I76b89adfb5e3cd85a43023e412f0cc202d489e0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171726
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go | 43 +++++++++++--------------------------
- src/cmd/internal/obj/link.go        |  4 ----
- src/cmd/internal/obj/objfile.go     | 24 ++-------------------
- 3 files changed, 14 insertions(+), 57 deletions(-)
+ src/cmd/internal/obj/s390x/asmz.go | 595 +++++++++++++++++++------------------
+ 1 file changed, 302 insertions(+), 293 deletions(-)

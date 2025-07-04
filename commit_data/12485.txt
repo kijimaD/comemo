@@ -1,18 +1,12 @@
-commit 3dcedb620cd0900be6d6de44f66c9b7eb82f2dca
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Mar 7 14:21:45 2012 -0500
+commit b514f0b9069d43e2a92def87201ae4b7cb2acca6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 7 11:17:26 2012 -0800
 
-    runtime: try extending arena size in 32-bit allocator.
+    test: enable method expression tests in ddd.go
     
-    If it didn't reach the limit, we can try extending the arena
-    before resorting to random memory mappings and praying for the
-    kernel to be kind.
-    
-    Fixes #3173.
-    
-    R=rsc, rsc
+    R=golang-dev, gri, rsc
     CC=golang-dev
-    https://golang.org/cl/5725045
+    https://golang.org/cl/5769044
 
- src/pkg/runtime/malloc.goc | 19 ++++++++++++++++++-
- 1 file changed, 18 insertions(+), 1 deletion(-)
+ test/ddd.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,23 +1,29 @@
-commit 281d168e2debf7660f9ba5006ddbc1b4cda90ab7
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Apr 9 06:30:20 2021 -0700
+commit ad0ab812f8b80416c92ed227974e3194e98f4cdc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 28 12:19:56 2020 -0700
 
-    cmd/compile: don't set Ntype in noder2 anymore
+    cmd/compile: fix type checking of "make" arguments
     
-    Now that we are no longer calling the old typechecker at all during the
-    noder2 pass, we don't need to create and set an Ntype node ((which is
-    just a node representation of the type which we already know) for the
-    Name and Closure nodes. This should reduce memory usage a bit for -G=3.
+    As part of type checking make's arguments, we were converting untyped
+    float and complex constant arguments to integers. However, we were
+    doing this without concern for whether the argument was a declared
+    constant. Thus a call like "make([]T, n)" could change n from an
+    untyped float or untyped complex to an untyped integer.
     
-    Change-Id: I6b1345007ce067a89ee64955a53f25645c303f4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308909
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    The fix here is to simply change checkmake to not call SetVal, which
+    will be handled by defaultlit anyway. However, we also need to
+    properly return the defaultlit result value to the caller, so
+    checkmake's *Node parameter is also changed to **Node.
+    
+    Fixes #41680.
+    
+    Change-Id: I858927a052f384ec38684570d37b10a6906961f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257966
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/inline/inl.go    | 10 ++++++++--
- src/cmd/compile/internal/noder/expr.go    |  2 --
- src/cmd/compile/internal/noder/object.go  |  3 ---
- src/cmd/compile/internal/noder/stencil.go |  6 +-----
- 4 files changed, 9 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 16 +++++++++-------
+ test/fixedbugs/issue41680.go             | 21 +++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 7 deletions(-)

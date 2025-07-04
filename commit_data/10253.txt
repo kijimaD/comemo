@@ -1,16 +1,25 @@
-commit b14ee23f9b85b6c838207ccc2d67287fb0e56bb4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 4 09:17:46 2011 -0700
+commit aac144b1202fc733a206422bed3cc6eafe4ca855
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Nov 4 17:03:50 2011 +0100
 
-    http: support Trailers in ReadRequest
+    gc: detect type switch variable not used cases.
     
-    Available after closing Request.Body.
+    Fixes #873
+    Fixes #2162
     
-    R=adg, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5348041
+    https://golang.org/cl/5341043
 
- src/pkg/net/http/readrequest_test.go | 57 +++++++++++++++++++++++++---
- src/pkg/net/http/request.go          | 12 +-----
- src/pkg/net/http/transfer.go         | 73 ++++++++++++++++++++++++++++++++----
- 3 files changed, 119 insertions(+), 23 deletions(-)
+ src/cmd/gc/go.y                   | 32 ++++++++++++++++----------------
+ src/cmd/gc/walk.c                 | 33 +++++++++++++++++++++++++--------
+ src/pkg/encoding/xml/read.go      |  2 +-
+ src/pkg/exp/types/const.go        |  2 +-
+ src/pkg/go/parser/parser.go       |  2 +-
+ test/fixedbugs/bug141.go          |  2 +-
+ test/fixedbugs/bug200.go          |  2 +-
+ test/fixedbugs/bug213.go          |  2 +-
+ test/fixedbugs/bug248.dir/bug2.go |  2 +-
+ test/fixedbugs/bug309.go          |  2 ++
+ test/fixedbugs/bug373.go          | 32 ++++++++++++++++++++++++++++++++
+ 11 files changed, 82 insertions(+), 31 deletions(-)

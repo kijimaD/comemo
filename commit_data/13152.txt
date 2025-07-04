@@ -1,23 +1,20 @@
-commit 07612b8db012efadc2a9182160ba54702d9d04bf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 24 10:49:38 2012 -0700
+commit 3d3b4906f94a40b7dd2e66ad3ad48e86b5ce6f89
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 24 12:11:32 2012 -0400
 
-    math/big: make Rat.Denom() always return a reference
+    cmd/6g: peephole fixes/additions
     
-    The documentation says so, but in the case of a normalized
-    integral Rat, the denominator was a new value. Changed the
-    internal representation to use an Int to represent the
-    denominator (with the sign ignored), so a reference to it
-    can always be returned.
+    * Shift/rotate by constant doesn't have to stop subprop. (also in 8g)
+    * Remove redundant MOVLQZX instructions.
+    * An attempt at issuing loads early.
+      Good for 0.5% on a good day, might not be worth keeping.
+      Need to understand more about whether the x86
+      looks ahead to what loads might be coming up.
     
-    Clarified documentation and added test cases.
-    
-    Fixes #3521.
-    
-    R=golang-dev, rsc
+    R=ken2, ken
     CC=golang-dev
-    https://golang.org/cl/6237045
+    https://golang.org/cl/6203091
 
- src/pkg/math/big/rat.go      | 98 ++++++++++++++++++++++++--------------------
- src/pkg/math/big/rat_test.go | 53 ++++++++++++++++++++++++
- 2 files changed, 106 insertions(+), 45 deletions(-)
+ src/cmd/6g/peep.c | 187 +++++++++++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/8g/peep.c |  24 +++----
+ 2 files changed, 185 insertions(+), 26 deletions(-)

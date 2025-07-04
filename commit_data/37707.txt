@@ -1,22 +1,18 @@
-commit dbd323bb880ff27fa9b4bdfebf3e5d4828b09678
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 13 20:28:29 2018 +0000
+commit fa6639d62664ecd710b112eb1c1e759104c9193c
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Wed Jul 11 23:34:18 2018 +0300
 
-    internal/x/net/http2/hpack: update from upstream
+    runtime: simplify slice expression to sliced value itself
     
-    Updates to x/net git rev 891ebc4b82d6e74f468c533b06f983c7be918a96 for:
+    Replace `x[:]` where x is a slice with just `x`.
     
-       http2/hpack: track the beginning of a header block
-       https://go-review.googlesource.com/c/153978
+    Found using https://go-critic.github.io/overview.html#unslice-ref
     
-    Updates golang/go#29187
-    
-    Change-Id: Ie2568b3f8d6aaa3f097a4ac25d3acdc794f5ff5c
-    Reviewed-on: https://go-review.googlesource.com/c/154118
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib0ee16e1d49b2a875b6b92a770049acc33208362
+    Reviewed-on: https://go-review.googlesource.com/123375
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/x/net/http2/hpack/hpack.go      | 10 +++++++++-
- src/internal/x/net/http2/hpack/hpack_test.go | 14 +++++++++++---
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ src/runtime/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

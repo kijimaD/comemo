@@ -1,33 +1,21 @@
-commit 971448ddf8c55a5f4a829735a5a96cacf982f230
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 17 15:31:10 2024 -0800
+commit ac85f2bedd405d64b54c3a248c9079b6cde57359
+Author: Mikhail Mazurskiy <mmazurskiy@gitlab.com>
+Date:   Tue Oct 31 00:17:18 2023 +0000
 
-    testing: support B.Context and F.Context
+    net/url: use quick path in URL.Encode() on empty map
     
-    CL 603959 added T.Context for #36532.
+    Make url.Values.Encode() slightly more efficient when url.Values
+    is an empty but non-nil map.
     
-    The discussion on the proposal only mentions t.Context.
-    However, the implementation of CL 603959 also added B.Context and F.Context.
-    They were added to the API listing, and B.Context was mentioned in
-    the release notes.
-    
-    Unfortunately, the new B.Context and F.Context methods always
-    returned nil, rather than a context.Context value.
-    
-    This change adds a working implementation of B.Context and F.Context.
-    
-    For #36532
-    Fixes #70866
-    
-    Change-Id: I8a44e6649fb658e4f641ffb7efd08b4374f578ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637236
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I7f205cc7e67526a1fa0035eab4773cec5e0f2c99
+    GitHub-Last-Rev: 0530b439db8cea755464c6dc2d268a0bd567889e
+    GitHub-Pull-Request: golang/go#63836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538637
     Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/cmd/go/testdata/script/test_fuzz_context.txt | 47 +++++++++++++++++++++++
- src/testing/benchmark.go                         |  4 ++
- src/testing/benchmark_test.go                    | 30 +++++++++++++++
- src/testing/fuzz.go                              | 49 +++++++++++++++---------
- src/testing/testing.go                           |  4 +-
- 5 files changed, 113 insertions(+), 21 deletions(-)
+ src/net/url/url.go      | 2 +-
+ src/net/url/url_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

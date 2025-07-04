@@ -1,25 +1,31 @@
-commit 7579867fece7e42b38d69eca202182f5de786390
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Apr 23 02:16:31 2015 -0400
+commit ad3600945aaf168ba12ae82c9f66c3c60836ba87
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 31 09:19:10 2015 -0700
 
-    cmd/dist: allow $GO_TEST_TIMEOUT_SCALE to override timeoutScale
+    runtime: auto-generate duff routines
     
-    Some machines are so slow that even with the default timeoutScale,
-    they still timeout some tests. For example, currently some linux/arm
-    builders and the openbsd/arm builder are timing out the runtime
-    test and CL 8397 was proposed to skip some tests on openbsd/arm
-    to fix the build.
+    This makes it easier to experiment with alternative implementations.
     
-    Instead of increasing timeoutScale or skipping tests, this CL
-    introduces an environment variable $GO_TEST_TIMEOUT_SCALE that
-    could be set to manually set a larger timeoutScale for those
-    machines/builders.
+    While we're here, update the comments.
     
-    Fixes #10314.
+    No functional changes. Passes toolstash -cmp.
     
-    Change-Id: I16c9a9eb980d6a63309e4cacd79eee2fe05769ee
-    Reviewed-on: https://go-review.googlesource.com/9223
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I428535754908f0fdd7cc36c214ddb6e1e60f376e
+    Reviewed-on: https://go-review.googlesource.com/8310
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/asm_386.s     | 794 ---------------------------------------------
+ src/runtime/asm_amd64.s   | 795 ----------------------------------------------
+ src/runtime/asm_arm.s     | 408 ------------------------
+ src/runtime/asm_arm64.s   | 139 --------
+ src/runtime/asm_ppc64x.s  | 140 --------
+ src/runtime/duff_386.s    | 779 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/duff_amd64.s  | 779 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/duff_arm.s    | 523 ++++++++++++++++++++++++++++++
+ src/runtime/duff_arm64.s  | 138 ++++++++
+ src/runtime/duff_ppc64x.s | 140 ++++++++
+ src/runtime/mkduff.go     | 180 +++++++++++
+ src/runtime/runtime.go    |   1 +
+ 12 files changed, 2540 insertions(+), 2276 deletions(-)

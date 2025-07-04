@@ -1,18 +1,21 @@
-commit ed35d5e0fb6db614718d2f289d71bd793406a5aa
+commit 52d6ca2f86ea6b4b291a5658fbc9e2325bc4d028
 Author: Adam Langley <agl@golang.org>
-Date:   Mon Mar 5 12:08:42 2012 -0500
+Date:   Mon Mar 5 12:04:18 2012 -0500
 
-    crypto/x509: enforce path length constraint.
+    crypto/x509: don't include empty additional primes in PKCS#1 private key.
     
-    An X.509 path length constrains the number of certificate that may
-    follow in the chain. This is a little simplistic for a first pass as it
-    doesn't check self-signed certificates (which don't count towards the
-    length), but it's conservatively simplistic.
+    asn1 didn't have an omitempty tag, so the list of additional primes in
+    an RSA private key was serialised as an empty SEQUENCE, even for
+    version 1 structures. This tripped up external code that didn't handle
+    v2.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5727057
+    https://golang.org/cl/5729062
 
- src/pkg/crypto/x509/verify.go | 20 ++++++++++++++++----
- src/pkg/crypto/x509/x509.go   |  2 +-
- 2 files changed, 17 insertions(+), 5 deletions(-)
+ src/pkg/crypto/x509/pkcs1.go          | 2 +-
+ src/pkg/encoding/asn1/asn1_test.go    | 2 +-
+ src/pkg/encoding/asn1/common.go       | 3 +++
+ src/pkg/encoding/asn1/marshal.go      | 4 ++++
+ src/pkg/encoding/asn1/marshal_test.go | 6 ++++++
+ 5 files changed, 15 insertions(+), 2 deletions(-)

@@ -1,20 +1,13 @@
-commit f8fb95f288d54f7459d08e6b47bfa48e46b79315
-Author: Alan Donovan <adonovan@google.com>
-Date:   Thu Jan 24 14:21:51 2013 -0500
+commit 018e89fa697a2c687b83de36e7ae5dcaff6ade49
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Thu Jan 24 20:46:33 2013 +1100
 
-    go/types: add String() method to Type interface.
+    doc/go_spec: remove extra space, align tags, and change a tab to a space.
     
-    All implementations delegate to typeString.
-    
-    Though I don't wish to exploit gri's absence to change
-    his code, this change is pretty low-risk and he assented to it
-    in the blue ink in the doc below [gophers only].
-    https://docs.google.com/a/google.com/document/d/1-DQ4fxlMDs9cYtnkKhAAehX6MArjOQyJsRXp-6kiJLA/edit#
-    
-    R=iant, gri, gri
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7200046
+    https://golang.org/cl/7198048
 
- src/pkg/go/types/errors.go | 13 +++++++++++++
- src/pkg/go/types/types.go  |  1 +
- 2 files changed, 14 insertions(+)
+ doc/go_faq.html  | 46 +++++++++++++++++++++++-----------------------
+ doc/go_spec.html | 22 +++++++++++-----------
+ 2 files changed, 34 insertions(+), 34 deletions(-)

@@ -1,18 +1,16 @@
-commit d743e67e0695a8082f03fd90bb07e71cf9f34cf1
-Author: KimMachineGun <geon0250@gmail.com>
-Date:   Sun May 23 14:05:15 2021 +0000
+commit 6877ee1e07d82896becc2f624ef314613d3df4a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 10 13:28:17 2020 -0800
 
-    doc/go1.17: document flag changes for Go 1.17
+    [dev.typeparams] cmd/compile: use existing findpkg algorithm when importing through types2
     
-    For #44513
-    Fixes #46010
-    
-    Change-Id: I1fe638e5db0b4f3b64dbfbd948154a7c7a80afc9
-    GitHub-Last-Rev: d5bd53b1df202329661ffb1818803f2ec1d3f57a
-    GitHub-Pull-Request: golang/go#46150
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319273
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Trust: Robert Findley <rfindley@google.com>
+    Change-Id: I9044de7829d22addb5bc570401508082e3f007eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269057
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.17.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/noder.go |  7 +++++++
+ test/typeparam/importtest.go         | 16 ++++++++++++++++
+ 2 files changed, 23 insertions(+)

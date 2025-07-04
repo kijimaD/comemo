@@ -1,16 +1,37 @@
-commit 4019d0e4243cea82b033e12da75d49f82419f2cd
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Jan 26 09:57:06 2013 +0800
+commit 3c77b8961c97816417fd66816e53a9aa6d64de46
+Author: John Graham-Cumming <jgc@jgc.org>
+Date:   Fri Jan 25 10:20:19 2013 -0800
 
-    runtime: avoid defining the same variable in more than one translation unit
-    For gccgo runtime and Darwin where -fno-common is the default.
+    net/http: fix Content-Length/Transfer-Encoding on HEAD requests
     
-    R=iant, dave
+    net/http currently assumes that the response to a HEAD request
+        will always have a Content-Length header. This is incorrect.
+    
+    RFC2616 says: "The HEAD method is identical to GET except that
+    the server MUST NOT return a message-body in the response. The
+    metainformation contained in the HTTP headers in response to a
+    HEAD request SHOULD be identical to the information sent in
+    response to a GET request. This method can be used for
+    obtaining metainformation about the entity implied by the
+    request without transferring the entity-body itself. This
+    method is often used for testing hypertext links for validity,
+    accessibility, and recent modification."
+    
+    This means that three cases are possible: a Content-Length
+    header, a Transfer-Encoding header or neither. In the wild the
+    following sites exhibit these behaviours (curl -I):
+    
+    HEAD on http://www.google.co.uk/ has Transfer-Encoding: chunked
+    HEAD on http://www.bbc.co.uk/    has Content-Length: 45247
+    HEAD on http://edition.cnn.com/  has neither header
+    
+    This patch does not remove the ErrMissingContentLength error
+    for compatibility reasons, but it is no longer used.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7094061
+    https://golang.org/cl/7182045
 
- src/pkg/runtime/malloc.goc |  2 ++
- src/pkg/runtime/malloc.h   |  2 +-
- src/pkg/runtime/proc.c     |  7 +++++++
- src/pkg/runtime/runtime.h  | 10 +++++-----
- 4 files changed, 15 insertions(+), 6 deletions(-)
+ src/pkg/net/http/response_test.go | 105 ++++++++++++++++++++++++++++++--------
+ src/pkg/net/http/transfer.go      |  15 +-----
+ 2 files changed, 87 insertions(+), 33 deletions(-)

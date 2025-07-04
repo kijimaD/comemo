@@ -1,17 +1,53 @@
-commit ac49e6735bb3757a16816f7400ce823cd6fc8508
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 2 00:14:22 2014 -0400
+commit d21638b5ec7210e1597b96db6698471d8141a5b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 27 21:59:49 2014 -0400
 
-    runtime: convert cpuprof from C to Go
+    cmd/cc, runtime: preserve C runtime type names in generated Go
     
-    LGTM=dvyukov, rsc
-    R=golang-codereviews, dvyukov, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/132440043
+    uintptr or uint64 in the runtime C were turning into uint in the Go,
+    bool was turning into uint8, and so on. Fix that.
+    
+    Also delete Go wrappers for C functions.
+    The C functions can be called directly now
+    (but still eventually need to be converted to Go).
+    
+    LGTM=bradfitz, minux, iant
+    R=golang-codereviews, bradfitz, iant, minux
+    CC=golang-codereviews, khr, r
+    https://golang.org/cl/138740043
 
- src/pkg/runtime/cpuprof.go  | 424 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/cpuprof.goc | 433 --------------------------------------------
- src/pkg/runtime/debug.go    |  19 --
- src/pkg/runtime/proc.c      |  17 +-
- src/pkg/runtime/runtime.h   |   2 +-
- 5 files changed, 431 insertions(+), 464 deletions(-)
+ src/cmd/cc/dcl.c                   |   4 ++
+ src/cmd/cc/godefs.c                |  53 +++-----------
+ src/pkg/runtime/arch_386.go        |   3 +
+ src/pkg/runtime/arch_amd64.go      |   3 +
+ src/pkg/runtime/arch_amd64p32.go   |   3 +
+ src/pkg/runtime/arch_arm.go        |   3 +
+ src/pkg/runtime/asm_386.s          |   3 +
+ src/pkg/runtime/asm_amd64.s        |   3 +
+ src/pkg/runtime/asm_amd64p32.s     |   5 +-
+ src/pkg/runtime/asm_arm.s          |   7 +-
+ src/pkg/runtime/chan.go            |  14 ++--
+ src/pkg/runtime/export_test.go     |   8 +--
+ src/pkg/runtime/hashmap.go         |  66 +++++++++---------
+ src/pkg/runtime/hashmap_fast.go    |  12 ++--
+ src/pkg/runtime/iface.go           |  12 ++--
+ src/pkg/runtime/malloc.go          |  37 +++++-----
+ src/pkg/runtime/malloc.h           |   6 +-
+ src/pkg/runtime/mgc0.c             |   2 +-
+ src/pkg/runtime/mheap.c            |  10 +--
+ src/pkg/runtime/mprof.go           |  12 ++--
+ src/pkg/runtime/mprof.goc          |   6 --
+ src/pkg/runtime/print.go           |   4 +-
+ src/pkg/runtime/proc.go            |  12 +---
+ src/pkg/runtime/rdebug.go          |  15 ++--
+ src/pkg/runtime/runtime.h          |  15 ++--
+ src/pkg/runtime/sema.go            |  32 ++++-----
+ src/pkg/runtime/sigqueue.go        |   8 +--
+ src/pkg/runtime/slice.go           |   6 +-
+ src/pkg/runtime/string.go          |   8 +--
+ src/pkg/runtime/stubs.go           | 138 ++++++++++++++++++-------------------
+ src/pkg/runtime/stubs.goc          |  51 --------------
+ src/pkg/runtime/syscall_windows.go |  12 ++--
+ src/pkg/runtime/thunk.s            |   2 +-
+ src/pkg/runtime/time.go            |  12 ++--
+ 34 files changed, 247 insertions(+), 340 deletions(-)

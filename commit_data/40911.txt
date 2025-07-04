@@ -1,19 +1,23 @@
-commit 9174e2c03c423a47bf052b8a1aa844f3378eccd4
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Nov 27 18:31:36 2019 +0000
+commit bb5441de4893c0802e3445250fbcc13c7b8e105c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 16 10:42:18 2019 -0700
 
-    cmd/go/internal/modget: synchronize writes to modOnly map in runGet
+    cmd/gofmt: update TestRewrite to avoid future regressions
     
-    Adds an additional lock around an access to modOnly.
+    CL 162337 changed go/ast to better handle block comments,
+    but was reverted because it introduced an off-by-one bug.
+    This CL adds a test case to enforce the correct behavior
+    so that future changes do not break this again.
     
-    Updates #35317
+    Updates #18929
+    Updates #33538
     
-    Change-Id: Ia1e75f9a674ec2a2c0489b41283c1cd3e7924d1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209237
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I2d25c139d007f8db1091b7a48b1dd20c584e2699
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190523
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/modget/get.go             | 2 ++
- src/cmd/go/testdata/script/mod_issue35317.txt | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/gofmt/testdata/import.golden | 5 +++++
+ src/cmd/gofmt/testdata/import.input  | 3 +++
+ 2 files changed, 8 insertions(+)

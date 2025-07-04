@@ -1,90 +1,16 @@
-commit a28a9427688846f971017924bcf6e8cb623ffba4
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Sat Mar 9 21:58:16 2019 -0700
+commit 1ac3b0618170279474fcdf9c625b2e237bf2881c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 7 18:22:04 2018 -0800
 
-    cmd/compile: add unsigned divisibility rules
+    cmd/compile: emit a symbol for a method expression when using -dynlink
     
-    "Division by invariant integers using multiplication" paper
-    by Granlund and Montgomery contains a method for directly computing
-    divisibility (x%c == 0 for c constant) by means of the modular inverse.
-    The method is further elaborated in "Hacker's Delight" by Warren Section 10-17
+    Fixes #25065
     
-    This general rule can compute divisibilty by one multiplication and a compare
-    for odd divisors and an additional rotate for even divisors.
-    
-    To apply the divisibility rule, we must take into account
-    the rules to rewrite x%c = x-((x/c)*c) and (x/c) for c constant on the first
-    optimization pass "opt".  This complicates the matching as we want to match
-    only in the cases where the result of (x/c) is not also available.
-    So, we must match on the expanded form of (x/c) in the expression x == c*(x/c)
-    in the "late opt" pass after common subexpresion elimination.
-    
-    Note, that if there is an intermediate opt pass introduced in the future we
-    could simplify these rules by delaying the magic division rewrite to "late opt"
-    and matching directly on (x/c) in the intermediate opt pass.
-    
-    Additional rules to lower the generic RotateLeft* ops were also applied.
-    
-    On amd64, the divisibility check is 25-50% faster.
-    
-    name                     old time/op  new time/op  delta
-    DivconstI64-4            2.08ns ± 0%  2.08ns ± 1%     ~     (p=0.881 n=5+5)
-    DivisibleconstI64-4      2.67ns ± 0%  2.67ns ± 1%     ~     (p=1.000 n=5+5)
-    DivisibleWDivconstI64-4  2.67ns ± 0%  2.67ns ± 0%     ~     (p=0.683 n=5+5)
-    DivconstU64-4            2.08ns ± 1%  2.08ns ± 1%     ~     (p=1.000 n=5+5)
-    DivisibleconstU64-4      2.77ns ± 1%  1.55ns ± 2%  -43.90%  (p=0.008 n=5+5)
-    DivisibleWDivconstU64-4  2.99ns ± 1%  2.99ns ± 1%     ~     (p=1.000 n=5+5)
-    DivconstI32-4            1.53ns ± 2%  1.53ns ± 0%     ~     (p=1.000 n=5+5)
-    DivisibleconstI32-4      2.23ns ± 0%  2.25ns ± 3%     ~     (p=0.167 n=5+5)
-    DivisibleWDivconstI32-4  2.27ns ± 1%  2.27ns ± 1%     ~     (p=0.429 n=5+5)
-    DivconstU32-4            1.78ns ± 0%  1.78ns ± 1%     ~     (p=1.000 n=4+5)
-    DivisibleconstU32-4      2.52ns ± 2%  1.26ns ± 0%  -49.96%  (p=0.000 n=5+4)
-    DivisibleWDivconstU32-4  2.63ns ± 0%  2.85ns ±10%   +8.29%  (p=0.016 n=4+5)
-    DivconstI16-4            1.54ns ± 0%  1.54ns ± 0%     ~     (p=0.333 n=4+5)
-    DivisibleconstI16-4      2.10ns ± 0%  2.10ns ± 1%     ~     (p=0.571 n=4+5)
-    DivisibleWDivconstI16-4  2.22ns ± 0%  2.23ns ± 1%     ~     (p=0.556 n=4+5)
-    DivconstU16-4            1.09ns ± 0%  1.01ns ± 1%   -7.74%  (p=0.000 n=4+5)
-    DivisibleconstU16-4      1.83ns ± 0%  1.26ns ± 0%  -31.52%  (p=0.008 n=5+5)
-    DivisibleWDivconstU16-4  1.88ns ± 0%  1.89ns ± 1%     ~     (p=0.365 n=5+5)
-    DivconstI8-4             1.54ns ± 1%  1.54ns ± 1%     ~     (p=1.000 n=5+5)
-    DivisibleconstI8-4       2.10ns ± 0%  2.11ns ± 0%     ~     (p=0.238 n=5+4)
-    DivisibleWDivconstI8-4   2.22ns ± 0%  2.23ns ± 2%     ~     (p=0.762 n=5+5)
-    DivconstU8-4             0.92ns ± 1%  0.94ns ± 1%   +2.65%  (p=0.008 n=5+5)
-    DivisibleconstU8-4       1.66ns ± 0%  1.26ns ± 1%  -24.28%  (p=0.008 n=5+5)
-    DivisibleWDivconstU8-4   1.79ns ± 0%  1.80ns ± 1%     ~     (p=0.079 n=4+5)
-    
-    A follow-up change will address the signed division case.
-    
-    Updates #30282
-    
-    Change-Id: I7e995f167179aa5c76bb10fbcbeb49c520943403
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168037
-    Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia3db518cfd9c006caf951b51342a491ac8372e9c
+    Reviewed-on: https://go-review.googlesource.com/c/153297
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/testdata/arith_test.go |    97 +
- src/cmd/compile/internal/ssa/gen/386.rules         |     5 +
- src/cmd/compile/internal/ssa/gen/ARM.rules         |     4 +
- src/cmd/compile/internal/ssa/gen/ARM64.rules       |     2 +
- src/cmd/compile/internal/ssa/gen/MIPS.rules        |     6 +
- src/cmd/compile/internal/ssa/gen/MIPS64.rules      |     6 +
- src/cmd/compile/internal/ssa/gen/PPC64.rules       |     6 +
- src/cmd/compile/internal/ssa/gen/S390X.rules       |     2 +
- src/cmd/compile/internal/ssa/gen/Wasm.rules        |     5 +
- src/cmd/compile/internal/ssa/gen/generic.rules     |   328 +-
- src/cmd/compile/internal/ssa/magic.go              |   107 +-
- src/cmd/compile/internal/ssa/magic_test.go         |   100 +
- src/cmd/compile/internal/ssa/rewrite.go            |    11 +
- src/cmd/compile/internal/ssa/rewrite386.go         |    63 +
- src/cmd/compile/internal/ssa/rewriteARM.go         |    89 +
- src/cmd/compile/internal/ssa/rewriteARM64.go       |    68 +
- src/cmd/compile/internal/ssa/rewriteMIPS.go        |   136 +
- src/cmd/compile/internal/ssa/rewriteMIPS64.go      |   136 +
- src/cmd/compile/internal/ssa/rewritePPC64.go       |   100 +
- src/cmd/compile/internal/ssa/rewriteS390X.go       |    68 +
- src/cmd/compile/internal/ssa/rewriteWasm.go        |   102 +
- src/cmd/compile/internal/ssa/rewritegeneric.go     | 10523 +++++++++++++++++--
- src/cmd/compile/internal/test/divconst_test.go     |   151 +
- test/codegen/arithmetic.go                         |    20 +
- 24 files changed, 11019 insertions(+), 1116 deletions(-)
+ misc/cgo/testshared/shared_test.go       |  6 ++++++
+ misc/cgo/testshared/src/issue25065/a.go  | 20 ++++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go |  6 ++++++
+ 3 files changed, 32 insertions(+)

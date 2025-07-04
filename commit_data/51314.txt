@@ -1,23 +1,23 @@
-commit 334d8e453b5d45ede5265debc51b4775195d9ce9
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 10 16:02:48 2022 -0500
+commit 1f411e9b6d8849014653c89a9df77b8aadd082e6
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jan 7 12:18:30 2022 -0800
 
-    internal/testpty: move from os/signal/internal/pty
+    testing: only snapshot coverage during fuzzing
     
-    We're going to use this for another test, so make it more accessible.
+    Only snapshot/reset coverage counters when we are actually fuzzing.
+    This prevents a race when running corpus/seed values during the testing
+    phase.
     
-    Preparation for #37486.
+    Fixes #50488
     
-    Change-Id: If194cc4244c4b9e1b1f253759b813555b39ad67e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449502
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I7dd5a0353a296c0b13eede29ad9af7c78814fa2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376554
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/go/build/deps_test.go                                      | 2 +-
- src/{os/signal/internal/pty => internal/testpty}/pty.go        | 5 ++---
- src/{os/signal/internal/pty => internal/testpty}/pty_cgo.go    | 2 +-
- src/{os/signal/internal/pty => internal/testpty}/pty_darwin.go | 2 +-
- src/os/signal/signal_cgo_test.go                               | 6 +++---
- 5 files changed, 8 insertions(+), 9 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_test_race.txt | 38 ++++++++++++++++++++++
+ src/testing/fuzz.go                                |  6 ++--
+ 2 files changed, 42 insertions(+), 2 deletions(-)

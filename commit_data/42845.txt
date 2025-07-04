@@ -1,25 +1,23 @@
-commit 346efc28508dc358cba7e246adeb40bde99cfb2a
-Author: Rob Findley <rfindley@google.com>
-Date:   Sun Jul 12 16:57:01 2020 -0400
+commit d67d044310bc5cc1c26b60caf23a58602e9a1946
+Author: Johan Jansson <johan.jansson@iki.fi>
+Date:   Wed Jan 1 18:48:22 2020 +0200
 
-    go/types: better error when converting untyped values in assignments
+    crypto/tls: update ExampleDial with a valid root
     
-    The error returned by convertUntyped is 'cannot convert _ to _', which
-    can be misleading in contexts where an explicit conversion would be
-    allowed.
+    When run as a separate program, the code in ExampleDial panicked due to
+    an expired certificate. Fixed this problem by replacing the expired
+    certificate with a valid one.
     
-    Arguably the error message from convertUntyped should just be 'cannot
-    use _ as _', as 'convert' has an explicit meaning within the spec.
-    Making that change caused a large number of test failures, so for now we
-    just fix this for assignments by interpreting the error.
+    Also added a comment in the certificate to give a hint about why it
+    might fail in the future.
     
-    For #22070
+    Fixes #35706
     
-    Change-Id: I4eed6f39d1a991e8df7e035ec301d28a05150eb5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/242083
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I3d300f7bccae050e4b73ded28b8029aa04b480bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212601
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/go/types/assignments.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/crypto/tls/example_test.go | 43 +++++++++++++++++++++---------------------
+ 1 file changed, 21 insertions(+), 22 deletions(-)

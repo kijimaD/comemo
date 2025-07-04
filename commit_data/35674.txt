@@ -1,16 +1,23 @@
-commit 39ad208c13368bbd1a129c5e2ed85d6ebc22401a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 12 16:16:38 2018 +0000
+commit 8c3c8332cd3e0d78e9b0372097953c7af4aa219a
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue Jan 23 11:35:54 2018 +0000
 
-    test: add test to verify that string copies don't get optimized away
+    cmd/asm: enable several arm64 load & store instructions
     
-    Fixes #25834
+    Instructions LDARB, LDARH, LDAXPW, LDAXP, STLRB, STLRH, STLXP, STLXPW, STXP,
+    STXPW have been added before, but they are not enabled. This CL enabled them.
     
-    Change-Id: I33e58dabfd04b84dfee1a9a3796796b5d19862e7
-    Reviewed-on: https://go-review.googlesource.com/118295
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change the form of LDXP and LDXPW to the form of LDP, and fix a bug of STLXP.
+    
+    Change-Id: I5d2b51494b92451bf6b072c65cfdd8acf07e9b54
+    Reviewed-on: https://go-review.googlesource.com/96215
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/strcopy.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/cmd/asm/internal/arch/arm64.go           |  3 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s    | 18 ++++++++-
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 22 ++++++-----
+ src/cmd/internal/obj/arm64/asm7.go           | 35 +++++++++--------
+ src/cmd/internal/obj/arm64/doc.go            | 57 +++++++++++++++++++++++++++-
+ 5 files changed, 106 insertions(+), 29 deletions(-)

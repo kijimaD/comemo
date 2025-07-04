@@ -1,0 +1,53 @@
+commit 349d7d92bb02e1132f0920acefd70db670ba9a24
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 14 12:41:47 2024 +0100
+
+    crypto/internal/fips: move most tests to crypto/internal/fipstest
+    
+    As explained in fips_test.go, we generally want to minimize tests inside
+    the FIPS module. When there is a relevant calling package, the tests
+    should go there, otherwise in fipstest.
+    
+    This required redoing a bit the CAST failure tests, but the new version
+    is actually more robust because it will fail if a _ import is missing.
+    
+    Since TestCAST doesn't print a line for each passed CAST anymore, made
+    GODEBUG=fips140=debug do that, in case we need to show it to the lab.
+    
+    For #69536
+    
+    Change-Id: I0c1b82a4e9ee39e8df9bbe95bebb0527753f51c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627955
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips/cast.go                   |  15 ++--
+ src/crypto/internal/fips/cast_external_test.go     |  63 -------------
+ src/crypto/internal/fips/cast_test.go              |  13 ---
+ src/crypto/internal/fips/check/check.go            |  22 ++---
+ src/crypto/internal/fips/check/export_test.go      |   9 --
+ src/crypto/internal/fips/drbg/ctrdrbg_test.go      |  49 ----------
+ src/crypto/internal/fips/fips.go                   |   7 +-
+ src/crypto/internal/fips/mlkem/cast.go             |   2 +-
+ src/crypto/internal/fips/mlkem/generate1024.go     |   5 +-
+ src/crypto/internal/fips/mlkem/mlkem1024.go        |  25 ++++--
+ src/crypto/internal/fips/mlkem/mlkem768.go         |  25 ++++--
+ .../{fips => fipstest}/acvp_capabilities.json      |   0
+ .../{fips => fipstest}/acvp_test.config.json       |   0
+ .../internal/{fips => fipstest}/acvp_test.go       |   3 +-
+ .../{fips/alias => fipstest}/alias_test.go         |  11 ++-
+ src/crypto/internal/fipstest/cast_test.go          | 100 +++++++++++++++++++++
+ .../{fips/check => fipstest}/check_test.go         |  12 +--
+ .../{fips/aes/gcm => fipstest}/cmac_test.go        |  14 +--
+ src/crypto/internal/fipstest/ctrdrbg_test.go       |  40 +++++++++
+ src/crypto/internal/fipstest/fips_test.go          |  28 ++++++
+ .../internal/{fips/hkdf => fipstest}/hkdf_test.go  |   5 +-
+ .../internal/{fips => fipstest}/indicator_test.go  |   2 +-
+ .../{fips/mlkem => fipstest}/mlkem_test.go         |  19 ++--
+ .../internal/{fips/sha3 => fipstest}/sha3_test.go  |  16 ++--
+ .../ssh/kdf_test.go => fipstest/sshkdf_test.go}    |   4 +-
+ .../gcm/ctrkdf_test.go => fipstest/xaes_test.go}   |   8 +-
+ 26 files changed, 276 insertions(+), 221 deletions(-)

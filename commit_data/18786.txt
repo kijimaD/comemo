@@ -1,27 +1,22 @@
-commit da1bea0ef0355482e78b8dc0f3cf2f992a8464d7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 6 18:34:29 2014 -0500
+commit d4896fb8766f8b7ac37ba421fbfbffb0f56ee8d4
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 7 09:55:59 2014 +1100
 
-    runtime: fix malloc page alignment + efence
+    cmd/cc, cmd/5c, cmd/6c, cmd/8c: introduce linkarchinit and add amd64p32 support
     
-    Two memory allocator bug fixes.
+    Replaces CL 70000043.
     
-    - efence is not maintaining the proper heap metadata
-      to make eventual memory reuse safe, so use SysFault.
+    Introduce linkarchinit() from cmd/ld.
     
-    - now that our heap PageSize is 8k but most hardware
-      uses 4k pages, SysAlloc and SysReserve results must be
-      explicitly aligned. Do that in a few more call sites and
-      document this fact in malloc.h.
+    For cmd/6c, switch to the amd64p32 linker model if we are building under nacl/amd64p32.
     
-    Fixes #7448.
-    
-    LGTM=iant
-    R=golang-codereviews, josharian, iant
-    CC=dvyukov, golang-codereviews
-    https://golang.org/cl/71750048
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/72010043
 
- src/pkg/runtime/malloc.goc | 82 +++++++++++++++++++++++++++++++++-------------
- src/pkg/runtime/malloc.h   |  6 ++++
- src/pkg/runtime/mgc0.c     |  3 +-
- 3 files changed, 68 insertions(+), 23 deletions(-)
+ src/cmd/6c/txt.c | 11 +++++++++--
+ src/cmd/8c/txt.c |  8 +++++++-
+ src/cmd/cc/cc.h  |  1 +
+ src/cmd/cc/lex.c |  3 ++-
+ 4 files changed, 19 insertions(+), 4 deletions(-)

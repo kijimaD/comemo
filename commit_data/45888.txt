@@ -1,15 +1,41 @@
-commit 7d0e9e6e74b45cf658257363151a79baf030033f
-Author: uji <ujiprog@gmail.com>
-Date:   Wed Jun 30 00:06:23 2021 +0900
+commit 048debb2246d17ecd19ccfd603e8544d5e7946a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 21:47:56 2020 -0500
 
-    image/gif: fix typo in the comment (io.ReadByte -> io.ByteReader)
+    [dev.regabi] cmd/compile: remove gc ↔ ssa cycle hacks
     
-    Fixes #46967
+    The cycle hacks existed because gc needed to import ssa
+    which need to know about gc.Node. But now that's ir.Node,
+    and there's no cycle anymore.
     
-    Change-Id: I66e69c70b74e904623e8ca854562d255692b2143
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331649
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Carlos Amedee <carlos@golang.org>
+    Don't know how much it matters but LocalSlot is now
+    one word shorter than before, because it holds a pointer
+    instead of an interface for the *Node. That won't last long.
+    
+    Now that they're not necessary for interface satisfaction,
+    IsSynthetic and IsAutoTmp can move to top-level ir functions.
+    
+    Change-Id: Ie511e93466cfa2b17d9a91afc4bd8d53fdb80453
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272931
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/image/gif/reader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/fmtmap_test.go              |  2 --
+ src/cmd/compile/internal/gc/order.go        | 10 ++++-----
+ src/cmd/compile/internal/gc/pgen.go         | 16 +++++++--------
+ src/cmd/compile/internal/gc/ssa.go          | 25 +++++++++++-----------
+ src/cmd/compile/internal/gc/typecheck.go    |  2 +-
+ src/cmd/compile/internal/ir/node.go         | 25 +++-------------------
+ src/cmd/compile/internal/ir/sizeof_test.go  |  2 +-
+ src/cmd/compile/internal/ssa/config.go      | 21 ++-----------------
+ src/cmd/compile/internal/ssa/deadstore.go   | 29 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/debug.go       | 21 ++++++++++---------
+ src/cmd/compile/internal/ssa/export_test.go | 32 +++++------------------------
+ src/cmd/compile/internal/ssa/location.go    |  3 ++-
+ src/cmd/compile/internal/ssa/nilcheck.go    |  3 ++-
+ src/cmd/compile/internal/ssa/regalloc.go    |  3 ++-
+ src/cmd/compile/internal/ssa/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go  |  3 ++-
+ 16 files changed, 73 insertions(+), 126 deletions(-)

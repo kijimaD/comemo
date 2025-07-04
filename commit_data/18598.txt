@@ -1,15 +1,19 @@
-commit bcf3d55ed99b7b7e689e05a8333ba89d337c0cad
+commit d4a9bbef51d6b631fa799cc5560294f465273f47
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Feb 23 20:37:43 2014 -0500
+Date:   Sun Feb 23 16:20:40 2014 -0500
 
-    misc/cgo/testso: don't use TLS variables on Darwin and OpenBSD.
-    Fix build for 10.6 Darwin builders and OpenBSD builers.
+    cmd/ld: don't emit unreachable dynimport symbols in ELF symtab.
+    Fix build for Dragonfly BSD.
+    Fixes #7318.
+    Fixes #7367.
     
-    LGTM=jsing
-    R=golang-codereviews, dave, jsing
+    LGTM=jsing, iant
+    R=jsing, iant, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/67710043
+    https://golang.org/cl/64340043
 
- misc/cgo/testso/cgoso_c.c     | 4 ++++
- misc/cgo/testso/cgoso_unix.go | 2 +-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ misc/cgo/testso/cgoso_c.c     |  1 +
+ misc/cgo/testso/cgoso_unix.go | 20 ++++++++++++++++++++
+ src/cmd/ld/data.c             |  9 +++++++--
+ src/cmd/ld/symtab.c           |  2 +-
+ 4 files changed, 29 insertions(+), 3 deletions(-)

@@ -1,20 +1,16 @@
-commit 6c242c52d355772f66466505dd7555d4601f1c5a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 26 16:58:00 2016 -0400
+commit 0d23c28526223f5239581e845e0682f704724525
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 26 16:38:06 2016 -0700
 
-    net/rpc: fix method requirement docs
+    cmd/compile: make dumpdepth a global again
     
-    The receiver itself is not transmitted and does not need to be
-    marshalable by encoding/gob.
+    Fixes indenting in debug output like -W.
     
-    Fixes #16803.
-    
-    Change-Id: I42a3603fb7d3b36c97dcc2e51a398cd65ec3227d
-    Reviewed-on: https://go-review.googlesource.com/32094
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ia16b0bad47428cee71fe036c297731e841ec9ca0
+    Reviewed-on: https://go-review.googlesource.com/27924
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/rpc/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

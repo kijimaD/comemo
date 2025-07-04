@@ -1,14 +1,16 @@
-commit bdf76ca045c989bcff9a0111819559d632a4a39a
-Author: Julie Qiu <julie@golang.org>
-Date:   Tue Jun 2 13:51:38 2020 -0400
+commit 6b0b7aca8aab3c09ccb4e683eb99977a33af5591
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Dec 13 14:21:13 2019 -0500
 
-    doc/go1.15: add release notes for time
+    [dev.link] cmd/link: add some new loader decode type sym utilities
     
-    Updates #37419
+    Add some new utility functions for decoding "type.*" symbol data
+    using loader.Sym instead of sym.Symbol. These are needed for DWARF
+    type DIE generation.
     
-    Change-Id: I2018b55f335400070bfa3573adab9549a5bf6a1a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236158
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I9a4f81d9c8ea975569ea9a9920d728f1e37d1d15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208229
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.15.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/decodesym2.go | 90 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 90 insertions(+)

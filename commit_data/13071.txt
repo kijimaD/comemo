@@ -1,20 +1,17 @@
-commit fcc1f2ac557602f4097e498fa4dd879fb5a680a5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 15 12:51:58 2012 -0400
+commit 4a5a5b20a53493fc3c3803cb2099e38677a5d83f
+Author: Joel Sing <jsing@google.com>
+Date:   Wed May 16 01:53:26 2012 +1000
 
-    cmd/gc: make append(nil, x) error more precise
+    runtime: fix netbsd signal handling
     
-    Before:
-    ./x.go:6: first argument to append must be slice; have nil
+    Update/correct NetBSD signal handling - most of this is needed due to
+    the correctly generated runtime definitions.
     
-    After:
-    ./x.go:6: first argument to append must be typed slice; have untyped nil
-    
-    Fixes #3616.
-    
-    R=ken2
+    R=golang-dev, m4dh4tt3r, rsc
     CC=golang-dev
-    https://golang.org/cl/6209067
+    https://golang.org/cl/6195079
 
- src/cmd/gc/typecheck.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/signal_netbsd_386.c   | 79 ++++++++++++++--------------
+ src/pkg/runtime/signal_netbsd_amd64.c | 99 ++++++++++++++++++-----------------
+ src/pkg/runtime/signals_netbsd.h      | 20 +++----
+ 3 files changed, 101 insertions(+), 97 deletions(-)

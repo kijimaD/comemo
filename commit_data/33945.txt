@@ -1,17 +1,32 @@
-commit 3f150934e274f9ce167e1ed565fb3e60b8ea8223
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 13 11:49:26 2017 -0500
+commit 55ac5b50b079b14bcab4dc1a971d84516cd4bf75
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Sep 20 12:12:33 2017 -0400
 
-    sync: document when and when not to use Map
+    cmd/compile: fix large global variables in -linkshared mode on s390x
     
-    Fixes #21587.
+    When rewriting loads and stores accessing global variables to use the
+    GOT we were making use of REGTMP (R10). Unfortunately loads and stores
+    with large offsets (larger than 20-bits) were also using REGTMP,
+    causing it to be clobbered and subsequently a segmentation fault.
     
-    Change-Id: I47eb181d65da67a3b530c7f8acac9c0c619ea474
-    Reviewed-on: https://go-review.googlesource.com/83796
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This can be fixed by using REGTMP2 (R11) for the rewrite. This is fine
+    because REGTMP2 only has a couple of uses in the assembler (division,
+    high multiplication and storage-to-storage instructions). We didn't
+    use REGTMP2 originally because it used to be used more frequently,
+    in particular for stores of constants to memory. However we have now
+    eliminated those uses.
+    
+    This was found while writing a test case for CL 63030. That test case
+    is included in this CL.
+    
+    Change-Id: I13956f1f3ca258a7c8a7ff0a7570d2848adf7f68
+    Reviewed-on: https://go-review.googlesource.com/65011
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/sync/map.go | 23 ++++++++++++-----------
- 1 file changed, 12 insertions(+), 11 deletions(-)
+ misc/cgo/testshared/shared_test.go          |  9 ++++
+ misc/cgo/testshared/src/global/main.go      | 71 +++++++++++++++++++++++++++++
+ misc/cgo/testshared/src/globallib/global.go | 17 +++++++
+ src/cmd/internal/obj/s390x/objz.go          | 12 ++---
+ 4 files changed, 103 insertions(+), 6 deletions(-)

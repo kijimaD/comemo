@@ -1,24 +1,25 @@
-commit f298b90bc56540e4313b7b7d3ecf08b1390b644f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 27 15:33:48 2023 -0500
+commit 8ff42d1bb1919b38e0d852618168f18d33db866b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Mar 2 11:59:48 2022 -0500
 
-    cmd/dist: set GOFLAGS=-trimpath when building cmd for releases
+    internal/abi, internal/buildcfg: always enable register ABI on ARM64
     
-    Also set it on the Go builders, so that the builders more closely
-    match releases.
+    In last cycle we developed register ABI for ARM64, enabled by
+    default as a GOEXPERIMENT. This cycle we turn it on all the time.
+    Later CLs will clean up fallback code.
     
-    It looks like this change was intended to be included in CL 454836,
-    but was commented out at some point — perhaps during debugging? —
-    before that change was merged.
+    To support in-development platforms (e.g. RISC-V), separate the
+    boolean variables for in-development platforms and always-on
+    platforms.
     
-    For #24904.
-    
-    Change-Id: Ib501274520c5de366d4e9d87a1bd3c6ba2d2413f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463740
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I97c27f6aeccc85ccc57eed2abd783b176da3ad80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393364
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/dist/build.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/internal/abi/abi_arm64.go   |  2 --
+ src/internal/abi/abi_generic.go |  2 +-
+ src/internal/buildcfg/exp.go    | 14 ++++++++++----
+ 3 files changed, 11 insertions(+), 7 deletions(-)

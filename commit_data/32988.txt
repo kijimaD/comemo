@@ -1,34 +1,27 @@
-commit 41fa265db0548d25cb5eb84e80a537128a7172ac
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Tue Oct 3 18:43:33 2017 +0300
+commit 424b0654f8e6c72f69e096f69009096de16e30fa
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 8 17:16:46 2017 +0900
 
-    obj/x86: make VEX-specified-register explicit
+    net: update documentation on Listen and ListenPacket
     
-    "VEX.vvvv" field (VSR, VEX-specified-register) made explicit
-    in Optab encoding.
+    This change clarifies the documentation on Listen and ListenPacket to
+    avoid unnecessary confusion about how the arguments for the connection
+    setup functions are used to make connections.
     
-    vexNDS, vexNDD, vexDDS and vexNOVSR do nothing,
-    this change does not produce any noticeable effect.
+    Also replaces "name" or "hostname" with "host name" when the term
+    implies the use of DNS.
     
-    Rationale behind this change:
-    - keep more information inside optab entries
-    - make encodings match SDM more closely
-    - one less special rule to keep in mind
+    Updates #17613.
+    Updates #17614.
+    Updates #17615.
+    Fixes #17616.
+    Updates #17738.
+    Updates #17956.
     
-    Pvex optabs are updated based on the Intel SDM descriptions.
-    
-    Unused VEX combinations are removed;
-    it is problematic to choose VSR combinations for them
-    without actual Optabs that use them.
-    
-    The origin of this idea can be found in:
-    https://go-review.googlesource.com/#/c/arch/+/66972/
-    
-    Change-Id: I54634a72b44d61f4b924a1e45f2240aab7384dc2
-    Reviewed-on: https://go-review.googlesource.com/67890
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0bad2e143207666f2358d397fc076548ee6c3ae9
+    Reviewed-on: https://go-review.googlesource.com/34876
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 197 +++++++++++++++++++--------------------
- 1 file changed, 95 insertions(+), 102 deletions(-)
+ src/net/dial.go         | 86 +++++++++++++++++++++++++++----------------------
+ src/net/example_test.go |  3 +-
+ 2 files changed, 49 insertions(+), 40 deletions(-)

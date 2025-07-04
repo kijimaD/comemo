@@ -1,12 +1,19 @@
-commit 6c4f3a0c16e5da3caa08cb8f368dc7db90bb211d
-Author: Kale Blankenship <kale@lemnisys.com>
-Date:   Tue Jul 4 08:33:56 2017 -0700
+commit 73912a1b914251d29eb60c8e85262d931f895b90
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 27 15:25:44 2017 -0700
 
-    go/printer: fix typo
+    cmd/vet: remove Peek from list of canonical methods
     
-    Change-Id: Idf89559c9945c5a8743539658fe92e860fcc6a92
-    Reviewed-on: https://go-review.googlesource.com/47362
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    It is insufficiently canonical;
+    see the discussion at issue 19719.
+    
+    Fixes #19719
+    
+    Change-Id: I0559ff3b1b39d7bc4b446d104f36fdf8ce3da50e
+    Reviewed-on: https://go-review.googlesource.com/38722
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/go/printer/printer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/vet/method.go | 1 -
+ 1 file changed, 1 deletion(-)

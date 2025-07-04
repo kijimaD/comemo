@@ -1,22 +1,21 @@
-commit da9376604309b8c470985b8d517a2377cfa56efe
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Feb 7 11:11:45 2023 -0500
+commit 7d3b64a2e372b0e7c550bf9152fe215605e448e4
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Mar 26 10:03:06 2022 -0700
 
-    cmd/cover: add newline to fix -covermode=atomic build error
+    cmd/compile: optimize BSRQ with nonzero input
     
-    Fix a minor buglet in atomic mode fixup that would generate
-    non-compilable code for a package containing only the "package X"
-    clause with no trailing newline following the "X".
+    Same as BSFQ, if the input is known to be nonzero we don't need a CMOV
+    to correct for the weird all-zero behavior of the BSRQ instruction.
     
-    Fixes #58370.
+    Fixes #51964
     
-    Change-Id: I0d9bc4f2b687c6bd913595418f6db7dbe50cc5df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466115
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ic1d14fdf3e7e698ff2f47efecfd761d8a036012a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396034
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/cover/cover.go      |  2 +-
- src/cmd/cover/cover_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

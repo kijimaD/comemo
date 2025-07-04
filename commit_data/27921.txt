@@ -1,38 +1,21 @@
-commit 70544c91ffac19f5ffa66c59e3097f3f1fe900f8
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Jun 6 17:59:05 2016 -0700
+commit b57ac333310e8b8ec01708dcca99430b641457c5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 15 12:49:30 2016 -0700
 
-    cmd/compile/internal/syntax: match old parser errors and line numbers
+    cmd/compile: forward-looking desired register biasing
     
-    This makes a bunch of changes to package syntax to tweak line numbers
-    for AST nodes. For example, short variable declaration statements are
-    now associated with the location of the ":=" token, and function calls
-    are associated with the location of the final ")" token. These help
-    satisfy many unit tests that assume the old parser's behavior.
+    Improve forward-looking desired register calculations.
+    It is now inter-block and handles a bunch more cases.
     
-    Because many of these changes are questionable, they're guarded behind
-    a new "gcCompat" const to make them easy to identify and revisit in
-    the future.
+    Fixes #14504
+    Fixes #14828
+    Fixes #15254
     
-    A handful of remaining tests are too difficult to make behave
-    identically. These have been updated to execute with -newparser=0 and
-    comments explaining why they need to be fixed.
-    
-    all.bash now passes with both the old and new parsers.
-    
-    Change-Id: Iab834b71ca8698d39269f261eb5c92a0d55a3bf4
-    Reviewed-on: https://go-review.googlesource.com/27199
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic240fa0ec6a779d80f577f55c8a6c4ac8c1a940a
+    Reviewed-on: https://go-review.googlesource.com/22160
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/syntax/parser.go       | 148 +++++++++++++++---------
- src/cmd/compile/internal/syntax/scanner.go      |  54 ++++++---
- src/cmd/compile/internal/syntax/scanner_test.go |  24 ++--
- src/go/types/stdlib_test.go                     |   4 +-
- test/fixedbugs/issue11610.go                    |   6 +-
- test/nul1.go                                    |   7 +-
- test/switch2.go                                 |   4 +-
- test/syntax/chan1.go                            |   6 +-
- test/syntax/semi4.go                            |   9 +-
- 9 files changed, 172 insertions(+), 90 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 541 ++++++++++++++++++++++++-------
+ 1 file changed, 422 insertions(+), 119 deletions(-)

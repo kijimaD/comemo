@@ -1,20 +1,16 @@
-commit 0dd120df7e97387411ddba9f58384e69e8862073
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Sat Aug 17 13:22:22 2019 -0700
+commit d5e0b898a5df047ce010540767bd7bdd7d9a3fae
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 6 13:51:43 2019 -0500
 
-    encoding/json: fix format string in the Fuzz func
+    cmd/go: convert TestACL to a script test
     
-    Currently test build fails with:
-    
-    $ go test -tags=gofuzz encoding/json
-    encoding/json/fuzz.go:36:4: Println call has possible formatting directive %s
-    FAIL    encoding/json [build failed]
-    
-    Change-Id: I23aef44a421ed0e7bcf48b74ac5a8c6768a4841b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190698
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id25db146a317f2c5f5425cfabf4c3ca84066d5c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165752
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/encoding/json/fuzz.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/go_windows_test.go                    | 74 ------------------------
+ src/cmd/go/testdata/script/build_acl_windows.txt | 44 ++++++++++++++
+ 2 files changed, 44 insertions(+), 74 deletions(-)

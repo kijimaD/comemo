@@ -1,24 +1,23 @@
-commit 793f1a13f74bbc767525f138ae78faacda59b44c
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Nov 22 12:06:53 2022 -0500
+commit b2dc66c64db933120c34d2223e670e8594543bd9
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 1 10:03:36 2021 -0700
 
-    cmd/dist: revise skip sequence added in CL 452763
+    internal/fuzz: centralize corpus entry addition
     
-    Revise the code added in CL 452763 that skips some of the -race tests
-    on older windows builders. The old-style skip was doing a log.Printf,
-    which wound up being interpreted in "-list" mode. Fix is to pass in a
-    special rtPreFunc when registering the test (thanks Austin for the
-    fix suggestion).
+    Adds an addCorpusEntry method to coordinator which manages checking for
+    duplicate entries, writing entries to the cache directory, and adding
+    entries to the corpus. Also moves readCache to be a method on the
+    coordinator.
     
-    Updates #56904.
+    Fixes #50606
     
-    Change-Id: Ia6ea31fb7f011b539173f47357ab3bf7389f256d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452769
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Id6721384a2ad1cfb4c5471cf0cd0a7510d250a6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360394
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Than McIntosh <thanm@google.com>
 
- src/cmd/dist/test.go | 23 +++++++++++++----------
- 1 file changed, 13 insertions(+), 10 deletions(-)
+ src/internal/fuzz/fuzz.go | 81 +++++++++++++++++++++++++----------------------
+ 1 file changed, 44 insertions(+), 37 deletions(-)

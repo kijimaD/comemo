@@ -1,19 +1,28 @@
-commit 103317217de0ca4b59cc90a09badc744a4fba768
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jun 2 20:58:49 2024 -0700
+commit cb6b45a993a50b4cf24defd92a1afcc49cbf5f25
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 22 19:12:54 2023 -0400
 
-    os/signal: clarify that non-Go thread may change signal mask
+    runtime: symbolize wrappers as a last resort in race tracebacks
     
-    Fixes #67773
+    CL 466099 rewrote stack symbolization in race reports. Prior to this
+    CL, physical frames consisting entirely of wrapper logical frame would
+    print the wrapper, even though in other cases we try to avoid
+    printing wrappers. CL 466099 unintentionally changed this behavior and
+    now physical frames consisting entirely of wrapper frames instead fail
+    to symbolize and print "??()".
     
-    Change-Id: I05c9934a5b2719d22884c8546f4fadaa9978ac67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589755
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Fix this by taking the outermost wrapper frame if the entire logical
+    frame expansion consists of wrappers.
+    
+    Fixes #60245.
+    
+    Change-Id: I13de8857e508b757ea10d1fc7a47258d7fddbfdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497235
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
 
- src/os/signal/doc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/race.go             |  7 +++++--
+ src/runtime/race/output_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 2 deletions(-)

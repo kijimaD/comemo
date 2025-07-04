@@ -1,14 +1,17 @@
-commit 5412c0c17e5d51ff94b37e5c397601f07912bb96
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 8 21:19:42 2018 +0000
+commit 678ce976357ef6a60a603d0b0f9d661f8db353c2
+Author: Julien Schmidt <google@julienschmidt.com>
+Date:   Wed Oct 4 17:26:14 2017 +0200
 
-    net/http/fcgi: update URL to spec documentation
+    database/sql: fix unreachable code in ColumnTypes test
     
-    Fixes #23748
+    Before this change the ct == 0 check could never be true. Moreover the
+    values were not properly indirected.
     
-    Change-Id: Iacdbd57c53492175cf1d3045640db61151e10731
-    Reviewed-on: https://go-review.googlesource.com/92955
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ice47e36e3492babc4b47d2f9099e8772be231c96
+    Reviewed-on: https://go-review.googlesource.com/68130
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/fcgi/fcgi.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/database/sql/sql_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

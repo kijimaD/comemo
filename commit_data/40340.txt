@@ -1,21 +1,23 @@
-commit 9989221ac1853aeda5795952a744de522699494f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 18 12:03:18 2019 -0700
+commit d199369aab38febae37bbd3faede4a3a53a32d95
+Author: David Chase <drchase@google.com>
+Date:   Thu May 2 13:36:10 2019 -0400
 
-    reflect, internal/reflectlite: set capacity when slicing unsafe pointers
+    cmd/compile: make numberlines line mismatch check ignore columns
     
-    Follow the idiom for allowing -d=checkptr to recognize and verify
-    correctness.
+    This does not repair #31786, and in fact also unfixes the revert
+    of CL 174617.  We were just getting lucky when it looked like
+    it was working.  And unfortunately for the bug, there does not
+    appear to be any particular problems with the line numbers;
+    if anything they're a couple of extras, i.e., stepping might
+    repeat, rather than skip.  Delve works fine either way.
     
-    Updates #22218.
-    Updates #34972.
+    Updates #31786.
     
-    Change-Id: Ib6001c6f0e6dc535a36bcfaa1ae48e29e0c737f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202580
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5c2fdc2a0265bb99773b3a85492a3db557dffee4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174948
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/internal/reflectlite/type.go | 4 ++--
- src/reflect/type.go              | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/numberlines.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

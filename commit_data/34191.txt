@@ -1,21 +1,28 @@
-commit eda39fe9b2bdae054a6d0b93efb9b40cc9d24391
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 14 16:59:36 2018 -0800
+commit 966c459fa437e9b2678a08f11e15db7b97c99481
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Oct 9 10:11:00 2017 +0100
 
-    cmd/compile/internal/syntax: fix syntax.Parse doc string, improved tests
+    cmd/link: various cleanups using tools
     
-    1) Fix the doc string for syntax.Parse: The returned AST is
-    always nil if there was an error and an error handler is missing.
+    * remove unnecessary explicit types
+    * remove dead assignments
+    * remove unused fields
+    * unindent code using early continues
+    * remove some unnecessary type conversions
+    * remove some unused func parameters
     
-    2) Adjust the syntax Print and Dump tests such that they print and
-    dump the AST even in the presence of errors.
-    
-    Change-Id: If658eabdcc83f578d815070bc65d1a5f6cfaddfc
-    Reviewed-on: https://go-review.googlesource.com/94157
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I202c67e92940beacbd80fc2dc179f9556dc5d9e5
+    Reviewed-on: https://go-review.googlesource.com/69118
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/syntax/dumper_test.go  | 10 +++++++---
- src/cmd/compile/internal/syntax/nodes.go        |  4 ++--
- src/cmd/compile/internal/syntax/printer_test.go | 12 ++++++++----
- src/cmd/compile/internal/syntax/syntax.go       |  9 +++++----
- 4 files changed, 22 insertions(+), 13 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go               |  3 +--
+ src/cmd/link/internal/ld/elf.go                 | 20 ++++++++++----------
+ src/cmd/link/internal/ld/ldelf.go               | 24 ++++++++++++------------
+ src/cmd/link/internal/ld/lib.go                 |  4 ++--
+ src/cmd/link/internal/ld/link.go                |  6 +++---
+ src/cmd/link/internal/ld/macho.go               |  2 +-
+ src/cmd/link/internal/ld/macho_combine_dwarf.go |  2 +-
+ src/cmd/link/internal/ld/symtab.go              |  4 ++--
+ 8 files changed, 32 insertions(+), 33 deletions(-)

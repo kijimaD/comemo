@@ -1,19 +1,30 @@
-commit b42ebb6fbfc564e7a89e67ac1b9575b49b580bbb
-Author: Joel Sing <jsing@google.com>
-Date:   Tue May 15 11:26:05 2012 +1000
+commit e393a8292ead03c78b570cf1f30ca1d54caf5445
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 14 18:16:47 2012 -0700
 
-    runtime: fix TLS handling for netbsd
+    mime/multipart: fix handling of empty parts without CRLF before next part
     
-    Set the TLS base using the _lwp_setprivate() syscall, instead of via
-    sysarch(). NetBSD tracks the pointer passed to _lwp_setprivate() and
-    restores this value when restoring mcontext. If sysarch() is used
-    directly, restoring an mcontext trashes the FS/GS value, resulting
-    in a segfault when we next try to access the TLS.
+    Empty parts can be either of the form:
     
-    R=golang-dev, r
+    a) "--separator\r\n", header (w/ trailing 2xCRLF), \r\n "--separator"...
+    or
+    b) "--separator\r\n", header (w/ trailing 2xCRLF), "--separator"...
+    
+    We never handled case b).  In fact the RFC seems kinda vague about
+    it, but browsers seem to do a), and App Engine's synthetic POST
+    bodies after blob uploads is of form b).
+    
+    So handle them both, and add a bunch of tests.
+    
+    (I can't promise these are the last fixes to multipart, especially
+    considering its history, but I'm growing increasingly confident at
+    least, and I've never submitted a multipart CL with known bugs
+    outstanding, including this time.)
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6206062
+    https://golang.org/cl/6212046
 
- src/pkg/runtime/sys_netbsd_386.s   | 20 +++++++++-----------
- src/pkg/runtime/sys_netbsd_amd64.s | 20 ++++++++------------
- 2 files changed, 17 insertions(+), 23 deletions(-)
+ src/pkg/mime/multipart/multipart.go      | 115 ++++++++++-----
+ src/pkg/mime/multipart/multipart_test.go | 245 +++++++++++++++++++++++++++----
+ 2 files changed, 292 insertions(+), 68 deletions(-)

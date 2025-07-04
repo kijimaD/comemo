@@ -1,18 +1,22 @@
-commit c88e868030f5f0bc68c11cb65af625e77acc43ba
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jun 7 12:26:06 2016 -0700
+commit ed7cd2546eb997e976534f0542816e12448f34d5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 14 12:17:44 2016 +0900
 
-    cmd/internal/obj: add generated String method for AddrType
+    net: make use of internal/testenv package
     
-    Generated with:
-    
-    stringer -type AddrType cmd/internal/obj
-    
-    Change-Id: I74509cffab774035c5ca2ac0634638d73dbd33f3
-    Reviewed-on: https://go-review.googlesource.com/26657
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6644081df495cb92b3d208f867066f9acb08946f
+    Reviewed-on: https://go-review.googlesource.com/22074
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/addrtype_string.go | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ src/net/dial_test.go           | 29 ++++++++++++---------------
+ src/net/dnsclient_unix_test.go | 21 ++++++--------------
+ src/net/external_test.go       | 11 +++++------
+ src/net/listen_test.go         | 19 ++++++++++++------
+ src/net/lookup_test.go         | 45 +++++++++++++++++++++++++-----------------
+ src/net/lookup_windows_test.go | 17 +++++-----------
+ src/net/main_test.go           |  2 --
+ src/net/platform_test.go       |  3 ++-
+ src/net/tcpsock_test.go        | 10 ++++------
+ src/net/udpsock_test.go        | 10 ++++------
+ 10 files changed, 79 insertions(+), 88 deletions(-)

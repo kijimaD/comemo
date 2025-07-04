@@ -1,20 +1,28 @@
-commit ddf958d4683e79edd9496337bddb9ed624057470
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 4 15:43:43 2015 -0800
+commit 2e78447bafc2dfdfa8b75e01ca3e681741706bbc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 6 13:48:42 2015 -0500
 
-    cmd/go: use new SWIG -cgo option
+    cmd/yacc: adjust expansion of $n to be more useful in errors
     
-    This fixes SWIG to work again.  It requires SWIG 3.0.6 or later.
-    Earlier versions of SWIG will not work because they generate a .c file
-    to be compiled by [568]c, which no longer exist.  As of SWIG 3.0.6
-    SWIG supports a -cgo option that tells it to generate files that
-    import "C" and can be used with the cgo tool.  With luck this will
-    means that future versions of SWIG will not require changes for future
-    versions of Go.
+    When the compiler echoes back an expression, it shows the
+    generated yacc expression. Change the generated code to
+    use a slice so that $3 shows up as yyDollar[3] in such messages.
     
-    Change-Id: Iad7beb196ba9dcd3e3f684196d50e5d51ed98204
-    Reviewed-on: https://go-review.googlesource.com/6851
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Consider changing testdata/expr/expr.y to say:
+    
+            $$.Sub(float64($1), $3)
+    
+    (The float64 conversion is incorrect.)
+    
+    Before:
+    expr.y:70[expr.go:486]: cannot convert exprS[exprpt - 2].num (type *big.Rat) to type float64
+    
+    After:
+    expr.y:70[expr.go:492]: cannot convert exprDollar[1].num (type *big.Rat) to type float64
+    
+    Change-Id: I74e494069df588e62299d1fccb282f3658d8f8f4
+    Reviewed-on: https://go-review.googlesource.com/4630
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/build.go | 196 +++++++++++++++++++++-------------------------------
- 1 file changed, 80 insertions(+), 116 deletions(-)
+ src/cmd/yacc/yacc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

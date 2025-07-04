@@ -1,60 +1,88 @@
-commit ef3e1dae2f151ddca4ba50ed8b9a98381d7e9158
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Thu Sep 26 14:17:17 2024 +0800
+commit 3d4f41aea8f8b4d5d3548274f9d70620818a379f
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Mon Aug 21 09:36:29 2023 +0200
 
-    cmd/compile: optimize loong64 with register indexed load/store
+    cmd/compile: use shorter MOVs for clears of 9, 10, 11 and 12 bytes
     
-    goos: linux
-    goarch: loong64
-    pkg: test/bench/go1
-    cpu: Loongson-3A6000 @ 2500.00MHz
-                          |  bench.old  |              bench.new              |
-                          |   sec/op    |   sec/op     vs base                |
-    BinaryTree17             7.766 ± 1%    7.640 ± 2%   -1.62% (p=0.000 n=20)
-    Fannkuch11               2.649 ± 0%    2.358 ± 0%  -10.96% (p=0.000 n=20)
-    FmtFprintfEmpty         35.89n ± 0%   35.87n ± 0%   -0.06% (p=0.000 n=20)
-    FmtFprintfString        59.44n ± 0%   57.25n ± 2%   -3.68% (p=0.000 n=20)
-    FmtFprintfInt           62.07n ± 0%   60.04n ± 0%   -3.27% (p=0.000 n=20)
-    FmtFprintfIntInt        97.90n ± 0%   97.26n ± 0%   -0.65% (p=0.000 n=20)
-    FmtFprintfPrefixedInt   116.7n ± 0%   119.2n ± 0%   +2.14% (p=0.000 n=20)
-    FmtFprintfFloat         204.5n ± 0%   201.9n ± 0%   -1.30% (p=0.000 n=20)
-    FmtManyArgs             455.9n ± 0%   466.8n ± 0%   +2.39% (p=0.000 n=20)
-    GobDecode               7.458m ± 1%   7.138m ± 1%   -4.28% (p=0.000 n=20)
-    GobEncode               8.573m ± 1%   8.473m ± 1%        ~ (p=0.091 n=20)
-    Gzip                    280.2m ± 0%   284.9m ± 0%   +1.67% (p=0.000 n=20)
-    Gunzip                  32.68m ± 0%   32.67m ± 0%        ~ (p=0.211 n=20)
-    HTTPClientServer        54.22µ ± 0%   53.24µ ± 0%   -1.80% (p=0.000 n=20)
-    JSONEncode              9.427m ± 1%   9.152m ± 0%   -2.92% (p=0.000 n=20)
-    JSONDecode              47.08m ± 1%   46.85m ± 1%   -0.49% (p=0.007 n=20)
-    Mandelbrot200           4.601m ± 0%   4.605m ± 0%   +0.08% (p=0.000 n=20)
-    GoParse                 4.776m ± 0%   4.655m ± 1%   -2.52% (p=0.000 n=20)
-    RegexpMatchEasy0_32     59.77n ± 0%   57.59n ± 0%   -3.66% (p=0.000 n=20)
-    RegexpMatchEasy0_1K     458.1n ± 0%   458.8n ± 0%   +0.15% (p=0.000 n=20)
-    RegexpMatchEasy1_32     59.36n ± 0%   59.24n ± 0%   -0.20% (p=0.000 n=20)
-    RegexpMatchEasy1_1K     557.7n ± 0%   560.2n ± 0%   +0.46% (p=0.000 n=20)
-    RegexpMatchMedium_32    803.1n ± 0%   772.8n ± 0%   -3.77% (p=0.000 n=20)
-    RegexpMatchMedium_1K    27.29µ ± 0%   25.88µ ± 0%   -5.18% (p=0.000 n=20)
-    RegexpMatchHard_32      1.385µ ± 0%   1.304µ ± 0%   -5.85% (p=0.000 n=20)
-    RegexpMatchHard_1K      40.92µ ± 0%   39.58µ ± 0%   -3.27% (p=0.000 n=20)
-    Revcomp                 474.3m ± 0%   410.0m ± 0%  -13.56% (p=0.000 n=20)
-    Template                78.16m ± 0%   76.32m ± 1%   -2.36% (p=0.000 n=20)
-    TimeParse               271.8n ± 0%   272.1n ± 0%   +0.11% (p=0.000 n=20)
-    TimeFormat              292.3n ± 0%   294.8n ± 0%   +0.86% (p=0.000 n=20)
-    geomean                 51.98µ        50.82µ        -2.22%
+    Instead of using two MOVQ, use a smaller MOV(B|W|L) for the remainder.
     
-    Change-Id: Ia78f1ddee8f1d9ec7192a4b8d2a4ec6058679956
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/615918
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    compilecmp:
+    
+    vendor/golang.org/x/net/dns/dnsmessage
+    vendor/golang.org/x/net/dns/dnsmessage.(*SRVResource).GoString 1263 -> 1231  (-2.53%)
+    vendor/golang.org/x/net/dns/dnsmessage.(*OpCode).GoString 285 -> 279  (-2.11%)
+    vendor/golang.org/x/net/dns/dnsmessage.(*MXResource).GoString 603 -> 581  (-3.65%)
+    vendor/golang.org/x/net/dns/dnsmessage.(*Option).GoString 485 -> 478  (-1.44%)
+    
+    os/signal
+    os/signal.cancel.func1 378 -> 346  (-8.47%)
+    
+    fmt
+    fmt.newPrinter 145 -> 138  (-4.83%)
+    fmt.(*pp).catchPanic 1369 -> 1357  (-0.88%)
+    fmt.(*fmt).clearflags 17 -> 13  (-23.53%)
+    fmt.(*fmt).init 85 -> 81  (-4.71%)
+    
+    vendor/golang.org/x/crypto/chacha20poly1305
+    vendor/golang.org/x/crypto/chacha20poly1305.(*xchacha20poly1305).Seal 527 -> 526  (-0.19%)
+    
+    cmd/vendor/golang.org/x/sys/unix
+    cmd/vendor/golang.org/x/sys/unix.(*TIPCSocketAddr).tipcAddr 88 -> 86  (-2.27%)
+    cmd/vendor/golang.org/x/sys/unix.(*TIPCServiceRange).tipcAddr 95 -> 93  (-2.11%)
+    cmd/vendor/golang.org/x/sys/unix.(*TIPCServiceName).tipcAddr 95 -> 93  (-2.11%)
+    
+    fmt [cmd/compile]
+    fmt.(*fmt).clearflags 17 -> 13  (-23.53%)
+    fmt.newPrinter 304 -> 298  (-1.97%)
+    fmt.(*pp).catchPanic 1369 -> 1357  (-0.88%)
+    fmt.Fprint 536 -> 535  (-0.19%)
+    fmt.Sprintf 5009 -> 4945  (-1.28%)
+    fmt.(*fmt).init 85 -> 81  (-4.71%)
+    
+    net/http
+    net/http.http2FrameHeader.Header 89 -> 88  (-1.12%)
+    net/http.http2HeadersFrame.Header 95 -> 94  (-1.05%)
+    net/http.http2RSTStreamFrame.Header 120 -> 119  (-0.83%)
+    net/http.http2WindowUpdateFrame.Header 120 -> 119  (-0.83%)
+    net/http.http2Frame.Header 181 -> 179  (-1.10%)
+    net/http.http2PingFrame.Header 95 -> 94  (-1.05%)
+    net/http.(*http2FrameHeader).Header 119 -> 113  (-5.04%)
+    net/http.http2GoAwayFrame.Header 95 -> 94  (-1.05%)
+    net/http.http2MetaHeadersFrame.Header 133 -> 132  (-0.75%)
+    
+    cmd/vendor/golang.org/x/term
+    cmd/vendor/golang.org/x/term.(*Terminal).clearLineToRight 338 -> 337  (-0.30%)
+    
+    cmd/link/internal/ld
+    cmd/link/internal/ld.appendString 424 -> 421  (-0.71%)
+    
+    cmd/compile/internal/reflectdata [cmd/compile]
+    cmd/compile/internal/reflectdata.dnameData 1574 -> 1561  (-0.83%)
+    
+    file                                             before   after    Δ       %
+    vendor/golang.org/x/net/dns/dnsmessage.s         74536    74469    -67     -0.090%
+    os/signal.s                                      7192     7160     -32     -0.445%
+    fmt.s                                            70428    70401    -27     -0.038%
+    vendor/golang.org/x/crypto/chacha20poly1305.s    7103     7102     -1      -0.014%
+    cmd/vendor/golang.org/x/sys/unix.s               118033   118027   -6      -0.005%
+    fmt [cmd/compile].s                              83679    83588    -91     -0.109%
+    net/http.s                                       536737   536722   -15     -0.003%
+    cmd/vendor/golang.org/x/term.s                   23505    23504    -1      -0.004%
+    cmd/link/internal/ld.s                           571046   571043   -3      -0.001%
+    cmd/compile/internal/reflectdata [cmd/compile].s 72645    72632    -13     -0.018%
+    cmd/compile/internal/ssa.s                       3193233  3193841  +608    +0.019%
+    cmd/compile/internal/ssa [cmd/compile].s         3362126  3362734  +608    +0.018%
+    total                                            30810158 30811118 +960    +0.003%
+    
+    Change-Id: Iade49c590027c0a09a6e546a3b94d2dccd5b7116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521455
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/loong64/ssa.go         |   40 +
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |   67 ++
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   29 +
- src/cmd/compile/internal/ssa/opGen.go           |  261 +++++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 1299 ++++++++++++++++++++++-
- test/codegen/floats.go                          |    2 +
- test/codegen/memcombine.go                      |    6 +
- 7 files changed, 1691 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules | 18 +++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 84 ++++++++++++++++++++++++++-
+ 2 files changed, 99 insertions(+), 3 deletions(-)

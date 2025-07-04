@@ -1,19 +1,15 @@
-commit f3c1070fa4cb02c55b47b874076fe74879288a4c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 12 21:46:33 2013 +0400
+commit 5636b60b705f462de0ee794fac6a0d071ed3a952
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 12 13:42:04 2013 -0400
 
-    sync/atomic: specify argsize for asm routines
-    Fixes #6098.
+    cmd/5l: fix encoding of new MOVB, MOVH instructions
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/12717043
+    They are just like MOVW and should be setting only
+    two register fields, not three.
+    
+    R=ken2
+    CC=golang-dev, remyoudompheng
+    https://golang.org/cl/12781043
 
- src/pkg/sync/atomic/asm_386.s         | 46 +++++++++++++++++------------------
- src/pkg/sync/atomic/asm_amd64.s       | 46 +++++++++++++++++------------------
- src/pkg/sync/atomic/asm_arm.s         | 16 ++++++------
- src/pkg/sync/atomic/asm_freebsd_arm.s |  4 +--
- src/pkg/sync/atomic/asm_linux_arm.s   | 16 ++++++------
- src/pkg/sync/atomic/asm_netbsd_arm.s  |  4 +--
- src/pkg/sync/atomic/atomic_test.go    | 37 ++++++++++++++++++++++++++++
- 7 files changed, 103 insertions(+), 66 deletions(-)
+ src/cmd/5l/asm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

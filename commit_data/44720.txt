@@ -1,16 +1,21 @@
-commit 732ea4c2dcc1bcbcff65c31047ebb54364e7865d
-Author: Rabin Gaire <rabingaire20@gmail.com>
-Date:   Sun Dec 6 23:17:20 2020 +0545
+commit 494ec85d9fd6deea388c454dfd836d9f845f7153
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jul 6 16:45:46 2020 -0400
 
-    sort: add example tests for SearchFloat64s and SearchInts
+    go/types: update test case to exercise mutually recursive interfaces
     
-    Change-Id: I5fa4773467e3f515250deead72fdce3e4bd0973b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275457
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Due to a typo, this test case was not actually exercising the bug
+    described in golang/go#33656. Update it to do so. Interestingly, the
+    comparison is now valid (as it should be) -- I suspect #33656 is
+    actually fixed.
+    
+    Fixes #33656
+    
+    Change-Id: If50a917f6477d8eb4f82f5a2a96bf5d9123ff0d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241263
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
 
- src/sort/example_search_test.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/go/types/testdata/cycles2.src | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

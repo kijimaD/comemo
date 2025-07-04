@@ -1,42 +1,12 @@
-commit 0ed5e6a2be4c7248dfb6c870c445e2504f818623
+commit 94c2536e3f286f06dc7d8acfdbccac115a15437a
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 15 12:17:25 2011 -0500
+Date:   Tue Nov 15 12:05:25 2011 -0500
 
-    strconv: make Ftoa faster
+    runtime: avoid allocation for make([]T, 0)
     
-    Make code amenable to escape analysis
-    so that the decimal values do not escape.
-    
-    benchmark                               old ns/op    new ns/op    delta
-    strconv_test.BenchmarkAtof64Decimal           229          233   +1.75%
-    strconv_test.BenchmarkAtof64Float             261          263   +0.77%
-    strconv_test.BenchmarkAtof64FloatExp         7760         7757   -0.04%
-    strconv_test.BenchmarkAtof64Big              3086         3053   -1.07%
-    strconv_test.BenchmarkFtoa64Decimal          6866         2629  -61.71%
-    strconv_test.BenchmarkFtoa64Float            7211         3064  -57.51%
-    strconv_test.BenchmarkFtoa64FloatExp        12587         8263  -34.35%
-    strconv_test.BenchmarkFtoa64Big              7058         2825  -59.97%
-    json.BenchmarkCodeEncoder               357355200    276528200  -22.62%
-    json.BenchmarkCodeMarshal               360735200    279646400  -22.48%
-    json.BenchmarkCodeDecoder               731528600    709460600   -3.02%
-    json.BenchmarkCodeUnmarshal             754774400    731051200   -3.14%
-    json.BenchmarkCodeUnmarshalReuse        713379000    704218000   -1.28%
-    json.BenchmarkSkipValue                  51594300     51682600   +0.17%
-    
-    benchmark                                old MB/s     new MB/s  speedup
-    json.BenchmarkCodeEncoder                    5.43         7.02    1.29x
-    json.BenchmarkCodeMarshal                    5.38         6.94    1.29x
-    json.BenchmarkCodeDecoder                    2.65         2.74    1.03x
-    json.BenchmarkCodeUnmarshal                  2.57         2.65    1.03x
-    json.BenchmarkCodeUnmarshalReuse             2.72         2.76    1.01x
-    json.BenchmarkSkipValue                     38.61        38.55    1.00x
-    
-    R=golang-dev, r
+    R=gri, iant, iant
     CC=golang-dev
-    https://golang.org/cl/5369111
+    https://golang.org/cl/5375093
 
- src/pkg/strconv/decimal.go       | 27 ++++++++++-----------------
- src/pkg/strconv/decimal_test.go  | 12 +++++++++---
- src/pkg/strconv/ftoa.go          |  9 ++++++---
- src/pkg/strconv/internal_test.go |  6 +++++-
- 4 files changed, 30 insertions(+), 24 deletions(-)
+ src/pkg/runtime/slice.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

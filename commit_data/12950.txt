@@ -1,13 +1,35 @@
-commit 459837c86ecf583ea7597b47b1d2591c332440c9
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 25 11:33:27 2012 +1000
+commit dde8358a1c504f15a1c17ee0822622ea172f1f3d
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Apr 25 10:49:27 2012 +1000
 
-    all: fix errors found by go vet
+    exp/html: adjust inTableIM to match spec
     
-    R=golang-dev, rsc
+    Don't foster-parent text nodes that consist only of whitespace.
+    (I implemented this entirely in inTableIM instead of creating an
+    inTableTextIM, because the sole purpose of inTableTextIM seems to be
+    to combine character tokens into a string, which our tokenizer does
+    already.)
+    
+    Use parseImpliedToken to clarify a couple of cases.
+    
+    Handle <style>, <script>, <input>, and <form>.
+    
+    Ignore doctype tokens.
+    
+    Pass 20 additional tests.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6125044
+    https://golang.org/cl/6117048
 
- src/pkg/exp/norm/maketables.go     | 4 ++--
- src/pkg/text/template/parse/lex.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/exp/html/parse.go                       | 52 ++++++++++++++++++-------
+ src/pkg/exp/html/testlogs/html5test-com.dat.log |  2 +-
+ src/pkg/exp/html/testlogs/tables01.dat.log      |  2 +-
+ src/pkg/exp/html/testlogs/tests15.dat.log       |  4 +-
+ src/pkg/exp/html/testlogs/tests16.dat.log       |  2 +-
+ src/pkg/exp/html/testlogs/tests18.dat.log       |  4 +-
+ src/pkg/exp/html/testlogs/tests19.dat.log       |  2 +-
+ src/pkg/exp/html/testlogs/tests20.dat.log       |  4 +-
+ src/pkg/exp/html/testlogs/tests7.dat.log        | 16 ++++----
+ src/pkg/exp/html/testlogs/tricky01.dat.log      |  4 +-
+ 10 files changed, 57 insertions(+), 35 deletions(-)

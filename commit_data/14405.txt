@@ -1,18 +1,21 @@
-commit 8c96e6d7404f27f473f97dcef8b9fc1f7f7161da
-Author: Joel Sing <jsing@google.com>
-Date:   Thu Nov 15 03:36:19 2012 +1100
+commit 063c13a34cd64de8fe2577279be915ef7c33ab1f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Nov 14 16:58:10 2012 +0400
 
-    debug/elf: fix offset for GNU version symbols
+    runtime/race: more precise handling of finalizers
+    Currently race detector runtime just disables race detection in the finalizer goroutine.
+    It has false positives when a finalizer writes to shared memory -- the race with finalizer is reported in a normal goroutine that accesses the same memory.
+    After this change I am going to synchronize the finalizer goroutine with the rest of the world in racefingo(). This is closer to what happens in reality and so
+    does not have false positives.
+    And also add README file with instructions how to build the runtime.
     
-    Since we no longer skip the first entry when reading a symbol table,
-    we no longer need to allow for the offset difference when processing
-    the GNU version symbols.
-    
-    Unbreaks builds on Linux.
-    
-    R=golang-dev, agl, iant
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6843057
+    https://golang.org/cl/6810095
 
- src/pkg/debug/elf/file.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/mgc0.c                       |   5 ++---
+ src/pkg/runtime/race/README                  |  11 +++++++++++
+ src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 144876 -> 145460 bytes
+ src/pkg/runtime/race/race_linux_amd64.syso   | Bin 142984 -> 147064 bytes
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 118119 -> 123196 bytes
+ 5 files changed, 13 insertions(+), 3 deletions(-)

@@ -1,32 +1,54 @@
-commit a4855812e259f91914328659a37dc3a2582da7ba
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Oct 8 21:52:03 2015 +1300
+commit fc9ca85f4c4d38ee60b92f79544274c6019e8c5b
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 3 09:46:50 2015 -0400
 
-    runtime: add a constant for the smallest possible stack frame
+    runtime: make sweep proportional to spans bytes allocated
     
-    Shared libraries on ppc64le will require a larger minimum stack frame (because
-    the ABI mandates that the TOC pointer is available at 24(R1)). So to prepare
-    for this, make a constant for the fixed part of a stack and use that where
-    necessary.
+    Proportional concurrent sweep is currently based on a ratio of spans
+    to be swept per bytes of object allocation. However, proportional
+    sweeping is performed during span allocation, not object allocation,
+    in order to minimize contention and overhead. Since objects are
+    allocated from spans after those spans are allocated, the system tends
+    to operate in debt, which means when the next GC cycle starts, there
+    is often sweep debt remaining, so GC has to finish the sweep, which
+    delays the start of the cycle and delays enabling mutator assists.
     
-    Change-Id: I447949f4d725003bb82e7d2cf7991c1bca5aa887
-    Reviewed-on: https://go-review.googlesource.com/15523
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For example, it's quite likely that many Ps will simultaneously refill
+    their span caches immediately after a GC cycle (because GC flushes the
+    span caches), but at this point, there has been very little object
+    allocation since the end of GC, so very little sweeping is done. The
+    Ps then allocate objects from these cached spans, which drives up the
+    bytes of object allocation, but since these allocations are coming
+    from cached spans, nothing considers whether more sweeping has to
+    happen. If the sweep ratio is high enough (which can happen if the
+    next GC trigger is very close to the retained heap size), this can
+    easily represent a sweep debt of thousands of pages.
+    
+    Fix this by making proportional sweep proportional to the number of
+    bytes of spans allocated, rather than the number of bytes of objects
+    allocated. Prior to allocating a span, both the small object path and
+    the large object path ensure credit for allocating that span, so the
+    system operates in the black, rather than in the red.
+    
+    Combined with the previous commit, this should eliminate all sweeping
+    from GC start up. On the stress test in issue #11911, this reduces the
+    time spent sweeping during GC (and delaying start up) by several
+    orders of magnitude:
+    
+                    mean    99%ile     max
+        pre fix      1 ms    11 ms   144 ms
+        post fix   270 ns   735 ns   916 ns
+    
+    Updates #11911.
+    
+    Change-Id: I89223712883954c9d6ec2a7a51ecb97172097df3
+    Reviewed-on: https://go-review.googlesource.com/13044
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/arch_386.go      |  1 +
- src/runtime/arch_amd64.go    |  1 +
- src/runtime/arch_amd64p32.go |  1 +
- src/runtime/arch_arm.go      |  1 +
- src/runtime/arch_arm64.go    |  1 +
- src/runtime/arch_ppc64.go    |  1 +
- src/runtime/arch_ppc64le.go  |  1 +
- src/runtime/cgocall.go       | 28 ++++++++++++++++++----------
- src/runtime/mgcmark.go       |  4 +---
- src/runtime/panic.go         |  2 --
- src/runtime/proc1.go         | 11 ++++-------
- src/runtime/signal_ppc64x.go |  2 +-
- src/runtime/stack.go         |  4 +---
- src/runtime/traceback.go     | 17 ++++++-----------
- 14 files changed, 38 insertions(+), 37 deletions(-)
+ src/runtime/malloc.go   |  6 ++++++
+ src/runtime/mcentral.go | 19 ++-----------------
+ src/runtime/mgc.go      |  1 +
+ src/runtime/mgcsweep.go | 32 ++++++++++++++++++++++++++++++++
+ src/runtime/mheap.go    |  1 +
+ 5 files changed, 42 insertions(+), 17 deletions(-)

@@ -1,25 +1,16 @@
-commit a0d6d3855f103db492afb43b243d2ed52959f575
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 27 14:48:24 2017 -0700
+commit 4284edb999716c408c99e9b5dc56734c31e4dcd5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 8 15:57:48 2016 -0800
 
-    cmd/compile: construct typename in walk instead of SSA conversion
+    cmd/link: explain how to find the name to use for -X
     
-    This eliminates references to lineno and
-    other globals from ssa conversion.
+    Doc change only.
     
-    Passes toolstash-check.
+    Fixes #18246.
     
-    Updates #15756
-    
-    Change-Id: I9792074fab0036b42f454b79139d0b27db913fb5
-    Reviewed-on: https://go-review.googlesource.com/38721
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2c7b181bcec81e124d30702f6fac5aa43bb57c04
+    Reviewed-on: https://go-review.googlesource.com/34230
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go    | 12 ++++--------
- src/cmd/compile/internal/gc/subr.go   |  9 +++++++++
- src/cmd/compile/internal/gc/swt.go    | 16 ++++++++++------
- src/cmd/compile/internal/gc/syntax.go |  6 +++---
- src/cmd/compile/internal/gc/walk.go   | 15 ++++++++++++---
- 5 files changed, 38 insertions(+), 20 deletions(-)
+ src/cmd/link/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,12 +1,37 @@
-commit aad8e954740ee21333f60a673b0b77b2c2718923
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu May 31 06:12:24 2012 +0900
+commit f2bd3a977d105f8a4ee3f4c86fe8daf52f629495
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 30 16:47:56 2012 -0400
 
-    net: fix test to avoid unintentional nil pointer dereference
+    cmd/6l, cmd/8l, cmd/5l: add AUNDEF instruction
     
-    R=golang-dev, dave, rsc
+    On 6l and 8l, this is a real instruction, guaranteed to
+    cause an 'undefined instruction' exception.
+    
+    On 5l, we simulate it as BL to address 0.
+    
+    The plan is to use it as a signal to the linker that this
+    point in the instruction stream cannot be reached
+    (hence the changes to nofollow).  This will help the
+    compiler explain that panicindex and friends do not
+    return without having to put a list of these functions
+    in the linker.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6248065
+    https://golang.org/cl/6255064
 
- src/pkg/net/unicast_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/5a/lex.c   | 1 +
+ src/cmd/5l/5.out.h | 2 ++
+ src/cmd/5l/asm.c   | 9 +++++++++
+ src/cmd/5l/optab.c | 2 ++
+ src/cmd/5l/pass.c  | 6 +++---
+ src/cmd/5l/span.c  | 1 +
+ src/cmd/6a/lex.c   | 1 +
+ src/cmd/6l/6.out.h | 2 ++
+ src/cmd/6l/optab.c | 2 ++
+ src/cmd/6l/pass.c  | 1 +
+ src/cmd/8a/lex.c   | 1 +
+ src/cmd/8l/8.out.h | 2 ++
+ src/cmd/8l/optab.c | 2 ++
+ src/cmd/8l/pass.c  | 1 +
+ 14 files changed, 30 insertions(+), 3 deletions(-)

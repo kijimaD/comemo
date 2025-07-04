@@ -1,64 +1,33 @@
-commit 750738b5d197b8b70403c7941fbe0dd20e00ebc9
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 13 01:07:10 2023 -0700
+commit b35ee3b0467e042621aec9af7f18a2d8c63029ad
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 9 14:14:07 2023 +0100
 
-    os: make use of pidfd on linux
+    runtime: remove unnecessary NOFRAME flags on windows
     
-    Use Process.handle field to store pidfd, and make use of it. Only use
-    pidfd functionality if all the needed syscalls are available.
+    This CL removes some NOFRAME flags on Windows assembly files
+    for several reasons:
     
-    1. StartProcess: obtain the pidfd from the kernel, if available,
-       using the functionality added by CL 520266. Note we could not modify
-       syscall.StartProcess to return pidfd directly because it is a public
-       API and its callers do not expect it, so we have to use ensurePidfd
-       and getPidfd.
+    - windows/386 does not use a frame pointer
+    - Leaf frameless functions already skip the frame pointer
+    - Some non-leaf functions do not contain enough dragons to justify
+    not using the frame pointer
     
-    2. (*Process).Kill: use pidfdSendSignal, if the syscall is available
-       and pidfd is known. This is slightly more complicated than it should
-       be, since the syscall can be blocked by e.g. seccomp security policy,
-       therefore the need for a function to check if it's actually working,
-       and a soft fallback to kill. Perhaps this precaution is not really
-       needed.
+    Updates #58378
     
-    3. (*Process).Wait: use pidfdWait, if available, otherwise fall back to
-       using waitid/wait4. This is also more complicated than expected due
-       to struct siginfo_t idiosyncrasy.
-    
-    NOTE pidfdSendSignal and pidfdWait are used without a race workaround
-    (blockUntilWaitable and sigMu, added by CL 23967) because with pidfd,
-    PID recycle issue doesn't exist (IOW, pidfd, unlike PID, is guaranteed
-    to refer to one particular process) and thus the race doesn't exist
-    either.
-    
-    For #62654.
-    Updates #13987.
-    
-    Change-Id: I22ebcc7142b16a3a94c422d2f32504d1a80e8a8f
-    Signed-off-by: Kir Kolyshkin <kolyshkin@gmail.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528438
+    Change-Id: I31e71bf7f769e1957a4adba91778da5af66ce1e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466835
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/internal/syscall/unix/pidfd_linux.go          |   8 ++
- src/internal/syscall/unix/siginfo_linux.go        |  64 ++++++++++
- src/internal/syscall/unix/siginfo_linux_mipsx.go  |  12 ++
- src/internal/syscall/unix/siginfo_linux_other.go  |  12 ++
- src/internal/syscall/unix/siginfo_linux_test.go   |  59 +++++++++
- src/internal/syscall/unix/sysnum_linux_386.go     |   1 +
- src/internal/syscall/unix/sysnum_linux_amd64.go   |   1 +
- src/internal/syscall/unix/sysnum_linux_arm.go     |   1 +
- src/internal/syscall/unix/sysnum_linux_generic.go |   1 +
- src/internal/syscall/unix/sysnum_linux_mips64x.go |   1 +
- src/internal/syscall/unix/sysnum_linux_mipsx.go   |   1 +
- src/internal/syscall/unix/sysnum_linux_ppc64x.go  |   1 +
- src/internal/syscall/unix/sysnum_linux_s390x.go   |   1 +
- src/os/exec_posix.go                              |  10 +-
- src/os/exec_unix.go                               |  39 ++++--
- src/os/export_linux_test.go                       |   1 +
- src/os/pidfd_linux.go                             | 145 ++++++++++++++++++++++
- src/os/pidfd_linux_test.go                        |  17 +++
- src/os/pidfd_other.go                             |  27 ++++
- 19 files changed, 389 insertions(+), 13 deletions(-)
+ src/runtime/rt0_windows_amd64.s  |  4 ++--
+ src/runtime/rt0_windows_arm64.s  |  2 +-
+ src/runtime/sys_windows_386.s    |  6 +++---
+ src/runtime/sys_windows_amd64.s  | 22 +++++++++++++---------
+ src/runtime/sys_windows_arm.s    | 10 +++++-----
+ src/runtime/sys_windows_arm64.s  | 12 +++++-------
+ src/runtime/time_windows_arm.s   |  4 ++--
+ src/runtime/time_windows_arm64.s |  4 ++--
+ 8 files changed, 33 insertions(+), 31 deletions(-)

@@ -1,21 +1,16 @@
-commit a5e8e2d99815346cdff61905237056e0095c75ea
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Sat Dec 16 19:06:10 2017 +0200
+commit ada655759393e30ae25296b94c5cc07b27a4d683
+Author: griesemer <gri@golang.org>
+Date:   Tue Oct 17 15:30:12 2017 -0700
 
-    os: respect umask in Mkdir and OpenFile on BSD systems when perm has ModeSticky set
+    spec: simplify paragraph on certain range expressions over arrays
     
-    Instead of calling Chmod directly on perm, stat the created file/dir to extract the
-    actual permission bits which can be different from perm due to umask.
+    Fixes #22258.
     
-    Fixes #23120.
-    
-    Change-Id: I3e70032451fc254bf48ce9627e98988f84af8d91
-    Reviewed-on: https://go-review.googlesource.com/84477
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I43e68f1cf3163e1a041ebff2734ff2cb7943f695
+    Reviewed-on: https://go-review.googlesource.com/71431
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/file.go         | 11 ++++++++++-
- src/os/file_unix.go    |  8 ++++----
- src/os/os_unix_test.go | 20 ++++++++++++++++++++
- 3 files changed, 34 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

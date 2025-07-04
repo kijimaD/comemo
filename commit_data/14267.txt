@@ -1,13 +1,14 @@
-commit b602c3dbbdde9b42a90ec682921b4c90d84a0340
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Nov 1 10:04:42 2012 +0900
+commit 15e50d7c7a8d77b8c852e5bcd4829b791ab1dfa1
+Author: Dan Callahan <dan.callahan@gmail.com>
+Date:   Wed Oct 31 15:52:27 2012 -0700
 
-    all: clear execute bit
+    encoding/json: clarify correct usage of struct tags in associated article.
     
-    R=golang-dev, r
+    Fixes #4297.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/6826044
+    https://golang.org/cl/6817045
 
- doc/effective_go.html       | 0
- src/pkg/database/sql/sql.go | 0
- 2 files changed, 0 insertions(+), 0 deletions(-)
+ doc/articles/json_and_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

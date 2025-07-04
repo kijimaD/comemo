@@ -1,14 +1,14 @@
-commit 055dcb75665992454454894e87216a2aa2215e4f
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Mar 10 15:49:30 2016 -0800
+commit 91ba9f45c25a0a6b2695b3391d53d31763228dc2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 17:39:34 2016 +0000
 
-    crypto/tls: document that the cipher suite list is non-exhaustive.
+    Revert "cmd/dist: improve isGitRepo to handle git "worktree"s"
     
-    Fixes #14370.
+    This reverts commit ab096d587f9bb5dcdf895511ee6d213aade7e30f.
     
-    Change-Id: Ieb95ee3494f592fb5fc74aa4b803479671816927
-    Reviewed-on: https://go-review.googlesource.com/20551
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icf366aa43acc41b4f8474edae0297e554368bf14
+    Reviewed-on: https://go-review.googlesource.com/18321
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/tls/cipher_suites.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

@@ -1,12 +1,15 @@
-commit f668e0a5b3b1f393ecda995c92503da7b4c89e53
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Nov 9 12:09:22 2012 +0900
+commit 3e50372f1ff0229aa8c42cde8f5cd0b6357b605d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 8 15:43:28 2012 -0800
 
-    net: consolidate multiple init functions
+    test: change index.go to test size of int, not GOARCH == "amd64"
+    
+    Fixes the test to work correctly on other platforms with
+    64-bit ints, like Alpha.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6819117
+    https://golang.org/cl/6822099
 
- src/pkg/net/fd_unix.go | 3 ---
- 1 file changed, 3 deletions(-)
+ test/index.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

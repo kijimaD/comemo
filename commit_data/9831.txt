@@ -1,15 +1,32 @@
-commit 8a4ef5d1eb1d7fb46042026824fe50751179dde6
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Thu Sep 29 12:07:38 2011 -0700
+commit 12ad9b4315ccbcc17b35b51a4a4b5c6fc377bb42
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 29 11:23:06 2011 -0700
 
-    runtime: gdb support, fix pretty printing of channels.
+    fmt: replace channel cache with slice.
+    Simpler concept, and it turns a queue into a stack.
+    Speeds up benchmarks noticeably.
     
-    The type to cast the elements to was stolen from a field
-    that's no longer there.
+    Before:
+    fmt_test.BenchmarkSprintfEmpty  10000000               282 ns/op
+    fmt_test.BenchmarkSprintfString  2000000               910 ns/op
+    fmt_test.BenchmarkSprintfInt     5000000               723 ns/op
+    fmt_test.BenchmarkSprintfIntInt  1000000              1071 ns/op
+    fmt_test.BenchmarkSprintfPrefixedInt     1000000              1108 ns/op
+    fmt_test.BenchmarkScanInts          1000           2239510 ns/op
+    fmt_test.BenchmarkScanRecursiveInt          1000           2365432 ns/op
     
-    R=rsc
+    After:
+    fmt_test.BenchmarkSprintfEmpty  10000000               232 ns/op
+    fmt_test.BenchmarkSprintfString  2000000               837 ns/op
+    fmt_test.BenchmarkSprintfInt     5000000               590 ns/op
+    fmt_test.BenchmarkSprintfIntInt  2000000               910 ns/op
+    fmt_test.BenchmarkSprintfPrefixedInt     2000000               996 ns/op
+    fmt_test.BenchmarkScanInts          1000           2210715 ns/op
+    fmt_test.BenchmarkScanRecursiveInt          1000           2367800 ns/op
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5143050
+    https://golang.org/cl/5151044
 
- src/pkg/runtime/runtime-gdb.py | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/fmt/print.go | 30 +++++++++++++++++-------------
+ 1 file changed, 17 insertions(+), 13 deletions(-)

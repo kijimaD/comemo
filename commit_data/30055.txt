@@ -1,12 +1,16 @@
-commit ecbf90840471a8cd5500c90baea7a60a65b14b10
-Author: Jaana Burcu Dogan <jbd@google.com>
-Date:   Thu Feb 2 11:39:02 2017 -0800
+commit ee4b58df61e25bec2d526947dd76cd2ab5d3051d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 15:51:26 2016 -0400
 
-    doc: consistently link to the SettingGOPATH page
+    log: document that log messages end in newlines
     
-    Change-Id: I4fdd81aa7c9b180cb72ec4af3e7d9d803c99ecac
-    Reviewed-on: https://go-review.googlesource.com/36033
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #16564.
+    
+    Change-Id: Idd7b3c8f1d8415acd952d1efb6dc35ba4191805d
+    Reviewed-on: https://go-review.googlesource.com/31578
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- doc/install.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/log/log.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,27 +1,20 @@
-commit da2d02a9356f2d808992990510eca2b26513be0c
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sun Feb 24 13:18:13 2019 +0100
+commit 1c8943bd59157878141faab0c93848f45d3d51d1
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Sep 25 11:52:24 2018 +0200
 
-    cmd/dist: build exec wrappers during bootstrap
+    cmd/link: move DIE of global variables to their compile unit
     
-    The androidtest.bash script encodes the additional steps to build
-    Go and run tests on Android. In order to add sharded builders and
-    trybots, Android needs to fit into the usual make.bash + cmd/dist test
-    pattern.
+    The DIEs for global variables were all assigned to the first emitted
+    compile unit in debug_info, regardless of what it was. Move them
+    instead to their respective compile units.
     
-    This change moves building the exec wrapper into cmd/dist bootstrap.
-    
-    Do the same for iOS while we're here.
-    
-    Updates #23824
-    
-    Change-Id: I58a1b0679c3a6c92fdc7fff464b469641f1fee74
-    Reviewed-on: https://go-review.googlesource.com/c/163618
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If794fa0ba4702f5b959c6e8c16119b16e7ecf6d8
+    Reviewed-on: https://go-review.googlesource.com/137235
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/androidtest.bash  |  5 +----
- src/cmd/dist/build.go | 30 +++++++++++++++++++++++++++++-
- src/iostest.bash      |  6 +-----
- 3 files changed, 31 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssa/stmtlines_test.go |   3 +
+ src/cmd/internal/dwarf/dwarf.go                |  13 +++
+ src/cmd/link/dwarf_test.go                     |   3 +
+ src/cmd/link/internal/ld/dwarf.go              | 126 +++++++++++++------------
+ src/cmd/link/internal/objfile/objfile.go       |   2 +-
+ 5 files changed, 88 insertions(+), 59 deletions(-)

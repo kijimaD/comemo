@@ -1,14 +1,14 @@
-commit 99d87720ad8bf1390f87f441a811f28702934196
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 17 15:24:54 2013 -0700
+commit c757020b555fa4f2233eea2d06d544373077d2c4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 17 15:22:42 2013 -0700
 
-    test: avoid future 'declared and not used' error
+    reflect: test method calls on pointers to pointers
     
-    See also issue 6414.
+    Gccgo got this wrong, and evidently nothing else tests it.
     
-    R=r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13683044
+    https://golang.org/cl/13709045
 
- test/escape2.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/reflect/all_test.go | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)

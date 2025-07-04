@@ -1,12 +1,15 @@
-commit 19b8aa3b5ddbc3937d9acab64fcfad581a73773d
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Jun 30 13:58:54 2015 +0200
+commit 635cd91eb4c6f22e22b82c7cc831f64fba89581a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 26 16:42:24 2015 -0700
 
-    cmd/compile/internal/gc: give OASWB name
+    math/big: more cleanups (msbxx, nlzxx functions)
     
-    Change-Id: Iacb84421215ca80c7add2818118b2af1a650fd58
-    Reviewed-on: https://go-review.googlesource.com/11639
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibace718452b6dc029c5af5240117f5fc794c38cf
+    Reviewed-on: https://go-review.googlesource.com/10388
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/opnames.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/math/big/arith.go    | 21 +++++++++++--
+ src/math/big/float.go    | 76 ++++++++++++++++++++++++------------------------
+ src/math/big/nat.go      |  4 +--
+ src/math/big/nat_test.go |  6 ++--
+ 4 files changed, 61 insertions(+), 46 deletions(-)

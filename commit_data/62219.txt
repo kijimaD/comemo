@@ -1,0 +1,158 @@
+commit b1a11c54465f24d1861c3568ea3b1bb6304b450d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 11 17:59:59 2025 -0500
+
+    all: update vendored dependencies [generated]
+    
+    The tree has opened for Go 1.25 development. This is a time to update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
+    
+    For #36905.
+    
+    [git-generate]
+    go install golang.org/x/build/cmd/updatestd@latest
+    go install golang.org/x/tools/cmd/bundle@latest
+    updatestd -goroot=$(pwd) -branch=master
+    
+    # Update a cmd/vet test case.
+    cat <<EOF | patch
+    diff --git a/src/cmd/vet/testdata/print/print.go b/src/cmd/vet/testdata/print/print.go
+    index a2ad0f1298..fffe571163 100644
+    --- a/src/cmd/vet/testdata/print/print.go
+    +++ b/src/cmd/vet/testdata/print/print.go
+    @@ -200,8 +200,8 @@ func PrintfTests() {
+            // Bad argument reorderings.
+            Printf("%[xd", 3)                      // ERROR "Printf format %\[xd is missing closing \]"
+            Printf("%[x]d x", 3)                   // ERROR "Printf format has invalid argument index \[x\]"
+    -       Printf("%[3]*s x", "hi", 2)            // ERROR "Printf format has invalid argument index \[3\]"
+    -       _ = fmt.Sprintf("%[3]d x", 2)          // ERROR "Sprintf format has invalid argument index \[3\]"
+    +       Printf("%[3]*s x", "hi", 2)            // ERROR "Printf format %\[3\]\*s reads arg #3, but call has 2 args"
+    +       _ = fmt.Sprintf("%[3]d x", 2)          // ERROR "Sprintf format %\[3\]d reads arg #3, but call has 1 arg"
+            Printf("%[2]*.[1]*[3]d x", 2, "hi", 4) // ERROR "Printf format %\[2]\*\.\[1\]\*\[3\]d uses non-int \x22hi\x22 as argument of \*"
+            Printf("%[0]s x", "arg1")              // ERROR "Printf format has invalid argument index \[0\]"
+            Printf("%[0]d x", 1)                   // ERROR "Printf format has invalid argument index \[0\]"
+    EOF
+    
+    # Temporarily hold x/net back to leave out CL 643780 because it's
+    # causing an import cycle in net/http's generated h2_bundle.go.
+    cd src
+    sed -i '' 's|"golang.org/x/net/internal/httpcommon"||' net/http/h2_bundle.go
+    go get golang.org/x/net@v0.34.1-0.20250123000230-c72e89d6a9e4  # version before CL 643780
+    go mod tidy
+    go mod vendor
+    go generate net/http
+    
+    Change-Id: I91967ceb797bbc741af024cd2d2dba29dc558384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648735
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go.mod                                     |  20 +-
+ src/cmd/go.sum                                     |  36 +-
+ .../golang.org/x/arch/riscv64/riscv64asm/gnu.go    |   5 +
+ .../vendor/golang.org/x/arch/x86/x86asm/tables.go  |   2 +-
+ src/cmd/vendor/golang.org/x/build/relnote/links.go |   2 +-
+ .../vendor/golang.org/x/build/relnote/relnote.go   |   3 +
+ src/cmd/vendor/golang.org/x/mod/modfile/read.go    |   5 +
+ .../vendor/golang.org/x/sync/errgroup/errgroup.go  |   1 +
+ src/cmd/vendor/golang.org/x/sys/unix/auxv.go       |  36 ++
+ .../golang.org/x/sys/unix/auxv_unsupported.go      |  13 +
+ .../golang.org/x/sys/unix/syscall_dragonfly.go     |  12 +
+ .../golang.org/x/sys/unix/syscall_solaris.go       |  87 +++++
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  20 +-
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |   4 +
+ .../golang.org/x/sys/unix/zerrors_linux_loong64.go |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |   3 +
+ .../x/sys/unix/zerrors_linux_mips64le.go           |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |   3 +
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |   3 +
+ .../x/sys/unix/zsyscall_solaris_amd64.go           | 114 +++++++
+ .../golang.org/x/sys/unix/zsysnum_linux_386.go     |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_loong64.go |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |   4 +
+ .../x/sys/unix/zsysnum_linux_mips64le.go           |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc.go     |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |   4 +
+ .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |   4 +
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |   6 +-
+ .../vendor/golang.org/x/sys/windows/dll_windows.go |  11 +-
+ .../x/telemetry/internal/crashmonitor/monitor.go   | 113 ++++++-
+ .../vendor/golang.org/x/tools/cmd/bisect/main.go   |   2 +-
+ .../golang.org/x/tools/go/analysis/analysis.go     |   7 +
+ .../golang.org/x/tools/go/analysis/diagnostic.go   |   4 +-
+ .../go/analysis/internal/analysisflags/flags.go    |   9 -
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |   4 +-
+ .../x/tools/go/analysis/passes/assign/assign.go    |  17 +-
+ .../x/tools/go/analysis/passes/atomic/atomic.go    |  11 +-
+ .../x/tools/go/analysis/passes/bools/bools.go      |   9 +-
+ .../x/tools/go/analysis/passes/cgocall/cgocall.go  |   6 +-
+ .../tools/go/analysis/passes/copylock/copylock.go  |  14 +-
+ .../x/tools/go/analysis/passes/defers/defers.go    |   7 +-
+ .../tools/go/analysis/passes/errorsas/errorsas.go  |  10 +-
+ .../analysis/passes/framepointer/framepointer.go   | 108 +++++-
+ .../analysis/passes/httpresponse/httpresponse.go   |  12 +-
+ .../analysis/passes/internal/analysisutil/util.go  |  62 ----
+ .../go/analysis/passes/loopclosure/loopclosure.go  |   3 +-
+ .../go/analysis/passes/lostcancel/lostcancel.go    |   3 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    | 336 ++++++-------------
+ .../x/tools/go/analysis/passes/shift/shift.go      |   4 +-
+ .../go/analysis/passes/sigchanyzer/sigchanyzer.go  |   9 +-
+ .../x/tools/go/analysis/passes/slog/slog.go        |   7 +-
+ .../go/analysis/passes/stdversion/stdversion.go    |  32 +-
+ .../go/analysis/passes/stringintconv/string.go     |   6 +-
+ .../go/analysis/passes/structtag/structtag.go      |   2 +-
+ .../passes/testinggoroutine/testinggoroutine.go    |   3 +-
+ .../go/analysis/passes/testinggoroutine/util.go    |   2 +
+ .../x/tools/go/analysis/passes/tests/tests.go      |   3 +-
+ .../go/analysis/passes/timeformat/timeformat.go    |  24 +-
+ .../go/analysis/passes/unmarshal/unmarshal.go      |   2 +-
+ .../x/tools/go/analysis/passes/unreachable/doc.go  |   2 +-
+ .../go/analysis/passes/unsafeptr/unsafeptr.go      |   5 +-
+ .../analysis/passes/unusedresult/unusedresult.go   |   2 +-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |  33 +-
+ .../x/tools/go/ast/inspector/inspector.go          | 135 +++++---
+ .../golang.org/x/tools/go/ast/inspector/iter.go    |   4 +-
+ .../golang.org/x/tools/go/ast/inspector/typeof.go  |   5 +-
+ .../golang.org/x/tools/go/ast/inspector/walk.go    | 341 +++++++++++++++++++
+ .../golang.org/x/tools/go/types/typeutil/map.go    | 252 ++++++--------
+ .../x/tools/internal/analysisinternal/analysis.go  | 363 +++++++++++++-------
+ .../x/tools/internal/astutil/edge/edge.go          | 295 ++++++++++++++++
+ .../golang.org/x/tools/internal/fmtstr/parse.go    | 370 +++++++++++++++++++++
+ .../golang.org/x/tools/internal/stdlib/manifest.go | 216 ++++++++++++
+ .../x/tools/internal/typeparams/common.go          |  72 ----
+ .../x/tools/internal/typeparams/coretype.go        |  11 +-
+ .../x/tools/internal/typesinternal/errorcode.go    |   2 +-
+ .../x/tools/internal/typesinternal/qualifier.go    |  46 +++
+ .../x/tools/internal/typesinternal/recv.go         |   3 +
+ .../x/tools/internal/typesinternal/types.go        |   6 +
+ .../x/tools/internal/typesinternal/varkind.go      |  40 +++
+ .../x/tools/internal/typesinternal/zerovalue.go    | 254 ++++++++++----
+ src/cmd/vendor/modules.txt                         |  20 +-
+ src/cmd/vet/testdata/print/print.go                |   4 +-
+ src/go.mod                                         |  10 +-
+ src/go.sum                                         |  16 +-
+ src/net/http/h2_bundle.go                          |  17 +-
+ src/vendor/golang.org/x/sys/cpu/cpu.go             |   3 +
+ src/vendor/golang.org/x/sys/cpu/cpu_x86.go         |  21 +-
+ src/vendor/modules.txt                             |   8 +-
+ 105 files changed, 2868 insertions(+), 998 deletions(-)

@@ -1,52 +1,20 @@
-commit 7de15e362b0bc4ba83c8ca4d7cadc319c99db65a
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 23 11:25:38 2019 -0400
+commit b8648184941815d1466b09071e2907323b9283c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 16 07:29:51 2019 -0400
 
-    runtime: atomically set span state and use as publication barrier
+    cmd/api: read std package info once, not per goos-goarch-cgo
     
-    When everything is working correctly, any pointer the garbage
-    collector encounters can only point into a fully initialized heap
-    span, since the span must have been initialized before that pointer
-    could escape the heap allocator and become visible to the GC.
+    Cuts api test time from 12.7r 26.2u 14.2s to 7.5r 12.1u 2.2s.
     
-    However, in various cases, we try to be defensive against bad
-    pointers. In findObject, this is just a sanity check: we never expect
-    to find a bad pointer, but programming errors can lead to them. In
-    spanOfHeap, we don't necessarily trust the pointer and we're trying to
-    check if it really does point to the heap, though it should always
-    point to something. Conservative scanning takes this to a new level,
-    since it can only guess that a word may be a pointer and verify this.
+    After this change, all.bash runs in ~4:36 on my laptop.
     
-    In all of these cases, we have a problem that the span lookup and
-    check can race with span initialization, since the span becomes
-    visible to lookups before it's fully initialized.
+    For #26473.
     
-    Furthermore, we're about to start initializing the span without the
-    heap lock held, which is going to introduce races where accesses were
-    previously protected by the heap lock.
-    
-    To address this, this CL makes accesses to mspan.state atomic, and
-    ensures that the span is fully initialized before setting the state to
-    mSpanInUse. All loads are now atomic, and in any case where we don't
-    trust the pointer, it first atomically loads the span state and checks
-    that it's mSpanInUse, after which it will have synchronized with span
-    initialization and can safely check the other span fields.
-    
-    For #10958, #24543, but a good fix in general.
-    
-    Change-Id: I518b7c63555b02064b98aa5f802c92b758fef853
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203286
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I4211e6afcd7ab61a4ed2c9a2aa5ac1ea04982695
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177597
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/cgocheck.go    |  2 +-
- src/runtime/export_test.go |  6 +--
- src/runtime/heapdump.go    |  8 ++--
- src/runtime/mbitmap.go     | 18 ++++++---
- src/runtime/mgcmark.go     | 16 ++++----
- src/runtime/mgcsweep.go    | 12 +++---
- src/runtime/mheap.go       | 93 ++++++++++++++++++++++++++++++++--------------
- src/runtime/signal_unix.go |  2 +-
- src/runtime/stack.go       |  4 +-
- 9 files changed, 104 insertions(+), 57 deletions(-)
+ src/cmd/api/goapi.go | 101 +++++++++++++++++++++++++++++----------------------
+ 1 file changed, 58 insertions(+), 43 deletions(-)

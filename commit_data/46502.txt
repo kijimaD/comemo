@@ -1,23 +1,36 @@
-commit b6dddaccd7e8c9c6768943918d03f455385294b9
-Author: Dan Scales <danscales@google.com>
-Date:   Sun Sep 19 17:17:31 2021 -0700
+commit 3e1e13ce6d1271f49f3d8ee359689145a6995bad
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Dec 21 18:06:35 2020 -0500
 
-    cmd/compile: fix transform.AssignOp to deal with tricky case
+    cmd/go: set cfg.BuildMod to "readonly" by default with no module root
     
-    When going to dictionary formats derived from the function
-    instantiations, I had broken out noder.Assignop() to deal specially with
-    shape types, but didn't quite get the tricky case right. We still need
-    to allow conversion between shape types, but if the destination is an
-    interface, we need to use CONVIFACE rather than CONVNOP.
+    modload.Init now sets the default value for -mod if it wasn't set
+    explicitly. This happens before go.mod is loaded, so
+    modload.LoadModFile sets the default value again in order to enable
+    automatic vendoring.
     
-    Fixes #48453.
+    Previously, cfg.BuildMod wasn't set at all if LoadModFile wasn't
+    called, as is the case for commands that run outside of a module
+    root. This problem only affected 'go install pkg@version' since other
+    commands are either forbidden in module mode or run with -mod=mod
+    (like 'go get' and 'go mod' subcommands).
     
-    Change-Id: I8c4b39c2e628172ac34f493f1dd682cbac1e55ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350949
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    This change also suppresses "missing sum" errors when -mod=readonly is
+    enabled and there is no module root.
+    
+    Fixes #43278
+    Related #40278
+    
+    Change-Id: I6071cc42bc5e24d0d7e84556e5bfd8e368e0019d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279490
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/noder/transform.go | 15 ++++++++++++---
- test/typeparam/issue48453.go                | 21 +++++++++++++++++++++
- 2 files changed, 33 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/modload/import.go                  |  6 +++---
+ src/cmd/go/internal/modload/import_test.go             | 13 +++++++++----
+ src/cmd/go/internal/modload/init.go                    | 16 ++++++++--------
+ src/cmd/go/internal/modload/modfile.go                 |  2 +-
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt |  5 +++++
+ 5 files changed, 26 insertions(+), 16 deletions(-)

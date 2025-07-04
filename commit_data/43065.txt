@@ -1,16 +1,22 @@
-commit 4e1d812afc2ebe767face21f34e47de57f3f32a6
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Sep 21 21:50:37 2020 -0400
+commit 17e6252c051e09a3a433620182fc54952a402d73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 10 21:32:04 2020 -0800
 
-    doc/go1.16: add subheads and adjust formatting in the 'Go command' section
+    cmd/compile/internal/syntax: improved scanner tests
     
-    Change-Id: I5f70684d4033d8b11e1cce89268d8222ed596c67
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256400
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    This is one of several changes that were part of a larger rewrite
+    which I made in early 2019 after switching to the new number literal
+    syntax implementation. The purpose of the rewrite was to simplify
+    reading of source code (Unicode character by character) and speed up
+    the scanner but was never submitted for review due to other priorities.
+    
+    Part 1 of 3:
+    
+    This change contains improvements to the scanner tests.
+    
+    Change-Id: Iecfcaef00fdeb690b0db786edbd52e828417141b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221601
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.16.html | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/syntax/scanner_test.go | 151 +++++++++++++++---------
+ 1 file changed, 97 insertions(+), 54 deletions(-)

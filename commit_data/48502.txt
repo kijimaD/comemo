@@ -1,21 +1,19 @@
-commit 515135f4c3f9c67d51d6d3d7b8fe82559ac2e9f2
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Mar 22 20:43:43 2022 +0700
+commit ff0164cf736b12740bf5837111e93130da6d612c
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue May 25 21:21:16 2021 +0000
 
-    cmd/compile: remove types.Type.SetBroken
+    Revert "[dev.fuzz] internal/fuzz: include coverage in logged stats"
     
-    And use base.Fatalf in code that use t.SetBroke(true) instead.
+    This reverts commit 54f067812dd870c305daabd22ca190b0f48e672e.
     
-    Updates #51691
+    Reason for revert: While this is helpful for the engineering team when we're debugging, it might lead to users feeling like the fuzzer is stuck and that there are a lot of edges that are still yet to be reached. In reality, it's very likely that the compiler will instrument more lines of code than are actually reachable by the fuzz target, so showing the ratio between number of edges hit vs. all edges can be misleading. In the future, we may want to consider making this information viewable by a debug flag or something similar.
     
-    Change-Id: I9f3613379dd82d0dd069cdf7b61cbb281810e2e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394574
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ied696f8bf644445bad22c872b64daa7add605ac6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322632
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/typecheck/typecheck.go | 23 ++++-------------------
- src/cmd/compile/internal/types/size.go          | 11 +----------
- src/cmd/compile/internal/types/type.go          |  7 +++----
- 3 files changed, 8 insertions(+), 33 deletions(-)
+ src/internal/fuzz/fuzz.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

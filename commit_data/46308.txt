@@ -1,18 +1,401 @@
-commit 0b66310924ace48c15a3140843576d5b069762de
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Aug 19 05:33:01 2021 +0000
+commit 53c4c17b098093a5636751407e120385031a2e3c
+Merge: 060cdbc7b5 4e8f681eff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 21 13:41:23 2020 -0800
 
-    cmd/internal/obj/riscv: avoid obj.Prog rewriting for store instructions
+    [dev.typeparams] all: merge dev.regabi into dev.typeparams
     
-    Rather than rewriting the obj.Prog for a store instruction, generate the
-    appropriate machine instruction sequence directly.
+    The files below had conflicts that required manual resolution.
+    The unresolved conflict in noder.go was just in the import
+    declaration (trivial). All the other conflicts are in tests
+    where the ERROR regex patterns changed to accomodate gccgo
+    error messages (incoming from dev.regabi), and to accomodate
+    types2 in dev.typeparams. They were resolved by accepting the
+    dev.regabi changes (so as not to lose them) and then by re-
+    applying whatever changes needed to make them pass with types2.
+    Finally, the new test mainsig.go was excluded from run.go when
+    using types2 due to issue #43308.
     
-    Change-Id: I026250ca3d249a1013243948a4e567b708b72d0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344452
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+            src/cmd/compile/internal/gc/noder.go
+            test/fixedbugs/bug13343.go
+            test/fixedbugs/bug462.go
+            test/fixedbugs/issue10975.go
+            test/fixedbugs/issue11326.go
+            test/fixedbugs/issue11361.go
+            test/fixedbugs/issue11371.go
+            test/fixedbugs/issue11674.go
+            test/fixedbugs/issue13365.go
+            test/fixedbugs/issue13471.go
+            test/fixedbugs/issue14136.go
+            test/fixedbugs/issue14321.go
+            test/fixedbugs/issue14729.go
+            test/fixedbugs/issue15898.go
+            test/fixedbugs/issue16439.go
+            test/fixedbugs/issue17588.go
+            test/fixedbugs/issue19323.go
+            test/fixedbugs/issue19482.go
+            test/fixedbugs/issue19880.go
+            test/fixedbugs/issue20185.go
+            test/fixedbugs/issue20227.go
+            test/fixedbugs/issue20415.go
+            test/fixedbugs/issue20749.go
+            test/fixedbugs/issue22794.go
+            test/fixedbugs/issue22822.go
+            test/fixedbugs/issue22921.go
+            test/fixedbugs/issue23823.go
+            test/fixedbugs/issue25727.go
+            test/fixedbugs/issue26616.go
+            test/fixedbugs/issue28079c.go
+            test/fixedbugs/issue28450.go
+            test/fixedbugs/issue30085.go
+            test/fixedbugs/issue30087.go
+            test/fixedbugs/issue35291.go
+            test/fixedbugs/issue38745.go
+            test/fixedbugs/issue41247.go
+            test/fixedbugs/issue41440.go
+            test/fixedbugs/issue41500.go
+            test/fixedbugs/issue4215.go
+            test/fixedbugs/issue6402.go
+            test/fixedbugs/issue6772.go
+            test/fixedbugs/issue7129.go
+            test/fixedbugs/issue7150.go
+            test/fixedbugs/issue7153.go
+            test/fixedbugs/issue7310.go
+            test/fixedbugs/issue8183.go
+            test/fixedbugs/issue8385.go
+            test/fixedbugs/issue8438.go
+            test/fixedbugs/issue8440.go
+            test/fixedbugs/issue8507.go
+            test/fixedbugs/issue9370.go
+            test/fixedbugs/issue9521.go
+    
+    Change-Id: I26e6e326fde6e3fca5400711a253834d710ab7f4
 
- src/cmd/internal/obj/riscv/obj.go | 75 ++++++++++++++++++++-------------------
- 1 file changed, 38 insertions(+), 37 deletions(-)
+ api/go1.16.txt                                     | 481 ++++++++++
+ api/next.txt                                       | 452 ----------
+ doc/go1.15.html                                    |  13 +
+ doc/go1.16.html                                    | 129 ++-
+ doc/install-source.html                            |  67 +-
+ src/cmd/asm/internal/flags/flags.go                |   1 +
+ src/cmd/asm/main.go                                |   1 +
+ src/cmd/compile/internal/gc/abiutilsaux_test.go    |   7 +-
+ src/cmd/compile/internal/gc/alg.go                 |  72 +-
+ src/cmd/compile/internal/gc/align.go               |   7 +-
+ src/cmd/compile/internal/gc/bexport.go             |   7 +-
+ src/cmd/compile/internal/gc/bimport.go             |  20 -
+ src/cmd/compile/internal/gc/closure.go             |  69 +-
+ src/cmd/compile/internal/gc/const.go               |  87 +-
+ src/cmd/compile/internal/gc/dcl.go                 |  65 +-
+ src/cmd/compile/internal/gc/embed.go               |  55 +-
+ src/cmd/compile/internal/gc/escape.go              | 222 ++++-
+ src/cmd/compile/internal/gc/export.go              |  20 +-
+ src/cmd/compile/internal/gc/gen.go                 |  12 +-
+ src/cmd/compile/internal/gc/go.go                  |  14 +-
+ src/cmd/compile/internal/gc/gsubr.go               |   8 +-
+ src/cmd/compile/internal/gc/iexport.go             | 169 ++--
+ src/cmd/compile/internal/gc/iimport.go             | 105 ++-
+ src/cmd/compile/internal/gc/init.go                |  41 +-
+ src/cmd/compile/internal/gc/initorder.go           |  64 +-
+ src/cmd/compile/internal/gc/inl.go                 | 236 ++---
+ src/cmd/compile/internal/gc/main.go                | 117 +--
+ src/cmd/compile/internal/gc/noder.go               | 143 +--
+ src/cmd/compile/internal/gc/obj.go                 | 113 ++-
+ src/cmd/compile/internal/gc/order.go               | 505 ++++++-----
+ src/cmd/compile/internal/gc/pgen.go                |  18 +-
+ src/cmd/compile/internal/gc/pgen_test.go           |   4 +-
+ src/cmd/compile/internal/gc/phi.go                 |   8 +-
+ src/cmd/compile/internal/gc/plive.go               |  26 +-
+ src/cmd/compile/internal/gc/racewalk.go            |   4 +-
+ src/cmd/compile/internal/gc/range.go               |  73 +-
+ src/cmd/compile/internal/gc/reflect.go             |  10 +-
+ src/cmd/compile/internal/gc/scc.go                 |  11 +-
+ src/cmd/compile/internal/gc/select.go              | 144 ++-
+ src/cmd/compile/internal/gc/sinit.go               | 406 +++++----
+ src/cmd/compile/internal/gc/ssa.go                 | 446 ++++++----
+ src/cmd/compile/internal/gc/subr.go                | 208 +++--
+ src/cmd/compile/internal/gc/swt.go                 |  75 +-
+ src/cmd/compile/internal/gc/typecheck.go           | 479 ++++++----
+ src/cmd/compile/internal/gc/universe.go            |  25 +-
+ src/cmd/compile/internal/gc/unsafe.go              |  18 +-
+ src/cmd/compile/internal/gc/walk.go                | 966 ++++++++++-----------
+ src/cmd/compile/internal/ir/copy.go                |   6 -
+ src/cmd/compile/internal/ir/dump.go                |  11 +-
+ src/cmd/compile/internal/ir/expr.go                | 121 ++-
+ src/cmd/compile/internal/ir/fmt.go                 | 303 +++++--
+ src/cmd/compile/internal/ir/mini.go                |  20 +-
+ src/cmd/compile/internal/ir/mknode.go              |  29 +-
+ src/cmd/compile/internal/ir/name.go                |  77 +-
+ src/cmd/compile/internal/ir/node.go                | 105 +--
+ src/cmd/compile/internal/ir/node_gen.go            |  22 +-
+ src/cmd/compile/internal/ir/op_string.go           | 100 +--
+ src/cmd/compile/internal/ir/package.go             |  35 +
+ src/cmd/compile/internal/ir/sizeof_test.go         |   4 +-
+ src/cmd/compile/internal/ir/stmt.go                |  55 +-
+ src/cmd/compile/internal/ir/visit.go               |  98 +--
+ src/cmd/compile/internal/ssa/check.go              |   5 +
+ src/cmd/compile/internal/ssa/expand_calls.go       |   8 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules       |  24 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go       |  30 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |   4 +-
+ src/cmd/compile/internal/ssa/op.go                 |   1 +
+ src/cmd/compile/internal/ssa/opGen.go              |  14 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go       | 290 +++----
+ src/cmd/compile/internal/types/scope.go            |   3 +-
+ src/cmd/compile/internal/types/sizeof_test.go      |   2 +-
+ src/cmd/compile/internal/types/sym.go              |   3 +-
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/alldocs.go                              |  11 +
+ src/cmd/go/go_test.go                              |  25 +
+ src/cmd/go/internal/fix/fix.go                     |  14 +-
+ src/cmd/go/internal/get/get.go                     |   7 +-
+ src/cmd/go/internal/list/list.go                   |  17 +-
+ src/cmd/go/internal/load/pkg.go                    |  58 +-
+ src/cmd/go/internal/modget/get.go                  |   4 +-
+ src/cmd/go/internal/test/test.go                   |   7 +-
+ src/cmd/go/internal/vet/vet.go                     |   3 +-
+ src/cmd/go/internal/work/build.go                  |  48 +-
+ src/cmd/go/internal/work/exec.go                   |  36 +-
+ src/cmd/go/internal/work/exec_test.go              |  86 ++
+ src/cmd/go/internal/work/init.go                   |   3 +-
+ src/cmd/go/testdata/script/mod_outside.txt         |   5 +-
+ src/cmd/internal/goobj/objfile.go                  |   9 +-
+ src/cmd/internal/obj/link.go                       |   6 +
+ src/cmd/internal/obj/s390x/rotate.go               |  14 +-
+ src/cmd/internal/obj/s390x/rotate_test.go          |   2 +-
+ src/cmd/internal/objabi/flag.go                    |  39 +
+ src/cmd/internal/objabi/flag_test.go               |  26 +
+ src/cmd/link/internal/arm64/asm.go                 |  93 +-
+ src/cmd/link/internal/arm64/obj.go                 |   1 +
+ src/cmd/link/internal/ld/data.go                   |   3 +
+ src/cmd/link/internal/ld/lib.go                    |  26 +-
+ src/cmd/link/internal/ld/macho.go                  |  24 +
+ src/cmd/link/internal/ld/pcln.go                   |   1 +
+ src/cmd/link/internal/ld/pe.go                     |   2 +-
+ src/cmd/link/internal/ld/symtab.go                 |  23 +
+ src/cmd/link/internal/ld/xcoff.go                  |   1 +
+ src/cmd/link/internal/loadelf/ldelf.go             |   4 +
+ src/cmd/link/internal/loadpe/ldpe.go               |  17 +-
+ src/cmd/link/link_test.go                          |  54 ++
+ .../go/analysis/passes/structtag/structtag.go      |  94 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/crypto/tls/common.go                           |  21 -
+ src/crypto/tls/conn.go                             |  62 +-
+ src/crypto/tls/handshake_client.go                 |  11 +-
+ src/crypto/tls/handshake_client_test.go            |  36 -
+ src/crypto/tls/handshake_client_tls13.go           |   3 -
+ src/crypto/tls/handshake_server.go                 |  17 +-
+ src/crypto/tls/handshake_server_test.go            |  50 +-
+ src/crypto/tls/handshake_server_tls13.go           |   4 +-
+ src/crypto/tls/tls.go                              |  55 +-
+ src/database/sql/sql.go                            |   2 +-
+ src/debug/dwarf/dwarf5ranges_test.go               |   7 +-
+ src/debug/dwarf/entry.go                           | 123 ++-
+ src/debug/dwarf/entry_test.go                      | 100 ++-
+ src/debug/dwarf/open.go                            |  85 +-
+ src/debug/dwarf/testdata/line-clang-dwarf5.elf     | Bin 0 -> 18384 bytes
+ src/debug/dwarf/testdata/line-gcc-dwarf5.elf       | Bin 0 -> 18040 bytes
+ src/embed/internal/embedtest/embed_test.go         |  28 +-
+ src/embed/internal/embedtest/embedx_test.go        |  14 -
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   8 +-
+ src/go/build/deps_test.go                          |  30 +-
+ src/go/types/call.go                               |   4 +
+ src/go/types/errorcodes.go                         |  10 +
+ src/go/types/fixedbugs/issue43110.src              |  43 +
+ src/go/types/fixedbugs/issue43124.src              |  16 +
+ src/go/types/stmt.go                               |   4 +
+ src/html/template/exec_test.go                     |  70 ++
+ src/html/template/template.go                      |  90 +-
+ src/io/fs/fs.go                                    |   3 +-
+ src/math/big/nat_test.go                           |  10 +
+ src/net/conn_test.go                               |   2 +-
+ src/net/http/h2_bundle.go                          |  12 +-
+ src/net/http/pprof/pprof.go                        |   2 +-
+ src/net/http/response.go                           |   9 +-
+ src/net/http/serve_test.go                         |   4 +
+ src/net/http/server.go                             |   2 +-
+ src/net/http/transport.go                          |  14 +-
+ src/net/http/transport_test.go                     |   2 +-
+ src/net/mockserver_test.go                         |  12 +-
+ src/net/protoconn_test.go                          |   2 +-
+ src/net/server_test.go                             |   4 +-
+ src/net/tcpsock_test.go                            |   2 +-
+ src/os/file_plan9.go                               |  10 -
+ src/os/signal/signal_test.go                       | 102 ++-
+ src/os/tempfile.go                                 |  17 +-
+ src/runtime/metrics/description_test.go            |   2 +-
+ src/runtime/metrics/doc.go                         |   8 +
+ src/runtime/metrics/sample.go                      |  10 +
+ src/runtime/race/output_test.go                    |  21 +-
+ src/syscall/syscall.go                             |  10 +-
+ src/syscall/timestruct.go                          |  12 +-
+ src/text/template/exec.go                          |   4 +
+ src/text/template/exec_test.go                     |  13 +
+ src/vendor/modules.txt                             |   2 +-
+ test/escape_param.go                               |   4 +-
+ test/fixedbugs/bug13343.go                         |   4 +-
+ test/fixedbugs/bug195.go                           |   2 +-
+ test/fixedbugs/bug251.go                           |   2 +-
+ test/fixedbugs/bug302.go                           |   2 +-
+ test/fixedbugs/bug369.go                           |   2 +-
+ test/fixedbugs/bug429.go                           |  14 -
+ test/fixedbugs/bug429_run.go                       |  35 -
+ test/fixedbugs/bug462.go                           |   4 +-
+ test/fixedbugs/issue10607.go                       |   2 +-
+ test/fixedbugs/issue10700.dir/test.go              |  30 +-
+ test/fixedbugs/issue10975.go                       |   2 +-
+ test/fixedbugs/issue11326.go                       |  16 +-
+ test/fixedbugs/issue11326b.go                      |   4 +
+ test/fixedbugs/issue11361.go                       |   4 +-
+ test/fixedbugs/issue11362.go                       |   2 +-
+ test/fixedbugs/issue11371.go                       |  10 +-
+ test/fixedbugs/issue11590.go                       |   6 +-
+ test/fixedbugs/issue11610.go                       |   4 +-
+ test/fixedbugs/issue11614.go                       |   4 +-
+ test/fixedbugs/issue11656.go                       |   8 +-
+ test/fixedbugs/issue11674.go                       |  18 +-
+ test/fixedbugs/issue11771.go                       |   2 +-
+ test/fixedbugs/issue13248.go                       |   4 +-
+ test/fixedbugs/issue13266.go                       |   2 +-
+ test/fixedbugs/issue13268.go                       |   1 +
+ test/fixedbugs/issue13273.go                       |   4 +-
+ test/fixedbugs/issue13274.go                       |   2 +-
+ test/fixedbugs/issue13365.go                       |  14 +-
+ test/fixedbugs/issue13415.go                       |   2 +-
+ test/fixedbugs/issue13471.go                       |  22 +-
+ test/fixedbugs/issue13821b.go                      |  12 +-
+ test/fixedbugs/issue14006.go                       |  14 +-
+ test/fixedbugs/issue14010.go                       |   4 +-
+ test/fixedbugs/issue14136.go                       |   4 +-
+ test/fixedbugs/issue14321.go                       |   8 +-
+ test/fixedbugs/issue14520.go                       |   4 +-
+ test/fixedbugs/issue14636.go                       |   2 +-
+ test/fixedbugs/issue14652.go                       |   2 +-
+ test/fixedbugs/issue14729.go                       |   2 +-
+ test/fixedbugs/issue15514.dir/c.go                 |   2 +-
+ test/fixedbugs/issue15898.go                       |   4 +-
+ test/fixedbugs/issue16037_run.go                   |   2 +-
+ test/fixedbugs/issue16439.go                       |   8 +-
+ test/fixedbugs/issue17328.go                       |   4 +-
+ test/fixedbugs/issue17588.go                       |   2 +-
+ test/fixedbugs/issue17631.go                       |   2 +-
+ test/fixedbugs/issue17645.go                       |   2 +-
+ test/fixedbugs/issue17758.go                       |   2 +-
+ test/fixedbugs/issue18092.go                       |   4 +-
+ test/fixedbugs/issue18231.go                       |   2 +-
+ test/fixedbugs/issue18393.go                       |   2 +-
+ test/fixedbugs/issue18419.dir/test.go              |   2 +-
+ test/fixedbugs/issue18655.go                       |  16 +-
+ test/fixedbugs/issue18915.go                       |   6 +-
+ test/fixedbugs/issue19012.go                       |   8 +-
+ test/fixedbugs/issue19028.dir/main.go              |   2 +-
+ test/fixedbugs/issue19056.go                       |   2 +-
+ test/fixedbugs/issue19323.go                       |   4 +-
+ test/fixedbugs/issue19482.go                       |   8 +-
+ test/fixedbugs/issue19658.go                       |   2 +-
+ test/fixedbugs/issue19667.go                       |   4 +-
+ test/fixedbugs/issue19880.go                       |   2 +-
+ test/fixedbugs/issue19977.go                       |   2 +-
+ test/fixedbugs/issue20185.go                       |   4 +-
+ test/fixedbugs/issue20227.go                       |  10 +-
+ test/fixedbugs/issue20415.go                       |   6 +-
+ test/fixedbugs/issue20529.go                       |   2 +-
+ test/fixedbugs/issue20602.go                       |   4 +-
+ test/fixedbugs/issue20749.go                       |   4 +-
+ test/fixedbugs/issue20780.go                       |   2 +-
+ test/fixedbugs/issue20812.go                       |  10 +-
+ test/fixedbugs/issue20813.go                       |   2 +-
+ test/fixedbugs/issue21256.go                       |   2 +-
+ test/fixedbugs/issue21273.go                       |   2 +-
+ test/fixedbugs/issue21317.go                       |   6 +-
+ test/fixedbugs/issue21576.go                       |   2 +-
+ test/fixedbugs/issue21979.go                       |  34 +-
+ test/fixedbugs/issue21988.go                       |   2 +-
+ test/fixedbugs/issue22063.go                       |   2 +-
+ test/fixedbugs/issue22200.go                       |   2 +-
+ test/fixedbugs/issue22200b.go                      |   6 +-
+ test/fixedbugs/issue22660.go                       |   6 +-
+ test/fixedbugs/issue22662b.go                      |   6 +-
+ test/fixedbugs/issue22794.go                       |   4 +-
+ test/fixedbugs/issue22822.go                       |   4 +-
+ test/fixedbugs/issue22904.go                       |   2 +-
+ test/fixedbugs/issue22921.go                       |   2 +-
+ test/fixedbugs/issue23093.go                       |   2 +-
+ test/fixedbugs/issue23732.go                       |  10 +-
+ test/fixedbugs/issue23823.go                       |   4 +-
+ test/fixedbugs/issue24339.go                       |   2 +-
+ test/fixedbugs/issue25507.go                       |   6 +-
+ test/fixedbugs/issue25727.go                       |  10 +-
+ test/fixedbugs/issue25958.go                       |   4 +-
+ test/fixedbugs/issue26616.go                       |  11 +-
+ test/fixedbugs/issue26855.go                       |   4 +-
+ test/fixedbugs/issue27356.go                       |   4 +-
+ test/fixedbugs/issue27938.go                       |   6 +-
+ test/fixedbugs/issue28079b.go                      |   4 +-
+ test/fixedbugs/issue28079c.go                      |   2 +-
+ test/fixedbugs/issue28268.go                       |   4 +-
+ test/fixedbugs/issue28450.go                       |  12 +-
+ test/fixedbugs/issue28926.go                       |   6 +-
+ test/fixedbugs/issue29855.go                       |   2 +-
+ test/fixedbugs/issue29870b.go                      |   2 +-
+ test/fixedbugs/issue30085.go                       |   4 +-
+ test/fixedbugs/issue30087.go                       |   8 +-
+ test/fixedbugs/issue30722.go                       |   6 +-
+ test/fixedbugs/issue32723.go                       |  12 +-
+ test/fixedbugs/issue33275_run.go                   |   2 +-
+ test/fixedbugs/issue33308.go                       |   2 +-
+ test/fixedbugs/issue33386.go                       |  16 +-
+ test/fixedbugs/issue33460.go                       |  12 +-
+ test/fixedbugs/issue33555.go                       |   2 +-
+ test/fixedbugs/issue35291.go                       |   2 +-
+ test/fixedbugs/issue36437.go                       |   2 +-
+ test/fixedbugs/issue38745.go                       |   6 +-
+ test/fixedbugs/issue41247.go                       |   2 +-
+ test/fixedbugs/issue41440.go                       |   2 +-
+ test/fixedbugs/issue41500.go                       |   8 +-
+ test/fixedbugs/issue41575.go                       |  18 +-
+ test/fixedbugs/issue42058a.go                      |   4 +-
+ test/fixedbugs/issue42058b.go                      |   2 +-
+ test/fixedbugs/issue4215.go                        |  22 +-
+ test/fixedbugs/issue43111.go                       |  70 ++
+ test/fixedbugs/issue43112.go                       |  41 +
+ test/fixedbugs/issue43164.dir/a.go                 |  13 +
+ test/fixedbugs/issue43164.dir/b.go                 |  11 +
+ test/fixedbugs/issue43164.go                       |   7 +
+ test/fixedbugs/issue43167.go                       |  13 +
+ test/fixedbugs/issue43292.go                       |  59 ++
+ test/fixedbugs/issue6402.go                        |   2 +-
+ test/fixedbugs/issue6403.go                        |   4 +-
+ test/fixedbugs/issue6428.go                        |  15 +
+ test/fixedbugs/issue6772.go                        |   4 +-
+ test/fixedbugs/issue6889.go                        |   2 +-
+ test/fixedbugs/issue6964.go                        |   2 +-
+ test/fixedbugs/issue7129.go                        |   6 +-
+ test/fixedbugs/issue7150.go                        |  10 +-
+ test/fixedbugs/issue7153.go                        |   2 +-
+ test/fixedbugs/issue7310.go                        |   6 +-
+ test/fixedbugs/issue7538a.go                       |   2 +-
+ test/fixedbugs/issue7675.go                        |  10 +-
+ test/fixedbugs/issue7746.go                        |   4 +-
+ test/fixedbugs/issue7760.go                        |  16 +-
+ test/fixedbugs/issue8183.go                        |   6 +-
+ test/fixedbugs/issue8311.go                        |   2 +-
+ test/fixedbugs/issue8385.go                        |  16 +-
+ test/fixedbugs/issue8438.go                        |   6 +-
+ test/fixedbugs/issue8440.go                        |   2 +-
+ test/fixedbugs/issue8507.go                        |   2 +-
+ test/fixedbugs/issue9036.go                        |   4 +-
+ test/fixedbugs/issue9076.go                        |   4 +-
+ test/fixedbugs/issue9083.go                        |   1 +
+ test/fixedbugs/issue9355.go                        |   6 +-
+ test/fixedbugs/issue9370.go                        | 140 +--
+ test/fixedbugs/issue9521.go                        |   4 +-
+ test/fixedbugs/issue9862_run.go                    |   2 +-
+ test/linkobj.go                                    |   2 +-
+ test/linkx_run.go                                  |   2 +-
+ test/mainsig.go                                    |  13 +
+ test/nosplit.go                                    |   2 +-
+ test/run.go                                        |   3 +-
+ test/sinit_run.go                                  |   2 +-
+ 327 files changed, 6188 insertions(+), 4611 deletions(-)

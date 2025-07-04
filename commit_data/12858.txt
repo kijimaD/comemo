@@ -1,14 +1,21 @@
-commit 6849c4db0c35cad11a2fb5c6836bc0d4a2ae705d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 10 09:47:57 2012 +1000
+commit 0669261af107eddb13d71293d654b595417f8053
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Mon Apr 9 15:39:59 2012 -0400
 
-    runtime.Callers: make documentation match code
-    It is a bug that Caller and Callers disagree about the offset of the skip
-    parameter. Document the bug.
+    cmd/dist: don't fail when Mercurial is a batch file on Windows
     
-    R=rsc, dsymonds, r, iant
+    On windows Mercurial installed with easy_install typically creates
+    an hg.bat batch file in Python Scripts directory, which cannot be used
+    with CreateProcess unless full path is specified. Work around by
+    launching hg via cmd.exe /c.
+    
+    Additionally, fix a rare FormatMessageW crash.
+    
+    Fixes #3093.
+    
+    R=golang-dev, rsc, alex.brainman, aram, jdpoirier, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/5976064
+    https://golang.org/cl/5937043
 
- src/pkg/runtime/extern.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/dist/windows.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,25 +1,27 @@
-commit 51225f6fc648ba3e833f3493700c2996a816bdaa
-Author: Nick Ripley <nick.ripley@datadoghq.com>
-Date:   Wed Sep 28 14:44:56 2022 -0400
+commit f990b0f1e80cf6152219b4d3f9a397899e8d6d40
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Mar 15 00:23:26 2022 +0000
 
-    runtime: record parent goroutine ID, and print it in stack traces
+    runtime: add wrappers for sys* functions and consolidate docs
     
-    Fixes #38651
+    This change lifts all non-platform-specific code out of sys* functions
+    for each platform up into wrappers, and moves documentation about the OS
+    virtual memory abstraction layer from malloc.go to mem.go, which
+    contains those wrappers.
     
-    Change-Id: Id46d684ee80e208c018791a06c26f304670ed159
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435337
-    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
-    Reviewed-by: Ethan Reesor <ethan.reesor@gmail.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: Ie803e4447403eaafc508b34b53a1a47d6cee9388
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393398
+    Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/export_test.go    |  4 ++++
- src/runtime/proc.go           |  1 +
- src/runtime/proc_test.go      |  5 ++++-
- src/runtime/runtime2.go       |  1 +
- src/runtime/sizeof_test.go    |  2 +-
- src/runtime/traceback.go      | 14 ++++++++++----
- src/runtime/traceback_test.go | 23 +++++++++++++++++++++++
- 7 files changed, 44 insertions(+), 6 deletions(-)
+ src/runtime/malloc.go      |  69 --------------------------
+ src/runtime/mem.go         | 119 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mem_aix.go     |  21 +++-----
+ src/runtime/mem_bsd.go     |  20 +++-----
+ src/runtime/mem_darwin.go  |  20 +++-----
+ src/runtime/mem_js.go      |  22 ++++-----
+ src/runtime/mem_linux.go   |  22 ++++-----
+ src/runtime/mem_plan9.go   |  23 +++------
+ src/runtime/mem_windows.go |  21 ++++----
+ 9 files changed, 179 insertions(+), 158 deletions(-)

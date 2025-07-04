@@ -1,121 +1,25 @@
-commit 82dba1920b8a5a95f3d545895c5cb3350dd2e4e4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 14 18:06:32 2017 +0000
+commit 62947bedd28a884b46f5df71070a9e86dad17081
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 18 14:39:48 2017 -0700
 
-    A+C: automated update
+    cmd/compile: canonicalize empty interface types
     
-    Add Adam Bender (corporate CLA for Google Inc.)
-    Add Ahmet Alp Balkan (corporate CLA for Google Inc.)
-    Add Aishraj Dahal (individual CLA)
-    Add Alexey Neganov (individual CLA)
-    Add Andrew Benton (individual CLA)
-    Add Bartosz Grzybowski (individual CLA)
-    Add Ben Shi (individual CLA)
-    Add Brandon Bennett (corporate CLA for Facebook, Inc.)
-    Add Brian Starke (individual CLA)
-    Add Bulat Gaifullin (individual CLA)
-    Add Carl Henrik Lunde (individual CLA)
-    Add Carlisia Campos (individual CLA)
-    Add Carlo Alberto Ferraris (individual CLA)
-    Add Carolyn Van Slyck (individual CLA)
-    Add Chew Choon Keat (individual CLA)
-    Add Chris Biscardi (individual CLA)
-    Add Damien Lespiau (corporate CLA for Intel Corporation)
-    Add David NewHamlet (individual CLA)
-    Add Dieter Plaetinck (corporate CLA for RainTank)
-    Add Dominic Green (individual CLA)
-    Add Eitan Adler (individual CLA)
-    Add Evgeniy Polyakov (individual CLA)
-    Add Ewan Valentine (individual CLA)
-    Add Fangming Fang (corporate CLA for ARM Ltd.)
-    Add Felipe Oliveira (individual CLA)
-    Add Filip Gruszczyński (individual CLA)
-    Add Gengliang Wang (individual CLA)
-    Add George Gkirtsou (individual CLA)
-    Add Gregory Man (individual CLA)
-    Add Hauke Löffler (individual CLA)
-    Add Heschi Kreinick (corporate CLA for Google Inc.)
-    Add Hongfei Tan (individual CLA)
-    Add Hugues Bruant (individual CLA)
-    Add Ibrahim AshShohail (individual CLA)
-    Add James Neve (individual CLA)
-    Add James Smith (individual CLA)
-    Add Jamie Stackhouse (individual CLA)
-    Add Jan Berktold (individual CLA)
-    Add Jeff Johnson (corporate CLA for Google Inc.)
-    Add Joe Richey (corporate CLA for Google Inc.)
-    Add Johan Brandhorst (individual CLA)
-    Add Jonathan Stacks (individual CLA)
-    Add Jordan Krage (individual CLA)
-    Add Josselin Costanzi (individual CLA)
-    Add Joël Stemmer (corporate CLA for Google Inc.)
-    Add Julio Montes (corporate CLA for Intel Corporation)
-    Add Kamil Chmielewski (individual CLA)
-    Add Karoly Negyesi (individual CLA)
-    Add Keiji Yoshida (individual CLA)
-    Add Kirill Smelkov (corporate CLA for Nexedi)
-    Add Koichi Shiraishi (individual CLA)
-    Add Kris Nova (individual CLA)
-    Add Kyrylo Silin (individual CLA)
-    Add Lars Jeppesen (individual CLA)
-    Add Lars Wiegman (individual CLA)
-    Add Laurie Clark-Michalek (individual CLA)
-    Add Lion Yang (individual CLA)
-    Add Lorenzo Masini (individual CLA)
-    Add Lucas Clemente (corporate CLA for Google Inc.)
-    Add Marcelo E. Magallon (individual CLA)
-    Add Mark Adams (individual CLA)
-    Add Mark Harrison (corporate CLA for Google Inc.)
-    Add Mark Ryan (corporate CLA for Intel Corporation)
-    Add Martin Lindhe (individual CLA)
-    Add Marwan Sulaiman (individual CLA)
-    Add Matt Blair (individual CLA)
-    Add Matt Harden (individual CLA)
-    Add Matt Strong (individual CLA)
-    Add Mike Wiacek (corporate CLA for Google Inc.)
-    Add Milutin Jovanović (individual CLA)
-    Add Monis Khan (corporate CLA for Red Hat, Inc.)
-    Add Mostyn Bramley-Moore (individual CLA)
-    Add Mura Li (individual CLA)
-    Add Máté Gulyás (individual CLA)
-    Add Nathan Caza (individual CLA)
-    Add Nicholas Maniscalco (individual CLA)
-    Add Nick Kubala (corporate CLA for Google Inc.)
-    Add Nick Miyake (individual CLA)
-    Add Niklas Schnelle (individual CLA)
-    Add Patrick Pelletier (individual CLA)
-    Add Paul Jolly (individual CLA)
-    Add Paulo Flabiano Smorigo (corporate CLA for IBM)
-    Add Peter Nguyen (individual CLA)
-    Add Pravendra Singh (individual CLA)
-    Add Raymond Kazlauskas (individual CLA)
-    Add Remi Gillig (individual CLA)
-    Add Sam Boyer (individual CLA)
-    Add Sean Chittenden (corporate CLA for Joyent, Inc.)
-    Add Sean Christopherson (corporate CLA for Intel Corporation)
-    Add Shintaro Kaneko (individual CLA)
-    Add Takuto Ikuta (corporate CLA for Google Inc.)
-    Add Thomas Bonfort (individual CLA)
-    Add Toshiki Shima (individual CLA)
-    Add Trey Roessig (individual CLA)
-    Add Wade Simmons (individual CLA)
-    Add Wei Xiao (corporate CLA for ARM Ltd.)
-    Add Weichao Tang (individual CLA)
-    Add Will Storey (individual CLA)
-    Add Wu Yunzhou (individual CLA)
-    Add Xu Fee (individual CLA)
-    Add Zach Bintliff (individual CLA)
-    Add Zak (individual CLA)
-    Add Zellyn Hunter (corporate CLA for Square, Inc.)
-    Add Максим Федосеев (individual CLA)
-    Add 张嵩 (individual CLA)
+    Mapping all empty interfaces onto the same Type
+    allows better reuse of the ptrTo and sliceOf
+    Type caches for *interface{} and []interface{}.
     
-    Updates #12042
+    This has little compiler performance impact now,
+    but it will be helpful in the future,
+    when we will eagerly populate some of those caches.
     
-    Change-Id: I43922a9489828e519e480f8fc1abc92863e0abcc
-    Reviewed-on: https://go-review.googlesource.com/45770
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I17daee599a129b0b2f5f3025c1be43d569d6782c
+    Reviewed-on: https://go-review.googlesource.com/38344
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- AUTHORS      |  90 +++++++++++++++++++++++++++++++++++++++++++++++--
- CONTRIBUTORS | 108 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 194 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 8 ++++++--
+ src/cmd/compile/internal/gc/dcl.go     | 3 +++
+ 2 files changed, 9 insertions(+), 2 deletions(-)

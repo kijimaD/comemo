@@ -1,15 +1,24 @@
-commit 9efcdd4e694789646e7de79dfbd8c7636803785a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 2 23:01:20 2016 -0400
+commit f30598dd71b5bb7109eda56b02ea10d2b6cc1362
+Author: Joonas Kuorilehto <joneskoo@derbian.fi>
+Date:   Sat Sep 10 22:07:33 2016 +0300
 
-    cmd/go: use new HTTP-only server insecure.go-get-issue-15410.appspot.com instead of wh3rd.net
+    crypto/tls: Add mutex to protect KeyLogWriter
     
-    Fixes #15410.
+    Concurrent use of tls.Config is allowed, and may lead to
+    KeyLogWriter being written to concurrently. Without a mutex
+    to protect it, corrupted output may occur. A mutex is added
+    for correctness.
     
-    Change-Id: I9964d0162a3cae690afeb889b1822cf79c80b89a
-    Reviewed-on: https://go-review.googlesource.com/32639
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    The mutex is made global to save size of the config struct as
+    KeyLogWriter is rarely enabled.
+    
+    Related to #13057.
+    
+    Change-Id: I5ee55b6d8b43a191ec21f06e2aaae5002a71daef
+    Reviewed-on: https://go-review.googlesource.com/29016
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/crypto/tls/common.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,27 +1,19 @@
-commit b5ddbb90bf1b6aa3881a342bbf7986ba14df3348
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 26 15:52:13 2016 -0800
+commit bcce5bdabd0c8fba61b700aab15813800b9e9c07
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 10 15:31:53 2015 -0700
 
-    spec: refine rules about terminating statements
+    cmd/compile: remove NodeList != NodeList comparisons
     
-    Per a suggestion from mdempsky.
+    Opt for replacements that avoid any assumptions
+    about the representations in use.
     
-    Both gc and gccgo consider a statement list as terminating if the
-    last _non_empty_ statement is terminating; i.e., trailing semis are
-    ok. Only gotype followed the current stricter rule in the spec.
+    Passes toolstash -cmp.
     
-    This change adjusts the spec to match gc and gccgo behavior. In
-    support of this change, the spec has a matching rule for fallthrough,
-    which in valid positions may be followed by trailing semis as well.
-    
-    For details and examples, see the issue below.
-    
-    Fixes #14422.
-    
-    Change-Id: Ie17c282e216fc40ecb54623445c17be111e17ade
-    Reviewed-on: https://go-review.googlesource.com/19981
+    Change-Id: Ia858a33abcae344e03fc1862fc9b0e192fde80c1
+    Reviewed-on: https://go-review.googlesource.com/20279
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

@@ -1,17 +1,18 @@
-commit 6718bb22fe36db9f58d4b4263ed9ffa182ca0c1b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jan 18 17:33:49 2019 -0500
+commit 25b84c01555645ccdc8ca83fe11461f1b450c286
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 28 14:47:35 2018 -0700
 
-    crypto/tls: send a "handshake failure" alert if the RSA key is too small
+    cmd/compile: move v.Pos.line check to warnRule
     
-    Fixes #29779
+    This simplifies the rewrite rules.
     
-    Change-Id: I7eb8b4db187597e07d8ec7d3ff651f008e2ca433
-    Reviewed-on: https://go-review.googlesource.com/c/158639
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Iff062297d42a23cb31ad55e8c733842ecbc07da2
+    Reviewed-on: https://go-review.googlesource.com/129377
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/tls/handshake_server_test.go  | 43 ++++++++++++++++++++++++++++++++
- src/crypto/tls/handshake_server_tls13.go |  8 +++++-
- 2 files changed, 50 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 4 ++--
+ src/cmd/compile/internal/ssa/rewrite.go        | 8 ++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 8 ++++----
+ 3 files changed, 10 insertions(+), 10 deletions(-)

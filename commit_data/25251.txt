@@ -1,18 +1,12 @@
-commit 0954c80114ab3e80ea5ea391ef87be96ed7fd9cf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 14 18:30:24 2015 +0000
+commit 2687db109d2b9f057f9e75503d4a9325e26e84a0
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Oct 13 13:19:09 2015 -0700
 
-    net/http: update bundled http2 copy from x/net/http2
+    compress/gzip: fix go vet warning
     
-    Updates to x/net git rev 6c105c0a
-    
-    Fixes #13598
-    
-    Change-Id: I207d4c78d744f0fd83cb5acd8bd6e5987e59a4f7
-    Reviewed-on: https://go-review.googlesource.com/17756
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2ac6b178e666e34e028001078faf62ce71e12e9d
+    Reviewed-on: https://go-review.googlesource.com/15834
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/h2_bundle.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/compress/gzip/gunzip_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

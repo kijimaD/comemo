@@ -1,19 +1,17 @@
-commit 75c1aed3457238295d761b5a6f3adcf776c578e7
+commit 70b09c72716798caa1b8b55baabdb6a10e275472
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 4 16:32:07 2018 -0700
+Date:   Thu Feb 22 10:15:42 2018 -0800
 
-    runtime: slightly better error message for assertion panics with identical looking types
+    go/types: add -panic flag to gotype command for debugging
     
-    Fixes #18911.
+    Setting -panic will cause gotype to panic with the first reported
+    error, producing a stack trace for debugging.
     
-    Change-Id: Ice10f37460a4f0a66cddeacfe26c28045f5e60fe
-    Reviewed-on: https://go-review.googlesource.com/116255
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    For #23914.
+    
+    Change-Id: I40c41cf10aa13d1dd9a099f727ef4201802de13a
+    Reviewed-on: https://go-review.googlesource.com/96375
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/error.go               |  7 ++++++-
- test/fixedbugs/issue18911.dir/a.go |  7 +++++++
- test/fixedbugs/issue18911.dir/b.go | 21 +++++++++++++++++++++
- test/fixedbugs/issue18911.go       |  7 +++++++
- 4 files changed, 41 insertions(+), 1 deletion(-)
+ src/go/types/gotype.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

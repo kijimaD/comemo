@@ -1,22 +1,27 @@
-commit f29ec7d74a17249b3dfa721fc6ee1dcf3c77b5d5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Aug 24 16:06:10 2016 -0700
+commit a19e60b2c3c388abd3503da3fc2659bef1e76b46
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 26 15:22:33 2016 -0700
 
-    runtime: remove unused type sigtabtt
+    cmd/compile: don't use line numbers from ONAME and named OLITERALs
     
-    The type sigtabtt was introduced by an automated tool in
-    https://golang.org/cl/167550043. It was the Go version of the C type
-    SigTab. However, when the C code using SigTab was converted to Go in
-    https://golang.org/cl/168500044 it was rewritten to use a different Go
-    type, sigTabT, rather than sigtabtt (the difference being that sigTabT
-    uses string where sigtabtt uses *int8 from the C type char*). So this is
-    just a dreg from the conversion that was never actually used.
+    The line numbers of ONAMEs are the location of their
+    declaration, not their use.
     
-    Change-Id: I2ec6eb4b25613bf5e5ad1dbba1f4b5ff20f80f55
-    Reviewed-on: https://go-review.googlesource.com/27691
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The line numbers of named OLITERALs are also the location
+    of their declaration.
+    
+    Ignore both of these.  Instead, we will inherit the line number from
+    the containing syntactic item.
+    
+    Fixes #14742
+    Fixes #15430
+    
+    Change-Id: Ie43b5b9f6321cbf8cead56e37ccc9364d0702f2f
+    Reviewed-on: https://go-review.googlesource.com/22479
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/runtime2.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)

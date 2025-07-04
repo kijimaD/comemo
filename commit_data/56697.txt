@@ -1,23 +1,22 @@
-commit ee29dbe43eeb28a2834803e8e1275f1dccb18bc2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 28 10:53:44 2024 -0700
+commit b66474e0217145570fbc38d66b3f11af64586225
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 22 11:38:46 2023 -0700
 
-    go/types, types2: don't lose alias information during unification
+    runtime: treat TestRaceSignal as flaky on Darwin
     
-    While at it, rename asTypeParam to asBoundTypeParam for clarity.
+    It should be impossible for the program to exit with SIGCHLD,
+    but it happens occasionally. Skip the test on Darwin.
     
-    For #67547.
-    Fixes #67628.
+    For #60316
     
-    Change-Id: I2f447c4cd4d72f5315fe9323d82fcb9bf33657c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588797
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Idc9d89838e73f077afc42a9703554d61ac7a0069
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497055
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/unify.go           | 31 +++++++++++-----------
- src/go/types/unify.go                              | 31 +++++++++++-----------
- .../types/testdata/fixedbugs/issue67628.go         | 17 ++++++++++++
- 3 files changed, 49 insertions(+), 30 deletions(-)
+ src/runtime/crash_cgo_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

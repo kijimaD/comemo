@@ -1,23 +1,22 @@
-commit 70ed28e5f763d08ee0d3be7bde14b35ce3d6322e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sun Apr 11 14:33:28 2021 -0400
+commit ae329abec0f78743ab2fbf30ef5b488376fe3c85
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 23 12:28:29 2020 -0400
 
-    cmd/compile: support memmove inlining with register args
+    cmd/go: add another test case for package/module ambiguity in 'go get'
     
-    The rule that inlines memmove expects SSA ops that calls memmove
-    with arguments in memory. This CL adds a version that matches
-    it with arguments in registers, so the optimization works for
-    both situations.
+    For #37438
     
-    Change-Id: Ideb64f65b7521481ab2ca7c9975a6cf7b70d5966
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309332
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iae00ef7f97144e85f4f710cdb3087c2548b4b8f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256799
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 22 +++++++---
- src/cmd/compile/internal/ssa/rewrite.go        |  6 +--
- src/cmd/compile/internal/ssa/rewritegeneric.go | 58 ++++++++++++++++++++++++++
- 3 files changed, 77 insertions(+), 9 deletions(-)
+ .../testdata/mod/example.net_pkgremoved_v0.1.0.txt | 16 +++++++++
+ .../testdata/mod/example.net_pkgremoved_v0.2.0.txt | 15 +++++++++
+ .../testdata/mod/example.net_pkgremoved_v0.2.1.txt | 15 +++++++++
+ src/cmd/go/testdata/script/mod_get_patchmod.txt    | 38 ++++++++++++++++++++++
+ 4 files changed, 84 insertions(+)

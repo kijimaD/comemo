@@ -1,23 +1,17 @@
-commit 2763672ecbddec940c6586f43c98bf72a49bcc81
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Thu Aug 17 09:45:20 2017 +0900
+commit 6f2e6f8dd6d2b0fc1b32447c4ed38231fde4a3c2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 16:11:15 2017 -0400
 
-    cmd/link: show native relocation type name in error messages
+    runtime/pprof: don't accept "," in profile PCs
     
-    Change-Id: I7f7b1e7ef832d53a93562b08ae914d023247c2c0
-    Reviewed-on: https://go-review.googlesource.com/56312
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TestBlockProfile matches samples against a regexp that accepts "," in
+    profile PCs. I suspect this was just a syntax mistake. Remove "," from
+    the character class.
+    
+    Change-Id: Idcfc20ed6900075abae08597ba71db559e89b37b
+    Reviewed-on: https://go-review.googlesource.com/41111
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
 
- src/cmd/link/internal/amd64/asm.go |  8 +++----
- src/cmd/link/internal/arm/asm.go   |  8 +++----
- src/cmd/link/internal/arm64/asm.go |  4 ++--
- src/cmd/link/internal/ld/data.go   |  8 +++----
- src/cmd/link/internal/ld/elf.go    |  6 +++---
- src/cmd/link/internal/ld/link.go   | 44 ++++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/macho.go  |  4 ++--
- src/cmd/link/internal/ld/pe.go     |  4 ++--
- src/cmd/link/internal/ppc64/asm.go |  4 ++--
- src/cmd/link/internal/x86/asm.go   |  8 +++----
- 10 files changed, 71 insertions(+), 27 deletions(-)
+ src/runtime/pprof/pprof_test.go | 42 ++++++++++++++++++++---------------------
+ 1 file changed, 21 insertions(+), 21 deletions(-)

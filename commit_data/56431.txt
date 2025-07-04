@@ -1,24 +1,19 @@
-commit f6c3a3e3c8c532e73e9dff7acdf04e2b4d5d9537
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Fri Feb 9 10:34:58 2024 -0500
+commit 4576184b438125966dc761e2384a728f07fb8da8
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon May 8 12:53:37 2023 -0400
 
-    slices: add Chunk
+    cmd/go/internal/envcmd: on unix pass script contents directly to sh -c
     
-    Chunk returns an iterator over consecutive sub-slices of up to n elements of s.
+    Instead of writing them to a file and executing that file.
     
-    Fixes #53987.
+    For #59998
     
-    Change-Id: I508274eca388db39550eb9e4d8abd5ce68d29d8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562935
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I341786926762359f67dccb475295afbbb8ed1054
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493555
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- api/next/53987.txt                         |   1 +
- doc/next/6-stdlib/3-iter.md                |   2 +
- doc/next/6-stdlib/99-minor/slices/53987.md |   1 +
- src/slices/example_test.go                 |  27 +++++++
- src/slices/iter.go                         |  24 +++++++
- src/slices/iter_test.go                    | 110 +++++++++++++++++++++++++++++
- 6 files changed, 165 insertions(+)
+ src/cmd/go/internal/envcmd/env_test.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

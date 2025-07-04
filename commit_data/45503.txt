@@ -1,19 +1,50 @@
-commit 169155d61ede128caa8452bdff3ce9995287c138
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Sat May 1 18:45:57 2021 +0200
+commit c3c6fbf31419d37b0ae7d99b5378f6f8e9080b24
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Oct 23 12:12:34 2020 -0500
 
-    cmd/compile: preserve argument order in debug_info
+    cmd/compile: combine more 32 bit shift and mask operations on ppc64
     
-    When regabi is used sorting by stack offset will not preserve the order
-    of function arguments. Trust that variables are already ordered
-    correctly when creating debug_info entries.
+    Combine (AND m (SRWconst x)) or (SRWconst (AND m x)) when mask m is
+    and the shift value produce constant which can be encoded into an
+    RLWINM instruction.
     
-    Fixes #45720
+    Combine (CLRLSLDI (SRWconst x)) if the combining of the underling rotate
+    masks produces a constant which can be encoded into RLWINM.
     
-    Change-Id: I1dbdd185975273f70244a23302d34f082347603d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/315280
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Trust: Jeremy Faller <jeremy@golang.org>
+    Likewise for (SLDconst (SRWconst x)) and (CLRLSDI (RLWINM x)).
+    
+    Combine rotate word + and operations which can be encoded as a single
+    RLWINM/RLWNM instruction.
+    
+    The most notable performance improvements arise from the crypto
+    benchmarks below (GOARCH=power8 on a ppc64le/linux):
+    
+    pkg:golang.org/x/crypto/blowfish goos:linux goarch:ppc64le
+    ExpandKeyWithSalt                               52.2µs ± 0%    47.5µs ± 0%  -8.88%
+    ExpandKey                                       44.4µs ± 0%    40.3µs ± 0%  -9.15%
+    
+    pkg:golang.org/x/crypto/ssh/internal/bcrypt_pbkdf goos:linux goarch:ppc64le
+    Key                                             57.6ms ± 0%    52.3ms ± 0%  -9.13%
+    
+    pkg:golang.org/x/crypto/bcrypt goos:linux goarch:ppc64le
+    Equal                                           90.9ms ± 0%    82.6ms ± 0%  -9.13%
+    DefaultCost                                     91.0ms ± 0%    82.7ms ± 0%  -9.12%
+    
+    Change-Id: I59a0ca29face38f4ab46e37124c32906f216c4ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260798
+    Run-TryBot: Carlos Eduardo Seo <carlos.seo@linaro.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/dwarfgen/scope.go | 28 +++++++++++++++++++++++++---
- 1 file changed, 25 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        |  18 ++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  25 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   5 +
+ src/cmd/compile/internal/ssa/opGen.go        |  48 ++++
+ src/cmd/compile/internal/ssa/rewrite.go      | 137 ++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 368 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite_test.go | 181 +++++++++++++
+ test/codegen/rotate.go                       |  45 ++++
+ test/codegen/shift.go                        |  94 +++++--
+ 9 files changed, 900 insertions(+), 21 deletions(-)

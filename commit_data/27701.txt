@@ -1,17 +1,15 @@
-commit 109823ec93e690f2a401c316210ee86bde53d6bf
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jun 20 13:30:04 2016 +1000
+commit 93368be61ebaf8069d0d70034097de580441c412
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 8 20:37:54 2016 +1000
 
-    cmd/go: for generate, use build context values for GOOS/GOARCH
+    cmd/internal/bio: embed bufio.{Reader,Writer} in bio.{Reader,Writer}
     
-    Fixes #16120
-    
-    Change-Id: Ia352558231e00baab5c698e93d7267564c07ec0c
-    Reviewed-on: https://go-review.googlesource.com/24242
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie95b0b0d4f724f4769cf2d4f8063cb5019fa9bc9
+    Reviewed-on: https://go-review.googlesource.com/21781
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/generate.go |  5 ++---
- src/cmd/go/go_test.go  | 24 ++++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/export.go |  2 +-
+ src/cmd/internal/bio/buf.go           | 56 ++++++++---------------------------
+ src/cmd/internal/obj/objfile.go       |  2 +-
+ src/cmd/link/internal/ld/objfile.go   |  2 +-
+ 4 files changed, 16 insertions(+), 46 deletions(-)

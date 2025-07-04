@@ -1,19 +1,17 @@
-commit 6b3d4a53538c091d3d0bf207d12db3ec641b85ea
-Author: Todd Neal <todd@tneal.org>
-Date:   Thu Mar 10 17:52:57 2016 -0600
+commit d731315cdbf9b2e6e1a70343a39f7c39b8eb99bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 29 12:10:38 2015 -0500
 
-    cmd/compile: modify regalloc/stackalloc to use the cmd line debug args
+    net: run all timeout tests in parallel
     
-    Change the existing flags from compile time consts to be configurable
-    from the command line.
+    For #10571.
     
-    Change-Id: I4aab4bf3dfcbdd8e2b5a2ff51af95c2543967769
-    Reviewed-on: https://go-review.googlesource.com/20560
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Todd Neal <todd@tneal.org>
+    Change-Id: I9a42226078b9c52dbe0c65cb101b5f452233e911
+    Reviewed-on: https://go-review.googlesource.com/18205
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/TODO          |  1 +
- src/cmd/compile/internal/ssa/regalloc.go   | 47 ++++++++++++++++--------------
- src/cmd/compile/internal/ssa/stackalloc.go | 16 +++++-----
- 3 files changed, 33 insertions(+), 31 deletions(-)
+ src/net/timeout_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 45 insertions(+), 5 deletions(-)

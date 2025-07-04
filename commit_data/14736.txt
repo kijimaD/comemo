@@ -1,14 +1,12 @@
-commit e49a183b760c6ac84d9fe8f63c26d92b5e162c01
+commit 3fc3597c9b0b1e5d4887771004320add2d0570f4
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 22 17:23:50 2012 -0500
+Date:   Sat Dec 22 17:04:56 2012 -0500
 
-    runtime/debug: document that Stack is deprecated
+    cmd/go: remove debugging flag introduced in CL 6996054
     
-    Fixes #4070.
-    
-    R=golang-dev, bradfitz
+    R=remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/7004050
+    https://golang.org/cl/7002052
 
- src/pkg/runtime/debug/stack.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/build.go | 2 --
+ 1 file changed, 2 deletions(-)

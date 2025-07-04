@@ -1,22 +1,26 @@
-commit 081d27a2e5786b2e02cbe4bc9067c6d52ccad44c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Aug 21 22:29:11 2023 +0000
+commit 4350c4a13196fabd7cef04eab2f8783f6c518804
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Fri Sep 9 11:22:55 2022 -0500
 
-    runtime: create wrappers for gcDrain to identify time in profiles
+    cmd/internal/obj/ppc64: remove unnecessary opcodes
     
-    Currently it's impossible to identify in profiles where gcDrain-related
-    time is coming from. More specifically, what kind of worker. Create
-    trivial wrappers for each worker so that the difference shows up in
-    stack traces.
+    This CL removes some opcode placeholders that do not correspond
+    to any existing instructions and hence create confusion. Some
+    instructions that are no longer valid like LDMX are also removed.
+    Any references to this instruction in ISA 3.0 are considered
+    as documentation errata.
     
-    Also, clarify why gcDrain disables write barriers.
-    
-    Change-Id: I966e3c0b1c583994e691f486bf0ed8cabb91dbbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521815
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ib71a657099723bbe1db88873233ee573b5c42fe7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429860
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
 
- src/runtime/mgc.go     |  8 ++++----
- src/runtime/mgcmark.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/ppc64/a.out.go  |  8 --------
+ src/cmd/internal/obj/ppc64/anames.go |  8 --------
+ src/cmd/internal/obj/ppc64/asm9.go   | 28 +++++++---------------------
+ src/cmd/internal/obj/ppc64/obj9.go   |  2 --
+ 4 files changed, 7 insertions(+), 39 deletions(-)

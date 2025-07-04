@@ -1,16 +1,37 @@
-commit 54641818c97077f59ae968752c3a66576cffbe56
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 22 15:24:21 2015 -0800
+commit e99dd520665000dfeb848fb4ecd381314b8fe61b
+Author: David Chase <drchase@google.com>
+Date:   Mon Oct 19 11:36:07 2015 -0400
 
-    crypto/cipher: fix typo from last change
+    [dev.ssa] cmd/compile: enhance SSA filtering, add OpConvert
     
-    s/encrypt/decrypt/
+    Modified GOSSA{HASH.PKG} environment variable filters to
+    make it easier to make/run with all SSA for testing.
+    Disable attempts at SSA for architectures that are not
+    amd64 (avoid spurious errors/unimplementeds.)
     
-    The text is unsafe to cut and paste...
+    Removed easy out for unimplemented features.
     
-    Change-Id: Iab19ddf8182d087e9a4b4d34a9eeabd1d2aa02d6
-    Reviewed-on: https://go-review.googlesource.com/18104
-    Reviewed-by: Rob Pike <r@golang.org>
+    Add convert op for proper liveness in presence of uintptr
+    to/from unsafe.Pointer conversions.
+    
+    Tweaked stack sizes to get a pass on windows;
+    1024 instead 768, was observed to pass at least once.
+    
+    Change-Id: Ida3800afcda67d529e3b1cf48ca4a3f0fa48b2c5
+    Reviewed-on: https://go-review.googlesource.com/16201
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/crypto/cipher/gcm.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen.go            |  4 +-
+ src/cmd/compile/internal/gc/ssa.go             | 85 +++++++++++++++++---------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  3 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  5 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  5 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 18 ++++++
+ src/cmd/compile/internal/ssa/tighten.go        |  8 ++-
+ src/cmd/dist/test.go                           |  5 --
+ src/cmd/internal/obj/stack.go                  |  2 +-
+ src/cmd/internal/obj/util.go                   |  3 +
+ src/runtime/stack.go                           |  2 +-
+ test/nosplit.go                                |  8 ++-
+ 12 files changed, 105 insertions(+), 43 deletions(-)

@@ -1,23 +1,26 @@
-commit cbc9e589053e7339c1e3c4d6e88c6c015792efce
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jan 12 13:28:33 2022 -0500
+commit fb84d213a8551526913647b7dea6103233f550db
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 19:08:52 2021 +0000
 
-    cmd/go/internal/base: in AppendPWD, check that PWD is absolute
+    [dev.typeparams] reflect: support big endian architectures in callMethod
     
-    The POSIX standard requires the PWD variable to be an absolute path.
+    Currently, callMethod has some ABI translation code that is not agnostic
+    of endianness. This change rectifies that by adding a method to
+    internal/abi.RegArgs for safely returning an offset into a register slot
+    that's endianness-dependent.
     
-    Fixes #46832
+    No tests for this because it's just best-effort. There's no actual way
+    to test this because we don't support a register ABI on any big endian
+    architectures yet.
     
-    Change-Id: I1938592538633e1a0a0958276f1fefc3c4808399
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378396
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic68d9ee1bfdea0fc2992d467d749e2b083e92de3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328348
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/base/env.go                | 12 ++++++++++--
- src/cmd/go/internal/generate/generate_test.go  | 17 +++++++++++------
- src/cmd/go/internal/vcs/vcs.go                 | 16 +++++++++++++---
- src/cmd/go/internal/work/buildid.go            |  4 +---
- src/cmd/go/internal/work/exec.go               |  9 ++++++---
- src/cmd/go/testdata/script/mod_list_direct.txt |  2 +-
- 6 files changed, 42 insertions(+), 18 deletions(-)
+ src/go/build/deps_test.go |  4 ++--
+ src/internal/abi/abi.go   | 45 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/reflect/value.go      | 11 ++++-------
+ 3 files changed, 50 insertions(+), 10 deletions(-)

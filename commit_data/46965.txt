@@ -1,42 +1,15 @@
-commit 4e565f7372494c9c46e33a35e84f0fe4fc7d2774
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Oct 18 14:31:48 2021 +0700
+commit 6fe8981620aa61cb43476538f8230231623f9e13
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 15 13:58:45 2021 -0500
 
-    cmd/compile: fix crawling of embeddable types during inline
+    cmd/internal/obj/riscv: fix JMP name<>(SB)
     
-    In CL 327872, there's a fix for crawling of embeddable types directly
-    reached by the user, so all of its methods need to be re-exported. But
-    we missed the cased when an un-exported type may be reachable by
-    embedding in exported type. Example:
+    It was being rejected. Now it isn't and can be used in the runtime.
     
-            type t struct {}
-            func (t) M() {}
-    
-            func F() interface{} { return struct{ t }{} }
-    
-    We generate the wrapper for "struct{ t }".M, and when inlining call to
-    "struct{ t }".M makes "t.M" reachable.
-    
-    It works well, and only be revealed in CL 327871, when we changed
-    methodWrapper to always call inline.InlineCalls, thus causes the crash
-    in #49016, which involve dot type in inlined function.
-    
-    Fixes #49016
-    
-    Change-Id: If174fa5575132da5cf60e4bd052f7011c4e76c5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356254
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4626bf9fc2e0bc26fffb87d11bede459964324b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292129
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/crawler.go | 33 ++++++++++++++++++------
- test/fixedbugs/issue49016.dir/a.go            | 36 +++++++++++++++++++++++++++
- test/fixedbugs/issue49016.dir/b.go            | 13 ++++++++++
- test/fixedbugs/issue49016.dir/c.go            |  9 +++++++
- test/fixedbugs/issue49016.dir/d.go            |  9 +++++++
- test/fixedbugs/issue49016.dir/e.go            | 11 ++++++++
- test/fixedbugs/issue49016.dir/f.go            |  9 +++++++
- test/fixedbugs/issue49016.dir/g.go            |  9 +++++++
- test/fixedbugs/issue49016.go                  |  7 ++++++
- 9 files changed, 128 insertions(+), 8 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

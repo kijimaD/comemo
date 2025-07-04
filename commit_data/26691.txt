@@ -1,24 +1,18 @@
-commit 68325b56e7657cf9c0f2c223182b988a4f097cd1
-Author: Alexandru Moșoi <mosoi@google.com>
-Date:   Mon Apr 4 16:38:26 2016 +0200
+commit a4b833940da77449afd95dc95f8596bae4fa1621
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 22 11:32:56 2016 -0800
 
-    cmd/compile: fold IsInBounds of modulo.
+    runtime: move machport into darwin's mOS
     
-    In b we only need the division by 0 check.
+    It's not needed on other OSes.
     
-    func b(i uint, v []byte) byte {
-        return v[i%uint(len(v))]
-    }
-    
-    Updates #15079.
-    
-    Change-Id: Ic7491e677dd57cd6ba577efbce576dbb6e023cbd
-    Reviewed-on: https://go-review.googlesource.com/21502
-    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ahmed Waheed <oneofone@gmail.com>
+    Change-Id: Ia6b13510585392a7062374806527d33876beba2a
+    Reviewed-on: https://go-review.googlesource.com/19818
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../compile/internal/gc/testdata/divbyzero_ssa.go  | 49 ++++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/generic.rules     |  5 ++-
- src/cmd/compile/internal/ssa/rewritegeneric.go     | 32 ++++++++++++++
- 3 files changed, 85 insertions(+), 1 deletion(-)
+ src/runtime/os_darwin.go | 1 +
+ src/runtime/runtime2.go  | 1 -
+ 2 files changed, 1 insertion(+), 1 deletion(-)

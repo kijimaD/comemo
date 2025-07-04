@@ -1,22 +1,36 @@
-commit ab94ebbdcdcf6dc03574a85aae8984340c3de7f0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 26 15:57:25 2019 -0400
+commit 44d3bb998ca00e49d9e0138954287af206b614bf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 28 20:20:40 2019 +1100
 
-    doc/go1.13: make cmd/go paragraphs more concise
+    path/filepath: do not call GetFinalPathNameByHandle from EvalSymlinks
     
-    Looking at the live release notes on tip.golang.org, the Modules
-    section is much more verbose than the other sections.
+    EvalSymlinks is using GetFinalPathNameByHandle to handle symlinks with
+    unusual targets like \??\Volume{ABCD}\. But since CL 164201, os.Readlink
+    handles path like that too.
     
-    To some extent that's to be expected, but too much detail in the
-    release notes might discourage folks from consulting the actual
-    documentation. Ensure that topics have clear links and omit
-    unnecessary details.
+    So remove all that extra code that EvalSymlinks calls when os.Readlink
+    fails - it is not needed any more.
     
-    Change-Id: I1ccbc1697fccaf7ca7094c606bd11696c46d87f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183987
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Now that windows EvalSymlinks implementation is similar to unix
+    implementation, we can remove all slashAfterFilePathError related code
+    too. So do that.
+    
+    This also makes TestIssue29372 pass even when TMP directory refers to
+    symlinks with target like \??\Volume{ABCD}\. So remove TestIssue29372
+    code that helped it pass on windows-arm. TestIssue29372 should pass as
+    is now.
+    
+    Fixes #29746
+    
+    Change-Id: I568d142c89d3297bff8513069bceaa6be51fe7e4
+    Reviewed-on: https://go-review.googlesource.com/c/164202
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.13.html | 34 ++++++++++++----------------------
- 1 file changed, 12 insertions(+), 22 deletions(-)
+ src/path/filepath/path_test.go         | 10 ----
+ src/path/filepath/path_windows_test.go |  6 +++
+ src/path/filepath/symlink.go           |  3 +-
+ src/path/filepath/symlink_unix.go      |  9 ----
+ src/path/filepath/symlink_windows.go   | 99 +---------------------------------
+ 5 files changed, 9 insertions(+), 118 deletions(-)

@@ -1,17 +1,28 @@
-commit 56deebb3e43b3ab6f18fdc62350cc2fc8d08cce7
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 16 21:37:44 2018 -0400
+commit dfd7f3562645ebd587d7d883bbaa8915fcf8c84b
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Nov 29 17:11:45 2017 -0800
 
-    cmd/go: add clean -modcache
+    os: add ModeIrregular flag
     
-    We need an easy way to remove $GOPATH/src/mod,
-    especially since all the directories are marked read-only.
+    There is currently no way for os.FileMode.IsRegular to report false
+    without being one of the following types:
+            ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
     
-    Change-Id: Ib9e8e47e50048f55ecc4de0229b06c4a416ac114
-    Reviewed-on: https://go-review.googlesource.com/124382
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    This makes it difficult for custom implementations of os.FileInfo to return
+    a Mode that is explicitly not regular without resorting to setting one
+    of the types listed above. However, every one of the aforementioned types
+    are ill-suited as a general-purpose "not regular" file type.
+    
+    Thus, add a ModeIrregular to serve exactly for that purpose.
+    The ModeIrregular type carries no information other than the fact that the
+    file is not regular.
+    
+    Updates #22903
+    Fixes #23878
+    
+    Change-Id: I4f34d88f960bcb014816d8e7b5de8b1035077948
+    Reviewed-on: https://go-review.googlesource.com/94856
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/clean/clean.go | 32 +++++++++++++++++++++++++++++++-
- src/cmd/go/mod_test.go             |  5 +++++
- 2 files changed, 36 insertions(+), 1 deletion(-)
+ src/os/types.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,19 +1,18 @@
-commit cb3b34520985a2d1a6797f00b9e4529271212bdd
-Author: Peter Wu <pwu@cloudflare.com>
-Date:   Wed Oct 4 13:44:34 2017 +0100
+commit 1a1ce8b5fdf28063670208e1e920e42ea0f16d68
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 6 13:35:39 2017 +0900
 
-    crypto/tls: fix first byte test for 255 CBC padding bytes
+    net: update documentation on methods of UDPConn
     
-    The BadCBCPadding255 test from bogo failed because at most 255 trailing
-    bytes were checked, but for a padding of 255 there are 255 padding bytes
-    plus 1 length byte with value 255.
+    This change simplifies the documentation on methods of UDPConn and
+    adds a reference to golang.org/x/net/{ipv4,ipv6} packages to the
+    documentation on {Read,Write}MsgUDP methods.
     
-    Change-Id: I7dd237c013d2c7c8599067246e31b7ba93106cf7
-    Reviewed-on: https://go-review.googlesource.com/68070
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I425a8d81bc46b6579aa9f89faa4982bb86b40f24
+    Reviewed-on: https://go-review.googlesource.com/44912
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/conn.go      |  7 ++++---
- src/crypto/tls/conn_test.go | 12 ++++++++++++
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ src/net/udpsock.go | 41 +++++++++++++++++------------------------
+ 1 file changed, 17 insertions(+), 24 deletions(-)

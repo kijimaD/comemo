@@ -1,14 +1,14 @@
-commit bddf75d88859b8454f67de32510d8488329d0f2b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jun 8 13:58:12 2020 -0400
+commit 0a61a195d78bd3bfb70434633c6d130d77aba6ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 6 15:46:42 2020 +0000
 
-    doc/go1.15: add more release notes for crypto/tls
+    net: update renamed test name in comment
     
-    Updates #37419
+    TestSelfConnect from CL 5650071 was renamed TestTCPSelfConnect in CL 21447.
     
-    Change-Id: I5e03adbf6d215d65aedbdeb7bdfe1ead8a838877
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236921
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: I0de110dbe1da77bfba540a1b51c139f3bedae67f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213437
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- doc/go1.15.html | 21 ++++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
+ src/net/dial_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

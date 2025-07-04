@@ -1,15 +1,32 @@
-commit 9b84814f6e909bfe9054eab30e423bc5e880d137
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon May 10 19:32:13 2021 +0200
+commit 64a9a75ce9a353ef3d488b8e3ca977bf6df204f8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jul 20 18:19:56 2020 +0000
 
-    net/http: check that Unicode-aware functions are not used
+    runtime: release worldsema with a direct G handoff
     
-    Change-Id: I398aff06bec95077bfff02bfb067aa949b70c184
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318429
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Currently worldsema is not released with direct handoff, so the
+    semaphore is an unfair synchronization mechanism. If, for example,
+    ReadMemStats is called in a loop, it can continuously stomp on attempts
+    by the GC to stop the world.
+    
+    Note that it's specifically possible for ReadMemStats to delay a STW to
+    end GC since ReadMemStats is able to STW during a GC since #19112 was
+    fixed.
+    
+    While this particular case is unlikely and the right answer in most
+    applications is to simply not call such an expensive operation in a
+    loop, this pattern is used often in tests.
+    
+    Fixes #40459.
+    
+    Change-Id: Ia4a54f0fd956ea145a319f9f06c4cd37dd52fd8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243977
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Roberto Clapis <roberto@golang.org>
-    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/http_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 62 insertions(+)
+ src/runtime/proc.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

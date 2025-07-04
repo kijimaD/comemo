@@ -1,12 +1,19 @@
-commit 773685b4a3e4f8911421825f879f06a3de92c15e
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Tue May 15 11:48:58 2012 -0400
+commit 01826280eb3dec5dfa06fae0474caf1ba3942ec7
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 15 19:10:16 2012 +0400
 
-    runtime: fix counting of free objects
+    runtime: refactor helpgc functionality in preparation for parallel GC
+    Parallel GC needs to know in advance how many helper threads will be there.
+    Hopefully it's the last patch before I can tackle parallel sweep phase.
+    The benchmarks are unaffected.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6206056
+    https://golang.org/cl/6200064
 
- src/pkg/runtime/malloc.goc | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/malloc.h  |  3 ++-
+ src/pkg/runtime/mgc0.c    | 35 +++++++++++---------------
+ src/pkg/runtime/mprof.goc |  4 +--
+ src/pkg/runtime/proc.c    | 63 +++++++++++++++++++++++++++++------------------
+ src/pkg/runtime/runtime.h |  2 +-
+ 5 files changed, 58 insertions(+), 49 deletions(-)

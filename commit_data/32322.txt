@@ -1,14 +1,15 @@
-commit b70adbf29699bc8c3d1ac869806ac426b3bccf18
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Aug 15 16:10:12 2017 -0700
+commit 62a2bee7a5706e9b37a6bdff3ee2cc422912f463
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 19 10:36:31 2017 -0700
 
-    cmd/dist: update deps.go for current dependencies
+    cmd/compile/internal/types: don't export Nopkg anymore
     
-    Fixes #21456
+    There's already special code to access it.
     
-    Change-Id: Iba7bc608686536b2d4fe3d23409fa84b59cea640
-    Reviewed-on: https://go-review.googlesource.com/55971
-    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Change-Id: I28ca4f44a04262407ee9f1c826ada4e7eba44775
+    Reviewed-on: https://go-review.googlesource.com/41073
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/deps.go | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 2 +-
+ src/cmd/compile/internal/types/pkg.go  | 8 +++++---
+ 2 files changed, 6 insertions(+), 4 deletions(-)

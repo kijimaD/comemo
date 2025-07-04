@@ -1,42 +1,20 @@
-commit 09b5de48e64e67db92b31eaca054c5d096e3c057
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Jan 26 23:22:45 2024 +0100
+commit bb6952fa25da050d04c2df3787fa0d508adb9b1a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 8 18:48:17 2023 +0000
 
-    Revert "crypto/internal/boring: upgrade module to fips-20220613" +1
+    Revert "cmd/compile/internal/pgo: fix hard-coded PGO sample data position"
     
-    This reverts commit 7383b2a4db5dc93c9b875b42d5add73d27cc4b9f
-    ("crypto/internal/boring: upgrade module to fips-20220613") and commit
-    4106de901a8efe914cda6f6c4e8d45ff8c115da4 ("crypto/tls: align FIPS-only
-    mode with BoringSSL policy").
+    This reverts CL 465135.
     
-    Fixes #65321
-    Updates #64717
-    Updates #62372
+    Reason for revert: This broke cmd/go.TestScript/build_pgo on the linux-amd64-longtest builder: https://build.golang.org/log/8f8ed7bf576f891a06d295c4a5bca987c6e941d6
     
-    Change-Id: I0938b97e5b4904e6532448b8ae76e920d03d0508
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558796
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie2f2cc2731099eb28eda6b94dded4dfc34e29441
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466439
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/crypto/internal/boring/Dockerfile              |  28 ++++-----
- src/crypto/internal/boring/LICENSE                 |   2 +-
- src/crypto/internal/boring/README.md               |   7 +--
- src/crypto/internal/boring/aes.go                  |  29 +++------
- src/crypto/internal/boring/build-goboring.sh       |   2 +-
- src/crypto/internal/boring/build.sh                |   6 --
- src/crypto/internal/boring/goboringcrypto.h        |   2 -
- src/crypto/internal/boring/notboring.go            |   1 -
- .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 2427120 -> 2555664 bytes
- .../boring/syso/goboringcrypto_linux_arm64.syso    | Bin 2105896 -> 1980296 bytes
- src/crypto/tls/boring.go                           |  26 ++++----
- src/crypto/tls/boring_test.go                      |  69 ++++++---------------
- src/crypto/tls/cipher_suites.go                    |   8 +--
- src/crypto/tls/handshake_client.go                 |   4 +-
- src/crypto/tls/handshake_client_tls13.go           |   4 ++
- src/crypto/tls/handshake_server_test.go            |  28 +++------
- src/crypto/tls/handshake_server_tls13.go           |   7 ++-
- src/crypto/tls/notboring.go                        |   2 -
- src/crypto/x509/boring.go                          |   4 +-
- 19 files changed, 73 insertions(+), 156 deletions(-)
+ src/cmd/compile/internal/pgo/irgraph.go       | 18 +------
+ src/cmd/compile/internal/test/pgo_inl_test.go | 68 ---------------------------
+ 2 files changed, 1 insertion(+), 85 deletions(-)

@@ -1,0 +1,18 @@
+commit 7634f0755c98f25228e3904ed760089c3b199c5d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 9 14:32:21 2024 -0700
+
+    os: handle umask comparing execute mode in verifyCopyFS
+    
+    Fixes #69788
+    
+    Change-Id: I43cc4c0dc3c8aa2474cba26c84714d00828de08e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619176
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/os/os_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

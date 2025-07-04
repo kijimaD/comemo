@@ -1,0 +1,15 @@
+commit 723d34f1713a09b0bce388dc403f3dd764cc608e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 7 11:05:08 2024 +0200
+
+    internal/sysinfo: use strings.Cut in osCpuInfoName
+    
+    Change-Id: I78a6189f0fc5d52b5f88cc0db0d3dbc36f94f826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583715
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/sysinfo/cpuinfo_linux.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

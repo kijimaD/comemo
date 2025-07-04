@@ -1,24 +1,28 @@
-commit 8f9a420a7219674413927b35c2c80c25c200919d
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Nov 10 15:22:00 2024 +0100
+commit dc523c8ddf5b0ce985ea90c65cbaa097c9e3ee09
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri May 26 12:02:54 2023 +0800
 
-    crypto/internal/fips/mlkem: implement CAST, PCT, and service indicator
+    cmd: add a new analyzer for check missing values after append
     
-    For #69536
+    If there is no second parameter added during append, there will be no prompt when executing go vet. Add an analyzer to detect this situation
     
-    Change-Id: Id9d2f6553ab006d0d26986d22a4a756b9cf1bf71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626936
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Update #60448
+    
+    Change-Id: If9848835424f310c54e3e9377aaaad4a1516871a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498416
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Tim King <taking@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/crypto/internal/fips/cast.go               | 19 ++++++----
- src/crypto/internal/fips/cast_external_test.go |  4 ++
- src/crypto/internal/fips/mlkem/cast.go         | 52 ++++++++++++++++++++++++++
- src/crypto/internal/fips/mlkem/generate1024.go |  1 +
- src/crypto/internal/fips/mlkem/mlkem1024.go    | 43 ++++++++++++++++-----
- src/crypto/internal/fips/mlkem/mlkem768.go     | 43 ++++++++++++++++-----
- src/crypto/internal/fips/mlkem/mlkem_test.go   |  2 +-
- 7 files changed, 138 insertions(+), 26 deletions(-)
+ src/cmd/go/internal/test/flagdefs.go               |  1 +
+ .../x/tools/go/analysis/passes/appends/appends.go  | 49 ++++++++++++++++++++++
+ .../x/tools/go/analysis/passes/appends/doc.go      | 20 +++++++++
+ src/cmd/vendor/modules.txt                         |  1 +
+ src/cmd/vet/main.go                                |  2 +
+ src/cmd/vet/testdata/appends/appends.go            | 12 ++++++
+ src/cmd/vet/vet_test.go                            |  1 +
+ 7 files changed, 86 insertions(+)

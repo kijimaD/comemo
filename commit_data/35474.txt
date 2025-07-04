@@ -1,15 +1,14 @@
-commit 09797676643203c3f0aa2fd6f26b040daceac0b7
-Author: dchenk <dcherchenko@gmail.com>
-Date:   Tue May 22 20:32:51 2018 -0700
+commit e057680542bd5a31a024ec1f321c439571086d42
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Feb 15 12:28:48 2018 -0500
 
-    net/http: fix doc comment on PostFormValue function
+    cmd/compile: convert untyped bool for OIF and OFOR
     
-    This function checks Request.PostForm, which now includes values parsed
-    from a PATCH request.
+    Updates #23834.
     
-    Change-Id: I5d0af58d9c0e9111d4e822c45f0fb1f511bbf0d5
-    Reviewed-on: https://go-review.googlesource.com/114009
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I92aca9108590a0c7de774f4fad7ded97105e3cb8
+    Reviewed-on: https://go-review.googlesource.com/94475
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/request.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 2 ++
+ 1 file changed, 2 insertions(+)

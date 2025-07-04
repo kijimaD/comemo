@@ -1,16 +1,25 @@
-commit b241a06479864b85c2377e52b775b176f686e192
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:51:04 2016 +0200
+commit 5a59b66f23bc2eb11cc8445aea1dcf7a71bf2954
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Fri Sep 9 14:07:30 2016 +0100
 
-    runtime/internal/atomic: add GOARCH=mips{,le} support
+    crypto/tls: flush the buffer on handshake errors
     
-    Change-Id: I99a48f719fd1a8178fc59787084a074e91c89ac6
-    Reviewed-on: https://go-review.googlesource.com/31489
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Since 2a8c81ff handshake messages are not written directly to wire but
+    buffered.  If an error happens at the wrong time the alert will be
+    written to the buffer but never flushed, causing an EOF on the client
+    instead of a more descriptive alert.
+    
+    Thanks to Brendan McMillion for reporting this.
+    
+    Fixes #17037
+    
+    Change-Id: Ie093648aa3f754f4bc61c2e98c79962005dd6aa2
+    Reviewed-on: https://go-review.googlesource.com/28818
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/internal/atomic/asm_mipsx.s     | 149 ++++++++++++++++++++++++++++
- src/runtime/internal/atomic/atomic_mipsx.go | 128 ++++++++++++++++++++++++
- src/runtime/internal/atomic/atomic_mipsx.s  |  28 ++++++
- 3 files changed, 305 insertions(+)
+ src/crypto/tls/conn.go                  |  4 +++
+ src/crypto/tls/handshake_client_test.go | 45 +++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)

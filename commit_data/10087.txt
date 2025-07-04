@@ -1,13 +1,34 @@
-commit cdd3d6932853ec2fb2ac0a693143b22098adb012
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 26 14:09:25 2011 +0900
+commit 05ed18f4f6c661bfe01db0d8c25e5d7b65658a54
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Oct 26 14:02:30 2011 +1100
 
-    weekly.2011-10-25
+    html: improve parsing of lists
     
-    R=rsc
+    Make a <li> tag close the previous <li> element.
+    Make a </ul> tag close <li> elements.
+    
+    Pass tests1.dat, test 33:
+    <!DOCTYPE html><li>hello<li>world<ul>how<li>do</ul>you</body><!--do-->
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <li>
+    |       "hello"
+    |     <li>
+    |       "world"
+    |       <ul>
+    |         "how"
+    |         <li>
+    |           "do"
+    |       "you"
+    |   <!-- do -->
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5321053
+    https://golang.org/cl/5321051
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 27 +++++++++++++++++++++++++++
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/pkg/html/parse.go      | 20 ++++++++++++++++++++
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 21 insertions(+), 1 deletion(-)

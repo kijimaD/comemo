@@ -1,26 +1,27 @@
-commit 19d819d49c73c8e47749b3c4cbbc2e58a259269a
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jan 24 09:27:31 2022 -0500
+commit f53c2fac46e2e193493045eef08591ded1496b74
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 16 00:47:35 2021 -0400
 
-    runtime: call fflush before exiting in C test
+    cmd/go/internal/modload: in newRequirements, verify that rootModules is sorted
     
-    Very, very rarely TestVectoredHandlerDontCrashOnLibrary fails because
-    the C subprocess exits with a 0 status code and no output. This
-    appears to happen because C does not actually guarantee that stdout
-    will be flushed on exit and somehow, very rarely, it is not flushed.
+    The comment for the Requirements.rootModules field requires that it be
+    "sorted and capped to length". I noticed that we were not capping it
+    correctly — we were capping the local variable (the rorotModules
+    argument itself) but not the struct field. That prompted me to
+    question whether we were also at some point failing to sort it
+    correctly, so I decided to add an explicit check.
     
-    Add explicit fflushes to fix this. This reduces the failure rate of
-    TestVectoredHandlerDontCrashOnLibrary from 0.0013% to 0% in 250,000
-    iterations.
+    With the explicit check, all tests continue to pass.
     
-    Fixes #49959.
+    For #36460
     
-    Change-Id: I892cf49a165ac91134c5da37588a2ab11e1f3f8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/380494
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I6687de8ef8ecc5129fa8810d678e5673752fd27b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310790
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/runtime/testdata/testwinlib/main.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/buildlist.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

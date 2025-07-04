@@ -1,27 +1,28 @@
-commit 6d2ef2ef2a3ed375b5c782e6c8b0f8a59c3d3c8c
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue May 18 12:58:02 2021 -0400
+commit 5ca43acdb3e27117e6994141e518b8d55e4d32aa
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 2 03:58:08 2020 +1100
 
-    cmd/compile: don't emit inltree for closure within body of inlined func
+    runtime: allow physical page aligned stacks to be allocated
     
-    When inlining functions with closures, ensure that we don't mark the
-    body of the closure with a src.Pos marker that reflects the inline,
-    since this will result in the generation of an inltree table for the
-    closure itself (as opposed to the routine that the func-with-closure
-    was inlined into).
+    Add a physPageAlignedStack boolean which if set, results in over allocation
+    by a physical page, the allocation being rounded to physical page alignment
+    and the unused memory surrounding the allocation being freed again.
     
-    Fixes #46234.
+    OpenBSD/octeon has 16KB physical pages and requires stacks to be physical page
+    aligned in order for them to be remapped as MAP_STACK. This change allows Go
+    to work on this platform.
     
-    Change-Id: I348296de6504fc4745d99adab436640f50be299a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320913
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Based on a suggestion from mknyszek in issue #41008.
+    
+    Updates #40995
+    Fixes #41008
+    
+    Change-Id: Ia5d652292b515916db473043b41f6030094461d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266919
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/inline/inl.go |  16 ++++-
- test/closure3.dir/main.go              |   8 +--
- test/fixedbugs/issue46234.go           | 103 +++++++++++++++++++++++++++++++++
- test/inline.go                         |   4 +-
- 4 files changed, 124 insertions(+), 7 deletions(-)
+ src/runtime/mheap.go | 36 +++++++++++++++++++++++++++++++++++-
+ 1 file changed, 35 insertions(+), 1 deletion(-)

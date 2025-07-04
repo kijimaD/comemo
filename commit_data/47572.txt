@@ -1,23 +1,20 @@
-commit 9e94cc3666cc5ff6ecf5930fb5da48ba62ad8080
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 22 09:50:47 2021 -0500
+commit bd6628e62dd5ef1e389d6551a83ef4f2baabebb5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Mar 29 13:44:08 2021 -0400
 
-    misc/cgo/test: remove unnecessary forward declaration
+    cmd/compile: check deferred nil interface call before wrapping it
     
-    This test otherwise fails to build on windows/arm64 as of CL 364774
-    due to a warning (promoted to an error) about a mismatched dllexport
-    attribute. Fortunately, it seems not to need the forward-declared
-    function in this file anyway.
+    Currently, for "defer i.M()" if i is nil it panics at the point of
+    defer statement, not when deferred function is called. We need to
+    do the nil check before wrapping it.
     
-    Updates #49633
-    Updates #49721
+    Updates #40724.
     
-    Change-Id: Ia4698b85077d0718a55d2cc667a7950f1d8e50ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366075
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I62c669264668991f71999e2cf4610a9066247f9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305549
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- misc/cgo/test/testx.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/walk/order.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

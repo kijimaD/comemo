@@ -1,27 +1,18 @@
-commit 130775cd16d74401a2206218e2dc0f32d1c59898
-Author: michael <info@komika.org>
-Date:   Tue Feb 1 14:41:20 2022 +0000
+commit 624d152db711cff77466b2049ae29377a110396a
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 10:45:51 2021 -0400
 
-    net: improve error handling in dnsclient_unix.go
+    [dev.typeparams] go/types: move Interface type decl into interface.go (cleanup)
     
-    In the file net/dnsclient_unix.go in the function newRequest
-    error handling is missing after calling b.Finish(). If
-    the implementation of dnsmessage.Builder.Finish changes
-    it is theoretically possible that the missing error handling
-    introduces a nil pointer exception.
+    This is a port of CL 332092 to go/types.
     
-    Fixes #50946
-    
-    Change-Id: I3f0785f71def6649d6089d0af71c9e50f5ccb259
-    GitHub-Last-Rev: 2a2197f7e6d18d5477967b299ed734a7b224536d
-    GitHub-Pull-Request: golang/go#50948
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381966
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I9971c49570424368575108832eac0cd978eb3fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335039
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/dnsclient_unix.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/go/types/interface.go | 160 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/type.go      | 152 -------------------------------------------
+ 2 files changed, 160 insertions(+), 152 deletions(-)

@@ -1,22 +1,22 @@
-commit 0ad88a481de7aeba15e5a8b3ee5af7141396b082
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 22 01:19:04 2013 +0900
+commit a0955a2aa2a2fcd5352f7e517c3f965e24fd8584
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Feb 21 16:24:38 2013 +0400
 
-    net: add benchmarks for network interface identification
+    runtime: split minit() to mpreinit() and minit()
+    mpreinit() is called on the parent thread and with mcache (can allocate memory),
+    minit() is called on the child thread and can not allocate memory.
     
-    Current results on linux/amd64:
-    BenchmarkInterfaces                      20000             80902 ns/op
-    BenchmarkInterfaceByIndex                50000             71591 ns/op
-    BenchmarkInterfaceByName                 20000             79908 ns/op
-    BenchmarkInterfaceAddrs                   2000            836413 ns/op
-    BenchmarkInterfacesAndAddrs               5000            605946 ns/op
-    BenchmarkInterfacesAndMulticastAddrs     10000            169029 ns/op
-    
-    Update #4866.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7368046
+    https://golang.org/cl/7389043
 
- src/pkg/net/interface_test.go | 83 +++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 81 insertions(+), 2 deletions(-)
+ src/pkg/runtime/proc.c           |  2 ++
+ src/pkg/runtime/runtime.h        |  1 +
+ src/pkg/runtime/thread_darwin.c  | 11 +++++++++--
+ src/pkg/runtime/thread_freebsd.c | 10 +++++++++-
+ src/pkg/runtime/thread_linux.c   | 11 +++++++++--
+ src/pkg/runtime/thread_netbsd.c  | 11 +++++++++--
+ src/pkg/runtime/thread_openbsd.c | 11 +++++++++--
+ src/pkg/runtime/thread_plan9.c   | 14 +++++++++++---
+ src/pkg/runtime/thread_windows.c |  9 +++++++++
+ 9 files changed, 68 insertions(+), 12 deletions(-)

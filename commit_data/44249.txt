@@ -1,18 +1,19 @@
-commit 6f3da9d2f6b4f7dbbe5d15260d87ed2a84488fde
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 16 10:16:06 2021 -0800
+commit ba6ccf3b04cbda5ac19412c933c69425ca828bfa
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Mon Jun 1 12:19:05 2020 -0600
 
-    README: pull gopher image from website
+    testing: capture testname on --- PASS and --- FAIL lines
     
-    Fixes breakage accidentally introduced by https://golang.org/cl/291711.
+    This fixes an issue raised at https://github.com/golang/go/issues/38458#issuecomment-635617670
+    in which --- PASS and --- FAIL lines would not trigger --- CONT lines
+    of other tests.
     
-    Fixes #44295
-    
-    Change-Id: I76f3e5577d1d24027d4ed2a725b5b749ab2d059c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292629
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0d8cc54d682a370d0a6ea6816a11b2e462a92efe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235997
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- README.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../script/test_chatty_parallel_success_sleepy.txt | 39 ++++++++++++++++++++++
+ src/testing/testing.go                             | 11 +++---
+ 2 files changed, 44 insertions(+), 6 deletions(-)

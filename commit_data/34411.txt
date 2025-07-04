@@ -1,31 +1,24 @@
-commit 4c1aff87f1a160c3da962cda0c48462c88260d7b
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Feb 28 13:14:44 2018 +0100
+commit ff4ee8816226b6c84690a56fb3b16c9210e68431
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Oct 25 11:01:46 2017 -0700
 
-    testing: gracefully handle subtest failing parent’s T
+    database/sql: scan into *time.Time without reflection
     
-    Don’t panic if a subtest inadvertently calls FailNow
-    on a parent’s T.  Instead, report the offending subtest
-    while still reporting the error with the ancestor test and
-    keep exiting goroutines.
+    Previously scanning time.Time into a *time.Time required reflection.
+    Now it does not. Scanning already checked if the source value was of
+    type time.Time. The only addition was checking the destination was
+    of type *time.Time.
     
-    Note that this implementation has a race if parallel
-    subtests are failing the parent concurrently.
-    This is fine:
-    Calling FailNow on a parent is considered an error
-    in principle, at the moment, and is reported if it is
-    detected. Having the race allows the race detector
-    to detect the error as well.
+    Existing tests already scan time.Time into *time.Time, so no new
+    tests were added. Linked issue has performance justification.
     
-    Fixes #22882
+    Fixes #22300
     
-    Change-Id: Ifa6d5e55bb88f6bcbb562fc8c99f1f77e320015a
-    Reviewed-on: https://go-review.googlesource.com/97635
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
-    Reviewed-by: Kunpei Sakai <namusyaka@gmail.com>
+    Change-Id: I4eea461c78fad71ce76e7677c8503a1919666931
+    Reviewed-on: https://go-review.googlesource.com/73232
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/testing/sub_test.go | 78 ++++++++++++++++++++++++++++++++++++++++++++++++-
- src/testing/testing.go  | 21 +++++++++++--
- 2 files changed, 95 insertions(+), 4 deletions(-)
+ src/database/sql/convert.go | 3 +++
+ 1 file changed, 3 insertions(+)

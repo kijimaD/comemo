@@ -1,19 +1,25 @@
-commit 9c6f6409ada8737bf159e7e8eb952f0541e89860
-Author: Clément Chigot <chigot.c@gmail.com>
-Date:   Wed Nov 20 13:57:24 2019 +0100
+commit 2fc7574aab072c697d2d020fa48347b0c1b221e7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 25 20:26:46 2019 -0400
 
-    runtime: disable GDB tests on AIX with -short
+    cmd/go/internal/cache: avoid ioutil.WriteFile for writing cache entries
     
-    Since the new page allocator, AIX's GDB has trouble running Go programs.
-    It does work but it can be really slow. Therefore, they are disable when
-    tests are run with -short.
+    ioutil.WriteFile always truncates the destination file to 0 before
+    writing, which is inappropriate for unsynchronized, idempotent,
+    fixed-size files such as the cache entry files here.
     
-    Updates: #35710
+    Instead, truncate the file only after writing it, so that a second
+    write will never (even temporarily!) remove the contents of a
+    preceding write.
     
-    Change-Id: Ibfc4bd2cd9714268f1fe172aaf32a73612e262d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207919
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #29667
+    
+    Change-Id: I16a53ce79d8a23d23580511cb6abd062f54b65ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188157
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/runtime-gdb_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/internal/cache/cache.go                 | 25 +++++++++++--
+ .../script/mod_list_compiled_concurrent.txt        | 41 ++++++++++++++++++++++
+ 2 files changed, 64 insertions(+), 2 deletions(-)

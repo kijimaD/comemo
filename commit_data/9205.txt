@@ -1,17 +1,12 @@
-commit 003d5411aefbb9d49ef9868bca5f18189c3563b3
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jul 26 11:55:52 2011 +1000
+commit 83305fecfeaf7d8f759d1b95f8f98dda2580df0b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 26 04:16:34 2011 +1000
 
-    net: fix memory corruption in windows *netFD.ReadFrom
-    
-    We must keep memory used by syscall.WSARecvFrom away from
-    garbage collector until after overlapped call is completed.
-    
-    Fixes #2094.
+    goinstall: abort and warn when using any url scheme, not just 'http://'
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4817050
+    https://golang.org/cl/4801053
 
- src/pkg/net/fd_windows.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/goinstall/main.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

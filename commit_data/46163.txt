@@ -1,15 +1,21 @@
-commit 4158e88f64f34d1d0bab1d54be6be72a598ca41f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 24 12:23:28 2021 -0700
+commit 58e381b0b22352dda355f6d95fa101b773766c72
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 10 22:24:21 2020 -0800
 
-    cmd/compile/internal/syntax: fix position of type parameter field
+    cmd/vet: vendor in x/tools, update structtag vet check
     
-    Change-Id: I8bca01b935301e7bd4efa55ed21921dbf31a75b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344575
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    For #40281
+    Fixes #43083
+    
+    Change-Id: I50cb4db916587a6660c7f6e71f41f02334081510
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277076
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/syntax/parser.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../go/analysis/passes/structtag/structtag.go      | 94 +++++++++++++---------
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 4 files changed, 60 insertions(+), 42 deletions(-)

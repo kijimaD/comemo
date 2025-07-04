@@ -1,24 +1,20 @@
-commit d0146bd85bb6870aa43a498b06ccb473af55cbe3
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Jul 4 18:07:45 2024 -0400
+commit 699a6bfbfcb20fe93c64818e86ffea699595ea6b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 26 13:45:01 2023 -0700
 
-    os/exec: only use cachedLookExtensions if Cmd.Path is unmodified
+    doc/go1.21: remove TODOs for x/ repos
     
-    Caching the invocation of lookExtensions on an absolute path in Command
-    and reusing the cached result in Start is only viable if Cmd.Path isn't
-    set to a different value after Command returns.
+    Remove x/ repos changes that aren't part of the 1.21 release.
     
-    For #66586.
-    Fixes #68314.
-    
-    Change-Id: I57007850aca2011b11344180c00faded737617b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596875
-    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Change-Id: Ia5cbf02ed6c0cc4dc0ff80d68403723b3f9ae0ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498596
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/os/exec/exec.go      | 65 ++++++++++++++++++++++++++----------------------
- src/os/exec/exec_test.go | 22 +++++++++++++++-
- 2 files changed, 56 insertions(+), 31 deletions(-)
+ doc/go1.21.html | 28 +++++-----------------------
+ 1 file changed, 5 insertions(+), 23 deletions(-)

@@ -1,17 +1,18 @@
-commit e6f21be3f48802f18013a7e95bb3850882ab96e3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Sep 24 16:55:39 2014 -0700
+commit 95c899f03c0e19f498ef3b4a4820cf9121e249a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 14:02:59 2014 -0400
 
-    net/http: support https_proxy in ProxyFromEnvironment
+    net: make TestSelfConnect less fragile
     
-    Fixes #6181
+    We believe TestSelfConnect can accidentally connect to
+    something else listening on or dialing from that port.
     
-    LGTM=adg
-    R=adg
-    CC=golang-codereviews
-    https://golang.org/cl/148980043
+    Fixes #8680.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/136700043
 
- src/net/http/export_test.go    |  1 +
- src/net/http/transport.go      | 11 ++++++++++-
- src/net/http/transport_test.go | 33 ++++++++++++++++++++++++++++-----
- 3 files changed, 39 insertions(+), 6 deletions(-)
+ src/net/dial_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

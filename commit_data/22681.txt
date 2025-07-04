@@ -1,23 +1,19 @@
-commit da0e37fa8d284e92972877c4be3d031ecf1c8334
+commit 822a24b602038a443fc2b4c30f472eb904c30e23
 Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 22 16:38:04 2015 -0400
+Date:   Mon Mar 30 17:45:22 2015 -0400
 
-    runtime: benchmark for ping-pong in the presence of a CPU hog
+    runtime: remove checkgc code from hashmap
     
-    This benchmark demonstrates a current problem with the scheduler where
-    a set of frequently communicating goroutines get very little CPU time
-    in the presence of another goroutine that hogs that CPU, even if one
-    of those communicating goroutines is always runnable.
+    Currently hashmap is riddled with code that attempts to force a GC on
+    the next allocation if checkgc is set. This no longer works as
+    originally intended with the concurrent collector, and is apparently
+    no longer used anyway.
     
-    Currently it takes about 0.5 milliseconds to switch between
-    ping-ponging goroutines in the presence of a CPU hog:
+    Remove checkgc.
     
-    BenchmarkPingPongHog        2000            684287 ns/op
-    
-    Change-Id: I278848c84f778de32344921ae8a4a8056e4898b0
-    Reviewed-on: https://go-review.googlesource.com/9288
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia6c17c405fa8821dc2e6af28d506c1133ab1ca0c
+    Reviewed-on: https://go-review.googlesource.com/8355
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc_test.go | 37 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 37 insertions(+)
+ src/runtime/hashmap.go | 30 ------------------------------
+ 1 file changed, 30 deletions(-)

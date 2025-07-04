@@ -1,12 +1,23 @@
-commit 75cb084283558bf59e727096bf1c8f4e1ba137b2
+commit 3770b0e60c457f9336842f84b86a80ef945658b7
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 17 15:55:06 2011 -0400
+Date:   Wed Aug 17 15:54:17 2011 -0400
 
-    test: new nil semantics
+    gc: implement nil chan support
     
-    R=gri
+    The spec has defined nil chans this way for months.
+    I'm behind.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4644052
+    https://golang.org/cl/4897050
 
- test/nil.go | 142 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 142 insertions(+)
+ src/cmd/gc/builtin.c.boot |  15 +++---
+ src/cmd/gc/runtime.go     |  15 +++---
+ src/cmd/gc/select.c       |  15 +++---
+ src/cmd/gc/walk.c         |   8 +--
+ src/pkg/reflect/value.go  |   8 +--
+ src/pkg/runtime/chan.c    | 126 +++++++++++++++++++++-------------------------
+ src/pkg/runtime/runtime.h |   7 +--
+ src/pkg/runtime/type.h    |   1 -
+ test/chan/select3.go      |   8 +--
+ 9 files changed, 93 insertions(+), 110 deletions(-)

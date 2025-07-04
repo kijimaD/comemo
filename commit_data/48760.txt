@@ -1,29 +1,20 @@
-commit 45c3387d777caf28f4b992ad9a6216e3085bb8fe
-Author: Julie Qiu <julie@golang.org>
-Date:   Tue Mar 1 10:19:38 2022 -0600
+commit 0fd20ed5b67a950c7085b20c36dbfd9a70d2bfda
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 14 14:30:46 2021 -0700
 
-    encoding/pem: fix stack overflow in Decode
+    reflect: use same conversion panic in reflect and runtime
     
-    Previously, Decode called decodeError, a recursive function that was
-    prone to stack overflows when given a large PEM file containing errors.
+    Consistently say "pointer to array", not "array pointer".
     
-    Credit to Juho Nurminen of Mattermost who reported the error.
+    Fixes #46743
     
-    Fixes CVE-2022-24675
-    Fixes #51853
-    
-    Change-Id: Iffe768be53c8ddc0036fea0671d290f8f797692c
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1391157
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    (cherry picked from commit 794ea5e828010e8b68493b2fc6d2963263195a02)
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399820
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2388ec5c16f96e82a3a383b9b462b350686ddc5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327870
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/encoding/pem/pem.go      | 172 ++++++++++++++++++-------------------------
- src/encoding/pem/pem_test.go |  28 ++++++-
- 2 files changed, 100 insertions(+), 100 deletions(-)
+ src/reflect/all_test.go | 2 +-
+ src/reflect/value.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

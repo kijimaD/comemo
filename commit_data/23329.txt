@@ -1,20 +1,14 @@
-commit 0d0ce8a2afb5f31bbbc842910b643192a7d8767e
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Fri Jun 12 12:16:07 2015 +0200
+commit 4a8dbaa4b1d40c002cffa796855744eac25d4e64
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri May 1 22:05:50 2015 -0400
 
-    cmd/go: fix documentation
+    go/build: enable cgo by default on iOS
     
-    The command "go tool pprof help" does not work:
+    Otherwise misc/cgo/test won't be tested on iOS.
     
-        $ go tool pprof help
-        open help: no such file or directory
-    
-    The right command is "go tool pprof -h".
-    
-    Change-Id: Icef5d4ab76774905854e46665ac1166d26d35f46
-    Reviewed-on: https://go-review.googlesource.com/10970
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7ee78c825b0bb092c7a8b2c2ece5a6eda2f6cf95
+    Reviewed-on: https://go-review.googlesource.com/9643
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go | 2 +-
- src/cmd/go/test.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/build/build.go | 2 ++
+ 1 file changed, 2 insertions(+)

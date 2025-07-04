@@ -1,29 +1,35 @@
-commit 7f9ee2ba5b3b60a4e71650abe5d94e0ef85720d1
-Author: Dmitry Panov <dop251@gmail.com>
-Date:   Wed Dec 28 23:05:26 2022 +0000
+commit b8248fab897da9bee2211a98df1656883ccecd6d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 9 10:01:24 2022 -0800
 
-    math: handle int64 overflows for odd integer exponents in Pow(-0, y)
+    go/types, types2: disable field accesses through type parameters
     
-    The existing implementation does a float64 to int64 conversion in order to check whether the number is odd, however it does not check for overflows. If an overflow occurs, the result is implementation-defined and while it happens to work on amd64 and i386, it produces an incorrect result on arm64 and possibly other architectures.
+    This is a feature that is not understood well enough and may have
+    subtle repercussions impacting future changes. Disable for Go 1.18.
     
-    This change fixes that and also avoids calling isOddInt altogether if the base is +0, because it's unnecessary.
+    The actual change is trivial: disable a branch through a flag.
+    The remaining changes are adjustments to tests.
     
-    (I was considering avoiding the extra check if runtime.GOARCH is "amd64" or "i386", but I can't see this pattern being used anywhere outside the tests. And having separate files with build tags just for isOddInt() seems like an overkill)
+    Fixes #51576.
     
-    Fixes #57465
-    
-    Change-Id: Ieb243796194412aa6b98fac05fd19766ca2413ef
-    GitHub-Last-Rev: 3bfbd85c4cd6c5dc3d15239e180c99764a19ca88
-    GitHub-Pull-Request: golang/go#57494
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459815
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib77b038b846711a808315a8889b3904e72367bce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391135
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Bypass: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/math/all_test.go | 12 ++++++++++++
- src/math/pow.go      | 15 ++++++++++++---
- 2 files changed, 24 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go          |  3 +-
+ .../types2/testdata/fixedbugs/issue50417.go2       | 24 ++++++++------
+ .../types2/testdata/fixedbugs/issue50782.go2       | 13 ++++++--
+ src/go/types/lookup.go                             |  3 +-
+ src/go/types/testdata/fixedbugs/issue50417.go2     | 24 ++++++++------
+ src/go/types/testdata/fixedbugs/issue50782.go2     | 13 ++++++--
+ test/typeparam/absdiff2.go                         | 32 +++++++++++++------
+ test/typeparam/absdiffimp2.dir/a.go                | 32 +++++++++++++------
+ test/typeparam/issue50417.go                       |  6 ++++
+ test/typeparam/issue50417b.go                      |  8 +++++
+ test/typeparam/issue50690a.go                      | 37 +++++++++++++++-------
+ test/typeparam/issue50690b.go                      | 26 ++++++++++-----
+ test/typeparam/issue50690c.go                      | 30 +++++++++++++-----
+ 13 files changed, 177 insertions(+), 74 deletions(-)

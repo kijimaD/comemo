@@ -1,29 +1,77 @@
-commit f3e0d143131dc318a173f4f5cc4e4b96de93318d
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Aug 23 09:05:29 2017 +0200
+commit a04180633503139827096068d6194d2acd2de636
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Apr 20 09:08:52 2017 +0000
 
-    runtime: avoid infinite loop in growslice
+    cmd/internal/obj/arm: use new form of MOVW introduced in ARMv7
     
-    On 386 the below code triggered an infinite loop in growslice:
-    x = make([]byte, 1<<30-1, 1<<30-1)
-    x = append(x, x...)
+    As discussion in issue #18293, "MOVW $Imm-16, Reg" was introduced in
+    ARMv7. It directly encoded the 16-bit immediate into the instruction
+    instead of put it in the constant pool.
     
-    Check for overflow when calculating the new slice capacity
-    and set the new capacity to the requested capacity when an overflow
-    is detected to avoid an infinite loop.
+    This patch makes the arm assembler choose this form of MOVW if available.
     
-    No automatic test added due to requiring to allocate 1GB of memory
-    on a 32bit plaform before use of append is able to trigger the
-    overflow check.
+    Besides 4 bytes are saved in the constant pool, the go1 benchmark test
+    also shows a slight improvement.
     
-    Fixes #21441
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              42.7s ± 1%     42.7s ± 1%    ~     (p=0.304 n=50+50)
+    Fannkuch11-4                24.8s ± 1%     24.8s ± 0%    ~     (p=0.757 n=50+49)
+    FmtFprintfEmpty-4           875ns ± 1%     873ns ± 2%    ~     (p=0.066 n=44+46)
+    FmtFprintfString-4         1.43µs ± 1%    1.45µs ± 1%  +1.68%  (p=0.000 n=44+44)
+    FmtFprintfInt-4            1.52µs ± 1%    1.52µs ± 1%  +0.26%  (p=0.009 n=41+45)
+    FmtFprintfIntInt-4         2.19µs ± 1%    2.20µs ± 1%  +0.76%  (p=0.000 n=43+46)
+    FmtFprintfPrefixedInt-4    2.56µs ± 2%    2.53µs ± 1%  -1.03%  (p=0.000 n=45+44)
+    FmtFprintfFloat-4          4.41µs ± 1%    4.39µs ± 1%  -0.52%  (p=0.000 n=44+44)
+    FmtManyArgs-4              9.02µs ± 2%    9.04µs ± 1%  +0.27%  (p=0.000 n=46+44)
+    GobDecode-4                 106ms ± 1%     106ms ± 1%    ~     (p=0.310 n=45+43)
+    GobEncode-4                88.1ms ± 2%    88.0ms ± 2%    ~     (p=0.648 n=49+50)
+    Gzip-4                      4.31s ± 1%     4.27s ± 1%  -1.01%  (p=0.000 n=50+50)
+    Gunzip-4                    618ms ± 1%     608ms ± 1%  -1.65%  (p=0.000 n=45+47)
+    HTTPClientServer-4          689µs ± 6%     692µs ± 4%  +0.52%  (p=0.038 n=50+47)
+    JSONEncode-4                282ms ± 2%     280ms ± 1%  -0.75%  (p=0.000 n=46+43)
+    JSONDecode-4                945ms ± 2%     940ms ± 1%  -0.47%  (p=0.000 n=47+47)
+    Mandelbrot200-4            49.4ms ± 1%    49.3ms ± 1%    ~     (p=0.163 n=45+45)
+    GoParse-4                  46.0ms ± 3%    45.5ms ± 2%  -0.95%  (p=0.000 n=49+40)
+    RegexpMatchEasy0_32-4      1.29µs ± 1%    1.28µs ± 1%  -0.14%  (p=0.005 n=38+45)
+    RegexpMatchEasy0_1K-4      7.92µs ± 8%    7.75µs ± 6%  -2.12%  (p=0.000 n=47+50)
+    RegexpMatchEasy1_32-4      1.31µs ± 1%    1.31µs ± 0%    ~     (p=0.282 n=45+48)
+    RegexpMatchEasy1_1K-4      10.4µs ± 5%    10.4µs ± 3%    ~     (p=0.771 n=50+49)
+    RegexpMatchMedium_32-4     2.06µs ± 1%    2.07µs ± 1%  +0.35%  (p=0.001 n=44+49)
+    RegexpMatchMedium_1K-4      533µs ± 1%     532µs ± 1%    ~     (p=0.710 n=43+47)
+    RegexpMatchHard_32-4       29.7µs ± 1%    29.6µs ± 1%  -0.34%  (p=0.002 n=43+46)
+    RegexpMatchHard_1K-4        893µs ± 2%     885µs ± 1%  -0.85%  (p=0.000 n=50+45)
+    Revcomp-4                  85.6ms ± 4%    85.5ms ± 2%    ~     (p=0.683 n=50+50)
+    Template-4                  1.05s ± 3%     1.04s ± 1%  -1.06%  (p=0.000 n=50+44)
+    TimeParse-4                7.19µs ± 2%    7.11µs ± 2%  -1.10%  (p=0.000 n=48+46)
+    TimeFormat-4               13.4µs ± 1%    13.5µs ± 1%    ~     (p=0.056 n=46+49)
+    [Geo mean]                  747µs          745µs       -0.28%
     
-    Change-Id: Ia871cc9f88479dacf2c7044531b233f83d2fcedf
-    Reviewed-on: https://go-review.googlesource.com/57950
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    name                     old speed      new speed      delta
+    GobDecode-4              7.23MB/s ± 1%  7.22MB/s ± 1%    ~     (p=0.062 n=45+39)
+    GobEncode-4              8.71MB/s ± 2%  8.72MB/s ± 2%    ~     (p=0.656 n=49+50)
+    Gzip-4                   4.50MB/s ± 1%  4.55MB/s ± 1%  +1.03%  (p=0.000 n=50+50)
+    Gunzip-4                 31.4MB/s ± 1%  31.9MB/s ± 1%  +1.67%  (p=0.000 n=45+47)
+    JSONEncode-4             6.89MB/s ± 2%  6.94MB/s ± 1%  +0.76%  (p=0.000 n=46+43)
+    JSONDecode-4             2.05MB/s ± 2%  2.06MB/s ± 2%  +0.32%  (p=0.017 n=47+50)
+    GoParse-4                1.26MB/s ± 3%  1.27MB/s ± 1%  +0.68%  (p=0.000 n=50+48)
+    RegexpMatchEasy0_32-4    24.9MB/s ± 1%  24.9MB/s ± 1%  +0.13%  (p=0.004 n=38+45)
+    RegexpMatchEasy0_1K-4     129MB/s ± 7%   132MB/s ± 6%  +2.34%  (p=0.000 n=46+50)
+    RegexpMatchEasy1_32-4    24.5MB/s ± 1%  24.4MB/s ± 1%    ~     (p=0.252 n=45+48)
+    RegexpMatchEasy1_1K-4    98.8MB/s ± 4%  98.7MB/s ± 3%    ~     (p=0.771 n=50+49)
+    RegexpMatchMedium_32-4    485kB/s ± 3%   480kB/s ± 0%  -0.95%  (p=0.000 n=50+38)
+    RegexpMatchMedium_1K-4   1.92MB/s ± 1%  1.92MB/s ± 1%    ~     (p=0.129 n=43+47)
+    RegexpMatchHard_32-4     1.08MB/s ± 2%  1.08MB/s ± 1%  +0.38%  (p=0.017 n=46+46)
+    RegexpMatchHard_1K-4     1.15MB/s ± 2%  1.16MB/s ± 1%  +0.67%  (p=0.001 n=50+49)
+    Revcomp-4                29.7MB/s ± 4%  29.7MB/s ± 2%    ~     (p=0.682 n=50+50)
+    Template-4               1.85MB/s ± 3%  1.87MB/s ± 1%  +1.04%  (p=0.000 n=50+44)
+    [Geo mean]               6.56MB/s       6.60MB/s       +0.47%
+    
+    
+    Change-Id: Ic2cca90133c27a08d9f1a23c65b0eed5fbd02684
+    Reviewed-on: https://go-review.googlesource.com/41190
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/slice.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/arm/asm5.go | 33 ++++++++++++++++++++++++++++++---
+ 1 file changed, 30 insertions(+), 3 deletions(-)

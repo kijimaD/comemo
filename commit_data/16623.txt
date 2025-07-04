@@ -1,34 +1,21 @@
-commit f21bc7920decb5b6f94d49a9e8eefcdb74960c24
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 24 14:49:35 2013 -0400
+commit 05a5de30f099ee60987646ff88238d561b12ddeb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 24 17:17:45 2013 +1000
 
-    time: avoid garbage collector aliasing bug
+    runtime: do not generate code during runtime in windows NewCallback
     
-    Time is a tiny struct, so the compiler copies a Time by
-    copying each of the three fields.
+    Update #5494
     
-    The layout of a time on amd64 is [ptr int32 gap32 ptr].
-    Copying a Time onto a location that formerly held a pointer in the
-    second word changes only the low 32 bits, creating a different
-    but still plausible pointer. This confuses the garbage collector
-    when it appears in argument or result frames.
-    
-    To avoid this problem, declare nsec as uintptr, so that there is
-    no gap on amd64 anymore, and therefore no partial pointers.
-    
-    Note that rearranging the fields to put the int32 last still leaves
-    a gap - [ptr ptr int32 gap32] - because Time must have a total
-    size that is ptr-width aligned.
-    
-    Update #5749
-    
-    This CL is enough to fix the problem, but we should still do
-    the other actions listed in the initial report. We're not too far
-    from completely precise collection.
-    
-    R=golang-dev, dvyukov, r
+    R=golang-dev, minux.ma, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/10504043
+    https://golang.org/cl/10368043
 
- src/pkg/time/time.go | 45 +++++++++++++++++++++++++++------------------
- 1 file changed, 27 insertions(+), 18 deletions(-)
+ src/cmd/dist/a.h                                   |   1 +
+ src/cmd/dist/build.c                               |   2 +
+ src/cmd/dist/buildruntime.c                        |  44 +++++++++
+ .../{callback_windows_386.c => callback_windows.c} |  84 +++++------------
+ src/pkg/runtime/callback_windows_amd64.c           | 105 ---------------------
+ src/pkg/runtime/runtime.h                          |   8 ++
+ src/pkg/runtime/sys_windows_386.s                  |  74 ++++++++++-----
+ src/pkg/runtime/sys_windows_amd64.s                |  56 +++++------
+ 8 files changed, 163 insertions(+), 211 deletions(-)

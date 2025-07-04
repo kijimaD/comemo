@@ -1,103 +1,18 @@
-commit d9fd19a7f54f99e53ec7f1e9ad7f1e473ea38fc9
-Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
-Date:   Fri May 12 12:28:51 2023 +0800
+commit 98f5152368b4afd31eac1df2b3c172052d9b062a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 7 01:55:52 2022 +0700
 
-    cmd/compile: optimize math.Float32bits and math.Float32frombits on mipsx
+    cmd/compile: remove index out of bounds check in walkIndex
     
-    This CL use MFC1/MTC1 instructions to move data between GPR and FPR instead of stores and loads to move float/int values.
+    Since when any user errors about out-of-bounds constants should have
+    been already reported by types2.
     
-    goos: linux
-    goarch: mipsle
-    pkg: math
-                          │   oldmathf   │              newmathf              │
-                          │    sec/op    │   sec/op     vs base               │
-    Acos-4                   282.7n ± 0%   282.1n ± 0%   -0.18% (p=0.010 n=8)
-    Acosh-4                  450.8n ± 0%   450.9n ± 0%        ~ (p=0.699 n=8)
-    Asin-4                   272.6n ± 0%   272.1n ± 0%        ~ (p=0.050 n=8)
-    Asinh-4                  476.8n ± 0%   475.1n ± 0%   -0.35% (p=0.018 n=8)
-    Atan-4                   208.1n ± 0%   207.7n ± 0%   -0.17% (p=0.009 n=8)
-    Atanh-4                  448.8n ± 0%   448.7n ± 0%   -0.03% (p=0.014 n=8)
-    Atan2-4                  310.2n ± 0%   310.1n ± 0%        ~ (p=0.133 n=8)
-    Cbrt-4                   357.9n ± 0%   358.4n ± 0%   +0.11% (p=0.014 n=8)
-    Ceil-4                   203.8n ± 0%   204.7n ± 0%   +0.42% (p=0.008 n=8)
-    Compare-4                21.12n ± 0%   22.09n ± 0%   +4.59% (p=0.000 n=8)
-    Compare32-4             19.105n ± 0%   6.022n ± 0%  -68.48% (p=0.000 n=8)
-    Copysign-4               33.17n ± 0%   33.15n ± 0%        ~ (p=0.795 n=8)
-    Cos-4                    385.2n ± 0%   384.8n ± 1%        ~ (p=0.112 n=8)
-    Cosh-4                   546.0n ± 0%   545.0n ± 0%   -0.17% (p=0.012 n=8)
-    Erf-4                    192.4n ± 0%   195.4n ± 1%   +1.59% (p=0.000 n=8)
-    Erfc-4                   187.8n ± 0%   192.7n ± 0%   +2.64% (p=0.000 n=8)
-    Erfinv-4                 221.8n ± 1%   219.8n ± 0%   -0.88% (p=0.000 n=8)
-    Erfcinv-4                224.1n ± 1%   219.9n ± 0%   -1.87% (p=0.000 n=8)
-    Exp-4                    434.7n ± 0%   435.0n ± 0%        ~ (p=0.339 n=8)
-    ExpGo-4                  433.7n ± 0%   434.2n ± 0%   +0.13% (p=0.005 n=8)
-    Expm1-4                  243.0n ± 0%   242.9n ± 0%        ~ (p=0.103 n=8)
-    Exp2-4                   426.6n ± 0%   426.6n ± 0%        ~ (p=0.822 n=8)
-    Exp2Go-4                 425.6n ± 0%   425.5n ± 0%        ~ (p=0.377 n=8)
-    Abs-4                    8.033n ± 0%   8.029n ± 0%        ~ (p=0.065 n=8)
-    Dim-4                    18.07n ± 0%   18.07n ± 0%        ~ (p=0.051 n=8)
-    Floor-4                  151.6n ± 0%   151.6n ± 0%        ~ (p=0.450 n=8)
-    Max-4                    100.9n ± 8%   103.2n ± 2%        ~ (p=0.099 n=8)
-    Min-4                    116.4n ± 0%   116.4n ± 0%        ~ (p=0.467 n=8)
-    Mod-4                    959.6n ± 1%   950.9n ± 0%   -0.91% (p=0.006 n=8)
-    Frexp-4                  147.6n ± 0%   147.5n ± 0%   -0.07% (p=0.026 n=8)
-    Gamma-4                  482.7n ± 0%   478.2n ± 2%   -0.92% (p=0.000 n=8)
-    Hypot-4                  139.8n ± 1%   127.1n ± 8%   -9.12% (p=0.000 n=8)
-    HypotGo-4                137.2n ± 7%   117.5n ± 2%  -14.39% (p=0.001 n=8)
-    Ilogb-4                  109.5n ± 0%   108.4n ± 1%   -1.05% (p=0.001 n=8)
-    J0-4                     1.304µ ± 0%   1.304µ ± 0%        ~ (p=0.853 n=8)
-    J1-4                     1.349µ ± 0%   1.331µ ± 0%   -1.33% (p=0.000 n=8)
-    Jn-4                     2.774µ ± 0%   2.750µ ± 0%   -0.87% (p=0.000 n=8)
-    Ldexp-4                  151.6n ± 0%   151.5n ± 0%        ~ (p=0.695 n=8)
-    Lgamma-4                 226.9n ± 0%   233.9n ± 0%   +3.09% (p=0.000 n=8)
-    Log-4                    407.6n ± 0%   407.4n ± 0%        ~ (p=0.340 n=8)
-    Logb-4                   121.5n ± 0%   121.5n ± 0%   -0.08% (p=0.042 n=8)
-    Log1p-4                  315.5n ± 0%   315.6n ± 0%        ~ (p=0.930 n=8)
-    Log10-4                  417.8n ± 0%   417.5n ± 0%        ~ (p=0.053 n=8)
-    Log2-4                   208.8n ± 0%   208.8n ± 0%        ~ (p=0.582 n=8)
-    Modf-4                   126.5n ± 0%   126.4n ± 0%        ~ (p=0.128 n=8)
-    Nextafter32-4           112.45n ± 0%   82.27n ± 0%  -26.84% (p=0.000 n=8)
-    Nextafter64-4            141.5n ± 0%   141.5n ± 0%        ~ (p=0.569 n=8)
-    PowInt-4                 754.0n ± 1%   754.6n ± 0%        ~ (p=0.279 n=8)
-    PowFrac-4                1.608µ ± 1%   1.596µ ± 1%        ~ (p=0.661 n=8)
-    Pow10Pos-4               18.07n ± 0%   18.07n ± 0%        ~ (p=0.413 n=8)
-    Pow10Neg-4               17.08n ± 0%   18.07n ± 0%   +5.80% (p=0.000 n=8)
-    Round-4                  68.30n ± 0%   69.29n ± 0%   +1.45% (p=0.000 n=8)
-    RoundToEven-4            78.33n ± 0%   78.34n ± 0%        ~ (p=0.975 n=8)
-    Remainder-4              740.6n ± 1%   736.7n ± 0%        ~ (p=0.098 n=8)
-    Signbit-4                18.08n ± 0%   18.07n ± 0%        ~ (p=0.546 n=8)
-    Sin-4                    389.4n ± 0%   389.5n ± 0%        ~ (p=0.451 n=8)
-    Sincos-4                 415.6n ± 0%   415.6n ± 0%        ~ (p=0.450 n=8)
-    Sinh-4                   607.0n ± 0%   590.8n ± 1%   -2.68% (p=0.000 n=8)
-    SqrtIndirect-4           8.034n ± 0%   8.030n ± 0%        ~ (p=0.487 n=8)
-    SqrtLatency-4            8.031n ± 0%   8.034n ± 0%        ~ (p=0.152 n=8)
-    SqrtIndirectLatency-4    8.032n ± 0%   8.032n ± 0%        ~ (p=0.818 n=8)
-    SqrtGoLatency-4          895.8n ± 0%   895.3n ± 0%        ~ (p=0.553 n=8)
-    SqrtPrime-4              5.405µ ± 0%   5.379µ ± 0%   -0.48% (p=0.000 n=8)
-    Tan-4                    405.6n ± 0%   405.7n ± 0%        ~ (p=0.980 n=8)
-    Tanh-4                   545.1n ± 0%   545.1n ± 0%        ~ (p=0.806 n=8)
-    Trunc-4                  146.5n ± 0%   146.6n ± 0%        ~ (p=0.380 n=8)
-    Y0-4                     1.308µ ± 0%   1.306µ ± 0%        ~ (p=0.071 n=8)
-    Y1-4                     1.311µ ± 0%   1.315µ ± 0%   +0.31% (p=0.000 n=8)
-    Yn-4                     2.737µ ± 0%   2.745µ ± 0%   +0.27% (p=0.000 n=8)
-    Float64bits-4            14.56n ± 0%   14.56n ± 0%        ~ (p=0.689 n=8)
-    Float64frombits-4        19.08n ± 0%   19.08n ± 0%        ~ (p=0.580 n=8)
-    Float32bits-4           13.050n ± 0%   5.019n ± 0%  -61.54% (p=0.000 n=8)
-    Float32frombits-4       13.060n ± 0%   4.016n ± 0%  -69.25% (p=0.000 n=8)
-    FMA-4                    608.5n ± 0%   586.1n ± 0%   -3.67% (p=0.000 n=8)
-    geomean                  185.5n        176.2n        -5.02%
-    
-    Change-Id: Ibf91092ffe70104e6c5ec03bc76d51259818b9b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494535
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I81b6bfec53201bbf546c48157fc8154cdb3c6e45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421876
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/mips/ssa.go         |  2 +
- src/cmd/compile/internal/ssa/_gen/MIPS.rules |  9 ++++
- src/cmd/compile/internal/ssa/_gen/MIPSOps.go |  6 +++
- src/cmd/compile/internal/ssa/opGen.go        | 28 ++++++++++++
- src/cmd/compile/internal/ssa/rewriteMIPS.go  | 68 ++++++++++++++++++++++++++++
- 5 files changed, 113 insertions(+)
+ src/cmd/compile/internal/walk/expr.go | 12 ------------
+ 1 file changed, 12 deletions(-)

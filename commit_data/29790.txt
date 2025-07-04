@@ -1,20 +1,22 @@
-commit bc61026c3f60d0d449e1cb292ef202daa1c2d019
-Author: Max Riveiro <kavu13@gmail.com>
-Date:   Sun Dec 11 13:54:22 2016 +0300
+commit dd307da10c3582c195928d9bf073d1b0b01f2135
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Oct 11 14:24:59 2016 +1100
 
-    time: parse WITA timezone correctly
+    runtime/cgo: do not explicitly link msvcrt.dll
     
-    WITA stands for Asia/Makassar IANA timezone
-    https://en.wikipedia.org/wiki/Asia/Makassar
+    CL 14472 solved issue #12030 by explicitly linking msvcrt.dll
+    to every cgo executable we build. This CL achieves the same
+    by manually loading ntdll.dll during startup.
     
-    Fixes #18251
+    Updates #12030
     
-    Change-Id: I5896efb8052593afb4e51ae4a34b574a8206d4dc
-    Reviewed-on: https://go-review.googlesource.com/34253
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5d9cd925ef65cc34c5d4031c750f0f97794529b2
+    Reviewed-on: https://go-review.googlesource.com/30737
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/time/format.go      | 5 +++--
- src/time/format_test.go | 1 +
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/cgo/cgo.go    |  4 +---
+ src/runtime/os_windows.go | 14 ++++++++++++--
+ 2 files changed, 13 insertions(+), 5 deletions(-)

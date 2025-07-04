@@ -1,19 +1,12 @@
-commit 74c03cb81491a2e7e6559b6cf92518287260ce36
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Jan 9 15:05:22 2013 -0800
+commit 5ca4f5e48384fa9c483d1ed40364940e6cb4e355
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 9 14:45:03 2013 -0800
 
-    cmd/ld: fix incompatible type signatures on Plan 9
+    cmd/go: get -m options from GOARCH when using gccgo
     
-    Changeset f483bfe81114 moved ELF generation to the architecture
-    independent code and in doing so added a Section* to the Sym
-    type and an Elf64_Shdr* to the Section type.
-    
-    This caused the Plan 9 compilers to complain about incompatible
-    type signatures in the many files that reference the Sym type.
-    
-    R=rsc, dave
+    R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7057058
+    https://golang.org/cl/7057063
 
- src/cmd/ld/lib.h | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/build.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

@@ -1,20 +1,15 @@
-commit 5c7a460a1c108e5bf7a99817b86ebded7ce81812
-Author: Matt Layher <mdlayher@gmail.com>
-Date:   Wed Jul 21 16:03:34 2021 -0400
+commit 9b0e8a2c95714e1ddaea8cddb7c37f67ff00144a
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 3 12:12:23 2020 -0500
 
-    syscall: hoist Getsockname out of NetlinkRIB loops
+    doc/go1.16: tidy darwin/arm64 port section
     
-    Calling Getsockname once to fetch the Pid field from the *SockaddrNetlink
-    is necessary, but this data will remain static for the rest of the netlink
-    socket's lifetime. Moving this call and type assertion outside of the inner
-    loops will remove a number of unnecessary system calls.
+    For #40700.
     
-    Change-Id: I7e7e81866af1a31fccdaaf7531efd6cc4cbb8926
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/336369
-    Run-TryBot: Matt Layher <mdlayher@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I4f5d93e4ed13864f8b7dcc772d7ae074772b5a3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275175
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/netlink_linux.go | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ doc/go1.16.html | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

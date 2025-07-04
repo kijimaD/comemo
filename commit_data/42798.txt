@@ -1,21 +1,31 @@
-commit 494ec85d9fd6deea388c454dfd836d9f845f7153
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Jul 6 16:45:46 2020 -0400
+commit 49f8d45994b6782e4925057909e4896832334a26
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 6 13:42:35 2020 -0800
 
-    go/types: update test case to exercise mutually recursive interfaces
+    cmd/compile: delete duplicate rules
     
-    Due to a typo, this test case was not actually exercising the bug
-    described in golang/go#33656. Update it to do so. Interestingly, the
-    comparison is now valid (as it should be) -- I suspect #33656 is
-    actually fixed.
+    Add logic during rulegen to detect exact duplicates
+    (after applying commutativity),
+    and clean up existing duplicates.
     
-    Fixes #33656
-    
-    Change-Id: If50a917f6477d8eb4f82f5a2a96bf5d9123ff0d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241263
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7179f40fc48e236c74b74f429ec9f0f100026530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213699
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/testdata/cycles2.src | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules     |    1 -
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |    7 -
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   11 -
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |    6 -
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |    1 -
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |   30 -
+ src/cmd/compile/internal/ssa/gen/generic.rules |    8 -
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   10 +
+ src/cmd/compile/internal/ssa/rewrite386.go     |   32 -
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  255 +-----
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |   92 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  172 +---
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |   38 -
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 1101 ++++--------------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  456 +---------
+ 15 files changed, 166 insertions(+), 2054 deletions(-)

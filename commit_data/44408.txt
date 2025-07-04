@@ -1,17 +1,19 @@
-commit 6c3f8a2f4730f005850be7fde3a3dac6dc5323a6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Feb 24 11:48:09 2021 -0800
+commit 186e61f319c2fb0d0abc72c85d8818eba06e26e3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 25 16:39:56 2020 -0700
 
-    cmd/link: use ctxt.Logf instead of package log
+    doc/go1.14: crypto/tls.Config.NameToCertificate is deprecated
     
-    Fixes #43601
+    Also crypto/tls.Config.BuildNameToCertificate.
     
-    Change-Id: I28b745cb92932d875a66f64c63355650a092f096
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296029
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Note that this field and method were deprecated in the Go 1.14 release,
+    so this change is to the 1.14 release notes.
+    
+    Fixes #37626
+    
+    Change-Id: If8549bc746f42a93f1903439e1b464b3e81e2c19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240005
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/link/internal/ld/config.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ doc/go1.14.html | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

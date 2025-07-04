@@ -1,17 +1,53 @@
-commit 3702cb5ab95575830488dc2b1ca9424651f828cf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 18 10:57:28 2023 -0700
+commit 2d63305b8446c69d79730ff556385cabe09f54ec
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 25 10:28:50 2022 -0400
 
-    go/types: use InvalidSyntaxTree in a couple of places (cleanup)
+    cmd/go: make vcstest repo scripts compatible with old Git versions
     
-    Change-Id: I3dcff95b49a72edc30035f50b1ac1d3f9cdec91b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529235
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    The scripts added in CL 421455 passed on the TryBots, but failed on a
+    subset of the builders that have older 'git' binaries installed.
+    
+    Notably, the older versions of git do not support:
+    - 'git branch -m' before the current branch has a commit
+    - 'init.defaultBranch' in the '.gitconfig' file, and
+    - 'git branch -c'.
+    
+    We address those by, respectively:
+    - waiting to run 'git branch -m' until after the first commit
+    - always running 'git branch -m' explicitly to set the branch name, and
+    - using 'git checkout' instead of 'git branch -c' to set branch parents.
+    
+    Updates #27494.
+    
+    Change-Id: I42f012f5add8f31e41d077d752d8268aacbce8a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445355
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/go/types/expr.go      | 2 +-
- src/go/types/interface.go | 6 ++----
- 2 files changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/go/testdata/vcstest/git/commit-after-tag.txt    | 2 +-
+ src/cmd/go/testdata/vcstest/git/empty-v2-without-v1.txt | 2 +-
+ src/cmd/go/testdata/vcstest/git/emptytest.txt           | 2 +-
+ src/cmd/go/testdata/vcstest/git/gitrepo1.txt            | 9 +++++----
+ src/cmd/go/testdata/vcstest/git/hello.txt               | 2 +-
+ src/cmd/go/testdata/vcstest/git/insecurerepo.txt        | 2 +-
+ src/cmd/go/testdata/vcstest/git/mainonly.txt            | 2 +-
+ src/cmd/go/testdata/vcstest/git/modlegacy1-new.txt      | 2 +-
+ src/cmd/go/testdata/vcstest/git/modlegacy1-old.txt      | 2 +-
+ src/cmd/go/testdata/vcstest/git/no-tags.txt             | 2 +-
+ src/cmd/go/testdata/vcstest/git/odd-tags.txt            | 3 ++-
+ src/cmd/go/testdata/vcstest/git/prefixtagtests.txt      | 2 +-
+ src/cmd/go/testdata/vcstest/git/querytest.txt           | 4 ++--
+ src/cmd/go/testdata/vcstest/git/retract-pseudo.txt      | 1 +
+ src/cmd/go/testdata/vcstest/git/semver-branch.txt       | 7 ++++---
+ src/cmd/go/testdata/vcstest/git/tagtests.txt            | 4 ++--
+ src/cmd/go/testdata/vcstest/git/v2repo.txt              | 2 +-
+ src/cmd/go/testdata/vcstest/git/v2sub.txt               | 1 +
+ src/cmd/go/testdata/vcstest/git/v3pkg.txt               | 2 +-
+ src/cmd/go/testdata/vcstest/git/vgotest1.txt            | 2 +-
+ src/cmd/go/testdata/vcstest/hg/hgrepo1.txt              | 9 +++++----
+ src/cmd/go/testdata/vcstest/hg/vgotest1.txt             | 8 ++++----
+ src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt       | 2 +-
+ src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt       | 2 +-
+ 24 files changed, 41 insertions(+), 35 deletions(-)

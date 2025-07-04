@@ -1,14 +1,12 @@
-commit 16e933c26697a884834f7f5f86c86f14e51e4fae
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 3 14:09:53 2015 -0800
+commit ce36552083ef281d4c90b2396a56afa039e119b0
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Sun Dec 14 14:32:56 2014 +0800
 
-    cmd/dist: fix whitespace and comment typo in arm vfp detection
+    doc/contribute: add necessary <code> tags, remove an extra close parenthesis.
     
-    Follow-up to cl 2682.
-    
-    Change-Id: I06a589e782af821e4fa46a7c34d9a549de47fa60
-    Reviewed-on: https://go-review.googlesource.com/3830
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I7238ae84d637534a345e5d077b8c63466148bd75
+    Reviewed-on: https://go-review.googlesource.com/1521
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/vfp_arm.s | 4 ++--
+ doc/contribute.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,15 +1,18 @@
-commit 0bad63437ec0262c309efd4262b86352a25a73e3
+commit 95b4498ac0c70a2c3c2a0c60d66aa74b10bca76d
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 3 09:55:44 2018 -0700
+Date:   Wed Apr 11 14:16:52 2018 -0700
 
-    os: document that Remove removes only empty directories
+    cmd/internal/obj/arm64: don't crash on trailing NOP
     
-    Fixes #26507
+    Fixes #20348
     
-    Change-Id: I967e4f897ca891c70ca8bb0e66b984530c240815
-    Reviewed-on: https://go-review.googlesource.com/127835
+    Change-Id: I831aeeee8e20d55b3e47dea67786e883b213cd58
+    Reviewed-on: https://go-review.googlesource.com/106457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/file_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/arm64/asm_test.go | 18 ++++++++++++++++++
+ src/cmd/internal/obj/arm64/obj7.go     |  8 +++++---
+ 2 files changed, 23 insertions(+), 3 deletions(-)

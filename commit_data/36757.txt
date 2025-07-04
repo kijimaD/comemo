@@ -1,16 +1,24 @@
-commit 10aeb672e0183b63b6e2d59e49c38c8e83ea6113
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Wed Jun 13 21:19:22 2018 -0300
+commit 65c365bf0f4add682419ba8fe68db43a0cab0e83
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue May 22 18:08:12 2018 -0400
 
-    image: make RegisterFormat safe for concurrent use
+    cmd/compile: fix debug info generation for loads from Phis
     
-    Fixes #25884
+    Apparently a LoadReg can take a Phi as its argument. The Phi has names
+    in the NamedValue table, so just read the Load's names from the Phi.
     
-    Change-Id: I5478846ef78aecac32078ea8c3248db52f1bb534
-    Reviewed-on: https://go-review.googlesource.com/118755
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    The example given, XORKeyStream in chacha20, is pretty complicated so I
+    didn't try to actually debug it and verify that the results are right.
+    But the debug logging looks reasonable, with the right names in the right
+    registers at the right times.
+    
+    Fixes #25404
+    
+    Change-Id: I2c3183dcfb033948556d6805bd66c22c0b45625c
+    Reviewed-on: https://go-review.googlesource.com/114008
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/image/format.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

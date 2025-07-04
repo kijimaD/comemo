@@ -1,18 +1,17 @@
-commit 80a051712981fb232567813e11899b592ddd51de
+commit 20d745c57cb44e6ca8f29179e9cb928fad3a5cb4
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 13 21:34:46 2016 -0400
+Date:   Wed Jan 6 14:32:17 2016 -0500
 
-    os/user: allow LookupGroupId to fail during test
+    encoding/base64: fix streaming decode of padding-free base64
     
-    On my Mac I am in group 5000 which apparently has no name
-    (I suspect because it is an LDAP group and I cannot reach the
-    LDAP server). Do not make the test fail in that case.
+    Fixes #13384.
     
-    Fixes #14806
-    
-    Change-Id: I56b11a8e86b048abfb00812eaad37802fd2adcc5
-    Reviewed-on: https://go-review.googlesource.com/20710
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id9e827acddc8de139f93c5de0c6486bc4334c7d4
+    Reviewed-on: https://go-review.googlesource.com/18330
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/user/user_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ doc/go1.6.html                     | 11 ++++++
+ src/encoding/base64/base64.go      | 76 +++++++++++++++++++++++---------------
+ src/encoding/base64/base64_test.go | 25 +++++++++++++
+ test/bench/go1/jsondata_test.go    |  2 +-
+ 4 files changed, 84 insertions(+), 30 deletions(-)

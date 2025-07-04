@@ -1,16 +1,21 @@
-commit c844970ffb4f8c72e23364c5563d429d3535a0ff
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Dec 11 14:14:10 2023 -0500
+commit a6ddb15f8f5955d93eeb2f674ec564ffd4530c18
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 24 16:11:06 2023 +0000
 
-    doc/go1.22: fix stale id for math/rand/v2
+    Revert "cmd/compile: teach prove about bitwise OR operation"
     
-    For #61422.
+    This reverts commit 3680b5e9c4f42fcf9155aa42b3b344d1fbe19571.
     
-    Change-Id: If87f30229e5e5351e81d42c777259335af3533e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548878
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reason for revert: causes long compile times on certain functions. See issue #57959
+    
+    Change-Id: Ie9e881ca8abbc79a46de2bfeaed0b9d6c416ed42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463295
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- doc/go1.22.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/prove.go | 3 ---
+ test/prove.go                         | 5 -----
+ 2 files changed, 8 deletions(-)

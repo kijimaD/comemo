@@ -1,14 +1,18 @@
-commit f448c212a101f4fcf54a694e4a1cfd3459635bcb
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 11 16:48:05 2019 -0400
+commit 404ab866d1522fbe4c5596fe9889d61aec84fabe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 16 15:51:49 2018 -0800
 
-    runtime: delete unused isscanstatus function
+    cmd/go: packages that use SWIG depend on "unsafe"
     
-    Change-Id: I693250e980cc60ea151736b42ac6b1426ab801b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171765
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fixes #28834
+    
+    Change-Id: I95d6874e62d36974415f43843881a4ae85b3c7ce
+    Reviewed-on: https://go-review.googlesource.com/c/149964
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/proc.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 1 +
+ 1 file changed, 1 insertion(+)

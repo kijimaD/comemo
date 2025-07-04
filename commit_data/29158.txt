@@ -1,21 +1,38 @@
-commit 79d2115ec933904c02311cd31923b125fe4303dc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Oct 27 19:53:50 2016 -0700
+commit 4955147291812fd78049d47ef985095e6442264a
+Author: Ethan Miller <eamiller@us.ibm.com>
+Date:   Fri Aug 12 13:45:50 2016 -0500
 
-    cmd/compile: eliminate more allocs in newblock
+    math/big: add assembly implementation of arith for ppc64{le}
     
-    name       old allocs/op    new allocs/op    delta
-    Template         389k ± 0%        386k ± 0%  -0.84%        (p=0.000 n=10+10)
-    Unicode          323k ± 0%        323k ± 0%  -0.25%        (p=0.000 n=10+10)
-    GoTypes         1.17M ± 0%       1.16M ± 0%  -0.93%        (p=0.000 n=10+10)
-    Compiler        4.13M ± 0%       4.09M ± 0%  -1.05%        (p=0.000 n=10+10)
+    The existing implementation used a pure go implementation, leading to slow
+    cryptographic performance.
     
-    Change-Id: I6c00850d07511c2e65761c7373fc3df738499105
-    Reviewed-on: https://go-review.googlesource.com/32235
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Implemented mulWW, subVV, mulAddVWW, addMulVVW, and bitLen for
+    ppc64{le}.
+    Implemented divWW for ppc64le only, as the DIVDEU instruction is only
+    available on Power8 or newer.
+    
+    benchcmp output:
+    
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkSignP384                 28934360      10877330      -62.41%
+    BenchmarkRSA2048Decrypt           41261033      5139930       -87.54%
+    BenchmarkRSA2048Sign              45231300      7610985       -83.17%
+    Benchmark3PrimeRSA2048Decrypt     20487300      2481408       -87.89%
+    
+    Fixes #16621
+    
+    Change-Id: If8b68963bb49909bde832f2bda08a3791c4f5b7a
+    Reviewed-on: https://go-review.googlesource.com/26951
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
 
- src/cmd/compile/internal/gc/plive.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/ppc64/a.out.go  |   4 +
+ src/cmd/internal/obj/ppc64/anames.go |   4 +
+ src/cmd/internal/obj/ppc64/asm9.go   |  16 ++++
+ src/crypto/ecdsa/ecdsa_test.go       |  12 +++
+ src/math/big/arith_ppc64.s           |  14 +++
+ src/math/big/arith_ppc64le.s         |  50 ++++++++++
+ src/math/big/arith_ppc64x.s          | 178 +++++++++++++++++++++++++++++++----
+ 7 files changed, 259 insertions(+), 19 deletions(-)

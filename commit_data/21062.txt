@@ -1,12 +1,61 @@
-commit c6669e7af58cb9406226c038b1cadef6e754dc74
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 22 15:24:30 2014 -0800
+commit 15ced2d00832dd9129b4ee0ac53b5367ade24c13
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 17:06:22 2014 -0500
 
-    runtime: fix nacl build, hashmap overflow field offset was incorrect.
+    [dev.cc] runtime: convert assembly files for C to Go transition
     
-    Change-Id: Ieb305b2a4d4ef28d70a8b8ece703f495c5af0529
-    Reviewed-on: https://go-review.googlesource.com/2051
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The main change is that #include "zasm_GOOS_GOARCH.h"
+    is now #include "go_asm.h" and/or #include "go_tls.h".
+    
+    Also, because C StackGuard is now Go _StackGuard,
+    the assembly name changes from const_StackGuard to
+    const__StackGuard.
+    
+    In asm_$GOARCH.s, add new function getg, formerly
+    implemented in C.
+    
+    The renamed atomics now have Go wrappers, to get
+    escape analysis annotations right. Those wrappers
+    are in CL 174860043.
+    
+    LGTM=r, aram
+    R=r, aram
+    CC=austin, dvyukov, golang-codereviews, iant, khr
+    https://golang.org/cl/168510043
 
- src/runtime/hashmap.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/asm.s                 |  5 +++++
+ src/runtime/asm_386.s             | 18 +++++++++++++-----
+ src/runtime/asm_amd64.s           | 17 ++++++++++++-----
+ src/runtime/asm_amd64p32.s        | 15 +++++++++++----
+ src/runtime/asm_arm.s             |  7 ++++++-
+ src/runtime/race_amd64.s          |  3 ++-
+ src/runtime/rt0_windows_amd64.s   |  3 ++-
+ src/runtime/sys_darwin_386.s      |  3 ++-
+ src/runtime/sys_darwin_amd64.s    |  3 ++-
+ src/runtime/sys_dragonfly_386.s   |  3 ++-
+ src/runtime/sys_dragonfly_amd64.s |  3 ++-
+ src/runtime/sys_freebsd_386.s     |  3 ++-
+ src/runtime/sys_freebsd_amd64.s   |  3 ++-
+ src/runtime/sys_freebsd_arm.s     |  5 +++--
+ src/runtime/sys_linux_386.s       |  3 ++-
+ src/runtime/sys_linux_amd64.s     |  3 ++-
+ src/runtime/sys_linux_arm.s       |  5 +++--
+ src/runtime/sys_nacl_386.s        |  3 ++-
+ src/runtime/sys_nacl_amd64p32.s   |  3 ++-
+ src/runtime/sys_nacl_arm.s        |  5 +++--
+ src/runtime/sys_netbsd_386.s      |  3 ++-
+ src/runtime/sys_netbsd_amd64.s    |  3 ++-
+ src/runtime/sys_netbsd_arm.s      |  5 +++--
+ src/runtime/sys_openbsd_386.s     |  3 ++-
+ src/runtime/sys_openbsd_amd64.s   |  3 ++-
+ src/runtime/sys_plan9_386.s       |  3 ++-
+ src/runtime/sys_plan9_amd64.s     |  3 ++-
+ src/runtime/sys_solaris_amd64.s   |  3 ++-
+ src/runtime/sys_windows_386.s     |  3 ++-
+ src/runtime/sys_windows_amd64.s   |  3 ++-
+ src/runtime/thunk.s               | 16 +++++++++++++++-
+ src/runtime/thunk_solaris_amd64.s |  3 ++-
+ src/runtime/thunk_windows.s       |  3 ++-
+ src/runtime/tls_arm.s             |  3 ++-
+ src/runtime/vlop_arm.s            |  3 ++-
+ 35 files changed, 124 insertions(+), 49 deletions(-)

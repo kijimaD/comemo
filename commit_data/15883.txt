@@ -1,12 +1,14 @@
-commit dc71ace28261a37922afe02d36a02adf50ba2f94
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 21 19:59:49 2013 -0700
+commit f8ff6893a579184d1ba62b0e178fe7ddfd695a1b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 21 16:56:59 2013 -0700
 
-    bufio: add some tests
+    test: more systematic shift tests
     
-    R=golang-dev, adg
+    To be submitted once gc agrees.
+    
+    R=rsc, iant, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/7927044
+    https://golang.org/cl/7861045
 
- src/pkg/bufio/bufio_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 44 insertions(+), 3 deletions(-)
+ test/shift1.go | 191 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 187 insertions(+), 4 deletions(-)

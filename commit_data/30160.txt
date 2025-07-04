@@ -1,20 +1,18 @@
-commit a146dd3a2fdf87bab90ee1f636c38cd3444e55fa
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Feb 8 15:31:24 2017 -0500
+commit 117c9c35cde8444d26db91bfa8346dde252989b1
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Tue Oct 25 22:35:01 2016 -0400
 
-    cmd/compile: handle DOT STRUCTLIT for zero-valued struct in SSA
+    net/http: Improve docs for Response.ParseForm
     
-    CL 35261 makes SSA handle zero-valued STRUCTLIT, but DOT operation
-    was not handled.
+    - Removes a subject-verb disagreement.
+    - Documents that PATCH requests also populate PostForm.
+    - Explains that r.PostForm is always set (but blank for GET etc.).
     
-    Fixes #18994.
+    Fixes #16609
     
-    Change-Id: Ic7976036acca1523b0b14afac4d170797e8aee20
-    Reviewed-on: https://go-review.googlesource.com/36565
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6b4693f8eb6db7c66fd9b9cd1df8927f50d46d50
+    Reviewed-on: https://go-review.googlesource.com/32091
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go |  9 +++++++++
- test/fixedbugs/issue18994.go       | 22 ++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/net/http/request.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

@@ -1,17 +1,34 @@
-commit b28b4248f94e49de4fa169e2f76e01a49647b20d
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Sun Mar 10 07:36:36 2024 +0000
+commit d35dd190ff30fcbab6909ac68ae5114b157b9009
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 22 12:19:23 2023 -0400
 
-    cmd/trace/v2: fix typo in comment
+    net/http: improve logging in TestServerSetKeepAlivesEnabledClosesConns
     
-    Change-Id: Icbf295e668335945084616a88c3ea2cef1bb2527
-    GitHub-Last-Rev: 0341d0fea71a194d7a85741f6951c8c7c21aee33
-    GitHub-Pull-Request: golang/go#66229
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/570356
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    - Log the actual addresses reported, in case that information is relevant.
+    
+    - Keep going after the first error, so that we report more information
+      about the idle connections after they have been used. (Was the first
+      connection dropped completely, or did it later show up as idle?)
+    
+    - Remove the third request at the end of the test. It had been
+      assuming that the address for a new connection would always be
+      different from the address for the just-closed connection; however,
+      that assumption does not hold in general.
+    
+    Removing the third request addresses one of the two failure modes seen
+    in #55195. It may help in investigating the other failure mode, but I
+    do not expect it to fix the failures entirely. (I suspect that the
+    other failure mode is a synchronization bug in returning the idle
+    connection from the first request.)
+    
+    For #55195.
+    
+    Change-Id: If9604ea68db0697268288ce9812dd57633e83fbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478515
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/trace/v2/regions.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/serve_test.go | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

@@ -1,0 +1,28 @@
+commit 45f27826178981400f6d083fd087d20d0abb02d2
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Wed Apr 30 10:07:10 2025 -0400
+
+    crypto/tls: skip BadRSAClientKeyExchange-[4,5]
+    
+    These two bogo tests mutate the version number used for the premaster
+    secret calculation for a client RSA key exchange, with the expectation
+    the server rejects the handshake.
+    
+    Per the comment in the end of rsaKeyAgreement.processClientKeyExchange
+    we explicitly choose *not* to verify the version number.
+    
+    This commit adds the two version number tests to the ignore list. They
+    coincidentally happen to produced the expected failure because they use
+    a non-default ciphersuite. When we add this ciphersuite to the client
+    config for the bogo test they will start to fail unless ignored.
+    
+    Updates #72006
+    
+    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/tls/bogo_config.json | 3 +++
+ 1 file changed, 3 insertions(+)

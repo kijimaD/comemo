@@ -1,28 +1,18 @@
-commit 62956897c1743ee7e79895496180f84432f21d0a
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Dec 9 16:00:02 2016 -0500
+commit d8f7e4fadb785d90444245159f4c5a32653263d6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 25 06:44:58 2016 -0700
 
-    runtime: add definitions for SetGoroutineLabels and Do
+    runtime, syscall: appease vet
     
-    This change defines runtime/pprof.SetGoroutineLabels and runtime/pprof.Do, which
-    are used to set profiler labels on goroutines. The change defines functions
-    in the runtime for setting and getting profile labels, and sets and unsets
-    profile labels when goroutines are created and deleted. The change also adds
-    the package runtime/internal/proflabel, which defines the structure the runtime
-    uses to store profile labels.
+    No functional changes.
     
-    Change-Id: I747a4400141f89b6e8160dab6aa94ca9f0d4c94d
-    Reviewed-on: https://go-review.googlesource.com/34198
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Change-Id: I0842b2560f4296abfc453410fdd79514132cab83
+    Reviewed-on: https://go-review.googlesource.com/31935
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/35010
 
- src/cmd/dist/deps.go              |  6 +--
- src/runtime/pprof/label.go        | 16 +++++--
- src/runtime/pprof/runtime.go      | 36 +++++++++++++++
- src/runtime/pprof/runtime_test.go | 96 +++++++++++++++++++++++++++++++++++++++
- src/runtime/proc.go               |  4 ++
- src/runtime/proflabel.go          | 17 +++++++
- src/runtime/runtime2.go           |  2 +
- 7 files changed, 169 insertions(+), 8 deletions(-)
+ src/runtime/os_plan9.go      |  2 +-
+ src/runtime/sys_plan9_arm.s  |  4 ++--
+ src/syscall/asm_darwin_arm.s | 28 ++++++++++++++--------------
+ 3 files changed, 17 insertions(+), 17 deletions(-)

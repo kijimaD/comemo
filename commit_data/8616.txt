@@ -1,14 +1,16 @@
-commit 86b3577a594cad40deb40d0a454f545d0c443f73
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 3 13:02:35 2011 -0700
+commit 26557579005f0e70e31e2c24dd272013f47f3cd6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 3 12:23:50 2011 -0700
 
-    ebnf: update comment
+    http: don't fail on accept hitting EMFILE
     
-    (pointed out by jan.mercl@nic.cz)
+    Fixes #1891
     
-    R=iant, jan.mercl, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4515189
+    https://golang.org/cl/4550112
 
- src/pkg/ebnf/ebnf.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/serve_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/pkg/http/server.go     |  4 ++++
+ src/pkg/os/error_posix.go  |  2 +-
+ 3 files changed, 42 insertions(+), 1 deletion(-)

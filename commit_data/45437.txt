@@ -1,45 +1,17 @@
-commit 6d95e5a4ff9f2ffa12ca225974d0ce45fd2504d4
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Thu Feb 11 13:54:45 2021 +0000
+commit d03437a7c228c6842ad81b4d6e7dabea913cdc5f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Oct 24 20:21:48 2020 +0200
 
-    encoding/csv: add FieldPos method
+    cmd/dist: document why test fails on incomplete ports
     
-    This enables a consumer of a CSV to find out the position
-    of a CSV field without implementing an intermediate buffer.
-    This is useful to produce good higher level error messages when
-    the CSV syntax is OK but the field values don't match expectations.
+    It might not be obvious from reading the code why we consider the test
+    as failed on incomplete ports even though it passed. Add a comment
+    documenting this behavior, as suggested by Dmitri in CL 155839.
     
-    This also changes the existing semantics of the `ParseError.Column`
-    field to bring it in line with precedent elsewhere in the Go
-    standard library (notably go/token.Position) - the column is
-    now 1-based and indicates a byte count rather than a rune count,
-    and the error position reporting at the end of a last line without
-    a newline is now fixed.
-    
-    This change has some impact on performance:
-    
-    ```
-    name                                     old time/op    new time/op    delta
-    Read-8                                     2.14µs ± 0%    2.15µs ± 0%    ~     (p=0.056 n=5+5)
-    ReadWithFieldsPerRecord-8                  2.15µs ± 2%    2.15µs ± 1%    ~     (p=0.151 n=5+5)
-    ReadWithoutFieldsPerRecord-8               2.15µs ± 0%    2.15µs ± 0%  +0.37%  (p=0.024 n=5+5)
-    ReadLargeFields-8                          3.55µs ± 2%    3.59µs ± 0%    ~     (p=0.206 n=5+5)
-    ReadReuseRecord-8                          1.18µs ± 1%    1.22µs ± 1%  +2.93%  (p=0.008 n=5+5)
-    ReadReuseRecordWithFieldsPerRecord-8       1.18µs ± 0%    1.21µs ± 0%  +2.54%  (p=0.008 n=5+5)
-    ReadReuseRecordWithoutFieldsPerRecord-8    1.18µs ± 0%    1.22µs ± 1%  +3.66%  (p=0.008 n=5+5)
-    ReadReuseRecordLargeFields-8               2.53µs ± 1%    2.57µs ± 1%  +1.70%  (p=0.008 n=5+5)
-    Write-8                                    1.02µs ± 1%    1.01µs ± 0%  -1.18%  (p=0.016 n=5+4)
-    ```
-    
-    Fixes #44221.
-    
-    Change-Id: Id37c50fc396024eef406c5bad45380ecd414f5ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291290
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Paul Jolly <paul@myitcv.org.uk>
+    Change-Id: I3eb7db27d01d63db277172381e5fa51577dad941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264682
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/encoding/csv/reader.go      |  71 +++-
- src/encoding/csv/reader_test.go | 909 +++++++++++++++++++++++-----------------
- 2 files changed, 585 insertions(+), 395 deletions(-)
+ src/cmd/dist/test.go | 3 +++
+ 1 file changed, 3 insertions(+)

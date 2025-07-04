@@ -1,28 +1,15 @@
-commit 5185744962d402df083d118036f9bef8c2e2d3b6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 16 14:02:13 2018 -0700
+commit ad7320acc4c05860b1527d55a6044017013d8969
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 20:19:24 2018 +0000
 
-    cmd/compile: remove obsolete "safe" mode
+    net/http: document that Handlers are resposible for validating Host headers
     
-    Nowadays there are better ways to safely run untrusted Go programs, like
-    NaCl and gVisor.
+    Fixes #23993
     
-    Change-Id: I20c45f13a50dbcf35c343438b720eb93e7b4e13a
-    Reviewed-on: https://go-review.googlesource.com/c/142717
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I112415c894e8c680bfc17d53772275430e46794b
+    Reviewed-on: https://go-review.googlesource.com/115116
+    Reviewed-by: Tim Cooper <tim.cooper@layeh.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/doc.go                   |  2 --
- src/cmd/compile/internal/gc/alg.go       | 20 --------------------
- src/cmd/compile/internal/gc/go.go        |  2 --
- src/cmd/compile/internal/gc/inl.go       | 28 +++-------------------------
- src/cmd/compile/internal/gc/main.go      | 16 +---------------
- src/cmd/compile/internal/gc/obj.go       |  7 +------
- src/cmd/compile/internal/gc/subr.go      |  7 -------
- src/cmd/compile/internal/gc/typecheck.go |  4 ----
- src/cmd/compile/internal/gc/walk.go      | 11 -----------
- test/unsafereject1.go                    | 16 ----------------
- test/unsafereject2.go                    | 15 ---------------
- 11 files changed, 5 insertions(+), 123 deletions(-)
+ src/net/http/request.go | 5 +++++
+ 1 file changed, 5 insertions(+)

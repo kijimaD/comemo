@@ -1,33 +1,18 @@
-commit bbe5da42600d5ab26cd58ffac3d6427994f08fb2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 28 14:19:27 2016 -0700
+commit 24fc3234428e138e693584185fab4146de6088db
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Mon Apr 11 17:35:55 2016 +0300
 
-    cmd/compile, syscall: add //go:uintptrescapes comment, and use it
+    cmd/internal/obj: split plist flushing from object writing
     
-    This new comment can be used to declare that the uintptr arguments to a
-    function may be converted from pointers, and that those pointers should
-    be considered to escape. This is used for the Call methods in
-    dll_windows.go that take uintptr arguments, because they call Syscall.
+    Only splits into separate files, no other changes.
     
-    We can't treat these functions as we do syscall.Syscall, because unlike
-    Syscall they may cause the stack to grow. For Syscall we can assume that
-    stack arguments can remain on the stack, but for these functions we need
-    them to escape.
-    
-    Fixes #16035.
-    
-    Change-Id: Ia0e5b4068c04f8d303d95ab9ea394939f1f57454
-    Reviewed-on: https://go-review.googlesource.com/24551
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icc0da2c5f18e03e9ed7c0043bd7c790f741900f2
+    Reviewed-on: https://go-review.googlesource.com/21804
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/esc.go   | 60 ++++++++++++++++++++----
- src/cmd/compile/internal/gc/lex.go   | 14 ++++++
- src/cmd/compile/internal/gc/order.go |  8 +++-
- src/syscall/dll_windows.go           |  4 ++
- test/uintptrescapes.dir/a.go         | 54 +++++++++++++++++++++
- test/uintptrescapes.dir/main.go      | 91 ++++++++++++++++++++++++++++++++++++
- test/uintptrescapes.go               |  9 ++++
- test/uintptrescapes2.go              | 31 ++++++++++++
- 8 files changed, 259 insertions(+), 12 deletions(-)
+ src/cmd/internal/obj/link.go    |  21 ----
+ src/cmd/internal/obj/objfile.go | 187 ----------------------------------
+ src/cmd/internal/obj/plist.go   | 218 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 218 insertions(+), 208 deletions(-)

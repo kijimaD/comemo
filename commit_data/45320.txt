@@ -1,23 +1,24 @@
-commit 9f7079c44e670532df68ab78a1869cb99531c864
+commit 9ad090c5fea60c9925b7eb30155ce01961c3537f
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 14 12:30:36 2021 -0400
+Date:   Sat Jul 18 22:26:00 2020 -0400
 
-    cmd/link: sort the pclntab relocations
+    testing/iotest: add TestReader to test readers
     
-    llvm-mingw's lld produces an invalid windows/arm64 executable
-    when presented with relocations that are out of order
-    (the relocation for each function is emitted for two different
-    locations, so we end up with two sorted streams roughly
-    interlaced, not one sorted stream).
+    There are many reader behaviors that are subtle and
+    worth testing, and it's nice to have one complete tester
+    instead of many incomplete ones.
     
-    Sorting should not break other systems, so sort always.
+    For #41190, which will use this as part of a larger
+    file system implementation tester.
     
-    Change-Id: Ic9a95e7145881db5984cbda442f27b0cc24748fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312033
+    Change-Id: Ib4cc7fae94b0d9b45dfacadc52baa77ad3761322
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243909
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/link/internal/ld/pcln.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/testing/iotest/reader.go      | 175 +++++++++++++++++++++++++++++++++++++-
+ src/testing/iotest/reader_test.go |  10 +++
+ 2 files changed, 181 insertions(+), 4 deletions(-)

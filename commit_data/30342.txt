@@ -1,18 +1,16 @@
-commit ea52f4b374613134e12367288813019589f85f33
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 20 22:54:07 2017 -0800
+commit b06c93e45b7b03a5d670250ff35e42d62aface82
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 1 17:12:48 2016 +0000
 
-    cmd/vet/all: update whitelists for monotonic time changes
+    net/http: add Transport.ProxyConnectHeader to control headers to proxies
     
-    Change-Id: Ib942cb9e0cb20821aea4274bc3ddc83a215afbcb
-    Reviewed-on: https://go-review.googlesource.com/37302
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #13290
+    
+    Change-Id: I0f7e7683d86db501cbedb6a0b7349ceb0769701c
+    Reviewed-on: https://go-review.googlesource.com/32481
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/all/whitelist/all.txt           | 1 -
- src/cmd/vet/all/whitelist/darwin_386.txt    | 1 +
- src/cmd/vet/all/whitelist/darwin_amd64.txt  | 1 +
- src/cmd/vet/all/whitelist/windows_386.txt   | 1 +
- src/cmd/vet/all/whitelist/windows_amd64.txt | 1 +
- 5 files changed, 4 insertions(+), 1 deletion(-)
+ src/net/http/transport.go      | 10 ++++++++-
+ src/net/http/transport_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 1 deletion(-)

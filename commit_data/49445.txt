@@ -1,34 +1,20 @@
-commit 1a2ca95ad2d0e6599ab8b9772c30afbb743abc89
-Author: Robert Findley <rfindley@google.com>
-Date:   Sat Jun 4 17:01:47 2022 -0400
+commit c92c2c9d625ff3957d1c9313183fd0fe8f26984e
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Aug 16 07:25:29 2021 +0000
 
-    go/types, types2: only set instance context if packages match
+    cmd/internal/obj/arm64: disable the pre and post index formats for pseudo registers
     
-    In CL 404885, we avoid infinite expansion of type instances by sharing a
-    context between the expanding type and new instances created during
-    expansion. This ensures that we do not create an infinite number of
-    identical but distinct instances in the presence of reference cycles.
-    This pins additional memory to the new instance, but no more
-    (approximately) than would be pinned by the original expanding instance.
+    When using the FP or SP pseudo-register to load or store, pre-index and post-index formats
+    are not supported because the RSP and pseudo registers are not allowed to be modified in this
+    way. This CL deletes the related entries in optab and adds a few test cases.
     
-    However, we can do better: since type cycles are only possible within a
-    single package, we only need to share the local context if the two types
-    are in the same package. This reduces the scope of the shared local
-    context, and in particular can avoid pinning the package of the
-    expanding type to the package of the newly created instance.
-    
-    Updates #52728
-    
-    Change-Id: Iad2c85f4ecf60125f1da0ba22a7fdec7423e0338
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410416
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ie30d27d0e7b959242f0e6298b950489669d07989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342770
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/instantiate.go | 39 +++++++++++++-------------
- src/cmd/compile/internal/types2/named.go       | 35 ++++++++++++++++-------
- src/cmd/compile/internal/types2/subst.go       | 28 +++++++++---------
- src/go/types/instantiate.go                    | 39 +++++++++++++-------------
- src/go/types/named.go                          | 35 ++++++++++++++++-------
- src/go/types/subst.go                          | 28 +++++++++---------
- 6 files changed, 120 insertions(+), 84 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  4 ++++
+ src/cmd/internal/obj/arm64/asm7.go             | 29 ++++----------------------
+ 2 files changed, 8 insertions(+), 25 deletions(-)

@@ -1,17 +1,24 @@
-commit 30537789651be3e523bbdb4503f48a3b5b6ac48f
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Feb 21 10:50:58 2012 -0500
+commit ecd24f381e189df32f558ffab04b829cd4713649
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Feb 21 13:13:21 2012 +0100
 
-    cmd/*: add -d option to bison.
+    exp/norm: Added Iter type for iterating on segment boundaries.  This type is mainly to be used
+    by other low-level libraries, like collate.  Extra care has been given to optimize the performance
+    of normalizing to NFD, as this is what will be used by the collator.  The overhead of checking
+    whether a string is normalized vs simply decomposing a string is neglible.  Assuming that most
+    strings are in the FCD form, this iterator can be used to decompose strings and normalize with
+    minimal overhead.
     
-    Without -d, bison doesn't generate y.tab.h.
-    
-    R=rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5685065
+    https://golang.org/cl/5676057
 
- src/cmd/5a/Makefile | 2 +-
- src/cmd/6a/Makefile | 2 +-
- src/cmd/8a/Makefile | 2 +-
- src/cmd/cc/Makefile | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/exp/norm/composition.go      |  85 ++++++++---
+ src/pkg/exp/norm/composition_test.go |  32 +++-
+ src/pkg/exp/norm/input.go            |  10 +-
+ src/pkg/exp/norm/iter.go             | 286 +++++++++++++++++++++++++++++++++++
+ src/pkg/exp/norm/iter_test.go        | 186 +++++++++++++++++++++++
+ src/pkg/exp/norm/normalize.go        |  15 +-
+ src/pkg/exp/norm/normalize_test.go   |  55 +++++--
+ src/pkg/exp/norm/normregtest.go      |  11 ++
+ 8 files changed, 631 insertions(+), 49 deletions(-)

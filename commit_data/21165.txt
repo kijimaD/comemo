@@ -1,15 +1,27 @@
-commit 813386f200e2cc15a05c8e641227e3cadffffc0d
+commit 8c3f64022a34c140853a3ec6a3be5695e6c05de2
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 30 13:06:52 2014 -0500
+Date:   Fri Nov 21 15:57:10 2014 -0500
 
-    sync/atomic: remove atomic pointer hammer tests
+    [dev.garbage] runtime: add prefetcht0, prefetcht1, prefetcht2, prefetcht3, prefetchnta for GC
     
-    These depend on storing arbitrary integer values using
-    pointer atomics, and we can't support that anymore.
+    We don't know what we need yet, so add them all.
+    Add them even on x86 architectures (as no-ops) so that
+    the GC can refer to them unconditionally.
     
-    Change-Id: I8cadd6d462c3eebdbe7078f43fe7c779fa8f52b3
-    Reviewed-on: https://go-review.googlesource.com/2311
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Eventually we'll know what we want and probably
+    have just one 'prefetch' with an appropriate meaning
+    on each architecture.
+    
+    LGTM=rlh
+    R=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/179160043
 
- src/sync/atomic/atomic_test.go | 60 ------------------------------------------
- 1 file changed, 60 deletions(-)
+ src/runtime/asm_386.s      | 20 ++++++++++++++++++++
+ src/runtime/asm_amd64.s    | 20 ++++++++++++++++++++
+ src/runtime/asm_amd64p32.s | 21 +++++++++++++++++++++
+ src/runtime/asm_arm.s      | 12 ++++++++++++
+ src/runtime/asm_power64x.s | 12 ++++++++++++
+ src/runtime/runtime1.go    |  5 ++++-
+ src/runtime/stubs.go       |  5 +++++
+ 7 files changed, 94 insertions(+), 1 deletion(-)

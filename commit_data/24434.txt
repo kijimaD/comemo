@@ -1,27 +1,16 @@
-commit f12b6208f66c746741439af28671b7aed30d1f01
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sat Oct 3 17:42:52 2015 +0000
+commit 1bab5b9b414a6c4290c9118a85fb316aacea7cf3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 28 14:14:25 2015 -0700
 
-    cmd/cgo: remove support for CGOPKGPATH
+    [dev.ssa] cmd/compile: add a few more binary ops
     
-    CGOPKGPATH variable was undocumented, but it is not needed anymore.
+    With this, all non-float, non-complex
+    binary ops found in the standard library
+    are implemented.
     
-    It was used before the existence of the go tool to tell cgo the full
-    path of the package that it was building, which in turn set the name
-    of the shared library that cgo expected to load back when cgo used
-    shared libraries. CGOPKGPATH no longer does anything useful;
-    it just affects the comments in the generated header file.
-    
-    Remove it to avoid any future confusion.
-    
-    Fixes #11852
-    
-    Change-Id: Ieb452e5bbcfd05b87a4a3618b5b8f44423341858
-    Reviewed-on: https://go-review.googlesource.com/15266
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6087f115229888c0dce10ab35db3fd36a0e0a8b1
+    Reviewed-on: https://go-review.googlesource.com/12799
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cgo/main.go | 6 +-----
- src/cmd/go/build.go | 2 +-
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 70 ++++++++++++++++++++------------------
+ 1 file changed, 37 insertions(+), 33 deletions(-)

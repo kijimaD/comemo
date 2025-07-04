@@ -1,16 +1,15 @@
-commit 47ccf96a9581c3db8ed5dbcb2a6318e8b9566557
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Jul 20 12:33:39 2015 -0400
+commit 0229317d7665fc7195028f7dc7cd4e88d320e46a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 27 23:29:09 2015 -0700
 
-    runtime: darwin/386 entrypoint for c-archive
+    runtime: don't define libc_getpid in os3_solaris.go
     
-    Change-Id: Ic22597b5e2824cffe9598cb9b506af3426c285fd
-    Reviewed-on: https://go-review.googlesource.com/12412
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The function is already defined between syscall_solaris.go and
+    syscall2_solaris.go.
+    
+    Change-Id: I034baf7c8531566bebfdbc5a4061352cbcc31449
+    Reviewed-on: https://go-review.googlesource.com/12773
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go              |  2 +-
- src/cmd/link/internal/ld/macho.go |  2 +-
- src/runtime/rt0_darwin_386.s      | 55 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 57 insertions(+), 2 deletions(-)
+ src/runtime/os3_solaris.go | 3 ---
+ 1 file changed, 3 deletions(-)

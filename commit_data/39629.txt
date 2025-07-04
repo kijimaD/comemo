@@ -1,34 +1,38 @@
-commit bdd0ff08db7abf07db29cd6dca98b5c1bc26ef26
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 22 21:27:33 2019 -0700
+commit 788e038e5d5fcdc1cc44ec9af1885db55a19977c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 9 18:09:10 2019 +0000
 
-    go/types: process each segment of delayed actions in FIFO order
+    reflect: make all flag.mustBe* methods inlinable
     
-    The stack of delayed actions is grown by pushing a new action
-    on top with Checker.later. Checker.processDelayed processes
-    all actions above a top watermark and then resets the stack
-    to top.
+    mustBe was barely over budget, so manually inlining the first flag.kind
+    call is enough. Add a TODO to reverse that in the future, once the
+    compiler gets better.
     
-    Until now, pushed actions above the watermark were processed
-    in LIFO order. This change processes them in FIFO order, which
-    seems more natural (if an action A was delayed before an action
-    B, A should be processed before B for that stack segment).
+    mustBeExported and mustBeAssignable were over budget by a larger amount,
+    so add slow path functions instead. This is the same strategy used in
+    the sync package for common methods like Once.Do, for example.
     
-    (With this change, Checker.later could be used instead of
-    Checker.atEnd to postpone interface method type comparison
-    and then the specific example in issue #33656 does type-check.
-    However, in general we want interface method type comparisons
-    to run after all interfaces are completed. With Checker.later
-    we may still end up mixing interface completions and interface
-    method type comparisons in ways leading to other errors for
-    sufficiently convoluted code.)
+    Lots of exported reflect.Value methods call these assert-like unexported
+    methods, so avoiding the function call overhead in the common case does
+    shave off a percent from most exported APIs.
     
-    Also, move Checker.processDelayed from resolver.go to check.go.
+    Finally, add the methods to TestIntendedInlining.
     
-    Change-Id: Id31254605e6944c490eab410553fff907630cc64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191458
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    While at it, replace a couple of uses of the 0 Kind with its descriptive
+    name, Invalid.
+    
+    name     old time/op    new time/op    delta
+    Call-8     68.0ns ± 1%    66.8ns ± 1%  -1.81%  (p=0.000 n=10+9)
+    PtrTo-8    8.00ns ± 2%    7.83ns ± 0%  -2.19%  (p=0.000 n=10+9)
+    
+    Updates #7818.
+    
+    Change-Id: Ic1603b640519393f6b50dd91ec3767753eb9e761
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166462
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/check.go    | 15 +++++++++++++++
- src/go/types/resolver.go | 10 ----------
- 2 files changed, 15 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go |  9 +++------
+ src/reflect/value.go                    | 19 ++++++++++++++++---
+ 2 files changed, 19 insertions(+), 9 deletions(-)

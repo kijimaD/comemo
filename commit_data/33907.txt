@@ -1,17 +1,20 @@
-commit 3aeb3950a9eb02b7d07e68b8b3535540854951e0
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Mon Dec 18 12:13:17 2017 -0800
+commit 6c8d5125d3fb170744b3c6813c977130bcb83622
+Author: griesemer <gri@golang.org>
+Date:   Mon Sep 18 11:49:47 2017 +0200
 
-    database/sql/driver: update Value doc, can be driver supported type
+    go/types, constant: remove superfluous import comment
     
-    The driver.Value type may be more then the documented 6 types if the
-    database driver supports it. Document that fact.
+    The comment was a left-over from the long-past move
+    of these two packages from x/tools to the std lib.
     
-    Updates #23077
+    Fixes #21791.
     
-    Change-Id: If7e2112fa61a8cc4e155bb31e94e89b20c607242
-    Reviewed-on: https://go-review.googlesource.com/84636
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I65cbebf479e609be0204b58edb6506c6403aec9b
+    Reviewed-on: https://go-review.googlesource.com/64250
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/database/sql/driver/driver.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/go/constant/value.go | 2 +-
+ src/go/types/api.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

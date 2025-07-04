@@ -1,13 +1,15 @@
-commit 2eeab323ad516dca2fb6f222a1810b3fadd61fc1
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed May 15 12:08:51 2013 +0800
+commit 72b14cbb75b3b0d8899d24174a94ece100d073b7
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue May 14 20:23:35 2013 -0700
 
-    cmd/yacc: don't emit line comment when -l is given
-    Fixes #5447.
+    misc/emacs: Add support for methods with unnamed receiver
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/9343045
+    This fixes fontification, navigation and indentation for methods
+    of the form `func (Foo) Bar...`
+    
+    R=adonovan
+    CC=gobot, golang-dev
+    https://golang.org/cl/8951043
 
- src/cmd/yacc/yacc.go | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ misc/emacs/go-mode.el | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,54 +1,24 @@
-commit cfb78d63bd1e9a13e58920f7670da7b807b29a0d
-Author: Jakob Ackermann <das7pad@outlook.com>
-Date:   Mon Mar 3 22:16:38 2025 +0000
+commit ed0ad591d31daf911092487ceafb7b440d0ed8ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:59 2024 -0500
 
-    net/http: reduce memory usage when hijacking
+    runtime: merge timerNoStatus into timerRemoved
     
-    Previously, Hijack allocated a new write buffer and the existing
-    connection write buffer used an extra 4KiB of memory until the handler
-    finished and the "conn" was garbage collected. Now, hijack re-uses the
-    existing write buffer and re-attaches it to the raw connection to avoid
-    referencing the net/http "conn" after returning.
+    For historical reasons, we have to treat a zero timer as
+    the same as an initialized timer that was stopped (removed).
+    The two states are already treated mostly identically.
+    Merge them.
     
-    After a handler that hijacked exited, the "conn" reference in
-    "connReader" will now be unset. This allows all of the "conn",
-    "response" and "Request" to get garbage collected.
-    Overall, this is reducing the memory usage by 43% or 6.7KiB per hijacked
-    connection (see BenchmarkServerHijackMemoryUsage in an earlier revision
-    of the CL).
+    This is part of a larger simplification of the state set.
     
-    CloseNotify will continue to work _before_ the handler has exited
-    (i.e. while the "conn" is still referenced in "connReader"). This aligns
-    with the documentation of CloseNotifier:
-    > After the Handler has returned, there is no guarantee that the channel
-    > receives a value.
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
     
-    goos: linux
-    goarch: amd64
-    pkg: net/http
-    cpu: Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz
-                   │   before    │             after              │
-                   │   sec/op    │    sec/op     vs base          │
-    ServerHijack-8   42.59µ ± 8%   39.47µ ± 16%  ~ (p=0.481 n=10)
-    
-                   │    before    │                after                 │
-                   │     B/op     │     B/op      vs base                │
-    ServerHijack-8   16.12Ki ± 0%   12.06Ki ± 0%  -25.16% (p=0.000 n=10)
-    
-                   │   before   │               after               │
-                   │ allocs/op  │ allocs/op   vs base               │
-    ServerHijack-8   51.00 ± 0%   49.00 ± 0%  -3.92% (p=0.000 n=10)
-    
-    Change-Id: I20a37ee314ed0d47463a4657d712154e78e48138
-    GitHub-Last-Rev: 80f09dfa273035f53cdd72845e5c5fb129c3e230
-    GitHub-Pull-Request: golang/go#70756
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634855
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I9c3aeb8f92bafb18c47489c1ec20a7b87ac5cd9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564122
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/http/serve_test.go | 44 ++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go     | 53 +++++++++++++++++++++++++++++-----------------
- 2 files changed, 78 insertions(+), 19 deletions(-)
+ src/runtime/time.go | 33 ++++++++++++---------------------
+ 1 file changed, 12 insertions(+), 21 deletions(-)

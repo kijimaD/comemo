@@ -1,20 +1,18 @@
-commit 2e77b51df5b9f7753f500c6cbba8f0dab5bf2250
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Aug 22 19:50:03 2023 +0800
+commit 9123221ccf3c80c741ead5b6f2e960573b1676b9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 27 17:29:28 2022 -0500
 
-    runtime/internal/syscall: use ABIInternal for Syscall6 on loong64
+    misc/cgo/testsanitizers: run libfuzzer tests in temp directory
     
-    Updates #40724
+    The libFuzzer generated binary by default writes failure input
+    into the current directory. Set cmd.Dir to the temporary directory
+    so it won't write to GOROOT when running the test.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: Ifcc2de35a797fd987a10f564206b14b54d736d1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521789
-    Auto-Submit: David Chase <drchase@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I3e4ce7e3f845be5c9f09511c36e7a9a396eafad2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459556
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/internal/syscall/asm_linux_loong64.s | 41 +++++++++++++++++++++++-
- 1 file changed, 40 insertions(+), 1 deletion(-)
+ misc/cgo/testsanitizers/libfuzzer_test.go | 1 +
+ 1 file changed, 1 insertion(+)

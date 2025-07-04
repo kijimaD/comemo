@@ -1,15 +1,14 @@
-commit 5ddc6bd84d44639f7775abf2ba9606b684dc8f53
+commit 936665f6414f0fa0e416f734bbe46571f1fc65ac
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 12 17:18:37 2013 -0800
+Date:   Thu Dec 12 17:17:02 2013 -0800
 
-    test: match gccgo error messages
+    test: add []rune case to string_lit.go
     
-    fixedbugs/issue4510.dir/f2.go:7: error: 'fmt' defined as both imported name and global name
-    f1.go:7: note: 'fmt' imported here
+    Gccgo managed to get this case wrong.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/41530044
+    https://golang.org/cl/41490044
 
- test/fixedbugs/issue4510.dir/f1.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/string_lit.go | 5 +++++
+ 1 file changed, 5 insertions(+)

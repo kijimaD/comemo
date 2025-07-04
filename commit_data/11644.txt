@@ -1,16 +1,23 @@
-commit 5efd5624cc5b22f50d2739b0f1dbce32402206cb
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Feb 6 15:41:01 2012 +0100
+commit 02fb021161cf36cf7326380fb1ff9239cd195067
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Feb 6 11:58:32 2012 -0200
 
-    cmd/gc: fix codegen reordering for expressions involving && and ||
+    archive/zip: support full range of FileMode flags
     
-    Fixes #2821.
+    Zip files may actually store symlinks, and that's represented
+    as a file with unix flag S_IFLNK and with its data containing
+    the symlink target name.
     
-    R=rsc
+    The other flags are being supported too. Now that the os package
+    has the full range of flags in a system agnostic manner, there's
+    no reason to discard that information.
+    
+    R=golang-dev, adg, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/5606061
+    https://golang.org/cl/5624048
 
- src/cmd/gc/subr.c        |  6 ++++++
- src/cmd/gc/walk.c        |  3 ++-
- test/fixedbugs/bug406.go | 25 +++++++++++++++++++++++++
- 3 files changed, 33 insertions(+), 1 deletion(-)
+ src/pkg/archive/zip/reader_test.go       |  19 +++++++++-
+ src/pkg/archive/zip/struct.go            |  63 +++++++++++++++++++++++++------
+ src/pkg/archive/zip/testdata/symlink.zip | Bin 0 -> 173 bytes
+ src/pkg/archive/zip/writer_test.go       |   6 +--
+ 4 files changed, 71 insertions(+), 17 deletions(-)

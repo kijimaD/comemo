@@ -1,22 +1,17 @@
-commit 764c751ae51af5c76cdd4c81f828a977a4feb5c7
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Apr 3 18:15:26 2015 -0400
+commit 2a1728d0094f0ffc66231ec415522bf54ca37293
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 3 14:17:39 2015 -0800
 
-    math, cmd/internal/gc, cmd/7g: enable SQRT inlining, add assembly implementation
+    math/big: use stringer for enum String() methods
     
-    benchmark                 old ns/op     new ns/op     delta
-    BenchmarkSqrt             474           16.5          -96.52%
-    BenchmarkSqrtIndirect     476           38.1          -92.00%
-    BenchmarkSqrtGo           484           483           -0.21%
-    
-    Change-Id: I5ad0132feda0d3275a884523b9e79d83db4fc726
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8465
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ide0615542d67b7d81bf6c56aab550e142a8789f7
+    Reviewed-on: https://go-review.googlesource.com/6682
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/7g/gsubr.go         |  3 +++
- src/cmd/7g/prog.go          | 25 +++++++++++++------------
- src/cmd/internal/gc/walk.go |  2 +-
- src/math/sqrt_arm64.s       | 12 ++++++++++++
- src/math/stubs_arm64.s      |  3 ---
- 5 files changed, 29 insertions(+), 16 deletions(-)
+ src/math/big/accuracy_string.go     |  16 ++++
+ src/math/big/float.go               | 181 ++++++++++++++++--------------------
+ src/math/big/float_test.go          |  46 ++++++---
+ src/math/big/floatconv.go           |   8 +-
+ src/math/big/floatexample_test.go   |   8 +-
+ src/math/big/roundingmode_string.go |  16 ++++
+ 6 files changed, 151 insertions(+), 124 deletions(-)

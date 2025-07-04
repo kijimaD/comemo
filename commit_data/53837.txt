@@ -1,27 +1,16 @@
-commit ee61186b3301bb1c8610c0925fffd89e061909bb
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Sat Jul 29 20:26:00 2023 +0000
+commit c761409e01307592fc3f4e4a73dc82fe1a39c807
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 17:21:08 2022 +0800
 
-    regexp/syntax: accept (?<name>...) syntax as valid capture
+    misc: use strings.Builder
     
-    Currently the only named capture supported by regexp is (?P<name>a).
-    
-    The syntax (?<name>a) is also widely used and there is currently an effort from
-     the Rust regex and RE2 teams to also accept this syntax.
-    
-    Fixes #58458
-    
-    Change-Id: If22d44d3a5c4e8133ec68238ab130c151ca7c5c5
-    GitHub-Last-Rev: 31b50e6ab40cfb0f36df6f570525657d4680017f
-    GitHub-Pull-Request: golang/go#61624
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/513838
+    Change-Id: Icb53d32f2de13287b1b4f4f67dab90fe5ee7a3df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428254
+    Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/regexp/syntax/doc.go        |  1 +
- src/regexp/syntax/parse.go      | 19 ++++++++++++++-----
- src/regexp/syntax/parse_test.go |  6 ++++++
- 3 files changed, 21 insertions(+), 5 deletions(-)
+ misc/android/go_android_exec.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

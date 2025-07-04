@@ -1,14 +1,13 @@
-commit ac486ab15c47edc31a5b2898bf79d26b9a9c939a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue May 29 06:12:06 2012 +0900
+commit 0605c0c656cca4ae1cac464c423dda3d1ebecb4a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 28 11:26:45 2012 -0700
 
-    net: make parsePort as a function
+    net/http: avoid fmt.Fprintf in Header.WriteSubset
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/6256059
+    https://golang.org/cl/6242062
 
- src/pkg/net/ipsock.go    | 13 ++-------
- src/pkg/net/port.go      | 73 ++++++++++--------------------------------------
- src/pkg/net/port_unix.go | 69 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 86 insertions(+), 69 deletions(-)
+ src/pkg/net/http/header.go      |  9 +++++----
+ src/pkg/net/http/header_test.go | 14 ++++++++++++++
+ 2 files changed, 19 insertions(+), 4 deletions(-)

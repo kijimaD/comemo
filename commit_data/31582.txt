@@ -1,30 +1,17 @@
-commit b53acd89db5847b9ddcba076df89bef8788dd348
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 11 10:39:55 2017 -0400
+commit 542a60fbdea55ca022fd87146a31b09058ee6850
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 28 13:44:33 2017 -0800
 
-    cmd/internal/obj/mips: add support of LLV, SCV, NOOP instructions
+    cmd/compile: don't crash when slicing non-slice
     
-    LLV and SCV are 64-bit load-linked and store-conditional. They
-    were used in runtime as #define WORD. Change them to normal
-    instruction form.
+    Fixes #19323
     
-    NOOP is hardware no-op. It was written as WORD $0. Make a name
-    for it for better disassembly output.
-    
-    Fixes #12561.
-    Fixes #18238.
-    
-    Change-Id: I82c667ce756fa83ef37b034b641e8c4366335e83
-    Reviewed-on: https://go-review.googlesource.com/40297
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Change-Id: I92d1bdefb15de6178a577a4fa0f0dc004f791904
+    Reviewed-on: https://go-review.googlesource.com/37584
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/asm/internal/asm/testdata/mips64.s | 22 +++++++++++------
- src/cmd/internal/obj/mips/a.out.go         |  3 +++
- src/cmd/internal/obj/mips/anames.go        |  3 +++
- src/cmd/internal/obj/mips/asm0.go          | 11 +++++++++
- src/cmd/internal/obj/mips/obj0.go          | 10 +-------
- src/runtime/internal/atomic/asm_mips64x.s  | 38 +++++++++++++-----------------
- src/sync/atomic/asm_mips64x.s              | 30 ++++++++++-------------
- 7 files changed, 61 insertions(+), 56 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 11 +++++------
+ test/fixedbugs/issue19323.go             | 19 +++++++++++++++++++
+ 2 files changed, 24 insertions(+), 6 deletions(-)

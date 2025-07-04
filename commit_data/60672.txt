@@ -1,0 +1,18 @@
+commit d3c82937e966537b5089db9dba4c7579e9b9c09a
+Author: Jaeho Nam <njh215@snu.ac.kr>
+Date:   Wed Aug 7 06:14:11 2024 +0000
+
+    crypto/tls: fix typo in quicError
+    
+    Change-Id: I2c07592c3b896bc86e349de7c032929b9979349c
+    GitHub-Last-Rev: 0fe8b90e09b971821f9b0c0a528ed61895d3d110
+    GitHub-Pull-Request: golang/go#68757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603517
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/crypto/tls/quic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

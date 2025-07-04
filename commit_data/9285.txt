@@ -1,13 +1,24 @@
-commit ee9168d5074046f7cce54268ab87796f76acf5c5
-Author: Rob Pike <r@golang.org>
-Date:   Thu Aug 4 14:39:44 2011 +1000
+commit 946cb0ece13eb9055e0670e2c7423a2adaab225f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 4 00:22:52 2011 -0400
 
-    gob: don't invoke GobEncoder on zero values.
+    net: joined group addresses for a specific interface for darwin, freebsd, linux
     
-    R=golang-dev, dsymonds
+    This CL enables to list the multicast, joined group addresses
+    for a specific interface by using Interface.MulticastAddrs
+    method.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4801076
+    https://golang.org/cl/4808062
 
- src/pkg/gob/encode.go         | 24 ++++++++++++++++++++++++
- src/pkg/gob/gobencdec_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 46 insertions(+)
+ src/pkg/net/Makefile             |   2 +
+ src/pkg/net/interface.go         |   9 ++++
+ src/pkg/net/interface_bsd.go     |  44 ++++++++++++++---
+ src/pkg/net/interface_darwin.go  |  49 +++++++++++++++++++
+ src/pkg/net/interface_freebsd.go |  49 +++++++++++++++++++
+ src/pkg/net/interface_linux.go   | 100 ++++++++++++++++++++++++++++++++++++---
+ src/pkg/net/interface_stub.go    |   7 +++
+ src/pkg/net/interface_test.go    |   7 +++
+ src/pkg/net/interface_windows.go |   7 +++
+ 9 files changed, 260 insertions(+), 14 deletions(-)

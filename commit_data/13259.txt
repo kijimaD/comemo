@@ -1,21 +1,20 @@
-commit a76c8b243014b884b24642e0d1d044434f583ae4
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jun 3 11:08:17 2012 -0400
+commit 8801402940aa983a318ba680b7b65b5070dd35ca
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Jun 3 19:27:17 2012 +1000
 
-    time: make Format 2.7x faster
+    syscall: correct Win32finddata definition
     
-    benchmark             old ns/op    new ns/op    delta
-    BenchmarkFormat            2495          937  -62.44%
-    BenchmarkFormatNow         2308          889  -61.48%
+    Fixes #3685.
     
-    Update #3679.
-    
-    R=r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6278047
+    https://golang.org/cl/6261053
 
- src/pkg/time/format.go    | 397 ++++++++++++++++++++++++----------------------
- src/pkg/time/time.go      |  45 +++++-
- src/pkg/time/time_test.go |  13 +-
- src/pkg/time/zoneinfo.go  |  14 +-
- 4 files changed, 271 insertions(+), 198 deletions(-)
+ api/next.txt                              | 26 ++++++++++++++++
+ src/pkg/os/file_windows.go                |  6 ++--
+ src/pkg/syscall/syscall_windows.go        | 13 ++++++--
+ src/pkg/syscall/syscall_windows_test.go   | 50 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_windows_386.go   |  4 +--
+ src/pkg/syscall/zsyscall_windows_amd64.go |  4 +--
+ src/pkg/syscall/ztypes_windows.go         | 16 ++++++++++
+ 7 files changed, 110 insertions(+), 9 deletions(-)

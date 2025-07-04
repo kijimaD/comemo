@@ -1,36 +1,22 @@
-commit 8b727f856ebc812225f2a68c3b284dfabf6472a1
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 14 09:52:44 2023 -0400
+commit f9ee56145bd8aa802b91db9465564cae5596966b
+Author: doujiang24 <doujiang24@gmail.com>
+Date:   Wed Oct 26 06:06:43 2022 +0000
 
-    cmd/compile, go/types: typechecking of range over int, func
+    cmd/compile: print readable function name in error message
     
-    Add type-checking logic for range over integers and functions,
-    behind GOEXPERIMENT=range.
+    i.e.
+    from "function %!s(*Node=0xc0003b48c0) cannot have ABI wrappers", to "function xxFunctionName cannot have ABI wrappers".
     
-    For proposal #61405 (but behind a GOEXPERIMENT).
-    For #61717.
-    
-    Change-Id: Ibf78cf381798b450dbe05eb922df82af2b009403
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/510537
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I83cfdf1916e82ab1455db8032153d9cdae85250d
+    GitHub-Last-Rev: 87b077653f8731be511861d968bd31d58744b386
+    GitHub-Pull-Request: golang/go#56428
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445516
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/check_test.go   |  19 ++
- src/cmd/compile/internal/types2/stdlib_test.go  |   3 +
- src/cmd/compile/internal/types2/stmt.go         | 139 ++++++++----
- src/go/build/deps_test.go                       |   8 +-
- src/go/types/check_test.go                      |  19 ++
- src/go/types/stdlib_test.go                     |   3 +
- src/go/types/stmt.go                            | 268 +++++++++++++++---------
- src/internal/goexperiment/exp_newinliner_off.go |   4 -
- src/internal/goexperiment/exp_newinliner_on.go  |   4 -
- src/internal/goexperiment/exp_range_off.go      |   9 +
- src/internal/goexperiment/exp_range_on.go       |   9 +
- src/internal/goexperiment/flags.go              |   3 +
- src/internal/types/errors/codes.go              |   8 +-
- src/internal/types/testdata/check/stmt0.go      |  12 +-
- src/internal/types/testdata/spec/range.go       | 157 ++++++++++++++
- test/range2.go                                  |  24 +++
- 16 files changed, 523 insertions(+), 166 deletions(-)
+ src/cmd/compile/internal/ssagen/abi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

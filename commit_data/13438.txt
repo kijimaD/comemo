@@ -1,13 +1,18 @@
-commit b04bf3882b403ebba3b4c80297daa91dd56a1f85
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jul 3 10:05:27 2012 -0700
+commit 7b6541a5932d72781e215b2e8e77928ec7ef6839
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Tue Jul 3 08:16:43 2012 -0700
 
-    encoding/gob: fix bug in Register
-    The old code added a star but did not indirect the reflect.Type.
+    syscall: fix FreeBSD 386 sendfile
+    The previous version was not handling an off_t (64 bit)
+    parameter on 32 bit i386 systems.  This patch splits sendfile
+    into two implementations in their respective arch-specific files.
+    Tested on FreeBSD amd64 and i386.
     
     R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/6348067
+    https://golang.org/cl/6356048
 
- src/pkg/encoding/gob/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/syscall_freebsd.go       | 12 ------------
+ src/pkg/syscall/syscall_freebsd_386.go   | 14 ++++++++++++++
+ src/pkg/syscall/syscall_freebsd_amd64.go | 14 ++++++++++++++
+ 3 files changed, 28 insertions(+), 12 deletions(-)

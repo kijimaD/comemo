@@ -1,25 +1,22 @@
-commit b016eba489820b9091e4f39610a84f697d8eb0f9
+commit 6bf00075add48934c020b138857ec6a7c7c24653
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 7 15:50:34 2015 +0200
+Date:   Tue Mar 3 16:42:06 2015 -0800
 
-    net/http: fix Transport data race, double cancel panic, cancel error message
+    syscall: don't allocate when boxing common Errno values into errors
     
-    Fixes #9496
-    Fixes #9946
-    Fixes #10474
-    Fixes #10405
+    Fixes #8859
     
-    Change-Id: I4e65f1706e46499811d9ebf4ad6d83a5dfb2ddaa
-    Reviewed-on: https://go-review.googlesource.com/8550
-    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Change-Id: If8098e6edad1f83dc35fa84f4431689e8ee97678
+    Reviewed-on: https://go-review.googlesource.com/6701
+    Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/client_test.go    |   1 +
- src/net/http/export_test.go    |   2 +
- src/net/http/main_test.go      |  24 +++++----
- src/net/http/npn_test.go       |  22 +++++---
- src/net/http/request_test.go   |   1 +
- src/net/http/serve_test.go     |   1 +
- src/net/http/transport.go      | 112 ++++++++++++++++++++++++-----------------
- src/net/http/transport_test.go |  57 +++++++++++++++++++--
- 8 files changed, 153 insertions(+), 67 deletions(-)
+ src/syscall/mksyscall.pl             |   2 +-
+ src/syscall/syscall_unix.go          |  24 ++++
+ src/syscall/zsyscall_darwin_386.go   | 206 +++++++++++++--------------
+ src/syscall/zsyscall_darwin_amd64.go | 206 +++++++++++++--------------
+ src/syscall/zsyscall_linux_386.go    | 226 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_amd64.go  | 260 +++++++++++++++++------------------
+ src/syscall/zsyscall_linux_arm.go    | 250 ++++++++++++++++-----------------
+ 7 files changed, 599 insertions(+), 575 deletions(-)

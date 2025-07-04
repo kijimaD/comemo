@@ -1,15 +1,13 @@
-commit f6f1401286adc6e67fc2a9f5b9651ef8ead309c9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 13 12:44:04 2011 -0800
+commit cdb0bbf4d55f772283de42364d9d154ce42e8dd0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 13 14:34:31 2011 -0500
 
-    godoc: don't double HTML-escape search result snippets
+    http: handle HEAD requests correctly
     
-    Fixes #1412.
-    
-    R=rsc, r
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/3994041
+    https://golang.org/cl/3939042
 
- src/cmd/godoc/format.go  | 2 +-
- src/cmd/godoc/snippet.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/http/fs.go     |  4 +++-
+ src/pkg/http/server.go | 14 ++++++++------
+ 2 files changed, 11 insertions(+), 7 deletions(-)

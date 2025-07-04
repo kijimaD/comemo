@@ -1,20 +1,54 @@
-commit e49b80a754c3df1a82d089a16a46ea8946d5a00b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 20 12:05:30 2022 -0700
+commit 54fe57bc22f7890810bbddae2499eda8d4acfaef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 17 01:12:23 2021 -0700
 
-    cmd/compile/internal/syntax: correct an error string
+    [dev.typeparams] cmd/compile: record writer's stack at export data sync points
     
-    When we have an error in a function type used in an expression
-    we don't know until we see an opening { whether we have a function
-    literal or a function type. Use "function type" as context because
-    that's always correct in the specific error message.
+    This CL extends the unified export data format's existing sync
+    mechanism to save writer stacks, controlled by the -d=syncframes debug
+    flag. This allows readers to provide more details when reporting
+    desync errors, which should simplify development of the data format
+    and the various reader/writer implementations.
     
-    Change-Id: I9aad8fcddf31ae53daa53cebd2c2001f08eabde0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401316
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    For example, CL 328051 updated reader and writer, but missed making a
+    similar change to the linker (fix in CL 328054). Re-reviewing the CL
+    in isolation after the failure, it was not immediately obvious what
+    was going wrong. But the pair of stack traces below identifies exactly
+    what happened: it should have updated linker.relocFuncExt to write out
+    the new sync marker too.
+    
+    ```
+    data sync error: package "internal/abi", section 6, index 4, offset 536
+    
+    found UseReloc, written at:
+            /home/mdempsky/wd/go/src/cmd/compile/internal/noder/encoder.go:221: (*encoder).reloc +0x44
+            /home/mdempsky/wd/go/src/cmd/compile/internal/noder/linker.go:214: (*linker).relocFuncExt +0x580
+            /home/mdempsky/wd/go/src/cmd/compile/internal/noder/linker.go:233: (*linker).relocTypeExt +0x234
+            /home/mdempsky/wd/go/src/cmd/compile/internal/noder/linker.go:161: (*linker).relocObj +0x2198
+            /home/mdempsky/wd/go/src/cmd/compile/internal/noder/linker.go:64: (*linker).relocIdx +0x196
+    
+    expected ImplicitTypes, reading at:
+            /home/mdempsky/wd/go/src/cmd/compile/internal/noder/reader.go:796: (*reader).implicitTypes +0x36
+            /home/mdempsky/wd/go/src/cmd/compile/internal/noder/reader.go:810: (*reader).addBody +0x81
+            /home/mdempsky/wd/go/src/cmd/compile/internal/noder/reader.go:727: (*reader).funcExt +0x542
+            /home/mdempsky/wd/go/src/cmd/compile/internal/noder/reader.go:651: (*reader).method +0x324
+            /home/mdempsky/wd/go/src/cmd/compile/internal/noder/reader.go:557: (*pkgReader).objIdx +0x2704
+    ```
+    
+    Change-Id: I911193edd2a965f81b7459f15fb613a773584685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328909
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go              | 2 +-
- src/cmd/compile/internal/syntax/testdata/issue48382.go | 3 ++-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/base/debug.go        |   1 +
+ src/cmd/compile/internal/noder/decoder.go     | 100 ++++++++++++++++++++------
+ src/cmd/compile/internal/noder/encoder.go     |  83 +++++++++++++++------
+ src/cmd/compile/internal/noder/frames_go1.go  |  20 ++++++
+ src/cmd/compile/internal/noder/frames_go17.go |  24 +++++++
+ src/cmd/compile/internal/noder/reader.go      |   2 +-
+ src/cmd/compile/internal/noder/sync.go        |  33 ++++++++-
+ src/cmd/compile/internal/noder/writer.go      |   2 +-
+ 8 files changed, 219 insertions(+), 46 deletions(-)

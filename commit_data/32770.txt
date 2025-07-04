@@ -1,36 +1,20 @@
-commit fb54abe9ce3cbec6d464c238406b05502cb34eeb
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Sep 19 18:18:09 2017 +0900
+commit a9d8d4df616dc570e443d82bdc6d06a94a3c4ffd
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed May 24 19:36:41 2017 -0600
 
-    all: correct location of go tool
+    net/http: revert CL 43779
     
-    In general, there are no guarantee that `go` command exist on $PATH.
-    This CL tries to get `go` command from $GOROOT/bin instead.
+    CL 43779/commit 6a6c792eef55eded7fb3165a330ec2b239b83960
+    broke the builds at tip, and that CL doesn't account for
+    cases where Redirect is directly invoked with a full URL
+    that itself has a query string.
     
-    There are three kinds of code we should handle:
-        For normal code, the CL implements goCmd() or goCmdName().
-        For unit tests, the CL uses testenv.GoTool() or testenv.GoToolPath().
-        For integration tests, the CL sets PATH=$GOROOT/bin:$PATH in cmd/dist.
+    Updates #17841
     
-    Note that make.bash sets PATH=$GOROOT/bin:$PATH in the build process.
-    So this change is only useful when we use toolchain manually.
-    
-    Updates #21875
-    
-    Change-Id: I963b9f22ea732dd735363ececde4cf94a5db5ca2
-    Reviewed-on: https://go-review.googlesource.com/64650
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idb0486bae8625e1f9e033ca4cfcd87de95bc835c
+    Reviewed-on: https://go-review.googlesource.com/44100
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/api/goapi.go                          | 14 +++++++++++++-
- src/cmd/api/goapi_test.go                     |  3 ++-
- src/cmd/api/run.go                            | 15 ++++++++++++++-
- src/cmd/dist/test.go                          |  8 ++++++++
- src/cmd/go/go_test.go                         | 11 ++++++++---
- src/cmd/link/internal/ld/nooptcgolink_test.go |  2 +-
- src/cmd/trace/pprof.go                        | 16 +++++++++++++++-
- src/internal/trace/parser.go                  | 16 +++++++++++++++-
- src/os/os_windows_test.go                     |  2 +-
- src/runtime/syscall_windows_test.go           |  2 +-
- 10 files changed, 78 insertions(+), 11 deletions(-)
+ src/net/http/serve_test.go | 42 ------------------------------------------
+ src/net/http/server.go     |  9 ---------
+ 2 files changed, 51 deletions(-)

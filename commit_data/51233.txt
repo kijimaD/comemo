@@ -1,26 +1,23 @@
-commit 5a3243e6b60ec7b006d8b65fd564133018cad777
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Nov 11 10:05:39 2022 +0800
+commit 3c495839fe6e711b9161f8efc2d1bd474bf60916
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 16 10:25:07 2021 -0800
 
-    all: fix problematic comments
+    spec: describe constraint parsing ambiguity and work-around more precisely
     
-    Change-Id: Ib6ea1bd04d9b06542ed2b0f453c718115417c62c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449755
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    The new description matches the implementation (CL 370774).
+    
+    Also, in the section on type constraints, use "defines" instead of
+    "determines" because the constraint interface defines the type set
+    which is precisely the set of acceptable type arguments.
+    
+    For #49482.
+    
+    Change-Id: I6f30f49100e8ba8bec0a0f1b450f88cae54312eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372874
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/op.go      | 2 +-
- src/cmd/compile/internal/ssagen/pgen.go | 2 +-
- src/cmd/compile/internal/types/type.go  | 2 +-
- src/cmd/go/internal/script/cmds.go      | 2 +-
- src/cmd/internal/obj/link.go            | 2 +-
- src/cmd/internal/objabi/reloctype.go    | 4 ++--
- src/crypto/tls/cipher_suites.go         | 2 +-
- src/runtime/metrics.go                  | 2 +-
- src/runtime/mgc.go                      | 2 +-
- src/runtime/symtab.go                   | 2 +-
- 10 files changed, 11 insertions(+), 11 deletions(-)
+ doc/go_spec.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

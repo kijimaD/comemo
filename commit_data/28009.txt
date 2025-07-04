@@ -1,18 +1,22 @@
-commit e893c72f2a5ec41bbf14f23b95ae10caf609260a
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Aug 23 22:21:49 2016 +0900
+commit 8b92397bcdcd5d6de3f72951a5514933fee32eb2
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Sun Apr 24 21:21:07 2016 +0200
 
-    os: use testenv.MustHaveSymlink to simplify symlink tests
+    cmd/compile: introduce bool operations.
     
-    Cleanup test code for symbolic links.
+    Introduce OrB, EqB, NeqB, AndB to handle bool operations.
     
-    Change-Id: I7a116e4d5c0e955578eca53c1af559e9092f60cd
-    Reviewed-on: https://go-review.googlesource.com/27572
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I53e4d5125a8090d5eeb4576db619103f19fff58d
+    Reviewed-on: https://go-review.googlesource.com/22412
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/os_test.go         | 22 ++++------------------
- src/os/os_windows_test.go | 16 ----------------
- src/os/path_test.go       | 10 ++--------
- 3 files changed, 6 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go             |   4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |  16 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   9 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  24 +++
+ src/cmd/compile/internal/ssa/phiopt.go         |   4 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  76 +++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 218 +++++++++++++------------
+ test/phiopt.go                                 |  10 +-
+ 9 files changed, 243 insertions(+), 122 deletions(-)

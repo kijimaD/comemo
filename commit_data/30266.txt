@@ -1,17 +1,32 @@
-commit d2fea0447fbfb26fa675baa8c628da48a23e52b4
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Feb 14 12:46:37 2017 -0500
+commit 70c107c68dca7d57a24b35dd81420fb889aa1031
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 19 15:49:31 2016 -0400
 
-    math/big: fix s390x test build tags
+    runtime: add deletion barriers on gobuf.ctxt
     
-    The tests failed to compile when using the math_big_pure_go tag on
-    s390x.
+    gobuf.ctxt is set to nil from many places in assembly code and these
+    assignments require write barriers with the hybrid barrier.
     
-    Change-Id: I2a09f53ff6562ab9bc9b886cffc0f6205bbfcfbb
-    Reviewed-on: https://go-review.googlesource.com/36956
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Conveniently, in most of these places ctxt should already be nil, in
+    which case we don't need the barrier. This commit changes these places
+    to assert that ctxt is already nil.
+    
+    gogo is more complicated, since ctxt may not already be nil. For gogo,
+    we manually perform the write barrier if ctxt is not nil.
+    
+    Updates #17503.
+    
+    Change-Id: I9d75e27c75a1b7f8b715ad112fc5d45ffa856d30
+    Reviewed-on: https://go-review.googlesource.com/31764
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/math/big/arith_s390x_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_386.s      | 26 +++++++++++++++++++++++---
+ src/runtime/asm_amd64.s    | 26 +++++++++++++++++++++++---
+ src/runtime/asm_amd64p32.s | 20 ++++++++++++++++++--
+ src/runtime/asm_arm.s      | 28 +++++++++++++++++++++++++---
+ src/runtime/asm_arm64.s    | 26 +++++++++++++++++++++++---
+ src/runtime/asm_mips64x.s  | 25 +++++++++++++++++++++----
+ src/runtime/asm_ppc64x.s   | 26 +++++++++++++++++++++++---
+ src/runtime/asm_s390x.s    | 25 +++++++++++++++++++++----
+ src/runtime/runtime2.go    |  9 +++++++++
+ 9 files changed, 186 insertions(+), 25 deletions(-)

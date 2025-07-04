@@ -1,20 +1,24 @@
-commit 66f5d4e03500bf5085d10eb5ffd89bf33b7d2b9f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 13 14:36:34 2019 -0700
+commit b0321a604315d272f2f0d26d771ff7ceddfdbdec
+Author: Larry Clapp <larry@theclapp.org>
+Date:   Fri Oct 26 01:32:27 2018 +0000
 
-    cmd/compile: int64(uint64 >> x) >= 0 if x > 0
+    syscall/js: add the Value.Truthy method
     
-    This rewrite rule triggers only once, in math/big.quotToFloat64,
-    as part of converting a uint64 to a float64.
+    Truthy returns the JavaScript "truthiness" of the given value.  In
+    JavaScript, false, 0, "", null, undefined, and NaN are "falsy", and
+    everything else is "truthy".
     
-    Nevertheless, it is cheap; let's add it.
+    Fixes #28264
     
-    Change-Id: I3ed4a197a559110fec1bc04b3a8abb4c7fcc2c89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167500
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I4586f98646c05a4147d06a7c4a5d9c61d956fc83
+    GitHub-Last-Rev: 649b353ebc23b09d840faf927a2eeca41ee164bf
+    GitHub-Pull-Request: golang/go#28358
+    Reviewed-on: https://go-review.googlesource.com/c/144384
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  2 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 29 ++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/syscall/js/js.go      | 20 ++++++++++++++++++
+ src/syscall/js/js_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+)

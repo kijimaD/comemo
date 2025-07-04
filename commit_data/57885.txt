@@ -1,19 +1,21 @@
-commit 1e740c766976afc944776c428837dce3e65e3705
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 30 10:18:00 2024 -0400
+commit 5d6f835b3e41778de6589c97c90e5e98fb50b851
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 22:33:24 2023 -0700
 
-    cmd/compile: fix an internal crash in embed
+    cmd/compile/internal/ssagen: call AllocFrame after ssa.Compile
     
-    Observed in the telemetry data. Was causing truncated error outputs.
+    This indirection is no longer necessary.
     
-    Change-Id: I9f0a86e1e6caa855f97a3d6e51328c4c9685c937
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623535
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ibb5eb1753febdc17a93ea9c35130e3d2b26c360e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526518
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/staticdata/embed.go |  3 +++
- src/cmd/compile/testdata/script/embedbad.txt | 19 +++++++++++++++++++
- 2 files changed, 22 insertions(+)
+ src/cmd/compile/internal/ssa/compile.go     |  3 ---
+ src/cmd/compile/internal/ssa/config.go      |  3 ---
+ src/cmd/compile/internal/ssa/export_test.go |  2 --
+ src/cmd/compile/internal/ssa/stackframe.go  | 10 ----------
+ src/cmd/compile/internal/ssagen/ssa.go      |  2 ++
+ 5 files changed, 2 insertions(+), 18 deletions(-)

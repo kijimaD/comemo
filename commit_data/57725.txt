@@ -1,33 +1,22 @@
-commit a464ffda3e44c87de946cc29f719794a30e9b3f4
-Author: David Chase <drchase@google.com>
-Date:   Wed Aug 28 10:34:54 2024 -0400
+commit b036d7e17f1cf5ecf9411e604fbc5bb40dc3dc95
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 24 17:05:50 2023 -0700
 
-    cmd/compile: tweak inlining to favor PPARAM call sites
+    cmd/compile/internal/noder: avoid ir.Node temps in FixValue
     
-    If a function f being considered for inlining calls
-    one of its parameters, reduce the normal cost of that
-    call (57) to 17 to increase the chance that f will
-    be inlined and (with luck) that parameter will be
-    revealed as a constant function (which unblocks
-    escape analysis) or perhaps even be inlined.
+    Instead of constructing an untyped basic literal IR node, having
+    typecheck convert it and return a new one, only to extract the
+    constant.Value; just have typecheck export the underlying value
+    conversion function, so we can call it directly.
     
-    The least-change value for that was still effective for
-    iter_test benchmarks was 32; however tests showed no
-    particular harm even when reduced as low as 7, and there
-    have been reports of other performance problems with
-    rangefunc overheads and so I picked a middling number
-    in hopes of warding off such reports.
-    
-    Updates #69015
-    
-    Change-Id: I2a525c1beffb9f88daa14caa8a622864b023675c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609095
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie98f5362b3926a728d80262b0274a0b4fd023eaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522878
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/inline/inl.go                         | 10 +++++++++-
- .../internal/inline/inlheur/testdata/props/acrosscall.go       | 10 +++++-----
- .../compile/internal/inline/inlheur/testdata/props/calls.go    | 10 +++++-----
- 3 files changed, 19 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go   |  2 +-
+ src/cmd/compile/internal/typecheck/const.go | 11 ++++++-----
+ 2 files changed, 7 insertions(+), 6 deletions(-)

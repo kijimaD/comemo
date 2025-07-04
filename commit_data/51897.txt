@@ -1,29 +1,23 @@
-commit fc86770d87360ddf0346bf407a80935fe2dddec8
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 2 10:09:39 2023 -0500
+commit eca0d44cec58951fb716e540dcc21c0f527686d5
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Feb 9 20:20:06 2022 +0800
 
-    runtime: eliminate arbitrary timeout in TestCgoLockOSThreadExit
+    net/http: fix nil body causing ParseMultipartForm to panic
     
-    This test previously failed if running a new pthread took longer than
-    a hard-coded 100ms. On some slow or heavily-loaded builders, that
-    scheduling latency is too short.
+    ParseMultipartForm relies on a valid multipartReader, if the request body is nil,
+    the multipartReader should return an error. This way ParseMultipartForm can return
+    an error instead of causing mr.ReadForm(maxMemory) to panic
     
-    Since the point of this test is to verify that the background thread
-    is not reused after it terminates (see #20395), the arbitrary time
-    limit does not seem helpful: if the background thread fails to
-    terminate the test will time out on its own, and if the main goroutine
-    is scheduled on the background thread the test will fail regardless of
-    how long it takes.
+    Fixes #48206
     
-    Fixes #58247.
-    
-    Change-Id: I626af52aac55af7a4c0e7829798573c479750c20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464735
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Ief906f2340c7ab29cacbd5f56892117202a0b911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384454
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/crash_test.go                        | 5 ++++-
- src/runtime/testdata/testprogcgo/lockosthread.go | 4 +---
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/net/http/request.go | 3 +++
+ 1 file changed, 3 insertions(+)

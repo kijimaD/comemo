@@ -1,12 +1,18 @@
-commit 581bd378ec1187780123df66a060be5faebef917
+commit 9f0cabfab97aa2194d5757c1fcd78018d72d65e2
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jun 1 11:56:46 2011 +1000
+Date:   Wed Jun 1 10:48:15 2011 +1000
 
-    gobuilder: include file missing from change, fix build
+    goinstall: document GOPATH and support relative/absolute installs
+    goinstall: more verbose logging with -v
     
-    R=golang-dev
+    Fixes #1901.
+    
+    R=rsc, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/4539099
+    https://golang.org/cl/4524078
 
- src/cmd/goinstall/download.go | 29 +++++++++++++++++++++--------
- 1 file changed, 21 insertions(+), 8 deletions(-)
+ src/cmd/goinstall/doc.go  |  55 ++++++++++++++++++++++++-
+ src/cmd/goinstall/main.go | 102 ++++++++++++++++++++++++----------------------
+ src/cmd/goinstall/make.go |  32 +++------------
+ src/cmd/goinstall/path.go |  44 +++++++++++++++++---
+ 4 files changed, 151 insertions(+), 82 deletions(-)

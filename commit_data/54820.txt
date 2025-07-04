@@ -1,20 +1,18 @@
-commit f215a0be4d1231d897123e28324ab024f3502a52
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sun Oct 29 02:11:19 2023 +0000
+commit 38218f398758f336c4848783b27a02847c317afc
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Nov 16 11:18:32 2022 +0000
 
-    cmd/compile/internal/ssa: add missing space in comment
+    net: remove unused goLookupHost method
     
-    Change-Id: I54c3e8e0d61ceb6533284098dc32944f9f14459e
-    GitHub-Last-Rev: 9793d9d039911b74396b315ce47ad0a53169d25c
-    GitHub-Pull-Request: golang/go#63806
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538375
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Change-Id: I62b9d0dcbec647fdd3279d78b9999dd933ff0bbd
+    GitHub-Last-Rev: f83db66c935dd7a14128d1e87c9323539e9d2d16
+    GitHub-Pull-Request: golang/go#56758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/lca.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/dnsclient_unix.go | 10 ----------
+ 1 file changed, 10 deletions(-)

@@ -1,15 +1,30 @@
-commit 79f35130cd8cd391ae98dffb1eb303b53610a0be
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 14 12:52:53 2021 -0400
+commit feb984c96b10900daade4b47c4d308d7dd4ed5c3
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 20 11:06:02 2020 +0200
 
-    cmd/link: expand PE constants and fix doc URL
+    internal/cpu: make architectures without initialization work explicit
     
-    Change-Id: Ie3492b925f6d12430ce05e7d727e739a62f201e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312038
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    When cpu_no_init.go was created most architectures did not have
+    code in the doinit function. Currently only mips(le), riscv64 and
+    wasm do not have empty doinit functions.
+    
+    Keeping cpu_no_init.go around does not reduce the work to satisfy
+    the build process when adding support for new architectures.
+    
+    To support a new architecture a new file or build directive has to
+    be added to an existing file at any rate to define the constant
+    CacheLinePadSize. A new empty doinit can then be created in the
+    new file or the existing doinit can be reused when adding the
+    additional build directive.
+    
+    Change-Id: I58a97f8cdf1cf1be85c37f4550c40750358aa031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263801
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/link/internal/ld/pe.go | 35 +++++++++++++++++++++++++++++------
- 1 file changed, 29 insertions(+), 6 deletions(-)
+ src/internal/cpu/cpu_mips.go    |  3 +++
+ src/internal/cpu/cpu_mipsle.go  |  3 +++
+ src/internal/cpu/cpu_no_init.go | 18 ------------------
+ src/internal/cpu/cpu_riscv64.go |  3 +++
+ src/internal/cpu/cpu_wasm.go    |  3 +++
+ 5 files changed, 12 insertions(+), 18 deletions(-)

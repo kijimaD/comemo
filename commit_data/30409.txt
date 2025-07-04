@@ -1,34 +1,21 @@
-commit 5ae7cbfff6f98d2a87dca7362e34e48d7bba0d69
-Author: Tom Bergan <tombergan@google.com>
-Date:   Mon Feb 27 11:09:42 2017 -0800
+commit 4141054d19f6d5bcdc448be00a6ce4a4c864d488
+Author: David Chase <drchase@google.com>
+Date:   Thu Nov 3 11:50:14 2016 -0400
 
-    net/http: update bundles http2
+    runtime/cgo: correct type declaration for Windows
     
-    Updates http2 to x/net/http2 git rev 906cda9 for:
+    Newer versions of gcc notice a type mismatch and complain.
+    Fix code to match documented signature in MSDN.
+    Trybots say this still compiles with the older (5.1) version
+    of gcc.
     
-    http2: add configurable knobs for the server's receive window
-    https://golang.org/cl/37226
+    Fixes #17771.
     
-    http2/hpack: speedup Encoder.searchTable
-    https://golang.org/cl/37406
-    
-    http2: Add opt-in option to Framer to allow DataFrame struct reuse
-    https://golang.org/cl/34812
-    
-    http2: replace fixedBuffer with dataBuffer
-    https://golang.org/cl/37400
-    
-    http2/hpack: remove hpack's constant time string comparison
-    https://golang.org/cl/37394
-    
-    Updates golang/go#16512
-    Updates golang/go#18404
-    
-    Change-Id: I1ad7c95c404ead4ced7f85af061cf811b299a288
-    Reviewed-on: https://go-review.googlesource.com/37500
+    Change-Id: Ib3fe6f71b40751e1146249e31232da5ac69b9e00
+    Reviewed-on: https://go-review.googlesource.com/32646
+    Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/h2_bundle.go | 451 +++++++++++++++++++++++++++++-----------------
- 1 file changed, 286 insertions(+), 165 deletions(-)
+ src/runtime/cgo/gcc_libinit_windows.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

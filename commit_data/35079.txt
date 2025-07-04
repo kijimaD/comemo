@@ -1,15 +1,19 @@
-commit 37dd7cd040e626d5a9c30f2880005643b3a23d22
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 20 10:22:54 2018 -0700
+commit 63e29ad1f7b9b5a7f5d10b3c1beaf39a2e09e195
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 11 11:28:50 2017 -0800
 
-    runtime: use sys.PtrSize in growslice
+    cmd/go: don't pass -test.testlogfile on NaCl
     
-    Minor cleanup.
+    It causes every test to fail as the log file is on the local file system,
+    not the NaCl file system.
     
-    Change-Id: I4175de392969bb6408081a75cebdaeadcef1e68c
-    Reviewed-on: https://go-review.googlesource.com/108576
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #22593
+    
+    Change-Id: Iee3d8307317bd792c9c701baa962ebbbfa34c147
+    Reviewed-on: https://go-review.googlesource.com/83256
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/slice.go | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/test/test.go            | 2 +-
+ src/cmd/go/testdata/src/testcache/script.sh | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

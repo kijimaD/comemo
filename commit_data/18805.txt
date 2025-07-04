@@ -1,13 +1,18 @@
-commit 849ee73f67da1cfff446bd0585326d3fe2925249
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Mar 7 23:17:44 2014 +0100
+commit 3d869c6e0c26503f835b4c2694af45e64991c4cd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Mar 8 07:54:41 2014 +1100
 
-    runtime: add missing nacl build tag for lock_sema.c
+    crypto/md5, crypto/sha1: exclude amd64p32 from generic implementations.
     
-    LGTM=dave
-    R=rsc, dave
+    We provide amd64p32 implementations for md5 and sha1 so we need to exclude amd64p32 from the generic implementations in those packages.
+    
+    Fixes build once CL 72360044 lands.
+    
+    LGTM=agl, remyoudompheng
+    R=rsc, bradfitz, agl, remyoudompheng
     CC=golang-codereviews
-    https://golang.org/cl/72240045
+    https://golang.org/cl/72460043
 
- src/pkg/runtime/lock_sema.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/md5/md5block_generic.go   | 2 +-
+ src/pkg/crypto/sha1/sha1block_generic.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

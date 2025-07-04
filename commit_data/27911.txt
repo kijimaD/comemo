@@ -1,57 +1,21 @@
-commit 8741504888b8ca77736716926e472e90c0e1f765
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Aug 17 16:45:47 2016 -0700
+commit 58012ea785851052a28f20544d7e2da0e0e6eefa
+Author: Julia Hansbrough <flowerhack@google.com>
+Date:   Mon Apr 18 15:53:29 2016 -0700
 
-    crypto/tls: support AES-128-CBC cipher suites with SHA-256.
+    runtime: updated SIGSYS to cause a panic + stacktrace
     
-    These were new with TLS 1.2 and, reportedly, some servers require it.
-    Since it's easy, this change adds suport for three flavours of
-    AES-128-CBC with SHA-256 MACs.
+    On GNU/Linux, SIGSYS is specified to cause the process to terminate
+    without a core dump. In https://codereview.appspot.com/3749041 , it
+    appears that Golang accidentally introduced incorrect behavior for
+    this signal, which caused Golang processes to keep running after
+    receiving SIGSYS. This change reverts it to the old/correct behavior.
     
-    Other testdata/ files have to be updated because this changes the list
-    of cipher suites offered by default by the client.
+    Updates #15204
     
-    Fixes #15487.
-    
-    Change-Id: I1b14330c31eeda20185409a37072343552c3464f
-    Reviewed-on: https://go-review.googlesource.com/27315
-    Run-TryBot: Adam Langley <agl@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Jonathan Rudenberg <jonathan@titanous.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I3aa48a9499c1bc36fa5d3f40c088fdd7599e0db5
+    Reviewed-on: https://go-review.googlesource.com/22202
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/cipher_suites.go                    |  25 +-
- src/crypto/tls/handshake_client_test.go            |  26 +
- .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  | 104 ++--
- .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    |  64 +-
- .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 104 ++--
- .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  |  64 +-
- .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |  84 +--
- .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  82 +--
- src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  46 +-
- .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  84 +--
- .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  82 +--
- src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  46 +-
- .../tls/testdata/Client-TLSv12-AES128-GCM-SHA256   |  50 +-
- .../tls/testdata/Client-TLSv12-AES128-SHA256       |  88 +++
- .../tls/testdata/Client-TLSv12-AES256-GCM-SHA384   |  50 +-
- src/crypto/tls/testdata/Client-TLSv12-ALPN         |  80 +--
- src/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch |  79 +--
- .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 104 ++--
- .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    |  66 +-
- .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  94 +--
- .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 102 ++--
- .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  64 +-
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  84 +--
- .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  80 +--
- .../Client-TLSv12-ECDHE-ECDSA-AES128-SHA256        |  94 +++
- .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  80 +--
- .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  82 +--
- .../testdata/Client-TLSv12-ECDHE-RSA-AES128-SHA256 |  98 +++
- src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  46 +-
- .../tls/testdata/Client-TLSv12-RenegotiateOnce     | 379 ++++++------
- .../tls/testdata/Client-TLSv12-RenegotiateTwice    | 680 +++++++++++----------
- .../Client-TLSv12-RenegotiateTwiceRejected         | 387 ++++++------
- .../testdata/Client-TLSv12-RenegotiationRejected   |  86 +--
- src/crypto/tls/testdata/Client-TLSv12-SCT          |  76 +--
- 34 files changed, 2043 insertions(+), 1717 deletions(-)
+ src/runtime/sigtab_linux_generic.go | 2 +-
+ src/runtime/sigtab_linux_mips64x.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

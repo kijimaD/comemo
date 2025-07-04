@@ -1,16 +1,14 @@
-commit e9983165dd9882e0156b1678f688f37d7f9836c2
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 18 12:11:11 2017 -0400
+commit 44fe0820c6c304cb56592b07c0d9b2f90c3a20ce
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Apr 9 12:33:34 2017 +0900
 
-    cmd/vendor/golang.org/x/arch: import latest (Aug 18 2017 ffd22fb365cd)
+    cmd/cgo: remove duplicate mangle definition
     
-    Fixes #21486.
-    
-    Change-Id: I01794f008404f0e2d8a1408309ae6055513c5b49
-    Reviewed-on: https://go-review.googlesource.com/57030
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I0f8c695146b39cff72ca2374f861f3e9f72b0f77
+    Reviewed-on: https://go-review.googlesource.com/41314
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- .../golang.org/x/arch/arm64/arm64asm/ext_test.go       |  4 ++--
- .../x/arch/arm64/arm64asm/objdumpext_test.go           | 18 +++++-------------
- 2 files changed, 7 insertions(+), 15 deletions(-)
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

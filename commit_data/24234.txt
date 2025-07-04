@@ -1,14 +1,51 @@
-commit b456aac388f3d44b3fd936be00316caaff295c24
-Author: Yao Zhang <lunaria21@gmail.com>
-Date:   Thu Sep 10 07:13:28 2015 -0400
+commit cc8f5441980a8c2f9e6c8ec3222985ed488e76ba
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 16 16:27:09 2015 -0400
 
-    cmd/objdump: skip TestDisasm* for mips64{,le}
+    runtime: don't free large spans until heapBitsSweepSpan returns
     
-    Disassembler for mips64 is not supported yet.
+    This fixes a race between 1) sweeping and freeing an unmarked large
+    span and 2) reusing that span and allocating from it. This race arises
+    because mSpan_Sweep returns spans for large objects to the heap
+    *before* heapBitsSweepSpan clears the mark bit on the object in the
+    span.
     
-    Change-Id: Ie923dd1e37fed47fc395b9d1cd9194e55020bee5
-    Reviewed-on: https://go-review.googlesource.com/14459
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Specifically, the following sequence of events can lead to an
+    incorrectly zeroed bitmap byte, which causes the garbage collector to
+    not trace any pointers in that object (the pointer bits for the first
+    four words are cleared, and the scan bits are also cleared, so it
+    looks like a no-scan object).
+    
+    1) P0 calls mSpan_Sweep on a large span S0 with an unmarked object on it.
+    
+    2) mSpan_Sweep calls heapBitsSweepSpan, which invokes the callback for
+       the one (unmarked) object on the span.
+    
+    3) The callback calls mHeap_Free, which makes span S0 available for
+       allocation, but this is too early.
+    
+    4) P1 grabs this S0 from the heap to use for allocation.
+    
+    5) P1 allocates an object on this span and writes that object's type
+       bits to the bitmap.
+    
+    6) P0 returns from the callback to heapBitsSweepSpan.
+       heapBitsSweepSpan clears the byte containing the mark, even though
+       this span is now owned by P1 and this byte contains important
+       bitmap information.
+    
+    This fixes this problem by simply delaying the mHeap_Free until after
+    the heapBitsSweepSpan. I think the overall logic of mSpan_Sweep could
+    be simplified now, but this seems like the minimal change.
+    
+    Fixes #11617.
+    
+    Change-Id: I6b1382c7e7cc35f81984467c0772fe9848b7522a
+    Reviewed-on: https://go-review.googlesource.com/12320
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/objdump/objdump_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/mgcsweep.go | 64 +++++++++++++++++++++++++++----------------------
+ 1 file changed, 36 insertions(+), 28 deletions(-)

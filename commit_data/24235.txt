@@ -1,21 +1,14 @@
-commit b0344e9fd539256cffe630744311388aa94b0ecd
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Sep 2 10:35:54 2015 +1200
+commit 2899be812046515c7d9d9d3f925c7bcfca093e8a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jul 17 10:16:45 2015 +0900
 
-    cmd/internal/obj, cmd/link, runtime: a saner model for TLS on arm
+    net: avoid unnecessary conversion in address selection
     
-    this leaves lots of cruft behind, will delete that soon
-    
-    Change-Id: I12d6b6192f89bcdd89b2b0873774bd3458373b8a
-    Reviewed-on: https://go-review.googlesource.com/14196
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0d940810b493249bc092cd38bdb434f7fa67cafb
+    Reviewed-on: https://go-review.googlesource.com/12341
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/arm/a.out.go   | 10 +++++++
- src/cmd/internal/obj/arm/anames5.go |  2 ++
- src/cmd/internal/obj/arm/asm5.go    | 56 +++++++++++++++++++++++++++++++++++++
- src/cmd/link/internal/arm/asm.go    |  6 ++++
- src/cmd/link/internal/ld/data.go    | 33 ++++++++++++----------
- src/runtime/tls_arm.s               | 27 ++++++++----------
- 6 files changed, 104 insertions(+), 30 deletions(-)
+ src/net/addrselect.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

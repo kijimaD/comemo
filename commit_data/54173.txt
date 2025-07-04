@@ -1,21 +1,42 @@
-commit 0163b3b32cad2ed3331e2b197c68387f12246cd8
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sun Aug 20 18:33:50 2023 +0800
+commit 5f18e4632897769f2abf80332c39b526697d1a1c
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 10 15:06:43 2022 -0500
 
-    all: remove redundant string conversions when formatting []byte with %s
+    cmd/cover: add hybrid instrumentation mode
     
-    Change-Id: I603051a3174b139ffb81d20d42979c7f3f04a09a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521136
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Add a new mode of coverage instrumentation that works as a hybrid
+    between purely tool-based and purely compiler-based. The cmd/cover
+    tool still does source-to-source rewriting, but it also generates
+    information to be used by the compiler to do things like marking
+    meta-data vars as read-only.
+    
+    In hybrid mode, the cmd/cover tool is invoked not on a single source
+    file but on all the files in a package, and is passed a config file
+    containing the import path of the package in question, along with
+    other parameters needed for the run. It writes a series of modified
+    files and an output config file to be passed to the compiler when
+    compiling the modified files.
+    
+    Not completely useful by itself, still needs a corresponding set of
+    changes in the Go command and in the compiler.
+    
+    Updates #51430.
+    
+    Change-Id: I0fcbd93a9a8fc25064187b159152486a2549ea54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395896
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/bytes/example_test.go                        | 6 +++---
- src/crypto/rsa/example_test.go                   | 4 ++--
- src/runtime/testdata/testprogcgo/numgoroutine.go | 2 +-
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/cover/cfg_test.go                  | 175 +++++++++++++
+ src/cmd/cover/cover.go                     | 403 ++++++++++++++++++++++++++---
+ src/cmd/cover/cover_test.go                |  10 +
+ src/cmd/cover/doc.go                       |  18 +-
+ src/cmd/cover/testdata/pkgcfg/a/a.go       |  28 ++
+ src/cmd/cover/testdata/pkgcfg/a/a2.go      |   8 +
+ src/cmd/cover/testdata/pkgcfg/a/a_test.go  |  14 +
+ src/cmd/cover/testdata/pkgcfg/b/b.go       |  10 +
+ src/cmd/cover/testdata/pkgcfg/b/b_test.go  |   9 +
+ src/cmd/cover/testdata/pkgcfg/go.mod       |   3 +
+ src/cmd/cover/testdata/pkgcfg/main/main.go |  15 ++
+ 11 files changed, 658 insertions(+), 35 deletions(-)

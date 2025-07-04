@@ -1,31 +1,31 @@
-commit 05250429ae0e43041c9976a8451426d3ad907e5a
-Author: Artur M. Wolff <artur.m.wolff@gmail.com>
-Date:   Sun Mar 21 01:18:21 2021 +0100
+commit 29634436fd741a7c685bf8f242b6fd62f093d1ad
+Author: Benjamin Barenblat <bbaren@google.com>
+Date:   Thu Aug 27 16:12:18 2020 -0400
 
-    net/http: treat MaxBytesReader's negative limits as equivalent to zero limit
+    cmd/cgo: ensure GCC does not use ANSI escape sequences in errors
     
-    Current MaxBytesReader behaviour differs from its documentation. It's
-    not similar enough to io.LimitReader. It panics when limit (n) < -1 and
-    returns [-1, <nil>] when limit (n) = -1. To fix that, we treat all
-    negative limits as equivalent to 0.
+    cgo parses GCC’s error messages to classify C identifiers referenced
+    from Go programs (are they integer constants? type names?). If GCC tries
+    to colorize its errors, cgo can’t figure out what GCC is saying. GCC
+    avoids escape sequences in this scenario by default, but the default
+    behavior can be overridden in at least two places:
     
-    It would be possible to make MaxBytesReader analogically identical in
-    behaviour to io.LimitReader, but that would require to stop
-    maxBytesReader's Read from reading past the limit. Read always reads one
-    more byte (if possible) for non-negative limits and returns a non-EOF
-    error. This behaviour will now apply to all limits.
+      - The user can set `CGO_COPTS=-fdiagnostics-color`.
     
-    Fixes #45101
+      - Whoever compiled GCC can configure GCC itself to always colorize
+        output.
     
-    Change-Id: I25d1877dbff1eb4b195c8741fe5e4a025d01ebc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303171
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Damien Neil <dneil@google.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The most reliable way to ensure that GCC doesn’t colorize output is to
+    append `-fdiagnostics-color=never` to the GCC command line; do so.
+    
+    Fixes #40415
+    
+    Change-Id: Id4bdf8d92fac8b038340b4264f726e8fe38875b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248398
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/request.go      |  3 ++
- src/net/http/request_test.go | 86 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 89 insertions(+)
+ src/cmd/cgo/gcc.go   | 28 +++++++++++++++++++++-------
+ src/cmd/dist/test.go |  5 +++--
+ 2 files changed, 24 insertions(+), 9 deletions(-)

@@ -1,14 +1,14 @@
-commit e3f11b3f3c5f5aea874b44296cab2c66632d1965
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 13 19:48:27 2012 -0800
+commit 982e6c44a0c4f7436b6242b6c1cce37fcb880c3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 22:46:50 2012 -0500
 
-    go/parser: better error messages for missing commas
+    build: set $PATH during make.bash
     
-    Fixes #3008.
+    Should fix build breakage.
     
-    R=rsc
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5660046
+    https://golang.org/cl/5656050
 
- src/pkg/go/parser/parser.go | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

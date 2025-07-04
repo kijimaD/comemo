@@ -1,19 +1,17 @@
-commit 0cf7331391ba9ceb7ae755ca9172ba90f6ac516b
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Sep 9 10:57:40 2015 +1000
+commit e42413cecc17bfd963ffe01341aad8dd42b9b816
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 13 18:30:10 2015 -0400
 
-    image/png: reject zero-width and zero-height images.
+    runtime: fix saved PC/SP after safe-point function in syscall
     
-    http://www.w3.org/TR/PNG/#11IHDR says that "Zero is an invalid value".
+    Running a safe-point function on syscall entry uses systemstack() and
+    hence clobbers g.sched.pc and g.sched.sp. Fix this by re-saving them
+    after the systemstack, just like in the other uses of systemstack in
+    reentersyscall.
     
-    This change only affects the decoder. The encoder already checks
-    non-positive instead of negative.
-    
-    Fixes #12545.
-    
-    Change-Id: Iba40e1a2f4e0eec8b2fbcd3bbdae886311434da7
-    Reviewed-on: https://go-review.googlesource.com/14411
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I47868a53eba24d81919fda56ef6bbcf72f1f922e
+    Reviewed-on: https://go-review.googlesource.com/12125
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/image/png/reader.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/proc1.go | 1 +
+ 1 file changed, 1 insertion(+)

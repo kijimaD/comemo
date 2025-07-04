@@ -1,27 +1,22 @@
-commit b3bd7ab3d76c694bd87dfa31f9e7ccef15ed90a7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 1 11:22:07 2019 -0700
+commit ba66d89d7882892f762e7980562287d2c79ad87e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 29 21:49:20 2019 +0000
 
-    cmd/compile: fix //go:uintptrescapes for basic method calls
+    net/http: prevent Transport from spamming stderr on server 408 reply
     
-    The logic for keeping arguments alive for calls to //go:uintptrescapes
-    functions was only applying to direct function calls. This CL changes
-    it to also apply to direct method calls, which should address most
-    uses of Proc.Call and LazyProc.Call.
+    HTTP 408 responses now exist and are seen in the wild (e.g. from
+    Google's GFE), so make Go's HTTP client not spam about them when seen.
+    They're normal (now).
     
-    It's still an open question (#34684) whether other call forms (e.g.,
-    method expressions, or indirect calls via function values, method
-    values, or interfaces).
+    Fixes #32310
     
-    Fixes #34474.
-    
-    Change-Id: I874f97145972b0e237a4c9e8926156298f4d6ce0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198043
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I558eb4654960c74cf20db1902ccaae13d03310f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179457
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/gc/order.go |  2 +-
- test/uintptrescapes2.go              | 40 +++++++++++++++++------
- test/uintptrescapes3.go              | 63 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 95 insertions(+), 10 deletions(-)
+ src/net/http/export_test.go    |  1 +
+ src/net/http/transport.go      | 20 +++++++++++-
+ src/net/http/transport_test.go | 74 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 94 insertions(+), 1 deletion(-)

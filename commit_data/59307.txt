@@ -1,22 +1,19 @@
-commit f4803ddc2c8d082e07227c72944ffd9d7c45ab64
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 15 09:36:06 2025 -0700
+commit cda1e40b44771f8a01f361672cba721d0f283683
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Feb 22 18:52:39 2024 +0700
 
-    math/big: fix loong64 assembly for vet
+    cmd/compile: add missing Unalias call when writing type alias
     
-    Vet is failing on this code because some arguments of mulAddVWW
-    got renamed in the go decl (CL 664895) but not the assembly accessors.
+    Fixes #65778
     
-    Looks like the assembly got written before that CL but checked in
-    after that CL.
-    
-    Change-Id: I270e8db5f8327aa2029c21a126fab1231a3506a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/665717
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I93af42967c7976d63b4f460b7ffbcb9a9c05ffe7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565995
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
 
- src/math/big/arith_loong64.s | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/noder/writer.go |  2 +-
+ test/fixedbugs/issue65778.go             | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,32 +1,26 @@
-commit 5f949c4f2f5c45210612aee87713818a991f6a17
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 17 11:04:11 2024 -0800
+commit 2e71489ed1a30f95d0e11685536f5d61d9e858b3
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Jan 31 09:00:22 2023 +0000
 
-    go/types, types2: fix range clause checks for constant range expressions
+    net: use net/netip for address parsing
     
-    Add missing checks for the case where the range expression is
-    a (possibly untyped) constant integer expression.
+    Fixes #58098
     
-    Add context parameter to assignVar for better error message
-    where the expression is part of a range clause.
-    
-    Also, rename s/expr/Expr/ where it denotes an AST expression,
-    for clarity.
-    
-    Fixes #65133.
-    For #65137.
-    
-    Change-Id: I72962d76741abe79f613e251f7b060e99261d3ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556398
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I6ef963ba2c110215b8eda763cbfb258a25c8199a
+    GitHub-Last-Rev: 3d22f076b725337fa97eedcf92a1520a72bf0c17
+    GitHub-Pull-Request: golang/go#58143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463987
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/assignments.go |  9 ++--
- src/cmd/compile/internal/types2/stmt.go        | 34 +++++++++----
- src/go/types/assignments.go                    |  9 ++--
- src/go/types/stmt.go                           | 34 +++++++++----
- src/internal/types/testdata/spec/range_int.go  | 68 +++++++++++++++++++++++++-
- 5 files changed, 123 insertions(+), 31 deletions(-)
+ src/net/cgo_unix.go       |  11 +-
+ src/net/dnsconfig_unix.go |   5 +-
+ src/net/hosts.go          |  15 +--
+ src/net/ip.go             | 267 ++++------------------------------------------
+ src/net/ip_test.go        |  16 +++
+ src/net/lookup.go         |   8 +-
+ 6 files changed, 51 insertions(+), 271 deletions(-)

@@ -1,14 +1,13 @@
-commit 54faecac0b9c7cd26440c344c7af86e1d6bd2c62
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Apr 2 15:08:28 2013 +1100
+commit b91ae5c27c3b21e8364a7dec732d7885ce6a2073
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 1 15:52:15 2013 -0700
 
-    doc/go1.1.html: add a note about additional platforms
+    doc/codewalk/markov: fix slice error in description
+    Fixes #5176.
     
-    Mention support for NetBSD, OpenBSD, and cgo for linux/arm.
-    
-    R=golang-dev, dvyukov, r, minux.ma, adg, bradfitz, adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8152043
+    https://golang.org/cl/8118046
 
- doc/go1.1.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ doc/codewalk/markov.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

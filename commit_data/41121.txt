@@ -1,18 +1,20 @@
-commit 5a3a5d35258e2be1427fdea36b0a0787b0f67364
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 4 05:06:56 2019 +1100
+commit 9da99049ba45abb4e3b91ba30a4af8dc2d24f1b1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 5 15:14:02 2019 -0700
 
-    math, math/big: add support for riscv64
+    cmd/compile: restore lineno before returning in defaultlitreuse
     
-    Based on riscv-go port.
+    This affects the position information that's associated with the
+    implicit OCONV nodes created in assignconvfn.
     
-    Updates #27532
+    Not super important and the followup rewrite CL fixes this too, but
+    fixing it separately is easy and makes toolstash-check happier.
     
-    Change-Id: Id8ae7d851c393ec3702e4176c363accb0a42587f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204633
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifd65dc524b367812d14a4d996647a5d40665fb38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193606
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/big/arith_decl.go      |   2 +-
- src/math/big/arith_decl_pure.go |   2 +-
- src/math/stubs_riscv64.s        | 113 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 115 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/const.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

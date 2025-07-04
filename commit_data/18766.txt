@@ -1,19 +1,13 @@
-commit 967901a396eb702497e1e1dbaf64987744a92a45
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 5 14:09:03 2014 -0800
+commit f40872d3c7f451429146a14da037100b4453baf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 5 15:39:34 2014 -0500
 
-    doc: update links in contribute.html
+    CONTRIBUTORS: add David Covert (Google CLA)
     
-    CLA links are now redirects. Use new URLs instead.
-    
-    Also, use https:// links for all Google sites where
-    the http version just redirects to https anyway.
-    (That's all links on the page, as it turns out)
-    
-    LGTM=adg
-    R=golang-codereviews, adg
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/69980051
+    https://golang.org/cl/71670043
 
- doc/contribute.html | 26 ++++++++++++++------------
- 1 file changed, 14 insertions(+), 12 deletions(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

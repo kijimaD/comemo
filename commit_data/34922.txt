@@ -1,22 +1,17 @@
-commit 535ad8efb8a20602fc104556eea985bb12280afd
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 10 16:01:23 2018 -0700
+commit 06d87bf854ff61c2ea72dec6fc10c4c3fd59a76b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 29 11:46:48 2017 +0100
 
-    cmd/compile: fix check that ensures main.main is a function
+    os: correct err check in TestChdirAndGetwd
     
-    The check was previously disallowing package main from even importing
-    a non-function symbol named "main".
+    Due to err being shadowed in the else brach, the actual err return of
+    fd1.Chdir() is never checked. Fix it by not shadowing err anymore.
     
-    Fixes #24801.
-    
-    Change-Id: I849b9713890429f0a16860ef16b5dc7e970d04a4
-    Reviewed-on: https://go-review.googlesource.com/106120
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9f1d52e88d8bc9a1c035960aa7af9f5224a63ab0
+    Reviewed-on: https://go-review.googlesource.com/80556
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go    |  2 +-
- test/fixedbugs/issue24801.dir/a.go    |  9 +++++++++
- test/fixedbugs/issue24801.dir/main.go | 11 +++++++++++
- test/fixedbugs/issue24801.go          |  5 +++++
- 4 files changed, 26 insertions(+), 1 deletion(-)
+ src/os/os_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

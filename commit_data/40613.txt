@@ -1,21 +1,17 @@
-commit 0c5d545ccdd01403d6ce865fb03774a6aff6032c
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue Oct 22 14:55:17 2019 +0200
+commit fc705275c34233ffc1cb34be965f289589de9ba6
+Author: Alex Myasoedov <msoedov@gmail.com>
+Date:   Tue Jun 4 20:07:57 2019 +0200
 
-    test: add tests for runtime.itab.init
+    doc: clarify safety of multiple and concurent os.(*File).Close() calls
     
-    We seem to lack any tests for some corner cases of itab.init
-    (multiple methods with the same name, breaking itab.init doesn't
-    seem to fail any tests). We also lack tests that fix text of panics.
-    Add more tests for itab.init.
+    Fixes #32427
     
-    Change-Id: Id6b536179ba6b0d45c3cb9dc1c66b9311d0ab85e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202451
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4b863bd3836067dcc2eb3a9c3a7169656763d003
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180438
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- test/interface/embed3.dir/embed0.go | 21 ++++++++++
- test/interface/embed3.dir/embed1.go | 78 +++++++++++++++++++++++++++++++++++++
- test/interface/embed3.go            |  7 ++++
- 3 files changed, 106 insertions(+)
+ src/os/file_plan9.go   | 1 +
+ src/os/file_unix.go    | 1 +
+ src/os/file_windows.go | 1 +
+ 3 files changed, 3 insertions(+)

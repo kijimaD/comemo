@@ -1,21 +1,18 @@
-commit 5b2ddfadb2e218e325c91d1024ffbe87c1f38d19
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Jun 13 22:25:50 2023 +0700
+commit 218294f11ee4d988112263e1f2660acf443afdd9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 7 17:23:03 2022 +0200
 
-    cmd/compile: mark instantiated functions from package runtime as norace
+    internal/syscall/windows: use unsafe.Slice instead of unsafeheader package
     
-    Fixes #60439
+    Follow CL 428777.
     
-    Change-Id: I09fcd2d3deb7f80ed012a769fdb6f53b09c0290b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502895
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I5ce49322e92c5d6539bb08248e3366187c30dcd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428780
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/noder/unified.go | 10 ++++++++++
- src/runtime/export_test.go                |  8 ++++++++
- src/runtime/gc_test.go                    |  4 ++++
- 3 files changed, 22 insertions(+)
+ src/internal/syscall/windows/syscall_windows.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

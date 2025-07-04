@@ -1,21 +1,20 @@
-commit 17426912703c2c053e271a1ae43de70c68a35967
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 22 20:01:17 2023 -0700
+commit 23f13255f0a5a3dd34ee31b64e45fa87efadcb43
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Tue May 3 13:55:40 2022 -0700
 
-    go/types, types2: simplify Checker.exprList
+    runtime: re-add import in trace.go
     
-    Change-Id: I7e9e5bef9364afc959c66d9765180c4ed967f517
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478755
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    CL 400795, which uses the runtime/internal/atomic package in trace.go,
+    raced against CL 397014 removing that import. Re-add the import.
+    
+    Change-Id: If847ec23f9a0fdff91dab07e93d9fb1b2efed85b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403845
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/assignments.go | 2 +-
- src/cmd/compile/internal/types2/builtins.go    | 2 +-
- src/cmd/compile/internal/types2/call.go        | 6 +++---
- src/go/types/assignments.go                    | 2 +-
- src/go/types/builtins.go                       | 2 +-
- src/go/types/call.go                           | 6 +++---
- 6 files changed, 10 insertions(+), 10 deletions(-)
+ src/runtime/trace.go | 1 +
+ 1 file changed, 1 insertion(+)

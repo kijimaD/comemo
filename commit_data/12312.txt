@@ -1,17 +1,14 @@
-commit 953f2dec8985298ff29bb8a88b8933d34b64db7e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 1 10:35:15 2012 -0800
+commit b5d4cffd152cb3194f78c17df7bcf8dcde697947
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Mar 1 15:20:13 2012 -0300
 
-    spec: minor tweaks
+    encoding/xml: fix xml test tag usage
     
-    - more idiomatic examples of pointer types
-    - show use of _ in examples of function types
-    - remove "legal:" qualification in examples
-      for consistency
+    No real problem.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5711054
+    https://golang.org/cl/5717049
 
- doc/go_spec.html | 21 ++++++++++-----------
- 1 file changed, 10 insertions(+), 11 deletions(-)
+ src/pkg/encoding/xml/marshal_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

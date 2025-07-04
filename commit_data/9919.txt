@@ -1,17 +1,12 @@
-commit 4b749567b8ceb441b27ba375c85d52f6297faea3
-Author: Chris Farmiloe <chrisfarms@gmail.com>
-Date:   Tue Oct 11 12:53:16 2011 -0400
+commit 1444a08098c4ae3001d0aa017f505a97bc006806
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 11 08:49:09 2011 -0700
 
-    net: fix socket leak in case of Dial failure
+    fmt: fix doc typo
     
-    Socket descriptors are not closed when fd.connect() fails during generic socket creation.
-    After a connection failure [ECONNREFUSED] descriptors are left in SYN_SENT state indefinitely (unless they get an explicit RST). Repeated failed connections will eventually cause your program to hit the user/system max-open-files limit.
-    
-    Fixes #2349.
-    
-    R=golang-dev, mikioh.mikioh
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5229047
+    https://golang.org/cl/5252050
 
- src/pkg/net/sock.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

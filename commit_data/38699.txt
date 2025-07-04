@@ -1,17 +1,21 @@
-commit 7ea4cd3fa9f081532eba1b3ac0587e65b47319c6
-Author: Mikio Hara <mikioh.public.networking@gmail.com>
-Date:   Tue Apr 9 10:00:38 2019 +0900
+commit 69e666e4f758cb5431e94aa90dc01a72ab806080
+Author: Austin Clements <austin@google.com>
+Date:   Wed Sep 26 16:32:52 2018 -0400
 
-    cmd/cover: rename temporary directory prefix for consistency
+    runtime: record in-use spans in a page-indexed bitmap
     
-    This change renames the temporary directory prefix for testing to
-    go-testcover from gotestcover. It looks like other packages have the
-    "go-" prefix for temporary directories, such as go-build, go-tool-dist
-    and go-nettest.
+    This adds a bitmap indexed by page number that marks the starts of
+    in-use spans. This will be used to quickly find in-use spans with no
+    marked objects for sweeping.
     
-    Change-Id: I91ab570d33c4c1bb48e6e01451a811272f6f8b77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171100
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #18155.
+    
+    Change-Id: Icee56f029cde502447193e136fa54a74c74326dd
+    Reviewed-on: https://go-review.googlesource.com/c/138957
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/cover/cover_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mheap.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

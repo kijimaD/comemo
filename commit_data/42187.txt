@@ -1,16 +1,13 @@
-commit 03efd426316a0a1cde419d5ad200b683766bbc84
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Apr 29 14:55:07 2020 +1000
+commit a56d755f41461bd3a1eb700b0095d82f7a812c1a
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 30 13:36:37 2019 -0400
 
-    image: add a NewUniform doc comment
+    cmd/compile: expand initial $GOROOT in optimizer logging json/lsp file names
     
-    Fixes #38739
-    
-    Change-Id: I42b9b601e63ab8df69a0e5ce9bcabf75bb98d83e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230777
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9596536e04aef034623b51b42f44e4978f07ac47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204339
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/image/names.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/logopt/log_opts.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

@@ -1,19 +1,20 @@
-commit 9fed39d2814073a9389a614342f603bab9963bff
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Aug 24 18:04:13 2020 +1000
+commit 9963add628eb48edb5fbaafef156ebb899ce32bf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 14 13:15:53 2020 -0400
 
-    runtime: factor out mStackIsSystemAllocated
+    [dev.link] cmd/link: simplify field tracking support
     
-    Rather than repeat long lists of GOOS values, factor out the code that checks
-    if a runtime starts on a system allocated stack. Note that this adds aix to
-    one case, which appears to have been previously missed.
+    Currently, for the special field tracking symbol go.track.XXX,
+    when they are reachable, we set its type to SCONST. There is no
+    need to do that. Just leave it unset (as Sxxx). The symbol is
+    done after this point.
     
-    Change-Id: I5cecb0bb47dd79cde8d723e5a42ba541e43cbfff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/250179
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I966d80775008f7fb5d30fbc6b9e4a30ae8316b6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233998
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/proc.go | 15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/data.go |  6 +++---
+ src/cmd/link/internal/ld/go.go   | 10 +++-------
+ 2 files changed, 6 insertions(+), 10 deletions(-)

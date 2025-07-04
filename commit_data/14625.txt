@@ -1,14 +1,12 @@
-commit a257c753ac151d654d40258f11fdcda5dba7f779
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 12 11:33:03 2012 -0800
+commit 3906706297a78df69d7f87748963bf375b4c4511
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 12 11:06:26 2012 -0800
 
-    misc/dashboard: don't email about netbsd failures
+    spec: index and array/slice size constants must fit into an int
     
-    Too flaky.
-    
-    R=iant, rsc
+    R=r, rsc, iant, ken
     CC=golang-dev
-    https://golang.org/cl/6925056
+    https://golang.org/cl/6903048
 
- misc/dashboard/app/build/notify.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ doc/go_spec.html | 40 ++++++++++++++++++++++++----------------
+ 1 file changed, 24 insertions(+), 16 deletions(-)

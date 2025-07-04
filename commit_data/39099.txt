@@ -1,40 +1,21 @@
-commit fe67ce2efb243b9289e81a61a5ccae79b75048f2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 8 13:16:05 2019 -0400
+commit ad1644943ba691740c3bec29280f350f9d81c1b1
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Sat Dec 29 23:16:01 2018 +0300
 
-    runtime: fix vet complaints for linux/amd64
+    cmd/compile/internal/gc: remove unused methodbyname type
     
-    Working toward making the tree vet-safe instead of having
-    so many exceptions in cmd/vet/all/whitelist.
+    methodbyname was used for sorting in bexport.go, until
+    https://golang.org/cl/139338 removed the code that
+    invoked sorting function.
     
-    This CL makes "GOOS=linux GOARCH=amd64 go vet -unsafeptr=false runtime" happy,
-    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
+    R=1.13
     
-    For #31916.
-    
-    Change-Id: I4ca1acb02f4666b102d25fcc55fac96b8f80379a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176100
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I13e313fb60111a142ed3883d81916af254445fdc
+    Reviewed-on: https://go-review.googlesource.com/c/155959
+    Run-TryBot: Iskander Sharipov <quasilyte@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/all/whitelist/amd64.txt           | 15 ---------------
- src/cmd/vet/all/whitelist/android_amd64.txt   |  3 ---
- src/cmd/vet/all/whitelist/darwin_amd64.txt    |  3 ---
- src/cmd/vet/all/whitelist/dragonfly_amd64.txt |  1 -
- src/cmd/vet/all/whitelist/freebsd_amd64.txt   |  1 -
- src/cmd/vet/all/whitelist/illumos_amd64.txt   |  1 -
- src/cmd/vet/all/whitelist/linux_amd64.txt     |  3 ---
- src/cmd/vet/all/whitelist/nacl_amd64p32.txt   |  1 -
- src/cmd/vet/all/whitelist/netbsd_386.txt      |  3 ---
- src/cmd/vet/all/whitelist/netbsd_amd64.txt    |  5 -----
- src/cmd/vet/all/whitelist/openbsd_386.txt     |  1 -
- src/cmd/vet/all/whitelist/openbsd_amd64.txt   |  3 ---
- src/cmd/vet/all/whitelist/plan9_amd64.txt     |  3 ---
- src/cmd/vet/all/whitelist/solaris_amd64.txt   |  1 -
- src/cmd/vet/all/whitelist/windows_amd64.txt   |  1 -
- src/runtime/asm_amd64.s                       |  7 ++++---
- src/runtime/stubs_386.go                      |  3 +++
- src/runtime/{stubs_x86.go => stubs_amd64x.go} |  5 ++++-
- src/runtime/sys_netbsd_386.s                  |  6 +++---
- src/runtime/sys_openbsd_386.s                 |  6 +++---
- 20 files changed, 17 insertions(+), 55 deletions(-)
+ src/cmd/compile/internal/gc/export.go | 7 -------
+ 1 file changed, 7 deletions(-)

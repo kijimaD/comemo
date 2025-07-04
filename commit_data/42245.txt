@@ -1,19 +1,27 @@
-commit e3b0e3d64638cc3d55aaae7b0c3fb6387f5193e3
-Author: Michał Łowicki <mlowicki@gmail.com>
-Date:   Sat Apr 11 22:24:37 2020 +0100
+commit 9bba63bbbe43ee6370367220feb46717ec50ea9c
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 18 14:14:22 2019 -0500
 
-    cmd/go: add 'go help buildconstraint'
+    cmd/compile: make a better bogus line for empty infinite loops
     
-    Fixes #37018
+    The old recipe for making an infinite loop not be infinite
+    in the debugger could create an instruction (Prog) with a
+    line number not tied to any file (index == 0).  This caused
+    downstream failures in DWARF processing.
     
-    Change-Id: I1d32c1cb432bc2d7a4d8d6b5c3a54fee558141ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228017
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    So don't do that.  Also adds a test, also adds a check+panic
+    to ensure that the next time this happens the error is less
+    mystifying.
+    
+    Fixes #35652
+    
+    Change-Id: I04f30bc94fdc4aef20dd9130561303ff84fd945e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207613
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/alldocs.go               | 89 ++++++++++++++++++++++++++++++-------
- src/cmd/go/internal/help/help.go    |  2 +-
- src/cmd/go/internal/help/helpdoc.go | 57 ++++++++++++++++++++++++
- src/cmd/go/main.go                  |  1 +
- 4 files changed, 131 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go |  3 +++
+ src/cmd/internal/src/xpos.go       |  4 ++++
+ test/fixedbugs/issue35652.go       | 15 +++++++++++++++
+ 3 files changed, 22 insertions(+)

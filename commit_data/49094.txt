@@ -1,26 +1,21 @@
-commit 3391517c0e4695a87cdb806cbf7b9760e7c9fa73
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat May 7 16:18:57 2022 -0700
+commit c7c13ae4323f9f1d658625a9a774525789ee4d71
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 14:20:18 2021 -0400
 
-    cmd/compile: don't crash in size computation for invalid type
+    [dev.typeparams] go/types: use scope numbers to identify local types
     
-    An invalid program may produce invalid types. If the program
-    calls unsafe.Sizeof on such a type, which is a compile-time
-    computation, the size-computation must be able to handle it.
-    Add the invalid type to the list of permissible basic types
-    and give it a size of 1 (word).
+    This is a port of CL 333192 to go/types.
     
-    Fixes #52748.
-    
-    Change-Id: I6c409628f9b77044758caf71cdcb199f9e77adea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404894
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I12fd6b682d40c4d30b9ac0e87c463843cf5030d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335114
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/sizes.go |  1 +
- test/fixedbugs/issue52748.go            | 13 +++++++++++++
- 2 files changed, 14 insertions(+)
+ src/go/types/instance.go    |  2 +-
+ src/go/types/scope.go       |  4 +++-
+ src/go/types/sizeof_test.go |  2 +-
+ src/go/types/subst.go       |  2 --
+ src/go/types/typestring.go  | 29 +++++++++++++++++------------
+ src/go/types/universe.go    | 12 ++++++++----
+ 6 files changed, 30 insertions(+), 21 deletions(-)

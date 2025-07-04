@@ -1,44 +1,17 @@
-commit 862ddb37b4e24bcb89f060d50325c8f863ee99bc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 28 11:42:34 2021 -0700
+commit 64dc25b2db5d5be55f3f2fde3daac6c8a2873235
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jul 14 21:41:12 2020 +0000
 
-    runtime: rename walltime1 to walltime
+    runtime: add tests for addrRanges.add
     
-    Change-Id: Iec9de5ca56eb68d524bbaa0668515dbd09ad38a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314770
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I249deb482df74068b0538e9d773b9a87bc5a6df3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242681
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- misc/wasm/wasm_exec.js             | 4 ++--
- src/runtime/os3_solaris.go         | 2 +-
- src/runtime/os_aix.go              | 2 +-
- src/runtime/os_openbsd_syscall2.go | 2 +-
- src/runtime/os_windows.go          | 3 ---
- src/runtime/sys_darwin.go          | 2 +-
- src/runtime/sys_dragonfly_amd64.s  | 4 ++--
- src/runtime/sys_linux_386.s        | 4 ++--
- src/runtime/sys_linux_amd64.s      | 4 ++--
- src/runtime/sys_linux_arm.s        | 2 +-
- src/runtime/sys_linux_arm64.s      | 4 ++--
- src/runtime/sys_linux_mips64x.s    | 6 +++---
- src/runtime/sys_linux_mipsx.s      | 4 ++--
- src/runtime/sys_linux_ppc64x.s     | 4 ++--
- src/runtime/sys_linux_riscv64.s    | 4 ++--
- src/runtime/sys_linux_s390x.s      | 4 ++--
- src/runtime/sys_netbsd_386.s       | 4 ++--
- src/runtime/sys_netbsd_amd64.s     | 4 ++--
- src/runtime/sys_netbsd_arm.s       | 4 ++--
- src/runtime/sys_netbsd_arm64.s     | 4 ++--
- src/runtime/sys_openbsd2.go        | 2 +-
- src/runtime/sys_openbsd_386.s      | 4 ++--
- src/runtime/sys_openbsd_arm.s      | 4 ++--
- src/runtime/sys_openbsd_mips64.s   | 4 ++--
- src/runtime/sys_plan9_386.s        | 4 ++--
- src/runtime/sys_plan9_amd64.s      | 4 ++--
- src/runtime/sys_plan9_arm.s        | 4 ++--
- src/runtime/sys_wasm.s             | 2 +-
- src/runtime/timestub.go            | 2 +-
- src/runtime/timestub2.go           | 2 +-
- src/runtime/vdso_freebsd.go        | 2 +-
- 31 files changed, 51 insertions(+), 54 deletions(-)
+ src/runtime/export_test.go  |  62 +++++++++++++++++++++++++-
+ src/runtime/mranges_test.go | 103 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 163 insertions(+), 2 deletions(-)

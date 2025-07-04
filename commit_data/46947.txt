@@ -1,20 +1,18 @@
-commit 99fad12e4788fdf67e49dadd16571238f935b408
+commit d6bdd1aeefed83b69318bf7a3d84e9e275a4f686
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 18 17:42:21 2021 -0700
+Date:   Wed Feb 17 21:31:41 2021 -0800
 
-    cmd/compile/internal/types2: delay expansion of underlying in typeDecl
+    [dev.typeparams] cmd/compile/internal/types: review of typestring.go
     
-    This is a clean port of CL 356533 from go/types to types2.
+    The changes between (equivalent, and reviewed) go/types/typestring.go
+    and typestring.go can be seen by comparing patchset 1 and 3. The actual
+    change is just removing the "// UNREVIEWED" marker plus an adjustment
+    to writeTParamList (we now always write type constraints).
     
-    Fixes #49043.
-    
-    Change-Id: If389b94ece28042b0c8b436959dd21f26147a144
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356517
+    Change-Id: Ieb109c17756addc954e1ca0da606fa5b335ff30d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293472
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/decl.go            | 24 +++++++---------------
- src/cmd/compile/internal/types2/named.go           | 17 ++++++++++++++-
- .../internal/types2/testdata/check/typeinst.go2    |  2 +-
- .../types2/testdata/fixedbugs/issue49043.go2       | 24 ++++++++++++++++++++++
- 4 files changed, 48 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/types2/typestring.go | 32 ++++++---------------------
+ 1 file changed, 7 insertions(+), 25 deletions(-)

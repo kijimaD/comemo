@@ -1,14 +1,19 @@
-commit b492bbe0d6e34b1b6a225ad98ba44eda9e23362f
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Thu Mar 8 12:49:23 2012 -0500
+commit 736ff448ded5b2b4aefffb91390bc554593613da
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 9 01:31:09 2012 +0800
 
-    hgignore: ignoring misc/cgo/testso/main instead of /misc/cgo/testso/testso
+    doc: various update to command documents
+            1. consistent usage section (go tool xxx)
+            2. reformat cmd/ld document with minor correction
+               document which -H flags are valid on which ld
+               document -d flag can't be used on Windows.
+               document -Hwindowsgui
     
-    test.bash does not remove main if the test fails, so it is good to keep main in .hgignore.
-    
-    R=golang-dev, rsc
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5784057
+    https://golang.org/cl/5782043
 
- .hgignore | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/doc.go |  2 +-
+ src/cmd/ld/doc.go | 71 ++++++++++++++++++++++++++++++-------------------------
+ src/cmd/nm/doc.go |  3 ++-
+ 3 files changed, 42 insertions(+), 34 deletions(-)

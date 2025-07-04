@@ -1,14 +1,15 @@
-commit 6c58d28ca4f626e11b4ea84d79236df443b55e0b
+commit 8090f868fc44542a777e888947f8a3f6b6f4112c
 Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Wed Mar 4 21:24:58 2015 +0300
+Date:   Thu Feb 12 10:18:31 2015 +0300
 
-    runtime: cleanup
+    runtime: cleanup after conversion to Go
     
-    Cleanup after https://go-review.googlesource.com/3742
-    
-    Change-Id: Iff3ceffc31b778b1ed0b730696fce6d1b5124447
-    Reviewed-on: https://go-review.googlesource.com/6761
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I7c41cc6a5ab9fb3b0cc3812cf7e9776884658778
+    Reviewed-on: https://go-review.googlesource.com/4671
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc1.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/os_plan9.go |  5 +++++
+ src/runtime/proc.go     |  4 +++-
+ src/runtime/proc1.go    | 14 +++++---------
+ src/runtime/stubs3.go   | 12 ------------
+ 4 files changed, 13 insertions(+), 22 deletions(-)

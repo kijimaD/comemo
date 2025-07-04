@@ -1,0 +1,19 @@
+commit f214a760754ac0584999fb8098ce6172181ed791
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Mon Jun 24 11:45:12 2024 -0400
+
+    cmd/vendor: vendor x/telemetry@38a4430
+    
+    For #68109
+    
+    Change-Id: I73a3d23dd6c15ff4954ebe7a52c6c308fea947ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593684
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/go.mod                                                |  2 +-
+ src/cmd/go.sum                                                |  2 ++
+ .../golang.org/x/telemetry/internal/telemetry/proginfo.go     | 11 +++++++----
+ src/cmd/vendor/modules.txt                                    |  2 +-
+ 4 files changed, 11 insertions(+), 6 deletions(-)

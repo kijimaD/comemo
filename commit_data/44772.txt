@@ -1,16 +1,16 @@
-commit e7aa0f9f2834fb7eac1f435f834e6bbf461d55ac
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 18 15:10:44 2021 -0700
+commit ac2a1f8796101459a1700d02093745ffe1c821f4
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Aug 11 12:49:40 2020 -0400
 
-    go/types, types2: add a test case for shifts that used to fail
+    go/types: clean up test support code and remove global variables
     
-    For #42989.
+    This is a straightforward port of CL 244627.
     
-    Change-Id: Ic354edde23ed7bfb4cb3eec2794f7213ed862b47
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303090
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ide980957430b35e22a6e22818b0ce9de410988af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247902
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/testdata/issues.src | 6 ++++++
- src/go/types/testdata/issues.src                    | 6 ++++++
- 2 files changed, 12 insertions(+)
+ src/go/types/stdlib_test.go | 51 ++++++++++++++++++++++++++-------------------
+ 1 file changed, 29 insertions(+), 22 deletions(-)

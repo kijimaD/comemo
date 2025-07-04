@@ -1,24 +1,22 @@
-commit 0b6fbaae6ec4218fc35d8a6f4415ae8f88198301
-Author: David Chase <drchase@google.com>
-Date:   Wed Jun 21 17:19:24 2017 -0400
+commit 33266df861b6d231ed48b34ebb088cab92454de9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 21 21:51:10 2017 -0700
 
-    cmd/compile: make loop guard+rotate conditional on GOEXPERIMENT
+    cmd/internal/obj: clean up checkaddr
     
-    Loops of the form "for i,e := range" needed to have their
-    condition rotated to the "bottom" for the preemptible loops
-    GOEXPERIMENT, but this caused a performance regression
-    because it degraded bounds check removal.  For now, make
-    the loop rotation/guarding conditional on the experiment.
+    Coalesce identical cases.
+    Give it a proper doc comment.
+    Fix comment locations.
+    Update/delete old comments.
     
-    Fixes #20711.
-    Updates #10958.
+    Passes toolstash-check -all.
     
-    Change-Id: Icfba14cb3b13a910c349df8f84838cf4d9d20cf6
-    Reviewed-on: https://go-review.googlesource.com/46410
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I88d9cf20e6e04b0c1c6583e92cd96335831f183f
+    Reviewed-on: https://go-review.googlesource.com/38442
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/range.go | 11 ++++++++---
- test/loopbce.go                      |  2 +-
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/internal/obj/pass.go | 38 +++++++++-----------------------------
+ 1 file changed, 9 insertions(+), 29 deletions(-)

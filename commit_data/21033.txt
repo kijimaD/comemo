@@ -1,15 +1,15 @@
-commit 64e6fe2d29c3f8ae1e3e38a09bfb92b0452ad51b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Dec 20 16:57:02 2014 +1100
+commit af3e02e4040f4ae62d62d4f23411e11fa96340be
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 9 20:20:06 2014 -0500
 
-    image/draw: fix crash in clip
+    cmd/pprof: install as go tool pprof
     
-    Fixes #9177
-    
-    Change-Id: I1c7e57f0f0a9b00fb3ddc7fa4844ac53ea6df46f
-    Reviewed-on: https://go-review.googlesource.com/1876
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=bradfitz, r
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/168320043
 
- src/image/draw/clip_test.go | 10 ++++++++++
- src/image/draw/draw.go      |  6 ++++--
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ src/cmd/go/pkg.go    |  1 +
+ src/cmd/pprof/README |  8 ++++++++
+ src/cmd/pprof/doc.go | 12 ++++++++++++
+ 3 files changed, 21 insertions(+)

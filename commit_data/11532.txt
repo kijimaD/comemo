@@ -1,28 +1,16 @@
-commit cc777490fbe5f0c6575f4e84dea31b7d745d747e
+commit 1583931bcf522c4128087f0fb7dc84c4caa2af28
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Jan 31 18:14:44 2012 -0800
+Date:   Tue Jan 31 18:14:02 2012 -0800
 
-    build: add include files for Plan 9
+    syscall: cache environment variables on Plan 9.
     
-    Previously, I had made available a tarball of
-    the modified system headers that were necessary
-    to build on Plan 9 but that was only a stopgap.
-    I think this method is much better since no
-    files outside of $GOROOT will have to be added
-    or modified during the build process.
-    
-    Also, this is just the first step. I'll change
-    the build to reference these files in another CL
-    (that also contains a few more Makefile changes).
+    This can drastically reduce the number of system
+    calls made by programs that repeatedly query the
+    environment.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5552056
+    https://golang.org/cl/5599054
 
- include/plan9/386/u.h      | 14 ++++++++++++++
- include/plan9/libc.h       | 19 +++++++++++++++++++
- include/plan9/mach.h       |  7 +++++++
- include/plan9/ureg_amd64.h |  5 +++++
- include/plan9/ureg_arm.h   |  5 +++++
- include/plan9/ureg_x86.h   |  5 +++++
- 6 files changed, 55 insertions(+)
+ src/pkg/syscall/env_plan9.go | 136 ++++++++++++++++++++++++++++++-------------
+ 1 file changed, 95 insertions(+), 41 deletions(-)

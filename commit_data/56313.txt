@@ -1,35 +1,23 @@
-commit 1c4704991aeae5c9e0c6816a227390829b724ab5
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Mon Jan 22 09:31:43 2024 +0200
+commit 3a7806d387e8dc62a327ce9d2c7a3ea913f1efde
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Apr 26 11:47:16 2023 +0800
 
-    testing: use QueryPerformanceCounter on Windows
+    cmd/dist,internal: enable buildmode=c-archive for linux/loong64
     
-    Windows time.Now granularity is around 0.5ms on modern systems,
-    which introduces a significant noise into benchmark results.
-    Instead of relying time.Now use QueryPerformanceCounter, which
-    has significantly better granularity compared to time.Now.
+    Now the shared flag is supported on the linux/loong64 platform and
+    misc/cgo/testcarchive has been passed, buildmode=c-archive can be used.
     
-     │ TimeNow-32  │        HighPrecisionTimeNow-32        │
-     │   sec/op    │    sec/op     vs base                 │
-       4.812n ± 0%   30.580n ± 0%  +535.43% (p=0.000 n=20)
-    
-    Fixes #31160
-    
-    Change-Id: Ib2a574d638c9c6762a2524212def02265574e267
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557315
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ice450dc11fcb91942fdf2ddd34bb163853267e01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489576
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
 
- src/internal/syscall/windows/syscall_windows.go | 11 +++++++
- src/runtime/os_windows.go                       | 16 +++++++++++
- src/testing/benchmark.go                        |  8 +++---
- src/testing/export_test.go                      |  4 +++
- src/testing/fuzz.go                             | 10 +++----
- src/testing/testing.go                          | 28 +++++++++---------
- src/testing/testing_other.go                    | 18 ++++++++++++
- src/testing/testing_windows.go                  | 38 +++++++++++++++++++++++++
- src/testing/testing_windows_test.go             | 25 ++++++++++++++++
- 9 files changed, 135 insertions(+), 23 deletions(-)
+ src/cmd/dist/test.go               | 2 +-
+ src/internal/platform/supported.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

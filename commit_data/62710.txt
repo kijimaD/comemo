@@ -1,0 +1,16 @@
+commit eec3745bd7861f447bfe5fe5a27314079d46acec
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Mar 29 19:49:25 2025 +0100
+
+    cmd/compile/internal/ssa: replace uses of interface{} with Sym/Aux
+    
+    Change-Id: I0a3ce2e823697eee5bb5e7d5ea0ef025132c0689
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661655
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,20 +1,18 @@
-commit 259735f97a2dfd33849eacef15047f5a0964498e
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Aug 24 14:09:26 2021 -0500
+commit 6525abddcee2886ca0095decdfe1e97de19d06f2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 16 03:09:15 2021 +1100
 
-    cmd/compile: enable branchelim pass on ppc64
+    cmd/internal/obj/riscv: clean up branch tests
     
-    and fix/cleanup lowering of the SSA operator created by the pass.
+    Address review comments from earlier changes, which would have previously
+    caused unwanted conflicts.
     
-    Change-Id: I7e6153194fd16013e3b24da8aa40683adafa3d15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344573
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If2c61ffe977d721cccf276f931825b003521fda1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284116
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/branchelim.go   |  2 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  7 ++--
- src/cmd/compile/internal/ssa/rewritePPC64.go | 51 ++++++++++++++++++----------
- 3 files changed, 40 insertions(+), 20 deletions(-)
+ .../obj/riscv/testdata/testbranch/branch_test.go   | 117 ++++++++++-----------
+ .../obj/riscv/testdata/testbranch/branch_test.s    |  28 ++---
+ 2 files changed, 67 insertions(+), 78 deletions(-)

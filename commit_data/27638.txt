@@ -1,18 +1,27 @@
-commit 4b64c53c034b3a99a8a5dc3e8081342e77048561
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Jun 3 11:27:33 2016 -0400
+commit 8455f3a3d5f2879e8574882978e7646db1ebabb5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 6 04:38:00 2016 +0000
 
-    reflect: clear tflag for StructOf type
+    os: consolidate os{1,2}_*.go files
     
-    Fixes #15923
-    
-    Change-Id: I3e56564365086ceb0bfc15db61db6fb446ab7448
-    Reviewed-on: https://go-review.googlesource.com/23760
-    Reviewed-by: Sebastien Binet <seb.binet@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I463ca59f486b2842f67f151a55f530ee10663830
+    Reviewed-on: https://go-review.googlesource.com/21568
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/reflect/all_test.go | 4 ++++
- src/reflect/type.go     | 1 +
- 2 files changed, 5 insertions(+)
+ src/runtime/os1_dragonfly.go                       | 270 --------------------
+ src/runtime/os1_linux_generic.go                   |  28 --
+ src/runtime/os1_linux_mips64x.go                   |  26 --
+ src/runtime/os1_netbsd.go                          | 275 --------------------
+ src/runtime/os2_dragonfly.go                       |  15 --
+ src/runtime/os2_linux_mips64x.go                   |  25 --
+ src/runtime/os2_netbsd.go                          |  18 --
+ src/runtime/os_dragonfly.go                        | 273 ++++++++++++++++++++
+ .../{os2_linux_generic.go => os_linux_generic.go}  |  18 ++
+ src/runtime/os_linux_mips64x.go                    |  37 ++-
+ src/runtime/os_netbsd.go                           | 283 ++++++++++++++++++++-
+ .../{os1_netbsd_386.go => os_netbsd_386.go}        |   0
+ .../{os1_netbsd_amd64.go => os_netbsd_amd64.go}    |   0
+ 13 files changed, 609 insertions(+), 659 deletions(-)

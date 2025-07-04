@@ -1,17 +1,23 @@
-commit bae9cf651796db898b1e4bd77a1a47c5f2d7b04d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 14 19:24:55 2020 -0700
+commit 44286d09c5fcdb703624fad6ce24306294cab1fe
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Feb 27 22:53:18 2020 -0500
 
-    test: fix inline.go to pass linux-amd64-noopt
+    cmd/gofmt, go/format: sync internal.go
     
-    Updates #33485.
+    Apply CL 40930 to src/cmd/gofmt/internal.go to bring
+    it into sync with src/go/format/internal.go.
     
-    Change-Id: I3330860cdff1e9797466a7630bcdb7792c465b06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254938
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    Also revert '\n' back to "\n\n" in one of the comments,
+    because the previous text was more accurate.
+    Gofmt replaces the "; " part of "package p; func _() {"
+    input with two newline characters, not one.
+    
+    Updates #11844
+    
+    Change-Id: I6bb8155a931b793311991d3cd8e006a2931b167a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221497
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- test/inline.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/gofmt/internal.go | 8 ++++----
+ src/go/format/internal.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

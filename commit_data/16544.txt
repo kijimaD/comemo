@@ -1,20 +1,13 @@
-commit e440354c404cccf93be1a764353c2ccb278cefbf
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 11 22:37:07 2013 -0400
+commit ccd1d07cc44f3ca033ab7ad9e93ebf97ff3fa94c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jun 12 05:22:49 2013 +0800
 
-    cmd/gc: turn race detector off for tail-call method wrapper functions
+    runtime: round spans_size up to page boundary
+    in case we have weird (not page aligned) memory limit.
     
-    It was off in the old implementation (because there was no high-level
-    description of the function at all). Maybe some day the race detector
-    should be fixed to handle the wrapper and then enabled for it, but there's
-    no reason that has to be today.
-    
-    R=golang-dev
-    TBR=dvyukov
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/10037045
+    https://golang.org/cl/10199043
 
- src/cmd/gc/go.h       | 1 +
- src/cmd/gc/racewalk.c | 2 +-
- src/cmd/gc/subr.c     | 2 ++
- 3 files changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/runtime/malloc.goc | 4 ++++
+ 1 file changed, 4 insertions(+)

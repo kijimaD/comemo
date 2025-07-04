@@ -1,22 +1,21 @@
-commit 0e4d1c3e2cae6474a0b01a79c37b440817cbfa5f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 18 10:28:30 2011 -0700
+commit 9d99d52fcb898433d58c861bd942b2caec22c16f
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Oct 18 12:59:32 2011 -0400
 
-    godoc: fix ToAbsolute mapping
+    http, crypto/tls: fix read timeouts and closing.
     
-    The implementation of splitFirst was broken;
-    splitFirst("foo/") must be the same as splitFirst("foo").
-    As a result, ToAbsolute could be simplified, and as a side
-    effect this fixes a long-standing bug.
+    tls.Conn.Close() didn't close the underlying connection and tried to
+    do a handshake in order to send the close notify alert.
     
-    Thanks to Luca Greco <luca.greco@alcacoop.it> for doing
-    the investigation.
+    http didn't look for errors from the TLS handshake.
     
-    Fixes #1157.
+    Fixes #2281.
     
-    R=rsc
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5278050
+    https://golang.org/cl/5283045
 
- src/cmd/godoc/mapping.go | 29 ++++++++++++++---------------
- 1 file changed, 14 insertions(+), 15 deletions(-)
+ src/pkg/crypto/tls/conn.go | 20 ++++++++++++++++----
+ src/pkg/http/serve_test.go |  4 ----
+ src/pkg/http/server.go     |  5 ++++-
+ 3 files changed, 20 insertions(+), 9 deletions(-)

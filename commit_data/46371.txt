@@ -1,38 +1,46 @@
-commit f5f8a911d8425995c61ed836584b4f3ad0e4c8fc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 8 15:22:20 2021 -0700
+commit a1646595e63cc0bf7f566bb9b657f826cbda22a1
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Dec 17 17:25:42 2020 -0500
 
-    cmd/compile/internal/types2: spell out 'Type' in type parameter APIs
+    [dev.fuzz] cmd/go: implement -fuzztime flag and support cancellation
     
-    This is a port of CL 348376 with the necessary adjustments
-    in the compiler.
+    fuzz.CoordinateFuzzing and RunFuzzWorker now accept a context.Context
+    parameter. They should terminate gracefully when the context is
+    cancelled. The worker should exit quickly without processing more
+    inputs. The coordinator should save interesting inputs to the cache.
     
-    Change-Id: Ib11ee841b194746ff231ee493aa56bf9b3a4a67f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348577
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    The testing package can't import context directly, so it provides a
+    timeout argument to testdeps.CoordinateFuzzing instead. The testdeps
+    wrapper sets the timeout and installs an interrupt handler (for SIGINT
+    on POSIX and the equivalent on Windows) that cancels the context when
+    ^C is pressed.
+    
+    Note that on POSIX platforms, pressing ^C causes the shell to deliver
+    SIGINT to all processes in the active group: so 'go test', the
+    coordinator, and the workers should all react to that. On Windows,
+    pressing ^C only interrupts 'go test'. We may want to look at that
+    separately.
+    
+    Change-Id: I924d3be2905f9685dae82ff3c047ca3d6b5e2357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279487
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/importer/iimport.go   |  6 ++--
- src/cmd/compile/internal/noder/decl.go         |  2 +-
- src/cmd/compile/internal/noder/expr.go         |  4 +--
- src/cmd/compile/internal/noder/reader2.go      |  2 +-
- src/cmd/compile/internal/noder/types.go        | 12 ++++----
- src/cmd/compile/internal/noder/writer.go       | 28 ++++++++---------
- src/cmd/compile/internal/types2/api_test.go    |  2 +-
- src/cmd/compile/internal/types2/assignments.go |  2 +-
- src/cmd/compile/internal/types2/call.go        | 18 +++++------
- src/cmd/compile/internal/types2/decl.go        |  4 +--
- src/cmd/compile/internal/types2/index.go       |  2 +-
- src/cmd/compile/internal/types2/infer.go       |  2 +-
- src/cmd/compile/internal/types2/instantiate.go | 10 +++---
- src/cmd/compile/internal/types2/lookup.go      | 16 +++++-----
- src/cmd/compile/internal/types2/named.go       | 42 +++++++++++++-------------
- src/cmd/compile/internal/types2/object.go      |  4 +--
- src/cmd/compile/internal/types2/predicates.go  |  8 ++---
- src/cmd/compile/internal/types2/signature.go   | 28 ++++++++---------
- src/cmd/compile/internal/types2/subst.go       |  6 ++--
- src/cmd/compile/internal/types2/typelists.go   | 16 +++++-----
- src/cmd/compile/internal/types2/typeparam.go   |  2 +-
- src/cmd/compile/internal/types2/typestring.go  |  8 ++---
- 22 files changed, 112 insertions(+), 112 deletions(-)
+ src/cmd/go/internal/test/flagdefs.go               |  1 +
+ src/cmd/go/internal/test/genflags.go               |  2 +-
+ src/cmd/go/internal/test/testflag.go               |  1 +
+ src/cmd/go/testdata/script/test_fuzz.txt           |  6 +-
+ src/cmd/go/testdata/script/test_fuzz_cache.txt     |  2 +-
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt  | 27 +++++++++
+ src/cmd/go/testdata/script/test_fuzz_match.txt     |  6 +-
+ src/cmd/go/testdata/script/test_fuzz_mutate.txt    |  2 +-
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  |  6 +-
+ src/internal/fuzz/fuzz.go                          | 35 +++++------
+ src/internal/fuzz/worker.go                        | 70 ++++++++++++++++------
+ src/testing/fuzz.go                                |  6 +-
+ src/testing/internal/testdeps/deps.go              | 49 ++++++++++++++-
+ src/testing/testing.go                             | 32 ++++++----
+ 14 files changed, 181 insertions(+), 64 deletions(-)

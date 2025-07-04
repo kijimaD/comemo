@@ -1,25 +1,12 @@
-commit a3d8c210ad7d6dea9996200fc1596c310b9775b5
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Mar 31 01:57:52 2020 +1100
+commit e8f14494a08bde693818a31f38310a82e4e63582
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Oct 24 17:16:33 2019 -0400
 
-    cmd/asm,cmd/internal/obj/riscv: provide branch pseudo-instructions
+    [dev.boringcrypto] misc/boring: add go1.13.3b4 and go1.12.12b4 to RELEASES file
     
-    Implement various branch pseudo-instructions for riscv64. These make it easier
-    to read/write assembly and will also make it easier for the compiler to generate
-    optimised code.
-    
-    Change-Id: Ic31a7748c0e1495522ebecf34b440842b8d12c04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226397
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If4bd11c9bb3225f4416bb5591e7452e9ce98d27f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203317
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/asm/internal/arch/arch.go                  |   3 +-
- src/cmd/asm/internal/asm/testdata/riscvenc.s       |  13 +++
- src/cmd/internal/obj/riscv/anames.go               |  10 ++
- src/cmd/internal/obj/riscv/asm_test.go             |  18 ++++
- src/cmd/internal/obj/riscv/cpu.go                  |  10 ++
- src/cmd/internal/obj/riscv/obj.go                  |  64 ++++++++++--
- .../obj/riscv/testdata/testbranch/branch_test.go   |  94 +++++++++++++++++
- .../obj/riscv/testdata/testbranch/branch_test.s    | 111 +++++++++++++++++++++
- 8 files changed, 311 insertions(+), 12 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

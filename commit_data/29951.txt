@@ -1,17 +1,15 @@
-commit 6a3c6c0de822d5fb426f21c20529c9222c1ebee0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Jan 14 03:19:54 2017 +0000
+commit 0794dce07239fad5845b9c77b50d084f19f7278f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 21:08:48 2016 -0400
 
-    net/http: add another hijack-after-background-read test
+    bufio: read from underlying reader at most once in Read
     
-    Follow-up test from Ian's comments in https://golang.org/cl/35232
-    after submit.
+    Fixes #17059.
     
-    Change-Id: Ifa504bd8d09e555c3c7738376199dfc9b99130cf
-    Reviewed-on: https://go-review.googlesource.com/35234
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I5c7ee46604399f7dc3c3c49f964cbb1aa6c0d621
+    Reviewed-on: https://go-review.googlesource.com/31320
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
+ src/bufio/bufio.go      | 12 ++++++++++--
+ src/bufio/bufio_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

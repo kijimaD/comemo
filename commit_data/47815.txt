@@ -1,29 +1,25 @@
-commit 7f2314530e7cb4a11c6df4f7bd51187f5cffe2a5
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 13 20:11:07 2021 -0800
+commit aad13cbb749d1e6c085ff0556d306de1a2d5d063
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 9 17:01:45 2021 -0400
 
-    cmd/compile: don't re-typecheck while importing
+    runtime: non-strict InlTreeIndex lookup in expandFinalInlineFrame
     
-    The imported code is already typechecked. NodAddrAt typechecks its
-    argument, which is unnecessary here and leads to errors when
-    typechecking unexported field references in other packages' code.
+    This is a follow-up to golang.org/cl/301369, which made the same change
+    in Frames.Next. The same logic applies here: a profile stack may have
+    been truncated at an invalid PC provided by cgoTraceback.
+    expandFinalInlineFrame will then try to lookup the inline tree and
+    crash.
     
-    Mark the node is question as already typechecked, so we don't
-    retypecheck it.
+    The same fix applies as well: upon encountering a bad PC, simply leave
+    it as-is and move on.
     
-    Fixes #50148
+    Fixes #44971
+    Fixes #45480
     
-    Change-Id: I9789e3e7dd4d58ec095675e27b1c98389f7a0c44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371554
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2823c67a1f3425466b05384cc6d30f5fc8ee6ddc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309109
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/typecheck/iimport.go |  7 ++++++-
- test/typeparam/structinit.dir/a.go            | 15 +++++++++++++++
- test/typeparam/structinit.dir/b.go            | 12 ++++++++++++
- test/typeparam/structinit.dir/main.go         | 11 +++++++++++
- test/typeparam/structinit.go                  |  7 +++++++
- 5 files changed, 51 insertions(+), 1 deletion(-)
+ src/runtime/symtab.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

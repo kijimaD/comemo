@@ -1,20 +1,25 @@
-commit 23dd389ac6ef59210580614c4a73e0d0a13c2911
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 10 09:33:53 2021 -0800
+commit a9b3c4bd0602f95afc58328d9953534f5e5fe4f6
+Author: Joel Courtney <euphemize@gmail.com>
+Date:   Mon Mar 15 22:28:31 2021 +0000
 
-    cmd/compile/internal/types2: refer to structural rather than single underlying type in errors
+    time: add Time.IsDST() to check if its Location is in Daylight Savings Time
     
-    This brings the error messages in sync with the terminology that
-    will be used it the spec.
+    Fixes #42102
     
-    Change-Id: Ia05993776c649be9eb2cdf948a583b9a49f9b192
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362997
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: I2cd2fdf67c794c3e99ed1c24786f7f779da73962
+    GitHub-Last-Rev: bbfa92135734cbd55895012fa492e51686a7b58b
+    GitHub-Pull-Request: golang/go#42103
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/types2/builtins.go                  |  2 +-
- src/cmd/compile/internal/types2/index.go                     |  2 +-
- src/cmd/compile/internal/types2/stmt.go                      |  4 ++--
- src/cmd/compile/internal/types2/testdata/check/builtins.go2  |  6 +++---
- .../compile/internal/types2/testdata/check/typeparams.go2    | 12 ++++++------
- 5 files changed, 13 insertions(+), 13 deletions(-)
+ src/time/format.go        |  2 +-
+ src/time/time.go          | 20 +++++++++++++-------
+ src/time/time_test.go     | 36 ++++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo.go      | 37 +++++++++++++++++++++++--------------
+ src/time/zoneinfo_read.go |  2 +-
+ src/time/zoneinfo_test.go | 23 ++++++++++++-----------
+ 6 files changed, 86 insertions(+), 34 deletions(-)

@@ -1,24 +1,22 @@
-commit 88833c90457e02edf4641cf914512ab920380431
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Jul 11 00:00:32 2024 +0700
+commit 459cca5cb20e69f0546f7f480571e7eeaeac17e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 1 12:55:58 2023 -0400
 
-    cmd/compile: restore not-in-heap check for map/channel type
+    cmd/go: move version constants from modload to gover
     
-    CL 388538 removed unused -G=0 node types.
+    For #57001.
     
-    However, the code for checking not-in-heap types for map and channel
-    type was also removed, which is likely not intentional.
-    
-    This CL restores the check, porting removed code to noder.
-    
-    Updates #54846
-    
-    Change-Id: I2995836b90e36d2684197fefc9829fddfffe8585
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597535
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Ia76478b8eaa934b7e1dc1e9cd7fe8a2428fc291a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499978
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/noder/irgen.go | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ src/cmd/go/internal/gover/version.go     | 54 ++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/modcmd/download.go   |  2 +-
+ src/cmd/go/internal/modload/buildlist.go |  2 +-
+ src/cmd/go/internal/modload/init.go      | 16 +++++-----
+ src/cmd/go/internal/modload/load.go      |  4 +--
+ src/cmd/go/internal/modload/modfile.go   | 51 +-----------------------------
+ 6 files changed, 67 insertions(+), 62 deletions(-)

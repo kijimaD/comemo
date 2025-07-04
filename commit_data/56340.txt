@@ -1,18 +1,20 @@
-commit 344075d9369103a453add5acf3cb6d68057e8423
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Wed May 1 23:18:00 2024 +0200
+commit 6b859d9d5816bd3eaeff40eece7bd797b2824e8f
+Author: Will Faught <willfaught@users.noreply.github.com>
+Date:   Fri Apr 28 23:44:50 2023 +0000
 
-    spec: clarify when range expression is evaluated
+    text/template: reword uncover to unwrap
     
-    Clarify that the range expression of a "for" loop is called *just* once to
-    rule out that it might be re-evaluated after each iteration.
+    Matches the preceding "wrap" terminology.
     
-    Change-Id: Iedb61cd29e5238ac0168b8ac01c34d6208cc4312
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582775
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia783de578c2942fe1474281c3d6056b1074d41b0
+    GitHub-Last-Rev: 4fcff4e9b2836d428ba668186441089a9618c028
+    GitHub-Pull-Request: golang/go#59891
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490675
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- doc/go_spec.html | 2 +-
+ src/text/template/funcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

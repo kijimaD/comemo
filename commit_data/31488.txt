@@ -1,43 +1,184 @@
-commit b8c7fddd58432b6cbe12af221d275935a1ffc8f0
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed May 3 14:46:28 2017 -0400
+commit 7844ef427a61bd68db81912a254a3f99633a9354
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Fri Feb 10 14:52:02 2017 -0800
 
-    cmd/go: use os.Executable to find GOROOT
+    cmd/pprof: vendor pprof from github.com/google/pprof
     
-    Before this change, building a GOROOT using make.bash, and then
-    moving the entire to a new path confused the go tool. Correct
-    operation of the go tool under these conditions required either
-    running make.bash again (not always possible if the new location
-    was owned by a different system user) or setting the GOROOT
-    environment variable. Setting GOROOT is unfortunate and
-    discouraged, as it makes it too easy to use the go tool from
-    one GOROOT and the compiler from another GOROOT.
+    Import the github.com/google/pprof and github.com/ianlancetaylor/demangle
+    packages, without modification.
     
-    With this change, the go tool finds its GOROOT relative to its
-    own location, using os.Executable. It checks it is in a GOROOT
-    by searching for the GOROOT/pkg/tool directory, to avoid two
-    plausible situations:
+    Build the golang version of pprof from cmd/pprof/pprof.go
+    by importing the packages from src/cmd/vendot/github.com/google/pprof
     
-            ln -s $GOROOT/bin/go /usr/local/bin/go
+    The versions upstreamed are:
     
-    and
+    github.com/ianlancetaylor/demangle 4883227f66371e02c4948937d3e2be1664d9be38
+    github.com/google/pprof            7eb5ba977f28f2ad8dd5f6bb82cc9b454e123cdc
     
-            PATH=$HOME/bin:$PATH
-            GOPATH=$HOME
-            ln -s $GOROOT/bin/go $HOME/bin/go
+    Update misc/nacl/testzip.proto for new tests.
     
-    Additionally, if the current executable path is not in a GOROOT,
-    the tool will follow any symlinks for the executable and check
-    to see if its original path is a GOROOT.
-    
-    Fixes #18678
-    
-    Change-Id: I151d7d449d213164f98193cc176b616849e6332c
-    Reviewed-on: https://go-review.googlesource.com/42533
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I076584856491353607a3b98b67d0ca6838be50d6
+    Reviewed-on: https://go-review.googlesource.com/36798
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/go_test.go          | 128 +++++++++++++++++++++++++++++++++++++++--
- src/cmd/go/internal/cfg/cfg.go |  37 +++++++++++-
- 2 files changed, 158 insertions(+), 7 deletions(-)
+ misc/nacl/testzip.proto                            |   20 +
+ src/cmd/pprof/internal/commands/commands.go        |  235 -
+ src/cmd/pprof/internal/driver/driver.go            | 1042 -----
+ src/cmd/pprof/internal/driver/interactive.go       |  492 ---
+ src/cmd/pprof/internal/fetch/fetch.go              |  110 -
+ src/cmd/pprof/internal/report/report.go            | 1726 --------
+ src/cmd/pprof/internal/report/source.go            |  454 --
+ src/cmd/pprof/internal/symbolizer/symbolizer.go    |  195 -
+ src/cmd/pprof/internal/symbolz/symbolz.go          |  111 -
+ src/cmd/pprof/internal/tempfile/tempfile.go        |   46 -
+ src/cmd/pprof/pprof.go                             |  201 +-
+ src/cmd/vendor/github.com/google/pprof/AUTHORS     |    7 +
+ .../vendor/github.com/google/pprof/CONTRIBUTING    |   27 +
+ .../vendor/github.com/google/pprof/CONTRIBUTORS    |   14 +
+ src/cmd/vendor/github.com/google/pprof/LICENSE     |  202 +
+ src/cmd/vendor/github.com/google/pprof/README.md   |   86 +
+ .../google/pprof/doc/developer/pprof.dev.md        |   14 +
+ .../google/pprof/doc/developer/profile.proto.md    |  147 +
+ .../vendor/github.com/google/pprof/doc/pprof.md    |  209 +
+ .../github.com/google/pprof/driver/driver.go       |  281 ++
+ .../google/pprof/internal/binutils/addr2liner.go   |  219 +
+ .../pprof/internal/binutils/addr2liner_llvm.go     |  170 +
+ .../pprof/internal/binutils/addr2liner_nm.go       |  123 +
+ .../google/pprof/internal/binutils/binutils.go     |  305 ++
+ .../pprof/internal/binutils/binutils_test.go       |  152 +
+ .../google/pprof/internal/binutils/disasm.go       |  147 +
+ .../google/pprof/internal/binutils/disasm_test.go  |  154 +
+ .../github.com/google/pprof/internal/driver/cli.go |  271 ++
+ .../google/pprof/internal/driver/commands.go       |  561 +++
+ .../google/pprof/internal/driver/driver.go         |  287 ++
+ .../google/pprof/internal/driver/driver_focus.go   |  174 +
+ .../google/pprof/internal/driver/driver_test.go    | 1095 +++++
+ .../google/pprof/internal/driver/fetch.go          |  525 +++
+ .../google/pprof/internal/driver/fetch_test.go     |  228 +
+ .../google/pprof/internal/driver/interactive.go    |  430 ++
+ .../pprof/internal/driver/interactive_test.go      |  325 ++
+ .../google/pprof/internal/driver/options.go        |  148 +
+ .../google/pprof/internal/driver/tempfile.go       |   54 +
+ .../pprof/internal/driver/testdata/cppbench.cpu    |  Bin 0 -> 24405 bytes
+ .../pprof/internal/driver/testdata/file1000.src    |   17 +
+ .../pprof/internal/driver/testdata/file2000.src    |   17 +
+ .../pprof/internal/driver/testdata/file3000.src    |   17 +
+ .../pprof/internal/driver/testdata/go.crc32.cpu    |  Bin 0 -> 5032 bytes
+ .../internal/driver/testdata/go.nomappings.crash   |  Bin 0 -> 232 bytes
+ .../driver/testdata/pprof.contention.cum.files.dot |   10 +
+ ...prof.contention.flat.addresses.dot.focus.ignore |    9 +
+ .../internal/driver/testdata/pprof.cpu.callgrind   |   88 +
+ .../internal/driver/testdata/pprof.cpu.comments    |    0
+ .../driver/testdata/pprof.cpu.cum.lines.text.hide  |    5 +
+ .../driver/testdata/pprof.cpu.cum.lines.text.show  |    5 +
+ .../testdata/pprof.cpu.cum.lines.topproto.hide     |    3 +
+ .../testdata/pprof.cpu.flat.addresses.disasm       |   14 +
+ .../testdata/pprof.cpu.flat.addresses.weblist      |  109 +
+ .../driver/testdata/pprof.cpu.flat.functions.dot   |   20 +
+ .../driver/testdata/pprof.cpu.flat.functions.text  |    8 +
+ .../pprof/internal/driver/testdata/pprof.cpu.peek  |   13 +
+ .../pprof/internal/driver/testdata/pprof.cpu.tags  |   13 +
+ .../driver/testdata/pprof.cpu.tags.focus.ignore    |    6 +
+ .../internal/driver/testdata/pprof.cpu.traces      |   32 +
+ .../testdata/pprof.cpusmall.flat.addresses.tree    |   17 +
+ .../internal/driver/testdata/pprof.heap.callgrind  |   88 +
+ .../internal/driver/testdata/pprof.heap.comments   |    2 +
+ .../testdata/pprof.heap.cum.lines.tree.focus       |   19 +
+ .../pprof.heap.cum.relative_percentages.tree.focus |   19 +
+ .../testdata/pprof.heap.flat.files.seconds.text    |    2 +
+ .../driver/testdata/pprof.heap.flat.files.text     |    5 +
+ .../testdata/pprof.heap.flat.inuse_objects.text    |    8 +
+ .../testdata/pprof.heap.flat.inuse_space.dot.focus |   13 +
+ .../pprof.heap.flat.inuse_space.dot.focus.ignore   |   16 +
+ .../testdata/pprof.heap.flat.lines.dot.focus       |   21 +
+ .../pprof/internal/driver/testdata/pprof.heap.tags |    6 +
+ .../internal/driver/testdata/pprof.heap.tags.unit  |    6 +
+ .../pprof.heap_alloc.flat.alloc_objects.text       |    8 +
+ .../pprof.heap_alloc.flat.alloc_space.dot.focus    |   18 +
+ .../pprof.heap_alloc.flat.alloc_space.dot.hide     |   11 +
+ .../testdata/pprof.unknown.flat.functions.text     |    8 +
+ .../google/pprof/internal/elfexec/elfexec.go       |  256 ++
+ .../google/pprof/internal/elfexec/elfexec_test.go  |   92 +
+ .../google/pprof/internal/graph/dotgraph.go        |  483 ++
+ .../google/pprof/internal/graph/dotgraph_test.go   |  282 ++
+ .../google/pprof/internal/graph/graph.go           | 1134 +++++
+ .../google/pprof/internal/graph/graph_test.go      |  314 ++
+ .../pprof/internal/graph/testdata/compose1.dot     |    7 +
+ .../pprof/internal/graph/testdata/compose2.dot     |    7 +
+ .../pprof/internal/graph/testdata/compose3.dot     |   11 +
+ .../pprof/internal/graph/testdata/compose4.dot     |    4 +
+ .../pprof/internal/graph/testdata/compose5.dot     |   11 +
+ .../pprof/internal/measurement/measurement.go      |  299 ++
+ .../google}/pprof/internal/plugin/plugin.go        |  180 +-
+ .../google/pprof/internal/proftest/proftest.go     |  106 +
+ .../google/pprof/internal/report/report.go         | 1167 +++++
+ .../google/pprof/internal/report/report_test.go    |  266 ++
+ .../google/pprof/internal/report/source.go         |  494 +++
+ .../google}/pprof/internal/report/source_html.go   |   16 +-
+ .../pprof/internal/report/testdata/source.dot      |   17 +
+ .../pprof/internal/report/testdata/source.rpt      |   49 +
+ .../google/pprof/internal/report/testdata/source1  |   19 +
+ .../google/pprof/internal/report/testdata/source2  |   19 +
+ .../google/pprof/internal/symbolizer/symbolizer.go |  356 ++
+ .../pprof/internal/symbolizer/symbolizer_test.go   |  253 ++
+ .../google/pprof/internal/symbolz/symbolz.go       |  161 +
+ .../google/pprof/internal/symbolz/symbolz_test.go  |  100 +
+ src/cmd/vendor/github.com/google/pprof/pprof.go    |   31 +
+ .../github.com/google/pprof/profile/encode.go      |  526 +++
+ .../github.com/google/pprof/profile/filter.go      |  201 +
+ .../github.com/google/pprof/profile/index.go       |   64 +
+ .../github.com/google/pprof/profile/index_test.go  |  114 +
+ .../google/pprof/profile/legacy_java_profile.go    |  312 ++
+ .../google/pprof/profile/legacy_profile.go         | 1224 ++++++
+ .../google/pprof/profile/legacy_profile_test.go    |  319 ++
+ .../github.com/google/pprof/profile/merge.go       |  443 ++
+ .../github.com/google/pprof/profile/profile.go     |  619 +++
+ .../google/pprof/profile/profile_test.go           |  521 +++
+ .../github.com/google/pprof/profile/proto.go       |  375 ++
+ .../github.com/google/pprof/profile/proto_test.go  |  146 +
+ .../github.com/google/pprof/profile/prune.go       |  155 +
+ .../github.com/google/pprof/profile/prune_test.go  |  139 +
+ .../pprof/profile/testdata/cppbench.contention     |   24 +
+ .../profile/testdata/cppbench.contention.string    |   65 +
+ .../google/pprof/profile/testdata/cppbench.cpu     |  Bin 0 -> 23631 bytes
+ .../pprof/profile/testdata/cppbench.cpu.string     |  179 +
+ .../google/pprof/profile/testdata/cppbench.growth  |   99 +
+ .../pprof/profile/testdata/cppbench.growth.string  |  248 ++
+ .../google/pprof/profile/testdata/cppbench.heap    |   47 +
+ .../pprof/profile/testdata/cppbench.heap.string    |  237 +
+ .../google/pprof/profile/testdata/cppbench.thread  |   29 +
+ .../pprof/profile/testdata/cppbench.thread.all     |   33 +
+ .../profile/testdata/cppbench.thread.all.string    |   28 +
+ .../pprof/profile/testdata/cppbench.thread.none    |   27 +
+ .../profile/testdata/cppbench.thread.none.string   |   50 +
+ .../pprof/profile/testdata/cppbench.thread.string  |   33 +
+ .../google/pprof/profile/testdata/go.crc32.cpu     |  Bin 0 -> 5032 bytes
+ .../pprof/profile/testdata/go.crc32.cpu.string     |   87 +
+ .../google/pprof/profile/testdata/go.godoc.thread  |    8 +
+ .../pprof/profile/testdata/go.godoc.thread.string  |   37 +
+ .../google/pprof/profile/testdata/gobench.cpu      |  Bin 0 -> 8248 bytes
+ .../pprof/profile/testdata/gobench.cpu.string      |  415 ++
+ .../google/pprof/profile/testdata/gobench.heap     |   16 +
+ .../pprof/profile/testdata/gobench.heap.string     |  137 +
+ .../google/pprof/profile/testdata/java.contention  |   43 +
+ .../pprof/profile/testdata/java.contention.string  |   43 +
+ .../google/pprof/profile/testdata/java.cpu         |  Bin 0 -> 3537 bytes
+ .../google/pprof/profile/testdata/java.cpu.string  |   78 +
+ .../google/pprof/profile/testdata/java.heap        |  133 +
+ .../google/pprof/profile/testdata/java.heap.string |  139 +
+ .../github.com/google/pprof/proto/profile.proto    |  183 +
+ .../google/pprof/third_party}/svg/svg.go           |   32 +-
+ .../google/pprof/third_party}/svg/svgpan.go        |    2 +-
+ .../github.com/ianlancetaylor/demangle/.gitignore  |   13 +
+ .../github.com/ianlancetaylor/demangle/LICENSE     |   27 +
+ .../github.com/ianlancetaylor/demangle/README.md   |    3 +
+ .../github.com/ianlancetaylor/demangle/ast.go      | 2879 ++++++++++++
+ .../github.com/ianlancetaylor/demangle/ast_test.go |   42 +
+ .../github.com/ianlancetaylor/demangle/c++filt.go  |  144 +
+ .../github.com/ianlancetaylor/demangle/demangle.go | 2501 +++++++++++
+ .../ianlancetaylor/demangle/demangle_test.go       |  420 ++
+ .../ianlancetaylor/demangle/expected_test.go       |  183 +
+ .../demangle/testdata/demangle-expected            | 4594 ++++++++++++++++++++
+ src/cmd/vendor/vendor.json                         |   12 +
+ 159 files changed, 31572 insertions(+), 4630 deletions(-)

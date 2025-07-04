@@ -1,14 +1,34 @@
-commit 45a4609c0ae214e448612e0bc0846e2f2682f1b2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 27 04:33:18 2017 +0000
+commit 095a62c3494e5ca6290357d1b4d307f502257578
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 29 09:08:39 2017 -0700
 
-    cmd/dist: skip moved GOROOT on Go's Windows builders when not sharding tests
+    cmd/compile: refactor maplit
     
-    Change-Id: I0bcae339624e7d61037d9ea0885b7bd07491bbb6
-    Reviewed-on: https://go-review.googlesource.com/51430
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Instead of walking the list of nodes twice,
+    once to find static entries to add to an array
+    and once to find dynamic entries to generate code for,
+    do the split once up front, into two slices.
+    Then process each slice individually.
+    This makes the code easier to read
+    and more importantly, easier to modify.
+    
+    While we're here, add a TODO to avoid
+    using temporaries for mapassign_fast calls.
+    It's not an important TODO;
+    the generated code would be basically identical.
+    It would just avoid a minor amount of
+    pointless SSA optimization work.
+    
+    Passes toolstash-check.
+    No measureable compiler performance impact.
+    
+    Updates #19751
+    
+    Change-Id: I84a8f2c22f9025c718ef34639059d7bd02a3c406
+    Reviewed-on: https://go-review.googlesource.com/39351
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/gc/sinit.go | 108 ++++++++++++++++-------------------
+ 1 file changed, 48 insertions(+), 60 deletions(-)

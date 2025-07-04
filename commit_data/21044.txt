@@ -1,17 +1,13 @@
-commit ab9ec2e4014efce68da1e57b3def4f82db00c671
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 15 10:51:31 2014 -0500
+commit 28c538596599a92d7db5ad0e0b886e1340e16256
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Nov 10 14:32:02 2014 -0500
 
-    liblink: remove class from %#D formatter on 6l
+    [dev.garbage] runtime: Coarsen the write barrier to always grey the destination.
     
-    This was a copy-paste error from 9l.  Besides incorrectly referring to
-    cnames9, 6l doesn't even use a->class, so simply remove this.
-    
-    Fixes #9320
-    
-    Change-Id: I0e3440c9dae1c3408eb795b3645f9f1dd8f50aed
-    Reviewed-on: https://go-review.googlesource.com/1516
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/174820043
 
- src/liblink/list6.c | 2 --
- 1 file changed, 2 deletions(-)
+ src/runtime/mgc0.c | 38 +++++++++++++++++++++++++++++++++-----
+ 1 file changed, 33 insertions(+), 5 deletions(-)

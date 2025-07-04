@@ -1,31 +1,19 @@
-commit 0de59c27ebda76d3e5121888acca304e49009266
-Author: Austin Clements <austin@google.com>
-Date:   Sun Nov 15 23:13:16 2015 -0500
+commit 0cf7331391ba9ceb7ae755ca9172ba90f6ac516b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 9 10:57:40 2015 +1000
 
-    runtime: handle sysReserve returning a pointer below the arena
+    image/png: reject zero-width and zero-height images.
     
-    In mheap.sysAlloc, if an allocation at arena_used would exceed
-    arena_end (but wouldn't yet push us past arena_start+_MaxArean32), it
-    trie to extend the arena reservation by another 256 MB. It extends the
-    arena by calling sysReserve, which, on 32-bit, calls mmap without
-    MAP_FIXED, which means the address is just a hint and the kernel can
-    put the mapping wherever it wants. In particular, mmap may choose an
-    address below arena_start (the kernel also chose arena_start, so there
-    could be lots of space below it). Currently, we don't detect this case
-    and, if it happens, mheap.sysAlloc will corrupt arena_end and
-    arena_used then return the low pointer to mheap.grow, which will crash
-    when it attempts to index in to h_spans with an underflowed index.
+    http://www.w3.org/TR/PNG/#11IHDR says that "Zero is an invalid value".
     
-    Fix this by checking not only that that p+p_size isn't too high, but
-    that p isn't too low.
+    This change only affects the decoder. The encoder already checks
+    non-positive instead of negative.
     
-    Fixes #13143.
+    Fixes #12545.
     
-    Change-Id: I8d0f42bd1484460282a83c6f1a6f8f0df7fb2048
-    Reviewed-on: https://go-review.googlesource.com/16927
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iba40e1a2f4e0eec8b2fbcd3bbdae886311434da7
+    Reviewed-on: https://go-review.googlesource.com/14411
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/malloc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/image/png/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,12 +1,12 @@
-commit 87ceb0cec73b93064be4b65da6bee265addc2027
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 13 11:48:57 2012 -0800
+commit eaecf357e76478d9956988423f00171887977b7c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 13 11:47:55 2012 -0800
 
-    bytes: make Write and WriteString code look the same
+    time: delete unused buffer.WriteByte method
     
-    R=golang-dev, r
+    R=golang-dev, bradfitz, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5540056
+    https://golang.org/cl/5539056
 
- src/pkg/bytes/buffer.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/time/format.go | 4 ----
+ 1 file changed, 4 deletions(-)

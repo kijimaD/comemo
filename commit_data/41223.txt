@@ -1,23 +1,57 @@
-commit fccf2edbe1ed677008638f7ad97aecd3e5594468
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Feb 4 15:15:39 2020 +0000
+commit 606019cb4b1c8fb57e5a83747ee0aff1054291d8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 12 10:18:03 2019 -0700
 
-    doc/go1.14: remove TODO about Illumos port
+    cmd/compile: trim function name prefix from escape diagnostics
     
-    There is an active builder that was added in CL 201597,
-    and it is passing on Go tip and release-branch.go1.13
-    (with one failure that appears to be flaky due to being
-    out of memory). It's also passing on all golang.org/x repos
-    on tip and release-branch.go1.13. It's not configured to
-    run on Go 1.12 release branches.
+    This information is redundant with the position information already
+    provided. Also, no other -m diagnostics print out function name.
     
-    Updates #36878
-    Updates #15581
+    While here, report parameter leak diagnostics against the parameter
+    declaration position rather than the function, and use Warnl for
+    "moved to heap" messages.
     
-    Change-Id: I4ed7fc62c11a09743832fca39bd61fa0cf6e7ded
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217737
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Test cases updated programmatically by removing the first word from
+    every "no match for" error emitted by run.go:
+    
+    go run run.go |& \
+      sed -E -n 's/^(.*):(.*): no match for `([^ ]* (.*))` in:$/\1!\2!\3!\4/p' | \
+      while IFS='!' read -r fn line before after; do
+        before=$(echo "$before" | sed 's/[.[\*^$()+?{|]/\\&/g')
+        after=$(echo "$after" | sed -E 's/(\&|\\)/\\&/g')
+        fn=$(find . -name "${fn}" | head -1)
+        sed -i -E -e "${line}s/\"${before}\"/\"${after}\"/" "${fn}"
+      done
+    
+    Passes toolstash-check.
+    
+    Change-Id: I6e02486b1409e4a8dbb2b9b816d22095835426b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195040
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.14.html | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/compile/internal/gc/esc.go    |  22 ++--
+ src/cmd/compile/internal/gc/escape.go |   2 +-
+ test/escape2.go                       | 238 +++++++++++++++++-----------------
+ test/escape2n.go                      | 238 +++++++++++++++++-----------------
+ test/escape_array.go                  |   4 +-
+ test/escape_calls.go                  |   2 +-
+ test/escape_closure.go                |  14 +-
+ test/escape_field.go                  |  10 +-
+ test/escape_iface.go                  |   2 +-
+ test/escape_indir.go                  |   2 +-
+ test/escape_param.go                  |  20 +--
+ test/escape_struct_param1.go          |  52 ++++----
+ test/escape_struct_param2.go          |  52 ++++----
+ test/fixedbugs/issue12006.go          |  16 +--
+ test/fixedbugs/issue12588.go          |   2 +-
+ test/fixedbugs/issue13799.go          |  22 ++--
+ test/fixedbugs/issue17318.go          |  10 +-
+ test/fixedbugs/issue21709.go          |  10 +-
+ test/fixedbugs/issue7921.go           |  14 +-
+ test/inline.go                        |  12 +-
+ test/inline_big.go                    |   6 +-
+ test/linkname.dir/linkname1.go        |   2 +-
+ test/live_syscall.go                  |   2 +-
+ 23 files changed, 377 insertions(+), 377 deletions(-)

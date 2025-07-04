@@ -1,22 +1,16 @@
-commit 933ce97bbae311b299d342c38df81165334cea37
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Dec 1 13:51:17 2020 -0500
+commit 67d40873adec0b70555840b2ef93e01716fe0730
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Mon Apr 20 18:43:29 2020 +0800
 
-    cmd/go: don't print deprecation notice for 'go get exe'
+    cmd/compile: adjust MIPS64x rewrite rules to use typed aux fields
     
-    It's difficult for module authors to provide installation instructions
-    that work in both Go 1.15 and 1.16. We'll wait until 1.17 to print a
-    deprecation warning for installing executables with 'go get'.
+    Pass toolstash-check
     
-    Fixes #42885
-    
-    Change-Id: I835b447e83e760f48fd664e8a117749e0cb59f83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274552
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I673c9a24bf69c09573be5aeddbd6072ef35d2d83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228937
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modget/get.go                  | 29 +++-------------------
- .../testdata/script/mod_get_deprecate_install.txt  | 22 ----------------
- 2 files changed, 3 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  814 ++++++++---------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 1164 ++++++++++++-------------
+ 2 files changed, 989 insertions(+), 989 deletions(-)

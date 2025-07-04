@@ -1,20 +1,40 @@
-commit ea858734be6e711fa2d41fdeb6038ff09e3c7841
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 30 14:13:39 2022 -0700
+commit 7b876def6c4936cfae774d3007f8265876a9fbf7
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 16 14:06:50 2021 -0700
 
-    spec: clarify type term restriction for type parameters
+    [dev.typeparams] cmd/compile: add dictionary argument to generic functions
     
-    Be clear that the type of a term (not the term itself, which may
-    be of the form ~P) cannot be a type parameter.
+    When converting from a generic function to a concrete implementation,
+    add a dictionary argument to the generic function (both an actual
+    argument at each callsite, and a formal argument of each
+    implementation).
     
-    For #50420.
+    The dictionary argument comes before all other arguments (including
+    any receiver).
     
-    Change-Id: I388d57be0618393d7ebe2c74ec04c1ebe3f33f7d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396915
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    The dictionary argument is checked for validity, but is otherwise unused.
+    Subsequent CLs will start using the dictionary for, e.g., converting a
+    value of generic type to interface{}.
+    
+    Import/export required adding support for LINKSYMOFFSET, which is used
+    by the dictionary checking code.
+    
+    Change-Id: I16a7a8d23c7bd6a897e0da87c69f273be9103bd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323272
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- doc/go_spec.html | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go         |   2 +
+ src/cmd/compile/internal/noder/stencil.go       | 440 ++++++++++++++++++++----
+ src/cmd/compile/internal/noder/transform.go     |  72 ++--
+ src/cmd/compile/internal/reflectdata/reflect.go | 151 +++++++-
+ src/cmd/compile/internal/typecheck/iexport.go   |  10 +-
+ src/cmd/compile/internal/typecheck/iimport.go   |   7 +
+ src/cmd/compile/internal/typecheck/subr.go      |  13 +-
+ src/cmd/compile/internal/types/type.go          |   2 +-
+ src/runtime/internal/atomic/atomic_arm64.go     |   2 +-
+ test/typeparam/dictionaryCapture.go             | 100 ++++++
+ 10 files changed, 687 insertions(+), 112 deletions(-)

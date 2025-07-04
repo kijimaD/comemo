@@ -1,21 +1,19 @@
-commit 2c780a35b986dec270640115fb3f28a9e1affeaf
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Sep 3 14:17:04 2014 +1000
+commit af12dc5cd5bd0f81f4473207343771ed61b0bcb0
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Thu Aug 28 08:22:54 2014 -0700
 
-    runtime: increase windows prof thread priority sooner
+    mime: Make filename extensions case-insensitive
     
-    If system is busy burning cpu, it takes long time (about 300ms on
-    windows builders) to adjust prof thread priority. Once adjusted, prof
-    thread runs ahead of everyone else, but due to initial slowness, it
-    does not capture prof snapshots until start-up period is completed.
+    Fixes #8350.
     
-    Change prof thread priority sooner, so it can start captures straight
-    away.
-    
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, dave
     CC=golang-codereviews
-    https://golang.org/cl/134360043
+    https://golang.org/cl/127380043
 
- src/pkg/runtime/os_windows.c | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/mime/type.go         | 52 ++++++++++++++++++++++++++++++--------------
+ src/pkg/mime/type_plan9.go   |  2 +-
+ src/pkg/mime/type_test.go    | 16 +++++++++-----
+ src/pkg/mime/type_unix.go    |  2 +-
+ src/pkg/mime/type_windows.go |  2 +-
+ 5 files changed, 50 insertions(+), 24 deletions(-)

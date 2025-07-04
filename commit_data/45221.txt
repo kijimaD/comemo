@@ -1,39 +1,38 @@
-commit e97d8eb027c0067f757860b6f766644de15941f2
-Author: HowJMay <vulxj0j8j8@gmail.com>
-Date:   Mon Apr 19 18:06:54 2021 +0000
+commit 3a65abfbdac7ab29f693d69bd1eb12b2148a11ae
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 29 17:45:02 2020 -0400
 
-    net: pass MSG_CMSG_CLOEXEC flag in ReadMsgUnix
+    cmd/go: adjust ImportMissingError when module lookup is disabled
     
-    As mentioned in #42765, calling "recvmsg" syscall on Linux should come
-    with "MSG_CMSG_CLOEXEC" flag.
+    Previously, ImportMissingError said
+    "cannot find module providing package …"
+    even when we didn't even attempt to find such a module.
     
-    For other systems which not supports "MSG_CMSG_CLOEXEC". ReadMsgUnix()
-    would check the header. If the header type is "syscall.SCM_RIGHTS",
-    then ReadMsgUnix() would parse the SocketControlMessage and call each
-    fd with "syscall.CloseOnExec"
+    Now, we write "no module requirement provides package …"
+    when we did not attempt to identify a suitable module,
+    and suggest either 'go mod tidy' or 'go get -d' as appropriate.
     
-    Fixes #42765
+    Fixes #41576
     
-    Change-Id: I74347db72b465685d7684bf0f32415d285845ebb
-    GitHub-Last-Rev: ca59e2c9e0e8de1ae590e9b6dc165cb768a574f5
-    GitHub-Pull-Request: golang/go#42768
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272226
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I979bb999da4066828c54d99a310ea66bb31032ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258298
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/internal/poll/fd_unix.go      |   6 +--
- src/internal/poll/fd_windows.go   |   3 +-
- src/net/fd_posix.go               |   6 +--
- src/net/iprawsock_posix.go        |   2 +-
- src/net/net_fake.go               |   2 +-
- src/net/udpsock_posix.go          |   2 +-
- src/net/unixsock_posix.go         |   6 ++-
- src/net/unixsock_readmsg_linux.go |  17 ++++++
- src/net/unixsock_readmsg_other.go |  13 +++++
- src/net/unixsock_readmsg_posix.go |  33 ++++++++++++
- src/net/unixsock_readmsg_test.go  | 105 ++++++++++++++++++++++++++++++++++++++
- src/syscall/creds_test.go         |   4 +-
- 12 files changed, 186 insertions(+), 13 deletions(-)
+ src/cmd/go/internal/modload/import.go              | 40 +++++++++++++---------
+ src/cmd/go/internal/modload/load.go                | 25 ++++++++++----
+ src/cmd/go/testdata/script/mod_bad_domain.txt      | 16 +++++++--
+ src/cmd/go/testdata/script/mod_build_info_err.txt  |  2 +-
+ .../testdata/script/mod_get_downgrade_missing.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_get_errors.txt      |  4 +--
+ src/cmd/go/testdata/script/mod_gobuild_import.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_indirect.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_list_bad_import.txt |  2 +-
+ src/cmd/go/testdata/script/mod_outside.txt         | 19 ++++++----
+ src/cmd/go/testdata/script/mod_readonly.txt        | 27 ++++++++++++++-
+ src/go/build/build_test.go                         | 11 +++++-
+ 12 files changed, 110 insertions(+), 42 deletions(-)

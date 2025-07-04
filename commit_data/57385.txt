@@ -1,18 +1,20 @@
-commit e4f9cb5f77e64a124c4e32b8e5d6d6007ec4df15
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 5 14:29:50 2024 -0700
+commit 64939f62aa70c601820fd6e0bbdd0fae9c6883e8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 1 12:38:43 2023 -0700
 
-    go/types, types2: remove unused argument from Checker.compositeLit
+    net/rpc: use reflect.TypeFor for known types
     
-    Change-Id: I4f52503bab569d85f28ae8920079de26a331b7ff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610560
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #60088
+    
+    Change-Id: I56586b68d5e38a46560f4ced19214f1d2db2850e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514995
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/expr.go     | 2 +-
- src/cmd/compile/internal/types2/literals.go | 2 +-
- src/go/types/expr.go                        | 2 +-
- src/go/types/literals.go                    | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/net/rpc/server.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

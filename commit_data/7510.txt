@@ -1,12 +1,13 @@
-commit 7e6488f9ad22c5d0d978bbb807575d27e976b54d
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 18 10:47:38 2011 -0800
+commit 06a923ada04606943d07cb8bd0cb387eb696272c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Feb 19 05:46:20 2011 +1100
 
-    crypto/openpgp/packet: fix testing print (missing arg)
+    godoc: serve robots.txt raw
     
-    R=agl
+    R=gri, niemeyer, rsc, r2, r
     CC=golang-dev
-    https://golang.org/cl/4173062
+    https://golang.org/cl/4188063
 
- src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ robots.txt             | 2 ++
+ src/cmd/godoc/godoc.go | 1 +
+ 2 files changed, 3 insertions(+)

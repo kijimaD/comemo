@@ -1,31 +1,14 @@
-commit 3afd2d7fc87615e124b77692e87095bdba79e557
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Fri Mar 23 21:56:21 2018 +0300
+commit 0c0aed3c9f2c37523eaa7ba17432fdbe3d05ea52
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 7 07:53:55 2017 -0800
 
-    cmd/compile/internal/gc: properly initialize ssa.Func Type field
+    cmd/vet: change docs to prefer "go vet" over "go tool vet"
     
-    The ssa.Func has Type field that is described as
-    function signature type.
+    Updates #22530
     
-    It never gets any value and remains nil.
-    This leads to "<T>" signature printed representation.
-    
-    Given this function declaration:
-            func foo(x int, f func() string) (int, error)
-    
-    GOSSAFUNC printed it as below:
-            compiling foo
-            foo <T>
-    
-    After this change:
-            compiling foo
-            foo func(int, func() string) (int, error)
-    
-    Change-Id: Iec5eec8aac5c76ff184659e30f41b2f5fe86d329
-    Reviewed-on: https://go-review.googlesource.com/102375
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I161b5e706483744321e6089f747bd761310774eb
+    Reviewed-on: https://go-review.googlesource.com/76390
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/vet/doc.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

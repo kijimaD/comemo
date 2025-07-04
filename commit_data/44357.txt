@@ -1,20 +1,17 @@
-commit e5159b2a2f0fdd47c644d1655f5a7b57ec7dd509
+commit bc1dbe58cf35454b4f8f981707013fd868c6ce6f
 Author: Than McIntosh <thanm@google.com>
-Date:   Wed Jan 6 13:27:17 2021 -0500
+Date:   Wed Jun 10 10:05:37 2020 -0400
 
-    cmd/internal/dwarf: minor cleanups
+    [dev.link] cmd/link: stop emitting .debug_pubnames/.debug_pubtypes
     
-    Remove a stale comment, demote PutInlinedFunc from public to private,
-    and remove an unused interface originally used for sorting vars.
-    No change in functionality.
+    Don't emit the .debug_pubnames/.debug_pubtypes sections. These sections
+    are not used by either GDB or Delve, and C++ compilers [notably GCC
+    and Clang] no longer emit the sections by default.
     
-    Change-Id: I5ee1ad2b10b78b158e2223c6979bab830202db95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295009
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ic3309755e88c8e1aa28a29366bc7f0df1748fe64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237426
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go | 20 +++++---------------
- 1 file changed, 5 insertions(+), 15 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 101 +++-----------------------------------
+ 1 file changed, 6 insertions(+), 95 deletions(-)

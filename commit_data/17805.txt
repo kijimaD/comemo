@@ -1,22 +1,28 @@
-commit 15da997c7eab0ce461e6daa8cdb8e8a495dde074
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 16 16:16:54 2013 -0700
+commit 478f4b67543824c039d2f7afec6af88a59148db2
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Wed Oct 16 09:17:25 2013 -0700
 
-    spec: clarify re-use of underlying arrays in slice operations
+    database/sql: fix double decrement of numOpen count; test for connection leaks
     
-    Please note the slight rewording for append: The spec now
-    requires that append reuses the underlying array if it is
-    sufficiently large. Per majority sentiment.
+    Add a check at the end of every test to make sure
+    there are no leaked connections after running a test.
     
-    This is technically a language change but the current
-    implementation always worked this way.
+    Avoid incorrectly decrementing the number of open connections
+    when the driver connection ends up it a bad state (numOpen was
+    decremented twice).
     
-    Fixes #5818.
-    Fixes #5180.
+    Prevent leaking a Rows struct (which ends up leaking a
+    connection) in Row.Scan() when a *RawBytes destination is
+    improperly used.
     
-    R=rsc, iant, r, ken, minux.ma, dan.kortschak, rogpeppe, go.peter.90
+    Close the Rows struct in TestRowsColumns.
+    
+    Update #6593
+    
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/14419054
+    https://golang.org/cl/14642044
 
- doc/go_spec.html | 35 ++++++++++++++---------------------
- 1 file changed, 14 insertions(+), 21 deletions(-)
+ src/pkg/database/sql/sql.go      | 14 +++++++++-----
+ src/pkg/database/sql/sql_test.go |  9 +++++++++
+ 2 files changed, 18 insertions(+), 5 deletions(-)

@@ -1,14 +1,31 @@
-commit 562b7c27ecd9320855e8c89d41fb9a549d93ff34
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Wed Apr 24 12:09:15 2019 -0700
+commit 6454a09a97ff583bd81d59733777a000caf8b79a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Dec 5 15:23:26 2018 -0500
 
-    testing: fix minor bug with mutex profile error message
+    cmd/compile: omit write barriers for slice clears of go:notinheap pointers
     
-    Change-Id: I92b7a44476cfd9e2f099477b9d7903bbaa2fd8da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173720
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Currently,
+    
+      for i := range a {
+        a[i] = nil
+      }
+    
+    will compile to have write barriers even if a is a slice of pointers
+    to go:notinheap types. This happens because the optimization that
+    transforms this into a memclr only asks it a's element type has
+    pointers, and not if it specifically has heap pointers.
+    
+    Fix this by changing arrayClear to use HasHeapPointer instead of
+    types.Haspointers. We probably shouldn't have both of these functions,
+    since a pointer to a notinheap type is effectively a uintptr, but
+    that's not going to change in this CL.
+    
+    Change-Id: I284b85bdec6ae1e641f894e8f577989facdb0cf1
+    Reviewed-on: https://go-review.googlesource.com/c/152723
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/testing/testing.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/range.go |  2 +-
+ test/notinheap3.go                   | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

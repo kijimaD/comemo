@@ -1,16 +1,26 @@
-commit 8b03a3992bc755eadbccc10d97adc21d0b229401
-Author: Kevin Gillette <extemporalgenome@gmail.com>
-Date:   Mon Aug 26 03:30:21 2019 +0000
+commit 83a33d3855e257b383b2a3a10dfd9748ad17cfb4
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Mar 8 15:01:32 2019 -0800
 
-    net/http: make docs refer to Context.Value as a getter instead of context.WithValue
+    cmd/compile: reverse order of slice bounds checks
     
-    The doc comments of both ServerContextKey and LocalAddrContextKey both suggest that context.WithValue can be used to access (get) properties of the server or connection. This PR fixes those comments to refer to Context.Value instead.
+    Turns out this makes the fix for 28797 unnecessary, because this order
+    ensures that the RHS of IsSliceInBounds ops are always nonnegative.
     
-    Change-Id: I4ed383ef97ba1951f90c555243007469cfc18d4d
-    GitHub-Last-Rev: 05bc3acf82322e3dc77abc7fa0412efe01a77eac
-    GitHub-Pull-Request: golang/go#33833
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191838
+    The real reason for this change is that it also makes dealing with
+    <0 values easier for reporting values in bounds check panics (issue #30116).
+    
+    Makes cmd/go negligibly smaller.
+    
+    Update #28797
+    
+    Change-Id: I1f25ba6d2b3b3d4a72df3105828aa0a4b629ce85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166377
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 33 ++++++++-------------------------
+ test/loopbce.go                    |  6 +++---
+ test/prove.go                      |  4 ++--
+ 3 files changed, 13 insertions(+), 30 deletions(-)

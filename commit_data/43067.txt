@@ -1,26 +1,29 @@
-commit ea42b771e9f0726b0e10278df0b5759b984e9cc3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 10 08:43:21 2020 -0400
+commit 585e31df63f6879c03b285711de6f9dcba1f2cb0
+Author: Ivan Trubach <mr.trubach@icloud.com>
+Date:   Thu Dec 12 13:33:42 2019 +0000
 
-    cmd/go/internal/modget: diagnose missing transitive dependencies
+    cmd/doc: fix merging comments in -src mode
     
-    For #41315
+    These changes fix go doc -src mode that vomits comments from random files if
+    filesystem does not sort files by name. The issue was with parse.ParseDir
+    using the Readdir order of files, which varies between platforms and filesystem
+    implementations. Another option is to merge comments using token.FileSet.Iterate
+    order in cmd/doc, but since ParseDir is mostly used in go doc, I’ve opted for
+    smaller change because it’s unlikely to break other uses or cause any perfomance
+    issues.
     
-    Change-Id: I3989bcb051ae57dd2d8f89759d241d4cdce49659
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255969
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Example (macOS APFS): `go doc -src net.ListenPacket`
+    
+    Change-Id: I7f9f368c7d9ccd9a2cbc48665f2cb9798c7b3a3f
+    GitHub-Last-Rev: 654fb450421266a0bb64518016944db22bd681e3
+    GitHub-Pull-Request: golang/go#36104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210999
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/modget/get.go                  | 25 ++++++++++------
- .../mod/example.com_retract_rename_v1.0.0-bad.txt  |  6 ++++
- .../mod/example.com_retract_rename_v1.9.0-new.txt  |  9 ++++++
- .../testdata/mod/example.net_pkgadded_v1.0.0.txt   | 17 +++++++++++
- .../testdata/mod/example.net_pkgadded_v1.1.0.txt   | 19 +++++++++++++
- .../testdata/mod/example.net_pkgadded_v1.2.0.txt   | 20 +++++++++++++
- .../testdata/script/mod_get_downgrade_missing.txt  | 33 ++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_get_errors.txt      | 28 ++++++++++++++++++
- 8 files changed, 149 insertions(+), 8 deletions(-)
+ src/cmd/doc/doc_test.go          | 34 ++++++++++++++++++++++++++++++++++
+ src/cmd/doc/testdata/merge/aa.go |  7 +++++++
+ src/cmd/doc/testdata/merge/bb.go |  7 +++++++
+ src/go/parser/interface.go       |  8 +-------
+ 4 files changed, 49 insertions(+), 7 deletions(-)

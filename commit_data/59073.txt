@@ -1,35 +1,27 @@
-commit 10d070668c24a3f1b3982c323ba1334437941dff
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Feb 24 00:37:45 2025 +1100
+commit a51713103b5769a792b691e313254b7806855fa6
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Wed Feb 7 11:43:05 2024 -0500
 
-    cmd/compile/internal/ssa: remove double negation with addition on riscv64
+    cmd/trace/v2,internal/trace: use correct frame for identifying goroutines
     
-    On riscv64, subtraction from a constant is typically implemented as an
-    ADDI with the negative constant, followed by a negation. However this can
-    lead to multiple NEG/ADDI/NEG sequences that can be optimised out.
+    To determine the identity of a goroutine for displaying in the trace UI,
+    we should use the root frame from a call stack. This will be the
+    starting function for the goroutine and is the same for each call stack
+    from a given goroutine. The new tracer no longer includes starting PCs
+    for goroutines which existed at the start of tracing, so we can't use a
+    PC for grouping together goroutines any more. Instead, we just use the
+    name of the entry function for grouping.
     
-    For example, runtime.(*_panic).nextDefer currently contains:
+    Fixes #65574
     
-       lbu     t0, 0(t0)
-       addi    t0, t0, -8
-       neg     t0, t0
-       addi    t0, t0, -7
-       neg     t0, t0
-    
-    Which is now optimised to:
-    
-       lbu     t0, 0(t0)
-       addi    t0, t0, -1
-    
-    Change-Id: Idf5815e6db2e3705cc4a4811ca9130a064ae3d80
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652318
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Change-Id: I5324653316f1acf0ab90c30680f181060ea45dd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562455
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  1 +
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 22 ++++++++++++++++++++++
- test/codegen/arithmetic.go                      |  2 +-
- 3 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/trace/v2/goroutines.go     | 43 +++++++++++++-------------------------
+ src/cmd/trace/v2/pprof.go          | 23 +++++++-------------
+ src/internal/trace/summary.go      | 15 ++++++++-----
+ src/internal/trace/summary_test.go | 13 ++++++++++++
+ 4 files changed, 44 insertions(+), 50 deletions(-)

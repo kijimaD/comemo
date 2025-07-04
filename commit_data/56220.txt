@@ -1,33 +1,25 @@
-commit 5bb4f4947158311255583ff2d6acd427ac2cb0d8
-Author: Lasse Folger <lassefolger@google.com>
-Date:   Wed Apr 17 13:30:58 2024 +0000
+commit a41a29ad19c25c3475a65b7265fcad870d954c2a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 6 16:03:33 2020 -0400
 
-    Revert "go/types, types2: track gotypesalias non-default behavior"
+    runtime: adjust frame pointer on stack copy on ARM64
     
-    This reverts commit c51f6c62576ab3088a981b9cef90e413ac99e333.
+    Frame pointer is enabled on ARM64. When copying stacks, the
+    saved frame pointers need to be adjusted.
     
-    Reason for revert: This breaks toolchain bootstrapping in Google. Root cause investigation is pending.
+    Updates #39524, #40044.
+    Fixes #58432.
     
-    Error message is:
-    
-    ```
-    <unknown line number>: internal compiler error: panic: godebug: Value of name not listed in godebugs.All: gotypesalias
-    ```
-    
-    Change-Id: Ie3dff566a29b3b0846ebc8fe0a371c656a043a4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579575
-    Reviewed-by: Chressie Himpel <chressie@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Lasse Folger <lassefolger@google.com>
+    Change-Id: I73651fdfd1a6cccae26a5ce02e7e86f6c2fb9bf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241158
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/check.go      |  6 ------
- src/cmd/compile/internal/types2/check_test.go |  2 +-
- src/cmd/compile/internal/types2/decl.go       | 16 ----------------
- src/go/types/check.go                         |  8 +-------
- src/go/types/check_test.go                    |  2 +-
- src/go/types/decl.go                          |  4 ----
- src/internal/godebugs/table.go                |  2 +-
- src/runtime/metrics/doc.go                    |  4 ----
- 8 files changed, 4 insertions(+), 40 deletions(-)
+ src/runtime/stack.go                               | 26 +++++++++++--
+ src/runtime/stack_test.go                          | 12 ++++++
+ src/runtime/testdata/testprog/framepointer.go      | 44 ++++++++++++++++++++++
+ src/runtime/testdata/testprog/framepointer_amd64.s |  9 +++++
+ src/runtime/testdata/testprog/framepointer_arm64.s |  9 +++++
+ 5 files changed, 96 insertions(+), 4 deletions(-)

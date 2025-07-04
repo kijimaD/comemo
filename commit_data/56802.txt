@@ -1,22 +1,21 @@
-commit 7196db9e66529cb3e81cbc401557358047543c2f
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Jun 12 21:54:53 2024 +0000
+commit 78143d96ccee3054ba5da9b89b069991beb53d01
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 24 12:28:25 2023 +0200
 
-    internal/coverage: refactor EmitPercent in preparation for bugfix
+    maps: move test funcs to maps_test.go
     
-    Refactor cformat.EmitPercent to accept a package filter (list of
-    packages to report). This is a no-op in terms of exposed coverage
-    functionality, but we will need this feature in a subsequent patch.
+    keysForBenchmarking and valuesForBenchmarking are only used in benchmark
+    tests.
     
-    Updates #65570.
-    
-    Change-Id: I04ddc624a634837ea31c12ec395aa1295a0ea1f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592204
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ie4fcb81e0470cc8627b395644787429b79952538
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497380
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/covdata/dump.go                    |  2 +-
- src/internal/coverage/cfile/testsupport.go |  2 +-
- src/internal/coverage/cformat/fmt_test.go  | 26 ++++++++++++++++++++++----
- src/internal/coverage/cformat/format.go    | 21 ++++++++++++++-------
- 4 files changed, 38 insertions(+), 13 deletions(-)
+ src/maps/maps.go      | 8 --------
+ src/maps/maps_test.go | 9 +++++++++
+ 2 files changed, 9 insertions(+), 8 deletions(-)

@@ -1,14 +1,12 @@
-commit 804a43ca76a00c207a39d2846e3fe754d761ca2e
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Tue Sep 18 17:40:53 2012 +0200
+commit 6e4d24999f4874ae7ec0462530cc54b3e3c0c12c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 18 13:02:37 2012 +1000
 
-    cmd/gc: fix double evaluation in interface comparison
+    syscall: attempt to find error message in "local" language before resorting to error number on windows
     
-    During interface compare, the operands will be evaluated twice. The operands might include function calls for conversion, so make them cheap before comparing them.
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6498133
+    https://golang.org/cl/6499121
 
- src/cmd/gc/walk.c | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/syscall/syscall_windows.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

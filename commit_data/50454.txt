@@ -1,23 +1,64 @@
-commit c7a0b156592ca15612315fc71f4e287268643bfd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 8 16:33:08 2022 -0700
+commit 68bd5121ee8954cfd7e3f7edb5d035f0e8b1bccc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 27 14:29:29 2021 -0400
 
-    go/types, types2: consistently use _UnsupportedFeature error code
+    cmd/go: remove support for -buildmode=shared
     
-    Change-Id: Ie880871bb855e1c1f6e543508bdc7dd415451ba3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429735
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    It never worked in module mode (or with a read-only GOROOT).
+    A proposal to drop it was filed (and approved) in
+    https://golang.org/issue/47788.
+    
+    Fixes #47788
+    
+    Change-Id: I0c12f38eb0c5dfe9384fbdb49ed202301fa4273d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359096
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/errorcodes.go |  4 ++--
- src/cmd/compile/internal/types2/expr.go       |  2 +-
- src/go/types/builtins.go                      | 10 +++++-----
- src/go/types/decl.go                          |  2 +-
- src/go/types/errorcodes.go                    |  4 ++--
- src/go/types/expr.go                          |  2 +-
- src/go/types/typeset.go                       |  4 ++--
- src/go/types/version.go                       |  8 ++++----
- 8 files changed, 18 insertions(+), 18 deletions(-)
+ doc/go1.18.html                                    |    7 +
+ misc/cgo/testshared/overlaydir_test.go             |   78 --
+ misc/cgo/testshared/shared_test.go                 | 1080 --------------------
+ misc/cgo/testshared/testdata/dep2/dep2.go          |   15 -
+ misc/cgo/testshared/testdata/dep3/dep3.go          |   22 -
+ misc/cgo/testshared/testdata/depBase/asm.s         |   10 -
+ misc/cgo/testshared/testdata/depBase/dep.go        |   37 -
+ misc/cgo/testshared/testdata/depBase/gccgo.go      |    9 -
+ misc/cgo/testshared/testdata/depBase/stubs.go      |    9 -
+ misc/cgo/testshared/testdata/division/division.go  |   17 -
+ misc/cgo/testshared/testdata/exe/exe.go            |   45 -
+ misc/cgo/testshared/testdata/exe2/exe2.go          |    8 -
+ misc/cgo/testshared/testdata/exe3/exe3.go          |    7 -
+ misc/cgo/testshared/testdata/execgo/exe.go         |    8 -
+ misc/cgo/testshared/testdata/explicit/explicit.go  |    9 -
+ misc/cgo/testshared/testdata/gcdata/main/main.go   |   37 -
+ misc/cgo/testshared/testdata/gcdata/p/p.go         |    7 -
+ misc/cgo/testshared/testdata/global/main.go        |   71 --
+ misc/cgo/testshared/testdata/globallib/global.go   |   17 -
+ misc/cgo/testshared/testdata/iface/main.go         |   17 -
+ misc/cgo/testshared/testdata/iface_a/a.go          |   17 -
+ misc/cgo/testshared/testdata/iface_b/b.go          |   17 -
+ misc/cgo/testshared/testdata/iface_i/i.go          |   17 -
+ misc/cgo/testshared/testdata/implicit/implicit.go  |    5 -
+ .../testshared/testdata/implicitcmd/implicitcmd.go |   10 -
+ misc/cgo/testshared/testdata/issue25065/a.go       |   20 -
+ .../testdata/issue30768/issue30768lib/lib.go       |   11 -
+ misc/cgo/testshared/testdata/issue30768/x_test.go  |   22 -
+ misc/cgo/testshared/testdata/issue39777/a/a.go     |    9 -
+ misc/cgo/testshared/testdata/issue39777/b/b.go     |    7 -
+ misc/cgo/testshared/testdata/issue44031/a/a.go     |    9 -
+ misc/cgo/testshared/testdata/issue44031/b/b.go     |   17 -
+ .../testshared/testdata/issue44031/main/main.go    |   20 -
+ misc/cgo/testshared/testdata/issue47837/a/a.go     |   19 -
+ .../testshared/testdata/issue47837/main/main.go    |   14 -
+ misc/cgo/testshared/testdata/trivial/trivial.go    |    9 -
+ src/cmd/dist/test.go                               |    9 -
+ src/cmd/go/alldocs.go                              |    9 -
+ src/cmd/go/internal/help/helpdoc.go                |    5 -
+ src/cmd/go/internal/list/list.go                   |    3 +-
+ src/cmd/go/internal/work/build.go                  |    3 -
+ src/cmd/go/internal/work/init.go                   |   31 +-
+ src/cmd/go/testdata/script/list_linkshared.txt     |   16 -
+ src/cmd/internal/sys/supported.go                  |    7 -
+ 44 files changed, 30 insertions(+), 1786 deletions(-)

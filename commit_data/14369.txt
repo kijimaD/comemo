@@ -1,12 +1,15 @@
-commit 5612edb13e5a772e79ade881038ee0760df70d8c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Nov 10 14:34:34 2012 +0900
+commit 4ef91fc8540ef3c77906be387f9915914a27595d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Nov 9 14:00:41 2012 +0400
 
-    net: add more tests for protocol specific methods
+    cmd/go: fix selection of packages for testing
+    Currently it works incorrectly if user specifies own build tags
+    and with race detection (e.g. runtime/race is not selected,
+    because it contains only test files with +build race).
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6821100
+    https://golang.org/cl/6814107
 
- src/pkg/net/protoconn_test.go | 225 ++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 206 insertions(+), 19 deletions(-)
+ src/cmd/go/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

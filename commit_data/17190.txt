@@ -1,21 +1,13 @@
-commit c18dc11ef210ca91b251996ff2a2546d0bcde848
-Author: Alberto García Hierro <alberto@garciahierro.com>
-Date:   Tue Aug 13 12:42:21 2013 -0400
+commit a5385580035abaf4ce6aeb2835e70371f4fde77a
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Aug 13 12:25:41 2013 -0400
 
-    cmd/cgo: Add support for C function pointers
+    test/run: process build tags like go/build
     
-    * Add a new kind of Name, "fpvar" which stands for function pointer variable
-    * When walking the AST, find functions used as expressions and create a new Name object for them
-    * Track functions which are only used in expr contexts, and avoid generating bridge code for them
-    
-    R=golang-dev, minux.ma, fullung, rsc, iant
+    R=bradfitz, dave, rsc, r
     CC=golang-dev
-    https://golang.org/cl/9835047
+    https://golang.org/cl/10001045
 
- misc/cgo/test/cgo_test.go |  1 +
- misc/cgo/test/fpvar.go    | 50 +++++++++++++++++++++++++++++++++++++
- src/cmd/cgo/doc.go        | 27 ++++++++++++++++++++
- src/cmd/cgo/gcc.go        | 63 +++++++++++++++++++++++++++++++++++++----------
- src/cmd/cgo/main.go       |  7 +++++-
- src/cmd/cgo/out.go        | 19 ++++++++++----
- 6 files changed, 148 insertions(+), 19 deletions(-)
+ test/run.go  | 87 +++++++++++++++++++++++++++++++++++++++++++++++-------------
+ test/testlib | 51 ++++++++++++++++++++++++-----------
+ 2 files changed, 105 insertions(+), 33 deletions(-)

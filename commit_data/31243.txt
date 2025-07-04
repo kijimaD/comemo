@@ -1,25 +1,25 @@
-commit 950fa673a57ed2e55d1c992c7c34c6d251cb88fd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 20 12:50:41 2017 -0700
+commit 3b84a3c9acaaba04a232f7e73a40c36bccd5e988
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 7 10:49:45 2016 +1100
 
-    go/gcimporter: fix importing of anonymous interfaces
+    os: make Stdin.Stat() return ModeCharDevice if Stdin is console
     
-    Imported interfaces must be completed, whether they are named or not.
-    The original code was collecting all types (including anonymous ones)
-    in the importer's typList. That list was used in the end to complete
-    interface types. When we introduced tracking of named types only, we
-    lost anonymous interfaces. Use an independent list of interface types
-    so the completion code is independent of which types are tracked.
+    CL 20845 changed Stdin.Stat() so it returns ModeNamedPipe.
+    But introduced TestStatStdin does not test what Stdin.Stat()
+    returns when Stdin is console.
     
-    Added test and factored some of the existing tests.
+    This CL adjusts both TestStatStdin and Stdin.Stat
+    implementations to handle console. Return ModeCharDevice
+    from Stdin.Stat() when Stdin is console on windows,
+    just like it does on unix.
     
-    Fixes #20046.
+    Fixes #14853.
     
-    Change-Id: Icd1329032aec33f96890380dd5042de3bef8cdc7
-    Reviewed-on: https://go-review.googlesource.com/41198
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I54d73caee2aea45a99618d11600d8e82fe20d0c0
+    Reviewed-on: https://go-review.googlesource.com/34090
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gcimporter/bimport.go             | 20 +++----
- src/go/internal/gcimporter/gcimporter_test.go     | 68 +++++++++++++++--------
- src/go/internal/gcimporter/testdata/issue20046.go |  9 +++
- 3 files changed, 61 insertions(+), 36 deletions(-)
+ src/os/os_test.go       | 11 +++++++++++
+ src/os/stat_windows.go  | 13 +++++++------
+ src/os/types_windows.go | 11 +++++++----
+ 3 files changed, 25 insertions(+), 10 deletions(-)

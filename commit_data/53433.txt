@@ -1,21 +1,27 @@
-commit fdb3dc471d099cf04cfa575a2bc8d51999917e1e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Jan 23 13:31:00 2023 -0500
+commit e49e8764553bf510b5d9f6fb38aeec0850ec6672
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 6 18:40:17 2022 -0700
 
-    cmd/internal/obj/arm: handle HAUTO etc. in addpool
+    runtime: process ptr bitmaps one word at a time
     
-    HAUTO should be handled the same way as other stack offsets for
-    adding to constant pool. Add the missing cases.
+    [This is a retry of CL 407036 + its revert CL 422394. The only
+    content change is the 1-line change in cmd/internal/obj/objfile.go.]
     
-    Fixes #57955.
+    Read the bitmaps one uintptr at a time instead of one byte at a time.
     
-    Change-Id: If7fc82cafb2bbf0a6121e73e353b8825cb36b5bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463138
+    Performance so far:
+     Allocation heavy, no retention: ~30% faster in heapBitsSetType
+     Scan heavy, ~no allocation: ~even in scanobject
+    
+    Change-Id: I04d899e1dbd23e989e9f552cdc1880318779c14c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422635
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/internal/obj/arm/asm5.go | 11 ++++++----
- test/fixedbugs/issue57955.go     | 43 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  6 +-
+ src/cmd/internal/obj/objfile.go                 |  1 -
+ src/reflect/type.go                             | 19 ++++--
+ src/runtime/mbitmap.go                          | 83 +++++++++++++++++++++----
+ 4 files changed, 91 insertions(+), 18 deletions(-)

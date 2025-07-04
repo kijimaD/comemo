@@ -1,38 +1,23 @@
-commit 90391c2e8ad8da167aed53bad5857008a410d0c1
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Mon Jul 22 15:53:37 2024 +0800
+commit 8a6acecfab2879ba4e26487c99f204ede8b3d935
+Author: Inada Naoki <songofacandy@gmail.com>
+Date:   Sat Aug 5 16:22:48 2023 +0000
 
-    math: add round assembly implementations on riscv64
+    database/sql: add Null[T]
     
-    This CL reapplies CL 504737 and adds integer precision
-    limitation check, since CL 504737 only checks whether
-    floating point number is +-Inf or NaN.
+    Generic version of NullString, NullInt64, etc.
     
-    This CL is also ~7% faster than CL 504737.
+    Fixes #60370
     
-    Updates #68322
-    
-    goos: linux
-    goarch: riscv64
-    pkg: math
-                │ math.old.bench │           math.new.bench            │
-                │     sec/op     │   sec/op     vs base                │
-    Ceil             54.09n ± 0%   18.72n ± 0%  -65.39% (p=0.000 n=10)
-    Floor            40.72n ± 0%   18.72n ± 0%  -54.03% (p=0.000 n=10)
-    Round            20.73n ± 0%   20.73n ± 0%        ~ (p=1.000 n=10)
-    RoundToEven      24.07n ± 0%   24.07n ± 0%        ~ (p=1.000 n=10)
-    Trunc            38.72n ± 0%   18.72n ± 0%  -51.65% (p=0.000 n=10)
-    geomean          33.56n        20.09n       -40.13%
-    
-    Change-Id: I06cfe2cb9e2535cd705d40b6650a7e71fedd906c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600075
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I166a05a6126e8b8571db5cbb026303bb6551d56b
+    GitHub-Last-Rev: 3c8d2d5141c36f034d2124e19ee090620363ba24
+    GitHub-Pull-Request: golang/go#60677
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501700
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/floor_asm.go    |  2 +-
- src/math/floor_noasm.go  |  2 +-
- src/math/floor_riscv64.s | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 50 insertions(+), 2 deletions(-)
+ api/next/60370.txt           |  5 +++++
+ src/database/sql/sql.go      | 33 +++++++++++++++++++++++++++++++++
+ src/database/sql/sql_test.go | 17 +++++++++++++++--
+ 3 files changed, 53 insertions(+), 2 deletions(-)

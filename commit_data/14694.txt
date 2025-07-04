@@ -1,34 +1,13 @@
-commit 708db79011010549827fb18c800489a20a04b47c
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Dec 21 01:43:19 2012 +1100
+commit d0283ab62ab692ee4c28e31d85740a5804b5540a
+Author: Joakim Sernbrant <serbaut@gmail.com>
+Date:   Wed Dec 19 16:24:38 2012 -0800
 
-    cgo: enable cgo on openbsd
+    net/http: only call client SetCookie when needed
     
-    Enable cgo on OpenBSD.
-    
-    The OpenBSD ld.so(1) does not currently support PT_TLS sections. Work
-    around this by fixing up the TCB that has been provided by librthread
-    and reallocating a TCB with additional space for TLS. Also provide a
-    wrapper for pthread_create, allowing zeroed TLS to be allocated for
-    threads created externally to Go.
-    
-    Joint work with Shenghou Ma (minux).
-    
-    Requires change 6846064.
-    
-    Fixes #3205.
-    
-    R=golang-dev, minux.ma, iant, rsc, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6853059
+    https://golang.org/cl/6968049
 
- doc/progs/run                           |   4 +
- misc/cgo/test/basic.go                  |   8 +-
- src/pkg/go/build/build.go               |   2 +
- src/pkg/net/cgo_openbsd.go              |  14 +++
- src/pkg/net/cgo_unix.go                 |   2 +-
- src/pkg/os/user/lookup_unix.go          |   2 +-
- src/pkg/runtime/cgo/gcc_openbsd_386.c   | 170 ++++++++++++++++++++++++++++++++
- src/pkg/runtime/cgo/gcc_openbsd_amd64.c | 170 ++++++++++++++++++++++++++++++++
- src/pkg/runtime/cgo/openbsd.c           |  21 ++++
- 9 files changed, 390 insertions(+), 3 deletions(-)
+ src/pkg/net/http/client.go      | 4 +++-
+ src/pkg/net/http/client_test.go | 8 ++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

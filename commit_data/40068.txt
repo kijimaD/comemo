@@ -1,28 +1,22 @@
-commit bdf0fe54480034cd21e36cfed6e44f10f4cb5c92
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Sep 23 23:10:25 2019 +0100
+commit 460f9c60689c38bdd938d09903f3b414f6082a7d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Mon Apr 8 00:36:55 2019 +0200
 
-    cmd/compile: minor simplifications in rulegen
+    runtime, cmd/link: optimize memory allocation on wasm
     
-    First, be consistent about declaring typ as &b.Func.Config.Types and
-    not &config.Types. Not particularly better, and it barely changes the
-    output, but we're more consistent now.
+    WebAssembly's memory is contiguous. Allocating memory at a high address
+    also allocates all memory up to that address. This change reduces
+    the initial memory allocated on wasm from 1GB to 16MB by using multiple
+    heap arenas and reducing the size of a heap arena.
     
-    Second, remove a bit of duplication when handling the typ, auxint, and
-    aux variables.
+    Fixes #27462.
     
-    Third and last, remove a stray canFail assignment; we ended up setting
-    that in add, not breakf, so it's not necessary to set it manually if we
-    don't use breakf.
-    
-    Updates #33644.
-    
-    Change-Id: I75999cb223a201969266fbfeae043599fa27fac5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196803
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic941e6edcadd411e65a14cb2f9fd6c8eae02fc7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170950
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go  | 34 +++++++++++-----------------
- src/cmd/compile/internal/ssa/rewriteS390X.go |  3 +--
- 2 files changed, 14 insertions(+), 23 deletions(-)
+ src/cmd/link/internal/wasm/asm.go | 18 +++++++++---------
+ src/runtime/malloc.go             |  4 ++--
+ 2 files changed, 11 insertions(+), 11 deletions(-)

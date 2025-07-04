@@ -1,20 +1,26 @@
-commit 2565b5c06086488b2b23d48929803c8c3cec4400
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 25 09:57:48 2014 -0400
+commit da1c2b182a029a4f3b050442573cd47abfe93291
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 25 12:04:36 2014 +1000
 
-    cmd/gc: drop parenthesization restriction for receiver types
+    undo CL 107320046 / 97cd07dcb9d8
     
-    Matches CL 101500044.
+    Breaks the build
     
-    LGTM=gri
-    R=gri
+    ««« original CL description
+    cmd/go: build test files containing non-runnable examples
+    
+    Even if we can't run them, we should at least check that they compile.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/110160044
+    https://golang.org/cl/107320046
+    »»»
+    
+    TBR=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/110140044
 
- src/cmd/gc/fmt.c         |  4 ----
- src/cmd/gc/go.h          |  1 -
- src/cmd/gc/go.y          |  6 ++----
- src/cmd/gc/typecheck.c   | 10 ----------
- src/cmd/gc/y.tab.c       | 40 +++++++++++++++++++---------------------
- test/fixedbugs/bug299.go | 10 ++++++----
- 6 files changed, 27 insertions(+), 44 deletions(-)
+ src/cmd/go/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

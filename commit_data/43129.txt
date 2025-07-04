@@ -1,18 +1,17 @@
-commit 9a7a981ab796038e9ddb148dabd97067d9cbbb01
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Sep 27 18:32:18 2020 +0200
+commit cf82feabb634ece598044ffe98ff445daec35c0a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 11 11:03:35 2020 -0400
 
-    cmd/compile: convert more amd64 rules to typed aux
+    net: use t.Deadline instead of an arbitrary read deadline in TestDialParallelSpuriousConnection
     
-    Passes
+    Also increase the default deadline to 5s, since it empirically
+    doesn't need to be short and 1s seems to be too slow on some platforms.
     
-      gotip build -toolexec 'toolstash -cmp' -a std
+    Fixes #37795
     
-    Change-Id: I2927283e444e7075e155cf29680553b92d471667
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257897
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie6bf3916b107401235a1fa8cb0f22c4a98eb2dae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222959
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  226 ++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 1448 +++++++++++++-------------
- 2 files changed, 837 insertions(+), 837 deletions(-)
+ src/net/dial_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

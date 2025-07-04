@@ -1,12 +1,22 @@
-commit e985d5464b45a116825603b0f72d07bbc7ae5ec5
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Jan 19 04:57:31 2013 +0800
+commit d795f07718f0011b035adad4a8fb5f5a33cb7ba1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 18 15:10:36 2013 -0500
 
-    time: add note about Parse()'s choice of default year
+    build: change GO386=sse to GO386=sse2
     
-    R=rsc
+    sse2 is a more precise description of the requirement,
+    and it matches what people will see in, for example
+            grep sse2 /proc/cpuinfo # linux
+            sysctl hw.optional.sse2 # os x
+    
+    R=golang-dev, dsymonds, iant
     CC=golang-dev
-    https://golang.org/cl/7101046
+    https://golang.org/cl/7057050
 
- src/pkg/time/format.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/dist/a.h       |  2 +-
+ src/cmd/dist/build.c   |  4 ++--
+ src/cmd/dist/plan9.c   |  2 +-
+ src/cmd/dist/unix.c    |  2 +-
+ src/cmd/dist/windows.c |  2 +-
+ src/cmd/gc/lex.c       | 15 ++++++++++++---
+ 6 files changed, 18 insertions(+), 9 deletions(-)

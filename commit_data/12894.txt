@@ -1,13 +1,21 @@
-commit 3180137b86fa0fd529bbaeb9bcd873331e0fb183
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sun Apr 15 21:50:21 2012 +0800
+commit 84ef97b59c89b7d9fdc04a1a8a438cd3257bf521
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Apr 14 21:34:08 2012 +1000
 
-    text/template/parse: fix doc comment
-        Fixes #3529.
+    strconv: make malloc tests more reliable
     
-    R=golang-dev, r
+    Fixes #3495.
+    
+    I adapted fmt.TestCountMallocs to fix the
+    existing tests. As the resulting tests did not
+    appear to belong to either itoa or ftoa I moved
+    them into their own file.
+    
+    R=bradfitz, fullung
     CC=golang-dev
-    https://golang.org/cl/6037046
+    https://golang.org/cl/5985072
 
- src/pkg/text/template/parse/parse.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/strconv/ftoa_test.go    | 17 --------------
+ src/pkg/strconv/itoa_test.go    | 30 ------------------------
+ src/pkg/strconv/strconv_test.go | 51 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 47 deletions(-)

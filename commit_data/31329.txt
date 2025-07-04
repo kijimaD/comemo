@@ -1,30 +1,17 @@
-commit 8ae60dc1bb5183a8e8cd1fe86985ca354904447f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 25 03:16:59 2017 +0000
+commit 8da91a6297d5960b69ca22d764ef73906f6d61e9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 11 14:56:16 2017 -0800
 
-    cmd/go: fix TestCgoConsistentResults when using clang instead of gcc
+    runtime: add Frames example
     
-    As Ian said at:
-    https://github.com/golang/go/issues/19964#issuecomment-296347750
+    Based on sample code from iant.
     
-    > the -fdebug-prefix-map option is being applied to the debug info but
-    > not to the initial .file pseudo-op.
-    >
-    > My only current thought for how to fix this is that instead of
-    > compiling $WORK/a/b/foo.c, we should change the command to (cd
-    > $WORK/a/b && clang -g -c foo.c). We'll still want
-    > -fdebug-prefix-map, I think, but that should fix the .file
-    > pseudo-op.
+    Fixes #18788.
     
-    This CL does that.
-    
-    Fixes #19964
-    
-    Change-Id: I442b1201cab9e0448fc520ab243ad364d59cd7c3
-    Reviewed-on: https://go-review.googlesource.com/41629
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6bb33ed05af2538fbde42ddcac629280ef7c00a6
+    Reviewed-on: https://go-review.googlesource.com/36892
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/build.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/example_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

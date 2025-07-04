@@ -1,20 +1,21 @@
-commit eb4e5defb41459703c82b50d456280870ee00cb2
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Sat Sep 21 09:39:50 2019 -0400
+commit 7756a72b35e10a4cd03772ed852f2b3214971469
+Author: Neven Sajko <nsajko@gmail.com>
+Date:   Sat Mar 30 19:45:46 2019 +0000
 
-    net/http: remove http2 connections when no longer cached
+    all: change the old assembly style AX:CX to CX, AX
     
-    When the http2 transport returns a NoCachedConnError, the connection
-    must be removed from the idle list as well as the connections per host.
+    Assembly files with "/vendor/" or "testdata" in their paths were ignored.
     
-    Fixes #34387
-    
-    Change-Id: I7875c9c95e694a37a339bb04385243b49f9b20d3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196665
+    Change-Id: I3882ff07eb4426abb9f8ee96f82dff73c81cd61f
+    GitHub-Last-Rev: 51ae8c324d72a12a059272fcf8568e670bfaf21b
+    GitHub-Pull-Request: golang/go#31166
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170197
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport.go      |  1 +
- src/net/http/transport_test.go | 38 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/crypto/elliptic/p256_asm_amd64.s | 8 ++++----
+ src/math/big/arith_386.s             | 8 ++++----
+ src/math/big/arith_amd64.s           | 8 ++++----
+ 3 files changed, 12 insertions(+), 12 deletions(-)

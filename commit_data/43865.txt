@@ -1,24 +1,41 @@
-commit 6965b01ea248cabb70c3749fd218b36089a21efb
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Nov 21 14:56:26 2020 +1100
+commit a637ee1970ac9f005094fd46eadd64c4433168e7
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Wed Apr 15 16:50:50 2020 -0400
 
-    runtime: allow for usleep2HighRes to run without TLS setup
+    crypto/ecdsa: implement ecdsa on s390x for P256/P384/P521 using KDSA instruction
     
-    This change adjusts usleep2HighRes so it does not crash when TLS is
-    not configured. When g is not available, usleep2HighRes just calls
-    usleep2 instead.
+    This CL revives CL 174437(also IBM CLA) and adds benchmarks and some simplifications.
     
-    Updates #8687
+    The original commit message is as follows:
     
-    Change-Id: Idbb80f7b71d1da350a6a7df7c49154eb1ffe29a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271907
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Simon Rozman <simon@rozman.si>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Utilize KDSA when available. This guarantees constant time operation on all three curves mentioned,
+    and is faster than conventional assembly.
+    
+    Benchmarks:
+    name             old time/op    new time/op    delta
+    SignP256-8         15.2µs ±14%    14.1µs ±18%     ~     (p=0.356 n=9+10)
+    SignP384-8         4.28ms ±26%    0.02ms ±30%  -99.43%  (p=0.000 n=10+10)
+    VerifyP256-8       33.6µs ±13%    13.3µs ±38%  -60.32%  (p=0.000 n=9+10)
+    
+    name             old alloc/op   new alloc/op   delta
+    SignP256-8         2.16kB ± 0%    1.60kB ± 0%  -25.63%  (p=0.000 n=9+10)
+    SignP384-8         1.75MB ± 0%    0.00MB ± 0%  -99.90%  (p=0.000 n=9+10)
+    VerifyP256-8       1.08kB ± 0%    0.18kB ± 0%  -83.70%  (p=0.000 n=9+10)
+    
+    name             old allocs/op  new allocs/op  delta
+    SignP256-8           29.0 ± 0%      22.0 ± 0%  -24.14%  (p=0.000 n=10+10)
+    SignP384-8          14.4k ± 0%      0.0k ± 0%  -99.85%  (p=0.000 n=9+10)
+    VerifyP256-8         23.0 ± 0%       7.0 ± 0%  -69.57%  (p=0.000 n=10+10)
+    
+    Change-Id: Ifa1fc5917fa7592dd592affa7549147dbc9b4169
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228580
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- src/runtime/sys_windows_386.s   | 11 ++++++++++-
- src/runtime/sys_windows_amd64.s | 11 ++++++++++-
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/crypto/ecdsa/ecdsa.go            |  12 ++-
+ src/crypto/ecdsa/ecdsa_noasm.go      |  21 +++++
+ src/crypto/ecdsa/ecdsa_s390x.go      | 162 +++++++++++++++++++++++++++++++++++
+ src/crypto/ecdsa/ecdsa_s390x.s       |  28 ++++++
+ src/crypto/ecdsa/ecdsa_s390x_test.go |  33 +++++++
+ 5 files changed, 254 insertions(+), 2 deletions(-)

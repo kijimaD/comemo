@@ -1,25 +1,22 @@
-commit 28fb8c69871ff3edecb0951e50f7caf38943ec5d
-Author: David Chase <drchase@google.com>
-Date:   Fri Jan 4 11:43:23 2019 -0500
+commit 8359b5e134052db0e5f1bc2257d496b0a81aa4fb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Aug 26 16:45:10 2018 +1000
 
-    cmd/compile: modify swt.go to skip repeated walks of switch
+    internal/poll: advance file position in windows sendfile
     
-    The compiler appears to contain several squirrelly corner
-    cases where nodes are double walked, some where new nodes
-    are created from walked parts.  Rather than trust that we
-    had searched hard enough for the last one, change
-    exprSwitch.walk() to return immediately if it has already
-    been walked.  This appears to be the only case where
-    double-walking a node is actually harmful.
+    Some versions of Windows (Windows 10 1803) do not set file
+    position after TransmitFile completes. So just use Seek
+    to set file position before returning from sendfile.
     
-    Fixes #29562.
+    Fixes #25722
     
-    Change-Id: I0667e8769aba4c3236666cd836a934e256c0bfc5
-    Reviewed-on: https://go-review.googlesource.com/c/156317
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I7a49be10304b5db19dda707b13ac93d338aeb190
+    Reviewed-on: https://go-review.googlesource.com/131976
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/swt.go |  4 ++--
- test/fixedbugs/issue29562.go       | 26 ++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ src/internal/poll/sendfile_windows.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

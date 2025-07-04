@@ -1,14 +1,13 @@
-commit aaac05ae2371940cb868788b8ca365146bb2b84d
-Author: Darren Elwood <darren@textnode.com>
-Date:   Mon Feb 13 13:58:12 2012 -0500
+commit 0ae43126370bcf0fcced69b9bbf9787a50e0e420
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 13:58:05 2012 -0500
 
-    8a, 8l: add LFENCE, MFENCE, SFENCE
+    A+C: Darren Elwood (individual CLA)
     
-    R=golang-dev, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5650076
+    https://golang.org/cl/5650077
 
- src/cmd/8a/lex.c   | 3 +++
- src/cmd/8l/8.out.h | 4 ++++
- src/cmd/8l/optab.c | 4 ++++
- 3 files changed, 11 insertions(+)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

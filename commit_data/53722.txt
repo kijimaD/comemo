@@ -1,24 +1,33 @@
-commit 3ffc8a25569ed107ebc1786bbd4f993dd6689601
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 30 12:47:06 2023 -0400
+commit 0d6a7f9d2eb2e5e9b96cd1b144d122f6eb5aac81
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Aug 26 12:09:34 2022 +0200
 
-    runtime/pprof: use testenv.Command in tests instead of exec.Command
+    internal/poll, internal/syscall/unix, net, runtime: convert openbsd (except mips64) to direct libc calls
     
-    If the test is about to time out, testenv.Command sends SIGQUIT to the
-    child process. The runtime's SIGQUIT goroutine dump should help us to
-    determine whether the hangs observed in TestCPUProfileWithFork are a
-    symptom of #60108 or a separate bug.
+    Call libc wrappers directly rather than calling using syscall(2).
     
-    For #59995.
-    Updates #60108.
+    Updates golang/go#36435
     
-    Change-Id: I26342ca262b2b0772795c8be142cfcad8d90db30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507356
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: I40be410c7472f7d89cbec2ebdc7c841c7726ca4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425637
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/runtime/pprof/pprof_test.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/internal/poll/fcntl_libc.go                    |  2 +-
+ src/internal/poll/fcntl_syscall.go                 |  2 +-
+ src/internal/syscall/unix/at.go                    |  2 +-
+ src/internal/syscall/unix/at_fstatat.go            |  2 +-
+ .../syscall/unix/{at_darwin.go => at_libc2.go}     |  2 ++
+ src/internal/syscall/unix/getentropy_openbsd.go    | 24 +++++++--------------
+ .../syscall/unix/getentropy_openbsd_mips64.go      | 25 ++++++++++++++++++++++
+ src/internal/syscall/unix/nonblocking.go           |  2 +-
+ src/internal/syscall/unix/nonblocking_libc.go      |  2 +-
+ src/net/fcntl_libc_test.go                         |  2 +-
+ src/net/fcntl_syscall_test.go                      |  2 +-
+ src/runtime/export_openbsd_test.go                 | 15 +++++++++++++
+ src/runtime/nbpipe_fcntl_libc_test.go              |  2 +-
+ src/runtime/nbpipe_fcntl_unix_test.go              |  2 +-
+ 14 files changed, 60 insertions(+), 26 deletions(-)

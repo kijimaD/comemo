@@ -1,23 +1,39 @@
-commit 7e368b3f5ae7a11648dcf590ec1f14a4126169f4
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jan 10 14:48:49 2020 -0500
+commit 211932b98790df0ae112d7f680f6912514ae7d94
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jun 29 17:57:16 2019 +0200
 
-    cmd/go: convert TestGoBuildOutput to the script framework
+    go/printer: never print a newline before the returned results
     
-    Adds a in-script go binary called inarchive to check that an
-    archive is produced. A weaker could be done faster using grep,
-    but this is more faithful to the original test.
+    Otherwise, if one ends up with a "return result" where the two nodes are
+    in separate lines, the printer would incorrectly print a naked return:
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+            return
+                    result
     
-    Updates #36320
-    Updates #17751
+    The fix is simple - by not telling exprList what the previous position
+    is, it never adds a leading linebreak. This is the same mechanism used
+    for identifier lists and values, so it seems appropriate.
     
-    Change-Id: I001fa0698063be80fe3da947c81d4eb0829be47f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214295
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    All other exprList calls that can produce a leading linebreak don't seem
+    buggy, because closing tokens such as parentheses and colons are needed
+    to finish the statement.
+    
+    Verified that the test failed before the patch as well:
+    
+            --- FAIL: TestIssue32854 (0.00s)
+                printer_test.go:806: got "return\n\tcall()", want "return call()"
+    
+    Finally, verified that 'gofmt -l -w src misc' doesn't make any new
+    changes, just in case we introduced any regression.
+    
+    Fixes #32854.
+    
+    Change-Id: I3384fbd711de06e742407df874c9ad85626d5d6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184121
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go                       | 76 -------------------------
- src/cmd/go/testdata/script/build_output.txt | 87 +++++++++++++++++++++++++++++
- 2 files changed, 87 insertions(+), 76 deletions(-)
+ src/go/printer/nodes.go        |  6 ++++--
+ src/go/printer/printer_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 2 deletions(-)

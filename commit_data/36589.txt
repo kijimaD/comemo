@@ -1,27 +1,23 @@
-commit eee1cfb0b292847d037f57457b3392f67c7bf9a2
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 4 14:19:53 2018 +0200
+commit fbfbf03b2811eb3611e4677da6cdb7c099922e6e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue May 8 16:30:48 2018 +0100
 
-    syscall: correct argument order for SyncFileRange syscall on linux/ppc64{,le}
+    cmd/compile: fix Zero-to-Load forwarding rules
     
-    On linux/ppc64{,le} the SYS_SYNC_FILE_RANGE2 syscall is used to
-    implement SyncFileRange. This syscall has a different argument order
-    than SYS_SYNC_FILE_RANGE. Apart from that the implementations of both
-    syscalls are the same, so use a simple wrapper to invoke the syscall
-    with the correct argument order.
+    Avoid using values that do not dominate the block the Zero op is in.
+    Should fix the SSA check builder.
     
-    For context see:
-    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=edd5cd4a9424f22b0fa08bef5e299d41befd5622
+    The additional OffPtr ops inserted by these rules should always be
+    optimized away when the Load is replaced with a const zero.
     
-    Updates #27485
+    Fixes #25288.
     
-    Change-Id: Ib94fb98376bf6c879df6f1b68c3bdd11ebcb5a44
-    Reviewed-on: https://go-review.googlesource.com/133195
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I4163b58e60364f77c8a206ba084073a58ca6320a
+    Reviewed-on: https://go-review.googlesource.com/112136
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/syscall_linux_ppc64x.go   |  9 ++++++++-
- src/syscall/zsyscall_linux_ppc64.go   | 20 ++++++++++----------
- src/syscall/zsyscall_linux_ppc64le.go | 20 ++++++++++----------
- 3 files changed, 28 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 12 ++++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 46 +++++++++++++++++---------
+ 2 files changed, 38 insertions(+), 20 deletions(-)

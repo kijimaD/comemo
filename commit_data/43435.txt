@@ -1,13 +1,19 @@
-commit ea37a65af6ff8c5841f37bef7f9ed2e31808e7cf
+commit e18a5ba0ca142c64aa03c6fb500d69cbbaab1bb6
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 21 21:08:39 2020 -0400
+Date:   Thu Apr 2 22:47:29 2020 -0400
 
-    cmd/compile: remove go115shortcircuitPhis
+    cmd/link: in stack bound check, don't check a call repetitively
     
-    Change-Id: Ib2697ebfcc14a01ab1f793cddcbf69180ffc49a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264341
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    In stack bound check pass, check a call once, not over and over
+    again. Fix an accidental quadratic behavior...
+    
+    In particular, switching to the new linker caused MIPS builders
+    noticeably slower. This CL fixes it.
+    
+    Change-Id: Idd00c79e80af6278652c92a1d9d7bb2d194e9490
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227078
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/shortcircuit.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

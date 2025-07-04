@@ -1,26 +1,25 @@
-commit 3f51350c706c8ff663f12867bcfec98aa9fc46bf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Dec 19 23:17:55 2019 -0500
+commit 991b0fd46c3e8160c9b5c622478caf7b5ebe139c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 25 12:40:02 2019 -0700
 
-    cmd/go/internal/modfetch/codehost: replace a dubious call to semver.Max
+    cmd/compile: remove -newescape flag
     
-    The documentation for RecentTag indicates that it returns an actual
-    tag, not a canonicalized prefix+version blob equivalent to a tag,
-    so the canonicalization due to semver.Max seems like a bug here.
+    Drops support for old escape analysis pass. Subsequent, separate CL
+    will remove dead code.
     
-    Fortunately, RecentTag is not currently ever actually used as a tag,
-    so the removal of metadata does not result in a user-facing bug.
-    Nonetheless, it may be a subtle source of confusion for maintainers
-    in the future.
+    While here, fix a minor error in fmt.go: it was still looking for
+    esc.go's NodeEscState in n.Opt() rather than escape.go's EscLocation.
+    But this only affected debug diagnostics printed during escape
+    analysis itself.
     
-    Updates #32700
-    
-    Change-Id: I525423c1c0c7ec7c36c09e53b180034474f74e5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212202
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I62512e1b31c75ba0577550a5fd7824abc3159ed5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187597
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/git.go | 7 +++++--
- src/cmd/go/internal/modload/query_test.go    | 3 ++-
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/esc.go  | 13 +------------
+ src/cmd/compile/internal/gc/fmt.go  |  4 ++--
+ src/cmd/compile/internal/gc/main.go |  3 +--
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ 4 files changed, 5 insertions(+), 17 deletions(-)

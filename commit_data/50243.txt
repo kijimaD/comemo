@@ -1,57 +1,24 @@
-commit bbaf0a514e3b0a5f432746d538a2b04110fa211f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 25 17:20:07 2022 -0700
+commit c1b0ae4154b44ce0bc4929455ee468fddb5dca9d
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Oct 10 10:53:06 2021 -0400
 
-    go/types, types2: consolidate testdata/check test files
+    go/types: mark implicit interfaces as such
     
-    Use the go/types version of testdata/check tests where the diffs
-    are only in the error positions (the types2 test harness allows
-    for some position tolerance). Consolidate files where there are
-    other minor differences.
+    This is a straightforward port of CL 353396 to go/types.
     
-    Comment out a couple of tests that are different between the two
-    type checkers.
+    For #48424
     
-    With this CL, the testdata/check files are identical between the
-    two type checkers.
-    
-    For #54511.
-    
-    Change-Id: Ibdff2ca3ec9bdaca3aa84029a7883bb83d2d2060
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425735
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I3040c2ad3a8c9573026277de01deb9c47953cec8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354991
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- .../internal/types2/testdata/check/builtins0.go    |  6 ++---
- .../internal/types2/testdata/check/builtins1.go    |  4 ++--
- .../internal/types2/testdata/check/decls0.go       | 10 ++++----
- .../internal/types2/testdata/check/decls1.go       |  2 ++
- .../types2/testdata/check/decls2/decls2a.go        | 10 ++++----
- .../types2/testdata/check/decls2/decls2b.go        |  2 +-
- .../internal/types2/testdata/check/decls3.go       | 10 ++++----
- .../internal/types2/testdata/check/decls4.go       |  4 ++--
- .../internal/types2/testdata/check/errors.go       |  2 +-
- .../internal/types2/testdata/check/expr0.go        |  2 +-
- .../internal/types2/testdata/check/expr1.go        |  4 ++--
- .../internal/types2/testdata/check/expr2.go        |  4 ++--
- .../internal/types2/testdata/check/expr3.go        | 27 ++++++++++-----------
- .../internal/types2/testdata/check/go1_8.go        |  2 +-
- .../internal/types2/testdata/check/issues0.go      |  4 ++--
- .../internal/types2/testdata/check/main1.go        |  4 ++--
- .../compile/internal/types2/testdata/check/map1.go |  2 +-
- .../internal/types2/testdata/check/shifts.go       |  3 ++-
- .../internal/types2/testdata/check/stmt0.go        | 28 +++++++++++-----------
- .../internal/types2/testdata/check/typeinst1.go    |  4 ++--
- .../internal/types2/testdata/check/typeparams.go   | 18 +++++++-------
- .../internal/types2/testdata/check/vardecl.go      | 25 +++++++++----------
- src/go/types/testdata/check/go1_12.go              |  1 -
- src/go/types/testdata/check/go1_13.go              |  1 -
- src/go/types/testdata/check/go1_8.go               |  1 -
- src/go/types/testdata/check/shifts.go              | 12 ++++++----
- src/go/types/testdata/check/todos.go               | 22 -----------------
- src/go/types/testdata/check/typeparams.go          |  2 +-
- src/go/types/testdata/check/vardecl.go             | 14 ++++++++++-
- 29 files changed, 112 insertions(+), 118 deletions(-)
+ src/go/types/decl.go                        | 10 ++++++----
+ src/go/types/interface.go                   |  5 ++++-
+ src/go/types/testdata/examples/typesets.go2 | 10 ++++++++++
+ src/go/types/typeparam.go                   |  1 +
+ src/go/types/typestring.go                  |  9 +++++++++
+ src/go/types/universe.go                    |  4 ++--
+ 6 files changed, 32 insertions(+), 7 deletions(-)

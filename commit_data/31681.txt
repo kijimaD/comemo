@@ -1,15 +1,60 @@
-commit 9acd814c2a53a10de39a891bf7b6f4d12fc7b329
-Author: Dmitry Savintsev <dsavints@gmail.com>
-Date:   Mon May 29 12:01:45 2017 +0200
+commit e99dafc4a8d631992903250378a8007daf794f2c
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jan 18 11:48:14 2017 +0100
 
-    runtime: fix file reference in comments
+    cmd/compile: fix misleading "truncated to int" messages
     
-    cmd/compile/internal/ld/decodesym.go is now
-    cmd/link/internal/ld/decodesym.go
+    When defining an int const, the compiler tries to cast the RHS
+    expression to int. The cast may fail for three reasons:
     
-    Change-Id: I16ec5c89aa3507e70676c2b50d70f1fde533a085
-    Reviewed-on: https://go-review.googlesource.com/44373
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+      1. expr is an integer constant that overflows int
+      2. expr is a floating point constant
+      3. expr is a complex constant, or not a number
+    
+    In the second case, in order to print a sensible error message, we
+    must distinguish between a floating point constant that should be
+    included in the error message and a floating point constant that
+    cannot be reasonably formatted for inclusion in an error message.
+    
+    For example, in:
+    
+      const a int = 1.1
+      const b int = 1 + 1e-100
+    
+    a is in the former group, while b is in the latter, since the floating
+    point value resulting from the evaluation of the rhs of the assignment
+    (1.00...01) is too long to be fully printed in an error message, and
+    cannot be shortened without making the error message misleading
+    (rounding or truncating it would result in a "1", which looks like an
+    integer constant, and it makes little sense in an error message about
+    an invalid floating point expression).
+    
+    To fix this problem, we try to format the float value using fconv
+    (which is used by the error reporting mechanism to format float
+    arguments), and then parse the resulting string back to a
+    big.Float. If the result is an integer, we assume that expr is a float
+    value that cannot be reasonably be formatted as a string, and we emit
+    an error message that does not include its string representation.
+    
+    Also, change the error message for overflows to a more conservative
+    "integer too large", which does not mention overflows that are only
+    caused by an internal implementation restriction.
+    
+    Also, change (*Mpint) SetFloat so that it returns a bool (instead of
+    0/-1 for success/failure).
+    
+    Fixes #11371
+    
+    Change-Id: Ibbc73e2ed2eaf41f07827b0649d0eb637150ecaa
+    Reviewed-on: https://go-review.googlesource.com/35411
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/const.go | 29 +++++++++++++++++++-------
+ src/cmd/compile/internal/gc/mpint.go | 14 +++++++------
+ test/fixedbugs/issue11371.go         | 17 +++++++++++++++
+ test/fixedbugs/issue13471.go         | 22 ++++++++++----------
+ test/fixedbugs/issue13559.go         | 40 ++++++++++++++++++------------------
+ 5 files changed, 78 insertions(+), 44 deletions(-)

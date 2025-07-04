@@ -1,43 +1,16 @@
-commit 09e059afb1270498f416f5b5c75a6a5683b6d1da
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 11:34:42 2021 -0500
+commit 76f233fe045788e71b7460ea82947e4bda6d76ff
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 09:48:44 2020 -0400
 
-    runtime: enable framepointer on all arm64
+    doc/go1.15: exclude spaces from <code> block
     
-    Frame pointers were already enabled on linux, darwin, ios,
-    but not freebsd, android, openbsd, netbsd.
+    Per the note at the top of go1.15.html.
     
-    But the space was reserved on all platforms, leading to
-    two different arm64 framepointer conditions in different
-    parts of the code, one of which had no name
-    (framepointer_enabled || GOARCH == "arm64",
-    which might have been "framepointer_space_reserved").
+    Updates #37419.
     
-    So on the disabled systems, the stack layouts were still
-    set up for frame pointers and the only difference was not
-    actually maintaining the FP register in the generated code.
-    
-    Reduce complexity by just enabling the frame pointer
-    completely on all the arm64 systems.
-    
-    This commit passes on freebsd, android, netbsd.
-    I have not been able to try it on openbsd.
-    
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
-    
-    Change-Id: I83bd23369d24b76db4c6a648fa74f6917819a093
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288814
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia6917347ca1e3ebe8c55f9c0ec74e49ff481a64f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236719
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/dwarfgen/dwarf.go |   3 +-
- src/cmd/compile/internal/ssagen/pgen.go    |   3 +-
- src/cmd/internal/obj/arm64/a.out.go        |   2 +-
- src/cmd/internal/obj/arm64/obj7.go         | 293 +++++++++++++++--------------
- src/cmd/internal/objabi/util.go            |   2 +-
- src/runtime/runtime2.go                    |   2 +-
- src/runtime/traceback.go                   |  17 +-
- 7 files changed, 175 insertions(+), 147 deletions(-)
+ doc/go1.15.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,26 +1,27 @@
-commit 032ef4bbfc5b976085c561eb4a134b780625f410
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Mar 10 15:25:21 2021 -0800
+commit d27ebc7b8630993269c36e7728a7f30543ffa048
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 13 16:32:37 2020 -0400
 
-    cmd/compile: fix creation of named generic types (setting of t.nod)
+    cmd/go/internal/modload: implement the "all" pattern for lazy loading
     
-    The correct setting of t.nod is needed when exporting types. Make sure
-    we create instantiated named types correctly so t.nod is set.
+    The new semantics of the "all" package pattern can be implemented
+    without actually changing module loading per se. This change
+    implements those semantics, so that the change can be decoupled from
+    the changes to the module requirement graph.
     
-    New test file interfacearg.go that tests this (by instantiating a type
-    with an interface). Also has tests for various kinds of method
-    expressions.
+    For #36460
     
-    Change-Id: Ia7fd9debd495336b73788af9e35d72331bb7d2b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305730
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I0ee8b17afa8b728dc470a42a540fcc01764a4442
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240623
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go | 20 +++++++++-----
- src/cmd/compile/internal/noder/types.go   |  4 +--
- src/cmd/compile/internal/types/type.go    |  9 ++++---
- test/typeparam/interfacearg.go            | 44 +++++++++++++++++++++++++++++++
- 4 files changed, 64 insertions(+), 13 deletions(-)
+ doc/go1.16.html                        |  14 ++++-
+ src/cmd/go/internal/modcmd/tidy.go     |  12 ++++
+ src/cmd/go/internal/modcmd/why.go      |   2 +
+ src/cmd/go/internal/modload/load.go    |  16 ++++--
+ src/cmd/go/internal/modload/modfile.go |  22 ++++++++
+ src/cmd/go/testdata/script/mod_all.txt | 100 +++++++++++++++++++++++++++++++--
+ 6 files changed, 154 insertions(+), 12 deletions(-)

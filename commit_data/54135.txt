@@ -1,19 +1,33 @@
-commit e3c80f5778fd3fbdd61f521fd29a02ad091513d5
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat Aug 19 00:21:00 2023 +0000
+commit fb6c210dc3c3f1f211b469214f0ec1c881fd088e
+Author: doujiang24 <doujiang24@gmail.com>
+Date:   Sat Sep 24 11:15:43 2022 +0000
 
-    os/exec: don't convert byte slice to string when using verb %s
+    runtime/trace: add missing events for the locked g in extra M.
     
-    Change-Id: I4d755e401acf670fb5a154ff59e4e4335ed2138e
-    GitHub-Last-Rev: a91d74ae55f84a0e572d2ace335ec42038d7a76f
-    GitHub-Pull-Request: golang/go#62150
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520918
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Extra Ms may lead to the "no consistent ordering of events possible" error when parsing trace file with cgo enabled, since:
+    1. The gs in the extra Ms may be in `_Gdead` status while starting trace by invoking `runtime.StartTrace`,
+    2. and these gs will trigger `traceEvGoSysExit` events in `runtime.exitsyscall` when invoking go functions from c,
+    3. then, the events of those gs are under non-consistent ordering, due to missing the previous events.
+    
+    Add two events, `traceEvGoCreate` and `traceEvGoInSyscall`, in `runtime.StartTrace`, will make the trace parser happy.
+    
+    Fixes #29707
+    
+    Change-Id: I2fd9d1713cda22f0ddb36efe1ab351f88da10881
+    GitHub-Last-Rev: 7bbfddb81b70041250e3c59ce53bea44f7afd2c3
+    GitHub-Pull-Request: golang/go#54974
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429858
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/os/exec/lp_windows_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/trace/goroutines.go               |  5 ++-
+ src/runtime/crash_cgo_test.go                  | 26 ++++++++++++
+ src/runtime/proc.go                            | 10 +++++
+ src/runtime/runtime2.go                        |  1 +
+ src/runtime/testdata/testprogcgo/issue29707.go | 58 ++++++++++++++++++++++++++
+ src/runtime/trace.go                           | 13 +++++-
+ 6 files changed, 110 insertions(+), 3 deletions(-)

@@ -1,17 +1,14 @@
-commit c109705c6f30d568b7c7af8a203bdd69c6fb99af
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 18 19:35:53 2012 -0800
+commit f47807a57f9dacab74ebf7e9d86f3dc0dcb933b0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 18 19:27:16 2012 -0800
 
-    go/doc: collect imports
+    cmd/go: skip _obj directories in package scans
     
-    R=r
+    Fixes #2693
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5556051
+    https://golang.org/cl/5557057
 
- src/pkg/go/doc/doc.go                |  2 +-
- src/pkg/go/doc/exports.go            |  3 +++
- src/pkg/go/doc/reader.go             | 22 ++++++++++++++++++++++
- src/pkg/go/doc/testdata/b.out        |  3 +++
- src/pkg/go/doc/testdata/template.txt |  6 +++---
- src/pkg/go/doc/testdata/testing.out  | 12 ++++++++++++
- 6 files changed, 44 insertions(+), 4 deletions(-)
+ src/cmd/go/main.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

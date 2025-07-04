@@ -1,30 +1,27 @@
-commit 218f4572f5d5832c81e13d71690791aea67dacd2
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Dec 19 14:13:59 2019 +0000
+commit 931365763a294950200096d071a35f799ffade2c
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Sat Aug 24 08:59:01 2019 +0900
 
-    text/template: make reflect.Value indirections more robust
+    math/rand: devirtualize interface in lockedSource
     
-    Always shadow or modify the original parameter name. With code like:
+    Avoid interface calls, enable inlining, and store the rngSource close to the
+    Mutex to exploit better memory locality.
     
-            func index(item reflect.Value, ... {
-                    v := indirectInterface(item)
+    Also add a benchmark to properly measure the threadsafe nature of globalRand.
     
-    It was possible to incorrectly use 'item' and 'v' later in the function,
-    which could result in subtle bugs. This is precisely the kind of mistake
-    that led to #36199.
+    On a linux/amd64 VM:
     
-    Instead, don't keep both the old and new reflect.Value variables in
-    scope. Always shadow or modify the original variable.
+    name                       old time/op  new time/op  delta
+    Int63Threadsafe-4          36.4ns ±12%  20.6ns ±11%  -43.52%  (p=0.000 n=30+30)
+    Int63ThreadsafeParallel-4  79.3ns ± 5%  56.5ns ± 5%  -28.69%  (p=0.000 n=29+30)
     
-    While at it, simplify the signature of 'length', to receive a
-    reflect.Value directly and save a few redundant lines.
-    
-    Change-Id: I01416636a9d49f81246d28b91aca6413b1ba1aa5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212117
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I6ab912c1a1e9afc7bacd8e72c82d4d50d546a510
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191538
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Roberto Clapis <robclap8@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/text/template/funcs.go | 138 ++++++++++++++++++++++-----------------------
- 1 file changed, 66 insertions(+), 72 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go | 4 ++++
+ src/math/rand/rand.go                   | 7 +++++--
+ src/math/rand/rand_test.go              | 8 ++++++++
+ 3 files changed, 17 insertions(+), 2 deletions(-)

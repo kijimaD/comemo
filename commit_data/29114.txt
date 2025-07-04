@@ -1,15 +1,28 @@
-commit 3cfc757c625d8f9fabf2c52e2ae3a8eab3fbdf61
+commit 5a6f973565ccb54c77e03cbb4844fd0ea392d3fe
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 26 15:52:56 2016 -0700
+Date:   Thu Aug 25 16:53:10 2016 -0700
 
-    go/scanner: recognize invalid floating-point constant exponent
+    cmd/compile: fail gracefully on export format skew
     
-    Fixes #17621.
+    Import errors due to unexpected format are virtually
+    always due to version skew. Don't panic but report a
+    good error message (incl. hint that the imported package
+    needs to be reinstalled) if not in debugFormat mode.
     
-    Change-Id: Id3e75c9b7fba2cf8e791c8817f890556ca238e9d
-    Reviewed-on: https://go-review.googlesource.com/32096
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Recognize export data format version and store it so
+    it can be used to automatically handle minor version
+    differences. We did this before, but not very well.
+    
+    No export data format changes.
+    
+    Manually tested with corrupted export data.
+    
+    For #16881.
+    
+    Change-Id: I53ba98ef747b1c81033a914bb61ee52991f35a90
+    Reviewed-on: https://go-review.googlesource.com/27814
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/scanner/scanner.go      | 6 +++++-
- src/go/scanner/scanner_test.go | 1 +
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go |  10 ++--
+ src/cmd/compile/internal/gc/bimport.go | 106 +++++++++++++++++++++------------
+ 2 files changed, 73 insertions(+), 43 deletions(-)

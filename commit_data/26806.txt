@@ -1,38 +1,25 @@
-commit bce9747ed00c53e7ddeea102e87aede1b3ec9bd3
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Apr 9 15:04:45 2016 +1000
+commit 3c0fae53062d80678d8f79877143b46ee787569c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 26 13:32:28 2016 -0800
 
-    cmd: remove unused code
+    cmd/compile: track pragmas in lexer rather than global variables
     
-    Generated with honnef.co/go/unused
+    By using a Pragma bit set (8 bits) rather than 8 booleans, also
+    reduce Func type size by 8 bytes (208B -> 200B on 64bit platforms,
+    116B -> 108B on 32bit platforms).
     
-    There is a large amount of unused code in cmd/internal/obj/s390x but
-    that can wait til the s390x port is merged.
-    
-    There is some unused code in
-    cmd/internal/unvendor/golang.org/x/arch/arm/armasm but that should be
-    addressed upstream and a new revision imported.
-    
-    Change-Id: I252c0f9ea8c5bb1a0b530a374ef13a0a20ea56aa
-    Reviewed-on: https://go-review.googlesource.com/21782
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Change-Id: Ibb7e1f8c418a0b5bc6ff813cbdde7bc6f0013b5a
+    Reviewed-on: https://go-review.googlesource.com/19966
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/internal/goobj/read.go                  |  7 ++----
- src/cmd/internal/obj/mips/asm0.go               |  4 ----
- src/cmd/internal/obj/x86/asm6.go                |  5 -----
- src/cmd/internal/obj/x86/obj6_test.go           |  1 -
- src/cmd/internal/objfile/pe.go                  |  2 --
- src/cmd/link/internal/amd64/asm.go              |  6 -----
- src/cmd/link/internal/arm/asm.go                |  5 -----
- src/cmd/link/internal/arm64/asm.go              |  4 ----
- src/cmd/link/internal/ld/data.go                |  4 ----
- src/cmd/link/internal/ld/deadcode.go            |  4 +---
- src/cmd/link/internal/ld/decodesym.go           | 18 ---------------
- src/cmd/link/internal/ld/go.go                  | 30 +------------------------
- src/cmd/link/internal/ld/macho.go               |  7 ++----
- src/cmd/link/internal/ld/macho_combine_dwarf.go |  4 +---
- src/cmd/link/internal/mips64/asm.go             |  4 ----
- src/cmd/link/internal/ppc64/asm.go              |  4 ----
- src/cmd/link/internal/x86/asm.go                |  4 ----
- 17 files changed, 7 insertions(+), 106 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go  |  3 +--
+ src/cmd/compile/internal/gc/cgen.go     |  4 ++--
+ src/cmd/compile/internal/gc/dcl.go      |  2 +-
+ src/cmd/compile/internal/gc/go.go       | 13 ------------
+ src/cmd/compile/internal/gc/inl.go      |  2 +-
+ src/cmd/compile/internal/gc/lex.go      | 34 ++++++++++++++++++++++--------
+ src/cmd/compile/internal/gc/parser.go   | 37 +++++++++++----------------------
+ src/cmd/compile/internal/gc/pgen.go     |  4 ++--
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/syntax.go   | 16 +++++---------
+ 10 files changed, 50 insertions(+), 67 deletions(-)

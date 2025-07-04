@@ -1,16 +1,22 @@
-commit 35b3db253c4c43912b2cb3cc85594b9c1be03895
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Apr 4 01:11:10 2015 +0900
+commit 8afb3967a3c241d6824403190b1888415e8a091e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 22:58:27 2015 -0500
 
-    net: add lookup IP hook for testing
+    cmd/8g, cmd/old8a: stop renaming x86 import to i386
     
-    This change adds testHookLookIP to enable to inject DNS name to IP
-    address mappings for Happ{y,yish,ier} Eyeballs dial testing.
-    
-    Change-Id: I8ac04a594e1e2bd77909528df0552889914a7790
-    Reviewed-on: https://go-review.googlesource.com/8399
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If2872e73da4daa4ff1912883d30c8fc9754ef552
+    Reviewed-on: https://go-review.googlesource.com/6894
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/hook.go   | 7 +++++++
- src/net/lookup.go | 4 ++--
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ src/cmd/8g/cgen.go        |   76 +--
+ src/cmd/8g/cgen64.go      |  236 ++++-----
+ src/cmd/8g/galign.go      |    8 +-
+ src/cmd/8g/gg.go          |    4 +-
+ src/cmd/8g/ggen.go        |  128 ++---
+ src/cmd/8g/gsubr.go       |  552 ++++++++++-----------
+ src/cmd/8g/peep.go        |  174 +++----
+ src/cmd/8g/prog.go        |  416 ++++++++--------
+ src/cmd/8g/reg.go         |   28 +-
+ src/cmd/dist/buildtool.go |    3 +-
+ src/cmd/old8a/lex.go      | 1200 ++++++++++++++++++++++-----------------------
+ 11 files changed, 1412 insertions(+), 1413 deletions(-)

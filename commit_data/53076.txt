@@ -1,26 +1,29 @@
-commit 87e69c1812c2197688e0d14720760ea87b3b26af
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue May 16 19:52:41 2023 -0400
+commit 2acd3646fc448b760e82fcace189adda94a1904a
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jul 2 11:07:55 2022 -0700
 
-    cmd/compile: don't inline from norace packages in race mode
+    cmd/compile: rework induction variable detector
     
-    In race mode (or other instrumentation mode), if the caller is in
-    a regular package and the callee is in a norace (or noinstrument)
-    package, don't inline. Otherwise, when the caller is instumented
-    it will also affect the inlined callee.
+    Induction variable detection is still not quite right. I've added
+    another failing test.
     
-    An example is sync.(*Mutex).Unlock, which is typically not inlined
-    but with PGO it can be inlined into a regular function, which is
-    then get instrumented. But the rest of the sync package, in
-    particular, the Lock function is not instrumented, causing the
-    race detector to signal false race.
+    Redo the overflow/underflow detector so it is more obviously correct.
     
-    Change-Id: Ia78bb602c6da63a34ec2909b9a82646bf20873f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495595
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Update #53600
+    Fixes #53653
+    Fixes #53663
+    
+    Change-Id: Id95228e282fdbf6bd80b26e1c41d62e935ba08ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415874
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/inline/inl.go |  5 ++++-
- src/cmd/compile/internal/types/type.go | 22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/loopbce.go | 340 ++++++++++++++++++--------------
+ test/fixedbugs/issue53600.go            |  11 ++
+ test/fixedbugs/issue53600.out           |   1 +
+ test/fixedbugs/issue53653.go            |  42 ++++
+ test/fixedbugs/issue53653.out           |   8 +
+ test/loopbce.go                         |  65 +++++-
+ 6 files changed, 319 insertions(+), 148 deletions(-)

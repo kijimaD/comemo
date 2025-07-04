@@ -1,32 +1,21 @@
-commit 9894ded19417fbc40420dc813d3c6606348ad31b
+commit a5b8b56d1d05d186999e4abf1e2147b6aa203ec9
 Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Jan 18 10:22:54 2023 -0800
+Date:   Sat Sep 4 13:02:09 2021 -0700
 
-    time: revert strict parsing of RFC 3339
+    reflect: allow Value.Bytes on addressable byte arrays
     
-    CL 444277 fixed Time.UnmarshalText and Time.UnmarshalJSON to properly
-    unmarshal timestamps according to RFC 3339 instead of according
-    to Go's bespoke time syntax that is a superset of RFC 3339.
+    Modify Value.Bytes to be callable addressable byte arrays.
+    While related, the behavior of Value.SetBytes was not modified.
     
-    However, this change seems to have broken an AWS S3 unit test
-    that relies on parsing timestamps with single digit hours.
-    It is unclear whether S3 emits these timestamps in production or
-    whether this is simply a testing artifact that has been cargo culted
-    across many code bases. Either way, disable strict parsing for now
-    and re-enable later with better GODEBUG support.
+    Fixes #47066
     
-    Updates #54580
-    
-    Change-Id: Icced2c7f9a6b2fc06bbd9c7e90f90edce24c2306
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462286
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ic3ba4432353b8da5f33b3188e20034a33b2f6ee8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357331
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.20.html            |  5 ++---
- src/time/format_rfc3339.go |  7 ++++++-
- src/time/time_test.go      | 12 ++++++------
- 3 files changed, 14 insertions(+), 10 deletions(-)
+ src/reflect/all_test.go | 29 +++++++++++++++++++++++++++--
+ src/reflect/value.go    | 26 ++++++++++++++++++++------
+ 2 files changed, 47 insertions(+), 8 deletions(-)

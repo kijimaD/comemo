@@ -1,19 +1,28 @@
-commit 670494827c42d4ac64a52dfa909cf6048308e133
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 16 17:00:51 2018 -0800
+commit 94e6d3de725780952ea9d81ebb5b4bf5f7308593
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 2 14:57:31 2017 -0400
 
-    cmd/compile/internal/syntax: better error recovery after missing type
+    cmd/dist: change mkdeps to be more merge-friendly
     
-    R=go1.11.
+    In addition to the obvious formatting change, this also drops
+    from deps.go any indirect dependencies, so that when you add
+    a new import to one package, the resulting diff only affects that
+    one package, not every package that imports that package
+    directly or indirectly. That makes the file a bit easier to understand,
+    if you need to debug it or deal with a possible merge conflict.
     
-    This is just a copy of the fix for #23434:
-    https://go-review.googlesource.com/c/go/+/87898.
+    The code to trim the import lists (but not too much) was more
+    than I wanted to do in shell, so I rewrote mkdeps in Go.
     
-    Test pending test harness for the syntax package.
+    The shell script is left behind for backwards-compatibility with
+    people who have learned to run ./mkdeps.bash (or documentation
+    suggesting the same).
     
-    Change-Id: I52409aebe13ec784ddd7e41190a81c7e126bdd0c
-    Reviewed-on: https://go-review.googlesource.com/87901
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0bf27b5b27d0440e11ea830b00735c73f58eae03
+    Reviewed-on: https://go-review.googlesource.com/67650
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/deps.go     | 951 ++++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/dist/mkdeps.bash |  54 +--
+ src/cmd/dist/mkdeps.go   | 183 +++++++++
+ 3 files changed, 1054 insertions(+), 134 deletions(-)

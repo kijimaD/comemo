@@ -1,13 +1,27 @@
-commit ce6acefc5d9049762066cad6c7cac1378de4544e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 4 08:37:48 2012 +1000
+commit 3188ffc93138ca18857575052f74100d64e31df5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 3 13:46:37 2012 -0700
 
-    go/doc: add nil to list of predeclared constants
+    go spec: conversion types starting with "func" must be parenthesized
     
-    R=gri
-    CC=gobot, golang-dev
-    https://golang.org/cl/6601054
+    Also: Be explicit what operator means with respect to conversion types.
+    
+    The parenthesis requirement is a language change. At the moment,
+    literal function types in conversions that cannot possibly be
+    followed by a '(' don't need parentheses. For instance:
+    
+            func(int)int(x)  ->  same as (func(int)int)(x)
+            func()()(x)      ->  same as (func())(x)
+    
+    but:
+    
+            func(int)(x)     ->  could be func(int)x {...}
+    
+    Fixes #4109.
+    
+    R=rsc, r, iant, ken, iant
+    CC=golang-dev
+    https://golang.org/cl/6584065
 
- src/pkg/go/doc/example.go | 2 +-
- src/pkg/go/doc/reader.go  | 5 +++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

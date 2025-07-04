@@ -1,42 +1,95 @@
-commit 5cd4390f3853b8d0d2d962f7acdac87c0eba3d77
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Oct 13 18:19:21 2020 -0400
+commit 0a820007e70fdd038950f28254c6269cd9588c02
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Nov 13 17:34:47 2019 -0800
 
-    cmd/go: don't fetch files missing sums in readonly mode
+    runtime:  static lock ranking for the runtime (enabled by GOEXPERIMENT)
     
-    If the go command needs a .mod or .zip file in -mod=readonly mode
-    (now the default), and that file doesn't have a hash in the main
-    module's go.sum file, the go command will now report an error before
-    fetching the file, rather than at the end when failing to update
-    go.sum. The error says specifically which entry is missing.
+    I took some of the infrastructure from Austin's lock logging CR
+    https://go-review.googlesource.com/c/go/+/192704 (with deadlock
+    detection from the logs), and developed a setup to give static lock
+    ranking for runtime locks.
     
-    If this error is encountered when loading the build list, it will
-    suggest 'go mod tidy'.
+    Static lock ranking establishes a documented total ordering among locks,
+    and then reports an error if the total order is violated. This can
+    happen if a deadlock happens (by acquiring a sequence of locks in
+    different orders), or if just one side of a possible deadlock happens.
+    Lock ordering deadlocks cannot happen as long as the lock ordering is
+    followed.
     
-    If this error is encountered when loading a specific package (an
-    import or command line argument), the error will mention that package
-    and will suggest 'go mod tidy' or 'go get -d'.
+    Along the way, I found a deadlock involving the new timer code, which Ian fixed
+    via https://go-review.googlesource.com/c/go/+/207348, as well as two other
+    potential deadlocks.
     
-    Fixes #41934
-    Fixes #41935
+    See the constants at the top of runtime/lockrank.go to show the static
+    lock ranking that I ended up with, along with some comments. This is
+    great documentation of the current intended lock ordering when acquiring
+    multiple locks in the runtime.
     
-    Change-Id: I96ec2ef9258bd4bade9915c43d47e6243c376a81
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262341
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    I also added an array lockPartialOrder[] which shows and enforces the
+    current partial ordering among locks (which is embedded within the total
+    ordering). This is more specific about the dependencies among locks.
+    
+    I don't try to check the ranking within a lock class with multiple locks
+    that can be acquired at the same time (i.e. check the ranking when
+    multiple hchan locks are acquired).
+    
+    Currently, I am doing a lockInit() call to set the lock rank of most
+    locks. Any lock that is not otherwise initialized is assumed to be a
+    leaf lock (a very high rank lock), so that eliminates the need to do
+    anything for a bunch of locks (including all architecture-dependent
+    locks). For two locks, root.lock and notifyList.lock (only in the
+    runtime/sema.go file), it is not as easy to do lock initialization, so
+    instead, I am passing the lock rank with the lock calls.
+    
+    For Windows compilation, I needed to increase the StackGuard size from
+    896 to 928 because of the new lock-rank checking functions.
+    
+    Checking of the static lock ranking is enabled by setting
+    GOEXPERIMENT=staticlockranking before doing a run.
+    
+    To make sure that the static lock ranking code has no overhead in memory
+    or CPU when not enabled by GOEXPERIMENT, I changed 'go build/install' so
+    that it defines a build tag (with the same name) whenever any experiment
+    has been baked into the toolchain (by checking Expstring()). This allows
+    me to avoid increasing the size of the 'mutex' type when static lock
+    ranking is not enabled.
+    
+    Fixes #38029
+    
+    Change-Id: I154217ff307c47051f8dae9c2a03b53081acd83a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207619
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/load/pkg.go                    |  5 +-
- src/cmd/go/internal/modfetch/fetch.go              | 22 ++++++
- src/cmd/go/internal/modload/import.go              | 68 +++++++++++++++--
- src/cmd/go/internal/modload/load.go                |  2 +
- src/cmd/go/internal/modload/modfile.go             | 14 +++-
- src/cmd/go/internal/modload/query.go               |  9 ++-
- src/cmd/go/internal/modload/search.go              |  3 +-
- .../go/testdata/script/mod_install_pkg_version.txt |  6 +-
- src/cmd/go/testdata/script/mod_load_badchain.txt   | 13 ++++
- .../testdata/script/mod_load_replace_mismatch.txt  |  2 +-
- src/cmd/go/testdata/script/mod_readonly.txt        |  3 +-
- src/cmd/go/testdata/script/mod_sum_readonly.txt    | 87 ++++++++++++++++++++++
- src/cmd/go/testdata/script/mod_sumdb.txt           |  2 +-
- src/cmd/go/testdata/script/sum_readonly.txt        | 29 --------
- 14 files changed, 216 insertions(+), 49 deletions(-)
+ src/cmd/internal/objabi/stack.go |   2 +-
+ src/cmd/internal/objabi/util.go  |   8 +-
+ src/runtime/chan.go              |   1 +
+ src/runtime/export_test.go       |   1 +
+ src/runtime/iface.go             |   1 +
+ src/runtime/lock_futex.go        |   8 ++
+ src/runtime/lock_js.go           |   8 ++
+ src/runtime/lock_sema.go         |  10 +-
+ src/runtime/lockrank.go          | 234 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/lockrank_off.go      |  26 +++++
+ src/runtime/lockrank_on.go       | 160 ++++++++++++++++++++++++++
+ src/runtime/malloc.go            |   3 +
+ src/runtime/mcentral.go          |   1 +
+ src/runtime/mgc.go               |   3 +
+ src/runtime/mgcscavenge.go       |   1 +
+ src/runtime/mgcsweep.go          |   1 +
+ src/runtime/mgcwork.go           |   8 ++
+ src/runtime/mheap.go             |   5 +
+ src/runtime/netpoll.go           |   2 +
+ src/runtime/proc.go              |  17 +++
+ src/runtime/runtime2.go          |  13 +++
+ src/runtime/rwmutex.go           |  10 +-
+ src/runtime/sema.go              |  10 +-
+ src/runtime/stack.go             |   7 +-
+ src/runtime/trace.go             |   1 +
+ src/sync/runtime.go              |  10 --
+ src/sync/runtime2.go             |  15 +++
+ src/sync/runtime2_lockrank.go    |  18 +++
+ test/nosplit.go                  |   6 +-
+ 29 files changed, 561 insertions(+), 29 deletions(-)

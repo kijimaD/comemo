@@ -1,0 +1,87 @@
+commit fc5073bc155545dde4856cccdfcbb31880d1eb66
+Author: David Chase <drchase@google.com>
+Date:   Tue Jul 23 11:43:23 2024 -0400
+
+    runtime,internal: move runtime/internal/sys to internal/runtime/sys
+    
+    Cleanup and friction reduction
+    
+    For #65355.
+    
+    Change-Id: Ia14c9dc584a529a35b97801dd3e95b9acc99a511
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600436
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ .gitignore                                         |  2 +-
+ src/cmd/compile/internal/noder/helpers.go          |  4 ++--
+ src/cmd/compile/internal/ssagen/ssa.go             | 26 +++++++++++-----------
+ src/cmd/compile/internal/test/inl_test.go          |  8 +++----
+ src/cmd/compile/internal/types/pkg.go              |  2 +-
+ src/cmd/compile/internal/types/type.go             |  2 +-
+ src/cmd/dist/build.go                              |  4 ++--
+ src/cmd/distpack/pack.go                           |  2 +-
+ src/cmd/distpack/test.go                           |  2 +-
+ src/cmd/go/go_test.go                              |  6 ++---
+ src/cmd/internal/objabi/pkgspecial.go              |  2 +-
+ src/cmd/internal/objabi/stack.go                   |  2 +-
+ src/go/build/deps_test.go                          |  2 +-
+ src/internal/coverage/pkid.go                      |  4 ++--
+ .../internal => internal/runtime}/sys/consts.go    |  0
+ .../runtime}/sys/consts_norace.go                  |  0
+ .../runtime}/sys/consts_race.go                    |  0
+ .../runtime}/sys/intrinsics.go                     |  0
+ .../runtime}/sys/intrinsics_test.go                |  2 +-
+ .../internal => internal/runtime}/sys/nih.go       |  0
+ .../internal => internal/runtime}/sys/sys.go       |  0
+ src/reflect/deepequal.go                           |  2 +-
+ src/runtime/HACKING.md                             |  2 +-
+ src/runtime/arena.go                               |  2 +-
+ src/runtime/cgo/cgo.go                             |  2 +-
+ src/runtime/cgocall.go                             |  2 +-
+ src/runtime/cpuprof.go                             |  2 +-
+ src/runtime/debuglog.go                            |  2 +-
+ src/runtime/export_test.go                         |  2 +-
+ src/runtime/histogram.go                           |  2 +-
+ src/runtime/iface.go                               |  2 +-
+ src/runtime/malloc.go                              |  6 ++---
+ src/runtime/mbitmap.go                             |  2 +-
+ src/runtime/mcache.go                              |  2 +-
+ src/runtime/mcentral.go                            |  2 +-
+ src/runtime/mcheckmark.go                          |  2 +-
+ src/runtime/mfinal.go                              |  2 +-
+ src/runtime/mfixalloc.go                           |  4 ++--
+ src/runtime/mgcmark.go                             |  2 +-
+ src/runtime/mgcscavenge.go                         |  2 +-
+ src/runtime/mgcstack.go                            |  2 +-
+ src/runtime/mgcwork.go                             |  2 +-
+ src/runtime/mheap.go                               |  2 +-
+ src/runtime/mpagecache.go                          |  2 +-
+ src/runtime/mpallocbits.go                         |  2 +-
+ src/runtime/mprof.go                               |  2 +-
+ src/runtime/netpoll.go                             |  4 ++--
+ src/runtime/panic.go                               |  2 +-
+ src/runtime/proc.go                                |  2 +-
+ src/runtime/runtime2.go                            |  2 +-
+ src/runtime/signal_arm64.go                        |  2 +-
+ src/runtime/signal_linux_s390x.go                  |  2 +-
+ src/runtime/signal_mipsx.go                        |  2 +-
+ src/runtime/signal_ppc64x.go                       |  2 +-
+ src/runtime/signal_unix.go                         |  2 +-
+ src/runtime/signal_windows.go                      |  2 +-
+ src/runtime/slice.go                               |  4 ++--
+ src/runtime/stack.go                               |  2 +-
+ src/runtime/stkframe.go                            |  2 +-
+ src/runtime/symtab.go                              |  2 +-
+ src/runtime/symtabinl_test.go                      |  2 +-
+ src/runtime/sys_wasm.go                            |  2 +-
+ src/runtime/time.go                                |  2 +-
+ src/runtime/traceallocfree.go                      |  2 +-
+ src/runtime/traceback.go                           |  2 +-
+ src/runtime/tracebuf.go                            |  2 +-
+ src/runtime/traceevent.go                          |  2 +-
+ src/runtime/tracemap.go                            |  2 +-
+ src/runtime/traceregion.go                         |  2 +-
+ test/intrinsic.dir/main.go                         |  2 +-
+ 70 files changed, 89 insertions(+), 89 deletions(-)

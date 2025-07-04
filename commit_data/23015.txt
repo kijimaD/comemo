@@ -1,19 +1,24 @@
-commit 94934f843ee8b0a4a09dc336d4e2b57601b34206
+commit 6e221a90382c85d2160f27721ecc121e860d254f
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun May 10 20:22:32 2015 -0400
+Date:   Fri Apr 17 15:20:27 2015 -0400
 
-    runtime: rewrite addb/subtractb to be simpler to compile; introduce add1, subtract1
+    cmd/dist: run commands in $GOROOT/src not $GOROOT when possible
     
-    This reduces the depth of the inlining at a particular call site.
-    The inliner introduces many temporary variables, and the compiler can do
-    a better job with fewer. Being verbose in the bodies of these helper functions
-    seems like a reasonable tradeoff: the uses are still just as readable, and
-    they run faster in some important cases.
+    The go command prints paths in errors relative to its current directory.
+    Since all.bash and run.bash are run in $GOROOT/src, prefer to run
+    the go command, so that the relative paths are correct.
     
-    Change-Id: I5323976ed3704d0acd18fb31176cfbf5ba23a89c
-    Reviewed-on: https://go-review.googlesource.com/9883
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Before this CL, running all.bash in $GOROOT/src:
+    
+            ##### Testing race detector
+            # net/http
+            src/net/http/transport.go:1257: cannot take the address of <node EFACE>
+    
+    This is wrong (or at least less useful) because there is no $GOROOT/src/src/net/http directory.
+    
+    Change-Id: I0c0d52c22830d79b3715f51a6329a3d33de52a72
+    Reviewed-on: https://go-review.googlesource.com/9157
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mbitmap.go | 66 ++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 45 insertions(+), 21 deletions(-)
+ src/cmd/dist/test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,23 +1,25 @@
-commit 29bc4f12581d836a96139c924f16a4987324edd1
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Sun Oct 28 01:44:09 2018 +0700
+commit a5248acd91dcf0e90a68c1ff88ca389dc034557c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Oct 12 16:48:38 2018 +0200
 
-    encoding/json: add Path to UnmarshalTypeError
+    internal/cpu: enable support for GODEBUGCPU in non-experimental builds
     
-    When parsing nested object, UnmarshalTypeError does not contain actual
-    path to nested field in original JSON.
+    Enabling GODEBUGCPU without the need to set GOEXPERIMENT=debugcpu  enables
+    trybots and builders to run tests for GODEBUGCPU features in upcoming CLs
+    that will implement the new syntax and features for non-experimental
+    GODEBUGCPU support from proposal golang.org/issue/27218.
     
-    This commit change Field to contain the full path to that field. One
-    can get the Field name by stripping all the leading path elements.
+    Updates #27218
     
-    Fixes #22369
-    
-    Change-Id: I6969cc08abe8387a351e3fb2944adfaa0dccad2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/145218
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Icc69e51e736711a86b02b46bd441ffc28423beba
+    Reviewed-on: https://go-review.googlesource.com/c/141817
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/json/decode.go      |  8 ++++++--
- src/encoding/json/decode_test.go | 24 ++++++++++++++++++++++--
- 2 files changed, 28 insertions(+), 4 deletions(-)
+ src/cmd/internal/objabi/util.go  | 2 --
+ src/internal/cpu/cpu.go          | 6 ++----
+ src/internal/cpu/cpu_test.go     | 8 ++++----
+ src/internal/cpu/cpu_x86_test.go | 2 +-
+ src/runtime/proc.go              | 4 ++--
+ 5 files changed, 9 insertions(+), 13 deletions(-)

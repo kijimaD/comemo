@@ -1,17 +1,17 @@
-commit 40d1ec588f492f63637b59e933d6c682d66659a4
+commit 68305f3fec312481742120cc59402eb51c631932
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 24 22:02:50 2020 -0400
+Date:   Sun Apr 12 12:52:16 2020 -0400
 
-    cmd/dist: use GOOS=ios for iOS simulator test
+    [dev.link] cmd/link: remove symbol.FuncInfo
     
-    Updates #42100.
+    It is no longer used. The only remaining use is in generating
+    Plan 9 debug info, which is already not supported.
     
-    Change-Id: Ib59432bea99a9dd6e25fbd759b31e423dc250f42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265197
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia023d6f2fa7d57b97ba861ce464e2eec8ac2d1f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228142
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/dist/test.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/lib.go          | 11 -----------
+ src/cmd/link/internal/sym/sizeof_test.go |  2 +-
+ src/cmd/link/internal/sym/symbol.go      | 24 ------------------------
+ 3 files changed, 1 insertion(+), 36 deletions(-)

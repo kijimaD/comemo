@@ -1,15 +1,19 @@
-commit 0bfa31e9619d8d372e62446e204600f34ac45f4b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Aug 7 13:19:49 2012 +1000
+commit 0cb04168d3e9f2f30dc8a65b68839546c10a5d45
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Aug 7 10:09:24 2012 +0800
 
-    net/http: disable TestServeFileFromCWD test on windows
+    cmd/5l: dwarf line number support for Linux/ARM
+       Part of issue 3747.
     
-    This is an attempt to fix windows build. Will restore
-    once we know what the problem is.
-    
-    R=golang-dev, bradfitz
+    R=dave, lvd, rsc
     CC=golang-dev
-    https://golang.org/cl/6461046
+    https://golang.org/cl/6084044
 
- src/pkg/net/http/fs_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/5l/asm.c       | 17 ++++++-----------
+ src/cmd/5l/l.h         |  9 +++++++++
+ src/cmd/5l/noop.c      | 31 ++++++-------------------------
+ src/cmd/5l/obj.c       |  2 ++
+ src/cmd/5l/softfloat.c |  1 +
+ src/cmd/5l/span.c      |  8 ++++++++
+ src/cmd/dist/build.c   |  9 +--------
+ 7 files changed, 33 insertions(+), 44 deletions(-)

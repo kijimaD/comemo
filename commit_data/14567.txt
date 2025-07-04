@@ -1,12 +1,12 @@
-commit b46d56ae7215ca1f56f4556f76408bab26a85669
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 5 20:32:12 2012 -0800
+commit 82f2b36e74a3ae7c5f7ca1cd762214e8ccb555b8
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Dec 6 15:17:31 2012 +1100
 
-    test: add some tests where go/defer arg starts with parenthesis
+    vet: be less strict about number of arguments when a ... is present.
     
-    R=gri
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/6890047
+    https://golang.org/cl/6883046
 
- test/fixedbugs/issue4468.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/vet/print.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,42 +1,34 @@
-commit 75ea964b3f6073076e1a86a0de2be9a2f159da24
-Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
-Date:   Tue Feb 18 22:41:20 2020 -0500
+commit e0dde990de11c73ae11b2f1a42de37143c6bfb7c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 13 09:58:35 2019 +0700
 
-    cmd/trace: update to use WebComponents V0 polyfill
+    cmd/compile: remove n.SetLikely(false) usage
     
-    Old trace viewer stopped working with Chrome M80+ because the
-    old trace viewer heavily depended on WebComponents V0 which are deprecated.
-    Trace viewer recently migrated to use WebComponents V0 polyfill
-    (crbug.com/1036492). This CL brings in the newly updated trace_viewer_full.html
-    (sync'd @ 9508452e)
-    and updates the javascript snippet included in the /trace endpoint
-    to use the polyfill.
+    n.SetLikely(false) is probably mean to indicate that the branch is
+    "unlikely", but it has the real effect of not marking branch as likely.
     
-    This brings in webcomponents.min.js copied from
-    https://chromium.googlesource.com/catapult/+/9508452e18f130c98499cb4c4f1e1efaedee8962/third_party/polymer/components/webcomponentsjs/webcomponents.min.js
+    So invert the test condition, we can use more meaningful n.SetLikely(true).
     
-    That is necessary because the /trace endpoint needs to import
-    the vulcanized trace_viewer_full.html.
+    Before:
     
-    It's possible that some features are not working correctly with
-    this polyfill. In that case, report the issue to crbug.com/1036492.
-    There will be a warning message in the UI (yellow banner above the timeline)
-    which can be hidden by clicking the 'hide' button.
+            if l2 < 0 {
+                    panicmakeslicelen()
+            }
     
-    This allows to render the trace in browsers other than chrome in theory,
-    but I observed some buttons and functions still don't work outside
-    chrome.
+    After:
     
-    Fixes #34374.
+            if l2 >= 0 {
+            } else {
+                    panicmakeslicelen
+            }
     
-    Change-Id: Ib575f756f5e6b22ad904ede6e4d224a995ebe259
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219997
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Fixes #32486
+    
+    Change-Id: I156fdba1f9a5d554a178c8903f1a391ed304199d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195197
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/trace/README.md              |   77 +-
- misc/trace/trace_viewer_full.html | 1994 ++++++++++++++++++++++++++-----------
- misc/trace/webcomponents.min.js   |   14 +
- src/cmd/trace/trace.go            |   39 +-
- 4 files changed, 1533 insertions(+), 591 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

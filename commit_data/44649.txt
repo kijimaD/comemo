@@ -1,15 +1,19 @@
-commit 1767d2cc2fed70e4f195474677f72712eaf28c9e
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat Mar 13 18:00:17 2021 +0100
+commit ef9c8a38ad177fa7f48dfaad5d0e27f39a03529d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 7 09:32:12 2020 -0700
 
-    io/fs: use testing.T.TempDir in TestWalkDir
+    cmd/compile: don't rewrite (CMP (AND x y) 0) to TEST if AND has other uses
     
-    Change-Id: I805ad51332e4efe27d47f6c6e3b0af945e0d4aa0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301489
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    If the AND has other uses, we end up saving an argument to the AND
+    in another register, so we can use it for the TEST. No point in doing that.
+    
+    Change-Id: I73444a6aeddd6f55e2328ce04d77c3e6cf4a83e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241280
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/io/fs/walk_test.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  16 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 128 ++++++++++++++++++++-------
+ test/codegen/logic.go                        |  24 +++++
+ 3 files changed, 128 insertions(+), 40 deletions(-)

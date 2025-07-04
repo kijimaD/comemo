@@ -1,26 +1,36 @@
-commit db7d42acac89bbb516194fa4c332cc79e43ec8bb
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Thu Sep 24 00:22:05 2020 +0800
+commit 06314b620d782bf295a07745c7f14b4738e7109a
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 11 13:18:38 2019 -0500
 
-    cmd/link: remove all constants of elf
+    cmd/compile: add explanations to escape-analysis JSON/LSP logging
     
-    Use debug/elf instead.
+    For 1.15.
     
-    Change-Id: Ia6580648b6440e4a352f5c5ed59ac4d1c95e0175
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252478
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    From the test:
+    
+    {"range":{"start":{"line":7,"character":13},"end":{...},"severity":3,"code":"leaks","source":"go compiler","message":"parameter z leaks to ~r2 with derefs=0","relatedInformation":[
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:    flow: y = z:"},
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:      from y = \u003cN\u003e (assign-pair)"},
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:    flow: ~r1 = y:"},
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":4,"character":11},"end":{...}},"message":"inlineLoc"},
+    
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:      from y.b (dot of pointer)"},
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":4,"character":11},"end":{...}},"message":"inlineLoc"},
+    
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:      from \u0026y.b (address-of)"},
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":4,"character":9},"end":...}},"message":"inlineLoc"},
+    
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":13},"end":{...}},"message":"escflow:      from ~r1 = \u003cN\u003e (assign-pair)"},
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":3},"end":...}},"message":"escflow:    flow: ~r2 = ~r1:"},
+            {"location":{"uri":"file://T/file.go","range":{"start":{"line":9,"character":3},"end":...}},"message":"escflow:      from return (*int)(~r1) (return)"}]}
+    
+    Change-Id: Idf02438801f63e487c35a928cf5a0b6d3cc48674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206658
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/amd64/asm.go |    4 +-
- src/cmd/link/internal/arm/asm.go   |    4 +-
- src/cmd/link/internal/arm64/asm.go |    4 +-
- src/cmd/link/internal/ld/elf.go    | 1140 +++++++++++++-----------------------
- src/cmd/link/internal/ld/go.go     |    3 +-
- src/cmd/link/internal/ld/lib.go    |    8 +-
- src/cmd/link/internal/ld/symtab.go |   67 +--
- src/cmd/link/internal/ppc64/asm.go |    6 +-
- src/cmd/link/internal/s390x/asm.go |    2 +-
- src/cmd/link/internal/x86/asm.go   |    4 +-
- 10 files changed, 454 insertions(+), 788 deletions(-)
+ src/cmd/compile/internal/gc/escape.go          | 78 +++++++++++++++++++------
+ src/cmd/compile/internal/logopt/log_opts.go    | 80 +++++++++++++++++++-------
+ src/cmd/compile/internal/logopt/logopt_test.go | 22 ++++++-
+ 3 files changed, 139 insertions(+), 41 deletions(-)

@@ -1,17 +1,19 @@
-commit b07b00565b0d06d521e7c7aee0897a6434157c0f
-Author: jiahua wang <wjh180909@gmail.com>
-Date:   Sat Apr 8 20:42:26 2023 +0800
+commit 5f2fdbe7ed58bc98b60521bde2f3fcdc4af20826
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue May 17 18:58:45 2022 -0400
 
-    maps: replace slicesEqual with slices.Equal
+    all: tidy std module
     
-    Change-Id: I15aeef9c6d3ddc80644a14d6266d21a8515ede4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483156
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run go mod tidy to remove go.sum lines that are unused as of CL 406914.
+    (This was spotted by the cmd/internal/moddeps.TestAllDependencies test.)
+    
+    Change-Id: Ib0263465cd9559d793086e4d9322ea2c251a624a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406897
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/maps/maps_test.go | 22 +++++-----------------
- 1 file changed, 5 insertions(+), 17 deletions(-)
+ src/go.sum | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,19 +1,12 @@
-commit c8915a0696ddb53399e9c7ebae1cd1158f271756
-Author: Shengyu Zhang <shengyu.zhang@chaitin.com>
-Date:   Tue May 8 03:47:50 2018 +0000
+commit 104445e3140f4468839db49a25cb0182f7923174
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 7 14:10:48 2018 -0500
 
-    text/scanner: return RawString token rather than String for raw string literals
+    doc: document Go 1.9.4 and Go 1.8.7
     
-    Fixes #23675
-    
-    Change-Id: I78e13d1ca90400e4dd48674b93bb6e2e30718d97
-    GitHub-Last-Rev: f2b3a59d2bd92f28fc06360e7920c37b9da0af01
-    GitHub-Pull-Request: golang/go#25287
-    Reviewed-on: https://go-review.googlesource.com/112037
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I50928e7747f43858fc863b53cfb5b63e208d6932
+    Reviewed-on: https://team-review.git.corp.google.com/213447
+    Reviewed-by: Andrew Bonventre <andybons@google.com>
 
- src/text/scanner/scanner.go      |  2 +-
- src/text/scanner/scanner_test.go | 16 ++++++++--------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ doc/devel/release.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

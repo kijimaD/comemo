@@ -1,15 +1,20 @@
-commit 373dbcb37af7b8966fc6f3818701c9ca3e8693da
+commit 53390c8fc7b27bf1a14c709feae802c410ea2ae2
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Oct 7 22:08:06 2012 +0400
+Date:   Sun Oct 7 22:07:03 2012 +0400
 
-    io/ioutil: fix data race under the race detector
-    See issue 3970 (it's already marked as Fixed).
+    race: sync changes
+    This is a part of a bigger change that adds data race detection feature:
+    https://golang.org/cl/6456044
     
     R=rsc, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/6624059
+    CC=gobot, golang-dev
+    https://golang.org/cl/6529053
 
- src/pkg/io/ioutil/blackhole.go      | 13 +++++++++++++
- src/pkg/io/ioutil/blackhole_race.go | 13 +++++++++++++
- src/pkg/io/ioutil/ioutil.go         |  5 ++---
- 3 files changed, 28 insertions(+), 3 deletions(-)
+ src/pkg/go/build/deps_test.go |  2 +-
+ src/pkg/sync/cond.go          | 18 ++++++++++++++++++
+ src/pkg/sync/mutex.go         | 16 +++++++++++++++-
+ src/pkg/sync/race.go          | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/sync/race0.go         | 28 ++++++++++++++++++++++++++++
+ src/pkg/sync/rwmutex.go       | 36 +++++++++++++++++++++++++++++++++++-
+ src/pkg/sync/waitgroup.go     | 29 ++++++++++++++++++++++++++++-
+ 7 files changed, 159 insertions(+), 4 deletions(-)

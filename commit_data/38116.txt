@@ -1,19 +1,19 @@
-commit 2c86713303ba0aac0bf112e2f44f04d5fcd4bf42
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 20 13:52:23 2019 -0500
+commit c91ce3cc7b13fce23edae94818e505f126036bdb
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Sep 13 13:26:46 2018 -0700
 
-    cmd/go: expand tests for standard-library vendoring in GOPATH mode
+    test: stress test for stack objects
     
-    This should help to catch any regressions in the course of implementing #26924.
+    Allocate a long linked list on the stack. This tests both
+    lots of live stack objects, and lots of intra-stack pointers
+    to those objects.
     
-    Updates #26924
-    
-    Change-Id: Ide28a9aa0235867e0ce72f855fbed51c50e2c2f2
-    Reviewed-on: https://go-review.googlesource.com/c/163520
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I169e067416455737774851633b1e5367e10e1cf2
+    Reviewed-on: https://go-review.googlesource.com/c/135296
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/testdata/script/list_std.txt   | 17 ++++++++++++++---
- src/cmd/go/testdata/script/std_vendor.txt | 24 ++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 3 deletions(-)
+ test/stackobj2.go | 83 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 83 insertions(+)

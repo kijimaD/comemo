@@ -1,28 +1,20 @@
-commit b6e83f35daaa8ce0dfae3e5f93c78d0cb344a2b0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 20 10:44:06 2023 -0400
+commit ed24b37fd2b0c242525eb2203d90627c4be1b149
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 26 13:38:07 2022 -0700
 
-    net/http: eliminate a goroutine leak in (*persistConn.addTLS)
+    runtime: add missing closing curly brace in runtime corruption error message
     
-    In case of a handshake timeout, the goroutine running addTLS
-    closes the underlying connection, which should unblock the call
-    to tlsConn.HandshakeContext. However, it didn't then wait for
-    HandshakeContext to actually return.
+    (Fixing the most important part of this bug.)
     
-    I thought this might have something to do with #57602, but as
-    far as I can tell it does not. Still, it seems best to avoid the leak:
-    if tracing is enabled we emit a TLSHandshakeDone event, and it seems
-    misleading to produce that event when the handshake is still in
-    progress.
+    Updates #56426
     
-    For #57602.
-    
-    Change-Id: Ibfc0cf4ef8df2ccf11d8897f23d7d79ee482d5fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529755
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Commit-Queue: Bryan Mills <bcmills@google.com>
+    Change-Id: If657ae47a5fe7dacc31d2c487e53e9f2dd5d03bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445695
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/net/http/transport.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/os_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

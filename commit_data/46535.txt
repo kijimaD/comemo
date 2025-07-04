@@ -1,27 +1,35 @@
-commit 48cf96c256ff1ec68fd9f9daa59900352d916730
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Sep 20 15:34:09 2021 -0700
+commit 6598c65646dbb740a6668ffdaffec5627efc95e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 11:24:26 2021 -0500
 
-    cmd/compile: don't create or instantiate methods on shape types
+    cmd/compile: fix exponential-time init-cycle reporting
     
-    We should never use or need methods on non-interface shape types. We do
-    have corresponding functions instantiated with the appropriate
-    shape types that take the dictionary and the shape-based receiver as the
-    first two arguments. Each such function has the same name as what the
-    corresponding method would be, so it's best not to create the methods
-    (which would create confusion for import/export). This fixes issue
-    48414, which happened because of the confusion between these two
-    functions/methods.
+    I have a real 7,000-line Go program (not so big)
+    that took over two minutes to report a trivial init cycle.
+    I thought the compiler was in an infinite loop but
+    it was actually just very slow.
     
-    Fixes #48414
+    CL 170062 rewrote init cycle reporting but replaced
+    a linear-time algorithm with an exponential one:
+    it explores all paths through the call graph of functions
+    involved in the cycle.
     
-    Change-Id: I401fbdad791bdb5792617449cad68aa8df1d9911
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351114
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    The net effect was that  Go 1.12 took 0.25 seconds to load,
+    typecheck, and then diagnose the cycle in my program,
+    while Go 1.13 takes 600X longer.
+    
+    This CL makes the new reporting code run in linear time,
+    restoring the speed of Go 1.12 but preserving the semantic
+    fixes from CL 170062.
+    
+    Change-Id: I7d6dc95676d577d9b96f5953b516a64db93249bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282314
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/reflectdata/reflect.go |  7 +++++++
- src/cmd/compile/internal/typecheck/iimport.go   | 10 ++++++++--
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/initorder.go | 19 ++++++++++-------
+ test/initexp.go                          | 36 ++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 8 deletions(-)

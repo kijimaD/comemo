@@ -1,38 +1,29 @@
-commit 133c0e9011b8c0e13442cdb754d7f6a8ac54ce00
-Author: Amarjeet Anand <amarjeetanandsingh@gmail.com>
-Date:   Sun Aug 7 23:49:19 2022 +0530
+commit 5b48fca1fad44d22105f64be725514020432a2c1
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Fri Sep 3 15:04:52 2021 +0200
 
-    time: optimize Format for RFC3339 and RFC3339Nano
+    cmd/compile: mark wrapper functions with DW_AT_trampoline
     
-    Optimise Format for the most frequently used RFC3339
-    and RFC3339Nano layouts by avoiding parsing of layout.
+    Change DWARF generation to tag wrapper functions with the
+    "DW_AT_trampoline attribute". The intent is that debuggers can pick up
+    on this attr so as to skip through the wrapper to the eventual target.
     
-    > benchstat oldBench.txt newBench.txt
-    name                 old time/op    new time/op    delta
-    FormatRFC3339-8         302ns ± 1%     203ns ± 0%  -32.89%  (p=0.016 n=5+4)
-    FormatRFC3339Nano-8     337ns ± 1%     219ns ± 1%  -34.91%  (p=0.008 n=5+5)
+    DWARF standard allows for a couple of different possible variants of
+    the trampoline attr; this is the simplest variant (all it tells the
+    debugger is that the function is a wrapper, doesn't include a
+    reference to the wrapper routine).
     
-    name                 old alloc/op   new alloc/op   delta
-    FormatRFC3339-8         32.0B ± 0%     32.0B ± 0%     ~     (all equal)
-    FormatRFC3339Nano-8     32.0B ± 0%     32.0B ± 0%     ~     (all equal)
+    This implementation keys off the WRAPPER LSym attribute, which is set
+    for method wrappers, ABI wrappers, and a selected set of runtime
+    assembly routines (ex: "runtime.call32").
     
-    name                 old allocs/op  new allocs/op  delta
-    FormatRFC3339-8          1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    FormatRFC3339Nano-8      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
-    
-    Fixes #54093
-    
-    Change-Id: Ifc84fce6078e24514ecbcd234875bca4aaab5e0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421877
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib53e1bc56c02b86ca3ac5e7da1a541ec262726cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347352
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jeremy Faller <jeremy@golang.org>
 
- src/time/format.go    | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/time/time_test.go | 14 ++++++++++++++
- 2 files changed, 65 insertions(+)
+ src/cmd/internal/dwarf/dwarf.go | 61 ++++++++++++++++++++++++++++++++++-------
+ src/cmd/internal/obj/dwarf.go   |  4 +--
+ 2 files changed, 53 insertions(+), 12 deletions(-)

@@ -1,14 +1,13 @@
-commit 7983ab9d1a4ff79e86b6e38a8cd8b43230fd3370
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Jun 29 12:27:53 2011 -0700
+commit 45f956ab8290d572d2570bd53e565b9c09419a0e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 29 11:46:06 2011 -0700
 
-    http: make NewChunkedReader public
+    C+A: add Andy Balholm
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4634112
+    https://golang.org/cl/4630080
 
- src/pkg/http/chunked.go  | 11 +++++++++++
- src/pkg/http/request.go  |  4 ----
- src/pkg/http/transfer.go |  2 +-
- 3 files changed, 12 insertions(+), 5 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

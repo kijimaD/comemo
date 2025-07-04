@@ -1,29 +1,30 @@
-commit 19ca2337c57a944ccce7298f7c9b71c95408a987
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Jul 12 16:13:39 2023 -0400
+commit e0d01b8467b5cb9e68758932f50c3187374011ba
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Aug 12 23:25:56 2022 +0000
 
-    cmd/compile/internal/inline: build call site table
+    arena: add experimental arena package
     
-    Build up a table of (potentially) inlinable call sites during inline
-    heuristic analysis, and introduce a framework for analyzing each call
-    site to collect applicable flags (for example, is call nested in
-    loop). This patch doesn't include any of the flag analysis, just the
-    machinery to collect the callsites and a regression test harness.
+    This change adds the arenas package and a function to reflect for
+    allocating from an arena via reflection, but all the new API is placed
+    behind a GOEXPERIMENT.
     
-    Updates #61502.
+    For #51317.
     
-    Change-Id: Ieaf4a008ac9868e9762c63f5b59bd264dc71ab30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511564
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I026d46294e26ab386d74625108c19a0024fbcedc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423361
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/inline/inlheur/analyze.go |  35 +++--
- .../inline/inlheur/analyze_func_callsites.go       | 154 +++++++++++++++++++++
- .../compile/internal/inline/inlheur/callsite.go    | 115 +++++++++++++++
- .../internal/inline/inlheur/cspropbits_string.go   |  56 ++++++++
- .../internal/inline/inlheur/funcprops_test.go      | 103 ++++++++++----
- .../inline/inlheur/testdata/props/acrosscall.go    |  51 +++++--
- .../inline/inlheur/testdata/props/funcflags.go     |  65 ++++++---
- .../inline/inlheur/testdata/props/params.go        |  69 ++++++---
- .../inline/inlheur/testdata/props/returns.go       |  75 ++++++----
- 9 files changed, 609 insertions(+), 114 deletions(-)
+ src/arena/arena.go                          | 108 ++++++++++++++++++++
+ src/arena/arena_test.go                     |  42 ++++++++
+ src/go/build/deps_test.go                   |   5 +-
+ src/internal/goexperiment/exp_arenas_off.go |   9 ++
+ src/internal/goexperiment/exp_arenas_on.go  |   9 ++
+ src/internal/goexperiment/flags.go          |   4 +
+ src/reflect/arena.go                        |  18 ++++
+ src/runtime/arena.go                        |  96 ++++++++++++++++++
+ src/runtime/arena_test.go                   | 152 ++++++++++++++++++++++++++++
+ src/runtime/export_test.go                  |   4 +
+ src/runtime/mfinal.go                       |   5 +
+ 11 files changed, 451 insertions(+), 1 deletion(-)

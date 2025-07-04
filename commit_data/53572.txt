@@ -1,33 +1,18 @@
-commit 1a7709d6af76c06d465c5e969b502fc206f8e687
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jun 15 18:16:51 2023 -0400
+commit 0f42e35feeef606977859039b876773ae5fb4de9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 15 17:25:12 2022 -0700
 
-    runtime: use 1-byte load for address checking in racecallatomic
+    encoding/json: rely on utf8.AppendRune
     
-    In racecallatomic, we do a load before calling into TSAN, so if
-    the address is invalid we fault on the Go stack. We currently use
-    a 8-byte load instruction, regardless of the data size that the
-    atomic operation is performed on. So if, say, we are doing a
-    LoadUint32 at an address that is the last 4 bytes of a memory
-    mapping, we may fault unexpectedly. Do a 1-byte load instead.
-    (Ideally we should do a load with the right size, so we fault
-    correctly if we're given an unaligned address for a wide load
-    across a page boundary. Leave that for another CL.)
-    
-    Fix AMD64, ARM64, and PPC64. The code already uses 1-byte load
-    on S390X.
-    
-    Should fix #60825.
-    
-    Change-Id: I3dee93eb08ba180c85e86a9d2e71b5b520e8dcf0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503937
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I50e5609ff9c5f2b216b93cec7fb5214d196cae90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412537
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/race/race_linux_test.go | 28 ++++++++++++++++++++++++++++
- src/runtime/race_amd64.s            |  2 +-
- src/runtime/race_arm64.s            |  2 +-
- src/runtime/race_ppc64le.s          |  2 +-
- 4 files changed, 31 insertions(+), 3 deletions(-)
+ src/encoding/json/fold_test.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

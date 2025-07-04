@@ -1,16 +1,21 @@
-commit 5d1c60118deb4f7839f56f87ec101401f370192c
+commit 9491e7d65e09644eb7db4e2ed5ff0139571cedf3
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 29 05:57:18 2016 +0000
+Date:   Fri Sep 30 10:40:58 2016 -0700
 
-    doc: more go1.8.html updates
+    net/http: refactor testing of Request.Body on 0 ContentLength
     
-    TBR=See https://golang.org/cl/33244
+    Code movement only, to look more like the equivalent http2 code, and
+    to make an upcoming fix look more obvious.
     
-    Updates #17929
+    Updates #16002 (to be fixed once this code is in)
     
-    Change-Id: I648df63aeb67aa2229c7b4fc23676a78b31140a0
-    Reviewed-on: https://go-review.googlesource.com/33657
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iaa4f965be14e98f9996e7c4624afe6e19bed1a80
+    Reviewed-on: https://go-review.googlesource.com/30087
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- doc/go1.8.html | 71 +++++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 51 insertions(+), 20 deletions(-)
+ src/net/http/request.go  | 39 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go | 34 +++++++---------------------------
+ 2 files changed, 46 insertions(+), 27 deletions(-)

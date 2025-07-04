@@ -1,16 +1,17 @@
-commit f0eca373beb94763b71dadcf6504a95a3797dcbb
-Author: Hana Kim <hakim@google.com>
-Date:   Thu Mar 15 11:28:07 2018 -0400
+commit 2a668e2467ddea57e8a1ab2859cfd49e6ab2dd40
+Author: Sina Siadat <siadat@gmail.com>
+Date:   Tue Oct 17 13:50:26 2017 +0330
 
-    cmd/trace: add /userspans, /userspan pages
+    net/http: simplify ctx.Err() call in test
     
-    Change-Id: Ifbefb659a8df3b079d69679871af444b179deaeb
-    Reviewed-on: https://go-review.googlesource.com/102599
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    See CL 40291. ctx.Err() is defined to only return non-nil exactly
+    when ctx.Done() returns a closed channel.
+    
+    Change-Id: I12f51d8c42228f759273319b3ccc28012cb9fc73
+    Reviewed-on: https://go-review.googlesource.com/71310
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/trace/annotations.go | 243 +++++++++++++++++++++++++++++++++++++++++--
- src/cmd/trace/main.go        |   1 +
- src/cmd/trace/trace.go       |   8 +-
- 3 files changed, 240 insertions(+), 12 deletions(-)
+ src/net/http/serve_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

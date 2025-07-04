@@ -1,14 +1,12 @@
-commit 548591b77d115a557e8e6351b78b96831002b306
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 22 22:33:45 2012 -0800
+commit b05e3f11b16c2961a0f0492440f3eeca3c2fa2ce
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 23 16:59:11 2012 +1100
 
-    go cmd: print more than one error when running go test
+    tag weekly.2012-02-22
     
-    Fixes #3055.
-    
-    R=rsc, r
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5683079
+    https://golang.org/cl/5699044
 
- src/cmd/go/test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

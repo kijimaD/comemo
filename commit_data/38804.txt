@@ -1,27 +1,21 @@
-commit b5946ed48d75332ba95962a181a28bb6b203459f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 17 15:40:46 2019 -0700
+commit 4f15b54780af7159732794f9d67c9a8a455bbf61
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Nov 28 12:41:23 2018 -0800
 
-    test: fix escape_runtime_atomic.go
+    cmd/compile: ensure S390X moves don't overflow int32
     
-    Casp1 is implemented in Go on js/wasm, so escape analysis correctly
-    determines that the "old" parameter does not escape (which is good).
+    Break ADDconst into ADD + MOVDconst, so that if the constant
+    is too big it won't overflow ADDconst's constant field.
     
-    Unfortunately, test/run.go doesn't have a way to indicate that ERROR
-    messages are optional, and cmd/compile only emits diagnostics for "var
-    x int" when it's moved to the heap; not when it stays on the stack.
+    For normal sizes, other rules will recombine into an ADDconst.
     
-    To accomodate that this test currently passes on some GOARCHes but not
-    others, rewrite the Casp1 test to use "x := new(int)" and allow both
-    "new(int) escapes to heap" or "new(int) does not escape".
+    Fixes S390X breakage from CL 33909.
     
-    Updates #31525.
-    
-    Change-Id: I40150a7ff9042f184386ccdb2d4d428f63e8ba4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172602
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id804ee052365527efb580f797688b0ce83c47915
+    Reviewed-on: https://go-review.googlesource.com/c/151597
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
 
- test/escape_runtime_atomic.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 8 +++++---
+ 2 files changed, 6 insertions(+), 4 deletions(-)

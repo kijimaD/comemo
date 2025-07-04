@@ -1,17 +1,53 @@
-commit 6001c043dc067b7f6b9a2e934439b6a7948f92ef
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 15 18:41:41 2022 -0700
+commit 8cfd8c3db8e32fed0cf61371335d87a47a4738c3
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Aug 13 08:58:40 2021 -0700
 
-    test: add test that caused gccgo crash
+    runtime: profile with per-thread timers on Linux
     
-    For #23870
+    Using setitimer on Linux to request SIGPROF signal deliveries in
+    proportion to the process's on-CPU time results in under-reporting when
+    the program uses several goroutines in parallel. Linux calculates the
+    process's total CPU spend on a regular basis (often every 4ms); if the
+    process has spent enough CPU time since the last calculation to warrant
+    more than one SIGPROF (usually 10ms for the default sample rate of 100
+    Hz), the kernel is often able to deliver only one of them. With these
+    common settings, that results in Go CPU profiles being attenuated for
+    programs that use more than 2.5 goroutines in parallel.
     
-    Change-Id: I3bbe0f751254d1354a59a88b45e6f944c7a2fb4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417874
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    To avoid in effect overflowing the kernel's process-wide CPU counter,
+    and relying on Linux's typical behavior of having the active thread
+    handle the resulting process-targeted signal, use timer_create to
+    request a timer for each OS thread that the Go runtime manages. Have
+    each timer track the CPU time of a single thread, with the resulting
+    SIGPROF going directly to that thread.
+    
+    To continue tracking CPU time spent on threads that don't interact with
+    the Go runtime (such as those created and used in cgo), keep using
+    setitimer in addition to the new mechanism. When a SIGPROF signal
+    arrives, check whether it's due to setitimer or timer_create and filter
+    as appropriate: If the thread is known to Go (has an M) and has a
+    timer_create timer, ignore SIGPROF signals from setitimer. If the thread
+    is not known to Go (does not have an M), ignore SIGPROF signals that are
+    not from setitimer.
+    
+    Counteract the new bias that per-thread profiling adds against
+    short-lived threads (or those that are only active on occasion for a
+    short time, such as garbage collection workers on mostly-idle systems)
+    by configuring the timers' initial trigger to be from a uniform random
+    distribution between "immediate trigger" and the full requested sample
+    period.
+    
+    Updates #35057
+    
+    Change-Id: Iab753c4e5101bdc09ef9132eec84a75478e05579
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324129
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- test/fixedbugs/issue23870.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/runtime/cgocall.go           |   7 ++
+ src/runtime/os_linux.go          | 147 ++++++++++++++++++++++++++++++++++++---
+ src/runtime/pprof/pprof_test.go  | 101 +++++++++++++++++++++++++++
+ src/runtime/pprof/rusage_test.go |  40 +++++++++++
+ 4 files changed, 286 insertions(+), 9 deletions(-)

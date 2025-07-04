@@ -1,22 +1,42 @@
-commit 2808f1f41583ef9943b1d7426d7affa6cfc998ba
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 4 16:04:11 2016 -0700
+commit 802cb5927f1e163749331c9f6cfb414cb0c753b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 13 18:51:16 2016 +0000
 
-    Revert "go/ast, go/parser: parse alias declarations"
+    net/http: update bundled x/net/http2
     
-    This reverts commit 57ae83307fc4cb90338b39dcc6fe3c61ee8ce0b7.
+    Updates x/net/http2 (and x/net/lex/httplex) to git rev 749a502 for:
     
-    Reason: Decision to back out current alias implementation.
+       http2: don't sniff first Request.Body byte in Transport until we have a conn
+       https://golang.org/cl/29074
+       Fixes #17071
     
-    For #16339.
+       http2: add Transport support for unicode domain names
+       https://golang.org/cl/29071
+       Updates #13835
     
-    Change-Id: I7bcc04ac87ea3590999e58ff65a7f2e1e6c6bc77
-    Reviewed-on: https://go-review.googlesource.com/32823
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+       http2: don't send bogus :path pseudo headers if Request.URL.Opaque is set
+       https://golang.org/cl/27632
+         +
+       http2: fix bug where '*' as a valid :path value in Transport
+       https://golang.org/cl/29070
+       Updates #16847
+    
+       http2: fix all vet warnings
+       https://golang.org/cl/28344
+       Updates #16228
+       Updates #11041
+    
+    Also uses the new -underscore flag to x/tools/cmd/bundle from
+    https://golang.org/cl/29086
+    
+    Change-Id: Ica0f6bf6e33266237e37527a166a783d78c059c4
+    Reviewed-on: https://go-review.googlesource.com/29110
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/go/ast/ast.go           | 28 +++++----------
- src/go/ast/filter.go        |  4 ---
- src/go/ast/walk.go          | 10 ------
- src/go/parser/parser.go     | 84 +++++++++++++--------------------------------
- src/go/parser/short_test.go |  2 --
- 5 files changed, 32 insertions(+), 96 deletions(-)
+ src/go/build/deps_test.go                          |  1 +
+ src/net/http/h2_bundle.go                          | 64 ++++++++++++++++++----
+ src/vendor/golang_org/x/net/lex/httplex/httplex.go | 39 +++++++++++++
+ .../golang_org/x/net/lex/httplex/httplex_test.go   | 18 ++++++
+ 4 files changed, 110 insertions(+), 12 deletions(-)

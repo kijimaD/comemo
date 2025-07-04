@@ -1,31 +1,18 @@
-commit 39214275d6dd89f91ee2b5162698777a97cd6e72
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 6 18:06:09 2016 -0800
+commit c052222b3467ca031b267f25f3dcc4b871485793
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 19:25:51 2015 +0000
 
-    cmd/compile: cache const nil, iface, slice, and ""
+    net/http: don't accept invalid bytes in server request headers
     
-    name      old time/op    new time/op    delta
-    Template     441ms ± 4%     446ms ± 4%  +1.23%  (p=0.048 n=22+25)
-    GoTypes      1.51s ± 2%     1.51s ± 2%    ~     (p=0.224 n=25+25)
-    Compiler     5.59s ± 1%     5.57s ± 2%  -0.38%  (p=0.019 n=24+24)
+    Fixes #11207
     
-    name      old alloc/op   new alloc/op   delta
-    Template    85.6MB ± 0%    85.6MB ± 0%  -0.11%  (p=0.000 n=25+24)
-    GoTypes      307MB ± 0%     305MB ± 0%  -0.45%  (p=0.000 n=25+25)
-    Compiler    1.06GB ± 0%    1.06GB ± 0%  -0.34%  (p=0.000 n=25+25)
-    
-    name      old allocs/op  new allocs/op  delta
-    Template     1.10M ± 0%     1.10M ± 0%  -0.03%  (p=0.001 n=25+24)
-    GoTypes      3.36M ± 0%     3.35M ± 0%  -0.13%  (p=0.000 n=25+25)
-    Compiler     13.0M ± 0%     13.0M ± 0%  -0.12%  (p=0.000 n=25+24)
-    
-    Change-Id: I7fc18acbc3b1588aececef9692e24a0bd3dba974
-    Reviewed-on: https://go-review.googlesource.com/20295
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I7f00b638e749fbc7907dc1597347ea426367d13e
+    Reviewed-on: https://go-review.googlesource.com/17980
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go   | 27 ++++++++++++--------
- src/cmd/compile/internal/ssa/TODO    |  1 -
- src/cmd/compile/internal/ssa/func.go | 49 +++++++++++++++++++++++++++++-------
- 3 files changed, 57 insertions(+), 20 deletions(-)
+ src/net/http/request.go    | 21 +++++++++++++++++++++
+ src/net/http/serve_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 10 ++++++++++
+ 3 files changed, 69 insertions(+)

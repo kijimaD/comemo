@@ -1,31 +1,24 @@
-commit 355c3a037edd8107bc4f1918d7a84764039ac6d1
-Author: eric fang <eric.fang@arm.com>
-Date:   Mon Feb 1 07:47:06 2021 +0000
+commit 289c238a339c59737b7f271b19bc9217e7d69851
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 15 20:01:32 2020 -0400
 
-    cmd/internal/obj/asm64: add support for moving BITCON to RSP
+    [dev.link] cmd/compile: make read-only static temps content-addressable
     
-    Constant of BITCON type can be moved into RSP by MOVD or MOVW instructions
-    directly, this CL enables this format of these two instructions.
+    For now, we only do this for symbols without relocations.
     
-    For 32-bit ADDWop instructions with constant, rewrite the high 32-bit
-    to be a repetition of the low 32-bit, just as ANDWop instructions do,
-    so that we can optimize ADDW $bitcon, Rn, Rt as:
-    MOVW $bitcon, Rtmp
-    ADDW Rtmp, Rn, Rt
-    The original code is:
-    MOVZ $bitcon_low, Rtmp
-    MOVK $bitcon_high,Rtmp
-    ADDW Rtmp, Rn, Rt
+    Mark static temps "local", as they are not referenced across DSO
+    boundaries. And deduplicating a local symbol and a non-local
+    symbol can be problematic.
     
-    Change-Id: I30e71972bcfd6470a8b6e6ffbacaee79d523805a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/289649
-    Trust: eric fang <eric.fang@arm.com>
-    Run-TryBot: eric fang <eric.fang@arm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: eric fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I0a3dc4138aaeea7fd4f326998f32ab6305da8e4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243141
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s |  3 +++
- src/cmd/internal/obj/arm64/asm7.go        | 19 ++++++-------------
- src/cmd/internal/obj/arm64/obj7.go        | 14 +++++++-------
- 3 files changed, 16 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/order.go |  3 +--
+ src/cmd/compile/internal/gc/sinit.go | 28 +++++++++++++++++-----------
+ src/cmd/compile/internal/gc/walk.go  |  3 +--
+ src/cmd/internal/obj/objfile2.go     |  4 ++--
+ src/cmd/internal/obj/sym.go          |  2 +-
+ 5 files changed, 22 insertions(+), 18 deletions(-)

@@ -1,15 +1,15 @@
-commit fc78c5aa000a1b7c5a2e894ce1b511385b280ccd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 22 14:15:41 2011 -0800
+commit b6122b0a64449da93d1a2d457239ebb00fce6cbc
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 22 14:08:34 2011 -0800
 
-    math/big: Rand shouldn't hang if argument is also receiver.
+    path: Dir
     
-    Fixes #2607.
+    There was Base but not Dir, so fill in the gap.
     
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5489109
+    https://golang.org/cl/5504076
 
- src/pkg/math/big/int_test.go | 7 +++++++
- src/pkg/math/big/nat.go      | 6 +++++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/pkg/path/path.go      | 18 ++++++++++++++++++
+ src/pkg/path/path_test.go | 39 +++++++++++++++++++++++++++++++--------
+ 2 files changed, 49 insertions(+), 8 deletions(-)

@@ -1,0 +1,30 @@
+commit ef225d1c57a97af984af114ee52005314530bbe2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 21 22:38:02 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥100,000 dependents
+    
+    For #67401.
+    
+    Change-Id: I51f5b561ee11eb242e3b1585d591281d0df4fc24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587215
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/reflect/badlinkname.go      |  1 -
+ src/reflect/value.go            |  9 +++++++++
+ src/runtime/iface.go            |  7 +++++++
+ src/runtime/linkname.go         |  3 ---
+ src/runtime/malloc.go           | 16 ++++++++++++++++
+ src/runtime/map.go              | 32 ++++++++++++++++++++++++++++++++
+ src/runtime/mbarrier.go         | 16 ++++++++++++++++
+ src/runtime/runtime.go          |  7 ++++++-
+ src/runtime/runtime1.go         | 16 ++++++++++++++++
+ src/runtime/sys_darwin.go       | 24 ++++++++++++++++++++++++
+ src/runtime/sys_openbsd3.go     | 20 ++++++++++++++++++++
+ src/runtime/syscall_windows.go  |  8 ++++++++
+ src/syscall/badlinkname_unix.go |  4 ++++
+ src/syscall/linkname_bsd.go     |  4 +++-
+ src/syscall/syscall_linux.go    |  9 +++++----
+ 15 files changed, 166 insertions(+), 10 deletions(-)

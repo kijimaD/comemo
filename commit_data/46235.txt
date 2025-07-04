@@ -1,18 +1,60 @@
-commit aed59d172ad532bd2eedcf78ba97fdd113d2dccd
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Aug 31 14:03:33 2021 -0400
+commit 3b5918c757eb32b4a05a0b4ba4bbab001175ebf0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 17:48:51 2020 -0800
 
-    go/types: allow composite literals of type parameter type
+    [dev.typeparams] cmd/compile/internal/types2: review of predicates.go
     
-    This is a port of CL 342690 to go/types.
+    Make predicates.go match the corresponding and reviewed go/types version.
     
-    Change-Id: I27dcde237e400a84c3394a3579805014777830bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346432
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    The remaining diffs are due to the difference in the implementations
+    of the type conversion methods/functions:
+    
+    $ diff $GOROOT/src/cmd/compile/internal/types2/predicates.go $GOROOT/src/go/types/predicates.go
+    7c7
+    < package types2
+    ---
+    > package types
+    9a10
+    >       "go/token"
+    32c33
+    <       switch t := optype(typ.Under()).(type) {
+    ---
+    >       switch t := optype(typ).(type) {
+    63c64
+    <       // set up. Must not call Basic()!
+    ---
+    >       // set up. Must not call asBasic()!
+    79c80
+    <       t := typ.Basic()
+    ---
+    >       t := asBasic(typ)
+    85c86
+    <       return typ.Interface() != nil
+    ---
+    >       return asInterface(typ) != nil
+    110c111
+    <       if t := T.TypeParam(); t != nil && optype(t) == theTop {
+    ---
+    >       if t := asTypeParam(T); t != nil && optype(t) == theTop {
+    114c115
+    <       switch t := optype(T.Under()).(type) {
+    ---
+    >       switch t := optype(T).(type) {
+    143c144
+    <       switch t := optype(typ.Under()).(type) {
+    ---
+    >       switch t := optype(typ).(type) {
+    300,301c301,302
+    <                               check.completeInterface(nopos, x)
+    <                               check.completeInterface(nopos, y)
+    ---
+    >                               check.completeInterface(token.NoPos, x)
+    >                               check.completeInterface(token.NoPos, y)
+    
+    Change-Id: I174d8a8a22fbd8814ede25002cb2705588912329
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278474
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/expr.go                     |  2 +-
- src/go/types/testdata/examples/types.go2 | 17 ++++++++++++++++-
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/predicates.go | 28 ++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

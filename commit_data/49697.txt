@@ -1,17 +1,24 @@
-commit 74cee276fe59013d042658f54c7340befa3ecad6
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Feb 11 14:09:10 2021 -0500
+commit 6226020c2f713e4545c73d56dc05676b642c9bc7
+Author: korzhao <korzhao95@gmail.com>
+Date:   Mon Sep 6 21:08:05 2021 +0800
 
-    runtime: tricky replacements of _g_ in trace.go
+    cmd/compile: make sure that the names created for instantiated type are the same
     
-    Like previous CLs, cases where the getg() G is used only to access the M
-    are replaced with direct uses of mp.
+    Now we have two functions that create names for instantiated types.
+    They are inconsistent when dealing with byte/rune type.
     
-    Change-Id: I4740c80d6b4997d051a52afcfa8c087e0317dab3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418579
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    This CL makes instTypeName2 reuse the code of typecheck.InstTypeName
+    
+    Fixes #48198
+    
+    Change-Id: I4c216b532cba6618ef9b63fd0b76e8f1c0ed7a75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347491
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/trace.go | 21 +++++++++------------
- 1 file changed, 9 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/noder/types.go | 32 +++++++-------------------------
+ test/typeparam/issue48198.go            | 22 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 25 deletions(-)

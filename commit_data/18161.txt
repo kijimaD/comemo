@@ -1,15 +1,14 @@
-commit 82e2db70f6a08f55dc7c9d216af9642336390eff
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jan 4 10:52:59 2014 -0800
+commit 13141315ad00f25f18ca1a30c71f90e962fada68
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Fri Jan 3 22:48:03 2014 -0800
 
-    spec: s/and/or/ for correctness and parallelism
-    No change to the meaning, just bad writing found by
-    Doug McIlroy.
-    Let's start the new year off with a bang.
+    spec: Fix broken type identity link
     
-    R=golang-codereviews, bradfitz, dave
+    Fixes #7003.
+    
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/47110044
+    https://golang.org/cl/47780043
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

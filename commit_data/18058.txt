@@ -1,39 +1,24 @@
-commit 6e97513012581c8d5c2ee83defbecc8d93642ad4
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Dec 18 20:19:29 2013 +0100
+commit 8c6ef061e3c189e3ac90a451d5680aab9d142618
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 18 11:08:34 2013 -0800
 
-    liblink: fix Plan 9 warnings
+    sync: add Pool type
     
-    warning: src/liblink/asm5.c:485 non-interruptable temporary
-    warning: src/liblink/asm5.c:565 set and not used: c
-    warning: src/liblink/asm5.c:622 format mismatch ux VLONG, arg 2
-    warning: src/liblink/asm5.c:1218 overspecified class: asmout GLOBL STATIC
-    warning: src/liblink/asm5.c:2088 overspecified class: oprrr GLOBL STATIC
-    warning: src/liblink/asm5.c:2202 overspecified class: opbra GLOBL STATIC
-    warning: src/liblink/asm5.c:2237 overspecified class: olr GLOBL STATIC
-    warning: src/liblink/asm5.c:2266 overspecified class: olhr GLOBL STATIC
-    warning: src/liblink/asm5.c:2291 overspecified class: osr GLOBL STATIC
-    warning: src/liblink/asm5.c:2302 overspecified class: oshr GLOBL STATIC
-    warning: src/liblink/asm5.c:2312 overspecified class: osrr GLOBL STATIC
-    warning: src/liblink/asm5.c:2319 overspecified class: oshrr GLOBL STATIC
-    warning: src/liblink/asm5.c:2325 overspecified class: olrr GLOBL STATIC
-    warning: src/liblink/asm5.c:2332 overspecified class: olhrr GLOBL STATIC
-    warning: src/liblink/asm5.c:2338 overspecified class: ofsr GLOBL STATIC
-    warning: src/liblink/asm5.c:2375 overspecified class: omvl GLOBL STATIC
-    warning: src/liblink/asm8.c:1261 format mismatch d VLONG, arg 3
-    warning: src/liblink/asm8.c:1274 format mismatch +d VLONG, arg 5
-    warning: src/liblink/list5.c:153 format mismatch d VLONG, arg 3
-    warning: src/liblink/list5.c:310 format mismatch d VLONG, arg 3
-    warning: src/liblink/obj6.c:665 set and not used: q
-    warning: src/liblink/pcln.c:32 set and not used: p
+    Adds the Pool type and docs, and use it in fmt.
+    This is a temporary implementation, until Dmitry
+    makes it fast.
     
-    R=golang-dev, jas, gobot, rsc
+    Uses the API proposal from Russ in http://goo.gl/cCKeb2 but
+    adds an optional New field, as used in fmt and elsewhere.
+    Almost all callers want that.
+    
+    Update #4720
+    
+    R=golang-dev, rsc, cshapiro, iant, r, dvyukov, khr
     CC=golang-dev
-    https://golang.org/cl/40370043
+    https://golang.org/cl/41860043
 
- src/liblink/asm5.c  | 36 ++++++++++++++++++------------------
- src/liblink/asm8.c  |  4 ++--
- src/liblink/list5.c |  4 ++--
- src/liblink/obj6.c  |  1 -
- src/liblink/pcln.c  |  2 +-
- 5 files changed, 23 insertions(+), 24 deletions(-)
+ src/pkg/runtime/mgc0.c    |  34 +++++++++-
+ src/pkg/sync/pool.go      |  65 +++++++++++++++++++
+ src/pkg/sync/pool_test.go | 154 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 252 insertions(+), 1 deletion(-)

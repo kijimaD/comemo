@@ -1,23 +1,19 @@
-commit 728e3dc6f9c900654d94642135e0dcfe2f7bb645
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 1 16:31:29 2021 +0000
+commit 9f24388a7d57a79d0d68c1c04cf3fa4f86338e21
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Oct 4 00:25:17 2020 -0400
 
-    runtime: make gcSetTriggerRatio a method of gcControllerState
+    cmd/dist: test c-archive mode on ios/arm64
     
-    gcSetTriggerRatio's purpose is to set a bunch of downstream values when
-    we choose to commit to a new trigger ratio computed by the gcController.
-    Now that almost all the inputs it uses to compute the downstream values
-    are in gcControllerState anyway, make it a method of gcControllerState.
+    It is tested on darwin/arm64. Don't lose it when using GOOS=ios.
     
-    For #44167.
+    Updates #38485.
     
-    Change-Id: I1b7ea709e8378566f812ae3450ab169d7fb66aea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306599
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I7157d6b6f2850f2fd361e35ae310dd1ba9f31aa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259439
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgc.go      |  2 +-
- src/runtime/mgcpacer.go | 22 +++++++++++-----------
- 2 files changed, 12 insertions(+), 12 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

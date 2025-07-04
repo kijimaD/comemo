@@ -1,18 +1,13 @@
-commit 5987a4ad290a3b2c163260ef24e461e37731b41c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 8 13:54:32 2011 -0700
+commit ffc0830c75ce6d0269bd35025f611066dc63d156
+Author: John Asmuth <jasmuth@gmail.com>
+Date:   Mon Aug 8 11:27:09 2011 -0700
 
-    scanner: correct error position for illegal UTF-8 encodings
+    container/vector: removed last instances of vector outside of container/vector itself from the core libs
     
-    - added corresponding test cases
-    - re-grouped tests for better readability
-    
-    Fixes #2138.
-    
-    R=golang-dev, rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4815091
+    https://golang.org/cl/4810078
 
- src/pkg/scanner/scanner.go      |  5 +++++
- src/pkg/scanner/scanner_test.go | 47 +++++++++++++++++++++++++++++------------
- 2 files changed, 38 insertions(+), 14 deletions(-)
+ src/pkg/exp/datafmt/parser.go | 41 ++++++++++++++++++++---------------------
+ src/pkg/go/scanner/errors.go  | 23 +++++++++++++----------
+ 2 files changed, 33 insertions(+), 31 deletions(-)

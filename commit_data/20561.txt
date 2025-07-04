@@ -1,17 +1,17 @@
-commit 1bf18b42f8475db2af1618d798285ed84a8dd521
+commit 76c7548162a42666f76359a4f5cb819624b86ae2
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 26 15:15:48 2014 -0400
+Date:   Thu Sep 18 14:48:26 2014 -0400
 
-    cmd/go: fix -a
+    net: disable TestDialMultiFDLeak
     
-    The one line that you can't test easily was broken.
-    This manifested as a failure of a pre-existing test
-    in test.bash but I didn't notice it (there are a few other
-    long-standing failures that need to be fixed).
+    It fails about 25% of the time on OS X.
+    I don't know what it's trying to do.
+    Created issue 8764 to correct this, but for now disable.
     
-    TBR=r
+    LGTM=bradfitz, mikioh.mikioh
+    R=bradfitz, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/146340044
+    https://golang.org/cl/144070044
 
- src/cmd/go/pkg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/dial_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

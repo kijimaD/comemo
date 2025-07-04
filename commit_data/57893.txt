@@ -1,26 +1,33 @@
-commit 7fff741016c8157e107cce8013ee3ca621725384
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Nov 5 16:01:45 2024 +0100
+commit 323cf730912bc4ad975766118ba2da88a6e80a6b
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 29 13:22:26 2023 -0400
 
-    syscall: mark SyscallN as noescape
+    cmd/compile: write "properties" to export data for inlinable funcs
     
-    syscall.SyscallN is implemented by runtime.syscall_syscalln, which makes
-    sure that the variadic argument doesn't escape.
+    Augment the ir.Inline container to include an entry for function
+    properties (currently serialized as a string), and if
+    GOEXPERIMENT=newinliner is set, compute and store function
+    properties for all inline candidates processed by the inliner.
     
-    There is no need to worry about the lifetime of the elements of the
-    variadic argument, as the compiler will keep them live until the
-    function returns.
+    The idea here is that if the function properties are going to drive
+    inlining decisions, we'd like to have the same info from non-local /
+    imported functions as for local / in-package functions, hence we need
+    to include the properties in the export data.
     
-    Fixes #70197.
+    Hand testing on the compiler itself and with k8s kubelet shows that
+    this increases the size of export data overall by about 2-3 percent,
+    so a pretty modest increase.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-amd64-race
-    Change-Id: I12991f0be12062eea68f2b103fa0a794c1b527eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625297
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #61502.
+    
+    Change-Id: I9d1c311aa8418d02ffea3629c3dd9d8076886d15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511562
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/dll_windows.go          |  1 +
- src/syscall/syscall_windows_test.go | 47 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ src/cmd/compile/internal/inline/inl.go             | 16 ++++++---
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 39 +++++++++++++++++-----
+ src/cmd/compile/internal/ir/func.go                |  4 +++
+ src/cmd/compile/internal/noder/linker.go           |  4 +++
+ src/cmd/compile/internal/noder/reader.go           |  4 +++
+ 5 files changed, 54 insertions(+), 13 deletions(-)

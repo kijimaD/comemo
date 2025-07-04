@@ -1,16 +1,24 @@
-commit e90b0ce68b12a75732f28b6672d4c48ca73eaffe
-Author: kakulisen <lziqiang1@gmail.com>
-Date:   Thu Apr 30 14:18:06 2020 +0800
+commit 8b1e8a424afb5d1c347653cc016a94e91cb1318b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 19 14:29:10 2019 -0500
 
-    math: add function examples.
+    cmd/dist: remove redundant 'go test -race' call
     
-    The function Modf lacks corresponding examples.
+    In CL 207962, I removed a seemingly-redundant -i flag. As it turns
+    out, the -i flag has *two* meanings: “install dependencies”, and “do
+    not actually run the test”. Without the flag, we omit the former
+    behavior, but add the latter.
     
-    Change-Id: Id93423500e87d35b0b6870882be1698b304797ae
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231097
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    We're about to run specific tests from these binaries on the very next
+    line, so don't preemptively run all of the tests.
+    
+    Updates #30316
+    
+    Change-Id: Ie3d8a37dc5f6bd98c232b308b0a6a165b5d82f7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207966
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/example_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/dist/test.go | 1 -
+ 1 file changed, 1 deletion(-)

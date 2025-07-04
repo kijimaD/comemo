@@ -1,20 +1,36 @@
-commit 18b84cbd42f4b86cb551b0ccd70154a8bbe30a8a
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Oct 26 10:07:36 2018 +0200
+commit da769814b83c4eb65681dbe682d07d4b902b554a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 26 14:40:51 2018 -0700
 
-    runtime: remove instruction linked with AIX new stack layout
+    cmd/cgo: handle GCC 8 change in errors about constant initializers
     
-    This instruction was linked with a new stack layout which might be
-    needed for AIX. This change might not be taken finally. So, this
-    instruction must be removed.
+    Before GCC 8 C code like
     
-    See https://go-review.googlesource.com/c/go/+/138733
+    const unsigned long long int neg = (const unsigned long long) -1;
+    void f(void) { static const double x = (neg); }
     
-    Change-Id: Ic4a2566e2882696b437eb817d980b7c4bfc03b18
-    Reviewed-on: https://go-review.googlesource.com/c/144957
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    would get an error "initializer element is not constant". In GCC 8 and
+    later it does not.
+    
+    Because a value like neg, above, can not be used as a general integer
+    constant, this causes cgo to conclude that it is a floating point
+    constant. The way that cgo handles floating point values then causes
+    it to get the wrong value for it: 18446744073709551615 rather than -1.
+    These are of course the same value when converted to int64, but Go
+    does not permit that kind of conversion for an out-of-range constant.
+    
+    This CL side-steps the problem by treating floating point constants
+    with integer type as they would up being treated before GCC 8: as
+    variables rather than constants.
+    
+    Fixes #26066
+    
+    Change-Id: I6f2f9ac2fa8a4b8218481b474f0b539758eb3b79
+    Reviewed-on: https://go-review.googlesource.com/121035
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_ppc64x.s | 3 ---
- 1 file changed, 3 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue26066.go | 19 +++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 20 +++++++++++++++++++-
+ 3 files changed, 39 insertions(+), 1 deletion(-)

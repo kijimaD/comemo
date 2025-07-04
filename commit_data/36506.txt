@@ -1,18 +1,19 @@
-commit 61318d7ffe8a49e9dedc5aa8195a164a3821465c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Aug 26 20:38:43 2018 -0700
+commit fc9c69a693fb3defcb95a16549bddcf3cac1421e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 2 12:15:54 2018 +0200
 
-    cmd/go: add GOMIPS value to build id for mipsle
+    os: remove superfluous comments
     
-    Strip a trailing "le" from the GOARCH value when calculating the GOxxx
-    environment variable that affects it.
+    It's apparent from the file names or build tags to which OS the code in
+    question applies.
     
-    Fixes #27260
-    
-    Change-Id: I081f30d5dc19281901551823f4f56be028b5f71a
-    Reviewed-on: https://go-review.googlesource.com/131379
+    Change-Id: I628ee2bf1d29a6bc30ca5fa6f9eecf809e78a182
+    Reviewed-on: https://go-review.googlesource.com/110815
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/exec.go                  |  4 ++-
- src/cmd/go/testdata/script/build_cache_gomips.txt | 37 +++++++++++++++++++++++
- 2 files changed, 40 insertions(+), 1 deletion(-)
+ src/os/sys_bsd.go   | 3 ---
+ src/os/sys_linux.go | 2 --
+ src/os/sys_plan9.go | 2 --
+ 3 files changed, 7 deletions(-)

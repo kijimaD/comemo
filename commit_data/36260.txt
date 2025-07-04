@@ -1,25 +1,17 @@
-commit 4fc7b93ad7c36b769ef54b4706e6a045d7a8e311
-Author: Johan Brandhorst <johan.brandhorst@gmail.com>
-Date:   Fri Aug 3 14:48:16 2018 +0000
+commit 26085fcea3a6afd1afb9c881c502c86fb86188a9
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 19:20:05 2018 +0200
 
-    net/http: support configuring fetch options
+    cmd/compile: remove asmtest infrastructure
     
-    The default WASM RoundTripper is implemented using
-    the browser Fetch API. Some options don't readily map to
-    existing http.Request options, so we use the precedent
-    set by the TrailerPrefix constant to allow a user to configure
-    the "mode" and "credentials" options by supplying them
-    as headers in the http.Request.
+    Not used anymore, all tests have been migrated to
+    the top-level testsuite.
     
-    Updates #26769
-    
-    Change-Id: If42d24418c4ffb17211f57e36708cf460fb4c579
-    GitHub-Last-Rev: b230502084d628938cd50818d3d336f9f911d48d
-    GitHub-Pull-Request: golang/go#26784
-    Reviewed-on: https://go-review.googlesource.com/127718
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I536e6c14f62153c01e4966ad41e1501b38494c7f
+    Reviewed-on: https://go-review.googlesource.com/107336
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/roundtrip_js.go | 38 +++++++++++++++++++++++++++++++-------
- 1 file changed, 31 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 208 --------------------------------
+ 1 file changed, 208 deletions(-)

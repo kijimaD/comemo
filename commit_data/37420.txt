@@ -1,29 +1,20 @@
-commit 69010963aa233b7b2762762595ae230692b1c724
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 13 15:33:57 2018 -0800
+commit f6a5fada277c7fe8f8ffca9109392c66436a15fc
+Author: John Gibb <johngibb@gmail.com>
+Date:   Sun Jul 29 15:19:17 2018 +0000
 
-    cmd/compile: provide updating mechanism for format test
+    path: present the correct error message in TestMatch
     
-    The compiler's Format test verifies that the correct format
-    strings for the given arguments are used in the compiler
-    sources. The format strings are fairly specialized which is
-    why we cannot use go vet; and the mapping is based on a
-    hard-wired map.
+    The message was hardcoded to indicate that the test wanted a nil error, even
+    though in some cases a specific error was wanted. This patch fixes the
+    message to print the wanted error.
     
-    In the past, if that map got out of sync with the compiler
-    sources, it was necessary to manually update the map. This
-    change introduces an update mechanism which simply requires
-    the test to be run with the -u flag.
-    
-    (Formerly, the -u flag was used to automatically rewrite
-    format strings; now we use -r for that.)
-    
-    Change-Id: I9259566a6120a13cf34b143875975ada62697890
-    Reviewed-on: https://go-review.googlesource.com/c/149460
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Id86ea89d6f41f25bfa164acc50142ae8ff0ec410
+    GitHub-Last-Rev: c220374845667942c608c02afadff95443e2ec20
+    GitHub-Pull-Request: golang/go#26674
+    Reviewed-on: https://go-review.googlesource.com/126619
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/fmt_test.go    | 275 ++++++++++-------------------------------
- src/cmd/compile/fmtmap_test.go | 203 ++++++++++++++++++++++++++++++
- 2 files changed, 269 insertions(+), 209 deletions(-)
+ src/path/match_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

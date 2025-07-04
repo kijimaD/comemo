@@ -1,19 +1,19 @@
-commit 3a9037368e28e3c5cf587d8780af6b0b8659f91e
-Author: Bryan Heden <b.heden@gmail.com>
-Date:   Thu Feb 14 02:35:00 2019 +0000
+commit a2a2901b252c089e737a1ddf8117f3f6698cb958
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 3 15:04:14 2018 -0400
 
-    fmt: fix an error in documentation for fmt
+    runtime: track whether any buffer has been flushed from gcWork
     
-    Original Printf("%d", hi) obviously doesn't produce
-    %!d(string=hi) unless somewhere before this code
-    block you have hi := "hi" somewhere, also this change
-    maintains consistency with the rest of it
+    Nothing currently consumes the flag, but we'll use it in the
+    distributed termination detection algorithm.
     
-    Change-Id: I40d8cca623176dcad66374ba74e3a1f8f975ac9e
-    GitHub-Last-Rev: 242e9ee6afba7ab22ed2967b0ba01ef18db01ca9
-    GitHub-Pull-Request: golang/go#30223
-    Reviewed-on: https://go-review.googlesource.com/c/162541
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #26903. This is preparation for eliminating mark 2.
+    
+    Change-Id: I5e149a05b1c878fe1009150da21f8bd8ae2b9b6a
+    Reviewed-on: https://go-review.googlesource.com/c/134317
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/fmt/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgcwork.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,13 +1,26 @@
-commit f8e9936d877d6628935fd374ad9b08b2ccff7367
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 19 15:30:18 2011 -0500
+commit 6fb1bf26aee2f68aaf15d7fc811d6ba7f4311a99
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Jan 19 12:28:49 2011 -0800
 
-    A+C: Jeff R. Allen (individual CLA)
+    netchan: do not block sends; implement flow control.
+    When data is received for a channel, but that channel
+    is not ready to receive it, the central run() loop
+    is currently blocked, but this can lead to deadlock
+    and interference between independent channels.
+    This CL adds an explicit buffer size to netchan
+    channels (an API change) - the sender will not
+    send values until the buffer is non empty.
     
-    R=r, r2
+    The protocol changes to send ids rather than channel names
+    because acks can still be sent after a channel is hung up,
+    we we need an identifier that can be ignored.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4018043
+    https://golang.org/cl/2447042
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/netchan/common.go       | 142 ++++++++++++++++++++++++++++++++-
+ src/pkg/netchan/export.go       |  92 +++++++++++++---------
+ src/pkg/netchan/import.go       |  88 +++++++++++++--------
+ src/pkg/netchan/netchan_test.go | 170 +++++++++++++++++++++++++++++++++++-----
+ 4 files changed, 401 insertions(+), 91 deletions(-)

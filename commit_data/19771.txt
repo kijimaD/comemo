@@ -1,18 +1,13 @@
-commit 3ee391cc835a58af0a7cb049e7dd4515d30452c7
+commit 6089fc767cb2c5892fd077349e5c03cf818b1639
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jul 18 12:18:36 2014 -0700
+Date:   Fri Jul 18 09:58:54 2014 -0700
 
-    runtime: add Benchmark[Clear|Copy]Fat[16|24]
+    go/ast: fix typo in comment
     
-    These benchmarks are important for performance. When compiling the stdlib:
-    
-    * 77.1% of the calls to sgen (copyfat) are for 16 bytes; another 8.7% are for 24 bytes. (The next most common is 32 bytes, at 5.7%.)
-    * Over half the calls to clearfat are for 16 or 24 bytes.
-    
-    LGTM=khr
-    R=golang-codereviews, khr
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/111350043
+    https://golang.org/cl/111330043
 
- src/pkg/runtime/memmove_test.go | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/pkg/go/ast/scope.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

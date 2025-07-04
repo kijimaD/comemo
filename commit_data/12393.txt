@@ -1,14 +1,15 @@
-commit 5e46a8c9f9e7588b862b5b7882200ad912768680
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 6 08:55:53 2012 +1100
+commit aa1aaee7fd96a76e595add58b9889b4cd6703d3a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 5 16:40:27 2012 -0500
 
-    misc/dist: add windows packaging support
+    runtime: wait for main goroutine before setting GOMAXPROCS.
     
-    R=golang-dev, bsiegert, jdpoirier
-    CC=golang-dev
-    https://golang.org/cl/5727059
+    Fixes #3182.
+    
+    R=golang-dev, dvyukov, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5732057
 
- misc/dist/bindist.go         | 104 ++++++++++++++++++++++++++++++++++++++-----
- misc/dist/windows/README.txt |  59 +++++++++++-------------
- misc/dist/windows/dist.bat   |  61 -------------------------
- 3 files changed, 118 insertions(+), 106 deletions(-)
+ src/pkg/runtime/proc.c | 6 +++++-
+ src/run.bash           | 4 ++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

@@ -1,20 +1,22 @@
-commit e14aad1faf6f511e342d124681bc0146e426f9aa
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 11 20:30:24 2024 +0000
+commit 35ec948de766e7e8854b95edda3a0bb4723a63ec
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Apr 14 14:25:53 2023 -0400
 
-    cmd/trace/v2: handle the -pprof flag
+    go/types,types2: fix panic in reverse type inference when -lang<go1.18
     
-    Turns out we ported all the profile generation, but forgot to actually
-    support the command line flags for them! This change fixes the issue by
-    handling the different kinds of profiles and writing them out to stdout.
+    Due to reverse type inference, we may not have an index expression when
+    type-checking a function instantiation. Fix a panic when the index expr
+    is nil.
     
-    Fixes #66782.
+    Fixes #59639
     
-    Change-Id: I7756fb4636ce8daaf11ed471be79c86ce3d463cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/578318
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ib5de5e49cdb7b339653e4fb775bf5c5fdb3c6907
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484757
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
 
- src/cmd/trace/v2/main.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/cmd/compile/internal/types2/call.go             |  8 +++++++-
+ src/go/types/call.go                                |  8 +++++++-
+ src/internal/types/testdata/fixedbugs/issue59639.go | 11 +++++++++++
+ 3 files changed, 25 insertions(+), 2 deletions(-)

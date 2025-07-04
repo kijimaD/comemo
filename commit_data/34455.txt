@@ -1,23 +1,30 @@
-commit fad31e513d721a36f2d881d99de54def805a8648
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Mar 3 16:00:43 2018 +0100
+commit 088209bbe870725f82e44e604e787d7273488bd6
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Sat Oct 21 09:36:54 2017 +0300
 
-    test: move load/store combines into asmcheck
+    image/draw: reduce drawPaletted allocations for special source cases
     
-    This CL moves the load/store combining tests into asmcheck.
-    In addition at being more compact, it's also now easier to
-    spot what it is missing in each architecture.
+    drawPaletted has to discover R,G,B,A color values of each source image
+    pixel in a given rectangle. Doing that by calling image.Image.At()
+    method returning color.Color interface is quite taxing allocation-wise
+    since interface values go through heap. Introduce special cases for some
+    concrete source types by fetching color values using type-specific
+    methods.
     
-    While doing so, I think I uncovered a bug in ppc64le and arm64
-    rules, because they fail to load/store combine in non-trivial
-    functions. Not sure why, I'll open an issue.
+    name        old time/op    new time/op    delta
+    Paletted-4    7.62ms ± 4%    3.72ms ± 3%   -51.20%  (p=0.008 n=5+5)
     
-    Change-Id: Ia1572d53c0553d9104f3e52b95e4d1768a8440a3
-    Reviewed-on: https://go-review.googlesource.com/98441
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    name        old alloc/op   new alloc/op   delta
+    Paletted-4     480kB ± 0%       0kB ± 0%   -99.99%  (p=0.000 n=4+5)
+    
+    name        old allocs/op  new allocs/op  delta
+    Paletted-4      120k ± 0%        0k ± 0%  -100.00%  (p=0.008 n=5+5)
+    
+    Updates #15759.
+    
+    Change-Id: I0ce1770ff600ac80599541aaad4c2c826855c8fb
+    Reviewed-on: https://go-review.googlesource.com/72370
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 442 +-------------------------------
- test/codegen/memcombine.go              | 173 +++++++++++++
- 2 files changed, 178 insertions(+), 437 deletions(-)
+ src/image/draw/draw.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

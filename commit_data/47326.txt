@@ -1,15 +1,17 @@
-commit 7ca772a5bc5d7f2a391f7f2a0febc54d84acb9d7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 4 16:00:34 2021 -0700
+commit 1853411d8376570295711f9084d494d458822578
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 25 09:44:35 2021 -0800
 
-    cmd/compile/internal/types2: make object test an external test
+    testing/fstest: test that ReadDirFile on a non-dir fails
     
-    Change-Id: I15c969a799404067f34f600da15b1a97d4857315
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361409
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    ReadDirFile implementations should return an error for non-directories.
+    
+    Change-Id: I99888562cb6cf829017904ae8c1e8887a416c4cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296391
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types2/object_test.go | 21 +++++++++------------
- 1 file changed, 9 insertions(+), 12 deletions(-)
+ src/testing/fstest/testfs.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

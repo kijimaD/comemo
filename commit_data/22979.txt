@@ -1,20 +1,19 @@
-commit 29dc4b40f85fdb0985eea3e718385dc3c6cd22b7
-Author: Jens Frederich <jfrederich@gmail.com>
-Date:   Thu Feb 19 21:37:38 2015 +0100
+commit 92189a2be23ae72b0a63b087dca56b70384db444
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Apr 16 13:46:58 2015 -0400
 
-    cmd/go: "go get" don't ignore git default branch
+    misc/cgo/testcshared: test -buildmode=c-shared
     
-    Any Git branch can be the default branch not only master. Removing
-    hardwired 'checkout master', and using 'checkout {tag}' is the best
-    choice. It works with and without a master branch. Furthermore it
-    resolves the Github default branch issue. Changing Github default
-    branch is effectively changing HEAD.
+    Followed the same test pattern in misc/cgo/testcarchive.
     
-    Fixes #9032
-    
-    Change-Id: I19a1221bcefe0806e7556c124c6da7ac0c2160b5
-    Reviewed-on: https://go-review.googlesource.com/5312
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2f863b5c24a28f0b38b0128ed3e8a92c17fb5b9f
+    Reviewed-on: https://go-review.googlesource.com/8985
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/vcs.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ misc/cgo/testcshared/main0.c            | 33 ++++++++++++++++
+ misc/cgo/testcshared/main1.c            | 69 +++++++++++++++++++++++++++++++++
+ misc/cgo/testcshared/src/libgo/libgo.go | 47 ++++++++++++++++++++++
+ misc/cgo/testcshared/src/p/p.go         | 10 +++++
+ misc/cgo/testcshared/test.bash          | 29 ++++++++++++++
+ 5 files changed, 188 insertions(+)

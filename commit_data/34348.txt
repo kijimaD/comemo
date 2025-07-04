@@ -1,19 +1,29 @@
-commit dd3b4714be643321babc859b807399aa288a4475
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Feb 25 12:00:58 2018 +0100
+commit 85177f42767fdd6c245dcd0ba0e70e0427600f3f
+Author: griesemer <gri@golang.org>
+Date:   Thu Oct 19 11:48:54 2017 -0700
 
-    build: small cleanup in error message in make.bat
+    spec: remove vestiges referring to iotas being incremented
     
-    Contrary to bash, double quotes cannot be used to group
-    arguments in Windows shell, so they were being printed as
-    literals by the echo command.
+    https://golang.org/cl/71750 specifies iota values as indices,
+    thus making them independent from nested constant declarations.
+    This CL removes some of the comments in the examples that were
+    still referring to the old notion of iotas being incremented
+    and reset.
     
-    Since a literal '>' is present in the string, it is sufficient
-    to escape it correctly through '^'.
+    As an aside, please note that the spec still permits the use
+    of iota in a nested function (like before). Specifically, the
+    following cases are permitted by the spec (as before):
     
-    Change-Id: Icc8c92b3dc8d813825adadbe3d921a38d44a1a94
-    Reviewed-on: https://go-review.googlesource.com/97056
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    1) const _ = len([iota]int{})
+    2) const _ = unsafe.Sizeof(func(){ _ = iota })
+    
+    For #15550.
+    
+    Change-Id: I9e5fec75daf7b628b1e08d970512397e9c348923
+    Reviewed-on: https://go-review.googlesource.com/71912
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/make.bat | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 37 ++++++++++++++++++-------------------
+ 1 file changed, 18 insertions(+), 19 deletions(-)

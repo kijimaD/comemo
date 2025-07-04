@@ -1,26 +1,22 @@
-commit 63837092726fa01806ee945dc7b3a2c8c707cd76
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Sep 20 15:31:26 2016 +1200
+commit b5d18b50ac591d41cb4aab522fa9044c61b2c1e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 18 18:42:25 2016 -0700
 
-    cmd/link: remove now-unused ctxt arguments from a few functions
+    cmd/cgo: remove -O options when generating compiler errors
     
-    Specifically Addstring, Addbytes and Symgrow.
+    The cgo tool generates compiler errors to find out what kind of name it
+    is using.  Turning on optimization can confuse that process by producing
+    new unexpected messages.
     
-    Change-Id: Ia74093bfcf9f360bf223accbc8feef54a7f059c9
-    Reviewed-on: https://go-review.googlesource.com/29348
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Fixes #14669.
+    
+    Change-Id: Idc8e35fd259711ecc9638566b691c11d17140325
+    Reviewed-on: https://go-review.googlesource.com/23231
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/amd64/asm.go |   2 +-
- src/cmd/link/internal/arm/asm.go   |   2 +-
- src/cmd/link/internal/ld/data.go   |  20 +++---
- src/cmd/link/internal/ld/dwarf.go  |  44 ++++++-------
- src/cmd/link/internal/ld/elf.go    | 122 ++++++++++++++++++-------------------
- src/cmd/link/internal/ld/go.go     |   4 +-
- src/cmd/link/internal/ld/macho.go  |   2 +-
- src/cmd/link/internal/ld/pcln.go   |  12 ++--
- src/cmd/link/internal/ld/pe.go     |   2 +-
- src/cmd/link/internal/ld/symtab.go |   2 +-
- src/cmd/link/internal/x86/asm.go   |   4 +-
- 11 files changed, 108 insertions(+), 108 deletions(-)
+ misc/cgo/errors/issue14669.go | 23 +++++++++++++++++++++++
+ misc/cgo/errors/test.bash     |  7 +++++++
+ src/cmd/cgo/gcc.go            | 12 ++++++++++--
+ 3 files changed, 40 insertions(+), 2 deletions(-)

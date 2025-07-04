@@ -1,13 +1,15 @@
-commit 4335ec9eeba145032bbe24c53bd130cb7ca49394
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Apr 30 22:03:56 2012 +1000
+commit ed90fbc747b384a355ded46ff5c9164ca69b6590
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 30 17:14:41 2012 +1000
 
-    misc/dashboard/codereview: send mail to assigned reviewers if they aren't already looped in.
+    encoding/base64: don't ignore underlying souce read error in decode
     
-    R=golang-dev, bradfitz, r
+    Fixes #3577
+    
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6128054
+    https://golang.org/cl/6137054
 
- misc/dashboard/codereview/dashboard/cl.go     | 101 +++++++++++++++++++++++++-
- misc/dashboard/codereview/dashboard/people.go |   9 ++-
- 2 files changed, 103 insertions(+), 7 deletions(-)
+ src/pkg/encoding/base64/base64.go      |  2 +-
+ src/pkg/encoding/base64/base64_test.go | 49 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 1 deletion(-)

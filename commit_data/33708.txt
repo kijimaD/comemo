@@ -1,16 +1,18 @@
-commit c3aeeef584abb98e9d442193ab37bc89a5f5300b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Nov 29 11:38:03 2017 +0100
+commit dcef97e08838ff65cbfef4f1f9ee35dc1e99f215
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Aug 29 21:10:17 2017 +0200
 
-    syscall: add missing err check in test
+    cmd/compile: rename mapbucket to bmap
     
-    Follow CL 75810 which did the same for x/sys/unix.
+    This makes the name of the function to construct the map bucket type
+    consistent with runtimes naming and the existing hmap function.
     
-    Change-Id: I6314a97989631d589369c7b6001d1523ec2cc242
-    Reviewed-on: https://go-review.googlesource.com/80555
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: If4d8b4a54c92ab914d4adcb96022b48d8b5db631
+    Reviewed-on: https://go-review.googlesource.com/59915
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/syscall/syscall_unix_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/gc/reflect.go | 17 +++++++++--------
+ src/cmd/compile/internal/gc/walk.go    |  2 +-
+ 2 files changed, 10 insertions(+), 9 deletions(-)

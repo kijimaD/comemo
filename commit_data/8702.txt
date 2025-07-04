@@ -1,16 +1,28 @@
-commit d164b6081de197612b99b405feb9a2d6e73028a3
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Jun 13 16:56:43 2011 +0200
+commit b96c3477f8edd414b9be5670f3912f7cb15eab1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 13 09:20:23 2011 -0400
 
-    ld: dwarf emit filenames in debug_line header instead of as extended opcodes.
+    exp/regexp/syntax: syntax data structures, parser
     
-    Makes it possible for older tools like objdump to find the filenames,
-    fixes  objdump -d -l --start-address=0x400c00 --stop-address=0x400c36 6.out
-    fixes #1950
+    Parser is a work in progress but can populate most of the
+    interesting parts of the data structure, so a good checkpoint.
+    All the complicated Perl syntax is missing, as are various
+    important optimizations made during parsing to the
+    syntax tree.
     
-    R=rsc
+    The plan is that exp/regexp's API will mimic regexp,
+    and exp/regexp/syntax provides the parser directly
+    for programs that need it (and for implementing exp/regexp).
+    
+    Once finished, exp/regexp will replace regexp.
+    
+    R=r, sam.thorogood, kevlar, edsrzf
     CC=golang-dev
-    https://golang.org/cl/4609043
+    https://golang.org/cl/4538123
 
- src/cmd/ld/dwarf.c | 27 ++++++++++++++-------------
- 1 file changed, 14 insertions(+), 13 deletions(-)
+ src/pkg/Makefile                        |   1 +
+ src/pkg/exp/regexp/syntax/Makefile      |  12 +
+ src/pkg/exp/regexp/syntax/parse.go      | 561 ++++++++++++++++++++++++++++++++
+ src/pkg/exp/regexp/syntax/parse_test.go | 266 +++++++++++++++
+ src/pkg/exp/regexp/syntax/regexp.go     | 210 ++++++++++++
+ 5 files changed, 1050 insertions(+)

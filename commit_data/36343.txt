@@ -1,19 +1,26 @@
-commit 539ff607a70bb6f7f12b1bca6b365ab0af448fcf
-Author: Jeet Parekh <jeetparekh96@gmail.com>
-Date:   Wed Aug 1 02:47:01 2018 +0000
+commit d487488135735e9dfd30c6c37940e6abc3189ba3
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Wed Apr 18 19:49:27 2018 +0300
 
-    archive/zip: return error from NewReader when negative size is passed
+    cmd/internal/obj/x86: disallow PC/FP/SB scaled index
     
-    Fixes #26589
+    Reject to compile I386/AMD64 asm code that contains
+    (Register)(PseudoReg*scale) forms of memory operands.
+    Example of such program: "CALL (AX)(PC*2)".
+    PseudoReg is one of the PC, FP, SB (but not SP).
     
-    Change-Id: I180883a13cec229093654004b42c48d76ee20272
-    GitHub-Last-Rev: 2d9879de43fbcfb413116d69accdade6bc042c97
-    GitHub-Pull-Request: golang/go#26667
-    Reviewed-on: https://go-review.googlesource.com/126617
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    When pseudo-register is used in register indirect as
+    scaled index base, x86 backend will panic because
+    its register file misses SB/FP/PC registers.
+    
+    Fixes #12657.
+    
+    Change-Id: I30fca797b537cbc86ab47583ae96c6a0c59acaa1
+    Reviewed-on: https://go-review.googlesource.com/107835
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/zip/reader.go      | 3 +++
- src/archive/zip/reader_test.go | 6 ++++++
- 2 files changed, 9 insertions(+)
+ src/cmd/asm/internal/asm/testdata/amd64error.s | 4 ++++
+ src/cmd/internal/obj/x86/asm6.go               | 6 ++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

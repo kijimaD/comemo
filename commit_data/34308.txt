@@ -1,30 +1,25 @@
-commit 3e214e5693ff8df58011db8250cdd8874a63ea17
-Author: Austin Clements <austin@google.com>
-Date:   Fri Feb 16 17:45:21 2018 -0500
+commit bb45bc27b5d786943bdc058bdae54b1bde78613b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 15 22:49:52 2017 +0100
 
-    runtime: simplify bulkBarrierPreWrite
+    cmd/compile: make more use of value switches
     
-    Currently, bulkBarrierPreWrite uses inheap to decide whether the
-    destination is in the heap or whether to check for stack or global
-    data. However, this isn't the best question to ask.
+    Use them to replace if/else chains with at least three comparisons,
+    where the code becomes clearly simpler.
     
-    Instead, get the span directly and query its state. This lets us
-    directly determine whether this might be a global, or is stack memory,
-    or is heap memory.
+    Passes toolstash -cmp on std cmd.
     
-    At this point, inheap is no longer used in the hot path, so drop it
-    from the must-be-inlined list and substitute spanOf.
-    
-    This will help in a circuitous way with #23862, since fixing that is
-    going to push inheap very slightly over the inline-able threshold on a
-    few platforms.
-    
-    Change-Id: I5360fc1181183598502409f12979899e1e4d45f7
-    Reviewed-on: https://go-review.googlesource.com/95495
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ic98aa3905944ddcab5aef5f9d9ba376853263d94
+    Reviewed-on: https://go-review.googlesource.com/70934
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/inl_test.go |  2 +-
- src/runtime/mbitmap.go                  | 16 +++++++++-------
- 2 files changed, 10 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/esc.go   | 18 ++++-----
+ src/cmd/compile/internal/gc/noder.go |  9 ++---
+ src/cmd/compile/internal/gc/sinit.go |  6 +--
+ src/cmd/compile/internal/gc/ssa.go   | 16 ++++----
+ src/cmd/compile/internal/gc/walk.go  | 77 ++++++++++++++++--------------------
+ 5 files changed, 58 insertions(+), 68 deletions(-)

@@ -1,27 +1,22 @@
-commit f4cb96b4380efa8e78431124dabb6d654f05b705
-Author: Rob Pike <r@golang.org>
-Date:   Tue Oct 11 16:41:48 2011 -0700
+commit 059c68bf0cccea85bea19c44c15d7fec9e9cbd21
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 12 10:29:22 2011 +1100
 
-    container/vector: delete
-    Slices are better:
-    http://code.google.com/p/go-wiki/wiki/SliceTricks
+    net: implement ip protocol name to number resolver for windows
     
-    R=golang-dev, bradfitz, dsymonds
+    Fixes #2215.
+    Fixes #2216.
+    
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/5248060
+    https://golang.org/cl/5248055
 
- src/cmd/goinstall/main.go                     |   2 +-
- src/pkg/Makefile                              |   2 -
- src/pkg/container/vector/Makefile             |  69 ------
- src/pkg/container/vector/defs.go              |  43 ----
- src/pkg/container/vector/intvector.go         | 188 ---------------
- src/pkg/container/vector/intvector_test.go    | 331 --------------------------
- src/pkg/container/vector/nogen_test.go        |  67 ------
- src/pkg/container/vector/numbers_test.go      | 123 ----------
- src/pkg/container/vector/stringvector.go      | 188 ---------------
- src/pkg/container/vector/stringvector_test.go | 331 --------------------------
- src/pkg/container/vector/vector.go            | 188 ---------------
- src/pkg/container/vector/vector_test.go       | 331 --------------------------
- src/pkg/old/template/template_test.go         |   7 +-
- test/vectors.go                               |  64 -----
- 14 files changed, 3 insertions(+), 1931 deletions(-)
+ src/pkg/net/ipraw_test.go                 |  3 ++-
+ src/pkg/net/iprawsock_posix.go            | 38 +++-------------------------
+ src/pkg/net/lookup_unix.go                | 42 +++++++++++++++++++++++++++++++
+ src/pkg/net/lookup_windows.go             | 18 +++++++++++--
+ src/pkg/syscall/syscall_windows.go        |  1 +
+ src/pkg/syscall/zsyscall_windows_386.go   | 16 ++++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 16 ++++++++++++
+ src/pkg/syscall/ztypes_windows.go         |  6 +++++
+ 8 files changed, 103 insertions(+), 37 deletions(-)

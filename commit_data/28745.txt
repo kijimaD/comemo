@@ -1,19 +1,24 @@
-commit 88562dc83ecc3e0c5ce85f22356cb7114e4756df
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 10 16:03:13 2016 -0400
+commit fc803874d3a509ddd99a897da1c6a62dc4ce631e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jul 11 14:59:03 2016 -0600
 
-    math/big: move ProbablyPrime into its own source file
+    regexp: add the Fanout benchmark
     
-    A later CL will be adding more code here.
-    It will help to keep it separate from the other code.
+    This is a copy of the "FANOUT" benchmark recently added to RE2 with the
+    following comment:
     
-    Change-Id: I971ba53de819cd10991b51fdec665984939a5f9b
-    Reviewed-on: https://go-review.googlesource.com/30709
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+        // This has quite a high degree of fanout.
+        // NFA execution will be particularly slow.
+    
+    Most of the benchmarks on the regexp package have very little fanout and
+    are designed for comparing the regexp package's NFA with backtracking
+    engines found in other regular expression libraries. This benchmark
+    exercises the performance of the NFA on expressions with high fanout.
+    
+    Change-Id: Ie9c8e3bbeffeb1fe9fb90474ddd19e53f2f57a52
+    Reviewed-on: https://go-review.googlesource.com/24846
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/int.go        |  13 ------
- src/math/big/int_test.go   |  90 -------------------------------------
- src/math/big/nat.go        |  90 -------------------------------------
- src/math/big/prime.go      | 110 +++++++++++++++++++++++++++++++++++++++++++++
- src/math/big/prime_test.go | 100 +++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 210 insertions(+), 193 deletions(-)
+ src/regexp/exec_test.go | 1 +
+ 1 file changed, 1 insertion(+)

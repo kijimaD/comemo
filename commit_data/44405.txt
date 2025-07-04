@@ -1,19 +1,17 @@
-commit 3deb528199383b39425fc99f3741a6ade6ab5a6b
-Author: Austin Clements <austin@google.com>
-Date:   Tue Feb 23 21:22:20 2021 -0500
+commit 7dbd40babff7998a16b8e71fb583a082be4bb547
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 25 22:38:14 2020 -0400
 
-    cmd/compile/internal-abi: update internal ABI spec for g register
+    [dev.link] cmd/link: remove special dynlinkingGo case in pclntab pass
     
-    We've already implemented dedicating R14 as the G register on amd64,
-    so remove the TODO saying we might want to hold off on this.
+    Now that we removed the "weird thing" about runtime.etext symbol,
+    we can remove this special case.
     
-    For #40724.
-    
-    Change-Id: I45b24ced03cac862127b53f5e9a4b4bcf6b1f86c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/295790
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I2e4558367758d37e898a802bcd30671c7dd6fe89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240066
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal-abi.md | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

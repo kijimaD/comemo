@@ -1,19 +1,22 @@
-commit 400e24a8be852e7b20eb4af1999b28c20bb4ea21
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Dec 12 09:28:03 2023 -0800
+commit 6e82febaf0ca737e82cc3f53de7245101821821c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 25 11:53:03 2023 -0500
 
-    crypto/x509: properly gate test on macos version
+    os: eliminate arbitrary timeout in testClosewithBlockingRead
     
-    Fixes the gating of TestIssue51759 by shelling out to sw_vers to check
-    what version of macOS we are on.
+    The 1-second timeout on execution of this test is empirically too
+    short on some platforms. Rather than trying to tune the timeout, allow
+    the test to time out on its own (and dump goroutines) if it deadlocks.
     
-    Fixes #64677
+    Fixes #57993.
+    Fixes #57994.
     
-    Change-Id: I5eef4fa39e5449e7b2aa73864625c3abf002aef8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549195
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I69ee86c75034469e4b4cd391b8dc5616b93468b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463180
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/crypto/x509/verify_test.go | 35 ++++++++++++++++++++++++++++++-----
- 1 file changed, 30 insertions(+), 5 deletions(-)
+ src/os/pipe_test.go | 72 ++++++++++++++++-------------------------------------
+ 1 file changed, 22 insertions(+), 50 deletions(-)

@@ -1,14 +1,16 @@
-commit 975c01342a25899962969833d8b2873dc8856a4f
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Feb 24 17:25:08 2020 -0500
+commit 91b55b4fa3a5351aba0e9f79f1c94e27ab2004e7
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 1 11:07:43 2019 -0400
 
-    crypto/x509: use new ecdsa.VerifyASN1 API
+    cmd/compile: attempt to preserve statement marks when empty blocks are trimmed.
     
-    Change-Id: Ia4f77d2965e34454e8dd3f2d8bf9c4f3065a9fbc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220721
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    This was a cause of some statements being lost.
+    
+    Change-Id: Ia4805c2dafd7a880d485a678a48427de8930d57e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198482
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/crypto/x509/x509.go | 13 +------------
- 1 file changed, 1 insertion(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/trim.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

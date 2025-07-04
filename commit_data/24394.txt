@@ -1,14 +1,57 @@
-commit bb6be3ab88ebd27afacb79f2ddd731f697a8816e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 29 13:17:39 2015 -0700
+commit 64a32ffeee0003a6ead15a890016fea3187fabb1
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 24 17:41:34 2015 -0400
 
-    go/types: clarify doc string for types.Check
+    runtime: don't start workers between mark 1 & 2
     
-    For #12787.
+    Currently we clear both the mark 1 and mark 2 signals at the beginning
+    of concurrent mark. If either if these is clear, it acts as a signal
+    to the scheduler that it should start background workers. However,
+    this means that in the interim *between* mark 1 and mark 2, the
+    scheduler basically loops starting up new workers only to have them
+    return with nothing to do. In addition to harming performance and
+    delaying mutator work, this approach has a race where workers started
+    for mark 1 can mistakenly signal mark 2, causing it to complete
+    prematurely. This approach also interferes with starting assists
+    earlier to fix #11677.
     
-    Change-Id: I921d01c8d7d97f3453b25e6d2241a43c5d64f53b
-    Reviewed-on: https://go-review.googlesource.com/15150
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Fix this by initially setting both mark 1 and mark 2 to "signaled".
+    The scheduler will not start background mark workers, though assists
+    can still run. When we're ready to enter mark 1, we clear the mark 1
+    signal and wait for it. Then, when we're ready to enter mark 2, we
+    clear the mark 2 signal and wait for it.
+    
+    This structure also lets us deal cleanly with the situation where all
+    work is drained *prior* to the mark 2 wait, meaning that there may be
+    no workers to signal completion. Currently we deal with this using a
+    racy (and possibly incorrect) check for work in the coordinator itself
+    to skip the mark 2 wait if there's no work. This change makes the
+    coordinator unconditionally wait for mark completion and makes the
+    scheduler itself signal completion by slightly extending the logic it
+    already has to determine that there's no work and hence no use in
+    starting a new worker.
+    
+    This is a prerequisite to fixing the remaining component of #11677,
+    which will require enabling assists during the scan phase. However, we
+    don't want to enable background workers until the mark phase because
+    they will compete with the scan. This change lets us use bgMark1 and
+    bgMark2 to indicate when it's okay to start background workers
+    independent of assists.
+    
+    This is also a prerequisite to fixing #11694. It significantly reduces
+    the occurrence of long mark termination pauses in #11694 (from 64 out
+    of 1000 to 2 out of 1000 in one experiment).
+    
+    Coincidentally, this also reduces the final heap size (and hence run
+    time) of TestTraceStress from ~100 MB and ~1.9 seconds to ~14 MB and
+    ~0.4 seconds because it significantly shortens concurrent mark
+    duration.
+    
+    Rick Hudson <rlh> did the hard work of tracking this down.
+    
+    Change-Id: I12ea9ee2db9a0ae9d3a90dde4944a75fcf408f4c
+    Reviewed-on: https://go-review.googlesource.com/12672
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/go/types/api.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go | 45 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 13 deletions(-)

@@ -1,25 +1,16 @@
-commit a0fc306023d77e5605203c14ca92f368bdbce3ae
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 13 17:08:16 2015 -0400
+commit a76099f0d9699ee0017951a541197bdaa2c2d112
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 21 16:15:05 2015 -0700
 
-    runtime: eliminate runqvictims and a copy from runqsteal
+    runtime: fix arm64 asm vet issues
     
-    Currently, runqsteal steals Gs from another P into an intermediate
-    buffer and then copies those Gs into the current P's run queue. This
-    intermediate buffer itself was moved from the stack to the P in commit
-    c4fe503 to eliminate the cost of zeroing it on every steal.
+    Several naming changes and a real issue in asmcgocall_errno.
     
-    This commit follows up c4fe503 by stealing directly into the current
-    P's run queue, which eliminates the copy and the need for the
-    intermediate buffer. The update to the tail pointer is only committed
-    once the entire steal operation has succeeded, so the semantics of
-    stealing do not change.
-    
-    Change-Id: Icdd7a0eb82668980bf42c0154b51eef6419fdd51
-    Reviewed-on: https://go-review.googlesource.com/9998
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ieb0a328a168819fe233d74e0397358384d7e71b3
+    Reviewed-on: https://go-review.googlesource.com/9212
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/proc1.go    | 21 ++++++++++-----------
- src/runtime/runtime2.go |  7 +++----
- 2 files changed, 13 insertions(+), 15 deletions(-)
+ src/runtime/asm_arm64.s        |  4 ++--
+ src/runtime/os_darwin.go       |  2 +-
+ src/runtime/sys_darwin_arm64.s | 14 +++++++-------
+ 3 files changed, 10 insertions(+), 10 deletions(-)

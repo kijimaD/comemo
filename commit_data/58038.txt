@@ -1,19 +1,27 @@
-commit cea365ddfb21ba0538072068a39c358733956ffa
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jun 21 17:07:28 2024 +0000
+commit d73a33f1c34f3cfdc136ac553e887b96614b9ee8
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Sep 7 12:41:37 2023 +0200
 
-    internal/concurrent: remove dependency on math/rand/v2
+    runtime: implement osyield in Go instead of assembly on Windows
     
-    This change uses linkname for the one random function
-    internal/concurrent needs to avoid taking a dependency on math/rand/v2.
-    This lowers the bar to using this package.
+    Windows APIs are normally not arch-specific, so it's better to
+    implement them in Go instead of assembly.
     
-    Change-Id: I9dba1121b66ba35f56521643937f220936ea5321
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594057
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    It was previously implemented in assembly because it was the only way
+    to support calls without a valid g. This CL defines a new function,
+    stdcall_no_g, that can be used in such cases.
+    
+    Change-Id: I26a223b918c6c462b06ac256bdacf9ddb78752bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526476
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/go/build/deps_test.go              | 6 ++----
- src/internal/concurrent/hashtriemap.go | 9 +++++++--
- 2 files changed, 9 insertions(+), 6 deletions(-)
+ src/runtime/os_windows.go       | 23 ++++++++++++++++++++---
+ src/runtime/sys_windows_386.s   | 11 +++--------
+ src/runtime/sys_windows_amd64.s | 16 ++++------------
+ src/runtime/sys_windows_arm.s   | 13 +++----------
+ src/runtime/sys_windows_arm64.s | 11 +++--------
+ 5 files changed, 33 insertions(+), 41 deletions(-)

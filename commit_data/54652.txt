@@ -1,30 +1,21 @@
-commit 778880b00888066212864f95877c0febbebf7e69
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Oct 5 11:11:51 2023 +0700
+commit f3d656be502a7cc4e2afbec461983b453665fca5
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 7 14:16:31 2022 -0500
 
-    cmd/compile: fix typecheck range over negative integer
+    cmd/compile: let compiler downgrade its own concurrency
     
-    Before range over integer, types2 leaves constant expression in RHS of
-    non-constant shift untyped, so idealType do the validation to ensure
-    that constant value must be an int >= 0.
+    This gets the Go command out of the business of thinking it understands
+    compiler debug flags, and allows the compiler to turn down its worker
+    concurrency instead of failing and forcing the user to do the very
+    same thing.  Debug flags that are obviously safe for concurrency
+    (at least to me) are tagged; probably there's more.
     
-    With range over int, the range expression can also be left untyped, and
-    can be an negative integer, causing the validation false.
-    
-    Fixing this by relaxing the validation in idealType, and moving the
-    check to Unified IR reader.
-    
-    Fixes #63378
-    
-    Change-Id: I43042536c09afd98d52c5981adff5dbc5e7d882a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532835
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I59bb19861d8a654a9cfd2364ee78c8628212f82e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448359
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/helpers.go | 9 +++++----
- src/cmd/compile/internal/noder/reader.go  | 7 +++++++
- test/range3.go                            | 9 +++++++++
- 3 files changed, 21 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/base/debug.go | 20 ++++++++++----------
+ src/cmd/go/internal/work/gc.go         | 14 --------------
+ 2 files changed, 10 insertions(+), 24 deletions(-)

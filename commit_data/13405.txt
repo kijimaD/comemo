@@ -1,14 +1,16 @@
-commit 596762e9a16a250ed5670b227639f9e66140b616
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 25 20:45:18 2012 -0400
+commit a9a8d7b544b62c08095c945cb642d8a307cfb4cf
+Author: L Campbell <unpantsu@gmail.com>
+Date:   Mon Jun 25 20:26:19 2012 -0400
 
-    syscall: fix build
+    syscall, net: sendfile for FreeBSD
     
-    I missed the API change in the last FreeBSD CL, but the tool caught it.
-    
-    TBR=bradfitz
+    R=golang-dev, rsc, bradfitz, devon.odell
     CC=golang-dev
-    https://golang.org/cl/6331063
+    https://golang.org/cl/6221054
 
- src/pkg/syscall/syscall_freebsd.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/sendfile_freebsd.go          | 104 +++++++++++++++++++++++++++++++
+ src/pkg/net/sendfile_stub.go             |   2 +-
+ src/pkg/syscall/asm_freebsd_amd64.s      |  34 ++++++++++
+ src/pkg/syscall/syscall_freebsd.go       |  13 +++-
+ src/pkg/syscall/syscall_freebsd_amd64.go |   2 +
+ 5 files changed, 151 insertions(+), 4 deletions(-)

@@ -1,19 +1,24 @@
-commit d5a8b9f57157e64b894ef9a1f48418f45ff7984c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Oct 9 10:20:39 2016 -0700
+commit 8599fdd9b66a384ac1e82f301a9ff4adfe448b08
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 13 16:49:09 2016 -0400
 
-    doc: update go1.8.txt using new tool
+    [dev.ssa] cmd/compile: add some ARM optimization rewriting rules
     
-    With help of a new interactive commit classifier tool (tool location
-    TBD, likely x/build/cmd/writenotes), classify all commits from go1.7
-    up to 56d35d4.
+    Mostly constant folding rules, analogous to AMD64 ones. Along with
+    some simplifications.
     
-    We can selectively cull this list later. When in doubt, I erred on the
-    side of inclusion for now.
+    Updates #15365.
     
-    Change-Id: I458945004e1b1a148fb2f294b454a390ef4f92c2
-    Reviewed-on: https://go-review.googlesource.com/30696
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If83bc1188bb05acb982ef3a1c21704c187e3eb24
+    Reviewed-on: https://go-review.googlesource.com/24210
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.8.txt | 210 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 206 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go        |   23 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  314 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |   26 +
+ src/cmd/compile/internal/ssa/op.go         |    3 +-
+ src/cmd/compile/internal/ssa/opGen.go      |  146 +
+ src/cmd/compile/internal/ssa/rewriteARM.go | 9268 ++++++++++++++++++++--------
+ 6 files changed, 7190 insertions(+), 2590 deletions(-)

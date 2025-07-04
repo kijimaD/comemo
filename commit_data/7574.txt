@@ -1,23 +1,14 @@
-commit c54b5d032f593c5379e2286da11fb78fe33fd7a3
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 25 09:45:06 2011 -0800
+commit 895631770a761f94bf22c879e7d1a1eaa6a64a55
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 25 01:04:29 2011 -0500
 
-    gob: make recursive map and slice types work.
+    8a, 8l: add CMPXCHG8B, XADDB, XADDL, XADDW
     
-    Before this fix, types such as
-            type T map[string]T
-    caused infinite recursion in the gob implementation.
-    Now they just work.
-    
-    Fixes #1518.
-    
-    R=rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4230045
+    https://golang.org/cl/4240041
 
- src/pkg/gob/codec_test.go   | 10 ++---
- src/pkg/gob/decode.go       | 63 +++++++++++++++++------------
- src/pkg/gob/encode.go       | 43 +++++++++++---------
- src/pkg/gob/encoder_test.go | 18 +++++++++
- src/pkg/gob/type.go         | 98 ++++++++++++++++++++++++++++++++-------------
- 5 files changed, 156 insertions(+), 76 deletions(-)
+ src/cmd/8a/lex.c   | 4 ++++
+ src/cmd/8l/8.out.h | 5 +++++
+ src/cmd/8l/optab.c | 5 +++++
+ 3 files changed, 14 insertions(+)

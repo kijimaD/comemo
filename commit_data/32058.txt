@@ -1,14 +1,23 @@
-commit 83fb9c8d9f5511f5aca2a0eb9f7507e2527a76a9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 18 13:29:47 2017 -0700
+commit 3237af2da88c82d4938b392d2644d65637a11526
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 10:28:54 2017 -0700
 
-    net/http: fix parameter name in comment
+    cmd/compile: don't use lookupN for statictmps
     
-    Fixes #21077
+    The names never occur more than once,
+    so interning the results is counterproductive.
     
-    Change-Id: Ic61d7313907f58ff4027fd2eee1ddb8c1656304d
-    Reviewed-on: https://go-review.googlesource.com/49712
-    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+    The impact is not very big, but neither is the fix.
+    
+    name     old time/op     new time/op     delta
+    Unicode     90.2ms ± 3%     88.3ms ± 5%  -2.10%  (p=0.000 n=94+98)
+    
+    
+    Change-Id: I1e3a24433db4ae0c9a6e98166568941824ff0779
+    Reviewed-on: https://go-review.googlesource.com/39193
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/server.go | 2 +-
+ src/cmd/compile/internal/gc/sinit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

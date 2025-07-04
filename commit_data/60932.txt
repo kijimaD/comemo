@@ -1,0 +1,20 @@
+commit cdca67185573ca94734249584afd6cd2d3d58a84
+Author: WuGuangyao <wuguangyaocoder@gmail.com>
+Date:   Sun Sep 8 06:18:22 2024 +0000
+
+    runtime: update documentation for ios addr bits
+    
+    After this merge: https://go-review.googlesource.com/c/go/+/344401, ios/arm64 was treated as a 64 bit system and the addr bits of ios/arm64 was set to 40
+    
+    Change-Id: I32d72787d20a3cf952b036e3e887cf5bae2273d8
+    GitHub-Last-Rev: 8917029fddc4d187b24fad8245fd7eed2bd570ba
+    GitHub-Pull-Request: golang/go#69343
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610856
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

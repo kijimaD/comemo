@@ -1,17 +1,17 @@
-commit 7fe2f549cc10e1251bc84a5c0b99668ca73589a8
-Author: Wèi Cōngruì <crvv.mail@gmail.com>
-Date:   Tue Jan 9 11:48:15 2018 +0800
+commit b3ee6f0c2e8be8701ec15f3fb91397e086f106ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 14 18:27:15 2017 +0000
 
-    math: handle denormals in AMD64 Exp
+    internal/cpu: fix arm64 build
     
-    Fixes #23164
+    I submitted two CLs which broke the build. Add temporary placeholder
+    with false bools to fix the build and restore old behavior.
     
-    Change-Id: I6e8c6443f3ef91df71e117cce1cfa1faba647dd7
-    Reviewed-on: https://go-review.googlesource.com/87337
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates golang/go#22718 (details of why it broke)
+    
+    Change-Id: I1f30624e14f631a95f4eff5aae462f1091f723a2
+    Reviewed-on: https://go-review.googlesource.com/77590
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/all_test.go |  3 +++
- src/math/exp_amd64.s | 25 ++++++++++++++++---------
- 2 files changed, 19 insertions(+), 9 deletions(-)
+ src/internal/cpu/cpu_arm64.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,31 +1,11 @@
-commit 1ba977ccca9c6434e96c39a3099ba8100edb1a88
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 17 10:11:03 2014 -0400
+commit c4e2e0de1adbdae6f397d1fe1f96f0eb774360bc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 3 20:30:06 2014 -0700
 
-    undo CL 159990043 / 421fadcef39a
+    doc/go1.4.txt: fmt: document printing of &map rather than just pointer
     
-    Dmitriy believes this broke Windows.
-    It looks like build.golang.org stopped before that,
-    but it's worth a shot.
-    
-    ««« original CL description
-    runtime: make pprof a little nicer
-    
-    Update #8942
-    
-    This does not fully address issue 8942 but it does make
-    the profiles much more useful, until that issue can be
-    fixed completely.
-    
-    LGTM=dvyukov
-    R=r, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/159990043
-    »»»
-    
-    TBR=dvyukov
-    CC=golang-codereviews
-    https://golang.org/cl/160030043
+    https://golang.org/cl/152160043
 
- src/runtime/proc.c | 15 ++-------------
- 1 file changed, 2 insertions(+), 13 deletions(-)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

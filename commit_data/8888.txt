@@ -1,12 +1,40 @@
-commit 161deaa85c4ed97f16fe3905d6de5ad3be24b13a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Jun 28 22:26:31 2011 -0400
+commit cf143e9dbf6e3c5b0b2a97c76980b6d5bd5cc40f
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jun 28 22:28:30 2011 +0100
 
-    runtime/cgo: fix build
+    ld: fix ELF strip by removing overlap of sections
     
-    R=golang-dev, rsc
+    The gosymtab and gopclntab sections were pointing to the proper
+    data, but that data was already owned by the rodata section.
+    Some ELF references explicitly prohibit multiple sections from
+    owning the same data, and strip behaves accordingly.
+    
+    The data for these sections was moved to after rodata, and the
+    gosymtab and gopclntab sections now own their respective ranges.
+    
+    This change makes strip happy both with and without -s being
+    provided at link time.  Note that it won't remove these sections
+    because they are still allocated, and that's by design since
+    they are necessary at runtime for generating proper backtraces
+    and similar introspection operations.
+    
+    Unlike the previous behavior, -s will now maintain zero-sized
+    gosymtab and gopclntab sections.  This makes the implementation
+    slightly cleaner.
+    
+    Fixes #1242.
+    
+    NOTE: Tested on Linux amd64/386/arm only.
+    
+    R=ality, rsc
     CC=golang-dev
-    https://golang.org/cl/4629082
+    https://golang.org/cl/4639077
 
- src/pkg/runtime/cgo/darwin_386.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5l/asm.c    | 31 ++++++++-----------------------
+ src/cmd/6l/asm.c    | 29 +++++++----------------------
+ src/cmd/8l/asm.c    | 29 +++++++----------------------
+ src/cmd/ld/data.c   | 39 ++++++++++++++++++++++++++++++---------
+ src/cmd/ld/lib.c    |  2 +-
+ src/cmd/ld/lib.h    |  2 ++
+ src/cmd/ld/symtab.c |  2 +-
+ 7 files changed, 56 insertions(+), 78 deletions(-)

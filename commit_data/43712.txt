@@ -1,17 +1,16 @@
-commit 8ab8125fbd70e439f677c37832a678e6ce1067d7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 4 11:52:43 2020 -0800
+commit 099c6116ccb11595620148cd1a321bd216d37e2b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 21 19:03:53 2020 +0000
 
-    os: remove unused variable in unix implementation of File.readdir
+    Revert "runtime/pprof: speed up CPU profiling shutdown"
     
-    Change-Id: I0dd8a325bce6ed12d1ec1dc206ded62398925aef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267758
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    This reverts commit 1f0738c1577a55a6b7229b821ddfe762b84771d0.
+    
+    Reason for revert: This May have caused issue 38567.
+    
+    Change-Id: I2afa6a9d42cb29cfad09e706fb465c57e3774abd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229301
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/os/dir_unix.go | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ src/runtime/pprof/pprof.go | 27 ++++++---------------------
+ 1 file changed, 6 insertions(+), 21 deletions(-)

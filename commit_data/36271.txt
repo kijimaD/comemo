@@ -1,18 +1,18 @@
-commit 876c6d1f274a3d508fa97558ca6765cf324c2939
-Author: Dan Johnson <computerdruid@google.com>
-Date:   Wed Aug 15 16:48:44 2018 -0700
+commit 93f95a30a3c20774bca22e77ebbb5c1f3a8ce008
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Apr 13 12:19:20 2018 +0200
 
-    cmd/compile: make duplicate anonymous interface output deterministic
+    cmd/compile: move Issue 16214 test, delete asm_test file
     
-    Ranging through a map is non-deterministic and there can be duplicate
-    entries in the set (with the same name) which don't have identical
-    definitions in some cases.
+    Move the Issue16214 test in the fixedbugs_test.go file, and delete the
+    now empty asm_test.go file.
     
-    Fixes #27013
-    
-    Change-Id: I378c48bc359c10b25b9238e0c663b498455b19fd
-    Reviewed-on: https://go-review.googlesource.com/129515
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2a0c72bd36f0359b7baf75b5d1ba647cc84feb46
+    Reviewed-on: https://go-review.googlesource.com/106836
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/compile/internal/gc/reflect.go | 23 ++++++++++++++---------
- 1 file changed, 14 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go       | 50 ---------------------------
+ src/cmd/compile/internal/gc/fixedbugs_test.go | 44 ++++++++++++++++++++++-
+ 2 files changed, 43 insertions(+), 51 deletions(-)

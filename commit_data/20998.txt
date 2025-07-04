@@ -1,18 +1,26 @@
-commit 60ea2c594bdfb8d0ae4e13c8a028e59ed07bf9a9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 16 15:53:41 2014 -0800
+commit fa32e922d54c2a2d4b9bb97009ac6e3c84af3dd6
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 4 16:34:56 2014 -0500
 
-    test: add test that gccgo failed to compile
+    [dev.power64] gc: convert Bits to a uint64 array
     
-    Gccgo failed to create the type descriptor for the type used to
-    allocate the nil value passed to append as the second argument when
-    append is called with only one argument.  Calling append with only one
-    argument is unusual but obviously should not cause a compiler crash.
+    So far all of our architectures have had at most 32 registers,
+    so we've been able to use entry 0 in the Bits uint32 array
+    directly as a register mask.  Power64 has 64 registers, so
+    this converts Bits to a uint64 array so we can continue to use
+    entry 0 directly as a register mask on Power64.
     
-    Change-Id: I530821847dfd68f0302de6ca6a84dfbc79653935
-    Reviewed-on: https://go-review.googlesource.com/1692
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169060043
 
- test/fixedbugs/bug493.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/5g/opt.h  | 14 +++++++-------
+ src/cmd/5g/reg.c  | 48 ++++++++++++++++++++++++------------------------
+ src/cmd/6g/opt.h  | 14 +++++++-------
+ src/cmd/6g/reg.c  | 46 +++++++++++++++++++++++-----------------------
+ src/cmd/8g/opt.h  | 14 +++++++-------
+ src/cmd/8g/reg.c  | 46 +++++++++++++++++++++++-----------------------
+ src/cmd/gc/bits.c | 34 +++++++++++++++++++++-------------
+ src/cmd/gc/go.h   | 12 +++++++-----
+ 8 files changed, 119 insertions(+), 109 deletions(-)

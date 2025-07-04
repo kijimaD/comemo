@@ -1,12 +1,14 @@
-commit 53c21df12153871bf3bfcc8de25ebab0ffc008c7
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Tue Nov 17 18:41:00 2015 -0800
+commit 63ee321059478e5744dc9c21946e764abc3c0eb3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 10 14:10:23 2015 -0700
 
-    strings: fix period placement in Search doc comment
+    strconv: fix comment
     
-    Change-Id: Ieba62c0cb668daeb343f72fdd568e46b0b21b7d6
-    Reviewed-on: https://go-review.googlesource.com/16998
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #12531.
+    
+    Change-Id: I66dc7ac1b71b8f72b4a8f3ec18befa2607ef358b
+    Reviewed-on: https://go-review.googlesource.com/14494
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/sort/search.go | 2 +-
+ src/strconv/itoa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

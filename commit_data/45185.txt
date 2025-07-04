@@ -1,25 +1,27 @@
-commit abbb82957d823f249dd39e38d448691e86c978bc
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 15 15:43:22 2021 -0400
+commit aeae46a7e51921b6af1dc1400bdc341fc1e568b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 14:45:35 2020 -0400
 
-    cmd/compile: don't insert VarDef for already-initialized results
+    cmd/go: disable automatic go vet -unreachable during go test of std
     
-    Currently, when we about to emit code that sets the function
-    results and returns, it emits a VarDef. But in some cases, the
-    result node is actually live and holding useful data. VarDef
-    means that we are about to (re)initialize it so all previous
-    data are dead, but that is not true. Don't insert that.
+    go test runs a limited number of vet checks by default.
+    In the standard library, we run more, both to get additional checking
+    for the standard library and to get experience with whether to enable
+    any others by default.
     
-    Also don't add VarDef for register results. We are not going to
-    store anything (currently it doesn't cause problem, just
-    unnecessary).
+    One that experience has shown us should not be enabled by default
+    is go vet -unreachable. When you are testing, it is common to want to
+    put an early return or a panic into code to bypass a section of code.
+    That often causes unreachable code. It's incredibly frustrating if the
+    result is an "unreachable code" error that keeps your test from completing.
     
-    Change-Id: I9dd3b70b4a3f5035af028b143fde8fafa2f11fa0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310589
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib194e87759eb65f5a193d771a9880b38d2fd3ba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240550
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/work/exec.go         | 21 ++++++++++++++++-----
+ src/cmd/go/testdata/script/vet_flags.txt | 16 ++++++++++------
+ 2 files changed, 26 insertions(+), 11 deletions(-)

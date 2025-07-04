@@ -1,19 +1,56 @@
-commit 3891ecbd3551bb9dad706175fc447dcc5c43eacf
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jun 16 15:15:25 2023 -0400
+commit de561dc7664c9792964d8fa74a3aa02263ee36b9
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Wed May 25 12:22:22 2022 +0200
 
-    go/internal/gcimporter: skip TestImportTypeparamTests if GOROOT/test is missing
+    cmd/compile: mark booleans as registerizable
     
-    cmd/distpack removes GOROOT/test, so skip the test if it isn't there.
+    Boolean values fit in registers, mark them accordingly. Improves codegen a bit.
     
-    For #24904.
+    compilecmp for darwin/amd64:
     
-    Change-Id: Iac381517d0540056b2ccea0dc1bd716113b18468
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504117
+    compress/gzip
+    compress/gzip.(*Reader).Reset 1017 -> 985  (-3.15%)
+    
+    net
+    net.newRequest 1002 -> 970  (-3.19%)
+    
+    crypto/tls
+    crypto/tls.(*sessionState).unmarshal 1054 -> 968  (-8.16%)
+    
+    cmd/compile/internal/syntax
+    cmd/compile/internal/syntax.Fprint 518 -> 453  (-12.55%)
+    
+    cmd/vendor/github.com/ianlancetaylor/demangle
+    cmd/vendor/github.com/ianlancetaylor/demangle.ASTToString 389 -> 325  (-16.45%)
+    
+    cmd/go/internal/load
+    cmd/go/internal/load.PackagesAndErrors 3453 -> 3381  (-2.09%)
+    
+    cmd/compile/internal/ssa
+    cmd/compile/internal/ssa.registerizable 249 -> 255  (+2.41%)
+    
+    cmd/compile/internal/ssagen
+    cmd/compile/internal/ssagen.buildssa 9388 -> 9356  (-0.34%)
+    
+    file                                            before   after    Δ       %
+    compress/gzip.s                                 8247     8215     -32     -0.388%
+    net.s                                           266667   266635   -32     -0.012%
+    crypto/tls.s                                    290324   290238   -86     -0.030%
+    cmd/compile/internal/syntax.s                   156422   156357   -65     -0.042%
+    cmd/vendor/github.com/ianlancetaylor/demangle.s 268313   268249   -64     -0.024%
+    cmd/go/internal/load.s                          122946   122874   -72     -0.059%
+    cmd/compile/internal/ssa.s                      3551201  3551207  +6      +0.000%
+    cmd/compile/internal/ssagen.s                   362299   362267   -32     -0.009%
+    total                                           19725872 19725495 -377    -0.002%
+    
+    Change-Id: I4cd40b54d8b2da6d1f946e51f16689315a369dca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408474
+    Run-TryBot: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/go/internal/gcimporter/gcimporter_test.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/rewrite.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

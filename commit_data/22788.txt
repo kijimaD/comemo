@@ -1,17 +1,15 @@
-commit ae080c1aecb129a3230e7afecdb4a16ad3da9b3c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 28 13:10:25 2015 -0700
+commit b28802d2f1ba9ef49fc3608d7026a524a98bdddb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 8 12:28:44 2015 -0700
 
-    net/http: handle "close" amongst multiple Connection tokens
+    math/big: make ErrNaN actually implement the error interface (oversight)
     
-    Fixes #8840
+    There was no way to get to the error message before.
     
-    Change-Id: I194d0248734c15336f91a6bcf57ffcc9c0a3a435
-    Reviewed-on: https://go-review.googlesource.com/9434
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I4aa9d3d9f468c33f9996295bafcbed097de0389f
+    Reviewed-on: https://go-review.googlesource.com/8660
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/http/lex.go           | 73 +++++++++++++++++++++++++++++++++++++++++++
- src/net/http/lex_test.go      | 70 +++++++++++++++++++++++++++++++++++++++++
- src/net/http/response_test.go | 51 ++++++++++++++++++++++++++++++
- src/net/http/transfer.go      |  7 ++---
- 4 files changed, 197 insertions(+), 4 deletions(-)
+ src/math/big/float.go      | 5 +++++
+ src/math/big/float_test.go | 3 +++
+ 2 files changed, 8 insertions(+)

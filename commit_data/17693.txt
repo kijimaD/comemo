@@ -1,12 +1,15 @@
-commit b0ef6aeff961053b4351cc103e3d4e4f72542e10
-Author: Kamil Kisiel <kamil@kamilkisiel.net>
-Date:   Tue Sep 24 16:32:23 2013 -0700
+commit 5639d2754b1c9e33bc4440e23d21726d2cc3454b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 24 15:52:48 2013 -0400
 
-    math/big: Fix variable name in documentation for *Int.Bytes and BitLen.
+    cmd/cgo: retain Go pointer passed to C call for duration of call
     
-    R=golang-dev, iant, gri
+    Fixes #6397.
+    
+    R=golang-dev, bradfitz, iant
     CC=golang-dev
-    https://golang.org/cl/13869043
+    https://golang.org/cl/13858043
 
- src/pkg/math/big/int.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/cc/pgen.c  | 19 ++++++++++++++-----
+ src/cmd/cgo/out.go | 12 +++++++++++-
+ 2 files changed, 25 insertions(+), 6 deletions(-)

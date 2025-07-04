@@ -1,24 +1,17 @@
-commit 82c371a307116450e9ab4dbce1853da3e69f4061
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Mon Jun 24 15:53:55 2024 +0200
+commit f0e356a07d321ef674fcda71cd8014f055c10b07
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 25 14:50:08 2023 -0700
 
-    cmd/compile: drop internal range-over-func vars from DWARF output
+    doc: add release notes for new min/max built-ins
     
-    Drops internal range-over-func variables from the DWARF output
-    (excluding #yield which is used by Delve).
+    For #59488.
     
-    Fixes #68238
-    
-    Change-Id: Ic035e37ca3560347276cdc3b469fd564da33f4f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/594257
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Auto-Submit: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Iefabb06014767c5f633082a112a81e9ff5f09a30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498397
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/dwarfgen/dwarf.go    |  6 ++++++
- src/cmd/compile/internal/rangefunc/rewrite.go |  2 +-
- src/cmd/compile/internal/ssa/debug.go         | 30 +++++++++++++++++++++++----
- 3 files changed, 33 insertions(+), 5 deletions(-)
+ doc/go1.21.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,17 +1,19 @@
-commit b3a1205a1133328068f002dd44141cb9efb2127b
-Author: Ayan George <ayan@ayan.net>
-Date:   Thu Aug 1 12:35:59 2019 -0400
+commit 61945fc5022e36ae88758f2c4e8f7c29f0824ae0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 13 13:53:38 2019 -0700
 
-    runtime: simplify GOOS detection in mstart()
+    cmd/compile: don't generate panicshift for masked int shifts
     
-    The existing condition is long and repetitive.  Using select/case with
-    multiple values in the expression list is more concise and clearer.
+    We know that a & 31 is non-negative for all a, signed or not.
+    We can avoid checking that and needing to write out an
+    unreachable call to panicshift.
     
-    Change-Id: I43f8abcf958e433468728f1d89ff1436332b29da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188519
+    Change-Id: I32f32fb2c950d2b2b35ac5c0e99b7b2dbd47f917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167499
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/proc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   5 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 232 +++++++++++++++++++++++++
+ test/codegen/shift.go                          |  28 +++
+ 3 files changed, 265 insertions(+)

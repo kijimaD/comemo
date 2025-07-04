@@ -1,24 +1,25 @@
-commit 39e523792e33a0bd9217161ca53c6c0cb2324a99
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Sep 27 10:51:24 2017 +0100
+commit bdc64183c83fbf5c595d1b18eb9addff1bf2be8d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 9 15:46:08 2017 -0400
 
-    cmd/compile: fix another invalid switch case panic
+    runtime: YIELD in procyield on ARM
     
-    Very similar fix to the one made in golang.org/cl/65655. This time it's
-    for switches on interface values, as we look for duplicates in a
-    different manner to keep types in mind.
+    ARM currently does not use a hardware yield instruction in the spin
+    loop in procyield because the YIELD instruction was only added in
+    ARMv6K. However, it appears earlier ARM chips will interpret the YIELD
+    encoding as an effective NOP (specifically an MSR instruction that
+    ultimately has no effect on the CPSR register).
     
-    As before, add a small regression test.
+    Hence, use YIELD in procyield on ARM since it should be, at worst,
+    harmless.
     
-    Updates #22001.
-    Fixes #22063.
+    Fixes #16663.
     
-    Change-Id: I9a55d08999aeca262ad276b4649b51848a627b02
-    Reviewed-on: https://go-review.googlesource.com/66450
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Id1787ac48862b785b92c28f1ac84cb4908d2173d
+    Reviewed-on: https://go-review.googlesource.com/45250
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/swt.go |  5 +++++
- test/fixedbugs/issue22063.go       | 17 +++++++++++++++++
- 2 files changed, 22 insertions(+)
+ src/runtime/asm_arm.s | 1 +
+ 1 file changed, 1 insertion(+)

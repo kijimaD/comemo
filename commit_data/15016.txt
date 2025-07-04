@@ -1,21 +1,12 @@
-commit ad37081b672a22f573f91aca7a5828e2c9718314
+commit e1448c07e1365998b7e80e01d9f94c4e4345f7d5
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 29 13:34:18 2013 -0800
+Date:   Tue Jan 29 09:32:49 2013 -0800
 
-    encoding/json: add test for Unmarshal of malformed data
+    codereview: show 'not lgtms' in hg p output (with lgtms)
     
-    Roll back CL making primitive type unmarshal faster,
-    because it broke the Unmarshal of malformed data.
-    
-    Add benchmarks for unmarshal of primitive types.
-    
-    Update #3949.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7228061
+    https://golang.org/cl/7245043
 
- src/pkg/encoding/json/bench_test.go  | 34 +++++++++++++++++++++++++++++++++-
- src/pkg/encoding/json/decode.go      | 19 -------------------
- src/pkg/encoding/json/decode_test.go | 23 ++++++++++++++++++++++-
- 3 files changed, 55 insertions(+), 21 deletions(-)
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

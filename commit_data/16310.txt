@@ -1,17 +1,18 @@
-commit 764bb36ea2be3fd9c04a0a485524a75241c21b8a
+commit 5a89b35bca720d1ba296f5d7f22376b440486faf
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed May 15 16:48:41 2013 +0400
+Date:   Wed May 15 11:02:33 2013 +0400
 
-    runtime: unset m->locks after actual lock unlock
-    This is needed for preemptive scheduler,
-    it will preempt only when m->locks==0,
-    and we do not want to be preempted while
-    we have not completely unlocked the lock.
+    runtime: inline size to class conversion in malloc()
+    Also change table type from int32[] to int8[] to save space in L1$.
     
-    R=golang-dev, khr, iant
+    benchmark          old ns/op    new ns/op    delta
+    BenchmarkMalloc           42           40   -4.68%
+    
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/9196047
+    https://golang.org/cl/9199044
 
- src/pkg/runtime/lock_futex.c | 6 +++---
- src/pkg/runtime/lock_sema.c  | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/runtime/malloc.goc |  6 +++++-
+ src/pkg/runtime/malloc.h   |  2 ++
+ src/pkg/runtime/msize.c    | 28 +++++++++++++++-------------
+ 3 files changed, 22 insertions(+), 14 deletions(-)

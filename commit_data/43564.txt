@@ -1,24 +1,20 @@
-commit 091257def92b0280b07bde9536b7cdf5f3b02aec
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 27 14:15:00 2020 -0700
+commit d3d21d0a4280444dd1d093eb73596a7326c0a651
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Apr 14 02:36:36 2020 +1000
 
-    cmd/compile: print pointers to go:notinheap types without converting to unsafe.Pointer
+    cmd/compile: update TestIntendedInlining for riscv64
     
-    Pretty minor concern, but after auditing the compiler/runtime for
-    conversions from pointers to go:notinheap types to unsafe.Pointer,
-    this is the only remaining one I found.
+    Mark nextFreeFast as not inline, as it is too expensive to inline on riscv64.
+    Also remove riscv64 from non-atomic inline architectures, as we now have
+    atomic intrisics.
     
-    Update #42076
+    Updates #22239
     
-    Change-Id: I81d5b893c9ada2fc19a51c2559262f2e9ff71c35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265757
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I6e0e72c1192070e39f065bee486f48df4cc74b35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227808
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         | 431 +++++++++++++------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   1 +
- src/cmd/compile/internal/gc/walk.go            |  12 +-
- src/runtime/print.go                           |   3 +
- 4 files changed, 231 insertions(+), 216 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

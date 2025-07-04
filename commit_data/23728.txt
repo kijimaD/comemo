@@ -1,12 +1,12 @@
-commit 29ffa4bd921125b73b04078fd293ecc4bdb9d7cd
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jul 16 15:41:34 2015 +0900
+commit 433c0bc76949fb01bed4747f1d83038ea242a90e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 8 13:22:01 2015 -0700
 
-    cmd/go: don't put mycmd in wrong directory
+    runtime: avoid fault in heapBitsBulkBarrier
     
-    Change-Id: Ia7cc1d52211b32a2eb2b3888d621b28d6932aca9
-    Reviewed-on: https://go-review.googlesource.com/12290
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0512e461de1f25cb2a1cb7f23e7a77d00700667c
+    Reviewed-on: https://go-review.googlesource.com/10803
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/go_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

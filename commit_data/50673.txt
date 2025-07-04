@@ -1,23 +1,15 @@
-commit dbf174d4b9dd96b225a1f10089478f8257a54f80
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 28 19:19:44 2022 +0200
+commit a0d661ab0ff896abe45d6d4e79cb71df233c5319
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 5 08:18:57 2021 -0700
 
-    cmd/dist: test cmd module on js/wasm
+    net: skip new alloc test on some builders
     
-    Most tests will be skipped anyway because 'go build' is not available,
-    but this ensures cmd will be build tested by TryBots for js/wasm.
-    
-    For #25911
-    For #35220
-    For #54219
-    
-    Change-Id: I09c75905c36311810eb1ae75eeee2fa6102c1c0d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435237
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib785212eb9e035a10d327696c180caf730d2e5e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361634
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/build.go |  4 ----
- src/cmd/dist/test.go  | 19 ++-----------------
- 2 files changed, 2 insertions(+), 21 deletions(-)
+ src/net/udpsock_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

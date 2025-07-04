@@ -1,14 +1,14 @@
-commit ab08f79af3d41e28bf2ccf2f8738024a1404aeac
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jun 9 16:16:42 2015 +1000
+commit 9d0a2e4d6ef6bb97e9780f2def181e5d5edca718
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 6 21:34:29 2015 +0900
 
-    cmd/link: stop linker crashing with -s flag on windows
+    net: fix inconsistent error values on Read for solaris
     
-    Update #10254
+    Updates #4856.
     
-    Change-Id: I3ddd26607813ca629e3ab62abf87dc5ab453e36f
-    Reviewed-on: https://go-review.googlesource.com/10835
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia04e24fb1fe57e244d7b1cd417f7f419ad610acd
+    Reviewed-on: https://go-review.googlesource.com/9776
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/cmd/link/internal/ld/pe.go | 31 ++++++++++++++++---------------
- 1 file changed, 16 insertions(+), 15 deletions(-)
+ src/net/sendfile_solaris.go | 3 +++
+ 1 file changed, 3 insertions(+)

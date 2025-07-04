@@ -1,28 +1,24 @@
-commit 0a6f05e30f58023bf45f747a79c20751db2bcfe7
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Sun Feb 25 21:21:31 2024 +0000
+commit 0d9eb8bea26a1fbebc149aa1811e5c0d9201dc40
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 24 14:31:29 2023 -0700
 
-    syscall: use internal/asan and internal/msan
+    cmd/compile: casts from slices to array pointers are known to be non-nil
     
-    Now with internal/asan and internal/msan available we can cleanup
-    syscall's duplicated definitions.
+    The cast is proceeded by a bounds check. If the bounds check passes
+    then we know the pointer in the slice is non-nil.
     
-    For #64611
+    ... except casts to pointers of 0-sized arrays. They are strange, as
+    the bounds check can pass for a nil input.
     
-    Change-Id: If714d04ed2d32a4ed27305b3e3dc64ba8cdd1b61
-    GitHub-Last-Rev: e52fff1513bf74305d7abd142f71a60215bb93fc
-    GitHub-Pull-Request: golang/go#65935
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566755
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ic01cf4a82d59fbe3071d4b271c94efca9cafaec1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479335
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/asan.go            | 22 ----------------------
- src/syscall/asan0.go           | 19 -------------------
- src/syscall/msan.go            | 22 ----------------------
- src/syscall/msan0.go           | 19 -------------------
- src/syscall/syscall_unix.go    | 34 ++++++++++++++++++----------------
- src/syscall/syscall_windows.go | 18 ++++++++++--------
- 6 files changed, 28 insertions(+), 106 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 9 +++++++--
+ test/nilptr3.go                        | 7 +++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

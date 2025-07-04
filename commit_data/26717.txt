@@ -1,14 +1,21 @@
-commit b9531d31ac8a0078b437f778caf09727e218f492
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 5 16:04:03 2016 +0000
+commit 733cae6acdbf191af673498fd23df46dfefd6d04
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Sep 3 20:27:12 2015 -0400
 
-    doc: add httptest.ResponseRecorder note to go1.7.txt notes
+    cmd/dist, go/build: make cmd/dist generate cgoEnabled map for go/build
     
-    Fixes #14928
+    This reduces the amount of duplication. Now there is only one list
+    of platforms supporting cgo.
     
-    Change-Id: Id772eb623815cb2bb3e49de68a916762345a9dc1
-    Reviewed-on: https://go-review.googlesource.com/21531
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Update #12270.
+    
+    Change-Id: I5dcd55cb6be7c5bb6ce560383c71d90ab1189dc9
+    Reviewed-on: https://go-review.googlesource.com/14278
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.7.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/dist/build.go   |  6 +++++-
+ src/cmd/dist/buildgo.go | 28 +++++++++++++++++++++++++++-
+ src/go/build/build.go   | 28 ----------------------------
+ 3 files changed, 32 insertions(+), 30 deletions(-)

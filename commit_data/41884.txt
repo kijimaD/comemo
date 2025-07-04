@@ -1,25 +1,46 @@
-commit ddfc55b076d945f215875d6b65c36fc53b332cc1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 8 16:28:33 2020 -0400
+commit 81a74b4e8d4a1740529bb951eaa9569d429e4c0f
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 30 09:46:56 2019 -0700
 
-    os/signal: increase settle time in tests
+    testing: provide additional information when test funcs panic
     
-    I noticed a timeout in TestIgnore in
-    https://build.golang.org/log/52d83a72f3a5ea9a16eb5d670c729694144f9624,
-    which suggests that the settle time is currently set too low.
+    Flush the output log up to the root when a test panics. Prior to
+    this change, only the current test's output log was flushed to its
+    parent, resulting in no output when a subtest panics.
     
-    I've also added a check for the same GO_TEST_TIMEOUT_SCALE used in
-    TestTerminalSignal, so that if this builder remains too slow we can
-    increase the builder's scale factor rather than the test's baseline
-    running time.
+    For the following test function:
     
-    Updates #33174
+            func Test(t *testing.T) {
+                    for i, test := range []int{1, 0, 2} {
+                            t.Run(fmt.Sprintf("%v/%v", i, test), func(t *testing.T) {
+                                    _ = 1 / test
+                            })
+                    }
+            }
     
-    Change-Id: I18b10eaa3bb5ae2f604300aedaaf6f79ee7ad567
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227649
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Output before this change:
+    
+            panic: runtime error: integer divide by zero [recovered]
+                    panic: runtime error: integer divide by zero
+            (stack trace follows)
+    
+    Output after this change:
+    
+            --- FAIL: Test (0.00s)
+                --- FAIL: Test/1/0 (0.00s)
+            panic: runtime error: integer divide by zero [recovered]
+            (stack trace follows)
+    
+    Fixes #32121
+    
+    Change-Id: Ifee07ccc005f0493a902190a8be734943123b6b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179599
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/os/signal/signal_test.go | 18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ src/cmd/internal/test2json/testdata/panic.json | 19 ++++++
+ src/cmd/internal/test2json/testdata/panic.test | 17 ++++++
+ src/testing/panic_test.go                      | 83 ++++++++++++++++++++++++++
+ src/testing/testing.go                         | 13 +++-
+ 4 files changed, 130 insertions(+), 2 deletions(-)

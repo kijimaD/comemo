@@ -1,14 +1,15 @@
-commit c9836be112d4c9f7836c2adcfa2f7e941c8a1ecd
+commit 70db237169c35367d6e2b0a13e3b6892849b3c35
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 8 16:10:55 2012 +1100
+Date:   Thu Mar 8 16:09:49 2012 +1100
 
-    doc: link to go1 and go1compat from docs index
+    doc: add go command notes to the Go 1 doc
     
-    Fixes #3239.
+    Fixes #2912.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5782049
+    https://golang.org/cl/5783048
 
- doc/docs.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ doc/go1.html | 20 +++++++++++++++++++-
+ doc/go1.tmpl | 20 +++++++++++++++++++-
+ 2 files changed, 38 insertions(+), 2 deletions(-)

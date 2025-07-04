@@ -1,16 +1,14 @@
-commit 5782f4117dcb4c8fc40f8110a57ac531a2abdb99
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon May 27 11:29:11 2013 +0400
+commit 20c524c5e29282d3c91e8155c496865dee2c3c73
+Author: Brian G. Merrell <bgmerrell@gmail.com>
+Date:   Mon May 27 11:00:12 2013 +1000
 
-    runtime: introduce cnewarray() to simplify allocation of typed arrays
+    effective_go.html: Fix two links
+    This fixes two intra-page "type assertion" links that were broken in
+    different ways.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/9648044
+    https://golang.org/cl/9797043
 
- src/pkg/reflect/all_test.go | 19 +++++++++++++++++
- src/pkg/runtime/iface.c     | 32 ++---------------------------
- src/pkg/runtime/malloc.goc  | 50 ++++++++++++++++++++++++++-------------------
- src/pkg/runtime/malloc.h    |  1 +
- src/pkg/runtime/slice.c     | 20 +-----------------
- 5 files changed, 52 insertions(+), 70 deletions(-)
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

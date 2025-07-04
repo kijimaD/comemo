@@ -1,20 +1,26 @@
-commit 3046b499918929944cbce1c0ed14c14d0b431adf
-Author: Nicola Murino <nicola.murino@gmail.com>
-Date:   Sun Nov 24 15:28:34 2024 +0100
+commit 234390e741dd43b1ce54b0cfd91dc591c0b190f7
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Mon Feb 5 14:20:10 2024 -0500
 
-    crypto/tls: add offered cipher suites to the handshake error
+    runtime: don't clobber saved frame pointer during arm64 racecall
     
-    This change makes debugging easier if the server handshake fails because
-    the client only offers unsupported algorithms.
+    During calls to the race detector on arm64, we switch to the g0 stack if
+    we aren't already on it. If we are already on the g0 stack, the race
+    detector library code can then create a stack frame using the stack
+    pointer coming from Go code. The race detector library can go on to
+    write values to the top of its stack frame. But the Go ABI for arm64
+    saves the caller's frame pointer in the word below the current stack
+    frame. So, the saved frame pointer on the stack can be clobbered by the
+    race detector. Decrement the stack pointer to account for where the
+    frame pointer is saved, like we do for asmcgocall.
     
-    Change-Id: I7daac173a16af2e073aec3d9b59709560f540c6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631555
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I66e5e4a671c3befc10776bac6869810ecf71790d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561515
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Nicola Murino <nicola.murino@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/crypto/tls/handshake_server.go       | 3 ++-
- src/crypto/tls/handshake_server_tls13.go | 4 +++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/runtime/race_arm64.s | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,14 +1,14 @@
-commit 6317adeed7815ad335e2e97c463a7c3c4d82fc19
-Author: Tim Cooper <tim.cooper@layeh.com>
-Date:   Mon Jan 1 12:11:58 2018 -0400
+commit 0ce55b6372e98065e7c54c68e81613d08145fc98
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Sep 20 00:04:50 2017 +0900
 
-    reflect: explicitly state that Type values can be used as map keys
+    internal/testenv: take testing.TB instead of *testing.T in MustHave* and SkipFlaky*
     
-    Fixes #6535
-    
-    Change-Id: I34974c0050424c96d19ad69bf4522bb69cde2fd5
-    Reviewed-on: https://go-review.googlesource.com/85815
+    Change-Id: I16475e9bb055b934302870ccb5136174dc3bc817
+    Reviewed-on: https://go-review.googlesource.com/64670
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/reflect/type.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/internal/testenv/testenv.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

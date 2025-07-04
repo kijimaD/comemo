@@ -1,24 +1,23 @@
-commit 0a87fdc06e9c4ae73b31cd08c26ed32c8a80923b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 26 14:48:22 2023 -0400
+commit f80b12667c69c72e170862ef50f085ff9d35f354
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 15 16:26:23 2022 -0700
 
-    cmd/go/internal/toolchain: avoid importing modcmd
+    go/types, types2: check integer constant literal overflow
     
-    modcmd is a high-level command, but toolchain is a low-level building
-    block. A dependency from toolchain on modcmd makes it very difficult
-    to call from other lower-level packages without creating an import
-    cycle.
+    Fixes #54280.
     
-    Instead, use modfetch.Download in place of modcmd.DownloadModule.
-    
-    For #57001.
-    
-    Change-Id: I9694706d7225b269f26dc68814894613a3329abb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499316
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I44a31daaace50bc90c96cd36387bd1a009d6a287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424055
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/toolchain/toolchain.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/expr.go               |  9 ++++++++-
+ .../internal/types2/testdata/fixedbugs/issue54280.go  |  7 +++++++
+ src/go/types/check_test.go                            |  2 +-
+ src/go/types/expr.go                                  |  8 +++++++-
+ src/go/types/testdata/fixedbugs/issue54280.go         |  7 +++++++
+ test/const7.go                                        | 19 +++++++++++--------
+ test/fixedbugs/issue54280.go                          | 11 +++++++++++
+ 7 files changed, 52 insertions(+), 11 deletions(-)

@@ -1,20 +1,26 @@
-commit 3ed5a53f9d1c9713c7d2748f7744534e404b80de
-Author: Daniel Cormier <danielc@knowbe4.com>
-Date:   Wed Jun 19 12:32:30 2019 -0400
+commit 5c9a96c420ce8eace6168defa0a8eff05c55ef60
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 27 10:46:18 2019 -0500
 
-    bufio: Reader.Read may return io.EOF even when it has data buffered
+    misc/cgo/test: skip TestCrossPackageTests on Android
     
-    If reading 0 bytes, don't return the error from the underlying
-    io.Reader if there is still data buffered.
+    This test currently fails in the Android builders, with the message
+            pkg_test.go:64: go test -short: exec: "go": executable file not found in $PATH
+    (https://build.golang.org/log/39ec0da5bfb7793359e199cc8e358ca5a8257840)
     
-    Fixes #32693
+    I was not able to test this change, because I can't get 'gomote
+    create' to return an instance of anything Android. However, I will
+    watch the build dashboard after submitting to verify that the fix
+    works.
     
-    Change-Id: I12a97bd6003c638c15d41028942f27edf88340e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/182997
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #30228
+    
+    Android appears to lack a 'go' command in the.
+    
+    Change-Id: Ieacac7f50d19e2cfef2f5d60e79a159e55b5cfa8
+    Reviewed-on: https://go-review.googlesource.com/c/164097
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
 
- src/bufio/bufio.go      |  3 +++
- src/bufio/bufio_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+)
+ misc/cgo/test/pkg_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,23 +1,22 @@
-commit 5f1aeaeb77b36b92305b54acc4bd6a3319dce803
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Sat Aug 24 20:42:41 2019 +0900
+commit 56b8ee23986c48ec63a0411f12b3fcaad61d6c06
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 16 13:07:29 2019 -0400
 
-    math/rand: devirtualize interface call in Read
+    cmd/go: retry RemoveAll(workdir) for up to 500ms
     
-    This allows to inline the common case in which the Source is a
-    rngSource. On linux/amd64 in a VM:
+    On some configurations of Windows, directories containing executable
+    files may be locked for a while after the executable exits (perhaps
+    due to antivirus scans?). It's probably worth a little extra latency
+    on exit to avoid filling up the user's temporary directory with leaked
+    files.
     
-    name        old time/op  new time/op  delta
-    Read3-4     33.8ns ± 8%  18.5ns ± 8%  -45.38%  (p=0.000 n=10+10)
-    Read64-4     371ns ± 8%    70ns ± 7%  -81.00%  (p=0.000 n=10+10)
-    Read1000-4  5.33µs ± 5%  0.86µs ± 3%  -83.85%  (p=0.000 n=9+9)
+    Updates #30789
     
-    Change-Id: Ibf47b0e9ecdfe62ffcb66d6a92f191800bdc740e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191539
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: Iae7fcdd07fb9ecfb05967cfe0c8833db646d2f85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172337
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/rand/rand.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/work/action.go | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)

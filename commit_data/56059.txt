@@ -1,18 +1,22 @@
-commit 4217877670e94b88ddd1ee1041b31d5825b08e2a
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Fri Mar 22 06:17:00 2024 +0000
+commit 7ce458726523ec8accb2f1ac2f1b21a60fb4bd6e
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Apr 6 11:01:05 2023 -0700
 
-    cmd/internal/ssa: fix typo in comment
+    net/http: add tests covering non-GET methods for file serving
     
-    Change-Id: Ib66830792ebb15538596f4bf4a51d2b3f05c7fe7
-    GitHub-Last-Rev: 947445916abc91331f51e29c0541c510bd9c623c
-    GitHub-Pull-Request: golang/go#66460
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573557
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    ServeFile and FileServer will respond to methods such as DELETE by
+    serving the file contents. This is surprising, but we don't want to
+    change it without some consideration.
+    
+    Add tests covering the current behavior.
+    
+    For #59470
+    
+    Change-Id: Ib6a2594c5b2b7f380149fc1628f7204b308161e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482876
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/magic.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/fs_test.go | 83 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 78 insertions(+), 5 deletions(-)

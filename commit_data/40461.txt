@@ -1,23 +1,27 @@
-commit 1c38ee5ffe223ebe1bc82404eddb111f5b5dbd8d
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sun Oct 27 12:03:17 2019 +0000
+commit ab242dcbc92803788b135816823536c4007137e3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 7 17:56:49 2019 +1000
 
-    cmd: remove a few unused parameters
+    syscall: implement rawVforkSyscall for linux/ppc64x and linux/s390x
     
-    They all seem pretty low-risk, and the overall diff is small.
+    This allows the use of CLONE_VFORK and CLONE_VM for fork/exec, preventing
+    "fork/exec ...: cannot allocate memory" failures from occuring when attempting
+    to execute commands from a Go process that has a large memory footprint.
+    Additionally, this should reduce the latency of fork/exec on these platforms.
     
-    While at it, remove one in go/build too.
+    The same problem was addressed on linux/amd64 via issue #5838.
     
-    Change-Id: I31df52c1c97d843b06f6c1dc63462d390db4470d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203607
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Updates #31936
+    
+    Change-Id: I7ae0fbbeaa29cab944a49a11272a380d497eb2d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175697
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/envcmd/env.go   |  6 +++---
- src/cmd/go/internal/load/pkg.go     |  7 +++----
- src/cmd/go/internal/sumdb/server.go | 12 ++++++------
- src/cmd/go/internal/work/buildid.go |  3 +--
- src/cmd/go/internal/work/exec.go    |  6 +++---
- src/go/build/build.go               |  7 ++++---
- 6 files changed, 20 insertions(+), 21 deletions(-)
+ src/syscall/asm_linux_ppc64x.s      | 20 ++++++++++++++++++++
+ src/syscall/asm_linux_s390x.s       | 21 +++++++++++++++++++++
+ src/syscall/exec_linux.go           |  4 +++-
+ src/syscall/syscall_linux_ppc64x.go |  4 +---
+ src/syscall/syscall_linux_s390x.go  |  4 +---
+ 5 files changed, 46 insertions(+), 7 deletions(-)

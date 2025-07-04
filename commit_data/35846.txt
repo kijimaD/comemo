@@ -1,17 +1,20 @@
-commit d4d8237a5bfee5965382ee43da9e70417e9516af
-Author: David Chase <drchase@google.com>
-Date:   Fri Jun 29 19:47:19 2018 +0000
+commit 911839c1f462260db0f001f8e017f10f688d2270
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Feb 17 10:31:39 2018 -0500
 
-    Revert "cmd/compile: make OpAddr depend on VarDef in storeOrder"
+    cmd/internal/obj/arm64: fix branch-too-far with TBZ like instructions
     
-    This reverts commit 1a27f048ad25f151d2a17ce7f2d73d0d2dbe94cf.
+    The compiler now emits TBZ like instructions, but the assembler's
+    too-far-branch patch code didn't include that case. Add it.
     
-    Reason for revert: Broke the ssacheck and -N-l builders, and the -N-l fix looks like it will take some time and take a different route entirely.
+    Fixes #23889.
     
-    Change-Id: Ie0ac5e86ab7d72a303dfbbc48dfdf1e092d4f61a
-    Reviewed-on: https://go-review.googlesource.com/121715
+    Change-Id: Ib75f9250c660b9fb652835fbc83263a5d5073dc5
+    Reviewed-on: https://go-review.googlesource.com/94902
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/schedule.go | 22 +---------------------
- test/fixedbugs/issue26105.go             | 25 -------------------------
- 2 files changed, 1 insertion(+), 46 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go     | 11 +++++++++--
+ src/cmd/internal/obj/arm64/asm_test.go |  1 +
+ 2 files changed, 10 insertions(+), 2 deletions(-)

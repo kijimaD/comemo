@@ -1,23 +1,47 @@
-commit 5a181c504263b6cc2879d0a4fa19b2c993c59704
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 23 12:01:53 2024 -0500
+commit fb4a306e3a3e5f5ae6e32ed796157e6e1fe0b6db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 2 14:09:45 2023 -0700
 
-    iter: expose fundamental types to Go 1.23
+    go/types, types2: combine version check with version error reporting
     
-    These were previously only available with GOEXPERIMENT=rangefunc.
+    This removes the duplicate (and possible error-prone) versions
+    (once for test and once for error message) and simplifies code.
     
-    For #61897.
+    Adjusted multiple go/types call sites to match types2.
     
-    Change-Id: I86aea5ae8be1f7a2975b623325811221ed40d384
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/557836
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Renamed posFor to atPos in types2, for closer match with go/types
+    and to keep automatic generation of instantiate.go working.
+    
+    Change-Id: Iff428fc742f305a65bb7d077b7e31b66df3b706d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491715
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- api/next/61897.txt                       | 4 ++++
- doc/next/6-stdlib/3-iter.md              | 4 ++++
- doc/next/6-stdlib/99-minor/iter/61897.md | 1 +
- src/go/build/deps_test.go                | 5 +----
- src/go/doc/comment/std.go                | 1 +
- src/iter/iter.go                         | 5 -----
- src/iter/pull_test.go                    | 6 ++----
- 7 files changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        | 22 ++++++----------
+ src/cmd/compile/internal/types2/call.go            | 26 +++++++------------
+ src/cmd/compile/internal/types2/check.go           |  2 +-
+ src/cmd/compile/internal/types2/conversions.go     |  4 +--
+ src/cmd/compile/internal/types2/decl.go            |  9 ++-----
+ src/cmd/compile/internal/types2/errors.go          |  8 +++---
+ src/cmd/compile/internal/types2/expr.go            |  7 +++--
+ src/cmd/compile/internal/types2/instantiate.go     |  2 +-
+ src/cmd/compile/internal/types2/interface.go       |  2 +-
+ src/cmd/compile/internal/types2/resolver.go        |  8 ++----
+ src/cmd/compile/internal/types2/typeset.go         |  9 +++----
+ src/cmd/compile/internal/types2/typexpr.go         |  7 ++---
+ src/cmd/compile/internal/types2/version.go         | 15 +++++++++--
+ src/go/types/builtins.go                           | 18 +++++--------
+ src/go/types/call.go                               | 30 ++++++++--------------
+ src/go/types/conversions.go                        |  4 +--
+ src/go/types/decl.go                               |  9 ++-----
+ src/go/types/expr.go                               |  3 +--
+ src/go/types/instantiate.go                        |  2 +-
+ src/go/types/resolver.go                           |  8 ++----
+ src/go/types/typeset.go                            | 11 +++-----
+ src/go/types/typexpr.go                            |  7 ++---
+ src/go/types/version.go                            | 26 +++++++++++++------
+ .../types/testdata/fixedbugs/issue59338a.go        |  4 +--
+ 24 files changed, 102 insertions(+), 141 deletions(-)

@@ -1,17 +1,21 @@
-commit a4a5ef08bd15201772021620cc3a8331b30643f5
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Mar 20 09:41:28 2025 +0100
+commit e41fabd6886ec16db6026b30486e20732f89960a
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Feb 16 21:16:29 2024 +0000
 
-    cmd/cgo/internal/testshared: log stdout when go command fails
+    reflect: make Value.Comparable return true for nil interface value
     
-    Understanding a failure in the goCmd call is difficult because the
-    important information might be in the stdout instead of stderr.
+    Fixes #65718
     
-    Change-Id: Icf42974679103c69016129fe2ebb15d5a0a3b51a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659456
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I0b3edf9085f2d71f915bdf8ff9d312509b438c5f
+    GitHub-Last-Rev: 9fb1ca1a631c648d1f38f75b1fcb2f878048706b
+    GitHub-Pull-Request: golang/go#65750
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564795
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/cgo/internal/testshared/shared_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/reflect/all_test.go | 6 ++++++
+ src/reflect/value.go    | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

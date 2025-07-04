@@ -1,18 +1,14 @@
-commit 5da14d1697d16efea832ce5756e20c76ed160f0a
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Aug 5 10:27:51 2011 +1000
+commit ba9833269d2ebeab691eac72efadf094e12545d1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 5 09:20:13 2011 +1000
 
-    net: implement windows LookupMX and LookupAddr
+    net: fix /proc/net/igmp,igmp6 reading bug on linux
     
-    Also sort SRV records before returning from LookupSRV.
+    Fixes #2130.
     
-    R=rsc
+    R=rsc, dave
     CC=golang-dev
-    https://golang.org/cl/4817049
+    https://golang.org/cl/4846044
 
- src/pkg/net/dnsclient.go                    | 27 +++++++++++++++++--
- src/pkg/net/{srv_test.go => lookup_test.go} | 28 ++++++++++++++++++++
- src/pkg/net/lookup_unix.go                  | 19 ++-----------
- src/pkg/net/lookup_windows.go               | 41 ++++++++++++++++++++++-------
- src/pkg/syscall/ztypes_windows.go           |  6 +++++
- 5 files changed, 93 insertions(+), 28 deletions(-)
+ src/pkg/net/interface_linux.go | 29 ++++++++++-------------------
+ 1 file changed, 10 insertions(+), 19 deletions(-)

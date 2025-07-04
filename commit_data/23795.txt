@@ -1,14 +1,20 @@
-commit 77d38d9cbe9b4047e7155569e7b9485093807e17
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 22 16:12:26 2015 -0400
+commit c31b6dd0be202698a142568d8a8762db74b4516d
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Fri Jun 12 14:23:29 2015 +0100
 
-    runtime: handle linux CPU masks up to 64k CPUs
+    [dev.ssa] initial implementation of PAUTO|PHEAP variables
     
-    Fixes #11823.
+    Call to the runtime to generate escaping variables and use the returned
+    address when accessing these variables.
     
-    Change-Id: Ic949ccb9657478f8ca34fdf1a6fe88f57db69f24
-    Reviewed-on: https://go-review.googlesource.com/12535
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fix a couple of errors on the way. The rule for CALLstatic was missed
+    during the Aux refactor and OCONVNOP wasn't converted.
+    
+    Change-Id: I2096beff92cca92d648bfb6e8ec0b120f02f44af
+    Reviewed-on: https://go-review.googlesource.com/11072
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/os1_linux.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           | 79 ++++++++++++++++++----------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 12 ++---
+ 3 files changed, 58 insertions(+), 35 deletions(-)

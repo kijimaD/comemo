@@ -1,18 +1,23 @@
-commit b0beeb1501a65ff5494c41307058e98d1394be4e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 7 15:30:54 2012 -0500
+commit c8981c718b50352e66cb4b08ed5682af1c1a5d75
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 7 12:24:20 2012 -0800
 
-    runtime: fix freebsd crash
+    go/parser: better error synchronization
     
-    FreeBSD, alone among our supported operating systems,
-    required that usleep not be interrupted.  Don't require that.
+    gofmt reports now a single, accurate error for
+    the test case of issue 3106.
     
-    Fixes #3217.
+    Also: Added test harness for general error
+    checking and two test cases for now.
     
-    R=golang-dev, bradfitz
+    Fixes #3106.
+    
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5781045
+    https://golang.org/cl/5755062
 
- src/pkg/runtime/sys_freebsd_386.s   | 2 --
- src/pkg/runtime/sys_freebsd_amd64.s | 2 --
- 2 files changed, 4 deletions(-)
+ src/pkg/go/parser/error_test.go          | 163 +++++++++++++++++++++++++++++++
+ src/pkg/go/parser/parser.go              |  94 +++++++++++++-----
+ src/pkg/go/parser/testdata/commas.src    |  19 ++++
+ src/pkg/go/parser/testdata/issue3106.src |  46 +++++++++
+ 4 files changed, 299 insertions(+), 23 deletions(-)

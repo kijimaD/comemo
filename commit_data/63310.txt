@@ -1,0 +1,16 @@
+commit 3254c2bb8308690a88a9f62b7f51c84d80325e79
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jun 14 16:38:26 2025 -0700
+
+    internal/reflectlite: fix comment about meaning of flag field
+    
+    Copied current (presumably correct) comment text from reflect package.
+    
+    Change-Id: I19582b3675fbcb96a925002498d24ad2b7bc6178
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681935
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/reflectlite/value.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

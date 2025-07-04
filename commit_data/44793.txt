@@ -1,22 +1,18 @@
-commit fd5e0bd385660275a8049a2499e0bbbffd465bc8
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Mar 24 11:19:19 2021 -0400
+commit a58a8d2e97d605f9f115a0e77ba09cd36bb82ba6
+Author: zdjones <zachj1@gmail.com>
+Date:   Thu Jul 16 12:33:25 2020 +0100
 
-    cmd/link: mangle function names with ABI on PE
+    test: document specifying individual test files as operands
     
-    When ABI wrappers are used, we may end up with two functions
-    having the same name. On ELF we mangle the name with ABI. Do the
-    same for PE.
+    The current command will run this entire set of tests, which takes a
+    noticeable amount of time. Contributors may wish to run only a subset of
+    these tests to save time/compute (e.g. when iterating on a CL that
+    failed tests in that subset). Listing file(s) as operands to the command
+    will run only those tests.
     
-    TODO: other platforms?
-    
-    Change-Id: If89f214a6286bc28c062c1aa1bad78dc353a9231
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304432
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I1874c43681a594190bc40b61cee0b8d321be73f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242997
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/link/internal/ld/pe.go     |  2 ++
- src/cmd/link/internal/ld/symtab.go | 71 ++++++++++++++++++++------------------
- 2 files changed, 40 insertions(+), 33 deletions(-)
+ test/README.md | 4 ++++
+ 1 file changed, 4 insertions(+)

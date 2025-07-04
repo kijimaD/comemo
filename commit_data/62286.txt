@@ -1,0 +1,19 @@
+commit a73c6545d27afaad631ba2f5c593ab3a97d11bdc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Feb 15 18:09:59 2025 +1100
+
+    crypto/internal/fips140deps/cpu: use const and var blocks
+    
+    Rather than repeating ourselves, use a single const block and a single
+    var block. Also separate architectures for readability.
+    
+    Change-Id: Iab5bda3514eae0c9b5bb16a99277fd4b95f272aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649658
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Joel Sing <joel@sing.id.au>
+
+ src/crypto/internal/fips140deps/cpu/cpu.go | 60 ++++++++++++++++--------------
+ 1 file changed, 33 insertions(+), 27 deletions(-)

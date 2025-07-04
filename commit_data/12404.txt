@@ -1,12 +1,23 @@
-commit 0a6fdcf63ba9cc34d1ae33345adbfc4d5e1a4b75
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 5 22:07:22 2012 -0500
+commit f200b72a7c27a71b5d52da7d62e7ef16c2024f68
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 6 12:50:52 2012 +1100
 
-    net: silence another epoll print
+    doc: add more gophers
     
-    R=golang-dev, nigeltao
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5752048
+    https://golang.org/cl/5753047
 
- src/pkg/net/fd_linux.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/contrib.html       |   2 ++
+ doc/docs.html          |   6 ++++++
+ doc/gopher/doc.png     | Bin 0 -> 4818 bytes
+ doc/gopher/help.png    | Bin 0 -> 6345 bytes
+ doc/gopher/pkg.png     | Bin 0 -> 5898 bytes
+ doc/gopher/project.png | Bin 0 -> 9213 bytes
+ doc/gopher/run.png     | Bin 0 -> 11369 bytes
+ doc/gopher/talks.png   | Bin 0 -> 6375 bytes
+ doc/help.html          |   2 ++
+ doc/reference.html     |   2 +-
+ doc/style.css          |  17 +++++++++++++++++
+ lib/godoc/package.html |   8 +++++++-
+ 12 files changed, 35 insertions(+), 2 deletions(-)

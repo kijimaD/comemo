@@ -1,14 +1,19 @@
-commit e79c23822cf197ffb90e4984161d479f0abb73f3
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Oct 12 08:47:51 2019 +0700
+commit 049c8dbfdbdd414359699c215f15764a7aa733b5
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sat Apr 27 11:45:11 2019 +0200
 
-    cmd/compile: move OAS2 to its own case in order
+    syscall: allow setting security attributes on processes
     
-    Change-Id: Id0f4955588ae8027a24465b456c90d0543d60db2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200581
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    This allows creating processes that can only be debugged/accessed by
+    certain tokens, according to a particular security descriptor. We
+    already had everything ready for this but just neglected to pass through
+    the value from the user-accessible SysProcAttr.
+    
+    Change-Id: I4a3fcc9f5078aa0058b26c103355c984093ae03f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174197
+    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/gc/order.go | 41 ++++++++++++++++++------------------
- 1 file changed, 21 insertions(+), 20 deletions(-)
+ src/syscall/exec_windows.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

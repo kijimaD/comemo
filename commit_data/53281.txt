@@ -1,21 +1,24 @@
-commit 5de20f0f34a7bf08bec8af82befc24e3c0ea5d7e
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Thu May 18 11:12:23 2023 +0300
+commit d42b520b037311b406da9fcb564f3ef5f91470d7
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 8 13:30:02 2022 -0700
 
-    net/http: fix spelling issues in comments and tests
+    math/big: make NewInt inlineable and zero allocation
     
-    Change-Id: I1b90619fd073a0c41188278a50ed149b763f0fa8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496135
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Mark the assembly routines as not escaping their arguments.
+    
+    Add a special case to NewInt that, when inlined, can do all
+    of its allocations (a big.Int and a [1]Word) on the stack.
+    
+    Update #29951
+    
+    Change-Id: I9bd38c262eb97df98c0ed9874da7daac381243ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411254
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/net/dnsclient_unix_test.go |  2 +-
- src/net/http/client_test.go    |  2 +-
- src/net/http/cookiejar/jar.go  |  2 +-
- src/net/http/transport_test.go | 10 +++++-----
- src/net/mptcpsock_linux.go     |  2 +-
- src/net/timeout_test.go        |  2 +-
- 6 files changed, 10 insertions(+), 10 deletions(-)
+ src/math/big/arith_decl.go | 16 ++++++++++++++++
+ src/math/big/int.go        | 15 ++++++++++++++-
+ src/math/big/int_test.go   | 26 +++++++++++++++++++++++++-
+ 3 files changed, 55 insertions(+), 2 deletions(-)

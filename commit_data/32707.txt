@@ -1,42 +1,28 @@
-commit bc8bb5b27a5abe48fbfc79ae4a1ce4c87ca90bbc
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Sep 12 15:31:09 2017 -0500
+commit 1ea796ee69a495e51abba01711f4aca0beeb6bed
+Author: Mark Ryan <mark.d.ryan@intel.com>
+Date:   Sat Apr 29 06:19:18 2017 +0100
 
-    unicode: speed-up is16/is32
+    encoding/base32: ensure base32 decoder propagates errors correctly
     
-    Avoid division in common case. There are 5438 ranges in unicode/tables.go
-    4110 of them have stride 1.
-    Stride 1 case got significantly faster. Other stride is a bit slower.
-    Measured by
+    A number of issues in decoder.Read and newlineFilteringReader.Read were
+    preventing errors from the reader supplying the encoded data from being
+    propagated to the caller.  Fixing these issues revealed some additional
+    problems in which valid decoded data was not always returned to the user
+    when errors were actually propagated.
     
-    import (
-            "testing"
-            "unicode"
-    )
+    This commit fixes both the error propagation and the lost decoded data
+    problems.  It also adds some new unit tests to ensure errors are handled
+    correctly by decoder.Read.  The new unit tests increase the test coverage
+    of this package from 96.2% to 97.9%.
     
-    func BenchmarkDiv1(b *testing.B) {
-            rtb := &unicode.RangeTable{
-                    R16: []unicode.Range16{
-                            {0xa800, 0xdfff, 1}, // or 3
-                    },
-            }
-            for i := 0; i < b.N; i++ {
-                    unicode.Is(rtb, rune(0xc700))
-            }
-    }
+    Fixes #20044
     
-    Div1-6  15.6ns ± 1%   9.9ns ± 1%  -36.54%  (p=0.000 n=10+10)
-    Div3-6  15.5ns ± 1%  16.1ns ± 1%   +3.67%  (p=0.000 n=10+10)
-    
-    Helps a bit with xml parsing from issue #21823
-    
-    XMLsax-6   30.9s ± 0%   29.6s ± 0%  -4.15%  (p=0.000 n=10+9)
-    
-    Change-Id: Ibac1a91d7b9474d0c134b0add83e56caa62daa20
-    Reviewed-on: https://go-review.googlesource.com/63390
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I1a8632da20135906e2d191c2a8825b10e7ecc4c5
+    Reviewed-on: https://go-review.googlesource.com/42094
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/unicode/letter.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/encoding/base32/base32.go      |  41 ++++++++--
+ src/encoding/base32/base32_test.go | 155 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 188 insertions(+), 8 deletions(-)

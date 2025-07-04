@@ -1,19 +1,35 @@
-commit 07a25a9f6e46e83a6335d43b0174dfb250bca960
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Mar 15 13:58:44 2023 -0400
+commit 507b70d1e879ed51830d1f64f534c685b8ee1b13
+Author: Bryan Mills <bcmills@google.com>
+Date:   Fri Apr 22 13:24:41 2022 +0000
 
-    runtime: pass M to traceReleaseBuffer
+    Revert "cmd/compile: enable Asan check for global variables"
     
-    This change is a no-op, but makes the acquire-release pair
-    traceAcquireBuffer / traceReleaseBuffer more explicit, since the former
-    does acquirem and the latter releasm.
+    This reverts CL 321715.
     
-    Change-Id: If8a5b1ba8709bf6f39c8ff27b2d3e0c0b0da0e58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476575
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reason for revert: broke cmd/go.TestScript/install_msan_and_race_require_cgo on several builders.
+    
+    Change-Id: Ia0392de555d6e973960769a0e4709f0193d16706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401755
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/trace.go | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ misc/cgo/testsanitizers/asan_test.go               |   8 -
+ misc/cgo/testsanitizers/cc_test.go                 |  16 --
+ src/cmd/compile/internal/base/base.go              |   1 -
+ src/cmd/compile/internal/gc/obj.go                 |  17 +-
+ src/cmd/compile/internal/noder/noder.go            |   2 +-
+ src/cmd/compile/internal/noder/object.go           |   2 +-
+ src/cmd/compile/internal/noder/reader.go           |   2 +-
+ src/cmd/compile/internal/pkginit/init.go           |  53 -----
+ .../compile/internal/pkginit/initAsanGlobals.go    | 241 ---------------------
+ src/cmd/go/alldocs.go                              |   2 -
+ src/cmd/go/internal/work/build.go                  |   2 -
+ src/cmd/go/internal/work/init.go                   |  57 -----
+ src/runtime/asan.go                                |   4 -
+ src/runtime/asan/asan.go                           |  38 ----
+ src/runtime/asan0.go                               |   9 +-
+ src/runtime/asan_amd64.s                           |   8 -
+ src/runtime/asan_arm64.s                           |   8 -
+ 17 files changed, 9 insertions(+), 461 deletions(-)

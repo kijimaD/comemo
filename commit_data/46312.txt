@@ -1,17 +1,34 @@
-commit 2d90df91a8ef00e20d8244c3c39fb0c22c382161
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Aug 19 08:35:12 2021 +0000
+commit c06a354bccf60ea32ed74238be409a00aac292c5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Dec 21 18:41:16 2020 -0500
 
-    cmd/internal/obj/riscv: avoid obj.Prog rewriting for immediate splitting
+    test: trigger SIGSEGV instead of SIGTRAP in issue11656.go
     
-    Rather than rewriting the obj.Prog for a immediate instructions that need
-    splitting, generate the appropriate machine instruction sequence directly.
+    In issue11656.go, it tests that if the runtime can get a
+    reasonable traceback when it faults at a non-function PC. It does
+    it by jumping to an address that contains an illegal or trap
+    instruction. When it traps, the SIGTRAP crashes the runtime.
     
-    Change-Id: Ie90f0e2a98f97a29281e445c4c3b0c47b793ef4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344453
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This CL changes it to use an instruction that triggers SIGSEGV.
+    This is due to two reasons:
+    - currently, the handling of bad PC is done by preparePanic,
+      which is only used for a panicking signal (SIGSEGV, SIGBUS,
+      SIGFPE), not a fatal signal (e.g. SIGTRAP).
+    - the test uses defer+recover to get a traceback, which only
+      works for panicking signals, not fatal signals.
+    
+    Ideally, we should handle all kinds of faults (SIGSEGV, SIGBUS,
+    SIGILL, SIGTRAP, etc.) with a nice traceback. I'll leave this
+    for the future.
+    
+    This CL also adds RISCV64 support.
+    
+    Fixes #43283.
+    
+    Change-Id: I5e0fbf8530cc89d16e05c3257d282bc1d4d03405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279423
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s |  19 ++++-
- src/cmd/internal/obj/riscv/obj.go           | 115 +++++++++++-----------------
- 2 files changed, 62 insertions(+), 72 deletions(-)
+ test/fixedbugs/issue11656.go | 30 +++++++++++++-----------------
+ 1 file changed, 13 insertions(+), 17 deletions(-)

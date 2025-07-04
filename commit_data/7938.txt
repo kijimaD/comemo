@@ -1,19 +1,19 @@
-commit 7a5bbfd47f81985ebfb87fb7b5d6dcb76c144c41
+commit e64d337726542492f5a3610229e4e112eda77389
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 30 15:27:23 2011 -0700
+Date:   Wed Mar 30 15:26:53 2011 -0700
 
-    gotype: support for more tests, added one new test
+    scanner: treat line comments like in Go
     
-    also: minor fix to parser
+    - don't consume '\n' as part of line comment
+    (otherwise grammars where '\n' are tokens won't
+    see them after a line comment)
     
-    Note: gotest won't run the gotype test yet until
-    it permits TestXXX functions where XXX is empty.
+    - permit line comments to end in EOF
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4300053
+    https://golang.org/cl/4277089
 
- src/cmd/gotype/gotype_test.go    | 34 +++++++++++++++++++++++++++-------
- src/cmd/gotype/testdata/test1.go |  6 ++++++
- src/pkg/go/parser/parser.go      |  5 +++--
- 3 files changed, 36 insertions(+), 9 deletions(-)
+ src/pkg/scanner/scanner.go      | 43 ++++++++++----------------
+ src/pkg/scanner/scanner_test.go | 68 ++++++++++++++++++++++++++++-------------
+ 2 files changed, 62 insertions(+), 49 deletions(-)

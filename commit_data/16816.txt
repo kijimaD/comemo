@@ -1,15 +1,16 @@
-commit df3e6ce4b1df508624082d31abb24300f9057b86
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 18 22:58:49 2013 -0400
+commit bc31bcccd3b94ec8dd324e523c4c7ae9180b937f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 19 01:22:26 2013 +0400
 
-    runtime: disable preemption during runtime.settype
+    runtime: preempt long-running goroutines
+    If a goroutine runs for more than 10ms, preempt it.
+    Update #543.
     
-    It assumes that the m will not change, and the m may
-    change if the goroutine is preempted.
-    
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/11560043
+    https://golang.org/cl/10796043
 
- src/pkg/runtime/malloc.goc | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/pkg/runtime/proc.c       | 55 +++++++++++++++++++++++++++++---------------
+ src/pkg/runtime/proc_test.go | 21 +++++++++++++++++
+ src/pkg/runtime/stack.c      |  4 ++--
+ 3 files changed, 60 insertions(+), 20 deletions(-)

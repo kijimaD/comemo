@@ -1,28 +1,21 @@
-commit 08751259b75ad88e1b65c0b1c1a76541b924dd9d
-Author: Philipp Stephani <phst@google.com>
-Date:   Mon Mar 18 20:13:17 2019 +0000
+commit 08816cb8d7ed16b9c804587ff02c1ad1c3af6cd5
+Author: Peter Weinberger <pjw@google.com>
+Date:   Mon Oct 29 10:18:05 2018 -0400
 
-    cmd/cgo: use C exact-width integer types to represent Go types
+    cmd/trace: use new traceparser to parse the raw trace files
     
-    The exact-width integer types are required to use two’s complement
-    representation and may not have padding bits, cf. §7.20.1.1/1 in the C11
-    standard or https://en.cppreference.com/w/c/types/integer.  This ensures that
-    they have the same domain and representation as the corresponding Go types.
-    
-    Fixes #29878
-    
-    Change-Id: Ie8a51e91666dfd89731c7859abe47356c94ca1be
-    GitHub-Last-Rev: 546a2cc3f1e22dc282757f73c01c91b00899d911
-    GitHub-Pull-Request: golang/go#29907
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/159258
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8b224ae48a2f8acd5a64c9ff283e97821479a9a8
+    Reviewed-on: https://go-review.googlesource.com/c/145457
+    Run-TryBot: Peter Weinberger <pjw@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- misc/cgo/test/cgo_test.go         |  1 +
- misc/cgo/test/issue29878.go       | 20 ++++++++++++++++++++
- misc/cgo/test/issue29878export.go | 12 ++++++++++++
- src/cmd/cgo/doc.go                |  4 +++-
- src/cmd/cgo/gcc.go                | 38 ++++++++++++++++++++++++++++++++++++++
- src/cmd/cgo/out.go                | 36 +++++++++++++++---------------------
- 6 files changed, 89 insertions(+), 22 deletions(-)
+ src/cmd/trace/annotations.go      |   7 +-
+ src/cmd/trace/annotations_test.go |  14 ++--
+ src/cmd/trace/goroutines.go       |  11 +--
+ src/cmd/trace/main.go             |  49 +++++------
+ src/cmd/trace/pprof.go            |  64 +++++++++------
+ src/cmd/trace/trace.go            | 168 +++++++++++++++++++-------------------
+ src/cmd/trace/trace_test.go       |  46 ++++++-----
+ src/cmd/trace/trace_unix_test.go  |  12 ++-
+ 8 files changed, 194 insertions(+), 177 deletions(-)

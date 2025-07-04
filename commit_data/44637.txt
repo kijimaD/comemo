@@ -1,19 +1,52 @@
-commit 7588ef0d9020c8e628adcd0a0046231252f0d90d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 11 18:10:08 2021 -0800
+commit c0cf190d226cc3defb71d17c01d0b45bf49a8a85
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jun 30 17:51:52 2020 -0400
 
-    cmd/compile/internal/types2: use self_test.go from go/types
+    cmd/go: do context propagation for tracing downloads
     
-    This CL replaces self_test.go with the (improved) version
-    from go/types, modified for types2.
+    This change does context propagation (and only context propagation)
+    necessary to add context to modfetch.Download and pkg.LoadImport.
+    This was done by adding context to their callers, and then
+    adding context to all call-sites, and then repeating adding
+    context to callers of those enclosing functions and their
+    callers until none were left. In some cases the call graph expansion
+    was pruned by using context.TODOs.
     
-    To see the differences between go/types/self_test.go and
-    this version, compare against patch set 1.
+    The next CL will add a span to Download. I kept it out of this
+    change to avoid making it any larger (and harder to review)
+    than it needs to be.
     
-    Change-Id: I7ae830a17f7a0de40cc1f5063166a7247f78ec27
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300997
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Updates #38714
+    
+    Change-Id: I5bf2d599aafef67334c384dfccd5e255198c85b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248327
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/self_test.go | 86 +++++++++++++++++-----------
- 1 file changed, 53 insertions(+), 33 deletions(-)
+ src/cmd/go/internal/get/get.go              |  4 +--
+ src/cmd/go/internal/list/list.go            |  5 ++--
+ src/cmd/go/internal/load/pkg.go             | 40 ++++++++++++++---------------
+ src/cmd/go/internal/load/test.go            |  6 ++---
+ src/cmd/go/internal/modcmd/download.go      |  4 +--
+ src/cmd/go/internal/modcmd/init.go          |  2 +-
+ src/cmd/go/internal/modcmd/tidy.go          |  2 +-
+ src/cmd/go/internal/modcmd/vendor.go        |  2 +-
+ src/cmd/go/internal/modcmd/why.go           |  6 ++---
+ src/cmd/go/internal/modconv/convert_test.go |  5 +++-
+ src/cmd/go/internal/modfetch/fetch.go       |  3 ++-
+ src/cmd/go/internal/modget/get.go           | 18 ++++++-------
+ src/cmd/go/internal/modload/build.go        | 17 ++++++------
+ src/cmd/go/internal/modload/import.go       |  9 ++++---
+ src/cmd/go/internal/modload/import_test.go  |  5 +++-
+ src/cmd/go/internal/modload/init.go         |  9 ++++---
+ src/cmd/go/internal/modload/list.go         | 14 +++++-----
+ src/cmd/go/internal/modload/load.go         | 39 ++++++++++++++--------------
+ src/cmd/go/internal/modload/mvs.go          |  5 ++--
+ src/cmd/go/internal/modload/query.go        | 33 ++++++++++++------------
+ src/cmd/go/internal/modload/query_test.go   |  5 +++-
+ src/cmd/go/internal/modload/search.go       |  5 ++--
+ src/cmd/go/internal/run/run.go              |  2 +-
+ src/cmd/go/internal/test/test.go            |  2 +-
+ src/cmd/go/internal/work/exec.go            |  2 +-
+ 25 files changed, 131 insertions(+), 113 deletions(-)

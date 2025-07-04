@@ -1,43 +1,15 @@
-commit 7a524a103647d0b839ff133be1b1b866c92d11fb
+commit 8420df622aac7eef6734020a186eb6473ec3ce65
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 22 13:27:53 2014 -0500
+Date:   Tue Nov 11 18:50:02 2014 -0500
 
-    runtime: remove thunk.s
+    [dev.cc] runtime: bring back mgc0.h
     
-    Replace with uses of //go:linkname in Go files, direct use of name in .s files.
-    The only one that really truly needs a jump is reflect.call; the jump is now
-    next to the runtime.reflectcall assembly implementations.
+    This was recorded as an hg mv instead of an hg cp.
+    For now a C version is needed for the Go compiler.
     
-    Change-Id: Ie7ff3020a8f60a8e4c8645fe236e7883a3f23f46
-    Reviewed-on: https://go-review.googlesource.com/1962
-    Reviewed-by: Austin Clements <austin@google.com>
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/174020043
 
- src/runtime/asm_386.s      |   5 +-
- src/runtime/asm_amd64.s    |   5 +-
- src/runtime/asm_amd64p32.s |   5 +-
- src/runtime/asm_arm.s      |   3 +
- src/runtime/asm_ppc64x.s   |   3 +
- src/runtime/chan.go        |  14 ++++
- src/runtime/cpuprof.go     |   5 ++
- src/runtime/env_posix.go   |   2 +
- src/runtime/hashmap.go     |   9 ++
- src/runtime/iface.go       |   1 +
- src/runtime/malloc.go      |  10 +++
- src/runtime/mem.go         |   4 +-
- src/runtime/mgc0.go        |   8 +-
- src/runtime/netpoll.go     |  24 ++++--
- src/runtime/noasm.go       |   3 +-
- src/runtime/os_nacl.go     |   1 +
- src/runtime/os_plan9.go    |   1 +
- src/runtime/os_windows.go  |   1 +
- src/runtime/proc.go        |   5 ++
- src/runtime/proc1.go       |  34 +++++++-
- src/runtime/runtime.go     |  10 ++-
- src/runtime/runtime1.go    |   3 +-
- src/runtime/select.go      |   1 +
- src/runtime/sema.go        |  24 ++++--
- src/runtime/signal_unix.go |   3 +
- src/runtime/stubs.go       |  11 ++-
- src/runtime/thunk.s        | 203 ---------------------------------------------
- src/runtime/time.go        |  17 +++-
- 28 files changed, 177 insertions(+), 238 deletions(-)
+ src/runtime/mgc0.h | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

@@ -1,16 +1,33 @@
-commit 8d61334dd5b08c8076e343aa33197bd219cdf922
+commit 13d0b82bc8821c41ec3782d0d5911cda2499dedc
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 16 10:21:54 2014 -0400
+Date:   Sun Sep 7 23:40:59 2014 -0400
 
-    cmd/gc: say 'non-constant array bound' instead of 'invalid array bound'
+    runtime: implement time.now in assembly on plan9, solaris, windows
     
-    Fixes #8196.
+    These all used a C implementation that contained 64-bit divide by 1000000000.
+    On 32-bit systems that ends up in the 64-bit C divide support, which makes
+    other calls and ends up using a fair amount of stack. We could convert them
+    to Go but then they'd still end up in software 64-bit divide code. That would
+    be okay, because Go code can split the stack, but it's still unnecessary.
     
-    LGTM=adonovan
-    R=adonovan
-    CC=golang-codereviews
-    https://golang.org/cl/141510044
+    Write time·now in assembly, just like on all the other systems, and use the
+    actual hardware support for 64/32 -> 64/32 division. This cuts the software
+    routines out entirely.
+    
+    The actual code to do the division is copied and pasted from the sys_darwin_*.s files.
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman
+    CC=aram, golang-codereviews, iant, khr, r
+    https://golang.org/cl/136300043
 
- src/cmd/gc/typecheck.c   |  5 ++++-
- test/fixedbugs/bug255.go | 19 ++++++++++++-------
- 2 files changed, 16 insertions(+), 8 deletions(-)
+ src/pkg/runtime/os_plan9.c          | 13 -------------
+ src/pkg/runtime/os_solaris.c        | 13 -------------
+ src/pkg/runtime/os_windows.c        | 23 +++++++----------------
+ src/pkg/runtime/sys_darwin_amd64.s  |  2 +-
+ src/pkg/runtime/sys_plan9_386.s     | 13 +++++++++++++
+ src/pkg/runtime/sys_plan9_amd64.s   | 20 ++++++++++++++++++++
+ src/pkg/runtime/sys_solaris_amd64.s | 20 ++++++++++++++++++++
+ src/pkg/runtime/sys_windows_386.s   | 13 +++++++++++++
+ src/pkg/runtime/sys_windows_amd64.s | 21 +++++++++++++++++++++
+ 9 files changed, 95 insertions(+), 43 deletions(-)

@@ -1,25 +1,27 @@
-commit d397d4bffc0fa917fa53970ded4b4d3524f88a5b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 3 15:47:16 2018 -0700
+commit 446d76e62df3bcd84443a4d7319c963a214f7670
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 1 15:47:29 2018 -0400
 
-    cmd/compile: handle TPTR32 like TPTR64 in smallintconst
+    cmd/go: fix 'go get' compatibility for direct download of vgo-aware module
     
-    In preparation for followup CL merging TPTR32 and TPTR64, move TPTR32
-    from the small-types fast path to the generic 64-bit fallback code so
-    that it's in the same case clause as TPTR64.
+    CL 109340 added “minimal module-awareness for legacy operation.”
+    One part of that is reinterpreting imports inside code trees with go.mod files
+    as using semantic import versioning, and converting them back to
+    legacy import paths by stripping the major version element
+    (for example, interpreting import "x.com/foo/v2/bar" as import "x.com/foo/bar").
+    This rewrite was not being applied during "go get", with the effect that once
+    you had the target code downloaded already, everything was fine,
+    but it didn't download and build successfully the first time.
     
-    This should be safe, but theoretically it could change semantics
-    because TPTR32 used to always be assumed to be "small", whereas now it
-    will only be considered small for values less than 1<<31.
+    Fixes #25687.
     
-    This change is done in a separate CL so that it's more easily
-    identified by git bisection in case it does introduce regressions.
-    
-    Change-Id: I6c7bb253d4e4d95c530a6e05a1147905674b55ca
-    Reviewed-on: https://go-review.googlesource.com/c/139517
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I3e122efdc8fd9a0a4e66f5aa3e6a99f90c7df779
+    Reviewed-on: https://go-review.googlesource.com/115797
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/const.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/get/get.go  |  8 ++++----
+ src/cmd/go/internal/load/pkg.go |  7 +++++++
+ src/cmd/go/vendor_test.go       | 44 ++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 54 insertions(+), 5 deletions(-)

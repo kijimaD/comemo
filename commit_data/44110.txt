@@ -1,20 +1,18 @@
-commit 6250833911fc979a4ca5ba8b7f0612d054a3aeec
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jan 8 17:12:50 2021 +0000
+commit 57e32c4fbd4f20d567d1767dfc2d94bec828a8dc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 31 02:04:45 2020 +1100
 
-    runtime/metrics: mark histogram metrics as cumulative
+    cmd/compile: optimise branchs on riscv64
     
-    All the current histogram metrics accumulate counts from program start
-    to infinity, and can be reasonably used to compute rates (also to
-    generate windowed distributions).
+    Make use of multi-control values and branch pseudo-instructions to optimise
+    compiler generated branches.
     
-    Change-Id: I5196c59867de34fba41bb8552606fa315460cef9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282633
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I7a8bf754db3c2082a390bf6a662ccf18cbcbee39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226400
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/metrics/description.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  32 ++++---
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 125 +++++++++++++++++++++++++
+ 2 files changed, 146 insertions(+), 11 deletions(-)

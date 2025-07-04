@@ -1,14 +1,17 @@
-commit 874ea6a4c7fc402ff05a8e63dea5d1b41d55930e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 23 11:20:34 2016 -0700
+commit 98b99d561225cc1d140360b217df2acc9aa1f746
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 25 13:09:11 2016 -0700
 
-    cmd/compile: add comment
+    net: ignore lame referral responses like libresolv
     
-    Minor update on https://go-review.googlesource.com/27441 .
+    Fixes #15434.
     
-    Change-Id: I605a8bfbe67e259020aa53f1d2357808197d02b6
-    Reviewed-on: https://go-review.googlesource.com/27631
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia88b740df5418a6d3af1c29a03756f4234f388b0
+    Reviewed-on: https://go-review.googlesource.com/22428
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/net/dnsclient_unix.go      |  6 +++
+ src/net/dnsclient_unix_test.go | 86 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 83 insertions(+), 9 deletions(-)

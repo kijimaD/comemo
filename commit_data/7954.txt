@@ -1,14 +1,14 @@
-commit 7b40095e8c2ab6ae08589fa53f4328231139fdd3
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Fri Apr 1 22:26:57 2011 -0400
+commit 6865cc0e8e6964b9313c8966b45a40caea1ac870
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 1 20:52:38 2011 -0400
 
-    syscall: make Rawsyscall6 pass 6th arg on linux/386
+    gc: avoid saying same error 3 times
     
-    Forgot this one in the previous CL
-    
-    R=rsc, r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4345043
+    https://golang.org/cl/4316051
 
- src/pkg/syscall/asm_linux_386.s | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/gc/const.c | 1 -
+ src/cmd/gc/subr.c  | 5 ++++-
+ test/ddd1.go       | 2 +-
+ 3 files changed, 5 insertions(+), 3 deletions(-)

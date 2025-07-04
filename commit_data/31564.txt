@@ -1,22 +1,25 @@
-commit 66b5a2f3f0b1d94f69763114a85a977f5bc0277a
-Author: Lars Jeppesen <jeppesen.lars@gmail.com>
-Date:   Sat Apr 29 23:25:34 2017 +0200
+commit e54bc92a2ca9a3726dcf5a72cd7e993766e16dd8
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Feb 22 13:32:54 2017 -0500
 
-    archive/tar: remove file type bits from mode field
+    runtime, cmd/go: roll back stale message, test detail
     
-    When writing tar files by using the FileInfoHeader
-    the type bits was set in the mode field of the header
-    This is not correct according to the standard (GNU/Posix) and
-    other implementations.
+    Some debugging code was recently added to:
+    1) provide more detail for the stale reason when it is
+    determined that a package is stale
+    2) provide file and package time and date information when
+    it is determined that runtime.a is stale
     
-    Fixed #20150
+    This backs out those those debugging messages.
     
-    Change-Id: I3be7d946a1923ad5827cf45c696546a5e287ebba
-    Reviewed-on: https://go-review.googlesource.com/42093
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Fixes #19116
+    
+    Change-Id: I8dd0cbe29324820275b481d8bbb78ff2c5fbc362
+    Reviewed-on: https://go-review.googlesource.com/37382
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/common.go   | 20 +++++++++-----------
- src/archive/tar/tar_test.go | 26 +++++++++++++-------------
- 2 files changed, 22 insertions(+), 24 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 14 +++-----------
+ src/runtime/crash_test.go       |  3 ---
+ 2 files changed, 3 insertions(+), 14 deletions(-)

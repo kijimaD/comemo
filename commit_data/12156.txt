@@ -1,17 +1,18 @@
-commit adbadf444dada2ac8d659818d82279252d2d1f35
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Feb 23 12:16:43 2012 +0900
+commit ebae73bb24c7d4473055353ece1a82b0370f069f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 22 21:46:12 2012 -0500
 
-    net: add a bit clarified multicast listener tests
+    pprof: add Profile type
     
-    Also adds -external flag to allow use of external networks on tests.
+    Makes it possible for client code to maintain its own profiles,
+    and also reduces the API surface by giving us a type that
+    models built-in profiles.
     
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5693043
+    https://golang.org/cl/5684056
 
- src/pkg/net/dialgoogle_test.go |   4 +-
- src/pkg/net/lookup_test.go     |  12 +--
- src/pkg/net/multicast_test.go  | 185 ++++++++++++++++++++++++-----------------
- src/pkg/net/server_test.go     |   2 +-
- 4 files changed, 120 insertions(+), 83 deletions(-)
+ src/pkg/net/http/pprof/pprof.go          |  81 +++--
+ src/pkg/runtime/pprof/pprof.go           | 504 +++++++++++++++++++++++++++----
+ src/pkg/text/tabwriter/tabwriter_test.go |   3 +-
+ 3 files changed, 508 insertions(+), 80 deletions(-)

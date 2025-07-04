@@ -1,16 +1,15 @@
-commit 83f648c9625343045da1e6b4ecc3d207c84403b3
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 12 22:21:46 2011 -0500
+commit 66113ac8188026cb57ae043670d1004860831e2d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Dec 13 14:20:26 2011 +1100
 
-    spec: allow comparison of structs, arrays containing comparable values
+    html: update comments to match latest spec.
     
-    Also, clarify when interface comparison panics and
-    that comparison to nil is a special syntax rather than
-    a general comparison rule.
-    
-    R=r, gri, r, iant, cw, bradfitz
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5440117
+    https://golang.org/cl/5482054
 
- doc/go_spec.html | 97 +++++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 64 insertions(+), 33 deletions(-)
+ src/pkg/html/const.go  |  2 +-
+ src/pkg/html/node.go   |  2 +-
+ src/pkg/html/parse.go  | 70 ++++++++++++++++++++++++--------------------------
+ src/pkg/html/render.go |  2 +-
+ 4 files changed, 37 insertions(+), 39 deletions(-)

@@ -1,14 +1,17 @@
-commit 84ce0f7687a5b41119be9f07c62f757d4a2a0c1b
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Mon Apr 30 17:00:24 2012 -0400
+commit 44fd1d1a6aee68023be292a6f856991af3f0d4c8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 30 15:55:07 2012 -0400
 
-    cmd/go: do not ignore DepsErrors in 'go run'
+    runtime: give proper messages when user defined DYLD_INSERT_LIBRARIES on Darwin
+           also gives clear error when bsdthread_register fails on Darwin
+           Fixes #2992.
     
-    Fixes #3490.
-    
-    R=golang-dev, dave, rsc
+    R=rsc, krautz
     CC=golang-dev
-    https://golang.org/cl/6040046
+    https://golang.org/cl/5966067
 
- src/cmd/go/run.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/os_darwin.h        |  2 +-
+ src/pkg/runtime/sys_darwin_386.s   |  6 ++++--
+ src/pkg/runtime/sys_darwin_amd64.s |  6 ++++--
+ src/pkg/runtime/thread_darwin.c    | 19 ++++++++++++++-----
+ 4 files changed, 23 insertions(+), 10 deletions(-)

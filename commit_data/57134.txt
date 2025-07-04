@@ -1,24 +1,26 @@
-commit f259e4c916bcde5221dca99ce7d77095a21b9801
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 9 10:59:43 2024 -0700
+commit ee361ce66ca5c8923e636348aba559a5e5c76c15
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 22 16:07:29 2023 -0700
 
-    cmd/compile: fix off-by-one error in prove pass
+    go/types, types2: more readable inference trace
     
-    I think I introduced #68809 when rewriting the prove pass, by
-    introducing an off-by-one error here:
-    https://go-review.googlesource.com/c/go/+/599096/5/src/cmd/compile/internal/ssa/prove.go
-    lines 872-874.
-    The min++ is already handled in one of the two following cases with
-    the (r&eq==0) condition. Move the min++ to just the other case.
+    Print the unification mode in human-readable form.
+    Use a tab and // instead of ()'s to show unification mode
+    and whether operands where swapped.
     
-    Fixes #68809
+    These changes only affect inference trace output, which is
+    disabled by default. For easier debugging.
     
-    Change-Id: Iffae99e29219c94aaf584cd7ae247289fa604a00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604100
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #60933.
+    
+    Change-Id: I95299c6e09b90670fc45addc4f9196b6cdd3b59f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/ssa/prove.go |  6 +++---
- test/fixedbugs/issue68809.go          | 19 +++++++++++++++++++
- 2 files changed, 22 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/unify.go | 20 +++++++++++++++++---
+ src/go/types/unify.go                    | 20 +++++++++++++++++---
+ 2 files changed, 34 insertions(+), 6 deletions(-)

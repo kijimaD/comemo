@@ -1,26 +1,24 @@
-commit 4703546a294b28e4e23043fe9cb745f27e55edab
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 13 10:18:38 2022 -0700
+commit 835ff47c1680de81b93480f5184ac4034c45e417
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 20 15:20:10 2021 -0400
 
-    spec: add missing optional type arguments after TypeName in syntax
+    cmd/internal/buildid: reject empty id
     
-    Types may be generic, so each occurrence of a TypeName may be
-    followed by optional type arguments. Add the missing syntactic
-    (EBNF) factor.
+    The loop that makes progress assumes that after matching an id
+    you should advance len(id) bytes in the file. If id is the empty string,
+    then it will match and advance 0 bytes repeatedly.
     
-    The syntax of type names followed by type arguments matches the
-    syntax of operand names followed by type arguments (operands may
-    also be types, or generic functions, among other things). This
-    opens the door to factoring out this shared syntax, but it will
-    also require some adjustments to prose to make it work well.
-    Leaving for another change.
+    0-byte ids are not really build IDs, so just reject it outright.
     
-    Fixes #53240.
+    Fixes #47852.
     
-    Change-Id: I15212225c28b27f7621e3ca80dfbd131f6b7eada
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411918
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ie44a3a51dec22e2f68fb72d54ead91be98000cfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344049
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/buildid/buildid_test.go | 8 ++++++++
+ src/cmd/internal/buildid/rewrite.go      | 3 +++
+ 2 files changed, 11 insertions(+)

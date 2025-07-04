@@ -1,12 +1,19 @@
-commit 43a404cf5fe8ec3dea4f0015bc1c63d3c51e23af
+commit 4b287553a439856a98f5422df683bb8d71e4d21b
 Author: Austin Clements <austin@google.com>
-Date:   Tue Aug 4 15:57:07 2015 -0400
+Date:   Wed Jun 24 11:25:28 2015 -0400
 
-    doc: mention new DWARF line table decoder in go1.5.html
+    reflect: test GC bits for slices
     
-    Change-Id: I4e8c20284255e0e17b6fb72475d2d37f49994788
-    Reviewed-on: https://go-review.googlesource.com/13113
-    Reviewed-by: Rob Pike <r@golang.org>
+    Currently we test bitmap repetitions constructed by the compiler (for
+    small arrays) and repetitions performed by GC programs (large arrays
+    and reflect-constructed arrays), but we don't test dynamic repetitions
+    performed by the runtime for slice backing stores. Add tests that
+    parallel the array tests using slices.
+    
+    Change-Id: If4425941a33cc5b20178dd819a7371e347e47585
+    Reviewed-on: https://go-review.googlesource.com/11422
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.5.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/reflect/all_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

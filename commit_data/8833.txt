@@ -1,19 +1,12 @@
-commit d847467041ab93c108b932c25f6ccaa37bfccc47
+commit 8f72a87b4ca236805bb8417ed85812cf38998d9d
 Author: Anthony Martin <ality@pbrane.org>
-Date:   Thu Jun 23 09:32:29 2011 -0400
+Date:   Wed Jun 22 23:24:14 2011 -0400
 
-    libmach: fix disassembly of FCMOVcc and FCOMI
+    libmach: fix tracing on linux (for cov)
     
-    The optable for 0xDB is handled specially.
-    
-    This was the cause of a really weird bug
-    when using cov (386!) on the math package.
-    
-    A real head-scratcher.
-    
-    R=rsc
+    R=rsc, dave
     CC=golang-dev
-    https://golang.org/cl/4639066
+    https://golang.org/cl/4629064
 
- src/libmach/8db.c | 54 ++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 48 insertions(+), 6 deletions(-)
+ src/libmach/linux.c | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

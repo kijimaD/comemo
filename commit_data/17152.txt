@@ -1,14 +1,12 @@
-commit ce00562607e0967ea8329aa4728a5bf4e1a8e666
+commit 9baac2bf157b61e47a4ab446bf1960f98f9847b5
 Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 12 12:52:23 2013 +1000
+Date:   Mon Aug 12 11:28:25 2013 +1000
 
-    crypto/rand: simplify example to exploit properties of ReadFull
-    No need for the complex condition.
-    Fixes #6089
+    doc/go1.2.txt: json and ampersands
     
-    R=golang-dev, mischief, adg
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/12731043
+    https://golang.org/cl/12698047
 
- src/pkg/crypto/rand/example_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

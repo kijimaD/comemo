@@ -1,23 +1,20 @@
-commit 9997545a8626bf1a73002f44a7b7538988da4e76
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 10 22:49:16 2016 +0000
+commit c87528d7761e3f133fe238937019a18bf7cf0d3c
+Author: David Chase <drchase@google.com>
+Date:   Thu Sep 15 15:14:32 2016 -0700
 
-    net/http: add ErrAbortHandler, make Server quiet if used as panic value
+    cmd/compile: elide unnecessary sign/zeroExt, PPC64
     
-    Add an explicit way for Handlers to abort their response to the client
-    and also not spam their error log with stack traces.
+    Bias {Eq,Neq}{8,16} to prefer the extension likely to match
+    their operand's load (if loaded), and elide sign and zero
+    extending MOV{B,W}, MOV{B,W}Z when their operands are already
+    appropriately extended.
     
-    panic(nil) also worked in the past (for http1 at least), so continue
-    to make that work (and test it). But ErrAbortHandler is more explicit.
-    
-    Updates #17790 (needs http2 updates also)
-    
-    Change-Id: Ib1456905b27e2ae8cf04c0983dc73e314a4a751e
-    Reviewed-on: https://go-review.googlesource.com/33099
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ic01b9cab55e170f68fc2369688b50ce78a818608
+    Reviewed-on: https://go-review.googlesource.com/29236
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/clientserver_test.go | 62 ++++++++++++++++++++++++++++++++-------
- src/net/http/server.go            |  8 ++++-
- 2 files changed, 59 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  12 ++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 160 +++++++++++++++++++++++++++
+ 2 files changed, 172 insertions(+)

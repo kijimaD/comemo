@@ -1,27 +1,26 @@
-commit 4be921d888d3a68c51e38d4c615a4438c7b2cb30
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Sep 6 10:31:32 2023 -0400
+commit 274d3a06f7331740b849e20cff1d1c1ab84dd0e0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 5 15:26:43 2022 -0400
 
-    runtime: clear procid in unminit
+    os/exec: delete TestExtraFilesFDShuffle
     
-    Extra Ms can move between system threads. needm will reinitialize procid
-    (via minit) on the new thread, but leaving a stale procid behind after
-    dropm can be misleading if printing the M early in needm for debugging.
+    This test has been disabled for over nine years (since CL 12869049).
+    Although it still compiles, it seems likely to have rotted since then,
+    and if it was going to detect a real bug it also seems like that bug
+    would have been encountered and reported by users since then (and
+    would presumably have its own regression tests).
     
-    Change-Id: I668891971a0baeab31170d1e40a97126416e7379
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526118
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    To eliminate overhead from mainining it (or skipping over it while
+    maintaining other tests), let's just delete it.
+    
+    Fixes #5780.
+    
+    Change-Id: I2a85cba20cba98a1dc6fc82336ae5e22d2242e99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439197
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/os3_solaris.go  | 1 +
- src/runtime/os_aix.go       | 1 +
- src/runtime/os_darwin.go    | 1 +
- src/runtime/os_dragonfly.go | 1 +
- src/runtime/os_freebsd.go   | 1 +
- src/runtime/os_linux.go     | 1 +
- src/runtime/os_netbsd.go    | 1 +
- src/runtime/os_openbsd.go   | 1 +
- src/runtime/os_windows.go   | 2 ++
- 9 files changed, 10 insertions(+)
+ src/os/exec/exec_test.go | 125 ++++-------------------------------------------
+ 1 file changed, 9 insertions(+), 116 deletions(-)

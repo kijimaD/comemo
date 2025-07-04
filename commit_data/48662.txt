@@ -1,25 +1,16 @@
-commit 492c85ab84dc1d4d19be0466d2d73f4a6174f07e
-Author: Filippo Rossi <filipporossi@hey.com>
-Date:   Mon Apr 4 06:25:32 2022 +0000
+commit e1fa26026db313463a09289c2105591de33cf7b8
+Author: DQNEO <dqneoo@gmail.com>
+Date:   Mon May 31 12:33:28 2021 +0900
 
-    cmd/go: prevent panic in go work use
+    spec: improve wording consistency by eliminating "specifier"
     
-    Check if paths passed as arguments are existing directories.
+    The word "specifier" is used once only here and technically not defined.
     
-    Fixes #51841
-    Fixes #51749
-    
-    Change-Id: Icfd148627e6f2c4651d6f923a37d413e68c67f6c
-    GitHub-Last-Rev: 77fffa7635052f11dc93488ee23fd1c895284b4d
-    GitHub-Pull-Request: golang/go#51845
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394154
-    Trust: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ifc9f0582f4eb3c3011ba60d8008234de511d4be6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323730
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/workcmd/use.go                | 31 +++++++++++++++--------
- src/cmd/go/testdata/script/work_use_file.txt      | 12 ---------
- src/cmd/go/testdata/script/work_use_only_dirs.txt | 17 +++++++++++++
- 3 files changed, 38 insertions(+), 22 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

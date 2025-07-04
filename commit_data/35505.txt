@@ -1,16 +1,20 @@
-commit dbafdac0c11fa569b2143f896f169d1e37fc311c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat May 26 09:08:51 2018 +1000
+commit 0db53dede6f55f12a7e66d71f8c725cd200c3f54
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Fri Feb 16 17:01:52 2018 +0000
 
-    runtime: implement TestCallbackInAnotherThread
+    net/http: increase timeout length for TestOnlyWriteTimeout
     
-    Updates #6751
+    This test was sometimes timing out on the plan9/arm builder
+    (raspberry pi) when run in parallel with other network intensive
+    tests. It appears that tcp on the loopback interface could do
+    with some tuning for better performance on Plan 9, but until
+    that's done, increasing the timeout from 5 to 10 seconds allows
+    this test to pass.  This should have no effect on other platforms
+    where 5 seconds was already enough.
     
-    Change-Id: Ibb176a17e67c67f855bc4f3e5462dddaedaa8a58
-    Reviewed-on: https://go-review.googlesource.com/114755
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If310ee569cae8ca8f56346d84ce23803feb23a41
+    Reviewed-on: https://go-review.googlesource.com/94796
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/syscall_windows_test.go | 34 +++++++++++++++++++++++++++++++++-
- 1 file changed, 33 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

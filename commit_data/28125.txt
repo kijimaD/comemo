@@ -1,24 +1,36 @@
-commit f42f20ad391c510ef394bc66cf3cf5bedef48e1e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 30 04:08:10 2016 +0000
+commit 56b54912628934707977a2a0a3824288c0286830
+Merge: d8d33514f9 e9eaa181fc
+Author: Rick Hudson <rlh@golang.org>
+Date:   Fri Apr 29 13:49:18 2016 -0400
 
-    net/http: fix ordering & data race in TestTransportEventTrace_h2
+    Merge remote-tracking branch 'origin/dev.garbage'
     
-    Ordering fix: this CL swaps the order of the log write and the channel close
-    in WroteRequest. I could reproduce the bug by putting a sleep between the two
-    when the channel close was first. It needs to happen after the log.
+    This commit moves the GC from free list allocation to
+    bit mark allocation. Instead of using the bitmaps
+    generated during the mark phases to generate free
+    list and then using the free lists for allocation we
+    allocate directly from the bitmaps.
     
-    Data race: use the log buffer's mutex when reading too. Not really
-    important once the ordering fix above is fixed (since nobody is
-    concurrently writing anymore), but for consistency.
+    The change in the garbage benchmark
     
-    Fixes #16414
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  2.22ms ± 1%  2.13ms ± 1%  -3.90%  (p=0.000 n=18+18)
     
-    Change-Id: If6657884e67be90b4455c8f5a6f7bc6981999ee4
-    Reviewed-on: https://go-review.googlesource.com/28078
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I17f57233336f0ca5ef5404c3be4ecb443ab622aa
 
- src/net/http/transport_test.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ dev.garbage             |   1 +
+ src/runtime/cgocall.go  |   2 +-
+ src/runtime/heapdump.go |  16 +-
+ src/runtime/malloc.go   | 122 ++++++++----
+ src/runtime/mbitmap.go  | 479 +++++++++++++++++++++++++++++++++---------------
+ src/runtime/mcache.go   |  13 +-
+ src/runtime/mcentral.go |  82 ++++-----
+ src/runtime/mfinal.go   |   2 +-
+ src/runtime/mgcmark.go  |  45 +++--
+ src/runtime/mgcsweep.go | 148 ++++++---------
+ src/runtime/mgcwork.go  |  33 ++++
+ src/runtime/mheap.go    | 257 +++++++++++++++++++++-----
+ src/runtime/msize.go    |  28 ++-
+ src/runtime/mstats.go   |   6 +-
+ src/runtime/stack.go    |  42 ++---
+ 15 files changed, 849 insertions(+), 427 deletions(-)

@@ -1,13 +1,14 @@
-commit 3760213e6e29fd16ab07b41e94276e05ecd86aba
-Author: Hong Ruiqi <hongruiqi@gmail.com>
-Date:   Sun Feb 12 23:42:34 2012 -0500
+commit 8bcfad269e0326004dce1d9bd77e6a4f6d0468e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:41:07 2012 -0500
 
-    A+C: Hong Ruiqi (individual CLA)
+    testing: use runtime/debug to format panics
     
-    R=golang-dev, rsc
+    Sorry, Mercurial failed me.
+    
+    TBR=r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5652078
+    https://golang.org/cl/5649080
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/testing/testing.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

@@ -1,23 +1,14 @@
-commit cc06593c681878a2a87f3612aa024e69a1ac074b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 14 11:31:56 2012 -0700
+commit ae42beafd330d0f6a247a61933fb562b10f42d13
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 14 12:21:57 2012 -0400
 
-    spec: clarify section on string types
+    cmd/go: fix build
     
-    Strings happen to be represented similarly to
-    byte slices internally, but they don't quite
-    behave like them: While strings can be indexed,
-    sliced, and have their len() taken like byte
-    slices, string elements are not addressable,
-    make() and cap() is not supported, range loops
-    operate differently, and they are immutable (and
-    thus behave like values rather then references).
+    TBR=r
     
-    Fixes #4018.
-    
-    R=r, rsc, iant, ken
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/6503116
+    https://golang.org/cl/6496124
 
- doc/go_spec.html | 28 +++++++++++++++-------------
- 1 file changed, 15 insertions(+), 13 deletions(-)
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 7a2689b152785010ee2013fb220a048bfe31e49f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 4 12:18:58 2025 -0400
+
+    sync: tidy WaitGroup documentation, add WaitGroup.Go example
+    
+    This reframes the WaitGroup documentation with Go at its center and
+    Add/Done as more "advanced" features.
+    
+    Updates #63796
+    
+    Change-Id: I8101972626fdb00c6f7fb185b685227823d10db1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/sync/example_test.go | 20 ++++++++++++++
+ src/sync/waitgroup.go    | 71 ++++++++++++++++++++++++++++--------------------
+ 2 files changed, 61 insertions(+), 30 deletions(-)

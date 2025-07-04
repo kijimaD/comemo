@@ -1,27 +1,41 @@
-commit 88bd9852394c02a71040226d523903bcb718e51c
+commit db3f952b1f3c996085cb9bfe846590084f8fae2e
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 17 15:02:10 2024 -0700
+Date:   Mon Jun 5 09:30:58 2023 -0700
 
-    cmd/compile/internal/types2: use syntax.EndPos instead of local computation
+    cmd/compile/internal/syntax: better error message when using = instead of ==
     
-    Previously, the end position for a select statement clause body was
-    computed explicitly as the start of the next clause or the closing "}"
-    of the select statement, respectively.
+    When = is used instead of == as part of a conditional expression,
+    the parser message emphasizes the LHS and RHS of = by always
+    parenthesizing the two sides. For example, for:
     
-    Since syntax.EndPos computes the end position of a node, there's no
-    need to compute these positions "manually", we can simply use the
-    syntax.ExdPos for each clause. The positions are not exactly the
-    same as before but for the purpose of identifier visibility in
-    scopes there is no semantic change.
+            if x = y {}
     
-    Simplifies the code and brings it more in line with go/types.
+    the error is:
     
-    Change-Id: I24bca85a131a0ea31a2adaafc08ab713450258fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593016
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+            cannot use assignment (x) = (y) as value
+    
+    This is done to highlight the LHS and RHS in case of more complex
+    cases such as
+    
+            if x || y = z {}
+    
+    which one may incorrectly read as (x) || (y == z) rather than the
+    correct (x || y) = z.
+    
+    This CL fine-tunes the error message a bit by only adding the
+    parentheses if the LHS and RHS are binary expressions.
+    
+    Fixes #60599.
+    For #23385.
+    
+    Change-Id: Ida4c8d12464cc2ac15c934f24858eb6f43cf9950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500975
     Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/stmt.go | 26 ++++++--------------------
- 1 file changed, 6 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go              | 17 +++++++++++++----
+ src/cmd/compile/internal/syntax/testdata/issue60599.go | 11 +++++++++++
+ 2 files changed, 24 insertions(+), 4 deletions(-)

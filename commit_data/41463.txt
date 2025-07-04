@@ -1,18 +1,19 @@
-commit 75619d199f88bc4d411cefcf5735cbbff78d1ae2
-Author: HowJMay <vulxj0j8j8@gmail.com>
-Date:   Wed Feb 26 18:19:18 2020 +0000
+commit 49988bc2e92afd1efdd166c31df49652008ee7da
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Oct 4 20:11:04 2019 +0000
 
-    bytes: deflake TestGrow by using testing.AllocsPerRun
+    doc: remove docs.html
     
-    Fixes #36695
+    This page has moved to x/website in https://golang.org/cl/197638.
     
-    Change-Id: I4392246015252018b49f321a5a839cc68cc611d7
-    GitHub-Last-Rev: c2fb1f7ddbe9b80059eed69f31781abe0a1db185
-    GitHub-Pull-Request: golang/go#36732
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216237
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates golang/go#33637
+    Updates golang/go#29206
+    
+    Change-Id: I4f5f7822a2bf540a3911470548d38ccc7a66b74c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199117
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Jean de Klerk <deklerk@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/bytes/buffer_test.go | 19 +++++++++----------
- 1 file changed, 9 insertions(+), 10 deletions(-)
+ doc/docs.html | 232 ----------------------------------------------------------
+ 1 file changed, 232 deletions(-)

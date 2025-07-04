@@ -1,16 +1,12 @@
-commit 1c96562f36e354328fb7c6c29b00a4048f852630
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Mar 12 09:58:53 2011 -0800
+commit a7528f1b810cd5824fb91b5cc3ff12801f333e89
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 11 18:18:59 2011 -0800
 
-    http: use Header.Del not empty Set(k, "")
+    runtime/proc.c: which to that
     
-    Also don't serialize empty headers.
-    
-    R=dsymonds, rsc
+    R=iant, dho
     CC=golang-dev
-    https://golang.org/cl/4275045
+    https://golang.org/cl/4286044
 
- src/pkg/http/response.go   |  5 ++++-
- src/pkg/http/serve_test.go | 23 +++++++++++++++++++++++
- src/pkg/http/server.go     |  6 +++---
- 3 files changed, 30 insertions(+), 4 deletions(-)
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

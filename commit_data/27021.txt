@@ -1,21 +1,20 @@
-commit d697a9d5d7d75cecd8d49b95ed9a0d1f2f3e8ed4
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Apr 18 16:12:48 2016 +1000
+commit b20187196f2674c736bb89d9dde741c93bec3255
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 15:58:20 2016 +0000
 
-    debug/pe: introduce StringTable type
+    os/user: skip Current test on android
     
-    PE specification requires that long section and symbol names
-    are stored in PE string table. Introduce StringTable that
-    implements this functionality. Only string table reading is
-    implemented.
+    Also, add more failure output to debug why linux/mips64le and
+    linux/ppc64 are failing. They should be working. I suspect their
+    builder test envs are missing something.
     
-    Updates #15345
-    
-    Change-Id: Ib9638617f2ab1881ad707111d96fc68b0e47340e
-    Reviewed-on: https://go-review.googlesource.com/22181
+    Change-Id: I97273fe72c4e3009db400394636d0da1ef147485
+    Reviewed-on: https://go-review.googlesource.com/20358
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/pe/file.go   | 16 +++++++------
- src/debug/pe/string.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 73 insertions(+), 7 deletions(-)
+ src/os/user/lookup_stubs.go | 2 +-
+ src/os/user/user_test.go    | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

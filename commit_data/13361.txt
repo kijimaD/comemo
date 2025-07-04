@@ -1,20 +1,12 @@
-commit e1d9fcd267e1a827e9841dce4c91def0777a90ee
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 19 09:10:14 2012 -0700
+commit 9c9754409dc079278631b16a5866ec86d458eac5
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Jun 18 17:43:05 2012 -0700
 
-    net/http: clarify client return values in docs
+    bytes: fixed typo.
     
-    Also, fixes one violation found during testing where both
-    response and error could be non-nil when a CheckRedirect test
-    failed.  This is arguably a minor API (behavior, not
-    signature) change, but it wasn't documented either way and was
-    inconsistent & non-Go like.  Any code depending on the old
-    behavior was wrong anyway.
-    
-    R=adg, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6307088
+    https://golang.org/cl/6301096
 
- src/pkg/net/http/client.go      | 92 +++++++++++++++++++++++++++--------------
- src/pkg/net/http/client_test.go |  1 -
- 2 files changed, 60 insertions(+), 33 deletions(-)
+ src/pkg/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

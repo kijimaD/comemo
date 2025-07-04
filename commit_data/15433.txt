@@ -1,22 +1,15 @@
-commit d2326febd5164e5b8123f6507c34e800a57ce851
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Tue Feb 26 01:56:08 2013 +0100
+commit 78b3ef261d3ea28aa387be464c8d2c9b1618290c
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 25 16:29:09 2013 -0800
 
-    syscall, runtime: Plan 9: use nanotime syscall on amd64
+    cmd/vet: silence error from type checker unless verbose is set.
+    Also restores the checking of _test.go files, which disappeared
+    as a result of the package-at-a-time change.
+    Fixes #4895.
     
-    Separates the implementation of nanotime on 64-bit
-    version of Plan 9 from that on the 32-bit version.
-    The former uses a syscall.
-    
-    R=rsc, rminnich, ality
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7379051
+    https://golang.org/cl/7399051
 
- src/pkg/runtime/sys_plan9_amd64.s      |  6 ++++++
- src/pkg/runtime/thread_plan9.c         | 28 ----------------------------
- src/pkg/runtime/time_plan9_386.c       | 34 ++++++++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_plan9.go       | 21 ++-------------------
- src/pkg/syscall/syscall_plan9_386.go   | 25 +++++++++++++++++++++++++
- src/pkg/syscall/syscall_plan9_amd64.go |  7 +++++++
- src/pkg/syscall/zsysnum_plan9_amd64.go |  1 +
- 7 files changed, 75 insertions(+), 47 deletions(-)
+ src/cmd/vet/main.go | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)

@@ -1,30 +1,19 @@
-commit 375a1fba0eb733676698ac3a9fdd12e6a8dd6602
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 5 22:59:49 2021 +0700
+commit 6ac91e460c294bda5a50e628b7556bf20525fa44
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Sun Jan 31 12:42:44 2021 +0000
 
-    cmd/compile: better error message for invalid untyped nil conversion
+    doc/go1.16: minor markup fixes
     
-    In case of an invalid untyped nil conversion, the compiler's original
-    type checker leaves it to the caller to report a suitable error message.
-    But types2 does not, it always reports the invalid conversion.
+    Add missing <code> tags.
+    Remove unnecessary <br> tag.
     
-    CL 328053 made types2 report a better error message, and match the
-    original compiler behavior. But it ignored the case of untyped nil.
+    For #40700
     
-    This CL adds that missing case, by checking whether the two operands can
-    be mixed when untyped nil is present.
-    
-    Fixes #48784
-    
-    Change-Id: Idc7d86eb0245aa18ca428e278f4416d6b3679058
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354049
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I03d3ce1c89a9ae3d3195dcd2bb8b1a61f011e1ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288275
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/compile/internal/types2/expr.go            |  6 ++++++
- .../internal/types2/testdata/check/expr2.src       |  4 ++--
- test/fixedbugs/issue48784.go                       | 23 ++++++++++++++++++++++
- 3 files changed, 31 insertions(+), 2 deletions(-)
+ doc/go1.16.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

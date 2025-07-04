@@ -1,18 +1,16 @@
-commit a027466e4b6d594fd8b562094fe63a9c4c6ec4f7
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jun 6 15:25:29 2017 -0700
+commit e831bd1fcae591a4dd985c4f75b455355033c75b
+Author: Marcel Edmund Franke <marcel.edmund.franke@gmail.com>
+Date:   Sun Mar 12 12:19:32 2017 +0100
 
-    cmd/compile: check that phis are always first after scheduling
+    net/http: fix body close statement is missing
     
-    Update #20178
+    Call body close after ioutil.ReadAll is done
     
-    Change-Id: I603f77268ed38afdd84228c775efe006f08f14a7
-    Reviewed-on: https://go-review.googlesource.com/45018
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Ieceb1965a6a8f2dbc024e983acdfe22df17d07d1
+    Reviewed-on: https://go-review.googlesource.com/38059
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/ssa/check.go     | 16 ++++++++++++++++
- src/cmd/compile/internal/ssa/deadstore.go |  6 +++++-
- src/cmd/compile/internal/ssa/rewrite.go   |  4 ++++
- 3 files changed, 25 insertions(+), 1 deletion(-)
+ src/net/http/filetransport_test.go | 1 +
+ 1 file changed, 1 insertion(+)

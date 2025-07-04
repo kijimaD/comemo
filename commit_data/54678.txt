@@ -1,21 +1,22 @@
-commit 09aada24aa156e0f754688487088badd969caad8
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Sun Oct 8 17:51:00 2023 +0200
+commit b459166219b77857dc6d9366366b015d84e17bbe
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Apr 12 08:55:16 2018 +0200
 
-    testing/fstest: MapFS: set perm 0555 on synthetized dirs
+    encoding/xml: add check of namespaces to detect field names conflicts
     
-    As MapFS ignores filemodes and always grant read and traverse access on
-    directories, let's make synthetized directory entries to expose filemode
-    0555 instead of 0000.
-    Fixes #63468.
+    Test added.
     
-    Change-Id: I5d64a6bf2f2ac6082ca5dde55b3062669fb50b8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534075
+    Fixes #8535
+    
+    Change-Id: Ic89c2781e81d963a653180812748b3fc95fb7fae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/106575
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/testing/fstest/mapfs.go      | 4 ++--
- src/testing/fstest/mapfs_test.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/encoding/xml/typeinfo.go |  2 +-
+ src/encoding/xml/xml_test.go | 90 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 91 insertions(+), 1 deletion(-)

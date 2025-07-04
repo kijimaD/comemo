@@ -1,16 +1,17 @@
-commit 0dd0e1ad0c4fdd7e4090d588150628147b4171e3
-Author: Miquel Sabaté Solà <mikisabate@gmail.com>
-Date:   Tue Dec 11 12:23:04 2012 -0500
+commit f4fc163d1773b54f422df91680df9efda583d67a
+Author: Luit van Drongelen <luitvd@gmail.com>
+Date:   Tue Dec 11 12:19:10 2012 -0500
 
-    cmd/gc: merge casep and casee labels
+    math/big: add SetUint64 and Uint64 functions to *Int
     
-    The code inside the casee and casep labels can perfectly be merged since
-    they essentially do the same. The character to be stored where cp points is
-    just the character contained by the c variable.
+    Implementation is mostly identical to passing a non-negative int64 to
+    SetInt64, and calling Int64 with a non-negative value in the *Int.
+    Fixes #4389.
     
-    R=golang-dev, dave, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6845112
+    https://golang.org/cl/6929048
 
- src/cmd/gc/lex.c | 37 +++++++------------------------------
- 1 file changed, 7 insertions(+), 30 deletions(-)
+ src/pkg/math/big/int.go      | 20 ++++++++++++++++++++
+ src/pkg/math/big/int_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)

@@ -1,68 +1,24 @@
-commit 5437b5a24ba52c06d7ff627f01ed1876558959d2
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Mar 22 11:35:02 2021 +0100
+commit 0bbd386e8bbdf419077d708d3671245fc0f50f0c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Apr 15 14:17:08 2020 -0400
 
-    cmd/compile: disallow rewrite rules from declaring reserved names
+    cmd/go: add -retract and -dropretract flags to 'go mod edit'
     
-    If I change a rule in ARM64.rules to use the variable name "b" in a
-    conflicting way, rulegen would previously not complain, and the compiler
-    would later give a confusing error:
+    'go mod edit' can now add and remove 'retract' directives from go.mod
+    files.
     
-            $ go run *.go && go build cmd/compile/internal/ssa
-            # cmd/compile/internal/ssa
-            ../rewriteARM64.go:24236:10: b.NewValue0 undefined (type int64 has no field or method NewValue0)
+    Also, retractions are now included in the 'go mod edit -json' output.
     
-    Make rulegen complain early about those cases. Sometimes they might
-    happen to be harmless, but in general they can easily cause confusion or
-    unintended effect due to shadowing.
+    For #24031
     
-    After the change, with the same conflicting rule:
-    
-            $ go run *.go && go build cmd/compile/internal/ssa
-            2021/03/22 11:31:49 rule ARM64.rules:495 uses the reserved name b
-            exit status 1
-    
-    Note that 24 existing rules were using reserved names. It seems like the
-    shadowing was harmless, as it wasn't causing typechecking issues nor did
-    it seem to cause unintended behavior when the rule rewrite code ran.
-    
-    The bool values "b" were renamed "t", since that seems to have a
-    precedent in other rules and in the fmt package.
-    
-    Sequential values like "a b c" were renamed to "x y z", since "b" is
-    reserved.
-    
-    Finally, "typ" was renamed to "_typ", since there doesn't seem to be an
-    obviously better answer.
-    
-    Passes all three of:
-    
-            $ GOARCH=amd64 go build -toolexec 'toolstash -cmp' -a std
-            $ GOARCH=arm64 go build -toolexec 'toolstash -cmp' -a std
-            $ GOARCH=mips64 go build -toolexec 'toolstash -cmp' -a std
-    
-    Fixes #45154.
-    
-    Change-Id: I1cce194dc7b477886a9c218c17973e996bcedccf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303549
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ife7915e259fa508626d6ec5f786b5c860b489599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228381
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules     |   2 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |   2 +-
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |   2 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |   2 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |   2 +-
- src/cmd/compile/internal/ssa/gen/S390X.rules   |   2 +-
- src/cmd/compile/internal/ssa/gen/generic.rules |  36 +++---
- src/cmd/compile/internal/ssa/gen/rulegen.go    |  64 +++++++---
- src/cmd/compile/internal/ssa/rewriteARM.go     |   8 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go   |   8 +-
- src/cmd/compile/internal/ssa/rewriteMIPS.go    |   8 +-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  |   8 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go   |   8 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go   |   8 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 170 ++++++++++++-------------
- 15 files changed, 177 insertions(+), 153 deletions(-)
+ src/cmd/go/alldocs.go                   |  18 ++++-
+ src/cmd/go/internal/modcmd/edit.go      | 101 +++++++++++++++++++++++++---
+ src/cmd/go/testdata/script/mod_edit.txt | 114 ++++++++++++++++++++++++++++----
+ 3 files changed, 208 insertions(+), 25 deletions(-)

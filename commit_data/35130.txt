@@ -1,16 +1,14 @@
-commit d3ff5090ddd22d2c8afe12aa07fa1fb0b61588c3
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 25 16:03:53 2018 -0400
+commit 5ad3c1cda2a36ca5ef934a7647956de45af6f67e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 20 15:14:05 2017 -0800
 
-    cmd/compile: fix format error
+    go/types: document Typ slice
     
-    Found by pending CL to make cmd/vet auto-detect printf wrappers.
+    Fixes #22628.
     
-    Change-Id: I6b5ba8f9c301dd2d7086c152cf2e54a68b012208
-    Reviewed-on: https://go-review.googlesource.com/109345
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib7aff8043e477af18c448d6b778f159b23fb5a92
+    Reviewed-on: https://go-review.googlesource.com/85075
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/iexport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/universe.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

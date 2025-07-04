@@ -1,23 +1,111 @@
-commit 13c912d19252b9225fa96b9a5557575bbaffb570
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Jan 7 12:22:24 2022 -0800
+commit 95ed5c3800a87ddf9b0ec3958eaaa1a969306293
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 15 23:05:49 2021 -0400
 
-    cmd/compile: in typ0(), load base type before checking s.Def
+    internal/buildcfg: move build configuration out of cmd/internal/objabi
     
-    The loading of the base type in typ0() may cause s.Def to be defined for
-    the instantiated type, so load the base type before checking s.Def.
+    The go/build package needs access to this configuration,
+    so move it into a new package available to the standard library.
     
-    Fixes #50486
-    
-    Change-Id: Ic039bc8f774dda534f4ccd1f920220b7a10dede6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377094
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I868a94148b52350c76116451f4ad9191246adcff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310731
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/noder/types.go     | 13 +++--
- test/typeparam/issue50486.dir/goerror_fp.go | 75 +++++++++++++++++++++++++++++
- test/typeparam/issue50486.dir/main.go       | 16 ++++++
- test/typeparam/issue50486.go                |  7 +++
- 4 files changed, 107 insertions(+), 4 deletions(-)
+ .gitignore                                         |   1 +
+ src/cmd/asm/internal/asm/endtoend_test.go          |   6 +-
+ src/cmd/asm/internal/asm/operand_test.go           |   6 +-
+ src/cmd/asm/internal/lex/input.go                  |   3 +-
+ src/cmd/asm/main.go                                |   7 +-
+ src/cmd/cgo/main.go                                |   6 +-
+ src/cmd/compile/internal/amd64/ggen.go             |   8 +-
+ src/cmd/compile/internal/amd64/ssa.go              |  14 +--
+ src/cmd/compile/internal/arm/galign.go             |   4 +-
+ src/cmd/compile/internal/arm/ssa.go                |   6 +-
+ src/cmd/compile/internal/arm64/ggen.go             |   4 +-
+ src/cmd/compile/internal/base/flag.go              |  19 +--
+ src/cmd/compile/internal/base/print.go             |   4 +-
+ src/cmd/compile/internal/dwarfgen/dwarf.go         |   3 +-
+ src/cmd/compile/internal/gc/main.go                |   5 +-
+ src/cmd/compile/internal/logopt/log_opts.go        |   6 +-
+ src/cmd/compile/internal/mips/galign.go            |   6 +-
+ src/cmd/compile/internal/mips64/galign.go          |   6 +-
+ src/cmd/compile/internal/noder/import.go           |   7 +-
+ src/cmd/compile/internal/noder/lex.go              |   6 +-
+ src/cmd/compile/internal/ppc64/galign.go           |   4 +-
+ src/cmd/compile/internal/ppc64/ssa.go              |   4 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    |   3 +-
+ src/cmd/compile/internal/ssa/compile.go            |   4 +-
+ src/cmd/compile/internal/ssa/config.go             |   8 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules         |  58 ++++-----
+ src/cmd/compile/internal/ssa/gen/PPC64.rules       |  38 +++---
+ src/cmd/compile/internal/ssa/gen/Wasm.rules        |   6 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |   2 +-
+ src/cmd/compile/internal/ssa/nilcheck.go           |   4 +-
+ src/cmd/compile/internal/ssa/regalloc.go           |   4 +-
+ src/cmd/compile/internal/ssa/rewrite386.go         |   6 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |  14 ++-
+ src/cmd/compile/internal/ssa/rewriteARM.go         | 130 ++++++++++----------
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |  88 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go     |   6 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |   8 +-
+ src/cmd/compile/internal/ssa/rewriteWasm.go        |  32 ++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |   6 +-
+ src/cmd/compile/internal/ssagen/abi.go             |   7 +-
+ src/cmd/compile/internal/ssagen/pgen.go            |   5 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |  17 +--
+ src/cmd/compile/internal/staticdata/data.go        |   3 +-
+ src/cmd/compile/internal/walk/expr.go              |   4 +-
+ src/cmd/compile/internal/walk/order.go             |   4 +-
+ src/cmd/compile/internal/walk/range.go             |   2 +-
+ src/cmd/compile/internal/wasm/ssa.go               |   6 +-
+ src/cmd/compile/internal/x86/galign.go             |   4 +-
+ src/cmd/compile/main.go                            |   7 +-
+ src/cmd/dist/buildruntime.go                       |  37 +++---
+ src/cmd/dist/buildtool.go                          |   4 +-
+ src/cmd/go/internal/cfg/cfg.go                     |  15 ++-
+ src/cmd/go/internal/work/exec.go                   |   6 +-
+ src/cmd/go/internal/work/gc.go                     |   3 +-
+ src/cmd/go/internal/work/init.go                   |   4 +-
+ src/cmd/go/main.go                                 |   6 +
+ src/cmd/go/script_test.go                          |   4 +-
+ src/cmd/internal/dwarf/dwarf.go                    |   6 +-
+ src/cmd/internal/goobj/objfile_test.go             |   5 +-
+ src/cmd/internal/obj/arm/asm5.go                   |   7 +-
+ src/cmd/internal/obj/arm/obj5.go                   |   3 +-
+ src/cmd/internal/obj/arm64/obj7.go                 |   3 +-
+ src/cmd/internal/obj/sym.go                        |   5 +-
+ src/cmd/internal/obj/util.go                       |   7 +-
+ src/cmd/internal/obj/x86/asm6.go                   |   3 +-
+ src/cmd/internal/obj/x86/obj6.go                   |   5 +-
+ src/cmd/internal/objabi/flag.go                    |   9 +-
+ src/cmd/internal/objabi/line.go                    |   5 +-
+ src/cmd/internal/objabi/stack.go                   |   4 +-
+ src/cmd/internal/objabi/util.go                    | 111 +----------------
+ src/cmd/link/internal/ld/ar.go                     |   4 +-
+ src/cmd/link/internal/ld/config.go                 |  50 ++++----
+ src/cmd/link/internal/ld/data_test.go              |   7 +-
+ src/cmd/link/internal/ld/deadcode.go               |   5 +-
+ src/cmd/link/internal/ld/dwarf.go                  |   3 +-
+ src/cmd/link/internal/ld/elf.go                    |  11 +-
+ src/cmd/link/internal/ld/lib.go                    |  43 +++----
+ src/cmd/link/internal/ld/macho.go                  |   5 +-
+ src/cmd/link/internal/ld/main.go                   |  11 +-
+ src/cmd/link/internal/ld/pcln.go                   |   3 +-
+ src/cmd/link/internal/ld/pe.go                     |  11 +-
+ src/cmd/link/internal/ld/sym.go                    |   5 +-
+ src/cmd/link/internal/ld/symtab.go                 |   3 +-
+ src/cmd/link/internal/mips/obj.go                  |   3 +-
+ src/cmd/link/internal/mips64/obj.go                |   3 +-
+ src/cmd/link/internal/ppc64/obj.go                 |   3 +-
+ src/cmd/link/internal/wasm/asm.go                  |  11 +-
+ src/cmd/link/linkbig_test.go                       |   8 +-
+ src/cmd/link/main.go                               |   7 +-
+ src/go/build/deps_test.go                          |   5 +-
+ src/internal/buildcfg/cfg.go                       | 136 +++++++++++++++++++++
+ .../internal/objabi => internal/buildcfg}/exp.go   |  10 +-
+ src/internal/goexperiment/flags.go                 |  11 +-
+ 94 files changed, 674 insertions(+), 549 deletions(-)

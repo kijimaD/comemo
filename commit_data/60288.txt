@@ -1,0 +1,19 @@
+commit 5d850046222b52dd79c5b9cb3d63449aa126c988
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 11 10:30:16 2024 -0400
+
+    cmd/go: update link to RISC-V profile doc
+    
+    The URL has changed.
+    
+    Change-Id: I295020c59aaf64a89c4307fca527163095148a67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591897
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/help/helpdoc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

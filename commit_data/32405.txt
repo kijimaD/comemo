@@ -1,15 +1,17 @@
-commit 4c0bba158e28384e7f58938b5b2930e3230220dc
-Author: Lakshay Garg <lakshay.garg.1996@gmail.com>
-Date:   Fri Aug 18 23:04:02 2017 +0530
+commit 90bd5eccb9ed0964ee9739b6da077a8b1470198b
+Author: Mark Ryan <mark.d.ryan@intel.com>
+Date:   Sat Apr 22 21:02:53 2017 +0100
 
-    math: implement the erfcinv function
+    encoding/base64: Rename rawUrlRef to rawURLRef
     
-    Fixes: #6359
+    This commit fixes an issue reported by golint.  The code was modified by running
     
-    Change-Id: I6c697befd681a253e73a7091faa9f20ff3791201
-    Reviewed-on: https://go-review.googlesource.com/57090
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    gorename -from '"encoding/base64".rawUrlRef' -to rawURLRef
+    
+    Change-Id: I428167e0808e85b2dc6b516298ff5c090dfe3430
+    Reviewed-on: https://go-review.googlesource.com/41474
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/all_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/math/erfinv.go   | 11 +++++++++++
- 2 files changed, 60 insertions(+)
+ src/encoding/base64/base64_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

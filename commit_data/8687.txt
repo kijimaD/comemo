@@ -1,18 +1,14 @@
-commit b5071e92b45f63edcb6a4ef691c769307b43f32c
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Jun 10 22:32:45 2011 +1000
+commit 09241858400a9863dbebfdd6f3a4678995898bb6
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Jun 10 17:23:54 2011 +1000
 
-    bike/shed: new package.
+    runtime: fix Plan 9 "lingering goroutines bug".
     
-    It comes up often enough that it's time to provide
-    the utility of a standard package.
-    
-    R=r, mirtchovski, adg, rsc, n13m3y3r, ality, go.peter.90, lstoakes, iant, jan.mercl, bsiegert, robert.hencke, rogpeppe, befelemepeseveze, kevlar
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4557047
+    https://golang.org/cl/4589042
 
- src/pkg/Makefile                 |  1 +
- src/pkg/bike/shed/Makefile       | 11 +++++++++++
- src/pkg/bike/shed/colors.go      | 26 ++++++++++++++++++++++++++
- src/pkg/bike/shed/colors_test.go | 15 +++++++++++++++
- 4 files changed, 53 insertions(+)
+ src/pkg/runtime/plan9/386/sys.s |  5 +++++
+ src/pkg/runtime/plan9/os.h      | 30 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/plan9/thread.c  | 30 +++++++++++++++++++++++++++---
+ 3 files changed, 62 insertions(+), 3 deletions(-)

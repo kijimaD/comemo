@@ -1,27 +1,18 @@
-commit b46aec07655bb5536fd9b9dbff0680de805214e8
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Oct 27 15:01:35 2023 +0000
+commit 8373bfe88e92a77a498caeab2ca729330b007483
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 15 11:08:03 2022 -0800
 
-    bytes,internal/bytealg: eliminate HashStrBytes,HashStrRevBytes using …
+    go/internal/gcimporter: backport flattenImports optimization
     
-    …generics
+    Backport of go.dev/cl/450755 from the x/tools importer.
     
-    The logic of HashStrBytes, HashStrRevBytes and HashStr, HashStrRev,
-    are exactly the same, except that the types are different.
-    
-    Since the bootstrap toolchain is bumped to 1.20, we can eliminate them
-    by using generics.
-    
-    Change-Id: I4336b1cab494ba963f09646c169b45f6b1ee62e3
-    GitHub-Last-Rev: b11a2bf9476d54bed4bd18a3f9269b5c95a66d67
-    GitHub-Pull-Request: golang/go#63766
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538175
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia9a2cc038d589a4cde1b31f74484a5f88dabeef9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450795
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Florian Zenker <floriank@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/bytes/bytes.go              |  2 +-
- src/internal/bytealg/bytealg.go | 46 ++++++-----------------------------------
- 2 files changed, 7 insertions(+), 41 deletions(-)
+ src/go/internal/gcimporter/ureader.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

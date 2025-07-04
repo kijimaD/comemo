@@ -1,34 +1,22 @@
-commit f15095f543637ea93e8ab683dff4f9b31e137ca9
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 5 01:13:30 2024 +0700
+commit fbf9076ee8c8f665f1e8bba08fdc473cc7a2d690
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 11 10:34:48 2023 -0400
 
-    cmd/compile: use slices.{Sort,SortFunc}
+    internal/goexperiment: add "NewInliner" experiment
     
-    Now that we're bootstrapping from a toolchain that has the slices
-    package.
+    Add "NewInliner" to the list of Go experiments, used for enabling an
+    updated/improved version of the function inlining phase within the Go
+    compiler.
     
-    Updates #64751
+    Updates #61502.
     
-    Change-Id: I2e63d95577d058670d3dc75bd45d6e050c6f0e25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610601
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I3218b3ae59a2d05156e8017cd9ee1d7b66cad031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/dwarfgen/scope_test.go    |  7 +++---
- src/cmd/compile/internal/gc/compile.go             |  7 +++---
- src/cmd/compile/internal/inline/inlheur/scoring.go | 25 +++++++++++-----------
- src/cmd/compile/internal/ir/mknode.go              |  6 +++---
- src/cmd/compile/internal/liveness/mergelocals.go   |  7 +++---
- src/cmd/compile/internal/liveness/plive.go         |  4 +++-
- src/cmd/compile/internal/noder/unified.go          |  7 +++---
- src/cmd/compile/internal/ssa/debug_lines_test.go   | 17 ++++++++-------
- src/cmd/compile/internal/ssa/decompose.go          | 12 +++++------
- src/cmd/compile/internal/ssa/memcombine.go         | 11 +++++-----
- src/cmd/compile/internal/ssa/schedule.go           |  5 +++--
- src/cmd/compile/internal/ssa/stmtlines_test.go     | 12 ++++++-----
- src/cmd/compile/internal/ssagen/pgen.go            |  4 +++-
- src/cmd/compile/internal/staticdata/data.go        |  7 +++---
- src/cmd/compile/internal/walk/switch.go            | 19 ++++++++--------
- 15 files changed, 83 insertions(+), 67 deletions(-)
+ src/internal/goexperiment/exp_newinliner_off.go | 13 +++++++++++++
+ src/internal/goexperiment/exp_newinliner_on.go  | 13 +++++++++++++
+ src/internal/goexperiment/flags.go              |  4 ++++
+ 3 files changed, 30 insertions(+)

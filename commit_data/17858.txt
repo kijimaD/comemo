@@ -1,39 +1,12 @@
-commit b0db472ea29a9f8283888e0cb5f7545f86dbc32c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 30 18:50:34 2013 +0000
+commit 0f706d39d4ece12aff931fe2656107864c398e5c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 30 08:54:53 2013 -0700
 
-    cmd/5l, runtime: make ARM integer division profiler-friendly
+    doc/go1.2.html: stack sizes, thread limits
     
-    The implementation of division constructed non-standard
-    stack frames that could not be handled by the traceback
-    routines.
-    
-    CL 13239052 left the frames non-standard but fixed them
-    for the specific case of a divide-by-zero panic.
-    A profiling signal can arrive at any time, so that fix
-    is not sufficient.
-    
-    Change the division to store the extra argument in the M struct
-    instead of in a new stack slot. That keeps the frames bog standard
-    at all times.
-    
-    Also fix a related bug in the traceback code: when starting
-    a traceback, the LR register should be ignored if the current
-    function has already allocated its stack frame and saved the
-    original LR on the stack. The stack copy should be used, as the
-    LR register may have been modified.
-    
-    Combined, these make the torture test from issue 6681 pass.
-    
-    Fixes #6681.
-    
-    R=golang-dev, r, josharian
+    R=golang-dev, minux.ma, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/19810043
+    https://golang.org/cl/19600043
 
- src/cmd/5l/noop.c                   | 51 +++++++++++--------------------------
- src/pkg/runtime/pprof/pprof_test.go | 25 ++++++++++++++++++
- src/pkg/runtime/runtime.h           |  1 +
- src/pkg/runtime/traceback_arm.c     |  2 +-
- src/pkg/runtime/vlop_arm.s          | 44 ++++++++++++++------------------
- 5 files changed, 61 insertions(+), 62 deletions(-)
+ doc/go1.2.html | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

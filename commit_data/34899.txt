@@ -1,26 +1,14 @@
-commit fe77a5413e64049af456b14ae911102681bee006
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Apr 7 03:08:46 2018 -0700
+commit 7da2f8278f10ed389e0d96cb43e5445d80d21f9b
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Nov 25 10:54:18 2017 -0800
 
-    cmd/compile: fix constant pointer comparison failure
+    crypto/x509: document specifically that only v3 certificates are created.
     
-    Previously, constant pointer-typed expressions could use either Mpint
-    or NilVal as their Val depending on their construction, but const.go
-    expects each type to have a single corresponding Val kind.
+    Fixes #21593
     
-    This CL changes pointer-typed expressions to exclusively use Mpint.
-    
-    Fixes #21221.
-    
-    Change-Id: I6ba36c9b11eb19a68306f0b296acb11a8c254c41
-    Reviewed-on: https://go-review.googlesource.com/105315
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I5d6c644ed1d60ae4610712155bae5cf13ee1f886
+    Reviewed-on: https://go-review.googlesource.com/79876
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 22 ++++++++--------------
- src/cmd/compile/internal/gc/const.go   | 23 ++++-------------------
- src/cmd/compile/internal/gc/export.go  |  2 +-
- test/const1.go                         |  4 ++--
- test/fixedbugs/issue21221.go           | 18 ++++++++++++++++++
- 5 files changed, 33 insertions(+), 36 deletions(-)
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,12 @@
-commit d1af6bed847291599985e85a8fbf207b6f0342a6
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Apr 13 12:02:44 2015 +1000
+commit e2ca3e6c0fddeca2135cd35e2a7c9de917054cbe
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 16 12:24:51 2015 -0700
 
-    runtime: move all exception related code into signal_windows.go
+    cmd/internal/gc: remove dead code
     
-    Change-Id: I9654a5c85bd9b3ae9c7a9eddaef1ec752f42bd1b
-    Reviewed-on: https://go-review.googlesource.com/8840
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id5ce859bd4b6318dc9104f7377ae23d7f0bc30cd
+    Reviewed-on: https://go-review.googlesource.com/7640
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/os1_windows.go    | 100 ++--------------------------------------
- src/runtime/os_windows.go     |  27 -----------
- src/runtime/signal_windows.go | 105 ++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 106 insertions(+), 126 deletions(-)
+ src/cmd/internal/gc/array.go | 9 ---------
+ 1 file changed, 9 deletions(-)

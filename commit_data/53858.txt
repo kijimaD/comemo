@@ -1,18 +1,17 @@
-commit 0f1491ded51769588b9306b9d789498dc75b5caa
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Aug 2 12:30:56 2023 +0000
+commit ce8dcd9879652975d83e0843b1d3d3f593a8a4ff
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:37:30 2022 +0800
 
-    encoding/json: adjust comment to keep the same style as comment above
+    net/http/httputil: use strings.Builder
     
-    Change-Id: Id47d32d18031883b874bba4cf8541f75c5d7f9db
-    GitHub-Last-Rev: 98c671c00c112e7bdf70b2f901a4f7682f922725
-    GitHub-Pull-Request: golang/go#61711
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515215
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ifb51413894791154489bd1d4f529088958212c62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428270
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/encoding/json/decode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/httputil/dump_test.go         | 2 +-
+ src/net/http/httputil/reverseproxy_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

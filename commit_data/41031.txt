@@ -1,36 +1,42 @@
-commit bbd25d26c0a86660fb3968137f16e74837b7a9c6
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Dec 20 23:34:23 2019 +0100
+commit b4ad49f9f70f5aa973c10db251bef55132e66ca8
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sat Aug 24 17:13:33 2019 +0200
 
-    internal/poll: use correct fcntl implementations
+    runtime: remove slow time compatibility hacks for wine
     
-    Use the libc fcntl (via syscall.fcntl) on aix and solaris like it is
-    already done for darwin.
+    A few years ago, Wine-specific detection was added as an ugly hack to
+    work around shortcomings in the emulation layer. Probably it's best to
+    not special case this emulator versus that emulator versus the real
+    deal, but there were two arguments presented in the hack's favor:
     
-    For the syscall-based fcntl implementation use FcntlSyscall from
-    internal/syscall/unix in order to get fcntl64 on 32-bit Linux
-    systems.
+      1. Wine is useful and developers will appreciate being able to debug
+         stuff with it.
     
-    On aix, fcntl with F_DUPFD_CLOEXEC is not supported. Thus, defined
-    F_DUPFD_CLOEXEC = 0 in the syscall package and check its value before
-    calling fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0).
+      2. The existing KUSER_SHARED_DATA technique for gathering time is
+         undocumented, and we shouldn't be relying on it anyway, since
+         Microsoft might remove it without notice.
     
-    On js/wasm, fcntl is not supported thus let its implementation return
-    ENOSYS directly.
+    As it turns out, neither one of these are, at the time of writing, true.
+    (1) has been handled for some time by Wine with the introduction of the
+    commit entitled "ntdll: Create thread to update user_shared_data time
+    values when necessary". And (2) is in fact documented:
+    https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/content/ntddk/ns-ntddk-kuser_shared_data
+    https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/-kuser
+    It's in use so widely by both third-party software (such as games, a
+    massive market segment) and by Microsoft binaries that removing it from
+    the operating system will basically never happen.
     
-    Updates #36211
+    So with both issues taken care of, this commit simply gets rid of the
+    old hack.
     
-    Change-Id: I96a2ea79e5c4eed2fefd94d0aefd72c940825682
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212278
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I80093f50e0d10d53648128d0f9dd76b1b92a119e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191759
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/internal/poll/fcntl_js.go        | 14 ++++++++++++++
- src/internal/poll/fcntl_libc.go      | 13 +++++++++++++
- src/internal/poll/fcntl_syscall.go   | 20 ++++++++++++++++++++
- src/internal/poll/fd_fsync_darwin.go |  9 +--------
- src/internal/poll/fd_fsync_posix.go  |  8 --------
- src/internal/poll/fd_unix.go         |  2 +-
- src/syscall/syscall_aix.go           |  2 +-
- 7 files changed, 50 insertions(+), 18 deletions(-)
+ src/runtime/os_windows.go       | 78 -----------------------------------------
+ src/runtime/sys_windows_386.s   | 10 ------
+ src/runtime/sys_windows_amd64.s | 10 ------
+ src/runtime/sys_windows_arm.s   | 14 --------
+ 4 files changed, 112 deletions(-)

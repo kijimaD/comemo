@@ -1,18 +1,25 @@
-commit 39d4178735d6ca90e076b3fc3d7e38f56fd6b945
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jul 30 16:16:03 2019 -0700
+commit 43e8fd4ef1ae24f1505bd34708fc30aa2b736c52
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon Feb 4 13:01:11 2019 +0530
 
-    spec: add an example of a trivially invalid interface
+    go/parser: include more comments in a struct or interface
     
-    In preparation for the forthcoming spec changes for #6977.
-    While at it, modernize existing File example that dates
-    back all the way to commit 18c5b488a3b.
+    While parsing inside a struct or an interface, skipping over empty lines
+    too to collect the next group of comments. We do not need to skip
+    over more than 1 empty line since gofmt already removes multiple
+    empty consecutive lines.
     
-    Change-Id: Id10e4df0513e3de15bd58867222923eefa9473ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187978
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #10858
+    
+    Change-Id: I0c97b65b5fc44e225e5dc7871ace24f43419ce08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161177
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go_spec.html | 24 ++++++++++++++++--------
- 1 file changed, 16 insertions(+), 8 deletions(-)
+ src/go/doc/testdata/issue10858.0.golden |  79 +++++++++++++++++++++++++
+ src/go/doc/testdata/issue10858.1.golden |  79 +++++++++++++++++++++++++
+ src/go/doc/testdata/issue10858.2.golden |  79 +++++++++++++++++++++++++
+ src/go/doc/testdata/issue10858.go       | 102 ++++++++++++++++++++++++++++++++
+ src/go/parser/parser.go                 |  15 ++++-
+ 5 files changed, 353 insertions(+), 1 deletion(-)

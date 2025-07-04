@@ -1,24 +1,16 @@
-commit 74cb96322502ab686be92ce7bd07464a62afb011
+commit 06479f766c4ae16e918701839bec0776ed52ec67
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 12 16:04:48 2012 -0800
+Date:   Thu Jan 12 16:04:32 2012 -0800
 
-    go/parser: Remove unused Parse* functions. Simplified ParseExpr signature.
+    go/ast: remove unnecessary result value from ast.Fprint/Print
     
-    Only ParseFile, ParseDir, and ParseExpr are used in the tree.
-    If partial parsing of code is required, it is fairly simple
-    to wrap the relevant piece of code into a dummy package for
-    parsing (see parser.ParseExpr).
+    These functions are mostly of interest for debugging; the
+    number of bytes written is uninteresting.
     
-    Also: minor cleanups.
-    
-    R=rsc
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5535055
+    https://golang.org/cl/5540046
 
- src/cmd/cgo/gcc.go               |   3 +-
- src/cmd/gofix/fix.go             |   2 +-
- src/cmd/gofmt/rewrite.go         |   2 +-
- src/pkg/go/parser/interface.go   | 162 +++++++++++----------------------------
- src/pkg/go/parser/parser.go      |  46 +++--------
- src/pkg/go/parser/parser_test.go |  28 ++++++-
- 6 files changed, 88 insertions(+), 155 deletions(-)
+ src/pkg/go/ast/print.go      | 24 ++++++++++--------------
+ src/pkg/go/ast/print_test.go |  2 +-
+ 2 files changed, 11 insertions(+), 15 deletions(-)

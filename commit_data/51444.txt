@@ -1,18 +1,46 @@
-commit ff18af84019c7f6ce245db2aa6b19bb62c4ae02b
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Nov 22 09:43:04 2022 +0100
+commit 360e1b8197b78685cf08ab5914aa629fb739b2c3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 26 22:48:44 2022 -0800
 
-    doc/go1.20: document changes to os on Windows
+    go/types, types2: fix implements and identical predicates
     
-    This CL documents the changes introduced by
-    https://go-review.googlesource.com/c/go/+/405275.
+    - Use the correct predicate in Checker.implements: for interfaces
+      we cannot use the API Comparable because it always returns true
+      for all non-type parameter interface types: Comparable simply
+      answers if == and != is permitted, and it's always been permitted
+      for interfaces. Instead we must use Interface.IsComparable which
+      looks at the type set of an interface.
     
-    Change-Id: I541712d65f2823ecdf606c5b91035cde55ecdac6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/452735
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    - When comparing interfaces for identity, we must also consider the
+      whether the type sets have the comparable bit set.
+    
+    With this change, `any` doesn't implement `comparable` anymore. This
+    only matters for generic functions and types, and the API functions.
+    It does mean that for now (until we allow type-constrained interfaces
+    for general non-constraint use, at some point in the future) a type
+    parameter that needs to be comparable cannot be instantiated with an
+    interface anymore.
+    
+    For #50646.
+    
+    Change-Id: I7e7f711bdcf94461f330c90509211ec0c2cf3633
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381254
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go1.20.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/compile/internal/types2/instantiate.go     |  2 +-
+ src/cmd/compile/internal/types2/issues_test.go     |  9 +++--
+ src/cmd/compile/internal/types2/predicates.go      |  3 ++
+ .../internal/types2/testdata/check/issues.go2      | 11 +++---
+ .../types2/testdata/fixedbugs/issue50646.go2       | 11 +++---
+ src/cmd/compile/internal/types2/unify.go           |  3 ++
+ src/go/types/instantiate.go                        |  2 +-
+ src/go/types/issues_test.go                        |  9 +++--
+ src/go/types/predicates.go                         |  3 ++
+ src/go/types/testdata/check/issues.go2             | 11 +++---
+ src/go/types/testdata/fixedbugs/issue50646.go2     | 11 +++---
+ src/go/types/unify.go                              |  3 ++
+ test/typeparam/issue48276a.go                      |  2 +-
+ test/typeparam/issue48276a.out                     |  2 +-
+ test/typeparam/issue50646.go                       | 39 ----------------------
+ 15 files changed, 42 insertions(+), 79 deletions(-)

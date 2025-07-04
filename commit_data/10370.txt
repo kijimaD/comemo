@@ -1,22 +1,12 @@
-commit 5bb54b8e9cd810d378397bae464f8933509e62bc
+commit efb74460c366286cf17225874c7d6333542647bc
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 13 22:58:08 2011 -0500
+Date:   Sun Nov 13 22:57:45 2011 -0500
 
-    gc: remove func, map compare
+    spec: disallow general func, map comparisons
     
-    R=ken, ken
+    R=golang-dev, gri, r, r
     CC=golang-dev
-    https://golang.org/cl/5373079
+    https://golang.org/cl/5369090
 
- src/cmd/gc/align.c       |   6 +-
- src/cmd/gc/subr.c        |   2 +
- src/cmd/gc/swt.c         |  14 +++
- src/cmd/gc/typecheck.c   |  13 ++-
- test/closure.go          |   5 -
- test/cmp6.go             |  28 +++--
- test/fixedbugs/bug285.go |  14 ---
- test/map1.go             |  30 ++---
- test/switch.go           | 281 +++++++++++++++++++++++++++++++++++------------
- test/switch3.go          |  28 ++++-
- test/typeswitch.go       |   5 +-
- 11 files changed, 301 insertions(+), 125 deletions(-)
+ doc/go_spec.html | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

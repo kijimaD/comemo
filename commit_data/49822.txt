@@ -1,20 +1,38 @@
-commit 8003efe1b5520476c62c7fa6798150a61d621cde
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 9 01:32:22 2022 -0700
+commit bf26e43d0f9a6c9d43c206877917e66f0fc24a19
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Sep 10 15:12:57 2021 -0400
 
-    test: relax live.go for GOEXPERIMENT=unified
+    go/types: eliminate Named.instPos
     
-    This CL applies the same change to test/live.go that was previously
-    applied to test/live_regabi.go in golang.org/cl/415240. This wasn't
-    noticed at the time though, because GOEXPERIMENT=unified was only
-    being tested on linux-amd64, which is a regabi platform.
+    We no longer need to use the nilness of Named.instPos to signal whether
+    instance expansion has occurred, so remove it from the Named struct by
+    instead closing over the instantiation position in the resolver.
     
-    Change-Id: I0c75c2b7097544305e4174c2f5ec6ec283c81a8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422254
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    This means we cannot print instance markers for unexpanded instances:
+    instances may escape the type checking pass without being fully
+    expanded, and we can not check whether they have been expanded in a
+    concurrency-safe way without introducing a more heavy-weight
+    syncronization mechanism.
+    
+    With this change, instantiation should be concurrency safe, modulo bugs
+    of course as we have little test coverage of concurrency (see #47729).
+    
+    Fixes #47910
+    
+    Change-Id: Ifeef6df296f00105579554b333a44d08aae113c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349411
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- test/live.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/go/internal/gcimporter/gcimporter_test.go |  3 ---
+ src/go/types/environment.go                   |  7 -------
+ src/go/types/errors.go                        |  2 +-
+ src/go/types/errors_test.go                   |  1 -
+ src/go/types/instantiate.go                   |  5 +++--
+ src/go/types/named.go                         |  8 +++-----
+ src/go/types/sizeof_test.go                   |  2 +-
+ src/go/types/subst.go                         |  3 ---
+ src/go/types/typestring.go                    | 10 ----------
+ 9 files changed, 8 insertions(+), 33 deletions(-)

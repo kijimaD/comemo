@@ -1,15 +1,27 @@
-commit 67cd77b88f2fdf620556cd698752aa2ed53fee1b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Oct 7 12:41:58 2022 -0400
+commit 23adc139bf1c0c099dd075da076f5a1f3ac700d4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 11 19:58:23 2021 -0500
 
-    cmd/go/internal/modload: remove unused moduleHasRootPackage function
+    reflect: keep pointer in aggregate-typed args live in Call
     
-    Change-Id: Iaf118150b8cf48aa42db3477bffdb92bd39f632a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/440295
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    When register ABI is used, reflect.Value.Call prepares the call
+    arguments in a memory representation of the argument registers.
+    It has special handling to keep the pointers in arguments live.
+    Currently, this handles pointer-typed arguments. But when an
+    argument is an aggregate-type that contains pointers and passed
+    in registers, it currently doesn't keep the pointers live. Do
+    so in this CL.
+    
+    May fix #49363.
+    
+    Change-Id: Ic6a0c5fdf9375ef02f7c03fbe9345e2e98c9353d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363358
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/modload/query.go | 11 -----------
- 1 file changed, 11 deletions(-)
+ src/internal/abi/abi.go | 18 ++++++++++++++++++
+ src/reflect/all_test.go | 23 +++++++++++++++++++++++
+ src/reflect/value.go    | 19 ++++++++++++++++---
+ 3 files changed, 57 insertions(+), 3 deletions(-)

@@ -1,0 +1,19 @@
+commit a9bd6239a440dedc354f7651259fabef4610ebdc
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 6 14:08:53 2025 -0500
+
+    cmd/go/internal/env: add GOCACHEPROG to go env output
+    
+    For #71059
+    
+    Change-Id: I4bbdd14d416dc2e6dae3549a84c16dbef9d4e645
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640755
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/cache/default.go           |  4 +--
+ src/cmd/go/internal/cfg/cfg.go                 |  5 +--
+ src/cmd/go/internal/envcmd/env.go              |  1 +
+ src/cmd/go/testdata/script/env_gocacheprog.txt | 42 ++++++++++++++++++++++++++
+ 4 files changed, 48 insertions(+), 4 deletions(-)

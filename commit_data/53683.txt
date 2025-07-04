@@ -1,18 +1,16 @@
-commit d4f0d896a6856e3d6fc64d0e0714645844c59aa0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jul 13 10:55:55 2023 -0400
+commit 59bdbb3effe3e61f85e336a52323024bafaf44bd
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Aug 27 02:51:11 2022 +0800
 
-    net/http: revert stray edit to h2_bundle.go from CL 508996
+    net: add the missing OS Darwin in the comment of sendFile
     
-    h2_bundle.go is generated from x/net/http2, so it must not be edited
-    manually.
-    
-    Change-Id: If76716ce8baf581321358734e5b8bef3541632ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508922
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ice7e3762d4a1d71e23d619be699697f5c6523cc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425879
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/net/http/h2_bundle.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/sendfile_unix_alt.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

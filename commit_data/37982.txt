@@ -1,16 +1,17 @@
-commit 5fcc24074f8e48cd8404bd250c2c268aca2bc3d2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 15 18:55:45 2019 +0000
+commit 88c1fd642ea0944b50962e1498273fee79d00e5f
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Tue Sep 18 01:22:59 2018 +0300
 
-    syscall: skip TestSyscallNoError when temp dir is mounted nosuid
+    cmd/compile/internal/gc: remove redundant for label
     
-    Fixes #30258
+    Since there are no nested loops and/or switches,
+    loop label can be removed and "bare continue" can be used.
     
-    Change-Id: I73b63eb9d3aca00f562fdc3af010e96269bb6b9c
-    Reviewed-on: https://go-review.googlesource.com/c/162891
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id642a0859299e4470af544d59884fec51dbb31ee
+    Reviewed-on: https://go-review.googlesource.com/135837
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/syscall/syscall_linux_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/compile/internal/ssa/rewrite.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

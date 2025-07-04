@@ -1,22 +1,30 @@
-commit 6027b2183d9a63a11f92d392fd2296e7b88402fc
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Nov 16 12:33:03 2021 -0800
+commit 8f676144ad7b7c91adb0c6e1ec89aaa6283c6807
+Author: Himanshu Kishna Srivastava <28himanshu@gmail.com>
+Date:   Tue Mar 16 22:37:46 2021 +0530
 
-    crypto/x509/internal/macos: use APIs available on ios
+    crypto/rsa: fix salt length calculation with PSSSaltLengthAuto
     
-    Use SecCertificateCopyData instead of SecItemExport, which is only
-    available on macOS.
+    When PSSSaltLength is set, the maximum salt length must equal:
     
-    Updates #49616
+        (modulus_key_size - 1 + 7)/8 - hash_length - 2
+    and for example, with a 4096 bit modulus key, and a SHA-1 hash,
+    it should be:
     
-    Change-Id: Ieda33894930d23c6dab6112ee18120f8a440083b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364554
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+         (4096 -1 + 7)/8 - 20 - 2 = 490
+    Previously we'd encounter this error:
+    
+         crypto/rsa: key size too small for PSS signature
+    
+    Fixes #42741
+    
+    Change-Id: I18bb82c41c511d564b3f4c443f4b3a38ab010ac5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302230
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/crypto/x509/internal/macos/security.go | 27 +++++++++++++--------------
- src/crypto/x509/internal/macos/security.s  |  4 ++--
- src/crypto/x509/root_darwin.go             |  7 ++-----
- 3 files changed, 17 insertions(+), 21 deletions(-)
+ src/crypto/rsa/pss.go      |  2 +-
+ src/crypto/rsa/pss_test.go | 20 +++++++++++++++++++-
+ 2 files changed, 20 insertions(+), 2 deletions(-)

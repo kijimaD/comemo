@@ -1,16 +1,22 @@
-commit 92d4af301e5c69b066b75475b3fce24e4fa51ab3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 12 15:55:39 2012 +1100
+commit 2ae860585920e17c1d43098c476ffb11c21b35f8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 11 21:02:40 2012 -0700
 
-    cmd/godoc: always include /doc files in union filesystems
+    misc/dist: use archive/zip, seek out windows deps, add --upload flag
     
-    Makes Path rewrites work, as the metadata was never being scanned.
+    Use archive/zip instead of 7z on Windows.
     
-    Fixes #3282.
+    Look for all Windows deps before starting build, and include looking
+    for them in their common locations instead of making users update
+    their PATHs.
     
-    R=golang-dev, bradfitz
+    Add an --upload flag that, if set to false, doesn't require credential
+    files.
+    
+    R=golang-dev, alex.brainman, adg
     CC=golang-dev
-    https://golang.org/cl/5783076
+    https://golang.org/cl/5794046
 
- src/cmd/godoc/filesystem.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ misc/dist/bindist.go         | 164 ++++++++++++++++++++++++++++++++++++++++---
+ misc/dist/windows/README.txt |   1 -
+ 2 files changed, 154 insertions(+), 11 deletions(-)

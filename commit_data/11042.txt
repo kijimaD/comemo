@@ -1,12 +1,13 @@
-commit 518872bf8fde6172b39fb9e7452cf2dc55cf432f
-Author: Sameer Ajmani <sameer@golang.org>
-Date:   Fri Jan 6 14:11:51 2012 -0800
+commit d4d5bd1bb78f5c69df66cfb7ce83470504bee5c0
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jan 6 12:38:01 2012 -0500
 
-    A+C: add sameer@golang.org to CONTRIBUTORS.
+    Add Szabolcs Nagy as a contributor.
     
-    R=gri
+    R=iant, gri
     CC=golang-dev
-    https://golang.org/cl/5515052
+    https://golang.org/cl/5517056
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

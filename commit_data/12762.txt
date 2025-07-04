@@ -1,16 +1,14 @@
-commit 98155bd6a9547f8aa38cb4f71c4cbce7d1c9884a
+commit 11441285db2532d7446664f7bd850fd3439bed64
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 27 11:42:01 2012 +1100
+Date:   Tue Mar 27 11:40:17 2012 +1100
 
-    doc: move gdb doc back to /doc/ and de-emphasize on references page
+    doc: add doc/articles/index.html
     
-    Fixes #3399.
+    Fixes #3402.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5919044
+    https://golang.org/cl/5923043
 
- doc/debugging_with_gdb.html | 2 +-
- doc/docs.html               | 1 +
- doc/reference.html          | 6 +-----
- 3 files changed, 3 insertions(+), 6 deletions(-)
+ doc/articles/index.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

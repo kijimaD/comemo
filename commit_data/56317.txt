@@ -1,44 +1,36 @@
-commit 774d5b366ce43ed7e304ea3917e353112df9daf7
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 26 15:58:35 2024 -0400
+commit 7bc8aacec185ca80839ef0a4f58b85e482ab769e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 28 17:07:36 2023 +0000
 
-    make.bash: avoid ksh bug in nogoenv
+    misc/android: rework GOROOT installation
     
-    ksh handles make.bash surprisingly well and is a smaller
-    supply chain attack surface, so it's reasonable to want
-    to use "ksh make.bash" to build Go.
+    - Fall back to 'go env GOROOT' to locate GOROOT if runtime.GOROOT() is
+      empty (as may be the case if the tool is built with -trimpath).
     
-    The only place where ksh and bash disagree in running
-    make.bash is an arguable bug in ksh that
+    - Copy all of $GOROOT/android_$GOARCH/bin, not just cmd/go, to
+      $GOROOT/bin.
     
-            X=Y foo
+    - For consistency with CL 404134, place $GOROOT/bin at the beginning
+      of $PATH, not the end.
     
-    accidentally changes the real value of X following that
-    command when foo is a shell function. (It correctly preserves
-    the original value of X when foo is a command being invoked.)
+    - Don't use the install target for the "runtime" package to locate pkg/tool.
+      As of Go 1.20 "runtime" doesn't have an install directory anyway.
+      Since the real reason we need pkg/tool is for commands in "cmd",
+      use an arbitrary command (namely "cmd/compile") to locate it.
     
-    More specifically,
+    - Use 'go list' to determine the package import path for the current
+      directory, instead of assuming that it is within GOROOT or GOPATH.
+      (That assumption does not hold in module mode.)
     
-            GOROOT=$GOROOT_BOOTSTRAP nogoenv foo
+    Updates #58775.
     
-    incorrectly changes $GOROOT in the rest of the script.
-    
-    CL 580020 suggested using a subshell, but subshells
-    historically have lost "set -e", so we'd have to use (...) || exit 1.
-    Instead of that, this CL refactors nogoenv into bootstrapenv,
-    putting it in charge of changing $GOROOT the same way it
-    changes all the other environment variables.
-    
-    This CL also updates make.rc for parallelism.
-    It does not bother updating make.bat: that part is already
-    a bit different, and attempting to change it is all risk, no reward.
-    
-    Change-Id: I5923a6fb5016a3862363363859365d1cd4f61a1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582076
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If76ff22bce76d05175c40678230f046a4aff0940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472096
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Eric Grosse <grosse@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Changkun Ou <mail@changkun.de>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/make.bash | 11 ++++++-----
- src/make.rc   | 11 ++++++-----
- 2 files changed, 12 insertions(+), 10 deletions(-)
+ misc/android/go_android_exec.go | 228 ++++++++++++++++++++++++++++------------
+ 1 file changed, 159 insertions(+), 69 deletions(-)

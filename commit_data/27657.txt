@@ -1,20 +1,28 @@
-commit 763883632e4d7fea145b6f3a7ee501b5ad9096f2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 8 17:45:55 2016 -0700
+commit 007b12977aa8f3373b358361fe21802d5a8408b4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 6 14:12:48 2016 -0700
 
-    cmd/go: only run TestGoGetHTTPS404 where it works
+    cmd/compile: move Type.Maplineno to separate data structure
     
-    The test TestGoGetHTTPS404 downloads a package that does not build on
-    every OS, so change it to only run where the package builds. It's not
-    great for the test to depend on an external package, but this is an
-    improvement on the current situation.
+    Relatively few types are ever used as map keys,
+    so tracking this separately is a net win.
     
-    Fixes #15644.
+    Passes toolstash -cmp.
     
-    Change-Id: I1679cee5ab1e61a5b26f4ad39dc8a397fbc0da69
-    Reviewed-on: https://go-review.googlesource.com/23920
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    name       old alloc/op     new alloc/op     delta
+    Template       55.9MB ± 0%      55.5MB ± 0%  -0.71%        (p=0.000 n=10+10)
+    Unicode        37.8MB ± 0%      37.7MB ± 0%  -0.27%        (p=0.000 n=10+10)
+    GoTypes         180MB ± 0%       179MB ± 0%  -0.52%         (p=0.000 n=7+10)
+    Compiler        806MB ± 0%       803MB ± 0%  -0.41%        (p=0.000 n=10+10)
+    
+    CPU and number of allocs are unchanged.
+    
+    Change-Id: I6d60d74a4866995a231dfed3dd5792d75d904292
+    Reviewed-on: https://go-review.googlesource.com/21622
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        |  4 ++--
+ src/cmd/compile/internal/gc/type.go        |  2 --
+ src/cmd/compile/internal/gc/typecheck.go   | 14 +++++++++-----
+ 4 files changed, 12 insertions(+), 10 deletions(-)

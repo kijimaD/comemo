@@ -1,14 +1,13 @@
-commit e67b0e688565f4112983d983f76642cf20021fcd
-Author: Jeff Sickel <jas@corpus-callosum.com>
-Date:   Mon Oct 7 11:41:27 2013 -0400
+commit faad40c745e6f2c4db673ae700c79745f98e77ae
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Oct 5 14:15:02 2013 +1000
 
-    codereview: move dotfiles out of user home director to something sane.
+    A+C: add Marko Juhani Silokunnas (individual CLA).
     
-    See Rob Pike's lesson on shortcuts, https://plus.google.com/101960720994009339267/posts/R58WgWwN9jp
-    
-    R=golang-dev, r, rsc
-    CC=aram.h, golang-dev
-    https://golang.org/cl/14374045
+    R=golang-dev, adg
+    CC=golang-dev, mikioh.mikioh
+    https://golang.org/cl/14417043
 
- lib/codereview/codereview.py | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

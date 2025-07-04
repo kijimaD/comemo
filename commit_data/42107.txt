@@ -1,36 +1,17 @@
-commit 80ced393965eb74382c4df63e74461f0bf144c55
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 16:22:37 2020 -0700
+commit b2b0992b05a37b474d77c5056787780fda254fda
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 8 18:53:35 2019 +0000
 
-    cmd/compile: add more non-ID comparisons to schedule
+    Revert "encoding/asn1: fix unmarshalling SEQUENCE OF SET"
     
-    These comparisons are fairly arbitrary,
-    but they should be more stable in the face
-    of other compiler changes than value ID.
+    This reverts CL 160819 (commit 4692343cf401a5bbcc29)
     
-    This reduces the number of value ID
-    comparisons in schedule while running
-    make.bash from 542,442 to 99,703.
+    Reason for revert: causing lots of failures on master
     
-    There are lots of changes to generated code
-    from this change, but they appear to
-    be overall neutral.
-    
-    It is possible to further reduce the
-    number of comparisons in schedule;
-    I have changes locally that reduce the
-    number to about 25,000 during make.bash.
-    However, the changes are increasingly
-    complex and arcane, and reduce in much less
-    code churn. Given that the goal is stability,
-    that suggests that this is a reasonable
-    place to stop, at least for now.
-    
-    Change-Id: Ie3a75f84fd3f3fdb102fcd0b29299950ea66b827
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229799
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I96fd39ae80fe350ba8b3aa310443d41daec38093
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206146
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/schedule.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/encoding/asn1/asn1_test.go | 19 -------------------
+ src/encoding/asn1/common.go    |  3 ---
+ 2 files changed, 22 deletions(-)

@@ -1,22 +1,18 @@
-commit 5c1a13e7a47bc47c07057c0acf626e3fafe064c9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jul 8 10:02:14 2022 -0400
+commit aed59d172ad532bd2eedcf78ba97fdd113d2dccd
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 14:03:33 2021 -0400
 
-    cmd/go: avoid setting variables for '/' and ':' in TestScript subprocess environments
+    go/types: allow composite literals of type parameter type
     
-    Also simplify platform-dependent handling of the PATH variable,
-    to make it more like the existing platform-dependent handling for
-    HOME and TMPDIR.
+    This is a port of CL 342690 to go/types.
     
-    Fixes #53671.
-    
-    Change-Id: Ica2665d3f61988c66fb6982b9feb61ca48eced79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416554
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I27dcde237e400a84c3394a3579805014777830bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346432
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/go_test.go             |  9 +++++++++
- src/cmd/go/script_test.go         | 19 ++++++-------------
- src/cmd/go/testdata/script/README | 17 ++++++++++++-----
- 3 files changed, 27 insertions(+), 18 deletions(-)
+ src/go/types/expr.go                     |  2 +-
+ src/go/types/testdata/examples/types.go2 | 17 ++++++++++++++++-
+ 2 files changed, 17 insertions(+), 2 deletions(-)

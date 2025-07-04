@@ -1,27 +1,28 @@
-commit 56e5476e10db25ce71f562bd6ee0910a83532b04
-Author: Florian Zenker <floriank@google.com>
-Date:   Wed Mar 19 10:55:55 2025 +0000
+commit 48d899dcdbed4534ed942f7ec2917cf86b18af22
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Feb 4 14:50:42 2024 +0800
 
-    runtime: in asan mode unregister root regions on free
+    net/http: reject requests with invalid Content-Length headers
     
-    CL 651755 introduced registration of root regions when allocating
-    memory. We also need to unregister that memory to avoid the leak
-    sanitizer accessing unmapped memory.
+    According to RFC 9110 and RFC 9112, invalid "Content-Length" headers
+    might involve request smuggling or response splitting, which could
+    also cause security failures. Currently, `net/http` ignores all
+    "Content-Length" headers when there is a "Transfer-Encoding" header and
+    forward the message anyway while other mainstream HTTP implementations
+    such as Apache Tomcat, Nginx, HAProxy, Node.js, Deno, Tornado, etc. reject
+    invalid Content-Length headers regardless of the presence of a
+    "Transfer-Encoding" header and only forward chunked-encoding messages
+    with either valid "Content-Length" headers or no "Content-Length" headers.
     
-    Issue #67833
+    Fixes #65505
     
-    Change-Id: I5d403d66e65a8a003492f4d79dad22d416fd8574
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/659135
+    Change-Id: I73af2ee0785137e56c7546a4cce4a5c5c348dbc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561075
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/asan.go        | 4 ++++
- src/runtime/asan/asan.go   | 4 ++++
- src/runtime/asan0.go       | 1 +
- src/runtime/asan_amd64.s   | 8 ++++++++
- src/runtime/asan_arm64.s   | 8 ++++++++
- src/runtime/asan_loong64.s | 8 ++++++++
- src/runtime/asan_ppc64le.s | 8 ++++++++
- src/runtime/asan_riscv64.s | 8 ++++++++
- src/runtime/mem.go         | 7 +++++++
- 9 files changed, 56 insertions(+)
+ src/net/http/readrequest_test.go | 16 +++++++++++++++
+ src/net/http/serve_test.go       |  6 ++++++
+ src/net/http/transfer.go         | 42 ++++++++++++++++++++++------------------
+ 3 files changed, 45 insertions(+), 19 deletions(-)

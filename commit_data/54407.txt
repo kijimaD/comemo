@@ -1,38 +1,15 @@
-commit 2e457b3868d361eed146ab1a3272f16a7312d9c2
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Sep 8 16:21:17 2023 -0700
+commit 40c63ceaabc2883b0c40356424459a8397cddb9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 4 11:42:15 2022 -0400
 
-    cmd/compile/internal/noder: handle unsafe.Sizeof, etc in unified IR
+    go/build: use tabs consistently in deps test rules
     
-    Previously, the unified frontend implemented unsafe.Sizeof, etc that
-    involved derived types by constructing a normal OSIZEOF, etc
-    expression, including fully instantiating their argument. (When
-    unsafe.Sizeof is applied to a non-generic type, types2 handles
-    constant folding it.)
-    
-    This worked, but involves unnecessary work, since all we really need
-    to track is the argument type (and the field selections, for
-    unsafe.Offsetof).
-    
-    Further, the argument expression could generate temporary variables,
-    which would then go unused after typecheck replaced the OSIZEOF
-    expression with an OLITERAL. This results in compiler failures after
-    CL 523315, which made later passes stricter about expecting the
-    frontend to not construct unused temporaries.
-    
-    Fixes #62515.
-    
-    Change-Id: I37baed048fd2e35648c59243f66c97c24413aa94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527097
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I50152fa251e599e2c95f68148aee3c16b222da60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439416
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ir/const.go     |  5 +++++
- src/cmd/compile/internal/noder/codes.go  |  3 +++
- src/cmd/compile/internal/noder/reader.go | 20 +++++++++++++++++++
- src/cmd/compile/internal/noder/writer.go | 33 ++++++++++++++++++++++++++++++++
- test/fixedbugs/issue62515.go             | 27 ++++++++++++++++++++++++++
- 5 files changed, 88 insertions(+)
+ src/go/build/deps_test.go | 68 +++++++++++++++++++++++------------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

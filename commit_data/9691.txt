@@ -1,17 +1,15 @@
-commit d76c4a52e7bf584b5a32807da7e76e621a800149
+commit 957fd575fc2941402c964f088330e109d02740f7
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 14 20:46:03 2011 -0700
+Date:   Wed Sep 14 20:45:45 2011 -0700
 
-    godoc: support for complete index serialization
-    
-    - now fulltext index information is saved/restored
-    - minor updates to appinit.go
+    go/token: support to serialize file sets
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5024043
+    https://golang.org/cl/5024042
 
- src/cmd/godoc/appinit.go | 13 +++++++------
- src/cmd/godoc/index.go   | 26 +++++++++++++++++++++-----
- src/cmd/godoc/main.go    |  5 -----
- 3 files changed, 28 insertions(+), 16 deletions(-)
+ src/pkg/go/token/Makefile          |   1 +
+ src/pkg/go/token/position.go       |  20 ++++---
+ src/pkg/go/token/serialize.go      |  62 ++++++++++++++++++++++
+ src/pkg/go/token/serialize_test.go | 105 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 180 insertions(+), 8 deletions(-)

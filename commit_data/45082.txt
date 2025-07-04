@@ -1,30 +1,21 @@
-commit 1b736b3c19375f6ebd0d834c02316fb13700be27
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 6 19:25:28 2021 -0400
+commit b8ec1d5f49ec5f9350f2b0bd99560e4aadfcb70c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 30 17:37:24 2020 -0700
 
-    runtime: consolidate "is sweep done" conditions
+    internal/poll: use ignoringEINTR in Darwin Fsync
     
-    The runtime currently has two different notions of sweep completion:
+    Also add comment explaining why we don't use ignoringEINTR around
+    call to close.
     
-    1. All spans are either swept or have begun sweeping.
+    Fixes #41115
     
-    2. The sweeper has *finished* sweeping all spans.
-    
-    Having both is confusing (it doesn't help that the documentation is
-    often unclear or wrong). Condition 2 is stronger and the theoretical
-    slight optimization that condition 1 could impact is never actually
-    useful. Hence, this CL consolidates both conditions down to condition 2.
-    
-    Updates #45315.
-    
-    Change-Id: I55c84d767d74eb31a004a5619eaba2e351162332
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307916
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ia7bbe01eaf26003f70d184b7e82803efef2b2c18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258542
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/mgc.go      |  6 +++---
- src/runtime/mgcsweep.go | 13 ++++++++-----
- src/runtime/mheap.go    | 13 +++++++------
- 3 files changed, 18 insertions(+), 14 deletions(-)
+ src/internal/poll/fd_fsync_darwin.go | 7 ++++---
+ src/internal/poll/fd_unix.go         | 7 +++++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

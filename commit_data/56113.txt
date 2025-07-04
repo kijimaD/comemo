@@ -1,16 +1,24 @@
-commit b6efc3b755b74147a3700ad51773b01fa68f76e8
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Tue Apr 2 01:05:42 2024 +0000
+commit 705e2e987e229a913b687561a6370e77dbab4165
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sun Apr 2 20:01:28 2023 +0800
 
-    cmd/go/internal/modload: close modules.txt
+    debug/elf: avoid decompress of section twice
     
-    Change-Id: Ieb4cf76f4d7050d2f3052c2f90e47901de74d641
-    GitHub-Last-Rev: 1e8dcfd6517201c3a467109ae133846cc66e053a
-    GitHub-Pull-Request: golang/go#66629
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/575475
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    In rare cases, elf will get a corrupted section starts with 0x1,
+    which happens to be COMPRESS_ZLIB that causing decompress twice.
+    This CL drops sectionData decompress data after open section.
+    
+    Fixes #59208
+    
+    Change-Id: I7999a55868b3b3481509e1ac35985f7580f0f688
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480895
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/modload/init.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/debug/elf/file.go      | 86 ++++++++++++++++++++--------------------------
+ src/debug/elf/file_test.go | 46 +++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 49 deletions(-)

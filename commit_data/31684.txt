@@ -1,17 +1,42 @@
-commit 4c86f7bd498453ce452f18b6fa1396bb12e6ac66
-Author: Dmitry Savintsev <dsavints@gmail.com>
-Date:   Mon May 29 22:14:32 2017 +0200
+commit c310c688ffa46e2f91e40284c16d71f3921feed9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 1 15:50:57 2017 -0800
 
-    cmd/link: fix left-over reference to reflect.c
+    cmd/compile, runtime: simplify multiway select implementation
     
-    Replaced ../gc/reflect.c with
-    cmd/compile/internal/gc/reflect.go.
+    This commit reworks multiway select statements to use normal control
+    flow primitives instead of the previous setjmp/longjmp-like behavior.
+    This simplifies liveness analysis and should prevent issues around
+    "returns twice" function calls within SSA passes.
     
-    Fixes #20525
+    test/live.go is updated because liveness analysis's CFG is more
+    representative of actual control flow. The case bodies are the only
+    real successors of the selectgo call, but previously the selectsend,
+    selectrecv, etc. calls were included in the successors list too.
     
-    Change-Id: Ibafd36ea446ace5c677df27873a4bbf716a0a9bc
-    Reviewed-on: https://go-review.googlesource.com/44376
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #19331.
+    
+    Change-Id: I7f879b103a4b85e62fc36a270d812f54c0aa3e83
+    Reviewed-on: https://go-review.googlesource.com/37661
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/decodesym.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin.go         |  13 ++-
+ src/cmd/compile/internal/gc/builtin/runtime.go |   9 +-
+ src/cmd/compile/internal/gc/plive.go           | 109 -------------------
+ src/cmd/compile/internal/gc/select.go          |  77 ++++++++------
+ src/cmd/compile/internal/gc/ssa.go             |  15 +--
+ src/runtime/asm_386.s                          |   6 --
+ src/runtime/asm_amd64.s                        |   6 --
+ src/runtime/asm_amd64p32.s                     |   6 --
+ src/runtime/asm_arm.s                          |   5 -
+ src/runtime/asm_arm64.s                        |   5 -
+ src/runtime/asm_mips64x.s                      |   5 -
+ src/runtime/asm_mipsx.s                        |   5 -
+ src/runtime/asm_ppc64x.s                       |   5 -
+ src/runtime/asm_s390x.s                        |   5 -
+ src/runtime/select.go                          | 142 ++++++++++---------------
+ src/runtime/stubs.go                           |   3 -
+ test/live.go                                   |  10 +-
+ 17 files changed, 124 insertions(+), 302 deletions(-)

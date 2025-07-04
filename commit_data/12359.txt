@@ -1,18 +1,18 @@
-commit 7e8ed8f616457de1eaff09462ab0d20e794e1211
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Mar 5 14:23:00 2012 +1100
+commit f5a1dd888def229b7ce2f522ab8ef4083715efa6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 5 12:49:31 2012 +1100
 
-    cmd: update formatting of usage messages
+    doc/progs: update for go 1
+    Fixes #3076.
     
-    R=golang-dev, r, minux.ma
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5738045
+    https://golang.org/cl/5727056
 
- src/cmd/cgo/doc.go  |  3 ++-
- src/cmd/cov/doc.go  |  4 +++-
- src/cmd/go/doc.go   | 15 +++++++++++----
- src/cmd/go/main.go  |  4 +++-
- src/cmd/pack/doc.go |  3 ++-
- src/cmd/prof/doc.go |  4 ++--
- src/cmd/yacc/doc.go |  7 +++++--
- 7 files changed, 28 insertions(+), 12 deletions(-)
+ doc/go1.html        |  2 +-
+ doc/progs/error.go  |  5 ++++-
+ doc/progs/go1.go    |  7 ++++++-
+ doc/progs/run       | 58 ++++++++++++++++++++---------------------------------
+ doc/progs/slices.go |  4 ++++
+ src/run.bash        |  1 -
+ 6 files changed, 37 insertions(+), 40 deletions(-)

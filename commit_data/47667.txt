@@ -1,21 +1,57 @@
-commit 3c6295d272d09e6c7be912510e4b62afc0ef8ffc
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Fri Nov 19 16:51:47 2021 -0500
+commit a040ebeb980d1a712509fa3d8073cf6ae16cbe78
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Sat Apr 3 08:10:47 2021 +0000
 
-    doc/go1.18: add short-circuit evaluation for text/template
+    all: update references to symbols moved from io/ioutil to io
     
-    This description is based on https://golang.org/cl/321490.
+    Update references missed in CL 263142.
     
-    Updates #47694
+    For #41190
     
-    Change-Id: I48656cd487d2fccf0b0d3390f350f1bc6f2b0080
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365738
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I778760a6a69bd0440fec0848bdef539c9ccb4ee1
+    GitHub-Last-Rev: dda42b09fff36dc08ec1cdec50cc19e3da5058e5
+    GitHub-Pull-Request: golang/go#42874
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273946
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ misc/android/go_android_exec.go                  |  5 ++---
+ misc/cgo/errors/badsym_test.go                   |  7 +++----
+ misc/cgo/errors/errors_test.go                   |  5 ++---
+ misc/cgo/errors/ptr_test.go                      |  9 ++++-----
+ misc/cgo/life/life_test.go                       |  5 ++---
+ misc/cgo/stdio/stdio_test.go                     |  5 ++---
+ misc/cgo/test/issue1435.go                       |  6 +++---
+ misc/cgo/test/pkg_test.go                        |  5 ++---
+ misc/cgo/testcarchive/carchive_test.go           | 11 +++++------
+ misc/cgo/testcarchive/testdata/libgo6/sigprof.go |  4 ++--
+ misc/cgo/testcshared/cshared_test.go             | 17 ++++++++---------
+ misc/cgo/testgodefs/testgodefs_test.go           | 11 +++++------
+ misc/cgo/testplugin/plugin_test.go               |  9 ++++-----
+ misc/cgo/testsanitizers/cc_test.go               |  9 ++++-----
+ misc/cgo/testsanitizers/cshared_test.go          |  4 ++--
+ misc/cgo/testsanitizers/testdata/tsan9.go        |  4 ++--
+ misc/cgo/testshared/shared_test.go               | 13 ++++++-------
+ misc/cgo/testso/so_test.go                       |  5 ++---
+ misc/cgo/testsovar/so_test.go                    |  5 ++---
+ misc/ios/detect.go                               |  3 +--
+ misc/ios/go_ios_exec.go                          |  9 ++++-----
+ misc/linkcheck/linkcheck.go                      |  4 ++--
+ misc/reboot/experiment_toolid_test.go            |  7 +++----
+ misc/reboot/reboot_test.go                       |  5 ++---
+ src/go/build/build.go                            |  1 +
+ src/internal/execabs/execabs_test.go             |  5 ++---
+ src/net/http/fs_test.go                          |  3 +--
+ src/syscall/exec_windows_test.go                 |  3 +--
+ src/testing/fstest/testfs.go                     |  3 +--
+ test/bench/go1/gob_test.go                       |  4 ++--
+ test/bench/go1/gzip_test.go                      |  5 ++---
+ test/bench/go1/http_test.go                      |  4 ++--
+ test/bench/go1/json_test.go                      |  3 +--
+ test/bench/go1/parser_test.go                    |  3 +--
+ test/bench/go1/revcomp_test.go                   |  4 ++--
+ test/bench/go1/template_test.go                  |  4 ++--
+ test/stress/runstress.go                         |  3 +--
+ 37 files changed, 93 insertions(+), 119 deletions(-)

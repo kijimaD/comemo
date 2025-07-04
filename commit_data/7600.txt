@@ -1,15 +1,12 @@
-commit 9733f96b4798f608ce9ff284ebcd06473c3734a2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 2 10:21:56 2011 -0800
+commit 1d258a554a4a09a9f75c65ebc0f388c2bbb318a1
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Mar 2 10:10:12 2011 +1100
 
-    http: initialize request Header for the transport
+    http: give ParseHTTPVersion a real example.
     
-    Fixes #1558
-    
-    R=rsc, r, bradfitzwork
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4260042
+    https://golang.org/cl/4239050
 
- src/pkg/http/client.go      | 11 +++++++++++
- src/pkg/http/client_test.go |  7 +++++--
- 2 files changed, 16 insertions(+), 2 deletions(-)
+ src/pkg/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

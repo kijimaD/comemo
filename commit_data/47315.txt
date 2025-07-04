@@ -1,21 +1,27 @@
-commit b07c41d2c1c8d5729250a13b7c560c150c1d9011
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Wed Nov 3 16:46:44 2021 +0100
+commit fdded79e6e3256118af182b42714d4d56f2000b0
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Mar 9 18:24:51 2021 -0800
 
-    net/netip: add IPv4Unspecified
+    cmd/compile: fix handling of partially inferred type arguments
     
-    There is IPv6Unspecified but there is not IPv4Unspecified, making for
-    inconsistent code. This commit adds the missing function.
+    In the case of partially inferred type arguments, we need to use the
+    IndexExpr as the key in g.info.Inferred[] rather than the CallExpr.
     
-    Updates #49298.
+    Added an extra fromStrings1 call in the settable.go test that tests
+    partially inferred type arguments. This new call uses a new concrete
+    type SettableString as well.
     
-    Change-Id: Id2519b646323642f59fb1cc6ea8e335fdde16290
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361056
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    I also added another implementation fromStrings3 (derived from a go2go
+    tests) that typechecks but intentionally causes a panic.
+    
+    Change-Id: I74d35c5a741f72f37160a96fbec939451157f392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300309
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/netip/netip.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/expr.go | 12 +++++++-
+ test/typeparam/settable.go             | 55 ++++++++++++++++++++++++++++++----
+ 2 files changed, 61 insertions(+), 6 deletions(-)

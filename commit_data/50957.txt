@@ -1,39 +1,22 @@
-commit 6f7e9e23074d771c6adfce84d74fa11dbd8b7619
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu May 12 09:45:59 2022 -0500
+commit 6027b2183d9a63a11f92d392fd2296e7b88402fc
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Nov 16 12:33:03 2021 -0800
 
-    crypto/sha256, cmd/internal/notsha256: improve PPC64 sha256
+    crypto/x509/internal/macos: use APIs available on ios
     
-    This minimizes addi usage inside vector heavy loops. This
-    results in a small performance uptick on P9 ppc64le/linux.
-    Likewise, cleanup some minor whitespace issues around comments.
+    Use SecCertificateCopyData instead of SecItemExport, which is only
+    available on macOS.
     
-    The implementation from crypto/sha256 is also shared with notsha256.
-    It is copied, but preserves notsha256's go:build directives. They are
-    otherwise identical now. Previously, bootstrap restrictions required
-    workarounds to support XXLOR on older toolchains. This is not needed
-    anymore as the minimum bootstrap (1.17) compiler will support XXLOR.
+    Updates #49616
     
-    name               old speed      new speed      delta
-    Hash8Bytes/New     28.8MB/s ± 0%  30.5MB/s ± 0%  +5.98%
-    Hash8Bytes/Sum224  29.5MB/s ± 0%  31.3MB/s ± 0%  +6.17%
-    Hash8Bytes/Sum256  29.5MB/s ± 0%  31.2MB/s ± 0%  +5.80%
-    Hash1K/New          287MB/s ± 0%   312MB/s ± 0%  +8.60%
-    Hash1K/Sum224       289MB/s ± 0%   312MB/s ± 0%  +7.99%
-    Hash1K/Sum256       289MB/s ± 0%   312MB/s ± 0%  +7.98%
-    Hash8K/New          313MB/s ± 0%   338MB/s ± 0%  +8.12%
-    Hash8K/Sum224       313MB/s ± 0%   338MB/s ± 0%  +8.20%
-    Hash8K/Sum256       313MB/s ± 0%   338MB/s ± 0%  +8.12%
-    
-    Change-Id: Ib386d6306673b4e6553ee745ec2e1b53a9722df1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/441815
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Change-Id: Ieda33894930d23c6dab6112ee18120f8a440083b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364554
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/internal/notsha256/sha256block_ppc64x.s | 214 ++++++++++++++----------
- src/crypto/sha256/sha256block_ppc64x.s          | 176 +++++++++++--------
- 2 files changed, 225 insertions(+), 165 deletions(-)
+ src/crypto/x509/internal/macos/security.go | 27 +++++++++++++--------------
+ src/crypto/x509/internal/macos/security.s  |  4 ++--
+ src/crypto/x509/root_darwin.go             |  7 ++-----
+ 3 files changed, 17 insertions(+), 21 deletions(-)

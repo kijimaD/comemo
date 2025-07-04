@@ -1,16 +1,19 @@
-commit 53af292aed21c3f6ea75d16e5b25f660b2c028fb
-Author: Kevin Burke <kevin@burke.dev>
-Date:   Sun Jun 15 22:51:57 2025 -0700
+commit d037bba19b26064dcbd19be2c17e042c8d421f2c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Apr 24 11:31:19 2024 -0400
 
-    encoding/json/jsontext: fix spelling error
+    cmd/compile: add debug log prior to export data lookup
     
-    Change-Id: Ic1f385afbe35addba8b3c439ccb64c56b1d300c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/681795
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    If there is a crash in LookupFunc (which has occurred a few times now),
+    this ensures that we log the offending symbol before crashing.
+    
+    For #67016.
+    
+    Change-Id: I0119597de2be3d1b97c41a9361273d1feb90ec11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581437
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/encoding/json/jsontext/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/pgoir/irgraph.go | 3 +++
+ 1 file changed, 3 insertions(+)

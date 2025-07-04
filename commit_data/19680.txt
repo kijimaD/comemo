@@ -1,13 +1,14 @@
-commit 4e0214eb8ee120b089d529a9ea3291e69ff2c3a0
+commit cb2355bbb36adb18348368d3e2b9481ca5ecd2aa
 Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue Jul 8 13:45:06 2014 -0400
+Date:   Tue Jul 8 13:44:06 2014 -0400
 
-    cmd/pack: skip test on android (no Go tool)
+    os: adjust tests for android file system
     
-    LGTM=minux
-    R=golang-codereviews, minux
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/107600043
+    https://golang.org/cl/108460043
 
- src/cmd/pack/pack_test.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/pkg/os/os_test.go   | 39 +++++++++++++++++++++++++++------------
+ src/pkg/os/path_test.go |  5 +++--
+ 2 files changed, 30 insertions(+), 14 deletions(-)

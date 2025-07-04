@@ -1,21 +1,12 @@
-commit a0bd46e70fa09e8fe4749399440a2dc52e80f84a
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Tue Dec 20 10:57:06 2011 +1100
+commit 315b361f898e2a7f299a742be5cfcb56c04d5c9d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 19 15:40:10 2011 -0800
 
-    html: ignore <caption>, <col>, <tbody> etc. when parsing table fragments
+    zip: fix data race in test
     
-    Pass tests6.dat, test 36:
-    <caption><col><colgroup><tbody><tfoot><thead><tr>
-    
-    | <tr>
-    
-    Pass tests through test 44:
-    <body></body></html>
-    
-    R=nigeltao
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5494055
+    https://golang.org/cl/5492073
 
- src/pkg/html/parse.go      | 7 +++++++
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/archive/zip/reader_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

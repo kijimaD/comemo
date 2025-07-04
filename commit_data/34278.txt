@@ -1,14 +1,22 @@
-commit 0a4c439d3f85e150554266976dbf6dccfd6638e1
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Feb 18 19:32:26 2018 +0100
+commit 350b74bc4b9f37ba29ef02c2f89d687ae8563a05
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Oct 13 12:41:09 2017 -0400
 
-    cmd/compile: aggregate rules that fold LEA/ADD into MOVx ops
+    cmd/link: zero symtab fields correctly
     
-    No functional changes.
+    CL 69370 introduced a hasmain field to moduledata after the
+    modulehashes slice. However that code was relying on the zeroing
+    code after it to cover modulehashes if len(Shlibs) == 0. The
+    hasmain field gets in the way of that. So clear modulehashes
+    explicitly in that case.
     
-    Change-Id: I4a3642d6dedf602a62f5a69cb630d35965ad6b98
-    Reviewed-on: https://go-review.googlesource.com/94763
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Found when looking at #22250. Not sure if it's related.
+    
+    Change-Id: I81050cb4554cd49e9f245d261ef422f97d026df4
+    Reviewed-on: https://go-review.googlesource.com/70730
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules | 82 +++++-----------------------
- 1 file changed, 14 insertions(+), 68 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

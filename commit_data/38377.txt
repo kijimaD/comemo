@@ -1,37 +1,21 @@
-commit cfa93ba51fb62252633c62ddc9351d56c18ce018
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 7 17:44:50 2019 -0800
+commit 5a7cfbc0117bce314c3f079ece459173b9efc854
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Oct 20 18:54:07 2018 +0300
 
-    math/big: add support for underscores '_' in numbers
+    syscall: swap src, dest arguments in convertFromDirents11 for FreeBSD
     
-    The primary change is in nat.scan which now accepts underscores for base 0.
-    While at it, streamlined error handling in that function as well.
-    Also, improved the corresponding test significantly by checking the
-    expected result values also in case of scan errors.
+    make fixedSize, oldFixedSize constants.
+    use st instead of stat for function arg so that we do not shadow the stat() function.
     
-    The second major change is in scanExponent which now accepts underscores when
-    the new sepOk argument is set. While at it, essentially rewrote that
-    function to match error and underscore handling of nat.scan more closely.
-    Added a new test for scanExponent which until now was only tested
-    indirectly.
+    dstPos+reclen == len(buf) is a valid write location, update the break condition.
     
-    Finally, updated the documentation for several functions and added many
-    new test cases to clients of nat.scan.
-    
-    A major portion of this CL is due to much better test coverage.
-    
-    Updates #28493.
-    
-    Change-Id: I7f17b361b633fbe6c798619d891bd5e0a045b5c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166157
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I55f9210f54d24a3f9cda1ebab52437436254f8f4
+    Reviewed-on: https://go-review.googlesource.com/c/143637
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/floatconv.go      |  37 +++++---
- src/math/big/floatconv_test.go |  25 ++++++
- src/math/big/int.go            |  16 +++-
- src/math/big/intconv_test.go   |  17 ++++
- src/math/big/natconv.go        | 195 ++++++++++++++++++++++-------------------
- src/math/big/natconv_test.go   | 178 ++++++++++++++++++++++---------------
- src/math/big/ratconv.go        | 109 +++++++++++++----------
- src/math/big/ratconv_test.go   | 121 +++++++++++++++++++++----
- 8 files changed, 458 insertions(+), 240 deletions(-)
+ src/syscall/export_freebsd_test.go  | 12 +++++++++
+ src/syscall/syscall_freebsd.go      | 29 +++++++++++---------
+ src/syscall/syscall_freebsd_test.go | 54 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 82 insertions(+), 13 deletions(-)

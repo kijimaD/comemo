@@ -1,23 +1,23 @@
-commit bc0c0770941acc3da196ce55cb55e083a05c91c4
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 7 12:17:05 2019 -0400
+commit 00055152d320f60476ca5db1e7da4fc89f94834e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 21 12:23:18 2018 -0500
 
-    doc: update /doc/asm compiler output example
+    cmd/go: fix -n output in runtime/internal/atomic
     
-    The compiler output shown in the doc is now quite old
-    (most of the changes happened in Go 1.5).
-    Update it to be more like what users will actually see.
+    When building runtime/internal/atomic, the toolchain writes a symabis2
+    file. This file is read back in, filtered, and appended to the symabis
+    file. This breaks with -n, since the symabis2 file is never written.
     
-    Also explain how to get literal machine code again.
+    With this change, when -n is used, an equivalent "grep" command is
+    printed instead. The output for -x is unchanged.
     
-    Prompted by #30968.
+    Fixes #29346
     
-    Change-Id: I0ce139c3fe299ccc43e85b6aca81c6e0aac1a2df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175757
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Id25e06e06364fc6689e71660d000f09c649c4f0c
+    Reviewed-on: https://go-review.googlesource.com/c/155480
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
 
- doc/asm.html | 93 ++++++++++++++++++++++++++++++++----------------------------
- 1 file changed, 50 insertions(+), 43 deletions(-)
+ src/cmd/go/internal/work/gc.go                       | 6 ++++++
+ src/cmd/go/testdata/script/build_runtime_gcflags.txt | 4 ++++
+ 2 files changed, 10 insertions(+)

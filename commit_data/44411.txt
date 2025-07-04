@@ -1,26 +1,31 @@
-commit dbbc5ec7e87f1976188c57ce4fb0d41e324df687
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Wed Feb 24 22:59:59 2021 +0100
+commit a295d59d10d87ea882ddc8db6919a278b3a67d01
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 26 11:26:33 2020 -0700
 
-    syscall: restore broken GetQueuedCompletionStatus signature but make it not crash
+    cmd/cgo: prevent redeclaration of _Ctype_void when C.void is used
     
-    This reverts commit dc4698f52b5ad3f0251e0cc25bc7ffbd10e23f2c, and then
-    fixes the memory corruption issue. It also suggests users switch to
-    x/sys/windows for the proper function.
+    CL 230037 changed cmd/cgo to emit "type _Ctype_foo = bar" aliases for
+    all C.foo types mentioned in the original Go source files. However,
+    cmd/cgo already emits an appropriate type definition for _Ctype_void.
+    So if a source file explicitly mentions C.void, this resulted in
+    _Ctype_void being declared multiple times.
     
-    This requires CL 295174 to be submitted first.
+    This CL fixes the issue by suppressing the "type _Ctype_void =
+    _Ctype_void" alias before printing it. This should be safe because
+    _Ctype_void is the only type that's specially emitted in out.go at the
+    moment.
     
-    Updates #44538.
+    A somewhat better fix might be to fix how _Ctype_void is declared in
+    the cmd/cgo "frontend", but this is a less invasive fix.
     
-    Change-Id: I0ee602f1c1d6a89cc585aff426833a4cb3f2be50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296149
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #39877.
+    
+    Change-Id: Ief264b3847c8ef8df1478a6333647ff2cf09b63d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240180
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/except.txt                  |  6 ------
- src/syscall/syscall_windows.go  | 31 ++++++++++++++++++++++++++++---
- src/syscall/zsyscall_windows.go |  6 +++---
- 3 files changed, 31 insertions(+), 12 deletions(-)
+ misc/cgo/test/test.go | 4 ++++
+ src/cmd/cgo/out.go    | 5 +++++
+ 2 files changed, 9 insertions(+)

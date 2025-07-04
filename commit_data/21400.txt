@@ -1,20 +1,24 @@
-commit 1d0664ef0d4f7c4efda19cb75aff2768072d84ed
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 28 20:44:55 2015 -0500
+commit 77cd6197d7561ab7ccbf5d892efb6f97d929546a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Dec 31 20:30:57 2014 -0500
 
-    cmd/9g: use nopout in excise
+    runtime/cgo: initialize our pthread_create wrapper earlier on openbsd
     
-    In addition to duplicating the logic, the old code was
-    clearing the line number, which led to missing source line
-    information in the -S output.
+    This is a genuine bug exposed by our test for issue 9456: our wrapper
+    for pthread_create is not initialized until we initialize cgo itself,
+    but it is possible that a static constructor could call pthread_create,
+    and in that case, it will be calling a nil function pointer.
     
-    Also fix nopout, which was incomplete.
+    Fix that by also initializing the sys_pthread_create function pointer
+    inside our pthread_create wrapper function, and use a pthread_once to
+    make sure it is only initialized once.
     
-    Change-Id: Ic2b596a2f9ec2fe85642ebe125cca8ef38c83085
-    Reviewed-on: https://go-review.googlesource.com/3512
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fix build for openbsd.
+    
+    Change-Id: Ica4da2c21fcaec186fdd3379128ef46f0e767ed7
+    Reviewed-on: https://go-review.googlesource.com/2232
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/9g/gobj.c | 5 ++++-
- src/cmd/9g/peep.c | 7 ++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/cgo/gcc_openbsd_386.c   | 39 ++++++++++++++++++++++++++----------
+ src/runtime/cgo/gcc_openbsd_amd64.c | 40 +++++++++++++++++++++++++++----------
+ 2 files changed, 58 insertions(+), 21 deletions(-)

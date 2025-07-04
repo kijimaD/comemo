@@ -1,12 +1,12 @@
-commit 181dc14cd63dd364efaa4d6f7a6af7f3892cc83a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 15 11:31:16 2012 +1100
+commit f00872527b9e31cf3389ef49788b21b22b1a51da
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Thu Mar 15 09:15:16 2012 +1100
 
-    cmd/godoc: use *goroot as base path in zip file
+    doc: add reference to FAQ to explain warning about concrete type
     
-    R=golang-dev, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5781069
+    https://golang.org/cl/5820048
 
- src/cmd/godoc/appinit.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/articles/error_handling.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

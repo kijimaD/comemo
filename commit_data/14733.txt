@@ -1,30 +1,17 @@
-commit 04098d88fa1b4d41557ac6824a528d092d562936
+commit b3bb4bd2925bc6715e5c91175021a2386f4017bb
 Author: Russ Cox <rsc@golang.org>
-Date:   Sat Dec 22 16:46:46 2012 -0500
+Date:   Sat Dec 22 16:45:35 2012 -0500
 
-    cmd/gc: make forward declaration in pure Go package an error
+    cmd/yacc: fix debug print of token name
     
-    An error during the compilation can be more precise
-    than an error at link time.
+    The array skips the first TOKSTART entries.
     
-    For 'func init', the error happens always: you can't forward
-    declare an init func because the name gets mangled.
+    Fixes #4410.
     
-    For other funcs, the error happens only with the special
-    (and never used by hand) -= flag, which tells 6g the
-    package is pure go.
-    
-    The go command now passes -= for pure Go packages.
-    
-    Fixes #3705.
-    
-    R=ken2
+    R=golang-dev, ken2, ken
     CC=golang-dev
-    https://golang.org/cl/6996054
+    https://golang.org/cl/6999054
 
- doc/progs/error.go  |  6 +++++-
- src/cmd/gc/go.h     |  1 +
- src/cmd/gc/lex.c    |  5 +++--
- src/cmd/gc/pgen.c   | 11 +++++++----
- src/cmd/go/build.go | 17 +++++++++++++++++
- 5 files changed, 33 insertions(+), 7 deletions(-)
+ src/cmd/yacc/units.y | 5 +++++
+ src/cmd/yacc/yacc.go | 7 ++++---
+ 2 files changed, 9 insertions(+), 3 deletions(-)

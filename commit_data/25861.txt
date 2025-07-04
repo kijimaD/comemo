@@ -1,32 +1,27 @@
-commit 539aa05a643e1e53d050ee94b1e6d2e8607ea7ac
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 22 23:07:30 2016 -0800
+commit 4d6a69f22790d0e9358b940da0bb86cef1e93777
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Nov 27 12:09:14 2015 +0900
 
-    cmd/compile: towards simpler and faster lexing: always use getr
+    net: force LookupAddr results to be rooted DNS paths even in the case of local source
     
-    Always reading runes (rather than bytes) has negligible overhead
-    (a simple if at the moment - it can be eliminated eventually) but
-    simplifies the lexer logic and opens up the door for speedups.
-    In the process remove many int conversions that are now not needed
-    anymore.
+    The builtin name resolver using various resolution techniques is a bit
+    complicated and we sometimes fotget to take care of all the go and cgo
+    code paths and exchanging information to local and remote sources. This
+    change makes LookupAddr return absolute domain names even in the case of
+    local source.
     
-    Also, because identifiers are now more easily recognized, remove
-    talph label and move identifier lexing "in place".
+    Updates #12189.
+    Fixes #12240.
     
-    Also, instead of accepting all chars < 0x80 and then check for
-    "frogs", only permit valid characters in the first place. Removes
-    an extra call for common simple tokens and leads to simpler logic.
-    
-    `time go build -a net/http` (best of 5 runs) seems 1% faster.
-    Assuming this is in the noise, there is no noticeable performance
-    degradation with this change.
-    
-    Change-Id: I3454c9bf8b91808188cf7a5f559341749da9a1eb
-    Reviewed-on: https://go-review.googlesource.com/19847
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Icdd3375bcddc7f5d4d3b24f134d93815073736fc
+    Reviewed-on: https://go-review.googlesource.com/17216
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 418 +++++++++++++++++--------------------
- test/fixedbugs/issue11610.go       |   2 +-
- 2 files changed, 198 insertions(+), 222 deletions(-)
+ src/net/cgo_unix.go      |  7 +------
+ src/net/dnsclient.go     | 11 +++++++++++
+ src/net/hosts.go         |  6 +++---
+ src/net/hosts_test.go    |  5 ++++-
+ src/net/lookup_test.go   | 37 +++++++++++++++++++++++++++++++------
+ src/net/non_unix_test.go |  4 ++--
+ src/net/unix_test.go     | 14 ++++++++++----
+ 7 files changed, 62 insertions(+), 22 deletions(-)

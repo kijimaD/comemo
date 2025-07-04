@@ -1,15 +1,23 @@
-commit 21efa7b2bc872958bcb252f5ab4dc52b2b0abeae
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Nov 26 11:47:32 2015 +1300
+commit fcf8143d638dbc34fdd418f45f8e8b45de802916
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Mon Sep 21 00:45:21 2015 +0200
 
-    syscall: skip tests that create a user namespace when chrooted
+    encoding/json: scanner: use byte, more consistent
     
-    The kernel rejects attempts to create user namespaces when in a chroot.
+    The fields step and redoState of struct scanner are now defined as
+    `func(s *scanner, c byte) int` instead of
+    `func(s *scanner, c int) int`, since bytes are sufficient.
+    Further changes improve the consistency in the scanner.go file.
     
-    Change-Id: I6548302732c8f5be52f4167cd7233aea16839ad8
-    Reviewed-on: https://go-review.googlesource.com/17214
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifb85f2130d728d2b936d79914d87a1f0b5c6ee7d
+    Reviewed-on: https://go-review.googlesource.com/14801
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/exec_linux_test.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/encoding/json/decode.go      |   2 +-
+ src/encoding/json/decode_test.go |   2 +-
+ src/encoding/json/indent.go      |   4 +-
+ src/encoding/json/scanner.go     | 101 ++++++++++++++++++---------------------
+ src/encoding/json/stream.go      |   8 ++--
+ 5 files changed, 55 insertions(+), 62 deletions(-)

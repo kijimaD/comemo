@@ -1,37 +1,35 @@
-commit ff7b04136091f8208352e97c117ca6489ca95a86
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Sep 14 16:23:10 2021 -0700
+commit 4a4212c0e59dee4458be2f5c85262e54f127c500
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 17 02:38:41 2021 -0800
 
-    cmd/go: 'go get' no longer builds or installs packages
+    [dev.regabi] cmd/compile: refactor Linksym creation
     
-    As part of #40267, 'go install' is now fully responsible for building
-    and installing executables. 'go get' will only be used to change
-    versions in go.mod. The -d flag no longer has any effect; its behavior
-    is the default.
+    Currently there's a lot of logic within package types for creating
+    Linksyms. This CL pulls it out into base, where it can be more easily
+    reused by other compiler code that shouldn't need to depend on package
+    types.
     
-    When 'go get' is invoked inside a module on a main package outside of
-    the main module, it no longer prints any warning. In 1.16-1.17, we
-    suggested using -d in this situation, but we want
-    'go get example.com/cmd' to be able to upgrade a tool dependency
-    without needing -d to suppress the warning.
+    Package base probably isn't the best place for this, but it's
+    convenient because it's a package that types already depends on. It's
+    also where the Ctxt object lives, which these functions depend upon.
     
-    For #43684
+    Passes toolstash -cmp w/ -gcflags=all=-abiwrap.
     
-    Change-Id: I9daf29c123a5a0e382aa326d62721cb26fc26c19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349997
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I50d8b7e4596955205036969eab24d7dab053b363
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284231
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go                              | 24 ++----
- src/cmd/go/internal/modget/get.go                  | 95 ++++------------------
- src/cmd/go/testdata/script/build_trimpath.txt      |  3 +-
- .../{mod_get_svn.txt => mod_download_svn.txt}      | 15 +---
- src/cmd/go/testdata/script/mod_get_cmd.txt         | 20 -----
- src/cmd/go/testdata/script/mod_get_commit.txt      |  9 +-
- .../testdata/script/mod_get_deprecate_install.txt  | 16 ++--
- src/cmd/go/testdata/script/mod_get_errors.txt      | 22 ++---
- src/cmd/go/testdata/script/mod_get_tags.txt        | 13 +--
- src/cmd/go/testdata/script/mod_outside.txt         | 24 ------
- 10 files changed, 48 insertions(+), 193 deletions(-)
+ src/cmd/compile/internal/base/base.go       |  4 ---
+ src/cmd/compile/internal/base/link.go       | 36 ++++++++++++++++++++++
+ src/cmd/compile/internal/dwarfgen/dwarf.go  |  2 +-
+ src/cmd/compile/internal/ir/func.go         |  7 +++--
+ src/cmd/compile/internal/ir/name.go         |  3 +-
+ src/cmd/compile/internal/ssagen/abi.go      |  4 +--
+ src/cmd/compile/internal/ssagen/ssa.go      |  4 +--
+ src/cmd/compile/internal/staticdata/data.go |  2 +-
+ src/cmd/compile/internal/typecheck/syms.go  | 11 ++++---
+ src/cmd/compile/internal/types/sym.go       | 47 ++++++++---------------------
+ 10 files changed, 67 insertions(+), 53 deletions(-)

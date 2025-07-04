@@ -1,21 +1,32 @@
-commit 5755bad42adc23ad4a0c32149ac8cf78ece5d0b0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat Sep 26 17:12:14 2020 +0200
+commit a3873ab49f3b272fc4471e0c8973b5bbc513f2e7
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Feb 24 21:12:49 2020 -0500
 
-    os: remove ENOTSUP special case in Getwd on darwin
+    [dev.link] cmd/link: parallelize dwarfcompress
     
-    ENOTSUP was used as a signaling error in the custom implementation of
-    syscall.Getwd to fall back to the slow algorithm. Since CL 257637 Getwd
-    directly calls the respective function from libSystem.dylib which can no
-    longer return ENOTSUP.
+    Benchmarked on cmd/compile (n=10) on my laptop. Total time is a 15%
+    improvement:
     
-    Change-Id: I8e65e42b3ea069bf78969a29f2af1c55552e2949
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257644
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    name                    old time/op    new time/op     delta
+    Dwarfcompress              181ms ± 7%       62ms ± 7%       -66.01%  (p=0.000 n=10+10)
+    TotalTime                  865ms ± 5%      742ms ± 4%       -14.19%  (p=0.000 n=10+10)
+    
+    name                    old alloc/op   new alloc/op    delta
+    Dwarfcompress             24.5MB ± 0%     24.5MB ± 0%        +0.01%  (p=0.000 n=10+10)
+    
+    name                    old allocs/op  new allocs/op   delta
+    Dwarfcompress                344 ± 0%        350 ± 1%        +1.72%  (p=0.000 n=10+10)
+    
+    name                    old heap-B     new heap-B      delta
+    Dwarfcompress               164M ± 0%       164M ± 0%          ~     (p=0.232 n=8+7)
+    
+    Change-Id: Id42033073b021d6a4e1fc75a2f6b7f3605fe5d2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220843
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/os/getwd.go        |  8 +-------
- src/os/getwd_darwin.go | 15 ---------------
- 2 files changed, 1 insertion(+), 22 deletions(-)
+ src/cmd/link/internal/ld/data.go   |  3 ++
+ src/cmd/link/internal/ld/dwarf2.go | 56 ++++++++++++++++++++++++++------------
+ 2 files changed, 41 insertions(+), 18 deletions(-)

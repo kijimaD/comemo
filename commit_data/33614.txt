@@ -1,17 +1,25 @@
-commit ac8a70d20960bb8bda2b7523281b5b3f83334063
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 17 17:13:49 2017 +0000
+commit 38bd725bf1d20c32487ae7e12e37c0060a46ac0f
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Aug 25 12:27:15 2017 -0400
 
-    Revert "net: Forget lookups for canceled contexts"
+    cmd/compile: bug fixes for DWARF location lists
     
-    This reverts commit 6a3d4be3b80054b1d802b73d5a519e252e0f82ed.
+    Fix two small but serious bugs in the DWARF location list code that
+    should have been caught by the automated tests I didn't write.
     
-    Reason for revert: breaks various builds. See comments on CL 77670
+    After emitting debug information for a user variable, mark it as done
+    so that it doesn't get emitted again. Otherwise it would be written once
+    per slot it was decomposed into.
     
-    Change-Id: Iaf3260319b560f49ace06af705a2114630f32063
-    Reviewed-on: https://go-review.googlesource.com/78515
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Correct a merge error in CL 44350: the location list abbreviations need
+    to have DW_AT_decl_line too, otherwise the resulting DWARF is gibberish.
+    
+    Change-Id: I6ab4b8b32b7870981dac80eadf0ebfc4015ccb01
+    Reviewed-on: https://go-review.googlesource.com/59070
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/lookup.go      |  2 +-
- src/net/lookup_test.go | 22 ----------------------
- 2 files changed, 1 insertion(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 2 ++
+ src/cmd/internal/dwarf/dwarf.go     | 2 ++
+ 2 files changed, 4 insertions(+)

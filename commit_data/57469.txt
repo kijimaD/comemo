@@ -1,23 +1,24 @@
-commit 5b2f71a2c3f66b93d78bf0d0d7e5b6f0b54caf93
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 16 13:04:54 2024 -0400
+commit d13f7aa0ae1ad6ec86d66953cc84851977580c8c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 9 17:46:00 2023 -0700
 
-    cmd/compile/internal/typecheck: remove getcallerpc/sp builtin signature
+    archive/tar: correct value passed to Uname method
     
-    The compiler never does a lookup of these (LookupRuntime), so they
-    aren't needed here.
+    For #50102
     
-    getcallerpc is only used in intrinsification. getcallersp is used in
-    intrinsification and defer handling via a direct OGETCALLERSP op.
-    
-    For #54766.
-    
-    Change-Id: I1666ceef3360a84573ae5b41b1c51d9205de7235
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613495
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I28b5579611b07952b6379bc4603daf29a86a3be0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518056
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tianon Gravi (Andrew) <admwiggin@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
 
- .../compile/internal/typecheck/_builtin/runtime.go |  3 -
- src/cmd/compile/internal/typecheck/builtin.go      | 69 +++++++++++-----------
- src/cmd/internal/goobj/builtinlist.go              |  2 -
- 3 files changed, 33 insertions(+), 41 deletions(-)
+ src/archive/tar/common.go   |  2 +-
+ src/archive/tar/tar_test.go | 24 ++++++++++++++++++++++--
+ 2 files changed, 23 insertions(+), 3 deletions(-)

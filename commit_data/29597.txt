@@ -1,15 +1,50 @@
-commit f39050c8ebf894ccedc0b99de96f7412be97af89
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 6 16:58:27 2016 -0700
+commit f8b2314c563be4366f645536e8031a132cfdf3dd
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 22 17:08:37 2016 -0400
 
-    cmd/cover: handle multiple samples from the same location
+    runtime: optimize defer code
     
-    So we can merge cover profiles from multiple runs.
+    This optimizes deferproc and deferreturn in various ways.
     
-    Change-Id: I1bf921e2b02063a2a62b35d21a6823062d10e5d0
-    Reviewed-on: https://go-review.googlesource.com/23831
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    The most important optimization is that it more carefully arranges to
+    prevent preemption or stack growth. Currently we do this by switching
+    to the system stack on every deferproc and every deferreturn. While we
+    need to be on the system stack for the slow path of allocating and
+    freeing defers, in the common case we can fit in the nosplit stack.
+    Hence, this change pushes the system stack switch down into the slow
+    paths and makes everything now exposed to the user stack nosplit. This
+    also eliminates the need for various acquirem/releasem pairs, since we
+    are now preventing preemption by preventing stack split checks.
+    
+    As another smaller optimization, we special case the common cases of
+    zero-sized and pointer-sized defer frames to respectively skip the
+    copy and perform the copy in line instead of calling memmove.
+    
+    This speeds up the runtime defer benchmark by 42%:
+    
+    name           old time/op  new time/op  delta
+    Defer-4        75.1ns ± 1%  43.3ns ± 1%  -42.31%   (p=0.000 n=8+10)
+    
+    In reality, this speeds up defer by about 2.2X. The two benchmarks
+    below compare a Lock/defer Unlock pair (DeferLock) with a Lock/Unlock
+    pair (NoDeferLock). NoDeferLock establishes a baseline cost, so these
+    two benchmarks together show that this change reduces the overhead of
+    defer from 61.4ns to 27.9ns.
+    
+    name           old time/op  new time/op  delta
+    DeferLock-4    77.4ns ± 1%  43.9ns ± 1%  -43.31%  (p=0.000 n=10+10)
+    NoDeferLock-4  16.0ns ± 0%  15.9ns ± 0%   -0.39%    (p=0.000 n=9+8)
+    
+    This also shaves 34ns off cgo calls:
+    
+    name       old time/op  new time/op  delta
+    CgoNoop-4   122ns ± 1%  88.3ns ± 1%  -27.72%  (p=0.000 n=8+9)
+    
+    Updates #14939, #16051.
+    
+    Change-Id: I2baa0dea378b7e4efebbee8fca919a97d5e15f38
+    Reviewed-on: https://go-review.googlesource.com/29656
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cover/profile.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/runtime/panic.go | 134 ++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 80 insertions(+), 54 deletions(-)

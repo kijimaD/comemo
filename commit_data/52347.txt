@@ -1,20 +1,21 @@
-commit 6a914ee26f5954a4c561c853cc7d3f24e545477a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 20 14:39:05 2023 -0700
+commit 17371eea25f203575389f85b33ddb58792d25e84
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 28 11:44:28 2022 -0400
 
-    cmd/go: use platform.MustLinkExternal in externalLinkingForced
+    syscall: add //go:norace to RawSyscall
     
-    This is a roll-forward of CL 477395 which was rolled back in CL 477736.
-    The earlier CL failed because we didn't account for the fact that
-    on some targets PIE is the default. That is now fixed.
+    RawSyscall is used in a variety of rather unsafe conditions, such as
+    after fork in forkAndExecInChild1. Disable race instrumentation to avoid
+    calling TSAN in unsafe conditions.
     
-    Change-Id: I3e93faa9506033d27040cc9920836f010e05cd26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477919
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    For #51087
+    
+    Change-Id: I47c35e6f0768c77ddab99010ea0404c45ad2f1da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402914
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/load/pkg.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/syscall/syscall_linux.go | 4 ++++
+ 1 file changed, 4 insertions(+)

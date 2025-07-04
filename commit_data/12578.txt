@@ -1,17 +1,14 @@
-commit b70925d6999bbe455cfa012401561fa19969153f
+commit 0af08d825343431594421aec06fec4c96052257b
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 12 16:34:24 2012 -0400
+Date:   Mon Mar 12 16:29:33 2012 -0400
 
-    cmd/go: make net/... match net too
+    log: fix doc comment for Ldate
     
-    Otherwise there's no good way to get both, and it comes up often.
+    Fixes #3303.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5794064
+    https://golang.org/cl/5795062
 
- src/cmd/go/doc.go        |  5 ++---
- src/cmd/go/help.go       |  5 ++---
- src/cmd/go/main.go       | 56 +++++++++++++++++++++++++++++++++++-------------
- src/cmd/go/match_test.go | 36 +++++++++++++++++++++++++++++++
- 4 files changed, 81 insertions(+), 21 deletions(-)
+ src/pkg/log/log.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

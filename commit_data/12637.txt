@@ -1,13 +1,12 @@
-commit 9d08068d216163d900843a53b12caac31890e9a1
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 15 08:09:54 2012 +1100
+commit 036731c170e4d3b5458ad156b52e76611fd3d13c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 14 13:19:14 2012 -0700
 
-    godoc: style example headings like links
+    go/build: clearer argument name for Import (src -> srcDir)
     
-    R=golang-dev, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5819048
+    https://golang.org/cl/5820052
 
- doc/style.css          | 6 ++++--
- lib/godoc/example.html | 4 ++--
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/pkg/go/build/build.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

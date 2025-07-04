@@ -1,14 +1,13 @@
-commit c2fb6e2c0bf7ba6866eb27567b5d16683680e63b
-Author: Gaal Yahas <gaal@google.com>
-Date:   Thu Feb 7 00:39:52 2013 +0800
+commit 309d88e28cf91e417d8f92bb6c85c08ed43e8304
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Wed Feb 6 06:45:57 2013 -0800
 
-    sync: improve WaitGroup example by putting the call to Done in a
-    deferred block. This makes hangs in the waiting code less likely
-    if a goroutine exits abnormally.
+    syscall, net: Fix unix socket autobind on Linux.
     
-    R=golang-dev, minux.ma
+    R=rsc, iant, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/7306052
+    https://golang.org/cl/7300047
 
- src/pkg/sync/example_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/unix_test.go         | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_linux.go |  7 +++++--
+ 2 files changed, 39 insertions(+), 2 deletions(-)

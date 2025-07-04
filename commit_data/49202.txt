@@ -1,24 +1,35 @@
-commit e99275241c4e4bde6ff2a8598e558a2bea151ef7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue May 10 16:06:16 2022 -0700
+commit 70fd4e47d73b92fe90e44ac785e2f98f9df0ab67
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 28 21:09:31 2021 -0700
 
-    cmd/compile/internal/types: change NewTypeParam to match New{Basic,Named}
+    runtime: avoid possible preemption when returning from Go to C
     
-    NewBasic and NewNamed take an Object (i.e., *ir.Name), so that callers
-    don't need to call SetNod. This CL changes NewTypeParam to follow the
-    same convention. Following up on recent Ntype removal, this allows
-    getting rid of Type.SetNod entirely.
+    When returning from Go to C, it was possible for the goroutine to be
+    preempted after calling unlockOSThread. This could happen when there
+    a context function installed by SetCgoTraceback set a non-zero context,
+    leading to a defer call in cgocallbackg1. The defer function wrapper,
+    introduced in 1.17 as part of the regabi support, was not nosplit,
+    and hence was a potential preemption point. If it did get preempted,
+    the G would move to a new M. It would then attempt to return to C
+    code on a different stack, typically leading to a SIGSEGV.
     
-    While here, Type.SetSym is unused too.
+    Fix this in a simple way by postponing the unlockOSThread until after
+    the other defer. Also check for the failure condition and fail early,
+    rather than waiting for a SIGSEGV.
     
-    Change-Id: Ibe0f5747e2ab4a9512b65142b6d3006704b60bd3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405654
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Without the fix to cgocall.go, the test case fails about 50% of the
+    time on my laptop.
+    
+    Fixes #47441
+    
+    Change-Id: Ib8ca13215bd36cddc2a49e86698824a29c6a68ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338197
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/noder/types.go       |  9 ++++-----
- src/cmd/compile/internal/typecheck/iimport.go | 11 ++++-------
- src/cmd/compile/internal/types/type.go        | 17 ++++-------------
- 3 files changed, 12 insertions(+), 25 deletions(-)
+ src/runtime/cgocall.go                             | 20 +++++++++----
+ src/runtime/crash_cgo_test.go                      |  9 ++++++
+ src/runtime/testdata/testprogcgo/tracebackctxt.go  | 33 ++++++++++++++++++++--
+ src/runtime/testdata/testprogcgo/tracebackctxt_c.c | 14 ++++++++-
+ 4 files changed, 67 insertions(+), 9 deletions(-)

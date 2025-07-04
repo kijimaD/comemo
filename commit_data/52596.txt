@@ -1,27 +1,22 @@
-commit 58eaecbf9a9407e4556a2c6afae9186309d6b2fe
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Sat Apr 8 02:06:18 2023 +0800
+commit 0d8345df6637b0fbd595eb8f7cb61be5ebeee314
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu May 12 09:30:54 2022 +0200
 
-    cmd/internal/obj/arm64: improve comment and signature of pcAlignPadLength
+    net/netip: skip some TestAddrStringAllocs tests on noopt builders
     
-    The function just calculates the number of needed padding bytes,
-    instead of actually carrying out the alignment operation. And it has
-    the context argument at the end of the argument list, while contexts
-    idiomatically come first. Indeed, this is the only case in
-    cmd/internal/obj where ctxt is not the only argument and does not come
-    first.
+    CL 403914 introduced TestAddrStringAllocs which checks that there is
+    only 1 alloc in Addr.String for v4-in-v6 addresses. This requires
+    optimizations to be enabled, otherwise there are 2 allocs. Skip the
+    ipv4-in-ipv6 sub-tests on noopt builders to fix failing
+    TestAddrStringAllocs on the noopt builders.
     
-    Fix those two nits; no functional change intended.
-    
-    Suggested by Ian during review of CL 479815 (that introduces a copy of
-    this helper into the loong64 port).
-    
-    Change-Id: Ieb221ead23282abe6e04804d537e1234c7ab21d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483155
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I0285264260b264b53cf822dc7cec4829e9854531
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405834
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/net/netip/netip_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

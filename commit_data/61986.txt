@@ -1,0 +1,21 @@
+commit 7a2e88e9117e838f258b175fa535f671396d13da
+Author: yincong <yincong@baidu.com>
+Date:   Mon Jan 6 02:10:08 2025 +0000
+
+    net/http: update NewRequestWithContext wrong link to NewRequest
+    
+    Fixes #70874
+    
+    Change-Id: Icbcfc95e6b45521880287dcc3bc8609461a3b401
+    GitHub-Last-Rev: 05276c56b019d8774e8eee881101509cf83c0f3d
+    GitHub-Pull-Request: golang/go#70877
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637035
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/request.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

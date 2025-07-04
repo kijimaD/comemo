@@ -1,13 +1,16 @@
-commit 42cc4ea69bf9947625dca122b7f94955e3ac6ef0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 21 10:40:14 2012 -0800
+commit 1bd4a7dbcbf833a5e37cf8d0a6e7fc55c557543b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Nov 21 08:39:45 2012 +0100
 
-    A+C: Add Vladimir Nikishenko (Individual CLA)
+    cmd/8g: fix erroneous LEAL nil.
     
-    R=golang-dev, rsc
+    Fixes #4399.
+    
+    R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6845073
+    https://golang.org/cl/6845053
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/8g/cgen.c           | 13 ++++++++-----
+ src/cmd/8g/gsubr.c          |  2 +-
+ test/fixedbugs/issue4399.go | 15 +++++++++++++++
+ 3 files changed, 24 insertions(+), 6 deletions(-)

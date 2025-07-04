@@ -1,15 +1,18 @@
-commit 17177a0daa7d08c7031fe10b9be8d070db5fe278
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon May 18 17:27:33 2015 +0900
+commit e5e52f4f2c6f67e41b97fd539c1963f85536c985
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 22 12:18:01 2015 -0400
 
-    net: fix data race in TestSocket{Conn,PacketConn}
+    runtime: factor checking if P run queue is empty
     
-    Fixes #10891.
+    There are a variety of places where we check if a P's run queue is
+    empty. This test is about to get slightly more complicated, so factor
+    it out into a new function, runqempty. This function is inlinable, so
+    this has no effect on performance.
     
-    Change-Id: Ie432c9c5520ac29cea8fe6452628ec467567eea5
-    Reviewed-on: https://go-review.googlesource.com/10194
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If4a0b01ffbd004937de90d8d686f6ded4aad2c6b
+    Reviewed-on: https://go-review.googlesource.com/9287
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/file_bsd_test.go   | 5 +++--
- src/net/file_linux_test.go | 5 +++--
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/runtime/proc1.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

@@ -1,18 +1,20 @@
-commit 2e45310caff101ea7de8873523faab96eb3a87ca
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 18 08:39:00 2017 -0700
+commit 34b455da4484dee20e8c355b50d24680224b58f2
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jan 25 16:48:17 2017 +0900
 
-    cmd/vet: make tests safe for perl 5.26
+    path/filepath: ignore dot for Dir(`\\server\share`)
     
-    Someday we should write errchk in Go. But not today.
+    Dir(`\\server\share`) returns `\\server\share.`. Change Dir so it
+    returns `\\server\share` instead.
     
-    Fixes #20007
+    Fixes #18783
     
-    Change-Id: I61ccf3cfaa66a710782f8a2212a6a2b4040698da
-    Reviewed-on: https://go-review.googlesource.com/40950
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I9e0dd71ea6aea85e6c6114aaa4bb3bea3270d818
+    Reviewed-on: https://go-review.googlesource.com/35690
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/testdata/copylock_func.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/path/filepath/path.go      | 4 ++++
+ src/path/filepath/path_test.go | 1 +
+ 2 files changed, 5 insertions(+)

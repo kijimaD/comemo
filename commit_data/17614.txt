@@ -1,19 +1,99 @@
-commit 647eaed93b2aba07d4d4d032d5f58bf6dbc06e5a
+commit 555da73c566c156a6982da0e06d49c71f9ea25d5
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 16 14:04:55 2013 -0400
+Date:   Mon Sep 16 14:04:32 2013 -0400
 
-    cmd/cgo: allow C.malloc(0) always
+    runtime, syscall: work around FreeBSD/amd64 kernel bug
     
-    Because we can, and because it otherwise might crash
-    the program if we think we're out of memory.
+    The kernel implementation of the fast system call path,
+    the one invoked by the SYSCALL instruction, is broken for
+    restarting system calls. A C program demonstrating this is below.
     
-    Fixes #6390.
+    Change the system calls to use INT $0x80 instead, because
+    that (perhaps slightly slower) system call path actually works.
     
-    R=golang-dev, iant, minux.ma
+    I filed http://www.freebsd.org/cgi/query-pr.cgi?pr=182161.
+    
+    The C program demonstrating that it is FreeBSD's fault is below.
+    It reports the same "Bad address" failures from wait.
+    
+    #include <sys/time.h>
+    #include <sys/signal.h>
+    #include <pthread.h>
+    #include <unistd.h>
+    #include <stdlib.h>
+    #include <stdio.h>
+    #include <string.h>
+    
+    static void handler(int);
+    static void* looper(void*);
+    
+    int
+    main(void)
+    {
+            int i;
+            struct sigaction sa;
+            pthread_cond_t cond;
+            pthread_mutex_t mu;
+    
+            memset(&sa, 0, sizeof sa);
+            sa.sa_handler = handler;
+            sa.sa_flags = SA_RESTART;
+            memset(&sa.sa_mask, 0xff, sizeof sa.sa_mask);
+            sigaction(SIGCHLD, &sa, 0);
+    
+            for(i=0; i<2; i++)
+                    pthread_create(0, 0, looper, 0);
+    
+            pthread_mutex_init(&mu, 0);
+            pthread_mutex_lock(&mu);
+            pthread_cond_init(&cond, 0);
+            for(;;)
+                    pthread_cond_wait(&cond, &mu);
+    
+            return 0;
+    }
+    
+    static void
+    handler(int sig)
+    {
+    }
+    
+    int
+    mywait4(int pid, int *stat, int options, struct rusage *rusage)
+    {
+            int result;
+    
+            asm("movq %%rcx, %%r10; syscall"
+                    : "=a" (result)
+                    : "a" (7),
+                      "D" (pid),
+                      "S" (stat),
+                      "d" (options),
+                      "c" (rusage));
+    }
+    
+    static void*
+    looper(void *v)
+    {
+            int pid, stat, out;
+            struct rusage rusage;
+    
+            for(;;) {
+                    if((pid = fork()) == 0)
+                            _exit(0);
+                    out = mywait4(pid, &stat, 0, &rusage);
+                    if(out != pid) {
+                            printf("wait4 returned %d\n", out);
+                    }
+            }
+    }
+    
+    Fixes #6372.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13345048
+    https://golang.org/cl/13582047
 
- misc/cgo/test/cgo_test.go      | 1 +
- src/cmd/cgo/out.go             | 2 ++
- src/pkg/runtime/cgo/gcc_util.c | 2 ++
- 3 files changed, 5 insertions(+)
+ src/pkg/runtime/sys_freebsd_amd64.s | 25 +++++++++++++++++++++++++
+ src/pkg/syscall/asm_freebsd_amd64.s |  5 +++++
+ 2 files changed, 30 insertions(+)

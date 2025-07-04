@@ -1,17 +1,32 @@
-commit 3be7f28e821a2852f4149c260d40124942f6b113
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 27 10:44:43 2015 -0400
+commit 5eddc5bae3c0b532b7e6e6c0e6280c562e213b7c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 30 14:37:43 2015 -0700
 
-    cmd/compile: remove Node.Nname, now unused
+    cmd/cover: copy to standard repository from golang.org/x/tools/cmd/cover
     
-    $ sizeof -p cmd/compile/internal/gc Node
-    Node 160
-    $
+    This required dealing with the ill-advised split of the profile code
+    into a separate package. I just copied it over unchanged. The package
+    does not deserve to be in the standard repository. We can cope
+    with the duplication.
     
-    Change-Id: Ib0bd4230c8547f36972b2a9d81ba3eca81496e39
-    Reviewed-on: https://go-review.googlesource.com/10537
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Also update the go command to know about the new location.
+    
+    Fixes #10528.
+    
+    Change-Id: I05170ef3663326d57b9c18888d01163acd9256b6
+    Reviewed-on: https://go-review.googlesource.com/9560
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/syntax.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/cover/cover            | Bin 0 -> 6084208 bytes
+ src/cmd/cover/cover.go         | 722 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cover/cover_test.go    |  87 +++++
+ src/cmd/cover/doc.go           |  21 ++
+ src/cmd/cover/func.go          | 166 ++++++++++
+ src/cmd/cover/html.go          | 281 ++++++++++++++++
+ src/cmd/cover/profile.go       | 192 +++++++++++
+ src/cmd/cover/testdata/main.go | 112 +++++++
+ src/cmd/cover/testdata/test.go | 218 +++++++++++++
+ src/cmd/go/pkg.go              |   2 +-
+ src/cmd/go/test.bash           |   6 -
+ src/cmd/go/tool.go             |   2 +-
+ 12 files changed, 1801 insertions(+), 8 deletions(-)

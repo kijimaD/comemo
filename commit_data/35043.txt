@@ -1,20 +1,12 @@
-commit 4c15fdb32b58cae0a999fdd2fb8eae1c720c870b
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Wed Apr 18 12:03:26 2018 -0300
+commit 99f4cf9714825d024bc56cd92920dc9fc2c6d9c2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Dec 7 18:07:57 2017 +0100
 
-    cmd/internal/obj/ppc64: add vector multiply instructions
+    doc: fix bad html tags in editors.html
     
-    This change adds vector multiply instructions to the assembler for
-    ppc64x.
-    
-    Change-Id: I5143a2dc3736951344d43999066d38ab8be4a721
-    Reviewed-on: https://go-review.googlesource.com/107795
+    Change-Id: Ib8ef626ae6bc66571ecf4569e37feb75b4b90d10
+    Reviewed-on: https://go-review.googlesource.com/82555
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s | 17 +++++++++++++
- src/cmd/internal/obj/ppc64/a.out.go       | 13 ++++++++++
- src/cmd/internal/obj/ppc64/anames.go      | 13 ++++++++++
- src/cmd/internal/obj/ppc64/asm9.go        | 41 +++++++++++++++++++++++++++++++
- 4 files changed, 84 insertions(+)
+ doc/editors.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

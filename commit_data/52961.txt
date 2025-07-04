@@ -1,33 +1,34 @@
-commit a8515119474b621ae39ad8af9a2ad4c8a7732a6c
-Author: David Chase <drchase@google.com>
-Date:   Tue Feb 7 17:43:34 2023 -0500
+commit 93833cd5d8c8b35cd94f743c73cd18712531de4b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 14 16:07:46 2022 -0700
 
-    internal/abi: common up ArrayType
+    [dev.unified] cmd/compile: extract rtype code from walk
     
-    This refactoring is more problematic because the client
-    package wrap abi.Type, thus the self-referential fields
-    within ArrayType need to be downcast to the client wrappers
-    in several places.  It's not clear to me this is worthwhile;
-    this CL is for additional comment, before I attempt similar
-    changes for other self-referential types.
+    This CL removes (almost*) all reflectdata.{TypePtr,ITabAddr} calls
+    from package walk. This will allow us to next start adding RType/ITab
+    fields to IR nodes directly, and have the helpers start returning them
+    when available instead.
     
-    Change-Id: I41e517e6d851b32560c41676b91b76d7eb17c951
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466236
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The one survining ITabAddr call is due to ODOTTYPE{,2}, but we already
+    have ODYNAMICDOTTYPE{,2}, which I plan to have Unified IR always
+    use. (Longer term, once the Go 1.18 frontend is gone, we can get rid
+    of ODOTTYPE*, and rename ODYNAMICDOTTYPE*.)
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I5e00da06a93d069abf383d7628e692dd7fd2a1c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413356
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/link/internal/ld/dwarf.go      |  2 +-
- src/cmd/link/internal/ld/dwarf_test.go |  4 ++--
- src/internal/reflectlite/type.go       | 11 +++--------
- src/internal/reflectlite/value.go      |  2 +-
- src/reflect/abi.go                     |  4 ++--
- src/reflect/type.go                    | 33 ++++++++++++++-------------------
- src/reflect/value.go                   | 16 ++++++++--------
- src/runtime/alg.go                     |  4 ++--
- src/runtime/cgocall.go                 | 10 +++++-----
- src/runtime/cgocheck.go                | 14 +++++++-------
- src/runtime/syscall_windows.go         |  4 ++--
- src/runtime/type.go                    |  9 ++-------
- 12 files changed, 49 insertions(+), 64 deletions(-)
+ src/cmd/compile/internal/reflectdata/helpers.go | 172 ++++++++++++++++++++++++
+ src/cmd/compile/internal/walk/assign.go         |  13 +-
+ src/cmd/compile/internal/walk/builtin.go        |  16 +--
+ src/cmd/compile/internal/walk/compare.go        |   9 +-
+ src/cmd/compile/internal/walk/complit.go        |  16 ++-
+ src/cmd/compile/internal/walk/convert.go        |  26 ++--
+ src/cmd/compile/internal/walk/expr.go           |   2 +-
+ src/cmd/compile/internal/walk/order.go          |   7 +-
+ src/cmd/compile/internal/walk/range.go          |   4 +-
+ 9 files changed, 225 insertions(+), 40 deletions(-)

@@ -1,18 +1,26 @@
-commit df15eaedd0f48d774edf633a5ae31662f9480921
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Apr 11 03:33:21 2020 +0000
+commit 63815923fc7ef8dd9b6ae04b791e2811d74f9c1b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 31 21:53:49 2019 -0400
 
-    Revert "cmd/compile: make logopt test skip if cannot create scratch directory"
+    [dev.link] cmd/link: resolve ABI aliases for external symbols
     
-    This reverts commit 98534812bdcdd22b13469ea587e310187876b7d2.
+    ABI alias references in Go symbols are resolved during
+    loadObjFull. But for external symbols they are not resolved. If
+    there is a reference from an external symbol to a Go ABIInternal
+    symbol, this reference will be invalid as it is not resolved.
     
-    Reason for revert: The change does not really fixes issue #38251. CL 227497 is real fix.
+    The old code resolve ABI aliases in the deadcode pass. But the
+    new deadcode pass doesn't do it, as it works with indices instead
+    of Symbols. We do this in LoadFull.
     
-    Change-Id: I9f556005baf1de968f059fb8dad89dae05330aa6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227802
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    This makes all internal cgo linking tests pass on Mach-O.
+    
+    Change-Id: Iac6c084c03f5ddbcc9455527800ce7ed7313f9a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204698
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go        |  2 +-
+ src/cmd/link/internal/loader/loader.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

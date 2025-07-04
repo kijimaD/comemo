@@ -1,27 +1,23 @@
-commit dc4a815d100b82643656ec88fd9fa8e7c705ebba
-Author: Francesc Campoy <campoy@golang.org>
-Date:   Mon Oct 31 21:36:38 2016 -0700
+commit 28ed2b0cd9ad6e2015f073931c05c08e8bf7b247
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 9 12:04:22 2016 -0400
 
-    go/build: implement default GOPATH
+    cmd/link: skip arch-specific main function
     
-    Whenever GOPATH is not defined in the environment, use $HOME/go
-    as its default value. For Windows systems use %USERPROFILE%/go
-    and $home/go for plan9.
+    Add some notes to main.go on what happens where.
     
-    The choice of these environment variables is based on what Docker
-    currently does. The os/user package is not used to avoid having
-    a cgo dependency.
-    
-    Updates #17262. Documentation changes forthcoming.
-    
-    Change-Id: I6368fbfbc5afda99d6e64c35c1980076fcf45344
-    Reviewed-on: https://go-review.googlesource.com/32019
+    Change-Id: I4fb0b6c280e5f990ddc5d749267372b86870af6d
+    Reviewed-on: https://go-review.googlesource.com/28970
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/env.go     |   2 +-
- src/cmd/go/get.go     |  12 +++++
- src/cmd/go/go_test.go | 145 ++++++++++++++++++++++++++++++++++++++++++++++++--
- src/cmd/go/main.go    |   2 +-
- src/go/build/build.go |  15 +++++-
- 5 files changed, 168 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/amd64/obj.go  |  9 +--------
+ src/cmd/link/internal/arm/obj.go    |  9 +--------
+ src/cmd/link/internal/arm64/obj.go  |  9 +--------
+ src/cmd/link/internal/mips64/obj.go |  9 +--------
+ src/cmd/link/internal/ppc64/obj.go  |  9 +--------
+ src/cmd/link/internal/s390x/obj.go  |  9 +--------
+ src/cmd/link/internal/x86/obj.go    |  9 +--------
+ src/cmd/link/main.go                | 30 +++++++++++++++++++++++-------
+ 8 files changed, 30 insertions(+), 63 deletions(-)

@@ -1,13 +1,13 @@
-commit 637e1f7da04aa09f70d8c21c6ced01bb309bdb46
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Feb 16 19:14:06 2014 -0800
+commit a1aee55bd17b79edc66a865c02d170ed6296288d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 17 06:04:31 2014 +0400
 
-    cmd/gc: correct function name in internal error messages
+    net/http: close body in benchmarks
+    Is it required? Why don't we do it?
     
-    LGTM=r
-    R=golang-codereviews, r
+    R=bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/64090043
+    https://golang.org/cl/61150043
 
- src/cmd/gc/sinit.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/http/serve_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,17 +1,12 @@
-commit 883a96d9509c62fddc03fedf4b711c738dc7ac9e
-Author: Rob Pike <r@golang.org>
-Date:   Sat Mar 17 22:50:59 2012 +1100
+commit 1dd78b7e7bbfecbe2bb7eae3073541c0150bdac9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 17 18:13:02 2012 +0800
 
-    spec: delete references to unsafe.Reflect,Typeof,Unreflect
-    They have been deleted from package unsafe.
-    Also delete their appearance in exp/types.
+    doc/install: remove reference to "Go Tutorial"
     
-    Fixes #3338.
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5847056
+    https://golang.org/cl/5841054
 
- doc/go_spec.html              | 23 +----------------------
- src/pkg/exp/types/universe.go |  5 -----
- 2 files changed, 1 insertion(+), 27 deletions(-)
+ doc/install.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,51 +1,20 @@
-commit 6daf022e0f4f8ad5ceeaebb06de287c84113c311
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Nov 21 14:55:32 2024 +0000
+commit 6dd7462a04e2ce0a3e91cdb8fd85e98ac62ba0aa
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Oct 12 11:49:26 2023 +0800
 
-    cmd/go remove base.ShortPathConservative
+    bytes,strings: add available godoc link
     
-    This CL rolls forward CL 630276, fixing the issues with the longtest builders that required the revert in CL 630317.
-    
-    The change this CL makes compared to CL 630276 is adding the
-    shortPathErrorList function to rewrite the paths in the modfile.Errors
-    in a modfile.ErrorList using base.ShortPath and calling it on the error
-    returned from modfile.Parse.
-    
-    The following is the commit message from the original change:
-    
-    This CL first removes the base.ShortPathConservative function. It had
-    two classes of uses. The first was in opening files where the paths end
-    up in error messages. In all those cases, the non-shortened paths are
-    used to open the files, and ShortPath is only used for the error
-    messages. The second is in base.RelPaths. RelPaths will now call
-    ShortPath for each of the paths passed in instead of calling
-    RelConservative and then doing the same check as ShortPath to see if the
-    path is shorter.
-    
-    To avoid the possibility of incorrect relative paths ending up in error
-    messages (that might have command lines suggested for users to run), and
-    to avoid the possibility of incorrect relative paths appearing in the
-    output of base.RelPaths, base.ShortPaths always does an os.SameFile
-    check to make sure that the relative path its providing is actually
-    correct. Since this makes ShortPath slower than just manipulating paths
-    (because we need to stat the files), we need to be continue to enforce
-    that ShortPath is only called for error messages (with the exception of
-    base.RelPaths and its callers).
-    
-    This is a simpler way of solving the problem that base.ShortPaths
-    intended to solve.
-    
-    For #68383
-    
-    Change-Id: Ibcefb343535bd82999916b2282e9b512bb683433
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630280
+    Change-Id: Id9706a783d3321e3706eeee102286522e7968efd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534775
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/base/path.go       | 53 ++++++++++++----------------------
- src/cmd/go/internal/modload/init.go    |  2 +-
- src/cmd/go/internal/modload/load.go    |  2 +-
- src/cmd/go/internal/modload/modfile.go | 20 ++++++++-----
- src/cmd/go/internal/workcmd/use.go     | 15 +++++-----
- 5 files changed, 40 insertions(+), 52 deletions(-)
+ src/bytes/buffer.go    | 52 +++++++++++++++++++++++++-------------------------
+ src/bytes/reader.go    | 26 ++++++++++++-------------
+ src/strings/builder.go |  4 ++--
+ src/strings/reader.go  | 28 +++++++++++++--------------
+ src/strings/replace.go |  2 +-
+ src/strings/strings.go | 10 +++++-----
+ 6 files changed, 61 insertions(+), 61 deletions(-)

@@ -1,17 +1,17 @@
-commit 87d59bcdc354b035e17a1dadbfc4883bbcac5bf8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Oct 5 16:00:08 2020 -0700
+commit 02ab2c040e20dac433a2a7e1bfca29d3071733ae
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 13 23:29:17 2020 -0700
 
-    doc: mention Trust+1 in contribution guide
+    cmd/compile: make ifaceData accept a position
     
-    For #40699
+    This lets us provide a better position in its use in swt.go.
     
-    Change-Id: If753a073488880433ae3319dcf2a2dfaa887fd0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/259737
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I7c0da6bd0adea81acfc9a591e6a01b241a5e0942
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228219
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- doc/contribute.html | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/subr.go | 14 ++++++++++----
+ src/cmd/compile/internal/gc/swt.go  |  2 +-
+ src/cmd/compile/internal/gc/walk.go |  4 ++--
+ 3 files changed, 13 insertions(+), 7 deletions(-)

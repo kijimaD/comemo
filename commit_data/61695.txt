@@ -1,0 +1,20 @@
+commit d69e6f63c349741a450e9de9585ad555babefad4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 20 19:24:56 2024 +0000
+
+    runtime: keep cleanup closure alive across adding the cleanup special
+    
+    This is similar to the weak handle bug in #70455. In short, there's a
+    window where a heap-allocated value is only visible through a special
+    that has not been made visible to the GC yet.
+    
+    For #70455.
+    
+    Change-Id: Ic2bb2c60d422a5bc5dab8d971cfc26ff6d7622bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630277
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/mheap.go | 5 +++++
+ 1 file changed, 5 insertions(+)

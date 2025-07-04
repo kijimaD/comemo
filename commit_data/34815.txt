@@ -1,15 +1,17 @@
-commit daa2d547734a3e5693b06d7d09e38ff1e617c89f
-Author: Pascal S. de Kloe <pascal@quies.net>
-Date:   Sat Mar 31 15:45:35 2018 +0200
+commit 62dc3c3f0dc340ad98f737542523c15ee32d671d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 21:14:21 2017 -0500
 
-    crypto/rsa: add PublicKey.Size accessor
+    cmd/go: fix swig support and run swig tests during run.bash
     
-    Provide the fixed size from the key pair.
+    (The tests only run when swig is already installed on the local system.)
     
-    Change-Id: I365c8d0f7d915229ef089e46458d4c83273fc648
-    Reviewed-on: https://go-review.googlesource.com/103876
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I172d106a68cfc746a1058f5a4bcf6761bab88912
+    Reviewed-on: https://go-review.googlesource.com/78175
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/rsa/pkcs1v15.go | 10 +++++-----
- src/crypto/rsa/rsa.go      |  9 +++++++--
- 2 files changed, 12 insertions(+), 7 deletions(-)
+ misc/swig/stdio/file.go          | 15 +++++++++++++++
+ misc/swig/stdio/file_test.go     |  6 ++++++
+ src/cmd/dist/test.go             | 20 ++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go | 39 +++++++++++++++++++--------------------
+ 4 files changed, 60 insertions(+), 20 deletions(-)

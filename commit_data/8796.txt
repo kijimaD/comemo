@@ -1,15 +1,13 @@
-commit 12b226986000dcc80ba46190b17f85d4e9703154
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Jun 20 14:18:04 2011 -0400
+commit e0a617496e52b7e1b71ca95ff5b10e4945267e0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 20 14:06:00 2011 -0400
 
-    5g, 5l: fix more set but not used warnings
+    test: test of goto restrictions
     
-    These are present when building with gcc 4.6.
-    
-    R=golang-dev, dave
-    CC=golang-dev, lvd
-    https://golang.org/cl/4636047
+    R=gri, iant, bradfitz, fvbommel, r
+    CC=golang-dev
+    https://golang.org/cl/4652041
 
- src/cmd/5g/reg.c  | 42 +++++++++++++++++++++---------------------
- src/cmd/5l/noop.c | 24 ------------------------
- 2 files changed, 21 insertions(+), 45 deletions(-)
+ test/errchk  |  16 ++
+ test/goto.go | 535 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 551 insertions(+)

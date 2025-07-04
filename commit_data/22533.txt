@@ -1,15 +1,22 @@
-commit 110fa22c4562b0f9ada3c81b9bceeb76763f5608
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat Apr 11 05:57:15 2015 -0400
+commit 11dba2ec2d8fcedc1da0103925c254586ef51120
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 20 10:47:52 2015 -0700
 
-    misc/cgo/test: skip issue3261 test on darwin/arm64
+    html/template: fix crash when escaping incomplete template
     
-    Because there is no libgcc.
+    text/template turned this into an error but html/template crashed.
+    Refactor text/template.Execute to export a new function,
+    text/template.DefinedTemplates, so html/template can get the same
+    helpful error message in this case, and invoke it when there is no
+    definition for a template being escaped.
     
-    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f07
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8786
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #10204.
+    
+    Change-Id: I1d04e9e7ebca829bc08509caeb65e75da969711f
+    Reviewed-on: https://go-review.googlesource.com/7855
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/test/issue3261.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/html/template/escape_test.go | 15 +++++++++++++++
+ src/html/template/template.go    |  3 +++
+ src/text/template/exec.go        | 39 +++++++++++++++++++++++++--------------
+ 3 files changed, 43 insertions(+), 14 deletions(-)

@@ -1,16 +1,14 @@
-commit 1007a11924ffd78f26b7339a5fb81e0ac82272c1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 14 08:49:21 2011 -0700
+commit b039883946e6fda99d8752486a514fab8e1abcc7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 14 11:29:18 2011 -0400
 
-    go/printer: use panic/defer instead of goroutine
-    for handling errors
+    gofmt: add else test
     
-    Fixes #2249.
-    
-    R=rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4952071
+    https://golang.org/cl/4978065
 
- src/pkg/go/printer/printer.go      | 81 ++++++++++++++++++++------------------
- src/pkg/go/printer/printer_test.go | 14 ++++++-
- 2 files changed, 56 insertions(+), 39 deletions(-)
+ src/cmd/gofmt/gofmt_test.go       | 1 +
+ src/cmd/gofmt/testdata/old.golden | 9 +++++++++
+ src/cmd/gofmt/testdata/old.input  | 8 ++++++++
+ 3 files changed, 18 insertions(+)

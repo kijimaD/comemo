@@ -1,20 +1,24 @@
-commit a4b2c579e92c001287fd7b549bc9f67bcf2bfe7b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 2 14:12:05 2021 -0700
+commit 3778f8e07d06cabfccd1508295ad67270af078cd
+Author: David Chase <drchase@google.com>
+Date:   Fri Feb 19 18:00:48 2021 -0500
 
-    runtime: install sigPreempt signal handler for c-archive/c-shared
+    cmd/compile: fix pointer maps for morestack
     
-    Fixes #49288
+    Verified with test and with single step watching changes to register
+    values across morestack calls, after reload.
     
-    Change-Id: I7bfcbecbefa68871a3e556935a73f241fff44c0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360861
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Also added stack-growth test with pointer parameters of varying lifetime.
+    
+    For #40724.
+    
+    Change-Id: Idb5fe27786ac5c6665a734d41e68d3d39de2f4da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294429
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go     | 52 ++++++++++++++++++++++++++++++
- misc/cgo/testcarchive/testdata/libgo8/a.go | 36 +++++++++++++++++++++
- misc/cgo/testcarchive/testdata/main8.c     | 16 +++++++++
- src/runtime/signal_unix.go                 |  4 +--
- 4 files changed, 106 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/liveness/plive.go | 16 ++++++
+ src/cmd/compile/internal/ssa/value.go      | 12 +++--
+ test/abi/uglyfib.go                        | 79 ++++++++++++++++++++++++++++++
+ test/abi/uglyfib.out                       |  1 +
+ 4 files changed, 104 insertions(+), 4 deletions(-)

@@ -1,0 +1,23 @@
+commit 95936844387c0158b773afa4ee6f99bd430791cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 1 17:04:51 2024 -0700
+
+    go/types, types: always record a type for inner composite literals
+    
+    Ensure that inner composite literals get a (possibly invalid) type
+    if something goes wrong with the enclosing composite literal.
+    
+    Fixes #69092.
+    
+    Change-Id: Ib1d2d529c4683ea3ab1799a818b43538e152ae8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616616
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 26 +++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/literals.go    |  5 +++--
+ src/go/types/issues_test.go                    | 27 ++++++++++++++++++++++++++
+ src/go/types/literals.go                       |  5 +++--
+ 4 files changed, 59 insertions(+), 4 deletions(-)

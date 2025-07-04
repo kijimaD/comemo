@@ -1,13 +1,14 @@
-commit 663a7716a1dfda2fe8cb0d62647e549cb424d428
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Mon Mar 12 12:04:45 2012 +0900
+commit 2e1bc9e8673cced68b89ba5210bf8e3379cd786b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Mar 12 13:50:25 2012 +1100
 
-    crypto/tls, fmt: print fixes
+    cmd/vet: little tweak to tagged literal script to get it closer to drop-in format.
     
-    R=golang-dev, bradfitz, minux.ma, rsc, bradfitz
+    This is a minor change that made it easier for me; if you hate it I can drop it.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5787069
+    https://golang.org/cl/5798060
 
- src/pkg/crypto/tls/root_test.go | 2 +-
- src/pkg/fmt/fmt_test.go         | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/vet/taglit.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

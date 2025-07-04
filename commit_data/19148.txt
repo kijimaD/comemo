@@ -1,13 +1,17 @@
-commit b9f5dce4fc05ab89fcf695f2236dfdbef697cde2
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Apr 16 00:48:21 2014 +0200
+commit ed890e7414c1aa7040a5ff6bef6dffa2767b6df5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 15 15:52:23 2014 -0400
 
-    net/http: skip TestTransportClosesBodyOnError on Plan 9
+    cmd/ld: attempt at fixing openbsd build
     
-    LGTM=rsc
-    R=bradfitz, rsc
+    OpenBSD is excluded from all the usual thread-local storage
+    code, not just emitting the tbss section in the external link .o
+    but emitting a PT_TLS section in an internally-linked executable.
+    I assume it just has no proper TLS support. Exclude it here too.
+    
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/87800044
+    https://golang.org/cl/87900045
 
- src/pkg/net/http/transport_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/ld/data.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

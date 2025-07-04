@@ -1,0 +1,29 @@
+commit fce17b0c774593da0dfb39b829464d1da8ceca77
+Author: Tom Thorogood <me+google@tomthorogood.co.uk>
+Date:   Tue Dec 10 23:22:49 2024 +1030
+
+    crypto/internal/fips140/ecdsa: fix reseed_counter check for HMAC_DRBG_Generate_algorithm
+    
+    SP 800-90A Rev. 1 10.1.2.5 step 7 requires
+            reseed_counter = reseed_counter + 1
+    as the final step before returning SUCCESS.
+    
+    This increment of reseedCounter was missing, meaning the reseed interval
+    check at the start of Generate wasn't actually functional.
+    
+    Given how it's used, and that it has a reseed interval of 2^48, this
+    condition will never actually occur but the check is still required by
+    the standard.
+    
+    For #69536
+    
+    Change-Id: I314a7eee5852e6d0fa1a0a04842003553cd803e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634775
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/internal/fips140/ecdsa/hmacdrbg.go | 2 ++
+ 1 file changed, 2 insertions(+)

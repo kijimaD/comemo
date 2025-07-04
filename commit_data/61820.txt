@@ -1,0 +1,24 @@
+commit acd54c99857bd5e8030cd8d1adaef0f324799224
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 29 14:49:29 2024 +0100
+
+    crypto/rsa: move key generation to crypto/internal/fips140/rsa
+    
+    It's about 2x slower, but we'll recover that by implementing trial
+    divisions in a follow-up CL.
+    
+    Updates #69799
+    For #69536
+    
+    Change-Id: Icc02f5a268b658d629bbe7fdaf2a42ad3b259e2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632477
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips140/bigmod/nat.go |  25 ++++++-
+ src/crypto/internal/fips140/rsa/keygen.go | 104 ++++++++++++++++++++++++++++++
+ src/crypto/rsa/rsa.go                     |  89 ++++++++++++++++++-------
+ src/crypto/rsa/rsa_test.go                |   2 +-
+ 4 files changed, 192 insertions(+), 28 deletions(-)

@@ -1,21 +1,25 @@
-commit adf888376deb749bc95a2717989eb0f2db001f8d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 25 15:46:23 2019 -0700
+commit 444039e0546c3db1e8f73fb0a74ed21e45a09cb9
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Feb 28 09:10:36 2019 -0800
 
-    go/types: avoid race condition with dot-imported objects
+    fmt: fix %d and other non-string verbs on errors
     
-    It would be nice to have a test, but it requires running
-    this under the race detector which is a bit complicated
-    to set up; yet the fix is trivial. Verified manually that
-    it doesn't trip the race detector.
+    When formatting an error with a non-string formatting verb such as %d,
+    use the default formatting behavior rather than treating this as a bad
+    verb.
     
-    Fixes #32154.
+    For example, this should print 42, not %!d(main.E=42):
     
-    Change-Id: I20bd746a07945c802f0476a1d8b1dfd83c87dae8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183849
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+      var E int
+      func (E) Error() string { return "error" }
+      fmt.Printf("%d", E(42))
+    
+    Fixes #30472
+    
+    Change-Id: I62fd309c8ee9839a69052b0ec7f1808449dcee8e
+    Reviewed-on: https://go-review.googlesource.com/c/164557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/resolver.go | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+ src/fmt/errors.go      |  3 +--
+ src/fmt/errors_test.go | 19 ++++++++++++++++++-
+ 2 files changed, 19 insertions(+), 3 deletions(-)

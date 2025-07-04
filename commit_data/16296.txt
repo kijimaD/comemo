@@ -1,24 +1,17 @@
-commit f1583bb9563827fe132c97798657a6c60e6a0457
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 14 15:50:46 2013 -0700
+commit d535bc7af3290c6f09eeb391e0ef00f374f9b743
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Tue May 14 15:33:46 2013 -0700
 
-    encoding/json: allocate less in NewEncoder
+    net/http: Fix basic authentication with empty password
     
-    The *Encoder is almost always garbage. It doesn't need an
-    encodeState inside of it (and its bytes.Buffer), since it's
-    only needed locally inside of Encode.
+            The encoded string must include the : separating the username
+            and the password, even when the latter is empty. See
+            http://www.ietf.org/rfc/rfc2617.txt for more information.
     
-    benchmark                 old ns/op    new ns/op    delta
-    BenchmarkEncoderEncode         2562         2553   -0.35%
-    
-    benchmark                 old bytes    new bytes    delta
-    BenchmarkEncoderEncode          283          102  -63.96%
-    
-    R=r
-    CC=gobot, golang-dev
-    https://golang.org/cl/9365044
+    R=golang-dev, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/8475043
 
- src/pkg/encoding/json/encode.go      | 20 ++++++++++++++++++++
- src/pkg/encoding/json/stream.go      |  9 +++++----
- src/pkg/encoding/json/stream_test.go | 13 +++++++++++++
- 3 files changed, 38 insertions(+), 4 deletions(-)
+ src/pkg/net/http/client.go      | 13 ++++++++++++-
+ src/pkg/net/http/client_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 1 deletion(-)

@@ -1,17 +1,19 @@
-commit 13eccaa9902f3bb17999f1f7f14b7da39d60e0ea
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 26 09:01:34 2021 -0700
+commit 975ba6e2b2547e0c4065a09644686723704283e1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 27 11:00:29 2020 +0700
 
-    embed/internal/embedtest: use parenthesized vars for one test
+    cmd/compile: mark OpSB, OpSP as poor statement Op
     
-    The gofrontend code mishandled this case, so add it to the test.
+    So that would make them last choice for a statement boundary.
     
-    Change-Id: I183b8fab57552320b04c4826c590b7c6d36b6548
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358836
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This is follow up of CL 273506.
+    
+    Change-Id: I0203aa0e0d95d538064c2113143c85c4fbb1e65e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273666
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/embed/internal/embedtest/embed_test.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/numberlines.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

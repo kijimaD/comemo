@@ -1,56 +1,26 @@
-commit 9ff11b026089791c4d2bc14c17647f3cb4f4aa22
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 15:50:01 2018 +0200
+commit b111f3cc679f44961dc8a78b24a502fb12d6dde2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 20 12:16:58 2018 -0400
 
-    net: add AIX operating system
+    cmd/vet: add support for vet-specific export data
     
-    This commit adds AIX operating system to net package for ppc64
-    architecture.
+    An upcoming change to cmd/go will enable this functionality, which
+    allows vet to write down information about one package for use by
+    later invocation of vet that analyze code importing that package.
     
-    Updates: #25893
+    We've intended to do this for a long time, but the build caching was
+    necessary to have a decent way to manage the vet-specific export data.
     
-    Change-Id: I46bbc7b03931019beb969443cb3f9a756956c66c
-    Reviewed-on: https://go-review.googlesource.com/c/138724
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This is also an experiment in building scalable whole-program analyses.
+    In the long term we'd like to allow other analyses to be invoked this way.
+    
+    Change-Id: I34e4b70445786b2e8707ff6a0c00947bf1491511
+    Reviewed-on: https://go-review.googlesource.com/117099
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/addrselect.go                    |   2 +-
- src/net/conf.go                          |   2 +-
- src/net/dial_unix_test.go                |   2 +-
- src/net/dnsclient_unix.go                |   2 +-
- src/net/dnsclient_unix_test.go           |   2 +-
- src/net/dnsconfig_unix.go                |   2 +-
- src/net/dnsconfig_unix_test.go           |   2 +-
- src/net/error_posix.go                   |   2 +-
- src/net/error_unix.go                    |   2 +-
- src/net/fd_unix.go                       |   2 +-
- src/net/file_unix.go                     |   2 +-
- src/net/hook_unix.go                     |   2 +-
- src/net/interface_aix.go                 | 165 +++++++++++++++++++++++++++++++
- src/net/internal/socktest/switch_unix.go |   2 +-
- src/net/internal/socktest/sys_unix.go    |   2 +-
- src/net/iprawsock_posix.go               |   2 +-
- src/net/ipsock_posix.go                  |   4 +-
- src/net/listen_test.go                   |   2 +-
- src/net/lookup_unix.go                   |   2 +-
- src/net/main_unix_test.go                |   2 +-
- src/net/nss.go                           |   2 +-
- src/net/platform_test.go                 |   2 +-
- src/net/port_unix.go                     |   2 +-
- src/net/rawconn_unix_test.go             |   2 +-
- src/net/sendfile_stub.go                 |   2 +-
- src/net/sock_posix.go                    |   2 +-
- src/net/sock_stub.go                     |   2 +-
- src/net/sockaddr_posix.go                |   2 +-
- src/net/sockopt_aix.go                   |  38 +++++++
- src/net/sockopt_posix.go                 |   2 +-
- src/net/sockoptip_bsdvar.go              |   2 +-
- src/net/sockoptip_posix.go               |   2 +-
- src/net/sys_cloexec.go                   |   2 +-
- src/net/tcpsock_posix.go                 |   2 +-
- src/net/tcpsockopt_posix.go              |   2 +-
- src/net/tcpsockopt_unix.go               |   2 +-
- src/net/udpsock_posix.go                 |   2 +-
- src/net/unixsock_posix.go                |   2 +-
- 38 files changed, 240 insertions(+), 37 deletions(-)
+ src/cmd/vet/asmdecl.go |   4 +-
+ src/cmd/vet/doc.go     |  27 +++++--------
+ src/cmd/vet/main.go    | 108 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 118 insertions(+), 21 deletions(-)

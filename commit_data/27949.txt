@@ -1,25 +1,29 @@
-commit 65c5d62420a539f2f0d06b3ea2ba837f0fbdd6cf
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Jul 8 07:52:02 2016 -0700
+commit 479501c14c9d36e27727bc4b4294d57c5ddc29d0
+Author: Austin Clements <austin@google.com>
+Date:   Sat Apr 16 18:27:38 2016 -0400
 
-    cmd/vet: re-quote struct tags when printing errors
+    runtime: count black allocations toward scan work
     
-    cmd/link/link_test.go contains several multi-line
-    struct tags. Going through an unquote/quote cycle
-    converts `a
-    b
-    c` to "a\nb\nc\n".
+    Currently we count black allocations toward the scannable heap size,
+    but not toward the scan work we've done so far. This is clearly
+    inconsistent (we have, in effect, scanned these allocations and since
+    they're already black, we're not going to scan them again). Worse, it
+    means we don't count black allocations toward the scannable heap size
+    as of the *next* GC because this is based on the amount of scan work
+    we did in this cycle.
     
-    This keeps all vet error messages for the standard
-    library on a single line.
+    Fix this by counting black allocations as scan work. Currently the GC
+    spends very little time in allocate-black mode, so this probably
+    hasn't been a problem, but this will become important when we switch
+    to always allocating black.
     
-    Updates #11041
-    
-    Change-Id: Ifba1e87297a5174294d1fbf73463fd3db357464f
-    Reviewed-on: https://go-review.googlesource.com/27129
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If6ff693b070c385b65b6ecbbbbf76283a0f9d990
+    Reviewed-on: https://go-review.googlesource.com/22119
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/structtag.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/malloc.go  | 8 +++++---
+ src/runtime/mgc.go     | 9 +++++++--
+ src/runtime/mgcmark.go | 4 +++-
+ 3 files changed, 15 insertions(+), 6 deletions(-)

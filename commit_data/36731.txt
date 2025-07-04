@@ -1,25 +1,64 @@
-commit 5be78668ef311576c945c4dfc6cfb0716236a89f
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 21 09:47:31 2018 +1000
+commit 75dadbec1eff08120662d82d9c5962de29c6d0dc
+Author: Austin Clements <austin@google.com>
+Date:   Sat Apr 21 15:40:56 2018 -0400
 
-    fmt: unify the printing examples
+    cmd/compile: make LivenessMap dense
     
-    Provide an example for each of the printing functions (Print,
-    Sprintf, Fprintln etc.), and make them all produce the same output
-    so their usage can be compared.
+    Currently liveness information is kept in a map keyed by *ssa.Value.
+    This made sense when liveness information was sparse, but now we have
+    liveness for nearly every ssa.Value. There's a fair amount of memory
+    and CPU overhead to this map now.
     
-    Also add a package-level example explaining the difference between
-    how Printf, Println, and Print behave.
+    This CL replaces this map with a slice indexed by value ID.
     
-    There are more examples to come.
+    Passes toolstash -cmp.
     
-    Update #27554.
+    name        old time/op       new time/op       delta
+    Template          197ms ± 1%        194ms ± 1%  -1.60%  (p=0.000 n=9+10)
+    Unicode           100ms ± 2%         99ms ± 1%  -1.31%  (p=0.012 n=8+10)
+    GoTypes           695ms ± 1%        689ms ± 0%  -0.94%  (p=0.000 n=10+10)
+    Compiler          3.34s ± 2%        3.29s ± 1%  -1.26%  (p=0.000 n=10+9)
+    SSA               8.08s ± 0%        8.02s ± 2%  -0.70%  (p=0.034 n=8+10)
+    Flate             133ms ± 1%        131ms ± 1%  -1.04%  (p=0.006 n=10+9)
+    GoParser          163ms ± 1%        162ms ± 1%  -0.79%  (p=0.034 n=8+10)
+    Reflect           459ms ± 1%        454ms ± 0%  -1.06%  (p=0.000 n=10+8)
+    Tar               186ms ± 1%        185ms ± 1%  -0.87%  (p=0.003 n=9+9)
+    XML               238ms ± 1%        235ms ± 1%  -1.01%  (p=0.004 n=8+9)
+    [Geo mean]        418ms             414ms       -1.06%
     
-    Change-Id: Ide03e5233f3762a9ee2ac0269f534ab927562ce2
-    Reviewed-on: https://go-review.googlesource.com/136615
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    name        old alloc/op      new alloc/op      delta
+    Template         36.4MB ± 0%       35.6MB ± 0%  -2.29%  (p=0.000 n=9+10)
+    Unicode          29.7MB ± 0%       29.5MB ± 0%  -0.68%  (p=0.000 n=10+10)
+    GoTypes           119MB ± 0%        117MB ± 0%  -2.30%  (p=0.000 n=9+9)
+    Compiler          546MB ± 0%        532MB ± 0%  -2.47%  (p=0.000 n=10+10)
+    SSA              1.59GB ± 0%       1.55GB ± 0%  -2.41%  (p=0.000 n=10+10)
+    Flate            24.9MB ± 0%       24.5MB ± 0%  -1.77%  (p=0.000 n=8+10)
+    GoParser         29.5MB ± 0%       28.7MB ± 0%  -2.60%  (p=0.000 n=9+10)
+    Reflect          81.7MB ± 0%       80.5MB ± 0%  -1.49%  (p=0.000 n=10+10)
+    Tar              35.7MB ± 0%       35.1MB ± 0%  -1.64%  (p=0.000 n=10+10)
+    XML              45.0MB ± 0%       43.7MB ± 0%  -2.76%  (p=0.000 n=9+10)
+    [Geo mean]       80.1MB            78.4MB       -2.04%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           336k ± 0%         335k ± 0%  -0.31%  (p=0.000 n=9+10)
+    Unicode            339k ± 0%         339k ± 0%  -0.05%  (p=0.000 n=10+10)
+    GoTypes           1.18M ± 0%        1.18M ± 0%  -0.26%  (p=0.000 n=10+10)
+    Compiler          4.96M ± 0%        4.94M ± 0%  -0.24%  (p=0.000 n=10+10)
+    SSA               12.6M ± 0%        12.5M ± 0%  -0.30%  (p=0.000 n=10+10)
+    Flate              224k ± 0%         223k ± 0%  -0.30%  (p=0.000 n=10+10)
+    GoParser           282k ± 0%         281k ± 0%  -0.32%  (p=0.000 n=10+10)
+    Reflect            965k ± 0%         963k ± 0%  -0.27%  (p=0.000 n=9+10)
+    Tar                331k ± 0%         330k ± 0%  -0.27%  (p=0.000 n=10+10)
+    XML                393k ± 0%         392k ± 0%  -0.26%  (p=0.000 n=10+10)
+    [Geo mean]         763k              761k       -0.26%
+    
+    Updates #24543.
+    
+    Change-Id: I4cfd2461510d3c026a262760bca225dc37482341
+    Reviewed-on: https://go-review.googlesource.com/110178
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/fmt/example_test.go | 193 +++++++++++++++++++++++++++++++++---------------
- 1 file changed, 132 insertions(+), 61 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 41 ++++++++++++++++++++++++++----------
+ 1 file changed, 30 insertions(+), 11 deletions(-)

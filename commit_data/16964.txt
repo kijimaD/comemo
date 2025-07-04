@@ -1,12 +1,15 @@
-commit bc8f443435dfb6631e48349e7c616edb573879a5
+commit e011ac5420e1bda1feb87bc398a61ebbb52c0332
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 1 13:22:42 2013 +1000
+Date:   Thu Aug 1 11:17:42 2013 +1000
 
-    C: add Chris Manghane (Google CLA)
+    cmd/go: install go.tools/cmd/godoc to $GOROOT/bin/godoc
     
-    R=golang-dev
+    Also suggest "go get" if godoc not found when running "go doc".
+    
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/12222043
+    https://golang.org/cl/12214043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/fmt.go |  7 +++++++
+ src/cmd/go/pkg.go | 38 +++++++++++++++++++++++++-------------
+ 2 files changed, 32 insertions(+), 13 deletions(-)

@@ -1,21 +1,24 @@
-commit 4e6bbbe61f554dbd9ed78fcd55ff46fe59736785
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Wed Aug 16 08:28:28 2023 +0800
+commit 6c9b661867a4439d3ba3086f21c7ea0a5d6c3d5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 22 09:21:03 2022 -0500
 
-    reflect, runtime: add reflect support for regABI on loong64
+    runtime: revert Apple libc atfork workaround
     
-    Update #40724
+    Revert CL 451735 (1f4394a0c926), which fixed #33565 and #56784
+    but also introduced #57263.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: I0549fd1a2192ffb041034ff41bf0cc4be0b1662c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521784
+    I have a different fix to apply instead. Since the first fix was
+    never backported, it will be easiest to backport the new fix
+    if the new fix is done in a separate CL from the revert.
+    
+    Change-Id: I6c8ea3a46e542ee4702675bbc058e29ccd2723e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459175
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/reflect/asm_loong64.s | 77 ++++++++++++++++++++++++++++++++++++++---------
- src/runtime/stkframe.go   |  2 +-
- 2 files changed, 64 insertions(+), 15 deletions(-)
+ src/runtime/os_darwin.go       |  2 --
+ src/runtime/sys_darwin.go      | 48 ------------------------------------------
+ src/runtime/sys_darwin_amd64.s |  9 --------
+ src/runtime/sys_darwin_arm64.s |  6 ------
+ 4 files changed, 65 deletions(-)

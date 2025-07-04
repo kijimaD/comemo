@@ -1,20 +1,24 @@
-commit accf5cc3862830bb8bb54af31aa1861e6a2b8481
+commit 0952a15cd17755c655910e4b2601d0f255d71c42
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Oct 23 14:10:11 2016 -0700
+Date:   Mon Jul 11 12:30:45 2016 -0700
 
-    all: minor vet fixes
+    cmd/vet: clean up printing errors with no position
     
-    Change-Id: I22f0f3e792052762499f632571155768b4052bc9
-    Reviewed-on: https://go-review.googlesource.com/31759
+    Before:
+    
+    : runtime/asm_amd64.s:345: [amd64] morestack: use of 8(SP) points beyond argument frame
+    
+    After:
+    
+    runtime/asm_amd64.s:345: [amd64] morestack: use of 8(SP) points beyond argument frame
+    
+    Updates #11041
+    
+    Change-Id: Ic87a6d1a2a7b2a8bf737407bc981b159825c84f2
+    Reviewed-on: https://go-review.googlesource.com/27152
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/compress/gzip/example_test.go       |  2 +-
- src/crypto/tls/handshake_server_test.go |  8 ++++----
- src/database/sql/example_test.go        |  2 +-
- src/math/modf_arm64.s                   |  2 +-
- src/os/os_windows_test.go               |  5 ++---
- src/reflect/all_test.go                 | 18 +++++++++---------
- src/text/template/exec_test.go          |  2 +-
- 7 files changed, 19 insertions(+), 20 deletions(-)
+ src/cmd/vet/main.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

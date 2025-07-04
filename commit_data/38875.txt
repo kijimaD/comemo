@@ -1,40 +1,28 @@
-commit ca0c449a6b1c6ecc75169f93cffa8a5630740030
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 22 14:39:55 2019 -0700
+commit a7af474359179062a82429da927407d2d5395acc
+Author: smasher164 <aindurti@gmail.com>
+Date:   Tue Dec 4 06:41:39 2018 -0500
 
-    bytes, internal/bytealg: simplify Equal
+    cmd/compile: improve error message for non-final variadic parameter
     
-    The compiler has advanced enough that it is cheaper
-    to convert to strings than to go through the assembly
-    trampolines to call runtime.memequal.
+    Previously, when a function signature had defined a non-final variadic
+    parameter, the error message always referred to the type associated with that
+    parameter. However, if the offending parameter's name was part of an identifier
+    list with a variadic type, one could misinterpret the message, thinking the
+    problem had been with one of the other names in the identifer list.
     
-    Simplify Equal accordingly, and cull dead code from bytealg.
+        func bar(a, b ...int) {}
+    clear ~~~~~~~^       ^~~~~~~~ confusing
     
-    While we're here, simplify Equal's documentation.
+    This change updates the error message and sets the column position to that of
+    the offending parameter's name, if it exists.
     
-    Fixes #31587
+    Fixes #28450.
     
-    Change-Id: Ie721d33f9a6cbd86b1d873398b20e7882c2c63e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173323
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I076f560925598ed90e218c25d70f9449ffd9b3ea
+    Reviewed-on: https://go-review.googlesource.com/c/152417
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/bytes/bytes.go                    | 17 +++--------------
- src/bytes/bytes_test.go               | 23 ++++++++++-------------
- src/bytes/export_test.go              |  1 -
- src/cmd/vet/all/whitelist/arm.txt     |  1 -
- src/internal/bytealg/equal_386.s      | 18 ------------------
- src/internal/bytealg/equal_amd64.s    | 18 ------------------
- src/internal/bytealg/equal_amd64p32.s | 19 -------------------
- src/internal/bytealg/equal_arm.s      | 21 ---------------------
- src/internal/bytealg/equal_arm64.s    | 20 --------------------
- src/internal/bytealg/equal_generic.go | 18 ++++++++++++++++++
- src/internal/bytealg/equal_mips64x.s  | 26 --------------------------
- src/internal/bytealg/equal_mipsx.s    | 26 --------------------------
- src/internal/bytealg/equal_native.go  |  5 -----
- src/internal/bytealg/equal_ppc64x.s   | 19 -------------------
- src/internal/bytealg/equal_s390x.s    | 12 ------------
- src/internal/bytealg/equal_wasm.s     | 20 --------------------
- 16 files changed, 31 insertions(+), 233 deletions(-)
+ src/cmd/compile/internal/gc/noder.go |  6 +++++-
+ test/fixedbugs/issue28450.go         | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

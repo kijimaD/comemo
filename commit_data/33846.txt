@@ -1,25 +1,19 @@
-commit 82f58c11e1f39e236382153fd2dddc4bacea2176
-Author: Jeff Johnson <jrjohnson@google.com>
-Date:   Fri Dec 8 09:21:57 2017 -0800
+commit eb2dc3d3d076f6924b4d25f89de267dc93066ea5
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 11 21:51:38 2017 +0200
 
-    net: enable TestInterfaceHardwareAddrWithGetmac on all windows versions
+    all: remove strings.Contains check around Replace
     
-    Re-work the test to use wmic instead of PowerShell's getmac that's
-    only avaliable on Server 2008. Maintains duplicate detection added
-    for golang/go#21027.
+    It doesn't change the outcome. It might have been useful at some point
+    to avoid Replace from doing work or allocating. However, nowadays the
+    func returns early without doing any work if Count returns 0.
     
-    Tested on windows-amd64-{2008, 2012, 2016} buildlets.
-    Enabling for Windows XP because it should work[1].
-    
-    Fixes golang/go#20073
-    
-    [1] https://www.microsoft.com/resources/documentation/windows/xp/all/proddocs/en-us/wmic_overview.mspx?mfr=true
-    
-    Change-Id: Ic11d569f7964f61d08ae0dcc1b926efc5336ac5b
-    Reviewed-on: https://go-review.googlesource.com/82975
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id69dc74042a6e39672b405016484db8b50f43d58
+    Reviewed-on: https://go-review.googlesource.com/62991
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/net/net_windows_test.go | 143 ++++++++++++--------------------------------
- 1 file changed, 38 insertions(+), 105 deletions(-)
+ src/path/filepath/path_windows.go | 4 +---
+ src/text/template/exec.go         | 5 +----
+ 2 files changed, 2 insertions(+), 7 deletions(-)

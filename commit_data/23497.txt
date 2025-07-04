@@ -1,14 +1,25 @@
-commit a4ec50bd0b5986fbe0369043ac9e30e4ce229f21
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jun 26 11:11:45 2015 +1000
+commit f4ab8203bab58b3c4ae53a99535719a747d05332
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 18 10:27:59 2015 -0700
 
-    spec: fix bare & in HTML
+    cmd/internal/gc: separate Node param fields
     
-    No need to update the date; this is not a spec change.
+    Param will be converted from an anonymous to a
+    named field in a subsequent, automated CL.
     
-    Change-Id: I10a31234ed985c59e5d9b5328664a36661cef31e
-    Reviewed-on: https://go-review.googlesource.com/11531
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reduces Node size from 368 to 328.
+    Reduces inuse_space on the rotate tests by about 3%.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Updates #9933.
+    
+    Change-Id: I5867b00328abf17ee24aea6ca58876bae9d8bfed
+    Reviewed-on: https://go-review.googlesource.com/10210
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/gc/export.go    |  2 +-
+ src/cmd/internal/gc/subr.go      |  4 ++++
+ src/cmd/internal/gc/syntax.go    | 26 +++++++++++++++-----------
+ src/cmd/internal/gc/typecheck.go |  8 ++++----
+ 4 files changed, 24 insertions(+), 16 deletions(-)

@@ -1,19 +1,19 @@
-commit 901510ed4ef1a979321f33159b534e374290ef65
-Author: hao <tfzxyinhao@qq.com>
-Date:   Fri May 28 03:40:12 2021 +0000
+commit 6e583d65abd2b044997430984c43b80cad398cc1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 24 23:58:36 2020 -0500
 
-    cmd/link/internal/ld: skip the windows ASLR test when CGO_ENABLED=0
+    [dev.regabi] cmd/compile: simplify fmt handling of Nodes
     
-    the test case is still using gcc when CGO is disabled.
+    The existing code introduces many types in what appears to be an
+    attempt to avoid allocation when converting formatting argument lists.
+    Simplify by accepting that allocation is going to happen, especially
+    when Node itself turns into an interface.
     
-    Change-Id: I2d255bfaeb92816c8343ab72fd7984b6632d421d
-    GitHub-Last-Rev: de14748bd54c7db8687263a7c37080ec884d982a
-    GitHub-Pull-Request: golang/go#46120
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/319169
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I3c0d45ca01eace4924deb43c0ea7dc6d65943d08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272929
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/ld_test.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/fmt.go | 187 ++++++++++---------------------------
+ 1 file changed, 51 insertions(+), 136 deletions(-)

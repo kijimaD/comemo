@@ -1,16 +1,12 @@
-commit 525d4bd5203ce0bc6d36add058041dcdfb979161
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Nov 7 16:51:20 2015 +0100
+commit 90dbd975fda18583efbeb177acc43c1f2ce535ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 28 12:04:16 2015 -0400
 
-    net/http: update http2 bundle
+    cmd/internal/objfile: use golang.org/x/arch instead of rsc.io
     
-    To rev a179abb (handle Transport PING frames).
-    
-    Change-Id: I6e1eef2c9586c23f231803d9364d921248722f12
-    Reviewed-on: https://go-review.googlesource.com/16732
-    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5348774ff01a5f0f706a1dba4aa9500661841f47
+    Reviewed-on: https://go-review.googlesource.com/14020
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/h2_bundle.go | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/internal/objfile/disasm.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

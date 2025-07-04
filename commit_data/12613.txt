@@ -1,13 +1,12 @@
-commit 5361712ab4f582fda6c098a45d270278b7907404
-Author: Maxim Pimenov <mpimenov@google.com>
-Date:   Tue Mar 13 10:00:43 2012 -0400
+commit cc99d8ad0bb8a2299a72dcf123d615335ea09964
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 13 09:33:54 2012 -0400
 
-    go/build: fix match
+    gc: use quoted string format in import error
     
-    R=golang-dev, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5801043
+    https://golang.org/cl/5794077
 
- src/pkg/go/build/build.go      | 6 +++---
- src/pkg/go/build/build_test.go | 1 +
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/gc/subr.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

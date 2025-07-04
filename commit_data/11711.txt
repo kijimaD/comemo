@@ -1,14 +1,14 @@
-commit 388816ae078ed93ec409dca8024638eb7ca774d7
+commit fd2a511253c0ddcece0082863378a8b677b9ffdd
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 14:35:00 2012 -0500
+Date:   Wed Feb 8 14:28:51 2012 -0500
 
-    spec: disallow recursive embedded interfaces
+    spec: add forward links from 'method set' to where it gets used
     
-    Fixes #1814.
+    Fixes #1797.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5647054
+    https://golang.org/cl/5645058
 
- doc/go_spec.html | 25 +++++++++++++++++++++++--
- 1 file changed, 23 insertions(+), 2 deletions(-)
+ doc/go_spec.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

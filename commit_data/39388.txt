@@ -1,19 +1,25 @@
-commit 263db9b6801ed9b05250da6f05ce93038e37c59c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri May 31 21:25:04 2019 +1000
+commit 20930c7623be7c78189898795d089002c2f9de41
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Feb 11 16:33:12 2019 +0200
 
-    html/template, text/template: document glob semantics
+    regexp: limit the capacity of slices of bytes returned by FindX
     
-    This change updates the doc comments of the various ParseGlob functions
-    and methods to state that they use the semantics of filepath.Match when
-    matching the file name pattern.
+    This change limits the capacity of the slices of bytes returned by:
     
-    Fixes #30608
+    - Find
+    - FindAll
+    - FindAllSubmatch
     
-    Change-Id: Iee4bdc0a2a2f8647d1f9a910e4d72a5de9204d11
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179739
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    to be the same as their length.
+    
+    Fixes #30169
+    
+    Change-Id: I07b632757d2bfeab42fce0d42364e2a16c597360
+    Reviewed-on: https://go-review.googlesource.com/c/161877
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/html/template/template.go | 15 ++++++++-------
- src/text/template/helper.go   | 15 ++++++++-------
- 2 files changed, 16 insertions(+), 14 deletions(-)
+ src/regexp/find_test.go | 20 ++++++++++++++++----
+ src/regexp/regexp.go    |  8 ++++----
+ 2 files changed, 20 insertions(+), 8 deletions(-)

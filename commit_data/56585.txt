@@ -1,31 +1,21 @@
-commit 816b6031febc51692eb667df7498f3b2332987fa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 21 14:35:14 2024 -0700
+commit 2f35a655e73837a95941eeda00f56c799ee64591
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 10 20:36:08 2023 +0000
 
-    go/types, types2: add missing Unalias calls (clarification)
+    runtime: capture per-m trace state in a type
     
-    This change adds an Unalias call in applyTypeFunc and arrayPtrDeref.
-    At the moment this doesn't change anything or fix any bugs because
-    of the way these two functions are invoked, but that could change
-    in the future.
+    More tightening up of the tracer's interface.
     
-    Also, manually reviewed all type assertions to Type types.
+    While we're here, clarify why waittraceskip isn't included by explaining
+    what the wait* fields in the M are really for.
     
-    Excluding assertions to type parameters, no obvious issues
-    were found except for #67540 for which a separate fix is pending.
-    
-    There are potential issues with assertions type parameters
-    which will be addressed in a follow-up CL.
-    
-    For #67547.
-    
-    Change-Id: I312268dc5e104f95b68f115f00aec3ec4c82e41f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587156
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I0e7b4cac79fb77a7a0b3ca6b6cc267668e3610bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494190
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go | 4 ++--
- src/go/types/builtins.go                    | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/runtime2.go | 10 +++++++---
+ src/runtime/trace.go    | 19 ++++++++++++-------
+ 2 files changed, 19 insertions(+), 10 deletions(-)

@@ -1,12 +1,13 @@
-commit 2b44c33b4a9ca2fa25c88e85803daa57f1080a03
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 7 13:31:53 2013 -0800
+commit fe7dbea00e36d649f072d38070630c53c4efab17
+Author: Péter Surányi <speter.go1@gmail.com>
+Date:   Thu Feb 7 06:41:35 2013 -0800
 
-    crypto/md5: fix for big-endian processors
+    os/exec: LookPath on Unix shouldn't look in cwd when PATH is empty
     
-    R=golang-dev, minux.ma, agl
+    R=golang-dev, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7305059
+    https://golang.org/cl/7305053
 
- src/pkg/crypto/md5/md5block.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/pkg/os/exec/lp_unix.go      |  3 +++
+ src/pkg/os/exec/lp_unix_test.go | 52 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

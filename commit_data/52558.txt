@@ -1,21 +1,22 @@
-commit a3df6c0e81cd14aef0b4967721821d34b962b7be
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Jan 10 15:14:46 2023 -0600
+commit 1284cc24955487192fb7fb5aea934cb13fd1ae73
+Author: David Chase <drchase@google.com>
+Date:   Tue May 10 12:52:52 2022 -0400
 
-    cmd/link/internal/ppc64: generate PCrel trampolines on P10
+    cmd/compile: be sure to export types mentioned in f.i.g. method signature
     
-    PCrelative trampolines have no dependence on the TOC pointer or build
-    mode, thus they are preferable to use when supported.
+    When a fully instantiated generic method is exported, be sure to also
+    export the types in its signature.
     
-    This is a step towards eliminating the need to use and maintain the
-    TOC pointer in R2 when PCrel is supported.
+    Fixes #52279.
     
-    Change-Id: I1b1a7e16831cfd6732b31f7fad8df2a7c88c8f84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461599
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Icc6bca05b01f914cf67faaf1bf184eaa5484f521
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405118
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- src/cmd/link/internal/ppc64/asm.go | 29 ++++++++++++++++++++++-------
- 1 file changed, 22 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/typecheck/crawler.go |  4 +++-
+ test/fixedbugs/issue52279.dir/lib.go          | 23 +++++++++++++++++++++++
+ test/fixedbugs/issue52279.dir/main.go         |  5 +++++
+ test/fixedbugs/issue52279.go                  |  7 +++++++
+ 4 files changed, 38 insertions(+), 1 deletion(-)

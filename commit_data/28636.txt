@@ -1,34 +1,19 @@
-commit f28cf8346c4ce7cb74bf97c7c69da21c43a78034
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Wed Dec 23 02:03:44 2015 +0000
+commit 79f2f008a31f769ae3db684eb48d8baeda731c00
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 16 14:38:33 2016 -0400
 
-    crypto/tls: implement countermeasures against CBC padding oracles
+    cmd/dist: make zosarch.go deterministic
     
-    The aim is to make the decrypt() timing profile constant, irrespective of
-    the CBC padding length or correctness.  The old algorithm, on valid padding,
-    would only MAC bytes up to the padding length threshold, making CBC
-    ciphersuites vulnerable to plaintext recovery attacks as presented in the
-    "Lucky Thirteen" paper.
+    Currently zosarch.go is written out in non-deterministic map order.
+    Sort the keys and write it out in sorted order to make the generated
+    file contents deterministic.
     
-    The new algorithm Write()s to the MAC all supposed payload, performs a
-    constant time Sum()---which required implementing a constant time Sum() in
-    crypto/sha1, see the "Lucky Microseconds" paper---and then Write()s the rest
-    of the data. This is performed whether the padding is good or not.
-    
-    This should have no explicit secret-dependent timings, but it does NOT
-    attempt to normalize memory accesses to prevent cache timing leaks.
-    
-    Updates #13385
-    
-    Change-Id: I15d91dc3cc6eefc1d44f317f72ff8feb0a9888f7
-    Reviewed-on: https://go-review.googlesource.com/18130
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Id490f0e8665a2c619c5a7a00a30f4fc64f333258
+    Reviewed-on: https://go-review.googlesource.com/24174
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/sha1/sha1.go         | 70 ++++++++++++++++++++++++++++++++++++++++-
- src/crypto/sha1/sha1_test.go    | 17 +++++++---
- src/crypto/tls/cipher_suites.go | 42 ++++++++++++++++++++++---
- src/crypto/tls/conn.go          | 62 ++++++++++++++++++------------------
- src/crypto/tls/conn_test.go     |  6 ++--
- 5 files changed, 152 insertions(+), 45 deletions(-)
+ src/cmd/dist/buildgo.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

@@ -1,24 +1,20 @@
-commit f4e6815652cf3c4803001dd9ab7f0d7f125a466c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 16 21:16:29 2023 -0700
+commit 0bfa9f0435e03176b04ad202320be441d03ee25f
+Author: VRDighe <vaibhav@plgworks.com>
+Date:   Wed Sep 14 04:25:55 2022 +0000
 
-    cmd/compile/internal/noder: remove inlined closure naming hack
+    spec: fix typo in a type parameter example
     
-    I previously used a clumsy hack to copy Closgen back and forth while
-    inlining, to handle when an inlined function contains closures, which
-    need to each be uniquely numbered.
+    Fixes #54973
     
-    The real solution was to name the closures using r.inlCaller, rather
-    than r.curfn. This CL adds a helper method to do exactly this.
-    
-    Change-Id: I510553b5d7a8f6581ea1d21604e834fd6338cb06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520339
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ibad9dd124617a1bbc23abd17cbd6e9e9928e3ed9
+    GitHub-Last-Rev: 1c6affb967ef925ec12420e31c6423a615f90acc
+    GitHub-Pull-Request: golang/go#55021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430316
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/noder/reader.go | 37 +++++++++++++++++++-------------
- test/closure3.dir/main.go                |  8 +++----
- 2 files changed, 26 insertions(+), 19 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

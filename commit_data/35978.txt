@@ -1,21 +1,22 @@
-commit 8a330454dc1502091dba2c890f5f6d0c095034de
-Author: Kunpei Sakai <namusyaka@gmail.com>
-Date:   Sat Sep 9 00:39:20 2017 +0900
+commit 2d8181e7b5ffe685847a6bb922170c4bbe1c97f6
+Author: Austin Clements <austin@google.com>
+Date:   Sun Mar 25 12:20:57 2018 -0400
 
-    net/url: don't escape sub-delims in fragment
+    cmd/compile: clarify unsigned interpretation of AuxInt
     
-    According to RFC-3986, the sub-delims chars should not be escaped in
-    fragment.
-    So this change fixes current behavior a bit.
+    The way Value.AuxInt represents unsigned numbers is currently
+    documented in genericOps.go, which is not the most obvious place for
+    it. Move that documentation to Value.AuxInt. Furthermore, to make it
+    harder to use incorrectly, introduce a Value.AuxUnsigned accessor that
+    returns the zero-extended value of Value.AuxInt.
     
-    Fixes #19917
-    
-    Change-Id: I1a8deb93255d979532f75bae183c3fb53a05d395
-    Reviewed-on: https://go-review.googlesource.com/61650
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I85030c3c68761404058a430e0b1c7464591b2f42
+    Reviewed-on: https://go-review.googlesource.com/102597
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/url/url.go      | 13 +++++++++++++
- src/net/url/url_test.go |  1 +
- 2 files changed, 14 insertions(+)
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 --
+ src/cmd/compile/internal/ssa/prove.go          | 14 ++------------
+ src/cmd/compile/internal/ssa/value.go          | 23 +++++++++++++++++++++++
+ 3 files changed, 25 insertions(+), 14 deletions(-)

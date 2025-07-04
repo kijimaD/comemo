@@ -1,18 +1,29 @@
-commit 5419ed3a66ca6128fa7b19f193a5a3a4e5cecd4a
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 27 08:12:50 2017 -0800
+commit fbc8973a6bc88b50509ea738f475b36ef756bf90
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Aug 21 22:23:14 2017 +0200
 
-    cmd/compile: remove unused code
+    all: join some chained ifs to unindent code
     
-    Found a few functions in cmd/compile that aren't used.
+    Found with mvdan.cc/unindent. It skipped the cases where parentheses
+    would need to be added, where comments would have to be moved elsewhere,
+    or where actions and simple logic would mix.
     
-    Change-Id: I53957dae6f1a645feb8b95383f0f050964b4f7d4
-    Reviewed-on: https://go-review.googlesource.com/79975
-    Run-TryBot: Keith Randall <khr@golang.org>
+    One of them was of the form "err != nil && err == io.EOF", so the first
+    part was removed.
+    
+    Change-Id: Ie504c2b03a2c87d10ecbca1b9270069be1171b91
+    Reviewed-on: https://go-review.googlesource.com/57690
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/main.go     | 13 -------------
- src/cmd/compile/internal/gc/walk.go     | 26 --------------------------
- src/cmd/compile/internal/ssa/rewrite.go |  4 ----
- 3 files changed, 43 deletions(-)
+ src/crypto/cipher/io.go        |  6 ++----
+ src/encoding/gob/decoder.go    |  6 ++----
+ src/net/http/fs.go             |  6 ++----
+ src/net/url/url.go             | 10 ++++------
+ src/runtime/cgocall.go         |  6 ++----
+ src/runtime/proc.go            | 12 +++++-------
+ src/runtime/select.go          |  6 ++----
+ src/sync/waitgroup.go          | 12 +++++-------
+ src/text/template/parse/lex.go |  7 +++----
+ 9 files changed, 27 insertions(+), 44 deletions(-)

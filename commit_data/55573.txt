@@ -1,26 +1,50 @@
-commit 4a7f3ac8eb4381ea62caa1741eeeec28363245b4
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Fri Feb 9 11:47:26 2024 +0000
+commit 4c5d6edeb2b10c2044d1ea2b4fa3e403133431c8
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Wed Feb 22 10:58:14 2023 -0500
 
-    runtime/cgo: ignore -Watomic-alignment in gcc_libinit.c
+    syscall: add ptracePtr that accepts pointer arg as unsafe.Pointer
     
-    When cross-compiling a cgo program with CC=clang for Linux/ARMv5,
-    atomic warnings cause build errors, as cgo uses -Werror.
+    The existing ptrace wrapper accepts pointer argument as an uintptr which
+    often points to the memory allocated in Go. This violates unsafe.Pointer safety
+    rules.
     
-    These warnings seem to be harmless and come from the usage of
-    __atomic_load_n, which is emulated due to the lack of atomic
-    instructions in armv5.
+    Fixes #58387
     
-    Fixes #65290
-    
-    Change-Id: Ie72efb77468f06888f81f15850401dc8ce2c78f9
-    GitHub-Last-Rev: fbad847b962f6b4599cd843018e79f4b55be097e
-    GitHub-Pull-Request: golang/go#65588
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562348
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Iab12122c495953f94ea00c2a61654a818a464205
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470299
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Goutnik <dgoutnik@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Goutnik <dgoutnik@gmail.com>
 
- src/runtime/cgo/gcc_libinit.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/syscall/mksyscall.pl               |  2 +-
+ src/syscall/mksyscall_libc.pl          | 12 +++++++-----
+ src/syscall/ptrace_darwin.go           |  7 +++++++
+ src/syscall/ptrace_ios.go              |  7 +++++++
+ src/syscall/syscall_aix.go             |  5 +++--
+ src/syscall/syscall_darwin_amd64.go    |  1 +
+ src/syscall/syscall_darwin_arm64.go    |  1 +
+ src/syscall/syscall_linux.go           | 15 ++++++++-------
+ src/syscall/syscall_openbsd_libc.go    |  1 +
+ src/syscall/zsyscall_aix_ppc64.go      | 10 ++++++++++
+ src/syscall/zsyscall_darwin_amd64.go   | 11 +++++++++++
+ src/syscall/zsyscall_darwin_arm64.go   | 11 +++++++++++
+ src/syscall/zsyscall_linux_386.go      | 10 ++++++++++
+ src/syscall/zsyscall_linux_amd64.go    | 10 ++++++++++
+ src/syscall/zsyscall_linux_arm.go      | 10 ++++++++++
+ src/syscall/zsyscall_linux_arm64.go    | 10 ++++++++++
+ src/syscall/zsyscall_linux_loong64.go  | 10 ++++++++++
+ src/syscall/zsyscall_linux_mips.go     | 10 ++++++++++
+ src/syscall/zsyscall_linux_mips64.go   | 10 ++++++++++
+ src/syscall/zsyscall_linux_mips64le.go | 10 ++++++++++
+ src/syscall/zsyscall_linux_mipsle.go   | 10 ++++++++++
+ src/syscall/zsyscall_linux_ppc64.go    | 10 ++++++++++
+ src/syscall/zsyscall_linux_ppc64le.go  | 10 ++++++++++
+ src/syscall/zsyscall_linux_riscv64.go  | 10 ++++++++++
+ src/syscall/zsyscall_linux_s390x.go    | 10 ++++++++++
+ src/syscall/zsyscall_openbsd_386.go    | 11 +++++++++++
+ src/syscall/zsyscall_openbsd_amd64.go  | 11 +++++++++++
+ src/syscall/zsyscall_openbsd_arm.go    | 11 +++++++++++
+ src/syscall/zsyscall_openbsd_arm64.go  | 11 +++++++++++
+ 29 files changed, 242 insertions(+), 15 deletions(-)

@@ -1,16 +1,18 @@
-commit 5e03143c1aff5e62a8181f73fc52e5b7684d76de
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 6 15:56:15 2011 -0700
+commit 9e857dbdcc66b8fa2da927e07531c6b8dc894cae
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 6 21:33:02 2011 +0000
 
-    html: improve attribute parsing, note package status
+    template: rearrange the code into separate files.
+    The single file was getting unwieldy.
+    Also remove use of vector; a slice works fine - although
+    it's an unusual one.
     
-    Fixes #1890
-    
-    R=nigeltao
+    R=golang-dev, r, gri
     CC=golang-dev
-    https://golang.org/cl/4528102
+    https://golang.org/cl/4576042
 
- src/pkg/html/doc.go        |  1 +
- src/pkg/html/token.go      | 29 ++++++++++++++++++++++++++++-
- src/pkg/html/token_test.go | 10 ++++++++++
- 3 files changed, 39 insertions(+), 1 deletion(-)
+ src/pkg/template/Makefile                  |   4 +-
+ src/pkg/template/doc.go                    |  91 ++++++
+ src/pkg/template/execute.go                | 346 ++++++++++++++++++++
+ src/pkg/template/{template.go => parse.go} | 486 ++---------------------------
+ 4 files changed, 474 insertions(+), 453 deletions(-)

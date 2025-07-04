@@ -1,27 +1,26 @@
-commit 895bcf178d86449f6d96a0bd19dc4e4b0a3d3c59
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Mon Feb 17 11:45:23 2025 -0500
+commit f9c0423ec821e325d5a77e0f18dc1e44ee13503b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 25 15:51:22 2024 -0800
 
-    crypto/tls: reject empty TLS 1.3 session ticket
+    cmd/compile/internal/noder: preserve alias uses in export data
     
-    While not clearly motivated by normative language in RFC 8446 it seems
-    clear that an empty opaque ticket value is non-operable, and so we
-    should reject it with an appropriate alert/error.
+    This CL changes the export data format to preserve alias uses.
+    Previously they were stripped away with types2.Unalias. For backwards
+    compatibility, we use pkgbits.TypeNamed, which is already used for the
+    predeclared aliases byte, rune, and any.
     
-    This allows removing the SendEmptySessionTicket-TLS13 BoGo test from the
-    bogo excluded tests configuration.
+    While here, remove unnecessary uses of types2.Unalias, and add a
+    missing one in recvBase to handle:
     
-    Fixes #70513
-    Updates #72006
+        type T int
+        type A = T
+        func (*A) m() {}
     
-    Change-Id: I589b34e86fb1eb27a349a230e920c22284597cde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650735
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: I62ddb0426080a44436054964a90ab250bcd8df12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558577
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
 
- src/crypto/tls/bogo_config.json          | 2 --
- src/crypto/tls/handshake_client_tls13.go | 5 +++++
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 52 ++++++++++++++++++++------------
+ 1 file changed, 32 insertions(+), 20 deletions(-)

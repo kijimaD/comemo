@@ -1,20 +1,19 @@
-commit 8aa57f1e9dec8f7fc032aea82ecc19e2bb74cdcb
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu May 24 04:11:05 2018 +0200
+commit 0de5324d61ba6d4c362f9fa76b6522e28155c83d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Dec 13 16:03:23 2017 -0500
 
-    cmd/compile: fix write barrier control value on wasm
+    runtime: abstract remaining mheap.spans access
     
-    This commit fixes a regression with wasm caused by a367f44c18.
-    It adds optimizations to the lowering rules of wasm to ensure
-    that the lowered version of the code generated for write barriers
-    is simple enough so it can be processed by Liveness.markUnsafePoints.
+    This abstracts the remaining direct accesses to mheap.spans into new
+    mheap.setSpan and mheap.setSpans methods.
     
-    Change-Id: Ic98f0dd3791fe1df23dcb34d2457fbde7ffce441
-    Reviewed-on: https://go-review.googlesource.com/114375
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    For #10460.
+    
+    Change-Id: Id1db8bc5e34a77a9221032aa2e62d05322707364
+    Reviewed-on: https://go-review.googlesource.com/85884
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/plive.go        |   2 +-
- src/cmd/compile/internal/ssa/gen/Wasm.rules |  15 +-
- src/cmd/compile/internal/ssa/rewriteWasm.go | 276 ++++++++++++++++++++++++++++
- 3 files changed, 291 insertions(+), 2 deletions(-)
+ src/runtime/mheap.go | 95 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 46 insertions(+), 49 deletions(-)

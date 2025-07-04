@@ -1,13 +1,13 @@
-commit 7403071ada618d2db82b7897cce19cd1627c8831
+commit dd449a1cfa02c908393c927920474c1fe017558f
 Author: Patrick Mézard <patrick@mezard.eu>
-Date:   Mon Feb 24 10:18:40 2014 -0500
+Date:   Mon Feb 24 10:11:37 2014 -0500
 
-    time: explicitely mention Tickers have to be stopped
+    codereview: remove unused upload_options.revision
     
     LGTM=rsc
-    R=golang-codereviews, gobot, rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/64770043
+    https://golang.org/cl/60640052
 
- src/pkg/time/tick.go | 1 +
- 1 file changed, 1 insertion(+)
+ lib/codereview/codereview.py | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

@@ -1,31 +1,22 @@
-commit 81adfa508a81e24b8257571dd717845647607cbd
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 7 10:19:55 2016 -0500
+commit 321cf6f86dd28248d98e5e24c073740f23c1897b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 4 17:38:53 2015 -0800
 
-    runtime: allow signal.Ignore of user-generated throwing signals
+    cmd/go: change ar argument to rc
     
-    Today, signal.Ignore(syscall.SIGTRAP) does nothing
-    while signal.Notify(make(chan os.Signal), syscall.SIGTRAP)
-    correctly discards user-generated SIGTRAPs.
-    The same applies to any signal that we throw on.
+    Put 'r' first because that is the command, and 'c' is the modifier.
+    Keep 'c' because it means to not warn when creating an archive.
+    Drop 'u' because it is unnecessary and fails on Arch Linux.
     
-    Make signal.Ignore work for these signals.
+    No test because this is only for gccgo (I tested it manually).
     
-    Fixes #12906.
+    Fixes #12310.
     
-    Change-Id: Iba244813051e0ce23fa32fbad3e3fa596a941094
-    Reviewed-on: https://go-review.googlesource.com/18348
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Id740257fb1c347dfaa60f7d613af2897dae2c059
+    Reviewed-on: https://go-review.googlesource.com/16664
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/crash_unix_test.go             |  8 ++++++++
- src/runtime/signal_386.go                  |  4 ++++
- src/runtime/signal_amd64x.go               |  4 ++++
- src/runtime/signal_arm.go                  |  4 ++++
- src/runtime/signal_arm64.go                |  4 ++++
- src/runtime/signal_mips64x.go              |  4 ++++
- src/runtime/signal_ppc64x.go               |  4 ++++
- src/runtime/sigqueue.go                    | 20 ++++++++++++++------
- src/runtime/testdata/testprognet/signal.go | 26 ++++++++++++++++++++++++++
- 9 files changed, 72 insertions(+), 6 deletions(-)
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

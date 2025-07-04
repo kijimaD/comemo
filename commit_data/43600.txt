@@ -1,39 +1,23 @@
-commit 15f01d6ae9853fd51ee8842d9af93d04ce25458c
-Author: David Chase <drchase@google.com>
-Date:   Tue Oct 13 19:24:04 2020 -0400
+commit eed3ef581b136adcfb0ca36e1238960de599f3e5
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 13 15:38:03 2020 -0400
 
-    cmd/compile: delay expansion of OpArg until expand_calls
+    [dev.link] cmd/link: hoist dwarfGenerateDebugSyms out of dodata()
     
-    As it says, delay expanpsion of OpArg to the expand_calls phase,
-    to enable (eventually) interprocedural SSA optimizations, and
-    (sooner) change to a register ABI.
+    Hoist dwarfGenerateDebugSyms call up out of dodata to before
+    loadlibfull. This required a couple of small tweaks to the
+    loader and to loadlibfull.
     
-    Includes a round of cleanup to function names and comments,
-    largely to match the expanded scope of the functions.
-    
-    This CL removes the per-function dependence on GOSSAHASH,
-    but the go116lateCallExpansion kill switch remains (and was
-    tested locally to ensure it worked).
-    
-    Two functions in expand_calls.go that performed overlapping
-    things were combined into a single function that is called
-    twice.
-    
-    Fixes #42236.
-    For #40724.
-    
-    Change-Id: Icbb78947eaa39f17f2c1210d5c2caef20abd6571
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262117
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I48ffb450d2e48b9e55775b73a6debcd27dbb7b9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228221
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/fmtmap_test.go               |   1 -
- src/cmd/compile/internal/gc/ssa.go           |  12 +-
- src/cmd/compile/internal/ssa/compile.go      |   2 +-
- src/cmd/compile/internal/ssa/config.go       |   4 +-
- src/cmd/compile/internal/ssa/expand_calls.go | 406 ++++++++++++++++++++-------
- src/cmd/compile/internal/ssa/gen/dec64.rules |   9 +-
- src/cmd/compile/internal/ssa/rewritedec64.go |  16 +-
- src/cmd/compile/internal/ssa/stackalloc.go   |   3 +
- 8 files changed, 329 insertions(+), 124 deletions(-)
+ src/cmd/link/internal/ld/data.go       |  2 --
+ src/cmd/link/internal/ld/dwarf.go      | 13 -------------
+ src/cmd/link/internal/ld/lib.go        | 10 ++++++++++
+ src/cmd/link/internal/ld/main.go       |  2 ++
+ src/cmd/link/internal/loader/loader.go | 16 +++++++++-------
+ 5 files changed, 21 insertions(+), 22 deletions(-)

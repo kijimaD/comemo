@@ -1,15 +1,13 @@
-commit 40af15f28e63709859138f00179dc7bcdfdc834b
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Sep 4 14:57:59 2015 +1200
+commit b383de2ef9d08882c331b4877ce9d5a69f8f97b2
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Jul 13 21:22:16 2015 -0500
 
-    runtime: teach softfloat interpreter about "add r11, pc, r11"
+    [dev.ssa] cmd/compile: implement OIND
     
-    This is generated during fp code when -shared is active.
-    
-    Change-Id: Ia1092299b9c3b63ff771ca4842158b42c34bd008
-    Reviewed-on: https://go-review.googlesource.com/14286
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I15aee8095e6388822e2222f1995fe2278ac956ca
+    Reviewed-on: https://go-review.googlesource.com/12129
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/softfloat_arm.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 4 ++++
+ 1 file changed, 4 insertions(+)

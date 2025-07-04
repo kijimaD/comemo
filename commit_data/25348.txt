@@ -1,14 +1,17 @@
-commit a12ba4b83275cda3b3bfb6d609d34492c03717f5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 13:25:02 2015 -0800
+commit d96b4c494fcf915a49b004d59018c46deaa069bb
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 21 12:32:14 2015 -0700
 
-    doc: Americanise spelling of wilful
+    cmd/internal/obj: fix PSRLW opcode
     
-    Fixes #13660
+    The reg-reg version compiled to PSRAW, not PSRLW (arithmetic
+    instead of logical shift right).
     
-    Change-Id: I05bcb4efcb865192a1ef6756e9dccef83505934c
-    Reviewed-on: https://go-review.googlesource.com/17990
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Fixes #13010.
+    
+    Change-Id: I69a47bd83c8bbe66c7f8d82442ab45e9bf3b94fb
+    Reviewed-on: https://go-review.googlesource.com/16168
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/conduct.html | 2 +-
+ src/cmd/internal/obj/x86/asm6.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

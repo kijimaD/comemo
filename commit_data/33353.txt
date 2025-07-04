@@ -1,12 +1,17 @@
-commit a6b0a1c05a44a504a6bc3b20f509bd4fc1561c40
-Author: Joe Kyo <xunianzu@gmail.com>
-Date:   Tue Oct 31 09:24:44 2017 +0000
+commit 248a7c7c42eaf58d0c82b704205c7eac5b14a42a
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Aug 10 21:24:51 2017 +0200
 
-    net/http: fix typo in doc string
+    runtime: replace some uses of newarray with newobject for maps
     
-    Change-Id: I4542f6c095a35a4dec03c67c45a75a155197eb56
-    Reviewed-on: https://go-review.googlesource.com/74650
-    Reviewed-by: Tom Bergan <tombergan@google.com>
+    This avoids the never triggered capacity checks in newarray.
+    
+    Change-Id: Ib72b204adcb9e3fd3ab963defe0cd40e22d5d492
+    Reviewed-on: https://go-review.googlesource.com/54731
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/hashmap.go      | 2 +-
+ src/runtime/hashmap_fast.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

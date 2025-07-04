@@ -1,13 +1,12 @@
-commit 642c7740818834faf752e9c64b7e746762194663
+commit 1c315893757f5803aef4278b041fa3c7e8f13992
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Feb 9 12:37:08 2011 +1100
+Date:   Wed Feb 9 12:34:50 2011 +1100
 
-    src/run.bash: get rid of long windows expression
+    .hgignore: ignore src/pkg/runtime/version_*.go
     
-    R=rsc
+    R=golang-dev, r2
     CC=golang-dev
-    https://golang.org/cl/4138041
+    https://golang.org/cl/4159041
 
- src/env.bash |  2 +-
- src/run.bash | 34 ++++++++++++++--------------------
- 2 files changed, 15 insertions(+), 21 deletions(-)
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

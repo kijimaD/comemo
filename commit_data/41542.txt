@@ -1,24 +1,26 @@
-commit 117297cf42c5fd96fc1392e600c8d62d3bba7c5f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 7 16:01:01 2020 -0800
+commit 8a9be4921a3cc91c80c02bb5b4cf2ad129c0c7cc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Sep 28 22:42:35 2019 -0400
 
-    go/types: simplify method set computation
+    [dev.link] cmd/link: use index for deadcode
     
-    After fixing #37081 we don't need to explicitly keep track of
-    field collisions in the method set computation anymore; we only
-    need to know which field (names) exists at each embedding level.
-    Simplify the code by removing the dedicated fieldSet data type
-    in favor of a simple string set.
+    Switch the deadcode pass to use indices instead of Symbol
+    structures when using new object file format. Delay loading
+    symbol relocations and contents fully after the deadcode pass.
+    The next step is not to create Symbol structures until deadcode
+    is done.
     
-    Follow-up on https://golang.org/cl/218617; separate CL to make it
-    easier to identify a problem with these two changes, should there
-    be one.
+    Method tracking logic hasn't been implemented. Currently, all
+    methods of a reachable type are live.
     
-    Updates #37081.
-    
-    Change-Id: I5c259c63c75a148a42d5c3e1e4860e1ffe5631bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218618
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Iffcd06ff84e6e52bd9eb24d1220d94234d18ab6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198199
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/types/methodset.go | 40 +++++++++-------------------------------
- 1 file changed, 9 insertions(+), 31 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go      |   9 ++
+ src/cmd/link/internal/ld/deadcode2.go     | 144 ++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go           |   8 +-
+ src/cmd/link/internal/objfile/objfile2.go | 176 ++++++++++++++++++++++++++----
+ 4 files changed, 312 insertions(+), 25 deletions(-)

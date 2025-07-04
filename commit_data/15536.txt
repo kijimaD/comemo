@@ -1,24 +1,14 @@
-commit 139160eb30b34ebb289c36fcbc97df5952b56dc9
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Mar 1 12:51:19 2013 -0500
+commit 83f59d0a4f5a52a1390e9eb6550532a0eddcd338
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 12:00:24 2013 -0500
 
-    exp/ssa: fix bug in bridge method
+    net/http/cgi: disable TestCopyError to try to fix darwin/386 on builder
     
-    Bridge methods for embedded interfaces were
-    passing the interface twice: once as receiver,
-    once as first param.
-    Covered by $GOROOT/test/ddd.go.
+    Update #4958.
     
-    Also:
-    - invent names ("arg%d") for parameters if missing.
-    - refactoring: move common code for bridge methods into
-      createParams and emitTailCall.
-    
-    R=gri
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7437047
+    https://golang.org/cl/7434047
 
- src/pkg/exp/ssa/builder.go |  1 -
- src/pkg/exp/ssa/emit.go    |  8 +++++++-
- src/pkg/exp/ssa/promote.go | 43 +++++++++++++++++--------------------------
- 3 files changed, 24 insertions(+), 28 deletions(-)
+ src/pkg/net/http/cgi/host_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

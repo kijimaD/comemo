@@ -1,19 +1,29 @@
-commit 7f331e0e1735449380299654dc915fb5c8fe84ab
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jan 25 03:10:04 2020 +1100
+commit b9704872d11ae224ca96a1bd2fab0da10ce806d7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 4 15:16:25 2019 -0700
 
-    test: adjust tests for riscv64
+    cmd/compile: better integrate parameter tagging with escape.go
     
-    This disables some tests that are unsupported on riscv64 and adds support
-    for risc64 to test/nosplit.
+    This CL moves parameter tagging to before escape analysis is complete,
+    so we still have access to EscLocation. This will be useful once
+    EscLocation starts tracking higher-fidelity escape details.
     
-    Updates #27532, #36739 and #36765
+    Notably, this CL stops using n.Esc to record parameter escape analysis
+    details. Now escape analysis only ever sets n.Esc to EscNone or
+    EscHeap. (It still defaults to EscUnknown, and is set to EscNever in
+    some places though.)
     
-    Change-Id: I0a57797a05bc80236709fc240c0a0efb0ee0d16b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216263
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Passes toolstash-check.
+    
+    Updates #33981.
+    
+    Change-Id: I50a91ea1e38c442092de6cd14e20b211f8f818c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193178
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/fixedbugs/issue10607.go | 5 ++++-
- test/inline_sync.go          | 5 ++++-
- test/nosplit.go              | 3 +++
- 3 files changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/esc.go    | 44 +++++++++++++++++++++----------
+ src/cmd/compile/internal/gc/escape.go | 49 +++++++++++++----------------------
+ test/uintptrescapes2.go               |  2 +-
+ 3 files changed, 49 insertions(+), 46 deletions(-)

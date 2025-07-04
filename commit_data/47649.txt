@@ -1,21 +1,25 @@
-commit 7ccbcc90560468937f02609a43cb39a6e13ff797
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri Nov 19 16:33:42 2021 -0600
+commit 6ed045b365731e59fcae48de48f1aea7a6304eb3
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Mar 31 14:25:33 2021 -0400
 
-    misc/cgo/test: further reduce likeliness of hang in Test9400
+    cmd/go: refactor modload.CheckRetractions
     
-    As suggested by #49680, a GC could be in-progress when we
-    disable GC. Force a GC after we pause to ensure we don't
-    hang in this case.
+    Extract queryLatestVersionIgnoringRetractions, which returns the
+    version we should load retractions and deprecations from. This will be
+    shared with CheckDeprecations.
     
-    For #49695
+    Rename ShortRetractionRationale to ShortMessage. This will be used to
+    shorten deprecation warnings as well.
     
-    Change-Id: I4fc4c06ef2ac174217c3dcf7d58c7669226e2d24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367874
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    For #40357
+    
+    Change-Id: Ic1e0c670396bdb3bd87c7a97cf2b14ca58ea1d80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306332
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- misc/cgo/test/testdata/issue9400_linux.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/internal/modload/modfile.go             | 179 ++++++++++++---------
+ .../go/testdata/script/mod_retract_rationale.txt   |   4 +-
+ 2 files changed, 104 insertions(+), 79 deletions(-)

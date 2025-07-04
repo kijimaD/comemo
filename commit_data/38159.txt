@@ -1,16 +1,62 @@
-commit d24c3124cab290f5f7e1c75be4c6cbe6dd05a85c
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Fri Mar 1 01:03:20 2019 +0100
+commit dc6eb200dd59dfedaa5259565b8ef1aa96a39271
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Sep 29 18:17:29 2018 +0300
 
-    misc/android: evaluate symlinks before comparing GOROOT and GOPATH
+    syscall: FreeBSD 12 ino64 support
     
-    Should fix Android builders on Darwin hosts.
+    This is similar to CL 136816 for x/sys/unix, changing the FreeBSD ABI to use 64-bit inodes in
+    Stat_t, Statfs_t, and Dirent types.
     
-    Change-Id: I1554849bdf2ad2440529af7f93566fa6f11d5407
-    Reviewed-on: https://go-review.googlesource.com/c/164697
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The changes are forward compatible, that is FreeBSD 10.x, 11.x continue to use their current sysnum numbers.
+    The affected types are converted to the new layout (with some overhead).
+    Thus the same statically linked binary should work using the native sysnums (without any conversion) on FreeBSD 12.
+    
+    Breaking API changes in package syscall are:
+    Mknod takes a uint64 (C dev_t) instead of int.
+    Stat_t: Dev, Ino, Nlink, Rdev, Gen became uint64.
+      Atimespec, Mtimespec, Ctimespec, Birthtimespec renamed to Atim, Mtim, Ctim, Birthtim respectively.
+    
+    Statfs_t: Mntonname and Mntfromname changed from [88]int8 to [1024]int8 arrays.
+    
+    Dirent: Fileno became uint64, Namlen uint16 and an additional field Off int64 (currently unused) was added.
+    
+    The following commands were run to generate ztypes_* and zsyscall_* on FreeBSD-12.0-ALPHA6 systems (GOARCH=386 were run on the same amd64 host):
+    GOOS=freebsd GOARCH=amd64 ./mksyscall.pl -tags freebsd,amd64 syscall_bsd.go syscall_freebsd.go syscall_freebsd_amd64.go |gofmt >zsyscall_freebsd_amd64.go
+    GOOS=freebsd GOARCH=amd64 go tool cgo -godefs types_freebsd.go | GOOS=freebsd GOARCH=amd64 go run mkpost.go >ztypes_freebsd_amd64.go
+    
+    GOOS=freebsd GOARCH=386 ./mksyscall.pl -l32 -tags freebsd,386 syscall_bsd.go syscall_freebsd.go syscall_freebsd_386.go |gofmt >zsyscall_freebsd_386.go
+    GOOS=freebsd GOARCH=386 go tool cgo -godefs types_freebsd.go | GOOS=freebsd GOARCH=386 go run mkpost.go >ztypes_freebsd_386.go
+    
+    GOOS=freebsd GOARCH=arm ./mksyscall.pl -l32 -arm -tags freebsd,arm syscall_bsd.go syscall_freebsd.go syscall_freebsd_arm.go |gofmt >zsyscall_freebsd_arm.go
+    GOOS=freebsd GOARCH=arm go tool cgo -godefs -- -fsigned-char types_freebsd.go | GOOS=freebsd GOARCH=arm go run mkpost.go >ztypes_freebsd_arm.go
+    
+    The Kevent struct was changed to use the FREEBSD_COMPAT11 version always (requiring the COMPAT_FREEBSD11 kernel option FreeBSD-12, this is the default).
+    
+    The definitions of ifData were not updated, their functionality in has have been replaced by vendored golang.org/x/net/route.
+    
+    freebsdVersion initialization was dropped from init() in favor of a sync.Once based wrapper - supportsABI().
+    
+    Updates #22448.
+    
+    Change-Id: I359b756e2849c036d7ed7f75dbd6ec836e0b90b4
+    Reviewed-on: https://go-review.googlesource.com/c/138595
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/android/go_android_exec.go | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+ api/except.txt                        |  98 ++++++++++++
+ src/archive/tar/stat_actime1.go       |   2 +-
+ src/archive/tar/stat_actime2.go       |   2 +-
+ src/os/stat_freebsd.go                |   4 +-
+ src/runtime/defs_freebsd.go           |   3 +-
+ src/syscall/route_freebsd.go          |   4 -
+ src/syscall/route_freebsd_32bit.go    |   2 +-
+ src/syscall/syscall_freebsd.go        | 281 ++++++++++++++++++++++++++++++++--
+ src/syscall/types_freebsd.go          |  72 +++------
+ src/syscall/zsyscall_freebsd_386.go   |  96 +++++++++++-
+ src/syscall/zsyscall_freebsd_amd64.go |  96 +++++++++++-
+ src/syscall/zsyscall_freebsd_arm.go   |  96 +++++++++++-
+ src/syscall/ztypes_freebsd_386.go     | 111 +++++++++++---
+ src/syscall/ztypes_freebsd_amd64.go   | 105 ++++++++++---
+ src/syscall/ztypes_freebsd_arm.go     | 103 ++++++++++---
+ 15 files changed, 923 insertions(+), 152 deletions(-)

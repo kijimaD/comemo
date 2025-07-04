@@ -1,20 +1,14 @@
-commit 1d8ec87135d109aebbac5631bda9c2af37f5d593
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Mar 23 10:48:51 2012 -0400
+commit 76cf6bac07a8188d99788d76a12774d0f9f5e3ec
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 23 17:40:27 2012 +1100
 
-    crypto/tls: don't select ECC ciphersuites with no mutual curve.
+    doc/articles/defer_panic_recover.html: minor tweaks
+    Delete () from function names and change the reference to some
+    functions to the correct term, methods.
     
-    The existing code that tried to prevent ECC ciphersuites from being
-    selected when there were no mutual curves still left |suite| set.
-    This lead to a panic on a nil pointer when there were no acceptable
-    ciphersuites at all.
-    
-    Thanks to George Kadianakis for pointing it out.
-    
-    R=golang-dev, r, bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5857043
+    https://golang.org/cl/5874063
 
- src/pkg/crypto/tls/handshake_server.go | 10 ++++++----
- src/pkg/crypto/tls/key_agreement.go    |  4 ++++
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ doc/articles/defer_panic_recover.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

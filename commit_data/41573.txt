@@ -1,13 +1,19 @@
-commit 55d4cbfbe10c11e56e1642cbb6b108eaf2620e09
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 5 12:55:44 2020 -0800
+commit e49ecaaa0a1d6f6356b4db16ac170123e11f9e62
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Oct 12 12:05:58 2019 +0200
 
-    cmd/compile/internal/scanner: report correct directive string (fix build)
+    runtime: adjust expected error threshold in TestSelectFairness
     
-    Change-Id: I01b244e97e4140545a46b3d494489a30126c2139
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222257
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Make it a bit more relaxed on the expected fairness, as fastrand()
+    isn't a truly perfect random number generator.
+    
+    Fixes #34808
+    
+    Change-Id: Ib55b2bbe3c1bf63fb4f446fd1291eb1236efc33b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200857
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/syntax/scanner.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/chan_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

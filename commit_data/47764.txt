@@ -1,21 +1,20 @@
-commit 1c1998ea08d41ef09ef16c22eb8e53ea0eb569c5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Dec 11 16:17:46 2021 -0800
+commit d11968012c81e6eef3a1f3ff4c19a610222fc305
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 9 12:53:27 2021 -0400
 
-    net/netip: fix formatting of IPv4-in-6 address with zone
+    test/abi: disable test with old-style build tag known to run.go
     
-    Weird, but don't drop the zone when stringifying.
+    A quick check of the source to run.go suggests that it does not
+    look for the new-style build tags.
     
-    Fixes #50111
+    Updates #45465.
     
-    Change-Id: I5fbccdfedcdc77a77ee6bafc8d82b8ec8ec7220c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371094
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
-    Trust: Matt Layher <mdlayher@gmail.com>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib4be040935d71e732f81d52c4a22c2b514195f40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308934
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: David Chase <drchase@google.com>
 
- src/net/netip/netip.go      | 21 ++++++++++++++++++---
- src/net/netip/netip_test.go |  6 ++++++
- 2 files changed, 24 insertions(+), 3 deletions(-)
+ test/abi/bad_select_crash.go | 1 +
+ 1 file changed, 1 insertion(+)

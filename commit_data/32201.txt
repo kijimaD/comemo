@@ -1,16 +1,32 @@
-commit 09ed0f68059552abeeae78867ffc2956205df22a
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Aug 12 22:15:43 2017 +0200
+commit b8d327a438c99daa46acde41aebdcc77781fb9ee
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Apr 10 15:01:26 2017 -0400
 
-    strconv: avoid truncation of output in parse int tests
+    cmd/compile: fix PPC64.rules for LoweredMove
     
-    If needed cast the test table values to a higher bit size
-    integer type instead of casting the result values of the
-    tested function to a lower bit size integer type.
+    A recent performance improvement for PPC64.rules introduced a
+    regression for the case where the size of a move is <= 8 bytes
+    and the value used in the offset field of the instruction is not
+    aligned correctly for the instruction. In the cases where this happened,
+    the assembler was not detecting the incorrect offset and still generated
+    the instruction even though it was invalid.
     
-    Change-Id: Iaa79742b2b1d90c7c7eac324f54032ebea0b1b41
-    Reviewed-on: https://go-review.googlesource.com/55137
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    This fix changes the PPC64.rules for the moves that are now failing
+    to include the correct alignment checks, along some additional testcases
+    for gc/ssa for the failing alignments.
+    
+    I will add a fix to the assembler to detect incorrect offsets in
+    another CL.
+    
+    This fixes #19907
+    
+    Change-Id: I3d327ce0ea6afed884725b1824f9217cef2fe6bf
+    Reviewed-on: https://go-review.googlesource.com/40290
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/strconv/atoi_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/testdata/copy.go       | 108 +++++++++++
+ .../compile/internal/gc/testdata/gen/copyGen.go    |  35 ++++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules       |  38 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 202 ++-------------------
+ 4 files changed, 169 insertions(+), 214 deletions(-)

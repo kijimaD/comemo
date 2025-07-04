@@ -1,30 +1,21 @@
-commit 4d9bda51ff91f79944a12106b77315c9414b851a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Apr 28 11:15:44 2016 -0700
+commit cea5d26aa21ab224b84c59983ffd1f022e65e008
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 15 18:08:22 2016 +1100
 
-    net: append ":53" to DNS servers when reading resolv.conf
+    cmd/compile/internal/gc: remove Thearch.Linkarchinit
     
-    Avoids generating some redundant garbage from re-concatenating the
-    same string for every DNS query.
-    
-    benchmark                                      old allocs     new allocs     delta
-    BenchmarkGoLookupIP-32                         156            154            -1.28%
-    BenchmarkGoLookupIPNoSuchHost-32               456            446            -2.19%
-    BenchmarkGoLookupIPWithBrokenNameServer-32     577            564            -2.25%
-    
-    benchmark                                      old bytes     new bytes     delta
-    BenchmarkGoLookupIP-32                         10873         10824         -0.45%
-    BenchmarkGoLookupIPNoSuchHost-32               43303         43140         -0.38%
-    BenchmarkGoLookupIPWithBrokenNameServer-32     46824         46616         -0.44%
-    
-    Update #15473.
-    
-    Change-Id: I3b0173dfedf31bd08eaea1069968b416850864a1
-    Reviewed-on: https://go-review.googlesource.com/22556
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8e990204c7a1e65d6b8e4262f6b5b9bd0cb3540c
+    Reviewed-on: https://go-review.googlesource.com/20725
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/dnsclient_unix.go      | 1 -
- src/net/dnsclient_unix_test.go | 4 ++--
- src/net/dnsconfig_unix.go      | 8 ++++----
- src/net/dnsconfig_unix_test.go | 8 ++++----
- 4 files changed, 10 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/amd64/galign.go  | 28 ++++++++++------------------
+ src/cmd/compile/internal/arm/galign.go    |  4 ----
+ src/cmd/compile/internal/arm64/galign.go  |  4 ----
+ src/cmd/compile/internal/gc/go.go         |  1 -
+ src/cmd/compile/internal/gc/main.go       |  1 -
+ src/cmd/compile/internal/mips64/galign.go | 25 ++++++-------------------
+ src/cmd/compile/internal/ppc64/galign.go  | 25 ++++++-------------------
+ src/cmd/compile/internal/x86/galign.go    |  4 ----
+ 8 files changed, 22 insertions(+), 70 deletions(-)

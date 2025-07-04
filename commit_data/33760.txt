@@ -1,24 +1,18 @@
-commit 3716ba033774489553300086b126bd10c2b29f57
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 1 10:29:10 2017 -0500
+commit 9c3f2685589e05c21563c583b683d00703eb0090
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Sep 2 14:31:13 2017 +0200
 
-    cmd/go: fix -outputdir -coverprofile interaction
+    cmd/compile: set hiter type for map iterator in order pass
     
-    The CL introducing merged handling of cover profiles
-    did not correctly account for the fact that the file name argument
-    to -coverprofile is required to be interpreted relative to
-    the -outputdir argument.
+    Previously the type was first set to uint8 and then corrected
+    later in walkrange.
     
-    Fixes #22804.
-    
-    Change-Id: I804774013c12187313b8fd2044302978bdbb6697
-    Reviewed-on: https://go-review.googlesource.com/81455
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I9e4b597710e8a5fad39dde035df85676bc8d2874
+    Reviewed-on: https://go-review.googlesource.com/61032
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/go_test.go                | 2 +-
- src/cmd/go/internal/test/cover.go    | 4 ++++
- src/cmd/go/internal/test/test.go     | 1 +
- src/cmd/go/internal/test/testflag.go | 5 ++---
- 4 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 5 +++--
+ src/cmd/compile/internal/gc/range.go | 3 +--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

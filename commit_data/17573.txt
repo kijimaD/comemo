@@ -1,14 +1,23 @@
-commit e38eddbfe4f2aff84a200d51b52fab4b38ae4f26
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Sep 12 11:18:34 2013 +1000
+commit bab302dea2f31e1ab04d17bc42050d0610c15793
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 20:29:22 2013 -0400
 
-    cmd/8l: fix 386 builds
+    undo CL 13348045 / 43675523c526
     
-    Remove set but unused variable.
+    There is no reason to do this, and it's more work.
     
-    R=rsc
+    ««« original CL description
+    net: make channel-based semaphore depend on receive, not send
+    
+    R=r, dvyukov
     CC=golang-dev
-    https://golang.org/cl/13490047
+    https://golang.org/cl/13348045
+    
+    »»»
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13632047
 
- src/cmd/8l/pass.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/net/net.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

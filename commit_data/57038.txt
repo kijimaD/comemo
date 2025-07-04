@@ -1,23 +1,24 @@
-commit eea2e929fae6abbc1422f8ee26de02a4b7e4f8cd
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jul 26 15:57:27 2024 -0400
+commit 1db23771afc7b9b259e926db35602ecf5047ae23
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 8 17:55:55 2023 -0400
 
-    debug/buildinfo: reuse buffer in searchMagic
+    cmd/go: omit checksums for go.mod files needed for go version lines more often in pre-1.21 modules
     
-    Allocating a new buffer for each chunk in searchMagic is very
-    inefficient. Refactor reading to allow us to reuse the same buffer for
-    each iteration.
+    This updates the logic from CL 489075 to avoid trying to save extra
+    sums if they aren't already expected to be present
+    and cfg.BuildMod != "mod" (as in the case of "go list -m -u all" with
+    a go.mod file that specifies go < 1.21).
     
-    This reduces the runtime of `go version` on a 2.5GB non-Go binary from
-    ~1s and ~25MB RSS to ~250ms and ~15MB RSS.
+    Fixes #60667.
+    Updates #56222.
     
-    For #68592.
-    
-    Change-Id: Idae5c2c9b3b8a7158d5cc7f2f008998be75fd7af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601460
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ied6ed3e80a62f9cd9a328b43a415a42d14481056
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502015
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/debug/buildinfo/buildinfo.go   | 101 +++++++++++++++++++++++--------------
- src/debug/buildinfo/search_test.go |  14 +++--
- 2 files changed, 68 insertions(+), 47 deletions(-)
+ src/cmd/go/internal/modload/init.go               | 17 ++++++++++++++---
+ src/cmd/go/testdata/script/mod_sum_issue56222.txt |  4 ++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)

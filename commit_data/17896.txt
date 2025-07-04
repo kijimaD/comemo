@@ -1,12 +1,12 @@
-commit de0fd9aceeeaccee8c1851c22eb8bc1b2ad913c7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Dec 2 09:06:41 2013 +1100
+commit 07d2195c66cfbd289925acea2951bcd311bb0a76
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Mon Nov 25 13:36:16 2013 +1100
 
-    tag go1.2
+    doc/install.html: fix a tag.
     
-    R=golang-dev, dsymonds, alex.brainman
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/35000043
+    https://golang.org/cl/30900044
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/install.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

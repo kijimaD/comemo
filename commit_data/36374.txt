@@ -1,19 +1,36 @@
-commit e7f59f02841361cbeb75241df6cecb697f47a989
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Aug 20 10:55:26 2018 +0200
+commit 3bf16444283094bf03a96fa76f3c5dd4c84867b2
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Apr 24 12:42:47 2018 -0400
 
-    cmd/compile/internal/gc: unexport Deferproc and Newproc
+    runtime/trace: add simple benchmarks for user annotation
     
-    They are no longer used outside the package since CL 38080.
+    Also, avoid Region creation when tracing is disabled.
+    Unfortunate side-effect of this change is that we no longer trace
+    pre-existing regions in tracing, but we can add the feature in
+    the future when we find it useful and justifiable. Until then,
+    let's avoid the overhead from this low-level api use as much as
+    possible.
     
-    Passes toolstash-check -all
+    goos: linux
+    goarch: amd64
+    pkg: runtime/trace
     
-    Change-Id: I30977ed2b233b7c8c53632cc420938bc3b0e37c6
-    Reviewed-on: https://go-review.googlesource.com/129781
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    // Trace disabled
+    BenchmarkStartRegion-12 2000000000               0.66 ns/op            0 B/op          0 allocs/op
+    BenchmarkNewTask-12     30000000                40.4 ns/op            56 B/op          2 allocs/op
+    
+    // Trace enabled, -trace=/dev/null
+    BenchmarkStartRegion-12  5000000               287 ns/op              32 B/op          1 allocs/op
+    BenchmarkNewTask-12      5000000               283 ns/op              56 B/op          2 allocs/op
+    
+    Also, skip other tests if tracing is already enabled.
+    
+    Change-Id: Id3028d60b5642fcab4b09a74fd7d79361a3861e5
+    Reviewed-on: https://go-review.googlesource.com/109115
+    Reviewed-by: Peter Weinberger <pjw@google.com>
 
- src/cmd/compile/internal/gc/go.go  |  4 ++--
- src/cmd/compile/internal/gc/ssa.go | 10 +++++-----
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/runtime/trace/annotation.go       |  8 ++++++++
+ src/runtime/trace/annotation_test.go  | 31 ++++++++++++++++++++++++++++++-
+ src/runtime/trace/trace_stack_test.go |  9 ++++++++-
+ src/runtime/trace/trace_test.go       | 21 +++++++++++++++++++++
+ 4 files changed, 67 insertions(+), 2 deletions(-)

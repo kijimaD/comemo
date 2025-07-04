@@ -1,26 +1,17 @@
-commit aa5b44aeabccd25a320d6ea609c41781bdbf5ce0
+commit c28a8e4553fed920425c6c9cb32d20f2da2f7a9a
 Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Feb 20 12:53:34 2016 -0800
+Date:   Mon Nov 23 15:21:13 2015 -0800
 
-    cmd/compile: set lexer nlsemi state directly
+    test: add test case for issue 13268
     
-    The old code used an extra function call and switch to inspect the
-    current token and determine the new state of curio.nlsemi. However,
-    the lexer knows the token w/o the need of an extra test and thus
-    can set curio.nlsemi directly:
+    See https://go-review.googlesource.com/#/c/17047/ for the bug fix.
     
-    - removed need for extra function call in next
-    - renamed _yylex to next
-    - set nlsemi at the point a token is identified
-    - moved nlsemi from curio to lexer - it's really part of the lexer state
-    
-    This change makes the lexer call sequence less convoluted and should
-    also speed up the lexing a bit.
-    
-    Change-Id: Iaf2683081f04231cb62c94e1400d455f98f6f82a
-    Reviewed-on: https://go-review.googlesource.com/19765
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Id5b0a37439d0f8f1e668f7c2ac84335b37f3a300
+    Reviewed-on: https://go-review.googlesource.com/17177
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/go.go  |   1 -
- src/cmd/compile/internal/gc/lex.go | 135 +++++++++++++++++++------------------
- 2 files changed, 71 insertions(+), 65 deletions(-)
+ test/fixedbugs/issue13268.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

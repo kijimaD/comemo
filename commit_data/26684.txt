@@ -1,33 +1,30 @@
-commit ed8f0e5c33269de2f950d33ab7d50554b13f336e
-Author: Christopher Nelson <nadiasvertex@gmail.com>
-Date:   Sun Dec 13 08:02:29 2015 -0500
+commit 88c1ef5b450a9cb50ee412b0240e135a74e64517
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Mon Feb 22 11:19:15 2016 +0100
 
-    cmd/go: fix -buildmode=c-archive should work on windows
+    [dev.ssa] cmd/compile/internal/ssa: handle commutative operations in cse
     
-    Add supporting code for runtime initialization, including both
-    32- and 64-bit x86 architectures.
+    * If a operation is commutative order the parameters
+    in a canonical way.
     
-    Add .ctors section on Windows to PE .o files, and INITENTRY to .ctors
-    section to plug in to the GCC C/C++ startup initialization mechanism.
-    This allows the Go runtime to initialize itself. Add .text section
-    symbol for .ctor relocations. Note: This is unlikely to be useful for
-    MSVC-based toolchains.
+    Size of pkg/tool/linux_amd64/* excluding compile:
+    before: 95882288
+     after: 95868152
+    change: 14136 ~0.015%
     
-    Fixes #13494
+    I tried something similar with Leq and Geq, but the results were
+    not great because it confuses the 'lowered cse' pass too much
+    which can no longer remove redundant comparisons from IsInBounds.
     
-    Change-Id: I4286a96f70e5f5228acae88eef46e2bed95813f3
-    Reviewed-on: https://go-review.googlesource.com/18057
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2f928663a11320bfc51c7fa47e384b7411c420ba
+    Reviewed-on: https://go-review.googlesource.com/19727
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go             |  7 +-
- src/cmd/dist/test.go                               |  2 +-
- src/cmd/link/internal/ld/data.go                   |  6 ++
- src/cmd/link/internal/ld/lib.go                    | 16 ++++-
- src/cmd/link/internal/ld/pe.go                     | 71 ++++++++++++++++++-
- src/runtime/cgo/gcc_libinit_windows.c              | 80 ++++++++++++++++++++--
- src/runtime/os1_windows.go                         | 16 ++++-
- src/runtime/rt0_windows_386.s                      | 34 +++++++++
- src/runtime/rt0_windows_amd64.s                    | 31 +++++++++
- .../testdata/testprogcgo/threadpanic_windows.c     |  3 +-
- 10 files changed, 248 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go            |   4 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  60 +++++-----
+ src/cmd/compile/internal/ssa/gen/main.go       |   6 +-
+ src/cmd/compile/internal/ssa/op.go             |   1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 150 +++++++++++++++----------
+ 5 files changed, 130 insertions(+), 91 deletions(-)

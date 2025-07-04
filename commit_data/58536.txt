@@ -1,16 +1,18 @@
-commit e2e700f8b174f34b44c32d7e923ffe4e7219e171
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Jan 24 12:21:36 2025 -0800
+commit 7bf540012cd361cb7fac1fd224d7e7795fd52d81
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Nov 11 05:32:13 2023 +0000
 
-    crypto/internal/boring: keep ECDH public key alive during cgo calls
+    log/slog: fix comments for *handleState.appendAttr
     
-    This prevents a possible use-after-free.
-    
-    Change-Id: I02488206660d38cac5ebf2f11009907ae8f22157
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644119
+    Change-Id: I8b9a6d177d297b9b1e890bf1d8a46a4b3311910f
+    GitHub-Last-Rev: 24067b8714129debd778098b1906d3c5cc3f9d5e
+    GitHub-Pull-Request: golang/go#64070
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541519
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
 
- src/crypto/internal/boring/ecdh.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/log/slog/handler.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

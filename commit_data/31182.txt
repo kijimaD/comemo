@@ -1,28 +1,24 @@
-commit af5c95117b26e22d942a12e15bdc8e25607f738c
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Mon Apr 17 15:09:10 2017 +0300
+commit 76db88ab4db6c95731d32dc4eefafa674db1203a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 13:40:24 2017 -0500
 
-    sync: improve Pool performance
+    cmd/go: split out cmd/go/internal/bug
     
-    Rewrite indexLocal to achieve higher performance.
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
     
-    Performance results on linux/amd64:
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
     
-    name            old time/op  new time/op  delta
-    Pool-4          19.1ns ± 2%  10.1ns ± 1%  -47.15%  (p=0.000 n=10+8)
-    PoolOverflow-4  3.11µs ± 1%  2.10µs ± 2%  -32.66%  (p=0.000 n=10+10)
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
     
-    Performance results on linux/386:
+    For #18653.
     
-    name            old time/op  new time/op  delta
-    Pool-4          20.0ns ± 2%  13.1ns ± 1%  -34.59%  (p=0.000 n=10+9)
-    PoolOverflow-4  3.51µs ± 1%  2.49µs ± 0%  -28.99%  (p=0.000 n=10+8)
-    
-    Change-Id: I7d57a2d4cd47ec43d09ca1267bde2e3f05a9faa9
-    Reviewed-on: https://go-review.googlesource.com/40913
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I05629567cc33fef41bc74eba4f7ff66e4851343c
+    Reviewed-on: https://go-review.googlesource.com/36203
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/sync/pool.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/{ => internal/bug}/bug.go | 11 ++++++-----
+ src/cmd/go/main.go                   |  3 ++-
+ 2 files changed, 8 insertions(+), 6 deletions(-)

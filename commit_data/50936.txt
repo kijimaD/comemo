@@ -1,21 +1,21 @@
-commit a8e4b8c2a793de420ebbe7120c132f0b090d068c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 18 13:00:26 2022 -0700
+commit ce7e5013a68ef4572b9fa439b1402145ef710631
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 19:26:37 2021 -0500
 
-    go/types: remove pkgForMode in favor of pkgFor (cleanup)
+    go/types: allow slicing for operands with []byte|string type sets
     
-    The mode is always 0.
+    This is a port of CL 363662 from types2 to go/types. An error message
+    was adjusted to be on the operand in test data.
     
-    Change-Id: I6566383c7724b26f070729041bce203a5afa0989
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443776
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I4d2d69976f4f05e0d89ba1c6bf8b3e4cf1a82316
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364899
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/types/api_test.go         | 14 +++++---------
- src/go/types/instantiate_test.go | 10 +++++-----
- src/go/types/methodset_test.go   |  2 +-
- src/go/types/named_test.go       |  2 +-
- 4 files changed, 12 insertions(+), 16 deletions(-)
+ src/go/types/builtins.go                   | 23 ++++---------------
+ src/go/types/index.go                      |  4 ++--
+ src/go/types/testdata/check/typeparams.go2 |  4 ++++
+ src/go/types/type.go                       | 37 ++++++++++++++++++++++++++++++
+ 4 files changed, 47 insertions(+), 21 deletions(-)

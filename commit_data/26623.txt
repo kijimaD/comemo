@@ -1,22 +1,38 @@
-commit e6066711a0f92824ded94849e4f1085c2ba612c3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 31 02:04:12 2016 -0700
+commit b04f3b06ec347543b0eafe82dcfb0e05885d3feb
+Author: Nathan VanBenschoten <nvanbenschoten@gmail.com>
+Date:   Tue Dec 22 02:40:47 2015 -0500
 
-    cmd/compile, runtime: fix pedantic int->string conversions
+    all: replace strings.Index with strings.Contains where possible
     
-    Previously, cmd/compile rejected constant int->string conversions if
-    the integer value did not fit into an "int" value. Also, runtime
-    incorrectly truncated 64-bit values to 32-bit before checking if
-    they're a valid Unicode code point. According to the Go spec, both of
-    these cases should instead yield "\uFFFD".
-    
-    Fixes #15039.
-    
-    Change-Id: I3c8a3ad9a0780c0a8dc1911386a523800fec9764
-    Reviewed-on: https://go-review.googlesource.com/21344
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia613f1c37bfce800ece0533a5326fca91d99a66a
+    Reviewed-on: https://go-review.googlesource.com/18120
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/const.go |  8 ++++----
- src/runtime/string.go                |  3 +++
- test/fixedbugs/issue15039.go         | 25 +++++++++++++++++++++++++
- 3 files changed, 32 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/big/ratconv.go | 4 ++--
+ src/cmd/compile/internal/gc/bexport.go  | 2 +-
+ src/encoding/csv/writer.go              | 2 +-
+ src/encoding/gob/codec_test.go          | 2 +-
+ src/encoding/gob/encoder_test.go        | 8 ++++----
+ src/encoding/gob/gobencdec_test.go      | 4 ++--
+ src/encoding/xml/marshal.go             | 2 +-
+ src/fmt/scan_test.go                    | 8 ++++----
+ src/go/doc/comment.go                   | 2 +-
+ src/go/types/universe.go                | 2 +-
+ src/math/big/ratconv.go                 | 4 ++--
+ src/mime/grammar.go                     | 2 +-
+ src/net/http/fs.go                      | 2 +-
+ src/net/rpc/server_test.go              | 4 ++--
+ src/net/url/url.go                      | 2 +-
+ src/os/exec/lp_windows.go               | 2 +-
+ src/path/filepath/match.go              | 4 ++--
+ src/path/filepath/match_test.go         | 2 +-
+ src/path/match.go                       | 2 +-
+ src/regexp/regexp.go                    | 2 +-
+ src/regexp/syntax/regexp.go             | 2 +-
+ src/runtime/debug/stack_test.go         | 2 +-
+ src/text/template/exec.go               | 2 +-
+ src/text/template/funcs.go              | 2 +-
+ src/text/template/parse/lex.go          | 4 ++--
+ src/time/format_test.go                 | 2 +-
+ 26 files changed, 38 insertions(+), 38 deletions(-)

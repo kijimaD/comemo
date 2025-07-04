@@ -1,18 +1,22 @@
-commit 727e8d3863f45789e559d4a9d20286026cb5bb07
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Fri Feb 23 01:06:40 2024 +0000
+commit 9f2fe2d721a10cd1066c52e22efc49a59a81b76d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 1 08:06:42 2023 -0800
 
-    runtime: add crash stack support for arm
+    go/types, types2: change missingMethod to match MissingMethod signature
     
-    Change-Id: Ide4002d1cf82f2daaf7261b367c391dedbbf7719
-    GitHub-Last-Rev: 80ee248c3e34529e7a522acc97db9fb69c82dffb
-    GitHub-Pull-Request: golang/go#65308
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558699
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This simplifies the use of missingMethod and also opens the door to
+    further missingMethod-internal simplifications.
+    
+    Change-Id: I74d9694b6fca67c4103aea04d08916a69ad0e3c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472495
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/asm.s     |  2 ++
- src/runtime/asm_arm.s | 39 ++++++++++++++++++++++++++++++++-------
- src/runtime/proc.go   |  2 +-
- 3 files changed, 35 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/expr.go   |  3 +--
+ src/cmd/compile/internal/types2/lookup.go | 34 ++++++++++++++-----------------
+ src/go/types/expr.go                      |  3 +--
+ src/go/types/lookup.go                    | 34 ++++++++++++++-----------------
+ 4 files changed, 32 insertions(+), 42 deletions(-)

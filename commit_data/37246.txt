@@ -1,23 +1,45 @@
-commit 441cb988b4c63f4232edd7930758eb0e8cc8599b
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Nov 2 12:03:31 2018 -0400
+commit b888a6227fa56f4698f9e5ca74e8bee10830bebe
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 10 13:47:15 2018 -0700
 
-    cmd/internal/obj/arm64: fix encoding of 32-bit negated logical instructions
+    cmd/cgo: fix cgo bad typedefs
     
-    32-bit negated logical instructions (BICW, ORNW, EONW) with
-    constants were mis-encoded, because they were missing in the
-    cases where we handle 32-bit logical instructions. This CL
-    adds the missing cases.
+    Two fixes:
     
-    Fixes #28548
+    1) Typedefs of the bad typedefs should also not be rewritten to the
+       underlying type.  They shouldn't just be uintptr, though, they should
+       retain the C naming structure.  For example, in C:
     
-    Change-Id: I3d6acde7d3b72bb7d3d5d00a9df698a72c806ad5
-    Reviewed-on: https://go-review.googlesource.com/c/147077
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    Reviewed-by: Ben Shi <powerman1st@163.com>
+       typedef const __CFString * CFStringRef;
+       typedef CFStringRef SecKeyAlgorithm;
+    
+       we want the Go:
+    
+       type _Ctype_CFStringRef uintptr
+       type _Ctype_SecKeyAlgorithm = _Ctype_CFStringRef
+    
+    2) We need more types than just function arguments/return values.
+       At least we need types of global variables, so when we see a reference to:
+    
+       extern const SecKeyAlgorithm kSecKeyAlgorithmECDSASignatureDigestX962SHA1;
+    
+       we know that we need to investigate the type SecKeyAlgorithm.
+       Might as well just find every typedef and check the badness of all of them.
+       This requires looping until a fixed point of known types is reached.
+       Usually it takes just 2 iterations, sometimes 3.
+    
+    Fixes #24161
+    
+    Change-Id: I32ca7e48eb4d4133c6242e91d1879636f5224ea9
+    Reviewed-on: https://go-review.googlesource.com/123177
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s |  7 +++++++
- src/cmd/internal/obj/arm64/asm7.go        | 23 ++++++++---------------
- src/cmd/internal/obj/arm64/obj7.go        |  9 +++------
- 3 files changed, 18 insertions(+), 21 deletions(-)
+ misc/cgo/test/issue24161_darwin_test.go | 12 +++++
+ misc/cgo/test/issue24161e0/main.go      | 22 ++++++++
+ misc/cgo/test/issue24161e1/main.go      | 31 +++++++++++
+ misc/cgo/test/issue24161e2/main.go      | 33 ++++++++++++
+ src/cmd/cgo/gcc.go                      | 93 +++++++++++++++++++++++----------
+ src/cmd/cgo/main.go                     |  9 ++--
+ 6 files changed, 169 insertions(+), 31 deletions(-)

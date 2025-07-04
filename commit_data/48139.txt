@@ -1,17 +1,27 @@
-commit ca3fae1e0e2a4d7d1a6ba9eeb137d1d0f001e0a6
+commit 764f53eb6ccc55ad52ddfeed47485de76f4453bb
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 9 21:49:10 2022 -0800
+Date:   Tue Apr 27 18:05:20 2021 -0700
 
-    spec: use the term "generic" rather than "(type-)parameterized"
+    spec: clarify conditions for switch expression type
     
-    This makes the prose easier to read while being just as precise.
+    1. The existing prose implied that a switch expression type must
+       be comparable because it is tested for equality against all case
+       expressions. But for an empty switch (no case expressions), it
+       was not clear if the switch expression needed to be comparable.
+       Require it to match the behavior of compiler and type checkers.
     
-    Change-Id: Ie46c6c5042f419de9fdeb1c75bb72b5a40c37073
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384774
+    2. While making this change, remove redundant language explaining
+       what happens with untyped boolean switch expression values: the
+       default type of an untyped boolean value is bool, this is already
+       covered by the first part of the relevant sentence.
+    
+    Fixes #43200.
+    
+    Change-Id: Id8e0f29cfa8722b57cd2b7b58cba85b58c5f842b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314411
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go_spec.html | 50 +++++++++++++++++++++++++-------------------------
- 1 file changed, 25 insertions(+), 25 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

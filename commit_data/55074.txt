@@ -1,33 +1,15 @@
-commit 0cb45bac014715433c0110675cc4e32d871a5ff0
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 28 15:04:24 2023 -0400
+commit 628a1e7d3ac8390e0c6327acde1ab52ec09f69d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 15 09:10:20 2022 -0800
 
-    testing: use subprocesses in TestTBHelper and TestTBHelperParallel
+    doc/go1.20: fix typo
     
-    These tests are checking the output of test functions that call the
-    Helper methods. However, they were reaching into package internals
-    instead of running those test functions as actual tests.
-    
-    That not only produced significant differences in formatting (such as
-    indentation for subtests), but also caused test flags such as
-    "-failfast" passed for the overall test run to interfere with the
-    output formatting.
-    
-    Now, we run the test functions as real tests in a subprocess,
-    so that we get the real output and formatting of those tests.
-    This makes the tests not only more realistic, but also less
-    sensitive to otherwise-irrelevant implementation details
-    (such as the names and signatures of unexported types and
-    functions in the testing package).
-    
-    Fixes #61016.
-    
-    Change-Id: I646fbbd7cfeb00382054677f726c05fc9d35d0dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506955
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Icddf980e533b86ca955660ad028f5ad04b6aecbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457916
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/testing/helper_test.go      | 151 +++++++++++++++++++++-------------------
- src/testing/helperfuncs_test.go |  40 ++++++-----
- 2 files changed, 101 insertions(+), 90 deletions(-)
+ doc/go1.20.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

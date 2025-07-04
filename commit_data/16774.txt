@@ -1,15 +1,21 @@
-commit 7e270cf6c4be9ddc240c2661c18f163728cbb897
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Tue Jul 16 11:43:11 2013 +0200
+commit a15074c4dc909c6e27a98f8464b79863f446e8cc
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jul 16 09:04:20 2013 +0200
 
-    cmd/gc: fix incorrect error when using f(g()) form on ... args
+    cmd/gc: fix race detector instrumentation of type switches.
     
-    Fixes #5358.
+    A type switch on a value with map index expressions,
+    could get a spurious instrumentation from a OTYPESW node.
+    These nodes do not need instrumentation because after
+    walk the type switch has been turned into a sequence
+    of ifs.
     
-    R=golang-dev, rsc
+    Fixes #5890.
+    
+    R=golang-dev, dvyukov
     CC=golang-dev
-    https://golang.org/cl/11282044
+    https://golang.org/cl/11308043
 
- src/cmd/gc/typecheck.c      |  4 ++--
- test/fixedbugs/issue5358.go | 17 +++++++++++++++++
- 2 files changed, 19 insertions(+), 2 deletions(-)
+ src/cmd/gc/racewalk.c                     |  5 +----
+ src/pkg/runtime/race/testdata/mop_test.go | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 4 deletions(-)

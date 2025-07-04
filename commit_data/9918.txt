@@ -1,12 +1,16 @@
-commit 1444a08098c4ae3001d0aa017f505a97bc006806
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 11 08:49:09 2011 -0700
+commit 8440fdd9047f574e10c7bb544027a1bd3d86601b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 11 11:11:47 2011 +1100
 
-    fmt: fix doc typo
+    godoc: support multiple examples
+    gotest: document examples
+    go/doc: tidy comment
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5252050
+    https://golang.org/cl/5235055
 
- src/pkg/fmt/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/godoc/godoc.go    |  9 +++++++--
+ src/cmd/gotest/doc.go     | 12 ++++++++++++
+ src/pkg/go/doc/example.go |  6 +++---
+ 3 files changed, 22 insertions(+), 5 deletions(-)

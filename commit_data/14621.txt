@@ -1,20 +1,29 @@
-commit bf59aafddc92ef52e9e5c61152e2c1d182f453bf
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Wed Dec 12 16:43:54 2012 +0100
+commit 5bdf40dccab1fec0660c4374be9046d82a1a004f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Dec 12 19:25:22 2012 +1100
 
-    cmd/gc: Give better line numbers for errors in composite literals.
+    cmd/5g: avoid temporary during OMINUS
     
-    Credit to Russ for suggesting this fix.
+    Saves one MOVW and one register during the fast div/mod introduced in CL 6819123.
     
-    Fixes #3925.
+    linux/arm (armv5)
     
-    R=golang-dev, franciscossouza, rsc
+    benchmark               old ns/op    new ns/op    delta
+    BenchmarkInt64Mod1             12           12   +7.50%
+    BenchmarkUint16Mod2             7            7   +0.28%
+    BenchmarkUint16Mod4             7            7   -0.28%
+    BenchmarkUint64Mod1            15           11  -23.72%
+    BenchmarkInt8Neg                8            7  -17.66%
+    BenchmarkInt16Neg               8            7  -17.66%
+    BenchmarkInt32Neg               5            5   -9.04%
+    BenchmarkUint8Neg               7            6  -14.35%
+    BenchmarkUint16Neg              8            7  -17.66%
+    BenchmarkUint32Neg              5            5   -9.04%
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6920051
+    https://golang.org/cl/6842045
 
- src/cmd/gc/go.y             |   29 +-
- src/cmd/gc/y.tab.c          | 3280 ++++++++++++++++++++++++-------------------
- src/cmd/gc/y.tab.h          |   36 +-
- src/cmd/gc/yerr.h           |    2 +-
- test/fixedbugs/issue3925.go |   23 +
- 5 files changed, 1869 insertions(+), 1501 deletions(-)
+ src/cmd/5g/cgen.c  | 11 ++++-------
+ src/cmd/5g/gsubr.c | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 7 deletions(-)

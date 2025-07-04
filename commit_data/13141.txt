@@ -1,19 +1,17 @@
-commit e4ed9494e5a9a6f2c05f84f9279c8062d8a9427d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 23 11:19:38 2012 -0700
+commit 7482822bba44be97fd0b08ff396fa92f777baa42
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 23 09:37:48 2012 -0700
 
-    net/http: fix response Connection: close, close client connections
+    go/parser: minor cleanup
     
-    Fixes #3663
-    Updates #3540 (fixes it more)
-    Updates #1967 (fixes it more, re-enables a test)
+    - there is no label scope at package level
+    - open/close all scopes symmetrically now
+      that there is only one parse entry point
+      (parseFile)
     
-    R=golang-dev, n13m3y3r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6213064
+    https://golang.org/cl/6230047
 
- src/pkg/net/http/serve_test.go     | 14 +++++++++-----
- src/pkg/net/http/server.go         |  5 +++++
- src/pkg/net/http/transport.go      |  9 ++++++++-
- src/pkg/net/http/transport_test.go | 22 ++++++++++++----------
- 4 files changed, 34 insertions(+), 16 deletions(-)
+ src/pkg/go/parser/parser.go | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)

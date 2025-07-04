@@ -1,20 +1,16 @@
-commit 2266047556e7bc32e828dbfc4accdd1d4669f137
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Sep 16 16:22:08 2016 +1200
+commit a1f7db88f8c70a7520ce870a71706032f173739f
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 23 22:05:51 2016 -0400
 
-    cmd/link: give names and a type to the symbol types used by genasmsym
+    runtime: document scanstack
     
-    Doing this revealed some dead code.
+    Also mark it go:systemstack and explain why.
     
-    Change-Id: I5202fcc3f73e3dfddfea3ec7b772e16da51195da
-    Reviewed-on: https://go-review.googlesource.com/29331
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I88baf22741c04012ba2588d8e03dd3801d19b5c0
+    Reviewed-on: https://go-review.googlesource.com/23390
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go  |  6 ++--
- src/cmd/link/internal/ld/lib.go    | 40 ++++++++++++++--------
- src/cmd/link/internal/ld/macho.go  | 14 ++++----
- src/cmd/link/internal/ld/pe.go     | 12 +++----
- src/cmd/link/internal/ld/symtab.go | 68 ++++++++++++++------------------------
- 5 files changed, 68 insertions(+), 72 deletions(-)
+ src/runtime/mgcmark.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

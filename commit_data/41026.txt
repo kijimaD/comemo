@@ -1,16 +1,47 @@
-commit 4f757179543e06daec58df6af5884516f8bceb86
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 23 15:27:46 2019 -0800
+commit 3b92f36d15c868e856be71c0fadfc7ff97039b96
+Author: Prashant Agrawal <prashant.a.vjti@gmail.com>
+Date:   Fri May 17 17:55:20 2019 -0700
 
-    io: show ErrUnexpectedEOF in ExampleReadAtLeast
+    debug/pe: enable parsing of variable length optional header in PE file
     
-    Fixes #36245
+    The debug/pe package assumes there are always 16 entries in
+    DataDirectory in OptionalHeader32/64
+    ref pe.go:
+    ...
+    NumberOfRvaAndSizes uint32
+    DataDirectory [16]DataDirectory
+    }
+    ...
     
-    Change-Id: I10ce50b0cc28b15f4e7be85b8f12cf9d0e4fac96
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212404
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    But that is not always the case, there could be less no of
+    entries (PE signed linux kernel for example):
+    $ sudo pev /boot/vmlinuz-4.15.0-47-generic
+    ....
+    Data-dictionary entries:        6
+    ....
+    
+    In such case, the parsing gives incorrect results.
+    This changes aims to fix that by:
+    1. Determining type of optional header by looking at header
+       magic instead of size
+    2. Parsing optional header in 2 steps:
+       a. Fixed part
+       b. Variable data directories part
+    
+    Testing:
+    1. Fixed existing test cases to reflect the change
+    2. Added new file (modified linux kernel image)
+       which has smaller number of data directories
+    
+    Fixes #32126
+    
+    Change-Id: Iee56ecc4369a0e75a4be805e7cb8555c7d81ae2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177959
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/io/example_test.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/debug/pe/file.go                            | 200 ++++++++++++++++++++----
+ src/debug/pe/file_test.go                       | 174 +++++++++++++++------
+ src/debug/pe/testdata/vmlinuz-4.15.0-47-generic | Bin 0 -> 474 bytes
+ 3 files changed, 301 insertions(+), 73 deletions(-)

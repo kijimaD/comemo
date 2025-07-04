@@ -1,53 +1,46 @@
-commit e1b5f347e78c733bb0743df04c990e20f74bf188
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Mar 16 15:47:57 2022 +0000
+commit 373ca3a846d64733b0391dcdcc55631904a3c41c
+Merge: 1b60284c0a ac2de11cfb
+Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
+Date:   Fri Jun 25 15:51:12 2021 +0000
 
-    runtime: reduce max idle mark workers during periodic GC cycles
-    
-    This change reduces the maximum number of idle mark workers during
-    periodic (currently every 2 minutes) GC cycles to 1.
-    
-    Idle mark workers soak up all available and unused Ps, up to GOMAXPROCS.
-    While this provides some throughput and latency benefit in general, it
-    can cause what appear to be massive CPU utilization spikes in otherwise
-    idle applications. This is mostly an issue for *very* idle applications,
-    ones idle enough to trigger periodic GC cycles. This spike also tends to
-    interact poorly with auto-scaling systems, as the system might assume
-    the load average is very low and suddenly see a massive burst in
-    activity.
-    
-    The result of this change is not to bring down this 100% (of GOMAXPROCS)
-    CPU utilization spike to 0%, but rather
-    
-      min(25% + 1/GOMAXPROCS*100%, 100%)
-    
-    Idle mark workers also do incur a small latency penalty as they must be
-    descheduled for other work that might pop up. Luckily the runtime is
-    pretty good about getting idle mark workers off of Ps, so in general
-    the latency benefit from shorter GC cycles outweighs this cost. But, the
-    cost is still non-zero and may be more significant in idle applications
-    that aren't invoking assists and write barriers quite as often.
-    
-    We can't completely eliminate idle mark workers because they're
-    currently necessary for GC progress in some circumstances. Namely,
-    they're critical for progress when all we have is fractional workers. If
-    a fractional worker meets its quota, and all user goroutines are blocked
-    directly or indirectly on a GC cycle (via runtime.GOMAXPROCS, or
-    runtime.GC), the program may deadlock without GC workers, since the
-    fractional worker will go to sleep with nothing to wake it.
-    
-    Fixes #37116.
-    For #44163.
-    
-    Change-Id: Ib74793bb6b88d1765c52d445831310b0d11ef423
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393394
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Merge "[dev.typeparams] all: merge master (37f9a8f) into dev.typeparams" into dev.typeparams
 
- src/runtime/export_test.go   |  18 +++++-
- src/runtime/mgc.go           |   6 +-
- src/runtime/mgcpacer.go      | 132 +++++++++++++++++++++++++++++++++++++++++--
- src/runtime/mgcpacer_test.go |  64 +++++++++++++++++++++
- src/runtime/proc.go          |  20 ++++---
- 5 files changed, 223 insertions(+), 17 deletions(-)
+ doc/go1.17.html                                    |   7 ++
+ doc/go_spec.html                                   |   4 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |   2 +-
+ src/cmd/go/alldocs.go                              |   9 +-
+ src/cmd/go/internal/cfg/cfg.go                     |   8 ++
+ src/cmd/go/internal/help/helpdoc.go                |   3 +
+ src/cmd/go/internal/load/test.go                   |  50 +++++++---
+ src/cmd/go/internal/modcmd/graph.go                |  13 ++-
+ src/cmd/go/internal/modcmd/verify.go               |   3 +-
+ src/cmd/go/internal/modget/get.go                  |   6 +-
+ src/cmd/go/internal/modload/buildlist.go           |  26 +++++-
+ src/cmd/go/internal/modload/import.go              |   9 ++
+ src/cmd/go/testdata/script/env_cross_build.txt     |  29 ++++++
+ src/cmd/go/testdata/script/mod_graph_version.txt   | 101 +++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_list_test_cycle.txt |  23 +++++
+ .../go/testdata/script/mod_tidy_replace_old.txt    |  34 +++++++
+ src/cmd/internal/moddeps/moddeps_test.go           |  35 ++++++-
+ src/database/sql/sql_test.go                       |   2 +-
+ src/go/parser/parser.go                            |   7 +-
+ src/go/scanner/scanner.go                          |   2 +-
+ src/go/scanner/scanner_test.go                     |   2 +
+ src/go/types/check_test.go                         |  28 +++---
+ src/go/types/errors.go                             |   2 +-
+ src/go/types/issues_test.go                        |  72 ++++++++++-----
+ src/go/types/testdata/check/issues.src             |   4 +-
+ src/go/types/testdata/examples/functions.go2       |   2 +-
+ src/go/types/testdata/fixedbugs/issue46403.src     |  11 +++
+ src/go/types/testdata/fixedbugs/issue46404.go1     |   8 ++
+ src/go/types/typexpr.go                            |   8 +-
+ src/internal/buildcfg/exp.go                       |  15 ++-
+ src/net/dial_test.go                               |  51 ++++-------
+ src/net/lookup_windows_test.go                     |   2 +-
+ src/os/fifo_test.go                                |   3 -
+ src/reflect/value.go                               |  10 +-
+ src/runtime/internal/atomic/atomic_386.s           |   2 +-
+ src/time/format.go                                 |  18 +++-
+ src/time/time_test.go                              |   5 +
+ test/fixedbugs/issue46907.go                       |  11 +++
+ 38 files changed, 505 insertions(+), 122 deletions(-)

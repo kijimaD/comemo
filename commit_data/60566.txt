@@ -1,0 +1,17 @@
+commit fa861f882205516624ad123346ff3e6f0c44ac9c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 31 13:16:23 2024 -0700
+
+    cmd/cgo: document workaround for C struct_stat function
+    
+    For #68682
+    
+    Change-Id: I13b61f915925a9ee510e0a42e95da7a83678b3b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602215
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/doc.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

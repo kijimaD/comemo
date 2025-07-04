@@ -1,25 +1,44 @@
-commit 138bfc28090ccf03450cf02cb24f06b60f57cd3b
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Oct 18 15:53:38 2018 +0200
+commit 1caa06299c9a29f5009c92ffd82bc888d5a50f36
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Tue May 29 16:00:38 2018 -0300
 
-    syscall/js: make zero js.Value represent "undefined"
+    runtime: implement procyield properly for ppc64x
     
-    This commit changes the encoding of js.Value so that the zero js.Value
-    represents the JavaScript value "undefined". This is what users
-    intuitively expect.
+    The procyield() function should yield the processor as in other
+    architectures. On ppc64x, this is achieved by setting the Program
+    Priority Register to 'low priority' prior to the spin loop, and
+    setting it back to 'medium-low priority' afterwards.
     
-    Specifically, the encodings of "undefined" and the number zero have
-    been swapped.
+    benchmark                          old ns/op     new ns/op     delta
+    BenchmarkMakeChan/Byte-8           87.7          86.6          -1.25%
+    BenchmarkMakeChan/Int-8            107           106           -0.93%
+    BenchmarkMakeChan/Ptr-8            201           204           +1.49%
+    BenchmarkMakeChan/Struct/0-8       78.2          79.7          +1.92%
+    BenchmarkMakeChan/Struct/32-8      196           200           +2.04%
+    BenchmarkMakeChan/Struct/40-8      236           230           -2.54%
+    BenchmarkChanNonblocking-8         8.64          8.85          +2.43%
+    BenchmarkChanUncontended-8         5577          5598          +0.38%
+    BenchmarkChanContended-8           66106         51529         -22.05%
+    BenchmarkChanSync-8                451           441           -2.22%
+    BenchmarkChanSyncWork-8            9155          9170          +0.16%
+    BenchmarkChanProdCons0-8           1585          1083          -31.67%
+    BenchmarkChanProdCons10-8          1094          838           -23.40%
+    BenchmarkChanProdCons100-8         831           657           -20.94%
+    BenchmarkChanProdConsWork0-8       1471          941           -36.03%
+    BenchmarkChanProdConsWork10-8      1033          721           -30.20%
+    BenchmarkChanProdConsWork100-8     730           511           -30.00%
+    BenchmarkChanCreation-8            135           128           -5.19%
+    BenchmarkChanSem-8                 602           463           -23.09%
+    BenchmarkChanPopular-8             3017466       2188441       -27.47%
     
-    Fixes #27592.
+    Fixes #25625
     
-    Change-Id: Icfc832c8cdf7a8a78bd69d20e00a04dbed0ccd10
-    Reviewed-on: https://go-review.googlesource.com/c/143137
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Change-Id: Iacb1c888d3c066902152b8367500348fb631c5f9
+    Reviewed-on: https://go-review.googlesource.com/115376
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/wasm/wasm_exec.js    | 17 ++++++++++++-----
- src/syscall/js/js.go      | 21 ++++++++++++++++-----
- src/syscall/js/js_test.go | 14 ++++++++++++++
- 3 files changed, 42 insertions(+), 10 deletions(-)
+ src/cmd/vet/all/whitelist/linux_ppc64x.txt |  1 -
+ src/runtime/asm_ppc64x.s                   | 14 +++++++++++++-
+ 2 files changed, 13 insertions(+), 2 deletions(-)

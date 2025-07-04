@@ -1,16 +1,23 @@
-commit 4f299f93f60a6b195a9951a69c9b3af7a56a9959
-Author: Taro Aoki <aizu.s1230022@gmail.com>
-Date:   Sat Jul 1 19:13:03 2017 +0900
+commit e82c925f5e3af26ded71e85dec1eea3464e4fa19
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 29 21:04:00 2017 -0700
 
-    os: use Fstat instead of Stat in FileMode example
+    cmd/compile: remove Type haspointers caches
     
-    The existing example for FileMode using Stat to get FileInfo.
-    But, Stat cannot get symlink info, it need to use Fstat instead.
+    Even very large Types are not very big.
+    The haspointer cache looks like premature optimization.
+    Removing them has no detectable compiler performance impact,
+    and it removes mutable shared state used by the backend.
     
-    Change-Id: I5cc38cd10caaa5912946abe2a2b90995a91ee10f
-    Reviewed-on: https://go-review.googlesource.com/47370
+    Updates #15756
+    
+    Change-Id: I2d2cf03f470f5eef5bcd50ff693ef6a01d481700
+    Reviewed-on: https://go-review.googlesource.com/38912
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/pgen_test.go   | 10 ++++++--
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/type.go        | 37 +++++++-----------------------
+ 3 files changed, 17 insertions(+), 32 deletions(-)

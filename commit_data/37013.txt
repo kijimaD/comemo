@@ -1,16 +1,18 @@
-commit af95199421acb319b0b1e549cf7f4345f474f75e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 16 18:32:35 2018 -0700
+commit cdffe9b1e3dc54dd52a221e65e577f6c76ad39b8
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Jun 14 10:23:10 2018 +0200
 
-    cmd/cgo: split name rewriting out of rewriteRef
+    runtime: move semaphore ops from system calls to libc calls on iOS
     
-    This is in preparation for later changes.
     
-    Change-Id: I2b9b77a782cf65a2fcec5e700ec6bb8b1476f6b5
-    Reviewed-on: https://go-review.googlesource.com/c/142882
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1c7a12497c47dd166cc41230d6e5e005edcbc848
+    Reviewed-on: https://go-review.googlesource.com/118819
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cgo/gcc.go | 201 ++++++++++++++++++++++++++++-------------------------
- 1 file changed, 107 insertions(+), 94 deletions(-)
+ src/runtime/defs_darwin_arm.go   |  93 +++++++++-----------------------
+ src/runtime/defs_darwin_arm64.go |  93 +++++++++-----------------------
+ src/runtime/sys_darwin_arm.s     | 113 +++++++++++++++-----------------------
+ src/runtime/sys_darwin_arm64.s   | 114 +++++++++++++++------------------------
+ 4 files changed, 135 insertions(+), 278 deletions(-)

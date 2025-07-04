@@ -1,15 +1,83 @@
-commit cdc642453bacfad6561eb4275bc55d752a9e92fb
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Thu Mar 14 09:42:29 2013 -0700
+commit 49e0300854dabc8d3c2e91d26897a998345f2447
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 14 19:06:35 2013 +0400
 
-    net: deflake TestDialTimeout
+    runtime: integrated network poller for linux
+    vs tip:
+    BenchmarkTCP4OneShot                    172994        40485  -76.60%
+    BenchmarkTCP4OneShot-2                   96581        30028  -68.91%
+    BenchmarkTCP4OneShot-4                   52615        18454  -64.93%
+    BenchmarkTCP4OneShot-8                   26351        12289  -53.36%
+    BenchmarkTCP4OneShot-16                  12258        16093  +31.29%
+    BenchmarkTCP4OneShot-32                  13200        17045  +29.13%
     
-    Fixes #3867.
-    Fixes #3307.
+    BenchmarkTCP4OneShotTimeout             124814        42932  -65.60%
+    BenchmarkTCP4OneShotTimeout-2            99090        29040  -70.69%
+    BenchmarkTCP4OneShotTimeout-4            51860        18455  -64.41%
+    BenchmarkTCP4OneShotTimeout-8            26100        12073  -53.74%
+    BenchmarkTCP4OneShotTimeout-16           12198        16654  +36.53%
+    BenchmarkTCP4OneShotTimeout-32           13438        17143  +27.57%
     
-    R=bradfitz, dvyukov
+    BenchmarkTCP4Persistent                 115647         7782  -93.27%
+    BenchmarkTCP4Persistent-2                58024         4808  -91.71%
+    BenchmarkTCP4Persistent-4                24715         3674  -85.13%
+    BenchmarkTCP4Persistent-8                16431         2407  -85.35%
+    BenchmarkTCP4Persistent-16                2336         1875  -19.73%
+    BenchmarkTCP4Persistent-32                1689         1637   -3.08%
+    
+    BenchmarkTCP4PersistentTimeout           79754         7859  -90.15%
+    BenchmarkTCP4PersistentTimeout-2         57708         5952  -89.69%
+    BenchmarkTCP4PersistentTimeout-4         26907         3823  -85.79%
+    BenchmarkTCP4PersistentTimeout-8         15036         2567  -82.93%
+    BenchmarkTCP4PersistentTimeout-16         2507         1903  -24.09%
+    BenchmarkTCP4PersistentTimeout-32         1717         1627   -5.24%
+    
+    vs old scheduler:
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkTCPOneShot                    192244        40485  -78.94%
+    BenchmarkTCPOneShot-2                   63835        30028  -52.96%
+    BenchmarkTCPOneShot-4                   35443        18454  -47.93%
+    BenchmarkTCPOneShot-8                   22140        12289  -44.49%
+    BenchmarkTCPOneShot-16                  16930        16093   -4.94%
+    BenchmarkTCPOneShot-32                  16719        17045   +1.95%
+    
+    BenchmarkTCPOneShotTimeout             190495        42932  -77.46%
+    BenchmarkTCPOneShotTimeout-2            64828        29040  -55.20%
+    BenchmarkTCPOneShotTimeout-4            34591        18455  -46.65%
+    BenchmarkTCPOneShotTimeout-8            21989        12073  -45.10%
+    BenchmarkTCPOneShotTimeout-16           16848        16654   -1.15%
+    BenchmarkTCPOneShotTimeout-32           16796        17143   +2.07%
+    
+    BenchmarkTCPPersistent                  81670         7782  -90.47%
+    BenchmarkTCPPersistent-2                26598         4808  -81.92%
+    BenchmarkTCPPersistent-4                15633         3674  -76.50%
+    BenchmarkTCPPersistent-8                18093         2407  -86.70%
+    BenchmarkTCPPersistent-16               17472         1875  -89.27%
+    BenchmarkTCPPersistent-32                7679         1637  -78.68%
+    
+    BenchmarkTCPPersistentTimeout           83186         7859  -90.55%
+    BenchmarkTCPPersistentTimeout-2         26883         5952  -77.86%
+    BenchmarkTCPPersistentTimeout-4         15776         3823  -75.77%
+    BenchmarkTCPPersistentTimeout-8         18180         2567  -85.88%
+    BenchmarkTCPPersistentTimeout-16        17454         1903  -89.10%
+    BenchmarkTCPPersistentTimeout-32         7798         1627  -79.14%
+    
+    R=golang-dev, iant, bradfitz, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7735044
+    https://golang.org/cl/7579044
 
- src/pkg/net/dial_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/net/fd_linux.go            | 192 -------------------------------------
+ src/pkg/net/fd_poll_runtime.go     |   2 +-
+ src/pkg/net/fd_poll_unix.go        |   2 +-
+ src/pkg/runtime/defs2_linux.go     |  26 ++++-
+ src/pkg/runtime/defs_linux.go      |  21 +++-
+ src/pkg/runtime/defs_linux_386.h   |  22 ++++-
+ src/pkg/runtime/defs_linux_amd64.h |  24 ++++-
+ src/pkg/runtime/mem_linux.c        |   2 -
+ src/pkg/runtime/netpoll.goc        |   2 +-
+ src/pkg/runtime/netpoll_epoll.c    |  80 ++++++++++++++++
+ src/pkg/runtime/netpoll_stub.c     |   2 +-
+ src/pkg/runtime/sys_linux_386.s    |  43 +++++++++
+ src/pkg/runtime/sys_linux_amd64.s  |  43 +++++++++
+ src/pkg/runtime/thread_linux.c     |   3 -
+ 14 files changed, 256 insertions(+), 208 deletions(-)

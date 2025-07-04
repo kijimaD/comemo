@@ -1,13 +1,12 @@
-commit dbcdb2d937d62e5892ce5ad7640e72b04b06145e
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jul 12 17:49:09 2017 -0600
+commit 6e7d5d0326a50b06fd47553cb2d96ede28b1680c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 27 15:55:15 2017 +1100
 
-    doc/go1.9: pprof profiles are now self-contained
+    debug/pe: add TestBuildingWindowsGUI
     
-    Change-Id: If9f64fbb78009921e8773124e4e5eb8a871095a5
-    Reviewed-on: https://go-review.googlesource.com/48192
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I6b6a6dc57e48e02ff0d452755b8dcf5543b3caed
+    Reviewed-on: https://go-review.googlesource.com/38759
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.9.html | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/debug/pe/file_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

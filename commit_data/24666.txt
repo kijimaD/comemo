@@ -1,15 +1,17 @@
-commit 51586aadfbc3632a6829b0d72aa433952165d650
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Oct 29 20:24:29 2015 +1300
+commit 39e77bff85ddc9e862eccf0408968301955db977
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 30 15:00:50 2015 -0700
 
-    cmd/compile, cmd/go, cmd/link: enable -buildmode=shared and related flags on linux/arm64
+    go/types: fix complex(a, b) for untyped arguments a, b
     
-    Change-Id: Ibddbbf6f4a5bd336a8b234d40fad0fcea574cd6e
-    Reviewed-on: https://go-review.googlesource.com/13994
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    R=1.6
+    
+    Fixes #11669.
+    
+    Change-Id: Id39e5401e991e46f014eb16b747f5d9b7b55b46a
+    Reviewed-on: https://go-review.googlesource.com/12937
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/lex.go | 3 ++-
- src/cmd/go/build.go                | 4 ++--
- src/cmd/link/internal/arm64/obj.go | 2 +-
- src/cmd/link/internal/ld/lib.go    | 2 +-
- 4 files changed, 6 insertions(+), 5 deletions(-)
+ src/go/types/builtins.go           | 113 ++++++++++++++++++++-----------------
+ src/go/types/testdata/builtins.src |  19 ++++---
+ 2 files changed, 71 insertions(+), 61 deletions(-)

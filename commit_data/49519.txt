@@ -1,19 +1,18 @@
-commit ff17b7d0d42af12ca1ad766a135d9951029027ea
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Tue Jun 7 09:12:21 2022 +0800
+commit 4f2ebfe34be7453ab144d82558cc4e735a55d644
+Author: korzhao <korzhao95@gmail.com>
+Date:   Tue Aug 17 19:34:40 2021 +0800
 
-    cmd/compile: don't use dictionary convert to shaped empty interface
+    cmd/compile: allow embed into any byte slice type
     
-    Fixes: #53254
+    Fixes #47735
     
-    Change-Id: I3153d6ebb9f25957b09363f45c5cd4651ee84c2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410655
+    Change-Id: Ia21ea9a67f36a3edfef1b299ae4f3b00c306cd68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342851
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
 
- src/cmd/compile/internal/noder/stencil.go |  4 ++--
- test/typeparam/issue53254.go              | 19 +++++++++++++++++++
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/staticdata/embed.go |  2 +-
+ src/embed/internal/embedtest/embed_test.go   | 40 ++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 1 deletion(-)

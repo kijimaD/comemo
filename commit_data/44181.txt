@@ -1,27 +1,44 @@
-commit 54b251f542c97cf58a2ae800d3ed86cf14d0feed
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Jan 25 12:31:54 2021 +0100
+commit 0a90ecad071b3d1d5c6c789f6a6f1417b72862b2
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Mon May 4 14:06:34 2020 -0600
 
-    lib/time, time/tzdata: update tzdata to 2021a
+    testing: reformat test chatty output
     
-    Changelog:
+    In #24929, we decided to stream chatty test output. It looks like,
     
-      South Sudan changes from +03 to +02 on 2021-02-01 at 00:00.
+    foo_test.go:138: TestFoo/sub-1: hello from subtest 1
+    foo_test.go:138: TestFoo/sub-2: hello from subtest 2
     
-    Release announcement:
+    In this CL, we refactor the output to be grouped by === CONT lines, preserving
+    the old test-file-before-log-line behavior:
     
-      http://mm.icann.org/pipermail/tz-announce/2021-January/000065.html
+    === CONT TestFoo/sub-1
+        foo_test.go:138 hello from subtest 1
+    === CONT TestFoo/sub-2
+        foo_test.go:138 hello from subtest 2
     
-    Updates #22487
+    This should remove a layer of verbosity from tests, and make it easier to group
+    together related lines. It also returns to a more familiar format (the
+    pre-streaming format), whilst still preserving the streaming feature.
     
-    Change-Id: Ia0a1a7a8f5d47adac9782bc2a445f69e02440f77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285719
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Fixes #38458
+    
+    Change-Id: Iaef94c580d69cdd541b2ef055aa004f50d72d078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229085
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- lib/time/update.bash       |     4 +-
- lib/time/zoneinfo.zip      |   Bin 424205 -> 424214 bytes
- src/time/tzdata/zipdata.go | 13744 +++++++++++++++++++++----------------------
- 3 files changed, 6874 insertions(+), 6874 deletions(-)
+ .../testdata/script/test_benchmark_chatty_fail.txt |  32 ++++++
+ .../script/test_benchmark_chatty_success.txt       |  29 +++++
+ src/cmd/go/testdata/script/test_chatty_fail.txt    |  32 ++++++
+ .../testdata/script/test_chatty_parallel_fail.txt  |  58 ++++++++++
+ .../script/test_chatty_parallel_success.txt        |  52 +++++++++
+ src/cmd/go/testdata/script/test_chatty_success.txt |  27 +++++
+ src/cmd/go/testdata/script/test_flags.txt          |   8 +-
+ src/cmd/go/testdata/script/test_regexps.txt        |  14 +--
+ src/testing/benchmark.go                           |   3 +
+ src/testing/sub_test.go                            | 126 +++++++++++----------
+ src/testing/testing.go                             |  81 ++++++++++---
+ 11 files changed, 374 insertions(+), 88 deletions(-)

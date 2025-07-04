@@ -1,22 +1,19 @@
-commit 9ac471a87d8a7fdd1741bdfd48399e7215023989
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Apr 25 10:35:47 2019 -0400
+commit 4a801cdd319dc25a2bcdced0b70377c2dfa1464f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 5 17:24:41 2018 -0800
 
-    cmd/link: use read-only mmap to back selected symbol name strings
+    cmd/cover: run tests in parallel, don't change source directory
     
-    When reading symbol names from an object file, if a name does not
-    need fixup (conversion of "". to package path), then generate
-    a string whose backing store is in read-only memory (from an mmap
-    of the object file), avoiding the need for an allocation. This
-    yields a modest reduction in total linker heap use.
+    This speeds up the cmd/cover testsuite by about 40% on my laptop.
     
-    Change-Id: I95719c93026b6cc82eb6947a9d14063cf3a6679c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173938
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #26473
+    Updates #28386
+    
+    Change-Id: I853b1b3b8c98dc89440f7b7bf5c0ade1d3d66802
+    Reviewed-on: https://go-review.googlesource.com/c/152817
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/bio/buf.go              | 12 ++++++++
- src/cmd/link/internal/objfile/objfile.go | 48 ++++++++++++++++++++++++++++++--
- 2 files changed, 58 insertions(+), 2 deletions(-)
+ src/cmd/cover/cover_test.go | 147 ++++++++++++++++++++++++++++++--------------
+ 1 file changed, 102 insertions(+), 45 deletions(-)

@@ -1,38 +1,30 @@
-commit ce502b063cd810aa5897e6ce72d545591e9368a0
-Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 22 17:44:36 2015 -0400
+commit 33448d963caf0d66f042e738fe733c66796742b2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 2 11:35:56 2015 -0400
 
-    runtime: use park/ready to wake up GC at end of concurrent mark
+    cmd/7g: fix ACMP entry in progtable
     
-    Currently, the main GC goroutine sleeps on a note during concurrent
-    mark and the first background mark worker or assist to finish marking
-    use wakes up that note to let the main goroutine proceed into mark
-    termination. Unfortunately, the latency of this wakeup can be quite
-    high, since the GC goroutine will typically have lost its P while in
-    the futex sleep, meaning it will be placed on the global run queue and
-    will wait there until some P is kind enough to pick it up. This delay
-    gives the mutator more time to allocate and create floating garbage,
-    growing the heap unnecessarily. Worse, it's likely that background
-    marking has stopped at this point (unless GOMAXPROCS>4), so anything
-    that's allocated and published to the heap during this window will
-    have to be scanned during mark termination while the world is stopped.
+    On arm64, CMP $foo, R is encoded as from=$foo, reg=R, not as from=$foo,
+    to=R. The progtable entry for ACMP incorrectly described the latter
+    form. Because of this, the registerizer was not accounting the registers
+    used in CMP instructions and was incorrectly re-assigning those registers.
     
-    This change replaces the note sleep/wakeup with a gopark/ready
-    scheme. This keeps the wakeup inside the Go scheduler and lets the
-    garbage collector take advantage of the new scheduler semantics that
-    run the ready()d goroutine immediately when the ready()ing goroutine
-    sleeps.
+    This was an old problem, but it only became apparent after b115c35
+    (cmd/internal/gc: move cgen, regalloc, et al to portable code). Previous
+    to this commit, the compiler used a slightly larger register set for the
+    temps than it used for register variables. Since it had plenty registers
+    dedicated to temps, the registers used in CMP instruction never clashed
+    with registers assigned to register variables.
     
-    For the json benchmark from x/benchmarks with GOMAXPROCS=4, this
-    reduces the delay in waking up the GC goroutine and entering mark
-    termination once concurrent marking is done from ~100ms to typically
-    <100µs.
+    Fixes #10253
     
-    Change-Id: Ib11f8b581b8914f2d68e0094f121e49bac3bb384
-    Reviewed-on: https://go-review.googlesource.com/9291
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Iedf4bd882bd59440dff310ac0f81e0f53d80d7ed
+    Reviewed-on: https://go-review.googlesource.com/8387
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/mgc.go     | 48 +++++++++++++++++++++++++++++++++++++++++-------
- src/runtime/mgcmark.go |  6 ++----
- 2 files changed, 43 insertions(+), 11 deletions(-)
+ src/cmd/7g/prog.go           |  2 +-
+ test/fixedbugs/issue10253.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

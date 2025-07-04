@@ -1,20 +1,14 @@
-commit ddbee9abd45bbb955fec973fc0e395276127d431
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 2 09:04:03 2017 -0800
+commit b990558162fa038f3651dc0f1821f64b282dda6f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 28 18:03:21 2016 +0000
 
-    cmd/vet: support importing from source
+    doc: reference go1.4-bootstrap-20161024.tar.gz
     
-    Add a -source flag to cmd/vet that instructs
-    it to typecheck purely from source code.
+    Updates #16352
     
-    Updates #16086
-    Fixes #19332
-    
-    Change-Id: Ic83d0f14d5bb837a329d539b2873aeccdf7bf669
-    Reviewed-on: https://go-review.googlesource.com/37690
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I214c87579ef21ced8d0ba94aa170dd7780afec4b
+    Reviewed-on: https://go-review.googlesource.com/32312
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/doc.go   | 3 +++
- src/cmd/vet/main.go  | 1 +
- src/cmd/vet/types.go | 6 +++++-
- 3 files changed, 9 insertions(+), 1 deletion(-)
+ doc/install-source.html | 41 +++++++++++++++++++++++++++--------------
+ 1 file changed, 27 insertions(+), 14 deletions(-)

@@ -1,22 +1,25 @@
-commit 11cf5da0e3166bc21dfbf37169b69fdc9e9f0652
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Nov 8 11:45:04 2015 +0100
+commit 525785885e42b26e6936e5d91386518218cff4d7
+Author: David Chase <drchase@google.com>
+Date:   Fri Aug 28 14:24:10 2015 -0400
 
-    net/http: update bundled http2 revision
+    [dev.ssa] cmd/compile: add compose/decompose for complex, phi, constants
     
-    Updates to git rev 042ba42f (https://golang.org/cl/16734)
+    Still to do: arithmetic
     
-    This moves all the code for glueing the HTTP1 and HTTP2 transports
-    together out of net/http and into x/net/http2 where others can use it,
-    and where it has tests.
-    
-    Change-Id: I143ac8bb61eed36c87fd838b682ebb37b81b8c2c
-    Reviewed-on: https://go-review.googlesource.com/16735
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I31fd23b34980c9ed4b4e304b8597134b2ba6ca5c
+    Reviewed-on: https://go-review.googlesource.com/14024
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/h2_bundle.go | 87 +++++++++++++++++++++++++++++++++++++++++++++++
- src/net/http/transport.go | 62 +++------------------------------
- 2 files changed, 92 insertions(+), 57 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 |  37 +++++
+ .../compile/internal/gc/testdata/compound_ssa.go   |  54 +++++++
+ src/cmd/compile/internal/gc/type.go                |   4 +
+ src/cmd/compile/internal/ssa/config.go             |   2 +
+ src/cmd/compile/internal/ssa/decompose.go          |  27 ++++
+ src/cmd/compile/internal/ssa/export_test.go        |   2 +
+ src/cmd/compile/internal/ssa/gen/generic.rules     |  30 ++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   5 +
+ src/cmd/compile/internal/ssa/opGen.go              |  25 ++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     | 180 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/type.go               |   4 +-
+ src/cmd/compile/internal/ssa/type_test.go          |  26 +--
+ 12 files changed, 377 insertions(+), 19 deletions(-)

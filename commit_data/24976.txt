@@ -1,18 +1,26 @@
-commit 4d9f68028a0b3b481459b9d07d074f8272a013b1
-Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 17 13:23:25 2015 -0800
+commit 4f48507d9094431354ab69c450e458674abb0dde
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Aug 20 13:46:19 2015 +1000
 
-    cmd/asm: add doc.go
+    runtime: reduce pthread stack size in TestCgoCallbackGC
     
-    There was no documentation produced by "go doc cmd/asm".
-    Follow the style set by cmd/compile.
+    Fixes #11959
     
-    Fixes #13148.
+    This test runs 100 concurrent callbacks from C to Go consuming 100
+    operating system threads, which at 8mb a piece (the default on linux/arm)
+    would reserve over 800mb of address space. This would frequently
+    cause the test to fail on platforms with ~1gb of ram, such as the
+    raspberry pi.
     
-    Change-Id: I02e08ce2e7471f855bfafbbecee98ffdb7096995
-    Reviewed-on: https://go-review.googlesource.com/16997
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This change reduces the thread stack allocation to 256kb, a number picked
+    at random, but at 1/32th the previous size, should allow the test to
+    pass successfully on all platforms.
+    
+    Change-Id: I8b8bbab30ea7b2972b3269a6ff91e6fe5bc717af
+    Reviewed-on: https://go-review.googlesource.com/13731
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Capitanio <capnm9@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/asm/doc.go                  | 48 +++++++++++++++++++++++++++++++++++++
- src/cmd/asm/internal/flags/flags.go |  3 +++
- 2 files changed, 51 insertions(+)
+ src/runtime/crash_cgo_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

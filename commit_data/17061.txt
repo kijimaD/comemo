@@ -1,22 +1,25 @@
-commit b29d035fe61e32d55fffe19be0abc95baa9078ae
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Aug 7 06:15:50 2013 +0900
+commit ad119b9c4dcae8389a3700c245a923b0ebe449cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 6 12:04:08 2013 -0700
 
-    net: add dial, listenStream and listenDatagram methods to netFD
+    os: fix plan9 build
     
-    This CL refactors the existing listenerSockaddr function into several
-    methods on netFD.
+    I broke it with the darwin getwd attrlist stuff (0583e9d36dd).
+    plan9 doesn't have syscall.ENOTSUP.
     
-    This is in preparation for runtime-integrated network pollster for BSD
-    variants.
+    It's in api/go1.txt as a symbol always available (not context-specific):
     
-    Update #5199
+    pkg syscall, const ENOTSUP Errno
     
-    R=golang-dev, dave, alex.brainman, dvyukov, remyoudompheng
+    ... but plan9 isn't considered by cmd/api, so it only looks
+    universally available.  Alternatively, we could add a fake ENOTSUP
+    to plan9, but they were making efforts earlier to clean their
+    syscall package, so I'd prefer not to dump more in it.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12023043
+    https://golang.org/cl/12509044
 
- src/pkg/net/sock_posix.go   | 154 ++++++++++++++++++++++++++++++--------------
- src/pkg/net/sock_unix.go    |  36 -----------
- src/pkg/net/sock_windows.go |  27 --------
- 3 files changed, 105 insertions(+), 112 deletions(-)
+ src/pkg/os/getwd.go        |  6 +++++-
+ src/pkg/os/getwd_darwin.go | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

@@ -1,15 +1,20 @@
-commit fbb4c7454ba49e14557f58030e4793f3ca6fadfe
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri May 1 21:56:28 2015 -0400
+commit 35bda67d87fa5a7f24313bcd1803bcc6834ac078
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Thu Dec 18 17:18:06 2014 +1300
 
-    nacltest.bash: remove syscall/fstest_nacl.go after test
+    time: add Time.AppendFormat
     
-    Fixes #9232.
+    This is a version of Time.Format that doesn't require allocation.
     
-    Change-Id: I11a7fb7691d9e7473620db1b7fa29fec359c73d3
-    Reviewed-on: https://go-review.googlesource.com/9642
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    This is an updated version of 0af302f50745b93e90a4507993a555d246acef45
+    submitted by @bradfitz which was later rolled back.
+    
+    Fixes #5192
+    Updates #5195
+    
+    Change-Id: I4e6255bee1cf3914a6cc8d9d2a881cfeb273c08e
+    Reviewed-on: https://go-review.googlesource.com/1760
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/nacltest.bash | 2 ++
- 1 file changed, 2 insertions(+)
+ src/time/format.go | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)

@@ -1,20 +1,12 @@
-commit f8f4cfa5beb64f4413c75400b5ad6d979f65451f
-Author: Olivier Poitrey <rs@dailymotion.com>
-Date:   Wed Jan 20 22:53:50 2016 -0800
+commit 2b5dbc1e2dcc2e2e6db135fcd4e186a6f4e8afd7
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Nov 12 00:08:09 2015 -0500
 
-    net/http: make Client propagate Request.Cancel over redirected requests
+    doc: update go1.6.txt
     
-    On HTTP redirect, the HTTP client creates a new request and don't copy
-    over the Cancel channel. This prevents any redirected request from being
-    cancelled.
-    
-    Fixes #14053
-    
-    Change-Id: I467cdd4aadcae8351b6e9733fc582b7985b8b9d3
-    Reviewed-on: https://go-review.googlesource.com/18810
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9161c4a7e747d35ad7643b8cf0fe8b66eaea963b
+    Reviewed-on: https://go-review.googlesource.com/16842
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/http/client.go      |  1 +
- src/net/http/client_test.go | 18 +++++++++++++++++-
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

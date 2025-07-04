@@ -1,17 +1,23 @@
-commit 6b8813ca4515cd558f12eb26582cdfd5909c9f3b
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Thu Jun 29 13:58:28 2017 +0300
+commit 214be5b302d6ae978064d7895c7dcd9b6c403421
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Mar 25 16:55:42 2017 -0700
 
-    net: fix Windows TestInterfaceHardwareAddrWithGetmac
+    cmd/compile: remove likely bits from generated assembly
     
-    TestInterfaceHardwareAddrWithGetmac was panicing when getmac returned
-    multiple network cards.
+    We don't need them any more since #15837 was fixed.
     
-    Change-Id: I6fefa5a4910bce805b4cd9c09f94bd56c9682b9e
-    Reviewed-on: https://go-review.googlesource.com/47190
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #19718
+    
+    Change-Id: I13e46c62b321b2c9265f44c977b63bfb23163ca2
+    Reviewed-on: https://go-review.googlesource.com/38664
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/net_windows_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go | 15 ---------------
+ src/cmd/compile/internal/gc/ssa.go    | 30 +++++++-----------------------
+ src/cmd/compile/internal/ppc64/ssa.go | 15 ---------------
+ src/cmd/compile/internal/s390x/ssa.go |  2 --
+ src/cmd/compile/internal/x86/ssa.go   | 15 ---------------
+ 5 files changed, 7 insertions(+), 70 deletions(-)

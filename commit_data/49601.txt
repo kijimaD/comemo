@@ -1,28 +1,43 @@
-commit 1ebc983000ed411a1c06f6b8a61770be1392e707
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jul 7 20:01:21 2022 +0000
+commit 891470fbf767a09ac2b00cc58dbaf9ee2a67b09e
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Aug 12 18:39:24 2021 -0700
 
-    runtime: overestimate the amount of allocated memory in heapLive
+    cmd/compile: fix handling of Defn field during stenciling
     
-    CL 377516 made it so that memory metrics are truly monotonic, but also
-    updated how heapLive tracked allocated memory to also be monotonic.
+    When the Defn field of a name node is not an ONAME (for a closure
+    variable), then it points to a body node of the same function/closure.
+    Therefore, we should not attempt to substitute it at the time we are
+    substituting the local variables. Instead, we remember a mapping from the
+    Defn node to the nodes that reference it, and update the Defn fields of
+    the copied name nodes at the time that we create the new copy of the
+    Defn node.
     
-    The result is that cached spans with allocated memory aren't fully
-    accounted for by the GC, causing it to make a worse assumption (the
-    exact mechanism is at this time unknown), resulting in a memory
-    regression, especially for smaller heaps.
+    Added some comments to the Defn field of ir.Name.
     
-    This change is a partial revert of CL 377516 that makes heapLive a
-    non-monotonic overestimate again, which appears to resolve the
-    regression.
+    Moved the Defn (and Outer code, for consistency) from namelist() to
+    localvar(), since Defn needs to updated for all local variables, not
+    just those in a closure. Fixed case where .Defn was not being set
+    properly in noder2 for type switches. Fixed another case where the Defn
+    field had to be updated during transformSelect() because the Defn node
+    was being completely changed to a new node.
     
-    For #53738.
+    Fixed some spacing in typeswitch2.go
     
-    Change-Id: I5c51067abc0b8e0a6b89dd8dbd4a0be2e8c0c1b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416417
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #47676
+    Fixes #48016
+    
+    Change-Id: Iae70dd76575f4a647c1db79e1eba9bbe44bfc226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346290
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mcache.go | 36 ++++++++++++++++++++++++++++++------
- 1 file changed, 30 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ir/name.go         |  2 ++
+ src/cmd/compile/internal/noder/stencil.go   | 45 +++++++++++++++++++++++++----
+ src/cmd/compile/internal/noder/stmt.go      |  2 ++
+ src/cmd/compile/internal/noder/transform.go | 13 ++++++---
+ test/typeparam/issue47676.go                | 23 +++++++++++++++
+ test/typeparam/issue48016.go                | 35 ++++++++++++++++++++++
+ test/typeparam/typeswitch2.go               |  4 +--
+ 7 files changed, 112 insertions(+), 12 deletions(-)

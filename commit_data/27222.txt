@@ -1,16 +1,24 @@
-commit a409fb80b0ebc1353336a9c03f8db408fbc6d1d5
-Author: Cherry Zhang <lunaria21@gmail.com>
-Date:   Wed Apr 27 22:17:36 2016 -0400
+commit d45bf7228f742e63a30eef03e5288df332906838
+Author: Austin Clements <austin@google.com>
+Date:   Sun Feb 21 10:40:39 2016 -0500
 
-    cmd/internal/obj/mips, runtime: change REGTMP to R23
+    runtime: define lock order between G status and channel lock
     
-    Leave R28 to SB register, which will be introduced in CL 19802.
+    Currently, locking a G's stack by setting its status to _Gcopystack or
+    _Gscan is unordered with respect to channel locks. However, when we
+    make stack shrinking concurrent, stack shrinking will need to lock the
+    G and then acquire channel locks, which imposes an order on these.
     
-    Change-Id: I1cf7a789695c5de664267ec8086bfb0b043ebc14
-    Reviewed-on: https://go-review.googlesource.com/19863
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Document this lock ordering and fix closechan to respect it.
+    Everything else already happens to respect it.
+    
+    For #12967.
+    
+    Change-Id: I4dd02675efffb3e7daa5285cf75bf24f987d90d4
+    Reviewed-on: https://go-review.googlesource.com/20041
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/mips/a.out.go |  2 +-
- src/runtime/asm_mips64x.s          | 10 +++++-----
- src/runtime/tls_mips64x.s          |  6 +++---
- 3 files changed, 9 insertions(+), 9 deletions(-)
+ src/runtime/chan.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

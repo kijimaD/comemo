@@ -1,12 +1,12 @@
-commit 15baf6b4ace720e7b2cfe5911d43aa9ede1a4f97
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Oct 4 13:22:20 2013 -0700
+commit eb002c50f5aaa3d63ff01a406bbe8dd30fdc9535
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 4 13:13:56 2013 +0900
 
-    runtime: remove 3 unused declarations.
+    doc/go1.2.html: update a minor change to syscall
     
-    R=golang-dev, cshapiro, iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14405043
+    https://golang.org/cl/14379043
 
- src/pkg/runtime/traceback_x86.c | 3 ---
- 1 file changed, 3 deletions(-)
+ doc/go1.2.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

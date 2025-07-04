@@ -1,24 +1,18 @@
-commit 97f854cd7bb6c06046d386469a2b56c9b0e16406
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Dec 18 12:39:57 2015 +0900
+commit 7d6124697223ecf9d5ce21221377da2b9c7fd9f3
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 22 13:07:38 2015 -0700
 
-    net: make use of IPv4 for parsing routing information on windows
+    [dev.ssa] cmd/compile: implement reserved registers
     
-    In general the package net deals IPv4 addresses as IPv6 IPv4-mapped
-    addresses internally for the dual stack era, when we need to support
-    various techniques on IPv4/IPv6 translation.
+    BP for framepointer experiment
+    R15 for dynamic linking
     
-    This change makes windows implementation follow the same pattern which
-    BSD variants and Linux do.
-    
-    Updates #13544.
-    
-    Also fixes an unintentionally formatted line by accident by gofmt.
-    
-    Change-Id: I4953796e751fd8050c73094468a0d7b0d33f5516
-    Reviewed-on: https://go-review.googlesource.com/17992
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I28e48be461d04a4d5c9b013f48fce5c0e58d6a08
+    Reviewed-on: https://go-review.googlesource.com/16231
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/net/interface_test.go    | 16 ++++++++++++++--
- src/net/interface_windows.go | 16 ++++------------
- 2 files changed, 18 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go       |  6 +++---
+ src/cmd/compile/internal/ssa/config.go   |  9 +++++++--
+ src/cmd/compile/internal/ssa/regalloc.go | 31 ++++++++++++++++++++++++-------
+ 3 files changed, 34 insertions(+), 12 deletions(-)

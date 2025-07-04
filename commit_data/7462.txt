@@ -1,15 +1,15 @@
-commit 5311d915f4a71fd6966042d6f8c2319b111e2aa1
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Feb 15 09:52:20 2011 -0500
+commit e6ee0d24924f926f3a648fdcd5e5ccb81e1d4f14
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 14 17:41:47 2011 -0800
 
-    encoding/line: fix line returned after EOF
+    godoc: don't hide package lookup error if there's no command with the same name
     
-    Fixes #1509.
+    Fixes #1514.
     
-    R=r
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4167045
+    https://golang.org/cl/4173050
 
- src/pkg/encoding/line/line.go      |  3 +++
- src/pkg/encoding/line/line_test.go | 23 +++++++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ src/cmd/godoc/godoc.go |  5 +++++
+ src/cmd/godoc/main.go  | 10 ++++++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)

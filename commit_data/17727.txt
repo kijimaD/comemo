@@ -1,17 +1,14 @@
-commit 0857045818d7cd31edfa54dec2c2b88af665c87c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Oct 3 08:52:18 2013 +1000
+commit 1b0bffa9737b906ebf9da3f5062c881431aa6397
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 2 13:21:15 2013 -0400
 
-    encoding/json: add an example for RawMessage
+    net/http: be clear that HTTPS is supported
     
-    RawMessage is useful and mildly non-obvious.
-    Given the frequency with which RawMessage questions
-    show up on golang-nuts, and get answered with an example,
-    I suspect adding an example to the docs might help.
+    Fixes #6443.
     
-    R=golang-dev, adg
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/14190044
+    https://golang.org/cl/14231045
 
- src/pkg/encoding/json/example_test.go | 46 +++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+ src/pkg/net/http/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,29 @@
-commit 8e28cd19acc43437e7ccec25dd0572afd6b77f8a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 29 21:29:16 2019 -0400
+commit 862ba63823e23202e50d7b756e37809c4eddf54b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 7 12:05:00 2018 -0500
 
-    cmd/go/internal/modfetch: fix concurrent read/write race in modfetch
+    cmd/go: reject GOCACHE=off when the default cache is initialized
     
-    On Windows systems, the failure rate for cmd/go's TestScript/mod_concurrent
-    is somewhere around 3-10% without this change. With the change, I have yet
-    to see a failure.
+    Allow GOCACHE=off only for operations that never actually write
+    anything to the cache (in which case the GOCACHE setting should not
+    matter at all).
     
-    Fixes #31744.
+    Fixes #29127
     
-    Change-Id: Ib321ebb9556dd8438086cf329dfa083a9e051732
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174439
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I733d02cd2fbcf3671f5adcfb73522865d131e360
+    Reviewed-on: https://go-review.googlesource.com/c/153462
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modfetch/sumdb.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ doc/go1.12.html                                    |  8 +--
+ src/cmd/dist/test.go                               |  2 -
+ src/cmd/go/go_test.go                              | 60 +------------------
+ src/cmd/go/internal/cache/default.go               | 48 ++++++----------
+ src/cmd/go/internal/cache/default_unix_test.go     | 67 ----------------------
+ src/cmd/go/testdata/script/build_GOTMPDIR.txt      |  5 +-
+ src/cmd/go/testdata/script/build_nocache.txt       | 19 ++++++
+ .../go/testdata/script/build_relative_pkgdir.txt   |  7 +++
+ .../go/testdata/script/build_relative_tmpdir.txt   | 16 ++++++
+ src/cmd/go/testdata/script/cache_unix.txt          | 34 +++++++++++
+ 10 files changed, 103 insertions(+), 163 deletions(-)

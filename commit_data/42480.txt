@@ -1,42 +1,20 @@
-commit 608cdcaede1e7133dc994b5e8894272c2dce744b
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Jun 6 20:59:12 2020 -0400
+commit 24902c5be6ba2eac6919879d2e5cb0a7bdadf91c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Jan 1 01:28:22 2020 +1100
 
-    all: replace usages of whitelist/blacklist and master/slave
+    cmd/internal/obj/riscv: handle MOV rewrites in separate pass
     
-    There's been plenty of discussion on the usage of these terms in tech.
-    I'm not trying to have yet another debate. It's clear that there are
-    people who are hurt by them and who are made to feel unwelcome by their
-    use due not to technical reasons but to their historical and social
-    context. That's simply enough reason to replace them.
+    Handle the rewriting of MOV pseudo-instructions in a separate pass. This allows
+    AMOV to be more readily used by other code, including AGETCALLERPC and ARET
+    implementations.
     
-    Anyway, allowlist and blocklist are more self-explanatory than whitelist
-    and blacklist, so this change has negative cost.
+    Updates #27532
     
-    Didn't change vendored, bundled, and minified files. Nearly all changes
-    are tests or comments, with a couple renames in cmd/link and cmd/oldlink
-    which are extremely safe. This should be fine to land during the freeze
-    without even asking for an exception.
-    
-    Change-Id: I8fc54a3c8f9cc1973b710bbb9558a9e45810b896
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236857
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Khosrow Moossavi <khos2ow@gmail.com>
-    Reviewed-by: Leigh McCulloch <leighmcc@gmail.com>
-    Reviewed-by: Urban Ishimwe <urbainishimwe@gmail.com>
+    Change-Id: Iea794121210048ed23ed0fb8f3c5e3cd5354a311
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212758
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.10.html                             |  4 +--
- src/cmd/cgo/doc.go                          |  2 +-
- src/cmd/compile/fmt_test.go                 | 16 +++++------
- src/cmd/compile/internal/gc/esc.go          | 12 ++++----
- src/cmd/go/internal/work/gc.go              |  2 +-
- src/cmd/link/internal/loader/loader.go      |  6 ++--
- src/cmd/oldlink/internal/objfile/objfile.go |  6 ++--
- src/html/template/html.go                   |  2 +-
- src/net/http/request.go                     |  2 +-
- src/net/http/server.go                      |  4 +--
- src/os/signal/internal/pty/pty.go           |  8 +++---
- src/os/signal/signal_cgo_test.go            | 44 ++++++++++++++---------------
- src/runtime/cgo_sigaction.go                |  2 +-
- src/runtime/debugcall.go                    |  2 +-
- 14 files changed, 56 insertions(+), 56 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

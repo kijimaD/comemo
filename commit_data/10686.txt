@@ -1,16 +1,12 @@
-commit 940c25faa4e495a13d6411fe23640c9d16b1e986
-Author: Rob Pike <r@golang.org>
-Date:   Fri Dec 9 08:31:04 2011 -0800
+commit e77f057bf345f9e0ef78608abdbd9e85b6e203c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 9 08:28:17 2011 -0500
 
-    tmpltohtml: feature for easier snippet extraction
-    Lines that end with OMIT are omitted from the output.
-    A comment such as
-            // Example stops here. OMIT
-    can be used as a marker but not appear in the output.
+    gc: resolve built-ins to built-in symbol
     
-    R=golang-dev, rsc
+    R=lvd
     CC=golang-dev
-    https://golang.org/cl/5477050
+    https://golang.org/cl/5480049
 
- doc/tmpltohtml.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

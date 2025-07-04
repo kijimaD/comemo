@@ -1,25 +1,51 @@
-commit d7149e502dfb13fdc94439eebaf1823a6c6dd84f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Oct 20 00:09:09 2021 +0700
+commit 20050a15fee5b03735d6a14fcd96c059a05e149c
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Feb 11 10:50:20 2021 -0800
 
-    reflect: restore Value.Pointer implementation
+    [dev.typeparams] cmd/compile:  support generic types (with stenciling of method calls)
     
-    CL 350691 added Value.UnsafePointer and make Value.Pointer call it
-    internally. It has a downside that Value.Pointer can now eligible to be
-    inlined, thus making un-intentional side effect, like the test in
-    fixedbugs/issue15329.go becomes flaky.
+    A type may now have a type param in it, either because it has been
+    composed from a function type param, or it has been declared as or
+    derived from a reference to a generic type. No objects or types with
+    type params can be exported yet. No generic type has a runtime
+    descriptor (but will likely eventually be associated with a dictionary).
     
-    This CL restore Value.Pointer original implementation, pre CL 350691,
-    with the deprecation TODO removed.
+    types.Type now has an RParam field, which for a Named type can specify
+    the type params (in order) that must be supplied to fully instantiate
+    the type. Also, there is a new flag HasTParam to indicate if there is
+    a type param (TTYPEPARAM) anywhere in the type.
     
-    Fixes #49067
+    An instantiated generic type (whether fully instantiated or
+    re-instantiated to new type params) is a defined type, even though there
+    was no explicit declaration. This allows us to handle recursive
+    instantiated types (and improves printing of types).
     
-    Change-Id: I735af182f8e729294333ca906ffc062f477cfc99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356949
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    To avoid the need to transform later in the compiler, an instantiation
+    of a method of a generic type is immediately represented as a function
+    with the method as the first argument.
+    
+    Added 5 tests on generic types to test/typeparams, including list.go,
+    which tests recursive generic types.
+    
+    Change-Id: Ib7ff27abd369a06d1c8ea84edc6ca1fd74bbb7c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292652
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/reflect/value.go | 37 ++++++++++++++++++++++++++++++++++++-
- 1 file changed, 36 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/export.go           |   5 +
+ src/cmd/compile/internal/noder/expr.go          |  50 ++++++--
+ src/cmd/compile/internal/noder/irgen.go         |   2 +-
+ src/cmd/compile/internal/noder/stencil.go       | 144 ++++++++++++++++++++----
+ src/cmd/compile/internal/noder/types.go         |  71 ++++++++++++
+ src/cmd/compile/internal/reflectdata/reflect.go |   5 +
+ src/cmd/compile/internal/types/sizeof_test.go   |   2 +-
+ src/cmd/compile/internal/types/type.go          |  52 +++++++++
+ src/cmd/compile/internal/types2/selection.go    |  16 +++
+ test/typeparam/list.go                          |  65 +++++++++++
+ test/typeparam/pair.go                          |  32 ++++++
+ test/typeparam/stringable.go                    |  46 ++++++++
+ test/typeparam/struct.go                        |  49 ++++++++
+ test/typeparam/value.go                         |  75 ++++++++++++
+ 14 files changed, 582 insertions(+), 32 deletions(-)

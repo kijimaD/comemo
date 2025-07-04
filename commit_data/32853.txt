@@ -1,25 +1,14 @@
-commit 8e11cb3f3b5e383023736172bcbfd847ea529176
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sun Sep 24 18:13:26 2017 +0200
+commit a7d7d7aec26b18e8ae4581a30b7c0f5b4d0b9c6b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 8 12:05:31 2017 -0400
 
-    runtime: improve comments for nextSample
+    runtime: fix tab/space inconsistency in runtime-gdb.py
     
-    The previous comment of nextSample didn't mention Poisson processes,
-    which is the reason why it needed to create an exponential
-    distribution, so it was hard to follow the reasoning for people
-    not highly familiar with statistics.
-    
-    Since we're at it, we also make it clear that we are just creating
-    a random number with exponential distribution by moving the
-    bulk of the function into a new fastexprand().
-    
-    No functional changes.
-    
-    Change-Id: I9c275e87edb3418ee0974257af64c73465028ad7
-    Reviewed-on: https://go-review.googlesource.com/65657
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I78c6198eb909e679cf0f776b77dda52211bfd347
+    Reviewed-on: https://go-review.googlesource.com/45133
     Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/malloc.go | 46 ++++++++++++++++++++++++++--------------------
- 1 file changed, 26 insertions(+), 20 deletions(-)
+ src/runtime/runtime-gdb.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

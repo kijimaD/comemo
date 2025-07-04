@@ -1,40 +1,15 @@
-commit b9ccd077dc478fca2e8bd00633c1a60a54f342d8
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 5 09:40:22 2011 -0500
+commit 263c955f2fff2016b5ff77d787d8e1b50555930a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 5 16:44:10 2011 +1100
 
-    runtime: prep for type-specific algorithms
+    gobuilder: use new dashboard protocol
+    gobuilder: -commit mode for packages
+    gobuilder: cripple -package mode temporarily
     
-    Equality on structs will require arbitrary code for type equality,
-    so change algorithm in type data from uint8 to table pointer.
-    In the process, trim top-level map structure from
-    104/80 bytes (64-bit/32-bit) to 24/12.
-    
-    Equality on structs will require being able to call code generated
-    by the Go compiler, and C code has no way to access Go return
-    values, so change the hash and equal algorithm functions to take
-    a pointer to a result instead of returning the result.
-    
-    R=ken
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5453043
+    https://golang.org/cl/5450092
 
- src/cmd/gc/builtin.c.boot | 210 ++++++++++++++--------------
- src/cmd/gc/go.h           |  29 ----
- src/cmd/gc/range.c        |   4 +-
- src/cmd/gc/reflect.c      |  10 +-
- src/cmd/gc/runtime.go     |   2 +-
- src/cmd/gc/walk.c         |   2 +-
- src/cmd/ld/dwarf.c        |   2 +-
- src/pkg/reflect/type.go   |   3 +-
- src/pkg/runtime/Makefile  |   1 +
- src/pkg/runtime/alg.c     | 345 ++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/chan.c    |   9 +-
- src/pkg/runtime/hashmap.c | 291 ++++++++++++++------------------------
- src/pkg/runtime/hashmap.h |   1 +
- src/pkg/runtime/iface.c   |  63 +++++----
- src/pkg/runtime/runtime.c | 332 --------------------------------------------
- src/pkg/runtime/runtime.h |  58 ++++++--
- src/pkg/runtime/slice.c   |   6 +-
- src/pkg/runtime/type.go   |  19 +--
- src/pkg/runtime/type.h    |   3 +-
- 19 files changed, 669 insertions(+), 721 deletions(-)
+ misc/dashboard/builder/http.go | 151 +++++++++++++++++++++++++----------------
+ misc/dashboard/builder/main.go |  95 ++++++++++++++++++--------
+ 2 files changed, 158 insertions(+), 88 deletions(-)

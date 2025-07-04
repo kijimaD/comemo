@@ -1,33 +1,19 @@
-commit f0c5b8b9c9c7900033ddb11b584da6198d599454
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Tue Apr 12 21:16:27 2016 +0200
+commit 88e18032bd76656afcf246c1a252e04cf462b41e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 1 15:17:34 2016 -0800
 
-    image/color: optimize YCbCrToRGB
+    cmd/compile: s/flag_race/instrumenting/ in OCONVNOP check
     
-    Use one comparison to detect underflow and overflow simultaneously.
-    Use a shift, bitwise complement and uint8 type conversion to handle
-    clamping to upper and lower bound without additional branching.
+    This check seems to apply to all code instrumentation, not just -race.
     
-    Overall the new code is faster for a mix of
-    common case, underflow and overflow.
+    Fixes #14589.
     
-    name     old time/op  new time/op  delta
-    YCbCr-2  1.12ms ± 0%  0.64ms ± 0%  -43.01%  (p=0.000 n=48+47)
-    
-    name              old time/op  new time/op  delta
-    YCbCrToRGB/0-2    5.52ns ± 0%  5.77ns ± 0%  +4.48%  (p=0.000 n=50+49)
-    YCbCrToRGB/128-2  6.05ns ± 0%  5.52ns ± 0%  -8.69%  (p=0.000 n=39+50)
-    YCbCrToRGB/255-2  5.80ns ± 0%  5.77ns ± 0%  -0.58%  (p=0.000 n=50+49)
-    
-    Found in collaboration with Josh Bleecher Snyder and Ralph Corderoy.
-    
-    Change-Id: Ic5020320f704966f545fdc1ae6bc24ddb5d3d09a
-    Reviewed-on: https://go-review.googlesource.com/21910
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I16ae07749ede7c1e6ed06f472711638d195034ac
+    Reviewed-on: https://go-review.googlesource.com/20113
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
 
- src/image/color/ycbcr.go             |  49 ++++++---
- src/image/internal/imageutil/gen.go  |  48 ++++++---
- src/image/internal/imageutil/impl.go | 192 +++++++++++++++++++++++------------
- 3 files changed, 193 insertions(+), 96 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

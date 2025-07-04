@@ -1,16 +1,14 @@
-commit ab578e12ffa1ea813055c3206ac39437ce7a18de
-Author: Han-Wen Nienhuys <hanwen@google.com>
-Date:   Mon Sep 16 16:29:04 2013 +1000
+commit 2ec53b07053fa8d974759661de3881aacef8c6db
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 16 16:13:27 2013 +1000
 
-    net/rpc: log I/O and internal errors only if debugLog is set.
+    cmd/nm: put the -S flag in the usage message
+    The -S flag reports symbol size, but is missing from the usage message.
     
-    Fixes #6367.
-    
-    R=rsc, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/13395047
+    https://golang.org/cl/13660046
 
- src/pkg/net/rpc/client.go | 6 ++++--
- src/pkg/net/rpc/debug.go  | 3 +++
- src/pkg/net/rpc/server.go | 5 +++--
- 3 files changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/nm/doc.go | 2 +-
+ src/cmd/nm/nm.c   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

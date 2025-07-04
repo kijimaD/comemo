@@ -1,17 +1,14 @@
-commit a0430dae0482f2e9fc90252a568047be78129f13
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Feb 9 08:18:32 2013 +0900
+commit 1e01fba2fc9a8824fee899956ead1518eae9613b
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Feb 8 16:00:33 2013 -0500
 
-    net: fix unixgram
+    runtime: precise garbage collection of hashmaps
     
-    The socket for AF_UNIX domain with SOCK_DGARM type isn't
-    allowed to work with syscall listen.
-    
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/7310068
+    R=golang-dev, rsc
+    CC=dave, dvyukov, golang-dev, minux.ma, remyoudompheng
+    https://golang.org/cl/7252047
 
- src/pkg/net/dial.go           | 3 ++-
- src/pkg/net/unixsock_plan9.go | 3 +--
- src/pkg/net/unixsock_posix.go | 5 ++---
- 3 files changed, 5 insertions(+), 6 deletions(-)
+ src/pkg/runtime/hashmap.c |  78 +++++++++++++++-
+ src/pkg/runtime/hashmap.h |  25 ++++-
+ src/pkg/runtime/mgc0.c    | 234 ++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 328 insertions(+), 9 deletions(-)

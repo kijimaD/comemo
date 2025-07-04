@@ -1,16 +1,19 @@
-commit 9e96ad851d9fb3feb7ee3f7b72213c5b7a9977aa
-Author: Keith Randall <khr@golang.org>
-Date:   Tue May 10 09:10:43 2016 -0700
+commit e61db3119ca0767b255b784005d2636f8d4b611e
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Tue Mar 22 17:34:36 2016 +0100
 
-    test: add test for unlowered ITab
+    cmd/compile: simplify SliceCap when it equals SliceLen
     
-    See #15604.  This was a bug in a CL that has since been
-    rolled back.  Adding a test to challenge the next attempter.
+    Shows up occassionally, especially after p = p[:8:len(p)]
     
-    Change-Id: Ic43be254ea6eaab0071018cdc61d9b1c21f19cbf
-    Reviewed-on: https://go-review.googlesource.com/23000
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #14905
+    
+    Change-Id: Iab35ef2eac57817e6a10c6aaeeb84709e8021641
+    Reviewed-on: https://go-review.googlesource.com/21025
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue15604.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 49 +++++++++++++++++++-------
+ 2 files changed, 38 insertions(+), 12 deletions(-)

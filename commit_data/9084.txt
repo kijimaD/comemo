@@ -1,12 +1,12 @@
-commit 5d929a9c9236f146bcb49a1c7a0d29e0b93a76ae
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jul 15 13:45:22 2011 +1000
+commit 29125be5c7d4f04788669d7ab2a6e555749b9609
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 14 23:43:03 2011 -0400
 
-    go/build: less aggressive failure when GOROOT not found
+    runtime: make TestSideEffectOrder work twice
     
-    R=golang-dev, rsc, dsymonds
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4743041
+    https://golang.org/cl/4714045
 
- src/pkg/go/build/path.go | 26 +++++++++++++++++---------
- 1 file changed, 17 insertions(+), 9 deletions(-)
+ src/pkg/runtime/append_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

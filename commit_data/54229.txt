@@ -1,18 +1,19 @@
-commit 7e7dd4dcd9a73ed9e832cd873b8fad7b87ddf029
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Sat Aug 26 11:56:38 2023 +0000
+commit 84c188008e4a2c772308e2b6c74d4c353303d308
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Sep 29 12:56:21 2022 +0000
 
-    cmd/compile/internal/ir: remove redundant not in doc
+    crypto: fix a few function names on comments
     
-    Change-Id: Ia4fc2ceafa92f38742d3a017e37350875fdcc25e
-    GitHub-Last-Rev: 482f5e4fe626bfe97058ea052324cca68b91263d
-    GitHub-Pull-Request: golang/go#62299
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522940
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I06f85f78c4c802142fc9207b100753decd568274
+    GitHub-Last-Rev: 4ad4c0f5e93df9ea83deb86b814167e661bba0ff
+    GitHub-Pull-Request: golang/go#55945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436639
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/ir/stmt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/key_schedule.go | 2 +-
+ src/crypto/x509/x509.go        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,91 +1,19 @@
-commit 1ba96d8c0909eca59e28c048150c3834982f79fb
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Oct 4 12:17:46 2021 -0700
+commit a294e4e798d75ee9cf167a75189b1b0dff3664f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 15 12:46:11 2021 -0400
 
-    cmd/compile: implement jump tables
+    math/rand: mention half-open intervals explicitly
     
-    Performance is kind of hard to exactly quantify.
+    If someone sees "in [0,n)" it might look like a typo.
+    Saying "in the half-open interval [0,n)" will give people
+    something to search the web for (half-open interval).
     
-    One big difference between jump tables and the old binary search
-    scheme is that there's only 1 branch statement instead of O(n) of
-    them. That can be both a blessing and a curse, and can make evaluating
-    jump tables very hard to do.
-    
-    The single branch can become a choke point for the hardware branch
-    predictor. A branch table jump must fit all of its state in a single
-    branch predictor entry (technically, a branch target predictor entry).
-    With binary search that predictor state can be spread among lots of
-    entries. In cases where the case selection is repetitive and thus
-    predictable, binary search can perform better.
-    
-    The big win for a jump table is that it doesn't consume so much of the
-    branch predictor's resources. But that benefit is essentially never
-    observed in microbenchmarks, because the branch predictor can easily
-    keep state for all the binary search branches in a microbenchmark. So
-    that benefit is really hard to measure.
-    
-    So predictable switch microbenchmarks are ~useless - they will almost
-    always favor the binary search scheme. Fully unpredictable switch
-    microbenchmarks are better, as they aren't lying to us quite so
-    much. In a perfectly unpredictable situation, a jump table will expect
-    to incur 1-1/N branch mispredicts, where a binary search would incur
-    lg(N)/2 of them. That makes the crossover point at about N=4. But of
-    course switches in real programs are seldom fully unpredictable, so
-    we'll use a higher crossover point.
-    
-    Beyond the branch predictor, jump tables tend to execute more
-    instructions per switch but have no additional instructions per case,
-    which also argues for a larger crossover.
-    
-    As far as code size goes, with this CL cmd/go has a slightly smaller
-    code segment and a slightly larger overall size (from the jump tables
-    themselves which live in the data segment).
-    
-    This is a case where some FDO (feedback-directed optimization) would
-    be really nice to have. #28262
-    
-    Some large-program benchmarks might help make the case for this
-    CL. Especially if we can turn on branch mispredict counters so we can
-    see how much using jump tables can free up branch prediction resources
-    that can be gainfully used elsewhere in the program.
-    
-    name                         old time/op  new time/op  delta
-    Switch8Predictable         1.89ns ± 2%  1.27ns ± 3%  -32.58%  (p=0.000 n=9+10)
-    Switch8Unpredictable       9.33ns ± 1%  7.50ns ± 1%  -19.60%  (p=0.000 n=10+9)
-    Switch32Predictable        2.20ns ± 2%  1.64ns ± 1%  -25.39%  (p=0.000 n=10+9)
-    Switch32Unpredictable      10.0ns ± 2%   7.6ns ± 2%  -24.04%  (p=0.000 n=10+10)
-    
-    Fixes #5496
-    Update #34381
-    
-    Change-Id: I3ff56011d02be53f605ca5fd3fb96b905517c34f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357330
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I3c343f0a7171891e106e709ca77ab9db5daa5c84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328210
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go          |  10 +++
- src/cmd/compile/internal/gc/obj.go             |   3 +
- src/cmd/compile/internal/ir/node.go            |   1 +
- src/cmd/compile/internal/ir/node_gen.go        |  22 +++++
- src/cmd/compile/internal/ir/op_string.go       |  21 ++---
- src/cmd/compile/internal/ir/stmt.go            |  32 ++++++++
- src/cmd/compile/internal/ssa/check.go          |   4 +
- src/cmd/compile/internal/ssa/config.go         |   3 +
- src/cmd/compile/internal/ssa/export_test.go    |   3 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 +
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   6 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  13 +--
- src/cmd/compile/internal/ssa/gen/rulegen.go    |   2 +
- src/cmd/compile/internal/ssa/opGen.go          |  50 ++++++------
- src/cmd/compile/internal/ssa/rewrite.go        |   7 ++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   |  14 ++++
- src/cmd/compile/internal/ssagen/ssa.go         | 106 +++++++++++++++++++++++++
- src/cmd/compile/internal/test/switch_test.go   |  94 ++++++++++++++++++++++
- src/cmd/compile/internal/walk/stmt.go          |   1 +
- src/cmd/compile/internal/walk/switch.go        |  49 +++++++++++-
- src/cmd/internal/obj/link.go                   |  10 +++
- src/cmd/internal/obj/x86/asm6.go               |  10 +++
- src/cmd/internal/sys/arch.go                   |   5 ++
- 23 files changed, 428 insertions(+), 40 deletions(-)
+ src/math/rand/rand.go | 32 +++++++++++++++-----------------
+ 1 file changed, 15 insertions(+), 17 deletions(-)

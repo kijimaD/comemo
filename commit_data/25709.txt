@@ -1,16 +1,15 @@
-commit 8de7563acd813e742bcf7db0a6ab19203dbf6b28
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 2 10:10:27 2016 -0500
+commit 48a14663f8066f2643d163cec88f3fd526d08e67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 12:40:45 2015 -0800
 
-    cmd/go: avoid use of git -C, which does not exist in RHEL 7
+    test: add test case for issue #13248
     
-    Tested manually with "go test -run TestGetSubmodules".
+    Issue #13248 was fixed by https://go-review.googlesource.com/#/c/16930/.
+    This is the corresponding test case (original offending program).
     
-    Fixes #14194.
-    
-    Change-Id: I4f563b2b8a38f3040d7631f74a7908ab65e0860b
-    Reviewed-on: https://go-review.googlesource.com/19154
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7c99783db74a5422704409cea7e5073094beadd3
+    Reviewed-on: https://go-review.googlesource.com/16973
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/go/vcs.go | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ test/fixedbugs/issue13248.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

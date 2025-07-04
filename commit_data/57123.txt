@@ -1,29 +1,19 @@
-commit fe392d0dff0089c70f6addf83c122100af7d24be
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Aug 1 16:26:00 2024 +0200
+commit 25e46693a1085f604a9c92ee26afed2b4d45a9dd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 22 11:56:55 2023 -0400
 
-    os/user: support calling Current on impersonated threads
+    cmd/go: impersonate 'go tool dist list' if 'go tool dist' is not present
     
-    The syscall.OpenCurrentProcessToken call in user.Current fails
-    when called from an impersonated thread, as the process token is
-    normally in that case.
+    Fixes #60939.
     
-    This change ensures that the current thread is not impersonated
-    when calling OpenCurrentProcessToken, and then restores the
-    impersonation state, if any.
-    
-    Fixes #68647
-    
-    Change-Id: I3197535dd8355d21029a42f7aa3936d8fb021202
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602415
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I6a15db558a8e80e242818cccd642899aba47e596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505176
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/internal/syscall/windows/security_windows.go |  24 ++++
- src/internal/syscall/windows/syscall_windows.go  |   1 +
- src/internal/syscall/windows/zsyscall_windows.go |  36 ++++++
- src/os/user/lookup_windows.go                    | 113 +++++++++++++-----
- src/os/user/user_windows_test.go                 | 145 +++++++++++++++++++++++
- 5 files changed, 291 insertions(+), 28 deletions(-)
+ src/cmd/go/internal/base/tool.go                 | 23 +++++--
+ src/cmd/go/internal/tool/tool.go                 | 85 ++++++++++++++++++++++--
+ src/cmd/go/testdata/script/dist_list_missing.txt | 57 ++++++++++++++++
+ 3 files changed, 155 insertions(+), 10 deletions(-)

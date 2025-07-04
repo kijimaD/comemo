@@ -1,33 +1,97 @@
-commit 956f8a67dd7319bad60c015d982f0b2e95b9f382
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Jun 12 18:19:24 2024 +0000
+commit a4772a1a5974bbf5a5bc8ba84351062ae2d4cacd
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Fri May 19 14:00:10 2023 +0200
 
-    internal/coverage/cfile: harden the coverage snapshot test
+    runtime: fix alignment code in memclr_riscv64.s
     
-    The existing testpoint TestCoverageSnapshot will fail if we happen to
-    be selecting a set of packages for inclusion in the profile that don't
-    include internal/coverage/cfile. Example:
+    The existing code incorrectly determines whether the pointer passed to
+    memclrNoHeapPointers is 8 byte aligned (it currently checks to see whether
+    it's 4 byte aligned).
     
-     $ cd `go env GOROOT`
-     $ cd src/internal/coverage
-     $ go test -coverpkg=internal/coverage/decodecounter ./...
-     ...
-      --- FAIL: TestCoverageSnapshot (0.00s)
-          ts_test.go:102: 0.276074 0.276074
-          ts_test.go:104: erroneous snapshots, C1 >= C2 = true C1=0.276074 C2=0.276074
+    In addition, the code that aligns the pointer, by individually filling
+    the first few bytes of the buffer with zeros, is also incorrect.  It adjusts
+    the pointer by the wrong number of bytes, resulting in most cases, in
+    an unaligned pointer.
     
-    To ensure that this doesn't happen, extract the test in question out
-    into a separate file with a special build tag, and then have the
-    original testpoint do a "go test -cover -tags ... " run to make sure
-    that for that specific test run the cfile package is instrumented.
+    This commit fixes both of these issues by anding the pointer with 7
+    rather than 3 to determine its alignment, and by individually filling
+    the first (8 - (pointer & 7)) bytes with 0 to align the buffer, rather
+    than the first (pointer & 3) bytes.
     
-    Fixes #67951.
+    We also remove an unnecessary immediate MOV instruction.
     
-    Change-Id: I8ac6e07e1a6d93275b8c6acabfce85e04c70a102
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592200
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    A new benchmark is added to test the performance of memclrNoHeapPointers
+    on non-aligned pointers.  Results of the existing and the new benchmark
+    on a SiFive HiFive Unmatched A00 with 16GB of RAM running Ubuntu 23.04
+    are presented below.
+    
+    Memclr/5-4                     21.98n ± 7%   22.66n ± 9%        ~ (p=0.079 n=10)
+    Memclr/16-4                    20.85n ± 3%   21.09n ± 5%        ~ (p=0.796 n=10)
+    Memclr/64-4                    28.20n ± 4%   27.50n ± 3%        ~ (p=0.093 n=10)
+    Memclr/256-4                   53.66n ± 8%   53.44n ± 8%        ~ (p=0.280 n=10)
+    Memclr/4096-4                  522.6n ± 1%   523.4n ± 1%        ~ (p=0.240 n=10)
+    Memclr/65536-4                 24.17µ ± 0%   24.13µ ± 0%   -0.19% (p=0.029 n=10)
+    Memclr/1M-4                    446.9µ ± 0%   446.9µ ± 0%        ~ (p=0.684 n=10)
+    Memclr/4M-4                    12.69m ± 2%   12.79m ± 3%   +0.78% (p=0.043 n=10)
+    Memclr/8M-4                    29.75m ± 0%   29.76m ± 0%   +0.03% (p=0.015 n=10)
+    Memclr/16M-4                   60.34m ± 0%   60.32m ± 0%        ~ (p=0.247 n=10)
+    Memclr/64M-4                   241.2m ± 0%   241.3m ± 0%        ~ (p=0.247 n=10)
+    MemclrUnaligned/0_5-4          27.71n ± 0%   27.72n ± 1%        ~ (p=0.142 n=10)
+    MemclrUnaligned/0_16-4         26.95n ± 0%   26.04n ± 0%   -3.38% (p=0.000 n=10)
+    MemclrUnaligned/0_64-4         38.27n ± 4%   40.15n ± 6%   +4.89% (p=0.005 n=10)
+    MemclrUnaligned/0_256-4        63.95n ± 3%   64.19n ± 2%        ~ (p=0.971 n=10)
+    MemclrUnaligned/0_4096-4       532.6n ± 1%   530.9n ± 1%        ~ (p=0.324 n=10)
+    MemclrUnaligned/0_65536-4      24.30µ ± 0%   24.22µ ± 0%   -0.32% (p=0.023 n=10)
+    MemclrUnaligned/1_5-4          29.40n ± 0%   29.39n ± 0%        ~ (p=0.060 n=10)
+    MemclrUnaligned/1_16-4        632.65n ± 1%   63.80n ± 2%  -89.92% (p=0.000 n=10)
+    MemclrUnaligned/1_64-4       4091.00n ± 1%   73.23n ± 1%  -98.21% (p=0.000 n=10)
+    MemclrUnaligned/1_256-4     17803.50n ± 1%   92.03n ± 1%  -99.48% (p=0.000 n=10)
+    MemclrUnaligned/1_4096-4    294150.0n ± 1%   561.9n ± 1%  -99.81% (p=0.000 n=10)
+    MemclrUnaligned/1_65536-4    4692.80µ ± 1%   24.44µ ± 0%  -99.48% (p=0.000 n=10)
+    MemclrUnaligned/4_5-4          27.71n ± 0%   27.71n ± 0%        ~ (p=0.308 n=10)
+    MemclrUnaligned/4_16-4       1187.00n ± 1%   50.74n ± 3%  -95.72% (p=0.000 n=10)
+    MemclrUnaligned/4_64-4       4617.00n ± 1%   59.89n ± 2%  -98.70% (p=0.000 n=10)
+    MemclrUnaligned/4_256-4     18472.50n ± 1%   84.76n ± 2%  -99.54% (p=0.000 n=10)
+    MemclrUnaligned/4_4096-4    292904.0n ± 1%   553.7n ± 0%  -99.81% (p=0.000 n=10)
+    MemclrUnaligned/4_65536-4    4716.12µ ± 0%   24.38µ ± 0%  -99.48% (p=0.000 n=10)
+    MemclrUnaligned/7_5-4          29.39n ± 0%   29.39n ± 0%        ~ (p=1.000 n=10)
+    MemclrUnaligned/7_16-4        636.80n ± 1%   48.33n ± 5%  -92.41% (p=0.000 n=10)
+    MemclrUnaligned/7_64-4       4094.00n ± 1%   58.88n ± 3%  -98.56% (p=0.000 n=10)
+    MemclrUnaligned/7_256-4     17869.00n ± 2%   82.70n ± 3%  -99.54% (p=0.000 n=10)
+    MemclrUnaligned/7_4096-4    294110.5n ± 1%   554.6n ± 1%  -99.81% (p=0.000 n=10)
+    MemclrUnaligned/7_65536-4    4735.00µ ± 1%   24.28µ ± 0%  -99.49% (p=0.000 n=10)
+    MemclrUnaligned/0_1M-4         447.8µ ± 0%   450.0µ ± 1%   +0.51% (p=0.000 n=10)
+    MemclrUnaligned/0_4M-4         12.68m ± 1%   12.64m ± 2%   -0.33% (p=0.015 n=10)
+    MemclrUnaligned/0_8M-4         29.76m ± 0%   29.79m ± 2%        ~ (p=0.075 n=10)
+    MemclrUnaligned/0_16M-4        60.34m ± 1%   60.49m ± 1%        ~ (p=0.353 n=10)
+    MemclrUnaligned/0_64M-4        241.3m ± 0%   241.4m ± 0%        ~ (p=0.247 n=10)
+    MemclrUnaligned/1_1M-4       75937.3µ ± 1%   449.9µ ± 0%  -99.41% (p=0.000 n=10)
+    MemclrUnaligned/1_4M-4        313.96m ± 2%   12.69m ± 0%  -95.96% (p=0.000 n=10)
+    MemclrUnaligned/1_8M-4        630.97m ± 1%   29.76m ± 0%  -95.28% (p=0.000 n=10)
+    MemclrUnaligned/1_16M-4      1263.47m ± 1%   60.35m ± 2%  -95.22% (p=0.000 n=10)
+    MemclrUnaligned/1_64M-4       5053.5m ± 0%   241.3m ± 0%  -95.23% (p=0.000 n=10)
+    MemclrUnaligned/4_1M-4       75880.5µ ± 2%   446.5µ ± 0%  -99.41% (p=0.000 n=10)
+    MemclrUnaligned/4_4M-4        314.00m ± 1%   12.71m ± 2%  -95.95% (p=0.000 n=10)
+    MemclrUnaligned/4_8M-4        630.63m ± 1%   29.77m ± 2%  -95.28% (p=0.000 n=10)
+    MemclrUnaligned/4_16M-4      1257.80m ± 0%   60.34m ± 2%  -95.20% (p=0.000 n=10)
+    MemclrUnaligned/4_64M-4       5041.3m ± 1%   241.2m ± 0%  -95.21% (p=0.000 n=10)
+    MemclrUnaligned/7_1M-4       75866.2µ ± 1%   446.9µ ± 0%  -99.41% (p=0.000 n=10)
+    MemclrUnaligned/7_4M-4        309.86m ± 1%   12.70m ± 1%  -95.90% (p=0.000 n=10)
+    MemclrUnaligned/7_8M-4        626.67m ± 1%   29.75m ± 2%  -95.25% (p=0.000 n=10)
+    MemclrUnaligned/7_16M-4      1252.84m ± 1%   60.31m ± 0%  -95.19% (p=0.000 n=10)
+    MemclrUnaligned/7_64M-4       5015.8m ± 1%   241.4m ± 0%  -95.19% (p=0.000 n=10)
+    geomean                        339.1µ        35.83µ       -89.43%
+    
+    Change-Id: I3b958a1d8e8f5ef205052e6b985a5ce21e92ef85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496455
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/coverage/cfile/snapshot_test.go | 49 +++++++++++++++++++++++++
- src/internal/coverage/cfile/ts_test.go       | 55 ++++++++++------------------
- 2 files changed, 68 insertions(+), 36 deletions(-)
+ src/runtime/memclr_riscv64.s |  5 +++--
+ src/runtime/memmove_test.go  | 26 ++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

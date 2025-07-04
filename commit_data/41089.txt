@@ -1,34 +1,25 @@
-commit 6dbcc8b8651909442ff823231daba096f447a163
+commit 9f5127bfebfc8c3acec4dbb374ff5c0d4c586565
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jan 7 15:33:08 2020 -0500
+Date:   Tue Sep 3 09:28:17 2019 -0400
 
-    cmd/go: make "finding" logging deterministic
+    doc/go1.13: remove announcements of arm64 support on NetBSD and OpenBSD
     
-    In CL 204777, I made the "finding" messages in cachingRepo only print
-    after a “longish” delay, on the theory that they would help diagnose
-    slow or stuck fetches.
+    Those configurations currently lack builders, and it is not clear to
+    me what state their tests are in.
     
-    However, as I've been testing Go 1.14 beta 1, I've found that these
-    messages are mostly just noise, and the fact that they are so
-    nondeterministic causes both confusion and test flakes (#35539).
+    The Go porting policy¹ requires builders for all active ports, so
+    let's not claim support until that requirement is met.
     
-    Moreover, it currently triggers once for each candidate module, when
-    what we're usually after is actually a specific package within the
-    module.
+    ¹https://golang.org/wiki/PortingPolicy#requirements-for-a-new-port
     
-    So let's log the package operation unconditionally instead of the
-    module fetches nondeterministically.
+    Updates #30824
+    Updates #31656
+    Updates #34035
+    Updates #34036
     
-    Fixes #35539
-    Updates #26152
-    
-    Change-Id: I41a1c772465b2f0b357d3402bc372b6907773741
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213679
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I6496de9d92fb8546048abf139cf10546a47e314b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192997
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modfetch/cache.go            | 18 ------------------
- src/cmd/go/internal/modload/import.go            |  2 ++
- src/cmd/go/testdata/script/mod_load_badchain.txt |  2 ++
- 3 files changed, 4 insertions(+), 18 deletions(-)
+ doc/go1.13.html | 12 ------------
+ 1 file changed, 12 deletions(-)

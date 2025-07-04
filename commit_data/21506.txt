@@ -1,16 +1,25 @@
-commit f961a99a35c180e90cf4cd9ae29947ccc1e0dfae
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Dec 26 01:24:42 2014 -0500
+commit ad6ee36cac122894f7ea4043289c10a50e48ac01
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 7 11:37:04 2015 -0500
 
-    misc/ios: add README and wrapper script to ease cross-compiling for darwin/arm
+    cmd/dist: remove C sources, rename some to Go files
     
-    Fixes #837.
+    This CL makes the next one have nice cross-file diffs.
     
-    Change-Id: I2d601504addbd220b304d32d587144d2a702f753
-    Reviewed-on: https://go-review.googlesource.com/2127
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I9ce897dc505dea9923be4e823bae31f4f7fa2ee2
+    Reviewed-on: https://go-review.googlesource.com/2471
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/ios/README       | 44 ++++++++++++++++++++++++++++++++++++++++++++
- misc/ios/clangwrap.sh | 10 ++++++++++
- 2 files changed, 54 insertions(+)
+ src/cmd/dist/a.h                                 | 165 ----
+ src/cmd/dist/arg.h                               |  49 --
+ src/cmd/dist/arm.c                               |  72 --
+ src/cmd/dist/buf.c                               | 284 -------
+ src/cmd/dist/{build.c => build.go}               |   0
+ src/cmd/dist/{buildgc.c => buildgc.go}           |   0
+ src/cmd/dist/{buildgo.c => buildgo.go}           |   0
+ src/cmd/dist/{buildruntime.c => buildruntime.go} |   0
+ src/cmd/dist/{main.c => main.go}                 |   0
+ src/cmd/dist/plan9.c                             | 758 -----------------
+ src/cmd/dist/{unix.c => util.go}                 |   0
+ src/cmd/dist/windows.c                           | 989 -----------------------
+ 12 files changed, 2317 deletions(-)

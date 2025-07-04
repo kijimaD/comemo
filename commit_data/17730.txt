@@ -1,14 +1,19 @@
-commit 95d85d90d8db0e90db5621035d35f02d41da959b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 2 21:40:01 2013 -0400
+commit a978b1e049268cd2726c521fa3526976c7af7351
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Oct 2 20:14:54 2013 -0400
 
-    crypto/tls: document ConnectionState fields
+    misc/dist: support building statically linked toolchain.
+    so that we don't need worry about specifying the required
+    libc version (note: as cmd/go will still be dynamically
+    linked to libc, we still need to perform the build on OSes
+    with an old enough libc. But as cmd/go doesn't rely on many
+    libc symbols, the situation should be significantly better).
     
-    Fixes #6456.
+    Fixes #3564.
     
-    R=golang-dev, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/14289043
+    https://golang.org/cl/14261043
 
- src/pkg/crypto/tls/common.go | 22 ++++++++--------------
- 1 file changed, 8 insertions(+), 14 deletions(-)
+ misc/dist/bindist.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

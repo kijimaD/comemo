@@ -1,13 +1,16 @@
-commit 754f0402c3d570e9d956b491f0434e1fccff6e6f
-Author: Kyle Consalus <consalus@gmail.com>
-Date:   Wed Jan 5 11:42:35 2011 -0800
+commit 29d0f02bd24541adbcee5c5b5583371c2b72d7d5
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 5 11:39:57 2011 -0800
 
-    Made format string handling more efficient.
+    effective go: explain the effect of repanicking better.
+    Also fix a <p> error in go_spec.html.
     
-    R=rsc, r, r2
+    Fixes #1370.
+    
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/3421042
+    https://golang.org/cl/3835043
 
- src/pkg/fmt/fmt_test.go | 45 ++++++++++++++++++---------------------------
- src/pkg/fmt/print.go    | 25 +++++++++++++------------
- 2 files changed, 31 insertions(+), 39 deletions(-)
+ doc/effective_go.html | 13 ++++++++++++-
+ doc/go_spec.html      |  4 ++--
+ 2 files changed, 14 insertions(+), 3 deletions(-)

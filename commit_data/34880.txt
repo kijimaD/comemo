@@ -1,23 +1,17 @@
-commit cd682f3832629e600e497c4a9b37209f4aeed5dc
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Sat Mar 24 18:07:58 2018 +0200
+commit 9adfe0f4755aad4e81e8f1d624cec99e8c212e77
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 22 11:27:16 2017 -0800
 
-    runtime: improve Windows gdb tests
+    os/signal: don't run TestTerminalSignal on Solaris
     
-    This ensures that gdb tests run on Windows by ignoring any line ending.
+    Fixes #22849
     
-    Works with gdb 7.7, however with gdb 7.9 and 7.12 gets an error
-    error:
-    
-        internal-error: buildsym_init: Assertion `free_pendings == NULL'
-        failed.
-    
-    Updates #21380
-    
-    Change-Id: I6a6e5b2a1b5efdca4dfce009fcb9c134c87497d6
-    Reviewed-on: https://go-review.googlesource.com/102419
+    Change-Id: Icf7f07d0d1d0669f5db4943030588646c819c62a
+    Reviewed-on: https://go-review.googlesource.com/79495
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/runtime-gdb_test.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/os/signal/internal/pty/pty.go | 2 +-
+ src/os/signal/signal_cgo_test.go  | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

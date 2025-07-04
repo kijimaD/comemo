@@ -1,25 +1,20 @@
-commit 44623c2ece584d77a9e8338f5f0bec198a2bab60
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Oct 23 16:23:43 2017 +1100
+commit 3d124b1a817146ab7800982622b0de5b828f3392
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 17 09:11:36 2017 +0900
 
-    net: use WSASocket instead of socket call
+    debug/macho: support LC_RPATH
     
-    WSASocket (unlike socket call) allows to create sockets that
-    will not be inherited by child process. So call WSASocket to
-    save on using syscall.ForkLock and calling syscall.CloseOnExec.
+    Updates #21487
     
-    Some very old versions of Windows do not have that functionality.
-    Call socket, if WSASocket failed, to support these.
-    
-    Change-Id: I2dab9fa00d1a8609dd6feae1c9cc31d4e55b8cb5
-    Reviewed-on: https://go-review.googlesource.com/72590
+    Change-Id: Ia549a87a8a305cc80da11ea9bd904402f1a14689
+    Reviewed-on: https://go-review.googlesource.com/56321
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go                        |  2 +-
- src/internal/syscall/windows/syscall_windows.go  |  7 +++++
- src/internal/syscall/windows/zsyscall_windows.go | 15 ++++++++++
- src/net/hook_windows.go                          |  8 +++--
- src/net/internal/socktest/sys_windows.go         | 37 +++++++++++++++++++++++-
- src/net/main_windows_test.go                     |  3 ++
- src/net/sock_windows.go                          | 13 ++++++++-
- 7 files changed, 79 insertions(+), 6 deletions(-)
+ src/debug/macho/file.go                            |  19 +++++
+ src/debug/macho/file_test.go                       |  79 +++++++++++++++++----
+ src/debug/macho/macho.go                           |   9 +++
+ .../testdata/clang-386-darwin-exec-with-rpath      | Bin 0 -> 8416 bytes
+ .../testdata/clang-amd64-darwin-exec-with-rpath    | Bin 0 -> 8432 bytes
+ 5 files changed, 94 insertions(+), 13 deletions(-)

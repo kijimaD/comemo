@@ -1,12 +1,18 @@
-commit bc34cda74225601b2f8c19c04d9668f83216960f
+commit f11f032486ada2ee8e3ae9ee8860acdeb2e8db00
 Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 15 14:20:30 2011 -0700
+Date:   Tue Mar 15 13:09:11 2011 -0700
 
-    rpc: add the ability to write out a memory profile during testing.
+    rpc: add benchmarks
     
-    R=rsc, dsymonds
+    On my mac:
+    mallocs per rpc round trip: 144
+    rpc.BenchmarkEndToEnd      10000            228244 ns/op
+    
+    Room for improvement.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4290047
+    https://golang.org/cl/4274058
 
- src/pkg/rpc/server_test.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/pkg/rpc/server_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

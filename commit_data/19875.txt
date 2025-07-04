@@ -1,16 +1,13 @@
-commit ab5d105ba99e72a4f04c80df3c81725fa18527c7
+commit bb843c0b2ffaaca6b2f18a54cd30b9d1b10c7eb7
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Aug 4 20:40:44 2014 -0700
+Date:   Mon Aug 4 20:29:58 2014 -0700
 
-    runtime: use memmove rather than memcopy in mgc0.c
+    runtime: remove unused enum maxround
     
-    For consistency with other code, as that was the only use of
-    memcopy outside of alg.goc.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=minux, dave
+    R=golang-codereviews, minux, dave
     CC=golang-codereviews
-    https://golang.org/cl/122030044
+    https://golang.org/cl/122030043
 
- src/pkg/runtime/mgc0.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/runtime.c | 4 ----
+ 1 file changed, 4 deletions(-)

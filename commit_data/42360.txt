@@ -1,19 +1,39 @@
-commit 5c802c13e88b700b9acaf390d495a92101214e2b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 14 07:56:17 2020 -0700
+commit a037582efff56082631508b15b287494df6e9b69
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Dec 2 22:56:40 2019 -0500
 
-    runtime: remove flaky "goroutine 2 bt" from gdb test
+    cmd/compile: mark empty block preemptible
     
-    This part of the test has been flaky despite repeated attempts to fix it,
-    and it is unclear what exactly it is testing. Remove it.
+    Currently, a block's control instruction gets the liveness info
+    of the last Value in the block. However, for an empty block, the
+    control instruction gets the invalid liveness info and therefore
+    not preemptible. One example is empty infinite loop, which has
+    only a control instruction. The control instruction being non-
+    preemptible makes the whole loop non-preemptible.
     
-    Fixes #24616.
+    Fix this by using a different, preemptible liveness info for
+    empty block's control. We can choose an arbitrary preemptible
+    liveness info, as at run time we don't really use the liveness
+    map at that instruction.
     
-    Change-Id: If7234f99dd3d3e92f15ccb94ee13e75c6da12537
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233942
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    As before, if the last Value in the block is non-preemptible, so
+    is the block control. For example, the conditional branch in the
+    write barrier test block is still non-preemptible.
+    
+    Also, only update liveness info if we are actually emitting
+    instructions. So zero-width Values' liveness info (which are
+    always invalid) won't affect the block control's liveness info.
+    For example, if the last Values in a block is a tuple-generating
+    operation and a Select, the block control instruction is still
+    preemptible.
+    
+    Fixes #35923.
+    
+    Change-Id: Ic5225f3254b07e4955f7905329b544515907642b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209659
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/runtime-gdb_test.go | 12 +-----------
- 1 file changed, 1 insertion(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go       | 31 ++++++++++++++++++++-----------
+ src/runtime/testdata/testprog/preempt.go | 10 ++++++++--
+ 2 files changed, 28 insertions(+), 13 deletions(-)

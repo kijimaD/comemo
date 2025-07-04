@@ -1,22 +1,19 @@
-commit b22af9b407dc29d1a733976484904ad0ab168466
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 10 22:41:29 2020 -0400
+commit 12cd55c062d6062a64076cb37f12ab7646df1be7
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Wed Dec 25 17:24:07 2019 +0100
 
-    cmd/link: record only the first occurance in Reachparent graph
+    io/ioutil: reject path separators in TempDir, TempFile pattern
     
-    In the deadcode pass, a type symbol may be marked twice, one
-    without UsedInIface, one with. For the second time, don't
-    update the Reachparent graph, so it only records the path of
-    the first time the symbol is reached. This ensures the
-    Reachparent graph is acyclic.
+    Fixes #33920
     
-    TODO: add a test. (This only affects GOEXPERIMENT=fieldtrack)
-    
-    Change-Id: I68e8a1a69c3830bc8aee5df946151dc22dcb2b29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254297
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2351a1caa80c086ff5a8e02aad70d996be7aac35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212597
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/link/internal/ld/deadcode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/io/ioutil/tempfile.go      | 19 ++++++++--
+ src/io/ioutil/tempfile_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++
+ src/os/os_test.go              |  2 +-
+ 3 files changed, 96 insertions(+), 4 deletions(-)

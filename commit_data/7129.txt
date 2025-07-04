@@ -1,12 +1,12 @@
-commit 3965519ae5fd7f51403669208deddcd103ebcdfc
+commit 6432471497475f1ae4044a89a7272eb1e84662c4
 Author: Ken Thompson <ken@golang.org>
-Date:   Sun Jan 16 15:25:13 2011 -0800
+Date:   Sat Jan 15 17:11:24 2011 -0800
 
-    arm reg bug with address(variable)
+    disable reg - tar test failed
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4047041
+    https://golang.org/cl/3969042
 
- src/cmd/5g/reg.c | 34 +++++++---------------------------
- 1 file changed, 7 insertions(+), 27 deletions(-)
+ src/cmd/5g/reg.c | 2 ++
+ 1 file changed, 2 insertions(+)

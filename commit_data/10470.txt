@@ -1,18 +1,14 @@
-commit 2e9d7a6d1cf16f80fec288cad0af03601f00e331
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 21 09:41:25 2011 -0500
+commit 750d0e33fbb6d04e46fec6864b02b83798125320
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Nov 20 14:56:49 2011 -0500
 
-    gofix: test and fix missorted renames
+    sql: more driver docs & tests; no functional changes
     
-    Also introduce a new insertion heuristic:
-    insert new import next to existing import
-    with the longest matching prefix.
-    
-    R=golang-dev, adg, gri
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5412053
+    https://golang.org/cl/5415055
 
- src/cmd/gofix/fix.go               | 76 +++++++++++++++++++++++++-------------
- src/cmd/gofix/go1pkgrename_test.go | 27 ++++++++++++++
- src/cmd/gofix/import_test.go       | 47 ++++++++++++++++++++---
- 3 files changed, 119 insertions(+), 31 deletions(-)
+ src/pkg/exp/sql/driver/driver.go | 29 ++++++++++++++++++---
+ src/pkg/exp/sql/fakedb_test.go   | 14 +++++++++++
+ src/pkg/exp/sql/sql_test.go      | 54 +++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 93 insertions(+), 4 deletions(-)

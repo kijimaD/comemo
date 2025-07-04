@@ -1,25 +1,19 @@
-commit 372efbbf3170ccf260186118cd3acf7f617055ae
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 20 13:05:24 2019 -0800
+commit 515bb0129df2d8462d561301cf9982f2b01de7f8
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Mon May 27 15:58:24 2019 +0700
 
-    internal/syscall/unix: use fcntl64 on 32-bit GNU/Linux systems
+    cmd/compile: remove isfat from order expr
     
-    Patch up runtime testing to use the libc fcntl function on Darwin,
-    which is what we should be doing anyhow. This is similar to how
-    we handle fcntl on AIX and Solaris.
+    isfat was removed in walkexpr in CL 32313. For consistency,
+    remove it from order expr, too.
     
-    Fixes #36211
-    
-    Change-Id: I47ad87e11df043ce21496a0d59523dad28960f76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212299
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0a47e0da13ba0168d6a055d990b8efad26ad790d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179057
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/syscall/unix/fcntl_linux_32bit.go | 16 ++++++++++++++++
- src/internal/syscall/unix/nonblocking.go       |  6 +++++-
- src/runtime/export_darwin_test.go              | 13 +++++++++++++
- src/runtime/nbpipe_fcntl_libc_test.go          |  2 +-
- src/runtime/nbpipe_fcntl_unix_test.go          |  9 ++++++---
- src/syscall/flock_linux_32bit.go               |  7 +++++--
- 6 files changed, 46 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go | 12 ------------
+ src/cmd/compile/internal/gc/order.go |  7 ++-----
+ src/cmd/compile/internal/gc/plive.go | 12 ++++++++++++
+ 3 files changed, 14 insertions(+), 17 deletions(-)

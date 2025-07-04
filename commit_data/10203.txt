@@ -1,14 +1,12 @@
-commit b43cf81c8c6a4809e89f7e470996b73d035a88e5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Nov 2 17:11:40 2011 +1100
+commit 4d3c9990867d77844fba1bbf0d8f7794f2492d11
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Nov 2 15:03:36 2011 +0900
 
-    net: implement LookupTXT for windows
+    builtin: document built-in error type
     
-    R=rsc
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5318056
+    https://golang.org/cl/5307080
 
- src/pkg/net/lookup_test.go        |  4 ----
- src/pkg/net/lookup_windows.go     | 25 +++++++++++++++++++------
- src/pkg/syscall/ztypes_windows.go |  5 +++++
- 3 files changed, 24 insertions(+), 10 deletions(-)
+ src/pkg/builtin/builtin.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

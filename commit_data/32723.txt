@@ -1,18 +1,17 @@
-commit 107744e94c4e62272962eba9195bc14a7eb69a09
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 13 17:21:07 2017 -0400
+commit fd25fe60fac4014dfe09c364c8c73ff2c95251e5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 19 18:49:28 2017 +0900
 
-    misc/cgo/errors: test that the Go rune type is not identical to C.int
+    internal/poll: implement RawControl of FD on Windows
     
-    rune has a well-defined size, but C.int is implementation-specified.
-    Using one as the other should require an explicit conversion.
+    This is a followup to https://go-review.googlesource.com/37038.
     
-    updates #13467
+    Updates #19435.
     
-    Change-Id: I53ab2478427dca790efdcc197f6b8d9fbfbd1847
-    Reviewed-on: https://go-review.googlesource.com/63730
+    Change-Id: If3d56bca0e8816d1a169f5cf97f27b20695a9955
+    Reviewed-on: https://go-review.googlesource.com/43692
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/errors/errors_test.go    |  1 +
- misc/cgo/errors/src/issue13467.go | 15 +++++++++++++++
- 2 files changed, 16 insertions(+)
+ src/internal/poll/fd_windows.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

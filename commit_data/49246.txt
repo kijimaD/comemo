@@ -1,32 +1,94 @@
-commit 7607888df0eca35dadb0529960d7965d0d6f4072
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Wed Dec 1 15:48:53 2021 +0800
+commit 1a0630aef474320e71595ed1a4a984fc7c7bbc0a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 26 15:44:22 2021 -0400
 
-    runtime: load/save TLS variable g on loong64
+    [dev.typeparams] runtime,cmd/compile,cmd/link: replace jmpdefer with a loop
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Currently, deferreturn runs deferred functions by backing up its
+    return PC to the deferreturn call, and then effectively tail-calling
+    the deferred function (via jmpdefer). The effect of this is that the
+    deferred function appears to be called directly from the deferee, and
+    when it returns, the deferee calls deferreturn again so it can run the
+    next deferred function if necessary.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    This unusual flow control leads to a large number of special cases and
+    complications all over the tool chain.
     
-    Updates #46229
+    This used to be necessary because deferreturn copied the deferred
+    function's argument frame directly into its caller's frame and then
+    had to invoke that call as if it had been called from its caller's
+    frame so it could access it arguments. But now that we've simplified
+    defer processing so the runtime only deals with argument-less
+    closures, this approach is no longer necessary.
     
-    Change-Id: I5e09759ce9201596e89a01fc4a6f7fd7e205449f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368074
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This CL simplifies all of this by making deferreturn simply call
+    deferred functions in a loop.
+    
+    This eliminates the need for jmpdefer, so we can delete a bunch of
+    per-architecture assembly code.
+    
+    This eliminates several special cases on Wasm, since it couldn't
+    support these calling shenanigans directly and thus had to simulate
+    the loop a different way. Now Wasm can largely work the way the other
+    platforms do.
+    
+    This eliminates the per-architecture Ginsnopdefer operation. On PPC64,
+    this was necessary to reload the TOC pointer after the tail call
+    (since TOC pointers in general make tail calls impossible). The tail
+    call is gone, and in the case where we do force a jump to the
+    deferreturn call when recovering from an open-coded defer, we go
+    through gogo (via runtime.recovery), which handles the TOC. On other
+    platforms, we needed a NOP so traceback didn't get confused by seeing
+    the return to the CALL instruction, rather than the usual return to
+    the instruction following the CALL instruction. Now we don't inject a
+    return to the CALL instruction at all, so this NOP is also
+    unnecessary.
+    
+    The one potential effect of this is that deferreturn could now appear
+    in stack traces from deferred functions. However, this could already
+    happen from open-coded defers, so we've long since marked deferreturn
+    as a "wrapper" so it gets elided not only from printed stack traces,
+    but from runtime.Callers*.
+    
+    This is a retry of CL 337652 because we had to back out its parent.
+    There are no changes in this version.
+    
+    Change-Id: I3f54b7fec1d7ccac71cc6cf6835c6a46b7e5fb6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339397
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/stubs_loong64.go | 11 +++++++++++
- src/runtime/tls_loong64.s    | 26 ++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ src/cmd/compile/internal/amd64/galign.go   |  1 -
+ src/cmd/compile/internal/arm/galign.go     |  1 -
+ src/cmd/compile/internal/arm64/galign.go   |  1 -
+ src/cmd/compile/internal/mips/galign.go    |  1 -
+ src/cmd/compile/internal/mips64/galign.go  |  1 -
+ src/cmd/compile/internal/ppc64/galign.go   |  1 -
+ src/cmd/compile/internal/ppc64/ggen.go     | 27 --------------
+ src/cmd/compile/internal/riscv64/galign.go |  1 -
+ src/cmd/compile/internal/s390x/galign.go   |  1 -
+ src/cmd/compile/internal/ssagen/arch.go    |  3 +-
+ src/cmd/compile/internal/ssagen/ssa.go     | 12 -------
+ src/cmd/compile/internal/wasm/ssa.go       |  7 ++--
+ src/cmd/compile/internal/x86/galign.go     |  1 -
+ src/cmd/internal/obj/arm/asm5.go           | 11 +++---
+ src/cmd/internal/obj/wasm/wasmobj.go       | 36 -------------------
+ src/cmd/internal/obj/x86/asm6.go           |  1 -
+ src/cmd/internal/objabi/funcid.go          |  2 --
+ src/cmd/link/internal/ld/pcln.go           |  9 +++--
+ src/runtime/asm_386.s                      | 20 -----------
+ src/runtime/asm_amd64.s                    | 15 --------
+ src/runtime/asm_arm.s                      | 14 --------
+ src/runtime/asm_arm64.s                    | 17 ---------
+ src/runtime/asm_mips64x.s                  | 16 ---------
+ src/runtime/asm_mipsx.s                    | 16 ---------
+ src/runtime/asm_ppc64x.s                   | 28 ---------------
+ src/runtime/asm_riscv64.s                  | 15 --------
+ src/runtime/asm_s390x.s                    | 15 --------
+ src/runtime/asm_wasm.s                     | 29 ---------------
+ src/runtime/panic.go                       | 58 +++++++++++++-----------------
+ src/runtime/stubs.go                       |  2 --
+ src/runtime/symtab.go                      |  1 -
+ 31 files changed, 39 insertions(+), 324 deletions(-)

@@ -1,18 +1,16 @@
-commit 399f0f5fe8029e31e742e0341c7ddfd2097f3926
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 7 23:11:37 2016 +0000
+commit 0d641c754f73a71ffd21a9f9d58ea3fe38d727b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 01:53:47 2015 -0500
 
-    go/build: introduce go1.7 build tag
+    cmd/go: allow ~ as first char of path element in general git import paths
     
-    This is needed now for subrepos to be able to conditionally use
-    API symbols found only after Go 1.6.
+    This makes go get gitserver/~user/repo.git/foo work.
     
-    Change-Id: Ie7d9301332aa1739b585d93f8025424ae72a2430
-    Reviewed-on: https://go-review.googlesource.com/20344
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #9193.
+    
+    Change-Id: I8c9d4096903288f7f0e82d6ed1aa78bf038fb81a
+    Reviewed-on: https://go-review.googlesource.com/17952
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/build/build.go | 2 +-
- src/go/build/doc.go   | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

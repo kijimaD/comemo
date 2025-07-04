@@ -1,14 +1,40 @@
-commit 1e1aea6821fa598d1510f55d5b9592dccc924d2b
-Author: Robin Eklind <r.eklind.87@gmail.com>
-Date:   Mon Jan 7 09:10:09 2013 +1100
+commit d37c572ad54921319653a4abdd749221f7779bb5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 6 14:32:45 2013 -0500
 
-    doc: Updated links for sub-repository documentation.
+    cmd/ld: move symtab, ELF generation to portable code
     
-    Use godoc.org instead of gopkgdoc.appspot.com.
+    More cleanup in preparation for fixing issue 4069.
     
-    R=golang-dev, minux.ma
+    This CL replaces the three nearly identical copies of the
+    asmb ELF code with a single asmbelf function in elf.c.
+    
+    In addition to the ELF code movement, remove the elfstr
+    array in favor of a simpler lookup, and identify sections by
+    name throughout instead of computing fragile indices.
+    
+    The CL also replaces the three nearly identical copies of the
+    genasmsym code with a single genasmsym function in lib.c.
+    
+    The ARM linker still compiles and generates binaries,
+    but I haven't tested the binaries. They may not work.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7036051
+    https://golang.org/cl/7062047
 
- doc/reference.html | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/5l/asm.c    | 587 +------------------------------------------------
+ src/cmd/5l/l.h      |   2 +
+ src/cmd/5l/span.c   |   6 +-
+ src/cmd/6l/asm.c    | 573 +-----------------------------------------------
+ src/cmd/6l/l.h      |   2 +
+ src/cmd/8l/asm.c    | 593 +-------------------------------------------------
+ src/cmd/8l/l.h      |   2 +
+ src/cmd/ld/data.c   |  39 +++-
+ src/cmd/ld/elf.c    | 614 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/ld/elf.h    |  33 ++-
+ src/cmd/ld/go.c     |   1 +
+ src/cmd/ld/lib.c    |  82 +++++++
+ src/cmd/ld/lib.h    |   2 +
+ src/cmd/ld/symtab.c |  52 ++++-
+ 14 files changed, 805 insertions(+), 1783 deletions(-)

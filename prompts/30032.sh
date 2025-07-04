@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 30032: edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
+# Index 30032: eb15cf16aee1ec4387b7397b102bd2cc3ff33a64
 
 echo "🚀 Generating explanation for commit 30032..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 30032
-- **コミットハッシュ**: edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
-- **GitHub URL**: https://github.com/golang/go/commit/edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
+- **コミットハッシュ**: eb15cf16aee1ec4387b7397b102bd2cc3ff33a64
+- **GitHub URL**: https://github.com/golang/go/commit/eb15cf16aee1ec4387b7397b102bd2cc3ff33a64
 
 ### 章構成
 

@@ -1,26 +1,15 @@
-commit c134718611c424ead65eb8753855dd5487c52630
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 29 12:20:31 2011 -0700
+commit f5fa215d8abf53bce2babb423504504cc38debee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 29 10:42:44 2011 -0700
 
-    undo CL 4428057 / 19e540fc7d7d
+    image: png & jpeg encoding benchmarks
     
-    The CL introduces inconsistencies with respect to
-    the use of parentheses/grouping of receive operations.
+    No code changes in this CL.
     
-    ««« original CL description
-    spec: narrow syntax for expression and select statements
-    
-    This is not a language change, it simply expresses the
-    accepted cases explicitly in the respective productions.
-    
-    R=rsc, r, iant
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4428057
-    »»»
-    
-    R=golang-dev, rsc1
-    CC=golang-dev
-    https://golang.org/cl/4444080
+    https://golang.org/cl/4445074
 
- doc/go_spec.html | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/pkg/image/jpeg/writer_test.go | 28 +++++++++++++++++++++++++++
+ src/pkg/image/png/writer_test.go  | 40 +++++++++++++++++++++++++++++++++++----
+ 2 files changed, 64 insertions(+), 4 deletions(-)

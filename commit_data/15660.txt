@@ -1,24 +1,17 @@
-commit b83d4af330858e819787efbbf6c5267f44d5b654
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 10 14:17:04 2013 -0400
+commit 433824d8086e5ab906103d93f58e09a76e3a6b3e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Mar 10 20:46:11 2013 +0400
 
-    cmd/ld: make mach-o sections match internal sections
+    runtime: fix misaligned 64-bit atomic
+    Fixes #4869.
+    Fixes #5007.
+    Update #5005.
     
-    This brings Mach-O generation more in line with ELF generation.
-    
-    Having separate sections for the symtab and pclntab mean that we
-    can find them that way, instead of using the deprecated debug segments.
-    (And the host linker will keep separate sections for us, but probably
-    not the debug segments.)
-    
-    R=ken2
+    R=golang-dev, 0xe2.0x9a.0x9b, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7688043
+    https://golang.org/cl/7534044
 
- src/cmd/ld/data.c        |  15 +++--
- src/cmd/ld/dwarf.c       |  16 +++---
- src/cmd/ld/lib.h         |   6 +-
- src/cmd/ld/macho.c       | 145 ++++++++++++++++++++---------------------------
- src/cmd/ld/macho.h       |  10 +---
- src/libmach/executable.c |  84 ++++++++++++---------------
- 6 files changed, 121 insertions(+), 155 deletions(-)
+ src/pkg/runtime/mgc0.c    | 2 ++
+ src/pkg/runtime/parfor.c  | 6 +++++-
+ src/pkg/runtime/runtime.h | 1 +
+ 3 files changed, 8 insertions(+), 1 deletion(-)

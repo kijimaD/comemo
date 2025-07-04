@@ -1,33 +1,19 @@
-commit aea224386ea7c10c07490bb6cdef12a51fa9a9cf
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 20 13:40:55 2016 -0700
+commit 4fc02d175b2eb45b89facae9723975fe12acac3c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 20:30:38 2016 -0800
 
-    math/big: more tests, documentation for Flot gob marshalling
+    cmd/internal/obj: more Optab range simplification
     
-    Follow-up to https://golang.org/cl/21755.
-    This turned out to be a bit more than just a few nits
-    as originally expected in that CL.
+    Same idea as golang.org/cl/20322.
     
-    1) The actual mantissa may be shorter than required for the
-       given precision (because of trailing 0's): no need to
-       allocate space for it (and transmit 0's). This can save
-       a lot of space when the precision is high: E.g., for
-       prec == 1000, 16 words or 128 bytes are required at the
-       most, but if the actual number is short, it may be much
-       less (for the test cases present, it's significantly less).
+    Passes toolstash/buildall.
     
-    2) The actual mantissa may be longer than the number of
-       words required for the given precision: make sure to
-       not overflow when encoding in bytes.
-    
-    3) Add more documentation.
-    
-    4) Add more tests.
-    
-    Change-Id: I9f40c408cfdd9183a8e81076d2f7d6c75e7a00e9
-    Reviewed-on: https://go-review.googlesource.com/22324
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ida5960e57ff6e1e8de75c2720f21aeae56a8e415
+    Reviewed-on: https://go-review.googlesource.com/20352
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/floatmarsh.go      | 34 ++++++++++++++---
- src/math/big/floatmarsh_test.go | 81 +++++++++++++++++++++++++----------------
- 2 files changed, 79 insertions(+), 36 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go  | 49 ++++++++++++++-------------------------
+ src/cmd/internal/obj/mips/asm0.go | 49 ++++++++++++++-------------------------
+ 2 files changed, 36 insertions(+), 62 deletions(-)

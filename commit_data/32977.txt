@@ -1,27 +1,14 @@
-commit 31a3b719a008205d4465a9e93dc7d29edc485e37
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 4 11:42:37 2017 -0700
+commit 3ca8ee14d15d8fdf152c28e98812347419f8084c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 19 22:57:40 2017 +0000
 
-    cmd/compile: cleanup genwrapper slightly
+    crypto/x509: update MaxPathLen & MaxPathLenZero docs
     
-    ORETJMP doesn't need an ONAME if we just set the target method on Sym
-    instead of Left. Conveniently, this is where fmt.go was looking for it
-    anyway.
+    Fixes #19285
     
-    Change the iface parameter and global compiling_wrappers to bool.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I5333f8bcb4e06bf8161808041125eb95c439aafe
-    Reviewed-on: https://go-review.googlesource.com/68252
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I11e864eff9980dec8247c47e4c600f76602e7ada
+    Reviewed-on: https://go-review.googlesource.com/46092
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/go.go        |  2 +-
- src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
- src/cmd/compile/internal/gc/ssa.go       |  2 +-
- src/cmd/compile/internal/gc/subr.go      |  8 +++-----
- src/cmd/compile/internal/gc/typecheck.go |  4 ++--
- 5 files changed, 14 insertions(+), 16 deletions(-)
+ src/crypto/x509/x509.go | 41 ++++++++++++++++++++++++++++-------------
+ 1 file changed, 28 insertions(+), 13 deletions(-)

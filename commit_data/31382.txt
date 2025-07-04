@@ -1,17 +1,14 @@
-commit 92607fdd304c1d2f1be243a8bf0fc1b8224d2c18
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 26 12:48:33 2017 -0700
+commit 8833af3f4b891b13d747b1af375cc57e8db29909
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Tue Feb 14 16:11:35 2017 -0500
 
-    cmd/compile: split dumptypestructs further
+    runtime/pprof: print newly added fields of runtime.MemStats
     
-    This is preparatory cleanup to make future changes clearer.
+    in heap profile with debug mode
     
-    Change-Id: I20fb9c78257de61b8bd096fce6b1e751995c01f2
-    Reviewed-on: https://go-review.googlesource.com/41818
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3a80d03a4aa556614626067a8fd698b3b00f4290
+    Reviewed-on: https://go-review.googlesource.com/36962
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/obj.go     | 3 ++-
- src/cmd/compile/internal/gc/reflect.go | 4 +++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/runtime/pprof/pprof.go | 4 ++++
+ 1 file changed, 4 insertions(+)

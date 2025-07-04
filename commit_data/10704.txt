@@ -1,14 +1,26 @@
-commit b78a7b7dabd367722affa7188adb26d503b39109
-Author: Rob Pike <r@golang.org>
-Date:   Sun Dec 11 21:03:49 2011 -0800
+commit 0c5443a0a61182276f755c1c728d4990cf0983e9
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Mon Dec 12 13:18:01 2011 +1100
 
-    doc/go_tutorial: make clear the file example is Unix-specific
-    Fixes #2553.
+    html: don't ignore whitespace in or after framesets
     
-    R=golang-dev, adg
+    Pass tests6.dat, test 7:
+    <frameset></frameset>
+    foo
+    
+    | <html>
+    |   <head>
+    |   <frameset>
+    |   "
+    "
+    
+    Also pass tests through test 12:
+    <form><form>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5472074
+    https://golang.org/cl/5480061
 
- doc/go_tutorial.html | 10 ++++++++--
- doc/go_tutorial.tmpl | 10 ++++++++--
- 2 files changed, 16 insertions(+), 4 deletions(-)
+ src/pkg/html/parse.go      | 24 ++++++++++++++++++++++++
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

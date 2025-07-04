@@ -1,14 +1,18 @@
-commit 0a47d2eff1d13e5867a76a472558b0d672879026
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Nov 13 07:08:29 2012 +0100
+commit 0ae80785e6c6f34e488be2fb5a76e0c1ab44f4a4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Nov 13 12:26:20 2012 +0900
 
-    cmd/gc: fix typos in clearslim.
+    net: make LocalAddr on multicast UDPConn return a listening address
     
-    Fixes build failure.
+    The package go.net/ipv4 allows to exist a single UDP listener
+    that join multiple different group addresses. That means that
+    LocalAddr on multicast UDPConn returns a first joined group
+    address is not desirable.
     
-    R=golang-dev, bradfitz, dave
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6847043
+    https://golang.org/cl/6822108
 
- src/cmd/gc/gen.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/multicast_posix_test.go | 23 ++++++++++++++++++-----
+ src/pkg/net/sock_posix.go           | 19 ++++++++++---------
+ 2 files changed, 28 insertions(+), 14 deletions(-)

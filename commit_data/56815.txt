@@ -1,17 +1,22 @@
-commit 2ade9856f17668b9d06d05e17e8f15701f8ac771
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Jun 7 18:13:06 2024 -0400
+commit 79a8997ac5592f11388d9f26ab3fff65ec876dbd
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 24 19:49:24 2023 +0200
 
-    doc/next: add release notes for telemetry and the godebug directive
+    os: add dirFs.ReadDir to implement fs.ReadDirFS for DirFS
     
-    For #65614
+    Follow CL 416775 which added dirFs.ReadFile.
     
-    Change-Id: I6274bdaba970cfb085af500fdaf8ed078202bfdc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591380
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #53761
+    
+    Change-Id: Iec19a815ab7c37a3206be141518cc587a588de20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498015
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
 
- doc/next/3-tools.md | 41 +++++++++++++++++++++++++++++------------
- 1 file changed, 29 insertions(+), 12 deletions(-)
+ src/os/file.go    | 13 ++++++++++++-
+ src/os/os_test.go | 14 +++++++++++---
+ 2 files changed, 23 insertions(+), 4 deletions(-)

@@ -1,41 +1,49 @@
-commit 3ef8562c9c2c7f6897572b05b70ac936a99fd043
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Tue May 26 14:14:08 2020 -0700
+commit 768201729df89a28aae2cc5e41a33ffcb759c113
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 1 15:51:08 2020 -0400
 
-    net/mail: avoid ParseDate confusion if day name includes "T"
+    cmd/compile: detect and diagnose invalid //go: directive placement
     
-    Fixes the check for RFC 5322 "obsolete time zone" to ensure
-    that we correctly extract the entire date from the "T" of the
-    implied time zone.
+    Thie CL changes cmd/compile/internal/syntax to give the gc half of
+    the compiler more control over pragma handling, so that it can prepare
+    better errors, diagnose misuse, and so on. Before, the API between
+    the two was hard-coded as a uint16. Now it is an interface{}.
+    This should set us up better for future directives.
     
-    Obsolete Time zones come in the form:
-    * GMT
-    * PST
-    * MDT
-    etc, as per Section 4.3 of RFC 5322,
-    https://tools.ietf.org/html/rfc5322#section-4.3.
+    In addition to the split, this CL emits a "misplaced compiler directive"
+    error for any directive that is in a place where it has no effect.
+    I've certainly been confused in the past by adding comments
+    that were doing nothing and not realizing it. This should help
+    avoid that kind of confusion.
     
-    The prior check from CL 117596 erronenously used strings.Index
-    which selects the first "T", and that meant that dates containing
-    days "Tue" or "Thu" could not be parsed.
+    The rule, now applied consistently, is that a //go: directive
+    must appear on a line by itself immediately before the declaration
+    specifier it means to apply to. See cmd/compile/doc.go for
+    precise text and test/directive.go for examples.
     
-    We also now deal with "T" in the CFWS "Comment Folding White Space".
+    This may cause some code to stop compiling, but that code
+    was broken. For example, this code formerly applied the
+    //go:noinline to f (not c) but now will fail to compile:
     
-    Thus we'll now accept dates:
-    * Thu, 20 Nov 1997 09:55:06 MDT
-    * Thu, 20 Nov 1997 09:55:06 MDT (MDT)
-    * Fri, 21 Nov 1997 09:55:06 MDT (This comment)
-    * Fri, 21 Nov 1997 09:55:06 MDT (MDT
+            //go:noinline
+            const c = 1
     
-    Fixes #39260
+            func f() {}
     
-    Change-Id: I6d59d99bc4f05a82582c826b5c5a080a25fd999b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235200
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: Ieba9b8d90a27cfab25de79d2790a895cefe5296f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228578
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/mail/message.go      | 24 +++++++++++++++++++-----
- src/net/mail/message_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 5 deletions(-)
+ src/cmd/compile/doc.go                     |  58 +++++++++++-----
+ src/cmd/compile/internal/gc/lex.go         |  37 ++++++++---
+ src/cmd/compile/internal/gc/noder.go       | 102 ++++++++++++++++++++++++-----
+ src/cmd/compile/internal/gc/syntax.go      |   5 +-
+ src/cmd/compile/internal/syntax/nodes.go   |  27 ++++----
+ src/cmd/compile/internal/syntax/parser.go  |  71 +++++++++++++++-----
+ src/cmd/compile/internal/syntax/scanner.go |  12 ++--
+ src/cmd/compile/internal/syntax/syntax.go  |  25 ++++---
+ src/go/types/stdlib_test.go                |   1 +
+ test/directive.go                          |  95 +++++++++++++++++++++++++++
+ 10 files changed, 345 insertions(+), 88 deletions(-)

@@ -1,12 +1,25 @@
-commit 1e900b0d226b4a562abc6d31adb2eb721c60cbf9
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Oct 27 15:40:57 2011 +0900
+commit 833fb4198d2f4ff3add2e8a14bfe6c91413f7601
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Oct 27 10:26:11 2011 +1100
 
-    doc: fix escaping in weekly.html
+    html: parse <style> elements inside <head> element.
     
-    R=golang-dev, dsymonds
+    Also correctly handle EOF inside a <style> element.
+    
+    Pass tests1.dat, test 49:
+    <!DOCTYPE html><style> EOF
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |     <style>
+    |       " EOF"
+    |   <body>
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5306070
+    https://golang.org/cl/5321057
 
- doc/devel/weekly.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/html/parse.go      | 4 +++-
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

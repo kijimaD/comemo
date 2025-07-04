@@ -1,18 +1,19 @@
-commit 4085426f7dcfdcb7eff86fe1fd0879e02398926b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 31 13:45:43 2013 -0800
+commit 5c659d736241f4904eb3d513f9f585397a3ed8af
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Jan 31 12:54:37 2013 -0500
 
-    net/url: normalize scheme to lower case (http not HTTP)
+    crypto/x509: test for negative RSA parameters.
     
-    Also document %2f vs / ambiguity in URL.Path.
+    Someone found software that generates negative numbers for the RSA
+    modulus in an X.509 certificate. Our error messages were very poor in
+    this case so this change improves that.
     
-    Fixes #3913.
-    Fixes #3659.
+    Update #4728
+    Return more helpful errors when RSA parameters are negative or zero.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7225076
+    https://golang.org/cl/7228072
 
- src/pkg/net/url/url.go      | 7 +++++++
- src/pkg/net/url/url_test.go | 9 +++++++++
- 2 files changed, 16 insertions(+)
+ src/pkg/crypto/x509/x509.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

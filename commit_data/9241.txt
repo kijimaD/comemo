@@ -1,16 +1,16 @@
-commit 08bfb3951580365af16be5d6074b33cea8d8e0bf
+commit fe206e63ca8b707bd6f0af42d02d736696b75c6a
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 28 14:18:22 2011 -0400
+Date:   Thu Jul 28 13:04:52 2011 -0400
 
-    6g, 8g: divide corner case
+    build: handle spaces in $USER
     
-    Fixes #1772.
+    Fixes #2107.
     
-    R=ken2
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4798062
+    https://golang.org/cl/4830042
 
- src/cmd/6g/ggen.c | 59 +++++++++++++++++++++++++++++++++++++++++--------
- src/cmd/8g/ggen.c | 66 +++++++++++++++++++++++++++++++++++++++++++++++--------
- test/divide.go    | 54 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 161 insertions(+), 18 deletions(-)
+ src/cmd/gotry/gotry | 13 +++++++------
+ src/quietgcc.bash   |  8 ++++----
+ test/run            | 24 ++++++++++++------------
+ 3 files changed, 23 insertions(+), 22 deletions(-)

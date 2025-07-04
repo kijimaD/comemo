@@ -1,18 +1,27 @@
-commit 50dac3b410b9bc47dabc3f3c2afd21f7aecfb118
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 15 22:27:19 2021 -0500
+commit 9b78c68a15eb2cd8075ceeaaaca9c1e63c3a894c
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 19 16:52:55 2021 -0400
 
-    go/types: move some functions into different files (cleanup)
+    cmd/compile: remove AuxCall.results, cleanup ssagen/ssa.go
     
-    This is a clean port of CL 362995 from types2 to go/types.
+    More cleanup to remove unnecessary parts of AuxCall.
+    Passed testing on arm64 (a link-register architecture)
+    in addition to amd64 so very likely okay.
     
-    Change-Id: Iefc37b28178795ea944e0bc0ff91982251de2944
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363989
-    Trust: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    (Gratuitously updated commit message to see if it will
+    correctly this time.)
+    
+    Updates #40724
+    
+    Change-Id: Iaece952ceb5066149a5d32aaa14b36755f26bb8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303433
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/builtins.go | 40 ----------------------------------------
- src/go/types/type.go     | 44 +++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 41 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go      |  6 +--
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
+ src/cmd/compile/internal/ssa/op.go                | 50 ++++++++----------
+ src/cmd/compile/internal/ssa/rewrite.go           |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |  2 +-
+ src/cmd/compile/internal/ssagen/ssa.go            | 63 ++++++++---------------
+ 6 files changed, 49 insertions(+), 76 deletions(-)

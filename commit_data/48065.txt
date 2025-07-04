@@ -1,23 +1,15 @@
-commit d0a0606841937cd6dd1db7a95ebd9d6e7ad02d96
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 1 16:59:41 2022 -0500
+commit b8fed48a9ae7e6229a4fdccf6aae7bc670f61aca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 14 12:38:20 2021 -0400
 
-    cmd/go: fail 'go work' subcommands with a more helpful error if no go.work file exists
+    cmd/dist: enable cgo on windows/arm64
     
-    Otherwise, the failure mode for these subcommands refers to an empty file path:
-            go: open : no such file or directory
-    
-    Fixes #50964
-    
-    Change-Id: I8776431a294d2b2246d7d147b6059054f31bc255
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382246
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I4d470e2af1bfb4fba004a6f3e00a163a575593da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312047
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/workcmd/edit.go        | 26 +++++++++++++++-----------
- src/cmd/go/internal/workcmd/sync.go        |  6 ++++--
- src/cmd/go/internal/workcmd/use.go         |  3 +++
- src/cmd/go/testdata/script/work_nowork.txt | 20 ++++++++++++++++++++
- 4 files changed, 42 insertions(+), 13 deletions(-)
+ src/cmd/dist/build.go | 2 +-
+ src/cmd/dist/test.go  | 6 ++++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

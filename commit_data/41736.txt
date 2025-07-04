@@ -1,22 +1,17 @@
-commit e3cf0525b0ecfaeb9381108e8c7181cdc2abee57
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 23 20:42:29 2020 -0700
+commit 88186e5e232625f9c91d639e0cb90a88c6cf1172
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 18 20:45:33 2019 +0000
 
-    runtime: always use GetQueuedCompletionStatusEx on Windows
+    net/http: don't cache http2.erringRoundTripper connections
     
-    We used to fall back to GetQueuedCompletionStatus if
-    GetQueuedCompletionStatus was not available, but as of Go 1.11 we
-    require Windows 7 or later, so GetQueuedCompletionStatusEx is always
-    available.
+    Fixes #34978
     
-    Fixes #37957
-    
-    Change-Id: I7d8d49a92ab7b1f5afdc54a442f696aaf4a5168e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/225059
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3baf1392ba7366ae6628889c47c343ef702ec438
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202078
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/runtime/netpoll_windows.go | 87 +++++++++++++-----------------------------
- src/runtime/os_windows.go      |  6 +--
- 2 files changed, 28 insertions(+), 65 deletions(-)
+ src/net/http/transport.go      |  9 +++--
+ src/net/http/transport_test.go | 75 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 2 deletions(-)

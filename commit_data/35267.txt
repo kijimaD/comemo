@@ -1,28 +1,23 @@
-commit 498c803c19caa94d9d37eb378deed786117bbeab
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 2 16:42:58 2018 -0700
+commit b5b35be2b8a73b404290f7d0d4c14912a707f9a0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 25 17:22:41 2018 -0500
 
-    cmd/go, go/build: add support for gccgo tooldir
+    cmd/compile: don't inline functions that call recover
     
-    The gccgo toolchain does not put tools (cgo, vet, etc.) in
-    $GOROOT/pkg/tool, but instead in a directory available at
-    runtime.GCCGOTOOLDIR.
+    recover determines whether it's being called by a deferred frame by
+    matching its caller's argument frame pointer with the one recorded in
+    the panic object. That means its caller needs a valid and unique
+    argument frame pointer, so it must not be inlined.
     
-    Update the go/build package and the cmd/go tool to use this tool
-    directory when using gccgo.
+    With this fix, test/recover.go passes with -l=4.
     
-    Change-Id: Ib827336ff53601208300aceb77f76c2e1b069859
-    Reviewed-on: https://go-review.googlesource.com/111097
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #23557.
+    
+    Change-Id: I1f32a624c49e387cfc67893a0829bb248d69c3d4
+    Reviewed-on: https://go-review.googlesource.com/90035
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go               |  3 +++
- src/cmd/go/internal/cfg/cfg.go      | 18 +++++++++++++-----
- src/cmd/go/internal/help/helpdoc.go |  3 +++
- src/cmd/go/internal/load/pkg.go     |  6 +++++-
- src/cmd/go/internal/tool/tool.go    | 16 ++++++++++++++++
- src/go/build/build.go               |  2 +-
- src/go/build/gc.go                  | 17 +++++++++++++++++
- src/go/build/gccgo.go               | 14 ++++++++++++++
- 8 files changed, 72 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

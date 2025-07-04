@@ -1,31 +1,22 @@
-commit 9338f39459adc0d62277e141495cc5f7886b5896
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Dec 21 14:40:23 2015 -0800
+commit ab7e82ef3b773468f008df439568e792eb24d5fd
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Oct 28 17:57:30 2015 -0400
 
-    crypto/x509: handle ECC private keys with the wrong length.
+    cmd/go: buildmode=c-shared support for linux/arm64
     
-    SEC-1 says: “The component privateKey is the private key defined to be
-    the octet string of length ⌊log₂(n)/8⌋ (where n is the order of the
-    curve)”.
-    
-    Previously the code for parsing ECC private keys would panic (on
-    non-amd64) when the private was too long. It would also pass a too-short
-    private key to crypto/elliptic, possibly resulting in undesirable
-    behaviour.
-    
-    This change makes the parsing function handle both too much and too
-    little padding because GnuTLS does the former and OpenSSL did the latter
-    until 30cd4ff294252c4b6a4b69cbef6a5b4117705d22. It also causes
-    serialisation to pad private keys correctly.
-    
-    Fixes #13699
-    
-    Change-Id: If9c2faeaeb45af8a4d7770d784f3d2633e7f8290
-    Reviewed-on: https://go-review.googlesource.com/18094
-    Run-TryBot: Adam Langley <agl@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic826dc25b5203b2e9fc253d6fe997e4b41de3789
+    Reviewed-on: https://go-review.googlesource.com/16453
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/x509/sec1.go      | 28 +++++++++++++++++++++++++---
- src/crypto/x509/sec1_test.go | 42 ++++++++++++++++++++++++++++--------------
- 2 files changed, 53 insertions(+), 17 deletions(-)
+ misc/cgo/testcshared/src/libgo2/dup2.go   | 13 +++++++++++++
+ misc/cgo/testcshared/src/libgo2/dup3.go   | 13 +++++++++++++
+ misc/cgo/testcshared/src/libgo2/libgo2.go |  2 +-
+ misc/cgo/testcshared/test.bash            |  2 +-
+ src/cmd/compile/internal/gc/lex.go        |  3 ++-
+ src/cmd/dist/test.go                      |  2 +-
+ src/cmd/go/build.go                       |  2 +-
+ src/cmd/link/internal/arm64/obj.go        |  4 ++++
+ src/cmd/link/internal/ld/lib.go           |  2 +-
+ 9 files changed, 37 insertions(+), 6 deletions(-)

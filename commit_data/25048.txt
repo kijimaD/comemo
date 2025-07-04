@@ -1,31 +1,19 @@
-commit 3583a44ed2ae27495626caaa431b197187dcf01b
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Sep 3 02:44:26 2015 -0400
+commit 1536c2e0f6f2cf0b42b8f4db329f969cabc8eabb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 18 16:39:35 2015 +0000
 
-    runtime: check that masks and shifts are correct aligned
+    cmd/dist: shard shootout test units
     
-    We need a runtime check because the original issue is encountered
-    when running cross compiled windows program from linux. It's better
-    to give a meaningful crash message earlier than to segfault later.
+    Instead of a 10 second test unit, make it 13 sub-second ones. This
+    takes advantage of multiple builders better.
     
-    The added test should not impose any measurable overhead to Go
-    programs.
+    Fixes #12623
     
-    For #12415.
-    
-    Change-Id: Ib4a24ef560c09c0585b351d62eefd157b6b7f04c
-    Reviewed-on: https://go-review.googlesource.com/14207
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Change-Id: I3fb2eb02f899f25749e34b546b9d41b742a746cd
+    Reviewed-on: https://go-review.googlesource.com/14738
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/asm_386.s      | 9 +++++++++
- src/runtime/asm_amd64.s    | 9 +++++++++
- src/runtime/asm_amd64p32.s | 4 ++++
- src/runtime/asm_arm.s      | 5 +++++
- src/runtime/asm_arm64.s    | 4 ++++
- src/runtime/asm_mips64x.s  | 5 +++++
- src/runtime/asm_ppc64x.s   | 4 ++++
- src/runtime/runtime1.go    | 4 ++++
- src/runtime/stubs.go       | 3 +++
- 9 files changed, 47 insertions(+)
+ src/cmd/dist/test.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

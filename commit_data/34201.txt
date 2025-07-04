@@ -1,20 +1,20 @@
-commit afb9fc1de922a4ead9d2d787613255a7ba3490f7
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Feb 14 14:26:32 2018 +0100
+commit b80029ccf422cfdfa758838fd18a219901cda839
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 9 11:06:52 2017 -0700
 
-    runtime: move ELF structure definitions into own files
+    cmd/compile: simplify mkinlcall1
     
-    Move the ELF32 and ELF64 structure definitions into their own files so
-    they can be reused when vDSO support is added for other architectures.
+    mkinlcall1 already guards against recursively inlining functions into
+    themselves, so there's no need to clear and restore fn.Func.Inl during
+    recursive inlining.
     
-    Change-Id: Id0171b4e5cea4add8635743c881e3bf3469597af
-    Reviewed-on: https://go-review.googlesource.com/93995
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Passes toolstash-check.
+    
+    Change-Id: I8bf0c8dea8788d94d3ea5670610b4acb1d26d2fb
+    Reviewed-on: https://go-review.googlesource.com/69310
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/vdso_elf32.go       | 80 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/vdso_elf64.go       | 80 +++++++++++++++++++++++++++++++++++++++++
- src/runtime/vdso_linux_386.go   | 72 -------------------------------------
- src/runtime/vdso_linux_amd64.go | 72 -------------------------------------
- 4 files changed, 160 insertions(+), 144 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

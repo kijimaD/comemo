@@ -1,21 +1,12 @@
-commit d4bdaf11d95b0ca0ce45b1c885a5547d1f6096ca
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 13 10:23:42 2011 -0800
+commit 6f788e784e2505fc9935103e6fc3c15530138e1d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 13 12:06:35 2011 +1100
 
-    godoc: peephole optimization for generated HTML
+    tag release.2011-01-12
     
-    When searching for regular expressions such as
-    ".", there are many consecutive matches.
-    In the generated HTML, combine them instead of
-    generating a new <span> for each adjacent text
-    segment highlighting a match.
-    
-    Massively reduces the size of the generated
-    HTML in those cases.
-    
-    R=r, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/3971041
+    https://golang.org/cl/3973041
 
- src/cmd/godoc/format.go | 60 +++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 48 insertions(+), 12 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,24 +1,12 @@
-commit e2a1bd68b3683980247620dc8986d533afa0764d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 1 16:11:19 2013 -0700
+commit 13507e0697b2749e49341c25b9c1f5414f88d26e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 1 18:51:55 2013 -0400
 
-    bytes: move IndexByte assembly to pkg runtime
-    
-    Per suggestion from Russ in February. Then strings.IndexByte
-    can be implemented in terms of the shared code in pkg runtime.
-    
-    Update #3751
+    runtime: fix traceback across morestack
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12289043
+    https://golang.org/cl/12287043
 
- src/pkg/bytes/asm_386.s     |  17 -------
- src/pkg/bytes/asm_amd64.s   |  91 -----------------------------------
- src/pkg/bytes/asm_arm.s     |  56 ----------------------
- src/pkg/bytes/bytes.s       |   5 ++
- src/pkg/bytes/bytes_decl.go |   4 +-
- src/pkg/runtime/asm_386.s   |  14 ++++++
- src/pkg/runtime/asm_amd64.s | 114 +++++++++++++++++++++++++++++++++++++++-----
- src/pkg/runtime/asm_arm.s   |  54 +++++++++++++++++++++
- 8 files changed, 176 insertions(+), 179 deletions(-)
+ src/pkg/runtime/asm_arm.s | 4 ++++
+ 1 file changed, 4 insertions(+)

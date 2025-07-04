@@ -1,23 +1,18 @@
-commit 40ced0c00b04a5b9832bb5b47c995c82854f26ae
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Aug 27 10:44:25 2022 +0800
+commit 417100ec1b08bb1046e207fd08de105944668d27
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Oct 18 10:24:00 2021 -0400
 
-    internal/poll: drop redundant ENOSYS and EXDEV error checks in CopyFileRange()
+    cmd/go: fix broken fuzz test
     
-    The initial CL 229101 didn't limit the kernel version, but relies on error checking to
-    ensure the kernel version >= 4.5 or >= 5.3 when it's calling copy_file_range(2) to copy data across file systems.
+    Fixes test breakage caused by CL 355691.
     
-    Since we have now put the kernel version checking at the beginning of the function, introduced by CL 268338,
-    which returns early instead of going forward to the code behind when the kernel verion is older than 5.3,
-    therefore, those subsequent related error checks are no longer needed.
-    
-    Change-Id: Ifc4a530723e21f0bde91d6420cde9cb676081922
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425881
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I85fcb1491dc39c45342f4cae91fdfda6aedecd1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356530
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/internal/poll/copy_file_range_linux.go | 31 ++++++++----------------------
- 1 file changed, 8 insertions(+), 23 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt  | 52 --------------------
+ .../script/test_fuzz_minimize_interesting.txt      | 56 ++++++++++++++++++++--
+ 2 files changed, 53 insertions(+), 55 deletions(-)

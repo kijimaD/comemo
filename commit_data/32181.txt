@@ -1,20 +1,30 @@
-commit 9c7bf0807a56429a92c4518f90d3418609688cbb
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Wed Aug 9 00:09:07 2017 -0700
+commit f95de5c67939629424441ed8364a6bf89bc9b1ef
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 11 06:40:34 2017 -0700
 
-    math/big: avoid unneeded sticky bit calculations
+    cmd/internal/obj/ppc64: make assembler almost concurrency-safe
     
-    As noted in the TODO comment, the sticky bit is only used
-    when the rounding bit is zero or the rounding mode is
-    ToNearestEven.  This change makes that check explicit and
-    will eliminate half the sticky bit calculations on average
-    when rounding mode is not ToNearestEven.
+    CL 39922 made the arm assembler concurrency-safe.
+    This CL does the same, but for ppc64.
+    The approach is similar: introduce ctxt9 to hold
+    function-local state and thread it through
+    the assembler as necessary.
     
-    Change-Id: Ia4709f08f46e682bf97dabe5eb2a10e8e3d7af43
-    Reviewed-on: https://go-review.googlesource.com/54111
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    One race remains after this CL, similar to CL 40252.
+    
+    That race is conceptually unrelated to this refactoring,
+    and will be addressed in a separate CL.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Icc37d9a971bed2184c8e66b1a64f4f2e556dc207
+    Reviewed-on: https://go-review.googlesource.com/40372
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/float.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/ppc64/asm9.go | 610 +++++++++++++++++++------------------
+ src/cmd/internal/obj/ppc64/obj9.go | 200 ++++++------
+ 2 files changed, 412 insertions(+), 398 deletions(-)

@@ -1,19 +1,45 @@
-commit 376e6415402b4e62f96fb7f8f7a99d352aa9c1b3
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Thu May 12 15:13:22 2016 +0300
+commit edca4cda8858c6af5a9236d81b8654cb294054c8
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 23 16:01:15 2016 +1100
 
-    cmd: fixed certain vet warnings
+    cmd/compile/internal/gc: remove remaining Nod(OXXX, ...)
     
-    Updates #11041
+    Remove almost all the remaining Nod(OXXX, ... ) uses. The performance
+    change is due entirely to the changes to func temp(*Type). The other
+    cleanups have no effect, as expected.
     
-    Change-Id: I7f2583d08f344d6622027c5e8a5de1f5d2f2881c
-    Reviewed-on: https://go-review.googlesource.com/23082
+    I'll address the remaining Nod(OXXX, ...) uses in a followup CL as they
+    are very sensitive to change.
+    
+    lucky(~/go/src/cmd/compile) % benchstat /tmp/{old,new}.txt
+    name      old time/op    new time/op    delta
+    Template     391ms ± 6%     385ms ± 6%    ~     (p=0.127 n=19+20)
+    GoTypes      1.27s ± 2%     1.27s ± 2%    ~     (p=0.172 n=19+19)
+    Compiler     6.17s ± 2%     6.15s ± 2%    ~     (p=0.647 n=19+20)
+    
+    name      old alloc/op   new alloc/op   delta
+    Template    63.7MB ± 0%    63.4MB ± 0%  -0.35%  (p=0.000 n=16+20)
+    GoTypes      219MB ± 0%     218MB ± 0%  -0.38%  (p=0.000 n=20+20)
+    Compiler     980MB ± 0%     976MB ± 0%  -0.38%  (p=0.000 n=20+20)
+    
+    name      old allocs/op  new allocs/op  delta
+    Template      586k ± 0%      584k ± 0%  -0.30%  (p=0.000 n=20+20)
+    GoTypes      1.80M ± 0%     1.79M ± 0%  -0.31%  (p=0.000 n=20+20)
+    Compiler     7.74M ± 0%     7.71M ± 0%  -0.34%  (p=0.000 n=20+20)
+    
+    Change-Id: Ie21a5443c33a23ce30f987bdddec9fe350365d35
+    Reviewed-on: https://go-review.googlesource.com/21017
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cover/cover.go                  | 2 +-
- src/cmd/dist/test.go                    | 2 +-
- src/cmd/internal/pprof/report/report.go | 4 +++-
- src/cmd/link/internal/ld/objfile.go     | 2 +-
- 4 files changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/const.go    | 17 ++++++---------
+ src/cmd/compile/internal/gc/dcl.go      |  9 +++-----
+ src/cmd/compile/internal/gc/export.go   |  5 ++---
+ src/cmd/compile/internal/gc/gen.go      |  4 ++--
+ src/cmd/compile/internal/gc/inl.go      | 35 +++++++++++++++---------------
+ src/cmd/compile/internal/gc/order.go    | 38 +++++++++++++--------------------
+ src/cmd/compile/internal/gc/racewalk.go |  6 ++----
+ src/cmd/compile/internal/gc/subr.go     | 23 ++++++++------------
+ 8 files changed, 57 insertions(+), 80 deletions(-)

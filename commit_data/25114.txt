@@ -1,27 +1,24 @@
-commit 2cb265d16c611aae56fd3f3ce87279a1f52f925a
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Tue Oct 20 17:30:21 2015 +0200
+commit 7fa5a11ea1e876bd9d72b0ed2e2821597f76a495
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 14:56:19 2015 -0700
 
-    net/mail: use base64 encoding when needed in Address.String()
+    math/big: move Int/Rat gob/json/xml functionality in separate files
     
-    When the name of an Address contains non-ASCII characters,
-    Address.String() used mime.QEncoding to encode the name.
+    Like int/rat/float conversions, move this functionality into separate
+    implementation and test files.
     
-    However certain characters are forbidden when an encoded-word is
-    in a phrase context (see RFC 2047 section 5.3) and these
-    characters are not encoded by mime.QEncoding.
+    No implementation changes besides the move.
     
-    In this case we now use mime.BEncoding (base64 encoding) so that
-    forbidden characters are also encoded.
-    
-    Fixes #11292
-    
-    Change-Id: I52db98b41ece439295e97d7e94c8190426f499c2
-    Reviewed-on: https://go-review.googlesource.com/16012
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If19c45f5a72a57b95cbce2329724693ae5a4807d
+    Reviewed-on: https://go-review.googlesource.com/14997
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/net/mail/message.go      |  6 ++++++
- src/net/mail/message_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/math/big/int.go           |  62 ------------------
+ src/math/big/int_test.go      | 135 ---------------------------------------
+ src/math/big/intmarsh.go      |  71 +++++++++++++++++++++
+ src/math/big/intmarsh_test.go | 145 ++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/rat.go           |  60 -----------------
+ src/math/big/rat_test.go      | 114 ---------------------------------
+ src/math/big/ratmarsh.go      |  71 +++++++++++++++++++++
+ src/math/big/ratmarsh_test.go | 123 +++++++++++++++++++++++++++++++++++
+ 8 files changed, 410 insertions(+), 371 deletions(-)

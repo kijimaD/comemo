@@ -1,19 +1,22 @@
-commit f2d118fd5f7e872804a5825ce29797f81a28b0fa
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat Oct 12 17:34:52 2024 +0000
+commit 52e17c2e4df91b295b23b8d7a2b669123b0da880
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 15 17:29:40 2023 -0700
 
-    go/ast: document invalid raw string literal end position containing carriage returns
+    runtime/cgo: get getstackbound for set_stacklo
     
-    Fixes #69861
-    
-    Change-Id: Id1684ee7d0c04262119d9e61f914bb9ecc0ef438
-    GitHub-Last-Rev: 5ad182c51aeb8b26631c6a97a7e9a2d89405ec06
-    GitHub-Pull-Request: golang/go#69862
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/619835
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ia63a4604449b5e460e6f54c962fb7d6db2bc6a43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/go/ast/ast.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/cgo/gcc_freebsd_amd64.c | 10 +++++-----
+ src/runtime/cgo/gcc_libinit.c       | 18 +++++++-----------
+ src/runtime/cgo/gcc_linux_amd64.c   | 10 +++++-----
+ src/runtime/cgo/gcc_linux_arm64.c   | 10 +++++-----
+ src/runtime/cgo/libcgo.h            |  5 +++++
+ src/runtime/cgo/libcgo_unix.h       |  2 +-
+ 6 files changed, 28 insertions(+), 27 deletions(-)

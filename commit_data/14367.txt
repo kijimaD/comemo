@@ -1,15 +1,23 @@
-commit 4ef91fc8540ef3c77906be387f9915914a27595d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Nov 9 14:00:41 2012 +0400
+commit 4022fc4e21d6c5feecb01248c25f8bc54e9762c2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Nov 9 14:19:07 2012 +0800
 
-    cmd/go: fix selection of packages for testing
-    Currently it works incorrectly if user specifies own build tags
-    and with race detection (e.g. runtime/race is not selected,
-    because it contains only test files with +build race).
+    runtime: use vDSO clock_gettime for time.now & runtime.nanotime on Linux/amd64
+    Performance improvement aside, time.Now() now gets real nanosecond resolution
+    on supported systems.
     
-    R=golang-dev, r
+    Benchmark done on Core i7-2600 @ 3.40GHz with kernel 3.5.2-gentoo.
+    original vDSO gettimeofday:
+    BenchmarkNow    100000000               27.4 ns/op
+    new vDSO gettimeofday fallback:
+    BenchmarkNow    100000000               27.6 ns/op
+    new vDSO clock_gettime:
+    BenchmarkNow    100000000               24.4 ns/op
+    
+    R=golang-dev, bradfitz, iant, iant
     CC=golang-dev
-    https://golang.org/cl/6814107
+    https://golang.org/cl/6814103
 
- src/cmd/go/main.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/sys_linux_amd64.s  | 26 ++++++++++++++++----------
+ src/pkg/runtime/vdso_linux_amd64.c |  4 +++-
+ 2 files changed, 19 insertions(+), 11 deletions(-)

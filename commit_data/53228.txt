@@ -1,21 +1,16 @@
-commit 2544b1051ec1bff91d436250ce78295f3123a356
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Tue May 23 11:16:28 2023 +0200
+commit ddfd6394084f534bac3966d3a1736c15c665bd3a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 19 16:15:03 2022 -0400
 
-    runtime/metrics: add /gc/gomemlimit:bytes
+    runtime: delete unused lock ranks
     
-    For #56857
+    For #53789.
     
-    Change-Id: I184d752cc615874ada3d0dbc6ed1bf72c8debd0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497316
+    Change-Id: Ic7379afcfdcc47b541bac9b44b5bc6b43604fc0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418714
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/runtime/metrics.go             | 6 ++++++
- src/runtime/metrics/description.go | 7 +++++++
- src/runtime/metrics/doc.go         | 5 +++++
- src/runtime/metrics_test.go        | 8 ++++++++
- 4 files changed, 26 insertions(+)
+ src/runtime/lockrank.go | 55 +++++++++++--------------------------------------
+ 1 file changed, 12 insertions(+), 43 deletions(-)

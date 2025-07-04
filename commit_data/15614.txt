@@ -1,20 +1,13 @@
-commit fb59aed60b64319ad6fb1d6e6f18e7b1d96aaf77
+commit efd3d1ffe9d784b006f03e1961567149952b8f19
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 6 16:57:14 2013 -0500
+Date:   Wed Mar 6 16:55:08 2013 -0500
 
-    cmd/cgo: split cgo_export into cgo_export_static and cgo_export_dynamic
+    runtime: fix netbsd, windows build
     
-    Also emit cgo_ldflag pragmas.
-    
-    R=golang-dev, remyoudompheng, iant
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7530043
+    https://golang.org/cl/7539043
 
- src/cmd/cc/dpchk.c  | 22 ++++++++++++++++++----
- src/cmd/cgo/doc.go  | 14 +++++++++++---
- src/cmd/cgo/gcc.go  |  6 +-----
- src/cmd/cgo/main.go |  4 ++--
- src/cmd/cgo/out.go  | 11 +++++++++--
- src/cmd/ld/go.c     | 29 ++++++++++++++++++++++-------
- src/cmd/ld/lib.h    |  2 ++
- 7 files changed, 65 insertions(+), 23 deletions(-)
+ src/pkg/runtime/rt0_netbsd_amd64.s  | 2 +-
+ src/pkg/runtime/rt0_windows_amd64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

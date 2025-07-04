@@ -1,12 +1,12 @@
-commit 6fae34db94fe02f60edb207c95037a9bf8611e71
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Feb 15 14:25:27 2012 +1100
+commit dabf3db7153faac5e2b59429990f9f1bf6e39399
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 15 14:24:24 2012 +1100
 
-    cmd/dist: xprintf() can't output whole of 'dist env'.
+    os/exec: add some examples
     
-    R=golang-dev, mpimenov, alex.brainman
+    R=golang-dev, adg, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5667045
+    https://golang.org/cl/5675054
 
- src/cmd/dist/windows.c | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ src/pkg/os/exec/example_test.go | 75 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 75 insertions(+)

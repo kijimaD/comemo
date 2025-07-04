@@ -1,21 +1,32 @@
-commit 97ccc224f1b0f9a5c7353ad0bafdb3e9c3a4cc27
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Jul 10 19:23:32 2024 -0700
+commit 125c2cac642c4feacfc7d98a52f2287646d03fc7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 26 17:56:39 2023 +0000
 
-    math/big: use lists in docstrings
+    runtime: make TestCPUMetricsSleep even more lenient
     
-    This looks way better than the code formatting.
+    This test was introduced as a regression test for #60276. However, it
+    was quite flaky on a number of different platforms because there are
+    myriad ways the runtime can eat into time one might expect is completely
+    idle.
     
-    Similar to CL 597656.
+    This change re-enables the test, but makes it much more resilient.
+    Because the issue we're testing for is persistent, we now require 10
+    consecutive failures to count. Any single success counts as a test
+    success. This change also makes the test's idle time bound more lenient,
+    allowing for a little bit of time to be eaten up. The regression we're
+    testing for results in nearly zero idle time being accounted for.
     
-    Change-Id: I2c8809c1d6f8a8387941567213880662ff649a73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/597659
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    If this is still not good enough to eliminate flakes, this test should
+    just be deleted.
+    
+    For #60276.
+    Fixes #60376.
+    
+    Change-Id: Icd81f0c9970821b7f386f6d27c8a566fee4d0ff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498274
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/math/big/float.go | 14 ++++++--------
- src/math/big/int.go   | 28 +++++++++++++---------------
- src/math/big/rat.go   | 14 ++++++--------
- 3 files changed, 25 insertions(+), 31 deletions(-)
+ src/runtime/metrics_test.go | 91 +++++++++++++++++++++++++++++----------------
+ 1 file changed, 58 insertions(+), 33 deletions(-)

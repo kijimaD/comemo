@@ -1,0 +1,21 @@
+commit 7755a05209177e6f2d494a08a9b98b9b31d6ee8f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 30 16:14:39 2025 -0700
+
+    Revert "crypto/internal/fips140/subtle: add assembly implementation of xorBytes for arm"
+    
+    This reverts commit de86d02c32f6690391ed79b99d0f763bb06606d5.
+    
+    Reason for revert: Causes unaligned access failures on some arm hardware
+    
+    Change-Id: Ie280d2c9441f584e2a621f929db5a2e1492bed09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/685137
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Julian Zhu <jz531210@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/internal/fips140/subtle/xor_arm.s      | 149 ----------------------
+ src/crypto/internal/fips140/subtle/xor_asm.go     |   2 +-
+ src/crypto/internal/fips140/subtle/xor_generic.go |   2 +-
+ 3 files changed, 2 insertions(+), 151 deletions(-)

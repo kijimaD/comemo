@@ -1,16 +1,21 @@
-commit d98970963081585c3c2e85fa68740cc854d08f92
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Thu Nov 10 12:40:50 2011 -0800
+commit 2c39ca08cd6bb94b31ac6e15b0da33b345b62170
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 10 11:59:50 2011 -0800
 
-    time: add ISOWeek method to Time
+    testing: add file:line stamps to messages.
     
-    As the ISO 8601 week number is untrivial to compute a new method
-    on *Time provides year and number of week.
+    A single-line error looks like this:
+    --- FAIL: foo_test.TestFoo (0.00 seconds)
+            foo_test.go:123: Foo(8) = "10" want "100"
     
-    R=golang-dev, rsc, r, r
+    A multi-line error looks like this:
+    --- FAIL: foo_test.TestFoo (0.00 seconds)
+            foo_test.go:456: Foo(88) = "100"
+                    want "1000"
+    
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5316074
+    https://golang.org/cl/5376057
 
- src/pkg/time/time.go      | 60 +++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/time/time_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 122 insertions(+)
+ src/pkg/testing/testing.go | 41 ++++++++++++++++++++++++++++++-----------
+ 1 file changed, 30 insertions(+), 11 deletions(-)

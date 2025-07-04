@@ -1,16 +1,24 @@
-commit 870cfe64843736764c1a1263b12801a1f1cec5d9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 13 13:52:17 2019 -0700
+commit 43530e6b25ce542420967efa9d1016fad0336a4f
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 24 09:25:05 2018 -0400
 
-    test/codegen: gofmt
+    cmd/cgo: handle new-style gccgo packagepath mangling
     
-    Change-Id: I33f5b5051e5f75aa264ec656926223c5a3c09c1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167498
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    With https://golang.org/cl/135455, gccgo now uses a different mangling
+    scheme for package paths; add code to use this new scheme for function
+    and variable symbols. Since users sometimes use older versions of
+    gccgo with newer versions of go, perform a test at runtime to see
+    which mangling scheme is in effect for the version of 'gccgo' in the
+    path.
+    
+    Updates #27534.
+    
+    Change-Id: If7ecab06a72e1361129fe40ca6582070a3e8e737
+    Reviewed-on: https://go-review.googlesource.com/c/144418
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/codegen/arithmetic.go  |   1 +
- test/codegen/comparisons.go |  10 ++--
- test/codegen/noextend.go    | 124 ++++++++++++++++++++++----------------------
- test/codegen/shift.go       |  18 +++----
- 4 files changed, 76 insertions(+), 77 deletions(-)
+ src/cmd/cgo/main.go |   2 +
+ src/cmd/cgo/out.go  | 111 +++++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 107 insertions(+), 6 deletions(-)

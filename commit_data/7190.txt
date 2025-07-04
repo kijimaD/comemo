@@ -1,13 +1,12 @@
-commit b7bf2a3a0be2d3f9e2cf238a9800ce3ec161f55b
+commit b15c851db2538cc57fa4cf46334ff2ee666525d8
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 20 00:16:16 2011 -0500
+Date:   Thu Jan 20 00:07:57 2011 -0500
 
-    net: fix windows build (?)
+    tag release.2011-01-20
     
-    TBR=adg
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4083042
+    https://golang.org/cl/4047044
 
- src/pkg/net/net_test.go       | 4 ++++
- src/pkg/net/resolv_windows.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

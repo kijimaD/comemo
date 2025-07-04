@@ -1,17 +1,20 @@
-commit 7372b64425eda6725fb84be71d6a3c4415b35d0d
-Author: Sean Liao <sean@liao.dev>
-Date:   Sat Mar 22 01:15:22 2025 +0000
+commit 4ce008d7d35237a40619e24d0d045bdcb3752cd3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Feb 17 02:21:11 2024 +1100
 
-    net/url: document referenced RFCs
+    log/slog: correct formatting
     
-    Fixes #30611
+    Code added in CL #558755 and CL #561315 (both via github) were not
+    appropriately formatted. Run gofmt to address this.
     
-    Change-Id: If933c2a7e63d89402d2034618057ad546cf9641b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660077
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iaf7abca9c2ad4e0fabecc417234b743b6b15e9c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564719
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/net/url/url.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/log/slog/level_test.go | 8 ++++----
+ src/log/slog/value_test.go | 6 +++---
+ 2 files changed, 7 insertions(+), 7 deletions(-)

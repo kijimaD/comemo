@@ -1,22 +1,17 @@
-commit e1cf2be7a82a2421c69c48cbdf596841f29bff77
-Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-Date:   Fri Aug 18 10:22:19 2017 +0200
+commit 5f4f7519b6c038ab6771e6c7111bcd29967f2750
+Author: Gustav Westling <gustav@westling.xyz>
+Date:   Sat Mar 25 00:35:40 2017 +0100
 
-    cmd/compile: fix lexical block of captured variables
+    encoding/base32: add Encoding.WithPadding, StdPadding, NoPadding
     
-    Variables captured by a closure were always assigned to the root scope
-    in their declaration function. Using decl.Name.Defn.Pos will result in
-    the correct scope for both the declaration function and the capturing
-    function.
+    Fixes #19478
     
-    Fixes #21515
-    
-    Change-Id: I3960aface3c4fc97e15b36191a74a7bed5b5ebc1
-    Reviewed-on: https://go-review.googlesource.com/56830
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I9fc186610d79fd003e7b5d88c0955286ebe7d3cf
+    Reviewed-on: https://go-review.googlesource.com/38634
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/pgen.go       | 28 +++++++++++++++++++---------
- src/cmd/compile/internal/gc/scope_test.go | 13 +++++++++++++
- 2 files changed, 32 insertions(+), 9 deletions(-)
+ src/encoding/base32/base32.go      | 92 ++++++++++++++++++++++++++------------
+ src/encoding/base32/base32_test.go | 30 +++++++++++++
+ 2 files changed, 94 insertions(+), 28 deletions(-)

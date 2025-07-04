@@ -1,33 +1,29 @@
-commit e1544d3bb68d56ebf43cc8828e3dce18fd5ef442
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 1 22:55:28 2015 -0500
+commit e78e654c1de0a7bfe0314d6954d42b046f14f1bb
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jul 27 16:54:30 2015 -0700
 
-    dwbug/elf: support old-style compressed DWARF
+    crypto/x509: parse CSRs with a critical flag in the requested extensions.
     
-    GCC and LLVM support zlib-compressing DWARF debug sections (and
-    there's some evidence that this may be happening by default in some
-    circumstances now).
+    The format for a CSR is horribly underspecified and we had a mistake.
+    The code was parsing the attributes from the CSR as a
+    pkix.AttributeTypeAndValueSET, which is only almost correct: it works so
+    long as the requested extensions don't contain the optional “critical”
+    flag.
     
-    Add support for reading compressed DWARF sections. Since ELF
-    relocations apply to the decompressed data, decompression is done
-    before applying relocations. Since relcations are applied by
-    debug/elf, decompression must also be handled there.
+    Unfortunately this mistake is exported somewhat in the API and the
+    Attributes field of a CSR actually has the wrong type. I've moved this
+    field to the bottom of the structure and updated the comment to reflect
+    this.
     
-    Note that this is different from compressed ELF sections, which is a
-    more general mechanism used by very recent versions of GCC.
+    The Extensions and other fields of the CSR structure can be saved
+    however and this change does that.
     
-    Updates #11773.
+    Fixes #11897.
     
-    Change-Id: I3f4bf1b04d0802cc1e8fcb7c2a5fcf6c467c5089
-    Reviewed-on: https://go-review.googlesource.com/17340
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If8e2f5c21934800b72b041e38691efc3e897ecf1
+    Reviewed-on: https://go-review.googlesource.com/12717
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/deps.go                               |   7 +++--
- src/debug/elf/file.go                              |  29 ++++++++++++++++++---
- src/debug/elf/file_test.go                         |  28 ++++++++++++++++++++
- .../elf/testdata/zdebug-test-gcc484-x86-64.obj     | Bin 0 -> 3216 bytes
- src/go/build/deps_test.go                          |   2 +-
- 5 files changed, 60 insertions(+), 6 deletions(-)
+ src/crypto/x509/x509.go      | 73 ++++++++++++++++++++++++--------------------
+ src/crypto/x509/x509_test.go | 34 +++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 33 deletions(-)

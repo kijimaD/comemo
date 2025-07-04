@@ -1,20 +1,16 @@
-commit 693a34e78856980b0bb4a10ffcfd2bac1dbd6ebe
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 7 14:03:55 2023 -0700
+commit e0ae8540ab7527ac8000d6f212526f32b2a9ebad
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 10 16:15:35 2022 -0700
 
-    slices: add DeleteFunc
+    doc: mention jump tables and tsan upgrades in 1.19 release notes
     
-    Fixes #54768
-    
-    Change-Id: I588ae33c13e0bbd9d324c11771667b22a864047d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483175
+    Change-Id: I0ab34f2f931e0e712218e4eb086f4535cc17775c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405614
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- api/next/54768.txt        |  1 +
- src/slices/slices.go      | 26 ++++++++++++++++++++++++++
- src/slices/slices_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 73 insertions(+)
+ doc/go1.19.html | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

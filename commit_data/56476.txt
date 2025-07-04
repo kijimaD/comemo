@@ -1,23 +1,21 @@
-commit bbdad50c0909134ab474bdb4b0c3741f85b28ecd
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 14 15:27:33 2024 -0400
+commit 5deeca38c2506fc7bc0d7c29b05feb961267b8e0
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 14 18:18:01 2023 -0400
 
-    doc/godebug: correct gotypealias=1 deprecation
+    internal/abi,reflectlite,reflect,runtime: common up chan type
     
-    Per the note earlier in the page, GODEBUGs are maintained for a
-    minimum of two years (four Go releases). Not said but certainly
-    implied is that they are maintained for four Go releases from the
-    point where people started needing to use them.
-    
-    Since people would start needing gotypesalias=0 in Go 1.23,
-    it can be removed in Go 1.27.
-    
-    Change-Id: Ifad63a1fff63c3f96f2ee192ca74bd1ce8bdb61f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585457
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Change-Id: I085b61c544b85d70fabb1c0d9fe91207826dd21a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484858
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- doc/godebug.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go      |  2 +-
+ src/cmd/link/internal/ld/dwarf_test.go | 20 +++++++++----------
+ src/internal/reflectlite/type.go       | 10 +++-------
+ src/reflect/type.go                    | 24 ++++++++++-------------
+ src/reflect/value.go                   | 36 ++++++++++++++++++----------------
+ src/runtime/chan.go                    |  6 +++---
+ src/runtime/type.go                    |  8 ++------
+ 7 files changed, 48 insertions(+), 58 deletions(-)

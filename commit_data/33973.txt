@@ -1,17 +1,39 @@
-commit b26c88db2f338d6529e1021db59f0faa75af5934
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 9 15:52:01 2018 -0500
+commit f366379d847274158bd14e160c85c7e2bc0f2bc1
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Sep 22 12:21:36 2017 +0100
 
-    reflect: fix doc nit
+    cmd/compile: add more runtime funcs to inline test
     
-    Type values being comparable implies that Type is a valid map key type.
-    As previously written, they sound unrelated.
+    This is based from a list that Keith Randall provided in mid-2016. These
+    are all funcs that, at the time, were important and small enough that
+    they should be clearly inlined.
     
-    Change-Id: I8e2235275d62898bfb47de850e8257b51ab5cbd6
-    Reviewed-on: https://go-review.googlesource.com/87021
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The runtime has changed a bit since then. Ctz16 and Ctz8 were removed,
+    so don't add them. stringtoslicebytetmp was moved to the backend, so
+    it's no longer a Go function. And itabhash was moved to itabHashFunc.
+    
+    The only other outlier is adjustctxt, which is not inlineable at the
+    moment. I've added a TODO and will address it myself in a separate
+    commit.
+    
+    While at it, error if any funcs in the input table are duplicated.
+    They're never useful and typos could lead to unintentionally thinking a
+    function is inlineable when it actually isn't.
+    
+    And, since the lists are getting long, start sorting alphabetically.
+    
+    Finally, rotl_31 is only defined on 64-bit architectures, and the added
+    runtime/internal/sys funcs are assembly on 386 and thus non-inlineable
+    in that case.
+    
+    Updates #21851.
+    
+    Change-Id: Ib99ab53d777860270e8fd4aefc41adb448f13662
+    Reviewed-on: https://go-review.googlesource.com/65351
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.10.html     | 3 ++-
- src/reflect/type.go | 4 ++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go | 47 +++++++++++++++++++++++++++++----
+ 1 file changed, 42 insertions(+), 5 deletions(-)

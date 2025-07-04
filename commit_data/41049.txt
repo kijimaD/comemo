@@ -1,20 +1,16 @@
-commit 24902c5be6ba2eac6919879d2e5cb0a7bdadf91c
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Jan 1 01:28:22 2020 +1100
+commit 3ff590ebf5f09d00e16abbcac5feec99879fe91f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Aug 30 10:06:21 2019 +0200
 
-    cmd/internal/obj/riscv: handle MOV rewrites in separate pass
+    cmd/compile: regenerate known formats in fmtmap_test.go
     
-    Handle the rewriting of MOV pseudo-instructions in a separate pass. This allows
-    AMOV to be more readily used by other code, including AGETCALLERPC and ARET
-    implementations.
+    This fixes TestFormats after CL 192278.
     
-    Updates #27532
-    
-    Change-Id: Iea794121210048ed23ed0fb8f3c5e3cd5354a311
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212758
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I7ffb8f76b4f6469d1b161d41687306e0d9e7abd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191786
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/riscv/obj.go | 23 ++++++++++++-----------
- 1 file changed, 12 insertions(+), 11 deletions(-)
+ src/cmd/compile/fmtmap_test.go | 1 +
+ 1 file changed, 1 insertion(+)

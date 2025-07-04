@@ -1,19 +1,20 @@
-commit 9fbd0f64d86d616d9ce1a2636afac43001b22b7c
-Author: 徐志伟 <juwan.xu@qq.com>
-Date:   Mon Mar 29 18:22:15 2021 +0000
+commit 518369601ca2499cea68af86451f17d2856895f8
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 9 12:09:26 2020 +0700
 
-    runtime: fix some typos
+    cmd/compile: add Type.IsUintptr() to detect type is an uintptr
     
-    Change-Id: I31f2081eb7c30a9583f479f9194e636fe721b9b3
-    GitHub-Last-Rev: d09f5fbdc5785dc3963b22ad75309740e0de258e
-    GitHub-Pull-Request: golang/go#45278
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305231
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I7051d45eafbfd4dea73a3d4b5ea6cff39d76cbc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253658
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mgcwork.go        | 2 +-
- src/runtime/proc.go           | 2 +-
- src/runtime/sys_windows_arm.s | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/esc.go     | 6 +++---
+ src/cmd/compile/internal/gc/escape.go  | 2 +-
+ src/cmd/compile/internal/gc/subr.go    | 4 ++--
+ src/cmd/compile/internal/gc/walk.go    | 4 ++--
+ src/cmd/compile/internal/types/type.go | 5 +++++
+ 5 files changed, 13 insertions(+), 8 deletions(-)

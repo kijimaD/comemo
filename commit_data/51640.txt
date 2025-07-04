@@ -1,26 +1,22 @@
-commit 8ed5a161ce85ee6d1e5fdef097a57593cfe15185
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 9 14:19:27 2023 -0800
+commit 510ad4561f859f66e5a2d22a73ce8253d19ede3e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 7 09:22:33 2021 -0800
 
-    go/types: generate more files from types2 sources
+    runtime: improve work stealing randomness
     
-    Change-Id: I5e00b4367d7288867b03702d0c76b8210c125668
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461083
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    For certain values of GOMAXPROCS, the current code is less random than
+    it looks. For example with GOMAXPROCS=12, there are 4 coprimes: 1 5 7 11.
+    That's bad, as 12 and 4 are not relatively prime. So if pos == 2, then we
+    always pick 7 as the inc. We want to pick pos and inc independently
+    at random.
+    
+    Change-Id: I5c7e4f01f9223cbc2db12a685dc0bced2cf39abf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369976
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/go/types/array.go            |  6 ++-
- src/go/types/basic.go            |  6 ++-
- src/go/types/context_test.go     |  2 +
- src/go/types/generator.go        | 86 ++++++++++++++++++++++++++++++----------
- src/go/types/instantiate_test.go |  7 +---
- src/go/types/object.go           | 51 ++++++++++++++++++++++--
- src/go/types/package.go          |  4 +-
- src/go/types/predicates.go       | 16 ++++----
- src/go/types/sizeof_test.go      |  2 +-
- src/go/types/typeterm_test.go    |  2 +
- src/go/types/universe.go         |  2 +
- 11 files changed, 142 insertions(+), 42 deletions(-)
+ src/runtime/proc.go              |  2 +-
+ src/runtime/proc_runtime_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

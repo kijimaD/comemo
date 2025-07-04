@@ -1,18 +1,16 @@
-commit 630930c35ef7b5e22e28a6424425b887bb12c9b6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 21 14:11:33 2015 -0400
+commit 669d3da000cb9ed40bb6108f24f4ecf8d31d3189
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Apr 24 15:37:53 2015 +0200
 
-    cmd/compile, cmd/link: add docs
+    archive/tar: fix error message
     
-    These are the Go 1.4 docs but refreshed for Go 1.5.
-    The most sigificant change is that all references to the Plan 9 toolchain are gone.
-    The tools no longer bear any meaningful resemblance.
+    Write should return ErrWriteAfterClose instead
+    of ErrWriteTooLong when called after Close.
     
-    Change-Id: I44f5cadb832a982323d7fee0b77673e55d761b35
-    Reviewed-on: https://go-review.googlesource.com/10298
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: If5ec4ef924e4c56489e0d426976f7e5fad79be9b
+    Reviewed-on: https://go-review.googlesource.com/9259
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/doc.go             | 124 +++++++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/lex.go |   6 +-
- src/cmd/link/doc.go                |  93 ++++++++++++++++++++++++++++
- 3 files changed, 222 insertions(+), 1 deletion(-)
+ src/archive/tar/writer.go      |  2 +-
+ src/archive/tar/writer_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

@@ -1,13 +1,68 @@
-commit 765479ccb01fdfef10bdec2e651fcf7a4af50336
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Sep 16 16:26:07 2013 +1000
+commit 5dd74175d4c80fbe3a3dfda31bdc3ac745266baa
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 16 15:47:13 2013 +1000
 
-    doc/go1.2.html: add a "New packages" section similar to
-    http://golang.org/doc/go1.1#new_packages
+    doc: re-organize golang.org site content
     
-    R=r
+    Remove "References" section.
+    Remove most articles and redirect to blog.golang.org.
+    Move /ref/spec and /ref/mem to /doc/spec and /doc/mem.
+    Remove duplicate links from the remaining
+    "Documents", "The Project", and "Help" pages.
+    Defer to the wiki for more links and community content.
+    Update command reference and mention cover tool.
+    Add "Pop-out" text to the front page.
+    Pick one of four videos at random to feature on the front page.
+    
+    Fixes #2547.
+    Fixes #5561.
+    Fixes #6321.
+    
+    R=r, dominik.honnef
     CC=golang-dev
-    https://golang.org/cl/13368053
+    https://golang.org/cl/13724043
 
- doc/go1.2.html | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ doc/articles/c_go_cgo.html                    | 179 -------
+ doc/articles/concurrency_patterns.html        |  79 ----
+ doc/articles/defer_panic_recover.html         | 197 --------
+ doc/articles/error_handling.html              | 316 -------------
+ doc/articles/gobs_of_data.html                | 315 -------------
+ doc/articles/godoc_documenting_go_code.html   | 147 ------
+ doc/articles/gos_declaration_syntax.html      | 348 --------------
+ doc/articles/image-20.png                     | Bin 95383 -> 0 bytes
+ doc/articles/image-2a.png                     | Bin 3625 -> 0 bytes
+ doc/articles/image-2b.png                     | Bin 95423 -> 0 bytes
+ doc/articles/image-2c.png                     | Bin 60552 -> 0 bytes
+ doc/articles/image-2d.png                     | Bin 68314 -> 0 bytes
+ doc/articles/image-2e.png                     | Bin 96721 -> 0 bytes
+ doc/articles/image-2f.png                     | Bin 62662 -> 0 bytes
+ doc/articles/image-package-01.png             | Bin 1393 -> 0 bytes
+ doc/articles/image-package-02.png             | Bin 1494 -> 0 bytes
+ doc/articles/image-package-03.png             | Bin 1477 -> 0 bytes
+ doc/articles/image-package-04.png             | Bin 1631 -> 0 bytes
+ doc/articles/image-package-05.png             | Bin 1613 -> 0 bytes
+ doc/articles/image_draw.html                  | 222 ---------
+ doc/articles/image_package.html               | 312 -------------
+ doc/articles/index.html                       |   3 +-
+ doc/articles/json_and_go.html                 | 357 --------------
+ doc/articles/json_rpc_tale_of_interfaces.html |  78 ----
+ doc/articles/laws_of_reflection.html          | 649 --------------------------
+ doc/articles/race_detector.html               | 388 ---------------
+ doc/articles/slice-1.png                      | Bin 6334 -> 0 bytes
+ doc/articles/slice-2.png                      | Bin 7220 -> 0 bytes
+ doc/articles/slice-3.png                      | Bin 7303 -> 0 bytes
+ doc/articles/slice-array.png                  | Bin 1237 -> 0 bytes
+ doc/articles/slice-struct.png                 | Bin 3650 -> 0 bytes
+ doc/articles/slices_usage_and_internals.html  | 438 -----------------
+ doc/cmd.html                                  |  26 +-
+ doc/contrib.html                              |  59 +--
+ doc/docs.html                                 | 142 +++---
+ doc/go1.html                                  |   1 +
+ doc/go1compat.html                            |   3 +-
+ doc/go_faq.html                               |   2 +-
+ doc/go_mem.html                               |   2 +-
+ doc/go_spec.html                              |   2 +-
+ doc/help.html                                 |  16 +-
+ doc/reference.html                            |  64 ---
+ doc/root.html                                 |  14 +-
+ 43 files changed, 132 insertions(+), 4227 deletions(-)

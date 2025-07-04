@@ -1,35 +1,18 @@
-commit 1f8f2ab9661c78876d8a8cb0ccc4625728842b26
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 21 15:50:18 2023 -0700
+commit 1e65fa58c11b78bd0b026583e9ba7f724a84d628
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 21:34:02 2022 +0800
 
-    go/types, types2: remove order dependency in inference involving channels
+    encoding/json: return comparison directly
     
-    In inexact unification, when a named type matches against an inferred
-    unnamed type, we change the previously inferred type to the named type.
-    This preserves the type name and assignability.
-    
-    We have to do the same thing when encountering a directional channel:
-    a bidirectional channel can always be assigned to a directional channel
-    but not the other way around. Thus, if we see a directional channel, we
-    must choose the directional channel.
-    
-    This CL extends the previously existing logic for named types to
-    directional channels and also makes the code conditional on inexact
-    unification. The latter is an optimization - if unification is exact,
-    type differences don't exist and updating an already inferred type has
-    no effect.
-    
-    Fixes #62157.
-    
-    Change-Id: I807e3b9f9ab363f9ed848bdb18b2577b1d680ea7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521500
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I4698d0fa78108d83ee91732e8d3878dbff7f9c90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436711
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
 
- src/cmd/compile/internal/types2/unify.go           |  44 +++++--
- src/go/types/unify.go                              |  44 +++++--
- .../types/testdata/fixedbugs/issue62157.go         | 128 +++++++++++++++++++++
- 3 files changed, 194 insertions(+), 22 deletions(-)
+ src/encoding/json/fold.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

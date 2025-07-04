@@ -1,34 +1,14 @@
-commit 9b0560ea2f0f2d2de97e71881ce3514e236b25e8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 14 09:46:40 2014 -0800
+commit 8bd8cede03e32c55844cfc433f66fc6da0564c8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 14 10:40:16 2014 -0500
 
-    net/http: fix another data race when sharing Request.Body
+    cmd/gc: add -live flag for debugging liveness maps
     
-    Fix another issue (similar to Issue 6995) where there was a
-    data race when sharing a server handler's Request.Body with
-    another goroutine that out-lived the Handler's goroutine.
-    
-    In some cases we were not closing the incoming Request.Body
-    (which would've required reading it until the end) if we
-    thought it we thought we were going to be forcibly closing the
-    underlying net.Conn later anyway. But that optimization
-    largely moved to the transfer.go *body later, and locking was
-    added to *body which then detected read-after-close, so now
-    calling the (*body).Close always is both cheap and correct.
-    
-    No new test because TestTransportAndServerSharedBodyRace caught it,
-    albeit only sometimes. Running:
-    
-    while ./http.test -test.cpu=8 -test.run=TestTransportAndServerSharedBodyRace; do true; done
-    
-    ... would reliably cause a race before, but not now.
-    
-    Update #6995
-    Fixes #7092
-    
-    R=golang-codereviews, khr
+    R=khr
     CC=golang-codereviews
-    https://golang.org/cl/51700043
+    https://golang.org/cl/51820043
 
- src/pkg/net/http/server.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/gc/go.h    |  1 +
+ src/cmd/gc/lex.c   |  1 +
+ src/cmd/gc/plive.c | 92 ++++++++++++++++++++++++++++++++++++------------------
+ 3 files changed, 63 insertions(+), 31 deletions(-)

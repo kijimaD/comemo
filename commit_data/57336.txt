@@ -1,21 +1,25 @@
-commit c55a170083dc58611e5acb6535093d0cf4e43175
-Author: komuw <komuw05@gmail.com>
-Date:   Wed Aug 28 14:12:31 2024 +0000
+commit 8a83ef8479c410ad2002a6e642f295ab8a62de2c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 27 15:56:37 2023 -0400
 
-    crypto/cipher: update documentation for aead Open
+    cmd/go: make go list -m -u all not complain about missing checksums
     
-    The remaining capacity of dst should not overlap ciphertext.
-    The previous wording was probably a copy paste mistake from aead Seal.
+    This is a band-aid of a fix for Go 1.21, to create space to work on
+    a real fix for Go 1.22, if in fact the real fix is different. It simply
+    disables the go.sum update check during go list -m -u.
+    I don't have a self-contained test for the breakage. See #61605.
+    All existing tests continue to pass.
     
-    Change-Id: Iaa28073f9ea90cbe2032c0c1149a78feab6c9239
-    GitHub-Last-Rev: fb54bc84c471648eb9d4c56492a8ff6d7db69b2b
-    GitHub-Pull-Request: golang/go#69108
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609075
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    For #61605.
+    After merging into the Go 1.21 branch we can move #61605 to the Go 1.22 milestone.
+    
+    Change-Id: Ib155710092003f08d2a6ce0aefa8e0270cad5a5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513778
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/cipher/gcm.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modload/list.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

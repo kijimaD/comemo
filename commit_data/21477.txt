@@ -1,13 +1,26 @@
-commit bbd6771621247d77075cc71ad49a6a8d6cc076a7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 3 14:29:03 2015 -0800
+commit b2aab72d9a7d3e82904be25c86ff24dc09847fc8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 7 13:23:45 2015 -0800
 
-    math/big: implemented decimal rounding for Float-to-string conversion
+    cmd/cgo: remove obsolete -cdefs flag
     
-    Change-Id: Id508ca2f6c087861e8c6bc536bc39e54dce09825
-    Reviewed-on: https://go-review.googlesource.com/3840
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Now that there's no 6c compiler anymore, there's no need for cgo to
+    generate C headers that are compatible with it.
+    
+    Fixes #9528
+    
+    Change-Id: I43f53869719eb9a6065f1b39f66f060e604cbee0
+    Reviewed-on: https://go-review.googlesource.com/2482
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/decimal.go      | 88 ++++++++++++++++++++++++++++++++++++++------
- src/math/big/decimal_test.go | 55 +++++++++++++++++++++++++++
- 2 files changed, 131 insertions(+), 12 deletions(-)
+ misc/cgo/testcdefs/cdefstest.c  |   9 ---
+ misc/cgo/testcdefs/cdefstest.go |  60 ---------------
+ misc/cgo/testcdefs/main.c       |  76 ------------------
+ misc/cgo/testcdefs/main.go      |  13 ----
+ misc/cgo/testcdefs/test.bash    |  16 ----
+ src/cmd/cgo/doc.go              |   4 -
+ src/cmd/cgo/gcc.go              |  33 ++++----
+ src/cmd/cgo/godefs.go           | 167 ----------------------------------------
+ src/cmd/cgo/main.go             |  14 +---
+ src/run.bash                    |  11 ---
+ 10 files changed, 16 insertions(+), 387 deletions(-)

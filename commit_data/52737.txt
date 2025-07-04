@@ -1,31 +1,37 @@
-commit 15c12762466b4c5f92b1668f86f73d0b1e66b62b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 20 02:41:08 2023 +0000
+commit 2b0e457b42a64455ca2d3eebb5c6d4e6acfc5db2
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Fri May 20 22:09:58 2022 +0000
 
-    runtime: bring back minHeapIdx in scavenge index
+    cmd/compile: intercept string compares in libFuzzer mode
     
-    The scavenge index currently doesn't guard against overflow, and CL
-    436395 removed the minHeapIdx optimization that allows the chunk scan to
-    skip scanning chunks that haven't been mapped for the heap, and are only
-    available as a consequence of chunks' mapped region being rounded out to
-    a page on both ends.
+    IR string compares as well as calls to string comparison functions such
+    as `strings.EqualFold` are intercepted and the corresponding libFuzzer
+    callbacks are invoked with the corresponding arguments. As a result, the
+    compared strings will be added to libFuzzer’s table of recent compares,
+    which feeds future mutations performed by the fuzzer and thus allow it
+    to reach into branches guarded by string comparisons.
     
-    Because the 0'th chunk is never mapped, minHeapIdx effectively prevents
-    overflow, fixing the iOS breakage.
+    The list of methods to intercept is maintained in
+    `cmd/compile/internal/walk/expr.go` and can easily be extended to cover
+    more standard library functions in the future.
     
-    This change also refactors growth and initialization a little bit to
-    decouple it from pageAlloc a bit and share code across platforms.
-    
-    Change-Id: If7fc3245aa81cf99451bf8468458da31986a9b0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486695
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I5c8b89499c4e19459406795dea923bf777779c51
+    GitHub-Last-Rev: 6b8529b55561faf57ea59cb7cff1caf8c9c94ecd
+    GitHub-Pull-Request: golang/go#51319
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387335
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/runtime/export_test.go      |  1 +
- src/runtime/mgcscavenge.go      | 31 +++++++++++++++++++++++++++----
- src/runtime/mpagealloc.go       |  6 ++++--
- src/runtime/mpagealloc_32bit.go | 35 +++++++++++++++++++++++------------
- src/runtime/mpagealloc_64bit.go |  8 ++++----
- 5 files changed, 59 insertions(+), 22 deletions(-)
+ src/cmd/compile/internal/typecheck/builtin.go      |  5 +++-
+ .../compile/internal/typecheck/builtin/runtime.go  |  2 ++
+ src/cmd/compile/internal/walk/compare.go           | 29 ++++++++++++++++++++
+ src/cmd/compile/internal/walk/expr.go              | 24 ++++++++++++++++
+ src/cmd/internal/goobj/builtinlist.go              |  2 ++
+ src/internal/fuzz/trace.go                         |  6 ++++
+ src/runtime/libfuzzer.go                           | 30 ++++++++++++++++++++
+ src/runtime/libfuzzer_amd64.s                      | 31 ++++++++++++++++++++-
+ src/runtime/libfuzzer_arm64.s                      | 32 ++++++++++++++++++++--
+ 9 files changed, 157 insertions(+), 4 deletions(-)

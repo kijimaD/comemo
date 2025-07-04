@@ -1,17 +1,19 @@
-commit 8c2c35debebaaa86aab1f180940f0a77db0b6f30
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Fri Sep 4 10:05:31 2015 -0700
+commit 023047d14b0f01cd220b4bd75a85b8e25f4b6dfe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 22:39:17 2015 -0400
 
-    net/http/httptest: ResponseRecorder.WriteString
+    cmd/go: diagnose trivial test import cycle
     
-    Fixes #11000
+    Was detecting only non-trivial ones.
     
-    Change-Id: Ic137e8a6c5c6b5b7eee213aca9acf78368e1d686
-    Reviewed-on: https://go-review.googlesource.com/14296
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #9690.
+    
+    Change-Id: I662d81dd4818ddf29592057c090805772c84287b
+    Reviewed-on: https://go-review.googlesource.com/12147
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/http/httptest/recorder.go      | 11 +++++++++++
- src/net/http/httptest/recorder_test.go |  8 ++++++++
- 2 files changed, 19 insertions(+)
+ src/cmd/go/go_test.go                           | 3 +++
+ src/cmd/go/test.go                              | 2 +-
+ src/cmd/go/testdata/src/testcycle/q1/q1.go      | 1 +
+ src/cmd/go/testdata/src/testcycle/q1/q1_test.go | 6 ++++++
+ 4 files changed, 11 insertions(+), 1 deletion(-)

@@ -1,17 +1,24 @@
-commit 52961b902fa89e89eff318e907e7f331bcf09736
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Fri May 9 12:19:00 2014 -0400
+commit f40f0b26b6d129d48457bf8dfd9ee2f6cbdfdb3b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 9 09:38:29 2014 +0900
 
-    cmd/go: mark regexp as dependency of testmain
+    net: drop flakey TestDialFailPDLeak
     
-    Fixes #6844.
+    TestDialFailPDLeak was created for testing runtime-integrated netwrok
+    poller stuff and used during Go 1.2 development cycle. Unfortunately
+    it's still flakey because it depends on MemStats of runtime, not
+    pollcache directly, and MemStats accounts and revises its own stats
+    occasionally.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    For now the codepaths related to runtime-intergrated network poller
+    are pretty stable, so removing this test case never suffers us.
+    
+    Fixes #6553.
+    
+    LGTM=josharian, iant
+    R=iant, josharian
     CC=golang-codereviews
-    https://golang.org/cl/97840043
+    https://golang.org/cl/98080043
 
- src/cmd/go/test.bash            | 17 +++++++++++++++++
- src/cmd/go/test.go              |  3 ++-
- src/cmd/go/testdata/dep_test.go |  7 +++++++
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ src/pkg/net/dial_test.go | 54 ------------------------------------------------
+ 1 file changed, 54 deletions(-)

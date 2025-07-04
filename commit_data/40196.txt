@@ -1,18 +1,19 @@
-commit e24a628ab1319381117a699190c7b522e57d034f
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Tue Oct 8 00:23:08 2019 -0700
+commit 41d1bf0efc121c451f497ceae8df366622efd821
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Apr 25 11:59:32 2019 -0400
 
-    net/http: do not sniff response if Content-Encoding header is set
+    cmd/go/internal/modfetch: workaround file URL parsing on Windows
     
-    Fixes #31753
+    Remove the leading slash from GOPROXY file:// URLs.
     
-    Change-Id: I32ec5906ef6714e19b094f67cb0f10a211a9c500
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199799
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Updates #31675
+    
+    Change-Id: Id45af2a806afc3c216181c13f6bc73713b925693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173499
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Cottrell <iancottrell@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/clientserver_test.go |   2 +
- src/net/http/serve_test.go        | 106 ++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go            |   7 ++-
- 3 files changed, 114 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/proxy.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

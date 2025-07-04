@@ -1,17 +1,12 @@
-commit 66a45b486b21f367e506bc7ef1b995a7649ab899
-Author: Adam Langley <agl@golang.org>
-Date:   Sat Jan 8 10:29:37 2011 -0500
+commit 4ed17ceacefb79a9183faa2b8077a69374cfae3e
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jan 7 18:20:26 2011 -0800
 
-    encoding/line: add
+    add peep
     
-    I needed a way to read lines without worrying about \n and \r\n.
-    
-    R=r, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/2859041
+    https://golang.org/cl/3902042
 
- src/pkg/Makefile                   |  1 +
- src/pkg/encoding/line/Makefile     | 11 +++++
- src/pkg/encoding/line/line.go      | 95 ++++++++++++++++++++++++++++++++++++++
- src/pkg/encoding/line/line_test.go | 89 +++++++++++++++++++++++++++++++++++
- 4 files changed, 196 insertions(+)
+ src/cmd/5g/peep.c | 1476 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 1476 insertions(+)

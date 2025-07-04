@@ -1,24 +1,40 @@
-commit 0175e3f1e0a1604f2e3c7bd8b67c42d066f36fa1
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Apr 27 16:36:02 2012 +1000
+commit dd294fbd5a6eea9574df8c3f842342a8cd10f2c6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Apr 27 16:03:58 2012 +1000
 
-    misc/dashboard/codereview: new app.
+    image/png: speed up PNG decoding for common color models: Gray, NRGBA,
+    Paletted, RGBA.
     
-    This is live at http://gocodereview.appspot.com/.
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkDecodeGray               3681144      2536049  -31.11%
+    BenchmarkDecodeNRGBAGradient     12108660     10020650  -17.24%
+    BenchmarkDecodeNRGBAOpaque       10699230      8677165  -18.90%
+    BenchmarkDecodePaletted           2562806      1458798  -43.08%
+    BenchmarkDecodeRGB                8468175      7180730  -15.20%
     
-    R=golang-dev, r
+    benchmark                        old MB/s     new MB/s  speedup
+    BenchmarkDecodeGray                 17.80        25.84    1.45x
+    BenchmarkDecodeNRGBAGradient        21.65        26.16    1.21x
+    BenchmarkDecodeNRGBAOpaque          24.50        30.21    1.23x
+    BenchmarkDecodePaletted             25.57        44.92    1.76x
+    BenchmarkDecodeRGB                  30.96        36.51    1.18x
+    
+    $ file $GOROOT/src/pkg/image/png/testdata/bench*
+    benchGray.png:           PNG image, 256 x 256, 8-bit grayscale, non-interlaced
+    benchNRGBA-gradient.png: PNG image, 256 x 256, 8-bit/color RGBA, non-interlaced
+    benchNRGBA-opaque.png:   PNG image, 256 x 256, 8-bit/color RGBA, non-interlaced
+    benchPaletted.png:       PNG image, 256 x 256, 8-bit colormap, non-interlaced
+    benchRGB.png:            PNG image, 256 x 256, 8-bit/color RGB, non-interlaced
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6134043
+    https://golang.org/cl/6127051
 
- misc/dashboard/codereview/app.yaml               |  24 +++
- misc/dashboard/codereview/cron.yaml              |   4 +
- misc/dashboard/codereview/dashboard/cl.go        | 250 +++++++++++++++++++++++
- misc/dashboard/codereview/dashboard/front.go     | 240 ++++++++++++++++++++++
- misc/dashboard/codereview/dashboard/gc.go        |  43 ++++
- misc/dashboard/codereview/dashboard/mail.go      |  40 ++++
- misc/dashboard/codereview/dashboard/people.go    |  33 +++
- misc/dashboard/codereview/index.yaml             |  19 ++
- misc/dashboard/codereview/queue.yaml             |   4 +
- misc/dashboard/codereview/static/gopherstamp.jpg | Bin 0 -> 16996 bytes
- misc/dashboard/codereview/static/icon.png        | Bin 0 -> 4347 bytes
- 11 files changed, 657 insertions(+)
+ src/pkg/image/png/reader.go                        |  31 ++++++++++------
+ src/pkg/image/png/reader_test.go                   |  39 +++++++++++++++++++++
+ src/pkg/image/png/testdata/benchGray.png           | Bin 0 -> 14709 bytes
+ src/pkg/image/png/testdata/benchNRGBA-gradient.png | Bin 0 -> 58831 bytes
+ src/pkg/image/png/testdata/benchNRGBA-opaque.png   | Bin 0 -> 44237 bytes
+ src/pkg/image/png/testdata/benchPaletted.png       | Bin 0 -> 13397 bytes
+ src/pkg/image/png/testdata/benchRGB.png            | Bin 0 -> 39571 bytes
+ 7 files changed, 59 insertions(+), 11 deletions(-)

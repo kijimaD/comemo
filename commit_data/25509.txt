@@ -1,21 +1,37 @@
-commit 5ccaf0255b75063a9c685009e77cee24e26a509e
-Author: Paul Wankadia <junyer@google.com>
-Date:   Thu Jan 7 18:55:18 2016 +1100
+commit a51905fa04fafaa8284d5a4585a81da249f9d8fd
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 23 15:55:03 2015 -0400
 
-    regexp/syntax: fix factoring of common prefixes in alternations
+    runtime: decentralize sweep termination and mark transition
     
-    In the past, `a.*?c|a.*?b` was factored to `a.*?[bc]`. Thus, given
-    "abc" as its input string, the automaton would consume "ab" and
-    then stop (when unanchored) whereas it should consume all of "abc"
-    as per leftmost semantics.
+    This moves all of GC initialization, sweep termination, and the
+    transition to concurrent marking in to the off->mark transition
+    function. This means it's now handled on the goroutine that detected
+    the state exit condition.
     
-    Fixes #13812.
+    As a result, malloc no longer needs to Gosched() at the beginning of
+    the GC cycle to prevent over-allocation while the GC is starting up
+    because it will now *help* the GC to start up. The Gosched hack is
+    still necessary during GC shutdown (this is easy to test by enabling
+    gctrace and hitting Ctrl-S to block the gctrace output).
     
-    Change-Id: I67ac0a353d7793b3d0c9c4aaf22d157621dfe784
-    Reviewed-on: https://go-review.googlesource.com/18357
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    At this point, the GC coordinator still handles later phases. This
+    requires a small tweak to how we start the GC coordinator. Currently,
+    starting the GC coordinator is best-effort and may fail if the
+    coordinator is about to park from the previous cycle but hasn't yet.
+    We fix this by replacing the park/ready to wake up the coordinator
+    with a semaphore. This is temporary since the coordinator will be
+    going away in a few commits.
+    
+    Updates #11970.
+    
+    Change-Id: I2c6a11c91e72dfbc59c2d8e7c66146dee9a444fe
+    Reviewed-on: https://go-review.googlesource.com/16357
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/regexp/syntax/parse.go         | 15 +++++++++++----
- src/regexp/syntax/parse_test.go    |  7 ++++---
- src/regexp/testdata/re2-search.txt |  5 +++++
- 3 files changed, 20 insertions(+), 7 deletions(-)
+ src/runtime/malloc.go |  2 +-
+ src/runtime/mgc.go    | 70 ++++++++++++++++++++++++++-------------------------
+ src/runtime/trace.go  |  2 +-
+ 3 files changed, 38 insertions(+), 36 deletions(-)

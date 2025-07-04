@@ -1,24 +1,27 @@
-commit c0eac35a4cd3ca16d3d1fc153a155b0b18f49633
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Jul 24 10:32:22 2024 +0000
+commit 0cd9064cd734501738e20a902f942523df0a5a5a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 1 15:02:54 2023 -0700
 
-    bytes,strings,unicode/utf16: use slices to clean up tests
+    go/types, types2: report inference instead of assignment failure when types can't match
     
-    Replace reflect.DeepEqual with slices.Equal, which is much faster.
-    Remove some redundant helper functions.
+    Interface inference must only be used if we don't require exact
+    unification, otherwise we may infer types (that are reasonable)
+    but then fail with an assignment error.
     
-    Change-Id: I51b32a3d0c3fc5ad0d3b6ff0dd03f39c507e5762
-    GitHub-Last-Rev: e21f46d4a026b6bf6e8d912dfb8d361a20a4e779
-    GitHub-Pull-Request: golang/go#67609
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587937
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Only checking if exact is set for defined (named) types is not
+    sufficient, we must also check outside. Oversight.
+    
+    Fixes #60562.
+    
+    Change-Id: I208a74bf7ed80bcb976ba9cc172715c83f9e3d0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499996
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/bytes/bytes_test.go         | 37 +++++++------------------------------
- src/strings/search_test.go      |  4 ++--
- src/strings/strings_test.go     |  6 +++---
- src/unicode/utf16/utf16_test.go |  8 ++++----
- 4 files changed, 16 insertions(+), 39 deletions(-)
+ src/cmd/compile/internal/types2/unify.go           | 10 ++--
+ src/go/types/unify.go                              | 10 ++--
+ .../types/testdata/fixedbugs/issue60562.go         | 62 ++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 10 deletions(-)

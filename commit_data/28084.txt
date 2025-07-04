@@ -1,57 +1,20 @@
-commit 54d7de7dd62bab764125c48fd159bb938da078e1
-Author: Radu Berinde <radu@cockroachlabs.com>
-Date:   Tue Aug 23 17:33:21 2016 -0400
+commit 9faf5cdf9d1f9050a03ae3d420768c846e54646d
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Thu Apr 28 09:41:32 2016 -0300
 
-    hash/crc32: improve the AMD64 implementation using SSE4.2
+    net: change type of dnsConfig.timeout from int to time.Duration
     
-    The algorithm is explained in the comments. The improvement in
-    throughput is about 1.4x for buffers between 500b-4Kb and 2.5x-2.6x
-    for larger buffers.
+    Instead of keeping the desired number of seconds and converting to
+    time.Duration for every query, convert to time.Duration when
+    building the config.
     
-    Additionally, we no longer initialize the software tables if SSE4.2 is
-    available.
+    Updates #15473
     
-    Benchmarks on a Haswell i5-4670 @ 3.4 GHz:
-    
-    name                           old time/op    new time/op     delta
-    CastagnoliCrc15B-4               21.9ns ± 1%     22.9ns ± 0%    +4.45%
-    CastagnoliCrc15BMisaligned-4     22.6ns ± 0%     23.4ns ± 0%    +3.43%
-    CastagnoliCrc40B-4               23.3ns ± 0%     23.9ns ± 0%    +2.58%
-    CastagnoliCrc40BMisaligned-4     25.4ns ± 0%     26.1ns ± 0%    +2.86%
-    CastagnoliCrc512-4               72.6ns ± 0%     52.8ns ± 0%   -27.33%
-    CastagnoliCrc512Misaligned-4     76.3ns ± 1%     56.3ns ± 0%   -26.18%
-    CastagnoliCrc1KB-4                128ns ± 1%       89ns ± 0%   -30.04%
-    CastagnoliCrc1KBMisaligned-4      130ns ± 0%       88ns ± 0%   -32.65%
-    CastagnoliCrc4KB-4                461ns ± 0%      187ns ± 0%   -59.40%
-    CastagnoliCrc4KBMisaligned-4      463ns ± 0%      191ns ± 0%   -58.77%
-    CastagnoliCrc32KB-4              3.58µs ± 0%     1.35µs ± 0%   -62.22%
-    CastagnoliCrc32KBMisaligned-4    3.58µs ± 0%     1.36µs ± 0%   -61.84%
-    
-    name                           old speed      new speed       delta
-    CastagnoliCrc15B-4              684MB/s ± 1%    655MB/s ± 0%    -4.32%
-    CastagnoliCrc15BMisaligned-4    663MB/s ± 0%    641MB/s ± 0%    -3.32%
-    CastagnoliCrc40B-4             1.72GB/s ± 0%   1.67GB/s ± 0%    -2.69%
-    CastagnoliCrc40BMisaligned-4   1.58GB/s ± 0%   1.53GB/s ± 0%    -2.82%
-    CastagnoliCrc512-4             7.05GB/s ± 0%   9.70GB/s ± 0%   +37.59%
-    CastagnoliCrc512Misaligned-4   6.71GB/s ± 1%   9.09GB/s ± 0%   +35.43%
-    CastagnoliCrc1KB-4             7.98GB/s ± 1%  11.46GB/s ± 0%   +43.55%
-    CastagnoliCrc1KBMisaligned-4   7.86GB/s ± 0%  11.70GB/s ± 0%   +48.75%
-    CastagnoliCrc4KB-4             8.87GB/s ± 0%  21.80GB/s ± 0%  +145.69%
-    CastagnoliCrc4KBMisaligned-4   8.83GB/s ± 0%  21.39GB/s ± 0%  +142.25%
-    CastagnoliCrc32KB-4            9.15GB/s ± 0%  24.22GB/s ± 0%  +164.62%
-    CastagnoliCrc32KBMisaligned-4  9.16GB/s ± 0%  24.00GB/s ± 0%  +161.94%
-    
-    Fixes #16107.
-    
-    Change-Id: I8fa827ec03f708ba27ee71c833f7544ad9dc5bc3
-    Reviewed-on: https://go-review.googlesource.com/24471
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib24c050b593b3109011e359f4ed837a3fb45dc65
+    Reviewed-on: https://go-review.googlesource.com/22548
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/hash/crc32/crc32.go          |  10 ++-
- src/hash/crc32/crc32_amd64.go    | 170 +++++++++++++++++++++++++++++++++++++--
- src/hash/crc32/crc32_amd64.s     |  49 ++++++++++-
- src/hash/crc32/crc32_amd64p32.go |   9 ++-
- src/hash/crc32/crc32_generic.go  |   4 +
- src/hash/crc32/crc32_s390x.go    |   4 +
- src/hash/crc32/crc32_test.go     |  60 ++++++++++++++
- 7 files changed, 292 insertions(+), 14 deletions(-)
+ src/net/dnsclient_unix.go      |  3 +--
+ src/net/dnsconfig_unix.go      | 24 ++++++++++++------------
+ src/net/dnsconfig_unix_test.go | 12 ++++++------
+ 3 files changed, 19 insertions(+), 20 deletions(-)

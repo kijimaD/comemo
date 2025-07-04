@@ -1,16 +1,29 @@
-commit a41006f35a5931387a3111739e4c97ff3568bbcc
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 20 14:15:35 2011 -0800
+commit c037d3f25471245e7822d2b003d99b7a6ac1d1ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 20 17:11:16 2011 -0500
 
-    effective_go: redeclaration
+    build: fix on Linux
     
-    Fixes #2455.
-    Fixes #2013.
+    On other systems the temporary directory name
+    will have a .XXXXXX in the middle of it.  Oh well.
     
-    R=rsc, r, gri
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5498053
+    https://golang.org/cl/5504049
 
- doc/effective_go.html | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/effective_go.tmpl | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 100 insertions(+)
+ src/buildscript.sh               | 2 +-
+ src/buildscript_darwin_386.sh    | 2 +-
+ src/buildscript_darwin_amd64.sh  | 2 +-
+ src/buildscript_freebsd_386.sh   | 2 +-
+ src/buildscript_freebsd_amd64.sh | 2 +-
+ src/buildscript_linux_386.sh     | 2 +-
+ src/buildscript_linux_amd64.sh   | 2 +-
+ src/buildscript_linux_arm.sh     | 2 +-
+ src/buildscript_netbsd_386.sh    | 2 +-
+ src/buildscript_netbsd_amd64.sh  | 2 +-
+ src/buildscript_openbsd_386.sh   | 2 +-
+ src/buildscript_openbsd_amd64.sh | 2 +-
+ src/buildscript_plan9_386.sh     | 2 +-
+ src/buildscript_windows_386.sh   | 2 +-
+ src/buildscript_windows_amd64.sh | 2 +-
+ 15 files changed, 15 insertions(+), 15 deletions(-)

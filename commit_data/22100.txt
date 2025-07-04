@@ -1,14 +1,20 @@
-commit 64469fc1da8a3a354d9dd5417b13b68ad973edc2
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Mar 19 15:36:54 2015 -0400
+commit bceb18e4989aee4971fa1de6bb9f5ba7410d5219
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 23 14:33:56 2015 -0500
 
-    cmd/dist: re-disable android test
+    runtime: eliminate unnecessary assumption in heapBitsForObject
     
-    Accidentally turned on in golang.org/cl/7734.
+    The slow path of heapBitsForObjects somewhat subtly assumes that the
+    pointer will not point to the first word of the object and will round
+    the pointer wrong if this assumption is violated.  This assumption is
+    safe because the fast path should always take care of this case, but
+    there's no benefit to making this assumption, it makes the code more
+    difficult to experiment with than necessary, and it's trivial to
+    eliminate.
     
-    Change-Id: I8d72c279150a0b93732a2ac41b82fbb3cd7bf9d3
-    Reviewed-on: https://go-review.googlesource.com/7737
-    Reviewed-by: Burcu Dogan <jbd@google.com>
+    Change-Id: Iedd336f7d529a27d3abeb83e77dfb32a285ea73a
+    Reviewed-on: https://go-review.googlesource.com/5636
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/test.go | 2 +-
+ src/runtime/mbitmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

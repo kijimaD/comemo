@@ -1,16 +1,54 @@
-commit 4e0f63940cccfabea084a7608e8ba9c55b8ed952
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 13 11:08:21 2017 -0800
+commit ae3bb4a537c84e43be2ed7b79e84450332aafe2d
+Author: Austin Clements <austin@google.com>
+Date:   Sun Sep 25 17:12:43 2016 -0400
 
-    net: use internal/poll for DragonFly setKeepAlivePeriod
+    runtime: make fixalloc zero allocations on reuse
     
-    Fixes DragonFly build.
+    Currently fixalloc does not zero memory it reuses. This is dangerous
+    with the hybrid barrier if the type may contain heap pointers, since
+    it may cause us to observe a dead heap pointer on reuse. It's also
+    error-prone since it's the only allocator that doesn't zero on
+    allocation (mallocgc of course zeroes, but so do persistentalloc and
+    sysAlloc). It's also largely pointless: for mcache, the caller
+    immediately memclrs the allocation; and the two specials types are
+    tiny so there's no real cost to zeroing them.
     
-    Change-Id: Id6b439cd4023ea8e3ed7cd9b70eec553c9eee4be
-    Reviewed-on: https://go-review.googlesource.com/36916
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change fixalloc to zero allocations by default.
+    
+    The only type we don't zero by default is mspan. This actually
+    requires that the spsn's sweepgen survive across freeing and
+    reallocating a span. If we were to zero it, the following race would
+    be possible:
+    
+    1. The current sweepgen is 2. Span s is on the unswept list.
+    
+    2. Direct sweeping sweeps span s, finds it's all free, and releases s
+       to the fixalloc.
+    
+    3. Thread 1 allocates s from fixalloc. Suppose this zeros s, including
+       s.sweepgen.
+    
+    4. Thread 1 calls s.init, which sets s.state to _MSpanDead.
+    
+    5. On thread 2, background sweeping comes across span s in allspans
+       and cas's s.sweepgen from 0 (sg-2) to 1 (sg-1). Now it thinks it
+       owns it for sweeping. 6. Thread 1 continues initializing s.
+       Everything breaks.
+    
+    I would like to fix this because it's obviously confusing, but it's a
+    subtle enough problem that I'm leaving it alone for now. The solution
+    may be to skip sweepgen 0, but then we have to think about wrap-around
+    much more carefully.
+    
+    Updates #17503.
+    
+    Change-Id: Ie08691feed3abbb06a31381b94beb0a2e36a0613
+    Reviewed-on: https://go-review.googlesource.com/31368
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/net/tcpsockopt_dragonfly.go | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+ src/runtime/malloc.go    |  1 +
+ src/runtime/mcache.go    |  1 -
+ src/runtime/mfixalloc.go | 11 ++++++++++-
+ src/runtime/mheap.go     | 10 ++++++++++
+ 4 files changed, 21 insertions(+), 2 deletions(-)

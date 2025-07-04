@@ -1,25 +1,16 @@
-commit 8bb391312c7c2c8cde57c083eeb4390f992e3d88
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Thu May 17 19:45:49 2018 +0300
+commit 0519126a3fd0555af996d3e32db04982227ac469
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Fri Jan 26 16:36:15 2018 -0400
 
-    cmd/link/internal/ld: don't call fieldtrack if it's not enabled
+    encoding/hex: fix potential incorrect Dumper output when Close is called multiple times
     
-    If go toolchain is not built with GOEXPERIMENT=fieldtrack,
-    skip fieldtrack pass in the linker as it does full symtab traversal.
+    Fixes #23574
     
-    For linking "hello world" example from net/http:
-    
-            name      old time/op  new time/op  delta
-            Linker-4   530ms ± 2%   525ms ± 2%  -1.03%  (p=0.028 n=17+19)
-    
-    Fixes #20318
-    Updates #14624
-    
-    Change-Id: I99336513db77d13f95f47d27339d76f01c42a5da
-    Reviewed-on: https://go-review.googlesource.com/113635
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Change-Id: I69573de47daa6fd53cc99a78c0c4b867460242e3
+    Reviewed-on: https://go-review.googlesource.com/90275
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/main.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/encoding/hex/hex.go      |  8 +++++++-
+ src/encoding/hex/hex_test.go | 16 ++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

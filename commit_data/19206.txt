@@ -1,17 +1,13 @@
-commit 7c7aaa4156a280960749467dfd3651b8798d420e
-Author: Mike Andrews <mra@xoba.com>
-Date:   Fri Apr 18 15:37:55 2014 -0700
+commit 0d612a8572229d02e569a865e27e32e163c40ea2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 18 11:00:38 2014 -0700
 
-    cmd/ld: don't delete output binary if not "ordinary" file (redux).
+    doc/go1.3.html: go test always builds
     
-    following on CL https://golang.org/cl/76810045 and
-    issue 7563, i now see there's another "remove(outfile)" a few
-    dozen lines down that also needs fixing.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=0intro, golang-codereviews, r
-    https://golang.org/cl/89030043
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/89370043
 
- src/cmd/ld/lib.c | 31 +++++++++++++++++++------------
- 1 file changed, 19 insertions(+), 12 deletions(-)
+ doc/go1.3.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,19 +1,17 @@
-commit d58219e50ba1fd9bf577be7332bdcabe0ef8b7d5
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Sep 29 18:46:24 2016 +0200
+commit f9b4556de01710a964ffd0513eb7574a2d1fd62c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 6 10:41:47 2016 +1000
 
-    cmd/compile: delete unused IntLiteral function
+    net/http: send one Transfer-Encoding header when "chunked" set manually
     
-    IntLiteral was only called by the gins functions in
-    cmd/compile/internal/{arm64,mips64,ppc64}/gsubr.go
-    but CL 29220 (cmd/compile: remove gins) deleted them,
-    so IntLiteral is now unused.
+    Fixes #15960
     
-    Change-Id: I2652b6d2ace6fdadc1982f65e749f3982513371e
-    Reviewed-on: https://go-review.googlesource.com/29996
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7503f6ede33e6a1a93cee811d40f7b297edf47bc
+    Reviewed-on: https://go-review.googlesource.com/23811
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/const.go | 13 -------------
- 1 file changed, 13 deletions(-)
+ src/net/http/serve_test.go | 14 ++++++++++++++
+ src/net/http/server.go     |  1 +
+ 2 files changed, 15 insertions(+)

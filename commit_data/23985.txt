@@ -1,16 +1,14 @@
-commit 0290d51b4ada1615853b2dc368902b2a310392f3
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 5 13:39:07 2015 -0400
+commit 77132c810d66971318d898190c3ad02b3eedca40
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Jun 26 18:09:23 2015 +0200
 
-    build: clean current tree in clean.bash
+    runtime/race: enable tests that now pass
     
-    Otherwise clean.bash cleans $GOROOT, which might be something else entirely.
+    These tests pass after cl/11417.
     
-    Fixes #12003.
-    
-    Change-Id: I2ad5369017dde6db25f0c0514bc27c33d0a8bf54
-    Reviewed-on: https://go-review.googlesource.com/13251
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Id98088c52e564208ce432e9717eddd672c42c66d
+    Reviewed-on: https://go-review.googlesource.com/11551
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/clean.bash | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ src/runtime/race/testdata/mop_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

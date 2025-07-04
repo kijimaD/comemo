@@ -1,17 +1,22 @@
-commit f093cf90bff4bfc4e0a304283eef0d2445d67538
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jun 26 15:17:23 2022 -0700
+commit af80af22b507ae23ae04372f30b98f7720c85f8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 26 12:27:06 2021 -0700
 
-    test: add test that caused gofrontend crash
+    cmd/compile/internal/types2: do not declare new methods on instantiated types
     
-    For #52871
+    Report an error if an alias is used to declare a method on an
+    instantiated type.
     
-    Change-Id: Id6102222a8b1ec8a84b716425bed0e349c65dbc4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414336
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Also, when resolving the receiver type, don't use asNamed to
+    avoid premature expansion of the type.
+    
+    Fixes #47968.
+    
+    Change-Id: Ie5acc4cfb1944deaaeeaee98707f31e256f8ef5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345472
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- test/fixedbugs/issue52871.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/compile/internal/types2/signature.go        |  8 +++++++-
+ .../types2/testdata/fixedbugs/issue47968.go2        | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

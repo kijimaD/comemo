@@ -1,21 +1,21 @@
-commit 9f8335b7e72bdb2b95055c69f2d4b453b73646df
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 29 21:27:40 2016 +0000
+commit b7adc41fbacac446c1daf0cb282cb2a921d4a15b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 28 10:59:00 2016 -0400
 
-    os: don't let File.Readdir return an empty slice and nil error
+    [dev.garbage] runtime: use s.base() everywhere it makes sense
     
-    In the case of a file being deleted while Readdir was running, it was
-    possible for File.Readdir to return an empty slice and a nil error,
-    counter to its documentation.
+    Currently we have lots of (s.start << _PageShift) and variants. We now
+    have an s.base() function that returns this. It's faster and more
+    readable, so use it.
     
-    Fixes #16919
-    
-    Change-Id: If0e42882eea52fbf5530317a1895f3829ea8e67b
-    Reviewed-on: https://go-review.googlesource.com/28056
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I888060a9dae15ea75ca8cc1c2b31c905e71b452b
+    Reviewed-on: https://go-review.googlesource.com/22559
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/os/dir_unix.go     |  5 +++++
- src/os/os_unix_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+)
+ src/runtime/heapdump.go | 6 +++---
+ src/runtime/mfinal.go   | 2 +-
+ src/runtime/mgcmark.go  | 2 +-
+ src/runtime/mheap.go    | 8 ++++----
+ src/runtime/stack.go    | 6 +++---
+ 5 files changed, 12 insertions(+), 12 deletions(-)

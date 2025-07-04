@@ -1,14 +1,20 @@
-commit 39edffb6b1632e6d22d8e1b399e57cbba7456b9d
-Author: griesemer <gri@golang.org>
-Date:   Tue Oct 10 16:12:52 2017 -0700
+commit e25fdb968c4ff93c6d41574f2220a11ee02b0914
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 27 22:17:21 2017 +0000
 
-    cmd/compile/internal/syntax: factor out parsing of func bodies (cleanup)
+    doc: mention testing/quick RNG seeding change in Go 1.9 notes
     
-    Change-Id: If6481a5401940a923fc9a104981dfb90eed0d1ac
-    Reviewed-on: https://go-review.googlesource.com/69750
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Also reword the testing/quick.Config field docs to conform to the
+    normal subject-first style. Without that style, godoc links
+    /pkg/testing/quick/#Config.Rand to the wrong line, since it doesn't
+    recognize the preceding comment as necessarily being attached.
+    
+    Fixes #20809
+    
+    Change-Id: I9aebbf763eed9b1ab1a153fa11850d88a65571c6
+    Reviewed-on: https://go-review.googlesource.com/46910
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 31 ++++++++++++++++++-------------
- 1 file changed, 18 insertions(+), 13 deletions(-)
+ doc/go1.9.html             | 16 ++++++++++++----
+ src/testing/quick/quick.go | 21 +++++++++++----------
+ 2 files changed, 23 insertions(+), 14 deletions(-)

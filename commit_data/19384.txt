@@ -1,14 +1,14 @@
-commit b04146e492ff88793ef834b85aea75044111a222
+commit 86bf6324c14bedbd96eabb70134b93a9e4228400
 Author: Rob Pike <r@golang.org>
-Date:   Fri May 16 22:06:37 2014 +0000
+Date:   Fri May 16 13:18:28 2014 -0700
 
-    lib/time/zoneinfo.zip: update to IANA release 2014c
+    encoding/xml: fix format in test message
+    Found by go vet.
     
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
     CC=golang-codereviews
-    https://golang.org/cl/93420046
+    https://golang.org/cl/100510044
 
- lib/time/update.bash  |   4 ++--
- lib/time/zoneinfo.zip | Bin 352541 -> 358933 bytes
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/encoding/xml/marshal_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

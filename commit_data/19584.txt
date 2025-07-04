@@ -1,13 +1,15 @@
-commit a668114834b67db2da4ce467487a2b87ff9ca50e
+commit 348300123f9fc78033892a017880782ca503c31a
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jun 20 20:54:18 2014 -0400
+Date:   Sat Jun 21 03:54:16 2014 +0400
 
-    run.bash: run race tests on freebsd
+    runtime/race: update linux runtime
+    It was built on an old, bogus revision.
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    LGTM=minux
+    TBR=iant
+    R=iant, minux
     CC=golang-codereviews
-    https://golang.org/cl/102580043
+    https://golang.org/cl/101370052
 
- src/run.bash | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/race/race_linux_amd64.syso | Bin 267968 -> 265024 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

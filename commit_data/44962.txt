@@ -1,21 +1,25 @@
-commit d8306ee1f9a3221b2a70663a3d127d72c17df05e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Apr 2 20:46:35 2021 +0000
+commit 789d77a87e5417c10377a9f9de07ec37c65048f2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 17 21:34:52 2020 -0400
 
-    runtime: make reflectcall ABI0 on amd64
+    cmd/link: propagate UsedInIface through method descriptor
     
-    reflectcall expects the ABI0 calling convention, but it's marked as
-    ABIInternal. When it gets called this way, naturally it doesn't work
-    very well.
+    The linker prunes methods that are not directly reachable if the
+    receiver type is never converted to interface. A type can be
+    converted to interface using reflection through other types.
+    The linker already takes this into consideration but it missed
+    the case that the intermediate is a method descriptor. Handle
+    this case.
     
-    For #40724.
-    
-    Change-Id: Ic76237420cd8c72f5df1c1ac7972ad6f989f8402
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/306931
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I590efc5da163c326db8d43583908a2ef67f65d9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255858
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/asm_amd64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/deadcode.go               | 19 ++++++++++++++
+ src/cmd/link/internal/ld/deadcode_test.go          |  1 +
+ .../internal/ld/testdata/deadcode/ifacemethod3.go  | 29 ++++++++++++++++++++++
+ 3 files changed, 49 insertions(+)

@@ -1,47 +1,23 @@
-commit 4f543b59c5618abccf0e78a17a2aeb173c085a91
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 4 20:36:49 2021 +0000
+commit 9f5298ca6e7fc9c46c0a82bd7be39450ec48dcb5
+Author: David Chase <drchase@google.com>
+Date:   Sat Mar 6 20:59:40 2021 -0500
 
-    runtime: don't hold the heap lock while scavenging
+    cmd/compile: fix confusion in generating SelectN index
     
-    This change modifies the scavenger to no longer hold the heap lock while
-    actively scavenging pages. To achieve this, the change also:
-    * Reverses the locking behavior of the (*pageAlloc).scavenge API, to
-      only acquire the heap lock when necessary.
-    * Introduces a new lock on the scavenger-related fields in a pageAlloc
-      so that access to those fields doesn't require the heap lock. There
-      are a few places in the scavenge path, notably reservation, that
-      requires synchronization. The heap lock is far too heavy handed for
-      this case.
-    * Changes the scavenger to marks pages that are actively being scavenged
-      as allocated, and "frees" them back to the page allocator the usual
-      way.
-    * Lifts the heap-growth scavenging code out of mheap.grow, where the
-      heap lock is held, and into allocSpan, just after the lock is
-      released. Releasing the lock during mheap.grow is not feasible if we
-      want to ensure that allocation always makes progress (post-growth,
-      another allocator could come in and take all that space, forcing the
-      goroutine that just grew the heap to do so again).
+    Old: return the ABI register index of the result (wrong!)
+    New: return the index w/in sequence of result registers (right!)
     
-    This change means that the scavenger now must do more work for each
-    scavenge, but it is also now much more scalable. Although in theory it's
-    not great by always taking the locked paths in the page allocator, it
-    takes advantage of some properties of the allocator:
-    * Most of the time, the scavenger will be working with one page at a
-      time. The page allocator's locked path is optimized for this case.
-    * On the allocation path, it doesn't need to do the find operation at
-      all; it can go straight to setting bits for the range and updating the
-      summary structure.
+    Fixed bug:
+    genCaller0/genCaller0.go:43:9: internal compiler error: 'Caller0':
+       panic during schedule while compiling Caller0:
+    runtime error: index out of range [10] with length 9
     
-    Change-Id: Ie941d5e7c05dcc96476795c63fef74bcafc2a0f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353974
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Updates #44816.
+    
+    Change-Id: I1111e283658a2d6422986ae3d61bd95d1b9bde5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299549
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/export_test.go      |  10 +-
- src/runtime/lockrank.go         |  25 +++--
- src/runtime/mgcscavenge.go      | 228 +++++++++++++++++++---------------------
- src/runtime/mgcscavenge_test.go |  10 +-
- src/runtime/mheap.go            |  63 ++++++-----
- src/runtime/mpagealloc.go       |  28 +++--
- 6 files changed, 187 insertions(+), 177 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

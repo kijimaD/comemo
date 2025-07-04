@@ -1,15 +1,15 @@
-commit 68f91aea57a81bdaab9da045c5ff09cc825da857
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Aug 20 14:02:11 2014 -0700
+commit 268d90119947d88063964211c0f3b122fffc96a3
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Aug 12 23:57:42 2014 -0400
 
-    runtime: convert memclrBytes to Go
+    [dev.power64] runtime: fix morestack
     
-    LGTM=khr
-    R=khr
+    Must not save LR.
+    
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/131980043
+    https://golang.org/cl/129040044
 
- src/pkg/runtime/alg.go         | 6 ++++++
- src/pkg/runtime/alg.goc        | 5 -----
- src/pkg/runtime/export_test.go | 5 +----
- 3 files changed, 7 insertions(+), 9 deletions(-)
+ src/pkg/runtime/asm_power64x.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

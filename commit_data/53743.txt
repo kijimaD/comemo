@@ -1,30 +1,19 @@
-commit b104a0ef32e1388dbd6af7174975857320fb8e80
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Jun 23 13:20:33 2023 +0700
+commit af991a6d28949cd27a41a93b46abf42cbf07023d
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Wed Aug 31 09:06:41 2022 +0800
 
-    runtime/cgo: reduce runtime init done check using atomic
+    cmd/compile: reorder rotate lowering rules in AMD64.rules
     
-    Every call from C to Go does acquire a mutex to check whether Go runtime
-    has been fully initialized. This often does not matter, because the lock
-    is held only briefly. However, with code that does a lot of parallel
-    calls from C to Go could cause heavy contention on the mutex.
+    These rules should belong to lowering rules not optimizations.
     
-    Since this is an initialization guard, we can double check with atomic
-    operation to provide a fast path in case the initialization is done.
-    With this CL, program in #60961 reduces from ~2.7s to ~1.8s.
-    
-    Fixes #60961
-    
-    Change-Id: Iba4cabbee3c9bc646e70ef7eb074212ba63fdc04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505455
+    Change-Id: I964d2c4b1d9bef0ede572978aff01cb11bf050ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426197
+    Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
 
- src/runtime/cgo/gcc_libinit.c | 60 +++++++++++++++++++++----------------------
- 1 file changed, 30 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

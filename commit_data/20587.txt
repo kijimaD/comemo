@@ -1,14 +1,13 @@
-commit 12308d5a0bb424ef3ee9a664c77192b48e3df84c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Sep 30 19:34:33 2014 +0400
+commit 0e1a07167b2ba0e71487feea8e2e20a2e29fdf3a
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Fri Sep 19 15:59:47 2014 -0400
 
-    runtime: fix throwsplit check
-    Newstack runs on g0, g0->throwsplit is never set.
+    cmd/go: fix typo
     
     LGTM=rsc
     R=rsc
-    CC=golang-codereviews, khr
-    https://golang.org/cl/147370043
+    CC=golang-codereviews
+    https://golang.org/cl/138700043
 
- src/runtime/stack.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

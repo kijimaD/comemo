@@ -1,18 +1,20 @@
-commit 4b6debaf2894757e7ae9ad31f52f6a1279c94e90
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 21 14:37:38 2022 -0700
+commit b83610699a4ea7da22a146c0eefe0ae4d5ac4610
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sun May 9 09:05:45 2021 +0200
 
-    cmd/gofmt: don't descend into /testdata directories in tests (fix long builders)
+    cmd/compile: record regabi status in DW_AT_producer
     
-    Now that the go/types and types2 test files end in .go we must
-    avoid trying to format them as that won't work in general.
+    Records if regabi was enabled during compilation in the DW_AT_producer
+    attribute of each compile unit.
+    This is useful to debuggers that support the debugCall protocol.
     
-    Change-Id: I05fdd95a0d26cbe746f6d618b22b48dc1f1ea749
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394295
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I5ad2c48ebf126aeb8bfb459b53a1a5304550036a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318050
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/gofmt/long_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

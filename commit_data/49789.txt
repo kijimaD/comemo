@@ -1,18 +1,13 @@
-commit 13bd6ddbe7a4fb24448546545da5df999267eb4e
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Aug 9 03:03:32 2022 +0700
+commit cf2fe5d6f12f075f265ba067869fc5f0e3b23ff0
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Mon Aug 2 00:56:25 2021 +0800
 
-    cmd/compile/internal/typecheck: simplify tcAppend
+    doc/asm: fix HTML markup
     
-    After CL 418514, Unified IR now always write concrete type of constant
-    expressions, thus we don't need to handle untyped string anymore.
-    
-    Change-Id: Ic930ee2418746ca9f4a5122c614e077bef8d7eb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422041
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I33bde4835d3b83fafd55beea483f6236c4c62840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338990
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/typecheck/func.go | 5 -----
- 1 file changed, 5 deletions(-)
+ doc/asm.html | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

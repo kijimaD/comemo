@@ -1,29 +1,18 @@
-commit 788f11263a0eccb25d9067525d84208058000391
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 28 10:55:44 2016 -0700
+commit 65855cf64022905c9b66abc26adc175e337193c9
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Thu Feb 11 20:46:43 2016 +0100
 
-    cmd/compile: rename Type.IsPtr to Type.IsPtrShaped
+    [dev.ssa] cmd/compile/internal/ssa: factor out copyelimValue and phielimValue
     
-    Previously, t.IsPtr() reported whether t was represented with a
-    pointer, but some of its callers expected it to report whether t is an
-    actual Go pointer. Resolve this by renaming t.IsPtr to t.IsPtrShaped
-    and adding a new t.IsPtr method to report Go pointer types.
+    * Merge copyelim into phielim.
+    * Add phielimValue to rewrite. cgoIsGoPointer is, for example, 2
+    instructions smaller now.
     
-    Updated a couple callers in gc/ssa.go to use IsPtr instead of
-    IsPtrShaped.
-    
-    Passes toolstash -cmp.
-    
-    Updates #15028.
-    
-    Change-Id: I0a8154b5822ad8a6ad296419126ad01a3d2a5dc5
-    Reviewed-on: https://go-review.googlesource.com/21232
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I8baeb206d1b3ef8aba4a6e3bcdc432959bcae2d5
+    Reviewed-on: https://go-review.googlesource.com/19462
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/ssa.go        | 14 +++++++-------
- src/cmd/compile/internal/gc/type.go       | 11 +++++++++++
- src/cmd/compile/internal/ssa/rewrite.go   |  2 +-
- src/cmd/compile/internal/ssa/type.go      |  4 ++--
- src/cmd/compile/internal/ssa/type_test.go |  2 +-
- 5 files changed, 22 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/ssa/copyelim.go | 35 +++++++++++-----
+ src/cmd/compile/internal/ssa/phielim.go  | 69 +++++++++++++++++---------------
+ src/cmd/compile/internal/ssa/rewrite.go  | 24 +----------
+ 3 files changed, 64 insertions(+), 64 deletions(-)

@@ -1,22 +1,29 @@
-commit 84808a2a90c28270589c05eca3b8d7657e49fe87
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Tue Oct 20 17:10:04 2015 -0400
+commit fced03a5c6dd22dd486106e3dd116510c28c6e4a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 22:12:16 2015 -0400
 
-    os: disable symlink tests on android.
+    net/url: allow all valid host chars in RawPath
     
-    Creating symlinks (/data/local/tmp/*) doesn't seem to work
-    on android-L (tested on nexus5). I cannot find any official
-    documentation yet but just guess it's a measure for security
-    attacks using symlinks.
+    The old code was only allowing the chars we choose not to escape.
+    We sometimes prefer to escape chars that do not strictly need it.
+    Allowing those to be used in RawPath lets people override that
+    preference, which is in fact the whole point of RawPath (new in Go 1.5).
     
-    The tests failed with 'permission denied' errors.
+    While we are here, also allow [ ] in RawPath.
+    This is not strictly spec-compliant, but it is what modern browers
+    do and what at least some people expect, and the [ ] do not cause
+    any ambiguity (the usual reason they would be escaped, as they are
+    part of the RFC gen-delims class).
+    The argument for allowing them now instead of waiting until Go 1.6
+    is that this way RawPath has one fixed meaning at the time it is
+    introduced, that we should not need to change or expand.
     
-    For golang/go#10807
+    Fixes #5684.
     
-    Change-Id: I99a9c401c6ecca3c4adc7b21708adaf3dd601279
-    Reviewed-on: https://go-review.googlesource.com/16115
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If9c82a18f522d7ee1d10310a22821ada9286ee5c
+    Reviewed-on: https://go-review.googlesource.com/13258
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/os/os_test.go   | 2 +-
- src/os/path_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/net/url/url.go      | 18 ++++++++++++++++--
+ src/net/url/url_test.go | 24 +++++++++++++++++++++++-
+ 2 files changed, 39 insertions(+), 3 deletions(-)

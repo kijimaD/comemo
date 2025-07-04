@@ -1,12 +1,12 @@
-commit ac3d6a56c919d600af0fc0a548f7d44c755a03b0
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Oct 1 11:24:24 2013 +1000
+commit 6ffd70e7f04e90301ddd8224a90859acb44aed83
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Sep 30 15:54:21 2013 -0700
 
-    C: add Dave Day (Google CLA).
+    encoding/gob: do not hide pointer argument for the garbage collector
     
-    R=adg, djd
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14176043
+    https://golang.org/cl/14154043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/encoding/gob/decode.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

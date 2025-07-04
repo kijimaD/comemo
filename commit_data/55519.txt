@@ -1,32 +1,21 @@
-commit d3fd7ee5803078b775f8c4de6c056e4a360ea2cc
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Thu Feb 1 16:00:51 2024 -0500
+commit 2994e9aa79718fbb0658ec5f50ee4b69276401d6
+Author: Will Hawkins <whh8b@obs.cr>
+Date:   Mon Dec 19 11:49:33 2022 -0500
 
-    cmd/relnote: fix API relnote check
+    net/http: support streaming POST content in wasm
     
-    Fix the check for release note files that correspond to API files
-    to look in the right directory, doc/next/*stdlib/*minor. Previously
-    the test looked in doc/next.
+    With new releases of Chrome, Opera and Deno it is possible to stream the
+    body of a POST request. Add support for using that interface when it is
+    available.
     
-    Improve the error messages when the test fails to explain the problem
-    better and refer to further documentation.
-    
-    (These changes are actually in the x/build repo; this CL vendors
-    the latest version.)
-    
-    Lastly, re-enable the check.
-    
-    For #64169.
-    
-    Change-Id: I8bba845e9bd12afbe269ce42d6d4b17b1e3c0252
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560516
+    Change-Id: Ib23d63cd3dea634bd9e267abf4e9a9bfa9c525ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458395
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  4 +-
- src/cmd/relnote/relnote_test.go                    |  3 +-
- .../vendor/golang.org/x/build/relnote/relnote.go   | 48 +++++++++++++++++-----
- src/cmd/vendor/modules.txt                         |  2 +-
- 5 files changed, 43 insertions(+), 16 deletions(-)
+ src/net/http/roundtrip_js.go | 112 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 96 insertions(+), 16 deletions(-)

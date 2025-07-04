@@ -1,18 +1,29 @@
-commit 11a43df461a7f3d2b72168fbe9f5b7dca09c2543
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Aug 15 21:22:38 2021 -0400
+commit 59b8916d482bdca933885881dff54365432ec9f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 1 12:02:16 2020 -0500
 
-    go/types: minor cleanup of writeTParamList
+    [dev.regabi] cmd/compile: handle OCONVNOP better in ssa
     
-    This is a port of CL 339903 to go/types.
+    This CL improves handling of OCONVNOP nodes during ssa generation,
+    so it is not toolstash safe.
     
-    Change-Id: Iaf5fe7321d907df4421128c66cf8c58129eaae8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342435
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    An OCONVNOP wrapper is necessary for the "for" condition of
+    certain compiled range loops, and the boolean evaluator was
+    not looking through them properly, generating unnecessary
+    temporaries. That change saved 8k of the (13 MB) go binary.
+    
+    The other changes just streamline the handling of OCONVNOP
+    to be more like what OSTMTEXPR will be like. They have no
+    effect on output size but do tweak the ssa graph a little, which
+    causes different register decisions and therefore different output.
+    
+    Change-Id: I9e1dcd413b60944e21554c3e3f2bdc9adcee7634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274598
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/infer.go      |  2 +-
- src/go/types/typestring.go | 22 +++++++++++++---------
- 2 files changed, 14 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go  | 10 ++++++++++
+ src/cmd/compile/internal/gc/walk.go |  3 +++
+ 2 files changed, 13 insertions(+)

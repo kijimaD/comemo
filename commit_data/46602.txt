@@ -1,26 +1,18 @@
-commit dac89a9d7fb253d30e5161e9ff6d80fbdfc79d75
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Sep 24 10:43:55 2021 +1000
+commit 82c3f0a358ed449ffcdd5b419728721b314d7a91
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 14 11:50:05 2021 -0800
 
-    image/draw: add RGBA64Image fast path for RGBA dst
+    [dev.typeparams] cmd/compile/internal/types2: untyped shift counts must fit into uint
     
-    This should have been part of https://golang.org/cl/340049 but I
-    overlooked it. That commit added fast path code when the destination
-    image was *not* an *image.RGBA. This commit edits func drawRGBA.
+    Updates #43697.
     
-    name               old time/op  new time/op  delta
-    RGBA1-4            5.11ms ± 1%  1.12ms ± 1%  -78.01%  (p=0.008 n=5+5)
-    RGBA2-4            8.69ms ± 1%  2.98ms ± 1%  -65.77%  (p=0.008 n=5+5)
-    
-    Updates #44808.
-    Updates #46395.
-    
-    Change-Id: I899d46d985634fc81ea47ff4f0d436630e8a961c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351852
-    Trust: Nigel Tao <nigeltao@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: If94658cb798bb0434ac3ebbf9dff504dcd59a02a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283872
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/image/draw/bench_test.go |  9 ++++-
- src/image/draw/draw.go       | 87 ++++++++++++++++++++++++++++++++++++++++++++
- src/image/draw/draw_test.go  | 84 ++++++++++++++++++++++++++++++++++++------
- 3 files changed, 166 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/types2/expr.go            | 42 ++++++++++------------
+ .../compile/internal/types2/testdata/shifts.src    | 12 ++++---
+ 2 files changed, 26 insertions(+), 28 deletions(-)

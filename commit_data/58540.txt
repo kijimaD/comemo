@@ -1,22 +1,23 @@
-commit 3f791c8dfba6f946c29c01c2df257c3a4a9f1c8d
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Jan 27 14:18:02 2025 +0100
+commit 4988a65f2a4d53c93a9dd19e6d70181529a115a4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Nov 12 10:04:15 2023 +0000
 
-    crypto/internal/fips140/aes: set FIPS 140 service indicator for CTR and CBC
+    all: make more use of the new atomic integer types
     
-    This is a very late Go 1.24 change, but it is necessary for the frozen
-    FIPS module, and doesn't impact anything else than the FIPS status
-    indicator value.
+    Slightly simplifies the code and avoids human error.
     
-    Change-Id: I6a6a4656f1ac94ac46d631c90a206ac8b6ddcf4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644635
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Change-Id: Ib76575e8bc5b3a699ba6cc3870d63cd7a55e6416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541476
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/internal/fips140/aes/cbc.go | 3 +++
- src/crypto/internal/fips140/aes/ctr.go | 2 ++
- 2 files changed, 5 insertions(+)
+ src/cmd/compile/internal/types2/typeparam.go |  4 ++--
+ src/cmd/go/internal/trace/trace.go           |  8 ++++----
+ src/expvar/expvar.go                         | 10 +++++-----
+ src/go/types/typeparam.go                    |  4 ++--
+ src/internal/fuzz/pcg.go                     |  4 ++--
+ src/sync/export_test.go                      |  2 +-
+ src/sync/poolqueue.go                        | 14 +++++++-------
+ src/testing/benchmark.go                     | 14 +++++++-------
+ 8 files changed, 30 insertions(+), 30 deletions(-)

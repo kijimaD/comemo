@@ -1,16 +1,61 @@
-commit d08f34e744c77a7dc5f33516971e27b9ab390b30
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Thu Sep 24 00:38:54 2015 +0200
+commit c0d6d332f68a38bc13825279d2048a16fffe87f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 10:28:27 2015 -0400
 
-    cmd/compile/internal/gc: convert return values from int to bool
+    encoding/xml: restore Go 1.4 name space behavior
     
-    Passes go build -toolexec 'toolstash -cmp' -a std.
+    There is clearly work to do here with respect to xml name spaces,
+    but I don't believe the changes in this cycle are clearly correct.
+    The changes in this cycle have visible impact on the generated xml,
+    possibly breaking existing programs, and yet it's not clear that they
+    are the end of the story: there is still significant confusion about how
+    name spaces work or should work (see #9519, #9775, #8167, #7113).
     
-    Change-Id: I895350987661c1855803d1594dbab16068f8d1bc
-    Reviewed-on: https://go-review.googlesource.com/14873
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    I would like to wait to make breaking changes until we completely
+    understand what the behavior should be and can evaluate the benefit
+    of those breaking changes. My main concern here is that we will break
+    programs in Go 1.5 for the sake of name space adjustments and then
+    while trying to fix those other bugs we'll break programs in Go 1.6 too.
+    Let's wait until we know all the changes we want to make before we
+    decide whether or how to break existing programs.
+    
+    This CL reverts:
+    
+    5ae822b encoding/xml: minor changes
+    bb7e665 encoding/xml: fix xmlns= behavior
+    9f9d66d encoding/xml: fix default namespace of tags
+    b69ea01 encoding/xml: fix namespaces in a>b tags
+    3be158d encoding/xml: encoding name spaces correctly
+    
+    and adjusts tests from
+    
+    a9dddb5 encoding/xml: add more EncodeToken tests.
+    
+    to expect Go 1.4 behavior.
+    
+    I have confirmed that the name space parts of the test suite
+    as of this CL passes against the Go 1.4 encoding/xml package,
+    indicating that this CL successfully restores the Go 1.4 behavior.
+    
+    (Other tests do not, but that's because there were some real
+    bug fixes in this cycle that are being kept. Specifically, the
+    tests that don't pass in Go 1.4 are TestMarshal's NestedAndComment
+    case, TestEncodeToken's encoding of newlines, and
+    TestSimpleUseOfEncodeToken returning an error for invalid
+    token types.)
+    
+    I also checked that the Go 1.4 tests pass when run against
+    this copy of the sources.
+    
+    Fixes #11841.
+    
+    Change-Id: I97de06761038b40388ef6e3a55547ff43edee7cb
+    Reviewed-on: https://go-review.googlesource.com/12570
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 88 ++++++++++++++++----------------
- 1 file changed, 43 insertions(+), 45 deletions(-)
+ src/encoding/xml/marshal.go      | 556 ++++++++++++---------------------------
+ src/encoding/xml/marshal_test.go | 257 +++---------------
+ src/encoding/xml/read_test.go    |  32 +--
+ src/encoding/xml/typeinfo.go     |   8 -
+ src/encoding/xml/xml.go          |  43 +--
+ 5 files changed, 209 insertions(+), 687 deletions(-)

@@ -1,21 +1,25 @@
-commit ce5e37ec21442c6eb13a43e68ca20129102ebac0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 1 15:48:17 2023 -0700
+commit 00234b052e969a5c84e6ad9f07414beb3bfb6377
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 5 15:38:18 2022 +0200
 
-    go/types, types2: move posVers field into group of package-specific fields (cleanup)
+    internal/poll, internal/syscall/unix, net: enable writev on solaris
     
-    posVers exists once for an entire package. Move it into the group
-    of fields related to the entire package (and out from the group
-    of fields that are specific to each batch of files).
+    The writev syscall is available since at least Solaris 11.3.
     
-    Change-Id: I40ea722578408bdf2b85db91b65680e720c0c502
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514998
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reuse the existing illumos writev wrapper on solaris to implement
+    internal/poll.writev for net.(*netFD).writeBuffers.
+    
+    Change-Id: I23adc3bb4637740c72bfb61bfa9697b432dfe3db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427714
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/check.go | 18 +++++++++++-------
- src/go/types/check.go                    | 18 +++++++++++-------
- 2 files changed, 22 insertions(+), 14 deletions(-)
+ src/internal/poll/{fd_writev_illumos.go => fd_writev_solaris.go}   | 2 --
+ src/internal/poll/{iovec_illumos.go => iovec_solaris.go}           | 2 --
+ src/internal/poll/writev.go                                        | 7 ++++++-
+ src/internal/syscall/unix/{writev_illumos.go => writev_solaris.go} | 2 --
+ src/net/writev_test.go                                             | 2 +-
+ src/net/writev_unix.go                                             | 2 +-
+ 6 files changed, 8 insertions(+), 9 deletions(-)

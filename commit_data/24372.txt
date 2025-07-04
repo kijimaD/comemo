@@ -1,12 +1,15 @@
-commit 81fada52a6abe385c7e996f9908d8733fb5f0f28
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 25 14:56:30 2015 -0700
+commit 9d56c1813e66538cf709d6939440cafa13c275db
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 22 18:04:33 2015 -0700
 
-    doc: go1.6.txt: bufio.ErrFinalToken
+    net/http: make Transport return proper error on cancel before response headers
     
-    Change-Id: I2714faa6e8aa7b81a05f0e015b045a57407d808d
-    Reviewed-on: https://go-review.googlesource.com/14996
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #11020
+    
+    Change-Id: I52760a01420a11f3c979f678812b3775a3af61e4
+    Reviewed-on: https://go-review.googlesource.com/12545
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.6.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/transport.go      |  3 +++
+ src/net/http/transport_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

@@ -1,19 +1,19 @@
-commit f858c221270addffaceb668196caf7fd8ceb0019
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 6 15:15:44 2020 -0500
+commit 7466cad9c4f9a08133bfb9b3c99c70b4897eed0d
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Apr 22 12:13:33 2020 -0400
 
-    cmd/go/internal/modget: fix a typo introduced in CL 263267
+    [dev.link] cmd/link: only allow heap area to grow to 10MB
     
-    Updates #37438
+    With CL 228782, we've removed file I/O, but we're growing the memory too
+    much. This change will periodically flush the heap area to the mmapped
+    area (if possible).
     
-    Change-Id: I78f377afd73dad75aed219836725a27fbaa5b69c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268117
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Dan Peterson <dpiddy@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I1622c738ee5a1a6d02bff5abb0a5751caf8095c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229439
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/alldocs.go             | 4 ++--
- src/cmd/go/internal/modget/get.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/outbuf.go | 42 +++++++++++++++++++++++++-------------
+ 1 file changed, 28 insertions(+), 14 deletions(-)

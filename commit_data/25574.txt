@@ -1,18 +1,17 @@
-commit 8c9ef9dd0a4667611a3afb710a319ba088a754ec
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jan 13 13:09:46 2016 -0800
+commit 7d1d642956940f78e7f1531ec9810048f4358f85
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 11 10:23:44 2015 -0500
 
-    runtime: don't use CMOV for 386
+    runtime: fix use of xadd64
     
-    CMOVs were not introduced until P6.  We need 386 to run on
-    Pentium MMX.
+    Commit 7407d8e was rebased over the switch to runtime/internal/atomic
+    and introduced a call to xadd64, which no longer exists. Fix that
+    call.
     
-    Fixes #13923
-    
-    Change-Id: Iee9572cd83e64c3a1336bc1e6b300b048fbcc996
-    Reviewed-on: https://go-review.googlesource.com/18621
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I99c93469794c16504ae4a8ffe3066ac382c66a3a
+    Reviewed-on: https://go-review.googlesource.com/16816
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/asm_386.s | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/runtime/mgcsweep.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

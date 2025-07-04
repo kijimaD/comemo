@@ -1,20 +1,23 @@
-commit 1f38fd578be6893c92b3b0d1b9f5ea1f938d52d7
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Nov 14 13:47:44 2023 +0000
+commit 03bf6f4917c1c8cd883dfa1618b90a95b9192f9a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Dec 2 13:30:06 2022 -0500
 
-    internal/zstd: s/thees/these/
+    run.bash, cmd/dist: document GO_TEST_SHORT and GO_TEST_TIMEOUT_SCALE
     
-    Change-Id: I0e3dc4aadb7e8082c26653979a5e6caf5172f9df
-    GitHub-Last-Rev: 000a903ab5d529cf434366fe6d3155221a3e250d
-    GitHub-Pull-Request: golang/go#64117
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542195
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    These environment variables affect cmd/dist, and in turn run.bash.
+    They exist primarily for the Go build system, but are still needed
+    sometimes when investigating problems. Document them in one place.
+    
+    Fixes #46054.
+    
+    Change-Id: I5dea2ac79b0d203d2f3c9ec2980382f62bead5cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455517
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/internal/zstd/fse.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/test.go | 6 ------
+ src/run.bash         | 9 +++++++++
+ 2 files changed, 9 insertions(+), 6 deletions(-)

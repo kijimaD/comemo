@@ -1,19 +1,28 @@
-commit 1e92ff11f5fa9d495c05414591516402a202539c
+commit 7d1b82dbf108d6cf80f959bb1558f365cee0ec0e
 Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Tue Feb 25 14:10:00 2025 +0000
+Date:   Wed Jan 3 04:18:15 2024 +0000
 
-    unicode/utf8: use builtin max function to simplify code
+    net/http: make Request.Clone create fresh copies for matches and otherValues
     
-    Change-Id: I6a73b645d074baaa4d09480bdf4192816a8c2450
-    GitHub-Last-Rev: 202d498eb019c18b9ba30bccc2cb169c9eb79366
-    GitHub-Pull-Request: golang/go#71945
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652177
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This change fixes Request.Clone to correctly work with SetPathValue
+    by creating fresh copies for matches and otherValues so that
+    SetPathValue for cloned requests doesn't pollute the original request.
+    
+    While here, also added a doc for Request.SetPathValue.
+    
+    Fixes #64911
+    
+    Change-Id: I2831b38e135935dfaea2b939bb9db554c75b65ef
+    GitHub-Last-Rev: 1981db16475a49fe8d4b874a6bceec64d28a1332
+    GitHub-Pull-Request: golang/go#64913
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553375
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/unicode/utf8/utf8.go | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ src/net/http/request.go      | 16 ++++++++++++++++
+ src/net/http/request_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)

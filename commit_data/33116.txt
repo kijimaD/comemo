@@ -1,23 +1,20 @@
-commit fb46b9ea20cfe7677a495d1a6cd9f244ddf1c0eb
-Author: Andreas Auernhammer <aead@mail.de>
-Date:   Thu May 25 22:46:41 2017 +0200
+commit 7914369e64190ce22e6fd6bba685e3f82338875a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 14 08:22:30 2017 -0700
 
-    crypto/elliptic: don't unmarshal invalid encoded points
+    cmd/go: update BuildContext.GOROOT and build.Tooldir with computed GOROOT
     
-    ANSI X9.62 specifies that Unmarshal should fail if the a given coordinate is
-    not smaller than the prime of the elliptic curve. This change makes Unmarshal
-    ANSI X9.62 compliant and explicitly documents that the Marshal/Unmarshal only
-    supports uncompressed points.
+    This is necessary to make a relocated GOROOT work correctly.
     
-    Fixes #20482
+    Fixes #20997
     
-    Change-Id: I161a73da8279cae505c9ba0b3022021709fe8145
-    Reviewed-on: https://go-review.googlesource.com/44312
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Filippo Valsorda <hi@filippo.io>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Change-Id: I18624bd2e109721066cd9e4a887a12583ab79f5d
+    Reviewed-on: https://go-review.googlesource.com/48550
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/elliptic/elliptic.go      | 11 +++++++---
- src/crypto/elliptic/elliptic_test.go | 39 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+), 3 deletions(-)
+ src/cmd/dist/test.go              | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/cfg/cfg.go    | 22 +++++++++++++++++++---
+ src/cmd/go/internal/work/build.go | 10 ----------
+ 3 files changed, 51 insertions(+), 13 deletions(-)

@@ -1,19 +1,28 @@
-commit 7e69c5decf0b95ce2856769b9798c3a1cf3078ee
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 5 10:29:21 2021 -0700
+commit be9612a832186637173e35a2aa83ae193cf8d957
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 24 21:26:14 2021 -0800
 
-    cmd/compile/internal/types2: implement generic slice expressions
+    [dev.regabi] os: disable TestDirFS until #42637 is fixed
     
-    For now, the constraint's underlying type set must be a single
-    type that is sliceable.
+    This test is causing nearly every trybot run on dev.regabi and
+    dev.typeparams to fail. It's already a release blocker for Go 1.16, so
+    the failures on the development branches is entirely noise; and
+    because it causes the trybots to short-circuit, it risks masking
+    actual Windows-specific failures.
     
-    Change-Id: I08b6a2e88fe35e8238a95b3f40dc969689021a0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354070
+    This CL disables the test until a proper solution is decided upon and
+    implemented for Go 1.16.
+    
+    Updates #42637.
+    
+    Change-Id: Ibc85edaed591f1c125cf0b210867aa89d2b0a4b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286213
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/index.go                      | 7 +------
- src/cmd/compile/internal/types2/testdata/check/typeparams.go2 | 8 ++++++--
- 2 files changed, 7 insertions(+), 8 deletions(-)
+ src/os/os_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,26 +1,12 @@
-commit 33511fb959f8f0edd5e831a4b41523daf9d84e87
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Wed Sep 23 14:06:28 2020 +0300
+commit 65367df4776a9fcc44c5aebbac994f76a1f4a897
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 19 18:17:21 2020 -0700
 
-    net/http/pprof: remove html/template dependency
+    internal/poll: update Windows Server Performance URL in comment
     
-    html/template indirectly uses reflect MethodByName, this causes linker
-    to use conservative mode resulting in larger binaries. The template here
-    is trivial and can be replaced by string manipulation.
-    
-    This reduces a binary using only net/http/pprof by ~2.5MB.
-    
-    Fixes #41569
-    
-    Change-Id: I240e1daa6376182ff4961997ee3ec7b96cb07be8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256900
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Hajime Hoshi <hajimehoshi@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ida8048720611ecf50d7e7626a42715921bbc753b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224237
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/go/build/deps_test.go   |  2 +-
- src/net/http/pprof/pprof.go | 60 ++++++++++++++++++++++++++-------------------
- 2 files changed, 36 insertions(+), 26 deletions(-)
+ src/internal/poll/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

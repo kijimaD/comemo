@@ -1,12 +1,79 @@
-commit 3eadc59b0d23b2807787057e2251ee48b4be39c3
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Apr 16 20:42:21 2015 +0200
+commit 93238623e2c8dfa23c2d0845613349ff8df7fbb7
+Author: Michael Matloob <matloob@google.com>
+Date:   Sun Dec 28 00:17:01 2014 -0800
 
-    net: fix typo in comment
+    regexp: port RE2's bitstate backtracker to the regexp package
     
-    Change-Id: I8b2063e65d3454a694a789c1682dacfe0bea2e19
-    Reviewed-on: https://go-review.googlesource.com/8965
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This is a port of RE2's bitstate backtracker, which triggers under
+    the same conditions that the RE2 backtracker triggers.  However I wasn't
+    sure how to port over some of the optimizations in the RE2 backtracker,
+    and there is a ~2% penalty on benchmarks that don't trigger the backtracker.
+    
+    benchmark                                 old ns/op      new ns/op      delta
+    BenchmarkLiteral                          312            189            -39.42%
+    BenchmarkNotLiteral                       4435           3001           -32.33%
+    BenchmarkMatchClass                       5758           4378           -23.97%
+    BenchmarkMatchClass_InRange               5385           4084           -24.16%
+    BenchmarkReplaceAll                       5291           3505           -33.76%
+    BenchmarkAnchoredLiteralShortNonMatch     190            200            +5.26%
+    BenchmarkAnchoredLiteralLongNonMatch      189            194            +2.65%
+    BenchmarkAnchoredShortMatch               479            304            -36.53%
+    BenchmarkAnchoredLongMatch                478            499            +4.39%
+    BenchmarkOnePassShortA                    791            798            +0.88%
+    BenchmarkNotOnePassShortA                 3202           1571           -50.94%
+    BenchmarkOnePassShortB                    614            633            +3.09%
+    BenchmarkNotOnePassShortB                 2685           881            -67.19%
+    BenchmarkOnePassLongPrefix                152            154            +1.32%
+    BenchmarkOnePassLongNotPrefix             505            533            +5.54%
+    BenchmarkMatchEasy0_32                    139            171            +23.02%
+    BenchmarkMatchEasy0_1K                    653            1797           +175.19%
+    BenchmarkMatchEasy0_32K                   12032          13346          +10.92%
+    BenchmarkMatchEasy0_1M                    462882         461272         -0.35%
+    BenchmarkMatchEasy0_32M                   15015339       15365238       +2.33%
+    BenchmarkMatchEasy1_32                    122            168            +37.70%
+    BenchmarkMatchEasy1_1K                    3339           2612           -21.77%
+    BenchmarkMatchEasy1_32K                   72330          71721          -0.84%
+    BenchmarkMatchEasy1_1M                    2545410        2652284        +4.20%
+    BenchmarkMatchEasy1_32M                   80072063       82609750       +3.17%
+    BenchmarkMatchMedium_32                   2359           1980           -16.07%
+    BenchmarkMatchMedium_1K                   75939          58593          -22.84%
+    BenchmarkMatchMedium_32K                  2450907        2501106        +2.05%
+    BenchmarkMatchMedium_1M                   78707697       80174418       +1.86%
+    BenchmarkMatchMedium_32M                  2535146010     2570896441     +1.41%
+    BenchmarkMatchHard_32                     4297           2960           -31.11%
+    BenchmarkMatchHard_1K                     133592         88997          -33.38%
+    BenchmarkMatchHard_32K                    4240445        4336907        +2.27%
+    BenchmarkMatchHard_1M                     136187006      139350238      +2.32%
+    BenchmarkMatchHard_32M                    4350855890     4478537306     +2.93%
+    
+    benchmark                    old MB/s     new MB/s     speedup
+    BenchmarkMatchEasy0_32       228.74       186.11       0.81x
+    BenchmarkMatchEasy0_1K       1565.91      569.64       0.36x
+    BenchmarkMatchEasy0_32K      2723.31      2455.10      0.90x
+    BenchmarkMatchEasy0_1M       2265.32      2273.22      1.00x
+    BenchmarkMatchEasy0_32M      2234.68      2183.79      0.98x
+    BenchmarkMatchEasy1_32       261.08       190.22       0.73x
+    BenchmarkMatchEasy1_1K       306.59       391.91       1.28x
+    BenchmarkMatchEasy1_32K      453.03       456.88       1.01x
+    BenchmarkMatchEasy1_1M       411.95       395.35       0.96x
+    BenchmarkMatchEasy1_32M      419.05       406.18       0.97x
+    BenchmarkMatchMedium_32      13.56        16.16        1.19x
+    BenchmarkMatchMedium_1K      13.48        17.48        1.30x
+    BenchmarkMatchMedium_32K     13.37        13.10        0.98x
+    BenchmarkMatchMedium_1M      13.32        13.08        0.98x
+    BenchmarkMatchMedium_32M     13.24        13.05        0.99x
+    BenchmarkMatchHard_32        7.45         10.81        1.45x
+    BenchmarkMatchHard_1K        7.67         11.51        1.50x
+    BenchmarkMatchHard_32K       7.73         7.56         0.98x
+    BenchmarkMatchHard_1M        7.70         7.52         0.98x
+    BenchmarkMatchHard_32M       7.71         7.49         0.97x
+    
+    Fixes #4154
+    
+    Change-Id: Iff7fb9507f0872b320d08afc08679751ed1b28bc
+    Reviewed-on: https://go-review.googlesource.com/2153
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/fd_plan9.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/regexp/backtrack.go | 351 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/regexp/exec.go      |  30 ++++-
+ 2 files changed, 374 insertions(+), 7 deletions(-)

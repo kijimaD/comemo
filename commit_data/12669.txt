@@ -1,12 +1,12 @@
-commit cb4ed897a390adf4df71bad311bccf7f2890ca50
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 16 09:58:23 2012 -0700
+commit 4aaf03aa74fbecdf3558d232f49a438700eb0ff8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 17 00:32:48 2012 +0800
 
-    godoc: apply gofmt
+    make.bat: don't show error message if old generated files do not exist
     
-    R=golang-dev, dsymonds
+    R=golang-dev, alex.brainman, mattn.jp
     CC=golang-dev
-    https://golang.org/cl/5842043
+    https://golang.org/cl/5843045
 
- src/cmd/godoc/godoc.go | 2 +-
+ src/make.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

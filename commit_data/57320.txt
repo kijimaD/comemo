@@ -1,37 +1,46 @@
-commit 7cd0a4be5cdbb84142ec330daba6087eece48341
-Author: nlwkobe30 <nlwkobe30@gmail.com>
-Date:   Fri Aug 30 19:05:07 2024 +0000
+commit 5f8a2fdf096037dbb34a1b14a2f0e77e40f5042b
+Author: Junxian Zhu <zhujunxian@oss.cipunited.com>
+Date:   Fri May 26 13:26:51 2023 +0800
 
-    all: omit unnecessary 0 in slice expression
+    cmd/compile: intrinsify Add64 on mips64
     
-    All changes are related to the code, except for the comments in src/regexp/syntax/parse.go and src/slices/slices.go.
+    This CL intrinsify Add64 on mips64.
     
-    Change-Id: I73c5d3c54099749b62210aa7f3182c5eb84bb6a6
-    GitHub-Last-Rev: 794aa9b0539811d00e1cd42be1e8d9fe9afe0281
-    GitHub-Pull-Request: golang/go#69170
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609678
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    pkg: math/bits
+                      _   sec/op    _   sec/op     vs base               _
+    Add64-4             2.783n _ 0%   1.950n _ 0%  -29.93% (p=0.000 n=8)
+    Add64multiple-4     5.713n _ 0%   3.063n _ 0%  -46.38% (p=0.000 n=8)
+    
+    pkg: crypto/elliptic
+                                         _    sec/op    _   sec/op     vs base               _
+    ScalarBaseMult/P256-4                   353.7_ _ 0%   282.7_ _ 0%  -20.09% (p=0.000 n=8)
+    ScalarBaseMult/P224-4                   330.5_ _ 0%   250.0_ _ 0%  -24.37% (p=0.000 n=8)
+    ScalarBaseMult/P384-4                  1228.8_ _ 0%   791.5_ _ 0%  -35.59% (p=0.000 n=8)
+    ScalarBaseMult/P521-4                  15.412m _ 0%   2.438m _ 0%  -84.18% (p=0.000 n=8)
+    ScalarMult/P256-4                      1189.4_ _ 0%   904.2_ _ 0%  -23.98% (p=0.000 n=8)
+    ScalarMult/P224-4                      1138.8_ _ 0%   813.8_ _ 0%  -28.54% (p=0.000 n=8)
+    ScalarMult/P384-4                       4.419m _ 0%   2.692m _ 0%  -39.08% (p=0.000 n=8)
+    ScalarMult/P521-4                      59.768m _ 0%   8.773m _ 0%  -85.32% (p=0.000 n=8)
+    MarshalUnmarshal/P256/Uncompressed-4    8.697_ _ 1%   7.923_ _ 1%   -8.91% (p=0.000 n=8)
+    MarshalUnmarshal/P256/Compressed-4     104.75_ _ 0%   66.29_ _ 0%  -36.72% (p=0.000 n=8)
+    MarshalUnmarshal/P224/Uncompressed-4    8.728_ _ 1%   7.823_ _ 1%  -10.37% (p=0.000 n=8)
+    MarshalUnmarshal/P224/Compressed-4     1035.7_ _ 0%   676.5_ _ 2%  -34.69% (p=0.000 n=8)
+    MarshalUnmarshal/P384/Uncompressed-4    15.32_ _ 1%   11.81_ _ 1%  -22.90% (p=0.000 n=8)
+    MarshalUnmarshal/P384/Compressed-4      399.8_ _ 0%   217.4_ _ 0%  -45.62% (p=0.000 n=8)
+    MarshalUnmarshal/P521/Uncompressed-4    96.79_ _ 0%   20.32_ _ 0%  -79.01% (p=0.000 n=8)
+    MarshalUnmarshal/P521/Compressed-4     6640.4_ _ 0%   790.8_ _ 0%  -88.09% (p=0.000 n=8)
+    
+    Change-Id: I8a0960b9665720c1d3e57dce36386e74db37fefa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498496
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/bufio/bufio_test.go                   | 2 +-
- src/bytes/buffer_test.go                  | 8 ++++----
- src/bytes/bytes.go                        | 2 +-
- src/cmd/internal/notsha256/sha256_test.go | 2 +-
- src/crypto/cipher/ctr_aes_test.go         | 4 ++--
- src/crypto/internal/cryptotest/aead.go    | 8 ++++----
- src/crypto/internal/cryptotest/hash.go    | 4 ++--
- src/crypto/md5/md5_test.go                | 2 +-
- src/crypto/sha1/sha1_test.go              | 4 ++--
- src/crypto/sha256/sha256_test.go          | 4 ++--
- src/crypto/subtle/constant_time_test.go   | 8 ++++----
- src/go/internal/gccgoimporter/parser.go   | 2 +-
- src/internal/stringslite/strings.go       | 2 +-
- src/math/big/natdiv.go                    | 4 ++--
- src/net/http/client_test.go               | 2 +-
- src/regexp/syntax/parse.go                | 2 +-
- src/slices/slices.go                      | 2 +-
- src/time/format.go                        | 2 +-
- src/unicode/utf8/utf8_test.go             | 2 +-
- 19 files changed, 33 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules |  8 ++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 60 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go         |  2 +-
+ test/codegen/mathbits.go                       |  7 +++
+ 4 files changed, 76 insertions(+), 1 deletion(-)

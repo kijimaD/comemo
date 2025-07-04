@@ -1,29 +1,19 @@
-commit ec0e2edd3b8e92ca003416a4cdbd9b7345d9d38f
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Wed Sep 6 08:36:10 2017 +0200
+commit 5e0bcb3893c2e54fdb96affcafd2953f20dd64eb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 26 14:05:06 2017 -0700
 
-    runtime: avoid extra tophash check in mapassign when key comparison is cheap
+    cmd/go: enable concurrent backend compilation by default
     
-    mapaccess and mapdelete functions are already optimized to prefer direct
-    key comparison instead of tophash checks when key comparison is cheap.
+    It can be disabled by setting the environment variable
+    GO19CONCURRENTCOMPILATION=0, or with -gcflags=-c=1.
     
-    Extended version of golang.org/cl/55235.
+    Fixes #15756.
     
-    AMD64:
-    name                old time/op    new time/op    delta
-    MapPopulate/1         42.5ns ± 2%    40.3ns ± 2%  -5.37%  (p=0.000 n=9+10)
-    MapPopulate/10         558ns ± 1%     556ns ± 1%    ~     (p=0.157 n=10+10)
-    MapPopulate/100       7.75µs ± 1%    7.66µs ± 2%  -1.19%  (p=0.001 n=10+10)
-    MapPopulate/1000      92.6µs ± 1%    92.0µs ± 1%  -0.61%  (p=0.016 n=10+8)
-    MapPopulate/10000      817µs ± 1%     814µs ± 1%    ~     (p=0.247 n=10+10)
-    MapPopulate/100000    8.02ms ± 1%    7.90ms ± 2%  -1.47%  (p=0.007 n=10+10)
-    
-    Change-Id: If0eca9931379cbbd37eb753e9bcd2888d8272153
-    Reviewed-on: https://go-review.googlesource.com/62050
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7acbf16330512b62ee14ecbab1f46b53ec5a67b6
+    Reviewed-on: https://go-review.googlesource.com/41820
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/hashmap_fast.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/work/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,17 @@
-commit 83bbf47863d6dffb29b5a638db6c89bed0c2a763
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Mar 17 15:50:26 2025 +0100
+commit 1a4fdb9529f4759aaad9fedbcdb549a636441081
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Feb 24 08:01:51 2024 +0800
 
-    crypto/tls: use crypto/hkdf
+    doc/next: add the missing slashes ahead of net#Dialer and net#ListenConfig
     
-    For consistency, prefer crypto/hkdf over crypto/internal/fips140/hkdf.
-    Both should have the same behavior given the constrained use of HKDF
-    in TLS.
-    
-    Change-Id: Ia982b9f7a6ea66537d748eb5ecae1ac1eade68a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658217
+    Change-Id: I216189f181ee73d16602c5cc86eb4d6b439a142b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566595
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Commit-Queue: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
 
- src/crypto/tls/handshake_client_tls13.go | 28 +++++++++++++++-------------
- src/crypto/tls/handshake_server_tls13.go | 28 +++++++++++++++-------------
- 2 files changed, 30 insertions(+), 26 deletions(-)
+ doc/next/6-stdlib/99-minor/net/62254.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

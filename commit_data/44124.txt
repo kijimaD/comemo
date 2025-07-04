@@ -1,20 +1,23 @@
-commit 9135795891a0a297dbbfb66b726b249712f47927
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jan 13 17:08:38 2021 -0500
+commit 810c27e9be647ce4da8930ff3625a856041ae5b2
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue May 12 10:07:38 2020 -0400
 
-    cmd/go/internal/load: report positions for embed errors
+    cmd/vendor: update vendored x/arch/ppc64
     
-    Fixes #43469
-    Fixes #43632
+    This updates vendored x/arch/ppc64 to pick up new instructions
+    and fixes for objdump on ppc64/ppc64le.
     
-    Change-Id: I862bb9da8bc3e4f15635bc33fd7cb5f12b917d71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/283638
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Change-Id: I8262e8a2af09057bbd21b39c9fcf37230029cfe8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233364
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/load/pkg.go      | 63 +++++++++++++++++++++++++++---------
- src/cmd/go/internal/load/test.go     |  4 +++
- src/cmd/go/testdata/script/embed.txt | 17 +++++++---
- 3 files changed, 64 insertions(+), 20 deletions(-)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../vendor/golang.org/x/arch/ppc64/ppc64asm/gnu.go |  15 ++
+ .../golang.org/x/arch/ppc64/ppc64asm/plan9.go      | 165 ++++++++++++++++++---
+ .../golang.org/x/arch/ppc64/ppc64asm/tables.go     | 105 +++++++++++++
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 6 files changed, 266 insertions(+), 27 deletions(-)

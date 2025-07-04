@@ -1,14 +1,23 @@
-commit d945b286758d034b3bb07cbf3a4055b90684c38b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Mar 1 08:41:34 2017 +1100
+commit 429edcff1049899cef4e3c5cb4b473e13a31d85c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 16:27:31 2016 -0700
 
-    cmd/compile/internal/ssa: remove unused PrintFunc variable
+    Revert "cmd/compile/internal/syntax: support for alias declarations"
     
-    Change-Id: I8c581eec77beacaddc0aac29e7d380a4d5ca8acc
-    Reviewed-on: https://go-review.googlesource.com/37551
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This reverts commit 32db3f2756324616b7c856ac9501deccc2491239.
+    
+    Reason: Decision to back out current alias implementation.
+    
+    For #16339.
+    
+    Change-Id: Ib05e3d96041d8347e49cae292f66bec791a1fdc8
+    Reviewed-on: https://go-review.googlesource.com/32825
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/export_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/syntax/nodes.go        | 31 --------
+ src/cmd/compile/internal/syntax/parser.go       | 98 ++++++++-----------------
+ src/cmd/compile/internal/syntax/printer.go      | 14 +---
+ src/cmd/compile/internal/syntax/scanner.go      |  9 +--
+ src/cmd/compile/internal/syntax/scanner_test.go |  3 +-
+ src/cmd/compile/internal/syntax/tokens.go       | 12 +--
+ 6 files changed, 38 insertions(+), 129 deletions(-)

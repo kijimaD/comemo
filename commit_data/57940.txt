@@ -1,26 +1,23 @@
-commit 0ff1d425075ce830a1f1c5ef3bf54ae812312bc3
-Author: Tim King <taking@google.com>
-Date:   Fri Nov 8 14:00:49 2024 -0800
+commit ca102e5c4a65c942856faa18557261f8297e72d3
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Sep 12 13:18:33 2023 +0000
 
-    cmd/compile/internal/importer: exportdata section ends with the last index of "\n$$\n"
+    all: calculate the median uniformly
     
-    This fixes a bug in the test only function Import where it looked for
-    the first instance of the string "\n$$\n" as the end of the exportdata
-    section. This should look for the last instance of "\n$$\n" within
-    the ar file.
+    This is a follow up of CL 526496.
     
-    Adds unit tests that demonstrate the error.
-    
-    Added comments to tests that can correctly use the first instance.
-    
-    Change-Id: I7a85afa41cf1c2902119516b757b7c6625d46d13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626775
+    Change-Id: I9f351951bf975e31befd36b9c951d195d2f8f9f7
+    GitHub-Last-Rev: 4307adafbffef7494d6f807b69df3e56328d6bf4
+    GitHub-Pull-Request: golang/go#62590
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527576
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/importer/gcimporter.go       | 4 ++--
- src/cmd/compile/internal/importer/gcimporter_test.go  | 2 ++
- src/cmd/compile/internal/importer/testdata/exports.go | 1 +
- src/go/internal/gcimporter/gcimporter_test.go         | 2 ++
- src/go/internal/gcimporter/testdata/exports.go        | 1 +
- 5 files changed, 8 insertions(+), 2 deletions(-)
+ src/internal/godebugs/table.go | 2 +-
+ src/runtime/mranges.go         | 2 +-
+ src/syscall/syscall_openbsd.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

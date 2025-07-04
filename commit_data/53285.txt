@@ -1,35 +1,23 @@
-commit a6fb97b6a7f42b8d4cbd8890672ccbf3cf0a929a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed May 24 11:25:12 2023 -0400
+commit d6ccb4ead9c995ee2bff10079118bf91d1b646e9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 4 12:05:15 2022 -0700
 
-    os: explicitly check for invalid FD in NewFile
+    debug/pe: use correct pe64 test in ImportedSymbols
     
-    CL 497075 refactored NewFile to unconditionally dereference the file
-    returned by newFile. However, newFile can return nil if passed a
-    negative FD, which now causes a crash.
+    64-bit PE is set by the optional header magic number,
+    not by the machine field.
     
-    Resolve this by moving the invalid check earlier in NewFile, which also
-    lets us avoid a useless fcntl syscall on a negative FD.
+    Fixes #54250
     
-    Since we convert to int to check sign, adjust newFile to take an int
-    rather than uintptr, which cleans up a lot of conversions.
-    
-    Fixes #60406
-    
-    Change-Id: I382a74e22f1cc01f7a2dcf1ff4efca6a79c4dd57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497877
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I4d01bc08553780d5470e63f0b17bbd968323e5d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421394
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/net/fd_unix.go        |  4 ++--
- src/os/file_unix.go       | 33 +++++++++++++++++++--------------
- src/os/os_unix_test.go    |  8 ++++++++
- src/os/os_windows_test.go |  7 +++++++
- src/os/pipe2_unix.go      |  2 +-
- src/os/pipe_unix.go       |  2 +-
- src/os/removeall_at.go    |  2 +-
- 7 files changed, 39 insertions(+), 19 deletions(-)
+ src/debug/pe/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

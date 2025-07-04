@@ -1,12 +1,15 @@
-commit 35c85321cc20690862700a5d84f1588e18008fdf
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 25 15:17:44 2013 -0700
+commit cb807e7b4a3c6291f16507ee9a31a303f411ddba
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 25 17:46:11 2013 -0400
 
-    doc: add summary of net/http additions to Go 1.1
+    runtime: delete mkasmh.sh
+    
+    This functionality moved into cmd/dist for Go 1.0.
+    Changes to this script have no effect.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7812050
+    https://golang.org/cl/8020043
 
- doc/go1.1.html | 23 +++++++++++++++++++----
- 1 file changed, 19 insertions(+), 4 deletions(-)
+ src/pkg/runtime/mkasmh.sh | 138 ----------------------------------------------
+ 1 file changed, 138 deletions(-)

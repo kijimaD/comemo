@@ -1,17 +1,16 @@
-commit 841873f27c4d08d266779a9ef719a7f0d1a0e74d
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Oct 4 09:43:29 2022 -0400
+commit 17980dff368256a0763cf042376d3fb36d06c109
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 9 20:22:26 2021 -0800
 
-    runtime: change exit hooks test to use RaceDetectorSupported
+    doc: make a copy of the latest Go 1.17 spec
     
-    Use internal/syssup.RaceDetectorSupported in the exit hooks tests as a
-    better way to tell if the race detector is available.
+    This will allow us to compare the changes made for Go 1.18.
     
-    Change-Id: I8f43f93319f68b9910f2eea88fc375f7ef3bb2e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/438476
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1456270b201967f5cb05e66cec556939e6e33265
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362894
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/ehooks_test.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ doc/go1.17_spec.html | 6858 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 6858 insertions(+)

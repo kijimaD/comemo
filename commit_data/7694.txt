@@ -1,17 +1,14 @@
-commit 8c76218f8994ffc93f2fa5b72f47d9c6f69ae982
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 8 00:02:07 2011 -0800
+commit c55fb521cc5ef5e555431f5ac58c0185d190f743
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Mar 8 18:02:07 2011 +1100
 
-    gob: finish up GobEncoder/Decoder by providing indirection
-    to the receiver. Remove lots of TODOS.
+    flag: failf documentation nit
     
-    R=rsc
+    "standard output" should have been "standard error".  Sorry about that..
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4257057
+    https://golang.org/cl/4240088
 
- src/pkg/gob/decode.go         | 35 ++++++++++-----------------
- src/pkg/gob/encode.go         | 55 +++++++++++++++++++++----------------------
- src/pkg/gob/encoder.go        |  3 ---
- src/pkg/gob/gobencdec_test.go | 35 +++++++++++++++++++++++----
- src/pkg/gob/type.go           | 17 +------------
- 5 files changed, 71 insertions(+), 74 deletions(-)
+ src/pkg/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

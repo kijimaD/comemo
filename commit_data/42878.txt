@@ -1,26 +1,22 @@
-commit f0c7e3e9463069f60b3d31696860f6fb75aa3e87
-Author: David Finkel <david.finkel@gmail.com>
-Date:   Sat Apr 25 13:32:06 2020 -0400
+commit afd691c579198387c874512ef1c75db651dba9bd
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 13 08:34:41 2020 -0800
 
-    cmd/compile: adjust some AMD64 rewrite rules to use typed aux fields
+    runtime: special case interface hashing for pointers
     
-    Remove an extra int32-representable check when deciding to use an int32
-    constant as an immediate value.
+    Interfaces often contain pointers. Implement a fast path for this case.
     
-    Comment out a broken optimization that relies on MaxUint32 being
-    representable by a signed int32. It never triggers and when fixed, the
-    signedness of the auxint prevents other optimization passes from
-    handling it properly, thus causing segfaults in the runtime.
+    name                   old time/op  new time/op  delta
+    MapInterfaceString-16  21.4ns ±19%  20.5ns ±10%     ~     (p=0.361 n=10+10)
+    MapInterfacePtr-16     25.8ns ± 8%  17.3ns ± 7%  -33.11%  (p=0.000 n=10+9)
     
-    Remove a couple offset representable in 32-bits checks on 32-bit aux
-    vals.
+    Fixes #37086
     
-    toolstash-check clean
-    
-    Change-Id: I148b53403fde523c90d692cb90e412460664b439
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230458
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ice52820e6259a3edeafcbbbeb25b1e363bef00d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219338
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  835 ++---
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 4227 +++++++++++++-------------
- 2 files changed, 2515 insertions(+), 2547 deletions(-)
+ src/runtime/alg.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

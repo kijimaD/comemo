@@ -1,26 +1,14 @@
-commit 5370494577bb0844d3fdfa6bebd27bf9285bb764
-Author: nimelehin <nimelehin@gmail.com>
-Date:   Tue Dec 21 22:45:01 2021 +0300
+commit 891547e2d4bc2a23973e2c9f972ce69b2b48478e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 6 21:10:31 2021 -0400
 
-    runtime: add BenchmarkMemclrRange
+    doc/go1.17: fix a typo introduced in CL 335135
     
-    This benchmark is added to test improvements in memclr_amd64.
-    As it is stated in Intel Optimization Manual 15.16.3.3, AVX2-implemented
-    memclr can produce a skewed result with the branch predictor being
-    trained by the large loop iteration count.
-    
-    This benchmark generates sizes between some specified range. This should
-    help to measure how memclr works when branch predictors may be incorrectly
-    trained.
-    
-    Change-Id: I14d173cafe43ca47198ed920e655547a66b3909f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373362
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I62388bcb6d6f910ffa95d3db856ea29838573256
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340590
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/memmove_test.go | 57 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 57 insertions(+)
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

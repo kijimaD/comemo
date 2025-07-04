@@ -1,17 +1,20 @@
-commit 07b42666051841352077c0d04ba67d510247fd1d
-Author: Sean Liao <sean@liao.dev>
-Date:   Fri Nov 22 00:24:09 2024 +0000
+commit ff6dd7125e70976063c412d9f52f8b19ee2c08fb
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 19 13:43:51 2023 -0400
 
-    crypto/x509: generate serial number for nil template SerialNumber
+    cmd/go: move all Shell methods to shell.go
     
-    Fixes #67675
+    This is a pure code movement change.
     
-    Change-Id: I976935d20eb6b9adcd19d47bcaeb7abcf78ec5bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630995
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Now that we've introduced a Shell type that lives in shell.go, move
+    all of its methods (which used to be on Builder) to shell.go as well.
+    
+    Change-Id: Ie1802353c8a64590219b08893e8c74649228e5e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536536
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/crypto/x509/x509.go      | 31 +++++++++++++++++++++++++++----
- src/crypto/x509/x509_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/work/exec.go  | 574 ------------------------------------
+ src/cmd/go/internal/work/shell.go | 590 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 590 insertions(+), 574 deletions(-)

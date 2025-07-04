@@ -1,30 +1,16 @@
-commit f81ae3b22ca9cab78251b38fe52eacfea57e08f5
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 6 13:09:06 2016 -0400
+commit 795e712b72802ad49b7c077964046f79c4f6586e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 3 20:54:24 2016 +0000
 
-    cmd/link: shorter type symbol names
+    os/user: make Current work without cgo
     
-    Use (part of) a SHA-1 checksum to replace type symbol names.
+    Fixes #14626
     
-    In typical programs this has no effect because types are not included
-    in the symbol table. But when dynamically linking, types are in the
-    table to make sure there is only one *rtype per Go type.
-    
-    Eventually we may be able to get rid of all pointers to rtype values in
-    the binary, but probably not by 1.7. And this has a nice effect on
-    binary size today:
-    
-    libstd.so:
-            before 27.4MB
-            after  26.2MB
-    
-    For #6853.
-    
-    Change-Id: I603d7f3e5baad84f59f2fd37eeb1e4ae5acfe44a
-    Reviewed-on: https://go-review.googlesource.com/21583
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I91c40407dc35355e5c5046f24111a126f99260d9
+    Reviewed-on: https://go-review.googlesource.com/20192
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/link/internal/ld/objfile.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/os/user/lookup_stubs.go | 50 +++++++++++++++++++++++++++++++++++++++++++--
+ src/os/user/user_test.go    |  2 --
+ 2 files changed, 48 insertions(+), 4 deletions(-)

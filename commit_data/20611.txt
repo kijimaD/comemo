@@ -1,19 +1,15 @@
-commit 9f4084278fd0038ef4deedab78ee4d7d2bc1a636
-Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 1 21:35:12 2014 +0000
+commit fb4e185a99f3e93bc1bbe08a09ebfd5419409d48
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 24 12:42:47 2014 -0700
 
-    fmt: fix internal unknownType function
-    This thing should never be called, but before
-    151960044 it was being called, incorrectly.
-    This is now just a precaution but let's pretend it
-    Fixes #8843
-    even though that was fixed by 151960044.
-    The test case was already there and ran, another mystery.
+    src: pass GO_GCFLAGS down to go test std
     
-    LGTM=rsc
-    R=rsc
+    Update #8725
+    
+    LGTM=rsc, josharian
+    R=rsc, josharian
     CC=golang-codereviews
-    https://golang.org/cl/151970043
+    https://golang.org/cl/149000043
 
- src/fmt/print.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

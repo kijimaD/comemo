@@ -1,32 +1,31 @@
-commit a7cc865edbb9568c1a695bde8e8459d97e129f08
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit 63b968f4f86f4c23ce92b7ac2feda4fc7ca17c8e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jul 16 16:51:11 2021 -0400
 
-    runtime/internal/atomic: add atomic support for loong64
+    doc/go1.17: clarify Modules changes
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Writing CL 333629 clarified my thinking about the behavioral changes
+    associated with lazy loading. There are really two interrelated
+    changes — graph pruning, and lazy loading proper — that are both made
+    possible by the added redundancy in the go.mod file.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    (I had initially approached the whole cluster of features as “lazy
+    loading” because that was the starting point for the design. Graph
+    pruning came into the picture when we looked at how to bound the
+    worst-case behavior of lazy loading, but it is really the more
+    important of the two aspects of the design.)
     
-    Updates #46229
+    Note that this change adds links to doc anchors added in CL 333629.
     
-    Change-Id: I0333503db044c6f39df2d7f8d9dff213b1361d6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342320
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #36460
+    Fixes #47397
+    
+    Change-Id: I0ef4af57f647bf5ee210ea7099191fb4befa2cc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335135
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/internal/atomic/atomic_loong64.go |  83 +++++++
- src/runtime/internal/atomic/atomic_loong64.s  | 299 ++++++++++++++++++++++++++
- 2 files changed, 382 insertions(+)
+ doc/go1.17.html | 70 ++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 45 insertions(+), 25 deletions(-)

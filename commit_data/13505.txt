@@ -1,19 +1,22 @@
-commit a1f340fa1a26fd29f1369cbc91755e7519813dd0
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Jul 27 16:05:25 2012 +1000
+commit a7c74d52dc49a6b6e448e301165a76bf3fb0a3c7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 26 17:09:11 2012 -0700
 
-    exp/html: parse CDATA sections in foreign content
+    go/printer: don't crash if ast.FuncType.Params is nil
     
-    Also convert NUL to U+FFFD in comments.
+    The go/ast comment for FuncType.Params says that the field may be nil.
+    Make sure the printer accepts such a value. The go/parser always sets
+    the field (to provide parenthesis position information), but a program
+    creating a Go AST from scatch may not.
     
-    Pass 23 additional tests.
+    Added corresponding test case.
     
-    R=nigeltao
+    Fixes #3870.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6446055
+    https://golang.org/cl/6448060
 
- src/pkg/exp/html/parse.go                          |  4 ++
- .../exp/html/testlogs/plain-text-unsafe.dat.log    |  6 +-
- src/pkg/exp/html/testlogs/tests21.dat.log          | 40 ++++++------
- src/pkg/exp/html/token.go                          | 72 +++++++++++++++++++---
- 4 files changed, 91 insertions(+), 31 deletions(-)
+ src/pkg/go/printer/nodes.go        |  7 ++++++-
+ src/pkg/go/printer/printer_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

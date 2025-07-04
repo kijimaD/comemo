@@ -1,0 +1,24 @@
+commit 57f4cf20996cf8b90b8f814c93db5dc18aaad99e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 3 11:28:42 2024 -0700
+
+    os: treat Getwd result of EINVAL/ERANGE the same as ENAMETOOLONG
+    
+    At least Darwin and OpenBSD seem to return EINVAL if the resulting
+    name would be too long. Solaris seems to return ERANGE.
+    
+    Fixes #69233
+    Fixes #69234
+    
+    Change-Id: I9b51d41461e9576c633bf2fc0e96ca3e4d986255
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609579
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/os/error_errno.go | 1 +
+ src/os/error_plan9.go | 1 +
+ src/os/getwd.go       | 5 ++++-
+ 3 files changed, 6 insertions(+), 1 deletion(-)

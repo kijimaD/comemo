@@ -1,30 +1,29 @@
-commit ec0b8c0585a1dad79c5b5bc9c95d4d35ce56cc53
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Mar 3 14:47:20 2018 +0100
+commit 78805c07f4119ba0fc7bf2e462451d519f42f679
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Oct 23 13:47:15 2017 -0700
 
-    test: use the version of Go used to run run.go
+    archive/zip: restrict UTF-8 detection for comment and name fields
     
-    Currently, the top-level testsuite always uses whatever version
-    of Go is found in the PATH to execute all the tests. This
-    forces the developers to tweak the PATH to run the testsuite.
+    CL 39570 added support for automatically setting flag bit 11 to
+    indicate that the filename and comment fields are encoded in UTF-8,
+    which is (conventionally) the encoding using for most Go strings.
     
-    Change it to use the same version of Go used to run run.go.
-    This allows developers to run the testsuite using the tip
-    compiler by simply saying "../bin/go run run.go".
+    However, the detection added is too lose for two reasons:
+    * We need to ensure both fields are at least possibly UTF-8.
+    That is, if any field is definitely not UTF-8, then we can't set the bit.
+    * The utf8.ValidRune returns true for utf8.RuneError, which iterating
+    over a Go string automatically returns for invalid UTF-8.
+    Thus, we manually check for that value.
     
-    I think this is a better solution compared to always forcing
-    "../bin/go", because it allows developers to run the testsuite
-    using different Go versions, for instance to check if a new
-    test is fixed in tip compared to the installed compiler.
+    Updates #22367
+    Updates #10741
     
-    Fixes #24217
-    
-    Change-Id: I41b299c753b6e77c41e28be9091b2b630efea9d2
-    Reviewed-on: https://go-review.googlesource.com/98439
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: Ie8aae388432e546e44c6bebd06a00434373ca99e
+    Reviewed-on: https://go-review.googlesource.com/72791
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- test/README.md |  2 +-
- test/run.go    | 54 +++++++++++++++++++++++++++++++++++-------------------
- 2 files changed, 36 insertions(+), 20 deletions(-)
+ src/archive/zip/writer.go      | 41 ++++++++++++++++++++++++++++++++---------
+ src/archive/zip/writer_test.go |  6 ++++++
+ 2 files changed, 38 insertions(+), 9 deletions(-)

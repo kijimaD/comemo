@@ -1,31 +1,33 @@
-commit 7d5c003a3a630dc82e10d72a86ae6103c4d3809a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 17 11:12:49 2017 -0800
+commit 7b50bd8abfe8565abdf7a6116e22a6a0fbf582b7
+Author: Mike Strosaker <strosake@us.ibm.com>
+Date:   Fri Oct 28 19:50:16 2016 -0400
 
-    math/bits: much faster Reverse, added respective benchmarks
+    crypto/sha256: improve performance for sha256.block on ppc64le
     
-    Measured on 2.3 GHz Intel Core i7, running maxOS 10.12.3.
+    Adds an assembly implementation of sha256.block for ppc64le to improve its
+    performance.  This implementation is largely based on the original amd64
+    implementation, which unrolls the 64 iterations of the inner loop.
     
-    name         old time/op  new time/op  delta
-    Reverse-8    76.6ns ± 0%   8.1ns ± 0%   ~     (p=1.000 n=1+1)
-    Reverse8-8   12.6ns ± 0%   0.6ns ± 0%   ~     (p=1.000 n=1+1)
-    Reverse16-8  20.8ns ± 0%   0.6ns ± 0%   ~     (p=1.000 n=1+1)
-    Reverse32-8  36.5ns ± 0%   0.6ns ± 0%   ~     (p=1.000 n=1+1)
-    Reverse64-8  74.0ns ± 0%   6.4ns ± 0%   ~     (p=1.000 n=1+1)
+    Fixes #17652
     
-    benchmark                old ns/op     new ns/op     delta
-    BenchmarkReverse-8       76.6          8.07          -89.46%
-    BenchmarkReverse8-8      12.6          0.64          -94.92%
-    BenchmarkReverse16-8     20.8          0.64          -96.92%
-    BenchmarkReverse32-8     36.5          0.64          -98.25%
-    BenchmarkReverse64-8     74.0          6.38          -91.38%
+    benchmark               old ns/op     new ns/op     delta
+    BenchmarkHash8Bytes     1263          767           -39.27%
+    BenchmarkHash1K         14048         7766          -44.72%
+    BenchmarkHash8K         102245        55626         -45.60%
     
-    Change-Id: I6b99b10cee2f2babfe79342b50ee36a45a34da30
-    Reviewed-on: https://go-review.googlesource.com/37149
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    benchmark               old MB/s     new MB/s     speedup
+    BenchmarkHash8Bytes     6.33         10.43        1.65x
+    BenchmarkHash1K         72.89        131.85       1.81x
+    BenchmarkHash8K         80.12        147.27       1.84x
+    
+    Change-Id: Ib4adf429423b20495580400be10bd7e171bcc70b
+    Reviewed-on: https://go-review.googlesource.com/32318
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/bits/bits.go      | 52 +++++++++++++++++++++++++++++++++++++++++-----
- src/math/bits/bits_impl.go |  8 -------
- src/math/bits/bits_test.go | 30 ++++++++++++++++++++++++++
- 3 files changed, 77 insertions(+), 13 deletions(-)
+ src/crypto/sha256/sha256block_decl.go    |   2 +-
+ src/crypto/sha256/sha256block_generic.go |   2 +-
+ src/crypto/sha256/sha256block_ppc64le.s  | 269 +++++++++++++++++++++++++++++++
+ 3 files changed, 271 insertions(+), 2 deletions(-)

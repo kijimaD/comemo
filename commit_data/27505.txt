@@ -1,15 +1,54 @@
-commit 93e8e704996ce100fe46b2249324442947e47a9d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 24 14:12:35 2016 -0700
+commit e76fc1b921e421bcbed66194946ecca8d49f8aac
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 30 15:09:25 2016 -0700
 
-    all: fixed a handful of typos
+    cmd/compile: use t.IsFoo() instead of Isfoo[t.Etype]
     
-    Change-Id: Ib0683f27b44e2f107cca7a8dcc01d230cbcd5700
-    Reviewed-on: https://go-review.googlesource.com/23404
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This allows us to get rid of Isptr and Issigned. Still some code to
+    clean up for Isint, Isfloat, and Iscomplex.
+    
+    CL produced mechanically using gofmt -w -r.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: If4f807bb7f2b357288d2547be2380eb511875786
+    Reviewed-on: https://go-review.googlesource.com/21339
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- doc/install-source.html         | 6 +++---
- src/container/list/list_test.go | 2 +-
- src/encoding/csv/reader.go      | 2 +-
- src/runtime/mgc.go              | 2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go   | 10 ++++----
+ src/cmd/compile/internal/amd64/gsubr.go  |  4 +--
+ src/cmd/compile/internal/arm/ggen.go     | 12 ++++-----
+ src/cmd/compile/internal/arm64/ggen.go   |  8 +++---
+ src/cmd/compile/internal/arm64/gsubr.go  |  4 +--
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/bimport.go   |  4 +--
+ src/cmd/compile/internal/gc/cgen.go      | 44 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/closure.go   |  4 +--
+ src/cmd/compile/internal/gc/const.go     | 18 ++++++-------
+ src/cmd/compile/internal/gc/cplx.go      |  6 ++---
+ src/cmd/compile/internal/gc/dcl.go       | 16 ++++++------
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/export.go    |  4 +--
+ src/cmd/compile/internal/gc/fmt.go       |  6 ++---
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/go.go        |  2 --
+ src/cmd/compile/internal/gc/inl.go       |  2 +-
+ src/cmd/compile/internal/gc/order.go     |  4 +--
+ src/cmd/compile/internal/gc/parser.go    |  2 +-
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   | 12 ++++-----
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 44 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/typecheck.go | 40 ++++++++++++++---------------
+ src/cmd/compile/internal/gc/universe.go  |  9 -------
+ src/cmd/compile/internal/gc/walk.go      | 26 +++++++++----------
+ src/cmd/compile/internal/mips64/ggen.go  |  6 ++---
+ src/cmd/compile/internal/mips64/gsubr.go |  4 +--
+ src/cmd/compile/internal/ppc64/ggen.go   |  8 +++---
+ src/cmd/compile/internal/ppc64/gsubr.go  |  4 +--
+ src/cmd/compile/internal/x86/ggen.go     | 12 ++++-----
+ src/cmd/compile/internal/x86/gsubr.go    |  4 +--
+ 34 files changed, 160 insertions(+), 171 deletions(-)

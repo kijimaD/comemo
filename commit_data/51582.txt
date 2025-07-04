@@ -1,25 +1,27 @@
-commit 38cfb3be9d486833456276777155980d1ec0823e
-Author: Andrey Bozhko <andybozhko@gmail.com>
-Date:   Wed Dec 21 22:24:05 2022 +0000
+commit d3c9ef57ce5a887f6eb3d87a22adf38ef4e651ee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 15 13:38:57 2022 -0800
 
-    testing: rephrase the sentence about naming test files
+    Revert "net: send EDNS(0) packet length in DNS query"
     
-    This updates the explanation about
-    naming test files to be a little more clear.
+    This reverts https://go.dev/cl/385035. For 1.18 we will use a simple
+    change to increase the accepted DNS packet size, to handle what appear
+    to be broken resolvers that don't honor the 512 byte limit. For 1.19
+    we will restore CL 385035 to make a proper EDNS request, so that it
+    has more testing time before it goes out in a release.
     
-    Fixes #57389
+    For #6464
+    For #21160
+    For #44135
+    For #51127
+    For #51153
     
-    Change-Id: I9b3a8e2dae5e3ad398b55624e183809b7d90864c
-    GitHub-Last-Rev: 9ff81b74b201ca032fd373424aa02a3fedaec008
-    GitHub-Pull-Request: golang/go#57399
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458435
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Fahad King <fahadking750@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ie4a0eb85ca0a6a73bee5cd4cfc6b7d2a15ef259f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386014
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/testing/testing.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/net/dnsclient_unix.go      | 19 +-------------
+ src/net/dnsclient_unix_test.go | 57 +-----------------------------------------
+ 2 files changed, 2 insertions(+), 74 deletions(-)

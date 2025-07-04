@@ -1,20 +1,16 @@
-commit b358987666de3f2ec1d7c6ad65eeb0c7874c7f2a
+commit d10ab13c18e1c7ec990a7878a6d1a0dadb089f90
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 16 16:28:49 2018 +0000
+Date:   Wed Jul 25 18:08:16 2018 +0000
 
-    cmd/vet/all: remove skip when x/tools isn't in $GOPATH
+    net/http: expand a TimeoutHandler test a bit
     
-    Now that the build system has been updated to install x/tools in
-    $GOPATH (CL 149658), depend on it being there and don't ignore
-    failures to build the tool.
+    Updates #22821
     
-    Update to CL 149097.
-    
-    Change-Id: I72fde347217533697068b6a6773696cc2b83e9ed
-    Reviewed-on: https://go-review.googlesource.com/c/150017
+    Change-Id: I2d0d483538174a90f56c26d99bea89fe9ce4d144
+    Reviewed-on: https://go-review.googlesource.com/125855
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/vet/all/main.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/net/http/serve_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

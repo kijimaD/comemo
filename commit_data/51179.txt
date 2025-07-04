@@ -1,42 +1,48 @@
-commit f5d21ffc816760813079d4429060a6c03f643b55
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Nov 8 17:33:47 2022 -0500
+commit b55cbbb9e76969d67fbc6e264a584ad18c2f95fa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 9 11:42:42 2021 -0500
 
-    cmd/go: decide whether to install .a based on number of CgoFiles
+    net: pass a testing.TB to newLocal* helpers
     
-    Instead of hardcoding the set of five packages that depend on cgo to
-    decide whether a package should have an install target, make the
-    decision based on whether the package has any CgoFiles. This means that
-    in nocgo configurations, there will be no installed packages, and that
-    if an GOOS/GOARCH combination doesn't have cgo files we don't
-    unnecessarily install a .a.
+    Passing in an explicit testing.TB gives two benefits:
     
-    Because the determination of whether a file is a CgoFile is made later
-    in the Import functions, the choice of whether to add a PkgObj for teh
-    case there are CgoFiles is moved later. One concern here is that in some
-    cases, PkgObj may be set differently in the case of the FindOnly mode,
-    since the determination is moved across the boundary. We might want
-    to always set PkgObj after the FindOnly boundary for consistency? cmd/go
-    doesn't seem to use it when calling Import with FindOnly.
+    1. It allows the helper to fail the test itself, instead of returning
+       an error to the caller. A non-nil error invariably fails the
+       calling test, and none of these callers bother to add detail to the
+       error when logging it anyway so returning the error just added
+       noise to the test bodies.
     
-    Also remove internal/buildinternal/needs_install.go because we will be
-    checking whether to install based on the number of cgo files and it
-    might be overkill to make the NeedsInstalledDotA function be the
-    equivalent of len(input) > 0.
+    2. It allows the helper to use t.Cleanup to perform any needed cleanup
+       tasks, which will be used in CL 370695 to clean up temp directories
+       used as namespaces for unix socket paths.
     
-    For #47257
+    For #34611
     
-    Change-Id: I5f7f2137dc99aaeb2e2695c14e0222093a6b2407
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448803
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I805e701687c12de2caca955649369294229c10b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370696
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/modindex/read.go                  | 12 ++++++++----
- src/cmd/go/internal/work/build.go                     |  5 ++---
- src/cmd/go/testdata/script/install_goroot_targets.txt |  9 +++++++++
- src/go/build/build.go                                 | 10 +++++++---
- src/go/build/deps_test.go                             |  3 +--
- src/internal/buildinternal/needs_install.go           | 14 --------------
- 6 files changed, 27 insertions(+), 26 deletions(-)
+ src/net/conn_test.go             |  5 +--
+ src/net/dial_test.go             | 38 ++++--------------
+ src/net/dial_unix_test.go        |  5 +--
+ src/net/error_test.go            | 15 ++-----
+ src/net/file_test.go             | 35 ++++++----------
+ src/net/listen_test.go           | 25 +++++-------
+ src/net/mockserver_test.go       | 84 +++++++++++++++++++++++++--------------
+ src/net/net_test.go              | 49 ++++++-----------------
+ src/net/protoconn_test.go        |  5 +--
+ src/net/rawconn_test.go          | 15 ++-----
+ src/net/sendfile_test.go         | 25 +++---------
+ src/net/server_test.go           | 20 ++--------
+ src/net/splice_test.go           | 71 +++++++++------------------------
+ src/net/tcpsock_test.go          | 25 +++---------
+ src/net/tcpsock_unix_test.go     |  5 +--
+ src/net/timeout_test.go          | 86 +++++++++-------------------------------
+ src/net/udpsock_test.go          | 20 ++--------
+ src/net/unixsock_test.go         | 15 ++-----
+ src/net/unixsock_windows_test.go |  5 +--
+ src/net/writev_test.go           |  5 +--
+ 20 files changed, 164 insertions(+), 389 deletions(-)

@@ -1,16 +1,13 @@
-commit a8c6c4837c17ab4ec3ba78e40b9a72dc70d9cf5a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 8 21:09:09 2016 -0700
+commit 81aacb80d55eddcb95cbe2c87392cc922e026e45
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 6 15:27:30 2016 -0700
 
-    os: document that the runtime can write to standard error
+    cmd/compile, go/importer: minor cleanups
     
-    Fixes #15970.
-    
-    Change-Id: I3f7d8316069a69d0e3859aaa96bc1414487fead0
-    Reviewed-on: https://go-review.googlesource.com/23921
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I4ffb79d8cb08b0b44f59757fb7f0ec3ed1e4479f
+    Reviewed-on: https://go-review.googlesource.com/21624
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/file.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/bexport.go | 8 +++-----
+ src/go/internal/gcimporter/bimport.go  | 5 ++---
+ 2 files changed, 5 insertions(+), 8 deletions(-)

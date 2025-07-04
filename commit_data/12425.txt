@@ -1,12 +1,14 @@
-commit 67cbe9431f9440f9d801b8dd2c7eec32d6ed2ab5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 6 11:05:16 2012 -0800
+commit 4f25e4be028ea975fa93fcfe97759dae3b85f256
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Mar 6 12:49:29 2012 -0500
 
-    go/parser: better error sync. if commas are missing
+    crypto/tls: make the package description more accurate and less aspirational.
     
-    R=rsc, bradfitz
+    Fixes #3216.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5756045
+    https://golang.org/cl/5755056
 
- src/pkg/go/parser/parser.go | 24 ++++++++++++++++++------
- 1 file changed, 18 insertions(+), 6 deletions(-)
+ src/pkg/crypto/tls/tls.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

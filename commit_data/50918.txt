@@ -1,18 +1,23 @@
-commit c83d4fba0791927e9a0b66729ee886e0f8d15249
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 14 16:19:11 2022 -0700
+commit 1d004fa2015d128acf6302fc74b95f6a36c35680
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Nov 17 10:17:31 2021 +0700
 
-    os/signal: pass *int32 to ioctl that expects pid_t
+    cmd/compile: emit definition of 'any' only if generic enabled
     
-    Fixes #56233
+    CL 364377 emitted definition of 'any' when compiling runtime. But 'any'
+    is only available when generic enabled. Thus emitting its definition
+    unconditionally causes the compiler crashes.
     
-    Change-Id: I1cf176bc2f39c5e41d5a390ec6893426cdd39be0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443175
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Updates #49619
+    
+    Change-Id: I0888ca1cbc7a7df300310a99a344f170636333f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364614
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/os/signal/signal_cgo_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 4 +++-
+ test/fixedbugs/issue49619.go                    | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

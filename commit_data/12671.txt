@@ -1,16 +1,12 @@
-commit cf0cbfd21a925b39273454c030263b5f9dfab952
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 16 16:35:16 2012 -0400
+commit 367557cd79ffb5ff82d9d21c2e8098d95083b3c0
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 17 01:34:44 2012 +0800
 
-    cmd/go: don't add detail to errPrintedOutput
+    cmd/pack: also recognize '\\' as path separator in filenames
     
-    This makes the last error-reporting CL a bit less
-    aggressive.  errPrintedOutput is a sentinel value
-    that should not be wrapped.
-    
-    R=gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5845052
+    https://golang.org/cl/5841051
 
- src/cmd/go/build.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/pack/ar.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

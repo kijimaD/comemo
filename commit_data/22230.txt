@@ -1,19 +1,26 @@
-commit dd95244d4b9be2dda0e899535fa6f7c637937617
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Mar 30 08:47:07 2015 -0400
+commit fbbf219ce96f8a5efb73405218308ad6da5eb75d
+Author: Lloyd Dewolf <foolswisdom@gmail.com>
+Date:   Tue Feb 24 21:33:29 2015 -0800
 
-    iostest.bash: build script for iOS
+    doc/contribute.html rewrite "Set up auth... code review".
     
-    In the spirit of nacltest.bash and androidtest.bash. Sets up the
-    exec script and reboots the device.
+    - Fixed term in preceding section: submitted -> merged.
+    - Clear transitions between web sites.
+    - Clarify "types" of G Accounts.
+    - Less verbose "Configure Git" instructions. [l10n]
+    - Google uses the term "sign in".
+    - Mention .gitcookie file created.
     
-    The reboot helps make sure previous runs do not interfere with the
-    current run. It is reasonably easy for a bad program, e.g. one with
-    a corrupt stack, to get the device stuck.
+    Update "Register with Gerrit".
+    - Link directly to gerrit /login/ .
     
-    Change-Id: I61317527741c45a70c390fe21adc4895510fc79f
-    Reviewed-on: https://go-review.googlesource.com/8242
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    HTML
+    - Removed non-ascii "hidden characters".
+    - Encoded some & and >.
+    
+    Change-Id: I0d99102def6b32e09b8e42fa40e20227ad5e7568
+    Reviewed-on: https://go-review.googlesource.com/5892
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/iostest.bash | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 58 insertions(+)
+ doc/contribute.html | 78 ++++++++++++++++++++++++++---------------------------
+ 1 file changed, 39 insertions(+), 39 deletions(-)

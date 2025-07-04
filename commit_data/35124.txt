@@ -1,19 +1,17 @@
-commit f2df0ec7dd0552af9a7ee4ab1bf77c302f08bd57
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 18 21:26:55 2018 -0400
+commit 3aeb3950a9eb02b7d07e68b8b3535540854951e0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Dec 18 12:13:17 2017 -0800
 
-    cmd/go: avoid infinite loop in go list -json -e on import cycle
+    database/sql/driver: update Value doc, can be driver supported type
     
-    Don't chase import cycles forever preparing list JSON.
+    The driver.Value type may be more then the documented 6 types if the
+    database driver supports it. Document that fact.
     
-    Fixes #24086.
+    Updates #23077
     
-    Change-Id: Ia1139d0c8d813d068c367a8baee59d240a545617
-    Reviewed-on: https://go-review.googlesource.com/108016
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: If7e2112fa61a8cc4e155bb31e94e89b20c607242
+    Reviewed-on: https://go-review.googlesource.com/84636
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go              | 3 +++
- src/cmd/go/internal/work/action.go | 6 ++++--
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/database/sql/driver/driver.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

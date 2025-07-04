@@ -1,22 +1,61 @@
-commit 710f4d3e7e0901f8fa2f04c31c0d28c603903ff2
-Author: Philip Hofer <phofer@umich.edu>
-Date:   Tue Mar 14 14:00:38 2017 -0700
+commit 37d078ede386b5d0dff0bb1f3ea77e47122730d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 10 16:52:57 2016 -0400
 
-    cmd/compile/internal/gc: mark generated wrappers as DUPOK
+    math/big: add Baillie-PSW test to (*Int).ProbablyPrime
     
-    Interface wrapper functions now get compiled eagerly in some cases.
-    Consequently, they may be present in multiple translation units.
-    Mark them as DUPOK, just like closures.
+    After x.ProbablyPrime(n) passes the n Miller-Rabin rounds,
+    add a Baillie-PSW test before declaring x probably prime.
     
-    Fixes #19548
-    Fixes #19550
+    Although the provable error bounds are unchanged, the empirical
+    error bounds drop dramatically: there are no known inputs
+    for which Baillie-PSW gives the wrong answer. For example,
+    before this CL, big.NewInt(443*1327).ProbablyPrime(1) == true.
+    Now it is (correctly) false.
     
-    Change-Id: Ibe74adb5a62dbf6447db37fde22dcbb3479969ef
-    Reviewed-on: https://go-review.googlesource.com/38156
-    Reviewed-by: David Chase <drchase@google.com>
+    The new Baillie-PSW test is two pieces: an added Miller-Rabin
+    round with base 2, and a so-called extra strong Lucas test.
+    (See the references listed in prime.go for more details.)
+    The Lucas test takes about 3.5x as long as the Miller-Rabin round,
+    which is close to theoretical expectations.
+    
+    name                              time/op
+    ProbablyPrime/Lucas             2.91ms ± 2%
+    ProbablyPrime/MillerRabinBase2   850µs ± 1%
+    ProbablyPrime/n=0               3.75ms ± 3%
+    
+    The speed of prime testing for a prime input does get slower:
+    
+    name                  old time/op  new time/op   delta
+    ProbablyPrime/n=1    849µs ± 1%   4521µs ± 1%  +432.31%   (p=0.000 n=10+9)
+    ProbablyPrime/n=5   4.31ms ± 3%   7.87ms ± 1%   +82.70%  (p=0.000 n=10+10)
+    ProbablyPrime/n=10  8.52ms ± 3%  12.28ms ± 1%   +44.11%  (p=0.000 n=10+10)
+    ProbablyPrime/n=20  16.9ms ± 2%   21.4ms ± 2%   +26.35%   (p=0.000 n=9+10)
+    
+    However, because the Baillie-PSW test is only added when the old
+    ProbablyPrime(n) would return true, testing composites runs at
+    the same speed as before, except in the case where the result
+    would have been incorrect and is now correct.
+    
+    In particular, the most important use of this code is for
+    generating random primes in crypto/rand. That use spends
+    essentially all its time testing composites, so it is not
+    slowed down by the new Baillie-PSW check:
+    
+    name                  old time/op  new time/op   delta
+    Prime                104ms ±22%    111ms ±16%      ~     (p=0.165 n=10+10)
+    
+    Thanks to Serhat Şevki Dinçer for CL 20170, which this CL builds on.
+    
+    Fixes #13229.
+    
+    Change-Id: Id26dde9b012c7637c85f2e96355d029b6382812a
+    Reviewed-on: https://go-review.googlesource.com/30770
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/subr.go |  1 +
- test/fixedbugs/issue19548.dir/a.go  | 26 ++++++++++++++++++++++++++
- test/fixedbugs/issue19548.dir/b.go  | 24 ++++++++++++++++++++++++
- test/fixedbugs/issue19548.go        |  9 +++++++++
- 4 files changed, 60 insertions(+)
+ src/crypto/rand/util_test.go |   9 ++
+ src/math/big/prime.go        | 304 ++++++++++++++++++++++++++++++++++++-------
+ src/math/big/prime_test.go   | 134 +++++++++++++++++--
+ 3 files changed, 390 insertions(+), 57 deletions(-)

@@ -1,66 +1,33 @@
-commit 8396015e80afa4ddd4ea3c3f00373d22c3b45d6c
+commit 3ed08db261fcb470b5880791a1a087e28c086b8c
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 8 11:59:29 2018 -0500
+Date:   Wed Sep 20 13:50:35 2017 -0400
 
-    cmd/link: set runtime.GOROOT default during link
+    [dev.boringcrypto] crypto/tls/fipsonly: new package to force FIPS-allowed TLS settings
     
-    Suppose you build the Go toolchain in directory A,
-    move the whole thing to directory B, and then use
-    it from B to build a new program hello.exe, and then
-    run hello.exe, and hello.exe crashes with a stack
-    trace into the standard library.
-    
-    Long ago, you'd have seen hello.exe print file names
-    in the A directory tree, even though the files had moved
-    to the B directory tree. About two years ago we changed
-    the compiler to write down these files with the name
-    "$GOROOT" (that literal string) instead of A, so that the
-    final link from B could replace "$GOROOT" with B,
-    so that hello.exe's crash would show the correct source
-    file paths in the stack trace. (golang.org/cl/18200)
-    
-    Now suppose that you do the same thing but hello.exe
-    doesn't crash: it prints fmt.Println(runtime.GOROOT()).
-    And you run hello.exe after clearing $GOROOT from the
-    environment.
-    
-    Long ago, you'd have seen hello.exe print A instead of B.
-    Before this CL, you'd still see hello.exe print A instead of B.
-    This case is the one instance where a moved toolchain
-    still divulges its origin. Not anymore. After this CL, hello.exe
-    will print B, because the linker sets runtime/internal/sys.DefaultGoroot
-    with the effective GOROOT from link time.
-    This makes the default result of runtime.GOROOT once again
-    match the file names recorded in the binary, after two years
-    of divergence.
-    
-    With that cleared up, we can reintroduce GOROOT into the
-    link action ID and also reenable TestExecutableGOROOT/RelocatedExe.
-    
-    When $GOROOT_FINAL is set during link, it is used
-    in preference to $GOROOT, as always, but it was easier
-    to explain the behavior above without introducing that
-    complication.
-    
-    Fixes #22155.
-    Fixes #20284.
-    Fixes #22475.
-    
-    Change-Id: Ifdaeb77fd4678fdb337cf59ee25b2cd873ec1016
-    Reviewed-on: https://go-review.googlesource.com/86835
+    Change-Id: I3268cab2de8aed9e2424e9c3bc7667083bc5e1ce
+    Reviewed-on: https://go-review.googlesource.com/65250
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/dist/buildruntime.go      |  4 ----
- src/cmd/dist/test.go              | 10 +++++++---
- src/cmd/go/go_test.go             | 21 +++++----------------
- src/cmd/go/internal/cfg/cfg.go    | 19 ++++++++++++++-----
- src/cmd/go/internal/work/exec.go  | 11 ++---------
- src/cmd/go/internal/work/gc.go    |  5 -----
- src/cmd/internal/objabi/util.go   |  2 ++
- src/cmd/link/dwarf_test.go        |  3 +++
- src/cmd/link/internal/ld/main.go  |  4 ++++
- src/cmd/link/internal/ld/pcln.go  | 14 +++++++++-----
- src/runtime/internal/sys/stubs.go |  2 ++
- 11 files changed, 48 insertions(+), 47 deletions(-)
+ src/crypto/internal/boring/boring.go       |   6 +-
+ src/crypto/internal/boring/fipstls/dummy.s |  10 +
+ src/crypto/internal/boring/fipstls/tls.go  |  49 +++
+ src/crypto/internal/boring/notboring.go    |   8 +-
+ src/crypto/internal/boring/sig/sig.go      |  17 +
+ src/crypto/internal/boring/sig/sig_amd64.s |  54 +++
+ src/crypto/internal/boring/sig/sig_other.s |  19 +
+ src/crypto/tls/boring.go                   | 121 ++++++
+ src/crypto/tls/boring_test.go              | 579 +++++++++++++++++++++++++++++
+ src/crypto/tls/common.go                   |  16 +-
+ src/crypto/tls/fipsonly/fipsonly.go        |  27 ++
+ src/crypto/tls/fipsonly/fipsonly_test.go   |  16 +
+ src/crypto/tls/handshake_client.go         |   8 +-
+ src/crypto/tls/handshake_messages_test.go  |   2 +-
+ src/crypto/tls/handshake_server.go         |   6 +-
+ src/crypto/tls/key_agreement.go            |   4 +-
+ src/crypto/tls/prf.go                      |   2 +-
+ src/crypto/x509/verify.go                  |  12 +
+ src/go/build/deps_test.go                  |   7 +-
+ src/runtime/runtime.go                     |  11 +-
+ 20 files changed, 960 insertions(+), 14 deletions(-)

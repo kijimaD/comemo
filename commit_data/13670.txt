@@ -1,13 +1,13 @@
-commit 6fd2febaeffd9f8d2188adfbb6f00f9241e201f4
+commit a738f2b2a24019ff205c79f4de9c8a14f478ef2c
 Author: Rob Pike <r@golang.org>
-Date:   Wed Aug 22 21:30:18 2012 -0700
+Date:   Wed Aug 22 20:48:54 2012 -0700
 
-    time: fix spacing in comment.
-    No semantic change.
+    C+A: add Carlos Castillo cookieo9@gmail.com (individual CLA)
     
-    R=golang-dev, bradfitz
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6475050
+    https://golang.org/cl/6479045
 
- src/pkg/time/time.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

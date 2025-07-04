@@ -1,17 +1,12 @@
-commit 1f388bc80628f38b033fb229b76997d8f5660c10
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Nov 16 16:51:33 2018 -0500
+commit 5332b5e75acdd17c6d0afe84c014be8528765fe2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 27 14:16:45 2018 -0700
 
-    cmd/vet: remove pkgfact analyzer, left in by mistake
+    doc: mention Faccessat flags support in go1.11
     
-    Also, document process for updating vendored x/tools.
-    
-    Change-Id: I826744603ae0752e508a6db7334a2bf9adaf1289
-    Reviewed-on: https://go-review.googlesource.com/c/149963
-    Run-TryBot: Alan Donovan <adonovan@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4d01be5330db06877065aabe7a3faf69bce0dfb2
+    Reviewed-on: https://go-review.googlesource.com/126515
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vendor/README | 4 ++++
- src/cmd/vet/main.go   | 2 --
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ doc/go1.11.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

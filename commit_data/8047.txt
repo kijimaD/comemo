@@ -1,12 +1,14 @@
-commit d36271a3e5ae67b3a25a9bfaab71f5a91269402d
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Mon Apr 11 13:05:08 2011 -0700
+commit 8c1a703560a90e4286eb37571c6bdd001b82276c
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Apr 11 12:39:53 2011 -0700
 
-    http: fix incorrect prints found by govet
+    syscall: fix StartProcess in Plan 9
     
-    R=golang-dev, bradfitzgo
+    This makes os_test.TestStartProcess test from os package pass.
+    
+    R=paulzhol, r2, r
     CC=golang-dev
-    https://golang.org/cl/4370053
+    https://golang.org/cl/4385052
 
- src/pkg/http/transport_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/syscall/exec_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

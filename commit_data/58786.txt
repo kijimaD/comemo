@@ -1,42 +1,46 @@
-commit 9ddeac30b5c41f223564e1dedef3095a5a909cb9
-Author: David Chase <drchase@google.com>
-Date:   Tue Feb 18 17:34:24 2025 -0500
+commit 2643a591728b0fd2bd1e007443442254d1200201
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 11 13:28:25 2023 -0800
 
-    cmd/compile, runtime: use deferreturn as target PC for recover from deferrangefunc
+    go/types, types2: better error message for cases of reverse type inference
     
-    The existing code for recover from deferrangefunc was broken in
-    several ways.
+    Introduce a new type "target" to pass around target types together
+    with a suitable description (typically a variable name) for a better
+    error message.
     
-    1. the code following a deferrangefunc call did not check the return
-    value for an out-of-band value indicating "return now" (i.e., recover
-    was called)
+    As a side effect, using a specific type (target), rather than just Type
+    avoids accidental confusion with other types.
     
-    2. the returned value was delivered using a bespoke ABI that happened
-    to match on register-ABI platforms, but not on older stack-based
-    ABI.
+    Use the target type description for a better error message in some
+    cases.
     
-    3. the returned value was the wrong width (1 word versus 2) and
-    type/value(integer 1, not a pointer to anything) for deferrangefunc's
-    any-typed return value (in practice, the OOB value check could catch
-    this, but still, it's sketchy).
+    The error message can be further improved by flipping the order of
+    the sentence (for another CL to keep this one small and simple).
     
-    This -- using the deferreturn lookup method already in place for
-    open-coded defers -- turned out to be a much-less-ugly way of
-    obtaining the desired transfer of control for recover().
+    Also, and unrelated to this fix, remove the first argument to errorf
+    in infer.go: the argument is always "type" (there's only one call).
     
-    TODO: we also could do this for regular defer, and delete some code.
+    For #60747.
     
-    Fixes #71675
-    
-    Change-Id: If7d7ea789ad4320821aab3b443759a7d71647ff0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650476
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I2118d0fe9e2b4aac959371941064e0e9ca7b3b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548995
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/func.go   | 11 ++--
- src/cmd/compile/internal/ssagen/ssa.go |  8 ++-
- src/runtime/panic.go                   |  9 +++-
- test/fixedbugs/issue71675.go           | 99 ++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue71675.out          | 13 +++++
- 5 files changed, 133 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go     | 15 ++++++-
+ src/cmd/compile/internal/types2/call.go            | 14 +++---
+ src/cmd/compile/internal/types2/decl.go            |  2 +-
+ src/cmd/compile/internal/types2/expr.go            | 51 +++++++++++++---------
+ src/cmd/compile/internal/types2/infer.go           | 10 ++---
+ src/go/types/assignments.go                        | 15 ++++++-
+ src/go/types/call.go                               | 14 +++---
+ src/go/types/decl.go                               |  2 +-
+ src/go/types/expr.go                               | 51 +++++++++++++---------
+ src/go/types/infer.go                              | 10 ++---
+ src/internal/types/testdata/examples/inference2.go | 16 ++++---
+ .../types/testdata/fixedbugs/issue60688.go         |  2 +-
+ .../types/testdata/fixedbugs/issue60747.go         | 13 ++++++
+ 13 files changed, 138 insertions(+), 77 deletions(-)

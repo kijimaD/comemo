@@ -1,27 +1,15 @@
-commit 62fb472b71e1600f073203a3b723a6a4c6e8ba3b
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Tue May 5 06:45:49 2015 +0000
+commit 439318dd50415e8d6883a9c90663757910a11e33
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:30:37 2015 -0400
 
-    text/template: check for malformed pipelines
+    crypto/x509: skip arm64 tests limited by iOS
     
-    Catch some malformed pipelines at parsing time.
-    The current code accepts pipelines such as:
+    Just like darwin/arm.
     
-    {{12|.}}
-    {{"hello"|print|false}}
-    {{.|"blah blah"}}
-    
-    Such pipelines generate panic in html/template at execution time.
-    
-    Add an extra check to verify all the commands of the pipeline are executable
-    (except for the first one).
-    
-    Fixes #10610
-    
-    Change-Id: Id72236ba8f76a59fa284fe3d4c2cb073e50b51f1
-    Reviewed-on: https://go-review.googlesource.com/9626
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ib0438021bfe9eb105222b93e5bb375c282cc7b8c
+    Reviewed-on: https://go-review.googlesource.com/8822
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/text/template/parse/parse.go      | 20 +++++++++++++++++---
- src/text/template/parse/parse_test.go | 14 ++++++++++++++
- 2 files changed, 31 insertions(+), 3 deletions(-)
+ src/crypto/x509/root_darwin_test.go | 5 +++--
+ src/crypto/x509/x509_test.go        | 5 +++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

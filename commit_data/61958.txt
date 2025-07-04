@@ -1,0 +1,20 @@
+commit fd5e0d26d9383ff80fd365bdfcb50d6c8a97e44c
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Dec 28 14:50:11 2024 -0500
+
+    go/doc: resolve imports before predeclared identifiers in examples
+    
+    Fixes #70611
+    Fixes #70630
+    
+    Change-Id: I868e68dbdf50ce34259eeef7b3d7985ede1f4c0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639175
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/go/doc/example.go                                 | 14 +++++++-------
+ src/go/doc/testdata/examples/shadow_predeclared.go    | 19 +++++++++++++++++++
+ .../doc/testdata/examples/shadow_predeclared.golden   | 16 ++++++++++++++++
+ 3 files changed, 42 insertions(+), 7 deletions(-)

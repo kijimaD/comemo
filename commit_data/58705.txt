@@ -1,18 +1,19 @@
-commit 58834c3ee08ea85b764c7cc3318ce7a68ea92cbd
-Author: Quan Tong <quantonganh@gmail.com>
-Date:   Fri Feb 7 18:42:26 2025 +0700
+commit 098f059d077d01d9151e2e76901f62a7f2d52fec
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 17:47:52 2023 -0500
 
-    cmd/go: initialize req.Header when loading git credential
+    runtime: require cgo for cgo gdb test
     
-    Fixes #71604
+    Fixes #64542.
     
-    Change-Id: I3d733a50b4451dfb571aba91a28387ba9e0614dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/647615
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ic0dc37dfefac83fd3aab6dacfec58b8ee9105fbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Commit-Queue: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/auth/auth.go          | 3 ++-
- src/cmd/go/testdata/script/goauth_git.txt | 2 ++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/runtime-gdb_unix_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,20 +1,17 @@
-commit fba96e915dd16974745b199d09cfa6a4839cd03e
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jan 8 00:23:02 2013 +0100
+commit 60544b698ed1310dd3c5dbf67f73f29938d64e0d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 7 19:36:38 2013 +1100
 
-    cmd/gc: fix uintptr(nil) issues.
+    go/doc: recursively inspect selector expressions
     
-    A constant node of type uintptr with a nil literal could
-    happen in two cases: []int(nil)[1:] and
-    uintptr(unsafe.Pointer(nil)).
+    Also adds a couple of simple tests for doc.Examples.
     
-    Fixes #4614.
+    Fixes #4561.
     
-    R=golang-dev, rsc
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7059043
+    https://golang.org/cl/7067048
 
- src/cmd/gc/const.c          | 10 ++++++++++
- src/cmd/gc/gen.c            |  6 +++++-
- test/fixedbugs/issue4614.go | 20 ++++++++++++++++++++
- 3 files changed, 35 insertions(+), 1 deletion(-)
+ src/pkg/go/doc/example.go      |  15 +++---
+ src/pkg/go/doc/example_test.go | 111 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 119 insertions(+), 7 deletions(-)

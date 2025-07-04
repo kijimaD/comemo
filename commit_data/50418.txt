@@ -1,16 +1,14 @@
-commit e5ed2212a3838b1e64dc7bb6538f6be32b939cf3
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 20:14:47 2022 +0800
+commit e35b5b25d976efb7c00b871cac452b84193e6179
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 25 16:48:07 2021 -0400
 
-    cmd/trace: use strings.Builder
+    cmd/compile: fix typo in comment in CL 358435
     
-    Change-Id: I690dc517c08be4cd66439baad8b91f16622ff0d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428292
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0d8128668fc7a80b29aabc58dbc9a2929b889ec9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358614
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/trace/annotations.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

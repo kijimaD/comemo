@@ -1,15 +1,49 @@
-commit 0e05bd59ac6bdc9586f8d378daa1c573c21090d9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 2 14:35:55 2015 -0800
+commit 0fe444d3e81d890ce496b6a260494473948b060a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 12:07:50 2014 -0500
 
-    doc: add a section for performance improvements in go1.5.txt
+    [dev.cc] runtime: generate GOOS- and GOARCH-specific files with go generate
     
-    Mostly I need to tickle the builders, since I'm working on the
-    dashboard builders right now.
+    Eventually I'd like almost everything cmd/dist generates
+    to be done with 'go generate' and checked in, to simplify
+    the bootstrap process. The only thing cmd/dist really needs
+    to do is write things like the current experiment info and
+    the current version.
     
-    Change-Id: I833fc22bc942758a58791ed038634cdd812f5411
-    Reviewed-on: https://go-review.googlesource.com/2261
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This is a first step toward that. It replaces the _NaCl etc
+    constants with generated ones goos_nacl, goos_darwin,
+    goarch_386, and so on.
+    
+    LGTM=dave, austin
+    R=austin, dave, bradfitz
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/174290043
 
- doc/go1.5.txt | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/dist/build.c             |  7 ++--
+ src/cmd/dist/buildruntime.c      | 60 -----------------------------
+ src/runtime/arch1_386.go         |  2 +-
+ src/runtime/arch1_amd64.go       |  2 +-
+ src/runtime/arch1_arm.go         |  2 +-
+ src/runtime/gengoos.go           | 82 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/malloc2.go           |  2 +-
+ src/runtime/runtime2.go          | 16 ++++----
+ src/runtime/stack1.go            |  2 +-
+ src/runtime/stack2.go            |  2 +-
+ src/runtime/zgoarch_386.go       | 12 ++++++
+ src/runtime/zgoarch_amd64.go     | 12 ++++++
+ src/runtime/zgoarch_amd64p32.go  | 12 ++++++
+ src/runtime/zgoarch_arm.go       | 12 ++++++
+ src/runtime/zgoarch_power64.go   | 12 ++++++
+ src/runtime/zgoarch_power64le.go | 12 ++++++
+ src/runtime/zgoos_android.go     | 19 ++++++++++
+ src/runtime/zgoos_darwin.go      | 19 ++++++++++
+ src/runtime/zgoos_dragonfly.go   | 19 ++++++++++
+ src/runtime/zgoos_freebsd.go     | 19 ++++++++++
+ src/runtime/zgoos_linux.go       | 19 ++++++++++
+ src/runtime/zgoos_nacl.go        | 19 ++++++++++
+ src/runtime/zgoos_netbsd.go      | 19 ++++++++++
+ src/runtime/zgoos_openbsd.go     | 19 ++++++++++
+ src/runtime/zgoos_plan9.go       | 19 ++++++++++
+ src/runtime/zgoos_solaris.go     | 19 ++++++++++
+ src/runtime/zgoos_windows.go     | 19 ++++++++++
+ 27 files changed, 379 insertions(+), 79 deletions(-)

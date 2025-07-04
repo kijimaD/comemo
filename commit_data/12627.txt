@@ -1,12 +1,14 @@
-commit b3ca3e95642f23c682a04d51ed60cc90825b08a5
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 14 17:09:15 2012 +1100
+commit 214a1ca3c5d7f8d633587cf6faff2868f341b31b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 14 15:08:54 2012 +1100
 
-    misc/dist: force modes to 0755 or 0644 in tarballs
+    html/template: fix nil pointer bug
+    Fixes #3272.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5823045
+    https://golang.org/cl/5819046
 
- misc/dist/bindist.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/pkg/html/template/escape_test.go |  9 +++++++++
+ src/pkg/html/template/template.go    | 12 +++++++++---
+ 2 files changed, 18 insertions(+), 3 deletions(-)

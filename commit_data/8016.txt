@@ -1,12 +1,14 @@
-commit 2683c76d9588f018458e8e0c38dc4ed85ffc970d
+commit d3cd0c0752d6f22522178bb9de4e8caf4465b323
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Apr 8 10:35:35 2011 +1000
+Date:   Fri Apr 8 10:27:47 2011 +1000
 
-    misc/cgo/life: enable build and test on Windows
+    syscall: fix Windows Signalled
     
-    R=golang-dev, rsc1
-    CC=golang-dev, vcc
-    https://golang.org/cl/4374044
+    Thanks to fhs.
+    
+    R=golang-dev, r2
+    CC=ality, fhs, golang-dev
+    https://golang.org/cl/4375044
 
- src/run.bash | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/syscall/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,18 @@
-commit 9e4a70e8fd3e6fed93fcd6159228b3a8ecae1d80
-Author: Quentin Smith <quentin@golang.org>
-Date:   Tue Oct 25 15:41:14 2016 -0400
+commit eed061f89cad583c3dfa6b4e13c9a79f897920bf
+Author: David Chase <drchase@google.com>
+Date:   Tue Sep 13 16:51:42 2016 -0400
 
-    mime/multipart: test for overreading on a stream
+    cmd/compile: enable SSA for PowerPC 64 Big-endian
     
-    Some multipart data arrives in a stream, where subsequent parts may not
-    be ready yet. Read should return a complete part as soon as
-    possible.
+    It passed tests once, if anything's wrong, better to fail
+    sooner than later.
     
-    Fixes #15431
-    
-    Change-Id: Ie8c041b853f3e07f0f2a66fbf4bcab5fe9132a7c
-    Reviewed-on: https://go-review.googlesource.com/32032
-    Run-TryBot: Quentin Smith <quentin@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibb1c5db3f4c5535a4ff4681fd157db77082c5041
+    Reviewed-on: https://go-review.googlesource.com/28982
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/mime/multipart/multipart_test.go | 67 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 67 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go     | 2 +-
+ src/cmd/compile/internal/ssa/config.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

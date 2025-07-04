@@ -1,13 +1,20 @@
-commit e3727df55001478b97afd3d5ec9eea6f78cfbda1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 9 15:00:23 2014 +0200
+commit ac9218f5f06dabec3ef7682619dd98fe587d6c08
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 30 08:51:02 2014 -0700
 
-    C: add Hana Kim (Google CLA)
+    runtime: fix scanning of gc work buffer
     
-    LGTM=crawshaw
-    R=golang-codereviews, crawshaw
-    CC=golang-codereviews, iant
-    https://golang.org/cl/150690043
+    GC types were not being generated for the garbage collector
+    work buffer.  The markfor object was being collected as a result.
+    This broke amd64p32 and maybe plan9 builds.  Why it didn't break
+    every build I'm not sure...
+    
+    Fixes #8812
+    
+    LGTM=0intro, rsc
+    R=golang-codereviews, dave, khr, 0intro, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/149260043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/mgc0.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

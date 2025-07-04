@@ -1,20 +1,17 @@
-commit 770146d5a857e8606222276040c6712b48e27e0e
+commit d35035f84e5dbe4c740d3f338ba89b41a00e270e
 Author: Robert Findley <rfindley@google.com>
-Date:   Mon Jun 6 11:48:29 2022 -0400
+Date:   Mon Aug 16 14:00:14 2021 -0400
 
-    doc/go1.19: add TODOs for changes to go/types
+    go/types: use the orig object for Named.Obj
     
-    Add TODO items for significant changes to go/types: the inclusion of
-    Origin methods for Var and Func, and a re-working of Named types to
-    ensure finiteness of reachable types via their API.
+    This is a port of CL 341858 to go/types.
     
-    Updates #51400
-    
-    Change-Id: I0f2a972023a5d5f995de3c33e9e2b0a4213e900a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410614
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I9fba8941069aaacd641a19e3068de3a769e14e50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342482
+    Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.19.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/go/types/named.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

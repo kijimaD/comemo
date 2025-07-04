@@ -1,20 +1,12 @@
-commit 9d6e02742cd9942e342914f0b3dbbb4496d40ecd
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Mon Mar 4 14:54:36 2013 +1100
+commit bfbac2dc1c20aac00f22442aedf183962e8b2da2
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 3 09:12:36 2013 -0800
 
-    image/png: always set up palette during DecodeConfig
+    doc/go1.1.html: fix typo in URL
     
-    The old code would decode the palette only for 8-bit
-    images during a DecodeConfig.
-    This CL keeps the behavior for 8-bit images and sets
-    up the decoded palette also for 1, 2 and 4-bit images.
-    
-    Fixes #4279.
-    
-    R=golang-dev, nigeltao
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7421048
+    https://golang.org/cl/7423050
 
- src/pkg/image/png/reader.go      |  5 +++--
- src/pkg/image/png/reader_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 2 deletions(-)
+ doc/go1.1.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

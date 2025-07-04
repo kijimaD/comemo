@@ -1,44 +1,28 @@
-commit a9036396080aa414c032550fc258919636295f0f
-Author: David Chase <drchase@google.com>
-Date:   Tue Oct 3 12:14:53 2023 -0400
+commit 90b40c0496440fbd57538eb4ba303164ed923d93
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Oct 23 08:41:38 2022 +0800
 
-    cmd/compile: adjust GOSSAFUNC html dumping to be more ABI-aware
+    net: add ControlContext to Dialer
     
-    Uses ,ABI instead of <ABI> because of problems with shell escaping
-    and windows file names, however if someone goes to all the trouble
-    of escaping the linker syntax and uses that instead, that works too.
+    Fixes #55301
     
-    Examples:
-    ```
-    GOSSAFUNC=runtime.exitsyscall go build main.go
-    \# runtime
-    dumped SSA for exitsyscall,0 to ../../src/loopvar/ssa.html
-    dumped SSA for exitsyscall,1 to ../../src/loopvar/ssa.html
-    
-    GOSSADIR=`pwd` GOSSAFUNC=runtime.exitsyscall go build main.go
-    \# runtime
-    dumped SSA for exitsyscall,0 to ../../src/loopvar/runtime.exitsyscall,0.html
-    dumped SSA for exitsyscall,1 to ../../src/loopvar/runtime.exitsyscall,1.html
-    
-    GOSSAFUNC=runtime.exitsyscall,0 go build main.go
-    \# runtime
-    dumped SSA for exitsyscall,0 to ../../src/loopvar/ssa.html
-    
-    GOSSAFUNC=runtime.exitsyscall\<1\> go build main.go
-    \# runtime
-    dumped SSA for exitsyscall,1 to ../../src/loopvar/ssa.html
-    ```
-    
-    Change-Id: Ia1138b61c797d0de49dbfae702dc306b9650a7f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532475
+    Change-Id: Ie8abcd383eee9af75038bde908ac638f43d33b7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444955
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
 
- src/cmd/compile/internal/abi/abiutils.go       | 11 ++++++--
- src/cmd/compile/internal/ssa/config.go         |  4 +--
- src/cmd/compile/internal/ssa/func.go           | 16 ++++++++++++
- src/cmd/compile/internal/ssa/html.go           |  4 +--
- src/cmd/compile/internal/ssagen/ssa.go         | 35 +++++++++++++++++++-------
- src/cmd/compile/internal/test/abiutils_test.go |  2 +-
- 6 files changed, 56 insertions(+), 16 deletions(-)
+ api/next/55301.txt         |  1 +
+ src/net/dial.go            | 12 ++++++++++++
+ src/net/dial_test.go       | 31 +++++++++++++++++++++++++++++++
+ src/net/iprawsock_posix.go | 16 ++++++++++++++--
+ src/net/ipsock_posix.go    |  4 ++--
+ src/net/net_fake.go        |  2 +-
+ src/net/sock_posix.go      | 35 ++++++++++++++++++++---------------
+ src/net/tcpsock_posix.go   | 18 +++++++++++++++---
+ src/net/udpsock_posix.go   | 24 +++++++++++++++++++++---
+ src/net/unixsock_posix.go  | 28 +++++++++++++++++++++++-----
+ 10 files changed, 140 insertions(+), 31 deletions(-)

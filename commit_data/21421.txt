@@ -1,17 +1,12 @@
-commit 20a96a1f68cfe608b8066f3ee1b0db28d1d3e4e0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 30 14:20:04 2015 -0800
+commit 9a5789d499ffe180749d02d36ab015400067a256
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Jan 4 17:58:13 2015 -0500
 
-    math/big: split rat conversion routines and tests into separate files
+    fmt: fix two typos
     
-    No other functional changes.
-    
-    Change-Id: I8be1fc488caa4f3d4c00afcb8c00475bfcd10709
-    Reviewed-on: https://go-review.googlesource.com/3673
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I7b65cf3b67bef8950115066d6d12b25cd0a5edfc
+    Reviewed-on: https://go-review.googlesource.com/2272
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/rat.go          | 226 ----------------------
- src/math/big/rat_test.go     | 440 -----------------------------------------
- src/math/big/ratconv.go      | 238 +++++++++++++++++++++++
- src/math/big/ratconv_test.go | 451 +++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 689 insertions(+), 666 deletions(-)
+ src/fmt/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

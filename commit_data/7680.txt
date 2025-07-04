@@ -1,57 +1,12 @@
-commit 021b040a1e9a6551dcaed2acfec0232f740ee416
+commit 4b4a1ea899e6a269ee01c811b9f6998a1541ceab
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 7 11:01:23 2011 -0800
+Date:   Mon Mar 7 11:00:57 2011 -0800
 
-    go/ast, go/parser: populate identifier scopes at parse time
+    misc/dashboard/builder/doc.go: gofmt it
     
-    The parser populates all scopes for a given file (except
-    type-related scopes for structs, interfaces, and methods
-    of types) at parse time.
-    
-    A new parser flag, DeclarationErrors, enables error messages
-    related to declaration errors (as far as it is possible to
-    provide them).
-    
-    The resulting AST has all (non-field, non-method) identifiers
-    resolved that can be resolved w/o doing imports or parsing
-    missing package files.
-    
-    The ast.File node contains the (partially complete)
-    package scope and a list of unresolved global identifiers.
-    
-    All type-specific data structures have been removed from the AST.
-    
-    The existing typechecker is functional but needs to be adjusted
-    (simplified) accordingly. Utility functions to resolve all
-    identifiers for a package (after handling imports and parsing
-    all package files) are  missing.
-    
-    Unrelated changes:
-    - Rename typechecker/testdata files to that they are not considered
-      by gofmt.
-    - Minor cleanups/simplifications.
-    
-    Parses all .go files in src and misc without declaration errors.
-    Runs all tests. Changes do not affect gofmt output.
-    
-    R=rsc
+    R=r, adg
     CC=golang-dev
-    https://golang.org/cl/4244049
+    https://golang.org/cl/4256052
 
- src/pkg/exp/eval/stmt_test.go                      |   2 +-
- src/pkg/go/ast/ast.go                              |  14 +-
- src/pkg/go/ast/filter.go                           |   3 +-
- src/pkg/go/ast/scope.go                            | 261 ++++++----------
- src/pkg/go/parser/parser.go                        | 334 +++++++++++++++++----
- src/pkg/go/parser/parser_test.go                   |   2 +-
- src/pkg/go/typechecker/Makefile                    |   1 +
- src/pkg/go/typechecker/scope.go                    |  72 +----
- .../typechecker/testdata/{test0.go => test0.src}   |   0
- .../typechecker/testdata/{test1.go => test1.src}   |   0
- .../typechecker/testdata/{test3.go => test3.src}   |   7 +-
- .../typechecker/testdata/{test4.go => test4.src}   |   0
- src/pkg/go/typechecker/type.go                     | 125 ++++++++
- src/pkg/go/typechecker/typechecker.go              |  78 ++---
- src/pkg/go/typechecker/typechecker_test.go         |   2 +-
- src/pkg/go/typechecker/universe.go                 |   4 +-
- 16 files changed, 560 insertions(+), 345 deletions(-)
+ misc/dashboard/builder/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

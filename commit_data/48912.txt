@@ -1,22 +1,36 @@
-commit 226346bb763233ed9341bc1d829752628479845f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 21 22:18:31 2022 +0000
+commit 1b60284c0a375de2349540771a3bc1a719ddf52e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 25 01:54:50 2021 -0700
 
-    runtime: yield instead of sleeping in runqgrab on OpenBSD
+    [dev.typeparams] cmd/compile: simplify variable capturing in unified IR
     
-    OpenBSD has a coarse sleep granularity that rounds up to 10 ms
-    increments. This can cause significant STW delays, among other issues.
-    As far as I can tell, there's only 1 tightly timed sleep without an
-    explicit wakeup for which this actually matters.
+    While initially building out unified IR, I didn't have any indexing
+    scheme. Everything was written out in order. Consequently, if I wanted
+    to write A before B, I had to compute A before B.
     
-    Fixes #52475.
+    One particular example of this is handling closure variables: the
+    reader needs the list of closure variables before it can start reading
+    the function body, so I had to write them out first, and so I had to
+    compute them first in a separate, dedicated pass.
     
-    Change-Id: Ic69fc11096ddbbafd79b2dcdf3f912fde242db24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401638
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    However, that constraint went away a while ago. For example, it's now
+    possible to replace the two-pass closure variable capture with a
+    single pass. We just write out the function body earlier, but then
+    wait to write out its index.
+    
+    I anticipate this approach will make it easier to implement
+    dictionaries: rather than needing a separate pass to correctly
+    recognize and handle all of the generics cases, we can just hook into
+    the existing logic.
+    
+    Change-Id: Iab1e07f9202cd5d2b6864eef10116960456214df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330851
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/proc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/noder/linker.go |   2 -
+ src/cmd/compile/internal/noder/reader.go |  54 ++++----
+ src/cmd/compile/internal/noder/writer.go | 223 ++++++++-----------------------
+ 3 files changed, 80 insertions(+), 199 deletions(-)

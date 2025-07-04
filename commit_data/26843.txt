@@ -1,13 +1,16 @@
-commit 7166dfe0c11bd25b962d7f691ea1be857842dfbf
+commit 1b417e20ffe052d51835ec84dcc5df08717cb8a3
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 11 11:54:07 2016 -0700
+Date:   Sun Feb 28 14:39:38 2016 -0800
 
-    image/color: add YCbCrToRGB benchmark
+    cmd/compile: superficial cleanup in maplit
     
-    Change-Id: I9ba76d5b0861a901415fdceccaf2f5caa2facb7f
-    Reviewed-on: https://go-review.googlesource.com/21837
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Mostly renaming variables for clarity.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I9867137c34c14985cbbbdb2d34fbbe4cc65cb6fb
+    Reviewed-on: https://go-review.googlesource.com/20023
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/image/color/ycbcr_test.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/cmd/compile/internal/gc/sinit.go | 42 ++++++++++++++++--------------------
+ 1 file changed, 18 insertions(+), 24 deletions(-)

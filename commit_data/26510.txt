@@ -1,14 +1,29 @@
-commit 4e31221bd1ea3e35db4a236f656619dbba13ff6d
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Fri Mar 25 10:16:40 2016 +0100
+commit 9f58bf5f6b9ffd0c6e15d717fb741fd235339512
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 29 12:18:32 2016 -0500
 
-    cmd/go: remove double space in template
+    cmd/go: avoid a few symlink-induced errors in internal and vendor checks
     
-    Change-Id: I6113145baa727b9fd103765f74dc5d7af86dfdf8
-    Reviewed-on: https://go-review.googlesource.com/21131
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    This CL expands symlinks only when an error would be reported otherwise.
+    Since the expansions are only on error paths, anything that worked yesterday
+    should still work after this CL.
+    
+    This CL fixes a regression from Go 1.5 in "go run", or else we'd probably
+    postpone it.
+    
+    Changing only the error paths is meant as a way to reduce the risk of
+    making this change so late in the release cycle, but it may actually be
+    the right strategy for symlinks in general.
+    
+    Fixes #14054.
+    
+    Change-Id: I42ed1276f67a0c395297a62bcec7d36c14c06404
+    Reviewed-on: https://go-review.googlesource.com/19102
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go | 2 +-
- src/cmd/go/main.go    | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/main.go    |  9 +++++++++
+ src/cmd/go/pkg.go     | 21 ++++++++++++++++++++
+ 3 files changed, 83 insertions(+), 1 deletion(-)

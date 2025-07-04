@@ -1,22 +1,20 @@
-commit d7c242a19ae0fd9adae1c6d6222df2f1d93646da
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Jul 2 00:31:53 2024 +1000
+commit fe1b2f95e6dbfb6e6212bb391706ae62eb0ae5ec
+Author: David Chase <drchase@google.com>
+Date:   Wed Nov 29 16:09:26 2023 -0500
 
-    cmd/internal/obj/riscv: support MOVD with floating point constants
+    doc: describe for loop changes (lifetime, range int; range func experiment)
     
-    Currently, we only support loading of values from memory (or other
-    registers). Add floating point constant support to MOVD. This is
-    implemented by storing the floating point constant to a symbol,
-    which is then loaded into the floating point register.
+    See also https://go.dev/wiki/RangefuncExperiment, written as a companion
+    to this change.
     
-    Change-Id: I6db242d27f606f0d5d084a3ab93538698d3a4f8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631876
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    For #61422.
+    
+    Change-Id: I129bf38dd2fa4aef47454138b4ca5ed18653aecf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546095
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s |  3 +++
- src/cmd/internal/obj/riscv/obj.go           | 22 +++++++++++++++++++---
- 2 files changed, 22 insertions(+), 3 deletions(-)
+ doc/go1.22.html | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

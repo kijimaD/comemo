@@ -1,13 +1,12 @@
-commit fa6d3ab6bec591fcd8ac7e979677e147c83a754f
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Mar 13 12:52:15 2012 +1100
+commit 7c128493a41168f35201a26a6f32ee36fe9cc852
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 13 12:51:28 2012 +1100
 
-    build: update comment about GO_LDFLAGS.
-    (5l/6l/8l aren't involved in building packages)
+    test: actually run them on windows
     
-    R=golang-dev, robert.hencke
+    R=golang-dev, r, rsc, bradfitz, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5798071
+    https://golang.org/cl/5756065
 
- src/make.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/run.bat | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

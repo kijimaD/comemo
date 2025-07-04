@@ -1,32 +1,13 @@
-commit 66cdd020382760e502fe456f753156f6fa6a2867
+commit b3d8e6d7f456eac13f29b21a9930e2b2ce0c4cae
 Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Mon Sep 26 00:42:38 2011 -0700
+Date:   Mon Sep 26 00:10:21 2011 -0700
 
-    exp/template/html: error out on ambiguous unquoted attributes
-    
-    HTML parsers may differ on whether
-    <input id= onchange=f(             ends in id's or onchange's value,
-    <a class=`foo                      ends inside a value,
-    <input style=font:'Arial'          needs open-quote fixup.
-    
-    Per
-    http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state
-    this treats the error cases in 8.2.4.40 Attribute value (unquoted) state
-    as fatal errors.
-    
-    \> U+0022 QUOTATION MARK (")
-    \> U+0027 APOSTROPHE (')
-    \> U+003C LESS-THAN SIGN (<)
-    \> U+003D EQUALS SIGN (=)
-    \> U+0060 GRAVE ACCENT (`)
-            Parse error. Treat it as per the "anything else" entry below.
-    
-    and emits ErrBadHTML.
+    exp/template/html: remove TODO comments that have been done or mooted
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5085050
+    https://golang.org/cl/5128041
 
- src/pkg/exp/template/html/escape.go      | 18 ++++++++++++++++++
- src/pkg/exp/template/html/escape_test.go | 20 ++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+ src/pkg/exp/template/html/transition.go | 3 ---
+ src/pkg/exp/template/html/url.go        | 4 ----
+ 2 files changed, 7 deletions(-)

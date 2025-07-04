@@ -1,18 +1,126 @@
-commit ea8298e2f5e9f17372e818ffbd4fab951857ec6a
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Mon Aug 16 14:49:45 2021 +0000
+commit 6e30fc10fc7453f48e4c0e5d726172d0191158bf
+Merge: 59b8916d48 d0c0dc682c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 12:33:12 2020 -0500
 
-    cmd/compile/internal/ssa: delete unused code
+    [dev.regabi] all: merge master (d0c0dc682c1f) into dev.regabi
     
-    Fixes #46186
-    
-    Change-Id: Idb0674079f9484593e07cca172dfbb19be0e594d
-    GitHub-Last-Rev: 615fc5365510ff7a39af7569f05a0013b724d0c9
-    GitHub-Pull-Request: golang/go#46185
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320111
-    Reviewed-by: Ben Shi <powerman1st@163.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: David Chase <drchase@google.com>
+    Change-Id: Ia54d7306ca7550b8d5623f505070558d275faa23
 
- src/cmd/compile/internal/ssa/regalloc.go | 17 -----------------
- 1 file changed, 17 deletions(-)
+ doc/go1.16.html                                    |  99 +++++--
+ doc/go1.html                                       |   4 +-
+ src/bufio/bufio_test.go                            |   2 +-
+ src/cmd/asm/internal/asm/testdata/riscvenc.s       |   8 +-
+ src/cmd/buildid/buildid.go                         |   2 +-
+ src/cmd/compile/fmt_test.go                        |   3 +-
+ src/cmd/compile/internal/ssa/func.go               |   4 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules         | 128 ++++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go         | 306 ++++++++++-----------
+ src/cmd/dist/buildtool.go                          |   1 +
+ src/cmd/dist/test.go                               |   1 +
+ src/cmd/fix/main.go                                |   6 +-
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/go_test.go                              |  10 +-
+ src/cmd/go/internal/base/signal.go                 |   2 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |   3 +
+ src/cmd/go/internal/modfetch/fetch.go              |   9 +-
+ src/cmd/go/internal/modget/get.go                  |  29 +-
+ src/cmd/go/internal/modload/init.go                |   2 +-
+ src/cmd/go/internal/vcs/vcs.go                     | 101 +++----
+ src/cmd/go/internal/version/version.go             |  12 +-
+ src/cmd/go/internal/web/http.go                    |   7 +
+ src/cmd/go/internal/work/buildid.go                |   2 +-
+ src/cmd/go/script_test.go                          |   3 +
+ src/cmd/go/testdata/addmod.go                      |   4 +-
+ src/cmd/go/testdata/savedir.go                     |   4 +-
+ .../testdata/script/mod_get_deprecate_install.txt  |  22 --
+ src/cmd/go/testdata/script/mod_gonoproxy.txt       |   2 +-
+ .../go/testdata/script/mod_import_issue42891.txt   |  14 +
+ src/cmd/go/testdata/script/mod_proxy_invalid.txt   |   4 +-
+ src/cmd/go/testdata/script/mod_query_empty.txt     |   2 +-
+ src/cmd/go/testdata/script/mod_sumdb_proxy.txt     |   6 +-
+ src/cmd/gofmt/gofmt.go                             |   6 +-
+ src/cmd/gofmt/long_test.go                         |  17 +-
+ src/cmd/internal/buildid/buildid_test.go           |  31 +++
+ src/cmd/internal/buildid/rewrite.go                |  71 +++++
+ src/cmd/internal/codesign/codesign.go              | 268 ++++++++++++++++++
+ src/cmd/internal/moddeps/moddeps_test.go           |   2 +-
+ src/cmd/internal/obj/riscv/obj.go                  |   8 +-
+ .../obj/riscv/testdata/testbranch/branch_test.go   |  83 ++++--
+ .../obj/riscv/testdata/testbranch/branch_test.s    |  44 +++
+ src/cmd/link/internal/amd64/asm.go                 |   6 +-
+ src/cmd/link/internal/ld/config.go                 |   9 +-
+ src/cmd/link/internal/ld/lib.go                    |  11 +
+ src/cmd/link/internal/ld/macho.go                  | 146 +++++++++-
+ src/cmd/link/internal/ld/outbuf.go                 |  10 +
+ src/cmd/link/internal/ld/outbuf_darwin.go          |   9 +
+ src/cmd/link/internal/ld/outbuf_notdarwin.go       |   9 +
+ src/cmd/vendor/golang.org/x/mod/semver/semver.go   |   3 +
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/compress/gzip/issue14937_test.go               |   2 +-
+ .../ed25519/internal/edwards25519/edwards25519.go  |   2 +-
+ src/encoding/json/scanner.go                       |   2 +-
+ src/go/build/deps_test.go                          |   6 +-
+ src/go/doc/headscan.go                             |   4 +-
+ src/go/parser/interface.go                         |   2 +-
+ src/go/parser/parser_test.go                       |   8 +
+ .../testdata/issue42951/not_a_file.go/invalid.go   |   1 +
+ src/html/template/escape_test.go                   |   2 +-
+ src/index/suffixarray/suffixarray_test.go          |   2 +-
+ src/io/ioutil/ioutil.go                            |  70 ++---
+ src/log/log.go                                     |   2 +-
+ src/net/http/response.go                           |  16 +-
+ src/net/http/serve_test.go                         |  53 ++++
+ src/net/http/server.go                             |   8 +-
+ src/net/http/transport.go                          |  13 +-
+ src/net/http/transport_test.go                     |  51 ++++
+ src/net/udpsock.go                                 |   3 +
+ src/os/dir.go                                      |  22 +-
+ src/os/example_test.go                             |  96 +++++++
+ src/os/exec/exec_test.go                           |  12 +
+ src/os/export_test.go                              |   1 +
+ src/os/file.go                                     |  70 ++++-
+ src/os/os_test.go                                  |  26 +-
+ src/os/read_test.go                                | 127 +++++++++
+ src/os/removeall_test.go                           |   7 +-
+ src/os/tempfile.go                                 | 118 ++++++++
+ src/os/tempfile_test.go                            | 193 +++++++++++++
+ src/os/testdata/hello                              |   1 +
+ src/reflect/all_test.go                            |   3 +
+ src/reflect/value.go                               |  12 +-
+ src/runtime/crash_unix_test.go                     |   2 +-
+ src/runtime/os_darwin.go                           |   6 +
+ src/runtime/pprof/pprof_test.go                    |   4 +
+ src/runtime/signal_windows.go                      |  13 +-
+ src/runtime/stubs.go                               |   3 +
+ src/runtime/sys_darwin.go                          |   8 +
+ src/runtime/sys_darwin_amd64.s                     |   3 +
+ src/runtime/sys_darwin_arm64.s                     |   6 +
+ src/runtime/syscall_windows_test.go                |   3 +-
+ test/blank1.go                                     |   2 +-
+ test/chan/perm.go                                  |   6 +-
+ test/complit1.go                                   |  10 +-
+ test/convlit.go                                    |   6 +-
+ test/ddd1.go                                       |   2 +-
+ test/fixedbugs/bug176.go                           |   2 +-
+ test/fixedbugs/bug332.go                           |   2 +-
+ test/fixedbugs/bug340.go                           |   2 +-
+ test/fixedbugs/issue4232.go                        |   8 +-
+ test/fixedbugs/issue42876.go                       |  18 ++
+ test/fixedbugs/issue4458.go                        |   2 +-
+ test/fixedbugs/issue5172.go                        |   2 +-
+ test/init.go                                       |   2 +-
+ test/initializerr.go                               |   2 +-
+ test/interface/explicit.go                         |   2 +-
+ test/label.go                                      |   2 +-
+ test/label1.go                                     |  12 +-
+ test/map1.go                                       |   8 +-
+ test/method2.go                                    |   6 +-
+ test/run.go                                        |  17 +-
+ test/shift1.go                                     |   4 +-
+ test/syntax/chan1.go                               |   4 +-
+ test/syntax/semi4.go                               |   4 +-
+ test/syntax/semi6.go                               |   4 +-
+ test/winbatch.go                                   |   6 +-
+ 116 files changed, 2070 insertions(+), 591 deletions(-)

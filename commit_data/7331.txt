@@ -1,19 +1,14 @@
-commit bc874ec0dd0c803b5dd0ea96f9394bad39a20a74
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 2 15:35:54 2011 -0500
+commit bd4e49f524bc0e5b033850cbaa923527f7b80af7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 2 11:02:56 2011 -0800
 
-    runtime: correct runtime.GOOS, runtime.GOARCH
+    Effective Go: fix typo
     
-    If the same directory was used for multiple builds,
-    it was possible for a stale version.go to contain the
-    wrong definitions for $GOOS and $GOARCH, because
-    they can change even if the hg version does not.
-    Split into multiple files to fix.
+    Fixes #1467.
     
     R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4124050
+    https://golang.org/cl/3981054
 
- src/pkg/runtime/Makefile    | 10 ++++++++++
- src/pkg/runtime/mkversion.c |  6 ++----
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

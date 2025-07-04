@@ -1,13 +1,13 @@
-commit fe59d86dd6ce5e53f9b67bd71f1c2cb3cc7b4b4a
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Aug 12 13:29:56 2011 +1000
+commit 3cca9e0b0040c87564768a5caf0466f7fb6cb9af
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 12 11:50:46 2011 +1000
 
-    exp/template: fix implementation of printValue.
+    utf8: rename some internal constants to remove leading underscores.
+    How quaint.
     
-    R=r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4878042
+    https://golang.org/cl/4874045
 
- src/pkg/exp/template/exec.go      | 22 +++++++++++++---------
- src/pkg/exp/template/exec_test.go |  5 +++++
- 2 files changed, 18 insertions(+), 9 deletions(-)
+ src/pkg/utf8/utf8.go | 120 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 60 insertions(+), 60 deletions(-)

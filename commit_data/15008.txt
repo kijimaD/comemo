@@ -1,17 +1,15 @@
-commit 0e1305abc2e1e7dad8af5a319779b393114931de
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 28 16:45:45 2013 -0800
+commit 55cac5395215c04a6a3c7daf1ede241335da0822
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Jan 28 19:21:25 2013 -0500
 
-    cmd/api: normalize byte to uint8 and rune to int32
+    exp/ssa: fix breakage due to https://code.google.com/p/go/source/detail?r=ca5e5de48173
     
-    R=golang-dev, adg, mikioh.mikioh
+    I don't understand why this didn't show up during my testing.
+    
+    R=bradfitz
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/7195049
+    https://golang.org/cl/7237047
 
- api/go1.txt                                | 2312 ++++++++++++++--------------
- api/next.txt                               |  128 +-
- src/cmd/api/goapi.go                       |   12 +
- src/cmd/api/testdata/src/pkg/p1/golden.txt |    7 +-
- src/cmd/api/testdata/src/pkg/p1/p1.go      |    8 +
- src/cmd/api/testdata/src/pkg/p3/golden.txt |    2 +-
- 6 files changed, 1247 insertions(+), 1222 deletions(-)
+ src/pkg/exp/ssa/func.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

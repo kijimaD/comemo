@@ -1,15 +1,13 @@
-commit 5fc2af1f777f0544c2813e67ba92a26b0c8be4f2
+commit 11820899a58094be1afa22987ce080cb2fb66b86
 Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 24 13:17:05 2012 +1000
+Date:   Tue Apr 24 13:11:59 2012 +1000
 
-    path: document that Clean deletes trailing slashes.
-    
-    Fixes #3492.
+    text/template: improve the error reporting for unexported fields.
+    Changes suggested by rsc after last CL.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6112044
+    https://golang.org/cl/6117044
 
- src/pkg/path/filepath/path.go | 3 +++
- src/pkg/path/path.go          | 2 ++
- 2 files changed, 5 insertions(+)
+ src/pkg/text/template/exec.go | 25 ++++++++-----------------
+ 1 file changed, 8 insertions(+), 17 deletions(-)

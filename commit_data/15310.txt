@@ -1,16 +1,17 @@
-commit 6df181a7f01bc40a2ad9e98510b43b653eb7fb3b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 19 13:24:03 2013 -0500
+commit 7fdaec6c2fbed0d4a5a52644e9198b5bbb4f8c6f
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Wed Feb 20 00:58:31 2013 +0800
 
-    path/filepath: document Dir better
+    debug/dwarf: add flag_present attribute encoding.
     
-    This comment matches the one in path.
+    ref: http://www.dwarfstd.org/doc/DWARF4.pdf
     
-    Fixes #4837.
+    Update #4829
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/7305100
+    R=minux.ma, iant
+    CC=dave, golang-dev
+    https://golang.org/cl/7354043
 
- src/pkg/path/filepath/path.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/debug/dwarf/const.go | 1 +
+ src/pkg/debug/dwarf/entry.go | 4 ++++
+ 2 files changed, 5 insertions(+)

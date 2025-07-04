@@ -1,19 +1,21 @@
-commit f7f4eef385f72ee0617bd8b7878c0a71eb4f3d18
-Author: John <johnchristian@hotmail.es>
-Date:   Wed Mar 27 17:30:32 2019 +0000
+commit 7cd2a51c8c1b84191e518ac39b0890ffd56d852b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Nov 6 22:08:30 2018 +0100
 
-    mime: add javascript module mime type (.mjs)
+    cmd/compile: update TestNexting golden file
     
-    There are default mime types in this package for handling static content, but there's
-    a new one missing ".mjs"  that is "Content-Type: text/javascript".
+    This change updates the expected output of the gdb debugging session
+    in the TestNexting internal/ssa test, aligning it with the changes
+    introduced in CL 147360.
     
-    https://developers.google.com/web/fundamentals/primers/modules#mjs
+    Fixes the longtest builder.
     
-    Change-Id: Ie842ece0cb55770fb6c9eb65f8bfee2ecf7bc624
-    GitHub-Last-Rev: e26d9f76171c987112d5d6db292446819a8393e2
-    GitHub-Pull-Request: golang/go#31071
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169502
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5b5c22e1cf5e205967ff8359dc6c1485c815428e
+    Reviewed-on: https://go-review.googlesource.com/c/147957
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/type.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts | 4 ++++
+ 1 file changed, 4 insertions(+)

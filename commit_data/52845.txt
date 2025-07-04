@@ -1,30 +1,20 @@
-commit 8673ca81e5340b87709db2d9749c92a3bf925df1
-Author: Roland Shoemaker <bracewell@google.com>
-Date:   Thu Apr 13 15:40:44 2023 -0700
+commit 4c08260c51c6ebe405a78a30f970014af763ca38
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 6 15:20:51 2022 -0400
 
-    html/template: disallow angle brackets in CSS values
+    doc/go_mem: update revision date
     
-    Angle brackets should not appear in CSS contexts, as they may affect
-    token boundaries (such as closing a <style> tag, resulting in
-    injection). Instead emit filterFailsafe, matching the behavior for other
-    dangerous characters.
+    CL 381315 added major revisions but neglected to update the date.
     
-    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    For #50859.
     
-    Fixes #59720
-    Fixes CVE-2023-24539
-    
-    Change-Id: Iccc659c9a18415992b0c05c178792228e3a7bae4
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1826636
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    Run-TryBot: Roland Shoemaker <bracewell@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/491615
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Carlos Amedee <carlos@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I086a55f0c80579c479bca5268109c9f3ae680adf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410675
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/html/template/css.go      | 2 +-
- src/html/template/css_test.go | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ doc/go_mem.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

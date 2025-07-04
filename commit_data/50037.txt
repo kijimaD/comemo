@@ -1,24 +1,34 @@
-commit 1c4a80377580a05b9c3f1cccb66baefc01383352
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jun 25 15:28:15 2022 -0700
+commit 1c6e50a15200673eb90c817cb6709be5d06cd3f4
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Sep 24 13:26:35 2021 -0700
 
-    debug/plan9obj: use saferio to read section data
+    cmd/go: make 'go get' fail with an error when outside a module
     
-    Avoid allocating large amounts of memory for corrupt input.
+    There's no go.mod file for 'go get' to update, so it has no effect,
+    other than checking arguments and filling the module cache. That might
+    be useul in some cases, but it seems better to fail loudly in case the
+    user hasn't seen the deprecation warning, for example, inside a
+    script.
     
-    No test case because the problem can only happen for invalid data.
-    Let the fuzzer find cases like this.
+    For #43684
     
-    Fixes #52521
-    
-    Change-Id: I6a046f2e28e1255cf773ce135c5bb2b967ef43e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414234
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dan Kortschak <dan@kortschak.io>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I6e67c782e3a1cb7046eac5c9df17eda7a31c7bce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352149
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/debug/plan9obj/file.go | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/modget/get.go                  | 20 +++++++++---
+ src/cmd/go/testdata/script/get_404_meta.txt        |  6 ++++
+ src/cmd/go/testdata/script/mod_cache_dir.txt       |  4 +--
+ ...rect.txt => mod_download_insecure_redirect.txt} | 10 +++---
+ ...rivate_vcs.txt => mod_download_private_vcs.txt} |  6 ++--
+ ...cts.txt => mod_download_too_many_redirects.txt} |  4 +--
+ .../testdata/script/mod_get_deprecate_install.txt  |  5 ++-
+ src/cmd/go/testdata/script/mod_get_fallback.txt    |  5 +++
+ src/cmd/go/testdata/script/mod_get_go_file.txt     |  5 +++
+ src/cmd/go/testdata/script/mod_getx.txt            |  5 +++
+ src/cmd/go/testdata/script/mod_missing_repo.txt    |  4 +--
+ src/cmd/go/testdata/script/mod_outside.txt         | 38 +++++++++++-----------
+ 12 files changed, 74 insertions(+), 38 deletions(-)

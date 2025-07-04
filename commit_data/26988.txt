@@ -1,22 +1,48 @@
-commit a3c92c9db137413b17447a72c334c3e560bace06
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Apr 18 07:24:48 2016 -0400
+commit c3dfad5df990432cddc06d6e018b5b4f29ebb7bf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 08:23:55 2016 -0800
 
-    cmd/link: use gold when dynamic linking on arm64
+    cmd/compile: change Oconv to take an Op parameter
     
-    The GNU linker follows the letter of -znocopyreloc by refusing to
-    generate COPY relocations on arm64. Unfortunately it generates an
-    error instead of finding another way. The gold linker works, so
-    switch to it.
+    Eliminates type conversions in a bunch of Oconv(int(n.Op), ...) calls.
     
-    Fixes linux/arm64 build.
+    Notably, this identified a misuse of Oconv in amd64/gsubr.go to try to
+    print an assembly instruction op instead of a compiler node op.
     
-    Change-Id: I1f7119d999c8f9f1f2d0c1e06b6462cea9c02a71
-    Reviewed-on: https://go-review.googlesource.com/22185
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I93b5aa49fe14a5eaf868b05426d3b8cd8ab52bc5
+    Reviewed-on: https://go-review.googlesource.com/20298
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testshared/shared_test.go | 10 +++++-----
- src/cmd/link/internal/ld/lib.go    | 11 ++++++++---
- 2 files changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/amd64/gsubr.go  |  4 +--
+ src/cmd/compile/internal/arm/cgen64.go   |  6 ++--
+ src/cmd/compile/internal/arm/gsubr.go    |  4 +--
+ src/cmd/compile/internal/arm64/gsubr.go  |  6 ++--
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/cgen.go      |  6 ++--
+ src/cmd/compile/internal/gc/const.go     |  4 +--
+ src/cmd/compile/internal/gc/cplx.go      |  4 +--
+ src/cmd/compile/internal/gc/dcl.go       |  8 ++---
+ src/cmd/compile/internal/gc/esc.go       |  6 ++--
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 60 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go     |  6 ++--
+ src/cmd/compile/internal/gc/order.go     | 12 +++----
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go  |  6 ++--
+ src/cmd/compile/internal/gc/select.go    |  8 ++---
+ src/cmd/compile/internal/gc/ssa.go       |  4 +--
+ src/cmd/compile/internal/gc/subr.go      | 10 +++---
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 30 ++++++++--------
+ src/cmd/compile/internal/gc/unsafe.go    |  2 +-
+ src/cmd/compile/internal/gc/walk.go      | 16 ++++-----
+ src/cmd/compile/internal/mips64/gsubr.go |  6 ++--
+ src/cmd/compile/internal/ppc64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/x86/cgen64.go   |  6 ++--
+ src/cmd/compile/internal/x86/ggen.go     |  2 +-
+ src/cmd/compile/internal/x86/gsubr.go    |  6 ++--
+ 29 files changed, 117 insertions(+), 117 deletions(-)

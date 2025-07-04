@@ -1,15 +1,22 @@
-commit e4d624b04d833c194dd70df1c20318fe90472278
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Tue Jan 3 11:40:58 2012 +1100
+commit 7f20bcbbcb04f8239d894045afc9482018dc2bab
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 27 09:49:19 2011 -0500
 
-    doc/articles: add {{donotedit}} to templates
+    exp/ssh: various small fixes
     
-    R=golang-dev, adg
+    transport.go:
+    * remove unused nil check.
+    
+    doc.go:
+    * improve documentation about supported auth
+    methods and update Run example.
+    
+    Thanks Jacek Masiulaniec for both reports.
+    
+    R=jacek.masiulaniec, agl
     CC=golang-dev
-    https://golang.org/cl/5502088
+    https://golang.org/cl/5501075
 
- doc/articles/defer_panic_recover.html | 4 ++++
- doc/articles/defer_panic_recover.tmpl | 2 +-
- doc/articles/error_handling.html      | 4 ++++
- doc/articles/error_handling.tmpl      | 2 +-
- 4 files changed, 10 insertions(+), 2 deletions(-)
+ src/pkg/exp/ssh/doc.go       | 28 +++++++++++++++++++++++-----
+ src/pkg/exp/ssh/transport.go |  4 +---
+ 2 files changed, 24 insertions(+), 8 deletions(-)

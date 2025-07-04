@@ -1,22 +1,41 @@
-commit 181153369534c6987306c47630f9e4fbf07b467f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 20 11:14:15 2020 -0700
+commit 763d3ac75cd19f3484f4bb371175aac34ce1f271
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 4 20:01:18 2019 +0000
 
-    cmd/compile: refactor Escape.tagHole
+    runtime: make sysReserve return page-aligned memory on js-wasm
     
-    This CL refactors tagHole to handle all three call situations (unknown
-    function; known function in same analysis batch; known function in
-    previous analysis batch). This will make it somewhat easier to reuse
-    in a followup CL.
+    This change ensures js-wasm returns page-aligned memory. While today
+    its lack of alignment doesn't cause problems, this is an invariant of
+    sysAlloc which is documented in HACKING.md but isn't upheld by js-wasm.
     
-    Passes toolstash-check.
+    Any code that calls sysAlloc directly for small structures expects a
+    certain alignment (e.g. debuglog, tracebufs) but this is not maintained
+    by js-wasm's sysAlloc.
     
-    Change-Id: I764d047a333dfc593d721a881361683e94b485df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229059
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Where sysReserve comes into play is that sysAlloc is implemented in
+    terms of sysReserve on js-wasm. Also, the documentation of sysReserve
+    says that the returned memory is "OS-aligned" which on most platforms
+    means page-aligned, but the "OS-alignment" on js-wasm is effectively 1,
+    which doesn't seem right either.
+    
+    The expected impact of this change is increased memory use on wasm,
+    since there's no way to decommit memory, and any small structures
+    allocated with sysAlloc won't be packed quite as tightly. However, any
+    memory increase should be minimal. Most calls to sysReserve and sysAlloc
+    already aligned their request to physPageSize before calling it; there
+    are only a few circumstances where this is not true, and they involve
+    allocating an amount of memory returned by unsafe.Sizeof where it's
+    actually quite important that we get the alignment right.
+    
+    Updates #35112.
+    
+    Change-Id: I9ca171e507ff3bd186326ccf611b35b9ebea1bfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205277
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/cmd/compile/internal/gc/escape.go | 66 +++++++++++++++++++----------------
- 1 file changed, 35 insertions(+), 31 deletions(-)
+ src/runtime/mem_js.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

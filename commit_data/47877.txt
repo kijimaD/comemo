@@ -1,22 +1,30 @@
-commit da7891f6f36c48f2931ed916ed305330c06f9bd7
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jan 5 11:13:27 2022 -0500
+commit 23f8c203f026814ddc4ba4538f900d8151eb6840
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 11 12:42:49 2021 -0400
 
-    net: synchronize instead of sleeping in TestDialParallelSpuriousConnection
+    cmd/compile: rework/reduce partially lived argument spilling
     
-    The arbitrary sleep in this test is empirically not always long enough
-    on slower builders. However, we know the exact number of connections
-    that should be dialed: we can wait on that number in the dial hook
-    instead.
+    In CL 307909 we generate code that spills pointer-typed argument
+    registers if it is part of an SSA-able aggregate. The current
+    code spill the register unconditionally. Sometimes it is
+    unnecessary, because it is already spilled, or it is never live.
     
-    Fixes #34495
+    This CL reworks the spill generation. We move it to the end of
+    compilation, after liveness analysis, so we have information about
+    if a spill is necessary, and only generate spills for the
+    necessary ones.
     
-    Change-Id: I538244ceb75a80271a724304b993309482bd5b41
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375694
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I8d60be9b2c47651aeda14f5e2d1bbd207c134b26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309331
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/dial_test.go | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/amd64/galign.go   |  1 +
+ src/cmd/compile/internal/amd64/ssa.go      |  8 ++++
+ src/cmd/compile/internal/liveness/plive.go | 20 ++++++++--
+ src/cmd/compile/internal/ssagen/arch.go    |  5 +++
+ src/cmd/compile/internal/ssagen/ssa.go     | 63 ++++++++++++++++++++++++++----
+ 5 files changed, 87 insertions(+), 10 deletions(-)

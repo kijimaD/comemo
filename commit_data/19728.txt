@@ -1,14 +1,18 @@
-commit a44cf8d18e9af4cae0d93f6a4f6c33f3cfbe7f18
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jul 15 11:25:39 2014 +1000
+commit d3a2f5870034db2d69bd0ef85f18a87f4163c770
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 14 16:17:17 2014 -0700
 
-    A+C: add Chris McGee (individual CLA)
+    go/*: permit "for range x"
     
-    TBR=dsymonds
-    R=golang-codereviews
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/112300043
+    https://golang.org/cl/112970044
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/pkg/go/ast/ast.go                         |  6 +++---
+ src/pkg/go/parser/parser.go                   | 19 +++++++++++++++----
+ src/pkg/go/parser/short_test.go               |  1 +
+ src/pkg/go/printer/nodes.go                   | 19 +++++++++++--------
+ src/pkg/go/printer/testdata/statements.golden |  9 +++++++++
+ src/pkg/go/printer/testdata/statements.input  |  5 +++++
+ 6 files changed, 44 insertions(+), 15 deletions(-)

@@ -1,16 +1,18 @@
-commit 2e1f07133d2447125cd45887d6d54e6aa53ba5b5
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Thu Nov 23 15:31:28 2017 -0700
+commit d30f99647a0a5c7f5a84f9832497ea22e938c578
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Wed Aug 16 03:39:13 2017 +0200
 
-    runtime: tweak doc for Goexit
+    runtime: don't publish new itab table before growth is finished
     
-    Use singular form of panic and remove the unnecessary
-    'however', when comparing Goexit's behavior to 'a panic'
-    as well as what happens for deferred recovers with Goexit.
+    This change could improve the hit rate on itabTable during growth.
     
-    Change-Id: I3116df3336fa135198f6a39cf93dbb88a0e2f46e
-    Reviewed-on: https://go-review.googlesource.com/79755
-    Reviewed-by: Rob Pike <r@golang.org>
+    While we are here patch comments to refer to existing functions.
+    
+    Change-Id: I76f81c860a3d6107e077e7e3932550858a8b7651
+    Reviewed-on: https://go-review.googlesource.com/55912
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/panic.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/iface.go | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

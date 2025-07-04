@@ -1,18 +1,23 @@
-commit 68370187fafe9c355e489d6976c35cd908f37a00
-Author: Shulhan <m.shulhan@gmail.com>
-Date:   Sat Aug 21 16:50:25 2021 +0700
+commit c3cb1ecc36512a00492f27fa3ba19e5dad6194f1
+Author: Amelia Downs <adowns@vmware.com>
+Date:   Mon Sep 27 16:54:39 2021 -0400
 
-    math: show value of integer constants in comments
+    internal/fuzz: minimize bytes to be human readable
     
-    Fixes #51282
+    Try to replace every byte with one of the following printable
+    characters: "012789ABCXYZabcxyz !\"#$%&'()*+,.".
     
-    Change-Id: I5b0d68165b727a427bd4a42663b2fa0070ced22f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343990
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #48129
+    
+    Change-Id: Ie58f6bbc3431d50d9f0a3f608ba63e854ac6ce79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352614
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Amelia Downs <adowns@vmware.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Julie Qiu <julie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/math/const.go | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
+ src/internal/fuzz/minimize.go      | 19 ++++++++++++++++++
+ src/internal/fuzz/minimize_test.go | 41 +++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 59 insertions(+), 1 deletion(-)

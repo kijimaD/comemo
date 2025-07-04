@@ -1,16 +1,18 @@
-commit 4895f0dc5edb8c7f8721f9e9eec15524a283cf4a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 28 01:01:08 2014 -0400
+commit b5caa02067e0e0d2bde9290004b15e9a226c6075
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 28 00:00:01 2014 -0400
 
-    test/run: limit parallelism to 1 for cross-exec builds
+    runtime: fix go of nil func value
+    Currently runtime derefences nil with m->locks>0,
+    which causes unrecoverable fatal error.
+    Panic instead.
+    Fixes #8045.
     
-    This matters for NaCl, which seems to swamp my 4-core MacBook Pro otherwise.
-    It's not a correctness problem, just a usability problem.
-    
-    LGTM=bradfitz
-    R=bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/98600046
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/97620043
 
- test/run.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/runtime/crash_test.go | 21 +++++++++++++++++++++
+ src/pkg/runtime/proc.c        |  4 ++++
+ 2 files changed, 25 insertions(+)

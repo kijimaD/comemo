@@ -1,14 +1,18 @@
-commit c2290feeeb02b6b730efe4087572bf6c51c51503
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Fri Dec 4 16:24:35 2015 -0700
+commit fbd2660af3042217a4c831e9d4e24a4e97c296cb
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 24 14:30:09 2015 -0400
 
-    net/http: sniff tests ported to h2
+    runtime: introduce gcMode type for GC modes
     
-    Change-Id: Icad6cc130252ac177946b23c12f36d6ba3275bf0
-    Reviewed-on: https://go-review.googlesource.com/17436
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Currently, the GC modes constants are untyped and functions pass them
+    around as ints. Clean this up by introducing a proper type for these
+    constant.
+    
+    Change-Id: Ibc022447bdfa203644921fbb548312d7e2272e8d
+    Reviewed-on: https://go-review.googlesource.com/14981
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/sniff_test.go | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ src/runtime/mgc.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

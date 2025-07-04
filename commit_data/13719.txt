@@ -1,18 +1,22 @@
-commit 3efc482190c9c2fa80cb0fc80d160624514652db
-Author: Alexandru Moșoi <brtzsnr@gmail.com>
-Date:   Fri Aug 31 15:52:27 2012 -0400
+commit 020c6558d9de2f9b5a5a5f67dfc6e342d43c819a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 31 13:49:57 2012 -0400
 
-    net/rpc/jsonrpc: handles missing "params" in jsonrpc.
+    runtime/pprof: restore articles in type doc comments
     
-    A crash happens in the first request in a connection
-    if "params" field is missing because c.req.Params is Nil.
+    Reverts part of CL 6460082.
     
-    Fixes #3848.
+    If a doc comment describes a type by explaining the
+    meaning of one instance of the type, a leading article
+    is fine and makes the text less awkward.
     
-    R=golang-dev, rsc
+    Compare:
+    // A dog is a kind of animal.
+    // Dog is a kind of animal.
+    
+    R=golang-dev, dsymonds, dvyukov, r
     CC=golang-dev
-    https://golang.org/cl/6446051
+    https://golang.org/cl/6494066
 
- src/pkg/net/rpc/jsonrpc/all_test.go | 53 ++++++++++++++++++++++++++-----------
- src/pkg/net/rpc/jsonrpc/server.go   | 13 ++++-----
- 2 files changed, 45 insertions(+), 21 deletions(-)
+ src/pkg/runtime/pprof/pprof.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

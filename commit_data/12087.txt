@@ -1,14 +1,13 @@
-commit dff5535aaa41970d79bb4179af8108f09fc4d869
-Author: Devon H. O'Dell <devon.odell@gmail.com>
-Date:   Tue Feb 21 07:32:20 2012 +0900
+commit 6e4ddc6872fd5d884847b35ec5f3cfc0276aef50
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 21 07:11:44 2012 +0900
 
-    runtime: implement runtime.osyield on FreeBSD 386, amd64
+    net: move hosts testdata to testdata folder
     
-    R=rsc, mikioh.mikioh
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5689046
+    https://golang.org/cl/5687052
 
- src/pkg/runtime/sys_freebsd_386.s   | 4 ++++
- src/pkg/runtime/sys_freebsd_amd64.s | 4 ++++
- src/pkg/runtime/thread_freebsd.c    | 6 ------
- 3 files changed, 8 insertions(+), 6 deletions(-)
+ src/pkg/net/hosts_test.go                      | 2 +-
+ src/pkg/net/{hosts_testdata => testdata/hosts} | 0
+ 2 files changed, 1 insertion(+), 1 deletion(-)

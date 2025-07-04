@@ -1,14 +1,12 @@
-commit ba8e61d8330db63c99dcc6c731d2a97d25901d44
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Jun 30 13:35:40 2011 +1000
+commit d980f538d7ebf1ce3922d8f5cf3e56f6680d0644
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 29 18:23:38 2011 -0700
 
-    os: use a different symbol from syscall in mkunixsignals.sh.
+    http: document that ServerConn and ClientConn are low-level
     
-    Open is more likely to be present than Syscall.
-    
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4645073
+    https://golang.org/cl/4635081
 
- src/pkg/os/mkunixsignals.sh | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/http/persist.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

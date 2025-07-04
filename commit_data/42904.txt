@@ -1,25 +1,38 @@
-commit ae658cb19a265f3f4694cd4aec508b4565bda6aa
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu Aug 27 17:34:59 2020 +0800
+commit 2e8dbae85ce88d02f651e53338984288057f14cb
+Author: Changkun Ou <hi@changkun.us>
+Date:   Fri Nov 8 11:23:58 2019 +0100
 
-    cmd/compile: store the comparison pseudo-ops of arm64 conditional instructions in AuxInt
+    sync: add new Map method LoadAndDelete
     
-    The current implementation stores the comparison pseudo-ops of arm64
-    conditional instructions (CSEL/CSEL0) in Aux, this patch modifies it
-    and stores it in AuxInt, which can avoid the allocation.
+    This CL implements a LoadAndDelete method in sync.Map. Benchmark:
     
-    Change-Id: I0b69e51f63acd84c6878c6a59ccf6417501a8cfc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252517
-    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    name                                              time/op
+    LoadAndDeleteBalanced/*sync_test.RWMutexMap-12    98.8ns ± 1%
+    LoadAndDeleteBalanced/*sync.Map-12                10.3ns ±11%
+    LoadAndDeleteUnique/*sync_test.RWMutexMap-12      99.2ns ± 2%
+    LoadAndDeleteUnique/*sync.Map-12                  6.63ns ±10%
+    LoadAndDeleteCollision/*sync_test.DeepCopyMap-12   140ns ± 0%
+    LoadAndDeleteCollision/*sync_test.RWMutexMap-12   75.2ns ± 2%
+    LoadAndDeleteCollision/*sync.Map-12               5.21ns ± 5%
+    
+    In addition, Delete is bounded and more efficient if many collisions:
+    
+    DeleteCollision/*sync_test.DeepCopyMap-12   120ns ± 2%   125ns ± 1%   +3.80%  (p=0.000 n=10+9)
+    DeleteCollision/*sync_test.RWMutexMap-12   73.5ns ± 3%  79.5ns ± 1%   +8.03%  (p=0.000 n=10+9)
+    DeleteCollision/*sync.Map-12               97.8ns ± 3%   5.9ns ± 4%  -94.00%  (p=0.000 n=10+10)
+    
+    Fixes #33762
+    
+    Change-Id: Ic8469a7861d27ab0edeface0078aad8af9b26c2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205899
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/arm64/ssa.go        |   2 +-
- src/cmd/compile/internal/ssa/check.go        |   6 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 162 ++++++-------
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   4 +-
- src/cmd/compile/internal/ssa/gen/rulegen.go  |   7 +-
- src/cmd/compile/internal/ssa/rewrite.go      |  15 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 332 +++++++++++++--------------
- src/cmd/compile/internal/ssa/value.go        |   2 +-
- 8 files changed, 265 insertions(+), 265 deletions(-)
+ api/next.txt                   |  1 +
+ doc/go1.15.html                | 14 ++++++++
+ src/sync/map.go                | 25 ++++++++++----
+ src/sync/map_bench_test.go     | 74 ++++++++++++++++++++++++++++++++++++++++++
+ src/sync/map_reference_test.go | 23 +++++++++++++
+ src/sync/map_test.go           | 13 +++++---
+ 6 files changed, 138 insertions(+), 12 deletions(-)

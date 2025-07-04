@@ -1,40 +1,45 @@
-commit 15b4c71a912846530315c3e854feaaa9d0d54220
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Feb 9 17:50:02 2019 +0000
+commit 756c352963f4decbf898f244876855aab747afdc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 25 20:34:15 2018 -0700
 
-    text/template: error on method calls on nil interfaces
+    sync: simplify (*entry).tryStore
     
-    Trying to call a method on a nil interface is a panic in Go. For
-    example:
+    The only change to the go build -gcflags=-m=2 output was to remove
+    these two lines:
     
-            var stringer fmt.Stringer
-            println(stringer.String()) // nil pointer dereference
+    sync/map.go:178:26: &e.p escapes to heap
+    sync/map.go:178:26:     from &e.p (passed to call[argument escapes]) at sync/map.go:178:25
     
-    In https://golang.org/cl/143097 we started recovering panics encountered
-    during function and method calls. However, we didn't handle this case,
-    as text/template panics before evalCall is ever run.
+    Benchstat report for sync.Map benchmarks:
     
-    In particular, reflect's MethodByName will panic if the receiver is of
-    interface kind and nil:
+    name                                            old time/op  new time/op  delta
+    LoadMostlyHits/*sync_test.DeepCopyMap-12        10.6ns ±11%  10.2ns ± 3%    ~     (p=0.299 n=10+8)
+    LoadMostlyHits/*sync_test.RWMutexMap-12         54.6ns ± 3%  54.6ns ± 2%    ~     (p=0.782 n=10+10)
+    LoadMostlyHits/*sync.Map-12                     10.1ns ± 1%  10.1ns ± 1%    ~     (p=1.127 n=10+8)
+    LoadMostlyMisses/*sync_test.DeepCopyMap-12      8.65ns ± 1%  8.77ns ± 5%  +1.39%  (p=0.017 n=9+10)
+    LoadMostlyMisses/*sync_test.RWMutexMap-12       53.6ns ± 2%  53.8ns ± 2%    ~     (p=0.408 n=10+9)
+    LoadMostlyMisses/*sync.Map-12                   7.37ns ± 1%  7.46ns ± 1%  +1.19%  (p=0.000 n=9+10)
+    LoadOrStoreBalanced/*sync_test.RWMutexMap-12     895ns ± 4%   906ns ± 3%    ~     (p=0.203 n=9+10)
+    LoadOrStoreBalanced/*sync.Map-12                 872ns ±10%   804ns ±12%  -7.75%  (p=0.014 n=10+10)
+    LoadOrStoreUnique/*sync_test.RWMutexMap-12      1.29µs ± 2%  1.28µs ± 1%    ~     (p=0.586 n=10+9)
+    LoadOrStoreUnique/*sync.Map-12                  1.30µs ± 7%  1.40µs ± 2%  +6.95%  (p=0.000 n=9+10)
+    LoadOrStoreCollision/*sync_test.DeepCopyMap-12  6.98ns ± 1%  6.91ns ± 1%  -1.10%  (p=0.000 n=10+10)
+    LoadOrStoreCollision/*sync_test.RWMutexMap-12    371ns ± 1%   372ns ± 2%    ~     (p=0.679 n=9+9)
+    LoadOrStoreCollision/*sync.Map-12               5.49ns ± 1%  5.49ns ± 1%    ~     (p=0.732 n=9+10)
+    Range/*sync_test.DeepCopyMap-12                 2.49µs ± 1%  2.50µs ± 0%    ~     (p=0.148 n=10+10)
+    Range/*sync_test.RWMutexMap-12                  54.7µs ± 1%  54.6µs ± 3%    ~     (p=0.549 n=9+10)
+    Range/*sync.Map-12                              2.74µs ± 1%  2.76µs ± 1%  +0.68%  (p=0.011 n=10+8)
+    AdversarialAlloc/*sync_test.DeepCopyMap-12      2.52µs ± 5%  2.54µs ± 7%    ~     (p=0.225 n=10+10)
+    AdversarialAlloc/*sync_test.RWMutexMap-12        108ns ± 1%   107ns ± 1%    ~     (p=0.101 n=10+9)
+    AdversarialAlloc/*sync.Map-12                    712ns ± 2%   714ns ± 3%    ~     (p=0.984 n=8+10)
+    AdversarialDelete/*sync_test.DeepCopyMap-12      581ns ± 3%   578ns ± 3%    ~     (p=0.781 n=9+9)
+    AdversarialDelete/*sync_test.RWMutexMap-12       126ns ± 2%   126ns ± 1%    ~     (p=0.883 n=10+10)
+    AdversarialDelete/*sync.Map-12                   155ns ± 8%   158ns ± 2%    ~     (p=0.158 n=10+9)
     
-            panic: reflect: Method on nil interface value
-    
-    Simply add a check for that edge case, and have Template.Execute return
-    a helpful error. Note that Execute shouldn't just error if the interface
-    contains a typed nil, since we're able to find a method to call in that
-    case.
-    
-    Finally, add regression tests for both the nil and typed nil interface
-    cases.
-    
-    Fixes #30143.
-    
-    Change-Id: Iffb21b40e14ba5fea0fcdd179cd80d1f23cabbab
-    Reviewed-on: https://go-review.googlesource.com/c/161761
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I1ed8e3109baca03087d0fad3df769fc7e38f6dbb
+    Reviewed-on: https://go-review.googlesource.com/137441
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/text/template/exec.go      |  7 ++++++
- src/text/template/exec_test.go | 49 +++++++++++++++++++++++++-----------------
- 2 files changed, 36 insertions(+), 20 deletions(-)
+ src/sync/map.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

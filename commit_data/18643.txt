@@ -1,18 +1,13 @@
-commit 441c4bb939666555f697c1d5abf30b2f78528962
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 25 11:22:22 2014 -0500
+commit abe53f8766408c05aa9b3557105c416434acbdc4
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Feb 25 10:54:09 2014 -0500
 
-    cmd/go: fix bug in remote package discovery
-    
-    The parser was assuming it would find <body> or </head>.
-    If the entire response is just <meta> tags, it finds EOF and
-    treats that as an error. It's not.
+    doc/go1.3: note a couple more crypto changes.
     
     LGTM=bradfitz
-    R=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/68520044
+    https://golang.org/cl/68600043
 
- src/cmd/go/discovery.go |  3 +++
- src/cmd/go/pkg_test.go  | 48 +++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 50 insertions(+), 1 deletion(-)
+ doc/go1.3.txt | 2 ++
+ 1 file changed, 2 insertions(+)

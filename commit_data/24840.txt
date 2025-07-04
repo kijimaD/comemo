@@ -1,17 +1,17 @@
-commit d54c35675c1f4d4ca9b5a6de568e977c513f364a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 11 23:13:14 2015 -0800
+commit 06da8fd84afc4694d4dbab9316ae701bd4dfaa8d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Sep 3 09:05:25 2015 +1200
 
-    cmd/go: subdirs of runtime other than runtime/internal do depend on runtime
+    cmd/link: only embed runtime.goarm in the module that contains the runtime package
     
-    Correct an error in the last change: it caused runtime/cgo and
-    runtime/race to not depend on runtime.
+    And do it properly so freebsd and nacl still work.
     
-    Fixes #13214.
-    
-    Change-Id: Ib48b3b5e9a74567ddfaccb7ab4a897ee2aedc2b8
-    Reviewed-on: https://go-review.googlesource.com/16837
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I6f9f30e93ceae6dee59215ed608c6a158bdbdbb0
+    Reviewed-on: https://go-review.googlesource.com/14280
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/pkg.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/arm/obj.go |  6 ------
+ src/cmd/link/internal/ld/lib.go  | 32 ++++++++++++++++++++++----------
+ 2 files changed, 22 insertions(+), 16 deletions(-)

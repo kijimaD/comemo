@@ -1,22 +1,14 @@
-commit 751a24e86e0044b75c075c21b13dce2db9a1f744
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Apr 2 13:24:16 2013 -0700
+commit c5d419683463ef0ce5ba3d078624bd36e9e20e31
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 3 03:34:04 2013 +0800
 
-    net: delete DialOpt and DialOption; add struct Dialer
+    cmd/go: fix typo in docs
+    Fixes #5181.
     
-    Per discussions on golang-nuts and golang-dev:
-    "Some concerns with DialOpt"
-    https://groups.google.com/d/msg/golang-nuts/Hfh9aqhXyUw/W3uYi8lOdKcJ
-    https://groups.google.com/d/msg/golang-dev/37omSQeWv4Y/KASGIfPpXh0J
-    
-    R=golang-dev, google, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8274043
+    https://golang.org/cl/8277043
 
- doc/go1.1.html            |  13 +--
- src/pkg/net/dial.go       | 237 ++++++++++++----------------------------------
- src/pkg/net/dial_gen.go   |  61 ++++++++++++
- src/pkg/net/fd_plan9.go   |   4 +-
- src/pkg/net/fd_unix.go    |   5 +-
- src/pkg/net/fd_windows.go |   7 +-
- 6 files changed, 132 insertions(+), 195 deletions(-)
+ src/cmd/go/doc.go  | 13 +++++++------
+ src/cmd/go/test.go | 13 +++++++------
+ 2 files changed, 14 insertions(+), 12 deletions(-)

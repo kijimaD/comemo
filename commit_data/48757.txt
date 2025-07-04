@@ -1,18 +1,19 @@
-commit 2b31abc5286e4f29f934c4123101feabf0f4aaca
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 11 17:35:24 2022 -0700
+commit d4f34f8c63b753160716e9f90ca530016ce019d7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 14 12:35:21 2021 -0400
 
-    test: add //go:build support to run.go
+    doc/go1.17: reword "results" in stack trace printing
     
-    gofmt is rewriting +build comments into //go:build anyway, so update
-    the test script to support both.
+    "Results" may sound like the results from the previous sentence.
+    Reword to "function return values" for clarity.
     
-    Change-Id: Ia6d950cfaa2fca9f184b8b2d3625a551bff88dde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399794
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Suggested by Tobias Kohlbau.
+    
+    Change-Id: Ie78df36b5b191b06e98b802f9a46db6d067a8ea0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327774
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Tobias Kohlbau <tobias@kohlbau.de>
 
- test/run.go | 51 +++++++++++++--------------------------------------
- 1 file changed, 13 insertions(+), 38 deletions(-)
+ doc/go1.17.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

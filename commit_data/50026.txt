@@ -1,20 +1,18 @@
-commit 9e88773383f2d74e769f63fd6348a01aecf8a271
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 18 15:21:18 2022 -0700
+commit 12e8ffc18e84a76f8e01457852c456a3b28ec55a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 27 14:27:59 2021 -0700
 
-    go/types: remove machinery to select parsing mode (cleanup)
+    io: avoid integer overflow in NewSectionReader
     
-    All code may be generic. Remove machinery to select parsing
-    mode (generic vs non-generic) since the parser doesn't support
-    this anymore. Adjust tests to more closely match corresponding
-    types2 code.
+    Fixes #48620
     
-    Change-Id: Id2398afe64d58714974ec96656fdf67c02ff5d04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424900
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I37a5909ad27dc4a170929cb2e2ed1045cf524d59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352629
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/types/api_test.go | 162 ++++++++++++++++++++++-------------------------
- 1 file changed, 74 insertions(+), 88 deletions(-)
+ src/io/io.go      | 11 ++++++++++-
+ src/io/io_test.go | 14 ++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

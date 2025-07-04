@@ -1,20 +1,21 @@
-commit 8b391060004dfc03c93a76faab4a0d208a60cc1b
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Oct 5 17:46:09 2019 +0700
+commit 213d1cf3ca9fb8e5013927f76eb753c0f588174e
+Author: Nikhil Benesch <nikhil.benesch@gmail.com>
+Date:   Sat Feb 2 12:35:44 2019 -0500
 
-    internal/reflectlite: add type mirror with reflect test
+    cmd/go: include AR env var in gccgo build IDs
     
-    Add test to check that struct type in reflectlite is mirror of reflect.
-    Note that the test does not check the field types, only check for number
-    of fields and field name are the same.
+    The gccgo toolchain uses the archiver specified by the AR environment
+    variable, or `ar` by default. Teach the build ID to take the value of
+    this environment variable into account, since different archivers can
+    produce different results.
     
-    Updates #34486
+    Fix #30046.
     
-    Change-Id: Id5f9b26d35faec97863dd1fe7e5eab37d4913181
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/199280
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ia6821258d54eecedb9026afc38a515cd564c45cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160897
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/internal/reflectlite/reflect_mirror_test.go | 120 ++++++++++++++++++++++++
- 1 file changed, 120 insertions(+)
+ src/cmd/go/internal/work/exec.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

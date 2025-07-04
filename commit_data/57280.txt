@@ -1,20 +1,27 @@
-commit b648cd620f47c2981420b032def1e6f6491ef294
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Aug 29 17:31:03 2024 -0700
+commit d4dd1de19fcef835fca14ad8cb590dbfcf8e9859
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jul 12 14:01:26 2023 -0700
 
-    internal/testenv: use sync.OnceValue[s]
+    runtime: enforce standard file descriptors open on init on unix
     
-    Modernize the code to use sync.OnceValue[s] instead of sync.Once.
+    On Unix-like platforms, enforce that the standard file descriptions (0,
+    1, 2) are always open during initialization. If any of the FDs are
+    closed, we open them pointing at /dev/null, or fail.
     
-    While at it, reuse the result of exec.LookPath("go") in tryGoBuild.
+    Fixes #60641
     
-    Change-Id: I13eff3dd55797846680e506fffb7c49c8296829d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609796
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iaab6b3f3e5ca44006ae3ba3544d47da9a613f58f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509020
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/testenv/testenv.go | 277 ++++++++++++++++++----------------------
- 1 file changed, 125 insertions(+), 152 deletions(-)
+ src/runtime/fds_nonunix.go           | 11 +++++
+ src/runtime/fds_test.go              | 78 ++++++++++++++++++++++++++++++++++++
+ src/runtime/fds_unix.go              | 44 ++++++++++++++++++++
+ src/runtime/proc.go                  |  1 +
+ src/runtime/security_unix.go         | 40 +-----------------
+ src/runtime/testdata/testfds/main.go | 29 ++++++++++++++
+ 6 files changed, 165 insertions(+), 38 deletions(-)

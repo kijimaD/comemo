@@ -1,19 +1,28 @@
-commit e7201cfa9fe638053b7c269c23bf408223600bc9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 23 15:47:44 2023 -0800
+commit 5bfd51147e460bad6615b5baaf68609a413eda1a
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Sun Aug 15 14:57:00 2021 +0800
 
-    go/types, types2: add isTypeLit predicate
+    copyright: add Loongson into AUTHORS
     
-    Preparation for next CL.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Change-Id: I5ef170a04577d8aea10255e304357bdbea4935a7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470919
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I23fb430f1f6e8a587f13e2f020721cbd3a45d4ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342303
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/predicates.go | 11 +++++++++++
- src/go/types/predicates.go                    | 11 +++++++++++
- 2 files changed, 22 insertions(+)
+ AUTHORS | 1 +
+ 1 file changed, 1 insertion(+)

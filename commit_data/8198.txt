@@ -1,21 +1,12 @@
-commit d911b872ceae5c6d00e519b74db3c6eede5e3b87
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Apr 22 16:29:05 2011 -0400
+commit f589728ff4e7f1855932c01f777f67646ce39e0c
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Fri Apr 22 15:56:27 2011 -0400
 
-    container/heap: fix circular dependency in test
+    http: in ServerConn and ClientConn, rename Close to Hijack, add Close
     
-    Having the test be in the container/heap package yields a cycle
-      container/heap (for the test)
-      -> testing
-      -> time
-      -> container/heap (for timerHeap)
-    
-    Occasionally the linker would get mixed up, resulting in a test panic
-    in a very weird place.
-    
-    R=rsc, r2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4395042
+    https://golang.org/cl/4372046
 
- src/pkg/container/heap/heap_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/http/persist.go | 44 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 31 insertions(+), 13 deletions(-)

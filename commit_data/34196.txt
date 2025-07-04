@@ -1,21 +1,23 @@
-commit bf9f1c15035ab9bb695a9a3504e465a1896b4b8c
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Feb 3 16:29:54 2018 +0100
+commit 755742399490d3e25239f504688f6b2e280366e9
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Oct 6 12:46:22 2017 -0700
 
-    runtime: use new instead of newobject to create hmap in makemap
+    crypto/x509: reject intermediates with unknown critical extensions.
     
-    The runtime.hmap type is known at compile time.
-    Using new(hmap) avoids loading the hmap type from the maptype
-    supplied as an argument to makemap which is only known at runtime.
+    In https://golang.org/cl/9390 I messed up and put the critical extension
+    test in the wrong function. Thus it only triggered for leaf certificates
+    and not for intermediates or roots.
     
-    This change makes makemap consistent with makemap_small
-    by using new(hmap) instead of newobject in both functions.
+    In practice, this is not expected to have a security impact in the web
+    PKI.
     
-    Change-Id: Ia47acfda527e8a71d15a1a7a4c2b54fb923515eb
-    Reviewed-on: https://go-review.googlesource.com/91775
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I4f2464ef2fb71b5865389901f293062ba1327702
+    Reviewed-on: https://go-review.googlesource.com/69294
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/hashmap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/verify.go      |  8 ++--
+ src/crypto/x509/verify_test.go | 96 ++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/x509/x509_test.go   | 68 ------------------------------
+ 3 files changed, 100 insertions(+), 72 deletions(-)

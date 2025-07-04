@@ -1,16 +1,24 @@
-commit b5c66de0892d0e9f3f59126eeebc31070e79143b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 4 07:24:56 2020 -0800
+commit cfa421c9a62e171db3c0cd5f0ba9de255e0514d6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 11 21:51:01 2019 -0400
 
-    cmd/compile: make ssa.Edge a stringer
+    [dev.link] cmd/link: on AIX, use relocation to locate target symbol from TOC symbol
     
-    To aid in debugging.
+    On AIX, a TOC symbol always has a relocation to its target symbol.
+    Instead of using name lookup to locate the target symbol, we can
+    just use the relocation.
     
-    Change-Id: I2330499b5f2ecbeb02f7e3bc0b17ded755d5c685
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222617
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Using name lookup, besides being less efficient, needs to provide
+    the right symbol version. In this particular case, we are looking
+    for a data symbol so it is almost always version 0. But in case
+    that it is a text symbol, we may get an ABIALIAS symbol, which
+    does not have its Sect set.
+    
+    Change-Id: I1ecfd284b04a86bbbc450059ee89d99d40493e51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201019
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/block.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/link/internal/ppc64/asm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

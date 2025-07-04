@@ -1,17 +1,15 @@
-commit 357a18a2c625d06f0f9202142b3432458368484f
+commit 89fde30fbda9a86a7b53db7b7cee1cfd8e1a36ff
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 14 14:21:44 2013 -0500
+Date:   Thu Feb 14 14:21:09 2013 -0500
 
-    cmd/go: set $PWD when running commands
+    os: cache Getwd result as hint for next time
     
-    This makes os.Getwd inside those commands much faster.
+    Avoids the dot-dot-based algorithm on repeated calls
+    when the directory hasn't changed.
     
-    R=golang-dev, r
+    R=golang-dev, iant, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7324055
+    https://golang.org/cl/7340043
 
- src/cmd/go/build.go |  2 +-
- src/cmd/go/main.go  | 19 +++++++++++++++++++
- src/cmd/go/test.go  |  3 ++-
- src/cmd/go/vcs.go   |  1 +
- 4 files changed, 23 insertions(+), 2 deletions(-)
+ src/pkg/os/getwd.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

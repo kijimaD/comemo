@@ -1,17 +1,15 @@
-commit 997ed6fd3b812a280457f93114dd5aaaf4be056f
-Author: Rob Pike <r@golang.org>
-Date:   Thu Nov 19 12:33:32 2015 -0800
+commit 8fab2929dd97b8fb8fe1837b886115e24e814572
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 14 12:01:04 2015 -0700
 
-    cmd/go: make it clearer that go generate accepts all build flags
+    go/parser: better error message for unexpected ',' in struct type
     
-    Just add one word to clarify that -n -v -x are not the only build flags supported.
+    Fixes #12437.
     
-    Fixes #13237.
-    
-    Change-Id: I880472639bf2fc1a0751a83041bc7ddd0c9e55f4
-    Reviewed-on: https://go-review.googlesource.com/17062
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I5463970a6259527003eb0e12903a338cc78e0683
+    Reviewed-on: https://go-review.googlesource.com/14564
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/go/alldocs.go  | 2 +-
- src/cmd/go/generate.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/parser/parser.go     |  9 +++++++--
+ src/go/parser/short_test.go | 12 +++++++-----
+ 2 files changed, 14 insertions(+), 7 deletions(-)

@@ -1,17 +1,34 @@
-commit f7a14ae0cd2f4a1f39610b1580e15693456c9639
-Author: Adam <bitlux@users.noreply.github.com>
-Date:   Thu Oct 31 07:12:15 2024 +0000
+commit a2f28a48415adb8b8736aa1d5c335f99375b2f3a
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed Jun 21 14:18:56 2023 -0400
 
-    math/big: properly linkify a reference
+    fmt: avoid reflect.Value.Pointer to help escape analysis
     
-    Change-Id: Ie7649060db25f1573eeaadd534a600bb24d30572
-    GitHub-Last-Rev: c617848a4ec9f5c21820982efc95e0ec4ca2510c
-    GitHub-Pull-Request: golang/go#70134
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/623757
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    This is part of a series of CLs that aim to reduce how often
+    interface arguments escape for the print functions in fmt.
+    
+    Prior to this change, one reason arguments escape is because
+    fmtPointer calls reflect.Value.Pointer:
+    
+    ./print.go:551:39: parameter value leaks to <heap> for (*pp).fmtPointer with derefs=0:
+    ./print.go:551:39:   flow: <heap> ← value:
+    ./print.go:551:39:     from reflect.Value.Pointer(value) (call parameter) at ./print.go:555:20
+    
+    printValue also has its value argument escape for this reason,
+    among others.
+    
+    This CL changes those uses to reflect.Value.UnsafePointer instead,
+    which does not cause an escape.
+    
+    Arguments still escape for other reasons.
+    
+    Change-Id: I81c4f737f11fe835c5ccb122caee40a39b553451
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524939
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: t hepudds <thepudds1460@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/math/big/int.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/fmt/print.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

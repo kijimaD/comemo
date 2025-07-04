@@ -1,29 +1,23 @@
-commit d67e7e3acff13d845f8952b45daf9b794fa4ad51
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 12 15:22:26 2013 -0400
+commit dbcfed93e75b91819bd01eb228996073b18c8196
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jun 12 18:46:35 2013 +0400
 
-    runtime: add lr, ctxt, ret to Gobuf
+    runtime: fix scheduler race condition
+    In starttheworld() we assume that P's with local work
+    are situated in the beginning of idle P list.
+    However, once we start the first M, it can execute all local G's
+    and steal G's from other P's.
+    That breaks the assumption above. Thus starttheworld() will fail
+    to start some P's with local work.
+    It seems that it can not lead to very bad things, but still
+    it's wrong and breaks other assumtions
+    (e.g. we can have a spinning M with local work).
+    The fix is to collect all P's with local work first,
+    and only then start them.
     
-    Add gostartcall and gostartcallfn.
-    The old gogocall = gostartcall + gogo.
-    The old gogocallfn = gostartcallfn + gogo.
-    
-    R=dvyukov, minux.ma
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/10036044
+    https://golang.org/cl/10051045
 
- misc/cgo/test/callback.go       |  2 +-
- src/pkg/runtime/asm_386.s       | 67 ++++++++++++++---------------------------
- src/pkg/runtime/asm_amd64.s     | 63 ++++++++++++--------------------------
- src/pkg/runtime/asm_arm.s       | 67 ++++++++++++++---------------------------
- src/pkg/runtime/mgc0.c          | 14 +++++++--
- src/pkg/runtime/panic.c         |  3 +-
- src/pkg/runtime/proc.c          | 51 ++++++++++++++++++++-----------
- src/pkg/runtime/runtime.h       | 13 +++++---
- src/pkg/runtime/stack.c         | 24 +++++++++++----
- src/pkg/runtime/stack.h         |  2 +-
- src/pkg/runtime/sys_arm.c       | 17 +++++++++++
- src/pkg/runtime/sys_x86.c       | 21 +++++++++++++
- src/pkg/runtime/traceback_arm.c | 20 ++++++------
- src/pkg/runtime/traceback_x86.c | 11 ++-----
- 14 files changed, 188 insertions(+), 187 deletions(-)
+ src/pkg/runtime/proc.c | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)

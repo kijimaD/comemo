@@ -1,13 +1,16 @@
-commit 473de6035930f4014a07f5b2a1315993cb42fb27
-Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 1 11:44:17 2011 -0800
+commit d2b77bb194b8377c1b1ba5826960f1e63f13a51a
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Dec 1 17:35:43 2011 -0200
 
-    time: update doc string for Error method
-    Fixes #2512.
+    os: add ModeType constant to mask file type bits
     
-    R=golang-dev, gri
+    This covers the lack of IsRegular comfortably:
+    
+        if stat.Mode()&os.ModeType == 0 { ... }
+    
+    R=golang-dev, r, rsc, r, gustavo
     CC=golang-dev
-    https://golang.org/cl/5449057
+    https://golang.org/cl/5440075
 
- src/pkg/time/format.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/os/types.go | 3 +++
+ 1 file changed, 3 insertions(+)

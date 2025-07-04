@@ -1,18 +1,16 @@
-commit d98023ebb5c2db9a445699b690f2cf6fd77f4b7e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 30 18:25:47 2020 -0700
+commit 3d457f1a3669f8609018bfdc981de7da2f0e95d9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 4 11:53:22 2019 +0200
 
-    runtime, internal/poll: name error codes
+    cmd/dist: add support for freebsd/arm64
     
-    Use explicit names for the error code returned by pollReset
-    and pollWait, rather than just 0, 1, 2, 3.
+    Updates #24715
     
-    Change-Id: I0ab12cae57693deab7cca9cdd2fadd597e23a956
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226537
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I110a10a5d5ed4a471f67f35cbcdcbea296c5dcaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198542
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/fd_poll_runtime.go | 17 +++++++++----
- src/runtime/netpoll.go               | 46 ++++++++++++++++++++++++------------
- 2 files changed, 44 insertions(+), 19 deletions(-)
+ src/cmd/dist/build.go | 1 +
+ 1 file changed, 1 insertion(+)

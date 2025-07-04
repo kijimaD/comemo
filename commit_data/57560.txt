@@ -1,50 +1,29 @@
-commit eb6f2c24cd17c0ca1df7e343f8d9187eef7d6e13
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Sep 22 03:45:29 2024 +0200
+commit 5fa4aac0cec637fd9415fb260e3fbc2975377e00
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jun 29 00:41:32 2023 +0700
 
-    runtime: use vDSO for getrandom() on linux
+    go/types, types2: add Sizes computation to match gc behavior
     
-    Linux 6.11 supports calling getrandom() from the vDSO. It operates on a
-    thread-local opaque state allocated with mmap using flags specified by
-    the vDSO.
+    Fixes #60431
+    Fixes #60734
+    Fixes #61035
     
-    Opaque states are allocated in chunks, ideally ncpu at a time as a hint,
-    rounding up to as many fit in a complete page. On first use, a state is
-    assigned to an m, which owns that state, until the m exits, at which
-    point it is given back to the pool.
-    
-    Performance appears to be quite good:
-    
-               │    sec/op    │   sec/op       vs base                 │
-    Read/4-16    222.45n ± 3%   27.13n   ± 6%  -87.80% (p=0.000 n=10)
-               │     B/s      │      B/s       vs base                 │
-    Read/4-16    17.15Mi ± 3%   140.61Mi ± 6%  +719.82% (p=0.000 n=10)
-    
-    Fixes #69577.
-    
-    Change-Id: Ib6f44e8f2f3940c94d970eaada0eb566ec297dc7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614835
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I82513da3e1714e8271fae220fe242bf2bfb4eb9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506856
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/crypto/rand/rand_test.go           |   3 +
- src/internal/syscall/unix/getrandom.go |  10 ++++
- src/runtime/os_linux.go                |   9 +++
- src/runtime/sys_linux_amd64.s          |  33 +++++++++++
- src/runtime/sys_linux_arm64.s          |  45 +++++++++++++++
- src/runtime/sys_linux_loong64.s        |  43 ++++++++++++++
- src/runtime/sys_linux_ppc64x.s         |  50 +++++++++++++++++
- src/runtime/sys_linux_s390x.s          |  50 +++++++++++++++++
- src/runtime/vdso_linux_amd64.go        |   2 +
- src/runtime/vdso_linux_arm64.go        |   7 ++-
- src/runtime/vdso_linux_loong64.go      |   5 +-
- src/runtime/vdso_linux_ppc64x.go       |   5 +-
- src/runtime/vdso_linux_s390x.go        |   5 +-
- src/runtime/vgetrandom_linux.go        | 100 +++++++++++++++++++++++++++++++++
- src/runtime/vgetrandom_unsupported.go  |  18 ++++++
- 15 files changed, 377 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/gcsizes.go     | 169 ++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/sizes.go       |  17 +--
+ src/cmd/compile/internal/types2/sizes_test.go  |  59 +++++++++
+ src/go/types/gcsizes.go                        | 171 +++++++++++++++++++++++++
+ src/go/types/generate_test.go                  |   1 +
+ src/go/types/sizes.go                          |  17 +--
+ src/go/types/sizes_test.go                     |  59 +++++++++
+ src/internal/types/testdata/check/builtins0.go |  12 +-
+ 8 files changed, 477 insertions(+), 28 deletions(-)

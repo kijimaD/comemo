@@ -1,20 +1,26 @@
-commit 338a81741a9aecba1a80014eced5cb2d3852d8eb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 20 11:17:59 2022 -0400
+commit feec53c4e5641f6a9f89ba9dcd8d89d84ea2717c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 17 15:36:23 2021 -0700
 
-    crypto/rand: apply the same max read size on Illumos as on Solaris
+    [dev.typeparams] cmd/compile: skip types2 GC test during bootstrapping
     
-    This case was missed in CL 370894, and masked by the lack of an
-    Illumos TryBot.
+    Unified includes a check to make sure that types2 memory has been
+    garbage collected, but it relies on precise finalization, which we
+    provide (for dynamically allocated objects, at least) but isn't
+    guaranteed by the Go spec. In particular, Go 1.4 doesn't provide this.
     
-    Fixes #52452.
+    The check is strictly unnecessary and only exists to make sure we
+    don't regress and start holding onto types2 memory accidentally. So
+    just disable the check during bootstrap builds.
     
-    Change-Id: I7cda193e33c11a9d04eb888fdb5ec9218e6ed1b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401294
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Change-Id: Ie54fe53b2edba02c0b0b1e5ae39d81be8a0ace8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329269
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/rand/rand_getrandom.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/base/bootstrap_false.go | 11 +++++++++++
+ src/cmd/compile/internal/base/bootstrap_true.go  | 11 +++++++++++
+ src/cmd/compile/internal/noder/unified.go        | 10 ++++++++++
+ 3 files changed, 32 insertions(+)

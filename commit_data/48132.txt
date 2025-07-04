@@ -1,36 +1,29 @@
-commit 18c2033ba587ce63fc9f2d6f52b8bb2e395c561f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 9 11:04:01 2022 -0500
+commit 5b328c4a2fbae10ec10d233d691435fe0295fc39
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 28 11:00:15 2021 -0400
 
-    runtime/pprof: remove arbitrary sleeps in TestBlockProfile
+    cmd/compile: use desired register only if it satisfies register mask
     
-    The "block" helpers in TestBlockProfile previously slept for an
-    arbitrary duration and assumed that that duration was long enough for
-    the parent goroutine to have registered as blocking. However —
-    especially on slow or overloaded builders — the current arbitrary
-    duration is sometimes not quite long enough.
+    In the register allocator, if possible, we allocate a value to its
+    desired register (the ideal register for its next use). In some
+    cases the desired register does not satisfies the value's output
+    register mask. We should not use the register in this case.
     
-    Rather than increasing the duration to a different arbitrary value
-    (which would make the test slower but not actually eliminate the
-    possibility of flakes!), we can use the runtime's own accounting to
-    detect when the goroutine is actually blocked: we obtain a goroutine
-    dump from the runtime, and assume that blocking has been registered in
-    the profile only if the runtime shows the test goroutine in the
-    appropriate blocked state.
+    In the following example, v33 is going to be returned as a
+    function result, so it is allocated to its desired register AX.
+    However, its Op cannot use AX as output, causing miscompilation.
     
-    That not only makes the test more reliable, but also makes it
-    significantly lower-latency when run on a fast machine.
+    v33 = CMOVQEQF <int> v24 v28 v29 : AX (~R0[int])
+    v35 = MakeResult <int,int,mem> v33 v26 v18
+    Ret v35
     
-    Fixes #6999
-    Fixes #37844
-    
-    Change-Id: I465ed2afd406fd2b621419e1f06925f283525f25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384534
-    Trust: Bryan Mills <bcmills@google.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id0f4f27c4b233ee297e83077e3c8494fe193e664
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314630
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/pprof/pprof_test.go | 67 ++++++++++++++++++++++++++++++-----------
- 1 file changed, 49 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go |  7 +++--
+ test/abi/result_regalloc.go              | 46 ++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 2 deletions(-)

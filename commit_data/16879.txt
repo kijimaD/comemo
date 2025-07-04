@@ -1,16 +1,14 @@
-commit 32a3ce67993fab5d0a46dd697d0fbd5b2c4e306e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Jul 26 13:38:24 2013 +1000
+commit de6da4a8bdce935ba71f585bb458272cc781dd9a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 25 17:40:29 2013 -0700
 
-    gc: fix line directive processing on windows
+    5c: fix pc recalculation in the presence of AFUNCDATA
     
-    This change should have been part of 5671737303a0.
+    This makes CL 11683043 not break arm anymore.
     
-    Fixes #5904
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/11894043
+    https://golang.org/cl/11888043
 
- src/cmd/gc/obj.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/5c/reg.c | 1 +
+ 1 file changed, 1 insertion(+)

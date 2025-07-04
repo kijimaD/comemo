@@ -1,14 +1,15 @@
-commit 0e5cd9d3f6ee8e0828cf29152d7180f70a00d6c7
-Author: Joel Sing <jsing@google.com>
-Date:   Tue Nov 8 11:43:58 2011 -0500
+commit cabe0e6ad38b1498098c7d9aba70dc218b0a23a7
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Nov 8 09:06:02 2011 -0500
 
-    runtime: add timespec definition for freebsd
+    os, syscall: fix Plan 9 build
     
-    R=golang-dev, devon.odell
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5340058
+    https://golang.org/cl/5330067
 
- src/pkg/runtime/freebsd/386/defs.h   | 6 ++++++
- src/pkg/runtime/freebsd/amd64/defs.h | 6 ++++++
- src/pkg/runtime/freebsd/defs.c       | 2 ++
- 3 files changed, 14 insertions(+)
+ src/pkg/os/env_plan9.go          | 2 +-
+ src/pkg/os/error_plan9.go        | 2 +-
+ src/pkg/os/exec_plan9.go         | 3 ++-
+ src/pkg/syscall/syscall_plan9.go | 4 ++--
+ 4 files changed, 6 insertions(+), 5 deletions(-)

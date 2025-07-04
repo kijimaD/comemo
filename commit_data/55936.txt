@@ -1,22 +1,22 @@
-commit 0159150a4aa0b10f9845af94726cd67ffee93b75
-Author: Kévin Dunglas <kevin@dunglas.fr>
-Date:   Tue Mar 12 21:33:55 2024 +0000
+commit 0393934fa49fce48986c8f48ff6e61971d6dbdc9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 25 20:05:38 2023 -0700
 
-    cmd/go: update docs for go test -benchmem
+    net: don't assume that NOFILE rlimit fits in an int
     
-    Mention that the allocation counter doesn't count allocations made using
-    C.malloc (cgo) or in C.
+    No test because a test requires a system on which we can set RLIMIT_NOFILE
+    to RLIM_INFINITY, which we normally can't.
     
-    Change-Id: I03c23b6d8cfde68c04a75732a0d3c05eedae2276
-    GitHub-Last-Rev: 2d805b3322327b73076a197628987ac874311664
-    GitHub-Pull-Request: golang/go#65430
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/560397
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #59242
+    
+    Change-Id: I8fc30e4206bb2be46369b5342360de556ce75a96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479436
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/alldocs.go            | 1 +
- src/cmd/go/internal/test/test.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/net/lookup_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

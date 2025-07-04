@@ -1,23 +1,33 @@
-commit 2551fffd2c06cf0655ebbbd11d9b1e70a5b2e9cb
-Author: go101 <tapir.liu@gmail.com>
-Date:   Thu Nov 16 15:34:32 2023 +0000
+commit c8313d4fa8ca04a1844edcb4a6e1f61cf13fd40e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 7 16:33:42 2022 -0500
 
-    slices: improve Insert panic message for index out of range
+    cmd/go: deflake TestScript/test2json_interrupt
     
-    The panic message of the current implementation for index out of range is not ideal.
-    This PR tries to improve it.
+    - Start handling signals in 'go test' just before starting the test
+      subprocess instead of just after. (It is unlikely that starting the
+      process will cause cmd/go to hang in a way that requires signals to
+      debug, and it is possible that something the test does — such as
+      sending os.Interrupt to its parent processes — will immediately
+      send a signal that needs to be handled.)
     
-    Fixes #63913 and #64152
+    - In the test-test, don't try to re-parse the parent PIDs after
+      sending signals, and sleep for a much shorter time interval.
+      (Overrunning the sleep caused the next call to strconv.Atoi — which
+      shouldn't even happen! — to fail with a parse error, leading to the
+      failure mode observed in
+      https://build.golang.org/log/f0982dcfc6a362f9c737eec3e7072dcc7ef29e32.)
     
-    Change-Id: Ibcf6c9c0f555c8b8bf46b7d6f20f0ccc5698acd4
-    GitHub-Last-Rev: 1bbec230f4b0ec547d21c8d38dd46007bd282855
-    GitHub-Pull-Request: golang/go#64163
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542455
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    Fixes #56083.
+    Updates #53563.
+    
+    Change-Id: I346a95bdda5619632659ea854f98a9e17a6aede7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/slices/slices.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/test/test.go                   |  2 +-
+ src/cmd/go/testdata/script/test2json_interrupt.txt | 29 ++++++++++++----------
+ 2 files changed, 17 insertions(+), 14 deletions(-)

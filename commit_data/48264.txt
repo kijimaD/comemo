@@ -1,20 +1,32 @@
-commit 2e9facbdd44883221fc90b8057d0443d1a8109e9
-Author: eric fang <eric.fang@arm.com>
-Date:   Wed Jan 19 04:02:25 2022 +0000
+commit fe8c0e9467d8628138d54951ebb8e166c086c80b
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Apr 23 14:06:51 2021 -0400
 
-    runtime: use stp/ldp to save and restore all registers on arm64
+    [dev.fuzz] cmd/go/internal/test: don't set default timeout when fuzzing
     
-    Async preemption needs to save and restore almost all of the registers,
-    currently this is done by ldr and str on arm64. We can do it with ldp
-    and stp as they are more efficient.
+    The -timeout flag is not used when the fuzzing engine
+    is running, but there was another backup alarm that would
+    stop the test binary after 11 minutes by default. This
+    change disables that backup alarm when the -fuzz flag is
+    set.
     
-    Change-Id: Ida5a6f0a8d825a56af607ba2c2cd91fdc2e8f67f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379715
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Eric Fang <eric.fang@arm.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Note: unfortunately this means that if someone is running
+    `go test -fuzz` and a test hangs before the fuzzing engine
+    starts running, then the backup alarm won't trigger and
+    the test will run ~forever. I don't think there's a way
+    around this though, since the backup alarm has no way of
+    knowing what stage of the test execution we're in (ie.
+    are we running the unit tests, the seed corpus, or is
+    it fuzzing).
+    
+    Fixes #44483
+    
+    Change-Id: I4e212708a739c9cfc2e138440e27f257bb408c7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313072
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/mkpreempt.go    |  41 +++++-----
- src/runtime/preempt_arm64.s | 178 +++++++++++++++-----------------------------
- 2 files changed, 80 insertions(+), 139 deletions(-)
+ src/cmd/go/internal/test/test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

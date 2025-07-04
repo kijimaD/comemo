@@ -1,37 +1,18 @@
-commit d03c1248604679e1e6a01253144065bc57da48b8
-Author: Sokolov Yura <funny.falcon@gmail.com>
-Date:   Thu Jan 5 09:36:27 2017 +0300
+commit caba0bd18912109f4d9fa2f4807d6ee4ddd5ffab
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 28 10:26:44 2016 +1100
 
-    runtime: implement fastrand in go
+    image/png: implement grayscale transparency.
     
-    So it could be inlined.
-    
-    Using bit-tricks it could be implemented without condition
-    (improved trick version by Minux Ma).
-    
-    Simple benchmark shows it is faster on i386 and x86_64, though
-    I don't know will it be faster on other architectures?
-    
-    benchmark                       old ns/op     new ns/op     delta
-    BenchmarkFastrand-3             2.79          1.48          -46.95%
-    BenchmarkFastrandHashiter-3     25.9          24.9          -3.86%
-    
-    Change-Id: Ie2eb6d0f598c0bb5fac7f6ad0f8b5e3eddaa361b
-    Reviewed-on: https://go-review.googlesource.com/34782
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib9309ee499fc51be2662d778430ee30089822e57
+    Reviewed-on: https://go-review.googlesource.com/32143
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/asm_386.s      | 14 --------------
- src/runtime/asm_amd64.s    | 13 -------------
- src/runtime/asm_amd64p32.s | 13 -------------
- src/runtime/asm_arm.s      |  9 ---------
- src/runtime/asm_arm64.s    | 12 ------------
- src/runtime/asm_mips64x.s  | 10 ----------
- src/runtime/asm_mipsx.s    | 10 ----------
- src/runtime/asm_ppc64x.s   | 11 -----------
- src/runtime/asm_s390x.s    | 11 -----------
- src/runtime/export_test.go |  2 ++
- src/runtime/rand_test.go   | 32 ++++++++++++++++++++++++++++++++
- src/runtime/stubs.go       | 11 +++++++++--
- 12 files changed, 43 insertions(+), 105 deletions(-)
+ src/image/png/reader.go                       | 136 +++++++++++++++++++++-----
+ src/image/png/reader_test.go                  |  70 ++++++++++---
+ src/image/png/testdata/pngsuite/README        |   8 +-
+ src/image/png/testdata/pngsuite/ftbbn0g01.sng |  44 +++++++++
+ src/image/png/testdata/pngsuite/ftbbn0g02.sng |  45 +++++++++
+ src/image/png/testdata/pngsuite/ftbbn0g04.sng |  45 +++++++++
+ src/image/png/testdata/pngsuite/ftbwn0g16.sng |  45 +++++++++
+ 7 files changed, 350 insertions(+), 43 deletions(-)

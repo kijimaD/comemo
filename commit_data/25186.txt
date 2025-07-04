@@ -1,14 +1,12 @@
-commit 3d70475833bcf1ee83e09eca21aa4a58a492d2a0
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Fri Dec 4 23:22:26 2015 -0700
+commit bc953b2ca2b564fb5b0101e5f4cd63954d3f2c55
+Author: Katrina Owen <katrina.owen@gmail.com>
+Date:   Mon Oct 5 21:15:23 2015 -0600
 
-    net/http: sniffWrite test also in http2 mode
+    doc: fix typo in contributing guide
     
-    Change-Id: Ifa9f1ed6a3b8d3f7536f2d315259940335b0ee49
-    Reviewed-on: https://go-review.googlesource.com/17438
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6d9a8886cccf1c396ea2dbc659c5bf7548179751
+    Reviewed-on: https://go-review.googlesource.com/15435
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/sniff_test.go | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,17 @@
-commit b39daa7a11a436076e19ee891319dd47894e09da
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed May 1 09:39:49 2019 +0200
+commit 4ab6fb194572846d53b80a92a0d87eaf31446542
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 4 14:37:39 2018 -0500
 
-    os,time: fix tests on iOS
+    cmd/go/internal/get: reject Windows shortnames as path components
     
-    When fixing tests for for self-hosted iOS builds, I
-    broke hosted builds.
+    Updates #29230
     
-    Updates #31722
-    
-    Change-Id: Id4e7d234fbd86cb2d29d320d75f4441efd663d12
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174698
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia32d8ec1fc0c4e242f50d8871c0ef3ce315f3c65
+    Reviewed-on: https://team-review.git.corp.google.com/c/370571
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/154102
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/os/os_test.go        |  1 +
- src/time/zoneinfo_ios.go | 31 +++++++++++++++++++++----------
- 2 files changed, 22 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/get/path.go          | 21 ++++++++++++++++++++-
+ src/cmd/go/testdata/script/get_tilde.txt | 21 +++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 1 deletion(-)

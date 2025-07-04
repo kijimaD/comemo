@@ -1,18 +1,15 @@
-commit c1ab165fa6f0744c87135b53f21576d61c74dec4
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Oct 18 15:27:51 2016 +0200
+commit 35e25ef62efc5917481e11ff6e7a5cc12468b0e2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 20 10:18:23 2016 -0700
 
-    net/http: enable TestTransportRemovesDeadIdleConnections on Plan 9
+    cmd/internal/obj/x86: minor code cleanup
     
-    This issue has been fixed in CL 31390.
+    Update #16415
     
-    Fixes #15464.
-    
-    Change-Id: I35e088f37bf3b544100ff131c72690bcfd788e5b
-    Reviewed-on: https://go-review.googlesource.com/31393
+    Change-Id: I83e0966931ada2f1ed02304685bb45effdd71268
+    Reviewed-on: https://go-review.googlesource.com/26665
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/transport_test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go | 27 +++++++++++----------------
+ 1 file changed, 11 insertions(+), 16 deletions(-)

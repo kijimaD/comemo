@@ -1,16 +1,16 @@
-commit c8eced8580028328fde7c03cbfcb720ce15b2358
-Author: Sean Liao <sean@liao.dev>
-Date:   Mon Mar 17 19:20:32 2025 +0000
+commit 62cebb2e917a6839bad15206c4f543fa8074411c
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Feb 2 16:19:37 2024 -0800
 
-    net/http/httputil: document ProxyRequest.SetURL limitations
+    net/http: close connection if OnProxyConnectResponse returns an error
     
-    Fixes #50337
+    Fixes #64804
     
-    Change-Id: I898ff6352f46f0f9b540b053049c5116e2165827
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658536
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ibe56ab8d114b8826e477b0718470d0b9fbfef9b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560856
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- src/net/http/httputil/reverseproxy.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/http/transport.go      |  1 +
+ src/net/http/transport_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

@@ -1,19 +1,21 @@
-commit a14e7bf6d42d9a8b0d698c0a47422c12e38b3f6c
-Author: Rebecca Stambler <rstambler@golang.org>
-Date:   Tue Nov 17 18:28:38 2020 -0500
+commit 41e925bbcce2f0ca624f74ae4c5574dc76cb4140
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Apr 24 12:17:01 2020 +0200
 
-    go/ast: document invalid comment end positions with CRLF line endings
+    testing: replace all GOOS-specific path separators in TempDir
     
-    We've decided that issues like golang/go#41197 are unfixable, so
-    instead, document the bug.
+    For GOOS=windows the path separator characters '\' and ':' also need be
+    replaced.
     
-    Fixes golang/go#41197
+    Updates #38465
     
-    Change-Id: I5649027f6e2445eec765516f2f642db0d601ea20
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270938
-    Trust: Rebecca Stambler <rstambler@golang.org>
-    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: If7c8cf93058c87d7df6cda140e82fd76578fe699
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229837
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/ast/ast.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/testing/testing.go      | 10 +++++++++-
+ src/testing/testing_test.go |  5 +++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

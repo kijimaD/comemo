@@ -1,0 +1,32 @@
+commit be003bd00b14fa29cd0876fb4fab627a007e2bbf
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 26 21:47:19 2024 -0400
+
+    runtime: don't re-raise ignored signal
+    
+    If a signal lands on a non-Go thread, and Go code doesn't want to
+    handle it, currently we re-raise the signal in the signal handler
+    after uninstalling our handler, so the C code can handle it.
+    
+    But if there is no C signal handler and the signal is ignored,
+    there is no need to re-raise the signal. Just ignore it. This
+    avoids uninstalling and reinstalling our handler, which, for some
+    reason, changes errno when TSAN is used. And TSAN does not like
+    errno being changed in the signal handler.
+    
+    Not really sure if this is the bset of complete fix, but it does
+    fix the immediate problem, and it seems a reasonable thing to do
+    by itself.
+    
+    Test case is CL 581722.
+    
+    Fixes #66427.
+    
+    Change-Id: I7a043d53059f1ff4080f4fc8ef4065d76ee7d78a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582077
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/signal_unix.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,20 +1,25 @@
-commit ab331c0254d4462dde6640ec9b00fecc828f4162
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Sun Feb 14 19:43:31 2021 +0100
+commit d1a186d29ce9d917dda7c66cfaee7788f88e7b9e
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jun 12 09:04:28 2020 -0400
 
-    runtime/cgo: use correct lean and mean macro
+    [dev.link] cmd/link: parallelize second-stage DWARF generation
     
-    WIN64_LEAN_AND_MEAN is not the correct macro to use and doesn't ever
-    exist.
+    This patch introduces parallelization of DWARF generation on a per
+    compilation unit basis. Each compilation unit now operates on a
+    separate set of symbols, so it's safe to send each compilation unit to
+    a goroutine to be processed in parallel.
     
-    Change-Id: I32a5523cc0f7cc3f3a4d022071cf81f88db39aa9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/291634
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Doing this requires some restructing to ensure that any new symbols
+    needed are created up front, since we can't create any new syms during
+    the parallel portion. Similarly, the parallel portion can't set any
+    symbol attributes, so the check that verifies we haven't doubly listed
+    any DIE syms had to be reworked, and setting of reachability has to be
+    delayed until after the parallel phase is complete.
+    
+    Change-Id: I3042b76e9b597bb1a6a44dce19efba2d02bed76b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237679
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/cgo/gcc_libinit_windows.c | 2 +-
- src/runtime/cgo/gcc_windows_amd64.c   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 315 ++++++++++++++++++++++++--------------
+ 1 file changed, 197 insertions(+), 118 deletions(-)

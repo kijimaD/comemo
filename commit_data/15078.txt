@@ -1,28 +1,23 @@
-commit fe14ee52ccf89fa02366a06fe892a7fcf135e214
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Fri Feb 1 08:35:33 2013 -0800
+commit 32a6097fdea70f64e56a03709befe3adc3c70038
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 08:34:21 2013 -0800
 
-    cmd/6c, cmd/6g: add flag to support large-model code generation
+    cmd/go: clean cgo compiler errors
     
-    Added the -pic flag to 6c and 6g to avoid assembler instructions that
-    cannot use RIP-relative adressing. This is needed to support the -shared mode
-    in 6l.
+    Cut out temporary cgo file in error message.
+    Show C.foo instead of _Ctype_foo.
     
-    See also:
-    https://golang.org/cl/6926049
-    https://golang.org/cl/6822078
+    Before:
+    x.go:20[/var/folders/00/05_b8000h01000cxqpysvccm000n9d/T/go-build242036121/command-line-arguments/_obj/x.cgo1.go:19]: cannot use tv.Usec (type int32) as type _Ctype___darwin_suseconds_t in assignment
     
-    R=golang-dev, rsc
+    After:
+    x.go:20: cannot use tv.Usec (type int32) as type C.__darwin_suseconds_t in assignment
+    
+    Fixes #4255.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7064048
+    https://golang.org/cl/7231075
 
- src/cmd/6c/sgen.c  |  5 ++++-
- src/cmd/6g/cgen.c  |  8 ++++++--
- src/cmd/6g/ggen.c  | 10 +++++++++-
- src/cmd/6g/gsubr.c |  4 ++++
- src/cmd/cc/cc.h    |  1 +
- src/cmd/cc/lex.c   |  2 ++
- src/cmd/gc/go.h    |  1 +
- src/cmd/gc/lex.c   |  2 ++
- src/make.bash      |  7 +++++--
- 9 files changed, 34 insertions(+), 6 deletions(-)
+ src/cmd/go/build.go | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

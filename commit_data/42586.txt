@@ -1,23 +1,15 @@
-commit d7553d9af916682e9f68d1a1aa585a12293ed1f8
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Jun 30 18:41:24 2020 -0400
+commit b4f15e79afecd04821a694ae0b41b39d8bf32a96
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 23 03:30:14 2020 +1100
 
-    cmd/link: mark special symbols reachable
+    cmd/dist: detect gohostarch on riscv64 hosts
     
-    The special symbols are linker-created symbols for special
-    purposes, therefore reachable (otherwise the linker won't create
-    them). Mark them so, so they get converted to sym.Symbols when we
-    convert to old symbol representation.
+    Updates #27532
     
-    In particular, the failure for building shared library on PPC64
-    is due to .TOC. symbol not being converted to sym.Symbol, but
-    referenced in addmoduledata.
-    
-    Change-Id: Iaf5d145ffa5d15122e86a6e6983514e56dd5d456
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240620
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I66c194499bb7b831b569c66d0736fa7205eedd80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215837
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 2 ++
+ src/cmd/dist/main.go | 2 ++
  1 file changed, 2 insertions(+)

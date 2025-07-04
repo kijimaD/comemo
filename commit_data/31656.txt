@@ -1,20 +1,17 @@
-commit 74e3be8f38ffd376996946ca7d6736b1e0036cfb
-Author: David Chase <drchase@google.com>
-Date:   Mon Mar 20 14:24:00 2017 -0400
+commit 1fa063cbb6efd16a13d9c0e44374aac8791fbcb7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 19:10:47 2017 +0100
 
-    cmd/dist: ensure android-implies-linux for file names in dist
+    go/internal/gccimporter: actually use pkg parameter
     
-    This is one hurdle to building Go on Android; the runtime does
-    not build properly because *_linux.go files are excluded from
-    the "Building go_bootstrap" step when GOOS=android.
+    We're passed a pkg, so it makes little sense to not use it. This was
+    probably a typo and not the intended behaviour.
     
-    There are other hurdles; this is the first one.
+    Fixes #19407.
     
-    Change-Id: I766e4bbf6ffc0d273888913f2516cf3e995a1786
-    Reviewed-on: https://go-review.googlesource.com/38308
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia1c9130c0e474daf47753cf51914a2d7db272c96
+    Reviewed-on: https://go-review.googlesource.com/37839
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/build.go | 2 +-
+ src/go/internal/gccgoimporter/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

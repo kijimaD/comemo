@@ -1,21 +1,17 @@
-commit b477a79c4e67e90e828cdf3e82fad5bac644a85c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 27 14:07:13 2011 -0700
+commit aee6b1160e790b098b3aaac317a9a373058e871d
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Wed Apr 27 15:47:12 2011 -0400
 
-    cgi: improve Location response handling
+    runtime: fix mkversion to output valid path separators
     
-    Add local URI path support, which isn't as fringe
-    as I originally thought. (it's supported by Apache)
+    In a GOROOT path a backslash is a path separator
+    not an escape character. For example, `C:\go`.
+    Fixes gotest error:
+    version.go:3: unknown escape sequence: g
     
-    Send an implicit 302 status on redirects (not 200).
-    
-    Fixes #1597
-    
-    R=rsc, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4442089
+    https://golang.org/cl/4437076
 
- src/pkg/http/cgi/host.go           | 83 +++++++++++++++++++++++++++++++++-----
- src/pkg/http/cgi/host_test.go      | 37 +++++++++++++++++
- src/pkg/http/cgi/testdata/test.cgi |  5 +++
- 3 files changed, 116 insertions(+), 9 deletions(-)
+ src/pkg/runtime/mkversion.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

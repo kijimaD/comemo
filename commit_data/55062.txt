@@ -1,18 +1,18 @@
-commit ddb38c3f540c17a0437132532f49f6f0061d82af
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Nov 20 08:19:49 2023 -0800
+commit 27301e8247580e456e712a07d68890dc1e857000
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 9 12:25:22 2022 -0500
 
-    cmd/compile/internal/devirtualize: use CallExpr.GoDefer for PGO
+    syscall: fix shadowing bugs in forkAndExecInChild
     
-    CL 543657 dedup'd the go/defer statement recognition between the
-    inliner and static devirtualizer. This CL extends that for PGO-based
-    devirtualization too.
+    Fixes #57208.
+    Updates #23152.
     
-    Change-Id: I998753132af1ef17329676f4e17515f16e0acb03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543775
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Icc9a74aeb26f1b6f151162c5d6bf1b4d7cd54d0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456515
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/devirtualize/pgo.go | 11 +----------
- 1 file changed, 1 insertion(+), 10 deletions(-)
+ src/syscall/exec_freebsd.go | 2 +-
+ src/syscall/exec_linux.go   | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,16 +1,18 @@
-commit 5bfba30d3325d87ef89dd877f05e5d1e2d618bc3
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sat Dec 24 00:06:02 2016 -0800
+commit ad5fd2872f6cce199aa4f543801d8793ef0a901f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 14 17:35:18 2016 -0400
 
-    cmd/compile: lock-in test for repeated variables in range declaration
+    test: simplify fixedbugs/issue15747.go
     
-    Fixes #6772.
+    The error check patterns in this test are more complex than necessary
+    because f2 gets inlined into f1. This behavior isn't important to the
+    test, so disable inlining of f2 and simplify the error check patterns.
     
-    Lock-in test for invalid range loop: repeated variables in range declaration.
-    
-    Change-Id: I37dd8b1cd7279abe7810deaf8a5d485c5c3b73ca
-    Reviewed-on: https://go-review.googlesource.com/34714
+    Change-Id: Ia8aee92a52f9217ad71b89b2931494047e8d2185
+    Reviewed-on: https://go-review.googlesource.com/31132
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- test/fixedbugs/issue6772.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ test/fixedbugs/issue15747.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

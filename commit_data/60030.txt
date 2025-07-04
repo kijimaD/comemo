@@ -1,0 +1,22 @@
+commit a523152ea1df8d39d923ed90d19662896eff0607
+Author: Chen.Zhidong <njutczd@gmail.com>
+Date:   Thu May 16 16:27:58 2024 +0000
+
+    net/http: add Pattern field in Request to return matched pattern info
+    
+    Fixes #66405
+    
+    Change-Id: Icd80944b6ca081aa7addd4fb85d2b3c29b6c9542
+    GitHub-Last-Rev: c6e32742c4b733230c82627571b423de45997c24
+    GitHub-Pull-Request: golang/go#66618
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574997
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/66405.txt                           | 1 +
+ doc/next/6-stdlib/99-minor/net/http/66405.md | 3 +++
+ src/net/http/request.go                      | 4 ++++
+ src/net/http/request_test.go                 | 5 ++++-
+ src/net/http/server.go                       | 2 +-
+ 5 files changed, 13 insertions(+), 2 deletions(-)

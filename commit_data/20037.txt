@@ -1,15 +1,19 @@
-commit e4f3db3852e9178ac4c764fe753301d07a3269c8
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Aug 19 14:41:52 2014 +1000
+commit ce35994d4e8411a24833e4db3ddbfc6962eea467
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 12 19:53:11 2014 -0400
 
-    runtime: apply KindMask before comparison
+    cmd/6c, cmd/6g: avoid address-as-constant in amd64 instructions
     
-    Fixes windows build.
+    This allows implementing address-of-global
+    as a pc-relative address instead of as a
+    32-bit integer constant.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=rminnich, iant
+    R=golang-codereviews, rminnich, iant
     CC=golang-codereviews
-    https://golang.org/cl/127510043
+    https://golang.org/cl/128070045
 
- src/pkg/runtime/callback_windows.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/6c/sgen.c  | 5 +----
+ src/cmd/6g/cgen.c  | 7 +------
+ src/cmd/6g/gsubr.c | 5 +----
+ 3 files changed, 3 insertions(+), 14 deletions(-)

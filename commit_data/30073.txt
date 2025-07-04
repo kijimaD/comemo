@@ -1,27 +1,17 @@
-commit 461c3e52633638ee6e385a6fed3d78dc0a02f210
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 13 14:59:37 2017 -0500
+commit a7cad4110ac229ecf5b0fcf0a035c5a03c699415
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sat Oct 8 06:57:49 2016 -0400
 
-    cmd/go: split out cmd/go/internal/buildid
+    net/http/httputil: log err encountered during reverseproxy body copying
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    Fixes #16659
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
-    
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
-    
-    For #18653.
-    
-    Change-Id: I20dbc352c3df3c83a75811dd8e78c580a46b2202
-    Reviewed-on: https://go-review.googlesource.com/36195
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I13dd797e93e0b572eaf8726f1be594870d40183b
+    Reviewed-on: https://go-review.googlesource.com/30692
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/build.go                       |   5 +-
- src/cmd/go/internal/buildid/buildid.go    | 201 ++++++++++++++++++++++++++++++
- src/cmd/go/{ => internal/buildid}/note.go |   4 +-
- src/cmd/go/note_test.go                   |  13 +-
- src/cmd/go/pkg.go                         | 200 ++---------------------------
- 5 files changed, 220 insertions(+), 203 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 30 ++++++++++++++++++++-
+ src/net/http/httputil/reverseproxy_test.go | 42 ++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 1 deletion(-)

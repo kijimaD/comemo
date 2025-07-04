@@ -1,27 +1,20 @@
-commit 1531192272dfdebc61050a8dafa626ff4b36b3a4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 30 21:06:01 2019 -0700
+commit 149d9de4b1e50d9f671c79264075f72fa01343e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 28 16:33:49 2019 -0800
 
-    runtime: remove VDSO fallback test and benchmarks
+    cmd/gofmt: test that Go 2 number literals can be formatted
     
-    These tests assume that it is OK to switch between time implementations,
-    but the clock_gettime call uses CLOCK_MONOTONIC and the fallback call,
-    gettimeofday, uses CLOCK_REALTIME. Disabling the clock_gettime call means
-    that calls to nanotime will start returning very different values.
-    This breaks the new timer code, which assumes that nanotime will return
-    a consistently increasing value.
+    R=Go1.13
     
-    This test is not very useful in any case as it doesn't check the results.
+    Updates #12711.
+    Updates #19308.
+    Updates #28493.
+    Updates #29008.
     
-    Removing this file also removes BenchmarkTimeNow, which is a duplicate
-    of BenchmarkNow in the time package.
-    
-    Updates #27707
-    Fixes #32109
-    
-    Change-Id: I6a884af07f75822d724193c5eed94742f524f07d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174679
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icd25aa7f6e18ed671ea6cf2b1b292899daf4b1a5
+    Reviewed-on: https://go-review.googlesource.com/c/160018
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/vdso_linux_test.go | 63 ------------------------------------------
- 1 file changed, 63 deletions(-)
+ src/cmd/gofmt/testdata/go2numbers.golden | 156 +++++++++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/go2numbers.input  | 156 +++++++++++++++++++++++++++++++
+ 2 files changed, 312 insertions(+)

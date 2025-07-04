@@ -1,37 +1,20 @@
-commit 77786d90fae21f526caaddd23c887a2a7233a299
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu May 25 17:07:26 2023 -0400
+commit 2a0327b8fd2771ca6e8caf8f17307606046270fe
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Aug 12 10:49:13 2022 -0700
 
-    cmd/go: adjust pruning and switch toolchains if needed when go get changes go version
+    net: reenable TestLookupLongTXT
     
-    When we do 'go get', the Go version can change now.
-    That means we need to do the pruning conversions that
-    until now have only been necessary in go mod tidy -go=version.
+    This test was disabled for flakiness.
+    The underlying code has been rewritten.
+    Reenabling the test to see if it has been fixed.
     
-    We may also need to upgrade the toolchain in order to load enough o
-    the module graph to finish the edit, so we should let a TooNewError
-    bubble up to the caller instead of trying to downgrade the affected
-    module to avoid the error.
+    Fixes #22857.
     
-    Revised from CL 498120.
-    
-    For #57001.
-    
-    Change-Id: Ic8994737eca4ed61ccc093a69e46f5a6caa8be87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498267
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: If488ee5f4692cdf4ed534b8f08b4a54b80a60943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423454
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/go/internal/modget/get.go                  |   4 +
- src/cmd/go/internal/modload/buildlist.go           |  47 +++++----
- src/cmd/go/internal/modload/edit.go                | 109 +++++++++++++++++----
- src/cmd/go/internal/modload/init.go                |  45 ++++++---
- src/cmd/go/internal/modload/load.go                |   2 +
- src/cmd/go/internal/modload/modfile.go             |   4 +-
- src/cmd/go/testdata/script/mod_indirect_main.txt   |   2 -
- src/cmd/go/testdata/script/mod_skip_write.txt      |   2 -
- src/cmd/go/testdata/script/mod_tidy_version.txt    |  94 ++++++++++++++++++
- .../go/testdata/script/work_why_download_graph.txt |   2 +-
- 10 files changed, 254 insertions(+), 57 deletions(-)
+ src/net/lookup_test.go | 1 -
+ 1 file changed, 1 deletion(-)

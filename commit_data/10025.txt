@@ -1,20 +1,39 @@
-commit 4e7aac54137bb77a0b821b1cf24dcc3f42588a7d
+commit 313c8224d5e16fe554252aeaa11365e33c35b87b
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 10:03:37 2011 -0400
+Date:   Tue Oct 18 09:56:34 2011 -0400
 
-    reflect: make unsafe use of SliceHeader gc-friendly
+    gofix -r mapdelete
     
-    Revert workaround in compiler and
-    revert test for compiler workaround.
-    
-    Tested that the 386 build continues to fail if
-    the gc change is made without the reflect change.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r, adg, r, cw
     CC=golang-dev
-    https://golang.org/cl/5312041
+    https://golang.org/cl/5266045
 
- src/cmd/gc/reflect.c       |  2 +-
- src/pkg/reflect/value.go   | 29 +++++++++++++------
- src/pkg/runtime/gc_test.go | 71 ----------------------------------------------
- 3 files changed, 21 insertions(+), 81 deletions(-)
+ src/cmd/cgo/gcc.go                  | 2 +-
+ src/cmd/gofmt/rewrite.go            | 2 +-
+ src/pkg/debug/dwarf/type.go         | 2 +-
+ src/pkg/exp/types/check_test.go     | 2 +-
+ src/pkg/exp/types/universe.go       | 1 +
+ src/pkg/gob/decode.go               | 4 ++--
+ src/pkg/gob/type.go                 | 2 +-
+ src/pkg/http/fcgi/child.go          | 2 +-
+ src/pkg/http/persist.go             | 4 ++--
+ src/pkg/http/transfer.go            | 4 ++--
+ src/pkg/http/transport.go           | 2 +-
+ src/pkg/net/fd.go                   | 4 ++--
+ src/pkg/net/fd_linux.go             | 2 +-
+ src/pkg/net/textproto/header.go     | 2 +-
+ src/pkg/net/textproto/pipeline.go   | 2 +-
+ src/pkg/old/netchan/export.go       | 4 ++--
+ src/pkg/old/netchan/import.go       | 4 ++--
+ src/pkg/os/inotify/inotify_linux.go | 2 +-
+ src/pkg/reflect/type.go             | 2 +-
+ src/pkg/rpc/client.go               | 2 +-
+ src/pkg/rpc/jsonrpc/client.go       | 2 +-
+ src/pkg/rpc/jsonrpc/server.go       | 2 +-
+ src/pkg/syscall/syscall_unix.go     | 2 +-
+ src/pkg/unicode/maketables.go       | 2 +-
+ src/pkg/unicode/script_test.go      | 6 +++---
+ src/pkg/url/url.go                  | 2 +-
+ src/pkg/xml/xml.go                  | 6 +++++-
+ test/nil.go                         | 2 +-
+ 28 files changed, 40 insertions(+), 35 deletions(-)

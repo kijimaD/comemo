@@ -1,21 +1,18 @@
-commit 7d0cb2a2adec493b8ad9d79ef35354c8e20f0213
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 21 12:44:24 2025 -0700
+commit 0e89b67ed22f8130f53dea41d73d7b254c0402bc
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Mar 5 02:38:41 2024 +0000
 
-    cmd/compile: constant fold 128-bit multiplies
+    database/sql: remove useless error check
     
-    The full 64x64->128 multiply comes up when using bits.Mul64.
-    The 64x64->64+overflow multiply comes up in unsafe.Slice when using
-    a constant length.
-    
-    Change-Id: I298515162ca07d804b2d699d03bc957ca30a4ebc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667175
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Id2d45a4b43b05deba4e2c31f7c03008c2f2c18a2
+    GitHub-Last-Rev: 587bed9a64da08d5b476d87333aed72649dad470
+    GitHub-Pull-Request: golang/go#66110
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569075
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |   4 +
- src/cmd/compile/internal/ssa/rewrite.go         |  11 +++
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 108 ++++++++++++++++++++++++
- test/codegen/mathbits.go                        |  16 +++-
- 4 files changed, 138 insertions(+), 1 deletion(-)
+ src/database/sql/sql_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

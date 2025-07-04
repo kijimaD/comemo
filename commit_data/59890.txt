@@ -1,0 +1,19 @@
+commit 9c4849bf20e0f9d4c878318bd358b0911a9fb122
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 6 09:05:24 2024 -0400
+
+    math/rand/v2: add Uint
+    
+    Uint was part of the approved proposal but was inadvertently left
+    out of Go 1.22. Add for Go 1.23.
+    
+    Change-Id: Ifaf24447bd70c8524c2fd299eefdf4aa29e49e66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ api/next/61716.txt                               |  2 ++
+ doc/next/6-stdlib/99-minor/math/rand/v2/61716.md |  2 ++
+ src/math/rand/v2/rand.go                         |  6 +++++
+ src/math/rand/v2/regress_test.go                 | 29 +++++++++++++++++++++++-
+ 4 files changed, 38 insertions(+), 1 deletion(-)

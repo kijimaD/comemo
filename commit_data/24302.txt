@@ -1,12 +1,12 @@
-commit cf4527172cc7dc3f83dd81e16aeb424c88dd6ac5
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Sep 17 12:13:53 2015 -0400
+commit 4230c73f5584bdb6e2de19f934fd0195f4a487df
+Author: Hari haran <hariharan.uno@gmail.com>
+Date:   Wed Jul 22 16:30:32 2015 +0530
 
-    misc/ios: skip revoked certificates
+    doc: add line break in install-source.html
     
-    Change-Id: If65e5e55b359a61740d2ef185147bb6df90e0b0c
-    Reviewed-on: https://go-review.googlesource.com/14654
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I8633a005da7d0c34a5f074fbd979c8e0fc1fba37
+    Reviewed-on: https://go-review.googlesource.com/12505
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/ios/detect.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/install-source.html | 1 +
+ 1 file changed, 1 insertion(+)

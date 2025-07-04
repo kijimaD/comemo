@@ -1,32 +1,25 @@
-commit 55bac87bd690d5812b3e6640977a0568f14c0715
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Apr 6 10:23:48 2021 -0400
+commit 8925290cf701fc8f7ec95e4df3d6a8d423b26780
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 18 14:19:22 2020 -0700
 
-    runtime/pprof: deflake TestMorestack
+    reflect: use zero buffer to back the Value returned by Zero
     
-    In TestMorestack, on macOS, for some reason it got most of the
-    samples in synchronization (e.g. pthread_cond_signal and
-    pthread_cond_wait) and sometimes in other "syscalls" (usleep,
-    nanotime1), and very few samples in stack copying, sometimes 0,
-    which causes the test to fail. Maybe synchronization is slower on
-    macOS? (It doesn't seem so to me.) Or it is the OS's accounting
-    problem, where it is more likely to trigger a profiling signal
-    at a syscall (or certain kinds of syscalls)?
+    In the common case (<1KB types), no allocation is required
+    by reflect.Zero.
     
-    As the test is really about whether it can connect stack copying
-    with the function that grows the stack, this CL makes it spend
-    more time in copying stack than synchronization. Now it's getting
-    ~100 samples for stack copying on a 5 second interval on my
-    machine, and the test passes reliably.
+    Also use memclr instead of memmove in Set when the source
+    is known to be zero.
     
-    Fixes #44418.
+    Fixes #33136
     
-    Change-Id: I3a462c8c39766f2d67d697598f8641bbe64f16ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307730
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic66871930fbb53328032e587153ebd12995ccf55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192331
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/runtime/pprof/pprof_test.go | 24 +++++++-----------------
- 1 file changed, 7 insertions(+), 17 deletions(-)
+ src/reflect/all_test.go | 29 +++++++++++++++++++++++++++++
+ src/reflect/value.go    | 20 ++++++++++++++++++--
+ src/runtime/map.go      |  2 +-
+ 3 files changed, 48 insertions(+), 3 deletions(-)

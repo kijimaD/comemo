@@ -1,20 +1,14 @@
-commit 7fa96f08a4b11d710c8b1cb0d8f29e131e1793db
+commit 735289ff76df92c9ff1178c1417c1ad640962d8b
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 26 12:09:27 2014 -0400
+Date:   Wed Sep 17 15:30:48 2014 -0400
 
-    cmd/go: fix 'go get vanity/repo/...' in clean GOPATH
+    sync/atomic: add more missing Go prototype
     
-    The pattern was only working if the checkout had
-    already been done, but the code was trying to make
-    it work even the first time. Test and fix.
+    Should fix nacl/arm build.
     
-    Fixes #8335.
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews, iant
-    https://golang.org/cl/146310043
+    TBR=minux
+    CC=golang-codereviews
+    https://golang.org/cl/145070043
 
- src/cmd/go/test.bash | 12 ++++++++++++
- src/cmd/go/vcs.go    |  9 ++++++++-
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ src/sync/atomic/64bit_arm.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

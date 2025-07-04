@@ -1,16 +1,24 @@
-commit ea9b1f1573736dacb4a6dd3c6e356d55a186ffc9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 10 21:10:34 2022 -0800
+commit b36596b14f8d3bee586479323c56b5db416a49e5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 27 16:04:56 2021 -0700
 
-    spec: add a section on implementing an interface
+    runtime: move Windows time.now implementations into separate files
     
-    Also, fixed several closing header tags and removed a duplicate "the".
-    (Thanks to @hopehook and Hossein Zolfi for pointing these out.)
+    This is a step toward separating whether time.now is implemented in
+    assembly from whether we are using faketime.
     
-    Change-Id: I85a40ba44b8570a578bce8d211dcc5ea3901fb1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385036
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8bf059b44a103b034835e3d3b799319cc05e9552
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314273
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- doc/go_spec.html | 54 ++++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 40 insertions(+), 14 deletions(-)
+ src/runtime/sys_windows_386.s    | 75 -----------------------------------
+ src/runtime/sys_windows_amd64.s  | 46 ----------------------
+ src/runtime/sys_windows_arm.s    | 76 ------------------------------------
+ src/runtime/sys_windows_arm64.s  | 56 ---------------------------
+ src/runtime/time_windows_386.s   | 82 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/time_windows_amd64.s | 53 +++++++++++++++++++++++++
+ src/runtime/time_windows_arm.s   | 84 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/time_windows_arm64.s | 64 ++++++++++++++++++++++++++++++
+ 8 files changed, 283 insertions(+), 253 deletions(-)

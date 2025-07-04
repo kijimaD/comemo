@@ -1,17 +1,21 @@
-commit dbe2eacf04898a9c77684424ec7c62700d08fb0c
+commit 20f99ffa3e5d58b5ed12289b1ed0e5107376209b
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 18 16:52:44 2013 -0400
+Date:   Fri Oct 18 15:56:07 2013 -0400
 
-    cmd/cgo: fix line number in an error message
+    cmd/gc: shorten name used for map bucket type
     
-    Fixes #6563.
+    Before:
+    type.struct { buckets *struct { overflow *struct { overflow *struct { overflow *struct { overflow *struct { overflow *<...>; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; oldbuckets *struct { overflow *struct { overflow *struct { overflow *struct { overflow *struct { overflow *<...>; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable }; keys [8]string; values [8]*"".RangeTable } }
     
-    R=golang-dev, iant
-    CC=golang-dev
-    https://golang.org/cl/14870046
+    After:
+    type.map.bucket[string]*"".RangeTable
+    
+    This makes debugging maps a little nicer, and it takes up less space in the binary.
+    
+    R=golang-dev, r
+    CC=golang-dev, khr
+    https://golang.org/cl/15110044
 
- misc/cgo/errors/err1.go   |  6 +++++-
- misc/cgo/errors/err2.go   | 13 +++++++++++++
- misc/cgo/errors/test.bash | 38 +++++++++++++++++++++++++-------------
- src/cmd/cgo/gcc.go        | 12 +++++++++++-
- 4 files changed, 54 insertions(+), 15 deletions(-)
+ src/cmd/gc/fmt.c     | 7 +++++++
+ src/cmd/gc/reflect.c | 1 +
+ 2 files changed, 8 insertions(+)

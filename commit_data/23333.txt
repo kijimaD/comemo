@@ -1,12 +1,16 @@
-commit b9bd57e7152f93d788f62a8cc09d0e0f89b60066
-Author: Brandon Gilmore <varz@google.com>
-Date:   Fri Jun 12 11:32:22 2015 -0700
+commit 76d67eaccc4aa613bb794e53abef906551cc8f55
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 6 10:41:01 2015 +0900
 
-    doc/effective_go: fix grammatical error
+    net: align temporary file, directory names in tests
     
-    Change-Id: Ib52854169f3dd18f54d3ae9263c897d3f45ea869
-    Reviewed-on: https://go-review.googlesource.com/10982
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Also adds missing temporary file deletion.
+    
+    Change-Id: Ia644b0898022e05d2f5232af38f51d55e40c6fb5
+    Reviewed-on: https://go-review.googlesource.com/9772
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/effective_go.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/dnsclient_unix_test.go | 2 +-
+ src/net/error_test.go          | 3 ++-
+ src/net/mockserver_test.go     | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)

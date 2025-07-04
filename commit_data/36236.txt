@@ -1,37 +1,29 @@
-commit 261609f661fcade93f24b9a849638ce8410070cb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Aug 6 16:59:31 2018 -0400
+commit 4d59b14400aff02ded4ccf62a7518266ea8fd767
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Mar 21 10:49:24 2018 +0000
 
-    cmd/go/internal: factor out modload.QueryPackage and use in in modget
+    cmd/internal/obj/arm64: fix the bug of incorrect handling negative offset of LDP/STP/LDPW/STPW
     
-    modload.Import contains a loop that looks for the module containing a package.
-    Because we overload Import to locate both packages and modules, that loop
-    contains a bunch of special-cases for modules with empty roots.
+    The current assembler will report error when the negative offset is in
+    the range of [-256, 0) and is not the multiples of 4/8.
     
-    In this change, we factor out the loop into a new function (QueryPackage) and
-    use that directly in modget.getQuery. That restores the invariant that
-    the paths passed to modload.Import must be importable packages, and fixes 'go
-    get' lookups for packages that have moved between a module and submodules with
-    the same path prefix.
+    The fix introduces C_NSAUTO_8, C_NSAUTO_4 and C_NAUTO4K. C_NPAUTO
+    includes C_NSAUTO_8 instead of C_NSAUTO, C_NAUTO4K includes C_NSAUTO_8,
+    C_NSAUTO_4 and C_NSAUTO. So that assembler will encode the negative offset
+    that is greater than -4095 and is not the multiples of 4/8 as two instructions.
     
-    Updates #26602.
+    Add the test cases.
     
-    Change-Id: I8bc8340c17f2df062d03ce720f4dc18b2ba406b2
-    Reviewed-on: https://go-review.googlesource.com/128136
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixed #24471
+    
+    Change-Id: I42f34e3b8a9fc52c9e8b41504294271aafade639
+    Reviewed-on: https://go-review.googlesource.com/102635
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modget/get.go                  | 41 +++------------
- src/cmd/go/internal/modload/import.go              | 59 ++--------------------
- src/cmd/go/internal/modload/query.go               | 54 ++++++++++++++++++++
- .../mod/example.com_join_subpkg_v1.0.0.txt         |  9 ++++
- .../mod/example.com_join_subpkg_v1.1.0.txt         |  9 ++++
- .../go/testdata/mod/example.com_join_v1.0.0.txt    |  7 +++
- .../go/testdata/mod/example.com_join_v1.1.0.txt    |  9 ++++
- .../mod/example.com_split_subpkg_v1.1.0.txt        | 11 ++++
- .../go/testdata/mod/example.com_split_v1.0.0.txt   |  9 ++++
- .../go/testdata/mod/example.com_split_v1.1.0.txt   |  9 ++++
- src/cmd/go/testdata/script/mod_bad_domain.txt      |  4 +-
- src/cmd/go/testdata/script/mod_get_indirect.txt    |  2 +-
- src/cmd/go/testdata/script/mod_get_local.txt       | 10 ++--
- src/cmd/go/testdata/script/mod_get_moved.txt       | 37 ++++++++++++++
- 14 files changed, 172 insertions(+), 98 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s |   6 +
+ src/cmd/internal/obj/arm64/a.out.go       |  12 +-
+ src/cmd/internal/obj/arm64/anames7.go     |  10 +-
+ src/cmd/internal/obj/arm64/asm7.go        | 199 +++++++++++++++++++++++-------
+ 4 files changed, 177 insertions(+), 50 deletions(-)

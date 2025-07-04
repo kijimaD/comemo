@@ -1,16 +1,12 @@
-commit de7361bf986ea73ddf358c38d2c0a512eb3222c7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 2 11:15:45 2012 -0800
+commit a3caf073a584a17eb0a7a17e1ce2ec014bae9a5c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 3 00:50:18 2012 +0800
 
-    all: more typos
+    net: during short test, don't bother timeout longer than expected
     
-    R=golang-dev, bradfitz, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5720044
+    https://golang.org/cl/5716053
 
- src/cmd/go/build.go                   | 2 +-
- src/pkg/crypto/ecdsa/ecdsa.go         | 2 +-
- src/pkg/go/printer/testdata/parser.go | 2 +-
- src/pkg/io/pipe.go                    | 2 +-
- src/pkg/syscall/exec_plan9.go         | 4 ++--
- 5 files changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/net/timeout_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

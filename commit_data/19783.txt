@@ -1,18 +1,32 @@
-commit 6eb5eb398b7c37079526bbf7d5987be8c054bb50
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jul 20 10:28:51 2014 -0700
+commit 40d7d5a656691b31668f63a72b443ad9cf893a4f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Jul 20 15:07:10 2014 +0400
 
-    test: add test for confusion with dot imports
+    cmd/gc: allocate select descriptor on stack
     
-    The gccgo compiler would fail this test.  The fix for gccgo is
-    https://golang.org/cl/116960043 .
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkSelectUncontended     220           165           -25.00%
+    BenchmarkSelectContended       209           161           -22.97%
+    BenchmarkSelectProdCons        1042          904           -13.24%
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/118000043
+    But more importantly this change will allow
+    to get rid of free function in runtime.
+    
+    Fixes #6494.
+    
+    LGTM=rsc, khr
+    R=golang-codereviews, rsc, dominik.honnef, khr
+    CC=golang-codereviews, remyoudompheng
+    https://golang.org/cl/107670043
 
- test/fixedbugs/bug488.dir/a.go |  7 +++++++
- test/fixedbugs/bug488.dir/b.go |  9 +++++++++
- test/fixedbugs/bug488.go       | 12 ++++++++++++
- 3 files changed, 28 insertions(+)
+ src/cmd/gc/builtin.c            |  2 +-
+ src/cmd/gc/runtime.go           |  2 +-
+ src/cmd/gc/select.c             | 62 +++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/arch_386.h      |  3 +-
+ src/pkg/runtime/arch_amd64.h    |  3 +-
+ src/pkg/runtime/arch_amd64p32.h |  3 +-
+ src/pkg/runtime/arch_arm.h      |  3 +-
+ src/pkg/runtime/chan.goc        | 41 +++++++++++----------------
+ src/pkg/runtime/chan.h          |  8 +++++-
+ test/live.go                    |  6 ++--
+ 10 files changed, 96 insertions(+), 37 deletions(-)

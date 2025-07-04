@@ -1,12 +1,19 @@
-commit dfc7304d3289645317c3eef3ea5819e9551a0faa
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 9 11:16:35 2012 -0700
+commit 7e90f7b4abac5fda50cbd1c41f14e8f63def0923
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Oct 9 13:25:47 2012 -0400
 
-    net/http: fix name of result parameter in a comment
+    crypto/tls: fix NPN extension parsing.
     
-    R=golang-dev, minux.ma
+    I typoed the code and tried to parse all the way to the end of the
+    message. Therefore it fails when NPN is not the last extension in the
+    ServerHello.
+    
+    Fixes #4088.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6632053
+    https://golang.org/cl/6637052
 
- src/pkg/net/http/client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/crypto/tls/handshake_messages.go      |  7 +++++--
+ src/pkg/crypto/tls/handshake_messages_test.go | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

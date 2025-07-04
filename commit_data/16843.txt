@@ -1,16 +1,19 @@
-commit f8fd77baa9e57b2de6b9c0e08a3de0a7a8ad8947
-Author: Nick Craig-Wood <nick@craig-wood.com>
-Date:   Tue Jul 23 09:29:25 2013 +1000
+commit b015af41171f00c5f6b263aafd73df6c4e58443a
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Jul 22 17:33:41 2013 -0400
 
-    runtime: Stop arm memmove corrupting its parameters
+    cmd/ld: fix warnings on Plan 9
     
-    Change use of x+(SP) to access the stack frame into x-(SP)
+    src/cmd/ld/lib.c:1379 set and not used: p
+    src/cmd/ld/lib.c:1426 format mismatch 6llux INT, arg 3
+    src/cmd/ld/lib.c:1437 format mismatch 6llux INT, arg 3
+    src/cmd/ld/lib.c:1456 format mismatch 6llux INT, arg 3
+    src/cmd/ld/lib.c:1477 format mismatch 6llux INT, arg 3
+    src/cmd/ld/lib.c:1459 set and not used: started
     
-    Fixes #5925.
-    
-    R=golang-dev, bradfitz, dave, remyoudompheng, nick, rsc
-    CC=dave cheney <dave, golang-dev
-    https://golang.org/cl/11647043
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11615044
 
- src/pkg/runtime/memmove_arm.s | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/ld/lib.c | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

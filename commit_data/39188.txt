@@ -1,19 +1,17 @@
-commit 37133b5d63a451e083d78187a252ed2ea3bf96fc
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed May 15 04:19:26 2019 +1000
+commit dd1889cb22c1fd37cf444d672274a8460fe6e2bf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 17 18:35:43 2019 -0800
 
-    runtime: fix netbsd/arm64 assembly
+    cmd/cgo: don't replace newlines with semicolons in expressions
     
-    Fix various bugs in the netbsd/arm64 runtime assembly.
+    Fixes #29781
     
-    Updates #30824.
-    
-    Change-Id: I5ca10926ab663a8ff4df9973530e645e2469c1aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177120
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: Id032d07a54b8c24f0c6d3f6e512932f76920ee04
+    Reviewed-on: https://go-review.googlesource.com/c/158457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/sys_netbsd_arm64.s | 20 +++++++++-----------
- 1 file changed, 9 insertions(+), 11 deletions(-)
+ misc/cgo/test/issue29781.go | 17 +++++++++++++++++
+ src/cmd/cgo/godefs.go       | 21 ++++++++++++++++++---
+ 2 files changed, 35 insertions(+), 3 deletions(-)

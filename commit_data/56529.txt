@@ -1,44 +1,25 @@
-commit 41aab30bd260297ad8ddad47e98fdf8390a9a67e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 16 17:19:15 2024 -0400
+commit 9eceffdf12dc4497ee162c005d5e14bb509797b9
+Author: Jabar Asadi <jasadi@d2iq.com>
+Date:   Wed May 10 21:44:14 2023 +0000
 
-    all: add push linknames to allow legacy pull linknames
+    strings: correct NewReader documentation
     
-    CL 585358 adds restrictions to disallow pull-only linknames
-    (currently off by default). Currently, there are quite some pull-
-    only linknames in user code in the wild. In order not to break
-    those, we add push linknames to allow them to be pulled. This CL
-    includes linknames found in a large code corpus (thanks Matthew
-    Dempsky and Michael Pratt for the analysis!), that are not
-    currently linknamed.
+    The provided description for `NewReader` says that the underlying string is read-only. but the following example shows that this is not the case.
+    <br />
     
-    Updates #67401.
+    rd := strings.NewReader("this is a text")
     
-    Change-Id: I32f5fc0c7a6abbd7a11359a025cfa2bf458fe767
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586137
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    rd.Reset("new text") <--- underlying string gets updated here
+    
+    Change-Id: I95c7099c2e63670c84307d4317b702bf13a4025a
+    GitHub-Last-Rev: a16a60b0f1e25d19e05e664c5b41ca57c4fcd9b2
+    GitHub-Pull-Request: golang/go#60074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493817
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/link/link_test.go                     |   1 +
- src/cmd/link/testdata/linkname/badlinkname.go |  24 ++++++
- src/crypto/tls/badlinkname.go                 |  27 ++++++
- src/crypto/x509/badlinkname.go                |  15 ++++
- src/database/sql/badlinkname.go               |  16 ++++
- src/go/build/badlinkname.go                   |  23 +++++
- src/go/types/badlinkname.go                   |  20 +++++
- src/internal/cpu/badlinkname_linux_arm64.go   |  15 ++++
- src/internal/poll/badlinkname.go              |  15 ++++
- src/internal/testlog/badlinkname.go           |  15 ++++
- src/math/big/badlinkname.go                   |  21 +++++
- src/mime/multipart/badlinkname.go             |  15 ++++
- src/net/badlinkname.go                        |  16 ++++
- src/net/http/badlinkname.go                   |  36 ++++++++
- src/net/url/badlinkname.go                    |  20 +++++
- src/reflect/badlinkname.go                    | 118 ++++++++++++++++++++++++++
- src/runtime/badlinkname.go                    |  44 ++++++++++
- src/runtime/badlinkname_linux_amd64.go        |  15 ++++
- src/runtime/time_nofake.go                    |   4 +
- src/sync/badlinkname.go                       |  15 ++++
- src/syscall/badlinkname_unix.go               |  18 ++++
- src/time/badlinkname.go                       |  17 ++++
- 22 files changed, 510 insertions(+)
+ src/strings/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

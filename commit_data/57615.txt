@@ -1,15 +1,21 @@
-commit d39bfafee7e6a5211af4bd1d21cfc953b14ca734
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Oct 4 14:30:06 2024 +0200
+commit a9859a7df72a8ca9686b4fb939989c04b42804fe
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 17 18:13:01 2023 -0700
 
-    runtime: use stringslite.CutPrefix in isExportedRuntime
+    time: make Duration.String inlineable
     
-    Change-Id: I7cbbe3b9a9f08ac98e3e76be7bda2f7df9c61fb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617915
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Perform the [32]byte to string conversion in an inlinable method.
+    Thus, if the result does not escape in the context of the caller,
+    we can entirely avoid a call to runtime.slicebytetostring.
+    
+    Change-Id: Iae8ec2a532776ed6cf99597f19e3f7f21c694c3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520602
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/traceback.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/time/time.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

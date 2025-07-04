@@ -1,17 +1,53 @@
-commit 6a718175a6b5532bb49160047731181a4ecec2a1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Aug 4 23:27:18 2020 -0400
+commit f53f987ebffa5888f1affe5255af849331be2164
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jan 7 13:41:02 2020 -0800
 
-    cmd/go/internal/mvs: export a NewBuildListError function
+    cmd/compile: merge more shifts into stores
     
-    Also factor out BuildListError to a separate file.
+    Updates #36223
     
-    For #36460
+    (Might fix #36223. I'm not sure whether there are more outstanding.)
     
-    Change-Id: Ibd1143893b09a2bbef659bea1e8c5dd35184a7ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/247764
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    This helps a bit, but not as much as I'd expected/hoped.
+    
+    file                                      before  after   Δ       %
+    runtime.s                                 477286  477256  -30     -0.006%
+    bytes.s                                   31089   31085   -4      -0.013%
+    time.s                                    83561   83547   -14     -0.017%
+    strings.s                                 43284   43280   -4      -0.009%
+    compress/flate.s                          51374   51295   -79     -0.154%
+    math/big.s                                184283  184256  -27     -0.015%
+    crypto/elliptic.s                         51649   51577   -72     -0.139%
+    crypto/sha512.s                           8661    8644    -17     -0.196%
+    crypto/sha1.s                             6975    6959    -16     -0.229%
+    crypto/sha256.s                           6412    6393    -19     -0.296%
+    vendor/golang.org/x/text/unicode/bidi.s   27158   27146   -12     -0.044%
+    vendor/golang.org/x/text/unicode/norm.s   66802   66788   -14     -0.021%
+    net/http.s                                560936  560929  -7      -0.001%
+    text/template.s                           96475   96467   -8      -0.008%
+    go/parser.s                               80284   80280   -4      -0.005%
+    text/tabwriter.s                          9618    9611    -7      -0.073%
+    go/printer.s                              78502   78499   -3      -0.004%
+    go/types.s                                321815  321807  -8      -0.002%
+    internal/xcoff.s                          23175   23171   -4      -0.017%
+    image/jpeg.s                              36609   36587   -22     -0.060%
+    cmd/vendor/golang.org/x/arch/x86/x86asm.s 81274   81001   -273    -0.336%
+    cmd/internal/obj.s                        115184  115126  -58     -0.050%
+    cmd/internal/obj/arm64.s                  151502  151487  -15     -0.010%
+    cmd/internal/obj/s390x.s                  128054  128046  -8      -0.006%
+    cmd/internal/obj/wasm.s                   44295   44291   -4      -0.009%
+    cmd/compile/internal/ssa.s                4201992 4209504 +7512   +0.179%
+    cmd/compile/internal/gc.s                 1555029 1555011 -18     -0.001%
+    total                                     9792875 9799640 +6765   +0.069%
+    
+    
+    Change-Id: If4a857c0953a766578e68aa299b112a20d9b2b86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213704
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/mvs/errors.go | 96 +++++++++++++++++++++++++++++++++++++++
- src/cmd/go/internal/mvs/mvs.go    | 77 +++++--------------------------
- 2 files changed, 108 insertions(+), 65 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   31 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  104 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 2052 ++++++++++++++------------
+ 3 files changed, 1188 insertions(+), 999 deletions(-)

@@ -1,15 +1,23 @@
-commit 27ad1f50135c6de20c2afd593cdd17f47c2388e0
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jun 26 14:36:14 2025 -0700
+commit 660a071906a3f010a947457521b7671041b5f737
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 30 16:23:24 2024 -0400
 
-    internal/abi: fix comment on NonEmptyInterface
+    cmd/internal/telemetry: add NewStackCounter functions
     
-    Change-Id: Ia3f4e844049caf11ae67d1bd6dd48350f51c532f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/684375
-    Reviewed-by: David Chase <drchase@google.com>
+    This CL adds a wrapper for the golang.org/x/telemetry/counter.NewStack
+    function so that it can be used by the compiler.
+    
+    Also add build constraints for compiler_bootstrap to build the stubs
+    when we're bootstrapping the compiler.
+    
+    For #58894
+    
+    Change-Id: Icdbdd7aa6d2a3f1147112739c6939e14414f5ee9
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582695
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
 
- src/internal/abi/iface.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/telemetry/telemetry.go           | 12 +++++++++++-
+ src/cmd/internal/telemetry/telemetry_bootstrap.go | 13 +++++++------
+ 2 files changed, 18 insertions(+), 7 deletions(-)

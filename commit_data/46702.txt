@@ -1,18 +1,16 @@
-commit c129af90eb20a5723fc7ed19b19afe054036fe71
+commit cf10e69f17a202499aed8de6dd08f9642ab61b53
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 1 12:32:41 2021 -0700
+Date:   Thu Jan 21 18:10:47 2021 -0800
 
-    text/template: undo reflect.Value wrapping for short-circuit and/or
+    doc/go1.16: mention net/http.Transport.GetProxyConnectHeader
     
-    For #31103
+    For #40700
+    For #41048
     
-    Change-Id: I9c0aa64f95f564de31a4c178e3930584d41316bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353610
+    Change-Id: Ida6bcaaf5edaa2bba9ba2b8e02ec9959481f8302
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285594
     Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/text/template/exec.go      | 16 ++++++++++------
- src/text/template/exec_test.go |  1 +
- 2 files changed, 11 insertions(+), 6 deletions(-)
+ doc/go1.16.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

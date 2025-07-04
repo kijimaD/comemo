@@ -1,26 +1,40 @@
-commit d21c7b728263c917ad6b83fd36879831f70d1279
-Author: Marwan Sulaiman <marwan.sameer@gmail.com>
-Date:   Fri Mar 8 02:33:59 2019 -0500
+commit 97d5cb24b10b7b740de2f1cc04d88341c4437ae0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Dec 21 00:04:18 2018 +0100
 
-    cmd/go: disallow go.sum updates in -mod=readonly
+    cmd/go: add regression test for cryptic vcs errors
     
-    When running go build with the flag -mod=readonly, it fails the build if
-    go.sum files requires updating. This ensures that CI/CD systems get a
-    complete go.sum file so that they'd never hit a notary,
-    assuming the CI/CD system passes the above flag.
-    I am not familiar with the entire codebase but I assume goSum.dirty
-    will always be true if go.sum has any missing lines.
+    On Go 1.11.x, if one ran 'go build' on a main package within a module,
+    while a needed vcs program like git was missing, a confusing error would
+    show up:
     
-    Fixes #30667
+            build testmod: cannot find module for path rsc.io/quote
     
-    Change-Id: I767d3b594055d8c10048f4c68e6687c94bb0545c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166237
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    The error should instead point at the source of the problem, which is
+    the missing vcs program. Thankfully, Go 1.12 doesn't have this bug, even
+    though it doesn't seem like the bug was fixed directly and
+    intentionally.
+    
+    To ensure that this particular edge case isn't broken again, add a
+    regression test. Piggyback on mod_vcs_missing, since it already requires
+    a missing vcs program and network access.
+    
+    I double-checked that Go 1.11 fails this test via /usr/bin/go, which is
+    1.11.3 on my system:
+    
+            $ PATH=~/tip/bin go test -v -run Script/mod_vcs_missing
+            [...]
+            > exec /usr/bin/go build
+            [stderr]
+            build m: cannot find module for path launchpad.net/gocheck
+    
+    Fixes #28948.
+    
+    Change-Id: Iff1bcf77d9f7c11d15935cb87d6f58d7981d33d2
+    Reviewed-on: https://go-review.googlesource.com/c/155537
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modfetch/fetch.go         |  3 +++
- src/cmd/go/internal/modload/init.go           | 11 ++++++----
- src/cmd/go/testdata/script/mod_file_proxy.txt |  7 +++++++
- src/cmd/go/testdata/script/sum_readonly.txt   | 29 +++++++++++++++++++++++++++
- 4 files changed, 46 insertions(+), 4 deletions(-)
+ src/cmd/go/testdata/script/mod_vcs_missing.txt | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

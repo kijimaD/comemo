@@ -1,25 +1,31 @@
-commit b03dce927b30db5dc36747d009ffeb435eea9c20
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Wed Jan 4 19:21:13 2017 -0700
+commit 77b6a08e0d3061cbf505394f1d0c5bc9d16fa6cb
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 12 10:18:37 2016 -0700
 
-    cmd/compile: avoid n.Right nil dereference on non-existent interface methods
+    vendor: add golang.org/x/crypto/{chacha20poly1305,poly1305}
     
-    Fixes #18392.
+    This change imports the chacha20poly1305 and poly1305 packages from
+    x/crypto at 5f4e837b98443e9e7a65072235205993af565d85. These packages
+    will be used to support the ChaCha20-Poly1305 AEAD in crypto/tls.
     
-    Avoid nil dereferencing n.Right when dealing with non-existent
-    self referenced interface methods e.g.
-    type A interface{
-      Fn(A.Fn)
-    }
-    
-    Instead, infer the symbol name from n.Sym itself.
-    
-    Change-Id: I60d5f8988e7318693e5c8da031285d8d7347b771
-    Reviewed-on: https://go-review.googlesource.com/34817
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1a38d671ef9aeff3bc41e3924655883d465a5617
+    Reviewed-on: https://go-review.googlesource.com/30956
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  2 +-
- test/fixedbugs/issue18392.go             | 11 +++++++++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ .../x/crypto/chacha20poly1305/chacha20poly1305.go  |   83 +
+ .../chacha20poly1305/chacha20poly1305_amd64.go     |   80 +
+ .../chacha20poly1305/chacha20poly1305_amd64.s      | 2707 ++++++++++++++++++++
+ .../chacha20poly1305/chacha20poly1305_generic.go   |   70 +
+ .../chacha20poly1305/chacha20poly1305_noasm.go     |   15 +
+ .../chacha20poly1305/chacha20poly1305_test.go      |  182 ++
+ .../chacha20poly1305_test_vectors.go               |  332 +++
+ .../internal/chacha20/chacha_generic.go            |  199 ++
+ .../internal/chacha20/chacha_test.go               |   29 +
+ .../golang_org/x/crypto/poly1305/poly1305.go       |   32 +
+ .../golang_org/x/crypto/poly1305/poly1305_test.go  |   92 +
+ .../golang_org/x/crypto/poly1305/sum_amd64.go      |   22 +
+ .../golang_org/x/crypto/poly1305/sum_amd64.s       |  125 +
+ src/vendor/golang_org/x/crypto/poly1305/sum_arm.go |   22 +
+ src/vendor/golang_org/x/crypto/poly1305/sum_arm.s  |  394 +++
+ src/vendor/golang_org/x/crypto/poly1305/sum_ref.go | 1531 +++++++++++
+ 16 files changed, 5915 insertions(+)

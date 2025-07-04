@@ -1,21 +1,19 @@
-commit 28ec0fdeb500b4d0ab5c0ac07cba2f5ebc12ae32
-Author: Austin Clements <austin@google.com>
-Date:   Wed Dec 1 13:41:45 2021 -0500
+commit 411860251eb91b284efb901264a9c46d26b588e3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 4 12:15:13 2021 -0400
 
-    runtime: print errno on clock_gettime failure on OpenBSD
+    cmd/compile: reference ABIInternal memequal_varlen
     
-    For #49532.
+    memequal_varlen is put into a closure and is called in internal
+    ABI in the runtime. Emit an ABIInternal reference.
     
-    Change-Id: I5afc64c987f0519903128550a7dac3a0f5e592cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368334
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Updates #40724.
+    
+    Change-Id: I914555f8188561882625e008b595389e50a3a167
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307233
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/sys_openbsd2.go     | 16 ++++++++++++++--
- src/runtime/sys_openbsd_386.s   |  7 +++++--
- src/runtime/sys_openbsd_amd64.s |  7 +++++--
- src/runtime/sys_openbsd_arm.s   |  8 +++++---
- src/runtime/sys_openbsd_arm64.s |  8 +++++---
- 5 files changed, 34 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/reflectdata/alg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,15 @@
-commit ebcd17979326b44f445cdfe7640dc53cf14c19ca
-Author: Atin M <amalaviy@akamai.com>
-Date:   Fri May 6 12:20:12 2016 -0400
+commit 0db2bf2313cdd7711c2215fab2ae234a0f591fe8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 15 21:56:30 2016 +0000
 
-    crypto/tls: set Conn.ConnectionState.ServerName unconditionally
+    net/http: document Hijacker and Flusher more
     
-    Moves the state.ServerName assignment to outside the if
-    statement that checks for handshakeComplete.
+    Fixes #15312
     
-    Fixes #15571
-    
-    Change-Id: I6c4131ddb16389aed1c410a975f9aa3b52816965
-    Reviewed-on: https://go-review.googlesource.com/22862
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I4fabef3f21081bc4b020069851b5c2504bc6b4d8
+    Reviewed-on: https://go-review.googlesource.com/22122
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/crypto/tls/conn.go                  |  3 ++-
- src/crypto/tls/handshake_server_test.go | 41 +++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+), 1 deletion(-)
+ src/net/http/server.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

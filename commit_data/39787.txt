@@ -1,24 +1,85 @@
-commit 9da7abd2ebd07d32484277adac75c45b66f504c1
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Aug 14 15:04:05 2019 -0400
+commit fd270d8b579cc9dd4ced34fa7605a444794a787d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Mar 20 16:17:56 2019 +0000
 
-    debug/dwarf: better handling for DW_FORM_indirect
+    cmd: update vendored x/tools
     
-    Fix a buglet in abbrev processing related to DW_FORM_indirect. When
-    reading an abbrev entry if we encounter an attribute with form
-    DW_FORM_indirect, leave the class as ClassUnknown, then when the
-    abbrev is walked during the reading of the DIE fill in the class based
-    on the value read at that point (code for handling DW_FORM_indirect
-    seems to be already partially in place in the DIE reader).
+    This lets us get rid of a handful of cmd/vet/whitelist/all.txt entries,
+    since the stdmethods pass is now happy with the encoding/xml package.
     
-    Updates #33488.
-    
-    Change-Id: I9dc89abf5cc8d7ea96824c0011bef979de0540bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190158
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I9de2190984dd00342903967262790c7f6b1f0a75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168458
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/dwarf/entry.go    | 10 +++++++---
- src/debug/dwarf/typeunit.go |  2 +-
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/go.mod                                     |   6 +-
+ src/cmd/go.sum                                     |  17 +-
+ .../x/crypto/ssh/terminal/util_windows.go          |   6 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |   4 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   2 +
+ src/cmd/vendor/golang.org/x/sys/unix/mksyscall.go  |   2 +-
+ .../vendor/golang.org/x/sys/unix/sockcmsg_unix.go  |   4 +-
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   2 +
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  40 +++++
+ .../golang.org/x/sys/unix/syscall_linux_arm.go     |   6 +
+ .../golang.org/x/sys/unix/syscall_linux_arm64.go   |  13 ++
+ .../golang.org/x/sys/unix/syscall_linux_riscv64.go |  13 ++
+ .../golang.org/x/sys/unix/syscall_openbsd.go       |  17 ++
+ .../vendor/golang.org/x/sys/unix/syscall_unix.go   |  37 +++++
+ .../vendor/golang.org/x/sys/unix/types_openbsd.go  |   6 +
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |  57 ++++++-
+ .../x/sys/unix/zerrors_linux_mips64le.go           |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |  57 ++++++-
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |  57 ++++++-
+ .../golang.org/x/sys/unix/zsyscall_aix_ppc64.go    |   8 +
+ .../golang.org/x/sys/unix/zsyscall_aix_ppc64_gc.go |  10 ++
+ .../x/sys/unix/zsyscall_aix_ppc64_gccgo.go         |   9 ++
+ .../golang.org/x/sys/unix/zsyscall_linux_386.go    |  21 +++
+ .../golang.org/x/sys/unix/zsyscall_linux_amd64.go  |  21 +++
+ .../golang.org/x/sys/unix/zsyscall_linux_arm.go    |  31 ++++
+ .../golang.org/x/sys/unix/zsyscall_linux_arm64.go  |  36 +++++
+ .../golang.org/x/sys/unix/zsyscall_linux_mips.go   |  21 +++
+ .../golang.org/x/sys/unix/zsyscall_linux_mips64.go |  21 +++
+ .../x/sys/unix/zsyscall_linux_mips64le.go          |  21 +++
+ .../golang.org/x/sys/unix/zsyscall_linux_mipsle.go |  21 +++
+ .../golang.org/x/sys/unix/zsyscall_linux_ppc64.go  |  21 +++
+ .../x/sys/unix/zsyscall_linux_ppc64le.go           |  21 +++
+ .../x/sys/unix/zsyscall_linux_riscv64.go           |  36 +++++
+ .../golang.org/x/sys/unix/zsyscall_linux_s390x.go  |  21 +++
+ .../x/sys/unix/zsyscall_linux_sparc64.go           |  21 +++
+ .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |   1 +
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |  58 +++++--
+ .../golang.org/x/sys/unix/ztypes_openbsd_386.go    |  10 ++
+ .../golang.org/x/sys/unix/ztypes_openbsd_amd64.go  |  10 ++
+ .../golang.org/x/sys/unix/ztypes_openbsd_arm.go    |  10 ++
+ .../vendor/golang.org/x/sys/windows/dll_windows.go |   8 +-
+ .../golang.org/x/sys/windows/security_windows.go   | 171 +++++++++++++++++++++
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |  27 ++++
+ .../go/analysis/passes/stdmethods/stdmethods.go    |  10 +-
+ src/cmd/vendor/modules.txt                         |   6 +-
+ src/cmd/vet/all/whitelist/all.txt                  |  10 +-
+ 69 files changed, 2078 insertions(+), 197 deletions(-)

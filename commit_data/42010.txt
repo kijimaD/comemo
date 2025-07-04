@@ -1,26 +1,35 @@
-commit 5abf5f831e4a76fb8875c4fa5b6b7436f51ecdf8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 16 21:25:15 2020 -0700
+commit 14a133fe7791cdad14dc55332a506801fa8ea5f9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 28 16:32:24 2019 -0400
 
-    cmd/compile: clarify Node.NonNil and Node.Bounded
+    cmd/go/internal/modfetch: prune +incompatible versions more aggressively
     
-    Node.NonNil and Node.Bounded were a bit muddled. This led to #38496.
-    This change clarifies and documents them.
+    codeRepo.Versions previously checked every possible +incompatible
+    version for a 'go.mod' file. That is wasteful and counterproductive.
     
-    It also corrects one misuse.
-    However, since ssa conversion doesn't make full use of the bounded hint,
-    this correction doesn't change any generated code.
-    The next change will fix that.
+    It is wasteful because typically, a project will adopt modules at some
+    major version, after which they will (be required to) use semantic
+    import paths for future major versions.
     
-    Passes toolstash-check.
+    It is counterproductive because it causes an accidental
+    '+incompatible' tag to exist, and no compatible tag can have higher
+    semantic precedence.
     
-    Change-Id: I2bcd487a0a4aef5d7f6090e653974fce0dce3b8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228787
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This change prunes out some of the +incompatible versions in
+    codeRepo.Versions, eliminating the “wasteful” part but not all of the
+    “counterproductive” part: the extraneous versions can still be fetched
+    explicitly, and proxies may include them in the @v/list endpoint.
+    
+    Updates #34165
+    Updates #34189
+    Updates #34533
+    
+    Change-Id: Ifc52c725aa396f7fde2afc727d0d5950acd06946
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204439
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/subr.go   |  2 +-
- src/cmd/compile/internal/gc/syntax.go | 28 ++++++++++++++++++++++++++--
- src/cmd/compile/internal/gc/walk.go   | 10 +++++-----
- 3 files changed, 32 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/modfetch/coderepo.go      | 109 ++++++++++++++++++++++----
+ src/cmd/go/internal/modfetch/coderepo_test.go |   2 +-
+ src/cmd/go/internal/modfetch/repo.go          |   2 +-
+ 3 files changed, 96 insertions(+), 17 deletions(-)

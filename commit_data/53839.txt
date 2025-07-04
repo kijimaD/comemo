@@ -1,21 +1,16 @@
-commit be0e0b06ac53d3d02ea83b479790404057b6f19b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jul 29 08:59:20 2023 -0700
+commit 32f68b5ab7b4f2a5a87497816260d9b671f6c74e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 17:26:48 2022 +0800
 
-    sync: panic rather than throw on nil *Pool
+    bufio: use strings.Builder
     
-    Fixes #61651
-    
-    Change-Id: I27d581719e6bf38910f9d47dcf023bbff74ddf72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514037
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ief82f12a5c48c46165c28140997d5fc83700c758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428256
     Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/sync/pool.go      |  7 +++++++
- src/sync/pool_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 29 insertions(+)
+ src/bufio/bufio_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

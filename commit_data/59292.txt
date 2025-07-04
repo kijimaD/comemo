@@ -1,28 +1,20 @@
-commit e278a789b61ffbdf4f6ca8accf43ab04148cd551
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Apr 11 16:35:13 2025 -0700
+commit 613344ffddc9b44912557c7ea3b9bc244251e90e
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Feb 27 21:13:15 2024 +0000
 
-    path: add Join benchmark
+    internal/coverage/encodemeta: simplify appending zero values
     
-    This is a case where CL 653856 saves an allocation.
+    Appending zero values directly.
     
-            │     old     │                 new                 │
-            │   sec/op    │   sec/op     vs base                │
-    Join-24   73.57n ± 1%   60.27n ± 1%  -18.07% (p=0.000 n=10)
-    
-            │    old     │                new                 │
-            │    B/op    │    B/op     vs base                │
-    Join-24   48.00 ± 0%   24.00 ± 0%  -50.00% (p=0.000 n=10)
-    
-            │    old     │                new                 │
-            │ allocs/op  │ allocs/op   vs base                │
-    Join-24   2.000 ± 0%   1.000 ± 0%  -50.00% (p=0.000 n=10)
-    
-    Change-Id: I56308262ca73a7ab9698b54fd8681f5b44626995
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/665075
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Icfb6e135b6aa16662dd67bdbf64ea0f63c612b2f
+    GitHub-Last-Rev: 57547b94087f216e943362e507b2339dd385f568
+    GitHub-Pull-Request: golang/go#65291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558576
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/path/path_test.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/internal/coverage/encodemeta/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

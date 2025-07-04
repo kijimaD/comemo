@@ -1,21 +1,12 @@
-commit 81221f512d6ad8c15491b3ab29ea3fa3db800466
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jan 29 14:57:11 2013 +0400
+commit 10da5260690e6b41097686f379e1b629ef148dc5
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Jan 28 16:57:36 2013 -0800
 
-    runtime: dump the full stack of a throwing goroutine
-    Useful for debugging of runtime bugs.
-    + Do not print "stack segment boundary" unless GOTRACEBACK>1.
-    + Do not traceback system goroutines unless GOTRACEBACK>1.
+    cmd/gc: document more of the declaration context enumeration
     
-    R=rsc, minux.ma
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7098050
+    https://golang.org/cl/7231051
 
- src/pkg/runtime/panic.c         | 2 ++
- src/pkg/runtime/proc.c          | 6 ++++++
- src/pkg/runtime/runtime.h       | 4 +++-
- src/pkg/runtime/symtab.c        | 6 ++++--
- src/pkg/runtime/time.goc        | 4 +++-
- src/pkg/runtime/traceback_arm.c | 9 +++++----
- src/pkg/runtime/traceback_x86.c | 7 ++++---
- 7 files changed, 27 insertions(+), 11 deletions(-)
+ src/cmd/gc/go.h | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

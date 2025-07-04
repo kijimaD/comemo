@@ -1,12 +1,16 @@
-commit e68ac45172e56e583280191ea7080f60aed7c9a2
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Jul 20 10:41:25 2018 +0200
+commit 8f38f28222abccc505b9a1992deecfe3e2cb85de
+Author: James Hartig <fastest963@gmail.com>
+Date:   Fri Feb 2 13:45:19 2018 -0500
 
-    doc/go1.11: fix bad link to Int.ModInverse
+    net/http/httputil: make ReverseProxy panic on error while copying body
     
-    Change-Id: I659bc5b61dade9438b122e6994da022946f5e1d3
-    Reviewed-on: https://go-review.googlesource.com/125255
+    Fixes #23643.
+    
+    Change-Id: I4f8195a36be817d79b9e7c61a5301f153b681493
+    Reviewed-on: https://go-review.googlesource.com/91675
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/httputil/reverseproxy.go      | 23 +++++++++----
+ src/net/http/httputil/reverseproxy_test.go | 52 +++++++++++++++++++++++++-----
+ 2 files changed, 61 insertions(+), 14 deletions(-)

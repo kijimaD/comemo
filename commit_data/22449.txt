@@ -1,27 +1,13 @@
-commit 7d3f81a9f330330fbfc50c3a511e95febb080194
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Apr 11 14:58:42 2015 +0200
+commit 1abd8185b25d849e57fb6958f17ac8142e51984f
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:26:40 2015 +0100
 
-    syscall: ignore getwd errors when fixing working directory on Plan 9
+    reflect: add support for GOARCH=arm64
     
-    In Plan 9, goroutines can run in different processes,
-    which don't share their working directory. However,
-    Go expects the working directory to be program-wide.
-    
-    We use a Fixwd function to fix the working directory
-    before calling system calls which depend on the
-    working directory.
-    
-    In fixwdLocked, the working directory is not fixed
-    when getwd returns an error. However, an error can
-    happen is some cases, notably when the directory
-    has been previously removed in another process.
-    
-    Fixes #10422.
-    
-    Change-Id: Ie0c36f97c4b5ebe27ff0ead360987c5b35f825e4
-    Reviewed-on: https://go-review.googlesource.com/8800
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I033eecff5e5838ba677378ac884bf5f29267e880
+    Reviewed-on: https://go-review.googlesource.com/7146
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/syscall/pwd_plan9.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/reflect/asm_arm64.s | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

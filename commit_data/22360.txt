@@ -1,14 +1,17 @@
-commit bc2860f3d8182875adced9c35616812d804b90da
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Apr 3 04:37:29 2015 -0400
+commit 0d0124daa0a1edc6cf65a3c8a5529d110a0a88ea
+Author: Minux Ma <minux@golang.org>
+Date:   Sun Mar 8 23:23:33 2015 +0000
 
-    go/build: cgo is supported on linux/arm64 (external linking only)
+    Revert "cmd/internal/obj/x86: implement -shared computation of TLS base"
     
-    Fixes #10107.
+    Fix the build.
     
-    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f6
-    Reviewed-on: https://go-review.googlesource.com/8453
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    This reverts commit e73981512fdc5e1128a9b17c4b9788c600db23ea.
+    
+    Change-Id: I979e138991c06b3295be08212d3ce80b30c2381b
+    Reviewed-on: https://go-review.googlesource.com/7160
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/go/build/build.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/obj/x86/asm6.go | 33 ---------------------------------
+ 1 file changed, 33 deletions(-)

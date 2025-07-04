@@ -1,12 +1,21 @@
-commit ca727f1116d79537f80e546e78a5addb3c09fa34
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 31 16:13:48 2013 -0800
+commit 7d8cc587b2f459d773d71ec2e220173de6e60f86
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Fri Feb 1 10:56:08 2013 +1100
 
-    cmd/8l: fix build
+    exp/cookiejar: remove external storage
     
-    TBR=golang-dev
+    This CL removes the external storage of a cookie jar
+    and minimized the exported API as discussed in [1].
+    
+    [1] https://groups.google.com/d/topic/golang-dev/ygDB3nbir00/discussion
+    
+    Update #1960.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/7241061
+    https://golang.org/cl/7235065
 
- src/cmd/8l/obj.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/cookiejar/jar.go          |  47 ++++++----------
+ src/pkg/exp/cookiejar/storage.go      | 101 ----------------------------------
+ src/pkg/exp/cookiejar/storage_test.go |  48 ----------------
+ 3 files changed, 16 insertions(+), 180 deletions(-)

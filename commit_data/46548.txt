@@ -1,20 +1,56 @@
-commit 5ee32ff2527b64197f2eb09bc45e73e61c9c1ac3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Sep 21 16:05:57 2021 -0400
+commit 8b2efa990b08e6c32422fbfdab746f4f6948ae42
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 3 19:49:49 2021 -0800
 
-    cmd/go: proceed with GOPATH unset if the command doesn't use it
+    [dev.regabi] cmd/compile: deref PAUTOHEAPs during SSA construction
     
-    For #43938
+    Currently, during walk we rewrite PAUTOHEAP uses into derefs of their
+    corresponding Heapaddr, but we can easily do this instead during SSA
+    construction. This does involve updating two test cases:
     
-    Change-Id: I0937b9bb6de3d29d7242ee61f053d4803277dc0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351329
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    * nilptr3.go
+    
+    This file had a test that we emit a "removed nil check" diagnostic for
+    the implicit dereference from accessing a PAUTOHEAP variable. This CL
+    removes this diagnostic, since it's not really useful to end users:
+    from the user's point of view, there's no pointer anyway, so they
+    needn't care about whether we check for nil or not. That's a purely
+    internal detail. And with the PAUTOHEAP dereference handled during SSA
+    construction, we can more robustly ensure this happens, rather than
+    relying on setting a flag in walk and hoping that SSA sees it.
+    
+    * issue20780.go
+    
+    Previously, when PAUTOHEAPs were dereferenced during walk, it had a
+    consequence that when they're passed as a function call argument, they
+    would first get copied to the stack before being copied to their
+    actual destination. Moving the dereferencing to SSA had a side-effect
+    of eliminating this unnecessary temporary, and copying directly to the
+    destination parameter.
+    
+    The test is updated to instead call "g(h(), h())" where h() returns a
+    large value, as the first result will always need to be spilled
+    somewhere will calling the second function. Maybe eventually we're
+    smart enough to realize it can be spilled to the heap, but we don't do
+    that today.
+    
+    Because I'm concerned that the direct copy-to-parameter optimization
+    could interfere with race-detector instrumentation (e.g., maybe the
+    copies were previously necessary to ensure they're not clobbered by
+    inserted raceread calls?), I've also added issue20780b.go to exercise
+    this in a few different ways.
+    
+    Change-Id: I720598cb32b17518bc10a03e555620c0f25fd28d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281293
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/go/internal/modfetch/cache.go         |  2 +-
- src/cmd/go/internal/modload/init.go           | 17 +++++++++++------
- src/cmd/go/testdata/script/mod_gomodcache.txt | 13 ++++++++++---
- src/cmd/go/testdata/script/mod_no_gopath.txt  | 15 +++++++++++++++
- 4 files changed, 37 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 11 +++---
+ src/cmd/compile/internal/walk/expr.go  | 10 ++----
+ test/fixedbugs/issue20780.go           | 16 ++++++---
+ test/fixedbugs/issue20780b.go          | 62 ++++++++++++++++++++++++++++++++++
+ test/nilptr3.go                        |  8 -----
+ 5 files changed, 81 insertions(+), 26 deletions(-)

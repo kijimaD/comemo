@@ -1,24 +1,24 @@
-commit 8ab7064e33667f17b8d23b5db63468199c3eac02
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Apr 27 02:31:23 2021 -0400
+commit 9c28a50fd18b2e69c43dec9b871e96bab6ec4ede
+Author: hitzhangjie <hit.zhangjie@gmail.com>
+Date:   Wed Oct 21 05:09:26 2020 +0000
 
-    cmd/go: use a real Go version in the go.mod files in TestScript/mod_readonly
+    cmd/go: when module enabled, `go clean` removes built binary
     
-    For some reason, the go.mod file added to this test in CL 147281 lists
-    'go 1.20' instead of the version that was actually current when the
-    go.mod file was added.
+    Now "go clean" can remove binary as expected, when module enabled and the module name isn't  "main" or the name of folder.
     
-    That causes the test's behavior to change under lazy loading, because
-    1.20 is above the threshold to trigger lazy-loading invariants (1.17).
+    Fixes issue #41656
     
-    For #36460
-    
-    Change-Id: I92400996cb051ab30e99bfffafd91ff32a1e7087
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314049
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I54b9435ece045e03a12dc230efe84c8dd381a07c
+    GitHub-Last-Rev: f4ea2d8c765a6e3a2b89fe2c9fb5b2c80551efa5
+    GitHub-Pull-Request: golang/go#41999
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262677
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/testdata/script/mod_readonly.txt | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/clean/clean.go          | 18 ++++++-
+ src/cmd/go/testdata/script/clean_binary.txt | 78 +++++++++++++++++++++++++++++
+ 2 files changed, 94 insertions(+), 2 deletions(-)

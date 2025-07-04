@@ -1,16 +1,19 @@
-commit ca7c12d4c9eb4a19ca5103ec5763537cccbcc13b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 7 16:55:17 2019 -0800
+commit 930ce09ca3a1ab5f886c2327fc143b9ae075807b
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Mon Sep 10 09:27:47 2018 +0100
 
-    sync/atomic: add 32-bit MIPS to the 64-bit alignment requirement
+    image/png: minor cleanup of a few tests
     
-    runtime/internal/atomic/atomic_mipsx.go enforces 64-bit alignment.
+    Removes a redundant err check and replaces some returns in a testing
+    loop with continue to prevent skipping unrelated test cases when
+    a failure is encountered.
     
-    Change-Id: Ifdc36e1c0322827711425054d10f1c52425a13fa
-    Reviewed-on: https://go-review.googlesource.com/c/161697
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic1a560751b95bb0ef8dfa957e057e0fa0c2b281d
+    Reviewed-on: https://go-review.googlesource.com/134236
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/sync/atomic/doc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/image/png/reader_test.go | 4 ----
+ src/image/png/writer_test.go | 4 ++--
+ 2 files changed, 2 insertions(+), 6 deletions(-)

@@ -1,14 +1,14 @@
-commit 787adb6eb3cbb7a8d07700739f008f0b250be55f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 4 14:24:10 2012 -0700
+commit d152321cea4ebee18b7b819d29d0718dbc139212
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 5 01:31:23 2012 +0800
 
-    go spec: clarify promotion rules for methods/fields of anonymous fields
+    lib9: fix memory leak in p9getwd()
+            although the comment says it uses libc's getenv, without NOPLAN9DEFINES
+            it actually uses p9getenv which strdups.
     
-    Fixes #3635.
-    
-    R=rsc, r, iant, kevlar, iant
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/6217045
+    https://golang.org/cl/6285046
 
- doc/go_spec.html | 49 +++++++++++++++++++++++++++++++------------------
- 1 file changed, 31 insertions(+), 18 deletions(-)
+ src/lib9/getwd.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

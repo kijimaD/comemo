@@ -1,23 +1,51 @@
-commit 5619dd08493c08f06b47cec9f9553bbda6d2cbbd
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Oct 25 14:51:12 2022 -0700
+commit 931d80ec17374e52dbc5f9f63120f8deb80b355d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 25 16:02:07 2021 -0400
 
-    cmd/go: add move test for goroot
+    cmd/go: adjust BuildInfo.Settings
     
-    This  an end-to-end test that sets GOROOT to a symlink
-    to the distribution, approximating copying it to a new
-    location, and checks that packages in the standard library
-    are not stale, as they would be if paths were embedded
-    in artifacts.
+    Make Settings more closely align with command-line flags
+    and environment variables.
     
-    For #47257
+    - Change command-line flags to begin with -
     
-    Change-Id: I4ed04df36656ad946a2f6f5ce3194e76e06372e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/445358
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    - Change syntax of build lines to use Key=Value instead of Key<tab>Value.
+    
+    - Change CGO_ENABLED to 0/1, matching environment variable,
+      instead of false/true.
+    
+    - Add GOOS and GOARCH.
+      These are technically redundant, in that they can be extracted
+      from the binary in other ways most of the time, but not always:
+      GOOS=ios and GOOS=darwin may produce binaries that are
+      difficult to tell apart. In any case, it's a lot easier to have them
+      directly in the settings list than derive them from other parts
+      of the binary.
+    
+    - Add GOEXPERIMENT.
+      These could be inferred from the tags list, but the experiments
+      are being removed from the tags list.
+    
+    - Change the tags list to match the -tags command-line argument.
+    
+    - Add msan and race, echoing the -msan and -race arguments
+      (always 'true' when present, omitted when false).
+    
+    - Add GO$GOARCH when set.
+    
+    Change-Id: Icb59ef4faa5c22407eadd94147b7e53cf4344ce6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358539
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- .../go/testdata/script/install_move_not_stale.txt  | 26 ++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ src/cmd/go/internal/cfg/cfg.go                     |  4 +-
+ src/cmd/go/internal/load/pkg.go                    | 53 ++++++++++++++++------
+ src/cmd/go/internal/work/init.go                   |  2 +-
+ .../go/testdata/script/version_build_settings.txt  | 28 +++++++-----
+ .../go/testdata/script/version_buildvcs_git.txt    | 27 +++++------
+ src/cmd/go/testdata/script/version_buildvcs_hg.txt | 16 +++----
+ src/debug/buildinfo/buildinfo_test.go              |  4 +-
+ src/runtime/debug/mod.go                           | 24 ++++++----
+ 8 files changed, 97 insertions(+), 61 deletions(-)

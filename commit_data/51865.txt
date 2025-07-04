@@ -1,18 +1,19 @@
-commit 3e1478ef0d4e98e5655afdee6efec2fc886d66fc
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Feb 1 02:04:29 2023 +0700
+commit 4d2da99498ff55700eeddf09d603fa0618c8b55c
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sun Oct 31 21:12:45 2021 +0800
 
-    cmd/compile: cleanup atomic.Pointer[T] inline test
+    cmd/compile/internal/riscv64: add initial spill support
     
-    Updates #57410
+    This CL adds some initial support for spilling and reloading
+    registers in the new ABI for RISCV64.
     
-    Change-Id: I9be38e20c6b83d14f7785049a66de77ac7ecdf15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463997
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I5e2b4d93c33c528809d569e5a442bb302074be78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360215
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/test/inl_test.go | 13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/riscv64/galign.go |  2 ++
+ src/cmd/compile/internal/riscv64/ssa.go    | 31 ++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

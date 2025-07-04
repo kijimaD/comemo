@@ -1,0 +1,16 @@
+commit 98ed865a9e7525f7a30ec7fc7b360a45e966bf90
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 20 09:27:14 2024 -0700
+
+    doc/next: revert incorrect change to 62516.md made in CL 603959
+    
+    Change-Id: I0d19f77f8c4b99350e3ed1e7f92db6ae198e812a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607077
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/99-minor/testing/62516.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

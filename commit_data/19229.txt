@@ -1,16 +1,16 @@
-commit d0402cb416b1e39bd6efba102c2c0c4cf0244bf6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 25 15:19:32 2014 -0700
+commit 9144d8752a4a1cdee1a9c7ebd2c5ae2739293509
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 25 09:46:07 2014 -0600
 
-    net/http/httputil: don't leak goroutines in DumpRequestOut
+    bufio: make all read functions UnreadByte-friendly
     
-    Fixes #7869
+    Fixes #7844.
     
-    LGTM=dsymonds
-    R=golang-codereviews
-    CC=adg, dsymonds, golang-codereviews, rsc
-    https://golang.org/cl/91770048
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/90620045
 
- src/pkg/net/http/httputil/dump.go      | 1 +
- src/pkg/net/http/httputil/dump_test.go | 5 +++++
- 2 files changed, 6 insertions(+)
+ src/pkg/bufio/bufio.go      | 23 +++++++++++++++----
+ src/pkg/bufio/bufio_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 5 deletions(-)

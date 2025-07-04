@@ -1,12 +1,15 @@
-commit 07d2195c66cfbd289925acea2951bcd311bb0a76
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Mon Nov 25 13:36:16 2013 +1100
+commit 624f9da38669d7fa1975a1230c571913daacbd95
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 20 13:47:37 2013 -0800
 
-    doc/install.html: fix a tag.
+    README: Fix installation instructions
+    They were out of date and should refer to the source installation instructions.
     
-    R=golang-dev, adg
+    Fixes #6783.
+    
+    R=golang-dev, rsc, adg, dave
     CC=golang-dev
-    https://golang.org/cl/30900044
+    https://golang.org/cl/28500043
 
- doc/install.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ README | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

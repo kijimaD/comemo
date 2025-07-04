@@ -1,21 +1,14 @@
-commit d2ca451873f6548f43d272c675d1b114165c394d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Dec 4 17:54:21 2015 +0900
+commit 62491ff7783b6b8d7c0f8bcddc72a4b34965fb2e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Sep 14 01:28:57 2015 -0400
 
-    net: adjust Lookup API test cases
+    cmd/yacc: fix copying action code when line comment is disabled
     
-    This change makes existing Lookup API test cases conform to the new
-    return value form that all the Lookup APIs except LookupTXT must return
-    a single or multiple absolute domain names.
+    Fixes #12601.
     
-    Updates #12189.
-    Fixes #12193.
-    
-    Change-Id: I03ca09be5bff80e818fbcdc26039daa33d5440a8
-    Reviewed-on: https://go-review.googlesource.com/17411
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0be69ffe9ba19934aaef1651845c725708db77de
+    Reviewed-on: https://go-review.googlesource.com/14546
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/lookup_test.go | 41 +++++++++++++++++++++--------------------
- 1 file changed, 21 insertions(+), 20 deletions(-)
+ src/cmd/yacc/yacc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

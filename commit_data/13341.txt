@@ -1,19 +1,12 @@
-commit 503aa6505e26f7dadf9e115eca186c9c01ff99d9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 13 16:24:56 2012 -0400
+commit f4240666be0a267b4e5c793b795e9af11b080e9f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 13 10:29:06 2012 -0700
 
-    go/build: fix boolean negation
+    math/big: fix binaryGCD
     
-    !(linux&cgo | darwin&cgo)
-    = (!linux|!cgo) & (!darwin|!cgo)
-    = (!linux&!darwin) | !cgo  // new comment
-    ≠ !linux | !darwin | !cgo  // old comment
-    
-    Fixes #3726.
-    
-    R=golang-dev, bsiegert
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6306076
+    https://golang.org/cl/6297085
 
- src/pkg/go/build/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/math/big/int.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

@@ -1,15 +1,26 @@
-commit a456e356b2ff551f77640269e6bab06732b98e15
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 4 11:39:57 2015 -0500
+commit 9f6df6c9407eb9a7f2393d00d7442f414a4d7dfa
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 2 18:17:54 2015 -0400
 
-    net/url: accept empty port after colon in IPv6 literal host
+    runtime: use 4 byte writes in amd64p32 memmove/memclr
     
-    Fixes #12200.
+    Currently, amd64p32's memmove and memclr use 8 byte writes as much as
+    possible and 1 byte writes for the tail of the object. However, if an
+    object ends with a 4 byte pointer at an 8 byte aligned offset, this
+    may copy/zero the pointer field one byte at a time, allowing the
+    garbage collector to observe a partially copied pointer.
     
-    Change-Id: I89f2a7326bb9182024c44bf815a06fa48639649d
-    Reviewed-on: https://go-review.googlesource.com/17384
+    Fix this by using 4 byte writes instead of 8 byte writes.
+    
+    Updates #12552.
+    
+    Change-Id: I13324fd05756fb25ae57e812e836f0a975b5595c
+    Reviewed-on: https://go-review.googlesource.com/15370
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/url/url.go      |  4 ++--
- src/net/url/url_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 60 insertions(+), 3 deletions(-)
+ src/runtime/asm_amd64p32.s          |  6 +++---
+ src/runtime/memmove_nacl_amd64p32.s | 23 +++++++++++++----------
+ 2 files changed, 16 insertions(+), 13 deletions(-)

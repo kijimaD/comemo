@@ -1,22 +1,37 @@
-commit 850b6ce33ced3d20d036cb41317f783469f3ea86
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Wed Aug 16 02:04:19 2023 +0000
+commit 686b38b5b27fe14318adfee57aac780c452fddd6
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 31 18:21:48 2022 +0000
 
-    bufio: clarify the maximum token size
+    runtime: set G wait reason more consistently
     
-    Fixes #43183.
+    Currently, wait reasons are set somewhat inconsistently. In a follow-up
+    CL, we're going to want to rely on the wait reason being there for
+    casgstatus, so the status quo isn't really going to work for that. Plus
+    this inconsistency means there are a whole bunch of cases where we could
+    be more specific about the G's status but aren't.
     
-    Change-Id: I50d99ef8ed513bba47166a25ea5c7c80cd8bd799
-    GitHub-Last-Rev: 684d70e9a3dbc0ce280e1112105d666cd5754e9f
-    GitHub-Pull-Request: golang/go#61979
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518860
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    So, this change adds a new function, casGToWaiting which is like
+    casgstatus but also sets the wait reason. The goal is that by using this
+    API it'll be harder to forget to set a wait reason (or the lack thereof
+    will at least be explicit). This change then updates all casgstatus(gp,
+    ..., _Gwaiting) calls to casGToWaiting(gp, ..., waitReasonX) instead.
+    For a number of these cases, we're missing a wait reason, and it
+    wouldn't hurt to add a wait reason for them, so this change also adds
+    those wait reasons.
+    
+    For #49881.
+    
+    Change-Id: Ia95e06ecb74ed17bb7bb94f1a362ebfe6bec1518
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427617
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/bufio/scan.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/debugcall.go |  3 +--
+ src/runtime/heapdump.go  |  3 +--
+ src/runtime/mgc.go       |  7 +++----
+ src/runtime/mgcmark.go   |  6 ++----
+ src/runtime/proc.go      | 17 ++++++++++++++---
+ src/runtime/runtime2.go  |  6 ++++++
+ 6 files changed, 27 insertions(+), 15 deletions(-)

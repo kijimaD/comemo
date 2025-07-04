@@ -1,18 +1,12 @@
-commit 510327012bd42aca3deac989e2e109dc71bb4605
-Author: Chris Hines <chris.cs.guy@gmail.com>
-Date:   Sun Nov 12 00:31:52 2017 -0500
+commit 44211c14e475e239415d02220521e473ae8403af
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 15:53:08 2017 +1000
 
-    cmd/vet: ignore unrecognized flags for fmt.Formatter
+    cmd/link: remove pensect
     
-    Fixes #22608.
-    
-    Change-Id: Id85eb86b0b262156646e55f102fe888b345b20cf
-    Reviewed-on: https://go-review.googlesource.com/77230
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia4abb76a8fa9e9ab280cd9162238ebd3fba79e4d
+    Reviewed-on: https://go-review.googlesource.com/56318
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/print.go          | 16 +++++++++-------
- src/cmd/vet/testdata/print.go | 11 ++++++-----
- 2 files changed, 15 insertions(+), 12 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

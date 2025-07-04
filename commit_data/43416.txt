@@ -1,28 +1,20 @@
-commit 6f45b39e4dbabf0b179a60ffacf434e55b2d5eab
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue May 19 18:55:31 2020 +1000
+commit 95773ab9b053edc43ba07a182f3d5e0e29775a45
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 1 16:34:50 2020 -0700
 
-    cmd/compile,cmd/internal/obj/riscv: move g register on riscv64
+    sync/atomic: fix TestSwapPointer test
     
-    The original riscv64 port used the thread pointer (TP aka X4) register for
-    the g pointer, however this register is also used when TLS support is
-    required, resulting in a conflict (for example, when a signal is received
-    we have no way of readily knowing if X4 contains a pointer to the TCB or
-    a pointer to a g).
+    It plays way too loose with unsafe.Pointer rules.
+    It runs afoul of the checkptr rules, so some race detector builds
+    were failing.
     
-    In order to support cgo, free up the X4 register by moving g to X27.
-    This unfortunately means that the X4 register is unused in non-cgo mode,
-    however the alternative is to not support cgo on this platform.
+    Fixes #38210
     
-    Update #36641
-    
-    Change-Id: Idcaf3e8ccbe42972a1b8943aeefde7149d9c960a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263477
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I5e1c78201d06295524fdedb3fe5b49d61446f443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226880
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   7 +-
- src/cmd/compile/internal/ssa/opGen.go          | 406 ++++++++++++-------------
- src/cmd/internal/obj/riscv/cpu.go              |  12 +-
- src/runtime/asm_riscv64.s                      |  12 +-
- 4 files changed, 219 insertions(+), 218 deletions(-)
+ src/sync/atomic/atomic_test.go | 68 +++++++++++++++++++++++++-----------------
+ 1 file changed, 41 insertions(+), 27 deletions(-)

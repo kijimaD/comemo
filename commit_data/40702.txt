@@ -1,17 +1,29 @@
-commit b2b0992b05a37b474d77c5056787780fda254fda
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Nov 8 18:53:35 2019 +0000
+commit e9188d1d18040bc6cb46065b2474664b8728a6df
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 12 18:07:32 2019 -0400
 
-    Revert "encoding/asn1: fix unmarshalling SEQUENCE OF SET"
+    cmd/go/internal/modfetch: re-resolve commit hashes in readDiskStat
     
-    This reverts CL 160819 (commit 4692343cf401a5bbcc29)
+    Previously, when we resolved a commit hash (not a complete version),
+    we always checked the contents of the module cache for any
+    pseudo-version matching that commit.
     
-    Reason for revert: causing lots of failures on master
+    However, there are many possible names for a given commit. Generally
+    the semantically-highest valid name is the best, and that may change
+    over time as new tags are added, so if we are able to fetch a better
+    name from upstream we should do so. Otherwise, we should fall back to
+    the highest appropriate name found in the cache.
     
-    Change-Id: I96fd39ae80fe350ba8b3aa310443d41daec38093
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206146
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #27171
+    Updates #27173
+    
+    Change-Id: Ib5c7d99eb463af84674e969813039cbbee7e395b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182178
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
 
- src/encoding/asn1/asn1_test.go | 19 -------------------
- src/encoding/asn1/common.go    |  3 ---
- 2 files changed, 22 deletions(-)
+ src/cmd/go/internal/modfetch/cache.go           | 42 ++++++++++++++++++++++---
+ src/cmd/go/testdata/script/mod_pseudo_cache.txt | 29 +++++++++++++++++
+ 2 files changed, 66 insertions(+), 5 deletions(-)

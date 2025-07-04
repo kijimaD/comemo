@@ -1,12 +1,18 @@
-commit 571d6fc5e8a77e5444390b02b25859365cdf45bc
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Tue Feb 14 21:31:20 2012 -0800
+commit 0c5239410e90f14dadf87d73a7d8e9161eb0bec0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Feb 15 16:16:30 2012 +1100
 
-    syscall: Make Pdeathsig type Signal in SysProcAttr on Linux.
+    html/template: add Clone and AddParseTree. Make text/template's Clone
+    return (*Template, error), not just *Template.
     
-    R=rsc, iant, iant
+    Fixes #2757.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5656058
+    https://golang.org/cl/5665044
 
- src/pkg/syscall/exec_linux.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/html/template/clone_test.go | 107 +++++++++++++++++++++++++++++++++++-
+ src/pkg/html/template/template.go   |  73 +++++++++++++++++++++---
+ src/pkg/text/template/multi_test.go |   2 +-
+ src/pkg/text/template/template.go   |   8 +--
+ 4 files changed, 176 insertions(+), 14 deletions(-)

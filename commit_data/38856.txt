@@ -1,53 +1,19 @@
-commit 7e08c7f43da876bc451b774808e323215a193abd
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Apr 22 23:36:43 2019 +0700
+commit 54cbc5b4bf554742b7037308bd45da010340628d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 10:53:10 2018 -0800
 
-    encoding/json: index names for the struct decoder
+    cmd/cgo: use a plausible position for typedef error messages
     
-    In the common case, structs have a handful of fields and most inputs
-    match struct field names exactly.
+    Fixes #28069
     
-    The previous code would do a linear search over the fields, stopping at
-    the first exact match, and otherwise using the first case insensitive
-    match.
-    
-    This is unfortunate, because it means that for the common case, we'd do
-    a linear search with bytes.Equal. Even for structs with only two or
-    three fields, that is pretty wasteful.
-    
-    Worse even, up until the exact match was found via the linear search,
-    all previous fields would run their equalFold functions, which aren't
-    cheap even in the simple case.
-    
-    Instead, cache a map along with the field list that indexes the fields
-    by their name. This way, a case sensitive field search doesn't involve a
-    linear search, nor does it involve any equalFold func calls.
-    
-    This patch should also slightly speed up cases where there's a case
-    insensitive match but not a case sensitive one, as then we'd avoid
-    calling bytes.Equal on all the fields. Though that's not a common case,
-    and there are no benchmarks for it.
-    
-    name           old time/op    new time/op    delta
-    CodeDecoder-8    11.0ms ± 0%    10.6ms ± 1%  -4.42%  (p=0.000 n=9+10)
-    
-    name           old speed      new speed      delta
-    CodeDecoder-8   176MB/s ± 0%   184MB/s ± 1%  +4.62%  (p=0.000 n=9+10)
-    
-    name           old alloc/op   new alloc/op   delta
-    CodeDecoder-8    2.28MB ± 0%    2.28MB ± 0%    ~     (p=0.725 n=10+10)
-    
-    name           old allocs/op  new allocs/op  delta
-    CodeDecoder-8     76.9k ± 0%     76.9k ± 0%    ~     (all equal)
-    
-    Updates #28923.
-    
-    Change-Id: I9929c1f06c76505e5b96914199315dbdaae5dc76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172918
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I7e0f96b8b6d123de283325fcb78ec76455050f6d
+    Reviewed-on: https://go-review.googlesource.com/c/152158
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/json/decode.go | 23 +++++++++++++----------
- src/encoding/json/encode.go | 27 ++++++++++++++++++---------
- 2 files changed, 31 insertions(+), 19 deletions(-)
+ misc/cgo/errors/errors_test.go    |  7 ++++++-
+ misc/cgo/errors/src/issue28069.go | 26 ++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go                | 35 +++++++++++++++++++----------------
+ src/cmd/cgo/main.go               |  9 ++++++++-
+ 4 files changed, 59 insertions(+), 18 deletions(-)

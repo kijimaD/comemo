@@ -1,28 +1,19 @@
-commit e51b19a993efa61b7d8f8d2828d9ee95ea82c98c
-Author: Martin Garton <garton@gmail.com>
-Date:   Tue Nov 13 13:34:42 2018 +0000
+commit f4c787b6cf3a90c32ecf9f885d8c32c6a675050b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jul 20 07:38:10 2018 -0400
 
-    bufio: make Reader.Peek invalidate Unreads
+    cmd/link: skip a couple of DWARF tests in short mode
     
-    Since Reader.Peek potentially reads from the underlying io.Reader,
-    discarding previous buffers, UnreadRune and UnreadByte cannot
-    necessarily work.  Change Peek to invalidate the unread buffers in all
-    cases (as allowed according to the documentation) and thus prevent
-    hiding bugs in the caller.
+    Rejigger the DWARF tests to ensure that they run in a reasonable
+    amount of time in short mode, particularly the "abstract origin
+    sanity" testpoints.
     
-    (This change was previoiusly merged and then reverted due concern about
-    being too close to a release)
+    Updates #26470
     
-    Fixes #18556
-    
-    Change-Id: I9027d75aa834d4b27703f37711ba25de04d89f3c
-    GitHub-Last-Rev: 917ef1e51131d734f92efc946a0ab5ca4ff69be6
-    GitHub-Pull-Request: golang/go#28768
-    Reviewed-on: https://go-review.googlesource.com/c/149297
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idae9763ac20ea999fa394595aacfcd1e271293ae
+    Reviewed-on: https://go-review.googlesource.com/125295
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/bufio/bufio.go      |  3 +++
- src/bufio/bufio_test.go | 18 ++++++++++++++++++
- 2 files changed, 21 insertions(+)
+ src/cmd/link/internal/ld/dwarf_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

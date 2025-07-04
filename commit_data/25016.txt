@@ -1,25 +1,12 @@
-commit 22e57c6655288e129fa807eecf936fdf5ac2ced8
-Author: Austin Clements <austin@google.com>
-Date:   Thu Nov 19 13:26:43 2015 -0500
+commit 5512ac2786f505dc4e63235de1e593ab295a15be
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 16 10:55:25 2015 -0700
 
-    runtime: make stack barrier locking more robust
+    doc: go1.6.txt: add math/rand.Read
     
-    The stack barrier locking functions use a simple cas lock because they
-    need to support trylock, but currently don't increment g.m.locks. This
-    is okay right now because they always run on the system stack or the
-    signal stack and are hence non-preemtible, but this could lead to
-    difficult-to-reproduce deadlocks if these conditions change in the
-    future.
-    
-    Make these functions more robust by incrementing g.m.locks and making
-    them nosplit to enforce non-preemtibility.
-    
-    Change-Id: I73d60a35bd2ad2d81c73aeb20dbd37665730eb1b
-    Reviewed-on: https://go-review.googlesource.com/17058
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I94af55bb894409b77bd87df36be9471dcc544fda
+    Reviewed-on: https://go-review.googlesource.com/14627
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mstkbar.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

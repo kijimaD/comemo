@@ -1,0 +1,33 @@
+commit 11dbbaffe1db00d8726215c3fa56e02d66e78de5
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Apr 1 15:05:45 2024 +0800
+
+    cmd/internal/obj/loong64: add support for MOV{GR2FCSR/FCSR2GR/FR2CF/CF2FR} instructions
+    
+    Go asm syntax example:
+            MOVV    R4, FCSR0
+            MOVV    FCSR1, R5
+            MOVV    F4, FCC0
+            MOVV    FCC1, F5
+    
+    Equivalent platform assembler syntax:
+            movgr2fcsr      fcsr0, r4
+            movfcsr2gr      r5, fcsr1
+            movfr2cf        fcc0, f4
+            movcf2fr        f5, fcc1
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    This change also merges the case of floating point move instructions
+    and add checks for the range of special registers.
+    
+    Change-Id: Ib08fbce83e7a31dc0ab4857bf9ba959855241d1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580279
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |   4 +
+ src/cmd/internal/obj/loong64/asm.go             | 125 +++++++++++++++---------
+ 2 files changed, 81 insertions(+), 48 deletions(-)

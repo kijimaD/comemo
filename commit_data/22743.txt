@@ -1,16 +1,19 @@
-commit 45ccea71a17225237a4296190f89710c6e65b7f0
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 27 23:46:56 2015 +0000
+commit cce127a75f72110c045319407a652829b5a5b716
+Author: Jiong Du <londevil@gmail.com>
+Date:   Tue Dec 30 16:12:50 2014 +0800
 
-    Revert "Revert "cmd/dist: consolidate runtime CPU tests""
+    database/sql: close connection if db.numOpen > db.maxOpen
     
-    This reverts commit 81c2233b4abff45e9c781f5e7c50396cfec5a0df.
+    Bug Description:
+    When reduce db.maxOpen via db.SetMaxOpenConns, the unnecssary
+    connections won't been released until all other connections are free.
     
-    Change-Id: Ie7024f04dba6352ae79ba68d4da5c0c25844cd8c
-    Reviewed-on: https://go-review.googlesource.com/9397
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #9453
+    
+    Change-Id: I9afb2e4b184139b31029ae53d7f5fd1fdb8d8d7e
+    Reviewed-on: https://go-review.googlesource.com/2200
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go | 27 ++++++++++++---------------
- 1 file changed, 12 insertions(+), 15 deletions(-)
+ src/database/sql/sql.go      |  3 +++
+ src/database/sql/sql_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+)

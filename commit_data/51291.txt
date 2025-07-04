@@ -1,18 +1,24 @@
-commit a68f9113a2d4043ef28d2e4395485ee187e5532d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 15 10:47:00 2022 -0500
+commit 07525e16ba9fcb8924ed872b015dc217d1b01b6b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 6 12:20:14 2022 -0500
 
-    cmd/pprof: use the test binary as 'pprof' instead of rebuilding it
+    math/big: fix spurious race in Rat.Denom, Float.SetRat
     
-    This not only reduces the latency of the test, but also respects
-    build flags like '-race' and '-cover' passed to the 'go test' command.
+    Rat maintains the invariant that x.b.neg is always false,
+    but Rat.Denom was writing x.b.neg = false itself too.
+    That makes Rat.Denom a writing operation, when it should
+    be a read-only operation. That in turn makes it unsafe to
+    use from multiple goroutines, which is highly unexpected.
+    Make it read-only and therefore race-free again.
     
-    Change-Id: Icdf256420c4dce2da7a187513b7dd08393b76146
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450708
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Fixes #50473.
+    
+    Change-Id: I97b87913954511e5200c0665d16b9ed63422e505
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375935
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/pprof/pprof_test.go | 59 ++++++++++++++++++++-------------------------
- 1 file changed, 26 insertions(+), 33 deletions(-)
+ src/math/big/rat.go      |  2 +-
+ src/math/big/rat_test.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

@@ -1,19 +1,13 @@
-commit c396c047c68ce59c67d1ee6d1f6756642b223bae
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 21 15:58:19 2015 -0700
+commit 5254be3a9c2d6427c081999309e836951210a69e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 22 19:18:35 2015 -0700
 
-    src/cmd/compile/internal/gc: remove now unnecessary restriction on float exponent parsing
+    [dev.ssa] cmd/compile: make etypes readable
     
-    https://go-review.googlesource.com/#/c/13778/ fixed this issue in math/big.
-    Remove restriction in compiler.
-    
-    Fixes #11326.
-    
-    Change-Id: I1429d0dd0d79431706c65616413373fff58f081e
-    Reviewed-on: https://go-review.googlesource.com/14830
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Id89ea3b458597dd93d269b9fe5475e9cccc6d992
+    Reviewed-on: https://go-review.googlesource.com/12562
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/mparith3.go | 25 -------------------------
- test/fixedbugs/issue11326.go            | 31 +++++++++++++------------------
- test/fixedbugs/issue11326b.go           | 20 ++++++++++----------
- 3 files changed, 23 insertions(+), 53 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 1 +
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,24 +1,20 @@
-commit aa75bee7a5cfcfdf829897fc11fef4f51f10a179
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Sep 14 21:39:49 2011 +1000
+commit 7406379fffb45e2ab84a0efcdadc997da98b57ce
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 14 16:19:45 2011 +1000
 
-    image: change the NewXxx functions to take a Rectangle instead of
-    taking (w, h int).
+    runtime: syscall to return both AX and DX for windows/386
     
-    R=rsc, bsiegert, r
+    Fixes #2181.
+    
+    R=golang-dev, jp
     CC=golang-dev
-    https://golang.org/cl/4964073
+    https://golang.org/cl/5000042
 
- src/cmd/gofix/Makefile           |  1 +
- src/cmd/gofix/imagenew.go        | 82 ++++++++++++++++++++++++++++++++++++++++
- src/cmd/gofix/imagenew_test.go   | 53 ++++++++++++++++++++++++++
- src/pkg/exp/gui/x11/conn.go      |  2 +-
- src/pkg/image/bmp/reader.go      |  4 +-
- src/pkg/image/gif/reader.go      |  5 +--
- src/pkg/image/image.go           | 45 +++++++++++++---------
- src/pkg/image/image_test.go      | 26 ++++++-------
- src/pkg/image/jpeg/reader.go     |  2 +-
- src/pkg/image/png/reader.go      | 18 ++++-----
- src/pkg/image/png/writer_test.go |  8 ++--
- src/pkg/image/tiff/reader.go     |  8 ++--
- 12 files changed, 198 insertions(+), 56 deletions(-)
+ src/pkg/runtime/runtime.h               |  3 +-
+ src/pkg/runtime/syscall_windows_test.go | 71 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/windows/386/sys.s       | 24 +++++------
+ src/pkg/runtime/windows/amd64/sys.s     |  2 +-
+ src/pkg/runtime/windows/os.h            |  1 -
+ src/pkg/runtime/windows/syscall.goc     | 61 +++++++++++++++++++++++-----
+ src/pkg/runtime/windows/thread.c        | 17 +-------
+ 7 files changed, 138 insertions(+), 41 deletions(-)

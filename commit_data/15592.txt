@@ -1,32 +1,26 @@
-commit e0deb2ef7fe857b2541496197b0e5ad7882990f2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 5 15:36:40 2013 -0500
+commit 1b36bcc3b59a3e123c5b1ac2617cadcb69d0e94a
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Mar 5 21:40:37 2013 +1100
 
-    undo CL 7301062 / 9742f722b558
+    syscall: handle getsockname for unix sockets on openbsd 5.2
     
-    broke arm garbage collector
+    On OpenBSD 5.2, calling getsockname on an unbound Unix domain socket
+    results in a successful syscall, however the AF is unset and the length
+    is returned as zero. This has been changed to more portable behaviour,
+    which will be included in the OpenBSD 5.3 release.
     
-    traceback_arm fails with a missing pc. It needs CL 7494043.
-    But that only makes the build break later, this time with
-    "invalid freelist". Roll back until it can be fixed correctly.
+    For now, work around this by treating a successful getsockname() call
+    that returns a family of AF_UNSPEC and length of zero as a AF_UNIX
+    socket.
     
-    ««« original CL description
-    runtime: restrict stack root scan to locals and arguments
+    Makes TestPassFD work on OpenBSD 5.2.
     
-    R=rsc
+    Fixes #4956.
+    
+    R=golang-dev, minux.ma, rsc, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/7301062
-    »»»
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/7493044
+    https://golang.org/cl/7449046
 
- src/pkg/runtime/mgc0.c          | 59 ++++++++++++++++++++---------------------
- src/pkg/runtime/mprof.goc       |  2 +-
- src/pkg/runtime/proc.c          |  2 +-
- src/pkg/runtime/runtime.h       |  2 +-
- src/pkg/runtime/sigqueue.goc    |  3 +--
- src/pkg/runtime/traceback_arm.c | 29 +++++++-------------
- src/pkg/runtime/traceback_x86.c | 37 ++++++++++----------------
- 7 files changed, 57 insertions(+), 77 deletions(-)
+ src/pkg/syscall/passfd_test.go | 4 ----
+ src/pkg/syscall/syscall_bsd.go | 5 +++++
+ 2 files changed, 5 insertions(+), 4 deletions(-)

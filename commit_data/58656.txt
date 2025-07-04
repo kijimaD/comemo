@@ -1,21 +1,36 @@
-commit 215de81513286c010951624243c2923f7dc79675
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Thu Sep 12 19:46:20 2024 +0800
+commit 676002986c55a296ea348c30706d6b63a3256b7f
+Author: Hiro <laciferin@gmail.com>
+Date:   Wed Nov 22 17:20:35 2023 +0000
 
-    cmd/compile: don't merge symbols on riscv64 when dynamic linking
+    github: use forms for issue templates
     
-    Each plugin is compiled as a separate shared object,
-    with its own symbol table. When dynamic linking plugin symbols
-    are resolved within the plugin's scope, not globally merged to
-    avoid conflicts.
+    Migrate from markdown github issue templates to more user friendly yaml templates.
     
-    Change-Id: I9e6986085855c17fbd6c39b937cb6129d216f5e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435015
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #63970
+    
+    Change-Id: I1baf8989f72c1b98bf0027bbb794c0324ea21e32
+    GitHub-Last-Rev: 725110bf87fa879c2787158a68d01612665ad4e6
+    GitHub-Pull-Request: golang/go#63655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536776
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: t hepudds <thepudds1460@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  82 ++++---------
- src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 154 ++++++++++++++----------
- 2 files changed, 115 insertions(+), 121 deletions(-)
+ .github/ISSUE_TEMPLATE/00-bug.yml                  |  98 ++++++++++++
+ .github/ISSUE_TEMPLATE/01-pkgsite.yml              |  47 ++++++
+ .github/ISSUE_TEMPLATE/02-pkgsite-removal.yml      |  29 ++++
+ .github/ISSUE_TEMPLATE/03-gopls.yml                |  56 +++++++
+ .github/ISSUE_TEMPLATE/04-vuln.yml                 |  48 ++++++
+ .github/ISSUE_TEMPLATE/10-proposal.yml             |  15 ++
+ .github/ISSUE_TEMPLATE/11-language-change.yml      | 165 +++++++++++++++++++++
+ .github/ISSUE_TEMPLATE/{ => archived}/00-bug.md    |   0
+ .../ISSUE_TEMPLATE/{ => archived}/01-pkgsite.md    |   0
+ .../{ => archived}/02-pkgsite-removal.md           |   0
+ .github/ISSUE_TEMPLATE/{ => archived}/03-gopls.md  |   0
+ .github/ISSUE_TEMPLATE/{ => archived}/04-vuln.md   |   0
+ .../ISSUE_TEMPLATE/{ => archived}/10-proposal.md   |   0
+ .../{ => archived}/11-language-change.md           |   0
+ .github/ISSUE_TEMPLATE/config.yml                  |   2 +-
+ 15 files changed, 459 insertions(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit fa8384dfb9d229269cca4e176a1870b776894552
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 1 15:50:23 2016 -0800
+commit e243d242d750f19cd1c3aefa7da1ad238f21502e
+Author: kargakis <mkargaki@redhat.com>
+Date:   Tue Oct 27 16:25:08 2015 +0100
 
-    runtime: remove now-unused test string constants
+    reflect: Comment fix
     
-    Change-Id: I491197e1505d02cd107a8788e5377cf1d0a9828c
-    Reviewed-on: https://go-review.googlesource.com/18157
+    Change-Id: I86cdd5c1d7b6f76d3474d180e75ea0c732241080
+    Reviewed-on: https://go-review.googlesource.com/16309
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/crash_test.go | 33 ---------------------------------
- 1 file changed, 33 deletions(-)
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

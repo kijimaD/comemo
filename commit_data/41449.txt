@@ -1,17 +1,37 @@
-commit 42b93b7fe616b685e9ea41514b15bc9c26d3eac8
-Author: yah01 <kagaminehuan@gmail.com>
-Date:   Wed Feb 26 08:17:14 2020 +0000
+commit 6051fd0ad9f3e9e2ee405da709ee9f087747e4c1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Sep 17 16:14:37 2019 -0400
 
-    fmt: do not remove trailing zeros for %g and %G with #(sharp) flag
+    [dev.link] cmd/link: support new object file format
     
-    Fixes #36562
+    Parse new object file format in the linker. At least we can link
+    a hello-world program.
     
-    Change-Id: Id98ae9f7362cfb825b306c36649d505692d6d60e
-    GitHub-Last-Rev: 405d51b12eb04da8cc3559c92f1546e69a8c1a19
-    GitHub-Pull-Request: golang/go#36588
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215001
-    Reviewed-by: Rob Pike <r@golang.org>
+    Add a basic "loader", which handles symbol references in the
+    object file.
+    - mapping between local and global indices
+    - resolve by-name references
+      (TODO: the overwrite logic isn't implemented yet)
+    
+    Currently we still create sym.Symbol rather early, and, after all
+    the object files are loaded and indexed references are resolved,
+    add all symbols to sym.Symbols.
+    
+    The code here is probably not going in the final version. This
+    is basically only for debugging purposes -- to make sure the
+    writer and the reader work as expected.
+    
+    Change-Id: I895aeea68326fabdb7e5aa1371b8cac7211a09dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196032
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/fmt/fmt_test.go |  9 +++++++++
- src/fmt/format.go   | 13 ++++++++++++-
- 2 files changed, 21 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/go.go            |   7 +-
+ src/cmd/link/internal/ld/lib.go           |  75 +++++-
+ src/cmd/link/internal/ld/link.go          |   4 +
+ src/cmd/link/internal/ld/main.go          |   2 +
+ src/cmd/link/internal/objfile/objfile2.go | 419 ++++++++++++++++++++++++++++++
+ src/cmd/link/internal/sym/library.go      |   7 +
+ src/cmd/link/internal/sym/symbols.go      |  11 +
+ 7 files changed, 513 insertions(+), 12 deletions(-)

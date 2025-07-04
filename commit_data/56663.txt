@@ -1,19 +1,32 @@
-commit f109bdd1278d59fc6c506d1db50c52f0e969348e
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed May 22 23:09:56 2024 -0400
+commit 6333725d5fae3ceda830d3d1d65b1540d004b288
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 19 09:32:22 2023 -0400
 
-    runtime: update TestExitHooks error strings
+    cmd/dist: flush incomplete lines in -json mode
     
-    The error strings were changed in CL 586259 and no longer include
-    "internal error". Update the strings in the test.
+    Currently, if a test prints an incomplete line and then exits, in JSON
+    mode, the filter we use to rewrite Package lines will keep the last
+    incomplete line in an internal buffer and never print it. In theory
+    this should never happen anyway because the test should only write
+    JSON to stdout, but we try pretty hard to pass through any non-JSON,
+    so it seems inconsistent to swallow incomplete lines.
     
-    Should fix the longtest builders.
+    Fix this by adding a testJSONFilter.Flush method and calling it in the
+    right places. Unfortunately this is a bit tricky because the filter is
+    constructed pretty far from where we run the exec.Cmd, so we return
+    the flush function through the various layers in order to route it to
+    the place where we call Cmd.Run.
     
-    Change-Id: If227d4b79a8bf5e52a32c3b2eceb086241f079aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587757
-    Auto-Submit: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Updates #37486.
+    
+    Change-Id: I38af67e8ad23458598a32fd428779bb0ec21ac3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496516
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/ehooks_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go          | 35 ++++++++++++++++++++++++-----------
+ src/cmd/dist/testjson.go      |  8 ++++++++
+ src/cmd/dist/testjson_test.go |  5 +++--
+ 3 files changed, 35 insertions(+), 13 deletions(-)

@@ -1,24 +1,13 @@
-commit fb2af2b35b8d2ad832f2398e981ea78c64b0663b
-Author: David Chase <drchase@google.com>
-Date:   Fri Feb 19 12:06:31 2016 -0500
+commit 7218b79f23186420b7ae5535bb5157923473e63e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 15:43:05 2015 -0800
 
-    cmd/compile: don't walk field-name syntax in esc.go
+    cmd/compile: match markdcl and popdcl even in case of errors
     
-    Walking the field name as if it were an expression
-    caused a called to haspointers with a TFIELD, which panics.
-    Trigger was a field at a large offset within a large struct,
-    combined with a struct literal expression mentioning that
-    field.
-    
-    Fixes #14405
-    
-    Change-Id: I4589badae27cf3d7cf365f3a66c13447512f41f9
-    Reviewed-on: https://go-review.googlesource.com/19699
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I22a8a233bc157fa09cd0283fcd4bc14d90faed70
+    Reviewed-on: https://go-review.googlesource.com/17066
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 13 ++++++++++---
- src/cmd/compile/internal/gc/fmt.go |  2 +-
- test/fixedbugs/issue14405.go       | 17 +++++++++++++++++
- 3 files changed, 28 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/parser.go | 22 +++++++++++++---------
+ test/switch2.go                       | 24 ++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 9 deletions(-)

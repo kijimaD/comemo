@@ -1,12 +1,14 @@
-commit e451fb8ffbca501b12611f97ec875e9544339aa0
+commit f3492a7d404f41d45f9174b27086861fe2d2b3a5
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 30 13:20:38 2012 -0500
+Date:   Mon Jan 30 13:20:10 2012 -0500
 
-    fmt: add test of NaN map keys
+    8g: use uintptr for local pc
     
-    R=r
+    Fixes #2478.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5564063
+    https://golang.org/cl/5593051
 
- src/pkg/fmt/fmt_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/8g/gsubr.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

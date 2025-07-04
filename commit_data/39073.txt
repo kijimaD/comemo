@@ -1,16 +1,22 @@
-commit 7f5434c44c75f25172d5d6106ad179d2e813bdd1
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Tue May 7 09:41:46 2019 +0200
+commit debca779719a72929932c589fe7ed3fea5341e53
+Author: Keith Randall <khr@google.com>
+Date:   Fri Dec 21 15:41:28 2018 -0800
 
-    regexp: clarify docs re Submatch result
+    cmd/compile: fix line number for implicitly declared method expressions
     
-    Currently we say that a negative index means no match,
-    but we don't say how "no match" is expressed when 'Index'
-    is not present. Say how it is expressed.
+    Method expressions where the method is implicitly declared have no
+    line number. The Error method of the built-in error type is one such
+    method.  We leave the line number at the use of the method expression
+    in this case.
     
-    Change-Id: I82b6c9038557ac49852ac03642afc0bc545bb4a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175677
+    Fixes #29389
+    
+    Change-Id: I29c64bb47b1a704576abf086599eb5af7b78df53
+    Reviewed-on: https://go-review.googlesource.com/c/155639
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/regexp/regexp.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/closure.go |  7 ++++++-
+ test/fixedbugs/issue29389.go           | 17 +++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

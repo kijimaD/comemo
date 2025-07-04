@@ -1,21 +1,23 @@
-commit b158ca9ae35fd98e383411633469819fdbc65eca
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 7 10:23:53 2024 -0800
+commit 521d2614df0cf4fa3a92bd01e1c98d77bfeac9ed
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 8 09:40:44 2023 +0100
 
-    cmd/compile: separate inline cost analysis from applying inlining
+    runtime: use explicit NOFRAME on linux/amd64
     
-    This CL separates the pass that computes inlinability from the pass
-    that performs inlinability. In particular, the latter can now happen
-    in any flat order, rather than bottom-up order. This also allows
-    inlining of calls exposed by devirtualization.
+    This CL marks some linux assembly functions as NOFRAME to avoid relying
+    on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
     
-    Change-Id: I389c0665fdc8288a6e25129a6744bfb1ace1eff7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562319
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Updates #58378
+    
+    Change-Id: I7792cff4f6e539bfa56c02868f2965088ca1975a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466316
     Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/inline/inl.go             | 41 +++++++++-------------
- .../internal/inline/interleaved/interleaved.go     | 25 ++++---------
- test/fixedbugs/issue52193.go                       |  2 +-
- 3 files changed, 24 insertions(+), 44 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go                    | 10 ++++++++--
+ src/cmd/link/internal/ld/testdata/stackcheck/main.s |  5 +++--
+ src/runtime/sys_linux_amd64.s                       | 14 ++++++--------
+ 3 files changed, 17 insertions(+), 12 deletions(-)

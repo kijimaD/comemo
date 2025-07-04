@@ -1,32 +1,24 @@
-commit 677c6e6ee7da904e9858ba57afdb92088fd81fe4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Nov 13 12:56:28 2012 +0900
+commit 7e7b89f7d0191537094d91963c9fe1647ef43635
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Mon Nov 12 15:31:42 2012 -0800
 
-    net: protocol specific listen functions return a proper local socket address
+    net/textproto: faster header canonicalization with fewer allocations
     
-    When a nil listener address is passed to some protocol specific
-    listen function, it will create an unnamed, unbound socket because
-    of the nil listener address. Other listener functions may return
-    invalid address error.
+    By keeping a single copy of the strings that commonly show up
+    in headers, we can avoid one string allocation per header.
     
-    This CL allows to pass a nil listener address to all protocol
-    specific listen functions to fix above inconsistency. Also make it
-    possible to return a proper local socket address in case of a nil
-    listner address.
+    benchmark                  old ns/op    new ns/op    delta
+    BenchmarkReadMIMEHeader        19590        10824  -44.75%
+    BenchmarkUncommon               3168         1861  -41.26%
     
-    Fixes #4190.
-    Fixes #3847.
+    benchmark                 old allocs   new allocs    delta
+    BenchmarkReadMIMEHeader           32           25  -21.88%
+    BenchmarkUncommon                  5            5    0.00%
     
-    R=rsc, iant
+    R=bradfitz, golang-dev, dave, rsc, jra
     CC=golang-dev
-    https://golang.org/cl/6525048
+    https://golang.org/cl/6721055
 
- src/pkg/net/ipraw_test.go      | 30 ++++++++++++++++++++++
- src/pkg/net/iprawsock_posix.go |  4 +--
- src/pkg/net/tcp_test.go        | 30 ++++++++++++++++++++++
- src/pkg/net/tcpsock_plan9.go   |  2 +-
- src/pkg/net/tcpsock_posix.go   | 58 +++++++++++++++++++++++++-----------------
- src/pkg/net/udp_test.go        | 30 ++++++++++++++++++++++
- src/pkg/net/udpsock_plan9.go   |  2 +-
- src/pkg/net/udpsock_posix.go   |  2 +-
- 8 files changed, 130 insertions(+), 28 deletions(-)
+ src/pkg/net/textproto/reader.go      | 85 +++++++++++++++++++++++++++++++-----
+ src/pkg/net/textproto/reader_test.go | 83 +++++++++++++++++++++++++++++++++--
+ 2 files changed, 154 insertions(+), 14 deletions(-)

@@ -1,16 +1,20 @@
-commit 23dcee64643fef66663272cd123dc7b42dfa67c9
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Jun 1 16:20:32 2020 -0400
+commit b720014743d7de2e706bb6b54ca914653d86f76c
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 11 14:36:17 2019 -0500
 
-    crypto/tls: test that Clone copies session ticket key fields
+    [dev.link] cmd/link: add SymbolBuilder helper
     
-    Updates #25256
+    Add SymbolBuilder helper type -- this type provides a set of methods
+    intended to make it easy to manipulate the content of a symbol (type,
+    relocations, data, etc).
     
-    Change-Id: If16c42581f1cf3500fd7fd01c915e487f8025e55
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235922
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I579bf8d04650e66d33a9780a6c2347a576c94c6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210178
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/crypto/tls/tls_test.go | 15 +++++----------
- 1 file changed, 5 insertions(+), 10 deletions(-)
+ src/cmd/link/internal/ld/lib.go               |   2 +-
+ src/cmd/link/internal/loader/loader.go        |  22 ++-
+ src/cmd/link/internal/loader/loader_test.go   | 223 ++++++++++++++++++++++-
+ src/cmd/link/internal/loader/symbolbuilder.go | 250 ++++++++++++++++++++++++++
+ 4 files changed, 491 insertions(+), 6 deletions(-)

@@ -1,14 +1,13 @@
-commit 23fab11c47804b449f8498d8a21e54cb966fd989
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Wed Sep 14 14:21:20 2011 -0700
+commit b47bbecf7a90b94a54db6871fcbec9c9c47bb564
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 14 13:29:31 2011 -0700
 
-    exp/template/html: flesh out package documentation.
+    src: fix a couple of govet-discovered errors.
     
-    R=nigeltao, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4969078
+    https://golang.org/cl/5021042
 
- src/pkg/exp/template/html/Makefile  |   1 +
- src/pkg/exp/template/html/doc.go    | 394 ++++++++++++++++++++++++++++++++++++
- src/pkg/exp/template/html/escape.go |   3 -
- 3 files changed, 395 insertions(+), 3 deletions(-)
+ src/pkg/exp/regexp/exec_test.go  | 2 +-
+ src/pkg/image/png/reader_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

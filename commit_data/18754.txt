@@ -1,17 +1,19 @@
-commit 22705d0995ab0e7ba5533b2c145bc41a0751ead5
-Author: Alberto García Hierro <alberto@garciahierro.com>
-Date:   Wed Mar 5 14:28:11 2014 -0500
+commit 671cc6efba29dc7689d38bcb9893e28375783fbe
+Author: Chris Manghane <cmang@golang.org>
+Date:   Wed Mar 5 14:16:21 2014 -0500
 
-    cmd/go: add support for coverage in CgoFiles
+    cmd/gc: allow append and complex builtins to accept 2-result call expression as first argument.
     
-    Add CgoFiles to the covered files when building
-    with cover support.
+    Fixes #5793.
     
     LGTM=rsc
-    R=golang-codereviews, gobot, r, rsc
+    R=rsc, adonovan, dave
     CC=golang-codereviews
-    https://golang.org/cl/34680044
+    https://golang.org/cl/13367051
 
- src/cmd/go/build.go | 49 ++++++++++++++++++++++++++++++-------------------
- src/cmd/go/test.go  | 10 ++++++++--
- 2 files changed, 38 insertions(+), 21 deletions(-)
+ src/cmd/gc/inl.c            |  2 ++
+ src/cmd/gc/order.c          |  2 ++
+ src/cmd/gc/typecheck.c      | 49 ++++++++++++++++++++++++++++++++++-----------
+ src/cmd/gc/walk.c           |  9 +++++++++
+ test/fixedbugs/issue5793.go | 36 +++++++++++++++++++++++++++++++++
+ 5 files changed, 86 insertions(+), 12 deletions(-)

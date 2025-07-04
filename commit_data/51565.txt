@@ -1,22 +1,24 @@
-commit f4b42f5cb8b494a2b64a4ade89f89071d80c7fd3
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Dec 14 15:49:58 2022 -0800
+commit 875a6d40107d560473d1590425a096dd4cee346f
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Feb 13 20:27:55 2022 -0500
 
-    net/http: improve errors in TestCancelRequestWhenSharingConnection
+    go/types, types2: no need to revert tparam renaming in inference results
     
-    Provide more information about why this test might be hanging waiting
-    for PutIdleConn to be called (#56587): If the round trip that should
-    result in PutIdleConn being invoked completes, report that to the
-    goroutine waiting for PutIdleConn.
+    This is a follow up to CL 385494. In early patch sets of that CL,
+    renamed type parameters were substituted in arguments, which meant that
+    they could leak into the inference results. However, we subsequently
+    realized that we could instead substitute in the signature parameters.
+    In this case it is not possible for the substituted type parameters to
+    appear in the resulting type arguments, so there is no need to
+    un-substitute.
     
-    For #56587
-    
-    Change-Id: Ie476ea0ce4a48d2bda6b9b109f89d675a10e7e45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/457775
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I4da45b0b8d7ad809d0ddfa7061ae5f6f07895540
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385574
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/http/transport_test.go | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/infer.go | 10 ----------
+ src/go/types/infer.go                    | 10 ----------
+ 2 files changed, 20 deletions(-)

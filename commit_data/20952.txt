@@ -1,18 +1,175 @@
-commit b796cbc40657e0891a43bffab0ffb92ce656d8f1
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Dec 8 20:04:56 2014 -0800
+commit d6f4e5020b0dc4014a75782a72d39c99657bd659
+Merge: 8e171e1966 599199fd9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 12:25:24 2014 -0400
 
-    runtime: fix finalizer iterator
+    [dev.garbage] all: merge dev.power64 (5ad5e85cfb99) into dev.garbage
     
-    It could only handle one finalizer before it raised an out-of-bounds error.
+    The goal here is to get the big-endian fixes so that
+    in some upcoming code movement for write barriers
+    I don't make them unmergeable.
     
-    Fixes issue #9172
-    
-    Change-Id: Ibb4d0c8aff2d78a1396e248c7129a631176ab427
-    Reviewed-on: https://go-review.googlesource.com/1201
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=rlh
+    R=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/166890043
 
- src/runtime/debug/heapdump_test.go | 37 +++++++++++++++++++++++++++++++++++++
- src/runtime/malloc2.go             |  4 ++--
- src/runtime/mgc.go                 |  5 ++---
- 3 files changed, 41 insertions(+), 5 deletions(-)
+ .hgignore                                          |    6 +-
+ include/link.h                                     |   27 +-
+ lib/codereview/codereview.cfg                      |    1 +
+ lib/codereview/codereview.py                       |   12 +-
+ src/cmd/5a/a.h                                     |    3 +
+ src/cmd/5a/a.y                                     |   26 +-
+ src/cmd/5a/y.tab.c                                 | 2049 ++++++------
+ src/cmd/5a/y.tab.h                                 |   68 +-
+ src/cmd/6a/a.h                                     |    3 +
+ src/cmd/6a/a.y                                     |   25 +-
+ src/cmd/6a/y.tab.c                                 | 1054 +++---
+ src/cmd/8a/a.h                                     |    3 +
+ src/cmd/8a/a.y                                     |   25 +-
+ src/cmd/8a/y.tab.c                                 | 1050 +++---
+ src/cmd/9a/Makefile                                |   10 +
+ src/cmd/9a/a.h                                     |  170 +
+ src/cmd/9a/a.y                                     |  991 ++++++
+ src/cmd/9a/doc.go                                  |   21 +
+ src/cmd/9a/lex.c                                   |  725 +++++
+ src/cmd/9a/y.tab.c                                 | 3398 ++++++++++++++++++++
+ src/cmd/9a/y.tab.h                                 |  188 ++
+ src/cmd/9c/Makefile                                |    5 +
+ src/cmd/9c/Notes                                   |   14 +
+ src/cmd/9c/cgen.c                                  | 1147 +++++++
+ src/cmd/9c/doc.go                                  |   17 +
+ src/cmd/9c/gc.h                                    |  350 ++
+ src/cmd/9c/list.c                                  |   37 +
+ src/cmd/9c/machcap.c                               |  105 +
+ src/cmd/9c/mul.c                                   |  638 ++++
+ src/cmd/9c/peep.c                                  | 1076 +++++++
+ src/cmd/9c/reg.c                                   | 1163 +++++++
+ src/cmd/9c/sgen.c                                  |  291 ++
+ src/cmd/9c/swt.c                                   |  407 +++
+ src/cmd/9c/txt.c                                   | 1537 +++++++++
+ src/cmd/9g/cgen.c                                  | 1763 ++++++++++
+ src/cmd/9g/doc.go                                  |   16 +
+ src/cmd/9g/galign.c                                |   54 +
+ src/cmd/9g/gg.h                                    |  117 +
+ src/cmd/9g/ggen.c                                  | 1034 ++++++
+ src/cmd/9g/gobj.c                                  |  240 ++
+ src/cmd/9g/gsubr.c                                 | 1705 ++++++++++
+ src/cmd/9g/opt.h                                   |  219 ++
+ src/cmd/9g/peep.c                                  |   94 +
+ src/cmd/9g/prog.c                                  |  138 +
+ src/cmd/9g/reg.c                                   |  161 +
+ src/cmd/9l/9.out.h                                 |  514 +++
+ src/cmd/9l/Makefile                                |    5 +
+ src/cmd/9l/asm.c                                   |  338 ++
+ src/cmd/9l/doc.go                                  |   16 +
+ src/cmd/9l/l.h                                     |  100 +
+ src/cmd/9l/list.c                                  |   40 +
+ src/cmd/9l/obj.c                                   |  108 +
+ src/cmd/cc/lexbody                                 |   25 +
+ src/cmd/cc/pgen.c                                  |    4 +-
+ src/cmd/cgo/main.go                                |   20 +-
+ src/cmd/dist/build.c                               |   49 +-
+ src/cmd/dist/buildgc.c                             |    2 +-
+ src/cmd/dist/buildruntime.c                        |    7 +
+ src/cmd/dist/unix.c                                |    4 +
+ src/cmd/gc/pgen.c                                  |    4 +-
+ src/cmd/gc/popt.c                                  |    4 +
+ src/cmd/gc/walk.c                                  |    7 +
+ src/cmd/ld/data.c                                  |    4 +-
+ src/cmd/ld/doc.go                                  |    6 +-
+ src/cmd/ld/dwarf.c                                 |    4 +-
+ src/cmd/ld/elf.c                                   |   29 +-
+ src/cmd/ld/ldelf.c                                 |    6 +
+ src/cmd/ld/lib.c                                   |   36 +-
+ src/cmd/ld/macho.c                                 |    1 +
+ src/cmd/ld/symtab.c                                |    1 +
+ src/debug/elf/elf.go                               |  178 +
+ src/debug/elf/file.go                              |   50 +-
+ src/debug/elf/file_test.go                         |    6 +
+ .../testdata/go-relocation-test-gcc482-ppc64le.obj |  Bin 0 -> 3016 bytes
+ src/go/build/build.go                              |    2 +
+ src/go/build/syslist.go                            |    2 +-
+ src/hash/crc32/crc32_generic.go                    |    2 +-
+ src/liblink/asm9.c                                 | 2784 ++++++++++++++++
+ src/liblink/list9.c                                |  409 +++
+ src/liblink/obj9.c                                 | 1086 +++++++
+ src/liblink/objfile.c                              |    9 +-
+ src/liblink/sched9.c                               |  835 +++++
+ src/math/abs_power64x.s                            |   14 +
+ src/math/big/arith_power64x.s                      |   46 +
+ src/math/stubs_power64x.s                          |   91 +
+ src/os/signal/sig.s                                |    8 +-
+ src/reflect/all_test.go                            |    5 +
+ src/reflect/asm_power64x.s                         |   29 +
+ src/runtime/arch_power64.go                        |    8 +
+ src/runtime/arch_power64.h                         |   14 +
+ src/runtime/arch_power64le.go                      |    8 +
+ src/runtime/arch_power64le.h                       |   14 +
+ src/runtime/asm_386.s                              |   58 +-
+ src/runtime/asm_amd64.s                            |   78 +-
+ src/runtime/asm_amd64p32.s                         |   58 +-
+ src/runtime/asm_arm.s                              |   24 +-
+ src/runtime/asm_power64x.s                         |  981 ++++++
+ src/runtime/atomic_power64x.s                      |   40 +
+ src/runtime/debug/stubs.s                          |    6 +
+ src/runtime/defs1_linux.go                         |    6 +-
+ src/runtime/defs3_linux.go                         |   43 +
+ src/runtime/defs_linux.go                          |   11 +-
+ src/runtime/defs_linux_power64.h                   |  204 ++
+ src/runtime/defs_linux_power64le.h                 |  204 ++
+ src/runtime/gcinfo_test.go                         |    6 +
+ src/runtime/malloc.go                              |   10 +-
+ src/runtime/mem_linux.c                            |   16 +-
+ src/runtime/memclr_386.s                           |   46 +-
+ src/runtime/memclr_amd64.s                         |   44 +-
+ src/runtime/memclr_plan9_386.s                     |   24 +-
+ src/runtime/memclr_power64x.s                      |   20 +
+ src/runtime/memmove_power64x.s                     |   40 +
+ src/runtime/mgc0.c                                 |    1 +
+ src/runtime/{noasm_arm.go => noasm.go}             |    2 +
+ src/runtime/os_linux.c                             |   37 +-
+ src/runtime/panic.c                                |    2 +-
+ src/runtime/panic.go                               |    4 +-
+ src/runtime/proc.c                                 |    4 +-
+ src/runtime/race_amd64.s                           |   18 +-
+ src/runtime/rt0_linux_power64.s                    |   17 +
+ src/runtime/rt0_linux_power64le.s                  |   14 +
+ src/runtime/runtime.c                              |    6 +
+ src/runtime/signal_linux_power64.h                 |   49 +
+ src/runtime/signal_linux_power64le.h               |   49 +
+ src/runtime/signal_power64x.c                      |  137 +
+ src/runtime/string.go                              |    4 -
+ src/runtime/sys_darwin_386.s                       |    4 +-
+ src/runtime/sys_darwin_amd64.s                     |    4 +-
+ src/runtime/sys_dragonfly_386.s                    |    4 +-
+ src/runtime/sys_freebsd_386.s                      |    4 +-
+ src/runtime/sys_linux_amd64.s                      |    8 +-
+ src/runtime/sys_linux_arm.s                        |    8 +-
+ src/runtime/sys_linux_power64x.s                   |  383 +++
+ src/runtime/sys_nacl_386.s                         |    4 +-
+ src/runtime/sys_nacl_amd64p32.s                    |    1 -
+ src/runtime/sys_nacl_arm.s                         |    1 -
+ src/runtime/sys_openbsd_386.s                      |    4 +-
+ src/runtime/sys_power64x.c                         |   38 +
+ src/runtime/sys_solaris_amd64.s                    |   12 +-
+ src/runtime/sys_windows_386.s                      |   12 +-
+ src/runtime/sys_windows_amd64.s                    |   12 +-
+ src/runtime/thunk.s                                |    6 +
+ src/sync/atomic/asm_power64x.s                     |  184 ++
+ src/syscall/asm.s                                  |    7 +
+ src/syscall/asm_linux_power64x.s                   |  104 +
+ src/syscall/mkall.sh                               |   17 +-
+ src/syscall/mkerrors.sh                            |    1 +
+ src/syscall/syscall_linux_power64x.go              |   97 +
+ src/syscall/types_linux.go                         |  110 +-
+ src/syscall/zerrors_linux_power64.go               | 1878 +++++++++++
+ src/syscall/zerrors_linux_power64le.go             | 1902 +++++++++++
+ src/syscall/zsyscall_linux_power64.go              | 1931 +++++++++++
+ src/syscall/zsyscall_linux_power64le.go            | 1931 +++++++++++
+ src/syscall/zsysnum_linux_power64.go               |  351 ++
+ src/syscall/zsysnum_linux_power64le.go             |  351 ++
+ src/syscall/ztypes_linux_power64.go                |  602 ++++
+ src/syscall/ztypes_linux_power64le.go              |  602 ++++
+ test/nosplit.go                                    |   21 +-
+ 158 files changed, 39285 insertions(+), 2689 deletions(-)

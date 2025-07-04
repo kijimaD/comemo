@@ -1,21 +1,12 @@
-commit 0f136f2c057459999f93da2d588325e192160b39
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 7 17:03:40 2013 +0400
+commit 3fc244f37065f3eb0bc8cd54e6aff0ced2889969
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 7 19:15:00 2013 +0900
 
-    net: fix accept/connect deadline handling
-    Ensure that accept/connect respect deadline,
-    even if the operation can be executed w/o blocking.
-    Note this changes external behavior, but it makes
-    it consistent with read/write.
-    Factor out deadline check into pollServer.PrepareRead/Write,
-    in preparation for edge triggered pollServer.
-    Ensure that pollServer.WaitRead/Write are not called concurrently
-    by adding rio/wio locks around connect/accept.
+    net: fix plan9 build
     
-    R=golang-dev, mikioh.mikioh, bradfitz, iant
+    R=golang-dev, akumar
     CC=golang-dev
-    https://golang.org/cl/7436048
+    https://golang.org/cl/7564043
 
- src/pkg/net/fd_unix.go      | 66 ++++++++++++++++++++++++++++-----------------
- src/pkg/net/timeout_test.go | 60 ++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 101 insertions(+), 25 deletions(-)
+ src/pkg/net/ipraw_test.go | 2 --
+ 1 file changed, 2 deletions(-)

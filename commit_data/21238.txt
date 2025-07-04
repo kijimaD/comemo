@@ -1,21 +1,13 @@
-commit 083e04c3d963832116deb0d11e1fab5d7d57132a
-Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
-Date:   Mon Jan 5 11:27:40 2015 +0000
+commit 107eea518b9c9fa4f406bbaeff4ea169e4aa0363
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 11 09:16:41 2014 +1100
 
-    crypto/x509: Correction of incrorrect default version number in TBSCertificateList and Certificate.CreateCRL
+    doc: document go1.4
     
-    RFC5280 states:
-    
-    "This optional field describes the version of the encoded CRL.  When
-     extensions are used, as required by this profile, this field MUST be
-     present and MUST specify version 2 (the integer value is 1)."
-    
-    This CL has been discussed at: http://golang.org/cl/172560043
-    
-    Change-Id: I8a72d7593d5ca6714abe9abd6a37437c3b69ab0f
-    Reviewed-on: https://go-review.googlesource.com/2259
-    Reviewed-by: Adam Langley <agl@golang.org>
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/189810043
 
- src/crypto/x509/pkix/pkix.go | 2 +-
- src/crypto/x509/x509.go      | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

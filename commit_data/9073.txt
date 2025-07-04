@@ -1,17 +1,20 @@
-commit cbad580e9cd42f27a9db7f4b096ee0d07dedb619
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Jul 14 13:30:08 2011 +1000
+commit fc1f0bd5e90119278f71cb468bb02a4ecf9d37ac
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 14 13:15:55 2011 +1000
 
-    json: escape < and > in any JSON string.
+    exp/template: allow range actions to declare a key and element variable.
+            {{range $key, $element := pipeline}}
+    This CL is smaller than it looks due to some rearrangement and renaming.
     
-    Angle brackets can trigger some browser sniffers, causing
-    some forms of JSON output to be interpreted as HTML.
-    Escaping angle brackets closes that security hole.
-    
-    R=rsc
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4701047
+    https://golang.org/cl/4709047
 
- src/pkg/json/decode_test.go | 12 ++++++++++++
- src/pkg/json/encode.go      |  6 +++++-
- 2 files changed, 17 insertions(+), 1 deletion(-)
+ src/pkg/exp/template/doc.go        | 15 +++++++++---
+ src/pkg/exp/template/exec.go       | 30 +++++++++++++++---------
+ src/pkg/exp/template/exec_test.go  | 15 +++++++-----
+ src/pkg/exp/template/lex.go        | 47 +++++++++++++++++++++-----------------
+ src/pkg/exp/template/lex_test.go   | 44 +++++++++++++++++++++++++++--------
+ src/pkg/exp/template/parse.go      | 45 ++++++++++++++++++++++--------------
+ src/pkg/exp/template/parse_test.go |  9 +++++---
+ 7 files changed, 135 insertions(+), 70 deletions(-)

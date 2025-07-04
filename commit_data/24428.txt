@@ -1,26 +1,15 @@
-commit 9f6df6c9407eb9a7f2393d00d7442f414a4d7dfa
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 2 18:17:54 2015 -0400
+commit 7a63ab1a653d957bcf4e690ea70d6838382015e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 28 13:41:16 2015 -0400
 
-    runtime: use 4 byte writes in amd64p32 memmove/memclr
+    runtime: use 64k page rounding on arm64
     
-    Currently, amd64p32's memmove and memclr use 8 byte writes as much as
-    possible and 1 byte writes for the tail of the object. However, if an
-    object ends with a 4 byte pointer at an 8 byte aligned offset, this
-    may copy/zero the pointer field one byte at a time, allowing the
-    garbage collector to observe a partially copied pointer.
+    Fixes #11886.
     
-    Fix this by using 4 byte writes instead of 8 byte writes.
-    
-    Updates #12552.
-    
-    Change-Id: I13324fd05756fb25ae57e812e836f0a975b5595c
-    Reviewed-on: https://go-review.googlesource.com/15370
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9392fd2ef5951173ae275b3ab42db4f8bd2e1d7a
+    Reviewed-on: https://go-review.googlesource.com/12747
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/asm_amd64p32.s          |  6 +++---
- src/runtime/memmove_nacl_amd64p32.s | 23 +++++++++++++----------
- 2 files changed, 16 insertions(+), 13 deletions(-)
+ src/runtime/arch1_arm64.go        | 2 +-
+ src/runtime/debug/garbage_test.go | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

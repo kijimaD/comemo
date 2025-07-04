@@ -1,15 +1,52 @@
-commit bc81f52e93b5f8200876bf0cf7ae5a61c96a4783
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 19 15:50:06 2019 -0700
+commit dd91269b7c470d07ba0efe1abab85011f41e38bc
+Author: erifan01 <eric.fang@arm.com>
+Date:   Wed Jan 2 09:14:26 2019 +0000
 
-    text/scanner: rename AllowNumberbars to AllowDigitSeparators
+    cmd/compile: optimize math/bits Len32 intrinsic on arm64
     
-    Fixes #32661.
+    Arm64 has a 32-bit CLZ instruction CLZW, which can be used for intrinsic Len32.
+    Function LeadingZeros32 calls Len32, with this change, the assembly code of
+    LeadingZeros32 becomes more concise.
     
-    Change-Id: I32dc4e7b276b95ac2e87a384caa6c48702368d05
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183077
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Go code:
+    
+    func f32(x uint32) { z = bits.LeadingZeros32(x) }
+    
+    Before:
+    
+    "".f32 STEXT size=32 args=0x8 locals=0x0 leaf
+            0x0000 00000 (test.go:7)        TEXT    "".f32(SB), LEAF|NOFRAME|ABIInternal, $0-8
+            0x0004 00004 (test.go:7)        MOVWU   "".x(FP), R0
+            0x0008 00008 ($GOROOT/src/math/bits/bits.go:30) CLZ     R0, R0
+            0x000c 00012 ($GOROOT/src/math/bits/bits.go:30) SUB     $32, R0, R0
+            0x0010 00016 (test.go:7)        MOVD    R0, "".z(SB)
+            0x001c 00028 (test.go:7)        RET     (R30)
+    
+    After:
+    
+    "".f32 STEXT size=32 args=0x8 locals=0x0 leaf
+            0x0000 00000 (test.go:7)        TEXT    "".f32(SB), LEAF|NOFRAME|ABIInternal, $0-8
+            0x0004 00004 (test.go:7)        MOVWU   "".x(FP), R0
+            0x0008 00008 ($GOROOT/src/math/bits/bits.go:30) CLZW    R0, R0
+            0x000c 00012 (test.go:7)        MOVD    R0, "".z(SB)
+            0x0018 00024 (test.go:7)        RET     (R30)
+    
+    Benchmarks:
+    name              old time/op  new time/op  delta
+    LeadingZeros-8    2.53ns ± 0%  2.55ns ± 0%   +0.67%  (p=0.000 n=10+10)
+    LeadingZeros8-8   3.56ns ± 0%  3.56ns ± 0%     ~     (all equal)
+    LeadingZeros16-8  3.55ns ± 0%  3.56ns ± 0%     ~     (p=0.465 n=10+10)
+    LeadingZeros32-8  3.55ns ± 0%  2.96ns ± 0%  -16.71%  (p=0.000 n=10+7)
+    LeadingZeros64-8  2.53ns ± 0%  2.54ns ± 0%     ~     (p=0.059 n=8+10)
+    
+    Change-Id: Ie5666bb82909e341060e02ffd4e86c0e5d67e90a
+    Reviewed-on: https://go-review.googlesource.com/c/157000
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/text/scanner/scanner.go      | 30 +++++++++++++++---------------
- src/text/scanner/scanner_test.go |  2 +-
- 2 files changed, 16 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           |  4 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 22 ++++++++++++++++++++++
+ test/codegen/mathbits.go                     |  2 +-
+ 4 files changed, 26 insertions(+), 3 deletions(-)

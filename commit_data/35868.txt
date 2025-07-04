@@ -1,23 +1,96 @@
-commit 398a8ed653929f9901ec14c1fa3d048955050f44
-Author: Keith Randall <khr@google.com>
-Date:   Mon Jul 2 09:43:37 2018 -0700
+commit b46d398887e1b3f2ccf279f91007ecf78466a573
+Author: Balaram Makam <bmakam.qdt@qualcommdatacenter.com>
+Date:   Tue Dec 5 17:51:10 2017 -0500
 
-    cmd/compile: remove broken rules
+    runtime: improve arm64 memclr implementation
     
-    These rules don't even type check.  ADDQconstmodify returns memory,
-    and it is being rewritten to a value that returns an int64.
+    Improve runtime memclr_arm64.s using ZVA feature to zero out memory when n
+    is at least 64 bytes.
     
-    There should be a MOVQstore wrapped around the result.
-    These rules never fire during all.bash, so they aren't even tested.
+    Also add DCZID_EL0 system register to use in MRS instruction.
     
-    I'm just going to remove them for now.
+        Benchmark results of runtime/Memclr on Amberwing:
+    name          old time/op    new time/op    delta
+    Memclr/5        12.7ns ± 0%    12.7ns ± 0%      ~     (all equal)
+    Memclr/16       12.7ns ± 0%    12.2ns ± 1%    -4.13%  (p=0.000 n=7+8)
+    Memclr/64       14.0ns ± 0%    14.6ns ± 1%    +4.29%  (p=0.000 n=7+8)
+    Memclr/256      23.7ns ± 0%    25.7ns ± 0%    +8.44%  (p=0.000 n=8+7)
+    Memclr/4096      204ns ± 0%      74ns ± 0%   -63.71%  (p=0.000 n=8+8)
+    Memclr/65536    2.89µs ± 0%    0.84µs ± 0%   -70.91%  (p=0.000 n=8+8)
+    Memclr/1M       45.9µs ± 0%    17.0µs ± 0%   -62.88%  (p=0.000 n=8+8)
+    Memclr/4M        184µs ± 0%      77µs ± 4%   -57.94%  (p=0.001 n=6+8)
+    Memclr/8M        367µs ± 0%     144µs ± 1%   -60.72%  (p=0.000 n=7+8)
+    Memclr/16M       734µs ± 0%     293µs ± 1%   -60.09%  (p=0.000 n=8+8)
+    Memclr/64M      2.94ms ± 0%    1.23ms ± 0%   -58.06%  (p=0.000 n=7+8)
+    GoMemclr/5      8.00ns ± 0%    8.79ns ± 0%    +9.83%  (p=0.000 n=8+8)
+    GoMemclr/16     8.00ns ± 0%    7.60ns ± 0%    -5.00%  (p=0.000 n=8+8)
+    GoMemclr/64     10.8ns ± 0%    10.4ns ± 0%    -3.70%  (p=0.000 n=8+8)
+    GoMemclr/256    20.4ns ± 0%    21.2ns ± 0%    +3.92%  (p=0.000 n=8+8)
     
-    Change-Id: I76008eb51ae4e16c707fac73c05a8d67cac149ae
-    Reviewed-on: https://go-review.googlesource.com/121935
-    Run-TryBot: Keith Randall <khr@golang.org>
+    name          old speed      new speed      delta
+    Memclr/5       394MB/s ± 0%   393MB/s ± 0%    -0.28%  (p=0.006 n=8+8)
+    Memclr/16     1.26GB/s ± 0%  1.31GB/s ± 1%    +4.07%  (p=0.000 n=7+8)
+    Memclr/64     4.57GB/s ± 0%  4.39GB/s ± 2%    -3.91%  (p=0.000 n=7+8)
+    Memclr/256    10.8GB/s ± 0%  10.0GB/s ± 0%    -7.95%  (p=0.001 n=7+6)
+    Memclr/4096   20.1GB/s ± 0%  55.3GB/s ± 0%  +175.46%  (p=0.000 n=8+8)
+    Memclr/65536  22.6GB/s ± 0%  77.8GB/s ± 0%  +243.63%  (p=0.000 n=7+8)
+    Memclr/1M     22.8GB/s ± 0%  61.5GB/s ± 0%  +169.38%  (p=0.000 n=8+8)
+    Memclr/4M     22.8GB/s ± 0%  54.3GB/s ± 4%  +137.85%  (p=0.001 n=6+8)
+    Memclr/8M     22.8GB/s ± 0%  58.1GB/s ± 1%  +154.56%  (p=0.000 n=7+8)
+    Memclr/16M    22.8GB/s ± 0%  57.2GB/s ± 1%  +150.54%  (p=0.000 n=8+8)
+    Memclr/64M    22.8GB/s ± 0%  54.4GB/s ± 0%  +138.42%  (p=0.000 n=7+8)
+    GoMemclr/5     625MB/s ± 0%   569MB/s ± 0%    -8.90%  (p=0.000 n=7+8)
+    GoMemclr/16   2.00GB/s ± 0%  2.10GB/s ± 0%    +5.26%  (p=0.000 n=8+8)
+    GoMemclr/64   5.92GB/s ± 0%  6.15GB/s ± 0%    +3.83%  (p=0.000 n=7+8)
+    GoMemclr/256  12.5GB/s ± 0%  12.1GB/s ± 0%    -3.77%  (p=0.000 n=8+7)
+    
+        Benchmark results of runtime/Memclr on Amberwing without ZVA:
+    name          old time/op    new time/op    delta
+    Memclr/5        12.7ns ± 0%    12.8ns ± 0%   +0.79%  (p=0.008 n=5+5)
+    Memclr/16       12.7ns ± 0%    12.7ns ± 0%     ~     (p=0.444 n=5+5)
+    Memclr/64       14.0ns ± 0%    14.4ns ± 0%   +2.86%  (p=0.008 n=5+5)
+    Memclr/256      23.7ns ± 1%    19.2ns ± 0%  -19.06%  (p=0.008 n=5+5)
+    Memclr/4096      203ns ± 0%     119ns ± 0%  -41.38%  (p=0.008 n=5+5)
+    Memclr/65536    2.89µs ± 0%    1.66µs ± 0%  -42.76%  (p=0.008 n=5+5)
+    Memclr/1M       45.9µs ± 0%    26.2µs ± 0%  -42.82%  (p=0.008 n=5+5)
+    Memclr/4M        184µs ± 0%     105µs ± 0%  -42.81%  (p=0.008 n=5+5)
+    Memclr/8M        367µs ± 0%     210µs ± 0%  -42.76%  (p=0.008 n=5+5)
+    Memclr/16M       734µs ± 0%     420µs ± 0%  -42.74%  (p=0.008 n=5+5)
+    Memclr/64M      2.94ms ± 0%    1.69ms ± 0%  -42.46%  (p=0.008 n=5+5)
+    GoMemclr/5      8.00ns ± 0%    8.40ns ± 0%   +5.00%  (p=0.008 n=5+5)
+    GoMemclr/16     8.00ns ± 0%    8.40ns ± 0%   +5.00%  (p=0.008 n=5+5)
+    GoMemclr/64     10.8ns ± 0%     9.6ns ± 0%  -11.02%  (p=0.008 n=5+5)
+    GoMemclr/256    20.4ns ± 0%    17.2ns ± 0%  -15.69%  (p=0.008 n=5+5)
+    
+    name          old speed      new speed      delta
+    Memclr/5       393MB/s ± 0%   391MB/s ± 0%   -0.64%  (p=0.008 n=5+5)
+    Memclr/16     1.26GB/s ± 0%  1.26GB/s ± 0%   -0.55%  (p=0.008 n=5+5)
+    Memclr/64     4.57GB/s ± 0%  4.44GB/s ± 0%   -2.79%  (p=0.008 n=5+5)
+    Memclr/256    10.8GB/s ± 0%  13.3GB/s ± 0%  +23.07%  (p=0.016 n=4+5)
+    Memclr/4096   20.1GB/s ± 0%  34.3GB/s ± 0%  +70.91%  (p=0.008 n=5+5)
+    Memclr/65536  22.7GB/s ± 0%  39.6GB/s ± 0%  +74.65%  (p=0.008 n=5+5)
+    Memclr/1M     22.8GB/s ± 0%  40.0GB/s ± 0%  +74.88%  (p=0.008 n=5+5)
+    Memclr/4M     22.8GB/s ± 0%  39.9GB/s ± 0%  +74.84%  (p=0.008 n=5+5)
+    Memclr/8M     22.9GB/s ± 0%  39.9GB/s ± 0%  +74.71%  (p=0.008 n=5+5)
+    Memclr/16M    22.9GB/s ± 0%  39.9GB/s ± 0%  +74.64%  (p=0.008 n=5+5)
+    Memclr/64M    22.8GB/s ± 0%  39.7GB/s ± 0%  +73.79%  (p=0.008 n=5+5)
+    GoMemclr/5     625MB/s ± 0%   595MB/s ± 0%   -4.77%  (p=0.000 n=4+5)
+    GoMemclr/16   2.00GB/s ± 0%  1.90GB/s ± 0%   -4.77%  (p=0.008 n=5+5)
+    GoMemclr/64   5.92GB/s ± 0%  6.66GB/s ± 0%  +12.48%  (p=0.016 n=4+5)
+    GoMemclr/256  12.5GB/s ± 0%  14.9GB/s ± 0%  +18.95%  (p=0.008 n=5+5)
+    
+    Fixes #22948
+    
+    Change-Id: Iaae4e22391e25b54d299821bb7f8a81ac3986b93
+    Reviewed-on: https://go-review.googlesource.com/82055
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 --
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 68 ----------------------------
- 2 files changed, 73 deletions(-)
+ src/cmd/asm/internal/arch/arch.go            |   1 +
+ src/cmd/asm/internal/asm/testdata/arm64enc.s |   1 +
+ src/cmd/internal/obj/arm64/a.out.go          |   1 +
+ src/cmd/internal/obj/arm64/asm7.go           |   1 +
+ src/cmd/internal/obj/arm64/list7.go          |   2 +
+ src/runtime/memclr_arm64.s                   | 199 ++++++++++++++++++++++-----
+ 6 files changed, 167 insertions(+), 38 deletions(-)

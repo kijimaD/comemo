@@ -1,13 +1,16 @@
-commit c97ea6bead1b8b415fe5110744b63b050e765b6c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 19 11:21:35 2014 +1000
+commit ca94064104fd5c3a30efeb0e3654b9089fef4754
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Jun 19 10:15:04 2014 +1000
 
-    tag go1.3
+    image: add RGBAAt, Gray16At, etc.
     
-    LGTM=minux
-    R=golang-codereviews, minux
+    Fixes #7694.
+    
+    LGTM=nigeltao, rsc, r
+    R=golang-codereviews, nigeltao, rsc, r
     CC=golang-codereviews
-    https://golang.org/cl/107200043
+    https://golang.org/cl/109000049
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/image/image.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/image/ycbcr.go |  4 ++++
+ 2 files changed, 36 insertions(+)

@@ -1,15 +1,15 @@
-commit f5b8813e93f3d61556ecc0ba112478fa319e4e30
-Author: Chris Manghane <cmang@golang.org>
-Date:   Tue Jan 20 14:35:33 2015 -0800
+commit 64e6fe2d29c3f8ae1e3e38a09bfb92b0452ad51b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Dec 20 16:57:02 2014 +1100
 
-    cmd/gc: don't unpack struct arguments to append
+    image/draw: fix crash in clip
     
-    Fixes #9634.
+    Fixes #9177
     
-    Change-Id: I7b18f26c2fb812978fc7adc5bfd39ebfffe48701
-    Reviewed-on: https://go-review.googlesource.com/3080
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I1c7e57f0f0a9b00fb3ddc7fa4844ac53ea6df46f
+    Reviewed-on: https://go-review.googlesource.com/1876
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gc/typecheck.c      |  2 +-
- test/fixedbugs/issue9634.go | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/image/draw/clip_test.go | 10 ++++++++++
+ src/image/draw/draw.go      |  6 ++++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)

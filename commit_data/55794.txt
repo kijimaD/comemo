@@ -1,20 +1,20 @@
-commit 4d923e3f077727718b708132ad67fad35dc064f9
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Thu Feb 29 07:48:17 2024 +0000
+commit 574c6209019f1efbca2a058b576b227c2e7b5e61
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Jul 25 15:30:53 2022 +0800
 
-    cmd/compile: remove unnecessary fmt.Sprintf call
+    runtime: refactor the linux/loong64 entrypoint
     
-    Change-Id: I38ba7cb0179ec9226a68629c53ea2d81fa19c059
-    GitHub-Last-Rev: a3d4fe2ac2d2f40033ae0244a264074d45b3ad52
-    GitHub-Pull-Request: golang/go#66024
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568115
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Remove the meaningless jump, and add the missing NOFRAME flag to _rt0_loong64_linux.
+    
+    Change-Id: I1aec68c556615b42042684bd176dfc2a8af094d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420977
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
 
- src/cmd/compile/internal/base/hashdebug.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/rt0_linux_loong64.s | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

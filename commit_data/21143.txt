@@ -1,19 +1,14 @@
-commit 19f2bd8c2e0030a807a45d9539569481f5edbda4
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Dec 18 22:27:26 2014 +1300
+commit b27c0618eb468d9ac322a65bd40db6e829694907
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Nov 19 11:55:15 2014 +1100
 
-    cmd/go: be more careful when linking a test exe with gccgo
+    [dev.cc] runtime: update sys_windows_386.s and sys_windows_amd64.s for Go conversion
     
-    Previously, we ended up passing two compiled objects for the package
-    being tested when linking the test executable.  Somewhat by luck, this
-    worked most of the time but occasionally it did not.  This changes the
-    linking code to not pass two objects for the same ImportPath and to
-    always pass the object for the test version of the package and removes
-    some unecessary nil checks.
-    
-    Change-Id: I7bbd3fc708f14672ee2cc6aed3397421fceb8a38
-    Reviewed-on: https://go-review.googlesource.com/1840
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/176970043
 
- src/cmd/go/build.go | 59 +++++++++++++++++++++++++++--------------------------
- 1 file changed, 30 insertions(+), 29 deletions(-)
+ src/runtime/sys_windows_386.s   | 16 ++++++++--------
+ src/runtime/sys_windows_amd64.s | 14 +++++++-------
+ 2 files changed, 15 insertions(+), 15 deletions(-)

@@ -1,15 +1,22 @@
-commit 067bad2eef1bacb811bf69b38cf0aec67b60482a
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 16 17:48:51 2021 -0400
+commit b627988b0ca748a73867ba5fc4cfc70031c028d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 12 14:07:31 2020 -0700
 
-    runtime: update stale comment
+    [dev.typeparams] cmd/compile/internal/syntax: implement parsing of type parameters
     
-    Missed in CL 310731.
+    Port from dev.go2go prototype branch. The compiler doesn't yet set the
+    syntax.AllowGenerics mode, so parsing of generic code remains disabled.
     
-    Change-Id: Ia26cd2cedec1508ecfd7f0beb63cd6a6ab546f1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310909
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Known issue: The doc strings documenting the specific syntax accepted
+    by parser methods are not all up-to-date.
+    
+    Change-Id: I13d134289fd9330fd0ed7f97c997cca6f23466fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261658
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/runtime2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/parser.go | 643 ++++++++++++++++++++----------
+ src/cmd/compile/internal/syntax/syntax.go |   1 +
+ 2 files changed, 442 insertions(+), 202 deletions(-)

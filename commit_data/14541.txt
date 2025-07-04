@@ -1,22 +1,14 @@
-commit bcea0dd1d0d41c5cf503c87e86460cd34dbc7dfb
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Dec 3 13:39:40 2012 +0100
+commit 882953f62ce8257bf063a9582b3f58ce8e1856db
+Author: Luit van Drongelen <luitvd@gmail.com>
+Date:   Sat Dec 1 15:15:14 2012 -0800
 
-    cmd/gc: fix inlining internal error with T.Method calls.
+    encoding/gob: Fix typo in doc.go
     
-    The compiler was confused when inlining a T.Method(f()) call
-    where f returns multiple values: support for this was marked
-    as TODO.
+    Exactly how I find minute details like this is beyond me.
     
-    Variadic calls are not supported but are not inlined either.
-    Add a test preventively for that case.
-    
-    Fixes #4167.
-    
-    R=golang-dev, rsc, lvd
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6871043
+    https://golang.org/cl/6842125
 
- src/cmd/gc/inl.c            | 69 +++++++++++++++++++++++----------------------
- test/fixedbugs/issue4167.go | 50 ++++++++++++++++++++++++++++++++
- 2 files changed, 86 insertions(+), 33 deletions(-)
+ src/pkg/encoding/gob/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

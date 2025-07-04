@@ -1,14 +1,23 @@
-commit 6bcd258095da307dc60ffe1b45b014c0be849dc9
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Sep 24 15:53:09 2016 +0200
+commit f6c0241999bffe0fe52e8b7f5bbcc8f9e02edbdf
+Author: Tom Bergan <tombergan@google.com>
+Date:   Fri May 27 16:53:13 2016 -0700
 
-    math/big: better SetFloat64 example in doc
+    net/http: update bundled http2
     
-    Fixes #17221
+    Updates x/net/http2 to git rev 6bdd4be4 for CL 23526:
     
-    Change-Id: Idaa2af6b8646651ea72195671d1a4b5c370a5a22
-    Reviewed-on: https://go-review.googlesource.com/29711
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+      http2: GotFirstResponseByte hook should only fire once
+    
+    Also updated the trace hooks test to verify that all trace hooks are called
+    exactly once except ConnectStart/End, which may be called multiple times (due
+    to happy-eyeballs).
+    
+    Fixes #15777
+    
+    Change-Id: Iea5c64eb322b58be27f9ff863b3a6f90e996fa9b
+    Reviewed-on: https://go-review.googlesource.com/23527
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/math/big/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/h2_bundle.go      | 35 ++++++++++++++++++++++++-----------
+ src/net/http/transport_test.go | 35 +++++++++++++++++++----------------
+ 2 files changed, 43 insertions(+), 27 deletions(-)

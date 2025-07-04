@@ -1,18 +1,18 @@
-commit 2813e22ef841018d6e51bf3c70f5d65ea40065ca
-Author: zhouzhongyuan <zhouzhongyuan96@gmail.com>
-Date:   Tue Sep 15 19:53:42 2020 +0800
+commit 4a6c1caae2a4e5aa238bdb34a77882cc13b2fa3d
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 4 11:32:46 2020 -0500
 
-    crypto/des: fix typo in permuteInitialBlock function comments
+    [dev.link] cmd/link: small cleanup of loader ocache
     
-    Fixes #41398
+    Remove references to the loader.Loader's "ocache" field, which is no
+    longer being used the way it was. Add in a new field for object index
+    to the oReader type.
     
-    Change-Id: Ib47b8ec43bb11d8cd13c24f833532434127c7532
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254980
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Icae6c54dbbdbbfa63ab9de3e4dc09e10abd57ee3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222063
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/crypto/des/block.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

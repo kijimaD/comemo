@@ -1,23 +1,22 @@
-commit cda1947fd12ad31060b30a0a601130bfaa26d234
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 11 13:51:39 2018 -0700
+commit d54902ece907d55d937b7b2fa294e0cc22b57a32
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Mar 13 00:25:06 2018 +0100
 
-    runtime: don't say "different packages" if they may not be different
+    cmd/compile: in prove, shortcircuit self-facts
     
-    Fix the panic message produced for an interface conversion error to
-    only say "types from different packages" if they are definitely from
-    different packges. If they may be from the same package, say "types
-    from different scopes."
+    Sometimes, we can end up calling update with a self-relation
+    about a variable (x REL x). In this case, there is no need
+    to record anything: the relation is unsatisfiable if and only
+    if it doesn't contain eq.
     
-    Updates #18911
-    Fixes #26094
+    This also helps avoiding infinite loop in next CL that will
+    introduce transitive closure of relations.
     
-    Change-Id: I0cea50ba31007d88e70c067b4680009ede69bab9
-    Reviewed-on: https://go-review.googlesource.com/123395
+    Passes toolstash -cmp.
+    
+    Change-Id: Ic408452ec1c13653f22ada35466ec98bc14aaa8e
+    Reviewed-on: https://go-review.googlesource.com/100276
     Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/error.go         | 33 ++++++++++++++++-------------
- src/runtime/iface.go         | 16 ++++++---------
- src/runtime/type.go          | 19 +++++++++++++++++
- test/fixedbugs/issue26094.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 93 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

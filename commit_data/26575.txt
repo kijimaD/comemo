@@ -1,15 +1,37 @@
-commit 12fb62a57db6a34c4ba0162ac970724d60dbbfbb
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 18 17:24:18 2016 -0400
+commit ee451770a76e138e05d2cf499b0eb25e69122432
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 8 23:46:27 2016 -0500
 
-    debug/elf: add s390x relocations
+    cmd/go: use GOPATH order for compile -I and link -L options
     
-    Change-Id: I8440f69c7f99d65b2f69035c26b4a62104f22bd3
-    Reviewed-on: https://go-review.googlesource.com/20874
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Given GOPATH=p1:p2 and source code of just the right form,
+    the go command could previously end up invoking the compiler
+    with -I p2 -I p1 or the linker with -L p2 -L p1, so that
+    compiled packages in p2 incorrectly shadowed packages in p1.
+    If foo were in both p1 and p2 and the compilation of bar
+    were such that the -I and -L options were inverted in this way,
+    then
+    
+            GOPATH=p2 go install foo
+            GOPATH=p1:p2 go install bar
+    
+    would get the p2 copy of foo instead of the (expected) p1 copy of foo.
+    
+    This manifested in real usage in a few different ways, but in all
+    the root cause was that the -I or -L option sequence did not
+    match GOPATH.
+    
+    Make it match GOPATH.
+    
+    Fixes #14176 (second report).
+    Fixes #14192.
+    Related but less common issue #14271 not fixed.
+    
+    Change-Id: I9c0f69042bb2bf92c9fc370535da2c60a1187d30
+    Reviewed-on: https://go-review.googlesource.com/19385
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/debug/elf/elf.go                               | 134 +++++++++++++++++++++
- src/debug/elf/file.go                              |  51 ++++++++
- src/debug/elf/file_test.go                         |  19 +++
- .../testdata/go-relocation-test-gcc531-s390x.obj   | Bin 0 -> 3864 bytes
- 4 files changed, 204 insertions(+)
+ src/cmd/go/build.go   | 18 +++++++++++++++++
+ src/cmd/go/go_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+)

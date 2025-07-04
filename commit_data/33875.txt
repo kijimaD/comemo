@@ -1,32 +1,19 @@
-commit e7f95b3ccabef26cc662d9dbfaf5e38a866a86f9
-Author: Nathaniel Caza <mastercactapus@gmail.com>
-Date:   Mon Feb 13 21:15:40 2017 -0600
+commit 99414a5b1dca17a3778d110866881485ef45b0eb
+Author: zhongtao.chen <chenzhongtao@126.com>
+Date:   Tue Aug 22 10:33:10 2017 +0800
 
-    crypto/x509: load all trusted certs on darwin (cgo)
+    cmd/compile: limit the number of simultaneously opened files to avoid EMFILE/ENFILE errors
     
-    The current implementation ignores certs wherein the
-    Subject does not match the Issuer. An example of where
-    this causes issue is an enterprise environment with
-    intermediate CAs. In this case, the issuer is separate
-    (and may be loaded) but the intermediate is ignored.
-    A TLS handshake that does not include the intermediate
-    cert would then fail with an untrusted error in Go.
+    If the Go packages with enough source files,it will cause EMFILE/ENFILE error,
+    Fix this by limiting the number of simultaneously opened files.
     
-    On other platforms (darwin-nocgo included), all trusted
-    certs are loaded and accepted reguardless of
-    Subject/Issuer names.
+    Fixes #21621
     
-    This change removes the Subject/Issuer name-matching
-    restriction of certificates when trustAsRoot is set,
-    allowing all trusted certs to be loaded on darwin (cgo).
-    
-    Refs #16532
-    
-    Change-Id: I451e929588f8911892be6bdc2143d0799363c5f8
-    Reviewed-on: https://go-review.googlesource.com/36942
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8555d79242d2f90771e37e073b7540fc7194a64a
+    Reviewed-on: https://go-review.googlesource.com/57751
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/root_cgo_darwin.go | 50 ++++++++++++++++++++++++--------------
- 1 file changed, 32 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/noder.go | 5 +++++
+ 1 file changed, 5 insertions(+)

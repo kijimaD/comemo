@@ -1,26 +1,18 @@
-commit 1f0ef6bec73e972d15e1c44307558a8263f81ea4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 25 22:51:21 2022 +0000
+commit ff3469b1c21e241a8319f9e79412849819d7ecab
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat Aug 14 00:03:09 2021 -0400
 
-    runtime: cancel mark and scavenge assists if the limiter is enabled
+    cmd/dist: remove tests using the typeparams build tag
     
-    This change forces mark and scavenge assists to be cancelled early if
-    the limiter is enabled. This avoids goroutines getting stuck in really
-    long assists if the limiter happens to be disabled when they first come
-    into the assist. This can get especially bad for mark assists, which, in
-    dire situations, can end up "owing" the GC a really significant debt.
+    This stanza is no longer necessary now that the typeparams build tag is
+    not used.
     
-    For #52890.
-    
-    Change-Id: I4bfaa76b8de3e167d49d2ffd8bc2127b87ea566a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408816
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7bcc4a01e354e5130d50b00895a5b96c25c71502
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342153
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/export_test.go | 2 +-
- src/runtime/mgcmark.go     | 4 +++-
- src/runtime/mgcscavenge.go | 7 +++++--
- src/runtime/mheap.go       | 6 ++++--
- 4 files changed, 13 insertions(+), 6 deletions(-)
+ src/cmd/dist/test.go | 13 -------------
+ 1 file changed, 13 deletions(-)

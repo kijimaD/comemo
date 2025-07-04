@@ -1,25 +1,21 @@
-commit 68e390304e94ef6c86f875c6a5e4514f7d5ba50f
-Author: griesemer <gri@golang.org>
-Date:   Tue Oct 10 16:56:56 2017 -0700
+commit 289a8719ce4a84cec0ed4e47037da0e82d67dcb8
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Jun 4 12:11:19 2017 +0900
 
-    cmd/compile/internal/syntax: consider function nesting for error recovery
+    cmd/cgo: unwrap typedef-chains before type checking
     
-    This re-enables functionality that inadvertently was disabled in the
-    (long) past.
+    clang can emit some dwarf.VoidType which are wrapped by multiple
+    dwarf.TypedefType. We need to unwrap those before further processing.
     
-    Also, don't perform branch checks if we had errors in a function
-    to avoid spurious errors or (worst-case) crashes.
+    Fixes #20129
     
-    Slightly modified test/fixedbugs/issue14006.go to make sure the
-    test still reports invalid label errors (the surrounding function
-    must be syntactically correct).
-    
-    Change-Id: Id5642930877d7cf3400649094ec75c753b5084b7
-    Reviewed-on: https://go-review.googlesource.com/69770
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I671ce6aef2dc7b55f1a02aec5f9789ac1b369643
+    Reviewed-on: https://go-review.googlesource.com/44772
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go | 21 ++++++++++++---------
- test/fixedbugs/issue14006.go              |  3 +++
- 2 files changed, 15 insertions(+), 9 deletions(-)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue20129.go | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          |  2 +-
+ 3 files changed, 35 insertions(+), 1 deletion(-)

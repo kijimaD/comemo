@@ -1,14 +1,23 @@
-commit 2ee538bc27602bf4d18e35238a2649961924d3eb
+commit 2b64e00f164e951f24221c0d4c5b3fb66a604531
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 8 08:32:52 2012 -0500
+Date:   Thu Mar 8 08:32:38 2012 -0500
 
-    time: mention receiver in Unix, UnixNano docs
+    cmd/go: rebuild external test package dependencies
     
-    Fixes #3248.
+    Was missing recompilation of packages imported only
+    by external test packages (package foo_test), primarily
+    because Root was not set, so those packages looked like
+    they were from a different Go tree, so they were not
+    recompiled if they already existed.
     
-    R=golang-dev, dsymonds
+    Also clean things up so that only one call to computeStale
+    is needed.
+    
+    Fixes #3238.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5784052
+    https://golang.org/cl/5786048
 
- src/pkg/time/time.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/test.go | 31 ++++++++++++++++++++-----------
+ 1 file changed, 20 insertions(+), 11 deletions(-)

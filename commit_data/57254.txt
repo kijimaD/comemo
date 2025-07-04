@@ -1,26 +1,18 @@
-commit 5de9811f37a802028754f7010ff31b98e05009ca
+commit d1612071d979e11311fb4a838503d1fe7989373b
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Aug 25 21:06:49 2024 +0700
+Date:   Tue Jun 27 10:05:56 2023 +0700
 
-    cmd/compile: deprecate derived info needed field
+    cmd/compile/internal/walk: remove un-used func/var
     
-    This field is unused since shape-based stenciling was added for Unified
-    IR (CL 421821). The derived types information is now explicitly using
-    derived-type dictionaries (CL 331829).
-    
-    This CL follows the pattern used in CL 606035.
-    
-    Updates #68778
-    
-    Change-Id: Ie784b6443c0a651854bfbcebb8a5166b1481408b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608216
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I0ea1340cbca3dfb8b6bd71df439edd410e452fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506478
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Tim King <taking@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/importer/ureader.go | 5 ++++-
- src/cmd/compile/internal/noder/reader.go     | 5 ++++-
- src/cmd/compile/internal/noder/writer.go     | 7 ++++---
- src/go/internal/gcimporter/ureader.go        | 5 ++++-
- 4 files changed, 16 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/walk/range.go | 15 ---------------
+ src/cmd/compile/internal/walk/walk.go  |  3 ---
+ 2 files changed, 18 deletions(-)

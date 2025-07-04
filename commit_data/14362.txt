@@ -1,15 +1,24 @@
-commit 3e50372f1ff0229aa8c42cde8f5cd0b6357b605d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Nov 8 15:43:28 2012 -0800
+commit 761830f48196aa1170b5224c1da34f4e20053ebd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 8 16:07:05 2012 -0500
 
-    test: change index.go to test size of int, not GOARCH == "amd64"
+    cmd/gc: fix export of inlined function body with type guard
     
-    Fixes the test to work correctly on other platforms with
-    64-bit ints, like Alpha.
+    When exporting a body containing
+            x, ok := v.(Type)
     
-    R=golang-dev, bradfitz
+    the definition for Type was not being included, so when the body
+    was actually used, it would cause an "unknown type" compiler error.
+    
+    Fixes #4370.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6822099
+    https://golang.org/cl/6827064
 
- test/index.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/gc/export.c                |  1 +
+ test/fixedbugs/issue4370.dir/p1.go | 20 ++++++++++++++++++++
+ test/fixedbugs/issue4370.dir/p2.go | 16 ++++++++++++++++
+ test/fixedbugs/issue4370.dir/p3.go | 13 +++++++++++++
+ test/fixedbugs/issue4370.go        |  9 +++++++++
+ 5 files changed, 59 insertions(+)

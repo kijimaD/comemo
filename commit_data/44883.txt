@@ -1,25 +1,24 @@
-commit 34fb2b2ed5687ec85aa8c1db1481bb4f31b35b29
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 29 11:36:44 2021 -0700
+commit 07c1788357cfe6a4ee5f6f6a54d4fe9f579fa844
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 2 14:53:02 2020 -0400
 
-    cmd/compile/internal/types2: review of decl.go
+    cmd/go: move repository resolution from internal/get to internal/vcs
     
-    The changes between (equivalent, and reviewed) go/types/decl.go
-    and decl.go can be seen by comparing patchset 1 and 2. The actual
-    changes are removing the "// UNREVIEWED" marker and a minor comment
-    update.
+    This is a refactoring intended to break the dependency from
+    internal/modfetch to internal/get. No change in functionality is intended.
     
-    The primary differences to go/types/decl.go are:
-    - use of syntax rather than go/ast package
-    - use of error_ objects to collect follow-on error info
-    - use of check.conf.Trace rather than global trace flag
-    - more aggressively marking variables as used in the presence errors
-    - not using a walkDecl abstraction for const/var/type declarations
-    
-    Change-Id: I5cf26779c9939b686a3dbaa4d38fdd0c154a92ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305570
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: If51aba7139cc0b62ecc9ba454c055c99e8f36f0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254364
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/decl.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/go/internal/get/get.go                     |  35 +--
+ src/cmd/go/internal/modfetch/repo.go               |  12 +-
+ src/cmd/go/internal/str/str_test.go                |  27 ++
+ src/cmd/go/internal/{get => vcs}/discovery.go      |   2 +-
+ .../{get/pkg_test.go => vcs/discovery_test.go}     |  23 +-
+ src/cmd/go/internal/{get => vcs}/vcs.go            | 277 +++++++++++----------
+ src/cmd/go/internal/{get => vcs}/vcs_test.go       |  46 ++--
+ 7 files changed, 217 insertions(+), 205 deletions(-)

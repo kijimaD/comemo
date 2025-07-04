@@ -1,25 +1,14 @@
-commit 087b708fd3c60a2ca753738c1cc8072978493a3a
-Author: John Graham-Cumming <jgc@jgc.org>
-Date:   Thu Feb 28 09:29:50 2013 -0800
+commit 67d0445c876e2015db0cf39dd26ed5643dc77ac3
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Feb 28 07:48:16 2013 +0100
 
-    net/http: fix handling of HEAD in ReadResponse and (*http.Response).Write
+    log/syslog: fix race in test between channel close and accept.
     
-    The test suite for ReadResponse was not checking the error return on the io.Copy
-    on the body. This was masking two errors: the handling of chunked responses to
-    HEAD requests and the handling of Content-Length > 0 to HEAD.
+    Fixes #4769.
     
-    The former manifested itself as an 'unexpected EOF' when doing the io.Copy
-    because a chunked reader was assigned but there were no chunks to read. The
-    latter cause (*http.Response).Write to report an error on HEAD requests
-    because it saw a Content-Length > 0 and expected a body.
-    
-    There was also a missing \r\n in one chunked test that meant that the chunked
-    encoding was malformed. This does not appear to have been intentional.
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/7407046
+    R=golang-dev, dave, adg, bradfitz
+    CC=fullung, golang-dev
+    https://golang.org/cl/7322089
 
- src/pkg/net/http/response_test.go | 33 +++++++++++++++++++++++++--------
- src/pkg/net/http/transfer.go      |  8 ++++++--
- 2 files changed, 31 insertions(+), 10 deletions(-)
+ src/pkg/log/syslog/syslog_test.go | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)

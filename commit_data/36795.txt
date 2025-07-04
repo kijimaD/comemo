@@ -1,18 +1,20 @@
-commit ed969a0c27dff40ac959c1b1e42a0820fe505722
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Oct 1 22:59:11 2018 +0000
+commit db9341a02424a80a93ad50b362b881544b685e19
+Author: Keith Randall <khr@google.com>
+Date:   Tue May 29 10:30:54 2018 -0700
 
-    Revert "misc/wasm: add polyfill for TextEncoder/TextDecoder for Edge support"
+    cmd/compile: update WBLoads during deadcode
     
-    This reverts CL 131718, commit a0e7f12771c2e84e626dcf5e30da5d62a3b1adf6.
+    When we deadcode-remove a block which is a write barrier test,
+    remove that block from the list of write barrier test blocks.
     
-    Reason for revert: adds request overhead & dependency on third-party service for all users regardless of whether it's necessary.
+    Fixes #25516
     
-    Updates #27295
-    
-    Change-Id: I4a8a9b0c8e4a3198c884dfbd90ba36734f70a9a9
-    Reviewed-on: https://go-review.googlesource.com/138937
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1efe732d5476003eab4ad6bf67d0340d7874ff0c
+    Reviewed-on: https://go-review.googlesource.com/115037
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/wasm/wasm_exec.html | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/compile/internal/ssa/deadcode.go | 13 +++++++++++++
+ test/fixedbugs/issue25516.go             | 26 ++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

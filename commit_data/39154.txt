@@ -1,16 +1,12 @@
-commit a75bfb05b30bdc1e3400024d1d29612349280174
-Author: Iskander Sharipov <quasilyte@gmail.com>
-Date:   Tue May 14 17:46:55 2019 +0300
+commit 99ea99ec4ca727ec3408521b07a6eb6a6bd3b829
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jan 9 14:24:44 2019 +0100
 
-    cmd/internal/obj/x86: fix oclass tests for Hsolaris
+    net/http/httputil: fix typo in ReverseProxy godoc
     
-    Use objabi.Hlinux for now.
-    
-    Fixes #32028
-    
-    Change-Id: If9745f72c0ee4444ea2a2faa50813d2e1ac2bf97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/177077
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iea33fe64403ca2e6f87a4e070af5e97d96506e41
+    Reviewed-on: https://go-review.googlesource.com/c/157118
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/asm_test.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/net/http/httputil/reverseproxy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

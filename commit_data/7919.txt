@@ -1,17 +1,13 @@
-commit 85c79ef7cb0cdab34fef9b2bbf8d034eb9883b8e
-Author: David Forsythe <dforsythe@gmail.com>
-Date:   Tue Mar 29 14:23:36 2011 -0400
+commit 04b7da80cc3067d9db25c7d6384ec88878d8e465
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 29 14:18:45 2011 -0400
 
-    os: fix FileInfo.Name returned by Stat
+    A+C: David Forsythe (individual CLA)
     
-    Fixes #1645.
-    
-    R=rsc
+    R=golang-dev, r2
     CC=golang-dev
-    https://golang.org/cl/4321045
+    https://golang.org/cl/4333041
 
- src/pkg/os/file_unix.go    | 18 ++++++++++++++++++
- src/pkg/os/stat_darwin.go  |  8 +-------
- src/pkg/os/stat_freebsd.go |  8 +-------
- src/pkg/os/stat_linux.go   |  8 +-------
- 4 files changed, 21 insertions(+), 21 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

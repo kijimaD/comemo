@@ -1,13 +1,12 @@
-commit e505c9ccacdf23af84c507cef6ccff4bd62aa5b9
-Author: Rob Pike <r@golang.org>
-Date:   Sun Dec 11 09:29:44 2011 -0800
+commit 7e797be7a3607c294285c8eaa47aed818b76acde
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Dec 11 09:25:09 2011 -0800
 
-    net/http: further simplify example program
-    (should have caught this in review.)
+    exp/norm: fix rune/int types in test
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5478066
+    https://golang.org/cl/5472067
 
- src/pkg/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/norm/normregtest.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

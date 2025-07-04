@@ -1,17 +1,17 @@
-commit d2918cbcaaecfc923f0794ebbcad3b4952af510b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Mar 4 16:16:26 2015 +1100
+commit 90965718a868c49c96f2e9942052ff28afa6c836
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 10 22:22:50 2015 -0500
 
-    cmd/dist: execute misc/cgo/testso again on windows
+    cmd/gc: make qsort comparisons totally ordered
     
-    Fixes #10072
+    Otherwise different qsort implementations might result
+    in different sort orders and therefore different compiled
+    object files.
     
-    Change-Id: I1f73c8829a89144d49433a36a4e64223c74af954
-    Reviewed-on: https://go-review.googlesource.com/6585
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie783ba55a55af06941307e150b0c406e0a8128b0
+    Reviewed-on: https://go-review.googlesource.com/4590
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/cgo/testso/test.bat |  2 +-
- src/cmd/dist/test.go     | 34 ++++++++++++++++++----------------
- 2 files changed, 19 insertions(+), 17 deletions(-)
+ src/cmd/gc/popt.c |  8 ++++++++
+ src/cmd/gc/reg.c  | 13 +++++++------
+ 2 files changed, 15 insertions(+), 6 deletions(-)

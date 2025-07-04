@@ -1,33 +1,19 @@
-commit a5a07331444f9b48a5e09728e3d0085cfbfb2222
+commit 7ed8723d49f93b0b983a0a89504a03e455e07537
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 29 20:37:44 2014 -0400
+Date:   Thu Oct 16 14:44:55 2014 -0400
 
-    runtime: change top-most return PC from goexit to goexit+PCQuantum
+    runtime: make pprof a little nicer
     
-    If you get a stack of PCs from Callers, it would be expected
-    that every PC is immediately after a call instruction, so to find
-    the line of the call, you look up the line for PC-1.
-    CL 163550043 now explicitly documents that.
+    Update #8942
     
-    The most common exception to this is the top-most return PC
-    on the stack, which is the entry address of the runtime.goexit
-    function. Subtracting 1 from that PC will end up in a different
-    function entirely.
+    This does not fully address issue 8942 but it does make
+    the profiles much more useful, until that issue can be
+    fixed completely.
     
-    To remove this special case, make the top-most return PC
-    goexit+PCQuantum and then implement goexit in assembly
-    so that the first instruction can be skipped.
-    
-    Fixes #7690.
-    
-    LGTM=r
-    R=r
+    LGTM=dvyukov
+    R=r, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/170720043
+    https://golang.org/cl/159990043
 
- src/runtime/asm_386.s      | 6 ++++++
- src/runtime/asm_amd64.s    | 6 ++++++
- src/runtime/asm_amd64p32.s | 6 ++++++
- src/runtime/asm_arm.s      | 6 ++++++
- src/runtime/proc.c         | 8 +++-----
- 5 files changed, 27 insertions(+), 5 deletions(-)
+ src/runtime/proc.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

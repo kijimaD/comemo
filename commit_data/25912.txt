@@ -1,22 +1,14 @@
-commit 0231f5420f22c40ce9c15ef4d3f51ce0bafa7fef
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Feb 17 13:03:21 2016 -0500
+commit 3e6529d202b0b2328d7897eadd64b0c22296bc72
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 11:45:16 2015 -0500
 
-    cmd/compile: remove uncommonType.name
+    encoding/json: revise docs for Unmarshal into map, slice, array
     
-    Reduces binary size of cmd/go by 0.5%.
-    For #6853.
+    Fixes #12972.
     
-    Change-Id: I5a4b814049580ab5098ad252d979f80b70d8a5f9
-    Reviewed-on: https://go-review.googlesource.com/19694
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id0611667e6149753c351c0c5e01211340a87d3fd
+    Reviewed-on: https://go-review.googlesource.com/17230
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 10 ++--------
- src/reflect/all_test.go                | 21 ++++++++++++++++++++
- src/reflect/type.go                    | 36 +++++++++++++++++++++++++---------
- src/runtime/heapdump.go                |  5 +++--
- src/runtime/mfinal.go                  |  2 +-
- src/runtime/type.go                    | 31 ++++++++++++++++++++++++++++-
- 6 files changed, 84 insertions(+), 21 deletions(-)
+ src/encoding/json/decode.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

@@ -1,22 +1,19 @@
-commit bd08803680792b553dc78d5b5006ebedadaaccf0
-Author: Matt Dee <mdee@hioscar.com>
-Date:   Tue Aug 8 15:58:27 2017 -0400
+commit fd83d7b8d26926f08a5cbffa177ed56272e75ca7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Apr 8 08:03:51 2017 +1000
 
-    database/sql: fail on unsupported options when context is un-cancellable
+    cmd/compile/internal/gc: remove unused pkgByPath type
     
-    Currently, the check for `ctx.Done() == context.Background().Done()`
-    comes before the check to see if we are ignoring any options.  That
-    check should be done earlier, so that the options are not silently
-    ignored.
+    pkgByPath was added in d78c84c4 to eliminate the differences between the
+    export formats around the time of Go 1.7.
     
-    Fixes #21350
+    The last remnants of the textual export format was removed by Josh in
+    39850 making the pkgByPath sorting type unused.
     
-    Change-Id: I3704e4209854c7d99f3f92498bae831cabc7e419
-    Reviewed-on: https://go-review.googlesource.com/53970
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I168816d6401f45119475a4fe5ada00d9ce571a9e
+    Reviewed-on: https://go-review.googlesource.com/40050
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/database/sql/ctxutil.go  |  8 ++++----
- src/database/sql/sql_test.go | 14 ++++++++++++++
- 2 files changed, 18 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 6 ------
+ 1 file changed, 6 deletions(-)

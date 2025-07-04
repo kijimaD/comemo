@@ -1,20 +1,15 @@
-commit f65ded56263a9dd7d125f2b0001fb996df1fb3f3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 18 09:47:53 2022 -0700
+commit f961d8e5b10c317b86efca18e19ef0f238032c0a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 21 14:31:09 2021 -0700
 
-    go/printer: rename printPos to setPos
+    runtime: add Func method benchmarks
     
-    Follow-up on feedback in CL 412557.
-    
-    Change-Id: I5a693efccade97a62ab880c6e1b9e50cb597c293
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424814
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ib76872c22b1be9e611199b84fd96b59beedf786c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351457
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/printer/nodes.go   | 112 +++++++++++++++++++++++-----------------------
- src/go/printer/printer.go |   2 +-
- 2 files changed, 57 insertions(+), 57 deletions(-)
+ src/runtime/symtab_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

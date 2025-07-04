@@ -1,27 +1,17 @@
-commit d931b3b771ebd9cc0f77d3a002ff6cfb9f4d9c8b
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Nov 10 18:07:57 2022 +0000
+commit 9d0ca262bbfa5561910f75e7b7d937b615d69393
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 14 16:09:36 2021 -0800
 
-    net: add support for /etc/hosts aliases using go resolver
+    doc/go1.18: mention that embedding a type parameter is forbidden
     
-    It adds support for /etc/hosts aliases and fixes the difference between the glibc cgo and the go DNS resolver.
-    Examples: https://pastebin.com/Fv6UcAVr
+    For #47694
     
-    Fixes #44741
-    
-    Change-Id: I98c484fced900731fbad800278b296028a45f044
-    GitHub-Last-Rev: 3d47e44f11c350df906d0c986e41891dd6e8d929
-    GitHub-Pull-Request: golang/go#51004
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382996
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ibf38eabcb78abc563fcf77e2b566175a18c06fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372114
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/dnsclient_unix.go      | 40 +++++++++++++++++++++++++--------
- src/net/dnsclient_unix_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++
- src/net/hosts.go               | 45 ++++++++++++++++++++++++++++---------
- src/net/hosts_test.go          | 43 ++++++++++++++++++++++++++++++++++--
- src/net/testdata/aliases       |  8 +++++++
- 5 files changed, 165 insertions(+), 21 deletions(-)
+ doc/go1.18.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

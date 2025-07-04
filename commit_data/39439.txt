@@ -1,16 +1,19 @@
-commit fd629821b83aa76062c71dbe24f4ea98aa0065e6
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Jun 24 16:30:30 2019 -0400
+commit 8e8abf368d5b8050f40408b23a4027824351f674
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 11:27:41 2019 +0100
 
-    cmd/internal/obj/ppc64: add doc.go
+    archive/tar, syscall: add statUnix for aix/ppc64
     
-    Adding some details on writing Go assembler for ppc64.
+    This commit add statUnix function for aix/ppc64. It also adds Unix
+    and Nano methods for AIX time structure.
     
-    Change-Id: I46fc6b75ee6c36946f90280b2b670e0d32bcc6b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183837
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I9fd62d34a47e87cd46f2f936cb736da0bdff7959
+    Reviewed-on: https://go-review.googlesource.com/c/163957
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/ppc64/doc.go | 204 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 204 insertions(+)
+ src/archive/tar/stat_actime1.go | 2 +-
+ src/archive/tar/stat_unix.go    | 7 ++++++-
+ src/syscall/syscall_aix.go      | 8 ++++++++
+ 3 files changed, 15 insertions(+), 2 deletions(-)

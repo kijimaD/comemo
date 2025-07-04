@@ -1,28 +1,15 @@
-commit 8a6ff3ab3469ea6b448d682ac7ebc3b818208634
+commit d3d89ae7d21d8253626aebf212a63d670561f659
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 15 14:27:03 2013 -0500
+Date:   Fri Feb 15 13:13:19 2013 -0500
 
-    runtime: allocate heap metadata at run time
+    runtime: check rt_sigaction return values on linux
     
-    Before, the mheap structure was in the bss,
-    but it's quite large (today, 256 MB, much of
-    which is never actually paged in), and it makes
-    Go binaries run afoul of exec-time bss size
-    limits on some BSD systems.
+    (If the mask size is wrong the system call fails.)
     
-    Fixes #4447.
-    
-    R=golang-dev, dave, minux.ma, remyoudompheng, iant
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7307122
+    https://golang.org/cl/7305097
 
- src/pkg/runtime/malloc.goc      |  54 +++++++++++-----------
- src/pkg/runtime/malloc.h        |   2 +-
- src/pkg/runtime/mcache.c        |   4 +-
- src/pkg/runtime/mcentral.c      |   8 ++--
- src/pkg/runtime/mgc0.c          | 100 ++++++++++++++++++++--------------------
- src/pkg/runtime/mheap.c         |   8 ++--
- src/pkg/runtime/race.c          |  15 ++----
- src/pkg/runtime/traceback_arm.c |   6 +--
- src/pkg/runtime/traceback_x86.c |   4 +-
- 9 files changed, 99 insertions(+), 102 deletions(-)
+ src/pkg/runtime/signal_linux_386.c | 3 ++-
+ src/pkg/runtime/signal_linux_arm.c | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

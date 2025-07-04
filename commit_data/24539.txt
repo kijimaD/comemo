@@ -1,47 +1,14 @@
-commit 22dfbbec7fc350e37ef7bf79325e9ff2c9789f93
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Oct 8 17:37:07 2015 -0700
+commit b8efee0d8ae06b3d2f0057d26d9927b86792a9a6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 31 14:37:15 2015 -0700
 
-    compress/flate: improve inflate speed by reading more bits at a time
+    [dev.ssa] cmd/compile: log progs during ssa codegen
     
-    The flate library guarantees that the Reader will never read more
-    bytes than is necessary. This way, the underlying io.Reader will
-    be left exactly after the last byte of the DEFLATE stream.
-    Formats like gzip depend on this behavior being true.
+    This is helpful when debugging generated code.
     
-    As such, inflate conservatively reads the minimum symbol length in
-    huffSym leading to many individual calls to moreBits. However, if we
-    take advantage of the fact that every block *must* end with the EOB
-    symbol, we can choose to read the length of the EOB symbol.
-    Since the EOB symbol is also the most rare symbol (occuring exactly
-    once) in a block, we can hypothesize that it is almost as long as
-    the max symbol length, allowing huffSym to ask for more bits at the
-    start of every loop. This increases the probabilty that the Huffman
-    code is decoded on the first iteration of the outer for-loop.
-    
-    benchmark                              old MB/s     new MB/s     speedup
-    BenchmarkDecodeDigitsSpeed1e4-4        51.05        54.31        1.06x
-    BenchmarkDecodeDigitsSpeed1e5-4        58.86        62.24        1.06x
-    BenchmarkDecodeDigitsSpeed1e6-4        59.63        63.13        1.06x
-    BenchmarkDecodeDigitsDefault1e4-4      51.94        54.61        1.05x
-    BenchmarkDecodeDigitsDefault1e5-4      63.70        69.13        1.09x
-    BenchmarkDecodeDigitsDefault1e6-4      66.08        71.43        1.08x
-    BenchmarkDecodeDigitsCompress1e4-4     52.25        54.56        1.04x
-    BenchmarkDecodeDigitsCompress1e5-4     63.34        68.30        1.08x
-    BenchmarkDecodeDigitsCompress1e6-4     66.84        70.64        1.06x
-    BenchmarkDecodeTwainSpeed1e4-4         50.74        53.40        1.05x
-    BenchmarkDecodeTwainSpeed1e5-4         60.77        67.03        1.10x
-    BenchmarkDecodeTwainSpeed1e6-4         62.08        69.78        1.12x
-    BenchmarkDecodeTwainDefault1e4-4       53.45        56.40        1.06x
-    BenchmarkDecodeTwainDefault1e5-4       73.54        79.05        1.07x
-    BenchmarkDecodeTwainDefault1e6-4       77.68        83.65        1.08x
-    BenchmarkDecodeTwainCompress1e4-4      53.21        56.15        1.06x
-    BenchmarkDecodeTwainCompress1e5-4      73.82        77.76        1.05x
-    BenchmarkDecodeTwainCompress1e6-4      79.23        83.30        1.05x
-    
-    Change-Id: Ie194925c827988a380b8c2fdd13b13c4faa5d397
-    Reviewed-on: https://go-review.googlesource.com/15651
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: I268efa3593a03bb2c4e9f07d9034c004cd40df41
+    Reviewed-on: https://go-review.googlesource.com/13099
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/compress/flate/inflate.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

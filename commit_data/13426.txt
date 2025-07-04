@@ -1,18 +1,13 @@
-commit ed516df4e43c5e3467bd6a39ffc9277157574788
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Jul 1 13:10:01 2012 +0400
+commit f06b12f0c7e0ce9435e9d8b0faf79c192c470e4e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jun 30 12:26:06 2012 -0700
 
-    runtime: add freemcache() function
-    It will be required for scheduler that maintains
-    GOMAXPROCS MCache's.
+    net/http: ignore malicious or dumb Range requests
     
-    R=golang-dev, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6350062
+    https://golang.org/cl/6356050
 
- src/pkg/runtime/malloc.goc | 18 +++++++++++++-----
- src/pkg/runtime/malloc.h   |  2 +-
- src/pkg/runtime/mgc0.c     |  4 ++--
- src/pkg/runtime/mheap.c    |  4 ++--
- src/pkg/runtime/runtime.h  |  1 +
- 5 files changed, 19 insertions(+), 10 deletions(-)
+ src/pkg/net/http/fs.go      | 14 ++++++++++++++
+ src/pkg/net/http/fs_test.go |  1 +
+ 2 files changed, 15 insertions(+)

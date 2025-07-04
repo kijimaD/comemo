@@ -1,12 +1,17 @@
-commit 86235d5dd7b2dbbe3ec94f48276af96c7ed78a5a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Feb 29 22:01:38 2016 -0800
+commit 9b8080f37e5883fe1b9304d40a08faf32a8f1e40
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 8 21:42:52 2015 +0000
 
-    go/constant: fix typos in MakeFromLiteral docs
+    net/http: update bundled http2 copy
     
-    Change-Id: I99c737415a082df883a9c12cdb43bdd5a1b9a8ad
-    Reviewed-on: https://go-review.googlesource.com/20082
+    Updates golang.org/x/net/http2 to git rev 438097d76
+    
+    Fixes #13444
+    
+    Change-Id: I699ac02d23b56db3e8a27d3f599ae56cd0a5b4b2
+    Reviewed-on: https://go-review.googlesource.com/17570
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/constant/value.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/h2_bundle.go | 83 ++++++++++++++++++++++++++++-------------------
+ 1 file changed, 49 insertions(+), 34 deletions(-)

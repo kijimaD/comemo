@@ -1,25 +1,14 @@
-commit f78dc1dac1890ff58c6c82b1097620bf171ec149
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Sun Mar 29 23:38:20 2015 +0000
+commit e15221acece3ffeb7aaca9cf967f8ea7dac6e664
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 00:16:16 2015 -0500
 
-    runtime: rename ·main·f to ·mainPC to avoid duplicate symbol
+    cmd/9l: fix ppc64le build
     
-    runtime·main·f is normalized by the linker to runtime.main.f, as is
-    the compiler-generated symbol runtime.main·f.  Change the former to
-    runtime·mainPC instead.
+    The conversion accidentally dropped the +4 here.
     
-    Fixes issue #9934
-    
-    Change-Id: I656a6fa6422d45385fa2cc55bd036c6affa1abfe
-    Reviewed-on: https://go-review.googlesource.com/8234
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic6181a759565c261bc1b084317f693ae249fd036
+    Reviewed-on: https://go-review.googlesource.com/6451
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/asm_386.s      | 6 +++---
- src/runtime/asm_amd64.s    | 6 +++---
- src/runtime/asm_amd64p32.s | 6 +++---
- src/runtime/asm_arm.s      | 6 +++---
- src/runtime/asm_arm64.s    | 6 +++---
- src/runtime/asm_ppc64x.s   | 6 +++---
- 6 files changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/9l/asm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

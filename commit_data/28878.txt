@@ -1,16 +1,17 @@
-commit 99b7984de7b02494b4f0d67c9ff42a2367148489
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Oct 17 14:08:36 2016 -0700
+commit 77e68ea78abc08f827041384e0198576da44db9f
+Author: Gyu-Ho Lee <gyuhox@gmail.com>
+Date:   Sat Jun 4 23:08:19 2016 -0700
 
-    cmd/link: remove some unnecessary comments
+    archive/tar: preallocate slice from paxHeaders
     
-    The comments about pcln functions are obsolete since those functions
-    now live in cmd/internal/obj. The copyright header is redundant with
-    the existing one at the top of the file.
+    Preallocate keys slice with the length of paxHeaders map
+    to prevent slice growth with append operations.
     
-    Change-Id: I568fd3d259253a0d8eb3b0a157d008df1b5de106
-    Reviewed-on: https://go-review.googlesource.com/31315
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ic9a927c4eaa775690a4ef912d61dd06f38e11510
+    Reviewed-on: https://go-review.googlesource.com/23782
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/pcln.go | 31 -------------------------------
- 1 file changed, 31 deletions(-)
+ src/archive/tar/writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

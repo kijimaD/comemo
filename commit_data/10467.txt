@@ -1,17 +1,18 @@
-commit 05d8d112fe4e78273d2ca0fe7d388a76d9e02407
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Sun Nov 20 22:42:28 2011 +1100
+commit dbb591d8da7e1958c40bc5ed631590029b94f764
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Nov 20 21:56:17 2011 +1100
 
-    html: refactor parse test infrastructure
+    exp/gui: delete exp/gui and exp/gui/x11. They are moving to
+    x-go-binding.googlecode.com.
     
-    My excuse for doing this is that test cases with newlines in them didn't
-    work. But instead of just fixing that, I rearranged everything in
-    parse_test.go to use fewer channels and pipes, and just call a
-    straightforward function to read test cases from a file.
-    
-    R=nigeltao
+    R=rsc, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/5410049
+    https://golang.org/cl/5406041
 
- src/pkg/html/parse_test.go | 119 ++++++++++++++++++++-------------------------
- 1 file changed, 53 insertions(+), 66 deletions(-)
+ src/pkg/Makefile             |   4 -
+ src/pkg/exp/gui/Makefile     |  11 -
+ src/pkg/exp/gui/gui.go       |  57 ----
+ src/pkg/exp/gui/x11/Makefile |  12 -
+ src/pkg/exp/gui/x11/auth.go  |  96 -------
+ src/pkg/exp/gui/x11/conn.go  | 631 -------------------------------------------
+ 6 files changed, 811 deletions(-)

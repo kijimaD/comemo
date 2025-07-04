@@ -1,30 +1,12 @@
-commit f437331f80b05944e8f15b2f81429729101a9455
+commit 31452a36189e48ad178a85299e2b189701d8f358
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 3 17:35:28 2011 -0400
+Date:   Thu Nov 3 17:35:11 2011 -0400
 
-    time: faster Nanoseconds call
+    runtime: fix set and not used
     
-    runtime knows how to get the time of day
-    without allocating memory.
-    
-    R=golang-dev, dsymonds, dave, hectorchu, r, cw
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5297078
+    https://golang.org/cl/5305087
 
- src/pkg/runtime/Makefile            |  1 +
- src/pkg/runtime/darwin/386/sys.s    | 25 ++++++++++++++++---------
- src/pkg/runtime/darwin/amd64/sys.s  | 14 ++++++++------
- src/pkg/runtime/freebsd/386/sys.s   | 26 +++++++++++++++++---------
- src/pkg/runtime/freebsd/amd64/sys.s | 18 +++++++++---------
- src/pkg/runtime/linux/386/sys.s     | 25 ++++++++++++++++---------
- src/pkg/runtime/linux/amd64/sys.s   | 18 +++++++++---------
- src/pkg/runtime/linux/arm/sys.s     |  6 +++---
- src/pkg/runtime/openbsd/386/sys.s   | 25 ++++++++++++++++---------
- src/pkg/runtime/openbsd/amd64/sys.s | 16 ++++++++--------
- src/pkg/runtime/plan9/386/signal.c  |  5 +++--
- src/pkg/runtime/runtime.c           | 12 ------------
- src/pkg/runtime/runtime.h           |  1 -
- src/pkg/runtime/time.goc            | 13 +++++++++++++
- src/pkg/runtime/windows/thread.c    | 24 ++++++++++--------------
- src/pkg/time/sys.go                 | 18 ++++--------------
- 16 files changed, 133 insertions(+), 114 deletions(-)
+ src/pkg/runtime/windows/amd64/callback.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

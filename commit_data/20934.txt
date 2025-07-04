@@ -1,13 +1,25 @@
-commit 3aaef230face573c1eb94146370a72cbff2f0d58
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Dec 8 15:59:37 2014 +1100
+commit 87b4149b22feb9d8d52da1730b455e39436a3a8d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 28 15:57:33 2014 -0400
 
-    remove dev.cc file, left over from merge of the dev.cc branch.
+    [dev.power64] runtime: fix atomicor8 for power64x
     
-    Change-Id: I6021f42ce4ac6a66632751b21ab13e9b22383af9
-    Reviewed-on: https://go-review.googlesource.com/1172
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Power64 servers do not currently support sub-word size atomic
+    memory access, so atomicor8 uses word size atomic access.
+    However, previously atomicor8 made no attempt to align this
+    access, resulting in errors.  Fix this by aligning the pointer
+    to a word boundary and shifting the value appropriately.
+    Since atomicor8 is used in GC, add a test to runtime·check to
+    make sure this doesn't break in the future.
+    
+    This also fixes an incorrect branch label, an incorrectly
+    sized argument move, and adds argument names to help go vet.
+    
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/165820043
 
- dev.cc | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ src/runtime/asm_power64x.s | 26 ++++++++++++++++++++------
+ src/runtime/runtime.c      |  6 ++++++
+ 2 files changed, 26 insertions(+), 6 deletions(-)

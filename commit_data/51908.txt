@@ -1,42 +1,21 @@
-commit c3b4c27fd31b51226274a0c038e9c10a65f11657
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Feb 1 13:23:02 2023 -0800
+commit 20ba3f5de52bf8665d35c86111312274f6a4d1be
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Mar 22 17:08:56 2022 -0400
 
-    log: reduce lock contention
+    cmd/compile: default to -p=main for main package
     
-    Logger.Log methods are called in a highly concurrent manner in many servers.
-    Acquiring a lock in each method call results in high lock contention,
-    especially since each lock covers a non-trivial amount of work
-    (e.g., formatting the header and outputting to the writer).
+    With the previous CL the compiler emits an unlinkable object if
+    the -p flag is not specified. It is actually okay (and convenient)
+    to omit the -p flag for (just) the main package. This CL makes it
+    so.
     
-    Changes made:
-    * Modify the Logger to use atomics so that the header formatting
-      can be moved out of the critical lock section.
-      Acquiring the flags does not occur in the same critical section
-      as outputting to the underlying writer, so this introduces
-      a very slight consistency instability where concurrently calling
-      multiple Logger.Output along with Logger.SetFlags may cause
-      the older flags to be used by some ongoing Logger.Output calls
-      even after Logger.SetFlags has returned.
-    * Use a sync.Pool to buffer the intermediate buffer.
-      This approach is identical to how fmt does it,
-      with the same max cap mitigation for #23199.
-    * Only protect outputting to the underlying writer with a lock
-      to ensure serialized ordering of output.
-    
-    Performance:
-            name           old time/op  new time/op  delta
-            Concurrent-24  19.9µs ± 2%   8.3µs ± 1%  -58.37%  (p=0.000 n=10+10)
-    
-    Updates #19438
-    
-    Change-Id: I091beb7431d8661976a6c01cdb0d145e37fe3d22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464344
+    Change-Id: I978d54d14c45b3bb9ed7471e40a2c47f269b56f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394834
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/log/log.go      | 120 +++++++++++++++++++++++++++++++---------------------
- src/log/log_test.go |  35 ++++++++++++++-
- 2 files changed, 104 insertions(+), 51 deletions(-)
+ src/cmd/compile/internal/gc/main.go |  3 +++
+ src/cmd/link/link_test.go           | 40 +++++++++++++++++++++++++++++++------
+ 2 files changed, 37 insertions(+), 6 deletions(-)

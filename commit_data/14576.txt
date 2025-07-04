@@ -1,28 +1,24 @@
-commit 69d0f0cc473d42fd7a49125d6b4667fe301c0d86
+commit 485673188dc6c3ee3113990ed1e96ca8f8f0df51
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 6 09:21:30 2012 -0800
+Date:   Thu Dec 6 09:17:20 2012 -0800
 
-    exp/types: checking of type switches and range clauses
+    spec: type assertions and type switches must be valid
+    
+    The spec didn't preclude invalid type assertions and
+    type switches, i.e., cases where a concrete type doesn't
+    implement the interface type in the assertion in the first
+    place. Both, the gc and gccgo compiler exclude these cases.
+    This is documenting the status quo.
     
     Also:
-    - better handling of type assertions
-    - implemented built-in error type
-    - first cut at handling variadic function signatures
-    - several bug fixes
+    - minor clean up of respective examples
+    - added sentence about default case in select statements
     
-    R=rsc, rogpeppe
+    Fixes #4472.
+    
+    R=rsc, iant, r, ken
     CC=golang-dev
-    https://golang.org/cl/6846131
+    https://golang.org/cl/6869050
 
- src/pkg/exp/types/check.go            |   7 +-
- src/pkg/exp/types/const.go            |   2 +-
- src/pkg/exp/types/expr.go             | 166 ++++++++++++++++++-----
- src/pkg/exp/types/operand.go          |  25 +---
- src/pkg/exp/types/predicates.go       |  33 +++++
- src/pkg/exp/types/stmt.go             | 242 +++++++++++++++++++++++++++++-----
- src/pkg/exp/types/testdata/decls1.src |   2 +-
- src/pkg/exp/types/testdata/expr3.src  |  51 ++++++-
- src/pkg/exp/types/testdata/stmt0.src  | 150 +++++++++++++++++++++
- src/pkg/exp/types/universe.go         |   8 +-
- src/pkg/go/parser/parser.go           |   2 +-
- 11 files changed, 592 insertions(+), 96 deletions(-)
+ doc/go_spec.html | 73 ++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 50 insertions(+), 23 deletions(-)

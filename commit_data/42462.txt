@@ -1,12 +1,36 @@
-commit 9d715e0bffe895187bd602d58a4cf2c348f07e49
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 4 10:44:46 2020 -0400
+commit bbd25d26c0a86660fb3968137f16e74837b7a9c6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Dec 20 23:34:23 2019 +0100
 
-    doc/go1.15: 1.15 supports OpenBSD 6.7 on arm and arm64
+    internal/poll: use correct fcntl implementations
     
-    Change-Id: Ibea6fbb73abdb7201855e80967120c07484d6460
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236557
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Use the libc fcntl (via syscall.fcntl) on aix and solaris like it is
+    already done for darwin.
+    
+    For the syscall-based fcntl implementation use FcntlSyscall from
+    internal/syscall/unix in order to get fcntl64 on 32-bit Linux
+    systems.
+    
+    On aix, fcntl with F_DUPFD_CLOEXEC is not supported. Thus, defined
+    F_DUPFD_CLOEXEC = 0 in the syscall package and check its value before
+    calling fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0).
+    
+    On js/wasm, fcntl is not supported thus let its implementation return
+    ENOSYS directly.
+    
+    Updates #36211
+    
+    Change-Id: I96a2ea79e5c4eed2fefd94d0aefd72c940825682
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212278
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.15.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/internal/poll/fcntl_js.go        | 14 ++++++++++++++
+ src/internal/poll/fcntl_libc.go      | 13 +++++++++++++
+ src/internal/poll/fcntl_syscall.go   | 20 ++++++++++++++++++++
+ src/internal/poll/fd_fsync_darwin.go |  9 +--------
+ src/internal/poll/fd_fsync_posix.go  |  8 --------
+ src/internal/poll/fd_unix.go         |  2 +-
+ src/syscall/syscall_aix.go           |  2 +-
+ 7 files changed, 50 insertions(+), 18 deletions(-)

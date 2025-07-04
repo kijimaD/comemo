@@ -1,37 +1,36 @@
-commit e6f9f39ce52e880b54e4cb08bf0cde73cf6c7dc2
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Thu Aug 25 14:17:52 2016 +0200
+commit 2063d5d903718962de58a86a692626fe89919a4d
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Mar 14 12:17:48 2016 -0400
 
-    cmd/compile: generate makeslice calls with int arguments
+    [dev.garbage] runtime: restructure alloc and mark bits
     
-    Where possible generate calls to runtime makeslice with int arguments
-    during compile time instead of makeslice with int64 arguments.
+    Two changes are included here that are dependent on the other.
+    The first is that allocBits and gcamrkBits are changed to
+    a *uint8 which points to the first byte of that span's
+    mark and alloc bits. Several places were altered to
+    perform pointer arithmetic to locate the byte corresponding
+    to an object in the span. The actual bit corresponding
+    to an object is indexed in the byte by using the lower three
+    bits of the objects index.
     
-    This eliminates converting arguments for calls to makeslice with
-    int64 arguments for platforms where int64 values do not fit into
-    arguments of type int.
+    The second change avoids the redundant calculation of an
+    object's index. The index is returned from heapBitsForObject
+    and then used by the functions indexing allocBits
+    and gcmarkBits.
     
-    godoc 386 binary shrinks by approximately 12 kilobyte.
+    Finally we no longer allocate the gc bits in the span
+    structures. Instead we use an arena based allocation scheme
+    that allows for a more compact bit map as well as recycling
+    and bulk clearing of the mark bits.
     
-    amd64:
-    name         old time/op  new time/op  delta
-    MakeSlice-2  29.8ns ± 1%  29.8ns ± 1%   ~     (p=1.000 n=24+24)
-    
-    386:
-    name         old time/op  new time/op  delta
-    MakeSlice-2  52.3ns ± 0%  45.9ns ± 0%  -12.17%  (p=0.000 n=25+22)
-    
-    Fixes  #15357
-    
-    Change-Id: Icb8701bb63c5a83877d26c8a4b78e782ba76de7c
-    Reviewed-on: https://go-review.googlesource.com/27851
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: If4d04b2021c092ec39a4caef5937a8182c64dfef
+    Reviewed-on: https://go-review.googlesource.com/20705
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         | 43 +++++++++++++-------------
- src/cmd/compile/internal/gc/builtin/runtime.go |  3 +-
- src/cmd/compile/internal/gc/walk.go            | 22 +++++++++++--
- src/runtime/slice.go                           | 23 ++++++++++----
- test/fixedbugs/issue4085b.go                   | 24 ++++++++------
- 5 files changed, 74 insertions(+), 41 deletions(-)
+ src/runtime/cgocall.go  |   2 +-
+ src/runtime/malloc.go   |   2 +-
+ src/runtime/mbitmap.go  |  86 +++++++++++++-------------
+ src/runtime/mgcmark.go  |  21 ++++---
+ src/runtime/mgcsweep.go |  16 ++---
+ src/runtime/mheap.go    | 159 ++++++++++++++++++++++++++++++++++++++++++------
+ 6 files changed, 204 insertions(+), 82 deletions(-)

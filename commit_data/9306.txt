@@ -1,12 +1,23 @@
-commit 9c2ebab82686e31ec09b87a6cdb946a2ef2e1e2e
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 8 23:42:49 2011 +1000
+commit 54e9406ffbabadb2eaf2cf1f3b2297f8a3998157
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 8 09:35:32 2011 -0400
 
-    exp/template: document that comments may span newlines.
+    runtime: add more specialized type algorithms
+    The change adds specialized type algorithms
+    for slices and types of size 8/16/32/64/128.
+    It significantly accelerates chan and map operations
+    for most builtin types as well as user structs.
+    
+    benchmark                   old,ns/op   new,ns/op
+    BenchmarkChanUncontended          226          94
+    (on Intel Xeon E5620, 2.4GHz, Linux 64 bit)
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4855045
+    https://golang.org/cl/4815087
 
- src/pkg/exp/template/doc.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/gc/go.h           |  12 +++-
+ src/cmd/gc/subr.c         |  30 +++++++--
+ src/pkg/runtime/runtime.c | 158 +++++++++++++++++++++++++++++++++++++++++++---
+ src/pkg/runtime/runtime.h |  12 +++-
+ 4 files changed, 196 insertions(+), 16 deletions(-)

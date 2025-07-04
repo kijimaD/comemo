@@ -1,27 +1,19 @@
-commit 68e7363b56a0a42414620a5a5cb756fb0edf82e7
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Mon Nov 28 10:55:31 2011 +1100
+commit 4c113ffe162236d44106a1c44ab8bfb623c1c795
+Author: Michael T. Jones <mtj@google.com>
+Date:   Sun Nov 27 11:10:59 2011 -0800
 
-    html: parse <nobr> elements
+    math/big: use recursive subdivision for significant speedup
     
-    Pass tests3.dat, test 20:
-    <!doctype html><nobr><nobr><nobr>
+    This change adds the second aspect to the conversion code, the
+    use of large divisiors (powers of big base) to greatly speed up
+    the divsion of large numbers. Speedups of 30x are common in the
+    large cases. Also includes new tests and tuning code for the
+    key internal parameters.
     
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   <body>
-    |     <nobr>
-    |     <nobr>
-    |     <nobr>
-    
-    Also pass tests through test 22:
-    <!doctype html><html><body><p><table></table></body></html>
-    
-    R=nigeltao
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5438056
+    https://golang.org/cl/5438058
 
- src/pkg/html/parse.go      | 7 +++++++
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/math/big/nat.go      | 223 +++++++++++++++++++++++++++++++++-------
+ src/pkg/math/big/nat_test.go | 240 +++++++++++++++++++++----------------------
+ 2 files changed, 303 insertions(+), 160 deletions(-)

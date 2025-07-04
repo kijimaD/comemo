@@ -1,20 +1,23 @@
-commit a6f6932b3ee87d9607ce246228e23f9a08dacc31
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Apr 10 09:12:43 2022 -0700
+commit dc00dc6c6bf3b5554e37f60799aec092276ff807
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jun 7 08:24:22 2021 -0400
 
-    cmd/asm: fix MOVK when constant has high bit set
+    crypto/tls: let HTTP/1.1 clients connect to servers with NextProtos "h2"
     
-    Fixes #52261
+    Fixes #46310
     
-    Change-Id: I1dc4c19c95a91f9e1e99d1e74afeb69f5bf8a979
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399455
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Change-Id: Idd5e30f05c439f736ae6f3904cbb9cc2ba772315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325432
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go           |  2 +-
- src/cmd/internal/obj/arm64/asm_arm64_test.go | 11 +++++++++++
- src/cmd/internal/obj/arm64/asm_arm64_test.s  |  7 +++++++
- 3 files changed, 19 insertions(+), 1 deletion(-)
+ src/crypto/tls/handshake_client.go                 |  44 +++++----
+ src/crypto/tls/handshake_client_tls13.go           |  14 +--
+ src/crypto/tls/handshake_server.go                 |  42 +++++++--
+ src/crypto/tls/handshake_server_test.go            |  21 +++++
+ src/crypto/tls/handshake_server_tls13.go           |  15 ++--
+ .../tls/testdata/Server-TLSv12-ALPN-Fallback       |  91 +++++++++++++++++++
+ .../tls/testdata/Server-TLSv13-ALPN-Fallback       | 100 +++++++++++++++++++++
+ 7 files changed, 277 insertions(+), 50 deletions(-)

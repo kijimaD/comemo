@@ -1,17 +1,26 @@
-commit 52aef05498a9e84ede16fb7ce46a2a252af05479
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 3 11:18:16 2021 +0700
+commit 9b6147120a30a8bc30a41c1651f369e8bcb80948
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Dec 21 14:11:02 2020 -0500
 
-    go/ast: clarify when Ident.Obj is nil
+    cmd/pack: treat compiler's -linkobj output as "compiler object"
     
-    Fixes #48141
+    Treat the compiler's -linkobj output as "compiler object, which
+    means "pack c" will "see through" the file and add individual
+    entry to the new archive, instead of the object as a whole.
     
-    Change-Id: Id20b7801d31456ffd74301ed0fd84788b8982fb1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347530
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    This is somewhat peculiar. But Go 1.15's cmd/pack does this,
+    although seemingly accidental. We just do the same. FWIW, it
+    does make things more consistent with/without -linkobj flag.
+    
+    Fixes #43271.
+    
+    Change-Id: I6b2d99256db7ebf0fa430f85afa7464e334f6bcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279483
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/ast/ast.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/pack/pack.go      | 31 ++++++++++++----------
+ src/cmd/pack/pack_test.go | 66 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+), 13 deletions(-)

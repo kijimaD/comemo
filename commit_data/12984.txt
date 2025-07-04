@@ -1,13 +1,24 @@
-commit 1a7905372536154661b094accadcbc1e692b1544
+commit 0175e3f1e0a1604f2e3c7bd8b67c42d066f36fa1
 Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Apr 27 17:12:09 2012 +1000
+Date:   Fri Apr 27 16:36:02 2012 +1000
 
-    misc/dashboard/codereview: more abbreviated modification duration.
+    misc/dashboard/codereview: new app.
+    
+    This is live at http://gocodereview.appspot.com/.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6131044
+    https://golang.org/cl/6134043
 
- misc/dashboard/codereview/dashboard/cl.go    | 21 ++++++++++++++-------
- misc/dashboard/codereview/dashboard/front.go |  2 +-
- 2 files changed, 15 insertions(+), 8 deletions(-)
+ misc/dashboard/codereview/app.yaml               |  24 +++
+ misc/dashboard/codereview/cron.yaml              |   4 +
+ misc/dashboard/codereview/dashboard/cl.go        | 250 +++++++++++++++++++++++
+ misc/dashboard/codereview/dashboard/front.go     | 240 ++++++++++++++++++++++
+ misc/dashboard/codereview/dashboard/gc.go        |  43 ++++
+ misc/dashboard/codereview/dashboard/mail.go      |  40 ++++
+ misc/dashboard/codereview/dashboard/people.go    |  33 +++
+ misc/dashboard/codereview/index.yaml             |  19 ++
+ misc/dashboard/codereview/queue.yaml             |   4 +
+ misc/dashboard/codereview/static/gopherstamp.jpg | Bin 0 -> 16996 bytes
+ misc/dashboard/codereview/static/icon.png        | Bin 0 -> 4347 bytes
+ 11 files changed, 657 insertions(+)

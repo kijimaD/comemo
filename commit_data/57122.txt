@@ -1,22 +1,31 @@
-commit db0b6a85c27b6ae8bd132be11ba07c29c01f4165
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Aug 7 23:35:23 2024 +0000
+commit f8616b84849f089635a041d657da6f5cced790e0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 22 11:04:45 2023 -0400
 
-    net/url: implement encoding.BinaryAppender for URL
+    internal/platform,cmd/dist: export the list of supported platforms
     
-    For #62384
+    Also switch internal/platform to commit the generated code instead of
+    regenerating it in cmd/dist. Nothing in the generated code depends on
+    the target configuration, and committing the source file makes it
+    more amenable to searching and indexing (particularly on
+    https://cs.opensource.google/go/go).
     
-    Change-Id: I61529efe3a59b13606479b74af6cbff61c9efb6e
-    GitHub-Last-Rev: f188b91978711c55aa2daf2c72277990d25bc328
-    GitHub-Pull-Request: golang/go#68763
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603815
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    For #60939.
+    
+    Change-Id: I9133dfd5129b3c4d7457267589dfac5e7ecbef65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505175
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- api/next/62384.txt                          | 1 +
- doc/next/6-stdlib/99-minor/net/url/62384.md | 1 +
- src/net/url/url.go                          | 6 +++++-
- src/net/url/url_test.go                     | 1 +
- 4 files changed, 8 insertions(+), 1 deletion(-)
+ .gitignore                            |   2 -
+ src/cmd/dist/build.go                 |   9 ++-
+ src/cmd/dist/buildruntime.go          |  23 -------
+ src/cmd/dist/buildtool.go             |   1 -
+ src/cmd/dist/main.go                  |  16 ++---
+ src/cmd/distpack/pack.go              |   1 -
+ src/internal/platform/supported.go    |  45 +++++++++++---
+ src/internal/platform/zosarch.go      | 114 ++++++++++++++++++++++++++++++++++
+ src/internal/platform/zosarch_test.go | 109 ++++++++++++++++++++++++++++++++
+ 9 files changed, 275 insertions(+), 45 deletions(-)

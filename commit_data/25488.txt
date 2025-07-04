@@ -1,44 +1,35 @@
-commit 27691fa46735f642b7580d92b80bbf35dc40db97
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Jan 7 03:06:49 2016 -0800
+commit 3a765430c18f993e291de14cc8d7803d95493fb8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 2 16:45:07 2015 -0500
 
-    cmd/compile: recognize !typedbool is typed
+    cmd/compile: add go:nowritebarrierrec annotation
     
-    Adding the evconst(n) call for OANDAND and OOROR in
-    golang.org/cl/18262 was originally just to parallel the above iscmp
-    branch, but upon further inspection it seemed odd that removing it
-    caused test/fixedbugs/issue6671.go's
+    This introduces a recursive variant of the go:nowritebarrier
+    annotation that prohibits write barriers not only in the annotated
+    function, but in all functions it calls, recursively. The error
+    message gives the shortest call stack from the annotated function to
+    the function containing the prohibited write barrier, including the
+    names of the functions and the line numbers of the calls.
     
-        var b mybool
-        // ...
-        b = bool(true) && true // ERROR "cannot use"
+    To demonstrate the annotation, we apply it to gcmarkwb_m, the write
+    barrier itself.
     
-    to start failing (i.e., by not emitting the expected "cannot use"
-    error).
+    This is a new annotation rather than a modification of the existing
+    go:nowritebarrier annotation because, for better or worse, there are
+    many go:nowritebarrier functions that do call functions with write
+    barriers. In most of these cases this is benign because the annotation
+    was conservative, but it prohibits simply coopting the existing
+    annotation.
     
-    The problem is that evconst(n)'s settrue and setfalse paths always
-    reset n.Type to idealbool, even for logical operators where n.Type
-    should preserve the operand type.  Adding the evconst(n) call for
-    OANDAND/OOROR inadvertantly worked around this by turning the later
-    evconst(n) call at line 2167 into a noop, so the "n.Type = t"
-    assignment at line 739 would preserve the operand type.
-    
-    However, that means evconst(n) was still clobbering n.Type for ONOT,
-    so declarations like:
-    
-        const _ bool = !mybool(true)
-    
-    were erroneously accepted.
-    
-    Update #13821.
-    
-    Change-Id: I18e37287f05398fdaeecc0f0d23984e244f025da
-    Reviewed-on: https://go-review.googlesource.com/18362
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I225ca483c8f699e8436373ed96349e80ca2c2479
+    Reviewed-on: https://go-review.googlesource.com/16554
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/const.go     | 19 +++++++++++++------
- src/cmd/compile/internal/gc/typecheck.go |  2 --
- test/fixedbugs/issue13821b.go            |  2 ++
- 3 files changed, 15 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/cgen.go   |  18 ++++--
+ src/cmd/compile/internal/gc/dcl.go    | 113 ++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/go.go     |  13 ++--
+ src/cmd/compile/internal/gc/lex.go    |  13 ++++
+ src/cmd/compile/internal/gc/syntax.go |  19 +++---
+ src/cmd/compile/internal/gc/y.go      |   2 +
+ src/runtime/mbarrier.go               |   2 +-
+ 7 files changed, 161 insertions(+), 19 deletions(-)

@@ -1,19 +1,21 @@
-commit e5ff529679b3adbed06d509b0fc21a76b62e89e9
+commit f6db855d5595e170bfc70d90f1eaa26034d2e191
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 6 00:16:05 2016 +0000
+Date:   Tue Apr 12 21:51:19 2016 +0000
 
-    lib/time: update to IANA release 2016f (July 2016)
+    net: mirror Tom Sawyer in the net package for tests
     
-    Fixes #16273
+    Fixes the darwin/arm builder, which has a special test runner which
+    makes the assumption that tests never use testdata from another
+    package.
     
-    Change-Id: I443e1f254fd683c4ff61beadae89c1c45ff5d972
-    Reviewed-on: https://go-review.googlesource.com/24744
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This looks large, but it's no more space in git.
+    
+    Change-Id: I81921b516443d12d21b77617d323ddebedbe40f8
+    Reviewed-on: https://go-review.googlesource.com/21907
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- lib/time/update.bash  |   6 +++---
- lib/time/zoneinfo.zip | Bin 364413 -> 364741 bytes
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/net/sendfile_test.go                   |    4 +-
+ src/net/testdata/Mark.Twain-Tom.Sawyer.txt | 8465 ++++++++++++++++++++++++++++
+ 2 files changed, 8467 insertions(+), 2 deletions(-)

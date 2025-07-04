@@ -1,17 +1,29 @@
-commit be28e5abc5ddca0d6b2d8c91b7bb9c05717154e7
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Jan 20 09:45:03 2021 -0500
+commit 2b70ffe9307c0992e28513ba25081d767b5937b2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 14 19:22:59 2020 -0400
 
-    cmd/go: fix mod_get_fallback test
+    cmd/link: detect trampoline of deferreturn call
     
-    Fixes #43795
+    The runtime needs to find the PC of the deferreturn call in a few
+    places. So for functions that have defer, we record the PC of
+    deferreturn call in its funcdata.
     
-    Change-Id: I3d791d0ac9ce0b523c78c649aaf5e339a7f63b76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284797
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    For very large binaries, the deferreturn call could be made
+    through a trampoline. The current code of finding deferreturn PC
+    fails in this case. This CL handles the trampoline as well.
+    
+    Fixes #39049.
+    
+    Change-Id: I929be54d6ae436f5294013793217dc2a35f080d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234105
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/testdata/script/mod_get_fallback.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/arm/asm.go       |  6 +++++-
+ src/cmd/link/internal/ld/pcln.go       |  2 +-
+ src/cmd/link/internal/loader/loader.go | 14 +++++++++++++-
+ src/cmd/link/internal/ppc64/asm.go     | 10 +++++++---
+ src/cmd/link/link_test.go              | 19 ++++++++++++++++---
+ 5 files changed, 42 insertions(+), 9 deletions(-)

@@ -1,23 +1,23 @@
-commit 0b323a3c1690050340fc8e39730a07bb01373f0a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 5 14:09:09 2022 -0800
+commit 9e0de1fe7b3c977d871496bf0d8f26ae39dfce5c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 2 13:56:22 2022 -0500
 
-    go/types, types2: better error message for failing constraint type inference
+    cmd/go: remove deleted subdirectories in 'go work use'
     
-    We know the type argument against which constraint type inference fails:
-    print the type argument instead of the corresponding type parameter.
+    Also remove absolute names (relative to PWD) when updating relative
+    directories, and relative names when updating absolute directories.
     
-    Fixes #57096.
+    Fixes #50959
     
-    Change-Id: Ia1da9c87fac6f8062e4d534b82e895fa4617fddc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455278
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: If129019cad7146e82face7f23427b28240d29cfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383837
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/infer.go            | 2 +-
- src/go/types/infer.go                               | 2 +-
- src/internal/types/testdata/fixedbugs/issue45985.go | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/modload/init.go             |   2 +-
+ src/cmd/go/internal/workcmd/use.go              | 138 +++++++++++++++++-------
+ src/cmd/go/testdata/script/work_use_deleted.txt |  22 ++++
+ src/cmd/go/testdata/script/work_use_dot.txt     |  28 +++--
+ 4 files changed, 143 insertions(+), 47 deletions(-)

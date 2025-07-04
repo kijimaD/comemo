@@ -1,24 +1,26 @@
-commit 34573aeb9717cf20d768e640c263b294df5318a4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Dec 7 22:51:46 2021 +0000
+commit 0e09e4143e3d55ac8cbcbf53f1da98b817fc5a58
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 7 16:17:08 2021 -0400
 
-    Revert "build: for default bootstrap, use Go 1.17 if present, falling back to Go 1.4"
+    cmd/go: assume Go 1.16 semantics uniformly for unversioned modules
     
-    This reverts https://golang.org/cl/369914.
+    However, still only trigger -mod=vendor automatically (and only apply
+    the more stringent Go 1.14 vendor consistency checks) if the 'go'
+    version is explicit. This provides maximal compatibility with Go 1.16
+    and earlier: Go 1.11 modules will continue not to fail vendor
+    consistency checks, but scripts that assume semantics up to Go 1.16
+    for unversioned modules will continue to work unmodified.
     
-    Reason for revert: Breaking previously working toolchain builds.
+    Fixes #44976
+    For #36460
     
-    For #44505.
-    
-    Change-Id: I09ae20e50109a600d036358118077d27669df39c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370138
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Idb05ca320023f57249c71fc8079218e8991d1ff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308509
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/buildtool.go | 13 +------------
- src/make.bash             |  9 +--------
- src/make.bat              |  2 --
- src/make.rc               |  3 ---
- 4 files changed, 2 insertions(+), 25 deletions(-)
+ src/cmd/go/internal/modload/init.go                | 32 +++++-------
+ src/cmd/go/internal/modload/modfile.go             |  2 +-
+ .../go/testdata/script/mod_go_version_missing.txt  | 60 +++++++++++-----------
+ src/cmd/go/testdata/script/mod_retention.txt       |  6 +--
+ 4 files changed, 45 insertions(+), 55 deletions(-)

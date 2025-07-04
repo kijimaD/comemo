@@ -1,28 +1,16 @@
-commit d6c12ec0eff53a4b11186eb0bb11cb683afe2779
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Dec 5 09:52:58 2018 -0500
+commit d05f31a3c5677467525241d4bacdb287f485d370
+Author: Shivansh Rai <shivansh@freebsd.org>
+Date:   Mon Jun 4 17:10:43 2018 +0530
 
-    cmd/go/internal/modload: use replacements to resolve missing imports
+    internal/poll: Avoid evaluating condition for an unreachable branch
     
-    If the replacements specify one or more versions, we choose the latest
-    (for consistency with the QueryPackage path, with resolves the latest
-    version from upstream).
-    
-    Otherwise, we synthesize a pseudo-version with a zero timestamp and an
-    appropriate major version.
-    
-    Fixes #26241
-    
-    RELNOTE=yes
-    
-    Change-Id: I14b4c63858c8714cc3e1b05ac52c33de5a16dea9
-    Reviewed-on: https://go-review.googlesource.com/c/152739
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I868dcaf84767d631bc8f1b6ef6bcb3ec18047259
+    Reviewed-on: https://go-review.googlesource.com/116135
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/modload/import.go             |  52 ++++++++++-
- src/cmd/go/testdata/script/mod_replace.txt        |   3 +-
- src/cmd/go/testdata/script/mod_replace_import.txt | 109 ++++++++++++++++++++++
- 3 files changed, 161 insertions(+), 3 deletions(-)
+ src/internal/poll/sendfile_bsd.go     | 3 +--
+ src/internal/poll/sendfile_linux.go   | 3 +--
+ src/internal/poll/sendfile_solaris.go | 3 +--
+ 3 files changed, 3 insertions(+), 6 deletions(-)

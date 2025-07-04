@@ -1,18 +1,22 @@
-commit 7d91cc26abdcc213de83bb6122a929ff6449be8f
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Tue Aug 20 20:14:59 2024 +0000
+commit 9c93ad5520c4f995ee0ec8d1a80dd17c633002ae
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 15 15:32:42 2023 +0200
 
-    cmd/go: support both .netrc and _netrc in windows
+    cmd/go/testdata/script: ensure go test -skip skips ExampleTest1
     
-    For #66832
+    CL 511837 added a check for go test -skip Example but it currently
+    doesn't verify that the example doesn't show up in the command output.
+    Add such a check.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I58e20fe0b8e38dd9383d1df334acaa3a2abad756
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607237
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    For #61482
+    
+    Change-Id: I3a8f82fc137739bf291f39bf7719ff92cfc74f9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519595
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/auth/netrc.go               | 16 +++++++--
- src/cmd/go/testdata/script/netrc_issue66832.txt | 48 +++++++++++++++++++++++++
- 2 files changed, 61 insertions(+), 3 deletions(-)
+ src/cmd/go/testdata/script/test_skip.txt | 1 +
+ 1 file changed, 1 insertion(+)

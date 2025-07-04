@@ -1,12 +1,16 @@
-commit 37e802a7c5e3c91cc572badb99f6f15f9c30b24c
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Oct 14 15:06:11 2011 -0400
+commit c4b9c8bb7debdf5b15b10d4daa2fa1f0cdc85caa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 14 11:31:00 2011 -0700
 
-    asn1: accept UTF8 strings as ASN.1 ANY values
+    http: shut up a false Transport warning on Windows
     
-    R=bradfitz
+    Fixes #2057
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5172042
+    https://golang.org/cl/5269044
 
- src/pkg/asn1/asn1.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/http/Makefile             |  5 +++++
+ src/pkg/http/transport.go         | 14 +++++++++++++-
+ src/pkg/http/transport_windows.go | 21 +++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)

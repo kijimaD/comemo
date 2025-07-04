@@ -1,17 +1,26 @@
-commit 2f1128461dcc6c9915f21327ce18fa1925269f30
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 10 16:54:53 2021 -0400
+commit 35693d037f9d1c30d6de1fafd08e8c923a415ab8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 18 12:50:46 2020 -0800
 
-    cmd/go: match Windows paths in TestScript/mod_invalid_version
+    cmd/compile: fix miscompilation during inlining
     
-    Fixes #46691
+    When inlining a function call expression, it's possible that the
+    function callee subexpression has side effects that need to be
+    preserved. This used to not be an issue, because inlining wouldn't
+    recognize these as inlinable anyway. But golang.org/cl/266199 extended
+    the inlining logic to recognize more cases, but did not notice that
+    the actual inlining code was discarding side effects.
     
-    Change-Id: I3bef9a773be640bed96eb2dc395cb11671a0767a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326869
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Issue identified by danscales@.
+    
+    Fixes #42703.
+    
+    Change-Id: I95f8fc076b6ca4e9362e80ec26dad9d87a5bc44a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271219
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/testdata/script/mod_invalid_version.txt | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/inl.go | 15 +++++++++++++++
+ test/fixedbugs/issue42703.go       | 19 +++++++++++++++++++
+ 2 files changed, 34 insertions(+)

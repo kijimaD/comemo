@@ -1,0 +1,18 @@
+commit c7c4420ae4b0e82b26606776fbd0e4fea97d37c9
+Author: Sean Liao <sean@liao.dev>
+Date:   Thu Nov 28 16:10:52 2024 +0000
+
+    cmd/go: clarify GODEBUG in go help environment
+    
+    Fixes #37004
+    Fixes #50444
+    
+    Change-Id: I7dd5a8c9bd0a2122ff38508cf509369d6d8ad599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632177
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/alldocs.go               | 5 +++--
+ src/cmd/go/internal/help/helpdoc.go | 5 +++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

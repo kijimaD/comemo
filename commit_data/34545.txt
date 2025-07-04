@@ -1,24 +1,119 @@
-commit cde34780b7a0bbd162321a34c41fc8a6268e2c09
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Mar 8 17:43:55 2018 +0100
+commit af192a3e224ee3c9da3dd8c342d73ac2aac9bf1b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 20 10:58:23 2017 -0400
 
-    test/codegen: port math/bits.RotateLeft tests to codegen
+    runtime: allow 5% mutator assist over 25% background mark
     
-    Only RotateLeft{64,32} were tested, and just for ppc64. This CL adds
-    tests for RotateLeft{64,32,16,8} on arm64 and amd64/386, for the cases
-    where the calls are actually instrinsified.
+    Currently, both the background mark worker and the goal GC CPU are
+    both fixed at 25%. The trigger controller's goal is to achieve the
+    goal CPU usage, and with the previous commit it can actually achieve
+    this. But this means there are *no* assists, which sounds ideal but
+    actually causes problems for the trigger controller. Since the
+    controller can't lower CPU usage below the background mark worker CPU,
+    it saturates at the CPU goal and no longer gets feedback, which
+    translates into higher variability in heap growth.
     
-    RotateLeft tests (the last ones for math/bits functions) are deleted
-    from asm_test.
+    This commit fixes this by allowing assists 5% CPU beyond the 25% fixed
+    background mark. This avoids saturating the trigger controller, since
+    it can now get feedback from both sides of the CPU goal. This leads to
+    low variability in both CPU usage and heap growth, at the cost of
+    reintroducing a low rate of mark assists.
     
-    This CL also adds a space between the "//" and the arch name in the
-    comments, to uniform this file to the style used in all the other
-    files.
+    We also experimented with 20% background plus 5% assist, but 25%+5%
+    clearly performed better in benchmarks.
     
-    Change-Id: Ifc2a27261d70bcc294b4ec64490d8367f62d2b89
-    Reviewed-on: https://go-review.googlesource.com/99596
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Updates #14951.
+    Updates #14812.
+    Updates #18534.
+    
+    Combined with the previous CL, this significantly improves tail
+    mutator utilization in the x/bechmarks garbage benchmark. On a sample
+    trace, it increased the 99.9%ile mutator utilization at 10ms from 26%
+    to 59%, and at 5ms from 17% to 52%. It reduced the 99.9%ile zero
+    utilization window from 2ms to 700µs. It also helps the mean mutator
+    utilization: it increased the 10s mutator utilization from 83% to 94%.
+    The minimum mutator utilization is also somewhat improved, though
+    there is still some unknown artifact that causes a miniscule fraction
+    of mutator assists to take 5--10ms (in fact, there was exactly one
+    10ms mutator assist in my sample trace).
+    
+    This has no significant effect on the throughput of the
+    github.com/dr2chase/bent benchmarks-50.
+    
+    This has little effect on the go1 benchmarks (and the slight overall
+    improvement makes up for the slight overall slowdown from the previous
+    commit):
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.40s ± 0%     2.41s ± 1%  +0.26%  (p=0.010 n=18+19)
+    Fannkuch11-12                2.95s ± 0%     2.93s ± 0%  -0.62%  (p=0.000 n=18+15)
+    FmtFprintfEmpty-12          42.2ns ± 0%    42.3ns ± 1%  +0.37%  (p=0.001 n=15+14)
+    FmtFprintfString-12         67.9ns ± 2%    67.2ns ± 3%  -1.03%  (p=0.002 n=20+18)
+    FmtFprintfInt-12            75.6ns ± 3%    76.8ns ± 2%  +1.59%  (p=0.000 n=19+17)
+    FmtFprintfIntInt-12          123ns ± 1%     124ns ± 1%  +0.77%  (p=0.000 n=17+14)
+    FmtFprintfPrefixedInt-12     148ns ± 1%     150ns ± 1%  +1.28%  (p=0.000 n=20+20)
+    FmtFprintfFloat-12           212ns ± 0%     211ns ± 1%  -0.67%  (p=0.000 n=16+17)
+    FmtManyArgs-12               499ns ± 1%     500ns ± 0%  +0.23%  (p=0.004 n=19+16)
+    GobDecode-12                6.49ms ± 1%    6.51ms ± 1%  +0.32%  (p=0.008 n=19+19)
+    GobEncode-12                5.47ms ± 0%    5.43ms ± 1%  -0.68%  (p=0.000 n=19+20)
+    Gzip-12                      220ms ± 1%     216ms ± 1%  -1.66%  (p=0.000 n=20+19)
+    Gunzip-12                   38.8ms ± 0%    38.5ms ± 0%  -0.80%  (p=0.000 n=19+20)
+    HTTPClientServer-12         78.5µs ± 1%    78.1µs ± 1%  -0.53%  (p=0.008 n=20+19)
+    JSONEncode-12               12.2ms ± 0%    11.9ms ± 0%  -2.38%  (p=0.000 n=17+19)
+    JSONDecode-12               52.3ms ± 0%    53.3ms ± 0%  +1.84%  (p=0.000 n=19+20)
+    Mandelbrot200-12            3.69ms ± 0%    3.69ms ± 0%  -0.19%  (p=0.000 n=19+19)
+    GoParse-12                  3.17ms ± 1%    3.19ms ± 1%  +0.61%  (p=0.000 n=20+20)
+    RegexpMatchEasy0_32-12      73.7ns ± 0%    73.2ns ± 1%  -0.66%  (p=0.000 n=17+20)
+    RegexpMatchEasy0_1K-12       238ns ± 0%     239ns ± 0%  +0.32%  (p=0.000 n=17+16)
+    RegexpMatchEasy1_32-12      69.1ns ± 1%    69.2ns ± 1%    ~     (p=0.669 n=19+13)
+    RegexpMatchEasy1_1K-12       365ns ± 1%     367ns ± 1%  +0.49%  (p=0.000 n=19+19)
+    RegexpMatchMedium_32-12      104ns ± 1%     105ns ± 1%  +1.33%  (p=0.000 n=16+20)
+    RegexpMatchMedium_1K-12     33.6µs ± 3%    34.1µs ± 4%  +1.67%  (p=0.001 n=20+20)
+    RegexpMatchHard_32-12       1.67µs ± 1%    1.62µs ± 1%  -2.78%  (p=0.000 n=18+17)
+    RegexpMatchHard_1K-12       50.3µs ± 2%    48.7µs ± 1%  -3.09%  (p=0.000 n=19+18)
+    Revcomp-12                   384ms ± 0%     386ms ± 0%  +0.59%  (p=0.000 n=19+19)
+    Template-12                 61.1ms ± 1%    60.5ms ± 1%  -1.02%  (p=0.000 n=19+20)
+    TimeParse-12                 307ns ± 0%     303ns ± 1%  -1.23%  (p=0.000 n=19+15)
+    TimeFormat-12                323ns ± 0%     323ns ± 0%  -0.12%  (p=0.011 n=15+20)
+    [Geo mean]                  47.1µs         47.0µs       -0.20%
+    
+    https://perf.golang.org/search?q=upload:20171030.4
+    
+    It slightly improve the performance the x/benchmarks:
+    
+    name                         old time/op  new time/op  delta
+    Garbage/benchmem-MB=1024-12  2.29ms ± 3%  2.22ms ± 2%  -2.97%  (p=0.000 n=18+18)
+    Garbage/benchmem-MB=64-12    2.24ms ± 2%  2.21ms ± 2%  -1.64%  (p=0.000 n=18+18)
+    HTTP-12                      12.6µs ± 1%  12.6µs ± 1%    ~     (p=0.690 n=19+17)
+    JSON-12                      11.3ms ± 2%  11.3ms ± 1%    ~     (p=0.163 n=17+18)
+    
+    and fixes some of the heap size bloat caused by the previous commit:
+    
+    name                         old peak-RSS-bytes  new peak-RSS-bytes  delta
+    Garbage/benchmem-MB=1024-12          1.88G ± 2%          1.77G ± 2%  -5.52%  (p=0.000 n=20+18)
+    Garbage/benchmem-MB=64-12             248M ± 8%           226M ± 5%  -8.93%  (p=0.000 n=20+20)
+    HTTP-12                              47.0M ±27%          47.2M ±12%    ~     (p=0.512 n=20+20)
+    JSON-12                               206M ±11%           206M ±10%    ~     (p=0.841 n=20+20)
+    
+    https://perf.golang.org/search?q=upload:20171030.5
+    
+    Combined with the change to add a soft goal in the previous commit,
+    the achieves a decent performance improvement on the garbage
+    benchmark:
+    
+    name                         old time/op  new time/op  delta
+    Garbage/benchmem-MB=1024-12  2.40ms ± 4%  2.22ms ± 2%  -7.40%  (p=0.000 n=19+18)
+    Garbage/benchmem-MB=64-12    2.23ms ± 1%  2.21ms ± 2%  -1.06%  (p=0.000 n=19+18)
+    HTTP-12                      12.5µs ± 1%  12.6µs ± 1%    ~     (p=0.330 n=20+17)
+    JSON-12                      11.1ms ± 1%  11.3ms ± 1%  +1.87%  (p=0.000 n=16+18)
+    
+    https://perf.golang.org/search?q=upload:20171030.6
+    
+    Change-Id: If04ddb57e1e58ef2fb9eec54c290eb4ae4bea121
+    Reviewed-on: https://go-review.googlesource.com/59971
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go |  24 +----
- test/codegen/mathbits.go                | 164 +++++++++++++++++++-------------
- 2 files changed, 99 insertions(+), 89 deletions(-)
+ src/runtime/mgc.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,18 +1,24 @@
-commit 73a10bfcbb46e7b07fe0e0582b23b27d74a09ae6
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 16 22:12:41 2015 -0500
+commit 481ce36ec43dc699c6be18ec81dfce02ca24601c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 18 13:50:57 2014 -0800
 
-    cmd/dist: fix deadlock when compilation command fails
+    runtime: simplify cpuprof hash calculation
     
-    Can't use bgwait, both because it can only be used from
-    one goroutine at a time and because it ends up queued
-    behind all the other pending commands. Use a separate
-    signaling mechanism so that we can notice we're dying
-    sooner.
+    "x*41" computes the same value as "x*31 + x*7 + x*3" and (when
+    compiled by gc) requires just one multiply instruction instead of
+    three.
     
-    Change-Id: I8652bfa2f9bb5725fa5968d2dd6a745869d01c01
-    Reviewed-on: https://go-review.googlesource.com/3010
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Alternatively, the expression could be written as "(x<<2+x)<<3 + x" to
+    use shifts instead of multiplies (which is how GCC optimizes "x*41").
+    But gc currently emits suboptimal instructions for this expression
+    anyway (e.g., separate SHL+ADD instructions rather than LEA on
+    386/amd64). Also, if such an optimization was worthwhile, it would
+    seem better to implement it as part of gc's strength reduction logic.
+    
+    Change-Id: I7156b793229d723bbc9a52aa9ed6111291335277
+    Reviewed-on: https://go-review.googlesource.com/1830
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/util.go | 64 ++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 45 insertions(+), 19 deletions(-)
+ src/runtime/cpuprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

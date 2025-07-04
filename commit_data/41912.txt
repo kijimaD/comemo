@@ -1,25 +1,19 @@
-commit a1b802bde7ceab614dcf64e84f972cac5f1b2210
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Apr 10 21:38:49 2020 -0700
+commit 8405cd3005a5274e80e41676146629c4086b6380
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 1 13:49:20 2019 +0100
 
-    cmd/compile: move some generic rules to strongly typed
+    internal/syscall/unix: add support for linux/riscv64
     
-    Move a lot of the constant folding rules to use strongly
-    typed AuxInt fields.
+    Based on the riscv-go port.
     
-    We need more than a cast to convert AuxInt to, e.g., float32.
-    Make conversion functions for converting back and forth.
+    Updates #27532
     
-    Change-Id: Ia3d95ee3583ee2179a10938e20210a7617358c88
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227866
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I3a4d86783fbd625e3ade16d08f87d66e4502f3f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204660
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 243 ++++-----
- src/cmd/compile/internal/ssa/gen/rulegen.go    |  29 +-
- src/cmd/compile/internal/ssa/rewrite.go        |  67 ++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go   |  24 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 715 ++++++++++++++-----------
- 5 files changed, 621 insertions(+), 457 deletions(-)
+ src/internal/syscall/unix/at_sysnum_fstatat_linux.go |  2 +-
+ src/internal/syscall/unix/getrandom_linux_generic.go | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

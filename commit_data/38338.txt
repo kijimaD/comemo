@@ -1,17 +1,32 @@
-commit e2dc41b4909400341ec12058261206bb842cc2e0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat Mar 9 15:32:31 2019 +0100
+commit 553237aa67a3d0624715973a2dd3e4963e61995d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 22 14:07:36 2018 -0700
 
-    strings: remove unnecessary strings.s
+    go/types: report error for invalid use of ... in parameter lists
     
-    There are no empty function declarations in package strings anymore, so
-    strings.s is no longer needed.
+    The parser accepts ...T types in parameter lists whereever a type
+    is permitted; this matches the syntax and allows for more tolerant
+    parsing and error recovery.
     
-    Change-Id: I16fe161a9c06804811e98af0ca074f8f46e2f49d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166458
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    go/types on the other hand assumed that the parser would report
+    those errors and assumed any outstanding such errors would be due
+    to otherwise manipulated ASTs leading to invalid ASTs.
+    
+    go/types further assumed that a parameter list (a, b, c ...int)
+    was permitted (a couple of tests used such parameter lists).
+    
+    With this CL, go/types now correctly refuses invalid parameter lists.
+    
+    Fixes #28281.
+    
+    Change-Id: Ib788255f7b7819fdb972c7801bb153a53ce2ddf7
+    Reviewed-on: https://go-review.googlesource.com/c/143857
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/strings/strings.s | 5 -----
- 1 file changed, 5 deletions(-)
+ src/go/types/api_test.go         |  2 +-
+ src/go/types/testdata/issues.src | 11 +++++++++++
+ src/go/types/typestring_test.go  |  2 +-
+ src/go/types/typexpr.go          |  4 ++--
+ 4 files changed, 15 insertions(+), 4 deletions(-)

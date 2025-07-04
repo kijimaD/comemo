@@ -1,29 +1,16 @@
-commit 23f56c186d5a1dc198bdbb597b834ce208f09485
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Mar 30 01:23:20 2017 +0200
+commit 7799022cddf440f79463afdad969360a2ca86a9e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 16 18:45:55 2016 +0900
 
-    misc/cgo/testcshared: use the gold linker on android/arm64
+    net: clarify IP.IsGlobalUnicast docs
     
-    The gold linker is used by default in the Android NDK, except on
-    arm64:
+    Fixes #18181.
     
-    https://github.com/android-ndk/ndk/issues/148
-    
-    The Go linker already forces the use of the gold linker on arm and
-    arm64 (CL 22141) for other reasons. However, the test.bash script in
-    testcshared doesn't, resulting in linker errors on android/arm64:
-    
-    warning: liblog.so, needed by ./libgo.so, not found (try using -rpath or
-    -rpath-link)
-    
-    Add -fuse-ld=gold when running testcshared on Android. Fixes the
-    android/arm64 builder.
-    
-    Change-Id: I35ca96f01f136bae72bec56d71b7ca3f344df1ed
-    Reviewed-on: https://go-review.googlesource.com/38832
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: I5eed99dfb7b013aa4d4e668e95a97f5bb643d307
+    Reviewed-on: https://go-review.googlesource.com/34531
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testcshared/test.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/ip.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

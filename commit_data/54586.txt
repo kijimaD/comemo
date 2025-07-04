@@ -1,28 +1,18 @@
-commit deb8e29000ebecbd788e0e86e239d52c26707457
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Wed Sep 20 15:45:08 2023 -0400
+commit 07a70bcabb3c81a2f97e894a6910d95b19d6b074
+Author: ishwargowda <ishwargowda100@gmail.com>
+Date:   Wed Nov 2 14:19:36 2022 +0000
 
-    log/slog: JSONHandler elides empty groups even with replacement
+    go/parser: add missing parenthesis in a comment
     
-    Previously, the built-in handlers assumed a group was empty if and
-    only if it had no attributes. But a ReplaceAttr function that
-    returned an empty Attr could produce an empty group even if the group
-    had attrs prior to replacement.
-    
-    The obvious solution, doing the replacement first and then checking,
-    would require allocating storage to hold the replaced Attrs.  Instead,
-    we write to the buffer, and if no attributes were written, we back up
-    to before the group name.
-    
-    Fixes #62512.
-    
-    Change-Id: I140e0901f4b157e36594d8d476f1ab326f8f2c2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529855
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I30783aa6a13ad8348fa24b27672d542a868f96de
+    GitHub-Last-Rev: c4584ad9dab9736275c2f2554affb6af214f82dd
+    GitHub-Pull-Request: golang/go#56526
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447217
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/log/slog/handler.go                | 59 +++++++++++++++++++++++++++-------
- src/log/slog/handler_test.go           | 31 ++++++++++++++++--
- src/log/slog/internal/buffer/buffer.go | 10 +++++-
- 3 files changed, 84 insertions(+), 16 deletions(-)
+ src/go/parser/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

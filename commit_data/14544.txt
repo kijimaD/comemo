@@ -1,21 +1,15 @@
-commit cc3f21cefeb24c214487d89ebe50818c08e37d88
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 3 14:23:41 2012 -0800
+commit b1c4a8efa998e0d6b6eb423ad441b349968233be
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 3 14:04:18 2012 +0100
 
-    spec: channel operations are restricted by the channel direction
+    bytes: avoid duplicate malloc/copy in Buffer.ReadString
     
-    Also:
-    - 'for' statements with a range clause do not accept send-only
-       channels
-    - '_, _ = range ch' is not equivalent to "_ = range ch" if ch
-       is a channel (rewriting the latter to the former leads to
-       an invalid range clause).
+    Twice faster and twice less garbage.
     
-    These clarifications document the status quo.
-    
-    R=rsc, r, iant, ken
+    R=golang-dev, dave, daniel.morsing, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6874053
+    https://golang.org/cl/6849128
 
- doc/go_spec.html | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
+ src/pkg/bytes/buffer.go      | 24 ++++++++++++++++--------
+ src/pkg/bytes/buffer_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 8 deletions(-)

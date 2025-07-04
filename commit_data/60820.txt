@@ -1,0 +1,19 @@
+commit 7303a283c4e8aa734463ec85d90dd0732b826c71
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Sep 1 00:55:35 2024 +0000
+
+    testing: skip TestChdir/relative when on Windows when GOROOT and TMPDIR are on different drives
+    
+    Fixes #69159
+    
+    Change-Id: I0bbcf7075bdcf7a277a5053bcb543563a3074784
+    GitHub-Last-Rev: 86052a9ce32a871d6ad62f772f22852b2c6139a6
+    GitHub-Pull-Request: golang/go#69160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609304
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/testing/testing_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

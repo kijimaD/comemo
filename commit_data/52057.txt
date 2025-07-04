@@ -1,18 +1,15 @@
-commit f07fafacef04e8a8eaf2c8d2e1a14dc88e8683ee
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Jan 9 05:22:20 2023 +1100
+commit 2e8dc8f4725c84d352b718620628a4fb0f86e748
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Wed Mar 30 20:19:52 2022 -0700
 
-    cmd/internal/obj/arm64: use more appropriate types for olsr12u
+    cmd/pprof: point to -h in package documentation
     
-    This allows for a large number of casts to be removed at call sites.
-    
-    Change-Id: Id929f6c7155b0b59a2bcdf43144de95a007b8a48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461139
+    Change-Id: I820c72e31fbb6471481f4483e7f13bb8b3d5d00c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396881
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Eli Bendersky‎ <eliben@golang.org>
+    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 42 +++++++++++++++++++-------------------
- 1 file changed, 21 insertions(+), 21 deletions(-)
+ src/cmd/pprof/doc.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

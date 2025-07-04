@@ -1,25 +1,21 @@
-commit df218d33935e1d5d4e535080e01cd83e6a508efa
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 13 13:44:39 2015 -0800
+commit a8e5e803e68c11fe812fa5d2d1ecefc0ffa73ef7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 21 12:09:20 2015 -0500
 
-    math/big: implement/rename accessors for precision and rounding mode
+    [dev.cc] cmd/dist: write cmd/internal/obj/zbootstrap.go
     
-    Also: remove NewFloat - not needed anymore. Work-around for places
-    where has been used so far:
+    cmd/internal/obj needs information about the default
+    values of GOROOT, GOARM, GOEXPERIMENT, Version, and so on.
+    It cannot ask package runtime, because during bootstrap
+    package runtime comes from Go 1.4.
+    So it must have its own copy.
     
-    NewFloat(x, prec, mode) === new(Float).SetMode(mode).SetPrec(prec).SetFloat64(x)
-    
-    However, if mode == ToNearestEven, SetMode is not needed. SetPrec
-    is needed if the default precision (53 after SetFloat64) is not
-    adequate.
-    
-    TBR adonovan
-    
-    Change-Id: Ifda12c479ba157f2dea306c32b47c7afbf31e759
-    Reviewed-on: https://go-review.googlesource.com/4842
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I73d3e75a3d47210b3184a51a810ebb44826b81e5
+    Reviewed-on: https://go-review.googlesource.com/3140
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/float.go      | 55 ++++++++++++++++++-----------------
- src/math/big/float_test.go | 71 +++++++++++++++++++++++-----------------------
- src/math/big/floatconv.go  |  4 +--
- 3 files changed, 67 insertions(+), 63 deletions(-)
+ .gitignore                   |  1 +
+ src/cmd/dist/buildruntime.go | 28 ++++++++++++++++++++++++++++
+ src/cmd/dist/buildtool.go    |  2 ++
+ 3 files changed, 31 insertions(+)

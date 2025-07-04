@@ -1,15 +1,24 @@
-commit 7a6fc1f30bc7339726cd3f93f96be3e0d36ff7cb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 13 16:00:34 2018 +0000
+commit d0712096b32d032b0b83a5eb899a7359a830732b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 12 10:27:42 2018 +0200
 
-    net/http: update request cancelation docs
+    runtime: use internal/cpu.X86.HasAVX2 instead of support_avx2
     
-    Fixes #26101
+    After CL 104636 cpu.X86.HasAVX is set early enough that it can be used
+    in runtime·memclrNoHeapPointers. Add an offset to use in assembly and
+    replace the only occurence of support_avx2.
     
-    Change-Id: Id4def032b846257d2de992b7561ac90a17e08b91
-    Reviewed-on: https://go-review.googlesource.com/129155
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: Icada62efeb3e24d71251d55623a8a8602364c9a8
+    Reviewed-on: https://go-review.googlesource.com/106595
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
 
- src/net/http/client.go  | 8 +++-----
- src/net/http/request.go | 4 ++++
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ src/runtime/asm_386.s         | 10 +---------
+ src/runtime/asm_amd64.s       | 10 +---------
+ src/runtime/asm_amd64p32.s    | 10 +---------
+ src/runtime/cpuflags_amd64.go | 10 +++++++++-
+ src/runtime/memclr_amd64.s    |  3 ++-
+ src/runtime/runtime2.go       |  1 -
+ 6 files changed, 14 insertions(+), 30 deletions(-)

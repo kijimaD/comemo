@@ -1,21 +1,12 @@
-commit 4e4eca261817c80c77ebe0b8522df8b0746cf10b
+commit 28c06182c0fdda38f63e7e8696e7a9f939dd40d3
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 22:21:33 2011 -0700
+Date:   Tue Oct 25 22:21:14 2011 -0700
 
-    fmt: use rune
+    exp/winfsnotify: fix govet-found bug
     
-    Lots of internal edits.
-    
-    Formatter and Scanner interfaces change
-    (clients to be checked by govet).
-    
-    R=r
+    R=golang-dev, hectorchu
     CC=golang-dev
-    https://golang.org/cl/5305045
+    https://golang.org/cl/5304044
 
- src/pkg/fmt/fmt_test.go  |   6 +--
- src/pkg/fmt/format.go    |  10 ++--
- src/pkg/fmt/print.go     |  44 ++++++++--------
- src/pkg/fmt/scan.go      | 131 ++++++++++++++++++++++++-----------------------
- src/pkg/fmt/scan_test.go |  15 +++---
- 5 files changed, 103 insertions(+), 103 deletions(-)
+ src/pkg/exp/winfsnotify/winfsnotify_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

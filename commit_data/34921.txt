@@ -1,19 +1,16 @@
-commit 80bbad015d2f3f9407873c1657839a8a61d5f433
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 10 15:13:49 2018 -0700
+commit c3aeeef584abb98e9d442193ab37bc89a5f5300b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 29 11:38:03 2017 +0100
 
-    cmd/compile: omit unnecessary interface method expression wrappers
+    syscall: add missing err check in test
     
-    We'll always generate method expression wrappers for declared
-    interface types in their own package, so no need to generate them in
-    downstream packages.
+    Follow CL 75810 which did the same for x/sys/unix.
     
-    Noticed by gri@ while looking into #21282.
-    
-    Change-Id: I4fb7051b4e15297933da05fdd2b111d6b8f4178e
-    Reviewed-on: https://go-review.googlesource.com/106175
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I6314a97989631d589369c7b6001d1523ec2cc242
+    Reviewed-on: https://go-review.googlesource.com/80555
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/subr.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/syscall/syscall_unix_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

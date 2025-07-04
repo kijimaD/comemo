@@ -1,31 +1,35 @@
-commit 7e1af3bf741862deb91f048a92e91d3b31301f90
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sun Nov 17 18:38:29 2024 +0100
+commit 67fb851bd5daec80a68287358b078035e48ce84e
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Thu Oct 5 21:55:06 2023 +0000
 
-    crypto/internal/fips: handle the one possible PCT failure
+    encoding/json: fix appendCompact escaping
     
-    Since ECDSA private keys are irredeemably malleable, an application
-    could construct one where the public key doesn't match the private key.
-    They'd be very much on their own, but crashing the program feels a bit
-    harsh.
+    CL 469555 changed Compact to use append instead of bytes.Buffer.
     
-    Add this one to the list of issues caused by exposing the ECDSA (and
-    RSA) key values as big.Ints.
+    appendCompact iterates over input src slice and performs escaping
+    of certain characters.
+    To optimize copying it does not copy characters one by one
+    but keeps track of the start offset of the data to copy when
+    it reaches next character to escape or the end of the input.
     
-    For #69536
+    This start offset may become greater than input character offset
+    so copying of preceding data should check this condition.
     
-    Change-Id: Iaa65c73d7145e74f860ca097fa9641448442fbf9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628855
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    CL 469555 removed boundary checks for copying data preceding
+    escaped characters and this change restores them.
+    
+    Fixes https://github.com/golang/go/issues/63379
+    
+    Change-Id: I5b7856239f256c67faf58834705675c0aea08cc2
+    GitHub-Last-Rev: 661576fb54951a05a8399beb3f9ac2a2f9a340b4
+    GitHub-Pull-Request: golang/go#63400
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533275
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/internal/fips/cast.go            | 54 +++++++++++++++++++++--------
- src/crypto/internal/fips/ecdh/ecdh.go       |  6 ++--
- src/crypto/internal/fips/ecdsa/cast.go      | 14 ++++----
- src/crypto/internal/fips/ecdsa/ecdsa.go     | 11 ++++--
- src/crypto/internal/fips/mlkem/mlkem1024.go | 10 ++++--
- src/crypto/internal/fips/mlkem/mlkem768.go  | 10 ++++--
- src/crypto/internal/fipstest/cast_test.go   | 11 +++---
- 7 files changed, 81 insertions(+), 35 deletions(-)
+ src/encoding/json/encode_test.go | 26 ++++++++++++++++++++++++++
+ src/encoding/json/indent.go      | 18 +++++++++++++-----
+ 2 files changed, 39 insertions(+), 5 deletions(-)

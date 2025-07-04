@@ -1,20 +1,33 @@
-commit 54bb4dc3906578403aca1c57b482761a6824f079
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 29 10:07:47 2014 -0500
+commit e9c57d8a2d7833a66a511888c4744e058bc68967
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Nov 21 19:39:01 2014 +0100
 
-    runtime: use typed memmove (write barriers) for chan, map, interface content
+    [dev.cc] runtime: convert Plan 9 port to Go
     
-    Found with GODEBUG=wbshadow=2 mode.
-    Eventually that will run automatically, but right now
-    it still detects other missing write barriers.
+    Thanks to Aram Hăvărneanu, Nick Owens
+    and Russ Cox for the early reviews.
     
-    Change-Id: Iea83d693480c2f3008b4e80d55821acff65970a6
-    Reviewed-on: https://go-review.googlesource.com/2277
-    Reviewed-by: Keith Randall <khr@golang.org>
+    LGTM=aram, rsc
+    R=rsc, lucio.dere, aram, ality
+    CC=golang-codereviews, mischief
+    https://golang.org/cl/175370043
 
- src/runtime/chan.go    |  8 ++++----
- src/runtime/hashmap.go | 16 ++++++++--------
- src/runtime/iface.go   | 49 ++++++++++++++++++++++++++++++++-----------------
- src/runtime/mgc0.go    |  9 +++++----
- src/runtime/select.go  |  8 ++++----
- 5 files changed, 53 insertions(+), 37 deletions(-)
+ src/runtime/defs_plan9_386.go                    |   2 +
+ src/runtime/defs_plan9_amd64.go                  |   2 +
+ src/runtime/env_plan9.go                         |   3 +
+ src/runtime/mem_plan9.c                          | 121 --------
+ src/runtime/mem_plan9.go                         |  70 +++++
+ src/runtime/{netpoll_stub.c => netpoll_stub.go}  |   9 +-
+ src/runtime/os1_plan9.go                         | 270 +++++++++++++++++
+ src/runtime/os2_plan9.go                         |  72 +++++
+ src/runtime/os_plan9.c                           | 362 -----------------------
+ src/runtime/os_plan9.go                          |  27 ++
+ src/runtime/os_plan9.h                           |  93 ------
+ src/runtime/os_plan9_386.c                       | 150 ----------
+ src/runtime/os_plan9_386.go                      | 131 ++++++++
+ src/runtime/os_plan9_amd64.c                     | 158 ----------
+ src/runtime/os_plan9_amd64.go                    | 139 +++++++++
+ src/runtime/{signals_plan9.h => signal_plan9.go} |  57 ++--
+ src/runtime/stubs2.go                            |   1 +
+ src/runtime/stubs3.go                            |  12 +
+ 18 files changed, 756 insertions(+), 923 deletions(-)

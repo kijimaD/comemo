@@ -1,19 +1,36 @@
-commit 0f2cde8bdc9a6f31bc6a8ebbd0b078d9c49acb23
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Fri Jul 25 11:22:58 2014 +0400
+commit 43ad89d627ece6d95529a51eeba67b8748039103
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 25 10:28:39 2014 +1000
 
-    cmd/gc: don't mark select descriptor as EscNone
+    doc: drop scheme from links that are known to support HTTPS
     
-    selv is created with temp() which calls tempname, which marks
-    the new n with EscNever, so there is no need to explicitly set
-    EscNone on the select descriptor.
+    golang.org now serves HTTPS with a valid cert, so it's reasonable
+    that users should click through to the HTTPS versions of *.golang.org
+    and other known sites.
     
-    Fixes #8396.
-    
-    LGTM=dvyukov
-    R=golang-codereviews, dave, dvyukov
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/112520043
+    https://golang.org/cl/112650043
 
- src/cmd/gc/select.c | 1 -
- 1 file changed, 1 deletion(-)
+ doc/cmd.html              |  6 ++---
+ doc/code.html             | 16 ++++++------
+ doc/contrib.html          | 10 +++----
+ doc/devel/release.html    | 66 +++++++++++++++++++++++------------------------
+ doc/devel/weekly.html     |  2 +-
+ doc/docs.html             | 16 ++++++------
+ doc/effective_go.html     |  8 +++---
+ doc/gccgo_contribute.html |  6 ++---
+ doc/go1.1.html            |  2 +-
+ doc/go1.2.html            | 10 +++----
+ doc/go1.3.html            | 14 +++++-----
+ doc/go1.html              | 12 ++++-----
+ doc/go1compat.html        |  2 +-
+ doc/go_faq.html           | 38 +++++++++++++--------------
+ doc/go_spec.html          |  2 +-
+ doc/help.html             |  8 +++---
+ doc/install-source.html   | 14 +++++-----
+ doc/install.html          |  4 +--
+ doc/root.html             |  8 +++---
+ doc/tos.html              |  4 +--
+ 20 files changed, 124 insertions(+), 124 deletions(-)

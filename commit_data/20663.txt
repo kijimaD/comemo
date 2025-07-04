@@ -1,24 +1,21 @@
-commit dcc4a674d85fc2b0a434d71c1a504ebc559118bf
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 7 15:21:00 2014 -0700
+commit f6fc14094a476d2e23722f124cfcd8204c2659b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Sep 28 08:27:05 2014 -0700
 
-    runtime: zero pointer-looking scalararg values
+    cmd/ld: don't automatically mark symbols created by -X as reachable
     
-    I have a CL which at every gc looks through data and bss
-    sections for nonpointer data (according to gc maps) that
-    looks like a pointer.  These are potential missing roots.
+    This fixes the bug in which the linker reports "missing Go
+    type information" when a -X option refers to a symbol that is
+    not used.
     
-    The only thing it finds are begnign, storing stack pointers
-    into m0.scalararg[1] and never cleaning them up.  Let's
-    clean them up now so the test CL passes all.bash cleanly.
+    Fixes #8821.
     
-    The test CL can't be checked in because we might store
-    pointer-looking things in nonpointer data by accident.
-    
-    LGTM=iant
-    R=golang-codereviews, iant, khr
+    LGTM=rsc
+    R=rsc, r
     CC=golang-codereviews
-    https://golang.org/cl/153210043
+    https://golang.org/cl/151000043
 
- src/runtime/panic.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/ld/data.c | 9 +++++++--
+ src/cmd/ld/lib.c  | 4 +++-
+ test/linkx.go     | 2 +-
+ 3 files changed, 11 insertions(+), 4 deletions(-)

@@ -1,23 +1,35 @@
-commit 0bf545e51f5303ddedb0ea60f02ff221ac088fc7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 22 14:41:57 2022 -0700
+commit 8165256bc2e3298b0d612471d7d2e6c005b984de
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 23 12:08:42 2021 -0700
 
-    regexp/syntax: rename ErrInvalidDepth to ErrNestingDepth
+    [dev.typeparams] cmd/compile/internal/syntax: go/ast-style walk API
     
-    The proposal accepted the name ErrNestingDepth.
+    This CL adds go/ast's Visitor, Walk, and Inspect functions to package
+    syntax. Having functions with the same API and semantics as their
+    go/ast counterparts reduces the mental load of context switching
+    between go/ast and syntax.
     
-    For #51684
+    It also renames the existing Walk function into Crawl, and marks it as
+    a deprecated wrapper around Inspect. (I named it "Crawl" because it's
+    less functional than "Walk"... get it??)
     
-    Change-Id: I702365f19e5e1889dbcc3c971eecff68e0b08727
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401854
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    There aren't that many callers to Crawl, so we can probably remove it
+    in the future. But it doesn't seem pressing, and I'm more concerned
+    about the risk of forgetting to invert a bool condition somewhere.
+    
+    Change-Id: Ib2fb275873a1d1a730249c9cb584864cb6ec370e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330429
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- api/next/51684.txt         | 4 ++--
- src/regexp/syntax/parse.go | 8 ++++----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go            |  2 +-
+ src/cmd/compile/internal/noder/quirks.go           |  8 +--
+ src/cmd/compile/internal/noder/writer.go           | 14 ++---
+ src/cmd/compile/internal/syntax/walk.go            | 72 +++++++++++++++++-----
+ src/cmd/compile/internal/types2/errorcalls_test.go |  2 +-
+ src/cmd/compile/internal/types2/issues_test.go     |  2 +-
+ src/cmd/compile/internal/types2/resolver_test.go   |  4 +-
+ 7 files changed, 74 insertions(+), 30 deletions(-)

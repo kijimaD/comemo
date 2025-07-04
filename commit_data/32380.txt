@@ -1,18 +1,50 @@
-commit 6f0b1aa0e29b2526592b47ba04c8a4d507e4f05d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 18 11:44:21 2017 -0400
+commit 4d600b8e5f7c50283ba71978a63700b219b5c80d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 13:48:15 2017 -0700
 
-    cmd/go: test and fix missing deep dependencies in list Deps output
+    cmd/compile: convert dxxx to dxxxLSym
     
-    Fixes #21522.
+    This is an automated refactoring to eliminate
+    all dxxx calls in gc/obj.go that accept types.Sym
+    instead of obj.LSym parameters.
     
-    Change-Id: Ifec1681b265576c47a4d736f6f124cc25485c593
-    Reviewed-on: https://go-review.googlesource.com/57011
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The refactoring was of the form:
+    
+    gorename -from '"cmd/compile/internal/gc".duintxx' -to Duintxx
+    gorename -from '"cmd/compile/internal/gc".duintxxLSym' -to DuintxxLSym
+    eg -t t.go -w cmd/compile/internal/gc
+    gofmt -r 'DuintxxLSym -> duintxxLSym' -w cmd/compile/internal/gc
+    
+    where t.go looked like:
+    
+    func before(s *types.Sym, off int, v uint64, wid int) int {
+            return gc.Duintxx(s, off, v, wid)
+    }
+    
+    func after(s *types.Sym, off int, v uint64, wid int) int {
+            return gc.DuintxxLSym(s.Linksym(), off, v, wid)
+    }
+    
+    The rename/gofmt shenanigans were to work around
+    limitations and bugs in eg and gorename.
+    
+    The resulting code in reflect.go looks temporarily ugly,
+    but it makes refactoring and cleanup opportunities
+    much clearer.
+    
+    Next step is to rename all the dxxx methods to rename the -LSym suffix
+    and clean up reflect.go.
+    
+    The renaming is left for a separate CL to make the changes in
+    this CL more obvious, and thus hopefully easier to review.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ib31a2b6fd146ed03a855d20ecb0433f0f74e2f10
+    Reviewed-on: https://go-review.googlesource.com/41396
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/deps_test.go       |  6 ++++++
- src/cmd/go/go_test.go           | 14 ++++++++++++++
- src/cmd/go/internal/load/pkg.go | 35 ++++++++++++++++++++---------------
- 3 files changed, 40 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/obj.go     |  46 ++++-------
+ src/cmd/compile/internal/gc/reflect.go | 136 ++++++++++++++++-----------------
+ 2 files changed, 81 insertions(+), 101 deletions(-)

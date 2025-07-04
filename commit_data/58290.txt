@@ -1,17 +1,16 @@
-commit eab49f6a597a8224929232d5ecaba0281ceaa948
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Nov 26 15:13:49 2024 -0800
+commit 983d90e11dd0e12a484def454530fe9f5de031fc
+Author: Nakul Bajaj <nbajaj@umich.edu>
+Date:   Tue Oct 17 23:24:20 2023 -0700
 
-    doc: add note about crypto/x509 serial generation
+    testing/slogtest: test no source key with empty PC in record
     
-    Fixes #67675
+    Fixes #62280
     
-    Change-Id: I102c779c2a0ccaf6572be354fec3153a0a0a32eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631683
+    Change-Id: Ideaffb797d8bb9cc70e635f0b019ae3cb90abc92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536117
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
 
- doc/next/6-stdlib/99-minor/crypto/x509/67675.md | 3 +++
- 1 file changed, 3 insertions(+)
+ src/testing/slogtest/slogtest.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,15 +1,28 @@
-commit 4ee85e67e127b6679d461f1d4ae836afdf4251f4
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Mon Apr 8 15:49:58 2019 +0200
+commit 984be3b0f8388161e166039de8b7ac5383a76d10
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 16 10:11:47 2018 -0500
 
-    misc/cgo/testcshared: support testing on self-hosted android
+    go/internal/gccgoimporter: enhance for new export data, fix test issues
     
-    Only invoke adb for android if we're not running on android already.
+    This patch merges in support for reading indexed type export data,
+    from the gofrontend CL https://golang.org/cl/143022 (which includes
+    a change in the export data version number from V2 to V3).
     
-    Change-Id: I4eb94286a5bf09b382716a0474f3aebec40f5d74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170953
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Also fixes the key tests to insure that they run both in gccgo builds
+    and main Go repo builds if "gccgo" is present (prior to this the tests
+    were not running in either scenario); this required fixing up some of
+    the expected results.
+    
+    Fixes #28961.
+    
+    Change-Id: I644d171f2a46be9160f89dada06ab3c20468bab7
+    Reviewed-on: https://go-review.googlesource.com/c/149957
+    Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ .../gccgoimporter/gccgoinstallation_test.go        |  13 +-
+ src/go/internal/gccgoimporter/importer.go          |   5 +-
+ src/go/internal/gccgoimporter/importer_test.go     |  62 +++---
+ src/go/internal/gccgoimporter/parser.go            | 218 +++++++++++++++++----
+ src/go/internal/gccgoimporter/parser_test.go       |   3 +-
+ 5 files changed, 214 insertions(+), 87 deletions(-)

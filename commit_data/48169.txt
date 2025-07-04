@@ -1,41 +1,19 @@
-commit 0b321c9a7c0055dfd3f875dea930a28690659211
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Feb 8 16:45:14 2022 -0500
+commit 32dbaac572f9aed4fbaa6aa359bdc821fa02e9d4
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Apr 29 14:28:43 2021 +0000
 
-    runtime/internal/syscall: new package for linux
+    cmd/compile/internal/walk: merge operations when calling ir.NewSlic…
     
-    Add a generic syscall package for use by the runtime. Eventually we'd
-    like to clean up system calls in the runtime to use more code generation
-    and be moved out of the main runtime package.
-    
-    The implementations of the assembly functions are based on copies of
-    syscall.RawSyscall6, modified slightly for more consistency between
-    arches. e.g., renamed trap to num, always set syscall num register
-    first.
-    
-    For now, this package is just the bare minimum needed for
-    doAllThreadsSyscall to make an arbitrary syscall.
-    
-    For #51087.
-    For #50113.
-    
-    Change-Id: Ibecb5e6303279ce15286759e1cd6a2ddc52f7c72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383999
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I55ef35a9d8157063c4a41b23cd1ac0002838d30a
+    GitHub-Last-Rev: e716c5200545a944313ae0d995fcb6eb17d2720e
+    GitHub-Pull-Request: golang/go#45814
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314569
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/base/base.go            |  3 ++-
- src/go/build/deps_test.go                        |  1 +
- src/runtime/internal/syscall/asm_linux_386.s     | 34 ++++++++++++++++++++++++
- src/runtime/internal/syscall/asm_linux_amd64.s   | 33 +++++++++++++++++++++++
- src/runtime/internal/syscall/asm_linux_arm.s     | 32 ++++++++++++++++++++++
- src/runtime/internal/syscall/asm_linux_arm64.s   | 29 ++++++++++++++++++++
- src/runtime/internal/syscall/asm_linux_mips64x.s | 29 ++++++++++++++++++++
- src/runtime/internal/syscall/asm_linux_mipsx.s   | 34 ++++++++++++++++++++++++
- src/runtime/internal/syscall/asm_linux_ppc64x.s  | 29 ++++++++++++++++++++
- src/runtime/internal/syscall/asm_linux_riscv64.s | 29 ++++++++++++++++++++
- src/runtime/internal/syscall/asm_linux_s390x.s   | 28 +++++++++++++++++++
- src/runtime/internal/syscall/syscall_linux.go    | 12 +++++++++
- 12 files changed, 292 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/walk/builtin.go | 35 ++++++++++++--------------------
+ 1 file changed, 13 insertions(+), 22 deletions(-)

@@ -1,24 +1,23 @@
-commit 3cb92fcba71f9c0d64b3b714fc92870065848345
-Author: Aman Gupta <aman@tmm1.net>
-Date:   Tue Apr 2 04:35:50 2019 -0700
+commit 55e1fc930b3a4efe4ac8ad74ff7844be4c7ef162
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 16 10:43:21 2018 -0500
 
-    cmd/link/internal/ld: fix c-archive mach-o compatibility
+    cmd/vet: reenable cgo test
     
-    These workarounds predate proper DWARF support
-    and are no longer necessary.
+    The reason the 386 trybot was happy but 'GOARCH=386 go test cmd/vet'
+    was not is that CgoEnabled defaults to false in a cross build;
+    I have no idea why. Now we ask the go command for the effective
+    value so that the test works in both cases.
     
-    Before this patch, running `/usr/bin/symbols go.o`
-    using the object in the c-archive would fail, causing
-    App Store rejections.
+    Also, remove stale comment.
     
-    Fixes #31022 #28997
+    Fixes #28829
     
-    Change-Id: I6a210b6369c13038777c6e21e874e81afcb50c2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170377
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1210af34da6986f47924059de5c1f08b2824ace9
+    Reviewed-on: https://go-review.googlesource.com/c/149958
+    Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/dwarf_test.go        | 20 ++++++++++++++++++++
- src/cmd/link/internal/ld/macho.go |  8 ++------
- 2 files changed, 22 insertions(+), 6 deletions(-)
+ src/cmd/vet/vet_test.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

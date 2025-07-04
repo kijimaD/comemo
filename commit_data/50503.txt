@@ -1,30 +1,41 @@
-commit e4a2c38af5bdae12591004c3d35762d23da7a9bd
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 5 14:15:03 2022 -0400
+commit 3aecb3a8f7e1435c76003a20068c0208fd73649a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 8 21:42:01 2021 +0000
 
-    cmd/go, testing: add go test -skip flag
+    runtime: fix sweep termination condition
     
-    For proposal #41583, add a new 'go test -skip' flag to make it easy
-    to disable specific tests, benchmarks, examples, or fuzz targets.
+    Currently, there is a chance that the sweep termination condition could
+    flap, causing e.g. runtime.GC to return before all sweep work has not
+    only been drained, but also completed. CL 307915 and CL 307916 attempted
+    to fix this problem, but it is still possible that mheap_.sweepDrained is
+    marked before any outstanding sweepers are accounted for in
+    mheap_.sweepers, leaving a window in which a thread could observe
+    isSweepDone as true before it actually was (and after some time it would
+    revert to false, then true again, depending on the number of outstanding
+    sweepers at that point).
     
-    Fixes #41583.
+    This change fixes the sweep termination condition by merging
+    mheap_.sweepers and mheap_.sweepDrained into a single atomic value.
     
-    Change-Id: Id12a6575f505dafdce4a149aedc454a002e93afa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421439
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    This value is updated such that a new potential sweeper will increment
+    the oustanding sweeper count iff there are still outstanding spans to be
+    swept without an outstanding sweeper to pick them up. This design
+    simplifies the sweep termination condition into a single atomic load and
+    comparison and ensures the condition never flaps.
+    
+    Updates #46500.
+    Fixes #45315.
+    
+    Change-Id: I6d69aff156b8d48428c4cc8cfdbf28be346dbf04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333389
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/alldocs.go                    |  9 +++
- src/cmd/go/internal/test/flagdefs.go     |  1 +
- src/cmd/go/internal/test/test.go         |  9 +++
- src/cmd/go/internal/test/testflag.go     |  1 +
- src/cmd/go/testdata/script/test_skip.txt | 34 ++++++++++++
- src/testing/benchmark.go                 |  2 +-
- src/testing/fuzz.go                      |  6 +-
- src/testing/helper_test.go               |  6 +-
- src/testing/match.go                     | 50 +++++++++++++----
- src/testing/match_test.go                | 95 ++++++++++++++++++++------------
- src/testing/sub_test.go                  |  6 +-
- src/testing/testing.go                   | 17 +++++-
- 12 files changed, 177 insertions(+), 59 deletions(-)
+ src/runtime/mcentral.go         |  91 ++++++++---------
+ src/runtime/mgc.go              |  12 ++-
+ src/runtime/mgcsweep.go         | 214 +++++++++++++++++++++++++++-------------
+ src/runtime/mheap.go            |  11 ++-
+ src/runtime/pprof/mprof_test.go |  11 ---
+ 5 files changed, 208 insertions(+), 131 deletions(-)

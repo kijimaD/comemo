@@ -1,18 +1,16 @@
-commit 07bcfe574593eea878e187c99e2d7aa17798eef5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 3 11:27:32 2018 -0700
+commit e21a749af171d0b3c3abffded56b3d9a4e03b7eb
+Author: Yann Hodique <yhodique@google.com>
+Date:   Wed Apr 11 19:57:17 2018 +0000
 
-    cmd/go: don't crash in go fmt on invalid input when using modules
+    cmd/go: fix typo in test inputs descriptor
     
-    Fixes #26792
+    Presumably each line in the descriptor should match the corresponding operation.
     
-    Change-Id: I9a878180af28e3939b654fd88bed150010dffde0
-    Reviewed-on: https://go-review.googlesource.com/127856
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7726befcd62147324764d15c26e737357122be51
+    GitHub-Last-Rev: 85e610e3045950b8688a7a506b37a2a92ac7445c
+    GitHub-Pull-Request: golang/go#24807
+    Reviewed-on: https://go-review.googlesource.com/106355
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/fmtcmd/fmt.go                |  2 +-
- src/cmd/go/testdata/script/mod_gofmt_invalid.txt | 13 +++++++++++++
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/test/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

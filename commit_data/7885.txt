@@ -1,25 +1,16 @@
-commit 7f9acb53cb15ecea79dd6ed5ec117429b5919abb
-Author: Rob Pike <r@golang.org>
-Date:   Sat Mar 26 11:25:22 2011 -0700
+commit d607cb289d8a3c762a5d760274895129d6cc2dd0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 26 11:24:02 2011 -0700
 
-    testing: shorten some more tests
+    test: match gccgo error messages for init.go
     
-    R=rsc
+    init.go:16:10: error: invalid reference to unexported identifier ‘runtime.init’
+    init.go:15:2: error: reference to undefined name ‘init’
+    init.go:17:10: error: reference to undefined name ‘init’
+    
+    R=golang-dev, rsc1
     CC=golang-dev
-    https://golang.org/cl/4314044
+    https://golang.org/cl/4289074
 
- src/pkg/archive/tar/writer_test.go            |  3 +++
- src/pkg/big/int_test.go                       | 11 +++++++++--
- src/pkg/container/vector/numbers_test.go      |  9 +++++++++
- src/pkg/crypto/elliptic/elliptic_test.go      |  3 +++
- src/pkg/crypto/tls/handshake_messages_test.go |  6 +++++-
- src/pkg/exp/eval/eval_test.go                 |  8 ++++++--
- src/pkg/fmt/fmt_test.go                       |  3 +++
- src/pkg/go/printer/printer_test.go            |  7 +++++--
- src/pkg/image/png/reader_test.go              | 12 +++++++++++-
- src/pkg/image/png/writer_test.go              |  6 +++++-
- src/pkg/json/decode_test.go                   |  1 +
- src/pkg/json/scanner_test.go                  | 25 ++++++++++++++++++++-----
- src/pkg/netchan/netchan_test.go               |  2 +-
- src/pkg/utf8/string_test.go                   | 11 ++++++++---
- 14 files changed, 89 insertions(+), 18 deletions(-)
+ test/init.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

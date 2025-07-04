@@ -1,17 +1,28 @@
-commit 2abe5ceb1968edb882c8318af674c4133dd0bb75
-Author: Sean Liao <sean@liao.dev>
-Date:   Mon Mar 10 19:41:09 2025 +0000
+commit ae457e811d44261801bda261731b5006d629930d
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Jan 24 11:22:14 2024 +0800
 
-    testing: warn against calling Log after a test completes
+    net/textproto: reject HTTP requests with empty header keys
     
-    Fixes #40343
+    According to RFC 7230, empty field names in HTTP header are invalid.
+    However, there are no specific instructions for developers to deal
+    with that kind of case in the specification. CL 11242 chose to skip
+    it and do nothing about it, which now seems like a bad idea because
+    it has led `net/http` to behave inconsistently with the most widely-used
+    HTTP implementations: Apache, Nginx, Node with llhttp, H2O, Lighttpd, etc.
+    in the case of empty header keys.
     
-    Change-Id: Id266f4b57131e9e148e5aa2be86b67fe6d73b20a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656415
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    There is a very small chance that this CL will break a few existing HTTP clients.
+    
+    Fixes #65244
+    
+    Change-Id: Ie01e9a6693d27caea4d81d1539345cf42b225535
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558095
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/testing/testing.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/http/serve_test.go       |  4 ++++
+ src/net/textproto/reader.go      | 11 ++++-------
+ src/net/textproto/reader_test.go |  5 +++--
+ 3 files changed, 11 insertions(+), 9 deletions(-)

@@ -1,34 +1,29 @@
-commit e356aa656d92ffd551e89edd9ed6ac00ea0278ef
+commit e43eebdab8a6df71e4b5262bcfb650ee8439870f
 Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 5 15:53:33 2023 -0400
+Date:   Fri Oct 21 12:57:21 2022 -0400
 
-    cmd/cover: add new "emit meta file" mode for packages without tests
+    cmd/cover: fix buglets in counter insertion
     
-    Introduce a new mode of execution for instrumenting packages that have
-    no test files. Instead of just skipping packages with no test files
-    (during "go test -cover" runs), the go command will invoke cmd/cover
-    on the package passing in an option in the config file indicating that
-    it should emit a coverage meta-data file directly for the package (if
-    the package has no functions, an empty file is emitted). Note that
-    this CL doesn't actually wire up this functionality in the Go command,
-    that will come in a later patch.
+    This patch has a couple of minor fixes to new-style counter insertion
+    (noticed these problems while working on the fix for issue 56370).
     
-    Updates #27261.
-    Updates #58770
-    Updates #24570.
+    First, make sure that the function registration sequence (writing of
+    nctrs, pkgid, funcid to counter var prolog) comes prior to the first
+    counter update (they were reversed up to this point, due to an
+    artifact of the way cmd/internal/edit operates).
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I01e8a3edb62441698c7246596e4bacbd966591c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495446
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Second, fix up "per function" counter insertion mode (an experimental
+    feature disabled by default that adds just a single counter to each
+    function as opposed to one per basic block), which was failing to
+    insert the single counter in the right place.
+    
+    Change-Id: Icfb613ca385647f35c0e52da2da8edeb2a506ab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444835
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/cover/cfg_test.go                          | 155 ++++++++++++++++-----
- src/cmd/cover/cover.go                             |  97 +++++++++----
- src/cmd/cover/testdata/pkgcfg/b/b.go               |  10 --
- src/cmd/cover/testdata/pkgcfg/b/b_test.go          |   9 --
- src/cmd/cover/testdata/pkgcfg/main/main.go         |  15 --
- .../cover/testdata/pkgcfg/noFuncsNoTests/nfnt.go   |   8 ++
- .../cover/testdata/pkgcfg/yesFuncsNoTests/yfnt.go  |  13 ++
- src/internal/coverage/covcmd/cmddefs.go            |   7 +
- 8 files changed, 220 insertions(+), 94 deletions(-)
+ src/cmd/cover/cfg_test.go |  3 ++-
+ src/cmd/cover/cover.go    | 24 ++++++++++++++++++------
+ 2 files changed, 20 insertions(+), 7 deletions(-)

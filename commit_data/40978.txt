@@ -1,21 +1,32 @@
-commit 9641acd6537bc0bf6717ae523956bae94bfc38fe
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Dec 10 15:31:47 2019 -0500
+commit 9c67516ed69e6c5152b9f329f240f69f27f8004b
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Jul 10 06:33:48 2019 +0000
 
-    doc: remove Release History pages (moved to x/website)
+    cmd/internal/obj/arm64: add support for most system registers
     
-    These pages were moved to the x/website repo in CL 210797 (commit
-    golang/website@9aef1eefbbe663d448b04b7cc1b2b995f4cf4c0b).
-    Remove the old copies in this repo since they're no longer used.
+    This patch supports the EL0 and EL1 system registers used in MRS/MSR
+    instructions. This patch refactors the assembler code, allowing the
+    assembler to read system register information from the automatically
+    generated sysRegEnc.go file and move existing declared system registers
+    to the sysRegEnc.go file.
     
-    Updates #36075
-    Updates #29206
+    This patch adds 431 system registers, it is worth noting that the number
+    of special registers is initialized to less than 1024 in the list7.go file.
     
-    Change-Id: I6e3ffaebd92fa753cb5f3b21e4238edfb7f5f0e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210798
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    This CL also adds some test cases to test the newly added system registers.
+    
+    The test cases are contributed by Dianhong Xu <Dianhong.Xu@arm.com>
+    
+    Change-Id: Ic09a937eaaeefe82bd08b5dd726808f8ff6cebf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189577
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/devel/pre_go1.html |  455 ----
- doc/devel/release.html |  758 ------
- doc/devel/weekly.html  | 6200 ------------------------------------------------
- 3 files changed, 7413 deletions(-)
+ src/cmd/asm/internal/arch/arch.go         |  18 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s | 561 +++++++++++++++++++
+ src/cmd/internal/obj/arm64/a.out.go       |  18 +-
+ src/cmd/internal/obj/arm64/asm7.go        |  25 +-
+ src/cmd/internal/obj/arm64/list7.go       |  29 +-
+ src/cmd/internal/obj/arm64/sysRegEnc.go   | 892 ++++++++++++++++++++++++++++++
+ 6 files changed, 1472 insertions(+), 71 deletions(-)

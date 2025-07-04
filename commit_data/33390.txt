@@ -1,31 +1,21 @@
-commit f3884680fcbda5640e14a01d17aa38d06c70891f
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Aug 9 14:00:38 2017 -0500
+commit 4282ba0a6571abca6878d91711aee50fefc2c69b
+Author: ph <phofer@umich.edu>
+Date:   Tue Aug 8 23:05:17 2017 +0000
 
-    cmd/compile/internal/ssa: inline memmove with known size
+    cmd/internal/obj/arm64: improve arm64 wrapper prologue
     
-    Replace calls to memmove with known (constant) size, with OpMove.
-    Do it only if it is safe from aliasing point of view.
-    Helps with code like this:
+    Improve static branch prediction in arm64 wrapper prologue
+    by making the unusual case branch forwards. (Most other
+    architectures implement this optimization.)
     
-    append(buf,"const str"...)
+    Additionally, replace a CMP+BNE pair with a CBNZ
+    to save one instruction.
     
-    In strconv this provides nice benefit:
-    Quote-6                                   731ns ± 2%   647ns ± 3%  -11.41%  (p=0.000 n=10+10)
-    QuoteRune-6                               117ns ± 5%   111ns ± 1%   -4.54%  (p=0.000 n=10+10)
-    AppendQuote-6                             475ns ± 0%   396ns ± 0%  -16.59%  (p=0.000 n=9+10)
-    AppendQuoteRune-6                        32.0ns ± 0%  27.4ns ± 0%  -14.41%  (p=0.000 n=8+9)
-    
-    Change-Id: I7704f5c51b46aed2d8f033de74c75140fc35036c
-    Reviewed-on: https://go-review.googlesource.com/54394
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id970038b34b4aaec18c101d62e2ee00f3e32a761
+    Reviewed-on: https://go-review.googlesource.com/54070
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go        | 50 +++++++++++++++
- src/cmd/compile/internal/ssa/gen/generic.rules |  8 +++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  7 +-
- src/cmd/compile/internal/ssa/rewrite.go        | 15 +++++
- src/cmd/compile/internal/ssa/rewrite_test.go   | 22 +++++++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 89 ++++++++++++++++++++++++++
- 6 files changed, 189 insertions(+), 2 deletions(-)
+ src/cmd/internal/obj/arm64/obj7.go | 80 +++++++++++++++++++++++---------------
+ 1 file changed, 48 insertions(+), 32 deletions(-)

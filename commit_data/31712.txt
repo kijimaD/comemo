@@ -1,18 +1,27 @@
-commit 729685c1d1bbd108f442cbecca6b998689266f60
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Mon Jun 5 09:04:05 2017 -0700
+commit bfc164c64d33edfaf774b5c29b9bf5648a6447fb
+Author: Paul Marks <pmarks@google.com>
+Date:   Tue Nov 1 21:01:08 2016 -0700
 
-    database/sql: ensure Rows is closed when Tx closes
+    net: add Resolver.StrictErrors
     
-    Close any Rows queried within a Tx when the Tx is closed. This prevents
-    the Tx from blocking on rollback if a Rows query has not been closed yet.
+    When LookupIP is performing multiple subqueries, this option causes a
+    timeout/servfail affecting a single query to abort the whole operation,
+    instead of returning a partial (IPv4/IPv6-only) result.
     
-    Fixes #20575
+    Similarly, operations that walk the DNS search list will also abort when
+    encountering one of these errors.
     
-    Change-Id: I4efe9c4150e951d8a0f1c40d9d5e325964fdd608
-    Reviewed-on: https://go-review.googlesource.com/44812
+    Fixes #17448
+    
+    Change-Id: Ice22e4aceb555c5a80d19bd1fde8b8fe87ac9517
+    Reviewed-on: https://go-review.googlesource.com/32572
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/sql.go      | 43 ++++++++++++++++++++++++++++++-------------
- src/database/sql/sql_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 56 insertions(+), 13 deletions(-)
+ src/net/dnsclient_unix.go      |  50 ++++--
+ src/net/dnsclient_unix_test.go | 349 +++++++++++++++++++++++++++++++++++++++--
+ src/net/lookup.go              |  10 ++
+ src/net/lookup_unix.go         |  24 +--
+ src/net/netgo_unix_test.go     |   2 +-
+ 5 files changed, 393 insertions(+), 42 deletions(-)

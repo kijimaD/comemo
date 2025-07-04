@@ -1,34 +1,29 @@
-commit e4e033a74cfcc75cb828cbd37e8279703e4620a3
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 3 16:21:18 2022 -0400
+commit ef6c5be16025a1868fc27267b7abfb1c28329fe2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 11 02:44:16 2021 -0700
 
-    go/doc/comment: add text wrapping
+    [dev.typeparams] cmd/compile: fix wrapper generation for imported generics
     
-    [This CL is part of a sequence implementing the proposal #51082.
-    The design doc is at https://go.dev/s/godocfmt-design.]
+    This CL fixes reflectdata.methodWrapper to compile wrapper functions
+    for method expressions involving imported, instantiated interface
+    types. CL 322193 fixed a similar issue for generating wrappers for
+    imported, instantiated concrete types, but missed this case.
     
-    Implement wrapping of text output, for the “go doc” command.
-    The algorithm is from D. S. Hirschberg and L. L. Larmore,
-    “The least weight subsequence problem,” FOCS 1985, pp. 137-143.
+    This is necessary to fix CL 326169's test case 10. However, that test
+    case is not included currently, because -G=3 mode crashes on method
+    expressions involving *any* instantiated interface type. Adding a test
+    will have to wait until either this issue is fixed in -G=3 mode, or
+    unified IR is merged.
     
-    For #51082.
+    Updates #46704.
     
-    Change-Id: I07787be3b4f1716b8ed9de9959f94ecbc596cc43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397283
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib02d3c20e7c69d16288f1286cd1c98e7cbbba114
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327055
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/go/doc/comment/testdata/doclink.txt |   4 +-
- src/go/doc/comment/testdata/link2.txt   |   4 +-
- src/go/doc/comment/testdata/link6.txt   |   7 +-
- src/go/doc/comment/testdata/quote.txt   |  12 ++
- src/go/doc/comment/testdata/text3.txt   |  28 +++++
- src/go/doc/comment/testdata/text4.txt   |  29 +++++
- src/go/doc/comment/testdata/text5.txt   |  38 +++++++
- src/go/doc/comment/testdata/text6.txt   |  18 +++
- src/go/doc/comment/testdata/text7.txt   |  21 ++++
- src/go/doc/comment/text.go              | 193 +++++++++++++++++++++++++++++++-
- src/go/doc/comment/wrap_test.go         | 141 +++++++++++++++++++++++
- 11 files changed, 488 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

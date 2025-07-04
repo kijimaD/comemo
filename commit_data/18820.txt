@@ -1,24 +1,21 @@
-commit c07ca77432d0c6b7e75eb0eec83ecccea03d38b5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Mar 11 16:36:14 2014 +1100
+commit cf57cf17e785e0e1c36c522067490b9a806e9cb1
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Mar 10 22:22:51 2014 -0400
 
-    syscall: replace mksyscall_windows.pl with mksyscall_windows.go
+    net/http: eliminate defined-but-not-used var.
     
-    Not many windows users have perl installed. They can just use
-    standard go tools instead. Also mkerrors_windows.sh script
-    removed - we don't add any new "unix" errors to windows
-    syscall package anymore.
+    gc does not report this as an error, but go/types does.
+    (I suspect that constructing a closure counts as a reference
+    to &all in gc's implementation).
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
-    CC=golang-codereviews
-    https://golang.org/cl/41060044
+    This is not a tool bug, since the spec doesn't require
+    implementations to implement this check, but it does
+    illustrate that dialect variations are always a nuisance.
+    
+    LGTM=rsc, bradfitz
+    R=bradfitz
+    CC=golang-codereviews, gri, rsc
+    https://golang.org/cl/73850043
 
- src/pkg/syscall/mkall.sh                  |  37 +-
- src/pkg/syscall/mkall_windows.bat         |  21 +
- src/pkg/syscall/mkerrors_windows.sh       | 202 ---------
- src/pkg/syscall/mksyscall_windows.go      | 662 ++++++++++++++++++++++++++++++
- src/pkg/syscall/mksyscall_windows.pl      | 333 ---------------
- src/pkg/syscall/zsyscall_windows_386.go   |   2 +-
- src/pkg/syscall/zsyscall_windows_amd64.go |   2 +-
- 7 files changed, 703 insertions(+), 556 deletions(-)
+ src/pkg/net/http/client_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

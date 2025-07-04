@@ -1,21 +1,15 @@
-commit eea5a432cb629670522dc2903d3c464b58652fee
+commit 6791057296ce6ff545f7a435aaebb371cb4191b9
 Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Apr 20 15:48:13 2012 +1000
+Date:   Fri Apr 20 14:25:42 2012 +1000
 
-    exp/html: start making inBodyIM match the spec
+    exp/html: ignore null bytes in text
     
-    Reorder some start tags.
-    
-    Improve handling of </body>.
-    Handle </html>.
-    
-    Pass 2 additional tests (by handling </html>).
+    pass one additional test
     
     R=golang-dev, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6082043
+    https://golang.org/cl/6048051
 
- src/pkg/exp/html/parse.go                  | 56 +++++++++++++++++-------------
- src/pkg/exp/html/testlogs/tests15.dat.log  |  2 +-
- src/pkg/exp/html/testlogs/webkit01.dat.log |  2 +-
- 3 files changed, 33 insertions(+), 27 deletions(-)
+ src/pkg/exp/html/parse.go                                    | 12 ++++++------
+ .../testlogs/pending-spec-changes-plain-text-unsafe.dat.log  |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)

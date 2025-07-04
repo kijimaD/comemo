@@ -1,25 +1,37 @@
-commit 1467776b17c7dc232f5586944785f85f48862b49
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 20 13:32:40 2015 -0700
+commit e0c3d85f08431540abaaa909fb8185dfe05304b0
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 15 17:01:30 2015 -0400
 
-    cmd/internal/obj: update callers to Linkline{fmt,hist} and remove
+    runtime: fix background marking at 25% utilization
     
-    Does the TODOs added by https://golang.org/cl/7623.
+    Currently, in accordance with the GC pacing proposal, we schedule
+    background marking with a goal of achieving 25% utilization *total*
+    between mutator assists and background marking. This is stricter than
+    was set out in the Go 1.5 proposal, which suggests that the garbage
+    collector can use 25% just for itself and anything the mutator does to
+    help out is on top of that. It also has several technical
+    drawbacks. Because mutator assist time is constantly changing and we
+    can't have instantaneous information on background marking time, it
+    effectively requires hitting a moving target based on out-of-date
+    information. This works out in the long run, but works poorly for
+    short GC cycles and on short time scales. Also, this requires
+    time-multiplexing all Ps between the mutator and background GC since
+    the goal utilization of background GC constantly fluctuates. This
+    results in a complicated scheduling algorithm, poor affinity, and
+    extra overheads from context switching.
     
-    Passes rsc.io/toolstash/buildall.
+    This change modifies the way we schedule and run background marking so
+    that background marking always consumes 25% of GOMAXPROCS and mutator
+    assist is in addition to this. This enables a much more robust
+    scheduling algorithm where we pre-determine the number of Ps we should
+    dedicate to background marking as well as the utilization goal for a
+    single floating "remainder" mark worker.
     
-    Change-Id: I23913a8f03834640e9795d48318febb3f88c10f9
-    Reviewed-on: https://go-review.googlesource.com/9160
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I187fa4c03ab6fe78012a84d95975167299eb9168
+    Reviewed-on: https://go-review.googlesource.com/9013
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/asm/internal/lex/input.go     |  3 +--
- src/cmd/asm/internal/lex/tokenizer.go |  6 ++----
- src/cmd/internal/asm/lexbody.go       |  4 ++--
- src/cmd/internal/asm/macbody.go       |  5 ++---
- src/cmd/internal/gc/lex.go            |  8 +++----
- src/cmd/internal/gc/subr.go           | 40 ++++++++++++++++++++---------------
- src/cmd/internal/gc/util.go           |  3 +--
- src/cmd/internal/obj/line_test.go     | 14 ++++++------
- src/cmd/internal/obj/obj.go           | 33 -----------------------------
- src/cmd/internal/obj/util.go          |  4 ++--
- 10 files changed, 44 insertions(+), 76 deletions(-)
+ src/runtime/mgc.go      | 232 ++++++++++++++++++++++++++++++++----------------
+ src/runtime/proc1.go    |   2 +-
+ src/runtime/runtime2.go |   6 +-
+ 3 files changed, 161 insertions(+), 79 deletions(-)

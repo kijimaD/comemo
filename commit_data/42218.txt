@@ -1,22 +1,18 @@
-commit b255c123371caf9238dcc732860a907f3ea744da
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 27 17:43:35 2020 -0700
+commit e1fa96049358737b138425918ce8d4a1f25ffd70
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 15 12:29:04 2019 -0500
 
-    syscall: on linux-arm64, prefer prlimit to {g,s}etrlimit
+    cmd/dist: when -compile-only is set, write binaries to os.DevNull
     
-    Reportedly some Docker images accept the prlimit64 system call,
-    used by syscall.prlimit, but prohibit the getrlimit and setrlimit
-    system calls.
+    Previously, we were writing binaries to GOROOT without ever reading them.
     
-    Fixes #38604
+    Updates #28387
     
-    Change-Id: I91ff9370450b4869098cc8e335bbb7b863060508
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230339
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic84999f46a367fcbf2ae1eac8bfdcbceb24dc748
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207342
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/syscall_linux_arm64.go  | 22 ++++++++++++++++++++--
- src/syscall/zsyscall_linux_arm64.go |  4 ++--
- 2 files changed, 22 insertions(+), 4 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

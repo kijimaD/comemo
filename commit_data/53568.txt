@@ -1,26 +1,24 @@
-commit 60e6afb689f97ecddb31496f68f351cc01f2a174
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Jun 8 09:58:22 2023 +0700
+commit 8bf9e014736064de436c411a95467b583f430dea
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Aug 22 17:00:17 2022 -0400
 
-    cmd/compile: do not report division by error during typecheck
+    cmd/compile: split Muluhilo op on ARM64
     
-    types2 have already errored about any spec-required overflows, and
-    division by zero. CL 469595 unintentionally fixed typecheck not to error
-    about overflows, but zero division is still be checked during tcArith.
-    This causes unsafe operations with variable size failed to compile,
-    instead of raising runtime error.
+    On ARM64 we use two separate instructions to compute the hi and lo
+    results of a 64x64->128 multiplication. Lower to two separate ops
+    so if only one result is needed we can deadcode the other.
     
-    Fixes #60601
+    Fixes #54607.
     
-    Change-Id: I7bea2821099556835c920713397f7c5d8a4025ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501735
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ib023e77eb2b2b0bcf467b45471cb8a294bce6f90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425101
     Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/typecheck/expr.go |  7 -----
- test/fixedbugs/issue60601.go               | 50 ++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        | 15 ---------------
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  3 ---
+ src/cmd/compile/internal/ssa/opGen.go        | 16 ----------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 27 ++++++++++++++++++++++++---
+ test/codegen/mathbits.go                     | 12 ++++++++++++
+ 6 files changed, 39 insertions(+), 39 deletions(-)

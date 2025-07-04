@@ -1,13 +1,18 @@
-commit 5c3de8ccb3ebb299968a88780f65b9f7cbdaf5d3
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 17 16:59:33 2012 -0500
+commit 7d1c5328ed2b0082acdc0b47e6565e4b254e9f8c
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 18 08:53:03 2012 +1100
 
-    doc: fix tables
+    math/rand: Intn etc. should panic if their argument is <= 0.
     
-    R=golang-dev, r
+    I am making a unilateral decision here. I could also settle for returning 0,
+    as long it's documented, but I argue that it's equivalent to an index
+    out of bounds.
+    
+    Fixes #2892.
+    
+    R=golang-dev, dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/5676084
+    https://golang.org/cl/5676079
 
- doc/go1.html | 6 ++++++
- doc/go1.tmpl | 6 ++++++
- 2 files changed, 12 insertions(+)
+ src/pkg/math/rand/rand.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

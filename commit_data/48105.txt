@@ -1,23 +1,30 @@
-commit 9e0de1fe7b3c977d871496bf0d8f26ae39dfce5c
+commit 8e0023b81b81352c1f8ea5cd58eea91939924f9d
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 2 13:56:22 2022 -0500
+Date:   Tue Apr 27 03:01:08 2021 -0400
 
-    cmd/go: remove deleted subdirectories in 'go work use'
+    cmd/go/internal/load: treat packages with errors as potentially main packages
     
-    Also remove absolute names (relative to PWD) when updating relative
-    directories, and relative names when updating absolute directories.
+    If a package declares 'package main' but for some reason we fail to
+    read its name (for example, due to a permission or checksum error),
+    we may be tempted to drop the package from the output of
+    mainPackagesOnly. However, that leads to a confusing
+    "no packages loaded from …" error message.
     
-    Fixes #50959
+    Instead, we will treat packages with errors as potentially-main
+    packages, and print the error. At least if we print why the package is
+    broken, the user will understand that the weird behavior is due to the
+    broken package rather than, say, a typo on their part in the command
+    arguments.
     
-    Change-Id: If129019cad7146e82face7f23427b28240d29cfc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383837
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Updates #42088
+    For #36460
+    
+    Change-Id: I033c0d28ac7d105d9df3ba5f9327e5c0c2a29954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314050
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/modload/init.go             |   2 +-
- src/cmd/go/internal/workcmd/use.go              | 138 +++++++++++++++++-------
- src/cmd/go/testdata/script/work_use_deleted.txt |  22 ++++
- src/cmd/go/testdata/script/work_use_dot.txt     |  28 +++--
- 4 files changed, 143 insertions(+), 47 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

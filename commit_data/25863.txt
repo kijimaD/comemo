@@ -1,25 +1,18 @@
-commit 6e6637bdb478e98d32dd10659ea1975a00aeda0a
-Author: Catalin Nicutar <cnicutar@google.com>
-Date:   Sun Feb 21 18:32:25 2016 +0000
+commit f3b064ae0180461411add0aa98156dbf26f37de2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 16 10:57:07 2015 -0800
 
-    cmd/vet: add a check for tests with malformed names
+    cmd/compile: add 386 special case for testing first field of struct variable
     
-    According to golang.org/pkg/testing the first character after Test has
-    to be non-lowercase. Functions that don't conform to this are not
-    considered tests and are not loaded which can cause surprises.
+    This is the 386 version of the amd64-specific https://golang.org/cl/16933.
     
-    This change adds a check to warn about Test-like functions in a _test
-    file that are not actually run by go test.
+    Update #12416.
     
-    Moved over from https://go-review.googlesource.com/#/c/19466/
-    
-    Change-Id: I2f89676058b27a0e35f721bdabc9fa8a9d34430d
-    Reviewed-on: https://go-review.googlesource.com/19724
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ibc3a99dcc753d6281839d8b61016d6c21dbd9649
+    Reviewed-on: https://go-review.googlesource.com/16970
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/vet/doc.go                                 |   8 +-
- src/cmd/vet/example.go                             | 124 --------------
- .../testdata/{examples_test.go => tests_test.go}   |  30 +++-
- src/cmd/vet/tests.go                               | 182 +++++++++++++++++++++
- 4 files changed, 214 insertions(+), 130 deletions(-)
+ src/cmd/compile/internal/x86/gsubr.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

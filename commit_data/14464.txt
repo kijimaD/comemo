@@ -1,16 +1,12 @@
-commit 1e9ab9e7926ec655850379b0326b11f830a482e7
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Nov 25 11:29:06 2012 +1100
+commit 7afcae6bab0c8a9b19680a48389062f094ee41e6
+Author: Caine Tighe <arctanofyourface@gmail.com>
+Date:   Sun Nov 25 05:08:17 2012 +0800
 
-    time: add Now()/UnixNano() malloc tests
+    http/transport.go: trivial comment error.
     
-    The fix for issue 4403 may include more calls to time.Now().UnixNano(). I was concerned that if this function allocated it would cause additional garbage on the heap. It turns out that it doesn't, which is a nice surprise.
-    
-    Also add benchmark for Now().UnixNano()
-    
-    R=bradfitz, minux.ma
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6849097
+    https://golang.org/cl/6856078
 
- src/pkg/time/time_test.go | 41 ++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 40 insertions(+), 1 deletion(-)
+ src/pkg/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

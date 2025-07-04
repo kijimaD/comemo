@@ -1,19 +1,38 @@
-commit 2ca4104f0519027c55266d48b47ea16ee4da6915
-Author: cui fliter <imcusg@gmail.com>
-Date:   Thu May 4 19:30:53 2023 +0800
+commit 7bad61554ec6da4ba4cbad443074360408890603
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 16 20:33:35 2022 +0000
 
-    cmd: use slices.Equal to simplify code
+    runtime: write much more direct test for semaphore waiter scalability
     
-    #57433 added slices.Equal, using it can reduce the amount of code
+    This test originally existed as two tests in test/locklinear.go, but
+    this checked against actual locks and was flaky. The test was checking
+    a property of a deep part of the runtime but from a much higher level,
+    and it's easy for nondeterminism due to scheduling to completely mess
+    that up, especially on an oversubscribed system.
     
-    Change-Id: I70d14b6c4c24da641a34ed36c900d9291033f526
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492576
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    That test was then moved to the sync package with a more rigorous
+    testing methodology, but it could still flake pretty easily.
+    
+    Finally, this CL makes semtable more testable, exports it in
+    export_test.go, then writes a very direct scalability test for exactly
+    the situation the original test described. As far as I can tell, this is
+    much, much more stable, because it's single-threaded and is just
+    checking exactly the algorithm we need to check.
+    
+    Don't bother trying to bring in a test that checks for O(log n) behavior
+    on the other kind of iteration. It'll be perpetually flaky because the
+    underlying data structure is a treap, so it's only _expected_ to be
+    O(log n), but it's very easy for it to get unlucky without a large
+    number of iterations that's too much for a simple test.
+    
+    Fixes #53381.
+    
+    Change-Id: Ia1cd2d2b0e36d552d5a8ae137077260a16016602
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412875
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/covdata/argsmerge.go | 15 ++-------------
- 1 file changed, 2 insertions(+), 13 deletions(-)
+ src/runtime/export_test.go |  30 +++++++++++-
+ src/runtime/sema.go        |  18 ++++----
+ src/runtime/sema_test.go   |  44 ++++++++++++++++++
+ src/sync/mutex_test.go     | 112 ---------------------------------------------
+ 4 files changed, 83 insertions(+), 121 deletions(-)

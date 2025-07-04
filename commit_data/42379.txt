@@ -1,19 +1,27 @@
-commit aeab40317415468323ef45095f2090ff90c3ecd2
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu May 14 18:17:49 2020 +0900
+commit 1c8d1f45ba7b72836dfe93fc680dfb27ef174965
+Author: Austin Clements <austin@google.com>
+Date:   Sun Dec 8 22:24:10 2019 -0500
 
-    cmd/go: use temporary file for output of gcc command on Windows
+    runtime: mlock top of signal stack on both amd64 and 386
     
-    On Windows, some of gcc command (like msys2 native) output NUL as a file.
+    CL 209899 worked around an issue that corrupts vector registers in
+    recent versions of the Linux kernel by mlocking the top page of every
+    signal stack on amd64. However, the underlying issue also affects the
+    XMM registers on 386. This CL applies the mlock fix to both amd64 and
+    386.
     
-    Fixes #36000
+    Fixes #35777 (again).
     
-    Change-Id: I02c632fa2d710a011d79f24d5beee4bc57ad994e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233977
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9886f2dc4c23625421296bd5518d5fd3288bfe48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210345
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/work/exec.go          | 14 +++++++++++++-
- src/cmd/go/testdata/script/issue36000.txt |  6 ++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/runtime/defs_linux_386.go                      | 11 +++++++++++
+ src/runtime/os_linux_386.go                        |  7 -------
+ src/runtime/{os_linux_amd64.go => os_linux_x86.go} |  3 +++
+ src/runtime/sys_linux_386.s                        | 19 +++++++++++++++++++
+ 4 files changed, 33 insertions(+), 7 deletions(-)

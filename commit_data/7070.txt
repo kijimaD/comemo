@@ -1,13 +1,18 @@
-commit ab4d8bf16cc105be4c7a6ba0696924f1dc344af4
-Author: Ken Thompson <ken@golang.org>
-Date:   Mon Jan 10 13:15:52 2011 -0800
+commit 212e074be2bf8be3639250050ce9867d690f7b2c
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Jan 10 11:51:38 2011 -0800
 
-    arm optimizer bug fixes
+    time: add AfterFunc to call a function after a given duration.
+    The After code is trivially generalisable to provide support
+    for this, and it is possible to use AfterFunc to do
+    things that After cannot, such as waiting
+    for many events at varied times without an overhead
+    of one goroutine per event.
     
-    R=rsc
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/3913043
+    https://golang.org/cl/3905041
 
- src/cmd/5g/peep.c | 143 +++++++++++++++++++++++++++++++++---------------------
- src/cmd/5g/reg.c  |  47 ++++++++----------
- 2 files changed, 110 insertions(+), 80 deletions(-)
+ src/pkg/time/sleep.go      | 31 +++++++++++++++++++++++--------
+ src/pkg/time/sleep_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 8 deletions(-)

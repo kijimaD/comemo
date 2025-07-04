@@ -1,22 +1,15 @@
-commit deaec39323aced382a12ed0360fad03ad1dbb906
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sun Sep 25 20:15:12 2022 +0200
+commit 79024cf33d0cea53a0c75f428d79a9f971f12b5b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Nov 2 11:05:03 2021 -0700
 
-    cmd/go/internal/mmap: fix build for js/wasm
+    errors: improve wording in As doc comment
     
-    Even though there isn't much point in building cmd/go for js/wasm given
-    it relies on executing sub-processes, this change is trivial enough and
-    makes cmd/go build for js/wasm again.
+    "so" didn't have an antecedent.
     
-    Fixes #54219
-    
-    Change-Id: I91e3adec0f31a4e261af89b4cc829711828ac2ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/433480
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I27f7b334decea7bc34bfa3f3f2d3a79874c6fe90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360797
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/mmap/{mmap_plan9.go => mmap_other.go} | 2 ++
- 1 file changed, 2 insertions(+)
+ src/errors/wrap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

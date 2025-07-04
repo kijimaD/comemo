@@ -1,23 +1,22 @@
-commit fa5dbd06e57475a6b788ebf0468c132ec9cd77fc
-Author: Leonardo Comelli <leonardo.comelli@gmail.com>
-Date:   Tue Mar 19 03:53:04 2019 +0000
+commit 58963354c4d56379cb95115a1d094c8ebfcad297
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Nov 8 10:43:40 2018 -0500
 
-    cmd: ignore the directory named go.mod
+    cmd/go: vet: revert $GOVETTOOL env var, restore -vettool flag
     
-    The existing implementation does not check in all cases whether go.mod is a regular file.
+    The environment variable is no longer necessary as we now plan to
+    transition to the new vet by replacing it in a single step,
+    and we really don't want to add more environment variables.
     
-    Fixes #30788
+    Fixes #28636
     
-    Change-Id: I6d140545c3cfada651612efd5bee2fbdcb747ca7
-    GitHub-Last-Rev: 4a9b251e378d9d7cc8768d395c360d3542fc9bc6
-    GitHub-Pull-Request: golang/go#30830
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167393
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib85e5c0d61213b7b9f6a53d9376fec29525df971
+    Reviewed-on: https://go-review.googlesource.com/c/148497
+    Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/import.go  |  4 ++--
- src/cmd/go/internal/modload/search.go  |  2 +-
- src/cmd/go/internal/search/search.go   |  2 +-
- src/cmd/go/testdata/script/mod_dir.txt | 20 ++++++++++++++++++++
- 4 files changed, 24 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/vet/vetflag.go  | 46 +++++++++++++++++++++++++++----------
+ src/cmd/go/internal/work/buildid.go |  3 ++-
+ src/cmd/vet/vet_test.go             |  3 +--
+ 3 files changed, 37 insertions(+), 15 deletions(-)

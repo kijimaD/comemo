@@ -1,12 +1,21 @@
-commit 763afe13b97dd0e3795a29afc9a43bb1189230db
-Author: Todd Neal <todd@tneal.org>
-Date:   Tue Mar 15 16:57:20 2016 -0500
+commit ecc01a7ddf626ffb3debcb851ee21bed8dded9a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 12:38:41 2016 -0500
 
-    cmd/compile: change logging of spills for regalloc to Warnl format
+    go/build: invert AllowVendor to IgnoreVendor
     
-    Change-Id: I01c000ff3f6dc6b0ed691e289eeef0fa61500337
-    Reviewed-on: https://go-review.googlesource.com/20744
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Looking for vendor directories is a better default.
+    
+    Fixes #13772
+    
+    Change-Id: Iabbaea71ccc67b72f14f1f412dc8ab70cb41996d
+    Reviewed-on: https://go-review.googlesource.com/18450
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/regalloc.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/pkg.go          |  8 +++-----
+ src/go/build/build.go      | 10 ++++++----
+ src/go/build/build_test.go |  4 ++--
+ 3 files changed, 11 insertions(+), 11 deletions(-)

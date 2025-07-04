@@ -1,18 +1,24 @@
-commit 77aa209b386a184e7f4b44938f2a05a1b5c5a3cf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 10 15:35:05 2021 -0700
+commit 0bb6115dd6246c047335a75ce4b01a07c291befd
+Author: Hanlin Shi <shihanlin9@gmail.com>
+Date:   Mon Nov 16 17:29:33 2020 +0000
 
-    runtime: loop on EINTR in macOS sigNoteSleep
+    internal/fmtsort: sort the unsafe pointers in map
     
-    Fixes #46466
+    Currently storing keys that contain unsafe.
+    Pointer in a map could result inruntime panic when printing the map.
+    The root cause is that unsafe.Pointer is not comparable.
     
-    Change-Id: I8fb15d0c8ef7ef6e6fc1b9e0e033d213255fe0df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326778
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Fixes #42622.
+    
+    Change-Id: Ie3bae7ee4945041843b66514de6227212a3da73e
+    GitHub-Last-Rev: d12d41302e6118cb457aafb05f7aaed9df259b56
+    GitHub-Pull-Request: golang/go#42623
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270277
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/os_darwin.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/internal/fmtsort/sort.go      |  2 +-
+ src/internal/fmtsort/sort_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

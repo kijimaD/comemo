@@ -1,48 +1,24 @@
-commit 925ea2dfc4911188d47cca5c5534916e39dc1463
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Oct 27 11:14:24 2021 -0400
+commit aaed6cbced238030053df4e54f676a1d59df89d7
+Author: Daniel S. Fava <danielsfava@gmail.com>
+Date:   Fri Feb 12 09:54:50 2021 +0100
 
-    go/types, types2, go/ast, go/parser: remove support for type lists
+    testing/race: fixing intermittent test failure
     
-    This is a rough port of CL 354131 to go/* libraries, though in practice
-    I just tried to reconcile any places where the phrase "type list"
-    occurred in the source. This resulted in adjusting quite a bit more code
-    than initially expected, including a few lingering cases in the
-    compiler.
+    Test NoRaceMutexPureHappensBefore in runtime/race/testdata/mutex_test.go
+    expects the second spawned goroutine to run after the first.  The test
+    attempts to force this scheduling with a 10 millisecond wait.  Following
+    a suggestion by Bryan Mills, we force this scheduling using a shared
+    variable whose access take place within the existing mutex.
     
-    Change-Id: Ie62a9e1aeb831b73931bc4c78bbb6ccb24f53fb0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359135
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Fixes #35745.
+    
+    Change-Id: Ib23ec51492ecfeed4752e020401dd25755a669ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291292
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/interface.go       |  2 +-
- src/cmd/compile/internal/types2/predicates.go      |  2 +-
- .../internal/types2/testdata/check/typeinst2.go2   | 10 +++---
- .../internal/types2/testdata/examples/types.go2    |  4 +--
- .../types2/testdata/fixedbugs/issue39711.go2       |  4 +--
- src/cmd/gofmt/testdata/typeparams.golden           |  2 +-
- src/cmd/gofmt/testdata/typeparams.input            |  2 +-
- src/go/ast/ast.go                                  |  8 ++---
- src/go/parser/parser.go                            | 12 -------
- src/go/parser/resolver.go                          | 13 ++-----
- src/go/parser/short_test.go                        |  3 +-
- src/go/parser/testdata/interface.go2               |  8 ++---
- src/go/parser/testdata/linalg.go2                  | 16 ++++-----
- src/go/parser/testdata/resolution/typeparams.go2   |  4 +--
- src/go/printer/nodes.go                            | 34 ++++--------------
- src/go/printer/testdata/generics.golden            | 10 +-----
- src/go/printer/testdata/generics.input             |  8 +----
- src/go/types/call.go                               |  1 +
- src/go/types/exprstring.go                         | 23 +------------
- src/go/types/exprstring_test.go                    | 11 ++----
- src/go/types/interface.go                          | 40 ++--------------------
- src/go/types/predicates.go                         |  2 +-
- src/go/types/testdata/check/issues.go2             | 14 ++++----
- src/go/types/testdata/check/typeinst2.go2          | 13 +++----
- src/go/types/testdata/examples/constraints.go2     | 12 -------
- src/go/types/testdata/examples/types.go2           |  4 +--
- src/go/types/testdata/fixedbugs/issue39711.go2     |  4 +--
- src/go/types/union.go                              | 20 +++--------
- 28 files changed, 66 insertions(+), 220 deletions(-)
+ src/runtime/race/testdata/mutex_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

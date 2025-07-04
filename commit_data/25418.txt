@@ -1,14 +1,21 @@
-commit f2c36df9a2192bf970eaa410655c3e1776580f83
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 4 15:08:03 2016 -0500
+commit 72180c3b82e4972a1df119578075ba3e9679fce2
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Aug 11 14:10:03 2015 +1200
 
-    misc/cgo/testcshared: print a little more about GOROOT on failure
+    cmd/internal/obj, cmd/link, runtime: native-ish support for tls on arm64
     
-    For #13789.
+    Fixes #10560
     
-    Change-Id: I83973298a35afcf55627f0a72223098306a51f4b
-    Reviewed-on: https://go-review.googlesource.com/18233
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iedffd9c236c4fbb386c3afc52c5a1457f96ef122
+    Reviewed-on: https://go-review.googlesource.com/13991
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- misc/cgo/testcshared/test.bash | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/internal/obj/arm64/a.out.go   |   1 +
+ src/cmd/internal/obj/arm64/anames7.go |   1 +
+ src/cmd/internal/obj/arm64/asm7.go    |  16 +
+ src/cmd/internal/obj/link.go          |  14 +
+ src/cmd/link/internal/arm64/asm.go    |  20 +-
+ src/cmd/link/internal/ld/elf.go       | 567 +++++++++++++++++-----------------
+ src/runtime/asm_arm64.s               |   2 +-
+ src/runtime/tls_arm64.s               |  12 +-
+ 8 files changed, 342 insertions(+), 291 deletions(-)

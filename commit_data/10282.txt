@@ -1,31 +1,16 @@
-commit f2b602ed4252ca0f37cf1ff0494342b75f0b6bfc
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Tue Nov 8 17:55:17 2011 +1100
+commit b776b9e724f3edbe4f52d0c1b8dd3ee532a897a3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 8 16:53:31 2011 +1100
 
-    html: parse <body>, <base>, <link>, <meta>, and <title> tags inside page body
+    runtime: add windows callback tests
     
-    Pass tests1.dat, test 87:
-    <body><body><base><link><meta><title><p></title><body><p></body>
+    Just a copy of cgo callback tests from misc/cgo/test.
     
-    | <html>
-    |   <head>
-    |   <body>
-    |     <base>
-    |     <link>
-    |     <meta>
-    |     <title>
-    |       "<p>"
-    |     <p>
-    
-    Handling the last <body> tag requires correcting the original insertion mode in useTheRulesFor.
-    
-    Also pass test 88:
-    <textarea><p></textarea>
-    
-    R=nigeltao
-    CC=golang-dev
-    https://golang.org/cl/5364047
+    R=rsc
+    CC=golang-dev, hectorchu
+    https://golang.org/cl/5331062
 
- src/pkg/html/parse.go      | 31 ++++++++++++++++++++++++++++++-
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 31 insertions(+), 2 deletions(-)
+ src/pkg/runtime/export_test.go          |  2 +
+ src/pkg/runtime/proc.c                  |  8 +++
+ src/pkg/runtime/syscall_windows_test.go | 96 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 105 insertions(+), 1 deletion(-)

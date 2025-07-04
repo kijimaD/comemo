@@ -1,18 +1,16 @@
-commit dce644d95be4929f84dde88d4b6a610fc43c729c
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Aug 10 08:51:54 2018 +0200
+commit 77faa652c1d3b351272940fe9bb0e6400dfc9f63
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 14 00:46:03 2018 -0700
 
-    cmd/go: fix spelling in proxy documentation
+    net: use retry in TestLookupGmailNS
     
-    After running mkalldocs.sh this also adds some previously missing parts
-    to alldocs.go
+    There are two flakes present on the dashboard for this test.
     
-    Change-Id: Ifa624c54543fd31d699a0d4bb5df7b1969bf941c
-    Reviewed-on: https://go-review.googlesource.com/128915
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I4abec972586314fbafe7db5760b91afd7ae47fd3
+    Reviewed-on: https://go-review.googlesource.com/106980
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go                 | 18 +++++++++++++++---
- src/cmd/go/internal/modfetch/proxy.go |  2 +-
- 2 files changed, 16 insertions(+), 4 deletions(-)
+ src/net/lookup_test.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

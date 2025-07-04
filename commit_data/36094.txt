@@ -1,13 +1,33 @@
-commit d365890ba6b7b51f69e65d32dd76d3e59f83ece9
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Thu Jul 19 16:31:12 2018 -0400
+commit 2a16176a47be30a8b90bb981c8893584e5084d3d
+Author: Lubomir I. Ivanov (VMware) <neolit123@gmail.com>
+Date:   Mon Apr 2 15:37:03 2018 +0000
 
-    api: add ErrorHandler function to httputil.ReverseProxy
+    os/user: obtain a user GID on Windows
     
-    Change-Id: Ie706c43c9a11cf30ca0f2139a4e9eabac8c75c75
-    Reviewed-on: https://go-review.googlesource.com/125096
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Add the following helpers in lookup_windows.go:
+    1) lookupGroupName() is used to obtain the SID of a group based
+    on name.
+    2) listGroupsForUsernameAndDomain() uses NetUserGetLocalGroups()
+    as a WINAPI backend to obtain the list of local groups for this
+    user.
+    3) lookupUserPrimaryGroup() is now used to populate the User.Gid
+    field when looking up a user by name.
+    
+    Implement listGroups(), lookupGroupId(), lookupGroup() and no longer
+    return unimplemented errors.
+    
+    Do not skip Windows User.Gid tests in user_test.go.
+    
+    Change-Id: I81fd41b406da51f9a4cb24e50d392a333df81141
+    GitHub-Last-Rev: d1448fd55d6eaa0f41bf347df18b40da06791df1
+    GitHub-Pull-Request: golang/go#24222
+    Reviewed-on: https://go-review.googlesource.com/98137
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/go1.11.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/internal/syscall/windows/security_windows.go |  43 ++++++
+ src/internal/syscall/windows/zsyscall_windows.go |   9 ++
+ src/os/user/lookup_windows.go                    | 178 +++++++++++++++++++++--
+ src/os/user/user_test.go                         |   4 -
+ 4 files changed, 218 insertions(+), 16 deletions(-)

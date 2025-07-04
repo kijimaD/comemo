@@ -1,15 +1,14 @@
-commit 7ef97def800fc155c3bdc9e84c0af7f6d786ee7b
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 13:49:50 2012 +1100
+commit 9a469e6ab536e32600d7a3e002ce387bf10a6780
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 10 11:48:22 2012 +1100
 
-    testing: fix references to "gotest"
+    make.bat: remove double quotes
     
-    Fixes #2958.
+    Fixes #2974.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5650050
+    https://golang.org/cl/5653052
 
- src/pkg/testing/benchmark.go |  6 +++---
- src/pkg/testing/testing.go   | 12 ++++++------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/make.bat | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

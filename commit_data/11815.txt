@@ -1,14 +1,12 @@
-commit aee1c38cda006e652e2589b6bbf16db0e6095a29
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 13 08:05:53 2012 +1100
+commit 7531e8cb39c5d67c46a60f017671f7b3d03f497d
+Author: Yves Junqueira <yves.junqueira@gmail.com>
+Date:   Sun Feb 12 12:38:51 2012 -0200
 
-    go1: fix old reference to Sys method
-    The example was fixed; the simplifying rewrite was missed.
+    pprof: fix import path in the documentation
     
-    R=golang-dev
+    R=golang-dev, n13m3y3r
     CC=golang-dev
-    https://golang.org/cl/5651080
+    https://golang.org/cl/5649072
 
- doc/go1.html | 2 +-
- doc/go1.tmpl | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,49 +1,29 @@
-commit b5dfac45ba29f12cbc86925ab7c7cd018f87f4fe
+commit 59ce067da8d9e7d968e51f31fb532ed2369f205a
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 23 15:51:20 2011 -0500
+Date:   Wed Feb 23 15:42:13 2011 -0500
 
-    runtime: always run stackalloc on scheduler stack
+    runtime: omit breakpoint during terminal panic
     
-    Avoids deadlocks like the one below, in which a stack split happened
-    in order to call lock(&stacks), but then the stack unsplit cannot run
-    because stacks is now locked.
+    A terminal panic (one that prints a stack trace and exits)
+    has been calling runtime.breakpoint before calling exit,
+    so that if running under a debugger, the debugger can
+    take control.  When not running under a debugger, though,
+    this causes an additional SIGTRAP on Unix and pop-up
+    dialogs on Windows.
     
-    The only code calling stackalloc that wasn't on a scheduler
-    stack already was malg, which creates a new goroutine.
-    
-    runtime.futex+0x23 /home/rsc/g/go/src/pkg/runtime/linux/amd64/sys.s:139
-           runtime.futex()
-    futexsleep+0x50 /home/rsc/g/go/src/pkg/runtime/linux/thread.c:51
-           futexsleep(0x5b0188, 0x300000003, 0x100020000, 0x4159e2)
-    futexlock+0x85 /home/rsc/g/go/src/pkg/runtime/linux/thread.c:119
-           futexlock(0x5b0188, 0x5b0188)
-    runtime.lock+0x56 /home/rsc/g/go/src/pkg/runtime/linux/thread.c:158
-           runtime.lock(0x5b0188, 0x7f0d27b4a000)
-    runtime.stackfree+0x4d /home/rsc/g/go/src/pkg/runtime/malloc.goc:336
-           runtime.stackfree(0x7f0d27b4a000, 0x1000, 0x8, 0x7fff37e1e218)
-    runtime.oldstack+0xa6 /home/rsc/g/go/src/pkg/runtime/proc.c:705
-           runtime.oldstack()
-    runtime.lessstack+0x22 /home/rsc/g/go/src/pkg/runtime/amd64/asm.s:224
-           runtime.lessstack()
-    ----- lessstack called from goroutine 2 -----
-    runtime.lock+0x56 /home/rsc/g/go/src/pkg/runtime/linux/thread.c:158
-           runtime.lock(0x5b0188, 0x40a5e2)
-    runtime.stackalloc+0x55 /home/rsc/g/go/src/pkg/runtime/malloc.c:316
-           runtime.stackalloc(0x1000, 0x4055b0)
-    runtime.malg+0x3d /home/rsc/g/go/src/pkg/runtime/proc.c:803
-           runtime.malg(0x1000, 0x40add9)
-    runtime.newproc1+0x12b /home/rsc/g/go/src/pkg/runtime/proc.c:854
-           runtime.newproc1(0xf840027440, 0x7f0d27b49230, 0x0, 0x49f238, 0x40, ...)
-    runtime.newproc+0x2f /home/rsc/g/go/src/pkg/runtime/proc.c:831
-           runtime.newproc(0x0, 0xf840027440, 0xf800000010, 0x44b059)
-    ...
+    Support for debugging Go programs has gotten good
+    enough that we can rely on the debugger to set its own
+    breakpoint on runtime.exit if it wants to look around.
     
     R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4216045
+    https://golang.org/cl/4222043
 
- src/pkg/runtime/malloc.goc |  6 ++++++
- src/pkg/runtime/mgc0.c     |  1 +
- src/pkg/runtime/proc.c     | 46 +++++++++++++++++++++++++++++++++++++---------
- src/pkg/runtime/runtime.h  |  1 +
- 4 files changed, 45 insertions(+), 9 deletions(-)
+ src/pkg/runtime/darwin/386/signal.c    | 1 -
+ src/pkg/runtime/darwin/amd64/signal.c  | 1 -
+ src/pkg/runtime/freebsd/386/signal.c   | 1 -
+ src/pkg/runtime/freebsd/amd64/signal.c | 1 -
+ src/pkg/runtime/linux/386/signal.c     | 1 -
+ src/pkg/runtime/linux/amd64/signal.c   | 1 -
+ src/pkg/runtime/windows/386/signal.c   | 1 -
+ 7 files changed, 7 deletions(-)

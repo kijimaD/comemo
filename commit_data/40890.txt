@@ -1,18 +1,16 @@
-commit b81dd1c0e722a7d048ffe935d3f2062d2fae4e86
-Author: Than McIntosh <thanm@google.com>
-Date:   Sat Nov 23 09:59:30 2019 -0500
+commit e9782bdebd7b55d8c40961dca10f5e91b06e9016
+Author: Derek Phan <derekphan94@gmail.com>
+Date:   Wed Aug 7 23:42:03 2019 +0000
 
-    cmd/link: disable new testpoint on mips pending investigation
+    path: fix mismatch between error message and corresponding test function
     
-    Skip TestMinusRSymsWithSameName testpoint on MIPS for the time being
-    since it triggers failures on that arch. Will re-enable once the
-    problems are fixed.
-    
-    Updates #35779.
-    
-    Change-Id: I3e6650158ab04a2be77e3db5a5194df3bbb0859e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208557
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib0ae6e3e678dc7ace21b891e946ffc6bc2a78835
+    GitHub-Last-Rev: 8c6704ea8c032072ac339dc9d1c6ec78aec15b2a
+    GitHub-Pull-Request: golang/go#33534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189378
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/elf_test.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/path/path_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,25 +1,32 @@
-commit a93bc1d26e70cf471ad8f7580333213c67b85313
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Oct 27 10:34:25 2017 -0400
+commit 3e7abf82e3e0614f7d8163053d944dc59d8b9247
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 8 13:45:41 2017 -0400
 
-    cmd/dist: use latest heap, sort packages for compiler bootstrap
+    cmd/go,cmd/link: support buildmode c-shared on ppc64le
     
-    The compiler depends on the way heap and sort break ties
-    in some cases. Instead of trying to find them all, bundle
-    those packages into the bootstrap compiler builds.
+    This change enables buildmode c-shared on ppc64le.
     
-    The overall goal is that Go1.4 building cmd/compile during the
-    bootstrap process produces a semantically equivalent compiler
-    to cmd/compile compiling itself. After this CL, that property is true,
-    at least for the compiler compiling itself and the other tools.
+    A bug was fixed in runtime/rt0_linux_ppc64le.s that was necessary to
+    make this work.  In _rt0_ppc64le_linux_lib, there is code to store
+    the value of r2 onto the caller's stack.  However, if this file
+    is compiled using a build mode that maintains the TOC address in
+    r2, then instructions will be inserted at the beginning of this
+    function to generate the r2 value for the callee, not the caller.
+    That means the r2 value for the callee is stored onto the caller's
+    stack.  If caller and callee don't have the same r2 values, then
+    the caller will restore the wrong r2 value after it returns.  This
+    situation can happen when using dlopen since the caller of this
+    function will be in ld64.so and will definitely have a different
+    TOC.
     
-    A test for this property will be in CL 73212.
+    Updates #20756
     
-    Change-Id: Icc1ba7cbe828f5673e8198ebacb18c7c01f3a735
-    Reviewed-on: https://go-review.googlesource.com/73952
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6e165e0d0716e73721bbbcc520e8302e4856e3ba
+    Reviewed-on: https://go-review.googlesource.com/53890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/buildtool.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go               | 2 +-
+ src/cmd/go/internal/work/build.go  | 2 +-
+ src/cmd/link/internal/ld/config.go | 2 +-
+ src/runtime/rt0_linux_ppc64le.s    | 2 --
+ 4 files changed, 3 insertions(+), 5 deletions(-)

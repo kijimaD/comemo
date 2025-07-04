@@ -1,19 +1,15 @@
-commit f5636523998594af75ec87d3c2a2070dc1cb65f4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 18 15:19:15 2018 -0700
+commit ee9c9392b81023e29564d3fe308a15aca7d416ef
+Author: Stephen Lewis <stephen@sock.org.uk>
+Date:   Wed Jun 20 19:38:19 2018 +0100
 
-    go/types: accept recv base type that is alias to a pointer type
+    doc: fix spelling of G Suite
     
-    Per the spec clarification https://golang.org/cl/142757 (issue #27995).
+    'G Suite' seems to be the preferred spelling according to
+    https://gsuite.google.com/
     
-    Fixes #28251.
-    Updates #27995.
-    
-    Change-Id: Idc142829955f9306a8698c5ed1c24baa8ee2b109
-    Reviewed-on: https://go-review.googlesource.com/c/143179
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ica60938cf942594157bba84ef205e1cdcb8c1b08
+    Reviewed-on: https://go-review.googlesource.com/120132
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/go/types/check_test.go           |  1 +
- src/go/types/resolver.go             | 73 ++++++++++++++++++++----------------
- src/go/types/testdata/issue28251.src | 65 ++++++++++++++++++++++++++++++++
- 3 files changed, 107 insertions(+), 32 deletions(-)
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,13 +1,14 @@
-commit d42bfe26ad003cf2c29dc1b8cf21026f4a2a8fb9
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Mar 5 14:24:26 2011 -0500
+commit 633df67b66da4679dcb6b00590cf3f62aff8ddf1
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 4 20:21:26 2011 -0800
 
-    A+C: Pascal S. de Kloe (individual CLA)
+    gc, gopack: add some missing flags to the docs.
     
-    R=r
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4266041
+    https://golang.org/cl/4260051
 
- AUTHORS      | 3 ++-
- CONTRIBUTORS | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/gc/doc.go     | 2 ++
+ src/cmd/gopack/ar.c   | 2 +-
+ src/cmd/gopack/doc.go | 4 +++-
+ 3 files changed, 6 insertions(+), 2 deletions(-)

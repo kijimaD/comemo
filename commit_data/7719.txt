@@ -1,14 +1,24 @@
-commit 9e2fbe186d9bf0fabd96df5698824690a065db75
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 9 16:47:40 2011 -0800
+commit 8206cce1178717adec1d56abbb0e57ee708f862a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 9 13:15:46 2011 -0800
 
-    Effective Go: some small cleanups.
-    Add discussion of getters.
-    Add example using a map as a set.
+    syslog: split Unix domain support from network support.
     
-    R=golang-dev, gri, adg, iant
+    This is to make it easier to support Solaris syslog.  On
+    Solaris syslog messages are sent via STREAMS using putmsg to
+    /dev/conslog.  The putmsg call uses a a control buffer of type
+    log_cdtl and a data buffer which is the message, and it is in
+    general a big mess.  This CL just splits out the Unix domain
+    support so that Solaris can use a different mechanism.  I do
+    not propose to implement the Solaris support today.  This
+    split will make it possible for gccgo to just call the libc
+    function for now.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/4240100
+    https://golang.org/cl/4261061
 
- doc/effective_go.html | 81 ++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 60 insertions(+), 21 deletions(-)
+ src/pkg/syslog/Makefile       |  1 +
+ src/pkg/syslog/syslog.go      | 54 ++++++++++++++++++++++++-------------------
+ src/pkg/syslog/syslog_unix.go | 31 +++++++++++++++++++++++++
+ 3 files changed, 62 insertions(+), 24 deletions(-)

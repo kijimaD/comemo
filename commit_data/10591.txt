@@ -1,16 +1,12 @@
-commit bd9dc3d55f65dce03be6d4ebbc7baaeb8e2a8964
-Author: Gustav Paul <gustav.paul@gmail.com>
-Date:   Fri Dec 2 10:34:42 2011 -0500
+commit 6f0ef845e6c2e56712ee458a605f08386fe539ee
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri Dec 2 10:13:02 2011 -0500
 
-    exp/ssh: allow for msgUserAuthBanner during authentication
+    asn1: fix incorrect prints found by govet
     
-    The SSH spec allows for the server to send a banner message to the client at any point during the authentication process. Currently the ssh client auth types all assume that the first response from the server after issuing a userAuthRequestMsg will be one of a couple of possible authentication success/failure messages. This means that client authentication breaks if the ssh server being connected to has a banner message configured.
-    
-    This changeset refactors the noneAuth, passwordAuth and publickeyAuth types' auth() function and allows for msgUserAuthBanner during authentication.
-    
-    R=golang-dev, rsc, dave, agl
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/5432065
+    https://golang.org/cl/5449063
 
- src/pkg/exp/ssh/client_auth.go | 183 +++++++++++++++++++++++------------------
- 1 file changed, 102 insertions(+), 81 deletions(-)
+ src/pkg/encoding/asn1/asn1_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

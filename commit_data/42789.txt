@@ -1,27 +1,18 @@
-commit 4220d670844e15f78041a9fa7dea1c2a89a9b139
-Author: David Chase <drchase@google.com>
-Date:   Wed Aug 5 10:26:57 2020 -0400
+commit c4ccd08a253406aac49744a3852d7a28894ac5dd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Feb 16 23:37:47 2020 -0500
 
-    cmd/compile: make GOSSAHASH package-sensitive, also append to log files
+    [dev.link] cmd/link: further reduce unnecessary field reading
     
-    Turns out if your failure is in a function with a name like "Reset()"
-    there will be a lot of hits on the same hashcode.  Adding package sensitivity
-    solves this problem.
+    Following CL 218479, there are more places where we don't need to
+    read all the fields.
     
-    In additionm, it turned out that in the case that a logfile was specified
-    for the GOSSAHASH logging, that it was opened in create mode, which meant
-    that multiple compiler invocations would reset the file to zero length.
-    Opening in append mode works better; the automated harness
-    (github.com/dr2chase/gossahash) takes care of truncating the file before use.
-    
-    Change-Id: I5601bc280faa94cbd507d302448831849db6c842
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/246937
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I70889cd3f0514ef2c542317f3fe24f5ef99b41d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220057
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/ssa.go          | 6 +++++-
- src/cmd/compile/internal/ssa/config.go      | 3 +++
- src/cmd/compile/internal/ssa/export_test.go | 4 ++++
- src/cmd/compile/internal/ssa/func.go        | 5 +++--
- 4 files changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/deadcode2.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

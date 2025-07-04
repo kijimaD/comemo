@@ -1,12 +1,17 @@
-commit cb85e8ac274e69ba8e8142f92002768cae28c233
-Author: Bobby Powers <bobbypowers@gmail.com>
-Date:   Tue Nov 15 10:22:34 2011 -0800
+commit a3fb1aec6bdb680a86758cc330a8c5305f6dd902
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 15 13:09:19 2011 -0500
 
-    misc/emacs: add delete builtin
+    testing: print test results to standard output
     
-    R=golang-dev, mpimenov, gri
+    Errors in the code under test go to standard output.
+    Errors in testing or its usage go to standard error.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5370101
+    https://golang.org/cl/5374090
 
- misc/emacs/go-mode.el | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/testing/benchmark.go |  8 ++++----
+ src/pkg/testing/example.go   | 28 +++++++++++++---------------
+ src/pkg/testing/testing.go   | 14 +++++++-------
+ 3 files changed, 24 insertions(+), 26 deletions(-)

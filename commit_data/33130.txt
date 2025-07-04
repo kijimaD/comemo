@@ -1,31 +1,12 @@
-commit 290de1f880ea73d9e518d8f0737628abc4f01351
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 16 13:48:06 2017 -0400
+commit a83d0175a832eae170bee146b0f6743b02fbc59f
+Author: Aditya Mukerjee <dev@chimeracoder.net>
+Date:   Sat Jul 15 16:27:30 2017 -0400
 
-    cmd/asm: reject STREX with same source and destination register on ARM
+    math/rand: add concurrency warning to overview comment
     
-    On ARM, STREX does not permit the same register used as both the
-    source and the destination. Reject the bad instruction.
-    
-    The assembler also accepted special cases
-            STREX R0, (R1)  as STREX R0, (R1), R0
-            STREX (R1), R0  as STREX R0, (R1), R0
-    both are illegal. Remove this special case as well.
-    
-    For STREXD, check that the destination is not source, and not
-    source+1. Also check that the source register is even numbered,
-    as required by the architecture's manual.
-    
-    Fixes #22268.
-    
-    Change-Id: I6bfde86ae692d8f1d35bd0bd7aac0f8a11ce8e22
-    Reviewed-on: https://go-review.googlesource.com/71190
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I52efa7aa72a23256e5ca56470ffeba975ed8f739
+    Reviewed-on: https://go-review.googlesource.com/48760
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/asm/internal/asm/asm.go              | 21 --------
- src/cmd/asm/internal/asm/testdata/arm.s      | 72 ++++++++++++----------------
- src/cmd/asm/internal/asm/testdata/armerror.s |  9 ++++
- src/cmd/internal/obj/arm/asm5.go             |  9 ++++
- 4 files changed, 48 insertions(+), 63 deletions(-)
+ src/math/rand/rand.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

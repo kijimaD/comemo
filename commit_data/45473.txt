@@ -1,36 +1,28 @@
-commit afa58ddf5a17a3618a24baf161b06cf0e066cb88
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Apr 28 18:26:54 2021 -0400
+commit 751c37fd629e0ebb18c39a219fab2b224d016b70
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 21 21:29:43 2020 -0400
 
-    cmd/compile: revise block/func end sentinels in debug analysis
+    cmd/internal/obj/{arm,s390x}: make return jump print nicer
     
-    The SSA code for debug variable location analysis (for DWARF) has two
-    special 'sentinel' values that it uses to handshake with the
-    debugInfo.GetPC callback when capturing the PC values of debug
-    variable ranges after prog generatoin: "BlockStart" and "BlockEnd".
+    When a function with non-zero frame size makes a return jump
+    (RET target), it assembles to, conceptually,
     
-    "BlockStart" has the expected semantics: it means "the PC value of the
-    first instruction of block B", but "BlockEnd" does not mean "PC value
-    of the last instruction of block B", but rather it is implemented as
-    "the PC value of the last instruction of the function". This causes
-    confusion when reading the code, and seems to to result in implementation
-    flaws in the past, leading to incorrect ranges in some cases.
+    MOV (SP), LR
+    ADD $framesize, SP
+    JMP target
     
-    To help with this, add a new sentinel "FuncEnd" (which has the "last
-    inst in the function" semantics) and change the implementation of
-    "BlockEnd" to actually mean what its name implies (last inst in
-    block).
+    We did not clear some fields in the first instruction's Prog.To,
+    causing it printed like (on ARM)
     
-    Updates #45720.
+    MOVW.P  4(R13), (R14)(R14)(REG)
     
-    Change-Id: Ic3497fb60413e898d2bfe27805c3db56483d12a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/314930
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Clear the fields to make it print nicer.
+    
+    Change-Id: I180901aeea41f1ff287d7c6034a6d69005927744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264343
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
 
- src/cmd/compile/internal/ssa/debug.go  | 8 +++++++-
- src/cmd/compile/internal/ssagen/ssa.go | 8 ++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/arm/obj5.go   | 2 ++
+ src/cmd/internal/obj/s390x/objz.go | 6 ++++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

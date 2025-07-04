@@ -1,25 +1,21 @@
-commit 3f224bbf9a52cf2e19cdd2ada4a6d7372cc70141
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Sep 28 20:42:45 2021 -0700
+commit f38f862417d19485468474646848d4294f8587b8
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jan 15 11:23:28 2021 -0500
 
-    go/types: avoid infinite recursion in unification
+    [dev.typeparams] go/types: strip annotations from errors
     
-    This is an almost clean port of CL 352832 from types2 to go/types:
-    The nest files and unify.go where copied verbatim; unify.go was
-    adjusted with correct package name, a slightly different comment
-    was restored to what it was. The test files got adjustments for
-    error position. infer.go got a missing _Todo error code.
+    Strip annotations from errors before emitting them. This is a partial
+    merge from dev.go2go: the Error.Full field is omitted for now, and
+    stripAnnotations is integrated with the updated error handling from
+    master.
     
-    For #48619.
-    For #48656.
-    
-    Change-Id: Ia1a2d09e8bb37a85032b4b7e7c7a0b08e8c793a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353029
+    Change-Id: Ia24d66b691a10d90b258b0b688d50c6b176bd629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284253
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/go/types/infer.go                          |  2 +-
- src/go/types/testdata/fixedbugs/issue48619.go2 | 22 +++++++++++++++
- src/go/types/testdata/fixedbugs/issue48656.go2 | 13 +++++++++
- src/go/types/unify.go                          | 39 ++++++++++++++++++++------
- 4 files changed, 67 insertions(+), 9 deletions(-)
+ src/go/types/errors.go | 36 +++++++++++++++++++++++++++---------
+ 1 file changed, 27 insertions(+), 9 deletions(-)

@@ -1,15 +1,25 @@
-commit 29a3a39b613c542d043ca1fdb3d7f10ed669666d
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Sep 4 17:34:58 2024 -0700
+commit f7b4f02ba067096650b74426ed1459cbf63a93da
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 16 18:10:56 2022 -0400
 
-    cmd/nm: use t.TempDir
+    cmd/go: default to PIE linking on darwin/amd64
     
-    Change-Id: I6c1d148ae4c899142b160533d8bdf662494bcd7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/611039
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    The recent version of darwin linker ld64 emits an warning about
+    deprecation of the -no_pie flag. Further, the new darwin linker
+    ld-prime ignores -no_pie flag and generates a PIE binary anyway.
+    Switch to building PIE binaries by default.
+    
+    Updates #54482.
+    Updates #61229.
+    
+    Change-Id: I81294dcd07a368a20e1349d56556ee2fdcb8df44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461697
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/nm/nm_test.go | 14 +++-----------
- 1 file changed, 3 insertions(+), 11 deletions(-)
+ src/cmd/cgo/internal/test/issue4029.c   | 2 +-
+ src/cmd/cgo/internal/test/issue4029.go  | 7 +++----
+ src/cmd/cgo/internal/test/issue4029w.go | 2 +-
+ src/internal/platform/supported.go      | 2 +-
+ 4 files changed, 6 insertions(+), 7 deletions(-)

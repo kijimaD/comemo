@@ -1,22 +1,25 @@
-commit 7da4675dadbdb079df486de44365e5685dfd99b7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 12 11:14:32 2023 -0800
+commit f4722d84499cc07fe8c8beb9b3154e59b7d21adf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 1 12:21:04 2022 -0800
 
-    go/types, types2: use factored parse/typecheck functions, generate hilbert_test.go
+    test: workaround codegen bug in typeparam/mdempsky/13.go
     
-    Change-Id: I4a325736d18a98bbcd02bfa3d32b1d1dd2048dc2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461609
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    This test case is failing on the noopt builder, because it disables
+    inlining. Evidently the explicit -gcflags flag in all of our generics
+    tests was overriding the noopt builder's default mode.
+    
+    This CL restores a noop -gcflags to get the builder green again until
+    the issue can be properly fixed.
+    
+    Updates #51413.
+    
+    Change-Id: I61d22a007105f756104ba690b73f1d68ce4be281
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388894
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/compile/internal/types2/builtins_test.go |  8 +-------
- src/cmd/compile/internal/types2/hilbert_test.go  | 17 +---------------
- src/cmd/compile/internal/types2/mono_test.go     |  6 +-----
- src/go/types/builtins_test.go                    |  5 +----
- src/go/types/generator.go                        |  1 +
- src/go/types/hilbert_test.go                     | 25 ++++--------------------
- src/go/types/mono_test.go                        |  8 ++------
- 7 files changed, 11 insertions(+), 59 deletions(-)
+ test/typeparam/mdempsky/13.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

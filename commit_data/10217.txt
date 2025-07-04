@@ -1,20 +1,12 @@
-commit de3d64725288c4baa083b804d51f4d7ef35ea130
-Author: Fumitoshi Ukai <ukai@google.com>
-Date:   Thu Nov 3 14:13:39 2011 +1100
+commit bc440f1bfe4ddda6247cef5cc8a9f14ecb3b1373
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Nov 3 10:26:33 2011 +0900
 
-    websocket: return an error HTTP response for bad websocket request.
+    test: clear execute bit from source file
     
-    websocket spec had changed server-side requiements to return
-    an HTTP response with an appropriate error code (such as 400 Bad
-    Request) when it finds client did not send a handshake that matches
-    websocket protocol, rather than just closing connection.
-    It needs to flush out response before closing connection.
-    Fixes issues 2396.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5318072
+    https://golang.org/cl/5330068
 
- src/pkg/websocket/server.go         |  6 ++++++
- src/pkg/websocket/websocket_test.go | 19 +++++++++----------
- 2 files changed, 15 insertions(+), 10 deletions(-)
+ test/dwarf/linedirectives.go | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,18 @@
+commit a2891aef7533f66870fc9fef0c2d7d54167f2d1d
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Sep 3 20:00:56 2024 -0700
+
+    cmd/link/internal/ld: rm os.Getwd from elf_test
+    
+    When specifying the package to build, a relative path is sufficient.
+    
+    Change-Id: I1ae08065b5cd77ec25be42dc1e664720a07baa62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610039
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/elf_test.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,19 +1,49 @@
-commit 2b063bdff1a61961936db7ef1e963aecf1ae3db7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 14 19:33:31 2015 -0700
+commit 4655aadd00fd0228469ebc3c8b9edead7387f285
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 21 14:24:25 2015 -0400
 
-    cmd/internal/gc: make all Node depths int32
+    runtime: use reachable heap estimate to set trigger/goal
     
-    Funcdepth was already int32. Make Escloopdepth
-    and Decldepth also int32 instead of int.
+    Currently, we set the heap goal for the next GC cycle using the size
+    of the marked heap at the end of the current cycle. This can lead to a
+    bad feedback loop if the mutator is rapidly allocating and releasing
+    pointers that can significantly bloat heap size.
     
-    No functional changes for non-absurd code. Passes toolstash -cmp.
+    If the GC were STW, the marked heap size would be exactly the
+    reachable heap size (call it stwLive). However, in concurrent GC,
+    marked=stwLive+floatLive, where floatLive is the amount of "floating
+    garbage": objects that were reachable at some point during the cycle
+    and were marked, but which are no longer reachable by the end of the
+    cycle. If the GC cycle is short, then the mutator doesn't have much
+    time to create floating garbage, so marked≈stwLive. However, if the GC
+    cycle is long and the mutator is allocating and creating floating
+    garbage very rapidly, then it's possible that marked≫stwLive. Since
+    the runtime currently sets the heap goal based on marked, this will
+    cause it to set a high heap goal. This means that 1) the next GC cycle
+    will take longer because of the larger heap and 2) the assist ratio
+    will be low because of the large distance between the trigger and the
+    goal. The combination of these lets the mutator produce even more
+    floating garbage in the next cycle, which further exacerbates the
+    problem.
     
-    Change-Id: I47e145dd732b6a73cfcc6d45956df0dbccdcd999
-    Reviewed-on: https://go-review.googlesource.com/10129
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    For example, on the garbage benchmark with GOMAXPROCS=1, this causes
+    the heap to grow to ~500MB and the garbage collector to retain upwards
+    of ~300MB of heap, while the true reachable heap size is ~32MB. This,
+    in turn, causes the GC cycle to take upwards of ~3 seconds.
+    
+    Fix this bad feedback loop by estimating the true reachable heap size
+    (stwLive) and using this rather than the marked heap size
+    (stwLive+floatLive) as the basis for the GC trigger and heap goal.
+    This breaks the bad feedback loop and causes the mutator to assist
+    more, which decreases the rate at which it can create floating
+    garbage. On the same garbage benchmark, this reduces the maximum heap
+    size to ~73MB, the retained heap to ~40MB, and the duration of the GC
+    cycle to ~200ms.
+    
+    Change-Id: I7712244c94240743b266f9eb720c03802799cdd1
+    Reviewed-on: https://go-review.googlesource.com/9177
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/gc/esc.go    | 2 +-
- src/cmd/internal/gc/go.go     | 2 +-
- src/cmd/internal/gc/syntax.go | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/mgc.go    | 19 +++++++++++++++----
+ src/runtime/mstats.go |  4 ++++
+ 2 files changed, 19 insertions(+), 4 deletions(-)

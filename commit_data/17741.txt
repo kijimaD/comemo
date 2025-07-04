@@ -1,12 +1,16 @@
-commit 58d18e25af3d3cbc3bc7cb23c42d81d782910e34
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Thu Oct 3 12:46:02 2013 -0700
+commit fe1c92a203fdc60c76eaaef9030390219fbadd86
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 3 13:53:16 2013 -0400
 
-    spec: fix small typo in comment for example
+    doc: remove link to PackageVersioning wiki
     
-    R=golang-dev, mirtchovski, r
+    That page may be fine for experienced Go programmers
+    but it's not really targeting new programmers.
+    There's too much we don't know yet.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14227043
+    https://golang.org/cl/14345043
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go_faq.html | 5 -----
+ 1 file changed, 5 deletions(-)

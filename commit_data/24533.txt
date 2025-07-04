@@ -1,31 +1,26 @@
-commit 45c06b27a44a65c219a7445278b129c868332a6c
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Oct 9 12:44:27 2015 +1300
+commit e30c6d64bac1b5a31a7062dff89744332bebc23e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 3 09:25:23 2015 -0400
 
-    cmd/internal/obj, runtime: add NOFRAME flag to suppress stack frame set up on ppc64x
+    runtime: always give concurrent sweep some heap distance
     
-    Replace the confusing game where a frame size of $-8 would suppress the
-    implicit setting up of a stack frame with a nice explicit flag.
+    Currently it's possible for the next_gc heap size trigger computed for
+    the next GC cycle to be less than the current allocated heap size.
+    This means the next cycle will start immediately, which means there's
+    no time to perform the concurrent sweep between GC cycles. This places
+    responsibility for finishing the sweep on GC itself, which delays GC
+    start-up and hence delays mutator assist.
     
-    The code to set up the function prologue is still a little confusing but better
-    than it was.
+    Fix this by ensuring that next_gc is always at least a little higher
+    than the allocated heap size, so we won't trigger the next cycle
+    instantly.
     
-    Change-Id: I1d49278ff42c6bc734ebfb079998b32bc53f8d9a
-    Reviewed-on: https://go-review.googlesource.com/15670
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Updates #11911.
+    
+    Change-Id: I74f0b887bf187518d5fedffc7989817cbcf30592
+    Reviewed-on: https://go-review.googlesource.com/13043
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/test/issue9400/asm_ppc64x.s |  2 +-
- src/cmd/internal/obj/ppc64/asm9.go   |  2 +-
- src/cmd/internal/obj/ppc64/obj9.go   | 40 ++++++++++++++++++--------
- src/cmd/internal/obj/textflag.go     |  5 ++++
- src/runtime/asm_ppc64x.s             | 52 +++++++++++++++++-----------------
- src/runtime/atomic_ppc64x.s          |  8 +++---
- src/runtime/cgo/asm_ppc64x.s         |  6 ++--
- src/runtime/duff_ppc64x.s            |  2 +-
- src/runtime/memclr_ppc64x.s          |  2 +-
- src/runtime/memmove_ppc64x.s         |  2 +-
- src/runtime/mkduff.go                |  4 +--
- src/runtime/sys_linux_ppc64x.s       | 54 ++++++++++++++++++------------------
- src/runtime/textflag.h               |  4 +++
- src/runtime/tls_ppc64x.s             |  4 +--
- 14 files changed, 107 insertions(+), 80 deletions(-)
+ src/runtime/mgc.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

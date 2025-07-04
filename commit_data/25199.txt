@@ -1,26 +1,17 @@
-commit 616e45eaa13eee9411f0528e91f46212aa58dc97
-Author: Matt T. Proud <matt.proud@gmail.com>
-Date:   Tue Dec 8 13:02:17 2015 +0100
+commit 0b248cea169a261cd0c2db8c014269cca5a170c4
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Mon Oct 5 16:47:31 2015 -0700
 
-    encoding/pem: make TestFuzz testing/quick safe
+    cmd/go: fix `go test -n`
     
-    This adapts pem.TestFuzz to sanitize the generated Block fields,
-    because the encoder and wireformat do not differentiate between nil
-    and empty slices and maps, while reflect.DeepEqual rightfully does.
-    In the commit mentioned below, we adapt quick.Value in
-    testing/quick to generate these value states, which had heretofore
-    been impossible with the standard library fuzz test facility.
+    The <importPath>/_test directory is not actually created in -n mode, so
+    `go test` fails to write _testmain.go.
     
-    This commit is a piecemeal extraction from ...
+    Do not write _testmain.go if -n is passed.
     
-      https://go-review.googlesource.com/#/c/16470
-    
-    ..., which rsc requested to be separated from the nil slice and map
-    generations.
-    
-    Change-Id: Iec751a2b0082af6e672a09dc9b7f4b4fb309e8a8
-    Reviewed-on: https://go-review.googlesource.com/17499
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I825d5040cacbc9d9a8c89443e5a3f83e6f210ce4
+    Reviewed-on: https://go-review.googlesource.com/15433
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/encoding/pem/pem_test.go | 28 ++++++++++++++++++----------
- 1 file changed, 18 insertions(+), 10 deletions(-)
+ src/cmd/go/test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

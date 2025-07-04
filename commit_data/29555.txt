@@ -1,19 +1,29 @@
-commit 68fda1888e8026aef96590ac634bc35d4c71b6e0
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Nov 16 15:26:41 2016 +0000
+commit 88d2f9112a0a8afd3a29ac1479d4f17847f16803
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 20 16:34:30 2016 -0700
 
-    all: call flag.Parse from TestMain only if used
+    cmd/compile: fix type of static closure pointer
     
-    These don't use any flags in TestMain itself, so the call is redundant
-    as M.Run will do it.
+      var x *X = ...
+      defer x.foo()
     
-    Change-Id: I00f2ac7f846dc2c3ad3535eb8177616b2d900149
-    Reviewed-on: https://go-review.googlesource.com/33275
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    As part of the defer, we need to calculate &(*X).foo·f.  This expression
+    is the address of the static closure that will call (*X).foo when a
+    pointer to that closure is used in a call/defer/go.  This pointer is not
+    currently properly typed in SSA.  It is a pointer type, but the base
+    type is nil, not a proper type.
+    
+    This turns out not to be a problem currently because we never use the
+    type of these SSA values.  But I'm trying to change that (to be able to
+    spill them) in CL 28391.  To fix, use uint8 as the fake type of the
+    closure.
+    
+    Change-Id: Ieee388089c9af398ed772ee8c815122c347cb633
+    Reviewed-on: https://go-review.googlesource.com/29444
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go           | 3 ---
- src/cmd/objdump/objdump_test.go | 1 -
- src/cmd/vet/vet_test.go         | 2 --
- 3 files changed, 6 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go  | 6 ++++++
+ src/cmd/compile/internal/gc/subr.go | 3 +++
+ 2 files changed, 9 insertions(+)

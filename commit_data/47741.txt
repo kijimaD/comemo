@@ -1,30 +1,21 @@
-commit 46db6aa1573def4ba06dbf5c38e704d85dc303b6
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Tue Dec 7 13:32:24 2021 -0800
+commit 98dd205fa4f125c8ba8099c3d84d95189666068e
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Feb 28 12:24:02 2021 +0100
 
-    runtime: fix flake in TestCgoPprofThread
+    runtime: see whether gp==nil before checking preemption state
     
-    If the test's main goroutine receives a SIGPROF while creating the
-    C-owned thread for the test, that sample will appear in the resulting
-    profile. The root end of that stack will show a set of Go functions. The
-    leaf end will be the C functions returned by the SetCgoTraceback
-    handler, which will confuse the test runner.
+    Recent we changed from using gFromTLS to using gFromSP, which apparently
+    sometimes returns nil. This causes crashes when dereferenced. Fix that
+    by not checking for preemption in the case that gFromSP returns nil.
     
-    Add a label to the main goroutine while it calls in to C, so all profile
-    samples that triggered the SetCgoTraceback handler are either correct,
-    or can easily be excluded from the test's analysis. (The labels will not
-    apply to the resulting C-owned thread, which does not use goroutines.)
+    Fixes #44679.
     
-    Fixes #43174
-    
-    Change-Id: Ica3100ca0f191dcf91b30b0084e8541c5a25689f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370135
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0199ebe7cd113379c5fa35c27932d913df79092a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297390
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/crash_cgo_test.go                   |  2 +-
- src/runtime/testdata/testprogcgo/threadpprof.go | 10 +++++++++-
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ src/runtime/os_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

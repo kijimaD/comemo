@@ -1,15 +1,19 @@
-commit 08ce7f1d5c309cf4187fbb1e442ee4388c29212b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 12 11:09:55 2012 -0800
+commit 17b3766d18aa2d7070b043b4bd6a502cf4a3bf98
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 12 10:51:13 2012 -0800
 
-    net/http: follow certain redirects after POST requests
+    doc/gopher: add high-resolution pencil sketches
+    These are higher-resolution scans of the little
+    drawings used as clip art on golang.org
     
-    Fixes #4145
-    
-    R=golang-dev, rsc
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/6923055
+    https://golang.org/cl/6929058
 
- src/pkg/net/http/client.go      | 28 ++++++++++++++++++------
- src/pkg/net/http/client_test.go | 47 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+), 6 deletions(-)
+ doc/gopher/pencil/gopherhat.jpg     | Bin 0 -> 129627 bytes
+ doc/gopher/pencil/gopherhelmet.jpg  | Bin 0 -> 151965 bytes
+ doc/gopher/pencil/gophermega.jpg    | Bin 0 -> 122348 bytes
+ doc/gopher/pencil/gopherrunning.jpg | Bin 0 -> 86299 bytes
+ doc/gopher/pencil/gopherswim.jpg    | Bin 0 -> 158593 bytes
+ doc/gopher/pencil/gopherswrench.jpg | Bin 0 -> 231095 bytes
+ 6 files changed, 0 insertions(+), 0 deletions(-)

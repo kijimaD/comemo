@@ -1,27 +1,21 @@
-commit 81efd7b347dd6d7f12fd49c6eee0274005734c71
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue Nov 1 08:53:10 2022 +0000
+commit 3c6295d272d09e6c7be912510e4b62afc0ef8ffc
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Fri Nov 19 16:51:47 2021 -0500
 
-    net: support no-reload option for unix go resolver
+    doc/go1.18: add short-circuit evaluation for text/template
     
-    It adds support for no-reload option, as specified in resolv.conf(5):
-     no-reload (since glibc 2.26)
-                         Sets RES_NORELOAD in _res.options.  This option
-                         disables automatic reloading of a changed
-                         configuration file.
+    This description is based on https://golang.org/cl/321490.
     
-    Change-Id: I11182c5829434503f719ed162014f2301e3ba8d4
-    GitHub-Last-Rev: 7ae44be2d5d5e3242dc39e733f154a64724dbedd
-    GitHub-Pull-Request: golang/go#56489
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446555
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Updates #47694
+    
+    Change-Id: I48656cd487d2fccf0b0d3390f350f1bc6f2b0080
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365738
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/net/dnsclient_unix.go      |  4 ++++
- src/net/dnsclient_unix_test.go | 47 +++++++++++++++++++++++++++++++++++++++---
- src/net/dnsconfig.go           |  1 +
- src/net/dnsconfig_unix.go      |  2 ++
- 4 files changed, 51 insertions(+), 3 deletions(-)
+ doc/go1.18.html | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

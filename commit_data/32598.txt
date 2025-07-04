@@ -1,31 +1,21 @@
-commit dbe3522c7f45771bbd12228b7f17a3fc5ac9d7c7
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 1 12:32:38 2017 -0700
+commit 1acff5fe61013d4f5b1ed6602654abbbe73b1599
+Author: Dieter Plaetinck <dieter@raintank.io>
+Date:   Fri Feb 10 11:54:58 2017 +0100
 
-    runtime: fix hashmap load factor computation
+    template: warn about interleaved nature of writes
     
-    overLoadFactor wasn't really doing what it says it does.
-    It was reporting overOrEqualToLoadFactor.  That's actually what we
-    want when adding an entry to a map, but it isn't what we want when
-    constructing a map in the first place.
+    Execute incurs separate writes for each "step", e.g. each
+    variable that needs to be printed, and the final newline.
+    While it is correct to state that templates can be executed
+    concurrently, there is a more subtle nuance that is easily missed:
+    when writing to the same writer, the writes from concurrent execute
+    calls can be interleaved, leading to unexpected output.
     
-    The impetus for this change is that if you make a map with a hint
-    of exactly 8 (which happens, for example, with the unitMap in
-    time/format.go), we allocate 2 buckets for it instead of 1.
-    
-    Instead, make overLoadFactor really report when it is > the max
-    allowed load factor, not >=.  Adjust the callers who want to ensure
-    that the map is no more than the max load factor after an insertion
-    by adding a +1 to the current (pre-addition) size.
-    
-    Change-Id: Ie8d85344800a9a870036b637b1031ddd9e4b93f9
-    Reviewed-on: https://go-review.googlesource.com/61053
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I0abbd7960d8a8d15e109a8a3eeff3b43b852bbbf
+    Reviewed-on: https://go-review.googlesource.com/37444
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/export_test.go  |  5 +++++
- src/runtime/hashmap.go      |  6 +++---
- src/runtime/hashmap_fast.go |  6 +++---
- src/runtime/map_test.go     | 29 +++++++++++++++++++++++++++++
- 4 files changed, 40 insertions(+), 6 deletions(-)
+ src/html/template/template.go | 6 ++++--
+ src/text/template/doc.go      | 3 ++-
+ src/text/template/exec.go     | 6 ++++--
+ 3 files changed, 10 insertions(+), 5 deletions(-)

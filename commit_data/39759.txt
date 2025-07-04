@@ -1,19 +1,26 @@
-commit d6143914e42e9373fbc02d08b224516b12807269
-Author: Ou Changkun <hi@changkun.us>
-Date:   Fri Aug 16 13:50:07 2019 +0000
+commit 6f7bb2cab6c9ac6b6ec530a87ffc854d19335a15
+Author: Michael Darakananda <pongad@gmail.com>
+Date:   Fri Aug 24 00:27:35 2018 -0700
 
-    runtime: remove outdated comment in select sortkey
+    time: optimize Sub
     
-    This CL removes an outdated comment regarding converting a pointer to `uintptr`.
-    The comment was introduced in Go 1.4 and runtime GC was under the consideration of major revisions. According to the current situation, Go runtime memory allocator has no fragmentation issue. Therefore compact GC won't be implemented in the near future.
+    This is primarily achieved by checking for arithmetic overflow
+    instead of using Add and Equal.
     
-    Change-Id: I5c336d81d810cf57b76797f05428421bb39a5b9f
-    GitHub-Last-Rev: 2ab4be3885d3f48abbcb59af3f74bc95501ff23f
-    GitHub-Pull-Request: golang/go#33685
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190520
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    It's a decent performance improvement even though
+    the function still isn't inlined.
+    
+    name   old time/op  new time/op  delta
+    Sub-6   242ns ± 0%   122ns ± 0%  -49.59%  (p=0.002 n=8+10)
+    
+    Updates #17858.
+    
+    Change-Id: I1469b618183c83ea8ea54d5ce277eb15f2ec0f11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/131196
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/select.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/time/time.go      | 33 +++++++++++++++++++++++++--------
+ src/time/time_test.go | 10 +++++++++-
+ 2 files changed, 34 insertions(+), 9 deletions(-)

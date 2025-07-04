@@ -1,38 +1,35 @@
-commit bd6d84282a441a35b4629eaa958d3ce24d396a6f
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sat Feb 27 14:37:10 2016 +0100
+commit 654daac3bce1314d5568b46bfa48ec4c546d7395
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 16 19:47:42 2015 +0000
 
-    fmt: refactor and unify float and complex formatting
+    net/http: split Trailers tests into two halves
     
-    Removes specialized functions for each verb and float/complex size
-    and replaces them with generic variants fmtFloat and
-    fmtComplex similar to other generic fmt functions.
+    The old test was in client_test.go but was a mix of four things:
     
-    Simplifies the complex formatting by relying on fmtFloat
-    to handle the verb and default precision selection.
+    - clients writing trailers
+    - servers reading trailers
+    - servers writing trailers
+    - clients reading trailers
     
-    Complex imaginary formatting does not need to clear the f.space flag
-    because the set f.plus flag will force a sign instead of a space.
+    It definitely wasn't just about clients.
     
-    Sets default precision for %b to -1 (same as %g and %G)
-    since precision for %b has no affect in strconv.AppendFloat.
+    This moves it into clientserver_test.go and separates it into two
+    halves:
     
-    Add more tests and group them a bit better.
-    Use local copies of +Inf,-Inf and NaN instead
-    of math package functions for testing.
+    - servers writing trailers + clients reading trailers
+    - clients writing trailers + servers reading trailers
     
-    Saves around 8kb in the go binary.
+    Which still isn't ideal, but is much better, and easier to read.
     
-    name              old time/op  new time/op  delta
-    SprintfFloat-2     200ns ± 4%   196ns ± 4%  -1.55%  (p=0.007 n=20+20)
-    SprintfComplex-2   569ns ± 4%   570ns ± 3%    ~     (p=0.804 n=20+20)
+    Updates #13557
     
-    Change-Id: I36d35dab6f835fc2bd2c042ac97705868eb2446f
-    Reviewed-on: https://go-review.googlesource.com/20252
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I8c3e58a1f974c1b10bb11ef9b588cfa0f73ff5d9
+    Reviewed-on: https://go-review.googlesource.com/17895
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/fmt/fmt_test.go | 100 +++++++++++++++++++++++++++++++++++++---------------
- src/fmt/format.go   |  99 ++++-----------------------------------------------
- src/fmt/print.go    | 100 +++++++++++++++++++---------------------------------
- 3 files changed, 115 insertions(+), 184 deletions(-)
+ src/net/http/client_test.go       |  77 -----------------------
+ src/net/http/clientserver_test.go | 126 ++++++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go          |  30 +++++----
+ 3 files changed, 145 insertions(+), 88 deletions(-)

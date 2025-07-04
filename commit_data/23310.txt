@@ -1,12 +1,15 @@
-commit e861c9ba36186b223c2550556e279c3d9ba467fe
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Jun 9 14:15:41 2015 -0700
+commit b0e71f46b54577cada943d9354298d684c696b60
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 23 13:52:46 2015 +0100
 
-    .gitignore: ignore y.output
+    net: link with networking libraries when net package is in use
     
-    Change-Id: I95b72b6be39fbb923b5f0743d17d7f8bd3ee3814
-    Reviewed-on: https://go-review.googlesource.com/10860
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #10221.
+    
+    Change-Id: Ib23805494d8af1946360bfea767f9727e2504dc5
+    Reviewed-on: https://go-review.googlesource.com/7941
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- .gitignore | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/sendfile_solaris.go | 4 ++++
+ 1 file changed, 4 insertions(+)

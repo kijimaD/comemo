@@ -1,19 +1,18 @@
-commit b93ceefa7b47167f7bc9ec471905c136b234d34f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 18 23:47:03 2022 +0000
+commit f14908d01b8c4832f9ad3939165d5eec969635e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 12:12:27 2021 -0700
 
-    runtime: use osyield in runqgrab on netbsd
+    [dev.typeparams] cmd/compile/internal/types2: remove unused gcCompatibilityMode flag (cleanup)
     
-    NetBSD appears to have the same issue OpenBSD had in runqgrab. See
-    issue #52475 for more details.
+    This flag is not needed by types2 (and possibly can also be removed
+    from go/types). Removed some unnecessary comments along the way.
     
-    For #35166.
+    Updates #46174.
     
-    Change-Id: Ie53192d26919b4717bc0d61cadd88d688ff38bb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/407139
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I1a7a99f724205a084d1c9850bce6f6f5d33f83ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339831
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/typestring.go | 98 ++++-----------------------
+ 1 file changed, 13 insertions(+), 85 deletions(-)

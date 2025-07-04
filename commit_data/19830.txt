@@ -1,15 +1,29 @@
-commit 9333fe8e92971654d0f96d137d46a019cde836e3
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 29 11:22:57 2014 +0400
+commit 0100afbdcc065ec20631d60cf7621d642f44b9d5
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Tue Jul 29 14:29:14 2014 +1000
 
-    cmd/ld: better diagnostics on unaligned symbols
-    Want to see why builders are failing.
-    Then decide whether to rollback or fix.
+    image/png: use branch-free abs function
     
-    TBR=khr
-    R=khr
+    benchmark                        old ns/op     new ns/op     delta
+    BenchmarkPaeth                   5.06          6.02          +18.97%
+    BenchmarkDecodeGray              1010551       956911        -5.31%
+    BenchmarkDecodeNRGBAGradient     3877813       3754160       -3.19%
+    BenchmarkDecodeNRGBAOpaque       3194058       3079094       -3.60%
+    BenchmarkDecodePaletted          699243        700211        +0.14%
+    BenchmarkDecodeRGB               2835733       2692120       -5.06%
+    BenchmarkDecodeInterlacing       3651805       3563124       -2.43%
+    BenchmarkEncodeGray              4399183       4404113       +0.11%
+    BenchmarkEncodeNRGBOpaque        13323627      13306485      -0.13%
+    BenchmarkEncodeNRGBA             15840092      15751188      -0.56%
+    BenchmarkEncodePaletted          4396622       4404373       +0.18%
+    BenchmarkEncodeRGBOpaque         13320475      13279189      -0.31%
+    BenchmarkEncodeRGBA              36898392      36781002      -0.32%
+    
+    LGTM=nigeltao
+    R=nigeltao
     CC=golang-codereviews
-    https://golang.org/cl/114510043
+    https://golang.org/cl/117290043
 
- src/cmd/ld/data.c | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ src/pkg/image/png/paeth.go      | 41 +++++++++++++++++++++--------------------
+ src/pkg/image/png/paeth_test.go |  8 ++++----
+ 2 files changed, 25 insertions(+), 24 deletions(-)

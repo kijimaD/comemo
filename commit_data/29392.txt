@@ -1,16 +1,16 @@
-commit 2c6949ec89817caecbb441422fe1d6729ee16462
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Nov 4 17:11:51 2016 -0400
+commit 09686a58734382ace059f1dbd882dadbb39b2268
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 12 17:08:21 2016 -0700
 
-    go/types: avoid redundant call to recordUse for anonymous fields
+    cmd/compile: remove another bytes.Buffer use in fmt.go
     
-    Anonymous fields are type expressions, and Checker.typexpr already
-    correctly records uses within them.  There's no need for a second
-    call, and the second call caused a bug when we implemented aliases.
+    Missed in prior commit.
     
-    Change-Id: I1bf2429cd4948d68b085e75dfb1bdc03ad8caffd
-    Reviewed-on: https://go-review.googlesource.com/32837
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ib3a41fb4e4d41feeb28c316fe70a329c73e72379
+    Reviewed-on: https://go-review.googlesource.com/29088
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/typexpr.go | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

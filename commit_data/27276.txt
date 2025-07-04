@@ -1,14 +1,13 @@
-commit bfcb5b64062b3bdf367e0888cd42a4a46d37a913
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed May 4 17:06:50 2016 -0400
+commit 3e2e80599e112c6cb6ad3fb82aa15660603c4571
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 16:41:38 2016 +0100
 
-    net/http: correct RFC for MethodPatch
+    net/url: don't assume b.N > 0
     
-    Fixes #15546.
-    
-    Change-Id: I39c29ea6999812dd5f1c45f67bddad28f20b6c6b
-    Reviewed-on: https://go-review.googlesource.com/22773
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie79c16d6e61b3baa274069528cf883b22fd255fe
+    Reviewed-on: https://go-review.googlesource.com/20855
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/method.go | 2 +-
+ src/net/url/url_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

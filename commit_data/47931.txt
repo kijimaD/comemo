@@ -1,33 +1,23 @@
-commit deb45802a4384ea3c7c3434113fb64a57a494cb2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 11 20:55:56 2022 -0800
+commit 800fb11efb8a57d8aaf11052e3a9d91138964f21
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 16 16:47:34 2021 -0500
 
-    go/types, types2: prevent unification from recursing endlessly
+    runtime: remove redudant tryWakeP component
     
-    This is a stop gap solution to avoid panics due to stack overflow
-    during type unification. While this doesn't address the underlying
-    issues (for which we are still investigating the correct approach),
-    it prevents a panic during compilation and reports a (possibly not
-    quite correct) error message.
+    Here tryWakeP can't already be true, so there is no need to combine the
+    values.
     
-    If the programs are correct in the first place, manually providing
-    the desired type arguments is a viable work-around, resulting in
-    code that will continue to work even when the issues here are fixed
-    satisfactorily.
+    This CL should have no functional changes.
     
-    For #48619.
-    For #48656.
+    For #43997.
+    For #44313.
     
-    Change-Id: I13bb14552b38b4170b5a1b820e3172d88ff656ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377954
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I640c7bb88a5f70c8d22f89f0b5b146b3f60c0136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307911
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- .../types2/testdata/fixedbugs/issue48619.go2       | 25 ++++++++++++----------
- .../types2/testdata/fixedbugs/issue48656.go2       | 11 ++++++----
- src/cmd/compile/internal/types2/unify.go           | 17 +++++++++++++++
- src/go/types/testdata/fixedbugs/issue48619.go2     | 25 ++++++++++++----------
- src/go/types/testdata/fixedbugs/issue48656.go2     | 11 ++++++----
- src/go/types/unify.go                              | 17 +++++++++++++++
- 6 files changed, 76 insertions(+), 30 deletions(-)
+ src/runtime/proc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

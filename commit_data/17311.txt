@@ -1,13 +1,13 @@
-commit 6fb9cc1f63dced4ad2022fb4eac9f722cd12c708
+commit 7fb121aa479c96e32c1178d4c65e865ae5cb5144
 Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 19 10:15:30 2013 +1000
+Date:   Mon Aug 19 08:29:43 2013 +1000
 
-    testing: don't start timing a Parallel test until it's actually starting
-    Fixes #5285.
+    cmd/dist: more informative error for mkdtemp failing
+    The Darwin builders are all failing here but strerror doesn't provide context.
     
-    R=golang-dev, dvyukov
+    R=golang-dev, bradfitz, adg
     CC=golang-dev
-    https://golang.org/cl/13045044
+    https://golang.org/cl/13095043
 
- src/pkg/testing/testing.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/dist/unix.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

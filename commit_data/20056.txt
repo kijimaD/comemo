@@ -1,14 +1,13 @@
-commit e249b0ffeeb36957adfde2b3ec3ab0eabea8e3ba
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Aug 21 11:43:58 2014 +0400
+commit bc8d35a9cfc5c2da2ca9586e0aef457fd4bdc0bd
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 13 01:22:21 2014 -0400
 
-    cmd/api: add missing runtime struct
-    Fixes build.
+    [dev.power64] cmd/cc: round argsize to multiples of wordsize on power64
     
-    TBR=khr
-    R=golang-codereviews
-    CC=golang-codereviews, khr
-    https://golang.org/cl/130390044
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/121640043
 
- src/cmd/api/goapi.go | 2 +-
+ src/cmd/cc/pgen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

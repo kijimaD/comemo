@@ -1,12 +1,17 @@
-commit d820d5f3ab49bec0fb5f8a177ed48b99502a0be1
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 15 16:05:52 2015 -0400
+commit e589e08014d8f508e93a6c0061e9fa50248cbe78
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 21 10:46:29 2015 -0700
 
-    runtime: make mapzero not crash on arm
+    misc/cgo/testcshared: add c-shared test with no exports
     
-    Change-Id: I40e8a4a2e62253233b66f6a2e61e222437292c31
-    Reviewed-on: https://go-review.googlesource.com/10151
-    Reviewed-by: Minux Ma <minux@golang.org>
+    The purpose of this test is to make sure that -buildmode=c-shared
+    works even when the shared library can be built without invoking cgo.
+    
+    Change-Id: Id6f95af755992b209aff770440ca9819b74113ab
+    Reviewed-on: https://go-review.googlesource.com/9166
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/hashmap.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ misc/cgo/testcshared/main2.c              | 56 +++++++++++++++++++++++++++++++
+ misc/cgo/testcshared/src/libgo2/libgo2.go | 52 ++++++++++++++++++++++++++++
+ misc/cgo/testcshared/test.bash            | 12 ++++++-
+ 3 files changed, 119 insertions(+), 1 deletion(-)

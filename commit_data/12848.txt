@@ -1,21 +1,17 @@
-commit f27348776f3c898d9e5dc3c910dbac99ae482e52
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Fri Apr 6 14:01:12 2012 -0400
+commit 559c191b8935fc52ec3cfc9f34b58b36777ff213
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Fri Apr 6 07:57:05 2012 -0700
 
-    math: make function documentation more regular
+    syscall: manually fix z* for NetBSD/amd64
     
-    R=rsc, golang-dev
+    Building go currently fails on NetBSD, thus the regeneration
+    scripts do not run correctly. With these changes, at least
+    the go_bootstrap tool builds correctly.
+    
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5994043
+    https://golang.org/cl/5695064
 
- src/pkg/math/acosh.go    | 2 +-
- src/pkg/math/asinh.go    | 2 +-
- src/pkg/math/atanh.go    | 2 +-
- src/pkg/math/cbrt.go     | 2 +-
- src/pkg/math/copysign.go | 2 +-
- src/pkg/math/erf.go      | 4 ++--
- src/pkg/math/gamma.go    | 2 +-
- src/pkg/math/hypot.go    | 2 +-
- src/pkg/math/logb.go     | 4 ++--
- src/pkg/math/sincos.go   | 2 +-
- 10 files changed, 12 insertions(+), 12 deletions(-)
+ src/pkg/syscall/zerrors_netbsd_amd64.go  | 102 +++++++++++++++++++++----------
+ src/pkg/syscall/zsyscall_netbsd_amd64.go |   2 +-
+ 2 files changed, 70 insertions(+), 34 deletions(-)

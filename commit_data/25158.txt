@@ -1,29 +1,20 @@
-commit 5ebb374f96da366d2c44b2fae7d9b3d0af7825dd
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Dec 2 15:41:44 2015 -0800
+commit 4c2a4004bd385a624988bee7b4d750975b99f40c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 2 10:55:27 2015 -0700
 
-    archive/tar: properly parse GNU base-256 encoding
+    readme: emphasize issue tracker is for bugs/proposals
     
-    Motivation:
-    * Previous implementation did not detect integer overflow when
-    parsing a base-256 encoded field.
-    * Previous implementation did not treat the integer as a two's
-    complement value as specified by GNU.
+    Removed direct link to issue tracker in the README - it makes it too
+    easy to use it for a question - and it's abused multiple times a day
+    for questions. It's easy enough to find it if there's a real issue
+    to report.
     
-    The relevant GNU specification says:
-    <<<
-    GNU format uses two's-complement base-256 notation to store values
-    that do not fit into standard ustar range.
-    >>>
+    Added sentence to point people at golang-nuts and the new forum.
     
-    Fixes #12435
-    
-    Change-Id: I4639bcffac8d12e1cb040b76bd05c9d7bc6c23a8
-    Reviewed-on: https://go-review.googlesource.com/17424
+    Change-Id: If75bab888cda064aceeefc49ef672fbb964f8f54
+    Reviewed-on: https://go-review.googlesource.com/15284
+    Reviewed-by: Jason Buberel <jbuberel@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/reader.go      | 38 ++++++++++++++++++++----
- src/archive/tar/reader_test.go | 67 +++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 96 insertions(+), 9 deletions(-)
+ README.md | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

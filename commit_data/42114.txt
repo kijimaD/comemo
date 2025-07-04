@@ -1,17 +1,26 @@
-commit 79bb41aed6892bb73ee01c5ed1335a4992c219f5
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 22:13:29 2020 -0700
+commit 9ee6ba089dc9dd2402bccd9ed28b07140f76de15
+Author: Keith Randall <khr@google.com>
+Date:   Mon Sep 23 14:36:48 2019 -0700
 
-    cmd/compile: convert reassociation optimizations to typed aux, part two
+    runtime: fix line number for faulting instructions
     
-    Passes toolstash-check.
+    Unlike function calls, when processing instructions that directly
+    fault we must not subtract 1 from the pc before looking up the
+    file/line information.
     
-    Change-Id: Ia8fad6973983eebe6d78d9dd8de8c99b8edcecdb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229684
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Since the file/line lookup unconditionally subtracts 1, add 1 to
+    the faulting instruction PCs to compensate.
+    
+    Fixes #34123
+    
+    Change-Id: Ie7361e3d2f84a0d4f48d97e5a9e74f6291ba7a8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196962
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  72 +++----
- src/cmd/compile/internal/ssa/rewritegeneric.go | 270 ++++++++++++-------------
- 2 files changed, 171 insertions(+), 171 deletions(-)
+ src/runtime/pprof/proto.go      |  6 ------
+ src/runtime/pprof/proto_test.go |  6 +++---
+ src/runtime/traceback.go        | 15 +++++++++++++-
+ test/fixedbugs/issue34123.go    | 43 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 60 insertions(+), 10 deletions(-)

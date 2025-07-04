@@ -1,12 +1,12 @@
-commit 5b458fbc2e9be97c0205aad2558b8a3314c98fd8
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jun 20 05:16:50 2015 +1000
+commit a4292c31206f798a3a4a8498006f4a055f581860
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 14 16:21:01 2015 -0400
 
-    doc/go1.5.txt: cmd/go: add vendoring support
+    api: refresh next.txt
     
-    Change-Id: I42cfdb389282478ce0e29436464f2048ed087429
-    Reviewed-on: https://go-review.googlesource.com/11290
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I5e902bb3a3a51620b21840783087ed3cc410dbc5
+    Reviewed-on: https://go-review.googlesource.com/10048
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.5.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ api/next.txt | 172 ++++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 130 insertions(+), 42 deletions(-)

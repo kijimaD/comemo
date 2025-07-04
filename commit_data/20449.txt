@@ -1,35 +1,21 @@
-commit da8cf5438aa676a99e8bb55c94011b2581743e1a
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 16 17:26:16 2014 -0700
+commit ec96795ba20209263a0bbb17a073a9c028e74437
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 8 14:54:00 2014 -0700
 
-    runtime: always run semacquire on the G stack
+    go/parser: fix (pathological) corner case
     
-    semacquire might need to park the currently running G.  It can
-    only park if called from the G stack (because it has no way of
-    saving the M stack state).  So all calls to semacquire must come
-    from the G stack.
+    Inside a control clause (if ... {}), composite
+    literals starting with a type name must be parenthesized.
+    A composite literal used in the array length expression
+    of an array composite literal is already parenthesized.
+    Not a valid program, but syntactically is should
+    be accepted.
     
-    The three violators are GOMAXPROCS, ReadMemStats, and WriteHeapDump.
-    This change moves the semacquire call earlier, out of their C code
-    and into their Go code.
-    
-    This seldom caused bugs because semacquire seldom actually had
-    to park the caller.  But it did happen intermittently.
-    
-    Fixes #8749
-    
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov, bradfitz
+    LGTM=adonovan
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/144940043
+    https://golang.org/cl/142760043
 
- src/runtime/debug.go   | 30 ++++++++++++++-----
- src/runtime/heapdump.c | 25 +---------------
- src/runtime/mem.go     | 37 ++++++++++++++++++++++-
- src/runtime/mgc0.c     | 26 +----------------
- src/runtime/proc.c     | 79 ++++----------------------------------------------
- src/runtime/runtime.h  | 39 +++++++++++++++++++++++++
- src/runtime/sema.go    |  5 ++++
- src/runtime/stubs.go   |  2 ++
- src/runtime/thunk.s    |  3 ++
- 9 files changed, 114 insertions(+), 132 deletions(-)
+ src/go/parser/parser.go     | 2 ++
+ src/go/parser/short_test.go | 1 +
+ 2 files changed, 3 insertions(+)

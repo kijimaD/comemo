@@ -1,20 +1,20 @@
-commit 04e2e81ecbb6a34863cb46f22d7b8f434c8b852f
-Author: Patrik Lundin <patrik@sigterm.se>
-Date:   Thu Jul 4 22:48:23 2019 +0000
+commit b136b17a8c105cd600bd52df507d461784593dee
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Wed Jan 30 17:34:34 2019 +0000
 
-    net/http: stop ExampleServer_Shutdown from hanging on error
+    cmd/go/internal/modconv: remove unused variables
     
-    Running the example code when not having permissions
-    to bind to port 80 will cause the program to hang after
-    printing the error message.
-    
-    Change-Id: I2433ba2629b362fc8f1731e40cab5eea72ec354f
-    GitHub-Last-Rev: 0bb3dc08b6f646470fc6ff208ea12bca901a2299
-    GitHub-Pull-Request: golang/go#32947
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185157
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I429db8dca219fb931f7b05ce7a7324e8c4ba935b
+    GitHub-Last-Rev: 2257a5bf23e7d79f54bedba2c2bed8c59bb6114c
+    GitHub-Pull-Request: golang/go#29999
+    Reviewed-on: https://go-review.googlesource.com/c/160423
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modconv/glide.go | 3 +--
+ src/cmd/go/internal/modconv/glock.go | 3 +--
+ src/cmd/go/internal/modconv/tsv.go   | 3 +--
+ src/cmd/go/internal/modconv/vconf.go | 3 +--
+ src/cmd/go/internal/modconv/vyml.go  | 3 +--
+ 5 files changed, 5 insertions(+), 10 deletions(-)

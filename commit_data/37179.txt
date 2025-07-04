@@ -1,23 +1,17 @@
-commit 0ad332d80cf3e2bbeef5f1e5f5eb50272bbde92e
-Author: Keith Randall <khr@google.com>
-Date:   Tue Oct 30 12:58:50 2018 -0700
+commit d82256ac11762f9e5069d84065de89919c337d58
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jul 8 15:28:21 2018 -0400
 
-    cmd/compile: implement some moves using non-overlapping reads&writes
+    runtime: skip TestG0StackOverflow on Android
     
-    For moves >8,<16 bytes, do a move using non-overlapping loads/stores
-    if it would require no more instructions.
+    This test is skipped on Linux and should be skipped on Android for the
+    same reason.
     
-    This helps a bit with the case when the move is from a static
-    constant, because then the code to materialize the value being moved
-    is smaller.
-    
-    Change-Id: Ie47a5a7c654afeb4973142b0a9922faea13c9b54
-    Reviewed-on: https://go-review.googlesource.com/c/146019
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I753c4788d935bd58874554b455c0d5be2315b794
+    Reviewed-on: https://go-review.googlesource.com/122585
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  11 ++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 102 ++++++++++++++++++++++++++-
- test/codegen/strings.go                      |  12 ++++
- 3 files changed, 121 insertions(+), 4 deletions(-)
+ src/runtime/crash_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

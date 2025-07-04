@@ -1,19 +1,24 @@
-commit 18dd68267263b0b37c14969349f7faa59556b1a8
-Author: zhangjian <zj.cosmos@gmail.com>
-Date:   Wed May 1 06:20:37 2024 +0000
+commit 4e8c6af239b6a941dafc1288bb5e275add530873
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 28 21:35:31 2023 -0400
 
-    cmd/compile/internal/ssa: correct error message for AuxArm64BitField
+    cmd/link, cmd/internal/obj: use aux symbol for global variable DWARF info
     
-    Change-Id: I2e1f48c02cb5c6e90a9cb894eb3bc330a4c5c4b5
-    GitHub-Last-Rev: 303d1f8a13bab67ec53b69b37712a6953163d973
-    GitHub-Pull-Request: golang/go#67124
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582615
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Currently, for a global variable, its debug info symbol is a named
+    symbol with the variable's name with a special prefix. And the
+    linker looks it up by name. This CL makes the debug info symbol an
+    aux symbol of the variable symbol.
+    
+    Change-Id: I55614d0ef2af9c53eb40144ad80e09339bf3cbee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490816
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/value.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/dwarf.go          | 11 +++++------
+ src/cmd/internal/obj/link.go           | 26 +++++++++++++++++++++++++-
+ src/cmd/internal/obj/objfile.go        | 21 ++++++++++++++++-----
+ src/cmd/internal/obj/sym.go            |  9 ++++++---
+ src/cmd/link/internal/ld/dwarf.go      | 10 +---------
+ src/cmd/link/internal/loader/loader.go |  9 +++++++++
+ 6 files changed, 62 insertions(+), 24 deletions(-)

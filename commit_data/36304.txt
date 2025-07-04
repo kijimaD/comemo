@@ -1,79 +1,20 @@
-commit b75c5c5992686a7eac1a33383e8b9b14b579556e
-Author: Ben Shi <powerman1st@163.com>
-Date:   Wed Jun 27 02:46:17 2018 +0000
+commit 96f6cc15949c27df4fe5df3c5ac9952f37543333
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 12 16:35:51 2018 +0200
 
-    cmd/compile: optimize AMD64 with more read-modify-write operations
+    debug/elf: add riscv64 relocations
     
-    6 more operations which do read-modify-write with a constant
-    source operand are added.
+    Based on the code from https://github.com/riscv/riscv-go/ originally
+    written by Amol Bhave.
     
-    1. The total size of pkg/linux_amd64 decreases about 3KB, excluding
-    cmd/compile.
-    
-    2. The go1 benckmark shows a slight improvement.
-    name                     old time/op    new time/op    delta
-    BinaryTree17-4              2.61s ± 4%     2.67s ± 2%  +2.26%  (p=0.000 n=30+29)
-    Fannkuch11-4                2.39s ± 2%     2.32s ± 2%  -2.67%  (p=0.000 n=30+30)
-    FmtFprintfEmpty-4          44.0ns ± 4%    41.7ns ± 4%  -5.15%  (p=0.000 n=30+30)
-    FmtFprintfString-4         74.2ns ± 4%    72.3ns ± 4%  -2.59%  (p=0.000 n=30+30)
-    FmtFprintfInt-4            81.7ns ± 3%    78.8ns ± 4%  -3.54%  (p=0.000 n=27+30)
-    FmtFprintfIntInt-4          130ns ± 4%     124ns ± 5%  -4.60%  (p=0.000 n=30+30)
-    FmtFprintfPrefixedInt-4     154ns ± 3%     152ns ± 3%  -1.13%  (p=0.012 n=30+30)
-    FmtFprintfFloat-4           215ns ± 4%     212ns ± 5%  -1.56%  (p=0.002 n=30+30)
-    FmtManyArgs-4               522ns ± 3%     512ns ± 3%  -1.84%  (p=0.001 n=30+30)
-    GobDecode-4                6.42ms ± 5%    6.49ms ± 7%    ~     (p=0.070 n=30+30)
-    GobEncode-4                6.07ms ± 8%    5.98ms ± 8%    ~     (p=0.150 n=30+30)
-    Gzip-4                      236ms ± 4%     223ms ± 4%  -5.57%  (p=0.000 n=30+30)
-    Gunzip-4                   37.4ms ± 3%    36.7ms ± 4%  -2.03%  (p=0.000 n=30+30)
-    HTTPClientServer-4         58.7µs ± 1%    58.5µs ± 2%  -0.37%  (p=0.018 n=30+29)
-    JSONEncode-4               12.0ms ± 4%    12.1ms ± 3%    ~     (p=0.112 n=30+30)
-    JSONDecode-4               54.5ms ± 3%    55.5ms ± 4%  +1.80%  (p=0.006 n=30+30)
-    Mandelbrot200-4            3.78ms ± 4%    3.78ms ± 4%    ~     (p=0.173 n=30+30)
-    GoParse-4                  3.16ms ± 5%    3.22ms ± 5%  +1.75%  (p=0.010 n=30+30)
-    RegexpMatchEasy0_32-4      76.6ns ± 1%    75.9ns ± 3%    ~     (p=0.672 n=25+30)
-    RegexpMatchEasy0_1K-4       252ns ± 3%     253ns ± 3%  +0.57%  (p=0.027 n=30+30)
-    RegexpMatchEasy1_32-4      69.8ns ± 4%    70.2ns ± 6%    ~     (p=0.539 n=30+30)
-    RegexpMatchEasy1_1K-4       374ns ± 3%     373ns ± 5%    ~     (p=0.263 n=30+30)
-    RegexpMatchMedium_32-4      107ns ± 4%     109ns ± 3%    ~     (p=0.067 n=30+30)
-    RegexpMatchMedium_1K-4     33.9µs ± 5%    34.1µs ± 4%    ~     (p=0.297 n=30+30)
-    RegexpMatchHard_32-4       1.54µs ± 3%    1.56µs ± 4%  +1.43%  (p=0.002 n=30+30)
-    RegexpMatchHard_1K-4       46.6µs ± 3%    47.0µs ± 3%    ~     (p=0.055 n=30+30)
-    Revcomp-4                   411ms ± 6%     407ms ± 6%    ~     (p=0.219 n=30+30)
-    Template-4                 66.8ms ± 3%    64.8ms ± 5%  -3.01%  (p=0.000 n=30+30)
-    TimeParse-4                 312ns ± 2%     319ns ± 3%  +2.50%  (p=0.000 n=30+30)
-    TimeFormat-4                296ns ± 5%     299ns ± 3%  +0.93%  (p=0.005 n=30+30)
-    [Geo mean]                 47.5µs         47.1µs       -0.75%
-    
-    name                     old speed      new speed      delta
-    GobDecode-4               120MB/s ± 5%   118MB/s ± 6%    ~     (p=0.072 n=30+30)
-    GobEncode-4               127MB/s ± 8%   129MB/s ± 8%    ~     (p=0.150 n=30+30)
-    Gzip-4                   82.1MB/s ± 4%  87.0MB/s ± 4%  +5.90%  (p=0.000 n=30+30)
-    Gunzip-4                  519MB/s ± 4%   529MB/s ± 4%  +2.07%  (p=0.001 n=30+30)
-    JSONEncode-4              162MB/s ± 4%   161MB/s ± 3%    ~     (p=0.110 n=30+30)
-    JSONDecode-4             35.6MB/s ± 3%  35.0MB/s ± 4%  -1.77%  (p=0.007 n=30+30)
-    GoParse-4                18.3MB/s ± 4%  18.0MB/s ± 4%  -1.72%  (p=0.009 n=30+30)
-    RegexpMatchEasy0_32-4     418MB/s ± 1%   422MB/s ± 3%    ~     (p=0.645 n=25+30)
-    RegexpMatchEasy0_1K-4    4.06GB/s ± 3%  4.04GB/s ± 3%  -0.57%  (p=0.033 n=30+30)
-    RegexpMatchEasy1_32-4     459MB/s ± 4%   456MB/s ± 6%    ~     (p=0.530 n=30+30)
-    RegexpMatchEasy1_1K-4    2.73GB/s ± 3%  2.75GB/s ± 5%    ~     (p=0.279 n=30+30)
-    RegexpMatchMedium_32-4   9.28MB/s ± 5%  9.18MB/s ± 4%    ~     (p=0.086 n=30+30)
-    RegexpMatchMedium_1K-4   30.2MB/s ± 4%  30.0MB/s ± 4%    ~     (p=0.300 n=30+30)
-    RegexpMatchHard_32-4     20.8MB/s ± 3%  20.5MB/s ± 4%  -1.41%  (p=0.002 n=30+30)
-    RegexpMatchHard_1K-4     22.0MB/s ± 3%  21.8MB/s ± 3%    ~     (p=0.051 n=30+30)
-    Revcomp-4                 619MB/s ± 7%   625MB/s ± 7%    ~     (p=0.219 n=30+30)
-    Template-4               29.0MB/s ± 3%  29.9MB/s ± 4%  +3.11%  (p=0.000 n=30+30)
-    [Geo mean]                123MB/s        123MB/s       +0.28%
-    
-    Change-Id: I850652cfd53329c1af804b7f57f4393d8097bb0d
-    Reviewed-on: https://go-review.googlesource.com/121135
-    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Change-Id: I8d5377096d4ff8b198dadb630511f9a0347f9797
+    Reviewed-on: https://go-review.googlesource.com/107339
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go        |  11 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  21 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  34 +-
- src/cmd/compile/internal/ssa/opGen.go        |  90 +++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 563 ++++++++++++++++++++++++++-
- test/codegen/bits.go                         |  10 +
- 6 files changed, 706 insertions(+), 23 deletions(-)
+ src/debug/elf/elf.go                               | 121 +++++++++++++++++++++
+ src/debug/elf/file.go                              |  51 +++++++++
+ src/debug/elf/file_test.go                         |  19 ++++
+ .../testdata/go-relocation-test-gcc720-riscv64.obj | Bin 0 -> 9576 bytes
+ 4 files changed, 191 insertions(+)

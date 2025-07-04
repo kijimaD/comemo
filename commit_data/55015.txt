@@ -1,22 +1,18 @@
-commit 3e8000393e1b8e4cd0f8bb448bf4655920ff6fa4
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Thu Nov 16 09:44:21 2023 -0800
+commit c0497d1a81b1104a3981be33abfd66252cea90c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 29 15:13:52 2022 -0500
 
-    runtime: disable automatic GC for STW metric tests
+    runtime/debug: add missing period
     
-    A follow-up to https://go.dev/cl/534161 -- calls to runtime/trace.Start
-    and Stop synchronize with the GC, waiting for any in-progress mark phase
-    to complete. Disable automatic GCs to quiet the system, so we can
-    observe only the test's intentional pauses.
+    Pointed out in review of CL 453602,
+    but it looks like I forgot to re-upload before submitting.
     
-    Change-Id: I6f8106c42528f9bda9afec1c151119783bbc78dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543075
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Change-Id: I8f4fac52ea0f904f6f9b06e13fc8ed2e778f2360
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454835
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Rhys Hiltner <rhys@justin.tv>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
 
- src/runtime/metrics_test.go | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+ src/runtime/debug/mod.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

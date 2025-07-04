@@ -1,19 +1,24 @@
-commit f3bf18117b284b63f4350a5aa61773a30d91a6d5
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue Jun 20 08:55:49 2023 -0400
+commit fc0d423789e3a2e1f84801be14ac657d41c115e4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 22 17:42:54 2022 -0700
 
-    log/slog: fix HandlerOptions.ReplaceAttr doc
+    debug/plan9obj: don't crash on EOF before symbol type
     
-    It said that Attrs with an empty key are ignored.
-    In fact, zero Attrs are ignored.
+    No debug/plan9obj test case because the problem can only happen for
+    invalid data. Let the fuzzer find cases like this.
     
-    Fixes #60870.
+    For #47653
+    Fixes #54585
     
-    Change-Id: I221d3a25b0f0cc9001e06e9cc76bab29292c0741
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504535
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I8d3e15725b9bc09dd0e6f2750769987021f5e982
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425115
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
 
- src/log/slog/handler.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/debug/plan9obj/file.go | 3 +++
+ 1 file changed, 3 insertions(+)

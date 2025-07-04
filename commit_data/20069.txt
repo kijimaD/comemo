@@ -1,17 +1,13 @@
-commit a9cef4952f86cd00fbe16090e8aa61c6b3ef152a
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Aug 21 22:34:00 2014 +0200
+commit 27e657ef68a67b3160358f6ab20f6338bbf30706
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 13 15:49:19 2014 -0400
 
-    runtime: give an explicit name to profiling Bucket sub-structs.
+    [dev.power64] cmd/9g: fix floating-point comparison for NaN
     
-    Fixes compilation of runtime on Solaris where the inner struct
-    was not called "_4_".
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/129460043
+    https://golang.org/cl/127300043
 
- src/pkg/runtime/mprof.go | 2 +-
- src/pkg/runtime/mprof.h  | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/9g/cgen.c | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)

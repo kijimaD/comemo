@@ -1,31 +1,22 @@
-commit 5a8c11ce3e7a87485defafb78c7bcf14f9d7b5a2
-Author: Austin Clements <austin@google.com>
-Date:   Wed Sep 26 16:39:02 2018 -0400
+commit 02399fa65c7012acb73abc01703cb751dad6aeff
+Author: Hana Kim <hakim@google.com>
+Date:   Wed May 23 16:53:55 2018 -0400
 
-    runtime: rename _MSpan* constants to mSpan*
+    cmd/vendor/.../unix: pick up upstream fixes for broken tests
     
-    We already aliased mSpanInUse to _MSpanInUse. The dual constants are
-    getting annoying, so fix all of these to use the mSpan* naming
-    convention.
+    Update golang/go#25528
+    Update golang/go#25529
     
-    This was done automatically with:
-      sed -i -re 's/_?MSpan(Dead|InUse|Manual|Free)/mSpan\1/g' *.go
-    plus deleting the existing definition of mSpanInUse.
-    
-    Change-Id: I09979d9d491d06c10689cea625dc57faa9cc6767
-    Reviewed-on: https://go-review.googlesource.com/137875
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I47ec282e76eb7740547e220ac00d6a7992e17b9e
+    Reviewed-on: https://go-review.googlesource.com/114094
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgocheck.go         |  2 +-
- src/runtime/heapdump.go         |  8 +++---
- src/runtime/malloc.go           |  2 --
- src/runtime/mbitmap.go          |  4 +--
- src/runtime/mgcmark.go          |  6 ++--
- src/runtime/mgcsweep.go         |  2 +-
- src/runtime/mheap.go            | 64 ++++++++++++++++++++---------------------
- src/runtime/mstats.go           |  2 +-
- src/runtime/runtime-gdb_test.go |  2 +-
- src/runtime/stack.go            |  4 +--
- 10 files changed, 47 insertions(+), 49 deletions(-)
+ .../golang.org/x/sys/unix/dev_solaris_test.go      | 51 ------------
+ .../golang.org/x/sys/unix/syscall_darwin_test.go   | 19 +++++
+ .../golang.org/x/sys/unix/syscall_freebsd_test.go  | 15 ++++
+ .../golang.org/x/sys/unix/syscall_linux_test.go    | 16 +++-
+ src/cmd/vendor/golang.org/x/sys/unix/xattr_test.go | 92 ++++++++++++++++++++++
+ src/cmd/vendor/vendor.json                         | 30 +++----
+ 6 files changed, 156 insertions(+), 67 deletions(-)

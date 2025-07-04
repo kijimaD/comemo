@@ -1,33 +1,24 @@
-commit 77296e36457b070bc811a605c4c4bd6c36d972ae
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Oct 27 17:51:04 2022 -0700
+commit bf88adadac9bbb1b190ba7af1010373823dabb06
+Author: Roi Martin <jroi.martin@gmail.com>
+Date:   Thu Nov 25 13:47:39 2021 +0100
 
-    cmd/go: don't substitute '$WORK' for work directory in -x heredocs
+    cmd/doc: fix "builtin" package parsing
     
-    When writing the set of commands excuted for go build -x, $WORK is
-    substituted for the work directory in all the commnands. But this
-    includes the cat <<EOF commands used to create a file with the given
-    contents. While we can expect the shell to substitute $WORK properly,
-    commands that read input files, such as importcfgs won't do that
-    substitution.
+    As stated in the code, "The builtin package needs special treatment: its
+    symbols are lower case but we want to see them, always". Thus, cmd/doc
+    forces the -u flag if the package being queried is called "builtin".
+    However, this happens after having already parsed the package. This
+    CL forces the -u flag just after parsing the command arguments and
+    before parsing any package.
     
-    This is necessary to fix the build_dash_x script test for CL 432535
-    because it removes .a files from the traditional stdlib install
-    locations. The test can pass even with importcfg packagefiles in $WORK
-    because all transitive imports are in the stdlib, and the compiler can
-    fall back to finding stdlib .a files in their traditional places, but
-    once they're gone the packagefile paths in $WORK will have paths that
-    contain the string $WORK, and os.Open will fail to open them for
-    reading. And since the fallback is gone the test will fail.
+    Fixes #49796.
     
-    For #47257
-    
-    Change-Id: I5db0066de6ed3ccf97927a78ce0939e3eb14aebe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/446116
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: If690a900c7cfd1700feecb9529bd4344c3c249d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367134
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/go/internal/work/exec.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/doc/main.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

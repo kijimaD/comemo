@@ -1,12 +1,16 @@
-commit dcdc309c7cec0785cd83ddeb752ccebc29a1f83d
-Author: Maxim Pimenov <mpimenov@google.com>
-Date:   Tue Jan 10 12:56:25 2012 -0800
+commit 4435c8bf2a7d4fcc33fd15903487958590a157f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 10 12:51:27 2012 -0800
 
-    runtime: fix typo in comment
+    exp/sql: close Rows on EOF
     
-    R=golang-dev
+    Fixes #2624
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5529059
+    https://golang.org/cl/5530068
 
- src/pkg/runtime/malloc.goc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exp/sql/fakedb_test.go | 25 +++++++++++++++++--------
+ src/pkg/exp/sql/sql.go         |  7 +++++--
+ src/pkg/exp/sql/sql_test.go    | 10 +++++++++-
+ 3 files changed, 31 insertions(+), 11 deletions(-)

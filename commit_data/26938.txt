@@ -1,26 +1,18 @@
-commit e5463f5055d590046a451a115ceac7b58b3f825f
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Thu Jan 21 14:53:55 2016 +1300
+commit 7047742f125053438b81fb3c8d33e8ad462e981e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 17:38:14 2016 -0800
 
-    cmd/go: fix "#cgo pkg-config:" comments with gccgo
+    cmd/compile: change esc.go to use nodeSeq
     
-    The unique difficulty of #cgo pkg-config is that the linker flags are recorded
-    when the package is compiled but (obviously) must be used when the package is
-    linked into an executable -- so the flags need to be stored on disk somewhere.
-    As it happens cgo already writes out a _cgo_flags file: nothing uses it
-    currently, but this change adds it to the lib$pkg.a file when compiling a
-    package, reads it out when linking (and passes a version of the .a file with
-    _cgo_flags stripped out of it to the linker). It's all fairly ugly but it works
-    and I can't really think of any way of reducing the essential level of
-    ugliness.
+    Move a few local fields all the way to []*Node while I'm at it.
     
-    Fixes #11739
+    Update #14473.
     
-    Change-Id: I35621878014e1e107eda77a5b0b23d0240ec5750
-    Reviewed-on: https://go-review.googlesource.com/18790
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: Ib18360879839ac592f778cf1042f111bdf14add3
+    Reviewed-on: https://go-review.googlesource.com/20197
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/build.go | 91 +++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 88 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/esc.go | 250 ++++++++++++++++++-------------------
+ 1 file changed, 119 insertions(+), 131 deletions(-)

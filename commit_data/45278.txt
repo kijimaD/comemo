@@ -1,18 +1,19 @@
-commit 0636d88f6d79827e0acdc8e53b8f249652061d2d
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Mon Apr 19 10:40:20 2021 +0800
+commit f1e3c8f14232cde8da8666ad68df493563287634
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 14 19:26:20 2020 -0400
 
-    cmd/compile: add restrictions on the shift amount range of arm64 various instructions
+    runtime/cgo: build iOS-specific code only on iOS
     
-    For arm64 constant shift instructions, e.g., LSL(immediate), they use
-    only the low 6 bits. To conform the semantics of the hardware instructions,
-    this CL comments in ARM64OPS.go about restricted AuxInt ranges for the
-    various instructions involved.
+    Don't build them on macOS/ARM64.
     
-    Change-Id: I2b6560d6580e22ba7cbfa744a02b046dd5714b8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303569
-    Trust: fannie zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #38485.
+    
+    Change-Id: I9fbea838fdce52db22742487926879761dea0d6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262559
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 93 ++++++++++++++--------------
- 1 file changed, 47 insertions(+), 46 deletions(-)
+ src/runtime/cgo/gcc_darwin_arm64.c                  | 21 ++++++++++++++++-----
+ ...gnal_darwin_nolldb.c => gcc_signal_ios_nolldb.c} |  4 ++--
+ 2 files changed, 18 insertions(+), 7 deletions(-)

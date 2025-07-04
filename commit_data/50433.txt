@@ -1,25 +1,20 @@
-commit 3585e9be670fc76e1bc4d4bfa452ee8798a127f2
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Tue Sep 6 18:09:11 2022 -0700
+commit 1b2362bb83de47188e7c60a69f46950de542f017
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Oct 26 09:47:18 2021 -0400
 
-    os: fix wrong error msg from TestDoubleCloseError
+    cmd/compile/internal/typecheck: update doc for the 1.18 export format
     
-    When the type assertion fails, the test mistakenly prints the expected
-    (rather than the actual) type.
+    Update the documentation in iexport.go to use the word 'Constraint'
+    rather than 'Bound', and to account for recent changes to the export
+    format.
     
-    When the error string doesn't match, the text mistakenly prints the
-    original (rather than the converted) error (although there might not be
-    any difference in the output, the code looks wrong).
-    
-    Fix both issues.
-    
-    Change-Id: Ia7dd0632fc677f458fec25d899c46268a12f76e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428916
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I83fbcd336d5f865af804bc8bef4f5d997cd9f325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358547
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/os/os_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

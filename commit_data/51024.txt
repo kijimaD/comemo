@@ -1,56 +1,17 @@
-commit b726b0cadb5102bb718f879bede0e76d1e5f5c34
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Sep 21 15:51:27 2022 -0400
+commit 7e1260f62b7447c36d9f3ff95365d761592323c4
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Sat Nov 27 23:02:16 2021 +0000
 
-    cmd/go: don't install most GOROOT .a files in pkg
+    testing: simplify fuzzResult.String to avoid unnecessarily using fmt.Sprintf
     
-    Packages in GOROOT that don't use cgo will not be installed in
-    GOROOT/pkg, and will instead be cached as usual like other Go
-    packages.
-    
-    - add a internal/buildinternal package to hold the identities of the
-      five packages that use cgo
-    - update dist's test code to do a go build std cmd before checking
-      staleness on builders. Because most of those packages no longer have
-      install locations, and have dependencies that don't either, the
-      packages need to be cached to not be stale.
-    - fix index_test to import packages with the path "." when preparing
-      the "want" values to compare the indexed data to. (the module index
-      matches the behavior of build.ImportDir, which always passes in "."
-      as the path.
-    - In both the index and go/build Importers, don't set
-      PkgObj for GOROOT packages which will no longer have install
-      targets. PkgTargetRoot will still be set to compute target paths,
-      which will still be needed in buildmode=shared.
-    - "downgrade" all install actions that don't have a target to build
-      actions. (The target should already not be set for packages that
-      shouldn't be installed).
-    
-    For #47257
-    
-    Change-Id: Ia5aee6b3b20b58e028119cf0352a4c4a2f10f6b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432535
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I16b6bfb6b0f02672c894b20845aa14d8dd1979b4
+    GitHub-Last-Rev: 75ab90123a8a5ad42e96795b756d3a9e898aaa06
+    GitHub-Pull-Request: golang/go#49819
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367314
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- misc/cgo/testshared/shared_test.go                  | 10 +++++-----
- src/cmd/compile/internal/importer/gcimporter.go     |  2 +-
- src/cmd/dist/test.go                                |  4 ++++
- src/cmd/go/go_test.go                               | 13 ++++++++++---
- src/cmd/go/internal/load/pkg.go                     | 20 +++++++++++++++-----
- src/cmd/go/internal/modindex/index_test.go          |  2 +-
- src/cmd/go/internal/modindex/read.go                | 10 +++++++++-
- src/cmd/go/internal/work/action.go                  |  9 +++++----
- src/cmd/go/internal/work/build.go                   |  8 ++++++--
- src/cmd/go/internal/work/exec.go                    |  3 +++
- .../go/testdata/script/install_goroot_targets.txt   | 21 +++++++++++++++++++++
- src/cmd/link/link_test.go                           | 15 +++++++++------
- src/go/build/build.go                               | 11 ++++++++++-
- src/go/build/build_test.go                          |  4 +++-
- src/go/build/deps_test.go                           |  3 ++-
- src/go/internal/gcimporter/gcimporter.go            |  2 +-
- src/go/types/example_test.go                        |  2 +-
- src/internal/buildinternal/needs_install.go         | 14 ++++++++++++++
- 18 files changed, 120 insertions(+), 33 deletions(-)
+ src/testing/fuzz.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

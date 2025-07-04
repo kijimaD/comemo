@@ -1,23 +1,44 @@
-commit cd6d225bd30608544ecf4a3e5a7aa1d0607a66db
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Mar 2 17:24:32 2023 -0800
+commit 6183920a33c21725ad21d67bee8c1eebb5d30a90
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Wed Feb 9 07:37:12 2022 -0600
 
-    go/types, types2: added clarifying comments, removed TODO in lookup.go
+    math/big: Implement shlVU and shrVU in ASM for PPC64
     
-    Also, renamed lookupFieldOrMethod to lookupFieldOrMethodImpl to make
-    a clearer distinction between this function and the exported version
-    LookupFieldOrMethod.
+    Currently the shift left and shift right functions are coded in .go
+    on PPC64. Implementing them in ASM just like AMD and ARM results in
+    overall speedup of shift benchmarks on POWER8/9/10.
     
-    Except for the rename, all changes are to comments only.
+    name                        old time/op  new time/op  delta
+    NonZeroShifts/1/shrVU       8.50ns ± 0%  5.21ns ± 0%  -38.66%
+    NonZeroShifts/1/shlVU       8.85ns ± 1%  5.24ns ± 0%  -40.78%
+    NonZeroShifts/2/shrVU       9.16ns ± 0%  5.51ns ± 0%  -39.80%
+    NonZeroShifts/2/shlVU       9.24ns ± 2%  5.61ns ± 0%  -39.28%
+    NonZeroShifts/3/shrVU       10.6ns ± 0%   6.8ns ± 0%  -35.78%
+    NonZeroShifts/3/shlVU       10.7ns ± 2%   6.4ns ± 0%  -40.82%
+    NonZeroShifts/4/shrVU       12.4ns ± 0%   7.7ns ± 0%  -38.12%
+    NonZeroShifts/4/shlVU       12.3ns ± 1%   7.5ns ± 0%  -38.67%
+    NonZeroShifts/5/shrVU       13.2ns ± 0%   8.5ns ± 0%  -35.51%
+    NonZeroShifts/5/shlVU       13.3ns ± 2%   9.3ns ± 0%  -30.05%
+    NonZeroShifts/10/shrVU      16.5ns ± 0%  13.1ns ± 0%  -20.12%
+    NonZeroShifts/10/shlVU      16.8ns ± 1%  14.1ns ± 0%  -16.02%
+    NonZeroShifts/100/shrVU      122ns ± 0%    94ns ± 0%  -22.87%
+    NonZeroShifts/100/shlVU      115ns ± 0%   103ns ± 0%  -10.50%
+    NonZeroShifts/1000/shrVU    1.10µs ± 0%  0.91µs ± 0%  -17.03%
+    NonZeroShifts/1000/shlVU    1.02µs ± 0%  0.93µs ± 0%   -8.74%
+    NonZeroShifts/10000/shrVU   10.9µs ± 0%   9.1µs ± 0%  -16.66%
+    NonZeroShifts/10000/shlVU   10.1µs ± 0%   9.3µs ± 0%   -8.19%
+    NonZeroShifts/100000/shrVU   109µs ± 0%    91µs ± 0%  -16.01%
+    NonZeroShifts/100000/shlVU   101µs ± 0%    94µs ± 0%   -7.16%
     
-    Change-Id: If7d1465c9cf659ea86bbbbcba8b95f16d2170fcc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473075
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: Ia31951cc29a4169beb494d2951427cbe1e963b11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384474
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/lookup.go | 39 +++++++++++++++++++++----------
- src/go/types/lookup.go                    | 39 +++++++++++++++++++++----------
- 2 files changed, 54 insertions(+), 24 deletions(-)
+ src/math/big/arith_ppc64x.s | 154 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 152 insertions(+), 2 deletions(-)

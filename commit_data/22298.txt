@@ -1,42 +1,16 @@
-commit 4e5ac45ec5c15dba0f57f80e923a0de6f9f4f511
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 3 13:10:47 2015 -0700
+commit ef0b03137d18f42337a4cbd4915bf91942bad750
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 3 12:53:41 2015 -0800
 
-    text/template: provide a mechanism for options
+    math/big: remove Float.Lsh/Rsh; added shift example
     
-    Add one option, which is the motivating example, a way to control
-    what happens when a map is indexed with a key that is not in the map.
-    Rather than do something specific for that case, we provide a simple
-    general option mechanism to avoid adding API if something else
-    comes up. This general approach also makes it easy for html/template
-    to track (and adapt, should that become important).
+    Shifts are trivially implemented by combining
+    Float.MantExp and Float.SetMantExp.
     
-    New method: Option(option string...). The option strings are key=value
-    pairs or just simple strings (no =).
-    
-    New option:
-    
-     missingkey: Control the behavior during execution if a map is
-     indexed with a key that is not present in the map.
-            "missingkey=default" or "missingkey=invalid"
-                    The default behavior: Do nothing and continue execution.
-                    If printed, the result of the index operation is the string
-                    "<no value>".
-            "missingkey=zero"
-                    The operation returns the zero value for the map type's element.
-            "missingkey=error"
-                    Execution stops immediately with an error.
-    
-    Fixes #6288.
-    
-    Change-Id: Id811e2b99dc05aff324d517faac113ef3c25293a
-    Reviewed-on: https://go-review.googlesource.com/8462
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ia2fb49297d8ea7aa7d64c8b1318dc3dc7c8af2f7
+    Reviewed-on: https://go-review.googlesource.com/6671
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/html/template/template.go  | 23 +++++++++++++
- src/text/template/exec.go      | 13 +++++++-
- src/text/template/exec_test.go | 51 +++++++++++++++++++++++++++++
- src/text/template/funcs.go     |  2 +-
- src/text/template/option.go    | 73 ++++++++++++++++++++++++++++++++++++++++++
- src/text/template/template.go  |  1 +
- 6 files changed, 161 insertions(+), 2 deletions(-)
+ src/math/big/float.go             | 44 ++++-----------------------------------
+ src/math/big/floatexample_test.go | 32 ++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 40 deletions(-)

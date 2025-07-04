@@ -1,18 +1,16 @@
-commit 92440fb5bd43912e363f32409bba5d6880356d60
-Author: Jason Del Ponte <delpontej@gmail.com>
-Date:   Mon May 12 23:35:56 2014 -0400
+commit 270848509bcfa0ecc72006d6325011bcb3096026
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 12 20:26:27 2014 -0700
 
-    encoding/xml: fix to allow xml declaration with EncodeToken
+    mime/multipart: add NewReader example
     
-    This changes allows the first token encoded to be a xml declaration. A ProcInst with target of xml. Any other ProcInst after that with a target of xml will fail
+    Fixes #7888
     
-    Fixes #7380.
-    
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    LGTM=adg
+    R=adg
     CC=golang-codereviews
-    https://golang.org/cl/72410043
+    https://golang.org/cl/100420043
 
- src/pkg/encoding/xml/marshal.go      | 11 +++++++++--
- src/pkg/encoding/xml/marshal_test.go | 36 +++++++++++++++++++++++++++++++++++-
- 2 files changed, 44 insertions(+), 3 deletions(-)
+ src/pkg/mime/multipart/example_test.go | 53 ++++++++++++++++++++++++++++++++++
+ src/pkg/mime/multipart/multipart.go    | 10 +++++--
+ 2 files changed, 60 insertions(+), 3 deletions(-)

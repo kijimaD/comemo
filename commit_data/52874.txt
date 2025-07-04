@@ -1,25 +1,22 @@
-commit 8dea63547035e2246e09ba96d0338ad9ba8b39ad
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 3 17:42:01 2023 -0700
+commit e7ef58542c7f12842cdefdb1cd5e1b794996dc96
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri May 27 19:06:30 2022 +0700
 
-    go/types, types2: make Checker.renameTParams work on any type
+    [dev.unified] cmd/compile: restore Unified IR linkname pragma diagnostic
     
-    This permits the rewrite of type parameters in arbitrary types,
-    not just tuples.
+    CL 333109 restore the diagnostic for irgen, now it's safe to restore for
+    Unified IR, too.
     
-    Preparation for fixing #59956.
-    For #59338.
+    Updates #53058
     
-    Change-Id: I9ccaac1f163051cb837cae2208763cafb1d239cb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492515
+    Change-Id: I467902c0e9fa451aaa78cf0813231f14d9d7a3a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410346
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/types2/call.go  |  8 +++++---
- src/cmd/compile/internal/types2/infer.go | 15 +++++++++------
- src/go/types/call.go                     |  8 +++++---
- src/go/types/infer.go                    | 15 +++++++++------
- 4 files changed, 28 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 5 +----
+ test/run.go                              | 7 +++----
+ 2 files changed, 4 insertions(+), 8 deletions(-)

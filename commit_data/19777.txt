@@ -1,24 +1,16 @@
-commit a91c1f5c833b7a9b1d0c8620a66ba5ee9dc286d9
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Jul 19 12:16:16 2014 +0300
+commit 09a9ef61153227307d00e5bffae106d66b400858
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jul 18 21:04:56 2014 -0400
 
-    cmd/addr2line, cmd/objdump: fix on amd64 Plan 9
+    codereview: abort 'hg commit' before entering commit message.
     
-    Fix virtual address of the start of the text segment
-    on amd64 Plan 9.
+    Hook pre-commit runs before 'hg commit' command whereas hook precommit runs
+    after the user has entered commit message.
     
-    This issue has been partially fixed in cmd/add2line,
-    as part of CL 106460044, but we forgot to report the
-    change to cmd/objdump.
-    
-    In the meantime, we also fixed the textStart address
-    in both cmd/add2line and cmd/objdump.
-    
-    LGTM=aram, ality, mischief
-    R=rsc, mischief, aram, ality
-    CC=golang-codereviews, jas
-    https://golang.org/cl/117920043
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/106320043
 
- src/cmd/addr2line/main.go |  9 +++------
- src/cmd/objdump/main.go   | 13 +++----------
- 2 files changed, 6 insertions(+), 16 deletions(-)
+ lib/codereview/codereview.py | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

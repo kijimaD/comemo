@@ -1,17 +1,15 @@
-commit bf9531f80bc11de82fe739b43156705b1816acf3
+commit e7030e7fef46244eb5e0b50a474d95fde1b2c21f
 Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 11 11:46:22 2011 +1000
+Date:   Mon Jul 11 10:01:15 2011 +1000
 
-    exp/template: character constants.
-    Easier to implement than to justify leaving them out.
+    exp/template: static check for defined variables.
+    Worth catching at parse time rather than execution. Plus it's really easy.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4662089
+    https://golang.org/cl/4641100
 
- src/pkg/exp/template/doc.go        |  7 +++----
- src/pkg/exp/template/lex.go        | 25 +++++++++++++++++++++++++
- src/pkg/exp/template/lex_test.go   | 16 ++++++++++++++++
- src/pkg/exp/template/parse.go      | 29 ++++++++++++++++++++++++-----
- src/pkg/exp/template/parse_test.go | 35 ++++++++++++++++++++++++++++++-----
- 5 files changed, 98 insertions(+), 14 deletions(-)
+ src/pkg/exp/template/exec_test.go  |  1 -
+ src/pkg/exp/template/parse.go      | 25 +++++++++++++++++++++++++
+ src/pkg/exp/template/parse_test.go |  9 +++++++--
+ 3 files changed, 32 insertions(+), 3 deletions(-)

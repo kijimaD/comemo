@@ -1,12 +1,30 @@
-commit 48f2d30d4389d57b60afe69cab74a008a2f47047
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 5 09:58:47 2015 -0400
+commit 102436e800d161dfd8b884278d1ddc5101f562dd
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Apr 30 19:03:31 2015 -0400
 
-    cmd/go: fix detection of ELF binaries
+    runtime: fix software FP regs corruption when emulating SQRT on ARM
     
-    Change-Id: I0e6f1a39b3d6b15d05891c8b25ab6644356bde5f
-    Reviewed-on: https://go-review.googlesource.com/10751
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    When emulating ARM FSQRT instruction, the sqrt function itself
+    should not use any floating point arithmetics, otherwise it will
+    clobber the user software FP registers.
+    
+    Fortunately, the sqrt function only uses floating point instructions
+    to test for corner cases, so it's easy to make that function does
+    all it job using pure integer arithmetic only. I've verified that
+    after this change, runtime.stepflt and runtime.sqrt doesn't contain
+    any call to _sfloat. (Perhaps we should add //go:nosfloat to make
+    the compiler enforce this?)
+    
+    Fixes #10641.
+    
+    Change-Id: Ida4742c49000fae4fea4649f28afde630ce4c576
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/9570
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/pkg.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/export_test.go   |  1 +
+ src/runtime/softfloat_arm.go |  3 +-
+ src/runtime/sqrt.go          | 32 +++++++++++------
+ src/runtime/sqrt_test.go     | 85 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 108 insertions(+), 13 deletions(-)

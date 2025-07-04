@@ -1,24 +1,26 @@
-commit 82a1e0f9d3e47ae7792cb857e950abc7103e9f39
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 23 15:40:54 2021 -0500
+commit b246c0e12fd41caf45a0f81eaa4f8fe249fbbc01
+Author: chainhelen <chainhelen@gmail.com>
+Date:   Fri Aug 21 16:44:52 2020 +0000
 
-    cmd/link: make symbol data writable before toc fixup
+    runtime: fix panic if newstack at runtime.acquireLockRank
     
-    On ppc64le, we need to insert a load to restore the toc
-    pointer in R2 after calling into plt stubs. Sometimes the
-    symbol data is loaded into readonly memory. This is the
-    case when linking with the race detector code.
+    Process may crash becaues acquireLockRank and releaseLockRank may
+    be called in nosplit context. With optimizations and inlining
+    disabled, these functions won't get inlined or have their morestack
+    calls eliminated.
+    Nosplit is not strictly required for lockWithRank, unlockWithRank
+    and lockWithRankMayAcquire, just keep consistency with lockrank_on.go
+    here.
     
-    Likewise, add extra checks to ensure we can, and are
-    replacing a nop.
+    Fixes #40843
     
-    Change-Id: Iea9d9ee7a5ba0f4ce285f4d0422823de1c037cb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304430
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I5824119f98a1da66d767cdb9a60dffe768f13c81
+    GitHub-Last-Rev: 38fd3ccf6ea03b670c7561c060ccdbccc42fff40
+    GitHub-Pull-Request: golang/go#40844
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248878
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ppc64/asm.go | 21 +++++++++++++--------
- 1 file changed, 13 insertions(+), 8 deletions(-)
+ src/runtime/lockrank_off.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

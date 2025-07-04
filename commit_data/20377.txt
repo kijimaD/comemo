@@ -1,23 +1,14 @@
-commit f9829e92e196cdae33e256dd82c690c7beba76ed
+commit dae803863978513a159b36822054126f042ff412
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 9 17:16:31 2014 -0400
+Date:   Thu Sep 4 01:58:31 2014 -0400
 
-    runtime: fix plan9/amd64 build?
+    runtime: fix nacl/amd64p32 build
     
-    The only thing I can see that is really Plan 9-specific
-    is that the stack pointer used for signal handling used
-    to have more mapped memory above it.
-    Specifically it used to have at most 88 bytes (StackTop),
-    so change the allocation of a 40-byte frame to a 128-byte frame.
-    
-    No idea if this will work, but worth a try.
-    
-    Note that "fix" here means get it back to timing out
-    instead of crashing.
+    BP is not a legal register on nacl.
     
     TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/142840043
+    https://golang.org/cl/140980043
 
- src/runtime/sys_plan9_amd64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/asm_amd64p32.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,28 +1,17 @@
-commit aedee3087008fd5493976a3c9e732f2fa5deb883
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Feb 15 09:35:18 2015 -0800
+commit d81cc374bedd670d8866a5721fcf5e601c35f13a
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Tue Feb 3 12:41:52 2015 -0800
 
-    net: deflake TestPacketConn, increase timeout
+    test: chdir before running go tool, cleanup afterwards.
     
-    Tests sometimes failed with:
+    issue9355 generated a file a.[568] in test/ directory and left it there.
+    For tests like these, it is best to chdir to a test specific directory
+    before generating any temporary files, since the tests are running
+    in parallel and might otherwise race with each other for the same files.
     
-    ok   mime/internal/quotedprintable      0.606s
-    ok   mime/multipart                     0.819s
-    --- FAIL: TestPacketConn (0.10s)
-        packetconn_test.go:96: PacketConn.ReadFrom failed: WSARecvFrom udp 127.0.0.1:64156: i/o timeout
-    FAIL
-    FAIL    net     3.602s
-    ok      net/http        4.618s
-    ok      net/http/cgi    0.576s
-    
-    Theory: 100 ms is too short. Small timer granularity on Wnidows, or an
-    allocation in the middle causing a GC sometimes?
-    
-    In any case, increase it to 500 ms.
-    
-    Change-Id: I48cc4d600eb168db9f85c0fd05335dd630254c3c
-    Reviewed-on: https://go-review.googlesource.com/4922
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I58d96256d4d8ee3fda70d81077f19006064a7425
+    Reviewed-on: https://go-review.googlesource.com/3813
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/packetconn_test.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ test/fixedbugs/issue9355.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

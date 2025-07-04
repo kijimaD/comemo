@@ -1,14 +1,19 @@
-commit d45e808c91789e48ed0a54347a3198a56e0ef86d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Sep 6 15:34:38 2011 -0700
+commit 0783dd90270b1da4b1a553f7a8a625c16838ee54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 6 11:48:05 2011 -0700
 
-    template: indirect or dereference function arguments if necessary to match the type of the formal.
-    Fixes #2235
+    go/parser: accept corner cases of signature syntax
     
-    R=golang-dev, dsymonds
+    - func f(int,) is a legal signature
+    - func f(...int,) is a legal signature
+    
+    Defer checking for correct use of "..." with last
+    paremeter type to type checker instead of parser.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4967056
+    https://golang.org/cl/4973059
 
- src/pkg/template/exec.go      | 13 ++++++++++++-
- src/pkg/template/exec_test.go | 11 +++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/pkg/go/parser/parser.go      | 19 ++++++++-----------
+ src/pkg/go/parser/parser_test.go |  5 ++++-
+ 2 files changed, 12 insertions(+), 12 deletions(-)

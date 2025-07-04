@@ -1,16 +1,19 @@
-commit b3b2f5d9cad01a23622287028fe8c57d59559169
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 2 05:08:51 2018 +0000
+commit 80bbad015d2f3f9407873c1657839a8a61d5f433
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 10 15:13:49 2018 -0700
 
-    cmd/go: skip cgo test when cgo isn't available
+    cmd/compile: omit unnecessary interface method expression wrappers
     
-    Fixes #26758
+    We'll always generate method expression wrappers for declared
+    interface types in their own package, so no need to generate them in
+    downstream packages.
     
-    Change-Id: If08bafc85c353dfbb546107b75c8c884ab9c88e4
-    Reviewed-on: https://go-review.googlesource.com/127475
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Noticed by gri@ while looking into #21282.
+    
+    Change-Id: I4fb7051b4e15297933da05fdd2b111d6b8f4178e
+    Reviewed-on: https://go-review.googlesource.com/106175
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/testdata/script/mod_case_cgo.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/subr.go | 5 +++++
+ 1 file changed, 5 insertions(+)

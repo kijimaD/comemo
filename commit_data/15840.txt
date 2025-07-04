@@ -1,13 +1,15 @@
-commit 1b6b1bc66e306447cecf2ebae56565c93fcab958
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 19 15:04:18 2013 -0700
+commit b79afe1b714e225a2b79f639e0956716de34ca64
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 19 13:59:37 2013 -0700
 
-    bytes,strings: remove user name from BUG in comment
+    debug/dwarf: support for DWARF 3
     
-    R=golang-dev, dave
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7856048
+    https://golang.org/cl/7662045
 
- src/pkg/bytes/bytes.go     | 2 +-
- src/pkg/strings/strings.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/debug/dwarf/buf.go   | 48 ++++++++++++++++++++++++++++++++---------
+ src/pkg/debug/dwarf/entry.go | 26 ++++++++++++++++------
+ src/pkg/debug/dwarf/type.go  |  4 +++-
+ src/pkg/debug/dwarf/unit.go  | 51 +++++++++++++++++++++++++++++++++++---------
+ 4 files changed, 102 insertions(+), 27 deletions(-)

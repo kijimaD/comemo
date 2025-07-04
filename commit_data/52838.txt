@@ -1,24 +1,21 @@
-commit a9a01ea280892e69c3722eebbc60d14c17a77e8d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon May 1 12:47:15 2023 -0400
+commit df7cb59de427dcfee9af0713ecf8b7033948303b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 7 00:07:26 2022 +0700
 
-    cmd/link: work around dsymutils not cleaning temp file
+    [dev.unified] cmd/compile: only sort symbols by name and package path
     
-    Some versions of dsymutils, notably the one in clang 14.0.3, which
-    is shipped in some versions of Xcode, have a bug that it creates a
-    temporary directory but doesn't clean it up at exit. The temporary
-    directory is created in DSYMUTIL_REPRODUCER_PATH (if set,
-    otherwise TMPDIR). Work around the issue by setting
-    DSYMUTIL_REPRODUCER_PATH to the linker's temporary directory, so
-    the linker will clean it up at exit anyway.
+    Since CL 393715, the path of package being compiled is now always known,
+    so symbols can be sorted by package path instead of package height.
     
-    Fixes #59026.
+    Updates #51734
     
-    Change-Id: Ie3e90a2d6a01f90040dc2eac91e8e536ccdda5a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490818
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ie543e2fdef4b93f3f0b97c6bcec0a4dcff788f2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410654
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/link/internal/ld/lib.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types/sym.go | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

@@ -1,18 +1,21 @@
-commit 9e073b504fbb936f54e6be50a41903319a993ce9
-Author: witchard <witchard@hotmail.co.uk>
-Date:   Tue Sep 22 18:02:52 2020 +0000
+commit 491615e3f7acca2964744307adf3655eb3e778b2
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Feb 24 21:08:12 2020 -0500
 
-    doc/go1.16: add -insecure deprecation to release notes
+    [dev.link] cmd/link: parallelize reloc sym
     
-    Updates #37519.
+    I tried a couple of different architectures (goroutine per symbol, 8
+    goroutines handling symbols from channels, and this architecture), and
+    this was the best. Another possible approach could be to divide up the
+    space of relocations, forgo the channels, and just pass slices to the
+    relocation routines, which would possibly be faster.
     
-    Change-Id: Iddf88a24334d4740f9c40caa2354127298692eeb
-    GitHub-Last-Rev: deda4c858b5c5582fa63ae7f1eee5f57292670c4
-    GitHub-Pull-Request: golang/go#41545
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256419
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Reloc                     13.9ms ± 5%      9.0ms ±10%       -35.09%  (p=0.000 n=8+9)
+    
+    Change-Id: I5111220e855313fae4b89d64277759c4dc33b697
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220842
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.16.html | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/link/internal/ld/data.go | 30 +++++++++++++++++++++---------
+ 1 file changed, 21 insertions(+), 9 deletions(-)

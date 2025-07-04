@@ -1,17 +1,16 @@
-commit bf58d209992395f8c30c8554b2d04dc4e4ce128f
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Thu Aug 29 14:41:01 2013 +0200
+commit a9e119ac7006c273d0045bcbc8c8d1a83f58f264
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 29 10:00:58 2013 +0200
 
-    cmd/8g: add descriptions for some missing instructions.
+    cmd/gc: fix method values whose receiver is an unnamed interface.
     
-    These instructions are emitted when GO386=387 or the target
-    i386 CPU does not have SSE2 capabilities.
+    Fixes #6140.
     
-    Fixes #6215.
-    
-    R=golang-dev, remyoudompheng
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/12812045
+    https://golang.org/cl/13083043
 
- src/cmd/8g/prog.c | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/cmd/gc/closure.c        | 14 ++++++++++++--
+ test/fixedbugs/issue6140.go | 31 +++++++++++++++++++++++++++++++
+ test/method2.go             |  5 +++--
+ 3 files changed, 46 insertions(+), 4 deletions(-)

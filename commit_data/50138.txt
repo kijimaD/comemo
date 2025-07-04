@@ -1,17 +1,18 @@
-commit f50e47308d60d2a043aa3f806069d49e1b7ad0c1
-Author: Ludi Rehak <ludi317@gmail.com>
-Date:   Mon Aug 8 18:55:56 2022 -0700
+commit 7ae83c8f38bc79e999a8657da443d815036c7d72
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 5 11:45:22 2021 -0700
 
-    cmd/go/internal/par: change cacheEntry.done type to atomic.Bool
+    go/types: implement generic slice expressions
     
-    Change-Id: I95c941f83f74d57dfdd2d6803c9059691fb649b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422176
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: hopehook <hopehook@qq.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    This is a clean port of CL 354070 from types2 to go/types.
+    
+    Change-Id: I44de1b8e6c0177e2a33e7f36a82465dc520c35aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354092
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/par/work.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/go/types/index.go                      | 7 +------
+ src/go/types/testdata/check/typeparams.go2 | 8 ++++++--
+ 2 files changed, 7 insertions(+), 8 deletions(-)

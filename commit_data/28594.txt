@@ -1,21 +1,16 @@
-commit 79db1625b929b8dad46c1537175b9412fd020851
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 29 19:09:36 2016 -0700
+commit a8c6c4837c17ab4ec3ba78e40b9a72dc70d9cf5a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 8 21:09:09 2016 -0700
 
-    cmd/compile: eliminate stkdelta
+    os: document that the runtime can write to standard error
     
-    At this point in the compiler we haven't assigned Xoffset values for
-    PAUTO variables anyway, so just immediately store the stack offsets
-    into Xoffset rather than into a global map.
+    Fixes #15970.
     
-    Change-Id: I61eb471c857c8b145fd0895cbd98fd4e8d3c3365
-    Reviewed-on: https://go-review.googlesource.com/30081
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I3f7d8316069a69d0e3859aaa96bc1414487fead0
+    Reviewed-on: https://go-review.googlesource.com/23921
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go   |  2 +-
- src/cmd/compile/internal/gc/gsubr.go |  4 ++--
- src/cmd/compile/internal/gc/pgen.go  | 16 +---------------
- src/cmd/compile/internal/gc/ssa.go   |  3 ++-
- 4 files changed, 6 insertions(+), 19 deletions(-)
+ src/os/file.go | 4 ++++
+ 1 file changed, 4 insertions(+)

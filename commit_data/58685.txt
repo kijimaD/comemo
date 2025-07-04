@@ -1,38 +1,23 @@
-commit 371e83cd7b309988bbe6b1bc7d0bd72aff52aa08
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Jan 30 15:53:06 2025 -0800
+commit 76d90a34dd39b3e218e4c201d4497dca09c1cd6f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 29 16:13:07 2023 -0500
 
-    os: add Root.Chmod
+    testing: remove tests from the running log while they are waiting on parallel subtests
     
-    For #67002
+    The parallel subtests are themselves removed from the running map
+    while they are blocked on calls to t.Parallel, so it is misleading to
+    log their parents as if they are running when we know they cannot be
+    making any kind of meaningful progress.
     
-    Change-Id: Id6c3a2096bd10f5f5f6921a0441dc6d9e6cdeb3b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/645718
-    Commit-Queue: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Fixes #64404.
+    
+    Change-Id: Iaad11d5d4f4c86d775d36e5285c49629dccddd74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546018
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- api/next/67002.txt                               |  1 +
- doc/next/6-stdlib/99-minor/os/67002.md           |  3 ++
- src/internal/syscall/unix/asm_darwin.s           |  1 +
- src/internal/syscall/unix/asm_openbsd.s          |  2 +
- src/internal/syscall/unix/at.go                  | 17 ++++++
- src/internal/syscall/unix/at_darwin.go           | 22 ++++++++
- src/internal/syscall/unix/at_libc.go             | 21 +++++++-
- src/internal/syscall/unix/at_openbsd.go          | 22 ++++++++
- src/internal/syscall/unix/at_sysnum_dragonfly.go |  1 +
- src/internal/syscall/unix/at_sysnum_freebsd.go   |  1 +
- src/internal/syscall/unix/at_sysnum_linux.go     |  1 +
- src/internal/syscall/unix/at_sysnum_netbsd.go    |  1 +
- src/internal/syscall/unix/at_wasip1.go           |  5 ++
- src/internal/syscall/windows/at_windows.go       |  8 ++-
- src/internal/syscall/windows/at_windows_test.go  |  2 +-
- src/os/root.go                                   | 11 ++++
- src/os/root_noopenat.go                          | 10 ++++
- src/os/root_openat.go                            | 10 ++++
- src/os/root_test.go                              | 66 ++++++++++++++++++++++++
- src/os/root_unix.go                              | 26 ++++++++++
- src/os/root_windows.go                           | 46 ++++++++++++++++-
- src/syscall/types_windows.go                     |  1 +
- 22 files changed, 273 insertions(+), 5 deletions(-)
+ src/testing/testing.go      |  17 +++++-
+ src/testing/testing_test.go | 144 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 160 insertions(+), 1 deletion(-)

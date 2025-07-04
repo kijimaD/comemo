@@ -1,25 +1,17 @@
-commit 8dab959a8e3c631e3166eb08ba450bfdbbf56e03
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Oct 14 17:30:42 2021 -0700
+commit a06bd9fecb4ec707a0b07a662283aa4970ecd9b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 10 18:06:10 2021 -0800
 
-    reflect: rename Mapiter.SetKey to Value.SetIterKey
+    [dev.typeparams] cmd/compile/internal/types: review of resolver_test.go
     
-    Same for Value.
+    The changes between (equivalent, and reviewed) go/types/resolver_test.go
+    and resolver_test.go can be seen by comparing patchset 1 and 2. The actual
+    change is just removing the "// UNREVIEWED" marker.
     
-    Add a bigger test. Include some shouldPanic checks.
-    
-    Fix a bug in assignment conversion.
-    
-    Fixes #48294
-    
-    Change-Id: Id863ee5122a5787a7b35574b18586fd24d118788
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356049
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ibd5850f0d68e393d81e55651bffc886d71665545
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291180
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/reflect/all_test.go | 90 +++++++++++++++++++++++++++++++++++++++++++++----
- src/reflect/value.go    | 48 +++++++++++++-------------
- 2 files changed, 108 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/types2/resolver_test.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,25 +1,17 @@
-commit 7758a9405f45970cb545505b9adcaccc6b23e7e7
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 8 15:02:40 2016 -0800
+commit bb0567b3042fb8003c288ee80eb4782e2e27db63
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 18 11:19:38 2015 -0500
 
-    cmd/compile: simplify Iter
+    runtime/debug: add SetTraceback
     
-    Passes toolstash -cmp.
+    Programs that call panic to crash after detecting a serious problem
+    may wish to use SetTraceback to force printing of all goroutines first.
     
-    Change-Id: I325b02dcc8412ded0dc304d43377c0bdf59c66a8
-    Reviewed-on: https://go-review.googlesource.com/20405
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib23ad9336f405485aabb642ca73f454a14c8baf3
+    Reviewed-on: https://go-review.googlesource.com/18043
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/align.go     |  25 +++----
- src/cmd/compile/internal/gc/cgen.go      |  12 ++--
- src/cmd/compile/internal/gc/gsubr.go     |   3 +-
- src/cmd/compile/internal/gc/order.go     |   3 +-
- src/cmd/compile/internal/gc/pgen.go      |   3 +-
- src/cmd/compile/internal/gc/ssa.go       |   3 +-
- src/cmd/compile/internal/gc/subr.go      |   7 +-
- src/cmd/compile/internal/gc/type.go      | 113 ++++++++-----------------------
- src/cmd/compile/internal/gc/typecheck.go |   5 +-
- src/cmd/compile/internal/gc/walk.go      |  31 ++++-----
- 10 files changed, 62 insertions(+), 143 deletions(-)
+ src/runtime/debug/garbage.go | 11 +++++++++
+ src/runtime/extern.go        |  4 ++++
+ src/runtime/runtime1.go      | 53 +++++++++++++++++++++++++++-----------------
+ 3 files changed, 48 insertions(+), 20 deletions(-)

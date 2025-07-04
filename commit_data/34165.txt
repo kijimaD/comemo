@@ -1,19 +1,17 @@
-commit 5a43a271e8cc589e077b4e056298d3711e233cd3
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Feb 9 12:47:33 2018 -0500
+commit e33b01651cccce4293eb7a2ae7b40774e1dbeec9
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Fri Oct 6 19:07:29 2017 +0300
 
-    cmd/compile: CALLudiv on nacl/arm doesn't clobber R12
+    cmd/asm: fix build error caused by yextractps
     
-    On nacl/arm, R12 is clobbered by the RET instruction in function
-    that has a frame. runtime.udiv doesn't have a frame, so it does
-    not clobber R12.
+    Fix ytab table for EXTRACTPS.
+    Related to https://go-review.googlesource.com/#/c/go/+/63490/.
     
-    Change-Id: I0de448749f615908f6659e92d201ba3eb2f8266d
-    Reviewed-on: https://go-review.googlesource.com/93116
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I11672d6bb731a204a08905f8321450f02c5bed76
+    Reviewed-on: https://go-review.googlesource.com/68950
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/ssa/config.go | 3 ---
- src/runtime/vlop_arm.s                 | 3 +++
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

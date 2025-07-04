@@ -1,0 +1,34 @@
+commit 139d6eedae38f9e8bc81bb2c8c5c2c75d12853ab
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Wed Jan 8 20:38:32 2025 +0000
+
+    cmd/go: restore netrc preferences for GOAUTH and fix domain lookup
+    
+    Store netrc lines into the credential map backward so that earlier lines
+    take priority over later lines. This matches Go 1.23 netrc lookup which
+    stopped at the first match it found.
+    Additionally, this fixes a security issue related to domain parsing
+    which could have allowed servers to read credentials belonging to other
+    servers. The fix was to switch from using path.Dir(currentPrefix) to
+    strings.Cut(currentPrefix, "/")
+    
+    Thanks to Juho Forsén of Mattermost for reporting this issue.
+    
+    Fixes #71249
+    Fixes CVE-2024-45340
+    
+    Change-Id: I175a00d6d7f4d31c9e4d79b7cf1c2a0ad35b2781
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1781
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Commit-Queue: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643097
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/internal/auth/auth.go            | 17 +++++++++++------
+ src/cmd/go/internal/auth/auth_test.go       | 24 +++++++++++++++++++++++-
+ src/cmd/go/testdata/script/goauth_netrc.txt |  7 ++++---
+ 3 files changed, 38 insertions(+), 10 deletions(-)

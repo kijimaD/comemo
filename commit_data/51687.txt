@@ -1,19 +1,22 @@
-commit ae400d003fd5abdebee84b70cfbe5a8ee855e6cb
-Author: Alice <escalice12@gmail.com>
-Date:   Mon Jan 16 11:54:01 2023 +0000
+commit 1eb1f621da20d7c93ac0312e59c08afbde4d9f56
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Mar 3 16:18:31 2022 -0500
 
-    misc/cgo/testsanitizers: use fmt.Printf instead fmt.Println
+    cmd/go: add links to workspaces reference and tutorial to go help work
     
-    Change-Id: Ie46bc3cbfb2622b5eb70618557ff5398866f5607
-    GitHub-Last-Rev: a665ef84dd9c11c6c274ad7f1cb51733d8253f6d
-    GitHub-Pull-Request: golang/go#57813
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462044
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For #45713
+    
+    Change-Id: Ia2901cbfc5deb52503e74fcf9dff26a56ec582c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389297
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- misc/cgo/testsanitizers/testdata/msan.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/alldocs.go               | 22 ++++++++++++++++++----
+ src/cmd/go/internal/workcmd/edit.go |  5 ++---
+ src/cmd/go/internal/workcmd/init.go |  2 ++
+ src/cmd/go/internal/workcmd/sync.go |  3 +++
+ src/cmd/go/internal/workcmd/use.go  |  3 +++
+ src/cmd/go/internal/workcmd/work.go |  8 +++++++-
+ 6 files changed, 35 insertions(+), 8 deletions(-)

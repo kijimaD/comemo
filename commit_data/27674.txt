@@ -1,26 +1,14 @@
-commit 5701174c52a2d42621ec3c5c59dca3bde9a14bc6
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Jun 11 17:12:28 2016 -0700
+commit 1e7c61d8c3fc0916b73cb7411afa45e99b50aac4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 21:49:52 2016 -0400
 
-    cmd/link: put padding between functions, not at the end of a function
+    math/big: add s390x function implementations
     
-    Functions should be declared to end after the last real instruction, not
-    after the last padding byte. We achieve this by adding the padding while
-    assembling the text section in the linker instead of adding the padding
-    to the function symbol in the compiler. This change makes dtrace happy.
-    
-    TODO: check that this works with external linking
-    
-    Fixes #15969
-    
-    Change-Id: I973e478d0cd34b61be1ddc55410552cbd645ad62
-    Reviewed-on: https://go-review.googlesource.com/24040
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I2aadc885d6330460e494c687757f07c5e006f3b0
+    Reviewed-on: https://go-review.googlesource.com/20937
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go   | 10 ----------
- src/cmd/link/internal/amd64/asm.go |  3 ++-
- src/cmd/link/internal/ld/data.go   | 37 ++++++++++++++++++++++---------------
- src/cmd/link/internal/x86/asm.go   |  3 ++-
- 4 files changed, 26 insertions(+), 27 deletions(-)
+ src/math/big/arith_s390x.s | 565 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 565 insertions(+)

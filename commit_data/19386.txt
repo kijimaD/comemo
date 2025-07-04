@@ -1,15 +1,14 @@
-commit ae6cbd4fcf35471996c35018ec0ff908c0a59728
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat May 17 00:06:56 2014 +0000
+commit b04146e492ff88793ef834b85aea75044111a222
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 16 22:06:37 2014 +0000
 
-    syscall: fix arm build
+    lib/time/zoneinfo.zip: update to IANA release 2014c
     
-    Rename Seek to seek in asm file, was overlooked in CL 99320043.
-    
-    LGTM=bradfitz, r
-    R=r, rsc, bradfitz
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/99320044
+    https://golang.org/cl/93420046
 
- src/pkg/syscall/asm_linux_arm.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 352541 -> 358933 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

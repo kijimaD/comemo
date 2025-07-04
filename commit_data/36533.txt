@@ -1,21 +1,14 @@
-commit c8545722a105f4a21583aeee00adcbd01436b98b
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Aug 29 11:55:55 2018 -0400
+commit b44ca1f3b39afab221891695a8079b16ab45c251
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu May 3 12:33:13 2018 +0200
 
-    cmd/compile: only clobber dead slots at call sites
+    cmd/go: update alldocs.go
     
-    We now have safepoints at nearly all the instructions. When
-    GOEXPERIMENT=clobberdead is on, it inserts clobbers nearly at
-    every instruction. Currently this doesn't work. (Maybe the stack
-    maps at non-call safepoints are still imprecise. I haven't
-    investigated.) For now, only use call-based safepoints if the
-    experiment is on.
+    Ran go generate in order to update docs.
     
-    Updates #27326.
-    
-    Change-Id: I72cda9b422d9637cc5738e681502035af7a5c02d
-    Reviewed-on: https://go-review.googlesource.com/131956
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ideb903427d153d0ff35e5164b7e79426b83b1afb
+    Reviewed-on: https://go-review.googlesource.com/111336
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/alldocs.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,36 +1,18 @@
-commit 3d03ec88963e93d15a9dec53b4ba61fda75c603b
+commit 77f00e5e5ae39443174351ea514bbdf02ad59edd
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 22 13:56:40 2012 -0400
+Date:   Tue May 22 13:53:57 2012 -0400
 
-    undo CL 6112054 / 2eec2501961c
+    unicode: fix comment about variable types
     
-    Now that we've fixed the Expect: test, this CL should be okay.
+    In both the web and command line tool,
+    the comment is shown after the declaration.
+    But in the code the comment is obviously before.
+    Make the text not refer to a specific order.
     
-    ««« original CL description
-    net/http: revert 97d027b3aa68
-    
-    Revert the following change set:
-    
-            changeset:   13018:97d027b3aa68
-            user:        Gustavo Niemeyer <gustavo@niemeyer.net>
-            date:        Mon Apr 23 22:00:16 2012 -0300
-            summary:     net/http: allow clients to disable keep-alive
-    
-    This broke a test on Windows 64 and somebody else
-    will have to check.
-    
-    R=golang-dev, r
+    R=r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6112054
-    »»»
-    
-    Fixes #3540.
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/6228046
+    https://golang.org/cl/6206094
 
- src/pkg/net/http/request.go    | 16 ++++++++++++++--
- src/pkg/net/http/serve_test.go | 15 +++++++++++----
- src/pkg/net/http/server.go     |  3 +--
- 3 files changed, 26 insertions(+), 8 deletions(-)
+ src/pkg/unicode/maketables.go | 4 ++--
+ src/pkg/unicode/tables.go     | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

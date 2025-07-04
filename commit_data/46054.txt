@@ -1,23 +1,18 @@
-commit 91a935ea0f525c04016dd37c45143af942ffd3fc
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 23:50:47 2021 +0000
+commit edf60be15175ff2eb20fb66344d7487875546778
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 3 17:07:52 2020 +0000
 
-    Revert "go/types: make Interface.Complete a no-op"
+    doc/go1.16: document no language changes
     
-    This reverts commit fda8ee8b077dd8a5819cac7c52c3af1499a0674e.
+    There are no language changes in Go 1.16, so document that.
     
-    Reason for revert: Interface.Complete is still necessary for safe concurrency.
+    For #40700.
+    Fixes #42976.
     
-    For #47726
-    
-    Change-Id: I8b924ca5f4af8c7d7e2b5a27bb03a5a5ed9b1d22
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342710
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I80b0d2ce6cf550c00c0f026ee59ac9fbce6310be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275117
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/internal/gcimporter/iimport.go |  4 ++++
- src/go/types/interface.go             | 18 ++++++++++++++----
- src/go/types/issues_test.go           |  3 +--
- 3 files changed, 19 insertions(+), 6 deletions(-)
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

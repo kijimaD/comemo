@@ -1,19 +1,46 @@
-commit 6a36e55d4aa54a34e5b8424e88b905f631b2b921
-Author: hi-rustin <rustin.liu@gmail.com>
-Date:   Mon Feb 19 15:22:37 2024 +0000
+commit 01f5a17aa3b99af34ad7c914657fc7345fe562fe
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 6 13:44:32 2023 -0500
 
-    runtime/pprof: update outdated google/pprof link
+    misc/cgo/{life,stdio}: remove reliance on test/run.go
     
-    Google/pprof changed the master branch to main, so it might be better to update it to the latest.
+    The misc/cgo/life and misc/cgo/stdio tests started out as fairly simple
+    test cases when they were added, but the machinery to execute them has
+    grown in complexity over the years.
     
-    Change-Id: Id29aca80a9a83a9c10da215180ad65816bc88936
-    GitHub-Last-Rev: 0023c28dc0d84a2529e24c694acfed7a363d2d0b
-    GitHub-Pull-Request: golang/go#65792
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565177
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    They currently reuse the test/run.go runner and its "run" action without
+    needing much of the additional flexibility that said runner implements.
+    Given that runner isn't well documented, it makes it harder to see that
+    ultimately these tests just do 'go run' on a few test programs and check
+    that the output matches a golden file.
+    
+    Maybe these test cases should move out of misc to be near similar tests,
+    or the machinery to execute them can made available in a package that is
+    easier and safer to reuse. I'd rather not block the refactor of the test
+    directory runner on that, so for now rewrite these to be self-contained.
+    
+    Also delete misc/cgo/stdio/testdata/run.out which has no effect on the
+    test. It was seemingly accidentally kept behind during the refactor in
+    CL 6220049.
+    
+    For #56844.
+    
+    Change-Id: I5e2f542824925092cdddb03b44b6295a4136ccb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465755
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/runtime/pprof/pprof.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/life/life_test.go             |  19 +++--
+ misc/cgo/life/testdata/life.go         |   2 -
+ misc/cgo/life/testdata/main.go         |   4 +-
+ misc/cgo/stdio/stdio_test.go           |  33 +++++---
+ misc/cgo/stdio/testdata/chain.go       |   4 +-
+ misc/cgo/stdio/testdata/fib.go         |   4 +-
+ misc/cgo/stdio/testdata/hello.go       |   4 +-
+ misc/cgo/stdio/testdata/run.out        | 150 ---------------------------------
+ misc/cgo/stdio/testdata/stdio/file.go  |   2 -
+ misc/cgo/stdio/testdata/stdio/stdio.go |   2 -
+ 10 files changed, 37 insertions(+), 187 deletions(-)

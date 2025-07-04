@@ -1,18 +1,13 @@
-commit 8677cad1992af3ba4ce7cdfdaca8bcdbf320eaa8
-Author: Christopher Nelson <nadiasvertex@gmail.com>
-Date:   Thu Mar 31 16:22:54 2016 -0400
+commit 5949524fc48aa514154cfb939ae28af58aaf6540
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Feb 17 17:21:53 2016 +0100
 
-    cmd/link: Replace fmt.Sprintf with filepath.Join
+    [dev.ssa] cmd/compile/internal/ssa: handle phis in fuse.
     
-    In a number of places the code was joining filepaths explicitly with
-    "/", instead of using filepath.Join. This may cause problems on Windows
-    (or other) platforms.
-    
-    This is in support of https://go-review.googlesource.com/#/c/18057
-    
-    Change-Id: Ieb1334f35ddb2e125be690afcdadff8d7b0ace10
-    Reviewed-on: https://go-review.googlesource.com/21369
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idd880cc6c1e5dc34dddbdea0841a7a718d2fa836
+    Reviewed-on: https://go-review.googlesource.com/19544
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/link/internal/ld/lib.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/fuse.go      | 72 ++++++++++++++++++++-----------
+ src/cmd/compile/internal/ssa/fuse_test.go | 34 +++++++++++++++
+ 2 files changed, 81 insertions(+), 25 deletions(-)

@@ -1,14 +1,18 @@
-commit 37c29c5f6cc0938209789dc1292692fa266c4a97
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jan 11 10:59:36 2016 -0800
+commit 3953c1d84f2671615e842cb402e1aec6667530aa
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sun Nov 8 20:27:14 2015 +0100
 
-    go/types: slightly better doc strings
+    cmd/go: send all go build -n output to stderr
     
-    Per suggestion from adonovan.
+    Also change a -v print, for consistency.
     
-    Change-Id: Icbb4d2f201590bc94672b8d8141b6e7901e11dc5
-    Reviewed-on: https://go-review.googlesource.com/18510
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Fixes #12913
+    
+    Change-Id: I6cc067d9f8dac66b1f9d1a675e0fbe0528371d0d
+    Reviewed-on: https://go-review.googlesource.com/16737
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/types/api.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

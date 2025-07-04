@@ -1,34 +1,13 @@
-commit 836105679e1da85208e3a7a4e2f0a1f375d0a257
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Dec 21 21:39:00 2011 +0900
+commit 343543894875f943e970f5acfe994849f70ddc36
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 07:23:03 2011 -0500
 
-    net, syscall: interface address and mask
+    runtime: silence darwin/386 build warnings
     
-    This CL makes both InterfaceAddrs and Addrs method on Interface
-    return IPNet struct for representing interface address and mask
-    like below:
-    
-    interface "lo0": flags "up|loopback|multicast", ifindex 1, mtu 16384
-            interface address "fe80::1/64"
-            interface address "127.0.0.1/8"
-            interface address "::1/128"
-            joined group address "ff02::fb"
-            joined group address "224.0.0.251"
-            joined group address "ff02::2:65d0:d71e"
-            joined group address "224.0.0.1"
-            joined group address "ff01::1"
-            joined group address "ff02::1"
-            joined group address "ff02::1:ff00:1"
-    
-    Fixes #2571.
-    
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5489062
+    https://golang.org/cl/5502056
 
- src/pkg/net/interface_bsd.go   | 95 +++++++++++++++++++++---------------------
- src/pkg/net/interface_linux.go | 73 +++++++++++++++-----------------
- src/pkg/net/interface_test.go  | 57 +++++++++++++++++--------
- src/pkg/net/ip.go              |  3 ++
- src/pkg/syscall/route_bsd.go   | 23 ++++++----
- 5 files changed, 139 insertions(+), 112 deletions(-)
+ src/pkg/runtime/cgo/gcc_darwin_386.c | 1 +
+ src/pkg/runtime/signal_darwin_386.c  | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,20 +1,14 @@
-commit 694012aa3b74d0c382c13737ba65b8d80b0f9d25
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 15 08:32:16 2019 -0400
+commit cf6e4238b63a180abd5a390dc8f11d50f024ba35
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat Oct 27 14:12:52 2018 -0700
 
-    cmd/cover: add go.mod file in lineDupDir
+    database/sql: prefer to return Rows.lasterr rather then a static error
     
-    This fixes TestFuncWithDuplicateLines (introduced in CL 167257)
-    in module mode.
+    Fixes #25829
     
-    Updates #30746
-    Updates #30228
-    
-    Change-Id: I7b3e7192ae23f855c373e881389874ff6ffd49ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167740
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Change-Id: I400fdaf0ef3a23bc0d61c4873ffa298e0cf0fc6a
+    Reviewed-on: https://go-review.googlesource.com/c/145204
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cover/cover_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/database/sql/sql.go | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)

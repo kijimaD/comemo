@@ -1,26 +1,31 @@
-commit fe4de36198794c447fbd9d7cc2d7199a506c76a5
-Author: Tatiana Bradley <tatiana@golang.org>
-Date:   Thu May 12 14:58:29 2022 -0400
+commit 3cdf8b429e7550c04ab986327bf9aed8de08d6fa
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Aug 4 14:25:01 2021 -0700
 
-    crypto/tls: randomly generate ticket_age_add
+    [dev.typeparams] cmd/compile: fixing case where type arg is an interface
     
-    As required by RFC 8446, section 4.6.1, ticket_age_add now holds a
-    random 32-bit value. Before this change, this value was always set
-    to 0.
+    In this case, we can't use an itab for doing a bound call, since we're
+    converting from an interface to an interface. We do a static or dynamic
+    type assert in new function assertToBound().
     
-    This change also documents the reasoning for always setting
-    ticket_nonce to 0. The value ticket_nonce must be unique per
-    connection, but we only ever send one ticket per connection.
+    The dynamic type assert in assertToBound() is only needed if a bound is
+    parameterized. In that case, we must do a dynamic type assert, and
+    therefore need a dictionary entry for the type bound (see change in
+    getGfInfo). I'm not sure if we can somehow limit this case, since using
+    an interface as a type arg AND having the type bound of the type
+    arg be parameterized is a very unlikely case.
     
-    Fixes #52814
-    Fixes CVE-2022-30629
+    Had to add the TUNION case to parameterizedBy1() (which is only used for
+    extra checking).
     
-    Change-Id: I6c2fc6ca0376b7b968abd59d6d3d3854c1ab68bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405994
-    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Tatiana Bradley <tatiana@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Added a bunch of these test cases to 13.go, which now passes.
+    
+    Change-Id: Ic22eed637fa879b5bbb46d36b40aaad6f90b9d01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339898
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/tls/handshake_server_tls13.go | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ src/cmd/compile/internal/noder/stencil.go | 91 ++++++++++++++++++++++++++-----
+ test/run.go                               |  1 -
+ test/typeparam/mdempsky/13.go             | 84 +++++++++++++++++++++-------
+ 3 files changed, 142 insertions(+), 34 deletions(-)

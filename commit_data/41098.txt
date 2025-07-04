@@ -1,17 +1,24 @@
-commit cb2353deb74ecc1ca2105be44881c5d563a00fb8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 5 11:36:39 2019 -0800
+commit d2f958d8d11bcf62fe572885133bfaef41307a14
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 3 23:24:35 2019 +0700
 
-    doc/go1.14: preannounce dropping macOS 10.11 support
+    cmd/compile: extend ssa.go to handle 1-element array and 1-field struct
     
-    Go 1.14 will be the last to support macOS 10.11.
-    Go 1.15 will require macOS 10.12 (Sierra).
+    Assinging to 1-element array/1-field struct variable is considered clobbering
+    the whole variable. By emitting OpVarDef in this case, liveness analysis
+    can now know the variable is redefined.
     
-    Updates #23011
+    Also, the isfat is not necessary anymore, and will be removed in follow up CL.
     
-    Change-Id: I8fff555e5b8fffe088e7e960e77fac9558cb74e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210137
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Fixes #33916
+    
+    Change-Id: Iece0d90b05273f333d59d6ee5b12ee7dc71908c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192979
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.14.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 20 +++++++++++++++++---
+ test/live.go                       | 13 ++++++++++++-
+ test/live2.go                      |  4 ++--
+ 3 files changed, 31 insertions(+), 6 deletions(-)

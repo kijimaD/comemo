@@ -1,12 +1,14 @@
-commit c8c8ab08ed4946e719d0ae001d9af3287e73b70d
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sat Jan 19 13:36:59 2013 +1100
+commit 92b2643c92f88f802e7556a733aa7b7c727efdbe
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 18 17:30:34 2013 -0500
 
-    doc: fix effective_go: s/byte array/byte slice/.
+    math/big: fix typo
     
-    R=rsc
-    CC=golang-dev, mdempsky
-    https://golang.org/cl/7062049
+    Fixes #4678.
+    
+    TBR=gri
+    CC=golang-dev
+    https://golang.org/cl/7135059
 
- doc/effective_go.html | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/pkg/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

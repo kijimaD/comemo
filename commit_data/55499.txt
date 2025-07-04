@@ -1,22 +1,21 @@
-commit 29746b4814bb76a3d5a36fc86967b358f11bbb93
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Jan 26 17:57:39 2024 +0100
+commit 505325cf3027f2f2c5be47426867183b935ac85e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 10 14:47:07 2023 -0800
 
-    runtime: make netpollBreak entries identifiable on Windows
+    cmd/dist: use a copy of platform.BuildModeSupported
     
-    It is currently not possible to distinguish between a netpollBreak
-    entry and an entry initiated by external WSA operations (as in #58870).
+    The dist tool already includes a similar duplicate of BuildModeSupported.
+    Replace it with an exact copy, to make it easier to maintain going forward.
     
-    This CL sets a unique completion key when posting the
-    netpollBreak entry so that it can be identified as such.
-    
-    Change-Id: I8e74a7ddc607dc215d6ed8c59d5c3cf47ec8dc62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558895
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id14a6c5a48f92d843e02218d87cc62c6b001923b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467495
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/internal/poll/fd_windows_test.go | 22 +++------
- src/runtime/netpoll_windows.go       | 86 +++++++++++++++++++++++++++++-------
- 2 files changed, 75 insertions(+), 33 deletions(-)
+ src/cmd/dist/test.go               | 161 +++++++++++++++++++++----------------
+ src/internal/platform/supported.go |   1 +
+ 2 files changed, 94 insertions(+), 68 deletions(-)

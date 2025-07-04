@@ -1,24 +1,16 @@
-commit c9c64886ef041b096d7f93c4e7d2ef5faf87ad43
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 19 10:40:24 2020 -0400
+commit 8e6a8d9e282a6f9aeab5635c75c223129f5ab61f
+Author: maronghe <loganma0209@gmail.com>
+Date:   Wed Apr 1 07:15:49 2020 +0000
 
-    cmd/internal/obj: reject too large symbols
+    runtime: fix typo in loadFactor comment
     
-    We never supported symbol larger than 2GB (issue #9862), so the
-    object file uses 32-bit for symbol sizes. Check and reject too
-    large symbol before truncating its size.
+    Fixes #38174
     
-    Fixes #42054.
-    
-    Change-Id: I0d1d585ebdba9556f2fd3a97043bd4296d5cc9e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263641
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Iacdbbcd0b4586302daf082e59d833b7aa58b1a6a
+    GitHub-Last-Rev: f0c96819ebb9928879a03957244f2de655708cbb
+    GitHub-Pull-Request: golang/go#38191
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226758
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/internal/obj/objfile.go      |  7 +++++++
- src/cmd/internal/obj/objfile_test.go | 36 ++++++++++++++++++++++++++++++++++++
- test/fixedbugs/issue4348.go          |  4 +++-
- 3 files changed, 46 insertions(+), 1 deletion(-)
+ src/runtime/map.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

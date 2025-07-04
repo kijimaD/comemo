@@ -1,14 +1,12 @@
-commit 5290e551641842151e3c86d65f42a97af2d95f9d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Jun 9 21:39:47 2013 +0400
+commit 177191237e7400d5f277405f7340bd95d9b09676
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 9 23:15:39 2013 +0800
 
-    runtime: use persistentalloc instead of SysAlloc in netpoll
-    Especially important for Windows because it reserves VM
-    only in multiple of 64k.
+    doc/install-source.html: recent ARM and 386 updates
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dave, adg, remyoudompheng, r
     CC=golang-dev
-    https://golang.org/cl/10138043
+    https://golang.org/cl/6845083
 
- src/pkg/runtime/netpoll.goc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/install-source.html | 63 ++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 47 insertions(+), 16 deletions(-)

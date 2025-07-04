@@ -1,16 +1,32 @@
-commit 87dae58662c78c772cb210d685b354ae6916ef2d
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Wed Aug 30 11:14:40 2017 +0900
+commit a4864094f0e5eb2369831f5e5b734b6398837712
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 10 13:10:46 2017 +0200
 
-    cmd/internal/goobj: add tests
+    reflect: fix String of new array types
     
-    Change-Id: I4a0fe1c8625e7e9adfd84ac6910da83d0268f928
-    Reviewed-on: https://go-review.googlesource.com/60130
+    When constructing a new type for an array type in ArrayOf, we don't
+    reset tflag to 0. All the other methods in the package, such as SliceOf,
+    do this already. This results in the new array type having weird issues
+    when being printed, such as having tflagExtraStar set when it shouldn't.
+    
+    That flag removes the first char to get rid of '*', but when used
+    incorrectly in this case it eats the '[' character leading to broken
+    strings like "3]int".
+    
+    This was fixed in 56752eb2 for issue #16722, but ArrayOf was missed.
+    
+    Also make the XM test struct have a non-zero size as that leads to a
+    division by zero panic in ArrayOf.
+    
+    Fixes #20311.
+    
+    Change-Id: I18f1027fdbe9f71767201e7424269c3ceeb23eb5
+    Reviewed-on: https://go-review.googlesource.com/43130
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/goobj/goobj_test.go   | 142 +++++++++++++++++++++++++++++++++
- src/cmd/internal/goobj/testdata/go1.go |  11 +++
- src/cmd/internal/goobj/testdata/go2.go |  11 +++
- 3 files changed, 164 insertions(+)
+ src/reflect/all_test.go | 3 ++-
+ src/reflect/type.go     | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

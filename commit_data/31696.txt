@@ -1,14 +1,12 @@
-commit da1b83067dfe554ba1c3de564bc4e6a1f1a9bdb0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 31 14:06:25 2017 -0700
+commit 6fbedc1afead2de1fd554e72f6df47a4b7948b5a
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Mar 8 10:22:00 2017 -0800
 
-    sort: clarify comment about not-a-number values
+    database/sql: fix spelling mistake in tests
     
-    Updates #20540
-    
-    Change-Id: I864008fadd77b0aeb10fe7e7f1ec696516a5add5
-    Reviewed-on: https://go-review.googlesource.com/44492
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I04e150d4e4123aad2f277e5c6e9f2abd15628a28
+    Reviewed-on: https://go-review.googlesource.com/37941
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/sort/sort.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/database/sql/sql_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

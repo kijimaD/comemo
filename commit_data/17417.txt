@@ -1,19 +1,16 @@
-commit 10e2ffdf2ca657567fc1708f6387fef69a8445b6
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 29 14:41:44 2013 +1000
+commit 916937274938adf506040b1118e1e20f990cf2b2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Aug 29 13:21:21 2013 +1000
 
-    os/exec: return idempotent Closer from StdinPipe
+    sort: use a very fast random generator for benchmarks
     
-    Before this fix, it was always an error to use the Close method on the
-    io.WriteCloser obtained from Cmd.StdinPipe, as it would race with the
-    Close performed by Cmd.Wait.
+    Adapted from https://golang.org/cl/11564044.
     
-    Fixes #6270.
+    Fixes breakage of darwin-amd64-race builder.
     
-    R=golang-dev, r, remyoudompheng, bradfitz, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13329043
+    https://golang.org/cl/13352045
 
- src/pkg/os/exec/exec.go      | 22 ++++++++++++++++++++--
- src/pkg/os/exec/exec_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 59 insertions(+), 2 deletions(-)
+ src/pkg/sort/sort_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

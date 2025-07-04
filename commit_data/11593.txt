@@ -1,12 +1,12 @@
-commit bd41831f66837f59428ae824b33979db9eaaf30c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 3 08:33:29 2012 -0800
+commit 870c9d1c096c44eaad5fd8e9aeeae8b6255fc4d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 3 10:54:05 2012 -0500
 
-    godoc: diagnostic for empty FS tree
+    codereview: allow spaces in y.tab.[ch]
     
-    R=adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5615055
+    https://golang.org/cl/5620053
 
- src/cmd/godoc/godoc.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

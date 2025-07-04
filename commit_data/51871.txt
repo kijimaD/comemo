@@ -1,19 +1,22 @@
-commit 23c0121e4eb259cc1087d0f79a0803cbc71f500b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jan 31 17:21:14 2023 -0500
+commit 129a2fcf6c38e83566511304702eada696ed486b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Mar 21 18:49:37 2022 +0700
 
-    cmd/go/internal/script: retry ETXTBSY errors in scripts
+    cmd/compile: fix panic with nested dead hidden closures
     
-    Fixes #58019.
+    CL 342350 fixed deadcode panic with dead hidden closures. However, a
+    closure may contains nested dead hidden closures, so we need to mark
+    them dead as well.
     
-    Change-Id: Ib25d668bfede6e87a3786f44bdc0db1027e3ebec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463748
+    Fixes #51839
+    
+    Change-Id: Ib54581adfc1bdea60e74d733cd30fd8e783da983
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394079
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/script/cmds.go       | 46 +++++++++++++++++++++-----------
- src/cmd/go/internal/script/cmds_other.go | 11 ++++++++
- src/cmd/go/internal/script/cmds_posix.go | 16 +++++++++++
- 3 files changed, 58 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/deadcode/deadcode.go |  1 +
+ test/fixedbugs/issue51839.go                  | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

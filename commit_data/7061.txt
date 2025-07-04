@@ -1,14 +1,13 @@
-commit 90ca4d75a48b9882af885fb23f0130bef540394f
-Author: Ken Thompson <ken@golang.org>
-Date:   Fri Jan 7 18:04:48 2011 -0800
+commit 80055c658b0570f5c621892d7137b1426b0ede8e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 7 17:17:42 2011 -0800
 
-    initial cut at arm optimizer
+    arm: fix build
+    previous version was built with -l32; should be -b32
     
-    R=rsc
+    R=ken
     CC=golang-dev
-    https://golang.org/cl/3921041
+    https://golang.org/cl/3867044
 
- src/cmd/5g/Makefile |   1 +
- src/cmd/5g/list.c   |  14 +++-
- src/cmd/5g/reg.c    | 209 +++++++++++++++++++++++++++++++++++++---------------
- 3 files changed, 159 insertions(+), 65 deletions(-)
+ src/pkg/syscall/zsyscall_linux_arm.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

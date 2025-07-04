@@ -1,33 +1,16 @@
-commit b5931020b71999db77109088e00b63ede19829c8
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 10 11:17:49 2017 -0700
+commit 49b7af8a308c24b1e3f6e83ded9e97513316c8d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 24 14:59:22 2017 -0500
 
-    cmd/internal/obj/arm64: make assembler almost concurrency-safe
+    [dev.typealias] reflect: add test for type aliases
     
-    CL 39922 made the arm assembler concurrency-safe.
-    This CL does the same, but for arm64.
-    The approach is similar: introduce ctxt7 to hold
-    function-local state and thread it through
-    the assembler as necessary.
+    For #18130.
     
-    One race remains after this CL, deep in aclass,
-    in the check that a Prog does not take the address
-    of a TLS variable.
-    
-    That race is conceptually unrelated to this refactoring,
-    and will be addressed in a separate CL.
-    
-    Passes toolstash-check -all.
-    
-    Updates #15756
-    
-    Change-Id: Icab1ef70008468f9a5b8bf728a77c4520bbcb67d
-    Reviewed-on: https://go-review.googlesource.com/40252
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Idd77cb391178c185227cfd779c70fec16351f825
+    Reviewed-on: https://go-review.googlesource.com/35733
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 691 +++++++++++++++++++------------------
- src/cmd/internal/obj/arm64/obj7.go | 208 +++++------
- src/cmd/internal/obj/link.go       |   2 -
- 3 files changed, 457 insertions(+), 444 deletions(-)
+ src/reflect/all_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,58 +1,13 @@
-commit b88148b9a04e22cc338834ca405fc1333a1bd5d7
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 31 17:18:57 2013 +0000
+commit 95ae85fb821671c49847a2d1d41f972b905f171b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 30 09:39:20 2013 -0700
 
-    undo CL 19810043 / 352f3b7c9664
+    doc/go1.2.html: delete repeated word
+    TBR=rsc
     
-    The CL causes misc/cgo/test to fail randomly.
-    I suspect that the problem is the use of a division instruction
-    in usleep, which can be called while trying to acquire an m
-    and therefore cannot store the denominator in m.
-    The solution to that would be to rewrite the code to use a
-    magic multiply instead of a divide, but now we're getting
-    pretty far off the original code.
-    
-    Go back to the original in preparation for a different,
-    less efficient but simpler fix.
-    
-    ««« original CL description
-    cmd/5l, runtime: make ARM integer division profiler-friendly
-    
-    The implementation of division constructed non-standard
-    stack frames that could not be handled by the traceback
-    routines.
-    
-    CL 13239052 left the frames non-standard but fixed them
-    for the specific case of a divide-by-zero panic.
-    A profiling signal can arrive at any time, so that fix
-    is not sufficient.
-    
-    Change the division to store the extra argument in the M struct
-    instead of in a new stack slot. That keeps the frames bog standard
-    at all times.
-    
-    Also fix a related bug in the traceback code: when starting
-    a traceback, the LR register should be ignored if the current
-    function has already allocated its stack frame and saved the
-    original LR on the stack. The stack copy should be used, as the
-    LR register may have been modified.
-    
-    Combined, these make the torture test from issue 6681 pass.
-    
-    Fixes #6681.
-    
-    R=golang-dev, r, josharian
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/19810043
-    »»»
-    
-    TBR=r
-    CC=golang-dev
-    https://golang.org/cl/20350043
+    https://golang.org/cl/19840043
 
- src/cmd/5l/noop.c                   | 51 ++++++++++++++++++++++++++-----------
- src/pkg/runtime/pprof/pprof_test.go | 25 ------------------
- src/pkg/runtime/runtime.h           |  1 -
- src/pkg/runtime/traceback_arm.c     |  2 +-
- src/pkg/runtime/vlop_arm.s          | 44 ++++++++++++++++++--------------
- 5 files changed, 62 insertions(+), 61 deletions(-)
+ doc/go1.2.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,20 @@
-commit 9fe8ebf9b49e632db54aa60809e2019a2a87e28b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Feb 14 17:59:48 2021 -0800
+commit db85615bfd7502206708b799e4aa73bf707ebafa
+Author: Alexander Nohe <alex.nohe427@gmail.com>
+Date:   Sat Jun 27 23:22:29 2020 +0000
 
-    test: add test case that failed with gccgo
+    doc: add alt attribute to gopher image in help.html
     
-    bug511.dir/b.go:10:14: error: reference to undefined field or method 'M'
+    This adds an alt tag for accessibility. The alt text is a visual
+    description of the text that is read out loud to users using a
+    screen reader. The HTML specifications indicate that alt tags for
+    decorative images should be left blank.
     
-    Change-Id: I9f96dc5c7254b310bc3e15b0bc588d62718cb4b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/292009
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Fixes #39861
+    
+    Change-Id: I76c39a461ceabe685826aa46e4f26ad893d50634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240258
+    Reviewed-by: Alexander Nohe <alex.nohe427@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- test/fixedbugs/bug511.dir/a.go | 11 +++++++++++
- test/fixedbugs/bug511.dir/b.go | 11 +++++++++++
- test/fixedbugs/bug511.go       |  9 +++++++++
- 3 files changed, 31 insertions(+)
+ doc/help.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

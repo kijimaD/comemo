@@ -1,0 +1,20 @@
+commit 26c59d3153a7662875e1dd7c02c6ae36b9bc269b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Dec 17 10:51:36 2024 +0100
+
+    crypto/internal/fips140/sha3/_asm: remove unnecessary x/crypto dependency
+    
+    There is no need to blank-import golang.org/x/crypto/sha3, as we are not
+    using any crypto.SHA3 variant in the code.
+    
+    Change-Id: Ia5455647f737371fc4ec0972bf9a90d5ee854495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637055
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips140/sha3/_asm/go.mod               | 6 +-----
+ src/crypto/internal/fips140/sha3/_asm/go.sum               | 4 ----
+ src/crypto/internal/fips140/sha3/_asm/keccakf_amd64_asm.go | 1 -
+ 3 files changed, 1 insertion(+), 10 deletions(-)

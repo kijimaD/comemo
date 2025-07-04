@@ -1,17 +1,16 @@
-commit 70418eb819eb1d02c2c56a13159d95baab85d3a8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 11 16:36:38 2016 +0000
+commit 9ceb1acbfb48d1243048fbb9a8ea3821d9500d01
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 18 11:10:59 2015 -0800
 
-    runtime: add test for mincore's return value sign on Linux
+    net: use t.Fatalf, not t.Fatal, in test
     
-    Updates #14297
+    Found by cmd/vet.
     
-    Change-Id: I6b5f5020af5efaaa71280bdeb2ff99785ee9b959
-    Reviewed-on: https://go-review.googlesource.com/19457
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id570ecd76c3f1efd9696680ccd9799610217f8f7
+    Reviewed-on: https://go-review.googlesource.com/17042
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/export_test.go        |  2 ++
- src/runtime/runtime_linux_test.go | 13 +++++++++++++
- 2 files changed, 15 insertions(+)
+ src/net/net_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

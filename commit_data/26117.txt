@@ -1,17 +1,18 @@
-commit 6df80387689a69a5b9e3ac073ba8ce4d8498ba66
-Author: Burcu Dogan <jbd@google.com>
-Date:   Mon Mar 7 13:41:27 2016 -0800
+commit f172a28f24664d95611b5943f78c6a2c1cc6efbd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 15 12:03:47 2015 +1100
 
-    runtime: listen 127.0.0.1 instead of localhost on android
+    net: include both ipv4 and ipv6 netsh output in TestInterfacesWithNetsh
     
-    Fixes #14486.
-    Related to #14485.
+    Also include test for interface state (up or down).
     
-    Change-Id: I2dd77b0337aebfe885ae828483deeaacb500b12a
-    Reviewed-on: https://go-review.googlesource.com/20340
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #13606
+    
+    Change-Id: I03538d65525ddd9c2d0254761861c2df7fc5bd5a
+    Reviewed-on: https://go-review.googlesource.com/17850
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/proc_test.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/net/net_windows_test.go | 86 +++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 76 insertions(+), 10 deletions(-)

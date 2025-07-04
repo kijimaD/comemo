@@ -1,66 +1,19 @@
-commit f4cd80224a0b1b3ba7448f87fe048bcea9caae7f
-Author: Rob Pike <r@golang.org>
-Date:   Thu Nov 3 11:39:52 2011 -0700
+commit 11075ed893193a415d6b16cd28f06ad4bcc49092
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Nov 3 17:51:15 2011 +0100
 
-    encoding: move asn1, csv, gob, json, xml into encoding
-    This is Go 1 package renaming CL #1.
-    This one merely moves the source; the import strings will be
-    changed after the next weekly release.
+    gc: Don't pollute the xmethod list with non-methods.
     
-    The only edits are in Makefiles.
+    Fixes #2355.
     
-    R=r, rsc
+    I have a test, but not sure if it's worth adding.  Instead i've made
+    the patching-over in reflect.c methods more fatal and more descriptive.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5331060
+    https://golang.org/cl/5302082
 
- src/pkg/Makefile                             | 13 ++++++++-----
- src/pkg/deps.bash                            | 21 +++++++++++++++++++--
- src/pkg/{ => encoding}/asn1/Makefile         |  4 ++--
- src/pkg/{ => encoding}/asn1/asn1.go          |  0
- src/pkg/{ => encoding}/asn1/asn1_test.go     |  0
- src/pkg/{ => encoding}/asn1/common.go        |  0
- src/pkg/{ => encoding}/asn1/marshal.go       |  0
- src/pkg/{ => encoding}/asn1/marshal_test.go  |  0
- src/pkg/{ => encoding}/csv/Makefile          |  4 ++--
- src/pkg/{ => encoding}/csv/reader.go         |  0
- src/pkg/{ => encoding}/csv/reader_test.go    |  0
- src/pkg/{ => encoding}/csv/writer.go         |  0
- src/pkg/{ => encoding}/csv/writer_test.go    |  0
- src/pkg/{ => encoding}/gob/Makefile          |  4 ++--
- src/pkg/{ => encoding}/gob/codec_test.go     |  0
- src/pkg/{ => encoding}/gob/debug.go          |  0
- src/pkg/{ => encoding}/gob/decode.go         |  0
- src/pkg/{ => encoding}/gob/decoder.go        |  0
- src/pkg/{ => encoding}/gob/doc.go            |  0
- src/pkg/{ => encoding}/gob/dump.go           |  0
- src/pkg/{ => encoding}/gob/encode.go         |  0
- src/pkg/{ => encoding}/gob/encoder.go        |  0
- src/pkg/{ => encoding}/gob/encoder_test.go   |  0
- src/pkg/{ => encoding}/gob/error.go          |  0
- src/pkg/{ => encoding}/gob/gobencdec_test.go |  0
- src/pkg/{ => encoding}/gob/timing_test.go    |  0
- src/pkg/{ => encoding}/gob/type.go           |  0
- src/pkg/{ => encoding}/gob/type_test.go      |  0
- src/pkg/{ => encoding}/json/Makefile         |  4 ++--
- src/pkg/{ => encoding}/json/decode.go        |  0
- src/pkg/{ => encoding}/json/decode_test.go   |  0
- src/pkg/{ => encoding}/json/encode.go        |  0
- src/pkg/{ => encoding}/json/encode_test.go   |  0
- src/pkg/{ => encoding}/json/indent.go        |  0
- src/pkg/{ => encoding}/json/scanner.go       |  0
- src/pkg/{ => encoding}/json/scanner_test.go  |  0
- src/pkg/{ => encoding}/json/stream.go        |  0
- src/pkg/{ => encoding}/json/stream_test.go   |  0
- src/pkg/{ => encoding}/json/tagkey_test.go   |  0
- src/pkg/{ => encoding}/json/tags.go          |  0
- src/pkg/{ => encoding}/json/tags_test.go     |  0
- src/pkg/{ => encoding}/xml/Makefile          |  4 ++--
- src/pkg/{ => encoding}/xml/atom_test.go      |  0
- src/pkg/{ => encoding}/xml/embed_test.go     |  0
- src/pkg/{ => encoding}/xml/marshal.go        |  0
- src/pkg/{ => encoding}/xml/marshal_test.go   |  0
- src/pkg/{ => encoding}/xml/read.go           |  0
- src/pkg/{ => encoding}/xml/read_test.go      |  0
- src/pkg/{ => encoding}/xml/xml.go            |  0
- src/pkg/{ => encoding}/xml/xml_test.go       |  0
- 50 files changed, 37 insertions(+), 17 deletions(-)
+ src/cmd/gc/reflect.c     |  9 ++++++---
+ src/cmd/gc/subr.c        |  7 +++++--
+ test/fixedbugs/bug372.go | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 5 deletions(-)

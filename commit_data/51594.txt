@@ -1,25 +1,16 @@
-commit d50ea217f6f5668d6a89fb965e36ecf8564a45cf
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Dec 22 14:10:12 2022 -0500
+commit 61b5c866a9507524d0a3d7a7e0c892c975ca081b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 18 14:51:58 2022 -0500
 
-    cmd/cover: fix problems with "go test -covermode=atomic sync/atomic"
+    doc/go1.18: document Go 1.17 bootstrap and //go:build fix
     
-    This patch fixes an elderly bug with "go test -covermode=atomic
-    sync/atomic". Change the cover tool to avoid adding an import of
-    sync/atomic when processing "sync/atomic" itself in atomic mode;
-    instead make direct calls to AddUint32/StoreUint32. In addition,
-    change the go command to avoid injecting an artificial import of
-    "sync/atomic" for sync/atomic itself.
+    For #44505 and #41184.
     
-    Fixes #57445.
-    
-    Change-Id: I8c8fbd0bcf26c8a8607d4806046f826296508c74
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/459335
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I9503292dace1aa60de167ca5807bf131554465b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386774
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/cover/cover.go                             | 52 ++++++++++++++++++----
- src/cmd/go/internal/test/test.go                   |  7 ++-
- .../testdata/script/cover_sync_atomic_import.txt   | 15 +++++++
- 3 files changed, 64 insertions(+), 10 deletions(-)
+ doc/go1.18.html | 50 +++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 45 insertions(+), 5 deletions(-)

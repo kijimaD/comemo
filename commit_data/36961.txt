@@ -1,91 +1,46 @@
-commit 5160e0d18cace12a40c9c271bc0072915f3f9295
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Sep 28 13:19:27 2018 -0400
+commit 7b2f55d89f12a539df6cf57d60b2b6b605cbb34a
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Jun 12 12:01:59 2018 -0400
 
-    regexp: add DeepEqual test
+    runtime/pprof: set HasFunctions of mapping entries
     
-    This locks in behavior we accidentally broke
-    and then restored during the Go 1.11 cycle.
-    See #26219.
+    The pprof tool utilizes attributes of mapping entries
+    such as HasFunctions to determine whether the profile
+    includes necessary symbol information.
+    If none of the attributes is set, pprof tool tries to
+    read the corresponding binary to use for local symbolization.
+    If the binary doesn't exist, it prints out error messages.
     
-    It also locks in new behavior that DeepEqual
-    always works, instead of only usually working.
+    Go runtime generated profiles without any of the attributes
+    set so the pprof tool always printed out the error messages.
+    The error messages became more obvious with the new
+    terminal support that uses red color for error messages.
     
-    This CL is the final piece of a series of CLs to make
-    DeepEqual always work, by eliminating the machine
-    cache and making other related optimizations.
-    Overall, this whole sequence of CLs achieves:
+    Go runtime can symbolize all Go symbols and generate
+    self-contained profile for pure Go program. Thus, there
+    is no reason for the pprof tool to look for the copy of
+    the binary. So, this CL sets one of the attributes
+    (HasFunctions) true if all PCs in samples look fully
+    symbolized.
     
-    name                             old time/op    new time/op    delta
-    Find-12                             264ns ± 3%     260ns ± 0%   -1.59%  (p=0.000 n=10+9)
-    FindAllNoMatches-12                 140ns ± 2%     133ns ± 0%   -5.34%  (p=0.000 n=10+7)
-    FindString-12                       256ns ± 0%     249ns ± 0%   -2.73%  (p=0.000 n=8+8)
-    FindSubmatch-12                     339ns ± 1%     333ns ± 1%   -1.73%  (p=0.000 n=9+10)
-    FindStringSubmatch-12               322ns ± 0%     322ns ± 1%     ~     (p=0.450 n=8+10)
-    Literal-12                          100ns ± 2%      92ns ± 0%   -8.13%  (p=0.000 n=10+10)
-    NotLiteral-12                      1.50µs ± 0%    1.47µs ± 0%   -1.65%  (p=0.000 n=8+8)
-    MatchClass-12                      2.18µs ± 0%    2.15µs ± 0%   -1.05%  (p=0.000 n=10+9)
-    MatchClass_InRange-12              2.12µs ± 0%    2.11µs ± 0%   -0.65%  (p=0.000 n=10+9)
-    ReplaceAll-12                      1.41µs ± 0%    1.41µs ± 0%     ~     (p=0.254 n=7+10)
-    AnchoredLiteralShortNonMatch-12    89.8ns ± 0%    81.5ns ± 0%   -9.22%  (p=0.000 n=8+9)
-    AnchoredLiteralLongNonMatch-12      105ns ± 3%      97ns ± 0%   -7.21%  (p=0.000 n=10+10)
-    AnchoredShortMatch-12               141ns ± 0%     128ns ± 0%   -9.22%  (p=0.000 n=9+9)
-    AnchoredLongMatch-12                276ns ± 4%     253ns ± 2%   -8.23%  (p=0.000 n=10+10)
-    OnePassShortA-12                    620ns ± 0%     587ns ± 0%   -5.26%  (p=0.000 n=10+6)
-    NotOnePassShortA-12                 575ns ± 3%     547ns ± 1%   -4.77%  (p=0.000 n=10+10)
-    OnePassShortB-12                    493ns ± 0%     455ns ± 0%   -7.62%  (p=0.000 n=8+9)
-    NotOnePassShortB-12                 423ns ± 0%     406ns ± 1%   -3.95%  (p=0.000 n=8+10)
-    OnePassLongPrefix-12                112ns ± 0%     109ns ± 1%   -2.77%  (p=0.000 n=9+10)
-    OnePassLongNotPrefix-12             405ns ± 0%     349ns ± 0%  -13.74%  (p=0.000 n=8+9)
-    MatchParallelShared-12              501ns ± 1%      38ns ± 2%  -92.42%  (p=0.000 n=10+10)
-    MatchParallelCopied-12             39.1ns ± 0%    38.6ns ± 1%   -1.38%  (p=0.002 n=6+10)
-    QuoteMetaAll-12                    94.6ns ± 0%    94.8ns ± 0%   +0.26%  (p=0.001 n=10+9)
-    QuoteMetaNone-12                   52.7ns ± 0%    52.7ns ± 0%     ~     (all equal)
-    Match/Easy0/32-12                  79.1ns ± 0%    72.0ns ± 0%   -8.95%  (p=0.000 n=9+9)
-    Match/Easy0/1K-12                   307ns ± 1%     297ns ± 0%   -3.32%  (p=0.000 n=10+7)
-    Match/Easy0/32K-12                 4.65µs ± 2%    4.67µs ± 1%     ~     (p=0.633 n=10+8)
-    Match/Easy0/1M-12                   234µs ± 0%     234µs ± 0%     ~     (p=0.684 n=10+10)
-    Match/Easy0/32M-12                 7.98ms ± 1%    7.96ms ± 0%   -0.31%  (p=0.014 n=9+9)
-    Match/Easy0i/32-12                 1.13µs ± 1%    1.10µs ± 0%   -3.18%  (p=0.000 n=9+10)
-    Match/Easy0i/1K-12                 32.5µs ± 0%    31.7µs ± 0%   -2.61%  (p=0.000 n=9+9)
-    Match/Easy0i/32K-12                1.59ms ± 0%    1.26ms ± 0%  -20.71%  (p=0.000 n=9+7)
-    Match/Easy0i/1M-12                 51.0ms ± 0%    40.4ms ± 0%  -20.68%  (p=0.000 n=10+7)
-    Match/Easy0i/32M-12                 1.63s ± 0%     1.30s ± 0%  -20.62%  (p=0.001 n=7+7)
-    Match/Easy1/32-12                  75.1ns ± 1%    67.4ns ± 0%  -10.24%  (p=0.000 n=8+10)
-    Match/Easy1/1K-12                   861ns ± 0%     879ns ± 0%   +2.18%  (p=0.000 n=8+8)
-    Match/Easy1/32K-12                 39.2µs ± 1%    34.1µs ± 0%  -13.01%  (p=0.000 n=10+8)
-    Match/Easy1/1M-12                  1.38ms ± 0%    1.17ms ± 0%  -15.06%  (p=0.000 n=10+8)
-    Match/Easy1/32M-12                 44.2ms ± 1%    37.5ms ± 0%  -15.15%  (p=0.000 n=10+9)
-    Match/Medium/32-12                 1.04µs ± 1%    1.03µs ± 0%   -0.64%  (p=0.002 n=9+8)
-    Match/Medium/1K-12                 31.3µs ± 0%    31.2µs ± 0%   -0.36%  (p=0.000 n=9+9)
-    Match/Medium/32K-12                1.44ms ± 0%    1.20ms ± 0%  -17.02%  (p=0.000 n=8+7)
-    Match/Medium/1M-12                 46.1ms ± 0%    38.2ms ± 0%  -17.14%  (p=0.001 n=6+8)
-    Match/Medium/32M-12                 1.48s ± 0%     1.23s ± 0%  -17.10%  (p=0.000 n=9+7)
-    Match/Hard/32-12                   1.54µs ± 1%    1.47µs ± 0%   -4.64%  (p=0.000 n=9+10)
-    Match/Hard/1K-12                   46.4µs ± 1%    44.4µs ± 0%   -4.35%  (p=0.000 n=9+8)
-    Match/Hard/32K-12                  2.19ms ± 0%    1.78ms ± 7%  -18.74%  (p=0.000 n=8+10)
-    Match/Hard/1M-12                   70.1ms ± 0%    57.7ms ± 7%  -17.62%  (p=0.000 n=8+10)
-    Match/Hard/32M-12                   2.24s ± 0%     1.84s ± 8%  -17.92%  (p=0.000 n=8+10)
-    Match/Hard1/32-12                  8.17µs ± 1%    7.95µs ± 0%   -2.72%  (p=0.000 n=8+10)
-    Match/Hard1/1K-12                   254µs ± 2%     245µs ± 0%   -3.62%  (p=0.000 n=9+10)
-    Match/Hard1/32K-12                 9.58ms ± 1%    8.54ms ± 7%  -10.87%  (p=0.000 n=10+10)
-    Match/Hard1/1M-12                   306ms ± 1%     271ms ± 8%  -11.42%  (p=0.000 n=9+10)
-    Match/Hard1/32M-12                  9.79s ± 1%     8.58s ± 9%  -12.37%  (p=0.000 n=9+10)
-    Match_onepass_regex/32-12           808ns ± 0%     716ns ± 1%  -11.39%  (p=0.000 n=8+9)
-    Match_onepass_regex/1K-12          27.8µs ± 0%    19.9µs ± 2%  -28.51%  (p=0.000 n=8+9)
-    Match_onepass_regex/32K-12          925µs ± 0%     631µs ± 2%  -31.71%  (p=0.000 n=9+9)
-    Match_onepass_regex/1M-12          29.5ms ± 0%    20.2ms ± 2%  -31.53%  (p=0.000 n=10+9)
-    Match_onepass_regex/32M-12          945ms ± 0%     648ms ± 2%  -31.39%  (p=0.000 n=9+9)
-    CompileOnepass-12                  4.67µs ± 0%    4.60µs ± 0%   -1.48%  (p=0.000 n=10+10)
-    [Geo mean]                         24.5µs         21.4µs       -12.94%
+    For non-pure Go program, however, it's possible that
+    symbolization of non-Go PCs is incomplete. In this case,
+    we need to leave the attributes all false so pprof can attempt
+    to symbolize using the local copy of the binary if available.
+    It's hard to determine whether a mapping includes non-Go
+    code. Instead, this CL checks PCs from collected samples.
+    If unsuccessful symbolization is observed, it skips setting
+    the HasFunctions attribute.
     
-    https://perf.golang.org/search?q=upload:20181004.5
+    Fixes #25743
     
-    Change-Id: Icb17b306830dc5489efbb55900937b94ce0eb047
-    Reviewed-on: https://go-review.googlesource.com/c/139783
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I5108be45bbc37ab486d145fa03e7ce37d88fad50
+    Reviewed-on: https://go-review.googlesource.com/118275
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/regexp/all_test.go | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/runtime/pprof/proto.go                     |  65 ++++++++++++---
+ src/runtime/pprof/proto_test.go                |  69 ++++++++++++++++
+ src/runtime/pprof/testdata/mappingtest/main.go | 105 +++++++++++++++++++++++++
+ 3 files changed, 226 insertions(+), 13 deletions(-)

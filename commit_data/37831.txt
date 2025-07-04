@@ -1,17 +1,17 @@
-commit d15ffca108b81f15e9042993b80e8b91c56968c4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 2 18:22:42 2019 +0000
+commit 677c4acc98fe22a8be14148f61c0c637a34c01d9
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Aug 30 20:09:08 2018 -0700
 
-    doc/go1.12: mention Conn.SetDeadline improvements, GODEBUG=madvdontneed=1
+    doc: recommend benchstat for performance commits
     
-    Fixes #29439
-    Updates #28466
+    The benchstat tool computes statistics about benchmarks, including
+    whether any differences are statistically significant. Recommend its use
+    in commit messages of performance-related changes rather than the
+    simpler benchcmp tool.
     
-    Change-Id: Ifa0779a089a969f99f1a47127e23565f31eec24f
-    Reviewed-on: https://go-review.googlesource.com/c/155929
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I4b35c2d892b48e60c3064489b035774792c19c30
+    Reviewed-on: https://go-review.googlesource.com/132515
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

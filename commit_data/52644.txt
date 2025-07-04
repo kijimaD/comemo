@@ -1,32 +1,21 @@
-commit f05c1941dd386217bd7c199c13be35a806fdd514
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 12 09:43:41 2023 -0700
+commit 3474cd4eee82ac442618391f8bc4a70d7b1cb65a
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed May 11 22:42:00 2022 +0800
 
-    go/types, types2: generalize tparamIndex to arbitrary type parameter lists
+    encoding/csv: add Reader.InputOffset method
     
-    tparamIndex returns the index of a type parameter given the type
-    parameter and a list of type parameters. If an index >= 0 is returned,
-    it is the index assigned to the type parameter (TypeParam.index), and
-    the index of the type parameter in the provided list of parameters.
-    For it to work correctly, the type parameter list must be from a single
-    type parameter declaration.
+    Fixes #43401.
     
-    To allow for lists of arbitrary type parameters (from different generic
-    signatures), change the implementation to do a linear search. The result
-    is the index of the type parameter in the provided type parameter list,
-    which may be different from the index assigned to the type parameter.
-    
-    The linear search is likely fast enough since type parameter lists tend
-    to be very short.
-    
-    Change-Id: I913f97fa4c042abeb535ee86ca6657241a4cf796
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483995
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I2498e77e41d845130d95012bc8623bfb29c0dda1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405675
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/types2/infer.go | 16 ++++++----------
- src/go/types/infer.go                    | 16 ++++++----------
- 2 files changed, 12 insertions(+), 20 deletions(-)
+ api/next/43401.txt              |  1 +
+ src/encoding/csv/reader.go      | 18 +++++++++++++++---
+ src/encoding/csv/reader_test.go | 15 +++++++++++----
+ 3 files changed, 27 insertions(+), 7 deletions(-)

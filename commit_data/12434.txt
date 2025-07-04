@@ -1,13 +1,17 @@
-commit 7a3c6c950bddf21d4c39289abe1173dc52f757a7
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Mar 7 11:01:23 2012 +1100
+commit 3ea3a7c9a5e0926940b341fde56f968de152edaf
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Mar 6 17:18:09 2012 -0500
 
-    os: fix SameFile to work for directories on windows
+    deps: allow crypto/x509 cgo and io/ioutil.
     
-    R=golang-dev, r
+    In order to land 5700087 (which moves the knowledge of how to get the
+    root certificates for the system from crypto/tls to crypto/x509), we
+    need to relax the restrictions on crypto/x509. Afterwards, we can
+    probably tighten them up in crypto/tls.
+    
+    R=golang-dev, rsc, krautz
     CC=golang-dev
-    https://golang.org/cl/5756064
+    https://golang.org/cl/5753060
 
- src/pkg/os/stat_windows.go         | 2 +-
- src/pkg/path/filepath/path_test.go | 4 ----
- 2 files changed, 1 insertion(+), 5 deletions(-)
+ src/pkg/go/build/deps_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

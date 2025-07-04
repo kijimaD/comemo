@@ -1,23 +1,13 @@
-commit 86e3cb8da5a22794bbbdf34e934dc180e1c86d01
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 13 11:10:31 2014 -0500
+commit 9c767b64ee46ccdf6d483946ad5bffe967574989
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 13 16:35:51 2014 +0100
 
-    runtime: introduce MSpan.needzero instead of writing to span data
+    cmd/gc: catch notes on Plan 9
     
-    This cleans up the code significantly, and it avoids any
-    possible problems with madvise zeroing out some but
-    not all of the data.
-    
-    Fixes #6400.
-    
-    LGTM=dave
-    R=dvyukov, dave
-    CC=golang-codereviews
-    https://golang.org/cl/57680046
+    LGTM=rsc
+    R=rsc, jas, gobot
+    CC=ality, golang-codereviews
+    https://golang.org/cl/51650051
 
- src/pkg/runtime/malloc.goc |  2 +-
- src/pkg/runtime/malloc.h   |  3 ++-
- src/pkg/runtime/mcentral.c |  4 ++--
- src/pkg/runtime/mgc0.c     |  6 ++++--
- src/pkg/runtime/mheap.c    | 44 +++++++++++---------------------------------
- 5 files changed, 20 insertions(+), 39 deletions(-)
+ src/cmd/gc/lex.c | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

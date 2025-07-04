@@ -1,21 +1,20 @@
-commit ab86d29bb5e572a19bed60bdfe75b66a09609a2f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Feb 16 21:30:36 2023 +0700
+commit a6f6932b3ee87d9607ce246228e23f9a08dacc31
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Apr 10 09:12:43 2022 -0700
 
-    cmd/compile: update documentation for ONAME node with nil Func
+    cmd/asm: fix MOVK when constant has high bit set
     
-    After CL 436435 chain, the only case left where we create an ONAME node
-    with nil Func is interface method from imported package.
+    Fixes #52261
     
-    Change-Id: I9d9144916d01712283f2b116973f88965715fea3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/468816
+    Change-Id: I1dc4c19c95a91f9e1e99d1e74afeb69f5bf8a979
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399455
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
 
- src/cmd/compile/internal/ir/expr.go    | 3 +--
- src/cmd/compile/internal/ir/name.go    | 2 +-
- src/cmd/compile/internal/ssagen/ssa.go | 7 +++----
- 3 files changed, 5 insertions(+), 7 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go           |  2 +-
+ src/cmd/internal/obj/arm64/asm_arm64_test.go | 11 +++++++++++
+ src/cmd/internal/obj/arm64/asm_arm64_test.s  |  7 +++++++
+ 3 files changed, 19 insertions(+), 1 deletion(-)

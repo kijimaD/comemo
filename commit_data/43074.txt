@@ -1,21 +1,28 @@
-commit bfe72ec56a64bf3d26c48ca364c76494874ba1a0
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Thu May 14 07:43:01 2020 +0200
+commit bda42a7a782dbcf4b123d617c5b60f3c848cbb82
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Thu Mar 5 00:28:05 2020 +0000
 
-    cmd/compile: enforce strongly typed rules for ARM (5)
+    runtime: use staticuint64s instead of staticbytes for 1-length strings
     
-    From "absorb InvertFlags" until "constant folding in *shift ops"
-    L666-L1011
-    Toolstash-check is successful.
+    This was the last remaining use of staticbytes, so we can now
+    delete it.
     
-    Change-Id: Ieed7d4643dc3dc2b3649477e87aebd22c81d1322
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234197
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    The new code appears slightly faster on amd64:
+    
+    name                   old time/op  new time/op  delta
+    SliceByteToString/1-4  6.29ns ± 2%  5.89ns ± 1%  -6.46%  (p=0.000 n=14+14)
+    
+    This may not be the case on the big-endian architectures, since they have
+    to do an extra addition.
+    
+    Updates #37612
+    
+    Change-Id: Icb84c5911ba025f798de152849992a55be99e4f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221979
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules | 532 ++++++++---------
- src/cmd/compile/internal/ssa/rewriteARM.go | 922 ++++++++++++++---------------
- 2 files changed, 727 insertions(+), 727 deletions(-)
+ src/runtime/iface.go  | 36 ------------------------------------
+ src/runtime/string.go | 13 ++++++-------
+ 2 files changed, 6 insertions(+), 43 deletions(-)

@@ -1,17 +1,43 @@
-commit 9b7a8aaaf3adbc330ef724fb581b3bfa72ab2a49
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jul 8 16:42:33 2018 -0700
+commit 168cc7ff9c09f2b19a354084ee5653c03d481e36
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jan 15 12:06:27 2018 +0100
 
-    runtime: only run TestMemStats sanity tests once
+    math/big: add 0 shift fastpath to shl and shr
     
-    Fixes #22696
+    One could expect calls like
     
-    Change-Id: Ibe4628f71d64a2b36b655ea69710a925924b12a3
-    Reviewed-on: https://go-review.googlesource.com/122586
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+      z.mant.shl(z.mant, shiftAmount)
+    
+    (or higher-level-functions calls that use lhs/rhs) to be almost free
+    when shiftAmount = 0; and expect calls like
+    
+      z.mant.shl(x.mant, 0)
+    
+    to have the same cost of a x.mant -> z.mant copy. Neither of this
+    things are currently true.
+    
+    For an 800 words nat, the first kind of calls cost ~800ns for rigth
+    shifts and ~3.5µs for left shift; while the second kind of calls are
+    doing more work than necessary by calling shlVU/shrVU.
+    
+    This change makes the first kind of calls ({Shl,Shr}Same) almost free,
+    and the second kind of calls ({Shl,Shr}) about 30% faster.
+    
+    name                  old time/op  new time/op  delta
+    ZeroShifts/Shl-4      3.64µs ± 3%  2.49µs ± 1%  -31.55%  (p=0.000 n=10+10)
+    ZeroShifts/ShlSame-4  3.65µs ± 1%  0.01µs ± 1%  -99.85%  (p=0.000 n=9+9)
+    ZeroShifts/Shr-4      3.65µs ± 1%  2.49µs ± 1%  -31.91%  (p=0.000 n=10+10)
+    ZeroShifts/ShrSame-4   825ns ± 0%     6ns ± 1%  -99.33%  (p=0.000 n=9+10)
+    
+    During go test math/big, the shl zeroshift fastpath is triggered 1380
+    times; while the shr fastpath is triggered 153334 times(!).
+    
+    Change-Id: I5f92b304a40638bd8453a86c87c58e54b337bcdf
+    Reviewed-on: https://go-review.googlesource.com/87660
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/malloc_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/math/big/nat.go      | 22 ++++++++++++++++++++++
+ src/math/big/nat_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)

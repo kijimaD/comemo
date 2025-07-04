@@ -1,28 +1,38 @@
-commit 4fdb98dcb1bf7a33565c81db3c00e91a466e098d
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Oct 15 18:22:09 2020 -0400
+commit 8e121b1587bd921ea84c7da49cab3f48dc6b8f36
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Fri Mar 27 11:04:21 2020 +0000
 
-    cmd/go: save sums for zips needed to diagnose ambiguous imports
+    runtime: fix infinite callstack of cgo on arm64
     
-    Previously, we would retain entries in go.sum for .mod files in the
-    module graph (reachable from the main module) and for .zip files
-    of modules providing packages.
+    This change adds CFA information to the assembly function 'crosscall1'
+    and reorgnizes its code to establish well-formed prologue and epilogue.
+    It will fix an infinite callstack issue when debugging cgo program with
+    GDB on arm64.
     
-    This isn't quite enough: when we load a package, we need the content
-    of each module in the build list that *could* provide the package
-    (that is, each module whose path is a prefix of the package's path) so
-    we can diagnose ambiguous imports.
+    Brief root cause analysis:
     
-    For #33008
+    GDB's aarch64 unwinder parses prologue to determine current frame's size
+    and previous PC&SP if CFA information is not available.
     
-    Change-Id: I0b4d9d68c1f4ca382f0983a3a7e537764f35c3aa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262781
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
+    The unwinder parses the prologue of 'crosscall1' to determine a frame size
+    of 0x10, then turns to its next frame trying to compute its previous PC&SP
+    as they are not saved on current frame's stack as per its 'traditional frame
+    unwind' rules, which ends up getting an endless frame chain like:
+        [callee]  : pc:<pc0>, sp:<sp0>
+        crosscall1: pc:<pc1>, sp:<sp0>+0x10
+        [caller]  : pc:<pc1>, sp:<sp0>+0x10+0x10
+        [caller]  : pc:<pc1>, sp:<sp0>+0x10+0x10+0x10
+        ...
+    GDB fails to detect the 'caller' frame is same as 'crosscall1' and terminate
+    unwinding since SP increases everytime.
+    
+    Fixes #37238
+    Change-Id: Ia6bd8555828541a3a61f7dc9b94dfa00775ec52a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226999
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/modload/init.go                | 87 +++++++++++++++-------
- .../mod/example.com_ambiguous_a_b_v0.0.0-empty.txt | 12 +++
- .../mod/example.com_ambiguous_a_v1.0.0.txt         | 18 +++++
- src/cmd/go/testdata/script/mod_sum_ambiguous.txt   | 48 ++++++++++++
- 4 files changed, 138 insertions(+), 27 deletions(-)
+ src/runtime/cgo/gcc_arm64.S     | 53 ++++++++++++++++++++-------
+ src/runtime/runtime-gdb_test.go | 80 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 121 insertions(+), 12 deletions(-)

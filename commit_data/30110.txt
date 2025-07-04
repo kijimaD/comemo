@@ -1,31 +1,18 @@
-commit 3b68a647696ebfb61d199155f5f1faa5740e5c55
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 6 15:08:28 2017 -0800
+commit 050f378085da91ce65d2c0157b9bebcced5f883f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 25 11:45:26 2016 -0700
 
-    cmd/compile/internal/syntax: make a parser error "1.7 compliant"
+    cmd/go: add more env variables to "go bug"
     
-    For code such as
+    CL 31330 added more envvars to "go env".
+    This CL brings them to "go bug" as well.
     
-            if a := 10 { ...
-    
-    the 1.7 compiler reported
-    
-            a := 10 used as value
-    
-    while the 1.8 compiler reported
-    
-            invalid condition, tag, or type switch guard
-    
-    Changed the error message to match the 1.7 compiler.
-    
-    Fixes #18915.
-    
-    Change-Id: I01308862e461922e717f9f8295a9db53d5a914eb
-    Reviewed-on: https://go-review.googlesource.com/36470
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Iae122072c8178007eda8b765aaa3f38c3c6e39a0
+    Reviewed-on: https://go-review.googlesource.com/32011
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go |  7 ++++++-
- test/fixedbugs/issue18915.go              | 21 +++++++++++++++++++++
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/cmd/go/bug.go |  4 +++-
+ src/cmd/go/env.go | 27 +++++++++++++++------------
+ 2 files changed, 18 insertions(+), 13 deletions(-)

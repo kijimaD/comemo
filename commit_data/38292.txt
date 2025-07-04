@@ -1,19 +1,16 @@
-commit 9a7101586041a5ad69d65d845db78fb0e249cac6
-Author: Komu Wairagu <komuw05@gmail.com>
-Date:   Thu Mar 7 17:53:18 2019 +0000
+commit 5ddec2488862899a31688025004bfffa5f7b242b
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Wed Oct 17 09:41:09 2018 -0700
 
-    runtime/pprof: document labels bug
+    os: change UserHomeDir to use USERPROFILE on windows
     
-    Currently only CPU profile utilizes tag information.
-    This change documents that fact
+    Fixes #28182
     
-    Updates #23458
-    
-    Change-Id: Ic893e85f63af0da9100d8cba7d3328c294e8c810
-    GitHub-Last-Rev: be99a126296493b3085aa5ade91895b36fb1de73
-    GitHub-Pull-Request: golang/go#27198
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/131275
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I49c2117fba6325c234512f937ff2edfa9477f52f
+    Reviewed-on: https://go-review.googlesource.com/c/142886
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/pprof/label.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/os/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

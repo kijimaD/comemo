@@ -1,22 +1,20 @@
-commit 73abea300a89f0a9b801a4662e3688a5747f1859
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Apr 5 10:33:43 2019 -0700
+commit ea65d015b838f2ca75debacacbbb039fe5e96b26
+Author: Ggicci <ggicci.t@gmail.com>
+Date:   Mon Feb 11 18:00:02 2019 +0800
 
-    database/sql/driver: document Valuer must not panic
+    net/http: clean the path of the stripped URL by StripPrefix
     
-    While it is possible for the connection pool to guard against panics
-    on every valuer read, this seems like a high cost to be added,
-    in both code complexity and possible runtime performance.
+    The path of the new stripped URL should also be cleaned. Since an empty path
+    may cause unexpected errors in some HTTP handlers, e.g. http.ServeFile.
     
-    Most uses of the Valuer will be trivial, like returning
-    a struct field. Optimize for that case. If sometime may panic the
-    valuer should itself use recover and return an error.
+    Fixes #30165
     
-    Fixes #26332
-    
-    Change-Id: Iad18780b8028f669f5a7841b74a5384d62fb6a7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170700
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib44fdce6388b5d62ffbcab5266925ef8f13f26e2
+    Reviewed-on: https://go-review.googlesource.com/c/161738
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/driver/types.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/serve_test.go | 9 +++++++++
+ src/net/http/server.go     | 2 +-
+ 2 files changed, 10 insertions(+), 1 deletion(-)

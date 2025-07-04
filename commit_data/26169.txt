@@ -1,14 +1,46 @@
-commit f02dc513c823eff47b695ba0652ac6f20621beba
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 9 08:36:44 2016 -0800
+commit f7e51c132059a78953b768ca66e457b40985930e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 21 22:27:01 2015 -0800
 
-    doc: fix bogus HTML in contribute.html
+    runtime: adjust gsignal stack to current signal stack
     
-    Introduced in https://golang.org/cl/20462
+    If non-Go code calls sigaltstack before a signal is received, use
+    sigaltstack to determine the current signal stack and set the gsignal
+    stack to use it.  This makes the Go runtime more robust in the face of
+    non-Go code.  We still can't handle a disabled signal stack or a signal
+    triggered with SA_ONSTACK clear, but we now give clear errors for those
+    cases.
     
-    Change-Id: I6c55f87228f0980058a10f204b57ead7594e3492
-    Reviewed-on: https://go-review.googlesource.com/20490
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #7227.
+    Update #9896.
+    
+    Change-Id: Icb1607e01fd6461019b6d77d940e59b3aed4d258
+    Reviewed-on: https://go-review.googlesource.com/18102
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- doc/contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/test/cgo_unix_test.go    | 11 ++++++
+ misc/cgo/test/sigaltstack.go      | 71 ++++++++++++++++++++++++++++++++++++
+ src/runtime/signal1_unix.go       | 16 +++++++++
+ src/runtime/signal2_unix.go       |  2 +-
+ src/runtime/signal_darwin.go      | 23 ++++++++++++
+ src/runtime/signal_freebsd.go     | 40 +++++++++++++++++++++
+ src/runtime/signal_linux.go       | 23 ------------
+ src/runtime/signal_openbsd.go     | 40 +++++++++++++++++++++
+ src/runtime/signal_sigtramp.go    | 48 +++++++++++++++++++++++++
+ src/runtime/sys_darwin_386.s      | 76 +++++++++++++++++++--------------------
+ src/runtime/sys_darwin_arm.s      | 12 +++++++
+ src/runtime/sys_darwin_arm64.s    |  8 +++++
+ src/runtime/sys_dragonfly_amd64.s | 32 ++++-------------
+ src/runtime/sys_freebsd_386.s     | 40 ++++++---------------
+ src/runtime/sys_freebsd_amd64.s   | 32 ++++-------------
+ src/runtime/sys_freebsd_arm.s     | 41 +++++++++------------
+ src/runtime/sys_netbsd_386.s      | 37 ++++++-------------
+ src/runtime/sys_netbsd_amd64.s    | 38 ++++++--------------
+ src/runtime/sys_netbsd_arm.s      | 41 +++++++++------------
+ src/runtime/sys_openbsd_386.s     | 40 ++++++---------------
+ src/runtime/sys_openbsd_amd64.s   | 32 ++++-------------
+ src/runtime/sys_openbsd_arm.s     | 41 +++++++++------------
+ src/runtime/sys_solaris_amd64.s   |  2 ++
+ 23 files changed, 419 insertions(+), 327 deletions(-)

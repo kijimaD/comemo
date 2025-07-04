@@ -1,44 +1,25 @@
-commit 7d16e44d4f36fb37f43dc5318fbe13a1ba50425d
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Sep 17 14:39:54 2019 +0100
+commit 2d683807135d8179d292a4f6f03be3cf7e4d30d3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 8 11:24:29 2019 -0500
 
-    cmd/compile: reduce the regexp work in rulegen
+    cmd/go/internal/web2: make netrc parsing more robust
     
-    As correctly pointed out by Giovanni Bajo, doing a single regexp pass
-    should be much faster than doing hundreds per architecture. We can then
-    use a map to keep track of what ops are handled in each file. And the
-    amount of saved work is evident:
+    - Respect the NETRC environment variable if set.
     
-            name     old time/op         new time/op         delta
-            Rulegen          2.48s ± 1%          2.02s ± 1%  -18.44%  (p=0.008 n=5+5)
+    - Ignore lines that contain macro definitions.
     
-            name     old user-time/op    new user-time/op    delta
-            Rulegen          10.9s ± 1%           8.9s ± 0%  -18.27%  (p=0.008 n=5+5)
+    - Associate the 'machine' token with only the tokens that follow (not
+      precede) it.
     
-            name     old sys-time/op     new sys-time/op     delta
-            Rulegen          209ms ±28%          236ms ±18%     ~     (p=0.310 n=5+5)
+    Updates #29888
+    Updates #26232
     
-            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
-            Rulegen          178MB ± 3%          176MB ± 3%     ~     (p=0.548 n=5+5)
-    
-    The speed-up is so large that we don't need to parallelize it anymore;
-    the numbers above are with the removed goroutines. Adding them back in
-    doesn't improve performance noticeably at all:
-    
-            name     old time/op         new time/op         delta
-            Rulegen          2.02s ± 1%          2.01s ± 1%   ~     (p=0.421 n=5+5)
-    
-            name     old user-time/op    new user-time/op    delta
-            Rulegen          8.90s ± 0%          8.96s ± 1%   ~     (p=0.095 n=5+5)
-    
-    While at it, remove an unused method.
-    
-    Change-Id: I328b56e63b64a9ab48147e67e7d5a385c795ec54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195739
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I3128b7d6da2d6492df7c864e165eea1a27384f0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161698
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/main.go    | 41 +++++++++++++++--------------
- src/cmd/compile/internal/ssa/gen/rulegen.go |  1 -
- 2 files changed, 21 insertions(+), 21 deletions(-)
+ src/cmd/go/internal/web2/web.go      | 78 ++++++++++++++++++++++++++++--------
+ src/cmd/go/internal/web2/web_test.go | 25 +++++++++++-
+ 2 files changed, 86 insertions(+), 17 deletions(-)

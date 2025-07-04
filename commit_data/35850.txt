@@ -1,22 +1,24 @@
-commit f43aa1df701d7190eeaf301d3a41e1714c516c45
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 28 16:45:28 2018 -0700
+commit e1f8fe8dff31136ec2c3f3ba83fbeee9f2ef4c3b
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Wed Jan 10 15:29:50 2018 -0200
 
-    runtime: throw if the runtime panics with out of bounds index
+    cmd/internal/obj/ppc64: implement full operand support for l*arx instructions
     
-    If the runtime code panics due to a bad index or slice expression,
-    then throw instead of panicing. This will skip calls to recover and dump
-    the entire runtime stack trace. The runtime should never panic due to
-    an out of bounds index, and this will help with debugging if it does.
+    The current implementation of l*arx instructions does not accept non-zero
+    offsets in RA nor the EH field. This change adds full functionality to those
+    instructions.
     
-    For #24991
-    Updates #25201
+    Updates #23845
     
-    Change-Id: I85a9feded8f0de914ee1558425931853223c0514
-    Reviewed-on: https://go-review.googlesource.com/121515
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: If113f70d11de5f35f8389520b049390dbc40e863
+    Reviewed-on: https://go-review.googlesource.com/99635
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/runtime/crash_test.go  | 30 ++++++++++++++++++++++++++++++
- src/runtime/export_test.go | 10 ++++++++++
- src/runtime/panic.go       | 19 +++++++++++++++++++
- 3 files changed, 59 insertions(+)
+ src/cmd/asm/internal/asm/testdata/ppc64.s    | 20 ++++++++++++++++
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s | 14 +++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go          |  1 +
+ src/cmd/internal/obj/ppc64/anames.go         |  1 +
+ src/cmd/internal/obj/ppc64/asm9.go           | 36 ++++++++++++++++++++++++----
+ 5 files changed, 67 insertions(+), 5 deletions(-)

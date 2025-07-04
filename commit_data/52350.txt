@@ -1,19 +1,39 @@
-commit 2ef70d9d0f98832c8103a7968b195e560a8bb262
-Author: Huang Qiqi <huangqiqi@loongson.cn>
-Date:   Mon Mar 13 18:50:49 2023 +0800
+commit 4289bd365c38a44db091396873050cab3cfa8098
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Mar 7 14:07:14 2022 -0500
 
-    cmd/internal/obj/loong64: add support for movgr2cf and movcf2gr instructions
+    runtime: simply user throws, expand runtime throws
     
-    Change-Id: I7ff3c8df24ed7990fe104bc2530354c0bd5fe018
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475576
+    This gives explicit names to the possible states of throwing (-1, 0, 1).
+    
+    m.throwing is now one of:
+    
+    throwTypeOff: not throwing, previously == 0
+    throwTypeUser: user throw, previously == -1
+    throwTypeRuntime: runtime throw, previously == 1
+    
+    For runtime throws, we now always include frame metadata and system
+    goroutines regardless of GOTRACEBACK to aid in debugging the runtime.
+    
+    For user throws, we no longer include frame metadata or runtime frames,
+    unless GOTRACEBACK=system or higher.
+    
+    For #51485.
+    
+    Change-Id: If252e2377a0b6385ce7756b937929be4273a56c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390421
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
-    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  3 +++
- src/cmd/internal/obj/loong64/asm.go             | 11 +++++++++++
- 2 files changed, 14 insertions(+)
+ src/runtime/HACKING.md        |  8 ++++++--
+ src/runtime/os3_plan9.go      |  2 +-
+ src/runtime/panic.go          | 39 ++++++++++++++++++++++++++++++++-------
+ src/runtime/proc.go           |  2 --
+ src/runtime/runtime1.go       |  6 +++++-
+ src/runtime/runtime2.go       |  2 +-
+ src/runtime/signal_unix.go    |  2 +-
+ src/runtime/signal_windows.go |  2 +-
+ src/runtime/traceback.go      |  4 ++--
+ 9 files changed, 49 insertions(+), 18 deletions(-)

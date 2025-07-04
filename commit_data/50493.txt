@@ -1,29 +1,19 @@
-commit 7fda98a8d90139fed07d7f8ca80d248a5cbc1e93
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Jun 13 10:59:31 2022 -0500
+commit 5e217284dc9f3b55e8c8b225dc81c1eb1004d423
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Oct 28 16:06:21 2021 -0400
 
-    cmd/link: support -fno-plt compiled gcc objects on ppc64le
+    cmd/internal/goobj: bump version number
     
-    This is the initial trivial implemenation. Further improvements can be
-    made for local calls.
+    There have a few updates to the Go object file in this cycle (e.g.
+    FuncInfo format change, some changes in constant values), and it
+    is not compatible with the old tools. Bump up the version number.
     
-    A test is added, but the -fno-plt option is ignored by gcc if binutils
-    does not support inline plt relocations, so the test is effectively
-    skipped on such hosts.
-    
-    Fixes #53345
-    
-    Change-Id: Ibf31c26b1a8551c942b21019df8782c00b7a563e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412714
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
-    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Change-Id: Id176979b139c76ded2c50f2678eb313934326d6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359483
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- .../script/test_ppc64le_cgo_inline_plt.txt         | 38 +++++++++++++++++
- src/cmd/link/internal/loadelf/ldelf.go             | 13 +++++-
- src/cmd/link/internal/ppc64/asm.go                 | 47 ++++++++++++++++++++++
- 3 files changed, 97 insertions(+), 1 deletion(-)
+ src/cmd/internal/goobj/objfile.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,46 +1,17 @@
-commit 983dcf70ba065bcfe4772c6a1ddd44a1531629d7
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Dec 14 13:27:11 2017 -0600
+commit e49d074c3449736d283354957d7e5f55a465e67b
+Author: Radek Sohlich <sohlich@gmail.com>
+Date:   Fri Nov 3 20:36:12 2017 +0100
 
-    cmd/compile/internal/ssa: update regalloc in loops
+    time: example in doc for time.AppendFormat func
     
-    Currently we don't lift spill out of loop if loop contains call.
-    However often we have code like this:
+    The simple example would contribute to better understanding
+    what function does.
     
-    for .. {
-        if hard_case {
-            call()
-        }
-        // simple case, without call
-    }
-    
-    So instead of checking for any call, check for unavoidable call.
-    For #22698 cases I see:
-    mime/quotedprintable/Writer-6                   10.9µs ± 4%      9.2µs ± 3%   -15.02%  (p=0.000 n=8+8)
-    And:
-    compress/flate/Encode/Twain/Huffman/1e4-6       99.4µs ± 6%     90.9µs ± 0%    -8.57%  (p=0.000 n=8+8)
-    compress/flate/Encode/Twain/Huffman/1e5-6       760µs ± 1%      725µs ± 1%     -4.56%  (p=0.000 n=8+8)
-    compress/flate/Encode/Twain/Huffman/1e6-6       7.55ms ± 0%      7.24ms ± 0%     -4.07%  (p=0.000 n=8+7)
-    
-    There are no significant changes on go1 benchmarks.
-    But for cases with runtime arch checks, where we call generic version on old hardware,
-    there are respectable performance gains:
-    math/RoundToEven-6                             1.43ns ± 0%     1.25ns ± 0%   -12.59%  (p=0.001 n=7+7)
-    math/bits/OnesCount64-6                        1.60ns ± 1%     1.42ns ± 1%   -11.32%  (p=0.000 n=8+8)
-    
-    Also on some runtime benchmarks loops have less loads and higher performance:
-    runtime/RuneIterate/range1/ASCII-6             15.6ns ± 1%     13.9ns ± 1%   -10.74%  (p=0.000 n=7+8)
-    runtime/ArrayEqual-6                           3.22ns ± 0%     2.86ns ± 2%   -11.06%  (p=0.000 n=7+8)
-    
-    Fixes #22698
-    Updates #22234
-    
-    Change-Id: I0ae2f19787d07a9026f064366dedbe601bf7257a
-    Reviewed-on: https://go-review.googlesource.com/84055
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I36a2952df8b0e1762ec0cd908a867c457f39366e
+    Reviewed-on: https://go-review.googlesource.com/75970
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/likelyadjust.go | 92 ++++++++++++++++++++++------
- src/cmd/compile/internal/ssa/regalloc.go     |  2 +-
- 2 files changed, 74 insertions(+), 20 deletions(-)
+ src/time/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

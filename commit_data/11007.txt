@@ -1,16 +1,15 @@
-commit f71c03af90d29c6e2e8d5cc13ac9c590c6e7e2b9
-Author: Vadim Vygonets <unixdj@gmail.com>
-Date:   Mon Dec 26 09:34:27 2011 +0900
+commit 98b90475acbe94e336b59feabaa3a643d1ad0c7c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Dec 25 16:12:26 2011 +1100
 
-    log/syslog: add Alert method
+    flag: change Set method Value interface to return error instead of bool.
     
-    Alert logs a message using the LOG_ALERT priority.
+    This yields much better error messages when a bad flag value is given.
     
-    Fixes #2325.
-    
-    R=mikioh.mikioh, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5504058
+    https://golang.org/cl/5498078
 
- src/pkg/log/syslog/syslog.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/flag/flag.go      | 63 ++++++++++++++++++++++-------------------------
+ src/pkg/flag/flag_test.go |  4 +--
+ 2 files changed, 32 insertions(+), 35 deletions(-)

@@ -1,24 +1,20 @@
-commit e35876ec6591768edace6c6f3b12646899fd1b11
-Author: Alexander Rakoczy <alex@golang.org>
-Date:   Thu Jan 23 22:56:39 2020 +0000
+commit f668573a5e708db399688c9441cf5ec2eb2f29b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 9 19:54:41 2019 -0700
 
-    Revert "runtime: speed up receive on empty closed channel"
+    cmd/go: for gccgo, look for tool build ID before hashing entire file
     
-    This reverts CL 181543 (git e1446d9cee91af263af15efe8291644b590bb9ff)
+    Also fix the key used to store the ID.
     
-    Reason for revert: Caused a regression in the race detector.
+    This is a significant speedup in cmd/go run time when using an
+    unreleased toolchain. For example, the TestGoBuildTestOnly cmd/go test
+    goes from 15 seconds to 1 second.
     
-    Updates #32529
-    Fixes #36714
-    
-    Change-Id: Ifefe6784f86ea72f414a89f131c239e9c9fd74eb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216158
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Change-Id: Ibfd697d55084db059c6b563f70f71f635e935391
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194441
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/chan.go      | 76 ++++++++++++------------------------------------
- src/runtime/chan_test.go | 14 ---------
- 2 files changed, 19 insertions(+), 71 deletions(-)
+ src/cmd/go/internal/work/buildid.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

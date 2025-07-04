@@ -1,17 +1,41 @@
-commit e70d34330690e385be5dd2a3adea3c38c621826d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Dec 12 10:49:55 2023 -0500
+commit 91c1c5922dcfc646fa9b1c2b3d506abe0956e97f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jan 24 10:16:42 2023 +0100
 
-    cmd/go: explicitly name the default branch “main” in testdata/vcstest/git/issue57650.txt
+    runtime/cgo: use //go:build lines in C and assembly files
     
-    Updates #47650.
+    Replace deprecated // +build lines by their respective //go:build line
+    counterpart. Also remove build constraints implied by file name or type.
     
-    Change-Id: I90c0a51b390326129643d5b90fe935d44e5e5372
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549155
+    Change-Id: I8d18cd40071ca28d7654da8f0d22841f43729ca6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460538
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/testdata/vcstest/git/issue47650.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/cgo/asm_mips64x.s           | 1 -
+ src/runtime/cgo/asm_mipsx.s             | 1 -
+ src/runtime/cgo/asm_ppc64x.s            | 1 -
+ src/runtime/cgo/gcc_aix_ppc64.S         | 3 ---
+ src/runtime/cgo/gcc_aix_ppc64.c         | 3 ---
+ src/runtime/cgo/gcc_context.c           | 3 +--
+ src/runtime/cgo/gcc_fatalf.c            | 2 +-
+ src/runtime/cgo/gcc_freebsd_sigaction.c | 2 +-
+ src/runtime/cgo/gcc_libinit.c           | 3 +--
+ src/runtime/cgo/gcc_libinit_windows.c   | 2 --
+ src/runtime/cgo/gcc_linux_mips64x.c     | 4 +---
+ src/runtime/cgo/gcc_linux_mipsx.c       | 4 +---
+ src/runtime/cgo/gcc_linux_ppc64x.S      | 3 +--
+ src/runtime/cgo/gcc_mips64x.S           | 2 +-
+ src/runtime/cgo/gcc_mipsx.S             | 2 +-
+ src/runtime/cgo/gcc_mmap.c              | 2 +-
+ src/runtime/cgo/gcc_ppc64x.c            | 2 +-
+ src/runtime/cgo/gcc_setenv.c            | 3 +--
+ src/runtime/cgo/gcc_sigaction.c         | 2 +-
+ src/runtime/cgo/gcc_signal2_ios_arm64.c | 2 +-
+ src/runtime/cgo/gcc_signal_ios_arm64.c  | 2 +-
+ src/runtime/cgo/gcc_signal_ios_nolldb.c | 4 +---
+ src/runtime/cgo/gcc_traceback.c         | 2 +-
+ src/runtime/cgo/linux_syscall.c         | 2 +-
+ 24 files changed, 18 insertions(+), 39 deletions(-)

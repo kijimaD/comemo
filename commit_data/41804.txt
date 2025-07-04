@@ -1,40 +1,21 @@
-commit faa53e17d1c91d97aa2b780ac41190d151aa6b0e
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Mar 12 18:56:40 2020 -0400
+commit 1b79afe460c329c1db75456c3278600a4b451b41
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 27 12:31:33 2019 -0400
 
-    cmd/go: add support for GOPROXY fallback on unexpected errors
+    runtime: remove old stack scanning code
     
-    URLs in GOPROXY may now be separated with commas (,) or pipes (|). If
-    a request to a proxy fails with any error (including connection errors
-    and timeouts) and the proxy URL is followed by a pipe, the go command
-    will try the request with the next proxy in the list. If the proxy is
-    followed by a comma, the go command will only try the next proxy if
-    the error a 404 or 410 HTTP response.
+    This removes scang and preemptscan, since the stack scanning code now
+    uses suspendG.
     
-    The go command will determine how to connect to the checksum database
-    using the same logic. Before accessing the checksum database, the go
-    command sends a request to <proxyURL>/sumdb/<sumdb-name>/supported.
-    If a proxy responds with 404 or 410, or if any other error occurs and
-    the proxy URL in GOPROXY is followed by a pipe, the go command will
-    try the request with the next proxy. If all proxies respond with 404
-    or 410 or are configured to fall back on errors, the go command will
-    connect to the checksum database directly.
+    For #10958, #24543.
     
-    This CL does not change the default value or meaning of GOPROXY.
-    
-    Fixes #37367
-    
-    Change-Id: I35dd218823fe8cb9383e9ac7bbfec2cc8a358748
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226460
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ic868bf5d6dcce40662a82cb27bb996cb74d0720e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201138
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.15.html                                |  12 +++
- src/cmd/go/alldocs.go                          |  18 ++--
- src/cmd/go/internal/modfetch/proxy.go          | 109 +++++++++++++++++--------
- src/cmd/go/internal/modfetch/sumdb.go          |  82 ++++++++++---------
- src/cmd/go/internal/modload/help.go            |  18 ++--
- src/cmd/go/testdata/script/mod_proxy_list.txt  |  14 +++-
- src/cmd/go/testdata/script/mod_sumdb_proxy.txt |  17 ++++
- 7 files changed, 174 insertions(+), 96 deletions(-)
+ src/runtime/proc.go     | 113 ------------------------------------------------
+ src/runtime/runtime2.go |   1 -
+ src/runtime/stack.go    |  29 +------------
+ 3 files changed, 1 insertion(+), 142 deletions(-)

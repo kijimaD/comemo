@@ -1,26 +1,16 @@
-commit 2465ae64591a0be336f0b0b654e1c02c89fdbe4e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 21 20:27:29 2018 -0800
+commit 58cf881c1c61544d467b265950a942ec2aeb9d28
+Author: griesemer <gri@golang.org>
+Date:   Mon Oct 16 21:52:34 2017 -0700
 
-    go/types: fix regression with short variable declarations
+    cmd/compile/internal/parser: removed TODO (cleanup)
     
-    The variables on the lhs of a short variable declaration are
-    only in scope after the variable declaration. Specifically,
-    function literals on the rhs of a short variable declaration
-    must not see newly declared variables on the lhs.
+    When an opening "{" of a block is missing and after advancing we
+    find a closing "}", it's likely better to assume the end of the
+    block. Fixed and removed TODO.
     
-    This used to work and this bug was likely introduced with
-    https://go-review.googlesource.com/c/go/+/83397 for go1.11.
-    Luckily this is just an oversight and the fix is trivial:
-    Simply use the mechanism for delayed type-checkin of function
-    literals introduced in the before-mentioned change here as well.
-    
-    Fixes #24026.
-    
-    Change-Id: I74ce3a0d05c5a2a42ce4b27601645964f906e82d
-    Reviewed-on: https://go-review.googlesource.com/96177
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I20c9b4ecca798933a7cd4cbf21185bd4ca04f5f7
+    Reviewed-on: https://go-review.googlesource.com/71291
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/assignments.go      |  4 ++++
- src/go/types/testdata/issues.src | 22 ++++++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,27 +1,26 @@
-commit b3104fe3af99c965b5e9a954264dfc384f21bb37
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 9 20:13:40 2019 +0000
+commit 34fc6ced76b252203bf58d0a53a853b4f60a130b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Mar 27 17:54:45 2019 +0100
 
-    Revert "cmd/go: fail if a test binary exits with no output"
+    all: update to Unicode 11
     
-    This reverts CL 184457.
+    This does *not* update the vendored tables.
+    A commit updating these tables should follow soon,
     
-    Reason for revert: introduced failures in the regression test for #18153.
+    Mostly generated running UNICODE_VERSION=11.0.0 in x/text.
     
-    Fixes #34791
-    Updates #29062
+    Manually updated next.txt file.
     
-    Change-Id: I4040965163f809083c023be055e69b1149d6214e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200106
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Updates golang/go#27945.
+    
+    Change-Id: I939a01e235aeca898ee9afc99a531e7ad8444e12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/154420
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/test/test.go         |  37 +-------
- src/cmd/go/testdata/script/test_exit.txt | 152 -------------------------------
- src/cmd/internal/goobj/goobj_test.go     |   4 +-
- src/cmd/nm/nm_test.go                    |   4 +-
- src/cmd/objdump/objdump_test.go          |   4 +-
- src/go/build/deps_test.go                |   2 +-
- src/internal/testenv/testenv.go          |   9 --
- 7 files changed, 12 insertions(+), 200 deletions(-)
+ api/except.txt         |   3 +-
+ api/next.txt           |   8 +
+ src/strconv/isprint.go |  94 ++++----
+ src/unicode/tables.go  | 580 +++++++++++++++++++++++++++++++++----------------
+ 4 files changed, 453 insertions(+), 232 deletions(-)

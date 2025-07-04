@@ -1,29 +1,20 @@
-commit 2e054128bf72c328ed565cfde1ceb7c9a470dc51
-Author: cui fliter <imcusg@gmail.com>
-Date:   Thu Sep 29 02:16:56 2022 +0000
+commit d76b1ac3e1919bd863e7e906202ae085cb20f595
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Nov 11 07:06:24 2021 -0500
 
-    cmd/go/internal: use strings.Cut
+    net: skip new testpoint TestUDPIPVersionReadMsg on plan9
     
-    Change-Id: Icbe2af4f2abf22b6a8c9cec33f0f88018f3bd1c7
-    GitHub-Last-Rev: 81392a6e88d5297f958116031949b37f70271556
-    GitHub-Pull-Request: golang/go#55908
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435737
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Skip TestUDPIPVersionReadMsg on plan9, since it does things
+    not supported on that OS.
+    
+    Change-Id: Icd1716fb5ed4e8877e57acb8c851ec3be72e83e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363354
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/go/internal/cmdflag/flag.go          |  9 +--------
- src/cmd/go/internal/envcmd/env.go            |  5 ++---
- src/cmd/go/internal/modcmd/edit.go           | 25 +++++++++++++------------
- src/cmd/go/internal/modconv/dep.go           |  8 ++++----
- src/cmd/go/internal/modfetch/codehost/vcs.go |  6 +++---
- src/cmd/go/internal/modget/query.go          | 10 +++-------
- src/cmd/go/internal/modload/build.go         |  4 ++--
- src/cmd/go/internal/modload/list.go          |  9 ++-------
- src/cmd/go/internal/test/test.go             |  6 ++----
- src/cmd/go/internal/vcs/vcs.go               |  6 +++---
- src/cmd/go/internal/work/gccgo.go            |  5 +----
- src/cmd/go/internal/workcmd/edit.go          | 11 ++++++-----
- 12 files changed, 42 insertions(+), 62 deletions(-)
+ src/net/udpsock_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

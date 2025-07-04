@@ -1,15 +1,14 @@
-commit 46fcfdaa7dc4c35cf593df2b883db28814e641fe
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sun Oct 7 00:30:29 2012 +0200
+commit bcccad40202ba895d237d9d0a921b33bc2c5601f
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 7 09:26:59 2012 +1100
 
-    cmd/6g: fix out of registers when chaining integer divisions.
-    
-    Fixes #4201.
+    text/template: fix nil crash on Templates
+    Fixes #3872.
     
     R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/6622055
+    CC=golang-dev
+    https://golang.org/cl/6612060
 
- src/cmd/6g/cgen.c | 18 +++++++++++++++++-
- test/torture.go   | 22 ++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ src/pkg/text/template/exec_test.go | 5 +++++
+ src/pkg/text/template/template.go  | 3 +++
+ 2 files changed, 8 insertions(+)

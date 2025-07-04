@@ -1,24 +1,27 @@
-commit 2c7b5ba8ca7268d7d38a48a7e6f31bb53e858af0
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Nov 6 20:15:59 2024 +0100
+commit dc0548f92fa23fe61dbf165e29bcbad09d7fb499
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 18 11:45:42 2023 -0400
 
-    crypto/internal/fips: fix Avo generators
+    cmd/compile/internal/inline: add call site flag generation
     
-    They needed their package names updated after packages were moved to
-    crypto/internal/fips. Also, mitigated mmcloughlin/avo#450 which would
-    require setting GOARCH=amd64 at generation time.
+    Add code to detect call sites that are nested in loops, call sites
+    that are on an unconditional path to panic/exit, and call sites within
+    "init" functions. The panic-path processing reuses some of the
+    logic+state already present for the function flag version of "calls
+    panic/exit".
     
-    Change-Id: Ib903ef113ebb5a24844204f231f2507cea03a67e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626075
+    Updates #61502.
+    
+    Change-Id: I1d728e0763282d3616a9cbc0a07c5cda115660f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511565
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/internal/fips/sha256/_asm/sha256block_amd64_asm.go | 10 ++++++++--
- src/crypto/internal/fips/sha256/sha256block_amd64.s           |  2 +-
- src/crypto/internal/fips/sha3/_asm/keccakf_amd64_asm.go       | 10 ++++++++--
- src/crypto/internal/fips/sha3/sha3_amd64.s                    |  2 +-
- src/crypto/internal/fips/sha512/_asm/sha512block_amd64_asm.go | 10 ++++++++--
- src/crypto/internal/fips/sha512/sha512block_amd64.s           |  2 +-
- 6 files changed, 27 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/inline/inlheur/analyze.go |   2 +-
+ .../inline/inlheur/analyze_func_callsites.go       | 137 ++++++++++++++++++--
+ .../internal/inline/inlheur/analyze_func_flags.go  |  16 ++-
+ .../internal/inline/inlheur/funcprops_test.go      |   4 +-
+ .../inline/inlheur/testdata/props/README.txt       |   6 +-
+ .../inline/inlheur/testdata/props/calls.go         | 142 +++++++++++++++++++++
+ .../inline/inlheur/testdata/props/funcflags.go     |  27 ++--
+ 7 files changed, 305 insertions(+), 29 deletions(-)

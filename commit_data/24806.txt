@@ -1,25 +1,26 @@
-commit 4255b78c7da08170321a166d540dfc2c4cfd2ac5
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Oct 27 13:36:11 2015 +1300
+commit 65677cabfd3a348e1a5b8deca556cf80b998efca
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 1 09:16:58 2015 -0700
 
-    cmd/go: handle linking against a shared library that implicitly includes a package
+    [dev.ssa] cmd/compile/internal/ssa: allow ops to have a default type
     
-    If you say "go install -buildmode=shared a b" and package a depends on another
-    package c, package c is implicitly included in the resulting shared library (as
-    specified by "Go Execution Modes"). But if c depends on b, linking against this
-    shared library hangs, because the go tool doesn't know when computing c's
-    dependencies that c is part of the same shared library as c.
+    Specifying types in rewrites for all subexpressions gets verbose
+    quickly.  Allow opcodes to specify a default type which is used when
+    none is supplied explicitly.
     
-    Fix this by tracking the shared library a package *is* in separately from the
-    shared library a package has been explicitly linked into.
+    Provide default types for a few easy opcodes.  There are probably more
+    we can do, but this is a good start.
     
-    Fixes #13044
-    
-    Change-Id: Iacfedab24ae9731ed53d225678b447a2a888823c
-    Reviewed-on: https://go-review.googlesource.com/16338
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iedc2a1a423cc3e2d4472640433982f9aa76a9f18
+    Reviewed-on: https://go-review.googlesource.com/14128
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/build.go | 34 +++++++++++++++++++++++-----------
- 1 file changed, 23 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   | 252 +++----
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  40 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  26 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  26 +-
+ src/cmd/compile/internal/ssa/gen/main.go       |   1 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  29 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 930 ++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 112 +--
+ 8 files changed, 723 insertions(+), 693 deletions(-)

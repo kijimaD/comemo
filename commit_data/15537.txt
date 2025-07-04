@@ -1,15 +1,14 @@
-commit ba1d5571dbea50e5ed26e6f4f8cd5ced1df47388
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Mar 1 12:51:34 2013 -0500
+commit f5ceeb94a8054dda97d6331ec689037b4aff6a3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 12:13:42 2013 -0500
 
-    exp/ssa/interp: uncomment tests now passing thanks to recent typechecker fixes.
+    build: disable cgo test on openbsd
     
-    Also: add support for pointer conversions, covered by one new test.
+    Update #4878.
     
-    R=gri, bradfitz, dave
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7435047
+    https://golang.org/cl/7450048
 
- src/pkg/exp/ssa/interp/interp_test.go | 86 ++++++++++++++++++-----------------
- src/pkg/exp/ssa/interp/ops.go         |  8 ++--
- 2 files changed, 49 insertions(+), 45 deletions(-)
+ src/run.bash | 1 +
+ 1 file changed, 1 insertion(+)

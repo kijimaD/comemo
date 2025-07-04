@@ -1,22 +1,19 @@
-commit 528ccdc513b76143154c52ebb9d93b79faeaa0b1
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Oct 5 12:07:44 2011 -0400
+commit 319dba47501d3a0966e0d470705532c6474a47bf
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Oct 5 12:07:13 2011 -0400
 
-    runtime: fix Plan 9 build
+    codereview: fix hg change in Windows console
     
-    This change adds the osyield and usleep
-    functions and code to read the number of
-    processors from /dev/sysstat.
-    
-    I also changed SysAlloc to return nil
-    when brk fails (it was returning -1).
+    lib/codereview: Unable to use vim for 'hg change' from windows console
+    reload(sys) break workaround for windows.
+    see:
+    http://mercurial.selenic.com/bts/issue2888
+    http://mercurial.selenic.com/bts/issue1452
+    Also does not work with backslash paths.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5177049
+    https://golang.org/cl/5150054
 
- src/pkg/runtime/plan9/386/sys.s | 21 +++++++++++++++++--
- src/pkg/runtime/plan9/mem.c     |  2 +-
- src/pkg/runtime/plan9/os.h      | 16 +++++++++------
- src/pkg/runtime/plan9/thread.c  | 45 +++++++++++++++++++++++++++++++++++++++--
- 4 files changed, 73 insertions(+), 11 deletions(-)
+ lib/codereview/codereview.py | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

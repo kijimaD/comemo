@@ -1,23 +1,24 @@
-commit aadaec5045d1b37f9ca7111866a26b5149fec78f
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Jun 7 20:44:17 2018 +1000
+commit f4d9c309018f6bbb85c7076a9fbe0387fb7b0b1c
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Feb 23 13:46:44 2018 -0600
 
-    cmd/cover: fix sorting of profile segment boundaries, again
+    cmd/compile/internal/amd64: use appropriate NEG for div
     
-    This is a refinement of CL 114855, which fixed the empty clause case,
-    but broke some other cases where segment boundaries can coincide
-    for other reasons.
+    Currently we generate NEGQ for DIV{Q,L,W}. By generating NEGL and NEGW,
+    we will reduce code size, because NEGL doesn't require rex prefix.
+    This also guarantees that upper 32 bits are zeroed, so we can revert CL 85736,
+    and remove zero-extensions of DIVL results.
+    Also adds test for redundant zero extend elimination.
     
-    Fixes #25767.
+    Fixes #23310
     
-    Change-Id: I2a387c83f9d651c8358f3e11b03f6167af0eb8bf
-    Reviewed-on: https://go-review.googlesource.com/116976
-    Run-TryBot: David Symonds <dsymonds@golang.org>
+    Change-Id: Ic58c3104c255a71371a06e09d10a975bbe5df587
+    Reviewed-on: https://go-review.googlesource.com/96815
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/cover/profile.go                 | 12 +++++++-----
- src/cmd/cover/testdata/html/html.go      | 12 ++++++++++++
- src/cmd/cover/testdata/html/html.golden  |  8 ++++++++
- src/cmd/cover/testdata/html/html_test.go |  1 +
- 4 files changed, 28 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go              | 10 ++++++-
+ src/cmd/compile/internal/ssa/rewrite.go            |  6 +---
+ src/cmd/compile/internal/ssa/zeroextension_test.go | 34 ++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 6 deletions(-)

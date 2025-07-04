@@ -1,20 +1,18 @@
-commit d8f9c4c1ac0bb170f72857f67e0b8fd18904daa1
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Oct 24 17:41:43 2024 +0200
+commit 9aaf5234bf652fc788782fc04a06044879b5957a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 30 11:28:54 2023 -0700
 
-    os: don't check for developer mode in TestSymlinkCreation
+    os/user: use correct size for initial call in retryWithBuffer
     
-    testenv.HasSymlink is already smart enough to return false
-    if the process is not elevated or developer mode is not enabled.
-    There is no need to check it twice.
+    We were accidentally using the sysconf parameter constant.
+    Change to using the value of that sysconf parameter.
     
-    Change-Id: Ib26c1509058230b07dbf5f2c808a10ae731f4ae4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622156
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Id7668e7cced0ce7504df99dbbff0757d29dee8c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524555
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/os/os_windows_test.go | 21 ++-------------------
- 1 file changed, 2 insertions(+), 19 deletions(-)
+ src/os/user/cgo_lookup_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

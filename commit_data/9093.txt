@@ -1,21 +1,16 @@
-commit c705701c69a0ae18ec690cd6a34481f52c52f65b
+commit 331840f50935cb886254ee6b5bc6daad7788979b
 Author: Rob Pike <r@golang.org>
-Date:   Sun Jul 17 13:31:59 2011 +1000
+Date:   Sun Jul 17 12:32:00 2011 +1000
 
-    exp/templates: variable scope persists until "end".
-    The previous CL doicumented and diagnosed the old situation.
-    This one changes it to something more traditional: any action
-    may declare a variable, and the block structure of scopes
-    applies only to control seequences.
+    exp/template: allow declaration of variables only inside control structures.
+    In simple pipelines the declaration has no scope.
+    Also document the scope.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4748047
+    https://golang.org/cl/4761044
 
- src/pkg/exp/template/doc.go        | 10 ++++++----
- src/pkg/exp/template/exec.go       |  7 ++-----
- src/pkg/exp/template/exec_test.go  |  4 +++-
- src/pkg/exp/template/parse.go      | 15 ++++++---------
- src/pkg/exp/template/parse_test.go |  3 ++-
- src/pkg/exp/template/set_test.go   |  1 +
- 6 files changed, 20 insertions(+), 20 deletions(-)
+ src/pkg/exp/template/doc.go        | 16 +++++++++++-----
+ src/pkg/exp/template/parse.go      | 11 +++++++----
+ src/pkg/exp/template/parse_test.go |  3 +--
+ 3 files changed, 19 insertions(+), 11 deletions(-)

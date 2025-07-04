@@ -1,20 +1,32 @@
-commit 85e84a49e45df6523d10da485ac5dd0ef7b74926
-Author: Sebastiaan van Stijn <github@gone.nl>
-Date:   Mon Nov 14 20:29:26 2022 +0000
+commit 3315066f46d5dce3e4474bdcde0997d688c79436
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 2 10:12:52 2022 -0400
 
-    crypto/tls: remove unused nonAESGCMAEADCiphers variable
+    cmd/link: detect glibc vs musl ldso at link time
     
-    It was no longer used since CL 314609
+    Doing the test at link time lets us distribute one Linux toolchain
+    that works on both glibc-based and musl-based Linux systems.
+    The old way built a toolchain that only ran on one or the other.
     
-    Change-Id: Id103b7490a6088a589d76442d3740f8a1453c25d
-    GitHub-Last-Rev: 20a7fe0778fbfcfd789a194456e87dd4a60b655e
-    GitHub-Pull-Request: golang/go#56608
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448277
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Fixes #54197.
+    
+    Change-Id: Iaae8c274c78e1091eee828a720b49646be9bfffe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420774
+    Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/crypto/tls/cipher_suites.go | 8 --------
- 1 file changed, 8 deletions(-)
+ src/cmd/link/internal/amd64/obj.go   |  1 +
+ src/cmd/link/internal/arm/obj.go     |  1 +
+ src/cmd/link/internal/arm64/obj.go   |  5 +++--
+ src/cmd/link/internal/ld/elf.go      | 11 +++++++++++
+ src/cmd/link/internal/ld/lib.go      |  1 +
+ src/cmd/link/internal/loong64/obj.go |  1 +
+ src/cmd/link/internal/mips/obj.go    |  5 ++++-
+ src/cmd/link/internal/mips64/obj.go  |  3 +++
+ src/cmd/link/internal/ppc64/obj.go   |  4 ++++
+ src/cmd/link/internal/s390x/obj.go   |  3 ++-
+ src/cmd/link/internal/x86/obj.go     | 11 ++++++-----
+ src/make.bash                        |  9 ---------
+ 12 files changed, 37 insertions(+), 18 deletions(-)

@@ -1,13 +1,21 @@
-commit 6d5eb61ae7d65d56bc6277ddea4264a10054f28b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 14 01:57:24 2012 +0400
+commit aa9a81b1b098f3482bd648fbb634756cfa403fd5
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Mon Aug 13 12:07:44 2012 +1000
 
-    net: remove unused fields
+    exp/html: discard tags that are terminated by EOF instead of by '>'
     
-    R=golang-dev, iant
+    If a tag doesn't have a closing '>', it isn't considered a tag;
+    it is just ignored and EOF is returned instead.
+    
+    Pass one additional test in the test suite.
+    
+    Change tokenizer tests to match correct behavior.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6454145
+    https://golang.org/cl/6454131
 
- src/pkg/net/fd.go            | 28 ++--------------------------
- src/pkg/net/newpollserver.go |  2 --
- 2 files changed, 2 insertions(+), 28 deletions(-)
+ src/pkg/exp/html/testlogs/webkit02.dat.log |  2 +-
+ src/pkg/exp/html/token.go                  |  8 ++++++--
+ src/pkg/exp/html/token_test.go             | 17 +++++++++++------
+ 3 files changed, 18 insertions(+), 9 deletions(-)

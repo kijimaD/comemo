@@ -1,12 +1,19 @@
-commit fe1cecfaecf6019928bbc340266a2fadd8f23b2a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Jun 25 11:33:48 2015 +0900
+commit 2b063bdff1a61961936db7ef1e963aecf1ae3db7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 14 19:33:31 2015 -0700
 
-    misc/cgo/testcshared: don't leave garbages after test
+    cmd/internal/gc: make all Node depths int32
     
-    Change-Id: I668b18b1e6901c59cf170e0c1cde9a3923c0cb13
-    Reviewed-on: https://go-review.googlesource.com/11472
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Funcdepth was already int32. Make Escloopdepth
+    and Decldepth also int32 instead of int.
+    
+    No functional changes for non-absurd code. Passes toolstash -cmp.
+    
+    Change-Id: I47e145dd732b6a73cfcc6d45956df0dbccdcd999
+    Reviewed-on: https://go-review.googlesource.com/10129
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/testcshared/test.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/gc/esc.go    | 2 +-
+ src/cmd/internal/gc/go.go     | 2 +-
+ src/cmd/internal/gc/syntax.go | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,17 +1,15 @@
-commit 08706f19b4ec98d91f08c331d43e8e8553bb30c3
-Author: William Orr <will@worrbase.com>
-Date:   Thu Feb 27 10:13:41 2014 -0800
+commit e9ee0bf63c35c810afb1d820b04d4f41b2f4ff8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 27 09:00:27 2014 -0800
 
-    syscall: add mlock, munlock, mlockall, munlockall and mprotect to OSX
+    cmd/gofmt: minor internal cleanups
     
-    Fixes #7415
+    Reflect changes of reflect API.
     
-    LGTM=bradfitz
-    R=bradfitz, iant
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/68980043
+    https://golang.org/cl/69240044
 
- src/pkg/syscall/syscall_darwin.go        |  5 +++
- src/pkg/syscall/zsyscall_darwin_386.go   | 68 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_darwin_amd64.go | 68 ++++++++++++++++++++++++++++++++
- 3 files changed, 141 insertions(+)
+ src/cmd/gofmt/rewrite.go | 27 ++++++++++++++-------------
+ 1 file changed, 14 insertions(+), 13 deletions(-)

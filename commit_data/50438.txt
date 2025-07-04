@@ -1,18 +1,22 @@
-commit 218294f11ee4d988112263e1f2660acf443afdd9
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 7 17:23:03 2022 +0200
+commit 3a0cd1121413ad02172784114318ac6b0c2801c1
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 9 09:13:34 2020 -0700
 
-    internal/syscall/windows: use unsafe.Slice instead of unsafeheader package
+    sync/atomic: use a better first-store-in-progress marker
     
-    Follow CL 428777.
+    Unlike what the comment says, the GC can see this pointer.
+    Might as well make it a real pointer, even though ^uintptr(0)
+    isn't currently causing problems.
     
-    Change-Id: I5ce49322e92c5d6539bb08248e3366187c30dcd8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428780
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Removed the comment about GC not seeing the pointer.
+    
+    Change-Id: I04bc1fd4848698bec6afb79bd5fda671dfc9a073
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241661
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Colin Arnott <colin@urandom.co.uk>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/sync/atomic/value.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

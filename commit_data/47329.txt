@@ -1,42 +1,40 @@
-commit 85493d53e3bffbd08de3a97672a5a6f10b4901a8
-Author: Arran Walker <arran.walker@fiveturns.org>
-Date:   Thu Oct 21 10:39:05 2021 +0100
+commit 64d323f45a5d6a36cdcb190bed56424a633af3ad
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Dec 16 19:38:39 2020 -0800
 
-    archive/zip: don't read data descriptor early
+    hash/maphash: optimize Write and WriteString
     
-    Go 1.17 introduced an unnecessary change to when a zip's data descriptor
-    is read for file entries, how it is parsed and how the crc32 field is
-    used.
+    The existing code makes copies of every byte it hashes.
+    When passed a large chunk of memory, Write and WriteString
+    can skip the copying and initSeed for most of it.
     
-    Before Go 1.17, the data descriptor was read immediately after a file
-    entry's content. This continuous read is a pattern existing applications
-    have come to rely upon (for example, where reads at specific offsets
-    might be translated to HTTP range requests).
+    To ensure that Write, WriteByte, and WriteString continue to
+    generate output that depends only on the sequence of bytes,
+    expand the grouping test to include WriteString and interleaved calls.
+    Also, make the test process a lot more data, to ensure that
+    Write* handled full buffers correctly.
     
-    In Go 1.17, all data descriptors are immediately read upon opening the
-    file. This results in scattered and non-continuous reads of the archive,
-    and depending on the underlying reader, might have severe performance
-    implications. In addition, an additional object is now initialized for
-    each entry, but is mostly redundant.
+    name            old time/op    new time/op    delta
+    Hash8Bytes-8      17.1ns ± 3%    16.5ns ± 2%   -3.26%  (p=0.000 n=29+27)
+    Hash320Bytes-8    74.9ns ± 2%    58.5ns ± 2%  -21.86%  (p=0.000 n=30+29)
+    Hash1K-8           246ns ± 3%     195ns ± 1%  -20.82%  (p=0.000 n=29+30)
+    Hash8K-8          1.87µs ± 2%    1.59µs ± 2%  -15.04%  (p=0.000 n=26+30)
     
-    Previously, the crc32 field in the data descriptor would return an error
-    if it did not match the central directory's entry. This check has
-    seemingly been unintentionally removed. If the central directory crc32
-    is invalid and a data descriptor is present, no error is returned.
+    name            old speed      new speed      delta
+    Hash8Bytes-8     468MB/s ± 3%   484MB/s ± 2%   +3.36%  (p=0.000 n=29+27)
+    Hash320Bytes-8  4.28GB/s ± 2%  5.47GB/s ± 2%  +27.97%  (p=0.000 n=30+29)
+    Hash1K-8        4.17GB/s ± 3%  5.26GB/s ± 1%  +26.28%  (p=0.000 n=29+30)
+    Hash8K-8        4.38GB/s ± 2%  5.16GB/s ± 2%  +17.70%  (p=0.000 n=26+30)
     
-    This change reverts to the previous handling of data descriptors, before
-    CL 312310.
+    Updates #42710
     
-    Fixes #48374
-    Fixes #49089
-    
-    Change-Id: I5df2878c4fcc9e500064e7175f3ab9727c82f100
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357489
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: If3cdec1580ffb3e36fab9865e5a9d089c0a34bec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278758
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/archive/zip/reader.go      |  94 +++++++++----------------------
- src/archive/zip/reader_test.go | 122 -----------------------------------------
- src/archive/zip/struct.go      |   8 ---
- 3 files changed, 27 insertions(+), 197 deletions(-)
+ src/hash/maphash/maphash.go      | 78 ++++++++++++++++++++++++++++++----------
+ src/hash/maphash/maphash_test.go | 57 ++++++++++++++++++++++++-----
+ 2 files changed, 107 insertions(+), 28 deletions(-)

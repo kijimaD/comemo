@@ -1,0 +1,22 @@
+commit 7de87ebd59f7667f6b27d635a380ea0d9d3dabf5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 7 17:07:34 2024 -0400
+
+    internal/runtime/maps: merge Iter.groupIdx and Iter.slotIdx
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Ie21ef0f33f42735eadccd75eeebb3b5e81c2f459
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618535
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Michael Pratt <mpratt@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  27 ++--
+ src/internal/abi/map_swiss.go                     |   5 +-
+ src/internal/runtime/maps/group.go                |   4 +
+ src/internal/runtime/maps/table.go                | 156 +++++++++++-----------
+ 4 files changed, 99 insertions(+), 93 deletions(-)

@@ -1,21 +1,29 @@
-commit eb2fabf2fa4e1cb0386ae52e041c3d6b0ced3d29
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Apr 16 22:13:47 2019 +0900
+commit c0101b1961299ce6d13fac3c1dd13d3aea22b276
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Feb 24 22:48:46 2019 +0100
 
-    text/template: clarify the safety of Template.New
+    time: parse 1us in Nanoseconds example
     
-    In particular, the returned template isn't independent from the parent.
-    For example, it can't be parsed concurrently with other children
-    templates. Only methods which are explicitly safe for concurrent use,
-    like Execute, may be used concurrently.
+    The example for Nanoseconds() currently reads:
     
-    Fixes #30281.
+      ns, _ := time.ParseDuration("1000ns")
+      fmt.Printf("one microsecond has %d nanoseconds.", ns.Nanoseconds())
     
-    Change-Id: Idc84bf4199c035316cdb83b950fd4a8f2a71cd0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172297
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    which is not terribly interesting: it seems obvious that parsing
+    "1000ns" and then calling Nanoseconds() will print 1000. The mention
+    of microseconds in the text suggests that the author's intention was,
+    instead, to write something like this:
+    
+      u, _ := time.ParseDuration("1us")
+    
+    i.e. build a time value by parsing 1 microsecond, and then print the
+    value in nanoseconds. Change the example to do this.
+    
+    Change-Id: I4ddb123f0935a12cda3b5d6f1ca919bfcd6383d6
+    Reviewed-on: https://go-review.googlesource.com/c/163622
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/text/template/template.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/time/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,25 +1,20 @@
-commit 656a20a52a51f4790ccddca5a7a1226993867e33
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed May 17 18:21:04 2023 +0200
+commit bb1749ba3bfaa6912d79904dad5e29e6ea624d29
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 8 09:41:14 2022 -0700
 
-    net: make Dial fail faster on Windows closed loopback devices
+    cmd/compile: improve GOAMD64=v1 violation test
     
-    On Windows when connecting to an unavailable port, ConnectEx() will
-    retry for 2s, even on loopback devices.
+    Add more opcodes that are only available in >v1 modes.
     
-    This CL uses a call to WSAIoctl to make the ConnectEx() call fail
-    faster on local connections.
+    This test will now correctly detect the regression in -race mode
+    for #53743.
     
-    Fixes #23366
-    
-    Change-Id: Iafeca8ea0053f01116b2504c45d88120f84d05e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495875
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: Icfbb1384e4333d7b4ff167c9ebcb6f4c7aeb6134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416477
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/internal/syscall/windows/net_windows.go | 22 +++++++++++++
- src/net/dial_test.go                        | 48 +++++++++++++++++++++++++++++
- src/net/fd_windows.go                       | 27 ++++++++++++++++
- 3 files changed, 97 insertions(+)
+ src/cmd/compile/internal/amd64/versions_test.go | 31 ++++++++++++++++++++-----
+ 1 file changed, 25 insertions(+), 6 deletions(-)

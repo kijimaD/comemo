@@ -1,19 +1,18 @@
-commit e7908ab9a266da09a247480cb45dab213fb3e00e
+commit 6484e813b5ec80a399ed1b8e4608070db2144b39
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Oct 13 16:43:39 2023 -0400
+Date:   Tue Nov 15 10:11:08 2022 -0500
 
-    cmd/go: allow suffixed toolchains to satisfy toolchain lines for the same base version
+    cmd/internal/moddeps: use testenv.Command instead of exec.Command in tests
     
-    Fixes #63357.
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
     
-    Change-Id: I8380cf0d3965d6aef84a91a515d3e0e8aae9344b
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535355
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ia18c323067a416381e5a70d08c50f51576054a79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450698
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/toolchain/select.go          |  6 ++++--
- src/cmd/go/testdata/script/gotoolchain_local.txt | 13 +++++++++++++
- 2 files changed, 17 insertions(+), 2 deletions(-)
+ src/cmd/internal/moddeps/moddeps_test.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

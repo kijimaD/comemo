@@ -1,12 +1,12 @@
-commit c7ef0fd26be0797e66db5987462921e7255b6351
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Mon Mar 7 10:37:10 2011 -0500
+commit c6093e6b820189e0eba090210bf022ab031c2fa7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 7 16:19:25 2011 +1100
 
-    rpc: use httptest.Server for tests
+    tag release.2011-03-07.1
     
-    R=golang-dev, rsc1, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4253060
+    https://golang.org/cl/4268041
 
- src/pkg/rpc/server_test.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

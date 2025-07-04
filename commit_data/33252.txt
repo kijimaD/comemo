@@ -1,19 +1,17 @@
-commit da95254d1aee5b2497b784b7bfd9d0972505a48d
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 25 18:36:12 2017 -0400
+commit e93eb2843c6b6b8e0e6c5e9eb1a4417328055ec6
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Aug 2 22:24:22 2017 -0700
 
-    runtime: "fix" non-preemptible loop in TestParallelRWMutexReaders
+    strings: avoid unnecessary variable setting
     
-    TestParallelRWMutexReaders has a non-preemptible loop in it that can
-    deadlock if GC triggers. "Fix" it like we've fixed similar tests.
+    We initialize fieldStart to 0, then set it to i without ever reading
+    0, so we might as well just initialize it to i.
     
-    Updates #10958.
-    
-    Change-Id: I13618f522f5ef0c864e7171ad2f655edececacd7
-    Reviewed-on: https://go-review.googlesource.com/73710
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I17905b25d54a62b6bc76f915353756ed5eb6972b
+    Reviewed-on: https://go-review.googlesource.com/52933
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/rwmutex_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/strings/strings.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,45 +1,20 @@
-commit fd59c87ec1d5e65f697925a0d40e3f6d6254457e
+commit e84ce0802dac6d5a780acc2f54113b55f49f4b07
 Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Nov 5 02:19:46 2023 +1100
+Date:   Thu Nov 17 12:51:56 2022 +1100
 
-    syscall: provide and use fcntlPtr for all BSD platforms
+    runtime: change tfork behaviour to unbreak openbsd/mips64
     
-    Provide fcntlPtr for all BSD platforms, then use this for FcntlFlock.
-    This reduces darwin and openbsd specific code, as well as avoiding
-    the use of an indirect system call on OpenBSD.
+    Currently, tfork on openbsd/mips64 returns the thread ID on success and
+    a negative error number on error. In CL#447175, newosproc was changed
+    to assume that a non-zero value is an error - return zero on success to
+    match this expectation.
     
-    Updates #63900
-    
-    Change-Id: I5c701f0d8413fab5477b9e21381395621d1fb6d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540018
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Change-Id: I955efad49b149146165eba3d05fe40ba75caa098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451257
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Josh Rickmar <jrick@zettaport.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/syscall/{flock_darwin.go => flock_bsd.go} |  2 ++
- src/syscall/{flock.go => flock_linux.go}      |  2 --
- src/syscall/mksyscall.pl                      |  1 +
- src/syscall/syscall_bsd.go                    |  1 +
- src/syscall/syscall_darwin.go                 |  1 -
- src/syscall/syscall_openbsd_libc.go           |  1 -
- src/syscall/zsyscall_darwin_amd64.go          | 22 +++++++++++-----------
- src/syscall/zsyscall_darwin_arm64.go          | 22 +++++++++++-----------
- src/syscall/zsyscall_dragonfly_amd64.go       | 11 +++++++++++
- src/syscall/zsyscall_freebsd_386.go           | 11 +++++++++++
- src/syscall/zsyscall_freebsd_amd64.go         | 11 +++++++++++
- src/syscall/zsyscall_freebsd_arm.go           | 11 +++++++++++
- src/syscall/zsyscall_freebsd_arm64.go         | 11 +++++++++++
- src/syscall/zsyscall_freebsd_riscv64.go       | 11 +++++++++++
- src/syscall/zsyscall_netbsd_386.go            | 11 +++++++++++
- src/syscall/zsyscall_netbsd_amd64.go          | 11 +++++++++++
- src/syscall/zsyscall_netbsd_arm.go            | 11 +++++++++++
- src/syscall/zsyscall_netbsd_arm64.go          | 11 +++++++++++
- src/syscall/zsyscall_openbsd_386.go           | 22 +++++++++++-----------
- src/syscall/zsyscall_openbsd_amd64.go         | 22 +++++++++++-----------
- src/syscall/zsyscall_openbsd_arm.go           | 22 +++++++++++-----------
- src/syscall/zsyscall_openbsd_arm64.go         | 22 +++++++++++-----------
- src/syscall/zsyscall_openbsd_ppc64.go         | 22 +++++++++++-----------
- src/syscall/zsyscall_openbsd_riscv64.go       | 22 +++++++++++-----------
- 24 files changed, 202 insertions(+), 92 deletions(-)
+ src/runtime/sys_openbsd_mips64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

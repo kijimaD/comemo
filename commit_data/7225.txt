@@ -1,24 +1,13 @@
-commit 17fc373af770bd886502ded95da0d68fcc7adebd
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 24 14:14:26 2011 -0500
+commit 72084068a4e4fdb35f62350715aea289c96b1113
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Jan 24 14:12:54 2011 -0500
 
-    codereview: handle file patterns better
+    template: treat map keys as zero, not non-existent.
     
-    If a file pattern is given and matches files that look
-    like they need to be hg added or hg removed, offer to do so.
-    
-    If a file pattern is given and matches files in another CL, warn.
-    
-    If a file pattern doesn't match anything, point that out.
-    
-    Vet first line of CL description.
-    
-    Fixes #972.
-    
-    R=adg, niemeyer
-    CC=bradfitzgo, golang-dev
-    https://golang.org/cl/4099042
+    R=adg, r, hoka, rsc
+    CC=golang-dev
+    https://golang.org/cl/4036045
 
- .hgignore                    |   1 +
- lib/codereview/codereview.py | 156 +++++++++++++++++++++++++++++++++++++------
- 2 files changed, 138 insertions(+), 19 deletions(-)
+ src/pkg/template/template.go      |  5 ++++-
+ src/pkg/template/template_test.go | 41 ++++++++++++++++++++++++++++-----------
+ 2 files changed, 34 insertions(+), 12 deletions(-)

@@ -1,22 +1,17 @@
-commit cd176b361591420f84fcbcaaf0cf24351aed0995
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Jan 26 23:06:51 2021 +1100
+commit 0ca6098f707763a3e8b523d869def9fb64f8ebf0
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu May 21 16:33:20 2020 -0400
 
-    runtime: switch runtime to libc for openbsd/arm64
+    [dev.link] cmd/link: remove Flag8 from amd64
     
-    Use libc rather than performing direct system calls for the runtime on
-    openbsd/arm64.
+    It's only ever checked for plan 9 and it was irrelevantly set.
     
-    Updates #36435
-    
-    Change-Id: I8bd41dfec16209f2b9a83dda24b9a1e4b06757c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/286814
-    Trust: Joel Sing <joel@sing.id.au>
+    Change-Id: I225d4be645f573ceccde47ec2236bf3dbeb0ea70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234886
+    Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/defs_openbsd_arm64.go  |   5 +
- src/runtime/os_openbsd_syscall2.go |   2 +-
- src/runtime/proc.go                |   2 +-
- src/runtime/sys_openbsd2.go        |   2 +-
- src/runtime/sys_openbsd_arm64.s    | 485 +++++++++++++++----------------------
- 5 files changed, 201 insertions(+), 295 deletions(-)
+ src/cmd/link/internal/amd64/asm.go | 4 ----
+ src/cmd/link/internal/ld/main.go   | 4 ++--
+ src/cmd/link/internal/ld/symtab.go | 2 +-
+ 3 files changed, 3 insertions(+), 7 deletions(-)

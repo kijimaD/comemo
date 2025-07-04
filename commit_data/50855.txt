@@ -1,26 +1,21 @@
-commit 01604129aee8bfc9dd3e2fffd2ad8f772a3089ec
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Sep 30 16:49:42 2022 -0400
+commit 958f405371d942d988aef325b2103fa64028af45
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 10 15:54:00 2021 -0500
 
-    cmd/go: do not exit with non-zero code from go list -e -export
+    go/types: when type hashing, canonicalize interfaces
     
-    go list -e -export puts errors running build actions on the load.Package
-    corresponding to the failed action rather than exiting with a non zero
-    exit code.
+    The interface type string preserves certain non-semantic attributes of
+    the type, such as embedded interfaces. We want the hash to represent the
+    interface identity, so hash the type set representation of the interface
+    instead.
     
-    For #25842
-    
-    Change-Id: I1fea85cc5a0557f514fe9d4ed3b6a858376fdcde
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437298
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I14081ac20b738c5fe11785e0846a9b4358594768
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363115
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/list/list.go             |  3 +
- src/cmd/go/internal/work/action.go           |  1 +
- src/cmd/go/internal/work/exec.go             | 95 +++++++++++++++++-----------
- src/cmd/go/internal/work/gc.go               |  4 +-
- src/cmd/go/testdata/script/list_export_e.txt | 19 ++++++
- 5 files changed, 84 insertions(+), 38 deletions(-)
+ src/go/types/instantiate_test.go | 33 ++++++++++++++++++++
+ src/go/types/typestring.go       | 66 ++++++++++++++++++++++++++++++++--------
+ 2 files changed, 87 insertions(+), 12 deletions(-)

@@ -1,19 +1,36 @@
-commit 65896f68fc347cb3734922c5dd3576156bf06a49
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Mar 20 16:13:02 2023 -0400
+commit 7a22c8a07f0909ea4da71df7379640cc281bda12
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Sun Aug 15 15:32:16 2021 +0800
 
-    cmd/go: make get_dash_t test more specific
+    cmd/cgo: configure cgo tool for loong64
     
-    Currently it uses "go list ...", which includes all packages in
-    the known universe, and may include unresolved dependencies. The
-    test for issue #8181 is specifically for that the test dependency
-    of package b is downloaded. Test that specifically.
+    Define pointer and int type size for loong64
+    Add "-mabi=lp64d" argument to gcc
     
-    Change-Id: Icfbd7e197698b10ae4bc7c8aa3b0f2c477ca6b8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477837
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I9699fd9af0112e72193ac24b736b85c580887a0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342305
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/get_dash_t.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/gcc.go  | 2 ++
+ src/cmd/cgo/main.go | 2 ++
+ 2 files changed, 4 insertions(+)

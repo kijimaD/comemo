@@ -1,30 +1,27 @@
-commit 0384235a15110bb3f8bf3a65eff4543d4d3e837b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Jan 11 18:56:31 2023 -0500
+commit 98b17892a080a42378c9c3551dc5bb273e7ec2d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 08:15:40 2022 -0400
 
-    cmd/compile: don't mark uintptr->unsafe.Pointer conversion unsafe points
+    go/doc/comment: add paragraph parsing and test framework
     
-    In the past, we planned to implement asynchronous preemption using
-    precise register pointer maps. In this strategy, conversions between
-    unsafe.Pointer and uintptr would need to be marked as unsafe points,
-    as if a pointer value is temporarily converted to uintptr (and not
-    live otherwise), the GC would not be able to see it when scanning
-    the stack (and registers).
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
     
-    But now we actually implemented asynchronous preemption with inner
-    frame conservative scan. So even if a pointer value lives as an
-    integer the GC can still see it. There is no need to mark the
-    conversion as unsafe points. This allows more places to be
-    preempted, as well as for debugger to inject a call.
+    Implement parsing of plain text doc paragraphs,
+    as well as a txtar-based test framework. Subsequent CLs will
+    implement the rest of the possible markup.
     
-    Fixes #57719.
+    For #51082.
     
-    Change-Id: I375ab820d8d74d122b565cf72ecc7cdb225dbc01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461696
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I449aac69b44089f241fde8050ac134e17cb25116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397278
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/liveness/plive.go | 60 ------------------------------
- 1 file changed, 60 deletions(-)
+ api/next/51082.txt                    |   5 +
+ src/go/doc/comment/parse.go           | 167 +++++++++++++++++++++++++++++++++
+ src/go/doc/comment/testdata/hello.txt |  16 ++++
+ src/go/doc/comment/testdata_test.go   | 168 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 356 insertions(+)

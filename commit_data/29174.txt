@@ -1,14 +1,53 @@
-commit 7fd6b925e38f67c2d0cb3fca0f3dc8b6dfb0708c
+commit f7ac5da4956fb2db129848be331345ece8e7faa6
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Oct 28 09:54:20 2016 -0700
+Date:   Mon Aug 29 17:56:15 2016 -0700
 
-    spec: update operator and delimiter section
+    cmd/compile: make internal objects directly print to printer
     
-    Follow-up on https://go-review.googlesource.com/30601.
+    Internal objects that satisfy the Printable interface can print
+    directly to a printer w/o going through the conversion to a string
+    first.
     
-    Change-Id: I51b603a6c4877b571e83cd7c4e78a8988cc831ca
-    Reviewed-on: https://go-review.googlesource.com/32310
-    Reviewed-by: Rob Pike <r@golang.org>
+    Made printer.f understand and special-case %v so that Printable
+    objects use the printer directly.
+    
+    This is work in progress and we may end up doing something else
+    eventually (perhaps using fmt.Formatter) - or even undo these
+    changes if this exploration doesn't get us to a significantly
+    better place.
+    
+    Allocations numbers relative to commit c85b77c (still up, but
+    reduced from most recent change):
+    
+    name       old time/op     new time/op     delta
+    Template       307ms ± 4%      315ms ± 4%   +2.55%        (p=0.000 n=29+29)
+    Unicode        164ms ± 4%      165ms ± 4%     ~           (p=0.057 n=30+30)
+    GoTypes        1.01s ± 3%      1.03s ± 3%   +1.72%        (p=0.000 n=30+30)
+    Compiler       5.49s ± 1%      5.62s ± 2%   +2.31%        (p=0.000 n=30+28)
+    
+    name       old user-ns/op  new user-ns/op  delta
+    Template        397M ± 3%       406M ± 6%   +2.21%        (p=0.000 n=28+30)
+    Unicode         225M ± 4%       226M ± 3%     ~           (p=0.230 n=29+30)
+    GoTypes        1.31G ± 3%      1.34G ± 5%   +2.79%        (p=0.000 n=30+30)
+    Compiler       7.39G ± 2%      7.50G ± 2%   +1.43%        (p=0.000 n=30+29)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      46.8MB ± 0%     47.5MB ± 0%   +1.48%        (p=0.000 n=29+28)
+    Unicode       37.8MB ± 0%     38.1MB ± 0%   +0.64%        (p=0.000 n=30+28)
+    GoTypes        143MB ± 0%      145MB ± 0%   +1.72%        (p=0.000 n=30+30)
+    Compiler       683MB ± 0%      706MB ± 0%   +3.31%        (p=0.000 n=30+29)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        444k ± 0%       481k ± 0%   +8.38%        (p=0.000 n=30+30)
+    Unicode         369k ± 0%       379k ± 0%   +2.74%        (p=0.000 n=30+30)
+    GoTypes        1.35M ± 0%      1.50M ± 0%  +10.78%        (p=0.000 n=30+30)
+    Compiler       5.66M ± 0%      6.25M ± 0%  +10.31%        (p=0.000 n=29+29)
+    
+    For #16897.
+    
+    Change-Id: I37f95ab60508018ee6d29a98d238482b60e3e4b5
+    Reviewed-on: https://go-review.googlesource.com/28072
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go | 126 +++++++++++++++++++++++++++----------
+ 1 file changed, 92 insertions(+), 34 deletions(-)

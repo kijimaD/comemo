@@ -1,16 +1,24 @@
-commit b1370742eedf4f1801d86399374802c4d606a6d7
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Jan 5 14:29:42 2015 -0800
+commit cfc8099a9a71bbcdd8b3259be2f50578872c9626
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Nov 22 16:05:31 2014 +1100
 
-    crypto/rsa: rsa.SignPSS with opts=nil shouldn't crash.
+    [dev.cc] runtime: convert netbsd/amd64 port to Go
     
-    SignPSS is documented as allowing opts to be nil, but actually
-    crashes in that case. This change fixes that.
-    
-    Change-Id: Ic48ff5f698c010a336e2bf720e0f44be1aecafa0
-    Reviewed-on: https://go-review.googlesource.com/2330
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169620043
 
- src/crypto/rsa/pss.go      | 2 +-
- src/crypto/rsa/pss_test.go | 9 +++++++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/runtime/defs1_netbsd_amd64.go  |  20 +-
+ src/runtime/os1_netbsd.go          | 265 ++++++++++++++++++++++++++
+ src/runtime/os1_netbsd_amd64.go    |  16 ++
+ src/runtime/os2_netbsd.go          |  18 ++
+ src/runtime/os_netbsd.c            | 368 -------------------------------------
+ src/runtime/os_netbsd.go           |  32 +++-
+ src/runtime/os_netbsd.h            |  31 ----
+ src/runtime/os_netbsd_amd64.c      |  18 --
+ src/runtime/signal_netbsd.go       |  46 +++++
+ src/runtime/signal_netbsd_amd64.go |  48 +++++
+ src/runtime/signal_netbsd_amd64.h  |  31 ----
+ src/runtime/signals_netbsd.h       |  54 ------
+ 12 files changed, 436 insertions(+), 511 deletions(-)

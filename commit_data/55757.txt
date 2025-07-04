@@ -1,23 +1,16 @@
-commit 2fb5ef889bf86dfb25880cf087a3e02f7100df29
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 14 11:57:01 2024 -0500
+commit c9b2da3f28195fab2dd8fc4133efd22409e9e29b
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 13 17:57:26 2023 -0500
 
-    runtime: use timer.lock in modtimer
+    runtime: simplify traceback PC back-up logic
     
-    Continue using timer.lock to simplify timer operations.
+    Updates #54466.
     
-    Note the removal of a previous potential deadlock.
-    (Explained at new line 325, there was a lock inversion
-    between individual timer locks and the 'timers' lock.)
-    
-    [This is one CL in a refactoring stack making very small changes
-    in each step, so that any subtle bugs that we miss can be more
-    easily pinpointed to a small change.]
-    
-    Change-Id: I8c9be00d13c6acd171a8aa2882a4fc844498f754
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564125
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If070cf3f484e3e02b8e586bff466e0018b1a1845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468298
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/time.go | 93 +++++++++++++++++------------------------------------
- 1 file changed, 30 insertions(+), 63 deletions(-)
+ src/runtime/traceback.go | 49 ++++++++++++++++++++++++++++++------------------
+ 1 file changed, 31 insertions(+), 18 deletions(-)

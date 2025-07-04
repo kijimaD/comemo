@@ -1,16 +1,14 @@
-commit d6331b447fea50eca7ea6bd06370d0e028bdfdbf
+commit 8f2430a533964f7bab11525d0baa30149b019e04
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 13 13:52:00 2013 -0800
+Date:   Wed Feb 13 12:00:03 2013 -0800
 
-    io: document and test new CopyN return behavior
+    database/sql: add currently-disabled broken test
     
-    Changed accidentally in 28966b7b2f0c (CopyN using Copy).
-    Updating docs to be consistent with 29bf5ff5064e (ReadFull & ReadAtLeast)
+    Update #3865
     
-    R=rsc
+    R=golang-dev, alex.brainman, nightlyone
     CC=golang-dev
-    https://golang.org/cl/7314069
+    https://golang.org/cl/7324051
 
- src/pkg/io/io.go      |  8 +++++---
- src/pkg/io/io_test.go | 17 +++++++++++++++++
- 2 files changed, 22 insertions(+), 3 deletions(-)
+ src/pkg/database/sql/sql_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

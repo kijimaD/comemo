@@ -1,21 +1,27 @@
-commit f4936d09fd5a1fff890d63ee2ab9543243dc4da6
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 14 12:56:37 2020 -0700
+commit b8f54e57c20368db5693b941fd6f79634b067cb0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Feb 27 16:19:06 2020 +0000
 
-    cmd/compile: call fninit earlier
+    cmd/go: version command should error when given bad args
     
-    This allows the global initializers function to go through normal
-    mid-end optimizations (e.g., inlining, escape analysis) like any other
-    function.
+    For example, 'go version -m' happily gives you Go's own version, even
+    though the -m flag only makes sense when grabbing the version of a
+    binary on disk.
     
-    Updates #33485.
+    Similarly, if any of the directly named files can't be found, the tool
+    would succeed. That's acceptable if an error is encountered while
+    walking a large directory, but not when locating a path directly given
+    by the user.
     
-    Change-Id: I9bcfe98b8628d1aca09b4c238d8d3b74c69010a5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254839
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Matthew Dempsky <mdempsky@google.com>
+    These added test cases run even in short mode, as 'go build' is not
+    needed for them.
+    
+    Change-Id: I7bb40b72853799e31d9f86cc5e999c8d57813eef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221397
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/init.go | 8 +++-----
- src/cmd/compile/internal/gc/main.go | 6 ++----
- test/inline.go                      | 2 +-
- 3 files changed, 6 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/version/version.go |  6 ++++++
+ src/cmd/go/testdata/script/version.txt | 12 ++++++++++++
+ 2 files changed, 18 insertions(+)

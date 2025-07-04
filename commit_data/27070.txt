@@ -1,22 +1,17 @@
-commit bb52ceafea60dc4688b6c6b71f241752ce597db8
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Apr 7 20:07:09 2016 -0400
+commit 9d77ad8d34ce56e182adc30cd21af50a4b00932c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 10 13:54:02 2016 +1100
 
-    cmd/link: do not align type name data
+    cmd/compile/internal/gc: type.go cleanup
     
-    Now that reflect.name objects contain an offset to pkgPath instead of a
-    pointer, there is no need to align the symbol data.
+    Follow up to CL 20494 addressing Type.Copy and a few other tiny
+    cleanups.
     
-    Removes approx. 10KB from the cmd/go binary. The effect becomes more
-    important later as more type data is moved into name objects.
-    
-    For #6853
-    
-    Change-Id: Idb507fdbdad04f16fc224378f82272cb5c236ab7
-    Reviewed-on: https://go-review.googlesource.com/21776
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I3d0913a9f50a22ac2fd802858b1a94c15c5cb1bc
+    Reviewed-on: https://go-review.googlesource.com/20501
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/data.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/type.go | 29 ++++++++++-------------------
+ 1 file changed, 10 insertions(+), 19 deletions(-)

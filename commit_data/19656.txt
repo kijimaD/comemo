@@ -1,69 +1,13 @@
-commit ebce79446dad6251f1d71b1e133a420ff6e8093c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 2 15:41:29 2014 -0400
+commit 22c3f67cd637d6d99bafc04867e7e4f8833f7f16
+Author: Timo Truyts <alkaloid.btx@gmail.com>
+Date:   Wed Jul 2 07:04:01 2014 -0700
 
-    build: annotations and modifications for c2go
+    bufio: Fixed call to Fatal, should be Fatalf.
     
-    The main changes fall into a few patterns:
-    
-    1. Replace #define with enum.
-    
-    2. Add /*c2go */ comment giving effect of #define.
-    This is necessary for function-like #defines and
-    non-enum-able #defined constants.
-    (Not all compilers handle negative or large enums.)
-    
-    3. Add extra braces in struct initializer.
-    (c2go does not implement the full rules.)
-    
-    This is enough to let c2go typecheck the source tree.
-    There may be more changes once it is doing
-    other semantic analyses.
-    
-    LGTM=minux, iant
-    R=minux, dave, iant
+    LGTM=iant
+    R=golang-codereviews, iant, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/106860045
+    https://golang.org/cl/107390044
 
- include/bio.h              |    8 +
- include/link.h             |    4 +-
- src/cmd/5g/galign.c        |    8 +-
- src/cmd/5g/gg.h            |   11 +-
- src/cmd/5g/gsubr.c         |    1 +
- src/cmd/5g/opt.h           |   20 +
- src/cmd/5g/peep.c          |    2 +
- src/cmd/5g/reg.c           |    5 +
- src/cmd/5l/5.out.h         |  113 ++--
- src/cmd/6g/galign.c        |    8 +-
- src/cmd/6g/gsubr.c         |    1 +
- src/cmd/6g/opt.h           |   20 +
- src/cmd/6g/reg.c           |    5 +
- src/cmd/6l/6.out.h         |    2 +-
- src/cmd/8g/galign.c        |    8 +-
- src/cmd/8g/gsubr.c         |    2 +
- src/cmd/8g/opt.h           |   20 +
- src/cmd/8g/peep.c          |    4 +-
- src/cmd/8g/reg.c           |    5 +
- src/cmd/8l/8.out.h         |    2 +-
- src/cmd/dist/buildgc.c     |   11 +-
- src/cmd/gc/bisonerrors     |   18 +-
- src/cmd/gc/const.c         |    1 +
- src/cmd/gc/esc.c           |    1 +
- src/cmd/gc/lex.c           |  342 +++++-----
- src/cmd/gc/md5.c           |   10 +-
- src/cmd/gc/plive.c         |   11 +-
- src/cmd/gc/popt.c          |    4 +
- src/cmd/gc/subr.c          |    4 +-
- src/cmd/gc/swt.c           |    1 +
- src/cmd/gc/yerr.h          |   84 +--
- src/cmd/ld/textflag.h      |   13 +
- src/liblink/asm5.c         |   60 +-
- src/liblink/asm6.c         | 1578 ++++++++++++++++++++++----------------------
- src/liblink/asm8.c         | 1040 ++++++++++++++---------------
- src/liblink/ld.c           |    5 +-
- src/liblink/obj6.c         |    2 +-
- src/liblink/obj8.c         |    2 +-
- src/liblink/sym.c          |   28 +-
- src/pkg/runtime/funcdata.h |   11 +
- src/pkg/runtime/stack.h    |    6 +
- 41 files changed, 1805 insertions(+), 1676 deletions(-)
+ src/pkg/bufio/scan_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

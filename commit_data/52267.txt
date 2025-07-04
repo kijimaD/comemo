@@ -1,22 +1,42 @@
-commit e8543a6fa6e68a9d35178a5bbb71812cfbc2ba05
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Mar 13 16:16:32 2023 -0400
+commit 342b495301bbd8b75c2721212a08ce41e3f82265
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 25 14:21:25 2022 -0500
 
-    net/http: remove more arbitrary timeouts from server tests
+    cmd/compile: add //go:uintptrkeepalive
     
-    This change eliminates the easy, arbitrary timouts that should
-    never happen. It leaves in place a couple of more complicated ones
-    that will probably need retry loops for robustness.
+    This CL exports the existing ir.UintptrKeepAlive via the new directive
+    //go:uintptrkeepalive. This makes the compiler insert KeepAlives for
+    pointers converted to uintptr in calls, keeping them alive for the
+    duration of the call.
     
-    For #49336.
-    For #36179.
+    //go:uintptrkeepalive requires //go:nosplit, as stack growth can't
+    handle these arguments (it cannot know which are pointers). We currently
+    check this on the immediate function, but the actual restriction applies
+    to all transitive calls.
     
-    Change-Id: I657ef223a66461413a915da5ce9150f49acec04a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476035
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    The existing //go:uintptrescapes is an extension of
+    //go:uintptrkeepalive which forces pointers to escape to the heap, thus
+    eliminating the stack growth issue.
+    
+    This pragma is limited to the standard library.
+    
+    For #51087
+    
+    Change-Id: If9a19d484d3561b4219e5539b70c11a3cc09391e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388095
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/http/serve_test.go | 210 +++++++++------------------------------------
- 1 file changed, 39 insertions(+), 171 deletions(-)
+ src/cmd/compile/doc.go                    | 12 +++++----
+ src/cmd/compile/internal/escape/escape.go |  2 --
+ src/cmd/compile/internal/inline/inl.go    | 11 +++++++++
+ src/cmd/compile/internal/ir/node.go       |  2 +-
+ src/cmd/compile/internal/noder/decl.go    | 22 +++++++++++++++--
+ src/cmd/compile/internal/noder/lex.go     | 19 ++++++--------
+ src/cmd/compile/internal/noder/noder.go   |  3 +++
+ src/cmd/compile/internal/noder/writer.go  | 16 ++++++++++++
+ src/runtime/HACKING.md                    | 19 ++++++++++++++
+ test/live_uintptrkeepalive.go             | 41 ++++++++++++++++++++++++-------
+ test/uintptrkeepalive.go                  | 11 +++++++++
+ 11 files changed, 127 insertions(+), 31 deletions(-)

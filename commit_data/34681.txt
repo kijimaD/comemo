@@ -1,35 +1,25 @@
-commit 699b0d4e52f32234e21358d3a0b9485b01c13236
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 23 10:28:39 2018 -0700
+commit 44623c2ece584d77a9e8338f5f0bec198a2bab60
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Oct 23 16:23:43 2017 +1100
 
-    cmd/link: skip __.PKGDEF in archives
+    net: use WSASocket instead of socket call
     
-    The __.PKGDEF file is a compiler object file only intended for other
-    compilers. Also, for build systems that use -linkobj, all of the
-    information it contains is present within the linker object files
-    already, so look for it there instead.
+    WSASocket (unlike socket call) allows to create sockets that
+    will not be inherited by child process. So call WSASocket to
+    save on using syscall.ForkLock and calling syscall.CloseOnExec.
     
-    This requires a little bit of code reorganization. Significantly,
-    previously when loading an archive file, the __.PKGDEF file was
-    authoritative on whether the package was "main" and/or "safe". Now
-    that we're using the Go object files instead, there's the issue that
-    there can be multiple Go object files in an archive (because when
-    using assembly, each assembly file becomes its own additional object
-    file).
+    Some very old versions of Windows do not have that functionality.
+    Call socket, if WSASocket failed, to support these.
     
-    The solution taken here is to check if any object file within the
-    package declares itself as "main" and/or "safe".
-    
-    Updates #24512.
-    
-    Change-Id: I70243a293bdf34b8555c0bf1833f8933b2809449
-    Reviewed-on: https://go-review.googlesource.com/102281
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2dab9fa00d1a8609dd6feae1c9cc31d4e55b8cb5
+    Reviewed-on: https://go-review.googlesource.com/72590
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/link/internal/ld/ar.go       |  2 +-
- src/cmd/link/internal/ld/go.go       | 30 ++------------
- src/cmd/link/internal/ld/lib.go      | 77 +++++++++++++++++-------------------
- src/cmd/link/internal/sym/library.go |  2 +
- 4 files changed, 44 insertions(+), 67 deletions(-)
+ src/go/build/deps_test.go                        |  2 +-
+ src/internal/syscall/windows/syscall_windows.go  |  7 +++++
+ src/internal/syscall/windows/zsyscall_windows.go | 15 ++++++++++
+ src/net/hook_windows.go                          |  8 +++--
+ src/net/internal/socktest/sys_windows.go         | 37 +++++++++++++++++++++++-
+ src/net/main_windows_test.go                     |  3 ++
+ src/net/sock_windows.go                          | 13 ++++++++-
+ 7 files changed, 79 insertions(+), 6 deletions(-)

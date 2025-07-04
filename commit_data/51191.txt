@@ -1,20 +1,22 @@
-commit cb6e4f08c2e760c4eb90f3ed50eca3177b7ff6ff
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 9 08:50:51 2022 -0500
+commit 1afa432ab93aa9adb2e0f04b6c15eb654762d652
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 13 15:04:43 2021 -0800
 
-    cmd/api: point to API docs in all.bash failure
+    go/types, types2: record (top-level) union types
     
-    When people add new API and get an all.bash failure,
-    they often don't know about the API checker at all.
-    Point to the README in the failure message, to try to
-    help them find what they need to know.
+    Fixes #50093.
     
-    Change-Id: I6b148ec414d212033b371357a5e8c6ab79bb50a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449015
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ibebeda542d2a81c979670f9098c4a6d2c3e73abb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371514
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/api/run.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/api.go       |  6 ++++++
+ src/cmd/compile/internal/types2/api_test.go  | 10 ++++++++++
+ src/cmd/compile/internal/types2/interface.go | 10 +---------
+ src/cmd/compile/internal/types2/union.go     | 24 ++++++++++++++++++------
+ src/go/types/api.go                          |  6 ++++++
+ src/go/types/api_test.go                     | 10 ++++++++++
+ src/go/types/interface.go                    | 10 +---------
+ src/go/types/union.go                        | 24 ++++++++++++++++++------
+ 8 files changed, 70 insertions(+), 30 deletions(-)

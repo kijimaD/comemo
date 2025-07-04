@@ -1,32 +1,27 @@
-commit 05bbec7357a22e2ddd238c2f8741f0f4c779eb80
-Author: Keith Randall <khr@google.com>
-Date:   Tue Dec 11 16:12:57 2018 -0800
+commit cd7cb86d8e56d28bfe9bd522baa44c95127028d7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 8 17:26:23 2018 -0700
 
-    cmd/compile: don't combine load+op if the op has SymAddr arguments
+    runtime: don't use linkname to refer to internal/cpu
     
-    By combining the load+op, we may force the op to happen earlier in
-    the store chain. That might force the SymAddr operation earlier, and
-    in particular earlier than its corresponding VarDef. That leads to
-    an invalid schedule, so avoid that.
+    The runtime package already imports the internal/cpu package, so there
+    is no reason for it to use go:linkname comments to refer to
+    internal/cpu functions and variables. Since internal/cpu is internal,
+    we can just export those names. Removing the obscurity of go:linkname
+    outweighs the minor additional complexity added to the internal/cpu API.
     
-    This is kind of a hack to work around the issue presented. I think
-    the underlying problem, that LEAQ is not directly ordered with respect
-    to its vardef, is the real problem. The benefit of this CL is that
-    it fixes the immediate issue, is small, and obviously won't break
-    anything. A real fix for this issue is much more invasive.
-    
-    The go binary is unchanged in size.
-    This situation just doesn't occur very often.
-    
-    Fixes #28445
-    
-    Change-Id: I13a765e13f075d5b6808a355ef3c43cdd7cd47b6
-    Reviewed-on: https://go-review.googlesource.com/c/153641
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: Id89951b7f3fc67cd9bce67ac6d01d44a647a10ad
+    Reviewed-on: https://go-review.googlesource.com/128755
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/cmd/compile/internal/gc/plive.go    |  2 ++
- src/cmd/compile/internal/ssa/rewrite.go | 14 ++++++++++++++
- test/fixedbugs/issue28445.go            | 16 ++++++++++++++++
- 3 files changed, 32 insertions(+)
+ src/internal/cpu/cpu.go         | 11 ++++----
+ src/internal/cpu/cpu_arm64.go   | 56 ++++++++++++++++++++---------------------
+ src/internal/cpu/cpu_ppc64x.go  | 30 +++++++++++-----------
+ src/internal/cpu/export_test.go |  3 +--
+ src/runtime/os_linux_arm64.go   | 19 +++++---------
+ src/runtime/os_linux_ppc64x.go  | 19 +++++---------
+ src/runtime/proc.go             | 12 +++------
+ 7 files changed, 65 insertions(+), 85 deletions(-)

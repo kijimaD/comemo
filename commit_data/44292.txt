@@ -1,23 +1,15 @@
-commit 0ca0551f02257283d00c01303100a16433c526c6
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 22 09:32:38 2021 -0500
+commit d282b0f1121c475c3b435843a722a47172c20e7e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jun 5 13:18:28 2020 -0400
 
-    debug/pe: recognize arm64 executables
+    doc/go1.15: add release notes for regexp
     
-    We still need to add test data, but as yet we haven't identified
-    a good Windows arm64 compiler to produce small binaries.
+    Updates #37419
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    
-    Change-Id: Ifbecb9a6e25f7af38e20b7d7830df7f5efe2798a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288820
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I340efe55b9dc41bb9ef6c9f0ec158d58a9445864
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236738
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/debug/pe/file.go | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ doc/go1.15.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

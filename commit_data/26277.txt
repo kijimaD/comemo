@@ -1,39 +1,20 @@
-commit 2e9369067bceab8d9c31346b72d7021b6a34075f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 14 01:20:49 2016 -0700
+commit 40a26c92812a0b49a6a8335c9cb70a78fd380967
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 7 11:57:49 2016 -0800
 
-    cmd/compile: replace TFIELD kind with separate Field type
+    net/http: add some tests around sending & receiving star requests
     
-    Allows removing a bunch of unnecessary fields.
+    I thought there was still work to do in http2 for this, but I guess
+    not: the work for parsing them is in net/url (used by http2) and the
+    handling of OPTIONS * is already in net/http serverHandler, also used
+    by http2.
     
-    Passes toolstash/buildall.
+    But keep the tests.
     
-    Change-Id: Iec2492920e1c3ef352a9bf4296c74a55d9cc9ad6
-    Reviewed-on: https://go-review.googlesource.com/20677
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I566dd0a03cf13c9ea8e735c6bd32d2c521ed503b
+    Reviewed-on: https://go-review.googlesource.com/18368
+    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/alg.go         |   4 +-
- src/cmd/compile/internal/gc/align.go       |   6 --
- src/cmd/compile/internal/gc/bexport.go     |  29 ++---
- src/cmd/compile/internal/gc/cgen.go        |   6 +-
- src/cmd/compile/internal/gc/closure.go     |   4 +-
- src/cmd/compile/internal/gc/dcl.go         |  35 +++---
- src/cmd/compile/internal/gc/export.go      |  11 +-
- src/cmd/compile/internal/gc/fmt.go         | 164 ++++++++++++++++-------------
- src/cmd/compile/internal/gc/gen.go         |   3 -
- src/cmd/compile/internal/gc/gsubr.go       |  49 +++++----
- src/cmd/compile/internal/gc/inl.go         |   4 +-
- src/cmd/compile/internal/gc/reflect.go     |  23 ++--
- src/cmd/compile/internal/gc/sinit.go       |   6 +-
- src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
- src/cmd/compile/internal/gc/ssa.go         |   3 -
- src/cmd/compile/internal/gc/subr.go        |  86 ++++++++-------
- src/cmd/compile/internal/gc/swt.go         |   2 +-
- src/cmd/compile/internal/gc/syntax.go      |   2 +-
- src/cmd/compile/internal/gc/type.go        |  98 ++++++++++-------
- src/cmd/compile/internal/gc/typecheck.go   |  30 +++---
- src/cmd/compile/internal/gc/universe.go    |  12 +--
- src/cmd/compile/internal/gc/walk.go        |   8 +-
- 22 files changed, 295 insertions(+), 292 deletions(-)
+ src/net/http/clientserver_test.go | 69 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)

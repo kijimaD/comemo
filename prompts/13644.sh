@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 13644: deb53889c200deba1d4048a155e936c11b6a8492
+# Index 13644: 1b6557a0cf54a901db38b13b78f919b7959286ee
 
 echo "🚀 Generating explanation for commit 13644..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 13644
-- **コミットハッシュ**: deb53889c200deba1d4048a155e936c11b6a8492
-- **GitHub URL**: https://github.com/golang/go/commit/deb53889c200deba1d4048a155e936c11b6a8492
+- **コミットハッシュ**: 1b6557a0cf54a901db38b13b78f919b7959286ee
+- **GitHub URL**: https://github.com/golang/go/commit/1b6557a0cf54a901db38b13b78f919b7959286ee
 
 ### 章構成
 

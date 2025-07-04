@@ -1,17 +1,18 @@
-commit 8bc9c57b186043ccbd23ab73ff14553a9c173729
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Apr 4 19:05:48 2016 +0200
+commit 1e00cc1647916b705682f8721b8a9e9e095bf4ee
+Author: Brady Sullivan <brady@bsull.com>
+Date:   Mon Feb 22 15:19:18 2016 -0800
 
-    testing: unflake TestBRun
+    crypto/tls: Improve ambiguous comment in cipher_suites.go
     
-    by only testing the lower bound of memalloc
+    A comment existed referencing RC4 coming before AES because of it's
+    vulnerability to the Lucky 13 attack. This clarifies that the Lucky 13 attack
+    only effects AES-CBC, and not AES-GCM.
     
-    Fixes #15063
+    Fixes #14474
     
-    Change-Id: Iab2fdd75e9ce98c641bfbce57f142fa47176772d
-    Reviewed-on: https://go-review.googlesource.com/21507
+    Change-Id: Idcb07b5e0cdb0f9257cf75abea60129ba495b5f5
+    Reviewed-on: https://go-review.googlesource.com/19845
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
 
- src/testing/sub_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/crypto/tls/cipher_suites.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

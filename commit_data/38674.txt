@@ -1,40 +1,46 @@
-commit cb6646234cb6565d19d9efea987c8d8fc9be5c31
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Apr 5 22:28:31 2019 +0200
+commit 11e916773ef8672d1423ccb100516812dfd50041
+Merge: af07f7734b 2e9f0817f0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Nov 13 18:45:04 2018 -0500
 
-    encoding/json: use SetBytes in UnmarshalReuse benchmark
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    This was the only benchmark missing the SetBytes call, as spotted
-    earlier by Bryan.
+    Merge at CL 144340, in order to cherry-pick CL 149459 next to it, which
+    fixes a BoringCrypto specific breakage in the toolchain.
     
-    It's not required to make the benchmark useful, but it can still be a
-    good way to see how its speed is affected by the reduced allocations:
-    
-    name                  time/op
-    CodeUnmarshal-8        12.1ms ± 1%
-    CodeUnmarshalReuse-8   11.4ms ± 1%
-    
-    name                  speed
-    CodeUnmarshal-8       161MB/s ± 1%
-    CodeUnmarshalReuse-8  171MB/s ± 1%
-    
-    name                  alloc/op
-    CodeUnmarshal-8        3.28MB ± 0%
-    CodeUnmarshalReuse-8   1.94MB ± 0%
-    
-    name                  allocs/op
-    CodeUnmarshal-8         92.7k ± 0%
-    CodeUnmarshalReuse-8    77.6k ± 0%
-    
-    While at it, remove some unnecessary empty lines.
-    
-    Change-Id: Ib2bd92d5b3237b8f3092e8c6f863dab548fee2f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170938
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I30aeac344bbff279449e27876dc8f9c406e55e43
 
- src/encoding/json/bench_test.go   | 2 +-
- src/encoding/json/example_test.go | 1 -
- src/encoding/json/stream_test.go  | 2 --
- 3 files changed, 1 insertion(+), 4 deletions(-)
+ src/bytes/reader.go                            |   6 +-
+ src/bytes/reader_test.go                       |  42 +++++
+ src/cmd/compile/doc.go                         |   3 +
+ src/cmd/compile/internal/amd64/ssa.go          |  14 +-
+ src/cmd/compile/internal/gc/builtin.go         |  12 +-
+ src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
+ src/cmd/compile/internal/gc/lang_test.go       |  59 +++++++
+ src/cmd/compile/internal/gc/main.go            |  68 +++++++++
+ src/cmd/compile/internal/gc/noder.go           |   7 +-
+ src/cmd/compile/internal/gc/op_string.go       |   4 +-
+ src/cmd/compile/internal/gc/ssa.go             |   6 +
+ src/cmd/compile/internal/gc/syntax.go          | 119 ++++++++-------
+ src/cmd/compile/internal/gc/typecheck.go       |  41 +++++
+ src/cmd/compile/internal/gc/walk.go            |  14 +-
+ src/cmd/go/go_test.go                          |  21 +++
+ src/cmd/go/script_test.go                      | 203 +++++++++++++++++++++----
+ src/cmd/go/testdata/script/README              |  22 ++-
+ src/cmd/go/testdata/script/script_wait.txt     |  22 +++
+ src/crypto/tls/tls.go                          |  11 +-
+ src/go/build/build.go                          |   2 +
+ src/internal/cpu/cpu.go                        |  25 +--
+ src/internal/cpu/cpu_ppc64x.go                 |  28 +---
+ src/math/big/float.go                          |   8 +-
+ src/math/big/int.go                            |   7 +
+ src/math/big/rat.go                            |   7 +
+ src/net/http/request.go                        |   5 +-
+ src/net/http/response_test.go                  |  28 ++++
+ src/net/http/transfer.go                       |  14 +-
+ src/runtime/runtime-gdb_test.go                |   5 +-
+ src/runtime/slice.go                           |   7 +-
+ src/strings/reader.go                          |   6 +-
+ src/strings/reader_test.go                     |  42 +++++
+ test/codegen/arithmetic.go                     |   2 +
+ 33 files changed, 688 insertions(+), 176 deletions(-)

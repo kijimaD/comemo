@@ -1,18 +1,22 @@
-commit 5b37d720e39037fec4e298c3ae44d6487f029f92
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Tue Sep 12 18:46:45 2023 -0700
+commit e59d873ff906550ace73b86bdb74b68ebe482a10
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Fri Sep 23 17:31:19 2022 +0200
 
-    all: stop using fmt.Sprintf in t.Error/t.Fatal
+    cmd/compile: emit DIEs for zero sized variables
     
-    Change-Id: Id63e1e5ae7e225e4a6a721673bf2d43b6c398c25
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527701
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes the compiler to emit DIEs for zero sized variables.
+    
+    Fixes #54615
+    
+    Change-Id: I1e0c86a97f1abcc7edae516b6a7fe35bcb65ed0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433479
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/internal/obj/ppc64/asm_test.go |  4 ++--
- src/context/x_test.go                  |  3 ++-
- src/runtime/defer_test.go              | 27 +++++++++++++--------------
- 3 files changed, 17 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go | 15 +++++++++
+ src/cmd/compile/internal/ssa/debug.go      |  2 ++
+ src/cmd/compile/internal/ssagen/pgen.go    |  1 +
+ src/cmd/link/internal/ld/dwarf_test.go     | 53 ++++++++++++++++++++++++++++++
+ 4 files changed, 71 insertions(+)

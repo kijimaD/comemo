@@ -1,12 +1,44 @@
-commit 839c4f015933ce1291778fc1fd178b1cb8cf0e41
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Apr 3 16:49:17 2013 +1100
+commit 45b54ee7fb3dc7b8444733288a557f1c62572c43
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 2 20:58:25 2013 -0700
 
-    doc/go1.1.html: additional tweaks
+    runtime: avoid hashing strings until needed in single-bucket maps
     
-    R=r, adg, minux.ma
+    This changes the map lookup behavior for string maps with 2-8 keys.
+    
+    There was already previously a fastpath for 0 items and 1 item.
+    
+    Now, if a string-keyed map has <= 8 items, first check all the
+    keys for length first. If only one has the right length, then
+    just check it for equality and avoid hashing altogether. Once
+    the map has more than 8 items, always hash like normal.
+    
+    I don't know why some of the other non-string map benchmarks
+    got faster. This was with benchtime=2s, multiple times. I haven't
+    anything else getting slower, though.
+    
+    benchmark                             old ns/op    new ns/op    delta
+    BenchmarkHashStringSpeed                     37           34   -8.20%
+    BenchmarkHashInt32Speed                      32           29  -10.67%
+    BenchmarkHashInt64Speed                      31           27  -12.82%
+    BenchmarkHashStringArraySpeed               105           99   -5.43%
+    BenchmarkMegMap                          274206       255153   -6.95%
+    BenchmarkMegOneMap                           27           23  -14.80%
+    BenchmarkMegEqMap                        148332       116089  -21.74%
+    BenchmarkMegEmptyMap                          4            3  -12.72%
+    BenchmarkSmallStrMap                         22           22   -0.89%
+    BenchmarkMapStringKeysEight_32               42           23  -43.71%
+    BenchmarkMapStringKeysEight_64               55           23  -56.96%
+    BenchmarkMapStringKeysEight_1M           279688           24  -99.99%
+    BenchmarkIntMap                              16           15  -10.18%
+    BenchmarkRepeatedLookupStrMapKey32           40           37   -8.15%
+    BenchmarkRepeatedLookupStrMapKey1M       287918       272980   -5.19%
+    BenchmarkNewEmptyMap                        156          130  -16.67%
+    
+    R=golang-dev, khr
     CC=golang-dev
-    https://golang.org/cl/8250043
+    https://golang.org/cl/7641057
 
- doc/go1.1.html | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/pkg/runtime/hashmap.c      | 18 +++++++---
+ src/pkg/runtime/hashmap_fast.c | 76 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 81 insertions(+), 13 deletions(-)

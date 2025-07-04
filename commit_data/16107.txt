@@ -1,21 +1,14 @@
-commit 2d3216f4a860c74eb1973ad08c782cf30363b88b
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Apr 5 21:24:07 2013 +0200
+commit b6a39a25455b07b98a48b97ebfb761fb080af825
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 4 17:04:18 2013 -0700
 
-    cmd/gc: fix Offsetof computation.
+    strconv: remove some test TODOs and adjust malloc limits lower
     
-    The offset of an embedded field s.X must be relative to s
-    and not to the implicit s.Field of which X is a direct field.
-    Moreover, no indirections may happen on the path.
+    These no longer allocate.
     
-    Fixes #4909.
-    
-    R=nigeltao, ality, daniel.morsing, iant, gri, r
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/8287043
+    https://golang.org/cl/8340047
 
- src/cmd/gc/unsafe.c          |  40 +++++++++++--
- test/fixedbugs/issue4909a.go |  35 +++++++++++
- test/fixedbugs/issue4909b.go |  80 +++++++++++++++++++++++++
- test/sizeof.go               | 137 ++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 286 insertions(+), 6 deletions(-)
+ src/pkg/strconv/strconv_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 6cce1911b77dad1afd3cf6dd34699d933f060978
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 17 09:57:01 2024 +0200
+
+    cmd/cgo: use strings.CutPrefix
+    
+    Change-Id: Ie3f35183e88d544559743394c34b55483fdf59aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/gcc.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

@@ -1,16 +1,21 @@
-commit 38b3661b45ff62de28abc20057503422337330f7
-Author: Francesc Campoy <campoy@golang.org>
-Date:   Wed Feb 8 19:12:19 2017 -0800
+commit e4820bcfed75cdc4cab2181e0f0ab21c282cec65
+Author: Chris McGee <sirnewton_01@yahoo.ca>
+Date:   Wed Sep 28 21:31:52 2016 -0400
 
-    plugin: remove unnecessary import "C" from example
+    net: add multicast UDP support for plan9
     
-    It seems that it is not needed to import the pseudo package "C"
-    for the plugin to be built correctly.
-    Removing it to avoid confusion.
+    The new implementation adds listening support on a multicast
+    address with plan9 network interfaces.
     
-    Change-Id: I62838a953ad2889881bfbfd1a36141661565f033
-    Reviewed-on: https://go-review.googlesource.com/36638
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #17218
+    
+    Change-Id: I2c75515e72e120acb71610cd077fddfbf9cf4e29
+    Reviewed-on: https://go-review.googlesource.com/29964
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/plugin/plugin.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/net/udpsock.go            |  2 +-
+ src/net/udpsock_plan9.go      | 38 +++++++++++++++++++++++-
+ src/net/udpsock_plan9_test.go | 69 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 107 insertions(+), 2 deletions(-)

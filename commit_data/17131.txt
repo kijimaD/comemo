@@ -1,13 +1,12 @@
-commit b990c40d5e9c0339ee33d315ad5da69740809eb8
+commit 14903f65984a113d2558195b2dd862368d1c96ef
 Author: Pieter Droogendijk <pieter@binky.org.uk>
-Date:   Fri Aug 9 13:10:53 2013 -0700
+Date:   Fri Aug 9 12:51:21 2013 -0700
 
-    mime: escape backslash in attribute values
+    strings: add test for Count
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12689045
+    https://golang.org/cl/12541050
 
- src/pkg/mime/mediatype.go      | 2 +-
- src/pkg/mime/mediatype_test.go | 9 +++++++++
- 2 files changed, 10 insertions(+), 1 deletion(-)
+ src/pkg/strings/strings_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

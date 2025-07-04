@@ -1,15 +1,12 @@
-commit d5e24b697521617f83b686656385a1ceb8844961
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Sep 5 19:09:20 2011 +0200
+commit c7f6f9f318d8ce38ec43ef7e7299cb1a9df5622e
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Sep 5 13:05:57 2011 -0400
 
-    exp/norm: performance improvements of quickSpan
-    - fixed performance bug that could lead to O(n^2) behavior
-    - performance improvement for ASCII case
+    runtime: fix openbsd 386 raisesigpipe
     
-    R=r, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4956060
+    https://golang.org/cl/4950064
 
- src/pkg/exp/norm/normalize.go      | 27 ++++++++++++++++++++-------
- src/pkg/exp/norm/normalize_test.go |  5 +++++
- 2 files changed, 25 insertions(+), 7 deletions(-)
+ src/pkg/runtime/openbsd/386/sys.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,22 +1,20 @@
-commit 025308fe084264538f49924b3f52d8d6b6359658
-Author: Ethan Reesor <ethan.reesor@gmail.com>
-Date:   Fri Aug 20 18:57:45 2021 -0500
+commit 137f0d2e06523f6daf808ea09e77e68d8944a85a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Dec 27 10:48:10 2020 -0800
 
-    testing: increase alternation precedence
+    [dev.regabi] cmd/compile: remove unnecessary Name.Sym call
     
-    Updates handling of go test flags -run and -bench to give alternation
-    precendence over the / delimiter. Currently, `A/B|C/D` is effectively
-    `A/(B|C)/D` - with this change, it changes to effectively `(A/B)|(C/D)`.
+    Since the introduction of ir.BasicLit, we no longer create Names
+    without Syms.
     
-    Fixes #39904
+    Passes toolstash -cmp.
     
-    Change-Id: Iebe5efd8d91c72eed6351bd63b4689b0fcb0ed0f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343883
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I82de3fd65455e3756ff56e52febb512c0a2128f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280512
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/testing/match.go      | 108 +++++++++++++++++++++++++++++++++++++---------
- src/testing/match_test.go |  29 ++++++++++---
- 2 files changed, 110 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/typecheck/func.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

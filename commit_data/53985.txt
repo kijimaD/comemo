@@ -1,23 +1,24 @@
-commit 61719e18f7715e4fbd0914395633b15a4a2e17a7
-Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
-Date:   Wed Jun 14 07:13:37 2023 +0200
+commit d60e51e3539986fcca331cc27f4730a4fe266149
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 8 17:17:55 2022 -0700
 
-    cmd/asm: add KDSA instruction support
+    go/build: remove unnecessary copies of package variables
     
-    KDSA(Compute Digital Signature Authentication) instruction provides
-    support for the signing and verification of elliptic curves
+    These variables never change, we don't need second copies of them.
     
-    Change-Id: I19996a307162dd4f476a1cfe4f8d1a74a609e6c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503215
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Also rename bPlusBuild to plusBuild, since it is the only remaining
+    variable with a "b" prefix.
+    
+    Change-Id: I97089b001d23e9b0f2096e19d9ceed7a9bbb377d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429636
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/asm/internal/asm/testdata/s390x.s |  1 +
- src/cmd/internal/obj/s390x/a.out.go       |  1 +
- src/cmd/internal/obj/s390x/anames.go      |  1 +
- src/cmd/internal/obj/s390x/asmz.go        | 17 +++++++++++++++++
- src/crypto/ecdsa/ecdsa_s390x.s            |  2 +-
- src/internal/cpu/cpu_s390x.s              |  2 +-
- 6 files changed, 22 insertions(+), 2 deletions(-)
+ src/go/build/build.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

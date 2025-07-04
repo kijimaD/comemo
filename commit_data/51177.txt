@@ -1,22 +1,24 @@
-commit 4f13067f8ac7f2c64a093ef4125cfa03dd67a0a5
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Nov 7 14:30:45 2022 -0500
+commit f4ca598c9f08a4d00942a1c6a6b8cc7d8f162b66
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 3 11:44:00 2021 -0500
 
-    internal/fsys: follow root symlink in fsys.Walk
+    net: don't check "invalid.invalid" lookup errors in TestLookupHostCancel
     
-    If fsys.Walk is called with a root directory that is a symlink, follow
-    the symlink when doing the walk. This allows for users setting their
-    current directory to a symlink to a module.
+    The exact error isn't actually relevant to the test,
+    and may depend on whether the Go or cgo resolver is used.
     
-    Fixes #50807
+    Also run the test in parallel, because it spends most of its time
+    sleeping in between lookups.
     
-    Change-Id: Ie65a7cb804b87dea632ea6c758c20adcfa62fcd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448360
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Fixes #38767
+    Fixes #43140
+    
+    Change-Id: I2d64ffddf2eb114a69ed3242daa9a9e4a5679f67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369037
+    Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/fsys/fsys.go                   | 28 ++++++++++++++++++----
- src/cmd/go/internal/fsys/fsys_test.go              |  4 ++--
- .../go/testdata/script/list_symlink_dotdotdot.txt  | 20 ++++++++++++++++
- 3 files changed, 46 insertions(+), 6 deletions(-)
+ src/net/lookup_test.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

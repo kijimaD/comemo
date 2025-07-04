@@ -1,32 +1,22 @@
-commit 924c161de4ad263142478f33113e53690b8d32c0
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 8 15:30:33 2019 -0400
+commit 2e217fa726a624093eea5b099d1531c79e27a423
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jan 2 12:27:55 2019 -0500
 
-    runtime: fix vet complaints for all freebsd, netbsd, openbsd
+    cmd/compile: fix deriving from x+d >= w on overflow in prove pass
     
-    Working toward making the tree vet-safe instead of having
-    so many exceptions in cmd/vet/all/whitelist.
+    In the case of x+d >= w, where d and w are constants, we are
+    deriving x is within the bound of min=w-d and max=maxInt-d. When
+    there is an overflow (min >= max), we know only one of x >= min
+    or x <= max is true, and we derive this by excluding the other.
+    When excluding x >= min, we did not consider the equal case, so
+    we could incorrectly derive x <= max when x == min.
     
-    This CL makes "go vet -unsafeptr=false runtime" happy for these GOOSes,
-    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
+    Fixes #29502.
     
-    For #31916.
-    
-    Change-Id: I63c4805bdd44b301072da66c77086940e2a2765e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176105
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia9f7d814264b1a3ddf78f52e2ce23377450e6e8a
+    Reviewed-on: https://go-review.googlesource.com/c/156019
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/vet/all/whitelist/freebsd_386.txt  |  8 --------
- src/cmd/vet/all/whitelist/netbsd_386.txt   |  9 ---------
- src/cmd/vet/all/whitelist/netbsd_arm64.txt |  1 -
- src/cmd/vet/all/whitelist/openbsd_386.txt  |  5 -----
- src/runtime/sys_freebsd_386.s              | 18 +++++++++++-------
- src/runtime/sys_netbsd_386.s               | 12 +++++++-----
- src/runtime/sys_netbsd_amd64.s             |  4 ++--
- src/runtime/sys_netbsd_arm.s               |  4 ++--
- src/runtime/sys_netbsd_arm64.s             |  4 ++--
- src/runtime/sys_openbsd_386.s              |  8 +++++---
- 10 files changed, 29 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 19 +++++++++++++++----
+ test/prove.go                         | 14 ++++++++++++++
+ 2 files changed, 29 insertions(+), 4 deletions(-)

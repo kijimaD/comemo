@@ -1,17 +1,36 @@
-commit c44c4de51b68a88e2b8e4a0ae102f941155522d0
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Fri May 9 17:44:35 2025 -0400
+commit 190d0d3e69b113bea0b6b604ba2f0beb62c08741
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 16 18:29:06 2024 -0700
 
-    internal/poll: use runtime.AddCleanup instead of runtime.SetFinalizer
+    database/sql: optimize connection request pool
     
-    Replace the use of SetFinalizer with AddCleanup.
+    This replaces a map used as a set with a slice.
     
-    For #70907
+    We were using a surprising amount of CPU in this code, making mapiters
+    to pull out a random element of the map. Instead, just rand.IntN to pick
+    a random element of the slice.
     
-    Change-Id: I0cb2c2985eb9285e5f92be9dbcb9d77acc0f59c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671441
+    It also adds a benchmark:
+    
+                         │    before    │                after                │
+                         │    sec/op    │   sec/op     vs base                │
+        ConnRequestSet-8   1818.0n ± 0%   452.4n ± 0%  -75.12% (p=0.000 n=10)
+    
+    (whether random is a good policy is a bigger question, but this
+     optimizes the current policy without changing behavior)
+    
+    Updates #66361
+    
+    Change-Id: I3d456a819cc720c2d18e1befffd2657e5f50f1e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572119
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/poll/splice_linux.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/database/sql/sql.go      | 163 +++++++++++++++++++++++++++++++++----------
+ src/database/sql/sql_test.go | 104 ++++++++++++++++++++++++++-
+ src/go/build/deps_test.go    |   5 +-
+ 3 files changed, 234 insertions(+), 38 deletions(-)

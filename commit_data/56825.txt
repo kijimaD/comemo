@@ -1,24 +1,31 @@
-commit 6fea4094242fe4e7be8bd7ec0b55df9f6df3f025
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jun 14 09:48:09 2024 +1000
+commit 6824765b4b981291712ae6d60702f6f0350f57d5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon May 22 10:49:07 2023 +0200
 
-    text/template/parse: fix handling of assignment/declaration in PipeNode.String
+    crypto/tls: add WrapSession and UnwrapSession
     
-    The String method for Pipes assumed all variables were declared. Easy fix:
-    check the IsAssign bit.
+    There was a bug in TestResumption: the first ExpiredSessionTicket was
+    inserting a ticket far in the future, so the second ExpiredSessionTicket
+    wasn't actually supposed to fail. However, there was a bug in
+    checkForResumption->sendSessionTicket, too: if a session was not resumed
+    because it was too old, its createdAt was still persisted in the next
+    ticket. The two bugs used to cancel each other out.
     
-    Fixes #65382
+    For #60105
+    Fixes #19199
     
-    Change-Id: I58f2760c1a8bb2821c3538645d893f58fd76ae73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592695
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Rob Pike <r@golang.org>
+    Change-Id: Ic9b2aab943dcbf0de62b8758a6195319dc286e2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496821
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/text/template/parse/node.go       | 6 +++++-
- src/text/template/parse/parse_test.go | 3 +++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ api/next/60105.txt                       |  4 ++
+ src/crypto/tls/common.go                 | 31 +++++++++++
+ src/crypto/tls/handshake_client_test.go  |  6 ++-
+ src/crypto/tls/handshake_server.go       | 88 ++++++++++++++++++++------------
+ src/crypto/tls/handshake_server_tls13.go | 50 +++++++++++++-----
+ src/crypto/tls/ticket.go                 | 44 +++++++++++++---
+ src/crypto/tls/tls_test.go               | 14 ++++-
+ 7 files changed, 182 insertions(+), 55 deletions(-)

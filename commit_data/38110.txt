@@ -1,20 +1,16 @@
-commit 850e3636d5d269c71df22a88f49423fe87179519
-Author: Mikio Hara <mikioh.public.networking@gmail.com>
-Date:   Wed Feb 27 20:56:43 2019 +0900
+commit 02b444bc1d5f87f36a7726d0474358fb51fec13f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 6 14:49:35 2017 -0800
 
-    Revert "net: add missing error check in test"
+    cmd/compile: use IsPtr instead of types.Tptr
     
-    This reverts commit ec521467e33eee0a62ed426ca0c66b865baedfc7.
+    Produced using gofmt -r.
     
-    Reson for revert: The test cases using slowDst4 and slowDst6 are
-    fragile. We need to find out a better approach to the trick on the IP
-    routeability.
-    
-    Change-Id: I544453886e809d1c7b339673d8f1d5bdef357147
-    Reviewed-on: https://go-review.googlesource.com/c/163919
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I4184940618a3a1dac563a9d20aafe1d9f705300c
+    Reviewed-on: https://go-review.googlesource.com/c/76310
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dial_test.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

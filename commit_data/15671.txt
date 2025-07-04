@@ -1,12 +1,22 @@
-commit 72dd01451f58a5b1a1cdd1d92810a8ab0d75d97d
+commit 3b85b724c5df8ee4ea9d6720250249de455baff5
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 11 01:27:03 2013 -0400
+Date:   Mon Mar 11 00:51:42 2013 -0400
 
-    cmd/5l: fix build (define stub machoreloc1)
+    cmd/ld: darwin support for host linking
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7694043
+    https://golang.org/cl/7626045
 
- src/cmd/5l/asm.c | 19 +++++++++++++++----
- 1 file changed, 15 insertions(+), 4 deletions(-)
+ src/cmd/6l/asm.c          |  61 ++++++++++++
+ src/cmd/6l/obj.c          |   5 +-
+ src/cmd/8l/asm.c          |  91 +++++++++++++++---
+ src/cmd/8l/obj.c          |   3 +
+ src/cmd/ld/data.c         |  35 +++++--
+ src/cmd/ld/go.c           |   7 +-
+ src/cmd/ld/lib.c          |   2 +
+ src/cmd/ld/macho.c        | 233 +++++++++++++++++++++++++++++++---------------
+ src/cmd/ld/macho.h        |   2 +
+ src/pkg/runtime/asm_386.s |   3 +-
+ src/run.bash              |   4 +
+ 11 files changed, 341 insertions(+), 105 deletions(-)

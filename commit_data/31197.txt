@@ -1,47 +1,18 @@
-commit 912a638b0c759fdd6c04d3c3a426157d2285a855
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 7 15:41:45 2017 -0700
+commit 6aee6b895c219300c9c089b79f81c80f0e468dd7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 4 14:05:20 2017 -0800
 
-    cmd/compile: check labels and branches during parse time
+    runtime: remove markBits.clearMarkedNonAtomic
     
-    Instead of a separate check control flow pass (checkcfg.go)
-    operating on nodes, perform this check at parse time on the
-    new syntax tree. Permits this check to be done concurrently,
-    and doesn't depend on the specifics of the symbol's dclstack
-    implementation anymore. The remaining dclstack uses will be
-    removed in a follow-up change.
+    It's not used, it's never been used, and it doesn't do what its doc
+    comment says it does.
     
-    - added CheckBranches Mode flag (so we can turn off the check
-      if we only care about syntactic correctness, e.g. for tests)
+    Fixes #18941.
     
-    - adjusted test/goto.go error messages: the new branches
-      checker only reports if a goto jumps into a block, but not
-      which block (we may want to improve this again, eventually)
-    
-    - also, the new branches checker reports one variable that
-      is being jumped over by a goto, but it may not be the first
-      one declared (this is fine either way)
-    
-    - the new branches checker reports additional errors for
-      fixedbugs/issue14006.go (not crucial to avoid those errors)
-    
-    - the new branches checker now correctly reports only
-      variable declarations being jumped over, rather than
-      all declarations (issue 8042). Added respective tests.
-    
-    Fixes #8042.
-    
-    Change-Id: I53b6e1bda189748e1e1fb5b765a8a64337c27d40
-    Reviewed-on: https://go-review.googlesource.com/39998
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia89d97fb87525f5b861d7701f919e0d6b7cbd376
+    Reviewed-on: https://go-review.googlesource.com/36322
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/checkcfg.go     | 310 ----------------------------
- src/cmd/compile/internal/gc/noder.go        |   2 +-
- src/cmd/compile/internal/gc/pgen.go         |   4 -
- src/cmd/compile/internal/syntax/branches.go | 304 +++++++++++++++++++++++++++
- src/cmd/compile/internal/syntax/parser.go   |  10 +-
- src/cmd/compile/internal/syntax/syntax.go   |   7 +-
- test/fixedbugs/issue14006.go                |   4 +-
- test/fixedbugs/issue8042.go                 |  66 ++++++
- test/goto.go                                |  64 +++---
- 9 files changed, 420 insertions(+), 351 deletions(-)
+ src/runtime/mbitmap.go | 5 -----
+ 1 file changed, 5 deletions(-)

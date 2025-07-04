@@ -1,16 +1,23 @@
-commit 3254c2bb8308690a88a9f62b7f51c84d80325e79
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Jun 14 16:38:26 2025 -0700
+commit 3aad2d0765b9f652e1964a8261d6ef0035d9535f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Apr 22 16:16:30 2024 -0500
 
-    internal/reflectlite: fix comment about meaning of flag field
+    cmd/internal/obj/ppc64: fix incorrect int to int64 conversion when checking MOVD opcodes
     
-    Copied current (presumably correct) comment text from reflect package.
+    A type conversion from int to int64 was done in the wrong place causing
+    some MOVD $const, Rx operations to be incorrectly transformed on 32 bit
+    hosts cross-compiling for ppc64x.
     
-    Change-Id: I19582b3675fbcb96a925002498d24ad2b7bc6178
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/681935
-    Reviewed-by: Keith Randall <khr@google.com>
+    Fixes #66955
+    
+    Change-Id: I023ba267a8dac6d6bd22f8146c0d9d2d473bc5c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580796
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/reflectlite/value.go | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 4 ++++
+ src/cmd/internal/obj/ppc64/obj9.go        | 4 ++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

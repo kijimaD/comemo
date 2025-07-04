@@ -1,37 +1,58 @@
-commit e8d417d272290027e10e348f81cbc6bb5fe0ec13
-Author: Fangming.Fang <fangming.fang@arm.com>
-Date:   Sun Apr 8 07:32:43 2018 +0000
+commit dbd8f3d739fe4ec34dd48f655edc15443c23a580
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 22 14:53:36 2018 -0500
 
-    runtime: enable memory sanitizer on arm64
+    runtime: print hexdump on traceback failure
     
-    Changes include:
-    1. open compilation option -msan for arm64
-    2. modify doc to explain -msan is also supported on linux/arm64
-    3. wrap msan lib API in msan_arm64.s
-    4. use libc for sigaction syscalls when cgo is enabled
-    5. use libc for mmap syscalls when cgo is enabled
+    Currently, if anything goes wrong when printing a traceback, we simply
+    cut off the traceback without any further diagnostics. Unfortunately,
+    right now, we have a few issues that are difficult to debug because
+    the traceback simply cuts off (#21431, #23484).
     
-    Change-Id: I26ebe61ff7ce1906125f54a0182a720f9d58ec11
-    Reviewed-on: https://go-review.googlesource.com/109255
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This is an attempt to improve the debuggability of traceback failure
+    by printing a diagnostic message plus a hex dump around the failed
+    traceback frame when something goes wrong.
+    
+    The failures look like:
+    
+    goroutine 5 [running]:
+    runtime: unexpected return pc for main.badLR2 called from 0xbad
+    stack: frame={sp:0xc42004dfa8, fp:0xc42004dfc8} stack=[0xc42004d800,0xc42004e000)
+    000000c42004dea8:  0000000000000001  0000000000000001
+    000000c42004deb8:  000000c42004ded8  000000c42004ded8
+    000000c42004dec8:  0000000000427eea <runtime.dopanic+74>  000000c42004ded8
+    000000c42004ded8:  000000000044df70 <runtime.dopanic.func1+0>  000000c420001080
+    000000c42004dee8:  0000000000427b21 <runtime.gopanic+961>  000000c42004df08
+    000000c42004def8:  000000c42004df98  0000000000427b21 <runtime.gopanic+961>
+    000000c42004df08:  0000000000000000  0000000000000000
+    000000c42004df18:  0000000000000000  0000000000000000
+    000000c42004df28:  0000000000000000  0000000000000000
+    000000c42004df38:  0000000000000000  000000c420001080
+    000000c42004df48:  0000000000000000  0000000000000000
+    000000c42004df58:  0000000000000000  0000000000000000
+    000000c42004df68:  000000c4200010a0  0000000000000000
+    000000c42004df78:  00000000004c6400  00000000005031d0
+    000000c42004df88:  0000000000000000  0000000000000000
+    000000c42004df98:  000000c42004dfb8  00000000004ae7d9 <main.badLR2+73>
+    000000c42004dfa8: <00000000004c6400  00000000005031d0
+    000000c42004dfb8:  000000c42004dfd0 !0000000000000bad
+    000000c42004dfc8: >0000000000000000  0000000000000000
+    000000c42004dfd8:  0000000000451821 <runtime.goexit+1>  0000000000000000
+    000000c42004dfe8:  0000000000000000  0000000000000000
+    000000c42004dff8:  0000000000000000
+    main.badLR2(0x0)
+            /go/src/runtime/testdata/testprog/badtraceback.go:42 +0x49
+    
+    For #21431, #23484.
+    
+    Change-Id: I8718fc76ced81adb0b4b0b4f2293f3219ca80786
+    Reviewed-on: https://go-review.googlesource.com/89016
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/dist/test.go              |  2 +-
- src/cmd/go/alldocs.go             |  2 +-
- src/cmd/go/internal/work/build.go |  2 +-
- src/cmd/go/internal/work/init.go  |  6 ++--
- src/runtime/cgo/gcc_linux_arm64.c | 32 ++++++++++++++++----
- src/runtime/cgo/gcc_mmap.c        |  2 +-
- src/runtime/cgo/gcc_sigaction.c   |  2 +-
- src/runtime/cgo/mmap.go           |  2 +-
- src/runtime/cgo/sigaction.go      |  2 +-
- src/runtime/cgo_mmap.go           |  2 +-
- src/runtime/cgo_sigaction.go      |  2 +-
- src/runtime/mmap.go               |  1 +
- src/runtime/msan/msan.go          |  3 +-
- src/runtime/msan_arm64.s          | 62 +++++++++++++++++++++++++++++++++++++++
- src/runtime/rt0_linux_arm64.s     |  7 ++++-
- src/runtime/sigaction.go          |  2 +-
- src/runtime/sys_linux_arm64.s     | 37 +++++++++++++++++++++--
- 17 files changed, 146 insertions(+), 22 deletions(-)
+ src/runtime/crash_test.go                     | 14 +++++++
+ src/runtime/print.go                          | 53 +++++++++++++++++++++++++
+ src/runtime/testdata/testprog/badtraceback.go | 47 ++++++++++++++++++++++
+ src/runtime/traceback.go                      | 57 ++++++++++++++++++++++++++-
+ 4 files changed, 169 insertions(+), 2 deletions(-)

@@ -1,22 +1,16 @@
-commit f1878c0d4670a8ebde9579a3eebb589dfca26716
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 23 15:28:51 2015 -0700
+commit b54d31320566ffc617b6c22f0ece7331b2d29c3c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Feb 25 16:11:53 2015 -0500
 
-    debug/dwarf, encoding/asn1, go/ast: fix old comments
+    runtime/cgo: set the initial working directory
     
-    The debug/dwarf and encoding/asn1 examples were added in 2009, a few
-    months before Go added implicit semicolons, and never updated.
+    Gives tests a way to find the bundle that contains their testdata, and
+    is generally useful for finding resources.
     
-    The go/ast node types have always been named just "Expr", "Stmt", and
-    "Decl", so the comments about "ExprNode", "StmtNode", and "DeclNode"
-    were likely just mistaken because the interface tag methods are
-    "exprNode", "stmtNode", and "declNode", respectively.
-    
-    Change-Id: I9d138cc3a16c1a51453da1406914d7b320bf6270
-    Reviewed-on: https://go-review.googlesource.com/7980
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idfa03e8543af927c17bc8ec8aadc5014ec82df28
+    Reviewed-on: https://go-review.googlesource.com/6000
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/debug/dwarf/entry.go     | 2 +-
- src/encoding/asn1/marshal.go | 2 +-
- src/go/ast/ast.go            | 6 +++---
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/runtime/cgo/cgo.go           |  1 +
+ src/runtime/cgo/gcc_darwin_arm.c | 49 ++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 48 insertions(+), 2 deletions(-)

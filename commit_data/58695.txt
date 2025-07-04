@@ -1,20 +1,14 @@
-commit 659b895067400e1db64c57712729623970149e99
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Jan 27 21:47:24 2025 +0000
+commit ecb9d9b95ccba900de9504b3699a219c84b0aa96
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 1 12:54:00 2023 -0800
 
-    internal/trace: move fake P IDs to internal/trace/traceviewer
+    doc: document changes to slices package
     
-    These fake P IDs really only belong to the traceviewer.
-    
-    Change-Id: I7976beb5750f1efca85e28975074a8c570a9c959
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644876
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I4e3f9812463251acd312372dd8a4f8c2cea9e289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545996
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Bypass: Keith Randall <khr@google.com>
 
- src/cmd/trace/gen.go                          | 4 ++--
- src/cmd/trace/gstate.go                       | 6 +++---
- src/cmd/trace/jsontrace_test.go               | 4 ++--
- src/internal/trace/traceviewer/emitter.go     | 8 ++++----
- src/internal/trace/{ => traceviewer}/fakep.go | 2 +-
- 5 files changed, 12 insertions(+), 12 deletions(-)
+ doc/go1.22.html | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

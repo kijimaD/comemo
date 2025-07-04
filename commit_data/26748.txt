@@ -1,12 +1,24 @@
-commit d70cb46f0fde56ec0147c5cc679714fd63cb10bb
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Apr 6 16:11:22 2016 +1000
+commit 45c4ebec5bdd387842868d38dbe495e2992302e1
+Author: Tal Shprecher <tshprecher@gmail.com>
+Date:   Fri Feb 19 16:02:54 2016 -0800
 
-    runtime: use windows.NewLazySystemDLL in mksyscall_windows.go
+    cmd/asm: fix EOF message on operand parsing errors.
     
-    Change-Id: Ie4c4ff4167ee45ae93a8b764fb6197f402e7994d
-    Reviewed-on: https://go-review.googlesource.com/21593
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    If the parsing of an operand completes but the parser thinks there
+    is more to read, return an "expected end of operand" error message
+    instead of "expected EOF." This also removes extra "asm: " prefixes
+    in error strings since "asm: " is already set as the global log
+    prefix.
+    
+    Fixes #14071
+    
+    Change-Id: I7d621c1aea529a0eca3bcba032359bd25b3e1080
+    Reviewed-on: https://go-review.googlesource.com/19731
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/syscall/mksyscall_windows.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/parse.go       | 25 +++++++++++++++----------
+ src/cmd/asm/internal/asm/pseudo_test.go |  4 ++--
+ src/cmd/asm/internal/lex/input.go       |  2 +-
+ src/cmd/asm/internal/lex/lex.go         |  2 +-
+ src/cmd/asm/main.go                     |  4 ++--
+ 5 files changed, 21 insertions(+), 16 deletions(-)

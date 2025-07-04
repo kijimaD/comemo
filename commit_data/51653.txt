@@ -1,30 +1,93 @@
-commit 627765a861c6762d15cfdfeb2f7e4872523edbe4
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 5 23:39:49 2022 -0500
+commit 0807986fe6bf6040bafa9c415ab72e4cc8e519a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 24 22:11:40 2022 -0800
 
-    time/tzdata: generate zip constant during cmd/dist
+    go/types, types2: correctly consider ~ (tilde) in constraint type inference
     
-    We have a make.bash-time generation capability,
-    so use it to generate the embedded zip file for time/tzdata.
-    This is one less file to try to review in CLs like CL 455356.
+    When doing constraint type inference, we must consider whether the
+    constraint's core type is precise (no tilde) or imprecise (tilde,
+    or not a single specific type). In the latter case, we cannot infer
+    an unknown type argument from the (imprecise) core type because there
+    are infinitely many possible types. For instance, given
     
-    For #22487.
-    Fixes #43350.
+            [E ~byte]
     
-    Change-Id: I2fcd0665fa0b1c830baec5fb4cd714483fea25a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455357
+    if we don't know E, we cannot infer that E must be byte (it could be
+    myByte, etc.). On the other hand, if we do know the type argument,
+    say for S in this example:
+    
+            [S ~[]E, E any]
+    
+    we must consider the underlying type of S when matching against ~[]E
+    because we have a tilde.
+    
+    Because constraint type inference may infer type arguments that were
+    not eligible initially (because they were unknown and the core type
+    is imprecise), we must iterate the process until nothing changes any-
+    more. For instance, given
+    
+            [S ~[]E, M ~map[string]S, E any]
+    
+    where we initially only know the type argument for M, we must ignore
+    S (and E) at first. After one iteration of constraint type inference,
+    S is known at which point we can infer E as well.
+    
+    The change is large-ish but the actual functional changes are small:
+    
+    - There's a new method "unknowns" to determine the number of as of yet
+      unknown type arguments.
+    
+    - The adjCoreType function has been adjusted to also return tilde
+      and single-type information. This is now conveniently returned
+      as (*term, bool), and the function has been renamed to coreTerm.
+    
+    - The original constraint type inference loop has been adjusted to
+      consider tilde information.
+    
+    - This adjusted original constraint type inference loop has been
+      nested in another loop for iteration, together with some minimal
+      logic to control termination.
+    
+    The remaining changes are modifications to tests:
+    
+    - There's a substantial new test for this issue.
+    
+    - Several existing test cases were adjusted to accomodate the
+      fact that they inferred incorrect types: tildes have been
+      removed throughout. Most of these tests are for pathological
+      cases.
+    
+    - A couple of tests were adjusted where there was a difference
+      between the go/types and types2 version.
+    
+    Fixes #51229.
+    
+    Change-Id: If0bf5fb70ec22913b5a2da89adbf8a27fbc921d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387977
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .gitignore                          |    1 +
- lib/time/update.bash                |    3 +-
- src/cmd/dist/build.go               |    7 +-
- src/cmd/dist/buildgo.go             |   17 +
- src/time/tzdata/generate_zipdata.go |   77 -
- src/time/tzdata/tzdata.go           |    4 +-
- src/time/tzdata/zipdata.go          | 6643 -----------------------------------
- 7 files changed, 27 insertions(+), 6725 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go        |  24 +--
+ src/cmd/compile/internal/types2/infer.go           | 135 +++++++++++++----
+ .../types2/testdata/check/funcinference.go2        |  14 +-
+ .../types2/testdata/check/typeinference.go2        |  12 +-
+ .../types2/testdata/examples/inference.go2         |  18 +--
+ .../internal/types2/testdata/examples/typesets.go2 |   2 +-
+ .../types2/testdata/fixedbugs/issue45548.go2       |   2 +-
+ .../types2/testdata/fixedbugs/issue51229.go2       | 164 +++++++++++++++++++++
+ src/cmd/compile/internal/types2/unify.go           |  17 ++-
+ src/go/types/api_test.go                           |  20 +--
+ src/go/types/infer.go                              | 133 +++++++++++++----
+ src/go/types/testdata/check/funcinference.go2      |  12 +-
+ src/go/types/testdata/check/typeinference.go2      |  12 +-
+ src/go/types/testdata/examples/inference.go2       |  18 +--
+ src/go/types/testdata/examples/typesets.go2        |   2 +-
+ src/go/types/testdata/fixedbugs/issue45548.go2     |   2 +-
+ src/go/types/testdata/fixedbugs/issue51229.go2     | 164 +++++++++++++++++++++
+ src/go/types/unify.go                              |  17 ++-
+ test/typeparam/issue48424.go                       |  10 +-
+ test/typeparam/settable.go                         |   2 +-
+ test/typeparam/typelist.go                         |   8 +-
+ 21 files changed, 648 insertions(+), 140 deletions(-)

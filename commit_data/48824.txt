@@ -1,19 +1,21 @@
-commit 104742fddae061b52c38e221697cf20ebd09bf10
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 19 13:46:15 2022 -0700
+commit 890a8407a9c30c0a1d08ff80100e4f53da7df17a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 16 22:07:16 2021 +0000
 
-    cmd/compile/internal/types2: use correct value of iota
+    [dev.typeparams] internal/reflectlite: use goarch.PtrSize instead of the duplicated ptrSize [generated]
     
-    Fixes #52438.
+    [git-generate]
+    cd src/internal/reflectlite
+    gofmt -w -r "ptrSize -> goarch.PtrSize" .
+    goimports -w *.go
     
-    Change-Id: I5cbf8c448dba037e9e0c5fe8f209401d6bf7d43f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/401134
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I6a55f2aa035ed863785856ddd4fcc519dec15ac9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328347
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/decl.go            |  2 +-
- src/cmd/compile/internal/types2/resolver.go        |  2 +-
- .../internal/types2/testdata/check/const0.go       | 19 +++++++++++
- src/go/types/testdata/check/const0.go              | 19 +++++++++++
- test/fixedbugs/issue52438.go                       | 39 ++++++++++++++++++++++
- 5 files changed, 79 insertions(+), 2 deletions(-)
+ src/internal/reflectlite/swapper.go | 3 ++-
+ src/internal/reflectlite/value.go   | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

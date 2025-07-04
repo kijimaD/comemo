@@ -1,22 +1,16 @@
-commit 68949049742f737ac4d54f48b1291f3b73d1b4f6
-Author: Michael Matloob <matloob@golang.org>
-Date:   Tue Feb 25 12:51:04 2025 -0500
+commit 846bb475203ac3fcef61569b2d1360947254dd38
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Jan 22 11:30:51 2024 -0500
 
-    cmd/go/internal/modindex: clean modroot and pkgdir for openIndexPackage
+    doc: remove last TODO item
     
-    GetPackage is sometimes called with a modroot or pkgdir that ends with a
-    path separator, and sometimes without. Clean them before passing them to
-    openIndexPackage to deduplicate calls to mcache.Do and action entry
-    files.
+    For #61422
     
-    This shouldn't affect #71698 but was discovered while debugging that
-    issue.
-    
-    Change-Id: I6a7fa4de93f45801504abea11bd97f6c6577f296
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652435
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I50e427b78a533c3196aeb5291a34c05528ee0bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557455
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/go/internal/modindex/read.go               |   2 +
- .../testdata/script/list_modindex_dupactionid.txt  | 100 +++++++++++++++++++++
- 2 files changed, 102 insertions(+)
+ doc/go1.22.html | 4 ----
+ 1 file changed, 4 deletions(-)

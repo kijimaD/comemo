@@ -1,23 +1,28 @@
-commit 7afd58d4581925788e1ef28ff817784d2585b92f
-Author: Peter Waller <p@pwaller.net>
-Date:   Mon Feb 18 11:09:03 2019 +0000
+commit 398b54df56ed57e3e1b333d7621dac414eda612e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Oct 16 14:35:01 2018 -0400
 
-    cmd/compile/internal/ssa: set OFOR bBody.Pos to AST Pos
+    cmd/go: make go vet query cmd/vet for its flags
     
-    Assign SSA OFOR's bBody.Pos to AST (*Node).Pos as it is created.
+    Add -flags flag to cmd/vet that causes it to describe its flags as JSON.
     
-    An empty for loop has no other information which may be used to give
-    correct position information in the resulting executable. Such a for
-    loop may compile to a single `JMP *self` and it is important that the
-    location of this is in the right place.
+    go vet's "-vettool" flag has been replaced with an environment
+    variable, GOVETTOOL, for two reasons:
     
-    Fixes #30167.
+      1) we need its value before flag processing,
+         because we must run vet to discover its flags.
     
-    Change-Id: Iec44f0281c462c33fac6b7b8ccfc2ef37434c247
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/163019
-    Run-TryBot: David Chase <drchase@google.com>
+      2) users may change the env var to opt in/out of the new vet tool
+         during the upcoming transition to vet based on the analysis API.
+    
+    Change-Id: I5d8f90817623022f4170b88fab3c92c9b2fbdc37
+    Reviewed-on: https://go-review.googlesource.com/c/142617
+    Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/gc/ssa.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/internal/vet/vetflag.go  | 121 ++++++++++++++++++++++--------------
+ src/cmd/go/internal/work/buildid.go |   2 +-
+ src/cmd/vet/main.go                 |  30 ++++++++-
+ src/cmd/vet/vet_test.go             |   3 +-
+ 4 files changed, 105 insertions(+), 51 deletions(-)

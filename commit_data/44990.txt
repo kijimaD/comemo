@@ -1,17 +1,16 @@
-commit 4bbe046aad2ca27f25d3811b061fb8f7926b8695
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 5 16:52:25 2021 -0700
+commit 4e1d812afc2ebe767face21f34e47de57f3f32a6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 21 21:50:37 2020 -0400
 
-    cmd/compile/internal/syntax: add "~" operator
+    doc/go1.16: add subheads and adjust formatting in the 'Go command' section
     
-    Change-Id: I7991103d97b97260d9615b7f5baf7ec75ad87d1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307370
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I5f70684d4033d8b11e1cce89268d8222ed596c67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256400
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/syntax/operator_string.go | 43 +++++++++++-----------
- src/cmd/compile/internal/syntax/scanner.go         |  5 +++
- src/cmd/compile/internal/syntax/scanner_test.go    |  5 ++-
- src/cmd/compile/internal/syntax/tokens.go          |  7 ++--
- test/fixedbugs/issue23587.go                       |  9 +++--
- 5 files changed, 41 insertions(+), 28 deletions(-)
+ doc/go1.16.html | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

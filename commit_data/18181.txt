@@ -1,15 +1,24 @@
-commit f30392125192124450c2831a08416e875ab5baf0
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Jan 7 13:26:48 2014 +0100
+commit 901e7bfe53b4610ef9ff9eef5d2cbec7671b6f68
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Tue Jan 7 23:12:12 2014 +1100
 
-    cmd/gc: do not omit wrapper for expression (interface{...}).F
+    lib9, libmach, cmd/dist, go/build: add support for GOOS=solaris
     
-    Fixes #6723.
+    This change adds solaris to the list of supported operating
+    systems and allows cmd/dist to be built on Solaris.
     
-    R=rsc
+    This CL has to come first because we want the tools to ignore
+    solaris-specific files until the whole port is integrated.
+    
+    R=golang-codereviews, jsing, rsc, minux.ma
     CC=golang-codereviews
-    https://golang.org/cl/41570047
+    https://golang.org/cl/35900045
 
- src/cmd/gc/reflect.c     | 5 ++---
- test/method4.dir/prog.go | 9 ++++++++-
- 2 files changed, 10 insertions(+), 4 deletions(-)
+ src/cmd/dist/build.c          |  1 +
+ src/cmd/dist/unix.c           |  9 +++++++
+ src/lib9/run_unix.c           |  2 +-
+ src/lib9/tempdir_unix.c       |  2 +-
+ src/libmach/solaris.c         | 56 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/build/deps_test.go |  2 +-
+ src/pkg/go/build/syslist.go   |  2 +-
+ 7 files changed, 70 insertions(+), 4 deletions(-)

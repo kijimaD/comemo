@@ -1,20 +1,12 @@
-commit a96cfa75c6d0733fc96c5b6318351090b2acc52d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 26 22:49:35 2019 -0400
+commit ef84fa082caec4d1757377c11e98f3b5ebc934d3
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jun 10 18:02:43 2019 -0400
 
-    cmd/compile: mark unsafe points for MIPS and MIPS64
+    doc: document Go 1.12.6
     
-    Mark atomic LL/SC loops as unsafe for async preemption, as they
-    use REGTMP.
-    
-    Change-Id: I5be7f93ad3ee337049ec7c3efd6fdc30eef87d97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203719
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I8ae00d2392c20c627d58cf7e79015e982b971802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181551
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go | 16 ++++++++--------
- src/cmd/compile/internal/ssa/gen/MIPSOps.go   | 12 ++++++------
- src/cmd/compile/internal/ssa/opGen.go         | 14 ++++++++++++++
- 3 files changed, 28 insertions(+), 14 deletions(-)
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

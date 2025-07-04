@@ -1,18 +1,31 @@
-commit f6d43b746a683b63f93999f07a27db79be1ca146
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Jun 2 11:04:45 2015 +1000
+commit d12b532265603bdb2ce2fcb4bc3a53c03771d370
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 29 13:36:34 2015 -0700
 
-    net: fix undetected set and not used error
+    time: use longer delta duration for TestAfterQueueing retries
     
-    Fixes an error where the compiler did not spot that the shadowed err
-    value was set again after being read. That second assignment was lost
-    as the value was redeclared in an inner scope.
+    The TestAfterQueueing test is inherently flaky because it relies on
+    independent kernel threads being scheduled within the "delta" duration
+    of each other.  Normally, delta is 100ms but during "short" testing,
+    it's reduced to 20ms.
     
-    Spotted by Gordon Klass, https://groups.google.com/forum/#!topic/golang-nuts/MdDLbvOjb4o
+    On at least OpenBSD, the CPU scheduler operates in 10ms time slices,
+    so high system load (e.g., from running multiple Go unit tests in
+    parallel, as happens during all.bash) can occasionally cause >20ms
+    scheduling delays and result in test flaking.  This manifests as issue
+    9903, which is the currently the most common OpenBSD flake.
     
-    Change-Id: I28f2da6f98c52afcbb45e17d2b4f36c586598f98
-    Reviewed-on: https://go-review.googlesource.com/10600
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    To mitigate this delay, only reduce the delta duration to 20ms for the
+    first attempt during short testing.  If this fails and the test is
+    reattempted, subsequent attempts instead use a full 100ms delta.
+    
+    Fixes #9903.
+    
+    Change-Id: I11bdfa939e5be915f67ffad8a8aef6ed8772159a
+    Reviewed-on: https://go-review.googlesource.com/9510
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/file_unix.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/time/sleep_test.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

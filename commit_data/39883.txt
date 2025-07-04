@@ -1,23 +1,22 @@
-commit 3d522b10885a21f2c07344748e36bbfdcad01990
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Aug 9 17:31:23 2019 -0400
+commit ee2836048c5a5e48e35b7cb67303c3fe22728eca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 25 12:32:41 2019 -0700
 
-    cmd/go/internal/module: in VersionError, do not wrap an existing ModuleError
+    cmd/compile: change sinit.go functions into methods
     
-    VersionError wraps the given error in a ModuleError struct.
+    This will make it easier for subsequent CLs to track additional state
+    during package initialization scheduling.
     
-    If the given error is already a ModuleError for the same path and
-    version, we now return it directly instead of wrapping.
-    This makes it safer to call VersionError if we don't know whether
-    a given error is already wrapped.
+    Passes toolstash-check.
     
-    Updates #30748
+    Updates #22326.
     
-    Change-Id: I41b23f6c3ead0ec382e848696da51f478da1ad35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/189781
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I528792ad34f41a4be52951531eb7525a94c9f350
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169898
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/module/module.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/order.go |   6 +--
+ src/cmd/compile/internal/gc/sinit.go | 100 +++++++++++++++++++----------------
+ 2 files changed, 57 insertions(+), 49 deletions(-)

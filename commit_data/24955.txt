@@ -1,14 +1,20 @@
-commit 6bf794a36dc3bb4d5dca471c85233e6cc84a9e74
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 16 15:45:12 2015 -0500
+commit 3f2baa3e60b54b5cfc45995d7d3616d4a9a509fb
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Sep 9 22:56:26 2015 -0400
 
-    cmd/link: link go.o first
+    cmd/dist: re-enable GOARM auto-detection
     
-    Does not fix #12327 but nicer anyway.
+    cmd/dist will re-exec itself to detect VFP support at run-time.
     
-    Change-Id: I4ad730a4ca833d76957b7571895b3a08a6a530d4
-    Reviewed-on: https://go-review.googlesource.com/16964
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #9732, #12548.
+    
+    Change-Id: I9ad0c5c7fa3e97bd79a32da372e1a962565bb3af
+    Reviewed-on: https://go-review.googlesource.com/3973
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/util.go       | 51 ++++++++++++++++++----------------------------
+ src/cmd/dist/util_gc.go    |  8 ++++++++
+ src/cmd/dist/util_gccgo.go |  4 ++++
+ src/cmd/dist/vfp_arm.s     | 17 ++++++++++++++++
+ src/cmd/dist/vfp_default.s | 13 ++++++++++++
+ 5 files changed, 62 insertions(+), 31 deletions(-)

@@ -1,16 +1,15 @@
-commit 83c58ac710517e0b3fb2654cdba187e45900cca2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 13 15:33:03 2017 -0800
+commit 3366d6a39bbaaa011a11c651975a88d9f05e00b6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 22:02:12 2016 -0400
 
-    internal/poll: return error if WriteConsole fails
+    os: adjust (*File).Read comment
     
-    Fixes #19068.
+    Fixes #6639.
     
-    Change-Id: Id76037826376b5fe8b588fe3dc02182dfaff8c21
-    Reviewed-on: https://go-review.googlesource.com/36935
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iefce87c5521504fd41843df8462cfd840c24410f
+    Reviewed-on: https://go-review.googlesource.com/32102
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/internal/poll/fd_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

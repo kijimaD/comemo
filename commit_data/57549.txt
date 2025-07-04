@@ -1,22 +1,20 @@
-commit 6a730e1ef0b7f312fe01815086a2eb5a25739f2d
-Author: Mark Ryan <markdryan@rivosinc.com>
-Date:   Fri Sep 13 09:33:03 2024 +0200
+commit ade5a6232fd8f8a63549adf6cb6362fe6908e1f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 14 11:29:59 2023 -0400
 
-    cmd/internal/obj/riscv: rename the iIEncoding
+    cmd/compile: trim range typechecking
     
-    We rename it to iIIEncoding to reflect the fact that instructions
-    that use this encoding take two integer registers.  This change
-    will allow us to add a new encoding for I-type instructions that
-    take a single integer register.  This new encoding will be used for
-    instructions that modify CSRs.
+    Most of the code is not necessary anymore.
+    Before we start changing how range works,
+    delete this code so it won't need updating.
     
-    Change-Id: Ic507d0020e18f6aa72353f4d3ffcd0e868261e7a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614355
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Preparation for proposal #61405.
+    
+    Change-Id: Ia6c6cc62b156e38a871279350a2e60c189967cac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510536
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 80 +++++++++++++++++++--------------------
- 1 file changed, 40 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/typecheck/stmt.go | 93 ++++++------------------------
+ 1 file changed, 17 insertions(+), 76 deletions(-)

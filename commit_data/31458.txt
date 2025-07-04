@@ -1,22 +1,26 @@
-commit 164f99e584a352631275dbf6bf7a8b77c336a261
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon May 1 00:56:09 2017 +0000
+commit 094992e22aaa1d7091659b63b5cadfe947372277
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Feb 16 19:53:08 2017 -0500
 
-    Revert "cmd/link: replace SHIDDEN bit in SymKind with a bit of Attribute"
+    cmd/compile: zero extend when replacing load-hit-store on s390x
     
-    This reverts commit a69222d949bcc2c4453248ee233b63b75d79967e.
+    Keith pointed out that these rules should zero extend during the review
+    of CL 36845. In practice the generic rules are responsible for eliminating
+    most load-hit-stores and they do not have this problem. When the s390x
+    rules are triggered any cast following the elided load-hit-store is
+    kept because of the sequence the rules are applied in (i.e. the load is
+    removed before the zero extension gets a chance to be merged into the load).
+    It is therefore not clear that this issue results in any functional bugs.
     
-    Reason for revert: broke ppc64le
+    This CL includes a test, but it only tests the generic rules currently.
     
-    Change-Id: I57d275177e90f036caf7dbade9669b8121dfa437
-    Reviewed-on: https://go-review.googlesource.com/42194
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: Idbc43c782097a3fb159be293ec3138c5b36858ad
+    Reviewed-on: https://go-review.googlesource.com/37154
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/arm64/asm.go  | 2 +-
- src/cmd/link/internal/ld/data.go    | 2 +-
- src/cmd/link/internal/ld/ldelf.go   | 9 +++++----
- src/cmd/link/internal/ld/link.go    | 6 ------
- src/cmd/link/internal/ld/pe.go      | 4 +---
- src/cmd/link/internal/ld/symkind.go | 1 +
- src/cmd/link/internal/ld/symtab.go  | 8 ++------
- 7 files changed, 11 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/gc/testdata/loadstore.go | 108 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/S390X.rules      |   6 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go      |  12 +--
+ 3 files changed, 117 insertions(+), 9 deletions(-)

@@ -1,20 +1,22 @@
-commit 160ee5d7f55cb20d9c4bb4f3285c1bc0025edf3c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Oct 9 14:23:34 2018 -0400
+commit f43aa1df701d7190eeaf301d3a41e1714c516c45
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 28 16:45:28 2018 -0700
 
-    cmd/go: test that 'go mod tidy' uses transitive requirements from replacements
+    runtime: throw if the runtime panics with out of bounds index
     
-    The existing mod_tidy test uses replacements, but doesn't replace
-    modules that can also be resolved by fetching from GOPROXY, and
-    doesn't check the differences between the internal and external views.
+    If the runtime code panics due to a bad index or slice expression,
+    then throw instead of panicing. This will skip calls to recover and dump
+    the entire runtime stack trace. The runtime should never panic due to
+    an out of bounds index, and this will help with debugging if it does.
     
-    This new test clarifies that interaction with a more realistic example.
+    For #24991
+    Updates #25201
     
-    Change-Id: I2bb2028148f4b7b95c3bfcc54b3976a49515379a
-    Reviewed-on: https://go-review.googlesource.com/c/140859
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I85a9feded8f0de914ee1558425931853223c0514
+    Reviewed-on: https://go-review.googlesource.com/121515
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/testdata/script/mod_tidy_replace.txt | 71 +++++++++++++++++++++++++
- 1 file changed, 71 insertions(+)
+ src/runtime/crash_test.go  | 30 ++++++++++++++++++++++++++++++
+ src/runtime/export_test.go | 10 ++++++++++
+ src/runtime/panic.go       | 19 +++++++++++++++++++
+ 3 files changed, 59 insertions(+)

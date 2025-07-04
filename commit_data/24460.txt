@@ -1,17 +1,22 @@
-commit 0b248cea169a261cd0c2db8c014269cca5a170c4
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Mon Oct 5 16:47:31 2015 -0700
+commit c4092ac3981413959eb62f7515c263531fd832da
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 00:46:42 2015 -0400
 
-    cmd/go: fix `go test -n`
+    cmd/compile: fix uninitialized memory during type switch assertE2I2
     
-    The <importPath>/_test directory is not actually created in -n mode, so
-    `go test` fails to write _testmain.go.
+    Fixes arm64 builder crash.
     
-    Do not write _testmain.go if -n is passed.
+    The bug is possible on all architectures; you just have to get lucky
+    and hit a preemption or a stack growth on entry to assertE2I2.
+    The test stacks the deck.
     
-    Change-Id: I825d5040cacbc9d9a8c89443e5a3f83e6f210ce4
-    Reviewed-on: https://go-review.googlesource.com/15433
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I8419da909b06249b1ad15830cbb64e386b6aa5f6
+    Reviewed-on: https://go-review.googlesource.com/12890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/test.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/swt.go |  3 ++
+ src/runtime/export_test.go         |  2 ++
+ src/runtime/gc_test.go             | 57 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/iface.go               |  9 ++++--
+ 4 files changed, 68 insertions(+), 3 deletions(-)

@@ -1,15 +1,16 @@
-commit 666f5b4a89c52901c26b992a05fd54479fd6fad9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 18 11:38:39 2014 -0700
+commit 41818f8fcc90f2e2d2738ca298e1d6e622243e7a
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Tue Mar 18 16:26:23 2014 +1100
 
-    expvar: don't recursively acquire Map.RLock
+    base64: refactor encoder.Write
     
-    Fixes #7575
+    "nn" can never be zero for any input "p", so no check is needed.
+    This change should improve readability a bit.
     
-    LGTM=iant
-    R=dvyukov, iant
+    LGTM=nigeltao
+    R=golang-codereviews, bradfitz, nigeltao
     CC=golang-codereviews
-    https://golang.org/cl/77540044
+    https://golang.org/cl/76610045
 
- src/pkg/expvar/expvar.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/encoding/base64/base64.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

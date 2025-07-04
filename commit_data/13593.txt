@@ -1,14 +1,18 @@
-commit c8423f90029e24b9b714678f9d23f7497f97a1e6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Aug 7 16:10:10 2012 +1000
+commit 5530a426efed5baa88e47ac73be19d7b7e99d743
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Aug 7 13:36:08 2012 +1000
 
-    io: document ReaderFrom and WriterTo
+    exp/html: correctly handle <title> after </head>
     
-    Fixes #3711
+    The <title> element was getting removed from the stack of open elements,
+    when its parent, the <head> element should have been removed instead.
     
-    R=golang-dev, adg
+    Pass 2 additional tests.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6445083
+    https://golang.org/cl/6449101
 
- src/pkg/io/io.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/exp/html/parse.go                | 2 +-
+ src/pkg/exp/html/testlogs/tests7.dat.log | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

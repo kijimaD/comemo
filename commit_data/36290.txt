@@ -1,12 +1,22 @@
-commit edf81050a8cfdcdaff47664f51c52441b754480e
-Author: Austin Clements <austin@google.com>
-Date:   Sat Aug 18 14:50:50 2018 -0400
+commit 58b18cfda5fa96330df00c529c36f207eae08cbc
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sun Apr 15 15:20:33 2018 +0300
 
-    doc/go1.11: Delve 1.1.0 added support for method calls
+    cmd/internal/obj/x86: better error msg for offset overflow on AMD64
     
-    Change-Id: I5f887f9831378cf76f5a9f447f481ea24c63f390
-    Reviewed-on: https://go-review.googlesource.com/129803
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Say "offset too large" instead of "invalid instruction" when
+    assembling for AMD64. GOARCH=386 already reports error correctly.
+    
+    Fixed #24871
+    
+    Change-Id: Iab029307b5c5edbb45f9df4b64c60ecb5f101349
+    Reviewed-on: https://go-review.googlesource.com/107116
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.11.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/386enc.s         |  6 ++++
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s |  3 ++
+ src/cmd/asm/internal/asm/testdata/amd64error.s     | 11 ++++++++
+ src/cmd/internal/obj/x86/asm6.go                   | 32 ++++++++++++----------
+ 4 files changed, 38 insertions(+), 14 deletions(-)

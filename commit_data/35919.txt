@@ -1,18 +1,16 @@
-commit 7951d90bc6fab62b2baacdc985156c50f1063706
-Author: Iskander Sharipov <quasilyte@gmail.com>
-Date:   Mon Jul 9 23:08:22 2018 +0300
+commit 9c312245ac53f9d5a3f42eae10abb15f881da216
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Mon Mar 19 07:36:43 2018 +0000
 
-    cmd/compile/internal/ssa: fix partsByVarOffset.Less method
+    cmd/asm: fix bug about VMOV instruction (move a vector element to another) on ARM64
     
-    Fix duplicated index in LHS and RHS of the < operator.
+    This change fixes index error when encoding VMOV instruction which pattern
+    is vmov Vn.<T>[index], Vd.<T>[index]
     
-    Found using https://go-critic.github.io/overview#dupSubExpr-ref
-    
-    Change-Id: I9a5a40bbd436b32e8117579a01bc50afe3608c97
-    Reviewed-on: https://go-review.googlesource.com/122776
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I949166e6dfd63fb0a9365f183b6c50d452614f9d
+    Reviewed-on: https://go-review.googlesource.com/101335
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/debug.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s | 1 +
+ src/cmd/internal/obj/arm64/asm7.go        | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,16 +1,13 @@
-commit fa610c776e4bc659211b65a2dfbc74051ef99159
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Jan 23 03:33:54 2020 +1100
+commit b12b6723007bea5a5837a21d7c4fd1a0cc9f0c67
+Author: smasher164 <aindurti@gmail.com>
+Date:   Sun Sep 8 03:34:30 2019 -0400
 
-    cmd/internal/obj/riscv: add missing instructions to the ternary expansion list
+    A+C: change email address for Akhil Indurti
     
-    Updates #27532
-    
-    Change-Id: I5beb7941c204755948350b181c713b046bc4f1f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215841
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I27ca0d71cdc7b13388556aa7c1987320b6b41849
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194178
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
 
- src/cmd/internal/obj/riscv/obj.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

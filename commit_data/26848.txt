@@ -1,49 +1,16 @@
-commit d1feddb7ae6389ee4175ee85b7168cf58a04b952
-Author: Rob Pike <r@golang.org>
-Date:   Mon Apr 4 13:22:34 2016 -0700
+commit 1df5183f4c6f90ab3ea6fc4a928d2e7d7f55ce3d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 28 22:06:11 2016 -0800
 
-    cmd/vet: improve documentation for flags, slightly
+    misc/cgo/testsanitizers: report stderr if go run tsan*.go fails
     
-    The way that -all works was unclear from the documentation and made
-    worse by recent changes to the flag package. Improve matters by making
-    the help message say "default true" for the tests that do default to true,
-    and tweak some of the wording.
+    Update #14559.
     
-    Before:
-    
-    Usage of vet:
-            vet [flags] directory...
-            vet [flags] files... # Must be a single package
-    For more information run
-            go doc cmd/vet
-    
-    Flags:
-      -all
-            enable all non-experimental checks (default unset)
-      -asmdecl
-            check assembly against Go declarations (default unset)
-    ...
-    
-    After:
-    
-    Usage of vet:
-            vet [flags] directory...
-            vet [flags] files... # Must be a single package
-    By default, -all is set and all non-experimental checks are run.
-    For more information run
-            go doc cmd/vet
-    
-    Flags:
-      -all
-            enable all non-experimental checks (default true)
-      -asmdecl
-            check assembly against Go declarations (default true)
-    ...
-    
-    Change-Id: Ie94b27381a9ad2382a10a7542a93bce1d59fa8f5
-    Reviewed-on: https://go-review.googlesource.com/21495
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I8894f8e16902685f55a21d902199fbe0905f0558
+    Reviewed-on: https://go-review.googlesource.com/20050
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/vet/doc.go  | 11 +++++------
- src/cmd/vet/main.go |  3 ++-
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ misc/cgo/testsanitizers/test.bash | 2 ++
+ 1 file changed, 2 insertions(+)

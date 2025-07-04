@@ -1,23 +1,32 @@
-commit 7337181daf686714e2de88aa93c793ae441c94fa
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 13 18:00:35 2017 +0900
+commit 6317f92f6e51f679712deec6094c6b5fc2948a5b
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Nov 27 10:41:37 2016 -0800
 
-    net: validate network in Dial{,IP} and Listen{Packet,IP} for IP networks
+    cmd/compile: fix CSE with commutative ops
     
-    The argument of the first parameter for connection setup functions on
-    IP networks must contain a protocol name or number. This change adds
-    validation for arguments of IP networks to connection setup functions.
+    CSE opportunities were being missed for commutative ops. We used to
+    order the args of commutative ops (by arg ID) once at the start of CSE.
+    But that may not be enough.
     
-    Fixes #18185.
+    i1 = (Load ptr mem)
+    i2 = (Load ptr mem)
+    x1 = (Add i1 j)
+    x2 = (Add i2 j)
     
-    Change-Id: I6aaedd7806e3ed1043d4b1c834024f350b99361d
-    Reviewed-on: https://go-review.googlesource.com/40512
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Equivalent commutative ops x1 and x2 may not get their args ordered in
+    the same way because because at the start of CSE, we don't know that
+    the i values will be CSEd. If x1 and x2 get opposite orders we won't
+    CSE them.
+    
+    Instead, (re)order the args of commutative operations by their
+    equivalence class IDs each time we partition an equivalence class.
+    
+    Change-Id: Ic609fa83b85299782a5e85bf93dc6023fccf4b0c
+    Reviewed-on: https://go-review.googlesource.com/33632
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/net/dial.go            | 21 ++++++++------
- src/net/iprawsock.go       |  2 +-
- src/net/iprawsock_posix.go |  4 +--
- src/net/iprawsock_test.go  | 72 ++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 87 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go | 14 ++++++++++----
+ test/prove.go                       | 15 ++++++++++++++-
+ 2 files changed, 24 insertions(+), 5 deletions(-)

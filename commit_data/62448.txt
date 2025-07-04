@@ -1,0 +1,21 @@
+commit 3705a6f1f0a66e70916bb09f50f4fcd1c520df53
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Tue Mar 4 19:45:29 2025 +0000
+
+    all: update golang.org/x/net
+    
+    For #71984
+    
+    Change-Id: Ic15826f09ea818f8833bd3d979bffaede24d49df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654717
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+
+ src/go.mod                                         |   4 +-
+ src/go.sum                                         |   8 +-
+ src/net/http/h2_bundle.go                          | 131 +++++++--------------
+ src/net/http/internal/httpcommon/httpcommon.go     |  86 ++++++++++++++
+ .../golang.org/x/net/http/httpproxy/proxy.go       |  10 +-
+ src/vendor/modules.txt                             |   8 +-
+ 6 files changed, 149 insertions(+), 98 deletions(-)

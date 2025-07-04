@@ -1,37 +1,21 @@
-commit c53390b078b4d3b18e3aca8970d4b31d4d82cce1
-Author: Zeke Lu <lvzecai@gmail.com>
-Date:   Thu Oct 27 01:43:16 2022 +0000
+commit f9b2733e3a8b4911b932671b0bd9fc4190cf59aa
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 16:43:47 2021 -0500
 
-    net: store IPv4 returned from cgo resolver as 4-byte slice net.IP
+    doc/go1.18: add docs on MapIter.Reset
     
-    net.IP states that a 16-byte slice can still be an IPv4 address.
-    But after netip.Addr is introduced, it requires extra care to keep
-    it as an IPv4 address when converting it to a netip.Addr using
-    netip.AddrFromSlice.
+    From:
     
-    To address this issue, let's change the cgo resolver to return
-    4-byte net.IP for IPv4. The change will save us 12 bytes too.
+    https://go-review.googlesource.com/c/go/+/321891
     
-    Please note that the go resolver already return IPv4 as 4-byte
-    slice.
+    Updates #47694
     
-    The test TestResolverLookupIP has been modified to cover this
-    behavior. So no new test is added.
-    
-    Fixes #53554.
-    
-    Change-Id: I0dc2a59ad785c0c67a7bc22433105529f055997f
-    GitHub-Last-Rev: bd7bb2f17bd8e07ea5b39e4a24512ed35d316bb8
-    GitHub-Pull-Request: golang/go#53638
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415580
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Change-Id: I2cdd5d9f3da62a5690cd2ef921ed48957c602d64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368360
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/cgo_unix.go       |  9 ---------
- src/net/ip.go             |  6 ++++++
- src/net/lookup_test.go    | 23 +++++++++++------------
- src/net/lookup_windows.go |  4 ++--
- 4 files changed, 19 insertions(+), 23 deletions(-)
+ doc/go1.18.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

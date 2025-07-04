@@ -1,18 +1,18 @@
-commit ebae73bb24c7d4473055353ece1a82b0370f069f
+commit e4b02bfdc09ce9e1307250382f3b985f35ca9723
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 22 21:46:12 2012 -0500
+Date:   Wed Feb 22 21:45:01 2012 -0500
 
-    pprof: add Profile type
+    runtime: goroutine profile, stack dumps
     
-    Makes it possible for client code to maintain its own profiles,
-    and also reduces the API surface by giving us a type that
-    models built-in profiles.
-    
-    R=golang-dev, r
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/5684056
+    https://golang.org/cl/5687076
 
- src/pkg/net/http/pprof/pprof.go          |  81 +++--
- src/pkg/runtime/pprof/pprof.go           | 504 +++++++++++++++++++++++++++----
- src/pkg/text/tabwriter/tabwriter_test.go |   3 +-
- 3 files changed, 508 insertions(+), 80 deletions(-)
+ src/pkg/runtime/debug.go  |  33 +++++++++----
+ src/pkg/runtime/malloc.h  |  10 +---
+ src/pkg/runtime/mgc0.c    |  35 +++++++++-----
+ src/pkg/runtime/mprof.goc | 120 ++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/runtime/print.c   |  56 +++++++++++++++-------
+ src/pkg/runtime/proc.c    |   6 +++
+ src/pkg/runtime/runtime.h |   6 ++-
+ 7 files changed, 207 insertions(+), 59 deletions(-)

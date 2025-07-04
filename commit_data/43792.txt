@@ -1,30 +1,29 @@
-commit 1e1fa5903b760c6714ba17e50bf850b01f49135c
-Author: Katie Hockman <katie@golang.org>
-Date:   Tue Nov 10 15:54:12 2020 -0500
+commit 512277dc19b918da19e083c28427109256ef9309
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Fri Apr 24 01:01:48 2020 -0400
 
-    math/big: fix shift for recursive division
+    go/types: improve error message for pointer receiver errors
     
-    The previous s value could cause a crash
-    for certain inputs.
+    The compiler produces high quality error messages when an interface is
+    implemented by *T, rather than T. This change improves the analogous
+    error messages in go/types, from "missing method X" to "missing method
+    X (X has pointer receiver)".
     
-    Will check in tests and documentation improvements later.
+    I am open to improving this message further - I didn't copy the compiler
+    error message exactly because, at one of the call sites of
+    (*check).missingMethod, we no longer have access to the name of the
+    interface.
     
-    Thanks to the Go Ethereum team and the OSS-Fuzz project for reporting this.
-    Thanks to Rémy Oudompheng and Robert Griesemer for their help
-    developing and validating the fix.
+    Fixes golang/go#36336
     
-    Fixes CVE-2020-28362
-    
-    Change-Id: Ibbf455c4436bcdb07c84a34fa6551fb3422356d3
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/899974
-    Reviewed-by: Roland Shoemaker <bracewell@google.com>
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269657
-    Trust: Katie Hockman <katie@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ic4fc38b13fff9e5d9a69cc750c21e0b0c34d85a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229801
+    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/math/big/nat.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/expr.go             |  7 +++++--
+ src/go/types/lookup.go           | 13 ++++++++++++-
+ src/go/types/operand.go          |  7 ++++++-
+ src/go/types/testdata/issues.src |  5 ++++-
+ 4 files changed, 27 insertions(+), 5 deletions(-)

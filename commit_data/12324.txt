@@ -1,14 +1,23 @@
-commit 36d9ee4aec46a08e859ce30715c5034ada90645f
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 2 14:07:26 2012 +1100
+commit 30db6d41cdaa65bb2d192853313f61cc7f12a39d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 1 21:56:54 2012 -0500
 
-    os: fix grammar in ProcessState comment
-    Asymptotic convergence.
+    os: centralize documentation of Process and ProcessState
     
-    R=golang-dev, dsymonds
+    Also change Wait to say "exit" instead of "exit or stop".
+    
+    I notice that Pid is not implemented on all systems.
+    Should we fix that?
+    
+    Fixes #3138.
+    
+    R=golang-dev, alex.brainman, r
     CC=golang-dev
-    https://golang.org/cl/5719045
+    https://golang.org/cl/5710056
 
- src/pkg/os/exec_plan9.go | 2 +-
- src/pkg/os/exec_posix.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/os/doc.go          | 65 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/exec_plan9.go   | 39 +++++++---------------------
+ src/pkg/os/exec_posix.go   | 29 +++++----------------
+ src/pkg/os/exec_unix.go    | 13 +++-------
+ src/pkg/os/exec_windows.go | 18 +++++--------
+ 5 files changed, 91 insertions(+), 73 deletions(-)

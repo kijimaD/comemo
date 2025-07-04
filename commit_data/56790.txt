@@ -1,47 +1,19 @@
-commit ca5ba146da7a9d4e2a8cbe1715a78be42b45a745
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jun 6 12:51:57 2024 +0000
+commit c6f33ed11353620201fa2d4df40dd7304282539d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri May 19 23:20:43 2023 -0400
 
-    cmd/compile/internal: add a PGO devirt post-lookup cleanup hook
+    cmd/dist: make two related panic messages more consistent
     
-    The PGO-based devirtualization helper pgoir.addIndirectEdges makes a
-    series of calls into the unified IR reader to import functions that
-    would not normally be imported but may be the target of a hot indirect
-    call from the current package. This importing primarily targets at
-    non-generic functions and methods, but as part of the process we can
-    encounter types that have methods (including generic methods) whose
-    bodies need to be read in. When the reader encounters an inlinable
-    func of this sort, it may (depending on the context) decide not to
-    read the body right away, but instead adds the func to a list
-    ("todoBodies") to be read in later on in a more convenient context.
+    In contrast to the HasSuffix argument, there's no need or benefit in
+    having a ":" before the "racebench" variant mentioned in the message.
+    (The variant comes after the colon separator—it doesn't include it.)
     
-    In the bug in question, a hot method lookup takes place in
-    pgoir.addIndirectEdges, and as part of the import process we wind up
-    with a type T with method M that is in this partially created state,
-    and in addition T gets added to the unified IR's list of types that
-    may need method wrappers. During wrapper generation we create a new
-    wrapper "(*T).M" whose body has a call to "T.M", then farther on down
-    the pike during escape analysis we try to analyze the two functions;
-    this causes a crash due to "T.M" being in partially constructed state.
-    
-    As a fix, add a new "PostLookupCleanup" hook (in the unified IR
-    reader) that pgoir.addIndirectEdges can invoke that takes care of
-    reading in the bodies of any functions that have been added to the
-    "todoBodies" list.
-    
-    [Note: creating a test case for this problem is proving to be very
-    tricky; a new test will be added in a subsequent patch].
-    
-    Fixes #67746.
-    
-    Change-Id: Ibc47ee79e08a55421728d35341df80a865231cff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591075
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ie9948104de9449422037bf39245944255b98f1b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497735
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/devirtualize/pgo.go | 10 +++++++++-
- src/cmd/compile/internal/noder/unified.go    |  9 +++++++++
- src/cmd/compile/internal/pgoir/irgraph.go    | 13 ++++++++++++-
- 3 files changed, 30 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

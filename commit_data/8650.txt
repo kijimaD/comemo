@@ -1,12 +1,12 @@
-commit c5281d7ab98996a75eabfd2e6a4075986f93f29a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 7 16:02:12 2011 -0700
+commit 29e4775cd5093fd34e0cb8080dfdcd129d3d0d9d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 7 13:17:34 2011 -0700
 
-    C+A: add Michael T. Jones (Google, gmail account)
+    exec: export the underlying *os.Process in Cmd
     
-    R=rsc, bradfitz
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4598041
+    https://golang.org/cl/4579044
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/exec/exec.go | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)

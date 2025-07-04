@@ -1,19 +1,18 @@
-commit 1be8be4accf8bc9a625ec96e7655d814c3d5bed1
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 8 10:14:25 2021 -0400
+commit 1f41f04d2c121ba229072bd954f8346a0fc6d3e4
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Jul 4 11:01:29 2020 +0200
 
-    cmd/go: fix TestNewReleaseRebuildsStalePackagesInGOPATH
+    cmd/compile: enforce strongly typed rules for ARM (8)
     
-    CL 307818 added a package that the runtime depends on, but didn't
-    update the list of runtime dependencies in this test.
+    add type casting to int32: L148-L156, L774-L778
     
-    This should fix the longtest builder failures.
+    Toolstash-check successful
     
-    Change-Id: I5f3be31b069652e05ac3db9b1ce84dd5dfe0f66f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308469
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ib6544c1d7853c2811def5b18786e1fc5c18086ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256097
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/go/go_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 26 ++++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 86 +++++++++++++++---------------
+ 2 files changed, 56 insertions(+), 56 deletions(-)

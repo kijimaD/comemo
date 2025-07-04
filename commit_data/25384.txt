@@ -1,12 +1,14 @@
-commit 0f3c2290305ddd05aea472c49b43c7ba45da0f18
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Thu Dec 24 14:26:02 2015 -0400
+commit 9b6069bf983678b2f490be029d493e711bf80bd9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Oct 7 20:07:56 2015 -0400
 
-    runtime: fix sigaltstack test Skipf format string
+    net/url: fix mentions of URL.EscapedPath method
     
-    Change-Id: I9485ecbd9d546893e4f0db846b08d835fa7515d7
-    Reviewed-on: https://go-review.googlesource.com/18140
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #12862.
+    
+    Change-Id: I6921ae31bd5515f344fd97d08eafc317228b98a0
+    Reviewed-on: https://go-review.googlesource.com/15590
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- misc/cgo/test/sigaltstack.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/url/url.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

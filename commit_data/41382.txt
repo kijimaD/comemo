@@ -1,21 +1,28 @@
-commit b0863ce0e6fbcf3e39f25cdd0b9380b3710507ba
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Sun Feb 23 17:28:56 2020 +0000
+commit bdf0fe54480034cd21e36cfed6e44f10f4cb5c92
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 23 23:10:25 2019 +0100
 
-    Revert "time: add Ticker.Reset"
+    cmd/compile: minor simplifications in rulegen
     
-    This reverts CL 217362 (6e5652bebede2d53484a872f6d1dfeb498b0b50c.)
+    First, be consistent about declaring typ as &b.Func.Config.Types and
+    not &config.Types. Not particularly better, and it barely changes the
+    output, but we're more consistent now.
     
-    Reason for revert: Causing failures on arm64 bots. See #33184 for more info
+    Second, remove a bit of duplication when handling the typ, auxint, and
+    aux variables.
     
-    Change-Id: I72ba40047e4138767d95aaa68842893c3508c52f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220638
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Third and last, remove a stray canFail assignment; we ended up setting
+    that in add, not breakf, so it's not necessary to set it manually if we
+    don't use breakf.
+    
+    Updates #33644.
+    
+    Change-Id: I75999cb223a201969266fbfeae043599fa27fac5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196803
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/next.txt          |  1 -
- doc/go1.15.html       | 10 ----------
- src/runtime/time.go   |  8 +-------
- src/time/sleep.go     |  1 -
- src/time/tick.go      |  9 ---------
- src/time/tick_test.go | 29 ++---------------------------
- 6 files changed, 3 insertions(+), 55 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go  | 34 +++++++++++-----------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go |  3 +--
+ 2 files changed, 14 insertions(+), 23 deletions(-)

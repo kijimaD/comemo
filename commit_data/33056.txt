@@ -1,17 +1,17 @@
-commit 85f93c889aafa253a784362051681ee76f1d3564
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 2 17:29:10 2017 -0400
+commit dc86c9a6afa8b5b998dfa6621d1566d1296f2bf4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 28 23:02:51 2017 +0000
 
-    cmd/compile: fix some plive comments
+    doc, api: add syscall.SysProcAttr.AmbientCaps change to 1.9 notes, API
     
-    The liveness analysis no longer directly emits PCDATA. Fix stale
-    comments that say so.
+    Updates #20587
     
-    Change-Id: Id26b112ddf4c13a12ebf766f64bf57c68fbfe3ef
-    Reviewed-on: https://go-review.googlesource.com/67691
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I08377281270631ee08cd05ba835aa698ca23fa56
+    Reviewed-on: https://go-review.googlesource.com/47092
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ api/go1.9.txt  | 6 ++++++
+ doc/go1.9.html | 7 +++++++
+ 2 files changed, 13 insertions(+)

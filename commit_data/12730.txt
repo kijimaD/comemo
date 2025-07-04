@@ -1,13 +1,12 @@
-commit f39ff80beaab4b366917575e5addcbdd551563c2
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Mar 23 15:57:19 2012 +1100
+commit d420be5b1c03dd4d7791062ae50c37fb0aa529d6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 23 12:45:58 2012 +1100
 
-    path/filepath: windows drive letter cannot be a digit
+    tag weekly.2012-03-22
     
-    R=golang-dev, r
-    CC=golang-dev, mattn.jp
-    https://golang.org/cl/5885056
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5877063
 
- src/pkg/path/filepath/path_test.go    | 1 +
- src/pkg/path/filepath/path_windows.go | 4 +---
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,17 +1,18 @@
-commit fa903593fb7c40a5745817b68d9a71ab6b934009
-Author: Kevin Burke <kevin@burke.dev>
-Date:   Tue Nov 7 13:43:23 2023 -0800
+commit 199d77aff0372daac2db39d7fb2da16269e4ffd4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 17 21:12:25 2022 -0500
 
-    log/slog: fix method name in docs
+    cmd/dist: stop trying to access runtime/internal/sys.a in debug mode
     
-    My hunch is the method was renamed during the development process but
-    the code comment was not updated to match.
+    Now that we don't install the .a files, the installed
+    runtime/internal/sys.a no longer exists. Stop trying to access it.
     
-    Change-Id: Ib7aafc863f82a6bbe09e68dc3c5e087e16f228a9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540536
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ic437e7ad95be6109d0b2fcfb81e840f5cb476be8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451360
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/log/slog/record.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/build.go | 3 ---
+ 1 file changed, 3 deletions(-)

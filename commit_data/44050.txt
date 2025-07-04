@@ -1,21 +1,21 @@
-commit bc7e4d9257693413d57ad467814ab71f1585a155
+commit 2867a855413ac7cb10c1e5ca5b68f15c0125b40f
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Dec 21 13:14:41 2020 -0500
+Date:   Wed May 6 12:06:52 2020 -0400
 
-    syscall: don't generate ptrace on iOS
+    [dev.link] cmd/link: delete undef pass
     
-    May fix #43302.
+    The undef pass basically double-checks the relocation targets are
+    defined. We already do that in the reloc pass, and for external
+    relocations we check that when we emit relocations. The undef pass
+    doesn't seem necessary.
     
-    Change-Id: I6b7ddf94495c4fa80cf8a50a38eef5f8b2872669
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/279481
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iecfa654dc014fdc6e59c624cbf5948ad65fd367a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232577
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/syscall/mksyscall.pl             |  2 +-
- src/syscall/ptrace_darwin.go         | 14 ++++++++++++++
- src/syscall/ptrace_ios.go            | 12 ++++++++++++
- src/syscall/syscall_darwin_amd64.go  |  2 +-
- src/syscall/syscall_darwin_arm64.go  |  2 +-
- src/syscall/zsyscall_darwin_amd64.go |  2 +-
- src/syscall/zsyscall_darwin_arm64.go |  2 +-
- 7 files changed, 31 insertions(+), 5 deletions(-)
+ src/cmd/link/internal/ld/lib.go  | 43 ----------------------------------------
+ src/cmd/link/internal/ld/main.go |  2 --
+ 2 files changed, 45 deletions(-)

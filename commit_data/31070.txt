@@ -1,22 +1,22 @@
-commit 97b89dc0558e2b8e8809e74222a19c92206a6174
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 10 13:03:14 2017 -0700
+commit 98842cabb6133ab7b8f2b323754a48085eed82f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 24 17:52:54 2017 +0000
 
-    cmd/compile/internal/gc: refactor ODCLFUNC creation
+    net/http: don't send body on redirects for 301, 302, 303 when GetBody is set
     
-    Extract out some common boiler plate logic.
+    The presence of Request.GetBody being set on a request was causing all
+    redirected requests to have a body, even if the redirect status didn't
+    warrant one.
     
-    Passes toolstash-check -all.
+    This bug came from 307/308 support (https://golang.org/cl/29852) which
+    removed the line that set req.Body to nil after POST/PUT redirects.
     
-    Change-Id: Iddc8a733af8262558f56d13c91d9c27ee0d61330
-    Reviewed-on: https://go-review.googlesource.com/40253
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I2a4dd5320f810ae25cfd8ea8ca7c9700e5dbd369
+    Reviewed-on: https://go-review.googlesource.com/35633
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/compile/internal/gc/alg.go  | 18 ++----------------
- src/cmd/compile/internal/gc/dcl.go  | 15 +++++++++++++++
- src/cmd/compile/internal/gc/init.go |  7 +------
- src/cmd/compile/internal/gc/subr.go |  7 +------
- src/cmd/compile/internal/gc/walk.go | 13 ++++---------
- 5 files changed, 23 insertions(+), 37 deletions(-)
+ src/net/http/client.go      | 21 ++++++++++------
+ src/net/http/client_test.go | 61 ++++++++++++++++++++++++++++++---------------
+ 2 files changed, 54 insertions(+), 28 deletions(-)

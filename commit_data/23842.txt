@@ -1,19 +1,12 @@
-commit cc6ed285e58be9c3c16ab2f2bc34d61687dfc3ff
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 20 15:48:53 2015 -0400
+commit 10076b55eccebadbaceacf946ae705fa40de52b3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jun 17 12:46:06 2015 +1000
 
-    runtime: remove # from gctrace line
+    doc/articles/wiki: remove generated final-test.go after test
     
-    Whenever someone pastes gctrace output into GitHub, it helpfully turns
-    the GC cycle number into a link to some unrelated issue. Prevent this
-    by removing the pound before the cycle number. The fact that this is a
-    cycle number is probably more obvious at a glance than most of the
-    other numbers.
-    
-    Change-Id: Ifa5fc7fe6c715eac50e639f25bc36c81a132ffea
-    Reviewed-on: https://go-review.googlesource.com/12413
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: If6dc3acdc023ac78f63e257974cd2d2e9f1cca10
+    Reviewed-on: https://go-review.googlesource.com/11161
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/mgc.go | 2 +-
+ doc/articles/wiki/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

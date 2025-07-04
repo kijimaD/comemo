@@ -1,23 +1,15 @@
-commit e03c7896a7992dc2f940efe20deaae4db1b1aa1d
-Author: Marvin Stenger <marvin.stenger94@gmail.com>
-Date:   Tue Sep 8 05:46:31 2015 +0200
+commit 47f22ab77557b41c918894e004a78dc5952ea58a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 15 15:02:38 2015 +1000
 
-    cmd/compile/internal/gc: convert fields of Pkg to bool
+    time: make it clearer how to format a fractional second
     
-    Convert Pkg.Imported, Pkg.Exported, Pkg.Direct from uint8/int8/int8 to bool.
+    Fixes #10963.
     
-    This change passes go build -toolexec 'toolstash -cmp' -a std.
-    
-    Change-Id: I67a71f1186ff9737c03eca413f7d35d8a79ebc9b
-    Reviewed-on: https://go-review.googlesource.com/14371
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8d769b4d25b306f2df41f882ec01d97bbd63171d
+    Reviewed-on: https://go-review.googlesource.com/12221
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/export.go  | 8 ++++----
- src/cmd/compile/internal/gc/go.go      | 6 +++---
- src/cmd/compile/internal/gc/go.y       | 2 +-
- src/cmd/compile/internal/gc/lex.go     | 4 ++--
- src/cmd/compile/internal/gc/reflect.go | 2 +-
- src/cmd/compile/internal/gc/y.go       | 2 +-
- 6 files changed, 12 insertions(+), 12 deletions(-)
+ src/time/format.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

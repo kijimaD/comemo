@@ -1,14 +1,17 @@
-commit d62809096ae13bd6caf00f5b604188c528376ed5
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 5 22:20:46 2017 -0500
+commit 0f9a2cf2c4e1d223ba30db4b5127991e97a830e4
+Author: EKR <ekr@rtfm.com>
+Date:   Wed Jan 11 13:46:27 2017 -0800
 
-    doc/go1.10: update release notes for recent commits
+    crypto/tls: fix clientHelloMsg fuzzer not to generate the RI SCSV
     
-    Change-Id: Id6ced9a6c76131263041cdaf5ed17479be075fa6
-    Reviewed-on: https://go-review.googlesource.com/82075
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    It was causing mysterious fuzzing failure because it affects the
+    unmarshaling of the secureNegotiationSupported field.
+    
+    Change-Id: Id396b84eab90a3b22fb6e306b10bdd7e39707012
+    Reviewed-on: https://go-review.googlesource.com/60912
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- doc/go1.10.html | 157 ++++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 124 insertions(+), 33 deletions(-)
+ src/crypto/tls/handshake_messages_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

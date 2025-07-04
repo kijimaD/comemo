@@ -1,13 +1,14 @@
-commit 2d53d227f67fd38b9e4cd0d21f6f29c101b808da
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 14 10:04:59 2012 +1100
+commit b8df36182d7321201d3985a4b3d8ca1c0faf63d2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 14 09:34:52 2012 +1100
 
-    runtime, syscall: fix freebsd-386 build
+    net/http: add a Linux-only sendfile test
     
-    R=rsc
+    I remembered that sendfile support was lacking a test.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5659045
+    https://golang.org/cl/5652079
 
- src/pkg/runtime/signal_freebsd_386.c   |   8 --
- src/pkg/syscall/zerrors_freebsd_386.go | 131 ++++++++++++++++++++++++---------
- 2 files changed, 97 insertions(+), 42 deletions(-)
+ src/pkg/net/http/fs_test.go | 92 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 92 insertions(+)

@@ -1,23 +1,33 @@
-commit 0742e6dbc08f1ac5e7de966dcdf43cea03117c0c
-Author: Robert Findley <rfindley@google.com>
-Date:   Thu Apr 13 13:55:42 2023 +0000
+commit 568590b0856d457f38404505f96d21032c35f844
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 13 16:06:53 2022 -0700
 
-    Revert "go/types, types2: remove unnecessary tests for x.typ == Typ[Invalid]"
+    runtime: mark panicshift and panicdivide as //go:yeswritebarrierrec
     
-    This reverts commit 4c49d52439805c248f4a01d529b90b22e821b7d6.
+    When compiling package runtime, cmd/compile logically has two copies
+    of package runtime: the actual source files being compiled, and the
+    internal description used for emitting compiler-generated calls.
     
-    Reason for revert: it is trickier than expected to enforce an invariant that x.typ == Typ[Invalid] => x.mode == invalid. For example, builtins have invalid type until their call is evaluated.
+    Notably, CL 393715 will cause the compiler's write barrier validation
+    to start recognizing that compiler-generated calls are actually calls
+    to the corresponding functions from the source package. And today,
+    there are some code paths in nowritebarrierrec code paths that
+    actually end up generating code to call panicshift or panicdivide.
     
-    I think it is better to keep this defensive code for now. My bad for suggesting this strictness. I will send a follow-up CL with a test that exercises the panic discovered inside Google, and a bit more commentary about what 'invalid' means in both contexts.
+    In preparation, this CL marks those functions as
+    //go:yeswritebarrierrec. We probably want to actually cleanup those
+    code paths to avoid these calls actually (e.g., explicitly convert
+    shift count expressions to an unsigned integer type). But for now,
+    this at least unblocks CL 393715 while preserving the status quo.
     
-    Fixes #59603
+    Updates #51734.
     
-    Change-Id: If291f7268e7ef7ae6cd9bb861bb9af349a729cb2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484375
+    Change-Id: I01f89adb72466c0260a9cd363e3e09246e39cff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406316
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types2/assignments.go | 8 ++++++--
- src/go/types/assignments.go                    | 8 ++++++--
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/runtime/panic.go | 2 ++
+ 1 file changed, 2 insertions(+)

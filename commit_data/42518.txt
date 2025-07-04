@@ -1,17 +1,19 @@
-commit 97019105884ced2c4658f9763528e7f6983f8773
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Sat Jun 13 12:28:08 2020 +1000
+commit 4b1b18d1060b82d4df273e23d81033dfacf4d5bb
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jan 7 17:14:51 2020 +1100
 
-    image/gif: speed up initializing test image
+    runtime: use FP offsets for pipe/pipe2 on freebsd/arm64 and linux/arm64
     
-    The benchmark throughput numbers don't change, but the set-up time (the
-    time taken before the b.ResetTimer() call) drops from 460ms to 4ms.
+    This is more readable and less error-prone than using RSP offsets.
     
-    Change-Id: I5a6756643dff6127f6d902455d83459c084834fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237757
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Rob Pike <r@golang.org>
+    Suggested during review of CL 212765.
+    
+    Change-Id: I070190abeeac8eae5dbd414407602619d9d57422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213577
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/image/gif/writer_test.go | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ src/runtime/sys_freebsd_arm64.s | 4 ++--
+ src/runtime/sys_linux_arm64.s   | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

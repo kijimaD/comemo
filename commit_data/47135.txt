@@ -1,22 +1,14 @@
-commit 0bef30d28ac0b9654e5daef0fef731d7a9495214
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Oct 30 10:50:59 2021 -0700
+commit 7fcf9893f71c75f6b2fd53bea326d5061f705208
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 25 09:58:05 2021 -0800
 
-    cmd/compile/internal/syntax: fix parsing of array or slice constraint types
+    cmd/internal/obj: fix typo in docs
     
-    This is a port of the idea used in CL 359134 from go/parser to syntax,
-    with adjustments due to the slightly different structure of the two
-    parsers, and some refactoring to simplify the logic.
-    
-    Fixes #49175.
-    
-    Change-Id: Ib4955bde708f2b08345f35523e6094c03ab3076c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360135
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I5a3d26a4cc59b327d46ca24bcb01ef594758c230
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296531
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/syntax/parser.go          | 82 +++++++++++++---------
- .../compile/internal/syntax/testdata/typeset.go2   | 10 ++-
- 2 files changed, 57 insertions(+), 35 deletions(-)
+ src/cmd/internal/obj/link.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,23 @@
-commit 3dfb92f254ed4f94e3c98a789c171a1cd9c2563d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Sep 21 18:53:31 2016 -0400
+commit dc5b5239e8020ca0b366ba02f99fe87728fa290c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 28 03:06:33 2016 +0900
 
-    cmd/compile: ensure args are live in tail calls for LR machines
+    net: don't call forceCloseSockets in non-TestMain functions
     
-    On link-register machines we uses RET (sym), instead of JMP (sym),
-    for tail call (so the assembler knows and may rewrite it to
-    restore link register if necessary). Add RET to the analysis.
+    forceCloseSockets is just designed as a kingston valve for TestMain
+    function and is not suitable to keep track of inflight sockets.
     
-    Fixes #17186.
-    Fixes #16016 on link-register machines.
+    Fixes #15525.
     
-    Change-Id: I8690ac57dd9d49beeea76a5f291988e9a1d3afe5
-    Reviewed-on: https://go-review.googlesource.com/29570
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Id967fe5b8da99bb08b699cc45e07bbc3dfc3ae3d
+    Reviewed-on: https://go-review.googlesource.com/23505
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 31 ++++++++++++++++---------------
- 1 file changed, 16 insertions(+), 15 deletions(-)
+ src/net/dial_test.go         |  7 ++-----
+ src/net/main_plan9_test.go   |  1 +
+ src/net/main_unix_test.go    |  1 +
+ src/net/main_windows_test.go |  1 +
+ src/net/timeout_test.go      | 13 -------------
+ 5 files changed, 5 insertions(+), 18 deletions(-)

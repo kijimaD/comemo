@@ -1,24 +1,17 @@
-commit 9586c093a2e65cb8edd73a4dd0a6a18823249cf4
-Author: Philipp Stephani <phst@google.com>
-Date:   Wed Jan 23 20:14:30 2019 +0000
+commit 361cf4a8805051ac3b8829fbcd9d64a0d2f50a71
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 19 20:09:02 2018 -0700
 
-    cmd/cgo: add missing parameter list for function _cgo_wait_runtime_init_done
+    os: ignore SIGTTIN during TestTTYClose
     
-    Fixes #29879
+    Otherwise, if the test is run in the background, it will stop waiting
+    for access to the terminal.
     
-    Change-Id: Id2061a5eab67bb90a8116dc4f16073be1c9a09a9
-    GitHub-Last-Rev: 186863ab6aa9481744f276a7afbd87bd53c9f863
-    GitHub-Pull-Request: golang/go#29900
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/159178
-    Reviewed-by: Philipp Stephani <phst@google.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ib5224c6cb9060281e05c3b00cd2964445421e774
+    Reviewed-on: https://go-review.googlesource.com/c/136415
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/cgo/doc.go                    | 2 +-
- src/cmd/cgo/out.go                    | 8 ++++----
- src/runtime/cgo/gcc_libinit.c         | 2 +-
- src/runtime/cgo/gcc_libinit_windows.c | 2 +-
- src/runtime/cgo/libcgo.h              | 2 +-
- 5 files changed, 8 insertions(+), 8 deletions(-)
+ src/os/timeout_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

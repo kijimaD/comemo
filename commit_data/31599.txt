@@ -1,16 +1,17 @@
-commit 9a432552cb6dad659dd6ff7e3c9ab9defc5c73d2
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Apr 20 11:13:55 2017 +0200
+commit 72359cf840801adc81058cc0430effa1a34da0e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 2 11:13:06 2017 -0800
 
-    os: document that NewFile can return nil
+    go/types: don't exclude package unsafe from a Package's Imports list
     
-    Fixes #20023
+    There's no good reason to exclude it and it only makes the code more
+    complicated and less consistent. Having it in the list provides an
+    easy way to detect if a package uses operations from package unsafe.
     
-    Change-Id: I1bec3e69031ffcfd7ad71716be9597ec322528ff
-    Reviewed-on: https://go-review.googlesource.com/41211
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2f9b0485db0a680bd82f3b93a350b048db3f7701
+    Reviewed-on: https://go-review.googlesource.com/37694
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/os/file_plan9.go   | 4 +++-
- src/os/file_unix.go    | 4 +++-
- src/os/file_windows.go | 4 +++-
- 3 files changed, 9 insertions(+), 3 deletions(-)
+ src/go/types/package.go  | 2 +-
+ src/go/types/resolver.go | 4 +---
+ 2 files changed, 2 insertions(+), 4 deletions(-)

@@ -1,19 +1,31 @@
-commit 97ce98ac203e76fc1a1e902226277dc00456b41b
-Author: Mostafa Solati <mostafa.solati@gmail.com>
-Date:   Tue Aug 3 01:55:49 2021 +0430
+commit 0d7dc417eaebd35249994bfd5cf211df9bf457c6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 5 13:24:15 2021 -0700
 
-    cmd/go: do not ignore flags option with bad quoting
+    [dev.typeparams] cmd/compile: change types2.Union API to accept a list of Terms
     
-    Fixes #43177
+    Instead of providing a list of tildes and types, use a list of
+    Terms to create a Union, with suitable accessors.
     
-    Change-Id: I7d8ef8dee0dcade3cc88fc6423e23f41d1f8ffb2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/339289
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Define the (exported) notion of a Term representing a union term.
+    
+    This simplified various uses and also will be easier to extend
+    should we want to add more information to a Term in the future.
+    
+    Change-Id: I52fd73938bfa11bac60adbf10580b6d0680df4f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340250
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/load/flag.go                | 3 +++
- src/cmd/go/testdata/script/gcflags_patterns.txt | 4 ++++
- 2 files changed, 7 insertions(+)
+ src/cmd/compile/internal/importer/iimport.go  | 10 +++---
+ src/cmd/compile/internal/noder/reader2.go     | 10 +++---
+ src/cmd/compile/internal/noder/types.go       |  8 ++---
+ src/cmd/compile/internal/noder/writer.go      | 10 +++---
+ src/cmd/compile/internal/types2/builtins.go   |  8 ++---
+ src/cmd/compile/internal/types2/subst.go      |  6 ++--
+ src/cmd/compile/internal/types2/typeset.go    |  2 +-
+ src/cmd/compile/internal/types2/typestring.go |  2 +-
+ src/cmd/compile/internal/types2/union.go      | 49 ++++++++++++++-------------
+ 9 files changed, 52 insertions(+), 53 deletions(-)

@@ -1,12 +1,20 @@
-commit c0ca9f46d80f03fd0dcc4bee400c4c3009ce2904
-Author: Rob Pike <r@golang.org>
-Date:   Fri Sep 18 11:58:35 2015 -0700
+commit 17befdcec01fcd9c629c2cebf3aab5d4b6d70dc7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 22 17:45:32 2015 -0700
 
-    doc: go1.6.txt: template.IsTrue, bufio.Scanner.Buffer
+    net: make GODEBUG=netdns=cgo force cgo as documented
     
-    Change-Id: Iaa01d34caf09c12c017dc0379d4fe1d2cffd5340
-    Reviewed-on: https://go-review.googlesource.com/14728
-    Reviewed-by: Rob Pike <r@golang.org>
+    It wasn't working. The wrong variable was used.
+    
+    This would ideally have tests. It's also DEBUG.
+    
+    Fixes #11816
+    
+    Change-Id: Iec42d229b81d78cece4ba5c73f3040e2356eb98f
+    Reviewed-on: https://go-review.googlesource.com/12544
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.6.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ src/net/conf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

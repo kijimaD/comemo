@@ -1,18 +1,28 @@
-commit c4a595cf294558579ab6342f1628ad37a7a4221c
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Fri Jun 7 04:07:05 2024 +0000
+commit 7911f7c21d4bba89eee0eab857d089b7ed6232d4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 31 14:45:30 2023 -0400
 
-    cmd/compile: use raw strings to avoid double escapes
+    runtime: only increment extraMInUse when actually in use
     
-    Change-Id: I9b24ff7dec0825a8a9d094dfef6553aa605ef47d
-    GitHub-Last-Rev: 785589211cea172377bb67e895491d8678939600
-    GitHub-Pull-Request: golang/go#67871
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/591257
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Currently lockextra always increments extraMInUse, even if the M won't
+    be used (or doesn't even exist), such as in addExtraM. addExtraM fails
+    to decrement extraMInUse, so it stays elevated forever.
+    
+    Fix this bug and simplify the model by moving extraMInUse out of
+    lockextra to getExtraM, where we know the M will actually be used.
+    
+    While we're here, remove the nilokay argument from getExtraM, which is
+    always false.
+    
+    Fixes #60540.
+    
+    Change-Id: I7a5d97456b3bc6ea1baeb06b5b2975e3b8dd96a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499677
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/debug_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc.go                          | 17 ++++++++---------
+ src/runtime/testdata/testprogcgo/callback.go | 22 ++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 9 deletions(-)

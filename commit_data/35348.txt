@@ -1,20 +1,20 @@
-commit 4410934cbad454539312468aca276111c08f5582
-Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
-Date:   Thu Apr 26 14:23:54 2018 +0100
+commit e87f2a1b70f4751551ea5bd33e0db3417e76ac4c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 2 13:36:38 2018 -0800
 
-    encoding/xml: fix valid character range
+    cmd/compile/internal/syntax: remove ParseBytes from API - not needed
     
-    Section 2.2 of the referenced spec http://www.xml.com/axml/testaxml.htm
-    defines 0xD7FF as a (sub)range boundary, not 0xDF77.
+    R=go1.11
     
-    Fixes #25172
+    Also: Minor updates to syntax.Parse doc string.
     
-    Change-Id: Ic5a3328cd46ef6474b8e93c4a343dcfba0e6511f
-    Reviewed-on: https://go-review.googlesource.com/109495
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I649965be9670a2f1c3de2cdb350634ed21e36ad9
+    Reviewed-on: https://go-review.googlesource.com/85663
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/encoding/xml/xml.go      |  2 +-
- src/encoding/xml/xml_test.go | 14 ++++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/syntax/nodes_test.go   |  4 ++--
+ src/cmd/compile/internal/syntax/parser_test.go  |  6 +++---
+ src/cmd/compile/internal/syntax/printer_test.go |  3 ++-
+ src/cmd/compile/internal/syntax/scanner_test.go | 15 ++++++++-------
+ src/cmd/compile/internal/syntax/syntax.go       | 23 ++---------------------
+ 5 files changed, 17 insertions(+), 34 deletions(-)

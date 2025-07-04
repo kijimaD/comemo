@@ -1,18 +1,19 @@
-commit 226aaf4267316cab7530b0dabe24e6c20787fab4
-Author: Seth Hoenig <seth.a.hoenig@gmail.com>
-Date:   Thu Sep 17 23:26:39 2015 -0500
+commit d23973d23ca19f5c2992467c01e02df1780b576c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 23 18:57:29 2015 -0700
 
-    regexp: add runnable example to regex.Split
+    cmd/go: document environment variables
     
-    The existing comment for regex.Split contains a plain text example,
-    while many of the other regex functions have runnable examples. This
-    change provides a runnable example for Split.
+    This adds documentation for all the environment variables I could
+    locate in the go tool and the commands that it invokes.
     
-    Change-Id: I5373f57f532fe843d7d0adcf4b513061ec797047
-    Reviewed-on: https://go-review.googlesource.com/14737
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #9672.
+    
+    Change-Id: Id5f09160a3a8a938af4a3fcb8757eb3eced05416
+    Reviewed-on: https://go-review.googlesource.com/12620
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/regexp/example_test.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/cmd/go/alldocs.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/help.go    | 75 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/main.go    |  1 +
+ 3 files changed, 148 insertions(+)

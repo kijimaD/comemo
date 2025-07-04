@@ -1,23 +1,16 @@
-commit 3557d546090c7fedd69562c88d20767397de835d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Feb 17 10:27:43 2017 -0500
+commit 4de3df8c954e2b3368550b652c5ee861df6717d0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 31 11:41:24 2016 -0700
 
-    cmd/compile: check both syms when folding address into load/store on ARM64
+    cmd/compile: remove unreachable code
     
-    The rules for folding addresses into load/stores checks sym1 is
-    not on stack (because the stack offset is not known at that point).
-    But sym1 could be nil, which invalidates the check. Check merged
-    sym instead.
+    Makes vet happy.
     
-    Fixes #19137.
-    
-    Change-Id: I8574da22ced1216bb5850403d8f08ec60a8d1005
-    Reviewed-on: https://go-review.googlesource.com/37145
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I00de44a844afa57901b31991acf9e7ac834a9572
+    Reviewed-on: https://go-review.googlesource.com/32425
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 30 +++++++-------
- src/cmd/compile/internal/ssa/rewriteARM64.go | 60 ++++++++++++++--------------
- test/fixedbugs/issue19137.go                 | 22 ++++++++++
- 3 files changed, 67 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/gc/sinit.go | 2 --
+ 1 file changed, 2 deletions(-)

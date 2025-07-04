@@ -1,44 +1,19 @@
-commit 91a1f0d918f54e3b3425248288085db4d5619075
-Author: Riccardo Gerosa <riccardo.gerosa@nozominetworks.com>
-Date:   Mon Oct 24 22:41:02 2022 +0000
+commit 9f2a075df905d873e3e426b2f549c327d228ac26
+Author: tangxi666 <tx1275044634@gmail.com>
+Date:   Sat Nov 27 05:20:05 2021 +0000
 
-    math/big: improve performance of Binomial
+    cmd/go: fix a typo in mod_lazy_new_import.txt
     
-    This change improves the performance of Binomial by implementing an
-    algorithm that produces smaller intermediate values at each step.
+    x/y -> a/y
     
-    Working with smaller big.Int values has the advantage that  fewer allocations
-    and computations are required for each mathematical operation.
-    
-    The algorithm used is the Multiplicative Formula, which is a well known
-    way of calculating the Binomial coefficient and is described at:
-    https://en.wikipedia.org/wiki/Binomial_coefficient#Multiplicative_formula
-    https://en.wikipedia.org/wiki/Binomial_coefficient#In_programming_languages
-    
-    In addition to that, an optimization has been made to remove a
-    redundant computation of (i+1) on each loop which has a measurable
-    impact when using big.Int.
-    
-    Performance improvement measured on an M1 MacBook Pro
-    running the existing benchmark for Binomial:
-    
-    name        old time/op    new time/op    delta
-    Binomial-8     589ns ± 0%     435ns ± 0%  -26.05%  (p=0.000 n=10+10)
-    
-    name        old alloc/op   new alloc/op   delta
-    Binomial-8    1.02kB ± 0%    0.08kB ± 0%  -92.19%  (p=0.000 n=10+10)
-    
-    name        old allocs/op  new allocs/op  delta
-    Binomial-8      38.0 ± 0%       5.0 ± 0%  -86.84%  (p=0.000 n=10+10)
-    
-    Change-Id: I5a830386dd42f062e17af88411dd74fcb110ded9
-    GitHub-Last-Rev: 6b2fca07de4096accb02f66c313dff47c2303462
-    GitHub-Pull-Request: golang/go#56339
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444315
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: If24970623731098bb72345b8f4c8518b563bbec8
+    GitHub-Last-Rev: 8a35dddbc155d97f03c08c06d945596584bc2e6d
+    GitHub-Pull-Request: golang/go#49813
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367202
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/math/big/int.go | 46 ++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 38 insertions(+), 8 deletions(-)
+ src/cmd/go/testdata/script/mod_lazy_new_import.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

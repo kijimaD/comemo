@@ -1,23 +1,18 @@
-commit dc5b5239e8020ca0b366ba02f99fe87728fa290c
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat May 28 03:06:33 2016 +0900
+commit 1f7e55e418659dc3b5fe66792b85807a7065144f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 14 20:23:22 2016 -0400
 
-    net: don't call forceCloseSockets in non-TestMain functions
+    path, path/filepath: add Join example with joined rooted path
     
-    forceCloseSockets is just designed as a kingston valve for TestMain
-    function and is not suitable to keep track of inflight sockets.
+    This makes clear that Go's path.Join and filepath.Join are different
+    from the Python os.path.join (and perhaps others).
     
-    Fixes #15525.
+    Requested in private mail.
     
-    Change-Id: Id967fe5b8da99bb08b699cc45e07bbc3dfc3ae3d
-    Reviewed-on: https://go-review.googlesource.com/23505
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ie5dfad8a57f9baa5cca31246af1fd4dd5b1a64ee
+    Reviewed-on: https://go-review.googlesource.com/20711
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dial_test.go         |  7 ++-----
- src/net/main_plan9_test.go   |  1 +
- src/net/main_unix_test.go    |  1 +
- src/net/main_windows_test.go |  1 +
- src/net/timeout_test.go      | 13 -------------
- 5 files changed, 5 insertions(+), 18 deletions(-)
+ src/path/example_test.go               |  9 ++++++++-
+ src/path/filepath/example_unix_test.go | 14 ++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

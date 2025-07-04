@@ -1,139 +1,17 @@
-commit a83bbc9c488fb5b5405a5d1dc13a32d588a2fccd
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 8 11:20:45 2014 -0400
+commit 4be75c8f26aaa2715505807a3dd3b0d9d8ce3f59
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 7 15:13:25 2014 -0400
 
-    syscall: ignore EINVAL/ENOENT from readdirent on OS X 10.10
+    [dev.power64] include/link.h, liblink: convert 9l functions to liblink
+    This replaces CL 122990043.
     
-    On OS X 10.10 Yosemite, if you have a directory that can be returned
-    in a single getdirentries64 call (for example, a directory with one file),
-    and you read from the directory at EOF twice, you get EOF both times:
-            fd = open("dir")
-            getdirentries64(fd) returns data
-            getdirentries64(fd) returns 0 (EOF)
-            getdirentries64(fd) returns 0 (EOF)
-    
-    But if you remove the file in the middle between the two calls, the
-    second call returns an error instead.
-            fd = open("dir")
-            getdirentries64(fd) returns data
-            getdirentries64(fd) returns 0 (EOF)
-            remove("dir/file")
-            getdirentries64(fd) returns ENOENT/EINVAL
-    
-    Whether you get ENOENT or EINVAL depends on exactly what was
-    in the directory. It is deterministic, just data-dependent.
-    
-    This only happens in small directories. A directory containing more data
-    than fits in a 4k getdirentries64 call will return EOF correctly.
-    (It's not clear if the criteria is that the directory be split across multiple
-    getdirentries64 calls or that it be split across multiple file system blocks.)
-    
-    We could change package os to avoid the second read at EOF,
-    and maybe we should, but that's a bit involved.
-    For now, treat the EINVAL/ENOENT as EOF.
-    
-    With this CL, all.bash passes on my MacBook Air running
-    OS X 10.10 (14A299l) and Xcode 6 beta 5 (6A279r).
-    
-    I tried filing an issue with Apple using "Feedback Assistant", but it was
-    unable to send the report and lost it.
-    
-    C program reproducing the issue, also at http://swtch.com/~rsc/readdirbug.c:
-    
-    #include <stdio.h>
-    #include <dirent.h>
-    #include <unistd.h>
-    #include <sys/stat.h>
-    #include <stdlib.h>
-    #include <fcntl.h>
-    #include <errno.h>
-    #include <string.h>
-    
-    static void test(int);
-    
-    int
-    main(void)
-    {
-            int fd, n;
-            DIR *dir;
-            struct dirent *dp;
-            struct stat st;
-            char buf[10000];
-            long basep;
-            int saw;
-    
-            if(stat("/tmp/readdirbug", &st) >= 0) {
-                    fprintf(stderr, "please rm -r /tmp/readdirbug and run again\n");
-                    exit(1);
-            }
-    
-            fprintf(stderr, "mkdir /tmp/readdirbug\n");
-            if(mkdir("/tmp/readdirbug", 0777) < 0) {
-                    perror("mkdir /tmp/readdirbug");
-                    exit(1);
-            }
-    
-            fprintf(stderr, "create /tmp/readdirbug/file1\n");
-            if((fd = creat("/tmp/readdirbug/file1", 0666)) < 0) {
-                    perror("create /tmp/readdirbug/file1");
-                    exit(1);
-            }
-            close(fd);
-    
-            test(0);
-            test(1);
-    
-            fprintf(stderr, "ok - everything worked\n");
-    }
-    
-    static void
-    test(int doremove)
-    {
-            DIR *dir;
-            struct dirent *dp;
-            int numeof;
-    
-            fprintf(stderr, "\n");
-            fprintf(stderr, "opendir /tmp/readdirbug\n");
-            dir = opendir("/tmp/readdirbug");
-            if(dir == 0) {
-                    perror("open /tmp/readdirbug");
-                    exit(1);
-            }
-    
-            numeof = 0;
-            for(;;) {
-                    errno = 0;
-                    dp = readdir(dir);
-                    if(dp != 0) {
-                            fprintf(stderr, "readdir: found %s\n", dp->d_name);
-                            continue;
-                    }
-                    if(errno != 0) {
-                            perror("readdir");
-                            exit(1);
-                    }
-                    fprintf(stderr, "readdir: EOF\n");
-                    if(++numeof == 3)
-                            break;
-                    if(doremove) {
-                            fprintf(stderr, "rm /tmp/readdirbug/file1\n");
-                            if(remove("/tmp/readdirbug/file1") < 0) {
-                                    perror("remove");
-                                    exit(1);
-                            }
-                    }
-            }
-            fprintf(stderr, "closedir\n");
-            closedir(dir);
-    }
-    
-    Fixes #8423.
-    
-    LGTM=bradfitz, r
-    R=golang-codereviews, bradfitz, dsymonds, dave, r
-    CC=golang-codereviews, iant
-    https://golang.org/cl/119530044
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/123010043
 
- src/pkg/syscall/syscall_bsd.go | 35 ++++++++++++++++++++++++++++++++++-
- 1 file changed, 34 insertions(+), 1 deletion(-)
+ include/link.h      |   27 +-
+ src/liblink/asm9.c  |  934 ++++++++++++++++++------------------
+ src/liblink/list9.c |  250 ++++++----
+ src/liblink/obj9.c  | 1299 ++++++++++++++++-----------------------------------
+ 4 files changed, 1053 insertions(+), 1457 deletions(-)

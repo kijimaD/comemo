@@ -1,14 +1,12 @@
-commit 7a4d7444f01472bb28348bf9df1b87ea1f32e9bc
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Feb 20 12:17:27 2012 +1100
+commit bcb7a8533422f013c48a362e46dab89bb05878fa
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Feb 20 11:43:34 2012 +1100
 
-    build: implement clean.bat
+    html/template: minor tweak to docs to improve HTML typography.
     
-    Fixes #2893.
-    
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5685047
+    https://golang.org/cl/5684046
 
- src/clean.bat | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ src/pkg/html/template/doc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

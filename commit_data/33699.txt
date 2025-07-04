@@ -1,18 +1,18 @@
-commit 13f45d09fa34298ba1b6ea8e93e0223f5d73d36e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 22 15:36:54 2017 -0500
+commit 5a7283f1467014fb1f5e149b76f61e0a3138accf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 28 17:49:37 2017 -0700
 
-    net: accept 64 kB lines in /etc/hosts
+    cmd/link: remove unused SFILE and FileSym
     
-    Apparently 4 kB is not enough for some people.
-    
-    Fixes #21674.
-    
-    Change-Id: If39eeb225d548b578560939f6ce51e31060f5aff
-    Reviewed-on: https://go-review.googlesource.com/79516
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Iec610753052abcf6941a1cd16a9256ee9d689732
+    Reviewed-on: https://go-review.googlesource.com/59750
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/net/parse.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go            | 4 ----
+ src/cmd/link/internal/ld/symkind.go        | 1 -
+ src/cmd/link/internal/ld/symkind_string.go | 4 ++--
+ src/cmd/link/internal/ld/symtab.go         | 7 +------
+ 4 files changed, 3 insertions(+), 13 deletions(-)

@@ -1,16 +1,46 @@
-commit 0c7cdb49d89b34baf1f407135b64fd38876823e2
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sat Jan 19 12:19:09 2019 +0530
+commit 835f983da6866deec1c6550555c96de729c8848c
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:57:27 2018 +0200
 
-    misc/git: remove pre-commit file
+    os: add AIX operating system
     
-    All hook files are automatically set up when any git-codereview command is run.
-    And since the contribution guidelines point to installing git-codereview,
-    this file does not serve any purpose any more.
+    This commit adds AIX operating system to os package for ppc64
+    architecture.
     
-    Change-Id: I165f6905ca03fd3d512c59e2654ef79e76de934c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/158677
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Updates: #25893
+    
+    Change-Id: Ieb9a2b3ac5b9abd3b5ab68eb732c17b6256d624d
+    Reviewed-on: https://go-review.googlesource.com/c/138725
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/git/pre-commit | 26 --------------------------
- 1 file changed, 26 deletions(-)
+ src/os/dir_unix.go                |  2 +-
+ src/os/env_unix_test.go           |  2 +-
+ src/os/error_posix.go             |  2 +-
+ src/os/error_unix.go              |  2 +-
+ src/os/error_unix_test.go         |  2 +-
+ src/os/exec/exec_posix_test.go    |  2 +-
+ src/os/exec/lp_unix.go            |  2 +-
+ src/os/exec/lp_unix_test.go       |  2 +-
+ src/os/exec_posix.go              |  2 +-
+ src/os/exec_unix.go               |  2 +-
+ src/os/executable_path.go         |  2 +-
+ src/os/file_posix.go              |  2 +-
+ src/os/file_unix.go               |  2 +-
+ src/os/os_unix_test.go            |  2 +-
+ src/os/path_unix.go               |  2 +-
+ src/os/pipe_bsd.go                |  2 +-
+ src/os/signal/internal/pty/pty.go |  2 +-
+ src/os/signal/signal_test.go      |  2 +-
+ src/os/signal/signal_unix.go      |  2 +-
+ src/os/stat_aix.go                | 51 +++++++++++++++++++++++++++++++++++++++
+ src/os/stat_unix.go               |  2 +-
+ src/os/sys_aix.go                 | 26 ++++++++++++++++++++
+ src/os/sys_unix.go                |  2 +-
+ src/os/user/cgo_lookup_unix.go    |  2 +-
+ src/os/user/lookup_stubs.go       |  4 +--
+ src/os/user/lookup_unix.go        |  2 +-
+ src/os/user/lookup_unix_test.go   |  2 +-
+ src/os/wait_unimp.go              |  2 +-
+ 28 files changed, 104 insertions(+), 27 deletions(-)

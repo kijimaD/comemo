@@ -1,0 +1,18 @@
+commit 9d915d6870dffc36c57ede002bfb640d607f8e92
+Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
+Date:   Thu Apr 10 21:52:43 2025 +0000
+
+    cmd/compile/internal/ssa: remove unused round function
+    
+    Change-Id: I15ee74ab0be0cd996a74e6233b39e0953da3f327
+    GitHub-Last-Rev: dc41b1027a2b07a227705303dc02a85433756eab
+    GitHub-Pull-Request: golang/go#73324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664696
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 5 -----
+ 1 file changed, 5 deletions(-)

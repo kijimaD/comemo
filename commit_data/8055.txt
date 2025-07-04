@@ -1,14 +1,14 @@
-commit 4fe9f574139edfaca94fb30f629d9c32348a3cac
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 12 11:03:05 2011 -0700
+commit 11e07d23ed4fe12a05565a2a201cc9792b67ed32
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Apr 12 11:00:09 2011 -0700
 
-    fmt: allow %U for unsigned integers.
-    Suggested by jan.mercl@nic.cz.
+    ld: ELF header function declarations.
     
-    R=rsc, jnml
+    Added "void" inside "()" for two functions.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4376054
+    https://golang.org/cl/4381056
 
- src/pkg/fmt/fmt_test.go | 1 +
- src/pkg/fmt/print.go    | 2 ++
- 2 files changed, 3 insertions(+)
+ src/cmd/ld/elf.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

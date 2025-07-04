@@ -1,20 +1,18 @@
-commit cdbf5f2f7e968993560730479d4670c2d6eecd8b
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sat Jun 29 20:35:40 2024 +0000
+commit f90b4cd6554f4f20280aa5229cf42650ed47221d
+Author: Dan Peterson <danp@danp.net>
+Date:   Sun May 21 10:54:28 2023 -0300
 
-    sync: refer to Locker interface methods in RWMutex.RLocker doc
+    doc: fill out net/http.ErrSchemeMismatch note
     
-    The methods being implemented are part of the Locker interface,
-    not the RWMutex struct.
+    For #44855
     
-    Fixes #68250.
-    
-    Change-Id: I609c4d5c44e90a12914a8678971ba295519cc265
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/595875
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I517394b227ea948ed3e1f9ffdaab2bb2676863c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496795
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/sync/rwmutex.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.21.html | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

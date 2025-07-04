@@ -1,15 +1,15 @@
-commit 3d462449f670e2c0a810a6ef3bfc732a117f3cf7
+commit 35d260fa4c1952079083b8868e9be5e4c77f70dc
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 10 10:09:27 2012 -0400
+Date:   Tue Apr 10 10:09:09 2012 -0400
 
-    8a, 8l: add PREFETCH instructions
+    6a, 6l: add PREFETCH instructions
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/5992082
+    https://golang.org/cl/5989073
 
- src/cmd/8a/lex.c          |  4 ++++
- src/cmd/8l/8.out.h        |  5 +++++
- src/cmd/8l/optab.c        | 10 ++++++++++
- src/pkg/runtime/asm_386.s |  3 +--
- 4 files changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/6a/lex.c            |  4 ++++
+ src/cmd/6l/6.out.h          |  5 +++++
+ src/cmd/6l/optab.c          | 14 ++++++++++++--
+ src/pkg/runtime/asm_amd64.s |  3 +--
+ 4 files changed, 22 insertions(+), 4 deletions(-)

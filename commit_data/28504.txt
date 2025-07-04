@@ -1,32 +1,14 @@
-commit 9d8522fdc72ecc8eaa2d318a2cc04abde9beeb42
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 21 09:44:40 2016 -0700
+commit b3f98d7a42d04f6f173cd61ce3fe2106e4877496
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 30 15:17:14 2016 +1000
 
-    cmd/compile: don't instrument copy and append in runtime
+    sync: document that RWMutex read locks may not be held recursively
     
-    Instrumenting copy and append for the race detector changes them to call
-    different functions. In the runtime package the alternate functions are
-    not marked as nosplit. This caused a crash in the SIGPROF handler when
-    invoked on a non-Go thread in a program built with the race detector. In
-    some cases the handler can call copy, the race detector changed that to
-    a call to a non-nosplit function, the function tried to check the stack
-    guard, and crashed because it was running on a non-Go thread. The
-    SIGPROF handler is written carefully to avoid such problems, but hidden
-    function calls are difficult to avoid.
+    Fixes #15418
     
-    Fix this by changing the compiler to not instrument copy and append when
-    compiling the runtime package. Change the runtime package to add
-    explicit race checks for the only code I could find where copy is used
-    to write to user data (append is never used).
-    
-    Change-Id: I11078a66c0aaa459a7d2b827b49f4147922050af
-    Reviewed-on: https://go-review.googlesource.com/29472
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ibc51d602eb28819d0e44e5ca13a5c61573e4111c
+    Reviewed-on: https://go-review.googlesource.com/23570
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/compile/internal/gc/walk.go          |  6 +--
- src/runtime/crash_cgo_test.go                | 28 ++++++++++
- src/runtime/mprof.go                         | 12 +++++
- src/runtime/testdata/testprogcgo/raceprof.go | 77 ++++++++++++++++++++++++++++
- 4 files changed, 120 insertions(+), 3 deletions(-)
+ src/sync/rwmutex.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

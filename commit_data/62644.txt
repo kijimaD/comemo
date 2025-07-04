@@ -1,0 +1,15 @@
+commit 686128a9f3f112c2e103622190673656811dee5f
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 20 13:33:49 2025 -0700
+
+    runtime/race: don't complain about unrun tests when fatal map access happens
+    
+    Fixes #72964
+    
+    Change-Id: I42c6994fec3b21774bddd1d4d65dc832d9149446
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659697
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/race/race_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

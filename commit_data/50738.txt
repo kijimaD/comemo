@@ -1,19 +1,100 @@
-commit 9faf6b79297810f6c9418201c6a9fe7fe5a3695c
-Author: Mikael Urankar <mikael@FreeBSD.org>
-Date:   Sun Sep 18 17:39:37 2022 +0200
+commit c9858c7bdc8493f471f9914cc4c79d41ef483265
+Merge: ed07c49cb6 035963c7f5
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Nov 8 14:46:41 2021 -0500
 
-    cmd/link/internal/riscv64: add support for freebsd/riscv64
+    [dev.boringcrypto] all: merge master into dev.boringcrypto
     
-    Updates #53466
-    
-    Change-Id: Ifa1b8fe79f952a08dbdf91ae5ab23e4431e66134
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431660
-    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If0a6a3d0abf15d9584ce572510b5bb31872d432f
 
- src/cmd/link/internal/riscv64/obj.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.18.html                                    |  199 +-
+ src/bufio/bufio_test.go                            |    2 +-
+ src/bytes/bytes.go                                 |    3 +-
+ src/bytes/example_test.go                          |   43 +
+ src/cmd/compile/internal/inline/inl.go             |    4 +-
+ src/cmd/compile/internal/ssa/expand_calls.go       |    4 +-
+ src/cmd/compile/internal/ssa/stmtlines_test.go     |    3 +
+ src/cmd/compile/internal/typecheck/crawler.go      |    2 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |   21 +
+ src/cmd/dist/test.go                               |    2 +-
+ src/cmd/go/internal/modload/init.go                |    2 +-
+ src/cmd/go/internal/modload/modfile.go             |    2 +-
+ src/cmd/go/testdata/script/gcflags_patterns.txt    |    3 +-
+ src/cmd/internal/sys/supported.go                  |    2 +-
+ src/cmd/link/internal/ld/config.go                 |    3 +-
+ src/cmd/link/internal/ld/data.go                   |    2 +
+ src/cmd/link/internal/ppc64/asm.go                 |  221 +-
+ src/crypto/aes/asm_ppc64le.s                       |  795 ++-
+ src/crypto/elliptic/elliptic.go                    |   32 +-
+ src/crypto/elliptic/elliptic_test.go               |    5 +-
+ src/crypto/elliptic/internal/fiat/Dockerfile       |    8 +-
+ src/crypto/elliptic/internal/fiat/README           |   21 +-
+ src/crypto/elliptic/internal/fiat/fiat_test.go     |   64 +
+ src/crypto/elliptic/internal/fiat/generate.go      |  330 ++
+ src/crypto/elliptic/internal/fiat/p224.go          |  135 +
+ src/crypto/elliptic/internal/fiat/p224_fiat64.go   | 1429 +++++
+ src/crypto/elliptic/internal/fiat/p224_invert.go   |   87 +
+ src/crypto/elliptic/internal/fiat/p384.go          |  135 +
+ src/crypto/elliptic/internal/fiat/p384_fiat64.go   | 3004 ++++++++++
+ src/crypto/elliptic/internal/fiat/p384_invert.go   |  102 +
+ src/crypto/elliptic/internal/fiat/p521.go          |  170 +-
+ src/crypto/elliptic/internal/fiat/p521_fiat64.go   | 6141 ++++++++++++++++----
+ src/crypto/elliptic/internal/fiat/p521_invert.go   |   89 +
+ src/crypto/elliptic/internal/fiat/p521_test.go     |   37 -
+ src/crypto/elliptic/internal/nistec/nistec_test.go |   94 +
+ src/crypto/elliptic/internal/nistec/p224.go        |  293 +
+ src/crypto/elliptic/internal/nistec/p384.go        |  298 +
+ src/crypto/elliptic/internal/nistec/p521.go        |    6 +-
+ src/crypto/elliptic/internal/nistec/p521_test.go   |   44 -
+ src/crypto/elliptic/p224.go                        |  785 +--
+ src/crypto/elliptic/p224_test.go                   |  306 +-
+ src/crypto/elliptic/p256.go                        |    3 +
+ src/crypto/elliptic/p256_test.go                   |   19 +-
+ src/crypto/elliptic/p384.go                        |  141 +
+ src/crypto/elliptic/p521.go                        |    8 +-
+ src/crypto/tls/common.go                           |   38 +-
+ src/crypto/tls/handshake_client.go                 |    8 +-
+ src/crypto/tls/handshake_server.go                 |    6 +-
+ src/crypto/tls/handshake_server_test.go            |   20 +-
+ src/crypto/tls/handshake_server_tls13.go           |    2 +-
+ src/crypto/tls/handshake_test.go                   |    2 +
+ src/crypto/x509/verify_test.go                     |    4 +
+ src/crypto/x509/x509.go                            |   39 +-
+ src/crypto/x509/x509_test.go                       |   75 +-
+ src/debug/elf/elf.go                               |    2 +
+ src/debug/plan9obj/file.go                         |    6 +-
+ src/errors/wrap_test.go                            |   10 +
+ src/internal/poll/fd_windows.go                    |    4 +-
+ src/net/http/export_test.go                        |    7 +-
+ src/net/http/main_test.go                          |    2 +-
+ src/net/http/serve_test.go                         |   63 +-
+ src/net/http/server.go                             |   20 +-
+ src/net/http/transport.go                          |    2 +-
+ src/net/netip/netip.go                             |   22 +-
+ src/net/netip/netip_test.go                        |   41 +-
+ src/net/udpsock_test.go                            |   11 +
+ src/runtime/chan_test.go                           |    4 +
+ src/runtime/export_test.go                         |   10 +-
+ src/runtime/extern.go                              |    5 +
+ src/runtime/lockrank.go                            |   41 +-
+ src/runtime/mem_linux.go                           |   20 +
+ src/runtime/mgcpacer.go                            |   15 +-
+ src/runtime/mgcscavenge.go                         |  359 +-
+ src/runtime/mgcscavenge_test.go                    |   10 +-
+ src/runtime/mheap.go                               |   63 +-
+ src/runtime/mpagealloc.go                          |   28 +-
+ src/runtime/mstats.go                              |   16 +-
+ src/runtime/runtime1.go                            |    2 +
+ src/runtime/stack.go                               |    5 +-
+ src/runtime/traceback_test.go                      |   10 +
+ src/strings/strings.go                             |    3 +-
+ src/syscall/mkall.sh                               |    2 +-
+ src/time/example_test.go                           |   50 +
+ src/time/tick.go                                   |    6 +-
+ src/time/tick_test.go                              |   11 +
+ src/time/time.go                                   |   14 +-
+ src/time/time_test.go                              |   42 +
+ src/unicode/utf8/example_test.go                   |   10 +
+ src/unicode/utf8/utf8_test.go                      |    2 +-
+ test/fixedbugs/issue49378.go                       |   25 +
+ 90 files changed, 12919 insertions(+), 3317 deletions(-)

@@ -1,20 +1,25 @@
-commit 131267f1476d35c8daab4368aebd274b2f180fe4
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Tue May 23 12:35:48 2023 +0200
+commit f42dc0de74f83d39e5ca1af72fc5334c73bd41f9
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 20 16:17:51 2022 -0400
 
-    runtime/metrics: add /gc/scan/heap:bytes
+    runtime: make the lock rank DAG make more sense
     
-    For #56857
+    This groups, comments, and generally reorganizes the lock rank graph
+    description by subsystem. It also introduces several pseudo-nodes that
+    more cleanly describe the inherent layering of lock ranks by
+    subsystem.
     
-    Change-Id: If3b962f575c33b2cc29f89e33c7aafb476d98ce9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497575
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    I believe this doesn't actually change the graph, but haven't verified
+    this.
+    
+    For #53789.
+    
+    Change-Id: I72f332f5a23b8217c7dc1b21411631ad48cee4b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418718
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/metrics.go             | 6 ++++++
- src/runtime/metrics/description.go | 5 +++++
- src/runtime/metrics/doc.go         | 3 +++
- 3 files changed, 14 insertions(+)
+ src/runtime/lockrank.go   | 140 ++++++++++++++++++++-------------------
+ src/runtime/mklockrank.go | 165 +++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 214 insertions(+), 91 deletions(-)

@@ -1,17 +1,18 @@
-commit 925a4d93dcc958ee9250bcc213baa0fc7bd892ae
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Oct 13 14:59:10 2023 +0800
+commit 0bd4710ca61463716d1f88d33cc4f6e92b9b8255
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 9 15:28:44 2022 -0800
 
-    errors: add available godoc link
+    sync/atomic: hint users of old API to use new type-based API instead
     
-    Change-Id: Ie86493ebad3c3d7ea914754451985d7ee3e8e270
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535080
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Fixes #56495
+    
+    Change-Id: Ib2f39273da68e3056688306aa0d5e274b5507bf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449237
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/errors/errors.go | 6 +++---
- src/errors/wrap.go   | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/sync/atomic/doc.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 40 insertions(+), 1 deletion(-)

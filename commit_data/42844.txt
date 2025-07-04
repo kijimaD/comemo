@@ -1,21 +1,18 @@
-commit 3e636ab9ad31040aff2d484237808907a776cec6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 14 13:29:07 2020 -0700
+commit 4045de378b766eba80151f15945a31be96d77a7c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 21 13:48:38 2019 -0500
 
-    net/mail: return error on empty address list
+    crypto/tls: clarify TLS 1.0/1.1 CertificateRequestInfo.SignatureSchemes
     
-    This restores the handling accidentally changed in CL 217377.
+    This CL should not change the logic at all, but it took me a while to
+    figure out why we use these specific SignatureSchemes, so reformulate
+    the comment.
     
-    Fixes #40803
-    For #36959
-    
-    Change-Id: If77fbc0c2a1dde4799f760affdfb8dde9bcaf458
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248598
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If519a58264209e6575417be07668e92ead0e772f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208225
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Jeremy Fishman <jfishman@cloudflare.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/net/mail/message.go      | 13 +++++++++----
- src/net/mail/message_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+), 4 deletions(-)
+ src/crypto/tls/handshake_client.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

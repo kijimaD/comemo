@@ -1,45 +1,26 @@
-commit b2116f748a7acd32facdbbdaf40117ed40564083
-Author: John Bampton <jbampton@gmail.com>
-Date:   Tue May 17 21:25:43 2022 +0000
+commit 18e0503724e64c3d55dbc705eb4f08be2fde1b32
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Aug 3 16:32:23 2021 -0400
 
-    all: fix spelling
+    [dev.typeparams] go/types: embedded type cannot be a (pointer to) a type parameter
     
-    Change-Id: Iee18987c495d1d4bde9da888d454eea8079d3ebc
-    GitHub-Last-Rev: ff5e01599ddf7deb3ab6ce190ba92eb02ae2cb15
-    GitHub-Pull-Request: golang/go#52949
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406915
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This is a port of CL 337353 to go/types, adjusted for the error API and
+    to comment out a test for MethodSet.
+    
+    Some nearby error messages that were using errorf rather than error were
+    also adjusted.
+    
+    Fixes #43621
+    
+    Change-Id: I28c9747e044ec7a2863f6890db69475fb8c29231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339651
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.19.html                                     | 2 +-
- src/cmd/asm/internal/asm/testdata/arm.s             | 2 +-
- src/cmd/cgo/out.go                                  | 2 +-
- src/cmd/compile/internal/pkginit/initAsanGlobals.go | 2 +-
- src/cmd/compile/internal/reflectdata/reflect.go     | 2 +-
- src/cmd/compile/internal/ssa/cse.go                 | 2 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules          | 2 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules        | 2 +-
- src/cmd/compile/internal/ssa/gen/LOONG64.rules      | 2 +-
- src/cmd/compile/internal/ssa/gen/MIPS.rules         | 2 +-
- src/cmd/compile/internal/ssa/gen/MIPS64.rules       | 2 +-
- src/cmd/compile/internal/ssa/poset.go               | 2 +-
- src/cmd/compile/internal/ssa/rewrite.go             | 2 +-
- src/cmd/compile/internal/types2/api_test.go         | 2 +-
- src/cmd/go/testdata/script/list_load_err.txt        | 2 +-
- src/cmd/link/internal/ld/data.go                    | 2 +-
- src/crypto/x509/x509_test.go                        | 4 ++--
- src/database/sql/fakedb_test.go                     | 2 +-
- src/go/types/api_test.go                            | 2 +-
- src/go/types/methodset_test.go                      | 2 +-
- src/image/gif/writer_test.go                        | 4 ++--
- src/net/http/httputil/reverseproxy.go               | 4 ++--
- src/net/http/transport_test.go                      | 2 +-
- src/net/netip/netip.go                              | 2 +-
- src/runtime/mem.go                                  | 2 +-
- src/runtime/mgclimit.go                             | 2 +-
- src/runtime/mprof.go                                | 2 +-
- src/runtime/symtab_test.go                          | 2 +-
- 28 files changed, 31 insertions(+), 31 deletions(-)
+ src/go/types/methodset_test.go                 | 12 +++++++-----
+ src/go/types/struct.go                         | 10 ++++++----
+ src/go/types/testdata/check/typeparams.go2     |  4 ++--
+ src/go/types/testdata/fixedbugs/issue39938.go2 |  4 ++--
+ 4 files changed, 17 insertions(+), 13 deletions(-)

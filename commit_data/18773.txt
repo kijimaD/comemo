@@ -1,13 +1,14 @@
-commit d957169cf841dcf120b1095abfdb9a8a3a7f55e1
+commit 30d60936d97423af0403f2d5395c604ac0ff3757
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Mar 6 01:19:16 2014 -0500
+Date:   Thu Mar 6 00:55:57 2014 -0500
 
-    api: add NetBSD/ARM EABI exceptions.
+    syscall: update NetBSD/ARM port to EABI.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=jsing
+    R=golang-codereviews, jsing
     CC=golang-codereviews
-    https://golang.org/cl/71940043
+    https://golang.org/cl/70720043
 
- api/except.txt | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/syscall/zsyscall_netbsd_arm.go |  2 +-
+ src/pkg/syscall/ztypes_netbsd_arm.go   | 29 +++++++++++++++++------------
+ 2 files changed, 18 insertions(+), 13 deletions(-)

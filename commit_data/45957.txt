@@ -1,20 +1,31 @@
-commit fd45e267c2f6ce7c6a88842e3ad94d3469223e42
+commit 63a6f08b39b8ccb0dbbd373572a04f1a089f3573
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 5 13:05:23 2021 -0700
+Date:   Tue Dec 1 01:31:29 2020 -0800
 
-    runtime: warn that KeepAlive is not an unsafe.Pointer workaround
+    [dev.regabi] cmd/compile: move setUnderlying to package types
     
-    Even experienced users occasionally mistake that runtime.KeepAlive can
-    be used as a workaround for following the unsafe.Pointer safety rules,
-    but it cannot. Add an explicit warning to this effect to dissuade
-    users from trying to use it as such.
+    Now that setUnderlying is decoupled from Nodes, it can be moved into
+    package types, where it really belongs.
     
-    Fixes #47562.
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+    mv setUnderlying SetUnderlying
+    mv SetUnderlying typex.go
+    mv typex.go cmd/compile/internal/types
+    '
     
-    Change-Id: I842e33a3e1c080933c6b1bd1b6318448adbf495c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340269
+    cd ../types
+    rf '
+    mv typex.go type.go
+    '
+    
+    Change-Id: I76e2d4d8a6df599f24a731c4d8e5774ec83a119c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274433
     Trust: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mfinal.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/iimport.go   |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 46 +-------------------------------
+ src/cmd/compile/internal/types/type.go   | 45 +++++++++++++++++++++++++++++++
+ 3 files changed, 47 insertions(+), 46 deletions(-)

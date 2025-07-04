@@ -1,23 +1,18 @@
-commit 5b509d993d3a3a212b4033815be8b7b439fac672
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Oct 12 15:49:59 2020 +0200
+commit 6aded2524cb77eeab907e64512c5f7c54b530756
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Mon Mar 23 04:53:40 2020 +0000
 
-    lib/time, time/tzdata: update tz data to 2020b
+    strings: narrow the search range of IndexByte in Index
     
-    Set ZFLAGS="-b fat" as the default was changed to '-b slim', see
-    http://mm.icann.org/pipermail/tz-announce/2020-October/000059.html
-    This will make sure that backwards-compatibibilty data is still emitted.
+    Same as https://golang.org/cl/224589.
     
-    Updates #22487
-    
-    Change-Id: I310a1b3a91e435673d1df41fbf8bb76abce1f94d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261363
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I6a9e2ea60bf6e1888a95bad0331c92079a7eff99
+    GitHub-Last-Rev: 81c13c0f5b2ee6ae7842a7b73799b7821f78be59
+    GitHub-Pull-Request: golang/go#38016
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224593
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- lib/time/update.bash       |     6 +-
- lib/time/zoneinfo.zip      |   Bin 782509 -> 783364 bytes
- src/time/tzdata/zipdata.go | 25139 ++++++++++++++++++++++---------------------
- 3 files changed, 12580 insertions(+), 12565 deletions(-)
+ src/strings/strings.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50306: a73506cff560c4d95ac604f4f76d58386ca29ed9
+# Index 50306: 85cbdda5a6d8525973580776c835e725452db898
 
 echo "🚀 Generating explanation for commit 50306..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 50306
-- **コミットハッシュ**: a73506cff560c4d95ac604f4f76d58386ca29ed9
-- **GitHub URL**: https://github.com/golang/go/commit/a73506cff560c4d95ac604f4f76d58386ca29ed9
+- **コミットハッシュ**: 85cbdda5a6d8525973580776c835e725452db898
+- **GitHub URL**: https://github.com/golang/go/commit/85cbdda5a6d8525973580776c835e725452db898
 
 ### 章構成
 

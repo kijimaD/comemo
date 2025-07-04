@@ -1,20 +1,21 @@
-commit b52783c1e9673793da85dc7a9fb433d033da2e10
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 2 13:50:10 2022 -0700
+commit 240df188d67edc3df498a77bf99d3152244c14ab
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Nov 3 15:29:43 2021 -0700
 
-    cmd/compile: abstract type type+value obtained from types2
+    cmd/compile: add extra test for the non-mono pass
     
-    In preparation for encoding it in a more efficient way.
+    Just add a test for another function that is not monomorphisable, which
+    comes from the Featherweight Go paper.
     
-    Change-Id: I299dd2befc3d07107a1b7b49225bbb9f2e48a343
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432896
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Updates #48018
+    
+    Change-Id: I664e3f48412b02678e32b50204dc4befae90374c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361262
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/expr.go     |  8 +---
- src/cmd/compile/internal/noder/irgen.go    | 16 +++++++
- src/cmd/compile/internal/noder/validate.go | 10 ++---
- src/cmd/compile/internal/noder/writer.go   | 68 +++++++++++++-----------------
- 4 files changed, 52 insertions(+), 50 deletions(-)
+ .../types2/testdata/fixedbugs/issue48018.go2         | 20 ++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue48018.go2       | 20 ++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

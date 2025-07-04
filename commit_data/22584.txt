@@ -1,25 +1,20 @@
-commit 05efc18c20ce8470e333f31f5117368ebf556bda
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 13 18:26:08 2015 -0500
+commit 41d58c3739e7a0e45542423519e0ebbdce27edda
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Tue Mar 24 16:42:34 2015 -0400
 
-    cmd/6g, etc: cleanup, moving code out of near-empty gg.go files
+    os/exec: post-process lsof output on Android.
     
-    Clear out gg.go files, and move things into consistent places between
-    the cmd/?g directories.
+    lsof is used to inspect the open file desciptors in exec_test.go.
+    In order to limit the output of lsof to the tested process, the tests use
+    lsof with the -p option, but the version of lsof in android seems to ignore
+    it. This change adds a post-processing step to filter out irrelevant entries.
     
-    Change-Id: I81e04180613b806e0bfbb88519e66111ce9f74a3
-    Reviewed-on: https://go-review.googlesource.com/9080
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes golang/go#10206.
+    
+    Change-Id: Ia789b8f5e1e9b95c7b55deac92d0d1fbf3ee74fb
+    Reviewed-on: https://go-review.googlesource.com/8025
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/6g/gg.go    | 24 ------------------------
- src/cmd/6g/ggen.go  |  2 ++
- src/cmd/6g/reg.go   |  2 ++
- src/cmd/7g/gg.go    | 28 ----------------------------
- src/cmd/7g/ggen.go  |  2 ++
- src/cmd/7g/reg.go   |  2 ++
- src/cmd/8g/gg.go    | 34 ----------------------------------
- src/cmd/8g/ggen.go  |  2 ++
- src/cmd/8g/gsubr.go |  7 +++++++
- src/cmd/8g/reg.go   |  2 ++
- 10 files changed, 19 insertions(+), 86 deletions(-)
+ src/os/exec/exec_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

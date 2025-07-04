@@ -1,25 +1,20 @@
-commit 4745604bcb90f8823f78b6e4f32e972615b6b89a
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Oct 30 09:02:44 2017 -0400
+commit c8e9fd5db0a7f30456b738e827521091acb41f95
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 11 14:36:16 2017 +0000
 
-    cmd/compile: intrinsify math.RoundToEven on s390x
+    Revert "Revert "cmd/compile: discard duplicate inline method bodies""
     
-    The new RoundToEven function can be implemented as a single FIDBR
-    instruction on s390x.
+    This reverts commit f612cd704a260cf362e5b6307b7ace4eb83f5f56.
     
-    name         old time/op  new time/op  delta
-    RoundToEven  5.32ns ± 1%  0.86ns ± 1%  -83.86%  (p=0.000 n=10+10)
+    Reason for revert: We thought the original change had broken the
+    linux/amd64 and linux/386 builders, but it turned out to be a problem
+    with the build infrastructure, not the change.
     
-    Change-Id: Iaf597e57a0d1085961701e3c75ff4f6f6dcebb5f
-    Reviewed-on: https://go-review.googlesource.com/74350
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Ic3318a63464fcba8d845ac04494115a7ba620364
+    Reviewed-on: https://go-review.googlesource.com/55050
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go        |  8 ++++++++
- src/cmd/compile/internal/gc/ssa.go             |  5 +++++
- src/cmd/compile/internal/ssa/gen/S390X.rules   | 11 ++++++-----
- src/cmd/compile/internal/ssa/gen/genericOps.go |  9 +++++----
- src/cmd/compile/internal/ssa/opGen.go          |  6 ++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 14 ++++++++++++++
- 6 files changed, 44 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

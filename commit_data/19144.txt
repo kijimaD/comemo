@@ -1,21 +1,18 @@
-commit 6f8b120869d5ee86adb163f317b14b1f1ee6d596
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 15 12:13:52 2014 -0700
+commit aeb37527d3795b9677295bb21c0bbb3af18d6f31
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 15 08:48:40 2014 -0700
 
-    cmd/ld: use TLS relocations on ELF systems in external linking mode
+    text/template: say more often that templates are safe for parallel execution
+    It was said already but apparently not enough times.
     
-    Fixes #7719.
+    Fixes #6985.
     
-    LGTM=iant
-    R=iant
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
     CC=golang-codereviews
-    https://golang.org/cl/87760050
+    https://golang.org/cl/86300043
 
- src/cmd/6l/asm.c   |  7 +++++++
- src/cmd/8l/asm.c   |  3 ++-
- src/cmd/ld/data.c  | 21 +++++++++++++++++++++
- src/cmd/ld/lib.c   |  1 +
- src/liblink/asm6.c | 33 ++++++++++-----------------------
- src/liblink/asm8.c | 38 ++++++++++----------------------------
- src/run.bash       |  1 +
- 7 files changed, 52 insertions(+), 52 deletions(-)
+ src/pkg/html/template/template.go | 2 ++
+ src/pkg/text/template/doc.go      | 2 +-
+ src/pkg/text/template/exec.go     | 2 ++
+ 3 files changed, 5 insertions(+), 1 deletion(-)

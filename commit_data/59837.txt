@@ -1,24 +1,16 @@
-commit 03ad694dcbe8d981d644c9878326bd086d056af0
-Author: limeidan <limeidan@loongson.cn>
-Date:   Fri Jun 13 11:48:44 2025 +0800
+commit dc164eade1efd819d54dabf121bec0386019421b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 30 14:16:25 2024 +0200
 
-    runtime: update skips for TestGdbBacktrace
+    os: remove ineffective else branch
     
-    We encountered a new type of "no such process" error on loong64, it's like this
-    "Couldn't get NT_PRSTATUS registers: No such process.", I checked the source code
-    of gdb, NT_PRSTATUS is not fixed, it may be another name, so I use regular
-    expression here to match possible cases.
-    
-    Updates #50838
-    Fixes #74389
-    
-    Change-Id: I3e3f7455b2dc6b8aa10c084f24f6a2a114790855
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/684195
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Change-Id: Ic9cf871d862aec54ab8f491b8bc8d2820aecc875
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582497
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/runtime-gdb_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/os/path_windows.go | 2 --
+ 1 file changed, 2 deletions(-)

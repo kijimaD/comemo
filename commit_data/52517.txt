@@ -1,17 +1,23 @@
-commit 6d2cac12dbbd0e2f349106f1e4990b2feb0dda40
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 3 18:41:54 2023 -0700
+commit a131fd1313e0056ad094d234c67648409d081b8c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu May 5 11:29:14 2022 -0500
 
-    math/rand: clarify Seed deprecation note
+    crypto/aes: enable asm block ciphers for ppc64
     
-    Fixes #59331
+    This does not enable GCM or CBC variants for ppc64, they
+    require more work to support bi-endian.
     
-    Change-Id: I62156be2f2758c59349c3b02db6cf9140429c9e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481915
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Updates #18499
+    
+    Change-Id: Ic2bbe81c60107abc0a4803d8b9a833213286b1d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
 
- src/math/rand/rand.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ src/crypto/aes/{asm_ppc64le.s => asm_ppc64x.s} | 27 ++++++++++++++++++++++++++
+ src/crypto/aes/cipher_asm.go                   |  4 ++--
+ src/crypto/aes/cipher_generic.go               |  2 +-
+ 3 files changed, 30 insertions(+), 3 deletions(-)

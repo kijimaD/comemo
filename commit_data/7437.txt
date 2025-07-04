@@ -1,15 +1,18 @@
-commit bbfad5f1cc5b8480ac41a3df7c98b5267c1a3327
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Fri Feb 11 12:39:18 2011 -0500
+commit 4ee90b764e4e652b10f629810bf6a78d346f4200
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 11 08:34:19 2011 -0500
 
-    bytes: fix bugs in buffer.ReadBytes
+    crypto/openpgp: minor updates to subpackages
     
-    Fixes #1498.
+    Now that packet/ is checked in, we can add its Makefile. Also, a couple
+    of updates to error/ and s2k/ for bugfixes and to use the new crypto
+    package.
     
-    R=golang-dev, mattn, r, rsc
+    R=bradfitzgo
     CC=golang-dev
-    https://golang.org/cl/4140041
+    https://golang.org/cl/4179043
 
- src/pkg/bytes/buffer.go      |  3 ++-
- src/pkg/bytes/buffer_test.go | 35 +++++++++++++++++++++++------------
- 2 files changed, 25 insertions(+), 13 deletions(-)
+ src/pkg/crypto/openpgp/error/error.go  | 18 ++++++++++
+ src/pkg/crypto/openpgp/packet/Makefile | 22 ++++++++++++
+ src/pkg/crypto/openpgp/s2k/s2k.go      | 66 ++++++++++++++++++++--------------
+ 3 files changed, 80 insertions(+), 26 deletions(-)

@@ -1,31 +1,19 @@
-commit 301149b9e4f9e1256e80e76b0d8f6beace103731
-Author: David Lazar <lazard@golang.org>
-Date:   Fri Feb 17 16:20:52 2017 -0500
+commit 7448eb4172bfc8f704b9ea39d77d0113a042b9dc
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Nov 1 00:44:48 2016 -0700
 
-    cmd/internal/obj: avoid duplicate file name symbols
+    net/http: don't wrap request cancellation errors in timeouts
     
-    The meaning of Version=1 was overloaded: it was reserved for file name
-    symbols (to avoid conflicts with non-file name symbols), but was also
-    used to mean "give me a fresh version number for this symbol."
+    Based on Filippo Valsorda's https://golang.org/cl/24230
     
-    With the new inlining tree, the same file name symbol can appear in
-    multiple entries, but each one would become a distinct symbol with its
-    own version number.
+    Fixes #16094
     
-    Now, we avoid duplicating symbols by using Version=0 for file name
-    symbols and we avoid conflicts with other symbols by prefixing the
-    symbol name with "gofile..".
-    
-    Change-Id: I8d0374053b8cdb6a9ca7fb71871b69b4dd369a9c
-    Reviewed-on: https://go-review.googlesource.com/37234
-    Run-TryBot: David Lazar <lazard@golang.org>
+    Change-Id: Ie39b0834e220f0a0f4fbfb3bbb271e70837718c3
+    Reviewed-on: https://go-review.googlesource.com/32478
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/line.go      | 6 ++++--
- src/cmd/internal/obj/line_test.go | 2 +-
- src/cmd/internal/obj/link.go      | 6 ------
- src/cmd/internal/obj/sym.go       | 2 +-
- src/cmd/link/internal/ld/pcln.go  | 3 ++-
- 5 files changed, 8 insertions(+), 11 deletions(-)
+ src/net/http/client.go      | 34 +++++++++++--------------
+ src/net/http/client_test.go | 61 ++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 63 insertions(+), 32 deletions(-)

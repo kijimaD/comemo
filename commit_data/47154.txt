@@ -1,59 +1,41 @@
-commit a59e33224e42d60a97fa720a45e1b74eb6aaa3d0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Aug 2 14:55:51 2021 -0700
+commit a429926159232f2e127d46698633ffce5896ae30
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 27 09:41:19 2021 -0800
 
-    net/netip: add new IP address package
+    cmd/compile: fix escape analysis of heap-allocated results
     
-    Co-authored-by: Alex Willmer <alex@moreati.org.uk> (GitHub @moreati)
-    Co-authored-by: Alexander Yastrebov <yastrebov.alex@gmail.com>
-    Co-authored-by: David Anderson <dave@natulte.net> (Tailscale CLA)
-    Co-authored-by: David Crawshaw <crawshaw@tailscale.com> (Tailscale CLA)
-    Co-authored-by: Dmytro Shynkevych <dmytro@tailscale.com> (Tailscale CLA)
-    Co-authored-by: Elias Naur <mail@eliasnaur.com>
-    Co-authored-by: Joe Tsai <joetsai@digital-static.net> (Tailscale CLA)
-    Co-authored-by: Jonathan Yu <jawnsy@cpan.org> (GitHub @jawnsy)
-    Co-authored-by: Josh Bleecher Snyder <josharian@gmail.com> (Tailscale CLA)
-    Co-authored-by: Maisem Ali <maisem@tailscale.com> (Tailscale CLA)
-    Co-authored-by: Manuel Mendez (Go AUTHORS mmendez534@...)
-    Co-authored-by: Matt Layher <mdlayher@gmail.com>
-    Co-authored-by: Noah Treuhaft <noah.treuhaft@gmail.com> (GitHub @nwt)
-    Co-authored-by: Stefan Majer <stefan.majer@gmail.com>
-    Co-authored-by: Terin Stock <terinjokes@gmail.com> (Cloudflare CLA)
-    Co-authored-by: Tobias Klauser <tklauser@distanz.ch>
+    One of escape analysis's responsibilities is to summarize whether/how
+    each function parameter flows to the heap so we can correctly
+    incorporate those flows into callers' escape analysis data flow
+    graphs.
     
-    Fixes #46518
+    As an optimization, we separately record when parameters flow to
+    result parameters, so that we can more precisely analyze parameter
+    flows based on how the results are used at the call site. However, if
+    a named result parameter itself needs to be heap allocated, this
+    optimization isn't safe and the parameter needs to be recorded as
+    flowing to heap rather than flowing to result.
     
-    Change-Id: I0041f9e1115d61fa6e95fcf32b01d9faee708712
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/339309
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Escape analysis used to get this correct because it conservatively
+    rewalked the data-flow graph multiple times. So even though it would
+    incorrectly record the result parameter flow, it would separately find
+    a flow to the heap. However, CL 196811 (specifically, case 3)
+    optimized the walking logic to reduce unnecessary rewalks causing us
+    to stop finding the extra heap flow.
+    
+    This CL fixes the issue by correcting location.leakTo to be sensitive
+    to sink.escapes and not record result-flows when the result parameter
+    escapes to the heap.
+    
+    Fixes #44614.
+    
+    Change-Id: I48742ed35a6cab591094e2d23a439e205bd65c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297289
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/bytes/bytes.go                   |    2 +-
- src/crypto/x509/root_darwin.go       |    4 +-
- src/go/build/deps_test.go            |   16 +-
- src/internal/fuzz/fuzz.go            |    9 +-
- src/internal/godebug/godebug.go      |   34 +
- src/internal/godebug/godebug_test.go |   34 +
- src/internal/intern/intern.go        |  178 ++++
- src/internal/intern/intern_test.go   |  199 ++++
- src/net/conf.go                      |    3 +-
- src/net/http/server.go               |    4 +-
- src/net/http/transport.go            |    4 +-
- src/net/lookup.go                    |   23 +
- src/net/netip/export_test.go         |   30 +
- src/net/netip/inlining_test.go       |  110 +++
- src/net/netip/leaf_alts.go           |   43 +
- src/net/netip/netip.go               | 1414 ++++++++++++++++++++++++++
- src/net/netip/netip_pkg_test.go      |  359 +++++++
- src/net/netip/netip_test.go          | 1798 ++++++++++++++++++++++++++++++++++
- src/net/netip/slow_test.go           |  190 ++++
- src/net/netip/uint128.go             |   92 ++
- src/net/netip/uint128_test.go        |   89 ++
- src/net/parse.go                     |   23 -
- src/net/parse_test.go                |   27 -
- src/net/tcpsock.go                   |   15 +
- src/net/udpsock.go                   |   60 ++
- src/strings/compare.go               |    2 +-
- 26 files changed, 4694 insertions(+), 68 deletions(-)
+ src/cmd/compile/internal/escape/escape.go |  7 ++++---
+ test/escape5.go                           | 11 +++++++++++
+ 2 files changed, 15 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit 985d600f3aa8654b854f8b2c822552c052ed3d30
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jun 6 12:59:04 2025 -0700
+
+    runtime: use small struct TestSynctest to ensure cleanups run
+    
+    Finalizers and cleanup funcs weren't running on the windows-arm64
+    builder. Put finalizers/cleanups on a small struct containing a pointer
+    rather than an *int, which fixes the problem.
+    
+    Also uncomment a synctest.Wait that was accidentally commented out.
+    
+    Fixes #73977
+    
+    Change-Id: Ia6f18d74d6fccf2c5a9222317977c7458d67f158
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/679696
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/testdata/testsynctest/main.go | 34 ++++++++++++++++++-------------
+ 1 file changed, 20 insertions(+), 14 deletions(-)

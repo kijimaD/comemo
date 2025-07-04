@@ -1,42 +1,29 @@
-commit 4c5130a96eabd5d9a72a43aa8e895b668fbd653b
-Author: Austin Clements <austin@google.com>
-Date:   Tue Sep 5 16:10:02 2023 -0400
+commit 881a16542e357fd85ac492424021ff380175675a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Oct 5 12:54:00 2022 -0400
 
-    runtime: ignore SPWrite on innermost traceback frame
+    cmd/go/internal/modindex: ignore non-source files for index
     
-    Prior to CL 458218, gentraceback ignored the SPWrite function flag on
-    the innermost frame when doing a precise traceback on the assumption
-    that precise tracebacks could only be started from the morestack
-    prologue, and that meant that the innermost function could not have
-    modified SP yet.
+    We were saving non-go file information in the module index files,
+    leading in an unnecessary increase in memory usage in modules
+    containing many non-go files. This was a bug because this information
+    is never used. Don't save that information.
     
-    CL 458218 rearranged this logic a bit and unintentionally lost this
-    particular case. As a result, if traceback starts in an assembly
-    function that modifies SP (either as a result of stack growth or stack
-    scanning during a GC preemption), traceback stop at the SPWrite
-    function and then crash with "traceback did not unwind completely".
+    For #54226
     
-    Fix this by restoring the earlier special case for when the innermost
-    frame is SPWrite.
-    
-    This is a fairly minimal change that should be easy to backport. I
-    think a more robust change would be to encode this per-PC in the
-    spdelta table, so it would be clear that we're unwinding from the
-    morestack prologue and wouldn't rely on a complicated and potentially
-    fragile set of conditions.
-    
-    Fixes #62326.
-    
-    Change-Id: I34f38157631890d33a79d0bd32e32c0fcc2574e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525835
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I0644064f83f96e3a9f43b7e66ca94d69d9603376
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439118
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/import_test.go     |  6 +++++-
- src/runtime/test_amd64.go      |  7 +++++++
- src/runtime/test_amd64.s       |  7 +++++++
- src/runtime/test_stubs.go      |  9 +++++++++
- src/runtime/traceback.go       | 44 ++++++++++++++++++++++++++----------------
- src/runtime/tracebackx_test.go | 18 +++++++++++++++++
- 6 files changed, 73 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/modindex/build.go                   |  7 ++++++-
+ src/cmd/go/internal/modindex/index_test.go              | 17 +++++++++++++++++
+ src/cmd/go/internal/modindex/scan.go                    |  5 ++++-
+ .../internal/modindex/testdata/ignore_non_source/a.syso |  1 +
+ .../internal/modindex/testdata/ignore_non_source/b.go   |  0
+ .../modindex/testdata/ignore_non_source/bar.json        |  0
+ .../modindex/testdata/ignore_non_source/baz.log         |  0
+ .../go/internal/modindex/testdata/ignore_non_source/c.c |  0
+ 8 files changed, 28 insertions(+), 2 deletions(-)

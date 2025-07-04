@@ -1,18 +1,16 @@
-commit d1dbfe582748fd081ab1093564534bbda9a8b3bd
-Author: Dmitry Chestnykh <dchest@gmail.com>
-Date:   Mon Jun 27 09:16:42 2011 -0400
+commit da19831c176e93e53f5037689066a4e7803ffb58
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sun Jun 26 11:24:28 2011 +1000
 
-    crypto: replace "crypto/block" with "crypto/cipher" in comments
+    gofix: fixes for path/filepath changes
     
-    Documentation mentioned the obsolete package "crypto/block",
-    which has been replaced with "crypto/cipher".
+    Fixes #1970.
     
-    R=golang-dev, agl
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4654064
+    https://golang.org/cl/4650050
 
- src/pkg/crypto/aes/cipher.go      | 4 ++--
- src/pkg/crypto/blowfish/cipher.go | 4 ++--
- src/pkg/crypto/twofish/twofish.go | 2 +-
- src/pkg/crypto/xtea/cipher.go     | 4 ++--
- 4 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/gofix/Makefile         |  1 +
+ src/cmd/gofix/filepath.go      | 53 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/filepath_test.go | 33 ++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+)

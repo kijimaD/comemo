@@ -1,18 +1,15 @@
-commit 0582b7958e2acd9e47495f0f2ad9bef02afe50fe
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Thu Sep 29 20:29:41 2022 +0800
+commit 7ca772a5bc5d7f2a391f7f2a0febc54d84acb9d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 4 16:00:34 2021 -0700
 
-    cmd/cover: remove unnecessary fmt.Sprintf
+    cmd/compile/internal/types2: make object test an external test
     
-    Change-Id: I892f17a8a6464d53dbf330a41439a81cb8873262
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436654
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I15c969a799404067f34f600da15b1a97d4857315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361409
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/cover/cover.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/object_test.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

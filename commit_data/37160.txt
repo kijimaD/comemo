@@ -1,25 +1,23 @@
-commit 2e9f0817f070a3979afc580c740670690acab672
+commit e2f8766c30881fbbd97e1e039f5ecc38104f907f
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 24 15:49:32 2018 -0700
+Date:   Tue Jul 3 22:10:58 2018 -0700
 
-    cmd/compile: add -lang flag to specify language version
+    cmd/cgo: mark C result as written for msan
     
-    The default language version is the current one.
+    Otherwise it is possible that msan will consider the C result to be
+    partially initialized, which may cause msan to think that the Go stack
+    is partially uninitialized. The compiler will never mark the stack as
+    initialized, so without this CL it is possible for stack addresses to
+    be passed to msanread, which will cause a false positive error from msan.
     
-    For testing purposes, added a check that type aliases require version
-    go1.9. There is no consistent support for changes made before 1.12.
+    Fixes #26209
     
-    Updates #28221
-    
-    Change-Id: Ia1ef63fff911d5fd29ef79d5fa4e20cfd945feb7
-    Reviewed-on: https://go-review.googlesource.com/c/144340
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I43a502beefd626eb810ffd8753e269a55dff8248
+    Reviewed-on: https://go-review.googlesource.com/122196
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/doc.go                   |  3 ++
- src/cmd/compile/internal/gc/lang_test.go | 59 +++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/main.go      | 68 ++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/noder.go     |  7 +++-
- src/go/build/build.go                    |  2 +
- 5 files changed, 137 insertions(+), 2 deletions(-)
+ misc/cgo/testsanitizers/msan_test.go |  1 +
+ misc/cgo/testsanitizers/src/msan6.go | 72 ++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/main.go                  |  3 ++
+ src/cmd/cgo/out.go                   | 32 ++++++++++++++++
+ 4 files changed, 108 insertions(+)

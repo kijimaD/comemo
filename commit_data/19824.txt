@@ -1,12 +1,15 @@
-commit 42d0785bbdfa91102b57359721b60fdf8b87ab63
-Author: Asim Shankar <asimshankar@gmail.com>
-Date:   Mon Jul 28 14:46:34 2014 -0700
+commit 20a5de9eb6e363d22a7594146cf9b2d634ff24a0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Jul 26 17:46:51 2014 -0400
 
-    crypto/tls: Support ECDSA keys in generate_cert.go
+    liblink: warn about TLS base MRC instruction that does not write into R0.
     
-    R=golang-codereviews, bradfitz, agl
+    While we're here, make it lookup the tlsfallback symbol only once.
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw, dave
     CC=golang-codereviews
-    https://golang.org/cl/117180043
+    https://golang.org/cl/107430044
 
- src/pkg/crypto/tls/generate_cert.go | 62 ++++++++++++++++++++++++++++++++-----
- 1 file changed, 54 insertions(+), 8 deletions(-)
+ src/liblink/obj5.c | 34 +++++++++++++++++++++-------------
+ 1 file changed, 21 insertions(+), 13 deletions(-)

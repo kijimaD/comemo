@@ -1,24 +1,18 @@
-commit 9903ab546938639c93a616c00b80cd94683e2779
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Mon Aug 8 16:48:55 2022 +0000
+commit a53e3d5f885ca7a0df1cd6cf65faa5b63a802dce
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Aug 6 10:33:08 2021 -0700
 
-    encoding/binary: ReadUvarint return io.ErrUnexpectedEOF when read at least 1 byte
+    net: deprecate (net.Error).Temporary
     
-    Fixes #54139
+    Fixes #45729.
     
-    Change-Id: Ifc73bd7f181b13970ee6a08968f9d8f6e55d7ff3
-    GitHub-Last-Rev: 1e0a79bd3eb3e4dfcbfd7e9f94e849b3248ffac1
-    GitHub-Pull-Request: golang/go#54143
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420274
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I819dd0cc79fc23baac46cafd78bb80f5133c992b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340261
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/binary/varint.go      | 9 +++++++++
- src/encoding/binary/varint_test.go | 6 +++++-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/net/net.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

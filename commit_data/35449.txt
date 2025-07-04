@@ -1,16 +1,22 @@
-commit faa69b906f59bfbe53c079f284fa452e82426c57
-Author: dchenk <dcherchenko@gmail.com>
-Date:   Mon May 21 21:36:53 2018 -0700
+commit 70a04f6880a2082a76f6282361b607f859db950f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 13 16:37:51 2018 -0800
 
-    encoding/base32: remove redundant conditional
+    go/types: make gotype continue after syntax errors
     
-    Immediately following the conditional block removed here is a loop
-    which checks exactly what the conditional already checked, so the
-    entire conditional is redundant.
+    This avoids odd behavior where sometimes a lot of useful
+    errors are not reported simply because of a small syntax
+    error.
     
-    Change-Id: I892fd9f2364d87e2c1cacb0407531daec6643183
-    Reviewed-on: https://go-review.googlesource.com/114000
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Tested manually with non-existing files. (We cannot easily
+    add an automatic test because this is a stand-alone binary
+    in this directory that must be built manually.)
+    
+    Fixes #23593.
+    
+    Change-Id: Iff90f95413bed7d1023fa0a5c9eb0414144428a9
+    Reviewed-on: https://go-review.googlesource.com/93815
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/encoding/base32/base32.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/go/types/gotype.go | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)

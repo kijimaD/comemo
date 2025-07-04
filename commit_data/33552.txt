@@ -1,18 +1,14 @@
-commit 466e299d6b6f98e86a5284afab1e6068867de66b
-Author: OneOfOne <oneofone@gmail.com>
-Date:   Sat Jul 8 20:19:25 2017 +0200
+commit 6cbe5c8ac342ad3d8f907caf105feaa55cb0404b
+Author: Michael Brandenburg <mbrandenburg@bolste.com>
+Date:   Wed Jul 26 20:25:37 2017 -0700
 
-    net/url: allow *User functions to work on a nil receiver.
+    bytes: add examples for TrimLeft and TrimRight
     
-    Fixes #20924
-    
-    Change-Id: If89f31da63cbea38d7e615a428b7b07629770a45
-    Reviewed-on: https://go-review.googlesource.com/47851
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib6d94f185dd43568cf97ef267dd51a09f43a402f
+    Reviewed-on: https://go-review.googlesource.com/51391
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tim Cooper <tim.cooper@layeh.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/url/url.go      |  9 +++++++++
- src/net/url/url_test.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+)
+ src/bytes/example_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

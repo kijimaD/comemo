@@ -1,34 +1,14 @@
-commit 982060203c26b60fd74e4fa2fd967600c65ee7fc
-Author: Katie Hockman <katie@golang.org>
-Date:   Fri Oct 15 11:16:54 2021 -0400
+commit 8960ce773549007f80e6ebd7a9f6c642308087b9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 18 09:12:19 2021 -0800
 
-    testing: don't allow f.Log/Logf or f.Skipped inside f.Fuzz
+    [dev.typeparams] cmd/compile/internal/types2: minor adjustments to match go/types more closely
     
-    This change also does some refactors around how
-    we prevent many (*F) methods from being called
-    inside (*F).Fuzz. Previously, there was a lot of
-    comment/code duplication, which was going to be
-    difficult to maintain and brittle. The refactor
-    lessens this duplication.
-    
-    Previously, the methods Log, Logf, Failed, Name and
-    Skipped were the only (*common) methods that were
-    allowed to be called inside (*F).Fuzz. After this
-    change, Failed and Name are still allowed, but
-    Log, Logf, and Skipped are not (t.Log, t.Logf, or
-    t.Skipped should be used instead).
-    
-    Fixes #48988
-    
-    Change-Id: I4066247d551ea1908e8a2ca2889509fc68e3bb44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356151
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ib0144e0dd33e9202037e461a85f72f5db08ebd3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293631
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/testdata/script/test_fuzz.txt |  39 ++++++++
- src/testing/fuzz.go                      | 147 +++++--------------------------
- src/testing/testing.go                   |  28 +++++-
- 3 files changed, 87 insertions(+), 127 deletions(-)
+ src/cmd/compile/internal/types2/call.go    | 9 ++++-----
+ src/cmd/compile/internal/types2/typexpr.go | 2 --
+ 2 files changed, 4 insertions(+), 7 deletions(-)

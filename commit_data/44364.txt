@@ -1,17 +1,21 @@
-commit c7f596f919d779dc01a60f876cbd9d8cc2cd70b2
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Nov 21 15:27:00 2020 +0800
+commit 8b98498a5833111402a2fe8f13a6605e071994b6
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jun 11 13:30:23 2020 -0700
 
-    cmd/go: resolve TODO by replacing InDir() function
+    net/http: make Transport.RoundTrip preserve Requests
     
-    Change-Id: Idf886bbc4e66c9ee2a41c90034075301e0a21a58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271909
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Jay Conrod <jayconrod@google.com>
+    Ensure that the exact Request passed to Transport.RoundTrip
+    is returned in the Response. Do not replace the Request with
+    a copy when resetting the request body.
+    
+    Fixes #39533
+    
+    Change-Id: Ie6fb080c24b0f6625b0761b7aa542af3d2411817
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237560
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/go/internal/search/search.go |  1 -
- src/cmd/go/internal/test/test.go     | 17 +++--------------
- 2 files changed, 3 insertions(+), 15 deletions(-)
+ src/net/http/transport.go      | 2 ++
+ src/net/http/transport_test.go | 6 +++++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

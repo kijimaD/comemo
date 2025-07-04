@@ -1,35 +1,22 @@
-commit 8542bd8938efc8bb1bc681f4a0603c9f392e70b0
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit 93285c89d1146e2698d2b8e5bf45279961f5026e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 16:52:25 2021 -0700
 
-    runtime: support vdso for linux/loong64
+    [dev.typeparams] cmd/compile/internal/types2: fix range over exprs of type parameter type
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    For range expressions of type parameter type, the structural type
+    of the type parameter's constraint determines the range operation.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    While at it, rename implicitArrayDeref to arrayPtrDeref.
     
-    Updates #46229
-    
-    Change-Id: Ie9bb5ccfc28e65036e2088c232bb333dcb259a60
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368076
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib631a8a14e717498e5264944f659309df1f68cc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339897
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/os_linux_novdso.go    |  2 +-
- src/runtime/vdso_elf64.go         |  2 +-
- src/runtime/vdso_in_none.go       |  2 +-
- src/runtime/vdso_linux.go         |  2 +-
- src/runtime/vdso_linux_loong64.go | 27 +++++++++++++++++++++++++++
- 5 files changed, 31 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/builtins.go        |   9 +-
+ src/cmd/compile/internal/types2/stmt.go            |  37 +-----
+ .../internal/types2/testdata/check/typeparams.go2  | 137 ++++++++++++++++-----
+ 3 files changed, 112 insertions(+), 71 deletions(-)

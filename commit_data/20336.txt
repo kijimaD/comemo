@@ -1,16 +1,16 @@
-commit 71de7e7539a9d139daee6f4467ce73995b37b5a0
+commit a8c5e87b1e5ef224a10440bff6b79b605570cd3c
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Sep 7 23:16:12 2014 -0400
+Date:   Mon Sep 1 19:42:22 2014 -0400
 
-    runtime: fix semacquire->acquireSudog->malloc->gogc->semacquire loop
+    runtime: fix Stack
     
-    This is what broke the build at
-    http://build.golang.org/log/d9c6d334be16cbab85e99fddc6b4ba034319bd4e
+    Fixes #8626.
     
-    LGTM=iant
-    R=golang-codereviews, iant
-    CC=dvyukov, golang-codereviews, khr, r
-    https://golang.org/cl/135580043
+    LGTM=bradfitz
+    R=golang-codereviews
+    CC=bradfitz, golang-codereviews, iant, r
+    https://golang.org/cl/137050043
 
- src/pkg/runtime/proc.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mprof.go      |  4 ++--
+ src/pkg/runtime/stack_test.go | 10 ++++++++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

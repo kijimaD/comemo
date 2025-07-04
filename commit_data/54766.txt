@@ -1,23 +1,20 @@
-commit 566d94fe691c7527d4124ee1f04b3c3a07d1302c
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Sep 27 10:42:37 2023 -0500
+commit 2b59307ac21135ab8db58e08fb98211fbedbb10d
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Fri Nov 11 18:34:18 2022 +0000
 
-    cmd/internal/obj/ppc64: refactor maskgen
+    Revert "runtime: delay incrementing freeindex in malloc"
     
-    Refactor maskgen into decodeMask32. This is derived from
-    from combining encodePPC64RotateMask and isWordRotateMask.
+    This reverts commit bed2b7cf41471e1521af5a83ae28bd643eb3e038.
     
-    Also, truncate me returned from decodeMask32/64 to
-    be within range of [0,32/64).
+    Reason for revert: I clicked submit by accident on the wrong CL.
     
-    Change-Id: Ie9efff93d400b3066ac85276b1ad3c57c2fcf31b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536298
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Iddf128cb62f289d472510eb30466e515068271b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449501
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |  3 ++
- src/cmd/internal/obj/ppc64/asm9.go        | 83 ++++++++++++-------------------
- 2 files changed, 36 insertions(+), 50 deletions(-)
+ src/runtime/malloc.go   | 40 +++++++++++++++++-----------------------
+ src/runtime/mbitmap.go  | 17 ++++-------------
+ src/runtime/mcentral.go |  1 +
+ 3 files changed, 22 insertions(+), 36 deletions(-)

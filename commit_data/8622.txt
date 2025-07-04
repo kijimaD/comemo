@@ -1,12 +1,16 @@
-commit 4c2123e534967f01b95ed164b137f2f2ab8e5890
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 6 10:11:41 2011 +1000
+commit eb72403bb6675b9bd5e9a94b9d8b0638c54a8c00
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 6 09:25:30 2011 +1000
 
-    go/build: fix windows build by commenting out references to stdout and stderr in cgotest
+    go/build: exclude cgo test from arm
+    go/build: include command output in error values
+    go/build: add syslist.go to .hgignore
     
-    R=golang-dev, r, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4561062
+    https://golang.org/cl/4550118
 
- src/pkg/go/build/cgotest/file.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ .hgignore                      | 1 +
+ src/pkg/go/build/build.go      | 6 +++++-
+ src/pkg/go/build/build_test.go | 5 +++++
+ 3 files changed, 11 insertions(+), 1 deletion(-)

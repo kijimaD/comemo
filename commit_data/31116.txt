@@ -1,18 +1,17 @@
-commit 9dbba36a979323357f7f0e68664b522c67c30ecf
+commit 99fb0dc1b17b5f203334b92d8af4761aff51b5c1
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 13 01:24:10 2017 +0000
+Date:   Wed Feb 1 21:23:03 2017 +0000
 
-    cmd/dist: don't compile unneeded GOARCH SSA rewrite rules during bootstrap
+    Revert "testing: delete unused stopAlarm()"
     
-    Speeds up build (the bootstrap phase) by ~6 seconds.
+    This reverts commit ed8c62b7fb47b717dc2adc9f6d0c90c924c67712.
     
-    Bootstrap goes from ~18 seconds to ~12 seconds.
+    Turns out it was needed in later commits.
     
-    Change-Id: I7e2ec8f5fc668bf6168d90098eaf70390b16e479
-    Reviewed-on: https://go-review.googlesource.com/40503
+    Change-Id: I07a7bc2429976d8a5a89f915a11625c118b85500
+    Reviewed-on: https://go-review.googlesource.com/36113
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/dist/buildtool.go | 68 ++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 65 insertions(+), 3 deletions(-)
+ src/testing/testing.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

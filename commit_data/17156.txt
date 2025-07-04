@@ -1,26 +1,14 @@
-commit db324ccd72c93d34effa24e6f1a2a12c0cd39f04
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 12 10:24:30 2013 -0700
+commit 8eb8ad245416f29c7f9848de288a0ece325d531b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Aug 12 13:03:50 2013 +1000
 
-    syscall: Convert textflags from numbers to symbols.
+    bufio: add Writer example
     
-    R=golang-dev, bradfitz
+    Update #5530
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12773043
+    https://golang.org/cl/12504044
 
- src/pkg/syscall/asm_darwin_386.s    | 12 +++++++-----
- src/pkg/syscall/asm_darwin_amd64.s  | 10 ++++++----
- src/pkg/syscall/asm_freebsd_386.s   | 12 +++++++-----
- src/pkg/syscall/asm_freebsd_amd64.s | 12 +++++++-----
- src/pkg/syscall/asm_freebsd_arm.s   | 12 +++++++-----
- src/pkg/syscall/asm_linux_386.s     | 16 +++++++++-------
- src/pkg/syscall/asm_linux_amd64.s   | 14 ++++++++------
- src/pkg/syscall/asm_linux_arm.s     | 12 +++++++-----
- src/pkg/syscall/asm_netbsd_386.s    | 12 +++++++-----
- src/pkg/syscall/asm_netbsd_amd64.s  | 12 +++++++-----
- src/pkg/syscall/asm_netbsd_arm.s    | 12 +++++++-----
- src/pkg/syscall/asm_openbsd_386.s   | 12 +++++++-----
- src/pkg/syscall/asm_openbsd_amd64.s | 12 +++++++-----
- src/pkg/syscall/asm_plan9_386.s     | 14 ++++++++------
- src/pkg/syscall/asm_plan9_amd64.s   | 14 ++++++++------
- 15 files changed, 109 insertions(+), 79 deletions(-)
+ src/pkg/bufio/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,18 +1,28 @@
-commit 360771e422ff0e586963e1dc0818c427b5444379
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Aug 29 12:09:34 2018 -0400
+commit 498c803c19caa94d9d37eb378deed786117bbeab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 2 16:42:58 2018 -0700
 
-    cmd/compile: don't clobber dead slots in runtime.wbBufFlush
+    cmd/go, go/build: add support for gccgo tooldir
     
-    runtime.wbBufFlush must not modify its arguments, because the
-    argument slots are also used as spill slots in runtime.gcWriteBarrier.
-    So, GOEXPERIMENT=clobberdead must not clobber them.
+    The gccgo toolchain does not put tools (cgo, vet, etc.) in
+    $GOROOT/pkg/tool, but instead in a directory available at
+    runtime.GCCGOTOOLDIR.
     
-    Updates #27326.
+    Update the go/build package and the cmd/go tool to use this tool
+    directory when using gccgo.
     
-    Change-Id: Id02bb22a45201eecee748d89e7bdb3df7e4940e4
-    Reviewed-on: https://go-review.googlesource.com/131957
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib827336ff53601208300aceb77f76c2e1b069859
+    Reviewed-on: https://go-review.googlesource.com/111097
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/plive.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/go/alldocs.go               |  3 +++
+ src/cmd/go/internal/cfg/cfg.go      | 18 +++++++++++++-----
+ src/cmd/go/internal/help/helpdoc.go |  3 +++
+ src/cmd/go/internal/load/pkg.go     |  6 +++++-
+ src/cmd/go/internal/tool/tool.go    | 16 ++++++++++++++++
+ src/go/build/build.go               |  2 +-
+ src/go/build/gc.go                  | 17 +++++++++++++++++
+ src/go/build/gccgo.go               | 14 ++++++++++++++
+ 8 files changed, 72 insertions(+), 7 deletions(-)

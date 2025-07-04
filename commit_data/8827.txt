@@ -1,16 +1,12 @@
-commit 88442358a98bca7c93eec12be221b2a0f26e8277
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Thu Jun 23 09:54:57 2011 +1000
+commit 36b5e1d6986d38aa47d9c8e3147b2dd488d22155
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 22 19:33:07 2011 -0400
 
-    net, syscall: interface for windows
+    io: clarify Read, ReadAt, Copy, Copyn EOF behavior
     
-    R=mikioh.mikioh, alex.brainman, rsc, vincent.vanackere
+    R=golang-dev, bradfitz, iant, dsymonds, nigeltao, r
     CC=golang-dev
-    https://golang.org/cl/4590050
+    https://golang.org/cl/4629062
 
- src/pkg/net/Makefile                    |   2 +-
- src/pkg/net/interface_windows.go        | 152 ++++++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_windows.go      |   3 +
- src/pkg/syscall/zsyscall_windows_386.go |  32 ++++++-
- src/pkg/syscall/ztypes_windows_386.go   |  93 +++++++++++++++++++
- 5 files changed, 280 insertions(+), 2 deletions(-)
+ src/pkg/io/io.go | 55 +++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 37 insertions(+), 18 deletions(-)

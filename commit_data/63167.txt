@@ -1,0 +1,20 @@
+commit 4d6f49f6035b1f62c960f4ef66f41ef554de9243
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 21 15:19:16 2025 -0400
+
+    cmd/doc: add more convenient behavior for go doc -http with no args
+    
+    If we're in a module, go to the module's page. Outside of a module, but
+    in a workspace go to the home page, and outside of a module or
+    workspace, show the stdlib docs.
+    
+    For #68106
+    
+    Change-Id: I911a90a0e2b0a2bbb622f56e32827d5bdfa7f2fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675235
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/doc/main.go | 28 ++++++++++++++++++----------
+ 1 file changed, 18 insertions(+), 10 deletions(-)

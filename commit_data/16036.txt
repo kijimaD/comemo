@@ -1,13 +1,18 @@
-commit 3467068ef42ddc477569a89f3789a80e8b00a887
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Mon Apr 1 14:21:15 2013 -0700
+commit df9f4f14b988c1a6dd0b5106ed1f3720c43fdd28
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Apr 1 21:01:50 2013 +0200
 
-    cmd/cc/cc.h: Add a #pragma for %S used (only) in cmd/cc/sub.c.
-    Eliminates a format consistency warning.
+    cmd/gc: do not reuse bool temporaries for composite equality.
     
-    R=gloang-dev, r
+    Reusing it when multiple comparisons occurred in the same
+    function call led to bad overwriting.
+    
+    Fixes #5162.
+    
+    R=golang-dev, daniel.morsing
     CC=golang-dev
-    https://golang.org/cl/8217043
+    https://golang.org/cl/8174047
 
- src/cmd/cc/cc.h | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/walk.c           | 18 +++++++---
+ test/fixedbugs/issue5162.go | 88 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 101 insertions(+), 5 deletions(-)

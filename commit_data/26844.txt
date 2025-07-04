@@ -1,19 +1,14 @@
-commit 7f53391f6b7f2387a5ed00398d34b046c321966f
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 11 12:22:26 2016 -0700
+commit 28ce6f3600fd87a1ae39c492ee56307f0be3c32f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Feb 28 19:32:29 2016 -0500
 
-    cmd/compile: fix -N build
+    time: document Tick will return nil if d <= 0
     
-    The decomposer of builtin types is confused by having structs
-    still around from the user-type decomposer.  They're all dead though,
-    so just enabling a deadcode pass fixes things.
+    Fixes #14557.
     
-    Change-Id: I2df6bc7e829be03eabfd24c8dda1bff96f3d7091
-    Reviewed-on: https://go-review.googlesource.com/21839
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9610b79aafe9c15f9c998739b586fd0b41b90d70
+    Reviewed-on: https://go-review.googlesource.com/20031
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/compile.go   | 6 +++---
- src/cmd/compile/internal/ssa/decompose.go | 2 +-
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/time/tick.go | 1 +
+ 1 file changed, 1 insertion(+)

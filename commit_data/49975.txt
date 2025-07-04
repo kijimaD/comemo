@@ -1,21 +1,14 @@
-commit 924f526277c4deecfeb3ff3b48095126d1bb520e
-Author: Abhinav Gupta <abg@uber.com>
-Date:   Fri Aug 12 09:20:40 2022 -0700
+commit 242d02dd5e9bddc3392237752abe7dfe1f9cb300
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 23 21:47:45 2021 -0700
 
-    time: fix LoadLocation documentation formatting
+    cmd/compile/internal/types2: assume generic code for std lib
     
-    The documentation for LoadLocation contains an enumerated list,
-    but does not render as such because it's missing leading spaces.
-    
-    Output verified with the go doc command and godoc server.
-    
-    Change-Id: I88b61d34048b7d01ee5cd77c32849af266e2f4c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423297
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib24890af8caa02af61358cadac6637574d62ff52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351792
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/time/zoneinfo.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/stdlib_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

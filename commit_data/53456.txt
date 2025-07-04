@@ -1,24 +1,18 @@
-commit 96d16803c2aae5407e99c2a1db79bb51d9e1c8da
+commit 9b988c9094df18a75537f5c4ae12449062550290
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Jun 3 08:33:51 2023 +0700
+Date:   Wed Aug 17 16:21:00 2022 +0700
 
-    cmd/compile: allow ir.OMIN/ir.OMAX in mayCall
+    runtime: convert windows netpollWakeSig to atomic type
     
-    CL 496257 adds min/max builtins, which may appear as argument to a
-    function call, so it will be tested by mayCall. But those ops are not
-    handled by mayCall, causes the compiler crashes.
+    Updates #53821
     
-    Fixes #60582
-    
-    Change-Id: I729f10bf62b4aad39ffcb1433f576e74d09fdd9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500575
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ifc5bc551a4bcf82bf10d2e670ad2644eb9c6b334
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423879
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/walk/walk.go |  2 +-
- test/fixedbugs/issue60582.go          | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/runtime/netpoll_windows.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

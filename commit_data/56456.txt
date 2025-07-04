@@ -1,15 +1,16 @@
-commit cc1479653db6f4fc9504773a74c139008e1a37f7
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun May 12 15:37:41 2024 +0200
+commit dc0179bfa887aa82ff2cc615d07e52e59e57d204
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Apr 24 14:19:20 2023 -0400
 
-    slices: fix punctuation in the documentation of Values
+    log/slog: test built-in handlers with slogtest
     
-    Change-Id: Idea4f92d511b5f18531758667cb0cb5ed6f91a0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584359
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Test the built-in handlers using the testing/slogtest package.
+    
+    Change-Id: I6464b6730293461c38b84fb2bf33cdd09173dd6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488255
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/slices/iter.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/log/slog/slogtest_test.go | 104 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 104 insertions(+)

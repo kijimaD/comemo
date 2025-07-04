@@ -1,17 +1,28 @@
-commit 16237b22a85b2b20bb7915d3c64a7a2e071623ea
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Mar 30 15:11:52 2020 -0400
+commit 2e2ef666b4d0bf0e86aaa3afbef7fc17f34232e6
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Oct 24 11:59:49 2019 -0400
 
-    cmd/objdump: test disassembly on ARM and ARM64
+    [dev.link] cmd/link/internal/loader: add PkgNone resolver cache
     
-    We support disassembly on both ARM and ARM64. Tests are only
-    enabled on one or the other. This CL enables both.
+    Add a cache for the loader.Loader.resolve() method to use when
+    looking mapping local PkgNone symbols to global symbol indices.
+    This helps avoid repeated map lookups during deadcode and other
+    early phases of the linker when we haven't fully read in all
+    of object file symbols. Benchstat numbers:
     
-    Change-Id: If89d78b975c241c2b14f72b714dcdc771b4b382c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226459
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    name                      old time/op       new time/op       delta
+    LinkCompiler                    1.97s ±13%        1.67s ± 8%  -15.34%  (p=0.000 n=20+20)
+    LinkWithoutDebugCompiler        1.48s ±12%        1.21s ±11%  -18.14%  (p=0.000 n=20+20)
+    
+    name                      old user-time/op  new user-time/op  delta
+    LinkCompiler                    2.19s ± 9%        2.04s ±17%   -6.98%  (p=0.002 n=19+20)
+    LinkWithoutDebugCompiler        1.29s ±13%        1.20s ±13%   -7.70%  (p=0.000 n=20+20)
+    
+    Change-Id: I4b0b05c8208ee44ee9405b24774b84443e486831
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203197
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/objdump/objdump_test.go | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)

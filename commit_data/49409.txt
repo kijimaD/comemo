@@ -1,17 +1,19 @@
-commit 95b68e1e02fa713719f02f6c59fb1532bd05e824
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jun 4 14:46:42 2022 -0400
+commit a8d39f151d10209bca94c7533786dcc9c55c9517
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun May 16 00:08:42 2021 +0700
 
-    doc/go1.19: delete boringcrypto TODO
+    src: simplify race.bash checking condition
     
-    Boringcrypto has never been officially supported and it remains unsupported.
-    It need not be mentioned in the release notes.
+    By using "uname -s -m" to get the OS name and hardware name,
+    then using it to match supported platform in case command.
     
-    Change-Id: I24a08d424982615244d51c1d250035d85a602023
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410362
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I5161a29c6f3fe34dcda9e7bd477fa3b772b9e041
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320250
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.19.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/race.bash | 39 ++++++++++-----------------------------
+ 1 file changed, 10 insertions(+), 29 deletions(-)

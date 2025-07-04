@@ -1,22 +1,20 @@
-commit 982322769c1ca0e038d21a7028359c363acb7b8e
-Author: David Chase <drchase@google.com>
-Date:   Fri Mar 18 13:35:34 2016 -0400
+commit 9270973a5b5ac58a090166993893a3f104615e79
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 18 09:01:48 2016 -0800
 
-    cmd/dist: redo flag-passing for bootstrap
+    runtime: don't run TestEnsureDropM on windows or plan9
     
-    This ought to revert the bad effects of
-    https://go-review.googlesource.com/#/c/20775/
-    If you don't pass BOOT_GO_GCFLAGS, you get the
-    old behavior.
+    This is testing code in asm_GOARCH.s, so it's not necessary to run the
+    test on systems where it doesn't build.
     
-    Tweaked to allow multiple space-separated flags in
-    BOOT_GO_GCFLAGS.
+    Fixes #13991.
     
-    Change-Id: I2a22a04211b4535d1c5a8ec7a8a78cb051161c31
-    Reviewed-on: https://go-review.googlesource.com/20871
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia7a2d3a34b32e6987dc67428c1e09e63baf0518a
+    Reviewed-on: https://go-review.googlesource.com/18707
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/build.go | 4 ++--
- src/make.bash         | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/crash_cgo_test.go             | 4 ++++
+ src/runtime/testdata/testprogcgo/dropm.go | 2 ++
+ 2 files changed, 6 insertions(+)

@@ -1,21 +1,20 @@
-commit c6a11f0dd279f374602794af60c7cde4585a1e6f
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 11 13:04:48 2020 -0700
+commit 60f11c44c02ff815e02d1e59839c6c0bf3f6605e
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Feb 5 11:09:34 2020 -0800
 
-    crypto,internal/bytealg: fix assembly that clobbers BP
+    doc/go1.14: document http.ServeFile large file fix for Windows
     
-    BP should be callee-save. It will be saved automatically if
-    there is a nonzero frame size. Otherwise, we need to avoid this register.
+    Document that for Windows, net/http.ServeFile can now
+    correctly serve files >2GB after we fixed internal/poll.SendFile
+    to transmit files larger than the default Windows limit of 2GB.
     
-    Change-Id: If3f551efa42d830c8793d9f0183cb8daad7a2ab5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248260
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    References: CL 192518, CL 194218
+    
+    Updates #36878
+    
+    Change-Id: Ibefc8b2841bc0cee3a89884a680085f99d2b6928
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217779
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/elliptic/p256_asm_amd64.s |  5 ++--
- src/crypto/md5/md5block_amd64.s      |  2 +-
- src/internal/bytealg/index_amd64.s   | 52 ++++++++++++++++++------------------
- src/runtime/sys_linux_amd64.s        |  8 +++---
- 4 files changed, 33 insertions(+), 34 deletions(-)
+ doc/go1.14.html | 5 +++++
+ 1 file changed, 5 insertions(+)

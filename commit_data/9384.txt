@@ -1,15 +1,13 @@
-commit 182cf988e95938e62d67f841d72b2abb73da5d0c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 16 15:19:23 2011 -0700
+commit 9801c8e886441460027c5b9a69382f26f3a86b4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 16 18:15:36 2011 -0400
 
-    go/parser: use correct precedence when parsing range clauses
+    A+C: Aleksandar Dezelin (individual CLA)
     
-    Fixes #2156.
-    
-    R=rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4899046
+    https://golang.org/cl/4901047
 
- src/pkg/go/parser/parser.go      | 25 +++++++++++--------------
- src/pkg/go/parser/parser_test.go |  1 +
- 2 files changed, 12 insertions(+), 14 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

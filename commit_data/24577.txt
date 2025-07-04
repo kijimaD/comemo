@@ -1,21 +1,16 @@
-commit cf59c1f9ccac9a9078d783061c7715f4d6b7e5e2
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Tue Oct 20 09:02:28 2015 -0700
+commit cd0cb0a9d6e7c5594e2870239290ff5704de0ef3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 6 09:34:54 2015 -0700
 
-    html/template: include itself while cloning
+    [dev.ssa] cmd/compile: tidy up register setup
     
-    template.Clone() initialized template set incorrectly:
-    it didn't include itself.
+    No functional changes.
+    The intent is just to make this
+    easier to read and maintain.
     
-    * include itself in template set while cloning
-    * add a test
-    
-    Fixes #12996
-    
-    Change-Id: I932530e4f7f1bbebf833e12b000a5ce052bc9223
-    Reviewed-on: https://go-review.googlesource.com/16104
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Iec207546482cd62bcb22eaae8efe5be6c4f15378
+    Reviewed-on: https://go-review.googlesource.com/13284
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/html/template/template.go      |  1 +
- src/html/template/template_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 57 ++++++++++++++++++----------
+ 1 file changed, 36 insertions(+), 21 deletions(-)

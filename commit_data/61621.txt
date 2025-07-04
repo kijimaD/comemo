@@ -1,0 +1,20 @@
+commit ffb8b1c586a61882b6c362c0454f56f89d2693c9
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Oct 16 14:31:44 2024 +0200
+
+    crypto/internal/mlkem768: make Decapsulate a method
+    
+    This will make it easier to support multiple sizes if needed.
+    
+    Change-Id: I47495559fdbbf678fd98421ad6cb28172e5c810d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621977
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/internal/mlkem768/mlkem768.go      |  2 +-
+ src/crypto/internal/mlkem768/mlkem768_test.go | 12 ++++++------
+ src/crypto/tls/key_schedule.go                |  2 +-
+ 3 files changed, 8 insertions(+), 8 deletions(-)

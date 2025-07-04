@@ -1,19 +1,43 @@
-commit aded1679ef6a33ef6fe6c0b466ecf59186706d23
-Author: Koichi Shiraishi <zchee.io@gmail.com>
-Date:   Tue Oct 12 00:33:43 2021 +0900
+commit 7743f60b5a01b5892edda7311484a2c2bc207ea2
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Feb 9 10:08:48 2021 -0500
 
-    internal/poll,net: support poll.Sendfile for darwin
+    [dev.fuzz] testing: make F.Fuzz more similar to T.Run
     
-    darwin already supports syscall.Sendfile.
+    This change rewrites much of the glue code in testing/fuzz.go to work
+    more analogously to T.Run. This results in improved behavior:
     
-    Change-Id: Id3db06591ffad0550b4173bacddeb0acfe355f9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355109
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
+    * If a fuzz target returns without calling F.Skip, F.Fail, or F.Fuzz,
+      'go test' will report an error and exit non-zero.
+    * Functions registered with F.Cleanup are called.
+    * The user can re-run individual inputs using -run=FuzzTarget/name
+      where name is the base name of the seed corpus file. We now print
+      the 'go test' command after a crash.
+    
+    This change doesn't correctly handle T.Parallel calls yet, but it
+    should be easier to do that in the future.
+    
+    Highlighted parts of this change:
+    
+    * Instead of creating one F for all targets, create an F for each
+      target. F (actually common) holds the status, output, and cleanup
+      function list for each target, so it's important to keep them
+      separate.
+    * Run each target in its own goroutine via fRunner. fRunner is
+      analogous to tRunner. It runs cleanups and catches inappropriate
+      Goexits and panics.
+    * Run each input in its own goroutine via T.Run. This enables subtest
+      filtering with -test.run and ensures functions registered with
+      T.Cleanup (not F.Cleanup) are run at the appropriate time.
+    
+    Change-Id: Iab1da14ead8bcb57746f8a76f4aebc625baa5792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290693
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
 
- src/internal/poll/sendfile_bsd.go | 4 ++--
- src/net/sendfile_stub.go          | 4 ++--
- src/net/sendfile_unix_alt.go      | 4 ++--
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt         |  14 +-
+ src/cmd/go/testdata/script/test_fuzz_cleanup.txt |  67 ++++
+ src/internal/fuzz/fuzz.go                        |  26 +-
+ src/testing/fuzz.go                              | 393 +++++++++++++----------
+ 4 files changed, 324 insertions(+), 176 deletions(-)

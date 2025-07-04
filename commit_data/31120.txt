@@ -1,30 +1,26 @@
-commit aaf4682171f1ffabd3673b82cb71fdc3d8e5317e
-Author: Meir Fischer <meirfischer@gmail.com>
-Date:   Sat Apr 8 00:17:01 2017 -0400
+commit c67f0d949941279681b53b585eb967326811a93b
+Author: Anmol Sethi <anmol@aubble.com>
+Date:   Sun Jan 29 03:18:17 2017 -0500
 
-    net/http/fcgi: expose cgi env vars in request context
+    crypto/tls: document ConnectionState.NegotiatedProtocol more clearly
     
-    The current interface can't access all environment
-    variables directly or via cgi.RequestFromMap, which
-    only reads variables on its "white list" to be set on
-    the http.Request it returns. If an fcgi variable is
-    not on the "white list" - e.g. REMOTE_USER - the old
-    code has no access to its value.
+    ConnectionState.NegotiatedProtocol's documentation implies that it will
+    always be from Config.NextProtos. This commit clarifies that there is no
+    guarantee.
     
-    This passes variables in the Request context that aren't
-    used to add data to the Request itself and adds a method
-    that parses those env vars from the Request's context.
+    This commit also adds a note to
+    ConnectionState.NegotiatedProtocolIsMutual, making it clear that it is
+    client side only.
     
-    Fixes #16546
+    Fixes #18841
     
-    Change-Id: Ibf933a768b677ece1bb93d7bf99a14cef36ec671
-    Reviewed-on: https://go-review.googlesource.com/40012
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Icd028af8042f31e45575f1080c5e9bd3012e03d7
+    Reviewed-on: https://go-review.googlesource.com/35917
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go      |  2 +-
- src/net/http/fcgi/child.go     | 56 +++++++++++++++++++++++++++++++++++
- src/net/http/fcgi/fcgi.go      |  2 +-
- src/net/http/fcgi/fcgi_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 124 insertions(+), 2 deletions(-)
+ src/crypto/tls/common.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

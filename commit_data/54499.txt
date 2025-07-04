@@ -1,16 +1,29 @@
-commit 15e5e35be5894e059c343679d895abb258b967c2
+commit 8749d12bb76db77cdf37d47d666a5962b8a5928b
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Sep 18 11:48:15 2023 -0400
+Date:   Thu Sep 1 08:22:14 2022 -0400
 
-    os: in TestMkdirStickyUmask, create a non-sticky directory as a control
+    cmd/go: add Subversion support to the local vcstest server
     
-    Fixes #62684.
+    With this change applied, 'go test cmd/go/...' passes
+    even with the IP routing for vcs-test.golang.org disabled
+    using 'ip route add blackhole $VCSTEST_IP/32'.
     
-    Change-Id: If7afa811526973671d83e21440cbbc1a7b2120d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529115
+    Fixes #27494.
+    
+    Change-Id: I45651d2429c7fea7bbf693b2f129e260e1c59891
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427914
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/os_unix_test.go | 22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go                    |  25 ++-
+ src/cmd/go/internal/vcweb/script.go               |   1 +
+ src/cmd/go/internal/vcweb/svn.go                  | 199 ++++++++++++++++++++++
+ src/cmd/go/internal/vcweb/vcstest/vcstest.go      |  13 +-
+ src/cmd/go/internal/vcweb/vcweb.go                |  13 ++
+ src/cmd/go/testdata/vcstest/svn/hello.txt         |  79 +++++++++
+ src/cmd/go/testdata/vcstest/svn/nonexistent.txt   |   5 +
+ src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt | 171 +++++++++++++++++++
+ src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt | 141 +++++++++++++++
+ 9 files changed, 642 insertions(+), 5 deletions(-)

@@ -1,23 +1,22 @@
-commit 1f7a0d4b5ec7ef94b96755e9b95168abf86e9d71
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon May 16 15:39:43 2016 -0700
+commit deb83d0639f9dbe1ae7c9100d6158448d9e2239e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 28 12:15:51 2016 -0700
 
-    runtime: don't do a plain throw when throwsplit == true
+    cmd/compile: remove unused write barrier helpers
     
-    The test case in #15639 somehow causes an invalid syscall frame. The
-    failure is obscured because the throw occurs when throwsplit == true,
-    which causes a "stack split at bad time" error when trying to print the
-    throw message.
+    These have been unused since CL 10316.
     
-    This CL fixes the "stack split at bad time" by using systemstack. No
-    test because there shouldn't be any way to trigger this error anyhow.
+    Passes toolstash -cmp.
     
-    Update #15639.
-    
-    Change-Id: I4240f3fd01bdc3c112f3ffd1316b68504222d9e1
-    Reviewed-on: https://go-review.googlesource.com/23153
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Icc19f3fcc7275fbee1c665f704e10a110ecce2a5
+    Reviewed-on: https://go-review.googlesource.com/21242
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/proc.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin.go         |  28 ----
+ src/cmd/compile/internal/gc/builtin/runtime.go |  33 -----
+ src/cmd/compile/internal/gc/order.go           |   2 +
+ src/runtime/mbarrier.go                        |  25 ----
+ src/runtime/wbfat.go                           | 190 -------------------------
+ src/runtime/wbfat_gen.go                       |  41 ------
+ 6 files changed, 2 insertions(+), 317 deletions(-)

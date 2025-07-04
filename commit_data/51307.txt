@@ -1,22 +1,29 @@
-commit 70f585f018bd534a15933eb80e2812387d2283f5
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 9 19:16:39 2022 -0500
+commit a40c7b1c77bb8eaaf42e15703a57b9379efc710c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Dec 16 15:30:47 2021 -0500
 
-    go/types, types2: ensure invalid generic types are marked as invalid
+    runtime/pprof: run TestCPUProfileMultithreadMagnitude subtests separately
     
-    When detecting invalid types, we may detect cycles through instances.
-    Ensure that the uninstantiated origin type is also marked invalid.
+    Currently TestCPUProfileMultithreadMagnitude runs two CPU consumption
+    functions in a single profile and then analyzes the results as separate
+    subtests.
     
-    Fixes #56665
+    This works fine, but when debugging failures it makes manual analysis of
+    the profile dump a bit annoying.
     
-    Change-Id: Id67653bcb072ac80161dea07d0ced566e61564a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449275
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Refactor the test to collect separate profiles for each subtest for
+    easier future analysis.
+    
+    For #50097.
+    For #50232.
+    
+    Change-Id: Ia1c8bb86aaaf652e64c5e660dcc2da47d2194c2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372800
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/validtype.go       | 29 ++++++++++++++++++---
- src/go/types/validtype.go                          | 29 ++++++++++++++++++---
- .../types/testdata/fixedbugs/issue49043.go         |  2 +-
- .../types/testdata/fixedbugs/issue56665.go         | 30 ++++++++++++++++++++++
- 4 files changed, 81 insertions(+), 9 deletions(-)
+ src/runtime/pprof/pprof_test.go | 117 ++++++++++++++++++++--------------------
+ 1 file changed, 60 insertions(+), 57 deletions(-)

@@ -1,23 +1,15 @@
-commit dab0dac01aa5074857ef8a2e089c3eda107a0fa1
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Sep 5 14:43:50 2015 +1000
+commit 505f6e335e788c87881d4aa53cfa06a8c645009a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 15:43:33 2015 -0400
 
-    cmd/compile: convert typecheck_stack to []*Node
+    cmd/pprof: store temporary files in temporary directory
     
-    This one of a set of changes to make the transition away from NodeList
-    easier by removing cases in which NodeList doesn't act semi-trivially like a
-    []*Node.
+    Fixes #9180.
     
-    This CL was originally prepared by Josh Bleecher Snyder <josharian@gmail.com>.
-    
-    This change passes go build -toolexec 'toolstash -cmp' -a std.
-    
-    Change-Id: I4d041b343952f4a31f3150fd70669e08fcaa74f8
-    Reviewed-on: https://go-review.googlesource.com/14305
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id5adaea0ca9005946fb89c88a10c6f59d8c0943c
+    Reviewed-on: https://go-review.googlesource.com/12202
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 62 +++++++++++---------------------
- test/typecheckloop.go                    | 14 ++++++++
- 2 files changed, 35 insertions(+), 41 deletions(-)
+ src/cmd/pprof/internal/commands/commands.go | 20 +++++++++++++++++++-
+ src/cmd/pprof/internal/driver/driver.go     |  2 +-
+ 2 files changed, 20 insertions(+), 2 deletions(-)

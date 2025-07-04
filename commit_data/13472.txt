@@ -1,13 +1,18 @@
-commit d5c2154caf1d5826328a9fbc14e89001599f0a30
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Jul 14 15:59:52 2012 +0400
+commit bbe601789cf7526925192abe0a6bc7e7d9265588
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 13 14:23:51 2012 -0700
 
-    build: revert 61d1d72136f7 (add few tests with GOMAXPROCS=32)
-    Some tests currently fail with GOMAXPROCS>1
+    encoding/gob: disable fuzz tests unless command-line flag is set
     
-    R=golang-dev
+    They can generate huge amounts of memory, causing failure on
+    small machines. Also they can be very slow. So slow that one test
+    was commented out! We uncomment it and use a flag.
+    
+    Fixes #3742.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6398044
+    https://golang.org/cl/6373044
 
- src/run.bash | 5 -----
- 1 file changed, 5 deletions(-)
+ src/pkg/encoding/gob/codec_test.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

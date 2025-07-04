@@ -1,28 +1,34 @@
-commit f0636bf6f97478aca313052a9661828d01357d75
-Author: Dhananjay Nakrani <dhananjayn@google.com>
-Date:   Sat Oct 1 18:01:30 2016 -0700
+commit 691c5c156878799ec15683f10e24d9a924ea7996
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 17 14:05:35 2016 +1000
 
-    cmd/cover: Fix compiler directives handling.
+    debug/pe: handle files with no string table
     
-    Currently, it separates comments from rest of the AST. This causes problems when
-    long counter increment statements are added before compiler directives.
-    See Issue #17315.
+    pecoff.doc (https://goo.gl/ayvckk) in section 5.6 says:
     
-    This change moves comments handling into AST Visitor so that when printer prints
-    code from AST, position of compiler directives relative to the associated function
-    is preserved.
+    Immediately following the COFF symbol table is the COFF string table.
+    The position of this table is found by taking the symbol table address
+    in the COFF header, and adding the number of symbols multiplied by
+    the size of a symbol.
     
-    Tested with https://gist.github.com/dhananjay92/837df6bc1f171b1350f85d7a7d59ca1e
-    and unit test.
+    So it is unclear what to do when symbol table address is 0.
+    Lets assume executable does not have any string table.
     
-    Fixes #17315
+    Added new test with executable with no symbol table. The
     
-    Change-Id: I61a80332fc1923de6fc59ff63b953671598071fa
-    Reviewed-on: https://go-review.googlesource.com/30161
-    Reviewed-by: Rob Pike <r@golang.org>
+    gcc -s testdata\hello.c -o testdata\gcc-386-mingw-no-symbols-exec.
+    
+    command was used to generate the executable.
+    
+    Fixes #16084
+    
+    Change-Id: Ie74137ac64b15daadd28e1f0315f3b62d1bf2059
+    Reviewed-on: https://go-review.googlesource.com/24200
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cover/cover.go         | 35 ++++++++++++++---------------------
- src/cmd/cover/cover_test.go    | 19 +++++++++++++++++--
- src/cmd/cover/testdata/main.go |  6 +++++-
- src/cmd/cover/testdata/test.go | 12 ++++++++++++
- 4 files changed, 48 insertions(+), 24 deletions(-)
+ src/debug/pe/file_test.go                          |  35 +++++++++++++++++++++
+ src/debug/pe/string.go                             |   3 ++
+ .../pe/testdata/gcc-386-mingw-no-symbols-exec      | Bin 0 -> 8704 bytes
+ 3 files changed, 38 insertions(+)

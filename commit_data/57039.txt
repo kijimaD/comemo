@@ -1,20 +1,15 @@
-commit d32133af7791325afd30ba999c2e11bf5c82b6f6
-Author: David Chase <drchase@google.com>
-Date:   Wed Jul 31 09:55:14 2024 -0400
+commit 0fcc70ecd56e3b5c214ddaee4065ea1139ae16b5
+Author: chressie <chressie@google.com>
+Date:   Mon Jun 12 15:09:21 2023 +0200
 
-    cmd/compile: fix order of map iteration in deadlocals
+    doc/go1.21: fix typo
     
-    This makes builds reproducible again.
-    
-    Fixes #68672
-    Updates #65158
-    
-    Change-Id: I260180f52e992c702ab89050deb6484087ae265f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602075
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ie0af0ff135ac14d35476d738a16f04e9c3eebcd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502475
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Chressie Himpel <chressie@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/deadlocals/deadlocals.go | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

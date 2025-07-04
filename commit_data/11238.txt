@@ -1,34 +1,12 @@
-commit 5e77b009d0e9dc8c92fe91d0a2d3182e9fff10ae
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 18 16:12:24 2012 -0800
+commit eaf8295f3d587fcd615dbaa310954e9e6e5cdad5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 14:59:58 2012 -0800
 
-    test: split golden.out into expected output per test
+    fix windows build: always use / in filenames of go/doc test output
     
-    This will permit gccgo to check test output.
-    
-    R=golang-dev, r
+    R=r
     CC=golang-dev
-    https://golang.org/cl/5554056
+    https://golang.org/cl/5554055
 
- test/deferprint.go        |  2 +-
- test/deferprint.out       |  2 ++
- test/fixedbugs/bug067.go  |  2 +-
- test/fixedbugs/bug328.go  |  2 +-
- test/fixedbugs/bug328.out |  1 +
- test/golden.out           | 48 -----------------------------------------------
- test/goprint.go           |  2 +-
- test/goprint.out          |  1 +
- test/helloworld.go        |  2 +-
- test/helloworld.out       |  1 +
- test/ken/cplx0.go         |  2 +-
- test/ken/cplx0.out        |  4 ++++
- test/ken/cplx3.go         | 23 +++++++++++++++++++++--
- test/ken/cplx5.go         | 30 ++++++++++++++++++++++-------
- test/ken/intervar.go      | 25 +++++++++++++-----------
- test/ken/string.go        | 17 ++++++-----------
- test/ken/string.out       |  1 +
- test/printbig.go          |  2 +-
- test/printbig.out         |  2 ++
- test/sigchld.go           |  4 ++--
- test/sigchld.out          |  1 +
- 21 files changed, 86 insertions(+), 88 deletions(-)
+ src/pkg/go/doc/doc_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

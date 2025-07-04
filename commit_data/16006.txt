@@ -1,18 +1,15 @@
-commit 43e38d5defdeffd7ebfff4803bce120c13b55ff2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 29 13:49:14 2013 -0700
+commit fb3ed166e39fd13689b35ca7aa2496e113cbeaf5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 29 11:04:07 2013 -0700
 
-    bytes: don't compact Buffer so aggressively
+    runtime: fix gdb printing of maps
+    Fixes #5098
     
-    benchmark                           old ns/op    new ns/op    delta
-    BenchmarkBufferNotEmptyWriteRead       848416       819983   -3.35%
-    
-    Update #5154
-    
-    R=golang-dev, gri, robryk
+    R=minux.ma, bradfitz, khr, rsc
     CC=golang-dev
-    https://golang.org/cl/8173043
+    https://golang.org/cl/7746045
 
- src/pkg/bytes/buffer.go      | 8 +++++---
- src/pkg/bytes/buffer_test.go | 6 ++++--
- 2 files changed, 9 insertions(+), 5 deletions(-)
+ src/cmd/ld/dwarf.c             | 72 +++++++++++++++++++++++++++++++++++++++---
+ src/pkg/runtime/hashmap.c      |  2 +-
+ src/pkg/runtime/runtime-gdb.py | 49 ++++++++++++++++------------
+ 3 files changed, 98 insertions(+), 25 deletions(-)

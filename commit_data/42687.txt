@@ -1,18 +1,18 @@
-commit d30363062283dcdca4392ef61f13f9b332ca8bc3
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon May 25 03:23:30 2020 +1000
+commit 8a4d05cf07cddb724422d24e57c18c1bd8d8ad02
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 5 13:36:53 2020 -0500
 
-    syscall: support rawVforkSyscall on linux/riscv64
+    cmd/go/internal/vet: only set work.VetExplicit if the list of explicit flags is non-empty
     
-    Updates #31936
+    Updates #35837
+    Fixes #37030
     
-    Change-Id: I7dcb8987d4c306ccc97704b9c1b12313ba8bf242
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234960
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ifd3435803622a8624bab55a0f3fbc8855025282f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217897
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/syscall/asm_linux_riscv64.s      | 22 ++++++++++++++++++++++
- src/syscall/exec_linux.go            |  6 +++++-
- src/syscall/syscall_linux_riscv64.go |  4 +---
- 3 files changed, 28 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/vet/vet.go           |  4 +++-
+ src/cmd/go/testdata/script/vet_flags.txt | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

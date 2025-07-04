@@ -1,12 +1,35 @@
-commit fc61ea3ba3ed9d8d19dbef79b285493d4f3fca17
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Sat Oct 15 07:12:10 2011 -0700
+commit 78479163cbaef707fbb7676333fdca8b0109e83b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Oct 15 17:29:25 2011 +1100
 
-    goyacc: clean up after units
+    syscall: dll function load and calling changes
     
-    R=golang-dev, r
+    New DLL and Proc types to manage and call dll functions. These were
+    used to simplify syscall tests in runtime package. They were also
+    used to implement LazyDLL and LazyProc.
+    
+    LazyProc, like Proc, now have Call function, that just a wrapper for
+    SyscallN. It is not as efficient as Syscall, but easier to use.
+    
+    NewLazyDLL now supports non-ascii filenames.
+    
+    LazyDLL and LazyProc now have Load and Find methods. These can be used
+    during runtime to discover if some dll functions are not present.
+    
+    All dll functions now return errors that fit os.Error interface. They
+    also contain Windows error number.
+    
+    Some of these changes are suggested by jp.
+    
+    R=golang-dev, jp, rsc
     CC=golang-dev
-    https://golang.org/cl/5286047
+    https://golang.org/cl/5272042
 
- src/cmd/goyacc/Makefile | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/syscall_windows_test.go |  93 +++++-------
+ src/pkg/runtime/windows/os.h            |   2 +-
+ src/pkg/runtime/windows/syscall.goc     |  19 ++-
+ src/pkg/runtime/windows/thread.c        |   4 +-
+ src/pkg/syscall/Makefile                |   1 +
+ src/pkg/syscall/dll_windows.go          | 252 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go      |  71 ---------
+ 7 files changed, 305 insertions(+), 137 deletions(-)

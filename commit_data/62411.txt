@@ -1,0 +1,19 @@
+commit 555974734fa9c6ed88fa16d25e2ad6ee398cf085
+Author: KangJi <kjhmd9726@gmail.com>
+Date:   Thu Feb 27 12:26:57 2025 +0000
+
+    cmd/cgo: update generated headers for compatibility with latest MSVC C++ standards
+    
+    Updates #71921
+    
+    Change-Id: Idfbb72e259b169121c8ced6d89ee2f13d6254d0d
+    GitHub-Last-Rev: fcf12e5a221621f749841055df1d2c2ada3bf844
+    GitHub-Pull-Request: golang/go#72004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653141
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/out.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

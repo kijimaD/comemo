@@ -1,17 +1,25 @@
-commit 2b8d5be55f0201c3d4047ea8510b168eb37c5074
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Feb 1 16:37:02 2012 -0800
+commit f3f5239d1e3e1acb299ef8a6a907df12713b9626
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 1 16:19:36 2012 -0800
 
-    os/exec: make sure file is not closed early in leaked fd test
+    all packages: fix various typos
     
-    Without this change, fd3 can be collected by the garbage
-    collector and finalized, which causes the file descriptor to
-    be closed, which causes the call to os.Open to return 3 rather
-    than the expected descriptor number.
+    Detected semi-automatically. There are probably more.
     
-    R=golang-dev, gri, bradfitz, bradfitz, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5607056
+    https://golang.org/cl/5620046
 
- src/pkg/os/exec/exec_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/api/goapi.go             | 2 +-
+ src/cmd/fix/fix.go               | 2 +-
+ src/cmd/fix/reflect.go           | 2 +-
+ src/cmd/yacc/yacc.go             | 2 +-
+ src/pkg/crypto/elliptic/p224.go  | 4 ++--
+ src/pkg/encoding/gob/doc.go      | 2 +-
+ src/pkg/encoding/xml/typeinfo.go | 2 +-
+ src/pkg/exp/ebnflint/doc.go      | 2 +-
+ src/pkg/exp/norm/forminfo.go     | 2 +-
+ src/pkg/go/doc/comment.go        | 2 +-
+ src/pkg/html/template/js.go      | 2 +-
+ src/pkg/net/interface_bsd.go     | 2 +-
+ 12 files changed, 13 insertions(+), 13 deletions(-)

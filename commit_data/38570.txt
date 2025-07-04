@@ -1,15 +1,18 @@
-commit 697f4183e6815beacbd254942160e71a2e0cde60
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Mon Mar 25 10:33:49 2019 +0100
+commit 6fc479166a42f859ec8cfbb3e583f941160e069c
+Author: David Chase <drchase@google.com>
+Date:   Tue Nov 6 16:42:13 2018 -0500
 
-    cmd/link: allow buildmode c-archive for aix/ppc64
+    cmd/compile: update TestNexting golden file for Delve
     
-    Change-Id: Ia268b0d64dc89866aa09bfffcaa109741088a904
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169119
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change updates the expected output of the delve debugging session
+    in the TestNexting internal/ssa test, aligning it with the changes
+    introduced in CL 147360 and earlier.
+    
+    Change-Id: I1cc788d02433624a36f4690f24201569d765e5d3
+    Reviewed-on: https://go-review.googlesource.com/c/147998
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/config.go | 2 +-
- src/cmd/link/internal/ld/data.go   | 9 ++++++++-
- src/cmd/link/internal/ld/lib.go    | 6 +++++-
- 3 files changed, 14 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts | 4 ++++
+ 1 file changed, 4 insertions(+)

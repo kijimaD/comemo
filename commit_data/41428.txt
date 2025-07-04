@@ -1,19 +1,20 @@
-commit 185898064555ee55598c6496c264d2ded46ceca8
-Author: nu50218 <nu_ll@icloud.com>
-Date:   Tue Feb 25 14:16:07 2020 +0000
+commit 27fc32ff01cc699e160890546816bd99d6c57823
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 2 14:42:46 2019 -0700
 
-    cmd/go: fix typo in comment
+    cmd/compile: better error message for language version errors
     
-    fix CompiledGoFIles to CompiledGoFiles.
+    Fixes #33753.
+    Updates #31747.
     
-    Change-Id: I1f21c2254e716197cb65a877ba7468e3d7009c6f
-    GitHub-Last-Rev: 177aa1a4962b3a70642c7761f9ab99723f22bc3e
-    GitHub-Pull-Request: golang/go#37440
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220879
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Icc42b23405ead4f7f17b0ffa3611405454b6b271
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198491
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/action.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/noder.go     |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      |  5 +++++
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue31747.go             | 10 +++++-----
+ 4 files changed, 15 insertions(+), 10 deletions(-)

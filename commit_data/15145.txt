@@ -1,13 +1,20 @@
-commit 7de3d71797a0e6f25975fa5c3c69c7b0e27d23d2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Feb 6 01:18:37 2013 +0800
+commit da35d425214763d7d51d74e0410dc3a431c4a13d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 5 06:11:10 2013 -0800
 
-    runtime: save LR to stack when panicking to handle leaf function traceback
+    exp/inotify: close event channel before file descriptor
     
-    R=golang-dev, rsc
+    Closing the inotify file descriptor can take over a second
+    when running on Ubuntu Precise in an NFS directory, leading to
+    the test error in issue 3132.  Closing the event channel first
+    lets a client that does not care about the error channel move
+    on.
+    
+    Fixes #3132.
+    
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7289047
+    https://golang.org/cl/7300045
 
- src/pkg/runtime/signal_linux_arm.c | 16 +++++++++++-----
- src/pkg/runtime/traceback_arm.c    |  6 ++++++
- 2 files changed, 17 insertions(+), 5 deletions(-)
+ src/pkg/exp/inotify/inotify_linux.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

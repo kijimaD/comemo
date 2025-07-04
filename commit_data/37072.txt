@@ -1,17 +1,21 @@
-commit 0d6569346ef3709052bad4a714634389f083dc3e
-Author: diplozoon <huyuumi.dev@gmail.com>
-Date:   Tue Oct 23 13:17:20 2018 +0000
+commit 37f05cc6367e16865b8018948eed7ab2136d9d86
+Author: Guilherme Goncalves <guilhermeaugustosg@gmail.com>
+Date:   Sat Jun 23 22:32:26 2018 +0000
 
-    cmd/go: remove unnecessary else conditions
+    net/http: document and test behavior of ServeMux with ports
     
-    Fixes golint warning about "if block ends with a return statement, so drop this else and outdent its block".
+    Beginning on Go 1.9, ServeMux has been dropping the port number from the Host
+    header and in the path pattern. This commit explicitly mentions the change in
+    behavior and adds a simple test case to ensure consistency.
     
-    Change-Id: I6fc8724f586efcb6e2ed92ee36be421d3e9a8c80
-    Reviewed-on: https://go-review.googlesource.com/c/144137
-    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #23351.
+    
+    Change-Id: I0270c8bd96cda92c13ac6437cdf66c2807b3042d
+    Reviewed-on: https://go-review.googlesource.com/120557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/semver/semver.go | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ src/net/http/serve_test.go | 22 ++++++++++++++++++++++
+ src/net/http/server.go     |  6 +++---
+ 2 files changed, 25 insertions(+), 3 deletions(-)

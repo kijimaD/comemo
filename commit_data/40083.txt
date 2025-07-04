@@ -1,18 +1,22 @@
-commit 8e032b917ac6b54c86dbf6f8fc110d82d3ecbea9
-Author: An Xiao <hac@zju.edu.cn>
-Date:   Mon Sep 30 21:46:32 2019 +0000
+commit 6997671d2e69cb3d5ac26b34564d117eed472260
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Apr 8 14:31:21 2019 -0400
 
-    net: update quotation marks in comment
+    cmd/go: handle wildcards for unknown modules in "go get"
     
-    This change updates the use of quotation marks by replacing `ones' with 'ones'.
-    Quotation like `this' should not be used any more according to
-    https://www.cl.cam.ac.uk/~mgk25/ucs/quotes.html
+    For example, "go get golang.org/x/tools/cmd/..." will add a
+    requirement for "golang.org/x/tools" to go.mod and will install
+    executables from the "cmd" subdirectory.
     
-    Change-Id: I58470cdcc207864fbc8ca68ec0e77329bd81dc19
-    GitHub-Last-Rev: d03c81ebfba19a98a8dcc99451db60d129b43784
-    GitHub-Pull-Request: golang/go#33719
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190817
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Fixes #29363
+    
+    Change-Id: Id53f051710708d7760ffe831d4274fd54533d2b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171138
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/ip.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/modget/get.go               | 28 ++++++++---
+ src/cmd/go/internal/modload/query.go            | 65 +++++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_get_patterns.txt | 33 +++++++++++++
+ 3 files changed, 119 insertions(+), 7 deletions(-)

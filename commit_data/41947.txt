@@ -1,32 +1,23 @@
-commit 54cbb6b0c2995b93209094eb35b45d9d7ddf9b26
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Apr 14 23:01:18 2020 +0700
+commit 7955ecebfc85851d43913f9358fa5f6a7bbb7c59
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 25 14:10:29 2019 -0400
 
-    cmd/compile: mark static arrays when initialize map literal as noalg
+    runtime: add a test for asynchronous safe points
     
-    Same thing as CL 228222 does with static slice.
+    This adds a test of preempting a loop containing no synchronous safe
+    points for STW and stack scanning.
     
-    file      before    after     Δ       %
-    go        15228932  15228756  -176    -0.001%
-    addr2line 4429680   4429616   -64     -0.001%
-    api       5999032   5994904   -4128   -0.069%
-    asm       5087928   5087864   -64     -0.001%
-    compile   19727984  19723792  -4192   -0.021%
-    cover     5290296   5290184   -112    -0.002%
-    dist      3711816   3711784   -32     -0.001%
-    doc       4711208   4711176   -32     -0.001%
-    nm        4379344   4379264   -80     -0.002%
-    objdump   4773248   4773168   -80     -0.002%
-    pprof     14856148  14855764  -384    -0.003%
-    trace     11718212  11718020  -192    -0.002%
-    vet       8305944   8301768   -4176   -0.050%
-    total     131377612 131363900 -13712  -0.010%
+    We couldn't add this test earlier because it requires scheduler, STW,
+    and stack scanning preemption to all be working.
     
-    Change-Id: I5ec00580b1509486c13aca43ad8f5cc7c450b62e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227812
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For #10958, #24543.
+    
+    Change-Id: I73292db78ca3d14aab11bdafd26d03986920ef0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201777
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/sinit.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/export_test.go               |  2 ++
+ src/runtime/proc_test.go                 | 11 ++++++++
+ src/runtime/testdata/testprog/preempt.go | 44 ++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+)

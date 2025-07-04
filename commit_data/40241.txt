@@ -1,17 +1,15 @@
-commit dab199c9c10717bd134edacdfddf084b9295b1b7
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Oct 13 23:37:14 2019 +0700
+commit 76659e47971b594aa6855ef77e022420e070e5ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 29 05:38:25 2019 +0000
 
-    cmd/compile: consistenly use CTxxx for works relate to Ctype
+    cmd/link/internal/s390x: fix s390x build
     
-    Passes toolstash-check
+    Fix breakage from CL 173437
     
-    Change-Id: Iaeaf2575b9f492e45619007438c0138f9d22006c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200959
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: If218ffaa1259fbdee641143ffbe4b38030c373b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174278
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/const.go | 2 +-
- src/cmd/compile/internal/gc/order.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/s390x/asm.go | 2 ++
+ 1 file changed, 2 insertions(+)

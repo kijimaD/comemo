@@ -1,98 +1,30 @@
-commit 25cbd534df4ff829dbcdb063330ce689bdbc48a9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 21 11:26:00 2013 -0400
+commit 44840786ae2a7a24d81df176494e0af5ba9764c4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 21 12:54:19 2013 +0400
 
-    crypto/md5: faster amd64, 386 implementations
+    runtime: explicitly remove fd's from epoll waitset before close()
+    Fixes #5061.
     
-    -- amd64 --
+    Current code relies on the fact that fd's are automatically removed from epoll set when closed. However, it is not true. Underlying file description is removed from epoll set only when *all* fd's referring to it are closed.
     
-    On a MacBookPro10,2 (Core i5):
+    There are 2 bad consequences:
+    1. Kernel delivers notifications on already closed fd's.
+    2. The following sequence of events leads to error:
+       - add fd1 to epoll
+       - dup fd1 = fd2
+       - close fd1 (not removed from epoll since we've dup'ed the fd)
+       - dup fd2 = fd1 (get the same fd as fd1)
+       - add fd1 to epoll = EEXIST
     
-    benchmark                       old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes                   471          524  +11.25%
-    BenchmarkHash1K                      3018         2220  -26.44%
-    BenchmarkHash8K                     20634        14604  -29.22%
-    BenchmarkHash8BytesUnaligned          468          523  +11.75%
-    BenchmarkHash1KUnaligned             3006         2212  -26.41%
-    BenchmarkHash8KUnaligned            20820        14652  -29.63%
+    So, if fd can be potentially dup'ed of fork'ed, it's necessary to explicitly remove the fd from epoll set.
     
-    benchmark                        old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes                 16.98        15.26    0.90x
-    BenchmarkHash1K                    339.26       461.19    1.36x
-    BenchmarkHash8K                    397.00       560.92    1.41x
-    BenchmarkHash8BytesUnaligned        17.08        15.27    0.89x
-    BenchmarkHash1KUnaligned           340.65       462.75    1.36x
-    BenchmarkHash8KUnaligned           393.45       559.08    1.42x
-    
-    For comparison, on the same machine, openssl 0.9.8r reports
-    its md5 speed as 350 MB/s for 1K and 410 MB/s for 8K.
-    
-    On an Intel Xeon E5520:
-    
-    benchmark                       old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes                   565          607   +7.43%
-    BenchmarkHash1K                      3753         2475  -34.05%
-    BenchmarkHash8K                     25945        16250  -37.37%
-    BenchmarkHash8BytesUnaligned          559          594   +6.26%
-    BenchmarkHash1KUnaligned             3754         2474  -34.10%
-    BenchmarkHash8KUnaligned            26011        16359  -37.11%
-    
-    benchmark                        old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes                 14.15        13.17    0.93x
-    BenchmarkHash1K                    272.83       413.58    1.52x
-    BenchmarkHash8K                    315.74       504.11    1.60x
-    BenchmarkHash8BytesUnaligned        14.31        13.46    0.94x
-    BenchmarkHash1KUnaligned           272.73       413.78    1.52x
-    BenchmarkHash8KUnaligned           314.93       500.73    1.59x
-    
-    For comparison, on the same machine, openssl 1.0.1 reports
-    its md5 speed as 443 MB/s for 1K and 513 MB/s for 8K.
-    
-    -- 386 --
-    
-    On a MacBookPro10,2 (Core i5):
-    
-    benchmark                       old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes                   602          670  +11.30%
-    BenchmarkHash1K                      4038         2549  -36.87%
-    BenchmarkHash8K                     27879        16690  -40.13%
-    BenchmarkHash8BytesUnaligned          602          670  +11.30%
-    BenchmarkHash1KUnaligned             4025         2546  -36.75%
-    BenchmarkHash8KUnaligned            27844        16692  -40.05%
-    
-    benchmark                        old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes                 13.28        11.93    0.90x
-    BenchmarkHash1K                    253.58       401.69    1.58x
-    BenchmarkHash8K                    293.83       490.81    1.67x
-    BenchmarkHash8BytesUnaligned        13.27        11.94    0.90x
-    BenchmarkHash1KUnaligned           254.40       402.05    1.58x
-    BenchmarkHash8KUnaligned           294.21       490.77    1.67x
-    
-    On an Intel Xeon E5520:
-    
-    benchmark                       old ns/op    new ns/op    delta
-    BenchmarkHash8Bytes                   752          716   -4.79%
-    BenchmarkHash1K                      5307         2799  -47.26%
-    BenchmarkHash8K                     36993        18042  -51.23%
-    BenchmarkHash8BytesUnaligned          748          730   -2.41%
-    BenchmarkHash1KUnaligned             5301         2795  -47.27%
-    BenchmarkHash8KUnaligned            36983        18085  -51.10%
-    
-    benchmark                        old MB/s     new MB/s  speedup
-    BenchmarkHash8Bytes                 10.64        11.16    1.05x
-    BenchmarkHash1K                    192.93       365.80    1.90x
-    BenchmarkHash8K                    221.44       454.03    2.05x
-    BenchmarkHash8BytesUnaligned        10.69        10.95    1.02x
-    BenchmarkHash1KUnaligned           193.15       366.36    1.90x
-    BenchmarkHash8KUnaligned           221.51       452.96    2.04x
-    
-    R=agl
+    R=golang-dev, bradfitz, dave
     CC=golang-dev
-    https://golang.org/cl/7621049
+    https://golang.org/cl/7870043
 
- src/pkg/crypto/md5/gen.go           |  19 +++-
- src/pkg/crypto/md5/md5block.go      |   5 +
- src/pkg/crypto/md5/md5block_386.s   | 180 ++++++++++++++++++++++++++++++++++++
- src/pkg/crypto/md5/md5block_amd64.s | 177 +++++++++++++++++++++++++++++++++++
- src/pkg/crypto/md5/md5block_decl.go |   9 ++
- 5 files changed, 388 insertions(+), 2 deletions(-)
+ src/pkg/net/fd_unix.go           |  4 +++-
+ src/pkg/runtime/netpoll.goc      |  3 +++
+ src/pkg/runtime/netpoll_epoll.c  | 14 +++++++++++++-
+ src/pkg/runtime/netpoll_kqueue.c |  9 +++++++++
+ src/pkg/runtime/runtime.h        |  1 +
+ 5 files changed, 29 insertions(+), 2 deletions(-)

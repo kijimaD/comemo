@@ -1,14 +1,19 @@
-commit cdccd6a79c5391c21c8e7316e13f8b8d1697ea63
-Author: Alexander Döring <email@alexd.ch>
-Date:   Sun Oct 23 16:03:38 2016 +0200
+commit 7995cb86e54345cb2e3911bce4da00fbb68c2dce
+Author: Ian Gudger <igudger@google.com>
+Date:   Fri Jul 22 16:38:27 2016 -0700
 
-    doc: update size of "hello, world" binary in FAQ
+    syscall: validate ParseUnixCredentials inputs
     
-    Fixes #17159
+    Don't panic, crash, or return references to uninitialized memory when
+    ParseUnixCredentials is passed invalid input.
     
-    Change-Id: I44d7081ef7a973dcd1cc2eb7124e3454c94bc6e3
-    Reviewed-on: https://go-review.googlesource.com/31770
+    Fixes #16475
+    
+    Change-Id: I140d41612e8cd8caaa94be829a415159659c217b
+    Reviewed-on: https://go-review.googlesource.com/25154
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go_faq.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/sockcmsg_linux.go | 3 +++
+ 1 file changed, 3 insertions(+)

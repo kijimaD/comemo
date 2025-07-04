@@ -1,0 +1,21 @@
+commit 705b5a569acb9207fda8ea469387d88346b6817a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Aug 24 12:32:51 2022 +0200
+
+    crypto/ecdsa: drop SEC 1 reference from package doc
+    
+    FIPS 186-4 used to defer to ANSI X9.62-2005, which is not freely
+    available, so we were referring to SEC 1 instead. Our new reference,
+    FIPS 186-5, actually specifies the full algorithm, so there is no need
+    to refer to SEC 1 anymore.
+    
+    Change-Id: Ief499d0f7778f3221547993e9e8951ae873aacef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640115
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/ecdsa/ecdsa.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

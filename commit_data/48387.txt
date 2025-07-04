@@ -1,21 +1,22 @@
-commit b4428325e266d8ffdd1131d71862f0767c616e27
-Author: Bryan Mills <bcmills@google.com>
-Date:   Tue Mar 15 17:49:01 2022 +0000
+commit 03ed590e517980afc9c48816aced517fce2996ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 6 16:04:05 2021 -0700
 
-    Revert "os: raise open file rlimit at startup"
+    [dev.typeparams] cmd/compile/internal/types2: use Checker-provided type parameter IDs when possible
     
-    This reverts CL 392415.
+    This is a port of https://golang.org/cl/317472.
     
-    Reason for revert: new test is failing on at least darwin-amd64-10_14, darwin-amd64-10_15, and openbsd-arm64-jsing.
+    For #46003.
     
-    Updates #46279.
-    
-    Change-Id: I2890b72f8ee74f31000d65f7d47b5bb0ed5d6007
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393016
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie7b8880d43d459527b981ed4f60ee4d80a3cd17a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320149
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/os/rlimit.go      | 31 -------------------------------
- src/os/rlimit_test.go | 32 --------------------------------
- 2 files changed, 63 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go   |  1 -
+ src/cmd/compile/internal/types2/check.go      |  1 +
+ src/cmd/compile/internal/types2/type.go       | 14 ++++++++++----
+ src/cmd/compile/internal/types2/types_test.go |  8 --------
+ 4 files changed, 11 insertions(+), 13 deletions(-)

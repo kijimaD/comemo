@@ -1,22 +1,26 @@
-commit ed15e82413c7b16e21a493f5a647f68b46e965ee
-Author: Keith Randall <khr@google.com>
-Date:   Fri Dec 28 14:34:48 2018 -0800
+commit 7b88b22acf8cb5e32f34e2a396d797c5c0125566
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Aug 28 11:27:07 2018 -0400
 
-    runtime: panic on uncomparable map key, even if map is empty
+    cmd/compile: remove var sorting from DWARF inline generation
     
-    Reorg map flags a bit so we don't need any extra space for the extra flag.
+    When generation DWARF inline info records, the current implementation
+    includes a sorting pass that reorders a subprogram's child variable
+    DIEs based on class (param/auto) and name. This sorting is no longer
+    needed, and can cause problems for a debugger (if we want to use the
+    DWARF info for creating a call to an optimized function); this patch
+    removes it.
     
-    Fixes #23734
+    Ordering of DWARF subprogram variable/parameter DIEs is still
+    deterministic with this change, since it is keyed off the order in
+    which vars appear in the pre-inlining function "Dcl" list.
     
-    Change-Id: I436812156240ae90de53d0943fe1aabf3ea37417
-    Reviewed-on: https://go-review.googlesource.com/c/155918
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #27039
+    
+    Change-Id: I3b91290d11bb3b9b36fb61271d80b801841401ee
+    Reviewed-on: https://go-review.googlesource.com/131895
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/gc/reflect.go | 44 ++++++++++++++++++++----
- src/reflect/type.go                    | 58 +++++++++++++++++++++++---------
- src/runtime/map.go                     | 61 +++++++++++++++++++---------------
- src/runtime/type.go                    | 37 +++++++++++++++------
- test/fixedbugs/issue23734.go           | 32 ++++++++++++++++++
- 5 files changed, 172 insertions(+), 60 deletions(-)
+ src/cmd/compile/internal/gc/dwinl.go | 27 ---------------------------
+ src/cmd/compile/internal/gc/pgen.go  | 27 ---------------------------
+ 2 files changed, 54 deletions(-)

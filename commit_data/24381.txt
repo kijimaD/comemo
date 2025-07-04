@@ -1,36 +1,14 @@
-commit 09c6d13ac248eefd1d47e20457125ab5ac8b3246
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Sep 26 18:37:06 2015 -0700
+commit ea085414ef3bee6f9a7d5f4daed5d24a744c1ab9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 11:41:35 2015 -0400
 
-    cmd/cgo: only declare real function in gccgo exported header file
+    cmd/go: do not panic on template I/O error
     
-    When exporting a function using gccgo, we generate two functions: a Go
-    function with a leading Cgoexp_ prefix, and a C function that calls the
-    Go function.  The Go function has a name that can not be represented in
-    C, so the C code needs a declaration with an __asm__ qualifier giving
-    the name of the Go function.
+    Fixes #11839.
     
-    Before this CL we put that declaration in the exported header file.
-    Because code would sometimes #include "_cgo_export.h", we added a macro
-    definition for the C function giving it the name of the declaration.  We
-    then added a macro undefine in the actual C code, so that we could
-    declare the C function we wanted.
-    
-    This rounadabout process worked OK until we started exporting the header
-    file for use with -buildmode=c-archive and c-shared.  Doing that caused
-    the code to see the define and thus call the Go function rather than the
-    C function.  That often works fine, but the C function calls
-    _cgo_wait_runtime_init_done before calling the Go function, and that
-    sometimes matters.  This didn't show up in tests because we don't test
-    using gccgo.  That is something we should fix, but not now.
-    
-    Fix that by simplifying the code to declare the C function in the header
-    file as one would expect, and move the __asm__ declaration to the C
-    code.
-    
-    Change-Id: I33547e028152ff98e332630994b4f33285feec32
-    Reviewed-on: https://go-review.googlesource.com/15043
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ie092a3a512a2d35967364b41081a066ab3a6aab4
+    Reviewed-on: https://go-review.googlesource.com/12571
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cgo/out.go | 16 ++++------------
- 1 file changed, 4 insertions(+), 12 deletions(-)
+ src/cmd/go/main.go | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)

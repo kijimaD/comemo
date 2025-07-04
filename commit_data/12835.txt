@@ -1,14 +1,15 @@
-commit 4e9f7047dcf4ab0c059baaac4f5c5a06dc6b38bb
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Apr 5 11:39:12 2012 +1000
+commit b16ec46c2fc144e9b8dff4c418db2d82227f3fd5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 5 11:17:18 2012 +1000
 
-    misc/dist: include directories in distribution tar and zip files.
+    doc: shorten project dashboard link
     
-    Fixes #3458.
+    Fixes #3420.
+    (which was already fixed)
     
-    R=adg, dsymonds
+    R=golang-dev, bradfitz, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5969071
+    https://golang.org/cl/5987043
 
- misc/dist/bindist.go | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ doc/code.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

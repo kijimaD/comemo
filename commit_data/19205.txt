@@ -1,13 +1,13 @@
-commit 75b74ea8ff0ee62828c04e9567ccc5238cec5d49
-Author: David du Colombier <0intro@gmail.com>
-Date:   Fri Apr 18 21:40:55 2014 +0200
+commit cd4c1f18a195ac16e7dc9c4aa59a491adf469bab
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Apr 18 08:11:31 2014 -0700
 
-    doc/go1.3.html: Plan 9 support
+    pkg/reflect/value.go: Correction in comment, the argument is "typ", not "t".
     
-    LGTM=aram, r
-    R=r, aram, bradfitz
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/89130045
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/89270043
 
- doc/go1.3.html | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/pkg/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

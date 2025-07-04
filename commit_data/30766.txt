@@ -1,17 +1,19 @@
-commit c65ceff125ded084c6f3b47f830050339e7cc74e
+commit 1102c70bc425e66d3b8981f69a40bd2043cf7e60
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 21 06:34:35 2017 +0000
+Date:   Wed Nov 30 18:45:56 2016 +0000
 
-    flag: validate Int and Uint values to be in range
+    net/http: teach NewRequest that NoBody has ContentLength zero
     
-    Fixes #19230
+    NoBody is new in Go 1.8.
     
-    Change-Id: I38df9732b88f0328506e74f1a46f52adf47db1e5
-    Reviewed-on: https://go-review.googlesource.com/38419
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Found while investigating #18117
+    
+    Change-Id: I6bda030f358e2270f090d108cb3a89c8a2665fcb
+    Reviewed-on: https://go-review.googlesource.com/33714
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/flag/flag.go      |  4 ++--
- src/flag/flag_test.go | 17 +++++++++++++++++
- 2 files changed, 19 insertions(+), 2 deletions(-)
+ src/net/http/request.go      |  4 +++-
+ src/net/http/request_test.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

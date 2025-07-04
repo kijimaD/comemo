@@ -1,43 +1,19 @@
-commit 063d0f11e535edf61d1e0b4ba16cfeae0f312bcf
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 23 10:57:00 2019 -0700
+commit 056d360f0f267909fcb0e637c7d9b4205a664fa2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 29 18:40:06 2019 +0200
 
-    cmd/compile: restore -m=2 diagnostics
+    vendor: update golang.org/x/sys for aix/ppc64 fix
     
-    This is a rough attempt at restoring -m=2 escape analysis diagnostics
-    on par with those that were available with esc.go. It's meant to be
-    simple and non-invasive.
+    This pulls in CL 179317 which fixes the build on aix/ppc64.
     
-    For example, given this random example from bytes/reader.go:
-    
-    138     func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
-    ...
-    143             b := r.s[r.i:]
-    144             m, err := w.Write(b)
-    
-    esc.go used to report:
-    
-    bytes/reader.go:138:7: leaking param content: r
-    bytes/reader.go:138:7:       from r.s (dot of pointer) at bytes/reader.go:143:8
-    bytes/reader.go:138:7:       from b (assigned) at bytes/reader.go:143:4
-    bytes/reader.go:138:7:       from w.Write(b) (parameter to indirect call) at bytes/reader.go:144:19
-    
-    With this CL, escape.go now reports:
-    
-    bytes/reader.go:138:7: parameter r leaks to {heap} with derefs=1:
-    bytes/reader.go:138:7:   flow: b = *r:
-    bytes/reader.go:138:7:     from r.s (dot of pointer) at bytes/reader.go:143:8
-    bytes/reader.go:138:7:     from r.s[r.i:] (slice) at bytes/reader.go:143:10
-    bytes/reader.go:138:7:     from b := r.s[r.i:] (assign) at bytes/reader.go:143:4
-    bytes/reader.go:138:7:   flow: {heap} = b:
-    bytes/reader.go:138:7:     from w.Write(b) (call parameter) at bytes/reader.go:144:19
-    
-    Updates #31489.
-    
-    Change-Id: I0c2b943a0f9ce6345bfff61e1c635172a9290cbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196959
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I7d90950800627904503db97cfb0bc670a45b701e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179357
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/escape.go | 98 +++++++++++++++++++++++++++++++----
- 1 file changed, 87 insertions(+), 11 deletions(-)
+ src/go.mod                                              | 2 +-
+ src/go.sum                                              | 2 ++
+ src/vendor/golang.org/x/sys/cpu/syscall_aix_ppc64_gc.go | 2 ++
+ src/vendor/modules.txt                                  | 2 +-
+ 4 files changed, 6 insertions(+), 2 deletions(-)

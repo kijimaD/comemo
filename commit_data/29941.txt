@@ -1,14 +1,20 @@
-commit 4f0aac52d926270255fa2b682aca15e8ff404c59
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Jan 12 10:49:35 2017 -0500
+commit 2ecaaf18f94cd5ad3ccd46937d36c7a68d3e69bf
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Oct 9 21:06:03 2016 +0200
 
-    cmd/go: add comment about SIGUSR2 on iOS
+    fmt: always handle special methods if print operand is a reflect.Value
     
-    Missing from CL 34926.
+    Check for and call the special printing and format methods such as String
+    at printing depth 0 when printing the concrete value of a reflect.Value.
     
-    Change-Id: I4a046440c30811f26da53bee0e853dae3b0ac57a
-    Reviewed-on: https://go-review.googlesource.com/35123
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes: #16015
+    
+    Change-Id: I23bd2927255b60924e5558321e98dd4a95e11c4c
+    Reviewed-on: https://go-review.googlesource.com/30753
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/fmt/fmt_test.go | 5 ++++-
+ src/fmt/print.go    | 8 ++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,20 +1,16 @@
-commit 361ab73305788c4bf35359a02d8873c36d654f1b
-Author: Andrei Tudor Călin <mail@acln.ro>
-Date:   Sat Sep 21 21:17:40 2019 +0300
+commit 9017b6149e0fcac8b60e5b755cddb98ea37daaf9
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Apr 8 00:16:40 2019 +0200
 
-    net: close correct file descriptor when netpoll registration fails
+    misc/cgo/test: skip Setgid test on Android
     
-    In (*netFD).accept, if initializing the *netFD associated with the
-    new connection fails, the listen FD is closed, rather than the FD
-    associated with the new connection. Close the correct FD instead.
+    The setgid syscall is blocked on Android in app context.
     
-    Fixes #34392
-    
-    Change-Id: I7bf3469d661e6d30cbd4b12f5f5fd330a81a541b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196778
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1ff25840bbc25d472ad4e29eb1b51f183a6c4392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170949
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/fd_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/test/cgo_linux_test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

@@ -1,16 +1,13 @@
-commit 7f62d087771d44b9670e2f34a0d3cef73c01a020
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jan 10 13:51:11 2014 +0400
+commit 5277b90ec43e9b75f481ce737ade1d2a78bd32e1
+Author: Nicholas Katsaros <nick@nickkatsaros.com>
+Date:   Fri Jan 10 14:33:54 2014 +1100
 
-    fmt: make benchmarks parallel
-    This seems to be the best target to benchmark sync.Pool changes.
+    net: add SetKeepAlivePeriod for windows
     
-    This is resend of cl/49910043 which was LGTMed by
-    TBR=bradfitz
-    
-    R=golang-codereviews
+    R=golang-codereviews, alex.brainman, bradfitz, mikioh.mikioh
     CC=golang-codereviews
-    https://golang.org/cl/50140045
+    https://golang.org/cl/11393043
 
- src/pkg/fmt/fmt_test.go | 51 ++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 36 insertions(+), 15 deletions(-)
+ src/pkg/net/tcpsockopt_windows.go | 17 +++++++++++++++--
+ src/pkg/syscall/ztypes_windows.go |  8 ++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

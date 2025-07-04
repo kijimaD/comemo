@@ -1,68 +1,42 @@
-commit ab8d7dd75ea4918cde5e71b4482ff5b4f0f69273
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 17 13:27:40 2022 -0700
+commit 52e970b1c86f18806232adb0e1f42636645d21ff
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 14 16:57:24 2021 -0700
 
-    cmd/compile: set LocalPkg.Path to -p flag
+    [dev.cmdgo] cmd: support space and quotes in CC and CXX
     
-    Since CL 391014, cmd/compile now requires the -p flag to be set the
-    build system. This CL changes it to initialize LocalPkg.Path to the
-    provided path, rather than relying on writing out `"".` into object
-    files and expecting cmd/link to substitute them.
+    The CC and CXX environment variables now support spaces and quotes
+    (both double and single). This fixes two issues: first, if CC is a
+    single path that contains spaces (like 'c:\Program
+    Files\gcc\bin\gcc.exe'), that should now work if the space is quoted
+    or escaped (#41400). Second, if CC or CXX has multiple arguments (like
+    'gcc -O2'), they are now split correctly, and the arguments are passed
+    before other arguments when invoking the C compiler. Previously,
+    strings.Fields was used to split arguments, and the arguments were
+    placed later in the command line. (#43078).
     
-    However, this actually involved a rather long tail of fixes. Many have
-    already been submitted, but a few notable ones that have to land
-    simultaneously with changing LocalPkg:
+    Fixes golang/go#41400
+    Fixes golang/go#43078
     
-    1. When compiling package runtime, there are really two "runtime"
-    packages: types.LocalPkg (the source package itself) and
-    ir.Pkgs.Runtime (the compiler's internal representation, for synthetic
-    references). Previously, these ended up creating separate link
-    symbols (`"".xxx` and `runtime.xxx`, respectively), but now they both
-    end up as `runtime.xxx`, which causes lsym collisions (notably
-    inittask and funcsyms).
-    
-    2. test/codegen tests need to be updated to expect symbols to be named
-    `command-line-arguments.xxx` rather than `"".foo`.
-    
-    3. The issue20014 test case is sensitive to the sort order of field
-    tracking symbols. In particular, the local package now sorts to its
-    natural place in the list, rather than to the front.
-    
-    Thanks to David Chase for helping track down all of the fixes needed
-    for this CL.
-    
-    Updates #51734.
-    
-    Change-Id: Iba3041cf7ad967d18c6e17922fa06ba11798b565
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393715
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I2d5d89ddb19c94adef65982a8137b01f037d5c11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334732
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/gc/main.go                | 11 +++++--
- src/cmd/compile/internal/gc/obj.go                 | 12 +++++++
- .../compile/internal/importer/gcimporter_test.go   |  2 +-
- src/cmd/compile/internal/noder/unified.go          |  1 -
- src/cmd/compile/internal/noder/writer.go           |  1 +
- src/cmd/compile/internal/reflectdata/reflect.go    |  8 +----
- src/cmd/compile/internal/ssa/writebarrier.go       |  8 +++++
- src/cmd/compile/internal/ssagen/abi.go             | 38 +++++++++-------------
- src/cmd/compile/internal/staticdata/data.go        |  8 +++++
- src/cmd/compile/internal/staticinit/sched.go       |  1 +
- src/cmd/compile/internal/types/fmt.go              | 27 ++++-----------
- src/cmd/internal/obj/dwarf.go                      | 10 +-----
- src/cmd/internal/obj/link.go                       |  2 +-
- src/cmd/internal/obj/plist.go                      |  4 +--
- src/cmd/link/link_test.go                          |  5 +++
- src/go/internal/gcimporter/gcimporter_test.go      |  2 +-
- src/internal/reflectlite/all_test.go               |  4 +--
- test/codegen/clobberdead.go                        | 12 +++----
- test/codegen/comparisons.go                        | 16 ++++-----
- test/codegen/memcombine.go                         |  2 +-
- test/codegen/memops.go                             | 10 +++---
- test/codegen/select.go                             |  2 +-
- test/codegen/zerosize.go                           |  4 +--
- test/fixedbugs/issue20014.out                      |  2 +-
- test/fixedbugs/issue9355.go                        |  8 ++---
- 25 files changed, 100 insertions(+), 100 deletions(-)
+ src/cmd/cgo/gcc.go                                 | 46 +++++++++++++-----
+ src/cmd/cgo/main.go                                |  8 ++--
+ src/cmd/compile/internal/ssa/stmtlines_test.go     |  7 ++-
+ src/cmd/dist/buildtool.go                          |  1 +
+ src/cmd/go/internal/envcmd/env.go                  | 34 +++++++++----
+ src/cmd/go/internal/work/exec.go                   | 43 ++++++-----------
+ src/cmd/go/internal/work/gc.go                     | 37 ++++++--------
+ src/cmd/go/internal/work/init.go                   | 16 +++++--
+ src/cmd/go/script_test.go                          |  1 +
+ .../go/testdata/script/cgo_path_space_quote.txt    | 56 ++++++++++++++++++++++
+ src/cmd/internal/dwarf/dwarf.go                    |  6 ++-
+ src/cmd/link/dwarf_test.go                         |  8 +++-
+ src/cmd/link/internal/ld/lib.go                    | 39 +++++++++------
+ src/cmd/link/internal/ld/main.go                   |  7 ++-
+ 14 files changed, 206 insertions(+), 103 deletions(-)

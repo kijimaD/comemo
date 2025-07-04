@@ -1,17 +1,14 @@
-commit d10126a622d2e9010b5250d1bcec6acb51b4ce24
-Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
-Date:   Thu Dec 15 12:19:19 2011 -0500
+commit 7e6890a670e676f8040e690c7dc1409d0972bf22
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Dec 15 17:50:59 2011 +0100
 
-    os: OS-dependent bits to support NetBSD.
+    gc: inlining, allow empty bodies, fix _ arguments.
     
-    R=golang-dev, jsing
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5482068
+    https://golang.org/cl/5487077
 
- include/libc.h                  |   2 +-
- src/libmach/netbsd.c            |  46 ++++++++++++++++
- src/pkg/net/fd_netbsd.go        | 115 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/net/interface_netbsd.go |  14 +++++
- src/pkg/net/tcpsock_posix.go    |   2 +-
- src/pkg/os/stat_netbsd.go       |  56 +++++++++++++++++++
- 6 files changed, 233 insertions(+), 2 deletions(-)
+ src/cmd/gc/fmt.c | 4 ++++
+ src/cmd/gc/inl.c | 6 +++---
+ test/cmp.go      | 3 ++-
+ 3 files changed, 9 insertions(+), 4 deletions(-)

@@ -1,25 +1,33 @@
-commit 290ec2d92bca6472fdabce51fc331b3bcaa7129d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jan 26 21:52:58 2025 -0800
+commit 971f59399fd7a53dc0744a949084080c85b3c62b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 20 07:28:37 2023 +0000
 
-    bufio: don't do empty Write at start of WriteTo
+    cmd/trace/v2: add thread-oriented mode for v2 traces
     
-    The empty Write will cause the wrong thing to happen when using
-    io.Copy to copy to a package-based stream.
+    This is a nice-to-have that's now straightforward to do with the new
+    trace format. This change adds a new query variable passed to the
+    /trace endpoint called "view," which indicates the type of view to
+    use. It is orthogonal with task-related views.
     
-    Fixes #71424
+    Unfortunately a goroutine-based view isn't included because it's too
+    likely to cause the browser tab to crash.
     
-    Change-Id: I046a27539447182692ac76a8bdd422327345dd8d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644535
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    For #60773.
+    For #63960.
+    
+    Change-Id: Ifbcb8f2d58ffd425819bdb09c586819cb786478d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543695
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/bufio/bufio.go      |  8 +++--
- src/bufio/bufio_test.go |  2 +-
- src/bufio/net_test.go   | 96 +++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 102 insertions(+), 4 deletions(-)
+ src/cmd/trace/main.go                     |   4 +-
+ src/cmd/trace/v2/gstate.go                |  23 +++-
+ src/cmd/trace/v2/jsontrace.go             |   6 +
+ src/cmd/trace/v2/jsontrace_test.go        |   2 +-
+ src/cmd/trace/v2/main.go                  |   8 +-
+ src/cmd/trace/v2/threadgen.go             | 201 ++++++++++++++++++++++++++++++
+ src/internal/trace/traceviewer/emitter.go |   1 +
+ src/internal/trace/traceviewer/http.go    |  46 +++++--
+ src/internal/trace/traceviewer/mmu.go     |   2 +-
+ 9 files changed, 273 insertions(+), 20 deletions(-)

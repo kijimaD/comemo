@@ -1,27 +1,19 @@
-commit 044721631659c2f0bcf3219462fdc20498b9954c
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Dec 19 12:08:32 2017 -0500
+commit 9ee6f7b0616be6af09f47b80022eedd8c9b590da
+Author: Samuel Tan <samueltan@google.com>
+Date:   Wed Aug 2 13:45:43 2017 -0700
 
-    cmd/compile: fix corner case in DWARF inline info generation
+    html/template: explain URL filtering
     
-    The helper routine for returning pre-inlining parameter declarations
-    wasn't properly handling the case where you have more than one
-    parameter named "_" in a function signature; this triggered a map
-    collision later on when the function was inlined and DWARF was
-    generated for the inlined routine instance.
+    Expand documentation in of the internal urlFilter function
+    to explain why URLs with schemes other than "http", "https",
+    and "mailto" are filtered out.
     
-    Fixes #23179.
+    Fixes #20586
     
-    Change-Id: I12e5d6556ec5ce08e982a6b53666a4dcc1d22201
-    Reviewed-on: https://go-review.googlesource.com/84755
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I1f65ff6e15fc4cd325489327c40f8c141904bf5c
+    Reviewed-on: https://go-review.googlesource.com/52853
+    Reviewed-by: Mike Samuel <mikesamuel@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go |  4 +++-
- test/fixedbugs/issue23179.dir/a.go  |  9 +++++++++
- test/fixedbugs/issue23179.dir/b.go  | 11 +++++++++++
- test/fixedbugs/issue23179.go        |  7 +++++++
- 4 files changed, 30 insertions(+), 1 deletion(-)
+ src/html/template/url.go | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

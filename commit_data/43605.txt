@@ -1,18 +1,25 @@
-commit 8b517983048205932305905bc01a29bd146cb8d6
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Oct 27 23:03:11 2020 +1100
+commit a6a8974a5a569d9dce2ad93672477bf9598f7682
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 14 15:14:54 2020 -0400
 
-    cmd/asm: remove X27 and S11 register names on riscv64
+    [dev.link] cmd/link: begin splitting up dodata()
     
-    The X27 register (known as S11 via its ABI name) is the g register on riscv64.
-    Prevent assembly from referring to it by either of these names.
+    Begin refactoring dodata to try to convert it from a single giant blob
+    to something more hierarchical, with descriptive function names for
+    sub-parts.
     
-    Change-Id: Iba389eb8e44e097c0142c5b3d92e72bcae8a244a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265519
-    Trust: Joel Sing <joel@sing.id.au>
+    Add a state object to hold things like "data" and "dataMaxAlign"
+    arrays that are used throughout dodata. Extract out the code that
+    allocates data symbols to sections into a separate method (this
+    method is still too big, probably needs to be refactored again).
+    
+    No change in functionality.
+    
+    Change-Id: I7b52dc2aff0356e7d4b5d6f629d907fd37d3082c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228259
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/asm/internal/arch/arch.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go | 168 +++++++++++++++++++++------------------
+ 1 file changed, 92 insertions(+), 76 deletions(-)

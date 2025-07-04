@@ -1,17 +1,30 @@
-commit 701f6a27b5c2499c1e84c28a3761eb2f1bf6fd7e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Feb 11 12:56:09 2019 -0500
+commit 859cf7fc0f4535ab3cdec15c81860f5fd2ae5b01
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Tue Sep 4 23:14:53 2018 +0300
 
-    cmd/go/internal/modcmd: use replaced paths to break cycles in 'go mod tidy'
+    cmd/compile/internal/gc: handle array slice self-assign in esc.go
     
-    Fixes #30166
+    Instead of skipping all OSLICEARR, skip only ones with non-pointer
+    array type. For pointers to arrays, it's safe to apply the
+    self-assignment slicing optimizations.
     
-    Change-Id: I4704b57ed48197f512cd1b818e1f7d2fffc0d9ce
-    Reviewed-on: https://go-review.googlesource.com/c/161898
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Refactored the matching code into separate function for readability.
+    
+    This is an extension to already existing optimization.
+    
+    On its own, it does not improve any code under std, but
+    it opens some new optimization opportunities. One
+    of them is described in the referenced issue.
+    
+    Updates #7921
+    
+    Change-Id: I08ac660d3ef80eb15fd7933fb73cf53ded9333ad
+    Reviewed-on: https://go-review.googlesource.com/133375
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modcmd/tidy.go              |  4 ++-
- src/cmd/go/testdata/script/mod_tidy_replace.txt | 39 +++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/esc.go | 95 ++++++++++++++++++++++++--------------
+ test/escape2.go                    | 16 +++++--
+ test/escape2n.go                   | 16 +++++--
+ 3 files changed, 82 insertions(+), 45 deletions(-)

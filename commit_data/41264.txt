@@ -1,14 +1,28 @@
-commit 5ce8005990f77d06f19cf70029353fb911d63d1f
-Author: Kanta Ebihara <kantaebihara@gmail.com>
-Date:   Wed Feb 12 08:17:30 2020 +0900
+commit 5253a6dc72c427cfeeabdce6d95c37c0716ab451
+Author: Liz Rice <liz@lizrice.com>
+Date:   Wed Jun 20 20:33:37 2018 +0100
 
-    cmd/go/internal/web: fix a typo
+    regexp: add more examples for Regexp methods
     
-    dependenicies -> dependencies
+    Since I first started on this CL, most of the methods have had examples
+    added by other folks, so this is now one new example, and additions to
+    two existing examples for extra clarity.
     
-    Change-Id: I0b8f06c04cf397c6330ffb43ac3ae5c2f7cf3138
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219157
+    The issue has a comment about not necessarily having examples for all
+    methods, but I recall finding this package pretty confusing when I first
+    used it, and having concrete examples would have really helped me
+    navigate all the different options. There are more
+    String methods with examples now, but I think seeing how the byte-slice
+    methods work could also be helpful to explain the differences.
+    
+    Updates #21450
+    
+    Change-Id: I27b4eeb634fb8ab59f791c0961cce79a67889826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/120145
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/web/api.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/regexp/example_test.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

@@ -1,25 +1,17 @@
-commit e6ebbefaf848604c8df3e2a58e146948b03e608b
+commit 0f3becf62f3935846490e60e5005e1e4a55bec67
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 14 12:02:23 2022 -0800
+Date:   Tue Dec 21 12:23:53 2021 -0800
 
-    net/url, net/http/httputil: accept invalid percent encodings
+    doc/go1.18: list new net/netip and net functions and methods
     
-    Per https://url.spec.whatwg.org/#percent-encoded-bytes an invalid
-    percent encoding should be handled as ordinary text.
+    For #46518
+    For #47694
     
-    Fixes #56732
-    
-    Change-Id: Ib0259dfd704922905289eebaacbf722e28f6d636
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450375
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I4848556674baf85ceec350645d9eddcd83f1b2e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373834
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/httputil/reverseproxy.go      | 27 +--------------------
- src/net/http/httputil/reverseproxy_test.go |  2 +-
- src/net/url/url.go                         | 26 +++++++++++++-------
- src/net/url/url_test.go                    | 39 ++++++++++++------------------
- 4 files changed, 35 insertions(+), 59 deletions(-)
+ doc/go1.18.html | 34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)

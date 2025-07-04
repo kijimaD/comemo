@@ -1,24 +1,35 @@
-commit dc57ed8cafe7c6e8940231c46cdcf3633e6c5eaa
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Thu Mar 8 12:13:41 2012 -0500
+commit 9b73238daa6a5d08eb2265fc38577cb6003f0d23
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 12:12:40 2012 -0500
 
-    misc/cgo: re-enable testso
+    cgo, runtime: diagnose callback on non-Go thread
     
-    The test.bash file generates .so file using gcc, builds the executable
-    using the go tool and then run it with the $LD_LIBRARY_PATH variable
-    pointing to the directory where the .so file lives.
+    Before:
+    $ go run x.go
+    signal 11 (core dumped)
+    $
     
-    Fixes #2982.
+    After:
+    $ go run x.go
+    runtime: cgo callback on thread not created by Go.
+    signal 11 (core dumped)
+    $
     
-    R=rsc, remyoudompheng
+    For issue 3068.
+    Not a fix, but as much of a fix as we can do before Go 1.
+    
+    R=golang-dev, rogpeppe, gri
     CC=golang-dev
-    https://golang.org/cl/5788043
+    https://golang.org/cl/5781047
 
- .hgignore                 |  1 +
- misc/cgo/testso/Makefile  | 22 ----------------------
- misc/cgo/testso/cgoso.go  |  5 ++++-
- misc/cgo/testso/cgoso_c.c |  2 ++
- misc/cgo/testso/main.go   |  4 +++-
- misc/cgo/testso/test.bash |  7 ++++---
- src/run.bash              |  2 --
- 7 files changed, 14 insertions(+), 29 deletions(-)
+ src/cmd/cgo/out.go               |  5 +++--
+ src/pkg/runtime/asm_386.s        |  8 ++++++++
+ src/pkg/runtime/asm_amd64.s      |  8 ++++++++
+ src/pkg/runtime/thread_darwin.c  | 10 ++++++++++
+ src/pkg/runtime/thread_freebsd.c | 10 ++++++++++
+ src/pkg/runtime/thread_linux.c   | 10 ++++++++++
+ src/pkg/runtime/thread_netbsd.c  | 10 ++++++++++
+ src/pkg/runtime/thread_openbsd.c | 10 ++++++++++
+ src/pkg/runtime/thread_plan9.c   | 10 ++++++++++
+ src/pkg/runtime/thread_windows.c | 19 +++++++++++++++++++
+ 10 files changed, 98 insertions(+), 2 deletions(-)

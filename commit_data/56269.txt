@@ -1,21 +1,20 @@
-commit 1f4bcee2cd064fdb5b02f36b4e96c1dc3aac48c9
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Apr 19 13:46:16 2024 -0400
+commit f229787affbcaafb55dac2ceae65282b172e253a
+Author: Lucien Coffe <lucien.coffe@botify.com>
+Date:   Fri Apr 21 17:20:19 2023 +0200
 
-    runtime: move zeroVal out of map.go
+    runtime: prevent double lock in checkdead by unlocking before throws
     
-    It isn't specific to maps, so put it in a more general location.
+    This change resolves an issue where checkdead could result in a double lock when shedtrace is enabled. This fix involves adding unlocks before all throws in the checkdead function to ensure the scheduler lock is properly released.
     
-    For #54766.
+    Fixes #59758
     
-    Change-Id: Ia3f3ebe8c347cfa5a8582082a306f4df4e05818d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580777
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If3ddf9969f4582c3c88dee9b9ecc355a63958103
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487375
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/internal/abi/map.go     | 3 ---
- src/internal/abi/runtime.go | 8 ++++++++
- src/runtime/map.go          | 2 --
- src/runtime/runtime.go      | 3 +++
- 4 files changed, 11 insertions(+), 5 deletions(-)
+ src/runtime/proc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

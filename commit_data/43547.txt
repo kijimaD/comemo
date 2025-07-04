@@ -1,20 +1,18 @@
-commit ece7a33386a4fbd2ff9859902f780ed82120b985
-Author: Andy Williams <andy@andy.xyz>
-Date:   Fri Jun 5 10:18:47 2020 +0000
+commit 3afa74115b1c458319e5a07fba5bdacc39ef7f88
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Apr 11 08:51:21 2020 -0700
 
-    mime: look up mime types on Arch Linux
+    runtime/race: rebuild netbsd .syso
     
-    Some systems use "httpd" directory structure instead of "apache"
+    Fixes #14481
+    Fixes #37355
     
-    Change-Id: I77600baf356f0c0c3359b331505b0426112daebb
-    GitHub-Last-Rev: c64766f88cc28899d3d387e3eebfa4fcc3eef808
-    GitHub-Pull-Request: golang/go#39416
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236677
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Idfceaf0e64d340b7304ce9562549a82ebfc27e3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227867
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/mime/type_unix.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/runtime/race/README                 |   2 +-
+ src/runtime/race/race_netbsd_amd64.syso | Bin 574896 -> 602384 bytes
+ 2 files changed, 1 insertion(+), 1 deletion(-)

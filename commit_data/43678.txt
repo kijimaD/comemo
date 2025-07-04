@@ -1,19 +1,30 @@
-commit 202aa085abfc2aa7f3095102b9d47c83e177fb84
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Sat Oct 31 17:21:40 2020 -0400
+commit c32b59026475342c9cf187b50e890a94c146bc79
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 17 09:11:57 2020 -0400
 
-    runtime: use indexed load/store in ARM64 assembly
+    [dev.link] cmd/link: revise representation of dwarfp
     
-    Minor optimization. Spotted while working on that code.
+    Change linker DWARF generation to move away from emitting a single
+    giant list of DWARF symbols, and instead emit a list of descriptors,
+    with each descriptor holding the symbols for a specific DWARF section.
     
-    Change-Id: Ia02dee10d74bce79a0bef1eaba7fac1bfc27df38
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266899
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: fannie zhang <Fannie.Zhang@arm.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    While placing all DWARF symbols in a single lists does come in handy
+    in certain instances, it also creates a lot of confusion and weird
+    code in other cases, specifically where we want to perform operations
+    on a section-by-section basis (resulting in code that tries to
+    re-discover section boundaries by walking/inspecting the list).
+    
+    Change-Id: I4dac81bd38cba903c9fd7004d613597e76dfb77a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228780
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/race_arm64.s | 3 +--
- src/runtime/tls_arm64.s  | 6 ++----
- 2 files changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/link/internal/ld/data.go   |  84 +++++++++++-------------
+ src/cmd/link/internal/ld/dwarf.go  | 130 ++++++++++++++++++++++++-------------
+ src/cmd/link/internal/ld/dwarf2.go |  75 ++++++++++++---------
+ src/cmd/link/internal/ld/elf.go    |  17 +++--
+ src/cmd/link/internal/ld/lib.go    |  17 +++--
+ src/cmd/link/internal/ld/macho.go  |  10 ++-
+ src/cmd/link/internal/ld/pe.go     |  10 ++-
+ src/cmd/link/internal/ld/xcoff.go  |  10 ++-
+ 8 files changed, 215 insertions(+), 138 deletions(-)

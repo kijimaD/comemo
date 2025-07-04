@@ -1,26 +1,26 @@
-commit 794f1ebff7aeb4085ce7059011330a5efd946156
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 15 18:43:34 2017 -0800
+commit f4c7a12c2c4b0aef99b4957a778736a4da9ae4ec
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Oct 30 21:19:59 2016 -0400
 
-    cmd/compile: simplify needwritebarrier
+    runtime: make module typemaps visible to the GC
     
-    Currently, whether we need a write barrier is simply a property of the
-    pointer slot being written to.
+    The map[typeOff]*_type object is created at run time and stored in
+    the moduledata. The moduledata object is marked by the linker as
+    SNOPTRDATA, so the reference is ignored by the GC. Running
+    misc/cgo/testplugin/test.bash with GOGC=1 will eventually collect
+    the typemap and crash.
     
-    The only optimization we currently apply using the value being written
-    is that pointers to stack variables can omit write barriers because
-    they're only written to stack slots... but we already omit write
-    barriers for all writes to the stack anyway.
+    This bug probably comes up in -linkshared binaries in Go 1.7.
+    I don't know why we haven't seen a report about this yet.
     
-    Passes toolstash -cmp.
+    Fixes #17680
     
-    Change-Id: I7f16b71ff473899ed96706232d371d5b2b7ae789
-    Reviewed-on: https://go-review.googlesource.com/37109
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I0e9b5c006010e8edd51d9471651620ba665248d3
+    Reviewed-on: https://go-review.googlesource.com/32430
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go  | 14 +++++---------
- src/cmd/compile/internal/gc/subr.go |  2 +-
- src/cmd/compile/internal/gc/walk.go | 28 +++-------------------------
- 3 files changed, 9 insertions(+), 35 deletions(-)
+ src/runtime/symtab.go | 9 +++++++++
+ src/runtime/type.go   | 4 +++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

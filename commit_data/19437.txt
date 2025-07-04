@@ -1,26 +1,13 @@
-commit 5eb585f211385d28b36f3df66b5bd7bde72a8e43
-Author: Pietro Gagliardi <pietro10@mac.com>
-Date:   Wed May 21 16:01:54 2014 -0700
+commit 52abddb71273cd439a5ea6670270a165f08aba8c
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Wed May 21 14:34:20 2014 -0700
 
-    cmd/cgo: explicitly state that #cgo directives across multiple files are concatenated
+    doc: fix typo in sharemem codewalk
     
-    This is a quick documentation change/clarification, as this
-    confused me before: in my own cgo-based projects, I currently have
-    identical #cgo directives in each relevant source file, and I notice
-    with go build -x that cgo is combining the directives, leading to
-    pkg-config invocations with the same package name (gtk+-3.0, in my
-    case) repeated several times, or on Mac OS X, LDFLAGS listing
-    -framework Foundation -framework AppKit multiple times. Since I am
-    about to add a CFLAGS as well, I checked the source to cmd/cgo and
-    go/build (where the work is actually done) to see if that still holds
-    true there. Hopefully other people who have made the same mistake I
-    have (I don't know if anyone has) can remove the excess declarations
-    now; this should make things slightly easier to manage as well.
-    
-    LGTM=iant
-    R=golang-codereviews, gobot, iant
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/91520046
+    https://golang.org/cl/98460045
 
- src/cmd/cgo/doc.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ doc/codewalk/sharemem.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

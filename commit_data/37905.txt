@@ -1,14 +1,16 @@
-commit cad6d1fef5147d31e94ee83934c8609d3ad150b7
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Mon Jan 21 16:12:46 2019 +0100
+commit bbf9e6db0ad4ce951706759d3743dbab2257d033
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Aug 12 11:16:26 2018 +1000
 
-    doc/go1.12.html: document rejection of mangled C names
+    internal/poll: cap reads and writes to 1GB on windows
     
-    Change-Id: I27ef49815f55a36379b730b77f7e9a4dd5341507
-    Reviewed-on: https://go-review.googlesource.com/c/158777
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #26923
+    
+    Change-Id: I62fec814220ccdf7acd8d79a133d1add3f24cf98
+    Reviewed-on: https://go-review.googlesource.com/129137
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.12.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/internal/poll/fd_windows.go | 144 +++++++++++++++++++++++++++++-----------
+ 1 file changed, 105 insertions(+), 39 deletions(-)

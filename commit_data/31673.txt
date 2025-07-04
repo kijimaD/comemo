@@ -1,14 +1,22 @@
-commit 6654e3e0a1fa1deff4acf7d5ea68cd078df7e2fa
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 25 12:20:58 2017 -0700
+commit 2a26f5809e4e80e7d8d4e20b9965efb2eefe71c5
+Author: Andrew Benton <andrewmbenton@gmail.com>
+Date:   Mon Mar 6 23:17:58 2017 -0800
 
-    cmd/cgo, runtime/cgo: add docs for TSAN interaction
+    crypto/x509: rename and reposition rsaPublicKey struct declaration
     
-    Change-Id: I3b3ae4ecad0894781a3019326c7262cb9790ad4d
-    Reviewed-on: https://go-review.googlesource.com/44250
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    For consistency with the other named types in this package, this
+    change renames the unexported rsaPublicKey struct to pkcs1PublicKey
+    and positions the declaration up with the other similarly-named
+    types in pkcs1.go.
+    
+    See the final comment of #19355 for discussion.
+    
+    Change-Id: I1fa0366a8efa01602b81bc69287ef747abce84f5
+    Reviewed-on: https://go-review.googlesource.com/37885
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/cgo/out.go       | 21 +++++++++++++++++++++
- src/runtime/cgo/libcgo.h |  5 +++++
- 2 files changed, 26 insertions(+)
+ src/crypto/x509/pkcs1.go | 12 ++++++------
+ src/crypto/x509/x509.go  |  4 ++--
+ 2 files changed, 8 insertions(+), 8 deletions(-)

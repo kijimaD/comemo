@@ -1,37 +1,31 @@
-commit 55f19b8d1d6a773c04228d9122db9288c5e712e7
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 25 16:30:02 2017 -0400
+commit 9d01def5979c638a9743ee491d68e3f7b81cd840
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 11 16:33:21 2017 -0700
 
-    cmd/trace: update HTML; expand viewer to whole window
+    math/bits: support negative rotation count and remove RotateRight
     
-    This updates the HTML served for the trace viewer to follow the latest
-    revision of the example from the upstream tracing project.
+    For details see the discussion on the issue below.
     
-    The main thing this adds is CSS for the trace viewer (which was
-    actually in the example at the originally referenced revision, so I'm
-    not sure why it got dropped). In particular, this expands the trace
-    viewer to use the entire browser client area, which fixes several
-    problems with the current page:
+    RotateLeft functions can now be inlined because the don't panic
+    anymore for negative rotation counts.
     
-    1. The details pane gets cut off at a strange place and can get a
-    scroll bar even if there's plenty of room below it on the page. This
-    fixes the bottom of the details pane to the bottom of the window.
+    name            old time/op  new time/op  delta
+    RotateLeft-8    6.72ns ± 2%  1.86ns ± 0%  -72.33%  (p=0.016 n=5+4)
+    RotateLeft8-8   4.41ns ± 2%  1.67ns ± 1%  -62.15%  (p=0.008 n=5+5)
+    RotateLeft16-8  4.46ns ± 6%  1.65ns ± 0%  -63.06%  (p=0.008 n=5+5)
+    RotateLeft32-8  4.50ns ± 5%  1.67ns ± 1%  -62.86%  (p=0.008 n=5+5)
+    RotateLeft64-8  4.54ns ± 1%  1.85ns ± 1%  -59.32%  (p=0.008 n=5+5)
     
-    2. If the track view is very tall (lots of procs), there's no way to
-    view the top tracks and the details pane at the same time. This fixes
-    this problem by limiting the height of the track view to something
-    less than the height of the window so it gets a scroll bar of its own
-    if necessary.
+    https://perf.golang.org/search?q=upload:20170411.4
     
-    3. Dragging the divider between the track pane and the details pane
-    actually moves the bottom of the details pane without moving the
-    divider. Fixing the height of the trace viewer fixes this problem.
+    (Measured on 2.3 GHz Intel Core i7 running macOS 10.12.3.)
     
-    Change-Id: Ia811e72a7413417ca21c45e932c9db2724974633
-    Reviewed-on: https://go-review.googlesource.com/54632
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    For #18616.
+    
+    Change-Id: I0828d80d54ec24f8d44954a57b3d6aeedb69c686
+    Reviewed-on: https://go-review.googlesource.com/40394
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/trace/trace.go | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ src/math/bits/bits.go      |  77 ++++--------------------------
+ src/math/bits/bits_test.go | 114 ++++++++++-----------------------------------
+ 2 files changed, 34 insertions(+), 157 deletions(-)

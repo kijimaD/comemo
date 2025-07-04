@@ -1,27 +1,23 @@
-commit 724a86fcede55d0e80da4a779ef64a2eb5d235a8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 27 20:08:36 2019 +0000
+commit 9fc22d29092933460fe00bdaccea179f29e9960d
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Fri Nov 2 11:23:54 2018 +0100
 
-    context: don't depend on fmt
+    net: update zoneCache on cache misses to cover appearing interfaces
     
-    So the net package doesn't indirectly depend on unicode tables.
+    performance differences are in measurement noise as per benchcmp:
     
-    But we're still not quite there, because a new test added in this CL
-    reveals that we still have a path to unicode via:
+    benchmark                            old ns/op     new ns/op     delta
+    BenchmarkUDP6LinkLocalUnicast-12     5012          5009          -0.06%
     
-    deps_test.go:570:
-      TODO(issue 30440): policy violation: net => sort => reflect => unicode
+    Fixes #28535
     
-    Updates #30440
-    
-    Change-Id: I710c2061dfbaa8e866c92e6c824bd8df35784165
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169080
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id022e2ed089ce8388a2398e755848ec94e77e653
+    Reviewed-on: https://go-review.googlesource.com/c/146941
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
 
- src/context/context.go           | 35 +++++++++++++++++++++++++++++++----
- src/context/context_test.go      |  2 +-
- src/go/build/deps_test.go        | 36 +++++++++++++++++++++++++++++++++++-
- src/internal/reflectlite/type.go |  7 +++++++
- 4 files changed, 74 insertions(+), 6 deletions(-)
+ src/net/interface.go            | 40 ++++++++++++++++++++++++++++++----------
+ src/net/interface_bsd_test.go   |  5 +++++
+ src/net/interface_linux_test.go | 25 +++++++++++++++++++++++++
+ src/net/interface_unix_test.go  | 34 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 94 insertions(+), 10 deletions(-)

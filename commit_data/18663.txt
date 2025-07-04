@@ -1,33 +1,18 @@
-commit 7954b2b90be1b424e1dc8d9d50b3edd1d7a60d4c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Feb 27 06:57:06 2014 +1100
+commit 85f59b34291a9e16bf3a2e7db586cd824a121825
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 26 09:54:01 2014 -0800
 
-    cmd/5a, cmd/5c, cmd/6a, cmd/6c, cmd/8a, cmd/8c, cmd/cc: support for Native Client
+    go/parser: report error if ParseExpr argument contains extra tokens
     
-    From the original description in CL 15770043
+    This partly addresses issue 6099 where a gofmt rewrite is behaving
+    unexpectedly because the provided rewrite term is not a valid expression
+    but is silently consumed anyway.
     
-    The main change here is to consult $GOARCH.
-    
-    In 6c, when GOOS=nacl, some of the more complex addressing modes must be disabled, and the BP and R15 registers must not be used.
-    
-    See golang.org/s/go13nacl for design overview.
-    
-    LGTM=rsc
-    R=golang-codereviews, gobot, rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/69020044
+    https://golang.org/cl/68920044
 
- src/cmd/5a/lex.c  |  8 +++++++-
- src/cmd/5c/swt.c  |  2 +-
- src/cmd/5c/txt.c  |  5 +++--
- src/cmd/6a/lex.c  |  8 +++++++-
- src/cmd/6c/reg.c  |  4 +++-
- src/cmd/6c/sgen.c |  2 +-
- src/cmd/6c/swt.c  | 22 +++++++++++++++++++++-
- src/cmd/6c/txt.c  | 31 ++++++++++++++++++++++++++-----
- src/cmd/8a/lex.c  |  8 +++++++-
- src/cmd/8c/swt.c  |  2 +-
- src/cmd/8c/txt.c  |  5 +++--
- src/cmd/cc/cc.h   |  5 +++--
- src/cmd/cc/lex.c  | 13 +++++++++++++
- 13 files changed, 96 insertions(+), 19 deletions(-)
+ src/pkg/go/parser/interface.go   |  7 +++++++
+ src/pkg/go/parser/parser_test.go | 15 +++++++++++----
+ 2 files changed, 18 insertions(+), 4 deletions(-)

@@ -1,12 +1,14 @@
-commit ae8d8abfebd11450bde5722f22fc32320660bf6a
-Author: Rob Pike <r@golang.org>
-Date:   Sat Mar 24 08:12:52 2012 +1100
+commit 43ad726f3466440239954c3afab7a2cfeb6e97b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 23 11:31:29 2012 -0700
 
-    codewalk/sharemem.xml: fix references to files
+    text/template: fix typo in package comment
     
-    R=golang-dev, iant
+    Fixes #3383.
+    
+    R=iant, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5877064
+    https://golang.org/cl/5891045
 
- doc/codewalk/sharemem.xml | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/text/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

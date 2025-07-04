@@ -1,0 +1,20 @@
+commit 206df8e7ad8a736b0dcbf5d98ab237b6784e5007
+Author: wineandchord <guoqizhou19@gmail.com>
+Date:   Mon Aug 12 20:52:05 2024 +0000
+
+    net/http: rename server receiver for consistency
+    
+    "receiver name `srv` should be consistent with the previous receiver name
+    `s` for Server" according to go-lint.
+    
+    Change-Id: I3071ae30b7c1375999e5a599a0eee7b88494f17e
+    GitHub-Last-Rev: 093c7679b1919f364ed542904203d22ed2048313
+    GitHub-Pull-Request: golang/go#65787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565175
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/server.go | 184 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 92 insertions(+), 92 deletions(-)

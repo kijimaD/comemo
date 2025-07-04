@@ -1,19 +1,29 @@
-commit 13e87cda000149ff3efce95210b0c921f7d772bf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 26 17:49:28 2021 -0700
+commit b4c8b67adcd39da54f210bef5c201b1df8124d73
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 12 10:52:16 2020 -0400
 
-    time: increase slop for TestTicker
+    cmd,cmd/vendor: pick up updates for golang.org/x/arch/ppc64
     
-    Also sleep a bit each time it fails, in case the system is overloaded.
+    Bring in updates to golang.org/x/arch/ppc64 to add new
+    instructions from CLs 260617, 230957, 249158.
     
-    Fixes #37332
+    Used the directions found in README.vendor:
     
-    Change-Id: Iabf3d0a27b5834c1e2a87c826b6206146b4f62c5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313849
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+      cd $GOROOT/src/cmd
+      go get -d golang.org/x/arch@latest
+      go mod tidy
+      go mod vendor
+    
+    Change-Id: Ie8ceb9c804928b72b37fff5b63981c174fb86989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264079
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/time/tick_test.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../golang.org/x/arch/ppc64/ppc64asm/plan9.go      |  5 ++--
+ .../golang.org/x/arch/ppc64/ppc64asm/tables.go     | 32 ++++++++++++++++++++--
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 5 files changed, 37 insertions(+), 8 deletions(-)

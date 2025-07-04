@@ -1,28 +1,37 @@
-commit a409356c548133e188acd7873e73a66ff5982b57
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 21 16:49:48 2022 -0700
+commit 3d795ea798edf0f9da4d2e33e15a58e59aa42e83
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Aug 13 08:34:25 2021 -0700
 
-    misc/cgo/testcarchive: permit SIGQUIT for TestSignalForwardingExternal
+    runtime: add timer_create syscalls for Linux
     
-    Occasionally the signal will be sent to a Go thread, which will cause
-    the program to exit with SIGQUIT rather than SIGSEGV.
+    Updates #35057
     
-    Add TestSignalForwardingGo to test the case where the signal is
-    expected to be delivered to a Go thread.
-    
-    Fixes #53907
-    
-    Change-Id: Iaefb964c2be4a815c11c507fa89648f8a7740ba9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419014
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id702b502fa4e4005ba1e450a945bc4420a8a8b8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342052
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Than McIntosh <thanm@google.com>
 
- misc/cgo/testcarchive/carchive_test.go          | 235 ++++++++++++++----------
- misc/cgo/testcarchive/testdata/libgo2/libgo2.go |   6 +
- misc/cgo/testcarchive/testdata/main5.c          |  13 +-
- 3 files changed, 157 insertions(+), 97 deletions(-)
+ src/runtime/defs_linux.go         |  9 +++++++++
+ src/runtime/defs_linux_386.go     | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_amd64.go   | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_arm.go     | 19 +++++++++++++++++++
+ src/runtime/defs_linux_arm64.go   | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_mips64x.go | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_mipsx.go   | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_ppc64.go   | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_ppc64le.go | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_riscv64.go | 20 ++++++++++++++++++++
+ src/runtime/defs_linux_s390x.go   | 20 ++++++++++++++++++++
+ src/runtime/os_linux.go           |  9 +++++++++
+ src/runtime/sys_linux_386.s       | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_amd64.s     | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_arm.s       | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_arm64.s     | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_mips64x.s   | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_mipsx.s     | 29 +++++++++++++++++++++++++++++
+ src/runtime/sys_linux_ppc64x.s    | 26 ++++++++++++++++++++++++++
+ src/runtime/sys_linux_riscv64.s   | 32 ++++++++++++++++++++++++++++++++
+ src/runtime/sys_linux_s390x.s     | 29 +++++++++++++++++++++++++++++
+ 21 files changed, 478 insertions(+)

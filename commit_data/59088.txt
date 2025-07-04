@@ -1,19 +1,34 @@
-commit 44d1d2e5adaf95190a817980eb8439d080df6b12
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Mar 17 11:43:32 2025 +0100
+commit 2413629aa8a2737fb0343d8bc9107208ae7d643f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Jan 12 18:13:14 2024 -0800
 
-    crypto/internal/hpke: use crypto/hkdf
+    reflect: optimize TypeFor for non-interface types
     
-    The hpke package uses public-facing crypto packages except for hkdf,
-    which uses crypto/internal/hkdf. We already have a public hkdf package,
-    crypto/hkdf, so use it instead for consistency.
+    The reflect.Type.Elem method is somewhat slow,
+    which is unfortunate since the reflect.TypeOf((*T)(nil)).Elem()
+    trick is only needed if T is an interface.
     
-    Change-Id: Icf6afde791234dfe24dbfba715c0891f32005ca2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657556
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: David Chase <drchase@google.com>
+    Optimize for concrete types by doing the faster reflect.TypeOf(v)
+    call first and only falling back on the Elem method if needed.
+    
+    Performance:
+    
+            name              old time/op  new time/op  delta
+            TypeForString-24  9.10ns ± 1%  1.78ns ± 2%  -80.49%  (p=0.000 n=10+10)
+            TypeForError-24   9.55ns ± 1%  9.78ns ± 1%   +2.39%  (p=0.000 n=10+9)
+    
+    Updates #60088
+    
+    Change-Id: I2ae76988c9a3dbcbae10d2c19b55db3c8d4559bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555597
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
 
- src/crypto/internal/hpke/hpke.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/reflect/type.go      |  6 +++++-
+ src/reflect/type_test.go | 14 ++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

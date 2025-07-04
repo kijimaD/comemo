@@ -1,25 +1,33 @@
-commit f1d662f34788f4a5f087581d0951cdf4e0f6e708
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 29 17:22:36 2019 +0000
+commit de28555c0b33fcaa02779d55ea9289135280ae9f
+Author: erifan01 <eric.fang@arm.com>
+Date:   Mon May 7 08:08:30 2018 +0000
 
-    net/url, net/http: relax CTL-in-URL validation to only ASCII CTLs
+    internal/bytealg: optimize Equal on arm64
     
-    CL 159157 was doing UTF-8 decoding of URLs. URLs aren't really UTF-8,
-    even if sometimes they are in some contexts.
+    Currently the 16-byte loop chunk16_loop is implemented with NEON instructions LD1, VMOV and VCMEQ.
+    Using scalar instructions LDP and CMP to achieve this loop can reduce the number of clock cycles.
+    For cases where the length of strings are between 4 to 15 bytes, loading the last 8 or 4 bytes at
+    a time to reduce the number of comparisons.
     
-    Instead, only reject ASCII CTLs.
+    Benchmarks:
+    name                 old time/op    new time/op    delta
+    Equal/0-8              5.51ns ± 0%    5.84ns ±14%     ~     (p=0.246 n=7+8)
+    Equal/1-8              10.5ns ± 0%    10.5ns ± 0%     ~     (all equal)
+    Equal/6-8              14.0ns ± 0%    12.5ns ± 0%  -10.71%  (p=0.000 n=8+8)
+    Equal/9-8              13.5ns ± 0%    12.5ns ± 0%   -7.41%  (p=0.000 n=8+8)
+    Equal/15-8             15.5ns ± 0%    12.5ns ± 0%  -19.35%  (p=0.000 n=8+8)
+    Equal/16-8             14.0ns ± 0%    13.0ns ± 0%   -7.14%  (p=0.000 n=8+8)
+    Equal/20-8             16.5ns ± 0%    16.0ns ± 0%   -3.03%  (p=0.000 n=8+8)
+    Equal/32-8             16.5ns ± 0%    15.3ns ± 0%   -7.27%  (p=0.000 n=8+8)
+    Equal/4K-8              552ns ± 0%     553ns ± 0%     ~     (p=0.315 n=8+8)
+    Equal/4M-8             1.13ms ±23%    1.20ms ±27%     ~     (p=0.442 n=8+8)
+    Equal/64M-8            32.9ms ± 0%    32.6ms ± 0%   -1.15%  (p=0.000 n=8+8)
+    CompareBytesEqual-8    12.0ns ± 0%    12.0ns ± 0%     ~     (all equal)
     
-    Updates #27302
-    Updates #22907
-    
-    Change-Id: Ibd64efa5d3a93263d175aadf1c9f87deb4670c62
-    Reviewed-on: https://go-review.googlesource.com/c/160178
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If317ecdcc98e31883d37fd7d42b113b548c5bd2a
+    Reviewed-on: https://go-review.googlesource.com/112496
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/http.go    | 13 +++++++++----
- src/net/http/request.go |  2 +-
- src/net/url/url.go      | 15 ++++++++++-----
- src/net/url/url_test.go |  6 ++++++
- 4 files changed, 26 insertions(+), 10 deletions(-)
+ src/internal/bytealg/equal_arm64.s | 44 ++++++++++++++++++++++++--------------
+ 1 file changed, 28 insertions(+), 16 deletions(-)

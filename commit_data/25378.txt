@@ -1,14 +1,21 @@
-commit 94ff47939a1f8d83e9a5241add2de8aa3295439d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Dec 21 10:10:17 2015 -0800
+commit 8ee0fd862357aade3f58cdb41467408105c9e865
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 9 15:24:38 2015 -0700
 
-    misc/cgo/testcarchive: skip test4 on darwin/{arm,arm64}
+    runtime: replace is{plan9,solaris,windows} with GOOS tests
     
-    Fixes #13701.
-    
-    Change-Id: I9825864d23aeba1971cf5f581e1e59ac4c9b87fd
-    Reviewed-on: https://go-review.googlesource.com/18090
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I27589395f547c5837dc7536a0ab5bc7cc23a4ff6
+    Reviewed-on: https://go-review.googlesource.com/10872
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testcarchive/test.bash | 21 ++++++++++++++-------
- 1 file changed, 14 insertions(+), 7 deletions(-)
+ src/runtime/asm_386.s           | 10 ++++++----
+ src/runtime/asm_amd64.s         | 15 +++++++++------
+ src/runtime/rt0_plan9_386.s     |  2 --
+ src/runtime/rt0_plan9_amd64.s   |  2 --
+ src/runtime/rt0_solaris_amd64.s |  3 ---
+ src/runtime/rt0_windows_386.s   |  4 ----
+ src/runtime/rt0_windows_amd64.s |  3 ---
+ src/runtime/runtime1.go         |  7 -------
+ 8 files changed, 15 insertions(+), 31 deletions(-)

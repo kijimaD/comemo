@@ -1,19 +1,25 @@
-commit 20d9fd3ae18bd5f80c3c0f8f424ebd9a72b6788a
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 30 15:11:20 2012 -0700
+commit adc933726206e7f2be6a2ded826b6a3596df5ffd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jul 30 21:12:05 2012 +0200
 
-    text/template/parse: fix data race
-    The situation only affects diagnostics but is easy to fix.
-    When computing lineNumber, use the position of the last item
-    returned by nextItem rather than the current state of the lexer.
-    This is internal only and does not affect the API.
+    test: add a compiledir pattern in run.go
     
-    Fixes #3886.
+    The compiledir pattern compiles all files xxx.dir/*.go
+    in lexicographic order (which is assumed to coincide with
+    the topological order of dependencies).
     
-    R=golang-dev, iant
-    CC=golang-dev
-    https://golang.org/cl/6445061
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6440048
 
- src/pkg/text/template/parse/lex.go      |  19 ++-
- src/pkg/text/template/parse/lex_test.go | 235 ++++++++++++++++++++------------
- 2 files changed, 159 insertions(+), 95 deletions(-)
+ test/fixedbugs/bug088.go |  2 +-
+ test/fixedbugs/bug106.go |  2 +-
+ test/fixedbugs/bug282.go |  2 +-
+ test/fixedbugs/bug306.go |  2 +-
+ test/fixedbugs/bug377.go |  2 +-
+ test/fixedbugs/bug396.go |  2 +-
+ test/fixedbugs/bug404.go |  2 +-
+ test/fixedbugs/bug407.go |  2 +-
+ test/run.go              | 23 ++++++++++++++++++++++-
+ test/testlib             |  7 +++++++
+ 10 files changed, 37 insertions(+), 9 deletions(-)

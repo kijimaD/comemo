@@ -1,17 +1,23 @@
-commit 68ca584ffaf3f647eda2706500fba5280f2ad19c
-Author: Mark Freeman <mark@golang.org>
-Date:   Mon Apr 28 13:17:31 2025 -0400
+commit c8e4f8c7756d67e27d2cfe4383cb90cf9f97d5a3
+Author: 胡玮文 <huweiwen.hww@alibaba-inc.com>
+Date:   Fri Mar 8 13:42:49 2024 +0800
 
-    pkgbits: alias the Index type to clarify it is section relative
+    net/http: support socks5h proxy schema
     
-    Change-Id: I214eb97ef3b11a6de8584498f2df4baff1903e1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/668537
-    Auto-Submit: Mark Freeman <mark@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Mark Freeman <mark@golang.org>
+    Extend the net/http Transport to recognize the 'socks5h' schema as an
+    alias for 'socks5'. Traditionally, the 'socks5h' schema indicates that
+    the hostname should be resolved by the proxy server, which is behavior
+    already implemented in Go for 'socks5'.
+    
+    Fixes #24135
+    
+    Change-Id: I0a6a92bbd282a3200dc4dc7b47a9b0628f931783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569977
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/internal/pkgbits/decoder.go | 30 +++++++++++++++---------------
- src/internal/pkgbits/encoder.go | 22 +++++++++++-----------
- src/internal/pkgbits/reloc.go   | 10 +++++++---
- 3 files changed, 33 insertions(+), 29 deletions(-)
+ src/net/http/transport.go      | 13 +++++++------
+ src/net/http/transport_test.go |  1 +
+ 2 files changed, 8 insertions(+), 6 deletions(-)

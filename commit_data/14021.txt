@@ -1,15 +1,12 @@
-commit 9f807fcc4ae1bdd38ee637a88128a1c72d984a30
-Author: Graham Miller <graham.miller@gmail.com>
-Date:   Fri Oct 5 10:08:54 2012 +1000
+commit 593a6285729160d3ce4dc1c440e6a6be0fa87242
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 4 15:14:20 2012 +0800
 
-    net/mail: make address parsing (more) public
+    lib/godoc/godoc.html: try Google hosted jQuery first, fallback to locally hosted one
     
-    Code for parsing email addresses was already partially part of the public API with "func (Header) AddressList".  This CL adds a trivial implementation for two public methods to parse address and lists from a string. With tests.
-    
-    R=dsymonds
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5676067
+    https://golang.org/cl/6593078
 
- src/pkg/net/mail/message.go      | 12 +++++++++++-
- src/pkg/net/mail/message_test.go | 17 ++++++++++++++---
- 2 files changed, 25 insertions(+), 4 deletions(-)
+ lib/godoc/godoc.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

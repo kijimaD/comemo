@@ -1,0 +1,23 @@
+commit f8937cb6255970de3f0c8cbccc5253ae81249c47
+Author: yincong <yincong@baidu.com>
+Date:   Wed Jan 22 02:23:08 2025 +0000
+
+    archive/zip, archive/tar: writer appends slash to directory names
+    
+    Fixes #71235
+    
+    Change-Id: I62aebb9d421db0e4b57ad5cae25c70f47aa5f8f9
+    GitHub-Last-Rev: 6e0fba07dd128e20e32a3a6258edf80ee91d4690
+    GitHub-Pull-Request: golang/go#71239
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642375
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/archive/tar/writer.go      | 3 +++
+ src/archive/tar/writer_test.go | 6 +++++-
+ src/archive/zip/writer.go      | 3 +++
+ src/archive/zip/writer_test.go | 5 ++++-
+ 4 files changed, 15 insertions(+), 2 deletions(-)

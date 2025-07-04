@@ -1,14 +1,12 @@
-commit 49a4d7dc39d315f75fe700e3a5b8b775a8acfcbf
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Mar 2 14:57:47 2011 -0500
+commit f104a198e406807d184daba062508b657c7ca059
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 2 14:52:35 2011 -0500
 
-    build: simplify clean.bash
+    fix build
     
-    R=golang-dev, rsc
+    TBR=rog
     CC=golang-dev
-    https://golang.org/cl/4257045
+    https://golang.org/cl/4259046
 
- src/clean.bash        | 11 +++--------
- test/bench/Makefile   | 14 ++++++++++++++
- test/bench/clean.bash |  4 ----
- 3 files changed, 17 insertions(+), 12 deletions(-)
+ src/Make.pkg | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

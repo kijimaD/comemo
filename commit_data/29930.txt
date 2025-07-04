@@ -1,16 +1,16 @@
-commit 2817e77024a53aae31cc02c01a26fce0ebb11a79
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 19 22:55:53 2016 -0500
+commit 99b7984de7b02494b4f0d67c9ff42a2367148489
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 17 14:08:36 2016 -0700
 
-    runtime: debug prints for spanBytesAlloc underflow
+    cmd/link: remove some unnecessary comments
     
-    Updates #18043.
+    The comments about pcln functions are obsolete since those functions
+    now live in cmd/internal/obj. The copyright header is redundant with
+    the existing one at the top of the file.
     
-    Change-Id: I24e687fdd5521c48b672987f15f0d5de9f308884
-    Reviewed-on: https://go-review.googlesource.com/34612
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I568fd3d259253a0d8eb3b0a157d008df1b5de106
+    Reviewed-on: https://go-review.googlesource.com/31315
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mgcsweep.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/pcln.go | 31 -------------------------------
+ 1 file changed, 31 deletions(-)

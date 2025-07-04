@@ -1,19 +1,21 @@
-commit a69cda9a6541b7d0a1f25159b2eee9b058f4ac70
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Oct 27 15:52:42 2020 -0700
+commit 34e38ac99f025549599ea7e1ad2e80026ae16174
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Apr 12 23:38:36 2020 +0700
 
-    runtime: add edge lockRankSysmon -> lockRankRwmutexR
+    cmd/compile: remove "special return in disguise" case
     
-    Sysmon can actually get the RW lock execLock while holding the sysmon
-    lock (if no M is available), so there is an edge from lockRankSysmon to
-    lockRankRwmutexR. The stack trace is sysmon() [gets sched.sysmonlock] ->
-    startm() -> newm() -> newm1() -> execLock.runlock() [gets
-    execLock.rLock]
+    ascompatee does not generate 'x = x' during return, so we don't have to
+    check for samelist and disguising special return anymore.
     
-    Change-Id: I9658659ba3899afb5219114d66b989abd50540db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/265721
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    While at it, also remove samelist, as this is the only place it's used.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I41c7b077d562aadb5916a61e2ab6229bae3cdef4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227807
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/lockrank.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go | 22 ----------------------
+ 1 file changed, 22 deletions(-)

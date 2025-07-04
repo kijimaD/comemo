@@ -1,14 +1,43 @@
-commit 7c9662f4612979298642a17cb4e8a52559e204ba
+commit 11e113db573369e1fd5f92844269d31ae3815c25
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Feb 16 12:43:22 2012 +1100
+Date:   Thu Feb 16 11:50:28 2012 +1100
 
-    godoc: show example function doc comments in UI
+    godoc: make example code more readable with new comment convention
+    go/doc: move Examples to go/ast
+    cmd/go: use go/doc to read examples
+    src/pkg: update examples to use new convention
     
-    R=gri
+    This is to make whole file examples more readable. When presented as a
+    complete function, preceding an Example with its output is confusing.
+    The new convention is to put the expected output in the final comment
+    of the example, preceded by the string "output:" (case insensitive).
+    
+    An idiomatic example looks like this:
+    
+    // This example demonstrates Foo by doing bar and quux.
+    func ExampleFoo() {
+            // example body that does bar and quux
+    
+            // Output:
+            // example output
+    }
+    
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/5677061
+    https://golang.org/cl/5673053
 
- lib/godoc/example.html    | 5 +++--
- src/cmd/godoc/godoc.go    | 4 ++--
- src/pkg/go/ast/example.go | 6 ++++++
- 3 files changed, 11 insertions(+), 4 deletions(-)
+ src/cmd/go/test.go                      | 19 ++++---
+ src/cmd/godoc/godoc.go                  | 33 +++++++++---
+ src/pkg/bytes/example_test.go           |  4 +-
+ src/pkg/container/heap/example_test.go  | 39 +++++++-------
+ src/pkg/encoding/binary/example_test.go |  6 +--
+ src/pkg/encoding/json/example_test.go   |  6 ++-
+ src/pkg/go/{doc => ast}/example.go      | 58 +++++++++++++-------
+ src/pkg/math/big/example_test.go        |  8 +--
+ src/pkg/path/example_test.go            | 26 ++++-----
+ src/pkg/sort/example_test.go            |  2 +-
+ src/pkg/strings/example_test.go         | 93 ++++++++++++++++++---------------
+ src/pkg/testing/testing.go              | 19 +++++--
+ src/pkg/text/template/example_test.go   | 46 ++++++++--------
+ src/pkg/time/example_test.go            |  2 +-
+ 14 files changed, 213 insertions(+), 148 deletions(-)

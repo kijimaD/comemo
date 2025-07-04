@@ -1,21 +1,17 @@
-commit 4f27e1d7aadba639cceaa93f77ec0c7ee3fee01b
-Author: BurtonQin <bobbqqin@gmail.com>
-Date:   Tue Apr 21 11:37:41 2020 +0000
+commit e8f01d591f9be2653bfb13c0214c4c96b64aa028
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 4 20:36:21 2019 -0500
 
-    cmd/go/internal/modfetch: add Unlock before return in checkModSum
+    math: test portable FMA even on system with hardware FMA
     
-    In cmd/go/internal/modfetch/fetch.go,
-    `checkModSum()` forgets Unlock before return, which may lead to deadlock.
-    https://github.com/golang/go/blob/876c1feb7d5e10a6ff831de9db19b9ff0ea92fa8/src/cmd/go/internal/modfetch/fetch.go#L514-L520
-    The fix is to add `goSum.mu.Unlock()` before return.
+    This makes it a little less likely the portable FMA will be
+    broken without realizing it.
     
-    Change-Id: I855b1c1bc00aeada2c1e84aabb5328f02823007d
-    GitHub-Last-Rev: afeb3763dd1d08c4c15c4c4183fd5705da60dc4c
-    GitHub-Pull-Request: golang/go#38563
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229219
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I7f7f4509b35160a9709f8b8a0e494c09ea6e410a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205337
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modfetch/fetch.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/math/all_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

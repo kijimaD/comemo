@@ -1,25 +1,18 @@
-commit 1f54410a61e2242285e366a5580943f78fbff741
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 7 17:19:29 2016 +0900
+commit 8096881927ecad4acb195ccca8404c5eaa1b24d7
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Mon Feb 29 16:46:18 2016 +0200
 
-    net: make IP.{String,MarshalText} return helpful information on address error
+    cmd/link: batch allocations of Lsym
     
-    This change makes String and MarshalText methods of IP return a
-    hexadecial form of IP with no punctuation as part of error
-    notification. It doesn't affect the existing behavior of ParseIP.
+    Reduces best of 10 linking of cmd/go by ~5%
     
-    Also fixes bad shadowing in ipToSockaddr and makes use of reserved
-    IP address blocks for documnetation.
-    
-    Fixes #15052.
-    Updates #15228.
-    
-    Change-Id: I9e9ecce308952ed5683066c3d1bb6a7b36458c65
-    Reviewed-on: https://go-review.googlesource.com/21642
+    Change-Id: If673b877ee12595dae517d7eb48430451e5cadba
+    Reviewed-on: https://go-review.googlesource.com/20060
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/error_test.go   |  49 +++++++++++++++++++
- src/net/ip.go           |  24 +++++----
- src/net/ip_test.go      | 126 +++++++++++++++++++++++++++++++++++++++++-------
- src/net/ipsock_posix.go |  36 ++++++++------
- 4 files changed, 192 insertions(+), 43 deletions(-)
+ src/cmd/link/internal/ld/link.go | 1 +
+ src/cmd/link/internal/ld/sym.go  | 8 ++++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

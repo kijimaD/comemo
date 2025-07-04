@@ -1,20 +1,19 @@
-commit 32ff485c7cd0d8e31a89723b56f6324ff77ac448
-Author: Sean Liao <sean@liao.dev>
-Date:   Wed Dec 4 21:50:30 2024 +0000
+commit b6a3c0273eac570d8993f348d1db35323442af13
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 10 03:32:21 2023 +1000
 
-    math/bits: update reference to debruijn paper
+    cmd/dist,internal/platform: enable openbsd/ppc64 port
     
-    The old link no longer works.
+    Updates #56001
     
-    Fixes #70684
-    
-    Change-Id: I8711ef7d5721bf20ef83f5192dd0d1f73dda6ce1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633775
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I16440114ecf661e9fc17d304ab3b16bc97ef82f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517935
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/math/bits/bits.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/build.go            | 1 -
+ src/internal/platform/zosarch.go | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

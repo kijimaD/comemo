@@ -1,30 +1,19 @@
-commit 27794c4d4a18c61d8c158d253421d72b5a6a8673
-Author: Jay Conrod <jay@golang.org>
-Date:   Tue Jun 28 18:15:32 2022 -0700
+commit 717f337d1d68299ca55a96e9fbb5168e8f7788f4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 19 04:06:55 2021 +0000
 
-    cmd/go/internal/modload: ignore disallowed errors when checking for updates
+    cmd/asm: adjust riscv64 test data to avoid churn
     
-    addUpdate calls Query with the query "upgrade". Normally, this returns
-    the highest release version (or prerelease, etc.) that is higher than
-    the current version and is not retracted or excluded. If there is no
-    such version, Query should return the current version. If the current
-    version is retracted or excluded, then Query currently returns an error.
+    Rather than jumping and branching to a label (the offset for which changes
+    when instructions are added or removed), use PC-relative offsets. This
+    reduces unnecessary churn in the instruction encodings.
     
-    addUpdate should ignore this error, as it ignores ErrNotExist and
-    NoMatchingVersionError. For 'go list -m -u', addRetraction is also
-    called, and that will detect the retraction.
-    
-    Fixes #53594
-    
-    Change-Id: I90a2872cdeabf03894acad9e0cbdd7db4a4e269e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414825
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I6816ce939eeabdf828039f59f4f29260eb1ac8da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344449
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
 
- src/cmd/go/internal/modload/build.go                          |  7 ++++++-
- .../go/testdata/mod/example.com_retract_noupgrade_v1.0.0.txt  |  9 +++++++++
- src/cmd/go/testdata/script/mod_retract_noupgrade.txt          | 11 +++++++++++
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 48 +++++++++++++----------------
+ 1 file changed, 22 insertions(+), 26 deletions(-)

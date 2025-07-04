@@ -1,55 +1,27 @@
-commit 3b246fa863dbd91588c5920969f9fd0ce8362129
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Fri Mar 18 11:00:03 2016 +0100
+commit e360f7c4dbb5695fc4cadb3d400e36ec09327732
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 23 10:54:36 2016 -0800
 
-    runtime: sleep less when we can do work
+    cmd/compile: keep JMPs around with -N
     
-    Usleep(100) in runqgrab negatively affects latency and throughput
-    of parallel application. We are sleeping instead of doing useful work.
-    This is effect is particularly visible on windows where minimal
-    sleep duration is 1-15ms.
+    When -N, make sure we don't drop every instruction from
+    a block, even ones which would otherwise be empty.
+    Helps keep line numbers around for debugging, particularly
+    for break and continue statements (which often compile
+    down to nothing).
     
-    Reduce sleep from 100us to 3us and use osyield on windows.
-    Sync chan send/recv takes ~50ns, so 3us gives us ~50x overshoot.
+    Fixes #14379
     
-    benchmark                    old ns/op     new ns/op     delta
-    BenchmarkChanSync-12         216           217           +0.46%
-    BenchmarkChanSyncWork-12     27213         25816         -5.13%
-    
-    CPU consumption goes up from 106% to 108% in the first case,
-    and from 107% to 125% in the second case.
-    
-    Test case from #14790 on windows:
-    
-    BenchmarkDefaultResolution-8  4583372   29720    -99.35%
-    Benchmark1ms-8                992056    30701    -96.91%
-    
-    99-th latency percentile for HTTP request serving is improved by up to 15%
-    (see http://golang.org/cl/20835 for details).
-    
-    The following benchmarks are from the change that originally added this sleep
-    (see https://golang.org/s/go15gomaxprocs):
-    
-    name        old time/op  new time/op  delta
-    Chain       22.6µs ± 2%  22.7µs ± 6%    ~      (p=0.905 n=9+10)
-    ChainBuf    22.4µs ± 3%  22.5µs ± 4%    ~      (p=0.780 n=9+10)
-    Chain-2     23.5µs ± 4%  24.9µs ± 1%  +5.66%   (p=0.000 n=10+9)
-    ChainBuf-2  23.7µs ± 1%  24.4µs ± 1%  +3.31%   (p=0.000 n=9+10)
-    Chain-4     24.2µs ± 2%  25.1µs ± 3%  +3.70%   (p=0.000 n=9+10)
-    ChainBuf-4  24.4µs ± 5%  25.0µs ± 2%  +2.37%  (p=0.023 n=10+10)
-    Powser       2.37s ± 1%   2.37s ± 1%    ~       (p=0.423 n=8+9)
-    Powser-2     2.48s ± 2%   2.57s ± 2%  +3.74%   (p=0.000 n=10+9)
-    Powser-4     2.66s ± 1%   2.75s ± 1%  +3.40%  (p=0.000 n=10+10)
-    Sieve        13.3s ± 2%   13.3s ± 2%    ~      (p=1.000 n=10+9)
-    Sieve-2      7.00s ± 2%   7.44s ±16%    ~      (p=0.408 n=8+10)
-    Sieve-4      4.13s ±21%   3.85s ±22%    ~       (p=0.113 n=9+9)
-    
-    Fixes #14790
-    
-    Change-Id: Ie7c6a1c4f9c8eb2f5d65ab127a3845386d6f8b5d
-    Reviewed-on: https://go-review.googlesource.com/20835
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I33722c4f0dcd502f146fa48af262ba3a477c959a
+    Reviewed-on: https://go-review.googlesource.com/19854
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/runtime/chan_test.go | 29 ++++++++++++++++++++++++++++-
- src/runtime/proc.go      | 11 ++++++++++-
- 2 files changed, 38 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/lex.go  |  1 +
+ src/cmd/compile/internal/gc/popt.go | 11 ++++++-----
+ src/cmd/internal/obj/link.go        |  1 +
+ src/cmd/internal/obj/objfile.go     |  4 +++-
+ src/cmd/internal/obj/pass.go        | 14 ++++++++------
+ src/cmd/internal/obj/sym.go         |  1 +
+ 6 files changed, 20 insertions(+), 12 deletions(-)

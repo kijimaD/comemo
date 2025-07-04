@@ -1,23 +1,22 @@
-commit 259f78f001c7f6e43063f06f25c9199f74c8c1d1
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Aug 15 23:49:12 2017 +0200
+commit 619af172055dccfd92a87ec116236ef3a885ac2c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 13 05:25:20 2017 -0700
 
-    cmd/go: make go tool suggest 'go doc cmd/<command>'
+    runtime: refactor hmap setoverflow into newoverflow
     
-    $ gotip tool -h says:
+    This simplifies the code, as well as providing
+    a single place to modify to change the
+    allocation of new overflow buckets.
     
-      For more about each tool command, see 'go tool command -h'.
+    Updates #19931
+    Updates #19992
     
-    But it's better to suggest
-    
-      go doc cmd/<command>
-    
-    Fixes #18313
-    
-    Change-Id: I0a36d585906a5e1879e5b7927d1b6173e97cb500
-    Reviewed-on: https://go-review.googlesource.com/55990
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I77070619f5c8fe449bbc35278278bca5eda780f2
+    Reviewed-on: https://go-review.googlesource.com/40975
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/alldocs.go            | 2 +-
- src/cmd/go/internal/tool/tool.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/hashmap.go      | 13 ++++++-------
+ src/runtime/hashmap_fast.go |  9 +++------
+ 2 files changed, 9 insertions(+), 13 deletions(-)

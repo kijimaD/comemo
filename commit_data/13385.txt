@@ -1,13 +1,17 @@
-commit b3382ec9e9cfbb20efd7bf7d6a369071a46c8dfe
-Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
-Date:   Mon Jun 25 14:08:09 2012 -0400
+commit 3a50bc1a246418f5983c13fe76799e918d03779d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 25 23:01:34 2012 +1000
 
-    exp/inotify: prevent data race
-    Fixes #3713.
+    runtime: remove memset/memclr shim
     
-    R=bradfitz, rsc
+    This CL resolves https://golang.org/cl/6300043/#msg3
+    by renaming memset_arm.s to memclr_arm.s and merging the function
+    of the same name from asm_arm.s.
+    
+    R=minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6331055
+    https://golang.org/cl/6336054
 
- src/pkg/exp/inotify/inotify_linux.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/pkg/runtime/asm_arm.s                      | 7 -------
+ src/pkg/runtime/{memset_arm.s => memclr_arm.s} | 8 ++++----
+ 2 files changed, 4 insertions(+), 11 deletions(-)

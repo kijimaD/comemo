@@ -1,24 +1,23 @@
-commit 8c0256b398f3b23f24a1a3ac0cb00c2d8fb7f506
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Nov 30 12:31:30 2022 -0800
+commit 475ce826b75f113aff2810f3d27cb861adee0caa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 2 17:09:28 2022 -0500
 
-    cmd/cgo: walk {FuncType,TypeSpec}.TypeParams fields
+    net: remove an arbitrary timeout in TestUDPReadSizeError
     
-    This CL updates the cgo tool to walk the TypeParams fields for
-    function types and type declarations, so that C.xxx identifiers can
-    appear within type parameter lists.
+    Looking at the condition actually exercised by the test it seems
+    unnecessary: assuming that the Write succeeds (checked earlier in the
+    test), the Read must have a nonzero number of bytes available to read
+    immediately. (That is not the case in TestUDPZeroByteBuffer, from
+    which this test appears to have been derived.)
     
-    Fixes #52542.
+    Fixes #50870
     
-    Change-Id: Id02a88d529d50fe59b0a834f415c2575204ffd1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453977
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ia6040a2d5dc320f0b86ec9d6f6b91dc72e8f3b84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382537
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/test.go    | 6 ++++++
- src/cmd/cgo/ast.go       | 6 ++++++
- src/cmd/cgo/ast_go1.go   | 9 +++++++++
- src/cmd/cgo/ast_go118.go | 8 ++++++++
- 4 files changed, 29 insertions(+)
+ src/net/udpsock_test.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

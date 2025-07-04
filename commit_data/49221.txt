@@ -1,23 +1,26 @@
-commit 6ec46f470797ad816c3a5b20eece0995f13d2bc4
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Mon May 16 09:47:08 2022 -0700
+commit ea94e5d3c57fadea088cdc5002e014b3c7ef4bc1
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 23 15:03:00 2021 -0400
 
-    runtime/pprof: slow new goroutine launches in test
+    [dev.typeparams] runtime: use func() for deferred functions
     
-    The goroutine profiler tests include one that launches a steady stream
-    of goroutines. That creates a scheduler busy loop that can prevent
-    forward progress in the rest of the program. Slow down the launches a
-    bit so other goroutines have a chance to run.
+    Prior to regabi, a deferred function could have any signature, so the
+    runtime always manipulated them as funcvals. Now, a deferred function
+    is always func(). Hence, this CL makes the runtime's manipulation of
+    deferred functions more type-safe by using func() directly instead of
+    *funcval.
     
-    Fixes #52916
-    For #52934
-    
-    Change-Id: I748557201b94918b1fa4960544a51a48d9cacc6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/406654
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ib55f38ed49107f74149725c65044e4690761971d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337650
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/pprof/pprof_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/runtime/asm_amd64.s   |  2 +-
+ src/runtime/asm_riscv64.s |  2 +-
+ src/runtime/heapdump.go   |  5 +++--
+ src/runtime/panic.go      | 28 +++++++++-------------------
+ src/runtime/runtime2.go   |  8 ++++----
+ src/runtime/stubs.go      |  2 +-
+ 6 files changed, 19 insertions(+), 28 deletions(-)

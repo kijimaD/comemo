@@ -1,18 +1,23 @@
-commit 604efe128195c1fbb1d14cbd36bf681fcff723a3
+commit a4dd6ea1524901fab5deac60772345babd058ae7
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Aug 17 16:22:24 2016 -0700
+Date:   Tue Apr 19 09:18:59 2016 -0700
 
-    runtime: disable TestCgoCallbackGC on FreeBSD
+    runtime: add maxSliceCap
     
-    The trybot flakes are a nuisance.
+    This avoids expensive division calculations
+    for many common slice element sizes.
     
-    Updates #16396
+    name                      old time/op  new time/op  delta
+    MakeSlice-8               51.9ns ± 3%  35.1ns ± 2%  -32.41%  (p=0.000 n=10+10)
+    GrowSliceBytes-8          44.1ns ± 2%  44.1ns ± 1%     ~     (p=0.984 n=10+10)
+    GrowSliceInts-8           60.9ns ± 3%  60.9ns ± 3%     ~     (p=0.698 n=10+10)
+    GrowSlicePtr-8             131ns ± 1%   120ns ± 2%   -8.41%   (p=0.000 n=8+10)
+    GrowSliceStruct24Bytes-8   111ns ± 2%   103ns ± 3%   -7.23%    (p=0.000 n=8+8)
     
-    Change-Id: I8202adb554391676ba82bca44d784c6a81bf2085
-    Reviewed-on: https://go-review.googlesource.com/27313
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2630eb3d73c814db030cad16e620ea7fecbbd312
+    Reviewed-on: https://go-review.googlesource.com/22223
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/crash_cgo_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/runtime/malloc.go |  2 +-
+ src/runtime/slice.go  | 35 +++++++++++++++++++++++++----------
+ 2 files changed, 26 insertions(+), 11 deletions(-)

@@ -1,12 +1,14 @@
-commit 869774cbf9025b8553b490c9add568d459cd4d63
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Aug 2 13:15:49 2013 -0700
+commit b8c8cb85092aba7dda9b5f27b1a6c940aaf3c985
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 2 15:20:42 2013 -0400
 
-    api: update next.txt
+    cmd/dist: fix build again
     
-    R=golang-dev, rsc
+    I am really bad at this. Didn't hg add this file.
+    
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/12360043
+    https://golang.org/cl/12372043
 
- api/next.txt | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 69 insertions(+)
+ src/cmd/dist/buildgo.c | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

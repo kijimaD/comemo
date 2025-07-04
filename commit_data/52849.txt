@@ -1,22 +1,22 @@
-commit 47e6fd05f7d605774864984f70e5a93355109a61
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Wed Apr 26 10:02:22 2023 +0200
+commit 9e5c96802164c17df6667047932142eb6894e6d3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun May 22 02:14:46 2022 +0700
 
-    runtime: remove systemstack logic from adjustframe
+    [dev.unified] cmd/compile: visit LHS before RHS/X in assign/for statement
     
-    Remove logic for skipping some adjustframe logic for systemstack (aka
-    FuncID_systemstack_switch). This was introduced in 2014 by
-    9198ed4bd6ec7b7dd37aa2797e96f15ddbb1e6cd but doesn't seem to be needed
-    anymore.
+    Unified IR used to visit RHS/X before LHS in assign/for statements for
+    satisfying toolstash in quirksmode.
     
-    Updates #59692
+    After CL 385998, unified IR quirks mode was gone, the constraint to
+    visit RHS/X first is no longer necessary.
     
-    Change-Id: I2368d64f9bb28ced4e7f15c9b15dac7a29194389
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489116
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Change-Id: I1c3825168b67fb094928f5aa21748a3c81b118ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410343
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/stack.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/cmd/compile/internal/noder/reader.go | 8 ++------
+ src/cmd/compile/internal/noder/writer.go | 6 +++---
+ 2 files changed, 5 insertions(+), 9 deletions(-)

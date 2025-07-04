@@ -1,20 +1,40 @@
-commit dadd80ae204bda1c3a48245d8a938f55f71259ea
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 29 15:13:52 2022 -0500
+commit d5bd3f9a6c3833d0c12ec45e1c73f8adf32ee2dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 2 13:18:56 2022 -0800
 
-    runtime/debug: more complete BuildInfo documentation
+    go/types, types2: use same method lookup code in both type checkers
     
-    A potential user did not realize Deps included all transitive dependencies,
-    not just direct dependencies of the main module. Clarify that and add
-    various other useful information.
+    types2 has some code to handle case-folding when doing method lookups
+    which was missing in go/types. This change is a first step to match
+    the implementations. Specifically:
     
-    Change-Id: I5b8e1314bb26092edbcc090ba8eb9859f0a70662
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453602
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Julie Qiu <julieqiu@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    In types2:
+    - remove the lookupMethodFold names in favor of just lookupMethod,
+      but with the foldCase flag (e.g., instead if lookupMethodFold,
+      we just use lookupMethod)
+    - rename checkFold to foldCase everywhere
+    - add foldCase parameter where it was missing
+    - moved foldCase paremeter to the end in lookupFieldOrMethod
+    - no functionality changes
+    
+    In go/types:
+    - match function signatures with types2 use
+    - always provide false as argument for foldCase for now
+    - no functionality changes
+    
+    Preparation for fixing some of the outstanding error reporting issues.
+    
+    Change-Id: If129a5feb89ddf96a3596e8d73b23afa591875a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382461
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/debug/mod.go | 44 ++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 36 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go     | 45 +++++++++------------------
+ src/cmd/compile/internal/types2/methodlist.go | 12 +++----
+ src/cmd/compile/internal/types2/named.go      |  4 +--
+ src/cmd/compile/internal/types2/typeset.go    |  5 ++-
+ src/go/types/lookup.go                        | 25 ++++++++-------
+ src/go/types/methodlist.go                    |  9 +++---
+ src/go/types/named.go                         |  4 +--
+ src/go/types/typeset.go                       |  5 ++-
+ 8 files changed, 47 insertions(+), 62 deletions(-)

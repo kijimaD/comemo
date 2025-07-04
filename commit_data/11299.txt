@@ -1,14 +1,15 @@
-commit 696bf79350b5cb0e977def1fc98ba6d6c8bd829f
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 20 13:51:49 2012 -0800
+commit 0796c1c3ec8b6555ff03d617f8fcbc43aa564063
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 20 12:57:53 2012 -0800
 
-    bytes.Buffer: turn buffer size overflows into errors
-    Fixes #2743.
+    encoding/varint: deleted WriteXvarint
     
-    R=golang-dev, gri, r
+    Fixes #2748.
+    
+    R=rsc, r, r
     CC=golang-dev
-    https://golang.org/cl/5556072
+    https://golang.org/cl/5557072
 
- src/pkg/bytes/buffer.go      | 40 ++++++++++++++++++++++++++++++++++++----
- src/pkg/bytes/buffer_test.go | 16 ++++++++++++++++
- 2 files changed, 52 insertions(+), 4 deletions(-)
+ src/pkg/encoding/binary/varint.go      | 17 -----------------
+ src/pkg/encoding/binary/varint_test.go | 32 ++++++++------------------------
+ 2 files changed, 8 insertions(+), 41 deletions(-)

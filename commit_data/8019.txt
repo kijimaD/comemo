@@ -1,12 +1,13 @@
-commit 70bf4215e9d9e6e4693e61657daaa52e6c4c3894
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 7 19:41:55 2011 -0700
+commit 4ffee801ceaa37cd1750e66c3ba836dbcd9635a6
+Author: John DeNero <denero@google.com>
+Date:   Thu Apr 7 18:05:15 2011 -0700
 
-    scanner: better TokenString output
+    A codewalk through a simple program that illustrates several aspects of Go functions: function objects, higher-order functions, variadic functions, tail recursion, etc.  The example program simulates the game of Pig, a dice game with simple rules but a nontrivial solution.
     
-    R=rsc
+    R=adg, rsc, iant2, r
     CC=golang-dev
-    https://golang.org/cl/4373048
+    https://golang.org/cl/4306045
 
- src/pkg/scanner/scanner.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/codewalk/functions.xml | 115 +++++++++++++++++++++++++++++++++++++++++
+ doc/codewalk/pig.go        | 124 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 239 insertions(+)

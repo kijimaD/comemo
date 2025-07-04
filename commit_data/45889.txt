@@ -1,19 +1,34 @@
-commit c080d0323bce56e25622a51dffecf756758c95a1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 30 10:19:02 2021 -0700
+commit 41ab6689edb1f51001feab0928e598050e2f6d32
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 24 20:47:32 2020 -0500
 
-    cmd/dist: pass -Wno-unknown-warning-option in swig_callback_lto
+    [dev.regabi] cmd/compile: rewrite a few ++/--/+=/-= to prep for getters/setters [generated]
     
-    For #46557
-    Fixes #46991
+    These are trivial rewrites that are only OK because it turns out that n has no side effects.
+    Separated into a different CL for easy inspection.
     
-    Change-Id: Ic88ebaa13d3edf904657dc19ada4fd4ff7f44a8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332010
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    [git-generate]
+    cd src/cmd/compile/internal/gc
+    rf '
+            ex . ../ir ../ssa {
+                    import "cmd/compile/internal/ir"
+                    var n *ir.Node
+                    var i int64
+    
+                    n.Xoffset++ -> n.Xoffset = n.Xoffset + 1
+                    n.Xoffset-- -> n.Xoffset = n.Xoffset - 1
+                    n.Xoffset += i -> n.Xoffset = n.Xoffset + i
+                    n.Xoffset -= i -> n.Xoffset = n.Xoffset - i
+            }
+    '
+    
+    Change-Id: If7b4b7f7cbdafeee988e04d03924ef0e1dd867b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272932
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/initorder.go | 4 ++--
+ src/cmd/compile/internal/gc/sinit.go     | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

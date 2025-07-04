@@ -1,13 +1,15 @@
-commit 7390d2f2db23d93ff88d57d4b75d5e8b1ab8cf13
-Author: Pat Moroney <pat@pat.email>
-Date:   Sat Jul 15 14:39:00 2017 -0600
+commit bc972e8ef870471c3c4ba95b92c5194b37ba2871
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 30 15:44:12 2017 -0700
 
-    time: clarify documentation for Location.String
+    cmd/compile: remove lookupf
     
-    Change-Id: I5c32a968303848304cbd6fe1e83bed0af11f6440
-    Reviewed-on: https://go-review.googlesource.com/48960
-    Reviewed-by: Caleb Spare <cespare@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4de5173fa50fbf90802d1d2428824702f2118dde
+    Reviewed-on: https://go-review.googlesource.com/39030
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/zoneinfo.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/closure.go | 6 +++---
+ src/cmd/compile/internal/gc/subr.go    | 4 ----
+ 2 files changed, 3 insertions(+), 7 deletions(-)

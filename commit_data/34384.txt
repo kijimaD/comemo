@@ -1,14 +1,22 @@
-commit 15b0d1376a4dba84e387e092ec0c8f576cdf8e8d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Feb 27 11:53:35 2018 -0800
+commit 532714829ee4e816e54b6ccfe0b28f011f1659b2
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat Sep 23 19:38:32 2017 -0700
 
-    cmd/compile: clean up comments
+    database/sql: allow drivers to only implement Context variants
     
-    Follow-up to CL 94256.
+    Drivers shouldn't need to implement both Queryer and QueryerContext,
+    they should just implement QueryerContext. Same with Execer and
+    ExecerContext. This CL tests for QueryContext and ExecerContext
+    first so drivers do not need to implement Queryer and Execer
+    with an empty definition.
     
-    Change-Id: I61c450dee5975492192453738f734f772e95c1a5
-    Reviewed-on: https://go-review.googlesource.com/97515
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #21663
+    
+    Change-Id: Ifbaa71da669f4bc60f8da8c41a04a4afed699a9f
+    Reviewed-on: https://go-review.googlesource.com/65733
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/config.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/database/sql/ctxutil.go  |  11 ++--
+ src/database/sql/sql.go      |  24 ++++++---
+ src/database/sql/sql_test.go | 121 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 143 insertions(+), 13 deletions(-)

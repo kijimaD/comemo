@@ -1,47 +1,19 @@
-commit 7395083136539331537d46875ab9d196797a2173
-Author: Vladimir Kuzmin <vkuzmin@uber.com>
-Date:   Thu Feb 1 21:33:56 2018 -0800
+commit 776cdefc072fc916b5f74a7d7fb6e4573a6c8e89
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Fri Oct 27 07:04:49 2017 +0000
 
-    cmd/compile: avoid extra mapaccess in "m[k] op= r"
+    encoding/xml: add docs and tests for bool whitespace
     
-    Currently, order desugars map assignment operations like
+    Whitespace is ignored in bool values and attrs, but there are no tests
+    capturing this behavior.
     
-        m[k] op= r
-    
-    into
-    
-        m[k] = m[k] op r
-    
-    which in turn is transformed during walk into:
-    
-        tmp := *mapaccess(m, k)
-        tmp = tmp op r
-        *mapassign(m, k) = tmp
-    
-    However, this is suboptimal, as we could instead produce just:
-    
-        *mapassign(m, k) op= r
-    
-    One complication though is if "r == 0", then "m[k] /= r" and "m[k] %=
-    r" will panic, and they need to do so *before* calling mapassign,
-    otherwise we may insert a new zero-value element into the map.
-    
-    It would be spec compliant to just emit the "r != 0" check before
-    calling mapassign (see #23735), but currently these checks aren't
-    generated until SSA construction. For now, it's simpler to continue
-    desugaring /= and %= into two map indexing operations.
-    
-    Fixes #23661.
-    
-    Change-Id: I46e3739d9adef10e92b46fdd78b88d5aabe68952
-    Reviewed-on: https://go-review.googlesource.com/91557
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I7a7249de4886f510869e91de937e69b83c3254c8
+    Reviewed-on: https://go-review.googlesource.com/73890
+    Reviewed-by: Sam Whited <sam@samwhited.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Sam Whited <sam@samwhited.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/order.go |  39 +++++++------
- src/cmd/compile/internal/gc/walk.go  |  11 +++-
- src/runtime/map_test.go              | 105 ++++++++++++++++++++++++++++++-----
- test/fixedbugs/issue19359.go         |  28 ++++++++++
- test/fixedbugs/issue22881.go         |   7 ++-
- 5 files changed, 158 insertions(+), 32 deletions(-)
+ src/encoding/xml/read.go      |  3 ++-
+ src/encoding/xml/read_test.go | 57 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 1 deletion(-)

@@ -1,40 +1,27 @@
-commit 21ff6704bc8efa72abe191263aae938f3c867480
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sun Feb 19 17:11:46 2023 -0800
+commit 1af60b2f4990bffdd1b050ffd11e978578d1e38f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 16:44:35 2022 -0500
 
-    encoding/json: use append for Compact and Indent
+    regexp/syntax: add and use ErrInvalidDepth
     
-    This is part of the effort to reduce direct reliance on bytes.Buffer
-    so that we can use a buffer with better pooling characteristics.
+    The fix for #51112 introduced a depth check but used
+    ErrInternalError to avoid introduce new API in a CL that
+    would be backported to earlier releases.
     
-    Avoid direct use of bytes.Buffer in Compact and Indent and
-    instead modify the logic to rely only on append.
-    This avoids reliance on the bytes.Buffer.Truncate method,
-    which makes switching to a custom buffer implementation easier.
+    New API accepted in proposal #51684.
     
-    Performance:
+    This CL adds a distinct error for this case.
     
-            name                old time/op    new time/op    delta
-            EncodeMarshaler    25.5ns ± 8%    25.7ns ± 9%   ~     (p=0.724 n=10+10)
+    For #51112.
+    Fixes #51684.
     
-            name                old alloc/op   new alloc/op   delta
-            EncodeMarshaler     4.00B ± 0%     4.00B ± 0%   ~     (all equal)
-    
-            name                old allocs/op  new allocs/op  delta
-            EncodeMarshaler      1.00 ± 0%      1.00 ± 0%   ~     (all equal)
-    
-    Updates #27735
-    
-    Change-Id: I8cded03fab7651d43b5a238ee721f3472530868e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469555
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I068fc70aafe4218386a06103d9b7c847fb7ffa65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384617
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/encoding/json/encode.go |  18 +++++---
- src/encoding/json/indent.go | 104 +++++++++++++++++++++++---------------------
- src/encoding/json/stream.go |  10 ++---
- 3 files changed, 69 insertions(+), 63 deletions(-)
+ api/next/regexpdepth.txt   | 3 +++
+ src/regexp/syntax/parse.go | 7 ++++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)

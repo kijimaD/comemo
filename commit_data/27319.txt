@@ -1,18 +1,28 @@
-commit 670a5cda2048af8d83958af0f4b2fda8f7b4ea72
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri May 6 15:28:19 2016 +0000
+commit b6fe2c2c20327d8f85581de848fe9687d4cc7c79
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 21 17:29:29 2016 +1300
 
-    Revert "testing/quick: generate more map and slice states"
+    cmd/link: re-use duplicate symbol object
     
-    This reverts commit 0ccabe2e0b42a2602e0f37ce28d5368aa811f530.
+    Nothing cares about it.
     
-    Change-Id: Ib1c230fb6801c0ee26f4a352b0c1130fa240a76a
-    Reviewed-on: https://go-review.googlesource.com/22860
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    I did this after looking at the memprof output, but it helps performance a bit:
+    
+    name       old s/op    new s/op    delta
+    LinkCmdGo   0.44 ± 3%   0.43 ± 3%  -2.20%   (p=0.000 n=94+90)
+    LinkJuju    3.98 ± 5%   3.94 ± 5%  -1.19%  (p=0.000 n=100+91)
+    
+    As well as MaxRSS (i.e. what /usr/bin/time -f '%M' prints):
+    
+    name       old MaxRSS  new MaxRSS  delta
+    LinkCmdGo   130k ± 0%   120k ± 3%  -7.79%   (p=0.000 n=79+90)
+    LinkJuju    862k ± 6%   827k ± 8%  -4.01%  (p=0.000 n=100+99)
+    
+    Change-Id: I6306b7b3369576a688659e2ecdb0815b4152ae96
+    Reviewed-on: https://go-review.googlesource.com/20972
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/quick/quick.go      | 47 ++++++++++++++++-------------------------
- src/testing/quick/quick_test.go | 17 +++++++++++++++
- 2 files changed, 35 insertions(+), 29 deletions(-)
+ src/cmd/link/internal/ld/objfile.go | 10 +++++-----
+ src/cmd/link/internal/ld/sym.go     |  6 +-----
+ 2 files changed, 6 insertions(+), 10 deletions(-)

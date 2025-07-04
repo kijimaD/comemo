@@ -1,19 +1,27 @@
-commit a56e4969f5e40c5a13216d7bc9d70695e9a2f6ce
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Tue Sep 19 09:17:42 2023 -0400
+commit 49abdbccde5de042997d6aabe7819212b88f2ef5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 25 17:05:46 2022 -0400
 
-    net/http: show offset in pattern parsing error
+    cmd/go/internal/script: use the Cancel and WaitDelay fields for subprocesses
     
-    Track the offset in the pattern string being parsed so we can show it
-    in the error message.
+    The Cancel and WaitDelay fields recently added to exec.Cmd are
+    intended to support exactly the sort of cancellation behavior that we
+    need for script tests. Use them, and simplify the cmd/go tests
+    accordingly.
     
-    Change-Id: I495b99378d866f359f45974ffc33587e2c1e366d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529123
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    The more robust implementation may also help to diagose recurring test
+    hangs (#50187).
+    
+    For #50187.
+    Updates #27494.
+    
+    Change-Id: I7817fca0dd9a18e18984a252d3116f6a5275a401
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445357
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/pattern.go      | 20 ++++++++++++++++----
- src/net/http/pattern_test.go | 34 ++++++++++++++++++----------------
- src/net/http/server_test.go  |  2 +-
- 3 files changed, 35 insertions(+), 21 deletions(-)
+ src/cmd/go/internal/script/cmds.go  | 93 ++++++-------------------------------
+ src/cmd/go/internal/vcweb/script.go |  3 +-
+ src/cmd/go/scriptcmds_test.go       | 18 +++++--
+ 3 files changed, 30 insertions(+), 84 deletions(-)

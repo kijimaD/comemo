@@ -1,16 +1,18 @@
-commit 73eb24ccb6d8dd2cf9dd807acf69987a05e8d142
-Author: surechen <surechen17@gmail.com>
-Date:   Wed May 6 20:04:35 2020 +0800
+commit 5ee515fd8ced40265bd98b1b5d16100f831929f1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 26 00:58:29 2020 -0500
 
-    math: Remove redundant local variable Ln2
+    [dev.link] cmd/link: remove sym.Symbols lookup map
     
-    Use the const variable Ln2 in math/const.go for function acosh.
+    Let the loader provide lookup functionalities.
     
-    Change-Id: I5381d03dd3142c227ae5773ece9be6c8f377615e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232517
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I7d90166d12e6e6fd30e75cbda5d3097e93f9af1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221137
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/math/acosh.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 54 ++++++++++++++++---
+ src/cmd/link/internal/sym/symbols.go   | 98 ++++++----------------------------
+ 2 files changed, 64 insertions(+), 88 deletions(-)

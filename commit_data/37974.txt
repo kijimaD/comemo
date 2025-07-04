@@ -1,13 +1,27 @@
-commit c75ee696c341cef94b00409b3692f3df82af1c71
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Feb 12 18:33:24 2019 +0000
+commit c6118af55864916c2c3b1bca8e216e627f232bf3
+Author: Keith Randall <khr@google.com>
+Date:   Mon Sep 17 14:46:07 2018 -0700
 
-    doc/go1.12: soften, expand crypto/rc4 assembly removal text
+    cmd/compile: don't do floating point optimization x+0 -> x
     
-    Change-Id: I46fa43f6c5ac49386f4622e1363d8976f49c0894
-    Reviewed-on: https://go-review.googlesource.com/c/162019
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    That optimization is not valid if x == -0.
+    
+    The test is a bit tricky because 0 == -0. We distinguish
+    0 from -0 with 1/0 == inf, 1/-0 == -inf.
+    
+    This has been a bug since CL 24790 in Go 1.8. Probably doesn't
+    warrant a backport.
+    
+    Fixes #27718
+    
+    Note: the optimization x-0 -> x is actually valid.
+    But it's probably best to take it out, so as to not confuse readers.
+    
+    Change-Id: I99f16a93b45f7406ec8053c2dc759a13eba035fa
+    Reviewed-on: https://go-review.googlesource.com/135701
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.12.html | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |   3 -
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 108 -------------------------
+ test/fixedbugs/issue27718.go                   |  72 +++++++++++++++++
+ 3 files changed, 72 insertions(+), 111 deletions(-)

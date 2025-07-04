@@ -1,24 +1,21 @@
-commit 0a2cc74f5a12b5cb7945e620a871b073b95ebee7
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Fri Sep 13 13:48:33 2024 +0000
+commit 5b2ddfadb2e218e325c91d1024ffbe87c1f38d19
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 13 22:25:50 2023 +0700
 
-    cmd: make use of maps.{Copy, Clone}
+    cmd/compile: mark instantiated functions from package runtime as norace
     
-    Change-Id: I8a38b4c71c34d3544ee32be9c6e767bb1099a720
-    GitHub-Last-Rev: ff4cb4e91be3936465635f99d061f02999640ed9
-    GitHub-Pull-Request: golang/go#69424
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/612735
+    Fixes #60439
+    
+    Change-Id: I09fcd2d3deb7f80ed012a769fdb6f53b09c0290b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502895
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/cgo/main.go                       | 9 +++------
- src/cmd/compile/internal/pgoir/irgraph.go | 6 ++----
- src/cmd/fix/typecheck.go                  | 7 ++++---
- src/cmd/go/internal/load/godebug.go       | 5 ++---
- src/cmd/go/internal/load/test.go          | 5 ++---
- 5 files changed, 13 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/noder/unified.go | 10 ++++++++++
+ src/runtime/export_test.go                |  8 ++++++++
+ src/runtime/gc_test.go                    |  4 ++++
+ 3 files changed, 22 insertions(+)

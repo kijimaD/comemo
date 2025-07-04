@@ -1,24 +1,22 @@
-commit 747f426944b1c0c3a26537ef78cb6c5bd4d05cde
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 9 16:55:04 2021 -0600
+commit 55cf84b0778c382967b46f3f2ffd402fba005a26
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Thu Jun 18 03:36:12 2020 +0000
 
-    cmd/internal/obj: remove bogus load/store optab entries from ppc64
+    cmd/compile: Install testcases for flag constant Ops
     
-    No valid operation should match those removed by this patch. They
-    kind of look as if they match X-form load/stores on ppc64, but the
-    second argument is always ignored when translating to machine code.
+    Flag constant Ops on arm and arm64 are under refactoring, this change adds
+    a couple of testcases that verify the behavior of 'noov' branches.
     
-    Similarly, it should be noted an X-form memory access encodes into
-    an Addr which is a classified as a ZOREG argument with a non-zero
-    index, and a register type Addr.
-    
-    Change-Id: I1adbb020d1b2612b18949d0e7eda05dbb3e8a25c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303329
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Updates #39505
+    Updates #38740
+    Updates #39303
+    Change-Id: I493344b52276900cd296c32da494d72932dfc9be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238677
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/ppc64/asm9.go | 18 ------------------
- 1 file changed, 18 deletions(-)
+ test/fixedbugs/issue39505.go  |  31 +++++++
+ test/fixedbugs/issue39505b.go | 183 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 214 insertions(+)

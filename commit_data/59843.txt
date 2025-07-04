@@ -1,40 +1,15 @@
-commit 479b51ee1f78a884a45b517c1e993d91c9774e29
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Fri Jun 27 18:46:27 2025 -0400
+commit 8509f6939ca87b99bbb4b70be086c455259618ad
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 30 14:46:05 2024 +0200
 
-    cmd/compile/internal/escape: stop disabling literal allocation optimizations when coverage is enabled
+    os: use filepathlite.FromSlash
     
-    CL 649079 and CL 649035 updated escape analysis to rewrite certain
-    expressions in OMAKE and OCONVIFACE nodes as optimizations to
-    reduce user allocations.
-    
-    Part of the change in CL 649079 disabled those optimzations when
-    coverage instrumentation was enabled under an incorrect possible theory
-    of how those optimizations might be "expected" to change coverage
-    results -- in particular, the cover_build_pkg_select.txt testscript
-    failed with different coverage results. I now realize that the proper
-    explanation is that my fix in CL 684116 was needed.
-    
-    Now that CL 684116 is merged, we should no longer disable these
-    optimizations when coverage is enabled, which is what this CL does.
-    
-    This has not been reported as a problem to my knowledge, but without
-    this CL, one could imagine for example a test using testing.AllocsPerRun
-    might start failing when coverage was enabled if the result relied on
-    these optimizations.
-    
-    As expected, if we place this CL just before the necessary fix in
-    CL 684116, the cover_build_pkg_select.txt testscript fails with a
-    changed coverage result. If we place this CL just after CL 684116,
-    the test passes, also as expected.
-    
-    Updates #71359
-    
-    Change-Id: Ib5ff00c267acd85dd423c238d177e91a4d881f9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/684777
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Id15ebd9e97a8626e64665f6830a662e62432a619
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/escape/escape.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/os/file_windows.go |  2 +-
+ src/os/path_windows.go | 22 ----------------------
+ 2 files changed, 1 insertion(+), 23 deletions(-)

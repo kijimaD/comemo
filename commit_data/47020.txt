@@ -1,19 +1,743 @@
-commit 0ae0d5c62eae1a4043d1d9cb41acc563a5e75daa
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Oct 21 19:15:24 2021 -0700
+commit 9a99515c8f1febe39151a80b2088d0d6fdc55ca2
+Merge: 06b86e9803 7cdfa4969a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 12:23:38 2021 -0800
 
-    cmd/compile: remove MarkUsedIfaceMethodIndex mechanism
+    all: REVERSE MERGE dev.typeparams (7cdfa49) into master
     
-    We don't need it any more, after CL 357835.
+    This commit is a REVERSE MERGE.
+    It merges dev.typeparams back into its parent branch, master.
+    This marks the end of development on dev.typeparams.
     
-    Change-Id: I1ff5f24b5540c3e80c4b35be8215a1c378952274
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357894
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Merge List:
+    
+    + 2021-02-19 7cdfa4969a [dev.typeparams] all: merge master (06b86e9) into dev.typeparams
+    + 2021-02-19 6521c7b378 [dev.typeparams] cmd/compile/internal/types2: resolve decl cycle the same way as in go/types
+    + 2021-02-19 dfe0ef961b [dev.typeparams] go/types, types2: revert fancy struct printing (fixes x/tools tests)
+    + 2021-02-19 2f37939a21 go/parser: improve error recovery from invalid selector exprs
+    + 2021-02-19 8654db4555 [dev.typeparams] go/types: adjust printing of embedded struct fields (fixes x/tools/cmd/guru tests)
+    + 2021-02-19 47e4b0739e Merge "[dev.typeparams] all: merge master (eb98272) into dev.typeparams" into dev.typeparams
+    + 2021-02-18 a789be7814 [dev.typeparams] cmd/compile: use new converter functions rather than methods (fix build)
+    + 2021-02-18 20050a15fe [dev.typeparams] cmd/compile:  support generic types (with stenciling of method calls)
+    + 2021-02-18 e7493a9c74 [dev.typeparams] all: merge master (eb98272) into dev.typeparams
+    + 2021-02-18 2ff1e05a4c [dev.typeparams] all: update parent repository
+    + 2021-02-18 8960ce7735 [dev.typeparams] cmd/compile/internal/types2: minor adjustments to match go/types more closely
+    + 2021-02-18 6f3878b942 [dev.typeparams] cmd/compile/internal/types: review of typestring_test.go
+    + 2021-02-18 d6bdd1aeef [dev.typeparams] cmd/compile/internal/types: review of typestring.go
+    + 2021-02-18 c2314babb8 [dev.typeparams] cmd/compile/internal/types: review of type.go
+    + 2021-02-18 099374b55e [dev.typeparams] cmd/compile/internal/types2: remove Type.Under method in favor of function
+    + 2021-02-18 653386a89a [dev.typeparams] cmd/compile/internal/types2: replace Named, TypeParam methods with functions
+    + 2021-02-18 5e4da8670b [dev.typeparams] cmd/compile/internal/types2: use converter functions rather than methods
+    + 2021-02-18 5ecb9a7887 [dev.typeparams] go/types: use a new ast.ListExpr for multi-type instances
+    + 2021-02-18 7b679617f3 [dev.typeparams] go/types: conversions to type parameters are not constant
+    + 2021-02-17 f5d0c653e6 [dev.typeparams] merge master (2f0da6d) into dev.typeparams
+    + 2021-02-17 e196cb8258 [dev.typeparams] cmd/dist:  disable -G=3 on the std go tests for now
+    + 2021-02-12 a06bd9fecb [dev.typeparams] cmd/compile/internal/types: review of resolver_test.go
+    + 2021-02-12 042f88fe30 [dev.typeparams] cmd/compile/internal/types: review of errors_test.go
+    + 2021-02-12 0abd7b768b [dev.typeparams] cmd/compile/internal/types: review of universe.go
+    + 2021-02-12 1b6f0bf1b2 [dev.typeparams] cmd/compile/internal/types: review of sizes_test.go
+    + 2021-02-12 1758780181 [dev.typeparams] cmd/compile/internal/types: review of sizes.go
+    + 2021-02-12 3aee461d5c [dev.typeparams] cmd/compile/internal/types: review of return.go
+    + 2021-02-12 7428318af6 [dev.typeparams] cmd/compile/internal/types: review of object_test.go
+    + 2021-02-12 b20f9e2da1 [dev.typeparams] cmd/compile/internal/types: review of object.go
+    + 2021-02-12 20746b2f37 [dev.typeparams] cmd/compile/internal/types: review of labels.go
+    + 2021-02-12 bab3461123 [dev.typeparams] cmd/compile/internal/types: review of infer.go
+    + 2021-02-12 9168590977 [dev.typeparams] cmd/compile/internal/types: review of builtin_test.go
+    + 2021-02-12 f1777cf84c [dev.typeparams] cmd/compile/internal/types: review of builtin.go
+    + 2021-02-12 0f43973b4b [dev.typeparams] go/types: make predeclared "any" alias for interface{}
+    + 2021-02-12 58758e0a21 [dev.typeparams] go/types: better error message for invalid ... use
+    + 2021-02-11 c0aa7bd760 [dev.typeparams] cmd/compile: small fixes for stenciling
+    + 2021-02-10 df23540dde [dev.typeparams] cmd/gofmt: add the -G flag to allow generic code
+    + 2021-02-10 ddec18cf82 [dev.typeparams] cmd/compile/internal/types2: overlapping embedded interfaces requires go1.14
+    + 2021-02-10 fdf3496fcc [dev.typeparams] cmd/compile:  make type conversions by type parameters work
+    + 2021-02-10 12e15d430d [dev.typeparams] cmd/compile: handle calling a method on a type param in stenciling
+    + 2021-02-08 ca18c42054 [dev.typeparams] merge dev.regabi (618e3c1) into dev.typeparams
+    + 2021-02-08 a360eeb528 [dev.typeparams] cmd/compile/internal/types2: conversions to type parameters are not constant
+    + 2021-02-08 0fbde54ea6 [dev.typeparams] cmd/compile: allow generic funcs to call other generic funcs for stenciling
+    + 2021-02-05 dcb5e0392e [dev.typeparams] cmd/compile: add stenciling of simple generic functions
+    + 2021-02-04 f37b0c6c12 [dev.typeparams] cmd/compile/internal/types2: type alias decl requires go1.9
+    + 2021-02-04 721488498a [dev.typeparams] cmd/compile: pass -lang flag value to new type checker
+    + 2021-02-04 1ff2fdaaf1 [dev.typeparams] cmd/compile/internal/types2: add support for language version checking
+    + 2021-02-04 370e9f5843 [dev.typeparams] cmd/compile/internal/types2: use 512 bits as max. integer precision
+    + 2021-02-04 ca2f152893 [dev.typeparams] go/types: add missing test from dev.go2go
+    + 2021-02-03 dc122c7a9c [dev.typeparams] test: exclude a failing test again (fix 32bit builds)
+    + 2021-02-03 c910fd7b77 [dev.typeparams] cmd/compile: refuse excessively long constants
+    + 2021-02-03 3db6e18468 [dev.typeparams] test: enable more errorcheck tests
+    + 2021-02-03 bb53a5ad43 [dev.typeparams] cmd/compile/internal/importer: adjust importer to match compiler importer
+    + 2021-02-03 3f845b3b45 [dev.typeparams] cmd/compile: deal with inferred type arguments
+    + 2021-02-03 e633f343ba [dev.typeparams] cmd/compile:  add OFUNCINST/OTYPEINST nodes for generic func/type instantiation
+    + 2021-02-02 0d2d6c7464 [dev.typeparams] all: merge dev.regabi (23b0c1f) into dev.typeparams
+    + 2021-02-02 3d5c715bf2 [dev.typeparams] Handling multiple type arguments for call via new node OLIST
+    + 2021-02-01 13a7412983 [dev.typeparams] Parse a generic type arg for generic function call
+    + 2021-01-30 0aafd69124 [dev.typeparams] cmd/compile: start translating type params in noder2
+    + 2021-01-30 a59cb5109d [dev.typeparams] cmd/compile/internal/types2: handle untyped constant arithmetic overflow
+    + 2021-01-29 507e641963 [dev.typeparams] cmd/compile/internal/typecheck: declutter generated builtin.go (cleanup)
+    + 2021-01-28 2440dd457a [dev.typeparams] cmd/compile:  start adding info needed for typeparams in types & ir
+    + 2021-01-28 c0bf904ddf [dev.typeparams] cmd/compile/internal/types2: translate syntax to token constants via tables
+    + 2021-01-28 f7d1c5990b [dev.typeparams] cmd/compile/internal/types2: must not import a package called "init"
+    + 2021-01-27 217a461f56 [dev.typeparams] cmd/compile/internal/types2: report unused packages in source order
+    + 2021-01-26 08a598f8c1 [dev.typeparams] cmd/compile: fix MethodExpr handling with embedded fields
+    + 2021-01-26 cecc1dfcba [dev.typeparams] test: enable excluded test fixedbugs/issue7742.go
+    + 2021-01-26 e48d7d3b21 [dev.typeparams] go/constant: faster match implementation
+    + 2021-01-26 d39685e5e9 [dev.typeparams] go/constant: choose internal float representations more consistently
+    + 2021-01-25 34704e374f [dev.typeparams] all: merge dev.regabi (5e4a0cd) into dev.typeparams
+    + 2021-01-26 c97af0036b [dev.typeparams] cmd/compile: force untyped constants from types2 to expected kind
+    + 2021-01-25 3663a437a7 [dev.typeparams] go/constant: in ToFloat, convert to rational numbers, not floats
+    + 2021-01-25 3432d24bab Merge "[dev.typeparams] all: merge dev.regabi (063c72f) into dev.typeparams" into dev.typeparams
+    + 2021-01-25 493eb6e6ec [dev.typeparams] cmd/compile: fix -G=3 handling of blank methods
+    + 2021-01-25 13f02018af [dev.typeparams] test: enable more errorcheck tests w/ -G=3
+    + 2021-01-24 6d8d118762 [dev.typeparams] all: merge dev.regabi (063c72f) into dev.typeparams
+    + 2021-01-24 9456804e86 [dev.typeparams] test: fix excluded files lookup so it works on Windows
+    + 2021-01-23 7947df436d [dev.typeparams] test: set -G=3 and enable more errorcheck tests in run.go
+    + 2021-01-23 a49e941027 [dev.typeparams] cmd/compile/internal/types2: remove MethodSet code - not used by types2
+    + 2021-01-23 5347241b5e [dev.typeparams] cmd/compile/internal/types2: use same sort criteria for methods as compiler
+    + 2021-01-23 2b95c28b18 [dev.typeparams] cmd/compile: refactor SelectorExpr code into helpers
+    + 2021-01-23 1946a77e69 Merge "[dev.typeparams] all: merge dev.regabi (7e0a81d) into dev.typeparams" into dev.typeparams
+    + 2021-01-23 6923019a71 [dev.typeparams] cmd/compile/internal/types2: factor out sorting of methods
+    + 2021-01-22 6e46c8fbb5 [dev.typeparams] all: merge dev.regabi (7e0a81d) into dev.typeparams
+    + 2021-01-22 e4ef30a667 [dev.typeparams] cmd/compile: refactor irgen's handling of ":="
+    + 2021-01-22 626406b703 [dev.typeparams] go/types: import api_test.go changes from dev.go2go
+    + 2021-01-22 12cd9cf7e0 [dev.typeparams] cmd/compile: disambiguate OXDOT in noder using types2 Selection info
+    + 2021-01-22 f8654579cd [dev.typeparams] cmd/compile/internal/types2: adjust errors in branch checking code, fix a bug
+    + 2021-01-21 18bd7aa625 [dev.typeparams] cmd/compile: use nil instead of syntax.ImplicitOne
+    + 2021-01-21 2427f6e6c0 [dev.typeparams] cmd/compile: directly set some simple expression types
+    + 2021-01-21 455c29af83 [dev.typeparams] cmd/compile/internal/types2: convert untyped arguments to delete
+    + 2021-01-21 f03f934ede [dev.typeparams] cmd/compile/internal/types2: make predeclared "any" alias for interface{}
+    + 2021-01-20 0f054c5be0 [dev.typeparams] cmd/dist: add -G=3 test coverage
+    + 2021-01-20 89ec17be9a [dev.typeparams] cmd/compile: simplify how irgen handles qualified idents
+    + 2021-01-20 fa01ade41e [dev.typeparams] go/types: add tests from dev.go2go
+    + 2021-01-20 734cb8be0a [dev.typeparams] go/types: refactor untyped conversion for typeparams
+    + 2021-01-20 d8796b5670 [dev.typeparams] cmd/compile/internal/types2: report type of nil based on context
+    + 2021-01-19 48a3cb399d [dev.typeparams] go/types: fix some merge errors in call.go
+    + 2021-01-19 3e15bf7716 [dev.typeparams] go/types: don't modify Named.underlying in validType
+    + 2021-01-19 f38f862417 [dev.typeparams] go/types: strip annotations from errors
+    + 2021-01-19 2e64511ac9 [dev.typeparams] go/types: unify methods in missingMethod
+    + 2021-01-19 958927c824 [dev.typeparams] go/parser: error for type instances without ParseTypeParams
+    + 2021-01-19 90bfc73071 [dev.typeparams] cmd/compile: cache mapped types during irgen
+    + 2021-01-19 3c0a39c964 [dev.typeparams] cmd/compile/internal/types: minor fixes/cleanups around testing
+    + 2021-01-15 502198c8dc [dev.typeparams] cmd/compile/internal/types2: consistently report nil type as "untyped nil"
+    + 2021-01-14 82c3f0a358 [dev.typeparams] cmd/compile/internal/types2: untyped shift counts must fit into uint
+    + 2021-01-14 67bf62d939 [dev.typeparams] cmd/compile/internal/types2: better error message for invalid ... use
+    + 2021-01-14 ef5285fbd0 [dev.typeparams] cmd/compile: add types2-based noder
+    + 2021-01-12 f065ff221b [dev.typeparams] all: merge dev.regabi (d9acf6f) into dev.typeparams
+    + 2021-01-12 099599662d [dev.typeparams] cmd/compile: refactor import logic
+    + 2021-01-12 106aa941df [dev.typeparams] cmd/compile: refactor DWARF scope marking
+    + 2021-01-12 6a56c6c870 [dev.typeparams] go/types: import dev.go2go changes to check tests
+    + 2021-01-11 9e746e4255 [dev.typeparams] cmd/compile: refactor varEmbed logic
+    + 2021-01-11 3e1a87ac2a [dev.typeparams] cmd/compile: extract posMap from noder
+    + 2021-01-11 2e8f29b79d [dev.typeparams] cmd/compile: add types2.Sizes implementation
+    + 2021-01-11 44d1a8523a [dev.typeparams] cmd/compile/internal/types2: fixes for all.bash
+    + 2021-01-11 8123bc90b8 [dev.typeparams] cmd/go: relax test expectation
+    + 2021-01-11 8c5aa42c79 [dev.typeparams] cmd/compile: calculate variable sizes in walk
+    + 2021-01-11 1ce0854157 [dev.typeparams] import stmt changes from dev.go2go
+    + 2021-01-11 eb53a6c7cf [dev.typeparams] import operand.go changes from dev.go2go
+    + 2021-01-11 81cd99858d [dev.typeparams] go/types: import expr changes from dev.go2go
+    + 2021-01-08 822aeacd9e [dev.typeparams] cmd/compile/internal/syntax: remove ShortString, use String instead
+    + 2021-01-08 d017a1b649 [dev.typeparams] cmd/compile/internal/syntax: add Walk node vistor from types2
+    + 2021-01-08 7903214fcc [dev.typeparams] cmd/compile/internal/syntax: add ShortString tests
+    + 2021-01-08 0aede1205b [dev.typeparams] cmd/compile/internal/types2: use syntax printer to print expressions
+    + 2021-01-08 934f9dc0ef [dev.typeparams] cmd/compile/internal/syntax: clean up node printing API
+    + 2021-01-07 5b9152de57 [dev.typeparams] all: merge dev.regabi (cb05a0a) into dev.typeparams
+    + 2021-01-07 7e689f86e3 [dev.typeparams] go/types: move use and useLHS to match dev.go2go
+    + 2021-01-06 d76cefed1f [dev.typeparams] go/types: remove disabled code related to type lists
+    + 2021-01-06 0e286579c5 [dev.typeparams] go/types: import typexpr.go from dev.go2go
+    + 2021-01-06 9546596d77 [dev.typeparams] cmd/compile/internal/types2: remove disabled code related to type lists
+    + 2021-01-06 196102d046 [dev.typeparams] cmd/compile/internal/types2: review of typexpr.go
+    + 2021-01-05 a8fe098a12 [dev.typeparams] all: merge dev.regabi (77365c5) into dev.typeparams
+    + 2020-12-28 a800acaae1 [dev.typeparams] all: merge dev.regabi (07569da) into dev.typeparams
+    + 2020-12-27 dd40bbc57b [dev.typeparams] cmd/compile: re-enable internal/types2 test
+    + 2020-12-23 d99dd17827 [dev.typeparams] all: merge dev.regabi (37f138d) into dev.typeparams
+    + 2020-12-22 8b1fbd8215 [dev.typeparams] all: merge dev.regabi (6d03cde) into dev.typeparams
+    + 2020-12-22 23922cf83b [dev.typeparams] all: merge dev.regabi (d1d1099) into dev.typeparams
+    + 2020-12-23 788dad53c5 [dev.typeparams] cmd/compile/internal/types2: disable external test temporarily
+    + 2020-12-22 91cc51e005 [dev.typeparams] all: merge dev.regabi (ec741b0) into dev.typeparams
+    + 2020-12-22 e02a007ffd [dev.typeparams] codereview.cfg: add config for dev.typeparams
+    + 2020-12-22 41e7901ca4 [dev.typeparams] cmd/compile/internal/types2: report error for invalid main function signature
+    + 2020-12-22 53c4c17b09 [dev.typeparams] all: merge dev.regabi into dev.typeparams
+    + 2020-12-17 060cdbc7b5 [dev.typeparams] go/types: import object resolution from dev.go2go
+    + 2020-12-17 c4f0da5750 [dev.typeparams] cmd/compile/internal/types2: remove code for implicit type arguments
+    + 2020-12-16 068dd0470b [dev.typeparams] cmd/compile/internal/syntax: don't panic when providing -verify
+    + 2020-12-16 7909d6ec28 [dev.typeparams] cmd/compile/internal/syntax: type parameters must always be named
+    + 2020-12-16 3b5918c757 [dev.typeparams] cmd/compile/internal/types2: review of predicates.go
+    + 2020-12-16 09abd23d9e [dev.typeparams] go/types: import predicates.go from dev.go2go
+    + 2020-12-16 f38da2cbb6 [dev.typeparams] cmd/compile/internal/types2: review of unify.go
+    + 2020-12-16 ceb77db24f [dev.typeparams] go/types: import some support functions from dev.go2go
+    + 2020-12-15 a4d4c10340 [dev.typeparams] go/types: import lookup logic from dev.go2go
+    + 2020-12-15 1306435103 [dev.typeparams] go/types: import changes to types.Info from dev.go2go
+    + 2020-12-15 6b18081d01 [dev.typeparams] cmd/compile/internal/types2: don't crash if import path is missing
+    + 2020-12-15 14e4267c34 [dev.typeparams] cmd/compile/internal/types2: report error for invalid (but empty) expr switch
+    + 2020-12-15 96999296e6 [dev.typeparams] go/types: import unify.go and infer.go from dev.go2go
+    + 2020-12-15 5aff757efc [dev.typeparams] cmd/compile/internal/gc: provide types2 selection info to noder
+    + 2020-12-14 c8e73489c3 go/types: import instance.expand and subst.go from dev.go2go
+    + 2020-12-14 3a912f279f [dev.typeparams] cmd/compile/internal/syntax: export NewName and use it
+    + 2020-12-14 8ec9e89000 [dev.typeparams] cmd/compile/internal/types2: fix stray ')' in error
+    + 2020-12-14 8fe8e29c9f [dev.typeparams] cmd/compile/internal/types2: report error for invalid type expression
+    + 2020-12-14 f8930a2413 [dev.typeparams] cmd/compile/internal/types2: report invalid ... in conversions
+    + 2020-12-14 5aca6e7857 [dev.typeparams] test: finish triaging all outstanding failing tests
+    + 2020-12-14 df58f3368e [dev.typeparams] cmd/compile/internal/types2: don't report two errors for bad strings
+    + 2020-12-14 91803a2df3 [dev.typeparams] merge: merge branch 'dev.regabi' into 'dev.typeparams'
+    + 2020-12-11 a20021227e [dev.typeparams] cmd/compile/internal/types2: bring over subst.go changes from go/types
+    + 2020-12-10 ddf44904f1 [dev.typeparams] test: exclude 32bit-specific test that fails on 32bit platforms (fix build)
+    + 2020-12-10 dbce27d29c [dev.typeparams] cmd/compile/internal/types2: report correct line number for missing key
+    + 2020-12-09 edf80c4209 [dev.typeparams] cmd/compile/internal/types2: adjusted more error messages for compiler
+    + 2020-12-09 43c7b214db [dev.typeparams] cmd/compile/internal/types2: adjusted qualified identifier error message for compiler
+    + 2020-12-09 6812eae2e2 [dev.typeparams] cmd/compile/internal/types2: adjust init cycle error message for compiler
+    + 2020-12-09 810957b155 [dev.typeparams] cmd/compile/internal/types2: adjusted array error message for compiler
+    + 2020-12-09 c32566c336 [dev.typeparams] cmd/compile/internal/types2: avoid endless recursion in Comparable predicate
+    + 2020-12-08 6015c4e543 [dev.typeparams] go/*: add TODOs from CLs importing dev.go2go changes
+    + 2020-12-08 b6e678573d [dev.typeparams] go/types: import universe changes from dev.go2go
+    + 2020-12-08 14dc2d2345 [dev.typeparams] go/types: import the Type API from dev.go2go
+    + 2020-12-07 cd15a48036 [dev.typeparams] cmd/compile/internal/types2: correct error position for inherited const init expression
+    + 2020-12-04 02820d61a9 [dev.typeparams] test: enable some more errorcheck tests
+    + 2020-12-03 9ff27e9fad [dev.typeparams] test: run all errorcheck tests that pass compiler with -G flag
+    + 2020-12-03 7a1aa7dfaf [dev.typeparams] test: adjust more test cases to match compiler -G output
+    + 2020-12-03 07d32c8183 [dev.typeparams] cmd/compile/internal/types: adjust some error messages to match the compiler
+    + 2020-12-03 6b4da14dd3 [dev.typeparams] cmd/compile: provide scaffolding to get types2 types during noding
+    + 2020-12-02 72cc2353f0 [dev.typeparams] go/printer: adapt changes from dev.go2go
+    + 2020-12-02 ab18125567 [dev.typeparams] cmd/compile/internal/types2: no "declared but not used" errors for invalid var decls
+    + 2020-12-02 036245862a [dev.typeparams] cmd/compile/internal/types2: set compiler error message for undeclared variable
+    + 2020-12-01 bdc4ffe9a8 [dev.typeparams] cmd/compile/internal/types2: add Config.IgnoreBranches flag
+    + 2020-12-01 72ad2f44ea [dev.typeparams] test: add scaffolding to run.go to check compiler with -G flag
+    + 2020-12-01 87bc85a846 [dev.typeparams] cmd/compile/internal/types2: adjustments toward matching compiler error messages
+    + 2020-12-01 fbc4c6a3ae [dev.typeparams] cmd/compile/internal/types2: remove support for type parameter pointer designation
+    + 2020-11-25 ba9c35aa12 [dev.typeparams] merge dev.regabi 40f5bc4d556a into dev.typeparams
+    + 2020-11-25 5c2e14872c [dev.typeparams] merge dev.regabi 41f3af9d04 into dev.typeparams
+    + 2020-11-25 2c25cd5ba7 [dev.typeparams] cmd/compile/internal/types2: a type parameter is a valid type case in a type switch
+    + 2020-11-24 0fb733b7f7 [dev.typeparams] go/parser: support the ParseTypeParams mode
+    + 2020-11-24 b56762129e [dev.typeparams] import go2go changes to parse type parameters
+    + 2020-11-24 a324aebb7d [dev.typeparams] go/types, cmd/compile/internal/types2: fix incorrect string(int) conversion (regression)
+    + 2020-11-20 8fbdacf64c [dev.typeparams] cmd/compile/internal/types2: report constant overflow in binary ops
+    + 2020-11-19 b1ae0a0646 [dev.typeparams] Merge branch 'master' into dev.typeparams
+    + 2020-11-19 0123c9b321 [dev.typeparams] cmd/compile/internal/types2: report an error for invalid constant values
+    + 2020-11-18 2140049172 [dev.typeparams] cmd/compile/internal/types2: port of https://golang.org/cl/270957
+    + 2020-11-11 6877ee1e07 [dev.typeparams] cmd/compile: use existing findpkg algorithm when importing through types2
+    + 2020-11-03 165ceb09f9 [dev.typeparams] merge master into dev.typeparams
+    + 2020-10-28 41ff51ae00 [dev.typeparams] cmd/compile/internal/types2: review of scopes.go
+    + 2020-10-27 9392b82919 [dev.typeparams] cmd/compile/internal/types: review of objset.go
+    + 2020-10-27 c32ac6c15f [dev.typeparams] cmd/compile/internal/types: review of selection.go
+    + 2020-10-27 ff6ab114c9 [dev.typeparams] cmd/compile/internal/types: review of gccgosizes.go
+    + 2020-10-27 abb31c2558 [dev.typeparams] cmd/compile/internal/types2: review of hilbert_test.go
+    + 2020-10-27 6e98406ac3 [dev.typeparams] cmd/compile/internal/types2: review of initorder.go
+    + 2020-10-27 38af45b4cb [dev.typeparams] cmd/compile/internal/types2: review of package.go
+    + 2020-10-27 87eab74628 [dev.typeparams] cmd/compile: enable type-checking of generic code
+    + 2020-10-23 5bfd2964a6 [dev.typeparams] merge master into dev.typeparams
+    + 2020-10-22 a10fe9f6e7 go/ast: import AST changes supporting typeparams from dev.go2go
+    + 2020-10-21 7a8a720c80 [dev.typeparams] cmd/compile/internal/types2: add *.go2 (generic) tests
+    + 2020-10-21 755d6de1d8 [dev.typeparams] cmd/compile/internal/types2: add some more tests
+    + 2020-10-21 1d07306a44 [dev.typeparams] cmd/compile/internal/types2: adjust tests, enable Testdata tests
+    + 2020-10-21 befc62a2c4 [dev.typeparams] cmd/compile/internal/types2: add testdata directory
+    + 2020-10-21 ca36ba83ab [dev.typeparams] cmd/compile/internal/importer, types2: initial check-in of types2 and importer
+    + 2020-10-20 6ff16fe3ee [dev.typeparams] cmd/compile/internal/syntax: add utility functions for testing
+    + 2020-10-19 5e46c6a10f [dev.typeparams] cmd/compile/internal/syntax: add Pos method
+    + 2020-10-15 e9e58a4d49 [dev.typeparams] cmd/compile/internal/syntax: fix printing of channel types
+    + 2020-10-14 73f529845c [dev.typeparams] cmd/compile/internal/syntax: always use IndexExpr node for type instantiation
+    + 2020-10-13 48755e06aa [dev.typeparams] cmd/compile: enable parsing of generic code with new -G flag
+    + 2020-10-13 7668f02dec [dev.typeparams] cmd/compile/internal/syntax: add type parameter tests
+    + 2020-10-13 b627988b0c [dev.typeparams] cmd/compile/internal/syntax: implement parsing of type parameters
+    + 2020-10-13 617b633917 [dev.typeparams] cmd/compile/internal/syntax: prepare syntax nodes for type parameters
+    + 2020-10-12 986cad14e2 [dev.typeparams] merge master into dev.typeparams
+    
+    Change-Id: Ie0796a53af1fb5db49f4c748144461d3af598575
 
- src/cmd/compile/internal/noder/stencil.go       | 28 +++++--------------------
- src/cmd/compile/internal/reflectdata/reflect.go | 10 ---------
- 2 files changed, 5 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/base/flag.go              |    1 +
+ src/cmd/compile/internal/gc/export.go              |    5 +
+ src/cmd/compile/internal/importer/exportdata.go    |   92 +
+ src/cmd/compile/internal/importer/gcimporter.go    |  175 ++
+ .../compile/internal/importer/gcimporter_test.go   |  611 ++++++
+ src/cmd/compile/internal/importer/iimport.go       |  612 ++++++
+ src/cmd/compile/internal/importer/support.go       |  128 ++
+ src/cmd/compile/internal/importer/testdata/a.go    |   15 +
+ src/cmd/compile/internal/importer/testdata/b.go    |   12 +
+ .../compile/internal/importer/testdata/exports.go  |   89 +
+ .../internal/importer/testdata/issue15920.go       |   12 +
+ .../internal/importer/testdata/issue20046.go       |   10 +
+ .../internal/importer/testdata/issue25301.go       |   18 +
+ .../internal/importer/testdata/issue25596.go       |   14 +
+ src/cmd/compile/internal/importer/testdata/p.go    |   14 +
+ .../internal/importer/testdata/versions/test.go    |   29 +
+ src/cmd/compile/internal/inline/inl.go             |    9 +-
+ src/cmd/compile/internal/ir/class_string.go        |    7 +-
+ src/cmd/compile/internal/ir/expr.go                |   14 +
+ src/cmd/compile/internal/ir/name.go                |   15 +-
+ src/cmd/compile/internal/ir/node.go                |    2 +
+ src/cmd/compile/internal/ir/node_gen.go            |   27 +
+ src/cmd/compile/internal/ir/op_string.go           |   52 +-
+ src/cmd/compile/internal/ir/package.go             |    3 +
+ src/cmd/compile/internal/noder/decl.go             |  241 +++
+ src/cmd/compile/internal/noder/expr.go             |  365 ++++
+ src/cmd/compile/internal/noder/func.go             |   74 +
+ src/cmd/compile/internal/noder/helpers.go          |  277 +++
+ src/cmd/compile/internal/noder/import.go           |   26 +
+ src/cmd/compile/internal/noder/irgen.go            |  209 ++
+ src/cmd/compile/internal/noder/noder.go            |   28 +-
+ src/cmd/compile/internal/noder/object.go           |  175 ++
+ src/cmd/compile/internal/noder/scopes.go           |   64 +
+ src/cmd/compile/internal/noder/sizes.go            |  150 ++
+ src/cmd/compile/internal/noder/stencil.go          |  460 +++++
+ src/cmd/compile/internal/noder/stmt.go             |  303 +++
+ src/cmd/compile/internal/noder/types.go            |  328 ++++
+ src/cmd/compile/internal/noder/validate.go         |  113 ++
+ src/cmd/compile/internal/reflectdata/alg.go        |    4 +-
+ src/cmd/compile/internal/reflectdata/reflect.go    |    7 +-
+ src/cmd/compile/internal/syntax/dumper.go          |    8 +-
+ src/cmd/compile/internal/syntax/error_test.go      |    6 +-
+ src/cmd/compile/internal/syntax/nodes.go           |   40 +-
+ src/cmd/compile/internal/syntax/parser.go          |  778 +++++---
+ src/cmd/compile/internal/syntax/parser_test.go     |   52 +-
+ src/cmd/compile/internal/syntax/pos.go             |    1 +
+ src/cmd/compile/internal/syntax/printer.go         |   87 +-
+ src/cmd/compile/internal/syntax/printer_test.go    |  142 +-
+ src/cmd/compile/internal/syntax/syntax.go          |    1 +
+ .../compile/internal/syntax/testdata/go2/chans.go2 |   62 +
+ .../internal/syntax/testdata/go2/linalg.go2        |   83 +
+ .../compile/internal/syntax/testdata/go2/map.go2   |  113 ++
+ .../compile/internal/syntax/testdata/go2/map2.go2  |  146 ++
+ .../internal/syntax/testdata/go2/slices.go2        |   68 +
+ .../internal/syntax/testdata/go2/smoketest.go2     |   83 +
+ .../internal/syntax/testdata/go2/typeinst.go2      |   60 +
+ .../internal/syntax/testdata/go2/typeinst2.go2     |  256 +++
+ .../internal/syntax/testdata/go2/typeparams.go2    |  451 +++++
+ .../compile/internal/syntax/testdata/tparams.go2   |   22 +
+ src/cmd/compile/internal/syntax/testing.go         |   72 +
+ src/cmd/compile/internal/syntax/testing_test.go    |   45 +
+ src/cmd/compile/internal/syntax/walk.go            |  318 +++
+ src/cmd/compile/internal/test/abiutilsaux_test.go  |    2 +-
+ src/cmd/compile/internal/test/dep_test.go          |    7 +-
+ src/cmd/compile/internal/typecheck/builtin.go      |  198 +-
+ src/cmd/compile/internal/typecheck/const.go        |    2 +-
+ src/cmd/compile/internal/typecheck/dcl.go          |    2 +-
+ src/cmd/compile/internal/typecheck/iimport.go      |    2 +-
+ src/cmd/compile/internal/typecheck/mkbuiltin.go    |   28 +-
+ src/cmd/compile/internal/typecheck/type.go         |    2 +-
+ src/cmd/compile/internal/typecheck/universe.go     |    2 +-
+ src/cmd/compile/internal/types/fmt.go              |   22 +-
+ src/cmd/compile/internal/types/kind_string.go      |   23 +-
+ src/cmd/compile/internal/types/size.go             |    5 +
+ src/cmd/compile/internal/types/sizeof_test.go      |    4 +-
+ src/cmd/compile/internal/types/type.go             |   78 +-
+ src/cmd/compile/internal/types2/api.go             |  443 +++++
+ src/cmd/compile/internal/types2/api_test.go        | 1791 +++++++++++++++++
+ src/cmd/compile/internal/types2/assignments.go     |  368 ++++
+ src/cmd/compile/internal/types2/builtins.go        |  776 ++++++++
+ src/cmd/compile/internal/types2/builtins_test.go   |  218 +++
+ src/cmd/compile/internal/types2/call.go            |  770 ++++++++
+ src/cmd/compile/internal/types2/check.go           |  455 +++++
+ src/cmd/compile/internal/types2/check_test.go      |  298 +++
+ src/cmd/compile/internal/types2/conversions.go     |  166 ++
+ src/cmd/compile/internal/types2/decl.go            |  978 ++++++++++
+ src/cmd/compile/internal/types2/errors.go          |  172 ++
+ src/cmd/compile/internal/types2/errors_test.go     |   25 +
+ src/cmd/compile/internal/types2/example_test.go    |  269 +++
+ .../compile/internal/types2/examples/functions.go2 |  216 +++
+ .../compile/internal/types2/examples/methods.go2   |   97 +
+ src/cmd/compile/internal/types2/examples/types.go2 |  280 +++
+ src/cmd/compile/internal/types2/expr.go            | 2020 ++++++++++++++++++++
+ .../internal/types2/fixedbugs/issue20583.src       |   12 +
+ .../internal/types2/fixedbugs/issue39634.go2       |   92 +
+ .../internal/types2/fixedbugs/issue39664.go2       |   16 +
+ .../internal/types2/fixedbugs/issue39680.go2       |   28 +
+ .../internal/types2/fixedbugs/issue39693.go2       |   15 +
+ .../internal/types2/fixedbugs/issue39699.go2       |   30 +
+ .../internal/types2/fixedbugs/issue39711.go2       |   12 +
+ .../internal/types2/fixedbugs/issue39723.go2       |   10 +
+ .../internal/types2/fixedbugs/issue39725.go2       |   17 +
+ .../internal/types2/fixedbugs/issue39754.go2       |   21 +
+ .../internal/types2/fixedbugs/issue39755.go2       |   24 +
+ .../internal/types2/fixedbugs/issue39768.go2       |   21 +
+ .../internal/types2/fixedbugs/issue39938.go2       |   51 +
+ .../internal/types2/fixedbugs/issue39948.go2       |   10 +
+ .../internal/types2/fixedbugs/issue39976.go2       |   17 +
+ .../internal/types2/fixedbugs/issue39982.go2       |   37 +
+ .../internal/types2/fixedbugs/issue40038.go2       |   16 +
+ .../internal/types2/fixedbugs/issue40056.go2       |   16 +
+ .../internal/types2/fixedbugs/issue40057.go2       |   18 +
+ .../internal/types2/fixedbugs/issue40301.go2       |   13 +
+ .../internal/types2/fixedbugs/issue40684.go2       |   16 +
+ .../internal/types2/fixedbugs/issue41124.go2       |   92 +
+ .../internal/types2/fixedbugs/issue42695.src       |   17 +
+ .../internal/types2/fixedbugs/issue42758.go2       |   33 +
+ .../internal/types2/fixedbugs/issue43110.src       |   43 +
+ .../internal/types2/fixedbugs/issue43124.src       |   16 +
+ .../internal/types2/fixedbugs/issue43125.src       |    8 +
+ .../internal/types2/fixedbugs/issue43190.src       |   19 +
+ src/cmd/compile/internal/types2/gccgosizes.go      |   40 +
+ src/cmd/compile/internal/types2/hilbert_test.go    |  219 +++
+ src/cmd/compile/internal/types2/importer_test.go   |   36 +
+ src/cmd/compile/internal/types2/infer.go           |  356 ++++
+ src/cmd/compile/internal/types2/initorder.go       |  301 +++
+ src/cmd/compile/internal/types2/issues_test.go     |  558 ++++++
+ src/cmd/compile/internal/types2/labels.go          |  259 +++
+ src/cmd/compile/internal/types2/lookup.go          |  512 +++++
+ src/cmd/compile/internal/types2/object.go          |  527 +++++
+ src/cmd/compile/internal/types2/object_test.go     |   88 +
+ src/cmd/compile/internal/types2/objset.go          |   31 +
+ src/cmd/compile/internal/types2/operand.go         |  339 ++++
+ src/cmd/compile/internal/types2/package.go         |   64 +
+ src/cmd/compile/internal/types2/pos.go             |  368 ++++
+ src/cmd/compile/internal/types2/predicates.go      |  425 ++++
+ src/cmd/compile/internal/types2/resolver.go        |  725 +++++++
+ src/cmd/compile/internal/types2/resolver_test.go   |  222 +++
+ src/cmd/compile/internal/types2/return.go          |  179 ++
+ src/cmd/compile/internal/types2/sanitize.go        |  149 ++
+ src/cmd/compile/internal/types2/scope.go           |  216 +++
+ src/cmd/compile/internal/types2/selection.go       |  159 ++
+ src/cmd/compile/internal/types2/self_test.go       |   97 +
+ src/cmd/compile/internal/types2/sizes.go           |  265 +++
+ src/cmd/compile/internal/types2/sizes_test.go      |  107 ++
+ src/cmd/compile/internal/types2/stdlib_test.go     |  326 ++++
+ src/cmd/compile/internal/types2/stmt.go            |  932 +++++++++
+ src/cmd/compile/internal/types2/subst.go           |  539 ++++++
+ src/cmd/compile/internal/types2/testdata/blank.src |    5 +
+ .../compile/internal/types2/testdata/builtins.go2  |   53 +
+ .../compile/internal/types2/testdata/builtins.src  |  902 +++++++++
+ src/cmd/compile/internal/types2/testdata/chans.go2 |   62 +
+ .../compile/internal/types2/testdata/const0.src    |  363 ++++
+ .../compile/internal/types2/testdata/const1.src    |  334 ++++
+ .../compile/internal/types2/testdata/constdecl.src |  138 ++
+ .../internal/types2/testdata/conversions.src       |   93 +
+ .../internal/types2/testdata/conversions2.src      |  313 +++
+ .../compile/internal/types2/testdata/cycles.src    |  174 ++
+ .../compile/internal/types2/testdata/cycles1.src   |   77 +
+ .../compile/internal/types2/testdata/cycles2.src   |   98 +
+ .../compile/internal/types2/testdata/cycles3.src   |   60 +
+ .../compile/internal/types2/testdata/cycles4.src   |  110 ++
+ .../compile/internal/types2/testdata/cycles5.src   |  200 ++
+ .../compile/internal/types2/testdata/decls0.src    |  206 ++
+ .../compile/internal/types2/testdata/decls1.src    |  144 ++
+ .../internal/types2/testdata/decls2/decls2a.src    |  111 ++
+ .../internal/types2/testdata/decls2/decls2b.src    |   75 +
+ .../compile/internal/types2/testdata/decls3.src    |  309 +++
+ .../compile/internal/types2/testdata/decls4.src    |  199 ++
+ .../compile/internal/types2/testdata/decls5.src    |   10 +
+ .../compile/internal/types2/testdata/errors.src    |   60 +
+ src/cmd/compile/internal/types2/testdata/expr0.src |  180 ++
+ src/cmd/compile/internal/types2/testdata/expr1.src |  127 ++
+ src/cmd/compile/internal/types2/testdata/expr2.src |  260 +++
+ src/cmd/compile/internal/types2/testdata/expr3.src |  564 ++++++
+ .../compile/internal/types2/testdata/go1_12.src    |   34 +
+ .../compile/internal/types2/testdata/go1_13.src    |   21 +
+ src/cmd/compile/internal/types2/testdata/go1_8.src |   10 +
+ src/cmd/compile/internal/types2/testdata/gotos.src |  560 ++++++
+ .../compile/internal/types2/testdata/importC.src   |   54 +
+ .../types2/testdata/importdecl0/importdecl0a.src   |   53 +
+ .../types2/testdata/importdecl0/importdecl0b.src   |   30 +
+ .../types2/testdata/importdecl1/importdecl1a.src   |   22 +
+ .../types2/testdata/importdecl1/importdecl1b.src   |   11 +
+ src/cmd/compile/internal/types2/testdata/init0.src |  106 +
+ src/cmd/compile/internal/types2/testdata/init1.src |   97 +
+ src/cmd/compile/internal/types2/testdata/init2.src |  139 ++
+ .../internal/types2/testdata/issue23203a.src       |   14 +
+ .../internal/types2/testdata/issue23203b.src       |   14 +
+ .../types2/testdata/issue25008/issue25008a.src     |   15 +
+ .../types2/testdata/issue25008/issue25008b.src     |    9 +
+ .../internal/types2/testdata/issue26390.src        |   11 +
+ .../internal/types2/testdata/issue28251.src        |   65 +
+ .../compile/internal/types2/testdata/issue6977.src |   82 +
+ .../compile/internal/types2/testdata/issues.go2    |  249 +++
+ .../compile/internal/types2/testdata/issues.src    |  365 ++++
+ .../compile/internal/types2/testdata/labels.src    |  207 ++
+ .../compile/internal/types2/testdata/linalg.go2    |   83 +
+ .../compile/internal/types2/testdata/literals.src  |  111 ++
+ src/cmd/compile/internal/types2/testdata/main.go2  |    7 +
+ src/cmd/compile/internal/types2/testdata/main.src  |    9 +
+ src/cmd/compile/internal/types2/testdata/map.go2   |  113 ++
+ src/cmd/compile/internal/types2/testdata/map2.go2  |  146 ++
+ .../internal/types2/testdata/methodsets.src        |  214 +++
+ .../internal/types2/testdata/mtypeparams.go2       |   52 +
+ .../compile/internal/types2/testdata/shifts.src    |  398 ++++
+ .../compile/internal/types2/testdata/slices.go2    |   68 +
+ src/cmd/compile/internal/types2/testdata/stmt0.src |  980 ++++++++++
+ src/cmd/compile/internal/types2/testdata/stmt1.src |  259 +++
+ .../internal/types2/testdata/tinference.go2        |  105 +
+ src/cmd/compile/internal/types2/testdata/tmp.go2   |   17 +
+ .../compile/internal/types2/testdata/typeinst.go2  |   59 +
+ .../compile/internal/types2/testdata/typeinst2.go2 |  256 +++
+ .../internal/types2/testdata/typeparams.go2        |  430 +++++
+ .../compile/internal/types2/testdata/vardecl.src   |  214 +++
+ src/cmd/compile/internal/types2/type.go            |  969 ++++++++++
+ src/cmd/compile/internal/types2/typestring.go      |  435 +++++
+ src/cmd/compile/internal/types2/typestring_test.go |  220 +++
+ src/cmd/compile/internal/types2/typexpr.go         | 1254 ++++++++++++
+ src/cmd/compile/internal/types2/unify.go           |  451 +++++
+ src/cmd/compile/internal/types2/universe.go        |  278 +++
+ src/cmd/compile/internal/types2/version.go         |   81 +
+ src/cmd/compile/internal/walk/closure.go           |    2 +-
+ src/cmd/compile/internal/walk/compare.go           |    2 +-
+ src/cmd/dist/test.go                               |   32 +-
+ .../go/testdata/script/vendor_test_issue14613.txt  |    2 +-
+ src/cmd/gofmt/doc.go                               |    3 +
+ src/cmd/gofmt/gofmt.go                             |   16 +-
+ src/cmd/gofmt/gofmt_test.go                        |    2 +
+ src/cmd/gofmt/testdata/typeparams.golden           |   35 +
+ src/cmd/gofmt/testdata/typeparams.input            |   32 +
+ src/go/ast/ast.go                                  |   88 +-
+ src/go/ast/walk.go                                 |   10 +-
+ src/go/constant/value.go                           |  162 +-
+ src/go/internal/gccgoimporter/importer_test.go     |    2 +-
+ src/go/parser/error_test.go                        |   23 +-
+ src/go/parser/interface.go                         |    1 +
+ src/go/parser/parser.go                            |  791 +++++---
+ src/go/parser/short_test.go                        |  158 +-
+ src/go/parser/testdata/chans.go2                   |   62 +
+ src/go/parser/testdata/linalg.go2                  |   83 +
+ src/go/parser/testdata/map.go2                     |  109 ++
+ src/go/parser/testdata/metrics.go2                 |   58 +
+ src/go/parser/testdata/set.go2                     |   31 +
+ src/go/parser/testdata/slices.go2                  |   31 +
+ src/go/parser/testdata/sort.go2                    |   27 +
+ src/go/parser/testdata/typeparams.src              |   17 +
+ src/go/printer/nodes.go                            |  112 +-
+ src/go/printer/printer_test.go                     |    5 +-
+ src/go/printer/testdata/declarations.golden        |   11 +
+ src/go/printer/testdata/declarations.input         |   11 +-
+ src/go/printer/testdata/generics.golden            |   33 +
+ src/go/printer/testdata/generics.input             |   30 +
+ src/go/types/api.go                                |   13 +
+ src/go/types/api_test.go                           |  247 ++-
+ src/go/types/assignments.go                        |  116 +-
+ src/go/types/builtins.go                           |  211 +-
+ src/go/types/call.go                               |  665 +++++--
+ src/go/types/check.go                              |   28 +-
+ src/go/types/check_test.go                         |   12 +-
+ src/go/types/conversions.go                        |   30 +-
+ src/go/types/decl.go                               |  209 +-
+ src/go/types/errorcodes.go                         |   63 +-
+ src/go/types/errors.go                             |   36 +-
+ src/go/types/errors_test.go                        |   25 +
+ src/go/types/eval_test.go                          |    4 +-
+ src/go/types/examples/functions.go2                |  214 +++
+ src/go/types/examples/methods.go2                  |   96 +
+ src/go/types/examples/types.go2                    |  286 +++
+ src/go/types/expr.go                               |  432 +++--
+ src/go/types/exprstring.go                         |   76 +-
+ src/go/types/fixedbugs/issue39634.go2              |   91 +
+ src/go/types/fixedbugs/issue39664.go2              |   15 +
+ src/go/types/fixedbugs/issue39680.go2              |   27 +
+ src/go/types/fixedbugs/issue39693.go2              |   14 +
+ src/go/types/fixedbugs/issue39699.go2              |   29 +
+ src/go/types/fixedbugs/issue39711.go2              |   11 +
+ src/go/types/fixedbugs/issue39723.go2              |    9 +
+ src/go/types/fixedbugs/issue39725.go2              |   16 +
+ src/go/types/fixedbugs/issue39754.go2              |   20 +
+ src/go/types/fixedbugs/issue39755.go2              |   23 +
+ src/go/types/fixedbugs/issue39768.go2              |   20 +
+ src/go/types/fixedbugs/issue39938.go2              |   50 +
+ src/go/types/fixedbugs/issue39948.go2              |    9 +
+ src/go/types/fixedbugs/issue39976.go2              |   16 +
+ src/go/types/fixedbugs/issue39982.go2              |   36 +
+ src/go/types/fixedbugs/issue40038.go2              |   15 +
+ src/go/types/fixedbugs/issue40056.go2              |   15 +
+ src/go/types/fixedbugs/issue40057.go2              |   17 +
+ src/go/types/fixedbugs/issue40301.go2              |   12 +
+ src/go/types/fixedbugs/issue40684.go2              |   15 +
+ src/go/types/fixedbugs/issue41124.go2              |   91 +
+ src/go/types/fixedbugs/issue42758.go2              |   33 +
+ src/go/types/infer.go                              |  359 ++++
+ src/go/types/lookup.go                             |  135 +-
+ src/go/types/methodset.go                          |    5 +-
+ src/go/types/object.go                             |    8 +-
+ src/go/types/operand.go                            |   30 +-
+ src/go/types/predicates.go                         |  193 +-
+ src/go/types/resolver.go                           |  145 +-
+ src/go/types/sanitize.go                           |  150 ++
+ src/go/types/scope.go                              |   34 +
+ src/go/types/sizes.go                              |    8 +-
+ src/go/types/stmt.go                               |  143 +-
+ src/go/types/subst.go                              |  543 ++++++
+ src/go/types/testdata/builtins.go2                 |   53 +
+ src/go/types/testdata/builtins.src                 |    6 +-
+ src/go/types/testdata/chans.go2                    |   62 +
+ src/go/types/testdata/decls0.src                   |   10 +-
+ src/go/types/testdata/expr3.src                    |   22 +-
+ src/go/types/testdata/issues.go2                   |  255 +++
+ src/go/types/testdata/issues.src                   |    4 +-
+ src/go/types/testdata/linalg.go2                   |   83 +
+ src/go/types/testdata/map.go2                      |  113 ++
+ src/go/types/testdata/map2.go2                     |  146 ++
+ src/go/types/testdata/slices.go2                   |   68 +
+ src/go/types/testdata/stmt0.src                    |    4 +-
+ src/go/types/testdata/tinference.go2               |  108 ++
+ src/go/types/testdata/tmp.go2                      |   17 +
+ src/go/types/testdata/todos.go2                    |   22 +
+ src/go/types/testdata/typeinst.go2                 |   59 +
+ src/go/types/testdata/typeinst2.go2                |  256 +++
+ src/go/types/testdata/typeparams.go2               |  458 +++++
+ src/go/types/type.go                               |  536 +++++-
+ src/go/types/typestring.go                         |  155 +-
+ src/go/types/typestring_test.go                    |    4 +
+ src/go/types/typexpr.go                            |  622 +++++-
+ src/go/types/unify.go                              |  452 +++++
+ src/go/types/universe.go                           |   55 +-
+ test/alias2.go                                     |    4 +-
+ test/append1.go                                    |   10 +-
+ test/assign.go                                     |    4 +-
+ test/blank1.go                                     |    4 +-
+ test/cannotassign.go                               |   22 +-
+ test/chan/perm.go                                  |    2 +-
+ test/cmp6.go                                       |   10 +-
+ test/const1.go                                     |   56 +-
+ test/const2.go                                     |    4 +-
+ test/const7.go                                     |   77 +
+ test/convert2.go                                   |   74 +-
+ test/convlit.go                                    |   14 +-
+ test/copy1.go                                      |    8 +-
+ test/fixedbugs/bug040.go                           |    2 +-
+ test/fixedbugs/bug062.go                           |    1 +
+ test/fixedbugs/bug081.go                           |    2 +-
+ test/fixedbugs/bug090.go                           |    2 +-
+ test/fixedbugs/bug122.go                           |    2 +-
+ test/fixedbugs/bug131.go                           |    1 +
+ test/fixedbugs/bug132.go                           |    2 +-
+ test/fixedbugs/bug163.go                           |    4 +-
+ test/fixedbugs/bug175.go                           |    2 +-
+ test/fixedbugs/bug192.go                           |    4 +-
+ test/fixedbugs/bug205.go                           |    6 +-
+ test/fixedbugs/bug215.go                           |    2 +-
+ test/fixedbugs/bug223.go                           |    2 +-
+ test/fixedbugs/bug224.go                           |    2 +-
+ test/fixedbugs/bug229.go                           |    4 +-
+ test/fixedbugs/bug280.go                           |    2 +-
+ test/fixedbugs/bug289.go                           |    4 +-
+ test/fixedbugs/bug325.go                           |    2 +-
+ test/fixedbugs/bug326.go                           |    2 +-
+ test/fixedbugs/bug340.go                           |    2 +-
+ test/fixedbugs/bug342.go                           |    2 +-
+ test/fixedbugs/bug350.go                           |    2 +-
+ test/fixedbugs/bug357.go                           |    2 +-
+ test/fixedbugs/bug362.go                           |    6 +-
+ test/fixedbugs/bug371.go                           |    4 +-
+ test/fixedbugs/bug379.go                           |    2 +-
+ test/fixedbugs/bug383.go                           |    4 +-
+ test/fixedbugs/bug386.go                           |    4 +-
+ test/fixedbugs/bug389.go                           |    2 +-
+ test/fixedbugs/bug390.go                           |    2 +-
+ test/fixedbugs/bug397.go                           |    2 +-
+ test/fixedbugs/bug416.go                           |    2 +-
+ test/fixedbugs/bug418.go                           |    4 +-
+ test/fixedbugs/bug462.go                           |    2 +
+ test/fixedbugs/bug463.go                           |    4 +-
+ test/fixedbugs/bug487.go                           |    6 +-
+ test/fixedbugs/issue10975.go                       |    2 +-
+ test/fixedbugs/issue11326.go                       |   16 +-
+ test/fixedbugs/issue11361.go                       |    2 +-
+ test/fixedbugs/issue11362.go                       |    1 -
+ test/fixedbugs/issue11371.go                       |   12 +-
+ test/fixedbugs/issue11674.go                       |   18 +-
+ test/fixedbugs/issue11737.go                       |    2 +-
+ test/fixedbugs/issue11945.go                       |    4 +
+ test/fixedbugs/issue13365.go                       |   12 +-
+ test/fixedbugs/issue13471.go                       |   22 +-
+ test/fixedbugs/issue13480.go                       |   18 +-
+ test/fixedbugs/issue13485.go                       |    4 +-
+ test/fixedbugs/issue13539.go                       |    2 +-
+ test/fixedbugs/issue13559.go                       |  114 +-
+ test/fixedbugs/issue14136.go                       |    4 +-
+ test/fixedbugs/issue14321.go                       |    2 +-
+ test/fixedbugs/issue14729.go                       |    2 +-
+ test/fixedbugs/issue15055.go                       |   16 +-
+ test/fixedbugs/issue15898.go                       |    4 +-
+ test/fixedbugs/issue16439.go                       |    8 +-
+ test/fixedbugs/issue16949.go                       |   16 +-
+ test/fixedbugs/issue17588.go                       |    2 +-
+ test/fixedbugs/issue18392.go                       |    2 +-
+ test/fixedbugs/issue19323.go                       |    4 +-
+ test/fixedbugs/issue19482.go                       |    8 +-
+ test/fixedbugs/issue19699b.go                      |    2 +-
+ test/fixedbugs/issue19880.go                       |    2 +-
+ test/fixedbugs/issue19947.go                       |    8 +-
+ test/fixedbugs/issue20185.go                       |    4 +-
+ test/fixedbugs/issue20415.go                       |    6 +-
+ test/fixedbugs/issue20749.go                       |    4 +-
+ test/fixedbugs/issue22389.go                       |    2 +-
+ test/fixedbugs/issue22794.go                       |    1 +
+ test/fixedbugs/issue22822.go                       |    5 +-
+ test/fixedbugs/issue23094.go                       |    2 +-
+ test/fixedbugs/issue23609.go                       |    6 +-
+ test/fixedbugs/issue23823.go                       |    2 +-
+ test/fixedbugs/issue24470.go                       |    1 +
+ test/fixedbugs/issue25727.go                       |    6 +-
+ test/fixedbugs/issue26616.go                       |   11 +-
+ test/fixedbugs/issue27595.go                       |    6 +-
+ test/fixedbugs/issue28079c.go                      |    2 +-
+ test/fixedbugs/issue28450.go                       |   12 +-
+ test/fixedbugs/issue30085.go                       |    5 +-
+ test/fixedbugs/issue30087.go                       |    9 +-
+ test/fixedbugs/issue31747.go                       |    4 +-
+ test/fixedbugs/issue35291.go                       |    2 +-
+ test/fixedbugs/issue38117.go                       |    2 +-
+ test/fixedbugs/issue38745.go                       |    2 +-
+ test/fixedbugs/issue3925.go                        |    2 +-
+ test/fixedbugs/issue4085a.go                       |    8 +-
+ test/fixedbugs/issue41500.go                       |    8 +-
+ test/fixedbugs/issue4215.go                        |   22 +-
+ test/fixedbugs/issue4251.go                        |    6 +-
+ test/fixedbugs/issue43762.go                       |    6 +-
+ test/fixedbugs/issue43908.go                       |   21 +
+ test/fixedbugs/issue4429.go                        |    2 +-
+ test/fixedbugs/issue4458.go                        |    2 +-
+ test/fixedbugs/issue4470.go                        |    1 +
+ test/fixedbugs/issue4517d.go                       |    2 +-
+ test/fixedbugs/issue4909a.go                       |    4 +-
+ test/fixedbugs/issue6402.go                        |    2 +-
+ test/fixedbugs/issue6572.go                        |    3 +-
+ test/fixedbugs/issue6750.go                        |    2 +-
+ test/fixedbugs/issue6772.go                        |    4 +-
+ test/fixedbugs/issue7129.go                        |    6 +-
+ test/fixedbugs/issue7150.go                        |    2 +-
+ test/fixedbugs/issue7153.go                        |    2 +-
+ test/fixedbugs/issue7223.go                        |   10 +-
+ test/fixedbugs/issue7310.go                        |    6 +-
+ test/fixedbugs/issue8183.go                        |    6 +-
+ test/fixedbugs/issue8438.go                        |    6 +-
+ test/fixedbugs/issue8440.go                        |    2 +-
+ test/fixedbugs/issue8745.go                        |    2 +-
+ test/fixedbugs/issue9083.go                        |    1 +
+ test/fixedbugs/issue9370.go                        |   24 +-
+ test/fixedbugs/issue9432.go                        |    2 +-
+ test/fixedbugs/issue9634.go                        |    2 +-
+ test/func1.go                                      |    2 +-
+ test/funcdup.go                                    |   24 +-
+ test/funcdup2.go                                   |   12 +-
+ test/init.go                                       |    2 +-
+ test/initloop.go                                   |    2 +-
+ test/interface/embed2.go                           |   10 +-
+ test/interface/explicit.go                         |   12 +-
+ test/interface/pointer.go                          |    4 +-
+ test/interface/receiver1.go                        |    4 +-
+ test/makechan.go                                   |   14 +-
+ test/makemap.go                                    |   18 +-
+ test/makenew.go                                    |    8 +-
+ test/map1.go                                       |    2 +-
+ test/method2.go                                    |    6 +-
+ test/method6.go                                    |    2 +-
+ test/method7.go                                    |   12 +
+ test/named1.go                                     |    2 +-
+ test/rename1.go                                    |    2 +-
+ test/run.go                                        |  127 +-
+ test/runtime.go                                    |    2 +-
+ test/slice3err.go                                  |   66 +-
+ test/switch3.go                                    |    6 +-
+ test/switch5.go                                    |   30 +-
+ test/switch6.go                                    |    8 +-
+ test/switch7.go                                    |    2 +-
+ test/typecheckloop.go                              |    4 +-
+ test/typeparam/fact.go                             |   32 +
+ test/typeparam/importtest.go                       |   16 +
+ test/typeparam/index.go                            |   46 +
+ test/typeparam/list.go                             |   65 +
+ test/typeparam/map.go                              |   39 +
+ test/typeparam/min.go                              |   41 +
+ test/typeparam/pair.go                             |   32 +
+ test/typeparam/settable.go                         |   38 +
+ test/typeparam/smallest.go                         |   42 +
+ test/typeparam/smoketest.go                        |   56 +
+ test/typeparam/stringable.go                       |   46 +
+ test/typeparam/stringer.go                         |   88 +
+ test/typeparam/struct.go                           |   49 +
+ test/typeparam/sum.go                              |   50 +
+ test/typeparam/tparam1.go                          |   42 +
+ test/typeparam/value.go                            |   75 +
+ test/typeswitch3.go                                |    6 +-
+ test/used.go                                       |  165 +-
+ test/varerr.go                                     |    2 +-
+ 501 files changed, 51200 insertions(+), 2488 deletions(-)

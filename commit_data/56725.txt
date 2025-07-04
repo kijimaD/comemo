@@ -1,19 +1,36 @@
-commit 639cc0dcc0948dd02c9d5fc12fbed730a21ebebc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu May 30 20:51:15 2024 -0700
+commit 9dd0c7fc78cb19000f15bd58a3a1ab5ae1c6a84b
+Author: David Chase <drchase@google.com>
+Date:   Mon May 22 16:58:12 2023 -0400
 
-    runtime: remove zhangyunhao116/fastrand from cheaprand linkname comment
+    cmd/compile: indicate sense of hash/bisect match in output
     
-    As of version 0.5.0 and Go 1.22 it no longer linknames cheaprand.
+    If a hash match is "disabled" (!enabled) indicate that in the
+    output with DISABLED.  This is helpful in ensuring that multiple
+    package-directed command-line flags have the intended behavior,
+    e.g.
     
-    Fixes #67709
+    ```
+    go build -a                       \
+    -gcflags=all=-d=gossahash=vn      \
+    -gcflags=runtime=-d=gossahash=vy  \
+    std
+    ```
     
-    Change-Id: Ie00900e6428244fa1506bc509c265c10dc322f7a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589555
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Output looks like
+    
+    [DISABLED] [bisect-match 0x11d0ee166d9d61b4]
+    
+    or (w/ "v"-prefixed hashcode )
+    
+    sort/slice.go:23:29 note [DISABLED] [bisect-match 0xa5252e1c1b85f2ec]
+    gossahash triggered sort/slice.go:23:29 note [DISABLED] 100001011111001011101100
+    
+    Change-Id: I797e02b3132f9781d97bacd0dcd2e80af0035cd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497216
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/rand.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/base/hashdebug.go      | 12 +++++++++---
+ src/cmd/compile/internal/base/hashdebug_test.go |  4 ++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)

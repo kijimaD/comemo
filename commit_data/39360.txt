@@ -1,18 +1,110 @@
-commit 0c2953e4cb7536a07436688d0baaa3c59d00b521
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sat Jun 1 17:43:09 2019 -0400
+commit c97e57657643de69bf1dc58f3ffde75d31eda0c8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Dec 28 09:32:09 2018 -1000
 
-    cmd/go: include -errorsas in go test vet checks
+    html/template: use strings.Builder
     
-    Make "go test" run the new errorsas vet check by default.
+    ...and size initial buffers more accurately.
     
-    Fixes #31213.
+    Easy pickings only. More might remain.
     
-    Change-Id: I5c93c000874ffe1c0b6d647bf10de803f414c5c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179977
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    name                             old time/op    new time/op    delta
+    CSSEscaper-8                       1.17µs ± 1%    0.80µs ± 2%  -31.55%  (p=0.000 n=44+48)
+    CSSEscaperNoSpecials-8              205ns ± 2%     204ns ± 3%   -0.73%  (p=0.014 n=46+49)
+    DecodeCSS-8                         438ns ± 2%     436ns ± 2%     ~     (p=0.099 n=48+47)
+    DecodeCSSNoSpecials-8              6.11ns ± 3%    5.93ns ± 3%   -2.85%  (p=0.000 n=50+48)
+    CSSValueFilter-8                    149ns ± 0%     145ns ± 0%   -2.68%  (p=0.000 n=32+35)
+    CSSValueFilterOk-8                  238ns ± 2%     234ns ± 2%   -1.40%  (p=0.000 n=49+47)
+    EscapedExecute-8                   2.53µs ± 2%    2.55µs ± 1%   +0.87%  (p=0.000 n=48+49)
+    HTMLNospaceEscaper-8               1.35µs ± 2%    0.92µs ± 1%  -31.74%  (p=0.000 n=48+48)
+    HTMLNospaceEscaperNoSpecials-8      278ns ± 2%     263ns ± 2%   -5.17%  (p=0.000 n=47+49)
+    StripTags-8                         778ns ± 2%     786ns ± 1%   +0.96%  (p=0.000 n=46+47)
+    StripTagsNoSpecials-8              84.2ns ± 1%    84.1ns ± 1%     ~     (p=0.300 n=48+48)
+    JSValEscaperWithNum-8               506ns ± 2%     486ns ± 3%   -3.82%  (p=0.000 n=47+45)
+    JSValEscaperWithStr-8              1.61µs ± 1%    1.64µs ± 1%   +1.75%  (p=0.000 n=44+49)
+    JSValEscaperWithStrNoSpecials-8     548ns ± 2%     552ns ± 2%   +0.78%  (p=0.000 n=48+46)
+    JSValEscaperWithObj-8              1.91µs ± 2%    1.87µs ± 1%   -2.08%  (p=0.000 n=49+47)
+    JSValEscaperWithObjNoSpecials-8     735ns ± 2%     742ns ± 2%   +1.01%  (p=0.000 n=47+49)
+    JSStrEscaperNoSpecials-8            228ns ± 4%     211ns ± 3%   -7.53%  (p=0.000 n=50+49)
+    JSStrEscaper-8                     1.11µs ± 1%    0.78µs ± 1%  -29.94%  (p=0.000 n=48+48)
+    JSRegexpEscaperNoSpecials-8         214ns ± 2%     212ns ± 3%   -1.12%  (p=0.000 n=50+49)
+    JSRegexpEscaper-8                  1.17µs ± 0%    0.79µs ± 1%  -31.92%  (p=0.000 n=48+47)
+    TemplateSpecialTags-8               172µs ± 1%     172µs ± 1%     ~     (p=0.976 n=48+47)
+    URLEscaper-8                       1.88µs ± 2%    1.87µs ± 2%   -0.56%  (p=0.001 n=49+49)
+    URLEscaperNoSpecials-8              162ns ± 1%     169ns ± 1%   +3.76%  (p=0.000 n=49+50)
+    URLNormalizer-8                    1.29µs ± 3%    1.29µs ± 2%   -0.37%  (p=0.041 n=48+48)
+    URLNormalizerNoSpecials-8           185ns ± 1%     186ns ± 1%   +0.15%  (p=0.013 n=49+49)
+    SrcsetFilter-8                      616ns ± 1%     618ns ± 1%   +0.36%  (p=0.000 n=46+46)
+    SrcsetFilterNoSpecials-8            359ns ± 0%     352ns ± 0%   -1.93%  (p=0.000 n=40+43)
+    [Geo mean]                          560ns          525ns        -6.17%
+    
+    name                             old alloc/op   new alloc/op   delta
+    CSSEscaper-8                         672B ± 0%      336B ± 0%  -50.00%  (p=0.000 n=50+50)
+    CSSEscaperNoSpecials-8              0.00B          0.00B          ~     (all equal)
+    DecodeCSS-8                          160B ± 0%      160B ± 0%     ~     (all equal)
+    DecodeCSSNoSpecials-8               0.00B          0.00B          ~     (all equal)
+    CSSValueFilter-8                    96.0B ± 0%     96.0B ± 0%     ~     (all equal)
+    CSSValueFilterOk-8                  48.0B ± 0%     48.0B ± 0%     ~     (all equal)
+    EscapedExecute-8                     688B ± 0%      624B ± 0%   -9.30%  (p=0.000 n=50+50)
+    HTMLNospaceEscaper-8                 752B ± 0%      368B ± 0%  -51.06%  (p=0.000 n=50+50)
+    HTMLNospaceEscaperNoSpecials-8      48.0B ± 0%     32.0B ± 0%  -33.33%  (p=0.000 n=50+50)
+    StripTags-8                          224B ± 0%      224B ± 0%     ~     (all equal)
+    StripTagsNoSpecials-8                112B ± 0%      112B ± 0%     ~     (all equal)
+    JSValEscaperWithNum-8               96.0B ± 0%     40.0B ± 0%  -58.33%  (p=0.000 n=50+50)
+    JSValEscaperWithStr-8                384B ± 0%      384B ± 0%     ~     (all equal)
+    JSValEscaperWithStrNoSpecials-8     96.0B ± 0%     96.0B ± 0%     ~     (all equal)
+    JSValEscaperWithObj-8                448B ± 0%      448B ± 0%     ~     (all equal)
+    JSValEscaperWithObjNoSpecials-8      160B ± 0%      160B ± 0%     ~     (all equal)
+    JSStrEscaperNoSpecials-8            0.00B          0.00B          ~     (all equal)
+    JSStrEscaper-8                       672B ± 0%      336B ± 0%  -50.00%  (p=0.000 n=50+50)
+    JSRegexpEscaperNoSpecials-8         0.00B          0.00B          ~     (all equal)
+    JSRegexpEscaper-8                    672B ± 0%      336B ± 0%  -50.00%  (p=0.000 n=50+50)
+    TemplateSpecialTags-8              48.0kB ± 0%    47.9kB ± 0%   -0.13%  (p=0.000 n=50+48)
+    URLEscaper-8                         336B ± 0%      336B ± 0%     ~     (all equal)
+    URLEscaperNoSpecials-8               112B ± 0%      112B ± 0%     ~     (all equal)
+    URLNormalizer-8                      176B ± 0%      176B ± 0%     ~     (all equal)
+    URLNormalizerNoSpecials-8            112B ± 0%      112B ± 0%     ~     (all equal)
+    SrcsetFilter-8                       160B ± 0%      160B ± 0%     ~     (all equal)
+    SrcsetFilterNoSpecials-8             160B ± 0%      160B ± 0%     ~     (all equal)
+    [Geo mean]                           259B           216B       -16.60%
+    
+    name                             old allocs/op  new allocs/op  delta
+    CSSEscaper-8                         4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=50+50)
+    CSSEscaperNoSpecials-8               0.00           0.00          ~     (all equal)
+    DecodeCSS-8                          1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    DecodeCSSNoSpecials-8                0.00           0.00          ~     (all equal)
+    CSSValueFilter-8                     2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    CSSValueFilterOk-8                   3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    EscapedExecute-8                     18.0 ± 0%      18.0 ± 0%     ~     (all equal)
+    HTMLNospaceEscaper-8                 5.00 ± 0%      3.00 ± 0%  -40.00%  (p=0.000 n=50+50)
+    HTMLNospaceEscaperNoSpecials-8       1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    StripTags-8                          3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    StripTagsNoSpecials-8                2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    JSValEscaperWithNum-8                3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    JSValEscaperWithStr-8                2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    JSValEscaperWithStrNoSpecials-8      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    JSValEscaperWithObj-8                3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    JSValEscaperWithObjNoSpecials-8      3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    JSStrEscaperNoSpecials-8             0.00           0.00          ~     (all equal)
+    JSStrEscaper-8                       4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=50+50)
+    JSRegexpEscaperNoSpecials-8          0.00           0.00          ~     (all equal)
+    JSRegexpEscaper-8                    4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=50+50)
+    TemplateSpecialTags-8                 185 ± 0%       185 ± 0%     ~     (all equal)
+    URLEscaper-8                         4.00 ± 0%      4.00 ± 0%     ~     (all equal)
+    URLEscaperNoSpecials-8               2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    URLNormalizer-8                      3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    URLNormalizerNoSpecials-8            2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    SrcsetFilter-8                       3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    SrcsetFilterNoSpecials-8             3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    [Geo mean]                           3.41           3.05       -10.65%
+    
+    Change-Id: I809ea56495ce1881656af7e24621448ab64b449a
+    Reviewed-on: https://go-review.googlesource.com/c/155919
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/test/test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/html/template/css.go  | 6 +++++-
+ src/html/template/html.go | 8 +++++++-
+ src/html/template/js.go   | 9 ++++++---
+ 3 files changed, 18 insertions(+), 5 deletions(-)

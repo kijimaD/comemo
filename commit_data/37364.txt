@@ -1,23 +1,26 @@
-commit 1794ee682994ed2efbb9371060856cd7b146f405
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 31 20:42:38 2018 -0400
+commit fec97c0aa76eb19bd58ca33001063b726ab9ce27
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Jul 14 12:19:36 2018 +0200
 
-    cmd/link: nice error message on ABI mismatch
+    syscall/js: show goroutine stack traces on deadlock
     
-    Currently, if a symbol is only defined under one ABI and referenced
-    under another ABI, you simply get a "relocation target X not defined".
-    This is confusing because it seems like the symbol is defined.
+    When using callbacks, it is not necessarily a deadlock if there is no
+    runnable goroutine, since a callback might still be pending. If there
+    is no callback pending, Node.js simply exits with exit code zero,
+    which is not desired if the Go program is still considered running.
+    This is why an explicit check on exit is used to trigger the "deadlock"
+    error. This CL makes it so this is Go's normal "deadlock" error, which
+    includes the stack traces of all goroutines.
     
-    This CL enhances the error message in this case to be "relocation
-    target X not defined for <ABI> (but is defined for <ABI>)".
+    Updates #26382
     
-    For #27539.
-    
-    Change-Id: If857a1882c3fe9af5346797d5295ca1fe50ae565
-    Reviewed-on: https://go-review.googlesource.com/c/147159
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: If88486684d0517a64f570009a5ea0ad082679a54
+    Reviewed-on: https://go-review.googlesource.com/123936
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/link.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ misc/wasm/wasm_exec.js     | 28 ++++++++++++++--------------
+ src/syscall/js/callback.go |  8 ++++----
+ src/syscall/js/js.go       | 16 ++++++++--------
+ 3 files changed, 26 insertions(+), 26 deletions(-)

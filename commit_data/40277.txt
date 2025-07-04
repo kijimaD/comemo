@@ -1,35 +1,24 @@
-commit 72ab424bc899735ec3c1e2bd3301897fc11872ba
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Oct 16 18:09:27 2019 +1100
+commit 8bde43e0694ed91565c95b286e3d31a2f43d8d80
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Apr 30 20:03:06 2019 +0200
 
-    time: change genzabbrs.go to fetch windowsZones.xml file from GitHub
+    cmd/go,cmd/internal/sys,cmd/link: skip Go build ids for externally linked tools
     
-    It seems that windowsZones.xml file has moved to Github. I opened
+    cmd/go already skips build ids on Android where buildmode=pie is
+    forced. Expand the check to all externally linked tools.
     
-    http://unicode.org/cldr/data/common/supplemental/windowsZones.xml
+    Necessary for self-hosted iOS builds where PIE is not forced but
+    external linking is.
     
-    in my browser, and it redirected me to
+    Updates #31722
     
-    https://github.com/unicode-org/cldr/blob/master/common/supplemental/windowsZones.xml
-    
-    Very nice of them.
-    
-    And we could see windowsZones.xml change history now. We could even
-    probably file issues against this file, if we find problems.
-    
-    Anyway, this CL adjusts genzabbrs.go to use new GitHub location.
-    
-    I also run 'go generate' command with updated genzabbrs.go to update
-    zoneinfo_abbrs_windows.go.
-    
-    Fixes #34917
-    
-    Change-Id: I69b71a4e02edd999435738ecb225a6f9793a66d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201378
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Iad796a9411a37eb0c44d365b70a3c5907537e461
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174307
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/genzabbrs.go              | 2 +-
- src/time/zoneinfo_abbrs_windows.go | 9 ++++++---
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ src/cmd/go/internal/work/gc.go     |  8 ++++----
+ src/cmd/internal/sys/supported.go  | 17 +++++++++++------
+ src/cmd/link/internal/ld/config.go | 11 +++--------
+ 3 files changed, 18 insertions(+), 18 deletions(-)

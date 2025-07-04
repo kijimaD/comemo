@@ -1,26 +1,28 @@
-commit dc444418d919b72f7744a521cc898252f3f355df
-Author: Todd Neal <todd@tneal.org>
-Date:   Mon Apr 17 18:46:09 2017 -0500
+commit 62956897c1743ee7e79895496180f84432f21d0a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Dec 9 16:00:02 2016 -0500
 
-    cmd/internal: remove duplicate pathToPrefix function
+    runtime: add definitions for SetGoroutineLabels and Do
     
-    goobj.importPathToPrefix is 3x faster than gc.pathToPrefix so rename and
-    move it to cmd/internal/objabi which is already imported by both goobj and
-    gc.
+    This change defines runtime/pprof.SetGoroutineLabels and runtime/pprof.Do, which
+    are used to set profiler labels on goroutines. The change defines functions
+    in the runtime for setting and getting profile labels, and sets and unsets
+    profile labels when goroutines are created and deleted. The change also adds
+    the package runtime/internal/proflabel, which defines the structure the runtime
+    uses to store profile labels.
     
-    Change-Id: I10eda5bce95ef6d5d888818c5c47258c2833ea45
-    Reviewed-on: https://go-review.googlesource.com/40875
-    Run-TryBot: Todd Neal <todd@tneal.org>
+    Change-Id: I747a4400141f89b6e8160dab6aa94ca9f0d4c94d
+    Reviewed-on: https://go-review.googlesource.com/34198
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/35010
 
- src/cmd/compile/fmt_test.go          |  1 -
- src/cmd/compile/internal/gc/subr.go  | 30 +-------------------------
- src/cmd/internal/goobj/read.go       | 41 +-----------------------------------
- src/cmd/internal/goobj/read_test.go  | 28 ------------------------
- src/cmd/internal/objabi/path.go      | 41 ++++++++++++++++++++++++++++++++++++
- src/cmd/internal/objabi/path_test.go | 33 +++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/data.go     |  2 +-
- src/cmd/link/internal/ld/lib.go      | 35 +++---------------------------
- src/cmd/link/internal/ld/objfile.go  |  8 +++----
- 9 files changed, 84 insertions(+), 135 deletions(-)
+ src/cmd/dist/deps.go              |  6 +--
+ src/runtime/pprof/label.go        | 16 +++++--
+ src/runtime/pprof/runtime.go      | 36 +++++++++++++++
+ src/runtime/pprof/runtime_test.go | 96 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go               |  4 ++
+ src/runtime/proflabel.go          | 17 +++++++
+ src/runtime/runtime2.go           |  2 +
+ 7 files changed, 169 insertions(+), 8 deletions(-)

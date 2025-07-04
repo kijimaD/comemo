@@ -1,0 +1,23 @@
+commit 77345f41ee36c8db3ba7e0f687a8834fa7b83c48
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 21 17:50:15 2025 +0000
+
+    internal/trace: skip clock snapshot checks on Windows in stress mode
+    
+    Windows' monotonic and wall clock granularity is just too coarse to get
+    reasonable values out of stress mode, which is creating new trace
+    generations constantly.
+    
+    Fixes #73813.
+    
+    Change-Id: Id9cb2fed9775ce8d78a736d0164daa7bf45075e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675096
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/reader_test.go          |  8 ++++----
+ src/internal/trace/testtrace/validation.go | 29 +++++++++++++++++++++--------
+ src/internal/trace/trace_test.go           | 11 ++++++++++-
+ 3 files changed, 35 insertions(+), 13 deletions(-)

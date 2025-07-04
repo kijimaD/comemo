@@ -1,20 +1,21 @@
-commit 70dcc78871ee47a6b181a99e6bad70b3454e8aec
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 5 14:43:44 2025 -0500
+commit 5c7c24ce827b10982245951f6c2b1bbf0abc5aae
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 25 17:23:15 2024 +0000
 
-    math/big: avoid negative slice size in nat.rem
+    internal/testenv: support the LUCI mobile builders in tests
     
-    In a division, normally the answer to N digits / D digits has N-D digits,
-    but not when N-D is negative. Fix the calculation of the number of
-    digits for the temporary in nat.rem not to be negative.
+    This change updates the testenv tests to correctly match on future LUCI
+    builder names for mobile builders. This isn't a problem today because
+    those haven't been set up yet, but the builder names are structured and
+    it's clear where the modifiers will appear. Might as well set them up
+    now.
     
-    Fixes #72043.
-    
-    Change-Id: Ib9faa430aeb6c5f4c4a730f1ec631d2bf3f7472c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655156
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I244b88a62a90312c0f3ff2360527d58531070362
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558597
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/math/big/alias_test.go | 24 ++++++++++++++++++++++++
- src/math/big/natdiv.go     |  2 +-
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ src/internal/testenv/testenv_test.go | 26 +++++++++++++++++++++++---
+ 1 file changed, 23 insertions(+), 3 deletions(-)

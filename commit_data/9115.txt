@@ -1,31 +1,44 @@
-commit 257df1719d5bf4783f0add45c87dfc0353d6dbc4
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 18 09:55:09 2011 -0700
+commit ee6e1a3ff77a41eff5a606a5aa8c46bf8b571a13
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 18 12:35:55 2011 -0400
 
-    debug/proc: Remove.
+    sync: add fast paths to WaitGroup
+    benchmark                                        old ns/op    new ns/op    delta
+    BenchmarkWaitGroupUncontended                        93.50        33.60  -64.06%
+    BenchmarkWaitGroupUncontended-2                      44.30        16.90  -61.85%
+    BenchmarkWaitGroupUncontended-4                      21.80         8.47  -61.15%
+    BenchmarkWaitGroupUncontended-8                      12.10         4.86  -59.83%
+    BenchmarkWaitGroupUncontended-16                      7.38         3.35  -54.61%
+    BenchmarkWaitGroupAddDone                            58.40        33.70  -42.29%
+    BenchmarkWaitGroupAddDone-2                         293.00        85.80  -70.72%
+    BenchmarkWaitGroupAddDone-4                         243.00        51.10  -78.97%
+    BenchmarkWaitGroupAddDone-8                         236.00        52.20  -77.88%
+    BenchmarkWaitGroupAddDone-16                        215.00        43.30  -79.86%
+    BenchmarkWaitGroupAddDoneWork                       826.00       794.00   -3.87%
+    BenchmarkWaitGroupAddDoneWork-2                     450.00       424.00   -5.78%
+    BenchmarkWaitGroupAddDoneWork-4                     277.00       220.00  -20.58%
+    BenchmarkWaitGroupAddDoneWork-8                     440.00       116.00  -73.64%
+    BenchmarkWaitGroupAddDoneWork-16                    569.00        66.50  -88.31%
+    BenchmarkWaitGroupWait                               29.00         8.04  -72.28%
+    BenchmarkWaitGroupWait-2                             74.10         4.15  -94.40%
+    BenchmarkWaitGroupWait-4                            117.00         2.30  -98.03%
+    BenchmarkWaitGroupWait-8                            111.00         1.31  -98.82%
+    BenchmarkWaitGroupWait-16                           104.00         1.27  -98.78%
+    BenchmarkWaitGroupWaitWork                          802.00       792.00   -1.25%
+    BenchmarkWaitGroupWaitWork-2                        411.00       401.00   -2.43%
+    BenchmarkWaitGroupWaitWork-4                        210.00       199.00   -5.24%
+    BenchmarkWaitGroupWaitWork-8                        206.00       105.00  -49.03%
+    BenchmarkWaitGroupWaitWork-16                       334.00        54.40  -83.71%
     
-    The package was always GNU/Linux specific, and is no longer
-    used by anything now that exp/ogle has been removed.
-    
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4757049
+    https://golang.org/cl/4672050
 
- src/pkg/Makefile                         |    3 -
- src/pkg/debug/proc/Makefile              |   13 -
- src/pkg/debug/proc/proc.go               |  222 -----
- src/pkg/debug/proc/proc_darwin.go        |   17 -
- src/pkg/debug/proc/proc_freebsd.go       |   17 -
- src/pkg/debug/proc/proc_linux.go         | 1324 ------------------------------
- src/pkg/debug/proc/proc_windows.go       |   17 -
- src/pkg/debug/proc/ptrace-nptl.txt       |  132 ---
- src/pkg/debug/proc/regs_darwin_386.go    |    5 -
- src/pkg/debug/proc/regs_darwin_amd64.go  |    5 -
- src/pkg/debug/proc/regs_freebsd_386.go   |    5 -
- src/pkg/debug/proc/regs_freebsd_amd64.go |    5 -
- src/pkg/debug/proc/regs_linux_386.go     |  143 ----
- src/pkg/debug/proc/regs_linux_amd64.go   |  191 -----
- src/pkg/debug/proc/regs_linux_arm.go     |   39 -
- src/pkg/debug/proc/regs_windows_386.go   |    5 -
- src/pkg/debug/proc/regs_windows_amd64.go |    5 -
- 17 files changed, 2148 deletions(-)
+ src/pkg/sync/atomic/asm_386.s       |   9 ++++
+ src/pkg/sync/atomic/asm_amd64.s     |  10 ++++
+ src/pkg/sync/atomic/asm_linux_arm.s |  13 +++++
+ src/pkg/sync/atomic/atomic_test.go  | 102 +++++++++++++++++++++++++++++++++++
+ src/pkg/sync/atomic/doc.go          |   6 +++
+ src/pkg/sync/waitgroup.go           |  41 ++++++++------
+ src/pkg/sync/waitgroup_test.go      | 105 ++++++++++++++++++++++++++++++++++++
+ 7 files changed, 271 insertions(+), 15 deletions(-)

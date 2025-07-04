@@ -1,19 +1,16 @@
-commit 8c2484ec11d27324423e3cf27cc9ac6b34394c7d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Sep 17 21:22:11 2014 -0700
+commit b6571a0713416ae0d26816af2c1e92f90fe266a6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 9 11:45:36 2014 -0700
 
-    sync/atomic: remove unnecessary race instrumentation in Value
-    It is left from the time when Value was implemented in assembly.
-    Now it is implemented in Go and race detector understands Go.
-    In particular the atomic operations must provide
-    all necessary synchronization.
+    strconv: fix documentation for CanBackquote.
+    Space is not a control character.
     
-    LGTM=adg
-    R=golang-codereviews, adg
-    CC=golang-codereviews, khr, rsc
-    https://golang.org/cl/145880043
+    Fixes #8571.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/137380043
 
- src/sync/atomic/norace.go | 17 -----------------
- src/sync/atomic/race.go   | 22 ----------------------
- src/sync/atomic/value.go  |  6 ------
- 3 files changed, 45 deletions(-)
+ src/strconv/quote.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

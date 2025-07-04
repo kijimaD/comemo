@@ -1,14 +1,25 @@
-commit 340efd3608c2dc69b8786a8e7ca472e9f78d9002
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 15 21:32:15 2020 -0700
+commit 87f561ab2be1b4fde087c54154c5cdd1814b0f2c
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jan 3 15:25:28 2020 -0500
 
-    go/token: explain file base offset better in documentation
+    [dev.link] cmd/link: add support for setting symbol File property
     
-    Fixes #36648.
+    Add loader methods to get/set the "file" symbol property.
     
-    Change-Id: I92d4462fea0079f63697fb8f407fd2d50b7d68f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238117
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    In the legacy sym.Symbol struct, there is both a 'unit' field
+    (pointing to a CompilationUnit with package path, etc) and a 'file'
+    field. In the case of compiler-generated Go symbols, 'file' is
+    redundant (stores the package again), however for symbols read out of
+    a shared library (in the -linkshared case) it is important to be able
+    to record the file for a symbol.
+    
+    With the loader, add a side table that can be used to store a file for
+    a symbol, and add methods for getting/setting file.
+    
+    Change-Id: Iefceb8e7780f31457b658c099196de6e00be8aaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213421
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/go/token/position.go | 23 +++++++++++++++++++++--
- 1 file changed, 21 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 54 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 53 insertions(+), 1 deletion(-)

@@ -1,18 +1,12 @@
-commit fc3797a491ef01a61e8b3e9144ef28622a9efe06
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Feb 22 00:19:59 2012 +0100
+commit 9a26a7822eb54fc4d0316b4c57bf5b52124bfd92
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 22 10:09:34 2012 +1100
 
-    test: use testlib in a few more cases.
+    godoc: fix playground url
     
-    R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5688057
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5685070
 
- test/fixedbugs/bug110.go | 2 +-
- test/fixedbugs/bug114.go | 2 +-
- test/fixedbugs/bug155.go | 2 +-
- test/fixedbugs/bug167.go | 2 +-
- test/fixedbugs/bug183.go | 2 +-
- test/sieve.go            | 4 +++-
- test/solitaire.go        | 4 +++-
- 7 files changed, 11 insertions(+), 7 deletions(-)
+ doc/root.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

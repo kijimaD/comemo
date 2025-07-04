@@ -1,32 +1,17 @@
-commit 8f5c6904b616fd97dde4a0ba2f5c71114e588afd
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jun 15 02:00:29 2024 +1000
+commit 97f56645e23953318de69e3f619df61e052d46c4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 24 18:41:32 2023 +0000
 
-    syscall: selectively update zerrors_* on openbsd/386, openbsd/arm and openbsd/amd64
+    doc: add release note for runtime/metrics additions
     
-    The EBADMSG, ENOTRECOVERABLE, EOWNERDEAD and EPROTO Errno are missing
-    on openbsd/386, openbsd/arm and openbsd/amd64. These are the earliest
-    OpenBSD ports and they did not exist in the system headers when the
-    relevant zerror_* file was generated.
+    For #56857.
     
-    These exist for all other ports, hence it makes sense to add them
-    for consistency. Update error and signal strings so that they are
-    also consistent across OpenBSD ports.
-    
-    Fixes #67998
-    
-    Change-Id: I948857ef5bddcfbcdfb102c95e571d9cee009e77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592795
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I03bdba906d271d97ce29874c50d5aba55dc285b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498075
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- api/except.txt                       |  4 ++++
- api/go1.23.txt                       | 30 ++++++++++++++++++++++++++++++
- src/syscall/zerrors_openbsd_386.go   | 20 ++++++++++++++------
- src/syscall/zerrors_openbsd_amd64.go | 20 ++++++++++++++------
- src/syscall/zerrors_openbsd_arm.go   | 20 ++++++++++++++------
- 5 files changed, 76 insertions(+), 18 deletions(-)
+ doc/go1.21.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

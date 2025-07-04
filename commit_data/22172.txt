@@ -1,15 +1,58 @@
-commit 89f4fd3fd0d1d3660520f3bbb3500f2df1821f71
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Mar 24 02:07:20 2015 -0400
+commit 26438d4d80c8c517f1d287d065ad7a967160281e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 24 21:40:57 2015 -0500
 
-    cmd/6g: fix build for nacl/amd64p32
+    liblink: delete unused code
     
-    Change-Id: I3de78f321c99f8f850a304f7d34c85d0fe254c0e
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/7975
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Liblink is still needed for the linker (for a bit longer) but mostly not.
+    Delete the unused parts.
+    
+    Change-Id: Ie63a7c1520dee52b17425b384943cd16262d36e3
+    Reviewed-on: https://go-review.googlesource.com/6110
     Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/6g/galign.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/link.h          |  428 +-----
+ src/cmd/5l/5.out.h      |  336 -----
+ src/cmd/5l/l.h          |    1 -
+ src/cmd/5l/list.c       |   40 -
+ src/cmd/5l/obj.c        |    1 -
+ src/cmd/6l/6.out.h      |  855 -----------
+ src/cmd/6l/l.h          |    1 -
+ src/cmd/6l/list.c       |   40 -
+ src/cmd/6l/obj.c        |    1 -
+ src/cmd/8l/8.out.h      |  643 ---------
+ src/cmd/8l/l.h          |    1 -
+ src/cmd/8l/list.c       |   40 -
+ src/cmd/8l/obj.c        |    1 -
+ src/cmd/9l/9.out.h      |  611 --------
+ src/cmd/9l/l.h          |    2 -
+ src/cmd/9l/list.c       |   40 -
+ src/cmd/9l/obj.c        |    1 -
+ src/cmd/dist/build.go   |   13 +-
+ src/cmd/dist/buildgc.go |  117 --
+ src/cmd/ld/lib.h        |    1 -
+ src/cmd/ld/pobj.c       |   10 -
+ src/liblink/arch.c      |   68 +
+ src/liblink/asm5.c      | 2689 ----------------------------------
+ src/liblink/asm6.c      | 3640 -----------------------------------------------
+ src/liblink/asm8.c      | 2822 ------------------------------------
+ src/liblink/asm9.c      | 2836 ------------------------------------
+ src/liblink/data.c      |   89 --
+ src/liblink/go.c        |   84 --
+ src/liblink/ld.c        |   58 -
+ src/liblink/list5.c     |  386 -----
+ src/liblink/list6.c     |  418 ------
+ src/liblink/list8.c     |  359 -----
+ src/liblink/list9.c     |  370 -----
+ src/liblink/obj.c       |  296 ----
+ src/liblink/obj5.c      |  998 -------------
+ src/liblink/obj6.c      | 1046 --------------
+ src/liblink/obj8.c      |  842 -----------
+ src/liblink/obj9.c      |  944 ------------
+ src/liblink/objfile.c   |  428 ------
+ src/liblink/objfilego.c |  340 -----
+ src/liblink/pass.c      |  201 ---
+ src/liblink/pcln.c      |  265 ----
+ src/liblink/sym.c       |   16 -
+ 43 files changed, 88 insertions(+), 22290 deletions(-)

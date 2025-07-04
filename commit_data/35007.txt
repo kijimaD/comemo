@@ -1,25 +1,25 @@
-commit ea3f329613c28cf8d8e955135616ee061ce0a012
-Author: David Url <david@urld.io>
-Date:   Mon Apr 2 12:57:59 2018 +0200
+commit eb441e6d21b31c44d577dd013bc014f0882afc90
+Author: christopher-henderson <chris@chenderson.org>
+Date:   Fri Dec 1 16:17:16 2017 -0700
 
-    net/http: omit forbidden Trailer headers from response
+    encoding/asn1: allow '&' in PrintableString fields
     
-    Use the vendored ValidTrailerHeader function from x/net/http/httpguts to
-    check Trailer headers according to RFC 7230. The previous implementation
-    only omitted illegal Trailer headers defined in RFC 2616.
+    There are, unfortunately, intermediate CA ceritificates in circulation
+    that contain the invalid character '&' in some PrintableString fields,
+    notably Organization Name. This patch allows for ampersand
+    to be parsed as though it is valid in an ASN.1 PrintableString.
     
-    This CL adds x/net/http/httpguts from CL 104042 (git rev a35a21de97)
+    Fixes #22970
     
-    Fixes #23908
-    
-    Change-Id: Ib2329a384040494093c18e209db9b62aaf86e921
-    Reviewed-on: https://go-review.googlesource.com/104075
+    Change-Id: Ifab1a10bbff1cdac68e843c6b857ff1a031051aa
+    Reviewed-on: https://go-review.googlesource.com/81635
+    Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go                         | 14 ++++---
- src/net/http/httptest/recorder.go                 | 13 +++---
- src/net/http/server.go                            |  7 ++--
- src/vendor/golang_org/x/net/http/httpguts/guts.go | 50 +++++++++++++++++++++++
- 4 files changed, 67 insertions(+), 17 deletions(-)
+ src/encoding/asn1/asn1.go         | 17 +++++++++++++----
+ src/encoding/asn1/asn1_test.go    |  2 ++
+ src/encoding/asn1/marshal.go      |  7 +++++--
+ src/encoding/asn1/marshal_test.go |  1 +
+ 4 files changed, 21 insertions(+), 6 deletions(-)

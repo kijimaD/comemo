@@ -1,26 +1,16 @@
-commit 8cfa01943a7f43493543efba81996221bb0f27f8
-Author: Nuno Cruces <ncruces@users.noreply.github.com>
-Date:   Wed Jan 27 19:02:37 2021 +0000
+commit 13c1401b8ec709a7a64b321c953501475b4e6b5a
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu May 21 17:32:59 2020 -0400
 
-    runtime: block console ctrlhandler when the signal is handled
+    [dev.link] cmd/link: port asmb2 pe generation over to generic functions
     
-    Fixes #41884
-    
-    I can confirm this change fixes my issue.
-    I can't confirm that this doesn't break any and everything else.
-    I see that this code has been tweaked repeatedly, so I would really welcome guidance into further testing.
-    
-    Change-Id: I1986dd0c2f30cfe10257f0d8c658988d6986f7a6
-    GitHub-Last-Rev: 92f02c96973e12f1472511bcf3c5ebb36c6b0440
-    GitHub-Pull-Request: golang/go#41886
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261057
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I09ab68e1fa99bf0260b7e820b8747d5d418fd581
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234890
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/os_windows.go                  |  7 ++++
- src/runtime/signal_windows_test.go         | 64 ++++++++++++++++++++++++++++++
- src/runtime/testdata/testwinsignal/main.go | 19 +++++++++
- 3 files changed, 90 insertions(+)
+ src/cmd/link/internal/amd64/asm.go | 25 +++++++++----------------
+ src/cmd/link/internal/arm/asm.go   | 21 +++++++--------------
+ src/cmd/link/internal/ld/asmb.go   |  7 +++++++
+ src/cmd/link/internal/x86/asm.go   | 22 ++++++++--------------
+ 4 files changed, 31 insertions(+), 44 deletions(-)

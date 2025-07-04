@@ -1,16 +1,19 @@
-commit 14c2849c3ebe498971413ee5e8c9780fabc8578e
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Feb 7 17:35:51 2017 -0500
+commit d1cc83472d611a17513795676d650276f823cafd
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 3 16:18:17 2016 -0400
 
-    runtime: update android time_now call
+    runtime: debug code to panic when marking a free object
     
-    This was broken in https://golang.org/cl/36255
+    This adds debug code enabled in gccheckmark mode that panics if we
+    attempt to mark an unallocated object. This is a common issue with the
+    hybrid barrier when we're manipulating uninitialized memory that
+    contains stale pointers. This also tends to catch bugs that will lead
+    to "sweep increased allocation count" crashes closer to the source of
+    the bug.
     
-    Change-Id: Ib23323a745a650ac51b0ead161076f97efe6d7b7
-    Reviewed-on: https://go-review.googlesource.com/36543
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I443ead3eac6f316a46f50b106078b524cac317f4
+    Reviewed-on: https://go-review.googlesource.com/31761
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/write_err_android.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgcmark.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

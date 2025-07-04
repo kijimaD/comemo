@@ -1,14 +1,14 @@
-commit 3f1cff395136be93ccd5f4ced34644b9dd6840c1
+commit 1308f7c94f8e5af49c809840af796129f97ce6c8
 Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 14:37:50 2012 +1100
+Date:   Fri Feb 10 14:37:20 2012 +1100
 
-    testing/quick: documentation tweaks
+    testing/iotest: adjust adverbial imprecision in package comment
     
-    Fixes #2960.
+    Fixes #2959.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5652055
+    https://golang.org/cl/5651053
 
- src/pkg/testing/quick/quick.go | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/testing/iotest/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

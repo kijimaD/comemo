@@ -1,16 +1,21 @@
-commit 2b583a190eb14c69bffe5d488d2d6d3862fe76ea
-Author: Jess Frazelle <me@jessfraz.com>
-Date:   Wed Jun 22 21:57:52 2016 -0700
+commit 90addd3d41852192ba697d33c9b1660988b82ed7
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 14 12:32:28 2016 -0400
 
-    text/template: fix Parse when called twice with empty text
+    runtime: common handling of _AT_RANDOM auxv
     
-    Fixes #16156
+    The Linux kernel provides 16 bytes of random data via the auxv vector
+    at startup. Currently we consume this separately on 386, amd64, arm,
+    and arm64. Now that we have a common auxv parser, handle _AT_RANDOM in
+    the common path.
     
-    Change-Id: I6989db4fd392583a2d490339cefc525b07c11b90
-    Reviewed-on: https://go-review.googlesource.com/24380
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ib69549a1d37e2d07a351cf0f44007bcd24f0d20d
+    Reviewed-on: https://go-review.googlesource.com/22062
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/text/template/multi_test.go | 36 ++++++++++++++++++++++++++++++++++++
- src/text/template/template.go   |  2 +-
- 2 files changed, 37 insertions(+), 1 deletion(-)
+ src/runtime/os_linux.go         |  9 ++++++++-
+ src/runtime/os_linux_386.go     |  7 -------
+ src/runtime/os_linux_arm.go     |  9 ++++-----
+ src/runtime/os_linux_arm64.go   | 14 ++++----------
+ src/runtime/vdso_linux_amd64.go |  4 ----
+ 5 files changed, 16 insertions(+), 27 deletions(-)

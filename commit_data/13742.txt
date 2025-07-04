@@ -1,14 +1,16 @@
-commit 997a11ae6accb410f6fbbb295143d28cb9aaa152
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Sep 4 15:26:51 2012 +1000
+commit 7f075ece42fbbfcd7d0ae64807651618333bd2eb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 3 12:12:51 2012 +1000
 
-          doc: link to references from docs page
+    runtime: increase stack frame during cgo call on windows/amd64
     
-    Fixes #3667.
+    Fixes #3945.
     
-    R=golang-dev, iant
-    CC=golang-dev
-    https://golang.org/cl/6492078
+    R=golang-dev, minux.ma
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/6490056
 
- doc/docs.html | 3 +++
- 1 file changed, 3 insertions(+)
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue3945.go  | 22 ++++++++++++++++++++++
+ src/pkg/runtime/asm_amd64.s | 12 +++++++-----
+ 3 files changed, 30 insertions(+), 5 deletions(-)

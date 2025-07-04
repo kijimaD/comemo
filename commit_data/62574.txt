@@ -1,0 +1,21 @@
+commit a1ddbdd3ef8b739aab53f20d6ed0a61c3474cf12
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 13 16:15:15 2025 -0700
+
+    cmd/compile: don't move nilCheck operations during tighten
+    
+    Nil checks need to stay in their original blocks. They cannot
+    be moved to a following conditionally-executed block.
+    
+    Fixes #72860
+    
+    Change-Id: Ic2d66cdf030357d91f8a716a004152ba4c016f77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657715
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/tighten.go |  4 ++++
+ test/fixedbugs/issue72860.go            | 24 ++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

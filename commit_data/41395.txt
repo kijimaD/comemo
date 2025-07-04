@@ -1,21 +1,21 @@
-commit 821b7994826cf8f9f5f66ca35339ffe088dba02d
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sun Feb 9 01:40:45 2020 -0500
+commit 0adc89aa962aa116da5540c3248977318d360738
+Author: Pantelis Sampaziotis <psampaz@gmail.com>
+Date:   Tue Sep 10 18:43:15 2019 +0000
 
-    test: clean up run.go
+    strconv: add Unwrap to custom error types
     
-    • Inline check function because it's more readable.
-    • Delete toolPath because it was unused.
-    • Use strings.TrimPrefix because it's simpler.
-    • Remove out variable because its value was unused.
-    • Rename serr to err because it's more consistent.
+    Updates #30322
     
-    Change-Id: I084fb4f8b399578834d5eea29a673c386cf3a357
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/218701
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    This change adds the Unwrap method to NumError. NumError is the only custom error type of the strconv that has a nested exported error.
+    
+    Change-Id: I8774886348880365a83f72a1d106276def27dffe
+    GitHub-Last-Rev: 712f3df8842f48f988cebfc527476781a7cf7140
+    GitHub-Pull-Request: golang/go#34213
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194563
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Hajime Hoshi <hajimehoshi@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- test/run.go | 48 ++++++++++++++++++++++--------------------------
- 1 file changed, 22 insertions(+), 26 deletions(-)
+ src/strconv/atoi.go      | 2 ++
+ src/strconv/atoi_test.go | 7 +++++++
+ 2 files changed, 9 insertions(+)

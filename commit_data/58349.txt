@@ -1,21 +1,19 @@
-commit 4da905bcf07d80eb62be5cb996e11a89258364ad
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Dec 2 12:45:55 2024 -0800
+commit 1a58fd0fdaf9678d56b587f30dc9281553f6ccb9
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Oct 29 03:14:32 2023 +1100
 
-    cmd/internal/objabi, internal/runtime: increase nosplit limit on OpenBSD
+    syscall: regen zsyscall for openbsd/riscv64
     
-    OpenBSD is bumping up against the nosplit limit, and openbsd/ppc64
-    is over it. Increase StackGuardMultiplier on OpenBSD, matching AIX.
+    This removes the unused writelen function, which was cleaned up for other
+    platforms in CL#529035.
     
-    Change-Id: I61e17c99ce77e1fd3f368159dc4615aeae99e913
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632996
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I1999dc81276763bdc73d8590c16729447c4e8538
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538119
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
 
- src/cmd/internal/objabi/stack.go   | 4 ++--
- src/internal/runtime/sys/consts.go | 4 ++--
- test/nosplit.go                    | 2 +-
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/syscall/zsyscall_openbsd_riscv64.go | 11 -----------
+ 1 file changed, 11 deletions(-)

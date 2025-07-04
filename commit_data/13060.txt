@@ -1,14 +1,13 @@
-commit 99142f55370650fcdf1ecc742a5c3c26fdd1200f
-Author: Michael Gehring <mg@ebfe.org>
-Date:   Mon May 14 12:26:29 2012 -0400
+commit 02d2b4466f88914c30b4ca5f54538464d404cd3a
+Author: Adam Langley <agl@golang.org>
+Date:   Mon May 14 11:28:55 2012 -0400
 
-    crypto/tls: fix decoding of certLen in certificateMsg.unmarshal
+    A+C: add Michael Gehring (individual CLA)
     
-    certLen was decoded incorrectly if length > 2^16-1.
-    
-    R=golang-dev, agl
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6197077
+    https://golang.org/cl/6188076
 
- src/pkg/crypto/tls/handshake_messages.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

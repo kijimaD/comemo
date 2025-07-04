@@ -1,29 +1,16 @@
-commit 78805c07f4119ba0fc7bf2e462451d519f42f679
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Oct 23 13:47:15 2017 -0700
+commit 403ae5081a03bcbbc4304b2a5f76d11a3ddb6e4b
+Author: Jelte Fennema <github-tech@jeltef.nl>
+Date:   Mon Jul 31 13:07:35 2017 +0200
 
-    archive/zip: restrict UTF-8 detection for comment and name fields
+    math: change oeis.org urls to https
     
-    CL 39570 added support for automatically setting flag bit 11 to
-    indicate that the filename and comment fields are encoded in UTF-8,
-    which is (conventionally) the encoding using for most Go strings.
+    Regular HTTP is insecure, oeis.org supports HTTPS and it is actually
+    used in some other places in the codebase. This changes these final urls
+    to use HTTPS.
     
-    However, the detection added is too lose for two reasons:
-    * We need to ensure both fields are at least possibly UTF-8.
-    That is, if any field is definitely not UTF-8, then we can't set the bit.
-    * The utf8.ValidRune returns true for utf8.RuneError, which iterating
-    over a Go string automatically returns for invalid UTF-8.
-    Thus, we manually check for that value.
-    
-    Updates #22367
-    Updates #10741
-    
-    Change-Id: Ie8aae388432e546e44c6bebd06a00434373ca99e
-    Reviewed-on: https://go-review.googlesource.com/72791
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia46410a9c7ce67238a10cb6bfffaceca46112f58
+    Reviewed-on: https://go-review.googlesource.com/52072
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/archive/zip/writer.go      | 41 ++++++++++++++++++++++++++++++++---------
- src/archive/zip/writer_test.go |  6 ++++++
- 2 files changed, 38 insertions(+), 9 deletions(-)
+ src/math/const.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

@@ -1,24 +1,14 @@
-commit 56bcef02fca3299bfd162fea1c647754cd071714
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 13 22:38:25 2012 -0800
+commit 2e77bc48aa17a60d0e0902a4cddedf7e1840a0f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 13 13:12:11 2012 -0500
 
-    net/http: add missing error checking reading trailers
+    cmd/ld: fix build on elf systems
     
-    This is a simplified version of earlier versions of this CL
-    and now only fixes obviously incorrect things, without
-    changing the locking on bodyEOFReader.
-    
-    I'd like to see if this is sufficient before changing the
-    locking.
-    
-    Update #4191
-    
-    R=golang-dev, rsc, dave
+    TBR=iant
     CC=golang-dev
-    https://golang.org/cl/6739055
+    https://golang.org/cl/6843050
 
- src/pkg/net/http/client_test.go   |  8 +++++++-
- src/pkg/net/http/transfer.go      | 13 ++++++++++++-
- src/pkg/net/http/transfer_test.go | 37 +++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/transport.go     |  8 +++-----
- 4 files changed, 59 insertions(+), 7 deletions(-)
+ src/cmd/5l/asm.c | 1 +
+ src/cmd/6l/asm.c | 1 +
+ src/cmd/8l/asm.c | 1 +
+ 3 files changed, 3 insertions(+)

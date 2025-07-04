@@ -1,14 +1,17 @@
-commit c0421d92c87c9428a5f3f8e5457fda88db585c90
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Dec 14 08:43:42 2011 -0800
+commit e14d1d7e41eed928e045961195f160069f6abb2d
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Dec 14 17:34:35 2011 +0100
 
-    net/http: fix bug in error checking
+    gc: use inferred type rather than original one when reporting non-assignability.
     
-    Thanks to josef86@gmail.com for pointing this out.
+    Fixes #2451
     
-    R=golang-dev, iant
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5477092
+    https://golang.org/cl/5372105
 
- src/pkg/net/http/transport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/fmt.c         | 14 ++++++++------
+ test/ddd1.go             |  2 +-
+ test/fixedbugs/bug386.go | 12 ++++++++++++
+ test/named1.go           |  2 +-
+ 4 files changed, 22 insertions(+), 8 deletions(-)

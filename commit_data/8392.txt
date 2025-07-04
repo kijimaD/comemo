@@ -1,19 +1,14 @@
-commit c35c6720202dfebf8e3f862892fe21d1ee2b5391
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 13 18:33:04 2011 -0700
+commit 9ada841f4d7a67621760080caef8b7fd6a08b46a
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 13 16:25:31 2011 -0700
 
-    go/types: fix (some) builds
+    contrib*.html: make "golang-dev" the default reviewer.
+    also make a couple of links more visible and fix an id= href.
     
-    The position (type) for which the "invalid cycle" error
-    message is reported depends on which type in a cycle of
-    types is first checked. Which one is first depends on
-    the iteration order of maps which is different on
-    different platforms. For now, disable this error message.
-    
-    R=rsc
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4527059
+    https://golang.org/cl/4517063
 
- src/pkg/go/types/check.go           |  5 ++++-
- src/pkg/go/types/testdata/test0.src | 16 ++++++++--------
- 2 files changed, 12 insertions(+), 9 deletions(-)
+ doc/contrib.html    | 6 +++---
+ doc/contribute.html | 3 ++-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

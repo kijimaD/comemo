@@ -1,0 +1,45 @@
+commit dceee2e983f5dab65c3905ecf40e70e15cf41b7d
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Feb 24 09:43:41 2025 +0100
+
+    all: use testenv.Executable instead of os.Executable and os.Args[0]
+    
+    In test files, using testenv.Executable is more reliable than
+    os.Executable or os.Args[0].
+    
+    Change-Id: I88e577efeabc20d02ada27bf706ae4523129128e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651955
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/internal/test/issue18146.go                 |  5 +++--
+ .../lockedfile/internal/filelock/filelock_test.go       |  2 +-
+ src/cmd/go/internal/lockedfile/lockedfile_test.go       |  4 +---
+ src/crypto/internal/fips140test/check_test.go           |  2 +-
+ src/crypto/internal/sysrand/rand_linux_test.go          |  2 +-
+ src/crypto/internal/sysrand/rand_test.go                |  2 +-
+ src/crypto/rand/rand_test.go                            |  3 +--
+ src/flag/flag_test.go                                   |  2 +-
+ src/internal/cpu/cpu_test.go                            |  5 +----
+ src/internal/godebug/godebug_test.go                    |  2 +-
+ src/internal/syscall/windows/exec_windows_test.go       |  3 ++-
+ src/net/mockserver_test.go                              |  2 +-
+ src/net/net_windows_test.go                             |  2 +-
+ src/os/pipe_test.go                                     |  6 +++---
+ src/os/signal/signal_test.go                            | 10 +++++-----
+ src/runtime/abi_test.go                                 |  4 +---
+ src/runtime/crash_test.go                               | 15 +++++----------
+ src/runtime/crash_unix_test.go                          |  2 +-
+ src/runtime/debug/stack_test.go                         | 17 +++--------------
+ src/runtime/hash_test.go                                |  3 +--
+ src/runtime/malloc_test.go                              |  4 +---
+ src/runtime/map_test.go                                 |  2 +-
+ src/runtime/syscall_windows_test.go                     |  2 +-
+ src/sync/mutex_test.go                                  |  3 +--
+ src/syscall/exec_unix_test.go                           |  3 +--
+ src/syscall/exec_windows_test.go                        |  5 +++--
+ src/syscall/syscall_unix_test.go                        |  4 ++--
+ src/testing/panic_test.go                               |  4 ++--
+ src/testing/testing_test.go                             |  4 ++--
+ 29 files changed, 49 insertions(+), 75 deletions(-)

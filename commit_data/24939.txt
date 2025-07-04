@@ -1,17 +1,24 @@
-commit 888aadfa6088cc1654bb4f0c6bb61675ce360dfb
-Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
-Date:   Wed Nov 11 16:34:06 2015 -0500
+commit 81a4bbffbf70edd3aaa401b38eb581ad94e2288f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Sep 10 15:50:47 2015 +1000
 
-    cmd: enable android/386 build (buildmode=pie by default)
+    cmd/go: use RawToken to parse remote package metadata
     
-    no buildmode=c-shared yet.
+    CL 14315 broke the tests for parsing loosely formed remote package
+    metadata. Switch the parsing to use RawToken to recover the previous
+    behaviour that Token provided.
     
-    Update golang/go#9327.
+    It could be argued that the parser should be stricter, but as remote
+    metadata has been readable with the parser for several years, it is
+    safer to change the parser to continue to accept the samples provided
+    in the test cases.
     
-    Change-Id: I9989d954d574807bac105da401c3463607fe8a99
-    Reviewed-on: https://go-review.googlesource.com/16700
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I2a3ba1757d3cff53b1a1c4386276955bb46cf8cd
+    Reviewed-on: https://go-review.googlesource.com/14482
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/lex.go | 2 +-
- src/cmd/go/build.go                | 5 +++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/go/discovery.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

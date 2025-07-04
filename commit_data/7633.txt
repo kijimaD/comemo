@@ -1,14 +1,15 @@
-commit 99f17aa0b8af774e3639d00d4bc95a2c3a7d153a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 4 14:12:39 2011 -0800
+commit e339d27db7e0166da7ae72d4731c966d0cab9478
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 4 15:42:39 2011 -0500
 
-    http/cgi: skip tests on Windows
+    runtime: make printf work on misaligned stack
     
-    The tests require Perl, not commonly installed on Windows.
+    (Shouldn't happen, but if it does, it's useful to be
+    able to use printf to debug it.)
     
-    R=rsc, brainman
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4239057
+    https://golang.org/cl/4250057
 
- src/pkg/http/cgi/cgi_test.go | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ src/pkg/runtime/print.c | 59 ++++++++++++++++++++++---------------------------
+ 1 file changed, 27 insertions(+), 32 deletions(-)

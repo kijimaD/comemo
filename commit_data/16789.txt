@@ -1,12 +1,12 @@
-commit cc8417610834f5518efe561235f3ed37031f4e59
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jul 16 16:44:24 2013 -0700
+commit 29d27671e521a45247c31f694d8ec041510e8ed3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 16 15:31:42 2013 -0700
 
-    runtime: print g0 stack if we throw on it and GOTRACEBACK>=2.
+    test: add a compilation test that gccgo failed to compile
     
-    R=golang-dev, rsc
+    R=golang-dev, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/11385045
+    https://golang.org/cl/11379044
 
- src/pkg/runtime/panic.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ test/fixedbugs/bug475.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

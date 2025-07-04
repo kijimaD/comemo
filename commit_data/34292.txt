@@ -1,18 +1,23 @@
-commit cab7ba0b28d65bcb1d2a02ec945f43625869172e
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Feb 20 21:27:28 2018 +0100
+commit fb46b9ea20cfe7677a495d1a6cd9f244ddf1c0eb
+Author: Andreas Auernhammer <aead@mail.de>
+Date:   Thu May 25 22:46:41 2017 +0200
 
-    cmd/compile: use | in the most repetitive arm rules
+    crypto/elliptic: don't unmarshal invalid encoded points
     
-    For now, limited to the most repetitive rules that are also short and
-    simple, so that we can have a substantial conciseness win without
-    compromising rules readability.
+    ANSI X9.62 specifies that Unmarshal should fail if the a given coordinate is
+    not smaller than the prime of the elliptic curve. This change makes Unmarshal
+    ANSI X9.62 compliant and explicitly documents that the Marshal/Unmarshal only
+    supports uncompressed points.
     
-    Ran rulegen, no change in the actual compiler code (as expected).
+    Fixes #20482
     
-    Change-Id: Ib1d2b9fbc787379105ec9baf10d2c1e2ff3c4c5c
-    Reviewed-on: https://go-review.googlesource.com/95615
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I161a73da8279cae505c9ba0b3022021709fe8145
+    Reviewed-on: https://go-review.googlesource.com/44312
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules | 79 ++++++++----------------------
- 1 file changed, 21 insertions(+), 58 deletions(-)
+ src/crypto/elliptic/elliptic.go      | 11 +++++++---
+ src/crypto/elliptic/elliptic_test.go | 39 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 3 deletions(-)

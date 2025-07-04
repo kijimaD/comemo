@@ -1,34 +1,34 @@
-commit ec9470162f26819abd7b7bb86dd36cfe87f7f5bc
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 8 14:27:00 2021 -0500
+commit e3ccf406231ece59975d999f18f37d1615112aaf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 12 23:06:14 2020 -0400
 
-    cmd/compile: allow embed into any string or byte slice type
+    cmd/go: terminate TestScript commands more aggressively when the test times out
     
-    The current implementation requires saying "string" or "[]byte"
-    and disallows aliases, defined types, and even "[]uint8".
-    This was not 100% intended and mostly just fell out of when
-    the checks were being done in the implementation (too early,
-    before typechecking).
+    - Avoid starting subprocesses when the test is already very close to
+      timing out. The overhead of starting and stopping processes may
+      cause the test to exceed its deadline even if each individual
+      process is signaled soon after it is started.
     
-    After discussion on #43217 (forked into #43602),
-    the consensus was to allow all string and byte slice types,
-    same as we do for string conversions in the language itself.
-    This CL does that.
+    - If a command does not shut down quickly enough after receiving
+      os.Interrupt, send it os.Kill using the same style of grace period
+      as in CL 228438.
     
-    It's more code than you'd expect because the decision has
-    to be delayed until after typechecking.
+    - Fail the test if a background command whose exit status is not
+      ignored is left running at the end of the test. We have no reliable
+      way to distinguish a failure due to the termination signal from an
+      unexpected failure, and the termination signal varies across
+      platforms (so may cause failure on one platform but success on
+      another).
     
-    But it also more closely aligns with the version that's
-    already on dev.regabi.
+    For #38797
     
-    Fixes #43602.
-    
-    Change-Id: Iba919cfadfbd5d7116f2bf47e2512fb1d5c36731
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/282715
-    Trust: Russ Cox <rsc@golang.org>
+    Change-Id: I767898cf551dca45579bf01a9d1bb312e12d6193
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233526
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/embed.go  | 84 +++++++++++++----------------------
- src/cmd/compile/internal/gc/noder.go  |  2 +-
- src/cmd/compile/internal/gc/syntax.go | 21 +++++----
- 3 files changed, 46 insertions(+), 61 deletions(-)
+ src/cmd/go/go_test.go                      |  20 --
+ src/cmd/go/script_test.go                  | 283 ++++++++++++++++++++---------
+ src/cmd/go/testdata/script/README          |   5 +-
+ src/cmd/go/testdata/script/script_wait.txt |   7 +-
+ 4 files changed, 202 insertions(+), 113 deletions(-)

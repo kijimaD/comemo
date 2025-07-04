@@ -1,69 +1,18 @@
-commit 9b15c13dc567d92c6ac628c762d42b4ae2c9469f
+commit ad020477f4dfe731450b6dd3dd15ea43aab0d0f1
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 2 15:10:55 2017 -0800
+Date:   Sun Nov 6 11:58:49 2016 -0800
 
-    runtime/pprof: fix data race between Profile.Add and Profile.WriteTo
+    cmd/cgo: delete unused variable in log statement
     
-    p.m is accessed in WriteTo without holding p.mu.
-    Move the access inside the critical section.
+    visit is just a func, and there's no formatting
+    verb for it, and it's on an internal-error path.
+    It has been thus many years, unchanged and unexecuted.
     
-    The race detector catches this bug using this program:
-    
-    
-    package main
-    
-    import (
-            "os"
-            "runtime/pprof"
-            "time"
-    )
-    
-    func main() {
-            p := pprof.NewProfile("ABC")
-            go func() {
-                    p.WriteTo(os.Stdout, 1)
-                    time.Sleep(time.Second)
-            }()
-            p.Add("abc", 0)
-            time.Sleep(time.Second)
-    }
-    
-    
-    $ go run -race x.go
-    ==================
-    WARNING: DATA RACE
-    Write at 0x00c42007c240 by main goroutine:
-      runtime.mapassign()
-          /Users/josh/go/tip/src/runtime/hashmap.go:485 +0x0
-      runtime/pprof.(*Profile).Add()
-          /Users/josh/go/tip/src/runtime/pprof/pprof.go:281 +0x255
-      main.main()
-          /Users/josh/go/tip/src/p.go:15 +0x9d
-    
-    Previous read at 0x00c42007c240 by goroutine 6:
-      runtime/pprof.(*Profile).WriteTo()
-          /Users/josh/go/tip/src/runtime/pprof/pprof.go:314 +0xc5
-      main.main.func1()
-          /Users/josh/go/tip/src/x.go:12 +0x69
-    
-    Goroutine 6 (running) created at:
-      main.main()
-          /Users/josh/go/tip/src/x.go:11 +0x6e
-    ==================
-    ABC profile: total 1
-    1 @ 0x110ccb4 0x111aeee 0x1055053 0x107f031
-    
-    Found 1 data race(s)
-    exit status 66
-    
-    
-    (Exit status 66?)
-    
-    Change-Id: I49d884dc3af9cce2209057a3448fe6bf50653523
-    Reviewed-on: https://go-review.googlesource.com/37730
+    Change-Id: I4c2e2673ee9996218c24143bcc3be3eb4abdff25
+    Reviewed-on: https://go-review.googlesource.com/32970
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/pprof/pprof.go | 2 +-
+ src/cmd/cgo/ast.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

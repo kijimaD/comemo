@@ -1,34 +1,14 @@
-commit 3c85e995efd0c2adf8578ed27565ad3b427f1a43
-Author: David Chase <drchase@google.com>
-Date:   Mon Jun 15 18:27:02 2020 -0400
+commit c1abd5ab70e1e8ac59a2960d41fe6d83d68ea69b
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Feb 29 02:32:21 2020 -0800
 
-    cmd/compile: extend ssa.AuxCall to closure and interface calls
+    runtime: don't invoke t.Fatal* in goroutine in TestLibraryCtrlHandler
     
-    Also introduce helper methods.
-    
-    Change-Id: I11a744ed002bae0ca9ebabba3206e1c14147e03d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239080
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I8bb06c360cab3e5a74b0b0f98bb25cca4741d66d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221605
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go                | 18 +++++-----
- src/cmd/compile/internal/ssa/gen/386Ops.go        |  6 ++--
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go      |  6 ++--
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go      |  6 ++--
- src/cmd/compile/internal/ssa/gen/ARMOps.go        |  6 ++--
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go     |  6 ++--
- src/cmd/compile/internal/ssa/gen/MIPSOps.go       |  6 ++--
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go      |  6 ++--
- src/cmd/compile/internal/ssa/gen/RISCV64Ops.go    |  6 ++--
- src/cmd/compile/internal/ssa/gen/S390XOps.go      |  6 ++--
- src/cmd/compile/internal/ssa/gen/WasmOps.go       |  8 ++---
- src/cmd/compile/internal/ssa/gen/genericOps.go    |  6 ++--
- src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
- src/cmd/compile/internal/ssa/op.go                | 15 ++++++++
- src/cmd/compile/internal/ssa/opGen.go             | 44 +++++++++++------------
- src/cmd/compile/internal/ssa/rewrite.go           |  2 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go    |  2 +-
- src/cmd/compile/internal/ssa/writebarrier.go      |  2 +-
- 18 files changed, 84 insertions(+), 69 deletions(-)
+ src/runtime/signal_windows_test.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

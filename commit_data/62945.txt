@@ -1,0 +1,26 @@
+commit d13da63929df73ab506314f35524ebb9b0f8a216
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue May 6 10:10:30 2025 +0800
+
+    cmd/internal/obj/loong64: add [X]VFRINT[{RNE/RZ/RP/RM}].{S/D} instructions
+    
+    Go asm syntax:
+             VFRINT[{RNE/RZ/RP/RM}]{F/D}    VJ, VD
+            XVFRINT[{RNE/RZ/RP/RM}]{F/D}    XJ, XD
+    
+    Equivalent platform assembler syntax:
+             vfrint[{rne/rz/rp/rm}].{s/d}   vd, vj
+            xvfrint[{rne/rz/rp/rm}].{s/d}   xd, xj
+    
+    Change-Id: I4ed8782289ae3329d675239f799d5f75b1adc4ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670235
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 22 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 22 +++++++++
+ src/cmd/internal/obj/loong64/anames.go          | 20 +++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 60 +++++++++++++++++++++++++
+ 4 files changed, 124 insertions(+)

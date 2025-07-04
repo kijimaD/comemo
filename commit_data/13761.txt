@@ -1,21 +1,14 @@
-commit 212ce41d004cc9e33d35b64cc13c2c9baf843452
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Sep 7 14:26:42 2012 +1000
+commit a225eaf9b771cdb42defcc89015dc12cd04c4438
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 6 14:58:37 2012 -0700
 
-    runtime: arm: abort if hardware floating point missing
+    cmd/yacc: always import fmt, safely
+    The parser depends on it but the client might not import it, so make sure it's there.
+    Fixes #4038.
     
-    Fixes #3911.
-    
-    Requires CL 6449127.
-    
-    dfc@qnap:~$ ./runtime.test
-    runtime: this CPU has no floating point hardware, so it cannot run
-    this GOARM=7 binary. Recompile using GOARM=5.
-    
-    R=rsc, minux.ma
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6442109
+    https://golang.org/cl/6497094
 
- src/pkg/runtime/asm_arm.s          |  1 +
- src/pkg/runtime/signal_linux_arm.c | 16 ++++++++++++++--
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ src/cmd/yacc/yacc.go | 130 ++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 119 insertions(+), 11 deletions(-)

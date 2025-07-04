@@ -1,31 +1,38 @@
-commit b4e1ca25b1fe02f37dcf6371732727fdd5036909
+commit 52a46bb77352bd911a478d870acb7453234c52f3
 Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Sun Sep 18 19:10:15 2011 -0700
+Date:   Sun Sep 18 12:04:40 2011 -0700
 
-    exp/template/html: allow quotes on either side of conditionals and dynamic HTML names
+    exp/template/html: normalize '<' in text and RCDATA nodes.
     
-    This addresses several use cases:
+    The template
     
-    (1) <h{{.HeaderLevel}}> used to build hierarchical documents.
-    (2) <input on{{.EventType}}=...> used in widgets.
-    (3) <div {{" dir=ltr"}}> used to embed bidi-hints.
+      <{{.}}
     
-    It also makes sure that we treat the two templates below the same:
+    would violate the structure preservation property if allowed and not
+    normalized, because when {{.}} emitted "", the "<" would be part of
+    a text node, but if {{.}} emitted "a", the "<" would not be part of
+    a text node.
     
-    <img src={{if .Avatar}}"{{.Avatar}}"{{else}}"anonymous.png"{{end}}>
-    <img src="{{if .Avatar}}{{.Avatar}}{{else}}anonymous.png{{end}}">
+    This change rewrites '<' in text nodes and RCDATA text nodes to
+    '&lt;' allowing template authors to write the common, and arguably more
+    readable:
     
-    This splits up tTag into a number of sub-states and adds testcases.
+        Your price: {{.P1}} < list price {{.P2}}
+    
+    while preserving the structure preservation property.
+    
+    It also lays the groundwork for comment elision, rewriting
+    
+        Foo <!-- comment with secret project details --> Bar
+    
+    to
+    
+        Foo  Bar
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5043042
+    https://golang.org/cl/5043043
 
- src/pkg/exp/template/html/content.go      |   9 ++-
- src/pkg/exp/template/html/content_test.go |  26 ++++++++
- src/pkg/exp/template/html/context.go      |  55 ++++++++++++++--
- src/pkg/exp/template/html/escape.go       |  49 ++++++++++++++
- src/pkg/exp/template/html/escape_test.go  |  63 +++++++++++++++++-
- src/pkg/exp/template/html/html.go         |  19 ++++++
- src/pkg/exp/template/html/transition.go   | 105 ++++++++++++++++++++----------
- 7 files changed, 286 insertions(+), 40 deletions(-)
+ src/pkg/exp/template/html/escape.go      | 94 ++++++++++++++++++++++----------
+ src/pkg/exp/template/html/escape_test.go | 19 ++++++-
+ 2 files changed, 81 insertions(+), 32 deletions(-)

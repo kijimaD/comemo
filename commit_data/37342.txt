@@ -1,25 +1,19 @@
-commit 6096b85b1326c22ec07c2aed2d78f3bef513ea69
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 31 20:39:59 2018 -0400
+commit e3f15e3b1d8e6db892267cbd01b956bd587905df
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 17 23:46:12 2018 -0400
 
-    runtime: avoid variable/function alias on runtime._cgo_panic_internal
+    cmd/go: convert even more module tests to scripts
     
-    The symbol runtime._cgo_panic_internal is defined both as a function
-    in package runtime and as a (linknamed) variable in package
-    runtime/cgo. Since we're introducing function ABIs, this is going to
-    cause problems with resolving the ABI-marked function symbol with the
-    unmarked data symbol. It's also confusing.
-    
-    Fix this by declaring runtime._cgo_panic_internal as a function in
-    runtime/cgo as well and extracting the PC from the function object.
-    
-    For #27539.
-    
-    Change-Id: I148a458a600cf9e57791cf4cbe92e79bddbf58d4
-    Reviewed-on: https://go-review.googlesource.com/c/146821
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iba185e00e9df2462e9089566053f6c64e24a6a92
+    Reviewed-on: https://go-review.googlesource.com/124698
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/cgo/callbacks.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/go/mod_test.go                           | 357 -----------------------
+ src/cmd/go/testdata/script/mod_bad_domain.txt    |  21 ++
+ src/cmd/go/testdata/script/mod_bad_filenames.txt |  11 +
+ src/cmd/go/testdata/script/mod_case.txt          |  13 +
+ src/cmd/go/testdata/script/mod_file_proxy.txt    |  27 ++
+ src/cmd/go/testdata/script/mod_init_dep.txt      |  34 +++
+ src/cmd/go/testdata/script/mod_list.txt          |  60 ++++
+ src/cmd/go/testdata/script/mod_verify.txt        |  85 ++++++
+ 8 files changed, 251 insertions(+), 357 deletions(-)

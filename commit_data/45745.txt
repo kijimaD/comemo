@@ -1,22 +1,15 @@
-commit 6d9830111402d9bd69893a8ad6074ac92a5ddd0d
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jun 3 14:50:10 2021 -0400
+commit 141fa337ad2f118e4e99dc554e95c336810a07cf
+Author: Federico Guerinoni <guerinoni.federico@gmail.com>
+Date:   Sun Nov 8 15:35:35 2020 +0100
 
-    cmd/link: use correct alignment in PE DWARF sections
+    bytes: add example for (*Buffer).Bytes
     
-    Set the correct section flags to insure that .debug_* sections are
-    using 1-byte alignment instead of the default. This seems to be
-    important for later versions of LLVM-mingw on windows (shows up on the
-    windows/arm64 builder).
-    
-    Updates #46406.
-    
-    Change-Id: I023d5208374f867552ba68b45011f7990159868f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/324763
-    Trust: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I49ac604530fff7928fa15de07563418b104da5e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268260
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/link/internal/ld/pe.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/bytes/example_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

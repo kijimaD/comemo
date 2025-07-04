@@ -1,19 +1,20 @@
-commit 1100df58238a1b1c55af148a880b48caf4be6504
-Author: Diogo Pinela <diogoid7400@gmail.com>
-Date:   Tue Oct 30 22:58:24 2018 +0000
+commit 0c319ee4fe655e3c8e7bf72bce572c989f565a53
+Author: Zev Goldstein <Zev.Goldstein@gmail.com>
+Date:   Sun Jul 8 22:31:28 2018 -0400
 
-    go/internal/gcimporter: ensure tests pass even if GOROOT is read-only
+    cmd/go/internal/cache: squelch cache init warnings when $HOME is /
     
-    This mainly entails writing compiler output files to a temporary
-    directory, as well as the corrupted files in TestVersionHandling.
+    Docker sets $HOME to / when running with a UID that doesn't exist within
+    the container.  This not  uncommon on CI servers.
     
-    Updates #28387
+    Fixes #26280
     
-    Change-Id: I6b3619a91fff27011c7d73daa4febd14a6c5c348
-    Reviewed-on: https://go-review.googlesource.com/c/146119
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic7ff62b41403fe6e7c0cef12814667ef73f6c954
+    Reviewed-on: https://go-review.googlesource.com/122487
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/internal/gcimporter/gcimporter_test.go | 113 ++++++++++++++++----------
- 1 file changed, 69 insertions(+), 44 deletions(-)
+ src/cmd/go/internal/cache/default.go           | 37 ++++++++++----
+ src/cmd/go/internal/cache/default_unix_test.go | 67 ++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 9 deletions(-)

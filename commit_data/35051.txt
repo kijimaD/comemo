@@ -1,17 +1,23 @@
-commit d5a52e704490264a5dabb9c2f944bb67cd879db0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Apr 19 12:12:51 2018 +0200
+commit 4c800f03c9f988d5de0481de0d77d103213b295c
+Author: Keith Randall <khr@google.com>
+Date:   Thu Dec 7 14:11:19 2017 -0800
 
-    internal/syscall/windows: convert CRLF line endings
+    cmd/compile: fix large load/store offsets on 386
     
-    CL 99337 introduced a file with CRLF line endings. Convert them to LF
-    line endings as in all other Go files.
+    Pointer arithemetic is done mod 2^32 on 386, so we can just
+    drop the high bits of any large constant offsets.
     
-    Change-Id: I68b28fd443f05bebbbd9280d1821c4ccd33a4a8a
-    Reviewed-on: https://go-review.googlesource.com/108075
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    The bounds check will make sure wraparounds are never observed.
+    
+    Fixes #21655
+    
+    Change-Id: I68ae5bbea9f02c73968ea2b21ca017e5ecb89223
+    Reviewed-on: https://go-review.googlesource.com/82675
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/internal/syscall/windows/symlink_windows.go | 28 ++++++++++++-------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ssa/gen/386.rules |  78 ++++++------
+ src/cmd/compile/internal/ssa/rewrite386.go | 192 ++++++++++++++---------------
+ test/fixedbugs/issue21655.go               |  22 ++++
+ 3 files changed, 157 insertions(+), 135 deletions(-)

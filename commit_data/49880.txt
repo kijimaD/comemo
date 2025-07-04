@@ -1,23 +1,30 @@
-commit ebbf2b44c59e2c473ed4ed6b0e044f5daee75e54
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Aug 11 15:56:34 2022 -0700
+commit a83a5587331392fc9483d183e446586b463ad8aa
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Sep 19 09:23:21 2021 -0700
 
-    net/http: add a test to verify form tempfiles are deleted
+    cmd/compile: fix export/import of range loop.
     
-    The HTTP/1 server deletes multipart form tempfiles after ServeHTTP
-    returns, but the HTTP/2 server does not. Add a test to verify
-    cleanup happens in both cases, temporarily disabled for the
-    HTTP/2 path.
+    As with other recent issues, the Init field of a range loop was not
+    being handled properly. Generally, it is much better to explicitly
+    import/export the Init statements, else they are incorrectly added
+    before the associated node, rather than as the Init value of the node.
+    This was causing labels to not be correctly added to the range loop that
+    it is immediately preceding.
     
-    For #20253
-    Updates #25965
+    Made the ORANGE handling completely similar to the OFOR handling.
     
-    Change-Id: Ib753f2761fe73b29321d9d4337dbb5090fd193c2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423194
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #48462
+    
+    Change-Id: I999530e84f9357f81deaa3dda50660061f710e7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350911
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/net/http/serve_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
+ src/cmd/compile/internal/typecheck/iexport.go |  3 ++-
+ src/cmd/compile/internal/typecheck/iimport.go | 16 +++++++++-------
+ test/typeparam/issue48462.dir/a.go            | 22 ++++++++++++++++++++++
+ test/typeparam/issue48462.dir/main.go         | 23 +++++++++++++++++++++++
+ test/typeparam/issue48462.go                  |  7 +++++++
+ 5 files changed, 63 insertions(+), 8 deletions(-)

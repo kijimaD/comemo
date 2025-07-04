@@ -1,20 +1,26 @@
-commit 83e839f86fcc0762ea513f8d5dd9a50a8338e9c2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 24 13:19:46 2016 -0700
+commit 2a4158207edb499f8b210aaa7a9af103b93b5ac7
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Apr 10 21:58:37 2016 -0400
 
-    cmd/pprof: ignore symbols with address 0 and size 0
+    cmd/compile/internal/gc: refactor cgen_div
     
-    Handling a symbol with address 0 and size 0, such as an ELF STT_FILE
-    symbols, was causing us to disassemble the entire program.  We started
-    adding STT_FILE symbols to help fix issue #13247.
+    This commit adds two new functions to cgen.go: hasHMUL64 and
+    hasRROTC64. These are used to determine whether or not an
+    architecture supports the instructions needed to perform an
+    optimization in cgen_div.
     
-    Fixes #16154.
+    This commit should not affect existing architectures (although it
+    does add s390x to the new functions). However, since most
+    architectures support HMUL the hasHMUL64 function could be
+    modified to enable most of the optimizations in cgen_div on those
+    platforms.
     
-    Change-Id: I174b9614e66ddc3d65801f7c1af7650f291ac2af
-    Reviewed-on: https://go-review.googlesource.com/24460
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I33bf329ddeb6cf2954bd17b7c161012de352fb62
+    Reviewed-on: https://go-review.googlesource.com/21775
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/cmd/pprof/pprof.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/gc/cgen.go | 68 ++++++++++++++++++++++++++-----------
+ 1 file changed, 49 insertions(+), 19 deletions(-)

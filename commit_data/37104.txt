@@ -1,14 +1,25 @@
-commit fc4f2e5692ab800a450e07c3d983eda02dfd4711
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 25 02:02:57 2018 +0000
+commit 257d6c48e0abde069e5acc67f719a129d0017186
+Author: Dmitri Shuralyov <dmitri@shuralyov.com>
+Date:   Wed Jun 27 15:37:19 2018 -0400
 
-    net/http: fix comment change omitted between versions of CL 143177
+    internal/syscall/unix: add build constraint to nonblocking_js.go
     
-    Updates #23689
+    The intention was for this file to be constrained to both js and wasm,
+    but the build constraint was missing, causing it to be constrained only
+    to js because of the _js suffix in the filename.
     
-    Change-Id: Icddec2fcc39802cacd651a9c94290e86cf1e48d1
-    Reviewed-on: https://go-review.googlesource.com/c/144517
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Add a js,wasm build constraint. The js part is redundant, but specified
+    anyway to make it more visible and consistent with other similar files.
+    
+    This issue was spotted while working on GopherJS, because it was causing
+    a conflict there (both nonblocking.go and nonblocking_js.go files were
+    being matched).
+    
+    Change-Id: Ifc6843269e1108fe61b1723be25a12254e806fd4
+    Reviewed-on: https://go-review.googlesource.com/121275
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/server.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/internal/syscall/unix/nonblocking_js.go | 2 ++
+ 1 file changed, 2 insertions(+)

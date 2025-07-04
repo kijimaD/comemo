@@ -1,15 +1,14 @@
-commit d3d89ae7d21d8253626aebf212a63d670561f659
+commit d47cc872b5654508a1ca4e29b4653e869c463a70
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 15 13:13:19 2013 -0500
+Date:   Fri Feb 15 12:43:28 2013 -0500
 
-    runtime: check rt_sigaction return values on linux
+    exp/cookiejar: fix windows/386 build
     
-    (If the mask size is wrong the system call fails.)
+    More mysteriously broken tests.
     
-    R=golang-dev, iant
+    TBR=nigeltao
     CC=golang-dev
-    https://golang.org/cl/7305097
+    https://golang.org/cl/7342048
 
- src/pkg/runtime/signal_linux_386.c | 3 ++-
- src/pkg/runtime/signal_linux_arm.c | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/pkg/exp/cookiejar/jar_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

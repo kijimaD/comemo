@@ -1,14 +1,12 @@
-commit 4a7cdc794452ce31432b881af99ec994887d07ee
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Tue Jan 18 23:00:19 2011 -0800
+commit 052ff45690fef2630c43cdde5ee91ba502f1370a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 18 20:56:55 2011 -0800
 
-    syscall: fix build. WUNTRACED isn't defined for win32.
-    For Windows, the options for syscall.Wait4() aren't used.
-    Then this will be dummy value like WNOHANG, WSTOPPED.
+    crypto/cipher: fix build (missing file in Makefile)
     
-    R=golang-dev, r
+    R=agl, adg
     CC=golang-dev
-    https://golang.org/cl/4075041
+    https://golang.org/cl/4073041
 
- src/pkg/syscall/syscall_windows.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/crypto/cipher/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

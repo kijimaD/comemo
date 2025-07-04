@@ -1,14 +1,12 @@
-commit f579faa69dec37d388823b9cd0d54d739f40570b
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 18 16:24:00 2013 -0500
+commit 0c026c45b4f26ffe88340a86e748d2ed8b1705f9
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Jan 18 15:19:51 2013 -0500
 
-    cmd/go: diagnose un-bootstrapped runtime
+    cmd/dist: update for new flag parsing on Plan 9
     
-    Fixes #4665.
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, seed, rsc
     CC=golang-dev
-    https://golang.org/cl/7132057
+    https://golang.org/cl/7069053
 
- src/cmd/go/build.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/cmd/dist/build.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

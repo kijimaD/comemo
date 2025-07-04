@@ -1,20 +1,31 @@
-commit 66d5c9b1e9c30908608469f30b0bb72cb3014600
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jul 18 14:52:57 2011 -0400
+commit 257df1719d5bf4783f0add45c87dfc0353d6dbc4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 18 09:55:09 2011 -0700
 
-    runtime: add per-M caches for MemStats
-    Avoid touching centralized state during
-    memory manager opreations.
+    debug/proc: Remove.
     
-    R=rsc
+    The package was always GNU/Linux specific, and is no longer
+    used by anything now that exp/ogle has been removed.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4766042
+    https://golang.org/cl/4757049
 
- src/pkg/runtime/malloc.goc | 64 +++++++++++++++++++++++++++-------------------
- src/pkg/runtime/malloc.h   | 21 +++++++++++----
- src/pkg/runtime/mcache.c   |  4 +--
- src/pkg/runtime/mgc0.c     | 29 +++++++++++++++------
- src/pkg/runtime/mheap.c    | 10 ++------
- test/mallocrep.go          |  1 +
- test/mallocrep1.go         |  2 ++
- 7 files changed, 82 insertions(+), 49 deletions(-)
+ src/pkg/Makefile                         |    3 -
+ src/pkg/debug/proc/Makefile              |   13 -
+ src/pkg/debug/proc/proc.go               |  222 -----
+ src/pkg/debug/proc/proc_darwin.go        |   17 -
+ src/pkg/debug/proc/proc_freebsd.go       |   17 -
+ src/pkg/debug/proc/proc_linux.go         | 1324 ------------------------------
+ src/pkg/debug/proc/proc_windows.go       |   17 -
+ src/pkg/debug/proc/ptrace-nptl.txt       |  132 ---
+ src/pkg/debug/proc/regs_darwin_386.go    |    5 -
+ src/pkg/debug/proc/regs_darwin_amd64.go  |    5 -
+ src/pkg/debug/proc/regs_freebsd_386.go   |    5 -
+ src/pkg/debug/proc/regs_freebsd_amd64.go |    5 -
+ src/pkg/debug/proc/regs_linux_386.go     |  143 ----
+ src/pkg/debug/proc/regs_linux_amd64.go   |  191 -----
+ src/pkg/debug/proc/regs_linux_arm.go     |   39 -
+ src/pkg/debug/proc/regs_windows_386.go   |    5 -
+ src/pkg/debug/proc/regs_windows_amd64.go |    5 -
+ 17 files changed, 2148 deletions(-)

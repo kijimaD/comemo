@@ -1,24 +1,14 @@
-commit 5e954047bcb77b219629676db3e5d057bed48360
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 24 11:43:08 2017 -0700
+commit 2eb976eb2a040d3dd7b38f9d7e22dab2ee2a9ef0
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 8 15:38:14 2016 -0500
 
-    cmd/compile: be slightly more tolerant in case of certain syntax errors
+    doc/go1.8: mention trace tool changes
     
-    Avoid construction of incorrect syntax trees in presence of errors.
+    Fixes #18234.
     
-    For #19663.
-    
-    Change-Id: I43025a3cf0fe02cae9a57e8bb9489b5f628c3fd7
-    Reviewed-on: https://go-review.googlesource.com/38604
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0f18992ea14e13f283873ac295f0b49d6b7dd8b2
+    Reviewed-on: https://go-review.googlesource.com/34191
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/compile/internal/gc/dcl.go        |  4 ++--
- src/cmd/compile/internal/gc/main.go       |  2 +-
- src/cmd/compile/internal/syntax/parser.go | 35 +++++++++++++++++--------------
- src/cmd/compile/internal/syntax/syntax.go |  5 +++--
- test/fixedbugs/bug217.go                  |  2 ++
- test/fixedbugs/issue18393.go              |  2 +-
- test/import5.go                           |  8 +++----
- 7 files changed, 32 insertions(+), 26 deletions(-)
+ doc/go1.8.html | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

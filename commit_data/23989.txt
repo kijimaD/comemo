@@ -1,15 +1,15 @@
-commit e38c801ad15aa1e6a23aa7c7862e81d4634a5066
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 6 08:59:05 2015 +1000
+commit 603dc4171aa23c57549ee03b2e3f9beb7403973f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 26 14:52:52 2015 -0700
 
-    A+C: add Andy Maloney
+    sync: don't run known-racy tests under the race detector
     
-    Fixes #10639
+    Fixes the build from https://golang.org/cl/4117 (sync: simplify WaitGroup)
     
-    Change-Id: I0aa3bcbf656e23e6a110041439f6052057074b88
-    Reviewed-on: https://go-review.googlesource.com/13270
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Icc2a7ba8acea26fd187d52cf1901bfebf8573f93
+    Reviewed-on: https://go-review.googlesource.com/11591
+    Reviewed-by: Austin Clements <austin@google.com>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/sync/export_test.go    | 2 ++
+ src/sync/waitgroup_test.go | 8 ++++++++
+ 2 files changed, 10 insertions(+)

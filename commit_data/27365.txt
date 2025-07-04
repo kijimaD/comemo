@@ -1,17 +1,18 @@
-commit 4d8031cf3c179d8682b62feae1d5a9109d14b382
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 10 15:09:23 2016 -0700
+commit 516c6b4085aa70552276ba5e15ed6da4497f0664
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Wed Mar 23 14:02:36 2016 +0200
 
-    net/http: make the MaxBytesReader.Read error sticky
+    cmd/link: Clean up Pcln struct
     
-    Fixes #14981
+    Removes unnecessary fields from Pcln.
     
-    Change-Id: I39b906d119ca96815801a0fbef2dbe524a3246ff
-    Reviewed-on: https://go-review.googlesource.com/23009
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I175049ca749b510eedaf65162355bc4d7a93315e
+    Reviewed-on: https://go-review.googlesource.com/21041
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/net/http/request.go      | 90 +++++++++++++++++++-------------------------
- src/net/http/request_test.go | 40 ++++++++++++++++++++
- 2 files changed, 79 insertions(+), 51 deletions(-)
+ src/cmd/link/internal/ld/deadcode.go |  2 +-
+ src/cmd/link/internal/ld/dwarf.go    |  2 +-
+ src/cmd/link/internal/ld/link.go     |  4 ----
+ src/cmd/link/internal/ld/objfile.go  |  3 ---
+ src/cmd/link/internal/ld/pcln.go     | 18 +++++++++---------
+ 5 files changed, 11 insertions(+), 18 deletions(-)

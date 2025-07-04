@@ -1,15 +1,16 @@
-commit 54b63f06478d390d69fc826a16ab19dc6b5d5503
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 18 21:50:22 2014 -0400
+commit 6e55f7a87b8400073119612c0a3bd3f443b69f14
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 12 09:15:58 2014 +1000
 
-    path/filepath: document that Glob ignores i/o errors
+    doc: link directly to https://golang.org/dl/
     
-    Fixes #8008.
+    Fixes #8705.
     
     LGTM=adg
-    R=golang-codereviews, nightlyone, adg
+    R=golang-codereviews, bradfitz, adg
     CC=golang-codereviews
-    https://golang.org/cl/138630045
+    https://golang.org/cl/142890044
 
- src/path/filepath/match.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.html     |  2 +-
+ doc/install.html | 14 ++++++--------
+ 2 files changed, 7 insertions(+), 9 deletions(-)

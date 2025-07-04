@@ -1,20 +1,20 @@
-commit acfab6870d4ac92cca77099411fb3ffddfea6e11
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Jan 8 14:55:08 2020 -0500
+commit 78e5288b5c720d996ea5132f1fa0348968ff0513
+Author: Andrew Medvedev <andrew.y.medvedev@gmail.com>
+Date:   Sat Sep 21 12:47:34 2019 +0000
 
-    cmd/go: convert TestBenchTimeout to the script framework
+    strings, bytes: clarify usage of EqualFolds
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    This clarifies meaning of "case folding" Unicode equality with more familiar "case insensitive" wording.
+    For case folding properties see ftp://ftp.unicode.org/Public/UNIDATA/CaseFolding.txt.
     
-    Updates #36320
-    Updates #17751
+    Fixes #33447
     
-    Change-Id: I5dc403726f4960482ed7c267d1a333bbcc260087
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213828
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I6ee85ab398679bf2a0b7d18693985ff0979d6c5a
+    GitHub-Last-Rev: accc9159330c61e046d77f77beac62b38bf72c19
+    GitHub-Pull-Request: golang/go#34434
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196717
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/go_test.go                                 |  8 --------
- src/cmd/go/testdata/script/test_benchmark_timeout.txt | 18 ++++++++++++++++++
- src/cmd/go/testdata/timeoutbench_test.go              | 10 ----------
- 3 files changed, 18 insertions(+), 18 deletions(-)
+ src/bytes/bytes.go     | 3 ++-
+ src/strings/strings.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

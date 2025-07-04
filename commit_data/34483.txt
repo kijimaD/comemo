@@ -1,26 +1,28 @@
-commit 0e8b7110f6db272e354c73cbf2357e2889be964d
-Author: Balaram Makam <bmakam.qdt@qualcommdatacenter.com>
-Date:   Mon Mar 5 15:51:54 2018 -0500
+commit 249b5cc9452534d677499c7017b1081533ba56fe
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 19 19:57:46 2017 -0400
 
-    cmd/compile/internal/ssa: inline small memmove for arm64
+    runtime: mark gcWork methods nowritebarrierrec
     
-    This patch enables the optimization for arm64 target.
+    Currently most of these are marked go:nowritebarrier as a hint, but
+    it's actually important that these not invoke write barriers
+    recursively. The danger is that some gcWork method would invoke the
+    write barrier while the gcWork is in an inconsistent state and that
+    the write barrier would in turn invoke some other gcWork method, which
+    would crash or permanently corrupt the gcWork. Simply marking the
+    write barrier itself as go:nowritebarrierrec isn't sufficient to
+    prevent this if the write barrier doesn't use the outer method.
     
-    Performance results on Amberwing for strconv benchmark:
-    name             old time/op  new time/op  delta
-    Quote             721ns ± 0%   617ns ± 0%  -14.40%  (p=0.016 n=5+4)
-    QuoteRune         118ns ± 0%   117ns ± 0%   -0.85%  (p=0.008 n=5+5)
-    AppendQuote       436ns ± 2%   321ns ± 0%  -26.31%  (p=0.008 n=5+5)
-    AppendQuoteRune  34.7ns ± 0%  28.4ns ± 0%  -18.16%  (p=0.000 n=5+4)
-    [Geo mean]        189ns        160ns       -15.41%
+    Thankfully, this doesn't cause any build failures, so we were getting
+    this right. :)
     
-    Change-Id: I5714c474e7483d07ca338fbaf49beb4bbcc11c44
-    Reviewed-on: https://go-review.googlesource.com/98735
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    For #22460.
+    
+    Change-Id: I35a7292a584200eb35a49507cd3fe359ba2206f6
+    Reviewed-on: https://go-review.googlesource.com/72554
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go |  2 +-
- test/codegen/movesmall.go               | 13 +++++++++++++
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/runtime/mgcwork.go | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)

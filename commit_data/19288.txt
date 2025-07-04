@@ -1,18 +1,16 @@
-commit 2e1ddeb136d3a74390f4e8ea28c6605cc6ab48b1
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed May 7 18:49:13 2014 +0400
+commit 8bc1bfb6bfeb27b64b3654af091227c89cd29300
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Wed May 7 05:58:36 2014 -0400
 
-    doc: replace absolute links to golang.org with relative links
-    Currently tip.golang.org leads to golang.org and
-    local godoc also leads to golang.org (when you don't have internet connectivity).
+    net/mail: propagate unsupported charset error
     
-    LGTM=crawshaw
-    R=golang-codereviews, crawshaw
+    Fixes #6807.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/100200043
+    https://golang.org/cl/95060043
 
- doc/effective_go.html | 4 ++--
- doc/go1.3.html        | 2 +-
- doc/go_faq.html       | 6 +++---
- doc/go_spec.html      | 2 +-
- 4 files changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/net/mail/message.go      | 8 ++++----
+ src/pkg/net/mail/message_test.go | 9 +++++++++
+ 2 files changed, 13 insertions(+), 4 deletions(-)

@@ -1,86 +1,16 @@
-commit d3df04cd8cf96db47d986cf3dcf3c7b2ba8238ea
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 16 16:52:26 2015 -0400
+commit d7aae33aef629bbc1ce95d901abdf8225740014e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Aug 16 12:20:31 2015 -0700
 
-    runtime: partition data and BSS root marking
+    doc: only the Logger.SetOutput method is new in Go 1.5
     
-    Currently data and BSS root marking are each a single markroot job.
-    This makes them difficult to load balance, which can draw out mark
-    termination time if they are large.
+    The SetOutput function has been there since Go 1.
     
-    Fix this by splitting both in to 256K chunks. While we're putting in
-    the infrastructure for dynamic roots, we also replace the fixed
-    sharding of the span roots with sharding in to fixed sizes. In
-    addition to helping balance root marking, this also paves the way to
-    parallelizing concurrent scan and to letting assists help with root
-    marking.
+    Fixes #12162.
     
-    Updates #10345. This fixes the data and BSS aspects of that bug; it
-    does not partition scanning of large heap objects.
-    
-    This has negligible effect on either the go1 benchmarks or the garbage
-    benchmark:
-    
-    name              old time/op  new time/op  delta
-    XBenchGarbage-12  4.90ms ± 1%  4.91ms ± 2%   ~     (p=0.058 n=17+16)
-    
-    name                      old time/op    new time/op    delta
-    BinaryTree17-12              3.11s ± 4%     3.12s ± 4%    ~     (p=0.512 n=20+20)
-    Fannkuch11-12                2.53s ± 2%     2.47s ± 2%  -2.28%  (p=0.000 n=20+18)
-    FmtFprintfEmpty-12          49.1ns ± 1%    50.0ns ± 4%  +1.68%  (p=0.008 n=18+20)
-    FmtFprintfString-12          170ns ± 0%     172ns ± 1%  +1.05%  (p=0.000 n=14+19)
-    FmtFprintfInt-12             174ns ± 1%     162ns ± 1%  -6.81%  (p=0.000 n=18+17)
-    FmtFprintfIntInt-12          284ns ± 1%     277ns ± 1%  -2.42%  (p=0.000 n=20+19)
-    FmtFprintfPrefixedInt-12     252ns ± 1%     244ns ± 1%  -2.84%  (p=0.000 n=18+20)
-    FmtFprintfFloat-12           317ns ± 0%     311ns ± 0%  -1.95%  (p=0.000 n=19+18)
-    FmtManyArgs-12              1.08µs ± 1%    1.11µs ± 1%  +3.43%  (p=0.000 n=18+19)
-    GobDecode-12                8.56ms ± 1%    8.61ms ± 1%  +0.50%  (p=0.020 n=20+20)
-    GobEncode-12                6.58ms ± 1%    6.57ms ± 1%    ~     (p=0.792 n=20+19)
-    Gzip-12                      317ms ± 3%     317ms ± 2%    ~     (p=0.840 n=19+19)
-    Gunzip-12                   41.6ms ± 0%    41.6ms ± 0%  +0.07%  (p=0.027 n=18+15)
-    HTTPClientServer-12         62.2µs ± 1%    62.3µs ± 1%    ~     (p=0.283 n=19+20)
-    JSONEncode-12               16.5ms ± 2%    16.5ms ± 1%    ~     (p=0.857 n=20+19)
-    JSONDecode-12               58.5ms ± 1%    61.3ms ± 1%  +4.67%  (p=0.000 n=18+17)
-    Mandelbrot200-12            3.84ms ± 0%    3.84ms ± 0%    ~     (p=0.259 n=17+17)
-    GoParse-12                  3.70ms ± 2%    3.74ms ± 2%  +0.96%  (p=0.009 n=19+20)
-    RegexpMatchEasy0_32-12       100ns ± 1%     100ns ± 0%  +0.31%  (p=0.040 n=19+15)
-    RegexpMatchEasy0_1K-12       340ns ± 1%     340ns ± 1%    ~     (p=0.411 n=17+19)
-    RegexpMatchEasy1_32-12      82.7ns ± 2%    82.3ns ± 1%    ~     (p=0.456 n=20+19)
-    RegexpMatchEasy1_1K-12       498ns ± 2%     495ns ± 0%    ~     (p=0.108 n=19+17)
-    RegexpMatchMedium_32-12      130ns ± 1%     130ns ± 2%    ~     (p=0.405 n=18+19)
-    RegexpMatchMedium_1K-12     39.4µs ± 2%    39.1µs ± 1%  -0.64%  (p=0.002 n=20+19)
-    RegexpMatchHard_32-12       2.03µs ± 2%    2.02µs ± 0%    ~     (p=0.561 n=20+17)
-    RegexpMatchHard_1K-12       61.1µs ± 2%    60.8µs ± 1%    ~     (p=0.615 n=19+18)
-    Revcomp-12                   532ms ± 2%     531ms ± 1%    ~     (p=0.470 n=19+19)
-    Template-12                 68.5ms ± 1%    69.1ms ± 1%  +0.87%  (p=0.000 n=17+17)
-    TimeParse-12                 344ns ± 2%     344ns ± 1%  +0.25%  (p=0.032 n=19+18)
-    TimeFormat-12                347ns ± 1%     362ns ± 1%  +4.27%  (p=0.000 n=17+19)
-    [Geo mean]                  62.3µs         62.3µs       -0.04%
-    
-    name                      old speed      new speed      delta
-    GobDecode-12              89.6MB/s ± 1%  89.2MB/s ± 1%  -0.50%  (p=0.019 n=20+20)
-    GobEncode-12               117MB/s ± 1%   117MB/s ± 1%    ~     (p=0.797 n=20+19)
-    Gzip-12                   61.3MB/s ± 3%  61.2MB/s ± 2%    ~     (p=0.834 n=19+19)
-    Gunzip-12                  467MB/s ± 0%   466MB/s ± 0%  -0.07%  (p=0.027 n=18+15)
-    JSONEncode-12              117MB/s ± 2%   117MB/s ± 1%    ~     (p=0.851 n=20+19)
-    JSONDecode-12             33.2MB/s ± 1%  31.7MB/s ± 1%  -4.47%  (p=0.000 n=18+17)
-    GoParse-12                15.6MB/s ± 2%  15.5MB/s ± 2%  -0.95%  (p=0.008 n=19+20)
-    RegexpMatchEasy0_32-12     321MB/s ± 2%   320MB/s ± 1%  -0.57%  (p=0.002 n=17+17)
-    RegexpMatchEasy0_1K-12    3.01GB/s ± 1%  3.01GB/s ± 1%    ~     (p=0.132 n=17+18)
-    RegexpMatchEasy1_32-12     387MB/s ± 2%   389MB/s ± 1%    ~     (p=0.423 n=20+19)
-    RegexpMatchEasy1_1K-12    2.05GB/s ± 2%  2.06GB/s ± 0%    ~     (p=0.129 n=19+17)
-    RegexpMatchMedium_32-12   7.64MB/s ± 1%  7.66MB/s ± 1%    ~     (p=0.258 n=18+19)
-    RegexpMatchMedium_1K-12   26.0MB/s ± 2%  26.2MB/s ± 1%  +0.64%  (p=0.002 n=20+19)
-    RegexpMatchHard_32-12     15.7MB/s ± 2%  15.8MB/s ± 1%    ~     (p=0.510 n=20+17)
-    RegexpMatchHard_1K-12     16.8MB/s ± 2%  16.8MB/s ± 1%    ~     (p=0.603 n=19+18)
-    Revcomp-12                 477MB/s ± 2%   479MB/s ± 1%    ~     (p=0.470 n=19+19)
-    Template-12               28.3MB/s ± 1%  28.1MB/s ± 1%  -0.85%  (p=0.000 n=17+17)
-    [Geo mean]                 100MB/s        100MB/s       -0.26%
-    
-    Change-Id: Ib0bfe0145675ce88c5a8791752f7486ac98805b4
-    Reviewed-on: https://go-review.googlesource.com/16043
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I66210374877581e42689f9943532141659a55ca7
+    Reviewed-on: https://go-review.googlesource.com/13637
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgc.go     |  21 ++++----
- src/runtime/mgcmark.go | 136 +++++++++++++++++++++++++++++++++++++++----------
- 2 files changed, 119 insertions(+), 38 deletions(-)
+ doc/go1.5.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

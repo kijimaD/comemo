@@ -1,23 +1,20 @@
-commit dcbbd319e9cdd44d50314818ec05672b60e8f8e7
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Thu Sep 15 07:39:19 2016 -0700
+commit b859a78e0a71d769274dac8cf0108bdf41ec55a5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat May 28 02:14:25 2016 -0700
 
-    compress/gzip: add examples
+    io: use SeekStart, SeekCurrent, and SeekEnd in io.Seeker documentation
     
-    Updates #16360.
+    The documentation previously used C style enumerations: 0, 1, 2.
+    While this is pretty much universally correct, it does not help a user
+    become aware of the existence of the SeekStart, SeekCurrent, and SeekEnd
+    constants. Thus, we should use them in the documentation to direct people's
+    attention to them.
     
-    Adds examples uing:
-    + Writer, Reader
-    + Reader.Multistream to concatenate and then
-    individually retrieve multiple gzipped files
-    + Reset
+    Updates #6885
     
-    Change-Id: I9ad9b92729a5cd58f7368eaf2db05f1cdf21063d
-    Reviewed-on: https://go-review.googlesource.com/29218
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I44b5e78d41601c68a0a1c96428c853df53981d52
+    Reviewed-on: https://go-review.googlesource.com/23551
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/compress/gzip/example_test.go | 128 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 128 insertions(+)
+ src/io/io.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

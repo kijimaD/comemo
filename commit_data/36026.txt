@@ -1,12 +1,20 @@
-commit 61a04474e265151500148172f0bee1e5381e6fbf
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 17 17:27:26 2018 -0400
+commit 9761a162f066911a76fb7b45c383490ca3bcdcc8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 29 06:31:38 2018 -0700
 
-    doc/go1.11: fix some typos
+    cmd/go: don't try to initialize cover profile for go test -c
     
-    Change-Id: I3c0cb9b56776d8cc78a96ef012385c31f9f0e146
-    Reviewed-on: https://go-review.googlesource.com/124516
-    Reviewed-by: Austin Clements <austin@google.com>
+    Using go test -c makes you responsible for managing and merging the
+    coverage profile yourself.
+    
+    Fixes #24588
+    
+    Change-Id: I2037a91ceb904f9f35d76c7b5e5fae6bcbed4e46
+    Reviewed-on: https://go-review.googlesource.com/103395
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.11.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go             | 11 +++++++++++
+ src/cmd/go/internal/test/cover.go |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

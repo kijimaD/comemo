@@ -1,13 +1,36 @@
-commit 9897655c615584c5a70b7a2d89028c014fc5f29b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jan 22 20:21:22 2021 -0800
+commit fed33d76bcf5d378f0322b308768d156239b0bfc
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 15 12:19:07 2020 -0400
 
-    doc/go1.16: reword ambiguously parsable sentence
+    cmd/compile: delay inlinable method compilation for -c=1
     
-    Change-Id: Idc54967e962352a598c9d4c563d1d9f51ec5c889
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285680
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    When the concurrent back end is not enabled, it is possible to have a
+    scenario where: we compile a specific inlinable non-pointer-receiver
+    method T.M, then at some point later on in the compilation we visit a
+    type that triggers generation of a pointer-receiver wrapper (*T).M,
+    which then results in an inline of T.M into (*T).M. This introduces
+    subtle differences in the DWARF as compared with when the concurrent
+    back end is enabled (in the concurrent case, by the time we run the
+    SSA back end on T.M is is marked as being inlined, whereas in the
+    non-current case it is not marked inlined).
+    
+    As a fix, at the point where we would normally compile a given
+    function in the xtop list right away, if the function is a method AND
+    is inlinable AND hasn't been inlined, then delay its compilation until
+    compileFunctions (so as to make sure that when we do compile it, all
+    possible inlining has been complete). In addition, make sure that
+    the abstract function symbol for the inlined function gets recorded
+    correctly.
+    
+    Fixes #38068.
+    
+    Change-Id: I57410ab5658bd4ee5b4b80750518e9b20fd6ba52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234178
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.16.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 25 +++++++++++++++++++++++--
+ src/cmd/internal/obj/objfile.go     |  8 ++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

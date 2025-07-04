@@ -1,23 +1,18 @@
-commit 9fd26872cb11e603fe91a927c22730061cc3ac0b
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Sat Sep 17 17:57:59 2011 +1000
+commit 44f12eb5ad7c08b8303ec2ab2f7013b675d725fa
+Author: Michael Shields <mshields@google.com>
+Date:   Fri Sep 16 20:30:54 2011 -0700
 
-    runtime: implement pprof support for windows
+    filepath: fix Glob to return no error on nonmatching patterns
     
-    Credit to jp for proof of concept.
+    filepath.Glob is documented to return nil if no files match
+    and an error only if the pattern is invalid.  This change
+    fixes it to work as documented and adds a regression test.
     
-    R=alex.brainman, jp, rsc, dvyukov
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4960057
+    https://golang.org/cl/5040045
 
- src/pkg/runtime/runtime.h              |   3 +
- src/pkg/runtime/windows/386/defs.h     |   4 ++
- src/pkg/runtime/windows/386/signal.c   |   6 +-
- src/pkg/runtime/windows/386/sys.s      |  43 +++++++++----
- src/pkg/runtime/windows/amd64/defs.h   |   4 ++
- src/pkg/runtime/windows/amd64/signal.c |   6 +-
- src/pkg/runtime/windows/amd64/sys.s    |  40 +++++++++---
- src/pkg/runtime/windows/defs.c         |   6 ++
- src/pkg/runtime/windows/os.h           |   4 +-
- src/pkg/runtime/windows/thread.c       | 110 ++++++++++++++++++++++++++++++++-
- 10 files changed, 192 insertions(+), 34 deletions(-)
+ src/pkg/path/filepath/match.go      |  2 +-
+ src/pkg/path/filepath/match_test.go | 10 ++++++++++
+ src/pkg/template/helper.go          |  6 +++++-
+ 3 files changed, 16 insertions(+), 2 deletions(-)

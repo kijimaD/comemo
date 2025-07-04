@@ -1,15 +1,12 @@
-commit dfdfba14b98591a45186a9e9182b71e7df816e2c
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Jan 18 22:25:17 2013 +0100
+commit e985d5464b45a116825603b0f72d07bbc7ae5ec5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jan 19 04:57:31 2013 +0800
 
-    cmd/gc: allow registerization of temporaries created by inlining.
+    time: add note about Parse()'s choice of default year
     
-    Names beginning with a dot are ignored by optimizers.
-    
-    R=rsc, lvd, golang-dev, dave
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/7098049
+    https://golang.org/cl/7101046
 
- src/cmd/gc/dcl.c | 4 ++--
- src/cmd/gc/inl.c | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/time/format.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

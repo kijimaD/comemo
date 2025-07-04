@@ -1,15 +1,12 @@
-commit 824b332652b94fea18d1e6cc42e75870b0185f5e
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Nov 1 20:52:30 2012 +0100
+commit 8fadb70cf8d8a2a10673cdcb1441104ce2e437cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 1 15:13:00 2012 -0400
 
-    net: fix race in TestReadWriteDeadline.
+    build: do not run race tests with cgo disabled
     
-    Discovered by adding OBLOCK support to race
-    instrumentation.
-    
-    R=golang-dev, minux.ma, rsc
+    R=dvyukov
     CC=golang-dev
-    https://golang.org/cl/6819067
+    https://golang.org/cl/6810067
 
- src/pkg/net/timeout_test.go | 4 ++--
+ src/run.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,41 +1,28 @@
-commit 0a338f75d4c64ba72cf586a28ec1a674c8b4bb77
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 30 15:23:14 2019 -0400
+commit fe2feb978e0c4324047f749c3fcfb9cecaafcfdc
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 17 13:45:14 2018 -0500
 
-    sort: simplify bootstrap
+    runtime: poison the write barrier buffer during flushing
     
-    We compile package sort as part of the compiler bootstrap,
-    to make sure the compiler uses a consistent sort algorithm
-    no matter what version of Go it is compiled against.
-    (This matters for elements that compare "equal" but are distinguishable.)
+    Currently we reset the write barrier buffer before processing the
+    pointers in it. As a result, if there were any write barriers in the
+    code that processes the buffer, it would corrupt the write barrier
+    buffer and cause us to mark objects without later scanning them.
     
-    Package sort was compiled in such a way as to disallow
-    sort.Slice entirely during bootstrap (at least with some compilers),
-    while cmd/internal/obj was compiled in such a way as to
-    make obj.SortSlice available to all compilers, precisely because
-    sort.Slice was not. This is all highly confusing.
-    Simplify by making sort.Slice available all the time.
+    As far as I can tell, this shouldn't be happening, but rather than
+    relying on hope (and incomplete static analysis), this CL changes
+    wbBufFlush1 to poison the write barrier buffer while processing it,
+    and only reset it once it's done.
     
-    Followup to CL 169137 and #30440
-    (and also CL 40114 and CL 73951).
+    Updates #27993. (Unlike many of the other changes for this issue,
+    there's no need to roll back this CL. It's a good change in its own
+    right.)
     
-    Change-Id: I127f4e02d6c71392805d256c3a90ef7c51f9ba0c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174525
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I6d2d9f1b69b89438438b9ee624f3fff9f009e29d
+    Reviewed-on: https://go-review.googlesource.com/c/154537
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/gc/iexport.go             |  6 +--
- src/cmd/compile/internal/gc/main.go                |  5 ++-
- src/cmd/compile/internal/gc/obj.go                 |  3 +-
- src/cmd/compile/internal/gc/pgen.go                |  2 +-
- src/cmd/compile/internal/types/sym_test.go         |  4 +-
- src/cmd/internal/obj/bootstrap.go                  | 34 ----------------
- src/cmd/internal/obj/objfile.go                    |  2 +-
- src/go/build/deps_test.go                          |  5 +--
- src/sort/slice.go                                  | 16 +++-----
- src/sort/slice_go113.go                            | 12 ++++++
- src/sort/slice_go14.go                             | 22 +++++++++++
- .../internal/obj/sort.go => sort/slice_go18.go}    | 11 +++---
- src/sort/slice_pre113.go                           | 46 ----------------------
- 13 files changed, 58 insertions(+), 110 deletions(-)
+ src/runtime/mwbbuf.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

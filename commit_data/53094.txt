@@ -1,26 +1,22 @@
-commit 956d31ecd50fa11b66e4ad39a30677acb5616476
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 17 12:26:05 2023 -0700
+commit b8bf820d5d4602f7e83ff89c0f8d0f2bd3a220d4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 11 13:32:40 2022 -0400
 
-    cmd/compile: enable more lenient type inference for untyped arguments
+    cmd/nm: don't rely on an erroneous install target in tests
     
-    This enables the implementation for proposal #58671, which is
-    a likely accept. By enabling it early we get a bit extra soak
-    time for this feature. The change can be reverted trivially, if
-    need be.
+    Non-main packages in module mode should not be installed to
+    GOPATH/pkg, but due to #37015 they were installed there anyway.
+    This change switches the 'go install' command in testGoLib to instead
+    use 'go build -buildmode=archive' with an explicit output file.
     
-    For #58671.
+    For #37015.
     
-    Change-Id: Id6c27515e45ff79f4f1d2fc1706f3f672ccdd1ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495955
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I15781aa33d1b2adc6a4437a58622276f4e20b889
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416955
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/noder/irgen.go        |  5 +++--
- src/cmd/compile/internal/types2/stdlib_test.go |  5 +++--
- src/go/types/stdlib_test.go                    |  1 +
- test/fixedbugs/issue58671.go                   | 19 +++++++++++++++++++
- 4 files changed, 26 insertions(+), 4 deletions(-)
+ src/cmd/nm/nm_test.go | 13 ++-----------
+ 1 file changed, 2 insertions(+), 11 deletions(-)

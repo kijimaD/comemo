@@ -1,12 +1,13 @@
-commit 6e3af46e7dbc74b44fa13ae0149bef4393efcacb
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 25 08:58:41 2012 -0800
+commit c93ca600eca4cee6dae2495772ae910eb768cec3
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Wed Jan 25 00:15:44 2012 -0800
 
-    gofmt: fix test.sh
+    os: pass tests on Plan 9 again
     
-    R=adg, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5573062
+    https://golang.org/cl/5563046
 
- src/cmd/gofmt/test.sh | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/os/file_plan9.go | 12 ++++++------
+ src/pkg/os/stat_plan9.go |  5 +++++
+ 2 files changed, 11 insertions(+), 6 deletions(-)

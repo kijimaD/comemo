@@ -1,15 +1,19 @@
-commit 11788aa6e06155431c346112f7e2725b9b49347b
+commit 42812a2feec29873aa6ee594d1355948e78e92a3
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 9 20:49:17 2022 -0800
+Date:   Tue Apr 27 12:54:39 2021 -0700
 
-    spec: adjust rules to use core or specific types as necessary
+    types2: disambiguate package qualifiers in error messages
     
-    Change-Id: I64280c1bb9608d7781514f237ac70c6abbfde9f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384754
+    This is a port of the go/types CL https://golang.org/cl/313035
+    with minor adjustments (use of package syntax rather than go/ast).
+    
+    Change-Id: I89410efb3d27be85fdbe827f966c2c91ee5693b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314410
     Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- doc/go_spec.html | 120 +++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 72 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/types2/check.go       | 21 ++++++++---
+ src/cmd/compile/internal/types2/errors.go      | 27 ++++++++++++-
+ src/cmd/compile/internal/types2/issues_test.go | 52 +++++++++++++++++++++++---
+ src/cmd/compile/internal/types2/resolver.go    |  6 ++-
+ 4 files changed, 94 insertions(+), 12 deletions(-)

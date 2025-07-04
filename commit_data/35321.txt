@@ -1,30 +1,70 @@
-commit 8af0c77df34a85ada2fe7f508ffaa0e337dddccb
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Apr 30 13:27:50 2018 +0100
+commit dd448957fd6de66d5866d0d71095c5af02a535ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 21 15:53:39 2017 -0800
 
-    cmd/compile: simplify shift lowering on s390x
+    go/types: correctly compute method set of some recursive interfaces
     
-    Use conditional moves instead of subtractions with borrow to handle
-    saturation cases. This allows us to delete the SUBE/SUBEW ops and
-    associated rules from the SSA backend. Using conditional moves also
-    means we can detect when shift values are masked so I've added some
-    new rules to constant fold the relevant comparisons and masking ops.
+    R=go1.11.
     
-    Also use the new shiftIsBounded() function to avoid generating code
-    to handle saturation cases where possible.
+    The existing algorithm for type-checking interfaces breaks down in
+    complex cases of recursive types, e.g.:
     
-    Updates #25167 for s390x.
+            package issue21804
     
-    Change-Id: Ief9991c91267c9151ce4c5ec07642abb4dcc1c0d
-    Reviewed-on: https://go-review.googlesource.com/110070
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+            type (
+                    _ interface{ m(B) }
+                    A interface{ a(D) }
+                    B interface{ A }
+                    C interface{ B }
+                    D interface{ C }
+            )
+    
+            var _ A = C(nil)
+    
+    The underlying problem is that the method set of C is computed by
+    following a chain of embedded interfaces at a point when the method
+    set for one of those interfaces is not yet complete. A more general
+    problem is largely avoided by topological sorting of interfaces
+    depending on their dependencies on embedded interfaces (but not
+    method parameters).
+    
+    This change fixes this problem by fundamentally changing how
+    interface method sets are computed: Instead of determining them
+    based on recursively type-checking embedded interfaces, the new
+    approach computes the method sets of interfaces separately,
+    based on syntactic structure and name resolution; and using type-
+    checked types only when readily available (e.g., for local types
+    which can at best refer to themselves, and imported interfaces).
+    
+    This approach avoids cyclic dependencies arising in the method
+    sets by separating the collection of embedded methods (which
+    fundamentally cannot have cycles in correct programs) and type-
+    checking of the method's signatures (which may have arbitrary
+    cycles).
+    
+    As a consequence, type-checking interfaces can rely on the
+    pre-computed method sets which makes the code simpler: Type-
+    checking of embedded interface types doesn't have to happen
+    anymore during interface construction since we already have
+    all methods and now is delayed to the end of type-checking.
+    Also, the topological sort of global interfaces is not needed
+    anymore.
+    
+    Fixes #18395.
+    
+    Change-Id: I0f849ac9568e87a32c9c27bbf8fab0e2bac9ebb1
+    Reviewed-on: https://go-review.googlesource.com/79575
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/s390x/ssa.go        |    7 -
- src/cmd/compile/internal/ssa/gen/S390X.rules |  177 +-
- src/cmd/compile/internal/ssa/gen/S390XOps.go |    5 -
- src/cmd/compile/internal/ssa/opGen.go        |   22 -
- src/cmd/compile/internal/ssa/rewriteS390X.go | 3477 ++++++++++++++++++++++----
- test/codegen/shift.go                        |   99 +
- 6 files changed, 3108 insertions(+), 679 deletions(-)
+ src/go/types/check.go             |  26 ++-
+ src/go/types/check_test.go        |   1 +
+ src/go/types/decl.go              |  14 +-
+ src/go/types/interfaces.go        | 440 ++++++++++++++++++++++++++++++++++++++
+ src/go/types/ordering.go          | 123 -----------
+ src/go/types/resolver.go          |  21 +-
+ src/go/types/testdata/cycles.src  |   4 +-
+ src/go/types/testdata/cycles4.src |  12 --
+ src/go/types/testdata/cycles5.src | 117 ++++++++++
+ src/go/types/testdata/decls0.src  |   4 +-
+ src/go/types/typexpr.go           | 225 +++++++++----------
+ 11 files changed, 723 insertions(+), 264 deletions(-)

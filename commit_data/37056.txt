@@ -1,20 +1,36 @@
-commit 9258c3f93c92d7b66abe84d2452ad1ce4d80ff7e
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 17:21:57 2018 +0200
+commit f451a318bbc8f8cc6afb5a6d2dcb2234924b6271
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Jun 22 11:00:13 2018 +0200
 
-    cmd/go: add AIX operating system
+    sync: fix deficiency in RWMutex race annotations
     
-    This commit adds AIX operating system to cmd/go package for ppc64
-    architecture.
+    Remove unnecessary race.Release annotation from Unlock.
     
-    Updates: #25893
+    For RWMutex we want to establish the following happens-before (HB) edges:
+    1. Between Unlock and the subsequent Lock.
+    2. Between Unlock and the subsequent RLock.
+    3. Between batch of RUnlock's and the subsequent Lock.
     
-    Change-Id: I2605d10a7833fa2eb197f6db4a52d5919cf93614
-    Reviewed-on: https://go-review.googlesource.com/c/138732
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    1 is provided by Release(&rw.readerSem) in Unlock and Acquire(&rw.readerSem) in Lock.
+    2 is provided by Release(&rw.readerSem) in Unlock and Acquire(&rw.readerSem) in RLock.
+    3 is provided by ReleaseMerge(&rw.writerSem) in RUnlock in Acquire(&rw.writerSem) in Lock,
+    since we want to establish HB between a batch of RUnlock's this uses ReleaseMerge instead of Release.
+    
+    Release(&rw.writerSem) in Unlock is simply not needed.
+    
+    FWIW this is also how C++ tsan handles mutexes, not a proof but at least something.
+    Making 2 implementations consistent also simplifies any kind of reasoning against both of them.
+    
+    Since this only affects performance, a reasonable test is not possible.
+    Everything should just continue to work but slightly faster.
+    
+    Credit for discovering this goes to Jamie Liu.
+    
+    Change-Id: Ice37d29ecb7a5faed3f7781c38dd32c7469b2735
+    Reviewed-on: https://go-review.googlesource.com/120495
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/base/signal_unix.go | 2 +-
- src/cmd/go/internal/work/exec.go        | 3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/sync/rwmutex.go | 1 -
+ 1 file changed, 1 deletion(-)

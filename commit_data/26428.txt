@@ -1,17 +1,12 @@
-commit 4402ee9fa3fd98e37d123e364209933c2c1685bb
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Mar 20 19:41:34 2016 -0400
+commit 7d8c8c07aa925a4eb38c3a831dfc4ceeeb40aebf
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sat Jan 23 04:57:21 2016 +0100
 
-    test: add s390x case to nosplit test
+    doc: missing words and letters in release notes
     
-    Fixes this test on s390x.
-    
-    Change-Id: Ie5b70e8191169867765ec9248d827ca12c6405f4
-    Reviewed-on: https://go-review.googlesource.com/20964
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ica7f2a000eb1d89d5b02cb8c6f1596ddc04bfb26
+    Reviewed-on: https://go-review.googlesource.com/18890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/nosplit.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go1.6.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

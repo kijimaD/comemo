@@ -1,38 +1,47 @@
-commit e4253cd023e77743ae11d79c4be3dd6db8138aa9
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Wed Mar 10 15:10:05 2021 -0600
+commit d9a6bdf7ef4d0dd15608427b0f7ba3c45c221a3c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 21 20:20:12 2020 -0700
 
-    cmd/link: Add section data slice to Archrelocvariant
+    cmd/compile: don't allow go:notinheap on the heap or stack
     
-    PPC64 needs to preserve bits when applying some relocations. DS form
-    relocations must preserve the lower two bits, and thus needs to inspect
-    the section data as it streams out.
+    Right now we just prevent such types from being on the heap. This CL
+    makes it so they cannot appear on the stack either. The distinction
+    between heap and stack is pretty vague at the language level (e.g. it
+    is affected by -N), and we don't need the flexibility anyway.
     
-    Similarly, the overflow checking requires inspecting the primary
-    opcode to see if the value is sign or zero extended.
+    Once go:notinheap types cannot be in either place, we don't need to
+    consider pointers to such types to be pointers, at least according to
+    the garbage collector and stack copying. (This is the big win of this
+    CL, in my opinion.)
     
-    The existing PPC64 code no longer works as the slice returned by
-    (loader*).Data is cleared as we layout the symbol and process
-    relocations.  This data is always the section undergoing relocation,
-    thus we can directly inspect the contents to preserve bits or
-    check for overflows.
+    The distinction between HasPointers and HasHeapPointer no longer
+    exists. There is only HasPointers.
     
-    Change-Id: I239211f7e5e96208673663b6553b3017adae7e01
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300555
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    This CL is cleanup before possible use of go:notinheap to fix #40954.
+    
+    Update #13386
+    
+    Change-Id: Ibd895aadf001c0385078a6d4809c3f374991231a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249917
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/link/internal/amd64/asm.go   |  2 +-
- src/cmd/link/internal/arm/asm.go     |  2 +-
- src/cmd/link/internal/arm64/asm.go   |  2 +-
- src/cmd/link/internal/ld/data.go     |  2 +-
- src/cmd/link/internal/ld/lib.go      |  2 +-
- src/cmd/link/internal/mips/asm.go    |  2 +-
- src/cmd/link/internal/mips64/asm.go  |  2 +-
- src/cmd/link/internal/ppc64/asm.go   | 15 ++++++++-------
- src/cmd/link/internal/riscv64/asm.go |  2 +-
- src/cmd/link/internal/s390x/asm.go   |  2 +-
- src/cmd/link/internal/x86/asm.go     |  2 +-
- 11 files changed, 18 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/gc/escape.go        |  3 +++
+ src/cmd/compile/internal/gc/pgen_test.go     | 10 +---------
+ src/cmd/compile/internal/gc/plive.go         | 14 +++++++-------
+ src/cmd/compile/internal/gc/range.go         |  2 +-
+ src/cmd/compile/internal/gc/walk.go          | 23 +++++++++++------------
+ src/cmd/compile/internal/ssa/decompose.go    |  2 +-
+ src/cmd/compile/internal/ssa/gen/dec.rules   |  4 ++--
+ src/cmd/compile/internal/ssa/nilcheck.go     |  2 +-
+ src/cmd/compile/internal/ssa/rewritedec.go   |  7 ++++---
+ src/cmd/compile/internal/ssa/writebarrier.go |  2 +-
+ src/cmd/compile/internal/types/type.go       | 24 ++++++------------------
+ src/runtime/export_test.go                   |  7 +++----
+ src/runtime/mgcmark.go                       |  3 ++-
+ src/runtime/mgcstack.go                      |  2 --
+ src/runtime/runtime2.go                      |  5 +----
+ test/notinheap2.go                           | 12 ++++++++++--
+ 16 files changed, 54 insertions(+), 68 deletions(-)

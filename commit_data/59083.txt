@@ -1,16 +1,18 @@
-commit 57c44fdefc818f90b98fa1d5c0cd0fccdc35edf8
-Author: Sean Liao <sean@liao.dev>
-Date:   Sat Mar 15 00:14:14 2025 +0000
+commit a18789041cb1cbb80def6f3fd05a11d353c9088b
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Feb 8 10:15:53 2024 +0800
 
-    html/template: document comment stripping
+    net: skip BenchmarkSendFile on Windows
     
-    Fixes #28628
+    Follow up CL 543276
     
-    Change-Id: I8b68f55f25e62f747d7cc48a490fec7f426f53d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/658115
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ie02cf8a489a069bb0a3be1d8636e30d0658329c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562595
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/html/template/doc.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/mockserver_test.go | 10 ++++++++++
+ src/net/sendfile_test.go   |  6 ++++++
+ 2 files changed, 16 insertions(+)

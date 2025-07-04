@@ -1,50 +1,29 @@
-commit 3fb3ca083c650b933919d3b6a45268fce339ac38
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Tue May 15 19:09:49 2018 +0300
+commit ecba3714a3291073a2cde989c255de568bd1d512
+Author: Peter Teichman <pteichman@fastly.com>
+Date:   Mon Feb 12 19:23:31 2018 +0000
 
-    mime: do a pre-allocation in encodeWord
+    image/gif: support non-looping animated gifs (LoopCount=-1)
     
-    The preallocated memory size is comparable to bytes.Buffer bootstraping
-    array length (bytes.Buffer was used before rewrite to strings.Builder).
+    The Netscape looping application extension encodes how many
+    times the animation should restart, and if it's present
+    there is no way to signal that a GIF should play only once.
     
-    Without preallocation, encodeWord does more than one allocation for
-    almost any possible input.
+    Use LoopCount=-1 to signal when a decoded GIF had no looping
+    extension, and update the encoder to omit that extension
+    block when LoopCount=-1.
     
-    The regression happens because bytes.Buffer did a 80-bytes allocation
-    at the beginning of encodeWord while strings.Builder did several
-    smaller allocations (started with cap=0).
+    Fixes #15768
     
-    Comparison with reported regression:
-    
-      name           old time/op    new time/op    delta
-      QEncodeWord-4     781ns ± 1%     593ns ± 1%  -24.08%  (p=0.008 n=5+5)
-    
-      name           old alloc/op   new alloc/op   delta
-      QEncodeWord-4      152B ± 0%       80B ± 0%  -47.37%  (p=0.008 n=5+5)
-    
-      name           old allocs/op  new allocs/op  delta
-      QEncodeWord-4      5.00 ± 0%      2.00 ± 0%  -60.00%  (p=0.008 n=5+5)
-    
-    Comparison with buffer solution (like before strings.Builder, but
-    without sync pool for buffer re-using):
-    
-      name           old time/op    new time/op    delta
-      QEncodeWord-4     595ns ± 1%     593ns ± 1%     ~     (p=0.460 n=5+5)
-    
-      name           old alloc/op   new alloc/op   delta
-      QEncodeWord-4      160B ± 0%       80B ± 0%  -50.00%  (p=0.008 n=5+5)
-    
-      name           old allocs/op  new allocs/op  delta
-      QEncodeWord-4      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
-    
-    We avoid allocation in buf.String(), as expected.
-    
-    Fixes #25379
-    
-    Change-Id: I19763f0e593a27390c1a549b86ce6507b489046b
-    Reviewed-on: https://go-review.googlesource.com/113235
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    GitHub-Last-Rev: 249744f0e28ef8907aa876070a102cb5493f5084
+    GitHub-Pull-Request: golang/go#23761
+    Change-Id: Ic915268505bf12bdad690b59148983a7d78d693b
+    Reviewed-on: https://go-review.googlesource.com/93076
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/encodedword.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/image/gif/reader.go      | 13 ++++++--
+ src/image/gif/reader_test.go | 71 ++++++++++++++++++++++++++++++++++----------
+ src/image/gif/writer.go      |  5 +---
+ 3 files changed, 66 insertions(+), 23 deletions(-)

@@ -1,16 +1,41 @@
-commit 11ec59a60e0d18e805b7f0c3a2c5ee8c10481877
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 31 20:41:12 2022 -0700
+commit f0c97219a3bc5f5c21863c68d4ccf2fb73002d8c
+Merge: 201d55e637 0e39cdc0e9
+Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
+Date:   Mon Jun 7 19:48:09 2021 +0000
 
-    unsafe: document that Sizeof includes field alignment
-    
-    Fixes #52018
-    
-    Change-Id: I6d06d5b5279b9bdc899b0ad43488577d3c0b94be
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/397516
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Merge "[dev.typeparams] all: merge master (8212707) into dev.typeparams" into dev.typeparams
 
- src/unsafe/unsafe.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.17.html                             |  36 ++++---
+ doc/go_spec.html                            |   6 +-
+ misc/cgo/errors/errors_test.go              |   3 +-
+ misc/cgo/errors/testdata/err2.go            |  12 +--
+ src/cmd/cgo/gcc.go                          |   2 +
+ src/cmd/cgo/out.go                          |  16 +++-
+ src/cmd/compile/internal/abi/abiutils.go    |   2 +-
+ src/cmd/compile/internal/noder/noder.go     |   3 -
+ src/cmd/compile/internal/typecheck/func.go  |  12 +++
+ src/cmd/compile/internal/types2/builtins.go |  10 ++
+ src/cmd/dist/test.go                        |  29 ++++--
+ src/cmd/link/cgo_test.go                    | 141 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/ar.go              |   4 +
+ src/cmd/link/internal/ld/config.go          |   6 +-
+ src/cmd/link/internal/ld/lib.go             |  26 ++++-
+ src/cmd/link/internal/ld/pe.go              |   2 +-
+ src/crypto/elliptic/elliptic.go             |   4 +-
+ src/crypto/tls/common.go                    |   2 +-
+ src/fmt/doc.go                              |   4 +-
+ src/go/internal/gcimporter/gcimporter.go    |  11 +--
+ src/go/internal/gcimporter/iimport.go       |  21 +++--
+ src/go/types/builtins.go                    |  10 ++
+ src/io/fs/sub.go                            |   6 +-
+ src/net/dnsclient_unix_test.go              |  39 ++++----
+ src/net/http/server.go                      |  40 ++------
+ src/net/http/sniff_test.go                  | 122 +++++++++++++++++++-----
+ src/os/exec_windows.go                      |  23 ++---
+ src/runtime/internal/sys/gengoos.go         |  16 ++--
+ src/runtime/proc.go                         |  10 +-
+ src/syscall/exec_windows.go                 |  54 +++++++++--
+ src/syscall/syscall_windows.go              |   1 +
+ src/syscall/zsyscall_windows.go             |   7 ++
+ test/fixedbugs/issue46525.go                |  14 +++
+ 33 files changed, 525 insertions(+), 169 deletions(-)

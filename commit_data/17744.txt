@@ -1,18 +1,15 @@
-commit 48ba6fe553a5480de8a5fd6da1ab7709c0becc3b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Oct 4 09:45:06 2013 +1000
+commit e59db90bfbdeb48ccd70e8c1d228f007f07906ca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 3 13:23:02 2013 -0700
 
-    doc: move spec and memory model back to /ref/
+    reflect: add a test that gccgo mishandled
+    
+    Failure occurred when using reflect.Call to pass a func value
+    following a non-pointer value.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/14364043
+    https://golang.org/cl/14186043
 
- doc/articles/wiki/index.html | 4 ++--
- doc/docs.html                | 4 ++--
- doc/effective_go.html        | 6 +++---
- doc/go1.1.html               | 6 +++---
- doc/go_faq.html              | 8 ++++----
- doc/go_mem.html              | 2 +-
- doc/go_spec.html             | 2 +-
- 7 files changed, 16 insertions(+), 16 deletions(-)
+ src/pkg/reflect/all_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

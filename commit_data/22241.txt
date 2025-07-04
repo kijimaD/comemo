@@ -1,14 +1,24 @@
-commit f8fd5502ecdba0f40d794d22f7eb14c9b471a773
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 31 06:16:40 2015 -0700
+commit ea7be5170a34d21fc5785522cddf7789ecaba557
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 1 22:02:13 2015 -0500
 
-    doc: add another go1.5.txt performance item, sort gc items
+    cmd/internal/ld, cmd/internal/obj: delete Ctxt.Endian
     
-    Change-Id: I9c2b9143d80d253d90d12d2b7686e045ec19c96c
-    Reviewed-on: https://go-review.googlesource.com/8291
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Replaced by Ctxt.ByteOrder, which uses the standard binary.ByteOrder type.
+    
+    Change-Id: I06cec0674c153a9ad75ff937f7eb934891effd0b
+    Reviewed-on: https://go-review.googlesource.com/6450
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/go1.5.txt | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/9l/asm.go                  | 15 ++++++++-------
+ src/cmd/internal/ld/arch.go        |  6 ------
+ src/cmd/internal/ld/elf.go         |  5 +++--
+ src/cmd/internal/ld/link.go        |  5 -----
+ src/cmd/internal/obj/arm/obj5.go   |  1 -
+ src/cmd/internal/obj/i386/obj8.go  |  1 -
+ src/cmd/internal/obj/link.go       |  6 ------
+ src/cmd/internal/obj/ppc64/asm9.go |  3 ++-
+ src/cmd/internal/obj/ppc64/obj9.go |  2 --
+ src/cmd/internal/obj/x86/obj6.go   |  2 --
+ 10 files changed, 13 insertions(+), 33 deletions(-)

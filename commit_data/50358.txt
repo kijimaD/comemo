@@ -1,25 +1,18 @@
-commit c82304b7129d7e675ff010d54f58d039235e4802
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Sep 6 12:54:54 2022 +0700
+commit d2ec73c1bfb556c5736f900a8e4a07e281450eb2
+Author: andig <cpuidle@gmx.de>
+Date:   Wed Oct 20 07:46:23 2021 +0000
 
-    cmd/compile: do not devirtualize defer/go calls
+    math/big: remove stray whitespace in addMulVVW on amd64
     
-    For defer/go calls, the function/method value are evaluated immediately.
-    So after devirtualizing, it may trigger a panic when implicitly deref
-    a nil pointer receiver, causing the program behaves unexpectedly.
+    Minor leftover from CL 74851.
     
-    It's safer to not devirtualizing defer/go calls at all.
-    
-    Fixes #52072
-    
-    Change-Id: I562c2860e3e577b36387dc0a12ae5077bc0766bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428495
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I1b56afcde3c505ba77a0f79e8ae9b01000362298
+    GitHub-Last-Rev: 87e97571a58d5eadd63a28226543aaf1510a7b02
+    GitHub-Pull-Request: golang/go#48942
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355629
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Alexander Rakoczy <alex@golang.org>
 
- .../compile/internal/devirtualize/devirtualize.go  | 20 ++++++++++++--
- test/fixedbugs/issue52072.go                       | 32 ++++++++++++++++++++++
- 2 files changed, 50 insertions(+), 2 deletions(-)
+ src/math/big/arith_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

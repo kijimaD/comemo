@@ -1,23 +1,18 @@
-commit ca3aefc4a96f2e26c7bed549a6c90b6f12c1ecea
-Author: David Chase <drchase@google.com>
-Date:   Mon Mar 29 20:14:51 2021 -0400
+commit 806f478499b57c5167fb5301101961b7563903d2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 9 16:25:48 2020 +0700
 
-    cmd/compile: make expandCalls preserve types of pointer stores
+    cmd/compile: don't report not enough args error if call is undefined
     
-    This is accomplished by checking for simple stores of pointer types
-    and leaving them alone.  The failure case was when a *mspan
-    (not in heap) stored type was replaced by unsafe.Pointer.
+    Fixes #38745
     
-    Updates #40724.
-    
-    Change-Id: I529e1705bf58fb0e64e60d48fd550b3a407e57e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305672
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I2fbd8b512a8cf911b81a087162c74416116efea5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253678
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 5 ++++-
- src/cmd/compile/internal/ssa/value.go        | 3 +++
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ test/ddd1.go                             | 2 +-
+ test/fixedbugs/issue38745.go             | 3 +--
+ 3 files changed, 3 insertions(+), 4 deletions(-)

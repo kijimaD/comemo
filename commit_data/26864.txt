@@ -1,15 +1,14 @@
-commit 921b2eba52906fc8b9bc4a8744dab63678f5ed3a
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Mon Mar 21 13:30:50 2016 -0400
+commit 50674532719cad7bbdbcce5027f3510633eeed73
+Author: nwidger <niels.widger@gmail.com>
+Date:   Sun Feb 28 08:51:06 2016 -0500
 
-    debug/gosym: accept PC quantum of 2 (for s390x)
+    doc: update release tag in source directions to go1.6
     
-    Needed for the header check to accept the header generated for
-    s390x as Go 1.2 style rather than Go 1.1 style.
+    Fixes #14371
     
-    Change-Id: I7b3713d4cc7514cfc58f947a45702348f6d7b824
-    Reviewed-on: https://go-review.googlesource.com/20966
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I8e9e4b2b89083f5a947e791c011912fdf365a11e
+    Reviewed-on: https://go-review.googlesource.com/19996
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/debug/gosym/pclntab.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/install-source.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

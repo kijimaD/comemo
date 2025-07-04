@@ -1,16 +1,17 @@
-commit ac0ee77d630c4a692b02cad630a61e974b0c52ce
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Thu Apr 28 19:01:48 2016 +1000
+commit 5305a329d8b6656d357d761afdd8067f61b1cad2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 15 15:00:57 2016 -0700
 
-    image/gif: be stricter on parsing graphic control extensions.
+    cmd/compile: turn off SSA internal consistency checks
     
-    See Section 23. Graphic Control Extension of the spec:
-    https://www.w3.org/Graphics/GIF/spec-gif89a.txt
+    They've been on for a few weeks of general use and nothing
+    has tripped up on them yet.
     
-    Change-Id: Ie78b4ff4aa97e1b332ade67ae4fa25f7c0770610
-    Reviewed-on: https://go-review.googlesource.com/22547
-    Reviewed-by: Rob Pike <r@golang.org>
+    Makes the compiler ~18% faster.
+    
+    Change-Id: I42d7bbc0581597f9cf4fb28989847814c81b08a2
+    Reviewed-on: https://go-review.googlesource.com/20741
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/image/gif/reader.go      | 6 ++++++
- src/image/gif/reader_test.go | 2 +-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/compile.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

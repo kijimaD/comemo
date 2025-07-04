@@ -1,14 +1,22 @@
-commit 67fb5530f07ae77a5e2fe6b8f5dcf3305e117460
-Author: Ghazni Nattarshah <ghazni.nattarshah@gmail.com>
-Date:   Wed Oct 23 22:09:25 2019 +0530
+commit eaa1c87b007ad4c19b09b5bd9fdd85a093075324
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 18 20:09:03 2018 +0000
 
-    crypto/x509: gofmt verify.go
+    runtime: remove periodic scavenging
     
-    Fixes #35052
+    This change removes the periodic scavenger which goes over every span
+    in the heap and scavenges it if it hasn't been used for 5 minutes. It
+    should no longer be necessary if we have background scavenging
+    (follow-up).
     
-    Change-Id: Ie7c52f39203cf16d8b53a333b591cffccdf7446a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202877
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #30333.
+    
+    Change-Id: Ic3a1a4e85409dc25719ba4593a3b60273a4c71e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/143157
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/x509/verify.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/mheap.go | 89 ++++++++++++++++++++--------------------------------
+ src/runtime/proc.go  | 22 -------------
+ 2 files changed, 34 insertions(+), 77 deletions(-)

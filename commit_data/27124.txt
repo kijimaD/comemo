@@ -1,25 +1,19 @@
-commit e4355aeedfdd6a68185c4551c889eb13823cd86d
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 20 11:17:41 2016 -0700
+commit 9d7b2b7b10fb30716c852b4dfe7e2c7350e7d0d7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 11 15:22:21 2016 -0800
 
-    cmd/compile: more sanity checks on rewrite rules
+    cmd/compile: move universe block code into new universe.go
     
-    Make sure ops have the right number of args, set
-    aux and auxint only if allowed, etc.
+    Move lexinit, typeinit, lexinit1, and lexfini into new universe.go
+    file, and give them a more idiomatic and descriptive API. No code
+    changes.
     
-    Normalize error reporting format.
-    
-    Change-Id: Ie545fcc5990c8c7d62d40d9a0a55885f941eb645
-    Reviewed-on: https://go-review.googlesource.com/22320
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I0e9b25dcc86ad10f4b990dc02bd33477b488cc85
+    Reviewed-on: https://go-review.googlesource.com/20604
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/check.go          |   8 ++
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  28 +++---
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   2 +-
- src/cmd/compile/internal/ssa/gen/ARMOps.go     |   6 +-
- src/cmd/compile/internal/ssa/gen/rulegen.go    | 122 +++++++++++++++++-------
- src/cmd/compile/internal/ssa/op.go             |   3 +-
- src/cmd/compile/internal/ssa/opGen.go          |  17 ++--
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 126 ++++++++++++++++++++++---
- src/cmd/compile/internal/ssa/rewritegeneric.go |  42 ---------
- 9 files changed, 236 insertions(+), 118 deletions(-)
+ src/cmd/compile/internal/gc/align.go    | 224 ---------------
+ src/cmd/compile/internal/gc/go.go       |   2 -
+ src/cmd/compile/internal/gc/main.go     | 226 +---------------
+ src/cmd/compile/internal/gc/universe.go | 464 ++++++++++++++++++++++++++++++++
+ 4 files changed, 466 insertions(+), 450 deletions(-)

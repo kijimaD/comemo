@@ -1,25 +1,13 @@
-commit 32a092a885c48a8a8798380ded7bf57f0a991a26
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 21 14:54:27 2014 -0700
+commit 404472e50b2430c3d67ce4544c02ee0c55cec95b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 13 15:50:06 2014 -0400
 
-    cmd/gofmt: remove testdata/*.gofmt files
+    [dev.power64] runtime: fix C prototype for cmallocgc
     
-    This files were added accidentally and are
-    not required for running the tests (they
-    are produced by failing tests for easier
-    debugging).
-    
-    LGTM=r
-    R=r
+    LGTM=minux
+    R=minux
     CC=golang-codereviews
-    https://golang.org/cl/131030044
+    https://golang.org/cl/122520043
 
- src/cmd/gofmt/testdata/stdin1.golden.gofmt |  3 ---
- src/cmd/gofmt/testdata/stdin1.input.gofmt  |  3 ---
- src/cmd/gofmt/testdata/stdin2.golden.gofmt | 10 ----------
- src/cmd/gofmt/testdata/stdin2.input.gofmt  | 11 -----------
- src/cmd/gofmt/testdata/stdin3.golden.gofmt |  7 -------
- src/cmd/gofmt/testdata/stdin3.input.gofmt  |  7 -------
- src/cmd/gofmt/testdata/stdin4.golden.gofmt |  3 ---
- src/cmd/gofmt/testdata/stdin4.input.gofmt  |  3 ---
- 8 files changed, 47 deletions(-)
+ src/pkg/runtime/malloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

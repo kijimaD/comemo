@@ -1,28 +1,22 @@
-commit f90f7e90b3239562c33252bb34354281696b9fdb
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 3 13:29:42 2024 -0700
+commit a37da52d75e7268943e4a9879736fd0c04998ddf
+Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+Date:   Fri Jul 14 07:49:03 2023 +0200
 
-    cmd: use built-in min/max instead of bespoke versions
+    math: enable huge argument tests on s390x
     
-    Now that we're bootstrapping from a toolchain that has min/max builtins.
+    new s390x assembly implementation of Sin/Cos/SinCos/Tan handle huge argument
+    test's.
     
-    Update #64751
+    Updates #29240
     
-    Change-Id: I63eedf3cca00f56f62ca092949cb2dc61db03361
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610355
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9f22d9714528ef2af52c749079f3727250089baf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509675
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/abt/avlint32.go      |  7 -------
- src/cmd/compile/internal/ssa/_gen/S390X.rules |  4 ++--
- src/cmd/compile/internal/ssa/likelyadjust.go  | 20 +++-----------------
- src/cmd/compile/internal/ssa/prove.go         | 10 +++++-----
- src/cmd/compile/internal/ssa/regalloc.go      | 17 ++---------------
- src/cmd/compile/internal/ssa/rewrite.go       | 27 ---------------------------
- src/cmd/compile/internal/ssa/rewriteS390X.go  |  8 ++++----
- src/cmd/compile/internal/ssagen/ssa.go        | 18 ++----------------
- src/cmd/dist/util.go                          |  7 -------
- 9 files changed, 18 insertions(+), 100 deletions(-)
+ src/math/huge_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

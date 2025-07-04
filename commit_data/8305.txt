@@ -1,15 +1,16 @@
-commit 86e6a44112d91946cd973b1eb4f73c943ec8b152
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 3 10:38:37 2011 -0400
+commit 8ef56f7e92445327c93e1ac7e71aa87a4f69f0f0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 3 07:10:48 2011 -0700
 
-    reflect: allow unexported key in Value.MapIndex
+    net: don't crash on unexpected DNS SRV responses
     
-    Fixes #1748.
+    Fixes #1350
     
-    R=golang-dev, r
+    R=rsc, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4444087
+    https://golang.org/cl/4432089
 
- src/pkg/reflect/all_test.go | 18 ++++++++++++++++++
- src/pkg/reflect/value.go    |  9 +++++++--
- 2 files changed, 25 insertions(+), 2 deletions(-)
+ src/pkg/net/dnsclient.go   |  28 ++++++-------
+ src/pkg/net/dnsmsg.go      |  35 ++++++++++------
+ src/pkg/net/dnsmsg_test.go | 100 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 137 insertions(+), 26 deletions(-)

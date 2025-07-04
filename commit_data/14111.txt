@@ -1,26 +1,15 @@
-commit 21b2ce724aa1310b3efb2f722d4a647be770e835
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Oct 10 18:09:23 2012 +0400
+commit f04ae1373eb75fc63a35b81f7d1b3d5867523279
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 10 13:29:50 2012 +1100
 
-    cmd/gc: fix compiler crash during race instrumentation
-    The compiler is crashing on the following code:
+    spec: clarify defer semantics
+    It's already there but only in the "for instance" and so not
+    clear enough: deferred functions run after
+    the result parameters are updated.
     
-    type TypeID int
-    func (t *TypeID) encodeType(x int) (tt TypeID, err error) {
-            switch x {
-            case 0:
-                    return t.encodeType(x * x)
-            }
-            return 0, nil
-    }
-    The pass marks "return struct" {tt TypeID, err error} as used,
-    and this causes internal check failure.
-    I've added the test to:
-    https://golang.org/cl/6525052/diff/7020/src/pkg/runtime/race/regression_test.go
-    
-    R=golang-dev, minux.ma, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6611049
+    https://golang.org/cl/6631058
 
- src/cmd/gc/racewalk.c | 34 +++++++++++++++++++++-------------
- 1 file changed, 21 insertions(+), 13 deletions(-)
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

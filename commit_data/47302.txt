@@ -1,20 +1,37 @@
-commit 90462dfc3aa99649de90bb587af56a9cb0214665
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Tue Nov 2 23:17:21 2021 +0800
+commit 1811aeae66bee899317403c92c83b56673919775
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Mar 5 22:07:56 2021 -0800
 
-    time: fix looking for zone offset when date is close to a zone transition
+    cmd/compile:  deal with helper generic types that add methods to T
     
-    The old implement passed start - 1 or end in func lookup to adjust the offset.But if the time is close to the last zoneTrans, like the issue, testcase and comment, the "start" from lookup will be omega. It can't be adjusted correctly.
+    Deal with cases like: 'type P[T any] T' (used to add methods to an
+    arbitrary type T), In this case, P[T] has kind types.TTYPEPARAM (as does
+    T itself), but requires more code to substitute than a simple TTYPEPARAM
+    T. See the comment near the beginning of subster.typ() in stencil.go.
     
-    Fixes #49284
+    Add new test absdiff.go. This test has a case for complex types (which
+    I've commented out) that will only work when we deal better with Go
+    builtins in generic functions (like real and imag).
     
-    Change-Id: Ibaf82dc4db6d5dd3279796f003d2b19c38a26341
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360616
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Remove change in fmt.go for TTYPEPARAMS that is no longer needed (since
+    all TTYPEPARAMS have a sym) and was sometimes causing an extra prefix
+    when formatting method names.
+    
+    Separate out the setting of a TTYPEPARAM bound, since it can reference
+    the TTYPEPARAM being defined, so must be done separately. Also, we don't
+    currently (and may not ever) need bounds after types2 typechecking.
+    
+    Change-Id: Id173057e0c4563b309b95e665e9c1151ead4ba77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300049
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/time/time.go      | 14 +++++++-------
- src/time/time_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go | 29 ++++++++-
+ src/cmd/compile/internal/noder/types.go   |  9 ++-
+ src/cmd/compile/internal/types/fmt.go     |  2 +-
+ src/cmd/compile/internal/types/type.go    |  7 +--
+ test/typeparam/absdiff.go                 | 99 +++++++++++++++++++++++++++++++
+ 5 files changed, 138 insertions(+), 8 deletions(-)

@@ -1,19 +1,20 @@
-commit 82020f865991ec352a401bd6d320044ab83e03cc
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Wed Jun 17 14:48:03 2015 +0200
+commit 12f980bc85c1ded76ba8b861b5ec4a50146f868f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 13 14:18:12 2015 -0700
 
-    image/gif: return an error on missing palette
+    [dev.ssa] cmd/internal/ssa: delete ssac
     
-    A frame that tries to use the global palette when it has
-    not been given should result in an error, not an image
-    with no palette at all.
+    We don't need this standalone tool any more.  We can now feed the
+    ssa compiler directly from the Go frontend.
     
-    Fixes #11150.
-    
-    Change-Id: If0c3a201a0ac977eee2b7a5dc68930c0c5787f40
-    Reviewed-on: https://go-review.googlesource.com/11064
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: I922f1e061c2d3db6bf77acc137d4d1fc7dc86c0d
+    Reviewed-on: https://go-review.googlesource.com/10034
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/image/gif/reader.go      | 3 +++
- src/image/gif/reader_test.go | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/internal/ssa/ssac/.gitignore   |   1 -
+ src/cmd/internal/ssa/ssac/fib.goir     |  47 ----
+ src/cmd/internal/ssa/ssac/fibiter.goir |  62 -----
+ src/cmd/internal/ssa/ssac/main.go      | 439 ---------------------------------
+ src/cmd/internal/ssa/ssac/sexpr.go     |  82 ------
+ src/cmd/internal/ssa/ssac/sparsemap.go |  69 ------
+ 6 files changed, 700 deletions(-)

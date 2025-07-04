@@ -1,14 +1,30 @@
-commit 61e963e9c649714a88433d50afa679ec91e05e33
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Feb 11 14:22:33 2017 -0800
+commit 6da83c6fc006019f6fe0503099d165e19f465b1b
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 8 18:38:35 2016 -0400
 
-    testing: fix copy/paste in docs
+    runtime, cmd/trace: track goroutines blocked on GC assists
     
-    Follow-up to CL 36791.
+    Currently when a goroutine blocks on a GC assist, it emits a generic
+    EvGoBlock event. Since assist blocking events and, in particular, the
+    length of the blocked assist queue, are important for diagnosing GC
+    behavior, this commit adds a new EvGoBlockGC event for blocking on a
+    GC assist. The trace viewer uses this event to report a "waiting on
+    GC" count in the "Goroutines" row. This makes sense because, unlike
+    other blocked goroutines, these goroutines do have work to do, so
+    being blocked on a GC assist is quite similar to being in the
+    "runnable" state, which we also report in the trace viewer.
     
-    Change-Id: I1c4831e5dfe90c205782e970ada7faff8a009daa
-    Reviewed-on: https://go-review.googlesource.com/36890
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic21a326992606b121ea3d3d00110d8d1fdc7a5ef
+    Reviewed-on: https://go-review.googlesource.com/30704
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/testing/benchmark.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/trace/pprof.go           |  2 +-
+ src/cmd/trace/trace.go           | 14 +++++++++++---
+ src/internal/trace/goroutines.go |  4 ++++
+ src/internal/trace/order.go      |  3 ++-
+ src/internal/trace/parser.go     |  8 +++++---
+ src/runtime/mgcmark.go           |  2 +-
+ src/runtime/trace.go             |  3 ++-
+ 7 files changed, 26 insertions(+), 10 deletions(-)

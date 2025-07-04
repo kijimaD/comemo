@@ -1,16 +1,14 @@
-commit df6aedb630b3c79ff50147a85278a17702dcff1f
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 20 21:35:02 2018 -0400
+commit 545ef1103712dda49542709d48ce030addecb8e7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 23 10:52:16 2018 -0700
 
-    cmd/go: fix list -compiled of package with only tests
+    cmd/compile: remove toolstash workaround in bexport.go
     
-    Fixes #27097.
-    
-    Change-Id: I6aa48a1c58a21fd320b0e9dcd1f86c90172f0182
-    Reviewed-on: https://go-review.googlesource.com/130139
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie4facdcab4b35cf7d350c4b8fa06a3c5a0c6caeb
+    Reviewed-on: https://go-review.googlesource.com/108875
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/list/list.go             |  4 +++-
- src/cmd/go/testdata/script/mod_list_test.txt | 16 ++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

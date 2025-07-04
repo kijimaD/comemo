@@ -1,23 +1,15 @@
-commit 2ae1e1ae2f8726057914f26d5360c3403b8f049a
-Author: Austin Clements <austin@google.com>
-Date:   Wed Nov 15 14:54:24 2017 -0800
+commit 2e405bde03c7aec0e4fadcb9490e14f4dd8425b7
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Oct 4 00:02:37 2017 -0400
 
-    runtime: buffered write barrier for s390x
+    doc: update contribute.html to clarify replying to reviews via email
     
-    Updates #22460.
+    Update golang/go#22120
     
-    Change-Id: I3f793e69577c1b837ad2666e6209a97a452405d4
-    Reviewed-on: https://go-review.googlesource.com/92703
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie7dbd0e7b01b116c960243a8cd3fa9fd121f317d
+    Reviewed-on: https://go-review.googlesource.com/68021
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/cmd/compile/internal/gc/main.go          |  2 +-
- src/cmd/compile/internal/s390x/ssa.go        |  5 +++
- src/cmd/compile/internal/ssa/gen/S390X.rules |  3 ++
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  6 +++
- src/cmd/compile/internal/ssa/opGen.go        | 15 +++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go | 20 +++++++++
- src/cmd/vet/all/whitelist/s390x.txt          |  2 +
- src/runtime/asm_s390x.s                      | 66 ++++++++++++++++++++++++++++
- 8 files changed, 118 insertions(+), 1 deletion(-)
+ doc/contribute.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

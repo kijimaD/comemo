@@ -1,17 +1,15 @@
-commit d35035f84e5dbe4c740d3f338ba89b41a00e270e
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 14:00:14 2021 -0400
+commit cc386bd05ad8076f1d7e5a4d9a13c1276fd26ac6
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Fri Dec 4 01:09:13 2020 +0100
 
-    go/types: use the orig object for Named.Obj
+    doc/go1.16: fix broken <code> tag
     
-    This is a port of CL 341858 to go/types.
+    For #40700
     
-    Change-Id: I9fba8941069aaacd641a19e3068de3a769e14e50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342482
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I0083db494284d6142e1b8b981fca4ac30af2012a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275312
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
 
- src/go/types/named.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

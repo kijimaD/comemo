@@ -1,19 +1,36 @@
-commit ccb70bd19c44b90ef4030c6399c884f82a12bc68
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Thu Aug 23 00:02:24 2018 +0200
+commit 0fd427fda70d635a526efc8cf40251718e5a45bf
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 25 16:53:04 2018 -0400
 
-    context: don't talk about tools that don't exist
+    runtime: use entry stack map at function entry
     
-    This comment has been the source of much confusion and broken dreams. We
-    can add it back if a tool ever gets released.
+    Currently, when the runtime looks up the stack map for a frame, it
+    uses frame.continpc - 1 unless continpc is the function entry PC, in
+    which case it uses frame.continpc. As a result, if continpc is the
+    function entry point (which happens for deferred frames), it will
+    actually look up the stack map *following* the first instruction.
     
-    Updates #16742
+    I think, though I am not positive, that this is always okay today
+    because the first instruction of a function can never change the stack
+    map. It's usually not a CALL, so it doesn't have PCDATA. Or, if it is
+    a CALL, it has to have the entry stack map.
     
-    Change-Id: I4b9c179b7c60274e6ff1bcb607b82029dd9a893f
-    Reviewed-on: https://go-review.googlesource.com/130876
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    But we're about to start emitting stack maps at every instruction that
+    changes them, which means the first instruction can have PCDATA
+    (notably, in leaf functions that don't have a prologue).
+    
+    To prepare for this, tweak how the runtime looks up stack map indexes
+    so that if continpc is the function entry point, it directly uses the
+    entry stack map.
+    
+    For #24543.
+    
+    Change-Id: I85aa818041cd26aff416f7b1fba186e9c8ca6568
+    Reviewed-on: https://go-review.googlesource.com/109349
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/context/context.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/runtime/heapdump.go | 3 ++-
+ src/runtime/mbitmap.go  | 3 ++-
+ src/runtime/mgcmark.go  | 7 ++++++-
+ src/runtime/stack.go    | 3 ++-
+ 4 files changed, 12 insertions(+), 4 deletions(-)

@@ -1,17 +1,16 @@
-commit 58a9268f265843e2720adbcbdaf0bc1d367046a1
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Feb 20 07:59:38 2014 +0100
+commit 3e37720bcebefe87459a7dd8f41164c0e2cfa4bc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 19 17:17:36 2014 -0800
 
-    os: fix Rename on Plan 9
+    syscall: terminate error string in exec package on Plan 9
+    Try to prevent messages like this:
+            './pack' file does not exist����������������������������������������������������������������������������������������������������
+    TBR=adonovan
     
-    Rename should fail when the directory doesn't match.
-    It will fix the newly introduced test from cmd/pack
-    on Plan 9.
-    
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=adonovan
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/65270044
+    https://golang.org/cl/66270043
 
- src/pkg/os/file_plan9.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/syscall/exec_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,28 +1,26 @@
-commit bc3bdfa977628cfa2c6079eef71fab3e8d923d59
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu May 4 09:42:58 2023 -0500
+commit 394ea70cc925ab59b6c1a3d41accbc5613c71e3b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 24 10:24:05 2022 -0700
 
-    test: add memcombine testcases for ppc64
+    [dev.unified] cmd/compile: more Unified IR docs and review
     
-    Thanks to the recent addition of the memcombine pass, the
-    ppc64 ports now have the memcombine optimizations. Previously
-    in PPC64.rules, the memcombine rules were only added for
-    ppc64le targets due to the significant increase in size of
-    the rewritePPC64.go file when those rules were added. The
-    ppc64 and ppc64le rules had to be different because of the
-    byte order due to endianness differences.
+    This adds more documentation throughout the core Unified IR logic and
+    removes their UNREVIEWED notices.
     
-    This enables the memcombine tests to be run on ppc64 as well
-    as ppc64le.
+    Updates #48194.
     
-    Change-Id: I4081e2d94617a1b66541d536c0c2662e266c9c1e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492615
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Iddd30edaee1c6ea8a05a5a7e013480e02be00d29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411917
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- test/codegen/memcombine.go | 99 ++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 95 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/noder/codes.go   |   5 +-
+ src/cmd/compile/internal/noder/linker.go  |  24 +++-
+ src/cmd/compile/internal/noder/quirks.go  |  10 +-
+ src/cmd/compile/internal/noder/reader.go  |  84 ++++++++------
+ src/cmd/compile/internal/noder/unified.go |   6 +-
+ src/cmd/compile/internal/noder/writer.go  | 181 +++++++++++++++++++++++++-----
+ 6 files changed, 241 insertions(+), 69 deletions(-)

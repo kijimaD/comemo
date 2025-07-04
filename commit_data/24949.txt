@@ -1,29 +1,12 @@
-commit 8d2f60f8a8d060f9ffa4af378881cffba9f0af30
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Nov 16 18:11:35 2015 -0800
+commit 4779974314455f2b98db5a4526cffe786b566236
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 10 13:53:42 2015 -0700
 
-    cmd/link: add -libgcc option
+    doc: in go1.6.txt, small changes to fmt and time
     
-    An internal link may need the C compiler support library, libgcc.a.  Add
-    a -libgcc option to set the name of the compiler support library.  If
-    -libgcc is not used, run the compiler to find it.  Permit -libgcc=none
-    to skip using libgcc at all and hope for the best.
-    
-    Change cmd/dist to not copy libgcc into the distribution.  Add tests to
-    ensure that all the standard packages that use cgo can be linked in
-    internal mode without using libgcc.  This ensures that somebody with a
-    Go installation without a C compiler can build programs.
-    
-    Change-Id: I8ba35fb87ab0dd20e5cc0166b5f4145b04ce52a4
-    Reviewed-on: https://go-review.googlesource.com/16993
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ie86b703407f0f655a4552dd6e03df5f263be43db
+    Reviewed-on: https://go-review.googlesource.com/14492
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/build.go            | 49 --------------------------------
- src/cmd/dist/test.go             | 28 ++++++++++++++++++
- src/cmd/link/doc.go              |  6 ++++
- src/cmd/link/internal/ld/ar.go   |  3 ++
- src/cmd/link/internal/ld/lib.go  | 61 +++++++++++++++++++++++++++++-----------
- src/cmd/link/internal/ld/pobj.go |  1 +
- src/go/build/deps_test.go        |  2 ++
- 7 files changed, 84 insertions(+), 66 deletions(-)
+ doc/go1.6.txt | 2 ++
+ 1 file changed, 2 insertions(+)

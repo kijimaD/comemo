@@ -1,23 +1,13 @@
-commit 5ddd3d588c589ae644cadd2d8e5341669dae888e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Oct 14 08:46:50 2017 -0700
+commit a0ba7363c2118ad74891ff17c2d28ace25a0ceba
+Author: Kate Manson <kate.manson@izettle.com>
+Date:   Sat Jul 15 12:07:55 2017 -0600
 
-    runtime: fix use of STREX in various exitThread implementations
+    strings: add example for ContainsRune
     
-    STREX does not permit using the same register for the value to store
-    and the place where the result is returned. Also the code was wrong
-    anyhow if the first store failed.
-    
-    Fixes #22248
-    
-    Change-Id: I96013497410058514ffcb771c76c86faa1ec559b
-    Reviewed-on: https://go-review.googlesource.com/70911
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I994f003c97a14d194df5f07dd217c0ff3b214741
+    Reviewed-on: https://go-review.googlesource.com/48874
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
 
- src/runtime/sys_darwin_arm.s  | 4 ++--
- src/runtime/sys_freebsd_arm.s | 4 ++--
- src/runtime/sys_netbsd_arm.s  | 4 ++--
- src/runtime/sys_openbsd_arm.s | 4 ++--
- 4 files changed, 8 insertions(+), 8 deletions(-)
+ src/strings/example_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

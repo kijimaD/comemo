@@ -1,15 +1,22 @@
-commit c2ea4122965373610f3521f1de689f6955c5da6b
+commit 5353e1ef9673e2fb0604aa30549ff04d25e4837b
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 6 09:20:59 2012 +1100
+Date:   Fri Jan 6 09:20:31 2012 +1100
 
-    goinstall: use correct checkout URL for Google Code svn repos
+    doc: trim spaces from code snippets
     
-    Fixes #2655.
+    gofmt likes to put lines like
+      // STOP OMIT
+    two blank lines from a closing brace, creating an ugly space inside
+    <pre> blocks in some of these files. This change resolves this issue.
     
-    R=golang-dev, gri
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5510045
+    https://golang.org/cl/5520044
 
- src/cmd/goinstall/download.go      | 10 +++++++---
- src/cmd/goinstall/download_test.go |  2 +-
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ doc/articles/defer_panic_recover.html |  18 ++---
+ doc/articles/error_handling.html      |  70 +++++++----------
+ doc/effective_go.html                 |  12 +--
+ doc/go1.html                          |  48 +++++-------
+ doc/go_tutorial.html                  | 137 ++++++++++++----------------------
+ doc/tmpltohtml.go                     |   2 +
+ 6 files changed, 102 insertions(+), 185 deletions(-)

@@ -1,19 +1,20 @@
-commit 3387be0eb1794307565cfabf440c5e82332d38c4
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Oct 28 14:24:10 2024 +0100
+commit ffc4ccea07cf497c99849f92b196d5c24e1612b7
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Aug 30 05:09:56 2023 +0000
 
-    cmd: use internal/syscall/windows to get Windows version
+    cmd/compile/internal/types2: use strings.ReplaceAll for goTypeName
     
-    internal/syscall/windows already provides a function to get the Windows
-    version. There is no need to use golang.org/x/sys/windows for this.
+    strings.ReplaceAll is currently available.
     
-    Change-Id: If31e9c662b10716ed6c3e9054604366e494345cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622815
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: I111b97f12723c97791b59d81fd035a0d5e97cd4b
+    GitHub-Last-Rev: 561dbab6d22df42636f34a53a97c2f52b9138f3e
+    GitHub-Pull-Request: golang/go#62369
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524157
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/telemetrystats/version_windows.go | 11 +++++------
- src/cmd/internal/osinfo/os_windows.go                 |  7 +++----
- src/internal/syscall/windows/version_windows.go       |  8 ++++----
- 3 files changed, 12 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/types2/typexpr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

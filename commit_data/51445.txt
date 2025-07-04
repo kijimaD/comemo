@@ -1,19 +1,17 @@
-commit 920f87adda5412a41036a862cf2139bed24aa533
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 23 16:13:34 2022 -0500
+commit 38cf79526a5859fb6363e607b2277ab442b28dcb
+Author: doujiang24 <doujiang24@gmail.com>
+Date:   Sun Jan 30 06:16:03 2022 +0000
 
-    crypto/rsa: remove deprecation markers for multiprime RSA support
+    runtime: mgcmark.go typo fix: gorountine -> goroutine.
     
-    These should be marked deprecated, but that needs a
-    (likely quick) proposal review.
-    
-    The proposal is #56921.
-    
-    Change-Id: I013a913a7f5196a341e2dd5f49c2687c26ee8331
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453257
+    Change-Id: I5cd980a7c825619cc782a3bca2a1c9c7971fdca2
+    GitHub-Last-Rev: 6833eedf2dab77f7263f9803839a64b79f57e43e
+    GitHub-Pull-Request: golang/go#50910
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381959
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/crypto/rsa/rsa.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

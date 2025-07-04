@@ -1,26 +1,24 @@
-commit 5b93fc9da67d59159e8c30494136c9761e350c1f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 8 10:33:54 2012 -0500
+commit fff732ea2c4d3cb449c4383a6957ff80ca75c70a
+Author: Jamie Gennis <jgennis@google.com>
+Date:   Wed Feb 8 10:25:13 2012 -0500
 
-    runtime, pprof: add profiling of thread creation
+    6g,8g: make constant propagation inlining-friendly.
     
-    Same idea as heap profile: how did each thread get created?
-    Low memory (256 bytes per OS thread), high reward for
-    programs that suddenly have many threads running.
+    This changes makes constant propagation compare 'from' values using node
+    pointers rather than symbol names when checking to see whether a set
+    operation is redundant. When a function is inlined multiple times in a
+    calling function its arguments will share symbol names even though the values
+    are different. Prior to this fix the bug409 test would hit a case with 6g
+    where an LEAQ instruction was incorrectly eliminated from the second inlined
+    function call. 8g appears to have had the same bug, but the test did not fail
+    there.
     
-    Fixes #1477.
-    
-    R=golang-dev, r, dvyukov
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5639059
+    https://golang.org/cl/5646044
 
- src/cmd/dist/build.c            |   6 +++
- src/cmd/prof/pprof              | 103 ++++++++++++++++++++++++++++++----------
- src/pkg/net/http/pprof/pprof.go |  16 ++++++-
- src/pkg/runtime/Makefile        |  40 +---------------
- src/pkg/runtime/debug.go        |  26 ++++++++++
- src/pkg/runtime/mprof.goc       |  27 ++++++++++-
- src/pkg/runtime/pprof/pprof.go  |  38 +++++++++++++++
- src/pkg/runtime/proc.c          |  16 ++++---
- src/pkg/runtime/runtime.h       |   1 +
- 9 files changed, 198 insertions(+), 75 deletions(-)
+ src/cmd/6g/peep.c         |  2 +-
+ src/cmd/8g/peep.c         |  2 +-
+ test/fixedbugs/bug409.go  | 20 ++++++++++++++++++++
+ test/fixedbugs/bug409.out |  1 +
+ 4 files changed, 23 insertions(+), 2 deletions(-)

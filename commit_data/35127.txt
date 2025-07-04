@@ -1,26 +1,23 @@
-commit 9e0e6981fc536c9e51ce24c425141a3d09b39e3a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 18 16:34:45 2018 -0400
+commit 0504cd68e6561b962354821bccf04f5cf080662e
+Author: elpinal <6elpinal@gmail.com>
+Date:   Sat Dec 16 15:04:05 2017 +0900
 
-    cmd/go: fix go list .Stale computation
+    cmd/doc: suppress the error message for *package.ident embedded in struct type
     
-    If X depends on Y and X was installed but Y is only present in the cache
-    (as happens when you "go install X") then we should report X as up-to-date,
-    not as stale.
+    The current implementation prints a log, "invalid program: unexpected
+    type for embedded field", when the form *package.ident is embedded in
+    a struct declaration.
     
-    This applies whether X is a package or a main binary.
+    Note that since valid qualified identifiers must be exported, the result
+    for a valid program does not change.
     
-    Fixes #24558.
-    Fixes #23818.
-    
-    Change-Id: I26a0b375b1f7f7ac909cc0db68e92f4e04529208
-    Reviewed-on: https://go-review.googlesource.com/107957
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: If8b9d7056c56b6a6c5482eb749168a63c65ef685
+    Reviewed-on: https://go-review.googlesource.com/84436
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- misc/cgo/testshared/shared_test.go  |  1 +
- src/cmd/go/go_test.go               | 22 ++++++++++++++++++++++
- src/cmd/go/internal/work/buildid.go | 23 +++++++++++++----------
- src/cmd/go/internal/work/exec.go    |  2 +-
- 4 files changed, 37 insertions(+), 11 deletions(-)
+ src/cmd/doc/doc_test.go     |  1 +
+ src/cmd/doc/pkg.go          | 17 +++++++++--------
+ src/cmd/doc/testdata/pkg.go | 17 +++++++++--------
+ 3 files changed, 19 insertions(+), 16 deletions(-)

@@ -1,22 +1,19 @@
-commit af1c29c1c1051a26de4cc72454827dd01e578b45
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Mar 13 10:13:03 2016 -0700
+commit 42206598671a44111c8f726ad33dc7b265bdf669
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:14:05 2016 -0500
 
-    cmd/internal/obj: sort relocs by off when printing
+    cmd/go: do not force use of git master branch (again)
     
-    This makes the output of compiling with -S more
-    stable in the face of unimportant variation in the
-    order in which relocs are generated.
-    It is also more pleasant to read the relocs when
-    they are sorted.
+    This time with a test.
+    Also adjust another test to skip when hg is not present,
+    and delete no longer needed fixDetachedHead code.
     
-    Also, do some minor cleanup.
+    Fixes #9032 (again).
     
-    For #14786
-    
-    Change-Id: Id92020b13fd21777dfb5b29c2722c3b2eb27001b
-    Reviewed-on: https://go-review.googlesource.com/20641
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I481717409e1d44b524f83c70a8dc377699d1a2a5
+    Reviewed-on: https://go-review.googlesource.com/18334
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/objfile.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/go/go_test.go | 32 +++++++++++++++++++++++++++++++-
+ src/cmd/go/vcs.go     | 30 ++----------------------------
+ 2 files changed, 33 insertions(+), 29 deletions(-)

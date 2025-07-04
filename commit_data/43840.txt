@@ -1,15 +1,17 @@
-commit 59f5fdac5de669ef534cc744c94d225445a3c193
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Nov 19 15:07:06 2020 +0000
+commit 70d9b72a87f17736784fc91764fe3ffed9dee8a6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Apr 25 18:46:29 2020 +0200
 
-    runtime/metrics: clarify Read's documentation
+    cmd/compile: convert more arm64 lowering rules to typed aux
     
-    Change-Id: Idbcbc304f1568399a82af9dcd51e511393ed5ee0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271558
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Passes
+    
+      GOARCH=arm64 gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: Idc0ac2638c7a9b840ba2d6f4bba2e9c5df24c807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230177
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/metrics/sample.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 202 +++++++++---------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 294 +++++++++++++--------------
+ 2 files changed, 248 insertions(+), 248 deletions(-)

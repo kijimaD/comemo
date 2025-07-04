@@ -1,19 +1,16 @@
-commit ccd9a55609fcc8814146a7c61898b47e3a7aea7d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jun 11 19:36:17 2016 +0900
+commit e2c09749af8c50fc2c0b515f2adc990cb0cb3cf6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 7 09:00:32 2016 -0700
 
-    os: use waitid to avoid wait/kill race on darwin
+    context: mark more tests as flaky on OpenBSD
     
-    This change is a followup to https://go-review.googlesource.com/23967
-    for Darwin.
+    Updates #15158
     
-    Updates #13987.
-    Updates #16028.
-    
-    Change-Id: Ib1fb9f957fafd0f91da6fceea56620e29ad82b00
-    Reviewed-on: https://go-review.googlesource.com/24020
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I53e9e68d36efbf52736822e6caa047cfff501283
+    Reviewed-on: https://go-review.googlesource.com/21653
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/wait_unimp.go                     | 2 +-
- src/os/{wait_linux.go => wait_waitid.go} | 9 +++++++--
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/context/context_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

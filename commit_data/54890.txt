@@ -1,21 +1,31 @@
-commit 42b20297d314bd72195e9abff55b0c607c2619a8
-Author: carl.tao <tw2236646986@gmail.com>
-Date:   Thu Sep 21 23:38:33 2023 +0800
+commit c8244489cc4d4b8786b09ee9e84954c38cd52275
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 18 22:25:29 2022 +0100
 
-    net/http: remove Content-Encoding header in roundtrip_js
+    all: update golang.org/x/crypto to 2c476679df9a
     
-    The fetch api will decode the gzip, but Content-Encoding not be deleted.
-    To ensure that the behavior of roundtrip_js is consistent with native. delete the Content-Encoding header when the response body is decompressed by js fetch api.
+    To pick up CL 451515.
     
-    Fixes #63139
+    This CL also updates x/net because x/crypto's dependency was bumped
+    while tagging v0.3.0.
     
-    Change-Id: Ie35b3aa050786e2ef865f9ffa992e30ab060506e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530155
-    Commit-Queue: Damien Neil <dneil@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Done by
+            go get -d golang.org/x/crypto@2c476679df9a
+            go mod tidy
+            go mod vendor
+    
+    Change-Id: I432a04586be3784b1027aa9b62d86c0df6d4a97e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452096
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/net/http/roundtrip_js.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/go.mod                                         |   4 +-
+ src/go.sum                                         |   8 +-
+ src/vendor/golang.org/x/crypto/cryptobyte/asn1.go  |  77 +++++----
+ .../golang.org/x/net/http2/hpack/static_table.go   | 188 +++++++++++++++++++++
+ src/vendor/golang.org/x/net/http2/hpack/tables.go  |  78 +--------
+ src/vendor/modules.txt                             |   4 +-
+ 6 files changed, 239 insertions(+), 120 deletions(-)

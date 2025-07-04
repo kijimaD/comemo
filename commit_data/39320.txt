@@ -1,23 +1,41 @@
-commit 53deb812196d857ce8a7c46c1f7c1559bb167630
-Author: David Chase <drchase@google.com>
-Date:   Thu Jun 6 09:56:20 2019 -0400
+commit 2d3474043cd35ba06d3566df520e8550c479944f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Feb 21 14:48:52 2019 -0500
 
-    cmd/compile: correct capitalization in recordFlags parameter
+    cmd/compile: call ginsnop, not ginsnop2 on ppc64le for mid-stack inlining tracebacks
     
-    Tool refactoring smallStacks into smallFrames helpfully
-    "corrected" the capitalization in a string, this undoes
-    the help.
+    A recent change to fix stacktraces for inlined functions
+    introduced a regression on ppc64le when compiling position
+    independent code. That happened because ginsnop2 was called for
+    the purpose of inserting a NOP to identify the location of
+    the inlined function, when ginsnop should have been used.
+    ginsnop2 is intended to be used before deferreturn to ensure
+    r2 is properly restored when compiling position independent code.
+    In some cases the location where r2 is loaded from might not be
+    initialized. If that happens and r2 is used to generate an address,
+    the result is likely a SEGV.
     
-    This is necessary to ensure correct (re)building when the
-    flag is used to research stack-marking GC latency bugs.
+    This fixes that problem.
     
-    Updates #27732.
+    Fixes #30283
     
-    Change-Id: Ib7c8d4a36c9e4f9612559be68bd481f9d9cc69f1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180958
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If70ef27fc65ef31969712422306ac3a57adbd5b6
+    Reviewed-on: https://go-review.googlesource.com/c/163337
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/galign.go  | 1 +
+ src/cmd/compile/internal/arm/galign.go    | 1 +
+ src/cmd/compile/internal/arm64/galign.go  | 1 +
+ src/cmd/compile/internal/gc/go.go         | 7 ++++---
+ src/cmd/compile/internal/gc/ssa.go        | 2 +-
+ src/cmd/compile/internal/mips/galign.go   | 1 +
+ src/cmd/compile/internal/mips64/galign.go | 1 +
+ src/cmd/compile/internal/ppc64/galign.go  | 3 ++-
+ src/cmd/compile/internal/s390x/galign.go  | 1 +
+ src/cmd/compile/internal/wasm/ssa.go      | 1 +
+ src/cmd/compile/internal/x86/galign.go    | 1 +
+ 11 files changed, 15 insertions(+), 5 deletions(-)

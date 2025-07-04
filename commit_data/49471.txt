@@ -1,45 +1,19 @@
-commit 0dffda13834545317569052a9de7dfbf27b62c5d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 13 18:44:44 2022 -0700
+commit 5d5e50c3db2ad15bef4ddc4e2f946d0628deda2d
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Jun 22 20:19:57 2021 -0700
 
-    spec: clarify "slice of bytes" and "slice of runes" through examples
+    os/user: simplify test skip for plan9
     
-    The spec section on conversions uses the terms "slice of bytes" and
-    "slice of runes". While not obviously clear, what is meant are slice
-    types whose element types are byte or rune types; specifically the
-    underlying types of the slices' element types must be byte or rune.
+    There's no need to specifically check for runtime.GOOS as there's
+    already a generic mechanism for that.
     
-    Some of this was evident from the examples, but not all of it. Made
-    this clearer by adding more examples illustrating various permitted
-    conversions.
-    
-    Note that the 1.17 compiler did not accept the following conversions:
-    
-            string([]myByte{...})
-            string([]myRune{...})
-            myString([]myByte{...})
-            myString([]myRune{...})
-    
-    (where myByte, myRune, and myString have underlying types of byte,
-    rune, and string respectively) - it reported an internal error.
-    But it did accept the inverse conversions:
-    
-            []myByte("...")
-            []myRune("...")
-            []myByte(myString("..."))
-            []myRune(myString("..."))
-    
-    The 1.18 compiler made those conversions symmetric and they are now
-    permitted in both directions.
-    
-    The extra examples reflect this reality.
-    
-    Fixes #23814.
-    
-    Change-Id: I5a1c200b45ddd0e8c0dc0d11da3a6c39cb2dc848
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412094
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I7125443ead456548bd503c5e71cd56e9eb30b446
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330750
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- doc/go_spec.html | 43 +++++++++++++++++++++++++++++--------------
- 1 file changed, 29 insertions(+), 14 deletions(-)
+ src/os/user/lookup_plan9.go | 1 +
+ src/os/user/user_test.go    | 8 --------
+ 2 files changed, 1 insertion(+), 8 deletions(-)

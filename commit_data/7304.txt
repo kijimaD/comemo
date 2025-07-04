@@ -1,33 +1,38 @@
-commit 62afa225aff6d0925eabbd746ec30b8c003b23fb
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Tue Feb 1 11:49:24 2011 -0500
+commit e308d5597327cdc76872a7ccfd8a79b8a4b71232
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Feb 1 11:02:48 2011 -0500
 
-    windows: multiple improvements and cleanups
+    crypto: add package.
     
-    The callback mechanism has been made more flexible.
-    Eliminated one round of argument copying in Syscall.
-    Faster Get/SetLastError implemented.
-    Added gettime for gc perf profiling.
+    The crypto package is added as a common place to store identifiers for
+    hash functions. At the moment, the rsa package has an enumeration of
+    hash functions and knowledge of their digest lengths. This is an
+    unfortunate coupling and other high level crypto packages tend to need
+    to duplicate this enumeration and knowledge (i.e. openpgp).
     
-    R=rsc, brainman, mattn, rog
+    crypto pulls this code out into a common location.
+    
+    It would also make sense to add similar support for ciphers to crypto,
+    but the problem there isn't as acute that isn't done in this change.
+    
+    R=bradfitzgo, r, rsc
     CC=golang-dev
-    https://golang.org/cl/4058046
+    https://golang.org/cl/4080046
 
- src/pkg/exp/wingui/gui.go               |  11 +-
- src/pkg/exp/wingui/zwinapi.go           |  32 +++---
- src/pkg/runtime/cgocall.c               |   9 +-
- src/pkg/runtime/cgocall.h               |   2 +-
- src/pkg/runtime/runtime.c               |   2 +-
- src/pkg/runtime/runtime.h               |   4 +-
- src/pkg/runtime/windows/386/signal.c    |   1 +
- src/pkg/runtime/windows/386/sys.s       | 102 +++++++++----------
- src/pkg/runtime/windows/mem.c           |  12 +--
- src/pkg/runtime/windows/os.h            |  32 ++----
- src/pkg/runtime/windows/syscall.goc     | 132 ++++++++----------------
- src/pkg/runtime/windows/thread.c        | 175 ++++++++++++++++----------------
- src/pkg/syscall/mksyscall_windows.sh    |  27 ++---
- src/pkg/syscall/syscall.go              |   4 -
- src/pkg/syscall/syscall_unix.go         |   4 +
- src/pkg/syscall/syscall_windows.go      |  35 ++-----
- src/pkg/syscall/zsyscall_windows_386.go | 150 +++++++++++++--------------
- 17 files changed, 319 insertions(+), 415 deletions(-)
+ src/pkg/Makefile                       |  2 +
+ src/pkg/crypto/Makefile                | 11 +++++
+ src/pkg/crypto/crypto.go               | 73 ++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/md4/md4.go              |  5 +++
+ src/pkg/crypto/md5/md5.go              |  5 +++
+ src/pkg/crypto/ocsp/ocsp.go            |  7 ++--
+ src/pkg/crypto/ripemd160/ripemd160.go  |  5 +++
+ src/pkg/crypto/rsa/pkcs1v15.go         | 65 ++++++++----------------------
+ src/pkg/crypto/rsa/pkcs1v15_test.go    |  5 ++-
+ src/pkg/crypto/sha1/sha1.go            |  5 +++
+ src/pkg/crypto/sha256/sha256.go        |  6 +++
+ src/pkg/crypto/sha512/sha512.go        |  6 +++
+ src/pkg/crypto/tls/handshake_client.go |  3 +-
+ src/pkg/crypto/tls/handshake_server.go |  3 +-
+ src/pkg/crypto/tls/key_agreement.go    |  5 ++-
+ src/pkg/crypto/x509/x509.go            |  7 ++--
+ 16 files changed, 153 insertions(+), 60 deletions(-)

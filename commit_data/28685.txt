@@ -1,38 +1,23 @@
-commit f6b4c88941f88380caf59a050c1e9805664aa2fa
-Author: Joe Tsai <joetsai@google.com>
-Date:   Wed Oct 5 21:23:56 2016 +0000
+commit 8d966bad6e4e9e28295bccbd739bf5280f729a7b
+Author: Dmitri Popov <operator@cv.dp-net.com>
+Date:   Sun Jun 19 20:58:40 2016 -0700
 
-    Revert "net/http: improve performance for parsePostForm"
+    math/rand: fix io.Reader implementation
     
-    This reverts commit 59320c396e6448132a52cb5a5d96491eee1e0ad8.
+    Do not throw away the rest of Int63 value used for
+    generation random bytes. Save it in Rand struct and
+    re-use during the next Read call.
     
-    Reasons:
-    This CL was causing failures on a large regression test that we run
-    within Google. The issues arises from two bugs in the CL:
-    * The CL dropped support for ';' as a delimiter (see https://golang.org/issue/2210)
-    * The handling of an empty string caused an empty record to be added when
-    no record was added (see https://golang.org/cl/30454 for my attempted fix)
+    Fixes #16124
     
-    The logic being added is essentially a variation of url.ParseQuery,
-    but altered to accept an io.Reader instead of a string.
-    Since it is duplicated (but modified) logic, there needs to be good
-    tests to ensure that it's implementation doesn't drift in functionality
-    from url.ParseQuery. Fixing the above issues and adding the associated
-    regression tests leads to >100 lines of codes.
-    For a 4% reduction in CPU time, I think this complexity and duplicated
-    logic is not worth the effort.
-    
-    As such, I am abandoning my efforts to fix the existing issues and
-    believe that reverting CL/20301 is the better course of action.
-    
-    Updates #14655
-    
-    Change-Id: Ibb5be0a5b48a16c46337e213b79467fcafee69df
-    Reviewed-on: https://go-review.googlesource.com/30470
+    Change-Id: Ic70bd80c3c3a6590e60ac615e8b3c2324589bea3
+    Reviewed-on: https://go-review.googlesource.com/24251
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/request.go      | 60 +++++++++-----------------------------------
- src/net/http/request_test.go | 26 +++----------------
- 2 files changed, 16 insertions(+), 70 deletions(-)
+ src/math/rand/rand.go         | 34 ++++++++++++++++++++++++++--------
+ src/math/rand/rand_test.go    | 40 +++++++++++++++++++++++++++++++++++++++-
+ src/math/rand/regress_test.go | 38 +++++++++++++++++++-------------------
+ 3 files changed, 84 insertions(+), 28 deletions(-)

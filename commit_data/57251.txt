@@ -1,19 +1,19 @@
-commit 7c7d6d31f3a88d79d66ae2224e1a8ef61da4cd67
-Author: Kevin Z <zyxkad@gmail.com>
-Date:   Sat Aug 24 17:36:18 2024 +0000
+commit 1d04c42045df980fdcda87bb7a7a583b74d0fc63
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 27 09:50:57 2023 +0700
 
-    internal/runtime/sys: fix typo in comment
+    cmd/compile/internal/noder: remove un-used funcs/vars
     
-    just removed a single byte :)
-    
-    Change-Id: Icd734f9f8f22b2ed0d9d0125d18b6d291bb14cd6
-    GitHub-Last-Rev: 93c0fd00d863c8a992c63f1bc01c0877b1bdff0c
-    GitHub-Pull-Request: golang/go#69056
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607878
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I755406e6c5b6a8cdaeeed8cd12d756e3847c8d4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506475
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/internal/runtime/sys/nih.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/helpers.go | 103 ------------------------------
+ src/cmd/compile/internal/noder/stmt.go    |  30 ---------
+ src/cmd/compile/internal/noder/types.go   |   2 -
+ 3 files changed, 135 deletions(-)

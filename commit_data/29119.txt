@@ -1,29 +1,27 @@
-commit 2e196b15b94e48009369aae25299a59cbc7d45f4
-Author: Klaus Post <klauspost@gmail.com>
-Date:   Sat Oct 22 18:50:02 2016 +0200
+commit 266b349b2d28bf69f778320adb7e8ecc6bf848cd
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Aug 26 10:33:34 2016 -0400
 
-    compress/flate: level 1 (best speed) match across blocks
+    cmd/internal/obj/s390x: add atomic operation instructions
     
-    This change makes deflate level 1 (best speed) match across
-    block boundaries. This comes at a small speed penalty,
-    but improves compression on almost all output.
+    Adds the following s390x instructions from the interlocked access
+    facility:
     
-    Sample numbers on various content types:
+     * LAA(G)  - load and add
+     * LAAL(G) - load and add logical
+     * LAN(G)  - load and and
+     * LAX(G)  - load and exclusive or
+     * LAO(G)  - load and or
     
-    enwik9:            391052014 ->  382578469 bytes, 77.59 -> 74.28 MB/s
-    adresser.001:       57269799 ->   47756095 bytes, 287.84 -> 357.86 MB/s
-    10gb:             5233055166 -> 5198328382 bytes, 105.85 -> 96.99 MB/s
-    rawstudio-mint14: 3972329211 -> 3927423364 bytes, 100.07 -> 94.22 MB/s
-    sites:             165556800 ->  163178702 bytes, 72.31 -> 70.15 MB/s
-    objectfiles:       115962472 ->  111649524 bytes, 132.60 -> 128.05 MB/s
-    sharnd.out:        200015283 ->  200015283 bytes, 221.50 -> 218.83 MB/s
+    These instructions can be used for atomic arithmetic/logical
+    operations. The atomic packages will be updated in future CLs.
     
-    Change-Id: I62a139e5c06976e803439a4268acede5139b8cfc
-    Reviewed-on: https://go-review.googlesource.com/31640
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Change-Id: Idc850ac6749b3e778fda3da66bcd864f6b1df375
+    Reviewed-on: https://go-review.googlesource.com/27871
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/compress/flate/deflate.go      |  12 ++-
- src/compress/flate/deflate_test.go | 117 +++++++++++++++++++++++
- src/compress/flate/deflatefast.go  | 186 ++++++++++++++++++++++++++++---------
- 3 files changed, 267 insertions(+), 48 deletions(-)
+ src/cmd/asm/internal/asm/testdata/s390x.s | 11 ++++++++
+ src/cmd/internal/obj/s390x/a.out.go       | 12 ++++++++
+ src/cmd/internal/obj/s390x/anames.go      | 10 +++++++
+ src/cmd/internal/obj/s390x/asmz.go        | 46 +++++++++++++++++++++++++++++++
+ 4 files changed, 79 insertions(+)

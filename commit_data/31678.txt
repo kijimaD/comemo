@@ -1,27 +1,14 @@
-commit 11ab865d6f42bcbfbe67219bd591518a1e1e8faf
-Author: Filip Gruszczyński <gruszczy@gmail.com>
-Date:   Thu Mar 30 19:09:56 2017 -0700
+commit b91b694b37b12724ae3c3925eb9a215ac9b36271
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Mar 7 20:04:23 2017 +0100
 
-    encoding/gob: speedup decoding of maps by zeroing values
+    runtime/pprof: fix the protobuf tests on Android
     
-    Instead of allocating a new reflect.Value object on every loop we zero it.
-    
-    DecodeComplex128Slice-8  13.1µs ± 7%  13.2µs ± 8%     ~     (p=0.347 n=18+19)
-    DecodeFloat64Slice-8     8.13µs ± 5%  8.00µs ± 3%     ~     (p=0.168 n=20+19)
-    DecodeInt32Slice-8       8.27µs ± 5%  8.08µs ± 5%   -2.27%  (p=0.001 n=19+18)
-    DecodeStringSlice-8      17.9µs ±12%  17.8µs ±11%     ~     (p=0.989 n=20+19)
-    DecodeInterfaceSlice-8    163µs ±10%   159µs ± 4%     ~     (p=0.057 n=19+19)
-    DecodeMap-8               220µs ± 2%   183µs ± 1%  -17.07%  (p=0.000 n=19+18)
-    
-    Updates #19525
-    
-    Change-Id: I27f8edd4761787f6b9928d34cefa08a34a6e25b2
-    Reviewed-on: https://go-review.googlesource.com/39203
+    Change-Id: I5f85a7980b9a18d3641c4ee8b0992671a8421bb0
+    Reviewed-on: https://go-review.googlesource.com/37896
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/gob/codec_test.go | 27 +++++++++++++++++++++++++--
- src/encoding/gob/decode.go     | 10 ++++++++--
- 2 files changed, 33 insertions(+), 4 deletions(-)
+ src/runtime/pprof/proto_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,25 @@
-commit 47b450997778163dfed6f58cae379d928fc37687
-Author: ShihCheng Tu <mrtoastcheng@gmail.com>
-Date:   Mon Jun 15 00:07:10 2020 +0800
+commit ffc0573b854ca2fc58ad85ad7599ec66f0a82b36
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 6 15:32:40 2020 -0800
 
-    doc/go1.14: document json.Umarshal map key support of TextUnmarshaler
+    cmd/compile/internal/syntax: better error when an assignment is used in value context
     
-    Document that json.Unmarshal supports map keys whose underlying
-    types implement encoding.TextUnmarshaler.
+    The error message is now positioned at the statement position (which is
+    an identifing token, such as the '=' for assignments); and in case of
+    assignments it emphasizes the assignment by putting the Lhs and Rhs
+    in parentheses. Finally, the wording is changed from "use of * as value"
+    to the stronger "cannot use * as value" (for which there is precedent
+    elsewhere in the parser).
     
-    Fixes #38801
+    Fixes #36858.
     
-    Change-Id: Icb9414e9067517531ba0da910bd4a2bb3daace65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/237857
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic3f101bba50f58e3a1d9b29645066634631f2d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218337
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.14.html | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go               | 11 ++++++++---
+ src/cmd/compile/internal/syntax/testdata/issue23385.src |  9 +++++++--
+ test/fixedbugs/issue18915.go                            |  6 +++---
+ test/syntax/chan1.go                                    |  2 +-
+ test/syntax/typesw.go                                   |  2 +-
+ 5 files changed, 20 insertions(+), 10 deletions(-)

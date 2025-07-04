@@ -1,26 +1,21 @@
-commit cdf3249d74c4187bc0c1737e1bb6ab1aa52c0b6f
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Nov 16 01:42:39 2023 -0800
+commit ea75b9458fed588e84abeacfc9319abb2a51ce0c
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 8 16:47:16 2023 +0100
 
-    os: make FindProcess use pidfd on Linux
+    runtime: use explicit NOFRAME on plan9/amd64
     
-    Amend FindProcess to use pidfdFind, and make it return ErrProcessDone
-    if pidfdFind is used and the process is not found.
+    This CL marks some plan9 assembly functions as NOFRAME to avoid
+    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
     
-    Since this is a change in API, introduce GODEBUG osfinderr=0 setting
-    to disable the feature.
+    Updates #58378
     
-    Change-Id: I724c6f622f0c99f21a70b864cf7cf2b8836869ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542699
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ic8c9ab5c1a0897bebc6c1419ddc903a7492a1b0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466457
+    TryBot-Bypass: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/godebug.md                 |  5 +++++
- src/internal/godebugs/table.go |  1 +
- src/os/exec.go                 |  9 ++++++++-
- src/os/exec_unix.go            | 10 ++++++++--
- src/os/pidfd_linux.go          | 20 ++++++++++++++++++++
- src/os/pidfd_other.go          |  4 ++++
- src/runtime/metrics/doc.go     |  4 ++++
- 7 files changed, 50 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go | 2 +-
+ src/runtime/sys_plan9_amd64.s    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

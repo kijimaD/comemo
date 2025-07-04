@@ -1,27 +1,20 @@
-commit 13723d44a0eea725215274070b53a023d52582c9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 8 18:28:21 2019 -0400
+commit 5ec5c5741ec7d0e051667f13094f532833d41578
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Dec 28 11:46:35 2018 +0100
 
-    runtime, crypto/x509: fix vet complaints for all windows
+    cmd/dist: list only supported platforms
     
-    Working toward making the tree vet-safe instead of having
-    so many exceptions in cmd/vet/all/whitelist.
+    Introduce an incomplete map in dist alongside cgoEnabled and filter out
+    the incomplete ports in 'dist list'.
     
-    This CL makes "go vet -unsafeptr=false runtime" happy for windows/*,
-    while keeping "GO_BUILDER_NAME=misc-vetall go tool dist test" happy too.
+    Fixes #28944
     
-    For #31916.
-    
-    Change-Id: If37ab2b3f6fca4696b8a6afb2ef11ba6c4fb42e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176106
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I15aae56aec570e1cd9e28906900cd5ba0db77811
+    Reviewed-on: https://go-review.googlesource.com/c/155839
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/all/whitelist/windows.txt       |  6 ------
- src/cmd/vet/all/whitelist/windows_386.txt   |  8 --------
- src/cmd/vet/all/whitelist/windows_amd64.txt |  5 -----
- src/crypto/x509/root_windows.go             |  6 +++++-
- src/runtime/os_windows.go                   |  7 +++++--
- src/runtime/sys_windows_386.s               | 18 +++++++++++-------
- src/runtime/sys_windows_amd64.s             | 12 ++++++------
- src/runtime/sys_windows_arm.s               | 22 +++++++++++-----------
- 8 files changed, 38 insertions(+), 46 deletions(-)
+ src/cmd/dist/build.go | 10 ++++++++++
+ src/cmd/dist/test.go  |  3 +++
+ 2 files changed, 13 insertions(+)

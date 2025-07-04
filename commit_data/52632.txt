@@ -1,23 +1,28 @@
-commit 89567a35c11c343cf765d6fb1270e1250e50d83f
-Author: Junwei Zuo <zuojunwei.2023@bytedance.com>
-Date:   Wed Apr 12 18:53:51 2023 +0800
+commit e3661d5f0820820d8d5e5e357244c95f788820e2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 12 15:46:20 2022 -0700
 
-    cmd/compile: fix ir.StaticValue for ORANGE
+    cmd/compile/internal/typecheck: remove iexport assumption of LocalPkg.Path == ""
     
-    Range statement will mutate the key and value, so we should treat them as reassigned.
+    The indexed export data format encodes the local package's path as "",
+    because that's historically how we've represented it within
+    cmd/compile. The format also requires the local package to be first in
+    the exported list of packages, and was implicitly relying on ""
+    sorting before other, non-empty package paths.
     
-    Fixes #59572
+    We can't change the format without breaking existing importers (e.g.,
+    go/internal/gcimporter), but we can at least remove the dependency on
+    LocalPkg.Path being "".
     
-    Change-Id: I9c6b67d938760a0c6a1d9739f2737c67af4a3a10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483855
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Prep refactoring for CL 393715.
+    
+    Updates #51734.
+    
+    Change-Id: I6dd4eafd2d538f4e81376948ef9e92fc44a5462a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406057
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ir/expr.go |  5 +++++
- test/fixedbugs/issue59572.go        | 30 ++++++++++++++++++++++++++++++
- test/fixedbugs/issue59572.out       |  3 +++
- 3 files changed, 38 insertions(+)
+ src/cmd/compile/internal/typecheck/iexport.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

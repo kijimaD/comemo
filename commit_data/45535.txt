@@ -1,32 +1,35 @@
-commit f62739b8611a0f1c96e59eb6574422562bb46233
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue May 4 13:24:11 2021 -0400
+commit 72dec90bfdb60a0ca2ac1b743db472d2e689414e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 24 13:14:36 2020 -0400
 
-    cmd/compile: establish regabi name/value mapping for small in-params
+    runtime: set up TLS without cgo on darwin/arm64
     
-    When the expand_calls phase in the SSA backend lowers prolog OpArg
-    values into OpArgIntReg/OpArgFloatReg values, we don't always record
-    the assocation between the new lowered value and the parameter name.
+    Currently, on darwin/arm64 we set up TLS using cgo. TLS is not
+    set for pure Go programs. As we use libc for syscalls on darwin,
+    we need to save the G register before the libc call. Otherwise it
+    is not signal-safe, as a signal may land during the execution of
+    a libc function, where the G register may be clobbered.
     
-    This patch handles the simple case where a given parameter fits into
-    exactly one register; in this scenario it makes sense to manufacture a
-    new pseudo-slot for the value that points to the param, and install
-    the slot/value mapping in the NamedValues table for the function. More
-    work will be needed to deal with params that span multiple registers;
-    that will need to be addressed in a subsequent patch.
+    This CL initializes TLS in Go, by calling the pthread functions
+    directly without cgo. This makes it possible to save the G
+    register to TLS in pure Go programs (done in a later CL).
     
-    This change improves the parameter error rate "optargorder" benchmark
-    by about 7-8% (when run on the optargorder binary).
+    Inspired by Elias's CL 209197. Write the logic in Go instead of
+    assembly.
     
-    Updates #45945.
+    Updates #38485, #35853.
     
-    Change-Id: Ic9adbe20b6f91145d49651348818f0f5cba92b18
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316890
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I257ba2a411ad387b2f4d50d10129d37fec7a226e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265118
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Trust: Elias Naur <mail@eliasnaur.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/runtime/asm_arm64.s            | 15 ++++++++-
+ src/runtime/cgo/gcc_darwin_arm64.c | 36 +---------------------
+ src/runtime/defs_darwin_arm64.go   |  4 +++
+ src/runtime/sys_darwin_arm64.go    | 62 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_darwin_arm64.s     | 12 ++++++++
+ 5 files changed, 93 insertions(+), 36 deletions(-)

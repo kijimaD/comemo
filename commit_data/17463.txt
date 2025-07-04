@@ -1,15 +1,19 @@
-commit 97d6a1e130b7b49e74769be7ab02536e06e71a55
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 3 21:23:52 2013 -0700
+commit 0ba7ffe2897cd9771de172362e9edcb5f733cf1f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 4 13:42:22 2013 +1000
 
-    cmd/cgo: document command line options
+    text/template: allow eq to take more than two arguments
+    Based on an old suggestion by rsc, it compares the second
+    and following arguments to the first.
     
-    Also remove incorrect statement that cgo does not support
-    gccgo.
+    Unfortunately the code cannot be as pretty as rsc's original
+    because it doesn't require identical types.
     
-    R=golang-dev, r
+    R=golang-dev, dsymonds, adg
     CC=golang-dev
-    https://golang.org/cl/13511043
+    https://golang.org/cl/13509046
 
- src/cmd/cgo/doc.go | 41 +++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 39 insertions(+), 2 deletions(-)
+ src/pkg/text/template/doc.go       | 23 +++++++++-----
+ src/pkg/text/template/exec_test.go |  5 ++--
+ src/pkg/text/template/funcs.go     | 61 ++++++++++++++++++++++----------------
+ 3 files changed, 54 insertions(+), 35 deletions(-)

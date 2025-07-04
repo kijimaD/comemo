@@ -1,0 +1,21 @@
+commit 69ea62fe95a14a04d6b2ba145aaf78e36f42e2eb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 21 08:46:14 2025 -0700
+
+    Revert "cmd/compile/internal/abi: fix ComputePadding"
+    
+    This reverts CL 656736.
+    
+    Reason for revert: breaks many builders (all flavors of
+    linux-amd64 builders).
+    
+    Change-Id: Ie7190d4078fada227391804c5cf10b9ce9cc9115
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659955
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go       |   3 +-
+ src/cmd/compile/internal/ssa/debug.go          |   2 +-
+ src/cmd/compile/internal/test/abiutils_test.go |   4 +-
+ src/cmd/link/internal/ld/dwarf_test.go         | 113 -------------------------
+ 4 files changed, 5 insertions(+), 117 deletions(-)

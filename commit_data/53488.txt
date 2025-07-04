@@ -1,18 +1,23 @@
-commit d6d0fec43d1770f460fdbc960996b2820ee11694
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Jun 6 14:19:45 2023 -0700
+commit 760c180d3bb2464b1e91402630c8f0d1e79180b3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 24 10:24:11 2022 -0700
 
-    go1.21: document net/http.ResponseController.EnableFullDuplex
+    debug/pe: use saferio to set symbol slice capacity
     
-    For #15527
-    For #57786
+    No test case because the problem can only happen for invalid data.
+    Let the fuzzer find cases like this.
     
-    Change-Id: I75ed0b4bac8e31fac2afef17dad708dc9a3d74e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501300
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #47653
+    Fixes #53530
+    
+    Change-Id: If1cebbbcabb188fec8be30ef043c8c4c935a9564
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413995
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/go1.21.html | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ src/debug/pe/symbol.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

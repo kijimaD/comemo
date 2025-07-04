@@ -1,12 +1,24 @@
-commit 8cab7f570395ba07b732a935fc1c916d28f8b7ef
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Jun 22 16:20:37 2011 -0400
+commit 89d334ffe1fe7667505033f4ca49ff50954d9e7e
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jun 22 15:12:22 2011 -0400
 
-    sync: restore GOMAXPROCS during benchmarks
+    ld: don't attempt to build dynamic sections unnecessarily
     
-    R=golang-dev
-    CC=dvyukov, golang-dev
-    https://golang.org/cl/4631060
+    This prevents ld from generating zeroed symtab entries for
+    sections that aren't going to be generated because dynamic
+    linkage has been disabled (-d was used or no dynamic libs
+    were seen).  Even though they were not explicitly added by
+    doelf, the section creation process was making them
+    reachable again.
+    
+    The windows head is being disconsidered for this because
+    apparently it's not taking into account debug['d'].
+    
+    This makes elflint 0.1% happier.
+    
+    R=golang-dev, rsc, gustavo
+    CC=golang-dev
+    https://golang.org/cl/4638050
 
- src/pkg/sync/mutex_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/ld/data.c | 4 ++++
+ 1 file changed, 4 insertions(+)

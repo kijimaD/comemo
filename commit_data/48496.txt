@@ -1,24 +1,15 @@
-commit 1e34c00b4c84a32423042e3d03397277e6c3573c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 22 12:49:09 2022 -0700
+commit f22ec51debeddc0903096e66bfaf641568bede3b
+Author: Dan Scales <danscales@google.com>
+Date:   Sat May 22 13:40:20 2021 -0700
 
-    go/types, types2: remove uses of "type list" and "operational type" (cleanup)
+    doc: add Go 1.17 release note about inlining functions with closures
     
-    Fixes #49193.
+    Fixes #45781
     
-    Change-Id: Ief31ea6b3dddf9452efb94763c89b8639aa3ce9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394656
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ia5bc2845f7f94aff4f3f0ff15533feb148223adb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322089
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- .../types2/testdata/check/funcinference.go         |  2 +-
- .../internal/types2/testdata/check/issues1.go      | 29 +++++++++----------
- .../internal/types2/testdata/check/typeinst1.go    | 12 ++++----
- .../types2/testdata/fixedbugs/issue42758.go        |  2 +-
- src/go/types/testdata/check/funcinference.go       |  2 +-
- src/go/types/testdata/check/issues1.go             | 33 ++++++++++------------
- src/go/types/testdata/check/typeinst1.go           | 14 +++++----
- src/go/types/testdata/fixedbugs/issue42758.go      |  2 +-
- 8 files changed, 47 insertions(+), 49 deletions(-)
+ doc/go1.17.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

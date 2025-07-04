@@ -1,13 +1,12 @@
-commit 2cb715a8b378a89bcb558fac05dc1dfddb9bfc31
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Dec 4 14:11:22 2012 -0800
+commit 76937156ae7231468d70f889a82a72c97fc70617
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 4 11:30:46 2012 -0800
 
-    A+C: adding Frithjof Schulze (individual CLA)
+    test: add test for invalid nil == nil
     
-    R=bradfitz
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/6871060
+    https://golang.org/cl/6868059
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ test/fixedbugs/issue4283.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

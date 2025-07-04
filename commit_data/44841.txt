@@ -1,22 +1,14 @@
-commit 1a7d921aa545bb888e06ec7af364c86e919e399f
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Mar 25 12:23:44 2021 -0700
+commit f98f3b0c306634e850975c5972ceb8519404edae
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Sep 7 20:39:48 2020 +0200
 
-    cmd/compile: remove typechecker calls in varDecl()
+    runtime: remove outdated comment in mkduff.go about usage of STOSQ
     
-    We can now use transformAssign.
-    
-    The only remaining typechecker calls in the noder2 pass are for
-    CompLitExpr nodes (OCOMPLIT).
-    
-    Change-Id: I25671c79cc30749767bb16f84e9f151b943eccd1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305509
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: I71966cc5def4615d64876165872e5e7f2956b270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253397
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/decl.go    | 17 +++++++++++++++--
- src/cmd/compile/internal/noder/expr.go    |  1 -
- src/cmd/compile/internal/noder/helpers.go |  4 ----
- 3 files changed, 15 insertions(+), 7 deletions(-)
+ src/runtime/mkduff.go | 1 -
+ 1 file changed, 1 deletion(-)

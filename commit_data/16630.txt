@@ -1,16 +1,18 @@
-commit 3b76d70e11f7800bfca64f4e267f3df14881a7e5
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Jun 25 10:14:40 2013 +1000
+commit a054028471d08b5344d5cdb2781259fed84b6f7b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 24 13:27:56 2013 -0700
 
-    syscall: reduce duplication between *bsd and linux
+    net/http: Transport should return an error when response body ends early
     
-    Part 2 of several.
+    If a server response contains a Content-Length and the body is short,
+    the Transport should end in io.ErrUnexpectedEOF, not io.EOF.
     
-    R=rsc, mikioh.mikioh, r
+    Fixes #5738
+    
+    R=golang-dev, kevlar, r
     CC=golang-dev
-    https://golang.org/cl/10462043
+    https://golang.org/cl/10237050
 
- src/pkg/syscall/syscall_bsd.go   | 42 ++--------------------------------------
- src/pkg/syscall/syscall_linux.go | 36 ----------------------------------
- src/pkg/syscall/syscall_unix.go  | 36 ++++++++++++++++++++++++++++++++++
- 3 files changed, 38 insertions(+), 76 deletions(-)
+ src/pkg/net/http/response_test.go | 26 ++++++++++++++++++++++++++
+ src/pkg/net/http/transfer.go      | 19 ++++++++++++++-----
+ 2 files changed, 40 insertions(+), 5 deletions(-)

@@ -1,15 +1,21 @@
-commit ff866c4ca37287af82edf33d1e1d6f7c52931e19
-Author: Jaroslavas Počepko <jp@webmaster.ms>
-Date:   Fri Oct 14 20:37:07 2011 +0100
+commit b3812bf6dbd423f1b804ebc8ff51502191901bba
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Oct 14 15:11:21 2011 -0400
 
-    ld: Fixes issue 1899 ("cannot create 8.out.exe")
+    crypto/x509: add code for dealing with PKIX public keys.
     
-    http://code.google.com/p/go/issues/detail?id=1899
+    We also have functions for dealing with PKCS#1 private keys. This
+    change adds functions for PKIX /public/ keys. Most of the time one
+    won't be parsing them because they usually come in certificates, but
+    marshaling them happens and I've previously copied the code from
+    x509.go for this.
     
-    R=rsc, alex.brainman, bsiegert, hectorchu, bradfitz
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4978047
+    https://golang.org/cl/5286042
 
- doc/progs/run    | 11 ++++++++---
- src/cmd/ld/lib.c |  5 +++++
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/pkg/crypto/x509/Makefile     |   1 +
+ src/pkg/crypto/x509/pkcs1.go     | 122 +++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/x509.go      | 136 ++++++++++++---------------------------
+ src/pkg/crypto/x509/x509_test.go |  35 ++++++++++
+ 4 files changed, 199 insertions(+), 95 deletions(-)

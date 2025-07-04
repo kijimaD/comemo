@@ -1,21 +1,16 @@
-commit ebbaba281393de259b751779185855001876090a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 10 16:16:19 2022 -0700
+commit 12dc48fd54d4bfc0c25e2a96aa7fecfacb9087ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 27 17:28:36 2021 -0700
 
-    path/filepath: document that WalkDir uses OS paths
+    cmd/compile/internal/types2: export Structure function
     
-    Fixes #52812
+    For #48538.
     
-    Change-Id: Idb70d0540bbf9ecdc64293c62a23f07ee3be883c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405615
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Caleb Spare <cespare@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I258b0c8af5801692ad238e47397dde0b4e3c44c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359275
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/path/filepath/path.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/types2/builtins.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,26 +1,23 @@
-commit c7065bb9db1981b32d2f1c9ca1de7aae1f7d4a38
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Mar 7 15:37:14 2024 -0600
+commit b441eb3f978b8b7d4f09f8e583d419d8f4e40af6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 28 14:35:20 2023 -0700
 
-    cmd/compile/internal: generate ADDZE on PPC64
+    os: remove mixed dot- and non-dot- imports in tests
     
-    This usage shows up in quite a few places, and helps reduce
-    register pressure in several complex cryto functions by
-    removing a MOVD $0,... instruction.
+    Some test files imported "os" twice, once with a dot and once without.
+    Consolidate on importing with a dot.
     
-    Change-Id: I9444ea8f9d19bfd68fb71ea8dc34e109681b3802
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571055
+    Change-Id: I1db31053dff9dee19a6bdfc263c7e7ef0c15ee42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479995
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go         |  7 +++++++
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  2 ++
- src/cmd/compile/internal/ssa/opGen.go         | 17 +++++++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 15 +++++++++++++++
- test/codegen/mathbits.go                      | 10 ++++++++++
- 6 files changed, 52 insertions(+)
+ src/os/os_test.go             | 63 +++++++++++++++++++++----------------------
+ src/os/os_unix_test.go        |  3 +--
+ src/os/readfrom_linux_test.go | 17 ++++++------
+ src/os/removeall_test.go      |  7 +++--
+ 4 files changed, 43 insertions(+), 47 deletions(-)

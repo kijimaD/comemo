@@ -1,18 +1,18 @@
-commit 870f33f6efcbb5db7b556cbe3438aa7925270825
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Thu Dec 2 13:26:51 2021 -0500
+commit d6aa162f30d63f21f5f4db75e302dbb90595bbe2
+Author: 徐志伟 <juwan.xu@qq.com>
+Date:   Tue Apr 6 04:56:32 2021 +0000
 
-    doc/go1.18: add changes to strconv.Unquote to release notes
+    embed, testing/fstest: small optimization for ReadDir
     
-    CL 343877
-    
-    Updates #47694
-    
-    Change-Id: I37a0a0d1f7ab937b12812981ecddc89eb8c99c24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368796
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Change-Id: If8dc6d917b55119b5662ce5b0b87328d220d684d
+    GitHub-Last-Rev: cc9a1d5a7e2599ee7f98c61d35b2450b9b6a92c3
+    GitHub-Pull-Request: golang/go#45388
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307250
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- doc/go1.18.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/embed/embed.go          | 6 +++---
+ src/testing/fstest/mapfs.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

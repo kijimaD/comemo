@@ -1,26 +1,25 @@
-commit 04f054d3347e34c5188e83a848e813253d069e25
-Author: Joseph Myers <josmyers@redhat.com>
-Date:   Thu Oct 17 20:30:37 2024 +0000
+commit c6dd97e533d480d9a972682c9357a07fc87b51ab
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 15:37:34 2023 -0700
 
-    runtime/testdata: fix for C23 nullptr keyword
+    cmd/compile: simplify various signature type handling code
     
-    src/runtime/testdata/testprogcgo/threadprof.go contains C code with a
-    variable called nullptr.  This conflicts with the nullptr keyword in
-    the C23 revision of the C standard (showing up as gccgo test build
-    failures when updating GCC to use C23 by default when building C
-    code).
+    Make more use of RecvParams and RecvParamsResults helper methods.
     
-    Rename that variable to nullpointer to avoid the clash with the
-    keyword (any other name that's not a keyword would work just as well).
+    Also, correct misuse of Go spec terminology ("return" is a statement;
+    "result" is the class of parameters that appear in a function type).
     
-    Change-Id: Ida5ef371a3f856c611409884e185c3d5ded8e86c
-    GitHub-Last-Rev: 2ec464703be0507a67a077741789a37511d197e4
-    GitHub-Pull-Request: golang/go#69927
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620955
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I94807a747c494c9daa5441da7d9e3aea77aae33b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/testdata/testprogcgo/threadprof.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go          | 105 +++++++++-------------
+ src/cmd/compile/internal/reflectdata/reflect.go   |  20 +----
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |   2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |   2 +-
+ src/cmd/compile/internal/ssagen/ssa.go            |  14 +--
+ 5 files changed, 53 insertions(+), 90 deletions(-)

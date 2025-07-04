@@ -1,32 +1,85 @@
-commit a4864094f0e5eb2369831f5e5b734b6398837712
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed May 10 13:10:46 2017 +0200
+commit 064e44f218f62247e894733d861208257102b0eb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 14 11:00:34 2017 -0800
 
-    reflect: fix String of new array types
+    runtime: evacuate old map buckets more consistently
     
-    When constructing a new type for an array type in ArrayOf, we don't
-    reset tflag to 0. All the other methods in the package, such as SliceOf,
-    do this already. This results in the new array type having weird issues
-    when being printed, such as having tflagExtraStar set when it shouldn't.
+    During map growth, buckets are evacuated in two ways.
+    When a value is altered, its containing bucket is evacuated.
+    Also, an evacuation mark is maintained and advanced every time.
+    Prior to this CL, the evacuation mark was always incremented,
+    even if the next bucket to be evacuated had already been evacuated.
+    This CL changes evacuation mark advancement to skip previously
+    evacuated buckets. This has the effect of making map evacuation both
+    more aggressive and more consistent.
     
-    That flag removes the first char to get rid of '*', but when used
-    incorrectly in this case it eats the '[' character leading to broken
-    strings like "3]int".
+    Aggressive map evacuation is good. While the map is growing,
+    map accesses must check two buckets, which may be far apart in memory.
+    Map growth also delays garbage collection.
+    And if map evacuation is not aggressive enough, there is a risk that
+    a populate-once read-many map may be stuck permanently in map growth.
+    This CL does not eliminate that possibility, but it shrinks the window.
     
-    This was fixed in 56752eb2 for issue #16722, but ArrayOf was missed.
+    There is minimal impact on map benchmarks:
     
-    Also make the XM test struct have a non-zero size as that leads to a
-    division by zero panic in ArrayOf.
+    name                         old time/op    new time/op    delta
+    MapPop100-8                    12.4µs ±11%    12.4µs ± 7%    ~     (p=0.798 n=15+15)
+    MapPop1000-8                    240µs ± 8%     235µs ± 8%    ~     (p=0.217 n=15+14)
+    MapPop10000-8                  4.49ms ±10%    4.51ms ±15%    ~     (p=1.000 n=15+13)
+    MegMap-8                       11.9ns ± 2%    11.8ns ± 0%  -1.01%  (p=0.000 n=15+11)
+    MegOneMap-8                    9.30ns ± 1%    9.29ns ± 1%    ~     (p=0.955 n=14+14)
+    MegEqMap-8                     31.9µs ± 5%    31.9µs ± 3%    ~     (p=0.935 n=15+15)
+    MegEmptyMap-8                  2.41ns ± 2%    2.41ns ± 0%    ~     (p=0.594 n=12+14)
+    SmallStrMap-8                  12.8ns ± 1%    12.7ns ± 1%    ~     (p=0.569 n=14+13)
+    MapStringKeysEight_16-8        13.6ns ± 1%    13.7ns ± 2%    ~     (p=0.100 n=13+15)
+    MapStringKeysEight_32-8        12.1ns ± 1%    12.1ns ± 2%    ~     (p=0.340 n=15+15)
+    MapStringKeysEight_64-8        12.1ns ± 1%    12.1ns ± 2%    ~     (p=0.582 n=15+14)
+    MapStringKeysEight_1M-8        12.0ns ± 1%    12.1ns ± 1%    ~     (p=0.267 n=15+14)
+    IntMap-8                       7.96ns ± 1%    7.97ns ± 2%    ~     (p=0.991 n=15+13)
+    RepeatedLookupStrMapKey32-8    15.8ns ± 2%    15.8ns ± 1%    ~     (p=0.393 n=15+14)
+    RepeatedLookupStrMapKey1M-8    35.3µs ± 2%    35.3µs ± 1%    ~     (p=0.815 n=15+15)
+    NewEmptyMap-8                  36.0ns ± 4%    36.4ns ± 7%    ~     (p=0.270 n=15+15)
+    NewSmallMap-8                  85.5ns ± 1%    85.6ns ± 1%    ~     (p=0.674 n=14+15)
+    MapIter-8                      89.9ns ± 6%    90.8ns ± 6%    ~     (p=0.467 n=15+15)
+    MapIterEmpty-8                 10.0ns ±22%    10.0ns ±25%    ~     (p=0.846 n=15+15)
+    SameLengthMap-8                4.18ns ± 1%    4.17ns ± 1%    ~     (p=0.653 n=15+14)
+    BigKeyMap-8                    20.2ns ± 1%    20.1ns ± 1%  -0.82%  (p=0.002 n=15+15)
+    BigValMap-8                    22.5ns ± 8%    22.3ns ± 6%    ~     (p=0.615 n=15+15)
+    SmallKeyMap-8                  15.3ns ± 1%    15.3ns ± 1%    ~     (p=0.754 n=15+14)
+    ComplexAlgMap-8                58.4ns ± 1%    58.7ns ± 1%  +0.52%  (p=0.000 n=14+15)
     
-    Fixes #20311.
+    There is a tiny but detectable difference in the compiler:
     
-    Change-Id: I18f1027fdbe9f71767201e7424269c3ceeb23eb5
-    Reviewed-on: https://go-review.googlesource.com/43130
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    name       old time/op      new time/op      delta
+    Template        218ms ± 5%       219ms ± 4%    ~     (p=0.094 n=98+98)
+    Unicode        93.6ms ± 5%      93.6ms ± 4%    ~     (p=0.910 n=94+95)
+    GoTypes         596ms ± 5%       598ms ± 6%    ~     (p=0.533 n=98+100)
+    Compiler        2.72s ± 3%       2.72s ± 4%    ~     (p=0.238 n=100+99)
+    SSA             4.11s ± 3%       4.11s ± 3%    ~     (p=0.864 n=99+98)
+    Flate           129ms ± 6%       129ms ± 4%    ~     (p=0.522 n=98+96)
+    GoParser        151ms ± 4%       151ms ± 4%  -0.48%  (p=0.017 n=96+96)
+    Reflect         379ms ± 3%       376ms ± 4%  -0.57%  (p=0.011 n=99+99)
+    Tar             112ms ± 5%       112ms ± 6%    ~     (p=0.688 n=93+95)
+    XML             214ms ± 4%       214ms ± 5%    ~     (p=0.968 n=100+99)
+    StdCmd          16.2s ± 2%       16.2s ± 2%  -0.26%  (p=0.048 n=99+99)
+    
+    name       old user-ns/op   new user-ns/op   delta
+    Template   252user-ms ± 4%  250user-ms ± 4%  -0.63%  (p=0.020 n=98+97)
+    Unicode    113user-ms ± 7%  114user-ms ± 5%    ~     (p=0.057 n=97+94)
+    GoTypes    776user-ms ± 5%  777user-ms ± 5%    ~     (p=0.375 n=97+96)
+    Compiler   3.61user-s ± 3%  3.60user-s ± 3%    ~     (p=0.445 n=98+93)
+    SSA        5.84user-s ± 6%  5.85user-s ± 5%    ~     (p=0.542 n=100+95)
+    Flate      154user-ms ± 5%  154user-ms ± 5%    ~     (p=0.699 n=99+99)
+    GoParser   184user-ms ± 6%  183user-ms ± 4%    ~     (p=0.557 n=98+95)
+    Reflect    461user-ms ± 5%  462user-ms ± 4%    ~     (p=0.853 n=97+99)
+    Tar        130user-ms ± 5%  129user-ms ± 6%    ~     (p=0.567 n=93+100)
+    XML        257user-ms ± 6%  258user-ms ± 6%    ~     (p=0.205 n=99+100)
+    
+    Change-Id: Id92dd54a152904069aac415e6aaaab5c67f5f476
+    Reviewed-on: https://go-review.googlesource.com/37011
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/reflect/all_test.go | 3 ++-
- src/reflect/type.go     | 1 +
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/hashmap.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

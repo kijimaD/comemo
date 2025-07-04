@@ -1,25 +1,30 @@
-commit 9bce08999a4122a28daf99cde7f22cb023b79660
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Aug 25 13:50:24 2021 -0700
+commit fff236e659fa819e036ab849130931dd6245c7b2
+Author: Hilko Bengen <bengen@hilluzination.de>
+Date:   Sun Dec 6 21:33:59 2020 +0000
 
-    all: add a handful of fuzz targets
+    net/http/fcgi: eliminate race, keep request id until end of stdin
     
-    Adds simple fuzz targets to archive/tar, archive/zip, compress/gzip,
-    encoding/json, image/jpeg, image/gif, and image/png.
+    There was a race condition that could lead to child.serveRequest
+    removing the request ID before child.handleRequest had read the empty
+    FCGI_STDIN message that indicates end-of-stream which in turn could
+    lead to child.serveRequest blocking while trying to consume the
+    request body.
     
-    Change-Id: Ide1a8de88a9421e786eeeaea3bb93f41e0bae347
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352109
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Now, we remove the request ID from within child.handleRequest after
+    the end of stdin has been detected, eliminating the race condition.
+    
+    Since there are no more concurrent modifications/accesses
+    to child.requests, we remove the accompanying sync.Mutex.
+    
+    Change-Id: I80c68e65904a988dfa9e3cceec1829496628ff34
+    GitHub-Last-Rev: b3976111ae1d3bbbfa36045f99acce7911a18c44
+    GitHub-Pull-Request: golang/go#42840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273366
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/archive/tar/fuzz_test.go   | 97 ++++++++++++++++++++++++++++++++++++++++++
- src/archive/zip/fuzz_test.go   | 81 +++++++++++++++++++++++++++++++++++
- src/compress/gzip/fuzz_test.go | 92 +++++++++++++++++++++++++++++++++++++++
- src/encoding/json/fuzz_test.go | 83 ++++++++++++++++++++++++++++++++++++
- src/image/gif/fuzz_test.go     | 61 ++++++++++++++++++++++++++
- src/image/jpeg/fuzz_test.go    | 61 ++++++++++++++++++++++++++
- src/image/png/fuzz_test.go     | 68 +++++++++++++++++++++++++++++
- 7 files changed, 543 insertions(+)
+ src/net/http/fcgi/child.go     | 20 ++++------------
+ src/net/http/fcgi/fcgi_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 15 deletions(-)

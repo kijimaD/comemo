@@ -1,17 +1,19 @@
-commit db70c019d7175de54583f99a38016f4ff7bb5eba
-Author: Joel Sing <jsing@google.com>
-Date:   Thu Oct 1 22:34:48 2015 +1000
+commit d1cf5b899d2c60c480955101ec37e0f70f128711
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 28 00:01:16 2015 +0200
 
-    runtime/trace: reduce memory usage for trace stress tests on openbsd/arm
+    net/http: disable new flaky TestTransportCancelBeforeResponseHeaders test
     
-    Reduce allocation to avoid running out of memory on the openbsd/arm builder,
-    until issue/12032 is resolved.
+    I'll rewrite this later. It's apparently dependent on scheduling order.
+    The earlier fix in git rev 9d56c181 seems fine, though.
     
-    Update issue #12032
+    Update #11894
     
-    Change-Id: Ibd513829ffdbd0db6cd86a0a5409934336131156
-    Reviewed-on: https://go-review.googlesource.com/15242
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I7c150918af4be079c262a5f2933ef4639cc535ef
+    Reviewed-on: https://go-review.googlesource.com/12731
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/trace/trace_test.go | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ src/net/http/transport_test.go | 1 +
+ 1 file changed, 1 insertion(+)

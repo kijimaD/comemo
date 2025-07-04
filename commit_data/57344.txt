@@ -1,28 +1,35 @@
-commit f033bc1819d6f4830216b969d8e88aa5cb3dc82a
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 4 18:39:52 2024 +0700
+commit bac4e2f241ca8df3d5be6ddf83214b9a681f4086
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Tue Jul 25 16:19:10 2023 +0200
 
-    cmd: use 20 bytes hash when possible
+    cmd/compile: try to rewrite loops to count down
     
-    CL 402595 changes all usages of 20 bytes hash to 32 bytes hash by using
-    notsha256.
+    Fixes #61629
     
-    However, since CL 454836, notsha256 is not necessary anymore, so this CL
-    reverts those changes to 20 bytes hash using cmd/internal/hash package.
+    This reduce the pressure on regalloc because then the loop only keep alive
+    one value (the iterator) instead of the iterator and the upper bound since
+    the comparison now acts against an immediate, often zero which can be skipped.
     
-    Updates #51940
-    Updates #64751
+    This optimize things like:
+      for i := 0; i < n; i++ {
+    Or a range over a slice where the index is not used:
+      for _, v := range someSlice {
+    Or the new range over int from #61405:
+      for range n {
     
-    Change-Id: Icb08d5a0d8032a3c4d050ff7b2298d31c483b88b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610597
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    It is hit in 975 unique places while doing ./make.bash.
+    
+    Change-Id: I5facff8b267a0b60ea3c1b9a58c4d74cdb38f03f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512935
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/liveness/plive.go | 2 +-
- src/cmd/internal/obj/objfile.go            | 2 +-
- src/cmd/link/internal/ld/elf.go            | 4 ++--
- src/cmd/link/internal/ld/lib.go            | 4 ++--
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/loopbce.go         |   8 +-
+ src/cmd/compile/internal/ssa/prove.go           | 169 ++++++++++++++++++++++--
+ test/codegen/compare_and_branch.go              |  22 +--
+ test/prove_invert_loop_with_unused_iterators.go |  10 ++
+ 4 files changed, 188 insertions(+), 21 deletions(-)

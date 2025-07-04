@@ -1,23 +1,20 @@
-commit 0bfd6fcea6b7cefe200718dc3b318e1d13ee03ab
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Sep 1 12:07:08 2021 -0700
+commit 8fcf318123e15abf6ce35e33831bdb64a4e071ff
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 17 15:17:14 2020 -0500
 
-    all: update golang.org/x/net to pull in CL 346890
+    api/go1.16: remove crypto/tls APIs that are moved to Go 1.17
     
-    For #42777.
+    CL 269697 was created before CL 276454 and submitted after,
+    so the api/go1.16.txt file needs to be updated accordingly
+    to fix the build.
     
-    Change-Id: I963db8c666e8bcf0fc4f390b359db6408a0f792b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347010
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Updates #32406.
+    
+    Change-Id: I6bf79cc981be504e0baefa82982814aaee4434dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278992
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/go.mod                                       |   2 +-
- src/go.sum                                       |   4 +-
- src/net/http/h2_bundle.go                        | 183 ++++++++++++-----------
- src/vendor/golang.org/x/net/route/address.go     |   4 +
- src/vendor/golang.org/x/net/route/message.go     |   2 +-
- src/vendor/golang.org/x/net/route/sys_freebsd.go |   3 -
- src/vendor/modules.txt                           |   2 +-
- 7 files changed, 102 insertions(+), 98 deletions(-)
+ api/go1.16.txt | 3 ---
+ 1 file changed, 3 deletions(-)

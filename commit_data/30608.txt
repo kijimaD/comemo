@@ -1,19 +1,16 @@
-commit 027500ce385709ecaa8fe11320a23a12f8e3b3de
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Mar 9 20:50:24 2017 +0000
+commit d8b14c524303f8d28bc5b496e918cfbb2758cbc5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 16 19:08:25 2016 +0000
 
-    src/*.bash: use tabs consistently
+    math/rand: make floating point tests shorter on mips and mipsle
     
-    make.bash used mostly tabs and buildall.bash used mostly spaces, but
-    they were both mixing them. Be consistent and use tabs, as that's what's
-    more common and what the Go code uses.
+    Like GOARM=5 does.
     
-    Change-Id: Ia6affbfccfe64fda800c1ac400965df364d2c545
-    Reviewed-on: https://go-review.googlesource.com/37967
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #17944
+    
+    Change-Id: Ica2a54a90fbd4a29471d1c6009ace2fcc5e82a73
+    Reviewed-on: https://go-review.googlesource.com/33326
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/buildall.bash | 64 +++++++++++++++++++++++++++----------------------------
- src/make.bash     |  2 +-
- 2 files changed, 33 insertions(+), 33 deletions(-)
+ src/math/rand/rand_test.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

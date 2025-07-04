@@ -1,25 +1,18 @@
-commit db042d2d42e1009bb9d6c12a7a018108638e1dae
-Author: Samuel Tan <samueltan@gmail.com>
-Date:   Mon Jun 10 22:18:56 2019 -0700
+commit 7a9968f96fdfa0979e7f086d37592c5df9b9a27c
+Author: WhisperRain <2516435583@qq.com>
+Date:   Tue Feb 26 23:01:53 2019 +0000
 
-    html/template: handle nil Error values in context.String
+    container/heap: avoid memory leak in example
     
-    Add a special case to print a generic nil error when context.err is
-    nil.
+    Set element in slice to nil avoiding memory leak.
     
-    Previously, this case was unchecked, leading to a call to (*Error).Error
-    with a nil receiver, which was triggering a nil pointer access. However,
-    this bug was masked by the panic-recovery code in package fmt.
-    
-    I tested this change by running `dlv test` in src/html/template, running
-    the `continue` command, and verifying that no "bad access" errors are
-    returned.
-    
-    Fixes #28854
-    
-    Change-Id: I0b637b943de003d9efc294f6f1e49b793668d037
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/181579
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I9dbef9a0466407011e326725d3a0b681cd815389
+    GitHub-Last-Rev: 1bae5d375876a7f146eb04c2a5ba88d079264eb3
+    GitHub-Pull-Request: golang/go#30386
+    Reviewed-on: https://go-review.googlesource.com/c/163601
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/html/template/context.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/container/heap/example_pq_test.go | 1 +
+ 1 file changed, 1 insertion(+)

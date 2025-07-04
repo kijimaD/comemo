@@ -1,14 +1,12 @@
-commit e02168f6593db7f807a475b2bd4af0f3d7583e4d
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 1 15:01:26 2013 -0500
+commit f42a11ec8e960f48c373b5c931b40def3bc2c486
+Author: John Graham-Cumming <jgc@jgc.org>
+Date:   Fri Mar 1 11:56:33 2013 -0800
 
-    build: skip cgo test on arm
+    net: eliminate odd if statement with identical branches
     
-    Update #4961.
-    
-    R=golang-dev
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7451044
+    https://golang.org/cl/7447044
 
- src/run.bash | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/fd_unix.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

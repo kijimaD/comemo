@@ -1,23 +1,29 @@
-commit 5e387b2feee87b7d8d5cc81e7cb08603b3e9cd6a
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Mar 5 15:55:27 2024 +0100
+commit 75c2e97c3c11050847fc221480e1939f29c911e5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 16 10:59:04 2023 +0100
 
-    os: fix 63703.md release notes
+    syscall: let ENOSYS, ENOTSUP and EOPNOTSUPP implement errors.ErrUnsupported
     
-    63703.md contains a paragraph that shouldn't be there,
-    remove it.
+    As suggested by Bryan, also update (Errno).Is on windows to include the
+    missing oserror cases that are covered on other platforms.
     
-    While here, fix a test error message related to the #63703
-    implementation.
+    Quoting Bryan:
+    > Windows syscalls don't actually return those errors, but the dummy Errno
+    > constants defined on Windows should still have the same meaning as on
+    > Unix.
     
-    Updates #63703.
+    Updates #41198
     
-    Change-Id: I82a8b0b7dfa8f96530fb9a3a3aa971e03970f168
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569195
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I15441abde4a7ebaa3c6518262c052530cd2add4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/next/6-stdlib/99-minor/os/63703.md | 8 +-------
- src/os/os_windows_test.go              | 2 +-
- 2 files changed, 2 insertions(+), 8 deletions(-)
+ src/internal/testenv/testenv_unix.go |  5 -----
+ src/syscall/syscall_js.go            |  7 +++++--
+ src/syscall/syscall_plan9.go         |  4 ++--
+ src/syscall/syscall_unix.go          |  7 +++++--
+ src/syscall/syscall_windows.go       | 20 ++++++++++++++------
+ 5 files changed, 26 insertions(+), 17 deletions(-)

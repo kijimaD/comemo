@@ -1,23 +1,25 @@
-commit 9f6c80a76ad56f653b743fe2df3f2296210c90d6
-Author: Pedro Tôrres <t0rr3sp3dr0@gmail.com>
-Date:   Fri Dec 20 06:45:52 2024 +0000
+commit 0889b39ff12405c37ce23af5b65263ab4b31899c
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Nov 4 15:44:55 2023 +0800
 
-    cmd/go/internal/work: allow single character values in -Wl, linker flags
+    testing: add available godoc link
     
-    Allow single character values in -Wl, linker flags by modifying the regular
-    expressions to use the star operator instead of the plus operator.
-    
-    Fixes #70924
-    
-    Change-Id: Ie7940197cc8503440a87c6b29409a13377a20534
-    GitHub-Last-Rev: 42e8ac87d600239ceff434eb202e2747f2cceb3c
-    GitHub-Pull-Request: golang/go#70937
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638035
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I8f4d097601796f53176d490cddf8832b7caa4c05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539836
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/work/security.go      | 12 ++++++------
- src/cmd/go/internal/work/security_test.go |  7 +++++++
- 2 files changed, 13 insertions(+), 6 deletions(-)
+ src/testing/benchmark.go              | 20 ++++++++++----------
+ src/testing/fstest/mapfs.go           |  2 +-
+ src/testing/fuzz.go                   |  4 ++--
+ src/testing/internal/testdeps/deps.go |  2 +-
+ src/testing/iotest/logger.go          |  4 ++--
+ src/testing/iotest/reader.go          |  6 +++---
+ src/testing/quick/quick.go            |  8 ++++----
+ src/testing/slogtest/slogtest.go      |  4 ++--
+ src/testing/testing.go                |  2 +-
+ 9 files changed, 26 insertions(+), 26 deletions(-)

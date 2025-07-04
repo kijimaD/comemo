@@ -1,22 +1,16 @@
-commit f4f018518d6f8ca220871da072c7afe33e1cdbcb
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 13 11:14:43 2017 -0400
+commit ed00cd94f2cd01f49ee8da8b1dc0c06b66d34b2f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 17 18:42:58 2017 +0100
 
-    runtime: move pdesc into p
+    encoding/gob: make integers encoding faster
     
-    There are currently two arrays indexed by P ID: allp and pdesc.
-    Consolidate these by moving the pdesc fields into type p so they can
-    be indexed off allp along with all other per-P state.
+    name                old time/op  new time/op  delta
+    EncodeInt32Slice-4  14.6µs ± 2%  12.2µs ± 1%  -16.65%  (p=0.000 n=19+18)
     
-    For #15131.
-    
-    Change-Id: Ib6c4e6e7612281a1171ba4a0d62e52fd59e960b4
-    Reviewed-on: https://go-review.googlesource.com/45572
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I078a171f1633ff81d7e3f981dc9a398309ecb2c0
+    Reviewed-on: https://go-review.googlesource.com/38269
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/proc.go     | 4 ++--
- src/runtime/runtime2.go | 7 ++++---
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/encoding/gob/encode.go      | 16 ++++++++--------
+ src/encoding/gob/timing_test.go |  2 +-
+ 2 files changed, 9 insertions(+), 9 deletions(-)

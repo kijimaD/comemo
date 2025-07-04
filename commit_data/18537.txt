@@ -1,13 +1,19 @@
-commit 7056b05f7a918a95e4ce6d118ae2bc0892c256f6
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 15 20:00:15 2014 -0500
+commit 15d294991fe31d962a09f4ab4d4778168c04ceb6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Feb 15 16:39:04 2014 +0100
 
-    debug/elf: correct test failure print
+    cmd/gc: do not lower copy to a value node in go/defer.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    The existing tests issue4463.go and issue4654.go had failures at
+    typechecking and did not test walking the AST.
+    
+    Fixes #7272.
+    
+    LGTM=khr
+    R=khr, rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/64380043
+    https://golang.org/cl/60550044
 
- src/pkg/debug/elf/elf_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/walk.c           | 37 +++++++++++++++++++---------------
+ test/fixedbugs/issue7272.go | 48 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 16 deletions(-)

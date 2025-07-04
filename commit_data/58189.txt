@@ -1,41 +1,15 @@
-commit 2e07ff35436bc9adc67885f17cdd9042118d0ffd
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Nov 20 13:39:14 2024 -0500
+commit 7241fee9b06da568251617ce3a715fae3e9f2881
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 10 15:30:09 2023 -0400
 
-    cmd/go: remove base.ShortPathConservative
+    runtime: remove write-only sweepdata fields
     
-    This CL first removes the base.ShortPathConservative function. It had
-    two classes of uses. The first was in opening files where the paths end
-    up in error messages. In all those cases, the non-shortened paths are
-    used to open the files, and ShortPath is only used for the error
-    messages. The second is in base.RelPaths. RelPaths will now call
-    ShortPath for each of the paths passed in instead of calling
-    RelConservative and then doing the same check as ShortPath to see if the
-    path is shorter.
-    
-    To avoid the possibility of incorrect relative paths ending up in error
-    messages (that might have command lines suggested for users to run), and
-    to avoid the possibility of incorrect relative paths appearing in the
-    output of base.RelPaths, base.ShortPaths always does an os.SameFile
-    check to make sure that the relative path its providing is actually
-    correct. Since this makes ShortPath slower than just manipulating paths
-    (because we need to stat the files), we need to be continue to enforce
-    that ShortPath is only called for error messages (with the exception of
-    base.RelPaths and its callers).
-    
-    This is a simpler way of solving the problem that base.ShortPaths
-    intended to solve.
-    
-    For #68383
-    
-    Change-Id: I474f464f51a9acb2250069dea3054b55d95a4ab4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630276
+    Change-Id: Ia238889a704812473b838b20efedfe9d24b1e26f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534160
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/base/path.go       | 53 ++++++++++++----------------------
- src/cmd/go/internal/modload/init.go    |  2 +-
- src/cmd/go/internal/modload/load.go    |  2 +-
- src/cmd/go/internal/modload/modfile.go | 10 ++-----
- src/cmd/go/internal/workcmd/use.go     | 15 +++++-----
- 5 files changed, 30 insertions(+), 52 deletions(-)
+ src/runtime/mgc.go      | 7 -------
+ src/runtime/mgcsweep.go | 5 -----
+ 2 files changed, 12 deletions(-)

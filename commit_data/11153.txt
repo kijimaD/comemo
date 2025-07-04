@@ -1,12 +1,13 @@
-commit eaecf357e76478d9956988423f00171887977b7c
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jan 13 11:47:55 2012 -0800
+commit a4f7024e0af60c548ec1c066ef77e0b2fda2cb21
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jan 13 22:22:03 2012 +0400
 
-    time: delete unused buffer.WriteByte method
+    cmd/go: fix data race during build
+    Fixes #2695.
     
-    R=golang-dev, bradfitz, r, rsc
+    R=golang-dev, mpimenov, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/5539056
+    https://golang.org/cl/5545052
 
- src/pkg/time/format.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/cmd/go/build.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,18 +1,24 @@
-commit 7b192f33cf8e1391769353687e5b698d9f677109
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Mon Nov 23 05:47:51 2020 +0000
+commit 43a85a39bf4204267c20e60c2e32383a0e506347
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 27 12:19:57 2020 -0400
 
-    cmd/go: remove trailing whitespace from test script
+    [dev.link] cmd/link: remove Gotype and File fields from sym.Symbol
     
-    Noticed while skimming through recent master commits.
+    Remove the 'Gotype' field from sym.Symbol, as it is now no longer
+    used. Store the loader.Sym for a symbol as a field in sym.Symbol
+    ("SymIdx"). Then remove sym.Symbol 'File' field, and replace the field
+    accesses in question with calls into the loader instead.
     
-    Change-Id: I42a99ea7d71c05fc5b6107627105375a21920f5e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271990
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I01c5504425006b8d3fe77fac2b69a86e198c7a5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230304
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/testdata/script/mod_gonoproxy.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go          |  7 ++++++
+ src/cmd/link/internal/ld/xcoff.go        | 12 +++++-----
+ src/cmd/link/internal/loader/loader.go   | 39 +++-----------------------------
+ src/cmd/link/internal/sym/sizeof_test.go |  2 +-
+ src/cmd/link/internal/sym/symbol.go      |  3 +--
+ 5 files changed, 18 insertions(+), 45 deletions(-)

@@ -1,26 +1,16 @@
-commit b9cae6f78f129bb3f1b3293da5375040f5c4f356
-Author: Katie Hockman <katie@golang.org>
-Date:   Wed Dec 22 10:34:55 2021 -0500
+commit 566a87c16b055872cb469d46cbccc2404dba9bb7
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 14 17:31:09 2021 -0700
 
-    testing: fix deadlock with t.Parallel in testing seed corpus
+    time: add missing "os" import to zoneinfo_test.go
     
-    The c.startParallel channel on the testContext is stuck
-    in t.Parallel() because c.running starts at 1 for the main
-    fuzz parent test, and is causing a deadlock because it is
-    never released. It would normally be released by tRunner,
-    but needs to instead be released by fRunner instead for fuzz
-    tests.
+    Updates #45448
     
-    Fixes #50217
-    
-    Change-Id: I2d010e9adddfd8e8321ff2f9dd2e43daf46c128f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374054
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I2e79ae6b9cf43a481aa703578712619ea344e421
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310212
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/test_fuzz_parallel.txt | 7 +++++++
- src/testing/fuzz.go                               | 9 +++++----
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/time/zoneinfo_test.go | 1 +
+ 1 file changed, 1 insertion(+)

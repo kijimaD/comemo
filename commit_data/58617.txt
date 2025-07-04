@@ -1,23 +1,24 @@
-commit 4cc7705e56be24d5719b59cb369ce4d40643983c
-Author: apocelipes <seve3r@outlook.com>
-Date:   Wed Feb 5 12:19:12 2025 +0000
+commit 351d8520a6e55cbadc1714ad62405699ee172c5e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 17:33:20 2023 +0000
 
-    testing: use strings.SplitSeq and bytes.SplitSeq
+    internal/trace: use the correct stack for goroutine naming in v2 traces
     
-    To simplify the code. This is a follow-up for the CL 646216.
+    Currently goroutine names are determined (for v2 traces) by
+    internal/tracev/2.Event.Stack, but this is wrong in general. For
+    example, if we end up seeing a transition from GoNotExist->GoRunnable
+    (goroutine creation) then we're taking the stack from the creator, not
+    the created goroutine (which is what we're naming at that point).
     
-    Change-Id: Ib09d1074a783482fb293527e9f1abeb3c02137c3
-    GitHub-Last-Rev: 2e7a6ad40cc22ea855e4d703ff39db9cc2c8a58e
-    GitHub-Pull-Request: golang/go#71568
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/646755
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Use the StateTransition.Stack instead. This is always the correct one to
+    use because we're always naming the goroutine that the state transition
+    is for.
+    
+    Change-Id: I3fc7c8e4f85dfee3802d666c0c091b6953c7d6cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544317
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Salah (Globlost) <globlost@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/testing/slogtest/example_test.go | 2 +-
- src/testing/testing.go               | 2 +-
- src/testing/testing_test.go          | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/internal/trace/goroutinesv2.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

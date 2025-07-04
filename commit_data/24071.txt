@@ -1,15 +1,20 @@
-commit b11c8b9370b6156fec4510bf00ce956aa77ae8a4
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Aug 24 21:17:04 2015 -0400
+commit 40a1516a098b9843e2d3e5ee2b9471a57d6f2470
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jul 3 11:34:18 2015 +1000
 
-    cmd/go: skip test using external linking on linux/ppc64 too
+    image/draw: fix double-draw when the dst is paletted.
     
-    While we're at it, also fix a typo.
+    The second (fallback) draw is a no-op, but it's a non-trivial amount of work.
     
-    Change-Id: Id436f33cffa5683e2a8450cce5b545960cf2877e
-    Reviewed-on: https://go-review.googlesource.com/13878
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #11550.
+    
+    benchmark               old ns/op     new ns/op     delta
+    BenchmarkPaletted-4     16301219      7309568       -55.16%
+    
+    Change-Id: Ic88c537b2b0c710cf517888f3dd15cb702dd142f
+    Reviewed-on: https://go-review.googlesource.com/11858
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/go_test.go   | 2 +-
- src/cmd/go/note_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/image/draw/bench_test.go | 24 +++++++++++++++++++++++-
+ src/image/draw/draw.go       |  1 +
+ 2 files changed, 24 insertions(+), 1 deletion(-)

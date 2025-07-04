@@ -1,23 +1,14 @@
-commit f6c0241999bffe0fe52e8b7f5bbcc8f9e02edbdf
-Author: Tom Bergan <tombergan@google.com>
-Date:   Fri May 27 16:53:13 2016 -0700
+commit acefcb732cae4daa59a621cb102793860b564a12
+Author: Eric Lagergren <ericscottlagergren@gmail.com>
+Date:   Tue Feb 23 18:40:42 2016 -0800
 
-    net/http: update bundled http2
+    io: define SeekStart, SeekCurrent, SeekEnd constants for use with Seeker
     
-    Updates x/net/http2 to git rev 6bdd4be4 for CL 23526:
+    Fixes #6885
     
-      http2: GotFirstResponseByte hook should only fire once
-    
-    Also updated the trace hooks test to verify that all trace hooks are called
-    exactly once except ConnectStart/End, which may be called multiple times (due
-    to happy-eyeballs).
-    
-    Fixes #15777
-    
-    Change-Id: Iea5c64eb322b58be27f9ff863b3a6f90e996fa9b
-    Reviewed-on: https://go-review.googlesource.com/23527
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I6907958186f6a2427da1ad2f6c20bd5d7bf7a3f9
+    Reviewed-on: https://go-review.googlesource.com/19862
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/h2_bundle.go      | 35 ++++++++++++++++++++++++-----------
- src/net/http/transport_test.go | 35 +++++++++++++++++++----------------
- 2 files changed, 43 insertions(+), 27 deletions(-)
+ src/io/io.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

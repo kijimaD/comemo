@@ -1,21 +1,13 @@
-commit 081bc6b226f1df783f13657251cf4d4148179c25
-Author: David Leon Gil <coruus@gmail.com>
-Date:   Fri Dec 26 18:24:39 2014 -0800
+commit 8ea28028e8e7bdb4f0c54903e4dfec483330e5ed
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 11 09:11:08 2014 +1100
 
-    crypto/elliptic: add Name field to CurveParams struct
+    doc: remove TODO from go1.4 release notes
     
-    And add names for the curve implemented in crypto/elliptic.
-    
-    This permits a safer alternative to switching on BitSize
-    for code that implements curve-dependent cryptosystems.
-    (E.g., ECDSA on P-xxx curves with the matched SHA-2
-    instances.)
-    
-    Change-Id: I653c8f47506648028a99a96ebdff8389b2a95fc1
-    Reviewed-on: https://go-review.googlesource.com/2133
-    Reviewed-by: Adam Langley <agl@golang.org>
+    LGTM=bradfitz
+    R=iant, rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/191750043
 
- src/crypto/elliptic/elliptic.go | 5 +++--
- src/crypto/elliptic/p224.go     | 2 +-
- src/crypto/elliptic/p256.go     | 2 +-
- 3 files changed, 5 insertions(+), 4 deletions(-)
+ doc/go1.4.html | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

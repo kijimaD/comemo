@@ -1,17 +1,14 @@
-commit 4036d876eab44f83d71e668e666acc5cd3997373
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Feb 21 13:11:58 2013 +1100
+commit a2ade45205e24b80a1242f5d8cd41f343e969bcd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 20 16:39:33 2013 -0800
 
-    misc/dashboard/builder: various cleanups
+    net/http: improve test reliability
     
-    * allow commit watcher to be disabled, useful for small slow builders who will never be the first to notice a commit.
-    * builders always update their local master working copy before cloning a specific revision.
-    * refactor hg repo operations into a new type, Repo.
+    Fixes #4852
     
-    R=adg, shanemhansen, luitvd
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/7326053
+    https://golang.org/cl/7374045
 
- misc/dashboard/builder/main.go | 253 ++++++++++-------------------------------
- misc/dashboard/builder/vcs.go  | 148 ++++++++++++++++++++++++
- 2 files changed, 211 insertions(+), 190 deletions(-)
+ src/pkg/net/http/transport_test.go | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)

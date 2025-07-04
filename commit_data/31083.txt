@@ -1,29 +1,47 @@
-commit 9417c022c6d7e6457fd6de89f92bb9c52a04819b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Apr 12 01:10:01 2017 +1000
+commit 2b283cedef2a62e37b7422ef3badc7b758bd26c8
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Jan 20 17:12:50 2017 -0800
 
-    cmd/link,runtime/cgo: enable PT_TLS generation on OpenBSD
+    database/sql: fix race when canceling queries immediately
     
-    OpenBSD 6.0 and later have support for PT_TLS in ld.so(1). Now that OpenBSD
-    6.1 has been released, OpenBSD 5.9 is no longer officially supported and Go
-    can start generating PT_TLS for OpenBSD cgo binaries. This also allows us
-    to remove the workarounds in the OpenBSD cgo runtime.
+    Previously the following could happen, though in practice it would
+    be rare.
     
-    This change also removes the environ and progname exports - these are now
-    provided directly by ld.so(1) itself.
+    Goroutine 1:
+            (*Tx).QueryContext begins a query, passing in userContext
     
-    Fixes #19932
+    Goroutine 2:
+            (*Tx).awaitDone starts to wait on the context derived from the passed in context
     
-    Change-Id: I42e75ef9feb5dcd4696add5233497e3cbc48ad52
-    Reviewed-on: https://go-review.googlesource.com/40331
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Goroutine 1:
+            (*Tx).grabConn returns a valid (*driverConn)
+            The (*driverConn) passes to (*DB).queryConn
+    
+    Goroutine 3:
+            userContext is canceled
+    
+    Goroutine 2:
+            (*Tx).awaitDone unblocks and calls (*Tx).rollback
+            (*driverConn).finalClose obtains dc.Mutex
+            (*driverConn).finalClose sets dc.ci = nil
+    
+    Goroutine 1:
+            (*DB).queryConn obtains dc.Mutex in withLock
+            ctxDriverPrepare accepts dc.ci which is now nil
+            ctxCriverPrepare panics on the nil ci
+    
+    The fix for this is to guard the Tx methods with a RWLock
+    holding it exclusivly when closing the Tx and holding a read lock
+    when executing a query.
+    
+    Fixes #18719
+    
+    Change-Id: I37aa02c37083c9793dabd28f7f934a1c5cbc05ea
+    Reviewed-on: https://go-review.googlesource.com/35550
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/data.go      |   6 +-
- src/cmd/link/internal/ld/elf.go       |  40 ++++------
- src/cmd/link/internal/ld/lib.go       |   2 +-
- src/runtime/cgo/gcc_libinit.c         |   2 +-
- src/runtime/cgo/gcc_libinit_openbsd.c |  74 -------------------
- src/runtime/cgo/gcc_openbsd_386.c     | 133 +---------------------------------
- src/runtime/cgo/gcc_openbsd_amd64.c   | 133 +---------------------------------
- src/runtime/cgo/openbsd.go            |  15 +---
- 8 files changed, 25 insertions(+), 380 deletions(-)
+ src/database/sql/sql.go      | 91 +++++++++++++++++++++++++++++++-------------
+ src/database/sql/sql_test.go | 91 ++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 147 insertions(+), 35 deletions(-)

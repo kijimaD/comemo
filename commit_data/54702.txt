@@ -1,24 +1,30 @@
-commit 22344034c547da2e656e2a63a69b555ee974d1a8
-Author: cui fliter <imcusg@gmail.com>
-Date:   Thu Oct 12 12:18:18 2023 +0800
+commit e48fc2665e2e95eddea612fa315403d50c7beb2b
+Author: Aleks Rudzitis <arudzitis@stripe.com>
+Date:   Thu Jul 21 11:19:42 2022 -0700
 
-    archive: add available godoc link
+    crypto: allow hash.Hash for OAEP and MGF1 to be specified independently
     
-    Change-Id: I813aa09f8a65936796469fa637d0f23004d26098
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534757
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    crypto/rsa assumes RSA OAEP uses the same hash to be used for both the label
+    and the mask generation function. However, implementations in other languages,
+    such as Java and Python, allow these parameters to be specified independently.
+    
+    This change allows the MGF hash to be specified independently for decrypt
+    operations in order to allow decrypting ciphertexts generated in other
+    environments.
+    
+    Fixes: #19974
+    Change-Id: If453d628f0da354ceb3b52863f30087471670f7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418874
+    Auto-Submit: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
 
- src/archive/tar/common.go   |  2 +-
- src/archive/tar/format.go   |  2 +-
- src/archive/tar/reader.go   | 14 +++++++-------
- src/archive/tar/writer.go   | 16 ++++++++--------
- src/archive/zip/reader.go   | 20 ++++++++++----------
- src/archive/zip/register.go |  6 +++---
- src/archive/zip/struct.go   | 18 +++++++++---------
- src/archive/zip/writer.go   | 36 ++++++++++++++++++------------------
- 8 files changed, 57 insertions(+), 57 deletions(-)
+ api/next/19974.txt                      |  1 +
+ src/crypto/internal/boring/notboring.go |  4 ++--
+ src/crypto/internal/boring/rsa.go       | 29 ++++++++++++++++++-----------
+ src/crypto/rsa/rsa.go                   | 23 ++++++++++++++++++-----
+ src/crypto/rsa/rsa_test.go              | 28 ++++++++++++++++++++++++++--
+ 5 files changed, 65 insertions(+), 20 deletions(-)

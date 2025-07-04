@@ -1,14 +1,16 @@
-commit ab96371817545b1e6dc7d3679294256d2963ca4b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Dec 15 12:54:29 2014 +1100
+commit 8e01fc7e9b531398e868d9899c91a9f052f015c7
+Author: Benoit Sigoure <tsunanet@gmail.com>
+Date:   Sat Nov 1 08:28:09 2014 -0700
 
-    misc/makerelease: fix build
+    misc: Increase issue 6997's test timeout to prevent spurious failures.
     
-    Fixes #9308
+    On heavily loaded build servers, a 5 second timeout is too aggressive,
+    which causes this test to fail spuriously.
     
-    Change-Id: I0121adbbecc893eb93afc3321ecff97ea146d150
-    Reviewed-on: https://go-review.googlesource.com/1560
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews, sqweek
+    https://golang.org/cl/170850043
 
- misc/makerelease/makerelease.go | 3 ---
- 1 file changed, 3 deletions(-)
+ misc/cgo/test/issue6997_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

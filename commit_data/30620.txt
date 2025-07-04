@@ -1,14 +1,16 @@
-commit 7e036521d505708a3e0d0b3d9bbe1e4853111211
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 9 16:45:14 2017 -0500
+commit 48858a2386f7eef41cb3459e85d53ac9b1e8f70f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 16 23:41:15 2016 +0000
 
-    expvar: add benchmark for (*Map).Set with per-goroutine keys
+    net/http: deflake TestInterruptWithPanic_nil_h2, again
     
-    Change-Id: I0fa68ca9812fe5e82ffb9d0b9598e95b47183eb8
-    Reviewed-on: https://go-review.googlesource.com/38011
+    Updates #17243
+    
+    Change-Id: Iaa737874e75fdac73452f1fc13a5749e8df78ebe
+    Reviewed-on: https://go-review.googlesource.com/33332
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/expvar/expvar_test.go | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ src/net/http/clientserver_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

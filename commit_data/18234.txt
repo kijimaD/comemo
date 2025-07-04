@@ -1,36 +1,14 @@
-commit 7cecac3cbbd16baf80c9d15b92fc55444bf2870e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 13 23:07:57 2014 -0500
+commit 47dc18313684383ea2432b57f34e353db0593a4d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 14 07:36:38 2014 +0900
 
-    cmd/link: implement and test automatic symbols
+    net: fix incorrect internal IPv6 address representation in test
     
-    Related changes included in this CL:
+    Also fixes a dialgoogle test glitch after issue 6628 fix.
     
-     - Add explicit start symbol to Prog.
-     - Add omitRuntime bool to Prog.
-     - Introduce p.Packages[""] to hold automatic symbols
-     - Add SymOrder to Prog to preserve symbol order.
-     - Add layout test (and fix bug that was putting everything in text section).
-    
-    R=iant
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/51260045
+    https://golang.org/cl/50660044
 
- src/cmd/link/auto.go                | 117 ++++++++++++++++++++++++++++++++++++
- src/cmd/link/auto_test.go           |  72 ++++++++++++++++++++++
- src/cmd/link/layout.go              |  52 +++++++++++-----
- src/cmd/link/layout_test.go         |  45 ++++++++++++++
- src/cmd/link/link_test.go           |  19 +++---
- src/cmd/link/load.go                |  34 ++++++++---
- src/cmd/link/macho.go               |   7 +--
- src/cmd/link/macho_test.go          |   4 ++
- src/cmd/link/prog.go                |  54 ++++++++++++++---
- src/cmd/link/scan.go                |  88 ++++++++++++++++++++++++---
- src/cmd/link/testdata/autosection.6 | Bin 0 -> 909 bytes
- src/cmd/link/testdata/autosection.s |  60 ++++++++++++++++++
- src/cmd/link/testdata/autoweak.6    | Bin 0 -> 428 bytes
- src/cmd/link/testdata/autoweak.s    |  30 +++++++++
- src/cmd/link/testdata/layout.6      | Bin 0 -> 431 bytes
- src/cmd/link/testdata/layout.s      |  29 +++++++++
- src/cmd/link/write.go               |   2 +-
- 17 files changed, 557 insertions(+), 56 deletions(-)
+ src/pkg/net/dialgoogle_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

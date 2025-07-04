@@ -1,25 +1,17 @@
-commit 6cdf2ccae8a30b20c82bf01e7989f0971d1a4764
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 8 12:20:35 2023 -0500
+commit b90971b292cd9a91f3c80e3c82e95541393393d7
+Author: Matt Horsnell <matthew.horsnell@gmail.com>
+Date:   Fri Jan 13 10:54:28 2023 +0000
 
-    cmd/go: relax version regexp from CL 547998
+    runtime: enable sha512 optimizations on arm64 via hwcaps.
     
-    In CL 547998 I relaxed cmd/go's parsing of version lines to allow it
-    to recognize clang versions with vendor prefixes. To prevent false-positives,
-    I added a check for a version 3-tuple following the word "version".
-    However, it appears that some releases of GCC use only a 2-tuple instead.
-    
-    Updates #64423.
-    Fixes #64619.
-    
-    Change-Id: I5f1d0881b6295544a46ab958c6ad4c2155cf51fe
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548120
+    Change-Id: I9d88c8eb91106de412a9abc6601cdda06537d818
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461747
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/buildid.go | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+ src/internal/cpu/cpu_arm64_hwcap.go | 2 ++
+ 1 file changed, 2 insertions(+)

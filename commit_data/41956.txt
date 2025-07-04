@@ -1,29 +1,16 @@
-commit 382fe3e2498f2066400e7e7007aa9903440e339d
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue Apr 14 15:46:26 2020 +0100
+commit fb29e2252c543892501b79b4e65a98f86be07bab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 3 10:57:00 2019 -0800
 
-    cmd/compile: fix deallocation of live value copies in regalloc
+    misc/cgo/testcarchive: add missing exit(0) in main7.c
     
-    When deallocating the input register to a phi so that the phi
-    itself could be allocated to that register the code was also
-    deallocating all copies of that phi input value. Those copies
-    of the value could still be live and if they were the register
-    allocator could reuse them incorrectly to hold speculative
-    copies of other phi inputs. This causes strange bugs.
+    Fixes #35327
     
-    No test because this is a very obscure scenario that is hard
-    to replicate but CL 228060 adds an assertion to the compiler
-    that does trigger when running the std tests on linux/s390x
-    without this CL applied. Hopefully that assertion will prevent
-    future regressions.
-    
-    Fixes #38195.
-    
-    Change-Id: Id975dadedd731c7bb21933b9ea6b17daaa5c9e1d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228061
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I3726bfad24851a0bef8891014f7c5a7c48352307
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/regalloc.go | 28 +++++++++++++++-------------
- 1 file changed, 15 insertions(+), 13 deletions(-)
+ misc/cgo/testcarchive/testdata/main7.c | 1 +
+ 1 file changed, 1 insertion(+)

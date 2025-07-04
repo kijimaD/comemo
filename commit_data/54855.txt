@@ -1,20 +1,30 @@
-commit 04575ce53f9af22403371b1b67d1e8bda990a4cd
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat Oct 28 16:30:57 2023 +0000
+commit cafb49ac731f862f386862d64b27b8314eeb2909
+Author: cia-rana <kiwamura0314@gmail.com>
+Date:   Mon Nov 14 17:01:03 2022 +0900
 
-    reflect: pass the right element type in verifyGCBitsSlice
+    go/parser: allow trailing commas in embedded instantiated types
     
-    Currently verifyGCBitsSlice creates a new array type to represent the
-    slice backing store, but passes the element type as the slice type in
-    this construction. This is incorrect, but the tests currently don't care
-    about it. They will in a follow-up CL, so fix it now.
+    go/parser can correctly parse interfaces that instantiate and embed
+    generic interfaces, but not structs. This is because in the case of
+    structs, it does not expect RBRACK as a token trailing COMMA in the type
+    argument, even though it is allowed by the spec.
     
-    Change-Id: I6ed8a9808ae78c624be316db1566376fa0e12758
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/537981
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For example, go/parser produces an error for the type declaration below:
+    
+    type A struct {
+        B[byte, []byte,]
+    }
+    
+    Fixes #56748
+    
+    Change-Id: Ibb2addd6cf9b381d8470a6d20eedb93f13f93cd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450175
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/reflect/all_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/parser/parser.go            | 12 ++++++++++--
+ src/go/parser/testdata/tparams.go2 |  7 +++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

@@ -1,29 +1,40 @@
-commit 9c258c6aa6880268a0be9f2e90ea11f9e4ded150
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sat Oct 3 15:50:45 2015 +0000
+commit 87f97c73d37d41e8de261215f7dc7768697246b5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 28 14:33:39 2015 -0400
 
-    cmd/cgo: fix panic on references to non-existing C types
+    runtime: avoid race between SIGPROF traceback and stack barriers
     
-    cgo panics in Package.rewriteRef for:
+    The following sequence of events can lead to the runtime attempting an
+    out-of-bounds access on a stack barrier slice:
     
-    var a = C.enum_test(1)
-    or
-    p := new(C.enum_test)
+    1. A SIGPROF comes in on a thread while the G on that thread is in
+       _Gsyscall. The sigprof handler calls gentraceback, which saves a
+       local copy of the G's stkbar slice. Currently the G has no stack
+       barriers, so this slice is empty.
     
-    when the corresponding enum type is not defined.
+    2. On another thread, the GC concurrently scans the stack of the
+       goroutine being profiled (it considers it stopped because it's in
+       _Gsyscall) and installs stack barriers.
     
-    Check nil values for Type fields and issue a proper
-    error instead.
+    3. Back on the sigprof thread, gentraceback comes across a stack
+       barrier in the stack and attempts to look it up in its (zero
+       length) copy of G's old stkbar slice, which causes an out-of-bounds
+       access.
     
-    Fixes #11097
-    Updates #12160
+    This commit fixes this by adding a simple cas spin to synchronize the
+    SIGPROF handler with stack barrier insertion.
     
-    Change-Id: I5821d29097ef0a36076ec5273125b09846c7d832
-    Reviewed-on: https://go-review.googlesource.com/15264
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    In general I would prefer that this synchronization be done through
+    the G status, since that's how stack scans are otherwise synchronized,
+    but adding a new lock is a much smaller change and G statuses are full
+    of subtlety.
+    
+    Fixes #11863.
+    
+    Change-Id: Ie89614a6238bb9c6a5b1190499b0b48ec759eaf7
+    Reviewed-on: https://go-review.googlesource.com/12748
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- misc/cgo/errors/issue11097a.go | 15 +++++++++++++++
- misc/cgo/errors/issue11097b.go | 15 +++++++++++++++
- misc/cgo/errors/test.bash      |  2 ++
- src/cmd/cgo/gcc.go             |  8 ++++++++
- 4 files changed, 40 insertions(+)
+ src/runtime/proc1.go    | 12 ++++++++++++
+ src/runtime/runtime2.go |  1 +
+ 2 files changed, 13 insertions(+)

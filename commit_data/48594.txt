@@ -1,17 +1,31 @@
-commit 2b8178c14d8f71a3f022653c2e779e92eea9cdec
-Author: Sean Liao <sean@liao.dev>
-Date:   Tue Mar 22 20:53:10 2022 +0000
+commit bc1fbe204443cc2e32391b79effe9c18f295d0c2
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 21 12:44:26 2021 -0400
 
-    text/template: remove newline special casing in documentation
+    [dev.fuzz] internal/fuzz: notify coordinator for minimization
     
-    Updates #29770
-    Fixes #51872
+    When a worker process finds a crasher, it now sends that result
+    directly to the coordinator without attempting to minimize it
+    first. The coordinator stops sending new inputs and sends the
+    unminimized crasher back to a worker (any worker) for minimization.
     
-    Change-Id: Icee660c8cc6c69a79ad11e818dd8ab40a344e800
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394676
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    This prevents wasted work during minimization and will help us
+    implement -keepfuzzing later on. We may also be able to minimize
+    interesting inputs with this approach later.
+    
+    Since panics are recoverable errors (they don't terminate worker
+    processes), we no longer attempt to minimize non-recoverable errors.
+    This didn't work too well before: we lost too much state.
+    
+    Change-Id: Id142c7e91a33f64584170b0d42d22cb1f22a92d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321835
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/text/template/doc.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz_minimize.txt |  16 +-
+ src/internal/fuzz/fuzz.go                         |  70 +++--
+ src/internal/fuzz/minimize.go                     |  17 +-
+ src/internal/fuzz/minimize_test.go                |  13 +-
+ src/internal/fuzz/worker.go                       | 298 +++++++++++-----------
+ 5 files changed, 219 insertions(+), 195 deletions(-)

@@ -1,15 +1,12 @@
-commit a8b4a1e63a55f55bfbb9edc34be841d802444874
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Aug 28 19:49:17 2013 +0900
+commit 1d7699e99cdf1ef780377ae123e40cfed57da499
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 29 10:09:23 2013 +1000
 
-    net: BUG section for ReadFrom, ReadFromIP methods of IPConn on "ip4" network
+    doc/go1.2.txt: text/template's if-else
     
-    Fixes #3944.
-    
-    R=golang-dev, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/13263043
+    https://golang.org/cl/13334043
 
- src/pkg/net/ipraw_test.go      |  2 +-
- src/pkg/net/iprawsock_posix.go | 12 ++++++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

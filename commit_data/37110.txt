@@ -1,19 +1,15 @@
-commit a7fb5e1bd2d655c275fdf513fe0ea7ea7517e675
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Oct 24 21:31:18 2018 -0400
+commit b410ce750e08f3b62af3d3d277fa0793f11ed674
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 27 15:38:29 2018 -0700
 
-    crypto/tls: add timeouts to recorded tests
+    cmd/compile: don't crash in untyped expr to interface conversion
     
-    If something causes the recorded tests to deviate from the expected
-    flows, they might wait forever for data that is not coming. Add a short
-    timeout, after which a useful error message is shown.
+    Fixes #24763.
     
-    Change-Id: Ib11ccc0e17dcb8b2180493556017275678abbb08
-    Reviewed-on: https://go-review.googlesource.com/c/144116
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Ibe534271d75b6961d00ebfd7d42c43a3ac650d79
+    Reviewed-on: https://go-review.googlesource.com/121335
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/tls/handshake_client_test.go | 2 ++
- src/crypto/tls/handshake_server_test.go | 2 ++
- 2 files changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/const.go | 18 +++++++++++-------
+ test/fixedbugs/issue24763.go         | 21 +++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 7 deletions(-)

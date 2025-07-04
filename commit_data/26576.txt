@@ -1,22 +1,31 @@
-commit ee1b90ad2c3cc97215c0f38f70e62396856eb0f2
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Tue Mar 22 15:38:21 2016 +0200
+commit d0d04d2d6cdd79428f2c3b97d33b65638c1cdd71
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Tue Feb 9 19:46:26 2016 +0100
 
-    cmd/vet: improve detecting printf-like format argument
+    [dev.ssa] cmd/compile/internal/ssa: handle rewrite of Phis.
     
-    Previously format argument was detected via scanning func type args.
-    This didn't work when func type couldn't be determined if the func
-    is declared in the external package. Fall back to scanning for
-    the first string call argument in this case.
+    * Phis can have variable number of arguments, but rulegen assumed that
+    each operation has fixed number of arguments.
+    * Rewriting Phis is necessary to handle the following case:
     
-    Fixes #14754
+    func f1_ssa(a bool, x int) int {
+            v := 0
+            if a {
+                    v = -1
+            } else {
+                    v = -1
+            }
+            return x|v
+    }
     
-    Change-Id: I571cc29684cc641bc87882002ef474cf1481e9e2
-    Reviewed-on: https://go-review.googlesource.com/21023
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iff6bd411b854f3d1d6d3ce21934bf566757094f2
+    Reviewed-on: https://go-review.googlesource.com/19412
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/vet/print.go          | 94 +++++++++++++++++++++++++------------------
- src/cmd/vet/testdata/print.go | 22 ++++++++++
- 2 files changed, 76 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 20 +++++
+ src/cmd/compile/internal/ssa/gen/generic.rules    |  6 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go    |  4 +-
+ src/cmd/compile/internal/ssa/gen/main.go          |  1 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go       | 17 ++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go    | 94 +++++++++++++++++++++++
+ 6 files changed, 140 insertions(+), 2 deletions(-)

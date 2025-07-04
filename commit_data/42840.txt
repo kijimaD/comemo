@@ -1,27 +1,21 @@
-commit 694fc8e76bec99b67bbd0302852f6a1c1dafe7ca
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Dec 16 17:18:06 2019 -0500
+commit 240498d63551d0a58a71d5ada457c73a71983a7c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Feb 8 19:43:58 2020 -0500
 
-    cmd/go/internal/modload: reject some bad module paths
+    test: close file in goFiles
     
-    This change rejects module paths that don't conform to
-    the new checkModulePathLax function, when loading a go.mod
-    file. The change uses the checkModulePathLax function instead of
-    CheckPath because there are still many users who are using
-    unpublished modules with unpublishable paths, and we don't
-    want to break them all.
+    Brad's battery died on a plane and the file stayed open for 8 years
+    without anyone noticing. 😄
     
-    Next, before this change, when go mod init is run in GOPATH,
-    it would try to use the location of the directory within GOPATH
-    to infer the module path. After this change, it will only use
-    that inferred module path if it conforms to module.CheckPath.
+    Someone noticed in https://github.com/gopherjs/gopherjs/pull/950.
     
-    Change-Id: Idb36d1655cc76aae82671e87ba634609503ad1a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211597
-    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Updates #2833
+    
+    Change-Id: I46b28ac014a8c355be94e026615f119f96e5d51a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218700
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/go/internal/modload/init.go             | 72 +++++++++++++++++++++++--
- src/cmd/go/testdata/script/mod_invalid_path.txt | 30 ++++++++++-
- 2 files changed, 98 insertions(+), 4 deletions(-)
+ test/run.go | 1 +
+ 1 file changed, 1 insertion(+)

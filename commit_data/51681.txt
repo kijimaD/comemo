@@ -1,24 +1,20 @@
-commit 440ef8c4d24861cbfb01758e7e03fa3b4164f55a
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed Jan 4 20:54:34 2023 -0500
+commit ef92828bb9ffd77d6f08e402225557256b11cfad
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Mar 2 21:26:36 2022 -0800
 
-    cmd/internal/osinfo: report Node.js version
+    api: update next.txt for binary.AppendByteOrder interface
     
-    Seeing the Node.js version that was used during a particular test run
-    should be helpful during the upcoming migration from Node.js 14 to 18.
-    Add minimal support for that.
+    CL 386017 added new API for encoding/binary package.
+    This file was accidentally not updated in the same CL.
     
-    For golang/go#57614.
+    Updates #50601
     
-    Change-Id: Id55ba25a7ee4a803788316d4a646cd4b6f4297e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/460655
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Iefeb596ba04b8c6576cf0fe42030f658a5848832
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389636
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/internal/osinfo/os_js.go | 27 ++++++++++++++++++++++-----
- 1 file changed, 22 insertions(+), 5 deletions(-)
+ api/next.txt | 5 +++++
+ 1 file changed, 5 insertions(+)

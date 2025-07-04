@@ -1,20 +1,28 @@
-commit 0cbb12f0bbaeb3893b3d011fdb1a270291747ab0
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Aug 26 08:50:50 2016 -0400
+commit 34b17d4dc5726eebde437f2c1b680d039cc3e7c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 23 12:28:56 2016 -0400
 
-    plugin: new package for loading plugins
+    encoding/json: rename Indent method to SetIndent
     
-    Includes a linux implementation.
+    CL 21057 added this method during the Go 1.7 cycle
+    (so it is not yet released and still possible to revise).
     
-    Change-Id: Iacc2ed7da760ae9deebc928adf2b334b043b07ec
-    Reviewed-on: https://go-review.googlesource.com/27823
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This makes it clearer that the method is not doing something
+    (like func Indent does), but just changing a setting about doing
+    something later.
+    
+    Also document that this is in some sense irreversible.
+    I think that's probably a mistake but the original CL discussion
+    claimed it as a feature, so I'll leave it alone.
+    
+    For #6492.
+    
+    Change-Id: If4415c869a9196501056c143811a308822d5a420
+    Reviewed-on: https://go-review.googlesource.com/23295
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/go/build/deps_test.go   |   1 +
- src/plugin/plugin.go        |  70 +++++++++++++++++++++++++
- src/plugin/plugin_dlopen.go | 125 ++++++++++++++++++++++++++++++++++++++++++++
- src/plugin/plugin_stubs.go  |  17 ++++++
- src/runtime/plugin.go       |  51 ++++++++++++++++++
- 5 files changed, 264 insertions(+)
+ src/encoding/json/stream.go      | 14 +++++++++-----
+ src/encoding/json/stream_test.go |  5 ++++-
+ 2 files changed, 13 insertions(+), 6 deletions(-)

@@ -1,22 +1,29 @@
-commit 894869e1508d3b6a8e6bbbdbb7603cdd77d23162
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 14 14:01:11 2017 -0500
+commit f3e0d143131dc318a173f4f5cc4e4b96de93318d
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Aug 23 09:05:29 2017 +0200
 
-    encoding/xml: move unexported const out of exported const block
+    runtime: avoid infinite loop in growslice
     
-    CL 58210 introduced this constant for reasons I don't understand.
-    It should not be in the exported const block, which will pollute
-    godoc output with a "... unexported" notice.
+    On 386 the below code triggered an infinite loop in growslice:
+    x = make([]byte, 1<<30-1, 1<<30-1)
+    x = append(x, x...)
     
-    Also since we already have a constant named xmlnsPrefix for "xmlns",
-    it is very confusing to also have xmlNamespacePrefix for "xml".
-    If we must have the constant at all, rename it to xmlPrefix.
+    Check for overflow when calculating the new slice capacity
+    and set the new capacity to the requested capacity when an overflow
+    is detected to avoid an infinite loop.
     
-    Change-Id: I15f937454d730005816fcd32b1acca703acf1e51
-    Reviewed-on: https://go-review.googlesource.com/78121
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    No automatic test added due to requiring to allocate 1GB of memory
+    on a 32bit plaform before use of append is able to trigger the
+    overflow check.
+    
+    Fixes #21441
+    
+    Change-Id: Ia871cc9f88479dacf2c7044531b233f83d2fcedf
+    Reviewed-on: https://go-review.googlesource.com/57950
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/xml/marshal.go | 5 ++---
- src/encoding/xml/xml.go     | 3 ++-
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/slice.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

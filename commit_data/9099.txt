@@ -1,13 +1,12 @@
-commit 9d55c282e3aac4c2d97590785d7a821adcf8ac9e
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jul 18 11:08:55 2011 +1000
+commit cb051a3a1de22ad75613baef52abb4875a2b1dfc
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Mon Jul 18 10:48:31 2011 +1000
 
-    5c: attempt to fix build by silencing warnings about unused variables.
-    The story is more complicated; this is just a bandaid.
+    gob: minor cleanup
     
-    R=golang-dev, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4755047
+    https://golang.org/cl/4754050
 
- src/cmd/5c/reg.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/gob/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

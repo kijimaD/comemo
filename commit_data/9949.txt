@@ -1,15 +1,22 @@
-commit c50182480db093e447f02e76a735ed23a80305bf
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Thu Oct 13 13:34:01 2011 +1100
+commit beed0a784415c2e20c2530e1898c0fa4c00d1ac8
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Oct 13 13:31:26 2011 +1100
 
-    pkg: fix incorrect prints found by govet
+    image/tiff: Implement PackBits decoding.
     
-    R=golang-dev, nigeltao
+    The decompression routine is in its own file because
+    G3 encoding (which is more complicated) will be put
+    there.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5266041
+    https://golang.org/cl/5177047
 
- src/pkg/exp/sql/fakedb_test.go           | 2 +-
- src/pkg/exp/sql/sql_test.go              | 2 +-
- src/pkg/exp/template/html/escape_test.go | 2 +-
- src/pkg/template/exec_test.go            | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/image/tiff/Makefile                      |   1 +
+ src/pkg/image/tiff/compress.go                   |  60 ++++++++++++++++++++
+ src/pkg/image/tiff/reader.go                     |   2 +
+ src/pkg/image/tiff/reader_test.go                |  69 +++++++++++++++++++++++
+ src/pkg/image/tiff/testdata/bw-deflate.tiff      | Bin 0 -> 594 bytes
+ src/pkg/image/tiff/testdata/bw-packbits.tiff     | Bin 0 -> 890 bytes
+ src/pkg/image/tiff/testdata/bw-uncompressed.tiff | Bin 0 -> 1396 bytes
+ 7 files changed, 132 insertions(+)

@@ -1,17 +1,33 @@
-commit f3442a80c3fb2089b5b65e4bd264c4e73d41dc8f
+commit ac00524beb0a7c5069651a51682694144f1ed688
 Author: Joel Sing <jsing@google.com>
-Date:   Sat Aug 24 01:52:33 2013 +1000
+Date:   Sat Aug 24 01:50:24 2013 +1000
 
-    syscall: dragonfly/amd64 z-files
+    runtime: add dragonfly/amd64 port
     
-    Add generated z-files for dragonfly/amd64.
+    Go runtime support for dragonfly/amd64, largely based of the existing
+    FreeBSD runtime (with some clues from the varialus/godfly work).
     
     R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/13056045
+    https://golang.org/cl/13088044
 
- src/pkg/syscall/zerrors_dragonfly_amd64.go  | 1523 +++++++++++++++++++++++++++
- src/pkg/syscall/zsyscall_dragonfly_amd64.go | 1303 +++++++++++++++++++++++
- src/pkg/syscall/zsysnum_dragonfly_amd64.go  |  303 ++++++
- src/pkg/syscall/ztypes_dragonfly_amd64.go   |  435 ++++++++
- 4 files changed, 3564 insertions(+)
+ src/pkg/runtime/defs_dragonfly.go        | 126 ++++++++++++
+ src/pkg/runtime/defs_dragonfly_amd64.h   | 208 +++++++++++++++++++
+ src/pkg/runtime/env_posix.c              |   2 +-
+ src/pkg/runtime/export_futex_test.go     |   2 +-
+ src/pkg/runtime/futex_test.go            |   4 +-
+ src/pkg/runtime/lock_futex.c             |   2 +-
+ src/pkg/runtime/mem_dragonfly.c          |  94 +++++++++
+ src/pkg/runtime/netpoll.goc              |   2 +-
+ src/pkg/runtime/netpoll_kqueue.c         |   2 +-
+ src/pkg/runtime/os_dragonfly.c           | 282 ++++++++++++++++++++++++++
+ src/pkg/runtime/os_dragonfly.h           |  28 +++
+ src/pkg/runtime/rt0_dragonfly_amd64.s    |  15 ++
+ src/pkg/runtime/signal_386.c             |   2 +-
+ src/pkg/runtime/signal_amd64.c           |   2 +-
+ src/pkg/runtime/signal_arm.c             |   2 +-
+ src/pkg/runtime/signal_dragonfly_amd64.h |  31 +++
+ src/pkg/runtime/signal_unix.c            |   2 +-
+ src/pkg/runtime/signals_dragonfly.h      |  51 +++++
+ src/pkg/runtime/sys_dragonfly_amd64.s    | 330 +++++++++++++++++++++++++++++++
+ 19 files changed, 1176 insertions(+), 11 deletions(-)

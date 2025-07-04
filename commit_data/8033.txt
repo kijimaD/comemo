@@ -1,12 +1,13 @@
-commit 68ed122bf98c912fbd04fd8599106851725e8e06
+commit d26e73646efed315597bb70cfb3233a68597ca9a
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 8 13:42:20 2011 -0400
+Date:   Fri Apr 8 13:42:11 2011 -0400
 
-    bug327: document what's being tested
+    ld: fix arm build
     
-    R=r
-    CC=golang-dev
-    https://golang.org/cl/4380043
+    R=ken2
+    CC=golang-dev, mikkel
+    https://golang.org/cl/4384048
 
- test/fixedbugs/bug327.go | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/cmd/ld/data.c    | 2 +-
+ src/cmd/ld/ldmacho.c | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

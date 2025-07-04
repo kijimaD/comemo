@@ -1,33 +1,25 @@
-commit 80ec7117551f009edba6eb16b34b85cfe6ba2f4f
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jun 7 22:47:59 2015 -0400
+commit 91d989eb6df17b0696cfd53e84b10ccb3f09c1dd
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Wed May 6 22:14:32 2015 +0000
 
-    runtime: use type-based write barrier for remote stack write during chansend
+    html/template: fix pipeline sanitization
     
-    A send on an unbuffered channel to a blocked receiver is the only
-    case in the runtime where one goroutine writes directly to the stack
-    of another. The garbage collector assumes that if a goroutine is
-    blocked, its stack contains no new pointers since the last time it ran.
-    The send on an unbuffered channel violates this, so it needs an
-    explicit write barrier. It has an explicit write barrier, but not one that
-    can handle a write to another stack. Use one that can (based on type bitmap
-    instead of heap bitmap).
+    Pipelines are altered by inserting sanitizers if they are not
+    already present. The code makes the assumption that the first
+    operands of each commands are function identifiers.
     
-    To make this work, raise the limit for type bitmaps so that they are
-    used for all types up to 64 kB in size (256 bytes of bitmap).
-    (The runtime already imposes a limit of 64 kB for a channel element size.)
+    This is wrong, since they can also be methods. It results in
+    a panic with templates such as {{1|print 2|.f 3}}
     
-    I have been unable to reproduce this problem in a simple test program.
+    Adds an extra type assertion to make sure only identifiers
+    are compared with sanitizers.
     
-    Could help #11035.
+    Fixes #10673
     
-    Change-Id: I06ad994032d8cff3438c9b3eaa8d853915128af5
-    Reviewed-on: https://go-review.googlesource.com/10815
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I3eb820982675231dbfa970f197abc5ef335ce86b
+    Reviewed-on: https://go-review.googlesource.com/9801
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 11 +++++++--
- src/reflect/all_test.go                | 40 +++++++++++++++---------------
- src/reflect/type.go                    |  5 +++-
- src/runtime/chan.go                    | 11 ++++++++-
- src/runtime/mbitmap.go                 | 45 ++++++++++++++++++++++++++++++++++
- 5 files changed, 88 insertions(+), 24 deletions(-)
+ src/html/template/escape.go      |  6 +++---
+ src/html/template/escape_test.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 3 deletions(-)

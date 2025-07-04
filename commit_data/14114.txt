@@ -1,13 +1,16 @@
-commit bf7d229eb8256cbed54a136fbd1d255ac18a18d5
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Oct 11 01:34:26 2012 +0800
+commit df7b720708e9da9e1bd00fe2424d765095427831
+Author: Uriel Mangado <uriel@berlinblue.org>
+Date:   Thu Oct 11 00:23:53 2012 +0800
 
-    cmd/go: don't ignore error when 'go clean'
-            Fixes #4208.
+    codereview.py: Fix crash on auth error handling.
     
-    R=golang-dev, iant
+    In recent Python versions .reason is a read-only property that simply gives you the msg value.
+    
+    Fixes #4024
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6635064
+    https://golang.org/cl/6545052
 
- src/cmd/go/clean.go | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+ lib/codereview/codereview.py | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)

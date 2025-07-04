@@ -1,17 +1,68 @@
-commit af7f417665fb1612eb9865c7ab4992bf095148e2
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Fri Sep 2 10:53:13 2022 +0800
+commit 3e5cc4d6f6befb284d7b2a5142a8b576bf5970ea
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Fri Oct 8 16:06:42 2021 +0800
 
-    runtime: convert local var stop at TestAfterStress to atomic type
+    cmd/compile: use MOVBE instruction for GOAMD64>=v3
     
-    For #53821
+    encoding/binary benchmark on my laptop:
+    name                      old time/op    new time/op     delta
+    ReadSlice1000Int32s-8       4.42µs ± 5%     4.20µs ± 1%   -4.94%  (p=0.046 n=9+8)
+    ReadStruct-8                 359ns ± 8%      368ns ± 5%   +2.35%  (p=0.041 n=9+10)
+    WriteStruct-8                349ns ± 1%      357ns ± 1%   +2.15%  (p=0.000 n=8+10)
+    ReadInts-8                   235ns ± 1%      233ns ± 1%   -1.01%  (p=0.005 n=10+10)
+    WriteInts-8                  265ns ± 1%      274ns ± 1%   +3.45%  (p=0.000 n=10+10)
+    WriteSlice1000Int32s-8      4.61µs ± 5%     4.59µs ± 5%     ~     (p=0.986 n=10+10)
+    PutUint16-8                 0.56ns ± 4%     0.57ns ± 4%     ~     (p=0.101 n=10+10)
+    PutUint32-8                 0.83ns ± 2%     0.56ns ± 6%  -32.91%  (p=0.000 n=10+10)
+    PutUint64-8                 0.81ns ± 3%     0.62ns ± 4%  -23.82%  (p=0.000 n=10+10)
+    LittleEndianPutUint16-8     0.55ns ± 4%     0.55ns ± 3%     ~     (p=0.926 n=10+10)
+    LittleEndianPutUint32-8     0.41ns ± 4%     0.42ns ± 3%     ~     (p=0.148 n=10+9)
+    LittleEndianPutUint64-8     0.55ns ± 2%     0.56ns ± 6%     ~     (p=0.897 n=10+10)
+    ReadFloats-8                60.4ns ± 4%     59.0ns ± 1%   -2.25%  (p=0.007 n=10+10)
+    WriteFloats-8               72.3ns ± 2%     71.5ns ± 7%     ~     (p=0.089 n=10+10)
+    ReadSlice1000Float32s-8     4.21µs ± 3%     4.18µs ± 2%     ~     (p=0.197 n=10+10)
+    WriteSlice1000Float32s-8    4.61µs ± 2%     4.68µs ± 7%     ~     (p=1.000 n=8+10)
+    ReadSlice1000Uint8s-8        250ns ± 4%      247ns ± 4%     ~     (p=0.324 n=10+10)
+    WriteSlice1000Uint8s-8       227ns ± 5%      229ns ± 2%     ~     (p=0.193 n=10+7)
+    PutUvarint32-8              15.3ns ± 2%     15.4ns ± 4%     ~     (p=0.782 n=10+10)
+    PutUvarint64-8              38.5ns ± 1%     38.6ns ± 5%     ~     (p=0.396 n=8+10)
     
-    Change-Id: I7e86dac34691f7752f68879ff379061f3435cd45
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427139
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    name                      old speed      new speed       delta
+    ReadSlice1000Int32s-8      890MB/s ±17%    953MB/s ± 1%   +7.00%  (p=0.027 n=10+8)
+    ReadStruct-8               209MB/s ± 8%    204MB/s ± 5%   -2.42%  (p=0.043 n=9+10)
+    WriteStruct-8              214MB/s ± 3%    210MB/s ± 1%   -1.75%  (p=0.003 n=9+10)
+    ReadInts-8                 127MB/s ± 1%    129MB/s ± 1%   +1.01%  (p=0.006 n=10+10)
+    WriteInts-8                113MB/s ± 1%    109MB/s ± 1%   -3.34%  (p=0.000 n=10+10)
+    WriteSlice1000Int32s-8     868MB/s ± 5%    872MB/s ± 5%     ~     (p=1.000 n=10+10)
+    PutUint16-8               3.55GB/s ± 4%   3.50GB/s ± 4%     ~     (p=0.093 n=10+10)
+    PutUint32-8               4.83GB/s ± 2%   7.21GB/s ± 6%  +49.16%  (p=0.000 n=10+10)
+    PutUint64-8               9.89GB/s ± 3%  12.99GB/s ± 4%  +31.26%  (p=0.000 n=10+10)
+    LittleEndianPutUint16-8   3.65GB/s ± 4%   3.65GB/s ± 4%     ~     (p=0.912 n=10+10)
+    LittleEndianPutUint32-8   9.74GB/s ± 3%   9.63GB/s ± 3%     ~     (p=0.222 n=9+9)
+    LittleEndianPutUint64-8   14.4GB/s ± 2%   14.3GB/s ± 5%     ~     (p=0.912 n=10+10)
+    ReadFloats-8               199MB/s ± 4%    203MB/s ± 1%   +2.27%  (p=0.007 n=10+10)
+    WriteFloats-8              166MB/s ± 2%    168MB/s ± 7%     ~     (p=0.089 n=10+10)
+    ReadSlice1000Float32s-8    949MB/s ± 3%    958MB/s ± 2%     ~     (p=0.218 n=10+10)
+    WriteSlice1000Float32s-8   867MB/s ± 2%    857MB/s ± 6%     ~     (p=1.000 n=8+10)
+    ReadSlice1000Uint8s-8     4.00GB/s ± 4%   4.06GB/s ± 4%     ~     (p=0.353 n=10+10)
+    WriteSlice1000Uint8s-8    4.40GB/s ± 4%   4.36GB/s ± 2%     ~     (p=0.193 n=10+7)
+    PutUvarint32-8             262MB/s ± 2%    260MB/s ± 4%     ~     (p=0.739 n=10+10)
+    PutUvarint64-8             208MB/s ± 1%    207MB/s ± 5%     ~     (p=0.408 n=8+10)
+    
+    Updates #45453
+    
+    Change-Id: Ifda0d48d54665cef45d46d3aad974062633142c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354670
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/time/sleep_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go           |   7 +-
+ src/cmd/compile/internal/amd64/versions_test.go |  27 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |  26 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   6 +
+ src/cmd/compile/internal/ssa/opGen.go           |  64 +++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 243 ++++++++++++++++++++++++
+ test/codegen/memcombine.go                      |  36 ++--
+ 7 files changed, 389 insertions(+), 20 deletions(-)

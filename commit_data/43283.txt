@@ -1,24 +1,22 @@
-commit 076a45acd5b8d2ce08a2dbe898dc9228554db92d
-Author: Bryan Boreham <bjboreham@gmail.com>
-Date:   Mon Oct 12 14:29:28 2020 +0000
+commit 20b46c7c697ce9d833141abe9aa0ea6101f00ae2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Mar 22 12:57:36 2020 -0700
 
-    fmt: explain how Formatter interface affects verbs and flags
+    runtime: negate errno value for mips pipe/pipe2
     
-    Formatter is mentioned further down, but it's helpful
-    to add it amongst the verbs and flags.
+    The callers expect negative errno values, so negate them when necessary.
     
-    Background: I spent a while puzzling how "%+v" prints
-    a stack trace for github.com/pkg/errors when this isn't
-    documented under 'flags'.
+    No test because there is no reasonable way to make pipe/pipe2 fail.
+    This was reported on a system on which pipe2 returned ENOSYS.
     
-    Change-Id: Ic70145902a36780147dedca568b3cf482974fc38
-    GitHub-Last-Rev: 6571b499f211a2266812af66dd3b88dff602cabf
-    GitHub-Pull-Request: golang/go#39860
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240000
-    Reviewed-by: Rob Pike <r@golang.org>
-    Trust: Rob Pike <r@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    Fixes #37997
+    
+    Change-Id: I3ad6cbbc2521cf495f8df6ec991a3f781122b508
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224592
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/fmt/doc.go   | 3 ++-
- src/fmt/print.go | 8 ++++----
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/runtime/sys_linux_mips64x.s | 4 ++++
+ src/runtime/sys_linux_mipsx.s   | 3 +++
+ 2 files changed, 7 insertions(+)

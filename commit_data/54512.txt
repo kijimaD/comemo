@@ -1,38 +1,22 @@
-commit be11422b1ec46fb69b387ef29a521ed42621fe3d
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Mon Sep 18 15:51:04 2023 -0400
+commit d2901205c15d5d839c95988497c190b652c5cf3a
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Oct 1 17:24:35 2022 +0000
 
-    net/http: index patterns for faster conflict detection
+    cmd: remove redundant _
     
-    Add an index so that pattern registration isn't always quadratic.
-    
-    If there were no index, then every pattern that was registered would
-    have to be compared to every existing pattern for conflicts. This
-    would make registration quadratic in the number of patterns, in every
-    case.
-    
-    The index in this CL should help most of the time. If a pattern has a
-    literal segment, it will weed out all other patterns that have a
-    different literal in that position.
-    
-    The worst case will still be quadratic, but it is unlikely that a set
-    of such patterns would arise naturally.
-    
-    One novel (to me) aspect of the CL is the use of fuzz testing on data
-    that is neither a string nor a byte slice. The test uses fuzzing to
-    generate a byte slice, then decodes the byte slice into a valid
-    pattern (most of the time). This test actually caught a bug: see
-    https://go.dev/cl/529119.
-    
-    Change-Id: Ice0be6547decb5ce75a8062e4e17227815d5d0b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529121
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Ia7e1e3679e03d125feb9708cb05bbd32c4954edb
+    GitHub-Last-Rev: a62b72ea3edcf2b4f9f378cd03b1ac073ab80c74
+    GitHub-Pull-Request: golang/go#55957
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436879
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/http/routing_index.go                      | 124 ++++++++++++
- src/net/http/routing_index_test.go                 | 207 +++++++++++++++++++++
- src/net/http/server.go                             |  20 +-
- .../http/testdata/fuzz/FuzzIndex/48161038f0c8b2da  |   2 +
- .../http/testdata/fuzz/FuzzIndex/716514f590ce7ab3  |   2 +
- 5 files changed, 346 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go | 2 +-
+ src/cmd/go/internal/modload/load.go        | 2 +-
+ src/cmd/go/internal/modload/query.go       | 2 +-
+ src/cmd/go/internal/workcmd/use.go         | 2 +-
+ src/cmd/internal/obj/ppc64/asm_test.go     | 2 +-
+ src/cmd/link/internal/ld/data.go           | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

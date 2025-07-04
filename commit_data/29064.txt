@@ -1,19 +1,19 @@
-commit cf73bbfa259afe29962a5ca5e207441f63c9bcf2
-Author: Tom Bergan <tombergan@google.com>
-Date:   Tue Oct 25 12:18:59 2016 -0700
+commit 5e66ac9ac61efb045f8ae28ff0fc019a4a98b473
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Aug 14 20:39:30 2016 -0700
 
-    net/http: add an interface for server push
+    flag: document that Value.String must work on the zero value
     
-    This interface will be implemented by golang.org/x/net/http2 in
-    https://go-review.googlesource.com/c/29439/.
+    Otherwise flag.PrintDefaults will fail when it tries to determine
+    whether the default is the zero value.
     
-    Updates golang/go#13443
+    Fixes #16694.
     
-    Change-Id: Ib6bdd403b0878cfe36fa9875c07c2c7239232556
-    Reviewed-on: https://go-review.googlesource.com/32012
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I253fbf11ffc0a9069fd48c2c3cf3074df53e3a03
+    Reviewed-on: https://go-review.googlesource.com/27003
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/http.go | 39 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ src/flag/flag.go | 1 +
+ 1 file changed, 1 insertion(+)

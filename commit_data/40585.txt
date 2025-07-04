@@ -1,14 +1,16 @@
-commit a866b48e4a3cb0c034cb98401e654317023188d9
-Author: Lars Lehtonen <lars.lehtonen@gmail.com>
-Date:   Mon Nov 4 16:33:31 2019 -0800
+commit 9e31b1775aaab995986c9d986704e5ba4eddbe47
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed May 22 17:52:24 2019 +0700
 
-    io/ioutil: Fix dropped test error
+    cmd/go: use the rev to resolve tags for pseudo-versions in mod init
     
-    Change-Id: I9cfaba4f1af23ab67627bf496739311e4d1984c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/205245
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #32161
+    Updates #31251
+    
+    Change-Id: I22760836b48cd734b90bc43aacb23e23e38c0f4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178497
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/io/ioutil/ioutil_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/internal/modfetch/repo.go          |  2 +-
+ src/cmd/go/testdata/script/mod_init_glide.txt | 32 +++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

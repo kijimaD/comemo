@@ -1,40 +1,17 @@
-commit 2bcc24e9770955eb15b98dba866898ceaae08d2a
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Aug 14 15:24:31 2017 -0700
+commit 6bfd65631ffcf4a3dad32c661a0c155088f83131
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 06:42:25 2017 -0700
 
-    archive/tar: support PAX subsecond resolution times
+    cmd/go: disable compiler DWARF generation on some platforms
     
-    Add support for PAX subsecond resolution times. Since the parser
-    supports negative timestamps, the formatter also handles negative
-    timestamps.
+    The linker disables DWARF for these platforms.
+    Given that, we can spare the compiler some work.
     
-    The relevant PAX specification is:
-    <<<
-    Portable file timestamps cannot be negative. If pax encounters a
-    file with a negative timestamp in copy or write mode, it can reject
-    the file, substitute a non-negative timestamp, or generate a
-    non-portable timestamp with a leading '-'.
-    >>>
-    
-    <<<
-    All of these time records shall be formatted as a decimal
-    representation of the time in seconds since the Epoch.
-    If a <period> ( '.' ) decimal point character is present,
-    the digits to the right of the point shall represent the units of
-    a subsecond timing granularity, where the first digit is tenths of
-    a second and each subsequent digit is a tenth of the previous digit.
-    >>>
-    
-    Fixes #11171
-    
-    Change-Id: Ied108f3d2654390bc1b0ddd66a4081c2b83e490b
-    Reviewed-on: https://go-review.googlesource.com/55552
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ic5a6b675150aca199bdc1dd2cdf5eeb4e215bdff
+    Reviewed-on: https://go-review.googlesource.com/40859
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/tar/common.go       |  3 +--
- src/archive/tar/strconv.go      | 19 ++++++++++++++++-
- src/archive/tar/strconv_test.go | 45 +++++++++++++++++++++++++++++++++++++++++
- src/archive/tar/writer.go       | 12 ++++-------
- 4 files changed, 68 insertions(+), 11 deletions(-)
+ src/cmd/go/internal/work/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

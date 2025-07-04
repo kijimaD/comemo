@@ -1,26 +1,35 @@
-commit 600a2a4ffb9a273a3a1635b60120ffc768741aa9
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 23 23:29:10 2021 -0400
+commit e8de596f04d0ea7fb6fb68b036760bf088a9c6c2
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 20 17:32:46 2020 -0500
 
-    cmd/go: don't try to add replaced versions that won't be selected
+    runtime: use inlined function name for traceback elision
     
-    In Go 1.12, we added a heuristic to 'go mod tidy' to resolve packages
-    by adding replaced-but-not-required modules before falling back to
-    searching for modules from the network. Unfortunately, that heuristic
-    fails when the replaced version is already lower than the selected
-    version: adding such a module to the build list doesn't change the
-    selected version of that module, and so it doesn't make progress
-    toward resolving the missing package.
+    Currently, gentraceback decides which frames to print or elide when
+    unwinding inlined frames using only the name of the outermost
+    function. If the outermost function should be elided, then inlined
+    functions will also be elided, even if they shouldn't be.
     
-    Fixes #46659
+    This happens in practice in at least one situation. As of CL 258938,
+    exported Go functions (and functions they call) can now be inlined
+    into the generated _cgoexp_HASH_FN function. The runtime elides
+    _cgoexp_HASH_FN from tracebacks because it doesn't contain a ".".
+    Because of this bug, it also elides anything that was inlined into it.
     
-    Change-Id: I75e2387d5290e769f6b0fa1231dcc4605db68597
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/330432
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    This CL fixes this by synthesizing a funcInfo for the inlined
+    functions to pass to showframe.
+    
+    Fixes #42754.
+    
+    Change-Id: Ie6c663a4a1ac7f0d4beb1aa60bc26fc8cddd0f9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272131
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modload/import.go              |  9 ++++++
- .../go/testdata/script/mod_tidy_replace_old.txt    | 34 ++++++++++++++++++++++
- 2 files changed, 43 insertions(+)
+ src/runtime/crash_cgo_test.go                  | 18 +++++++++++
+ src/runtime/stack_test.go                      | 41 ++++++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/traceback.go  | 21 +++++++++++++
+ src/runtime/testdata/testprogcgo/traceback_c.c | 11 +++++--
+ src/runtime/traceback.go                       | 15 ++++++++--
+ 5 files changed, 102 insertions(+), 4 deletions(-)

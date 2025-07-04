@@ -1,30 +1,20 @@
-commit c66ab9b18224738e29e838e79b5875536e05fc6d
+commit 9c623f72c441f93af27b8e4af56ad0ed37adcfeb
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Apr 18 17:06:56 2019 -0400
+Date:   Wed Dec 12 16:53:09 2018 -0500
 
-    cmd/go: query modules in parallel
+    cmd/go: test 'go get' and 'go install' with an (invalid) module ending in /v1
     
-    Refactor modload.QueryPackage and modload.QueryPattern to share code.
+    We expect major version v1 to not have a /v1 suffix.
+    (Such a suffix on the package path is fine, but not on the module path.)
     
-    Fine-tune error reporting and make it consistent between QueryPackage and QueryPattern.
+    Fixes #26375
     
-    Expand tests for pattern errors.
-    
-    Update a TODO in modget/get.go and add a test case that demonstrates it.
-    
-    Updates #26232
-    
-    Change-Id: I900ca8de338ef9a51b7f85ed93d8bcf837621646
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173017
+    Change-Id: I4206ded82ede36440cedfaf39875c38b9c95dc27
+    Reviewed-on: https://go-review.googlesource.com/c/153823
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/modget/get.go                |  55 ++--
- src/cmd/go/internal/modload/import.go            |  27 +-
- src/cmd/go/internal/modload/query.go             | 307 ++++++++++++++++-------
- src/cmd/go/testdata/script/mod_get_local.txt     |   6 +-
- src/cmd/go/testdata/script/mod_get_main.txt      |  28 +++
- src/cmd/go/testdata/script/mod_get_patterns.txt  |   4 +-
- src/cmd/go/testdata/script/mod_load_badchain.txt |   1 +
- 7 files changed, 302 insertions(+), 126 deletions(-)
+ .../go/testdata/mod/example.com_invalidpath_v1_v1.0.0.txt   | 13 +++++++++++++
+ src/cmd/go/testdata/script/mod_import_v1suffix.txt          | 11 +++++++++++
+ 2 files changed, 24 insertions(+)

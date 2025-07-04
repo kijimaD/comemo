@@ -1,26 +1,12 @@
-commit af081cd43ee3a69f89c5a00ab830111cae99d94a
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Nov 24 13:15:09 2011 +1100
+commit 63e48ccd8ea9399b411bf092f53ad8cd606946a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 23 16:20:55 2011 -0800
 
-    html: ingore newline at the start of a <pre> block
+    go/ast: trivial cleanup (remove superfluous string conversion)
     
-    Pass tests3.dat, test 4:
-    <!DOCTYPE html><html><head></head><body><pre>\n</pre></body></html>
-    
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   <body>
-    |     <pre>
-    
-    Also pass tests through test 11:
-    <!DOCTYPE html><pre>&#x0a;&#x0a;A</pre>
-    
-    R=nigeltao
+    R=iant, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5437051
+    https://golang.org/cl/5430059
 
- src/pkg/html/parse.go      | 17 +++++++++++++++++
- src/pkg/html/parse_test.go |  2 +-
- src/pkg/html/render.go     | 10 ++++++++++
- 3 files changed, 28 insertions(+), 1 deletion(-)
+ src/pkg/go/ast/resolve.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

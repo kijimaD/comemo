@@ -1,16 +1,21 @@
-commit bb431245cc9a464797b9c58fdf066d3969f66384
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 15 07:14:33 2014 -0400
+commit 59dd20f4d3d3614edf665d79c1f4fa5f6f30d057
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 6 21:19:24 2014 -0400
 
-    net/http: don't call FileSystem.Open with unclean index.html path
+    runtime: fix windows syscalls for copying stacks
     
-    Fixes #8722
+    Syscall and everything it calls must be nosplit:
+    we cannot split a stack once Syscall has been invoked,
+    because we don't know which of its arguments are
+    pointers.
     
-    LGTM=adg
-    R=adg
+    LGTM=khr, r, alex.brainman
+    R=dvyukov, iant, khr, r, bradfitz, alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/142090043
+    https://golang.org/cl/133670043
 
- src/net/http/fs.go      |  2 +-
- src/net/http/fs_test.go | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 1 deletion(-)
+ src/pkg/runtime/cgocall.go          |   2 +
+ src/pkg/runtime/os_windows.c        |  17 +++-
+ src/pkg/runtime/syscall_windows.c   | 166 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/syscall_windows.goc | 137 -----------------------------
+ 4 files changed, 184 insertions(+), 138 deletions(-)

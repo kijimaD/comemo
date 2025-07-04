@@ -1,15 +1,14 @@
-commit 7ebcf5eac7047b1eef2443eda1786672b5c70f51
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jul 13 10:55:49 2015 +1000
+commit a788c913fa667a723ca55539b41fee30291ed92e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 11 08:22:56 2015 -0700
 
-    syscall: warn not to use FormatMessage
+    cmd/vet: skip another test on Android
     
-    Fixes #11147
+    Forgot this one in my previous commit.
     
-    Change-Id: Ib31160946a53f6f9b11daea211ff04d186b51b3f
-    Reviewed-on: https://go-review.googlesource.com/12067
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ief089e99bdad24b3bcfb075497dc259d06cc727c
+    Reviewed-on: https://go-review.googlesource.com/10913
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/syscall/syscall_windows.go  | 14 +++++++++++---
- src/syscall/zsyscall_windows.go |  2 +-
- 2 files changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/vet/vet_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

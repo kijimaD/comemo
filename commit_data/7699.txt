@@ -1,20 +1,12 @@
-commit 145108ed368e66c04231880d2d4c12b50d075b64
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Mar 8 09:41:12 2011 -0800
+commit 87aa93457ed62b55b90ee9c52662b68df12fafd6
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Tue Mar 8 12:33:49 2011 -0500
 
-    strings: add IndexRune tests, ASCII fast path
+    time: fix Time.ZoneOffset documentation
     
-    $ gotest -test.v -test.run=IndexRune -test.bench=.*
-    === RUN  strings_test.TestIndexRune
-    --- PASS: strings_test.TestIndexRune (0.0 seconds)
-    PASS
-    strings_test.BenchmarkIndexRune 20000000   105 ns/op
-    strings_test.BenchmarkIndexByte 50000000    48 ns/op
-    
-    R=rsc, dsymonds
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4267050
+    https://golang.org/cl/4240090
 
- src/pkg/strings/strings.go      | 16 +++++++++++++---
- src/pkg/strings/strings_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 3 deletions(-)
+ src/pkg/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

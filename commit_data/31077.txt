@@ -1,42 +1,37 @@
-commit 69261ecad6dd2f3efd5e4a249325ea27311526b6
-Author: Ben Shi <powerman1st@163.com>
-Date:   Mon Feb 27 07:56:57 2017 +0000
+commit 43c70943861ce39b44e5bd577a8c3c2ef18538db
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 25 09:50:36 2017 -0500
 
-    runtime: use hardware divider to improve performance
+    [dev.typealias] reflect: fix StructOf use of StructField to match StructField docs
     
-    The hardware divider is an optional component of ARMv7. This patch
-    detects whether it is available in runtime and use it or not.
+    The runtime internal structField interprets name=="" as meaning anonymous,
+    but the exported reflect.StructField has always set Name, even for anonymous
+    fields, and also set Anonymous=true.
     
-    1. The hardware divider is detected at startup and a flag is set/clear
-       according to a perticular bit of runtime.hwcap.
-    2. Each call of runtime.udiv will check this flag and decide if
-       use the hardware division instruction.
+    The initial implementation of StructOf confused the internal and public
+    meanings of the StructField, expecting the runtime representation of
+    anonymous fields instead of the exported reflect API representation.
+    It also did not document this fact, so that users had no way to know how
+    to create an anonymous field.
     
-    A rough test shows the performance improves 40-50% for ARMv7. And
-    the compatibility of ARMv5/v6 is not broken.
+    This CL changes StructOf to use the previously documented interpretation
+    of reflect.StructField instead of an undocumented one.
     
-    fixes #19118
+    The implementation of StructOf also, in some cases, allowed creating
+    structs with unexported fields (if you knew how to ask) but set the
+    PkgPath incorrectly on those fields. Rather than try to fix that, this CL
+    changes StructOf to reject attempts to create unexported fields.
+    (I think that may be the right design choice, not just a temporary limitation.
+    In any event, it's not the topic for today's work.)
     
-    Change-Id: Ic586bc9659ebc169553ca2004d2bdb721df823ac
-    Reviewed-on: https://go-review.googlesource.com/37496
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    For #17766.
+    Fixes #18780.
+    
+    Change-Id: I585a4e324dc5a90551f49d21ae04d2de9ea04b6c
+    Reviewed-on: https://go-review.googlesource.com/35731
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- misc/cgo/testcshared/main0.c                 |  6 ++++++
- misc/cgo/testcshared/src/p/p.go              |  2 ++
- misc/cgo/testshared/shared_test.go           |  6 ++++++
- misc/cgo/testshared/src/division/division.go | 17 +++++++++++++++++
- src/cmd/asm/internal/asm/testdata/arm.s      |  7 +++++++
- src/cmd/internal/obj/arm/a.out.go            |  2 ++
- src/cmd/internal/obj/arm/anames.go           |  2 ++
- src/cmd/internal/obj/arm/asm5.go             | 19 +++++++++++++++++++
- src/runtime/os_darwin_arm.go                 |  2 ++
- src/runtime/os_freebsd_arm.go                |  2 ++
- src/runtime/os_linux_arm.go                  |  3 +++
- src/runtime/os_nacl_arm.go                   |  2 ++
- src/runtime/os_netbsd_arm.go                 |  2 ++
- src/runtime/os_openbsd_arm.go                |  2 ++
- src/runtime/os_plan9_arm.go                  |  2 ++
- src/runtime/vlop_arm.s                       | 12 ++++++++++++
- 16 files changed, 88 insertions(+)
+ src/reflect/all_test.go | 128 +++++++++++++++++++++++++-----------------------
+ src/reflect/type.go     |  33 +++++++------
+ 2 files changed, 87 insertions(+), 74 deletions(-)

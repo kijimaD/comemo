@@ -1,28 +1,18 @@
-commit f02108636c3b098b3153e90b6478e292628ac4f9
-Author: Nuno Cruces <ncruces@users.noreply.github.com>
-Date:   Thu Mar 17 16:38:00 2022 +0000
+commit 3f6f12972b08d8559264971e8706efb3fbfd106a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 18 14:48:28 2021 -0400
 
-    runtime: allow TestCtrlHandler to run in ConPTY
+    [dev.typeparams] runtime: use internal/abi.FuncPCABI0 for sigtramp PC on DragonflyBSD
     
-    Fixes #51602. Previous test would not run in a pseudo-console (ConPTY).
+    Same as CL 313230, for DragonflyBSD. sigtramp is the only one we need.
     
-    New test avoids taskkill entirely by having the child request its own
-    console window be closed.
-    
-    Verified that this runs locally (within a real console), over SSH
-    (within a pseudo-console), and that it breaks if #41884 were reverted.
-    
-    Change-Id: If868b92ec36647e5d0e4107e29a2a6e048d35ced
-    GitHub-Last-Rev: b1421e4bed2dc729c266928f002b39374d7e391a
-    GitHub-Pull-Request: golang/go#51681
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/392874
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Ic11d0aedc7422512b43b2e4505e8f95056f915bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321312
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/signal_windows_test.go         | 32 +++++++++-----------------
- src/runtime/testdata/testwinsignal/main.go | 36 +++++++++++++++++++++++++++++-
- 2 files changed, 45 insertions(+), 23 deletions(-)
+ src/runtime/os_dragonfly.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

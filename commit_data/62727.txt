@@ -1,0 +1,18 @@
+commit 4464a7d94f75150764db0f0f23f4d58814f68e1b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 20 22:54:56 2025 +1100
+
+    cmd/internal/obj/arm64: deduplicate con32class
+    
+    Teach conclass how to handle 32 bit values and deduplicate the code
+    between con32class and conclass.
+    
+    Change-Id: I9c5eea31d443fd4c2ce700c6ea21e1d0bef665b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650938
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Joel Sing <joel@sing.id.au>
+
+ src/cmd/internal/obj/arm64/asm7.go | 75 +++++++++-----------------------------
+ 1 file changed, 17 insertions(+), 58 deletions(-)

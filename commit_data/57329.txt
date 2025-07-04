@@ -1,34 +1,15 @@
-commit a00195d304e6858406c6c9c961d253eeb8cb0aec
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Sep 7 17:21:16 2023 -0700
+commit 03bec7dc6ff6bbcdf077753230cee11211aa78ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 25 17:18:20 2023 -0700
 
-    all: use t.Chdir in tests
+    spec: add Appendix with detailed type unification rules
     
-    Change-Id: I5bc514bedeb1155e6db52e37736fd6101774aea0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529896
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I0d4ccbc396c48d565c0cbe93c9558ab330a44d02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513275
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
 
- src/cmd/doc/doc_test.go                |  16 +---
- src/cmd/go/go_test.go                  |   5 +-
- src/cmd/go/internal/fsys/fsys_test.go  |  13 +---
- src/cmd/pack/pack_test.go              |  15 +---
- src/io/fs/walk_test.go                 |  13 +---
- src/os/exec/dot_test.go                |   3 +-
- src/os/exec/exec_test.go               |  22 ------
- src/os/exec/lp_unix_test.go            |   2 +-
- src/os/exec/lp_windows_test.go         |   4 +-
- src/os/os_test.go                      |  89 +++++----------------
- src/os/os_unix_test.go                 |   2 +-
- src/os/os_windows_test.go              |  44 ++---------
- src/os/path_windows_test.go            |   4 +-
- src/path/filepath/match_test.go        |  15 +---
- src/path/filepath/path_test.go         | 137 ++++-----------------------------
- src/path/filepath/path_windows_test.go |   7 +-
- src/runtime/syscall_windows_test.go    |  10 +--
- src/syscall/syscall_linux_test.go      |  26 +------
- src/syscall/syscall_windows_test.go    |   7 +-
- 19 files changed, 70 insertions(+), 364 deletions(-)
+ doc/go_spec.html | 162 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 155 insertions(+), 7 deletions(-)

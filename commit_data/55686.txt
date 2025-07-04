@@ -1,21 +1,24 @@
-commit 7db8b9e518311c1ee707a3f2fe6343e7c595c936
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Feb 23 13:38:27 2024 +0100
+commit 4ad72feb920f3fb613e47e72fd34909b9e7fbc83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 1 17:08:15 2023 -0800
 
-    path/filepath: support multiple TestAbs runs on Windows
+    go/types, types2: disentangle convoluted logic for missing method cause
     
-    TestAbs modifies the absTests global variable on Windows, which makes
-    the test to fail if it is run more than once, i.e. executing
-    "go test -run ^TestAbs$ -count 2 path/filepath".
+    Use a state to exactly track lookup results. In case of lookup failure,
+    use the state to directly report the cause instead of trying to guess
+    from the missing and alternative method.
     
-    This CL fixes the issue by clipping the absTests slices before
-    appending more elements to it.
+    Addresses a TODO (incorrect error message).
     
-    Change-Id: I8f1144b2f10b8fa1b847e6639c0bda7baafc2dac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566396
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I50902752deab741f8199a09fd1ed29286cf5be42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472637
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/path/filepath/path_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/lookup.go         | 169 ++++++++++++----------
+ src/go/types/lookup.go                            | 169 ++++++++++++----------
+ src/internal/types/testdata/examples/inference.go |   3 +-
+ 3 files changed, 179 insertions(+), 162 deletions(-)

@@ -1,16 +1,21 @@
-commit 98a9aeb00987f556085fff9075359d3b84f69ce9
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 10 13:38:28 2017 -0400
+commit 5d92916770ef57aeb2ae2cb556285d5e093c3aa0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 23 13:40:25 2017 -0800
 
-    cmd/pprof: update README to explain relationship with github.com/google/pprof
+    [dev.typealias] cmd/compile: change Func.Shortname to *Sym
     
-    For google/pprof#132.
+    A Func's Shortname is just an identifier. No need for an entire ONAME
+    Node.
     
-    Change-Id: I73785bc8662565ff7b2fac66e23497dd06fc25b6
-    Reviewed-on: https://go-review.googlesource.com/40231
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ie4d397e8d694c907fdf924ce57bd96bdb4aaabca
+    Reviewed-on: https://go-review.googlesource.com/35574
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/pprof/README | 20 +++++++++++++++-----
- 1 file changed, 15 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go       | 8 ++++----
+ src/cmd/compile/internal/gc/noder.go     | 2 +-
+ src/cmd/compile/internal/gc/obj.go       | 2 +-
+ src/cmd/compile/internal/gc/syntax.go    | 2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 5 files changed, 8 insertions(+), 8 deletions(-)

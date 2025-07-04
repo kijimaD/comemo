@@ -1,31 +1,22 @@
-commit abdaa0f9aab853ea4e7a4fc1d9b8160309ae6579
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 31 10:24:23 2023 -0400
+commit 05ff045dfeab582503a15c4233161aa8b6be179d
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Sun Aug 14 09:56:34 2022 +0000
 
-    cmd/go: make toolchain less special in MVS
+    net/http: add Server.DisableOptionsHandler for custom handling of OPTIONS *
     
-    We were using the omission of toolchain from the MVS graph
-    as a signal that toolchain was not mentioned on the go get line,
-    but not including it in the graph causes various problems,
-    and it may be reintroduced to the graph during operations like
-    pruning conversion, after which its presence is not a good signal
-    about whether it was mentioned on the go get command line.
-    Fix all this irregularity by explicitly telling WriteGoMod whether
-    the command line mentioned toolchain instead.
+    Fixes #41773
     
-    For #57001.
-    
-    Change-Id: I74084637c177c30918fdb114a0d9030cdee7324e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499575
+    Change-Id: I432ad5410d5e3bb0aff3a6e0eea6906ab1b214e2
+    GitHub-Last-Rev: 57d1ee249dcdf46c54214d0636f235e5c62af213
+    GitHub-Pull-Request: golang/go#49014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356410
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: hopehook <hopehook@qq.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/modget/get.go                |  14 +-
- src/cmd/go/internal/modload/buildlist.go         |  65 +++++--
- src/cmd/go/internal/modload/init.go              | 230 +++++++++++++----------
- src/cmd/go/internal/modload/modfile.go           |  53 ++----
- src/cmd/go/testdata/script/mod_indirect_main.txt |   1 +
- src/cmd/go/testdata/script/mod_skip_write.txt    |   1 +
- 6 files changed, 207 insertions(+), 157 deletions(-)
+ api/next/41773.txt         |  1 +
+ src/net/http/serve_test.go | 31 +++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  6 +++++-
+ 3 files changed, 37 insertions(+), 1 deletion(-)

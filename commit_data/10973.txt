@@ -1,13 +1,14 @@
-commit 34139ee155e303e13b8a648965840dd9ed907b4e
+commit 66155134a7daa2a28bf0ecd55bcf36be3b21e473
 Author: Rob Pike <r@golang.org>
-Date:   Thu Dec 22 11:08:51 2011 -0800
+Date:   Thu Dec 22 10:43:54 2011 -0800
 
-    testing: fix wording in explanation of potential bug
-    TBR=rsc
+    testing: make signalling safer for parallel tests
+    Each test gets a private signal channel.
+    Also fix a bug that prevented parallel tests from running.
     
-    R=rsc
+    R=r, r
     CC=golang-dev
-    https://golang.org/cl/5504075
+    https://golang.org/cl/5505061
 
- src/pkg/testing/testing.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/testing/testing.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

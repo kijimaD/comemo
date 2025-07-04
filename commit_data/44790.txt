@@ -1,27 +1,26 @@
-commit 975b097307621ad32217946f9732d17101d72aaf
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 23 09:51:43 2021 -0500
+commit 42e09dc1ba1e820af44b2cbd4db0d60abb5559a2
+Author: Rob Findley <rfindley@google.com>
+Date:   Sun Jul 12 22:36:34 2020 -0400
 
-    cmd/link: separate elf addend size from reloc size
+    go/types: factor out usage of implicit type
     
-    The size of the field may be smaller than the addend,
-    such is the case with R_PPC64_TOC16_HA/LO and similar
-    relocations.
+    There was some duplication of logic interpreting the implicit type of
+    an operand in assignableTo and convertUntyped. Factor out this logic to
+    a new 'implicitType' function, which returns the implicit type of an
+    untyped operand when used in a context where a target type is expected.
+    I believe this resolves some comments about code duplication. There is
+    other similar code in assignable, assignableTo, and convertUntypes, but
+    I found it to to be sufficiently semantically distinct to not warrant
+    factoring out.
     
-    Add an extra return value to ldelf.relSize to account for
-    addend size which may be larger than the relocated field,
-    and fix the related ppc64 relocations.
-    
-    Such relocs can be seen in large PIC blobs such
-    as the ppc64le race detector included with golang.
-    
-    Change-Id: I457186fea5d0ec5572b9bbf79bb7fa21a36cc1b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303990
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I199298a2e58fcf05344318fca0226b460c57867d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242084
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/loadelf/ldelf.go | 47 +++++++++++++++++++---------------
- 1 file changed, 26 insertions(+), 21 deletions(-)
+ src/go/types/api_test.go    |  20 +++----
+ src/go/types/assignments.go |   4 +-
+ src/go/types/expr.go        | 125 ++++++++++++++++++++++++--------------------
+ src/go/types/operand.go     |  43 ++++-----------
+ 4 files changed, 88 insertions(+), 104 deletions(-)

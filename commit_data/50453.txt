@@ -1,49 +1,19 @@
-commit f4a587ba6e5c5195152f47afee2700664524c11e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 7 18:45:09 2022 -0700
+commit ffd2284db06d433d60aa75ea413f407b90e583b6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 27 15:06:23 2021 -0400
 
-    types2: provide error codes to error reporting
+    cmd/go: fix testdata/script/mod_vendor_goversion for new compiler output
     
-    This CL adds a suitable error code to every error reporting,
-    matching what go/types already does.
+    The message is now a single line, but I couldn't get '\n?' to work.
     
-    For now, the error codes are not progagated through the API,
-    but eventually they will be available to clients.
+    (This test does not run in short mode.)
     
-    Also, for now the errorcodes.go file is a 1:1 copy (with
-    adjusted package name) of go/types/errorcodes.go.
-    A subsequent CL will factor out this file.
-    
-    In contrast to go/types, for errors due to incorrect Go version,
-    the error code is always _UnsupportedFeature. In go/types, the
-    error sometimes is related to the specific operation.
-    
-    Change-Id: I18771bc3d00bbdbf6d705bf25f2aea3c3d977b1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429355
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I3d7033f78ac2bf41db7fdfe96cbb988c4533d834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359095
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/assignments.go |   44 +-
- src/cmd/compile/internal/types2/builtins.go    |   79 +-
- src/cmd/compile/internal/types2/call.go        |   42 +-
- src/cmd/compile/internal/types2/check.go       |    4 +-
- src/cmd/compile/internal/types2/decl.go        |   14 +-
- src/cmd/compile/internal/types2/errorcodes.go  | 1423 ++++++++++++++++++++++++
- src/cmd/compile/internal/types2/errors.go      |   19 +-
- src/cmd/compile/internal/types2/expr.go        |  152 ++-
- src/cmd/compile/internal/types2/index.go       |   38 +-
- src/cmd/compile/internal/types2/infer.go       |   14 +-
- src/cmd/compile/internal/types2/instantiate.go |    2 +-
- src/cmd/compile/internal/types2/interface.go   |    4 +-
- src/cmd/compile/internal/types2/labels.go      |   14 +-
- src/cmd/compile/internal/types2/resolver.go    |   44 +-
- src/cmd/compile/internal/types2/signature.go   |   20 +-
- src/cmd/compile/internal/types2/stmt.go        |   82 +-
- src/cmd/compile/internal/types2/struct.go      |   15 +-
- src/cmd/compile/internal/types2/typeset.go     |    2 +-
- src/cmd/compile/internal/types2/typexpr.go     |   52 +-
- src/cmd/compile/internal/types2/union.go       |   18 +-
- 20 files changed, 1769 insertions(+), 313 deletions(-)
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

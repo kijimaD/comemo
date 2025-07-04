@@ -1,28 +1,16 @@
-commit 3c1e1c30fdfbdaf7cf5f947c53245f1c28e56f91
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 12 17:09:54 2016 -0700
+commit be915159073ed93fa511ceef7256bc8ee396d1c7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 27 08:51:47 2016 +0200
 
-    cmd/cgo: use alias for unsafe rather than separate functions
+    doc/go1.7.html: add known issues section for FreeBSD crashes
     
-    When we need to generate a call to _cgoCheckPointer, we need to type
-    assert the result back to the desired type. That is harder when the type
-    is unsafe.Pointer, as the package can have values of unsafe.Pointer
-    types without actually importing unsafe, by mixing C void* and :=. We
-    used to handle this by generating a special function for each needed
-    type, and defining that function in a separate file where we did import
-    unsafe.
+    Updates #16396
     
-    Simplify the code by not generating those functions, but instead just
-    import unsafe under the alias _cgo_unsafe. This is a simplification step
-    toward a fix for issue #16591.
-    
-    Change-Id: I0edb3e04b6400ca068751709fe063397cf960a54
-    Reviewed-on: https://go-review.googlesource.com/30973
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7b4f85610e66f2c77c17cf8898cc41d81b2efc8c
+    Reviewed-on: https://go-review.googlesource.com/25283
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/cgo/gcc.go  | 197 +++++++++++++++++++++++++---------------------------
- src/cmd/cgo/main.go |   4 --
- src/cmd/cgo/out.go  |  13 ----
- 3 files changed, 95 insertions(+), 119 deletions(-)
+ doc/go1.7.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

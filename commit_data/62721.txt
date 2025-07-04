@@ -1,0 +1,19 @@
+commit 83bbf47863d6dffb29b5a638db6c89bed0c2a763
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 17 15:50:26 2025 +0100
+
+    crypto/tls: use crypto/hkdf
+    
+    For consistency, prefer crypto/hkdf over crypto/internal/fips140/hkdf.
+    Both should have the same behavior given the constrained use of HKDF
+    in TLS.
+    
+    Change-Id: Ia982b9f7a6ea66537d748eb5ecae1ac1eade68a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658217
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/tls/handshake_client_tls13.go | 28 +++++++++++++++-------------
+ src/crypto/tls/handshake_server_tls13.go | 28 +++++++++++++++-------------
+ 2 files changed, 30 insertions(+), 26 deletions(-)

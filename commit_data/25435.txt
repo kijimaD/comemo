@@ -1,18 +1,15 @@
-commit 934e055f414839a9af59601aebacfeeef2b52740
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jan 5 14:06:58 2016 -0800
+commit 51586aadfbc3632a6829b0d72aa433952165d650
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Oct 29 20:24:29 2015 +1300
 
-    runtime: call msanwrite on object passed to runtime/cgo
+    cmd/compile, cmd/go, cmd/link: enable -buildmode=shared and related flags on linux/arm64
     
-    Avoids an msan error when runtime/cgo is explicitly rebuilt with
-    -fsanitize=memory.
-    
-    Fixes #13815.
-    
-    Change-Id: I70308034011fb308b63585bcd40b0d1e62ec93ef
-    Reviewed-on: https://go-review.googlesource.com/18263
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ibddbbf6f4a5bd336a8b234d40fad0fcea574cd6e
+    Reviewed-on: https://go-review.googlesource.com/13994
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/testsanitizers/test.bash | 7 ++++++-
- src/runtime/proc.go               | 3 +++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/lex.go | 3 ++-
+ src/cmd/go/build.go                | 4 ++--
+ src/cmd/link/internal/arm64/obj.go | 2 +-
+ src/cmd/link/internal/ld/lib.go    | 2 +-
+ 4 files changed, 6 insertions(+), 5 deletions(-)

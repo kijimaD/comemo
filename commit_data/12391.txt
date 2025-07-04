@@ -1,18 +1,20 @@
-commit 610b5b2fd8a31ac3855088a0ea2aece8d88d7521
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 5 13:36:05 2012 -0800
+commit 6e3a7930eb0fd16c10df1d12cf386b50e9dbb75e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 16:13:33 2012 -0500
 
-    net: remove all direct fmt and bytes imports
+    cmd/gc: if $GOROOT_FINAL is set, rewrite file names in object files
     
-    Once dnsMsg stops using reflect, we lose even more
-    indirect dependencies.
+    GOROOT_FINAL is a build parameter that means "eventually
+    the Go tree will be installed here".  Make the file name information
+    match that eventual location.
     
-    R=rsc
+    Fixes #3180.
+    
+    R=ken, ken
     CC=golang-dev
-    https://golang.org/cl/5751043
+    https://golang.org/cl/5742043
 
- src/pkg/net/dnsclient.go       | 20 ++++++++++----------
- src/pkg/net/interface_linux.go | 10 ++++++----
- src/pkg/net/sockopt.go         |  3 +--
- src/pkg/net/tcpsock_posix.go   |  3 +--
- 4 files changed, 18 insertions(+), 18 deletions(-)
+ src/cmd/dist/build.c |  3 +++
+ src/cmd/gc/obj.c     | 32 +++++++++++++++++++++++++++++++-
+ test/run             |  2 ++
+ 3 files changed, 36 insertions(+), 1 deletion(-)

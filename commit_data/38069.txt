@@ -1,15 +1,12 @@
-commit 8d057f3a0a1b972f01c1872214c05b58909f50f3
-Author: Tooru Takahashi <tooru.takahashi134@gmail.com>
-Date:   Fri Jan 11 14:08:37 2019 +0000
+commit f99fc3a119dbb98fa9dddcb2e31a6c51925fde77
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Oct 1 16:08:49 2018 -0400
 
-    cmd/internal/src: fix typo in pos.go
+    doc: document Go 1.11.1
     
-    Change-Id: I31ac8845e72c3027c9a463b1f691f4d2b7913ec0
-    GitHub-Last-Rev: a6b185cc41d649141e6034b77bcfe53525498ea6
-    GitHub-Pull-Request: golang/go#29682
-    Reviewed-on: https://go-review.googlesource.com/c/157518
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I2f1a55e15dc5737a5a06bd894c46b2c4705f338c
+    Reviewed-on: https://go-review.googlesource.com/138858
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/internal/src/pos.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/devel/release.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

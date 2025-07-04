@@ -1,0 +1,23 @@
+commit 40b3c0e58a0ae8dec4684a009bf3806769e0fc41
+Author: Than McIntosh <thanm@golang.org>
+Date:   Tue Nov 12 12:12:44 2024 -0500
+
+    internal/coverage: refactor EmitTextual in preparation for bugfix
+    
+    Refactor cformat.EmitTextual to accept a package filter (list of
+    packages to report). This is a no-op in terms of exposed coverage
+    functionality, but we will need this feature in a subsequent patch.
+    
+    Updates #70244.
+    
+    Change-Id: I1e6bcbfb5e68187d4d69d54b667e97bc1fdfa2d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627315
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/covdata/dump.go                    |  2 +-
+ src/internal/coverage/cfile/testsupport.go |  2 +-
+ src/internal/coverage/cformat/fmt_test.go  | 16 ++++++++++++++--
+ src/internal/coverage/cformat/format.go    | 22 +++++++++++++++++-----
+ 4 files changed, 33 insertions(+), 9 deletions(-)

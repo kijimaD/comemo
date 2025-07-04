@@ -1,16 +1,20 @@
-commit 30172f1811a3e08487c6191d1923f8608a338496
+commit b1a6e07919b965c36479fa7595107eb76393839f
 Author: Austin Clements <austin@google.com>
-Date:   Wed Apr 27 14:30:01 2016 -0400
+Date:   Sat Feb 27 18:44:25 2016 -0500
 
-    runtime: make {add,subtract}{b,1} nosplit
+    runtime: document the G states
     
-    These are used at the bottom level of various GC operations that must
-    not be preempted. To be on the safe side, mark them all nosplit.
+    In particular, write down the rules for stack ownership because the
+    details of this are about to get very important with concurrent stack
+    shrinking. (Interestingly, the details don't actually change, but
+    anything that's currently skating on thin ice is likely to fall
+    through.)
     
-    Change-Id: I8f7360e79c9852bd044df71413b8581ad764380c
-    Reviewed-on: https://go-review.googlesource.com/22504
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fox #12967.
+    
+    Change-Id: I561e2610e864295e9faba07717a934aabefcaab9
+    Reviewed-on: https://go-review.googlesource.com/20034
     Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mbitmap.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/runtime2.go | 88 ++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 69 insertions(+), 19 deletions(-)

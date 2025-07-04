@@ -1,24 +1,19 @@
-commit 1ef6b2805ea1d78c082c7c55df39fc3d3942e4c9
+commit 8bfe839c5f514ae7a466889d74262c9e7d89742f
 Author: Damien Neil <dneil@google.com>
-Date:   Fri Jul 26 13:23:09 2024 -0700
+Date:   Wed Jun 7 14:13:55 2023 -0700
 
-    net/http: don't write HEAD response body in ResponseWriter.ReadFrom
+    net/http: close response body in TestRequestBodyLimit
     
-    Responses to HEAD requests don't have a body.
+    Failing to close the response body before returning leaks
+    the in-progress request past the test lifetime.
     
-    The ResponseWriter automatically discards writes to the response body
-    when responding to a HEAD request. ResponseWriter.ReadFrom was failing
-    to discard writes under some circumstances; fix it to do so.
+    Fixes #60264
     
-    Fixes #68609
-    
-    Change-Id: I912f6b2b2a535df28ae37b875fcf15b10da1af2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/601475
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic327d9f8e02e87ed656324aaa042f833d9ea18ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501309
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/net/http/serve_test.go | 30 +++++++++++++++++++++++++++++-
- src/net/http/server.go     |  2 +-
- 2 files changed, 30 insertions(+), 2 deletions(-)
+ src/net/http/serve_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

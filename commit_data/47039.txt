@@ -1,27 +1,32 @@
-commit 76cef81bcff371c88d277f17c712ecf22b8c83e7
-Author: Mark Pulford <mark@kyne.com.au>
-Date:   Sat Oct 16 17:53:31 2021 +1100
+commit 1126bbb82ab2f81dcb33df696a1bb601a98d3174
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Feb 22 15:39:00 2021 -0500
 
-    cmd/go: stamp VCS commit time into binaries
+    go/parser: return ast.BadExpr for missing index operands
     
-    Only Git and Mercurial are supported for now.
+    The parser was returning the indexed operand when a slice or index or
+    instance expression was missing any index arguments (as in the
+    expression `a[]`). This can result in returning an *ast.Ident for the
+    LHS of the (invalid) assignment `a[] = ...` -- in this case parsing the
+    LHS as just `a`. Unfortunately, as the indexed operand `a` has already
+    been resolved, this results in a panic for duplicate resolution.
     
-    This CL also:
-    - Skips tagging "revision" and "committime" for empty repositories.
-    - Stores the full Mercurial changeset ID instead of the short form.
+    Fix this by instead returning an ast.BadExpr. This can suppress some
+    subsequent errors from the typechecker, but those errors may or may not
+    be correct anyway. Other interpretations, such as an *ast.IndexExpr with
+    bad or missing X, run into potential misinterpretations downstream (both
+    caused errors in go/types and/or gopls).
     
-    Fixes #37475
+    Fixes #44504
     
-    Change-Id: I62ab7a986d1ddb2a0e7166a6404b5aa80c2ee387
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356251
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I5ca8bed4a1861bcc7db8898770b08937110981d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295151
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/internal/load/pkg.go                    | 13 +++-
- src/cmd/go/internal/vcs/vcs.go                     | 86 +++++++++++++++++-----
- .../go/testdata/script/version_buildvcs_git.txt    | 13 +++-
- src/cmd/go/testdata/script/version_buildvcs_hg.txt | 12 ++-
- 4 files changed, 97 insertions(+), 27 deletions(-)
+ src/go/parser/parser.go               |  3 ++-
+ src/go/parser/testdata/issue44504.src | 13 +++++++++++++
+ src/go/types/fixedbugs/issue39634.go2 |  2 +-
+ 3 files changed, 16 insertions(+), 2 deletions(-)

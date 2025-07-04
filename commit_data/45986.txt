@@ -1,43 +1,20 @@
-commit fc27eb50ffcada3d4f5e7e00a5c120f474cc0da4
-Author: Rob Findley <rfindley@google.com>
-Date:   Tue Aug 10 14:00:56 2021 -0400
+commit 42e46f4ae0c4f3d6bf7f3920fa936f056ea485c4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 22:11:56 2020 -0800
 
-    cmd/compile/internal/types2: merge Instantiate and InstantiateLazy
+    [dev.regabi] cmd/compile: comment out //go:linkname warning
     
-    Instantiate and InstantiateLazy have the same signature; on first
-    principles, if Instantiate should work for importers it should be
-    possible to consolidate these APIs.
+    It's noisy and not doing any harm, and we still have an entire release
+    cycle to revisit and address the issue properly.
     
-    This CL does this. In order to make it work, a typMap needs to be
-    threaded through type expansion to prevent infinite recursion in the
-    case that the Checker is nil.
+    Updates #42938
     
-    Notably, Named types now must be expanded before returning from
-    Underlying(). This makes Underlying generally unsafe to call while type
-    checking a package, so a helper function safeUnderlying is added to
-    provide the previous behavior. This is probably overly conservative at
-    most call sites, but cleanup is deferred to a later CL.
-    
-    Change-Id: I03cfb75bea0750862cd6eea4e3cdc875a7daa989
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/341855
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I1de5cfb495a8148c9c08b215deba38f2617fb467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274732
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/noder/reader2.go      |  2 +-
- src/cmd/compile/internal/types2/api_test.go    |  4 +--
- src/cmd/compile/internal/types2/call.go        |  4 +--
- src/cmd/compile/internal/types2/decl.go        |  5 ++--
- src/cmd/compile/internal/types2/expr.go        |  2 +-
- src/cmd/compile/internal/types2/infer.go       |  6 ++--
- src/cmd/compile/internal/types2/instantiate.go | 27 +++++++-----------
- src/cmd/compile/internal/types2/lookup.go      |  4 +--
- src/cmd/compile/internal/types2/named.go       | 39 +++++++++++++++++++++-----
- src/cmd/compile/internal/types2/predicates.go  |  4 +--
- src/cmd/compile/internal/types2/signature.go   |  4 +--
- src/cmd/compile/internal/types2/subst.go       | 22 ++++++++++-----
- src/cmd/compile/internal/types2/type.go        |  2 +-
- src/cmd/compile/internal/types2/typexpr.go     | 14 +++++----
- src/cmd/compile/internal/types2/unify.go       |  4 +--
- 15 files changed, 87 insertions(+), 56 deletions(-)
+ src/cmd/compile/internal/gc/noder.go | 2 +-
+ test/linkname2.go                    | 7 +++++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

@@ -1,43 +1,54 @@
-commit 4f97ec086694e09fa3cab37959f2d491eac03b4d
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Dec 3 13:20:58 2015 -0800
+commit 89c341c5e969b571a9475b263b237a8a25efd76b
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 4 20:16:57 2015 -0700
 
-    cmd/compile: captureless closures are constants
+    runtime: directly track GC assist balance
     
-    In particular, we can initialize globals with them at link time instead
-    of generating code for them in an init() function.  Less code, less
-    startup cost.
+    Currently we track the per-G GC assist balance as two monotonically
+    increasing values: the bytes allocated by the G this cycle (gcalloc)
+    and the scan work performed by the G this cycle (gcscanwork). The
+    assist balance is hence assistRatio*gcalloc - gcscanwork.
     
-    But the real reason for this change is binary size.  This change reduces
-    the binary size of hello world by ~4%.
+    This works, but has two important downsides:
     
-    The culprit is fmt.ssFree, a global variable which is a sync.Pool of
-    scratch scan states.  It is initalized with a captureless closure as the
-    pool's New action.  That action in turn references all the scanf code.
+    1) It requires floating-point math to figure out if a G is in debt or
+       not. This makes it inappropriate to check for assist debt in the
+       hot path of mallocgc, so we only do this when a G allocates a new
+       span. As a result, Gs can operate "in the red", leading to
+       under-assist and extended GC cycle length.
     
-    If you never call any of the fmt.Scanf* routines, ssFree is never used.
-    But before this change, ssFree is still referenced by fmt's init
-    function.  That keeps ssFree and all the code it references in the
-    binary.  With this change, ssFree is initialized at link time.  As a
-    result, fmt.init never mentions ssFree.  If you don't call fmt.Scanf*,
-    ssFree is unreferenced and it and the scanf code are not included.
+    2) Revising the assist ratio during a GC cycle can lead to an "assist
+       burst". If you think of plotting the scan work performed versus
+       heaps size, the assist ratio controls the slope of this line.
+       However, in the current system, the target line always passes
+       through 0 at the heap size that triggered GC, so if the runtime
+       increases the assist ratio, there has to be a potentially large
+       assist to jump from the current amount of scan work up to the new
+       target scan work for the current heap size.
     
-    This change is an easy fix for what is generally a much harder problem,
-    the unnecessary initializing of unused globals (and retention of code
-    that they reference).  Ideally we should have separate init code for
-    each global and only include that code if the corresponding global is
-    live.  (We'd need to make sure that the initializing code has no side
-    effects, except on the global being initialized.)  That is a much harder
-    change.
+    This commit replaces this approach with directly tracking the GC
+    assist balance in terms of allocation credit bytes. Allocating N bytes
+    simply decreases this by N and assisting raises it by the amount of
+    scan work performed divided by the assist ratio (to get back to
+    bytes).
     
-    Update #6853
+    This will make it cheap to figure out if a G is in debt, which will
+    let us efficiently check if an assist is necessary *before* performing
+    an allocation and hence keep Gs "in the black".
     
-    Change-Id: I19d1e33992287882c83efea6ce113b7cfc504b67
-    Reviewed-on: https://go-review.googlesource.com/17398
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This also fixes assist bursts because the assist ratio is now in terms
+    of *remaining* work, rather than work from the beginning of the GC
+    cycle. Hence, the plot of scan work versus heap size becomes
+    continuous: we can revise the slope, but this slope always starts from
+    where we are right now, rather than where we were at the beginning of
+    the cycle.
+    
+    Change-Id: Ia821c5f07f8a433e8da7f195b52adfedd58bdf2c
+    Reviewed-on: https://go-review.googlesource.com/15408
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/global_test.go | 64 ++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/sinit.go       | 24 ++++++-----
- 2 files changed, 77 insertions(+), 11 deletions(-)
+ src/runtime/mgc.go      | 52 +++++++++++++++++++++++++++++++++----------------
+ src/runtime/mgcmark.go  | 32 +++++++++++++++++-------------
+ src/runtime/mheap.go    |  9 +++++----
+ src/runtime/runtime2.go | 11 +++++++++--
+ 4 files changed, 68 insertions(+), 36 deletions(-)

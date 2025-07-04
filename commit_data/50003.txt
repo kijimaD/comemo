@@ -1,23 +1,16 @@
-commit 55ecc3a88670c14bbbfc9d6c96cf65891cc608f5
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Mon Aug 15 23:09:00 2022 +0800
+commit d4007aedfaf3f551f9ea7d5e2d2f86dcd2c4c990
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Sep 26 20:45:54 2021 -0700
 
-    net: allow single dot in resolv.conf search statement
+    go/types, types2: factor out some code, fix/add comments (cleanups)
     
-    A single dot in a search statement doesn't affect DNS lookup, so just ignore it and a syntax error.
-    
-    Fixes #54124
-    
-    Change-Id: Idd43bd34c5c16af50cba51f0b6e24f992eec6e57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/423875
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id6a2e3eadc9099abbdd21b6880e1ff3ac9cfb599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352312
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/net/dnsconfig_unix.go                      | 10 +++++++---
- src/net/dnsconfig_unix_test.go                 | 13 +++++++++++++
- src/net/testdata/search-single-dot-resolv.conf |  5 +++++
- 3 files changed, 25 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/infer.go | 2 +-
+ src/cmd/compile/internal/types2/unify.go | 6 ++++--
+ src/go/types/infer.go                    | 2 +-
+ src/go/types/unify.go                    | 6 ++++--
+ 4 files changed, 10 insertions(+), 6 deletions(-)

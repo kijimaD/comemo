@@ -1,21 +1,15 @@
-commit 5de3ff2648d614a58c94549873593d98f275fdcb
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 14 18:04:40 2015 -0500
+commit 5d88323fa6c2c39891bf59d8674c338b0ed3902e
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Mon Oct 19 20:52:55 2015 +1100
 
-    runtime: accept NumGC==0 in TestMemStats
+    runtime: remove a redundant nil pointer check.
     
-    TestMemStats currently requires that NumGC != 0, but GC may
-    legitimately not have run (for example, if this test runs first, or
-    GOGC is set high, etc). Accept NumGC == 0 and instead sanity check
-    NumGC by making sure that all pause times after NumGC are 0.
+    It appears this was made possible by commit 89f185f; before that, g was
+    not dereferenced above.
     
-    Fixes #11989.
-    
-    Change-Id: I4203859fbb83292d59a509f2eeb24d6033e7aabc
-    Reviewed-on: https://go-review.googlesource.com/17830
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Change-Id: I70bc571d924b36351392fd4c13d681e938cfb573
+    Reviewed-on: https://go-review.googlesource.com/16033
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/malloc_test.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/runtime/panic.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

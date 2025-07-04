@@ -1,21 +1,32 @@
-commit 1cf862e66c6e65217c1254a7bfac6f3e77f4ae23
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 29 22:04:04 2024 +0000
+commit 88704b18ce9db36c04d788b688c42ef372ec2a5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 22 14:05:08 2023 -0400
 
-    cmd/cgo/internal/testsanitizers: skip some libfuzzer tests in short mode
+    cmd/go: allow using go env with unknown vars already in go/env file
     
-    These tests are newly-running now that we have installed a C++ toolchain
-    on the clang builders, but one of them doesn't actually complete in short
-    mode.
+    If you are using a newer toolchain and set go env -w X=Y, then it's
+    a bit frustrating that you can't update the variable in an older toolchain
+    with go env -w X=OTHER or go env -u X, or even see it with go env X.
+    This CL makes all those work.
     
-    For #67698.
+    This is particularly important when playing with go env -w GOTOOLCHAIN=oldversion
+    because from that point on the old version is handling 'go env' commands,
+    and the old version doesn't know about GOTOOLCHAIN.
+    The most complete way to recover from that situation is to use
     
-    Change-Id: Id1ff4c05e380426d920277c13495f30e23561a4e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589295
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+            GOTOOLCHAIN=local go env -w ...
+    
+    but we will backport this CL to Go 1.19 and Go 1.20 so that they can
+    recover a bit more easily.
+    
+    Fixes #59870.
+    
+    Change-Id: I7a0bb043109e75a0d746069015f6e7992f78287f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496957
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/envcmd/env.go        | 65 +++++++++++++++++++++++++-------
+ src/cmd/go/testdata/script/env_write.txt | 18 +++++++++
+ 2 files changed, 69 insertions(+), 14 deletions(-)

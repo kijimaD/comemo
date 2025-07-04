@@ -1,36 +1,18 @@
-commit d4023430fd77cd6c3ee97aa4ba9f4153427c8a8f
-Author: griesemer <gri@golang.org>
-Date:   Thu Oct 5 17:03:53 2017 -0700
+commit ddeab538263307f6d76e3a8a7f2c4b12383b61bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 23 07:08:56 2017 -0700
 
-    go/doc: fix constant type propagation
+    os: align siginfo argument to waitid
     
-    The old code was seriously broken: It assumed that a constant
-    declaration without a type would always inherit the type of
-    the previous declaration, but in fact it only inherits the
-    type of the previous declaration when there's no type and no
-    constant value.
+    I have no test case for this, but there is one report on the mailing list
+    (https://groups.google.com/d/msg/golang-dev/sDg-t1_DPw0/-AJmLxgPBQAJ)
+    in which waitid running on MIPS returns EFAULT.
     
-    While fixing this bug, found that the result was not sorted
-    deterministically in all situations due to a poor choice of
-    order value (which led to spurious test failures since the
-    tests assume deterministic outputs). Fixed that as well.
-    
-    Added new test cases and fixed some old (broken) tests.
-    
-    Fixes #16153.
-    
-    Change-Id: I95b480e019b0fd3538638caba02fe651c69e0513
-    Reviewed-on: https://go-review.googlesource.com/68730
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I79bde63c7427eefc1f2925d78d97cc9cf2fffde3
+    Reviewed-on: https://go-review.googlesource.com/46511
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/doc/exports.go                   |  2 +-
- src/go/doc/reader.go                    | 17 +++++++++++------
- src/go/doc/testdata/blank.0.golden      | 15 +++++++++++----
- src/go/doc/testdata/blank.1.golden      | 24 +++++++++++++++--------
- src/go/doc/testdata/blank.2.golden      | 15 +++++++++++----
- src/go/doc/testdata/blank.go            | 10 +++++++++-
- src/go/doc/testdata/issue16153.0.golden | 32 +++++++++++++++++++++++++++++++
- src/go/doc/testdata/issue16153.1.golden | 34 +++++++++++++++++++++++++++++++++
- src/go/doc/testdata/issue16153.2.golden | 32 +++++++++++++++++++++++++++++++
- src/go/doc/testdata/issue16153.go       | 27 ++++++++++++++++++++++++++
- 10 files changed, 184 insertions(+), 24 deletions(-)
+ src/os/wait_waitid.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

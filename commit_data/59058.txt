@@ -1,22 +1,21 @@
-commit d704ef76068eb7da15520b08dc7df98f45f85ffa
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Jan 10 13:38:35 2025 +0100
+commit 210f051d6b585e9a5f0cb4b983038d83c44e992b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 7 13:58:38 2024 -0800
 
-    crypto/tls/internal/fips140tls: use crypto/fips140
+    go/types, types2: document deterministic method index order and add test
     
-    There is no need for fips140tls to depend on an internal package, it
-    can use crypto/fips140 directly.
+    Fixes #61298.
     
-    Both approaches are equivalent, but using crypto/fips140 makes us
-    exercise a public API and sets precedence.
-    
-    Change-Id: I668e80ee62b711bc60821cee3a54232a33295ee1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642035
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Change-Id: Ie2f930752867710884ace3990447866e785ebf1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562347
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/crypto/tls/internal/fips140tls/fipstls.go | 4 ++--
- src/go/build/deps_test.go                     | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/named.go      |  6 ++++
+ src/cmd/compile/internal/types2/named_test.go | 48 +++++++++++++++++++++++++++
+ src/go/types/named.go                         |  6 ++++
+ src/go/types/named_test.go                    | 48 +++++++++++++++++++++++++++
+ 4 files changed, 108 insertions(+)

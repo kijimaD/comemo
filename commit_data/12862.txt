@@ -1,15 +1,22 @@
-commit 35d260fa4c1952079083b8868e9be5e4c77f70dc
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 10 10:09:09 2012 -0400
+commit 098b9dcf2f92823342fcddef9d606ea176062a63
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Apr 10 21:57:05 2012 +1000
 
-    6a, 6l: add PREFETCH instructions
+    runtime: block signals during thread creation on openbsd
     
-    R=ken2
+    Block signals during thread creation, otherwise the new thread can
+    receive a signal prior to initialisation completing.
+    
+    Fixes #3102.
+    
+    R=golang-dev, rsc, devon.odell, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5989073
+    https://golang.org/cl/5757064
 
- src/cmd/6a/lex.c            |  4 ++++
- src/cmd/6l/6.out.h          |  5 +++++
- src/cmd/6l/optab.c          | 14 ++++++++++++--
- src/pkg/runtime/asm_amd64.s |  3 +--
- 4 files changed, 22 insertions(+), 4 deletions(-)
+ src/pkg/runtime/os_openbsd.h           | 15 ++++++++++-----
+ src/pkg/runtime/signal_openbsd_amd64.c |  8 ++++----
+ src/pkg/runtime/signals_openbsd.h      | 20 ++++++++++----------
+ src/pkg/runtime/sys_openbsd_386.s      |  8 ++++++++
+ src/pkg/runtime/sys_openbsd_amd64.s    | 10 ++++++++++
+ src/pkg/runtime/thread_openbsd.c       | 11 ++++++++++-
+ 6 files changed, 52 insertions(+), 20 deletions(-)

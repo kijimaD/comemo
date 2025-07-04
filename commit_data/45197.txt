@@ -1,22 +1,15 @@
-commit 4fb74e055595a0009f11272432c2a5047a64507b
+commit c321430bdc328c394de501bdc5f8f5d6d8952cd4
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 15 11:19:30 2021 -0400
+Date:   Mon Oct 12 15:48:53 2020 -0400
 
-    reflect: preserve ctxt across moveMakeFuncArgPtrs
+    cmd/link: remove residual darwin/386 code
     
-    In makeFuncStub and methodValueCall, it stores ctxt (DX) as an
-    argument of moveMakeFuncArgPtrs, and assumes it does not change
-    by the call. This is not guaranteed, and it does happen if
-    -clobberdead compiler flag is used. Store it somewhere else and
-    reload after the call.
-    
-    Change-Id: I9307e3cf94db4b38305ab35494088386dfcbaae8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310409
+    Change-Id: Iffed1c544d6ebb4ecd8fdb1cc51cf862a9f6d3de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261641
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/reflect/asm_amd64.s | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/link/internal/ld/macho.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,21 +1,18 @@
-commit 93e3d5dc5f2af317c874fd61cbd354409ea9fd33
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu May 1 12:20:45 2025 +0000
+commit 78755f6b8c5f18b0014e9dcac383898047ff14fe
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Mar 11 01:22:21 2024 +0000
 
-    go/parser: use non-adjusted position while parsing CommentGroups
+    cmd/compile: use raw strings to avoid double escapes
     
-    Line directives should not affect the way Comments get grouped
-    into CommentGroups.
-    
-    Change-Id: I9aa4b558cb1333b32be692e8720291d0e6961cae
-    GitHub-Last-Rev: de867b27bff28983716ba9126329d75f456a2b5a
-    GitHub-Pull-Request: golang/go#69133
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609515
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Change-Id: I39917b90b67f630f8212853c0a201635960275cb
+    GitHub-Last-Rev: fe886534b493fc6241b4451256c889b2fdee997f
+    GitHub-Pull-Request: golang/go#66180
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569975
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/parser/parser.go      | 17 +++++++++++------
- src/go/parser/parser_test.go | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/debug_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,27 +1,82 @@
-commit 70f08b47a00008fbe14946924437fa2b8612a5a2
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Mar 7 10:54:53 2011 -0500
+commit f9ca3b5d5b05819704dfce5db77c48a4edab131f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 10:37:42 2011 -0500
 
-    goinstall: handle $(GOOS) and $(GOARCH) in filenames
+    runtime: scheduler, cgo reorganization
     
-    This enables goinstall to handle .go and .c files (for cgo)
-    which are named after the following patterns:
+    * Change use of m->g0 stack (aka scheduler stack).
+    * Provide runtime.mcall(f) to invoke f() on m->g0 stack.
+    * Replace scheduler loop entry with runtime.mcall(schedule).
     
-        name_$(GOOS).*
-        name_$(GOARCH).*
-        name_$(GOOS)_$(GOARCH).*
+    Runtime.mcall eliminates the need for fake scheduler states that
+    exist just to run a bit of code on the m->g0 stack
+    (Grecovery, Gstackalloc).
     
-    Files with those names are only included if the $(GOOS) and
-    $(GOARCH) match the current system.
+    The elimination of the scheduler as a loop that stops and
+    starts using gosave and gogo fixes a bad interaction with the
+    way cgo uses the m->g0 stack.  Cgo runs external (gcc-compiled)
+    C functions on that stack, and then when calling back into Go,
+    it sets m->g0->sched.sp below the added call frames, so that
+    other uses of m->g0's stack will not interfere with those frames.
+    Unfortunately, gogo (longjmp) back to the scheduler loop at
+    this point would end up running scheduler with the lower
+    sp, which no longer points at a valid stack frame for
+    a call to scheduler.  If scheduler then wrote any function call
+    arguments or local variables to where it expected the stack
+    frame to be, it would overwrite other data on the stack.
+    I realized this possibility while debugging a problem with
+    calling complex Go code in a Go -> C -> Go cgo callback.
+    This wasn't the bug I was looking for, it turns out, but I believe
+    it is a real bug nonetheless.  Switching to runtime.mcall, which
+    only adds new frames to the stack and never jumps into
+    functions running in existing ones, fixes this bug.
     
-    R=rsc
+    * Move cgo-related code out of proc.c into cgocall.c.
+    * Add very large comment describing cgo call sequences.
+    * Simpilify, regularize cgo function implementations and names.
+    * Add test suite as misc/cgo/test.
+    
+    Now the Go -> C path calls cgocall, which calls asmcgocall,
+    and the C -> Go path calls cgocallback, which calls cgocallbackg.
+    
+    The shuffling, which affects mainly the callback case, moves
+    most of the callback implementation to cgocallback running
+    on the m->curg stack (not the m->g0 scheduler stack) and
+    only while accounted for with $GOMAXPROCS (between calls
+    to exitsyscall and entersyscall).
+    
+    The previous callback code did not block in startcgocallback's
+    approximation to exitsyscall, so if, say, the garbage collector
+    were running, it would still barge in and start doing things
+    like call malloc.  Similarly endcgocallback's approximation of
+    entersyscall did not call matchmg to kick off new OS threads
+    when necessary, which caused the bug in issue 1560.
+    
+    Fixes #1560.
+    
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/4172055
+    https://golang.org/cl/4253054
 
- .hgignore                         |  1 +
- src/Make.inc                      | 35 ++++++++++++++----------
- src/cmd/goinstall/Makefile        | 12 +++++++++
- src/cmd/goinstall/parse.go        | 48 +++++++++++++++++++++++++++++++++
- src/cmd/goinstall/syslist_test.go | 56 +++++++++++++++++++++++++++++++++++++++
- src/pkg/Makefile                  |  1 -
- 6 files changed, 138 insertions(+), 15 deletions(-)
+ misc/cgo/stdio/Makefile                        |   3 -
+ misc/cgo/stdio/hello.go                        |  20 +-
+ misc/cgo/test/Makefile                         |  23 +++
+ misc/cgo/{stdio => test}/align.go              |  18 +-
+ misc/cgo/{stdio/test.go => test/basic.go}      |  36 ++--
+ misc/cgo/test/callback.go                      | 136 +++++++++++++
+ misc/cgo/test/callback_c.c                     |  12 ++
+ misc/cgo/test/cgo_test.go                      |   6 +
+ misc/cgo/{stdio/test1.go => test/issue1222.go} |   2 +-
+ misc/cgo/test/issue1328.go                     |  30 +++
+ misc/cgo/test/issue1560.go                     |  46 +++++
+ misc/cgo/test/runtime.c                        |  21 ++
+ src/clean.bash                                 |   1 +
+ src/pkg/runtime/386/asm.s                      | 253 ++++++++++++++++---------
+ src/pkg/runtime/amd64/asm.s                    | 194 +++++++++++++------
+ src/pkg/runtime/arm/asm.s                      |  65 ++++---
+ src/pkg/runtime/cgocall.c                      | 219 ++++++++++++++++-----
+ src/pkg/runtime/cgocall.h                      |   2 +-
+ src/pkg/runtime/mgc0.c                         |   2 -
+ src/pkg/runtime/proc.c                         | 226 ++++++++++------------
+ src/pkg/runtime/runtime.h                      |  11 +-
+ 21 files changed, 907 insertions(+), 419 deletions(-)

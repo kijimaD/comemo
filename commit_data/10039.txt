@@ -1,27 +1,15 @@
-commit 033585d6755a19308314b89f1252ec1438e24fe0
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Tue Oct 18 16:05:38 2011 -0400
+commit 4566868b41620ba47ef589d8bab9b0906c370cb6
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Tue Oct 18 15:58:10 2011 -0400
 
-    5l, 6l, 8l: correct ELFRESERVE diagnostic
-    
-    If the length of the interpreter string
-    pushes us over the ELFRESERVE limit, the
-    resulting error message will be comical.
-    
-    I was doing some ELF tinkering with a
-    modified version of 8l when I hit this.
-    
-    To be clear, the stock linkers wouldn't
-    hit this without adding about forty more
-    section headers.  We're safe for now. ;)
-    
-    Also, remove a redundant call to cflush.
+    6l, 8l: emit macho dwarf info before linkedit section
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5268044
+    https://golang.org/cl/5272050
 
- src/cmd/5l/asm.c | 4 ++--
- src/cmd/6l/asm.c | 4 ++--
- src/cmd/8l/asm.c | 4 ++--
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/6l/asm.c   | 16 +++++++++++++---
+ src/cmd/8l/asm.c   | 16 +++++++++++++---
+ src/cmd/ld/lib.h   |  1 +
+ src/cmd/ld/macho.c |  2 +-
+ 4 files changed, 28 insertions(+), 7 deletions(-)

@@ -1,39 +1,20 @@
-commit 1d10b17589ce651caeb0841b2312065ee44f800d
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Thu Mar 28 13:11:53 2019 +0100
+commit 5e17ce22ece18571597ef9a214cdfcd461894e9c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Apr 13 14:27:33 2018 -0400
 
-    cmd/link/ld,cmd/internal/obj,runtime: make the Android TLS offset dynamic
+    cmd/vet: lostcancel: suppress the check in the main.main function
     
-    We're going to need a different TLS offset for Android Q, so the static
-    offsets used for 386 and amd64 are no longer viable on Android.
+    When main.main returns, the process exits, so there's no need to cancel contexts.
     
-    Introduce runtime·tls_g and use that for indexing into TLS storage. As
-    an added benefit, we can then merge the TLS setup code for all android
-    GOARCHs.
+    This change was initially reviewed as
+    https://go-review.googlesource.com/c/go/+/106915/4
+    but somehow I messed up and committed patchset 5, which was
+    effectively empty.
     
-    While we're at it, remove a bunch of android special cases no longer
-    needed.
-    
-    Updates #29674
-    Updates #29249 (perhaps fixes it)
-    
-    Change-Id: I77c7385aec7de8f1f6a4da7c9c79999157e39572
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169817
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic4250eb6563af9bc734e429aafc7081ca7d0e012
+    Reviewed-on: https://go-review.googlesource.com/c/148758
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/internal/obj/x86/obj6.go    | 22 ++++++++----
- src/cmd/link/internal/ld/data.go    | 10 ++----
- src/cmd/link/internal/ld/sym.go     | 17 ++-------
- src/runtime/asm_386.s               | 17 +++++++--
- src/runtime/asm_amd64.s             | 23 ++++++++++--
- src/runtime/cgo/gcc_android.c       | 35 ++++++++++++++++++
- src/runtime/cgo/gcc_android_386.c   | 67 ----------------------------------
- src/runtime/cgo/gcc_android_amd64.c | 72 -------------------------------------
- src/runtime/cgo/gcc_android_arm.c   | 42 ----------------------
- src/runtime/cgo/gcc_android_arm64.c | 42 ----------------------
- src/runtime/cgo/gcc_linux_386.c     |  8 ++---
- src/runtime/cgo/gcc_linux_amd64.c   |  8 ++---
- src/runtime/sys_linux_386.s         |  8 ++---
- src/runtime/sys_linux_amd64.s       |  6 ++--
- 14 files changed, 102 insertions(+), 275 deletions(-)
+ src/cmd/vet/lostcancel.go          | 5 +++++
+ src/cmd/vet/testdata/lostcancel.go | 8 +++++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

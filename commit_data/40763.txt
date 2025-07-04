@@ -1,22 +1,28 @@
-commit b8cb75fb17511538524ac304abe68e62699c4e23
-Author: Rob Pike <r@golang.org>
-Date:   Mon Nov 11 10:55:32 2019 +1100
+commit 9caaac2c92f866383b52fca544b9871acf5fda1c
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 26 14:35:05 2019 -0400
 
-    text/template: add error check for parenthesized first argument in pipeline
+    sync: only check for successful PopHeads in long mode
     
-    An error check was missing: If the first argument of a pipeline is
-    parenthesized, and the pipeline has further arguments, then
-    syntactically the pipeline is a function invocation and there must
-    be a "call". Tricky rare corner case, but easily caught.
+    In TestPoolDequeue it's surprisingly common for the queue to stay
+    nearly empty the whole time and for a racing PopTail to happen in the
+    window between the producer doing a PushHead and doing a PopHead. In
+    short mode, there are only 100 PopTail attempts. On linux/amd64, it's
+    not uncommon for this to fail 50% of the time. On linux/arm64, it's
+    not uncommon for this to fail 100% of the time, causing the test to
+    fail.
     
-    Add the error check and some tests to verify behavior.
+    This CL fixes this by only checking for a successful PopTail in long
+    mode. Long mode makes 200,000 PopTail attempts, and has never been
+    observed to fail.
     
-    Fixes #31810.
+    Fixes #31422.
     
-    Change-Id: Ica80b7c11284e4ea9e8cc94a01dbbc9a67e42079
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206124
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If464d55eb94fcb0b8d78fbc441d35be9f056a290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183981
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/text/template/exec.go      |  3 ++-
- src/text/template/exec_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 1 deletion(-)
+ src/sync/pool_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

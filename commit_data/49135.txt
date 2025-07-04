@@ -1,23 +1,21 @@
-commit 6fd0520db3cffad4fd01c98319b9b1bf3c50f5e2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue May 10 09:07:34 2022 -0400
+commit dcc8350ad304714824cc8e5b8a00105dabb61c54
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Jul 18 22:10:13 2021 -0700
 
-    os/exec: eliminate some arbitrary short timeouts
+    [dev.typeparams] cmd/compile: handle ++/-- in noder2 for operands with generic type
     
-    These tests appear to be using timeouts to check for deadlocks or to
-    cause the test to fail earlier. However, on slower machines these
-    short timeouts can cause spurious failures, and even on faster
-    machines if the test locks up we usually want a goroutine dump instead
-    of a short failure message anyway.
+    types2 will have already proved the expression's type is compatible, so
+    just assign the one const to have the same type as the operand.
     
-    Fixes #52818 (maybe).
+    Fixes #47258.
     
-    Change-Id: Ib8f18d679f9443721e8a924caef6dc8d214fca1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405434
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: If0844e6bf6d0a5e6b11453b87df71353863ccc5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336009
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/os/exec/exec_test.go | 77 ++++++++++++------------------------------------
- 1 file changed, 19 insertions(+), 58 deletions(-)
+ src/cmd/compile/internal/noder/helpers.go | 12 +++++++++++-
+ test/typeparam/issue47258.go              | 32 +++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

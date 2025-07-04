@@ -1,17 +1,14 @@
-commit cd7d7382bba1433fee2c4a364c4152857d9f43ae
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 26 14:57:36 2015 -0700
+commit 3f016215a8f7fa3e62a6edfbf2f0a3e7ca074d09
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 17 20:54:05 2015 -0400
 
-    cmd/compile/internal/gc: introduce type for decl contexts/storage classes
+    cmd/yacc: fix compile error in empty grammar
     
-    Change-Id: I956e27fa07f16060b8f41b986d991c36557f7c12
-    Reviewed-on: https://go-review.googlesource.com/16332
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #12154.
+    
+    Change-Id: I1e6d1a3479a8a6fc8f53aebd18fb142506110809
+    Reviewed-on: https://go-review.googlesource.com/13673
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go    |  6 +++---
- src/cmd/compile/internal/gc/export.go |  2 +-
- src/cmd/compile/internal/gc/go.go     | 24 ++++++++++++++----------
- src/cmd/compile/internal/gc/plive.go  |  2 +-
- src/cmd/compile/internal/gc/syntax.go |  2 +-
- src/cmd/compile/internal/gc/walk.go   |  2 +-
- 6 files changed, 21 insertions(+), 17 deletions(-)
+ src/cmd/yacc/yacc.go | 1 +
+ 1 file changed, 1 insertion(+)

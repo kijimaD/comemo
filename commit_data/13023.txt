@@ -1,22 +1,14 @@
-commit 452a9e452b8a88de95b343e13107782aa26c1ed2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri May 4 18:14:26 2012 +0800
+commit c44a22cc495c10f96e9842d433af7aec6f713243
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri May 4 16:40:24 2012 +1000
 
-    cmd/5l, cmd/ld: dynamic linking library support
-            Part 1 of CL 5601044 (cgo: Linux/ARM support)
-            Limitation: doesn't support thumb library yet.
+    misc/dashboard/codereview: remove transitional code.
     
-    R=golang-dev, dave, rsc
+    All current CLs have subject lines, so we don't need to check any more.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5991065
+    https://golang.org/cl/6196044
 
- src/cmd/5l/5.out.h |   6 +
- src/cmd/5l/asm.c   | 411 +++++++++++++++++++++++++++++++++++++++++++++++++----
- src/cmd/5l/l.h     |   1 +
- src/cmd/5l/obj.c   |   6 +-
- src/cmd/5l/pass.c  |   4 +-
- src/cmd/5l/span.c  |  41 +++---
- src/cmd/ld/data.c  |   2 +-
- src/cmd/ld/elf.h   |   2 +
- src/cmd/ld/ldelf.c |  35 +++--
- 9 files changed, 450 insertions(+), 58 deletions(-)
+ misc/dashboard/codereview/dashboard/cl.go | 30 +++++++++++++-----------------
+ 1 file changed, 13 insertions(+), 17 deletions(-)

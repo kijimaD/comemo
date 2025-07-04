@@ -1,20 +1,98 @@
-commit 4219aec60ab473fa00f1092034ca801218a5dbe9
-Author: micnncim <micnncim@gmail.com>
-Date:   Fri Aug 30 19:27:55 2019 +0000
+commit 2c423f063b137781a97a6a56998a2e3abffc4051
+Author: Keith Randall <khr@google.com>
+Date:   Wed Feb 6 14:12:36 2019 -0800
 
-    syscall: fix duplicate comments
+    cmd/compile,runtime: provide index information on bounds check failure
     
-    Removed repetitions of "the" in some comments.
+    A few examples (for accessing a slice of length 3):
     
-    Change-Id: I36a6f51609765076de32e1b97398c4c08743aafc
-    GitHub-Last-Rev: 4d06aea6a787cfca40eda10845897ff149fff62c
-    GitHub-Pull-Request: golang/go#33797
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191497
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+       s[-1]    runtime error: index out of range [-1]
+       s[3]     runtime error: index out of range [3] with length 3
+       s[-1:0]  runtime error: slice bounds out of range [-1:]
+       s[3:0]   runtime error: slice bounds out of range [3:0]
+       s[3:-1]  runtime error: slice bounds out of range [:-1]
+       s[3:4]   runtime error: slice bounds out of range [:4] with capacity 3
+       s[0:3:4] runtime error: slice bounds out of range [::4] with capacity 3
+    
+    Note that in cases where there are multiple things wrong with the
+    indexes (e.g. s[3:-1]), we report one of those errors kind of
+    arbitrarily, currently the rightmost one.
+    
+    An exhaustive set of examples is in issue30116[u].out in the CL.
+    
+    The message text has the same prefix as the old message text. That
+    leads to slightly awkward phrasing but hopefully minimizes the chance
+    that code depending on the error text will break.
+    
+    Increases the size of the go binary by 0.5% (amd64). The panic functions
+    take arguments in registers in order to keep the size of the compiled code
+    as small as possible.
+    
+    Fixes #30116
+    
+    Change-Id: Idb99a827b7888822ca34c240eca87b7e44a04fdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161477
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/syscall/syscall_js.go      | 2 +-
- src/syscall/syscall_nacl.go    | 2 +-
- src/syscall/syscall_plan9.go   | 2 +-
- src/syscall/syscall_unix.go    | 2 +-
- src/syscall/syscall_windows.go | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  14 +
+ src/cmd/compile/internal/arm/ssa.go            |  12 +
+ src/cmd/compile/internal/arm64/ssa.go          |   6 +
+ src/cmd/compile/internal/gc/builtin.go         | 461 ++++++++++----------
+ src/cmd/compile/internal/gc/builtin/runtime.go |  21 +-
+ src/cmd/compile/internal/gc/go.go              |   5 +-
+ src/cmd/compile/internal/gc/ssa.go             | 282 ++++++++++---
+ src/cmd/compile/internal/mips/ssa.go           |  12 +
+ src/cmd/compile/internal/mips64/ssa.go         |   6 +
+ src/cmd/compile/internal/ppc64/ssa.go          |   7 +
+ src/cmd/compile/internal/s390x/ssa.go          |   6 +
+ src/cmd/compile/internal/ssa/func.go           |  12 +
+ src/cmd/compile/internal/ssa/gen/386.rules     |   8 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |  13 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  12 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  15 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |   8 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  11 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |  16 +
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |   7 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |   4 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  11 +
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go    |  16 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  11 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |  10 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   8 +
+ src/cmd/compile/internal/ssa/op.go             |  67 +++
+ src/cmd/compile/internal/ssa/opGen.go          | 458 ++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go     | 130 ++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 144 +++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 130 ++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  62 +++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    | 130 ++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  62 +++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  62 +++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  62 +++
+ src/cmd/compile/internal/x86/ssa.go            |  14 +
+ src/runtime/asm_386.s                          | 152 +++++++
+ src/runtime/asm_amd64.s                        |  70 ++++
+ src/runtime/asm_amd64p32.s                     | 152 +++++++
+ src/runtime/asm_arm.s                          | 152 +++++++
+ src/runtime/asm_arm64.s                        |  70 ++++
+ src/runtime/asm_mips64x.s                      |  70 ++++
+ src/runtime/asm_mipsx.s                        | 152 +++++++
+ src/runtime/asm_ppc64x.s                       |  70 ++++
+ src/runtime/asm_s390x.s                        |  70 ++++
+ src/runtime/error.go                           | 108 +++++
+ src/runtime/os_plan9.go                        |  12 -
+ src/runtime/panic.go                           | 163 ++++++--
+ src/runtime/panic32.go                         | 105 +++++
+ test/codegen/memcombine.go                     |  12 +-
+ test/fixedbugs/issue15002.go                   |  12 +-
+ test/fixedbugs/issue30116.go                   | 112 +++++
+ test/fixedbugs/issue30116.out                  | 558 +++++++++++++++++++++++++
+ test/fixedbugs/issue30116u.go                  | 112 +++++
+ test/fixedbugs/issue30116u.out                 | 340 +++++++++++++++
+ 59 files changed, 4464 insertions(+), 355 deletions(-)

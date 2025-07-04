@@ -1,20 +1,40 @@
-commit 183b6b49632d9b5d4655693907dfacf789bfea22
-Author: apocelipes <seve3r@outlook.com>
-Date:   Mon May 20 11:13:36 2024 +0000
+commit e0ceba8139c81d612ab6226e057fb3b01555b7f9
+Author: eric fang <eric.fang@arm.com>
+Date:   Fri May 5 01:07:25 2023 +0000
 
-    embed: simplify the code
+    cmd/compile: enhance tighten pass for memory values
     
-    Use stringslite and bytealg to simplify the code and to remove redundent
-    helper functions.
+    [This is a roll-forward of CL 458755, which was reverted due to make.bash
+    being broken on GOAMD64=v3. But it turned out that the problem was caused
+    by wrong bswap/load rewrite rules, and it was fixed in CL 492616.]
     
-    Change-Id: I665a8313d9b91201b147b255290058f162cf0894
-    GitHub-Last-Rev: e9e3bebdb477c301ec96e2b7425c20e6792d9765
-    GitHub-Pull-Request: golang/go#67515
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586715
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    This CL enhances the tighten pass. Previously if a value has memory arg,
+    then the tighten pass won't move it, actually if the memory state is
+    consistent among definition and use block, we can move the value. This
+    CL optimizes this case. This is useful for the following situation:
+    b1:
+      x = load(...mem)
+      if(...) goto b2 else b3
+    b2:
+      use(x)
+    b3:
+      some_op_not_use_x
+    
+    For the micro-benchmark mentioned in #56620, the performance improvement
+    is about 15%.
+    There's no noticeable performance change in the go1 benchmark.
+    
+    Fixes #56620
+    
+    Change-Id: I36ea68bed384986cd3ae81cb9e6efe84bb213adc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492895
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
 
- src/embed/embed.go | 23 +++++------------------
- 1 file changed, 5 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go |   7 ++-
+ src/cmd/compile/internal/ssa/tighten.go  | 105 +++++++++++++++++++++++++++++--
+ test/tighten.go                          |  22 +++++++
+ 3 files changed, 127 insertions(+), 7 deletions(-)

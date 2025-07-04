@@ -1,15 +1,13 @@
-commit 04487d5612cd3adc7dde217e736b73fb37af1ee5
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Aug 21 08:07:42 2014 +0200
+commit c31eb979421236ac51cdb21870483d70d47b84cc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 13 14:54:54 2014 +1000
 
-    runtime: convert MemProfile, BlockProfile, ThreadCreateProfile to Go.
+    tag go1.3.1
     
-    LGTM=khr
-    R=golang-codereviews, bradfitz, khr
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/123680043
+    https://golang.org/cl/125170044
 
- src/pkg/runtime/debug.go  |  31 ---------
- src/pkg/runtime/mprof.go  | 166 ++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/mprof.goc | 156 ++++++-------------------------------------
- 3 files changed, 188 insertions(+), 165 deletions(-)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

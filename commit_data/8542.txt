@@ -1,15 +1,12 @@
-commit 87dbec54bb0357a5de587e55d30ee0716b3def79
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon May 30 11:53:09 2011 -0300
+commit 55f8fd26841c2e9ef63759b62b7cd0bafa93b5f1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 30 20:19:56 2011 +1000
 
-    template: fix and clean interaction between quotes and formatters
+    gobuilder: remove some windows-specificity
     
-    Fixes issue #1897.
-    
-    R=r, gustavo, r
+    R=alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4561049
+    https://golang.org/cl/4528109
 
- src/pkg/template/template.go      | 47 ++++++++++++++++++++++++++++-----------
- src/pkg/template/template_test.go | 12 +++++-----
- 2 files changed, 40 insertions(+), 19 deletions(-)
+ misc/dashboard/builder/exec.go | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)

@@ -1,24 +1,12 @@
-commit b98ce3b606b2bb620c9c62482cd73f068157a32c
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Mar 1 09:05:58 2021 -0800
+commit 2336d127e137fd877283eb691494cd97cb0b9d71
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Mon Jul 6 13:30:56 2020 -0400
 
-    cmd/compile:  import empty closure function correctly
+    doc/editors.html: update VS Code Go extension url
     
-    On import, make sure that an empty closure is represented as a single
-    empty block statement. Otherwise, the closure is dropped. Block
-    statements are not exported explicitly, so must recreate on import.
-    
-    Fixes #44330
-    
-    Change-Id: I061598f0f859dd71d2d0cbd10c77cdd81525d1f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297569
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
+    Change-Id: I7aa73861de053db6b424f113733de9caba19145b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241086
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/compile/internal/typecheck/iimport.go |  5 +++++
- test/fixedbugs/issue44330.dir/a.go            | 21 +++++++++++++++++++++
- test/fixedbugs/issue44330.dir/b.go            | 23 +++++++++++++++++++++++
- test/fixedbugs/issue44330.go                  |  7 +++++++
- 4 files changed, 56 insertions(+)
+ doc/editors.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,19 +1,21 @@
-commit 8f92ae1c63771e42b60ff64ea39d8d6ba602d8b2
-Author: David Chase <drchase@google.com>
-Date:   Mon Mar 6 20:38:31 2023 +0000
+commit 9298f604f474ef6dcd5fdfb73877d63b1972c29f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Apr 13 11:49:15 2022 -0700
 
-    Revert "cmd/go: extend path shortening to all paths in messages"
+    crypto/x509: add CertPool.Clone
     
-    This reverts CL 465805 (commit 3eedba50b10ca9086646f12d7917912cff7d4d0a).
+    Export the previously private method copy as Clone.
     
-    Reason for revert: The longtest on Windows was typoed, silently ignored, and it turns out it fails there.
+    Fixes #35044
     
-    Change-Id: I362e9a22a7ec569314a0da932730ba137a98ecda
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473795
+    Change-Id: I5403d6a3b9f344c980c1c89a6823e1a49dcda26b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400175
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/work/exec.go                   | 29 ++------
- .../script/build_shorten_sibling_package.txt       | 81 ----------------------
- 2 files changed, 5 insertions(+), 105 deletions(-)
+ api/next/35044.txt           | 1 +
+ src/crypto/x509/cert_pool.go | 5 +++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 630d4fb600ae309476c87a4ca0e29b60425bc0c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 1 15:03:25 2024 -0700
+
+    spec: document that alias declarations can have type parameters with 1.24
+    
+    For #46477.
+    
+    Change-Id: Id02d8f67fe82228bab3f26b1cb4ebd6ee67c4634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616816
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)

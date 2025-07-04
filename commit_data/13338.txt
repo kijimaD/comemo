@@ -1,12 +1,12 @@
-commit b7c5e23df02fd0acf8f3c3a1d26024c90983684e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 13 09:37:47 2012 -0700
+commit 44a3a58e451bcabad67fbd31e203a4f9f1ba2eae
+Author: Jean-Marc Eurin <jmeurin@google.com>
+Date:   Wed Jun 13 10:25:00 2012 -0400
 
-    math/big: various cleanups
+    misc/emacs: Fix a failure when /tmp/<file>.go exists.
     
-    R=golang-dev, iant
+    R=sameer
     CC=golang-dev
-    https://golang.org/cl/6295072
+    https://golang.org/cl/6296060
 
- src/pkg/math/big/nat.go | 27 ++++++++++++---------------
- 1 file changed, 12 insertions(+), 15 deletions(-)
+ misc/emacs/go-mode.el | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

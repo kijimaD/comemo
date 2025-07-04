@@ -1,0 +1,26 @@
+commit 1c4acea03d0e5d6bd1d6be74c816313f8ab109c3
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Tue Jul 2 15:26:32 2024 -0700
+
+    internal/trace: make Reader output deterministic
+    
+    Multiple Ms can offer Events with identical timestamps. The Reader
+    edits those so the timestamps are strictly increasing, but it needs a
+    way to break the tie. Use something deterministic (such as the order of
+    the batches), rather than map iteration order.
+    
+    Updates #68277
+    
+    Change-Id: I4a1f70c1669ce1c9b52d09e2bc99acbc831ef9a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/generation.go |  4 ++++
+ src/internal/trace/reader.go     |  3 ++-
+ src/internal/trace/trace_test.go | 39 ++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 44 insertions(+), 2 deletions(-)

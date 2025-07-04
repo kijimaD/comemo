@@ -1,24 +1,28 @@
-commit 20c349e5344152b56145ef6ebb649f431bdb2c90
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Feb 10 02:20:56 2023 +0700
+commit 41b9d8c75e45636a153c2a31d117196a22a7fc6c
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Tue May 10 12:30:43 2022 +0800
 
-    cmd/compile: reenable inline static init
+    time: add Time.ZoneBounds
     
-    Updates #58293
-    Updates #58339
-    Fixes #58439
+    The method Location.lookup returns the "start" and "end" times bracketing seconds when that zone is in effect.
     
-    Change-Id: I06d2d92f86fa4a672d69515c4066d69d3e0fc75b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467016
+    This CL does these things:
+    
+    1. Exported the "start" and "end" times as time.Time form
+    2. Keep the "Location" of the returned times be the same as underlying time
+    
+    Fixes #50062.
+    
+    Change-Id: I88888a100d0fc68f4984a85c75a85a83aa3e5d80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405374
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/base/flag.go | 2 +-
- test/fixedbugs/issue56778.go          | 2 +-
- test/fixedbugs/issue58439.go          | 2 +-
- test/inline.go                        | 2 +-
- test/noinit.go                        | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ api/next/50062.txt    |  1 +
+ src/time/time.go      | 18 +++++++++++++
+ src/time/time_test.go | 74 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 93 insertions(+)

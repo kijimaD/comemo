@@ -1,30 +1,30 @@
-commit 2d031dc559a720ec2c1939848a2e5de2782acd5a
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 14 19:28:58 2019 -0400
+commit 46fd677069df67e6fd906596a38bf124cd77acfe
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri May 24 11:01:01 2019 -0400
 
-    runtime: support for injecting calls at signals on x86
+    cmd/vendor: sync github.com/google/pprof@v0.0.0-20190515194954-54271f7e092f
     
-    This adds a sigctxt.pushCall method that pushes a call at the signaled
-    site. We'll use this to inject asynchronous preemptions and in some
-    places we use it to clean up preparePanic.
-    
-    For the moment this only works on 386 and amd64. We stub it out on
-    other platforms and will avoid calling the stubbed version.
-    
-    For #10958, #24543.
-    
-    Change-Id: I49e0e853f935d32dd67a70c6cafbae44ee68af8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201758
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: If001d8f7e657e01711653827a170904932839e34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178721
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/signal_386.go         | 25 ++++++++++++++++---------
- src/runtime/signal_amd64.go       | 26 +++++++++++++++++---------
- src/runtime/signal_arm.go         |  6 ++++++
- src/runtime/signal_arm64.go       |  6 ++++++
- src/runtime/signal_linux_s390x.go |  6 ++++++
- src/runtime/signal_mips64x.go     |  6 ++++++
- src/runtime/signal_mipsx.go       |  6 ++++++
- src/runtime/signal_ppc64x.go      |  6 ++++++
- 8 files changed, 69 insertions(+), 18 deletions(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     | 10 ++----
+ .../vendor/github.com/google/pprof/CONTRIBUTORS    |  1 +
+ .../google/pprof/internal/binutils/binutils.go     |  2 +-
+ .../github.com/google/pprof/internal/driver/cli.go | 40 +++++++++++++---------
+ .../google/pprof/internal/driver/commands.go       |  2 +-
+ .../google/pprof/internal/driver/driver.go         |  2 +-
+ .../google/pprof/internal/driver/driver_focus.go   |  4 +--
+ .../google/pprof/internal/driver/interactive.go    |  8 ++---
+ .../google/pprof/internal/driver/webhtml.go        |  2 +-
+ .../google/pprof/internal/driver/webui.go          | 10 ++++--
+ .../google/pprof/internal/elfexec/elfexec.go       |  6 ++--
+ .../pprof/internal/measurement/measurement.go      |  3 +-
+ .../google/pprof/internal/report/source.go         |  8 ++---
+ .../google/pprof/internal/symbolz/symbolz.go       |  2 +-
+ .../github.com/google/pprof/profile/profile.go     |  2 +-
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 17 files changed, 56 insertions(+), 50 deletions(-)

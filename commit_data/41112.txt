@@ -1,23 +1,24 @@
-commit 4ead7e8cc4fd5c09db7aba5c4f5fd5d957c82a24
-Author: Rob Pike <r@golang.org>
-Date:   Thu Jan 9 16:22:31 2020 +1100
+commit 5ff38e476177ce9e67375bd010bea2e030f2fe19
+Author: Austin Clements <austin@google.com>
+Date:   Sun Sep 1 10:49:27 2019 -0400
 
-    time: add a sentence about distant times to time.Time.Unix
+    runtime: platform-independent faketime support
     
-    Since Durations only span 290 years, they are not good for
-    manipulating very remote times. I bounced off this problem recently
-    while doing some astronomical calculations and it took me a while to
-    realize I could get a 64-bit seconds value from time.Time.Unix and
-    subtract two of them to evaluate the interval.
+    This adds a platform-independent implementation of nacl's faketime
+    support. It can be enabled by setting the faketime build tag.
     
-    I thought it worth adding a sentence to make this clear. It didn't
-    occur to me for quite a while that "Unix time" spans a huge range in
-    the Go library.
+    Updates #30439.
     
-    Change-Id: I76c75dc951dfd6bcf86e8b0be3cfec518a3ecdee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213977
+    Change-Id: Iee097004d56d796e6d2bfdd303a092c067ade87e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192740
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/time/time.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/os_nacl.go                        |   3 +
+ src/runtime/testdata/testfaketime/faketime.go |  28 +++++++
+ src/runtime/time.go                           |   3 -
+ src/runtime/time_fake.go                      | 101 ++++++++++++++++++++++++++
+ src/runtime/time_nofake.go                    |   7 ++
+ src/runtime/time_test.go                      |  93 ++++++++++++++++++++++++
+ 6 files changed, 232 insertions(+), 3 deletions(-)

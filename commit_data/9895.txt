@@ -1,20 +1,12 @@
-commit a64b2699c4b9a5bbf73bade7cdc89aca6de57f55
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 6 16:06:23 2011 -0700
+commit ba4fea931f760ea16455f9b941c80318e4797279
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 6 16:01:57 2011 -0700
 
-    godoc: documentation for all (not just exported) declarations
+    tag weekly.2011-10-06
     
-    Removed the URL form parameter "f=text" in favor of a more
-    flexible mode parameter "m" which now accepts a list of mode
-    flags as documented in doc.go.
-    
-    Fixes #1784.
-    
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5227041
+    https://golang.org/cl/5231041
 
- src/cmd/godoc/doc.go   | 12 +++++++++++-
- src/cmd/godoc/godoc.go | 52 ++++++++++++++++++++++++++++++++++++++------------
- src/cmd/godoc/main.go  |  7 +++----
- 3 files changed, 54 insertions(+), 17 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,22 @@
+commit e24eb3ab36d0bd0772d650e4c7f5b2dd261d7970
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 16 14:10:02 2024 +0100
+
+    crypto/internal/bigmod: drop math/big dependency
+    
+    If when the dust settles the Bytes and SetBytes round-trip is visible in
+    profiles (only plausible in RSA), then we can add a SetBits method like
+    in CL 511375.
+    
+    Change-Id: I3e6677e849d7a3786fa7297437b119a47715225f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/ecdsa/ecdsa.go              |  2 +-
+ src/crypto/internal/bigmod/nat.go      | 58 +++++++++++++++++++---------------
+ src/crypto/internal/bigmod/nat_test.go | 45 ++++++++++++++++++--------
+ src/crypto/rsa/rsa.go                  | 16 +++++-----
+ 4 files changed, 73 insertions(+), 48 deletions(-)

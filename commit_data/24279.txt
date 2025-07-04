@@ -1,23 +1,17 @@
-commit 2cbd7072b18d7eb01c51ff05c7e12ca2bd555d01
-Author: Austin Clements <austin@google.com>
-Date:   Sun Sep 13 12:49:05 2015 -0400
+commit 26f135d7c1a55cb7acaec1eac20e97b0f3b2cf10
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 20 15:22:34 2015 -0700
 
-    debug/dwarf: add test for split DWARF
+    [dev.ssa] cmd/compile: mark LoadReg8 and StoreReg8 of flags as unimplemented
     
-    This adds a test that debug/dwarf can read the skeleton DWARF data
-    from a split DWARF image (though it doesn't currently support piecing
-    the external DWARF data back together). This should work because
-    there's nothing particularly different about skeleton DWARF data, but
-    previously failed because of poor handling of unrecognized attributes.
+    It is not clear to me what the right implementation is.
+    LoadReg8 and StoreReg8 are introduced during regalloc,
+    so after the amd64 rewrites. But implementing them
+    in genValue seems silly.
     
-    Updates #12592.
-    
-    Change-Id: I2fc5f4679883b05ebd7ec9f0b5c398a758181a32
-    Reviewed-on: https://go-review.googlesource.com/14542
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: jcd . <jcd@golang.org>
+    Change-Id: Ia708209c4604867bddcc0e5d75ecd17cf32f52c3
+    Reviewed-on: https://go-review.googlesource.com/12437
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/debug/dwarf/entry_test.go      |  36 ++++++++++++++++++++++++++++++++++++
- src/debug/dwarf/testdata/split.c   |   5 +++++
- src/debug/dwarf/testdata/split.elf | Bin 0 -> 9509 bytes
- 3 files changed, 41 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

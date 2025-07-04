@@ -1,16 +1,15 @@
-commit bdafe73ce4f4910efd71eb5fdd7a5fc4614a9afe
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 27 20:38:52 2013 -0700
+commit 48da6754e201373227bb977cab6b884b51a2c765
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Fri Sep 27 15:38:39 2013 +1000
 
-    test: recognize gccgo error message in index.go
+    encoding/json: Tweak documentation for Encoder.Encode.
     
-    When a floating point constant is used as an array/slice
-    index, gccgo prints "error: index must be integer"; gc prints
-    "constant 2.1 truncated to integer".
+    The documentation for the Encoder type calls it a stream,
+    not a connection.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/14044044
+    https://golang.org/cl/14015044
 
- test/index.go | 2 +-
+ src/pkg/encoding/json/stream.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

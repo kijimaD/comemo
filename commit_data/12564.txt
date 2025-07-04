@@ -1,18 +1,16 @@
-commit 376fc748f6dfbe7ad12fc97d0bf8b2385c9314d7
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 12 12:39:31 2012 -0400
+commit d75abb7ca323ad8911b900cb4955e533e35f4559
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Mar 12 17:33:35 2012 +1100
 
-    cmd/go: stop using $GOROOT and $GOBIN in script output
+    archive/tar: catch short writes.
     
-    They were necessary to produce a canonical script
-    when we checked in build scripts, but now they're just
-    getting in the way.
-    
-    Fixes #3279.
+    Also make error messages consistent throughout.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5796068
+    https://golang.org/cl/5777064
 
- src/cmd/go/build.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/pkg/archive/tar/reader.go      |  2 +-
+ src/pkg/archive/tar/writer.go      | 17 +++++++++++++----
+ src/pkg/archive/tar/writer_test.go |  9 +++++++--
+ 3 files changed, 21 insertions(+), 7 deletions(-)

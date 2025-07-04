@@ -1,21 +1,21 @@
-commit fc7b75f21622a3c4ddb523f49a24274ffcf41147
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jan 30 21:10:19 2013 +0100
+commit 6563d8623ddd3eb4e92563e8e76fc8f4829e6cfc
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Jan 30 10:02:01 2013 -0800
 
-    cmd/gc: fix export data for aggressive inlining.
+    syscall: handle empty address in ReadFrom better
     
-    Export data was broken after revision 6b602ab487d6
-    when -l is specified at least 3 times: it makes the compiler
-    write out func (*T).Method() declarations in export data, which
-    is not supported.
+    Handle return values from recvfrom correctly when the
+    kernel decides to not return an address.
     
-    Also fix the formatting of recover() in export data. It was
-    not treated like panic() and was rendered as "<node RECOVER>".
+    Fixes #4636.
+    Fixes #4352.
     
-    R=golang-dev, lvd, minux.ma, rsc
+    R=rsc, mikioh.mikioh, dave
     CC=golang-dev
-    https://golang.org/cl/7067051
+    https://golang.org/cl/7058062
 
- src/cmd/gc/export.c | 11 ++++++++++-
- src/cmd/gc/fmt.c    |  2 ++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/pkg/net/unix_test.go         | 123 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/unixsock_posix.go    |  14 +++--
+ src/pkg/syscall/syscall_bsd.go   |   4 +-
+ src/pkg/syscall/syscall_linux.go |   4 +-
+ 4 files changed, 138 insertions(+), 7 deletions(-)

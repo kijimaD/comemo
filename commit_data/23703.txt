@@ -1,15 +1,19 @@
-commit 671bddf0b0a1146279dd5c921a1a34e25d16a1ae
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 19:31:44 2015 -0400
+commit bbc4351eca2ff435106566497cef0fa15566c42a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 4 14:28:14 2015 -0700
 
-    encoding/json: fix out of phase error unmarshaling non-string into TextUnmarshaler
+    cmd/go: add -tags option to go vet
     
-    Fixes #9650.
+    Actually add all build flags, so we also get things like -race.
     
-    Change-Id: I45b879124691e485b86c1e99a3227032283850d2
-    Reviewed-on: https://go-review.googlesource.com/12208
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #10228.
+    
+    Change-Id: I5f77dda9d1ee3208e1833702f12f68c2731c4b22
+    Reviewed-on: https://go-review.googlesource.com/10697
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/encoding/json/decode.go      |  1 +
- src/encoding/json/decode_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ src/cmd/go/alldocs.go               |  4 +++-
+ src/cmd/go/test.bash                | 16 ++++++++++++++++
+ src/cmd/go/testdata/src/vetpkg/c.go |  9 +++++++++
+ src/cmd/go/vet.go                   |  6 ++++--
+ 4 files changed, 32 insertions(+), 3 deletions(-)

@@ -1,16 +1,17 @@
-commit 6fed2a68f7adec2a059acc4f702ebe950fdb5ce5
-Author: Charlie Dorian <cldorian@gmail.com>
-Date:   Wed Oct 7 18:23:28 2015 -0400
+commit 9271ecc8c62930e4cac73f9dfe8ef0b1bb97cee6
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Jul 30 13:57:43 2015 -0400
 
-    math: Modf(-0) returns -0,-0
+    [dev.ssa] cmd/compile: fix SUBQ generation error
     
-    Fixes #12867
+    Fix code generation error that resulted in a multi-argument NEGQ
     
-    Change-Id: I8ba81c622bce2a77a6142f941603198582eaf8a4
-    Reviewed-on: https://go-review.googlesource.com/15570
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    doasm: notfound ft=13 tt=13 00134 NEGQ  AX, AX 13 13
+    
+    Change-Id: I8b712d21a5523eccbae1f33ccea417844c27073e
+    Reviewed-on: https://go-review.googlesource.com/12869
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/math/all_test.go |  4 +++-
- src/math/modf.go     |  5 ++++-
- src/math/modf_386.s  | 13 +++++++++++++
- 3 files changed, 20 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                |  2 --
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 16 +++++++++++++++-
+ 2 files changed, 15 insertions(+), 3 deletions(-)

@@ -1,27 +1,22 @@
-commit 21483099632c11743d01ec6f38577f31de26b0d0
-Author: Damien Neil <dneil@google.com>
-Date:   Tue Feb 11 10:47:20 2025 -0800
+commit 69d6c7b8ee62b4db5a8f6399e15f27d47b209a29
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Feb 12 11:04:24 2024 +0100
 
-    os: add Root.Chtimes
+    net: skip TestModeSocket on older Windows versions
     
-    For #67002
+    CL 561937 taught os.Stat about IO_REPARSE_TAG_AF_UNIX and added a
+    test for it, TestModeSocket. This test fails on Windows older than
+    10.0.17063, in which AF_UNIX support was added. Skip the test on those
+    versions.
     
-    Change-Id: I9b10ac30f852052c85d6d21eb1752a9de5474346
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649515
-    Auto-Submit: Damien Neil <dneil@google.com>
+    Some CI builders use Windows 10.0.14393, so CL 561937 broke them,
+    e.g. https://build.golang.org/log/5ea4f6422779f32eccfef3a25df54283ddd4e65e.
+    
+    Change-Id: I6c21a78a1454d2d88321478288c0da1b8a93e590
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563256
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- api/next/67002.txt                         |  1 +
- doc/next/6-stdlib/99-minor/os/67002.md     |  1 +
- src/internal/syscall/unix/utimes.go        | 15 ++++++++++
- src/internal/syscall/unix/utimes_wasip1.go | 42 ++++++++++++++++++++++++++
- src/os/file_posix.go                       | 13 ++++++---
- src/os/root.go                             |  9 +++++-
- src/os/root_noopenat.go                    | 11 +++++++
- src/os/root_openat.go                      | 11 +++++++
- src/os/root_test.go                        | 47 ++++++++++++++++++++++++++++++
- src/os/root_unix.go                        | 10 +++++++
- src/os/root_windows.go                     | 23 +++++++++++++++
- 11 files changed, 178 insertions(+), 5 deletions(-)
+ src/net/unixsock_windows_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

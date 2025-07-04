@@ -1,20 +1,15 @@
-commit cb97fd7741fc8bfa257bb020dab756a14c420daf
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Apr 29 10:37:37 2016 +1200
+commit 7e3344f74eea51433918e29abb925e9f6e037888
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Mar 15 17:45:10 2016 -0400
 
-    cmd/link: fix -no-pie / -race check
+    runtime: update link to WriteHeapDump format
     
-    golang.org/cl/22453 was supposed to pass -no-pie to the linker when linking a
-    race-enabled binary if the host toolchain supports it. But I bungled the
-    supported check as I forgot to pass -c to the host compiler so it tried to
-    compile a 0 byte .c file into an executable, which will never work. Fix it to
-    pass -c as it should have all along.
+    The new link is https://golang.org/s/go15heapdump.
     
-    Change-Id: I4801345c7a29cb18d5f22cec5337ce535f92135d
-    Reviewed-on: https://go-review.googlesource.com/22587
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Ifcaf8572bfe815ffaa78442a1991f6e20e990a50
+    Reviewed-on: https://go-review.googlesource.com/20740
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/debug/garbage.go | 2 +-
+ src/runtime/heapdump.go      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

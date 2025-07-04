@@ -1,33 +1,16 @@
-commit 23cd87eb0a2d49a3208824feaf34d8b852da422f
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sat Aug 12 00:53:45 2017 +0530
+commit eacfa592201208ad80003c2e32702c968070149c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 11 12:28:31 2017 -0700
 
-    archive/tar: optimize formatPAXRecord() call
+    cmd/internal/obj: remove dead Link fields
     
-    By replacing fmt.Sprintf with a simple string concat, we see
-    pretty good improvements across the board on time and memory.
+    These are unused after CLs 39922, 40252, 40370, 40371, and 40372.
     
-    name             old time/op    new time/op    delta
-    FormatPAXRecord     683ns ± 2%     210ns ± 5%  -69.22%  (p=0.000 n=10+10)
-    
-    name             old alloc/op   new alloc/op   delta
-    FormatPAXRecord      112B ± 0%       32B ± 0%  -71.43%  (p=0.000 n=10+10)
-    
-    name             old allocs/op  new allocs/op  delta
-    FormatPAXRecord      8.00 ± 0%      2.00 ± 0%  -75.00%  (p=0.000 n=10+10)
-    
-    Ran with - -cpu=1 -count=10 on an AMD64 i5-5200U CPU @ 2.20GHz
-    
-    Using the following benchmark:
-    func BenchmarkFormatPAXRecord(b *testing.B) {
-      for n := 0; n < b.N; n++ {
-        formatPAXRecord("foo", "bar")
-      }
-    }
-    
-    Change-Id: I828ddbafad2e5d937f0cf5f777b512638344acfc
-    Reviewed-on: https://go-review.googlesource.com/55210
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I76f9276c581067a8cb555de761550d960f6e39b8
+    Reviewed-on: https://go-review.googlesource.com/40404
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/archive/tar/strconv.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/link.go | 4 ----
+ 1 file changed, 4 deletions(-)

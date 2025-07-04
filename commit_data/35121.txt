@@ -1,21 +1,19 @@
-commit 85146fabcdc9609d4ec9ce666b1015dc83fdfcee
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Feb 21 16:33:31 2018 +0000
+commit 98443ecd0a8e7a71bd632f77e8d1a9e19e7ef475
+Author: David Chase <drchase@google.com>
+Date:   Thu Dec 14 13:41:13 2017 -0500
 
-    cmd/vet: use type information in isLocalType
+    cmd/compile: clean up debug_test.go
     
-    Now that vet always has type information, there's no reason to use
-    string handling on type names to gather information about them, such as
-    whether or not they are a local type.
+    Exercise of preparing a how-to document motivated me to
+    clean up some of the stupider wonkier bits.  Since this
+    does not run for test -short, expect no change for trybots,
+    did pass testing with OSX gdb and a refreshed copy of Delve.
     
-    The semantics remain the same - the only difference should be that the
-    implementation is less fragile and simpler.
-    
-    Change-Id: I71386b4196922e4c9f2653d90abc382efbf01b3c
-    Reviewed-on: https://go-review.googlesource.com/95915
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I58edd10599b172c4787ff5f110db078f6c2c81c5
+    Reviewed-on: https://go-review.googlesource.com/83957
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/vet/composite.go | 28 ++++++++++------------------
- 1 file changed, 10 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ssa/debug_test.go | 77 +++++++++++++++---------------
+ 1 file changed, 38 insertions(+), 39 deletions(-)

@@ -1,27 +1,23 @@
-commit 7ae8e53de293dd567c1d02dec679f67381c9ace5
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Thu Mar 21 15:15:40 2019 +0100
+commit 31e7842f3d3f85f7aec5ca72f59befce9f58a3b6
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 17:56:14 2018 +0100
 
-    misc/ios: don't override GOCACHE on the device
+    runtime: execute memory barrier conditionally when changing netpoll timers
     
-    The iOS exec wrapper copies the environment variables to the binary
-    running on the device. However, some variables such as HOME, TMPDIR and
-    GOCACHE refer to directories that might not be valid on the device.
+    We only need the memory barrier in poll_runtime_pollSetDeadline only
+    when one of the timers has fired, which is not the expected case.
+    Memory barrier can be somewhat expensive on some archs,
+    so execute it only if one of the timers has in fact fired.
     
-    The wrapper already ignores HOME and TMPDIR, but after GO111MODULE
-    was flipped to on for the standard library, cmd/go tests started
-    failing without a valid and writable GOCACHE.
+    name                  old time/op  new time/op  delta
+    TCP4OneShotTimeout-6  17.0µs ± 0%  17.1µs ± 0%  +0.35%  (p=0.032 n=5+5)
+    SetReadDeadline-6      232ns ± 0%   230ns ± 0%  -1.03%  (p=0.000 n=4+5)
     
-    It took a while to reproduce because go test does not set an explicit
-    GOCACHE but cmd/dist test does.
+    Update #25729
     
-    Fixes #30914
-    
-    Change-Id: If186cddc5cfd7ad39a0b3eb95f9c64a7d53a27e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168557
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifce6f505b9e7ba3717bad8f454077a2e94ea6e75
+    Reviewed-on: https://go-review.googlesource.com/c/146343
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/netpoll.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

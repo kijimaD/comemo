@@ -1,21 +1,16 @@
-commit 66c8935f732db28632b75aea456c682487febf15
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Aug 29 10:16:09 2013 +0200
+commit 65f21ca2c6e62cc9fb77a285764420df9e7f248f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 29 17:15:35 2013 +1000
 
-    cmd/gc: fix detection of initialization loop.
+    cmd/go: make it work for code.google.com cloned repositories
     
-    The compiler computes initialization order by finding
-    a spanning tree between a package's global variables.
-    But it does so by walking both variables and functions
-    and stops detecting cycles between variables when they
-    mix with a cycle of mutually recursive functions.
+    Thanks to beatgammit for the fix.
     
-    Fixes #4847.
+    Fixes #5408.
     
-    R=golang-dev, daniel.morsing, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/9663047
+    https://golang.org/cl/13261048
 
- src/cmd/gc/sinit.c          | 78 ++++++++++++++++++++++++++++-----------------
- test/fixedbugs/issue4847.go | 24 ++++++++++++++
- 2 files changed, 73 insertions(+), 29 deletions(-)
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

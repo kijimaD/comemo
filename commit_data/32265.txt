@@ -1,42 +1,17 @@
-commit 365594ad59873cd8f7fde5ec158067bf695185ee
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Aug 5 13:44:25 2017 +0200
+commit fc2d9cdf50c968dd07c1b76ad9e5a316b39a28b5
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Apr 17 14:01:07 2017 -0400
 
-    runtime: simplify memory capacity check in growslice
+    cmd/compile: remove underscore from variable names in constant comparison test
     
-    Instead of comparing if the number of elements will
-    not fit into memory check if the memory size of the
-    slices backing memory is higher then the memory limit.
+    The leading underscores aren't necessary.
     
-    This avoids a division or maxElems lookup.
-    
-    With et.size > 0:
-       uintptr(newcap)                > maxSliceCap(et.size)
-    -> uintptr(int(capmem / et.size)) > _MaxMem  /  et.size
-    ->             capmem / et.size   > _MaxMem  /  et.size
-    ->             capmem             > _MaxMem
-    
-    Note that due to integer division from capmem > _MaxMem
-    it does not follow that uintptr(newcap) > maxSliceCap(et.size).
-    
-    Consolidated runtime GrowSlice benchmarks by using sub-benchmarks and
-    added more struct sizes to show performance improvement when division
-    is avoided for element sizes larger than 32 bytes.
-    
-    AMD64:
-    GrowSlice/Byte       38.9ns ± 2%  38.9ns ± 1%    ~     (p=0.974 n=20+20)
-    GrowSlice/Int        58.3ns ± 3%  58.0ns ± 2%    ~     (p=0.154 n=20+19)
-    GrowSlice/Ptr        95.7ns ± 2%  95.1ns ± 2%  -0.60%  (p=0.034 n=20+20)
-    GrowSlice/Struct/24  95.4ns ± 1%  93.9ns ± 1%  -1.54%  (p=0.000 n=19+19)
-    GrowSlice/Struct/32   110ns ± 1%   108ns ± 1%  -1.76%  (p=0.000 n=19+20)
-    GrowSlice/Struct/40   138ns ± 1%   128ns ± 1%  -7.09%  (p=0.000 n=20+20)
-    
-    Change-Id: I1c37857c74ea809da373e668791caffb6a5cbbd3
-    Reviewed-on: https://go-review.googlesource.com/53471
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I1d4c4b681e2a29ef40a0a6cf705c3b17a49c9f65
+    Reviewed-on: https://go-review.googlesource.com/40873
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/append_test.go | 78 ++++++++++++++++++++++++++--------------------
- src/runtime/slice.go       |  2 +-
- 2 files changed, 45 insertions(+), 35 deletions(-)
+ src/cmd/compile/internal/gc/testdata/cmpConst.go   | 1836 ++++++++++----------
+ .../internal/gc/testdata/gen/cmpConstGen.go        |   14 +-
+ 2 files changed, 925 insertions(+), 925 deletions(-)

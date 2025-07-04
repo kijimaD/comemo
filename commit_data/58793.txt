@@ -1,36 +1,19 @@
-commit 43e6525986d70e7f3d3af394ee442d3390568c01
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sun Feb 16 17:24:19 2025 +0000
+commit 400e24a8be852e7b20eb4af1999b28c20bb4ea21
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Dec 12 09:28:03 2023 -0800
 
-    cmd/compile: load properly constant values from itabs
+    crypto/x509: properly gate test on macos version
     
-    While looking at the SSA of following code, i noticed
-    that these rules do not work properly, and the types
-    are loaded indirectly through an itab, instead of statically.
+    Fixes the gating of TestIssue51759 by shelling out to sw_vers to check
+    what version of macOS we are on.
     
-    type M interface{ M() }
-    type A interface{ A() }
+    Fixes #64677
     
-    type Impl struct{}
-    func (*Impl) M() {}
-    func (*Impl) A() {}
-    
-    func main() {
-            var a M = &Impl{}
-            a.(A).A()
-    }
-    
-    Change-Id: Ia275993f81a2e7302102d4ff87ac28586023d13c
-    GitHub-Last-Rev: 4bfc9019172929d0b0f1c8a1b7eb28cdbc9b87ef
-    GitHub-Pull-Request: golang/go#71784
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649500
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I5eef4fa39e5449e7b2aa73864625c3abf002aef8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549195
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/ssa/_gen/generic.rules |  12 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go  | 149 ++++++++++++++++++++----
- test/codegen/load_type_from_itab.go             |  24 ++++
- 3 files changed, 161 insertions(+), 24 deletions(-)
+ src/crypto/x509/verify_test.go | 35 ++++++++++++++++++++++++++++++-----
+ 1 file changed, 30 insertions(+), 5 deletions(-)

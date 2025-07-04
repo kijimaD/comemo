@@ -1,13 +1,12 @@
-commit d46d0f15a7be51d898c7a14f8a3f4875130351dd
+commit ced57153df76f501b3f9b7efdc974c0725bcd594
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Fri Jan 18 02:41:17 2013 +0800
+Date:   Thu Jan 17 23:11:25 2013 +0800
 
-    all: remove exec bit on files
+    doc/go_spec.html: clarification about insertion during map iteration
     
-    R=golang-dev, bradfitz
+    R=mdempsky, iant, r, gri, rsc, ken
     CC=golang-dev
-    https://golang.org/cl/7128048
+    https://golang.org/cl/7100046
 
- src/cmd/gofmt/testdata/crlf.input           | 0
- src/pkg/mime/multipart/testdata/nested-mime | 0
- 2 files changed, 0 insertions(+), 0 deletions(-)
+ doc/go_spec.html | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

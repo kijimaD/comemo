@@ -1,27 +1,15 @@
-commit 4ee347b0ad1e0aa7c917138dd623cffa9b68ebbf
-Author: Austin Clements <austin@google.com>
-Date:   Wed Mar 4 10:58:21 2015 -0500
+commit 788f78ad08a4d8a66808eb4c197521223599b063
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Feb 14 00:40:21 2015 -0500
 
-    debug/elf: regularize DWARF section loading
+    cmd/go: remove script and script.txt
     
-    Previously, different DWARF sections had relocations applied in very
-    different ways.  .debug_info was relocated, but only on x86-64 and 386
-    and using hard-coded relocation section names instead of relocation
-    links.  .debug_abbrev and .debug_str were never relocated (which is
-    excusable because they shouldn't need it).  .debug_types sections were
-    relocated on all architectures and found their relocation section
-    using a relocation link because section names could be ambiguous.
+    Fixes #9824.
     
-    Simplify all of this so that every DWARF section that has a linked
-    relocation section gets those relocations applied.
-    
-    This prepares this code to load .debug_line sections without the need
-    for yet more ad hoc relocation logic.
-    
-    Change-Id: Ia00ac8e656b22f22bb31a5f6ef9b0f23cda64d19
-    Reviewed-on: https://go-review.googlesource.com/6780
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id318c61b6884e4fd294f7b0946dcc306f746ee0a
+    Reviewed-on: https://go-review.googlesource.com/4891
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/debug/elf/file.go | 87 +++++++++++++++++++++------------------------------
- 1 file changed, 35 insertions(+), 52 deletions(-)
+ src/cmd/go/script     |  23 ----
+ src/cmd/go/script.txt | 352 --------------------------------------------------
+ 2 files changed, 375 deletions(-)

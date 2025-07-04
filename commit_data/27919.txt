@@ -1,23 +1,26 @@
-commit 117793624b630b0ee63abb16dcb019301adc6472
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 16 13:33:29 2016 -0700
+commit 001e8e8070e8ed3a578dbad93cc3f70257e965bd
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 19 19:35:10 2016 -0700
 
-    cmd/compile/internal/syntax: expose additional information for gc
+    runtime: simplify mallocgc flag argument
     
-    gc needs access to line offsets for Nodes. It also needs access to the
-    end line offset for function bodies so it knows what line number to
-    use for things like implicit returns and defer executions.
+    mallocgc can calculate noscan itself.  The only remaining
+    flag argument is needzero, so we just make that a boolean arg.
     
-    Lastly, include an extra bool to distinguish between simple and full
-    slice expressions. This is redundant in valid parse trees, but needed
-    by gc for producing complete warnings in invalid inputs.
+    Fixes #15379
     
-    Change-Id: I64baf334a35c72336d26fa6755c67eb9d6f4e93c
-    Reviewed-on: https://go-review.googlesource.com/27196
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I839a70790b2a0c9dbcee2600052bfbd6c8148e20
+    Reviewed-on: https://go-review.googlesource.com/22290
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/nodes.go  | 26 +++++++++++++++++++-------
- src/cmd/compile/internal/syntax/parser.go |  4 ++++
- 2 files changed, 23 insertions(+), 7 deletions(-)
+ src/runtime/chan.go      |  2 +-
+ src/runtime/malloc.go    | 48 +++++++++++-------------------------------------
+ src/runtime/mfinal.go    |  2 +-
+ src/runtime/os1_plan9.go |  4 ++--
+ src/runtime/panic.go     |  2 +-
+ src/runtime/select.go    |  2 +-
+ src/runtime/slice.go     | 11 +++--------
+ src/runtime/string.go    |  6 +++---
+ 8 files changed, 23 insertions(+), 54 deletions(-)

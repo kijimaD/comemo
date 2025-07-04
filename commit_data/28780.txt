@@ -1,36 +1,44 @@
-commit 68998433556a5c9ee0f7d8d544ffb006a724adaf
-Author: Cyrill Schumacher <cyrill@schumacher.fm>
-Date:   Sat Aug 20 11:32:32 2016 +0200
+commit 50048a4e8ee11016227c283be2d073e14e1c006b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 18 23:00:43 2016 -0700
 
-    net/http: optimize internal cookie functions
+    runtime: add as many extra M's as needed
     
-    - precalculate *Cookie slice in read cookie functions
-    - readSetCookies: pre-allocs depending on the count of Set-Cookies
-    - rename success variable to ok; avoid else
-    - refactor Cookie.String to use less allocations
-    - remove fmt package and replace with writes to a bytes.Buffer
-    - add BenchmarkReadSetCookies and BenchmarkReadCookies
+    When a non-Go thread calls into Go, the runtime needs an M to run the Go
+    code. The runtime keeps a list of extra M's available. When the last
+    extra M is allocated, the needextram field is set to tell it to allocate
+    a new extra M as soon as it is running in Go. This ensures that an extra
+    M will always be available for the next thread.
     
-    name              old time/op    new time/op    delta
-    CookieString-8      1.42µs ± 2%    0.78µs ± 1%  -45.36%        (p=0.000 n=10+10)
-    ReadSetCookies-8    3.46µs ± 1%    3.42µs ± 2%   -1.39%        (p=0.001 n=10+10)
-    ReadCookies-8       5.12µs ± 1%    5.15µs ± 2%     ~           (p=0.393 n=10+10)
+    However, if many threads need an extra M at the same time, this
+    serializes them all. One thread will get an extra M with the needextram
+    field set. All the other threads will see that there is no M available
+    and will go to sleep. The one thread that succeeded will create a new
+    extra M. One lucky thread will get it. All the other threads will see
+    that there is no M available and will go to sleep. The effect is
+    thundering herd, as all the threads looking for an extra M go through
+    the process one by one. This seems to have a particularly bad effect on
+    the FreeBSD scheduler for some reason.
     
-    name              old alloc/op   new alloc/op   delta
-    CookieString-8        520B ± 0%      384B ± 0%  -26.15%        (p=0.000 n=10+10)
-    ReadSetCookies-8      968B ± 0%      960B ± 0%   -0.83%        (p=0.000 n=10+10)
-    ReadCookies-8       2.01kB ± 0%    2.01kB ± 0%     ~     (all samples are equal)
+    With this change, we track the number of threads waiting for an M, and
+    create all of them as soon as one thread gets through. This still means
+    that all the threads will fight for the lock to pick up the next M. But
+    at least each thread that gets the lock will succeed, instead of going
+    to sleep only to fight again.
     
-    name              old allocs/op  new allocs/op  delta
-    CookieString-8        10.0 ± 0%       3.0 ± 0%  -70.00%        (p=0.000 n=10+10)
-    ReadSetCookies-8      18.0 ± 0%      17.0 ± 0%   -5.56%        (p=0.000 n=10+10)
-    ReadCookies-8         16.0 ± 0%      16.0 ± 0%     ~     (all samples are equal)
+    This smooths out the performance greatly on FreeBSD, reducing the
+    average wall time of `testprogcgo CgoCallbackGC` by 74%.  On GNU/Linux
+    the average wall time goes down by 9%.
     
-    Change-Id: I870670987f10f3e52f9c657cfb8e6eaaa97a6162
-    Reviewed-on: https://go-review.googlesource.com/27850
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #13926
+    Fixes #16396
+    
+    Change-Id: I6dc42a4156085a7ed4e5334c60b39db8f8ef8fea
+    Reviewed-on: https://go-review.googlesource.com/25047
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/net/http/cookie.go      | 58 +++++++++++++++++------------
- src/net/http/cookie_test.go | 89 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 124 insertions(+), 23 deletions(-)
+ src/runtime/cgocall.go |  3 ++-
+ src/runtime/proc.go    | 28 +++++++++++++++++++++++++++-
+ 2 files changed, 29 insertions(+), 2 deletions(-)

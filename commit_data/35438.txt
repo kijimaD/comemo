@@ -1,51 +1,67 @@
-commit a367f44c18aa700abdbe5a4806e570a2b403bd19
-Author: Austin Clements <austin@google.com>
-Date:   Mon Feb 26 20:48:53 2018 -0500
+commit 2075a9323d8d496e4738a6f4038c6dfb7c623130
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu Oct 26 15:40:17 2017 -0400
 
-    cmd/compile: enable stack maps everywhere except unsafe points
+    cmd/compile: reimplement location list generation
     
-    This modifies issafepoint in liveness analysis to report almost every
-    operation as a safe point. There are four things we don't mark as
-    safe-points:
+    Completely redesign and reimplement location list generation to be more
+    efficient, and hopefully not too hard to understand.
     
-    1. Runtime code (other than at calls).
+    RegKills are gone. Instead of using the regalloc's liveness
+    calculations, redo them using the Ops' clobber information. Besides
+    saving a lot of Values, this avoids adding RegKills to blocks that would
+    be empty otherwise, which was messing up optimizations. This does mean
+    that it's much harder to tell whether the generation process is buggy
+    (there's nothing to cross-check it with), and there may be disagreements
+    with GC liveness. But the performance gain is significant, and it's nice
+    not to be messing with earlier compiler phases.
     
-    2. go:nosplit functions (other than at calls).
+    The intermediate representations are gone. Instead of producing
+    ssa.BlockDebugs, then dwarf.LocationLists, and then finally real
+    location lists, go directly from the SSA to a (mostly) real location
+    list. Because the SSA analysis happens before assembly, it stores
+    encoded block/value IDs where PCs would normally go. It would be easier
+    to do the SSA analysis after assembly, but I didn't want to retain the
+    SSA just for that.
     
-    3. Instructions between the load of the write barrier-enabled flag and
-       the write.
+    Generation proceeds in two phases: first, it traverses the function in
+    CFG order, storing the state of the block at the beginning and end. End
+    states are used to produce the start states of the successor blocks. In
+    the second phase, it traverses in program text order and produces the
+    location lists. The processing in the second phase is redundant, but
+    much cheaper than storing the intermediate representation. It might be
+    possible to combine the two phases somewhat to take advantage of cases
+    where the CFG matches the block layout, but I haven't tried.
     
-    4. Instructions leading up to a uintptr -> unsafe.Pointer conversion.
+    Location lists are finalized by adding a base address selection entry,
+    translating each encoded block/value ID to a real PC, and adding the
+    terminating zero entry. This probably won't work on OSX, where dsymutil
+    will choke on the base address selection. I tried emitting CU-relative
+    relocations for each address, and it was *very* bad for performance --
+    it uses more memory storing all the relocations than it does for the
+    actual location list bytes. I think I'm going to end up synthesizing the
+    relocations in the linker only on OSX, but TBD.
     
-    We'll optimize this in later CLs:
+    TestNexting needs updating: with more optimizations working, the
+    debugger doesn't stop on the continue (line 88) any more, and the test's
+    duplicate suppression kicks in. Also, dx and dy live a little longer
+    now, but they have the correct values.
     
-    name        old time/op       new time/op       delta
-    Template          185ms ± 2%        190ms ± 2%   +2.95%  (p=0.000 n=10+10)
-    Unicode          96.3ms ± 3%       96.4ms ± 1%     ~     (p=0.905 n=10+9)
-    GoTypes           658ms ± 0%        669ms ± 1%   +1.72%  (p=0.000 n=10+9)
-    Compiler          3.14s ± 1%        3.18s ± 1%   +1.56%  (p=0.000 n=9+10)
-    SSA               7.41s ± 2%        7.59s ± 1%   +2.48%  (p=0.000 n=9+10)
-    Flate             126ms ± 1%        128ms ± 1%   +2.08%  (p=0.000 n=10+10)
-    GoParser          153ms ± 1%        157ms ± 2%   +2.38%  (p=0.000 n=10+10)
-    Reflect           437ms ± 1%        442ms ± 1%   +0.98%  (p=0.001 n=10+10)
-    Tar               178ms ± 1%        179ms ± 1%   +0.67%  (p=0.035 n=10+9)
-    XML               223ms ± 1%        229ms ± 1%   +2.58%  (p=0.000 n=10+10)
-    [Geo mean]        394ms             401ms        +1.75%
-    
-    No effect on binary size because we're not yet emitting these extra
-    safe points.
-    
-    For #24543.
-    
-    Change-Id: I16a1eebb9183cad7cef9d53c0fd21a973cad6859
-    Reviewed-on: https://go-review.googlesource.com/109348
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ie772dfe23a4e389ca573624fac4d05401ae32307
+    Reviewed-on: https://go-review.googlesource.com/89356
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/plive.go         | 181 +++++++++++++++++++++++++--
- src/cmd/compile/internal/gc/ssa.go           |   7 +-
- src/cmd/compile/internal/ssa/func.go         |   6 +
- src/cmd/compile/internal/ssa/writebarrier.go |  18 +++
- test/live.go                                 |   6 +-
- 5 files changed, 207 insertions(+), 11 deletions(-)
+ src/cmd/compile/fmt_test.go                        |  11 +-
+ src/cmd/compile/internal/gc/pgen.go                | 299 +------
+ src/cmd/compile/internal/gc/ssa.go                 |  55 +-
+ src/cmd/compile/internal/ssa/cache.go              |  22 -
+ src/cmd/compile/internal/ssa/check.go              |   4 -
+ src/cmd/compile/internal/ssa/debug.go              | 970 ++++++++++++++-------
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   1 -
+ src/cmd/compile/internal/ssa/opGen.go              |   6 -
+ src/cmd/compile/internal/ssa/regalloc.go           |  55 +-
+ .../internal/ssa/testdata/hist.gdb-opt.nexts       |  13 +-
+ src/cmd/internal/dwarf/dwarf.go                    |  82 +-
+ 11 files changed, 698 insertions(+), 820 deletions(-)

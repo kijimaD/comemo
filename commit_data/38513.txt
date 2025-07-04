@@ -1,16 +1,12 @@
-commit cf952e9e62a464e5df6773dd22907497078fbd90
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Mar 22 12:54:37 2019 +0100
+commit c5d78f512ae6e3867266cfd1cf4cf2194388cbfb
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Nov 2 15:28:32 2018 -0400
 
-    cmd: enable -buildmode=pie on aix/ppc64
+    doc: document Go 1.11.2
     
-    Change-Id: I939518462c931ba9feb125b2f299ef0706b124ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168879
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iaff03911f1807d462f1966590626bd486807f53d
+    Reviewed-on: https://go-review.googlesource.com/c/147178
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go               | 3 ++-
- src/cmd/go/internal/work/init.go   | 1 +
- src/cmd/link/internal/ld/config.go | 2 +-
- src/cmd/link/internal/ld/lib.go    | 4 ++--
- 4 files changed, 6 insertions(+), 4 deletions(-)
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

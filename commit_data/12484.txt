@@ -1,12 +1,16 @@
-commit b514f0b9069d43e2a92def87201ae4b7cb2acca6
+commit 72faa0303e4330bbdfd1a79f493ba8529f8208a2
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 7 11:17:26 2012 -0800
+Date:   Wed Mar 7 11:16:58 2012 -0800
 
-    test: enable method expression tests in ddd.go
+    test: fix testlib to not pass an empty argument to 6g
+    
+    This change is necessary to make the run shell script work
+    again, but it is not sufficient as bug424.go's execution line
+    does not name the package that it imports.
     
     R=golang-dev, gri, rsc
     CC=golang-dev
-    https://golang.org/cl/5769044
+    https://golang.org/cl/5771043
 
- test/ddd.go | 2 --
- 1 file changed, 2 deletions(-)
+ test/testlib | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

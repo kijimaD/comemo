@@ -1,23 +1,33 @@
-commit 5b6d3dea8744311825fd544a73edb8d26d9c7e98
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Nov 16 22:19:37 2023 +0700
+commit ad55b878e7d5c641aec1c07bb549742e76c77208
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Dec 2 13:34:03 2022 -0500
 
-    cmd/compile: use internal/buildcfg for checking newinliner enable
+    runtime/cgo: add .file directive to GNU assembly files
     
-    internal/goexperiment reports what GOEXPERIMENT the compiler itself was
-    compiled with, not what experiment to use for the object code that the
-    compiler is compiling.
+    Without it, at least on ARM64 with older BFD linker, it will
+    include the file of the object file (which is of a temporary path)
+    as a debug symbol into the binary, causing the build to be
+    nondeterministic. Adding a .file directive makes it to create a
+    STT_FILE symbol with deterministic input, and prevent the linker
+    creating one using the temporary object file path.
     
-    Fixes #64189
+    Fixes #57035.
     
-    Change-Id: I892d78611f8c76376032fd7459e755380afafac6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542995
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I3ab716b240f60f7a891af2f7e10b467df67d1f31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454838
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/inline/inlheur/analyze.go | 4 ++--
- src/cmd/compile/internal/noder/linker.go           | 3 +--
- src/cmd/compile/internal/noder/reader.go           | 3 +--
- 3 files changed, 4 insertions(+), 6 deletions(-)
+ src/runtime/cgo/gcc_386.S          | 2 ++
+ src/runtime/cgo/gcc_aix_ppc64.S    | 2 ++
+ src/runtime/cgo/gcc_amd64.S        | 2 ++
+ src/runtime/cgo/gcc_arm.S          | 2 ++
+ src/runtime/cgo/gcc_arm64.S        | 2 ++
+ src/runtime/cgo/gcc_linux_ppc64x.S | 2 ++
+ src/runtime/cgo/gcc_loong64.S      | 2 ++
+ src/runtime/cgo/gcc_mips64x.S      | 2 ++
+ src/runtime/cgo/gcc_mipsx.S        | 2 ++
+ src/runtime/cgo/gcc_riscv64.S      | 2 ++
+ src/runtime/cgo/gcc_s390x.S        | 2 ++
+ 11 files changed, 22 insertions(+)

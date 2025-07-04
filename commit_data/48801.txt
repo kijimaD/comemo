@@ -1,26 +1,20 @@
-commit e948c3394ee137bae45e85cfa7c8ec0bb0e16dc8
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Apr 15 18:09:48 2022 -0700
+commit 8115ae198d192f778a3586596c8550665f409823
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 10 12:23:40 2021 -0400
 
-    reflect: make Value.Type inlineable
+    [dev.typeparams] go/types: disallow ~T where T is a defined type or an interface
     
-    This allows the result of Type to be computed much faster.
+    This is a straightforward port of CL 324570 to go/types.
     
-    Performance:
-    
-            old     new     delta
-            1.76ns  0.66ns  -62.27%
-    
-    Change-Id: Ie007fd175aaa41b2f67c71fa2a34ab8d292dd0e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400335
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1395775a1d21a903a57e0cefc4e240cfa2bb8e97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326684
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/reflect/value.go | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ src/go/types/testdata/check/typeinst2.go2      |  4 ++--
+ src/go/types/testdata/examples/constraints.go2 |  9 +++++++++
+ src/go/types/testdata/fixedbugs/issue39634.go2 |  4 ++--
+ src/go/types/union.go                          | 11 ++++++-----
+ 4 files changed, 19 insertions(+), 9 deletions(-)

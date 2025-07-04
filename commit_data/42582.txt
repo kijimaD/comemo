@@ -1,16 +1,25 @@
-commit bf061af1d0cf5b27ec1415d7b555874b070f483a
-Author: Roland Shoemaker <rolandshoemaker@gmail.com>
-Date:   Tue Jun 30 09:14:15 2020 -0700
+commit 1424889921159ed28866dff40b5d54884aaddd9c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jan 17 02:51:40 2020 +1100
 
-    doc/go1.15: add encoding/asn1 note about minimal encoding
+    cmd/internal/obj/riscv: correctly split immediates for FLW/FLD/FSW/FSD
     
-    Also fix missing <code> tags in the other encoding/asn1 note.
+    The FLW/FLD/FSW/FSD instructions can have immediates that exceed 12-bits and
+    therefore cannot be encoded in the RISCV instruction. Handle these as we do
+    for other load/store instructions. Also add test coverage for all load/store
+    instructions with large immediates.
     
-    Updates #37419
+    Fixes compilation issue reported by Carlos Eduardo de Paula.
     
-    Change-Id: Ic0e9131016b44ed864629aa8d0a7fddb57146d21
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240518
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Updates #27532
+    
+    Change-Id: Ifa62f19493b3acaba5a90ac31d2df209a3afea81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215037
+    Reviewed-by: Carlos Eduardo de Paula <me@carlosedp.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.15.html | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/riscv/asm_test.go | 54 ++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/riscv/obj.go      | 11 +++----
+ 2 files changed, 58 insertions(+), 7 deletions(-)

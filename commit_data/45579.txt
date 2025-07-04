@@ -1,18 +1,22 @@
-commit f5423ea615b94455e4f6b9cbee491b492bf2e1fe
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 6 14:46:40 2021 -0700
+commit aa4f48b751dbbfcb82e69d7622e7a9e9b8e48ee0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 29 12:47:15 2020 -0700
 
-    cmd/compile/internal/types2: add test case for issue 45985
+    cmd/compile: gracefully fail when devirtualization fails
     
-    This is a port of https://golang.org/cl/317471.
+    We should still be able to devirtualize here, but I need to understand
+    the AST better. While I'm doing that, at least switch to a graceful
+    failure case (i.e., skip the optimization and print a warning message)
+    to fix the x/text builders.
     
-    Updates #45985.
+    Updates #42279.
     
-    Change-Id: I539d0fa6f9a77eb2fc169a21c5db9921f8eceb03
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317732
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ie2b0b701fccf590d0cabfead703fc2fa999072cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266359
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/infer.go                   |  2 +-
- .../internal/types2/testdata/fixedbugs/issue45985.go2      | 14 ++++++++++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/inl.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

@@ -1,18 +1,16 @@
-commit b1797390b95d1ffd3d97b19532bf451719d42fd5
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Sep 22 01:17:01 2015 -0700
+commit 7e70c2468b6db5f4ebfa59714e9c561ba045e41c
+Author: Peter Waldschmidt <peter@waldschmidt.com>
+Date:   Mon Jul 27 21:33:53 2015 -0400
 
-    compress/zlib: detect truncated streams
+    encoding/json: fix EOF bug decoding HTTP stream
     
-    Reader failed to detect truncated streams since calls to
-    io.ReadFull did not check if the error is io.EOF.
+    Fixes bug referenced in this thread on golang-dev:
+    https://groups.google.com/d/topic/golang-dev/U4LSpMzL82c/discussion
     
-    Change-Id: I86c497519daaaccefc6eb5617ddcd8fd3b99f51b
-    Reviewed-on: https://go-review.googlesource.com/14835
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If01a2644863f9e5625dd2f95f9d344bda772e12c
+    Reviewed-on: https://go-review.googlesource.com/12726
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/compress/zlib/reader.go      |  9 +++++++++
- src/compress/zlib/reader_test.go | 24 ++++++++++++++++++++++++
- 2 files changed, 33 insertions(+)
+ src/encoding/json/stream.go      |  5 ++++-
+ src/encoding/json/stream_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 1 deletion(-)

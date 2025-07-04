@@ -1,19 +1,14 @@
-commit 1c439e6e37c87c9543cb1860c3b8d174658b80ca
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 18 22:17:28 2018 -0700
+commit b9ba337aae3fd62f89a23c2098dec6dfe0d1f9f1
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Fri Dec 8 02:11:05 2017 -0800
 
-    cmd/compile: change exporter.pos to take src.XPos instead of *Node
+    strings: delete unused constant
     
-    This is to allow followup refactorings that will replace
-    Field.Nname.Pos with Field.Pos.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I1060b6a37c60273892f7af5369809057cff61881
-    Reviewed-on: https://go-review.googlesource.com/108215
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I235c5bc7ce598047eccc1518984dd27f568046a2
+    Reviewed-on: https://go-review.googlesource.com/82776
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 111 +++++++++++++++++----------------
- 1 file changed, 57 insertions(+), 54 deletions(-)
+ src/strings/builder.go | 2 --
+ 1 file changed, 2 deletions(-)

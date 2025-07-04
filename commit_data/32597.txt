@@ -1,15 +1,24 @@
-commit a6a92b186732e293072daf94397d9c71eb81e2e9
-Author: Guilherme Garnier <guilherme.garnier@gmail.com>
-Date:   Wed Aug 30 20:06:23 2017 -0300
+commit 27a10f7da791602cc6d059d3164052aa397d6ef3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu May 4 17:36:20 2017 -0400
 
-    net/url: add examples to URL methods
+    cmd/link: stop passing unused read_only_relocs
     
-    Change-Id: Ia557771272a8ef3602f0281b8c89d2cfe146c8b3
-    Reviewed-on: https://go-review.googlesource.com/60470
-    Reviewed-by: Adrian Hesketh <adrianhesketh@hushmail.com>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    The external darwin linker has been printing:
+    
+            ld: warning: -read_only_relocs cannot be used with x86_64
+    
+    for a long time. Now that it is printed by CL 33301, we may as
+    well get rid of it.
+    
+    Fixes #20246
+    
+    Change-Id: I1147cf1ff197fdfda228a1349f13627bcf9fc72f
+    Reviewed-on: https://go-review.googlesource.com/42730
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/url/example_test.go | 108 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 108 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

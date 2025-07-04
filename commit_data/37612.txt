@@ -1,14 +1,16 @@
-commit 276870d6e0ff5d22b73feee56e0bad9096f01b22
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 6 13:32:50 2018 -0800
+commit f76eaeb2c840c76c48dc53b834e9a0e005a70421
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jun 20 12:45:48 2018 +1000
 
-    math: document sign bit correspondence for floating-point/bits conversions
+    cmd/go/internal/get: more efficient path prefix checking code
     
-    Fixes #27736.
+    Splitting the string is unnecessary.
     
-    Change-Id: Ibda7da7ec6e731626fc43abf3e8c1190117f7885
-    Reviewed-on: https://go-review.googlesource.com/c/153057
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I02796cb91602c1b9bf22721b985cd41b18cc92f2
+    Reviewed-on: https://go-review.googlesource.com/119936
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/unsafe.go | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/get/vcs.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

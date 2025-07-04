@@ -1,17 +1,18 @@
-commit 353ebe721019ac833646bea829d7840e55f3da30
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Dec 10 14:58:08 2018 -0500
+commit 2a5df067654970557f5038d238954eb9893e7f31
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Fri Aug 3 14:29:37 2018 +0800
 
-    cmd/go/internal/modfetch/codehost: return VCSError for unimplemented functions and malformed responses
+    hash/crc64: lazily initialize slice8Tables
     
-    Updates #28943
-    Updates #26092
+    Saves 36KB of memory in stdlib packages.
     
-    Change-Id: I07af2731ef5af046b9f7c7280ccb3976cdf41ca4
-    Reviewed-on: https://go-review.googlesource.com/c/153458
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #26775
+    
+    Change-Id: I0f9d7b17d9768f6fb980d5fbba7c45920215a5fc
+    Reviewed-on: https://go-review.googlesource.com/127735
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modfetch/codehost/vcs.go | 39 ++++++++++++++++++----------
- src/cmd/go/testdata/script/mod_get_svn.txt   | 21 +++++++++++++++
- 2 files changed, 46 insertions(+), 14 deletions(-)
+ src/hash/crc64/crc64.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

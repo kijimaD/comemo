@@ -1,14 +1,20 @@
-commit f9c22f7e7804ba4fcee37c75c3ba18788624b7b4
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Jun 18 23:20:17 2013 +1000
+commit c1e780c4e453eef4f8a60a637aea24a8d044a747
+Author: David Bürgin <676c7473@gmail.com>
+Date:   Tue Jun 18 14:59:50 2013 +1000
 
-    cmd/cgo: avoid leaking fds
+    misc/vim: Added filetype settings for comments.
     
-    Fixes #5714.
+    This basic Vim ftplugin sets the 'comments' and 'commentstring'
+    settings to sensible values. Future filetype settings for Go
+    would go in the same file.
+    The ftplugin was added as misc/vim/ftplugin/go/go.vim, this way
+    the installation instructions in readme.txt remain valid.
+    Fixes #5715.
     
-    R=golang-dev, iant
-    CC=golang-dev
-    https://golang.org/cl/10386043
+    R=dsymonds
+    CC=gobot, golang-dev
+    https://golang.org/cl/10323043
 
- src/cmd/cgo/gcc.go | 3 +++
- 1 file changed, 3 insertions(+)
+ misc/vim/ftplugin/go.vim | 17 +++++++++++++++++
+ misc/vim/readme.txt      |  7 ++++---
+ 2 files changed, 21 insertions(+), 3 deletions(-)

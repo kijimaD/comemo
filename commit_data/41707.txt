@@ -1,16 +1,25 @@
-commit 9a2db7c41ba5b1f9498d5354e6c2570610f626fb
-Author: kadern0 <kaderno@gmail.com>
-Date:   Sun Mar 22 17:33:52 2020 +1100
+commit c480d32fadb438155e5d5711ec166f58c73853e9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 18 11:19:32 2019 -0400
 
-    cmd/compile: remove unused isIntOrdering method
+    [dev.link] cmd/link: do not put static symbols into name lookup table
     
-    Fixes #37989
+    Since the previous CL, we will not reference static symbols by
+    name. Therefore no need to put them into the name lookup table.
     
-    Change-Id: Iabf86529fde3be9a98222b7e8d09ff8301cf8830
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224777
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    On Linux/ARM, in runtime/internal/atomic/sys_linux_arm.s, the
+    kernelcas function has a definition and a reference written in
+    two different forms, one with package prefix, one without. This
+    way, the assembler cannot know they are the same symbol, only the
+    linker knows. This is quite unusual, unify the names to so the
+    assembler can resolve it to index.
+    
+    Change-Id: Ie7223097be6a3b65f3fa43ed4575da9972ef5b69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201998
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/gc/walk.go | 10 ----------
- 1 file changed, 10 deletions(-)
+ src/cmd/link/internal/loader/loader.go      | 33 +++++++++++++++++++----------
+ src/runtime/internal/atomic/sys_linux_arm.s |  4 ++--
+ 2 files changed, 24 insertions(+), 13 deletions(-)

@@ -1,15 +1,29 @@
-commit 63ea27e9e02e9ddf5845a32082013e7344134fd7
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 22 12:44:01 2022 -0400
+commit 4c50721cda74abbf7732638f39a23dfbf6271a48
+Author: Dan Scales <danscales@google.com>
+Date:   Tue May 11 19:29:10 2021 -0700
 
-    cmd/compile: add short self-link to ABI spec
+    [dev.typeparams] cmd/compile:  Fix handling of Name nodes during stenciling
     
-    This makes the short link discoverable.
+    The name substitution for stenciling was incorrectly handling non-local
+    names. Made changes to explicitly built the vars[] name substitution map
+    based on the local variables (similar to what inlining substitution
+    does). Then, we we are stenciling a name node, we do NOT make a copy of
+    the name node if it is not in vars[], since it is then a reference to an
+    external name. Added new function localvar() to create the new nodes for
+    the local variables and put them in the vars[] map.
     
-    Change-Id: I9a2f091652bc096feebbbd79a854aa68efe702bb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/394634
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Eli Bendersky‎ <eliben@golang.org>
+    New test listimp2.go, added missing test calls in list2.go
+    
+    Change-Id: I8946478250c7bf2bd31c3247089bd50cfeeda0fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322190
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/abi-internal.md | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/noder/stencil.go |  51 ++---
+ test/typeparam/list2.go                   |   9 +
+ test/typeparam/listimp2.dir/a.go          | 298 ++++++++++++++++++++++++++++
+ test/typeparam/listimp2.dir/main.go       | 316 ++++++++++++++++++++++++++++++
+ test/typeparam/listimp2.go                |   7 +
+ 5 files changed, 656 insertions(+), 25 deletions(-)

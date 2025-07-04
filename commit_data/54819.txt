@@ -1,24 +1,22 @@
-commit 9c2ab20d483b38d483d3a40f4a9ffe250d58013c
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Sat Oct 28 07:09:01 2023 +0000
+commit 70f585f018bd534a15933eb80e2812387d2283f5
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 9 19:16:39 2022 -0500
 
-    internal/fmtsort: makeChans pin pointer
+    go/types, types2: ensure invalid generic types are marked as invalid
     
-    Complete TODO.
+    When detecting invalid types, we may detect cycles through instances.
+    Ensure that the uninstantiated origin type is also marked invalid.
     
-    For #49431
+    Fixes #56665
     
-    Change-Id: I1399205e430ebd83182c3e0c4becf1fde32d433e
-    GitHub-Last-Rev: 02cdea740bccbe0993c53fecdd32608f08861e59
-    GitHub-Pull-Request: golang/go#62673
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528796
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Commit-Queue: Keith Randall <khr@golang.org>
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Change-Id: Id67653bcb072ac80161dea07d0ced566e61564a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449275
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/internal/fmtsort/sort_test.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/validtype.go       | 29 ++++++++++++++++++---
+ src/go/types/validtype.go                          | 29 ++++++++++++++++++---
+ .../types/testdata/fixedbugs/issue49043.go         |  2 +-
+ .../types/testdata/fixedbugs/issue56665.go         | 30 ++++++++++++++++++++++
+ 4 files changed, 81 insertions(+), 9 deletions(-)

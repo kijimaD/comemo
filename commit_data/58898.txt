@@ -1,19 +1,19 @@
-commit b3e36364b94fe25497a288eee12fa3c96f4101a3
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Feb 26 16:31:46 2025 +0000
+commit f19f31f2e7c136a8dae03cbfe4f8ebbb8b54569b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 19 16:51:24 2024 -0500
 
-    flag: replace interface{} -> any for textValue.Get method
+    net: work around runtime scheduler starvation on js and wasip1
     
-    Make it literally match the Getter interface.
+    Fixes #65177.
+    Updates #65178.
+    Updates #64321.
     
-    Change-Id: I73f03780ba1d3fd2230e0e5e2343d40530d9e6d8
-    GitHub-Last-Rev: 398b90b2fb04fdd401a1d719bf3ce19152a4cf6a
-    GitHub-Pull-Request: golang/go#71975
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652795
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I698fd3b688c7dfbde692eb7c29cbdafc89e7ca32
+    Cq-Include-Trybots: luci.golang.try:gotip-js-wasm,gotip-wasip1-wasm_wasmtime,gotip-wasip1-wasm_wazero
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557037
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/flag/flag.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/net_fake.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

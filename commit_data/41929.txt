@@ -1,20 +1,18 @@
-commit d3d21d0a4280444dd1d093eb73596a7326c0a651
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Apr 14 02:36:36 2020 +1000
+commit 1e4a358454987ef5104e45081c8e2ecdc9f32513
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Fri Nov 1 15:46:47 2019 +0100
 
-    cmd/compile: update TestIntendedInlining for riscv64
+    net/http: deflake TestCancelRequestWithChannelBeforeDo_Cancel
     
-    Mark nextFreeFast as not inline, as it is too expensive to inline on riscv64.
-    Also remove riscv64 from non-atomic inline architectures, as we now have
-    atomic intrisics.
+    Goroutines clean up takes longer when using deprecated CloseNotifier.
     
-    Updates #22239
+    Fixes #35122
     
-    Change-Id: I6e0e72c1192070e39f065bee486f48df4cc74b35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227808
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id820a3012b5c781ddfb294b38ee3b009624e398c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204661
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/http/main_test.go      | 2 +-
+ src/net/http/transport_test.go | 4 ----
+ 2 files changed, 1 insertion(+), 5 deletions(-)

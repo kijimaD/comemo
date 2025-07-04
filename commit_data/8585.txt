@@ -1,15 +1,13 @@
-commit b873701dbde3a9ea562d5297c5d06956a00feccd
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Jun 2 17:08:56 2011 +1000
+commit 119a341c38c17171297e5a4ae566a08ce0bed591
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 2 11:00:24 2011 +1000
 
-    runtime: do not garbage collect windows callbacks
+    doc: add link to App Engine docs to front page
     
-    Fixes #1883.
-    Fixes #1702.
-    
-    R=golang-dev, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4532103
+    https://golang.org/cl/4539100
 
- src/pkg/runtime/windows/thread.c | 40 +++++++++++++++++++++++++++++++++++++---
- 1 file changed, 37 insertions(+), 3 deletions(-)
+ doc/all.css   | 5 +++++
+ doc/root.html | 1 +
+ 2 files changed, 6 insertions(+)

@@ -1,12 +1,12 @@
-commit d1f6e27880f1e867c62704c32aa8917f902925fd
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Mar 26 10:00:06 2012 +0800
+commit c26b504b0d6a678be85f71cb02a7ca32e2a6979a
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Mar 26 09:52:29 2012 +0800
 
-    go/build: cgoEnabled is not known to cmd/dist anymore
+    cmd/go: add missing error check
     
-    R=golang-dev, bradfitz
+    R=golang-dev, minux.ma, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5901051
+    https://golang.org/cl/5874055
 
- src/pkg/go/build/build.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/go/get.go | 3 +++
+ 1 file changed, 3 insertions(+)

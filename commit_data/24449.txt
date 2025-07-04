@@ -1,33 +1,30 @@
-commit cfb116d4538dcf2455ca59e786396c779019c065
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Oct 1 02:59:49 2015 -0700
+commit 034a10d44c8f83d2c36ab4e242c14e9744c54949
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 15:15:03 2015 -0400
 
-    archive/tar: expand abilities of TestReader
+    cmd/internal/obj/arm64: reject misaligned stack frames, except empty frames
     
-    Motivation:
-    * There are an increasing number of "one-off" corrupt files added
-    to make sure that package does not succeed or crash on them.
-    Instead, allow for the test to specify the error that is expected
-    to occur (if any).
-    * Also, fold in the logic to check the MD5 checksum into this
-    function.
+    The layout code has to date insisted on stack frames that are 16-aligned
+    including the saved LR, and it ensured this by growing the frame itself.
+    This breaks code that refers to values near the top of the frame by positive
+    offset from SP, and in general it's too magical: if you see TEXT xxx, $N,
+    you expect that the frame size is actually N, not sometimes N and sometimes N+8.
     
-    The following tests are being removed:
-    * TestIncrementalRead: Done by TestReader by using io.CopyBuffer
-    with a buffer of 8. This achieves the same behavior as this test.
-    * TestSparseEndToEnd: Since TestReader checks the MD5 checksums
-    if the input corpus provides them, then this is redundant.
-    * TestSparseIncrementalRead: Redundant for the same reasons that
-    TestIncrementalRead is now redundant
-    * TestNegativeHdrSize: Added to TestReader corpus
-    * TestIssue10968: Added to TestReader corpus
-    * TestIssue11169: Added to TestReader corpus
+    This led to a serious bug in the compiler where ambiguously live values
+    were not being zeroed correctly, which in turn triggered an assertion
+    in the GC about finding only valid pointers. The compiler has been
+    fixed to always emit aligned frames, and the hand-written assembly
+    has also been fixed.
     
-    With this change, code coverage did not change: 85.3%
+    Now that everything is aligned, make unaligned an error instead of
+    something to "fix" silently.
     
-    Change-Id: I8550d48657d4dbb8f47dfc3dc280758ef73b47ec
-    Reviewed-on: https://go-review.googlesource.com/15176
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    For #9880.
+    
+    Change-Id: I05f01a9df174d64b37fa19b36a6b6c5f18d5ba2d
+    Reviewed-on: https://go-review.googlesource.com/12848
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/archive/tar/reader_test.go | 296 +++++++++++------------------------------
- 1 file changed, 81 insertions(+), 215 deletions(-)
+ src/cmd/internal/obj/arm64/obj7.go | 18 ++++++++++++++----
+ test/nosplit.go                    |  2 +-
+ 2 files changed, 15 insertions(+), 5 deletions(-)

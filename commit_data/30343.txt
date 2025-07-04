@@ -1,17 +1,18 @@
-commit b6e0d4647f9f9534c5dc215570ee80b6a4717928
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Feb 20 22:54:39 2017 -0800
+commit daf3f082648274b0da7264bcc4794ca0dd4b999d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 1 11:01:39 2016 -0700
 
-    runtime: update assembly var names after monotonic time changes
+    testing: add a method testing.CoverMode
     
-    Change-Id: I721045120a4df41462c02252e2e5e8529ae2d694
-    Reviewed-on: https://go-review.googlesource.com/37303
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This makes it possible to avoid tests where coverage affects the test
+    results by skipping them (or otherwise adjusting them) when coverage
+    is enabled.
+    
+    Update #17699
+    
+    Change-Id: Ifcc36cfcd88ebd677890e82ba80ee3d696ed3d7c
+    Reviewed-on: https://go-review.googlesource.com/32483
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/sys_darwin_arm.s  | 4 ++--
- src/runtime/sys_linux_386.s   | 4 ++--
- src/runtime/sys_netbsd_386.s  | 4 ++--
- src/runtime/sys_windows_386.s | 6 +++---
- 4 files changed, 9 insertions(+), 9 deletions(-)
+ src/testing/testing.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

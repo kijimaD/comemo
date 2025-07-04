@@ -1,35 +1,27 @@
-commit c759ea7471de5a62c88325981e8c86beab78bed8
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 5 13:52:13 2024 -0500
+commit e5600f063d41fdd531a23384744ea9018767a186
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Aug 10 21:13:11 2023 +0000
 
-    crypto/internal/fips/check: add new package
+    archive/tar: add AddFS method to Writer
     
-    This package is in charge of the FIPS init-time code+data verification.
+    The method AddFS can be used to add the contents of a fs.FS filesystem
+    to a tar archive. This method walks the directory tree starting at the root
+    of the filesystem and adds each file to the archive.
     
-    If GODEBUG=fips140=off or the empty string, then no verification
-    happens. Otherwise, the setting must be "on", "debug", or "only",
-    all of which enable verification. If the setting is "debug", successful
-    verification prints a message to that effect. Otherwise successful
-    verification is quiet.
+    Fixes #58000
     
-    The linker leaves special information for this package to use.
-    See cmd/internal/obj/fips.go and cmd/link/internal/ld/fips.go,
-    both submitted in earlier CLs, for details.
-    
-    For #69536.
-    
-    Change-Id: Ie1fe29f316db290e0bd7df0a5a09108be4779d63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625998
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I0e6abac76b76bc5d95b74b7e5b37634ce3f76c85
+    GitHub-Last-Rev: 11a62bfd7ebc7ca93b1832da15018e6805c92520
+    GitHub-Pull-Request: golang/go#61599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513316
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/internal/fips/check/check.go          | 129 +++++++++++++++++++++++
- src/crypto/internal/fips/check/check_test.go     | 121 +++++++++++++++++++++
- src/crypto/internal/fips/check/checktest/asm.s   |   6 ++
- src/crypto/internal/fips/check/checktest/test.go |  27 +++++
- src/crypto/internal/fips/check/export_test.go    |   9 ++
- src/crypto/sha256/sha256.go                      |   1 +
- src/crypto/sha256/sha256_test.go                 |   1 +
- src/go/build/deps_test.go                        |   3 +
- 8 files changed, 297 insertions(+)
+ api/next/58000.txt             |  1 +
+ src/archive/tar/writer.go      | 39 +++++++++++++++++++++++++
+ src/archive/tar/writer_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 106 insertions(+)

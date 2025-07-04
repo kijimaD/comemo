@@ -1,12 +1,15 @@
-commit 563d09cd14f976ff86e21e7d4cb92e5da580e125
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Mon Jun 17 07:32:28 2013 -0700
+commit 14e52c74bc7492098ea630bc84514fb427ef8bd9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 17 07:30:04 2013 -0700
 
-    testing: use -bench flag and fix flags doc link
+    crypto/cipher: StreamWriter.Closer docs + behavior change
     
-    R=golang-dev, r, kr
+    Don't panic when the underlying Writer isn't a Closer. And
+    document what Close does and clarify that it's not a Flush.
+    
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/10263043
+    https://golang.org/cl/10310043
 
- src/pkg/testing/testing.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/crypto/cipher/io.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

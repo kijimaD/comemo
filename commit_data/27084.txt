@@ -1,29 +1,22 @@
-commit 97360096e5e9fdea06be8c97f32bd83741f68adb
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 22 12:27:29 2016 -0700
+commit 72655afb4ed84ce7809b3ee6202fd4edcdb25593
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 10 10:00:29 2016 -0800
 
-    cmd/compile: replace Ctype switches with type switches
+    cmd/compile: remove NodeList type
     
-    Instead of switching on Ctype (which internally uses a type switch)
-    and then scattering lots of type assertions throughout the CTFOO case
-    clauses, just use type switches directly on the underlying constant
-    value.
+    That was easy.
     
-    Passes toolstash/buildall.
+    Fixes #14473.
     
-    Change-Id: I9bc172cc67e5f391cddc15539907883b4010689e
-    Reviewed-on: https://go-review.googlesource.com/22384
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9d1d20a5c5a9b1423e6c72c0460ee4a78130864f
+    Reviewed-on: https://go-review.googlesource.com/20521
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/const.go  | 108 ++++++++++++++++------------------
- src/cmd/compile/internal/gc/cplx.go   |   5 +-
- src/cmd/compile/internal/gc/dcl.go    |  14 ++---
- src/cmd/compile/internal/gc/fmt.go    |  45 +++++++-------
- src/cmd/compile/internal/gc/gsubr.go  |  20 +++----
- src/cmd/compile/internal/gc/obj.go    |  21 ++++---
- src/cmd/compile/internal/gc/parser.go |  19 +++---
- src/cmd/compile/internal/gc/sinit.go  |  30 ++++------
- src/cmd/compile/internal/gc/ssa.go    |  52 ++++++++--------
- 9 files changed, 146 insertions(+), 168 deletions(-)
+ src/cmd/compile/internal/gc/fmt.go       | 12 ++-----
+ src/cmd/compile/internal/gc/pgen_test.go | 16 ----------
+ src/cmd/compile/internal/gc/reflect.go   | 18 +++++------
+ src/cmd/compile/internal/gc/syntax.go    | 54 --------------------------------
+ src/cmd/compile/internal/gc/typecheck.go | 35 +++++++--------------
+ 5 files changed, 21 insertions(+), 114 deletions(-)

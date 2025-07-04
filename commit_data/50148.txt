@@ -1,25 +1,19 @@
-commit 4d13aabdf62a15d19a6f41a781aa7e85f02f3f26
-Author: Akshay Shah <akshay@akshayshah.org>
-Date:   Mon Aug 22 16:08:13 2022 -0700
+commit 96fface83ad69b6d6ad8059d61d232737572e85d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 5 21:58:30 2021 +0000
 
-    net/http: add errors.As support for x/net/http2.StreamError
+    Revert "cmd/dist: omit cmd/cgo from toolchain1"
     
-    To make it easier to extract the HTTP/2 error code (if any) from
-    net/http errors, implement an As method on the vendored copy of
-    golang.org/x/net/http2.StreamError. The new As method lets users work
-    with the vendored error type as though it were the x/net/http2
-    StreamError.
+    This reverts commit 81b7ec1ad5b50b8e73a63b44d8c2538154def535.
     
-    Fixes #53896.
+    Reason for revert: broke ios builder
     
-    Change-Id: Ib18eb428adc05a3c0e19a946ece936e2378e1c7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425104
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I7f469161c3c632ae48b7d938d355c9929eaaad92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354135
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/net/http/h2_error.go      | 38 +++++++++++++++++++++++++++++++++++++
- src/net/http/h2_error_test.go | 44 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 82 insertions(+)
+ src/cmd/dist/build.go     | 2 +-
+ src/cmd/dist/buildtool.go | 8 +++++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

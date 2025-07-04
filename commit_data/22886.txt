@@ -1,17 +1,15 @@
-commit 83b25d9342b0ce6620f38419ff74c6d16b43f554
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Mon Mar 30 15:45:33 2015 +0200
+commit 4345a9fc5d3e994230cb8578a79ee0b4a727cd70
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Mar 6 09:45:24 2015 -0500
 
-    cmd/ld: make .rela and .rela.plt sections contiguous
+    misc/ios: support go run in go_darwin_arm_exec
     
-    ELF normally requires this and Solaris runtime loader will crash if we
-    don't do it.
+    The -lldb flag makes it easy to use go run and end up in a debugging
+    session on darwin/arm.
     
-    Fixes Solaris build.
-    
-    Change-Id: I0482eed890aff2d346136ae7f9caf8f094f502ed
-    Reviewed-on: https://go-review.googlesource.com/8216
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I556f93e950086a7dff4839f301b9c55f7579f87b
+    Reviewed-on: https://go-review.googlesource.com/8024
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/cmd/internal/ld/data.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ misc/ios/go_darwin_arm_exec.go | 75 +++++++++++++++++++++++++++++++-----------
+ 1 file changed, 55 insertions(+), 20 deletions(-)

@@ -1,18 +1,13 @@
-commit e544bee1ddf4a2869221b68ef8cec6c97b6d827b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Apr 21 10:56:45 2015 +1000
+commit 87054c4704edbfc5c16e109e9c3f12f0f57a9a13
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Apr 21 21:43:25 2015 -0400
 
-    runtime: correct exception stack trace output
+    runtime: fix more vet reported issues
     
-    It is misleading when stack trace say:
-    
-    signal arrived during cgo execution
-    
-    but we are not in cgo call.
-    
-    Change-Id: I627e2f2bdc7755074677f77f21befc070a101914
-    Reviewed-on: https://go-review.googlesource.com/9190
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie8dfdb592ee0bfc736d08c92c3d8413a37b6ac03
+    Reviewed-on: https://go-review.googlesource.com/9241
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/signal_windows.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/asm_ppc64x.s       |  4 ++--
+ src/runtime/sys_darwin_amd64.s | 14 +++++++-------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

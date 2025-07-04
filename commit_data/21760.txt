@@ -1,26 +1,19 @@
-commit 433c1ad1400047b17b9cd7107afa7afe55a04e12
-Author: Joe Shaw <joe@joeshaw.org>
-Date:   Thu Feb 12 17:21:01 2015 -0500
+commit fc5baec37f65baf33a8b6777e576b85de62654ec
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 3 09:18:15 2015 -0500
 
-    archive/zip: fix size value in ZIP64 end central directory record
+    runtime: rearrange framepointer check condition
     
-    Section 4.3.14.1 of the ZIP file format
-    spec (https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT) says,
+    The test for the framepointer experiment flag is cheaper and more
+    branch-predictable than the other parts of this conditional, so move
+    it first.  This is also more readable.
     
-        The value stored into the "size of zip64 end of central directory
-        record" should be the size of the remaining record and should not
-        include the leading 12 bytes.
+    (Originally, the flag check required parsing the experiments string,
+    which is why it was done last.  Now that flag is cached.)
     
-    We were previously writing the full size, including the 12 bytes.
-    
-    Fixes #9857
-    
-    Change-Id: I7cf1fc8457c5f306717cbcf61e02304ab549781f
-    Reviewed-on: https://go-review.googlesource.com/4760
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I84e00fa7e939e9064f0fa0a4a6fe00576dd61457
+    Reviewed-on: https://go-review.googlesource.com/3782
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/zip/writer.go   | 18 +++++++++---------
- src/archive/zip/zip_test.go | 36 ++++++++++++++++++++++++++++++++++--
- 2 files changed, 43 insertions(+), 11 deletions(-)
+ src/runtime/traceback.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

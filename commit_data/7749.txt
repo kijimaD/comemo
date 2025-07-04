@@ -1,20 +1,20 @@
-commit c01238a571769f12a9c2bb971d26fe27c4158530
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 11 18:01:28 2011 -0800
+commit 5df1cf0475cd5b27601cfe95d94c5e4365f999f3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 11 16:24:09 2011 -0800
 
-    net: don't loop to drain wakeup pipe.
-    
-    The loop always makes an extra system call.  It only makes a
-    difference if more than 100 goroutines started waiting for
-    something to happen on a network file descriptor since the
-    last time the pipe was drained, which is unlikely since we
-    will be woken up the first time a goroutine starts waiting.
-    If we don't drain the pipe this time, we'll be woken up again
-    right away and can drain again.
+    gob: use bufio on the decode to avoid a system call on each read.
+    Add a benchmark.
+    BenchmarkEndToEndPipe gives 14.3microseconds/op before,
+    13.1microseconds/op after, or about 76e3 round trips per second
+    through the kernel.
+    With a bytes buffer, and therefore no system calls for I/O, the
+    numbers go to 7.3microseconds/op, or about 137e3 round trips
+    per second.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4275042
+    https://golang.org/cl/4279045
 
- src/pkg/net/fd.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/gob/decoder.go      |  3 ++-
+ src/pkg/gob/encoder_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

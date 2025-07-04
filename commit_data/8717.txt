@@ -1,16 +1,13 @@
-commit 400d825ea0d0471f4b395eabde6b963835250ec3
-Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
-Date:   Tue Jun 14 11:29:51 2011 -0400
+commit b100a29bc49a4c6033e7b0f49ecadb3d611f82fc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 14 11:28:36 2011 -0400
 
-    syscall: fix Plan 9 build.
-    Move mmapper from syscall.go to syscall_unix.go.
-    Remove Sendfile from syscall_plan9.go.
+    syscall: update BPF support for BSD variants
     
-    R=rsc, alex.brainman
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/4368060
+    https://golang.org/cl/4589044
 
- src/pkg/syscall/syscall.go       | 65 ---------------------------------------
- src/pkg/syscall/syscall_plan9.go |  5 ---
- src/pkg/syscall/syscall_unix.go  | 66 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 66 insertions(+), 70 deletions(-)
+ src/pkg/syscall/Makefile   |   2 +
+ src/pkg/syscall/bpf_bsd.go | 167 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 169 insertions(+)

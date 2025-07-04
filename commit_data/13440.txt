@@ -1,22 +1,13 @@
-commit 1a0a09dafecddf2b63befda53aa5e54d74ce19e1
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Jul 4 00:38:01 2012 +0200
+commit b04bf3882b403ebba3b4c80297daa91dd56a1f85
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 3 10:05:27 2012 -0700
 
-    math/rand: avoid use of math.Pow in tests.
+    encoding/gob: fix bug in Register
+    The old code added a star but did not indirect the reflect.Type.
     
-    The use of math.Pow for mere squaring can be extremely
-    slow on soft-float ARM. Even on systems with hardware
-    floating-point, a speedup in test duration is observed.
-    
-    On amd64
-    Before: ok      math/rand       2.009s
-    After:  ok      math/rand       0.340s
-    
-    Fixes #3740.
-    
-    R=dave, golang-dev, r, r
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/6348061
+    https://golang.org/cl/6348067
 
- src/pkg/math/rand/rand_test.go | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ src/pkg/encoding/gob/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

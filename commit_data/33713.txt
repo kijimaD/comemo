@@ -1,21 +1,53 @@
-commit 4f6d8a59eae73f3ce4e67e8e42a2bc25e7216ec3
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 22 15:25:59 2017 -0500
+commit 0592a1a3de99fd5e862092332063daeb3158363e
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Wed Aug 30 13:52:12 2017 +0200
 
-    net/rpc: wait for responses to be written before closing Codec
+    runtime/internal/sys: use standard generated code header
     
-    If there are no more requests being made, wait to shut down
-    the response-writing codec until the pending requests are all
-    answered.
+    This change implements the convention for generated code header agreed upon in https://golang.org/s/generatedcode.
+    Additionally run go generate.
+    Also update some comments.
     
-    Fixes #17239.
+    Updates #13560
     
-    Change-Id: Ie62c63ada536171df4e70b73c95f98f778069972
-    Reviewed-on: https://go-review.googlesource.com/79515
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: If45f91b93aaa0d43280c2c4630823bc4d2dc7d3a
+    Reviewed-on: https://go-review.googlesource.com/60250
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/rpc/server.go      | 14 ++++++++++---
- src/net/rpc/server_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 3 deletions(-)
+ src/runtime/internal/sys/gengoos.go             | 10 +++++----
+ src/runtime/internal/sys/sys.go                 |  4 ++--
+ src/runtime/internal/sys/zgoarch_386.go         |  4 +++-
+ src/runtime/internal/sys/zgoarch_amd64.go       |  4 +++-
+ src/runtime/internal/sys/zgoarch_amd64p32.go    |  4 +++-
+ src/runtime/internal/sys/zgoarch_arm.go         |  4 +++-
+ src/runtime/internal/sys/zgoarch_arm64.go       |  4 +++-
+ src/runtime/internal/sys/zgoarch_arm64be.go     | 28 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_armbe.go       | 28 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_mips.go        |  4 +++-
+ src/runtime/internal/sys/zgoarch_mips64.go      |  4 +++-
+ src/runtime/internal/sys/zgoarch_mips64le.go    |  4 +++-
+ src/runtime/internal/sys/zgoarch_mips64p32.go   | 28 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_mips64p32le.go | 28 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_mipsle.go      |  4 +++-
+ src/runtime/internal/sys/zgoarch_ppc.go         | 28 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_ppc64.go       |  4 +++-
+ src/runtime/internal/sys/zgoarch_ppc64le.go     |  4 +++-
+ src/runtime/internal/sys/zgoarch_s390.go        | 28 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_s390x.go       |  4 +++-
+ src/runtime/internal/sys/zgoarch_sparc.go       | 28 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_sparc64.go     | 28 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoos_android.go       |  5 ++++-
+ src/runtime/internal/sys/zgoos_darwin.go        |  5 ++++-
+ src/runtime/internal/sys/zgoos_dragonfly.go     |  5 ++++-
+ src/runtime/internal/sys/zgoos_freebsd.go       |  5 ++++-
+ src/runtime/internal/sys/zgoos_linux.go         |  4 +++-
+ src/runtime/internal/sys/zgoos_nacl.go          |  5 ++++-
+ src/runtime/internal/sys/zgoos_netbsd.go        |  5 ++++-
+ src/runtime/internal/sys/zgoos_openbsd.go       |  5 ++++-
+ src/runtime/internal/sys/zgoos_plan9.go         |  5 ++++-
+ src/runtime/internal/sys/zgoos_solaris.go       |  5 ++++-
+ src/runtime/internal/sys/zgoos_windows.go       |  5 ++++-
+ src/runtime/internal/sys/zgoos_zos.go           | 20 ++++++++++++++++++
+ 34 files changed, 331 insertions(+), 29 deletions(-)

@@ -1,28 +1,33 @@
-commit 30940cfad6c45d40bec377aeacc10f6964e75b76
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 18 16:33:39 2014 +0400
+commit 0c6146711c184b711c9d2d664056380e149fa714
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 12 17:41:03 2014 -0400
 
-    runtime: don't acquirem on malloc fast path
-    Mallocgc must be atomic wrt GC, but for performance reasons
-    don't acquirem/releasem on fast path. The code does not have
-    split stack checks, so it can't be preempted by GC.
-    Functions like roundup/add are inlined. And onM/racemalloc are nosplit.
-    Also add debug code that checks these assumptions.
+    cmd/go, go/build: implement import comment checking
     
-    benchmark                     old ns/op     new ns/op     delta
-    BenchmarkMalloc8              20.5          17.2          -16.10%
-    BenchmarkMalloc16             29.5          27.0          -8.47%
-    BenchmarkMallocTypeInfo8      31.5          27.6          -12.38%
-    BenchmarkMallocTypeInfo16     34.7          30.9          -10.95%
+    See golang.org/s/go14customimport for design.
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, rlh, rsc
-    https://golang.org/cl/123100043
+    Added case to deps_test to allow go/build to import regexp.
+    Not a new dependency, because go/build already imports go/doc
+    which imports regexp.
+    
+    Fixes #7453.
+    
+    LGTM=r
+    R=r, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/124940043
 
- src/cmd/api/goapi.go      |  5 +++-
- src/pkg/runtime/malloc.go | 67 ++++++++++++++++++++++++++++++++++++++---------
- src/pkg/runtime/race.c    |  2 ++
- src/pkg/runtime/stubs.go  |  1 +
- src/pkg/runtime/stubs.goc |  5 ++++
- 5 files changed, 67 insertions(+), 13 deletions(-)
+ src/cmd/go/pkg.go                                 |   5 +-
+ src/cmd/go/test.bash                              |  36 +++++
+ src/cmd/go/testdata/importcom/bad.go              |   3 +
+ src/cmd/go/testdata/importcom/conflict.go         |   3 +
+ src/cmd/go/testdata/importcom/src/bad/bad.go      |   1 +
+ src/cmd/go/testdata/importcom/src/conflict/a.go   |   1 +
+ src/cmd/go/testdata/importcom/src/conflict/b.go   |   1 +
+ src/cmd/go/testdata/importcom/src/works/x/x.go    |   1 +
+ src/cmd/go/testdata/importcom/src/works/x/x1.go   |   1 +
+ src/cmd/go/testdata/importcom/src/wrongplace/x.go |   1 +
+ src/cmd/go/testdata/importcom/works.go            |   3 +
+ src/cmd/go/testdata/importcom/wrongplace.go       |   3 +
+ src/pkg/go/build/build.go                         | 161 ++++++++++++++++++++--
+ 13 files changed, 206 insertions(+), 14 deletions(-)

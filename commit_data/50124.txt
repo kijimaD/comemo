@@ -1,17 +1,21 @@
-commit 04eb35998a3a999c830969f802744ab9274714a8
-Author: hitzhangjie <hit.zhangjie@gmail.com>
-Date:   Thu Aug 25 09:34:49 2022 +0000
+commit d55009c59458c5fe8520f8cd10e8b61696ebab7a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 4 23:55:52 2021 +0200
 
-    cmd/trace: display goroutines (PC=0) with clearer description
+    crypto/rand: document additional getrandom/getentropy support in Reader
     
-    This PR fixes: #54425 #49994
+    CL 269999 added support for getrandom on Dragonfly.
+    CL 299134 added support for getrandom on Solaris.
+    CL 302489 added support for getentropy on macOS.
     
-    Change-Id: Id60a3ba6930f8e29b12b6d8f80945decd2ce31bc
-    GitHub-Last-Rev: 60a040aa2f111f64f571597799ce7ca317e1d281
-    GitHub-Pull-Request: golang/go#54575
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425042
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Update the godoc for Reader accordingly.
+    
+    Change-Id: Ice39e5e62f052f21b664db6abbfd97f03944586e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353190
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/trace/goroutines.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/crypto/rand/rand.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

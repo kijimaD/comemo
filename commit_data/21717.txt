@@ -1,13 +1,15 @@
-commit 18fd940620708813dd33a2d5169c9861278102af
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 24 16:42:39 2015 -0800
+commit a99369fdb5137862cf12469afcd96a47852916b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 28 22:39:57 2015 -0500
 
-    math/big: permit passing of (possibly nil) *Float to MantExp to avoid allocation
+    liblink: fix error message on linux for unknown TLS base
     
-    Change-Id: Ia92eea833283f8b16fa09d4ca1c9cb3bc0eb18a2
-    Reviewed-on: https://go-review.googlesource.com/5870
-    Reviewed-by: Rob Pike <r@golang.org>
+    headstr(Hlinux) was reporting "android",
+    making for some confusing error messages.
+    
+    Change-Id: I437095bee7cb2143aa37c91cf786f3a3581ae7b9
+    Reviewed-on: https://go-review.googlesource.com/3513
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/math/big/float.go      | 11 ++++++++---
- src/math/big/float_test.go | 15 +++++++++++++--
- 2 files changed, 21 insertions(+), 5 deletions(-)
+ src/liblink/sym.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

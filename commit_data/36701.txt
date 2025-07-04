@@ -1,14 +1,29 @@
-commit 9850ad045fced1346a049df4baec7d4b7ab0db8c
-Author: Iskander Sharipov <quasilyte@gmail.com>
-Date:   Tue Sep 18 01:28:58 2018 +0300
+commit 8d8f620f686f596a34d75d0bc251b46d8c476891
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 23 17:21:33 2018 -0400
 
-    cmd/compile/internal/ssa: fix `a == a` to `a == b`
+    cmd/compile: teach prove about relations between constants
     
-    Change-Id: I4ee4f702e1bfc9ad9ea899c255104d5e18cf2c96
-    Reviewed-on: https://go-review.googlesource.com/135838
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Currently, we never add a relation between two constants to prove's
+    fact table because these are eliminated before prove runs, so it
+    currently doesn't handle facts like this very well even though they're
+    easy to prove.
+    
+    We're about to start asserting some conditions that don't appear in
+    the SSA, but are constructed from existing SSA values that may both be
+    constants.
+    
+    Hence, improve the fact table to understand relations between
+    constants by initializing the constant bounds of constant values to
+    the value itself, rather than noLimit.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I71f8dc294e59f19433feab1c10b6d3c99b7f1e26
+    Reviewed-on: https://go-review.googlesource.com/102601
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/ssa/html.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/prove.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

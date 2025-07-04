@@ -1,15 +1,12 @@
-commit 48f598a393ddb1c48cd10015f1c024ca79a67d6a
+commit 38a53c7ecb0713c6c15a49896c718c9eb92f0175
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jul 14 16:09:15 2011 -0700
+Date:   Thu Jul 14 15:58:37 2011 -0700
 
-    go/printer: simplify internal state
+    go spec: (up-)date
     
-    No formatting changes.
-    
-    R=rsc
+    R=rsc, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/4735042
+    https://golang.org/cl/4738042
 
- src/pkg/go/printer/nodes.go   | 10 ----------
- src/pkg/go/printer/printer.go | 20 +++++---------------
- 2 files changed, 5 insertions(+), 25 deletions(-)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

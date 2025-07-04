@@ -1,59 +1,18 @@
-commit a66af7280de998712d84eca40783019305b58bf3
-Author: Hana Kim <hakim@google.com>
-Date:   Tue Feb 6 13:21:39 2018 -0500
+commit 4fe43f814697a30b760c4a0a0e87688f6ad06ddc
+Author: griesemer <gri@golang.org>
+Date:   Mon Oct 16 18:01:47 2017 -0700
 
-    cmd/trace: add memory usage reporting
+    cmd/compile/internal/parser: removed TODO (cleanup)
     
-    Enabled when the tool runs with DEBUG_MEMORY_USAGE=1 env var.
-    After reporting the usage, it waits until user enters input
-    (helpful when checking top or other memory monitor)
+    - checking for the correct closing token leads to slightly better
+      behavior for some randomly bogus programs
+    - removed `switch` in favor of an `if` statement
     
-    Also adds net/http/pprof to export debug endpoints.
+    Follow-up on https://go-review.googlesource.com/c/go/+/71250.
     
-    From the trace included in #21870
-    
-    $ DEBUG_MEMORY_USAGE=1 go tool trace trace.out
-    2018/02/21 16:04:49 Parsing trace...
-    after parsing trace
-     Alloc: 3385747848 Bytes
-     Sys:   3661654648 Bytes
-     HeapReleased:  0 Bytes
-     HeapSys:       3488907264 Bytes
-     HeapInUse:     3426377728 Bytes
-     HeapAlloc:     3385747848 Bytes
-    Enter to continue...
-    2018/02/21 16:05:09 Serializing trace...
-    after generating trace
-     Alloc: 4908929616 Bytes
-     Sys:   5319063640 Bytes
-     HeapReleased:  0 Bytes
-     HeapSys:       5032411136 Bytes
-     HeapInUse:     4982865920 Bytes
-     HeapAlloc:     4908929616 Bytes
-    Enter to continue...
-    2018/02/21 16:05:18 Splitting trace...
-    after spliting trace
-     Alloc: 4909026200 Bytes
-     Sys:   5319063640 Bytes
-     HeapReleased:  0 Bytes
-     HeapSys:       5032411136 Bytes
-     HeapInUse:     4983046144 Bytes
-     HeapAlloc:     4909026200 Bytes
-    Enter to continue...
-    2018/02/21 16:05:39 Opening browser. Trace viewer is listening on http://127.0.0.1:33661
-    after httpJsonTrace
-     Alloc: 5288336048 Bytes
-     Sys:   7790245896 Bytes
-     HeapReleased:  0 Bytes
-     HeapSys:       7381123072 Bytes
-     HeapInUse:     5324120064 Bytes
-     HeapAlloc:     5288336048 Bytes
-    Enter to continue...
-    
-    Change-Id: I88bb3cb1af3cb62e4643a8cbafd5823672b2e464
-    Reviewed-on: https://go-review.googlesource.com/92355
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Change-Id: I47f6c47b43baf790907f55ed97a947661687a9db
+    Reviewed-on: https://go-review.googlesource.com/71252
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/trace/main.go  | 32 ++++++++++++++++++++++++++++++++
- src/cmd/trace/trace.go |  1 +
- 2 files changed, 33 insertions(+)
+ src/cmd/compile/internal/syntax/parser.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

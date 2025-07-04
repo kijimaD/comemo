@@ -1,27 +1,14 @@
-commit 26827bc2fe4c80dc68b3793631d24975425c9467
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Oct 22 07:25:21 2016 -0700
+commit 3bf141955be1d1f791f643700fbde60c258546d3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 09:16:48 2016 -0400
 
-    testing: add T.Context method
+    cmd/dist: test PIE internal linking on linux/amd64
     
-    From the doc comment:
-    
-    Context returns the context for the current test or benchmark.
-    The context is cancelled when the test or benchmark finishes.
-    A goroutine started during a test or benchmark can wait for the
-    context's Done channel to become readable as a signal that the
-    test or benchmark is over, so that the goroutine can exit.
-    
-    Fixes #16221.
-    Fixes #17552.
-    
-    Change-Id: I657df946be2c90048cc74615436c77c7d9d1226c
-    Reviewed-on: https://go-review.googlesource.com/31724
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I88dd0811db3a9864106def47b89848f5c8de94d4
+    Reviewed-on: https://go-review.googlesource.com/28545
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/build/deps_test.go   |  2 +-
- src/testing/benchmark.go    |  4 ++++
- src/testing/sub_test.go     | 51 ++++++++++++++++++++++++++-------------------
- src/testing/testing.go      | 35 +++++++++++++++++++++++++------
- src/testing/testing_test.go | 38 ++++++++++++++++++++++++++++-----
- 5 files changed, 96 insertions(+), 34 deletions(-)
+ src/cmd/dist/test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

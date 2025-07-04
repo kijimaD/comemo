@@ -1,17 +1,22 @@
-commit b6fa505c4a3508600a4e4d7834228046b0310873
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 21 04:15:40 2024 +0000
+commit 78203ac5369b90e115be5d34272450994b0e4544
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 17 17:59:49 2023 -0400
 
-    runtime: move goroutine stack exists events after span events
+    cmd/dist: tweaks to -json mode
     
-    Preserving an ordering wherein spans are always named before their
-    constituents makes parsing much more straightforward.
+    These are some follow-up tweaks to CL 494958. This CL drops a stale
+    and unnecessary check and passes through trailing non-JSON output.
     
-    Change-Id: Ida8764801a6c516d672ba343e4ce01b66ce9b427
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586999
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Updates #37486.
+    
+    Change-Id: I7cdb73a103f9cd49767d5491812d5ad011ee5c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496297
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/runtime/traceallocfree.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/dist/test.go          | 4 +---
+ src/cmd/dist/testjson.go      | 5 ++++-
+ src/cmd/dist/testjson_test.go | 4 +---
+ 3 files changed, 6 insertions(+), 7 deletions(-)

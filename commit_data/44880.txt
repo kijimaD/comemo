@@ -1,15 +1,25 @@
-commit 1d8abb3417af401ff6938c557ce30a8234bd2ce5
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Mar 22 22:31:28 2021 -0400
+commit b459bc8152210c14b66e23351690ff774cd68d2c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Sep 11 09:31:30 2020 -0400
 
-    go/parser: remove redundant list argument to Parser.shortVarDecl
+    cmd/go: make 'go mod download' update go.sum after downloads are complete
     
-    Change-Id: I75d089a7c1c3cdd50e5d2dafdb3386620efff4c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304454
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    'go mod download' calls WriteGoMod once via modload.ListModules when
+    it loads the build list. This saves sums for go.mod files needed by
+    MVS, but the write occurs before any zip files are downloaded.
+    
+    With this change, 'go mod download' calls WriteGoMod again (and thus,
+    modfetch.WriteGoSum) after downloading and verifying module zip files,
+    so the sums of the zip files will be saved, too.
+    
+    Fixes #41341
+    
+    Change-Id: I7d56754aa255256ed45fd93cb154c2e6ea5f45a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254357
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/parser/parser.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/modcmd/download.go      |  3 +++
+ src/cmd/go/testdata/script/mod_download.txt | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+)

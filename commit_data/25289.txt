@@ -1,12 +1,21 @@
-commit c2fb457ef762429bd2b79a701bfaced808d95ec4
+commit a8645e283b1961133dea205a62d472094f839c05
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 16 19:15:20 2015 +0000
+Date:   Mon Oct 19 14:45:50 2015 +0000
 
-    net/url: fix RFC typo in comments
+    net/http: use the correct error variable in serveFile
     
-    Change-Id: I04ed7e5ab992c1eb3528432797026d0c7d2818f1
-    Reviewed-on: https://go-review.googlesource.com/17894
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    It was generating the wrong error message, always defaulting to "500
+    Internal Server Error", since the err variable used was always nil.
+    
+    Fixes #12991
+    
+    Change-Id: I94b0e516409c131ff3b878bcb91e65f0259ff077
+    Reviewed-on: https://go-review.googlesource.com/16060
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/url/url_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/http/export_test.go |  2 ++
+ src/net/http/fs.go          |  4 ++--
+ src/net/http/fs_test.go     | 22 ++++++++++++++++++++++
+ 3 files changed, 26 insertions(+), 2 deletions(-)

@@ -1,12 +1,13 @@
-commit 170301d44bf6fbe0613ca755517d8cb899949f7f
-Author: Francisco Souza <franciscossouza@gmail.com>
-Date:   Tue Mar 13 12:57:48 2012 +1100
+commit fa6d3ab6bec591fcd8ac7e979677e147c83a754f
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Mar 13 12:52:15 2012 +1100
 
-    godoc: added alt and title attributes to the "pop out" button
+    build: update comment about GO_LDFLAGS.
+    (5l/6l/8l aren't involved in building packages)
     
-    R=adg
+    R=golang-dev, robert.hencke
     CC=golang-dev
-    https://golang.org/cl/5777071
+    https://golang.org/cl/5798071
 
- doc/root.html | 2 +-
+ src/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

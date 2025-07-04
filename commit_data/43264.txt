@@ -1,15 +1,18 @@
-commit c321430bdc328c394de501bdc5f8f5d6d8952cd4
+commit 6c7d6cefd0ec6653f7f245f3d71a5a3eb7697732
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Oct 12 15:48:53 2020 -0400
+Date:   Fri Mar 20 16:05:24 2020 -0400
 
-    cmd/link: remove residual darwin/386 code
+    [dev.link] cmd/internal/obj: restore old DWARF symbol handling
     
-    Change-Id: Iffed1c544d6ebb4ecd8fdb1cc51cf862a9f6d3de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261641
-    Trust: Cherry Zhang <cherryyz@google.com>
+    When old object file format is used, serialize DWARF symbols in
+    the old way.
+    
+    Change-Id: I73a97f10bba367ac29c52f8f3d0f8f3b34a42523
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224624
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/link/internal/ld/macho.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/internal/obj/objfile.go | 49 +++++++++++++++++++++++++++--------------
+ src/cmd/internal/obj/plist.go   | 23 +++++++++++++++++--
+ 2 files changed, 53 insertions(+), 19 deletions(-)

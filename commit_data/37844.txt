@@ -1,19 +1,48 @@
-commit 55dec44010bdabbbac8f58d1059b1fb83e869408
-Author: Jason LeBrun <jblebrun@gmail.com>
-Date:   Fri Jan 4 01:41:06 2019 +0000
+commit 317afdc3fbb477f310d9f3e9b2d8e3a381399826
+Author: Phil Pearl <philip.j.r.pearl@gmail.com>
+Date:   Sun Sep 2 17:03:34 2018 +0100
 
-    crypto/md5: fix casting of d.nx in UnmarshalBinary
+    strings: simplify Join using Builder
     
-    Fixes #29545
+    The existing implementation has a bunch of special cases and
+    suffers an additional allocation for longer arrays. We can replace
+    this code with a simple implementation using Builder, improve
+    performance and reduce complexity.
     
-    Change-Id: Ida98c23b8fc5c676d8bf0b3daad8320e495ebf64
-    GitHub-Last-Rev: d38e8a90c75f92031f6a8cf1f69f7bc7c28a52d8
-    GitHub-Pull-Request: golang/go#29546
-    Reviewed-on: https://go-review.googlesource.com/c/156297
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    name      old time/op    new time/op    delta
+    Join/0-8    3.53ns ± 3%    3.72ns ± 2%   +5.56%  (p=0.000 n=10+10)
+    Join/1-8    3.94ns ± 4%    3.40ns ± 4%  -13.57%  (p=0.000 n=10+10)
+    Join/2-8    57.0ns ± 3%    51.0ns ± 1%  -10.48%  (p=0.000 n=10+9)
+    Join/3-8    74.9ns ± 2%    65.5ns ± 4%  -12.60%  (p=0.000 n=10+10)
+    Join/4-8     105ns ± 0%      79ns ± 4%  -24.63%  (p=0.000 n=6+10)
+    Join/5-8     116ns ± 2%      91ns ± 4%  -21.95%  (p=0.000 n=10+10)
+    Join/6-8     131ns ± 1%     104ns ± 1%  -20.66%  (p=0.000 n=10+10)
+    Join/7-8     141ns ± 0%     114ns ± 4%  -18.82%  (p=0.000 n=9+10)
+    
+    name      old alloc/op   new alloc/op   delta
+    Join/0-8     0.00B          0.00B          ~     (all equal)
+    Join/1-8     0.00B          0.00B          ~     (all equal)
+    Join/2-8     16.0B ± 0%     16.0B ± 0%     ~     (all equal)
+    Join/3-8     32.0B ± 0%     32.0B ± 0%     ~     (all equal)
+    Join/4-8     96.0B ± 0%     48.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Join/5-8     96.0B ± 0%     48.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Join/6-8      128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Join/7-8      128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
+    
+    name      old allocs/op  new allocs/op  delta
+    Join/0-8      0.00           0.00          ~     (all equal)
+    Join/1-8      0.00           0.00          ~     (all equal)
+    Join/2-8      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    Join/3-8      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    Join/4-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    Join/5-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    Join/6-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    Join/7-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    
+    Change-Id: I866a50e809c398512cb87648c955eaa4bf4d8606
+    Reviewed-on: https://go-review.googlesource.com/132895
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/crypto/md5/md5.go      |  2 +-
- src/crypto/md5/md5_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 59 insertions(+), 1 deletion(-)
+ src/strings/strings.go      | 19 ++++++-------------
+ src/strings/strings_test.go | 14 ++++++++++++++
+ 2 files changed, 20 insertions(+), 13 deletions(-)

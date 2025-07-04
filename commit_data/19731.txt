@@ -1,13 +1,16 @@
-commit deae10e0384c3224662946bc33e3a5badff782c6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jul 14 19:14:27 2014 -0700
+commit fd7b82b4e489c9dd34686bbc627942fd9d19c8c4
+Author: Chris McGee <sirnewton_01@yahoo.ca>
+Date:   Tue Jul 15 11:27:04 2014 +1000
 
-    go/ast: fix walk to handle "for range x"
+    go get: Support for IBM DevOps Services (hub.jazz.net) git repos
     
-    LGTM=rsc
-    R=rsc
+    LGTM=adg
+    R=golang-codereviews, adg, minux
     CC=golang-codereviews
-    https://golang.org/cl/117790043
+    https://golang.org/cl/106740044
 
- src/pkg/go/ast/walk.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/go/doc.go      |   5 +++
+ src/cmd/go/help.go     |   5 +++
+ src/cmd/go/vcs.go      |   9 ++++
+ src/cmd/go/vcs_test.go | 116 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 135 insertions(+)

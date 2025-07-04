@@ -1,16 +1,23 @@
-commit 8a323542190ec3ba8f0ff0ec057e75e25ad1f408
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sun Sep 4 18:02:51 2022 +0800
+commit 6c0daa733192031eab23d09ed6515c4cd959aa92
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Oct 16 17:17:21 2021 +0200
 
-    internal/trace: use strings.Builder
+    syscall/js: remove Wrapper interface
     
-    Change-Id: Ic7f827b8ee758c991ed76be65026b0330207deea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428262
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    This change removes the js.Wrapper interface for performance reasons.
+    See proposal #44006 for details.
+    
+    This is a breaking change, but syscall/js is exempt from Go's
+    compatibility promise.
+    
+    Fixes #44006
+    
+    Change-Id: I968cd14b1e61cc72ea9f84240b6bd29e8b8ae673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356430
+    Trust: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/internal/trace/parser.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/js/func.go |  2 --
+ src/syscall/js/js.go   | 17 +++--------------
+ 2 files changed, 3 insertions(+), 16 deletions(-)

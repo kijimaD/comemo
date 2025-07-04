@@ -1,22 +1,25 @@
-commit ddb423a7da378902d1b71eb2c0027cc98a94b075
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Feb 8 14:08:20 2023 +0100
+commit ba6df85c7c94c7b26d4979e92fdb9ec7fa4cc1e4
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Wed Mar 30 19:27:21 2022 +0800
 
-    runtime: use explicit NOFRAME on freebsd/amd64
+    cmd/compile: add MOVBEWstore support for GOAMD64>=3
     
-    This CL marks some freebsd assembly functions as NOFRAME to avoid
-    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
-    without stack were also marked as NOFRAME.
+    This CL add MOVBE support for 16-bit version, but MOVBEWload is
+    excluded because it does not satisfy zero extented.
     
-    Updates #58378
+    For #51724
     
-    Change-Id: Ibd00748946f1137e165293df7da73278cb673bbd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466395
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I3fadf20bcbb9b423f6355e6a1e340107e8e621ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396617
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/internal/obj/x86/obj6.go |  3 ++-
- src/runtime/sys_freebsd_amd64.s  | 12 +++++-------
- 2 files changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 15 ++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 52 ++++++++++++++++++++++++++++
+ test/codegen/memcombine.go                   | 17 +++++----
+ 6 files changed, 82 insertions(+), 8 deletions(-)

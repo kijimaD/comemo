@@ -1,27 +1,20 @@
-commit 08a08083c13c1e5dfc320f71d3a1602b5c628599
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Aug 20 16:14:50 2023 -0700
+commit d268504fd90063328f484152585189db8374930d
+Author: Mikael Urankar <mikael@FreeBSD.org>
+Date:   Sun Sep 18 17:29:36 2022 +0200
 
-    cmd/compile/internal/typecheck: merge SubstArgTypes into LookupRuntime
+    cmd/nm, runtime/cgo: add cgo support for freebsd/riscv64
     
-    LookupRuntime is the only reason for using SubstArgTypes, and most
-    callers to LookupRuntime need to immediately call it anyway. So might
-    as well fuse them together.
+    Updates #53466
     
-    Change-Id: Ie0724ed164b949040e898a2a77bea632801b64fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521415
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I08ea279c905e265a579b6b3e23aee012165beaee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431658
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
 
- src/cmd/compile/internal/compare/compare.go | 11 +++------
- src/cmd/compile/internal/reflectdata/alg.go | 12 +++-------
- src/cmd/compile/internal/typecheck/syms.go  | 16 ++++++++-----
- src/cmd/compile/internal/walk/assign.go     | 15 ++++--------
- src/cmd/compile/internal/walk/builtin.go    | 37 ++++++++++-------------------
- src/cmd/compile/internal/walk/convert.go    |  5 ++--
- src/cmd/compile/internal/walk/range.go      | 10 +++-----
- src/cmd/compile/internal/walk/walk.go       | 24 +++++++------------
- 8 files changed, 48 insertions(+), 82 deletions(-)
+ src/cmd/nm/nm_cgo_test.go             |  2 +-
+ src/runtime/cgo/gcc_freebsd_riscv64.c | 67 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+), 1 deletion(-)

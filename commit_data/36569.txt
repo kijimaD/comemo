@@ -1,18 +1,19 @@
-commit b794ca64d29f3e584cbdf49bde7141d3c12dd2ab
-Author: Charles Kenney <charlesc.kenney@gmail.com>
-Date:   Mon Sep 3 07:02:03 2018 +0000
+commit 74879f0f014549f7881539d96d842ae1d6d3aa92
+Author: Sabin Mihai Rapan <sabin.rapan@gmail.com>
+Date:   Mon Feb 5 19:44:09 2018 +0200
 
-    runtime/trace: fix syntax errors in NewTask doc example
+    strconv: update Unquote example to be more concise
     
-    Fixes #27406
+    Changed the example to convey the intent of the Unquote function
+    in a more succint way.
     
-    Change-Id: I9c6f5bac5b26558fa7628233c74a62faf676e811
-    GitHub-Last-Rev: 29d19f719316b486224a15a50556465811985edf
-    GitHub-Pull-Request: golang/go#27437
-    Reviewed-on: https://go-review.googlesource.com/132775
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Fixes #23693
+    
+    Change-Id: I49465641d730e70b5af0d47057335af39882bcec
+    Reviewed-on: https://go-review.googlesource.com/92015
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/trace/annotation.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/strconv/example_test.go | 34 +++++++++++++++-------------------
+ 1 file changed, 15 insertions(+), 19 deletions(-)

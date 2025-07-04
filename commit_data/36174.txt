@@ -1,27 +1,20 @@
-commit cdac6c22c30cbe75031563ff2859d0314aa8477b
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 30 12:59:42 2018 -0400
+commit ace5fa1a609c28cbfcede4639d3eed47c47b2774
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 10 12:19:24 2018 +0200
 
-    cmd/go: allow list of absolute directory path
+    runtime: remove support_bmi{1,2}
     
-    Relative directory paths have always worked.
-    This CL makes absolute directory paths be handled the same way.
-    (It was an oversight that they were excluded.)
+    The code reading these variables was removed in CL 41476. They are only
+    set but never read now, so remove them.
     
-    It also fixes the case of naming the directory holding source code
-    for a package in a module dependency.
-    
-    Fixes #14177.
-    Fixes #26550.
-    
-    Change-Id: I29a0ca2795d35eca773121ee91a97628b56947ce
-    Reviewed-on: https://go-review.googlesource.com/126715
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I6b0b8d813e9a3ec2a13586ff92746e00ad1b5bf0
+    Reviewed-on: https://go-review.googlesource.com/106095
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go             |  8 ++++--
- src/cmd/go/internal/modload/load.go         | 40 ++++++++++++++++++++++++++---
- src/cmd/go/testdata/script/mod_list_dir.txt | 27 +++++++++++++++++++
- 3 files changed, 69 insertions(+), 6 deletions(-)
+ src/runtime/asm_386.s      | 6 ------
+ src/runtime/asm_amd64.s    | 6 ------
+ src/runtime/asm_amd64p32.s | 6 ------
+ src/runtime/runtime2.go    | 2 --
+ 4 files changed, 20 deletions(-)

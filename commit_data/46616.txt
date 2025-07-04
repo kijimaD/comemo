@@ -1,22 +1,42 @@
-commit 8d09f7c5178b04bade2859d32d0710233a620d4f
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Fri Aug 13 09:01:13 2021 -0700
+commit 502198c8dc325eb60ff7afb74358b3beffd9831c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 14 17:34:38 2021 -0800
 
-    runtime: use per-thread profiler for SetCgoTraceback platforms
+    [dev.typeparams] cmd/compile/internal/types2: consistently report nil type as "untyped nil"
     
-    Updates #35057
+    This fixes an inconsistency where the type for nil in code such as
     
-    Change-Id: I61d772a2cbfb27540fb70c14676c68593076ca94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342054
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+            var x unsafe.Pointer = nil
+    
+    and in conversions of the form
+    
+            T(nil)
+    
+    (where T is a pointer, function, slice, map, channel, interface, or
+    unsafe.Pointer) was reported as (converted to) the respective type.
+    For all other operations that accept a nil value, we don't do this
+    conversion for nil.
+    
+    (We never change the type of the untyped nil value, in contrast to
+    other untyped values where we give the values context-specific types.)
+    
+    It may still be useful to change this behavior and - consistently -
+    report a converted nil type like we do for any other type, but for
+    now this CL simply fixes the existing inconsistency.
+    
+    Added tests and fixed existing test harness.
+    
+    Updates #13061.
+    
+    Change-Id: Ia82832845c096e3cbc4a239ba3d6c8b9a9d274c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284052
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/os_linux.go         |  6 ++----
- src/runtime/signal_unix.go      | 21 ++++++++++++++++-----
- src/runtime/sys_darwin_amd64.s  | 23 ++++++++++++++++++++---
- src/runtime/sys_freebsd_amd64.s | 23 ++++++++++++++++++++---
- src/runtime/sys_linux_amd64.s   | 23 ++++++++++++++++++++---
- src/runtime/sys_linux_ppc64x.s  |  3 +++
- 6 files changed, 81 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go    | 64 ++++++++++++++++++++++----
+ src/cmd/compile/internal/types2/conversions.go |  4 +-
+ src/cmd/compile/internal/types2/expr.go        |  1 +
+ 3 files changed, 58 insertions(+), 11 deletions(-)

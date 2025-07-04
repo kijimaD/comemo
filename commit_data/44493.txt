@@ -1,25 +1,24 @@
-commit 4532467c1854fa16378063bd99defadc4a1e5fb1
-Author: David Chase <drchase@google.com>
-Date:   Thu Feb 18 15:50:37 2021 -0500
+commit bf1816c7b7a2519176784f26639968ea47cdeb0b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jul 17 17:56:17 2020 -0400
 
-    cmd/compile: pass register parameters to called function
+    [dev.link] cmd/link: stream external relocations on ARM64 and on Darwin
     
-    still needs morestack
-    still needs results
-    lots of corner cases also not dealt with.
+    Support streaming external relocations on ARM64. Support
+    architecture-specific relocations.
     
-    For #40724.
+    Also support streaming external relocations on Darwin. Do it in
+    the same CL so ARM64's archreloc doesn't need to support both
+    streaming and non-streaming.
     
-    Change-Id: I03abdf1e8363d75c52969560b427e488a48cd37a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293889
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia7fee9957892f98c065022c69a51f47402f4d6e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243644
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  3 +-
- src/cmd/compile/internal/ssa/op.go           | 54 +++++++++++++++++++++++++++-
- src/cmd/compile/internal/ssa/opGen.go        |  2 +-
- src/cmd/compile/internal/ssa/regalloc.go     | 27 +++++++++++---
- 4 files changed, 78 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/arm64/asm.go | 48 +++++++++++++++++++++++++++++++-------
+ src/cmd/link/internal/arm64/obj.go |  1 +
+ src/cmd/link/internal/ld/data.go   | 19 ++++++++-------
+ src/cmd/link/internal/ld/lib.go    |  5 ++++
+ src/cmd/link/internal/ld/macho.go  | 20 +++++++++++-----
+ src/cmd/link/internal/ld/target.go |  2 +-
+ 6 files changed, 72 insertions(+), 23 deletions(-)

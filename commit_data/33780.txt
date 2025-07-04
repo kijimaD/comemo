@@ -1,17 +1,14 @@
-commit bfa7a558bf08dfa17c3a59dd156dcb022b76a433
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 1 06:57:37 2017 -0800
+commit a323656bb3edce6b2913a4946be8481ef1311afc
+Author: Mayank Kumar <krmayankk@gmail.com>
+Date:   Fri Sep 8 01:04:28 2017 -0700
 
-    cmd/cgo: for C bitfields use only valid Go integer types
+    path: add path.Dir example with trailing slash
     
-    Fixes #22958
-    
-    Change-Id: Ib078a5f6e1105a2afca77c6d9a05f65ddf5d9010
-    Reviewed-on: https://go-review.googlesource.com/81435
+    Change-Id: I143203a9dcf9a4da0e53a3aab6e370244b849296
+    Reviewed-on: https://go-review.googlesource.com/62270
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/issue22958.go | 24 ++++++++++++++++++++++++
- src/cmd/cgo/gcc.go          |  4 +++-
- 2 files changed, 27 insertions(+), 1 deletion(-)
+ src/path/example_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

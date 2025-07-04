@@ -1,16 +1,18 @@
-commit f7e78aa5868c9bd5cd43c902343e035f4f902725
-Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
-Date:   Mon Jan 5 11:15:18 2015 +0000
+commit 31775c5a958e00411954724408d1a069df4b9061
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 6 15:08:02 2015 -0800
 
-    crypto/x509/pkix: Parse and add additional elements in a DN
+    cmd/cgo: update code and docs to reflect post-6c world
     
-    Additional elements in a DN can be added in via ExtraNames. This
-    option can also be used for sorting DN elements in a custom order.
+    The gc toolchain no longer includes a C compiler, so mentions of "6c"
+    can be removed or replaced by 6g as appropriate.  Similarly, some cgo
+    functions that previously generated C source output no longer need to.
     
-    Change-Id: Ie408d332de913dc2a33bdd86433be38abb7b55be
-    Reviewed-on: https://go-review.googlesource.com/2257
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I1ae6b02630cff9eaadeae6f3176c0c7824e8fbe5
+    Reviewed-on: https://go-review.googlesource.com/2391
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/x509/pkix/pkix.go | 43 ++++++++++++++++++++++++++++++-------------
- src/crypto/x509/x509_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 13 deletions(-)
+ src/cmd/cgo/doc.go  | 174 +++++++++++++++++++++++++---------------------------
+ src/cmd/cgo/main.go |   6 +-
+ src/cmd/cgo/out.go  |  34 +++++-----
+ 3 files changed, 104 insertions(+), 110 deletions(-)

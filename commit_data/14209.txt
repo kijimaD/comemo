@@ -1,23 +1,23 @@
-commit 80dbe74360e8576337208ec68baca7a63946a72a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 23 11:16:08 2012 -0400
+commit 7c03cd32b6612f153cf6362ead27e86af6e65336
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 22 11:28:21 2012 -0700
 
-    cmd/gc, cmd/ld: use go.weak instead of weak as the weak symbol prefix
+    exp/type/staging: implemented recent spec changes
     
-    Also defend our symbol prefixes (now just "go" and "type")
-    from use as import paths.
+    Also:
+    - type-checking receivers
+    - get rid of some multiple errors at the same position
     
-    Fixes #4257.
-    
-    R=ken2
+    R=rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6744072
+    https://golang.org/cl/6709061
 
- src/cmd/gc/export.c |    2 +
- src/cmd/gc/go.y     |   12 +-
- src/cmd/gc/lex.c    |   11 +-
- src/cmd/gc/subr.c   |   16 +-
- src/cmd/gc/y.tab.c  | 1431 ++++++++++++++++++++-------------------------------
- src/cmd/gc/y.tab.h  |   68 +--
- src/cmd/ld/go.c     |    8 +-
- 7 files changed, 612 insertions(+), 936 deletions(-)
+ src/pkg/exp/types/staging/builtins.go           |  16 ++-
+ src/pkg/exp/types/staging/check.go              |   3 +-
+ src/pkg/exp/types/staging/expr.go               |  58 +++++-----
+ src/pkg/exp/types/staging/testdata/builtins.src | 141 ++++++++++++------------
+ src/pkg/exp/types/staging/testdata/decls0.src   |   4 +-
+ src/pkg/exp/types/staging/testdata/decls1.src   |   6 +-
+ src/pkg/exp/types/staging/testdata/decls2a.src  |   7 +-
+ src/pkg/exp/types/staging/testdata/expr3.src    |   5 +
+ 8 files changed, 134 insertions(+), 106 deletions(-)

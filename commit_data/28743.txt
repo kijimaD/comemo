@@ -1,17 +1,20 @@
-commit 9a8832f1422f7fa72e4855757e4a951957cc62ae
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 10 16:44:53 2016 -0400
+commit 38de5b71f274ff93581a302b2f3ec4b9937afa51
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 10 21:47:56 2016 -0700
 
-    math/big: move exhaustive tests behind -long flag
+    doc/go1.7.html: no concurrent calls of math/rand methods
     
-    This way you can still run 'go test' or 'go bench -run Foo'
-    without wondering why it is taking so very long.
+    A follow-on to https://golang.org/cl/24852 that mentions the
+    documentation clarifications.
     
-    Change-Id: Icfa097a6deb1d6682acb7be9f34729215c29eabb
-    Reviewed-on: https://go-review.googlesource.com/30707
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Updates #16308.
+    
+    Change-Id: Ic2a6e1d4938d74352f93a6649021fb610efbfcd0
+    Reviewed-on: https://go-review.googlesource.com/24857
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/math/big/float_test.go   |  9 ++++++---
- src/math/big/rat_test.go     | 10 +++++-----
- src/math/big/ratconv_test.go |  6 +++---
- 3 files changed, 14 insertions(+), 11 deletions(-)
+ doc/go1.7.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

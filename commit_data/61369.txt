@@ -1,0 +1,20 @@
+commit 378c48e6c7c9f62c80b4d627302fda978ece2a1d
+Author: khr@golang.org <khr@golang.org>
+Date:   Thu Oct 31 10:10:08 2024 -0700
+
+    internal/runtime/maps: use matchEmptyOrDeleted instead of matchEmpty
+    
+    It's a bit more efficient.
+    
+    Change-Id: If813a597516c41fdac6f60e586641d0ee1cde025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623818
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/maps/map.go                   |  7 ++++---
+ src/internal/runtime/maps/runtime_fast32_swiss.go  |  7 ++++---
+ src/internal/runtime/maps/runtime_fast64_swiss.go  | 14 ++++++++------
+ src/internal/runtime/maps/runtime_faststr_swiss.go |  7 ++++---
+ src/internal/runtime/maps/table.go                 |  8 ++++----
+ 5 files changed, 24 insertions(+), 19 deletions(-)

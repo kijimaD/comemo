@@ -1,20 +1,20 @@
-commit f01721efb941edadc2e6a897e42919b0d68480e1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Sep 16 13:55:45 2021 -0400
+commit c28ca67a961a0c1d149a249918a15ed74c61af27
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 4 22:58:24 2021 -0800
 
-    cmd/compile: remove self copies in tail-call wrappers
+    [dev.regabi] cmd/compile: fix ir.Dump for []*CaseClause, etc
     
-    The previous CL re-enables tail calls for method wrappers. But
-    with the changed IR and SSA representation, for stack arguments
-    it generates self copies. This CL makes the compiler detect the
-    self copies and remove them.
+    Dump uses reflection to print IR nodes, and it only knew how to print
+    out the Nodes slice type itself. This CL adds support for printing any
+    slice whose element type implements Node, such as SwitchStmt and
+    SelectStmt's clause lists.
     
-    Change-Id: I7252572a1a47834f28b6706e45906e2356408e02
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350349
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2fd8defe11868b564d1d389ea3cd9b8abcefac62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281537
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/cmd/compile/internal/ir/fmt.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

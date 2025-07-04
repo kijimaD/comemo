@@ -1,34 +1,37 @@
-commit 7bda349c1735fb6043b22d7a0e4542134baa6518
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Nov 5 23:47:51 2021 +0000
+commit 71a6c13164f2151c14ebaeccdfcb3633fc8b618e
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Mar 10 19:28:28 2021 -0800
 
-    runtime: disable GC in TestPanicSystemstack's subprocess
+    cmd/compile:  call types.CheckSize() in g.typ()
     
-    TestPanicSystemstack spins up a subprocess that has 2 goroutines
-    deadlock on a runtime lock while on the system stack, with GOMAXPROCS=2.
+    Restore code to call types.CheckSize() in g.typ(). There are certain
+    cases (involving maps) where we need to do CheckSize here. In general,
+    the old typechecker calls CheckSize() a lot, and we want to eliminate
+    calling it eventually, so should get do types.CheckSize() when we create
+    a new concrete type.
     
-    Each goroutine is going to be running on a P, and then is going to wedge
-    itself up on that P.
+    However, the test typeparams/cons.go does not work with just calling
+    types.CheckSize() in g.typ() (which is why I disabled the calls
+    originally). The reason is that g.typ() is called recursively within
+    types.go, so it can be called on a partially-created recursive type,
+    which leads to an error in CheckSize(). So, we need to call CheckSize()
+    only on fully-created top-level types. So, I divided typ() into typ()
+    and typ1(), where typ() is now the external entry point, and typ1() is
+    called within types.go. Now, typ() can call CheckSize() safely.
     
-    If a GC is active and a worker starts executing (using a P), then it
-    could try to preempt a goroutine that is already blocked. It won't be
-    able to, so it'll just sit there forever trying to suspend it. At this
-    point there are no more Ps to execute the remaining goroutine that needs
-    to print something so the parent process can continue the test.
+    I also added in an extra condition - we do not currently need to call
+    CheckSize() on non-fully-instantiated types, since they will not make it
+    to the backend.  That could change a bit with dictionaries.
     
-    This change fixes this issue by disabling GCs in the child process. An
-    alternative fix could be to increase GOMAXPROCS in the child, but maybe
-    letting the GC be on (which assumes it'll always be able to *eventually*
-    suspend a G) is just asking for trouble.
+    Fixes #44895
     
-    Fixes #49388.
-    
-    Change-Id: I405c9dad50e24e1e68f2c52a646538da15797fbe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361897
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I783aa7d2999dd882ddbd99a7c19a6ff6ee420102
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300989
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/crash_unix_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/noder/types.go | 54 +++++++++++++++++++--------------
+ 1 file changed, 31 insertions(+), 23 deletions(-)

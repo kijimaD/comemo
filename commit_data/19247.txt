@@ -1,13 +1,13 @@
-commit 573cfe95615faac43b9fc0841f13b74640584305
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 28 12:45:00 2014 -0400
+commit a9288d63ef47106132c76d3dcdf0ce132755fa37
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Apr 28 06:27:22 2014 -0700
 
-    runtime: heapdump - make sure spans are swept before dumping.
+    doc: fix broken link to RTEMS Go wiki page
     
-    LGTM=rsc
-    R=golang-codereviews, adonovan, rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/90440043
+    https://golang.org/cl/98740046
 
- src/pkg/runtime/heapdump.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ doc/gccgo_install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

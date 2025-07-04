@@ -1,41 +1,52 @@
-commit b868616b63a82a4f5917400b2df63a19ebe041e2
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 26 15:14:50 2017 -0700
+commit a795ca51db39f057fb1f772425d86cd93ccf261b
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 23 23:44:33 2017 -0700
 
-    cmd/cgo: special case C ptr types to use uintptr
+    archive/tar: support arbitrary PAX records
     
-    Some C types are declared as pointers, but C code
-    stores non-pointers in them.  When the Go garbage
-    collector sees such a pointer, it gets unhappy.
+    This CL adds the following new publicly visible API:
+            type Header struct { ...; PAXRecords map[string]string }
     
-    Instead, for these types represent them on the Go
-    side with uintptr.
+    The new Header.PAXRecords field is a map of all PAX extended header records.
     
-    We need this change to handle Apple's CoreFoundation
-    CF*Ref types. Users of these types might need to
-    update their code like we do in root_cgo_darwin.go.
-    The only change that is required under normal
-    circumstances is converting some nils to 0.
-    A go fix module is provided to help.
+    We suggest (but do not enforce) that users use VENDOR-prefixed keys
+    according to the following in the PAX specification:
+    <<<
+    The standard developers have reserved keyword name space for vendor extensions.
+    It is suggested that the format to be used is:
+            VENDOR.keyword
+    where VENDOR is the name of the vendor or organization in all uppercase letters.
+    >>>
     
-    Fixes #21897
+    When reading, the Header.PAXRecords is populated with all PAX records
+    encountered so far, including basic ones (e.g., "path", "mtime", etc).
+    When writing, the fields of Header will be merged into PAXRecords,
+    overwriting any records that may conflict.
     
-    RELNOTE=yes
+    Since PAXRecords is a more expressive feature than Xattrs and
+    is entirely a superset of Xattrs, we mark Xattrs as deprecated,
+    and steer users towards the new PAXRecords API.
     
-    Change-Id: I9716cfb255dc918792625f42952aa171cd31ec1b
-    Reviewed-on: https://go-review.googlesource.com/66332
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    The issue has a discussion about adding a Header.SetPAXRecord method
+    to help validate records and keep the Header fields in sync.
+    However, we do not include that in this CL since that helper
+    method can always be added in the future.
+    
+    There is no support for global records.
+    
+    Fixes #14472
+    
+    Change-Id: If285a52749acc733476cf75a2c7ad15bc1542071
+    Reviewed-on: https://go-review.googlesource.com/58390
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/cgo_test.go          |   1 +
- misc/cgo/test/issue21897.go        |  56 +++++++++++
- misc/cgo/test/issue21897b.go       |  13 +++
- src/cmd/cgo/doc.go                 |  82 ++++++++++++++++
- src/cmd/cgo/gcc.go                 |  59 ++++++++++++
- src/cmd/dist/test.go               |   2 +-
- src/cmd/fix/cftype.go              |  93 +++++++++++++++++++
- src/cmd/fix/cftype_test.go         | 185 +++++++++++++++++++++++++++++++++++++
- src/cmd/fix/typecheck.go           |  56 +++++++++++
- src/crypto/x509/root_cgo_darwin.go |   6 +-
- 10 files changed, 549 insertions(+), 4 deletions(-)
+ src/archive/tar/common.go                | 119 +++++++++++++++++++++++--------
+ src/archive/tar/reader.go                |  68 +++++++++---------
+ src/archive/tar/reader_test.go           |  94 ++++++++++++++++++++++--
+ src/archive/tar/strconv_test.go          |   2 +-
+ src/archive/tar/tar_test.go              |  22 +++---
+ src/archive/tar/testdata/pax-records.tar | Bin 0 -> 2560 bytes
+ src/archive/tar/writer_test.go           |  16 +++++
+ 7 files changed, 234 insertions(+), 87 deletions(-)

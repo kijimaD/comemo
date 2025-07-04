@@ -1,20 +1,20 @@
-commit 3a3f672eda6f720f68950492a85254528ac53dad
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Tue Nov 8 17:46:10 2016 +0530
+commit fb273fc3a3438f7a24b0901e2fcfd099eac4860d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 26 10:50:12 2016 -0700
 
-    os: cleanup directories created by TestLongPath
+    cmd/compile: fix comma-ok assignments for non-boolean ok
     
-    Add tmpdir as a parameter to the closure otherwise the subsequent
-    modifications to tmpdir causes only the last subdirectory to be
-    removed.
+    Passes toolstash -cmp.
     
-    Additionally, add the missing argument for the t.Fatalf call.
+    Fixes #16870.
     
-    Change-Id: I3df53f9051f7ea40cf3f846d47d9cefe445e9b9d
-    Reviewed-on: https://go-review.googlesource.com/32892
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I70dc3bbb3cd3031826e5a54b96ba1ea603c282d1
+    Reviewed-on: https://go-review.googlesource.com/27910
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/os/os_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/order.go |  47 ++++++++----
+ src/cmd/compile/internal/gc/walk.go  |  13 +++-
+ test/fixedbugs/issue16870.go         | 140 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 181 insertions(+), 19 deletions(-)

@@ -1,13 +1,20 @@
-commit 2be94b1ba650d6ce106ca131a966150454708595
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Mon Feb 17 14:33:00 2014 +1100
+commit c3922f0a63b826000e6ab46cadc344782fbae178
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 17 06:29:56 2014 +0400
 
-    crypto/md5: add example for Sum
+    testing: ease writing parallel benchmarks
+    Add b.RunParallel function that captures parallel benchmark boilerplate:
+    creates worker goroutines, joins worker goroutines, distributes work
+    among them in an efficient way, auto-tunes grain size.
+    Fixes #7090.
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    R=bradfitz, iant, josharian, tracey.brendan, r, rsc, gobot
     CC=golang-codereviews
-    https://golang.org/cl/64820044
+    https://golang.org/cl/57270043
 
- src/pkg/crypto/md5/example_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/go1.3.txt                     |   1 +
+ src/pkg/runtime/chan_test.go      | 213 +++++++++++++-------------------------
+ src/pkg/testing/benchmark.go      |  97 +++++++++++++++--
+ src/pkg/testing/benchmark_test.go |  54 ++++++++++
+ src/pkg/testing/testing.go        |  16 +++
+ 5 files changed, 236 insertions(+), 145 deletions(-)

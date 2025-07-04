@@ -1,24 +1,16 @@
-commit aa476ba6f43ebc4e7ddb6599a7ad35d9fbf1ec6d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Sep 1 00:34:03 2020 -0400
+commit 025a4faf5fd70b8be4a77d19762eb2b4da8754b0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 26 04:01:29 2020 +1100
 
-    cmd/go/internal/modload: refactor pathInModuleCache
+    cmd/compile: simplify Slicemask on riscv64
     
-    I found the control flow of this function a bit tricky to reason about
-    due to nesting and interaction between conditions and iteration. This
-    change factors out a helper function that can return early instead of
-    mixing conditionals and 'continue' statements.
+    Slicemask can be performed with three immediate instructions, rather than the
+    six currently in use.
     
-    Also remove the (unused) ModuleUsedDirectly function.
-    
-    For #36460
-    
-    Change-Id: I60a2a5a1b32989e5a17a14e1a8c858b280cda8f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251998
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I3f8ca2d5affd1403db8fa79b356f248e6e9332c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220923
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/modload/load.go | 33 ++++++++++++++++++++-------------
- 1 file changed, 20 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  3 +--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 25 +++++++++----------------
+ 2 files changed, 10 insertions(+), 18 deletions(-)

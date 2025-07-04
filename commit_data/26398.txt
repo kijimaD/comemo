@@ -1,27 +1,23 @@
-commit 8dc04cbedcab9a769bb9f74d897c35ed9bc73ba2
+commit da8af47710818617d765a25f0ff487fe8d633250
 Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 18 10:45:30 2016 -0700
+Date:   Wed Jan 13 11:14:57 2016 -0800
 
-    cmd/compile: enforce 32-bit restrictions on ops
+    [dev.ssa] cmd/compile: report better line numbers for Unimplemented/Fatal
     
-    Most 64-bit x86 ops can only take a signed 32-bit constant.
-    Clean up our rewrite rules to enforce this restriction.
+    If a failure occurs in SSA processing, we always report the
+    last line of the function we're compiling.  Modify the callbacks
+    from SSA to the GC compiler so we can pass a line number back
+    and use it in Fatalf.
     
-    Modify the assembler to fail if the offset does not fit
-    in the instruction.
-    
-    That last check triggers a few times on weird testing code.
-    Suppress those errors if the compiler itself generated errors.
-    
-    Fixes #14862
-    
-    Change-Id: I76559af035b38483b1e59621a8029fc66b3a5d1e
-    Reviewed-on: https://go-review.googlesource.com/20815
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ifbfad50d5e167e997e0a96f0775bcc369f5c397e
+    Reviewed-on: https://go-review.googlesource.com/18599
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/dcl.go           |   4 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules | 243 ++++++------
- src/cmd/compile/internal/ssa/rewrite.go      |  10 -
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 561 +++++++++++++++------------
- src/cmd/internal/obj/x86/asm6.go             |  10 +
- 5 files changed, 459 insertions(+), 369 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go          | 16 ++++++++++------
+ src/cmd/compile/internal/ssa/config.go      | 14 ++++++++------
+ src/cmd/compile/internal/ssa/export_test.go |  9 ++++++---
+ src/cmd/compile/internal/ssa/func.go        |  8 +++++---
+ src/cmd/compile/internal/ssa/html.go        |  6 +++---
+ src/cmd/compile/internal/ssa/value.go       | 10 +++++++---
+ 6 files changed, 39 insertions(+), 24 deletions(-)

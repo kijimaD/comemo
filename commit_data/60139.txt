@@ -1,0 +1,22 @@
+commit 6db272d2dd65202e97058cb0c4909151eed05ae6
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed May 22 18:38:37 2024 +0000
+
+    crypto/x509: properly pouplate the RevocationList.AuthorityKeyId field
+    
+    This looks like a oversight in CL 416354.
+    
+    Fixes #67571
+    Fixes #57461
+    
+    Change-Id: I564c008989fecf84b437e123d27121ac907642fa
+    GitHub-Last-Rev: fec88bbf39a397cc43ff650db9bf0b7ad28e42a0
+    GitHub-Pull-Request: golang/go#67576
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587455
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/parser.go    | 43 +++++++++++++++++++++++++++----------------
+ src/crypto/x509/x509_test.go |  6 +++---
+ 2 files changed, 30 insertions(+), 19 deletions(-)

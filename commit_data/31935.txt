@@ -1,19 +1,17 @@
-commit 5e585830d3bed2b81b825e1c3e8c244726d091d7
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 28 10:33:15 2017 -0400
+commit a69754e30c9582e830ba244578724449955d4160
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Mar 24 09:00:17 2017 -0700
 
-    time: fix example in monotonic time comment
+    cmd/compile: unnamed parameters do not escape
     
-    t.Sub(u) would be -20 milliseconds.
-    The right computation is u.Sub(t), but rewrite to be even clearer.
+    Fixes #19687
     
-    Thanks to Karsten Weiss for catching this.
-    
-    Change-Id: I6e274d69b0301840d57c5c65bf4114da0d33bf10
-    Reviewed-on: https://go-review.googlesource.com/46971
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I2e4769b4ec5812506df4ac5dc6bc6a7c5774ecb0
+    Reviewed-on: https://go-review.googlesource.com/38600
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/time/time.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  9 +++++++++
+ test/escape5.go                    | 14 ++++++++++++++
+ 2 files changed, 23 insertions(+)

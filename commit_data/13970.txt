@@ -1,12 +1,19 @@
-commit b46dd48dd3be07216eb8940aa1e2c131adbab405
+commit ffea835b8f18681f2736a6b88b83aa27baf0a575
 Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 27 15:39:56 2012 +1000
+Date:   Thu Sep 27 06:21:38 2012 +1000
 
-    cmd/api: delete redundant text from deletion message
+    fmt: allow # and x together for strings
+    Silly and small but easy to be consistent.
+    To make it worthwhile, I eliminated an allocation when using
+    %x on a byte slice.
     
-    R=bradfitz, minux.ma, rsc
+    Fixes #4149.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6543064
+    https://golang.org/cl/6574046
 
- src/cmd/api/goapi.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/fmt/fmt_test.go |  8 +++++++-
+ src/pkg/fmt/format.go   | 39 +++++++++++++++++++++++++++++++--------
+ src/pkg/fmt/print.go    |  9 ++++-----
+ 3 files changed, 42 insertions(+), 14 deletions(-)

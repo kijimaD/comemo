@@ -1,14 +1,14 @@
-commit 2132a7f575cba670eeffde495c0bb2df120c2c5b
+commit 59a190589a86a3c77200e5b76c912210ff8148ac
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 1 15:19:34 2011 -0700
+Date:   Wed Jun 1 15:12:47 2011 -0700
 
-    fix build: remove non-portable test case
-    
-    On a 32bit machine, the big.Words are only 32bit.
+    godoc: basic setup for running godoc on local app engine emulator
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4561055
+    https://golang.org/cl/4559058
 
- src/pkg/big/nat_test.go | 6 ------
- 1 file changed, 6 deletions(-)
+ misc/godoc/README   | 22 ++++++++++++++++++++++
+ misc/godoc/app.yaml | 12 ++++++++++++
+ misc/godoc/init.go  | 35 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 69 insertions(+)

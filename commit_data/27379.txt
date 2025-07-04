@@ -1,17 +1,20 @@
-commit ccf2c019921999f49ba2ab8cbfe70ebecc986f46
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Thu May 12 15:27:30 2016 +0300
+commit 633e41432c7c617809ddb22c0c3f2fc214a26b99
+Author: Tilman Dilo <tilman.dilo@gmail.com>
+Date:   Wed Mar 23 22:38:52 2016 +0100
 
-    go/types: fix certain vet warnings
+    image/png: ignore trailing IDAT chunks
     
-    Updates #11041
+    Ignore superfluous trailing IDAT chunks which were not consumed when decoding
+    the image. This change fixes decoding of valid images in which a zero-length
+    IDAT chunk appears after the actual image data. It also prevents decoding of
+    trailing garbage IDAT chunks or maliciously embedded additional images.
     
-    Change-Id: I4e1c670d2b7fc04927d77c6f933cee39b7d48b6e
-    Reviewed-on: https://go-review.googlesource.com/23083
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #14936
+    
+    Change-Id: I8c76cfa9a03496d9576f72bed2db109271f97c5e
+    Reviewed-on: https://go-review.googlesource.com/21045
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
 
- src/go/types/resolver.go | 2 +-
- src/go/types/stmt.go     | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/image/png/reader.go      |  7 +++++++
+ src/image/png/reader_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

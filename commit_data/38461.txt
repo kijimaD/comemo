@@ -1,18 +1,23 @@
-commit 66b264d2c1119ffefd7cd99def02b9f533651678
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Feb 20 17:01:15 2019 +0100
+commit 0ad332d80cf3e2bbeef5f1e5f5eb50272bbde92e
+Author: Keith Randall <khr@google.com>
+Date:   Tue Oct 30 12:58:50 2018 -0700
 
-    runtime: fix TestSigStackSwapping on aix/ppc64
+    cmd/compile: implement some moves using non-overlapping reads&writes
     
-    This commit fixes TestSigStackSwapping by increasing the signal stack
-    size. This is needed because SIGSTKSZ is too small when VMX is used on
-    AIX.
+    For moves >8,<16 bytes, do a move using non-overlapping loads/stores
+    if it would require no more instructions.
     
-    Change-Id: Ic2b5faa65745228d0768383b3d6ebd4b6f9f532c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/164012
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This helps a bit with the case when the move is from a static
+    constant, because then the code to materialize the value being moved
+    is smaller.
+    
+    Change-Id: Ie47a5a7c654afeb4973142b0a9922faea13c9b54
+    Reviewed-on: https://go-review.googlesource.com/c/146019
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/testdata/testprogcgo/sigstack.go | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  11 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 102 ++++++++++++++++++++++++++-
+ test/codegen/strings.go                      |  12 ++++
+ 3 files changed, 121 insertions(+), 4 deletions(-)

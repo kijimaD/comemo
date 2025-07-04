@@ -1,29 +1,24 @@
-commit 3231d4e4ef37df9c4457c1ce1ae3f46cf4b994f7
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Nov 9 23:10:43 2017 +0000
+commit ac29f4d01ce6891cad6865eda5b16efed8ef231f
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Aug 9 15:43:25 2017 -0500
 
-    cmd/compile: replace opnames with stringer
+    cmd/compile/internal/amd64: add ADD[Q|L]constmem
     
-    Now possible, since stringer just got the -trimprefix flag added.
+    We can add a constant to loaction in memory with 1 instruction,
+    as opposed to load+add+store, so add a new op and relevent ssa rules.
+    Triggers in e. g. encoding/json isValidNumber:
+    NumberIsValid-6          36.4ns ± 0%    35.2ns ± 1%  -3.32%  (p=0.000 n=6+10)
+    Shaves ~2.5 kb from go tool.
     
-    While at it, simplify a few Op stringifications since we can now use %v,
-    and no longer have to worry about o<len(opnames).
-    
-    Passes toolstash -cmp on std cmd.
-    
-    Fixes #15462.
-    
-    Change-Id: Icdcde0b0a5eb165d18488918175024da274f782b
-    Reviewed-on: https://go-review.googlesource.com/76790
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I7ba576676c2522432360f77b290cecb9574a93c3
+    Reviewed-on: https://go-review.googlesource.com/54431
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/fmt_test.go              |   1 +
- src/cmd/compile/internal/gc/bexport.go   |   2 +-
- src/cmd/compile/internal/gc/fmt.go       |  12 +--
- src/cmd/compile/internal/gc/op_string.go |  16 ++++
- src/cmd/compile/internal/gc/opnames.go   | 158 -------------------------------
- src/cmd/compile/internal/gc/ssa.go       |   4 +-
- src/cmd/compile/internal/gc/syntax.go    |   4 +-
- 7 files changed, 25 insertions(+), 172 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        | 23 ++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 10 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 30 +++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 78 ++++++++++++++++++++++++++++
+ 5 files changed, 144 insertions(+), 4 deletions(-)

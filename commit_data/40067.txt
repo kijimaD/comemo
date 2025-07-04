@@ -1,30 +1,12 @@
-commit 95b8cbfee93766274583bacfb98b3b0cc1dbb6cf
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 23 14:25:22 2019 -0700
+commit e47090ab40967c2e5e6058838319259b4cc0d508
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Tue Apr 16 11:20:51 2019 +0200
 
-    cmd/compile: add column details to export data
+    doc: fix typo in go1.12 release notes
     
-    This CL updates the export data format to include column details when
-    writing out position data. cmd/compile is updated to generate and make
-    use of the new details, but go/internal/gcimporter only knows how to
-    read the data. It doesn't yet actually make use of it.
-    
-    Experimentally across a wide range of packages, this increases export
-    data size by around 4%. However, it has no impact on binary size.
-    (Notably, it actually shrinks k8s.io/kubernetes/cmd/kubelet's binary
-    size by 24kB, but it's unclear to me why at this time.)
-    
-    Updates #28259.
-    
-    Change-Id: I351fb340839df8d3adced49b3757c4537fb91b3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196963
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I3cb4fb7cacba51bfd611ade918f16c618e2569fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172159
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/iexport.go | 59 +++++++++++++++++++++-------------
- src/cmd/compile/internal/gc/iimport.go | 25 +++++++-------
- src/go/internal/gcimporter/bimport.go  |  6 ++--
- src/go/internal/gcimporter/iimport.go  | 42 ++++++++++++++++++------
- 4 files changed, 85 insertions(+), 47 deletions(-)
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

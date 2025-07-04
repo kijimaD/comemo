@@ -1,21 +1,23 @@
-commit a9780d8dfd38ae0b11b093cabe5b8086f202c3cd
-Author: Quim Muntal <quimmuntal@gmail.com>
-Date:   Thu Jan 26 07:48:04 2023 +0000
+commit 676858f3d4786054e1b27b999b5e73190f25288c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 15:09:17 2022 -0500
 
-    Revert "runtime: use explicit NOFRAME on darwin/amd64"
+    cmd/go: use testGOROOT in TestListTemplateContextFunction
     
-    This reverts CL 460235.
+    This test uses testgo to run 'go list', so it should use the correct
+    GOROOT for testgo. (This may be particularly relevant when the test
+    binary itself is build with -trimpath, in which case runtime.GOROOT()
+    is not valid.)
     
-    Reason for revert: This breaks darwin 10 and 11
+    Updates #51483
     
-    Change-Id: I3c663ebe3b77eba45a006a3ebec5cabe667faa9e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463635
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: I79b310f88e3a200122d6289073df1385e3e97cca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391801
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/internal/obj/x86/obj6.go |   4 +-
- src/runtime/sys_darwin_amd64.s   | 171 ++++++++++++++++++++++++++++++++++++---
- 2 files changed, 160 insertions(+), 15 deletions(-)
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,25 +1,18 @@
-commit 6bc9844b63efaa5e29e3c93c1d27477b1663db09
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 18 13:24:01 2017 -0500
+commit b55cee1893283cc55e99fb041fc0067f56924926
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 21 18:22:13 2016 -0400
 
-    cmd/go: split out cmd/go/internal/env
+    cmd/internal/obj/mips: store LR before update SP in function prologue
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    This prevents the traceback code from seeing a half-updated
+    stack frame when a profiling signal comes during the execution
+    of function prologue. Also fixes mips64x part of #17381.
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
-    
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
-    
-    For #18653.
-    
-    Change-Id: I28b20d53d20dff06eede574eb5c20359db0d3991
-    Reviewed-on: https://go-review.googlesource.com/36200
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Iec9683427e546e3648b2e8b1dde956d13f6eb938
+    Reviewed-on: https://go-review.googlesource.com/31721
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/bug.go                    |  3 ++-
- src/cmd/go/{ => internal/env}/env.go | 12 ++++++------
- src/cmd/go/main.go                   |  5 +++--
- 3 files changed, 11 insertions(+), 9 deletions(-)
+ src/cmd/internal/obj/mips/obj0.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

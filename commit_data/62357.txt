@@ -1,0 +1,23 @@
+commit f69703d389998d576333798f3361d302651fba89
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 24 10:19:39 2025 -0800
+
+    internal/abi: use arch family instead of arch string
+    
+    No point in using string comparison when we can use integer comparison instead.
+    
+    Unify the constants in cmd/internal/sys and internal/goarch while
+    we are at it.
+    
+    Change-Id: I5681a601030307b7b286f958a8965559cb43506d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Stapelberg <stapelberg@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go |  4 ++--
+ src/cmd/internal/sys/arch.go           | 33 +++++++++++++++++----------------
+ src/internal/abi/switch.go             |  8 +++++---
+ src/internal/goarch/goarch.go          |  2 ++
+ src/runtime/iface.go                   |  4 ++--
+ 5 files changed, 28 insertions(+), 23 deletions(-)

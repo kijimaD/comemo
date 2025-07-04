@@ -1,14 +1,41 @@
-commit 4c96ff4444f2393e924e826ac6b6b6459d3db9d6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 31 13:43:52 2017 -0700
+commit 3b988eb643e6f2a1cae8981590891fd95e8112e5
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Sat Mar 4 18:24:44 2017 +0000
 
-    sort: document NaN behavior for Float64Slice and friends
+    net/http: use httptest.Server Client in tests
     
-    Fixes #20540
+    After merging https://go-review.googlesource.com/c/34639/,
+    it was pointed out to me that a lot of tests under net/http
+    could use the new functionality to simplify and unify testing.
     
-    Change-Id: I440eee02d37b6921613f9ae77875d91eeec48b1e
-    Reviewed-on: https://go-review.googlesource.com/44490
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Using the httptest.Server provided Client removes the need to
+    call CloseIdleConnections() on all Transports created, as it
+    is automatically called on the Transport associated with the
+    client when Server.Close() is called.
+    
+    Change the transport used by the non-TLS
+    httptest.Server to a new *http.Transport rather than using
+    http.DefaultTransport implicitly. The TLS version already
+    used its own *http.Transport. This change is to prevent
+    concurrency problems with using DefaultTransport implicitly
+    across several httptest.Server's.
+    
+    Add tests to ensure the httptest.Server.Client().Transport
+    RoundTripper interface is implemented by a *http.Transport,
+    as is now assumed across large parts of net/http tests.
+    
+    Change-Id: I9f9d15f59d72893deead5678d314388718c91821
+    Reviewed-on: https://go-review.googlesource.com/37771
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/sort/sort.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/net/http/client_test.go                | 181 +++++--------
+ src/net/http/fs_test.go                    |  21 +-
+ src/net/http/httptest/server.go            |   4 +-
+ src/net/http/httptest/server_test.go       |  24 ++
+ src/net/http/httputil/reverseproxy_test.go |  31 ++-
+ src/net/http/main_test.go                  |   4 -
+ src/net/http/npn_test.go                   |  24 +-
+ src/net/http/serve_test.go                 |  81 ++----
+ src/net/http/transport_test.go             | 407 ++++++++++++-----------------
+ 9 files changed, 321 insertions(+), 456 deletions(-)

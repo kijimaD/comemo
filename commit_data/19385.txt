@@ -1,18 +1,13 @@
-commit 4c8de36e2bb01af620cc2b32d2dba806e9f07f9b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri May 16 15:39:59 2014 -0700
+commit 37323fe05e1f142ba81bc5071a2d23517fd7de95
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 17 06:54:05 2014 +0900
 
-    net/http: allow Content-Type on 204 responses
+    doc/go1.3.html: update the state of supported platforms
     
-    Accidental change from fixing Content-Length on 204s
-    in http://golang.org/issue/6685 earlier.
-    
-    LGTM=rsc
-    R=rsc
+    LGTM=r
+    R=golang-codereviews, aram, 0intro, gobot, r
     CC=golang-codereviews
-    https://golang.org/cl/92400047
+    https://golang.org/cl/100490044
 
- src/pkg/net/http/serve_test.go | 15 +++++++++++++++
- src/pkg/net/http/server.go     | 12 +++++-------
- src/pkg/net/http/transfer.go   | 16 ++++++++++++++++
- 3 files changed, 36 insertions(+), 7 deletions(-)
+ doc/go1.3.html | 65 ++++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 41 insertions(+), 24 deletions(-)

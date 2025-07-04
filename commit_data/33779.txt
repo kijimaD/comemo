@@ -1,19 +1,27 @@
-commit ea0d2c14f8010f31dc7b892e6a546cfdb4d8ef21
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 1 17:00:58 2017 +0000
+commit ab40107708042ded6bdc1fb841c7cf2c2ab002ab
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Sep 3 02:08:02 2017 +0900
 
-    net/url: document Parse more
+    net/http: make ServeMux preserve query string during redirects
     
-    That Parse doesn't parse ("foo.com/path" or "foo.com:443/path") has
-    become something of a FAQ.
+    Ensure that the implicitly created redirect
+    for
+      "/route"
+    after
+      "/route/"
+    has been registered doesn't lose the query string information.
+    A previous attempt (https://golang.org/cl/43779) changed http.Redirect, however, that change broke direct calls to http.Redirect.
+    To avoid that problem, this change touches ServeMux.Handler only.
     
-    Updates #19779
-    Updates #21415
-    Updates #22955
+    Fixes #17841
     
-    Change-Id: Ib68efddb67f59b1374e8ed94effd4a326988dee7
-    Reviewed-on: https://go-review.googlesource.com/81436
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I303c1b1824615304ae68147e254bb41b0ea339be
+    Reviewed-on: https://go-review.googlesource.com/61210
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/net/url/url.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/net/http/serve_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 65 ++++++++++++++++++++++++++++++----------------
+ 2 files changed, 105 insertions(+), 22 deletions(-)

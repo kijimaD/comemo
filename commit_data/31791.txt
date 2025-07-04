@@ -1,14 +1,34 @@
-commit 17c228b29b3b0cdec7dfffa6bbc8aeca006c3461
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Jun 13 15:59:53 2017 +0200
+commit 73a44f0456389c60db8459981868b4c64874ec0b
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Thu Mar 16 15:49:06 2017 -0700
 
-    doc: add encoding changes to 1.9 release notes
+    cmd/compile: further clarify assignment count mismatch error message
     
-    Updates #20587
+    This is an evolution of https://go-review.googlesource.com/33616, as discussed
+    via email with Robert (gri):
     
-    Change-Id: I160da21ecdee07c6370be8c46cbd04d4fbb07abb
-    Reviewed-on: https://go-review.googlesource.com/45550
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    $ cat foobar.go
+    package main
+    
+    func main() {
+            a := "foo", "bar"
+    }
+    
+    before:
+    ./foobar.go:4:4: assignment count mismatch: want 1 values, got 2
+    
+    after:
+    ./foobar.go:4:4: assignment count mismatch: cannot assign 2 values to 1 variables
+    
+    We could likely also eliminate the "assignment count mismatch" prefix now
+    without losing any information, but that string is matched by a number of
+    tests.
+    
+    Change-Id: Ie6fc8a7bbd0ebe841d53e66e5c2f49868decf761
+    Reviewed-on: https://go-review.googlesource.com/38313
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.9.html | 26 ++++++++++----------------
- 1 file changed, 10 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

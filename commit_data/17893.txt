@@ -1,14 +1,21 @@
-commit 74eb115b1c7a5b91e6b40d0c6ce78a81d011f6b9
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Nov 25 11:03:47 2013 +1100
+commit c497c9ea4bbe90833ee0bb8660fe91b8f17adee7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Nov 21 07:55:29 2013 +1100
 
-    misc/vim: describe how to get gofmt-on-save behaviour.
+    doc: update installation instructions
     
-    Fixes #6826.
+    Clarify that GOROOT should only be set when using a custom install path.
+    Remove NetBSD from binary install page (we don't provide binaries).
+    Remove "What's next" links from installation instructions.
+    Emphasize "How to Write Go Code" page.
     
-    R=golang-dev, bradfitz, adg
+    Fixes #6613.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/31770043
+    https://golang.org/cl/28700043
 
- misc/vim/readme.txt | 5 +++++
- 1 file changed, 5 insertions(+)
+ doc/code.html           |  26 ++++++-
+ doc/install-source.html |  17 ++++-
+ doc/install.html        | 179 ++++++++++++++++++++++--------------------------
+ 3 files changed, 122 insertions(+), 100 deletions(-)

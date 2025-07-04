@@ -1,0 +1,19 @@
+commit 6cb8c839f931540c9e5451a9514c728025c0aaaf
+Author: limeidan <limeidan@loongson.cn>
+Date:   Wed Mar 5 17:47:41 2025 +0800
+
+    cmd/link/internal: remove trampoline for plt on loong64
+    
+    When trampoline is called, the plt symbol has not been
+    added. If we add tramp here, plt will not work.
+    
+    Change-Id: I64e5d2be9e08f78ca5e8a9dcb267620a481d4416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654918
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/link/internal/loong64/asm.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

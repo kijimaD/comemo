@@ -1,16 +1,35 @@
-commit f082dbfd4f23b0c95ee1de5c2b091dad2ff6d930
-Author: Ben Shi <powerman1st@163.com>
-Date:   Sun Sep 16 03:05:35 2018 +0000
+commit e9137299bf74e1bcac358b569f86aef73c7c2ea6
+Author: Ali Rizvi-Santiago <arizvisa@gmail.com>
+Date:   Fri May 18 18:48:44 2018 +0000
 
-    cmd/compile: fix wrong comment message in AMD64Ops.go
+    debug/pe: parse the import directory correctly
     
-    According to AMD64.rules, BTS&BTR&BTC use arg1 as the bit index,
-    while BT uses arg0. This CL fixes the wrong comment message in
-    AMD64Ops.go, which indicates all bit indexes are in arg0.
+    This parses the import table properly which allows for debug/pe
+    to extract import symbols from pecoffs linked with an import
+    table in a section named something other than ".idata"
     
-    Change-Id: Idb78f4d39f7ef5ea78065ad8bc651324597e2a8a
-    Reviewed-on: https://go-review.googlesource.com/135419
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The section names in a pecoff object aren't guaranteed to actually
+    mean anything, so hardcoding a search for the ".idata" section
+    is not guaranteed to find the import table in all shared libraries.
+    This resulted in debug/pe being unable to read import symbols
+    from some libraries.
+    
+    The proper way to locate the import table is to validate the
+    number of data directory entries, locate the import entry, and
+    then use the va to identify the section containing the import
+    table. This patch does exactly this.
+    
+    Fixes #16103.
+    
+    Change-Id: I3ab6de7f896a0c56bb86c3863e504e8dd4c8faf3
+    GitHub-Last-Rev: ce8077cb154f18ada7a86e152ab03de813937816
+    GitHub-Pull-Request: golang/go#25193
+    Reviewed-on: https://go-review.googlesource.com/110555
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/debug/pe/file.go      | 46 +++++++++++++++++++++++++++++++++++++++++++---
+ src/debug/pe/file_test.go | 28 ++++++++++++++++++++++++++++
+ src/debug/pe/pe.go        | 20 ++++++++++++++++++++
+ 3 files changed, 91 insertions(+), 3 deletions(-)

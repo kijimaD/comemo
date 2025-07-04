@@ -1,20 +1,40 @@
-commit dced3461eee8297fe2bd666f2c5146d220b2ab5b
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Thu Sep 1 21:53:22 2022 +0800
+commit 577bb7dba11ef2f6588664dcface13fba32bb354
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Oct 11 12:22:52 2021 -0400
 
-    cmd/internal/pkgpath: use strings.Builder
+    all: update vendored golang.org/x/tools
     
-    Since when go1.17 is now used for bootstraping.
+    Now that x/tools/go/types/objectpath has been updates to support type
+    parameters, I ran the following commands to update x/tools inside the
+    cmd module:
     
-    Change-Id: I5f763dec1cb152f94ab1c677d3fa26da17abf097
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427557
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+            go get -d golang.org/x/tools@18fa840216958359dc43466f3e70d96add38edbb # main branch
+            go mod tidy
+            go mod vendor
+    
+    Updates #48588
+    
+    Change-Id: Ibebc1ac2f721d6e2eb1a4f6c610918770d4879ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355012
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/internal/pkgpath/pkgpath.go | 23 ++++++++++-------------
- 1 file changed, 10 insertions(+), 13 deletions(-)
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/vendor/golang.org/x/tools/cover/profile.go |  11 +-
+ .../x/tools/go/analysis/passes/tests/tests.go      |  60 +++++-
+ .../go/analysis/passes/unmarshal/unmarshal.go      |   3 +-
+ .../golang.org/x/tools/go/ast/astutil/enclosing.go |  20 +-
+ .../golang.org/x/tools/go/ast/astutil/rewrite.go   |  12 +-
+ .../golang.org/x/tools/go/ast/inspector/typeof.go  |   9 +-
+ .../x/tools/go/types/objectpath/objectpath.go      | 151 +++++++++++++---
+ .../x/tools/internal/typeparams/enabled_go117.go   |  12 ++
+ .../x/tools/internal/typeparams/enabled_go118.go   |  15 ++
+ .../x/tools/internal/typeparams/notypeparams.go    |  93 ----------
+ .../x/tools/internal/typeparams/typeparams.go      | 134 --------------
+ .../tools/internal/typeparams/typeparams_go117.go  | 201 +++++++++++++++++++++
+ .../tools/internal/typeparams/typeparams_go118.go  | 189 +++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 16 files changed, 639 insertions(+), 279 deletions(-)

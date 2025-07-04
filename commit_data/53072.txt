@@ -1,24 +1,24 @@
-commit c213c905a29b3bce31b99ae91326bbaea106cc16
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 10 20:12:35 2023 +0000
+commit 4484c30f788835d8dda0afcefdb12e4b25b2c312
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jul 1 12:56:39 2022 -0400
 
-    runtime: capture per-g trace state in a type
+    misc/cgo/test: make TestSetgidStress cheaper
     
-    More tightening up of the tracer's interface.
+    TestSetgidStress spawns 1000 threads, which can be expensive on
+    some platforms or slow builders. Run with 50 threads in short
+    mode instead.
     
-    This increases the size of each G very slightly, which isn't great, but
-    we stay within the same size class, so actually memory use will be
-    unchanged.
+    This makes the failure less reproducible even with buggy code. But
+    one can manually stress test it (e.g. when a flaky failure appear
+    on the builder).
     
-    Change-Id: I7d1f5798edcf437c212beb1e1a2619eab833aafb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494188
+    Fixes #53641.
+    
+    Change-Id: I33b5ea5ecaa8c7a56f59c16f9171657ee295db47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415677
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/proc.go        | 14 +++++------
- src/runtime/runtime2.go    | 49 +++++++++++++++++++--------------------
- src/runtime/sizeof_test.go |  2 +-
- src/runtime/trace.go       | 58 ++++++++++++++++++++++++++--------------------
- 4 files changed, 65 insertions(+), 58 deletions(-)
+ misc/cgo/test/setgid2_linux.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

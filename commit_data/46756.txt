@@ -1,19 +1,16 @@
-commit 96fface83ad69b6d6ad8059d61d232737572e85d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Oct 5 21:58:30 2021 +0000
+commit bf0f7c9d78fa28320a2c60d5a6d1956acfae4a89
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 17:58:17 2021 -0800
 
-    Revert "cmd/dist: omit cmd/cgo from toolchain1"
+    doc/go1.16: mention os.DirFS in os section
     
-    This reverts commit 81b7ec1ad5b50b8e73a63b44d8c2538154def535.
+    For #40700
+    For #41190
     
-    Reason for revert: broke ios builder
-    
-    Change-Id: I7f469161c3c632ae48b7d938d355c9929eaaad92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354135
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I8ade6efd5be09003fc3e5db5a9b91ba6e0f023f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285593
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/dist/build.go     | 2 +-
- src/cmd/dist/buildtool.go | 8 +++++++-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ doc/go1.16.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

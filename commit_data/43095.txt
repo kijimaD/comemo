@@ -1,21 +1,16 @@
-commit 25a33daa2b7e7bda773705215113450923ae4815
-Author: Sean Liao <seankhliao@gmail.com>
-Date:   Thu May 21 17:52:33 2020 +0200
+commit 3afa86d632859ec61207ce307ba69394e0c7462d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 9 12:46:45 2020 -0700
 
-    encoding/json: allow semicolon in field key / struct tag
+    cmd/compile: remove -largemodel flag from docs
     
-    Allow ';' as a valid character for json field keys and struct tags.
+    It does nothing (it can't even be parsed).
     
-    Fixes #39189
-    
-    Change-Id: I4b602a1b0674ff028db07623682f0d1e8e9fd6c9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234818
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I29abdddea1955d2ad93a97696f6542fa47cdb954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222672
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/encode.go      | 2 +-
- src/encoding/json/tagkey_test.go | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/doc.go | 2 --
+ 1 file changed, 2 deletions(-)

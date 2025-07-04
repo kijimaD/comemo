@@ -1,14 +1,14 @@
-commit 8e109af83badc17ea204e3042005f6cce7fd271b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Apr 10 10:07:29 2012 +1000
+commit 6849c4db0c35cad11a2fb5c6836bc0d4a2ae705d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 10 09:47:57 2012 +1000
 
-    os: fix IsPermission on windows
+    runtime.Callers: make documentation match code
+    It is a bug that Caller and Callers disagree about the offset of the skip
+    parameter. Document the bug.
     
-    Fixes #3482.
-    
-    R=golang-dev, rsc
+    R=rsc, dsymonds, r, iant
     CC=golang-dev
-    https://golang.org/cl/5987070
+    https://golang.org/cl/5976064
 
- src/pkg/os/error_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/extern.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

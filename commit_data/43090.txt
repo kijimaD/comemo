@@ -1,18 +1,25 @@
-commit aacbd7c3aab5c3bf5d5f6cbfaa63db9d9fc2e3d5
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Sat Aug 29 11:10:50 2020 +0200
+commit 7dbf12573f793df84802f0a65b03e8e6d4186a5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 8 11:00:44 2020 -0500
 
-    cmd/compile: enforce strongly typed rules for ARM (GOARM)
+    test/run: make GO_GCFLAGS mean same thing it does during make.bash
     
-    Toolstash-check successful for remaining rules using GOARM value.
+    -gcflags=-flag means apply the flags only to the package named
+    on the command line (the main package, for these tests).
     
-    Change-Id: I254f80d17839ef4957c1b7afbdb4db363a3b9367
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240997
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Giovanni Bajo <rasky@develer.com>
+    -gcflags=all=-flag means apply the flags to everything in the build,
+    including the standard library.
+    
+    cmd/dist uses -gcflags=all=$GO_GCFLAGS, so test/run should do the same,
+    as the comment already explains, to avoid rebuilding the entire standard
+    library without the flags during test/run's builds.
+    
+    We changed the scope of the flags without a pattern a few releases
+    ago and missed this one.
+    
+    Change-Id: I039e60ca619d39e5b502261d4a73e1afc7e3f9fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213827
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules | 50 +++++++++++++-------------
- src/cmd/compile/internal/ssa/rewriteARM.go | 58 +++++++++++++++---------------
- 2 files changed, 54 insertions(+), 54 deletions(-)
+ test/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

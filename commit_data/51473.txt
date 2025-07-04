@@ -1,31 +1,23 @@
-commit 34ab0bcc5eaf97cc0aff11cfe782e4c174d52ef0
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Mon Nov 28 08:51:32 2022 -0800
+commit bec8a108b324b2fc68eafeee7293a479813ec4e2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 2 10:19:30 2022 -0500
 
-    crypto/ecdsa: verify validity of signature parameters in Verify
+    runtime: skip TestSegv failures with "morestack on g0" on darwin/amd64
     
-    CL 353849 removed validation of signature parameters being passed to
-    Verify which led to two distinct problems. If passed a R or S == 0,
-    encodeSignature would panic since it expects them to be non-zero.
-    encodeSignature would also normalize (i.e. make non-negative) parameters
-    by zero padding them, which would result in a signature being passed to
-    VerifyASN1 which did not match the input signature, resulting in success
-    in cases where it should've failed. This change re-adds the verification
-    that 0 < r,s < N before calling ecnodeSignature.
+    This failure mode has been present since at least 2020-06-08. We have
+    enough information to diagnose it, and further failures don't seem to
+    be adding any new information at this point: they can only add noise,
+    both on the Go project's builders and in users' own modules (for
+    example, when run as part of 'go test all').
     
-    This was caught because tink runs the wycheproof ECDSA vectors against
-    Verify, where we only run the vectors against VerifyASN1. We should be
-    doing both.
+    For #39457
     
-    Change-Id: I1dcf41626b4df2b43296e8b878dc607ff316a892
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453675
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I2379631da0c8af69598fa61c0cc5ac0ea6ba8267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382395
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/ecdsa/ecdsa.go        |  6 ++-
- src/crypto/ecdsa/ecdsa_legacy.go |  3 ++
- src/crypto/ecdsa/ecdsa_test.go   | 81 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 89 insertions(+), 1 deletion(-)
+ src/runtime/crash_cgo_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

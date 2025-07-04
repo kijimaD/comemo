@@ -1,0 +1,26 @@
+commit 23493579ead6512185bdb7a0bdfa512e9dea813e
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Nov 6 11:08:51 2024 -0800
+
+    net/http: 308 redirects should use the previous hop's body
+    
+    On a 301 redirect, the HTTP client changes the request to be
+    a GET with no body.
+    
+    On a 308 redirect, the client leaves the request method and
+    body unchanged.
+    
+    A 308 following a 301 should preserve the rewritten request
+    from the first redirect: GET with no body. We were preserving
+    the method, but sending the original body. Fix this.
+    
+    Fixes #70180
+    
+    Change-Id: Ie20027a6058a82bfdffc7197d07ac6c7f98099e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626055
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/client.go      | 11 ++++++++---
+ src/net/http/client_test.go |  6 +++---
+ 2 files changed, 11 insertions(+), 6 deletions(-)

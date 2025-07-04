@@ -1,13 +1,13 @@
-commit 8b614b421398ad27e958364ee0a74e5dccd9078f
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 22 17:09:00 2011 +1000
+commit 8f37c8845c6096302435e5a0f5729e8e73487413
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Mon Aug 22 15:40:15 2011 +1000
 
-    template/parse: give if, range, and with a common representation.
-    No external changes.
+    gofix: osopen: fixed=true when changing O_CREAT
     
-    R=nigeltao
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/4940042
+    https://golang.org/cl/4921047
 
- src/pkg/template/parse/node.go | 74 +++++++++++++++++++-----------------------
- 1 file changed, 34 insertions(+), 40 deletions(-)
+ src/cmd/gofix/osopen.go      |  1 +
+ src/cmd/gofix/osopen_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

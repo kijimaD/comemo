@@ -1,24 +1,29 @@
-commit 8c73f80400d04a320165f4c1e535524cc50e20b4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Nov 9 19:50:47 2021 -0500
+commit c870e863298a44ead08e0b797d62ea74d7b7c971
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 13 15:45:28 2021 -0800
 
-    runtime: bypass scheduler when doing traceback for goroutine profile
+    cmd/asm: when dynamic linking, reject code that uses a clobbered R15
     
-    When acquire a goroutine profile, we stop the world then acquire a
-    stack trace for each goroutine. When cgo traceback is used, the
-    traceback code may call the cgo traceback function using cgocall.
-    As the world is stopped, cgocall will be blocked at exitsyscall,
-    causing a deadlock. Bypass the scheduler (using asmcgocall) to fix
-    this.
+    The assember uses R15 as scratch space when assembling global variable
+    references in dynamically linked code. If the assembly code uses the
+    clobbered value of R15, report an error. The user is probably expecting
+    some other value in that register.
     
-    Change-Id: Ic4e596adc3711310b6a983d73786d697ef15dd72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362757
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Getting rid of the R15 use isn't very practical (we could save a
+    register to a field in the G maybe, but that gets cumbersome).
+    
+    Fixes #43661
+    
+    Change-Id: I43f848a3d8b8a28931ec733386b85e6e9a42d8ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283474
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/crash_cgo_test.go              |  8 ++++++
- src/runtime/mprof.go                       |  6 +++-
- src/runtime/testdata/testprogcgo/gprof.go  | 46 ++++++++++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/gprof_c.c | 29 +++++++++++++++++++
- 4 files changed, 88 insertions(+), 1 deletion(-)
+ src/cmd/asm/internal/asm/endtoend_test.go          |  14 ++-
+ .../asm/internal/asm/testdata/amd64dynlinkerror.s  |  68 ++++++++++++
+ src/cmd/internal/obj/link.go                       |   1 +
+ src/cmd/internal/obj/plist.go                      |   3 +
+ src/cmd/internal/obj/x86/obj6.go                   | 115 +++++++++++++++++++++
+ 5 files changed, 200 insertions(+), 1 deletion(-)

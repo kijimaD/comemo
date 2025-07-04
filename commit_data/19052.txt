@@ -1,18 +1,20 @@
-commit af923df89ee65428b0a8cba7323e9397926ea0e6
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 7 17:35:44 2014 -0700
+commit 3f5288cb0845a8e9d5c3e6ec73141876d4179f9e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 8 06:14:19 2014 +0900
 
-    runtime: fix heapdump bugs.
+    net: remove "net:" prefix from error messages
     
-    Iterate the right number of times in arrays and channels.
-    Handle channels with zero-sized objects in them.
-    Output longer type names if we have them.
-    Compute argument offset correctly.
+    The prefix was not uniformly applied and is probably better
+    left off for using with OpError.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    Update #4856
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/82980043
+    https://golang.org/cl/84660046
 
- src/pkg/runtime/heapdump.c | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ src/pkg/net/interface.go    | 10 +++++-----
+ src/pkg/net/ipsock_plan9.go |  4 ++--
+ src/pkg/net/lookup_plan9.go |  4 ++--
+ 3 files changed, 9 insertions(+), 9 deletions(-)

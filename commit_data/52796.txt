@@ -1,20 +1,16 @@
-commit b4eed1c3414b6def26820a9189cb65cb070540be
-Author: cui fliter <imcusg@gmail.com>
-Date:   Thu Apr 6 17:08:49 2023 +0800
+commit 3b6b9a7ef0b4849d87e7d30fbf1ef3255ea99f69
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 27 16:39:54 2022 -0400
 
-    crypto: use t.Parallel() to increase speed
+    doc/go1.19: add release note for CL 398058
     
-    It is necessary to invoke the t.Parallel() method in both the top-level test function and its subtest function to maximize parallelism. In doing so, all subtest functions calling the t.Parallel() method in the package will work in parallel.
-    
-    On my machine, the execution time of this test file was cut in half.
-    
-    Change-Id: If09147a2a9969bb044932d71e6bfea29492866d6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482755
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Change-Id: I483de9a6a2016432df13e030c675d42470db9ed1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409175
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/elliptic/elliptic_test.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ doc/go1.19.html | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

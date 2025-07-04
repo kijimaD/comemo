@@ -1,23 +1,27 @@
-commit 3d78c735fc7d213e23383b9744297bd5251dc0e3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 15 11:49:56 2023 -0400
+commit b23d469e854f36e5ba8c0de9b7406a81e82d15c1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 03:14:23 2022 -0700
 
-    cmd/cover: error out if a requested source file contains a newline
+    cmd/compile/internal/noder: pointer shaping for unified IR
     
-    cmd/cover uses '//line' directives to map instrumented source files
-    back to the original source file and line numbers.
-    Line directives have no way to escape newline characters, so cmd/cover
-    must not be used with source file paths that contain such characters.
+    This CL implements pointer shaping in unified IR, corresponding to the
+    existing pointer shaping implemented in the non-unified frontend.
     
-    Updates #60167.
+    For example, if `func F[T any]` is instantiated as both `F[*int]` and
+    `F[*string]`, we'll now generate a single `F[go.shape.*uint8]` shaped
+    function that can be used by both.
     
-    Change-Id: I6dc039392d59fc3a5a6121ef6ca97b0ab0da5288
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501577
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #54513.
+    
+    Change-Id: I2cef5ae411919e6dc5bcb3cac912abecb4cd5218
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424734
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/cover/cover.go      | 10 ++++++++++
- src/cmd/cover/cover_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+)
+ src/cmd/compile/internal/noder/reader.go   | 64 +++++++++++++++++++-----------
+ src/cmd/compile/internal/noder/writer.go   | 19 +++++++++
+ src/cmd/compile/internal/test/inst_test.go |  4 --
+ 3 files changed, 59 insertions(+), 28 deletions(-)

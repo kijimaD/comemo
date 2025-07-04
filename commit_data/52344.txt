@@ -1,23 +1,37 @@
-commit c7ea9969f8112721edc0a128277f8e5943e21a49
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 20 14:08:59 2023 -0700
+commit 89044b6d423a07bea3b6f80210f780e859dd2700
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 4 12:48:58 2019 -0400
 
-    internal/platform: pass race mode to DefaultPIE
+    math/big: add comprehensive aliasing tests (and minor fixes to Exp, Rand)
     
-    On Windows we default to PIE, except in race mode.
-    Pass isRace to platform.DefaultPIE to centralize that decision.
-    This is in preparation for adding another call to DefaultPIE.
+    TestAlias checks systematically for aliasing issues, where passing the
+    same value for an argument and the receiver leads to incorrect results.
     
-    Change-Id: I91b75d307e7d4d260246a934f98734ddcbca372a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477916
+    We had a number of issues like that over the years:
+    
+        - #31084: Lsh on arm64
+        - #30217: GCD
+        - #22830: Exp due to divLarge
+        - #22265: ModSqrt
+        - #20490: Add and Sub
+        - #11284: GCD
+    
+    This CL also fixes two new minor bugs that the test found. A wrong
+    result would be returned by
+    
+        - Exp when the modulo and the receiver alias
+        - Rand when the limit is negative and it aliases the receiver
+    
+    The test runs in ~0.05s with the default -quickchecks value.
+    
+    Change-Id: I8354069ec9886e40c60f2642342ee08e604befb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168257
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/go/internal/work/init.go       | 12 ++++--------
- src/cmd/link/internal/ld/dwarf_test.go |  2 +-
- src/cmd/nm/nm_test.go                  |  2 +-
- src/internal/platform/supported.go     | 12 +++++++++---
- 4 files changed, 15 insertions(+), 13 deletions(-)
+ src/math/big/alias_test.go | 312 +++++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/int.go        |  11 +-
+ 2 files changed, 320 insertions(+), 3 deletions(-)

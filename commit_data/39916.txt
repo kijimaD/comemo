@@ -1,29 +1,41 @@
-commit 0e0bff840e3cd041aa9d103c6135862faae9c03f
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Sep 13 15:45:18 2019 +0100
+commit 5fc55b31803e9929d104ce58a4dcbef97a87a83e
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 30 03:16:44 2019 +0700
 
-    cmd/compiler: skip some go/printer work in rulegen
+    cmd/compile: use FmtLeft to generate symbol name for unexported interface methods
     
-    We use go/format on the final output, so don't bother with the added
-    tabwriter work to align comments when using go/printer.
+    The bug in 29612 is that there are two similar-looking anonymous interface
+    types in two different packages, ./p1/ssa and ./p2/ssa:
     
-            name     old time/op         new time/op         delta
-            Rulegen          2.53s ± 2%          2.48s ± 1%  -2.20%  (p=0.032 n=5+5)
+    v.(interface{ foo() }).foo()
     
-            name     old user-time/op    new user-time/op    delta
-            Rulegen          11.2s ± 1%          10.8s ± 0%  -3.72%  (p=0.008 n=5+5)
+    These types should be treated differently because the unexported method
+    makes the types different (according to the spec).
     
-            name     old sys-time/op     new sys-time/op     delta
-            Rulegen          218ms ±17%          207ms ±19%    ~     (p=0.548 n=5+5)
+    But when generating the type descriptors for those two types, they
+    both have the name "interface { ssa.foo() }". They thus get the same
+    symbol, and the linker happily unifies them. It picks an arbitrary one
+    for the runtime to use, but that breaks conversions from concrete types
+    that have a foo method from the package which had its interface type
+    overwritten.
     
-            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
-            Rulegen          184MB ± 3%          175MB ± 4%    ~     (p=0.056 n=5+5)
+    We need to encode the metadata symbol for unexported methods as package
+    path qualified (The same as we did in CL 27791 for struct fields).
     
-    Change-Id: I53bad2ab15cace67415f2171fffcd13ed596e62b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195219
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    So switching from FmtUnsigned to Fmtleft by default fixes the issue.
+    In case of generating namedata, FmtUnsigned is used.
+    
+    The benchmark result ends up in no significant change of compiled binary
+    compare to the immediate parent.
+    
+    Fixes #29612
+    
+    Change-Id: I775aff91ae4a1bb16eb18a48d55e3b606f3f3352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170157
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go          |  6 +++++-
+ test/fixedbugs/issue29612.dir/main.go       | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue29612.dir/p1/ssa/ssa.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue29612.dir/p2/ssa/ssa.go | 28 ++++++++++++++++++++++++++++
+ 4 files changed, 75 insertions(+), 1 deletion(-)

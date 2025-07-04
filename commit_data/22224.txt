@@ -1,14 +1,15 @@
-commit d593f4a4d51cb4a6be8fb808800978cea6b97d9a
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Feb 19 19:10:31 2015 +0300
+commit cf14e0e333c854c9ee4730c7e868ffd8424b95f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 1 09:30:15 2015 -0800
 
-    test: add tests for escape analysis of function parameters
+    net: disable TestTCPReadWriteAllocs on dragonfly
     
-    False positives (var incorrectly escapes) are marked with BAD.
+    Update #8859
+    Update #10042
     
-    Change-Id: I002ac5965ec6748adafa2c4c657c97d8f7ff75d0
-    Reviewed-on: https://go-review.googlesource.com/5311
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Idc7eadb447b73563ce9085e50c2042652442c2d9
+    Reviewed-on: https://go-review.googlesource.com/6412
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- test/escape_param.go | 326 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 326 insertions(+)
+ src/net/tcp_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

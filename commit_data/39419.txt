@@ -1,27 +1,24 @@
-commit 41b9e99d5bfbea795a53fa260ef2c8c1cb8bdb3e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 21 09:06:56 2019 -0700
+commit 9892ccff23c94c5fabd704ff0c027d45b7b03cb8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Nov 6 16:27:58 2018 -0800
 
-    cmd/gofmt: fix normalization of imaginary number literals
+    cmd/compile: add types.SoleComponent, use in convFuncName
     
-    The old code only normalized decimal integer imaginary number
-    literals. But with the generalized imaginary number syntax,
-    the number value may be decimal, binary, octal, or hexadecimal,
-    integer or floating-point.
+    The specialized conversion functions care only
+    about a type's layout in memory, so e.g.
+    [1]string is equivalent to string.
     
-    The new code only looks at the number pattern. Only for decimal
-    integer imaginary literals do we need to strip leading zeroes.
-    The remaining normalization code simply ignore the 'i' suffix.
-    As a result, the new code is both simpler and shorter.
+    Add types.SoleComponent to assist with such use cases,
+    and use it for the specialized conversion functions.
     
-    Fixes #32718.
+    Increases the number of convTstring calls by ~1%.
     
-    Change-Id: If43fc962a48ed62002e65d5c81fddbb9bd283984
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183378
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I09a392909f2037387b30642781e65f707a048af5
+    Reviewed-on: https://go-review.googlesource.com/c/148577
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gofmt/gofmt.go                   | 75 ++++++++++++--------------------
- src/cmd/gofmt/testdata/go2numbers.golden | 18 +++++++-
- src/cmd/gofmt/testdata/go2numbers.input  | 16 +++++++
- src/math/cmplx/cmath_test.go             |  2 +-
- 4 files changed, 63 insertions(+), 48 deletions(-)
+ src/cmd/compile/internal/gc/walk.go    | 12 ++++++++----
+ src/cmd/compile/internal/types/type.go | 22 ++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 4 deletions(-)

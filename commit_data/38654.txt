@@ -1,35 +1,15 @@
-commit 3ebb1ad9cddf4711d4b0f44c24da1ceac3d9e069
-Author: Austin Clements <austin@google.com>
-Date:   Sun Dec 30 19:47:27 2018 -0500
+commit 7ebe35093dbac03f86f7471590a18bf4ddd4b29c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 12 10:38:02 2018 -0800
 
-    runtime: ring buffer for binary debug logging
+    cmd/compile: correct check for valid -lang version
     
-    This adds an internal runtime debug log. It uses per-M time-stamped
-    ring buffers of binary log records. On panic, these buffers are
-    collected, interleaved, and printed.
-    
-    The entry-point to the debug log is a new "dlog" function. dlog is
-    designed so it can be used even from very constrained corners of the
-    runtime such as signal handlers or inside the write barrier.
-    
-    The facility is only enabled if the debuglog build tag is set.
-    Otherwise, it compiles away to a no-op implementation.
-    
-    The debug log format is also designed so it would be reasonable to
-    decode from a core dump, though this hasn't been implemented.
-    
-    Change-Id: I6e2737c286358e97a0d8091826498070b95b66a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/157997
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Iad10d0a2dbc8e12e9f776c6cfb34070f584fd439
+    Reviewed-on: https://go-review.googlesource.com/c/149057
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/debuglog.go             | 808 ++++++++++++++++++++++++++++++++++++
- src/runtime/debuglog_off.go         |  19 +
- src/runtime/debuglog_on.go          |  45 ++
- src/runtime/debuglog_test.go        | 158 +++++++
- src/runtime/export_debuglog_test.go |  46 ++
- src/runtime/panic.go                |   2 +
- src/runtime/runtime2.go             |   2 +
- src/runtime/signal_sighandler.go    |   2 +
- 8 files changed, 1082 insertions(+)
+ src/cmd/compile/internal/gc/lang_test.go | 5 +++++
+ src/cmd/compile/internal/gc/main.go      | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

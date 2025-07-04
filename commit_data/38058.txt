@@ -1,24 +1,19 @@
-commit da50e10c2e80e8c4f53a0bb1d20de57995abc7ca
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Mon Feb 18 14:43:06 2019 +0530
+commit 01e6cfc2a0b2f9e363c6e305b14f3393d06b13b8
+Author: Austin Clements <austin@google.com>
+Date:   Sun Sep 23 19:12:15 2018 -0400
 
-    go/doc: skip escaping comments in pre-formatted blocks
+    runtime: don't call mcache.refill on systemstack
     
-    CL 150377 made the change of converting smart quotes to their html escaped entities
-    for ToHTML, and to unicode quotes for ToText. But for ToText, the change
-    converted the quotes in pre-formatted text too.
+    mcache.refill doesn't need to run on the system stack; it just needs
+    to be non-preemptible. Its only caller, mcache.nextFree, also needs to
+    be non-preemptible, so we can remove the unnecessary systemstack
+    switch.
     
-    This fixes that behavior to not touch any text in pre-formatted blocks, which also
-    makes the behavior consistent with ToHTML.
-    
-    Fixes #29730
-    
-    Change-Id: I58e0216cbdbe189d06d82147e5a02b620af14734
-    Reviewed-on: https://go-review.googlesource.com/c/162922
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Change-Id: Iba5b3f4444855f1dc134485ba588efff3b54c426
+    Reviewed-on: https://go-review.googlesource.com/138196
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/doc/comment.go      | 1 -
- src/go/doc/comment_test.go | 8 ++++++++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ src/runtime/malloc.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,23 +1,29 @@
-commit c8e4f8c7756d67e27d2cfe4383cb90cf9f97d5a3
-Author: 胡玮文 <huweiwen.hww@alibaba-inc.com>
-Date:   Fri Mar 8 13:42:49 2024 +0800
+commit 7b887158825720134181b6fe403066eee0cccee3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 23 15:17:50 2023 -0400
 
-    net/http: support socks5h proxy schema
+    testing: quote -test.v=test2json output when logging it
     
-    Extend the net/http Transport to recognize the 'socks5h' schema as an
-    alias for 'socks5'. Traditionally, the 'socks5h' schema indicates that
-    the hostname should be resolved by the proxy server, which is behavior
-    already implemented in Go for 'socks5'.
+    The -test.v=test2json flag causes the testing package to inject extra
+    control characters in the output to allow the JSON parser to more
+    gracefully handle extraneous writes to os.Stdout and/or os.Stderr in
+    the package under test (see CL 443596). However, it doesn't filter out
+    those control characters because almost no real-world tests will
+    output them.
     
-    Fixes #24135
+    It turns out that testing.TestFlag is one of the rare tests that does
+    output those control characters, because it tests the
+    -test.v=test2json flag itself.
     
-    Change-Id: I0a6a92bbd282a3200dc4dc7b47a9b0628f931783
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569977
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Fixes #59181.
+    
+    Change-Id: I35ca6748afcd3d4333563028817caac946f5e86a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/net/http/transport.go      | 13 +++++++------
- src/net/http/transport_test.go |  1 +
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/testing/flag_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

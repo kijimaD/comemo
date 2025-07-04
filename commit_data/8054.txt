@@ -1,14 +1,14 @@
-commit 11e07d23ed4fe12a05565a2a201cc9792b67ed32
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Tue Apr 12 11:00:09 2011 -0700
+commit a46c481f4bdd07f86e205276c06e92906cf2cbaa
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 12 10:58:54 2011 -0700
 
-    ld: ELF header function declarations.
+    C+A: Add Lucio De Re
+    I entered only one of his several addresses, the one that recent CLs use.
     
-    Added "void" inside "()" for two functions.
-    
-    R=golang-dev, r
+    R=rsc, lucio
     CC=golang-dev
-    https://golang.org/cl/4381056
+    https://golang.org/cl/4368078
 
- src/cmd/ld/elf.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

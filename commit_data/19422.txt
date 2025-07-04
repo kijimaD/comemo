@@ -1,18 +1,25 @@
-commit f85600859dbe0ebad85f997f158f8e0224a3c02f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue May 20 21:36:50 2014 -0700
+commit c00043b5d8bd53130bddb5ef1e88643dccc4586f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 20 17:46:08 2014 -0700
 
-    cmd/ld: really import runtime/cgo for external link
+    spec: specify order of init() calls
     
-    Fixes #8032.
+    The spec did not specify the order in which
+    init() functions are called. Specify that
+    they are called in source order since we have
+    now also specified the initialization order
+    of independent variables.
     
-    LGTM=rsc
-    R=rsc
+    While technically a language change, no
+    existing code could have relied on this,
+    so this should not break anything.
+    
+    Per suggestion from rsc.
+    
+    LGTM=r, iant
+    R=rsc, iant, r, ken
     CC=golang-codereviews
-    https://golang.org/cl/95580043
+    https://golang.org/cl/98420046
 
- misc/cgo/nocgo/nocgo.go      | 22 ++++++++++++++++++++++
- misc/cgo/nocgo/nocgo_test.go | 14 ++++++++++++++
- src/cmd/ld/lib.c             |  2 ++
- src/run.bash                 |  3 +++
- 4 files changed, 41 insertions(+)
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

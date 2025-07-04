@@ -1,18 +1,15 @@
-commit b55cee1893283cc55e99fb041fc0067f56924926
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Oct 21 18:22:13 2016 -0400
+commit 5abfc97e84eef1fe5c5782eb8047cb911560ddb7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 9 20:05:41 2016 -0700
 
-    cmd/internal/obj/mips: store LR before update SP in function prologue
+    runtime: use correct MOV for plan9 brk_ ret value
     
-    This prevents the traceback code from seeing a half-updated
-    stack frame when a profiling signal comes during the execution
-    of function prologue. Also fixes mips64x part of #17381.
+    Updates #11041
     
-    Change-Id: Iec9683427e546e3648b2e8b1dde956d13f6eb938
-    Reviewed-on: https://go-review.googlesource.com/31721
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I78f8d48f00cfbb451e37c868cc472ef06ea0fd95
+    Reviewed-on: https://go-review.googlesource.com/27491
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/mips/obj0.go | 25 +++++++++++++++----------
- 1 file changed, 15 insertions(+), 10 deletions(-)
+ src/runtime/sys_plan9_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

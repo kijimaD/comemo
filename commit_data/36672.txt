@@ -1,17 +1,19 @@
-commit adcecbe05ef812bc8ff477dec47720a2cfc273e3
-Author: Rob Pike <r@golang.org>
-Date:   Sun Sep 16 11:14:19 2018 +1000
+commit 750a42f42ce6b69632998a9026e076dc3f851cce
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue May 15 13:32:02 2018 -0400
 
-    doc: add a go/golang entry to the FAQ
+    cmd/vendor/.../pprof: delete pprof.go file
     
-    It's worth clarifying that the language is called "Go".
+    The file is not used ('go tool' uses cmd/pprof/pprof.go instead)
+    and the external package import in this file causes test failure.
     
-    Fixes #27616.
+    Fixes #25367
     
-    Change-Id: Ie4a9cb5e7e6afa437c60e06914125ef7490f27d0
-    Reviewed-on: https://go-review.googlesource.com/135517
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I71fbf8a3631efb1bd9e459b8247e5f7a6683894c
+    Reviewed-on: https://go-review.googlesource.com/113295
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_faq.html | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/vendor/github.com/google/pprof/pprof.go | 106 ------------------------
+ 1 file changed, 106 deletions(-)

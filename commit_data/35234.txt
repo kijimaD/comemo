@@ -1,25 +1,15 @@
-commit 548e1f89363fd3054a0bd8961c6c6b8b8ecbcfaf
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Apr 25 13:17:17 2018 -0700
+commit 4dc1c491b04e90a502ce041f0fd757c91915bff4
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jan 10 14:26:33 2018 -0800
 
-    cmd/compile: recognize some OpRsh64Ux64 Values as non-negative
+    crypto/x509: better document Verify's behaviour.
     
-    Proves IsSliceInBounds one additional time building std+cmd,
-    at encoding/hex/hex.go:187:8.
+    This change expands the documentation for Verify to mention the name
+    constraints and EKU behaviour.
     
-    The code is:
-    
-            if numAvail := len(d.in) / 2; len(p) > numAvail {
-                    p = p[:numAvail]
-            }
-    
-    Previously we were unable to prove that numAvail >= 0.
-    
-    Change-Id: Ie74e0aef809f9194c45e129ee3dae60bc3eae02f
-    Reviewed-on: https://go-review.googlesource.com/109415
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Change-Id: Ifc80faa6077c26fcc1d2a261ad1d14c00fd13b23
+    Reviewed-on: https://go-review.googlesource.com/87300
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/crypto/x509/verify.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

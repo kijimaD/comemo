@@ -1,21 +1,20 @@
-commit 04262986a0b112de5f6f0b287447319c31ef15f9
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Oct 13 17:14:24 2016 -0700
+commit ebcd17979326b44f445cdfe7640dc53cf14c19ca
+Author: Atin M <amalaviy@akamai.com>
+Date:   Fri May 6 12:20:12 2016 -0400
 
-    archive/tar: compact slices in tests
+    crypto/tls: set Conn.ConnectionState.ServerName unconditionally
     
-    Took this opportunity to also embed tables in the functions
-    that they are actually used in and other stylistic cleanups.
+    Moves the state.ServerName assignment to outside the if
+    statement that checks for handshakeComplete.
     
-    There was no logical changes to the tests.
+    Fixes #15571
     
-    Change-Id: Ifa724060532175f6f4407d6cedc841891efd8f7b
-    Reviewed-on: https://go-review.googlesource.com/31436
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I6c4131ddb16389aed1c410a975f9aa3b52816965
+    Reviewed-on: https://go-review.googlesource.com/22862
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/archive/tar/reader_test.go | 494 ++++++++++++++++++-----------------------
- src/archive/tar/tar_test.go    | 236 ++++++++++----------
- src/archive/tar/writer_test.go | 329 +++++++++++++--------------
- 3 files changed, 486 insertions(+), 573 deletions(-)
+ src/crypto/tls/conn.go                  |  3 ++-
+ src/crypto/tls/handshake_server_test.go | 41 +++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

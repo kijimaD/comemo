@@ -1,13 +1,34 @@
-commit 4923ba91553c7def753c3c3990163a2bc960474c
+commit 0836b86e8b0456997663b5aa14863251a0bf9b97
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 25 19:21:05 2011 -0700
+Date:   Wed May 25 12:31:11 2011 -0700
 
-    mime/multipart: misc code/doc fixes
+    http: Transport hook to register non-http(s) protocols
     
-    R=rsc
+    This permits external packages implementing e.g.
+    FTP or gopher to register themselves with the
+    http.DefaultClient:
+    
+    package ftp
+    func init() {
+        http.DefaultTransport.RegisterProtocol("ftp", &ftp{})
+    }
+    
+    Client code would look like:
+    
+    import (
+        _ "github.com/exampleuser/go/gopher"
+        _ "github.com/exampleuser/go/ftp"
+    )
+    
+    func main() {
+        resp, err := http.Get("ftp://example.com/path.txt")
+        ...
+    }
+    
+    R=dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/4532089
+    https://golang.org/cl/4526077
 
- src/pkg/mime/multipart/writer.go      | 73 ++++++++++++++++-------------------
- src/pkg/mime/multipart/writer_test.go |  2 +-
- 2 files changed, 34 insertions(+), 41 deletions(-)
+ src/pkg/http/transport.go      | 33 ++++++++++++++++++++++++++++++++-
+ src/pkg/http/transport_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)

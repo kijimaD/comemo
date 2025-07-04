@@ -1,15 +1,15 @@
-commit 2be62360b2748636a2849e959dede7359383b200
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Mon Sep 23 22:33:42 2013 -0400
+commit d9f034dc9eeea52e42a3138dcc8677db3554c879
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 23 17:16:59 2013 -0400
 
-    net: fix Close of autobind unix listener
+    net/http: accept Content-Range for entire file
     
-    Fixes #6455.
+    Fixes a bug reported privately.
     
-    R=mikioh.mikioh, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13457058
+    https://golang.org/cl/13846043
 
- src/pkg/net/unix_test.go      | 14 +++++++++++++-
- src/pkg/net/unixsock_posix.go |  2 +-
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ src/pkg/net/http/fs.go      | 2 +-
+ src/pkg/net/http/fs_test.go | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

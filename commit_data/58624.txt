@@ -1,22 +1,30 @@
-commit 8163ea1458763aa38fa9197e479bd30cb0145429
-Author: thepudds <thepudds1460@gmail.com>
-Date:   Thu Feb 6 08:07:38 2025 -0500
+commit 816ee0be38a08b2636a1e870cb1dc1e9b27b742e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 13 21:06:40 2023 +0000
 
-    weak: prevent unsafe conversions using weak pointers
+    internal/trace: add task analysis for v2 traces
     
-    Prevent conversions between Pointer types,
-    like we do for sync/atomic.Pointer.
+    For v1 traces, cmd/trace contains code for analyzing tasks separately
+    from the goroutine analysis code present in internal/trace. As I started
+    to look into porting that code to v2 traces, I noticed that it wouldn't
+    be too hard to just generalize the existing v2 goroutine summary code to
+    generate exactly the same information.
     
-    Fixes #71583
+    This change does exactly that.
     
-    Change-Id: I20e83106d8a27996f221e6cd9d52637b0442cea4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/647195
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #60773.
+    For #63960.
+    
+    Change-Id: I0cdd9bf9ba11fb292a9ffc37dbf18c2a6a2483b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542076
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/weak/pointer.go      |  5 ++++-
- src/weak/pointer_test.go | 10 ++++++++++
- test/weak.go             | 24 ++++++++++++++++++++++++
- 3 files changed, 38 insertions(+), 1 deletion(-)
+ src/cmd/trace/v2/main.go                           |   12 +-
+ src/cmd/trace/v2/pprof.go                          |    4 +-
+ src/internal/trace/{goroutinesv2.go => summary.go} |  103 +-
+ .../{goroutinesv2_test.go => summary_test.go}      |  173 ++-
+ src/internal/trace/v2/testdata/mktests.go          |  120 +-
+ .../testdata/tests/go122-annotations-stress.test   | 1179 ++++++++++++++++++++
+ 6 files changed, 1554 insertions(+), 37 deletions(-)

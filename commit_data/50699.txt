@@ -1,38 +1,13 @@
-commit 4a0a2b33dfa3c99250efa222439f2c27d6780e4a
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Sep 22 10:43:26 2022 -0700
+commit ad6ce55a55ec445ac946e825532bde5784f8d72b
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Wed Oct 20 15:21:46 2021 +0800
 
-    errors, fmt: add support for wrapping multiple errors
+    time: add some examples
     
-    An error which implements an "Unwrap() []error" method wraps all the
-    non-nil errors in the returned []error.
-    
-    We replace the concept of the "error chain" inspected by errors.Is
-    and errors.As with the "error tree". Is and As perform a pre-order,
-    depth-first traversal of an error's tree. As returns the first
-    matching result, if any.
-    
-    The new errors.Join function returns an error wrapping a list of errors.
-    
-    The fmt.Errorf function now supports multiple instances of the %w verb.
-    
-    For #53435.
-    
-    Change-Id: Ib7402e70b68e28af8f201d2b66bd8e87ccfb5283
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432898
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Change-Id: I2668cdea64f75bee87d424730d404834d69362a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357270
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- api/next/53435.txt        |  1 +
- src/errors/errors.go      | 31 ++++++++++++++------------
- src/errors/errors_test.go | 18 +++++++++++++++
- src/errors/join.go        | 51 ++++++++++++++++++++++++++++++++++++++++++
- src/errors/join_test.go   | 49 ++++++++++++++++++++++++++++++++++++++++
- src/errors/wrap.go        | 57 ++++++++++++++++++++++++++++++++++++-----------
- src/errors/wrap_test.go   | 52 +++++++++++++++++++++++++++++++++++++++++-
- src/fmt/errors.go         | 51 +++++++++++++++++++++++++++++++++++-------
- src/fmt/errors_test.go    | 38 +++++++++++++++++++++++++++----
- src/fmt/print.go          | 28 ++++++++++++++---------
- 10 files changed, 325 insertions(+), 51 deletions(-)
+ src/time/example_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

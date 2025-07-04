@@ -1,37 +1,18 @@
-commit 2ee82edfc2c904c952daef6f442c223b1568cb66
-Author: Rob Pike <r@golang.org>
-Date:   Mon Oct 24 12:38:06 2016 -0700
+commit a7ed9ff754dd66a75070a376382ca0fa520deefd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Aug 22 05:52:15 2016 +0900
 
-    cmd/doc: show documentation for interface methods when requested explicitly
+    net: document unimplemented methods and functions
     
-    For historical reasons, the go/doc package does not include
-    the methods within an interface as part of the documented
-    methods for that type. Thus,
+    Fixes #16802.
     
-            go doc ast.Node.Pos
-    
-    gives an incorrect and confusing error message:
-    
-            doc: no method Node.Pos in package go/ast
-    
-    This CL does some dirty work to dig down to the methods
-    so interface methods now present their documentation:
-    
-    % go doc ast.node.pos
-    func Pos() token.Pos  // position of first character belonging to the node
-    %
-    
-    It must largely sidestep the doc package to do this, which
-    is a shame. Perhaps things will improve there one day.
-    
-    The change does not handle embeddings, and in principle the
-    same approach could be done for struct fields, but that is also
-    not here yet. But this CL fixes the thing that was bugging me.
-    
-    Change-Id: Ic10a91936da96f54ee0b2f4a4fe4a8c9b93a5b4a
-    Reviewed-on: https://go-review.googlesource.com/31852
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I41be7bb4e21e3beaa2136ee69771b0f455b2a7c6
+    Reviewed-on: https://go-review.googlesource.com/27417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/doc/doc_test.go | 17 +++++++++++++++--
- src/cmd/doc/pkg.go      | 47 ++++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 57 insertions(+), 7 deletions(-)
+ src/net/file.go      | 3 +++
+ src/net/interface.go | 6 ++++++
+ src/net/iprawsock.go | 6 ++++++
+ src/net/tcpsock.go   | 3 +++
+ src/net/udpsock.go   | 9 +++++++++
+ 5 files changed, 27 insertions(+)

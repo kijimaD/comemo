@@ -1,32 +1,32 @@
-commit 8477562ce54868958f0f84f30815a220128aacf7
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Nov 11 15:30:10 2022 -0800
+commit 98ed91636926b4029bbbbb8c2ab4b66ee15a5734
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 5 16:19:19 2022 +0700
 
-    cmd/compile: be more careful about pointer incrementing in range loops
+    cmd/compile: fix instantiation of types referenced during inlining
     
-    For range loops, we use a pointer to the backing store that gets
-    incremented on each iteration of the loop.
+    CL 352870 added extra phase for instantiation after inlining, to take
+    care of the new fully-instantiated types. However, when fetching inlined
+    body of these types's methods, we need to allow OADDR operations on
+    untyped expressions, the same as what main inlining phase does.
     
-    The problem with this scheme is that at the end of the last iteration,
-    we may briefly have a pointer that points past the end of the backing store
-    of the slice that is being iterated over. We cannot let the garbage collector
-    see that pointer.
+    The problem does not show up, until CL 371554, which made the compiler
+    do not re-typecheck while importing, thus leaving a OXDOT node to be
+    marked as address taken when it's not safe to do that.
     
-    To fix this problem, have the incremented pointer live briefly as
-    a uintptr instead of a normal pointer, so it doesn't keep anything
-    alive. Convert back to a normal pointer just after the loop condition
-    is checked, but before anything that requires a real pointer representation
-    (in practice, any call, which is what could cause a GC scan or stack copy).
+    Fixes #50437
     
-    Fixes #56699
-    
-    Change-Id: Ia928d23f85a211565357603668bea4e5c534f989
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449995
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I20076b872182c520075a4f8b84230f5bcb05b341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375574
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/walk/range.go | 80 +++++++++++++++++++++++++++++-----
- 1 file changed, 69 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/main.go        |  5 ++++
+ src/cmd/compile/internal/typecheck/subr.go |  2 +-
+ test/typeparam/issue50437.dir/a.go         | 43 ++++++++++++++++++++++++++++++
+ test/typeparam/issue50437.dir/b.go         | 11 ++++++++
+ test/typeparam/issue50437.go               |  7 +++++
+ 5 files changed, 67 insertions(+), 1 deletion(-)

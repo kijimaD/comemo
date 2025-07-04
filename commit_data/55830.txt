@@ -1,16 +1,25 @@
-commit 9e3b1d53a012e98cfd02de2de8b1bd53522464d4
+commit 4f5859c0467a6e252e4705cd0086aaef6904e5a4
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Mar 2 18:48:26 2024 -0800
+Date:   Thu Mar 16 12:14:03 2023 -0700
 
-    slices: document that Clone can return extra capacity
+    os: don't check for TTY before calling splice
     
-    Change-Id: I8b9aa1f36ce554d8855ee70e15f0dd0a8cf1097a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568342
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    I think I confused myself in CL 476335. The TTY check did fix the
+    problem with os.Stdout, but it was still possible to get the same
+    problem in other ways. I fixed that by making the splice call blocking,
+    but it turns out that doing that is enough to fix the TTY problem also.
+    So we can just remove the TTY check.
+    
+    Fixes #59041
+    
+    Change-Id: I4d7ca9dad8361001edb4cfa96bb29b1badb54df0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477035
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/slices/slices.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/os/readfrom_linux.go | 13 -------------
+ 1 file changed, 13 deletions(-)

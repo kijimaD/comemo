@@ -1,17 +1,39 @@
-commit 867bef93b9a60ef07f068bc8d2d4398b76331e3c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jan 26 20:58:00 2016 +0000
+commit 754f707f5f6b870892b78814bac4f90086312039
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 4 11:14:19 2015 -0800
 
-    database/sql: implement Scan of time.Time, document, clarify Scan error text
+    cmd/link, cmd/go, cmd/dist: use copy of libgcc.a for internal linking
     
-    Fixes #9157
+    Change the linker to use a copy of the C compiler support library,
+    libgcc.a, when doing internal linking.  This will be used to satisfy any
+    undefined symbols referenced by host objects.
     
-    Change-Id: Iadf305a172a0ec53ae91e1b2db3f3351691a48ff
-    Reviewed-on: https://go-review.googlesource.com/18935
+    Change the dist tool to copy the support library into a new directory
+    tree under GOROOT/pkg/libgcc.  This ensures that libgcc is available
+    even when building Go programs on a system that has no C compiler.  The
+    C compiler is required when building the Go installation in the first
+    place, but is not required thereafter.
+    
+    Change the go tool to not link libgcc into cgo objects.
+    
+    Correct the linker handling of a weak symbol in an ELF input object to
+    not always create a new symbol, but to use an existing symbol if there
+    is one; this is necessary on freebsd-amd64, where libgcc contains a weak
+    definition of compilerrt_abort_impl.
+    
+    Fixes #9510.
+    
+    Change-Id: I1ab28182263238d9bcaf6a42804e5da2a87d8778
+    Reviewed-on: https://go-review.googlesource.com/16741
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/database/sql/convert.go      | 31 +++++++++++++++++---
- src/database/sql/convert_test.go | 23 +++++++++++++--
- src/database/sql/sql.go          | 63 ++++++++++++++++++++++++++++++++--------
- 3 files changed, 98 insertions(+), 19 deletions(-)
+ misc/cgo/test/cgo_test.go         |   1 +
+ misc/cgo/test/issue9510.go        |  24 +++++++
+ misc/cgo/test/issue9510a/a.go     |  15 +++++
+ misc/cgo/test/issue9510b/b.go     |  15 +++++
+ src/cmd/dist/build.go             |  49 ++++++++++++++
+ src/cmd/go/build.go               |  57 +---------------
+ src/cmd/link/internal/ld/ar.go    | 132 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/ldelf.go |   2 +-
+ src/cmd/link/internal/ld/lib.go   |  48 +++++++++-----
+ 9 files changed, 272 insertions(+), 71 deletions(-)

@@ -1,42 +1,38 @@
-commit a640d95172ec516a3b727a8ca796c64f5aea89ec
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 20 14:57:55 2016 -0400
+commit 3efefd9395a14b3abf1f1c59a596d880e78abb73
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 30 14:56:08 2016 -0700
 
-    runtime: update SP when jumping stacks in traceback
+    cmd/compile: use t.IsFoo() instead of t.Etype == TFOO
     
-    When gentraceback starts on a system stack in sigprof, it is
-    configured to jump to the user stack when it reaches the end of the
-    system stack. Currently this updates the current frame's FP, but not
-    its SP. This is okay on non-LR machines (x86) because frame.sp is only
-    used to find defers, which the bottom-most frame of the user stack
-    will never have.
+    CL produced mechanically using gofmt -w -r.
     
-    However, on LR machines, we use frame.sp to find the saved LR. We then
-    use to resolve the function of the next frame, which is used to
-    resolved the size of the next frame. Since we're not updating frame.sp
-    on a stack jump, we read the saved LR from the system stack instead of
-    the user stack and wind up resolving the wrong function and hence the
-    wrong frame size for the next frame.
+    Passes toolstash -cmp.
     
-    This has had remarkably few ill effects (though the resulting profiles
-    must be wrong). We noticed it because of a bad interaction with stack
-    barriers. Specifically, once we get the next frame size wrong, we also
-    get the location of its LR wrong. If we happen to get a stack slot
-    that contains a stale stack barrier LR (for a stack barrier we already
-    hit) and hasn't been overwritten with something else as we re-grew the
-    stack, gentraceback will fail with a "found next stack barrier at ..."
-    error, pointing at the slot that it thinks is an LR, but isn't.
-    
-    Fixes #15138.
-    
-    Updates #15313 (might fix it).
-    
-    Change-Id: I13cfa322b44c0c2f23ac2b3d03e12631e4a6406b
-    Reviewed-on: https://go-review.googlesource.com/23291
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Ib2e8710ebd844e2149125b41c335b71a02fcab53
+    Reviewed-on: https://go-review.googlesource.com/21338
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/traceback.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/amd64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/gc/alg.go       |  2 +-
+ src/cmd/compile/internal/gc/bexport.go   |  4 +--
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/cgen.go      | 18 ++++++-------
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/const.go     |  8 +++---
+ src/cmd/compile/internal/gc/dcl.go       | 14 +++++-----
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  4 +--
+ src/cmd/compile/internal/gc/gsubr.go     |  4 +--
+ src/cmd/compile/internal/gc/order.go     |  6 ++---
+ src/cmd/compile/internal/gc/racewalk.go  |  4 +--
+ src/cmd/compile/internal/gc/sinit.go     |  4 +--
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 36 +++++++++++++-------------
+ src/cmd/compile/internal/gc/swt.go       |  8 +++---
+ src/cmd/compile/internal/gc/typecheck.go | 44 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/walk.go      | 20 +++++++--------
+ src/cmd/compile/internal/x86/gsubr.go    |  2 +-
+ 21 files changed, 95 insertions(+), 95 deletions(-)

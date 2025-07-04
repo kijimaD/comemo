@@ -1,26 +1,28 @@
-commit e54843f2f4c3b11b52b691eaa187871fb4355d4c
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Sep 21 12:18:38 2021 -0700
+commit ab3b67abfd9bff30fc001c966ab121bacff3de9b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jan 15 23:20:13 2021 +0700
 
-    runtime: look up funcInfo by func pointer
+    [dev.regabi] cmd/compile: remove ONEWOBJ
     
-    runtime.Func.{Name,FileLine} need to be able to
-    go from a *_func to a funcInfo. The missing bit of
-    information is what module contains that *_func.
+    After CL 283233, SSA can now handle new(typ) without the frontend to
+    generate the type address, so we can remove ONEWOBJ in favor of ONEW
+    only.
     
-    The existing implementation looked up the module
-    using the *_func's entry PC. A subsequent change will
-    store *_func's entry PC relative to the containing module.
-    Change the module lookup to instead for the module
-    whose pclntable contains the *_func,
-    cutting all dependencies on the contents of the *_func.
+    This is also not save for toolstash, the same reason with CL 284115.
     
-    Change-Id: I2dbbfec043ebc2e9a6ef19bbdec623ac84353b10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351458
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ie03ea36b3b6f95fc7ce080376c6f7afc402d51a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284117
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/symtab.go | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/expr.go      |   2 +-
+ src/cmd/compile/internal/ir/node.go      |   1 -
+ src/cmd/compile/internal/ir/op_string.go | 143 +++++++++++++++----------------
+ src/cmd/compile/internal/ssagen/ssa.go   |   2 +-
+ src/cmd/compile/internal/walk/builtin.go |  20 ++---
+ src/cmd/compile/internal/walk/convert.go |   6 +-
+ src/cmd/compile/internal/walk/expr.go    |   2 +-
+ src/cmd/compile/internal/walk/walk.go    |   2 +-
+ 8 files changed, 87 insertions(+), 91 deletions(-)

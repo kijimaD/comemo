@@ -1,24 +1,18 @@
-commit 003dbc4cda6a1418fc419461799320521d64f4e5
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Jun 4 21:21:33 2019 +0000
+commit 889aa5eb98ff2a5134f5b075525479da399e5c4f
+Author: Herbie Ong <herbie@google.com>
+Date:   Wed Feb 20 11:30:14 2019 -0800
 
-    net/http: roll back "clean the path of the stripped URL by StripPrefix"
+    go/build: add go1.13 release tag
     
-    Roll back CL 161738. That fix changed StripPrefix behavior in the
-    general case, not just in the situation where where stripping the
-    prefix from path resulted in the empty string, causing issue #31622.
+    Adding this early in the cycle to start regression testing in the master
+    toolchain.
     
-    That kind of change to StripPrefix behavior is not backwards compatible,
-    and there can be a smaller, more targeted fix for the original issue.
-    
-    Fixes #31622
-    Updates #30165
-    
-    Change-Id: Ie2fcfe6787a32e44f71d564d8f9c9d580fc6f704
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180498
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia151429c4f94efbac0aa41ab6bc16e7462b0e303
+    Reviewed-on: https://go-review.googlesource.com/c/163082
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 9 ---------
- src/net/http/server.go     | 2 +-
- 2 files changed, 1 insertion(+), 10 deletions(-)
+ src/go/build/build.go | 2 +-
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

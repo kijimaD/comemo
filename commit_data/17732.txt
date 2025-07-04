@@ -1,14 +1,14 @@
-commit 94a6511b7f54501116144e529f9e0e7a1cbb5e87
+commit 95d85d90d8db0e90db5621035d35f02d41da959b
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 2 22:09:54 2013 -0400
+Date:   Wed Oct 2 21:40:01 2013 -0400
 
-    net: use original argument in lookup error
+    crypto/tls: document ConnectionState fields
     
-    Fixes #6324.
+    Fixes #6456.
     
-    R=golang-dev, iant, mikioh.mikioh
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13280049
+    https://golang.org/cl/14289043
 
- src/pkg/net/dnsclient_unix.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/pkg/crypto/tls/common.go | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)

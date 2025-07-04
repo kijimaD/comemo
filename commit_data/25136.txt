@@ -1,18 +1,21 @@
-commit 606d9a7e18c951bb64ea460597894558ff3808c1
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 3 14:36:45 2015 -0500
+commit 8ee0261865bea69f1a39e04a539e1152b7ba578d
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Aug 30 09:45:26 2015 -0700
 
-    crypto/x509: introduce ErrInsecureAlgorithm for insecure algorithms
+    crypto/x509: make verification of an empty certificate consistent across platforms.
     
-    Until now we've used ErrUnknownAlgorithm but that's a bit confusing
-    when it is returned for obviously-known things like MD5.
+    Platform-specific verification needs the ASN.1 contents of a certificate
+    but that might not be provided if the Certificate was not created by
+    ParseCertificate. In order to avoid a panic on Windows, and to make
+    behaviour consistent across platforms, this change causes verification
+    to fail when the ASN.1 contents of a certificate are not available.
     
-    Fixes #10431.
+    Fixes #12184
     
-    Change-Id: Ief8a8ef46e5b99bd4fd18e1acd7ae398a484bac3
-    Reviewed-on: https://go-review.googlesource.com/17380
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I4395d74934e675c179eaf4cded1094a756e478bb
+    Reviewed-on: https://go-review.googlesource.com/14053
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/x509/x509.go      |  6 ++++++
- src/crypto/x509/x509_test.go | 33 +++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ src/crypto/x509/verify.go    | 18 ++++++++++++++++++
+ src/crypto/x509/x509_test.go |  6 ++++++
+ 2 files changed, 24 insertions(+)

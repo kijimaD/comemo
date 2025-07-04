@@ -1,26 +1,25 @@
-commit 0487ba08a681c9e4414195c3a0f0ed16e93ada4f
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Sun Feb 12 12:21:26 2023 +0000
+commit 6f5590edf6883583a801ceb9309f074c0cd7c1cd
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Apr 8 23:44:40 2022 +0800
 
-    archive/zip: make receiver names consistent
+    cmd/compile: always write fun[0] in incomplete itab
     
-    Fixes revive linter receiver-naming warnings:
+    runtime.getitab need filled fun[0] to identify whether
+    implemented the interface.
     
-    - receiver name f should be consistent with previous receiver name e for fileListEntry
-    - receiver name r should be consistent with previous receiver name z for Reader
-    - receiver name f should be consistent with previous receiver name h for FileHeader
+    Fixes #51700
+    Fixes #52228
     
-    Change-Id: Ibfa14b97f6ca7adc86e3a1df919c5bb5de9716dc
-    GitHub-Last-Rev: dd7315b09d224bb2953b82cc6bd97d81c9eaca0a
-    GitHub-Pull-Request: golang/go#58477
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467519
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I0173b98f4e1b45e3a0183a5b60229d289140d1e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399058
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/archive/zip/reader.go | 50 +++++++++++++++++++++++------------------------
- src/archive/zip/struct.go |  4 ++--
- 2 files changed, 27 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go | 16 ++++++-------
+ test/typeparam/issue51700.go                    | 26 +++++++++++++++++++++
+ test/typeparam/issue52228.go                    | 30 +++++++++++++++++++++++++
+ 3 files changed, 64 insertions(+), 8 deletions(-)

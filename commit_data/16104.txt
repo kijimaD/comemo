@@ -1,13 +1,20 @@
-commit c80f5b9bf7c67e1338d04bc0cf21fe285c3a80df
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Thu Apr 4 14:18:52 2013 -0700
+commit b72325fde48f56dce438608b7d8375be1dc81080
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 4 13:40:26 2013 -0700
 
-    runtime: use a distinct pattern to mark free blocks in need of zeroing
+    net/http: remove some obsolete TODOs
     
-    R=golang-dev, dvyukov, khr, cshapiro
+    We've decided to leave logging to third-parties (there are too
+    many formats), which others have done.
+    
+    And we can't change the behavior of the various response
+    fields at this point anyway. Plus I argue they're correct and
+    match their documention.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8392043
+    https://golang.org/cl/8391043
 
- src/pkg/runtime/malloc.goc | 4 ++--
- src/pkg/runtime/mgc0.c     | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/net/http/response_test.go | 6 +++---
+ src/pkg/net/http/server.go        | 3 ---
+ 2 files changed, 3 insertions(+), 6 deletions(-)

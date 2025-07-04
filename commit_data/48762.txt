@@ -1,36 +1,29 @@
-commit 5bf6c97e76c721242a9b064950cd901c33f6f0b9
-Author: tenkoh <tenkoh.go@gmail.com>
-Date:   Wed Mar 30 15:30:19 2022 +0900
+commit 8a5a6f46dc51597174d0044dcd3bdffa950ae65e
+Author: Victor Michel <victor@optimyze.cloud>
+Date:   Fri Jun 11 05:44:00 2021 +0000
 
-    cmd/go: open correct path when loading embeds from root directory
+    debug/elf: don't apply DWARF relocations for ET_EXEC binaries
     
-    The existing implementation of `load.resolveEmbed`
-    uses an expression like `path[len(pkgdir)+1:]`.
-    Though the `+1` is intended to remove a prefix slash,
-    the expression returns an incorrect path when `pkgdir`
-    is "/". (ex.: when removing "/" from "/foo", want "foo",
-    but got "oo")
+    Some ET_EXEC binaries might have relocations for non-loadable sections
+    like .debug_info. These relocations must not be applied, because:
+    * They may be incorrect
+    * The correct relocations were already applied at link time
     
-    It seems that `str.TrimFilePathPrefix` would solve
-    the problem, but the function contains the same bug.
+    Binaries in Linux Kernel debug packages like Fedora/Centos kernel-debuginfo
+    are such examples. Relocations for .debug_* sections are included in the
+    final binaries because they are compiled with --emit-relocs, but the resulting
+    relocations are incorrect and shouldn't be used when reading DWARF sections.
     
-    So, this commit fixes `str.TrimFilePathPrefix` then
-    applies it to `load.resolveEmbed` to solve the issue.
-    The fix is quite simple. First, remove prefix. Then
-    check whether the remained first letter is equal to
-    `filepath.Separator`. If so, remove it then return.
+    Fixes #46673
     
-    Fixed #49570
-    
-    Change-Id: I26ab727ee4dfcbf51ed9bd0a573957ced2154515
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396694
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2b4214f1584bfc243446d0eaee41512657325b95
+    GitHub-Last-Rev: 8350fad059e70422d13dfaa5bab7fb8a56c0f76f
+    GitHub-Pull-Request: golang/go#46698
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327009
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/load/pkg.go     |  5 +--
- src/cmd/go/internal/str/path.go     |  9 +++--
- src/cmd/go/internal/str/str_test.go | 71 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 80 insertions(+), 5 deletions(-)
+ src/debug/elf/file.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

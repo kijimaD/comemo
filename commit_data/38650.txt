@@ -1,28 +1,29 @@
-commit 1abf3aa55bb8b346bb1575ac8db5022f215df65a
-Author: Leo Antunes <leo@costela.net>
-Date:   Thu Apr 4 08:50:27 2019 +0000
+commit 5cf2b4c2d39e0490b235822f5ea7fa105280b9f2
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 12 16:49:52 2018 -0500
 
-    net: add KeepAlive field to ListenConfig
+    cmd/compile: fix race on initializing Sym symFunc flag
     
-    This commit adds a KeepAlive field to ListenConfig and uses it
-    analogously to Dialer.KeepAlive to set TCP KeepAlives per default on
-    Accept()
+    SSA lowering can create PFUNC ONAME nodes when compiling method calls.
+    Since we generally initialize the node's Sym to a func when we set its
+    class to PFUNC, we did this here, too. Unfortunately, since SSA
+    compilation is concurrent, this can cause a race if two function
+    compilations try to initialize the same symbol.
     
-    Fixes #23378
+    Luckily, we don't need to do this at all, since we're actually just
+    wrapping an ONAME node around an existing Sym that's already marked as
+    a function symbol.
     
-    Change-Id: I57eaf9508c979e7f0e2b8c5dd8e8901f6eb27fd6
-    GitHub-Last-Rev: e9e035d53ee8aa3d899d12db08b293f599daecb6
-    GitHub-Pull-Request: golang/go#31242
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170678
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes the linux-amd64-racecompile builder, which was broken by CL
+    147158.
+    
+    Updates #27539.
+    
+    Change-Id: I8ddfce6e66a08ce53998c5bfa6f5a423c1ffc1eb
+    Reviewed-on: https://go-review.googlesource.com/c/149158
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/dial.go          |  8 ++++++++
- src/net/file_plan9.go    |  2 +-
- src/net/file_unix.go     |  2 +-
- src/net/http/server.go   | 22 ++--------------------
- src/net/tcpsock.go       |  1 +
- src/net/tcpsock_plan9.go | 14 ++++++++++++--
- src/net/tcpsock_posix.go | 14 ++++++++++++--
- 7 files changed, 37 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

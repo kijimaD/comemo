@@ -1,13 +1,12 @@
-commit dd963ddf05ff84db489bf462c8ad500b84e72dcb
-Author: Quan Yong Zhai <qyzhai@gmail.com>
-Date:   Sat Apr 21 14:34:42 2012 +1000
+commit 32c3a626da60210c85dc004ead609941dfff73bc
+Author: Michael Chaten <mchaten@gmail.com>
+Date:   Sat Apr 21 13:24:41 2012 +1000
 
-    compress/zlib: minor fixes
+    runtime: add benchmark for complex128 division
     
-    R=golang-dev, dave
-    CC=golang-dev
-    https://golang.org/cl/6058043
+    R=golang-dev, dave, rsc
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6070043
 
- src/pkg/compress/zlib/example_test.go | 37 +++++++++++++++++++++++++++++++++++
- src/pkg/compress/zlib/reader.go       |  2 +-
- 2 files changed, 38 insertions(+), 1 deletion(-)
+ src/pkg/runtime/complex_test.go | 57 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

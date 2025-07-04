@@ -1,18 +1,31 @@
-commit a3eb3b8148b5f615f24f9e58451adec3d55b739a
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Sat Mar 9 03:10:36 2024 +0000
+commit 1596d71255f3c19a27600e751592079dae46bf40
+Author: Ananth Bhaskararaman <antsub@gmail.com>
+Date:   Wed Mar 22 05:37:43 2023 +0000
 
-    compress/gzip: close writer in test
+    os/user: lookup Linux users and groups via systemd userdb
     
-    Change-Id: I12bc9287106f1492cbc9e74b4163cce97c957d31
-    GitHub-Last-Rev: cda1b48fe3ee9083a2262f1d6eeb039c66c12b40
-    GitHub-Pull-Request: golang/go#66185
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569896
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fetch usernames and groups via systemd userdb if available.
+    Otherwise fall back to parsing /etc/passwd, etc.
+    
+    Fixes #38810
+    
+    Co-authored-by: Michael Stapelberg <stapelberg@google.com>
+    
+    Change-Id: Iff6ffc54feec6b6cec241b89e362c2285c8c0454
+    GitHub-Last-Rev: 1a627cc9a18063f5d274bb96113947cd4d952e5a
+    GitHub-Pull-Request: golang/go#57458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/compress/gzip/gzip_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/os/user/listgroups_unix.go         |   9 +
+ src/os/user/lookup_unix.go             |  30 ++
+ src/os/user/user.go                    |   4 +
+ src/os/user/userdbclient.go            |  22 +
+ src/os/user/userdbclient_linux.go      | 772 +++++++++++++++++++++++++++++++++
+ src/os/user/userdbclient_linux_test.go | 504 +++++++++++++++++++++
+ src/os/user/userdbclient_stub.go       |  29 ++
+ 7 files changed, 1370 insertions(+)

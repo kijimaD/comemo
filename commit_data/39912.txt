@@ -1,17 +1,17 @@
-commit c2facbe93705530a4b4aea70da544a7d645ea288
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Sep 16 16:31:32 2019 +0000
+commit c1783896049a4e0b4b8834ca02e0914b8d03de79
+Author: zdjones <zachj1@gmail.com>
+Date:   Sun Mar 31 22:33:52 2019 +0100
 
-    Revert "test/codegen: document -all_codegen option in README"
+    cmd/compile: update stale comment in prove
     
-    This reverts CL 192101.
+    This is a follow-up CL to https://golang.org/cl/170118, updating a comment made
+    incorrect by that CL.
     
-    Reason for revert: The same paragraph was added 2 weeks ago
-    (look a few lines above)
-    
-    Change-Id: I05efb2631d7b4966f66493f178f2a649c715a3cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195637
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I5a29cfae331fbbbb36c96d96f9e4949393a5942d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170123
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/codegen/README | 6 ------
- 1 file changed, 6 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

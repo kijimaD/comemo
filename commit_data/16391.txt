@@ -1,12 +1,17 @@
-commit 3b7dcf074f8295e0270b4ad38aa26951b3621519
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 23 14:13:39 2013 -0700
+commit fdc4ce6ec790b1a0507c3c2ef20e94aca4876a1b
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu May 23 18:29:19 2013 +0200
 
-    codereview: close the head tag
+    io: Prioritize WriterTos over ReaderFroms in Copy.
     
-    R=golang-dev, dsymonds
-    CC=golang-dev
-    https://golang.org/cl/9695045
+    This only affects calls where both ReaderFrom and WriterTo are implemented. WriterTo can issue one large write, while ReaderFrom must Read until EOF, potentially reallocating when out of memory. With one large Write, the Writer only needs to allocate once.
+    
+    This also helps in ioutil.Discard since we can avoid copying memory when the Reader implements WriterTo.
+    
+    R=golang-dev, dsymonds, remyoudompheng, bradfitz
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/9462044
 
- misc/dashboard/codereview/dashboard/front.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/io/io.go      | 16 ++++++++--------
+ src/pkg/io/io_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 8 deletions(-)

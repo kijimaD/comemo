@@ -1,24 +1,14 @@
-commit 8d64e73f9417f945419217b0723dfda3435a8e02
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jun 4 07:46:22 2011 +1000
+commit 86b3577a594cad40deb40d0a454f545d0c443f73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 3 13:02:35 2011 -0700
 
-    unicode: add the first few property tests for printing.
+    ebnf: update comment
     
-    The long-term goal is that %q will use IsPrint to decide
-    what to show natively vs. as hexadecimal.
+    (pointed out by jan.mercl@nic.cz)
     
-    R=rsc, r
+    R=iant, jan.mercl, rsc
     CC=golang-dev
-    https://golang.org/cl/4526095
+    https://golang.org/cl/4515189
 
- src/pkg/unicode/Makefile        |    1 +
- src/pkg/unicode/digit.go        |    2 +-
- src/pkg/unicode/digit_test.go   |    2 +-
- src/pkg/unicode/graphic.go      |  132 ++++
- src/pkg/unicode/graphic_test.go |  122 +++
- src/pkg/unicode/letter.go       |   43 +-
- src/pkg/unicode/letter_test.go  |    2 +-
- src/pkg/unicode/maketables.go   |  105 ++-
- src/pkg/unicode/script_test.go  |   17 +-
- src/pkg/unicode/tables.go       | 1623 ++++++++++++++++++++++++++++++---------
- 10 files changed, 1634 insertions(+), 415 deletions(-)
+ src/pkg/ebnf/ebnf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

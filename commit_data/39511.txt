@@ -1,12 +1,62 @@
-commit 89d300b821551c9955414caf3066ae602813f6ea
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Jul 14 18:48:20 2019 +0200
+commit 4fb900e9ca1f08c57b074e7bf6a7eab90b92c898
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 3 17:02:14 2019 -0800
 
-    doc/go1.13: fix misspelling of "interpreted"
+    internal/poll: copy and use errnoErr to avoid allocations
     
-    Change-Id: I465f10533cc76d8160e56bc49eabaf8127ac4e61
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186137
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Converting a syscall.Errno to an interface is
+    a significant source of allocations in os/exec.
+    
+    Elsewhere in the tree, we have pre-allocated errors
+    for common errno values. Use the same trick here.
+    
+    This CL makes yet another copy of this code.
+    The problem is that there isn't really a great place to share it.
+    
+    The existing copies are in:
+    
+    cmd/vendor/golang.org/x/sys/unix
+    cmd/vendor/golang.org/x/sys/windows
+    cmd/vendor/golang.org/x/sys/windows/registry
+    internal/syscall/windows
+    internal/syscall/windows/registry
+    syscall
+    
+    internal/poll can't import from cmd/vendor, and cmd/vendor
+    can't import from internal/*, so we can ignore cmd/vendor.
+    
+    We could put the unix version in internal/syscall/unix
+    and then have a platform-independent wrapper in internal/syscall.
+    But syscall couldn't use it; internal/syscall/* depends on syscall.
+    So that only allows code re-use with internal/syscall/windows/*.
+    
+    We could create a new very low level internal package, internal/errno.
+    But syscall couldn't use it, because it has to import syscall
+    to get access to syscall.Errno.
+    So that only allows code re-use with internal/syscall/windows/*.
+    
+    It's not clear that that any of these options pulls its weight.
+    
+    The obvious and "correct" place for this is syscall.
+    But we can't export syscall's version, because package syscall is frozen.
+    
+    So just copy the code. There's not much of it.
+    
+    name            old alloc/op   new alloc/op   delta
+    ExecHostname-8    6.15kB ± 0%    6.13kB ± 0%  -0.38%  (p=0.000 n=20+19)
+    
+    name            old allocs/op  new allocs/op  delta
+    ExecHostname-8      34.0 ± 0%      31.0 ± 0%  -8.82%  (p=0.000 n=20+20)
+    
+    Fixes #30535
+    
+    Change-Id: Idd31c7cced6e15387acc698ffc011e1b7b479903
+    Reviewed-on: https://go-review.googlesource.com/c/164971
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.13.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/poll/errno_unix.go      | 33 +++++++++++++++++++++++++++++++++
+ src/internal/poll/errno_windows.go   | 31 +++++++++++++++++++++++++++++++
+ src/internal/poll/fd_poll_runtime.go |  2 +-
+ 3 files changed, 65 insertions(+), 1 deletion(-)

@@ -1,16 +1,20 @@
-commit dc75744f9c16e6af08f3e4677f28850b874ecc51
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 17 12:46:20 2018 -0700
+commit 05f8b44d5edc2960eff106e5e780cf83535d0533
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 7 18:18:50 2018 +0000
 
-    os/signal: wait for goroutine in TestTerminalSignal
+    unicode: fix SpecialCase to follow its docs & respect explict no-op mappings
     
-    Fixes #28169
+    If SpecialCase contains an explicit CaseRange with zero deltas,
+    respect those and don't fall back to the default behavior.
     
-    Change-Id: I187d9effea56357bbb04d4971d284a52ffae61f8
-    Reviewed-on: https://go-review.googlesource.com/c/142889
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #25636
+    
+    Change-Id: Ic554c6b3dd462b1b39c75194eec469b6ff4aa55b
+    Reviewed-on: https://go-review.googlesource.com/117155
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
 
- src/os/signal/signal_cgo_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/unicode/letter.go      | 26 ++++++++++++++------------
+ src/unicode/letter_test.go | 12 ++++++++++++
+ 2 files changed, 26 insertions(+), 12 deletions(-)

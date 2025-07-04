@@ -1,28 +1,136 @@
-commit e7eee5e265440b0ed3b76093ccdfd776facc767a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 26 15:30:40 2021 -0700
+commit be10af7c4e818566f0b19fb9ffefce2853722842
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Dec 13 22:48:02 2020 -0800
 
-    cmd/compile: remove ssagen/pgen_test.go
+    test: match gofrontend error messages
     
-    This test was written in 2015, and hasn't had any meaningful changes
-    to it since. However, it's very ad hoc and pokes into internals that
-    it shouldn't, and it keeps getting in the way of more meaningful
-    refactorings. It doesn't even catch bugs; e.g., it didn't catch that
-    cmpstackvarlt wasn't asymmetric (CL 19778), and a bunch of its test
-    cases are bogus because we never actually use it to sort ir.PFUNC
-    nodes (assert added in this CL).
+    fixedbugs/issue20602.go:13:9: error: argument must have complex type
+    fixedbugs/issue20602.go:14:9: error: argument must have complex type
     
-    The compiler is woefully lacking in unit tests like these, but I
-    strongly feel this test is more of a hinderance than a help at the
-    moment.
+    fixedbugs/issue19323.go:12:12: error: attempt to slice object that is not array, slice, or string
+    fixedbugs/issue19323.go:18:13: error: attempt to slice object that is not array, slice, or string
     
-    Change-Id: I3ac7a3e533947aa95f325626c6eec13a43789f9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345478
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    fixedbugs/issue20749.go:12:11: error: array index out of bounds
+    fixedbugs/issue20749.go:15:11: error: array index out of bounds
+    
+    fixedbugs/issue20415.go:14:5: error: redefinition of ‘f’
+    fixedbugs/issue20415.go:12:5: note: previous definition of ‘f’ was here
+    fixedbugs/issue20415.go:25:5: error: redefinition of ‘g’
+    fixedbugs/issue20415.go:20:5: note: previous definition of ‘g’ was here
+    fixedbugs/issue20415.go:33:5: error: redefinition of ‘h’
+    fixedbugs/issue20415.go:31:5: note: previous definition of ‘h’ was here
+    
+    fixedbugs/issue19977.go:12:21: error: reference to undefined name ‘a’
+    
+    fixedbugs/issue20812.go:10:13: error: invalid type conversion (cannot use type string as type int)
+    fixedbugs/issue20812.go:11:13: error: invalid type conversion (cannot use type int as type bool)
+    fixedbugs/issue20812.go:12:13: error: invalid type conversion (cannot use type string as type bool)
+    fixedbugs/issue20812.go:13:13: error: invalid type conversion (cannot use type bool as type int)
+    fixedbugs/issue20812.go:14:13: error: invalid type conversion (cannot use type bool as type string)
+    
+    fixedbugs/issue21256.go:9:5: error: redefinition of ‘main’
+    
+    fixedbugs/issue20813.go:10:11: error: invalid left hand side of assignment
+    
+    fixedbugs/issue20185.go:22:16: error: ‘t’ declared but not used
+    fixedbugs/issue20185.go:13:9: error: cannot type switch on non-interface value
+    fixedbugs/issue20185.go:22:9: error: cannot type switch on non-interface value
+    
+    fixedbugs/issue20227.go:11:11: error: division by zero
+    fixedbugs/issue20227.go:12:12: error: division by zero
+    fixedbugs/issue20227.go:13:12: error: division by zero
+    fixedbugs/issue20227.go:15:11: error: division by zero
+    fixedbugs/issue20227.go:16:12: error: division by zero
+    
+    fixedbugs/issue19880.go:14:13: error: invalid use of type
+    
+    fixedbugs/issue23093.go:9:5: error: initialization expression for ‘f’ depends upon itself
+    
+    fixedbugs/issue21979.go:29:13: error: integer constant overflow
+    fixedbugs/issue21979.go:39:13: error: complex constant truncated to floating-point
+    fixedbugs/issue21979.go:10:13: error: invalid type conversion (cannot use type string as type bool)
+    fixedbugs/issue21979.go:11:13: error: invalid type conversion (cannot use type int as type bool)
+    fixedbugs/issue21979.go:12:13: error: invalid type conversion (cannot use type float64 as type bool)
+    fixedbugs/issue21979.go:13:13: error: invalid type conversion (cannot use type complex128 as type bool)
+    fixedbugs/issue21979.go:15:13: error: invalid type conversion (cannot use type bool as type string)
+    fixedbugs/issue21979.go:17:13: error: invalid type conversion (cannot use type float64 as type string)
+    fixedbugs/issue21979.go:18:13: error: invalid type conversion (cannot use type complex128 as type string)
+    fixedbugs/issue21979.go:20:13: error: invalid type conversion (cannot use type string as type int)
+    fixedbugs/issue21979.go:21:13: error: invalid type conversion (cannot use type bool as type int)
+    fixedbugs/issue21979.go:27:13: error: invalid type conversion (cannot use type string as type uint)
+    fixedbugs/issue21979.go:28:13: error: invalid type conversion (cannot use type bool as type uint)
+    fixedbugs/issue21979.go:34:13: error: invalid type conversion (cannot use type string as type float64)
+    fixedbugs/issue21979.go:35:13: error: invalid type conversion (cannot use type bool as type float64)
+    fixedbugs/issue21979.go:41:13: error: invalid type conversion (cannot use type string as type complex128)
+    fixedbugs/issue21979.go:42:13: error: invalid type conversion (cannot use type bool as type complex128)
+    
+    fixedbugs/issue21988.go:11:11: error: reference to undefined name ‘Wrong’
+    
+    fixedbugs/issue22063.go:11:11: error: reference to undefined name ‘Wrong’
+    
+    fixedbugs/issue22904.go:12:6: error: invalid recursive type ‘a’
+    fixedbugs/issue22904.go:13:6: error: invalid recursive type ‘b’
+    
+    fixedbugs/issue22921.go:11:16: error: reference to undefined identifier ‘bytes.nonexist’
+    fixedbugs/issue22921.go:13:19: error: reference to undefined identifier ‘bytes.nonexist’
+    fixedbugs/issue22921.go:13:19: error: expected signature or type name
+    fixedbugs/issue22921.go:17:15: error: reference to undefined identifier ‘bytes.buffer’
+    
+    fixedbugs/issue23823.go:15:9: error: invalid recursive interface
+    fixedbugs/issue23823.go:10:9: error: invalid recursive interface
+    
+    fixedbugs/issue23732.go:24:13: error: too few expressions for struct
+    fixedbugs/issue23732.go:34:17: error: too many expressions for struct
+    fixedbugs/issue23732.go:37:13: error: too few expressions for struct
+    fixedbugs/issue23732.go:40:17: error: too many expressions for struct
+    
+    fixedbugs/issue22794.go:16:14: error: reference to undefined field or method ‘floats’
+    fixedbugs/issue22794.go:18:19: error: unknown field ‘floats’ in ‘it’
+    fixedbugs/issue22794.go:19:17: error: unknown field ‘InneR’ in ‘it’
+    fixedbugs/issue22794.go:18:9: error: ‘i2’ declared but not used
+    
+    fixedbugs/issue22822.go:15:17: error: expected function
+    
+    fixedbugs/issue25727.go:12:10: error: reference to unexported field or method ‘doneChan’
+    fixedbugs/issue25727.go:13:10: error: reference to undefined field or method ‘DoneChan’
+    fixedbugs/issue25727.go:14:21: error: unknown field ‘tlsConfig’ in ‘http.Server’
+    fixedbugs/issue25727.go:15:21: error: unknown field ‘DoneChan’ in ‘http.Server’
+    fixedbugs/issue25727.go:21:14: error: unknown field ‘bAr’ in ‘foo’
+    
+    Change-Id: I32ce0b7d80017b2367b8fb479a881632240d4161
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277455
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssagen/pgen.go      |  17 ++-
- src/cmd/compile/internal/ssagen/pgen_test.go | 209 ---------------------------
- 2 files changed, 16 insertions(+), 210 deletions(-)
+ test/fixedbugs/issue19323.go  |  4 ++--
+ test/fixedbugs/issue19880.go  |  2 +-
+ test/fixedbugs/issue19977.go  |  2 +-
+ test/fixedbugs/issue20185.go  |  4 ++--
+ test/fixedbugs/issue20227.go  | 10 +++++-----
+ test/fixedbugs/issue20415.go  |  6 +++---
+ test/fixedbugs/issue20529.go  |  2 +-
+ test/fixedbugs/issue20602.go  |  4 ++--
+ test/fixedbugs/issue20749.go  |  4 ++--
+ test/fixedbugs/issue20780.go  |  2 +-
+ test/fixedbugs/issue20812.go  | 10 +++++-----
+ test/fixedbugs/issue20813.go  |  2 +-
+ test/fixedbugs/issue21256.go  |  2 +-
+ test/fixedbugs/issue21273.go  |  2 +-
+ test/fixedbugs/issue21979.go  | 34 +++++++++++++++++-----------------
+ test/fixedbugs/issue21988.go  |  2 +-
+ test/fixedbugs/issue22063.go  |  2 +-
+ test/fixedbugs/issue22200.go  |  2 +-
+ test/fixedbugs/issue22200b.go |  6 +++---
+ test/fixedbugs/issue22794.go  |  6 +++---
+ test/fixedbugs/issue22822.go  |  2 +-
+ test/fixedbugs/issue22904.go  |  2 +-
+ test/fixedbugs/issue22921.go  |  6 +++---
+ test/fixedbugs/issue23093.go  |  2 +-
+ test/fixedbugs/issue23732.go  | 10 +++++-----
+ test/fixedbugs/issue23823.go  |  6 +++---
+ test/fixedbugs/issue24339.go  |  2 +-
+ test/fixedbugs/issue25507.go  |  6 +++---
+ test/fixedbugs/issue25727.go  | 10 +++++-----
+ 29 files changed, 77 insertions(+), 77 deletions(-)

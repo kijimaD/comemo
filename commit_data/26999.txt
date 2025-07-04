@@ -1,18 +1,22 @@
-commit f947429983d3906127432120b49fa3362e7de374
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Apr 19 03:24:21 2016 +0200
+commit b4c66b176e4ae155565c6e9ad07041540081c792
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 13:45:52 2016 -0800
 
-    net: enable DualStack mode on Plan 9
+    cmd/internal/obj/mips: add ALUI const
     
-    DualStack mode requires dialTCP to support cancellation,
-    which has been implemented for Plan 9 in CL 22144.
+    Instead of abusing ALAST.
     
-    Updates #11225.
-    Updates #11932.
+    Passes GOARCH=mips64 toolstash -cmp.
     
-    Change-Id: I6e468363dc147326b097b604c122d5af80362787
-    Reviewed-on: https://go-review.googlesource.com/22204
+    Updates #14692.
+    
+    Change-Id: Ie85e99cf76508c1d0f5847a4157056b614fd5cc6
+    Reviewed-on: https://go-review.googlesource.com/20341
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dial.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/internal/obj/mips/a.out.go  |  1 +
+ src/cmd/internal/obj/mips/anames.go |  1 +
+ src/cmd/internal/obj/mips/asm0.go   | 26 +++++++++++++-------------
+ 3 files changed, 15 insertions(+), 13 deletions(-)

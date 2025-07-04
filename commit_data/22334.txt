@@ -1,12 +1,19 @@
-commit aaa092cfd70bbdfc577c0c9837d98fa0c416447d
-Author: kortschak <dan.kortschak@adelaide.edu.au>
-Date:   Tue Apr 7 20:19:45 2015 +0930
+commit 5789b28525cc7565aacc0394824bc58f92fd97e6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 16:04:17 2015 -0500
 
-    encoding/gob: make method doc string match method name
+    runtime: start GC background sweep eagerly
     
-    Change-Id: I6859bd9c9dba30fc5eeb9bbc1de90af67984944c
-    Reviewed-on: https://go-review.googlesource.com/8526
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Starting it lazily causes a memory allocation (for the goroutine) during GC.
+    
+    First use of channels for runtime implementation.
+    
+    Change-Id: I9cd24dcadbbf0ee5070ee6d0ed7ea415504f316c
+    Reviewed-on: https://go-review.googlesource.com/6960
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/encoding/gob/decode.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go      | 15 +++++++++++----
+ src/runtime/mgcsweep.go |  8 +++++++-
+ src/runtime/proc.go     |  2 +-
+ 3 files changed, 19 insertions(+), 6 deletions(-)

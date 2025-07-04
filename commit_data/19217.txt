@@ -1,15 +1,18 @@
-commit 296eeaa78df8537964821756c393cbd06174a119
+commit 80e7f972067b3da542ba86f969719456139f111d
 Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Apr 21 21:12:18 2014 +1000
+Date:   Mon Apr 21 19:28:02 2014 +1000
 
-    cmd/nm: do not fail TestNM if symbol has less then 3 columns in nm output
+    cmd/ld: correct addresses in windows pe symbol table
     
-    Fixes #7829
+    This should have been part of 36eb4a62fbb6,
+    but I later discovered that addresses are all wrong.
+    Appropriate test added now.
     
-    LGTM=dave
-    R=golang-codereviews, aram, dave
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/89830043
+    https://golang.org/cl/89470043
 
- src/cmd/nm/nm_test.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/ld/pe.c       | 13 ++++++++++++-
+ src/cmd/nm/nm_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 1 deletion(-)

@@ -1,12 +1,31 @@
-commit 3b901f4515a20c76ea3b120d3c9b1877263a72da
+commit 28564d60ebce78a4e151d8f18e2d15a574fd43a4
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 3 20:05:13 2011 -0700
+Date:   Thu Nov 3 18:12:51 2011 -0700
 
-    http: clarify Request docs
+    httputil: move dump and chunking functions out of http
     
-    R=rsc
+    This moves DumpRequest, DumpResponse, NewChunkedReader,
+    and NewChunkedWriter out of http, as part of the continued
+    http diet plan.
+    
+    Also, adds DumpRequestOut (for dumping outbound requests),
+    since DumpRequest's ambiguity (the "wire representation" in
+    what direction?) was often a source of confusion and bug
+    reports.
+    
+    R=rsc, adg
     CC=golang-dev
-    https://golang.org/cl/5342041
+    https://golang.org/cl/5339041
 
- src/pkg/net/http/request.go | 30 ++++++++++++++++++++++--------
- 1 file changed, 22 insertions(+), 8 deletions(-)
+ src/pkg/net/http/Makefile                 |   1 -
+ src/pkg/net/http/chunked.go               |  23 +---
+ src/pkg/net/http/dump.go                  |  77 ------------
+ src/pkg/net/http/httputil/Makefile        |   2 +
+ src/pkg/net/http/httputil/chunked.go      |  84 +++++++++++++
+ src/pkg/net/http/httputil/chunked_test.go |  35 ++++++
+ src/pkg/net/http/httputil/dump.go         | 203 ++++++++++++++++++++++++++++++
+ src/pkg/net/http/httputil/dump_test.go    | 140 +++++++++++++++++++++
+ src/pkg/net/http/request.go               |  52 --------
+ src/pkg/net/http/requestwrite_test.go     |  26 ----
+ src/pkg/net/http/transfer.go              |   4 +-
+ 11 files changed, 468 insertions(+), 179 deletions(-)

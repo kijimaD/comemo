@@ -1,0 +1,24 @@
+commit 549a88fa53c4d7d5ad702cdc90b3f0c763deb12e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 20 16:23:11 2025 -0800
+
+    go/types, types2: better error messages for calls
+    
+    Provide the exact error cause instead of reporting a missing
+    core type.
+    
+    For #70128.
+    
+    Change-Id: I34bd401115742883cb6aef7997477473b2464abb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651256
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go      | 12 ++++++++---
+ src/cmd/compile/internal/types2/under.go     | 32 ++++++++++++++++++++++++++++
+ src/go/types/call.go                         | 12 ++++++++---
+ src/go/types/under.go                        | 32 ++++++++++++++++++++++++++++
+ src/internal/types/testdata/check/lookup1.go | 12 +++++++++++
+ 5 files changed, 94 insertions(+), 6 deletions(-)

@@ -1,28 +1,23 @@
-commit 48ef01051ae58265088ee87f3a408224d2cfaec3
-Author: Keith Randall <keithr@alum.mit.edu>
-Date:   Wed Apr 3 13:16:58 2019 -0700
+commit 1794ee682994ed2efbb9371060856cd7b146f405
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 31 20:42:38 2018 -0400
 
-    cmd/compile: handle new panicindex/slice names in optimizations
+    cmd/link: nice error message on ABI mismatch
     
-    These new calls should not prevent NOSPLIT promotion, like the old ones.
-    These new calls should not prevent racefuncenter/exit removal.
+    Currently, if a symbol is only defined under one ABI and referenced
+    under another ABI, you simply get a "relocation target X not defined".
+    This is confusing because it seems like the symbol is defined.
     
-    (The latter was already true, as the new calls are not yet lowered
-    to StaticCalls at the point where racefuncenter/exit removal is done.)
+    This CL enhances the error message in this case to be "relocation
+    target X not defined for <ABI> (but is defined for <ABI>)".
     
-    Add tests to make sure we don't regress (again).
+    For #27539.
     
-    Fixes #31219
-    
-    Change-Id: I3fb6b17cdd32c425829f1e2498defa813a5a9ace
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170639
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: If857a1882c3fe9af5346797d5295ca1fe50ae565
+    Reviewed-on: https://go-review.googlesource.com/c/147159
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go | 19 +++++++++++--------
- src/cmd/internal/obj/x86/obj6.go        |  8 +++++++-
- test/codegen/race.go                    | 20 ++++++++++++++++++++
- test/codegen/stack.go                   | 11 +++++++++++
- test/run.go                             |  3 +++
- 5 files changed, 52 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/ld/link.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

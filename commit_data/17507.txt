@@ -1,18 +1,14 @@
-commit 8d530f2472f1c4ef5cf0513a6735869fb606fa96
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 9 12:21:09 2013 -0400
+commit 3b089179c4779c09becd395634b0a31f376865f1
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Sep 9 08:48:06 2013 -0700
 
-    cmd/gc: show package name in 'imported and not used' error
+    runtime: unbreak build on dragonfly
     
-    Fixes #5957.
+    Update dragonfly memory functions to work with new memory statistics.
     
-    R=ken2
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13250046
+    https://golang.org/cl/13615043
 
- src/cmd/gc/lex.c                  | 26 ++++++++++++++++++++++++--
- test/fixedbugs/issue5957.dir/a.go |  3 +++
- test/fixedbugs/issue5957.dir/b.go |  2 ++
- test/fixedbugs/issue5957.dir/c.go | 12 ++++++++++++
- test/fixedbugs/issue5957.go       |  7 +++++++
- 5 files changed, 48 insertions(+), 2 deletions(-)
+ src/pkg/runtime/mem_dragonfly.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

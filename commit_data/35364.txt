@@ -1,26 +1,41 @@
-commit b98ffdf859f0fec2acb1765bf5b62ce1e4587c2b
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Sun Mar 25 16:58:27 2018 -0700
+commit 36951a9f638b03950b7413eee73bd0e3ccf47130
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Dec 18 11:59:26 2017 +0100
 
-    database/sql: check for nil connRequest.conn before use
+    syscall: support syscalls without error return on Linux
     
-    The connRequest may return a nil conn value. However in a rare
-    case that is difficult to test for it was being passed to
-    DB.putConn without a nil check. This was an error as this
-    made no sense if the driverConn is nil. This also caused
-    a panic in putConn.
+    Add the rawSyscallNoError wrapper function which is used for Linux
+    syscalls that don't return an error and convert all applicable
+    occurences of RawSyscall to use it instead.
     
-    A test for this would be nice, but didn't find a sane
-    way to test for this condition.
+    Fixes #22924
     
-    Fixes #24445
-    
-    Change-Id: I827316e856788a5a3ced913f129bb5869b7bcf68
-    Reviewed-on: https://go-review.googlesource.com/102477
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: Iff1eddb54573d459faa01471f10398b3d38528dd
+    Reviewed-on: https://go-review.googlesource.com/84485
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/database/sql/sql.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/asm_linux_386.s           | 36 ++++++++++-----
+ src/syscall/asm_linux_amd64.s         | 18 +++++++-
+ src/syscall/asm_linux_arm.s           | 62 ++++++++++++++-----------
+ src/syscall/asm_linux_arm64.s         | 17 ++++++-
+ src/syscall/asm_linux_mips64x.s       | 16 ++++++-
+ src/syscall/asm_linux_mipsx.s         | 14 ++++--
+ src/syscall/asm_linux_ppc64x.s        | 16 ++++++-
+ src/syscall/asm_linux_s390x.s         | 14 ++++++
+ src/syscall/exec_linux.go             | 11 ++---
+ src/syscall/export_linux_test.go      |  9 ++++
+ src/syscall/mksyscall.pl              | 13 +++++-
+ src/syscall/setuidgid_32_linux.go     |  2 +
+ src/syscall/setuidgid_linux.go        |  2 +
+ src/syscall/syscall_linux.go          |  2 +
+ src/syscall/syscall_linux_test.go     | 86 +++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_386.go     | 16 +++----
+ src/syscall/zsyscall_linux_amd64.go   | 16 +++----
+ src/syscall/zsyscall_linux_arm.go     | 16 +++----
+ src/syscall/zsyscall_linux_arm64.go   | 16 +++----
+ src/syscall/zsyscall_linux_ppc64.go   | 16 +++----
+ src/syscall/zsyscall_linux_ppc64le.go | 16 +++----
+ src/syscall/zsyscall_linux_s390x.go   | 16 +++----
+ 22 files changed, 316 insertions(+), 114 deletions(-)

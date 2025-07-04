@@ -1,16 +1,15 @@
-commit c5befcf0a76b930d525eaf1b09405bd058711012
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Fri Apr 17 16:42:16 2015 -0400
+commit 89f4fd3fd0d1d3660520f3bbb3500f2df1821f71
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 24 02:07:20 2015 -0400
 
-    misc/cgo/testcarchive: check that os.Args is set
+    cmd/6g: fix build for nacl/amd64p32
     
-    Change-Id: I4278abca9d2a8f25149fa8935a93d32e7d04a43a
-    Reviewed-on: https://go-review.googlesource.com/9050
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I3de78f321c99f8f850a304f7d34c85d0fe254c0e
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7975
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/testcarchive/main.c             |  3 +++
- misc/cgo/testcarchive/src/libgo/libgo.go | 15 ++++++++++++++-
- misc/cgo/testcarchive/test.bash          |  4 ++--
- 3 files changed, 19 insertions(+), 3 deletions(-)
+ src/cmd/6g/galign.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,39 +1,22 @@
-commit d3daeb5267b626db36adf2f39c36f6caf94447e3
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Oct 25 17:58:07 2022 -0700
+commit 9743fdd097171cada6231503974209edc5400ee8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 30 16:36:14 2022 -0700
 
-    runtime: remove the restriction that write barrier ptrs come in pairs
+    go/build: set allTags even when short-circuiting x_GOOS_GOARCH.go
     
-    Future CLs will remove the invariant that pointers are always put in
-    the write barrier in pairs.
+    Fixes #52053
     
-    The behavior of the assembly code changes a bit, where instead of writing
-    the pointers unconditionally and then checking for overflow, check for
-    overflow first and then write the pointers.
-    
-    Also changed the write barrier flush function to not take the src/dst
-    as arguments.
-    
-    Change-Id: I2ef708038367b7b82ea67cbaf505a1d5904c775c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/447779
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    TryBot-Bypass: Keith Randall <khr@golang.org>
+    Change-Id: I0e1f2737f97a4656913b34a731d8de2c77a15b4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396918
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/test/inl_test.go |  2 +
- src/runtime/asm_386.s                     | 16 +++----
- src/runtime/asm_amd64.s                   | 17 ++++----
- src/runtime/asm_arm.s                     | 19 ++++----
- src/runtime/asm_arm64.s                   | 20 ++++-----
- src/runtime/asm_loong64.s                 | 18 ++++----
- src/runtime/asm_mips64x.s                 | 18 ++++----
- src/runtime/asm_mipsx.s                   | 18 ++++----
- src/runtime/asm_ppc64x.s                  | 20 ++++-----
- src/runtime/asm_riscv64.s                 | 27 ++++++------
- src/runtime/asm_s390x.s                   | 14 +++---
- src/runtime/asm_wasm.s                    | 72 +++++++++++++++++++------------
- src/runtime/atomic_pointer.go             |  6 +--
- src/runtime/mbitmap.go                    | 33 +++++++-------
- src/runtime/mwbbuf.go                     | 69 ++++++++++++++---------------
- 15 files changed, 189 insertions(+), 180 deletions(-)
+ src/go/build/build.go                         |  4 +++
+ src/go/build/build_test.go                    | 36 +++++++++++++++++++++++++++
+ src/go/build/testdata/alltags/alltags.go      |  5 ++++
+ src/go/build/testdata/alltags/x_netbsd_arm.go |  5 ++++
+ 4 files changed, 50 insertions(+)

@@ -1,25 +1,18 @@
-commit f505d6c581b633db5ca400a593ffd98d7e2c6cc9
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Oct 18 18:54:45 2024 +0200
+commit 227ec028244b8ad91c7dd5b69fca5150f99a4878
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 31 21:17:46 2023 -0700
 
-    crypto/internal/fips: add self-test mechanism
+    cmd/internal/dwarf: replace Sym.Length with Context.Size
     
-    Updates #69536
+    Preparatory refactoring before next CL.
     
-    Change-Id: Ib68b0e7058221a89908fd47f255f0a983883bee8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/621075
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I06fb4670b933fddff1a2a70f3cf1eb124cbd86ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524899
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/internal/fips/cast.go               | 53 ++++++++++++++++++++++++++
- src/crypto/internal/fips/cast_external_test.go | 51 +++++++++++++++++++++++++
- src/crypto/internal/fips/cast_test.go          | 13 +++++++
- src/crypto/internal/fips/hmac/cast.go          | 34 +++++++++++++++++
- src/crypto/internal/fips/sha256/cast.go        | 32 ++++++++++++++++
- src/crypto/internal/fips/sha3/cast.go          | 32 ++++++++++++++++
- src/crypto/internal/fips/sha512/cast.go        | 36 +++++++++++++++++
- src/runtime/panic.go                           |  5 +++
- 8 files changed, 256 insertions(+)
+ src/cmd/internal/dwarf/dwarf.go   | 8 ++++----
+ src/cmd/internal/obj/dwarf.go     | 7 +++----
+ src/cmd/link/internal/ld/dwarf.go | 9 ++++-----
+ 3 files changed, 11 insertions(+), 13 deletions(-)

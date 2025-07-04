@@ -1,28 +1,22 @@
-commit e2375c49ff837a506855ce26ec160f21dc744b88
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed May 8 13:14:51 2024 -0400
+commit a5350558e6e2db16bfe09f2ba8104549c6598c46
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 4 10:54:12 2023 -0700
 
-    cmd: vendor golang.org/x/mod@6686f41
+    go/types, types2: exclude untyped nil arguments early in type inference
     
-    To pull in CL 583836
+    An untyped nil argument cannot be used to infer any type information.
+    We don't need to include it in the untyped arguments.
     
-    Commands run
-        go get golang.org/x/mod@6686f416970d4b8e2f54f521955dee89e6763c4b
-        go mod tidy
-        go mod vendor
-    
-    For #67238
-    For #66625
-    
-    Change-Id: I77e49706481e068d27072a38d0d2464aa40d2dd0
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584335
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ied44738ff1b135e65a3acfa19223cd3889b7fa7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492695
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go.mod                                   | 2 +-
- src/cmd/go.sum                                   | 4 ++--
- src/cmd/vendor/golang.org/x/mod/module/module.go | 2 ++
- src/cmd/vendor/modules.txt                       | 2 +-
- 4 files changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/infer.go   | 12 ++++++------
+ src/cmd/compile/internal/types2/operand.go |  2 +-
+ src/go/types/infer.go                      | 12 ++++++------
+ src/go/types/operand.go                    |  6 ++----
+ 4 files changed, 15 insertions(+), 17 deletions(-)

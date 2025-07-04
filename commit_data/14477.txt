@@ -1,14 +1,17 @@
-commit f80f23e7480599c2397f50dd2aafa9a5f8bd58d9
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Mon Nov 26 10:53:11 2012 -0500
+commit f02cf1997d84107cbdd53967748c1d8f3a2a8577
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Nov 26 21:29:13 2012 +0900
 
-    runtime: re-format comments.
-    add necessary newlines.
+    runtime: regenerate defs-files for freebsd
     
-    R=golang-dev, rsc
+    R=minux.ma, jsing
     CC=golang-dev
-    https://golang.org/cl/6847067
+    https://golang.org/cl/6855080
 
- src/pkg/runtime/debug.go  | 2 ++
- src/pkg/runtime/extern.go | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/runtime/defs_freebsd.go      |   1 -
+ src/pkg/runtime/defs_freebsd_386.h   | 318 ++++++++++++++++----------------
+ src/pkg/runtime/defs_freebsd_amd64.h | 340 +++++++++++++++++------------------
+ src/pkg/runtime/defs_freebsd_arm.h   | 281 ++++++++++++++---------------
+ src/pkg/runtime/signal_freebsd_arm.c |  20 ++-
+ src/pkg/runtime/thread_freebsd.c     |   6 +-
+ 6 files changed, 477 insertions(+), 489 deletions(-)

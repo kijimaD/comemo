@@ -1,16 +1,19 @@
-commit 87ac7c77c0e7ca1da242982ef4bc92940e5d681a
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Wed Apr 27 12:34:34 2011 -0700
+commit 2ccd20a646f3e6b46c4f3e779c3833071b735886
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 27 09:59:27 2011 -0700
 
-    http/fcgi: New package
+    tutorial: replace the forever loops with finite counts in sieve programs.
+    Fixes #1742.
+    I hope.
     
-    R=golang-dev, bradfitzgo, bradfitzwork, nigeltao, rog
+    Also this picks up an update to go_tutorial.html that should already have happened.
+    
+    R=brainman, rsc, peterGo
     CC=golang-dev
-    https://golang.org/cl/4271078
+    https://golang.org/cl/4452050
 
- src/pkg/Makefile               |   1 +
- src/pkg/http/fcgi/Makefile     |  12 ++
- src/pkg/http/fcgi/child.go     | 328 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/http/fcgi/fcgi.go      | 271 ++++++++++++++++++++++++++++++++++
- src/pkg/http/fcgi/fcgi_test.go | 114 ++++++++++++++
- 5 files changed, 726 insertions(+)
+ doc/go_tutorial.html | 52 +++++++++++++++++++++++++++-------------------------
+ doc/progs/sieve.go   |  2 +-
+ doc/progs/sieve1.go  |  2 +-
+ src/run.bash         |  1 -
+ 4 files changed, 29 insertions(+), 28 deletions(-)

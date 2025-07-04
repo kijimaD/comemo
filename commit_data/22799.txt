@@ -1,13 +1,14 @@
-commit cfb8b18e75faa1d0cec07268825db06679cd3946
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Apr 30 10:16:23 2015 +0300
+commit 414444d41622a9bfd8010786d5c3b8a28e10e2a5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 9 11:32:47 2015 +1000
 
-    strings: use LastIndexByte in LastIndex
+    runtime: do not calculate asmstdcall address every time we make syscall
     
-    Change-Id: I1add1b92f5c2688a99133d90bf9789d770fd9f05
-    Reviewed-on: https://go-review.googlesource.com/9503
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If3c8c9035e12d41647ae4982883f6a979313ea9d
+    Reviewed-on: https://go-review.googlesource.com/8682
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/os/file_plan9.go   | 2 +-
- src/strings/strings.go | 9 +--------
- 2 files changed, 2 insertions(+), 9 deletions(-)
+ src/runtime/os1_windows.go     | 10 +++++++++-
+ src/runtime/os2_windows.go     |  6 ------
+ src/runtime/syscall_windows.go | 14 +++++++-------
+ 3 files changed, 16 insertions(+), 14 deletions(-)

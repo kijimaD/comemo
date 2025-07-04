@@ -1,31 +1,18 @@
-commit 0816511d3b861a802fd6c04292ad6debd3db1831
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon May 3 16:06:07 2021 -0400
+commit 94f3762462a999bfc5491c8d1b892110651e23d6
+Author: Dave Pifke <dave@pifke.org>
+Date:   Thu Jul 2 00:48:37 2020 +0000
 
-    all: update x/crypto to pull in CL 316109
+    cmd/go: add -include to cgo whitelist
     
-    Because x/crypto is now lazy, this removes the remaining checksums for
-    older-than-selected dependencies from src/go.sum.
+    Fixes #39988.
     
-    It also removes a significant fraction of the irrelevant checksums
-    from src/cmd/go.sum.
-    
-    For #36460
-    Updates #36905
-    
-    Change-Id: I33af5fc638aa1d1c66df3a1d86542912e95a7f50
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316451
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ia6f5b73e6508f27e3badbcbd29dbeadffd55a932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240739
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  6 +--
- src/cmd/vendor/modules.txt                         |  4 +-
- src/go.mod                                         |  2 +-
- src/go.sum                                         | 10 +----
- src/vendor/golang.org/x/crypto/cryptobyte/asn1.go  | 52 ++++++++++++++++++++++
- .../golang.org/x/crypto/poly1305/sum_ppc64le.s     | 18 ++++----
- src/vendor/modules.txt                             |  4 +-
- 8 files changed, 71 insertions(+), 27 deletions(-)
+ src/cmd/go/internal/work/security.go      | 1 +
+ src/cmd/go/internal/work/security_test.go | 3 +++
+ 2 files changed, 4 insertions(+)

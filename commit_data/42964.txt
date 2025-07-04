@@ -1,23 +1,19 @@
-commit b3ef90ec7304a28b89f616ced20b09f56be30cc4
-Author: Carlos Alexandro Becker <caarlos0@gmail.com>
-Date:   Fri Sep 11 22:16:47 2020 +0000
+commit bec91cecef72265835b6227593c28d517cad211c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 18:15:38 2020 -0500
 
-    encoding/json: implement Is on SyntaxError
+    cmd/go: convert TestPackageNotStaleWithTrailingSlash to script framework
     
-    Allows users to check:
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-          errors.Is(err, &json.SyntaxError{})
+    Updates #36320
+    Updates #17751
     
-    which is the recommended way of checking for kinds of errors.
-    
-    Change-Id: I20dc805f20212765e9936a82d9cb7822e73ec4ef
-    GitHub-Last-Rev: e2627ccf8e2a00cc3459bb9fee86c3c8675a33af
-    GitHub-Pull-Request: golang/go#41210
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253037
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1020feaa4ddb40ff52c46728bc4973cea4c7b066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214391
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/encoding/json/scanner.go      | 6 ++++++
- src/encoding/json/scanner_test.go | 9 +++++++++
- 2 files changed, 15 insertions(+)
+ src/cmd/go/go_test.go                                 | 19 -------------------
+ .../script/build_package_not_stale_trailing_slash.txt | 13 +++++++++++++
+ 2 files changed, 13 insertions(+), 19 deletions(-)

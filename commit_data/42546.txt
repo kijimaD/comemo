@@ -1,17 +1,20 @@
-commit b424a312ea9d970b4ee7e535a092b7f183c53ae5
-Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
-Date:   Fri Jun 19 15:31:25 2020 +0000
+commit e6bbe967edef58073918ffd197e44d1559c90737
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 10 10:10:32 2020 -0800
 
-    runtime/trace: fix file name in example
+    runtime: don't skip timer when adjustTimers sees a modified timer
     
-    The preceding paragraph suggests the test run will produce a file called trace.out.
-    The same name, trace.out, is used in the output from go help testflag, thus we change the go test line instead of changing the preceding paragraph.
+    When adjustTimers sees a timerModifiedEarlier or timerModifiedLater,
+    it removes it from the heap, leaving a new timer at that position
+    in the heap. We were accidentally skipping that new timer in our loop.
+    In some unlikely cases this could cause adjustTimers to look at more
+    timers than necessary.
     
-    Change-Id: Ib1fa7e49e540853e263a2399b16040ea6f41b703
-    GitHub-Last-Rev: 3535e62bf8dd02dd9955a28e7fa9cca98de89efd
-    GitHub-Pull-Request: golang/go#39709
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/238997
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: Ic71e54c175ab7d86a7fa46f1497aca71ed1c43cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214338
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/trace/trace.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/time.go | 2 ++
+ 1 file changed, 2 insertions(+)

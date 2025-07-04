@@ -1,14 +1,16 @@
-commit 91484c6c4861b56c77702d0d9ccb9315192bb0e4
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Dec 28 15:36:06 2012 +0400
+commit 6535eb3a6d318fa420b4ae471ac7af4ae9791701
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Dec 28 15:32:24 2012 +1100
 
-    runtime: fix potential crash in sigqueue
-    Fixes #4383.
+    cmd/ld: fix valgrind warning in strnput
     
-    R=golang-dev, minux.ma, rsc, iant
+    Fixes #4592.
+    
+    Thanks to minux for the suggestion.
+    
+    R=minux.ma, iant
     CC=golang-dev
-    https://golang.org/cl/6996060
+    https://golang.org/cl/7017048
 
- src/pkg/os/signal/signal_test.go |  41 +++++++++++++++
- src/pkg/runtime/sigqueue.goc     | 104 +++++++++++++++++++++------------------
- 2 files changed, 97 insertions(+), 48 deletions(-)
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

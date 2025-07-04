@@ -1,13 +1,21 @@
-commit 1abd8185b25d849e57fb6958f17ac8142e51984f
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:26:40 2015 +0100
+commit c21f1d5ef30ff52cb42fca146a9c7161dfee5c3c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 19 13:44:06 2015 -0800
 
-    reflect: add support for GOARCH=arm64
+    [dev.cc] runtime,syscall: quiet some more vet errors
     
-    Change-Id: I033eecff5e5838ba677378ac884bf5f29267e880
-    Reviewed-on: https://go-review.googlesource.com/7146
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fix many incorrect FP references and a few other details.
+    
+    Some errors remain, especially in vlop, but fixing them requires semantics. For another day.
+    
+    Change-Id: Ib769fb519b465e79fc08d004a51acc5644e8b259
+    Reviewed-on: https://go-review.googlesource.com/5288
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/reflect/asm_arm64.s | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ src/runtime/asm_amd64.s        |  4 +-
+ src/runtime/asm_arm.s          | 10 ++---
+ src/runtime/sys_darwin_amd64.s | 10 ++---
+ src/runtime/sys_darwin_arm.s   | 85 +++++++++++++++++++++---------------------
+ src/runtime/sys_linux_arm.s    | 61 +++++++++++++++---------------
+ src/syscall/asm_darwin_arm.s   | 10 ++---
+ 6 files changed, 91 insertions(+), 89 deletions(-)

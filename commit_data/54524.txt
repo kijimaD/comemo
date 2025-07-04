@@ -1,28 +1,19 @@
-commit 01987d3117d46688f2a31b03cb0c463d322381e5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 31 15:06:03 2023 -0700
+commit 612bb34af5299a33b0b5bdebc92a775153d72ebb
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue Oct 25 14:03:26 2022 +0800
 
-    go/types, types2: pass *TypeName instead of *Named as def (defined) type
+    cmd/internal/obj/arm64: remove AMOVBU from optab
     
-    This permits using the same mechanism not just for *Named types but
-    also future Alias types.
+    The instruction format of MOVBU is the same with MOVB, this CL deletes
+    MOVBU from optab for simplicity.
     
-    Change-Id: Ia8dee413d8dff7b08ab073ce03a4779603c4f396
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/524897
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ib034d6c29dd9793cf3e6f9fa8abff0ed0d931d0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445295
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/call.go      |  6 ++--
- src/cmd/compile/internal/types2/decl.go      |  8 ++---
- src/cmd/compile/internal/types2/interface.go |  6 ++--
- src/cmd/compile/internal/types2/named.go     |  6 ----
- src/cmd/compile/internal/types2/typexpr.go   | 54 +++++++++++++++++-----------
- src/go/types/call.go                         |  6 ++--
- src/go/types/decl.go                         |  8 ++---
- src/go/types/interface.go                    |  6 ++--
- src/go/types/named.go                        |  6 ----
- src/go/types/typexpr.go                      | 54 +++++++++++++++++-----------
- 10 files changed, 90 insertions(+), 70 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 23 +----------------------
+ 1 file changed, 1 insertion(+), 22 deletions(-)

@@ -1,15 +1,16 @@
-commit 492ac4b8663094b0f98aebf1e378b19f123d0b7b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 9 13:19:19 2015 -0800
+commit 37b85971781c6474f17c6b99bf4d40765497afd3
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 24 22:05:26 2015 -0500
 
-    go/parser: permit type elision from composite literal map keys
+    runtime: remove unnecessary gcworkdone resetting loop
     
-    Per pending https://go-review.googlesource.com/2591 .
+    The loop in gcMark is redundant with the gcworkdone resetting
+    performed by markroot, which called a few lines later in gcMark.
     
-    Change-Id: I1ce9d1c629e9fc43dbd862b3433aa5840f46656c
-    Reviewed-on: https://go-review.googlesource.com/2621
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ie0a826a614ecfa79e6e6b866e8d1de40ba515856
+    Reviewed-on: https://go-review.googlesource.com/5880
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/go/parser/parser.go     | 26 ++++++++++++++++++++------
- src/go/parser/short_test.go |  2 ++
- 2 files changed, 22 insertions(+), 6 deletions(-)
+ src/runtime/mgc.go | 6 ------
+ 1 file changed, 6 deletions(-)

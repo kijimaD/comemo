@@ -1,17 +1,12 @@
-commit 2693232f16fb91d715349b81bbb7af3c96c5459e
-Author: Sanjay Menakuru <balasanjay@gmail.com>
-Date:   Thu Jan 5 10:37:15 2012 +1100
+commit 3f1eb94ef2380e1f100835c3bccb7394d0c6138d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 4 14:06:54 2012 -0800
 
-    cmd/go: include external test files in the files sent to gofmt, govet, and gofix
+    runtime: fix typo in comment
     
-    Also, add XTestGoFiles to the go command's public api.
-    
-    Fixes #2649.
-    
-    R=golang-dev, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5502102
+    https://golang.org/cl/5511047
 
- src/cmd/go/list.go | 13 +++++++------
- src/cmd/go/pkg.go  | 57 +++++++++++++++++++++++++++++-------------------------
- 2 files changed, 38 insertions(+), 32 deletions(-)
+ src/pkg/runtime/extern.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

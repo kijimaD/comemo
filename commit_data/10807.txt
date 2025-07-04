@@ -1,18 +1,15 @@
-commit fc6df2fdd81f2837033ffa73141b6079d04855ff
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Dec 15 11:06:10 2011 -0500
+commit 17264df11223436a3b05f47f58a233961b43c3f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 10:47:09 2011 -0500
 
-    exp/ssh: rename ClientAuthPublicKey helper ClientAuthKeyring
+    gc: implement and test \r in raw strings
     
-    Also, rename ServerConfig.PubKeyCallback to PublicKeyCallback.
+    For issue 680.
     
-    R=rsc, agl
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5477059
+    https://golang.org/cl/5492046
 
- src/pkg/exp/ssh/client_auth.go      |  4 ++--
- src/pkg/exp/ssh/client_auth_test.go | 10 +++++-----
- src/pkg/exp/ssh/client_func_test.go |  2 +-
- src/pkg/exp/ssh/server.go           | 12 ++++++------
- src/pkg/exp/ssh/session_test.go     |  2 +-
- 5 files changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/gc/lex.c |  2 ++
+ test/crlf.go     | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+)

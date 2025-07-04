@@ -1,12 +1,21 @@
-commit 16a82828a2a552d01285d2cd3f01ed36b000b680
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Wed Aug 15 10:32:44 2012 +1000
+commit 3df0545a8b0f3ae1b7638474c986142fa9462c93
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 14 11:26:30 2012 -0700
 
-    5l: trivial whitespace cleanup
+    go/scanner: faster scanning
     
-    R=golang-dev, dave
+    Optimize some common cases.
+    
+    benchmark            old ns/op    new ns/op    delta
+    BenchmarkScanFile       718907       667960   -7.09%
+    
+    benchmark             old MB/s     new MB/s  speedup
+    BenchmarkScanFile        23.03        25.51    1.11x
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6446131
+    https://golang.org/cl/6454150
 
- src/cmd/5l/asm.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/go/scanner/scanner.go      | 38 ++++++++++++++++++++++++++++----------
+ src/pkg/go/scanner/scanner_test.go | 26 +++++++++++++++++++++++++-
+ 2 files changed, 53 insertions(+), 11 deletions(-)

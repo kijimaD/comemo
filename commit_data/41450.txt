@@ -1,33 +1,41 @@
-commit e6d7326fb661f9754300d6b9fc5fbb2ee2e4a46b
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Fri Nov 15 18:30:19 2019 -0500
+commit 6145a80608087b309251b4edf1a612739331bdee
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 2 10:51:09 2019 -0400
 
-    cmd/link: default to internal linking for android/arm64
+    cmd/go: remove the -mod flag from 'go get'
     
-    The bootstrapping process (make.bash) on all other platforms use
-    internal linking. This change brings android/arm64 in line, fixing the
-    scary warning on our self-hosted Corellium builders:
+    'GOFLAGS=-mod=vendor' currently causes 'go get' to always fail unless
+    the '-mod' flag is explicitly overwritten. Moreover, as of CL 198319
+    we plan to set -mod=vendor by default if a vendor directory is
+    present, so all users with vendor directories will be affected — not
+    just those who set 'GOFLAGS' explicitly.
     
-    warning: unable to find runtime/cgo.a
+    Similarly, an explicit '-mod=readonly' argument to 'go get' is
+    currently ignored as a special case, but the fact that it is ignored
+    (rather than rejected) can be very surprising.
     
-    The linkmode default is changed to internal for all Android programs,
-    but in practice that won't matter outside our builders: using Go with
-    Android apps requires buildmode=c-shared which uses linkmode external.
+    Rather than adding more special cases, we should remove the '-mod'
+    flag from 'go get' entirely.
     
-    Fixes #31343
-    Updates #31819
+    Fixes #30345
+    Fixes #32502
+    Updates #33848
     
-    Change-Id: I3b3ada5ed69a7989e6d8e5960bbebf5e1c22aada
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207299
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Change-Id: Iecd3233ca3ef580ca3a66bd5e6ee8d86d4cbd8a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198438
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/go/internal/load/pkg.go    |  4 +++-
- src/cmd/internal/sys/supported.go  |  4 +++-
- src/cmd/link/internal/arm64/obj.go |  3 ++-
- src/cmd/link/internal/ld/config.go | 17 +++++++++++++----
- src/cmd/link/internal/ld/elf.go    |  9 ++++++++-
- src/cmd/link/internal/ld/lib.go    |  1 +
- 6 files changed, 30 insertions(+), 8 deletions(-)
+ doc/go1.14.html                                   |  7 +++++++
+ src/cmd/go/internal/clean/clean.go                |  2 +-
+ src/cmd/go/internal/generate/generate.go          |  2 +-
+ src/cmd/go/internal/get/get.go                    |  2 +-
+ src/cmd/go/internal/list/list.go                  |  2 +-
+ src/cmd/go/internal/modget/get.go                 | 12 +-----------
+ src/cmd/go/internal/run/run.go                    |  2 +-
+ src/cmd/go/internal/test/testflag.go              |  2 +-
+ src/cmd/go/internal/vet/vetflag.go                |  2 +-
+ src/cmd/go/internal/work/build.go                 | 17 +++++++++++++----
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt |  2 +-
+ 11 files changed, 29 insertions(+), 23 deletions(-)

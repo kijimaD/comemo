@@ -1,18 +1,61 @@
-commit 9d33956503c0d96c0c5666d374173f7ac9756d98
-Author: Damien Neil <dneil@google.com>
-Date:   Thu Jun 20 10:23:42 2024 -0700
+commit 6b020be648960440b1f02d28889a6e050f59c31c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri May 19 23:28:43 2023 +0200
 
-    internal/godebugs: fix old value for httpservecontentkeepheaders
+    crypto/tls: reduce session ticket linkability
     
-    The pre-Go 1.23 behavior is httpservecontentkeepheaders=1.
+    Ever since session ticket key rotation was introduced in CL 9072, we've
+    been including a prefix in every ticket to identify what key it's
+    encrypted with. It's a small privacy gain, but the cost of trial
+    decryptions is also small, especially since the first key is probably
+    the most frequently used.
     
-    For #66343
+    Also reissue tickets on every resumption so that the next connection
+    can't be linked to all the previous ones. Again the privacy gain is
+    small but the performance cost is small and it comes with a reduction in
+    complexity.
     
-    Change-Id: If6f92853b38522f19a8908ff11ac49b12f3dc3e0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/593775
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    For #60105
+    
+    Change-Id: I852f297162d2b79a3d9bf61f6171e8ce94b2537a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496817
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/godebugs/table.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/tls/common.go                           |  18 +-
+ src/crypto/tls/handshake_client_test.go            |  13 +-
+ src/crypto/tls/handshake_server.go                 |  15 +-
+ src/crypto/tls/handshake_server_tls13.go           |   2 +-
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    |  86 +++---
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  67 ++---
+ .../tls/testdata/Server-TLSv12-ALPN-Fallback       |  67 ++---
+ .../tls/testdata/Server-TLSv12-ALPN-NotConfigured  |  67 ++---
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  77 ++---
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  77 +++--
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   |  77 +++--
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  87 +++---
+ .../tls/testdata/Server-TLSv13-AES128-SHA256       | 179 ++++++-----
+ .../tls/testdata/Server-TLSv13-AES256-SHA384       | 185 ++++++------
+ src/crypto/tls/testdata/Server-TLSv13-ALPN         | 167 ++++++-----
+ .../tls/testdata/Server-TLSv13-ALPN-Fallback       | 165 +++++-----
+ .../tls/testdata/Server-TLSv13-ALPN-NotConfigured  | 167 ++++++-----
+ .../tls/testdata/Server-TLSv13-CHACHA20-SHA256     | 179 ++++++-----
+ .../Server-TLSv13-ClientAuthRequestedAndECDSAGiven | 331 +++++++++++----------
+ ...erver-TLSv13-ClientAuthRequestedAndEd25519Given | 270 ++++++++---------
+ .../Server-TLSv13-ClientAuthRequestedAndGiven      | 326 ++++++++++----------
+ .../Server-TLSv13-ClientAuthRequestedNotGiven      | 179 ++++++-----
+ .../tls/testdata/Server-TLSv13-ECDHE-ECDSA-AES     | 159 +++++-----
+ src/crypto/tls/testdata/Server-TLSv13-Ed25519      | 123 ++++----
+ .../testdata/Server-TLSv13-ExportKeyingMaterial    | 167 ++++++-----
+ .../tls/testdata/Server-TLSv13-HelloRetryRequest   | 189 ++++++------
+ src/crypto/tls/testdata/Server-TLSv13-IssueTicket  | 167 ++++++-----
+ .../testdata/Server-TLSv13-IssueTicketPreDisable   | 167 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-P256         | 171 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 167 ++++++-----
+ src/crypto/tls/testdata/Server-TLSv13-Resume       |  88 +++---
+ .../Server-TLSv13-Resume-HelloRetryRequest         | 137 +++++----
+ src/crypto/tls/testdata/Server-TLSv13-X25519       | 167 ++++++-----
+ src/crypto/tls/ticket.go                           |  69 ++---
+ 34 files changed, 2269 insertions(+), 2303 deletions(-)

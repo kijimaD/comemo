@@ -1,13 +1,12 @@
-commit d902f23ec416fc881d567c1a81a3d2c48cc16855
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Wed Dec 19 13:50:13 2018 +0100
+commit 97cc4b5123a71193cbb207a40a14b9025e769ec7
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Fri Aug 24 15:20:33 2018 -0400
 
-    cmd/cgo,doc/go1.12.html: document breaking EGLDisplay change
+    doc: document Go 1.10.4
     
-    Change-Id: I3c8ba5fdb05b6b1324648622656cc10071c70a34
-    Reviewed-on: https://go-review.googlesource.com/c/154997
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7383e7d37a71defcad79fc662c4b4d1ca02189d1
+    Reviewed-on: https://go-review.googlesource.com/131336
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html    | 10 ++++++++++
- src/cmd/cgo/doc.go |  7 +++++++
- 2 files changed, 17 insertions(+)
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

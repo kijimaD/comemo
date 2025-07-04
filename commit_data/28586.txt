@@ -1,28 +1,19 @@
-commit ffd1c781b77aab542713b66ef387fa9307e4060b
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Sat Sep 5 06:38:13 2015 -0700
+commit f605c77bbcc7946531e0914f13a0a14aae5f2991
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 8 12:57:00 2016 +1000
 
-    html/template: check "type" attribute in <script>
+    net/http: update bundled http2
     
-    Currently any script tag is treated as a javascript container, although
-    <script type="text/template"> must not be. Check "type" attribute of
-    "script" tag. If it is present and it is not a JS MIME type, do not
-    transition to elementScript state.
+    Updates x/net/http2 to git rev 313cf39 for CLs 23812 and 23880:
     
-    Fixes #12149, where // inside text template was treated as regexp.
-    Fixes #6701
+            http2: GotFirstResponseByte hook should only fire once
+            http2: fix data race on pipe
     
-    Change-Id: I8fc9e504f7280bdd800f40383c061853665ac8a2
-    Reviewed-on: https://go-review.googlesource.com/14336
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #16000
+    
+    Change-Id: I9c3f1b2528bbd99968aa5a0529ae9c5295979d1d
+    Reviewed-on: https://go-review.googlesource.com/23881
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/html/template/content_test.go | 41 +++++++++++++++++++++++++++++++++++++++
- src/html/template/context.go      | 14 ++++++++-----
- src/html/template/escape.go       | 12 +++++++++++-
- src/html/template/escape_test.go  | 12 ++++++++++++
- src/html/template/js.go           | 38 ++++++++++++++++++++++++++++++++++++
- src/html/template/js_test.go      | 18 +++++++++++++++++
- src/html/template/transition.go   | 30 +++++++++++++++++-----------
- 7 files changed, 148 insertions(+), 17 deletions(-)
+ src/net/http/h2_bundle.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

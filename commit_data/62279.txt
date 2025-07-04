@@ -1,0 +1,17 @@
+commit b38415d7e9abad2a8255c6b527ab7a033851c5f2
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jan 24 12:27:08 2025 -0800
+
+    crypto/internal/boring: remove unnecessary struct field
+    
+    That could result in a hanging pointer.
+    
+    Change-Id: I547950a3d3010e03b75f70f5f021f20124e2cef0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644120
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/internal/boring/ecdh.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

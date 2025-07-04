@@ -1,20 +1,39 @@
-commit 699da6bd134c22ac174ec1accae9ae8218f873f7
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 25 15:16:17 2018 -0700
+commit 77c51c6c627e1f4f99305d0ffdf88daa18f43391
+Author: David Chase <drchase@google.com>
+Date:   Tue May 22 14:45:27 2018 -0400
 
-    go/build: support Import of local import path in standard library for gccgo
+    cmd/compile: grow stack before test() to avoid gdb misbehavior
     
-    It's possible for a local import path to refer to a standard library
-    package. This was not being correctly handled for gccgo. When using
-    gccgo, change the code to permit the existing lexical test, and to
-    accept a missing directory for a standard package found via a local
-    impor path.
+    While next-ing over a call in gdb, if execution of that call
+    causes a goroutine's stack to grow (i.e., be moved), gdb loses
+    track and runs ahead to the next breakpoint, or to the end of
+    the program, whichever comes first.
     
-    Change-Id: Ia9829e55c0ff62e7d1f01a1d6dc9fcff521501ca
-    Reviewed-on: https://go-review.googlesource.com/137439
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Prevent this by preemptively growing the stack so that
+    ssa/debug_test.go will reliably measure what is intended,
+    the goodness of line number placement and variable printing.
+    
+    Fixes #25497.
+    
+    Change-Id: I8daf931650292a8c8faad2285d7fd405f2157bd2
+    Reviewed-on: https://go-review.googlesource.com/114080
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/build.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ .../internal/ssa/testdata/hist.dlv-dbg.nexts       |   2 +-
+ .../internal/ssa/testdata/hist.dlv-opt.nexts       |   2 +-
+ .../internal/ssa/testdata/hist.gdb-dbg.nexts       |   2 +-
+ .../internal/ssa/testdata/hist.gdb-opt.nexts       |   2 +-
+ src/cmd/compile/internal/ssa/testdata/hist.go      |   8 ++
+ .../internal/ssa/testdata/i22558.dlv-dbg.nexts     |   2 +-
+ src/cmd/compile/internal/ssa/testdata/i22558.go    |   8 ++
+ .../ssa/testdata/i22600.dlv-dbg-race.nexts         |   2 +-
+ .../ssa/testdata/i22600.gdb-dbg-race.nexts         |   2 +-
+ src/cmd/compile/internal/ssa/testdata/i22600.go    |   8 ++
+ .../internal/ssa/testdata/scopes.dlv-dbg.nexts     | 110 +++++++++---------
+ .../internal/ssa/testdata/scopes.dlv-opt.nexts     | 124 ++++++++++-----------
+ .../internal/ssa/testdata/scopes.gdb-dbg.nexts     | 106 +++++++++---------
+ .../internal/ssa/testdata/scopes.gdb-opt.nexts     |  86 +++++++-------
+ src/cmd/compile/internal/ssa/testdata/scopes.go    |   8 ++
+ 15 files changed, 252 insertions(+), 220 deletions(-)

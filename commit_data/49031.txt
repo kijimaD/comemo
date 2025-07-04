@@ -1,33 +1,32 @@
-commit 7b1f8b62be5f4901404071ddc7160217a60c9810
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Wed May 4 07:44:50 2022 -0700
+commit f2ed30c31edf67bd753a10891dfeb5aeb65c95dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 8 19:57:24 2021 -0700
 
-    runtime: prefer curg for execution trace profile
+    [dev.typeparams] cmd/compile/internal/types2: recursive substitution must terminate (bug fix)
     
-    The CPU profiler adds goroutine labels to its samples based on
-    getg().m.curg. That allows the profile to correctly attribute work that
-    the runtime does on behalf of that goroutine on the M's g0 stack via
-    systemstack calls, such as using runtime.Callers to record the call
-    stack.
+    When types2.Instantiate is called externally, no *Checker is provided and
+    substitution doesn't have access to Checker.typMap; and instantiation of
+    recursive generic types leads to an infinite recursion in subst.
     
-    Those labels also cover work on the g0 stack via mcall. When the active
-    goroutine calls runtime.Gosched, it will receive attribution of its
-    share of the scheduler work necessary to find the next runnable
-    goroutine.
+    There was a local subster.cache but it was only set and never used.
+    Replaced subster.cache with subster.typMap, which is set to the global
+    Checker.typMap if available, and set to a local map otherwise. This
+    prevents such infinite recursions. Added a simple test.
     
-    The execution tracer's attribution of CPU samples to specific goroutines
-    should match. When curg is set, attribute the CPU samples to that
-    goroutine's ID.
+    More generally, because we don't have a global type map for external
+    instantiations, instantiating the same type twice, independently but
+    with the same type arguments, will result in two different types. This
+    is not correct. We need to provide some form of context for external
+    instantiations (which means the importers). This is a separate but
+    related issue which is not yet addressed (filed #47103).
     
-    Fixes #52693
-    
-    Change-Id: Ic9af92e153abd8477559e48bc8ebaf3739527b94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404055
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I541556c677db54f7396fd0c88c7467894dfcf2e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333383
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/proc.go             |  6 +++-
- src/runtime/trace/trace_test.go | 63 +++++++++++++++++++++++++++++++----------
- 2 files changed, 53 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 23 +++++++++++++++++
+ src/cmd/compile/internal/types2/subst.go    | 38 +++++++++++++++++------------
+ 2 files changed, 45 insertions(+), 16 deletions(-)

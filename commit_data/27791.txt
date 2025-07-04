@@ -1,19 +1,15 @@
-commit da070bed19fb23a8dd1b9f974c7fdf1f247fdba0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 4 12:21:05 2016 -0700
+commit 0e01db4b8d6ac64e6661508bc6876fa41c799208
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 12 17:46:41 2016 -0700
 
-    syscall: fix Gettimeofday on macOS Sierra
+    cmd/compile: fix crash on bare package name in constant declarations
     
-    Fixes #16606
+    Fixes #11361.
     
-    Change-Id: I57465061b90e901293cd8b6ef756d6aa84ebd4a3
-    Reviewed-on: https://go-review.googlesource.com/25495
-    Reviewed-by: Quentin Smith <quentin@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Quentin Smith <quentin@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I70b8808f97f0e07de680e7e6ede1322ea0fdbbc0
+    Reviewed-on: https://go-review.googlesource.com/21936
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall_darwin_386.go   | 21 ++++++++++++++-------
- src/syscall/syscall_darwin_amd64.go | 21 ++++++++++++++-------
- src/syscall/syscall_darwin_test.go  | 23 +++++++++++++++++++++++
- 3 files changed, 51 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/subr.go |  7 +++++++
+ test/fixedbugs/issue11361.go        | 11 +++++++++++
+ 2 files changed, 18 insertions(+)

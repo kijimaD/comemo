@@ -1,18 +1,12 @@
-commit 67a69bce6b0492359f9279b035076fbab12945e0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Aug 15 17:40:05 2013 -0700
+commit de2cf5113b3860d487ab6b9638521c91785486b7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 16 10:30:31 2013 +1000
 
-    net/http: don't send an automatic Content-Length on a 304 Not Modified
+    doc/go1.2.txt: three-index slices are going into 1.2
     
-    Also start of some test helper unification, long overdue.
-    I refrained from cleaning up the rest in this CL.
-    
-    Fixes #6157
-    
-    R=golang-dev, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13030043
+    https://golang.org/cl/12931044
 
- src/pkg/net/http/serve_test.go | 66 ++++++++++++++++++++++++++++++++++--------
- src/pkg/net/http/server.go     | 10 ++++++-
- 2 files changed, 63 insertions(+), 13 deletions(-)
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

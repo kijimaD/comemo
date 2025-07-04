@@ -1,0 +1,19 @@
+commit f2d118fd5f7e872804a5825ce29797f81a28b0fa
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Oct 12 17:34:52 2024 +0000
+
+    go/ast: document invalid raw string literal end position containing carriage returns
+    
+    Fixes #69861
+    
+    Change-Id: Id1684ee7d0c04262119d9e61f914bb9ecc0ef438
+    GitHub-Last-Rev: 5ad182c51aeb8b26631c6a97a7e9a2d89405ec06
+    GitHub-Pull-Request: golang/go#69862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619835
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/ast/ast.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

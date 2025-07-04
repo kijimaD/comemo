@@ -1,0 +1,24 @@
+commit 7730e5b78308b966a1fe913cdd3086c84e0a2e25
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Mar 11 17:16:44 2024 -0400
+
+    go/ast: add Preorder go1.23 iterator
+    
+    This CL adds a new function Preorder that makes it
+    easier to iterate over the nodes of a syntax tree.
+    In particular, break, continue, and return retain
+    their usual continuations.
+    
+    Fixes #66339
+    
+    Change-Id: I438b3c23780c91ed589871ad3b8822d54e8fabc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570680
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/66339.txt                         |  1 +
+ doc/next/6-stdlib/99-minor/go/ast/66339.md |  2 ++
+ src/go/ast/example_test.go                 | 35 ++++++++++++++++++++++++++++++
+ src/go/ast/walk.go                         | 22 ++++++++++++++++++-
+ 4 files changed, 59 insertions(+), 1 deletion(-)

@@ -1,17 +1,38 @@
-commit 03f63654c4ce5885bf804fe242a4e15b70edc2c4
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Sep 12 20:43:42 2019 +0000
+commit ddef157813686870e26c3c2c83bd5af6bef71a61
+Author: zdjones <zachj1@gmail.com>
+Date:   Wed Feb 6 19:49:15 2019 +0000
 
-    Revert "cmd/link: prefix syms with "_" on external darwin links"
+    cmd/compile: make prove use poset to check non-negatives
     
-    This reverts CL 194381
+    Prove currently fails to remove bounds checks of the form:
     
-    Reason for revert: break tests like add2line.
+    if i >= 0 {              // hint that i is non-negative
+        for i < len(data) {  // i becomes Phi in the loop SSA
+            _ = data[i]      // data[Phi]; bounds check!!
+            i++
+        }
+    }
     
-    Change-Id: I9e858c7ada340a842bd0cad719616ad30fae4aaa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195137
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    addIndVarRestrictions fails to identify that the loop induction
+    variable, (Phi), is non-negative. As a result, the restrictions,
+    i <= Phi < len(data), are only added for the signed domain. When
+    testing the bounds check, addBranchRestrictions is similarly unable
+    to infer that Phi is non-negative. As a result, the restriction,
+    Phi >= len(data), is only added/tested for the unsigned domain.
+    
+    This CL changes the isNonNegative method to utilise the factTable's
+    partially ordered set (poset). It also adds field factTable.zero to
+    allow isNonNegative to query the poset using the zero(0) constant
+    found or created early in prove.
+    
+    Fixes #28956
+    
+    Change-Id: I792f886c652eeaa339b0d57d5faefbf5922fe44f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161437
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/cmd/link/internal/ld/issue33808_test.go | 53 -----------------------------
- src/cmd/link/internal/ld/macho.go           |  5 ++-
- 2 files changed, 2 insertions(+), 56 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 35 +++++++++++++++++++++--------------
+ test/prove.go                         | 20 ++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 14 deletions(-)

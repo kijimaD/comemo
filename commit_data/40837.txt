@@ -1,52 +1,16 @@
-commit 2d8c1995b9c4123ab7ac35a1ba1497b290755d4d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Nov 15 10:05:13 2019 -0800
+commit ba3149612f62c011765876d7a437095fa50e0771
+Author: Allen Li <ayatane@google.com>
+Date:   Thu Jul 11 00:57:57 2019 +0000
 
-    runtime: release timersLock while running timer
+    time: clarify when draining a Timer's channel is needed
     
-    Dan Scales pointed out a theoretical deadlock in the runtime.
+    Updates #27169
     
-    The timer code runs timer functions while holding the timers lock for a P.
-    The scavenger queues up a timer function that calls wakeScavenger,
-    which acquires the scavenger lock.
-    
-    The scavengeSleep function acquires the scavenger lock,
-    then calls resetTimer which can call addInitializedTimer
-    which acquires the timers lock for the current P.
-    
-    So there is a potential deadlock, in that the scavenger lock and
-    the timers lock for some P may both be acquired in different order.
-    It's not clear to me whether this deadlock can ever actually occur.
-    
-    Issue 35532 describes another possible deadlock.
-    
-    The pollSetDeadline function acquires pd.lock for some poll descriptor,
-    and in some cases calls resettimer which can in some cases acquire
-    the timers lock for the current P.
-    
-    The timer code runs timer functions while holding the timers lock for a P.
-    The timer function for poll descriptors winds up in netpolldeadlineimpl
-    which acquires pd.lock.
-    
-    So again there is a potential deadlock, in that the pd lock for some
-    poll descriptor and the timers lock for some P may both be acquired in
-    different order. I think this can happen if we change the deadline
-    for a network connection exactly as the former deadline expires.
-    
-    Looking at the code, I don't see any reason why we have to hold
-    the timers lock while running a timer function.
-    This CL implements that change.
-    
-    Updates #6239
-    Updates #27707
-    Fixes #35532
-    
-    Change-Id: I17792f5a0120e01ea07cf1b2de8434d5c10704dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207348
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I22a6194c06529ba70b1ec648e3188c191224e321
+    GitHub-Last-Rev: 457b2a61a8ee4a745371c87756e5b6f38058af28
+    GitHub-Pull-Request: golang/go#32996
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185245
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/proc.go |  2 ++
- src/runtime/time.go | 11 +++++++++--
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ src/time/sleep.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

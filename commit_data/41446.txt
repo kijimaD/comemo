@@ -1,22 +1,15 @@
-commit c46ffdd2eca339918ed30b6ba9d4715ba769d35d
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Feb 25 20:30:37 2020 -0500
+commit a7042249abdba39a7c8dce35661b62094eb97117
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Oct 3 14:06:08 2019 -0700
 
-    runtime: guard VZEROUPPER on CPU feature
+    os/exec: simplify doc wording for cmd.StdoutPipe and cmd.StderrPipe
     
-    In CL 219131 we inserted a VZEROUPPER instruction on darwin/amd64.
-    The instruction is not available on pre-AVX machines. Guard it
-    with CPU feature.
+    The existing text was hard to parse.
+    Shorten the sentences and simplify the text.
     
-    Fixes #37459.
-    
-    Change-Id: I9a064df277d091be4ee594eda5c7fd8ee323102b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221057
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ic16f486925090ea303c04e70969e5a4b27a60896
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198758
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cpuflags.go     |  1 +
- src/runtime/mkpreempt.go    | 19 +++++++++++--------
- src/runtime/preempt_amd64.s |  8 +++++---
- 3 files changed, 17 insertions(+), 11 deletions(-)
+ src/os/exec/exec.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,18 +1,23 @@
-commit 30db6f202637251d57ee6c17ce666dacb0c59b46
-Author: Marten Seemann <martenseemann@gmail.com>
-Date:   Thu May 25 11:06:41 2023 +0300
+commit dd8cb66d0b1bf385a8acbbdc81515b301e059236
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jul 19 13:49:33 2022 -0400
 
-    crypto/tls: fix cipher suite check when doing 0-RTT resumption
+    runtime: convert g.goid to uint64
     
-    Change-Id: Ia50898308b80149f862457f9cd9f1123da4e6b6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/498215
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Macrombi Lux <macrentals502@gmail.com>
+    schedt.goidgen and p.goidcache are already uint64, this makes all cases
+    consistent.
+    
+    The only oddball here is schedtrace which prints -1 as an equivalent for
+    N/A or nil. A future CL will make this more explicit.
+    
+    Change-Id: I489626f3232799f6ca333d0d103b71d9d3aa7494
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419440
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
 
- src/crypto/tls/handshake_client.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/heapdump.go |  2 +-
+ src/runtime/proc.go     | 10 +++++-----
+ src/runtime/runtime2.go |  4 ++--
+ src/runtime/trace.go    | 22 +++++++++++-----------
+ 4 files changed, 19 insertions(+), 19 deletions(-)

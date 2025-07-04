@@ -1,15 +1,32 @@
-commit e9a136d185af8dcdb270096af520087c92c8b4af
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jun 3 15:20:30 2019 -0400
+commit 13d9a29060f5fb28022003e006a92b22a75c650e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 12:34:27 2019 -0500
 
-    cmd/link: regenerate symkind_string.go
+    misc/cgo/testcarchive: fix tests in module mode
     
-    Change-Id: Ibe514058770bd5342e1f344c5b8a9ab1427d5dfe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180297
-    Run-TryBot: Austin Clements <austin@google.com>
+    Updates #30228
+    
+    Change-Id: I830e3c83416b2e5744f30d1a903a74c50462716b
+    Reviewed-on: https://go-review.googlesource.com/c/163210
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/link/internal/sym/symkind_string.go | 62 ++++++++++++++++++++++++++++-
- 1 file changed, 60 insertions(+), 2 deletions(-)
+ misc/cgo/testcarchive/carchive_test.go             | 134 ++++++++++-----------
+ misc/cgo/testcarchive/overlaydir_test.go           |  81 +++++++++++++
+ .../testcarchive/{src => testdata}/libgo/libgo.go  |   2 +-
+ .../{src => testdata}/libgo2/libgo2.go             |   0
+ .../{src => testdata}/libgo3/libgo3.go             |   0
+ .../{src => testdata}/libgo4/libgo4.go             |   0
+ .../{src => testdata}/libgo6/sigprof.go            |   0
+ misc/cgo/testcarchive/{ => testdata}/main.c        |   0
+ misc/cgo/testcarchive/{ => testdata}/main2.c       |   0
+ misc/cgo/testcarchive/{ => testdata}/main3.c       |   0
+ misc/cgo/testcarchive/{ => testdata}/main4.c       |   0
+ misc/cgo/testcarchive/{ => testdata}/main5.c       |   0
+ misc/cgo/testcarchive/{ => testdata}/main6.c       |   0
+ misc/cgo/testcarchive/{ => testdata}/main_unix.c   |   0
+ .../cgo/testcarchive/{ => testdata}/main_windows.c |   0
+ misc/cgo/testcarchive/{src => testdata}/p/p.go     |   0
+ src/cmd/dist/test.go                               |   2 +-
+ 17 files changed, 150 insertions(+), 69 deletions(-)

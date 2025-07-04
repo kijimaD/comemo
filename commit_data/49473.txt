@@ -1,19 +1,20 @@
-commit 2a78e8afc0994f5b292bc9a5a7258c749e43032f
+commit 29d7e5472be79b77f39d81b697d44038179ba1a1
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jun 13 22:15:25 2022 -0700
+Date:   Sun Aug 22 15:21:29 2021 -0700
 
-    test: add tests for string/[]byte/[]rune conversions
+    go/types: report argument type for unsafe.OffsetOf
     
-    Matches examples in spec section on string conversions.
+    This is a clean port of CL 344252 to go/types.
     
-    For #23814.
+    For #47895.
     
-    Change-Id: I08099c27bfdb98735868266f5a42901321b97b56
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412095
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I48cbb97ec28fcfb4fdf483594be9d29426c117ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344254
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- test/fixedbugs/issue23814.go | 61 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 61 insertions(+)
+ src/go/types/api_test.go | 3 +++
+ src/go/types/builtins.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

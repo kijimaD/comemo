@@ -1,20 +1,23 @@
-commit d75ee813b50e1ff2fec72d501b7b77bc868a3228
-Author: Alex Gaynor <alex@alloy.us>
-Date:   Tue Apr 28 01:18:29 2020 +0000
+commit 2434869858e75872983038a7dc40df6e942bafba
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Nov 21 12:50:14 2019 -0500
 
-    encoding/csv: optimize Write by giving fieldNeedsQuotes a fast path for when Comma is ascii
+    cmd/go: report an error for 'go list -m ...' outside a module
     
-    name     old time/op  new time/op  delta
-    Write-4  2.37µs ±20%  1.90µs ±19%  -19.54%  (p=0.015 n=6+6)
+    Previously, we just reported an error for "all". Now we report an
+    error for any pattern that matches modules in the build list. The
+    build list can only contain the module "command-line-arguments", so
+    these patterns are not meaningful.
     
-    Change-Id: Iadfd9a43c958704c49ceb540b44d145220f9a72f
-    GitHub-Last-Rev: e7d8b0bd69870a24fdd800401d721e4c5bda7750
-    GitHub-Pull-Request: golang/go#34507
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197078
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #35728
+    
+    Change-Id: Ibc736491ec9164588f9657c09d1b9683b33cf1de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208222
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/csv/writer.go      | 16 +++++++++++++++-
- src/encoding/csv/writer_test.go | 17 +++++++++++++++++
- 2 files changed, 32 insertions(+), 1 deletion(-)
+ src/cmd/go/internal/modload/list.go        | 4 ++--
+ src/cmd/go/testdata/script/mod_outside.txt | 7 +++++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)

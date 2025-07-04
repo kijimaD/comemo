@@ -1,20 +1,14 @@
-commit 5764befa5ace6e2dff623a79ba5a098d36fd1a86
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jan 14 09:13:42 2015 +1100
+commit d90bbf91d46aa6254a296cda1ec4b23663141b47
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 19 19:47:13 2015 -0500
 
-    text/template: protect against explicit nil in field chains
+    [dev.cc] cmd/go: disable verifyCompiler
     
-    An explicit nil in an expression like nil.Foo caused a panic
-    because the evaluator attempted to reflect on the nil.
-    A typeless nil like this cannot be used to do anything, so
-    just error out.
+    The merge brought in new C sources without Go updates.
     
-    Fixes #9426
-    
-    Change-Id: Icd2c9c7533dda742748bf161eced163991a12f54
-    Reviewed-on: https://go-review.googlesource.com/7643
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Change-Id: Iad08b58f894173a7b34396275b72db34f3031fe3
+    Reviewed-on: https://go-review.googlesource.com/5352
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/text/template/exec.go      | 7 +++++--
- src/text/template/exec_test.go | 2 ++
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

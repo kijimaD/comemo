@@ -1,23 +1,14 @@
-commit ca24f9ec00c65f8e75e38ad33d1b0b3bb287e2a3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 3 10:52:20 2013 -0700
+commit 91cb9995c390cac1f8121f075045ad94c0086fd7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 3 10:40:33 2013 -0700
 
-    net/smtp: allow PLAIN auth when advertised
+    doc/go1.1.html: state that the heap is bigger on 64-bit machines
+    Be deliberately vague, since the precise details should not be depended upon.
+    Fixes #5155.
     
-    The smtp package originally allowed PLAIN whenever, but then
-    the TLS check was added for paranoia, but it's too paranoid:
-    it prevents using PLAIN auth even from localhost to localhost
-    when the server advertises PLAIN support.
-    
-    This CL also permits the client to send PLAIN if the server
-    advertises it.
-    
-    Fixes #5184
-    
-    R=golang-dev, r
+    R=golang-dev, gri, adg
     CC=golang-dev
-    https://golang.org/cl/8279043
+    https://golang.org/cl/8283044
 
- src/pkg/net/smtp/auth.go      | 11 ++++++++++-
- src/pkg/net/smtp/smtp_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+), 1 deletion(-)
+ doc/go1.1.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,14 +1,12 @@
-commit 7ae6872fc02557c46f8b9550a0697db3b9f19207
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Thu Feb 23 15:38:07 2012 -0500
+commit 83b5f067e88589b4eb5794df5f3ba28b72bce6f1
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Thu Feb 23 15:29:17 2012 -0500
 
-    dist: treat CC as one unit
+    binary: remove unnecessary dummy type.
     
-    Fixes #3112.
-    
-    R=golang-dev, 0xe2.0x9a.0x9b, ality, rsc, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5700044
+    https://golang.org/cl/5698052
 
- src/cmd/dist/build.c | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+ src/pkg/encoding/binary/binary.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

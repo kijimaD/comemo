@@ -1,19 +1,21 @@
-commit 1a7f08cf408ff4c4f05be25839a0d7c5ec28ed05
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 11 15:09:02 2022 -0700
+commit 0a39e4a89d26d8375bb5877f736dcc0047894060
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 13 11:02:51 2021 -0800
 
-    os/signal: document behavior of SIGPIPE on non-Go thread
+    cmd/compile/internal/types2: optimize common case in structuralType
     
-    Fixes #56150
+    Most of the time we don't have a type parameter. Avoid using a
+    closure in that case.
     
-    Change-Id: Id990783562950ba8be7ce9526b7a811625f2190a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/442415
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    While at it, rename argument from typ to t (to match style in
+    that file), and clarify the doc string.
+    
+    Change-Id: Ie62821073f60f353526263f8b380bad9f72d842e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363668
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/os/signal/doc.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/types2/type.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

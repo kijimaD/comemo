@@ -1,33 +1,23 @@
-commit 323cf730912bc4ad975766118ba2da88a6e80a6b
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jun 29 13:22:26 2023 -0400
+commit 4c383951b9601b488486add020ad5b7f10fb3d39
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Sep 20 18:33:03 2022 +0000
 
-    cmd/compile: write "properties" to export data for inlinable funcs
+    runtime: make (*mheap).sysAlloc more general
     
-    Augment the ir.Inline container to include an entry for function
-    properties (currently serialized as a string), and if
-    GOEXPERIMENT=newinliner is set, compute and store function
-    properties for all inline candidates processed by the inliner.
+    This change makes (*mheap).sysAlloc take an explicit list of hints and a
+    boolean as to whether or not any newly-created heapArenas should be
+    registered in the full arena list.
     
-    The idea here is that if the function properties are going to drive
-    inlining decisions, we'd like to have the same info from non-local /
-    imported functions as for local / in-package functions, hence we need
-    to include the properties in the export data.
+    This is a refactoring in preparation for arenas.
     
-    Hand testing on the compiler itself and with k8s kubelet shows that
-    this increases the size of export data overall by about 2-3 percent,
-    so a pretty modest increase.
+    For #51317.
     
-    Updates #61502.
-    
-    Change-Id: I9d1c311aa8418d02ffea3629c3dd9d8076886d15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/511562
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0584a033fce3fcb60c5d0bc033d5fb8bd23b2378
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432078
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/inline/inl.go             | 16 ++++++---
- src/cmd/compile/internal/inline/inlheur/analyze.go | 39 +++++++++++++++++-----
- src/cmd/compile/internal/ir/func.go                |  4 +++
- src/cmd/compile/internal/noder/linker.go           |  4 +++
- src/cmd/compile/internal/noder/reader.go           |  4 +++
- 5 files changed, 54 insertions(+), 13 deletions(-)
+ src/runtime/malloc.go | 69 ++++++++++++++++++++++++++++++---------------------
+ src/runtime/mheap.go  |  2 +-
+ 2 files changed, 42 insertions(+), 29 deletions(-)

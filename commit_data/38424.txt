@@ -1,19 +1,14 @@
-commit 829c140f149dba8933dea0cead3a78de4c83b529
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 14 13:54:05 2019 -0700
+commit 3fe9d4c1c89f2a10e78780c421a2f5d93f218061
+Author: hearot <gabriel@hearot.it>
+Date:   Sat Oct 27 20:43:21 2018 +0200
 
-    cmd/compile: move Strongly Connected Components code into new file
+    encoding/json: add example to Valid
     
-    This logic is used by the current escape analysis pass, but otherwise
-    logically independent. Move (unchanged) into a separate file to make
-    that clearer, and to make it easier to replace esc.go later.
-    
-    Updates #23109.
-    
-    Change-Id: Iec8c0c47ea04c0008165791731c11d9104d5a474
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167715
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I411483d76a2ca91cd15ff42ae1adb9134486d183
+    Reviewed-on: https://go-review.googlesource.com/c/145278
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/esc.go | 138 -----------------------------------
- src/cmd/compile/internal/gc/scc.go | 145 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 145 insertions(+), 138 deletions(-)
+ src/encoding/json/example_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

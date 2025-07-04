@@ -1,20 +1,88 @@
-commit cf46e561b2be3b15649fe029ffa8dc02fca6459a
+commit e9d62a6d81ee380acda593edec0d3a05295254ec
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 14 19:42:25 2013 +0000
+Date:   Thu Mar 14 11:35:13 2013 -0700
 
-    runtime, net: fix arm build
+    runtime: refactor os-specific code
     
-    Bring net/fd_linux.go back (it was deleted this morning)
-    because it is still needed for ARM.
+    thread_GOOS.c becomes os_GOOS.c.
     
-    Fix a few typos in the runtime reorg.
+    signal_GOOS_GOARCH.c becomes os_GOOS_GOARCH.c,
+    but with non-GOARCH-specific code moved into os_GOOS.c.
+    
+    The actual arch-specific signal handler moves into signal_GOARCH.c
+    to avoid per-GOOS duplication.
+    
+    New files signal_GOOS_GOARCH.h provide macros for
+    accessing fields of the very system-specific signal info structs.
+    
+    Lots moving, but nothing changing.
+    This is a preliminarly cleanup so I can work on the signal
+    handling code to fix some open issues without having to
+    make each change 13 times.
+    
+    Tested on Linux and OS X, 386 and amd64.
+    Will fix Plan 9, Windows, and ARM after the fact if necessary.
+    (Plan 9 and Windows should be fine; ARM will probably have some typos.)
+    
+    Net effect: -1081 lines of code.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7759046
+    https://golang.org/cl/7565048
 
- src/pkg/net/fd_linux.go            | 194 +++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/defs_linux_arm.h   |   7 +-
- src/pkg/runtime/signal_arm.c       |   4 +-
- src/pkg/runtime/signal_linux_arm.h |   1 +
- 4 files changed, 201 insertions(+), 5 deletions(-)
+ src/cmd/dist/build.c                               |   3 +
+ src/pkg/runtime/{thread_darwin.c => os_darwin.c}   |  39 ++++
+ src/pkg/runtime/os_darwin.h                        |   6 -
+ src/pkg/runtime/{thread_freebsd.c => os_freebsd.c} |  56 +++++
+ src/pkg/runtime/os_freebsd.h                       |   6 -
+ src/pkg/runtime/os_freebsd_arm.c                   |  23 ++
+ src/pkg/runtime/{thread_linux.c => os_linux.c}     |  58 +++++
+ src/pkg/runtime/os_linux.h                         |   6 -
+ src/pkg/runtime/os_linux_386.c                     |  37 ++++
+ src/pkg/runtime/os_linux_arm.c                     |  82 +++++++
+ src/pkg/runtime/{thread_netbsd.c => os_netbsd.c}   |  56 +++++
+ src/pkg/runtime/os_netbsd.h                        |   6 -
+ src/pkg/runtime/os_netbsd_386.c                    |  17 ++
+ src/pkg/runtime/os_netbsd_amd64.c                  |  18 ++
+ src/pkg/runtime/os_netbsd_arm.c                    |  32 +++
+ src/pkg/runtime/{thread_openbsd.c => os_openbsd.c} |  53 +++++
+ src/pkg/runtime/os_openbsd.h                       |   6 -
+ src/pkg/runtime/{thread_plan9.c => os_plan9.c}     |   0
+ src/pkg/runtime/os_plan9.h                         |   1 -
+ .../runtime/{signal_plan9_386.c => os_plan9_386.c} |   0
+ .../{signal_plan9_amd64.c => os_plan9_amd64.c}     |   0
+ src/pkg/runtime/{thread_windows.c => os_windows.c} |   0
+ .../{signal_windows_386.c => os_windows_386.c}     |   0
+ .../{signal_windows_amd64.c => os_windows_amd64.c} |   0
+ src/pkg/runtime/signal_386.c                       | 119 ++++++++++
+ src/pkg/runtime/signal_amd64.c                     | 129 +++++++++++
+ src/pkg/runtime/signal_arm.c                       | 120 ++++++++++
+ src/pkg/runtime/signal_darwin_386.c                | 155 -------------
+ src/pkg/runtime/signal_darwin_386.h                |  23 ++
+ src/pkg/runtime/signal_darwin_amd64.c              | 165 --------------
+ src/pkg/runtime/signal_darwin_amd64.h              |  31 +++
+ src/pkg/runtime/signal_freebsd_386.c               | 154 -------------
+ src/pkg/runtime/signal_freebsd_386.h               |  23 ++
+ src/pkg/runtime/signal_freebsd_amd64.c             | 162 --------------
+ src/pkg/runtime/signal_freebsd_amd64.h             |  31 +++
+ src/pkg/runtime/signal_freebsd_arm.c               | 193 -----------------
+ src/pkg/runtime/signal_freebsd_arm.h               |  27 +++
+ src/pkg/runtime/signal_linux_386.c                 | 180 ---------------
+ src/pkg/runtime/signal_linux_386.h                 |  24 ++
+ src/pkg/runtime/signal_linux_amd64.c               | 162 --------------
+ src/pkg/runtime/signal_linux_amd64.h               |  32 +++
+ src/pkg/runtime/signal_linux_arm.c                 | 241 ---------------------
+ src/pkg/runtime/signal_linux_arm.h                 |  27 +++
+ src/pkg/runtime/signal_netbsd_386.c                | 164 --------------
+ src/pkg/runtime/signal_netbsd_386.h                |  23 ++
+ src/pkg/runtime/signal_netbsd_amd64.c              | 172 ---------------
+ src/pkg/runtime/signal_netbsd_amd64.h              |  31 +++
+ src/pkg/runtime/signal_netbsd_arm.c                | 208 ------------------
+ src/pkg/runtime/signal_netbsd_arm.h                |  27 +++
+ src/pkg/runtime/signal_openbsd_386.c               | 147 -------------
+ src/pkg/runtime/signal_openbsd_386.h               |  23 ++
+ src/pkg/runtime/signal_openbsd_amd64.c             | 156 -------------
+ src/pkg/runtime/signal_openbsd_amd64.h             |  31 +++
+ src/pkg/runtime/signal_unix.c                      |   1 +
+ src/pkg/runtime/signal_unix.h                      |  13 ++
+ 55 files changed, 1209 insertions(+), 2290 deletions(-)

@@ -1,13 +1,14 @@
-commit 351f7efec489d89dab70d876ef35e1aa75e42b78
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 21 21:12:03 2011 +1100
+commit efa2246e423a2fdbd833e0103def8c6a4cbd5042
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 01:24:57 2011 -0500
 
-    dashboard: use 'ok' instead of 'hit' or 'miss' for bool return vals
+    build: rewrite to use bash time builtin
     
-    R=dsymonds, rsc
+    Should help windows/amd64
+    
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5505054
+    https://golang.org/cl/5500058
 
- misc/dashboard/app/build/cache.go   | 27 ++++++++++++---------------
- misc/dashboard/app/build/handler.go |  2 +-
- 2 files changed, 13 insertions(+), 16 deletions(-)
+ src/run.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

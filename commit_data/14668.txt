@@ -1,14 +1,13 @@
-commit 94430937ac9330a4c7e8ed23659bc4475f520739
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 17 11:05:58 2012 -0500
+commit 57ae2e7371de9c7c5c2f6314baf95ca8b94a61d8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 17 23:37:02 2012 +0800
 
-    test: add "duplicate" struct map key test
+    os: fix docs for Expand
+    there is no concept of “undefined” variables for Expand。
     
-    Update #4555.
-    
-    R=gri, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6944059
+    https://golang.org/cl/6946063
 
- test/initializerr.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/os/env.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

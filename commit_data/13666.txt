@@ -1,19 +1,19 @@
-commit 2eb6a16e16411a394527447b4f6ec0ba838b18e8
-Author: Dave Borowitz <dborowitz@google.com>
-Date:   Wed Aug 22 09:15:41 2012 -0700
+commit 2281c3294b01501b177670e21d571ca7d5074cbf
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Aug 22 22:23:56 2012 +1000
 
-    net/http: Set TLSClientConfig.ServerName on every HTTP request.
+    cmd/go: fix cgo linking on netbsd
     
-    This makes SNI "just work" for callers using the standard http.Client.
+    NetBSD's built-in linker script for 'ld -r' does not provide a
+    SEARCH_DIR. As a result libgcc.a is not found when -lgcc is used.
     
-    Since we now have a test that depends on the httptest.Server cert, change
-    the cert to be a CA (keeping all other fields the same).
+    Work around this by determining the path to libgcc (by invoking
+    gcc with the -print-libgcc-file-name option) and explicitly
+    referencing the resulting library.
     
-    R=bradfitz
-    CC=agl, dsymonds, gobot, golang-dev
-    https://golang.org/cl/6448154
+    R=golang-dev, iant, aram, lucio.dere, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6470044
 
- src/pkg/net/http/client_test.go     | 47 +++++++++++++++++++++++++++++++++++++
- src/pkg/net/http/httptest/server.go | 14 +++++------
- src/pkg/net/http/transport.go       | 13 +++++++++-
- 3 files changed, 66 insertions(+), 8 deletions(-)
+ src/cmd/go/build.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

@@ -1,21 +1,31 @@
-commit 5c359736f8d67338b53c26aaef52139ae8cd0538
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Oct 28 14:45:12 2018 +1100
+commit 33f6b08ffe5cfcb8efc4b6529ff8e23e04290b84
+Author: Mark Fischer <meirfischer@gmail.com>
+Date:   Mon Jul 2 00:56:46 2018 -0400
 
-    os: remove sleep in windows Process.Wait
+    net/http: make Transport treat 101 as a terminal status
     
-    The wait was there, because we discovered that we could not remove
-    finished process executable without the wait on Windows XP. But
-    Windows XP is not supported by Go. Maybe we do not need the wait
-    with modern Windows versions. Remove the sleep.
+    Before CL 116855, Transport would only skip over 100 (expect-continue)
+    responses automatically and treat all other 1xx responses as if they
+    were the final status. CL 116855 made the Transport more spec
+    compliant (ignoring unknown 1xx responses), but broke "101 Switching
+    Protocols" in the process. Since 101 is already in use and defined to
+    not have a following message, treat it as terminal.
     
-    Fixes #25965
+    Note that because the Client/Transport don't support hijacking the
+    underlying Conn, most clients doing a WebSocket or other protocol
+    upgrade are probably using net.Dial + http.ReadResponse instead, which
+    remained unaffected (before & after this CL).
     
-    Change-Id: I02094abee3592ce4fea98eaff9d15137dc54dc81
-    Reviewed-on: https://go-review.googlesource.com/c/145221
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The main affect of this CL is to fix tests that were using the
+    Client/Transport to test that a server returns 101, presumably without
+    actually switching to another protocol.
+    
+    Fixes #26161
+    
+    Change-Id: Ie3cd3a465f948c4d6f7ddf2a6a78a7fb935d0672
+    Reviewed-on: https://go-review.googlesource.com/121860
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/exec_windows.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/net/http/transport.go      | 12 +++++++++++-
+ src/net/http/transport_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

@@ -1,32 +1,24 @@
-commit 34abc12b2a24fd76cdfad531f0a229f3cbb55bc3
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Nov 8 18:08:59 2021 +0000
+commit 8e725f8452ac0ece548837a95d125bc67b9d8828
+Author: John Bampton <jbampton@gmail.com>
+Date:   Fri Mar 5 01:53:00 2021 +0000
 
-    cmd/compile/internal/types2: roll-forward removal of asX converters
+    all: use HTML5 br tags
     
-    This CL reverts CL 361964, rolling forward the original CL 362254 with a
-    fix for re-entrant expansion via type hashing (compare patchsets 1 and
-    2).
+    In HTML5 br tags don't need a closing slash
     
-    Change-Id: I62869e50e919f42eb8d6fef5b0d7a5ec8960bd84
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362118
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic53c43faee08c5b1267daa9a02cc186b1c255ca1
+    GitHub-Last-Rev: 652208116944d01b23b8af8f1af485da5e916d32
+    GitHub-Pull-Request: golang/go#44283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292370
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/cmd/compile/internal/types2/assignments.go |  2 +-
- src/cmd/compile/internal/types2/builtins.go    |  8 +++---
- src/cmd/compile/internal/types2/call.go        |  2 +-
- src/cmd/compile/internal/types2/context.go     |  3 ++
- src/cmd/compile/internal/types2/conversions.go | 21 +++++++-------
- src/cmd/compile/internal/types2/expr.go        |  6 ++--
- src/cmd/compile/internal/types2/index.go       |  8 +++---
- src/cmd/compile/internal/types2/lookup.go      |  9 +++---
- src/cmd/compile/internal/types2/predicates.go  |  5 ++--
- src/cmd/compile/internal/types2/sizes.go       |  2 +-
- src/cmd/compile/internal/types2/type.go        | 39 +-------------------------
- src/cmd/compile/internal/types2/typestring.go  |  2 +-
- src/cmd/compile/internal/types2/typexpr.go     |  2 +-
- 13 files changed, 38 insertions(+), 71 deletions(-)
+ misc/trace/trace_viewer_full.html    | 16 ++++++++--------
+ src/cmd/compile/internal/ssa/html.go |  2 +-
+ src/cmd/trace/mmu.go                 | 22 +++++++++++-----------
+ src/encoding/xml/xml.go              |  2 +-
+ src/encoding/xml/xml_test.go         |  2 +-
+ src/net/http/pprof/pprof.go          |  2 +-
+ 6 files changed, 23 insertions(+), 23 deletions(-)

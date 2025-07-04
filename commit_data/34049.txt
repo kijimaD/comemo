@@ -1,26 +1,17 @@
-commit dce0eb2dd294536ec7f774fdde8ff3cefa2dab63
-Merge: 924ef1c8ea 1dcb5836ad
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 7 10:37:00 2018 -0500
+commit d0006e78681351aae94f9d757232203f43d8b7ee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 26 17:47:51 2017 -0700
 
-    [release-branch.go1.10] all: merge master into release-branch.go1.10, for go1.10rc2
+    net: use newLocalListener in TestClosingListener.
     
-    This adds the go get security fix.
+    Updates #21856
     
-    * 1dcb5836 cmd/go: accept only limited compiler and linker flags in #cgo directives
-    
-    Change-Id: Ib2caf2039d2cefabe3afa0bb4dcc4c0dc8d664ff
+    Change-Id: I9baa51fe23e6dd2fcf9dd14f7acfaf7457571e1d
+    Reviewed-on: https://go-review.googlesource.com/66334
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- misc/cgo/errors/src/err1.go               |   2 +-
- src/cmd/cgo/doc.go                        |  16 +-
- src/cmd/compile/internal/gc/noder.go      |  16 ++
- src/cmd/dist/build.go                     |   2 +-
- src/cmd/go/alldocs.go                     |  31 ++--
- src/cmd/go/go_test.go                     | 151 ++++++++++++++++++-
- src/cmd/go/internal/envcmd/env.go         |   7 +-
- src/cmd/go/internal/help/helpdoc.go       |  31 ++--
- src/cmd/go/internal/load/pkg.go           |  94 ++++++++++--
- src/cmd/go/internal/work/exec.go          |  90 +++++++++--
- src/cmd/go/internal/work/security.go      | 160 ++++++++++++++++++++
- src/cmd/go/internal/work/security_test.go | 240 ++++++++++++++++++++++++++++++
- 12 files changed, 780 insertions(+), 60 deletions(-)
+ src/net/listen_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

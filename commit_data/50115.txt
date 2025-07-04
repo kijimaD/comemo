@@ -1,40 +1,20 @@
-commit e4be2ac79f3cc7219ae1cf8334463d11cae24e01
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Aug 24 18:33:21 2022 -0400
+commit a8d78fae95d5a8a09e248ce4d26f04b38791a7b6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Oct 1 15:39:21 2021 -0700
 
-    runtime: mark morestack_noctxt SPWRITE on LR architectures
+    cmd/compile: refactor gclocals sym creation
     
-    On LR architectures, morestack (and morestack_noctxt) are called
-    with a special calling convention, where the caller doesn't save
-    LR on stack but passes it as a register, which morestack will save
-    to g.sched.lr. The stack unwinder currently doesn't understand it,
-    and would fail to unwind from it. morestack already writes SP (as
-    it switches stack), but morestack_noctxt (which tailcalls
-    morestack) doesn't. If a profiling signal lands right in
-    morestack_noctxt, the unwinder will try to unwind the stack and
-    go off, and possibly crash.
+    It'll be used in second place in a subsequent change.
+    No functional changes.
     
-    Marking morestack_noctxt SPWRITE stops the unwinding.
-    
-    Ideally we could teach the unwinder about the special calling
-    convention, or change the calling convention to be less special
-    (so the unwinder doesn't need to fetch a register from the signal
-    context). This is a stop-gap solution, to stop the unwinder from
-    crashing.
-    
-    Fixes #54332.
-    
-    Change-Id: I75295f2e27ddcf05f1ea0b541aedcb9000ae7576
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425396
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I58dd12d7dde45b36995d031fc7fbb27d6eaf48d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353670
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/asm_arm.s     |  7 +++++++
- src/runtime/asm_arm64.s   |  7 +++++++
- src/runtime/asm_mips64x.s |  7 +++++++
- src/runtime/asm_mipsx.s   |  7 +++++++
- src/runtime/asm_ppc64x.s  |  7 +++++++
- src/runtime/asm_riscv64.s | 11 +++++++++--
- src/runtime/asm_s390x.s   |  7 +++++++
- 7 files changed, 51 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/liveness/plive.go | 13 +------------
+ src/cmd/internal/obj/sym.go                |  9 +++++++++
+ 2 files changed, 10 insertions(+), 12 deletions(-)

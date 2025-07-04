@@ -1,13 +1,12 @@
-commit 47647b9865c9d3dbcf95c650420b0aaeeb6a3aff
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Fri Jul 22 09:53:25 2011 +1000
+commit e109a2bb8cde0f31cf58164d861407351ceaf1bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 21 15:01:58 2011 -0700
 
-    exp/template: fix action variable declarations inside range
+    big: minor comment adjustments
     
-    R=r
+    R=mtj, r
     CC=golang-dev
-    https://golang.org/cl/4807043
+    https://golang.org/cl/4814044
 
- src/pkg/exp/template/exec.go      | 4 ++++
- src/pkg/exp/template/exec_test.go | 1 +
- 2 files changed, 5 insertions(+)
+ src/pkg/big/int.go | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

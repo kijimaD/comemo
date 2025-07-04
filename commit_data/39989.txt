@@ -1,19 +1,16 @@
-commit 55924135eed3b607ccbe4725900de797b51757f9
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Sep 23 16:16:04 2019 -0400
+commit bec67e1130db10dc901c5b214c7df081ed4191ab
+Author: Jingnan Si <jingnan.si@gmail.com>
+Date:   Mon Apr 8 19:02:40 2019 +0000
 
-    cmd/compile: fix register masks of ANDCC et al. on PPC64
+    runtime: follow Windows calling convention for _cgo_sys_thread_create
     
-    PPC64's ANDCC, ORCC, XORCC SSA ops produce a flags value, which
-    should not have register mask of an integer register.
+    Windows requires space for four pointers on the stack.
     
-    Fixes #34468.
-    
-    Change-Id: Ic762e423b20275fd9f8118dae7951c258d59738c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/196960
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9f7ba3e09b6c660f86d15139bb51954fffc8ccb1
+    GitHub-Last-Rev: 76d21bcc2b07edfde6daa45000093d070e2337bc
+    GitHub-Pull-Request: golang/go#30944
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168351
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go        | 12 +++++++-
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 42 ++++++++++++++--------------
- src/cmd/compile/internal/ssa/opGen.go        |  9 ------
- 3 files changed, 32 insertions(+), 31 deletions(-)
+ src/runtime/rt0_windows_amd64.s | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

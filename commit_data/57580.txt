@@ -1,27 +1,35 @@
-commit 8194d735cff90871b1ea5c92e83ddd50abdd4185
-Author: Sam Thanawalla <samthanawalla@google.com>
-Date:   Tue Aug 13 16:48:11 2024 +0000
+commit 4e411e7bc44378422fa52f478927d9f71c39f385
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 16 19:45:12 2023 -0700
 
-    cmd/go: add GOAUTH mechanism for HTTP authentication
+    cmd/compile: cleanup Func construction
     
-    This change adds a new environment variable GOAUTH which takes a semicolon-separated list of commands to run for authentication during go-import resolution and HTTPS module mirror protocol interactions.
-    This CL only supports netrc and off. Future CLs to follow will extend support to git and a custom authenticator command.
+    This CL moves more common Func-setup logic into ir.NewFunc. In
+    particular, it now handles constructing the Name and wiring them
+    together, setting the Typecheck bit, and setting Sym.Func.
     
-    For #26232
+    Relatedly, this CL also extends typecheck.DeclFunc to append the
+    function to typecheck.Target.Funcs, so that callers no longer need to
+    do this.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I6cfa4c89fd27a7a4e7d25c8713d191dc82b7e28a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605256
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ifa0aded8df0517188eb295d0dccc107af85f1e8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520338
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/alldocs.go                       |   6 ++
- src/cmd/go/internal/auth/auth.go            | 105 ++++++++++++++++++++++++----
- src/cmd/go/internal/auth/auth_test.go       |  51 ++++++++++++++
- src/cmd/go/internal/cfg/cfg.go              |   1 +
- src/cmd/go/internal/envcmd/env.go           |   1 +
- src/cmd/go/internal/help/helpdoc.go         |   6 ++
- src/cmd/go/testdata/script/goauth_netrc.txt |  65 +++++++++++++++++
- src/internal/cfg/cfg.go                     |   1 +
- 8 files changed, 221 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/inline/inl.go          |  3 +-
+ src/cmd/compile/internal/ir/func.go             | 50 +++++++++++------------
+ src/cmd/compile/internal/noder/reader.go        | 53 +++++++++++--------------
+ src/cmd/compile/internal/pkginit/init.go        | 18 +++------
+ src/cmd/compile/internal/reflectdata/alg.go     |  2 -
+ src/cmd/compile/internal/ssa/export_test.go     |  3 +-
+ src/cmd/compile/internal/ssagen/abi.go          |  2 -
+ src/cmd/compile/internal/typecheck/dcl.go       | 11 +++--
+ src/cmd/compile/internal/typecheck/export.go    | 42 ++++++--------------
+ src/cmd/compile/internal/typecheck/syms.go      |  9 ++---
+ src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
+ src/cmd/compile/internal/types/scope.go         | 11 -----
+ 12 files changed, 77 insertions(+), 129 deletions(-)

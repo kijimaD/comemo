@@ -1,29 +1,21 @@
-commit 749ebaa4460af237f9facbc43af3e055802dc0be
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jan 23 17:08:50 2024 -0500
+commit 25f5d9d4a253cb880bff909ebbdc05c8941c4a48
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 30 12:24:46 2022 +0700
 
-    net: ignore Dial errors in TestAcceptTimeout
+    cmd/compile: use ONAME node directly from generated hash func
     
-    Also use DialContext instead of just Dial so that we can ensure
-    the call returns before we close the listener.
+    Same as CL 436436, but for hashfor.
     
-    The Dial in this test is intended to complete before the call to
-    Accept, but there is no synchronization to ensure that and sometimes
-    it doesn't happen. That's ok and mostly immaterial to the test, but it
-    does mean we need to ignore Dial errors (which can happen when the
-    listener is closed), and we need to be a little more careful about not
-    dialing a port that may have already been reused by some other test.
+    However, this passes toolstash-check, because the order of compiling
+    functions do not change.
     
-    Fixes #65240.
-    Updates #17948.
-    
-    Change-Id: Ife1b5c3062939441b58f4c096461bf5d7841889b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558175
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Icc7d042e9c28b0fe4bb40a2b98b7f60cf3549bd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436961
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/net/timeout_test.go | 24 +++++++++++++++++++++---
- 1 file changed, 21 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/reflectdata/alg.go | 31 ++++++++++-------------------
+ 1 file changed, 11 insertions(+), 20 deletions(-)

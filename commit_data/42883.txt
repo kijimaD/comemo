@@ -1,35 +1,15 @@
-commit ab88d97deb216cdd93712dedca3be4d7a561743e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Aug 31 16:29:13 2020 -0400
+commit 28c501b7b3405cf2afa7b9a440c9fc835d5276a0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Feb 24 21:08:27 2020 +0100
 
-    cmd: update vendored golang.org/x/mod
+    doc/go1.14: document that freebsd/arm64 requires FreeBSD 12.0 or later
     
-    This pulls in golang.org/cl/250920 which rejects Windows shortnames as
-    path components in module.CheckImportPath (as is already done in
-    cmd/go/internal/get's copy of CheckImportPath). This will allow us to replace
-    the copy of CheckImportPath with the original.
+    Updates #24715
+    Updates #37345
     
-    This also pulls in golang.org/cl/250919 which rejects + in CheckPath and
-    CheckImportPath, and golang.org/cl/235597, which adds methods to the zip
-    package for gorelease, but shouldn't affect cmd.
-    
-    This change also updates the cmd/go test case TestScript/mod_bad_filenames
-    to reflect that golang.org/x/mod/zip error messages now include filenames
-    for bad file names that can't be included in zip archives.
-    
-    Updates #29101
-    
-    Change-Id: I7f654325dc33b19bc9c6f77a56546747add5a47f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251877
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I787a9b2ab1c68e1d379aac0a31bdf6217f04f911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220426
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go.mod                                   |   2 +-
- src/cmd/go.sum                                   |   4 +-
- src/cmd/go/testdata/script/mod_bad_filenames.txt |   6 +-
- src/cmd/vendor/golang.org/x/mod/module/module.go |  33 +-
- src/cmd/vendor/golang.org/x/mod/zip/zip.go       | 621 ++++++++++++++++-------
- src/cmd/vendor/modules.txt                       |   2 +-
- 6 files changed, 477 insertions(+), 191 deletions(-)
+ doc/go1.14.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

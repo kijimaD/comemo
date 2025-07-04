@@ -1,17 +1,18 @@
-commit c9fbe0f29321602ce791834f600dcc453580c22b
-Author: Aliaksandr Valialkin <valyala@gmail.com>
-Date:   Thu Jun 23 14:59:26 2016 +0300
+commit d954f9c4d19bbe459ad4a6de95af47349da1d40b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 28 14:24:19 2016 -0700
 
-    cmd/vet: properly handle indexed arguments in printf
+    test: added test case for (fixed) issue 15470
     
-    Fixes #15884
+    Follow-up to https://golang.org/cl/22543.
     
-    Change-Id: I33d98db861d74e3c37a546efaf83ce6f2f76d335
-    Reviewed-on: https://go-review.googlesource.com/24391
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I873b4fa6616ac2aea8faada2fccd126233bbc07f
+    Reviewed-on: https://go-review.googlesource.com/22583
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/print.go          | 33 +++++++++++++++++----------------
- src/cmd/vet/testdata/print.go | 13 +++++++++++--
- 2 files changed, 28 insertions(+), 18 deletions(-)
+ test/fixedbugs/issue15470.dir/a.go | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue15470.dir/b.go |  3 +++
+ test/fixedbugs/issue15470.go       | 10 ++++++++++
+ 3 files changed, 37 insertions(+)

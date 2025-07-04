@@ -1,33 +1,19 @@
-commit 6e50991d2a38058d0824f8b086677fbe9774c9f9
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Aug 20 12:50:02 2021 -0700
+commit 2de0af3b1b09e11b71ec4c58bb406be7abf112b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 6 15:49:58 2020 -0500
 
-    strconv: reject surrogate halves in Unquote
+    [dev.regabi] cmd/compile: prepare mknode for rename of Func.body
     
-    Unquote implements unescaping a "single-quoted, doubled-quoted, or
-    backquoted Go string literal". Therefore, it should reject anything
-    that the Go specification explicitly forbids.
+    The next CL will rename Func.body to Func.Body_.
+    At some point in the future we will rename it to Func.Body.
+    Make the generator not get confused.
     
-    The section on "Rune literals" explicitly rejects rune values
-    "above 0x10FFFF and surrogate halves". We properly checked for
-    the previous condition, but were failing to check for the latter.
+    Passes buildall w/ toolstash -cmp.
     
-    In general, "r > utf8.MaxRune" is probably the wrong check,
-    while !utf8.ValidRune(r) is the more correct check.
-    We make changes to both UnquoteChar and appendEscapedRune
-    to use the correct check. The change to appendEscapedRune
-    is technically a noop since callers of that function already
-    guarantee that the provided rune is valid.
-    
-    Fixes #47853
-    
-    Change-Id: Ib8977e56b91943ec8ada821b8d217b5e9a66f950
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343877
-    Trust: Joe Tsai <joetsai@digital-static.net>
-    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Iee3f4915889a8287377bf3304d5b9250a909477e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275783
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/strconv/quote.go      | 4 ++--
- src/strconv/quote_test.go | 3 +++
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ir/mknode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

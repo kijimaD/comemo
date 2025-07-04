@@ -1,20 +1,30 @@
-commit 28a8896d57f315b241b77eff26d9302cfe88c13b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Nov 19 21:00:17 2023 -0800
+commit 80f7484af76773b7591d57f8f5e4479603089b90
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 8 10:47:03 2022 -0500
 
-    cmd/compile/internal/inline: allow inlining of checkptr arguments
+    os/user: zero-initialize C structs returned to Go
     
-    The early return here is meant to suppress inlining of the function
-    call itself. However, it also suppresses recursing to visit the call
-    arguments, which are safe to inline.
+    In the wrappers for getgrnam_r and similar, the structs to be returned
+    are allocated on the C stack and may be uninitialized. If the call to
+    the wrapped C function returns an error (such as ERANGE), it may leave
+    the struct uninitialized, expecting that the caller will not read it.
     
-    Change-Id: I75887574c00931cb622277d04a822bc84c29bfa2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543658
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    However, when that struct is returned to Go, it may be read by the Go
+    garbage collector. If the uninitialized struct fields happen to
+    contain wild pointers, the Go garbage collector will throw an error.
+    (Prior to CL 449335, the Go runtime would not scan the struct fields
+    because they did not reside in Go memory.)
+    
+    Fix this by always zeroing the struct before the C call.
+    
+    Fixes #57170.
+    
+    Change-Id: I241ae8e4added6f9a406dac37a7f6452341aa0cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456121
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/inline/inl.go           |  2 +-
- test/fixedbugs/{issue35073.go => issue35073a.go} |  0
- test/fixedbugs/issue35073b.go                    | 23 +++++++++++++++++++++++
- 3 files changed, 24 insertions(+), 1 deletion(-)
+ src/os/user/cgo_lookup_cgo.go | 37 +++++++++++++++++++++----------------
+ 1 file changed, 21 insertions(+), 16 deletions(-)

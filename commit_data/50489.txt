@@ -1,26 +1,28 @@
-commit f6436c60e49f17f2ca723fdf76a0cb4323cbe02c
-Author: Erik Pellizzon <erikpellizzon1@gmail.com>
-Date:   Wed Sep 14 10:13:06 2022 +0000
+commit 2bc8ed8e9c5d8ae303b42bbd8c65f2c5dc38352a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 26 16:18:52 2021 -0400
 
-    hash/crc32: remove redundant code
+    runtime: normalize sigprof traceback flags
     
-    Merge the CRC32 Update and Write functions using an unexported function, to avoid duplication of code and make it more readable.
-    The only difference between them is the check of the initialization of the IEEE table, and a boolean value specifies that.
+    Each gentraceback call uses a different set of flags. Combine these into
+    a common variable, only adjusted as necessary.
     
-    Throughout the crc32.go file, in the switches the default value is inserted inside the switch statement, this change uniforms the style of the MakeTable function, making it like the other pieces of code.
+    The effective changes here are:
     
-    Change-Id: I3889f6c6671210c82f0d7250cea67907bccf3ce7
-    GitHub-Last-Rev: b8777ee213f2ebad0bb4a5dcdb812fd356d6d086
-    GitHub-Pull-Request: golang/go#55044
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430456
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
-    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    * cgo traceback now has _TraceJumpStack. This is a no-op since it
+      already passes curg.
+    * libcall traceback now has _TraceJumpStack. This is a behavior change
+      and will allow following stack transitions if a libcall is performed on
+      g0.
+    * VDSO traceback drops _TraceTrap. vdsoPC is a return address, so
+      _TraceTrap was not necessary.
+    
+    Change-Id: I351b3cb8dc77df7466795d5fbf2bd8f30bba2d37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358900
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/hash/crc32/crc32.go      | 32 ++++++++++++++++----------------
- src/hash/crc32/crc32_test.go |  3 +++
- 2 files changed, 19 insertions(+), 16 deletions(-)
+ src/runtime/proc.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

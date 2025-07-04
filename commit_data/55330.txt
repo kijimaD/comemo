@@ -1,47 +1,25 @@
-commit 0b56804084eb75495e704921f71e4f215fced6b7
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Dec 20 14:33:46 2023 -0500
+commit 49520907394c0a1060b51dc4a5d5ce1ac470a5f1
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Jan 29 21:28:37 2023 +0100
 
-    runtime: use racereleasemerge for godebugInc
+    internal/syscall/windows: regenerate zsyscall_windows.go
     
-    CL 549796 adds race annotations to godebugInc. It uses racerelease
-    to model a CompareAndSwap. However, a CompareAndSwap is
-    essentially a load and a store. Modeling it as just racerelease
-    makes it not synchronized with other racerelease, i.e. other CAS.
-    For the following execution
+    CL 463219 broke TestAllDependencies because zsyscall_windows.go
+    was not correctly formatted, probably edited by hand.
     
-    thread         A             B
-              load, got nil
-                            load, got nil
-              set *inc
-                            set *inc
-              racerelease
-              CAS success
-                            racerelease
-                            CAS fail
-                            load
-                            raceacquire
-                            use *inc (from A)
+    The failure was not catch by the CL builders because it is
+    only failing on linux longtests builders, which was not executed.
+    Windows builders skip that test because it lacks of the `diff` command.
     
-    On thread B, the raceacquire synchronizes with the previous
-    racerelease, which is not synchronized with racerelease on thread
-    A, so it doesn't know that the use of *inc on thread B is after
-    the set on thread A, and will report a race.
-    
-    Change it to use racereleasemerge, which synchronizes with
-    previous racerelease and racereleasemerge. So in the case above it
-    knows thread B's CAS is after thread A's.
-    
-    Also remove stale comment that was more relevant when the code
-    used atomic store, where CL 549796 changed to CAS.
-    
-    Updates #64649.
-    
-    Change-Id: I17671090a19c0699fcb4e6481e2abd98ef2e5542
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/551856
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Id02992d71be2db7e9d3d169545679ab957f3be7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463841
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/runtime/runtime.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/internal/syscall/windows/zsyscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

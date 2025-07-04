@@ -1,18 +1,12 @@
-commit 6715551768cb3f5a6eadcabb197ada3f0ab77acf
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 27 19:38:32 2011 -0700
+commit 8a7b2b2f7060427890143fb7263d231acf689bb3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 28 10:55:58 2011 +0900
 
-    crypto/openpgp/error: use Error in names of error impl types
+    doc: A Tour of Go in Japanese
     
-    Will make gofix for error work better.
-    There is no other indication in this file that
-    these are actually error implementations.
-    
-    (They are only used elsewhere.)
-    
-    R=bradfitz
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5305068
+    https://golang.org/cl/5318058
 
- src/pkg/crypto/openpgp/error/error.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ doc/docs.html | 1 +
+ 1 file changed, 1 insertion(+)

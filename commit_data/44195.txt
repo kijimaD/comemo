@@ -1,18 +1,19 @@
-commit 0f797f168d1aec8481ee43ace57d3209aee93dba
-Author: Paul Davis <43160081+Pawls@users.noreply.github.com>
-Date:   Tue Jan 26 23:29:47 2021 +0000
+commit 8ca2eae206cbe063de68cec046f41a7c7b8c4d4f
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed May 20 15:06:22 2020 -0400
 
-    math: fix typo in sqrt.go code comment
+    [dev.link] cmd/link: refactor DWARF fn die processing to remove name lookups
     
-    "it does not necessary" -> "it is not necessary"
+    Rework the code in the linker that visits DWARF subprorgam DIEs to
+    reduce number of symbol name instantiations and name lookups, by
+    making better use of relocation target symbol types.
     
-    Change-Id: I66f9cf2670d76b3686badb4a537b3ec084447d62
-    GitHub-Last-Rev: 52a0f9993abf25369cdb6b31eaf476df1626cf87
-    GitHub-Pull-Request: golang/go#43935
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/287052
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
+    Change-Id: Ifb2a4e24874b8c891d7fdf17dd749c3f9139157a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234685
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/math/sqrt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/dwarf.go | 150 ++++++++++++++++++++------------------
+ 1 file changed, 78 insertions(+), 72 deletions(-)

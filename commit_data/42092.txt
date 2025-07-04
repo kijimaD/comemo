@@ -1,45 +1,30 @@
-commit a44d06d3b4d665cee14342df1c81a385f9d2055f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 21 19:48:02 2020 -0700
+commit a762221bea7c02a17cffc6937d8af33a027a32e5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 15:44:11 2019 +0000
 
-    cmd/compile: use fixVariadicCall in escape analysis
+    runtime: rearrange mheap_.alloc* into allocSpan
     
-    This CL uses fixVariadicCall before escape analyzing function calls.
-    This has a number of benefits, though also some minor obstacles:
+    This change combines the functionality of allocSpanLocked, allocManual,
+    and alloc_m into a new method called allocSpan. While these methods'
+    abstraction boundaries are OK when the heap lock is held throughout,
+    they start to break down when we want finer-grained locking in the page
+    allocator.
     
-    Most notably, it allows us to remove ODDDARG along with the logic
-    involved in setting it up, manipulating EscHoles, and later copying
-    its escape analysis flags to the actual slice argument. Instead, we
-    uniformly handle all variadic calls the same way. (E.g., issue31573.go
-    is updated because now f() and f(nil...) are handled identically.)
+    allocSpan does just that, and only locks the heap when it absolutely has
+    to. Piggy-backing off of work in previous CLs to make more of span
+    initialization lockless, this change makes span initialization entirely
+    lockless as part of the reorganization.
     
-    It also allows us to simplify handling of builtins and generic
-    function calls. Previously handling of calls was hairy enough to
-    require multiple dispatches on n.Op, whereas now the logic is uniform
-    enough that we can easily handle it with a single dispatch.
+    Ultimately this change will enable us to add a lockless fast path to
+    allocSpan.
     
-    The downside is handling //go:uintptrescapes is now somewhat clumsy.
-    (It used to be clumsy, but it still is, too.) The proper fix here is
-    probably to stop using escape analysis tags for //go:uintptrescapes
-    and unsafe-uintptr, and have an earlier pass responsible for them.
+    Updates #35112.
     
-    Finally, note that while we now call fixVariadicCall in Escape, we
-    still have to call it in Order, because we don't (yet) run Escape on
-    all compiler-generated functions. In particular, the generated "init"
-    function for initializing package-level variables can contain calls to
-    variadic functions and isn't escape analyzed.
-    
-    Passes toolstash-check -race.
-    
-    Change-Id: I4cdb92a393ac487910aeee58a5cb8c1500eef881
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229759
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I99875939d75fb4e958a67ac99e4a7cda44f06864
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196641
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/escape.go | 240 +++++++++++++++-------------------
- src/cmd/compile/internal/gc/fmt.go    |   4 +
- src/cmd/compile/internal/gc/syntax.go |   4 +-
- src/cmd/compile/internal/gc/walk.go   |   6 +-
- test/fixedbugs/issue31573.go          |   8 +-
- 5 files changed, 112 insertions(+), 150 deletions(-)
+ src/runtime/mheap.go | 325 ++++++++++++++++++++++++++-------------------------
+ 1 file changed, 165 insertions(+), 160 deletions(-)

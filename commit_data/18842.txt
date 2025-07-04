@@ -1,17 +1,15 @@
-commit f2037e1533737d5326c6ab464d165ecf85c70b7c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Mar 13 07:58:42 2014 +1100
+commit e9ba9470bc0c7042e2e5aac6838aa86f2f514ca3
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Wed Mar 12 11:02:42 2014 -0400
 
-    runtime: fix missing nacl/386 symbol
+    misc/emacs: correctly fontify methods when go-fontify-function-calls is nil
     
-    syscall.naclWrite was missing from sys_nacl_386.s
+    We were fontifying the wrong part of method declarations
     
-    This gets ./make.bash passing, but doesn't pass validation. I'm not sure if this is the fault of this change, or validation was broken anyway.
-    
-    LGTM=rsc
-    R=minux.ma, rsc
+    LGTM=adonovan
+    R=adonovan
     CC=golang-codereviews
-    https://golang.org/cl/74510043
+    https://golang.org/cl/66120043
 
- src/pkg/runtime/sys_nacl_386.s | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

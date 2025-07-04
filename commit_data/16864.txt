@@ -1,12 +1,12 @@
-commit 6e37bc1eecb41838d9f7bdc27a5f323b1d92ff0e
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Wed Jul 24 13:48:04 2013 -0400
+commit 3453a2204b07bfbc2ab42f2add7911f4c1bdb63c
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 24 09:59:47 2013 -0700
 
-    misc/emacs: replace our go-goto-opening-parenthesis with backward-up-list
+    runtime: only define SEH when we need it.
     
-    R=adonovan
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/11524045
+    https://golang.org/cl/11769043
 
- misc/emacs/go-mode.el | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/pkg/runtime/proc.c | 4 ++++
+ 1 file changed, 4 insertions(+)

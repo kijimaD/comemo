@@ -1,18 +1,24 @@
-commit 788731387932e70d4dd951770c046c7eec9f9d96
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Sep 27 14:37:13 2021 -0400
+commit 88956fc4b1a44efe847fa07a8ebc21a49ff811e1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jan 17 00:17:59 2021 +0700
 
-    runtime/pprof: skip TestTimeVDSO on Android
+    [dev.regabi] cmd/compile: stop analyze NameOffsetExpr.Name_ in escape analysis
     
-    The test is flaky on Android. VDSO may not be enabled so it may
-    not have the original problem anyway.
+    It is always used with global variables, so we can skip analyze it, the
+    same as what we are doing for ONAME/PEXTERN nodes.
     
-    Change-Id: I73c2902c682a44d893e0d4e34f006c2377ef8816
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352509
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    While at it, add a Fatalf check to ensure NewNameOffsetExpr is only
+    called for global variables.
+    
+    For #43737
+    
+    Change-Id: Iac444ed8d583baba5042bea096531301843b1e8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284118
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/pprof/pprof_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/escape/escape.go | 9 ++-------
+ src/cmd/compile/internal/ir/expr.go       | 4 ++--
+ 2 files changed, 4 insertions(+), 9 deletions(-)

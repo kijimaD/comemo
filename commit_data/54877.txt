@@ -1,20 +1,19 @@
-commit 0354ee3aab4b65e288a24c5b4be1296ffbbfd3c3
-Author: Evan Jones <ej@evanjones.ca>
-Date:   Tue Oct 31 09:04:15 2023 -0400
+commit 349d398ea3d2f12b09791a1946e3d8d5baecd0c4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 14 10:00:57 2022 +0100
 
-    testing: correct comments on runCleanup
+    cmd/compile/internal/base, cmd/internal/bio: use syscall.Mmap on aix
     
-    The comment on runCleanup states "If catchPanic is true ...", but
-    there is no catchPanic argument or variable. This was introduced
-    in CL 214822, which introduced the panicHandling type. The code was
-    updated during code review, but the comment was missed.
-    
-    Change-Id: Id14c5397e7a026bfdf98ea10ecb1e4c61ce2f924
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538695
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ic28612952eb9abf14425f0bb14043b10f6050d94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450195
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/testing/testing.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/base/mapfile_mmap.go | 2 +-
+ src/cmd/compile/internal/base/mapfile_read.go | 2 +-
+ src/cmd/internal/bio/buf_mmap.go              | 2 +-
+ src/cmd/internal/bio/buf_nommap.go            | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

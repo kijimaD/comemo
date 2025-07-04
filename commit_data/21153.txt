@@ -1,15 +1,57 @@
-commit ae266aaa9de102faae0fca044350593d84c4bce6
-Author: Christopher Guiney <chris@guiney.net>
-Date:   Sat Jan 3 10:46:45 2015 -0800
+commit 50e0749f8730e88e22e552449049b93ce2a418ac
+Merge: 754de8d403 2b3f379080
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 20 11:48:08 2014 -0500
 
-    doc: Added link to 'go help gopath'
+    [dev.cc] all: merge default (e4ab8f908aac) into dev.cc
     
-    The existing go code document did not link to the GOPATH documentation.
-    This will link to it, in hopes of making it more discoverable.
-    
-    Change-Id: Ie4ded2fdce08f412e4acbcc93acdd76f5791b84a
-    Reviewed-on: https://go-review.googlesource.com/2265
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TBR=austin
+    CC=golang-codereviews
+    https://golang.org/cl/179040044
 
- doc/code.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ .hgtags                                        |   1 +
+ AUTHORS                                        |   2 +-
+ CONTRIBUTORS                                   |   3 +-
+ doc/go1.4.html                                 |  65 ++++++++++++++++--
+ doc/go_spec.html                               |  68 ++++++++++++-------
+ doc/gopher/fiveyears.jpg                       | Bin 0 -> 220526 bytes
+ doc/install.html                               |   2 +-
+ misc/makerelease/makerelease.go                |   4 +-
+ src/cmd/5g/reg.c                               |   2 +-
+ src/cmd/cgo/doc.go                             |   2 +-
+ src/{debug => cmd/internal}/goobj/read.go      |   0
+ src/{debug => cmd/internal}/goobj/read_test.go |   0
+ src/cmd/internal/objfile/goobj.go              |   2 +-
+ src/cmd/link/auto.go                           |   2 +-
+ src/cmd/link/auto_test.go                      |   2 +-
+ src/cmd/link/dead.go                           |   2 +-
+ src/cmd/link/dead_test.go                      |   2 +-
+ src/cmd/link/layout.go                         |   2 +-
+ src/cmd/link/link_test.go                      |   2 +-
+ src/cmd/link/pclntab.go                        |   2 +-
+ src/cmd/link/pclntab_test.go                   |   2 +-
+ src/cmd/link/prog.go                           |   2 +-
+ src/cmd/link/runtime.go                        |   2 +-
+ src/cmd/link/scan.go                           |   4 +-
+ src/cmd/pprof/internal/report/source.go        |   6 +-
+ src/crypto/x509/root_unix.go                   |   1 +
+ src/hash/crc32/crc32.go                        |   4 +-
+ src/net/http/fs.go                             |   8 ++-
+ src/net/url/example_test.go                    |  30 +++++++++
+ src/regexp/syntax/regexp.go                    |   2 +-
+ src/run.bash                                   |  36 ++++++----
+ src/runtime/chan.go                            |   1 +
+ src/runtime/heapdump.go                        |   2 +-
+ src/runtime/malloc.go                          |  11 ++-
+ src/runtime/mgc0.go                            |  16 +++++
+ src/runtime/proc.go                            |  10 +++
+ src/runtime/race/race_unix_test.go             |  30 +++++++++
+ src/runtime/race1.go                           |  37 +++++++++-
+ src/runtime/race_amd64.s                       |  43 ++++++++++--
+ src/runtime/select.go                          |   2 +
+ src/runtime/sema.go                            |   2 +
+ src/runtime/stubs.go                           |   2 +-
+ src/syscall/exec_bsd.go                        |  40 +----------
+ src/syscall/exec_linux.go                      |  36 +---------
+ test/fixedbugs/issue9110.go                    |  90 +++++++++++++++++++++++++
+ 45 files changed, 429 insertions(+), 155 deletions(-)

@@ -1,28 +1,28 @@
-commit eb97160f46cb18770ccb0bd57a08457c9ff20ccc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Nov 22 19:12:12 2017 -0800
+commit a4e1a72f0a40acf84f4b7bd982f3d9cffdf01cfd
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Jun 20 15:36:34 2017 -0500
 
-    runtime: don't block signals that will kill the program
+    cmd/compile/internal/amd64: add MOVLloadidx8 and MOVLstoreidx8
     
-    Otherwise we may delay the delivery of these signals for an arbitrary
-    length of time. We are already careful to not block signals that the
-    program has asked to see.
+    Currently we only use 1 and 4 as a scale for indexed 4-byte load.
+    In code generated in #20711 we can use indexed load with scale=8,
+    to improve performance:
     
-    Also make sure that we don't miss a signal delivery if a thread
-    decides to stop for a while while executing the signal handler.
+    name  old time/op  new time/op  delta
+    GM-6   108µs ± 0%    95µs ± 0%  -12.06%  (p=0.000 n=10+10)
     
-    Also clean up the TestAtomicStop output a little bit.
+    So add new ops and combine loadidx1(shift 3..).. into loadidx8,
+    same for stores.
     
-    Fixes #21433
-    
-    Change-Id: Ic0c1a4eaf7eba80d1abc1e9537570bf4687c2434
-    Reviewed-on: https://go-review.googlesource.com/79581
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I5ed1c250ac40960e20606580cf9de221e75b72f1
+    Reviewed-on: https://go-review.googlesource.com/46134
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/signal/signal_test.go |  6 ++++--
- src/runtime/runtime2.go      |  2 +-
- src/runtime/signal_unix.go   | 25 ++++++++++++++++++++++---
- src/runtime/sigqueue.go      | 30 +++++++++++++++++++++++-------
- 4 files changed, 50 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go        |   4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  10 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   2 +
+ src/cmd/compile/internal/ssa/opGen.go        |  32 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 267 ++++++++++++++++++++++++++-
+ 5 files changed, 306 insertions(+), 9 deletions(-)

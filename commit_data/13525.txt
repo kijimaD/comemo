@@ -1,18 +1,20 @@
-commit 538b2122f1d535e5a4ad11a69fddb1da3c10f9de
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 30 13:57:30 2012 +1000
+commit dd166b943752e884944672b81ab4783f558985ff
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sun Jul 29 22:24:19 2012 -0400
 
-    net/http: don't allow zero byte in FileServer paths
+    cmd/gc: point "no new variables" error at right line number.
     
-    Should probably be fixed in the syscall package, either
-    additional or instead of this CL.
+    Fixes #3856.
     
-    Fixes #3842
-    
-    R=golang-dev, rsc
+    R=dsymonds, rsc
     CC=golang-dev
-    https://golang.org/cl/6442061
+    https://golang.org/cl/6455056
 
- src/pkg/net/http/fs.go      |  3 ++-
- src/pkg/net/http/fs_test.go | 17 +++++++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/gc/dcl.c   |   7 +-
+ src/cmd/gc/go.h    |   2 +-
+ src/cmd/gc/go.y    |   8 +-
+ src/cmd/gc/lex.c   |   1 +
+ src/cmd/gc/y.tab.c | 958 ++++++++++++++++++++++++++---------------------------
+ src/cmd/gc/y.tab.h |  16 +-
+ test/declbad.go    |   6 +
+ 7 files changed, 499 insertions(+), 499 deletions(-)

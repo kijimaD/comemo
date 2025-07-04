@@ -1,12 +1,14 @@
-commit 55511d2b34918272ab5792f4776b3a6cde0b601e
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 13 12:43:26 2013 +1000
+commit 0627248a1f13daf5df197560308f5497cf9fd8a8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 12 15:05:10 2013 -0700
 
-    doc: add go1.1.1 to the release notes
+    runtime: update runtime·gogo comment in asm files
     
-    R=golang-dev, iant
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/10236045
+    https://golang.org/cl/10244043
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/pkg/runtime/asm_386.s   | 2 +-
+ src/pkg/runtime/asm_amd64.s | 2 +-
+ src/pkg/runtime/asm_arm.s   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

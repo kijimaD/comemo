@@ -1,19 +1,14 @@
-commit d6e80069f3007d5bc03750f0a83e213bbac8c86e
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Jan 21 13:02:27 2018 +0100
+commit a7d89572beebceec6d7ea3c1868fdb2fbc69c512
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Jun 13 18:57:40 2018 -0300
 
-    cmd/compile: simplify as2 method of *Order
+    doc: fix fmt usage in code.html
     
-    Merge the two for loops that set up the node lists for
-    temporaries into one for loop.
+    Fixes #25876
     
-    Passes toolstash -cmp
-    
-    Change-Id: Ibc739115f38c8869b0dcfbf9819fdc2fc96962e0
-    Reviewed-on: https://go-review.googlesource.com/c/141819
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I149dbb2afef13cc13fb5722d930377ed918d7e3c
+    Reviewed-on: https://go-review.googlesource.com/118717
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ doc/code.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,32 +1,28 @@
-commit db6f3bbc9a2d35a9b310f4d9ded1f1d63ef48234
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Tue Apr 11 14:30:18 2017 -0400
+commit 5a303aa1e96b669051a18bdc44465396a45037ea
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Fri Feb 10 09:22:35 2017 -0500
 
-    cmd: fix the order that s390x operands are printed in
+    syscall: delete the "use" function and calls in non-generated files.
     
-    The assembler reordered the operands of some instructions to put the
-    first operand into From3. Unfortunately this meant that when the
-    instructions were printed the operands were in a different order than
-    the assembler would expect as input. For example, 'MVC $8, (R1), (R2)'
-    would be printed as 'MVC (R1), $8, (R2)'.
+    Delete use stub from asm.s, leaving only a dummy file.
+    Deleting the file causes Windows build to fail.
     
-    Originally this was done to ensure that From contained the source
-    memory operand. The current compiler no longer requires this and so
-    this CL simply makes all instructions use the standard order for
-    operands: From, Reg, From3 and finally To.
+    Fixes #16607
     
-    Fixes #18295
-    
-    Change-Id: Ib2b5ec29c647ca7a995eb03dc78f82d99618b092
-    Reviewed-on: https://go-review.googlesource.com/40299
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic5a55e042e588f1e1bc6605a3d309d1eabdeb288
+    Reviewed-on: https://go-review.googlesource.com/36716
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/arch/s390x.go        |  32 -------
- src/cmd/asm/internal/asm/asm.go           |  19 +++--
- src/cmd/asm/internal/asm/testdata/s390x.s | 133 +++++++++++++++---------------
- src/cmd/compile/internal/s390x/ggen.go    |  12 +--
- src/cmd/compile/internal/s390x/ssa.go     |  32 +++----
- src/cmd/internal/obj/s390x/asmz.go        | 127 ++++++++++++++--------------
- 6 files changed, 158 insertions(+), 197 deletions(-)
+ src/syscall/asm.s                  |  7 +++----
+ src/syscall/dll_windows.go         |  1 -
+ src/syscall/syscall.go             | 10 ----------
+ src/syscall/syscall_darwin.go      |  2 --
+ src/syscall/syscall_dragonfly.go   |  1 -
+ src/syscall/syscall_freebsd.go     |  1 -
+ src/syscall/syscall_linux.go       |  2 --
+ src/syscall/syscall_linux_386.go   |  1 -
+ src/syscall/syscall_linux_arm.go   |  1 -
+ src/syscall/syscall_linux_mipsx.go |  2 --
+ src/syscall/syscall_linux_s390x.go |  1 -
+ src/syscall/syscall_plan9.go       |  2 --
+ 12 files changed, 3 insertions(+), 28 deletions(-)

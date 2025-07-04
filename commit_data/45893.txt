@@ -1,20 +1,203 @@
-commit eb437ba92cbb08a86ae064cbd7376c4a8e80485b
-Author: go101 <tapir.liu@gmail.com>
-Date:   Thu Jul 1 14:25:45 2021 +0000
+commit 41f3af9d04362a56c1af186af134c704a03fa97b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 01:11:56 2020 -0500
 
-    cmd/compile: make stack value size threshold comparisons consistent
+    [dev.regabi] cmd/compile: replace *Node type with an interface Node [generated]
     
-    Consistency is beautiful.
+    The plan is to introduce a Node interface that replaces the old *Node pointer-to-struct.
     
-    Change-Id: Ib110dcff0ce2fa87b5576c79cd79c83aab385a7c
-    GitHub-Last-Rev: b8758f8ae02cb025267aa87ebc5c2f9b4c32e742
-    GitHub-Pull-Request: golang/go#47011
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332230
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    The previous CL defined an interface INode modeling a *Node.
+    
+    This CL:
+     - Changes all references outside internal/ir to use INode,
+       along with many references inside internal/ir as well.
+     - Renames Node to node.
+     - Renames INode to Node
+    
+    So now ir.Node is an interface implemented by *ir.node, which is otherwise inaccessible,
+    and the code outside package ir is now (clearly) using only the interface.
+    
+    The usual rule is never to redefine an existing name with a new meaning,
+    so that old code that hasn't been updated gets a "unknown name" error
+    instead of more mysterious errors or silent misbehavior. That rule would
+    caution against replacing Node-the-struct with Node-the-interface,
+    as in this CL, because code that says *Node would now be using a pointer
+    to an interface. But this CL is being landed at the same time as another that
+    moves Node from gc to ir. So the net effect is to replace *gc.Node with ir.Node,
+    which does follow the rule: any lingering references to gc.Node will be told
+    it's gone, not silently start using pointers to interfaces. So the rule is followed
+    by the CL sequence, just not this specific CL.
+    
+    Overall, the loss of inlining caused by using interfaces cuts the compiler speed
+    by about 6%, a not insignificant amount. However, as we convert the representation
+    to concrete structs that are not the giant Node over the next weeks, that speed
+    should come back as more of the compiler starts operating directly on concrete types
+    and the memory taken up by the graph of Nodes drops due to the more precise
+    structs. Honestly, I was expecting worse.
+    
+    % benchstat bench.old bench.new
+    name                      old time/op       new time/op       delta
+    Template                        168ms ± 4%        182ms ± 2%   +8.34%  (p=0.000 n=9+9)
+    Unicode                        72.2ms ±10%       82.5ms ± 6%  +14.38%  (p=0.000 n=9+9)
+    GoTypes                         563ms ± 8%        598ms ± 2%   +6.14%  (p=0.006 n=9+9)
+    Compiler                        2.89s ± 4%        3.04s ± 2%   +5.37%  (p=0.000 n=10+9)
+    SSA                             6.45s ± 4%        7.25s ± 5%  +12.41%  (p=0.000 n=9+10)
+    Flate                           105ms ± 2%        115ms ± 1%   +9.66%  (p=0.000 n=10+8)
+    GoParser                        144ms ±10%        152ms ± 2%   +5.79%  (p=0.011 n=9+8)
+    Reflect                         345ms ± 9%        370ms ± 4%   +7.28%  (p=0.001 n=10+9)
+    Tar                             149ms ± 9%        161ms ± 5%   +8.05%  (p=0.001 n=10+9)
+    XML                             190ms ± 3%        209ms ± 2%   +9.54%  (p=0.000 n=9+8)
+    LinkCompiler                    327ms ± 2%        325ms ± 2%     ~     (p=0.382 n=8+8)
+    ExternalLinkCompiler            1.77s ± 4%        1.73s ± 6%     ~     (p=0.113 n=9+10)
+    LinkWithoutDebugCompiler        214ms ± 4%        211ms ± 2%     ~     (p=0.360 n=10+8)
+    StdCmd                          14.8s ± 3%        15.9s ± 1%   +6.98%  (p=0.000 n=10+9)
+    [Geo mean]                      480ms             510ms        +6.31%
+    
+    name                      old user-time/op  new user-time/op  delta
+    Template                        223ms ± 3%        237ms ± 3%   +6.16%  (p=0.000 n=9+10)
+    Unicode                         103ms ± 6%        113ms ± 3%   +9.53%  (p=0.000 n=9+9)
+    GoTypes                         758ms ± 8%        800ms ± 2%   +5.55%  (p=0.003 n=10+9)
+    Compiler                        3.95s ± 2%        4.12s ± 2%   +4.34%  (p=0.000 n=10+9)
+    SSA                             9.43s ± 1%        9.74s ± 4%   +3.25%  (p=0.000 n=8+10)
+    Flate                           132ms ± 2%        141ms ± 2%   +6.89%  (p=0.000 n=9+9)
+    GoParser                        177ms ± 9%        183ms ± 4%     ~     (p=0.050 n=9+9)
+    Reflect                         467ms ±10%        495ms ± 7%   +6.17%  (p=0.029 n=10+10)
+    Tar                             183ms ± 9%        197ms ± 5%   +7.92%  (p=0.001 n=10+10)
+    XML                             249ms ± 5%        268ms ± 4%   +7.82%  (p=0.000 n=10+9)
+    LinkCompiler                    544ms ± 5%        544ms ± 6%     ~     (p=0.863 n=9+9)
+    ExternalLinkCompiler            1.79s ± 4%        1.75s ± 6%     ~     (p=0.075 n=10+10)
+    LinkWithoutDebugCompiler        248ms ± 6%        246ms ± 2%     ~     (p=0.965 n=10+8)
+    [Geo mean]                      483ms             504ms        +4.41%
+    
+    [git-generate]
+    cd src/cmd/compile/internal/ir
+    : # We need to do the conversion in multiple steps, so we introduce
+    : # a temporary type alias that will start out meaning the pointer-to-struct
+    : # and then change to mean the interface.
+    rf '
+            mv Node OldNode
+    
+            add node.go \
+                    type Node = *OldNode
+    '
+    
+    : # It should work to do this ex in ir, but it misses test files, due to a bug in rf.
+    : # Run the command in gc to handle gc's tests, and then again in ssa for ssa's tests.
+    cd ../gc
+    rf '
+            ex .  ../arm ../riscv64 ../arm64 ../mips64 ../ppc64 ../mips ../wasm {
+                    import "cmd/compile/internal/ir"
+                    *ir.OldNode -> ir.Node
+            }
+    '
+    cd ../ssa
+    rf '
+            ex {
+                    import "cmd/compile/internal/ir"
+                    *ir.OldNode -> ir.Node
+            }
+    '
+    
+    : # Back in ir, finish conversion clumsily with sed,
+    : # because type checking and circular aliases do not mix.
+    cd ../ir
+    sed -i '' '
+            /type Node = \*OldNode/d
+            s/\*OldNode/Node/g
+            s/^func (n Node)/func (n *OldNode)/
+            s/OldNode/node/g
+            s/type INode interface/type Node interface/
+            s/var _ INode = (Node)(nil)/var _ Node = (*node)(nil)/
+    ' *.go
+    gofmt -w *.go
+    
+    sed -i '' '
+            s/{Func{}, 136, 248}/{Func{}, 152, 280}/
+            s/{Name{}, 32, 56}/{Name{}, 44, 80}/
+            s/{Param{}, 24, 48}/{Param{}, 44, 88}/
+            s/{node{}, 76, 128}/{node{}, 88, 152}/
+    ' sizeof_test.go
+    
+    cd ../ssa
+    sed -i '' '
+            s/{LocalSlot{}, 28, 40}/{LocalSlot{}, 32, 48}/
+    ' sizeof_test.go
+    
+    cd ../gc
+    sed -i '' 's/\*ir.Node/ir.Node/' mkbuiltin.go
+    
+    cd ../../../..
+    go install std cmd
+    cd cmd/compile
+    go test -u || go test -u
+    
+    Change-Id: I196bbe3b648e4701662e4a2bada40bf155e2a553
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272935
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/escape/escape.go | 8 ++++----
- src/cmd/compile/internal/walk/builtin.go  | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/fmtmap_test.go              |  23 +-
+ src/cmd/compile/internal/arm/ssa.go         |   2 +-
+ src/cmd/compile/internal/arm64/ssa.go       |   2 +-
+ src/cmd/compile/internal/gc/alg.go          |  46 ++--
+ src/cmd/compile/internal/gc/bexport.go      |   2 +-
+ src/cmd/compile/internal/gc/bimport.go      |   4 +-
+ src/cmd/compile/internal/gc/builtin.go      | 182 +++++++-------
+ src/cmd/compile/internal/gc/closure.go      |  40 +--
+ src/cmd/compile/internal/gc/const.go        |  30 +--
+ src/cmd/compile/internal/gc/dcl.go          |  90 +++----
+ src/cmd/compile/internal/gc/embed.go        |  10 +-
+ src/cmd/compile/internal/gc/escape.go       |  84 +++----
+ src/cmd/compile/internal/gc/export.go       |  10 +-
+ src/cmd/compile/internal/gc/gen.go          |   8 +-
+ src/cmd/compile/internal/gc/go.go           |  12 +-
+ src/cmd/compile/internal/gc/gsubr.go        |   8 +-
+ src/cmd/compile/internal/gc/iexport.go      |  38 +--
+ src/cmd/compile/internal/gc/iimport.go      |  44 ++--
+ src/cmd/compile/internal/gc/init.go         |   2 +-
+ src/cmd/compile/internal/gc/initorder.go    |  38 +--
+ src/cmd/compile/internal/gc/inl.go          |  96 ++++----
+ src/cmd/compile/internal/gc/main.go         |   4 +-
+ src/cmd/compile/internal/gc/mkbuiltin.go    |   2 +-
+ src/cmd/compile/internal/gc/noder.go        | 126 +++++-----
+ src/cmd/compile/internal/gc/obj.go          |  16 +-
+ src/cmd/compile/internal/gc/order.go        |  74 +++---
+ src/cmd/compile/internal/gc/pgen.go         |  56 ++---
+ src/cmd/compile/internal/gc/pgen_test.go    |  14 +-
+ src/cmd/compile/internal/gc/phi.go          |  34 +--
+ src/cmd/compile/internal/gc/plive.go        |  28 +--
+ src/cmd/compile/internal/gc/racewalk.go     |   2 +-
+ src/cmd/compile/internal/gc/range.go        |  36 +--
+ src/cmd/compile/internal/gc/reflect.go      |  14 +-
+ src/cmd/compile/internal/gc/scc.go          |  14 +-
+ src/cmd/compile/internal/gc/scope.go        |   2 +-
+ src/cmd/compile/internal/gc/select.go       |  30 +--
+ src/cmd/compile/internal/gc/sinit.go        |  78 +++---
+ src/cmd/compile/internal/gc/ssa.go          | 326 ++++++++++++-------------
+ src/cmd/compile/internal/gc/subr.go         |  74 +++---
+ src/cmd/compile/internal/gc/swt.go          |  62 ++---
+ src/cmd/compile/internal/gc/typecheck.go    | 118 ++++-----
+ src/cmd/compile/internal/gc/unsafe.go       |   2 +-
+ src/cmd/compile/internal/gc/walk.go         | 202 +++++++--------
+ src/cmd/compile/internal/ir/dump.go         |   2 +-
+ src/cmd/compile/internal/ir/fmt.go          |  32 +--
+ src/cmd/compile/internal/ir/node.go         | 364 ++++++++++++++--------------
+ src/cmd/compile/internal/ir/sizeof_test.go  |   8 +-
+ src/cmd/compile/internal/ir/val.go          |   6 +-
+ src/cmd/compile/internal/mips/ssa.go        |   2 +-
+ src/cmd/compile/internal/mips64/ssa.go      |   2 +-
+ src/cmd/compile/internal/ppc64/ssa.go       |   2 +-
+ src/cmd/compile/internal/riscv64/ssa.go     |   2 +-
+ src/cmd/compile/internal/ssa/config.go      |   2 +-
+ src/cmd/compile/internal/ssa/deadstore.go   |  20 +-
+ src/cmd/compile/internal/ssa/debug.go       |  12 +-
+ src/cmd/compile/internal/ssa/export_test.go |   2 +-
+ src/cmd/compile/internal/ssa/location.go    |   2 +-
+ src/cmd/compile/internal/ssa/nilcheck.go    |   2 +-
+ src/cmd/compile/internal/ssa/regalloc.go    |   2 +-
+ src/cmd/compile/internal/ssa/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go  |   2 +-
+ src/cmd/compile/internal/wasm/ssa.go        |   2 +-
+ 62 files changed, 1277 insertions(+), 1276 deletions(-)

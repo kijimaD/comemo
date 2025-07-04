@@ -1,12 +1,12 @@
-commit ed77d6f04da6f7475ad117716c3827c0150ede15
-Author: Stefan Nilsson <snilsson@nada.kth.se>
-Date:   Thu Mar 15 14:06:15 2012 -0400
+commit a4e6197b91e2bc16616245a3a704b89ab99db949
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 15 10:06:25 2012 -0700
 
-    doc: add missing quotation mark
+    net/http: couple more triv.go modernizations
     
-    R=golang-dev, bradfitz
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5833047
+    https://golang.org/cl/5834049
 
- doc/reference.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/http/triv.go | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)

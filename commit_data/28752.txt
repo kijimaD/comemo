@@ -1,23 +1,14 @@
-commit 35220534d5edbbbcd0eed59133bcfae54d140287
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Oct 10 18:23:56 2016 -0700
+commit 1cb3f7169ccff3ae2197784676404e8d0d3f5e32
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 13 09:38:41 2016 -0700
 
-    archive/zip: only use Extended Timestamp on non-zero MS-DOS timestamps
+    doc/go1.7.html: earlier Go versions don't work on macOS Sierra
     
-    We should preserve the fact that a roundtrip read on fields with the zero
-    value should remain the zero for those that are reasonable to stay that way.
-    If the zero value for a MS-DOS timestamp was used, then it is sensible for
-    that zero value to also be read back later.
+    Updates #16272.
     
-    Fixes #17403
-    
-    Change-Id: I32c3915eab180e91ddd2499007374f7b85f0bd76
-    Reviewed-on: https://go-review.googlesource.com/30811
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If5444b8de8678eeb9be10b62a929e2e101d1dd91
+    Reviewed-on: https://go-review.googlesource.com/24900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/archive/zip/struct.go   |  2 +-
- src/archive/zip/writer.go   | 19 +++++++++++--------
- src/archive/zip/zip_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 51 insertions(+), 9 deletions(-)
+ doc/go1.7.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

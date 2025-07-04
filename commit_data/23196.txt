@@ -1,36 +1,12 @@
-commit cc6a7fce533d7214c9cda0fc57af9ac948e61b7c
-Author: Austin Clements <austin@google.com>
-Date:   Sat May 30 21:47:00 2015 -0400
+commit 1ab60c2930a0b3f95589a89883cf863becb1e56e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 29 14:54:31 2015 -0700
 
-    runtime: increase precision of gctrace times
+    cmd/doc: show the true import path rather than "."
     
-    Currently we truncate gctrace clock and CPU times to millisecond
-    precision. As a result, many phases are typically printed as 0, which
-    is fine for user consumption, but makes gathering statistics and
-    reports over GC traces difficult.
-    
-    In 1.4, the gctrace line printed times in microseconds. This was
-    better for statistics, but not as easy for users to read or interpret,
-    and it generally made the trace lines longer.
-    
-    This change strikes a balance between these extremes by printing
-    milliseconds, but including the decimal part to two significant
-    figures down to microsecond precision. This remains easy to read and
-    interpret, but includes more precision when it's useful.
-    
-    For example, where the code currently prints,
-    
-    gc #29 @1.629s 0%: 0+2+0+12+0 ms clock, 0+2+0+0/12/0+0 ms cpu, 4->4->2 MB, 4 MB goal, 1 P
-    
-    this prints,
-    
-    gc #29 @1.629s 0%: 0.005+2.1+0+12+0.29 ms clock, 0.005+2.1+0+0/12/0+0.29 ms cpu, 4->4->2 MB, 4 MB goal, 1 P
-    
-    Fixes #10970.
-    
-    Change-Id: I249624779433927cd8b0947b986df9060c289075
-    Reviewed-on: https://go-review.googlesource.com/10554
+    Change-Id: I7b15c027c15eefc2a004eb61491e828a7fbefc54
+    Reviewed-on: https://go-review.googlesource.com/9513
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/mgc.go | 53 ++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 40 insertions(+), 13 deletions(-)
+ src/cmd/doc/main.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

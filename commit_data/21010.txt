@@ -1,12 +1,13 @@
-commit a034e478a7067db7ec0f3b549436bf6fbee3f4a0
-Author: Jan Mercl <0xjnml@gmail.com>
-Date:   Thu Dec 18 12:24:16 2014 +0100
+commit 908dcab6f854503a4616b6a20aa1e9eba9ecea66
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Nov 6 15:22:29 2014 +1100
 
-    cmd/yacc: Prevent index out of range. Fixes #9099.
+    bufio: remove unused 'panicked' variable from test
     
-    Change-Id: I7ef01a738b6ca49af1c148146d439c81b0a33b16
-    Reviewed-on: https://go-review.googlesource.com/1785
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/166230044
 
- src/cmd/yacc/yacc.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/bufio/scan_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

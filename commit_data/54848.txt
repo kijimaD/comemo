@@ -1,19 +1,31 @@
-commit 6a7ef3646654cb13e0466aba822b54cb15cb057c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 1 16:09:45 2023 -0700
+commit 44edc5d78740ab702bb782b5e4533f6dee07ad78
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 16 20:58:38 2022 -0500
 
-    test: run range-over-integer tests without need for -goexperiment
+    cmd/dist: skip non-race tests
     
-    Move the range-over-function tests into range4.go.
+    In -race mode, the dist test command only registers the std, race,
+    osusergo, and amd64ios tests before returning early from
+    (*tester).registerTests. Prior to CL 450018, the osusergo and amd64ios
+    tests weren't even affected by -race mode, so it seems their inclusion
+    was unintentional. CL 450018 lifted the logic to run tests in race
+    mode, which means these tests went from running without -race to
+    running with -race. Unfortunately, amd64ios is not compatible with
+    -race, so it is now failing on the darwin-amd64-race builder.
     
-    Change-Id: Idccf30a0c7d7e8d2a17fb1c5561cf21e00506135
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/539095
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Fix this by omitting the osusergo and amd64ios tests from -race mode,
+    since it seems like they were really intended to be included anyway.
+    
+    This should fix the darwin-amd64-race builder.
+    
+    Updates #37486.
+    
+    Change-Id: I554bb60bc729dbb6f1bc926f1ea329768b0d6d81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451437
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
 
- test/range3.go | 324 +-------------------------------------------------------
- test/range4.go | 326 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 329 insertions(+), 321 deletions(-)
+ src/cmd/dist/test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

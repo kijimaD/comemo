@@ -1,18 +1,15 @@
-commit 561edbd63ceb0b1c0177051a0c151c68278219d6
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Dec 8 14:43:00 2012 +0100
+commit b99161e41f6a89911a6c438da738aa2154622c07
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 7 11:58:59 2012 -0500
 
-    cmd/gc: do not export useless private symbols.
+    math/rand: add example / regression test
     
-    Fixes #4252.
+    This makes sure the outputs do not change for a fixed seed.
+    See also https://golang.org/cl/6905049.
     
-    R=rsc, golang-dev, mirtchovski, daniel.morsing, dave, lvd
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6856126
+    https://golang.org/cl/6907048
 
- src/cmd/gc/export.c                  | 55 ++++++++++++++++++------------------
- src/cmd/gc/lex.c                     | 32 +++++++++++++++------
- test/fixedbugs/issue4252.dir/a.go    | 35 +++++++++++++++++++++++
- test/fixedbugs/issue4252.dir/main.go | 20 +++++++++++++
- test/fixedbugs/issue4252.go          | 11 ++++++++
- 5 files changed, 118 insertions(+), 35 deletions(-)
+ src/pkg/math/rand/example_test.go | 69 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)

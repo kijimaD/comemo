@@ -1,26 +1,18 @@
-commit 8ed0d35fef275ddae39285000bf0e27f5f431d81
-Author: apocelipes <seve3r@outlook.com>
-Date:   Mon Mar 25 05:58:00 2024 +0000
+commit 0a092d7f8007554e393e19ff5f841574bb2cb790
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Feb 27 06:03:31 2023 +1100
 
-    regexp: use slices to simplify the code
+    cmd/internal/obj/arm64: use more appropriate types for opldpstp
     
-    Replace some "reflect.DeepEqual" calls in the tests with
-    "slices.Equal" which is much faster for slice comparisons.
+    This allows for a large number of casts to be removed at call sites.
+    While here, use consistent register naming.
     
-    Remove unnecessary "runeSlice" and redundant helper functions.
-    
-    Change-Id: Ib5dc41848d7a3c5149f41701d60471a487cff476
-    GitHub-Last-Rev: 87b5ed043d2935b971aa676cc52b9b2c5b45736b
-    GitHub-Pull-Request: golang/go#66509
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/573977
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I68cee985f6500ed9523f7fb3efbc11bb849681dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471516
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/regexp/all_test.go     |  5 +++--
- src/regexp/exec_test.go    | 17 +++--------------
- src/regexp/onepass.go      | 13 +++----------
- src/regexp/onepass_test.go |  6 +++---
- 4 files changed, 12 insertions(+), 29 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 72 ++++++++++++++++++++------------------
+ 1 file changed, 37 insertions(+), 35 deletions(-)

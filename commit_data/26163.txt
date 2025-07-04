@@ -1,17 +1,14 @@
-commit 87103a1ab75036530bf0757397a212ee1a9822f5
-Author: Richard Miller <miller.research@gmail.com>
-Date:   Wed Mar 9 15:53:03 2016 +0000
+commit 11ac72a1161921f61a8e36ed50474c1789b7ca1c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Dec 22 09:35:27 2015 +0900
 
-    syscall: add NO_LOCAL_POINTERS to syscall.exit in plan9_arm
+    net: fix race in TestTCPStress
     
-    This prevents a fatal "missing stackmap" error if garbage collection
-    occurs during exit.
+    Fixes #13704.
     
-    Also annotate argument sizes for "go vet".
-    
-    Change-Id: I2473e0ef6aef8f26d0bbeaee9bd8f8a52eaaf941
-    Reviewed-on: https://go-review.googlesource.com/20476
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7afef5058fa88b0de41213cf46219b684369f47f
+    Reviewed-on: https://go-review.googlesource.com/18111
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/asm_plan9_arm.s | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/net/tcp_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

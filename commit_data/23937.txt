@@ -1,18 +1,22 @@
-commit 296529b7341280b8beae2630eff4220fa6c1ac2b
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Jul 29 20:06:45 2015 +1000
+commit 44be0e9c601cbb40a2ac8cf74cb0c57b1292825d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 24 13:29:05 2015 -0700
 
-    os: add explicit tests for fchown(2) and lchown(2) on unix platforms
+    [dev.ssa] cmd/compile/ssa: fix build
     
-    Fixes #11919
+    Somehow I missed this in CL 11160.
+    Without it, all.bash fails on fixedbugs/bug303.go.
     
-    Issue #11918 suggested that os.File.Chown and os.Lchown were under tested.
+    The right fix is probably to discard the variable
+    and keep going, even though the code is dead.
     
-    Change-Id: Ib41f7cb2d2fe0066d2ccb4d1bdabe1795efe80fc
-    Reviewed-on: https://go-review.googlesource.com/12834
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For now, defer the decision by declaring
+    such situations unimplemented and get the build
+    fixed.
+    
+    Change-Id: I679197f780c7a3d3eb7d05e91c86a4cdc3b70131
+    Reviewed-on: https://go-review.googlesource.com/11440
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/os_unix_test.go | 110 ++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 108 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

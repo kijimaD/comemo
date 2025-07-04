@@ -1,19 +1,21 @@
-commit 7448eb4172bfc8f704b9ea39d77d0113a042b9dc
+commit c55c33af52c5ed97c93ec67bf7373d095bcb957d
 Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Tue Nov 1 00:44:48 2016 -0700
+Date:   Wed Sep 14 02:11:02 2016 -0700
 
-    net/http: don't wrap request cancellation errors in timeouts
+    os/exec: add examples for CombinedOutput, StdinPipe, StderrPipe
     
-    Based on Filippo Valsorda's https://golang.org/cl/24230
+    Updates #16360.
     
-    Fixes #16094
+    Adds examples for:
+    + CombinedOutput
+    + StdinPipe
+    + StderrPipe
     
-    Change-Id: Ie39b0834e220f0a0f4fbfb3bbb271e70837718c3
-    Reviewed-on: https://go-review.googlesource.com/32478
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I19293e64b34ed9268da00e0519173a73bfbc2c10
+    Reviewed-on: https://go-review.googlesource.com/29150
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/http/client.go      | 34 +++++++++++--------------
- src/net/http/client_test.go | 61 ++++++++++++++++++++++++++++++++++++---------
- 2 files changed, 63 insertions(+), 32 deletions(-)
+ src/os/exec/example_test.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

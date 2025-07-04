@@ -1,20 +1,16 @@
-commit 9d56dd8ea30068aa3b3211939b50407b10edb50e
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Jul 10 09:12:24 2019 -0400
+commit ec01d8f74bf60c0fe52335bf8bcf475e3653822d
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Sun Mar 3 16:42:08 2019 +0000
 
-    test: new testcase for gccgo compiler bug
+    cmd/internal/obj/mips: use r instead of p.Reg in call to OP_IRR
     
-    Updates #33013
-    
-    Change-Id: I3db062b37860bb0c6c99a553408b47cf0313531e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/185517
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id77764ed2d693e632e2a7b4e4638c17e0caf2276
+    GitHub-Last-Rev: 9ebe28252086ddcd530905eb9cf50b4a66413291
+    GitHub-Pull-Request: golang/go#30003
+    Reviewed-on: https://go-review.googlesource.com/c/160427
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/fixedbugs/issue33013.dir/a.go |  9 +++++++++
- test/fixedbugs/issue33013.dir/b.go | 24 ++++++++++++++++++++++++
- test/fixedbugs/issue33013.dir/c.go | 19 +++++++++++++++++++
- test/fixedbugs/issue33013.dir/d.go | 16 ++++++++++++++++
- test/fixedbugs/issue33013.go       |  9 +++++++++
- 5 files changed, 77 insertions(+)
+ src/cmd/internal/obj/mips/asm0.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

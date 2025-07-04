@@ -1,28 +1,19 @@
-commit a4dcc692011bf1ceca9b1a363fd83f3e59e399ee
-Author: Adam Langley <agl@golang.org>
-Date:   Sun Nov 8 19:10:14 2015 -0800
+commit 805e56ef474a8abfc4ec4159bea0c1fb584e67ed
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 24 20:58:19 2015 -0700
 
-    crypto/tls: don't send IP literals as SNI values.
+    runtime: short-circuit bytes.Compare if src and dst are the same slice
     
-    https://tools.ietf.org/html/rfc6066#section-3 states:
+    Should only matter on ppc64 and ppc64le.
     
-      “Literal IPv4 and IPv6 addresses are not permitted in "HostName".”
+    Fixes #11336
     
-    However, if an IP literal was set as Config.ServerName (which could
-    happen as easily as calling Dial with an IP address) then the code would
-    send the IP literal as the SNI value.
-    
-    This change filters out IP literals, as recognised by net.ParseIP, from
-    being sent as the SNI value.
-    
-    Fixes #13111.
-    
-    Change-Id: Ie9ec7acc767ae172b48c9c6dd8d84fa27b1cf0de
-    Reviewed-on: https://go-review.googlesource.com/16742
+    Change-Id: Id4b0ac28b573648e1aa98e87bf010f00d006b146
+    Reviewed-on: https://go-review.googlesource.com/13901
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/crypto/tls/common.go                |  3 ++-
- src/crypto/tls/handshake_client.go      |  9 ++++++++-
- src/crypto/tls/handshake_client_test.go | 27 +++++++++++++++++++++++++++
- 3 files changed, 37 insertions(+), 2 deletions(-)
+ src/runtime/noasm.go | 4 ++++
+ 1 file changed, 4 insertions(+)

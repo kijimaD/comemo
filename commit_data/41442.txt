@@ -1,14 +1,20 @@
-commit 46f9aea80197bfdf4c024c3f5a71be51a2facf59
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jan 15 20:26:56 2020 +0000
+commit 53bd9151099c54ffb4fee73d8b1771e311f6a271
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 30 11:08:43 2019 -0400
 
-    misc/wasm: avoid implicit boolean to number conversion
+    cmd/compile: classify more nodes as "poor choices" for statements
     
-    Fixes #36561
+    Aggregate-making nodes that are later decomposed
+    are poor choices for statements, because the decomposition
+    phase turns them into multiple sub-values, some of which may be
+    dead.  Better to look elsewhere for a statement mark.
     
-    Change-Id: I20cbf95ef4fd7c5c255a93ed3ec3e027a0ce2bc2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214944
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Change-Id: Ibd9584138ab3d1384548686896a28580a2e43f54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198477
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/wasm/wasm_exec.js | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/numberlines.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

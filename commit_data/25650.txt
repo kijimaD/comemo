@@ -1,16 +1,14 @@
-commit db5cb1d8cdf957c96fa44c340fb0fc53f2b3231e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 25 21:20:17 2016 +0000
+commit 37ac54dc2b01cd020f72b664f07c85ed1a91bd78
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Nov 5 09:56:32 2015 +1300
 
-    net/http: update bundled http2
+    cmd/dist: run testshared on linux/ppc64le
     
-    Updates x/net/http2 to git rev 2e9cee70 for https://golang.org/cl/18801
-    
-    Change-Id: I4689c5704bb0b12d569925f81c3e699857ea463e
-    Reviewed-on: https://go-review.googlesource.com/18931
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4d079d29408e5344701056c88882cfd3b3857478
+    Reviewed-on: https://go-review.googlesource.com/15973
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/net/http/h2_bundle.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

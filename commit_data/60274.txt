@@ -1,0 +1,21 @@
+commit 1471978bacf91bd9de273e6f265ed31def83711a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 31 20:10:09 2024 +0000
+
+    iter: propagate panics from the iterator passed to Pull
+    
+    This change propagates panics from the iterator passed to Pull through
+    next and stop. Once the panic occurs, next and stop become no-ops (the
+    iterator is invalidated).
+    
+    For #67712.
+    
+    Change-Id: I05e45601d4d10acdf51b53e3164bd891c1b324ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589136
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/iter/iter.go      | 66 +++++++++++++++++++++++++++++++++---------
+ src/iter/pull_test.go | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 132 insertions(+), 13 deletions(-)

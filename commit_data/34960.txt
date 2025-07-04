@@ -1,34 +1,21 @@
-commit 191efbc419d7e5dec842c20841f6f716da4b561d
-Author: Tom Limoncelli <tal@whatexit.org>
-Date:   Sun Apr 8 16:05:04 2018 -0400
+commit 9cc9f1085561400425cc9705d041d37398666156
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 29 11:40:52 2017 -0500
 
-    io/ioutil: change TempFile prefix to a pattern
+    archive/zip: add test for Modified vs ModTime behavior
     
-    Users of TempFile need to be able to supply the suffix, especially
-    when using operating systems that give semantic meaning to the
-    filename extension such as Windows.  Renaming the file to include
-    an extension after the fact is insufficient as it could lead to
-    race conditions.
+    Lock in fix for #22738, submitted in CL 78031.
     
-    If the string given to TempFile includes a "*", the random string
-    replaces the "*". For example "myname.*.bat" will result in a random
-    filename such as "myname.123456.bat".  If no "*' is included the
-    old behavior is retained, and the random digits are appended to the
-    end.
+    Fixes #22738.
     
-    If multiple "*" are included, the final one is replaced, thus
-    permitting a pathological programmer to create filenames such as
-    "foo*.123456.bat" but not "foo.123456.*.bat"
-    
-    Fixes #4896
-    
-    Change-Id: Iae7f0980b4de6d7d31b87c8c3c3d40767b283c1f
-    Reviewed-on: https://go-review.googlesource.com/105675
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6896feb158569e3f12fa7055387cbd7caad29ef4
+    Reviewed-on: https://go-review.googlesource.com/80635
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
 
- src/io/ioutil/example_test.go  | 18 ++++++++++++++++++
- src/io/ioutil/tempfile.go      | 24 +++++++++++++++++-------
- src/io/ioutil/tempfile_test.go | 27 ++++++++++++++++++---------
- 3 files changed, 53 insertions(+), 16 deletions(-)
+ src/archive/zip/reader_test.go          | 371 +++++++++++++++++---------------
+ src/archive/zip/testdata/time-22738.zip | Bin 0 -> 140 bytes
+ src/archive/zip/writer_test.go          |   2 +-
+ 3 files changed, 197 insertions(+), 176 deletions(-)

@@ -1,23 +1,30 @@
-commit fded5dbb2f51d1c24d1541076b143929cdc988af
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Dec 8 17:39:00 2016 -0800
+commit 8f65379f947f77f5caadf283f219b2cc6e9bdb84
+Author: John Dethridge <jcd@golang.org>
+Date:   Fri Oct 7 15:06:09 2016 +1100
 
-    runtime: don't crash if signal delivered on g0 stack
+    cmd/link: more efficient encoding of DWARF line number information
     
-    Also, if we changed the gsignal stack to match the stack we are
-    executing on, restore it when returning from the signal handler, for
-    safety.
+    The (pc, line) deltas in the line number information are currently encoded
+    either with a special opcode, or with a triplet of DW_LNS_advance_pc,
+    DW_LNS_advance_line, and DW_LNS_copy instructions.  Instead of DW_LNS_copy,
+    this change always uses a special opcode, which can make DW_LNS_advance_pc or
+    DW_LNS_advance_line unnecessary, or make their operands take fewer bytes.  It
+    chooses the special opcode so that the encoding of the remaining deltas is as
+    small as possible.
     
-    Fixes #18255.
+    Use DW_LNS_const_add_pc or DW_LNS_fixed_advance_pc instead of DW_LNS_advance_pc
+    for deltas where they save a byte.
     
-    Change-Id: Ic289b36e4e38a56f8a6d4b5d74f68121c242e81a
-    Reviewed-on: https://go-review.googlesource.com/34239
+    Update LINE_BASE and LINE_RANGE constants to optimal values for this strategy.
+    
+    This reduces line number information by about 35% and total size by about 2%
+    for a typical binary.
+    
+    Change-Id: Ia61d6bf19c95c1d34ba63c67ed32b376beda225f
+    Reviewed-on: https://go-review.googlesource.com/30577
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- misc/cgo/testsanitizers/test.bash |  1 +
- misc/cgo/testsanitizers/tsan9.go  | 60 ++++++++++++++++++++++++++
- src/runtime/signal_unix.go        | 88 +++++++++++++++++++++++++++++++--------
- 3 files changed, 131 insertions(+), 18 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 102 ++++++++++++++++++++++++++++++++------
+ 1 file changed, 87 insertions(+), 15 deletions(-)

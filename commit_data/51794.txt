@@ -1,19 +1,43 @@
-commit d0851777daaec578ff94e9cbae0cedbff4ac625b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Feb 8 14:22:42 2022 -0500
+commit 1178255f8596ea503daf30c84c7c1039f755e7f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 3 11:50:45 2022 -0500
 
-    runtime/debug: expand fuzz corpus for FuzzParseBuildInfoRoundTrip
+    all: untab /* */ doc comments
     
-    Updates #51026
+    A long time ago, gofmt insisted on inserting tabs in /* */ comments
+    at the top level of the file, like this:
     
-    Change-Id: Id7af2ffa8c99970274b2a2b12622d986ea105b1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384161
+            /*
+                    Package doc comment.
+            */
+            package p
+    
+    Gofmt still insists on the tab for comments not at top level,
+    but it has relaxed the rules about top-level comments.
+    A few very old doc comments are indented, left over from the old rule.
+    
+    We are considering formatting doc comments, and so to make
+    everything consistent, standardize on unindented doc comments
+    by removing tabs in the few doc comments that are still indented this way.
+    
+    Also update some cmd/gofmt testdata to match.
+    
+    Change-Id: I293742e39b52f8a48ec41f72ca4acdafa7ce43bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384261
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/5501685e611fa764    | 2 ++
- .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/71634114e78567cf    | 2 ++
- .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/c73dce23c1f2494c    | 2 ++
- 3 files changed, 6 insertions(+)
+ src/builtin/builtin.go                   |   8 +-
+ src/cmd/gofmt/testdata/crlf.golden       |   8 +-
+ src/cmd/gofmt/testdata/crlf.input        |   8 +-
+ src/cmd/gofmt/testdata/typeswitch.golden |  26 +-
+ src/cmd/gofmt/testdata/typeswitch.input  |  26 +-
+ src/flag/flag.go                         | 116 +++---
+ src/fmt/doc.go                           | 674 +++++++++++++++----------------
+ src/go/doc/headscan.go                   |  10 +-
+ src/net/rpc/server.go                    | 182 ++++-----
+ src/runtime/debug/stack_test.go          |  30 +-
+ src/unsafe/unsafe.go                     |   6 +-
+ 11 files changed, 547 insertions(+), 547 deletions(-)

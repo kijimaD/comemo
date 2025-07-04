@@ -1,22 +1,19 @@
-commit d0cbf9bf53ceb989f79addf4b91346840b3b8a57
-Author: erifan01 <eric.fang@arm.com>
-Date:   Thu Mar 21 03:24:47 2019 +0000
+commit b2c397e53798fad7395fa8c67f66d9200d663ae0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 16 15:31:07 2018 -0700
 
-    cmd/compile: follow up intrinsifying math/bits.Add64 for arm64
+    cmd/compile: disallow converting string to notinheap slice
     
-    This CL deals with the additional comments of CL 159017.
+    Unlikely to happen in practice, but easy enough to prevent and might
+    as well do so for completeness.
     
-    Change-Id: I4ad3c60c834646d58dc0c544c741b92bfe83fb8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168857
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #28243.
+    
+    Change-Id: I848c3af49cb923f088e9490c6a79373e182fad08
+    Reviewed-on: https://go-review.googlesource.com/c/142719
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/arm64/ssa.go        |  2 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 ++--
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  4 ++-
- src/cmd/compile/internal/ssa/opGen.go        | 47 +++++++++++++++++++---------
- src/cmd/compile/internal/ssa/rewriteARM64.go | 33 +++++++++++++++++++
- src/math/bits/bits_test.go                   |  4 +--
- test/codegen/mathbits.go                     |  4 +--
- 7 files changed, 77 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/subr.go | 12 ++++++++++--
+ test/notinheap.go                   |  8 ++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

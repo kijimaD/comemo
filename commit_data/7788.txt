@@ -1,15 +1,19 @@
-commit a93f70c21ab47d0b014b190a0f779f4060565dca
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 16 14:32:35 2011 -0700
+commit 7ea8cdaabd1efaa8b62a1ca2ee58abfeba0ef1b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 16 14:25:59 2011 -0700
 
-    http: add NewProxyClientConn
+    go/ast: merge CaseClause and TypeCaseClause
+    (per rsc's suggestion)
     
-    This just returns a ClientConn suitable for writing
-    proxy requests.  To be used in Transport.
-    
-    R=rsc, petar-m
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4290052
+    https://golang.org/cl/4276057
 
- src/pkg/http/persist.go | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ src/cmd/cgo/ast.go          | 16 ++++++------
+ src/cmd/gofix/fix.go        |  5 +---
+ src/pkg/exp/eval/stmt.go    | 13 ++++------
+ src/pkg/go/ast/ast.go       | 32 ++++++------------------
+ src/pkg/go/ast/walk.go      |  8 +-----
+ src/pkg/go/parser/parser.go | 60 +++++++++++++--------------------------------
+ src/pkg/go/printer/nodes.go | 14 ++---------
+ 7 files changed, 43 insertions(+), 105 deletions(-)

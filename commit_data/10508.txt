@@ -1,25 +1,15 @@
-commit 557ba72e69863ba7d839d86b78edace0c6e20886
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Sun Nov 27 14:41:08 2011 +1100
+commit e9025df7ad41d93c1c8943323db06bb49c8a16fe
+Author: Rob Pike <r@golang.org>
+Date:   Sat Nov 26 08:32:55 2011 -0800
 
-    html: ignore <head> tags in <head> element
+    text/template: rename the method Template.Template to Template.Lookup
+    Calling it Template makes it clumsy to embed the type, which html/template
+    depends on.
     
-    Pass tests3.dat, test 12:
-    <!DOCTYPE html><HTML><META><HEAD></HEAD></HTML>
-    
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |     <meta>
-    |   <body>
-    
-    Also pass tests through test 19:
-    <!DOCTYPE html><html><head></head><body><ul><li><div><p><li></ul></body></html>
-    
-    R=nigeltao
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5436069
+    https://golang.org/cl/5432079
 
- src/pkg/html/parse.go      | 3 +++
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/text/template/exec_test.go | 2 +-
+ src/pkg/text/template/template.go  | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

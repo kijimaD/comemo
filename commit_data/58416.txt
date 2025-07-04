@@ -1,28 +1,31 @@
-commit b9e2ffdcd2520c136c4e98f67f0c714f989d31ab
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Dec 16 17:44:21 2024 +0100
+commit f56c29331951c9d1a48f5b7627f4bb98e7eeb80f
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Sep 15 14:46:03 2023 -0400
 
-    crypto/internal/fips140: add Name and Version
+    cmd/compile/internal/inline: tweak "returns inlinable func" heuristic
     
-    Per ISO/IEC 19790:2012, Section 7.4.3.1.
+    The code that analyzes function return values checks for cases where a
+    function F always returns the same inlinable function, e.g.
     
-    > A cryptographic module shall [04.12] provide the following services to
-    > operators.
-    >
-    > a) Show module’s versioning information. The cryptographic module
-    > shall [04.13] output the name or module identifier and the versioning
-    > information that can be correlated with a validation record (e.g.
-    > hardware, software and/or firmware versioning information)."
+      func returnsFunc() func(*int, int) { return setit }
+      func setit(p *int, v int) { *p = v }
     
-    For #69536
+    The check for inlinability was being done by looking at "fn.Inl !=
+    nil", which is probably not what we want, since it includes functions
+    whose cost value is between 80 and 160 and may only be inlined if lots
+    of other heuristics kick in.
     
-    Change-Id: I8061f64e4ae60a4666f6abd892cb1301d6bf2452
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/636558
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    This patch changes the "always returns same inlinable func" heuristic
+    to ensure that the func in question has a size of 80 or less, so as to
+    restrict this case to functions that have a high likelihood of being
+    inlined.
+    
+    Change-Id: I06003bca1c56c401df8fd51c922a59c61aa86bea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529116
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/internal/fips140/fips140.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/inline/inl.go             |  8 ++---
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 39 +++++++++++-----------
+ .../inline/inlheur/analyze_func_returns.go         | 27 ++++++++++-----
+ 3 files changed, 42 insertions(+), 32 deletions(-)

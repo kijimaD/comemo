@@ -1,31 +1,15 @@
-commit 441fd1338633c2aafa5b30121142ab24ee9dddcb
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Mon Jun 26 14:32:55 2017 -0400
+commit 25a1d5d0f472f0da82aa8b4a1f3322463df5bbe6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 23 15:26:10 2017 -0700
 
-    crypto/x509: fix panic in TestEnvVars, improve style
+    cmd/compile/internal/gc: remove a Curfn dependency from nod
     
-    This panic happens when the test fails due to the returned number of
-    certificates (r.certs) being less than expected by test case (tc.cns).
-    When i == len(r.certs) in the for loop, r.certs[i] will cause an index
-    out of range panic.
-    
-    Also improve readability, consistency and style of the code. Use the
-    more common "got x, want y" pattern. See https://golang.org/s/style#useful-test-failures
-    for reference (and grep codebase for most common occurrences). Add a
-    comment, and remove blank line separating two blocks that are both
-    related to verifying that len(r.certs) == len(tc.cns). This should
-    help with readability.
-    
-    Remove space after colon in call to t.Fatal, since it adds spaces
-    between its arguments.
-    
-    Fixes #20801.
-    
-    Change-Id: I40476103f1b5a0fa74b05637c250926b571c92fd
-    Reviewed-on: https://go-review.googlesource.com/46715
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5daeb8f00044c86bb10510afbc6886898e61ba15
+    Reviewed-on: https://go-review.googlesource.com/38570
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/crypto/x509/root_unix_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 2 ++
+ src/cmd/compile/internal/gc/subr.go    | 1 -
+ 2 files changed, 2 insertions(+), 1 deletion(-)

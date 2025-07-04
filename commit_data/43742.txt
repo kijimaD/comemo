@@ -1,19 +1,27 @@
-commit 7307e86afda3c5c7f6158d2469c39606fd1dba65
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sun Nov 8 09:44:33 2020 +0100
+commit 9a93baf4d7d13d7d5c67388c93960d78abc8e11e
+Author: Kirill Korotaev <kirillx@gmail.com>
+Date:   Wed Apr 22 20:19:21 2020 +0000
 
-    test/codegen: go fmt
+    encoding/base64: improve performance up to 20% total
     
-    Fixes #42445
+    Improve base64 encoding/decoding performance by
+    suppressing compiler boundary checks on decode.
     
-    Change-Id: I9653ef094dba2a1ac2e3daaa98279d10df17a2a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/268257
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Trust: Martin Möhrmann <moehrmann@google.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    name                 old speed      new speed      delta
+    EncodeToString-8      570MB/s ± 1%   573MB/s ± 1%     ~     (p=0.421 n=5+5)
+    DecodeString/2-8     88.6MB/s ± 3%  91.6MB/s ± 2%   +3.37%  (p=0.016 n=5+5)
+    DecodeString/4-8      162MB/s ± 1%   168MB/s ± 0%   +4.12%  (p=0.008 n=5+5)
+    DecodeString/8-8      203MB/s ± 0%   214MB/s ± 0%   +5.18%  (p=0.008 n=5+5)
+    DecodeString/64-8     471MB/s ± 1%   520MB/s ± 1%  +10.50%  (p=0.008 n=5+5)
+    DecodeString/8192-8   757MB/s ± 0%   895MB/s ± 1%  +18.29%  (p=0.008 n=5+5)
+    
+    Change-Id: I135243c11aa4c974a4a4e95c5c2abb0635d52c8c
+    GitHub-Last-Rev: 2c87abcb287f4459888941ae2633edcd8eb5b79d
+    GitHub-Pull-Request: golang/go#36910
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217117
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/codegen/bits.go               |  4 +--
- test/codegen/compare_and_branch.go | 72 +++++++++++++++++++-------------------
- 2 files changed, 38 insertions(+), 38 deletions(-)
+ src/encoding/base64/base64.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

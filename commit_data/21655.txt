@@ -1,30 +1,32 @@
-commit 84c7a6583aac493fec25e87c60be7b98508c5b43
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Feb 17 16:28:10 2015 +1100
+commit 8d44ede0dc9261d3f122d4d743dd57615d52d067
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 22 12:10:59 2015 -0500
 
-    image: change Rectangle.Eq to return true for all empty rectangles, even
-    if their nominal Min and Max points differ.
+    cmd/gc: simplify code for c2go (more)
     
-    This is a behavior change, but arguably a bug fix, as Eq wasn't
-    previously consistent with In, and the concept of a rectangle being a
-    set of points. This is demonstrated by the new geom_test.go test.
+    - Remove more ? : expressions.
+    - Use uint32 **hash instead of uint32 *hash[] in function argument.
+    - Change array.c API to use int, not int32, to match Go's slices.
+    - Rename strlit to newstrlit, to avoid case-insensitive collision with Strlit.
+    - Fix a few incorrect printf formats.
+    - Rename a few variables from 'len' to n or length.
+    - Eliminate direct string editing building up names like convI2T.
     
-    It does mean that r.Eq(s) no longer implies that Inset'ting both r and s
-    with a negative inset results in two rectangles that are still Eq, but
-    that seems acceptable to me.
-    
-    The previous behavior is still available as "r == s".
-    
-    Also clarify the image.Rect doc comment when the inputs are
-    non-canonical.
-    
-    Also simplify the Point and Rectangle Eq implementations dating from
-    before Go 1.0, when you couldn't compare structs via the == operator.
-    
-    Change-Id: Ic39e628db31dc5fe5220f4b444e6d5000eeace5b
-    Reviewed-on: https://go-review.googlesource.com/5006
+    Change-Id: I754cf553402ccdd4963e51b7039f589286219c29
+    Reviewed-on: https://go-review.googlesource.com/3278
     Reviewed-by: Rob Pike <r@golang.org>
 
- src/image/geom.go      | 12 +++++++-----
- src/image/geom_test.go | 12 ++++++++++++
- 2 files changed, 19 insertions(+), 5 deletions(-)
+ src/cmd/gc/array.c     | 10 +++++-----
+ src/cmd/gc/closure.c   |  2 +-
+ src/cmd/gc/dcl.c       |  4 ++--
+ src/cmd/gc/esc.c       |  2 +-
+ src/cmd/gc/go.h        |  2 +-
+ src/cmd/gc/lex.c       | 33 ++++++++++++++++++---------------
+ src/cmd/gc/pgen.c      |  7 +++++--
+ src/cmd/gc/plive.c     | 23 ++++++++++++++---------
+ src/cmd/gc/racewalk.c  | 15 +++++++++++----
+ src/cmd/gc/reflect.c   |  8 ++++----
+ src/cmd/gc/subr.c      | 12 ++++++------
+ src/cmd/gc/typecheck.c | 22 +++++++++++-----------
+ src/cmd/gc/walk.c      | 40 ++++++++++++++++++++--------------------
+ 13 files changed, 99 insertions(+), 81 deletions(-)

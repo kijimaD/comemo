@@ -1,17 +1,24 @@
-commit 222799fde653358d9748ed24c133cffa18208951
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 12:59:03 2022 -0400
+commit a1938435d6361dcbc93a15ce0ace28748a45b85d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 6 19:02:34 2021 +0200
 
-    runtime: tricky replacements of _g_ in mgc.go
+    syscall: use dup3 in forkAndExecInChild1 on all Linux platforms
     
-    getg() is used primarily for gp.m, so use mp. gp.m.curg is also used,
-    name that curgp.
+    The minimum required Linux kernel version for Go 1.18 will be changed to
+    2.6.32, see #45964. The dup3 syscall was added in 2.6.27, so the
+    fallback to use the dup2 syscall in forkAndExecInChild1 on some
+    platforms can be removed.
     
-    Change-Id: I9db2dc4adce2b17d6b41c60d4f2dfbc9aa41fac1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418578
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    For #45964
+    
+    Change-Id: I8e04d7b5b2488990a061a080ed64ea303ad048b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347350
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/mgc.go | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ src/syscall/exec_linux.go         | 18 +++---------------
+ src/syscall/syscall_dup2_linux.go | 11 -----------
+ src/syscall/syscall_dup3_linux.go | 10 ----------
+ 3 files changed, 3 insertions(+), 36 deletions(-)

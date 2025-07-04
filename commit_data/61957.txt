@@ -1,0 +1,15 @@
+commit a785d11ac47560c12202a79a25ddd6ba610976e9
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Sat Dec 28 14:05:38 2024 +0900
+
+    unique: fix typo
+    
+    Change-Id: I9f66e3d7aa7b546ebf34d6aa8c7a6558bf35ca82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/unique/handle.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

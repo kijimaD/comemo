@@ -1,20 +1,19 @@
-commit 3f4977bd5800beca059defb5de4dc64cd758cbb9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 7 22:36:15 2021 -0700
+commit f9b86a656286b59e030b64e4af336ca52f69b1a2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 25 11:25:38 2020 -0400
 
-    cmd/compile/internal/types2: use combined type and ordinary args for type inference
+    [dev.boringcrypto] go/build: satisfy the boringcrypto build tag
     
-    Fixes #44799.
+    This will let applications target Go+BoringCrypto specific APIs cleanly.
     
-    Change-Id: I51d5b6d6fdfcf47b87bf40b1f7e31c3284c2813f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308372
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I49cbe3a7f044be043f1b98c53112e5147914eaed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250500
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/types2/builtins.go        |  2 +-
- src/cmd/compile/internal/types2/call.go            | 37 +++++++++++++++++++---
- .../internal/types2/fixedbugs/issue39754.go2       |  6 ++--
- .../internal/types2/fixedbugs/issue44799.go2       | 19 +++++++++++
- 4 files changed, 57 insertions(+), 7 deletions(-)
+ src/crypto/boring/boring.go         |  3 +++
+ src/crypto/boring/notboring_test.go | 13 +++++++++++++
+ src/go/build/build.go               |  5 +++++
+ 3 files changed, 21 insertions(+)

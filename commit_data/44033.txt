@@ -1,19 +1,21 @@
-commit 5a4db102b21489c39b3a654e06cc25155432a38a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 2 19:18:46 2020 -0800
+commit a8e83d51a0cc709c836fe8836b10155342aa2ac4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 30 23:52:48 2020 -0400
 
-    html/template: avoid race when escaping updates template
+    crypto/rsa,crypto/ecdsa,crypto/ed25519: implement PrivateKey.Equal
     
-    Fixes #39807
+    Fixes #38190
     
-    Change-Id: Icf384f800e2541bc753507daa3a9bc7e5d1c3f79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/274450
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Roberto Clapis <roberto@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I10766068ee18974e81b3bd78ee0b4d83cc9d1a8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231417
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/html/template/exec_test.go | 70 ++++++++++++++++++++++++++++++++
- src/html/template/template.go  | 90 ++++++++++++++++++++++++++++++++++++------
- 2 files changed, 147 insertions(+), 13 deletions(-)
+ src/crypto/ecdsa/ecdsa.go          | 14 ++++++++++++++
+ src/crypto/ecdsa/equal_test.go     | 17 +++++++++++++----
+ src/crypto/ed25519/ed25519.go      | 12 ++++++++++++
+ src/crypto/ed25519/ed25519_test.go | 12 +++++++++---
+ src/crypto/rsa/equal_test.go       | 17 +++++++++++++----
+ src/crypto/rsa/rsa.go              | 24 ++++++++++++++++++++++++
+ 6 files changed, 85 insertions(+), 11 deletions(-)

@@ -1,24 +1,16 @@
-commit 76dc4b1952b93a4e804ecb9a6126620ef9399d36
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 1 12:17:37 2017 -0500
+commit 261a8d9abdc569a864a2cde37f9b5697501a212d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 6 21:13:06 2017 +0200
 
-    cmd/go: ignore vet typecheck failure during go test
+    testing: use time.Since instead of time.Now().Sub
     
-    For Go 1.10, works around a go/types bug that can't typecheck
-    a corner-case type cycle. Once we are confident that bugs like
-    this are gone from go/types then we can stop ignoring these
-    failures.
-    
-    For #22890.
-    
-    Change-Id: I38da57e01a0636323e1af4484c30871786125df3
-    Reviewed-on: https://go-review.googlesource.com/81500
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia0479f65a6ef033a65acf9ac8692777839a53b8c
+    Reviewed-on: https://go-review.googlesource.com/61990
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/go_test.go                 |  3 +++
- src/cmd/go/internal/work/exec.go      |  9 +++++++++
- src/cmd/go/testdata/src/vetcycle/p.go | 12 ++++++++++++
- src/cmd/vet/main.go                   |  8 ++++++++
- 4 files changed, 32 insertions(+)
+ src/testing/benchmark.go | 2 +-
+ src/testing/example.go   | 2 +-
+ src/testing/testing.go   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,18 +1,26 @@
-commit 1e05924cf53c3cfe84114f4bf7a31b8632fdc608
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Wed Feb 21 19:00:21 2018 +0100
+commit f4faca60135bea528a29f454876efa642b00665e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 17 00:31:56 2017 +0200
 
-    cmd/compile: use | in the most repetitive s390x rules
+    runtime: don't terminate locked OS threads on Plan 9
     
-    For now, limited to the most repetitive rules that are also short and
-    simple, so that we can have a substantial conciseness win without
-    compromising rules readability.
+    CL 46037 and CL 46038 implemented termination of
+    locked OS threads when the goroutine exits.
     
-    Ran rulegen, no changes in the rewrite files.
+    However, this behavior leads to crashes of Go programs
+    using runtime.LockOSThread on Plan 9. This is notably
+    the case of the os/exec and net packages.
     
-    Change-Id: I8447784895a218c5c1b4dfa1cdb355bd73dabfd1
-    Reviewed-on: https://go-review.googlesource.com/95955
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    This change disables termination of locked OS threads
+    on Plan 9.
+    
+    Updates #22227.
+    
+    Change-Id: If9fa241bff1c0b68e7e9e321e06e5203b3923212
+    Reviewed-on: https://go-review.googlesource.com/71230
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules | 79 ++++++++--------------------
- 1 file changed, 21 insertions(+), 58 deletions(-)
+ src/runtime/proc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,25 +1,31 @@
-commit 62c6ff4296fa5919a208552c57b44e4710b4e5e1
-Author: Dan Scales <danscales@google.com>
-Date:   Thu Nov 4 16:03:49 2021 -0700
+commit 6ee1506769b24d99e27f9a6a9c99e9b7143112bf
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Feb 17 17:31:22 2021 -0500
 
-    runtime: fix a lock rank ordering and some edges.
+    [dev.fuzz] internal/fuzz: fix deadlock with multiple workers
     
-    The first stack-trace in #49361 shows that traceBuf must precede fin in
-    lockrank ordering, since traceBuf is acquired in StartTrace(), which
-    eventually leads to getting fin in queueFinalizer(). It is fine to move
-    traceBuf above fin, since there are no other conflicting dependencies.
+    CoordinateFuzzing now continues to run after discovering a crasher. It
+    waits until all workers have terminated before returning.
     
-    The second stack trace shows that there is an edge bewtween reflectOffs
-    and fin, since reflectOffs is acquired in addReflectOff, and map
-    operations can lead to an allocation that eventually causes fin to be
-    acquired in queueFinalizer().
+    This fixes a deadlock that occurred when multiple workers discovered
+    crashers concurrently. CoordinateFuzzing would receive one crasher,
+    close doneC (telling workers to stop), then wait for workers to stop
+    without receiving more crashers. Other workers would block sending
+    crashers.
     
-    Fixes #49361
-    
-    Change-Id: I8e857ef9ecdff37fdd229e4dba22e15bc71d4ba5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361407
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I55a64aac0e6e43f5e36b9d03c15051c3d5debb20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293369
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/runtime/lockrank.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz.txt           |  8 +--
+ src/cmd/go/testdata/script/test_fuzz_cache.txt     |  2 +-
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt  |  2 +-
+ src/cmd/go/testdata/script/test_fuzz_match.txt     |  6 +-
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  | 30 ++++-----
+ src/internal/fuzz/fuzz.go                          | 74 ++++++++++------------
+ src/internal/fuzz/sys_posix.go                     |  2 +-
+ src/internal/fuzz/worker.go                        |  3 +-
+ 8 files changed, 60 insertions(+), 67 deletions(-)

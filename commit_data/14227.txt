@@ -1,13 +1,18 @@
-commit 63c6b3c482ffdd1c75530c619fd75b7adc1009c8
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Oct 29 22:10:45 2012 +1100
+commit ee3e2ac1a691f5e3d9a8fbbc9f6d79c606b81868
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 28 20:11:21 2012 +0100
 
-    A+C: Andrey Radev (individual CLA).
+    cmd/5g: introduce componentgen for better registerization.
     
-    R=golang-dev, bradfitz
-    CC=andrey.radev, golang-dev
-    https://golang.org/cl/6775067
+    It is essentially identical to the version in 6g.
+    
+    R=dave, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6710043
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/5g/cgen.c  | 254 ++++++++++++++++++++++++++++++++++++++---------------
+ src/cmd/5g/gg.h    |   1 +
+ src/cmd/5g/ggen.c  |   5 ++
+ src/cmd/5g/gsubr.c |  11 ++-
+ src/cmd/5g/reg.c   |   4 +-
+ 5 files changed, 198 insertions(+), 77 deletions(-)

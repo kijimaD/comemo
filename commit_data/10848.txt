@@ -1,50 +1,14 @@
-commit bd9243da220935ea2a6985777683c0e587563283
+commit 95907c4752b2e8f0e5f75d43031fc914162bb411
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 16 17:04:32 2011 -0500
+Date:   Fri Dec 16 15:46:25 2011 -0500
 
-    runtime: separate out auto-generated files
+    runtime: fix build
     
-    R=golang-dev, r, r
+    TBR=r
     CC=golang-dev
-    https://golang.org/cl/5493063
+    https://golang.org/cl/5493061
 
- src/Make.pkg                          |  2 +-
- src/cmd/Makefile                      |  7 ++-
- src/make.bash                         |  8 ++-
- src/pkg/runtime/Makefile              | 81 +++++++++---------------------
- src/pkg/runtime/Makefile.auto         | 94 +++++++++++++++++++++++++++++++++++
- src/pkg/runtime/asm_386.s             |  2 +-
- src/pkg/runtime/asm_amd64.s           |  2 +-
- src/pkg/runtime/asm_arm.s             |  2 +-
- src/pkg/runtime/defs1_linux.go        |  2 +
- src/pkg/runtime/defs2_linux.go        |  2 +
- src/pkg/runtime/defs_arm_linux.go     |  2 +
- src/pkg/runtime/defs_darwin.go        |  2 +
- src/pkg/runtime/defs_freebsd.go       |  2 +
- src/pkg/runtime/defs_linux.go         |  2 +
- src/pkg/runtime/defs_netbsd.go        |  2 +
- src/pkg/runtime/defs_openbsd.go       |  2 +
- src/pkg/runtime/defs_windows.go       |  2 +
- src/pkg/runtime/goc2c.c               |  3 ++
- src/pkg/runtime/lock_futex.c          |  2 +
- src/pkg/runtime/lock_sema.c           |  2 +
- src/pkg/runtime/mkasmh.sh             | 25 +++++++++-
- src/pkg/runtime/mkgodefs.sh           | 24 ++++++++-
- src/pkg/runtime/mkversion.c           |  8 ++-
- src/pkg/runtime/rt0_windows_amd64.s   |  2 +-
- src/pkg/runtime/signal_darwin_amd64.c |  2 +-
- src/pkg/runtime/sys_darwin_386.s      |  2 +-
- src/pkg/runtime/sys_darwin_amd64.s    |  2 +-
- src/pkg/runtime/sys_freebsd_386.s     |  2 +-
- src/pkg/runtime/sys_freebsd_amd64.s   |  2 +-
- src/pkg/runtime/sys_linux_386.s       |  2 +-
- src/pkg/runtime/sys_linux_amd64.s     |  2 +-
- src/pkg/runtime/sys_linux_arm.s       |  2 +-
- src/pkg/runtime/sys_netbsd_386.s      |  2 +-
- src/pkg/runtime/sys_netbsd_amd64.s    |  2 +-
- src/pkg/runtime/sys_openbsd_386.s     |  2 +-
- src/pkg/runtime/sys_openbsd_amd64.s   |  2 +-
- src/pkg/runtime/sys_plan9_386.s       |  2 +-
- src/pkg/runtime/sys_windows_386.s     |  2 +-
- src/pkg/runtime/sys_windows_amd64.s   |  2 +-
- 39 files changed, 227 insertions(+), 85 deletions(-)
+ src/Make.pkg                                           |  2 +-
+ src/pkg/runtime/Makefile                               | 12 ++++++++----
+ src/pkg/runtime/{traceback_amd64.c => traceback_x86.c} |  2 ++
+ 3 files changed, 11 insertions(+), 5 deletions(-)

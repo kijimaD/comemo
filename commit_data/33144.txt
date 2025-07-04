@@ -1,26 +1,15 @@
-commit f4faca60135bea528a29f454876efa642b00665e
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Oct 17 00:31:56 2017 +0200
+commit 42aec4c03857a9bfcc8e445b2ae6abe1c7a055b4
+Author: Vitor De Mario <vitordemario@gmail.com>
+Date:   Sat Jul 15 11:25:37 2017 -0600
 
-    runtime: don't terminate locked OS threads on Plan 9
+    io/ioutil: add example for ReadFile
     
-    CL 46037 and CL 46038 implemented termination of
-    locked OS threads when the goroutine exits.
-    
-    However, this behavior leads to crashes of Go programs
-    using runtime.LockOSThread on Plan 9. This is notably
-    the case of the os/exec and net packages.
-    
-    This change disables termination of locked OS threads
-    on Plan 9.
-    
-    Updates #22227.
-    
-    Change-Id: If9fa241bff1c0b68e7e9e321e06e5203b3923212
-    Reviewed-on: https://go-review.googlesource.com/71230
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I062ec0606a741c8aa1b74f3f4b4e4fd47f76fed5
+    Reviewed-on: https://go-review.googlesource.com/48775
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/proc.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/io/ioutil/example_test.go | 12 ++++++++++++
+ src/io/ioutil/testdata/hello  |  1 +
+ 2 files changed, 13 insertions(+)

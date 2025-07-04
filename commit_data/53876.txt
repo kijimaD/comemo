@@ -1,21 +1,16 @@
-commit d50272a8c17920d0eac2d765194d4cd0355a1d34
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Jul 31 16:56:01 2023 +0200
+commit bfadd789860871741e0a86154e02998f879f29f3
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:39:48 2022 +0800
 
-    cmd/cgo/internal/testerrors: unskip TestPointerChecks on Windows
+    net/rpc/jsonrpc: use strings.Builder
     
-    All TestPointerChecks cases can be executed on Windows with some minor
-    tweaks.
-    
-    It seems that the skip has been cargo-culted from when cgo error tests
-    were first added in https://codereview.appspot.com/13498046.
-    
-    Change-Id: I39cd05f4c90965b669d2b403f7fcd9dd9c69016c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514296
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I251f734adbaf83aa03e3f4f37add4e116f5af093
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428271
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/cgo/internal/testerrors/ptr_test.go | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ src/net/rpc/jsonrpc/all_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

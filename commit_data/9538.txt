@@ -1,14 +1,18 @@
-commit 3693cd2988df1ec6c26a92c7f65aabdad41c1dd2
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 29 10:55:21 2011 -0400
+commit 683df29f7c018821b1bfac08d0f11d32ebb7757f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Aug 29 10:49:03 2011 -0400
 
-    runtime: add runtime· prefix to showframe
+    net: change the internal form of IPMask for IPv4
     
-    R=ken2
+    This CL changes the internal form of IPMask for IPv4
+    from 16-byte to 4-byte, also adds Size method to IPMask
+    struct and changes output string format of IPMask.String
+    method.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4978042
+    https://golang.org/cl/4950046
 
- src/pkg/runtime/amd64/traceback.c | 2 +-
- src/pkg/runtime/arm/traceback.c   | 2 +-
- src/pkg/runtime/symtab.c          | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/ip.go      | 71 ++++++++++++++++++++++++++------------------------
+ src/pkg/net/ip_test.go | 67 +++++++++++++++++++++++++++++++++++------------
+ 2 files changed, 87 insertions(+), 51 deletions(-)

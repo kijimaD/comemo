@@ -1,24 +1,23 @@
-commit eb8f2a832078d0748bcf1eb38357c8119fdbccb7
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Nov 11 07:37:32 2016 -0800
+commit a1bf203b57ab854f2c1b7668ae96bc34e60e02fc
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Thu Sep 15 17:24:42 2016 -0300
 
-    all: fix vet nits
+    net: respect resolv.conf rotate option
     
-    Fixes these complaints from vet:
+    Instead of ranging over servers in the config, grab an offset
+    from the config that is used to determine indices.
     
-    cmd/compile/internal/gc/noder.go:32: cmd/compile/internal/syntax.Error composite literal uses unkeyed fields
-    cmd/compile/internal/gc/noder.go:1035: cmd/compile/internal/syntax.Error composite literal uses unkeyed fields
-    cmd/compile/internal/gc/noder.go:1051: cmd/compile/internal/syntax.Error composite literal uses unkeyed fields
-    cmd/compile/internal/syntax/parser_test.go:182: possible formatting directive in Error call
-    net/http/client_test.go:1334: possible formatting directive in Fatal call
+    When the rotate option is enabled, the offset increases which
+    rotates queries through servers. Otherwise, it is always 0
+    which uses servers in config order.
     
-    Change-Id: I5f90ec30f3c106c7e66c92e2b6f8d3b4874fec66
-    Reviewed-on: https://go-review.googlesource.com/33133
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #17126
+    
+    Change-Id: If233f6de7bfa42f88570055b9ab631be08a76b3e
+    Reviewed-on: https://go-review.googlesource.com/29233
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/noder.go           | 6 +++---
- src/cmd/compile/internal/syntax/parser_test.go | 2 +-
- src/net/http/client_test.go                    | 2 +-
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ src/net/dnsclient_unix.go      | 13 ++++----
+ src/net/dnsclient_unix_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/dnsconfig_unix.go      | 13 ++++++++
+ 3 files changed, 90 insertions(+), 6 deletions(-)

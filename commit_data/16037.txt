@@ -1,15 +1,24 @@
-commit 94b7853924f817fce39f4c1eae366e973623e12b
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Apr 1 14:34:03 2013 -0700
+commit 9182c364aa3ab443716508077cb915ce88ae31cc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 1 12:56:18 2013 -0700
 
-    sync/atomic: make unaligned 64-bit atomic operation panic on ARM
-    use MOVW.NE instead of BEQ and MOVW.
+    cmd/ld: add -extld and -extldflags options
     
-    R=golang-dev, dave, rsc, daniel.morsing
+    Permits specifying the linker to use, and trailing flags to
+    pass to that linker, when linking in external mode.  External
+    mode linking is used when building a package that uses cgo, as
+    described in the cgo docs.
+    
+    Also document -linkmode and -tmpdir.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7718043
+    https://golang.org/cl/8225043
 
- src/pkg/sync/atomic/asm_arm.s       | 16 ++++++++++++++++
- src/pkg/sync/atomic/asm_linux_arm.s |  8 ++++++++
- src/pkg/sync/atomic/atomic_test.go  |  6 +++---
- 3 files changed, 27 insertions(+), 3 deletions(-)
+ src/cmd/5l/obj.c  |  2 ++
+ src/cmd/6l/obj.c  |  2 ++
+ src/cmd/8l/obj.c  |  2 ++
+ src/cmd/ld/doc.go | 17 +++++++++++++++++
+ src/cmd/ld/lib.c  | 32 +++++++++++++++++++++++++++-----
+ src/cmd/ld/lib.h  |  2 ++
+ 6 files changed, 52 insertions(+), 5 deletions(-)

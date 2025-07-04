@@ -1,18 +1,23 @@
-commit a428387e978919a9885b2b7d8a1682feba851d1b
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Jan 26 12:08:00 2024 -0500
+commit cdc65b83fe07052d7b3fe740acd6a34450e93a8c
+Author: Frederic Branczyk <fbranczyk@gmail.com>
+Date:   Wed Feb 8 17:59:27 2023 +0000
 
-    cmd/link: print failed external command invocation
+    cmd/compile/internal/pgo: fix hard-coded PGO sample data position
     
-    When the invocation of the external linker, dsymutil or strip
-    command fails, print the command we invoked.
+    This patch detects at which index position profiling samples that have the value-type samples count are, instead of the previously hard-coded position of index 1. Runtime generated profiles always generate CPU profiling data with the 0 index being CPU nanoseconds, and samples count at index 1, which is why this previously hasn't come up.
     
-    For #65292.
+    Fixes #58292
     
-    Change-Id: Icdb5f9ee942ebda4276f6373c3fbbf5222088d0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558856
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Idde761d53b02259f3076c4e5dcb4a96a9d53df0e
+    GitHub-Last-Rev: dabbf9f88c560286e150e9b136a27c3ac23c5ec1
+    GitHub-Pull-Request: golang/go#58294
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465135
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/link/internal/ld/lib.go | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/pgo/irgraph.go       | 18 ++++++-
+ src/cmd/compile/internal/test/pgo_inl_test.go | 68 +++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 1 deletion(-)

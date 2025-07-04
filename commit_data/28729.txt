@@ -1,23 +1,33 @@
-commit f13372c9f7df12bfa4fbba5d9802f17fd186a0bc
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Sun Oct 9 11:50:21 2016 -0400
+commit bbe5da42600d5ab26cd58ffac3d6427994f08fb2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 28 14:19:27 2016 -0700
 
-    cmd/internal/obj/s390x: remove support for stores of global addresses
+    cmd/compile, syscall: add //go:uintptrescapes comment, and use it
     
-    This CL removes support for MOVD instructions that store the address
-    of a global variable. For example:
+    This new comment can be used to declare that the uintptr arguments to a
+    function may be converted from pointers, and that those pointers should
+    be considered to escape. This is used for the Call methods in
+    dll_windows.go that take uintptr arguments, because they call Syscall.
     
-      MOVD $main·a(SB), (R1)
-      MOVD $main·b(SB), main·c(SB)
+    We can't treat these functions as we do syscall.Syscall, because unlike
+    Syscall they may cause the stack to grow. For Syscall we can assume that
+    stack arguments can remain on the stack, but for these functions we need
+    them to escape.
     
-    These instructions are emulated and the new backend doesn't need them
-    (the stores now always go through an intermediate register).
+    Fixes #16035.
     
-    Change-Id: I3a1bcb3f19c5096ad0426afd76d35a4d7975733b
-    Reviewed-on: https://go-review.googlesource.com/30720
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Change-Id: Ia0e5b4068c04f8d303d95ab9ea394939f1f57454
+    Reviewed-on: https://go-review.googlesource.com/24551
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/s390x/asmz.go | 34 +++-------------------------------
- 1 file changed, 3 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/gc/esc.go   | 60 ++++++++++++++++++++----
+ src/cmd/compile/internal/gc/lex.go   | 14 ++++++
+ src/cmd/compile/internal/gc/order.go |  8 +++-
+ src/syscall/dll_windows.go           |  4 ++
+ test/uintptrescapes.dir/a.go         | 54 +++++++++++++++++++++
+ test/uintptrescapes.dir/main.go      | 91 ++++++++++++++++++++++++++++++++++++
+ test/uintptrescapes.go               |  9 ++++
+ test/uintptrescapes2.go              | 31 ++++++++++++
+ 8 files changed, 259 insertions(+), 12 deletions(-)

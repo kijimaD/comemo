@@ -1,20 +1,28 @@
-commit e513cd4e409f1d42df02a42b43eceb87473b229a
-Author: t-katsumura <t.katsumura.ggl@gmail.com>
-Date:   Sun May 11 08:43:40 2025 +0900
+commit 411d7a5c9e4e29691e85baa2decf8782a186071b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Mar 14 17:14:31 2024 -0400
 
-    net/http: add missing ServeTLS on the comment of http.Server.Shutdown
+    cmd: vendor in golang.org/x/telemetry@abedc37
     
-    A sentinel error http.ErrServerClosed is returned after Server.Shutdown
-    and Server.Close but it is not documented on the Server.Shutdown while
-    other methods such as Server.Serve are documented on it.
+    This pulls in the changes to remove 1.18 support in counter and
+    countertest, to add counter.CountCommandLineFlags, and to add
+    countertest.SupportedPlatform
     
-    Change-Id: Id82886d9d6a1474a514d62e9169b35f3579a9eee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671695
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commands run:
+            go get golang.org/x/telemetry@abedc37
+            go mod tidy
+            go mod vendor
+    
+    Change-Id: I5c17c5b3ca38df14883ba43316d59437a737b28b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571801
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
 
- src/net/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../golang.org/x/telemetry/counter/counter.go      | 27 ++++++++++++++++---
+ .../golang.org/x/telemetry/counter/counter_118.go  | 30 ----------------------
+ .../x/telemetry/counter/countertest/countertest.go |  5 ++--
+ .../counter/countertest/countertest_go118.go       | 21 ---------------
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 7 files changed, 31 insertions(+), 60 deletions(-)

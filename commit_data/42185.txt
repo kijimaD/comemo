@@ -1,16 +1,22 @@
-commit 67d40873adec0b70555840b2ef93e01716fe0730
-Author: Meng Zhuo <mengzhuo1203@gmail.com>
-Date:   Mon Apr 20 18:43:29 2020 +0800
+commit 2de897f4807aa552c5d223e0744c9624fa498d48
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Nov 8 00:06:02 2019 +0900
 
-    cmd/compile: adjust MIPS64x rewrite rules to use typed aux fields
+    cmd: sync github.com/google/pprof@v0.0.0-20191105193234-27840fff0d09
     
-    Pass toolstash-check
+    https://github.com/google/pprof/compare/54271f7e092f...27840fff0d09
     
-    Change-Id: I673c9a24bf69c09573be5aeddbd6072ef35d2d83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228937
+    Change-Id: I7ded9be6deaaf8d11bd8d228bca8d7eb3ada8774
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205780
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/MIPS64.rules |  814 ++++++++---------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go | 1164 ++++++++++++-------------
- 2 files changed, 989 insertions(+), 989 deletions(-)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 ++--
+ .../google/pprof/internal/driver/webhtml.go        | 24 ++++++++++++++--------
+ .../google/pprof/internal/driver/webui.go          |  2 +-
+ .../google/pprof/internal/graph/graph.go           | 17 ++++++++++++---
+ .../google/pprof/internal/plugin/plugin.go         |  2 +-
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 7 files changed, 35 insertions(+), 18 deletions(-)

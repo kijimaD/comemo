@@ -1,25 +1,132 @@
-commit 7719016ee297dd4960bb66ed265038f2d75b3c56
-Author: Sergey Zagursky <gvozdoder@gmail.com>
-Date:   Thu Nov 14 23:07:01 2019 +0300
+commit fbaf881cc62bd0e1f4c5e608217fd52106438dbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 28 15:01:16 2019 -0400
 
-    net: fix improper Context.Deadline usage in DialContext
+    net/http: fix Transport.MaxConnsPerHost limits & idle pool races
     
-    The existing implementation is erroneously assume that having no
-    deadline in context.Context means that time returned from Deadline
-    method will have IsZero() == true. But technically speaking this is an
-    invalid assumption. The context.Context interface specification doesn't
-    specify what time should be returned from Deadline method when there is
-    no deadline set. It only specifies that second result of Deadline should
-    be false.
+    There were at least three races in the implementation of the pool of
+    idle HTTP connections before this CL.
     
-    Fixes #35594
+    The first race is that HTTP/2 connections can be shared for many
+    requests, but each requesting goroutine would take the connection out
+    of the pool and then immediately return it before using it; this
+    created unnecessary, tiny little race windows during which another
+    goroutine might dial a second connection instead of reusing the first.
+    This CL changes the idle pool to just leave the HTTP/2 connection in
+    the pool permanently (until there is reason to close it), instead of
+    doing the take-it-out-put-it-back dance race.
     
-    Change-Id: Ife00aad77ab3585e469f15017550ac6c0431b140
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207297
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The second race is that “is there an idle connection?” and
+    “register to wait for an idle connection” were implemented as two
+    separate steps, in different critical sections. So a client could end
+    up registered to wait for an idle connection and be waiting or perhaps
+    dialing, not having noticed the idle connection sitting in the pool
+    that arrived between the two steps.
+    
+    The third race is that t.getIdleConnCh assumes that the inability to
+    send on the channel means the client doesn't need the result, when it
+    could mean that the client has not yet entered the select.
+    That is, the main dial does:
+    
+            idleConnCh := t.getIdleConnCh(cm)
+            select {
+            case v := <-dialc:
+                    ...
+            case pc := <-idleConnCh
+                    ...
+            ...
+            }
+    
+    But then tryPutIdleConn does:
+    
+            waitingDialer := t.idleConnCh[key] // what getIdleConnCh(cm) returned
+            select {
+            case waitingDialer <- pconn:
+                    // We're done ...
+                    return nil
+            default:
+                    if waitingDialer != nil {
+                            // They had populated this, but their dial won
+                            // first, so we can clean up this map entry.
+                            delete(t.idleConnCh, key)
+                    }
+            }
+    
+    If the client has returned from getIdleConnCh but not yet reached the
+    select, tryPutIdleConn will be unable to do the send, incorrectly
+    conclude that the client does not care anymore, and put the connection
+    in the idle pool instead, again leaving the client dialing unnecessarily
+    while a connection sits in the idle pool.
+    
+    (It's also odd that the success case does not clean up the map entry,
+    and also that the map has room for only a single waiting goroutine for
+    a given host.)
+    
+    None of these races mattered too much before Go 1.11: at most they
+    meant that connections were not reused quite as promptly as possible,
+    or a few more than necessary would be created. But Go 1.11 added
+    Transport.MaxConnsPerHost, which limited the number of connections
+    created for a given host. The default is 0 (unlimited), but if a user
+    did explicitly impose a low limit (2 is common), all these misplaced
+    conns could easily add up to the entire limit, causing a deadlock.
+    This was causing intermittent timeouts in TestTransportMaxConnsPerHost.
+    
+    The addition of the MaxConnsPerHost support added its own races.
+    
+    For example, here t.incHostConnCount could increment the count
+    and return a channel ready for receiving, and then the client would
+    not receive from it nor ever issue the decrement, because the select
+    need not evaluate these two cases in order:
+    
+            select {
+            case <-t.incHostConnCount(cmKey):
+                    // count below conn per host limit; proceed
+            case pc := <-t.getIdleConnCh(cm):
+                    if trace != nil && trace.GotConn != nil {
+                            trace.GotConn(httptrace.GotConnInfo{Conn: pc.conn, Reused: pc.isReused()})
+                    }
+                    return pc, nil
+            ...
+            }
+    
+    Obviously, unmatched increments are another way to get to a deadlock.
+    TestTransportMaxConnsPerHost deadlocked approximately 100% of
+    the time with a small random sleep added between incHostConnCount
+    and the select:
+    
+            ch := t.incHostConnCount(cmKey):
+            time.Sleep(time.Duration(rand.Intn(10))*time.Millisecond)
+            select {
+            case <-ch
+                    // count below conn per host limit; proceed
+            case pc := <-t.getIdleConnCh(cm):
+                    ...
+            }
+    
+    The limit also did not properly apply to HTTP/2, because of the
+    decrement being attached to the underlying net.Conn.Close
+    and net/http not having access to the underlying HTTP/2 conn.
+    The alternate decrements for HTTP/2 may also have introduced
+    spurious decrements (discussion in #29889). Perhaps those
+    spurious decrements or other races caused the other intermittent
+    non-deadlock failures in TestTransportMaxConnsPerHost,
+    in which the HTTP/2 phase created too many connections (#31982).
+    
+    This CL replaces the buggy, racy code with new code that is hopefully
+    neither buggy nor racy.
+    
+    Fixes #29889.
+    Fixes #31982.
+    Fixes #32336.
+    
+    Change-Id: I0dfac3a6fe8a6cdf5f0853722781fe2ec071ac97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184262
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/net/dial.go      | 27 ++++++++++++++-------------
- src/net/dial_test.go | 29 +++++++++++++++++++++++++++++
- src/net/fd_unix.go   |  2 +-
- 3 files changed, 44 insertions(+), 14 deletions(-)
+ src/net/http/export_test.go    |  28 +-
+ src/net/http/serve_test.go     |  23 +-
+ src/net/http/transport.go      | 614 ++++++++++++++++++++++++-----------------
+ src/net/http/transport_test.go |  30 +-
+ 4 files changed, 412 insertions(+), 283 deletions(-)

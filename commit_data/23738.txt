@@ -1,18 +1,14 @@
-commit 955c0fd2f9080b808be789f68be5fa37a0bb4778
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Jul 17 10:46:38 2015 -0700
+commit 43a2676ff091d403b62ea59c72f4686fbfd546fc
+Author: Michael Matloob <matloob@google.com>
+Date:   Mon Jun 8 22:46:36 2015 -0400
 
-    os: add test to ensure Rename returns *LinkError
+    [dev.ssa] cmd/compile/internal/ssa: delete lowergeneric.go
     
-    Updates #10061
+    It's been replaced by rewritegeneric.go
     
-    CL 12353 updated the documentation for os.Rename to stipulate the function will
-    return errors of type *os.LinkError. This CL adds a test to ensure that the
-    implementations continue to obey this contract.
-    
-    Change-Id: I41beb8c9d8356c737de251fdc6f652caab3ee636
-    Reviewed-on: https://go-review.googlesource.com/12329
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I2658abbc6201ecfedae4513c6da04ea3cac8bb9c
+    Reviewed-on: https://go-review.googlesource.com/10846
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/os/os_test.go | 29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
+ src/cmd/compile/internal/ssa/lowergeneric.go | 289 ---------------------------
+ 1 file changed, 289 deletions(-)

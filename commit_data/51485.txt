@@ -1,20 +1,21 @@
-commit 93587d3591f6cb5cd21951a03c3aa750873f2601
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Dec 1 17:54:49 2022 +0000
+commit 2aafd9ea179ec308607c131dbda438abac2b9184
+Author: Brandon Bennett <bbennett@fb.com>
+Date:   Fri Feb 4 12:45:18 2022 -0700
 
-    net: retry with bigger buffer in resSearch
+    cmd/go: preserve LIBRARY_PATH and C_INCLUDE_PATH  for script tests
     
-    Glibc returns size > bufSize, when the entire dns reply does not fit inside the provided buffer.
+    In bespoke build environments default libraries may be specificied with
+    LIBRARY_PATH, C_INCLUDE_PATH enviroment variables to overide the system
+    (i.e glibc). Allow them though to allow cgo testing of these enviroments.
     
-    Change-Id: Ie1c1c6a3411880bd8bdb4371f1f1b7bcce837ea2
-    GitHub-Last-Rev: 488cd3ed0db2a86433aa921117b8f1e9192b1fa5
-    GitHub-Pull-Request: golang/go#57020
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454395
+    Fixes #50985
+    
+    Change-Id: I7497a7715d9b635a6ae97efaab94a7ff01cdf8e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383334
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/net/cgo_unix.go | 25 +++++++++++++++++++------
- 1 file changed, 19 insertions(+), 6 deletions(-)
+ src/cmd/go/script_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

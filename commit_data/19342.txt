@@ -1,22 +1,17 @@
-commit 30b8af98c0d9ab172842feebf38d1a7ef00a6afa
+commit 211618c26ebe5fe931d7366b94e15fbd92584555
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 13 01:09:38 2014 -0400
+Date:   Mon May 12 23:38:35 2014 -0400
 
-    runtime: handle decommit failure gracefully on Windows
+    io: copy slice argument in MultiReader and MultiWriter
     
-    I have no test case for this at tip.
-    The original report included a program crashing at revision 88ac7297d2fa.
-    I tested this code at that revision and it does fix the crash.
-    However, at tip the reported code no longer crashes, presumably
-    because some allocation patterns have changed. I believe the
-    bug is still present at tip and that this code still fixes it.
+    Replaces CL 91240045.
+    Fixes #7809.
     
-    Fixes #7143.
-    
-    LGTM=alex.brainman
-    R=golang-codereviews, alex.brainman
-    CC=dvyukov, golang-codereviews
-    https://golang.org/cl/96300046
+    LGTM=bradfitz
+    R=golang-codereviews, minux.ma
+    CC=adg, bradfitz, golang-codereviews, iant, r
+    https://golang.org/cl/94380043
 
- src/pkg/runtime/mem_windows.c | 24 ++++++++++++++++++++++--
- 1 file changed, 22 insertions(+), 2 deletions(-)
+ src/pkg/io/multi.go      |  8 ++++++--
+ src/pkg/io/multi_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 2 deletions(-)

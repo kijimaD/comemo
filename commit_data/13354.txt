@@ -1,14 +1,13 @@
-commit 834edc4257b45176d8bbacc4d612a43372f9556b
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Jun 15 15:39:25 2012 +1000
+commit a11e74daf7e42fa811378f5f38fb0dfdf6480f3a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jun 14 22:43:15 2012 +0800
 
-    exp/html/atom: add some more atoms.
+    crypto/elliptic: fix doc typo
+            Fixes #3735.
     
-    R=r, dsymonds
+    R=golang-dev, agl
     CC=golang-dev
-    https://golang.org/cl/6298085
+    https://golang.org/cl/6301083
 
- src/pkg/exp/html/atom/gen.go        |    5 +
- src/pkg/exp/html/atom/table.go      | 1082 ++++++++++++++++++-----------------
- src/pkg/exp/html/atom/table_test.go |    5 +
- 3 files changed, 556 insertions(+), 536 deletions(-)
+ src/pkg/crypto/elliptic/elliptic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

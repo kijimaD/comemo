@@ -1,32 +1,20 @@
-commit 62e5215a2a12d95d1ce08cb6c996c3667e346779
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Nov 6 14:50:30 2017 -0800
+commit fb5279cc45703d24a37279e6c0d9e0e7fd7228c5
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Mon Jun 4 15:03:05 2018 +0000
 
-    cmd/compile: merge TPTR32 and TPTR64 as TPTR
+    net/http: fix build errors on js/wasm target
     
-    Change-Id: I0490098a7235458c5aede1135426a9f19f8584a7
-    Reviewed-on: https://go-review.googlesource.com/c/76312
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    The in-progress WASM port does not yet have sufficient automatic
+    testing performed against it, so these errors slipped through when
+    adding the new Fetch API backed http.Roundtripper.
+    
+    Updates #25506
+    
+    Change-Id: I84c5832452e3e6067a02d926f67d01aaca66b837
+    GitHub-Last-Rev: 064062b5fd256e7fce961a13a8ac00a135f60221
+    GitHub-Pull-Request: golang/go#25714
+    Reviewed-on: https://go-review.googlesource.com/116076
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/alg.go          |  2 +-
- src/cmd/compile/internal/gc/align.go        |  8 ++------
- src/cmd/compile/internal/gc/bexport.go      |  2 +-
- src/cmd/compile/internal/gc/const.go        |  4 ++--
- src/cmd/compile/internal/gc/esc.go          |  2 +-
- src/cmd/compile/internal/gc/fmt.go          |  2 +-
- src/cmd/compile/internal/gc/iexport.go      |  4 ++--
- src/cmd/compile/internal/gc/pgen_test.go    |  2 +-
- src/cmd/compile/internal/gc/plive.go        |  5 ++---
- src/cmd/compile/internal/gc/reflect.go      | 17 +++++++----------
- src/cmd/compile/internal/gc/ssa.go          |  6 ++----
- src/cmd/compile/internal/gc/subr.go         |  6 ++----
- src/cmd/compile/internal/gc/typecheck.go    |  3 +--
- src/cmd/compile/internal/gc/types.go        |  4 +---
- src/cmd/compile/internal/gc/universe.go     | 23 +++++++----------------
- src/cmd/compile/internal/gc/walk.go         |  2 +-
- src/cmd/compile/internal/ssa/export_test.go |  1 -
- src/cmd/compile/internal/types/type.go      | 28 +++++++++++-----------------
- src/cmd/compile/internal/types/utils.go     |  3 ---
- 19 files changed, 45 insertions(+), 79 deletions(-)
+ src/net/http/roundtrip_js.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

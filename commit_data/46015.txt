@@ -1,19 +1,22 @@
-commit c2b4ec8f49184e02ea4832b4e495f206d4fc4b88
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Aug 15 21:28:30 2021 -0400
+commit 58768ae15b3f892b9b1902220ba3564375e5c6de
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 2 18:13:14 2020 -0800
 
-    go/types: add defined type to term/termlist tests
+    test: match gccgo error messages
     
-    This is a port of CL 339905 to go/types.
+    assign.go:59:28: error: ‘x’ repeated on left side of :=
+    assign.go:65:20: error: ‘a’ repeated on left side of :=
     
-    Change-Id: I9afac9e84bde6f34bb65c7e3d726986d2c648a91
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342436
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    method2.go:36:11: error: reference to method ‘val’ in type that is pointer to interface, not interface
+    method2.go:37:11: error: reference to method ‘val’ in type that is pointer to interface, not interface
+    
+    Change-Id: I8f385c75a82fae4eacf4618df8f9f65932826494
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274447
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/types/termlist_test.go | 53 +++++++++++++++++++++++++++++++++++--------
- src/go/types/typeterm.go      |  3 +++
- src/go/types/typeterm_test.go | 37 +++++++++++++++++++++++++++++-
- 3 files changed, 83 insertions(+), 10 deletions(-)
+ test/assign.go  | 4 ++--
+ test/method2.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

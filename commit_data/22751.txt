@@ -1,14 +1,18 @@
-commit d3bd6b6ae783fa72e4ae227e5afb75a824f1079a
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 28 12:38:09 2015 -0700
+commit d3252a2db9b8e1b6cff26dd4d2721cedc91378dc
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 8 02:01:55 2015 +1000
 
-    cmd/doc: print documentation for all matches in a package, not just the first
+    cmd/internal/gc: fix race build (again)
     
-    Change-Id: Id0d4ac7169f741dfeec7b1e67bdc21e49ae37b9e
-    Reviewed-on: https://go-review.googlesource.com/9430
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Add OGETG to the list of ignored operations.
+    
+    We don't instrument the runtime package, but calls to runtime.getg
+    can appear in other packages, for example, after inlining
+    runtime.LockOSThread.
+    
+    Change-Id: I8d6e91f1f3c8fd1302b596bdead42d588c059911
+    Reviewed-on: https://go-review.googlesource.com/8553
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/doc/pkg.go    | 107 ++++++++++++++++++++++++++------------------------
- src/cmd/go/alldocs.go |   4 +-
- src/cmd/go/doc.go     |   4 +-
- 3 files changed, 62 insertions(+), 53 deletions(-)
+ src/cmd/internal/gc/racewalk.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

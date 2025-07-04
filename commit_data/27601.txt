@@ -1,16 +1,16 @@
-commit bc4fdfdbfe6b971fcceaf4d75514a882917df10d
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jun 1 09:31:31 2016 -0700
+commit bbbd572c10e8e28d343a559b9c0ceef9074c719c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 5 14:10:22 2016 +1000
 
-    os/signal: deflake TestReset/TestIgnore
+    cmd/go: leave directory before removing it in TestSharedLibName
     
-    Fixes #15661.
+    Fixes #15124
     
-    Change-Id: Ic3a8296fc7107f491880900ef52563e52caca1a3
-    Reviewed-on: https://go-review.googlesource.com/23615
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I55fe4c2957370f3fb417c3df54f99fb085a5dada
+    Reviewed-on: https://go-review.googlesource.com/21522
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/signal/signal_test.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/go/pkg_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

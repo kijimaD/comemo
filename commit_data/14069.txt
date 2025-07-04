@@ -1,17 +1,21 @@
-commit c1d06cef122b221340a1f4c5884dda4aff32c3da
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Oct 7 16:36:14 2012 -0400
+commit 65b782e951e21e6e9293547d73f1e839cec2dc82
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 8 04:20:17 2012 +0800
 
-    cmd/8l: add SSE2 instructions
+    cmd/ld, cmd/5l: support R_ARM_PC24 and R_ARM_JUMP24, fix R_ARM_CALL
     
-    R=ken
-    CC=golang-dev
-    https://golang.org/cl/6610065
+    1. R_ARM_CALL can also be used to call a PLT entry
+    2. add support for R_ARM_PC24 and R_ARM_JUMP24
+    3. refactor, remove D_PLT32 in favor of D_CALL
+    
+    Fixes #4006.
+    
+    R=rsc, dave
+    CC=fullung, golang-dev
+    https://golang.org/cl/6622057
 
- src/cmd/8l/8.out.h | 137 +++++++++++++++++++++++++++++++++++++----
- src/cmd/8l/l.h     |   8 +++
- src/cmd/8l/list.c  |   9 +++
- src/cmd/8l/obj.c   |  14 +++++
- src/cmd/8l/optab.c | 178 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/8l/span.c  |  78 ++++++++++++++++++++++-
- 6 files changed, 411 insertions(+), 13 deletions(-)
+ src/cmd/5l/5.out.h |  3 +--
+ src/cmd/5l/asm.c   | 36 ++++++++++++++++++++++++------------
+ src/cmd/ld/elf.h   |  3 ++-
+ src/cmd/ld/ldelf.c |  2 ++
+ 4 files changed, 29 insertions(+), 15 deletions(-)

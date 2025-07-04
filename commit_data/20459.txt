@@ -1,20 +1,21 @@
-commit 6fb9d50d154c4a8ac4db11e91a3d221322859191
+commit 0f99a91bb56dd01dfd4e5ce4344e6006e3463ade
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 17 16:12:17 2014 -0400
+Date:   Mon Sep 8 21:02:36 2014 -0400
 
-    runtime: print more detail in adjustframe crash
+    runtime: let stack copier update Panic structs for us
     
-    The logic here is copied from mgc0.c's scanframe.
-    Mostly it is messages although the minsize code is new
-    (and I believe necessary).
+    It already is updating parts of them; we're just getting lucky
+    retraversing them and not finding much to do.
+    Change argp to a pointer so that it will be updated too.
+    Existing tests break if you apply the change to adjustpanics
+    without also updating the type of argp.
     
-    I am hoping to get more information about the current
-    arm build failures (or, if it's the minsize thing, fix them).
-    
-    TBR=khr
+    LGTM=khr
     R=khr
     CC=golang-codereviews
-    https://golang.org/cl/143180043
+    https://golang.org/cl/139380043
 
- src/runtime/stack.c | 46 +++++++++++++++++++++++++++++++++-------------
- 1 file changed, 33 insertions(+), 13 deletions(-)
+ src/runtime/panic.go  |  6 +++---
+ src/runtime/runtime.h |  2 +-
+ src/runtime/stack.c   | 20 +++++++++-----------
+ 3 files changed, 13 insertions(+), 15 deletions(-)

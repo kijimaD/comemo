@@ -1,26 +1,31 @@
-commit d61ae9ded4ebc142fb0edccfee893fa10c233357
-Author: hopehook <hopehook@qq.com>
-Date:   Sun Feb 12 22:27:35 2023 +0800
+commit db576c9f3a33d043b4dc6cd8177f4e0b25ded8ec
+Author: Johan Jansson <johan.jansson@iki.fi>
+Date:   Fri Apr 1 14:00:09 2022 +0300
 
-    mime/multipart: fix Reader.ReadForm(math.MaxInt64) overflow
+    net/textproto: initialize commonHeader in canonicalMIMEHeaderKey
     
-    Because "CopyN" will read one more byte, which will cause us
-    to overflow when calling "Reader.ReadForm(math.MaxInt64)".
+    Call initCommonHeader in canonicalMIMEHeaderKey to ensure that
+    commonHeader is initialized before use. Remove all other calls to
+    initCommonHeader, since commonHeader is only used in
+    canonicalMIMEHeaderKey.
     
-    So we should check if the parameter exceeds "math.MaxInt64"
-    to avoid returning no data.
+    This prevents a race condition: read of commonHeader before
+    commonHeader has been initialized.
     
-    Fixes #58384.
+    Add regression test that triggers the race condition which can be
+    detected by the race detector.
     
-    Change-Id: I30088ce6468176b21e4a9a0b8b6080f2986dda23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467557
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: hopehook <hopehook@golangcn.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #46363
+    
+    Change-Id: I00c8c52c6f4c78c0305978c876142c1b388174af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397575
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/mime/multipart/formdata.go      |  3 +++
- src/mime/multipart/formdata_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ src/net/textproto/reader.go      |  4 +---
+ src/net/textproto/reader_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 3 deletions(-)

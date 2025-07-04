@@ -1,16 +1,18 @@
-commit 48ecc152e47db19255a3501d272b7ea3ed28915a
-Author: hopehook <hopehook@qq.com>
-Date:   Thu Aug 25 11:17:46 2022 +0800
+commit 113b52979f48331b611e0fe7dadff97d6393ca27
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 10:21:54 2021 -0700
 
-    cmd/go/internal/trace: convert traceStarted to atomic type
+    runtime: remove a branch from funcdata
     
-    Change-Id: Ia4214a29775f1178273b9b7dc84c0420bfa968de
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425457
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    name                   old time/op  new time/op  delta
+    StackCopyWithStkobj-8  12.1ms ± 7%  11.6ms ± 8%  -3.88%  (p=0.002 n=19+19)
+    
+    Change-Id: Idf810017d541eba70bcf9c736267de9efae916d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354072
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/trace/trace.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/symtab.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

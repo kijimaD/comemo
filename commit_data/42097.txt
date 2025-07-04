@@ -1,40 +1,26 @@
-commit 619c7a48a38b28b521591b490fd14ccb7ea5e821
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 23 13:58:46 2020 -0700
+commit 81640ea38dc6577bdf1b206b778b968d341c27eb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 17:51:16 2019 +0000
 
-    crypto/x509: add x509omitbundledroots build tag to not embed roots
+    runtime: add page cache and tests
     
-    On darwin/arm64, the copy of the system roots takes 256 KiB of disk
-    and 560 KiB of memory after parsing them (which is retained forever in
-    a package global by x509/root.go). In constrained environments like
-    iOS NetworkExtensions where total disk+RAM is capped at 15 MiB, these
-    certs take 5.3% of the total allowed memory.
+    This change adds a page cache structure which owns a chunk of free pages
+    at a given base address. It also adds code to allocate to this cache
+    from the page allocator. Finally, it adds tests for both.
     
-    It turns out you can get down from 816 KiB to 110 KiB by instead
-    storing compressed x509 certs in the binary and lazily inflating just
-    the needed certs at runtime as a function of the certs presented to
-    you by the server, then building a custom root CertPool in the
-    crypto/tls.Config.VerifyPeerCertificate hook.
+    Notably this change does not yet integrate the code into the runtime,
+    just into runtime tests.
     
-    This then saves 706 KiB.
+    Updates #35112.
     
-    Arguably that should be the default Go behavior, but involves
-    cooperation between x509 and tls, and adds a dependency to
-    compress/gzip. Also, it may not be the right trade-off for everybody,
-    as it involves burning more CPU on new TLS connections. Most iOS apps
-    don't run in a NetworkExtension context limiting them to 15 MiB.
-    
-    The build tag is chosen to match the existing "nethttpomithttp2".
-    
-    Change-Id: I7b1c845de08b22674f81dd546e7fadc7dda68bd7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229762
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ibe121498d5c3be40390fab58a3816295601670df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196643
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/test.go                   | 11 +++++++++++
- src/crypto/x509/root_darwin_arm64.go   |  2 ++
- src/crypto/x509/root_darwin_arm_gen.go |  2 ++
- src/crypto/x509/root_omit.go           | 21 +++++++++++++++++++++
- src/crypto/x509/root_omit_test.go      | 22 ++++++++++++++++++++++
- 5 files changed, 58 insertions(+)
+ src/runtime/export_test.go     |  22 +++
+ src/runtime/mpagecache.go      | 154 +++++++++++++++++
+ src/runtime/mpagecache_test.go | 364 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mpallocbits.go     |  12 ++
+ 4 files changed, 552 insertions(+)

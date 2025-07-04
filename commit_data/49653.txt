@@ -1,17 +1,31 @@
-commit 176b63e7113b82c140a4ecb2620024526c2c42e3
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Sun Jul 17 08:43:55 2022 +0930
+commit b8420baf4610e71f6893f7e8b1ad2b6aa94f3eef
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 1 14:15:05 2021 -0400
 
-    crypto/internal/nistec,debug/gosym: fix typos
+    go/internal/gcimporter: add support for importing parameterized types
     
-    Change-Id: I228a23754656b41843573bd4217de4df46c9df36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417954
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Port the necessary logic to go/internal/gcimporter from
+    cmd/compile/internal/importer/iimport.go to support type parameters.
+    
+    This is a partial port of several compiler CLs: at least CL 319930,
+    CL 322609, CL 323029, CL 338192, CL 340251, and CL 340989. Because these
+    ports were not interleaved with the corresponding go/types API changes,
+    it is easier to just take the latest importer logic.
+    
+    Notably, the equivalent of types2.AsTypeParam is not used. It should be
+    unnecessary.
+    
+    Updates #48101
+    
+    Change-Id: I938bd8debc3f6a68a3ad8d44c61ef9c5038be7e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347069
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/internal/nistec/p224_sqrt.go | 2 +-
- src/debug/gosym/symtab.go               | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/go/internal/gcimporter/gcimporter_test.go |   1 -
+ src/go/internal/gcimporter/iimport.go         | 159 +++++++++++++++++++++++---
+ 2 files changed, 144 insertions(+), 16 deletions(-)

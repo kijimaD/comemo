@@ -1,22 +1,15 @@
-commit fe5be5aced063a16c5c36051045f8f8af313bed9
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Thu Mar 31 18:34:02 2016 +0300
+commit 4827c6d0778d93afeaee658a330d97b8f1b510a6
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Feb 21 20:21:23 2016 -0600
 
-    cmd/link: more idiomatic object reader
+    [dev.ssa] test: add test of pointer aliasing
     
-    name       old secs    new secs    delta
-    LinkCmdGo   0.52 ± 3%   0.52 ± 7%    ~     (p=0.325 n=93+100)
+    This adds a test case with aliased pointers to ensure modifications to
+    dse don't remove valid stores.
     
-    name       old MaxRSS  new MaxRSS  delta
-    LinkCmdGo   120k ± 1%   118k ± 4%  -1.10%   (p=0.000 n=87+96)
-    
-    Change-Id: I967660b8dc6036d28eeea1b6b30f400fadd57b05
-    Reviewed-on: https://go-review.googlesource.com/21372
-    Run-TryBot: Shahar Kohanim <skohanim@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I143653250f46a403835218ec685bcd336d5087ef
+    Reviewed-on: https://go-review.googlesource.com/19795
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/lib.go     |   2 +-
- src/cmd/link/internal/ld/link.go    |   1 -
- src/cmd/link/internal/ld/objfile.go | 347 ++++++++++++++++++++----------------
- 3 files changed, 194 insertions(+), 156 deletions(-)
+ src/cmd/compile/internal/gc/testdata/unsafe_ssa.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

@@ -1,26 +1,31 @@
-commit 62bceae32de7bad48fbdc1fe3fae14c81cd093d2
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 1 14:54:39 2022 -0400
+commit 2169deb35247a80794519589e7cd845c6ebf4e5a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun May 30 15:35:06 2021 +0700
 
-    cmd/go: quote fragments in CGO_ env variables reported by 'go env'
+    cmd/compile: use t.AllMethods when sorting typesByString
     
-    These fields have been parsed as quoted fields since CL 334732,
-    but we missed the unparsing side in 'go env'.
+    For interface types, t.Methods contains only unexpanded method set, i.e
+    exclusive of interface embedding. Thus, we can't use it to detect an
+    interface contains embedding empty interface, like in:
     
-    Certain scripts (notably make.ba{sh,t}) expect to be able to set the
-    environment to exactly what 'go env' reports, so for round-trip
-    purposes it is important to match the marshaling and unmarshaling
-    functions.
+            type EI interface{}
     
-    (Noticed while debugging #52009.)
-    Updates #41400
+            func f() interface{ EI } {
+                    return nil
+            }
     
-    Change-Id: I0ff39b7a6e1328111c285c97cd23f79b723f3c73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/398058
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    At the time we generate runtime types, we want to check against the full
+    method set of interface instead.
+    
+    Fixes #46386
+    
+    Change-Id: Idff53ad39276be6632eb5932b76e855c15cbdd2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323649
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/envcmd/env.go | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  4 ++--
+ test/fixedbugs/issue46386.go                    | 32 +++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

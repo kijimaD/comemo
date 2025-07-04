@@ -1,14 +1,24 @@
-commit 24bd465bca145320bffd5b06e11da105226a1eae
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Apr 14 14:07:59 2016 -0400
+commit ca56c590d4dfaa655d2355b382d6a950911f3263
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 14:11:17 2016 -0800
 
-    test: use correct value in error message in init1.go
+    cmd/compile: add setNodeSeq, and use it in bimport.go
     
-    Print numGC followed by numGC1, rather than printing numGC twice.
+    Also rewrite bexport.go to use nodeSeqIterate.
     
-    Change-Id: I8e7144b6a11d4ae9be0d82d88b86fed04b906e2f
-    Reviewed-on: https://go-review.googlesource.com/22087
+    The new setNodeSeq is a transitional generic function to set either a
+    NodeList or a slice to either a NodeList or a slice.  This should permit
+    us to flip fields from *NodeList to []*Node, or Nodes, without changing
+    other code.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I872cbfe45bc5f432595737c1f6da641c502b1ab6
+    Reviewed-on: https://go-review.googlesource.com/20194
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/init1.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/bexport.go   | 42 +++++--------------
+ src/cmd/compile/internal/gc/bimport.go   | 69 ++++++++++++++----------------
+ src/cmd/compile/internal/gc/syntax.go    | 72 +++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ 4 files changed, 114 insertions(+), 71 deletions(-)

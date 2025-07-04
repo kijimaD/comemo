@@ -1,13 +1,13 @@
-commit 217693e93c23fed2f3224dfaf1eb730d8e5256bb
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jan 12 11:08:39 2011 +1100
+commit 02e88019f23e56a17824b65e462be0746acdd116
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 11 15:47:45 2011 -0800
 
-    os: add Sync to *File, wraps syscall.Fsync
+    template: allow accesses only to exported fields and methods
     
-    R=rsc, brainman, r, r2
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/3887042
+    https://golang.org/cl/3890042
 
- src/pkg/os/file.go                 | 13 +++++++++++++
- src/pkg/syscall/syscall_windows.go |  3 +++
- 2 files changed, 16 insertions(+)
+ src/pkg/template/template.go      |  14 +++
+ src/pkg/template/template_test.go | 221 +++++++++++++++++++-------------------
+ 2 files changed, 125 insertions(+), 110 deletions(-)

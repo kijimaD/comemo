@@ -1,16 +1,21 @@
-commit c810c6db101b53154b06f9ef1ff7455aaff16c36
-Author: Chirag Sukhala <cchirag77@gmail.com>
-Date:   Sun Aug 16 21:49:53 2020 +0000
+commit 7cf907606d7e2c86abad6180a0467fb4a3797268
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Feb 1 17:04:34 2020 -0500
 
-     doc/articles/wiki: add missing log import to net/http tutorial
+    [dev.link] cmd/link: remove sym.Symbol based host object support
     
-    The log package is used with the net/http but was not in the import clause.
+    We have converted all the host object readers to the new loader
+    based mechanism, and no longer do sym.Symbol host object loading.
+    Remove that support. So we don't have to take care of that in
+    future changes to the loader.
     
-    Change-Id: Ic45b987633adf0ee15defd4d136b5d37027e22b0
-    GitHub-Last-Rev: e74aff53370569864b7ec8c18617a5d992d34bf2
-    GitHub-Pull-Request: golang/go#36674
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/215618
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    TODO: there are still code outside the loader than can be
+    removed. This CL only focuses on the loader.
+    
+    Change-Id: I67dd75f631964921a7c7a6576ed95b071241484a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217518
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/articles/wiki/index.html | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/link/internal/loader/loader.go | 155 +--------------------------------
+ 1 file changed, 3 insertions(+), 152 deletions(-)

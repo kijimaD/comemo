@@ -1,15 +1,12 @@
-commit 427bec62b5a24aa42b0dc97a6040fd84d7f4366d
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Wed Jun 5 10:18:06 2013 +1000
+commit cdfbe00d915d823019fe165c7935a83c2a8dcb5f
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jun 4 17:12:29 2013 -0700
 
-    image/jpeg: avoid documentation argument over whether it's luma
-    subsampling or chroma subsampling.
+    runtime: fix description of SysAlloc
     
-    Fixes #5569.
-    
-    R=r
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/9900044
+    https://golang.org/cl/10010046
 
- src/pkg/image/jpeg/reader.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/runtime/malloc.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

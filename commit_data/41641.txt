@@ -1,26 +1,18 @@
-commit e2a9ea035d73df84c813132417366e8e01777c8d
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 13 12:51:09 2020 -0400
+commit 728a876ae291a2229047f2d112e0dffc71950dee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 16 21:55:40 2019 +0000
 
-    cmd/go/internal/modload: suppress the 'go mod init' hint for GOROOT more aggressively
+    net: skip some interface tests on Dragonfly for now
     
-    Previously, we suppressed a `to create a module there, run: … go mod
-    init' warning only if the config file itself (such as .git/config) was
-    found in GOROOT. However, our release tarballs don't include the
-    .git/config, so that case was not encountered, and the warning could
-    occur based on a config file found in some parent directory (outside
-    of GOROOT entirely).
+    Skipping tests isn't great, but neither is a wall of red masking other
+    potential regressions.
     
-    Instead, skip the directory walk completely if the working directory
-    is anywhere in GOROOT.
+    Updates #34368
     
-    Fixes #34191
-    
-    Change-Id: I9f774901bfbb53b700407c4882f37d6339d023fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223340
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I5fdfa54846dd8d648001594c74f059af8af52247
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201482
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/init.go            |  9 +++++----
- src/cmd/go/testdata/script/mod_convert_git.txt | 17 +++++++++++++++++
- 2 files changed, 22 insertions(+), 4 deletions(-)
+ src/net/interface_test.go | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)

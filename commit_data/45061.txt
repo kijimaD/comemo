@@ -1,26 +1,27 @@
-commit 352d329c44d99b5c6cb325940006ca52f88195f3
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 9 16:08:28 2021 -0400
+commit 0163bdae685c1b060f8108ac5af13ea6374555b1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Sep 28 17:43:44 2020 -0400
 
-    runtime: move zero-sized frame check from newproc to newproc1
+    crypto/tls: fix TestLinkerGC test
     
-    If GOEXPERIMENT=regabidefer is enabled, newproc currently checks that
-    the call frame for new goroutines is empty. But there's one place in
-    the runtime (debugCallWrap), where we call newproc1, and it happens to
-    pass a non-empty frame. The current check didn't catch that. Move the
-    empty call frame check from newproc to newproc1 to catch this.
+    A test that checks if "tls.(*Conn)" appears in any symbol's name.
+    tls.Conn is a type, so the string "tls.(*Conn)" can only appear
+    in the name of a method of Conn. But the test code doesn't use
+    any of the methods. Not sure why this needs to be live. In
+    particular, the linker is now able to prune all methods of Conn.
+    Remove this requirement. In fact, just drop the only_conn test
+    case, as simply allocating a type doesn't necessarily bring
+    anything live.
     
-    Updates #40724.
-    
-    Change-Id: I9998faf1e07e7b7af88e06a8177127f998c40252
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309034
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I754291b75d38e1465b5291b4dea20806615d21b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257973
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/debug_test.go |  8 ++++++--
- src/runtime/proc.go       | 14 ++++++++------
- 2 files changed, 14 insertions(+), 8 deletions(-)
+ src/crypto/tls/link_test.go | 13 -------------
+ 1 file changed, 13 deletions(-)

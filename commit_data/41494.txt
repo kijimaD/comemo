@@ -1,16 +1,25 @@
-commit 3061d89651618bd4ebe84ee0df3a83effc35c9e3
-Author: Michael Matloob <matloob@golang.org>
-Date:   Thu Feb 27 17:24:48 2020 -0500
+commit ecba83520d4c34870e0f5f0997d59d4496957240
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Oct 8 00:58:26 2019 +0200
 
-    cmd/go/testdata/script: fix path separator in test to be os-independent
+    syscall: on wasm, do not panic if "process" global is not defined
     
-    Use ${:} instead of : so to be Windows-friendly.
+    When running wasm in the browser, the "process" global is not defined.
+    This causes functions like os.Getpid() to panic, which is unusual.
+    For example on Windows os.Getpid() returns -1 and does not panic.
     
-    Change-Id: I5e660af49b0a2ac2da868583cbcb55cf8bf89b68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221461
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    This change adds a dummy polyfill for "process" which returns -1 or an
+    error. It also extends the polyfill for "fs".
+    
+    Fixes #34627
+    Replaces CL 199357
+    
+    Change-Id: Ifeb12fe7e152c517848933a9ab5f6f749896dcef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199698
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/testdata/script/install_shadow_gopath.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/wasm/wasm_exec.js    | 60 ++++++++++++++++++++++++++++++++++++-----------
+ src/syscall/syscall_js.go |  5 ++--
+ 2 files changed, 49 insertions(+), 16 deletions(-)

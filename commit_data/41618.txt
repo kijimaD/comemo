@@ -1,14 +1,19 @@
-commit 251f3e5b9cf204b80f78eb383f84e3672603d57d
-Author: Tamir Duberstein <tamird@google.com>
-Date:   Mon Mar 9 16:32:49 2020 -0400
+commit 86f40a2e03580091ef8d2d0365ad01f2ea206ed9
+Author: bill_ofarrell <billo@ca.ibm.com>
+Date:   Tue Oct 15 19:30:54 2019 -0400
 
-    runtime/pprof: document that debug=0 emits proto
+    crypto/ecdsa: fix buffer size on s390x for ecdsa
     
-    Updates #16093.
+    I used too small a size for buffers, which can cause a panic in some testing.
+    The new buffer size is generous and sufficient for all purposes.
     
-    Change-Id: I629b3d44d6b2083f5e62701cc0c23fe2362502d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222676
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Fixes #34927
+    Fixes #34928
+    
+    Change-Id: Icdbbfed5da87fe3757be40dfd23182b37ec62d58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201317
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/pprof.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/crypto/ecdsa/ecdsa_s390x.go | 6 +++---
+ src/crypto/ecdsa/ecdsa_s390x.s  | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

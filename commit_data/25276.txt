@@ -1,30 +1,35 @@
-commit 01baf13ba587f2caabdec8d6c58cb5c7db7812d1
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 14 17:25:28 2015 -0500
+commit 57670ad8b29fb62dc87e970fde95e3263f6948ff
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 9 16:48:30 2015 -0400
 
-    runtime: only trigger forced GC if GC is not running
+    [dev.ssa] cmd/compile: fill remaining SSA gaps
     
-    Currently, sysmon triggers a forced GC solely based on
-    memstats.last_gc. However, memstats.last_gc isn't updated until mark
-    termination, so once sysmon starts triggering forced GC, it will keep
-    triggering them until GC finishes. The first of these actually starts
-    a GC; the remainder up to the last print "GC forced", but gcStart
-    returns immediately because gcphase != _GCoff; then the last may start
-    another GC if the previous GC finishes (and sets last_gc) between
-    sysmon triggering it and gcStart checking the GC phase.
+    Changed racewalk/race detector to use FP in a more
+    sensible way.
     
-    Fix this by expanding the condition for starting a forced GC to also
-    require that no GC is currently running. This, combined with the way
-    forcegchelper blocks until the GC cycle is started, ensures sysmon
-    only starts one GC when the time exceeds the forced GC threshold.
+    Relaxed checks for CONVNOP when race detecting.
     
-    Fixes #13458.
+    Modified tighten to ensure that GetClosurePtr cannot float
+    out of entry block (turns out this cannot be relaxed, DX is
+    sometimes stomped by other code accompanying race detection).
     
-    Change-Id: Ie6cf841927f6085136be3f45259956cd5cf10d23
-    Reviewed-on: https://go-review.googlesource.com/17819
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Added case for addr(CONVNOP)
+    
+    Modified addr to take "bounded" flag to suppress nilchecks
+    where it is set (usually, by race detector).
+    
+    Cannot leave unimplemented-complainer enabled because it
+    turns out we are optimistically running SSA on every platform.
+    
+    Change-Id: Ife021654ee4065b3ffac62326d09b4b317b9f2e0
+    Reviewed-on: https://go-review.googlesource.com/15710
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin.go         |  1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
+ src/cmd/compile/internal/gc/racewalk.go        | 14 ++------
+ src/cmd/compile/internal/gc/ssa.go             | 47 ++++++++++++++++----------
+ src/cmd/compile/internal/ssa/schedule.go       |  2 +-
+ src/cmd/compile/internal/ssa/tighten.go        |  3 +-
+ src/runtime/race_amd64.s                       | 16 ++++++++-
+ 7 files changed, 53 insertions(+), 31 deletions(-)

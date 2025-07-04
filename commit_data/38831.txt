@@ -1,38 +1,27 @@
-commit dbe32284ff4fb96906cdb121508eba668dbc5bae
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Apr 4 00:29:16 2019 -0400
+commit 438b9544a079576c539cdc040cbf337966a0b25d
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 26 14:41:23 2018 -0500
 
-    cmd/link: mmap object data
+    runtime: check more work flushing races
     
-    This resurrects CL 121198, except that this time we map read-only.
+    This adds several new checks to help debug #27993. It adds a mechanism
+    for freezing write barriers and gcWork puts during the mark completion
+    algorithm. This way, if we do detect mark completion, we can catch any
+    puts that happened during the completion algorithm. Based on build
+    dashboard failures, this seems to be the window of time when these are
+    happening.
     
-    In case that we need to apply relocations to the symbol's
-    content that is backed by read-only memory, we do our own copy-
-    on-write. This can happen if we failed to mmap the output file,
-    or we build for Wasm.
+    This also double-checks that all work buffers are empty immediately
+    upon entering mark termination (much earlier than the current check).
+    This is unlikely to trigger based on the current failures, but is a
+    good safety net.
     
-    Memory profile for building k8s.io/kubernetes/cmd/kube-apiserver
-    on Linux/AMD64:
-    
-    Old (before this sequence of CLs):
-    inuse_space 1598.75MB total
-    669.87MB 41.90% 41.90%   669.87MB 41.90%  cmd/link/internal/objfile.(*objReader).readSlices
-    
-    New:
-    inuse_space 1280.45MB total
-    441.18MB 34.46% 34.46%   441.18MB 34.46%  cmd/link/internal/objfile.(*objReader).readSlices
-    
-    Change-Id: I6b4d29d6eee9828089ea3120eb38c212db21330b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170741
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I03f56c48c4322069e28c50fbc3c15b2fee2130c2
+    Reviewed-on: https://go-review.googlesource.com/c/151797
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/internal/bio/buf.go              | 24 +++++++++++++
- src/cmd/internal/bio/buf_mmap.go         | 62 ++++++++++++++++++++++++++++++++
- src/cmd/internal/bio/buf_nommap.go       | 11 ++++++
- src/cmd/link/internal/ld/data.go         | 45 +++++++++++++++--------
- src/cmd/link/internal/ld/outbuf.go       |  1 +
- src/cmd/link/internal/objfile/objfile.go | 16 ++++++---
- src/cmd/link/internal/sym/attribute.go   |  6 +++-
- 7 files changed, 144 insertions(+), 21 deletions(-)
+ src/runtime/mgc.go     | 64 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/mgcwork.go | 34 +++++++++++++++------------
+ src/runtime/mwbbuf.go  |  2 +-
+ 3 files changed, 83 insertions(+), 17 deletions(-)

@@ -1,17 +1,36 @@
-commit f06795d9b742cf3292a0f254646c23603fc6419b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 17 21:04:39 2015 -0700
+commit e2543ef62c98b2ce07a54698e6a8293f380a1128
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 24 09:37:10 2015 +0000
 
-    doc/progs: build test programs in temp directory
+    runtime: add runtime.cmpstring and bytes.Compare
     
-    This avoids a race condition with go1.go wanting to examine files in
-    the current directory with filepath.Walk(".", walkFn).
+    Update #10007
     
-    Fixes #10497.
+    Implement runtime.cmpstring and bytes.Compare in asm for arm.
     
-    Change-Id: I2159f40a08d1a768195dbb7ea3c27e38cf9740bb
-    Reviewed-on: https://go-review.googlesource.com/9110
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    benchmark                                old ns/op     new ns/op     delta
+    BenchmarkCompareBytesEqual               254           91.4          -64.02%
+    BenchmarkCompareBytesToNil               41.5          37.6          -9.40%
+    BenchmarkCompareBytesEmpty               40.7          37.6          -7.62%
+    BenchmarkCompareBytesIdentical           255           96.3          -62.24%
+    BenchmarkCompareBytesSameLength          125           60.9          -51.28%
+    BenchmarkCompareBytesDifferentLength     133           60.9          -54.21%
+    BenchmarkCompareBytesBigUnaligned        17985879      5669706       -68.48%
+    BenchmarkCompareBytesBig                 17097634      4926798       -71.18%
+    BenchmarkCompareBytesBigIdentical        16861941      4389206       -73.97%
+    
+    benchmark                             old MB/s     new MB/s     speedup
+    BenchmarkCompareBytesBigUnaligned     58.30        184.95       3.17x
+    BenchmarkCompareBytesBig              61.33        212.83       3.47x
+    BenchmarkCompareBytesBigIdentical     62.19        238.90       3.84x
+    
+    This is a collaboration between Josh Bleecher Snyder and myself.
+    
+    Change-Id: Ib3944b8c410d0e12135c2ba9459bfe131df48edd
+    Reviewed-on: https://go-review.googlesource.com/8010
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/progs/run.go | 22 ++++++++++++++++------
- 1 file changed, 16 insertions(+), 6 deletions(-)
+ src/bytes/compare_test.go |  3 +++
+ src/runtime/asm_arm.s     | 51 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/noasm.go      |  4 ++--
+ 3 files changed, 56 insertions(+), 2 deletions(-)

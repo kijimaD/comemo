@@ -1,20 +1,22 @@
-commit ff0bc4669e00b590df4f185e417ed6dc1818e566
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Thu May 2 19:55:54 2024 +0000
+commit 47e6fd05f7d605774864984f70e5a93355109a61
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Wed Apr 26 10:02:22 2023 +0200
 
-    runtime: add crash stack support for mips/mipsle
+    runtime: remove systemstack logic from adjustframe
     
-    Change-Id: Ic6fcdfb6a9a912a9b1dd268836d2e5ab44d80440
-    GitHub-Last-Rev: dab6ecc0660d3e0f8e23944286f965a3bb15b4cb
-    GitHub-Pull-Request: golang/go#65305
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558698
+    Remove logic for skipping some adjustframe logic for systemstack (aka
+    FuncID_systemstack_switch). This was introduced in 2014 by
+    9198ed4bd6ec7b7dd37aa2797e96f15ddbb1e6cd but doesn't seem to be needed
+    anymore.
+    
+    Updates #59692
+    
+    Change-Id: I2368d64f9bb28ced4e7f15c9b15dac7a29194389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489116
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/asm.s       |  4 ++++
- src/runtime/asm_mipsx.s | 37 ++++++++++++++++++++++++++++++-------
- src/runtime/proc.go     |  2 +-
- 3 files changed, 35 insertions(+), 8 deletions(-)
+ src/runtime/stack.go | 7 -------
+ 1 file changed, 7 deletions(-)

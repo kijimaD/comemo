@@ -1,15 +1,16 @@
-commit e6a901ea3ac4b37be94aaf7b0285ba1840354c4e
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 09:37:54 2016 -0400
+commit 2b583a190eb14c69bffe5d488d2d6d3862fe76ea
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Wed Jun 22 21:57:52 2016 -0700
 
-    cmd/go: disable SSH connection pooling to avoid git hang
+    text/template: fix Parse when called twice with empty text
     
-    Fixes #13453.
-    Fixes #16104.
+    Fixes #16156
     
-    Change-Id: I4e94f606df786af8143f8649c9afde570f346301
-    Reviewed-on: https://go-review.googlesource.com/31353
-    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Change-Id: I6989db4fd392583a2d490339cefc525b07c11b90
+    Reviewed-on: https://go-review.googlesource.com/24380
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/get.go | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/text/template/multi_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/text/template/template.go   |  2 +-
+ 2 files changed, 37 insertions(+), 1 deletion(-)

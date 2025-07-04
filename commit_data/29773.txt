@@ -1,14 +1,19 @@
-commit 9ad47c4f67d592c768435f0c04a6d61ebee8c06f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 8 23:49:54 2016 +0000
+commit f4e37c8ec5f54964221fc950c2f0260140f438d8
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 7 10:08:10 2016 -0700
 
-    doc: add http.NoBody and Transport change to go1.8.html
+    cmd/compile: use standard dom tree in nilcheckelim
     
-    Fixes #18257
+    No need to build a bespoke dom tree here when we might
+    have one cached already.  The allocations for the dom tree
+    were also more expensive than they needed to be.
     
-    Change-Id: Iafba5aa0a0641cfe36351bb0e4b57f20257fdc4e
-    Reviewed-on: https://go-review.googlesource.com/34210
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #12021
+    
+    Change-Id: I6a967880aee03660ad6fc293f8fc783779cae11d
+    Reviewed-on: https://go-review.googlesource.com/30671
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.html | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/compile/internal/ssa/nilcheck.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

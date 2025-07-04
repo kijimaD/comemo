@@ -1,13 +1,16 @@
-commit c2aee3c0bf7b4199d71970df5557b28b53afae4f
+commit 1e095b76229a8faa329dbdee6de246faabc3cf53
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Jan 17 18:50:49 2013 +0800
+Date:   Thu Jan 17 18:45:49 2013 +0800
 
-    cmd/godoc: when redirecting don't clear query string
-    so that http://golang.org/pkg/runtime?m=all works.
+    testing: introduce (*B).ReportAllocs()
+    Calling it will show memory allocation statistics for that
+    single benchmark (if -test.benchmem is not provided)
     
-    R=bradfitz
+    R=golang-dev, rsc, kevlar, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7094046
+    https://golang.org/cl/7027046
 
- src/cmd/godoc/godoc.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/exp/html/parse_test.go |  8 +-------
+ src/pkg/exp/html/token_test.go |  8 +-------
+ src/pkg/testing/benchmark.go   | 20 ++++++++++++++------
+ 3 files changed, 16 insertions(+), 20 deletions(-)

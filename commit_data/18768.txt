@@ -1,17 +1,19 @@
-commit 31731b27cd9001d399e0e3c38c149c51dacb22ac
+commit 967901a396eb702497e1e1dbaf64987744a92a45
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 5 16:01:37 2014 -0800
+Date:   Wed Mar 5 14:09:03 2014 -0800
 
-    net/rpc/jsonrpc: add temporarily-disabled failing test
+    doc: update links in contribute.html
     
-    To be enabled by https://golang.org/cl/71230045/
+    CLA links are now redirects. Use new URLs instead.
     
-    Update #7442
+    Also, use https:// links for all Google sites where
+    the http version just redirects to https anyway.
+    (That's all links on the page, as it turns out)
     
     LGTM=adg
-    R=adg
+    R=golang-codereviews, adg
     CC=golang-codereviews
-    https://golang.org/cl/69860056
+    https://golang.org/cl/69980051
 
- src/pkg/net/rpc/jsonrpc/all_test.go | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ doc/contribute.html | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

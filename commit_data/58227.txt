@@ -1,31 +1,28 @@
-commit 6a7733af45493ddc1ededd2d0545004102c811a2
-Author: Daniel McCarney <daniel@binaryparadox.net>
-Date:   Thu Nov 14 13:38:14 2024 -0500
+commit ff7986d67029992b6a388a3797c4024d9a4856da
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Tue Oct 17 18:36:31 2023 +0000
 
-    crypto/pbkdf2: init package
+    go/printer: fix invalid output for empty decls
     
-    This commit imports the x/crypto/pbkdf2 package as described in the
-    linked proposal. The code is unchanged with the exception of a few
-    small updates to reflect feedback from the proposal comment period:
+    The current output for empty declarations such as var, const, import
+    results in "var", "const", "import" respectively. These are not valid
+    and the parser will promptly reject them as invalid syntax.
     
-    * the Key function is made generic over a hash.Hash
-    * the h function is moved to be the first argument
-    * keyLen is renamed to keyLength
-    * an error return is added
-    * the unit tests were moved to the pbkdf2_test package
+    This CL updates this behavior by adding "()" to the output of empty
+    decls so the syntax becomes valid, e.g "var ()" instead of "var".
     
-    Updates #69488
+    Fixes #63566
     
-    Change-Id: If72f854daeb65a5c7fbe45ebd341e63a33340624
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628135
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I571b182d9ccf71b159360c8de003ad55d0ff3443
+    GitHub-Last-Rev: 2720419e364938e9962be71d0e6ed51375fec404
+    GitHub-Pull-Request: golang/go#63593
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535995
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
 
- api/next/69488.txt                                |   1 +
- doc/next/6-stdlib/2-pbkdf2.md                     |   2 +
- doc/next/6-stdlib/99-minor/crypto/pbkdf2/69488.md |   1 +
- src/crypto/pbkdf2/pbkdf2.go                       |  77 +++++++++
- src/crypto/pbkdf2/pbkdf2_test.go                  | 184 ++++++++++++++++++++++
- src/go/build/deps_test.go                         |   2 +
- 6 files changed, 267 insertions(+)
+ src/go/printer/nodes.go        |  2 +-
+ src/go/printer/printer_test.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

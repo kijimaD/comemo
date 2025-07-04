@@ -1,24 +1,26 @@
-commit dace96b9a12905b34af609eedaa6b43e30e7cdb1
-Author: David Chase <drchase@google.com>
-Date:   Thu May 4 16:08:13 2023 -0400
+commit 8ef8b60e1816e0624fc894df90c853772d5059bb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 3 14:30:04 2022 -0700
 
-    cmd/compile: add "loop-transformed" (for whole loop) to logopt
+    [dev.unified] cmd/compile/internal/noder: stop handling type expressions as expressions
     
-    This is intended to support automated pairing of performance
-    regressions with transformed loops; there is already a POC
-    for doing this in the general missed-optimization case; the
-    difference here is the ability to describe an entire range,
-    which required some extra plumbing to acquire and publish
-    the ending line+column.
+    There are two places currently where we rely on type expressions as
+    generic expressions: the first argument to "make" and "new", and the
+    selectable operand within a method expression.
     
-    Change-Id: Ibe606786f6be917b5a9a69d773560ed716a0754d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492717
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This CL makes that code responsible for handling the type expressions
+    directly. Longer term, this will be relevant to appropriately handling
+    derived types, because it will provide additional context about how
+    the derived type is to be used.
+    
+    Change-Id: I9d7dcf9d32dada032ff411cd103b9df413c298a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410101
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/escape/solve.go    |   5 +-
- src/cmd/compile/internal/gc/main.go         |  42 +--------
- src/cmd/compile/internal/logopt/log_opts.go |  57 ++++++++-----
- src/cmd/compile/internal/loopvar/loopvar.go | 127 +++++++++++++++++++++++++++-
- 4 files changed, 165 insertions(+), 66 deletions(-)
+ src/cmd/compile/internal/noder/codes.go  |  3 ++-
+ src/cmd/compile/internal/noder/reader.go | 37 ++++++++++++++++++++----------
+ src/cmd/compile/internal/noder/writer.go | 39 +++++++++++++++++++++++++-------
+ 3 files changed, 58 insertions(+), 21 deletions(-)

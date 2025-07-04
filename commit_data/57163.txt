@@ -1,17 +1,23 @@
-commit 3e3ce20df87b2de86fbcbbad863b07b1a133e879
-Author: Sebastian Nickolls <sebastian.nickolls@arm.com>
-Date:   Tue Aug 13 11:47:40 2024 +0100
+commit c8dad424bf01df69af729845acc151a66b87d594
+Author: Michael Munday <mike.munday@lowrisc.org>
+Date:   Sat Jul 1 00:01:26 2023 +0100
 
-    cmd/internal/obj/arm64: Emit UDF instruction for undefined Prog nodes
+    math: fix portable FMA when x*y < 0 and x*y == -z
     
-    UDF provides a stronger guarantee for generating the Undefined
-    Instruction exception than the current value being emitted.
+    When x*y == -z the portable implementation of FMA copied the sign
+    bit from x*y into the result. This meant that when x*y == -z and
+    x*y < 0 the result was -0 which is incorrect.
     
-    Change-Id: I234cd70ce04f21311959c1061ae24992438105f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605155
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #61130.
+    
+    Change-Id: Ib93a568b7bdb9031e2aedfa1bdfa9bddde90851d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507376
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/math/all_test.go | 7 +++++++
+ src/math/fma.go      | 5 +++++
+ 2 files changed, 12 insertions(+)

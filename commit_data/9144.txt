@@ -1,52 +1,37 @@
-commit 90f3cb13fb0f37073e02ecd79771deb938ea7f5e
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Jul 20 11:51:25 2011 -0400
+commit ba2e3af1778da52340a9f3f7dd7262e5ebf64055
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jul 20 12:47:02 2011 -0300
 
-    runtime: improve performance of sync channels
-    1. SudoG always contains a pointer to the element
-    (thus no variable size, and less copying).
-    2. chansend/chanrecv allocate SudoG on the stack.
-    3. Copying of elements and gorotuine notifications
-    are moved out of critical sections.
+    ld: remove overlap of ELF sections on dynamic binaries
     
-    benchmark                        old ns/op    new ns/op    delta
-    BenchmarkSelectUncontended          515.00       514.00   -0.19%
-    BenchmarkSelectUncontended-2        291.00       281.00   -3.44%
-    BenchmarkSelectUncontended-4        213.00       189.00  -11.27%
-    BenchmarkSelectUncontended-8         78.30        79.00   +0.89%
-    BenchmarkSelectContended            518.00       514.00   -0.77%
-    BenchmarkSelectContended-2          655.00       631.00   -3.66%
-    BenchmarkSelectContended-4         1026.00      1051.00   +2.44%
-    BenchmarkSelectContended-8         2026.00      2128.00   +5.03%
-    BenchmarkSelectNonblock             175.00       173.00   -1.14%
-    BenchmarkSelectNonblock-2            85.10        87.70   +3.06%
-    BenchmarkSelectNonblock-4            60.10        43.30  -27.95%
-    BenchmarkSelectNonblock-8            37.60        25.50  -32.18%
-    BenchmarkChanUncontended            109.00       114.00   +4.59%
-    BenchmarkChanUncontended-2           54.60        57.20   +4.76%
-    BenchmarkChanUncontended-4           27.40        28.70   +4.74%
-    BenchmarkChanUncontended-8           14.60        15.10   +3.42%
-    BenchmarkChanContended              108.00       114.00   +5.56%
-    BenchmarkChanContended-2            621.00       617.00   -0.64%
-    BenchmarkChanContended-4            759.00       677.00  -10.80%
-    BenchmarkChanContended-8           1635.00      1517.00   -7.22%
-    BenchmarkChanSync                   299.00       256.00  -14.38%
-    BenchmarkChanSync-2                5055.00      4624.00   -8.53%
-    BenchmarkChanSync-4                4998.00      4680.00   -6.36%
-    BenchmarkChanSync-8                5019.00      4760.00   -5.16%
-    BenchmarkChanProdCons0              316.00       274.00  -13.29%
-    BenchmarkChanProdCons0-2           1280.00       617.00  -51.80%
-    BenchmarkChanProdCons0-4           2433.00      1332.00  -45.25%
-    BenchmarkChanProdCons0-8           3651.00      1934.00  -47.03%
-    BenchmarkChanProdCons10             153.00       152.00   -0.65%
-    BenchmarkChanProdCons10-2           626.00       581.00   -7.19%
-    BenchmarkChanProdCons10-4          1440.00      1323.00   -8.12%
-    BenchmarkChanProdCons10-8          2036.00      2017.00   -0.93%
+    The dynamic ELF sections were pointing to the proper data,
+    but that data was already owned by the rodata and text sections.
+    Some ELF references explicitly prohibit multiple sections from
+    owning the same data, and strip behaves accordingly.
     
-    R=rsc, ken
+    The data for these sections was moved out and their ranges are
+    now owned by their respective sections.  This change makes strip
+    happy both with and without -s being provided at link time.
+    
+    A test was added in debug/elf to ensure there are no regressions
+    on this area in the future.
+    
+    Fixes #1242.
+    Fixes #2022.
+    
+    NOTE: Tested on Linux amd64/386/arm only.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4790042
+    https://golang.org/cl/4808043
 
- src/pkg/runtime/chan.c       | 127 +++++++++++-----------
- src/pkg/runtime/chan_test.go | 251 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 313 insertions(+), 65 deletions(-)
+ src/cmd/5l/asm.c               | 52 ++++++++++++++++--------------
+ src/cmd/5l/span.c              |  2 +-
+ src/cmd/6l/asm.c               | 65 ++++++++++++++++++++++++--------------
+ src/cmd/8l/asm.c               | 72 ++++++++++++++++++++++--------------------
+ src/cmd/ld/data.c              | 48 +++++++++++++++++++++-------
+ src/cmd/ld/elf.c               | 35 ++++----------------
+ src/cmd/ld/lib.h               |  3 +-
+ src/cmd/ld/pe.c                |  2 +-
+ src/pkg/debug/elf/file_test.go | 29 +++++++++++++++++
+ 9 files changed, 185 insertions(+), 123 deletions(-)

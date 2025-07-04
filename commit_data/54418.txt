@@ -1,27 +1,28 @@
-commit 2399302a251ef54e4669f2065f656b61d2f5c323
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Sep 11 12:15:48 2023 -0400
+commit 61f0409c31cad8729d7982425d353d7b2ea80534
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Mar 2 13:01:48 2022 -0800
 
-    cmd/compile/internal/base: keep Ctxt.Flag_optimize in sync with Flag.N
+    reflect: add Value.Grow
     
-    This patch fixes an inconsistency in compiler flag handling introduced
-    accidentally in CL 521699. In the compiler we have both base.Flag.N
-    (which records whether the user has supplied the "-N" flag to disable
-    optimization) and base.Ctxt.Flag_optimize (which tracks whether
-    optimization is turned on). In this case Flag.N was updated without a
-    corresponding change to Ctxt.Flag_optimize, which led to problems with
-    DWARF generation for the runtime.
+    The Grow method is like the proposed slices.Grow function
+    in that it ensures that the slice has enough capacity to append
+    n elements without allocating.
     
-    This CL doesn't include a regression test; a test will be added later
-    in the x/debug repo in a subsequent CL.
+    The implementation of Grow is a thin wrapper over runtime.growslice.
+    This also changes Append and AppendSlice to use growslice under the hood.
     
-    Updates #62523.
+    Fixes #48000
     
-    Change-Id: I0c383bb43ec0a0e7c12e7e2852c0590731416d6f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527319
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I992a58584a2ff1448c1c2bc0877fe76073609111
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389635
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/base/flag.go | 1 +
- 1 file changed, 1 insertion(+)
+ api/next/48000.txt      |   1 +
+ src/reflect/all_test.go | 120 ++++++++++++++++++++++++++++++++++++++++--------
+ src/reflect/value.go    |  86 +++++++++++++++++++++-------------
+ src/runtime/slice.go    |  39 ++++++++++++----
+ 4 files changed, 188 insertions(+), 58 deletions(-)

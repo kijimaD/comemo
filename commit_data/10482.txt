@@ -1,15 +1,44 @@
-commit fe838c2ddb89014202299f9ab95685097753784e
+commit 6e3e3809231c71fc30b6d0cdcb1f60c5e6e816ef
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 22 12:31:33 2011 -0500
+Date:   Tue Nov 22 12:30:02 2011 -0500
 
-    encoding/xml: fix copy bug
+    allow direct conversion between string and named []byte, []rune
     
-    Fixes #2484.
+    The allowed conversions before and after are:
+            type Tstring string
+            type Tbyte []byte
+            type Trune []rune
     
-    R=golang-dev, bradfitz
+            string <-> string  // ok
+            string <-> []byte  // ok
+            string <-> []rune // ok
+            string <-> Tstring // ok
+            string <-> Tbyte // was illegal, now ok
+            string <-> Trune // was illegal, now ok
+    
+            Tstring <-> string  // ok
+            Tstring <-> []byte  // ok
+            Tstring <-> []rune // ok
+            Tstring <-> Tstring // ok
+            Tstring <-> Tbyte // was illegal, now ok
+            Tstring <-> Trune // was illegal, now ok
+    
+    Update spec, compiler, tests.  Use in a few packages.
+    
+    We agreed on this a few months ago but never implemented it.
+    
+    Fixes #1707.
+    
+    R=golang-dev, gri, r
     CC=golang-dev
-    https://golang.org/cl/5417059
+    https://golang.org/cl/5421057
 
- src/pkg/encoding/xml/xml.go      | 2 +-
- src/pkg/encoding/xml/xml_test.go | 5 ++++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ doc/go_spec.html                 |  24 ++++++---
+ src/cmd/gc/subr.c                |  12 ++---
+ src/pkg/encoding/xml/xml_test.go | 102 +++++++++++++++++++--------------------
+ src/pkg/net/http/sniff.go        |  34 ++++++-------
+ src/pkg/net/mail/message.go      |   2 +-
+ test/convert1.go                 |  96 ++++++++++++++++++++++++++++++++++++
+ test/convlit.go                  |   6 +--
+ test/named1.go                   |   4 +-
+ 8 files changed, 191 insertions(+), 89 deletions(-)

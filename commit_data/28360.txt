@@ -1,20 +1,33 @@
-commit 5940a007c14af11fe35f48d8f7daa3cd9036aaa3
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Sep 13 08:24:07 2016 -0400
+commit 9d73e146dade6553f2365de2ada0156dcb6026d9
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Apr 19 19:05:53 2016 +0300
 
-    cmd/link: R_ADDR dynamic relocs for internal PIE
+    hash/crc64: Use slicing by 8.
     
-    This gets -buildmode=pie -ldflags=-linkmode=internal working on
-    Ubuntu 16.04.
+    Similar to crc32 slicing by 8.
+    This also fixes a Crc64KB benchmark actually using 1024 bytes.
     
-    Fixes #17068
+    Crc64/ISO64KB-4       147µs ± 0%      37µs ± 0%   -75.05%  (p=0.000 n=18+18)
+    Crc64/ISO4KB-4       9.19µs ± 0%    2.33µs ± 0%   -74.70%  (p=0.000 n=19+20)
+    Crc64/ISO1KB-4       2.31µs ± 0%    0.60µs ± 0%   -73.81%  (p=0.000 n=19+15)
+    Crc64/ECMA64KB-4      147µs ± 0%      37µs ± 0%   -75.05%  (p=0.000 n=20+20)
+    Crc64/Random64KB-4    147µs ± 0%      41µs ± 0%   -72.17%  (p=0.000 n=20+18)
+    Crc64/Random16KB-4   36.7µs ± 0%    36.5µs ± 0%    -0.54%  (p=0.000 n=18+19)
     
-    Change-Id: Ice5036199005fb528cc58279a7f057170dc6b73d
-    Reviewed-on: https://go-review.googlesource.com/29118
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    name                old speed     new speed      delta
+    Crc64/ISO64KB-4     446MB/s ± 0%  1788MB/s ± 0%  +300.72%  (p=0.000 n=18+18)
+    Crc64/ISO4KB-4      446MB/s ± 0%  1761MB/s ± 0%  +295.20%  (p=0.000 n=18+20)
+    Crc64/ISO1KB-4      444MB/s ± 0%  1694MB/s ± 0%  +281.46%  (p=0.000 n=19+20)
+    Crc64/ECMA64KB-4    446MB/s ± 0%  1788MB/s ± 0%  +300.77%  (p=0.000 n=20+20)
+    Crc64/Random64KB-4  446MB/s ± 0%  1603MB/s ± 0%  +259.32%  (p=0.000 n=20+18)
+    Crc64/Random16KB-4  446MB/s ± 0%   448MB/s ± 0%    +0.54%  (p=0.000 n=18+20)
+    
+    Change-Id: I1c7621d836c486d6bfc41dbe1ec2ff9ab11aedfc
+    Reviewed-on: https://go-review.googlesource.com/22222
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/link/internal/amd64/asm.go | 47 ++++++++++++++++++++++++++++++++++++--
- 1 file changed, 45 insertions(+), 2 deletions(-)
+ src/hash/crc64/crc64.go      | 58 ++++++++++++++++++++++++++++++++++++++++++++
+ src/hash/crc64/crc64_test.go | 29 +++++++++++++++++++---
+ 2 files changed, 83 insertions(+), 4 deletions(-)

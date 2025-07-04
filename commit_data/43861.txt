@@ -1,20 +1,29 @@
-commit d902791b509b641683d4ec58b282180c56918aec
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Nov 21 15:53:18 2020 +0100
+commit 08bf64a81e4c3e2199d0e879089880f538fafbb9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 24 20:06:57 2020 +0000
 
-    sync: use 386 instead of x86-32 to refer to the 32 bit x86 architecture
+    runtime: bound small object sweeping to 100 spans when allocating
     
-    This aligns the naming with GOARCH using 386 as a build target for
-    this architecture and makes it more easily found when searching
-    for documentation related to the build target.
+    Currently, the small object sweeper will sweep until it finds a free
+    slot or there are no more spans of that size class to sweep. In dense
+    heaps, this can cause sweeping for a given size class to take
+    unbounded time, and gets worse with larger heaps.
     
-    Change-Id: I393bb89dd2f71e568124107b13e1b288fbd0c76a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271988
-    Trust: Martin Möhrmann <moehrmann@google.com>
-    Run-TryBot: Martin Möhrmann <martisch@uos.de>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This CL limits the small object sweeper to try at most 100 spans
+    before giving up and allocating a fresh span. Since it's already shown
+    that 100 spans are completely full at that point, the space overhead
+    of this fresh span is at most 1%.
+    
+    This CL is based on an experimental CL by Austin Clements (CL 187817)
+    and is updated to be part of the mcentral implementation, gated by
+    go115NewMCentralImpl.
+    
+    Updates #18155.
+    
+    Change-Id: I37a72c2dcc61dd6f802d1d0eac3683e6642b6ef8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229998
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/sync/atomic/doc.go | 11 +++++------
- src/sync/once.go       |  2 +-
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ src/runtime/mcentral.go | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)

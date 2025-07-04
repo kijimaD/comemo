@@ -1,25 +1,28 @@
-commit c0fd7f79fe445ad49e11bf42c8c785cb71b3bedf
-Author: Daniel Nephin <dnephin@gmail.com>
-Date:   Thu Mar 30 16:00:15 2023 +0000
+commit 5073c1c7407ad5f23e54cc0a6410ffbde23758bb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 3 15:29:43 2022 -0700
 
-    errors: improve the godoc for Join and Unwrap
+    cmd/compile: construct ir.FuncType within typecheck.DeclFunc
     
-    Document that errors returned by Join always implement Unwrap []error.
+    Currently all typecheck.DeclFunc callers already construct a fresh new
+    ir.FuncType, which is the last type expression kind that we represent
+    in IR.
     
-    Explicitly state that Unwrap does not unwrap errors
-    with an Unwrap() []error method.
+    This CL pushes all of the ir.FuncType construction down into
+    typecheck.DeclFunc. The next CL will simplify the internals so that we
+    can get rid of ir.FuncType altogether.
     
-    Change-Id: Id610345dcf43ca54a9dde157e56c5815c5112073
-    GitHub-Last-Rev: 7a0ec450bd0b2b38eecb5b94eaec485f4a6debbd
-    GitHub-Pull-Request: golang/go#59301
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480021
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I221ed324f157eb38bb57c8886609f53cc4fd99fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403848
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/errors/join.go | 2 ++
- src/errors/wrap.go | 3 ++-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/pkginit/init.go        |  2 +-
+ src/cmd/compile/internal/reflectdata/alg.go     | 20 +++++++++-----------
+ src/cmd/compile/internal/reflectdata/reflect.go | 22 ++++++++++------------
+ src/cmd/compile/internal/ssagen/abi.go          | 17 ++++++-----------
+ src/cmd/compile/internal/typecheck/dcl.go       | 11 ++++-------
+ src/cmd/compile/internal/walk/closure.go        |  8 +++-----
+ 6 files changed, 33 insertions(+), 47 deletions(-)

@@ -1,21 +1,32 @@
-commit e4820bcfed75cdc4cab2181e0f0ab21c282cec65
-Author: Chris McGee <sirnewton_01@yahoo.ca>
-Date:   Wed Sep 28 21:31:52 2016 -0400
+commit 8f3c8a33fad917abb45ef98b3a1cd34fe9715370
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Aug 25 21:06:10 2016 -0400
 
-    net: add multicast UDP support for plan9
+    cmd/link: make DynlinkingGo a method
     
-    The new implementation adds listening support on a multicast
-    address with plan9 network interfaces.
+    This will allow it to depend on whether plugin.Open is a symbol to be
+    linked in.
     
-    Fixes #17218
-    
-    Change-Id: I2c75515e72e120acb71610cd077fddfbf9cf4e29
-    Reviewed-on: https://go-review.googlesource.com/29964
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie9aa4216f2510fe8b10bc4665c8b19622b7122ea
+    Reviewed-on: https://go-review.googlesource.com/27819
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/udpsock.go            |  2 +-
- src/net/udpsock_plan9.go      | 38 +++++++++++++++++++++++-
- src/net/udpsock_plan9_test.go | 69 +++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 107 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/amd64/asm.go   |  4 ++--
+ src/cmd/link/internal/amd64/obj.go   |  2 +-
+ src/cmd/link/internal/arm/asm.go     |  2 +-
+ src/cmd/link/internal/arm/obj.go     |  2 +-
+ src/cmd/link/internal/arm64/asm.go   |  4 ++--
+ src/cmd/link/internal/arm64/obj.go   |  2 +-
+ src/cmd/link/internal/ld/data.go     |  2 +-
+ src/cmd/link/internal/ld/deadcode.go |  2 +-
+ src/cmd/link/internal/ld/lib.go      | 10 +++++-----
+ src/cmd/link/internal/ld/objfile.go  |  2 +-
+ src/cmd/link/internal/ld/symtab.go   | 30 +++++++++++++++---------------
+ src/cmd/link/internal/ppc64/asm.go   |  2 +-
+ src/cmd/link/internal/s390x/asm.go   |  2 +-
+ src/cmd/link/internal/s390x/obj.go   |  2 +-
+ src/cmd/link/internal/x86/asm.go     |  2 +-
+ src/cmd/link/internal/x86/obj.go     |  2 +-
+ 16 files changed, 36 insertions(+), 36 deletions(-)

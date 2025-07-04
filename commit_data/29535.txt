@@ -1,14 +1,16 @@
-commit 91461002f354a5fc8b3898bbb0ade90d2921441e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Nov 14 09:17:15 2016 +0900
+commit 35d22afb4b8e4f2c0ce06150727dc91a5c54378e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 20 18:12:27 2016 -0700
 
-    os: gofmt -w -s
+    cmd/internal/obj: remove unused GOROOT-related fields
     
-    Change-Id: I9a42cb55544185ade20b2a4a9de5d39a6cfc6fc6
-    Reviewed-on: https://go-review.googlesource.com/33172
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6634f70d6bd1a4eced47eda69a2d9b207d222a1b
+    Reviewed-on: https://go-review.googlesource.com/29470
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/os/executable_procfs.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/link.go | 2 --
+ src/cmd/internal/obj/obj.go  | 1 -
+ src/cmd/internal/obj/sym.go  | 3 ---
+ 3 files changed, 6 deletions(-)

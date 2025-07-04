@@ -1,19 +1,14 @@
-commit 7af553ab52cf0c79b906b70b9f4b11b2c926fbe1
+commit 34466a14911163fadcc54725143b04c47d4080aa
 Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Nov 13 21:05:35 2011 -0500
+Date:   Sun Nov 13 20:58:51 2011 -0500
 
-    exp/ssh: add direct-tcpip client support
+    exp/ssh: add client functional tests
     
-    This CL adds experimental support for making proxied
-    net.Conn connections via the remote server.
-    
-    nb. Functional tests exist for this feature but CL
-    5320053 or similar needs to be committed to support them.
+    Requires CL 5373055
     
     R=rsc, agl, n13m3y3r
-    CC=cw, golang-dev, huin
-    https://golang.org/cl/5371081
+    CC=golang-dev
+    https://golang.org/cl/5320053
 
- src/pkg/exp/ssh/Makefile |   3 +-
- src/pkg/exp/ssh/tcpip.go | 146 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 148 insertions(+), 1 deletion(-)
+ src/pkg/exp/ssh/client_func_test.go | 61 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

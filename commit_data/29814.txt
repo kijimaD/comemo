@@ -1,19 +1,20 @@
-commit a3b670e3333ca0f677a82321d3ad173e01e973a5
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Dec 13 21:23:39 2016 +0100
+commit 87b1aaa37cefec8deacdf9c3c30d26015bdfb00b
+Author: Xuyang Kang <xuyangkang@gmail.com>
+Date:   Sun Jul 17 00:23:56 2016 -0700
 
-    cmd/link: add external linking support for GOARCH=mips{,le}
+    encoding/base64: This change modifies Go to take strict option when decoding base64
     
-    Fixes #17792.
+    If strict option is enabled, when decoding, instead of skip the padding
+    bits, it will do strict check to enforce they are set to zero.
     
-    Change-Id: If4f24455eec0edb3b221aef6777a681f6c768866
-    Reviewed-on: https://go-review.googlesource.com/34313
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #15656
+    
+    Change-Id: I869fb725a39cc9dde44dbc4ff0046446e7abc642
+    Reviewed-on: https://go-review.googlesource.com/24964
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/config.go |   2 +-
- src/cmd/link/internal/ld/elf.go    |   2 +-
- src/cmd/link/internal/ld/lib.go    |   2 +
- src/cmd/link/internal/mips/asm.go  | 107 +++++++++++++++++++++++++++++++------
- 4 files changed, 96 insertions(+), 17 deletions(-)
+ src/encoding/base64/base64.go      | 24 +++++++++++++++++++++---
+ src/encoding/base64/base64_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

@@ -1,23 +1,31 @@
-commit b441eb3f978b8b7d4f09f8e583d419d8f4e40af6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Mar 28 14:35:20 2023 -0700
+commit ffe48e00adf3078944015186819a1ed5c6aa8bec
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 26 16:56:00 2022 -0500
 
-    os: remove mixed dot- and non-dot- imports in tests
+    sync/atomic: add typed atomic values
     
-    Some test files imported "os" twice, once with a dot and once without.
-    Consolidate on importing with a dot.
+    These implementations will inline to the lower-level primitives,
+    but they hide the underlying values so that all accesses are
+    forced to use the atomic APIs. They also allow the use of shorter
+    names (methods instead of functions) at call sites, making code
+    more readable.
     
-    Change-Id: I1db31053dff9dee19a6bdfc263c7e7ef0c15ee42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479995
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Pointer[T] also avoids conversions using unsafe.Pointer at call sites.
+    
+    Discussed on #47141.
+    See also https://research.swtch.com/gomm for background.
+    
+    Fixes #50860.
+    
+    Change-Id: I0b178ee0c7747fa8985f8e48cd7b01063feb7dcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381317
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/os/os_test.go             | 63 +++++++++++++++++++++----------------------
- src/os/os_unix_test.go        |  3 +--
- src/os/readfrom_linux_test.go | 17 ++++++------
- src/os/removeall_test.go      |  7 +++--
- 4 files changed, 43 insertions(+), 47 deletions(-)
+ api/next/50860.txt                        |   40 +
+ src/cmd/compile/internal/test/inl_test.go |   38 +
+ src/cmd/compile/internal/types/size.go    |    9 +
+ src/sync/atomic/atomic_test.go            | 1149 ++++++++++++++++++++++++++++-
+ src/sync/atomic/type.go                   |  191 +++++
+ 5 files changed, 1415 insertions(+), 12 deletions(-)

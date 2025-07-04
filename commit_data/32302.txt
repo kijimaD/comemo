@@ -1,12 +1,18 @@
-commit 6aa386686c760e84ac55299d4367e9166409f481
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 5 14:29:14 2017 +1000
+commit e956dcbdb5f17de2be22741216e7607e6c102029
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 17:45:22 2017 -0700
 
-    cmd/link: delete addpesection
+    cmd/compile: better variable names in internal/syntax/branches.go
     
-    Change-Id: Iee9db172d28d4d372fa617907078a494e764bf12
-    Reviewed-on: https://go-review.googlesource.com/55260
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Follow-up on https://go-review.googlesource.com/#/c/39998/.
+    
+    Change-Id: I97f8e31ca923685198984ad64f952d6dc8208edf
+    Reviewed-on: https://go-review.googlesource.com/40982
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 22 +++++++++-------------
- 1 file changed, 9 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/syntax/branches.go | 38 ++++++++++++++---------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

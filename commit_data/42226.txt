@@ -1,16 +1,23 @@
-commit ecdbffd4ec68b509998792f120868fec319de59b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Apr 29 11:00:23 2020 -0700
+commit 72f333a14b071e7560c67abcaacec176aaa604cf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 15 22:10:44 2019 +0000
 
-    net/http/httputil: don't append to X-Forwarded-For in ReverseProxy when nil
+    Revert "test: avoid writing temporary files to GOROOT"
     
-    Fixes #38079
+    This reverts CL 207352
     
-    Change-Id: Iac02d7f9574061bb26d1d9a41bb6ee6cc38934e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230937
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reason for revert: broke more builders than it fixed. 😞
+    
+    Change-Id: Ic5adefe92edfa2230b9c7d750c922473a6a5ded4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207477
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.15.html                            | 19 +++++++++++++----
- src/net/http/httputil/reverseproxy.go      | 17 +++++++++++----
- src/net/http/httputil/reverseproxy_test.go | 33 ++++++++++++++++++++++++++++++
- 3 files changed, 61 insertions(+), 8 deletions(-)
+ src/cmd/dist/test.go        | 14 +++++---------
+ test/fixedbugs/bug302.go    | 24 ++++++------------------
+ test/fixedbugs/bug369.go    | 22 +++++++++-------------
+ test/fixedbugs/issue9355.go |  3 ++-
+ test/linkmain_run.go        | 44 +++++++++++++++++---------------------------
+ test/sinit_run.go           |  7 ++-----
+ 6 files changed, 41 insertions(+), 73 deletions(-)

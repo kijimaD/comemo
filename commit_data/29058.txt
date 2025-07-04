@@ -1,18 +1,23 @@
-commit 050f378085da91ce65d2c0157b9bebcced5f883f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 25 11:45:26 2016 -0700
+commit 4333d3823dd78f755f90e5f63b7de180d4a90025
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 26 12:22:45 2016 +0900
 
-    cmd/go: add more env variables to "go bug"
+    net: fix typo in error message of TCPConn.ReadFrom
     
-    CL 31330 added more envvars to "go env".
-    This CL brings them to "go bug" as well.
+    On some error when using io.Copy with TCPConn, it displays an error
+    correlation like the following:
     
-    Change-Id: Iae122072c8178007eda8b765aaa3f38c3c6e39a0
-    Reviewed-on: https://go-review.googlesource.com/32011
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    read tcp 192.0.2.1:1111->192.0.2.2:2222: read tcp [2001:db8::2]:2222->[2001:db8::3]:3333 read: connection reset by peer
+    
+    the correlation "some error on reading after reading operation" looks a
+    bit confusing because the operation on the ReadFrom method of TCPConn is
+    actually "writing after reading." To clarify and avoid confusion, this
+    change sets "readfrom" to the Op field of outer-most OpError instead of
+    "read."
+    
+    Change-Id: I6bf4e2e7247143fa54bbcf9cef7a8ae1ede1b35c
+    Reviewed-on: https://go-review.googlesource.com/25220
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/bug.go |  4 +++-
- src/cmd/go/env.go | 27 +++++++++++++++------------
- 2 files changed, 18 insertions(+), 13 deletions(-)
+ src/net/tcpsock.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,19 @@
-commit 2d310a0087e9354f9c881dc8f9c2956803ca1c31
+commit 40745a579cd4f8fc9e1943ab651e30b2bf4a9543
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 16 16:15:13 2011 -0400
+Date:   Mon May 16 16:14:37 2011 -0400
 
-    5c, 5g: another attempt at silencing gcc
+    5l: delete pre-ARMv4 instruction implementations
+    
+    Add implementation for addr<->reg short moves.
+    Align large data, for ARM.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/4535074
+    https://golang.org/cl/4545050
 
- src/cmd/5c/gc.h   | 4 ++--
- src/cmd/5c/peep.c | 4 ++--
- src/cmd/5g/gg.h   | 4 ++--
- src/cmd/5g/peep.c | 4 ++--
- 4 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/5l/asm.c   | 140 ++++++-----------------------------------------------
+ src/cmd/5l/obj.c   |   2 +-
+ src/cmd/5l/optab.c |  35 +++-----------
+ src/cmd/5l/span.c  |   2 +-
+ src/cmd/ld/data.c  |   8 +++
+ 5 files changed, 32 insertions(+), 155 deletions(-)

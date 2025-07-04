@@ -1,13 +1,15 @@
-commit 4e3deae96d605cc5be6759b6ffdf659006e4c3a4
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Jun 24 22:31:24 2015 +1200
+commit fac1039615b7f252c38317ce5069d35b45da3cef
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Wed Aug 26 13:49:22 2015 +0200
 
-    cmd/link, runtime: arm64 implementation of addmoduledata
+    encoding/asn1: fix panic when Marshaling nil.
     
-    Change-Id: I62fb5b20d7caa51b77560a4bfb74a39f17089805
-    Reviewed-on: https://go-review.googlesource.com/13999
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #11127.
+    
+    Change-Id: Ibcfc3a05e91fa4260d70b04bee2bbba2376bd313
+    Reviewed-on: https://go-review.googlesource.com/13923
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/link/internal/arm64/asm.go | 53 +++++++++++++++++++++++++++++++++++++-
- src/runtime/asm_arm64.s            | 11 ++++++++
- 2 files changed, 63 insertions(+), 1 deletion(-)
+ src/encoding/asn1/asn1_test.go | 12 ++++++++++++
+ src/encoding/asn1/marshal.go   |  3 +++
+ 2 files changed, 15 insertions(+)

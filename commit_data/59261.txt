@@ -1,14 +1,22 @@
-commit ecc06f0db79193a4fe16138148c7eb26d9af96f1
-Author: David Chase <drchase@google.com>
-Date:   Tue Apr 8 11:38:01 2025 +1000
+commit 4a3c3ec9966022fd6a02e1790f71536acd6bcf1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:57 2024 -0500
 
-    cmd/compile: fix the test for ABI specification so it works right w/ generics
+    runtime: delete addtimer
     
-    Change-Id: I09ef615bfe69a30fa8f7eef5f0a8ff94a244c920
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/663776
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    modtimer can always be used in place of addtimer.
+    Do that and delete addtimer, avoiding duplicated logic.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I70291796bdac3bef5e0850f039f6f4a1da4498ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564118
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/time.go | 70 +++++++++++------------------------------------------
+ src/time/sleep.go   |  2 +-
+ src/time/tick.go    |  2 +-
+ 3 files changed, 16 insertions(+), 58 deletions(-)

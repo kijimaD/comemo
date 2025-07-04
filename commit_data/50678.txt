@@ -1,19 +1,25 @@
-commit 5612215d32643f2a5b729730c3bfdefda78e75d1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 28 14:49:50 2022 -0700
+commit 62c6ff4296fa5919a208552c57b44e4710b4e5e1
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Nov 4 16:03:49 2021 -0700
 
-    go/types, types2: remove (C/c)ompilerErrorMessages flag - not needed anymore
+    runtime: fix a lock rank ordering and some edges.
     
-    Fixes #55326.
+    The first stack-trace in #49361 shows that traceBuf must precede fin in
+    lockrank ordering, since traceBuf is acquired in StartTrace(), which
+    eventually leads to getting fin in queueFinalizer(). It is fine to move
+    traceBuf above fin, since there are no other conflicting dependencies.
     
-    Change-Id: Ic300976ddf504224faadc5bae21736fe94dac6bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/435416
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    The second stack trace shows that there is an edge bewtween reflectOffs
+    and fin, since reflectOffs is acquired in addReflectOff, and map
+    operations can lead to an allocation that eventually causes fin to be
+    acquired in queueFinalizer().
+    
+    Fixes #49361
+    
+    Change-Id: I8e857ef9ecdff37fdd229e4dba22e15bc71d4ba5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361407
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/noder/irgen.go | 7 +++----
- src/cmd/compile/internal/types2/api.go  | 5 -----
- src/go/types/check.go                   | 4 ----
- 3 files changed, 3 insertions(+), 13 deletions(-)
+ src/runtime/lockrank.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

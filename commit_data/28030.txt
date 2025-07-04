@@ -1,19 +1,22 @@
-commit 67bcee8d985697678ced806569c17cbbab067478
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon May 16 14:23:12 2016 -0700
+commit 1a2cf91f5e9e3dfb0873e61ed6907cc365857f6c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 11 16:27:51 2016 -0500
 
-    cmd/compile: convert Dodata to a bool, rename to IsStatic
+    runtime: split gfree list into with-stacks and without-stacks
     
-    Passes toolstash -cmp.
+    Currently all free Gs are added to one list. Split this into two
+    lists: one for free Gs with cached stacks and one for Gs without
+    cached stacks.
     
-    Change-Id: I2c204ec14b0a72b592fb336acdd4dff55650f7f6
-    Reviewed-on: https://go-review.googlesource.com/26751
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    This lets us preferentially allocate Gs that already have a stack, but
+    more importantly, it sets us up to free cached G stacks concurrently.
+    
+    Change-Id: Idbe486f708997e1c9d166662995283f02d1eeb3c
+    Reviewed-on: https://go-review.googlesource.com/20664
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go    |  4 ++--
- src/cmd/compile/internal/gc/sinit.go  | 16 ++++++++--------
- src/cmd/compile/internal/gc/syntax.go |  2 +-
- src/cmd/compile/internal/gc/walk.go   |  6 +++---
- 4 files changed, 14 insertions(+), 14 deletions(-)
+ src/runtime/proc.go     | 34 ++++++++++++++++++++++++++--------
+ src/runtime/runtime2.go |  7 ++++---
+ 2 files changed, 30 insertions(+), 11 deletions(-)

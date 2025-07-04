@@ -1,16 +1,12 @@
-commit cea78cb58ec53a564830450a9665d18a198ba266
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Mon Mar 11 12:14:42 2013 +1100
+commit 77d6cf1cd5e563f3862ca306a8bbe25c5fa0dd5f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 11 11:06:21 2013 +1100
 
-    doc/contribute: add instructions to fix codereview on windows
+    misc/dashboard: add go.blog sub-repo to dashboard
     
-    Tell Windows users how to update Mercurial's library.zip to add some missing dependencies.
-    
-    Fixes #4745.
-    
-    R=golang-dev, patrick.allen.higgins, minux.ma, adg
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/7558043
+    https://golang.org/cl/7690043
 
- doc/contribute.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ misc/dashboard/app/build/init.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

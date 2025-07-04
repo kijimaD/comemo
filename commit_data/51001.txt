@@ -1,16 +1,13 @@
-commit 939f9fd64a740ef770a0ca3588f8c193dceebe83
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Mon Oct 17 23:01:13 2022 +0800
+commit 003e7faf53a3e7d0e280871447c60922bff89bcf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 20 13:29:02 2021 -0800
 
-    runtime/internal/syscall: use ABIInternal for Syscall6 on riscv64
+    spec: adjust representability rules for type parameters
     
-    Change-Id: Iceed0f55038c87f261b60309e025132142946364
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443557
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Wayne Zuo <wdvxdr@golangcn.org>
+    Change-Id: I4423a059527066c4418c195911f8184dfd3f5a15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365914
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/internal/syscall/asm_linux_riscv64.s | 46 +++++++++++++++---------
- 1 file changed, 30 insertions(+), 16 deletions(-)
+ doc/go_spec.html | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

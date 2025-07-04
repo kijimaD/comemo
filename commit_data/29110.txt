@@ -1,14 +1,50 @@
-commit 8e4ea2f5e8ee2b9c455adb329d96fb13cd3c64da
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 26 22:34:40 2016 +0000
+commit 320ddcf8344beb1c322f3a7f0a251eea5e442a10
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 23 16:49:28 2016 -0700
 
-    net/http/httptest: add more docs on ResponseRecord fields
+    cmd/compile: inline atomics from runtime/internal/atomic on amd64
     
-    Fixes #16717
+    Inline atomic reads and writes on amd64.  There's no reason
+    to pay the overhead of a call for these.
     
-    Change-Id: I7b6518609796a537437539c35461a18e9e6f207f
-    Reviewed-on: https://go-review.googlesource.com/32190
-    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+    To keep atomic loads from being reordered, we make them
+    return a <value,memory> tuple.
+    
+    Change the meaning of resultInArg0 for tuple-generating ops
+    to mean the first part of the result tuple, not the second.
+    This means we can always put the store part of the tuple last,
+    matching how arguments are laid out.  This requires reordering
+    the outputs of add32carry and sub32carry and their descendents
+    in various architectures.
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkAtomicLoad64-8      2.09          0.26          -87.56%
+    BenchmarkAtomicStore64-8     7.54          5.72          -24.14%
+    
+    TBD (in a different CL): Cas, Or8, ...
+    
+    Change-Id: I713ea88e7da3026c44ea5bdb56ed094b20bc5207
+    Reviewed-on: https://go-review.googlesource.com/27641
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/httptest/recorder.go | 24 ++++++++++++++++++++----
- 1 file changed, 20 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  23 +-
+ src/cmd/compile/internal/arm/ssa.go            |  16 +-
+ src/cmd/compile/internal/gc/inl.go             |   2 +-
+ src/cmd/compile/internal/gc/ssa.go             |  81 ++++--
+ src/cmd/compile/internal/ssa/deadstore.go      |   4 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |   4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  33 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  15 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |   6 +-
+ src/cmd/compile/internal/ssa/gen/dec64.rules   |   8 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  15 +-
+ src/cmd/compile/internal/ssa/gen/main.go       |  10 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 208 ++++++++++----
+ src/cmd/compile/internal/ssa/regalloc.go       |   2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 378 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  20 +-
+ src/cmd/compile/internal/ssa/type.go           |  58 ++--
+ src/cmd/compile/internal/x86/ssa.go            |   8 +-
+ src/runtime/internal/atomic/asm_amd64.s        |   3 +
+ src/runtime/internal/atomic/bench_test.go      |  28 ++
+ 20 files changed, 783 insertions(+), 139 deletions(-)

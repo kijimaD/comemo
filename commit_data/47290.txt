@@ -1,98 +1,35 @@
-commit 93bab8a2f918afa8417f7b46da69c21d643de880
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat Oct 30 00:27:51 2021 -0400
+commit acd7cb5887f486558fbcd517ed636a96447d695d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 25 14:54:04 2021 -0800
 
-    crypto/elliptic: port P-224 and P-384 to fiat-crypto
+    cmd/compile/internal/types2: better error reporting framework (starting point)
     
-    Also, adopt addchain code generation for field inversion, and switch
-    P-521 to Montgomery multiplication, which is significantly slower but
-    allows us to reuse the P-224/P-256/P-384 wrapper code. No one uses P-521
-    anyway, and it's still faster than it was in Go 1.16.
+    Until now, errors which came with additional details (e.g., a declaration
+    cycle error followed by the list of objects involved in the cycle, one per
+    line) were reported as an ordinary error followed by "secondary" errors,
+    with the secondary errors marked as such by having a tab-indented error
+    message.
     
-    Removed a portion of tests that ran the P-224 vectors against P-256,
-    for some reason.
+    This approach often required clients to filter these secondary errors
+    (as they are not new errors, they are just clarifying a previously
+    reported error).
     
-    Sadly, fiat-crypto is not fast enough to replace the generic 32-bit
-    P-256 implementation (just yet?).
+    This CL introduces a new internal error_ type which permits accumulating
+    various error information that may then be reported as a single error.
     
-    A change in visible behavior is that we literally can't internally
-    operate on invalid curve points anymore (yay!) but the crypto/elliptic
-    API locked us into accepting any pair of integers for
-    Add/Double/ScalarMult and return no error (sigh), although of course
-    that's undefined behavior. Panics are always regretted. Returning nil
-    leads to panics. A fixed point might be exploited. The most reasonable
-    solution felt to return a made up random point, which is not that
-    different from an off-curve point but leaks less.
-    
-    name                                  old time/op    new time/op    delta
-    pkg:crypto/elliptic goos:darwin goarch:arm64
-    ScalarBaseMult/P224-8                    573µs ± 0%     146µs ± 0%   -74.56%  (p=0.000 n=7+9)
-    ScalarMult/P224-8                        574µs ± 0%     152µs ± 5%   -73.58%  (p=0.000 n=7+10)
-    MarshalUnmarshal/P224/Uncompressed-8     664ns ± 0%     481ns ± 1%   -27.64%  (p=0.000 n=8+10)
-    MarshalUnmarshal/P224/Compressed-8       666ns ± 1%     480ns ± 0%   -27.92%  (p=0.000 n=10+10)
-    pkg:crypto/ecdsa goos:darwin goarch:arm64
-    Sign/P224-8                              597µs ± 0%     169µs ± 2%   -71.71%  (p=0.000 n=10+9)
-    Verify/P224-8                           1.18ms ± 1%    0.32ms ± 5%   -72.81%  (p=0.000 n=10+10)
-    GenerateKey/P224-8                       577µs ± 0%     147µs ± 0%   -74.51%  (p=0.000 n=8+8)
-    
-    name                                  old time/op    new time/op    delta
-    pkg:crypto/elliptic goos:darwin goarch:arm64
-    ScalarBaseMult/P384-8                   2.01ms ± 2%    0.50ms ± 0%  -75.00%  (p=0.000 n=10+8)
-    ScalarMult/P384-8                       2.02ms ± 3%    0.51ms ± 3%  -74.64%  (p=0.000 n=10+10)
-    MarshalUnmarshal/P384/Uncompressed-8    1.09µs ± 1%    0.76µs ± 0%  -30.27%  (p=0.000 n=10+9)
-    MarshalUnmarshal/P384/Compressed-8      1.08µs ± 0%    0.76µs ± 1%  -29.86%  (p=0.000 n=8+10)
-    pkg:crypto/ecdsa goos:darwin goarch:arm64
-    Sign/P384-8                             2.06ms ± 1%    0.56ms ± 2%  -72.76%  (p=0.000 n=10+10)
-    Verify/P384-8                           4.06ms ± 2%    1.08ms ± 0%  -73.49%  (p=0.000 n=10+8)
-    GenerateKey/P384-8                      2.01ms ± 1%    0.51ms ± 3%  -74.65%  (p=0.000 n=10+10)
-    
-    name                                  old time/op    new time/op    delta
-    pkg:crypto/elliptic goos:darwin goarch:arm64
-    ScalarBaseMult/P521-8                    715µs ± 6%    1525µs ± 4%  +113.39%  (p=0.000 n=10+10)
-    ScalarMult/P521-8                        698µs ± 1%    1543µs ± 1%  +120.99%  (p=0.000 n=9+9)
-    MarshalUnmarshal/P521/Uncompressed-8     797ns ± 0%    1296ns ± 0%   +62.65%  (p=0.000 n=10+9)
-    MarshalUnmarshal/P521/Compressed-8       798ns ± 0%    1299ns ± 1%   +62.82%  (p=0.000 n=8+10)
-    pkg:crypto/ecdsa goos:darwin goarch:arm64
-    Sign/P521-8                              810µs ± 3%    1645µs ± 0%  +103.03%  (p=0.000 n=10+10)
-    Verify/P521-8                           1.42ms ± 1%    3.19ms ± 1%  +125.28%  (p=0.000 n=10+8)
-    GenerateKey/P521-8                       698µs ± 1%    1549µs ± 0%  +121.87%  (p=0.000 n=10+7)
-    
-    Updates #40171
-    
-    Change-Id: I34edf5002b5e9fad0ebb6c1e2119fb123ea6d18f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360014
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Julie Qiu <julie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I25b2f094facd37e12737e517f7ef8853d465ff77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296689
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssa/stmtlines_test.go     |    3 +
- src/crypto/elliptic/elliptic.go                    |   32 +-
- src/crypto/elliptic/elliptic_test.go               |    5 +-
- src/crypto/elliptic/internal/fiat/Dockerfile       |    8 +-
- src/crypto/elliptic/internal/fiat/README           |   21 +-
- src/crypto/elliptic/internal/fiat/fiat_test.go     |   64 +
- src/crypto/elliptic/internal/fiat/generate.go      |  330 ++
- src/crypto/elliptic/internal/fiat/p224.go          |  135 +
- src/crypto/elliptic/internal/fiat/p224_fiat64.go   | 1429 +++++
- src/crypto/elliptic/internal/fiat/p224_invert.go   |   87 +
- src/crypto/elliptic/internal/fiat/p384.go          |  135 +
- src/crypto/elliptic/internal/fiat/p384_fiat64.go   | 3004 ++++++++++
- src/crypto/elliptic/internal/fiat/p384_invert.go   |  102 +
- src/crypto/elliptic/internal/fiat/p521.go          |  170 +-
- src/crypto/elliptic/internal/fiat/p521_fiat64.go   | 6141 ++++++++++++++++----
- src/crypto/elliptic/internal/fiat/p521_invert.go   |   89 +
- src/crypto/elliptic/internal/fiat/p521_test.go     |   37 -
- src/crypto/elliptic/internal/nistec/nistec_test.go |   94 +
- src/crypto/elliptic/internal/nistec/p224.go        |  293 +
- src/crypto/elliptic/internal/nistec/p384.go        |  298 +
- src/crypto/elliptic/internal/nistec/p521.go        |    6 +-
- src/crypto/elliptic/internal/nistec/p521_test.go   |   44 -
- src/crypto/elliptic/p224.go                        |  785 +--
- src/crypto/elliptic/p224_test.go                   |  306 +-
- src/crypto/elliptic/p256.go                        |    3 +
- src/crypto/elliptic/p256_test.go                   |   19 +-
- src/crypto/elliptic/p384.go                        |  141 +
- src/crypto/elliptic/p521.go                        |    8 +-
- 28 files changed, 11284 insertions(+), 2505 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go        |  8 ---
+ src/cmd/compile/internal/types2/check_test.go  |  6 +-
+ src/cmd/compile/internal/types2/decl.go        | 30 +++++----
+ src/cmd/compile/internal/types2/errors.go      | 89 ++++++++++++++++++++++----
+ src/cmd/compile/internal/types2/errors_test.go | 20 ++++++
+ src/cmd/compile/internal/types2/initorder.go   | 10 +--
+ src/cmd/compile/internal/types2/labels.go      |  7 +-
+ src/cmd/compile/internal/types2/resolver.go    | 18 ++++--
+ src/cmd/compile/internal/types2/stmt.go        | 18 ++++--
+ src/cmd/compile/internal/types2/typexpr.go     | 24 ++++---
+ 10 files changed, 166 insertions(+), 64 deletions(-)

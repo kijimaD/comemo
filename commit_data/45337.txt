@@ -1,46 +1,22 @@
-commit 1f7ddf57d2908319c0ca7dc621a206935d8726f2
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Fri Apr 23 19:02:44 2021 -0400
+commit 1296ee6b4f9058be75c799513ccb488d2f2dd085
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 11:56:19 2020 -0400
 
-    syscall, etc.: use abi.FuncPCABI0 for libc syscall wrappers
+    archive/zip: make Reader implement fs.FS
     
-    In CL 288092 we made Darwin syscall wrappers as ABIInternal, so
-    their addresses taken from Go using funcPC are the actual function
-    entries, not the wrappers.
+    Now a zip.Reader (an open zip file) can be passed to code
+    that accepts a file system, such as (soon) template parsing.
     
-    As we introduced internal/abi.FuncPCABIxxx intrinsics, use that.
-    And change the assembly functions back to ABI0.
+    For #41190.
     
-    Do it on OpenBSD as well, as OpenBSD and Darwin share code
-    generator.
-    
-    Change-Id: I408120795f7fc826637c867394248f8f373906bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313230
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: If51b12e39db3ccc27f643c2453d3300a38035360
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243937
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/build.go                            |   2 -
- src/cmd/internal/objabi/path.go                  |   2 -
- src/crypto/x509/internal/macos/corefoundation.go |  26 +-
- src/crypto/x509/internal/macos/corefoundation.s  |  18 +-
- src/crypto/x509/internal/macos/security.go       |   9 +-
- src/crypto/x509/internal/macos/security.s        |   8 +-
- src/syscall/exec_libc2.go                        |  47 +--
- src/syscall/mkasm.go                             |   3 +-
- src/syscall/mksyscall.pl                         |  15 +-
- src/syscall/syscall_darwin.go                    |  22 +-
- src/syscall/syscall_darwin_amd64.go              |   7 +-
- src/syscall/syscall_darwin_arm64.go              |   7 +-
- src/syscall/syscall_openbsd_libc.go              |  21 +-
- src/syscall/zsyscall_darwin_amd64.go             | 248 ++++++++--------
- src/syscall/zsyscall_darwin_amd64.s              | 250 ++++++++--------
- src/syscall/zsyscall_darwin_arm64.go             | 248 ++++++++--------
- src/syscall/zsyscall_darwin_arm64.s              | 250 ++++++++--------
- src/syscall/zsyscall_openbsd_amd64.go            | 352 ++++++++---------------
- src/syscall/zsyscall_openbsd_amd64.s             | 230 +++++++--------
- src/syscall/zsyscall_openbsd_arm64.go            | 352 ++++++++---------------
- src/syscall/zsyscall_openbsd_arm64.s             | 230 +++++++--------
- 21 files changed, 1059 insertions(+), 1288 deletions(-)
+ src/archive/zip/reader.go      | 189 +++++++++++++++++++++++++++++++++++++++++
+ src/archive/zip/reader_test.go |  11 +++
+ src/archive/zip/struct.go      |   3 +
+ 3 files changed, 203 insertions(+)

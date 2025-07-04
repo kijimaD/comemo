@@ -1,19 +1,12 @@
-commit a09e9811dc4db3c9205079a2eef21ffc7d7b5274
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Apr 26 11:48:35 2012 +1000
+commit 555ca36c1d03c0cafa65dcc71a5b7a757e92c602
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Apr 26 11:28:35 2012 +1000
 
-    exp/html: adjust inTableBodyIM to match spec
+    time: doc fix.
     
-    Clean up flow of control.
-    
-    Handle </tbody>, </tfoot>, and </thead>.
-    
-    Pass 5 additional tests.
-    
-    R=nigeltao
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6117057
+    https://golang.org/cl/6127050
 
- src/pkg/exp/html/parse.go                          | 65 ++++++++++++----------
- .../exp/html/testlogs/tests_innerHTML_1.dat.log    | 10 ++--
- 2 files changed, 40 insertions(+), 35 deletions(-)
+ src/pkg/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

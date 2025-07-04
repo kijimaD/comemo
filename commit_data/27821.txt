@@ -1,12 +1,25 @@
-commit 35f5517ce9f43abb4bbe5601bb2697b15a440783
-Author: Chris Broadfoot <cbro@golang.org>
-Date:   Mon Aug 15 17:28:00 2016 -0700
+commit eede112492174c8b0f72845e6ac9edf1bd481f41
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Apr 12 10:43:44 2016 -0700
 
-    doc: add 1.7 to golang.org/project
+    crypto/tls: make error prefix uniform.
     
-    Change-Id: Ib17f6643efd49e2bca188c4faa505f79832d18b1
-    Reviewed-on: https://go-review.googlesource.com/27110
+    Error strings in this package were all over the place: some were
+    prefixed with “tls:”, some with “crypto/tls:” and some didn't have a
+    prefix.
+    
+    This change makes everything use the prefix “tls:”.
+    
+    Change-Id: Ie8b073c897764b691140412ecd6613da8c4e33a2
+    Reviewed-on: https://go-review.googlesource.com/21893
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/contrib.html | 1 +
- 1 file changed, 1 insertion(+)
+ src/crypto/tls/alert.go            |  4 ++--
+ src/crypto/tls/common.go           |  2 +-
+ src/crypto/tls/conn.go             |  2 +-
+ src/crypto/tls/handshake_client.go |  6 +++---
+ src/crypto/tls/handshake_server.go | 12 ++++++------
+ src/crypto/tls/key_agreement.go    | 20 ++++++++++----------
+ src/crypto/tls/tls.go              | 26 +++++++++++++-------------
+ 7 files changed, 36 insertions(+), 36 deletions(-)

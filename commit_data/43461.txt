@@ -1,40 +1,19 @@
-commit c3fe874f25ff55f73e4422bea7aa0b0e0e268f3e
-Author: David Chase <drchase@google.com>
-Date:   Mon Aug 17 16:57:22 2020 -0400
+commit 9f6a35660d4e56d1b9c0922e6c6b9626c3fb25ee
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 7 08:01:24 2020 -0400
 
-    cmd/compile: avoid generating CSEs; do all aggregates; maintain debug names
+    [dev.link] cmd/link/internal/loader: speed up Loader.RelocVariant
     
-    This adds a pass to detect common selection operations,
-    to avoid generating duplicates.  Duplicate offsets are
-    also detected.
+    Remove some extra sanity-checking code from the loader's RelocVariant
+    method, since it was yielding a slowdown of 1-2% linking kubernetes
+    hyperkube (once again a reminder that relocation processing is a very
+    performance-sensitive part of the linker).
     
-    All aggregate types are now handled; there is some freedom in where
-    expand_calls is run, though it must run before softfloat.
-    
-    Debug-name-maintenance is now incremental both in decompose builtin
-    and in expand_calls; it might be good to push this into all the
-    decompose passes.
-    
-    (this is a smash of 5 CLs that rewrote some of the same code several
-    times to deal with phase-ordering problems, and included an abandoned
-    attempt.)
-    
-    For #40724.
-    
-    Change-Id: I2a0c32f20660bf8b99e2bcecd33545d97d2bd3c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249458
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ifbc0662f3f96c5f54131103ce6f7439ecfb9b9dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227477
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/fmtmap_test.go               |   1 +
- src/cmd/compile/internal/gc/ssa.go           | 104 ++--
- src/cmd/compile/internal/ssa/compile.go      |   2 +-
- src/cmd/compile/internal/ssa/config.go       |   1 +
- src/cmd/compile/internal/ssa/decompose.go    |  87 ++-
- src/cmd/compile/internal/ssa/expand_calls.go | 555 +++++++++++++++----
- src/cmd/compile/internal/ssa/export_test.go  |   4 +
- src/cmd/compile/internal/ssa/gen/dec64.rules | 137 +++--
- src/cmd/compile/internal/ssa/rewritedec64.go | 796 ++++++++++++++++++---------
- 9 files changed, 1163 insertions(+), 524 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 3 ---
+ 1 file changed, 3 deletions(-)

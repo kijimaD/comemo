@@ -1,25 +1,20 @@
-commit 417be37048d07532397a7db89eeee9d249564560
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Sat Jul 16 20:15:49 2022 +0800
+commit 9cb5716f009ea71564a9ee84d653d7a76adf9926
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 17 18:45:11 2021 +0000
 
-    doc/go1.19: improve the loong64 release notes
+    cmd/internal/obj/riscv: avoid obj.Prog rewriting for constant loads
     
-    Link to the LoongArch documentations site, mention the ABI variant
-    supported, and add a note about the unfortunate old-world/new-world split
-    situation that users must be aware of.
+    Rather than rewriting the obj.Prog for a MOV pseudo-instruction targeting
+    a constant to register load, generate the appropriate machine instruction
+    sequence directly.
     
-    Updates #46229
-    For #51400
-    
-    Change-Id: I6789f509263a0dbf113481148665e7951aa6a989
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417715
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I38e62f282b39be2a0a241f32280d306558d49b44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344450
+    Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.19.html | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/cmd/asm/internal/asm/testdata/riscv64.s |  2 ++
+ src/cmd/internal/obj/riscv/obj.go           | 52 ++++++++++++-----------------
+ 2 files changed, 24 insertions(+), 30 deletions(-)

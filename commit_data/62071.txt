@@ -1,0 +1,29 @@
+commit e2f342fc51a70351205af839dff2749bc7a977e2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Feb 3 10:25:05 2025 -0500
+
+    doc: initialize next directory for Go 1.25
+    
+    Following the "For the release team" steps in README:
+    
+            cd doc
+            cp -R initial/ next
+            $EDITOR next/1-intro.md
+    
+    For #70525
+    
+    Change-Id: I31c271d95ccd72123f531fde4e72929ec7b310d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646195
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/1-intro.md                     | 8 ++++++++
+ doc/next/2-language.md                  | 3 +++
+ doc/next/3-tools.md                     | 6 ++++++
+ doc/next/4-runtime.md                   | 1 +
+ doc/next/5-toolchain.md                 | 7 +++++++
+ doc/next/6-stdlib/0-heading.md          | 2 ++
+ doc/next/6-stdlib/99-minor/0-heading.md | 3 +++
+ doc/next/6-stdlib/99-minor/README       | 1 +
+ doc/next/7-ports.md                     | 2 ++
+ 9 files changed, 33 insertions(+)

@@ -1,36 +1,36 @@
-commit 80832974ac9306f992c797f8394e44d7f63f307e
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jun 28 15:54:46 2017 -0400
+commit 2c50bffee1c49d71ec1ea2c6cad10570ad780a4b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 24 11:33:29 2017 -0700
 
-    runtime: make rwmutex work on Ms instead of Gs
+    cmd/compile: simplify funcsyms
     
-    Currently runtime.rwmutex is written to block the calling goroutine
-    rather than the calling thread. However, rwmutex was intended to be
-    used in the scheduler, which means it needs to be a thread-level
-    synchronization primitive.
+    Sym.Fsym is used only to avoid adding duplicate
+    entries to funcsyms, but that is easily
+    accomplished by detecting the first lookup
+    vs subsequent lookups of the func sym name.
     
-    Hence, this modifies rwmutex to synchronize threads instead of
-    goroutines. This has the consequence of making it write-barrier-free,
-    which is also important for using it in the scheduler.
+    This avoids creating an unnecessary ONAME node
+    during funcsym, which eliminates a dependency
+    in the backend on Curfn and lineno.
     
-    The implementation makes three changes: it replaces the "w" semaphore
-    with a mutex, since this was all it was being used for anyway; it
-    replaces "writerSem" with a single pending M that parks on its note;
-    and it replaces "readerSem" with a list of Ms that park on their notes
-    plus a pass count that together emulate a counting semaphore. I
-    model-checked the safety and liveness of this implementation through
-    >1 billion schedules.
+    It also makes the code a lot simpler and clearer.
     
-    For #20738.
+    Updates #15756
     
-    Change-Id: I3cf5a18c266a96a3f38165083812803510217787
-    Reviewed-on: https://go-review.googlesource.com/47071
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check -all.
+    No compiler performance changes.
+    funcsymname does generate garbage via string
+    concatenation, but it is not called very much,
+    and this CL also eliminates allocation of several
+    Nodes and Names.
+    
+    Change-Id: I7116c78fa39d975b7bd2c65a1d228749cf0dd46b
+    Reviewed-on: https://go-review.googlesource.com/38605
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/HACKING.md      |  4 +--
- src/runtime/export_test.go  |  4 ---
- src/runtime/rwmutex.go      | 77 ++++++++++++++++++++++++++++++++++-----------
- src/runtime/rwmutex_test.go |  4 ---
- 4 files changed, 60 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go         | 46 ++++++++++++++++++------------
+ src/cmd/compile/internal/gc/go.go          |  3 +-
+ src/cmd/compile/internal/gc/obj.go         |  7 +++--
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        | 12 ++++++--
+ 5 files changed, 43 insertions(+), 27 deletions(-)

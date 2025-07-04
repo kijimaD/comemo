@@ -1,12 +1,21 @@
-commit 97025ebfef22363efd3ece2fac302c4e0efc1893
+commit d4bdaf11d95b0ca0ce45b1c885a5547d1f6096ca
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 13 10:24:04 2011 -0800
+Date:   Thu Jan 13 10:23:42 2011 -0800
 
-    go_spec: specify that int and uint have the same size
+    godoc: peephole optimization for generated HTML
     
-    R=r, rsc, iant, ken2
+    When searching for regular expressions such as
+    ".", there are many consecutive matches.
+    In the generated HTML, combine them instead of
+    generating a new <span> for each adjacent text
+    segment highlighting a match.
+    
+    Massively reduces the size of the generated
+    HTML in those cases.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/3992041
+    https://golang.org/cl/3971041
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/godoc/format.go | 60 +++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 48 insertions(+), 12 deletions(-)

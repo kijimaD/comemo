@@ -1,26 +1,23 @@
-commit b0d592c3c9a356b661c2d6bb958528f2761d821e
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Sat Jun 10 22:02:53 2017 -0700
+commit 1b85300602f8530e505ad5b8b033a15f5521d1a7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 10 10:15:10 2017 -0500
 
-    database/sql: prevent race on Rows close with Tx Rollback
+    cmd/compile: clean up SSA-building code
     
-    In addition to adding a guard to the Rows close, add a var
-    in the fakeConn that gets read and written to on each
-    operation, simulating writing or reading from the server.
+    Now that the write barrier insertion is moved to SSA, the SSA
+    building code can be simplified.
     
-    TestConcurrency/TxStmt* tests have been commented out
-    as they now fail after checking for races on the fakeConn.
-    See issue #20646 for more information.
+    Updates #17583.
     
-    Fixes #20622
-    
-    Change-Id: I80b36ea33d776e5b4968be1683ff8c61728ee1ea
-    Reviewed-on: https://go-review.googlesource.com/45275
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Change-Id: I5cacc034b11aa90b0abe6f8dd97e4e3994e2bc25
+    Reviewed-on: https://go-review.googlesource.com/36840
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/database/sql/fakedb_test.go | 18 ++++++++++
- src/database/sql/sql.go         |  4 ++-
- src/database/sql/sql_test.go    | 75 +++++++++++++++++++++++++++++++++++------
- 3 files changed, 85 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go           | 231 ++++++---------------------
+ src/cmd/compile/internal/ssa/config.go       |   4 +
+ src/cmd/compile/internal/ssa/export_test.go  |   1 +
+ src/cmd/compile/internal/ssa/func.go         |   3 +
+ src/cmd/compile/internal/ssa/writebarrier.go |  12 +-
+ 5 files changed, 62 insertions(+), 189 deletions(-)

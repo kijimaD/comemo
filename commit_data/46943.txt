@@ -1,25 +1,34 @@
-commit f92a3589fa04285dccab3ca7454eaaf2d0e7cde3
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 19 16:34:43 2021 +0700
+commit 5e4da8670b13370392a9195930e3b4bbe5f1944f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 17 16:04:59 2021 -0800
 
-    reflect: fix methodValueCall code pointer mismatched
+    [dev.typeparams] cmd/compile/internal/types2: use converter functions rather than methods
     
-    CL 322350 changed how to take address of assembly functions, using
-    abi.FuncPCABI0 intrinsic. But we forgot to update the code in
-    Value.UnsafePointer (was Value.Pointer) to reflect that change.
+    This change replaces methods with functions to reduce the API surface of
+    types2.Type and to match the approach taken in go/types. The converter
+    methods for Named and TypeParam will be addressed in a follow-up CL.
     
-    This CL fixes that bug, and also add a test to make sure the code
-    pointer is in sync.
+    Also: Fixed behavior of optype to return the underlying type for
+          arguments that are not type parameters.
     
-    Change-Id: I05ae7df31c706583a0f374d8af027066528f5ceb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/356809
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ia369c796754bc33bbaf0c9c8478badecb729279b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293291
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/reflect/all_test.go    | 8 ++++++++
- src/reflect/export_test.go | 2 ++
- src/reflect/makefunc.go    | 6 +++++-
- src/reflect/value.go       | 4 ++--
- 4 files changed, 17 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/importer/support.go   |  11 --
+ src/cmd/compile/internal/types2/assignments.go |   2 +-
+ src/cmd/compile/internal/types2/builtins.go    |  14 +--
+ src/cmd/compile/internal/types2/call.go        |   4 +-
+ src/cmd/compile/internal/types2/conversions.go |  14 +--
+ src/cmd/compile/internal/types2/expr.go        |  18 +--
+ src/cmd/compile/internal/types2/issues_test.go |   4 +-
+ src/cmd/compile/internal/types2/lookup.go      |   8 +-
+ src/cmd/compile/internal/types2/predicates.go  |   2 +-
+ src/cmd/compile/internal/types2/sizes.go       |   2 +-
+ src/cmd/compile/internal/types2/stdlib_test.go |   2 +-
+ src/cmd/compile/internal/types2/stmt.go        |   4 +-
+ src/cmd/compile/internal/types2/type.go        | 166 ++++++++++---------------
+ src/cmd/compile/internal/types2/typestring.go  |   4 +-
+ src/cmd/compile/internal/types2/typexpr.go     |   8 +-
+ 15 files changed, 108 insertions(+), 155 deletions(-)

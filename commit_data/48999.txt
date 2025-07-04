@@ -1,177 +1,30 @@
-commit 52bd1c4d6cc691aa60c71513695dba03062deb59
-Author: Rhys Hiltner <rhys@justin.tv>
-Date:   Fri Feb 18 10:56:16 2022 -0800
+commit cd00499c6125692d704ac8a04b07825ee1648207
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jul 3 11:55:31 2021 -0700
 
-    runtime: decrease STW pause for goroutine profile
+    [dev.typeparams] cmd/compile: better Call constructor
     
-    The goroutine profile needs to stop the world to get a consistent
-    snapshot of all goroutines in the app. Leaving the world stopped while
-    iterating over allgs leads to a pause proportional to the number of
-    goroutines in the app (or its high-water mark).
+    Historically, it's been tedious to create and typecheck ir.OCALL
+    nodes, except by handing them off entirely to typecheck. This is
+    because typecheck needed context on whether the call is an expression
+    or statement, and to set flags like Func.ClosureCalled and
+    CallExpr.Use.
     
-    Instead, do only a fixed amount of bookkeeping while the world is
-    stopped. Install a barrier so the scheduler confirms that a goroutine
-    appears in the profile, with its stack recorded exactly as it was during
-    the stop-the-world pause, before it allows that goroutine to execute.
-    Iterate over allgs while the app resumes normal operations, adding each
-    to the profile unless they've been scheduled in the meantime (and so
-    have profiled themselves). Stop the world a second time to remove the
-    barrier and do a fixed amount of cleanup work.
+    However, those flags have now been removed entirely by recent CLs, so
+    we can instead just provide a better typecheck.Call function for
+    constructing and typechecking arbitrary call nodes. Notably, this
+    simplifies things for unified IR, which can now incrementally
+    typecheck call expressions as it goes without worrying about context.
     
-    This increases both the fixed overhead and per-goroutine CPU-time cost
-    of GoroutineProfile. It also increases the wall-clock latency of the
-    call to GoroutineProfile, since the scheduler may interrupt it to
-    execute other goroutines.
-    
-        name                                  old time/op    new time/op    delta
-        GoroutineProfile/small/loaded-8         1.05ms ± 5%    4.99ms ±31%   +376.85%  (p=0.000 n=10+9)
-        GoroutineProfile/sparse/loaded-8        1.04ms ± 4%    3.61ms ±27%   +246.61%  (p=0.000 n=10+10)
-        GoroutineProfile/large/loaded-8         7.69ms ±17%   20.35ms ± 4%   +164.50%  (p=0.000 n=10+10)
-        GoroutineProfile/small/idle              958µs ± 0%    1820µs ±23%    +89.91%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse/idle-8          1.00ms ± 3%    1.52ms ±17%    +51.18%  (p=0.000 n=10+10)
-        GoroutineProfile/small/idle-8           1.01ms ± 4%    1.47ms ± 7%    +45.28%  (p=0.000 n=9+9)
-        GoroutineProfile/sparse/idle             980µs ± 1%    1403µs ± 2%    +43.22%  (p=0.000 n=9+10)
-        GoroutineProfile/large/idle-8           7.19ms ± 8%    8.43ms ±21%    +17.22%  (p=0.011 n=10+10)
-        PingPongHog                              511ns ± 8%     585ns ± 9%    +14.39%  (p=0.000 n=10+10)
-        GoroutineProfile/large/idle             6.71ms ± 0%    7.58ms ± 3%    +13.08%  (p=0.000 n=8+10)
-        PingPongHog-8                            469ns ± 8%     509ns ±12%     +8.62%  (p=0.010 n=9+10)
-        WakeupParallelSyscall/5µs                216µs ± 4%     229µs ± 3%     +6.06%  (p=0.000 n=10+9)
-        WakeupParallelSyscall/5µs-8              147µs ± 1%     149µs ± 2%     +1.12%  (p=0.009 n=10+10)
-        WakeupParallelSyscall/2µs-8              140µs ± 0%     142µs ± 1%     +1.11%  (p=0.001 n=10+9)
-        WakeupParallelSyscall/50µs-8             236µs ± 0%     238µs ± 1%     +1.08%  (p=0.000 n=9+10)
-        WakeupParallelSyscall/1µs-8              138µs ± 0%     140µs ± 1%     +1.05%  (p=0.013 n=10+9)
-        Matmult                                 8.52ns ± 1%    8.61ns ± 0%     +0.98%  (p=0.002 n=10+8)
-        WakeupParallelSyscall/10µs-8             157µs ± 1%     158µs ± 1%     +0.58%  (p=0.003 n=10+8)
-        CreateGoroutinesSingle-8                 328ns ± 0%     330ns ± 1%     +0.57%  (p=0.000 n=9+9)
-        WakeupParallelSpinning/100µs-8           343µs ± 0%     344µs ± 1%     +0.30%  (p=0.015 n=8+8)
-        WakeupParallelSyscall/20µs-8             178µs ± 0%     178µs ± 0%     +0.18%  (p=0.043 n=10+9)
-        StackGrowthDeep-8                       22.8µs ± 0%    22.9µs ± 0%     +0.12%  (p=0.006 n=10+10)
-        StackGrowth                             1.06µs ± 0%    1.06µs ± 0%     +0.09%  (p=0.000 n=8+9)
-        WakeupParallelSpinning/0s               10.7µs ± 0%    10.7µs ± 0%     +0.08%  (p=0.000 n=9+9)
-        WakeupParallelSpinning/5µs              30.7µs ± 0%    30.7µs ± 0%     +0.04%  (p=0.000 n=10+10)
-        WakeupParallelSpinning/100µs             411µs ± 0%     411µs ± 0%     +0.03%  (p=0.000 n=10+9)
-        WakeupParallelSpinning/2µs              18.7µs ± 0%    18.7µs ± 0%     +0.02%  (p=0.026 n=10+10)
-        WakeupParallelSpinning/20µs-8           93.0µs ± 0%    93.0µs ± 0%     +0.01%  (p=0.021 n=9+10)
-        StackGrowth-8                            216ns ± 0%     216ns ± 0%       ~     (p=0.209 n=10+10)
-        CreateGoroutinesParallel-8              49.5ns ± 2%    49.3ns ± 1%       ~     (p=0.591 n=10+10)
-        CreateGoroutinesSingle                   699ns ±20%     748ns ±19%       ~     (p=0.353 n=10+10)
-        WakeupParallelSpinning/0s-8             15.9µs ± 2%    16.0µs ± 3%       ~     (p=0.315 n=10+10)
-        WakeupParallelSpinning/1µs              14.6µs ± 0%    14.6µs ± 0%       ~     (p=0.513 n=10+10)
-        WakeupParallelSpinning/2µs-8            24.2µs ± 3%    24.1µs ± 2%       ~     (p=0.971 n=10+10)
-        WakeupParallelSpinning/10µs             50.7µs ± 0%    50.7µs ± 0%       ~     (p=0.101 n=10+10)
-        WakeupParallelSpinning/20µs             90.7µs ± 0%    90.7µs ± 0%       ~     (p=0.898 n=10+10)
-        WakeupParallelSpinning/50µs              211µs ± 0%     211µs ± 0%       ~     (p=0.382 n=10+10)
-        WakeupParallelSyscall/0s-8               137µs ± 1%     138µs ± 0%       ~     (p=0.075 n=10+10)
-        WakeupParallelSyscall/1µs                216µs ± 1%     219µs ± 3%       ~     (p=0.065 n=10+9)
-        WakeupParallelSyscall/2µs                214µs ± 7%     219µs ± 1%       ~     (p=0.101 n=10+8)
-        WakeupParallelSyscall/50µs               317µs ± 5%     326µs ± 4%       ~     (p=0.123 n=10+10)
-        WakeupParallelSyscall/100µs              450µs ± 9%     459µs ± 8%       ~     (p=0.247 n=10+10)
-        WakeupParallelSyscall/100µs-8            337µs ± 0%     338µs ± 1%       ~     (p=0.089 n=10+10)
-        WakeupParallelSpinning/5µs-8            32.2µs ± 0%    32.2µs ± 0%     -0.05%  (p=0.026 n=9+10)
-        WakeupParallelSpinning/50µs-8            216µs ± 0%     216µs ± 0%     -0.12%  (p=0.004 n=10+10)
-        WakeupParallelSpinning/1µs-8            20.6µs ± 0%    20.5µs ± 0%     -0.22%  (p=0.014 n=10+10)
-        WakeupParallelSpinning/10µs-8           54.5µs ± 0%    54.2µs ± 1%     -0.57%  (p=0.000 n=10+10)
-        CreateGoroutines-8                       213ns ± 1%     211ns ± 1%     -0.86%  (p=0.002 n=10+10)
-        CreateGoroutinesCapture                 1.03µs ± 0%    1.02µs ± 0%     -0.91%  (p=0.000 n=10+10)
-        CreateGoroutinesCapture-8               1.32µs ± 1%    1.31µs ± 1%     -1.06%  (p=0.001 n=10+9)
-        CreateGoroutines                         188ns ± 0%     186ns ± 0%     -1.06%  (p=0.000 n=9+10)
-        CreateGoroutinesParallel                 188ns ± 0%     186ns ± 0%     -1.27%  (p=0.000 n=8+10)
-        WakeupParallelSyscall/0s                 210µs ± 3%     207µs ± 3%     -1.60%  (p=0.043 n=10+10)
-        StackGrowthDeep                          121µs ± 1%     119µs ± 1%     -1.70%  (p=0.000 n=9+10)
-        Matmult-8                               1.82ns ± 3%    1.78ns ± 3%     -2.16%  (p=0.020 n=10+10)
-        WakeupParallelSyscall/20µs               281µs ± 3%     269µs ± 4%     -4.44%  (p=0.000 n=10+10)
-        WakeupParallelSyscall/10µs               239µs ± 3%     228µs ± 9%     -4.70%  (p=0.001 n=10+10)
-        GoroutineProfile/sparse-nil/idle-8       485µs ± 2%      12µs ± 4%    -97.56%  (p=0.000 n=10+10)
-        GoroutineProfile/small-nil/idle-8        484µs ± 2%      12µs ± 1%    -97.60%  (p=0.000 n=10+7)
-        GoroutineProfile/small-nil/loaded-8      487µs ± 2%      11µs ± 3%    -97.68%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse-nil/loaded-8     507µs ± 4%      11µs ± 6%    -97.78%  (p=0.000 n=10+10)
-        GoroutineProfile/large-nil/idle-8        709µs ± 2%      11µs ± 4%    -98.38%  (p=0.000 n=10+10)
-        GoroutineProfile/large-nil/loaded-8      717µs ± 2%      11µs ± 3%    -98.43%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse-nil/idle         465µs ± 3%       1µs ± 1%    -99.84%  (p=0.000 n=10+10)
-        GoroutineProfile/small-nil/idle          493µs ± 3%       1µs ± 0%    -99.85%  (p=0.000 n=10+9)
-        GoroutineProfile/large-nil/idle          716µs ± 1%       1µs ± 2%    -99.89%  (p=0.000 n=7+10)
-    
-        name                                  old alloc/op   new alloc/op   delta
-        CreateGoroutinesCapture                   144B ± 0%      144B ± 0%       ~     (all equal)
-        CreateGoroutinesCapture-8                 144B ± 0%      144B ± 0%       ~     (all equal)
-    
-        name                                  old allocs/op  new allocs/op  delta
-        CreateGoroutinesCapture                   5.00 ± 0%      5.00 ± 0%       ~     (all equal)
-        CreateGoroutinesCapture-8                 5.00 ± 0%      5.00 ± 0%       ~     (all equal)
-    
-        name                                  old p50-ns     new p50-ns     delta
-        GoroutineProfile/small/loaded-8          1.01M ± 3%     3.87M ±45%   +282.15%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse/loaded-8         1.02M ± 3%     2.43M ±41%   +138.42%  (p=0.000 n=10+10)
-        GoroutineProfile/large/loaded-8          7.43M ±16%    17.28M ± 2%   +132.43%  (p=0.000 n=10+10)
-        GoroutineProfile/small/idle               956k ± 0%     1559k ±16%    +63.03%  (p=0.000 n=10+10)
-        GoroutineProfile/small/idle-8            1.01M ± 3%     1.45M ± 7%    +44.31%  (p=0.000 n=10+9)
-        GoroutineProfile/sparse/idle              977k ± 1%     1399k ± 2%    +43.20%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse/idle-8           1.00M ± 3%     1.41M ± 3%    +40.47%  (p=0.000 n=10+10)
-        GoroutineProfile/large/idle-8            6.97M ± 1%     8.41M ±25%    +20.54%  (p=0.003 n=8+10)
-        GoroutineProfile/large/idle              6.71M ± 1%     7.46M ± 4%    +11.15%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse-nil/idle-8        483k ± 3%       13k ± 3%    -97.41%  (p=0.000 n=10+9)
-        GoroutineProfile/small-nil/idle-8         483k ± 2%       12k ± 1%    -97.43%  (p=0.000 n=10+8)
-        GoroutineProfile/small-nil/loaded-8       484k ± 3%       10k ± 2%    -97.93%  (p=0.000 n=10+8)
-        GoroutineProfile/sparse-nil/loaded-8      492k ± 2%       10k ± 4%    -97.97%  (p=0.000 n=10+8)
-        GoroutineProfile/large-nil/idle-8         708k ± 2%       12k ±15%    -98.36%  (p=0.000 n=10+10)
-        GoroutineProfile/large-nil/loaded-8       714k ± 2%       10k ± 2%    -98.60%  (p=0.000 n=10+8)
-        GoroutineProfile/sparse-nil/idle          459k ± 1%        1k ± 1%    -99.85%  (p=0.000 n=10+10)
-        GoroutineProfile/small-nil/idle           477k ± 1%        1k ± 0%    -99.85%  (p=0.000 n=10+9)
-        GoroutineProfile/large-nil/idle           712k ± 1%        1k ± 1%    -99.90%  (p=0.000 n=7+10)
-    
-        name                                  old p90-ns     new p90-ns     delta
-        GoroutineProfile/small/loaded-8          1.13M ±10%     7.49M ±35%   +562.07%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse/loaded-8         1.10M ±12%     4.58M ±31%   +318.02%  (p=0.000 n=10+9)
-        GoroutineProfile/large/loaded-8          8.78M ±24%    27.83M ± 2%   +217.00%  (p=0.000 n=10+10)
-        GoroutineProfile/small/idle               967k ± 0%     2909k ±50%   +200.91%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse/idle-8           1.02M ± 3%     1.96M ±76%    +92.99%  (p=0.000 n=10+10)
-        GoroutineProfile/small/idle-8            1.07M ±17%     1.55M ±12%    +45.23%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse/idle              992k ± 1%     1417k ± 3%    +42.79%  (p=0.000 n=9+10)
-        GoroutineProfile/large/idle              6.73M ± 0%     7.99M ± 8%    +18.80%  (p=0.000 n=8+10)
-        GoroutineProfile/large/idle-8            8.20M ±25%     9.18M ±25%       ~     (p=0.315 n=10+10)
-        GoroutineProfile/sparse-nil/idle-8        495k ± 3%       13k ± 1%    -97.36%  (p=0.000 n=10+9)
-        GoroutineProfile/small-nil/idle-8         494k ± 2%       13k ± 3%    -97.36%  (p=0.000 n=10+10)
-        GoroutineProfile/small-nil/loaded-8       496k ± 2%       13k ± 1%    -97.41%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse-nil/loaded-8      544k ±11%       13k ± 1%    -97.62%  (p=0.000 n=10+9)
-        GoroutineProfile/large-nil/idle-8         724k ± 1%       13k ± 3%    -98.20%  (p=0.000 n=10+10)
-        GoroutineProfile/large-nil/loaded-8       729k ± 3%       13k ± 2%    -98.23%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse-nil/idle          476k ± 4%        1k ± 1%    -99.85%  (p=0.000 n=9+10)
-        GoroutineProfile/small-nil/idle           537k ±10%        1k ± 0%    -99.87%  (p=0.000 n=10+9)
-        GoroutineProfile/large-nil/idle           729k ± 0%        1k ± 1%    -99.90%  (p=0.000 n=7+10)
-    
-        name                                  old p99-ns     new p99-ns     delta
-        GoroutineProfile/sparse/loaded-8         1.27M ±33%    20.49M ±17%  +1514.61%  (p=0.000 n=10+10)
-        GoroutineProfile/small/loaded-8          1.37M ±29%    20.48M ±23%  +1399.35%  (p=0.000 n=10+10)
-        GoroutineProfile/large/loaded-8          9.76M ±23%    39.98M ±22%   +309.52%  (p=0.000 n=10+8)
-        GoroutineProfile/small/idle               976k ± 1%     3367k ±55%   +244.94%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse/idle-8           1.03M ± 3%     2.50M ±65%   +142.30%  (p=0.000 n=10+10)
-        GoroutineProfile/small/idle-8            1.17M ±34%     1.70M ±14%    +45.15%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse/idle             1.02M ± 3%     1.45M ± 4%    +42.64%  (p=0.000 n=9+10)
-        GoroutineProfile/large/idle              6.92M ± 2%     9.00M ± 7%    +29.98%  (p=0.000 n=8+9)
-        GoroutineProfile/large/idle-8            8.74M ±23%     9.90M ±24%       ~     (p=0.190 n=10+10)
-        GoroutineProfile/sparse-nil/idle-8        508k ± 4%       16k ± 2%    -96.90%  (p=0.000 n=10+9)
-        GoroutineProfile/small-nil/idle-8         508k ± 4%       16k ± 3%    -96.91%  (p=0.000 n=10+9)
-        GoroutineProfile/small-nil/loaded-8       542k ± 5%       15k ±15%    -97.15%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse-nil/loaded-8      649k ±16%       15k ±18%    -97.67%  (p=0.000 n=10+10)
-        GoroutineProfile/large-nil/idle-8         738k ± 2%       16k ± 2%    -97.86%  (p=0.000 n=10+10)
-        GoroutineProfile/large-nil/loaded-8       765k ± 4%       15k ±17%    -98.03%  (p=0.000 n=10+10)
-        GoroutineProfile/sparse-nil/idle          539k ±26%        1k ±17%    -99.84%  (p=0.000 n=10+10)
-        GoroutineProfile/small-nil/idle           659k ±25%        1k ± 0%    -99.84%  (p=0.000 n=10+8)
-        GoroutineProfile/large-nil/idle           760k ± 2%        1k ±22%    -99.88%  (p=0.000 n=9+10)
-    
-    Fixes #33250
-    For #50794
-    
-    Change-Id: I862a2bc4e991cec485f21a6fce4fca84f2c6435b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387415
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Icbdc55c3bd8be84a242323bc45006f9dec09fdcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332692
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/mfinal.go      |   7 +-
- src/runtime/mprof.go       | 249 +++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/proc.go        |  25 +++++
- src/runtime/runtime2.go    |   4 +
- src/runtime/sizeof_test.go |   2 +-
- 5 files changed, 284 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/reader.go        |  8 +++-----
+ src/cmd/compile/internal/reflectdata/alg.go     |  6 ++----
+ src/cmd/compile/internal/typecheck/typecheck.go | 17 +++++------------
+ src/cmd/compile/internal/walk/walk.go           |  3 +--
+ 4 files changed, 11 insertions(+), 23 deletions(-)

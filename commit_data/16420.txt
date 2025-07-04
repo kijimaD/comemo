@@ -1,16 +1,17 @@
-commit 4d6bfcf24504bb2de0bf63bf43ad703ba808a3e9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue May 28 21:09:27 2013 +0400
+commit d8fd8d89ea071c79788b34eddf31858c0e66c19b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue May 28 20:13:02 2013 +0800
 
-    os/exec: fix test hang
-    Currently the test closes random files descriptors,
-    which leads to hang (in particular if netpoll fd is closed).
-    Try to open only fd 3, since the parent process expects it to be fd 3 anyway.
-    Fixes #5571.
+    runtime: use m and g, instead of R9 and R10, in ARM assembly files
+    also don't clobber R9 if it is about to crash.
     
-    R=golang-dev, r
+    In response to https://golang.org/cl/9251043/#msg2.
+    
+    R=golang-dev, khr, khr, dave
     CC=golang-dev
-    https://golang.org/cl/9778048
+    https://golang.org/cl/9778046
 
- src/pkg/os/exec/exec_test.go | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ src/pkg/runtime/sys_freebsd_arm.s | 42 ++++++++++++++++++-------------------
+ src/pkg/runtime/sys_linux_arm.s   |  8 +++----
+ src/pkg/runtime/sys_netbsd_arm.s  | 44 +++++++++++++++++++--------------------
+ 3 files changed, 46 insertions(+), 48 deletions(-)

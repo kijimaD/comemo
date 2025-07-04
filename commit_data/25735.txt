@@ -1,37 +1,15 @@
-commit ee451770a76e138e05d2cf499b0eb25e69122432
+commit 918a2644f2ba67af43cfab201bc4c3f41f8bfeb7
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 8 23:46:27 2016 -0500
+Date:   Tue Nov 17 16:34:06 2015 -0500
 
-    cmd/go: use GOPATH order for compile -I and link -L options
+    cmd/compile: fix Val vs Opt collision
     
-    Given GOPATH=p1:p2 and source code of just the right form,
-    the go command could previously end up invoking the compiler
-    with -I p2 -I p1 or the linker with -L p2 -L p1, so that
-    compiled packages in p2 incorrectly shadowed packages in p1.
-    If foo were in both p1 and p2 and the compilation of bar
-    were such that the -I and -L options were inverted in this way,
-    then
+    Fixes #12686.
     
-            GOPATH=p2 go install foo
-            GOPATH=p1:p2 go install bar
-    
-    would get the p2 copy of foo instead of the (expected) p1 copy of foo.
-    
-    This manifested in real usage in a few different ways, but in all
-    the root cause was that the -I or -L option sequence did not
-    match GOPATH.
-    
-    Make it match GOPATH.
-    
-    Fixes #14176 (second report).
-    Fixes #14192.
-    Related but less common issue #14271 not fixed.
-    
-    Change-Id: I9c0f69042bb2bf92c9fc370535da2c60a1187d30
-    Reviewed-on: https://go-review.googlesource.com/19385
+    Change-Id: I7a9f49dbd1f60b1d0240de57787753b425f9548c
+    Reviewed-on: https://go-review.googlesource.com/17031
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/go/build.go   | 18 +++++++++++++++++
- src/cmd/go/go_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+)
+ src/cmd/compile/internal/gc/const.go | 16 ++++++++++++----
+ test/fixedbugs/issue12686.go         | 16 ++++++++++++++++
+ 2 files changed, 28 insertions(+), 4 deletions(-)

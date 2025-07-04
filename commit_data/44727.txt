@@ -1,43 +1,17 @@
-commit 6461d74bf203925c981c889034ac5f713dc9db0b
-Author: Austin Clements <austin@google.com>
-Date:   Mon Mar 15 15:53:21 2021 -0400
+commit 6a718175a6b5532bb49160047731181a4ecec2a1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 4 23:27:18 2020 -0400
 
-    cmd/dist: build bootstrap without GOEXPERIMENT
+    cmd/go/internal/mvs: export a NewBuildListError function
     
-    Currently, dist attempts to build the bootstrap with the GOEXPERIMENT
-    set in the environment. However, the logic is incomplete and notably
-    requires a hack to enable the appropriate build tags for
-    GOEXPERIMENT=regabi. Without this hack, the build becomes skewed
-    between a compiler that uses regabi and a runtime that doesn't when
-    building toolchain2.
+    Also factor out BuildListError to a separate file.
     
-    We could try to improve the GOEXPERIMENT processing in cmd/dist, but
-    it will always chase cmd/internal/objabi and it's quite difficult to
-    share the logic with objabi because of the constraints on building
-    cmd/dist.
+    For #36460
     
-    Instead, we switch to building go_bootstrap without any GOEXPERIMENT
-    and only start using GOEXPERIMENT once we have a working, modern
-    cmd/go (which has all the GOEXPERIMENT logic in it). We also build
-    toolchain1 without any GOEXPERIMENT set, in case the bootstrap
-    toolchain is recent enough to understand build-time GOEXPERIMENT
-    settings.
-    
-    As part of this, we make GOEXPERIMENT=none mean "no experiments". This
-    is necessary since, now that we support setting GOEXPERIMENT at build
-    time, we need an explicit way to say "ignore all baked-in experiments".
-    
-    For #40724.
-    
-    Change-Id: I115399579b766a7a8b2f352f7e5efea5305666cd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/302050
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ibd1143893b09a2bbef659bea1e8c5dd35184a7ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247764
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/build.go           | 21 ++++++++++++++++-----
- src/cmd/internal/objabi/util.go |  9 ++++++---
- 2 files changed, 22 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/mvs/errors.go | 96 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/mvs/mvs.go    | 77 +++++--------------------------
+ 2 files changed, 108 insertions(+), 65 deletions(-)

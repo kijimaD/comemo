@@ -1,18 +1,13 @@
-commit bdbd5418f4c2dc87fa18e6b39e4ead21c6d87bbe
-Author: Pieter Droogendijk <pieter@binky.org.uk>
-Date:   Thu Aug 8 10:44:01 2013 -0700
+commit 315511585481ccc93b6524b49d9f5c3f5b59e7fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 8 10:40:32 2013 -0700
 
-    os: make Readdir work as documented
+    A+C: add googlemail aliases for deemok
     
-    Readdir's result should never contain a nil.
-    
-    Fixes #5960.
-    
-    R=golang-dev, rsc, bradfitz
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/12261043
+    https://golang.org/cl/12634044
 
- src/pkg/os/export_test.go  |  1 +
- src/pkg/os/file_unix.go    | 11 ++++++++---
- src/pkg/os/os_unix_test.go | 40 +++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 48 insertions(+), 4 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

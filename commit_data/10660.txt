@@ -1,16 +1,23 @@
-commit f00340f02287456b24a414b4b10051b727c6ad2e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 7 23:38:32 2011 -0500
+commit ef65feda2afd3644c884c630d628e46b06082e4c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 8 12:07:21 2011 +1100
 
-    gc: rename %union field name from lint to i
+    syscall: return error, not uintptr, when function returns error
     
-    #define lint has special meaning to Bison;
-    having a field named lint conflicts with that.
-    
-    R=ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5462044
+    https://golang.org/cl/5450119
 
- src/cmd/gc/go.y  | 6 +++---
- src/cmd/gc/lex.c | 2 +-
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/exp/wingui/gui.go                 | 27 ++++++-----
+ src/pkg/exp/wingui/winapi.go              | 20 ++++----
+ src/pkg/exp/wingui/zwinapi.go             | 80 ++++++++++++-------------------
+ src/pkg/mime/type_windows.go              | 10 ++--
+ src/pkg/net/fd_windows.go                 |  4 +-
+ src/pkg/net/interface_windows.go          |  4 +-
+ src/pkg/net/lookup_windows.go             | 10 ++--
+ src/pkg/syscall/dll_windows.go            | 15 ------
+ src/pkg/syscall/mksyscall_windows.pl      |  5 ++
+ src/pkg/syscall/syscall_windows.go        | 70 +++++++++++++++------------
+ src/pkg/syscall/zsyscall_windows_386.go   | 60 +++++++++++++++--------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 60 +++++++++++++++--------
+ 12 files changed, 193 insertions(+), 172 deletions(-)

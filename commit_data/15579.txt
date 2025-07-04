@@ -1,12 +1,15 @@
-commit a969f3c247b45ab5557aff1a8777751360b9c0a4
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Mon Mar 4 15:31:57 2013 -0500
+commit 9744c0e175cfaf45d7fc7bdfad10618e1ba69cd6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 4 11:55:27 2013 -0800
 
-    misc/emacs: Add tab completion for godoc command, completing from known installed packages
+    net: make some tests less flaky
     
-    R=golang-dev, adonovan, bradfitz, cw, patrick.allen.higgins, sameer, ugorji
+    Fixes #4969
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7373051
+    https://golang.org/cl/7456049
 
- misc/emacs/go-mode.el | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/net/conn_test.go      | 21 +++++++++++++--------
+ src/pkg/net/protoconn_test.go | 36 ++++++++++++++++++------------------
+ 2 files changed, 31 insertions(+), 26 deletions(-)

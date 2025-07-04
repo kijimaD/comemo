@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 19003: 67a5181045d1601820ea98dff06832339e19fd16
+# Index 19003: 383963b50622d9e0a28a3deb75aba8533e5ad949
 
 echo "🚀 Generating explanation for commit 19003..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 19003
-- **コミットハッシュ**: 67a5181045d1601820ea98dff06832339e19fd16
-- **GitHub URL**: https://github.com/golang/go/commit/67a5181045d1601820ea98dff06832339e19fd16
+- **コミットハッシュ**: 383963b50622d9e0a28a3deb75aba8533e5ad949
+- **GitHub URL**: https://github.com/golang/go/commit/383963b50622d9e0a28a3deb75aba8533e5ad949
 
 ### 章構成
 

@@ -1,21 +1,20 @@
-commit e07a4459a155789fb57bbf4e2c8eaca5b369fd17
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 12 12:16:20 2016 -0700
+commit 1f6e9e36b0aba3d2459c80b2c8e905d9cc57f7ce
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Tue Mar 1 13:39:47 2016 +0100
 
-    cmd: replace x[i:][0] expressions with x[i]
+    [dev.ssa] cmd/compile/internal/ssa: distribute multiplication into addition
     
-    Passes toolstash -cmp.
+    * This is a very basic form of straight line strength reduction.
+    * Removes one multiplication from a[b].c++; a[b+1].c++
+    * It increases pressure on the register allocator because
+    CSE creates more copies of the multiplication sizeof(a[0])*b.
     
-    Change-Id: Id504e71ed1f23900e24a9aed25143c94f4d7d50c
-    Reviewed-on: https://go-review.googlesource.com/21899
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I686a18e9c24cc6f8bdfa925713afed034f7d36d0
+    Reviewed-on: https://go-review.googlesource.com/20091
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go    | 2 +-
- src/cmd/internal/obj/mips/asm0.go     | 2 +-
- src/cmd/internal/obj/s390x/asmz.go    | 2 +-
- src/cmd/internal/obj/x86/asm6.go      | 3 +--
- src/cmd/link/internal/ld/decodesym.go | 4 ++--
- src/cmd/link/internal/ld/ldelf.go     | 2 +-
- 6 files changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  5 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 70 ++++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+)

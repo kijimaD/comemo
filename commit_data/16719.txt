@@ -1,13 +1,27 @@
-commit d178c016c2b6ae2403986c730d8d11ed95a8211f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jul 10 13:29:52 2013 +1000
+commit 6d86c14efab9bdd9d071ac081fa6f8ea62f956c9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 10 09:52:36 2013 +1000
 
-    net/http: in ServeContent, don't seek on content until necessary
+    cmd/go: fix a couple of bugs in coverage tooling
+    Merging a couple of CLs into one, since they collided in my client
+    and I'm lazy.
     
-    R=golang-dev, adg
+    1) Fix up output in "go test -cover" case.
+    We need to tell the testing package the name of the package being tested
+    and the name of the package being covered. It can then sort out the report.
+    
+    2) Filter out the _test.go files from coverage processing. We want to measure
+    what the tests cover, not what's covered in the tests,
+    The coverage for encoding/gob goes from 82.2% to 88.4%.
+    There may be a cleaner way to do this - suggestions welcome - but ça suffit.
+    
+    Fixes #5810.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/11080043
+    https://golang.org/cl/10868047
 
- src/pkg/net/http/fs.go      | 39 +++++++++++++++++++++++++++------------
- src/pkg/net/http/fs_test.go | 31 +++++++++++++++++++++++++------
- 2 files changed, 52 insertions(+), 18 deletions(-)
+ src/cmd/go/build.go      |  4 ++--
+ src/cmd/go/test.go       | 42 ++++++++++++++++++++++++++++++++++--------
+ src/pkg/testing/cover.go | 27 ++++++++++++++-------------
+ 3 files changed, 50 insertions(+), 23 deletions(-)

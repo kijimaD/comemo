@@ -1,14 +1,62 @@
-commit 38ecd2e267ff90874d532b9ee6ca3a21bf9219bc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 10 11:43:04 2014 +1100
+commit 599199fd9f53dc91ccc3f29c41cc318052668f70
+Merge: b55791e200 3bbc8638d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 11:45:01 2014 -0400
 
-    all: tighten overly-broad runtime/z* gitignore line
+    [dev.power64] all: merge default (dd5014ed9b01) into dev.power64
     
-    Fixes #9231
+    Still passes on amd64.
     
-    Change-Id: Ifed6cd37e885415d9a298b63d472d63f44e72321
-    Reviewed-on: https://go-review.googlesource.com/1290
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=austin
+    R=austin
+    CC=golang-codereviews
+    https://golang.org/cl/165110043
 
- .gitignore | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/asm.html                      | 131 +++++++--
+ doc/go1.4.html                    | 598 ++++++++++++++++++++++++++++++++++++++
+ doc/go1.4.txt                     |  53 ----
+ doc/go_mem.html                   |  23 ++
+ doc/go_spec.html                  |  15 +-
+ src/cmd/gc/builtin.c              |   1 -
+ src/cmd/gc/runtime.go             |   1 -
+ src/cmd/gc/walk.c                 | 247 ++++++++--------
+ src/cmd/go/get.go                 |  14 +-
+ src/cmd/go/test.bash              |  10 +
+ src/cmd/objdump/main.go           |   2 +-
+ src/cmd/objdump/objdump_test.go   |  19 +-
+ src/encoding/json/encode.go       |   8 +-
+ src/encoding/json/encode_test.go  |  52 ++++
+ src/fmt/doc.go                    |   4 +-
+ src/html/template/js_test.go      |   2 +-
+ src/net/z_last_test.go            |  62 ++++
+ src/os/dir_unix.go                |   2 +-
+ src/os/file.go                    |   9 +
+ src/os/file_plan9.go              |   8 +-
+ src/os/file_posix.go              |   2 +-
+ src/os/file_unix.go               |   8 +-
+ src/os/file_windows.go            |   4 +-
+ src/runtime/asm_386.s             |  14 +
+ src/runtime/asm_amd64.s           |  14 +
+ src/runtime/asm_arm.s             |  15 +
+ src/runtime/crash_cgo_test.go     |  52 ++++
+ src/runtime/crash_test.go         |  17 +-
+ src/runtime/debug/garbage.go      |  30 +-
+ src/runtime/debug/garbage_test.go |  13 +
+ src/runtime/extern.go             |   6 +
+ src/runtime/funcdata.h            |   3 +
+ src/runtime/malloc.h              |   3 +-
+ src/runtime/mem.go                |   3 +-
+ src/runtime/mgc0.c                |  27 +-
+ src/runtime/print1.go             |  27 +-
+ src/runtime/proc.c                |  20 ++
+ src/runtime/rt0_nacl_amd64p32.s   |   2 +-
+ src/runtime/runtime.c             |   4 +
+ src/runtime/runtime.h             |   2 +
+ src/runtime/stack.c               |   4 +-
+ src/runtime/sys_nacl_amd64p32.s   |   6 +-
+ src/runtime/time.go               |  29 +-
+ src/syscall/fs_nacl.go            |   6 +
+ src/syscall/route_bsd.go          |   2 +-
+ test/fixedbugs/issue9006.go       |  37 +++
+ test/maplinear.go                 |  17 +-
+ 47 files changed, 1338 insertions(+), 290 deletions(-)

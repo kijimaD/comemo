@@ -1,26 +1,31 @@
-commit d2131704a6fda781bd3b823dbe8f57741663f466
-Author: Steven Hartland <steven.hartland@multiplay.co.uk>
-Date:   Thu May 7 10:08:08 2020 +0000
+commit 43f2f5024b2a1438a642fe5340b929d3069099e9
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Apr 28 17:47:27 2020 -0400
 
-    net/http/httputil: fix deadlock in DumpRequestOut
+    crypto/tls: rotate session ticket keys
     
-    Fix a deadlock in DumpRequestOut which can occur if the request is
-    cancelled between response being sent and it being processed.
+    Automatically rotate session ticket keys for servers
+    that don't already have sessionTicketKeys and that
+    haven't called SetSessionTicketKeys.
     
-    Also:
-    * Ensure we don't get a reader leak when an error is reported by the
-      transport before the body is consumed.
-    * Add leaked goroutine retries to avoid false test failures.
+    Now, session ticket keys will be rotated every 24 hours
+    with a lifetime of 7 days. This adds a small performance
+    cost to existing clients that don't provide a session
+    ticket encrypted with a fresh enough session ticket key,
+    which would require a full handshake.
     
-    Fixes #38352
+    Updates #25256
     
-    Change-Id: I83710791b2985b997f61fe5b49eadee0bb51bdee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232798
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Damien Neil <dneil@google.com>
+    Change-Id: I15b46af7a82aab9a108bceb706bbf66243a1510f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230679
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/net/http/httputil/dump.go      | 15 +++++--
- src/net/http/httputil/dump_test.go | 80 ++++++++++++++++++++++++++++++++++++--
- 2 files changed, 87 insertions(+), 8 deletions(-)
+ src/crypto/tls/common.go                | 203 +++++++++++++++++++++-----------
+ src/crypto/tls/conn.go                  |   5 +
+ src/crypto/tls/handshake_client_test.go |  15 +++
+ src/crypto/tls/handshake_server.go      |  14 +--
+ src/crypto/tls/handshake_server_test.go |  14 +--
+ src/crypto/tls/ticket.go                |  12 +-
+ 6 files changed, 172 insertions(+), 91 deletions(-)

@@ -1,20 +1,17 @@
-commit 92834d351e405e295394dcfb39cb12ac5a9286f4
-Author: Rob Pike <r@golang.org>
-Date:   Sat May 7 22:57:42 2011 -0700
+commit f467803dcd84e38df5ad2ee90613b1a088090071
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat May 7 18:57:32 2011 -0700
 
-    image/gif: GIF decoder
+    compress/lzw: silently drop implied codes that are too large,
+    instead of returning an error.
     
-    It's incomplete but sufficient to decode 8-bit GIFs without interlacing
-    or transparency.   More to come.
+    For example, http://www.w3.org/Graphics/GIF/spec-gif89a.txt
+    explicitly says that GIF encoders can use a full table as is,
+    without needing to send a clear code.
     
-    I'll put in more tests as the feature set grows.
-    
-    R=nigeltao, r2
+    R=r, dsymonds, nigeltao_gnome, r2
     CC=golang-dev
-    https://golang.org/cl/4522041
+    https://golang.org/cl/4518041
 
- src/pkg/Makefile             |   2 +
- src/pkg/image/decode_test.go |   5 +-
- src/pkg/image/gif/Makefile   |  11 ++
- src/pkg/image/gif/reader.go  | 386 +++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 402 insertions(+), 2 deletions(-)
+ src/pkg/compress/lzw/reader.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

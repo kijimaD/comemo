@@ -1,20 +1,20 @@
-commit caa225dd297a467b0d720d5f1d63050e49061ad3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 26 12:50:02 2022 -0700
+commit ab7c904bf2bb883b83001d8bb188d1809d74eee6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 24 01:01:06 2021 +1000
 
-    doc/go1.19: note that updated race syso files require GNU ld 2.26
+    cmd/internal/obj/riscv: factor out instructions for MOV pseudo-instructions
     
-    For #54060
+    This factors out the machine instruction generation for MOV pseudo-instructions,
+    which will simplify further changes.
     
-    Change-Id: I6360565056d7fb7110ff00b0f3f9a3fc02ba7f2d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419595
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Ic0d2c3ae9e0881f7894af50ed45e93b0e4961632
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344461
+    Trust: Joel Sing <joel@sing.id.au>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/go1.19.html | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/riscv/obj.go | 103 ++++++++++++++++++++++++--------------
+ 1 file changed, 65 insertions(+), 38 deletions(-)

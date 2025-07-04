@@ -1,16 +1,13 @@
-commit 9cddb60d251fbd3b5a391b87fa76c20378296f92
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 21 13:07:51 2014 -0700
+commit 1332eb5b6210e16601ff8d049885e41a6e16908d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Apr 21 17:21:09 2014 +0200
 
-    net: extend TestVariousDeadlines1Proc timeout
+    runtime/race: add test for issue 7561.
     
-    TestVariousDeadlines1Proc was flaky on my system,
-    failing on about 5% of runs.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=dvyukov
+    R=rsc, iant, khr, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/89830045
+    https://golang.org/cl/76520045
 
- src/pkg/net/timeout_test.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/pkg/runtime/race/testdata/map_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

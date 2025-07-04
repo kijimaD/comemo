@@ -1,0 +1,15 @@
+commit 30f3931c5411a9b3bd9da3eaae71375a232b12cb
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 12 14:14:34 2024 +0200
+
+    runtime/pprof: use slices.Contains
+    
+    Change-Id: I013aae68f47d7a37deb44097f80a213d8c7976bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612655
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/pprof/pprof_test.go | 14 +++-----------
+ 1 file changed, 3 insertions(+), 11 deletions(-)

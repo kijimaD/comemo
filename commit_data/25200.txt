@@ -1,17 +1,16 @@
-commit 9b8080f37e5883fe1b9304d40a08faf32a8f1e40
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Dec 8 21:42:52 2015 +0000
+commit 449cc06e9825c130af7cba4910cecb66f98a2345
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 6 17:57:46 2015 -0700
 
-    net/http: update bundled http2 copy
+    test: adjust gccgo expected import errors
     
-    Updates golang.org/x/net/http2 to git rev 438097d76
+    Update two tests for the recently submitted gccgo change
+    https://golang.org/cl/14259.
     
-    Fixes #13444
-    
-    Change-Id: I699ac02d23b56db3e8a27d3f599ae56cd0a5b4b2
-    Reviewed-on: https://go-review.googlesource.com/17570
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib18bc87ea512074aa91fd4096d0874b72e2243e5
+    Reviewed-on: https://go-review.googlesource.com/15493
+    Reviewed-by: Chris Manghane <cmang@golang.org>
 
- src/net/http/h2_bundle.go | 83 ++++++++++++++++++++++++++++-------------------
- 1 file changed, 49 insertions(+), 34 deletions(-)
+ test/fixedbugs/issue5957.dir/c.go | 2 +-
+ test/import4.dir/import4.go       | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

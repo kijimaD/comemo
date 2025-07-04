@@ -1,15 +1,22 @@
-commit 96dc04412d18cc999af21cecb22dea9e7b896360
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 10 13:45:19 2020 -0400
+commit dab05a04842e75126fdf880368c2e721485f8a09
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 8 15:35:36 2019 -0400
 
-    test/run: handle asmcheck -gcflags= commands better
+    [dev.link] cmd/link: implement symbol overwrite logic
     
-    The default is for later flags to override earlier ones,
-    so if the asmcheck set flags, it lost the important -S=2.
+    If two defined symbols have the same name, one contentless and
+    one with content, the one with content "wins". This is mainly for
+    go:linkname on data symbols. Support this logic in newobj mode.
     
-    Change-Id: Id538254908d658da2acb55157ac4f6fa44f6a467
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222820
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Introduce an "overwrite" mechanism, letting one symbol overwrite
+    another. This machanism could later be used for the linker
+    overwriting symbol contents (e.g. -X flag).
+    
+    Change-Id: I32ee7d4b82df275f11b38c3abefc99b878ff12d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200097
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- test/run.go | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/objfile/objfile2.go | 39 ++++++++++++++++++++++++++-----
+ 1 file changed, 33 insertions(+), 6 deletions(-)

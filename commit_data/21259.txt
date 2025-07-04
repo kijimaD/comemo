@@ -1,19 +1,14 @@
-commit bfeda9188a054efdb950c9c9727d6bce7ad04961
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 14 14:57:10 2015 -0500
+commit 9b71417495b8fe4ef4b2a30855a4cf32bf947a4d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 15 09:30:53 2014 +1100
 
-    runtime: fix accounting race in printlock
+    encoding/json: mention that the "string" tag applies to booleans
     
-    It could happen that mp.printlock++ happens, then on entry to lock,
-    the goroutine is preempted and then rescheduled onto another m
-    for the actual call to lock. Now the lock and the printlock++ have
-    happened on different m's. This can lead to printlock not being
-    unlocked, which either gives a printing deadlock or a crash when
-    the goroutine reschedules, because m.locks > 0.
+    Fixes #9284
     
-    Change-Id: Ib0c08740e1b53de3a93f7ebf9b05f3dceff48b9f
-    Reviewed-on: https://go-review.googlesource.com/2819
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I0410a9ed82b861686a0a986c9ca4eeeacac8f296
+    Reviewed-on: https://go-review.googlesource.com/1534
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/print1.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/encoding/json/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

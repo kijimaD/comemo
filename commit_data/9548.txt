@@ -1,29 +1,16 @@
-commit d01ee38fb09bfc9f03f5930fa2054cc767d611d2
+commit 6b902628709f694967d54045de949d2db20ddadd
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 29 17:22:20 2011 -0700
+Date:   Mon Aug 29 16:49:31 2011 -0700
 
-    godoc: support for reading/writing (splitted) index files.
+    godoc: fix bug in zip.go
     
-    This CL implements a new godoc feature to save the search
-    index on disk. Use -write_index to create the search
-    index file named with -index_files. Use -index_files to
-    provide a glob pattern specifying index file(s) when
-    starting godoc; in this case the run-time indexer is not
-    run.
+    The result of sort.Search is in the interval [0,n);
+    specifically, if no entry is found, the result is n
+    and not -1.
     
-    Known issues:
-    - saving/restoring full text index is not yet supported
-    - the list of flags and overall usage logic could use a
-      cleanup
-    
-    R=rsc, dsymonds
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/4974045
+    https://golang.org/cl/4982041
 
- src/cmd/godoc/appconfig.go | 13 ++++++--
- src/cmd/godoc/appinit.go   | 27 +++++++++++-----
- src/cmd/godoc/doc.go       |  6 ++++
- src/cmd/godoc/godoc.go     | 80 ++++++++++++++++++++++++++++++++++------------
- src/cmd/godoc/index.go     | 33 +++++++++++++++++++
- src/cmd/godoc/main.go      | 46 +++++++++++++++++++++++---
- 6 files changed, 170 insertions(+), 35 deletions(-)
+ src/cmd/godoc/zip.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

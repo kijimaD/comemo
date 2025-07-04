@@ -1,21 +1,17 @@
-commit f3e82e045e7e2d95f416801aa07a82a3e1338d77
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 22 16:52:26 2017 -0400
+commit b5e1ae46adb2d3552d5df78e6a410f479ef1efb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 22 20:50:32 2017 -0700
 
-    cmd/go: report possibly-relevant ignored symlinks during pattern match
+    cmd/compile: don't crash when reporting some syntax errors
     
-    We can't follow symlinks for fear of directory cycles and other problems,
-    but we can at least notice potentially-relevant symlinks that are being
-    ignored and report them.
+    Fixes #19667.
     
-    Fixes #17662.
-    
-    Change-Id: I1fce00bd5b80ea8df45dac8b61bfa08076ec5f4b
-    Reviewed-on: https://go-review.googlesource.com/46425
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Iaa71e2020af123c1bd3ac25e0b760956688e8bdf
+    Reviewed-on: https://go-review.googlesource.com/38458
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/go_test.go              | 25 +++++++++++++++++++++++++
- src/cmd/go/internal/load/search.go | 20 +++++++++++++++++---
- 2 files changed, 42 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/syntax/printer.go |  3 +++
+ test/fixedbugs/issue19667.go               | 13 +++++++++++++
+ 2 files changed, 16 insertions(+)

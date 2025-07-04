@@ -1,17 +1,22 @@
-commit 0e13da8fae55d17c0c4ca64b1b8f259d633cee51
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Oct 5 14:35:24 2021 -0700
+commit 6c8fbfbdcfa48ca29926097b20767fe83409b3ed
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jan 26 17:52:19 2021 +1100
 
-    cmd/internal/obj: allow more gcbits content addressability
+    runtime: convert openbsd/arm64 locking to libc
     
-    Follow-up to feedback on CL 352189.
+    Switch openbsd/arm64 to locking via libc, rather than performing direct
+    system calls.
     
-    Change-Id: I3d9fa87878a74a5a725812c7852050c02c433fa3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354137
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Update #36435
+    
+    Change-Id: I2f30432c4bc232224cf87dca750665b8c40c7b72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286813
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/obj/objfile.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/runtime/os_openbsd_syscall1.go |  2 +-
+ src/runtime/sys_openbsd1.go        |  2 +-
+ src/runtime/sys_openbsd_arm64.s    | 43 +++++++++++++++++---------------------
+ 3 files changed, 21 insertions(+), 26 deletions(-)

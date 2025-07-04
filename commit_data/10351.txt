@@ -1,19 +1,20 @@
-commit 2ba079868204837891e531eecb4215eecfee8ff7
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Nov 11 14:11:30 2011 -0800
+commit 5fc3771b3a052ad8b724d6c5f6d491aa5a4b88b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 16:48:25 2011 -0500
 
-    gofmt: leave nil nodes of the AST unchanged.
+    gc: remove m[k] = x, false
     
-    Without this check, gofmt panics when trying to apply
-    the identity transformation on "item.field" expressions.
-    Fixes #2410.
-    
-    R=rsc, gri
-    CC=golang-dev, remy
-    https://golang.org/cl/5376061
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5376076
 
- src/cmd/gofmt/gofmt_test.go            |  1 +
- src/cmd/gofmt/rewrite.go               |  4 ++--
- src/cmd/gofmt/testdata/rewrite3.golden | 12 ++++++++++++
- src/cmd/gofmt/testdata/rewrite3.input  | 12 ++++++++++++
- 4 files changed, 27 insertions(+), 2 deletions(-)
+ src/cmd/gc/esc.c          |  1 -
+ src/cmd/gc/fmt.c          |  2 --
+ src/cmd/gc/go.h           |  2 +-
+ src/cmd/gc/typecheck.c    | 13 ++-----------
+ src/cmd/gc/walk.c         | 12 ------------
+ src/pkg/runtime/hashmap.c | 28 ----------------------------
+ test/fixedbugs/bug220.go  | 14 --------------
+ test/fixedbugs/bug242.go  |  3 ++-
+ test/named1.go            |  1 -
+ 9 files changed, 5 insertions(+), 71 deletions(-)

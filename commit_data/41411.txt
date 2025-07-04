@@ -1,20 +1,25 @@
-commit 2bfa8c37c3676d240ce947d58717fc8c0caa45f1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jan 22 17:06:15 2020 -0800
+commit dc8453964a519032bfd338a2cc027d038c9b2e79
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 11 16:03:59 2019 -0400
 
-    cmd/compile: use ellipses in ARM64 rules
+    [dev.link] cmd/compile: finish all data generation before writing object file
     
-    Also, explicitly zero AuxInt in some ops (like Div),
-    to make it clear why they do not use an ellipsis.
+    Currently, at the end of compilation, the compiler writes out the
+    export data, the linker object file header, then does more
+    code/data generation, then writes the main content of the linker
+    object file. This CL refactors it to finish all the code/data
+    generation before writing any output file.
     
-    Passes toolstash-check -all.
+    A later CL will inject some code that operates on all defined
+    symbols before writing the output. This ensures all the symbols
+    are available at that point.
     
-    Change-Id: Iea0e807949f0899c43d2d21b9551a2cf00a829b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217006
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I97d946553fd0ffd298234c520219540d29783576
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196027
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  261 ++-
- src/cmd/compile/internal/ssa/rewriteARM64.go | 2582 +++++---------------------
- 2 files changed, 583 insertions(+), 2260 deletions(-)
+ src/cmd/compile/internal/gc/main.go |  1 +
+ src/cmd/compile/internal/gc/obj.go  | 32 +++++++++++++++++---------------
+ 2 files changed, 18 insertions(+), 15 deletions(-)

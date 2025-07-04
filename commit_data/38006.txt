@@ -1,18 +1,30 @@
-commit 889aa5eb98ff2a5134f5b075525479da399e5c4f
-Author: Herbie Ong <herbie@google.com>
-Date:   Wed Feb 20 11:30:14 2019 -0800
+commit 01b7c2db156cc40e928bb95ec7f980f0ab22aa26
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 24 19:12:54 2018 +0000
 
-    go/build: add go1.13 release tag
+    cmd/vendor: update golang.org/x/sys/windows for windows/arm support
     
-    Adding this early in the cycle to start regression testing in the master
-    toolchain.
+    Updates to golang.org/x/sys git rev 90868a75f.
     
-    Change-Id: Ia151429c4f94efbac0aa41ab6bc16e7462b0e303
-    Reviewed-on: https://go-review.googlesource.com/c/163082
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates golang/go#26148
+    
+    Change-Id: Ic687e7e0e171690e8d937c7bb29b0e55316f874a
+    Reviewed-on: https://go-review.googlesource.com/137015
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/build.go | 2 +-
- src/go/build/doc.go   | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/vendor/golang.org/x/sys/windows/aliases.go |  13 ++
+ .../golang.org/x/sys/windows/asm_windows_arm.s     |  11 ++
+ .../x/sys/windows/registry/zsyscall_windows.go     |   2 +-
+ .../golang.org/x/sys/windows/security_windows.go   |   4 +-
+ src/cmd/vendor/golang.org/x/sys/windows/service.go |  18 +++
+ .../golang.org/x/sys/windows/svc/mgr/config.go     |  38 +++--
+ .../golang.org/x/sys/windows/svc/mgr/mgr_test.go   | 113 +++++++++++++
+ .../golang.org/x/sys/windows/svc/mgr/recovery.go   | 135 ++++++++++++++++
+ .../vendor/golang.org/x/sys/windows/svc/sys_arm.s  |  38 +++++
+ .../golang.org/x/sys/windows/syscall_windows.go    |  60 ++++++-
+ .../x/sys/windows/syscall_windows_test.go          |   6 +
+ .../golang.org/x/sys/windows/types_windows.go      | 180 ++++++++++++++++++---
+ .../golang.org/x/sys/windows/types_windows_arm.go  |  22 +++
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |   2 +-
+ src/cmd/vendor/vendor.json                         |  32 ++--
+ 15 files changed, 613 insertions(+), 61 deletions(-)

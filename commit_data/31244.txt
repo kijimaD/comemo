@@ -1,43 +1,21 @@
-commit 405a280d01ee6434eea306e3f849ba0586cc8f78
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 20 07:13:02 2017 -0700
+commit 48d71990722f3cc81305c794d3d3b6d9007770c8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Jan 28 11:29:53 2017 +0100
 
-    cmd/internal/obj: eliminate LSym.Version
+    cmd/go: clarify that tag lists are space-separated
     
-    There were only two versions, 0 and 1,
-    and the only user of version 1 was the assembler,
-    to indicate that a symbol was static.
+    Apparently the current documentation is confusing users that
+    quickly skim the flags list at the top. Make very clear that
+    build tags are space-separated.
     
-    Rename LSym.Version to Static,
-    and add it to LSym.Attributes.
-    Simplify call-sites.
+    Updates #18800
     
-    Passes toolstash-check.
-    
-    Change-Id: Iabd39918f5019cce78f381d13f0481ae09f3871f
-    Reviewed-on: https://go-review.googlesource.com/41201
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I473552c5a2b70ca03d8bbbd2c76805f7f82b49a2
+    Reviewed-on: https://go-review.googlesource.com/35951
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/parse.go           | 12 ++++--
- src/cmd/compile/internal/gc/obj.go          |  4 +-
- src/cmd/compile/internal/gc/pgen.go         |  4 +-
- src/cmd/compile/internal/gc/reflect.go      | 12 +++---
- src/cmd/compile/internal/ssa/export_test.go |  2 +-
- src/cmd/internal/obj/arm/asm5.go            | 10 ++---
- src/cmd/internal/obj/arm/obj5.go            | 10 ++---
- src/cmd/internal/obj/arm64/obj7.go          |  6 +--
- src/cmd/internal/obj/line_test.go           |  2 +-
- src/cmd/internal/obj/link.go                | 12 +++---
- src/cmd/internal/obj/mips/obj0.go           |  6 +--
- src/cmd/internal/obj/objfile.go             | 35 ++++++++--------
- src/cmd/internal/obj/plist.go               |  4 +-
- src/cmd/internal/obj/ppc64/asm9.go          |  4 +-
- src/cmd/internal/obj/ppc64/obj9.go          | 12 +++---
- src/cmd/internal/obj/s390x/objz.go          |  6 +--
- src/cmd/internal/obj/sizeof_test.go         |  2 +-
- src/cmd/internal/obj/sym.go                 | 63 +++++++++++++++++------------
- src/cmd/internal/obj/x86/asm6.go            |  6 +--
- src/cmd/internal/obj/x86/obj6.go            | 10 ++---
- 20 files changed, 120 insertions(+), 102 deletions(-)
+ src/cmd/go/alldocs.go             | 9 +++++----
+ src/cmd/go/internal/work/build.go | 9 +++++----
+ 2 files changed, 10 insertions(+), 8 deletions(-)

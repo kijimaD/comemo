@@ -1,14 +1,33 @@
-commit 761dacee6222ee20720aec0d9ef8da8aa230d36d
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 10 11:19:41 2014 -0700
+commit ac0e12d15800ac0e5795e823ab0e99c1eb70667b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 5 16:40:23 2014 -0400
 
-    doc/install.html: fix erroneous HTML annotation
-    align=middle is invalid; use align=center
+    cmd/6g: fix stack zeroing on native client
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/106910044
+    I am not sure what the rounding here was
+    trying to do, but it was skipping the first
+    pointer on native client.
+    
+    The code above the rounding already checks
+    that xoffset is widthptr-aligned, so the rnd
+    was a no-op everywhere but on Native Client.
+    And on Native Client it was wrong.
+    
+    Perhaps it was supposed to be rounding down,
+    not up, but zerorange handles the extra 32 bits
+    correctly, so the rnd does not seem to be necessary
+    at all.
+    
+    This wouldn't be worth doing for Go 1.3 except
+    that it can affect code on the playground.
+    
+    Fixes #8155.
+    
+    LGTM=r, iant
+    R=golang-codereviews, r, iant
+    CC=dvyukov, golang-codereviews, khr
+    https://golang.org/cl/108740047
 
- doc/install.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/6g/ggen.c           |  2 +-
+ test/fixedbugs/issue8155.go | 48 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 1 deletion(-)

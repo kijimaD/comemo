@@ -1,25 +1,20 @@
-commit f7b4f02ba067096650b74426ed1459cbf63a93da
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Sep 16 18:10:56 2022 -0400
+commit 4fe4601d37179facbf7e79627ef9d6a236364505
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 14:29:35 2022 +0800
 
-    cmd/go: default to PIE linking on darwin/amd64
+    runtime: simplify code using unsafe.{Slice,String}
     
-    The recent version of darwin linker ld64 emits an warning about
-    deprecation of the -no_pie flag. Further, the new darwin linker
-    ld-prime ignores -no_pie flag and generates a PIE binary anyway.
-    Switch to building PIE binaries by default.
+    Updates #54854
     
-    Updates #54482.
-    Updates #61229.
-    
-    Change-Id: I81294dcd07a368a20e1349d56556ee2fdcb8df44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461697
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Ie18665e93e477b6f220acf4c6c070b2af4343064
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428157
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/cgo/internal/test/issue4029.c   | 2 +-
- src/cmd/cgo/internal/test/issue4029.go  | 7 +++----
- src/cmd/cgo/internal/test/issue4029w.go | 2 +-
- src/internal/platform/supported.go      | 2 +-
- 4 files changed, 6 insertions(+), 7 deletions(-)
+ src/runtime/debuglog.go                 | 6 +-----
+ src/runtime/memmove_linux_amd64_test.go | 7 +------
+ src/runtime/proc.go                     | 2 +-
+ 3 files changed, 3 insertions(+), 12 deletions(-)

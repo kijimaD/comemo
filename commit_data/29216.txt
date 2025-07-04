@@ -1,38 +1,38 @@
-commit ee3d20129a89047ccb4a4e157688d2f24db8f343
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 26 17:05:41 2016 -0400
+commit d24f446a90ea94b87591bf16228d7d871fec3d92
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 30 03:19:01 2016 +0000
 
-    runtime: avoid getfull() barrier most of the time
+    crypto/tls: add Config.Clone
     
-    With the hybrid barrier, unless we're doing a STW GC or hit a very
-    rare race (~once per all.bash) that can start mark termination before
-    all of the work is drained, we don't need to drain the work queue at
-    all. Even draining an empty work queue is rather expensive since we
-    have to enter the getfull() barrier, so it's worth avoiding this.
+    In Go 1.0, the Config struct consisted only of exported fields.
     
-    Conveniently, it's quite easy to detect whether or not we actually
-    need the getufull() barrier: since the world is stopped when we enter
-    mark termination, everything must have flushed its work to the work
-    queue, so we can just check the queue. If the queue is empty and we
-    haven't queued up any jobs that may create more work (which should
-    always be the case with the hybrid barrier), we can simply have all GC
-    workers perform non-blocking drains.
+    In Go 1.1, it started to grow private, uncopyable fields (sync.Once,
+    sync.Mutex, etc).
     
-    Also conveniently, this solution is quite safe. If we do somehow screw
-    something up and there's work on the work queue, some worker will
-    still process it, it just may not happen in parallel.
+    Ever since, people have been writing their own private Config.Clone
+    methods, or risking it and doing a language-level shallow copy and
+    copying the unexported sync variables.
     
-    This is not the "right" solution, but it's simple, expedient,
-    low-risk, and maintains compatibility with debug.gcrescanstacks. When
-    we remove the gcrescanstacks fallback in Go 1.9, we should also fix
-    the race that starts mark termination early, and then we can eliminate
-    work draining from mark termination.
+    Clean this up and export the Config.clone method as Config.Clone.
+    This matches the convention of Template.Clone from text/template and
+    html/template at least.
     
-    Updates #17503.
+    Fixes #15771
+    Updates #16228 (needs update in x/net/http2 before fixed)
+    Updates #16492 (not sure whether @agl wants to do more)
     
-    Change-Id: I7b3cd5de6a248ab29d78c2b42aed8b7443641361
-    Reviewed-on: https://go-review.googlesource.com/32186
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I48c2825d4fef55a75d2f99640a7079c56fce39ca
+    Reviewed-on: https://go-review.googlesource.com/28075
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/mgc.go | 47 +++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 45 insertions(+), 2 deletions(-)
+ src/crypto/tls/common.go                |  5 +++--
+ src/crypto/tls/conn_test.go             |  8 ++++----
+ src/crypto/tls/handshake_client_test.go | 20 +++++++++----------
+ src/crypto/tls/handshake_server_test.go | 34 ++++++++++++++++-----------------
+ src/crypto/tls/tls.go                   |  2 +-
+ src/crypto/tls/tls_test.go              | 22 ++++++++++-----------
+ src/net/http/httptest/server.go         |  5 +++--
+ src/net/http/transport.go               | 25 +-----------------------
+ 8 files changed, 50 insertions(+), 71 deletions(-)

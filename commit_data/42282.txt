@@ -1,15 +1,16 @@
-commit fdb8a3e63846f07a10f44b0f26b839817e336db5
-Author: Katie Hockman <katie@golang.org>
-Date:   Thu Apr 30 16:01:19 2020 -0400
+commit f4a8bf128364e852cff87cf404a5c16c457ef8f6
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 21 13:24:51 2019 -0500
 
-    crypto/tls: marshal sessionState using cryptobyte
+    crypto/tls: remove leftover extensionNextProtoNeg constant
     
-    Change-Id: I95a60b837e19d0c4bf45ea74baa5843a8244a186
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231218
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    NPN was removed in CL 174329.
+    
+    Change-Id: Ic63ad53e7e24872e28673d590727e0300f435619
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208224
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/handshake_messages_test.go |   8 +--
- src/crypto/tls/ticket.go                  | 107 +++++++++++-------------------
- 2 files changed, 41 insertions(+), 74 deletions(-)
+ src/crypto/tls/common.go | 1 -
+ 1 file changed, 1 deletion(-)

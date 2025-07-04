@@ -1,16 +1,12 @@
-commit 38df0459ae1631e223edbe2c9f1a970bbb994fe9
-Author: Rob Pike <r@golang.org>
-Date:   Tue Dec 13 11:13:23 2011 -0800
+commit c0951e9f8b06279d871f87c4d6231ad3202d8bf0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 13 14:12:16 2011 -0500
 
-    strconv: make QuoteRune etc. take a rune argument
-    Just an oversight it didn't already.
-    Fixes #2515.
+    5g: fix build
     
-    R=golang-dev, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5483064
+    https://golang.org/cl/5482059
 
- src/pkg/fmt/format.go         |  4 ++--
- src/pkg/strconv/quote.go      | 16 ++++++++--------
- src/pkg/strconv/quote_test.go |  2 +-
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ src/cmd/5g/ggen.c | 1 -
+ 1 file changed, 1 deletion(-)

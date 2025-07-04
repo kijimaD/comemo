@@ -1,17 +1,25 @@
-commit 1e26df40fa2ee41da971338ab25299e27a221704
-Author: Rob Pike <r@golang.org>
-Date:   Mon May 11 13:31:05 2015 -0700
+commit 951f74c4d0bad3efb1eaea3ad6a8bf16ac53ec36
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 17 17:23:51 2015 -0700
 
-    cmd/doc: print BUGs after package docs
+    cmd/...: fix vet issues and cull dead code
     
-    Was otherwise absent unless bound to an exported symbol,
-    as in the BUG with strings.Title.
-    
-    Fixes #10781.
-    
-    Change-Id: I1543137073a9dee9e546bc9d648ca54fc9632dde
-    Reviewed-on: https://go-review.googlesource.com/9899
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ied0eab872950793b34dd2268055b29c702b07e99
+    Reviewed-on: https://go-review.googlesource.com/9081
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/doc/pkg.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/6g/peep.go                 |  2 +-
+ src/cmd/7g/gsubr.go                | 19 ----------
+ src/cmd/7g/peep.go                 |  2 +-
+ src/cmd/9g/gsubr.go                | 25 --------------
+ src/cmd/9g/peep.go                 |  2 +-
+ src/cmd/internal/gc/const.go       |  1 -
+ src/cmd/internal/gc/fmt.go         |  1 -
+ src/cmd/internal/gc/typecheck.go   | 71 ++++++++++++++++++--------------------
+ src/cmd/internal/ld/data.go        |  4 +--
+ src/cmd/internal/ld/dwarf.go       |  2 +-
+ src/cmd/internal/ld/lib.go         |  2 --
+ src/cmd/internal/obj/arm64/obj7.go |  1 -
+ src/cmd/trace/trace.go             |  2 +-
+ 13 files changed, 41 insertions(+), 93 deletions(-)

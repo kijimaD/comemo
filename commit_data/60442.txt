@@ -1,0 +1,18 @@
+commit c4a595cf294558579ab6342f1628ad37a7a4221c
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Jun 7 04:07:05 2024 +0000
+
+    cmd/compile: use raw strings to avoid double escapes
+    
+    Change-Id: I9b24ff7dec0825a8a9d094dfef6553aa605ef47d
+    GitHub-Last-Rev: 785589211cea172377bb67e895491d8678939600
+    GitHub-Pull-Request: golang/go#67871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591257
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

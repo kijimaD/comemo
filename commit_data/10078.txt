@@ -1,31 +1,15 @@
-commit 2f3f3aa2ed298344f03813214d6b8d486b5f113e
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Tue Oct 25 09:33:15 2011 +1100
+commit 2b5aa28383b78c33e5d6a3e2a8994a6c7a9dee0f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 24 13:59:31 2011 -0700
 
-    html: dump attributes when running parser tests.
+    http: add package comment
     
-    The WebKit test data shows attributes as though they were child nodes:
+    Fixes #2378
     
-    <a X>0<b>1<a Y>2
-    dumps as:
-    | <html>
-    |   <head>
-    |   <body>
-    |     <a>
-    |       x=""
-    |       "0"
-    |       <b>
-    |         "1"
-    |     <b>
-    |       <a>
-    |         y=""
-    |         "2"
-    
-    So we need to do the same when dumping a tree to compare with it.
-    
-    R=nigeltao
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5322044
+    https://golang.org/cl/5312052
 
- src/pkg/html/parse_test.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ src/pkg/http/doc.go     | 79 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/request.go |  2 --
+ 2 files changed, 79 insertions(+), 2 deletions(-)

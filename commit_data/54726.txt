@@ -1,23 +1,21 @@
-commit 4bf4c7d2e2aceeb9fe53642ab1f200064aff8163
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 17 12:39:32 2023 -0400
+commit e87e7997677b66b4afd2d4f23d35f561127dac02
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 10 11:51:00 2022 -0600
 
-    cmd/go: drop unnecessary Package argument to reportCmd
+    cmd/dist: define GOPPC64_{cpu} for PPC64 targets
     
-    Now that we've dropped the redundant Package arguments to many
-    functions, we can see that the Package argument to reportCmd is always
-    nil. That means we can drop it and always use a.Package.
+    This can be used to provide better instruction selection for assembly
+    implementations without having to implement two variants and dynamic
+    runtime selections when a newer GOPPC64 value is used.
     
-    For #62067.
-    
-    Change-Id: I2e11e770f495d6f770047993358c76b08204e923
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536096
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I4331037d57b128137280aa7904d08d362391f81e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449115
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/work/cover.go |  4 ++--
- src/cmd/go/internal/work/exec.go  | 31 +++++++++++++------------------
- src/cmd/go/internal/work/gc.go    |  2 +-
- src/cmd/go/internal/work/gccgo.go |  4 ++--
- 4 files changed, 18 insertions(+), 23 deletions(-)
+ src/cmd/dist/build.go          | 13 +++++++++++++
+ src/cmd/go/internal/work/gc.go | 15 +++++++++++++++
+ 2 files changed, 28 insertions(+)

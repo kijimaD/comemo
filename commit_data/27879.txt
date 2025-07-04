@@ -1,23 +1,15 @@
-commit 289df4e6e65466716aaf1cf65fcfdedada2a5599
-Author: Tom Wilkie <tom@weave.works>
-Date:   Wed Aug 17 10:13:03 2016 +0100
+commit 135572eb326dfc445e1faf74fdffaf82d041c22d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 18 13:31:50 2016 +1000
 
-    net: don't avoid resolving .local addresses
+    cmd/go: mention that _test.go files are ignored when building
     
-    .local addresses are used by things like Kubernetes and Weave DNS; Go
-    should not avoid resolving them.
+    Fixes #15315
     
-    This is a partial revert of https://golang.org/cl/21328 which was too
-    strict of an interpretation of RFC 6762.
-    
-    Fixes #16739
-    
-    Change-Id: I349415b4eab5d61240dd18217bd95dc7d2105cd5
-    Reviewed-on: https://go-review.googlesource.com/27250
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8fea31507a5f83df8a86fb067f1b11d90133dc09
+    Reviewed-on: https://go-review.googlesource.com/22180
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
 
- src/net/dnsclient_unix.go      | 7 ++++---
- src/net/dnsclient_unix_test.go | 9 +++++----
- 2 files changed, 9 insertions(+), 7 deletions(-)
+ src/cmd/go/alldocs.go | 2 ++
+ src/cmd/go/build.go   | 2 ++
+ 2 files changed, 4 insertions(+)

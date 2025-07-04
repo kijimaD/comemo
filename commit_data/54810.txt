@@ -1,131 +1,32 @@
-commit c7dddb02d334e25d4cb7c227f2eaeaffd0d88a23
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jun 6 09:16:34 2023 -0400
+commit 8477562ce54868958f0f84f30815a220128aacf7
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 11 15:30:10 2022 -0800
 
-    math/rand/v2: change Source to use uint64
+    cmd/compile: be more careful about pointer incrementing in range loops
     
-    This should make Uint64-using functions faster and leave
-    other things alone. It is a mystery why so much got faster.
-    A good cautionary tale not to read too much into minor
-    jitter in the benchmarks.
+    For range loops, we use a pointer to the backing store that gets
+    incremented on each iteration of the loop.
     
-    goos: linux
-    goarch: amd64
-    pkg: math/rand/v2
-    cpu: AMD Ryzen 9 7950X 16-Core Processor
-                            │ 220860f76f.amd64 │           11ad9fdddc.amd64           │
-                            │      sec/op      │    sec/op     vs base                │
-    SourceUint64-32                1.555n ± 1%    1.335n ± 1%  -14.15% (p=0.000 n=20)
-    GlobalInt64-32                 2.071n ± 1%    2.046n ± 1%        ~ (p=0.016 n=20)
-    GlobalInt63Parallel-32        0.1023n ± 1%   0.1037n ± 1%   +1.37% (p=0.002 n=20)
-    GlobalUint64-32                5.193n ± 1%    2.075n ± 0%  -60.06% (p=0.000 n=20)
-    GlobalUint64Parallel-32       0.2341n ± 0%   0.1013n ± 1%  -56.74% (p=0.000 n=20)
-    Int64-32                       2.056n ± 2%    1.726n ± 2%  -16.10% (p=0.000 n=20)
-    Uint64-32                      2.077n ± 2%    1.673n ± 1%  -19.46% (p=0.000 n=20)
-    GlobalIntN1000-32              4.077n ± 2%    3.895n ± 2%   -4.45% (p=0.000 n=20)
-    IntN1000-32                    3.476n ± 2%    3.403n ± 1%   -2.10% (p=0.000 n=20)
-    Int64N1000-32                  3.059n ± 1%    3.053n ± 2%        ~ (p=0.131 n=20)
-    Int64N1e8-32                   2.942n ± 1%    2.718n ± 1%   -7.60% (p=0.000 n=20)
-    Int64N1e9-32                   2.932n ± 1%    2.712n ± 1%   -7.50% (p=0.000 n=20)
-    Int64N2e9-32                   2.925n ± 1%    2.690n ± 1%   -8.03% (p=0.000 n=20)
-    Int64N1e18-32                  3.116n ± 1%    3.084n ± 2%        ~ (p=0.425 n=20)
-    Int64N2e18-32                  4.067n ± 1%    4.026n ± 1%   -1.02% (p=0.007 n=20)
-    Int64N4e18-32                  4.054n ± 1%    4.049n ± 2%        ~ (p=0.204 n=20)
-    Int32N1000-32                  2.951n ± 1%    2.730n ± 0%   -7.49% (p=0.000 n=20)
-    Int32N1e8-32                   3.102n ± 1%    2.916n ± 2%   -6.03% (p=0.000 n=20)
-    Int32N1e9-32                   3.535n ± 1%    3.375n ± 1%   -4.54% (p=0.000 n=20)
-    Int32N2e9-32                   3.514n ± 1%    3.292n ± 1%   -6.30% (p=0.000 n=20)
-    Float32-32                     2.760n ± 1%    2.673n ± 1%   -3.13% (p=0.000 n=20)
-    Float64-32                     2.284n ± 1%    2.485n ± 1%   +8.80% (p=0.000 n=20)
-    ExpFloat64-32                  3.757n ± 1%    3.577n ± 2%   -4.78% (p=0.000 n=20)
-    NormFloat64-32                 3.837n ± 1%    3.797n ± 2%        ~ (p=0.204 n=20)
-    Perm3-32                       35.23n ± 2%    35.79n ± 2%        ~ (p=0.298 n=20)
-    Perm30-32                      208.8n ± 1%    205.1n ± 1%   -1.82% (p=0.000 n=20)
-    Perm30ViaShuffle-32            111.7n ± 1%    111.2n ± 2%        ~ (p=0.273 n=20)
-    ShuffleOverhead-32             101.1n ± 1%    100.5n ± 2%        ~ (p=0.878 n=20)
-    Concurrent-32                  2.108n ± 7%    2.188n ± 5%        ~ (p=0.417 n=20)
+    The problem with this scheme is that at the end of the last iteration,
+    we may briefly have a pointer that points past the end of the backing store
+    of the slice that is being iterated over. We cannot let the garbage collector
+    see that pointer.
     
-    goos: darwin
-    goarch: arm64
-    pkg: math/rand/v2
-                           │ 220860f76f.arm64 │           11ad9fdddc.arm64           │
-                           │      sec/op      │    sec/op     vs base                │
-    SourceUint64-8                2.316n ± 1%    2.272n ± 1%   -1.86% (p=0.000 n=20)
-    GlobalInt64-8                 2.183n ± 1%    2.155n ± 1%        ~ (p=0.122 n=20)
-    GlobalInt63Parallel-8        0.4331n ± 0%   0.4352n ± 0%   +0.48% (p=0.000 n=20)
-    GlobalUint64-8                4.377n ± 2%    2.173n ± 1%  -50.35% (p=0.000 n=20)
-    GlobalUint64Parallel-8       0.9237n ± 0%   0.4340n ± 0%  -53.02% (p=0.000 n=20)
-    Int64-8                       2.538n ± 1%    2.544n ± 1%        ~ (p=0.189 n=20)
-    Uint64-8                      2.604n ± 1%    2.552n ± 1%   -1.98% (p=0.000 n=20)
-    GlobalIntN1000-8              3.857n ± 2%    3.856n ± 0%        ~ (p=0.051 n=20)
-    IntN1000-8                    3.822n ± 2%    3.820n ± 0%   -0.05% (p=0.001 n=20)
-    Int64N1000-8                  3.318n ± 0%    3.219n ± 2%   -2.98% (p=0.000 n=20)
-    Int64N1e8-8                   3.349n ± 1%    3.221n ± 2%   -3.79% (p=0.000 n=20)
-    Int64N1e9-8                   3.317n ± 2%    3.276n ± 2%   -1.24% (p=0.001 n=20)
-    Int64N2e9-8                   3.317n ± 2%    3.217n ± 0%   -3.01% (p=0.000 n=20)
-    Int64N1e18-8                  3.542n ± 1%    3.502n ± 2%   -1.16% (p=0.001 n=20)
-    Int64N2e18-8                  5.087n ± 0%    4.968n ± 1%   -2.33% (p=0.000 n=20)
-    Int64N4e18-8                  5.084n ± 0%    4.963n ± 0%   -2.39% (p=0.000 n=20)
-    Int32N1000-8                  3.208n ± 2%    3.189n ± 1%   -0.58% (p=0.001 n=20)
-    Int32N1e8-8                   3.610n ± 1%    3.514n ± 1%   -2.67% (p=0.000 n=20)
-    Int32N1e9-8                   4.235n ± 0%    4.133n ± 0%   -2.40% (p=0.000 n=20)
-    Int32N2e9-8                   4.229n ± 1%    4.137n ± 0%   -2.19% (p=0.000 n=20)
-    Float32-8                     3.468n ± 0%    3.468n ± 1%        ~ (p=0.350 n=20)
-    Float64-8                     3.447n ± 0%    3.478n ± 0%   +0.90% (p=0.000 n=20)
-    ExpFloat64-8                  4.567n ± 0%    4.563n ± 0%   -0.10% (p=0.002 n=20)
-    NormFloat64-8                 4.821n ± 0%    4.768n ± 0%   -1.09% (p=0.000 n=20)
-    Perm3-8                       28.89n ± 0%    28.94n ± 0%   +0.17% (p=0.000 n=20)
-    Perm30-8                      175.7n ± 0%    175.9n ± 0%   +0.14% (p=0.000 n=20)
-    Perm30ViaShuffle-8            153.5n ± 0%    152.6n ± 1%        ~ (p=0.010 n=20)
-    ShuffleOverhead-8             119.8n ± 1%    119.6n ± 1%        ~ (p=0.147 n=20)
-    Concurrent-8                  2.433n ± 3%    2.452n ± 3%        ~ (p=0.616 n=20)
+    To fix this problem, have the incremented pointer live briefly as
+    a uintptr instead of a normal pointer, so it doesn't keep anything
+    alive. Convert back to a normal pointer just after the loop condition
+    is checked, but before anything that requires a real pointer representation
+    (in practice, any call, which is what could cause a GC scan or stack copy).
     
-    goos: linux
-    goarch: 386
-    pkg: math/rand/v2
-    cpu: AMD Ryzen 9 7950X 16-Core Processor
-                            │ 220860f76f.386 │            11ad9fdddc.386            │
-                            │     sec/op     │    sec/op     vs base                │
-    SourceUint64-32             2.370n ±  1%    2.091n ± 1%  -11.75% (p=0.000 n=20)
-    GlobalInt64-32              3.569n ±  1%    3.514n ± 2%   -1.56% (p=0.000 n=20)
-    GlobalInt63Parallel-32     0.3221n ±  1%   0.3197n ± 0%   -0.76% (p=0.000 n=20)
-    GlobalUint64-32             8.797n ± 10%    3.542n ± 1%  -59.74% (p=0.000 n=20)
-    GlobalUint64Parallel-32    0.6351n ±  0%   0.3218n ± 0%  -49.33% (p=0.000 n=20)
-    Int64-32                    2.612n ±  2%    2.552n ± 2%   -2.30% (p=0.000 n=20)
-    Uint64-32                   3.350n ±  1%    2.566n ± 1%  -23.42% (p=0.000 n=20)
-    GlobalIntN1000-32           5.892n ±  1%    5.965n ± 2%        ~ (p=0.082 n=20)
-    IntN1000-32                 4.546n ±  1%    4.652n ± 1%   +2.33% (p=0.000 n=20)
-    Int64N1000-32               14.59n ±  1%    14.48n ± 1%        ~ (p=0.652 n=20)
-    Int64N1e8-32                14.76n ±  2%    14.67n ± 1%        ~ (p=0.836 n=20)
-    Int64N1e9-32                16.57n ±  1%    16.80n ± 2%        ~ (p=0.016 n=20)
-    Int64N2e9-32                14.54n ±  1%    14.52n ± 1%        ~ (p=0.533 n=20)
-    Int64N1e18-32               16.14n ±  1%    16.16n ± 1%        ~ (p=0.606 n=20)
-    Int64N2e18-32               18.10n ±  1%    17.95n ± 2%        ~ (p=0.062 n=20)
-    Int64N4e18-32               18.65n ±  1%    18.35n ± 2%   -1.61% (p=0.010 n=20)
-    Int32N1000-32               3.560n ±  1%    3.608n ± 1%   +1.33% (p=0.001 n=20)
-    Int32N1e8-32                3.770n ±  2%    3.767n ± 1%        ~ (p=0.155 n=20)
-    Int32N1e9-32                4.098n ±  0%    4.130n ± 2%        ~ (p=0.016 n=20)
-    Int32N2e9-32                4.179n ±  1%    4.206n ± 1%        ~ (p=0.011 n=20)
-    Float32-32                  21.18n ±  4%    22.18n ± 4%   +4.70% (p=0.003 n=20)
-    Float64-32                  20.60n ±  2%    20.75n ± 4%   +0.73% (p=0.000 n=20)
-    ExpFloat64-32               13.07n ±  0%    12.58n ± 3%   -3.82% (p=0.000 n=20)
-    NormFloat64-32              7.738n ±  2%    7.920n ± 3%        ~ (p=0.066 n=20)
-    Perm3-32                    36.73n ±  1%    40.27n ± 1%   +9.65% (p=0.000 n=20)
-    Perm30-32                   211.9n ±  1%    213.2n ± 2%        ~ (p=0.262 n=20)
-    Perm30ViaShuffle-32         165.2n ±  1%    164.2n ± 2%        ~ (p=0.029 n=20)
-    ShuffleOverhead-32          133.9n ±  1%    134.7n ± 2%        ~ (p=0.551 n=20)
-    Concurrent-32               3.287n ±  2%    3.301n ± 2%        ~ (p=0.330 n=20)
+    Fixes #56699
     
-    For #61716.
-    
-    Change-Id: I8d2f73f87dd3603a0c2ff069988938e0957b6904
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/502499
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia928d23f85a211565357603668bea4e5c534f989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449995
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- api/next/61716.txt            |  7 ++-----
- src/math/rand/v2/rand.go      | 26 +++++---------------------
- src/math/rand/v2/rand_test.go |  2 +-
- 3 files changed, 8 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/walk/range.go | 80 +++++++++++++++++++++++++++++-----
+ 1 file changed, 69 insertions(+), 11 deletions(-)

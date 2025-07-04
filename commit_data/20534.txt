@@ -1,30 +1,15 @@
-commit 1b6807bb069c528447270c3d6c66c5c7597f388f
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Sep 25 07:59:01 2014 -0700
+commit f1abe0d06bc94399c4abee041624efa36742fc1e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 16 14:22:33 2014 -0700
 
-    cgo: adjust return value location to account for stack copies.
+    sync: simplify TestOncePanic
     
-    During a cgo call, the stack can be copied.  This copy invalidates
-    the pointer that cgo has into the return value area.  To fix this
-    problem, pass the address of the location containing the stack
-    top value (which is in the G struct).  For cgo functions which
-    return values, read the stktop before and after the cgo call to
-    compute the adjustment necessary to write the return value.
+    Follow-up to CL 137350043.
     
-    Fixes #8771
-    
-    LGTM=iant, rsc
-    R=iant, rsc, khr
+    LGTM=r
+    R=r
     CC=golang-codereviews
-    https://golang.org/cl/144130043
+    https://golang.org/cl/141620043
 
- misc/cgo/test/callback.go   | 45 +++++++++++++++++++++
- misc/cgo/test/callback_c.c  | 16 ++++++++
- misc/cgo/test/cgo_test.go   | 98 +++++++++++++++++++++++----------------------
- src/cmd/cgo/out.go          | 16 +++++++-
- src/runtime/asm_386.s       | 10 +++++
- src/runtime/asm_amd64.s     | 11 +++++
- src/runtime/asm_arm.s       |  8 ++++
- src/runtime/cgo/callbacks.c |  3 ++
- src/runtime/stack.c         |  4 +-
- 9 files changed, 161 insertions(+), 50 deletions(-)
+ src/sync/once_test.go | 30 ++++++++++++------------------
+ 1 file changed, 12 insertions(+), 18 deletions(-)

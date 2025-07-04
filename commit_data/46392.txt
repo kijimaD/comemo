@@ -1,29 +1,34 @@
-commit b9e1a24581b6282ee930a50bbe498d24ef77f486
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Sep 8 08:41:54 2021 -0700
+commit 0f732f8c91aa4550ce1803906a55de51760e3243
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 19:30:12 2020 -0800
 
-    cmd/compile: fix case where init info of OAS node is dropped
+    [dev.regabi] cmd/compile: minor walkExpr cleanups
     
-    When an OAS node is converted to an OSELRECV2 node in tcSelect(), the
-    possible DCL node in the Init field was being dropped, since a
-    completely new node was being created and the Init field was not set. I
-    don't expect n.Init() to be set for the ORECV case, but the code now
-    deals with that too.
+    This CL cleans up a few minor points in walkExpr:
     
-    Fixed bug in both tcSelect() and transformSelect().
+    1. We don't actually care about computing the type-size of all
+    expressions that are walked. We care about computing the type-size of
+    all expressions that are *returned* by walk, as these are the
+    expressions that will actually be seen by the back end.
     
-    Fixes #48289
+    2. There's no need to call typecheck.EvalConst anymore. EvalConst used
+    to be responsible for doing additional constant folding during walk;
+    but for a while a now, it has done only as much constant folding as is
+    required during type checking (because doing further constant folding
+    led to too many issues with Go spec compliance). Instead, more
+    aggressive constant folding is handled entirely by SSA.
     
-    Change-Id: I09918a70f7cbaa4aa9a17546169f908a8787df15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348569
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    3. The code for detecting string constants and generating their
+    symbols can be simplified somewhat.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I464ef5bceb8a97689c8f55435369a3402a5ebc55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280434
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/noder/transform.go |  1 +
- src/cmd/compile/internal/typecheck/stmt.go  |  9 +++++----
- test/fixedbugs/issue48289.go                | 28 ++++++++++++++++++++++++++++
- 3 files changed, 34 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/walk/expr.go | 30 ++++++------------------------
+ 1 file changed, 6 insertions(+), 24 deletions(-)

@@ -1,24 +1,14 @@
-commit c5f694a5c9d210b83b82f52931e1d46b3e25393d
+commit 776b51850b7cb4b1f24f9c4c4de329d4f439d1e5
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 1 08:30:11 2013 -0500
+Date:   Fri Mar 1 05:02:41 2013 -0800
 
-    runtime: fix new scheduler on freebsd, windows
+    runtime/cgo: fix crosscall2 on arm
     
-    R=devon.odell
+    This time for sure.
+    
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7443046
+    https://golang.org/cl/7449045
 
- src/pkg/runtime/runtime.h           | 4 ++--
- src/pkg/runtime/sys_freebsd_386.s   | 7 ++++++-
- src/pkg/runtime/sys_freebsd_amd64.s | 8 +++++++-
- src/pkg/runtime/sys_freebsd_arm.s   | 6 +++++-
- src/pkg/runtime/sys_windows_386.s   | 5 ++++-
- src/pkg/runtime/sys_windows_amd64.s | 6 +++++-
- src/pkg/runtime/thread_darwin.c     | 2 +-
- src/pkg/runtime/thread_freebsd.c    | 8 +++++---
- src/pkg/runtime/thread_linux.c      | 2 +-
- src/pkg/runtime/thread_netbsd.c     | 2 +-
- src/pkg/runtime/thread_openbsd.c    | 2 +-
- src/pkg/runtime/thread_plan9.c      | 2 +-
- src/pkg/runtime/thread_windows.c    | 8 ++++++--
- 13 files changed, 45 insertions(+), 17 deletions(-)
+ src/pkg/runtime/cgo/asm_arm.s | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

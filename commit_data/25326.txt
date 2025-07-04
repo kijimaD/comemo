@@ -1,15 +1,22 @@
-commit f9137c5373932e38fc9431735134c9987e0d84c5
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 17 01:04:06 2015 -0500
+commit 84808a2a90c28270589c05eca3b8d7657e49fe87
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Tue Oct 20 17:10:04 2015 -0400
 
-    cmd/go: document that tests run in the source directory
+    os: disable symlink tests on android.
     
-    Fixes #13538.
+    Creating symlinks (/data/local/tmp/*) doesn't seem to work
+    on android-L (tested on nexus5). I cannot find any official
+    documentation yet but just guess it's a measure for security
+    attacks using symlinks.
     
-    Change-Id: I621bbe2befe838d16d3664d7a5e30d5d7cceae33
-    Reviewed-on: https://go-review.googlesource.com/17949
+    The tests failed with 'permission denied' errors.
+    
+    For golang/go#10807
+    
+    Change-Id: I99a9c401c6ecca3c4adc7b21708adaf3dd601279
+    Reviewed-on: https://go-review.googlesource.com/16115
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/alldocs.go | 5 +++++
- src/cmd/go/test.go    | 5 +++++
- 2 files changed, 10 insertions(+)
+ src/os/os_test.go   | 2 +-
+ src/os/path_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

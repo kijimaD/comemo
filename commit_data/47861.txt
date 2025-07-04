@@ -1,14 +1,18 @@
-commit 8a306e205663cde672e9920e2e81db9d3615e6c0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 29 10:02:27 2021 -0800
+commit 72483de87a36969f0c4d6f01db19f769c8e16e82
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 15 16:15:23 2021 -0700
 
-    misc/cgo/testsanitizers: don't fail asan test if no symbolizer
+    runtime: incorporate hbits advancement in scanobject into loop
     
-    Change-Id: Ic05c641bda3cc8f5292921c9b0c0d3df34f3bc48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374794
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This makes it clearer that i and hbits advance together.
+    As a bonus, it generates slightly better code.
+    
+    Change-Id: I24d51102535c39f962a59c1a4a7c5c894339aa18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309569
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/cgo/testsanitizers/asan_test.go | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ src/runtime/mgcmark.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

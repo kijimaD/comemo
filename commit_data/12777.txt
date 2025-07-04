@@ -1,12 +1,13 @@
-commit 901ee5c1513f56c292072eedcdfb3b0218f6d1fe
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 27 00:17:35 2012 -0400
+commit c748689277e49e65f03f58ad7a2308d4e040d638
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 15:09:13 2012 +1100
 
-    cmd/dist: fix detection of go1 version
+    doc: update licensing text one more time
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5924044
+    https://golang.org/cl/5916046
 
- src/cmd/dist/build.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ LICENSE              | 2 +-
+ lib/godoc/godoc.html | 8 +++++---
+ 2 files changed, 6 insertions(+), 4 deletions(-)

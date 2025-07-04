@@ -1,18 +1,27 @@
-commit a4aa2e0c280237f5e4d22f84386bcfee2f9cec3f
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Apr 30 17:36:23 2018 +0900
+commit 936b6bfde1b1956a2deb8947e2db3c423b9edf14
+Author: Terin Stock <terinjokes@gmail.com>
+Date:   Mon Dec 18 15:17:02 2017 -0800
 
-    cmd/cgo: visit cgo type inside ellipsis node
+    net/http: redirect host-based patterns to trailing slash
     
-    Fixes #25143
+    Handlers can be registered for specific hosts by specifying the host as
+    part of the mux pattern. If a trailing slash route is registered for
+    these host-based patterns, shouldRedirect should indicate that
+    a redirect is required.
     
-    Change-Id: Ide654fe70651fda827cdeeaaa73d2a1f8aefd7e7
-    Reviewed-on: https://go-review.googlesource.com/110159
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This change modifies shouldRedirect to also take the host of the
+    request, and now considers host-based patterns while determining if
+    a request should be redirected.
+    
+    Fixes #23183
+    Change-Id: If8753e130d5d877acdc55344833e3b289bbed2b4
+    Reviewed-on: https://go-review.googlesource.com/84695
+    Reviewed-by: Kunpei Sakai <namusyaka@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/cgo_test.go   |  1 +
- misc/cgo/test/issue25143.go | 22 ++++++++++++++++++++++
- src/cmd/cgo/ast.go          |  1 +
- 3 files changed, 24 insertions(+)
+ src/net/http/serve_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 30 ++++++++++++++++--------
+ 2 files changed, 78 insertions(+), 10 deletions(-)

@@ -1,14 +1,17 @@
-commit c7403ac7b6dcea7e0bb0a4991b0ebe7f26b01eff
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 15 10:29:34 2017 -0700
+commit 236ef852bea6a154c5b4eab708ff535c6762b9ee
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 20 02:32:42 2017 -0700
 
-    doc: mention that os package now uses poller
+    cmd/compile/internal/gc: split SetInterface from SetFields
     
-    Updates #20587
-    
-    Change-Id: I428d20bf8512ba859cc63c439bd5d92a5173fad2
-    Reviewed-on: https://go-review.googlesource.com/45910
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4e568414faf64d3d47b1795382f0615f6caf53bc
+    Reviewed-on: https://go-review.googlesource.com/38390
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.9.html | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/compile/internal/gc/bimport.go  | 2 +-
+ src/cmd/compile/internal/gc/dcl.go      | 2 +-
+ src/cmd/compile/internal/gc/type.go     | 6 ++++++
+ src/cmd/compile/internal/gc/universe.go | 2 +-
+ 4 files changed, 9 insertions(+), 3 deletions(-)

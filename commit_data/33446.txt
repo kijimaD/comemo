@@ -1,21 +1,16 @@
-commit 37b056948d058679efa4e87fb6c9b2a2ddfa31a3
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Tue Oct 31 16:51:21 2017 -0700
+commit fcbcc0fd18c922e52bb59eca2437c2bafd1c0141
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 17 08:54:39 2017 +0900
 
-    strings: add Builder
+    debug/macho: make tests more comprehensive
     
-    This is like a write-only subset of bytes.Buffer with an
-    allocation-free String method.
+    add tests for LC_LOAD_DYLIB.
     
-    Fixes #18990.
-    
-    Change-Id: Icdf7240f4309a52924dc3af04a39ecd737a210f4
-    Reviewed-on: https://go-review.googlesource.com/74931
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    Change-Id: Ic4b7a0f6296709175e9a75240aecd1d5291ade4b
+    Reviewed-on: https://go-review.googlesource.com/56311
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/builder.go      | 120 +++++++++++++++++++
- src/strings/builder_test.go | 282 ++++++++++++++++++++++++++++++++++++++++++++
- src/strings/example_test.go |  11 ++
- 3 files changed, 413 insertions(+)
+ src/debug/macho/file_test.go | 98 +++++++++++++++++++++++---------------------
+ 1 file changed, 51 insertions(+), 47 deletions(-)

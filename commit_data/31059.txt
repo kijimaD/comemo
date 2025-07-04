@@ -1,20 +1,18 @@
-commit 87bd0b2f142283ce3ee49d06074728b0ca900819
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Fri Apr 7 20:32:46 2017 +0900
+commit a7c884efc14368750e30067367b6eab57ed06c0e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 17 15:06:04 2017 -0800
 
-    os: handle relative symlinks correctly in Stat on windows
+    [dev.typealias] go/internal/gccgoimporter: support for type aliases
     
-    Walk relative symlinks in windows os.Stat from
-    symlink path instead of from current directory.
+    For #18130.
     
-    Fixes #19870
-    
-    Change-Id: I0a27473d11485f073084b1f19b30c5b3a2fbc0f7
-    Reviewed-on: https://go-review.googlesource.com/39932
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Iac182a6c5bc62633eb02191d9da6166d3b254c4c
+    Reviewed-on: https://go-review.googlesource.com/35268
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/os/os_test.go      | 37 +++++++++++++++++++++++++++++++++++++
- src/os/stat_windows.go |  7 ++++++-
- 2 files changed, 43 insertions(+), 1 deletion(-)
+ src/go/internal/gccgoimporter/importer_test.go   |  1 +
+ src/go/internal/gccgoimporter/parser.go          | 48 +++++++++++++++---------
+ src/go/internal/gccgoimporter/testdata/alias.gox |  4 ++
+ 3 files changed, 36 insertions(+), 17 deletions(-)

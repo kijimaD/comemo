@@ -1,18 +1,16 @@
-commit fdc047fbe5b71e8b6233d8d51466fad249af3577
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 8 13:22:31 2014 +1100
+commit e1364a6d0ecd5ba50845f416bb3c016bc54a3648
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 28 23:52:08 2014 -0700
 
-    cmd/go: add ImportComment to Package struct
+    runtime: fix cgo_topofstack to save clobbered registers
     
-    It seems reasonable that people might want to look up the
-    ImportComment with "go list".
+    Fixes #8816
     
-    LGTM=r
-    R=golang-codereviews, r
+    At least, I hope it does.
+    
+    TBR=rsc
     CC=golang-codereviews
-    https://golang.org/cl/143600043
+    https://golang.org/cl/153730043
 
- src/cmd/go/doc.go  | 39 ++++++++++++++++++++-------------------
- src/cmd/go/list.go | 39 ++++++++++++++++++++-------------------
- src/cmd/go/pkg.go  | 22 ++++++++++++----------
- 3 files changed, 52 insertions(+), 48 deletions(-)
+ src/runtime/asm_arm.s | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

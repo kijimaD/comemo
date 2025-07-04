@@ -1,16 +1,15 @@
-commit c2425178669c0c6a26f58f90b59086d7e4313c64
-Author: Austin Clements <austin@google.com>
-Date:   Wed Oct 19 16:01:02 2016 -0400
+commit 89d085de9fbc177ed53f09851b87f920c0322f67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 15:22:32 2016 -0700
 
-    runtime: replace *g with guintptr in trace
+    go/types: better doc string for Object.Parent and test
     
-    trace's reader *g is going to cause write barriers in unfortunate
-    places, so replace it with a guintptr.
+    Fixes #14647.
     
-    Change-Id: Ie8fb13bb89a78238f9d2a77ec77da703e96df8af
-    Reviewed-on: https://go-review.googlesource.com/31469
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ib9012a9141e815f5b95f8ca2307e65ffc4587a5b
+    Reviewed-on: https://go-review.googlesource.com/27370
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/trace.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/go/types/api_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/object.go   |  2 +-
+ 2 files changed, 72 insertions(+), 1 deletion(-)

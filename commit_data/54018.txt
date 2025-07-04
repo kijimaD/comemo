@@ -1,24 +1,21 @@
-commit b3c9db8934fe38d9bbac232f15089d77fdbe359d
-Author: Cian Ruane <CianLR@users.noreply.github.com>
-Date:   Tue Aug 15 14:34:18 2023 +0000
+commit d9f90df2b488b2fb7ca8c24d99f82878befb68f8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 29 17:24:01 2022 -0400
 
-    doc: fix broken x509sha1 setting link
+    cmd/dist: simplify exec.Cmd helpers
     
-    The link was missing the /pkg/ prefix.
+    Now that the required Go bootstrap version is 1.17, we can simplify
+    some of the logic for working with exec.Cmd.Env as those APIs have
+    been simplified.
     
-    Fixes #62034.
+    Updates #44505.
     
-    Change-Id: I96c43f06621e30241e140948129e90f0bd5f8d13
-    GitHub-Last-Rev: c1e7413f76a25ea18a460fb3af732532429d7ff9
-    GitHub-Pull-Request: golang/go#62040
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/519575
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ia62ab9830320c7daf65a15f2313471dfaba687b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427957
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/godebug.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/exec.go | 21 ++++++---------------
+ 1 file changed, 6 insertions(+), 15 deletions(-)

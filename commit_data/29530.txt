@@ -1,14 +1,61 @@
-commit 2442b49c47aa818bbc55e4c064e9ea0ca058735f
-Author: Marcel Edmund Franke <marcel.edmund.franke@gmail.com>
-Date:   Mon Nov 14 21:46:25 2016 +0100
+commit dd24b1098ae8923b98a13560c89ae59fc0c49258
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 7 14:04:31 2016 -0700
 
-    html/template: typo fix
+    cmd/compile: improve tighten pass
     
-    comment on unexported function starts with wrong functionname
+    Move a value to the block which is the lowest common ancestor in the
+    dominator tree of all of its uses.  Make sure not to move a value into a
+    loop.
     
-    Change-Id: Ib16c2fe42b5a8d4606ed719f620923c17839d091
-    Reviewed-on: https://go-review.googlesource.com/33203
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Makes the tighten pass on average (across go1 benchmarks) 40% slower.
+    Still not a big contributor to overall compile time.
+    
+    Binary size is just a tad smaller.
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.77s ± 9%     2.76s ± 9%     ~     (p=0.878 n=8+8)
+    Fannkuch11-12                2.75s ± 1%     2.74s ± 1%     ~     (p=0.232 n=8+7)
+    FmtFprintfEmpty-12          48.9ns ± 9%    47.7ns ± 0%     ~     (p=0.431 n=8+8)
+    FmtFprintfString-12          143ns ± 8%     142ns ± 1%     ~     (p=0.257 n=8+7)
+    FmtFprintfInt-12             123ns ± 1%     122ns ± 1%   -1.04%  (p=0.026 n=7+8)
+    FmtFprintfIntInt-12          195ns ± 7%     185ns ± 0%   -5.32%  (p=0.000 n=8+8)
+    FmtFprintfPrefixedInt-12     194ns ± 4%     195ns ± 0%   +0.81%  (p=0.015 n=7+7)
+    FmtFprintfFloat-12           267ns ± 0%     268ns ± 0%   +0.37%  (p=0.001 n=7+6)
+    FmtManyArgs-12               800ns ± 0%     762ns ± 1%   -4.78%  (p=0.000 n=8+8)
+    GobDecode-12                7.67ms ± 2%    7.60ms ± 2%     ~     (p=0.234 n=8+8)
+    GobEncode-12                6.55ms ± 0%    6.57ms ± 1%     ~     (p=0.336 n=7+8)
+    Gzip-12                      237ms ± 0%     238ms ± 0%   +0.40%  (p=0.017 n=7+7)
+    Gunzip-12                   40.8ms ± 0%    40.2ms ± 0%   -1.52%  (p=0.000 n=7+8)
+    HTTPClientServer-12          208µs ± 3%     209µs ± 3%     ~     (p=0.955 n=8+7)
+    JSONEncode-12               16.2ms ± 1%    17.2ms ±11%   +5.80%  (p=0.001 n=7+8)
+    JSONDecode-12               57.3ms ±12%    55.5ms ± 3%     ~     (p=0.867 n=8+7)
+    Mandelbrot200-12            4.68ms ± 6%    4.46ms ± 1%     ~     (p=0.442 n=8+8)
+    GoParse-12                  4.27ms ±44%    3.42ms ± 1%  -19.95%  (p=0.005 n=8+8)
+    RegexpMatchEasy0_32-12      75.1ns ± 0%    75.8ns ± 1%   +0.99%  (p=0.002 n=7+7)
+    RegexpMatchEasy0_1K-12       963ns ± 0%    1021ns ± 6%   +5.98%  (p=0.001 n=7+7)
+    RegexpMatchEasy1_32-12      72.4ns ±11%    70.8ns ± 1%     ~     (p=0.368 n=8+8)
+    RegexpMatchEasy1_1K-12       394ns ± 1%     399ns ± 0%   +1.23%  (p=0.000 n=8+7)
+    RegexpMatchMedium_32-12      114ns ± 0%     115ns ± 1%   +0.63%  (p=0.021 n=7+7)
+    RegexpMatchMedium_1K-12     35.9µs ± 0%    37.6µs ± 1%   +4.72%  (p=0.000 n=7+8)
+    RegexpMatchHard_32-12       1.93µs ± 2%    1.91µs ± 0%   -0.91%  (p=0.001 n=7+7)
+    RegexpMatchHard_1K-12       60.2µs ± 3%    61.2µs ±10%     ~     (p=0.442 n=8+8)
+    Revcomp-12                   404ms ± 1%     406ms ± 1%     ~     (p=0.054 n=8+7)
+    Template-12                 64.6ms ± 1%    63.5ms ± 1%   -1.66%  (p=0.000 n=8+8)
+    TimeParse-12                 347ns ± 8%     309ns ± 0%  -11.13%  (p=0.000 n=8+7)
+    TimeFormat-12                343ns ± 4%     331ns ± 0%   -3.34%  (p=0.000 n=8+7)
+    
+    Change-Id: Id6da1239ddd4d0cb074ff29cffb06302d1c6d08f
+    Reviewed-on: https://go-review.googlesource.com/28712
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/html/template/url.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/fuse.go         |   4 +-
+ src/cmd/compile/internal/ssa/lca.go          | 123 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/lca_test.go     | 103 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite.go      |   1 +
+ src/cmd/compile/internal/ssa/rewrite_test.go |   3 +
+ src/cmd/compile/internal/ssa/tighten.go      | 159 +++++++++++++++++----------
+ src/cmd/compile/internal/ssa/trim.go         |   1 +
+ 7 files changed, 336 insertions(+), 58 deletions(-)

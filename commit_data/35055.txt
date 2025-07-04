@@ -1,18 +1,17 @@
-commit da24c95ce09668a0d977c208e8e610a21b98b019
-Author: weeellz <weeellz12@gmail.com>
-Date:   Sat Apr 14 18:07:20 2018 +0300
+commit d42826a0f41c18aeb88b6288c27fa27c62dbe384
+Author: Samuel Tan <samueltan@google.com>
+Date:   Thu Dec 7 22:18:50 2017 -0800
 
-    database/sql: remove unnecessary else conditions
+    html/template: fix typo in TestOrphanedTemplate error message
     
-    Fixes golint warning about "if block ends with a return statement,
-    so drop this else and outdent its block".
+    This error message should reference t2, not t1.
     
-    Change-Id: Iac4fd324e04e3e3fe3e3933f5e59095041d292c5
-    Reviewed-on: https://go-review.googlesource.com/107115
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I2e42b8335ca9367a1fb7f76c38a1bcf8f32a2bf3
+    Reviewed-on: https://go-review.googlesource.com/82816
+    Reviewed-by: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/database/sql/convert.go | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ src/html/template/escape_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

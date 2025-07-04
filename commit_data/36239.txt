@@ -1,15 +1,16 @@
-commit da1da23f11cba056992335517a29d1ec4a33706f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Aug 9 17:38:32 2018 -0400
+commit 98dfd400e6418c04a8dcb93fb90a006dd0bcf5d9
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Fri Apr 13 15:33:25 2018 +0200
 
-    cmd/go: skip TestScript/mod_patterns on nocgo builders
+    os/user: fix build with "osusergo" build tag
     
-    Updates #26906.
+    Fixes #24841
+    Updates #24845
     
-    Change-Id: I61b08180aefe9cfc109a1009ca251ee6970eb2df
-    Reviewed-on: https://go-review.googlesource.com/128879
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4a5c05f4cbf9692bd6cab48baf3cc51fa43fe5a9
+    Reviewed-on: https://go-review.googlesource.com/106837
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/testdata/script/mod_patterns.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/os/user/cgo_unix_test.go     | 2 +-
+ src/os/user/getgrouplist_unix.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

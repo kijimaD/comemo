@@ -1,56 +1,38 @@
-commit da7ee57f40069eda3488b2e51dfa878bdd5816af
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Wed Aug 16 19:20:54 2023 -0700
+commit 28a05f541dd218c40cc221db4e97898cc5a3b902
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Fri Oct 7 00:49:15 2022 +0000
 
-    syscall: add support to get pidfd from ForkExec on Linux
+    cmd/go/internal/modload: improve error message for failing to read module listed in go.work
     
-    Add PidFD support, so that if the PidFD pointer in SysProcAttr is not
-    nil, ForkExec (and thus all its users) obtains a pidfd from the kernel
-    during clone(), and writes the result (or -1, if the functionality
-    is not supported by the kernel) into *PidFD.
+    Run "go build ./x" in this workspace:
     
-    The functionality to get pidfd is implemented for both clone3 and clone.
-    For the latter, an extra argument to rawVforkSyscall is needed, thus the
-    change in asm files.
+      -- go.work --
+      use ./y
+      -- x/go.mod --
+      module x
     
-    Add a trivial test case checking the obtained pidfd can be used to send
-    a signal to a process, using pidfd_send_signal. To test clone3 code path,
-    add a flag available to tests only.
+      go 1.19
+      -- x/m.go --
+      package m
     
-    Updates #51246.
+    It fails with: "go: open /tmp/foo/y/go.mod: no such file or directory".
+    It's unclear where the name "y" comes from.
+    This change will emit error like: "go: cannot load module listed in
+    go.work file: open /tmp/foo/y/go.mod: no such file or directory"
     
-    Change-Id: I2212b69e1a657163c31b4a6245b076bc495777a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520266
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #55952.
+    
+    Change-Id: Ia45dd915e3fbd6e33340f352b3d6235c6c31190b
+    GitHub-Last-Rev: 410de1b4a71d07bbd5abd1482b6d55fa29f31336
+    GitHub-Pull-Request: golang/go#56050
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438147
+    Run-TryBot: hopehook <hopehook@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- api/next/51246.txt                   |  6 ++++
- src/syscall/asm_linux_386.s          | 14 ++++----
- src/syscall/asm_linux_amd64.s        | 14 ++++----
- src/syscall/asm_linux_arm.s          | 14 ++++----
- src/syscall/asm_linux_arm64.s        | 14 ++++----
- src/syscall/asm_linux_loong64.s      | 14 ++++----
- src/syscall/asm_linux_mips64x.s      | 14 ++++----
- src/syscall/asm_linux_mipsx.s        | 14 ++++----
- src/syscall/asm_linux_ppc64x.s       | 14 ++++----
- src/syscall/asm_linux_riscv64.s      | 14 ++++----
- src/syscall/asm_linux_s390x.s        | 14 ++++----
- src/syscall/exec_linux.go            | 35 +++++++++++++------
- src/syscall/exec_linux_test.go       | 68 ++++++++++++++++++++++++++++++++++++
- src/syscall/export_linux_test.go     | 10 ++++--
- src/syscall/syscall_linux.go         |  2 +-
- src/syscall/syscall_linux_386.go     |  7 ++--
- src/syscall/syscall_linux_amd64.go   |  7 ++--
- src/syscall/syscall_linux_arm.go     |  7 ++--
- src/syscall/syscall_linux_arm64.go   |  7 ++--
- src/syscall/syscall_linux_loong64.go |  7 ++--
- src/syscall/syscall_linux_mips64x.go |  7 ++--
- src/syscall/syscall_linux_mipsx.go   |  7 ++--
- src/syscall/syscall_linux_ppc64x.go  |  7 ++--
- src/syscall/syscall_linux_riscv64.go |  7 ++--
- src/syscall/syscall_linux_s390x.go   |  7 ++--
- 25 files changed, 218 insertions(+), 113 deletions(-)
+ src/cmd/go/internal/modload/init.go                |  6 +++++-
+ src/cmd/go/testdata/script/work_use_issue55952.txt | 11 +++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

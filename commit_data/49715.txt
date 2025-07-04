@@ -1,28 +1,19 @@
-commit d37cc9a8cd4a33a78871b674a23bd3c1e39031e5
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jul 18 11:35:52 2022 -0400
+commit bab79dd3627a9c5d4b43ac3f3c2eba4a1f04b813
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 7 16:24:49 2021 -0700
 
-    go/build, internal/dag: lift DAG parser into an internal package
+    reflect: add back signaling NaN test
     
-    This lifts the DAG parser from the go/build dependencies test into its
-    own package that can be reused elsewhere.
+    I was a little too agressive in CL 258957 (removing 387 support) in
+    removing a signaling NaN test that should probably still exist.
+    I should have just removed the 387 skip, not the entire test.
     
-    I tried to keep the code as close as possible. I changed some names to
-    reflect the more general purpose of internal/dag. Most of the changes
-    are related to error handling, since internal/dag doesn't take a
-    testing.T on which to report errors. Notably, parseRules now returns a
-    slice of parsed rules rather than calling a callback because this made
-    it easier to separate fatal parsing errors from non-fatal graph
-    checking errors.
-    
-    For #53789.
-    
-    Change-Id: I170b84fd85f971cfc1a50972156d48e78b45fce3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418592
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I97ca53f190eb0de00e43b96629b2cae677e7dacb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348209
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/deps_test.go | 220 ++------------------------------------
- src/internal/dag/parse.go | 264 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 272 insertions(+), 212 deletions(-)
+ src/reflect/all_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

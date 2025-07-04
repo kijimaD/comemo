@@ -1,18 +1,20 @@
-commit f279a939290eb527f60241d488029803d3d2ed19
+commit 623e7de1871c627ab976113dec4bccf5a807eb74
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 2 13:01:36 2011 -0700
+Date:   Mon May 2 12:38:13 2011 -0700
 
-    http: fix racy test with a simpler version
+    os: make Setenv update C environment variables
     
-    This was seen breaking the slow arm5 builder:
-    http://godashboard.appspot.com/log/ec54ee302a70c07093e8f5c47454b3eb48768b77e1d8cc7943d8951f8b6696be
+    Fixes #1569
     
-    The test was unnecessarily complex and didn't benefit from
-    using httptest.Server. That just got in the way.
-    
-    R=rsc
+    R=rsc, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4439088
+    https://golang.org/cl/4456045
 
- src/pkg/http/serve_test.go | 62 ++++++++++++++++------------------------------
- 1 file changed, 21 insertions(+), 41 deletions(-)
+ misc/cgo/test/Makefile     |  1 +
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/env.go       | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/os/env.go          |  2 ++
+ src/pkg/os/env_unix.go     | 20 +++++++++++++++++++-
+ src/pkg/runtime/cgo/util.c | 11 +++++++++++
+ src/pkg/runtime/proc.c     | 23 +++++++++++++++++++++++
+ 7 files changed, 91 insertions(+), 1 deletion(-)

@@ -1,44 +1,33 @@
-commit 9a31d38f65354567719a31414ebcb31f0337b803
-Author: Austin Clements <austin@google.com>
-Date:   Sat Sep 26 14:00:57 2015 -0400
+commit 6b41665039e278a83823051b44628e25415b0205
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 28 10:56:39 2015 -0700
 
-    runtime: remove sweep wait loop in finishsweep_m
+    [dev.ssa] cmd/compile: implement static data generation
     
-    In general, finishsweep_m must block until any spans that are
-    concurrently being swept have been swept. It accomplishes this by
-    looping over all spans, which, as in the previous commit, takes
-    ~1ms/heap GB. Unfortunately, we do this during the STW sweep
-    termination phase, so multi-gigabyte heaps can push our STW time past
-    10ms.
+    The existing backend recognizes special
+    assignment statements as being implementable
+    with static data rather than code.
+    Unfortunately, it assumes that it is in the middle
+    of codegen; it emits data and modifies the AST.
     
-    However, there's no need to do this wait if the world is stopped
-    because, in effect, stopping the world already had to wait for
-    anything that was sweeping (and if it didn't, the wait in
-    finishsweep_m would deadlock). Hence, we can simply skip this loop if
-    the world is stopped, such as during sweep termination. In fact,
-    currently all calls to finishsweep_m are STW, but this hasn't always
-    been the case and may not be the case in the future, so we keep the
-    logic around.
+    This does not play well with SSA's two-phase
+    bootstrapping approach, in which we attempt to
+    compile code but fall back to the existing backend
+    if something goes wrong.
     
-    For 24GB heaps, this reduces max pause time by 75% relative to tip and
-    by 90% relative to Go 1.5. Notably, all pauses are now well under
-    10ms. Here are the results for the garbage benchmark:
+    To work around this:
     
-                   ------------- max pause ------------
-    Heap   Procs   after change   before change   1.5.1
-    24GB     12        3.8ms          16ms         37ms
-    24GB      4        3.7ms          16ms         37ms
-     4GB      4        3.7ms           3ms        6.9ms
+    * Add the ability to inquire about static data
+    without side-effects.
+    * Save the static data required for a function.
+    * Emit that static data during SSA codegen.
     
-    In the 4GB/4P case, it seems the "before change" run got lucky: the
-    max went up, but the 99%ile pause time went down from 3ms to 2.04ms.
-    
-    Change-Id: Ica22189559f231d408ef2815019c9dbb5f38bf31
-    Reviewed-on: https://go-review.googlesource.com/15071
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I2e8a506c866ea3e27dffb597095833c87f62d87e
+    Reviewed-on: https://go-review.googlesource.com/12790
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go      |  7 +++++--
- src/runtime/mgcsweep.go | 24 ++++++++++++++++--------
- 2 files changed, 21 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/gen.go   |  2 +-
+ src/cmd/compile/internal/gc/sinit.go | 39 ++++++++++++++++++++++++------------
+ src/cmd/compile/internal/gc/ssa.go   | 20 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/func.go | 15 +++++++-------
+ 4 files changed, 55 insertions(+), 21 deletions(-)

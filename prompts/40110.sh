@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40110: 64e598f7837566802085ba9bb684e82ccbcf7ca6
+# Index 40110: 24a6478be345bce2c551c7f5f287ee1ad6edcbd6
 
 echo "🚀 Generating explanation for commit 40110..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 40110
-- **コミットハッシュ**: 64e598f7837566802085ba9bb684e82ccbcf7ca6
-- **GitHub URL**: https://github.com/golang/go/commit/64e598f7837566802085ba9bb684e82ccbcf7ca6
+- **コミットハッシュ**: 24a6478be345bce2c551c7f5f287ee1ad6edcbd6
+- **GitHub URL**: https://github.com/golang/go/commit/24a6478be345bce2c551c7f5f287ee1ad6edcbd6
 
 ### 章構成
 

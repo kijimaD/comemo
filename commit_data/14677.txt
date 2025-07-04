@@ -1,20 +1,15 @@
-commit 7e9d9eb17bb2e4bd34e79c9a780d4992ed2ab041
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Dec 18 07:58:22 2012 +1100
+commit 7c3577e48f629120604d232c7a3994cf40ae4cda
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 17 12:01:00 2012 -0800
 
-    debug/elf: handle missing shstrndx in core files
+    net/http: fix goroutine leak in error case
     
-    Fixes #4481.
+    Fixes #4531
     
-    hello-world-core.gz was generated with a simple hello world c program and core dumped as suggested in the issue.
-    
-    Also: add support for gz compressed test fixtures.
-    
-    R=minux.ma, rsc, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6936058
+    https://golang.org/cl/6937069
 
- src/pkg/debug/elf/file.go                      |   7 ++-
- src/pkg/debug/elf/file_test.go                 |  59 ++++++++++++++++++++++++-
- src/pkg/debug/elf/testdata/hello-world-core.gz | Bin 0 -> 12678 bytes
- 3 files changed, 63 insertions(+), 3 deletions(-)
+ src/pkg/net/http/transport.go      |  1 +
+ src/pkg/net/http/transport_test.go | 39 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

@@ -1,18 +1,20 @@
-commit 710476495a94892f1a07ca4a253101d1e00b4dec
-Author: Jake Bailey <jacob.b.bailey@gmail.com>
-Date:   Fri Mar 21 22:34:52 2025 -0700
+commit de65aa41d865bad0b3eba573742834b9b29237b9
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 20 20:39:53 2024 +0000
 
-    testing: remove redundant variable capture from subtest example
+    Revert "hash/maphash: parallel run test"
     
-    Loop variable capturing hasn't been needed like this since Go 1.21;
-    remove it from the example.
+    This reverts CL 564576.
     
-    Change-Id: I231dcfdb57832e32d524f156a605ba36d1c9d6d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660176
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reason for revert: flaky on linux-386-longtest
+    
+    Fixes #65823.
+    
+    Change-Id: I20e11f15af050eae9a6c15e756a52ffad327c458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565536
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/testing/testing.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/hash/maphash/smhasher_test.go | 11 -----------
+ 1 file changed, 11 deletions(-)

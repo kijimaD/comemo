@@ -1,123 +1,14 @@
-commit 43ffe2a89230553efc9fc915e944b91438d9f1fd
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon May 8 22:29:52 2023 +0000
+commit 109de31a1e70e8b959fe7e04df3b92774517dfa6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 09:26:43 2022 -0500
 
-    runtime: add execution tracer v2 behind GOEXPERIMENT=exectracer2
+    doc/go1.20: document new freebsd/riscv64 port
     
-    This change mostly implements the design described in #60773 and
-    includes a new scalable parser for the new trace format, available in
-    internal/trace/v2. I'll leave this commit message short because this is
-    clearly an enormous CL with a lot of detail.
-    
-    This change does not hook up the new tracer into cmd/trace yet. A
-    follow-up CL will handle that.
-    
-    For #60773.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race
-    Change-Id: I5d2aca2cc07580ed3c76a9813ac48ec96b157de0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494187
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I3931b84466f1ded9eecd8b70373ee183268a87a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452759
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/test/inl_test.go          |   8 +
- src/cmd/trace/annotations_test.go                  |   4 +
- src/cmd/trace/trace_unix_test.go                   |   4 +
- src/go/build/deps_test.go                          |  25 +-
- src/internal/goexperiment/exp_exectracer2_off.go   |   9 +
- src/internal/goexperiment/exp_exectracer2_on.go    |   9 +
- src/internal/goexperiment/flags.go                 |   4 +
- src/internal/trace/v2/base.go                      | 256 ++++++
- src/internal/trace/v2/batch.go                     |  97 +++
- src/internal/trace/v2/batchcursor.go               | 168 ++++
- src/internal/trace/v2/batchcursor_test.go          | 126 +++
- src/internal/trace/v2/event.go                     | 768 +++++++++++++++++
- src/internal/trace/v2/event/event.go               |  89 ++
- src/internal/trace/v2/event/go122/event.go         | 388 +++++++++
- src/internal/trace/v2/event/requirements.go        |  26 +
- src/internal/trace/v2/event_test.go                |  43 +
- src/internal/trace/v2/generation.go                | 403 +++++++++
- .../trace/v2/internal/testgen/go122/trace.go       | 385 +++++++++
- src/internal/trace/v2/mkexp.bash                   |  50 ++
- src/internal/trace/v2/order.go                     | 943 ++++++++++++++++++++
- src/internal/trace/v2/raw/doc.go                   |  66 ++
- src/internal/trace/v2/raw/event.go                 |  60 ++
- src/internal/trace/v2/raw/reader.go                | 110 +++
- src/internal/trace/v2/raw/textreader.go            | 217 +++++
- src/internal/trace/v2/raw/textwriter.go            |  39 +
- src/internal/trace/v2/raw/writer.go                |  75 ++
- src/internal/trace/v2/reader.go                    | 190 +++++
- src/internal/trace/v2/reader_test.go               | 125 +++
- src/internal/trace/v2/resources.go                 | 274 ++++++
- src/internal/trace/v2/testdata/README.md           |  38 +
- .../trace/v2/testdata/cmd/gotraceraw/main.go       |  88 ++
- .../trace/v2/testdata/cmd/gotracevalidate/main.go  |  53 ++
- src/internal/trace/v2/testdata/generate.go         |   6 +
- .../go122-confuse-seq-across-generations.go        |  62 ++
- .../go122-go-create-without-running-g.go           |  33 +
- ...go122-syscall-steal-proc-gen-boundary-bare-m.go |  33 +
- ...-proc-gen-boundary-reacquire-new-proc-bare-m.go |  34 +
- ...l-steal-proc-gen-boundary-reacquire-new-proc.go |  36 +
- .../go122-syscall-steal-proc-gen-boundary.go       |  35 +
- ...syscall-steal-proc-reacquire-new-proc-bare-m.go |  34 +
- .../go122-syscall-steal-proc-reacquire-new-proc.go |  36 +
- .../go122-syscall-steal-proc-simple-bare-m.go      |  32 +
- .../generators/go122-syscall-steal-proc-simple.go  |  34 +
- .../go122-syscall-steal-proc-sitting-in-syscall.go |  32 +
- .../generators/go122-task-across-generations.go    |  41 +
- src/internal/trace/v2/testdata/mktests.go          |  66 ++
- .../v2/testdata/testprog/annotations-stress.go     |  84 ++
- .../trace/v2/testdata/testprog/annotations.go      |  56 ++
- .../trace/v2/testdata/testprog/cgo-callback.go     |  80 ++
- .../trace/v2/testdata/testprog/cpu-profile.go      | 137 +++
- .../trace/v2/testdata/testprog/futile-wakeup.go    |  84 ++
- .../trace/v2/testdata/testprog/gc-stress.go        |  76 ++
- .../trace/v2/testdata/testprog/gomaxprocs.go       |  46 +
- .../trace/v2/testdata/testprog/many-start-stop.go  |  38 +
- src/internal/trace/v2/testdata/testprog/stacks.go  | 129 +++
- .../v2/testdata/testprog/stress-start-stop.go      | 166 ++++
- src/internal/trace/v2/testdata/testprog/stress.go  | 146 ++++
- .../go122-confuse-seq-across-generations.test      |  36 +
- .../tests/go122-go-create-without-running-g.test   |  17 +
- ...122-syscall-steal-proc-gen-boundary-bare-m.test |  17 +
- ...roc-gen-boundary-reacquire-new-proc-bare-m.test |  18 +
- ...steal-proc-gen-boundary-reacquire-new-proc.test |  20 +
- .../go122-syscall-steal-proc-gen-boundary.test     |  19 +
- ...scall-steal-proc-reacquire-new-proc-bare-m.test |  19 +
- ...o122-syscall-steal-proc-reacquire-new-proc.test |  21 +
- .../go122-syscall-steal-proc-simple-bare-m.test    |  17 +
- .../tests/go122-syscall-steal-proc-simple.test     |  19 +
- ...o122-syscall-steal-proc-sitting-in-syscall.test |  15 +
- .../tests/go122-task-across-generations.test       |  26 +
- src/internal/trace/v2/testtrace/expectation.go     |  81 ++
- src/internal/trace/v2/testtrace/format.go          |  56 ++
- src/internal/trace/v2/testtrace/validation.go      | 351 ++++++++
- src/internal/trace/v2/trace_test.go                | 583 +++++++++++++
- src/internal/trace/v2/value.go                     |  53 ++
- src/internal/trace/v2/version/version.go           |  52 ++
- src/runtime/crash_cgo_test.go                      |   7 +
- src/runtime/extern.go                              |   4 +
- src/runtime/lockrank_on.go                         |   4 +-
- src/runtime/mgc.go                                 |   7 +
- src/runtime/mgcmark.go                             |  93 +-
- src/runtime/proc.go                                | 205 ++++-
- src/runtime/runtime1.go                            |   3 +
- src/runtime/runtime2.go                            |   8 +
- src/runtime/sizeof_test.go                         |  10 +-
- src/runtime/trace.go                               |  56 +-
- src/runtime/trace/annotation_test.go               |   5 +
- src/runtime/trace/trace_stack_test.go              |  17 +-
- src/runtime/trace/trace_test.go                    |  23 +
- src/runtime/trace2.go                              | 944 +++++++++++++++++++++
- src/runtime/trace2buf.go                           | 259 ++++++
- src/runtime/trace2cpu.go                           | 242 ++++++
- src/runtime/trace2event.go                         | 194 +++++
- src/runtime/trace2map.go                           | 145 ++++
- src/runtime/trace2region.go                        |  62 ++
- src/runtime/trace2runtime.go                       | 695 +++++++++++++++
- src/runtime/trace2stack.go                         | 282 ++++++
- src/runtime/trace2status.go                        | 204 +++++
- src/runtime/trace2string.go                        | 104 +++
- src/runtime/trace2time.go                          |  90 ++
- src/runtime/trace_cgo_test.go                      |  78 +-
- 100 files changed, 11790 insertions(+), 67 deletions(-)
+ doc/go1.20.html | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

@@ -1,16 +1,22 @@
-commit 275755401dabce1b625fd33960bd1d12eaab7ebb
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Apr 21 23:15:12 2015 +0900
+commit b8417854c34b93b7298bc18619befc01a885948b
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Mar 29 21:03:05 2015 +0000
 
-    net: fix WriteTo on Plan 9
+    cmd/internal/ld: handle TLS and imported symbols more regularly
     
-    This change excludes internal UDP header size from a result of number of
-    bytes written on WriteTo.
+    For shared libraries we need to be more flexible in how these symbols
+    are handled (e.g. sometimes tlsg needs to be global, or you can get
+    a SDYNIMPORT symbol that has .Hide == true) so handling these cases
+    in genasmsym makes everything much more regular.
     
-    Change-Id: I847d57f7f195657b6f14efdf1b4cfab13d4490dd
-    Reviewed-on: https://go-review.googlesource.com/9196
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Even ignoring shared libraries, I think this is a bit cleaner.
+    
+    Change-Id: If5beb093a261e79f4496183226e1765ee7aa6717
+    Reviewed-on: https://go-review.googlesource.com/8230
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/udpsock_plan9.go | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/internal/ld/lib.go    | 23 ++++++++++----
+ src/cmd/internal/ld/symtab.go | 70 +++++++++++++++----------------------------
+ 2 files changed, 41 insertions(+), 52 deletions(-)

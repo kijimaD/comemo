@@ -1,18 +1,12 @@
-commit bf897845363eee8e39d3d4c02d3aadc864b5faf0
-Author: Samuel Tan <samueltan@google.com>
-Date:   Wed Dec 13 22:38:00 2017 -0800
+commit 5993a75869310212763b0055c2e68faa1349fb2d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 22 10:42:12 2017 +0200
 
-    Revert "html/template: prevent aliasing of parse Trees via AddParseTree"
+    runtime: fix typo in the word "preceding"
     
-    This reverts commit cd0a5f08293e1bf1fac41ae6438d495318cd52fb, which
-    unnecessarily restricts the use of AddParseTree.
-    
-    Change-Id: I1155214a20ba08981d604404e79fff54874fd8e4
-    Reviewed-on: https://go-review.googlesource.com/83919
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6d8c8ca0dee972cabfcc95fda23aea25692633a5
+    Reviewed-on: https://go-review.googlesource.com/65350
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/html/template/escape_test.go | 21 ++++-----------------
- src/html/template/template.go    |  5 -----
- 2 files changed, 4 insertions(+), 22 deletions(-)
+ src/runtime/race.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

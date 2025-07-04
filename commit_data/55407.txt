@@ -1,50 +1,43 @@
-commit 370f1a88edfec10c071fbf700328048a83bee9fc
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Aug 13 00:14:58 2023 +1000
+commit 4b43d668c2ae42465af7cbad4bc5fa86d0b6cc15
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 2 10:42:46 2023 -0500
 
-    crypto/sha512: provide optimised assembly for riscv64
+    internal/testenv: avoid rebuilding all of std in WriteImportcfg
     
-    Provide an optimised assembly implementation of sha512 for riscv64.
-    This results in significant performance gains.
+    Instead, have the caller pass in an explicit list of the packages
+    (if any) they need.
     
-    On a StarFive VisionFive 2:
+    After #47257, a builder running a test does not necessarily have the
+    entire standard library already cached, especially when running tests
+    in sharded mode. testenv.WriteImportcfg used to write an importcfg for
+    the entire standard library — which required rebuilding the entire
+    standard library — even though most tests need only a tiny subset.
     
-                        │   sha512a   │               sha512b               │
-                        │   sec/op    │   sec/op     vs base                │
-    Hash8Bytes/New-4      7.998µ ± 0%   6.962µ ± 0%  -12.96% (p=0.000 n=10)
-    Hash8Bytes/Sum384-4   8.113µ ± 0%   6.651µ ± 0%  -18.02% (p=0.000 n=10)
-    Hash8Bytes/Sum512-4   8.269µ ± 0%   6.748µ ± 0%  -18.39% (p=0.000 n=10)
-    Hash1K/New-4          57.38µ ± 0%   36.92µ ± 0%  -35.66% (p=0.000 n=10)
-    Hash1K/Sum384-4       57.47µ ± 0%   36.57µ ± 0%  -36.37% (p=0.000 n=10)
-    Hash1K/Sum512-4       57.61µ ± 0%   36.75µ ± 0%  -36.21% (p=0.000 n=10)
-    Hash8K/New-4          402.5µ ± 0%   245.4µ ± 0%  -39.02% (p=0.000 n=10)
-    Hash8K/Sum384-4       402.5µ ± 0%   245.1µ ± 0%  -39.12% (p=0.000 n=10)
-    Hash8K/Sum512-4       402.7µ ± 0%   245.3µ ± 0%  -39.09% (p=0.000 n=10)
+    This reduces the time to test internal/abi with a cold build cache on
+    my workstation from ~16s to ~0.05s.
     
-                        │   sha512a    │                sha512b                │
-                        │     B/s      │      B/s       vs base                │
-    Hash8Bytes/New-4      976.6Ki ± 0%   1123.0Ki ± 0%  +15.00% (p=0.000 n=10)
-    Hash8Bytes/Sum384-4   966.8Ki ± 0%   1171.9Ki ± 0%  +21.21% (p=0.000 n=10)
-    Hash8Bytes/Sum512-4   947.3Ki ± 0%   1162.1Ki ± 1%  +22.68% (p=0.000 n=10)
-    Hash1K/New-4          17.01Mi ± 0%    26.45Mi ± 0%  +55.47% (p=0.000 n=10)
-    Hash1K/Sum384-4       16.99Mi ± 0%    26.70Mi ± 0%  +57.13% (p=0.000 n=10)
-    Hash1K/Sum512-4       16.95Mi ± 0%    26.57Mi ± 0%  +56.74% (p=0.000 n=10)
-    Hash8K/New-4          19.41Mi ± 0%    31.83Mi ± 0%  +63.99% (p=0.000 n=10)
-    Hash8K/Sum384-4       19.41Mi ± 0%    31.88Mi ± 0%  +64.28% (p=0.000 n=10)
-    Hash8K/Sum512-4       19.40Mi ± 0%    31.85Mi ± 0%  +64.21% (p=0.000 n=10)
+    It somewhat increases the time for 'go test go/internal/gcimporter'
+    with a cold cache, from ~43s to ~54s, presumably due to decreased
+    parallelism in rebuilding the standard library and increased overhead
+    in re-resolving the import map. However, 'go test -short' running time
+    remains stable (~5.5s before and after).
     
-    Change-Id: I92629a106b75b0526e9f2a8fe3cc4a6f7fc63c8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518631
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
-    Reviewed-by: Wang Yaduo <wangyaduo@linux.alibaba.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Fixes #58248.
+    
+    Change-Id: I9be6b61ae6e28b75b53af85207c281bb93b9346f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464736
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/crypto/sha512/sha512block_decl.go    |   2 +-
- src/crypto/sha512/sha512block_generic.go |   2 +-
- src/crypto/sha512/sha512block_riscv64.s  | 291 +++++++++++++++++++++++++++++++
- 3 files changed, 293 insertions(+), 2 deletions(-)
+ src/cmd/internal/archive/archive_test.go      |  2 +-
+ src/cmd/link/link_test.go                     | 22 ++++-----
+ src/cmd/objdump/objdump_test.go               |  2 +-
+ src/cmd/pack/pack_test.go                     |  4 +-
+ src/go/internal/gcimporter/gcimporter_test.go | 40 +++-------------
+ src/internal/abi/abi_test.go                  |  8 ++--
+ src/internal/goroot/importcfg.go              | 66 ---------------------------
+ src/internal/testenv/testenv.go               | 51 ++++++++++++++++-----
+ 8 files changed, 65 insertions(+), 130 deletions(-)

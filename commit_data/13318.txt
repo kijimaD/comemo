@@ -1,32 +1,29 @@
-commit 072e36d5ef1d51f70b446e6f5b141595e1108ebd
-Author: Dave Cheney <dave@cheney.net>
-Date:   Fri Jun 8 13:13:02 2012 +1000
+commit a0084b3494423057c9f702d952c8df88dd9a9317
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jun 8 02:42:28 2012 +0800
 
-    cmd/5c, cmd/5g, cmd/5l: fix cross compilation failure on darwin
+    cmd/5a, cmd/5l: add MULW{T,B} and MULAW{T,B} support for ARM
+            Supported in ARMv5TE and above.
+            Also corrected MULA disassembly listing.
     
-    Fixes #3708.
-    
-    The fix to allow 5{c,g,l} to compile under clang 3.1 broke cross
-    compilation on darwin using the Apple default compiler on 10.7.3.
-    
-    This failure was introduced in 9b455eb64690.
-    
-    This has been tested by cross compiling on darwin/amd64 to linux/arm using
-    
-    * gcc version 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.1.00)
-    * clang version 3.1 (branches/release_31)
-    
-    As well as on linux/arm using
-    
-    * gcc version 4.6.3 (Ubuntu/Linaro 4.6.3-1ubuntu5)
-    * Ubuntu clang version 3.0-6ubuntu3 (tags/RELEASE_30/final) (based on LLVM 3.0)
-    * Debian clang version 3.1-4 (branches/release_31) (based on LLVM 3.1)
-    
-    R=consalus, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6307058
+    https://golang.org/cl/6265045
 
- src/cmd/5c/list.c | 2 +-
- src/cmd/5g/list.c | 2 +-
- src/cmd/5l/list.c | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/5a/a.y      |   7 +--
+ src/cmd/5a/lex.c    |   6 +++
+ src/cmd/5a/y.tab.c  | 150 ++++++++++++++++++++++++++--------------------------
+ src/cmd/5g/cgen64.c |   4 +-
+ src/cmd/5g/gobj.c   |   1 +
+ src/cmd/5g/list.c   |   6 +++
+ src/cmd/5g/peep.c   |   4 +-
+ src/cmd/5g/reg.c    |   1 +
+ src/cmd/5l/5.out.h  |   9 +++-
+ src/cmd/5l/asm.c    |  22 ++++++++
+ src/cmd/5l/l.h      |   1 +
+ src/cmd/5l/list.c   |   7 +++
+ src/cmd/5l/obj.c    |   1 +
+ src/cmd/5l/optab.c  |   4 ++
+ src/cmd/5l/span.c   |  13 ++++-
+ src/libmach/5obj.c  |   1 +
+ 16 files changed, 153 insertions(+), 84 deletions(-)

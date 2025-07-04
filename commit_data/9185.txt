@@ -1,23 +1,16 @@
-commit dcef9812171e6dd2f1fd4b193936c5d6aaa6b5d1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jul 22 22:24:04 2011 -0700
+commit 8fdc2851e4340105db8c2646b2cba71bfb6357ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 22 18:30:07 2011 -0700
 
-    godoc/httpzip.go: use correct path in Readdir
+    zip: add a test for the previous >65k files fix
     
-    Fixes a problem where Readdir would always return
-    empty directories (Readdir is only called by godoc
-    if the usual directory handler is commented out
-    in godoc.go, and if a zip file system is provided;
-    thus, this bug never manifested itself in godoc).
+    This surprisingly takes 30 seconds on my fast machine
+    so disabling by default. Need to optimize the Writer
+    at some point.
     
-    Also:
-    - better choice of variable/field names
-    - simplified error handling a bit
-    - better comments
-    
-    R=bradfitz
+    R=golang-dev, r, r
     CC=golang-dev
-    https://golang.org/cl/4813047
+    https://golang.org/cl/4815048
 
- src/cmd/godoc/httpzip.go | 38 ++++++++++++++++++--------------------
- 1 file changed, 18 insertions(+), 20 deletions(-)
+ src/pkg/archive/zip/zip_test.go | 57 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

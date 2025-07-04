@@ -1,67 +1,23 @@
-commit 29ca9cc458701a5f0381e9c82229f2a20b66644d
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Sun Nov 12 17:13:29 2023 +0800
+commit 6cb8c43b842daffe628e8ee7a94ea3b1ba17299d
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jan 13 16:46:49 2023 -0500
 
-    internal/bytealg: optimize Count with PCALIGN in riscv64
+    cmd/go: include coverage build flags for "go list"
     
-    For #63678
+    This patch ensures that the go command's "list" subcommand accepts
+    coverage-related build options, which were incorrectly left out when
+    "go build -cover" was rolled out. This is needed in order to do things
+    like check the staleness of an installed cover-instrumented target.
     
-    Benchmark on Milk-V Mars CM eMMC (Starfive/JH7110 SoC)
+    Fixes #57785.
     
-    goos: linux
-    goarch: riscv64
-    pkg: bytes
-                    │ /root/bytes.old.bench │        /root/bytes.pc16.bench         │
-                    │        sec/op         │   sec/op     vs base                  │
-    Count/10                    223.9n ± 1%   220.8n ± 1%   -1.36% (p=0.001 n=10)
-    Count/32                    571.6n ± 0%   571.3n ± 0%        ~ (p=0.054 n=10)
-    Count/4K                    38.56µ ± 0%   38.55µ ± 0%   -0.01% (p=0.010 n=10)
-    Count/4M                    40.13m ± 0%   39.21m ± 0%   -2.28% (p=0.000 n=10)
-    Count/64M                   627.5m ± 0%   627.4m ± 0%   -0.01% (p=0.019 n=10)
-    CountEasy/10                101.3n ± 0%   101.3n ± 0%        ~ (p=1.000 n=10) ¹
-    CountEasy/32                139.3n ± 0%   139.3n ± 0%        ~ (p=1.000 n=10) ¹
-    CountEasy/4K                5.565µ ± 0%   5.564µ ± 0%   -0.02% (p=0.001 n=10)
-    CountEasy/4M                5.619m ± 0%   5.619m ± 0%        ~ (p=0.190 n=10)
-    CountEasy/64M               89.94m ± 0%   89.93m ± 0%        ~ (p=0.436 n=10)
-    CountSingle/10              53.80n ± 0%   46.06n ± 0%  -14.39% (p=0.000 n=10)
-    CountSingle/32             104.30n ± 0%   79.64n ± 0%  -23.64% (p=0.000 n=10)
-    CountSingle/4K             10.413µ ± 0%   7.247µ ± 0%  -30.40% (p=0.000 n=10)
-    CountSingle/4M             11.603m ± 0%   8.388m ± 0%  -27.71% (p=0.000 n=10)
-    CountSingle/64M             230.9m ± 0%   172.3m ± 0%  -25.40% (p=0.000 n=10)
-    CountHard1                  9.981m ± 0%   9.981m ± 0%        ~ (p=0.810 n=10)
-    CountHard2                  9.981m ± 0%   9.981m ± 0%        ~ (p=0.315 n=10)
-    CountHard3                  9.981m ± 0%   9.981m ± 0%        ~ (p=0.159 n=10)
-    geomean                     144.6µ        133.5µ        -7.70%
-    ¹ all samples are equal
-    
-                    │ /root/bytes.old.bench │        /root/bytes.pc16.bench         │
-                    │          B/s          │      B/s       vs base                │
-    Count/10                   42.60Mi ± 1%    43.19Mi ± 1%   +1.39% (p=0.001 n=10)
-    Count/32                   53.38Mi ± 0%    53.42Mi ± 0%   +0.06% (p=0.049 n=10)
-    Count/4K                   101.3Mi ± 0%    101.3Mi ± 0%        ~ (p=0.077 n=10)
-    Count/4M                   99.68Mi ± 0%   102.01Mi ± 0%   +2.34% (p=0.000 n=10)
-    Count/64M                  102.0Mi ± 0%    102.0Mi ± 0%        ~ (p=0.076 n=10)
-    CountEasy/10               94.18Mi ± 0%    94.18Mi ± 0%        ~ (p=0.054 n=10)
-    CountEasy/32               219.1Mi ± 0%    219.1Mi ± 0%   +0.01% (p=0.016 n=10)
-    CountEasy/4K               702.0Mi ± 0%    702.0Mi ± 0%   +0.00% (p=0.000 n=10)
-    CountEasy/4M               711.9Mi ± 0%    711.9Mi ± 0%        ~ (p=0.133 n=10)
-    CountEasy/64M              711.6Mi ± 0%    711.7Mi ± 0%        ~ (p=0.447 n=10)
-    CountSingle/10             177.2Mi ± 0%    207.0Mi ± 0%  +16.81% (p=0.000 n=10)
-    CountSingle/32             292.7Mi ± 0%    383.2Mi ± 0%  +30.91% (p=0.000 n=10)
-    CountSingle/4K             375.1Mi ± 0%    539.0Mi ± 0%  +43.70% (p=0.000 n=10)
-    CountSingle/4M             344.7Mi ± 0%    476.9Mi ± 0%  +38.33% (p=0.000 n=10)
-    CountSingle/64M            277.2Mi ± 0%    371.5Mi ± 0%  +34.05% (p=0.000 n=10)
-    geomean                    199.7Mi         219.8Mi       +10.10%
-    
-    Change-Id: I1abf6b220b9802028f8ad5eebc8d3b7cfa3e89ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541756
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Change-Id: I140732ff1e6b83cd9c453701bb8199b333fc0f2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462116
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Wang Yaduo <wangyaduo@linux.alibaba.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
 
- src/internal/bytealg/count_riscv64.s | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/go/internal/list/list.go          |  3 +++
+ src/cmd/go/testdata/script/cover_list.txt | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

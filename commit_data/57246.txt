@@ -1,19 +1,31 @@
-commit 1e9c5bbc8a428da5832137e84d08ff2b8e99dfaa
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Aug 22 09:50:08 2024 -0500
+commit 82ee946d7acd93cad27f748efb9c3131ae69668e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 20 11:41:04 2023 -0700
 
-    crypto/aes: add missing aes-gcm buffer overlap checks to PPC64
+    all: update build tags to require/assume Go 1.20
     
-    The tests added by CL 601778 highlighted missing buffer overlap
-    checks in the ppc64 specific aes-gcm implementation.
+    Updates #54265.
     
-    Fixes #69007
-    
-    Change-Id: I80c3b5628c5079cfed2c3dace7298512c16a8f46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607519
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ia1c9486484c73c565bb4f78234dedff6d929ed42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511656
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/crypto/aes/gcm_ppc64x.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/base/mapfile_mmap.go    |  2 +-
+ src/cmd/compile/internal/base/mapfile_read.go    |  2 +-
+ src/cmd/dist/{exec_119.go => exec.go}            |  3 --
+ src/cmd/dist/exec_118.go                         | 47 ------------------------
+ src/cmd/dist/{notgo117.go => notgo120.go}        | 10 ++---
+ src/cmd/internal/bio/buf_mmap.go                 |  2 +-
+ src/cmd/internal/bio/buf_nommap.go               |  2 +-
+ src/cmd/link/internal/ld/msync_darwin_libc.go    |  2 +-
+ src/cmd/link/internal/ld/msync_darwin_syscall.go | 24 ------------
+ src/cmd/link/internal/ld/outbuf_mmap.go          |  2 +-
+ src/cmd/link/internal/ld/outbuf_nommap.go        |  2 +-
+ src/internal/abi/type.go                         |  6 +--
+ src/internal/abi/unsafestring_go119.go           | 32 ----------------
+ src/internal/abi/unsafestring_go120.go           | 18 ---------
+ 14 files changed, 15 insertions(+), 139 deletions(-)

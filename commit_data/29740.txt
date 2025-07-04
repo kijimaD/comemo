@@ -1,14 +1,37 @@
-commit 14f18e5b6f5abd9819981fdee92fffe62f4d4c1c
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Dec 1 23:07:53 2016 -0500
+commit 3107c91e2d390771888df6b47fd6f8fc7a364cd3
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Oct 5 15:12:05 2016 -0500
 
-    doc/go1.8: document mips port requirements
+    runtime: memclr perf improvements on ppc64x
     
-    Fixes #18140.
+    This updates runtime/memclr_ppc64x.s to improve performance,
+    by unrolling loops for larger clears.
     
-    Change-Id: I527719576bc7198c79bb8bc51d258a71b2d5b296
-    Reviewed-on: https://go-review.googlesource.com/33853
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #17348
+    
+    benchmark                    old MB/s     new MB/s     speedup
+    BenchmarkMemclr/5-80         199.71       406.63       2.04x
+    BenchmarkMemclr/16-80        693.66       1817.41      2.62x
+    BenchmarkMemclr/64-80        2309.35      5793.34      2.51x
+    BenchmarkMemclr/256-80       5428.18      14765.81     2.72x
+    BenchmarkMemclr/4096-80      8611.65      27191.94     3.16x
+    BenchmarkMemclr/65536-80     8736.69      28604.23     3.27x
+    BenchmarkMemclr/1M-80        9304.94      27600.09     2.97x
+    BenchmarkMemclr/4M-80        8705.66      27589.64     3.17x
+    BenchmarkMemclr/8M-80        8575.74      23631.04     2.76x
+    BenchmarkMemclr/16M-80       8443.10      19240.68     2.28x
+    BenchmarkMemclr/64M-80       8390.40      9493.04      1.13x
+    BenchmarkGoMemclr/5-80       263.05       630.37       2.40x
+    BenchmarkGoMemclr/16-80      904.33       1148.49      1.27x
+    BenchmarkGoMemclr/64-80      2830.20      8756.70      3.09x
+    BenchmarkGoMemclr/256-80     6064.59      20299.46     3.35x
+    
+    Change-Id: Ic76c9183c8b4129ba3df512ca8b0fe6bd424e088
+    Reviewed-on: https://go-review.googlesource.com/30373
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.8.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/runtime/memclr_ppc64x.s | 73 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 52 insertions(+), 21 deletions(-)

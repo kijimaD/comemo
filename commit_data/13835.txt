@@ -1,12 +1,22 @@
-commit 129b2bb19a6b6849bc8e42512460a77393c56172
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Sep 17 11:05:43 2012 -0700
+commit 0aad3cdc59c245eb5a09159f43c0bf590893d9ab
+Author: Eric Eisner <eric.d.eisner@gmail.com>
+Date:   Mon Sep 17 11:50:15 2012 +1000
 
-    misc/dashboard/builder: increase default command timeout
+    strings: implement a faster generic Replacer
     
-    R=golang-dev, bradfitz
+    This also fixes the semantics of some corner cases with the empty
+    match. TODOs for genericReplacer in the tests are fixed.
+    
+    benchmark                  old ns/op    new ns/op    delta
+    BenchmarkGenericNoMatch        71395         3132  -95.61%
+    BenchmarkGenericMatch1         75610        20280  -73.18%
+    BenchmarkGenericMatch2        837995        86725  -89.65%
+    
+    R=nigeltao, rsc
     CC=golang-dev
-    https://golang.org/cl/6499127
+    https://golang.org/cl/6492076
 
- misc/dashboard/builder/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/strings/export_test.go  |  27 ++++
+ src/pkg/strings/replace.go      | 300 +++++++++++++++++++++++++++++++---------
+ src/pkg/strings/replace_test.go |  96 +++++++++++--
+ 3 files changed, 348 insertions(+), 75 deletions(-)

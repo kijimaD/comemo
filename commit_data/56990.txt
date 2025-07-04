@@ -1,30 +1,73 @@
-commit 0a9321ad7f8c91e1b0c7184731257df923977eb9
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Apr 7 22:37:57 2023 +0800
+commit 35268a996052ca8716caf94467c2ed61140f3862
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 4 22:34:52 2023 -0400
 
-    cmd/internal/obj/loong64: add CPUCFG instructions support
+    cmd/go: additional doc-inspired tests and bug fixes
     
-    The CPUCFG instruction is used to dynamically obtain the features
-    supported by the current CPU during the running of the program.
+    Additional tests and bug fixes realized while writing go.dev/doc/gotoolchain (CL 500775).
     
-    Go asm syntax:
-            CPUCFG RJ, RD
+    - Handle go get toolchain@go1.22 (resolve to latest patch release, same as go get go@1.22).
+      (See modload/query.go and gover/mod.go.)
     
-    Equivalent platform assembler syntax:
-            cpucfg rd, rj
+    - Handle go get go@patch toolchain@patch.
+      (See modload/query.go and gover/mod.go.)
     
-    Reference: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    - Remove prefix-goVERSION-suffix form for toolchain name,
+      standardizing on goVERSION-suffix.
+      I have no good explanation for having two forms, so simplify to one.
+      (See vendor and gover.)
     
-    Change-Id: I545110ff837ae9c5ccd7c448a1daf2d1277f9aa1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493436
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    - Fail toolchain downloads when GOSUMDB=off.
+      Because toolchain downloads cannot always be predicted
+      (especially during switching rather than selection),
+      they cannot be listed in go.sum.
+      We rely on the checksum database for integrity of the download,
+      especially if proxied. If the checksum database is disabled,
+      this integrity check won't happen, so fail toolchain downloads.
+      (See modfetch/sumdb.go and script/gotoolchain_net.txt)
+    
+    - Use names from documentation in package toolchain
+      (Select, Switch; SwitchTo renamed to Exec to avoid both names;
+      reqs.go renamed to switch.go; toolchain.go renamed to select.go.)
+    
+    - Make "go env GOTOOLCHAIN" and "go env -w GOTOOLCHAIN"
+      work even when GOTOOLCHAIN is misconfigured.
+      (See special case at top of Select in select.go.)
+    
+    - Clarify what goInstallVersion does
+      (report whether this is go install or go run pkg@version)
+      and explain the potential version switch more clearly.
+      Use the Switcher directly instead of reimplementing it.
+      (See select.go.)
+    
+    - Document go@ and toolchain@ forms in go help get,
+      linking to go.dev/doc/toolchain.
+      (See modget/get.go.)
+    
+    - Update URL of documentation in $GOROOT/go.env.
+    
+    For #57001.
+    
+    Change-Id: I895ef3519ff95db8710ed23b36ebaf4f648120cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500797
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/testdata/loong64enc1.s |  1 +
- src/cmd/internal/obj/loong64/a.out.go           |  1 +
- src/cmd/internal/obj/loong64/anames.go          |  1 +
- src/cmd/internal/obj/loong64/asm.go             | 10 +++++++---
- 4 files changed, 10 insertions(+), 3 deletions(-)
+ go.env                                             |   2 +-
+ src/cmd/go/alldocs.go                              |  11 +
+ src/cmd/go/internal/gover/mod.go                   |  15 ++
+ src/cmd/go/internal/gover/toolchain.go             |   5 +-
+ src/cmd/go/internal/gover/toolchain_test.go        |   4 +-
+ src/cmd/go/internal/modfetch/sumdb.go              |  12 ++
+ src/cmd/go/internal/modget/get.go                  |  11 +
+ src/cmd/go/internal/modload/query.go               |   2 +-
+ .../internal/toolchain/{toolchain.go => select.go} | 235 +++++++++++----------
+ .../go/internal/toolchain/{reqs.go => switch.go}   |   4 +-
+ src/cmd/go/main.go                                 |   2 +-
+ src/cmd/go/testdata/script/gotoolchain_local.txt   |  96 ++++-----
+ src/cmd/go/testdata/script/gotoolchain_net.txt     |  29 ++-
+ src/cmd/go/testdata/script/mod_edit_toolchain.txt  |   4 +-
+ src/cmd/go/testdata/script/mod_get_toolchain.txt   | 102 +++++++++
+ src/cmd/go/testdata/script/work_edit_toolchain.txt |   4 +-
+ 16 files changed, 359 insertions(+), 179 deletions(-)

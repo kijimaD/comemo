@@ -1,14 +1,15 @@
-commit 88c448ba40a29ac96563e9945d2af17fba779d23
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Oct 17 11:57:48 2013 -0700
+commit 4dce7f85751e42fd1149fa46938edb8a046d4c3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 17 12:13:33 2013 -0400
 
-    runtime: correct test for when to poll network
+    encoding/xml: accept chains of interfaces and pointers
     
-    Fixes #6610.
+    Fixes #6556.
     
-    R=golang-dev, khr
+    R=golang-dev, iant, adg
     CC=golang-dev
-    https://golang.org/cl/14793043
+    https://golang.org/cl/14747043
 
- src/pkg/runtime/proc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/xml/marshal.go      | 13 +++++++------
+ src/pkg/encoding/xml/marshal_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 6 deletions(-)

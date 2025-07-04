@@ -1,29 +1,17 @@
-commit d49fecc474d04a04d1d22851c06099338abd4391
-Author: smasher164 <aindurti@gmail.com>
-Date:   Thu Feb 27 02:42:28 2020 -0500
+commit 9f95a3097710fa4aa01910218454d23fa880f736
+Author: Anmol Sethi <hi@nhooyr.io>
+Date:   Wed Oct 18 21:27:48 2017 -0400
 
-    std,cmd: update x/net and github.com/google/pprof
+    net/http: clean up checkIfModifiedSince and checkIfUnmodifiedSince
     
-    Re-vendor x/net/dns/dnsmessage, x/net/route, and github.com/google/pprof
-    (commit 1ebb73c). The updated dependencies fix the string(int)
-    conversions, in preparation for the vet warning.
+    The comment in both functions referred to the wrong header and I made
+    the checks easier to read.
     
-    Updates #32479.
-    
-    Change-Id: I023a4e30415d060f8b403b9943fe911f6d19f2e9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221337
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifb46729cee631a3305f557863818e3487b8eed71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/71753
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go.mod                                     |  2 +-
- src/cmd/go.sum                                     |  5 ++--
- .../google/pprof/internal/report/report.go         | 28 ++++++++++++++++------
- .../github.com/google/pprof/profile/proto.go       |  7 ++++--
- src/cmd/vendor/modules.txt                         |  2 +-
- src/go.mod                                         |  2 +-
- src/go.sum                                         |  4 ++--
- .../golang.org/x/net/dns/dnsmessage/message.go     | 22 ++---------------
- src/vendor/golang.org/x/net/route/address.go       |  4 ++--
- src/vendor/modules.txt                             |  2 +-
- 10 files changed, 39 insertions(+), 39 deletions(-)
+ src/net/http/fs.go | 26 +++++++++++++++-----------
+ 1 file changed, 15 insertions(+), 11 deletions(-)

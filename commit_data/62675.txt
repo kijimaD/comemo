@@ -1,0 +1,30 @@
+commit ac8474c0a2f1428125bae63749e14e96d8690d38
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Mar 17 14:48:01 2025 +0800
+
+    cmd/internal/obj/loong64: add [X]VMULW{EV/OD} series instructions support
+    
+    Go asm syntax:
+             VMULW{EV/OD}{HB/WH/VW/QV}[U]           VK, VJ, VD
+            XVMULW{EV/OD}{HB/WH/VW/QV}[U]           XK, XJ, XD
+             VMULW{EV/OD}{HBUB/WHUH/VWUW/QVUV}      VK, VJ, VD
+            XVMULW{EV/OD}{HBUB/WHUH/VWUW/QVUV}      XK, XJ, XD
+    
+    Equivalent platform assembler syntax:
+             vmulw{ev/od}.{h.b/w.h/d.w/q.d}[u]              vd, vj, vk
+            xvmulw{ev/od}.{h.b/w.h/d.w/q.d}[u]              xd, xj, xk
+             vmulw{ev/od}.{h.bu.b/w.hu.h/d.wu.w/q.du.d}     vd, vj, vk
+            xvmulw{ev/od}.{h.bu.b/w.hu.h/d.wu.w/q.du.d}     xd, xj, xk
+    
+    Change-Id: Ib1b5fb9605417a2b81841deae40e0e2beb90d03c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658375
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  52 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  50 ++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  48 ++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 144 ++++++++++++++++++++++++
+ 4 files changed, 294 insertions(+)

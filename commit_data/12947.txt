@@ -1,17 +1,12 @@
-commit 78e4d1752e207d4c1663c131eef50842366e77db
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Tue Apr 24 09:24:19 2012 -0700
+commit 0f800505424a9c347c50446ffa0767c224cd7aab
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 24 23:19:44 2012 +0800
 
-    misc/dist: more gophers for OS X installer
+    runtime: fix runtime.Breakpoint for ARM
     
-    Replaces the default OS X installer background
-    with a more fitting image.
-    
-    R=golang-dev
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6116043
+    https://golang.org/cl/6100053
 
- misc/dist/bindist.go              |   1 +
- misc/dist/darwin/Distribution     |   1 +
- misc/dist/darwin/Resources/bg.png | Bin 0 -> 11466 bytes
- 3 files changed, 2 insertions(+)
+ src/pkg/runtime/asm_arm.s | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

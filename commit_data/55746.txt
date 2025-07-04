@@ -1,32 +1,29 @@
-commit 0728e2b139b63cf203487bd5f76b64507392b780
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 14 11:56:50 2024 -0500
+commit 6f22d42c741c88c08b5df1a77831b6646e368fd1
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jul 17 15:57:09 2022 -0400
 
-    runtime: simplify, speed up adjusttimers
+    runtime: resolve caller funcInfo after processing current frame
     
-    The current adjusttimers does an O(n) loop and then queues
-    a bunch of reinsertions, each of which is O(log n), for a worst
-    case of O(n log n) time plus an allocation of n elements.
+    Currently, gentraceback resolves the funcInfo of the caller prior to
+    processing the current frame (calling the callback, printing it, etc).
+    As a result, if this lookup fails in a verbose context, it will print
+    the failure before printing the frame that it's already resolved.
     
-    Reestablishing the heap invariant from an arbitrarily ordered
-    slice can be done in O(n) time, so it is both simpler and faster
-    to avoid the allocated temporary queue and just re-init the
-    heap if we have damaged it. The cost of doing so is no worse
-    than the O(n) loop we already did.
+    To fix this, move the resolution of LR to a funcInfo to after current
+    frame processing.
     
-    This change also avoids holding multiple timers locked (status
-    set to timerMoving) at any given moment, as well as holding
-    individual timers locked for unbounded amounts of time,
-    as opposed to fixed-size critical sections.
+    This also has the advantage that we can reduce the scope of "flr" (the
+    caller's funcInfo) to only the post-frame part of the loop, which will
+    make it easier to stack-rip gentraceback into an iterator.
     
-    [This is one CL in a refactoring stack making very small changes
-    in each step, so that any subtle bugs that we miss can be more
-    easily pinpointed to a small change.]
+    For #54466.
     
-    Change-Id: If966c1d1e66db797f4b19e7b1abbc06ab651764d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564115
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I8be44d4eac598a686c32936ab37018b8aa97c00b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458217
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
 
- src/runtime/time.go | 89 +++++++++++++++++------------------------------------
- 1 file changed, 28 insertions(+), 61 deletions(-)
+ src/runtime/traceback.go | 50 +++++++++++++++++++++++-------------------------
+ 1 file changed, 24 insertions(+), 26 deletions(-)

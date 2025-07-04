@@ -1,54 +1,19 @@
-commit b2df0bd5f53e599fef9fcb808304dd0e5ea3ba0b
-Author: Alan Donovan <adonovan@google.com>
-Date:   Mon Nov 12 15:48:46 2018 -0500
+commit 05f9b369525f682020df8a55c3fc83b520575912
+Author: Jeet Parekh <jeetparekh96@gmail.com>
+Date:   Fri Jul 27 15:52:36 2018 +0000
 
-    cmd/vet/all: use x/tools/go/analysis/cmd/vet not cmd/vet
+    syscall: improve NewCallback documentation and panic message
     
-    cmd/vet/all applies vet to all packages in the standard tree.
-    It is run for every configuration using this command:
-      GO_BUILDER_NAME=misc-vetall go tool dist test
-    by the misc-vetall builder (see chart at build.golang.org).
+    Fixes #26138
     
-    Ideally we would switch to 'go vet', but it effectively does a partial
-    build. This means that its analysis has accurate type information, so
-    it reports slightly fewer spurious diagnostics. However, it is more
-    than twice as slow.
-    
-    Instead, cmd/vet/all builds and runs
-    golang.org/x/tools/go/analysis/cmd/vet, which uses x/tools/go/packages
-    to load the entire std lib from source. It takes about 4min to run all
-    OS/ARCH pairs. An important consequence is that golang.org/x/tools
-    must be on your $GOPATH to run cmd/vet/all. The test has been
-    temporarily modified to warn and skip if this is not the case.
-    
-    This is a preparatory step for switching to the new
-    cmd/vet based on vet-lite.
-    
-    Whitelist changes:
-    - The two "deadcode" diagnostics removed from the whitelist were due
-      to if-conditions that could now be proven false.
-    - The asmdecl warnings are now printed with the log.Printf prefix,
-      so they are discarded by the parser and needn't be whitelisted.
-    
-    Change-Id: I6486508b0de2cd947c897523af086a408cbaf4a8
-    Reviewed-on: https://go-review.googlesource.com/c/149097
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If77b2839bccc600223735df42438a19131cd051c
+    GitHub-Last-Rev: 64ceaea9f1cb7afb3d552dce0223b818bac1faf9
+    GitHub-Pull-Request: golang/go#26617
+    Reviewed-on: https://go-review.googlesource.com/126035
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/all/main.go                     | 80 +++++++++++++++++++++++++----
- src/cmd/vet/all/whitelist/386.txt           |  2 -
- src/cmd/vet/all/whitelist/all.txt           | 10 ++--
- src/cmd/vet/all/whitelist/amd64.txt         |  3 --
- src/cmd/vet/all/whitelist/arm.txt           |  2 -
- src/cmd/vet/all/whitelist/arm64.txt         |  2 -
- src/cmd/vet/all/whitelist/mipsx.txt         |  2 -
- src/cmd/vet/all/whitelist/nacl_386.txt      |  2 -
- src/cmd/vet/all/whitelist/nacl_amd64p32.txt |  4 --
- src/cmd/vet/all/whitelist/nacl_arm.txt      |  2 -
- src/cmd/vet/all/whitelist/ppc64x.txt        |  2 -
- src/cmd/vet/all/whitelist/s390x.txt         | 15 +++---
- src/cmd/vet/all/whitelist/wasm.txt          |  3 --
- src/cmd/vet/all/whitelist/windows_386.txt   |  1 -
- src/cmd/vet/all/whitelist/windows_amd64.txt |  1 -
- 15 files changed, 81 insertions(+), 50 deletions(-)
+ src/runtime/syscall_windows.go |  8 ++++----
+ src/syscall/syscall_windows.go | 12 ++++++------
+ 2 files changed, 10 insertions(+), 10 deletions(-)

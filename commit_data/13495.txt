@@ -1,19 +1,14 @@
-commit 4d2251967847cf9b710da09525c676a7e733113d
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Jul 25 12:09:58 2012 +1000
+commit c1f2ec384fe9874cb506bfb1bc9083efe276bf70
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 24 21:57:18 2012 +0900
 
-    exp/html: allow frameset if body contains whitespace
+    net: fix comment
     
-    If the body of an HTML document contains text, the <frameset> tag is
-    ignored. But not if the text is only whitespace.
+    RemoteAddr returns not only UDPAddr but IPAddr.
     
-    Pass 4 additional tests.
-    
-    R=nigeltao
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/6442043
+    https://golang.org/cl/6401054
 
- src/pkg/exp/html/parse.go                           | 5 ++++-
- src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log | 4 ++--
- src/pkg/exp/html/testlogs/tests19.dat.log           | 4 ++--
- 3 files changed, 8 insertions(+), 5 deletions(-)
+ src/pkg/net/net_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

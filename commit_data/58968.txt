@@ -1,47 +1,22 @@
-commit 8b7e376e71cbd23a0644ff50cc4e75ce47cd9723
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 3 15:11:47 2025 -0800
+commit 4c394b5638cc2694b1eff6418bc3e7db8132de0e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jan 26 17:28:45 2024 +0000
 
-    go/types, types2: factor out single commonUnder function
+    Revert "net/http: wrap client errors"
     
-    Combine commonUnder and commonUnderOrChan:
-    - Provide an optional cond(ition) function argument to commonUnder
-      to establish additional type set conditions.
-    - Instead of a *Checker and *string argument for error reporting,
-      return an error cause that is only allocated in the presence of
-      an error.
-    - Streamline some error messages.
+    This reverts CL 533119.
     
-    Replace all calls to coreType with calls to commonUnder.
+    Reason for revert: the test fails frequently, see #65287.
     
-    Change-Id: I81ac86d0d532cddc09164309acced61d90718b44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/654455
+    Fixes #65287.
+    
+    Change-Id: I5bf2ee2b7ce435608ff76b892da261c0a4a189bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558916
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/builtins.go        |  11 +-
- src/cmd/compile/internal/types2/call.go            |   9 +-
- src/cmd/compile/internal/types2/compilersupport.go |   3 +-
- src/cmd/compile/internal/types2/expr.go            |  34 ++---
- src/cmd/compile/internal/types2/infer.go           |   5 +-
- src/cmd/compile/internal/types2/literals.go        |   5 +-
- src/cmd/compile/internal/types2/lookup.go          |   2 +-
- src/cmd/compile/internal/types2/predicates.go      |   3 -
- src/cmd/compile/internal/types2/stmt.go            |  19 ++-
- src/cmd/compile/internal/types2/under.go           | 161 +++++++++------------
- src/cmd/compile/internal/types2/unify.go           |   2 +-
- src/go/types/builtins.go                           |  11 +-
- src/go/types/call.go                               |   9 +-
- src/go/types/expr.go                               |  34 ++---
- src/go/types/infer.go                              |   5 +-
- src/go/types/literals.go                           |   5 +-
- src/go/types/lookup.go                             |   2 +-
- src/go/types/predicates.go                         |   3 -
- src/go/types/stmt.go                               |  19 ++-
- src/go/types/under.go                              | 161 +++++++++------------
- src/go/types/unify.go                              |   2 +-
- .../types/testdata/fixedbugs/issue43671.go         |   8 +-
- .../types/testdata/fixedbugs/issue47115.go         |   8 +-
- 23 files changed, 234 insertions(+), 287 deletions(-)
+ src/net/http/client.go      |  4 ++--
+ src/net/http/client_test.go | 19 -------------------
+ src/net/http/transport.go   | 12 +++++-------
+ 3 files changed, 7 insertions(+), 28 deletions(-)

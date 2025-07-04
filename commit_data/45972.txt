@@ -1,20 +1,35 @@
-commit 044ec4fa9818d785e2b0d4064514abcf4f252fcb
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 6 13:21:25 2021 -0400
+commit 72ad2f44eaf8bb71ea100fd4acf7dd04384c7175
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 30 21:38:49 2020 -0800
 
-    time: fix docs for new comma layouts
+    [dev.typeparams] test: add scaffolding to run.go to check compiler with -G flag
     
-    The current text is slightly inaccurate. Make it more correct.
+    Added a new flag -G to run. Setting -G (as in: go run run.go -G)
+    will run tests marked with "errorcheck" (and no other flags) also
+    with the compiler using the new typechecker.
     
-    Change-Id: Iebe0051b74649d13982d7eefe3697f9e69c9b75d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/340449
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Many tests don't pass yet (due to discrepancies in error messages).
+    The top-level tests in the test directory which don't pass yet have
+    been explicitly excluded, permitting to see the current status.
+    Future CLs will bring error messages in sync and eventually all
+    tests should pass.
+    
+    Change-Id: I7caf5eff413e173f68d092af4bbe458434718d74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274313
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.17.html    | 14 +++++++-------
- src/time/format.go |  6 +++---
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/gc/noder.go |   3 +-
+ test/alias2.go                       |   4 +-
+ test/append1.go                      |  10 ++--
+ test/assign.go                       |   6 +-
+ test/blank1.go                       |   4 +-
+ test/cannotassign.go                 |  22 +++----
+ test/cmp6.go                         |  10 ++--
+ test/const1.go                       |  56 +++++++++---------
+ test/const2.go                       |   4 +-
+ test/convert2.go                     |  74 +++++++++++------------
+ test/run.go                          | 112 ++++++++++++++++++++++++++++++++++-
+ 11 files changed, 208 insertions(+), 97 deletions(-)

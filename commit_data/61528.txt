@@ -1,0 +1,18 @@
+commit 90b1dc0192b62e4007031cf8b472023da08f7ca7
+Author: khr@golang.org <khr@golang.org>
+Date:   Sun Nov 17 13:24:43 2024 -0800
+
+    internal/runtime/maps: fix noswiss builder
+    
+    Missed initializing a field in the stub that lets the noswiss
+    builder test the swiss implementation.
+    
+    Change-Id: Ie093478ad3e4301e4fe88ba65c132a9dbccd89a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628895
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/maps/export_noswiss_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

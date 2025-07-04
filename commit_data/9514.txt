@@ -1,22 +1,15 @@
-commit 91643acc6f3d1587a07436b26bc805f6b27e45f4
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 26 17:19:52 2011 -0400
+commit 75199664d9d0649a8871882b1c9a9f213479b9c6
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Fri Aug 26 17:08:59 2011 -0400
 
-    mime: fix build
+    io: add TeeReader
     
-    The fix is to add ' ' after ';' so that we match
-    what we used to generate.
-    Packages like http look for the string with
-    the space in it, and I don't see a reason to
-    be so terse.
+    TeeReader is a Reader that writes what it reads.
     
-    Also s/buffer/b/
-    
-    TBR=bradfitz
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4959044
+    https://golang.org/cl/4953041
 
- src/pkg/mime/mediatype.go | 29 +++++++++++++++--------------
- src/pkg/mime/type.go      |  8 ++++----
- src/pkg/mime/type_test.go |  4 ++--
- 3 files changed, 21 insertions(+), 20 deletions(-)
+ src/pkg/io/io.go      | 24 ++++++++++++++++++++++++
+ src/pkg/io/io_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

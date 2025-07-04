@@ -1,16 +1,19 @@
-commit 41c6b84342b27353ed40aa3942ef8647631a322b
-Author: Rob Pike <r@golang.org>
-Date:   Fri Dec 5 09:37:56 2014 +0900
+commit 21a9141ab364ecfea016bf36b8222f4747afa1fb
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Oct 28 16:20:49 2014 +0900
 
-    cmd/go: fix build
-    The new semantics of split require the newline be present.
-    The test was stale.
+    net: add test for lookupIPDeadline
     
-    LGTM=adg
-    R=golang-codereviews, adg
+    Just to confirm the fix, by typing the follwing:
+    go test -run=TestLookupIPDeadline -dnsflood or
+    go test -run=TestLookupIPDeadline -dnsflood -tags netgo
+    
+    Update #8602
+    
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/182480043
+    https://golang.org/cl/166740043
 
- src/cmd/go/generate.go      | 2 +-
- src/cmd/go/generate_test.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/net/z_last_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)

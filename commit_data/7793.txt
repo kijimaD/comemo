@@ -1,12 +1,22 @@
-commit e39dc76884644dc567c7f0032f7d3dc792502c84
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 16 21:05:40 2011 -0400
+commit 90f3f917862518bb2e6f302c2ff76c801430d0e5
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 16 18:03:13 2011 -0700
 
-    gc: fix crash when using -u
+    gob: remove a few more allocations.
+    - use enc.err and dec.err instead of return values in deferred error catcher
+    - replace io.WriteString with buffer.WriteString
     
-    R=ken2
+    now at:
+    mallocs per encode of type Bench: 7
+    mallocs per decode of type Bench: 8
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4278056
+    https://golang.org/cl/4277057
 
- src/cmd/gc/typecheck.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/gob/codec_test.go |  6 +++---
+ src/pkg/gob/decode.go     | 49 +++++++++++++++++++++++------------------------
+ src/pkg/gob/decoder.go    |  4 ++--
+ src/pkg/gob/encode.go     | 17 +++++++---------
+ src/pkg/gob/encoder.go    |  6 ++----
+ 5 files changed, 38 insertions(+), 44 deletions(-)

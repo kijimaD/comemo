@@ -1,14 +1,17 @@
-commit 2b0a27612923b87309fc49ffde767ba99a9ba892
-Author: Peter Mundy <go.peter.90@gmail.com>
-Date:   Sun Jan 9 12:11:16 2011 -0500
+commit 0c02bd18011c4290b27c3dc70ec2e762c6dcaffc
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Sat Jan 8 21:24:44 2011 -0800
 
-    bytes: fix TrimSpace typo
+    time: fix tick accuracy when using multiple Tickers
     
-    Fixes #1401.
+    * correctly ignore obsolete ticks
+    * fix update of next alarm time
+    * tighten alarm channel buffers
+    Fixes #1379.
     
-    R=golang-dev, agl1
-    CC=golang-dev
-    https://golang.org/cl/3937041
+    R=r, adg, r2
+    CC=golang-dev, soul9
+    https://golang.org/cl/3789045
 
- src/pkg/bytes/bytes.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/time/tick.go | 30 ++++++++----------------------
+ 1 file changed, 8 insertions(+), 22 deletions(-)

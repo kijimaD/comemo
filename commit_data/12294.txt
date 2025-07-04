@@ -1,14 +1,12 @@
-commit dd001b59318cfdc5507c505ae66243459683054e
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 1 14:55:18 2012 +1100
+commit f0886ab7e21c1e7c7de59085dbcbaf1cb7a48737
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 29 17:39:02 2012 -0800
 
-    text/template: add examples that use multiple templates
+    test: add a couple of cases to const1.go that crashed gccgo
     
-    Fixes #2742.
-    
-    R=golang-dev, peterthrun, adg
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5699083
+    https://golang.org/cl/5713045
 
- src/pkg/text/template/examplefiles_test.go | 182 +++++++++++++++++++++++++++++
- 1 file changed, 182 insertions(+)
+ test/const1.go | 2 ++
+ 1 file changed, 2 insertions(+)

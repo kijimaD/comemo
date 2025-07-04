@@ -1,28 +1,18 @@
-commit 02a7b4b4a70d0574f82776309feaf28f109f5399
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Tue Jun 30 13:48:15 2020 -0400
+commit 753d56d3642eb83848aa39e65982a9fc77e722d7
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Sun Feb 2 14:55:29 2020 +0900
 
-    cmd/go/internal/modload: don't initialize build cache
+    syscall: release a js.Func object in fsCall
     
-    modload.Init initialized the build cache with the intent of providing
-    a better error message in Go 1.12, when the build cache became
-    mandatory (in module mode, packages aren't installed outside the build
-    cache). Unfortunately, this didn't provide a more descriptive error
-    (the cache calls base.Fatalf with its own message), and it caused
-    errors for commands that don't use the cache (like 'go mod edit').
+    A js.Func object in fsCall was created for each call but never
+    released. This CL fixes this.
     
-    This CL removes the cache initialization from modload.Init. The
-    builder will initialize it when it's needed.
-    
-    For #39882
-    
-    Change-Id: Ibc01ae4e59358dcd08a07ffc97bf556514d0366f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240548
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I2e2b504cbf4fb130b8cfe890a66d3a66aadf56a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217417
+    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/cmd/go/internal/modload/init.go                |  7 ----
- .../go/testdata/script/build_cache_disabled.txt    | 46 ++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 7 deletions(-)
+ src/syscall/fs_js.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

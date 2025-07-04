@@ -1,0 +1,21 @@
+commit 355711821eea51c6456a31ab61d0dc2e9db034f7
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 16 19:13:47 2024 +0000
+
+    cmd/internal/cov: close counter data files eagerly
+    
+    When reading the counter data files from a given pod, close the
+    underlying *os.File immediately after each one is read, as opposed to
+    using a deferred close in the loop (which will close them all at the
+    end of the function). Doing things this way avoids running into "too
+    many open files" when processing large clumps of counter data files.
+    
+    Fixes #68468.
+    
+    Change-Id: Ic1fe1d36c44d3f5d7318578cd18d0e65465d71d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598735
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/cov/readcovdata.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

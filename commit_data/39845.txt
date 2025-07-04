@@ -1,25 +1,14 @@
-commit b38be35e4c79fd3c5b9450e95cf092eaac094405
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Sun Sep 8 22:55:01 2019 +0530
+commit 270de1c110221c309c832b526012f3e21b35f581
+Author: Neven Sajko <nsajko@gmail.com>
+Date:   Mon Mar 25 22:40:27 2019 +0000
 
-    cmd/compile: optimize const rotates for wasm architecture
+    math: use Sincos instead of Sin and Cos in Jn and Yn
     
-    This removes the unnecessary code to check whether the shift
-    is within limits or not when the shift amount is a constant.
-    
-    The rules hit 23034 times when building std cmd.
-    
-    grep -E "Wasm.rules:(106|107|121|122|139|140)" rulelog | wc -l
-    23034
-    
-    Reduces the size of pkg/js_wasm by 132 bytes.
-    
-    Change-Id: I64a2b8faca08c3b5039d6a027d4676130d2db18d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194239
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Change-Id: I0da3857013f1d4e90820fb043314d78924113a27
+    GitHub-Last-Rev: 7c3d813c6e188a4afda54b736db14370e52b6f94
+    GitHub-Pull-Request: golang/go#31019
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169078
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/Wasm.rules |   6 ++
- src/cmd/compile/internal/ssa/rewriteWasm.go | 118 ++++++++++++++++++++++++++++
- 2 files changed, 124 insertions(+)
+ src/math/jn.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

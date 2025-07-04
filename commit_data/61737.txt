@@ -1,0 +1,19 @@
+commit a3a31ec8ed4aff33d9f5ef8358f9f74efb249f74
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Thu Nov 21 13:11:07 2024 -0500
+
+    cmd/dist: skip FIPS 140-3 testing
+    
+    This will be re-enabled by an in-progress CR. For now, ignore this test
+    process to prevent build breakage.
+    
+    Change-Id: Ica1cb1c4f9844164ab32767ce2a499021d40b997
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630237
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/cmd/dist/test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,21 +1,23 @@
-commit b1fd047508aad9f5038dc04d78146cc582328bf5
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Jun 15 01:28:46 2024 +1000
+commit 4c028edffafbaa6a2ad46fcd5423febb207f8a98
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 25 00:32:39 2023 -0400
 
-    cmd/internal/obj/arm64: fix return with register
+    cmd/go: avoid duplicate errors in module load
     
-    ARM64 allows for a register to be specified with a return
-    instruction. While the assembler parsing and encoding currently
-    supports this, the preprocess function uses LR unconditionally.
-    Correct this such that if a register is specified, the register
-    is used.
+    Just a missing base.ExitIfErrors.
     
-    Change-Id: I708f6c7e910d141559b60d2d5ee76ae2e1dc3a0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592796
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #46160.
+    
+    Change-Id: I41949b0b7b036da94ba269220951677585d3f8e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498122
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s |  6 +++++-
- src/cmd/internal/obj/arm64/obj7.go        | 12 +++++++-----
- 2 files changed, 12 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/modload/load.go                         | 1 +
+ src/cmd/go/testdata/script/mod_go_version.txt               | 5 ++---
+ src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt     | 3 +--
+ src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt | 3 +--
+ src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt   | 3 +--
+ 5 files changed, 6 insertions(+), 9 deletions(-)

@@ -1,28 +1,43 @@
-commit eb070d7483f5d206008aa05921652e595b8425f2
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Sat Sep 23 17:05:42 2023 -0400
+commit 2af48cbb7d85e5fdc635e75b99f949010c607786
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 5 13:09:20 2022 -0400
 
-    net/http: add GODEBUG setting for old ServeMux behavior
+    cmd/go: add -C flag
     
-    Add the GODEBUG setting httpmuxgo121.
-    When set to "1", ServeMux behaves exactly like it did in Go 1.21.
+    The -C flag is like tar -C or make -C: it changes to the named directory
+    early in command startup, before anything else happens.
     
-    Implemented by defining a new, unexported type, serveMux121, that
-    uses the original code.
+    Fixes #50332.
     
-    Updates #61410.
-    
-    Change-Id: I0a9d0fe2a2286e442d680393e62895ab50683cea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530461
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: I8e4546f69044cb3a028d4d26dfba482b08cb845d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421436
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- doc/godebug.md                 |   6 ++
- src/internal/godebugs/table.go |   1 +
- src/net/http/request_test.go   |  51 ----------
- src/net/http/servemux121.go    | 211 +++++++++++++++++++++++++++++++++++++++++
- src/net/http/server.go         |  29 +++++-
- src/net/http/server_test.go    |  62 ++++++++++++
- src/runtime/metrics/doc.go     |   4 +
- 7 files changed, 309 insertions(+), 55 deletions(-)
+ src/cmd/doc/main.go                    | 19 ++++++++-----
+ src/cmd/go/alldocs.go                  |  9 ++++++-
+ src/cmd/go/chdir_test.go               | 49 ++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/base/flag.go       |  8 ++++++
+ src/cmd/go/internal/bug/bug.go         |  1 +
+ src/cmd/go/internal/envcmd/env.go      |  1 +
+ src/cmd/go/internal/fmtcmd/fmt.go      |  1 +
+ src/cmd/go/internal/modcmd/download.go |  1 +
+ src/cmd/go/internal/modcmd/edit.go     |  5 +++-
+ src/cmd/go/internal/modcmd/graph.go    |  1 +
+ src/cmd/go/internal/modcmd/init.go     |  1 +
+ src/cmd/go/internal/modcmd/tidy.go     |  1 +
+ src/cmd/go/internal/modcmd/vendor.go   |  1 +
+ src/cmd/go/internal/modcmd/verify.go   |  1 +
+ src/cmd/go/internal/modcmd/why.go      |  1 +
+ src/cmd/go/internal/tool/tool.go       |  1 +
+ src/cmd/go/internal/version/version.go |  1 +
+ src/cmd/go/internal/vet/vet.go         |  3 ++-
+ src/cmd/go/internal/work/build.go      |  5 ++++
+ src/cmd/go/internal/workcmd/edit.go    |  1 +
+ src/cmd/go/internal/workcmd/init.go    |  1 +
+ src/cmd/go/internal/workcmd/sync.go    |  1 +
+ src/cmd/go/internal/workcmd/use.go     |  1 +
+ src/cmd/go/testdata/script/chdir.txt   | 31 +++++++++++++++++++++
+ 24 files changed, 136 insertions(+), 9 deletions(-)

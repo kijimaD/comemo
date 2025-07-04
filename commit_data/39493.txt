@@ -1,21 +1,16 @@
-commit ddc8439b2f2d5ca85ccc02aa317d81351c62a62d
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Jul 3 14:42:32 2019 -0400
+commit 2889332edfb90d70827fa714b0fa40a28b0621b5
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Mon Dec 17 11:06:30 2018 +0700
 
-    test: add new test case for gccgo compiler bug
+    net/http: make TimeoutHandler's ResponseWriter implement Pusher
     
-    Test case that causes incorrect compiler error from gccgo.
+    Fixes #29193
     
-    Updates #32922
-    
-    Change-Id: I59432a8e8770cf03eda293f6d110c081c18fa88b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184918
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I03088205e51036abbc861ab5b7d141327b0429ae
+    Reviewed-on: https://go-review.googlesource.com/c/154383
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- test/fixedbugs/issue32922.dir/a.go | 18 ++++++++++++++++++
- test/fixedbugs/issue32922.dir/b.go | 11 +++++++++++
- test/fixedbugs/issue32922.go       | 11 +++++++++++
- 3 files changed, 40 insertions(+)
+ src/net/http/server.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

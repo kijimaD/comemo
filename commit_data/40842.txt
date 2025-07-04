@@ -1,18 +1,18 @@
-commit 104f07c902f758b2347e3b4e5383dd06e935d401
+commit b9df8df70fde84bd13558011bad6dfbbeb714599
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Nov 19 11:49:37 2019 -0500
+Date:   Thu Jul 18 17:41:45 2019 -0400
 
-    cmd/go: convert TestTestCacheInputs to a script test
+    doc/go1.13: mention the effect of testing.Init on package initialization
     
-    Updates #28387
-    Updates #30316
+    Fixes #31859
     
-    Change-Id: I48c6dd8619ea9602e9617ce11dfa05f1c70a485d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207958
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I228ed93f9466d1a22f8796964f5d2f056ab9b62f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186818
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/cmd/go/go_test.go                              | 116 -----------
- src/cmd/go/testdata/script/cache_vet.txt           |   2 +-
- src/cmd/go/testdata/script/test_cache_inputs.txt   | 230 +++++++++++++++++++++
- .../go/testdata/src/testcache/testcache_test.go    |  91 --------
- 4 files changed, 231 insertions(+), 208 deletions(-)
+ doc/go1.13.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

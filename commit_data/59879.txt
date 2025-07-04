@@ -1,0 +1,23 @@
+commit 5122a6796ef98e3453c994c95abd640596540bea
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat May 4 07:20:48 2024 +0000
+
+    runtime: parallel run test
+    
+    This CL reduces
+    the go test runtime time from 130s to 59s.
+    
+    Change-Id: I91babcd15723a2e7bc706e4e9bddaf3ce39d5b2f
+    GitHub-Last-Rev: 54c3c82269ca468f5d91fec2af13ee37b975495e
+    GitHub-Pull-Request: golang/go#65765
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564995
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/chanbarrier_test.go | 14 +++++++++-----
+ src/runtime/hash_test.go        | 10 ++++++++++
+ 2 files changed, 19 insertions(+), 5 deletions(-)

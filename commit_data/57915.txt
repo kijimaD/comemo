@@ -1,46 +1,48 @@
-commit e6cc9d228a913b871fb20a3fa23021bd5231dbc0
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Tue Nov 5 15:30:45 2024 +0800
+commit afa3f8e104744ea2350b0eb87474866ef27e04f2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 24 12:27:39 2022 -0700
 
-    cmd/compile: implement FMA codegen for loong64
+    cmd/compile/internal/staticinit: make staticopy safe
     
-    Benchmark results on Loongson 3A5000 and 3A6000:
+    Currently, cmd/compile optimizes `var a = true; var b = a` into `var a
+    = true; var b = true`. But this may not be safe if we need to
+    initialize any other global variables between `a` and `b`, and the
+    initialization involves calling a user-defined function that reassigns
+    `a`.
     
-    goos: linux
-    goarch: loong64
-    pkg: math
-    cpu: Loongson-3A6000 @ 2500.00MHz
-        |  bench.old   |              bench.new              |
-        |    sec/op    |   sec/op     vs base                |
-    FMA   25.930n ± 0%   2.002n ± 0%  -92.28% (p=0.000 n=10)
+    This CL changes staticinit to keep track of the initialization
+    expressions that we've seen so far, and to stop applying the
+    staticcopy optimization once we've seen an initialization expression
+    that might have modified another global variable within this package.
     
-    goos: linux
-    goarch: loong64
-    pkg: math
-    cpu: Loongson-3A5000 @ 2500.00MHz
-        |  bench.old   |              bench.new              |
-        |    sec/op    |   sec/op     vs base                |
-    FMA   32.840n ± 0%   2.002n ± 0%  -93.90% (p=0.000 n=10)
+    To help identify affected initializers, this CL adds a -d=staticcopy
+    flag to warn when a staticcopy is suppressed and turned into a dynamic
+    copy.
     
-    Updates #59120
+    Currently, `go build -gcflags=all=-d=staticcopy std` reports only four
+    instances:
     
-    This patch is a copy of CL 483355.
-    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    ```
+    encoding/xml/xml.go:1600:5: skipping static copy of HTMLEntity+0 with map[string]string{...}
+    encoding/xml/xml.go:1869:5: skipping static copy of HTMLAutoClose+0 with []string{...}
+    net/net.go:661:5: skipping static copy of .stmp_31+0 with poll.ErrNetClosing
+    net/http/transport.go:2566:5: skipping static copy of errRequestCanceled+0 with ~R0
+    ```
     
-    Change-Id: I88b89d23f00864f9173a182a47ee135afec7ed6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625335
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #51913.
+    
+    Change-Id: Iab41cf6f84c44f7f960e4e62c28a8aeaade4fbcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395541
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/cmd/compile/internal/loong64/ssa.go            |  28 ++-
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  17 +-
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  14 ++
- src/cmd/compile/internal/ssa/opGen.go              | 164 ++++++++++++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 275 ++++++++++++++++++++-
- src/cmd/compile/internal/ssagen/intrinsics.go      |   2 +-
- src/cmd/compile/internal/ssagen/intrinsics_test.go |   1 +
- test/codegen/floats.go                             |   6 +
- test/codegen/math.go                               |   1 +
- 9 files changed, 503 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/base/debug.go       |   1 +
+ src/cmd/compile/internal/ir/func.go          |  10 +++
+ src/cmd/compile/internal/staticinit/sched.go | 110 +++++++++++++++++++++++----
+ src/cmd/compile/internal/walk/expr.go        |   2 +-
+ src/cmd/compile/internal/walk/order.go       |  12 +--
+ test/fixedbugs/issue51913.go                 |  21 +++++
+ 6 files changed, 130 insertions(+), 26 deletions(-)

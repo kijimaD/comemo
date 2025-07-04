@@ -1,16 +1,19 @@
-commit 48ed1e61139d4089d8991e1387cec392f0b8378b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 4 04:31:20 2019 +1100
+commit 777304a5d33390cd905765cb61fa6a16ac349d4e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 28 20:21:31 2019 +0000
 
-    cmd/internal/obj/riscv: handle AGETCALLERPC
+    Revert "cmd/compile: make isfat handle 1-element array, 1-field struct"
     
-    Updates #27532
+    This reverts commit 53227762153afb39c979810bd59ec139e3c8127d.
     
-    Change-Id: Ib3e44ec524ed20bbfbbaf40df22cec335460f3ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204629
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reason for revert: broke js-wasm builder.
+    
+    Change-Id: If22762317c4a9e00f5060eb84377a4a52d601fca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192157
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/compile/internal/gc/plive.go | 14 +-------------
+ test/live.go                         |  2 +-
+ test/live2.go                        |  4 ++--
+ 3 files changed, 4 insertions(+), 16 deletions(-)

@@ -1,16 +1,17 @@
-commit bdff7f91d8e6b9a9cd4647f473be4a4b8808b5db
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Tue Apr 29 21:41:54 2014 -0400
+commit 6f3f2d0ab825ee1ab77d62766828b6c191f92622
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 29 14:43:10 2014 -0400
 
-    lib/time: update time zone info to v.2014b
+    run.bash: skip -static cgo test if -static linking isn't possible.
+    Some system doesn't have libc.a available.
     
-    Fixes #7412.
+    While we're at here, also export GOROOT in run.bash, so that
+    one doesn't need to set GOROOT to run run.bash.
     
-    LGTM=r
-    R=golang-codereviews, r
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/92850043
+    https://golang.org/cl/99870043
 
- lib/time/update.bash  |   6 ++----
- lib/time/zoneinfo.zip | Bin 374754 -> 352541 bytes
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ src/run.bash | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

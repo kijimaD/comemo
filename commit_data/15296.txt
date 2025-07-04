@@ -1,36 +1,30 @@
-commit 86d509b463d92be4ea9f51d61760d8383b1f96e4
+commit 139448fe95402d1b7ff0fa08c459a07de95ddbe4
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 18 13:43:12 2013 -0500
+Date:   Mon Feb 18 13:24:04 2013 -0500
 
-    runtime: preparation for non-Go threads running Go code
+    cmd/6c, cmd/8c: cut stack frames by about half
     
-    * Handle p==nil in signalstack by setting SS_DISABLE flag.
-    * Make minit only allocate a signal g if there's not one already.
+    The routine that adds an automatic to the stack was
+    adding ptrsize-1 to the size before rounding up.
+    That addition would only make sense to turn a round down
+    into a round up. Before a round up, it just wastes a word.
     
-    R=golang-dev, r
+    The effect was that a 6c function with one local and
+    one two-word function call used (8+8)+(16+8) = 40 bytes
+    instead of 8+16 = 24 bytes.
+    
+    The wasted space mostly didn't matter, but one place where
+    it does matter is when trying to stay within the 128-byte
+    total frame constraint for #pragma textflag 7 functions.
+    
+    This only affects the C compilers, not the Go compilers.
+    
+    5c already had correct code, which is now copied to 6c and 8c.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7323072
+    https://golang.org/cl/7303099
 
- src/pkg/runtime/os_darwin.h            | 1 +
- src/pkg/runtime/os_freebsd.h           | 1 +
- src/pkg/runtime/os_linux.h             | 1 +
- src/pkg/runtime/os_netbsd.h            | 1 +
- src/pkg/runtime/os_openbsd.h           | 1 +
- src/pkg/runtime/signal_darwin_386.c    | 2 ++
- src/pkg/runtime/signal_darwin_amd64.c  | 2 ++
- src/pkg/runtime/signal_freebsd_386.c   | 2 ++
- src/pkg/runtime/signal_freebsd_amd64.c | 2 ++
- src/pkg/runtime/signal_freebsd_arm.c   | 2 ++
- src/pkg/runtime/signal_linux_386.c     | 2 ++
- src/pkg/runtime/signal_linux_amd64.c   | 2 ++
- src/pkg/runtime/signal_linux_arm.c     | 2 ++
- src/pkg/runtime/signal_netbsd_386.c    | 2 ++
- src/pkg/runtime/signal_netbsd_amd64.c  | 2 ++
- src/pkg/runtime/signal_netbsd_arm.c    | 2 ++
- src/pkg/runtime/signal_openbsd_386.c   | 2 ++
- src/pkg/runtime/signal_openbsd_amd64.c | 2 ++
- src/pkg/runtime/thread_darwin.c        | 6 ++++--
- src/pkg/runtime/thread_linux.c         | 3 ++-
- src/pkg/runtime/thread_netbsd.c        | 3 ++-
- src/pkg/runtime/thread_openbsd.c       | 3 ++-
- 22 files changed, 41 insertions(+), 5 deletions(-)
+ src/cmd/6c/swt.c | 4 ++--
+ src/cmd/8c/swt.c | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

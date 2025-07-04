@@ -1,12 +1,12 @@
-commit 4779974314455f2b98db5a4526cffe786b566236
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 10 13:53:42 2015 -0700
+commit ebb67836f9dfec6016a1fb7922872cb0c1c0d4bc
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Jul 16 15:30:47 2015 -0400
 
-    doc: in go1.6.txt, small changes to fmt and time
+    doc: document ios build tag for crypto/x509
     
-    Change-Id: Ie86b703407f0f655a4552dd6e03df5f263be43db
-    Reviewed-on: https://go-review.googlesource.com/14492
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I6e6d38ae347b4f5a33dff609b89785a038bc384c
+    Reviewed-on: https://go-review.googlesource.com/12304
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/go1.6.txt | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go1.5.html | 5 +++++
+ 1 file changed, 5 insertions(+)

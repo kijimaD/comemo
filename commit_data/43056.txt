@@ -1,26 +1,23 @@
-commit f92c64045f5effd4339749b8ce3b63b88cfef4d4
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Mon Sep 21 12:19:47 2020 +0200
+commit 6ae47d1354d1157bbc9868fc296bfc43ea5b9083
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 3 22:50:34 2020 -0500
 
-    debug/dwarf: speed up SkipChildren for compilation units
+    [dev.link] cmd/link: don't always load type symbols
     
-    For a common pattern of iterating only over top-level compilation units (CU)
-    Reader.SkipChildren has decode and meterialize all CU subentries just
-    to skip them, because DW_TAG_compile_unit does not have DW_AT_sibling.
-    However, CUs have total size encoded before the unit and we already parse them
-    and know all unit sizes.
-    Optimize Reader.SkipChildren to use that size when skipping CUs children.
+    The type symbols were always loaded in LoadFull, as the old
+    sym.Symbol-based DWARF generation needs them to present. Now we
+    have converted the DWARF type generation pass, which uses the
+    loader symbols directly. No need to load the type symbols if they
+    are not live.
     
-    This speeds up iteration over a 1.3GB object file from 7.5s to 0.73s.
+    This reduces loaded symbols by ~18% for cmd/compile.
     
-    Change-Id: I2a8f00955159b4bd13571409f4817805f934cb69
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256217
-    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ic1f6fcdff845f3c62784d05ad716b1742f249481
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222018
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/debug/dwarf/entry.go      | 21 +++++++++++++++++----
- src/debug/dwarf/entry_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 59 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

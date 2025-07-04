@@ -1,13 +1,12 @@
-commit ac21766c958dc1341d79f17c36cc686ed936e6d4
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 19 11:31:57 2011 +1100
+commit 98e723ed098abf6a4b9dae27108cc9ee6f07919b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Oct 19 10:54:04 2011 +1100
 
-    weekly.2011-10-18
+    html: fix escape_test.go for CSS escaper change 5306042.
     
-    R=rsc
+    R=mikesamuel
     CC=golang-dev
-    https://golang.org/cl/5302041
+    https://golang.org/cl/5313044
 
- .hgtags               |   1 -
- doc/devel/weekly.html | 131 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 131 insertions(+), 1 deletion(-)
+ src/pkg/exp/template/html/escape_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

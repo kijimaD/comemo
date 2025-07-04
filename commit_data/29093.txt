@@ -1,22 +1,19 @@
-commit 3193c71c5b97c1e770f587f50824b266f04b71d8
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 23 21:53:44 2016 -0400
+commit 1472221a774c2a763dbe545b1686f4e8dc23613f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 17 10:16:55 2016 -0700
 
-    runtime: fix bad pointer with 0 stack barriers
+    cmd/go: refactor cgo logic
     
-    Currently, if the number of stack barriers for a stack is 0, we'll
-    create a zero-length slice that points just past the end of the stack
-    allocation. This bad pointer causes GC panics.
+    Extract "cgo -dynimport" and "ld -r" logic into separate helper
+    methods to make (*builder).cgo somewhat more manageable.
     
-    Fix this by creating a nil slice if the stack barrier count is 0.
+    Fixes #16650.
     
-    In practice, the only way this can happen is if
-    GODEBUG=gcstackbarrieroff=1 is set because even the minimum size stack
-    reserves space for two stack barriers.
-    
-    Change-Id: I3527c9a504c445b64b81170ee285a28594e7983d
-    Reviewed-on: https://go-review.googlesource.com/31762
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I3e4d77ff3791528b1233467060d3ea83cb854acb
+    Reviewed-on: https://go-review.googlesource.com/27270
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/stack.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go | 213 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 104 insertions(+), 109 deletions(-)

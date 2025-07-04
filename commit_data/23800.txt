@@ -1,16 +1,14 @@
-commit 0908fad5d509220a80b919a38feb8b388d005b10
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 22 11:24:27 2015 +1000
+commit 0ee92cf9c5684ff40a732ab0a93e2e02f63daf0d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jun 14 19:48:45 2015 -0700
 
-    doc: mention the ppc64(le) ports in release notes
+    syscall: correct comment on where compileCallback is defined
     
-    Also make the spelling consistent in asm.html
+    Fixes #11216.
     
-    Change-Id: Ifa751eee288fe0634cd317eb827f3e408b199620
-    Reviewed-on: https://go-review.googlesource.com/12501
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Iad1f4894c2258909484eaf975b08e0f47a82788e
+    Reviewed-on: https://go-review.googlesource.com/11098
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- doc/asm.html   | 2 +-
- doc/go1.5.html | 8 ++++++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/syscall/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

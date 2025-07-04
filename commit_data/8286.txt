@@ -1,19 +1,18 @@
-commit 6af887ec0303ade5ef5fde72fba5c28f72907685
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon May 2 09:16:31 2011 -0700
+commit a46a311deccf202e9076f6a53773c37a3c6e195a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 2 11:24:32 2011 -0400
 
-    go spec: restricted expressions may still be parenthesized
+    5a, 6a, 8a, cc: remove old environment variables
     
-    No language change.
+    Uses of $INCLUDE and $NPROC are left over from Plan 9.
+    Remove them to avoid causing confusion.
     
-    - added a few examples with parentheses
-    - added a corresponding sentence to assignments
-      (this explicitly permits: (_) = 0, currently allowed by 6g,
-      gofmt, but marked as an error by gccgo).
-    
-    R=rsc, r, iant
+    R=golang-dev, r2
     CC=golang-dev
-    https://golang.org/cl/4446071
+    https://golang.org/cl/4445079
 
- doc/go_spec.html | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/5a/lex.c | 53 ++++-----------------------------------------------
+ src/cmd/6a/lex.c | 53 ++++-----------------------------------------------
+ src/cmd/8a/lex.c | 53 ++++-----------------------------------------------
+ src/cmd/cc/lex.c | 58 ++++----------------------------------------------------
+ 4 files changed, 16 insertions(+), 201 deletions(-)

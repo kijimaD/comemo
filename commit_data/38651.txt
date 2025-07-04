@@ -1,40 +1,31 @@
-commit cf8cc7f63c7ddefb666a6e8d99a4843d3277db9f
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun Mar 24 12:14:27 2019 +0100
+commit 595bc63e8fb9636bb89c0cff3f879467d3c06988
+Author: Ali Rizvi-Santiago <arizvisa@gmail.com>
+Date:   Mon Nov 12 21:54:16 2018 +0000
 
-    cmd/compile: add saturating conversions on wasm
+    runtime/cgo: added missing includes for errno.h to the windows gcc stubs.
     
-    This change adds the GOWASM option "satconv" to enable the generation
-    of experimental saturating (non-trapping) float-to-int conversions.
-    It improves the performance of the conversion by 42%.
+    This adds the includes for errno.h to the windows stubs
+    for runtime/cgo so that "errno" is properly declared.
     
-    Previously the conversions had already been augmented with helper
-    functions to have saturating behavior. Now Wasm.rules is always using
-    the new operation names and wasm/ssa.go is falling back to the helpers
-    if the feature is not enabled.
+    Due to "errno" not being properly declared, the compiler is
+    forced to assume it's an external which leaves it up to the
+    linker. This is an issue in some implementations as errno
+    might be a macro which results in an unresolved symbol error
+    during linking.
     
-    The feature is in phase 4 of the WebAssembly proposal process:
-    https://github.com/WebAssembly/meetings/blob/master/process/phases.md
+    runtime/cgo/gcc_libinit_windows.c: added include
+    runtime/cgo/gcc_windows_386.c: added include
+    runtime/cgo/gcc_windows_amd64.c: added include
     
-    More information on the feature can be found at:
-    https://github.com/WebAssembly/nontrapping-float-to-int-conversions/blob/master/proposals/nontrapping-float-to-int-conversion/Overview.md
-    
-    Change-Id: Ic6c3688017054ede804b02b6b0ffd4a02ef33ad7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170119
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I77167d02f7409462979135efc55cf50bbc6bd363
+    GitHub-Last-Rev: 90da06ee3cbec3f51c6d31185868bb70341ce9d3
+    GitHub-Pull-Request: golang/go#28747
+    Reviewed-on: https://go-review.googlesource.com/c/149118
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/install-source.html                     |  1 +
- src/cmd/compile/internal/ssa/gen/Wasm.rules | 16 +++++++--------
- src/cmd/compile/internal/ssa/gen/WasmOps.go |  4 ++--
- src/cmd/compile/internal/ssa/opGen.go       | 12 +++++------
- src/cmd/compile/internal/ssa/rewriteWasm.go | 32 ++++++++++++++---------------
- src/cmd/compile/internal/wasm/ssa.go        | 21 +++++++++++++------
- src/cmd/go/alldocs.go                       |  2 +-
- src/cmd/go/internal/help/helpdoc.go         |  2 +-
- src/cmd/internal/obj/wasm/a.out.go          |  9 ++++++++
- src/cmd/internal/obj/wasm/anames.go         |  8 ++++++++
- src/cmd/internal/obj/wasm/wasmobj.go        |  9 ++++++--
- src/cmd/internal/objabi/util.go             |  6 ++++++
- 12 files changed, 80 insertions(+), 42 deletions(-)
+ src/runtime/cgo/gcc_libinit_windows.c | 1 +
+ src/runtime/cgo/gcc_windows_386.c     | 1 +
+ src/runtime/cgo/gcc_windows_amd64.c   | 1 +
+ 3 files changed, 3 insertions(+)

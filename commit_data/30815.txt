@@ -1,14 +1,22 @@
-commit 899532487f88a68ed6b7861fb701a1d4fab9456b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Mar 22 20:33:23 2017 -0700
+commit 01c6a19e041f6b316c17a065f7a42b8dab57c9da
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 6 17:42:42 2016 -0500
 
-    cmd/compile: don't crash when calling String on a TFUNCARGS Type
+    runtime: add number of forced GCs to MemStats
     
-    Change-Id: If5eabd622700a6b82dc4961ae9174c9d907eedb7
-    Reviewed-on: https://go-review.googlesource.com/38465
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This adds a counter for the number of times the application forced a
+    GC by, e.g., calling runtime.GC(). This is useful for detecting
+    applications that are overusing/abusing runtime.GC() or
+    debug.FreeOSMemory().
+    
+    Fixes #18217.
+    
+    Change-Id: I990ab7a313c1b3b7a50a3d44535c460d7c54f47d
+    Reviewed-on: https://go-review.googlesource.com/34067
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ api/go1.8.txt              |  1 +
+ src/runtime/malloc_test.go | 11 +++++++++--
+ src/runtime/mgc.go         |  9 ++++++++-
+ src/runtime/mstats.go      |  7 +++++--
+ 4 files changed, 23 insertions(+), 5 deletions(-)

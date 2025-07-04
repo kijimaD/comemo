@@ -1,19 +1,31 @@
-commit c112c0af1328ef0aae989ae20d27359a18f72543
-Author: Michael Knyszek <mknyszek@google.com>
-Date:   Mon Dec 23 17:59:28 2024 -0800
+commit 5f08b4479930af266d4a84c1533b320ed75edba7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 10 21:23:38 2023 +0000
 
-    Revert "internal/sync: optimize CompareAndSwap and Swap"
+    runtime: call enableMetadataHugePages and its callees on the systemstack
     
-    This reverts CL 606462.
+    These functions acquire the heap lock. If they're not called on the
+    systemstack, a stack growth could cause a self-deadlock since stack
+    growth may allocate memory from the page heap.
     
-    Reason for revert: Breaks atomicity between operations. See #70970.
+    This has been a problem for a while. If this is what's plaguing the
+    ppc64 port right now, it's very surprising (and probably just
+    coincidental) that it's showing up now.
     
-    Change-Id: I1a899f2784da5a0f9da3193e3267275c23aea661
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/638615
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Commit-Queue: Michael Knyszek <mknyszek@google.com>
+    For #64050.
+    For #64062.
+    Fixes #64067.
+    
+    Change-Id: I2b95dc134d17be63b9fe8f7a3370fe5b5438682f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541635
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
 
- src/internal/sync/hashtriemap.go | 171 ++++++++++++++++-----------------------
- 1 file changed, 69 insertions(+), 102 deletions(-)
+ src/runtime/malloc.go     | 4 ++++
+ src/runtime/mgc.go        | 4 +++-
+ src/runtime/mpagealloc.go | 4 ++++
+ 3 files changed, 11 insertions(+), 1 deletion(-)

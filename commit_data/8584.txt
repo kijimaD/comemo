@@ -1,13 +1,14 @@
-commit 119a341c38c17171297e5a4ae566a08ce0bed591
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jun 2 11:00:24 2011 +1000
+commit 60dddc6db1e2796f6af1affbec0d9bbe22354be7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 2 10:51:31 2011 +1000
 
-    doc: add link to App Engine docs to front page
+    fmt: return EOF when out of input in Scan*.
+    Fixes #1840.
     
-    R=golang-dev, gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4539100
+    https://golang.org/cl/4548077
 
- doc/all.css   | 5 +++++
- doc/root.html | 1 +
- 2 files changed, 6 insertions(+)
+ src/pkg/fmt/scan.go      | 40 ++++++++++++++++++++++---------
+ src/pkg/fmt/scan_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 91 insertions(+), 11 deletions(-)

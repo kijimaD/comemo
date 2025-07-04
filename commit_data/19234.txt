@@ -1,23 +1,16 @@
-commit d46134830fff5ab20950762f7b7371a7dbef5871
-Author: Robert Hencke <robert.hencke@gmail.com>
-Date:   Sat Apr 26 19:54:48 2014 -0700
+commit 7faf72bd0d2124b799e397b08d37a11ed627bed3
+Author: Jonathan Allie <jonallie@google.com>
+Date:   Sat Apr 26 10:25:16 2014 -0600
 
-    src: fix issues found by go vet std
+          encoding/gob: handle interface types in isZero() by returning true for nil interfaces.
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    Fixes #7741.
+    
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/96850043
+    https://golang.org/cl/96830044
 
- src/cmd/link/dead_test.go              | 2 +-
- src/cmd/link/macho_test.go             | 4 ++--
- src/cmd/link/prog_test.go              | 4 ++--
- src/cmd/pack/pack_test.go              | 4 ++--
- src/pkg/archive/tar/reader_test.go     | 2 +-
- src/pkg/crypto/x509/x509_test.go       | 2 +-
- src/pkg/debug/macho/file_test.go       | 6 +++---
- src/pkg/encoding/base64/base64_test.go | 2 +-
- src/pkg/html/template/escape.go        | 1 -
- src/pkg/net/http/serve_test.go         | 2 +-
- src/pkg/net/http/transport_test.go     | 5 ++---
- 11 files changed, 16 insertions(+), 18 deletions(-)
+ src/pkg/encoding/gob/encode.go         |  2 +-
+ src/pkg/encoding/gob/gobencdec_test.go | 19 ++++++++++++++++---
+ 2 files changed, 17 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit bb6a4000283d8599dbb6a6a28763268f8632036d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 14 14:07:45 2025 +0100
+
+    os: use slices.Clone
+    
+    Change-Id: I5a3de1b2fe2ebbb6437df5e7cc55e0d8d69c9cd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657915
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/os/root.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

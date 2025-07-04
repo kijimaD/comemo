@@ -1,33 +1,31 @@
-commit 9da7058466c8c9f32e1481f28d57732832ee3b30
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Oct 30 15:31:21 2016 -0400
+commit 49cce1a62e452c1f2e2acbed37038837edef937d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Jun 19 07:20:28 2016 -0700
 
-    cmd/link, plugin: use full plugin path for symbols
+    cmd/compile: add OSLICELIT
     
-    Plumb the import path of a plugin package through to the linker, and
-    use it as the prefix on the exported symbol names.
+    Does not pass toolstash -cmp due to changed export data,
+    but the cmd/go binary (which doesn't contain export data)
+    is bit-for-bit identical.
     
-    Before this we used the basename of the plugin file as the prefix,
-    which could conflict and result in multiple loaded plugins sharing
-    symbols that are distinct.
-    
-    Fixes #17155
-    Fixes #17579
-    
-    Change-Id: I7ce966ca82d04e8507c0bcb8ea4ad946809b1ef5
-    Reviewed-on: https://go-review.googlesource.com/32355
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6b12f9de18cf7da528e9207dccbf8f08c969f142
+    Reviewed-on: https://go-review.googlesource.com/26753
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- misc/cgo/testplugin/src/host/host.go           | 43 ++++++++++++++++++++++++--
- misc/cgo/testplugin/src/plugin1/plugin1.go     |  2 ++
- misc/cgo/testplugin/src/sub/plugin1/plugin1.go | 20 ++++++++++++
- misc/cgo/testplugin/test.bash                  |  6 ++--
- src/cmd/go/build.go                            |  3 ++
- src/cmd/link/doc.go                            |  2 ++
- src/cmd/link/internal/ld/main.go               |  5 ++-
- src/cmd/link/internal/ld/symtab.go             |  6 ++++
- src/plugin/plugin.go                           |  6 ++--
- src/plugin/plugin_dlopen.go                    | 24 +++++++-------
- src/runtime/plugin.go                          | 41 ++++++++++++++----------
- src/runtime/symtab.go                          |  1 +
- 12 files changed, 119 insertions(+), 40 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go   |   2 +-
+ src/cmd/compile/internal/gc/bimport.go   |   2 +-
+ src/cmd/compile/internal/gc/esc.go       |  24 ++--
+ src/cmd/compile/internal/gc/export.go    |   1 +
+ src/cmd/compile/internal/gc/fmt.go       |   3 +-
+ src/cmd/compile/internal/gc/opnames.go   |   1 +
+ src/cmd/compile/internal/gc/order.go     |   2 +-
+ src/cmd/compile/internal/gc/racewalk.go  |   1 +
+ src/cmd/compile/internal/gc/sinit.go     | 192 ++++++++++++++-----------------
+ src/cmd/compile/internal/gc/ssa.go       |   2 +-
+ src/cmd/compile/internal/gc/subr.go      |   2 +-
+ src/cmd/compile/internal/gc/syntax.go    |   3 +-
+ src/cmd/compile/internal/gc/typecheck.go |   4 +-
+ src/cmd/compile/internal/gc/walk.go      |   3 +-
+ 14 files changed, 114 insertions(+), 128 deletions(-)

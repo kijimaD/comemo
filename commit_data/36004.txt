@@ -1,12 +1,18 @@
-commit f49a5c6c578963d21c95b5d65805fb9f0edaae0f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jul 16 18:37:13 2018 +0000
+commit 89f4592d1e83b3235ab91477702642d899da8c31
+Author: Jakob Weisblat <jakobw@mit.edu>
+Date:   Fri Aug 18 18:24:54 2017 +0200
 
-    doc: move the go1.11 "all" section elsewhere, add os/signal.Ignored, GOMIPS64
+    crypto/x509: improve error when parsing bad ECDSA cert
     
-    Change-Id: Ice8f82a6288eeadfb8efd7628444166a447831da
-    Reviewed-on: https://go-review.googlesource.com/124096
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    When parsing an ECDSA certificate, improve the error message upon
+    failing to parse the curve as a named curve, rather than returning
+    the original ASN1 error.
+    
+    Fixes #21502
+    
+    Change-Id: I7ae7b3ea7a9dcbd78a9607f46f5883d3193b8367
+    Reviewed-on: https://go-review.googlesource.com/57050
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- doc/go1.11.html | 34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

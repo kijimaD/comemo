@@ -1,17 +1,41 @@
-commit e9cdca9a24b63cba0560978fb48773b83805be25
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Oct 14 08:31:50 2022 -0700
+commit 79d0013f53d4199b9f84d813221b71adf7eb1e4d
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 09:42:03 2021 -0500
 
-    net/http: skip TestTransportPersistConnLeak/h2
+    go/types, types2: improve error messages referencing any
     
-    We started running this test under HTTP/2 in a recent refactoring.
-    It seems to be flaky for HTTP/2; skip it for now.
+    Because any is an a alias, it is naively formatted as interface{} in
+    error messages. This is a source of verbosity and potential confusion.
     
-    Change-Id: I8b270afe7f0d3db307b5a951e16f576116333003
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443075
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
+    We can improve the situation by looking for pointer equality with the
+    any type. To avoid churn in the importers, do this all at once across
+    the compiler, go/types, and go/internal/gcimporter. CL 364194 makes the
+    corresponding change in x/tools/go/internal/gcimporter, allowing the
+    x/tools trybots to pass.
+    
+    Fixes #49583
+    
+    Change-Id: Ib59570937601308483f6273364cc59338f9b8b3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363974
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/net/http/transport_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/importer/support.go                     | 4 ++++
+ src/cmd/compile/internal/noder/types.go                          | 8 ++++++++
+ src/cmd/compile/internal/types2/api_test.go                      | 6 +++---
+ src/cmd/compile/internal/types2/object.go                        | 8 ++++++++
+ src/cmd/compile/internal/types2/object_test.go                   | 9 +++++----
+ .../compile/internal/types2/testdata/fixedbugs/issue48008.go2    | 2 +-
+ src/cmd/compile/internal/types2/typestring.go                    | 7 +++++++
+ src/cmd/compile/internal/types2/universe.go                      | 5 ++++-
+ src/go/internal/gcimporter/support.go                            | 4 ++++
+ src/go/types/api_test.go                                         | 6 +++---
+ src/go/types/object.go                                           | 8 ++++++++
+ src/go/types/object_test.go                                      | 9 +++++----
+ src/go/types/testdata/fixedbugs/issue48008.go2                   | 2 +-
+ src/go/types/typestring.go                                       | 7 +++++++
+ src/go/types/universe.go                                         | 5 ++++-
+ 15 files changed, 72 insertions(+), 18 deletions(-)

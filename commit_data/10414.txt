@@ -1,24 +1,28 @@
-commit 3307597069f533a1f34beadb735af804d47ef6de
+commit 28546ed56a37c7d4a384c1e9ae69c61d16e4ea94
 Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Wed Nov 16 19:25:55 2011 +1100
+Date:   Wed Nov 16 12:18:11 2011 +1100
 
-    html: parse <optgroup> tags
+    html: parse <caption> elements
     
-    Pass tests2.dat, test 34:
-    <!DOCTYPE html><select><option><optgroup>
+    Pass tests2.dat, test 33:
+    <!DOCTYPE html><table><caption>test TEST</caption><td>test
     
     | <!DOCTYPE html>
     | <html>
     |   <head>
     |   <body>
-    |     <select>
-    |       <option>
-    |       <optgroup>
+    |     <table>
+    |       <caption>
+    |         "test TEST"
+    |       <tbody>
+    |         <tr>
+    |           <td>
+    |             "test"
     
     R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/5393045
+    https://golang.org/cl/5371099
 
- src/pkg/html/parse.go      | 8 +++++++-
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/pkg/html/parse.go      | 48 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 48 insertions(+), 2 deletions(-)

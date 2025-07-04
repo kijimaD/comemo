@@ -1,17 +1,18 @@
-commit 6e3f3af4e0f4293f868aa71c4271cab6344d5797
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Tue Jan 22 17:49:07 2013 -0500
+commit b9f0a6bf6833f2f70caf6451133919a2807d0943
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Tue Jan 22 17:23:36 2013 -0500
 
-    encoding/json: ignore unexported fields in Unmarshal
+    lib9: declare __fixargv0 before use in flag.c
     
-    Go 1.0 behavior was to create an UnmarshalFieldError when a json value name matched an unexported field name. This error will no longer be created and the field will be skipped instead.
+    The Plan 9 compilers complain about not
+    having type information for the function,
+    which sets off type signature problems
+    during the linking stage.
     
-    Fixes #4660.
-    
-    R=adg, rsc, bradfitz
+    R=rsc, ality, iant
     CC=golang-dev
-    https://golang.org/cl/7139049
+    https://golang.org/cl/7058054
 
- src/pkg/encoding/json/decode.go      | 10 +---------
- src/pkg/encoding/json/decode_test.go | 24 +++++++++++++++++++++++-
- 2 files changed, 24 insertions(+), 10 deletions(-)
+ src/lib9/argv0.c | 35 -----------------------------------
+ src/lib9/flag.c  |  9 ++++++++-
+ 2 files changed, 8 insertions(+), 36 deletions(-)

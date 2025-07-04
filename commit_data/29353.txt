@@ -1,19 +1,35 @@
-commit 95e809f0e525fca000ec634e1e8cc10d6cebdf30
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 2 23:12:10 2016 -0400
+commit 74190735be5e722a0a977d056204307c2468cf21
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 9 22:51:11 2016 +0000
 
-    cmd/go: clear GIT_ALLOW_PROTOCOL during tests
+    net: make LookupPort and lookupProtocol work on nacl
     
-    Clear it before any tests begin.
-    Clear it again after TestIsSecureGitAllowProtocol sets it.
+    Also, flesh out the baked-in /etc/services table for LookupPort a bit.
     
-    Fixes #17700.
+    This services map moves from a unix-specific file to a portable file
+    where nacl can use it.
     
-    Change-Id: I6ea50d37f8222d8c7c9fee0b1eac3bbdfb5d133e
-    Reviewed-on: https://go-review.googlesource.com/32640
-    Reviewed-by: Quentin Smith <quentin@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Also, remove the duplicated entries in the protocol map in different
+    cases, and just canonicalize the input before looking in the map. Now
+    it handles any case, including MiXeD cAse.
+    
+    In the process, add a test that service names for LookupPort are case
+    insensitive. They were on Windows, but not cgo. Now there's a test and
+    they're case insensitive in all 3+ paths. Maybe it breaks plan9. We'll
+    see.
+    
+    Fixes #17045
+    
+    Change-Id: Idce7d68703f371727c7505cda03a32bd842298cd
+    Reviewed-on: https://go-review.googlesource.com/28951
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/go/go_test.go  | 1 +
- src/cmd/go/vcs_test.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/net/cgo_unix.go                        |  5 +++
+ src/net/lookup.go                          | 71 +++++++++++++++++++++++++++---
+ src/net/{lookup_stub.go => lookup_nacl.go} |  4 +-
+ src/net/lookup_test.go                     | 53 ++++++++++++++++++++--
+ src/net/lookup_unix.go                     |  6 +--
+ src/net/port_unix.go                       | 25 ++---------
+ 6 files changed, 127 insertions(+), 37 deletions(-)

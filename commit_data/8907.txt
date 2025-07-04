@@ -1,12 +1,12 @@
-commit d980f538d7ebf1ce3922d8f5cf3e56f6680d0644
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 29 18:23:38 2011 -0700
+commit 121775f2c87cea0194acaed37a47bce2f42d208b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 30 09:59:44 2011 +1000
 
-    http: document that ServerConn and ClientConn are low-level
+    tag release.r58
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4635081
+    https://golang.org/cl/4634113
 
- src/pkg/http/persist.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

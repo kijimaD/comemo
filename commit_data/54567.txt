@@ -1,20 +1,51 @@
-commit 48042aa09c2f878c4faa576948b07fe625c4707a
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Tue Sep 26 20:29:05 2023 +0200
+commit ad5d2f64fbb90dd13c4587aa5bf2ed3c86a6dec2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 28 09:19:32 2022 -0400
 
-    syscall: remove Windows 7 console handle workaround
+    testing: print names of running tests on test timeout
     
-    Windows 7 is no longer supported, there is no need to complicate the
-    code to support inheriting console handles.
+    Track the running tests and when they started,
+    so that we can report the running tests on a test timeout.
     
-    Change-Id: Ie9f5cde77a63ea4fa6032bbb7ba5bd48a0989c5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531235
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+            % go test -timeout=5s
+            panic: test timed out after 5s
+            running tests:
+                    TestTCPSpuriousConnSetupCompletion (4s)
+    
+            ... stack traces as usual ...
+    
+            % go test -run=Script -timeout=10s cmd/go
+            vcs-test.golang.org rerouted to http://127.0.0.1:65168
+            https://vcs-test.golang.org rerouted to https://127.0.0.1:65169
+            go test proxy running at GOPROXY=http://127.0.0.1:65170/mod
+            panic: test timed out after 10s
+            running tests:
+                    TestScript (10s)
+                    TestScript/mod_get_patchcycle (0s)
+                    TestScript/mod_get_prefer_incompatible (0s)
+                    TestScript/mod_get_promote_implicit (0s)
+                    TestScript/mod_get_pseudo (0s)
+                    TestScript/mod_get_pseudo_other_branch (0s)
+                    TestScript/mod_get_pseudo_prefix (0s)
+                    TestScript/mod_get_test (0s)
+                    TestScript/mod_get_trailing_slash (0s)
+                    TestScript/mod_get_update_unrelated_sum (0s)
+                    TestScript/mod_gobuild_import (0s)
+                    TestScript/mod_gomodcache (0s)
+                    TestScript/mod_gonoproxy (0s)
+                    TestScript/mod_load_badchain (0s)
+                    TestScript/mod_overlay (0s)
+                    TestScript/test_fuzz_minimize (6s)
+                    TestScript/test_fuzz_minimize_dirty_cov (7s)
+    
+            ... stack traces as usual ...
+    
+    Change-Id: I3a6647c029097becc06664ebd76a2597c7ed7b8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446176
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/syscall/exec_windows.go | 29 +----------------------------
- 1 file changed, 1 insertion(+), 28 deletions(-)
+ src/testing/testing.go | 38 ++++++++++++++++++++++++++++++++++----
+ 1 file changed, 34 insertions(+), 4 deletions(-)

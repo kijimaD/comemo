@@ -1,0 +1,20 @@
+commit cf967172097948a57d2e7cd037db87eaf261ec44
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 29 16:27:58 2024 +0100
+
+    internal/poll: use io.Seek* constants
+    
+    internal/poll already imports io so use the io.Seek* constants instead
+    of defining them locally.
+    
+    Change-Id: I91218c021e882e044503cae64b699e5a236ecc38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623236
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/sendfile_unix.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

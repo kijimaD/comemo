@@ -1,32 +1,20 @@
-commit 0de57ebf88b4386810bd4ad42d9ff9c16f15d970
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Fri Sep 22 13:42:50 2023 -0700
+commit c81c0279827545b20f81797bb263ae696d9c235f
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 25 23:01:44 2022 -0400
 
-    log/slog: fix time regexp in test
+    cmd/compile: add ability to indicate 'concurrentOk' for debug flags
     
-    CL 525556 started using timeRE regexp to match time output from JSON
-    handler, and relaxed it to allow arbitrary (rather than fixed 3 digit)
-    precision.
+    Also removes no-longer-needed "Any" field from compiler's DebugFlags.
+    Test/use case for this is the fmahash CL.
     
-    What it missed is in JSON handler the fractional part is omitted
-    entirely (together with the decimal dot) when the nanoseconds field is
-    0.
-    
-    As a result, there are occasional CI failures in js/wasm (which, I guess,
-    has better chances to return zero nanoseconds).
-    
-    To fix the flaky test, let's use two different regular expressions,
-    tailored to text and JSON.
-    
-    Change-Id: Ie98990fcf278bb0916ab31c9177e6b22a523062a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530675
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I214f02c91f30fc2ce53caf75fa5e2b905dd33429
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445495
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Andy Pan <panjf2000@gmail.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/log/slog/logger_test.go | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/base/debug.go |  2 +-
+ src/cmd/compile/internal/base/flag.go  |  3 ++-
+ src/cmd/internal/objabi/flag.go        | 36 +++++++++++++++++++++-------------
+ 3 files changed, 25 insertions(+), 16 deletions(-)

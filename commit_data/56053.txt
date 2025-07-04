@@ -1,37 +1,20 @@
-commit aab837dd46797b88d9ca827809fd7db663a5dd8d
-Author: Kevin Burke <kevin@burke.dev>
-Date:   Fri Jun 24 13:13:05 2022 -0700
+commit ef9c211de82d690f4d93a5146b01b800fca077a9
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 31 17:26:04 2023 -0400
 
-    net/http: panic early in do when Client is nil
+    cmd/compile: modify debug-hash to support match exclusion
     
-    Callers who invoke `*http.Client.Do` with a nil *Client will now panic
-    at the top of c.Do, instead of panicking when `deadline` attempts to
-    read `c.Timeout`.
+    The goal here is to enable a search that will locate all the instances
+    of a failure, not just the first one.  This helps with searches for
+    loopvar-change breakage, FP differences from fused-multiply-add, and
+    allows certain semantics queries that can be implemented as compiler
+    changes (for example, where does integer overflow routinely occur?)
     
-    Errors inside of net/http can be difficult to track down because the
-    caller is often invoking the standard library code via an SDK. This
-    can mean that there are many places to check when code panics, and
-    raises the importance of being clear about error messages.
-    
-    If nil receiver calls panic during the `deadline()` call, callers
-    may confuse the error with a more common timeout or deadline
-    misconfiguration, which may lead a caller who passed a nil receiver
-    (the author, for example) down the wrong rabbit hole, or cause them to
-    suspect their timeout/deadline logic. It is less common to configure
-    client.Jar, so the probability of detecting the actual problem, given
-    the underlying error cause, is higher.
-    
-    Fixes #53521.
-    
-    Change-Id: If102d17bed56fdd950da6e87762166fd29724654
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413975
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: Ic28f1695d47e421c2089d1f3f7c4b40c56db970f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481195
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/net/http/client.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/base/hashdebug.go | 127 ++++++++++++++++++++---------
+ 1 file changed, 89 insertions(+), 38 deletions(-)

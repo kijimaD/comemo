@@ -1,12 +1,12 @@
-commit 3fce00d99e30d66f63f8e3cb85debc137329db0d
-Author: Rob Pike <r@golang.org>
-Date:   Thu Feb 9 08:36:13 2012 +1100
+commit 119917375bd0ecbc4f5631e0e35958a578bebd8c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 8 16:26:00 2012 -0500
 
-    log/syslog: return length of data provided by the user, not length of header
+    cmd/dist: redure max background tasks nr. when building on ARM
     
-    R=golang-dev, rsc
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5644059
+    https://golang.org/cl/5642063
 
- src/pkg/log/syslog/syslog.go | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ src/cmd/dist/unix.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

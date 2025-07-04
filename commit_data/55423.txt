@@ -1,28 +1,16 @@
-commit b3acaa8230e95c232a6f5c30eb7619a0c859ab16
-Author: apocelipes <seve3r@outlook.com>
-Date:   Tue Jan 23 16:33:12 2024 +0000
+commit 32284526c8040f59da6d487cf2c976be3ca8798c
+Author: Ethan Lowman <ethan.l.527@gmail.com>
+Date:   Fri Feb 3 13:35:28 2023 -0500
 
-    cmd/go/internal/str,cmd/go/internal/work: remove redundant Contains
+    net/http/httputil: fix syntax in ReverseProxy example comment
     
-    "cmd/go/internal/str.Contains" does the same thing as the "slices.Contains".
-    
-    The name "str.Contains" is also easily confused with "strings.Contains".
-    
-    Given that the slices package is already used in the package,
-    replace "str.Contains" with "slices.Contains".
-    
-    "str.Contains" is no longer used so just remove it.
-    
-    Change-Id: I80572464bd17d4a60e7ff41db3a77c4d0bd03fa3
-    GitHub-Last-Rev: e74d333f0fd4b9558382e9dba0f77717089f45a9
-    GitHub-Pull-Request: golang/go#64136
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/542416
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I7e71626246af94047fbd1abb9bb77f2cd9b281fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465195
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/go/internal/str/str.go   | 10 ----------
- src/cmd/go/internal/work/exec.go |  4 ++--
- 2 files changed, 2 insertions(+), 12 deletions(-)
+ src/net/http/httputil/reverseproxy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

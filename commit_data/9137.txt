@@ -1,13 +1,12 @@
-commit 50ddb98b243e35de1dbe572bc5240129054af9f6
+commit 48d1240e51bcbbbfe10cbb6a70332039acbf0fe9
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jul 20 15:45:55 2011 +1000
+Date:   Wed Jul 20 11:22:56 2011 +1000
 
-    weekly.2011-07-19
+    misc/dashboard: center align build results
     
-    R=golang-dev, nigeltao, dsymonds, r
+    R=rsc, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4801042
+    https://golang.org/cl/4806041
 
- .hgtags               |   1 -
- doc/devel/weekly.html | 117 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 117 insertions(+), 1 deletion(-)
+ misc/dashboard/godashboard/static/style.css | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,22 +1,38 @@
-commit 3ea3d0e8a7f4e2bfa96535aafb6bd802d2907808
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Aug 3 15:14:25 2022 +0700
+commit f5f8a911d8425995c61ed836584b4f3ad0e4c8fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 8 15:22:20 2021 -0700
 
-    cmd/compile: correct alignment of atomic.Int64
+    cmd/compile/internal/types2: spell out 'Type' in type parameter APIs
     
-    Same as CL 417555, but for cmd/compile.
+    This is a port of CL 348376 with the necessary adjustments
+    in the compiler.
     
-    Fixes #54220
-    
-    Change-Id: I4cc6deaf0a87c952f636888b4ab73f81a44bfebd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420975
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: Ib11ee841b194746ff231ee493aa56bf9b3a4a67f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348577
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/sizes.go  | 11 +++++++++++
- src/cmd/compile/internal/types2/sizes.go |  4 ++--
- test/fixedbugs/issue54220.go             | 26 ++++++++++++++++++++++++++
- 3 files changed, 39 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/importer/iimport.go   |  6 ++--
+ src/cmd/compile/internal/noder/decl.go         |  2 +-
+ src/cmd/compile/internal/noder/expr.go         |  4 +--
+ src/cmd/compile/internal/noder/reader2.go      |  2 +-
+ src/cmd/compile/internal/noder/types.go        | 12 ++++----
+ src/cmd/compile/internal/noder/writer.go       | 28 ++++++++---------
+ src/cmd/compile/internal/types2/api_test.go    |  2 +-
+ src/cmd/compile/internal/types2/assignments.go |  2 +-
+ src/cmd/compile/internal/types2/call.go        | 18 +++++------
+ src/cmd/compile/internal/types2/decl.go        |  4 +--
+ src/cmd/compile/internal/types2/index.go       |  2 +-
+ src/cmd/compile/internal/types2/infer.go       |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go | 10 +++---
+ src/cmd/compile/internal/types2/lookup.go      | 16 +++++-----
+ src/cmd/compile/internal/types2/named.go       | 42 +++++++++++++-------------
+ src/cmd/compile/internal/types2/object.go      |  4 +--
+ src/cmd/compile/internal/types2/predicates.go  |  8 ++---
+ src/cmd/compile/internal/types2/signature.go   | 28 ++++++++---------
+ src/cmd/compile/internal/types2/subst.go       |  6 ++--
+ src/cmd/compile/internal/types2/typelists.go   | 16 +++++-----
+ src/cmd/compile/internal/types2/typeparam.go   |  2 +-
+ src/cmd/compile/internal/types2/typestring.go  |  8 ++---
+ 22 files changed, 112 insertions(+), 112 deletions(-)

@@ -1,29 +1,23 @@
-commit 4e5e0b1d20f8636be3e576302a4e3a6f59caab3e
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Tue Jan 25 11:36:13 2011 +1000
+commit 1161d190243ea2849299d3384a2b19e32530789a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 24 14:12:20 2011 -0800
 
-    misc: Import/Drop commands for Vim
+    scanner: error handler must be provided to Init
     
-    New ftplugin adds Import and Drop commands for Go buffers
-    in Vim.  These commands ensure that the provided package is
-    imported (or not imported) in the current Go buffer, using
-    proper style and ordering, without moving the cursor.
+    Init may report an error on the first character and
+    thus one needs an ability to set the error handler
+    for Init. Was a design bug.
     
-    E.g.
+    Added corresponding test cases and better documentation.
+    Also: Fixed a subtle infinite loop exposed by one of the
+    new test cases.
     
-        :Import strings
-        :ImportAs . strings
-        :Drop strings
+    Fixes #1380.
     
-    Two mappings are also introduced to help with the fmt package:
-    
-        \f => :Import fmt
-        \F => :Drop fmt
-    
-    R=adg
+    R=rsc, gri
     CC=golang-dev
-    https://golang.org/cl/4009043
+    https://golang.org/cl/4094041
 
- misc/vim/ftplugin/go/import.vim | 203 ++++++++++++++++++++++++++++++++++++++++
- misc/vim/readme.txt             |  14 +++
- 2 files changed, 217 insertions(+)
+ src/pkg/scanner/scanner.go      | 38 ++++++++++++++++++++++++++------------
+ src/pkg/scanner/scanner_test.go |  6 +++++-
+ 2 files changed, 31 insertions(+), 13 deletions(-)

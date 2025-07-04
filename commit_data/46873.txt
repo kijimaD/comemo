@@ -1,18 +1,24 @@
-commit 3986e5c8e7df958cc1412ad06afc011022da76e1
-Author: kjgorman <kieran.j.gorman@gmail.com>
-Date:   Sun Oct 10 14:30:26 2021 +0100
+commit 25bd2e962e33d15922111464311c4a94ec910773
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Feb 9 17:32:08 2021 -0500
 
-    bytes: fix Cut godoc typo
+    [dev.fuzz] testing: move inFuzzFn checks from common to F
     
-    If sep does not appear in s, we return nil here
-    rather than the empty string. Presumably the docs
-    were copied from the  strings package implementation
-    and brought that along.
+    inFuzzFn is set when the fuzz function is called. While it's set,
+    F methods that have side effects like Skip and Fail may not be called.
     
-    Change-Id: I3706c94fe04abd9e2a2c8840f7cc6116386965c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354969
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
+    Previously, (CL 259657) inFuzzFn was in common, and we checked it in
+    the common implementation of those methods. This causes problems in
+    CL 290693 for recursive methods like common.Fail. If T.Fail is
+    called by the fuzz function, it calls common.Fail on the parent F's
+    common. That should not panic.
+    
+    Change-Id: I841b12f77d9c77f5021370d03313e71b4ef50102
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290811
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/bytes/bytes.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/testing/fuzz.go    | 121 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/testing/testing.go |  37 ---------------
+ 2 files changed, 121 insertions(+), 37 deletions(-)

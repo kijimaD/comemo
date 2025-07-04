@@ -1,19 +1,40 @@
-commit 1046a9cb1b348a91e551ed2d1714e0926a1b04b1
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon Nov 4 01:05:46 2019 +1100
+commit 5b15510d96b00662327fbd3eb860d767834dfadc
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 18 12:30:37 2019 -0400
 
-    cmd/link,cmd/internal/obj/riscv: implement archreloc for riscv64
+    runtime: align allocations harder in GODEBUG=sbrk=1 mode
     
-    Based on the riscv-go port.
+    Currently, GODEBUG=sbrk=1 mode aligns allocations by their type's
+    alignment. You would think this would be the right thing to do, but
+    because 64-bit fields are only 4-byte aligned right now (see #599),
+    this can cause a 64-bit field of an allocated object to be 4-byte
+    aligned, but not 8-byte aligned. If there is an atomic access to that
+    unaligned 64-bit field, it will crash.
     
-    Updates #27532
+    This doesn't happen in normal allocation mode because the
+    size-segregated allocation and the current size classes will cause any
+    types larger than 8 bytes to be 8 byte aligned.
     
-    Change-Id: I478254306441c253d3a2c09c10932ad1ac0be3c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204625
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    We fix this by making sbrk=1 mode use alignment based on the type's
+    size rather than its declared alignment. This matches how the tiny
+    allocator aligns allocations.
+    
+    This was tested with
+    
+      GOARCH=386 GODEBUG=sbrk=1 go test sync/atomic
+    
+    This crashes with an unaligned access before this change, and passes
+    with this change.
+    
+    This should be reverted when/if we fix #599.
+    
+    Fixes #33159.
+    
+    Change-Id: Ifc52c72c6b99c5d370476685271baa43ad907565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186919
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/riscv/obj.go    | 27 ++++++++++++++++---
- src/cmd/link/internal/riscv64/asm.go | 50 ++++++++++++++++++++++++++++++++++--
- 2 files changed, 72 insertions(+), 5 deletions(-)
+ src/runtime/malloc.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

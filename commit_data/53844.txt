@@ -1,23 +1,18 @@
-commit db25bc19e5221c7df2caed3b1daeda673ec757d9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jul 31 15:20:54 2023 -0700
+commit c35bc69c97ddde490e640c2b608941c82de65949
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:02:06 2022 +0800
 
-    encoding/xml: use reflect.TypeFor for known types
+    image/jpeg: use strings.Builder
     
-    For #60088
-    
-    Change-Id: Ib2589b994d304cca1f2e2081639959d80818ac7f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514639
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I0a51aa9e7800689c123ce3eaf74742a4641b7681
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428261
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/encoding/xml/marshal.go   | 6 +++---
- src/encoding/xml/read.go      | 8 ++++----
- src/encoding/xml/read_test.go | 8 ++++----
- src/encoding/xml/typeinfo.go  | 2 +-
- 4 files changed, 12 insertions(+), 12 deletions(-)
+ src/image/jpeg/dct_test.go    | 4 ++--
+ src/image/jpeg/reader_test.go | 2 +-
+ src/image/jpeg/writer_test.go | 3 ++-
+ 3 files changed, 5 insertions(+), 4 deletions(-)

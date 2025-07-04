@@ -1,0 +1,20 @@
+commit 1118da25148d20f0fc275dd7ce7a08bd4ac4bdf2
+Author: Diego Lara <diegolara93345@gmail.com>
+Date:   Fri Jan 31 20:57:20 2025 +0000
+
+    text/template improved comparison error addresses issue #71421
+    
+    Addresses issue #71421, improves the error message given for comparison. Previous error message did not specify the types causing conflict, just said incompatible types, new error message specifies the two types causing the issue.
+    
+    Change-Id: I9d940ab7573c2763a9d052445140ecd6d38cde5e
+    GitHub-Last-Rev: 6fe7d8101317ea616fd9a8f3f430874b5f946d3e
+    GitHub-Pull-Request: golang/go#71431
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644175
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/text/template/funcs.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

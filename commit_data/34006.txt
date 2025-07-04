@@ -1,21 +1,24 @@
-commit 39687051e9e781bb438ad32154472356fddf98a8
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 15 12:52:48 2018 +1100
+commit 5db7572ddfd431e14febbf5f006e0408c5f1ae1b
+Author: Wei Congrui <crvv.mail@gmail.com>
+Date:   Fri Sep 15 15:36:16 2017 +0800
 
-    cmd/go: clarify and simplify (a little) the description of go test's caching
+    path/filepath: ensure Walk report unreadable directories once
     
-    I found the previous text choppy and hard to follow, and in putting
-    this CL together, based entirely on the existing text, I found
-    several details that seemed misleading to me.
+    Before this change, if Walk encounters an unreadable directory,
+    it will call walkFn with this directory twice. Argument err in
+    the first call is nil, and the second is the permission error.
     
-    This is my attempt to make the text simultaneously easier to
-    understand, more complete, and more precise. I may have failed in
-    all three, but I wanted to try.
+    This change removes the former call and makes Walk call walkFn
+    with permission error.
     
-    Change-Id: I088cb457f6fcad8f2b40236949cc3ac43455e600
-    Reviewed-on: https://go-review.googlesource.com/87735
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #21758
+    
+    Change-Id: I21e57c67f3c5a8370fc80a43db3c8009fbce6439
+    Reviewed-on: https://go-review.googlesource.com/63994
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/alldocs.go            | 73 ++++++++++++++++++++++------------------
- src/cmd/go/internal/test/test.go | 73 ++++++++++++++++++++++------------------
- 2 files changed, 82 insertions(+), 64 deletions(-)
+ src/path/filepath/path.go      | 24 ++++++++++++------------
+ src/path/filepath/path_test.go | 12 ++++++------
+ 2 files changed, 18 insertions(+), 18 deletions(-)

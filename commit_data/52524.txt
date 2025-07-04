@@ -1,21 +1,28 @@
-commit 508f445a28b08ed8c881572652c47139e669c19d
+commit df57592276bc26e2eb4e4ca5e77e4e2e422c7c6b
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 4 14:43:46 2023 -0700
+Date:   Thu Feb 24 19:23:17 2022 -0800
 
-    cmd/dist: skip static linking tests for linux boringcrypto
+    archive/zip: permit zip files to have prefixes
     
-    Otherwise we get warnings from the C linker.
+    A Java jar file is a zip file, but it can have a prefix that is a bash
+    script that unpacks the zip file. Most zip programs ignore such prefixes.
+    This CL changes the archive/zip package to do the same.
     
-    Fixes #59422
+    Fixes #10464
+    Fixes #51337
     
-    Change-Id: I61843dbe5245da0185b0f23dc4b774767fffed40
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482315
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I976e9c64684644317bd21077bc5b4a2baf626ee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387976
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/dist/test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/archive/zip/reader.go                |  32 ++++++++++++++++++++-----------
+ src/archive/zip/reader_test.go           |  22 +++++++++++++++++++--
+ src/archive/zip/testdata/readme.notzip   | Bin 1906 -> 1906 bytes
+ src/archive/zip/testdata/test-prefix.zip | Bin 0 -> 1227 bytes
+ 4 files changed, 41 insertions(+), 13 deletions(-)

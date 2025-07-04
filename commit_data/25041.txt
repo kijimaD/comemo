@@ -1,22 +1,12 @@
-commit 1d3e77607dcc15194f3e772dc5b58980798a6ea5
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Nov 24 18:54:58 2015 +0100
+commit 77f2763a6336fc86ba8d9aae4cfc890e46bc6e26
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 16 16:53:57 2015 -0700
 
-    syscall: don't check result of close(fd) in forkAndExecInChild on Plan9
+    go/types: enable disabled test
     
-    On multiprocessor machines, a file descriptor could be
-    closed twice in forkAndExecInChild. Consequently, the close
-    syscall returns the "fd out of range or not open" error
-    and forkAndExecInChild fails.
-    
-    This changes forkAndExecInChild to ignore the error
-    returned by close(fd), as on other operating systems.
-    
-    Fixes #12851.
-    
-    Change-Id: I96a8463ce6599bfd1362353283e0329a00f738da
-    Reviewed-on: https://go-review.googlesource.com/17188
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I101e9bc722f5ba4fa9941cb544d9c276fd4c0b8c
+    Reviewed-on: https://go-review.googlesource.com/14651
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/syscall/exec_plan9.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/go/types/testdata/issues.src | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

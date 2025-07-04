@@ -1,17 +1,20 @@
-commit 7c0f540b00a7ba7cc723bd7ea27ae90ab72ac09b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Jan 22 09:58:43 2020 -0800
+commit 09c9bced825593aedfd79af5c35916392f43113c
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Sep 30 11:24:19 2019 +0200
 
-    cmd/compile: use ellipses in 386 rules
+    cmd/internal/obj/ppc64: Fix ADUFFxxxx generation on aix/ppc64
     
-    Passes toolstash-check -all.
+    ADUFFCOPY and ADUFFZERO instructions weren't handled by rewriteToUseTOC.
+    These instructions are considered as a simple branch except with -dynlink
+    where they become an indirect call.
     
-    Change-Id: I8ca47b7b7987cb81edaded23331f25c40a8e80dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/217004
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #34604
+    
+    Change-Id: I16ca6a152164966fb9cbf792219a8a39aad2b53b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197842
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386.rules |  123 +-
- src/cmd/compile/internal/ssa/rewrite386.go | 1680 +++++-----------------------
- 2 files changed, 365 insertions(+), 1438 deletions(-)
+ src/cmd/internal/obj/ppc64/obj9.go | 62 ++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 59 insertions(+), 3 deletions(-)

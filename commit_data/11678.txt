@@ -1,14 +1,13 @@
-commit 2f8e5a5f88b0d744fe0c7c13b53e363d38124d88
+commit c5de9b773faa7cfa843f94a1e24866c78353e386
 Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 8 11:40:56 2012 +1100
+Date:   Wed Feb 8 10:52:54 2012 +1100
 
-    io/ioutil: document EOF behavior in ReadFile and ReadAll
+    bug408: delete
+    It's disabled and unreproducible.
     
-    Fixes #2862.
-    
-    R=golang-dev, n13m3y3r, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5646048
+    https://golang.org/cl/5642053
 
- src/pkg/io/ioutil/ioutil.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ test/fixedbugs/bug408.go | 20 --------------------
+ 1 file changed, 20 deletions(-)

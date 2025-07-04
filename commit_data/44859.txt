@@ -1,23 +1,29 @@
-commit 33945869c12ce92933714426471ce4f5c4ec7b6b
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 24 14:20:12 2021 -0400
+commit cd91ab5d9601c975286f1ac83cd289e34aa117f8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 28 21:32:05 2020 -0400
 
-    cmd/compile: update default ABI choices for calls and bodyless fn stack maps
+    cmd/go/internal/modload: fix spurious import resolution error
     
-    After recent discussion about bodyless functions, their wrappers,
-    their stack maps, nosplit, and callbacks, I was inspired to go and
-    be sure that more defaults were sensible.  This may not be all --
-    currently rtcall is "ABIDefault" which I think is correct, but I
-    am not 100% certain.
+    Due to a bug in CL 173017, if QueryPackages found multiple candidates
+    for the given package and *at least* one of those candidates was not
+    available to add, we would reject *all* such candidates — even those
+    that were still viable.
     
-    Updates #40724.
+    Now, we return the first viable candidate, and only return an error if
+    *no* candidate is viable given the current build list.
     
-    Change-Id: I95b14ee0e5952fa53e7fea9f6f5192358aa24f23
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/304549
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #41113
+    
+    Change-Id: Idb2e77244be7c0f5dd511efb142c3059925d7336
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251446
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/gc/compile.go |  2 +-
- src/cmd/compile/internal/ssagen/ssa.go | 37 ++++++++++++++++++----------------
- 2 files changed, 21 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/modload/import.go              | 26 ++++++++++----------
+ ...xample.com_split-incompatible_subpkg_v0.1.0.txt | 14 +++++++++++
+ ....com_split-incompatible_v2.0.0+incompatible.txt | 10 ++++++++
+ ..._split-incompatible_v2.1.0-pre+incompatible.txt | 10 ++++++++
+ .../go/testdata/script/mod_import_issue41113.txt   | 28 ++++++++++++++++++++++
+ 5 files changed, 76 insertions(+), 12 deletions(-)

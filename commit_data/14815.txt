@@ -1,14 +1,12 @@
-commit 0f64a6ef8db6a025fe2bb3d1756d312e9ea7d702
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 7 14:46:41 2013 +1100
+commit 2e24a737c5d9106ab3c9834530f760cd5ebd8905
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 6 22:44:04 2013 -0500
 
-    os: document that Exit does not run deferred calls
+    bytes: Fix missing godoc punctuation.
     
-    Fixes #4101.
-    
-    R=dsymonds, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7065048
+    https://golang.org/cl/7067047
 
- src/pkg/os/proc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,15 @@
-commit 166008b988a62d89e8dd1ee7a010557461ec2d75
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jan 25 12:25:53 2011 -0500
+commit d0e6c7e134395a9ca1deb10955231b8da8b903a4
+Author: David Anderson <danderson@google.com>
+Date:   Tue Jan 25 10:52:36 2011 -0500
 
-    crypto/dsa: add support for DSA
+    crypto/rsa: correct docstring for SignPKCS1v15.
     
-    R=bradfitzgo, r, bradfitzwork, nsz, rsc
-    CC=golang-dev
-    https://golang.org/cl/3990043
+    The docstring claims the function uses PSS message encoding,
+    when the function actually implements PKCS1-v1_5 encoding.
+    
+    R=agl1, rsc
+    CC=danderson, golang-dev
+    https://golang.org/cl/4097042
 
- src/pkg/Makefile               |   1 +
- src/pkg/crypto/dsa/Makefile    |  11 ++
- src/pkg/crypto/dsa/dsa.go      | 276 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/crypto/dsa/dsa_test.go |  84 +++++++++++++
- 4 files changed, 372 insertions(+)
+ src/pkg/crypto/rsa/pkcs1v15.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

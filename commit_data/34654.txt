@@ -1,23 +1,13 @@
-commit f45c07e84ad17dcc4d927fb6571f81fc9fd99cdf
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Mar 20 12:36:37 2018 -0400
+commit ef0e2af7b0296c61c17877b84f09221335a962f7
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Sun Nov 5 14:33:21 2017 -0500
 
-    cmd/compile: fix regression in DWARF inlined routine variable tracking
+    math/big: add security warning to (*Int).Rand
     
-    Fix a bug in the code that generates the pre-inlined variable
-    declaration table used as raw material for emitting DWARF inline
-    routine records. The fix for issue 23704 altered the recipe for
-    assigning file/line/col to variables in one part of the compiler, but
-    didn't update a similar recipe in the code for variable tracking.
-    Added a new test that should catch problems of a similar nature.
-    
-    Fixes #24460.
-    
-    Change-Id: I255c036637f4151aa579c0e21d123fd413724d61
-    Reviewed-on: https://go-review.googlesource.com/101676
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I22a67733aa2d07298e124077654c9b1473802100
+    Reviewed-on: https://go-review.googlesource.com/76012
+    Reviewed-by: Aliaksandr Valialkin <valyala@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/dwinl.go   |  8 +++++---
- src/cmd/link/internal/ld/dwarf_test.go | 21 +++++++++++++++++++++
- 2 files changed, 26 insertions(+), 3 deletions(-)
+ src/math/big/int.go | 3 +++
+ 1 file changed, 3 insertions(+)

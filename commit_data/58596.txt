@@ -1,17 +1,24 @@
-commit bdc2d856a872f42705b3a7045c3420031efa4af7
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Tue Jan 14 21:29:50 2025 +0100
+commit d7fcb5cf80953f1d63246f1ae9defa60c5ce2d76
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Tue Dec 13 16:30:45 2022 +0800
 
-    cmd/compile: use isGenericIntConst() in prove
+    cmd/dist, cmd/link, internal, runtime: implement buildmode=plugin for linux/loong64
     
-    Use the existing Value method to make it a bit shorter.
+    According to review, buildmode=shared has unfixed shortcomings and
+    should be considered legacy at this time. So only buildmode=plugin is
+    going to be added for loong64 which is a relatively new platform.
     
-    Change-Id: I47c4328b5241ab48b3490a04a3d93d4428f7b88c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642735
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Iac0b9f57e4ee01755458e180bb24d1b2a146fdf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480878
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
 
- src/cmd/compile/internal/ssa/prove.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go                 |  2 +-
+ src/cmd/link/internal/loong64/asm.go | 42 +++++++++++++++++++++++++++++++++++-
+ src/internal/platform/supported.go   |  2 +-
+ src/runtime/asm_loong64.s            | 11 ++++++++++
+ 4 files changed, 54 insertions(+), 3 deletions(-)

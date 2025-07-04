@@ -1,25 +1,13 @@
-commit 3c4aaf8a32851affec9d1a3eb28495f4bf717318
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 19 15:56:19 2018 -0400
+commit 229a8ce639f6c729700ad19321705b654890b502
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 14 18:08:19 2018 -0800
 
-    cmd/compile: abstract bvec sets
+    doc: remove draft notice from Go 1.10 release notes
     
-    This moves the bvec hash table logic out of Liveness.compact and into
-    a bvecSet type. Furthermore, the bvecSet type has the ability to grow
-    dynamically, which the current implementation doesn't. In addition to
-    making the code cleaner, this will make it possible to incrementally
-    compact liveness bitmaps.
-    
-    Passes toolstash -cmp
-    
-    Updates #24543.
-    
-    Change-Id: I46c53e504494206061a1f790ae4a02d768a65681
-    Reviewed-on: https://go-review.googlesource.com/110176
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I063b556b59ecb8a8f4a3f121c32982b90eee2d74
+    Reviewed-on: https://go-review.googlesource.com/94159
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/bv.go    | 95 ++++++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/plive.go | 70 +++-----------------------
- 2 files changed, 101 insertions(+), 64 deletions(-)
+ doc/go1.10.html | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

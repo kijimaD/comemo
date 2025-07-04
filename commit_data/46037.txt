@@ -1,21 +1,16 @@
-commit ec271687129dc8b263699b0b9d3abed71d8bd39d
-Author: Damien Neil <dneil@google.com>
-Date:   Mon Aug 16 10:46:06 2021 -0700
+commit b67b7ddabcc8e1a4b5819f03d47777bf5ddedbcc
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Dec 1 14:12:22 2020 +0100
 
-    net/http: drop headers with invalid keys in Header.Write
+    doc/go1.16: add reflect changes to release notes
     
-    Don't let handlers inject unexpected headers by setting keys like:
-            w.Header().Set("Evil: x\r\nSmuggle", y)
+    For #40700
+    Fixes #42911
     
-    Fixes #47711.
-    
-    Change-Id: I459ce1c79bc273a84230a0f5b665f81c46dbc672
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342530
-    Trust: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I1bd729f72ae3a29d190ffc34a40c3d0b59ebbbb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274474
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/net/http/header.go      |  9 +++++++++
- src/net/http/header_test.go | 13 +++++++++++++
- 2 files changed, 22 insertions(+)
+ doc/go1.16.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

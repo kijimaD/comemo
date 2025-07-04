@@ -1,12 +1,13 @@
-commit 835f6a37dc8f253c2fc9f1f0f0c63790cad2908f
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jun 24 19:32:37 2012 -0400
+commit f5f3c3fe093fc359045a3818d3cd04f7b40b06c2
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sun Jun 24 19:22:48 2012 -0400
 
-    CONTRIBUTORS: add Han-Wen Nienhuys (Google CLA)
+    exp/inotify: prevent data race during testing
+    Fixes #3714.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6327054
+    https://golang.org/cl/6341047
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/exp/inotify/inotify_linux_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,15 +1,17 @@
-commit 550caa1c87ea11aa54c6482ff66f98b4036c474f
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Aug 22 18:53:01 2016 -0400
+commit 9f1ccd647fcdb1b703c1042c90434e15aff75013
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Fri Apr 22 00:47:04 2016 +0530
 
-    cmd/link/internal/mips64: fix use of -s flags
+    net/url: validate ports in IPv4 addresses
     
-    My flags change reversed the meaning of -s within mips64's
-    linker code. This should fix that.
+    Fixes #14860
     
-    Change-Id: Ia24002469e557fb29badfd830134e61c1dd7e16e
-    Reviewed-on: https://go-review.googlesource.com/27555
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: Id55ad942d45a104d560a879d6e8e1aa09671789b
+    Reviewed-on: https://go-review.googlesource.com/22351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/mips64/asm.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/url/url.go      | 6 +++++-
+ src/net/url/url_test.go | 6 ++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)

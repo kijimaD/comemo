@@ -1,0 +1,17 @@
+commit 81566aff3a1787fc81d320be5c1b3cb7da081936
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Jan 2 18:22:34 2025 +0000
+
+    internal/exportdata: add missing return
+    
+    Change-Id: I9703c6a4a2ae4a608d33cf706106c92e9bd2aef7
+    GitHub-Last-Rev: 3eee41957d8a2d9908519c798f30d5ccc90c53fb
+    GitHub-Pull-Request: golang/go#71096
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637962
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/exportdata/exportdata.go | 1 +
+ 1 file changed, 1 insertion(+)

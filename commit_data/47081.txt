@@ -1,15 +1,17 @@
-commit 2ff1074f5ac48e67ee079dafc9f0e314bc454510
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Oct 27 10:13:50 2021 -0700
+commit fa40c0232c79f1e8eb6bda6c63604958bdf1102f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 22 15:04:25 2021 -0500
 
-    reflect: undeprecate Ptr, PtrTo
+    cmd/go: reproduce issue #44497 in TestScript/mod_edit
     
-    Fixes #48665
+    For #44497
     
-    Change-Id: Id838f7508f6e93c4546a2aeefc2db194e647db77
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359175
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie5285b9c526506b6b1280a590a5dcbee4074f57b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295149
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/reflect/type.go | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ src/cmd/go/testdata/script/mod_edit.txt | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

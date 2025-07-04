@@ -1,0 +1,17 @@
+commit c77ada1b78ae83c88a4e964a7cbfa2e708073d8b
+Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
+Date:   Thu Apr 10 21:52:25 2025 +0000
+
+    cmd/compile/internal/ssa: simplify with built-in min, max functions
+    
+    Change-Id: I08fa2940cd3565c578b1b323656a4fa12e0c65bb
+    GitHub-Last-Rev: 1f673b190ee62fe8158c9e70acf6b0882f6b3f6e
+    GitHub-Pull-Request: golang/go#73322
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

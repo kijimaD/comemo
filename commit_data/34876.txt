@@ -1,14 +1,20 @@
-commit 3c64c86412995e1e07424951551cd40d8cc0a2ad
-Author: Veselkov Konstantin <kostozyb@gmail.com>
-Date:   Fri Apr 6 22:54:29 2018 +0400
+commit 3c375f1b7ed54471c5323420a15b9bfe162a2527
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 22 09:43:52 2017 -0800
 
-    time: simplify comparison in test
+    cmd/compile, go/types: error if main.main is not a function
     
-    Found using go-simple.
+    Fixes #21256.
     
-    Change-Id: I349e80a8c083688539bb4267564f02e3d7913da5
-    Reviewed-on: https://go-review.googlesource.com/105195
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3af4c76e734c09d07f15525b793a544a7279b906
+    Reviewed-on: https://go-review.googlesource.com/79435
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/time/sleep_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go | 10 ++++++----
+ src/go/types/check_test.go         |  1 +
+ src/go/types/resolver.go           |  7 +++++++
+ src/go/types/testdata/decls5.src   | 10 ++++++++++
+ test/fixedbugs/issue21256.go       |  9 +++++++++
+ 5 files changed, 33 insertions(+), 4 deletions(-)

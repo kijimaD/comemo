@@ -1,26 +1,19 @@
-commit 32d27527a6dfb45a98d47a4a9ac5341028d79aa1
-Author: Robert Findley <rfindley@google.com>
-Date:   Tue Nov 2 18:25:21 2021 -0400
+commit 4b8b2c58647af6f1979d8c53d886c8cd71c99e4b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 19 13:50:42 2021 +0700
 
-    go/types: fix conversions of constants to type parameter
+    cmd/compile: do not set type for OTYPE
     
-    This is a port of both CL 360396 and CL 360796 to go/types. The latter
-    is added to avoid introducing an intermediate bug.
+    That's an invalid operation and depend on gc.hidePanic to report error.
     
-    An error message was adjusted in issue49296.go2, with a TODO to switch
-    to the types2 error.
+    Updates #43311
     
-    Change-Id: Iede294b69b4e097e53876498f039ee18667568c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360934
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Ib0761dcf4d9d2a23c41de7eff0376677a90b942e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294033
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/conversions.go                    | 41 +++++++++++++++++++-------
- src/go/types/expr.go                           |  1 +
- src/go/types/predicates.go                     |  6 ++++
- src/go/types/testdata/fixedbugs/issue49247.go2 | 20 +++++++++++++
- src/go/types/testdata/fixedbugs/issue49296.go2 | 21 +++++++++++++
- src/go/types/testdata/spec/conversions.go2     | 21 +++++++++++++
- 6 files changed, 100 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

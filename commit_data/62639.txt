@@ -1,0 +1,28 @@
+commit e9558d39476199f05bb08e7e32a2df054c3aab1b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Mar 20 10:02:31 2025 +0100
+
+    all: use exec.Command.String in test logs
+    
+    There is no need to manually construct a human-friendly string for
+    a exec.Command. The String method does that for us.
+    
+    Change-Id: Iff1033478000bade9cbdc079f6143a7690374258
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659475
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/internal/testerrors/errors_test.go     |  6 +++---
+ src/cmd/cgo/internal/testgodefs/testgodefs_test.go |  4 ++--
+ src/cmd/cgo/internal/testplugin/plugin_test.go     |  6 +++---
+ src/cmd/cgo/internal/testsanitizers/asan_test.go   |  4 ++--
+ src/cmd/cgo/internal/testsanitizers/cc_test.go     | 11 +++++------
+ src/cmd/cgo/internal/testsanitizers/msan_test.go   |  2 +-
+ src/cmd/cgo/internal/testshared/shared_test.go     |  4 ++--
+ src/cmd/cgo/internal/testso/so_test.go             | 18 +++++++++---------
+ src/cmd/dist/test.go                               |  4 ++--
+ src/cmd/internal/moddeps/moddeps_test.go           |  6 +++---
+ src/os/exec/read3.go                               |  3 +--
+ src/runtime/testdata/testprog/numcpu_freebsd.go    | 16 +++++++---------
+ 12 files changed, 40 insertions(+), 44 deletions(-)

@@ -1,22 +1,23 @@
-commit 92c57363e0b4d193c4324e2af6902fe56b7524a0
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Thu Feb 26 12:10:11 2015 -0800
+commit 4b981ed3e66a3093089b5b333bd7f1d85a92aaf3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 11 12:48:42 2015 -0700
 
-    os: windows Rename should overwrite destination file.
+    cmd/internal/obj/*: go generate the slice of Anames strings
     
-    Rename now uses MoveFileEx which was previously not available to
-    use because it is not supported on Windows 2000.
+    Add cmd/internal/obj/stringer.go to do the generation and update
+    the architecture packages to use it to maintain the Anames tables.
     
-    Change-Id: I583d029c4467c9be6d1574a790c423559b441e87
-    Reviewed-on: https://go-review.googlesource.com/6140
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I9c6d4def1bf21624668396d70c17973d0db11fbc
+    Reviewed-on: https://go-review.googlesource.com/7430
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/internal/syscall/windows/syscall_windows.go  | 21 ++++++++-
- src/internal/syscall/windows/zsyscall_windows.go | 13 ++++++
- src/os/error_windows_test.go                     | 47 --------------------
- src/os/file_posix.go                             |  8 ----
- src/os/file_unix.go                              |  8 ++++
- src/os/file_windows.go                           |  9 ++++
- src/os/os_test.go                                | 55 ++++++++++++++++++++++--
- 7 files changed, 102 insertions(+), 59 deletions(-)
+ src/cmd/internal/obj/arm/5.out.go                  |   2 +
+ src/cmd/internal/obj/arm/anames.go                 | 108 ++++++++
+ src/cmd/internal/obj/arm/anames5.go                | 108 +-------
+ src/cmd/internal/obj/ppc64/9.out.go                |   2 +-
+ src/cmd/internal/obj/ppc64/anames.go               | 300 +++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/anames9.go              | 296 --------------------
+ src/cmd/internal/obj/stringer.go                   | 104 +++++++
+ src/cmd/internal/obj/x86/6.out.go                  |   2 +
+ src/cmd/internal/obj/x86/{anames6.go => anames.go} |   6 +-
+ 9 files changed, 524 insertions(+), 404 deletions(-)

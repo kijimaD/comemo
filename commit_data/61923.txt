@@ -1,0 +1,20 @@
+commit 236a0b4ffb79854546b9f437499092cec23a5725
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 12 11:31:49 2024 -0800
+
+    spec: explain function invocation and passing of parameters more precisely
+    
+    - Describe that function invocation allocates space for a functions'
+      variables.
+    - Explain parameter passing in terms of assignments.
+    
+    Change-Id: Ia693d73a570f7d1aa2ac05e6095b4e602e4e9bf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635800
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

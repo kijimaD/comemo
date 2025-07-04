@@ -1,16 +1,33 @@
-commit c0165a38fd3cf00b3ab8ec8c283e44c0c2383d74
-Author: Dave Cheney <dave@cheney.net>
-Date:   Tue Feb 14 12:51:50 2017 +1100
+commit b33030a72754cb55d6ec137e79facacb398c9be4
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Oct 28 15:28:18 2016 -0400
 
-    internal/poll: only build str.go on plan9
+    runtime/pprof: write profiles in protobuf format.
     
-    Alternatively the contents of str.go could be moved into fd_io_plan9.go
+    Original Change by Daria Kolistratova <daria.kolistratova@intel.com>
     
-    Change-Id: I9d7ec85bbb376f4244eeca732f25c0b77cadc6a6
-    Reviewed-on: https://go-review.googlesource.com/36971
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Added functions with suffix proto and stuff from pprof tool to translate
+    to protobuf. Done as the profile proto is more extensible than the legacy
+    pprof format and is pprof's preferred profile format. Large part was taken
+    from https://github.com/google/pprof tool. Tested by hand and compared the
+    result with translated by pprof tool, profiles are identical.
+    Fixes #16093
+    
+    Change-Id: I2751345b09a66ee2b6aa64be76cba4cd1c326aa6
+    Reviewed-on: https://go-review.googlesource.com/32257
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/internal/poll/str.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/go/build/deps_test.go                          |  14 +-
+ src/runtime/crash_cgo_test.go                      |   3 +-
+ src/runtime/pprof/decoder_for_test.go              | 807 +++++++++++++++++++++
+ src/runtime/pprof/internal/profile/encode.go       | 187 +++++
+ src/runtime/pprof/internal/profile/profile.go      | 112 +++
+ .../pprof/internal/profile/profile_memmap.go       | 302 ++++++++
+ src/runtime/pprof/internal/profile/proto.go        | 156 ++++
+ .../pprof/internal/protopprof/protopprof.go        | 295 ++++++++
+ src/runtime/pprof/mprof_test.go                    |  64 +-
+ src/runtime/pprof/pprof.go                         | 409 +++++------
+ src/runtime/pprof/pprof_test.go                    | 227 ++----
+ 11 files changed, 2170 insertions(+), 406 deletions(-)

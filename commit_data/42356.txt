@@ -1,35 +1,22 @@
-commit f073395b73e2e5926a7bb996094a3e49ebc1d4dc
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Wed May 13 16:46:16 2020 +0100
+commit 993ec7f6cdaeb38b88091f42d6369d408dcb894b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Dec 5 13:28:57 2019 -0500
 
-    cmd/compile: fix tuple selector bug in CSE pass
+    cmd/go: include imports in 'go list -e' output even after parse errors
     
-    When tuple generators and selectors are eliminated as part of the
-    CSE pass we may end up with tuple selectors that are in different
-    blocks to the tuple generators that they correspond to. This breaks
-    the invariant that tuple generators and their corresponding
-    selectors must be in the same block. Therefore after CSE this
-    situation must be corrected.
+    If we aren't able to load imports from one file in a package due to a
+    parse error (scanner.ErrorList), 'go list -e' should still list
+    imports in other files.
     
-    Unfortunately the fixup code did not take into account that selectors
-    could be eliminated by CSE. It assumed that only the tuple generators
-    could be eliminated. In some situations this meant that it got into
-    a state where it was replacing references to selectors with references
-    to dead selectors in the wrong block.
+    Fixes #35973
     
-    To fix this we move the fixup code after the CSE rewrites have been
-    applied. This removes any difficult-to-reason-about interactions
-    with the CSE rewriter.
-    
-    Fixes #38916.
-    
-    Change-Id: I2211982dcdba399d03299f0a819945b3eb93b291
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233857
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: I59f171877949bb7afaf252b6c8a970de22e60c7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210097
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/cse.go | 92 ++++++++++++++++++++++---------------
- test/fixedbugs/issue38916.go        | 14 ++++++
- 2 files changed, 69 insertions(+), 37 deletions(-)
+ src/cmd/go/internal/load/pkg.go               | 53 ++++++++++++---------------
+ src/cmd/go/testdata/script/list_parse_err.txt | 17 +++++++++
+ src/go/build/build.go                         | 13 +++----
+ 3 files changed, 47 insertions(+), 36 deletions(-)

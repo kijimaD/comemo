@@ -1,17 +1,15 @@
-commit 5a0c322bce0e471df23b224547932dd95c285c54
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Sun Mar 8 14:18:23 2015 +0100
+commit 218ff3f9a467b8bf85931adacacd6f760a8c1666
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 19 13:09:01 2015 -0800
 
-    cmd/dist: add support for GOARCH=arm64
+    [dev.cc] runtime,syscall: add symbols for FP and SP references in darwin-arm
     
-    Change-Id: I92b4301b64054272d78dd15c16bf6ff592acad26
-    Reviewed-on: https://go-review.googlesource.com/7141
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Maybe fix build.
+    
+    Change-Id: I99ea76f0e6e472f0e88405bf5d77f72d4b097abd
+    Reviewed-on: https://go-review.googlesource.com/5287
     Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/build.go     | 5 ++++-
- src/cmd/dist/buildtool.go | 3 +++
- src/cmd/dist/util.go      | 2 ++
- 3 files changed, 9 insertions(+), 1 deletion(-)
+ src/runtime/sys_darwin_arm.s | 104 ++++++++++++++++++-------------------
+ src/syscall/asm_darwin_arm.s | 120 +++++++++++++++++++++----------------------
+ 2 files changed, 112 insertions(+), 112 deletions(-)

@@ -1,17 +1,21 @@
-commit a85fce282e779cb8e342b5efafcd2e11eea3f9ce
+commit b0bb6f8ceec158c21dd5ea782c10c02d1cf5b2ef
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Mon Mar 4 16:51:42 2013 +0100
+Date:   Mon Mar 4 16:42:03 2013 +0100
 
-    cmd/gc: simplify and fix defaultlit.
+    cmd/gc: unbreak exporting of composite literals.
     
-    Fixes #4882.
-    Fixes #4936.
-    Fixes #4937.
+    Fixes #4932.
     
-    R=golang-dev, dave, daniel.morsing, rsc
+    R=golang-dev, dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7432044
+    https://golang.org/cl/7437043
 
- src/cmd/gc/const.c | 149 ++++++++++++++++++++++++++++-------------------------
- test/shift1.go     |   7 +++
- 2 files changed, 86 insertions(+), 70 deletions(-)
+ src/cmd/gc/fmt.c                       | 31 ++++++++++++++++++++++---------
+ src/cmd/gc/go.h                        |  1 +
+ src/cmd/gc/subr.c                      | 14 +++++++++++++-
+ src/cmd/gc/typecheck.c                 | 19 ++++++++++---------
+ test/fixedbugs/issue4932.dir/foo.go    |  7 +++++++
+ test/fixedbugs/issue4932.dir/state.go  | 28 ++++++++++++++++++++++++++++
+ test/fixedbugs/issue4932.dir/state2.go |  9 +++++++++
+ test/fixedbugs/issue4932.go            |  9 +++++++++
+ 8 files changed, 99 insertions(+), 19 deletions(-)

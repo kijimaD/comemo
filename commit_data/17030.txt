@@ -1,31 +1,17 @@
-commit f38ff9e5ea24d1ea27928cfdc35c4679abe4673f
+commit d5ab7846113004e7fa3aaf64691d3d170988c311
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 5 23:33:50 2013 +0400
+Date:   Mon Aug 5 22:58:02 2013 +0400
 
-    undo CL 12250043 / e911f94c4902
-    
-    Break all 386 builders.
-    
-    ««« original CL description
-    runtime: use gcpc/gcsp during traceback of goroutines in syscalls
-    gcpc/gcsp are used by GC in similar situation.
-    gcpc/gcsp are also more stable than gp->sched,
-    because gp->sched is mutated by entersyscall/exitsyscall
-    in morestack and mcall. So it has higher chances of being inconsistent.
-    Also, rename gcpc/gcsp to syscallpc/syscallsp.
+    runtime: remove singleproc var
+    It was needed for the old scheduler,
+    because there temporary could be more threads than gomaxprocs.
+    In the new scheduler gomaxprocs is always respected.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12250043
-    »»»
-    
-    R=rsc
-    CC=golang-dev
-    https://golang.org/cl/12424045
+    https://golang.org/cl/12438043
 
- src/pkg/runtime/mgc0.c          | 10 +++++-----
- src/pkg/runtime/proc.c          | 39 ++++++++++++++++++++-------------------
- src/pkg/runtime/runtime.h       |  8 ++++----
- src/pkg/runtime/traceback_arm.c |  4 ++--
- src/pkg/runtime/traceback_x86.c |  4 ++--
- 5 files changed, 33 insertions(+), 32 deletions(-)
+ src/pkg/runtime/mgc0.c    | 6 +++---
+ src/pkg/runtime/proc.c    | 2 --
+ src/pkg/runtime/runtime.h | 1 -
+ 3 files changed, 3 insertions(+), 6 deletions(-)

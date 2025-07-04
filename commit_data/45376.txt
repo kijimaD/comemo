@@ -1,28 +1,22 @@
-commit f432d3fc41b8f6b01131023aabcf935ebea172cb
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 26 14:13:19 2021 -0700
+commit ed2010e676042b387d72daaa4c39b54c4c57c031
+Author: Keyuan <keyuanli123@gmail.com>
+Date:   Tue Oct 20 19:47:29 2020 -0700
 
-    cmd/compile: fix nongeneric closures in generic functions
+    imports: make ScanDir ignore go files start with dot
     
-    Ensure that formal parameter Names are correctly copied and marked
-    with the correct Curfn. We need to ensure this even when the underlying
-    closure has no type parameters.
+    Adding "." Prefix Check for go files.
     
-    (Aside: it is strange that the types of things contain formal
-    parameter names that need to be copied. Maybe that's an underlying
-    larger problem that needs to be fixed.)
-    
-    Fixes #45738
-    
-    Change-Id: Ia13d69eea992ff7080bd44065115bc52eb624e73
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/313652
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Fixes #42047
+    Change-Id: Ifc42bf562f52fdd304f9828b06fc57888fcd8049
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264078
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/escape/escape.go |  5 ++++-
- src/cmd/compile/internal/noder/stencil.go |  5 ++++-
- test/typeparam/issue45738.go              | 18 ++++++++++++++++++
- 3 files changed, 26 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/imports/scan.go                |  2 +-
+ src/cmd/go/internal/imports/testdata/android/.h.go |  3 +++
+ src/cmd/go/internal/imports/testdata/illumos/.h.go |  3 +++
+ src/cmd/go/testdata/script/import_ignore.txt       | 11 +++++++++++
+ 4 files changed, 18 insertions(+), 1 deletion(-)

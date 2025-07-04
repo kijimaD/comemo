@@ -1,25 +1,22 @@
-commit f90bb8a38f2f1ed2109f8fa88fb90a5c2db1f3fe
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 4 17:09:49 2023 -0400
+commit 2c52465cb3d327590755cfb9ef1ef0f7a167c4eb
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jun 8 11:53:22 2022 -0700
 
-    cmd/link: remove elfsetstring out of the loader
+    net: avoid darwin_arm64 bug in TestDialParallelSpuriousConnection
     
-    Currently, we pass elfsetstring to the loader as a callback, for
-    a special case of Addstring. This is only used for ELF when adding
-    strings to the section header string table. Move the logic to the
-    caller instead, so the loader would not have this special case.
+    On darwin_arm64, reading from a socket at the same time as the other
+    end is closing it will occasionally hang for 60 seconds before
+    returning ECONNRESET. (This is a macOS issue, not a Go issue.)
     
-    Change-Id: Icfb91f380fe4ba435985c3019681597932f58242
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492718
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Work around this condition by adding a brief sleep before the read.
+    
+    Fixes #37795.
+    
+    Change-Id: I63f92b91fb297cd66f89cdab707583afd50ab9c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411155
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- src/cmd/link/internal/ld/data_test.go         |   3 +-
- src/cmd/link/internal/ld/dwarf.go             |  13 ++-
- src/cmd/link/internal/ld/elf.go               | 127 +++++++++++++-------------
- src/cmd/link/internal/ld/lib.go               |   3 +-
- src/cmd/link/internal/loader/loader.go        |   7 +-
- src/cmd/link/internal/loader/loader_test.go   |   3 +-
- src/cmd/link/internal/loader/symbolbuilder.go |   4 -
- 7 files changed, 76 insertions(+), 84 deletions(-)
+ src/net/dial_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

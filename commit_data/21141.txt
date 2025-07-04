@@ -1,15 +1,18 @@
-commit 48d63035ce9c1094f5247ac260312cf0e791de51
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Thu Jan 1 21:38:12 2015 -0500
+commit 70f6769b60de9759f1c74f453f544767574898bc
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 18 15:19:48 2014 -0500
 
-    reflect: set dir when creating a channel via ChanOf
+    [dev.cc] runtime: catch defs_linux_power64*.go up to other archs
     
-    Fixes #9135
+    Fix a constant conversion error.  Add set_{sec,nsec} for
+    timespec and set_usec for timeval.  Fix type of
+    sigaltstackt.ss_size.
     
-    Change-Id: I4d0e4eb52a3d64262f107eb7eae4096a6e47ac08
-    Reviewed-on: https://go-review.googlesource.com/2238
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/180840043
 
- src/reflect/all_test.go | 20 ++++++++++++++++++++
- src/reflect/type.go     |  1 +
- 2 files changed, 21 insertions(+)
+ src/runtime/defs_linux_power64.go   | 16 ++++++++++++++--
+ src/runtime/defs_linux_power64le.go | 16 ++++++++++++++--
+ 2 files changed, 28 insertions(+), 4 deletions(-)

@@ -1,0 +1,24 @@
+commit 47a99359206f0dd41228deda0aa31f1e769cc156
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 2 17:20:12 2024 -0400
+
+    syscall: use SYS_EXIT_GROUP in CLONE_PIDFD feature check child
+    
+    Inside Google we have seen issues with QEMU user mode failing to wake a
+    parent waitid when this child exits with SYS_EXIT. This bug appears to
+    not affect SYS_EXIT_GROUP.
+    
+    It is currently unclear if this is a general QEMU or specific to
+    Google's configuration, but SYS_EXIT and SYS_EXIT_GROUP are semantically
+    equivalent here, so we can use the latter here in case this is a general
+    QEMU bug.
+    
+    For #68976.
+    
+    Change-Id: I34e51088c9a6b7493a060e2a719a3cc4a3d54aa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617417
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/exec_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

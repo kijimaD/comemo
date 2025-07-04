@@ -1,24 +1,19 @@
-commit da5a3146ec903cdcb779d501be4ff88fd775820e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 8 23:18:38 2023 -0400
+commit bcce8ef4982cf29715895277ad84aaf16991e06b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 14 22:08:31 2022 -0700
 
-    cmd/compile: use more of internal/bisect in HashDebug
+    spec: adjust incorrect sentence in section on rune literals
     
-    Using more of internal/bisect gives us more that will be deleted
-    from base/hashdebug.go when we have updated the tools that
-    need the old protocol. It is also cheaper: there is no allocation to
-    make a decision about whether to enable, and no locking unless
-    printing is needed.
+    Add an additional example.
     
-    Change-Id: I43ec398461205a1a9e988512a134ed6b3a3b1587
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493736
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes #53217.
+    
+    Change-Id: I899376b9c1fa8dc5d475d8d3d6c8788ab79b0847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412238
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/base/hashdebug.go       | 198 ++++++++++-------------
- src/cmd/compile/internal/base/hashdebug_test.go  | 110 +++++--------
- src/cmd/compile/internal/loopvar/loopvar.go      |   4 +-
- src/cmd/compile/internal/loopvar/loopvar_test.go |   2 +-
- src/cmd/compile/internal/ssa/func.go             |   5 +-
- 5 files changed, 132 insertions(+), 187 deletions(-)
+ doc/go_spec.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

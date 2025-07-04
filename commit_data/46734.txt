@@ -1,25 +1,18 @@
-commit cfd74f7727f6ad5a81d574c28cbee52cc13fdc52
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Sep 24 13:50:22 2021 -0700
+commit 044f937a73dc9a28c36a6c87d55c2211247e7d63
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jan 25 11:14:57 2021 +0100
 
-    cmd/link: move all FUNCDATA refs into go.func.*
+    doc/go1.16: fix WalkDir and Walk links
     
-    This change moves all symbols referred to by FUNCDATA
-    into go.func.* and go.funcrel.*.
+    Reported by Ben on golang-dev:
+    https://groups.google.com/g/golang-dev/c/gsoj5Vv15j0/m/XR9CYSRkAgAJ
     
-    Surprisingly (because it inhibits some content-addressability),
-    it shrinks binaries by a little bit, about 0.1%.
+    For #40700.
     
-    This paves the way for a subsequent change to change
-    FUNCDATA relocations to offsets.
-    
-    Change-Id: I70e487205073699f442192b0791cc92da5663057
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352189
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: If4702cf0e9858aaef99c231251dc646a67d1026e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285718
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/internal/obj/objfile.go    | 16 +++++++++++++++-
- src/cmd/link/internal/ld/symtab.go | 25 ++++++++++++++-----------
- 2 files changed, 29 insertions(+), 12 deletions(-)
+ doc/go1.16.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

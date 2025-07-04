@@ -1,19 +1,17 @@
-commit 39cfb7609d293ae9acc40d09645d01258dc8edbf
-Author: Luke Young <bored-engineer@users.noreply.github.com>
-Date:   Sun Oct 20 06:03:55 2019 +0000
+commit 19f5c233d1355d98feef37d704eb76ac75886d49
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Thu May 2 15:48:14 2019 +0700
 
-    net/http: make Transport.roundTrip close body on invalid method
+    cmd/compile: remove outdate TODO in inl.go
     
-    Updates #35015
+    Mid-stack inlining is enable now, see #19348, but we still can not
+    remove the special case for runtime.heapBits.nextArena, because
+    runtime.heapBits.next is too complex to be inlined
+    (cost 96 exceeds budget 80).
     
-    Change-Id: Ibfe8f72ed3887ca88ce9c1d8a29dacda72f3fe17
-    GitHub-Last-Rev: 4bfc56e71660ad9624ac5eb594b3afd0d221c99d
-    GitHub-Pull-Request: golang/go#35014
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202237
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I04ea86509074afdc83a3f70d68b8a1a8829763d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174839
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport.go      |  1 +
- src/net/http/transport_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ src/cmd/compile/internal/gc/inl.go | 4 ----
+ 1 file changed, 4 deletions(-)

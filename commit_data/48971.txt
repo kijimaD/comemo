@@ -1,31 +1,14 @@
-commit 3e00bd0ae4482064aa9eac0695078b1096ee913a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon May 2 13:57:07 2022 +0200
+commit 1aadb18f83bd9e0e2faf2ccc9bce301108aa1221
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 30 12:56:50 2021 -0700
 
-    internal/poll, net, syscall: use accept4 on solaris
+    [dev.typeparams] cmd/compile/internal/types2: move Struct type decl into struct.go (cleanup)
     
-    Solaris supports accept4 since version 11.4, see
-    https://docs.oracle.com/cd/E88353_01/html/E37843/accept4-3c.html
-    Use it in internal/poll.accept like on other platforms.
-    
-    Change-Id: I3d9830a85e93bbbed60486247c2f91abc646371f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403394
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I074550236785091d2f79dd5de73c3462614c5c0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332090
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/internal/poll/hook_cloexec.go        |  2 +-
- src/internal/poll/sock_cloexec.go        |  2 +-
- src/internal/poll/sys_cloexec.go         |  2 +-
- src/net/internal/socktest/sys_cloexec.go |  2 +-
- src/net/main_cloexec_test.go             |  2 +-
- src/net/sock_cloexec.go                  |  2 +-
- src/net/sys_cloexec.go                   |  2 +-
- src/runtime/cgo/cgo.go                   |  2 +-
- src/syscall/syscall_illumos.go           | 25 +------------------------
- src/syscall/syscall_solaris.go           | 20 ++++++++++++++++++++
- src/syscall/zsyscall_solaris_amd64.go    | 14 ++++++++++++++
- 11 files changed, 43 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/types2/struct.go | 46 +++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/type.go   | 39 --------------------------
+ 2 files changed, 46 insertions(+), 39 deletions(-)

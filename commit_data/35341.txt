@@ -1,26 +1,21 @@
-commit 66cb80c266a83313abadbd004b5358c1d1761ed3
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue May 8 22:59:35 2018 +0200
+commit ea012d100bad48e5659637fde2f4d9737a087815
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 22 15:04:20 2017 -0800
 
-    misc/ios: inject the -u device_id option before any other arguments
+    go/importer: use named receiver types for methods of named interfaces
     
-    The idevicedebugserverproxy command takes a port number without a
-    flag, like so:
+    R=go1.11
     
-    idevicedebugserverproxy 3222
+    Once approved, this change must be ported to golang.org/x/tools/go/gcimporter15.
     
-    If the -u <device_id> flag is added afterwards, it is ignored and
-    the command use an arbitrary device. Instead, always inject the -u
-    flag before any other idevice command arguments.
+    Fixes #13829.
     
-    While here, also kill any leftover idevicedebugserverproxy instance
-    previous (failed) runs might have left running.
-    
-    Change-Id: I0bf06ed1a20ef225abeca183f9ba8f396662d435
-    Reviewed-on: https://go-review.googlesource.com/112216
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I26a0094d2bfd38b97f2b64bae84b9f428fc9cdf1
+    Reviewed-on: https://go-review.googlesource.com/85318
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- misc/ios/go_darwin_arm_exec.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/go/internal/gcimporter/bimport.go           | 64 +++++++++++++++----------
+ src/go/internal/gcimporter/gcimporter_test.go   | 53 +++++++++++++++++++-
+ src/go/internal/srcimporter/srcimporter_test.go | 38 +++++++++++++++
+ src/go/types/type.go                            | 11 +++--
+ 4 files changed, 134 insertions(+), 32 deletions(-)

@@ -1,21 +1,22 @@
-commit 3233542e8514f641883119e6afa3ae1256b7642b
-Author: RenJiangdu <38402095+renjiangdu@users.noreply.github.com>
-Date:   Thu Dec 28 09:49:45 2023 +0000
+commit a34cec8e411a2599ca7d2373dd2773aec25634ea
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Dec 16 13:43:16 2022 -0500
 
-    reflect: fix typo in type.go
+    cmd/internal/obj: drop Filesym from DwarfAbstractFunc
     
-    There is no 'of' relationships between float and string. This points to those interfaces with internal type float or string.
+    PutAbstractFunc doesn't use FnState.Filesym, so it isn't needed, but
+    more importantly it is misleading. DwarfAbstractFunc is frequently used
+    on inlined functions from outside the current compilation unit. For
+    those function, ctxt.fileSymbol returns nil, meaning it probably isn't
+    safe to use if the original compilation unit could also generate an
+    abstract func with the correct file symbol.
     
-    Change-Id: I14449f00c192e0d3f8270b433ff508978b7fdf17
-    GitHub-Last-Rev: f301a8aa5294e7669361627c82b2978652cfc14b
-    GitHub-Pull-Request: golang/go#64885
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/552957
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I0e6c76e41d75ac9ca07e0f775e49d791249e1c5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458198
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
-    Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/reflect/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/internal/obj/dwarf.go | 5 -----
+ 1 file changed, 5 deletions(-)

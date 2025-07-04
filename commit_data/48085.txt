@@ -1,40 +1,18 @@
-commit d5bd3f9a6c3833d0c12ec45e1c73f8adf32ee2dd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 2 13:18:56 2022 -0800
+commit 3cc3a16029eea1c3d9fefa77a24a89760c7aa27d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 21 16:04:26 2021 -0400
 
-    go/types, types2: use same method lookup code in both type checkers
+    cmd/go: add tests for convergence in 'go mod tidy'
     
-    types2 has some code to handle case-folding when doing method lookups
-    which was missing in go/types. This change is a first step to match
-    the implementations. Specifically:
+    For #36460
     
-    In types2:
-    - remove the lookupMethodFold names in favor of just lookupMethod,
-      but with the foldCase flag (e.g., instead if lookupMethodFold,
-      we just use lookupMethod)
-    - rename checkFold to foldCase everywhere
-    - add foldCase parameter where it was missing
-    - moved foldCase paremeter to the end in lookupFieldOrMethod
-    - no functionality changes
-    
-    In go/types:
-    - match function signatures with types2 use
-    - always provide false as argument for foldCase for now
-    - no functionality changes
-    
-    Preparation for fixing some of the outstanding error reporting issues.
-    
-    Change-Id: If129a5feb89ddf96a3596e8d73b23afa591875a0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382461
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I40194bb1ebab77459e5c9d43bdac4d9c1b826ac2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312449
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/compile/internal/types2/lookup.go     | 45 +++++++++------------------
- src/cmd/compile/internal/types2/methodlist.go | 12 +++----
- src/cmd/compile/internal/types2/named.go      |  4 +--
- src/cmd/compile/internal/types2/typeset.go    |  5 ++-
- src/go/types/lookup.go                        | 25 ++++++++-------
- src/go/types/methodlist.go                    |  9 +++---
- src/go/types/named.go                         |  4 +--
- src/go/types/typeset.go                       |  5 ++-
- 8 files changed, 47 insertions(+), 62 deletions(-)
+ .../go/testdata/script/mod_tidy_convergence.txt    | 174 +++++++++++++
+ .../testdata/script/mod_tidy_convergence_loop.txt  | 272 +++++++++++++++++++++
+ 2 files changed, 446 insertions(+)

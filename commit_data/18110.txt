@@ -1,14 +1,12 @@
-commit 59583b09f3165dedd46800f46000c83c92a7faba
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 24 08:24:32 2013 -0800
+commit 7413e48d5beeae3fa0b22fecf39cf1db5a1339f7
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Dec 24 08:40:13 2013 +1100
 
-    runtime/cgo: include <signal.h> to fix build
+    misc/vim: Fix broken quote
     
-    R=golang-codereviews
-    TBR=dfc
+    R=golang-codereviews, gobot, dsymonds
     CC=golang-codereviews
-    https://golang.org/cl/43120044
+    https://golang.org/cl/44960043
 
- src/pkg/runtime/cgo/gcc_freebsd_arm.c | 1 +
- src/pkg/runtime/cgo/gcc_linux_arm.c   | 1 +
- 2 files changed, 2 insertions(+)
+ misc/vim/autoload/go/complete.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

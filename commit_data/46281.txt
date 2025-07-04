@@ -1,21 +1,24 @@
-commit a35c5c98c0487f93d70b468483f2ca8e0d698bb7
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Sun Jul 25 23:15:15 2021 +0000
+commit 89b44b4e2bb2f88474d6b8476f5c28ea2aea9b28
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Dec 20 01:15:46 2020 -0800
 
-    runtime: constify a test variable
+    cmd/compile: recognize reassignments involving receives
     
-    Simple cleanup, no functionality change.
+    Previously, reassigned was failing to detect reassignments due to
+    channel receives in select statements (OSELRECV, OSELRECV2), or due to
+    standalone 2-value receive assignments (OAS2RECV). This was reported
+    as a devirtualization panic, but could have caused mis-inlining as
+    well.
     
-    Change-Id: I8eceda4496a396e0117a0a601186c653982fb004
-    GitHub-Last-Rev: 58defc575e5834a3685bbb8179fdee4afa8d8fc7
-    GitHub-Pull-Request: golang/go#47389
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/337289
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #43292.
+    
+    Change-Id: Ic8079c20c0587aeacff9596697fdeba80a697b12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279352
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
 
- src/runtime/export_test.go | 2 +-
- src/runtime/map_test.go    | 2 +-
- src/runtime/stubs.go       | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/inl.go |  8 ++++--
+ test/fixedbugs/issue43292.go       | 59 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 2 deletions(-)

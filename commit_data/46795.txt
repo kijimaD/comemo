@@ -1,29 +1,26 @@
-commit ecb2f231fa41b581319505139f8d5ac779763bee
-Author: Meng Zhuo <mzh@golangcn.org>
-Date:   Thu Sep 30 22:46:09 2021 +0800
+commit 0aafd6912422570625414da6e5ed5ba2c371fcec
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Jan 28 17:43:18 2021 -0800
 
-    runtime,sync: using fastrandn instead of modulo reduction
+    [dev.typeparams] cmd/compile: start translating type params in noder2
     
-    fastrandn is ~50% faster than fastrand() % n.
-    `ack -v 'fastrand\(\)\s?\%'` finds all modulo on fastrand()
+    Also, make some fmt changes so that the type parameters and the
+    typeparam type are displayed in -W=2.
     
-    name              old time/op  new time/op  delta
-    Fastrandn/2       2.86ns ± 0%  1.59ns ± 0%  -44.35%  (p=0.000 n=9+10)
-    Fastrandn/3       2.87ns ± 1%  1.59ns ± 0%  -44.41%  (p=0.000 n=10+9)
-    Fastrandn/4       2.87ns ± 1%  1.58ns ± 1%  -45.10%  (p=0.000 n=10+10)
-    Fastrandn/5       2.86ns ± 1%  1.58ns ± 1%  -44.84%  (p=0.000 n=10+10)
+    You can now parse a simple generic function (but not generic calls or generic
+    types) and print out the noder IR via 'go tool compile -G=2 -W=2 func.go'
     
-    Change-Id: Ic91f5ca9b9e3b65127bc34792b62fd64fbd13b5c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353269
-    Trust: Meng Zhuo <mzh@golangcn.org>
-    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    Change-Id: I1f070fc4a96174a447763ad37999e61c25905901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287833
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/malloc.go  | 4 ++--
- src/runtime/mbitmap.go | 2 +-
- src/runtime/proc.go    | 2 +-
- src/runtime/stubs.go   | 4 ++--
- src/runtime/symtab.go  | 2 +-
- src/sync/pool.go       | 4 ++--
- 6 files changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/noder/types.go | 16 ++++++++++++++--
+ src/cmd/compile/internal/types/fmt.go   | 22 +++++++++++++++++++---
+ src/cmd/compile/internal/types/size.go  |  5 +++++
+ src/cmd/compile/internal/types/type.go  | 20 +++++++++++++++++---
+ src/cmd/compile/internal/types2/type.go |  4 ++++
+ 5 files changed, 59 insertions(+), 8 deletions(-)

@@ -1,22 +1,18 @@
-commit a04aa1f6d17cd723baad25118b31ab8ca5dc8e20
+commit 998cc2a1c5cad0e928f0ac07f69af36123192460
 Author: Joel Sing <joel@sing.id.au>
-Date:   Fri Oct 4 04:02:38 2019 +1000
+Date:   Mon Apr 29 12:24:30 2019 +1000
 
-    cmd/internal/obj/riscv: implement MOV pseudo-instructions
+    cmd,runtime: enable cgo for openbsd/arm64
     
-    Add support for rewriting MOV pseudo-instructions into appropriate
-    RISC-V instructions.
+    Updates #31656.
     
-    Based on the riscv-go port.
-    
-    Updates #27532
-    
-    Change-Id: I22da6f5f12c841d56fb676ab2a37f6d0a686b033
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198677
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ide6f829282fcdf20c67998b766a201a6a92c3035
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174132
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/riscvenc.s |  30 +++
- src/cmd/internal/obj/riscv/obj.go            | 338 +++++++++++++++++++++++++++
- 2 files changed, 368 insertions(+)
+ src/cmd/dist/build.go               |  2 +-
+ src/cmd/nm/nm_cgo_test.go           |  9 +++--
+ src/runtime/cgo/gcc_openbsd_arm64.c | 67 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 3 deletions(-)

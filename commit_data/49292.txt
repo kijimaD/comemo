@@ -1,33 +1,17 @@
-commit 0811559dddd89d90275ebae363c5166d3c29c29d
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit 507cc341ec2cb96b0199800245f222146f799266
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 9 00:52:21 2021 +0700
 
-    runtime: add build tag for common support on linux/loong64
+    doc: add example for conversion from slice expressions to array ptr
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Fixes #47599
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
-    
-    Updates #46229
-    
-    Change-Id: Ide01fb8a39fe3e890f6cbc5d28f4a1d47eb5d79b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368081
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I8f4ccd3b0c2bcdb057ee853163b4421229141333
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340351
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/hash64.go           | 2 +-
- src/runtime/lfstack_64bit.go    | 2 +-
- src/runtime/mpagealloc_64bit.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 1 +
+ 1 file changed, 1 insertion(+)

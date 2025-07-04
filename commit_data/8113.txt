@@ -1,16 +1,14 @@
-commit 29cf90a4efb5680430072d21984d533075896111
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Apr 14 23:58:08 2011 -0400
+commit c09af6631f2e66dab9f68f51c1531f3a73b86997
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Thu Apr 14 23:49:51 2011 -0400
 
-    libmach: fix warnings.
+    net: fix ParseIP
+    Fixes #1695.
     
-    Fixes #1706.
-    
-    R=adg, rsc
-    CC=golang-dev
-    https://golang.org/cl/4413051
+    R=golang-dev, rsc
+    CC=golang-dev, r
+    https://golang.org/cl/4418042
 
- src/cmd/5g/peep.c | 4 ++--
- src/cmd/5l/obj.c  | 2 +-
- src/libmach/obj.c | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/net/ip.go      | 2 +-
+ src/pkg/net/ip_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

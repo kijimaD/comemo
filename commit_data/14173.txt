@@ -1,12 +1,19 @@
-commit 90ad6a2d111d10b60fd5b7f5d46fd224635d5024
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Oct 19 11:02:32 2012 +1100
+commit 1e6d9f49da330e61d29588b1e2f0f3685c03f359
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 18 13:40:45 2012 -0700
 
-    runtime: update comment for the "extern register" variables g and m.
+    encoding/xml: correctly escape newline, carriage return, and tab
     
-    R=rsc, minux.ma, ality
-    CC=dave, golang-dev
-    https://golang.org/cl/6620050
+    The generated encodings are those from
+    http://www.w3.org/TR/2000/WD-xml-c14n-20000119.html#charescaping
+    
+    The change to the decoder ensures that we turn &#xD; in the
+    input into \r, not \n.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6747043
 
- src/pkg/runtime/runtime.h | 21 ++++++++++-----------
- 1 file changed, 10 insertions(+), 11 deletions(-)
+ src/pkg/encoding/xml/marshal_test.go | 21 +++++++++++++++++++++
+ src/pkg/encoding/xml/xml.go          | 35 ++++++++++++++++++++---------------
+ 2 files changed, 41 insertions(+), 15 deletions(-)

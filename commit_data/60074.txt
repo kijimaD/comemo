@@ -1,0 +1,31 @@
+commit 22344e11f27d9667e7bbb6209df59e9a9e976d91
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 11 17:22:53 2024 -0400
+
+    cmd/compile: add structs.HostLayout
+    
+    This is for the proposal, plus a few bug fixes
+    that would/will be necessary when this is put into
+    actual use.
+    
+    Fixes #66408.
+    Updates #63131.
+    
+    Change-Id: I3a66e09d707dd579c59f155e7f53367f41214c30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578355
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: David Chase <drchase@google.com>
+
+ api/next/66408.txt                                 |  1 +
+ doc/next/6-stdlib/3-structs.md                     | 12 +++++++++
+ doc/next/6-stdlib/99-minor/structs/66408.md        |  1 +
+ src/cmd/compile/internal/abi/abiutils.go           | 13 +++++++---
+ src/cmd/compile/internal/compare/compare_test.go   |  2 +-
+ src/cmd/compile/internal/devirtualize/pgo_test.go  |  3 ++-
+ .../internal/inline/inlheur/texpr_classify_test.go |  5 ++++
+ src/cmd/compile/internal/ssa/export_test.go        |  3 +++
+ src/go/doc/comment/std.go                          |  1 +
+ src/structs/doc.go                                 | 10 ++++++++
+ src/structs/hostlayout.go                          | 30 ++++++++++++++++++++++
+ 11 files changed, 75 insertions(+), 6 deletions(-)

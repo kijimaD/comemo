@@ -1,24 +1,16 @@
-commit f45eb9ff3c96dfd951c65d112d033ed7b5e02432
-Author: Jordi Martin <jordimartin@gmail.com>
-Date:   Wed Aug 7 11:14:38 2019 +0000
+commit 870cfe64843736764c1a1263b12801a1f1cec5d9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 13 13:52:17 2019 -0700
 
-    io: add error check on pipe close functions to avoid error overwriting
+    test/codegen: gofmt
     
-    The current implementation allows multiple calls `Close` and `CloseWithError` in every side of the pipe, as a result, the original error can be overwritten.
-    
-    This CL fixes this behavior adding an error existence check on `atomicError` type
-    and keeping the first error still available.
-    
-    Fixes #24283
-    
-    Change-Id: Iefe8f758aeb775309424365f8177511062514150
-    GitHub-Last-Rev: b559540d7af3a0dad423816b695525ac2d6bd864
-    GitHub-Pull-Request: golang/go#33239
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/187197
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I33f5b5051e5f75aa264ec656926223c5a3c09c1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167498
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
 
- src/io/pipe.go      | 35 +++++++++++++++++++++++------------
- src/io/pipe_test.go |  8 ++++----
- 2 files changed, 27 insertions(+), 16 deletions(-)
+ test/codegen/arithmetic.go  |   1 +
+ test/codegen/comparisons.go |  10 ++--
+ test/codegen/noextend.go    | 124 ++++++++++++++++++++++----------------------
+ test/codegen/shift.go       |  18 +++----
+ 4 files changed, 76 insertions(+), 77 deletions(-)

@@ -1,18 +1,12 @@
-commit 7bec1a6033d92e140a255c1093d587c3927e1ab9
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Apr 24 04:46:14 2013 +0800
+commit 2dd0c03427afc3a6142405085e50ffe5545cb2fd
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Tue Apr 23 13:11:58 2013 -0700
 
-    all: fix typos
+    doc: fix typo in race_detector.html
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8896045
+    https://golang.org/cl/8625044
 
- doc/articles/image_package.html | 4 ++--
- doc/codewalk/urlpoll.go         | 2 +-
- doc/devel/weekly.html           | 4 ++--
- src/pkg/net/http/serve_test.go  | 2 +-
- src/pkg/net/http/server.go      | 2 +-
- src/pkg/runtime/chan.c          | 2 +-
- src/pkg/runtime/os_darwin.c     | 2 +-
- 7 files changed, 9 insertions(+), 9 deletions(-)
+ doc/articles/race_detector.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

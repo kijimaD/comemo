@@ -1,21 +1,29 @@
-commit 3107fa99acdcf26394e4bd96a176622d4034b10f
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Aug 15 20:54:16 2023 +0800
+commit de6abd78893e91f26337eb399644b7a6bc3ea583
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 20 17:26:18 2022 -0500
 
-    runtime: make duff device as ABIInternal for loong64
+    runtime/internal/startlinetest: work around shared buildmode linking issue
     
-    Update #40724
+    The runtime/internal/startlinetest package contains a call to a
+    function defined in runtime_test. Generally this is fine as this
+    package is only linked in for runtime_test. Except that for "go
+    install -buildmode=shared std", which include all packages in std,
+    including this test-only internal package. In this mode, the
+    caller is included in the linking but the callee is not, causing
+    linking error. Work around it by calling
+    runtime_test.callerStartLine via a function pointer. The function
+    pointer is only set in runtime_test. In the shared std build, the
+    function pointer will not be set, and this is fine.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: I243e60489dc5fd162ad91d6426bf32cf0e13d9e2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521782
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #57334.
+    
+    Change-Id: I7d871c50ce6599c6ea2802cf6e14bb749deab220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458696
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/runtime/duff_loong64.s | 4 ++--
- src/runtime/mkduff.go      | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/internal/startlinetest/func_amd64.go | 3 +++
+ src/runtime/internal/startlinetest/func_amd64.s  | 3 ++-
+ src/runtime/start_line_amd64_test.go             | 2 ++
+ 3 files changed, 7 insertions(+), 1 deletion(-)

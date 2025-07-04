@@ -1,13 +1,11 @@
-commit ba8ddc25ca18664484ad852890fcae61b9f98891
-Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 25 11:07:08 2014 -0700
+commit 2e2beb567cb2a59a8b54d8f2cd3fbd8eb1116013
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 18 21:07:11 2014 -0400
 
-    cmd/go: add simple test for generate's line parser
+    doc/go1.4: mention pc-relative addressing on amd64
     
-    LGTM=rsc
-    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/128710043
+    https://golang.org/cl/124580043
 
- src/cmd/go/generate_test.go | 46 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

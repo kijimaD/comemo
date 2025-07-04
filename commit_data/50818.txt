@@ -1,23 +1,28 @@
-commit fdea8e21708e9ed04498a7f7b68cbee43005d58d
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Mon Oct 3 17:49:08 2022 +0800
+commit 3e94140465984ff6c8d658051d022e8eacf057c3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 10 22:03:28 2021 +0000
 
-    os/exec: document ProcessState available after a call to Wait or Run
+    runtime/debug: make TestFreeOSMemory more robust
     
-    Wait or Run will populate its ProcessState when the command completes.
+    FreeOSMemory relies on the function FreeOSMemory increasing HeapReleased
+    as opposed to the background scavenger, because it reads memory stats
+    *after* the free of a large allocation. However, before that even
+    happens, the background scavenger can swoop in and release all that
+    memory, making it appear as if FreeOSMemory didn't do anything.
     
-    Fixes #56002.
+    This change modifies the test to just make sure that the large
+    allocation's memory is returned to the OS *somehow*, by the end of the
+    test. It doesn't really care which happens. It also increases the size
+    of that large allocation to increase the likelihood that the test isn't
+    relying 100% on the background scavenger, and that FreeOSMemory is doing
+    some of the work.
     
-    Change-Id: I21547431f5d2d3e0fc0734fd1705421a0ac4209c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/437996
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Fixes #49478.
+    
+    Change-Id: Ief1d839753720ebb88cbb616c46302293ee2d19c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363414
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/os/exec/exec.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/runtime/debug/garbage_test.go | 65 +++++++++++++++++++++++++++++++++------
+ 1 file changed, 55 insertions(+), 10 deletions(-)

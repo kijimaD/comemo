@@ -1,16 +1,18 @@
-commit d30d5a6b1e86e1bb62e159ffe8b8c698c04e945b
-Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
-Date:   Sat Oct 6 19:16:28 2018 +0530
+commit 77d5c628155cc5131c3baa3a7fd0fc8726fe409f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 24 15:09:38 2018 -0700
 
-    go/doc: skip examples with no body
+    cmd/go: add Solaris assembler syntax for gccgo buildid file
     
-    Fixes #28044
+    The Solaris assembler uses a different syntax for section directives.
     
-    Change-Id: I0052e078dd34dc3546204416bcc5a99e3146c535
-    Reviewed-on: https://go-review.googlesource.com/c/140317
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Fixes https://gcc.gnu.org/PR85429.
+    
+    Change-Id: I1e54dffee3290046dbb68ba4e90ab795c6b72571
+    Reviewed-on: https://go-review.googlesource.com/109140
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/doc/example.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/internal/work/buildid.go | 27 ++++++++++++++++++++++++---
+ 1 file changed, 24 insertions(+), 3 deletions(-)

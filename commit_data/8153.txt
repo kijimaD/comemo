@@ -1,14 +1,12 @@
-commit 3cb973ff65286f951f541f7ab05d98c3e7d1413e
-Author: Rob Pike <r@golang.org>
-Date:   Tue Apr 19 10:41:12 2011 -0700
+commit 4877c8a7909dfc47464a6eac6802496820911e07
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 19 11:15:10 2011 -0400
 
-    gob: fix trivial bug in map marshaling.
-    Forgot to send key/value types.
+    CONTRIBUTORS: add David Crawshaw (Google CLA)
     
-    R=rsc
-    CC=golang-dev, hmc2you
-    https://golang.org/cl/4434058
+    R=golang-dev, bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4425054
 
- src/pkg/gob/encoder.go      |  3 +++
- src/pkg/gob/encoder_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

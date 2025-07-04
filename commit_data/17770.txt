@@ -1,15 +1,12 @@
-commit cb309173874e3dd0dca19c904fd368b59e373906
+commit 7bbe0163c7def3eca41fa0e2d950fdfe37f37562
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 9 08:44:47 2013 -0700
+Date:   Wed Oct 9 06:44:11 2013 -0700
 
-    runtime/cgo: mark callback functions as NOSPLIT
+    net: fix typo in failure message in test
     
-    R=golang-dev, minux.ma
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/14448044
+    https://golang.org/cl/14582043
 
- misc/cgo/test/callback.go       | 14 ++++++++++++++
- misc/cgo/test/callback_c.c      | 14 ++++++++++++++
- misc/cgo/test/cgo_test.go       |  1 +
- src/pkg/runtime/cgo/callbacks.c |  3 +++
- 4 files changed, 32 insertions(+)
+ src/pkg/net/packetconn_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

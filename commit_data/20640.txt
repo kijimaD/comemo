@@ -1,17 +1,16 @@
-commit 85fd0fd7c432e1f1fb1fa1ccf18c1f935a9b2720
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 6 15:32:11 2014 -0400
+commit 9c3fc838ba982571e704c1674e9f97678f8a6e93
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 25 15:18:25 2014 -0700
 
-    regexp/syntax: regenerate doc.go from re2 syntax
+    encoding/gob: error rather than panic when decoding enormous slices
+    Fixes #8084.
     
-    Generated using re2/doc/mksyntaxgo.
-    
-    Fixes #8505.
-    
-    LGTM=iant
-    R=r, iant
+    LGTM=ruiu
+    R=golang-codereviews, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/155890043
+    https://golang.org/cl/142710043
 
- src/regexp/syntax/doc.go | 48 ++++++++++++++++++++++++------------------------
- 1 file changed, 24 insertions(+), 24 deletions(-)
+ src/encoding/gob/decode.go       | 12 +++++++++++-
+ src/encoding/gob/decoder.go      |  9 ++++++---
+ src/encoding/gob/encoder_test.go | 22 ++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 4 deletions(-)

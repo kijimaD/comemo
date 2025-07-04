@@ -1,17 +1,41 @@
-commit e0d9342da713cc3cd4243e1c940851a7518d7a95
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Feb 12 12:14:02 2015 +1100
+commit e498181942917430f1bf82cc9df4350b30e87c01
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 10 09:58:01 2015 +1100
 
-    runtime: use (*context) ip, setip, sp and setsp everywhere on windows
+    cmd/internal/gc: more Node cleanups
     
-    Also move dumpregs into defs_windows_*.go.
+    More cleanups to gc.Node
     
-    Change-Id: Ic077d7dbb133c7b812856e758d696d6fed557afd
-    Reviewed-on: https://go-review.googlesource.com/4650
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    - make Node.Local a boolean
+    - make Type.Local a boolean
+    - reduce the size of Node.Esc to a uint8
+    
+    Reducing the size of Node.Esc shaves ~45mb off the RSS compiling cmd/internal/gc on amd64
+    
+    before:
+            Maximum resident set size (kbytes): 659496
+    after:
+            Maximum resident set size (kbytes): 612196
+    
+    - declare gc.Funcdepth as int32
+    - declare Node.Funcdepth as int32
+    
+    In both cases, these were previously machine specific int types. This doesn't result in
+    any memory saving at the moment due to struct padding.
+    
+    Change-Id: Iabef8da15e962fe8b79d7fd3d402fb26ce7ec31c
+    Reviewed-on: https://go-review.googlesource.com/7261
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/defs_windows_386.go   | 16 +++++++++++++
- src/runtime/defs_windows_amd64.go | 23 +++++++++++++++++++
- src/runtime/os1_windows_386.go    | 40 ++++++++++-----------------------
- src/runtime/os1_windows_amd64.go  | 47 ++++++++++-----------------------------
- 4 files changed, 63 insertions(+), 63 deletions(-)
+ src/cmd/internal/gc/dcl.go     |  6 +++---
+ src/cmd/internal/gc/go.go      |  4 ++--
+ src/cmd/internal/gc/go.y       |  2 +-
+ src/cmd/internal/gc/reflect.go |  2 +-
+ src/cmd/internal/gc/select.go  |  6 +++---
+ src/cmd/internal/gc/subr.go    |  2 +-
+ src/cmd/internal/gc/syntax.go  | 28 ++++++++++++++--------------
+ src/cmd/internal/gc/walk.go    |  6 +++---
+ src/cmd/internal/gc/y.go       |  2 +-
+ 9 files changed, 29 insertions(+), 29 deletions(-)

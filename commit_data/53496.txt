@@ -1,24 +1,32 @@
-commit 7f26e9e5fb6502e72546908eb4035d00f4e99f02
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 6 17:39:21 2023 +0000
+commit 07cf24bdfe55dd3493e580c67b5437a114df7658
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 03:53:58 2022 -0700
 
-    Revert "internal/poll: remove fallback path in accept"
+    cmd/compile/internal/noder: set ir.Name.DictIndex for unified IR
     
-    This reverts CL 422375.
+    For local variables of derived type, Delve relies on ir.Name.DictIndex
+    being set to the type's rtype index within the function's dictionary.
+    This CL implements that functionality within unified IR.
     
-    Reason for revert: We still need the fallback path on Solaris.
+    Manually double checked that Delve behaves correctly, at least as far
+    as I can tell from casual use. Specifically, I confirmed that running
+    the test program from TestDictIndex, stepping into testfn, and then
+    running `print mapvar` prints `map[int]main.CustomInt []`, which
+    matches the behavior under GOEXPERIMENT=nounified. (Also compare that
+    when ir.Name.DictIndex is *not* set by unified IR, `print mapvar`
+    instead prints `map[int]go.shape.int []`.)
     
-    For #45964
-    For #59359
+    Fixes #54514.
     
-    Change-Id: Ie598b9ef180708fb157080015aee44f67f6737c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501275
+    Change-Id: I90d443945895abfba04dc018f15e00217930091c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424735
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/internal/poll/sock_cloexec.go | 30 +++++++++++++++++++++++++++++-
- 1 file changed, 29 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/reader.go | 17 +++++++++++++----
+ src/cmd/compile/internal/noder/writer.go | 26 +++++++++++++++++---------
+ src/cmd/link/internal/ld/dwarf_test.go   |  4 ----
+ 3 files changed, 30 insertions(+), 17 deletions(-)

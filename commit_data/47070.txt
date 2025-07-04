@@ -1,19 +1,18 @@
-commit de1abf76fb69739c6cad463454a55fe9c33f63ac
-Author: Mark Pulford <mark@kyne.com.au>
-Date:   Fri Oct 22 11:21:28 2021 +1100
+commit f1562c761014111ce359b14016718ddabd24c2f2
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Feb 15 20:20:15 2021 +0100
 
-    cmd/go: stamp Fossil VCS status into binaries
+    cmd/go: recognize DLL magic from llvm binaries
     
-    For #37475
+    When using LLD with c-shared, the magic in the output DLL is slightly
+    different than for EXEs.
     
-    Change-Id: I09fa1344051088ce37727176d9ec6b38891d1a9f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/357955
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Icc5f34f7bb61f11a9d75494236b7797cc1988b40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291638
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/vcs/vcs.go                     | 55 +++++++++++++
- .../go/testdata/script/version_buildvcs_fossil.txt | 90 ++++++++++++++++++++++
- 2 files changed, 145 insertions(+)
+ src/cmd/go/internal/work/exec.go | 1 +
+ 1 file changed, 1 insertion(+)

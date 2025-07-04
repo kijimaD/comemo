@@ -1,19 +1,17 @@
-commit 7936efecc8981fab11b445d96cdb1480d9d8208b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Sat Mar 13 19:43:12 2021 +0100
+commit 77a11c05d6a6f766c75f804ea9b8796f9a9f85a3
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 17 18:22:38 2020 -0700
 
-    net/http: revert change from CL 299109 breaking TestAllDependencies
+    reflect: remove depth from deepequal recursion
     
-    This code is generated from golang.org/x/net/http2 and thus any changes
-    first have to occur there. Otherwise TestAllDependencies fails on the
-    longtest builders.
+    We aren't using it for anything. The visited map will terminate
+    any recursion for us.
     
-    Change-Id: I918afdd9388dd28bb3c8e55438be764c4f32c7c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301491
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I36e6bd8e34952123c2ed46323067e42928ec7168
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238759
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/net/http/h2_bundle.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/deepequal.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

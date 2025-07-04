@@ -1,26 +1,16 @@
-commit d8ff3d592088ef175222dbf69991887f0dd458d6
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Sep 30 11:44:21 2017 +0200
+commit 90a8b7361cf0d4f117af49fb9c72ec77c345298b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 23:17:30 2017 +0000
 
-    runtime: fix wall time computation in macOS High Sierra
+    doc: add more Go 1.9 release notes
     
-    Latest macOS High Sierra changed how the wall time information
-    is exported into the commpage. Backward compatibility was partly
-    preserved, that is previous Go versions are basically forced to
-    go through a syscall which is much slower and is not able to
-    get nanosecond precision.
+    Only one TODO remains, for pprof changes.
     
-    Implement the new commpage layout and wall time computation,
-    using a version check to fallback to the previous code on
-    older operating systems.
+    Updates #20587
     
-    Fixes #22037
-    
-    Change-Id: I8c2176eaca83a5d7be23443946a6b4c653ec7f68
-    Reviewed-on: https://go-review.googlesource.com/67332
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib67b23adc7851cc96455b0c20649c8e565a4f92a
+    Reviewed-on: https://go-review.googlesource.com/45810
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_darwin_amd64.s | 86 ++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 82 insertions(+), 4 deletions(-)
+ doc/go1.9.html | 75 +++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 48 insertions(+), 27 deletions(-)

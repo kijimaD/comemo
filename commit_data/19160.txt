@@ -1,21 +1,15 @@
-commit cabdb85333bc0af0ce32ce45e58385e61f84dc43
-Author: Billie Harold Cleek <bhcleek@gmail.com>
-Date:   Wed Apr 16 13:40:47 2014 +1000
+commit 853c99ddb8dc25ca361f1efdd65a9b371cc39fcb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 15 19:40:00 2014 -0700
 
-    doc: edit documentation that uses "satisfies reads" and "satisfies writes"
+    crypto/tls: don't block on Read of zero bytes
     
-    Make it clear that types that wrap another reader or writer delegate to the wrapped type.
+    Fixes #7775
     
-    Fixes #7667
-    
-    LGTM=adg
-    R=golang-codereviews, adg
+    LGTM=rsc
+    R=agl, rsc
     CC=golang-codereviews
-    https://golang.org/cl/85720044
+    https://golang.org/cl/88340043
 
- src/pkg/compress/gzip/gzip.go   | 8 ++++----
- src/pkg/compress/lzw/reader.go  | 4 ++--
- src/pkg/compress/lzw/writer.go  | 4 ++--
- src/pkg/compress/zlib/reader.go | 3 ++-
- src/pkg/compress/zlib/writer.go | 4 ++--
- 5 files changed, 12 insertions(+), 11 deletions(-)
+ src/pkg/crypto/tls/conn.go | 5 +++++
+ 1 file changed, 5 insertions(+)

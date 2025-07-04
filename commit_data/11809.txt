@@ -1,15 +1,14 @@
-commit 14efdea35986e47db79c8b1e8d5e57dc13e8727a
+commit d26c607fe647efce17c061ab7f86506dd95eb314
 Author: Rob Pike <r@golang.org>
-Date:   Sun Feb 12 09:11:44 2012 +1100
+Date:   Sun Feb 12 09:10:47 2012 +1100
 
-    effective_go: use new map deletion syntax
+    unsafe: Alignof and Offsetof now use the same style
     
-    Fixes #2984.
+    The easy part of issue 2968.
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5652071
+    https://golang.org/cl/5655059
 
- doc/effective_go.html | 8 ++++----
- doc/effective_go.tmpl | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/unsafe/unsafe.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

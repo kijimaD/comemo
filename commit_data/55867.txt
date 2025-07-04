@@ -1,23 +1,69 @@
-commit e38be310a4f725ce9167b3444eedcd3b15a6e683
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 7 13:51:04 2024 -0500
+commit b513bd808f9018da0609cffefaef451ea5c19a74
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Feb 13 21:45:38 2023 +0000
 
-    time: gracefully handle ts.zombies underflow
+    runtime: bias the pacer's cons/mark smoothing against noise
     
-    The current implementation sets t.ts before adding t to ts;
-    that can cause inconsistencies with temporarily negative
-    ts.zombies values. Handle them gracefully, since we only
-    care about detecting very positive values.
+    Currently the pacer is designed to pace against the edge. Specifically,
+    it tries to find the sweet spot at which there are zero assists, but
+    simultaneously finishes each GC perfectly on time.
     
-    Pending CL 564977 removes the race that sets t.ts early,
-    and then CL 569996 builds on top of that to make the count precise.
-    This CL just gets examples like the new test working sooner.
+    This pretty much works, despite the noisiness of the measurement of the
+    cons/mark ratio, which is central to the pacer's function. (And this
+    noise is basically a given; the cons/mark ratio is used as a prediction
+    under a steady-state assumption.) Typically, this means that the GC
+    might assist a little bit more because it started the GC late, or it
+    might execute more GC cycles because it started early. In many cases the
+    magnitude of this variation is small.
     
-    Change-Id: Ibe1aecc2554f83436f761f48e4050bd962982e4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569995
-    Reviewed-by: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    However, we can't possibly control for all sources of noise, especially
+    since some noise can come from the underlying system. Furthermore, there
+    are inputs to the measurement that have effectively no restrictions on
+    how they vary, and the pacer needs to assume that they're essentially
+    static when they might not be in some applications (i.e. goroutine
+    stacks).
+    
+    The result of high noise is that the variation in when a GC starts is
+    much higher, leading to a significant amount of assists in some GC
+    cycles. While the GC cycle frequency basically averages out in the
+    steady-state in the face of this variation, starting a GC late has the
+    significant drawback of reducing application latencies.
+    
+    This CL thus biases the pacer toward avoiding assists by picking a
+    cons/mark smoothing function that takes the maximum measured cons/mark
+    over 5 cycles total. I picked 5 cycles because empirically this was the
+    best trade-off between window size and smoothness for a uniformly
+    distributed jitter in the cons/mark signal. The cost here is that if
+    there's a significant phase change in the application that makes it less
+    active with the GC, then we'll be using a stale cons/mark measurement
+    for 5 cycles. I suspect this is fine precisely because this only happens
+    when the application becomes less active, i.e. when latency matters
+    less.
+    
+    Another good reason for this particular bias is that even though the GC
+    might start earlier and end earlier on average, resulting in more
+    frequent GC cycles and potentially worse throughput, it also means that
+    it uses less memory used on average. As a result, there's a reasonable
+    workaround in just turning GOGC up slightly to reduce GC cycle
+    frequency and bringing memory (and hopefully throughput) levels back to
+    the same baseline. Meanwhile, there should still be fewer assists than
+    before which is just a clear improvement to latency.
+    
+    Lastly, this CL updates the GC pacer tests to capture this bias against
+    assists and toward GC cycles starting earlier in the face of noise.
+    
+    Sweet benchmarks didn't show any meaningful difference, but real
+    production applications showed a reduction in tail latencies of up
+    to 45%.
+    
+    Updates #56966.
+    
+    Change-Id: I8f03d793f9a1c6e7ef3524d18294dbc0d7de6122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/time.go   |  2 +-
- src/time/tick_test.go | 78 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 79 insertions(+), 1 deletion(-)
+ src/runtime/mgcpacer.go      | 25 ++++++++++++++++---------
+ src/runtime/mgcpacer_test.go |  4 ++--
+ 2 files changed, 18 insertions(+), 11 deletions(-)

@@ -1,12 +1,12 @@
-commit e67d3c44f702639e0be75ca3e69542eeaf62c498
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 1 21:47:33 2011 -0400
+commit 782fd1fc9883c962b1414621e4e177c30499a1bf
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Nov 1 21:47:07 2011 -0400
 
-    exp/types: add error type to universe
+    misc/vim: add error type.
     
-    R=golang-dev, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5327051
+    https://golang.org/cl/5331046
 
- src/pkg/exp/types/universe.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/vim/syntax/go.vim | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

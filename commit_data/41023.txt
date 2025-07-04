@@ -1,20 +1,14 @@
-commit 075c20cea8a1efda0e8d5d33a1995a220ad27b8c
+commit d865b5caa6bedfe90ce9335af518d17f8107fb91
 Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Dec 24 01:24:43 2019 +0100
+Date:   Tue Jun 18 10:26:46 2019 +0200
 
-    internal/poll: use fcntl64 on 32-bit GNU/Linux systems
+    syscall: enable ReadDirent tests on aix, linux and solaris
     
-    Use FcntlSyscall from internal/syscall/unix to get fcntl64 on 32-bit
-    Linux systems.
-    
-    Updates #36211
-    
-    Change-Id: If48a6e09606ca9f7f6e22f3e8dc9a25fb3ccaf65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/212537
+    Change-Id: I13fd6bad4600ef909b13ac517ba6a06909b5c703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182379
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/build/deps_test.go         | 2 +-
- src/internal/poll/splice_linux.go | 3 ++-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ src/syscall/{dirent_bsd_test.go => dirent_test.go} | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

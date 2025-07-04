@@ -1,21 +1,31 @@
-commit de5b418bea70aaf27de1f47e9b5813940d1e15a4
-Author: zzkcode <zzk819166453@gmail.com>
-Date:   Thu Nov 30 11:39:29 2023 +0000
+commit 8d71ae8c775129161fda64e77b2de2276e7362e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 16 08:02:34 2023 -0500
 
-    runtime: let the fault thread to crash the process
+    cmd/go/internal/modindex: remove copy of build.Package
     
-    Let the fault thread to crash the program to make sure while gdb coredump file could see the correct backtrace in the number one thread in gdb.
+    modindex defines its own type Package that must be exactly the
+    same as build.Package (there are conversions between them).
+    The normal reason to do this is to provide a different method set,
+    but there aren't any different methods. And if we needed to do that,
+    we could write
     
-    Fixes #63277.
+            type Package build.Package
     
-    Change-Id: Ie4473f76f0feba596091433918bcd35a4ff7e11b
-    GitHub-Last-Rev: f4615c23f663a2f0794ca9e5c86fc2f0cc8552d7
-    GitHub-Pull-Request: golang/go#63666
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536895
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    instead of repeating the struct definition. Remove the type entirely
+    in favor of direct use of build.Package.
+    
+    This makes the modindex package not break when fields are
+    added to go/build.Package.
+    
+    Change-Id: I8ffe9f8832bbc62be93a72e6a09d807ddbce216b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462255
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/runtime/runtime-gdb_unix_test.go | 216 +++++++++++++++++++++++++++++------
- src/runtime/signal_unix.go           |  37 ++++--
- 2 files changed, 206 insertions(+), 47 deletions(-)
+ src/cmd/go/internal/modindex/build.go | 81 ++---------------------------------
+ src/cmd/go/internal/modindex/read.go  |  6 +--
+ src/cmd/go/internal/modindex/scan.go  |  2 +-
+ 3 files changed, 8 insertions(+), 81 deletions(-)

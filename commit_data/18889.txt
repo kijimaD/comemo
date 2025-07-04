@@ -1,16 +1,13 @@
-commit 41818f8fcc90f2e2d2738ca298e1d6e622243e7a
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Tue Mar 18 16:26:23 2014 +1100
+commit 8a511cccb59d1004122004253fca79d1000a7eb7
+Author: Chris Manghane <cmang@golang.org>
+Date:   Mon Mar 17 20:26:19 2014 -0700
 
-    base64: refactor encoder.Write
+    cmd/gc: fix error check for self-referential array type.
     
-    "nn" can never be zero for any input "p", so no check is needed.
-    This change should improve readability a bit.
-    
-    LGTM=nigeltao
-    R=golang-codereviews, bradfitz, nigeltao
+    LGTM=gri, iant
+    R=gri, iant
     CC=golang-codereviews
-    https://golang.org/cl/76610045
+    https://golang.org/cl/75920044
 
- src/pkg/encoding/base64/base64.go | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ test/fixedbugs/issue7525.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

@@ -1,29 +1,27 @@
-commit a9b37ae02604e03d2356b6143679d2a71bdd32a7
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 24 09:00:27 2019 -0400
+commit 2d357d8da864fc8d14e7e7834d521aa638243772
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Thu May 16 02:28:47 2019 +0700
 
-    runtime: fully initialize span in alloc_m
+    cmd/compile: fix typecheck type alias makes wrong export symbol metadata
     
-    Currently, several important fields of a heap span are set by
-    heapBits.initSpan, which happens after the span has already been
-    published and returned from the locked region of alloc_m. In
-    particular, allocBits is set very late, which makes mspan.isFree
-    unsafe even if you were to lock the heap because it tries to access
-    allocBits.
+    typecheck type alias always replaces the original definition of the symbol.
+    This is wrong behavior because if the symbol's definition is replaced by a
+    local type alias, it ends up being written to compiled file as an alias,
+    instead of the original type.
     
-    This CL fixes this by populating these fields in alloc_m. The next CL
-    builds on this to only publish the span once it is fully initialized.
-    Together, they'll make it safe to check allocBits even if there is a
-    race with alloc_m.
+    To fix, only replace the definition of symbol with global type alias.
     
-    For #10958, #24543, but a good fix in general.
+    Fixes #31959
     
-    Change-Id: I7fde90023af0f497e826b637efa4d19c32840c08
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203285
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id85a15e8a9d6a4b06727e655a95dc81e63df633a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177378
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/mbitmap.go | 16 +++-------------
- src/runtime/mheap.go   | 27 +++++++++++++++++++++++++--
- 2 files changed, 28 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
+ test/fixedbugs/issue31959.dir/a.go       | 12 ++++++++++++
+ test/fixedbugs/issue31959.dir/main.go    | 21 +++++++++++++++++++++
+ test/fixedbugs/issue31959.go             |  7 +++++++
+ test/fixedbugs/issue31959.out            |  2 ++
+ 5 files changed, 47 insertions(+), 1 deletion(-)

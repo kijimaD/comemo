@@ -1,47 +1,18 @@
-commit 6654188190cb8ff2be716417cc1b5086b20a5fa3
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 29 15:35:56 2015 -0500
+commit f5f69bba3b0d2563d56eff0935f32d7b252c7df6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 6 09:15:13 2015 -0800
 
-    liblink: remove dead computation of p->back in span6/span8
+    cmd/go: buffer output for go usage
     
-    Originally, when this code was part of 6l/8l, every new
-    Prog was constructed starting with zprg, which set back=2,
-    and then this code walked over the list setting back=1 for
-    backward branches, back=0 otherwise. The initial back=2
-    setting was used to identify forward branches (the branched-to
-    instruction had back == 2 since it hadn't yet been set to 0 or 1).
+    It did tons of write syscalls before:
+        https://www.youtube.com/watch?v=t60fhjAqBdw
     
-    When the code was extracted into liblink and linked directly
-    with 6a/6g/8a/8g, those programs created the Prog struct
-    and did not set back=2, breaking this backward branch detection.
+    This is the worst offender. It's not worth fixing all the cases of two
+    consecutive prints.
     
-    No one noticed, because the next loop recomputes the information.
-    The only requirement for the next loop is that p->back == 0 or 1 for
-    each of the Progs in the list.
-    
-    The initialization of the zprg with back=2 would cause problems
-    in this second loop, for the few liblink-internally-generated instructions
-    that are created by copying zprg, except that the first loop was
-    making sure that back == 0 or 1.
-    
-    The first loop's manipulation of p->back can thus be deleted,
-    provided we also delete the zprg.back = 2 initializations.
-    
-    This is awful and my fault. I apologize.
-    
-    While we're here, remove the .scale = 1 from the zprg init too.
-    Anything that sets up a scaled index should set the scale itself.
-    (And mostly those come from outside liblink anyway.)
-    
-    Tested by checking that all generated code is bit-for-bit
-    identical to before this CL.
-    
-    Change-Id: I7f6e0b33ce9ccd5b7dc25e0f00429fedd0957c8c
-    Reviewed-on: https://go-review.googlesource.com/3574
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I95860ef6a844d89b149528195182b191aad8731b
+    Reviewed-on: https://go-review.googlesource.com/2371
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/liblink/asm6.c | 5 -----
- src/liblink/asm8.c | 5 -----
- src/liblink/obj6.c | 1 -
- src/liblink/obj8.c | 3 ---
- 4 files changed, 14 deletions(-)
+ src/cmd/go/main.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

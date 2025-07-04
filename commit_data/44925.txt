@@ -1,22 +1,31 @@
-commit dac136f87b9d5fdda9b5c33dfa0f94dc8c9880c7
-Author: Tom Thorogood <me+google@tomthorogood.co.uk>
-Date:   Sat Mar 13 00:27:30 2021 +1030
+commit 42b023d7b9cb8229e3035fa3d36bce41a1ef0c43
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 26 14:17:35 2020 -0700
 
-    archive/zip: fix character device handling in fileModeToUnixMode
+    cmd/cgo: use go:notinheap for anonymous structs
     
-    The switch case for fs.ModeDevice can only be reached for block devices
-    while character devices match fs.ModeDevice | fs.ModeCharDevice. This
-    would cause character devices to wrongly be reported as regular files.
+    They can't reasonably be allocated on the heap. Not a huge deal, but
+    it has an interesting and useful side effect.
     
-    This bug has existed since the switch was first introduced in CL 5624048.
+    After CL 249917, the compiler and runtime treat pointers to
+    go:notinheap types as uintptrs instead of real pointers (no write
+    barrier, not processed during stack scanning, ...). That feature is
+    exactly what we want for cgo to fix #40954. All the cases we have of
+    pointers declared in C, but which might actually be filled with
+    non-pointer data, are of this form (JNI's jobject heirarch, Darwin's
+    CFType heirarchy, ...).
     
-    Change-Id: Icdbedb015e5376b385b3115d2e4574daa052f796
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300891
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #40954
+    
+    Change-Id: I44a3b9bc2513d4287107e39d0cbbd0efd46a3aae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250940
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/archive/zip/struct.go      |  8 +++-----
- src/archive/zip/writer_test.go | 12 ++++++++++++
- 2 files changed, 15 insertions(+), 5 deletions(-)
+ src/cmd/cgo/gcc.go           | 15 +++++++++++++++
+ src/cmd/cgo/main.go          |  3 ++-
+ src/cmd/cgo/out.go           |  3 +++
+ test/fixedbugs/issue40954.go | 35 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 55 insertions(+), 1 deletion(-)

@@ -1,20 +1,19 @@
-commit fe2869cbfe2028c69d1fb2a24a0406748f528b2a
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 7 09:56:11 2017 -0500
+commit d254c61309845214084617eb5d3368bad91b609f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Sep 3 23:11:45 2017 +0900
 
-    misc/cgo/testplugin: unskip test
+    cmd/go: check compiler flags per compilers in gccSupportsFlag
     
-    Fixed by CL 76025 yesterday, without realizing it:
-    the testshared and testplugin builds of separate iface_i
-    packages were colliding incorrectly in the cache.
-    Including the build directory fixes that.
+    Current code always uses a C compilers for checking compiler flags even
+    for non-C compilers. This CL solves the issue.
     
-    Fixes #22571.
+    Fixes #21736
     
-    Change-Id: Id8193781c67c3150823dc1f48eae781dfe3702fb
-    Reviewed-on: https://go-review.googlesource.com/76371
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I5eaddd5fe7d5df699eb2384518b21e6064ca31cf
+    Reviewed-on: https://go-review.googlesource.com/61270
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/testplugin/test.bash | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/go/internal/work/build.go | 48 +++++++++++++++++++++++----------------
+ 1 file changed, 28 insertions(+), 20 deletions(-)

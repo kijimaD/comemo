@@ -1,31 +1,17 @@
-commit 392fbaa0f394592a9924daf498f58226fd9b3e79
-Author: miller <millerresearch@gmail.com>
-Date:   Wed Mar 1 16:55:45 2023 +0000
+commit e1b0da61449ef1bbe2da8afb2840c05a587e7635
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jul 15 16:59:41 2022 -0400
 
-    os: make TestProgWideChdir detect more possible failure cases
+    runtime: convert gcController.lastStackScan to atomic type
     
-    This test is meant to detect the effect of Chdir not being
-    observed in other concurrent goroutines, possible in Plan 9
-    because each M runs in a separate OS process with its own
-    working directory. The test depends on Getwd to report the
-    correct working directory, but if Chdir fails then Getwd
-    may fail for the same reasons. We add a consistency check
-    that Stat(Getwd()) and Stat(".") refer to the same file.
+    For #53821.
     
-    Also change channel usage and add a sync.WaitGroup to
-    ensure test goroutines are not left blocked or running
-    when the main test function exits.
-    
-    For #58802
-    
-    Change-Id: I80d554fcf3617427c28bbe16e5e396367dcfe673
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/472555
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6a7dcc9b72683e977a2b8d90e521a53a8a508558
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417777
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/os/os_test.go | 91 ++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 53 insertions(+), 38 deletions(-)
+ src/runtime/align_runtime_test.go |  1 -
+ src/runtime/mgcpacer.go           | 12 ++++++------
+ 2 files changed, 6 insertions(+), 7 deletions(-)

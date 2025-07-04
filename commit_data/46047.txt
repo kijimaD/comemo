@@ -1,29 +1,25 @@
-commit df9c5d8f5dc96977dad865dc531d6c1e665ea1cb
-Author: Hans <hzb153@gmail.com>
-Date:   Fri Jul 30 02:36:02 2021 +0000
+commit b9df26d7a86e0b402f4ae5fd0cb44bab46b6331e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 20:18:47 2020 -0500
 
-    cmd/cgo: fix unused parameter warnings in generated _cgo_main.c
+    [dev.regabi] cmd/compile: use ir.Find for "search" traversals
     
-    Applying -Werror compiler option to request warnings is an usual
-    way to discover potential errors. Go user may put a cgo directive
-    in preamble: `// #cgo CFLAGS: -Werror=unused-parameter`.
+    This CL converts all the generic searching traversal to use ir.Find
+    instead of relying on direct access to Left, Right, and so on.
     
-    However, the directive also takes effect on the cgo generated files.
-    I cleaned _cgo_main.c to help Go user only concentrate on warnings
-    of their own file.
+    Passes buildall w/ toolstash -cmp.
     
-    Fixes #43639
-    
-    Change-Id: I9112f02ae5226f2fc87a8650d19faee59cddd588
-    GitHub-Last-Rev: f09d172f979acfba855be8108e7d79ec2778c406
-    GitHub-Pull-Request: golang/go#46358
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/322232
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I4d951aef630c00bf333f24be79565cc564694d04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275372
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/test/testdata/issue43639.go   | 9 +++++++++
- misc/cgo/test/testdata/issue43639/a.go | 8 ++++++++
- src/cmd/cgo/out.go                     | 8 ++++----
- 3 files changed, 21 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/alg.go       |  37 ++----
+ src/cmd/compile/internal/gc/const.go     |  72 +++++-------
+ src/cmd/compile/internal/gc/inl.go       | 192 ++++++++++++-------------------
+ src/cmd/compile/internal/gc/order.go     |   9 +-
+ src/cmd/compile/internal/gc/sinit.go     |   6 +-
+ src/cmd/compile/internal/gc/typecheck.go |  78 ++++++-------
+ src/cmd/compile/internal/gc/walk.go      | 180 +++++++++++++----------------
+ 7 files changed, 240 insertions(+), 334 deletions(-)

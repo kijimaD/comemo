@@ -1,0 +1,19 @@
+commit 44d1d2e5adaf95190a817980eb8439d080df6b12
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 17 11:43:32 2025 +0100
+
+    crypto/internal/hpke: use crypto/hkdf
+    
+    The hpke package uses public-facing crypto packages except for hkdf,
+    which uses crypto/internal/hkdf. We already have a public hkdf package,
+    crypto/hkdf, so use it instead for consistency.
+    
+    Change-Id: Icf6afde791234dfe24dbfba715c0891f32005ca2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657556
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/hpke/hpke.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

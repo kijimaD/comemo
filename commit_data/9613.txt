@@ -1,17 +1,13 @@
-commit 7b2f214b6c3867699a37d405cf986d4f599d3f73
-Author: Hector Chu <hectorchu@gmail.com>
-Date:   Wed Sep 7 13:53:29 2011 -0400
+commit ec3dc34d1287b5771c79fbe8794e409c8ef58e63
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 7 13:53:05 2011 -0400
 
-    gopprof: regexp fixes
+    A+C: Ziad Hatahet (individual CLA)
     
-    Extract Windows filenames correctly.
-    Don't remove receivers from method names.
-    
-    Fixes #2227.
-    
-    R=rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4969059
+    https://golang.org/cl/4964066
 
- src/cmd/prof/gopprof | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

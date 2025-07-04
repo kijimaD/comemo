@@ -1,25 +1,26 @@
-commit ad641e8521381886bc6274d78e986f2bb8ac561b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Jul 11 13:06:56 2022 -0400
+commit 1f83a8c16cf1e9141e081759fb0f6c6f2acb5fdc
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 31 14:09:41 2021 -0700
 
-    misc/cgo/testcarchive: don't rely on an erroneous install target in tests
+    cmd/compile: use the zero value for results of impossible indexing
     
-    Non-main packages in module mode should not be installed to
-    GOPATH/pkg, but due to #37015 they were installed there anyway.
+    type A [0]int
+    var a A
+    x := a[i]
     
-    This change switches the 'go install' command in TestPIE to instead
-    use 'go build', and switches TestInstall and TestCachedInstall
-    (which appear to be explicitly testing 'go install') to explicitly
-    request GOPATH mode (which does have a well-defined install target).
+    Use the zero value for x instead of the "impossible" value. That lets
+    us at least compile code like this with -B, even though it can't
+    possibly run correctly.
     
-    For #37015.
+    Fixes #48092
     
-    Change-Id: Ifb24657d2781d1e35cf40078e8e3ebf56aab9cc8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/416954
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Idad5cfab49e05f375c069b05addceed68a15299f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346589
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go |  3 ++-
+ test/fixedbugs/issue48092.go           | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

@@ -1,20 +1,23 @@
-commit d1a186d7d07034b75f1d3fe950804efec3b9089a
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Dec 13 11:37:46 2023 -0500
+commit 451106921fbcbbae37769db582aea52bf8f728e6
+Author: Gustavo Falco <comfortablynumb84@gmail.com>
+Date:   Sun Dec 11 02:39:20 2022 +0000
 
-    doc: add release note fragment on inlining changes
+    net/http: keep sensitive headers on redirects to the same host
     
-    Add some material to the "compiler" portion of the release
-    notes describing the 1.22 changes to the inliner.
+    Preserve sensitive headers on a redirect to a different port of the same host.
     
-    For #61422.
-    Updates #61502.
+    Fixes #35104
     
-    Change-Id: Ic7f1cb7f70752446d2465ea3da6bd7488436342b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549395
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I5ab57c414ce92a70e688ee684b9ff02fb062b3c6
+    GitHub-Last-Rev: 8d53e71e2243c141d70d27a503d0f7e6dee64c3c
+    GitHub-Pull-Request: golang/go#54539
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424935
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
 
- doc/go1.22.html | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/net/http/client.go      |  4 ++--
+ src/net/http/client_test.go | 29 ++++++++++++++++++++++++-----
+ src/net/http/transport.go   | 10 +++++++---
+ 3 files changed, 33 insertions(+), 10 deletions(-)

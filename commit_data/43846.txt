@@ -1,24 +1,20 @@
-commit 8bbd8294d01b66bf47514dee94d3c4341566e357
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Nov 19 13:26:51 2020 -0500
+commit daae72e88e39cbc34659457b4a91b483f88ae19b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 24 09:43:49 2020 -0700
 
-    cmd/go/internal/work: remove a redundant call to modload.LoadedModules
+    cmd/compile: refactor out eqstring
     
-    The modload.EditBuildList call added in CL 270980 already ensures that
-    installMod does not require a newer version of itself, so the condition
-    that this loop is checking for is redundant.
+    Refactor out creating the two Nodes needed to check string equality.
+    Preliminary work to other optimizations.
     
-    (I had meant for this change to be included in CL 270980, but
-    apparently somehow reverted it prior to mailing.)
+    Passes toolstash-check.
     
-    For #36460
-    
-    Change-Id: I4dd746b927f7012d950187cac9c510cd6fec8fd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271646
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I72e824dac904e579b8ba9a3669a94fa1471112d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230204
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/build.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/compile/internal/gc/alg.go  | 26 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/walk.go | 19 ++++---------------
+ 2 files changed, 30 insertions(+), 15 deletions(-)

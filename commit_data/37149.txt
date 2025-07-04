@@ -1,30 +1,24 @@
-commit 4c8b09e9183390d6ab80d3f53a9fe5f6ace92f06
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Wed Oct 24 21:22:00 2018 -0400
+commit 9a97a2aae9e16ad9cd5fbed7c7ab8a10fe6f2673
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 2 16:48:29 2018 -0700
 
-    crypto/tls: rewrite some messages with golang.org/x/crypto/cryptobyte
+    cmd/go: add ForceLibrary to build hash
     
-    As a first round, rewrite those handshake message types which can be
-    reused in TLS 1.3 with golang.org/x/crypto/cryptobyte. All other types
-    changed significantly in TLS 1.3 and will require separate
-    implementations. They will be ported to cryptobyte in a later CL.
+    When a command has a test that is not in package main, the main
+    package is built as a library, with ForceLibrary set. It can of course
+    also be built as an ordinary main package. If we don't record that fact
+    in the hash, then both variants of the command will use the same hash,
+    which causes a GODEBUG=gocacheverify=1 failure. It also seems unsafe
+    although it's not clear to me whether it can cause an actual failure.
     
-    The only semantic changes should be enforcing the random length on the
-    marshaling side, enforcing a couple more "must not be empty" on the
-    unmarshaling side, and checking the rest of the SNI list even if we only
-    take the first.
+    Along with CL 121941,
+    Fixes #25666
     
-    Change-Id: Idd2ced60c558fafcf02ee489195b6f3b4735fe22
-    Reviewed-on: https://go-review.googlesource.com/c/144115
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I115ad249012f30fbe45cd0c41da86adc295fe4b2
+    Reviewed-on: https://go-review.googlesource.com/121942
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/conn.go                    |    4 +-
- src/crypto/tls/handshake_client.go        |    6 +-
- src/crypto/tls/handshake_messages.go      | 1076 +++++++++++------------------
- src/crypto/tls/handshake_messages_test.go |   15 +-
- src/crypto/tls/handshake_server.go        |    2 +-
- src/crypto/tls/handshake_server_test.go   |   24 +-
- src/go/build/deps_test.go                 |    2 +-
- 7 files changed, 450 insertions(+), 679 deletions(-)
+ src/cmd/go/internal/work/exec.go | 3 +++
+ 1 file changed, 3 insertions(+)

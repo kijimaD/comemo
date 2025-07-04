@@ -1,16 +1,20 @@
-commit be08ddbfcd855fd13cf80497921ae53d2b64a7b1
-Author: Sam Whited <sam@samwhited.com>
-Date:   Fri Oct 13 22:28:57 2017 -0500
+commit e9348ab4e9c8c189036ef405d73528ca50a6f785
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Jul 25 21:44:11 2017 +0900
 
-    encoding/xml: don't panic when custom Unmarshaler sees StartElement
+    runtime: move mincore from stubs.go to os_linux.go
     
-    Change-Id: I90aa0a983abd0080f3de75d3340fdb15c1f9ca35
-    Reviewed-on: https://go-review.googlesource.com/70891
+    Although mincore is declared in stubs.go, mincore isn't used by any
+    OSes except linux. Move it to os_linux.go and clean up unused code.
+    
+    Change-Id: I6cfb0fed85c0317a4d091a2722ac55fa79fc7c9a
+    Reviewed-on: https://go-review.googlesource.com/54910
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Sam Whited <sam@samwhited.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/vet/all/whitelist/all.txt |  1 +
- src/encoding/xml/xml.go           |  6 +++---
- src/encoding/xml/xml_test.go      | 23 +++++++++++++++++++++++
- 3 files changed, 27 insertions(+), 3 deletions(-)
+ src/runtime/os_linux.go        |  2 ++
+ src/runtime/stubs.go           |  1 -
+ src/runtime/sys_darwin_arm.s   | 10 ----------
+ src/runtime/sys_darwin_arm64.s |  1 -
+ 4 files changed, 2 insertions(+), 12 deletions(-)

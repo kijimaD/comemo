@@ -1,14 +1,17 @@
-commit a33b522485e263520d969a52df93e7df448f6f0f
-Author: ALTree <alb.donizetti@gmail.com>
-Date:   Sun Aug 2 17:59:31 2015 +0200
+commit 66130907d1483f851b514ab564c64fe1d1fceec6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 24 17:31:57 2015 -0400
 
-    doc: update install from source instructions for go1.5
+    cmd/compile: handle copy in escape analysis
     
-    Fixes #11983
+    Somehow we missed this!
+    Fixes #11387.
     
-    Change-Id: I5ee930314a43356f5be31d758d90d7ddcafc7b37
-    Reviewed-on: https://go-review.googlesource.com/12908
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Ida08fe52eff7da2ef7765b4cf35a39a301420c43
+    Reviewed-on: https://go-review.googlesource.com/11460
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/install-source.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  3 +++
+ test/escape2.go                    | 12 ++++++++++--
+ test/escape2n.go                   | 12 ++++++++++--
+ 3 files changed, 23 insertions(+), 4 deletions(-)

@@ -1,16 +1,20 @@
-commit 894d24d617bb72d6e1bed7b143f9f7a0ac16b844
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Jul 7 16:33:39 2023 -0400
+commit 62125c9b790c9dc62ab6b638286150a16024d40e
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 2 08:26:23 2022 -0500
 
-    src/database/sql: run gofmt
+    cmd/compile: remove branch in atomicCas{32,64} sequence on ppc64x.
     
-    Run gofmt on a source file.
+    This removes one of the branches in the atomicCas sequences for
+    ppc64/ppc64le.
     
-    Change-Id: I180d5cc7425fc5d8e9cf63005ac692f361beb1ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/508497
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Change-Id: Ibb46fbfdce052889c69e3da298f28caff540d99b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422014
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
 
- src/database/sql/sql.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ppc64/ssa.go | 44 +++++++++++++++--------------------
+ 1 file changed, 19 insertions(+), 25 deletions(-)

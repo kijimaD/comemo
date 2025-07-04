@@ -1,16 +1,54 @@
-commit 2910c5b4a01a573ebc97744890a07c1a3122c67a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Mar 21 16:57:26 2020 -0700
+commit 97e497b2537d0d9588e52bb0c20df59604e6f098
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 16 21:42:18 2019 -0400
 
-    cmd/go: fix function name in comment
+    [dev.link] cmd: reference symbols by name when linking against Go shared library
     
-    Fixes #37991
+    When building a program that links against Go shared libraries,
+    it needs to reference symbols defined in the shared library. At
+    compile time, we don't know where the shared library boundary is.
+    If we reference a symbol in package p by index, and package p is
+    actually part of a shared library, we cannot resolve the index at
+    link time, as the linker doesn't see the object file of p.
     
-    Change-Id: Ica58223f8564ec5d501d5b90b4258ffb78c42af1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224587
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    So when linking against Go shared libraries, always use named
+    reference for now.
+    
+    To do this, the compiler needs to know whether we will be linking
+    against Go shared libraries. The -dynlink flag kind of indicates
+    that (as the document says), but currently it is actually
+    overloaded: it is also used when building a plugin or a shared
+    library, which is self-contained (if -linkshared is not otherwise
+    specified) and could use index for symbol reference. So we
+    introduce another compiler flag, -linkshared, specifically for
+    linking against Go shared libraries. The go command will pass
+    this flag if its -linkshared flag is specified
+    ("go build -linkshared").
+    
+    There may be better way to handle this. For example, we can
+    put the symbol indices in a special section in the shared library
+    that the linker can read. Or we can generate some per-package
+    description file to include the indices. (Currently we generate
+    a .shlibname file for each package that is included in a shared
+    library, which contains the path of the library. We could
+    consider extending this.) That said, this CL is a stop-gap
+    solution. And it is no worse than the old object files.
+    
+    If we were to redesign the build system so that the shared
+    library boundary is known at compile time, we could use indices
+    for symbol references that do not cross shared library boundary,
+    as well as doing other things better.
+    
+    Change-Id: I9c02aad36518051cc4785dbe25c4b4cef8f3faeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201818
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/str/path.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/main.go | 1 +
+ src/cmd/go/alldocs.go               | 4 ++--
+ src/cmd/go/internal/work/build.go   | 4 ++--
+ src/cmd/go/internal/work/init.go    | 1 +
+ src/cmd/internal/obj/link.go        | 1 +
+ src/cmd/internal/obj/sym.go         | 2 +-
+ 6 files changed, 8 insertions(+), 5 deletions(-)

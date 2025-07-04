@@ -1,53 +1,25 @@
-commit 69972aea74de6a0397a05281475d1ca006da7bb0
+commit 3c023f75a62f903273c688432f95e77fc945b6fb
 Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Apr 3 22:38:09 2017 +0200
+Date:   Tue Feb 28 21:21:45 2017 +0100
 
-    internal/cpu: new package to detect cpu features
+    strings: fix handling of invalid UTF-8 sequences in Map
     
-    Implements detection of x86 cpu features that
-    are used in the go standard library.
+    The new Map implementation introduced in golang.org/cl/33201
+    did not differentiate if an invalid UTF-8 sequence was decoded
+    or the RuneError rune. It would therefore always advance by
+    3 bytes (which is the length of the RuneError rune) instead
+    of 1 for an invalid sequences. This cl adds a check to correctly
+    determine the length of bytes needed to advance to the next rune.
     
-    Changes all standard library packages to use the new cpu package
-    instead of using runtime internal variables to check x86 cpu features.
+    Fixes #19330.
     
-    Updates: #15403
-    
-    Change-Id: I2999a10cb4d9ec4863ffbed72f4e021a1dbc4bb9
-    Reviewed-on: https://go-review.googlesource.com/41476
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1e7f9333f3ef6068ffc64015bb0a9f32b0b7111d
+    Reviewed-on: https://go-review.googlesource.com/37597
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/bytes/bytes_amd64.go               |  12 ++--
- src/cmd/dist/deps.go                   | 123 +++++++++++++++++----------------
- src/cmd/vet/all/whitelist/amd64.txt    |   4 --
- src/crypto/sha1/sha1block_amd64.go     |   8 +--
- src/crypto/sha1/sha1block_amd64.s      |  17 -----
- src/crypto/sha256/sha256block_amd64.go |   9 +++
- src/crypto/sha256/sha256block_amd64.s  |   5 +-
- src/crypto/sha512/sha512block_amd64.go |   9 ++-
- src/crypto/sha512/sha512block_amd64.s  |  13 ----
- src/go/build/deps_test.go              |   4 +-
- src/hash/crc32/crc32_amd64.go          |  30 ++++----
- src/hash/crc32/crc32_amd64.s           |  30 --------
- src/hash/crc32/crc32_amd64p32.go       |  14 ++--
- src/hash/crc32/crc32_amd64p32.s        |  11 ---
- src/internal/cpu/cpu.go                |  32 +++++++++
- src/internal/cpu/cpu_arm.go            |   7 ++
- src/internal/cpu/cpu_arm64.go          |   7 ++
- src/internal/cpu/cpu_mips.go           |   7 ++
- src/internal/cpu/cpu_mips64.go         |   7 ++
- src/internal/cpu/cpu_mips64le.go       |   7 ++
- src/internal/cpu/cpu_mipsle.go         |   7 ++
- src/internal/cpu/cpu_ppc64.go          |   7 ++
- src/internal/cpu/cpu_ppc64le.go        |   7 ++
- src/internal/cpu/cpu_s390x.go          |   7 ++
- src/internal/cpu/cpu_test.go           |  27 ++++++++
- src/internal/cpu/cpu_x86.go            |  59 ++++++++++++++++
- src/internal/cpu/cpu_x86.s             |  32 +++++++++
- src/math/floor_amd64.s                 |  15 +---
- src/math/floor_asm.go                  |   5 +-
- src/runtime/asm_amd64.s                |  21 ------
- src/strings/strings_amd64.go           |  12 ++--
- 31 files changed, 329 insertions(+), 226 deletions(-)
+ src/strings/strings.go      | 12 +++++++++++-
+ src/strings/strings_test.go | 13 +++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

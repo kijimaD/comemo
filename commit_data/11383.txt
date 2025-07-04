@@ -1,14 +1,12 @@
-commit ceb59b069e0dfa54be9d57ece3c966da737d8be9
+commit 79d2c570438832a09843a01b75b569cf9f31b2bc
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 25 14:46:10 2012 -0500
+Date:   Wed Jan 25 14:32:10 2012 -0500
 
-    codereview: more fixes
+    codereview: support for subrepositories
     
-    Python and Mercurial are a matched pair.
-    
-    R=adg
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5570065
+    https://golang.org/cl/5564054
 
- lib/codereview/codereview.py | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ lib/codereview/codereview.py | 61 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 43 insertions(+), 18 deletions(-)

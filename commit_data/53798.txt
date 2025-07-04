@@ -1,26 +1,22 @@
-commit a8a6f90a237a19b32bd82dc4c314859e24f8cd95
-Author: root <vishwanatha.hd@ibm.com>
-Date:   Thu Feb 23 06:44:23 2023 +0000
+commit 5063056bd19698a92da3fd69c34ee784af62b03e
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 16 13:04:16 2022 -0400
 
-    math: support to handle huge arguments in tan function on s390x
+    runtime: drop redundant argument to getArgInfo
     
-    Currently on s390x, tan assembly implementation is not handling huge arguments at all. This change is to check for large arguments and revert back to native go implantation from assembly code in case of huge arguments.
+    The f funcInfo argument is always the same as frame.fn, so we don't
+    need to pass it. I suspect that was there to make the signatures of
+    getArgInfoFast and getArgInfo more similar, but it's not necessary.
     
-    The changes are implemented in assembly code to get better performance over native go implementation.
+    For #54466.
     
-    Benchmark details of tan function with table driven inputs are updated as part of the issue link.
-    
-    Fixes #37854
-    
-    Change-Id: I4e5321e65c27b7ce8c497fc9d3991ca8604753d2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470595
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idc717f4df09e97cad49d52c5b7edf28090908cba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424255
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/math/tan_s390x.s | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/runtime/traceback.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

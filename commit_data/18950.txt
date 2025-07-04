@@ -1,17 +1,24 @@
-commit 3eb591ff76c9edb8a9ed6466712be425269f8739
-Author: David Barnett <dbarnett@google.com>
-Date:   Wed Mar 26 13:51:16 2014 +1100
+commit 4f1aecf2c408da2ddf6fd2b4542b9fe1d239c5e3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 25 02:56:37 2014 +0900
 
-    misc/vim: Disable automatic line wrapping by textwidth.
+    net: deflake TestTCPConcurrentAccept
     
-    If someone configures a 'textwidth' in go files, vim will by default insert
-    newlines into long lines as you type, which breaks syntax and doesn't really
-    make sense for go code. This fixes the default.
+    Some platform that implements inp_localgroup-like shared internet
+    protocol control block group looks a bit sensitive about transport
+    layer protocol's address:port reuse. Sometimes it rejects a TCP SYN
+    packet using TCP RST, and sometimes silence.
     
-    LGTM=dsymonds
-    R=golang-codereviews, gobot, dsymonds
+    For now, until test case refactoring, we admit few Dial failures on
+    TestTCPConcurrentAccept as a workaround.
+    
+    Update #7400
+    Update #7541
+    
+    LGTM=jsing
+    R=jsing
     CC=golang-codereviews
-    https://golang.org/cl/76890046
+    https://golang.org/cl/75920043
 
- misc/vim/ftplugin/go.vim | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/net/tcp_test.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

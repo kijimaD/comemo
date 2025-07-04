@@ -1,24 +1,18 @@
-commit 5f04ef752bc9485821eae8a5b248b9d39d57989c
-Author: mstmdev <mstmdev@gmail.com>
-Date:   Tue Sep 12 11:49:41 2023 +0000
+commit c83d4fba0791927e9a0b66729ee886e0f8d15249
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 14 16:19:11 2022 -0700
 
-    io/fs, path/filepath, cmd/gofmt: replace statDirEntry with fs.FileInfoToDirEntry
+    os/signal: pass *int32 to ioctl that expects pid_t
     
-    Change-Id: Ie914367314ca72fab34c4d4529755dea853cf325
-    GitHub-Last-Rev: bc61665d33d7f15da371dcfb90c132fab25fc233
-    GitHub-Pull-Request: golang/go#62342
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523876
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Fixes #56233
+    
+    Change-Id: I1cf176bc2f39c5e41d5a390ec6893426cdd39be0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443175
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/gofmt/long_test.go     | 15 +--------------
- src/io/fs/walk.go              | 15 +--------------
- src/path/filepath/path.go      | 15 +--------------
- src/path/filepath/path_test.go | 15 +--------------
- 4 files changed, 4 insertions(+), 56 deletions(-)
+ src/os/signal/signal_cgo_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

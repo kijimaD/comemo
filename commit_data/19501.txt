@@ -1,13 +1,16 @@
-commit 32a5c898e3bd7d3abf1b6f6dc5ef4a23c5d32d8f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 5 16:40:09 2014 -0400
+commit 81a93ef24a502f74f542845b3a35f22a573f6876
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 5 21:08:28 2014 +0400
 
-    codereview: do not add defaultcc for private CLs
+    doc: fix happens-before rules for buffered channels
+    The current wording is reversed in 2 places.
+    Not sure how it got 4 LGTMs (mine was there as well).
+    Update #6242.
     
-    LGTM=r
-    R=r, 0xjnml, bradfitz, iant
+    LGTM=dan.kortschak, r, rsc
+    R=golang-codereviews, 0xjnml, dan.kortschak, r, rsc
     CC=golang-codereviews
-    https://golang.org/cl/103070046
+    https://golang.org/cl/101980047
 
- lib/codereview/codereview.py | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go_mem.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

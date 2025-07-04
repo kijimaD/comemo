@@ -1,21 +1,71 @@
-commit 0375edd901f2807af29af95f60a06065c489708c
-Author: Damien Neil <dneil@google.com>
-Date:   Tue May 20 17:02:11 2025 -0700
+commit 89f7805c2e1ec3a1f708957ca8f43b04f3f2834f
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 28 14:26:34 2023 +0000
 
-    os: skip TestOpenFileCreateExclDanglingSymlink when no symlinks
+    cmd/compile/internal: merge stack slots for selected local auto vars
     
-    Skip this test on plan9, and any other platform that doesn't
-    have symlinks.
+    Preliminary compiler support for merging/overlapping stack
+    slots of local variables whose access patterns are disjoint.
     
-    Fixes #73729
+    This patch includes changes in AllocFrame to do the actual
+    merging/overlapping based on information returned from a new
+    liveness.MergeLocals helper. The MergeLocals helper identifies
+    candidates by looking for sets of AUTO variables that either A) have
+    the same size and GC shape (if types contain pointers), or B) have the
+    same size (but potentially different types as long as those types have
+    no pointers). Variables must be greater than (3*types.PtrSize) in size
+    to be considered for merging.
     
-    Change-Id: I8052db24ed54c3361530bd4f54c96c9d10c4714c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674697
+    After forming candidates, MergeLocals collects variables into "can be
+    overlapped" equivalence classes or partitions; this process is driven
+    by an additional liveness analysis pass. Ideally it would be nice to
+    move the existing stackmap liveness pass up before AllocFrame
+    and "widen" it to include merge candidates so that we can do just a
+    single liveness as opposed to two passes, however this may be difficult
+    given that the merge-locals liveness has to take into account
+    writes corresponding to dead stores.
+    
+    This patch also required a change to the way ssa.OpVarDef pseudo-ops
+    are generated; prior to this point they would only be created for
+    variables whose type included pointers; if stack slot merging is
+    enabled then the ssagen code creates OpVarDef ops for all auto vars
+    that are merge candidates.
+    
+    Note that some temporaries created late in the compilation process
+    (e.g. during ssa backend) are difficult to reason about, especially in
+    cases where we take the address of a temp and pass it to the runtime.
+    For the time being we mark most of the vars created post-ssagen as
+    "not a merge candidate".
+    
+    Stack slot merging for locals/autos is enabled by default if "-N" is
+    not in effect, and can be disabled via "-gcflags=-d=mergelocals=0".
+    
+    Fixmes/todos/restrictions:
+    - try lowering size restrictions
+    - re-evaluate the various skips that happen in SSA-created autotmps
+    
+    Fixes #62737.
+    Updates #65532.
+    Updates #65495.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: Ibc22e8a76c87e47bc9fafe4959804d9ea923623d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553055
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Alan Donovan <adonovan@google.com>
-    Commit-Queue: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Richard Miller <millerresearch@gmail.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/os/os_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/base/debug.go             |   4 +
+ src/cmd/compile/internal/base/flag.go              |   4 +
+ src/cmd/compile/internal/base/hashdebug.go         |   7 +-
+ src/cmd/compile/internal/ir/name.go                |   3 +
+ src/cmd/compile/internal/liveness/mergelocals.go   | 691 +++++++++++++++++++++
+ src/cmd/compile/internal/liveness/plive.go         |  24 +-
+ src/cmd/compile/internal/ssa/check.go              |   5 +-
+ src/cmd/compile/internal/ssa/func.go               |  22 +-
+ src/cmd/compile/internal/ssagen/pgen.go            |  69 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |   9 +-
+ src/cmd/compile/internal/test/mergelocals_test.go  | 184 ++++++
+ .../test/testdata/mergelocals/integration.go       |  83 +++
+ src/cmd/compile/internal/walk/temp.go              |   4 +-
+ test/fixedbugs/bug385_64.go                        | 625 ++++++++++++-------
+ 14 files changed, 1512 insertions(+), 222 deletions(-)

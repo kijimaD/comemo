@@ -1,13 +1,12 @@
-commit d727d147c0c724e9d6489db86925dc61a5ddfd91
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 1 17:00:21 2013 -0700
+commit 83feea5af85c18fdea9d4038026bb8e06eab1149
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 1 14:31:42 2013 -0700
 
-    cmd/ld: fix another unsigned value causing bugs on Plan 9
-    "The usual conversions" bite again.
+    cmd/cgo: correct pragma name in comment
     
-    R=golang-dev, rsc
+    R=rsc, alexb, minux.ma, bradfitz, i.caught.air
     CC=golang-dev
-    https://golang.org/cl/9103044
+    https://golang.org/cl/9082043
 
- src/cmd/ld/data.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/cgo/doc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

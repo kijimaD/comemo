@@ -1,12 +1,16 @@
-commit e4389c1d3058b90fac40bb5bc7578f7e7d580899
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Thu Apr 12 22:16:31 2012 -0300
+commit a662d3d9a757c0556f27d650a9dfe3bf0f2db1bf
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 13 09:28:37 2012 +1000
 
-    time: panic if UnixNano is out of range
+    fmt: fix crash of %b on huge negative int64
+    The buffer had 64 bytes but needs one more for the sign.
     
-    R=golang-dev, remyoudompheng, dsymonds, gustavo, dchest, r, rsc
+    Fixes #3510.
+    
+    R=golang-dev, dave, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5985059
+    https://golang.org/cl/6011057
 
- src/pkg/time/time.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/pkg/fmt/fmt_test.go | 3 +++
+ src/pkg/fmt/format.go   | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

@@ -1,24 +1,21 @@
-commit 3b2f67a59702e4881625cb967f853ef56b0c4828
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jun 24 20:59:18 2020 -0700
+commit 3743d2127040c283114a247da1319c3155a81f10
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 9 10:57:46 2020 +0100
 
-    cmd/compile: remove check that Zero's arg has the correct base type
+    runtime: re-enable TestArenaCollision on darwin in race mode
     
-    It doesn't have to. The type in the aux field is authoritative.
-    There are cases involving casting from interface{} where pointers
-    have a placeholder pointer type (because the type is not known when
-    the IData op is generated).
+    Go 1.14 will drop support for macOS 10.10, see #23011
     
-    The check was introduced in CL 13447.
+    This reverts CL 155097
     
-    Fixes #39459
+    Updates #26475
+    Updates #29340
     
-    Change-Id: Id77a57577806a271aeebd20bea5d92d08ee7aa6b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/239817
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I64d0275141407313b73068436ee81d13eacc4c76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214058
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/deadstore.go | 16 +++++++---------
- test/fixedbugs/issue39459.go              | 22 ++++++++++++++++++++++
- 2 files changed, 29 insertions(+), 9 deletions(-)
+ src/runtime/malloc_test.go | 8 --------
+ 1 file changed, 8 deletions(-)

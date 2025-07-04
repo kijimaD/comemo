@@ -1,29 +1,12 @@
-commit db8d5b7608fc1ad30d39b1cbec1c9c0c2c1e089d
-Author: Aram Hăvărneanu <aram@mgk.ro>
-Date:   Tue Mar 17 13:50:40 2015 +0100
+commit 607d5158c18617b9f814291c4414f9bb922e0065
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 13 15:29:09 2015 -0700
 
-    net: try to fix setKeepAlivePeriod on Solaris
+    test: add gcc65755.go for http://gcc.gnu.org/PR65755
     
-    Unfortunately Oracle Solaris does not have TCP_KEEPIDLE and
-    TCP_KEEPINTVL. TCP_KEEPIDLE is equivalent to TCP_KEEPALIVE_THRESHOLD,
-    but TCP_KEEPINTVL does not have a direct equivalent, so we don't set
-    TCP_KEEPINTVL any more.
-    
-    Old Darwin versions also lack TCP_KEEPINTVL, but the code tries to set
-    it anyway so that it works on newer versions. We can't do that because
-    Oracle might assign the number illumos uses for TCP_KEEPINTVL to a
-    constant with a different meaning.
-    
-    Unfortunately there's nothing we can do if we want to support both
-    illumos and Oracle Solaris with the same GOOS.
-    
-    Updates #9614.
-    
-    Change-Id: Id39eb5147f7afa8e951f886c0bf529d00f0e1bd4
-    Reviewed-on: https://go-review.googlesource.com/7690
+    Change-Id: Ic35dff4c9a7fc6716ef9d5553a7b1769bed9be01
+    Reviewed-on: https://go-review.googlesource.com/8892
     Reviewed-by: Minux Ma <minux@golang.org>
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
 
- src/net/tcpsockopt_solaris.go | 35 +++++++++++++++++++++++++++++++++++
- src/net/tcpsockopt_unix.go    |  2 +-
- 2 files changed, 36 insertions(+), 1 deletion(-)
+ test/fixedbugs/gcc65755.go | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

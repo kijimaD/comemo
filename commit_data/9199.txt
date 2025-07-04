@@ -1,13 +1,12 @@
-commit 0871af25aaa1a35690afedd5ae74fd63ce351612
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Mon Jul 25 12:25:44 2011 -0400
+commit 2aa2ceb8730f5e0fff792b43a091a6fa2cfa8e0f
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Mon Jul 25 12:25:41 2011 -0400
 
-    ld: don't skip first 2 symbols in ldpe.
-    some object files don't has file name symbol.
+    runtime: Plan 9, skip calling runtime·ldt0setup.
     
-    R=golang-dev, lucio.dere, rsc
-    CC=golang-dev
-    https://golang.org/cl/4814051
+    R=golang-dev
+    CC=alex.brainman, golang-dev
+    https://golang.org/cl/4816049
 
- src/cmd/ld/ldpe.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/runtime/386/asm.s | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

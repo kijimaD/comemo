@@ -1,17 +1,31 @@
-commit d3deb2c359ec1d3b9fbfdfa224c0f03ecdde2c02
-Author: wangyuntao <ytcoode@gmail.com>
-Date:   Tue Aug 17 03:24:15 2021 +0000
+commit 2a9036fe7e3c8f62bf80c857534dc142a4248f37
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Sep 11 11:11:08 2020 -0400
 
-    cmd/compile: fix typos
+    [dev.fuzz] testing: add script tests for fuzz targets
     
-    Change-Id: I88a3e69e232bf94296fe97621c5d395fc1296bbb
-    GitHub-Last-Rev: f1cc29dc287eb02881fead0b815e1b45e23adfa4
-    GitHub-Pull-Request: golang/go#47482
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/338751
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Tests include:
+      - matching fuzz targets
+      - matching fuzz targets with -fuzz
+      - chatty tests with -v
+      - failing tests
+      - skipped tests
+      - passing tests
+      - panic in tests
+    
+    Change-Id: I54e63c8891b45cfae7212924e067e790f25ab411
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254360
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/escape/graph.go | 2 +-
- src/cmd/compile/internal/ir/expr.go      | 2 +-
- src/cmd/compile/internal/ir/stmt.go      | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/load/test.go                |   1 +
+ src/cmd/go/internal/test/test.go                |   8 ++
+ src/cmd/go/testdata/script/test_fuzz.txt        |  56 +++++++++
+ src/cmd/go/testdata/script/test_fuzz_chatty.txt |  64 +++++++++++
+ src/cmd/go/testdata/script/test_fuzz_match.txt  |  54 +++++++++
+ src/testing/fuzz.go                             | 146 ++++++++++++++++--------
+ src/testing/testing.go                          |   2 +-
+ 7 files changed, 283 insertions(+), 48 deletions(-)

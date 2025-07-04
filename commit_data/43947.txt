@@ -1,18 +1,17 @@
-commit 73580645087b84c3470943155e5e94eacf83bb86
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Dec 3 17:29:39 2020 -0500
+commit d23cd597aac567a048f4d87a7d6d993bf59ddffd
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 29 17:53:40 2020 -0400
 
-    doc/go1.16: preannounce dropping macOS 10.12 support
+    [dev.link] cmd/link: remove sym.Symbols.Newsym
     
-    Go 1.16 will be the last to support macOS 10.12 Sierra.
-    Go 1.17 will require macOS 10.13 High Sierra.
+    No longer needed.
     
-    For #23011.
-    
-    Change-Id: I80052bdde4d9f1c5d71b67b85f65fb0b40856750
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/275299
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If259a956bc8edb2eb94583b06840b52344cb84be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231037
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.16.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/link/internal/loader/loader.go | 6 ------
+ src/cmd/link/internal/sym/symbols.go   | 5 -----
+ 2 files changed, 11 deletions(-)

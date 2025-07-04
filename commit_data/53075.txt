@@ -1,20 +1,17 @@
-commit bf8571c5d6ce823e3ad7491429cf26d3a74461aa
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri May 5 13:22:02 2023 +0200
+commit 53a4152d478d75ef4b71e428b9d69ed54144081f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 24 14:34:28 2022 -0700
 
-    crypto/ed25519,crypto/rsa: make Equal methods constant time
+    os/exec: clarify that Wait must be called
     
-    Fixes #53849
-    Updates #57752
+    Fixes #52580
     
-    Change-Id: I055564f31a47c79565b82bf9844fcf626989b295
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492955
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Ib2dd8a793b9c6fcb083abb3f7c346f6279adefc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414056
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/crypto/ed25519/ed25519.go |  5 +++--
- src/crypto/rsa/rsa.go         | 12 +++++++++---
- 2 files changed, 12 insertions(+), 5 deletions(-)
+ src/os/exec/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

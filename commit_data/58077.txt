@@ -1,32 +1,19 @@
-commit 3e7cb78800c662b36f9aebf9312ab25b42c2da2a
-Author: Austin Clements <austin@google.com>
-Date:   Mon Nov 18 14:56:43 2024 -0500
+commit 33d3625bf8d0aea69c1a64f8da2ff4efe071d7b0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Sep 25 15:11:04 2023 +0000
 
-    cmd/go: re-enable build JSON from go test -json, now with GODEBUG
+    cmd/go/internal/vcs: don’t new errors ahead of time in gitRemoteRepo
     
-    This re-enables the behavior of CL 536399 (by effectively reverting CL
-    628955), so now go test -json again includes build output and failures
-    as JSON rather than text.
+    Also make 'cmd' a const for it is in fact immutable.
     
-    However, since this behavior is clearly enough to trip up some build
-    systems, this CL includes a GODEBUG=gotestjsonbuildtext that can be
-    set to 1 to revert to the old behavior.
-    
-    Fixes #70402.
-    Updates #62067.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-darwin-arm64_13,gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I84e778cd844783dacfc83433e391b5ccb5925127
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629335
+    Change-Id: I3373daa1775e863a378355a355325a7fbdf90485
+    GitHub-Last-Rev: f6698174f53988274c75af83acb267741676b712
+    GitHub-Pull-Request: golang/go#63155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530395
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- doc/godebug.md                                 |  8 ++++++++
- doc/next/3-tools.md                            | 10 +++++++---
- src/cmd/go/internal/test/testflag.go           | 12 +++++++++---
- src/cmd/go/testdata/script/test_json_build.txt | 15 ++++++++++++---
- src/internal/godebugs/table.go                 |  1 +
- src/runtime/metrics/doc.go                     |  5 +++++
- 6 files changed, 42 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/vcs/vcs.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

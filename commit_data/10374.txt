@@ -1,14 +1,14 @@
-commit 40afe586920c0d5e4f81dbf46339790001cf30ae
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Nov 14 10:08:04 2011 +0100
+commit 45eef04ed462e52389195e960960bfbf40a7ec4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 14 01:23:27 2011 -0500
 
-    gc: fix newlines in %+N
+    syscall: fix linux arm build
     
-    fixes #2442
+    Regenerate system call file.
     
-    R=rsc
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5370066
+    https://golang.org/cl/5371087
 
- src/cmd/gc/fmt.c | 25 +++++++++++++------------
- 1 file changed, 13 insertions(+), 12 deletions(-)
+ src/pkg/syscall/zsyscall_linux_arm.go | 744 ++++++++++++++++++++++------------
+ 1 file changed, 496 insertions(+), 248 deletions(-)

@@ -1,37 +1,22 @@
-commit a2a3ace51aa0600765d44a71f47fd830fa6217c5
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jun 16 14:46:24 2017 -0400
+commit baa0fdd0934cb9dca88ea0effb46cf42089c9ccd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 21 10:15:14 2017 -0700
 
-    testing: harmonize handling of prefix-matched benchmarks
+    cmd/compile/internal/gc: fix liveness regression
     
-    If you have BenchmarkX1 with sub-benchmark Y
-    and you have BenchmarkX2 with no sub-benchmarks,
-    then
+    During AllocFrame, we drop unused variables from Curfn.Func.Dcl, but
+    there might still be OpVarFoo instructions that reference those
+    variables. This wasn't a problem though because gvardefx used to emit
+    ANOP for unused variables instead of AVARFOO.
     
-            go test -bench=X/Y
+    As an easy fix, if we see OpVarFoo (or OpKeepAlive) referencing an
+    unused variable, we can ignore it.
     
-    runs BenchmarkX1 once with b.N=1 (to find out about Y)
-    and then not again, because it has sub-benchmarks,
-    but arguably also because we're interested in Y.
+    Fixes #19632.
     
-    In contrast, it runs BenchmarkX2 in full, even though clearly
-    that is not relevant to the match X/Y. We do have to run X2
-    once with b.N=1 to probe for having X2/Y, but we should not
-    run it with larger b.N.
-    
-    Fixes #20589.
-    
-    Change-Id: Ib86907e844f34dcaac6cd05757f57db1019201d0
-    Reviewed-on: https://go-review.googlesource.com/46031
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: I4e9ffabdb4058f7cdcc4663b540f5a5a692daf8b
+    Reviewed-on: https://go-review.googlesource.com/38400
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/go_test.go                        | 58 ++++++++++++++++++++++++
- src/cmd/go/testdata/src/testregexp/x_test.go | 17 +++++++
- src/cmd/go/testdata/src/testregexp/z_test.go | 19 ++++++++
- src/testing/benchmark.go                     | 11 +++--
- src/testing/match.go                         |  9 ++--
- src/testing/match_test.go                    | 67 ++++++++++++++--------------
- src/testing/sub_test.go                      |  2 -
- src/testing/testing.go                       |  2 +-
- 8 files changed, 142 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/gc/plive.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

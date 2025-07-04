@@ -1,25 +1,16 @@
-commit 1b9f168f73c44b2743338a16e8122a13203e8e9b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 14 12:45:18 2016 -0700
+commit 99ed71a02c07a073a82a06c8f3a975a9540e962e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 18 12:16:05 2015 -0500
 
-    cmd/compile: use int for field index
+    database/sql: guard against panics in driver.Stmt implementation
     
-    All of a struct's fields have to fit into memory anyway, so index them
-    with int instead of int64.  This also makes it nicer for
-    cmd/compile/internal/gc to reuse the same NumFields function.
+    For #13677, but there is more to do.
     
-    Change-Id: I210be804a0c33370ec9977414918c02c675b0fbe
-    Reviewed-on: https://go-review.googlesource.com/20691
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id1af999dc972d07cdfc771e5855a1a7dca47ca96
+    Reviewed-on: https://go-review.googlesource.com/18046
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             | 26 ++++++-------
- src/cmd/compile/internal/gc/subr.go            |  9 -----
- src/cmd/compile/internal/gc/type.go            | 21 +++++++---
- src/cmd/compile/internal/gc/typecheck.go       | 11 ------
- src/cmd/compile/internal/gc/walk.go            |  8 ----
- src/cmd/compile/internal/ssa/decompose.go      | 12 +++---
- src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go |  4 +-
- src/cmd/compile/internal/ssa/type.go           | 54 +++++++++++++-------------
- src/cmd/compile/internal/ssa/type_test.go      | 48 +++++++++++------------
- 10 files changed, 88 insertions(+), 107 deletions(-)
+ src/database/sql/fakedb_test.go | 27 ++++++++++++++++++++++++++-
+ src/database/sql/sql.go         | 14 +++++++++-----
+ src/database/sql/sql_test.go    | 40 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 6 deletions(-)

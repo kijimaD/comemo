@@ -1,18 +1,21 @@
-commit f367fea83a95c0845ed4733ab1d6ada9ba3087c7
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Wed Apr 17 00:58:46 2024 +0000
+commit 7e66a8ad400792bcf8049313a3142496ce5fd9a9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 18 14:48:36 2023 -0700
 
-    cmd/covdata: close cpu and mem profile
+    net: check for NUL bytes in strings passed to C functions
     
-    Change-Id: Iaf14989eb2981f724c4091f992ed99687ce3a60e
-    GitHub-Last-Rev: 6e6c82bb8fba5c32c24eafb50eec6751a93d09f9
-    GitHub-Pull-Request: golang/go#66852
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579255
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Than McIntosh <thanm@google.com>
+    Use syscall.BytePtrFromString and syscall.ByteSliceFromString.
+    
+    Change-Id: I9409ecd93aaca82390bf3f34be56ec354148a241
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486015
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/covdata/covdata.go | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ src/net/cgo_unix.go         | 22 ++++++++++++++--------
+ src/net/cgo_unix_cgo.go     |  1 -
+ src/net/cgo_unix_syscall.go |  6 ------
+ 3 files changed, 14 insertions(+), 15 deletions(-)

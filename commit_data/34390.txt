@@ -1,15 +1,20 @@
-commit a375a6b3638f99c33dfc95a398a0e6fd8b5700df
-Author: Michael Fraenkel <michael.fraenkel@gmail.com>
-Date:   Sun Feb 25 14:26:24 2018 -0500
+commit a5868a47c6777de4a4592903ba8763740cde3c49
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 24 13:24:14 2017 -0700
 
-    cmd/compile: convert untyped bool during walkCases
+    cmd/internal/obj/x86: move MOV->XOR rewriting into compiler
     
-    Updates #23834.
+    Fixes #20986.
     
-    Change-Id: I1789525a992d37aae9e9b69c1e9d91437d3d0d3b
-    Reviewed-on: https://go-review.googlesource.com/97001
+    Change-Id: Ic3cf5c0ab260f259ecff7b92cfdf5f4ae432aef3
+    Reviewed-on: https://go-review.googlesource.com/73072
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/swt.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/amd64/ssa.go | 17 ++++++++++++-----
+ src/cmd/compile/internal/x86/ssa.go   | 17 ++++++++++++-----
+ src/cmd/internal/obj/x86/a.out.go     |  3 +--
+ src/cmd/internal/obj/x86/asm6.go      | 19 +++----------------
+ src/math/big/arith_amd64.s            |  2 --
+ 5 files changed, 28 insertions(+), 30 deletions(-)

@@ -1,14 +1,23 @@
-commit ad12ee3006ed8d0552d14dcb623de9af325c6758
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Dec 13 11:11:11 2019 -0500
+commit 5ff12f6269c5851cfb762357d12e9ed1e3d582e9
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat May 25 14:23:34 2019 +0200
 
-    doc: fix missing closing tag in module documentation
+    net/url: use strings.IndexByte instead of strings.Index in split function
     
-    Updates #33637
+    Production profiling shows ~15% of url.Parse time being spend in the overhead
+    of calling strings.IndexByte through strings.Index instead of calling
+    strings.IndexByte directly.
     
-    Change-Id: If262d1501cf73b404361f832a2e3e17aaa0db78b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211299
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    name   old time/op  new time/op  delta
+    Split  15.5ns ± 2%  10.7ns ± 3%  -30.98%  (p=0.000 n=20+19)
+    
+    Change-Id: Ie25dd4afa93539a1335a91ab2a4a367f97bd3df0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178877
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/modules.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/url/url.go      | 20 ++++++++++----------
+ src/net/url/url_test.go |  9 +++++++++
+ 2 files changed, 19 insertions(+), 10 deletions(-)

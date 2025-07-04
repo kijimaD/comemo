@@ -1,24 +1,23 @@
-commit 07fc59199b9522bfe0d14f35c4391394efc336c9
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sat May 11 06:59:33 2024 +0000
+commit 8d5065ce6e09dcded85c32b7eb7768c6f7fd3b7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 8 13:39:27 2023 -0400
 
-    hash: use internal/byteorder
+    cmd: vendor golang.org/x/tools/cmd/bisect
     
-    Change-Id: I58c24a58a7b32d3f8d544509db04baac1ea1b56e
-    GitHub-Last-Rev: 7a648fda00ad30aa00d72013d9c6e22e207c31b2
-    GitHub-Pull-Request: golang/go#67318
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585015
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Vendoring for use with the internal/godebug test
+    and eventually the cmd/compile test as well.
+    
+    Change-Id: I3f7151949cff584705cb32ba39bf5de5cd45c3f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493597
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/hash/adler32/adler32.go        | 23 ++----------
- src/hash/crc32/crc32.go            | 29 ++++-----------
- src/hash/crc64/crc64.go            | 34 ++++--------------
- src/hash/fnv/fnv.go                | 74 +++++++++-----------------------------
- src/hash/maphash/maphash_purego.go | 18 +++-------
- 5 files changed, 36 insertions(+), 142 deletions(-)
+ src/cmd/tools/tools.go                             |  11 +
+ .../vendor/golang.org/x/tools/cmd/bisect/go119.go  |  13 +
+ .../vendor/golang.org/x/tools/cmd/bisect/go120.go  |  26 +
+ .../vendor/golang.org/x/tools/cmd/bisect/main.go   | 609 +++++++++++++++++++++
+ .../vendor/golang.org/x/tools/cmd/bisect/rand.go   |  20 +
+ .../golang.org/x/tools/internal/bisect/bisect.go   | 503 +++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   2 +
+ 7 files changed, 1184 insertions(+)

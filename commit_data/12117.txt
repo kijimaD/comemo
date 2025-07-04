@@ -1,12 +1,13 @@
-commit 9a26a7822eb54fc4d0316b4c57bf5b52124bfd92
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Feb 22 10:09:34 2012 +1100
+commit 5f2ecbff71a69d51e9e40d915433e372d07344e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 21 14:48:17 2012 -0800
 
-    godoc: fix playground url
+    text/tabwriter: fix documentation by adding an example.
     
-    R=golang-dev, gri
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/5685070
+    https://golang.org/cl/5685069
 
- doc/root.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/text/tabwriter/example_test.go | 38 ++++++++++++++++++++++++++++++++++
+ src/pkg/text/tabwriter/tabwriter.go    |  6 ------
+ 2 files changed, 38 insertions(+), 6 deletions(-)

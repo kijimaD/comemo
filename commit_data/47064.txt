@@ -1,23 +1,24 @@
-commit 5c4d7c50c7266bfbce3f43f04a0fb622b9e45805
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 25 21:43:07 2021 -0700
+commit 91cfbf39e45b130562bbc5b353aa041cfe315faa
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Feb 14 19:01:39 2021 +0100
 
-    cmd/compile/internal/types2: rename isNamed predicate to hasName
+    cmd/link: set .ctors COFF section to writable and aligned
     
-    isNamed(t) is easily confused with asNamed(t) != nil (e.g., we
-    have isPointer(t) that is defined as asPointer(t) != nil).
+    Without setting these flags, LLVM's LLD ignores the .ctors section when
+    merging objects.
     
-    This rename also helped clarifying a couple of places in the
-    assignability rules where it makes sense to simply look for
-    types that have names.
+    Updates #44250.
+    Updates #39326.
+    Updates #38755.
+    Updates #36439.
+    Updates #43800.
     
-    Change-Id: Ie995908613a26883ffe0562343d297a1e981e9ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358621
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I8766104508f7acd832088a590ee7d68afa0d6065
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291633
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/types2/operand.go                      | 9 ++++-----
- src/cmd/compile/internal/types2/predicates.go                   | 7 ++++---
- src/cmd/compile/internal/types2/testdata/spec/assignability.go2 | 8 +++++---
- src/cmd/compile/internal/types2/unify.go                        | 6 +++---
- 4 files changed, 16 insertions(+), 14 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

@@ -1,18 +1,22 @@
-commit 07f689420a552841270c6b751b0a890f6d27cd30
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Wed May 1 08:32:40 2019 -0700
+commit b875991a49ac6d323c9c52c889429eb3b1642ef7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 14 18:33:13 2018 +0000
 
-    misc/cgo/testcarchive: skip TestExtar on self-hosted iOS
+    net/http/httptest: don't register a flag unless it looks like it's in use
     
-    iOS cannot (directly) run shell scripts.
+    We shouldn't pollute people's flags with this debugging flag that was
+    never really meant to be public. It's certainly not documented.
     
-    Updates #31722
+    So keep it for now, but don't register it unless it looks like it's in
+    use (by looking at os.Args). Kinda gross, but less gross than before.
     
-    Change-Id: I69473e9339c50a77338d391c73b4e146bce3fa89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174700
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #28619
+    
+    Change-Id: I47498948a26a71ff36f9658a6d9dac73fd0a3016
+    Reviewed-on: https://go-review.googlesource.com/c/154217
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- misc/cgo/testcarchive/carchive_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/http/httptest/server.go | 28 +++++++++++++++++++++++-----
+ 1 file changed, 23 insertions(+), 5 deletions(-)

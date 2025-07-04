@@ -1,81 +1,21 @@
-commit beaf7f3282c2548267d3c894417cc4ecacc5d575
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri May 24 11:16:30 2024 -0400
+commit 626d478d828ea4c41e09830215fd6f21df9b1ccc
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed May 17 17:45:37 2023 -0400
 
-    os: overhaul handling of PID vs pidfd within Process
+    internal/types/errors: generate Markdown files for compiler errors
     
-    There are several issues with pidfd handling today:
+    This change adds a generator which creates a Markdown file for each
+    compiler error code which includes its associated documentation. The
+    Markdown files will be added to the x/website repository and used
+    to generate short error links on the Go website.
     
-    * The zero value of a Process makes the handle field appear valid, so
-      methods attempt to use it as a pidfd rather than falling back to the
-      PID as they should (#67634).
-    
-    * If a process doesn't exist, FindProcess returns a Process with Pid ==
-      -2, which is not a compatible change (#67640).
-    
-    * pidfd close is racy as-is. A Release call or successful Wait will
-      clear the handle field and close the pidfd. However, a concurrent call
-      may have already loaded the handle field and could then proceed to use
-      the closed FD (which could have been reopened as a different pidfd,
-      targeting a different process) (#67641).
-    
-    This CL performs multiple structural changes to the internals of
-    Process.
-    
-    First and foremost, each method is refactored to clearly select either
-    pidfd or raw pid mode. Previously, raw pid mode was structured as a
-    fallback when pidfd mode is unavailable. This works fine, but it does
-    not make it clear that a given Process object either always uses pidfd
-    or always uses raw pid. Since each mode needs to handle different race
-    conditions, it helps to make it clear that we can't switch between modes
-    within a single Process object.
-    
-    Second, pidfd close safety is handled by reference counting uses of the
-    FD. The last user of the FD will close the FD. For example, this means
-    that with concurrent Release and Signal, the Signal call may be the one
-    to close the FD. This is the bulk of this CL, though I find the end
-    result makes the overall implementation easier to reason about.
-    
-    Third, the PID path handles a similar race condtion between Wait and
-    Kill: Wait frees the PID value in the kernel, which could be reallocated
-    causing Kill to target the wrong process. This is handled with a done
-    flag and a mutex. The done flag now shares the same state field used for
-    the handle.
-    
-    Similarly, the Windows implementation reuses all of the handle reference
-    counting that Linux uses. This means the implementations more
-    consistent, and make Windows safe against the same handle reuse
-    problems. (Though I am unsure if Windows ever reuses handles).
-    
-    Wait has a slight behavior change on Windows: previously Wait after
-    Release or an earlier Wait would hang indefinitely (WaitForSingleObject
-    on syscall.InvalidHandle waits indefinitely). Now it returns the same
-    errors as Linux (EINVAL and ErrProcessDone, respectively).
-    
-    Similarly, Release on Windows no longer returns close errors, as it may
-    not actually be the place where the close occurs.
-    
-    Fixes #67634.
-    Fixes #67640.
-    Fixes #67641.
-    Updates #67642.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Change-Id: I2ad998f7b67d32031e6f870e8533dbd55d3c3d10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/588675
-    Reviewed-by: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Ibabc3388d6ecc7f19151f3931554f72561e30b22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495858
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/os/exec.go              | 245 ++++++++++++++++++++++++++++++++++++++++++--
- src/os/exec_linux.go        |  13 +++
- src/os/exec_nohandle.go     |   9 ++
- src/os/exec_plan9.go        |  23 +++--
- src/os/exec_posix.go        |  12 +--
- src/os/exec_test.go         | 103 +++++++++++++++++++
- src/os/exec_unix.go         | 116 +++++++++++++--------
- src/os/exec_windows.go      |  45 +++++---
- src/os/export_linux_test.go |   7 +-
- src/os/pidfd_linux.go       |  65 ++++++------
- src/os/pidfd_linux_test.go  |   4 +-
- src/os/pidfd_other.go       |  10 +-
- 12 files changed, 536 insertions(+), 116 deletions(-)
+ src/internal/types/errors/generrordocs.go | 117 ++++++++++++++++++++++++++++++
+ 1 file changed, 117 insertions(+)

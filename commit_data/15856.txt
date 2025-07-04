@@ -1,12 +1,12 @@
-commit 5ae4012b64024c3861f3c9e0f6139a145e31a80f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Mar 20 15:03:30 2013 -0700
+commit a63d5dd118aa3e36f60c358f1221356825acc502
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 20 17:20:32 2013 -0400
 
-    go/parser: use method values
+    cmd/gc: add OCHECKNOTNIL to race walker (fix build)
     
-    R=golang-dev, r
+    TBR=dvyukov
     CC=golang-dev
-    https://golang.org/cl/7858045
+    https://golang.org/cl/7635046
 
- src/pkg/go/parser/parser.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/cmd/gc/racewalk.c | 1 +
+ 1 file changed, 1 insertion(+)

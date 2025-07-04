@@ -1,14 +1,18 @@
-commit e72595ee0f97746be3ce594834a7003d5e804795
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 25 15:03:44 2017 -0400
+commit 00ebfcde7f3b6e63447e2a3962975e0a8c3729dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 13 19:31:35 2018 +0000
 
-    cmd/trace: notes on MMU view improvements
+    net/http: don't cancel Request.Context on pipelined Server requests
     
-    Change-Id: Ib9dcdc76095f6718f1cdc83349503f52567c76d4
-    Reviewed-on: https://go-review.googlesource.com/c/60801
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    See big comment in code.
+    
+    Fixes #23921
+    
+    Change-Id: I2dbd1acc2e9da07a71f9e0640aafe0c59a335627
+    Reviewed-on: https://go-review.googlesource.com/123875
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/trace/mmu.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/net/http/serve_test.go | 54 ++++++++++++++++------------------------------
+ src/net/http/server.go     | 45 +++++++++++++++++++++-----------------
+ 2 files changed, 44 insertions(+), 55 deletions(-)

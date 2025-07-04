@@ -1,27 +1,31 @@
-commit 26e0e8a840249d13f94596ebb519154505bd15f4
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 2 17:33:38 2018 -0700
+commit 5a7fd4039913f8bdb322b577ecf10a60ddcfedea
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 15:58:16 2017 -0500
 
-    cmd/compile: improve declaration position precision
+    cmd/go: run cover before cgo
     
-    Previously, n.Pos was reassigned to lineno when declare was called,
-    which might not match where the identifier actually appeared in the
-    source. This caused a loss of position precision for function
-    parameters (which were all declared at the last parameter's position),
-    and required some clumsy workarounds in bimport.go.
+    If we're running coverage on a package using cgo, we need to
+    apply both cmd/cover and cmd/cgo as source transformers.
+    To date we've applied cgo, then cover.
     
-    This CL changes declare to leave n.Pos alone and also fixes a few
-    places where n.Pos was not being set correctly.
+    Cover is very sensitive to the exact character position of
+    expressions in its input, though, and cgo is not, so swap
+    them, applying first cover and then cgo.
     
-    Change-Id: Ibe5b5fd30609c684367207df701f9a1bfa82867f
-    Reviewed-on: https://go-review.googlesource.com/104275
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    The only drawback here is that coverage formerly applied
+    to SWIG-generated cgo files, and now it does not.
+    I am not convinced anyone depended critically on that,
+    and probably the later analysis with go tool cover would
+    have tried to parse the original .swig file as a Go file and
+    gotten very confused.
+    
+    Fixes #8726.
+    Fixes #9212.
+    Fixes #9479.
+    
+    Change-Id: I777c8b64f7726cb117d59e03073954abc6dfa34d
+    Reviewed-on: https://go-review.googlesource.com/77155
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go |  2 +-
- src/cmd/compile/internal/gc/bimport.go | 13 +++---------
- src/cmd/compile/internal/gc/closure.go |  2 +-
- src/cmd/compile/internal/gc/dcl.go     | 38 +++++++++++++++-------------------
- src/cmd/compile/internal/gc/export.go  | 21 +++++--------------
- src/cmd/compile/internal/gc/noder.go   |  8 +++----
- src/cmd/compile/internal/gc/subr.go    |  2 +-
- 7 files changed, 31 insertions(+), 55 deletions(-)
+ src/cmd/go/internal/work/exec.go | 63 ++++++++++++++++++++++------------------
+ 1 file changed, 34 insertions(+), 29 deletions(-)

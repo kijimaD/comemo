@@ -1,17 +1,33 @@
-commit 2f5825d4273d910b0d3c9ee82336cf041e8f02d3
+commit 828c68f8d80a642d89cc17e04aeb0116c8bce4ae
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue May 28 19:17:47 2013 +0400
+Date:   Tue May 28 11:14:39 2013 +0400
 
-    runtime: fix heap corruption during GC
-    The 'n' variable is used during rescan initiation in GC_END case,
-    but it's overwritten with chan capacity in GC_CHAN case.
-    As the result rescan is done with the wrong object size.
-    Fixes #5554.
+    undo CL 9805043 / 776aba85ece8
     
-    R=golang-dev, khr
+    multiple failures on amd64
+    
+    ««« original CL description
+    runtime: introduce helper persistentalloc() function
+    It is a caching wrapper around SysAlloc() that can allocate small chunks.
+    Use it for symtab allocations. Reduces number of symtab walks from 4 to 3
+    (reduces buildfuncs time from 10ms to 7.5ms on a large binary,
+    reduces initial heap size by 680K on the same binary).
+    Also can be used for type info allocation, itab allocation.
+    There are also several places in GC where we do the same thing,
+    they can be changed to use persistentalloc().
+    Also can be used in FixAlloc, because each instance of FixAlloc allocates
+    in 128K regions, which is too eager.
+    
+    R=golang-dev, daniel.morsing, khr
     CC=golang-dev
-    https://golang.org/cl/9831043
+    https://golang.org/cl/9805043
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/9822043
 
- src/pkg/runtime/gc_test.go | 28 ++++++++++++++++++++++++++++
- src/pkg/runtime/mgc0.c     |  8 ++++----
- 2 files changed, 32 insertions(+), 4 deletions(-)
+ src/pkg/runtime/malloc.goc | 47 ----------------------------------------------
+ src/pkg/runtime/malloc.h   |  1 -
+ src/pkg/runtime/symtab.c   | 32 ++++++++++++++++++++++++-------
+ 3 files changed, 25 insertions(+), 55 deletions(-)

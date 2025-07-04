@@ -1,42 +1,16 @@
-commit eb268cb321edf6e2bbaa832acb2e61db6b081f98
+commit cf862478c89fd94c4fe8d9ce1cb481d71e5136bf
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 27 22:24:51 2016 -0700
+Date:   Fri Jun 3 10:49:24 2016 -0700
 
-    runtime: minor simplifications to signal code
+    runtime/cgo: add TSAN locks around mmap call
     
-    Change setsig, setsigstack, getsig, raise, raiseproc to take uint32 for
-    signal number parameter, as that is the type mostly used for signal
-    numbers.  Same for dieFromSignal, sigInstallGoHandler, raisebadsignal.
-    
-    Remove setsig restart parameter, as it is always either true or
-    irrelevant.
-    
-    Don't check the handler in setsigstack, as the only caller does that
-    anyhow.
-    
-    Don't bother to convert the handler from sigtramp to sighandler in
-    getsig, as it will never be called when the handler is sigtramp or
-    sighandler.
-    
-    Don't check the return value from rt_sigaction in the GNU/Linux version
-    of setsigstack; no other setsigstack checks it, and it never fails.
-    
-    Change-Id: I6bbd677e048a77eddf974dd3d017bc3c560fbd48
-    Reviewed-on: https://go-review.googlesource.com/29953
+    Change-Id: I806cc5523b7b5e3278d01074bc89900d78700e0c
+    Reviewed-on: https://go-review.googlesource.com/23736
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/runtime/os3_solaris.go       | 24 ++++++++----------------
- src/runtime/os_darwin.go         | 25 +++++++++++--------------
- src/runtime/os_dragonfly.go      | 20 +++++++-------------
- src/runtime/os_freebsd.go        | 20 +++++++-------------
- src/runtime/os_linux.go          | 28 +++++++++-------------------
- src/runtime/os_nacl.go           |  8 ++++----
- src/runtime/os_netbsd.go         | 20 +++++++-------------
- src/runtime/os_openbsd.go        | 20 +++++++-------------
- src/runtime/os_plan9.go          |  2 +-
- src/runtime/signal_sighandler.go |  2 +-
- src/runtime/signal_unix.go       | 32 ++++++++++++++++----------------
- src/runtime/signal_windows.go    |  2 +-
- 12 files changed, 79 insertions(+), 124 deletions(-)
+ misc/cgo/testsanitizers/test.bash | 62 ++++++++++++---------------------------
+ misc/cgo/testsanitizers/tsan6.go  | 49 +++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_mmap.c        |  4 +++
+ 3 files changed, 71 insertions(+), 44 deletions(-)

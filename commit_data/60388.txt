@@ -1,0 +1,23 @@
+commit e89e880eacb1aceaa14733f44c38e6748d5ffa9c
+Author: Clide Stefani <cstefani.sites@gmail.com>
+Date:   Tue Jun 11 14:42:13 2024 -0400
+
+    crypto/tls: add support for -reject-alpn and -decline-alpn flags to bogo_shim_test
+    
+    The existing implementation of bogo_shim_test does not support tests
+    which use the reject-alpn or the decline-alpn flag.
+    This change adds support for these flags in bogo_shim_test.
+    
+    Updates #51434
+    Updates #46310
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I3ff23ff4edd8f4c6c37ee6c9f2ee4689066c4e00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592198
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/tls/bogo_shim_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,12 +1,14 @@
-commit 523b3bc4347372a71ccc531af87c6b8724446f48
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue May 21 03:22:52 2013 +0800
+commit 910bd157c94ce893ec4f092c065954c8842ac6f4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon May 20 21:53:16 2013 +0400
 
-    misc/dashboard/builder: handle Plan 9 in defaultSuffix()
+    test: do not run the test that relies on precise GC on 32-bits
+    Currently most of the 32-bit builder are broken.
+    Fixes #5516.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, dave, iant
     CC=golang-dev
-    https://golang.org/cl/9495045
+    https://golang.org/cl/9573043
 
- misc/dashboard/builder/main.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ test/fixedbugs/issue5493.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,24 +1,18 @@
-commit 10c075376183a6c5d586df8e0f5e702ae9b99e84
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Nov 6 10:10:07 2015 +1300
+commit 35365b97f120e112c2967ec617b897bdd919fab2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 25 11:25:46 2015 -0400
 
-    cmd/internal/obj/ppc64: fix assembly of SRADCC with immediate
+    net: restore LookupPort for integer strings
     
-    sradi and sradi. hide the top bit of their immediate argument apart from the
-    rest of it, but the code only handled the sradi case.
+    This worked in Go 1.4 but was lost in the "pure Go" lookup
+    routines substituted late in the Go 1.5 cycle.
     
-    I'm pretty sure this is the only instruction missing (a couple of the rotate
-    instructions encode their immediate the same way but their handling looks OK).
+    Fixes #12263.
     
-    This fixes the failure of "GOARCH=amd64 ~/go/bin/go install -v runtime" as
-    reported in the bug.
-    
-    Fixes #11987
-    
-    Change-Id: I0cdefcd7a04e0e8fce45827e7054ffde9a83f589
-    Reviewed-on: https://go-review.googlesource.com/16710
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I77ec9d97cd8e67ace99d6ac965e5bc16c151ba83
+    Reviewed-on: https://go-review.googlesource.com/13915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/ppc64/asm9.go |  2 +-
- test/fixedbugs/issue11987.go       | 23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/net/lookup.go    | 3 +++
+ src/net/port_test.go | 2 ++
+ 2 files changed, 5 insertions(+)

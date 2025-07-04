@@ -1,20 +1,20 @@
-commit 063f4032f5ea8820d265ee1196ef9b8eba02c63f
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Tue Mar 29 12:51:31 2022 -0700
+commit 74b0b2772ab361884c0e00caf16aa158a7b51e36
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 7 18:18:00 2021 -0400
 
-    sort: add Find function
+    [dev.typeparams] cmd/compile, runtime: remove _defer.siz field
     
-    For golang/go#50340
+    As deferred function now always has zero arguments, _defer.siz is
+    always 0 and can be removed.
     
-    Change-Id: I3b4d278affc8e7ec706db8c9777f7a8c8ce7441d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396514
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibb89f65b2f9d2ba4aeabe50438cc3d4b6a88320b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325921
     Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- api/next/50340.txt      |   1 +
- src/sort/search.go      |  41 +++++++++++++++++++
- src/sort/search_test.go | 106 ++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 148 insertions(+)
+ src/cmd/compile/internal/ssagen/ssa.go | 33 ++++++++++++++-------------------
+ src/runtime/panic.go                   | 11 +++--------
+ src/runtime/runtime2.go                |  5 ++---
+ 3 files changed, 19 insertions(+), 30 deletions(-)

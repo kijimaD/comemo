@@ -1,33 +1,32 @@
-commit 77c041cc68bd6faca7aa86bc2f07acf7c8e48143
-Author: Tom Bergan <tombergan@google.com>
-Date:   Tue Oct 17 23:21:13 2017 -0700
+commit c2c07c798940f484eece7a57af568783f8a02839
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 17 14:18:49 2017 -0400
 
-    net/http: update bundled http2
+    runtime: always use 2MB stacks on 64-bit Windows
     
-    Updates http2 to x/net/http2 git rev 1087133bc4a for:
+    Currently, Windows stacks are either 128kB or 2MB depending on whether
+    the binary uses cgo. This is because we assume that Go system stacks
+    and the small amount of C code invoked by the standard library can
+    operate within smaller stacks, but general Windows C code assumes
+    larger stacks.
     
-      http2: reject DATA frame before HEADERS frame
-      https://golang.org/cl/56770
+    However, it's easy to call into arbitrary C code using the syscall
+    package on Windows without ever importing cgo into a binary. Such
+    binaries need larger system stacks even though they don't use cgo.
     
-      http2: respect peer's SETTINGS_MAX_HEADER_LIST_SIZE in ClientConn
-      https://golang.org/cl/29243
+    Fix this on 64-bit by increasing the system stack size to 2MB always.
+    This only costs address space, which is free enough on 64-bit to not
+    worry about. We keep (for now) the existing heuristic on 32-bit, where
+    address space comes at more of a premium.
     
-      http2: reset client stream after processing response headers
-      https://golang.org/cl/70510
+    Updates #20975.
     
-    Also updated TestRequestLimit_h2 as the behavior changed slightly due
-    to https://golang.org/cl/29243.
-    
-    Fixes #13959
-    Fixes #20521
-    Fixes #21466
-    
-    Change-Id: Iac659694f3a48b8bd485546a4f96a932e3056026
-    Reviewed-on: https://go-review.googlesource.com/71611
-    Run-TryBot: Tom Bergan <tombergan@google.com>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Iaaaa9a2fcbadc825cddc797aaaea8d34ef8debf2
+    Reviewed-on: https://go-review.googlesource.com/49331
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/net/http/h2_bundle.go  | 204 +++++++++++++++++++++++++++++----------------
- src/net/http/serve_test.go |  25 ++++--
- 2 files changed, 153 insertions(+), 76 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 22 ++++++++++++----------
+ src/runtime/os_windows.go      |  4 +++-
+ 2 files changed, 15 insertions(+), 11 deletions(-)

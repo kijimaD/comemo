@@ -1,17 +1,20 @@
-commit 18601f88fda8b037726b2e45a5032f680d47f713
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Sep 12 12:04:45 2012 +1000
+commit e39072d65fd3aeb1db0744226c27abc1fa02e047
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 12 10:36:22 2012 +1000
 
-    os: detect and handle console in File.Write on windows
+    sync/atomic: add package doc for AddT, LoadT and StoreT.
     
-    Fixes #3376.
+    Rename the first argument of CompareAndSwapT and AddT s/val/addr/
+    for consistency with LoadT and StoreT.
     
-    R=golang-dev, bsiegert, minux.ma, rsc
+    R=rsc, r, dvyukov
     CC=golang-dev
-    https://golang.org/cl/6488044
+    https://golang.org/cl/6494112
 
- src/pkg/os/file_windows.go                | 45 +++++++++++++++++++++++++++++++
- src/pkg/syscall/syscall_windows.go        |  2 ++
- src/pkg/syscall/zsyscall_windows_386.go   | 26 ++++++++++++++++++
- src/pkg/syscall/zsyscall_windows_amd64.go | 26 ++++++++++++++++++
- 4 files changed, 99 insertions(+)
+ src/pkg/sync/atomic/asm_386.s       |  26 +++----
+ src/pkg/sync/atomic/asm_amd64.s     |  20 +++---
+ src/pkg/sync/atomic/asm_arm.s       |  12 ++--
+ src/pkg/sync/atomic/asm_linux_arm.s |  16 ++---
+ src/pkg/sync/atomic/atomic_test.go  | 140 ++++++++++++++++++------------------
+ src/pkg/sync/atomic/doc.go          |  46 +++++++-----
+ 6 files changed, 135 insertions(+), 125 deletions(-)

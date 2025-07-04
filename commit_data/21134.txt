@@ -1,15 +1,16 @@
-commit 17577e48c907744fbfd09ea5a4002178f3a83972
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Dec 31 17:31:32 2014 -0800
+commit 312a64ec4eb3e0fdb6ab6b23deb99699abc7f54e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 11:38:23 2014 -0500
 
-    runtime: use SETEQ instead of JZ for cas
+    [dev.cc] runtime: convert defs_linux_power64*.h to go
     
-    Change-Id: Ibabbca3988d39bdce584924173a912d45f50f0dd
-    Reviewed-on: https://go-review.googlesource.com/2243
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=austin
+    R=austin
+    CC=golang-codereviews
+    https://golang.org/cl/176990043
 
- src/runtime/asm_386.s      | 22 +++-------------------
- src/runtime/asm_amd64.s    | 22 +++-------------------
- src/runtime/asm_amd64p32.s | 22 +++-------------------
- 3 files changed, 9 insertions(+), 57 deletions(-)
+ src/runtime/defs_linux_power64.go   | 186 ++++++++++++++++++++++++++++++++
+ src/runtime/defs_linux_power64.h    | 204 ------------------------------------
+ src/runtime/defs_linux_power64le.go | 186 ++++++++++++++++++++++++++++++++
+ src/runtime/defs_linux_power64le.h  | 204 ------------------------------------
+ 4 files changed, 372 insertions(+), 408 deletions(-)

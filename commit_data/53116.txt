@@ -1,17 +1,21 @@
-commit 58d40d156e98d415236e51cbc9694a2bb1746e86
-Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
-Date:   Thu May 18 10:53:28 2023 +0300
+commit 923740a8cc82e0bd3cd6098f94130b1967c4b361
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sun Jul 10 11:11:05 2022 +0800
 
-    os: remove unnecessary return after t.Fatal
+    cmd/compile: fix type assert in dict pass
     
-    Change-Id: Ibddf36431abb799d8f9288d6e17159ce1538d62e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495879
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    For type assertions, if src type is empty interface, we should
+    use normal type assertions rather than dynamic type assertions.
+    
+    Fixes #53762
+    
+    Change-Id: I596b2e4ad647fe5e42ad884f7273c78f8f50dac2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416736
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/os/error_test.go | 4 ----
- src/os/os_test.go    | 1 -
- 2 files changed, 5 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  2 +-
+ test/typeparam/issue53762.go              | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

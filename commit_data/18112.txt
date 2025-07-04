@@ -1,12 +1,14 @@
-commit 499d2167fc8ae6fde73e78ed31f3762683fd29a2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 26 11:52:04 2013 -0800
+commit 59583b09f3165dedd46800f46000c83c92a7faba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 24 08:24:32 2013 -0800
 
-    C: add John Newlin (Google CLA)
+    runtime/cgo: include <signal.h> to fix build
     
-    R=golang-codereviews, iant
+    R=golang-codereviews
+    TBR=dfc
     CC=golang-codereviews
-    https://golang.org/cl/45830043
+    https://golang.org/cl/43120044
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/runtime/cgo/gcc_freebsd_arm.c | 1 +
+ src/pkg/runtime/cgo/gcc_linux_arm.c   | 1 +
+ 2 files changed, 2 insertions(+)

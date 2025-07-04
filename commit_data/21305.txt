@@ -1,18 +1,17 @@
-commit 68b78b8abd86c1586f240870161d020b8e32bac9
-Author: Evan Kroske <evankroske@google.com>
-Date:   Sun Dec 21 09:25:12 2014 -0800
+commit 1e65616e1a03bfb71478a8dc43a4cd6e8c013107
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 19 17:31:16 2014 -0800
 
-    net/http/fcgi: Fix resource leaks
+    testing: style change: omit unnecessary new
     
-    Close the pipe for the body of a request when it is aborted and close
-    all pipes when child.serve terminates.
+    This was brought to my attention because a user thought that because
+    the file was named "example.go" it served as an example of good coding
+    practice.  It's not an example, of course, but may as well use a more
+    idiomatic style anyhow.
     
-    Fixes #6934
-    
-    Change-Id: I1c5e7d2116e1ff106f11a1ef8e99bf70cf04162a
-    Reviewed-on: https://go-review.googlesource.com/1923
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7aa720f603f09f7d597fb7536dbf46ef09144e28
+    Reviewed-on: https://go-review.googlesource.com/1902
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/net/http/fcgi/child.go     |  23 ++++++++-
- src/net/http/fcgi/fcgi_test.go | 104 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 126 insertions(+), 1 deletion(-)
+ src/testing/example.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

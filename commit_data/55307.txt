@@ -1,28 +1,30 @@
-commit 8e3930f2588a3f6d8fcaac7ef8add9c2d5dedc0e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Dec 18 17:03:19 2023 +0000
+commit 3dc85a32fc2c7216f18374bccd37eaed7ed2db7f
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Dec 3 13:50:45 2022 +0000
 
-    runtime: skip TestRuntimeLockMetricsAndProfile for flakiness
+    net: report completed when context is done in cgoLookupIP and cgoLookupPTR
     
-    This test was added to check new mutex profile functionality.
-    Specifically, it checks to make sure that the functionality behind
-    GODEBUG=runtimecontentionstacks works. The runtime currently tracks
-    contention from runtime-internal mutexes in mutex profiles, but it does
-    not record stack traces for them, attributing the time to a dummy
-    symbol. This GODEBUG enables collecting stacks.
+    All the Lookup* methods that resolve hostnames eventually call lookupIP
+    or lookupHost method. When the order is selected to be hostLookupCGO
+    then lookupHost calls cgoLookupHost which internally calls cgoLookupIP
+    (the lookupIP directly calls cgoLookupIP).
+    When we provide a context that is cancelled after cgo call, then the
+    cgoLookupIP returns completed  == false, which caues the
+    lookupIP/lookupHost to fallback to the go resolver.
+    This fallback is unnecessary because our context is already cancelled.
     
-    Just disable the test. Even if this functionality breaks, it won't
-    affect Go users and it'll help keep the builders green. It's fine to
-    leave the test because this will be revisited in the next dev cycle.
+    The same thing can happen to LookupAddr.
     
-    For #64253.
-    
-    Change-Id: I7938fe0f036fc4e4a0764f030e691e312ec2c9b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/550775
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ifff7716c461f05d954ef43b5205865103558b410
+    GitHub-Last-Rev: 2ef2023e8c51cdd251986f79e94aba86a0722230
+    GitHub-Pull-Request: golang/go#57042
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454696
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/metrics_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/net/cgo_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

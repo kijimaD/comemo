@@ -1,35 +1,18 @@
-commit b1cdf860dd5f517a2835c6bd48d12dad29ade1da
+commit 6812eae2e2b9c69a4046a615f00c83fe9543ffe3
 Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Aug 23 20:43:57 2021 -0700
+Date:   Tue Dec 8 17:56:35 2020 -0800
 
-    cmd/compile/internal/types2: use a TypeList type to hold type arguments
+    [dev.typeparams] cmd/compile/internal/types2: adjust init cycle error message for compiler
     
-    This is a port of CL 343933 from go/types with the necessary
-    adjustments in the compiler.
+    Enabled some more test/fixedbugs tests.
     
-    With this CL type parameters and type lists are now held in
-    TParamList and TypeList data types which don't expose the
-    internal representation.
-    
-    Change-Id: I6d60881b5db995dbc04ed3f4a96e8b5d41f83969
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/344615
+    Change-Id: I02102b698eedfbee582b3234850fb01418ebbf7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276453
     Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/importer/iimport.go   |  8 +--
- src/cmd/compile/internal/noder/expr.go         |  8 +--
- src/cmd/compile/internal/noder/types.go        | 20 +++++---
- src/cmd/compile/internal/noder/writer.go       | 16 +++---
- src/cmd/compile/internal/types2/infer.go       |  2 +-
- src/cmd/compile/internal/types2/instantiate.go | 12 ++---
- src/cmd/compile/internal/types2/lookup.go      |  4 +-
- src/cmd/compile/internal/types2/named.go       | 14 +++---
- src/cmd/compile/internal/types2/predicates.go  |  4 +-
- src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
- src/cmd/compile/internal/types2/subst.go       |  8 +--
- src/cmd/compile/internal/types2/typelists.go   | 69 ++++++++++++++++++++++++++
- src/cmd/compile/internal/types2/typeparam.go   | 34 -------------
- src/cmd/compile/internal/types2/typestring.go  |  2 +-
- src/cmd/compile/internal/types2/unify.go       | 10 ++--
- 15 files changed, 128 insertions(+), 85 deletions(-)
+ src/cmd/compile/internal/types2/initorder.go |  6 +++++-
+ test/run.go                                  | 26 --------------------------
+ test/typecheckloop.go                        |  4 ++--
+ 3 files changed, 7 insertions(+), 29 deletions(-)

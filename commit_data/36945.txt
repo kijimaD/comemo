@@ -1,19 +1,37 @@
-commit f64fd66f24d5c19d26ac58c4027aa9398a935490
+commit 48987baa09856ea6f656abe8a90d264070db8fad
 Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 10 14:13:49 2018 -0700
+Date:   Wed Jun 6 10:21:15 2018 -0700
 
-    go/scanner: don't return token.INVALID for ".." sequence
+    cmd/compile: correct alias cycle detection
     
-    Per the spec, "...the next token is the longest sequence of characters
-    that form a valid token." Thus, encountering a ".." sequence should
-    return two token.PERIOD tokens rather than a single token.ILLEGAL.
+    The original fix (https://go-review.googlesource.com/c/go/+/35831)
+    for this issue was incorrect as it reported cycles in cases where
+    it shouldn't.
     
-    Fixes #28112.
+    Instead, use a different approach: A type cycle containing aliases
+    is only a cycle if there are no type definitions. As soon as there
+    is a type definition, alias expansion terminates and there is no
+    cycle.
     
-    Change-Id: Iba5da841f40036e53f48f9be23f933f362e67f5e
-    Reviewed-on: https://go-review.googlesource.com/c/141337
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Approach: Split sprint_depchain into two non-recursive and more
+    easily understandable functions (cycleFor and cycleTrace),
+    and use those instead for cycle reporting. Analyze the cycle
+    returned by cycleFor before issueing an alias cycle error.
+    
+    Also: Removed original fix (main.go) which introduced a separate
+    crash (#23823).
+    
+    Fixes #18640.
+    Fixes #23823.
+    Fixes #24939.
+    
+    Change-Id: Ic3707a9dec40a71dc928a3e49b4868c5fac3d3b7
+    Reviewed-on: https://go-review.googlesource.com/118078
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/scanner/scanner.go      | 18 +++++++++++++-----
- src/go/scanner/scanner_test.go | 20 +++++++++++++++++++-
- 2 files changed, 32 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/gc/main.go      |  6 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 58 ++++++++++++++++++++++----------
+ test/fixedbugs/issue18640.go             | 21 ++++++++++++
+ test/fixedbugs/issue23823.go             | 15 +++++++++
+ test/fixedbugs/issue24939.go             | 21 ++++++++++++
+ 5 files changed, 100 insertions(+), 21 deletions(-)

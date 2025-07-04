@@ -1,21 +1,78 @@
-commit 9c8cd83753fd3ebbe81a72469d8c74441123140c
-Author: Ralph Corderoy <ralph@inputplus.co.uk>
-Date:   Sat Nov 7 11:45:00 2015 +0000
+commit 3c9fa388df826a67cb5042513e3df079709e6b8b
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Aug 30 23:10:03 2015 +0200
 
-    crypto/tls: len(clientRandom) used for serverRandom source
+    cmd/compile/internal/gc: rename Fatal to Fatalf
     
-    In keysFromMasterSecret(), don't copy from serverRandom into
-    seed[:len(clientRandom)].  Actually, switch from an array to a slice in
-    keysFromMasterSecret() and masterFromPreMasterSecret() so the length
-    need not be given;  that's how it's done elsewhere in the file.
+    This helps vet see a real issue:
     
-    Fixes #13181
+        cmd/internal/gc$ go vet
+        gen.go:1223: unreachable code
     
-    Change-Id: I92abaa892d1bba80c2d4f12776341cda7d538837
-    Reviewed-on: https://go-review.googlesource.com/16697
-    Run-TryBot: Adam Langley <agl@golang.org>
+    Fixes #12106.
+    
+    Change-Id: I720868b07ae6b6d5a4dc6b238baa8c9c889da6d8
+    Reviewed-on: https://go-review.googlesource.com/14083
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/prf.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/amd64/ggen.go   |  6 +--
+ src/cmd/compile/internal/amd64/gsubr.go  | 16 ++++----
+ src/cmd/compile/internal/amd64/peep.go   |  4 +-
+ src/cmd/compile/internal/amd64/prog.go   |  2 +-
+ src/cmd/compile/internal/arm/cgen.go     |  6 +--
+ src/cmd/compile/internal/arm/cgen64.go   |  8 ++--
+ src/cmd/compile/internal/arm/ggen.go     | 10 ++---
+ src/cmd/compile/internal/arm/gsubr.go    | 36 ++++++++---------
+ src/cmd/compile/internal/arm/prog.go     |  2 +-
+ src/cmd/compile/internal/arm64/cgen.go   |  6 +--
+ src/cmd/compile/internal/arm64/ggen.go   |  8 ++--
+ src/cmd/compile/internal/arm64/gsubr.go  | 22 +++++------
+ src/cmd/compile/internal/arm64/prog.go   |  2 +-
+ src/cmd/compile/internal/gc/align.go     | 40 +++++++++----------
+ src/cmd/compile/internal/gc/bv.go        |  8 ++--
+ src/cmd/compile/internal/gc/cgen.go      | 66 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/closure.go   | 12 +++---
+ src/cmd/compile/internal/gc/const.go     | 28 +++++++-------
+ src/cmd/compile/internal/gc/cplx.go      | 12 +++---
+ src/cmd/compile/internal/gc/dcl.go       | 38 +++++++++---------
+ src/cmd/compile/internal/gc/esc.go       | 28 +++++++-------
+ src/cmd/compile/internal/gc/export.go    |  4 +-
+ src/cmd/compile/internal/gc/fmt.go       |  6 +--
+ src/cmd/compile/internal/gc/gen.go       | 32 ++++++++--------
+ src/cmd/compile/internal/gc/go.go        |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go     | 50 ++++++++++++------------
+ src/cmd/compile/internal/gc/inl.go       | 38 +++++++++---------
+ src/cmd/compile/internal/gc/lex.go       |  4 +-
+ src/cmd/compile/internal/gc/obj.go       |  4 +-
+ src/cmd/compile/internal/gc/order.go     | 16 ++++----
+ src/cmd/compile/internal/gc/pgen.go      |  8 ++--
+ src/cmd/compile/internal/gc/plive.go     | 46 +++++++++++-----------
+ src/cmd/compile/internal/gc/popt.go      | 12 +++---
+ src/cmd/compile/internal/gc/racewalk.go  |  4 +-
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   | 38 +++++++++---------
+ src/cmd/compile/internal/gc/reg.go       | 16 ++++----
+ src/cmd/compile/internal/gc/select.go    | 10 ++---
+ src/cmd/compile/internal/gc/sinit.go     | 46 +++++++++++-----------
+ src/cmd/compile/internal/gc/subr.go      | 62 +++++++++++++++---------------
+ src/cmd/compile/internal/gc/swt.go       |  4 +-
+ src/cmd/compile/internal/gc/syntax.go    |  4 +-
+ src/cmd/compile/internal/gc/typecheck.go | 34 ++++++++--------
+ src/cmd/compile/internal/gc/unsafe.go    |  2 +-
+ src/cmd/compile/internal/gc/util.go      |  8 ++--
+ src/cmd/compile/internal/gc/walk.go      | 58 ++++++++++++++--------------
+ src/cmd/compile/internal/gc/y.go         |  2 +-
+ src/cmd/compile/internal/ppc64/cgen.go   |  4 +-
+ src/cmd/compile/internal/ppc64/ggen.go   | 10 ++---
+ src/cmd/compile/internal/ppc64/gsubr.go  | 14 +++----
+ src/cmd/compile/internal/ppc64/prog.go   |  4 +-
+ src/cmd/compile/internal/x86/cgen64.go   |  6 +--
+ src/cmd/compile/internal/x86/ggen.go     | 10 ++---
+ src/cmd/compile/internal/x86/gsubr.go    | 36 ++++++++---------
+ src/cmd/compile/internal/x86/peep.go     |  4 +-
+ src/cmd/compile/internal/x86/prog.go     |  2 +-
+ 56 files changed, 481 insertions(+), 481 deletions(-)

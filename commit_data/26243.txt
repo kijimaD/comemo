@@ -1,16 +1,16 @@
-commit ab5cbc672b988a1cf656a27c2d5d8182cd660cc6
-Author: Dominik Honnef <dominik@honnef.co>
-Date:   Sat Mar 12 18:52:08 2016 +0100
+commit 4391aca850701a6e3d7afb649aef177e07beee5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 15:12:43 2016 -0500
 
-    net/http: delete unused type readClose
+    doc/play: update URL for concurrent pi
     
-    readClose hasn't been used in years.
+    The old link died; replace with an archive.org copy.
     
-    Change-Id: Ia963c082e049ef856c2a637fec15204efe48b3b6
-    Reviewed-on: https://go-review.googlesource.com/20631
+    Fixes #13345.
+    
+    Change-Id: Ic4a7fdcf258e1ff3b4a02ecb4f237ae7db2686c7
+    Reviewed-on: https://go-review.googlesource.com/18335
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/client.go | 8 --------
- 1 file changed, 8 deletions(-)
+ doc/play/pi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

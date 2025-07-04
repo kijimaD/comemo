@@ -1,28 +1,24 @@
-commit d7d9df8a5b1a4d8a40bb606a96bd5c6abe34e5a2
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 22 12:04:51 2018 -0400
+commit 7d7af6106f7ce7fb112f754cd1d991c74552247c
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Jan 23 14:10:08 2018 -0500
 
-    cmd/compile: introduce LivenessMap and LivenessIndex
+    cmd/compile/internal: decouple scope tracking from location lists
     
-    Currently liveness only produces a stack map index at each safe point,
-    so the information is summarized in a map[*ssa.Value]int. We're about
-    to have both a stack map index and a register map index, so replace
-    the int with a LivenessIndex type we can extend, and replace the map
-    with a LivenessMap that we can also change more easily in the future.
+    We're trying to enable location lists by default, and it's easier to do
+    that if we don't have to worry about scope tracking at the same time.
+    We can evaluate their performance impact separately.
     
-    This also gives us an easy hook for defining the value that means "not
-    a safe point".
+    However, that does mean that "err" is ambiguous in the test case, so
+    rename it to err2 for now.
     
-    Passes toolstash -cmp.
-    
-    For #24543.
-    
-    Change-Id: Ic4c069839635efed4fd0f603899b80f8be3b56ec
-    Reviewed-on: https://go-review.googlesource.com/109347
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I24f119016185c52b7d9affc74207f6a5b450fb6f
+    Reviewed-on: https://go-review.googlesource.com/89355
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/plive.go | 52 +++++++++++++++++++++++++++---------
- src/cmd/compile/internal/gc/ssa.go   | 12 ++++-----
- 2 files changed, 46 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/gc/main.go                |  2 +-
+ .../internal/ssa/testdata/hist.gdb-dbg.nexts       | 36 +++++++--------
+ .../internal/ssa/testdata/hist.gdb-opt.nexts       | 54 +++++++++++-----------
+ src/cmd/compile/internal/ssa/testdata/hist.go      |  6 +--
+ 4 files changed, 49 insertions(+), 49 deletions(-)

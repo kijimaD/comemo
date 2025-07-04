@@ -1,18 +1,21 @@
-commit ed263f4dd2b8d9b0681d4e3b7ce79471fb800fc4
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 5 14:04:12 2015 -0500
+commit 6e5cc1f1ac0c93471fc6b05a250b6f7ed0b02c58
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 15:39:29 2015 -0500
 
-    cmd/internal/obj: remove use of "iota - X"
+    runtime: rename drainworkbuf and drainobjects
     
-    This was inserted by c2go to turn each enum { ... } into one const ( ... ) block,
-    but it is fragile and was never intended as a long-term thing.
+    drainworkbuf is now gcDrain, since it drains until there's
+    nothing left to drain.  drainobjects is now gcDrainN because it's
+    the bounded equivalent to gcDrain.
     
-    Change-Id: I8de8e0984b130456da70e4d59891276dfef7ac27
-    Reviewed-on: https://go-review.googlesource.com/6932
-    Reviewed-by: Rob Pike <r@golang.org>
+    The new names use the Go camel case convention because we have to
+    start somewhere.  The "gc" prefix is because we don't have runtime
+    packages yet and just "drain" is too ambiguous.
+    
+    Change-Id: I88dbdf32e8ce4ce6c3b7e1f234664be9b76cb8fd
+    Reviewed-on: https://go-review.googlesource.com/4785
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/internal/obj/link.go        |  7 +++-
- src/cmd/internal/obj/mgc0.go        |  5 ++-
- src/cmd/internal/obj/ppc64/9.out.go | 10 ++---
- src/cmd/internal/obj/x86/6.out.go   | 80 ++++++++++++++++++++++++++++++-------
- 4 files changed, 80 insertions(+), 22 deletions(-)
+ src/runtime/mgc.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

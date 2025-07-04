@@ -1,16 +1,16 @@
-commit 1216e181352c76d93d0ac501d22a5b7175c4cbf2
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 17 11:17:02 2015 -0700
+commit 58f3a8295070df9d7b27c6b1dad5e2a8c3e06cdc
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 22 11:54:41 2015 -0400
 
-    encoding/gob: document allocation/merge behavior
+    runtime: fix comments referring to trace functions in runtime/pprof
     
-    This is understood, obvious (to me), and well known but has not been clearly documented.
+    ae1ea2a moved trace-related functions from runtime/pprof to
+    runtime/trace, but missed a doc comment and a code comment. Update
+    these to reflect the move.
     
-    Fixes #11117.
-    
-    Change-Id: Ib2b1e318924748d1eac0d735ad6286533be7fd39
-    Reviewed-on: https://go-review.googlesource.com/14693
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6e1e8861e5ede465c08a2e3f80b976145a8b32d8
+    Reviewed-on: https://go-review.googlesource.com/12525
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/encoding/gob/doc.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

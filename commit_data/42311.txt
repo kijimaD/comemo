@@ -1,14 +1,16 @@
-commit 4fda7dc57f4848473cd8ede5913976d1d262f1d7
-Author: Isfan Azhabil <isfanazhabil@gmail.com>
-Date:   Thu May 7 04:52:41 2020 +0000
+commit 5de3b97554121ce0a95763cf2b50a8ced76b051b
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Sat Nov 23 00:31:39 2019 -0500
 
-    C: update email address for Isfan Azhabil
+    cmd/link: fix TestStrictDup in module mode
     
-    Change-Id: I7f996d10a2e16795862bd661d0b344121371e084
-    GitHub-Last-Rev: 520e1f6b6f1af3ff35e8c92d3094a9fc715ada40
-    GitHub-Pull-Request: golang/go#38913
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232717
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #35790
+    
+    Change-Id: Ie9df103c5c21b34a378821dfad60804ce4b0cad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208517
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/link_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

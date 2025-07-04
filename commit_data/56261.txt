@@ -1,35 +1,21 @@
-commit 4bb67bc21eea06afadceec239bae6e5e40a9e759
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Fri Apr 19 22:12:18 2024 +0000
+commit eaecd642004641a0353786f1c679bc3c726d1a02
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 19 15:39:01 2023 -0400
 
-    runtime: always acquire M when acquiring locks by rank
+    cmd/go: assert on more of the version string in TestScript/gotoolchain
     
-    Profiling of runtime-internal locks checks gp.m.locks to see if it's
-    safe to add a new record to the profile, but direct use of
-    acquireLockRank can change the list of the M's active lock ranks without
-    updating gp.m.locks to match. The runtime's internal rwmutex
-    implementation makes a point of calling acquirem/releasem when
-    manipulating the lock rank list, but the other user of acquireLockRank
-    (the GC's Gscan bit) relied on the GC's invariants to avoid deadlocks.
+    The previous assert triggers whenever the 40-character git commit
+    contains the substring "999", which happens with a probability
+    decidedly greater than zero.
     
-    Codify the rwmutex approach by renaming acquireLockRank to
-    acquireLockRankAndM and having it include a call to aquirem. Do the same
-    for release.
+    For #57001.
     
-    Fixes #64706
-    Fixes #66004
-    
-    Change-Id: Ib76eaa0cc1c45b64861d03345e17e1e843c19713
-    GitHub-Last-Rev: 160577bdb2bb2a4e869c6fd7e53e3be8fb819182
-    GitHub-Pull-Request: golang/go#66276
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571056
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Change-Id: If0f1bc1a3dd0e6b7e66768d0cf3a79545ee4e5ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486399
     Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/lockrank_off.go |  6 ++++--
- src/runtime/lockrank_on.go  | 16 ++++++++++++----
- src/runtime/proc.go         |  9 ++++-----
- src/runtime/rwmutex.go      |  7 ++-----
- 4 files changed, 22 insertions(+), 16 deletions(-)
+ src/cmd/go/testdata/script/gotoolchain.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

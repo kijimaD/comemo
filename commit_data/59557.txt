@@ -1,20 +1,17 @@
-commit c8bf388bad9bf350b513c562bba22868bc976247
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Apr 16 22:48:06 2025 -0700
+commit b37fb8c6ca3ef108248798487df5b058b4877cd2
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Mar 25 02:21:10 2024 +0000
 
-    cmd/compile: align stack-allocated backing stores higher than required
+    test/stress: fix typo in comment
     
-    Because that's what mallocgc did and some user code came to rely on it.
-    
-    Fixes #73199
-    
-    Change-Id: I45ca00d2ea448e6729ef9ac4cec3c1eb0ceccc89
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/666116
-    Reviewed-by: t hepudds <thepudds1460@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I0f67801ef2d3af65c39a27b8db6ebaa769ff7f92
+    GitHub-Last-Rev: feb7f79ea519450a054de18e10ffa6284538708b
+    GitHub-Pull-Request: golang/go#66508
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574075
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/walk/builtin.go | 22 +++++++++++++++++-----
- 1 file changed, 17 insertions(+), 5 deletions(-)
+ test/stress/runstress.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

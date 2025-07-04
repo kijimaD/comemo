@@ -1,14 +1,15 @@
-commit af848926431da0345fd78c0dba0a513df44ee1cf
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Tue Dec 6 10:52:43 2011 +1100
+commit 4feafeeea0cc0d489557881f9148143c305f2198
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 5 15:52:35 2011 -0500
 
-    godoc: Show type examples between variables and methods.
+    gofix: fix for strconv API change
     
-    Fixes #2466.
-    
-    R=golang-dev, adg
+    R=golang-dev, gri, adg, r
     CC=golang-dev
-    https://golang.org/cl/5451094
+    https://golang.org/cl/5434098
 
- lib/godoc/package.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gofix/Makefile        |   1 +
+ src/cmd/gofix/fix.go          |   9 +++
+ src/cmd/gofix/strconv.go      | 127 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/strconv_test.go |  93 +++++++++++++++++++++++++++++++
+ 4 files changed, 230 insertions(+)

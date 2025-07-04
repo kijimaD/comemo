@@ -1,19 +1,24 @@
-commit 5a08865de339b5eeb8ad1c52635ea8ba505aafec
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Jun 9 16:59:00 2025 -0400
+commit 83613293d86eb6c6508508ddb1345f6b37bb80ec
+Author: racequite <quiterace@gmail.com>
+Date:   Tue Apr 23 11:45:49 2024 +0000
 
-    net: remove some BUG entries
+    all: fix some typos in comments
     
-    A few methods that were not implemented on Windows are implemented
-    in CL 668195.
+    This change fixes some typographic errors that I found in various packages.
     
-    Change-Id: I35423792a5af00f29fcd24e56a6dfcf013669371
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/680180
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Change-Id: Ie2d0316f0137d6521496d389a9777659ae22128b
+    GitHub-Last-Rev: 0307b03d50f664a00a4afa5afa08a35efb7f3045
+    GitHub-Pull-Request: golang/go#66917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580077
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/net/iprawsock.go | 3 ---
- src/net/tcpsock.go   | 2 +-
- src/net/udpsock.go   | 3 ---
- 3 files changed, 1 insertion(+), 7 deletions(-)
+ src/internal/concurrent/hashtriemap.go | 2 +-
+ src/net/http/cookiejar/jar.go          | 2 +-
+ src/os/path_windows_test.go            | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

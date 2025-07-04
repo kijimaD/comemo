@@ -1,30 +1,39 @@
-commit 897b3da2e079b9b940b309747305a5379fffa6ec
-Author: eric fang <eric.fang@arm.com>
-Date:   Wed Jan 5 09:20:06 2022 +0000
+commit e97d8eb027c0067f757860b6f766644de15941f2
+Author: HowJMay <vulxj0j8j8@gmail.com>
+Date:   Mon Apr 19 18:06:54 2021 +0000
 
-    cmd/internal/obj/arm64: adjust rule for VMOVQ instruction
+    net: pass MSG_CMSG_CLOEXEC flag in ReadMsgUnix
     
-    The VMOVQ instruction stores a 128-bit number into a V register, for
-    example:
-        VMOVQ $0x1122334455667788, $0x99aabbccddeeff00, V2
-    From a documentation (https://pkg.go.dev/cmd/internal/obj/arm64) point
-    of view, the value in V2 should be 0x112233445566778899aabbccddeeff00,
-    however the value is actually 0x99aabbccddeeff001122334455667788. The
-    reason is that we misplaced the high 64-bit and the low 64-bit in the
-    literal pool. To maintain backward compatibility, this CL adjusts the
-    rule of VMOVQ instruction to make the documentation consistent with the
-    code.
+    As mentioned in #42765, calling "recvmsg" syscall on Linux should come
+    with "MSG_CMSG_CLOEXEC" flag.
     
-    Fixes #50528
+    For other systems which not supports "MSG_CMSG_CLOEXEC". ReadMsgUnix()
+    would check the header. If the header type is "syscall.SCM_RIGHTS",
+    then ReadMsgUnix() would parse the SocketControlMessage and call each
+    fd with "syscall.CloseOnExec"
     
-    Change-Id: Ib51f59e97c55252ab2a50bbc6ba4d430732a7a04
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/377055
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Trust: Eric Fang <eric.fang@arm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #42765
+    
+    Change-Id: I74347db72b465685d7684bf0f32415d285845ebb
+    GitHub-Last-Rev: ca59e2c9e0e8de1ae590e9b6dc165cb768a574f5
+    GitHub-Pull-Request: golang/go#42768
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272226
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/internal/obj/arm64/asm7.go | 2 +-
- src/cmd/internal/obj/arm64/doc.go  | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/internal/poll/fd_unix.go      |   6 +--
+ src/internal/poll/fd_windows.go   |   3 +-
+ src/net/fd_posix.go               |   6 +--
+ src/net/iprawsock_posix.go        |   2 +-
+ src/net/net_fake.go               |   2 +-
+ src/net/udpsock_posix.go          |   2 +-
+ src/net/unixsock_posix.go         |   6 ++-
+ src/net/unixsock_readmsg_linux.go |  17 ++++++
+ src/net/unixsock_readmsg_other.go |  13 +++++
+ src/net/unixsock_readmsg_posix.go |  33 ++++++++++++
+ src/net/unixsock_readmsg_test.go  | 105 ++++++++++++++++++++++++++++++++++++++
+ src/syscall/creds_test.go         |   4 +-
+ 12 files changed, 186 insertions(+), 13 deletions(-)

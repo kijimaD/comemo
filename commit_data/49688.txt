@@ -1,22 +1,21 @@
-commit f2a9f3e2e0ce7e582d226ad9a41d3c36b146fc25
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 1 13:23:36 2022 -0700
+commit 9133245be7365c23fcd60e3bb60ebb614970cdab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 2 16:43:29 2021 -0700
 
-    test: improve generic type assertion test
+    cmd/compile/internal/types2: detect constraint type inference cycles
     
-    The test added in CL 420394 only tested that the type assertions
-    compiled at all. This CL changes it into a run test to make sure the
-    type assertions compile and also run correctly.
+    See the detailed explanations in the code.
     
-    Updates #54135.
+    Fixes #48136.
     
-    Change-Id: Id17469faad1bb55ff79b0bb4163ef50179330033
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420421
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I1667aabfbbff97967913b080c77e7ec04ea82feb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347300
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- test/typeparam/issue54135.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/infer.go           | 124 +++++++++++++++++++++
+ .../types2/testdata/fixedbugs/issue48136.go2       |  36 ++++++
+ 2 files changed, 160 insertions(+)

@@ -1,45 +1,14 @@
-commit 683448a304a3871039ab44fc01e839f05ac36f05
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Mar 25 06:40:58 2016 +0000
+commit 20ee67acc920807d19d336b1cc1614d2ad529953
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Feb 20 11:16:21 2016 -0800
 
-    runtime, syscall: only search for Windows DLLs in the System32 directory
+    cmd/compile: test for lower-case letters first in isAlpha
     
-    Make sure that for any DLL that Go uses itself, we only look for the
-    DLL in the Windows System32 directory, guarding against DLL preloading
-    attacks.
+    Lower-case letters are more common in identifiers.
     
-    (Unless the Windows version is ancient and LoadLibraryEx is
-    unavailable, in which case the user probably has bigger security
-    problems anyway.)
-    
-    This does not change the behavior of syscall.LoadLibrary or NewLazyDLL
-    if the DLL name is something unused by Go itself.
-    
-    This change also intentionally does not add any new API surface. Instead,
-    x/sys is updated with a LoadLibraryEx function and LazyDLL.Flags in:
-        https://golang.org/cl/21388
-    
-    Updates #14959
-    
-    Change-Id: I8d29200559cc19edf8dcf41dbdd39a389cd6aeb9
-    Reviewed-on: https://go-review.googlesource.com/21140
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I49c39e3ac810eea57d15c1433608daec212c9792
+    Reviewed-on: https://go-review.googlesource.com/19760
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/deps.go                               | 57 ++++++-------
- src/go/build/deps_test.go                          |  6 +-
- src/internal/syscall/windows/registry/syscall.go   |  2 +-
- .../syscall/windows/registry/zsyscall_windows.go   |  5 +-
- src/internal/syscall/windows/syscall_windows.go    |  2 +-
- src/internal/syscall/windows/sysdll/sysdll.go      | 28 +++++++
- src/internal/syscall/windows/zsyscall_windows.go   |  5 +-
- src/runtime/export_windows_test.go                 |  4 +
- src/runtime/os1_windows.go                         | 30 ++++++-
- src/runtime/syscall_windows.go                     | 35 ++++++++
- src/runtime/syscall_windows_test.go                | 93 ++++++++++++++++++++++
- src/syscall/dll_windows.go                         | 14 +++-
- src/syscall/mksyscall_windows.go                   | 48 +++++++++--
- src/syscall/syscall_windows.go                     |  2 +-
- src/syscall/zsyscall_windows.go                    | 27 ++++---
- 15 files changed, 299 insertions(+), 59 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

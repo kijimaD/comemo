@@ -1,17 +1,19 @@
-commit 5107041df72194e12aee6c6d68f2088c859c41b7
-Author: Alexander Orlov <alexander.orlov@loxal.net>
-Date:   Fri May 20 11:03:33 2011 -0700
+commit 7f099cdc76a04fa93425f422ea844f88e4cb82f1
+Author: Adam Langley <agl@golang.org>
+Date:   Fri May 20 10:20:08 2011 -0700
 
-    misc: syntax highlighting support on IntelliJ IDEA
+    asn1: add big support.
     
-    Go keywords from Vim's syntax configuration file were used.
-    Issue Tracker Reference: http://code.google.com/p/go/issues/detail?id=1850
+    Initially I wanted to minimise dependencies but it's become clear that
+    big int support in ASN.1 is a common need and that it should be part
+    of the core.
     
-    Fixes #1850.
-    
-    R=golang-dev, gri
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4547054
+    https://golang.org/cl/4550063
 
- misc/IntelliJIDEA/Go.xml | 98 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 98 insertions(+)
+ src/pkg/asn1/asn1.go      | 27 +++++++++++++++++++++++++++
+ src/pkg/asn1/asn1_test.go | 27 +++++++++++++++++++++++++++
+ src/pkg/asn1/common.go    |  2 ++
+ src/pkg/asn1/marshal.go   | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 99 insertions(+)

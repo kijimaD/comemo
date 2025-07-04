@@ -1,22 +1,18 @@
-commit 869e576517f825aecdc8730b0d22f8d6b59bd749
-Author: Paul Marks <pmarks@google.com>
-Date:   Mon Apr 4 14:13:56 2016 -0700
+commit 5583e8a4213467d3401710873f67403cb2de22f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 23 10:42:06 2016 -0800
 
-    net: wait for cancelation goroutine before returning from connect.
+    spec: fix EBNF for slice syntax
     
-    This fixes a race which made it possible to cancel a connection after
-    returning from net.Dial.
+    The () parentheses grouped wrongly. Removed them completely in
+    favor of separate 2- and 3-index slice alternatives which is
+    clearer.
     
-    Fixes #15035
-    Fixes #15078
+    Fixes #14477.
     
-    Change-Id: Iec6215009538362f7ad9f408a33549f3e94d1606
-    Reviewed-on: https://go-review.googlesource.com/21497
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0b7521ac912130d9ea8740b8793b3b88e2609418
+    Reviewed-on: https://go-review.googlesource.com/19853
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/dial_test.go  | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/net/fd_unix.go    |  6 +++-
- src/net/fd_windows.go |  8 +++--
- 3 files changed, 93 insertions(+), 3 deletions(-)
+ doc/go_spec.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

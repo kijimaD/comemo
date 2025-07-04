@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40443: 7e68f81dd8759ce7cc8a1ff596503f66d6a0eeae
+# Index 40443: 5b4ea626e00e998eb9c72b9d80f1c167e72da569
 
 echo "🚀 Generating explanation for commit 40443..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 40443
-- **コミットハッシュ**: 7e68f81dd8759ce7cc8a1ff596503f66d6a0eeae
-- **GitHub URL**: https://github.com/golang/go/commit/7e68f81dd8759ce7cc8a1ff596503f66d6a0eeae
+- **コミットハッシュ**: 5b4ea626e00e998eb9c72b9d80f1c167e72da569
+- **GitHub URL**: https://github.com/golang/go/commit/5b4ea626e00e998eb9c72b9d80f1c167e72da569
 
 ### 章構成
 

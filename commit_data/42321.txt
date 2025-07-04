@@ -1,28 +1,21 @@
-commit 62a3f2e27c7732656bb3ae8f14047b74a9956e77
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Apr 20 17:55:37 2020 -0400
+commit 95c9a656ae2e690c82ca339605a79f88f407fa9b
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Wed Nov 27 00:10:47 2019 +0000
 
-    crypto/tls: add Config.VerifyConnection callback
+    doc: clarify interaction of ioutil.WriteFile with umask
     
-    Since the ConnectionState will now be available during
-    verification, some code was moved around in order to
-    initialize and make available as much of the fields on
-    Conn as possible before the ConnectionState is verified.
+    Note that ioutil.WriteFile's perm argument is the value before the
+    umask is applied.
     
-    Fixes #36736
+    Fixes #35835
     
-    Change-Id: I0e3efa97565ead7de5c48bb8a87e3ea54fbde140
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229122
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I61cd9c88bced3be52b616d86e060cd3fd912ab1f
+    
+    Change-Id: I61cd9c88bced3be52b616d86e060cd3fd912ab1f
+    GitHub-Last-Rev: 0069abb7c5d904fb11448148f44db023dbcf74aa
+    GitHub-Pull-Request: golang/go#35836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208838
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/common.go                 |  13 ++-
- src/crypto/tls/conn.go                   |  43 +++++-----
- src/crypto/tls/handshake_client.go       |  71 ++++++++++------
- src/crypto/tls/handshake_client_test.go  | 137 ++++++++++++++++++++++++++++++-
- src/crypto/tls/handshake_client_tls13.go |   9 ++
- src/crypto/tls/handshake_server.go       |  41 ++++++---
- src/crypto/tls/handshake_server_tls13.go |  10 ++-
- src/crypto/tls/tls_test.go               |  13 ++-
- 8 files changed, 266 insertions(+), 71 deletions(-)
+ src/io/ioutil/ioutil.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

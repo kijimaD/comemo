@@ -1,23 +1,24 @@
-commit b9365488f017ba88540f21927a69e34351941db1
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Tue Nov 24 17:48:38 2020 +0100
+commit 42c48998aada0df10279650d04a018c83cbfa518
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Apr 25 22:29:02 2020 +1000
 
-    cmd/internal/objabi: assume GOARM=7 on Android
+    image/draw: optimize paletted dst + uniform src
     
-    CL 34641 changed the Go runtime to assume GOARM=7 support on Android.
-    This change completes that by assuming GOARM=7 in the toolchain, fixing
-    the gotcha of inexplicably slow performance on non-arm64 Android devices.
+    name            old time/op  new time/op  delta
+    PalettedFill-4  5.74ms ± 1%  0.01ms ± 1%  -99.78%  (p=0.008 n=5+5)
+    PalettedRGBA-4  3.34ms ± 3%  3.33ms ± 0%     ~     (p=0.690 n=5+5)
     
-    There is already code in cmd/dist to force GOARM to 7 on GOOS=android. However,
-    dist is most likely run with GOOS != android.
+    Fixes #35938
     
-    Change-Id: I5e2bf11c3ecd0f6c193229eaa8ddc570722799d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272846
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Trust: Elias Naur <mail@eliasnaur.com>
+    Thanks to pjbgtnj for the suggestion.
+    
+    Change-Id: I07b494482cce918f556e196c5a4b481b4c16de3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230118
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/util.go            | 6 ------
- src/cmd/internal/objabi/util.go | 7 ++++++-
- 2 files changed, 6 insertions(+), 7 deletions(-)
+ src/image/draw/bench_test.go |  6 +++++-
+ src/image/draw/draw.go       | 22 +++++++++++++++++++---
+ src/image/draw/draw_test.go  | 32 +++++++++++++++++++-------------
+ 3 files changed, 43 insertions(+), 17 deletions(-)

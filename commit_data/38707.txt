@@ -1,21 +1,17 @@
-commit eddb41eb2cb7699f3515a229ff069ca914c7c879
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Mon Apr 8 23:12:52 2019 +0200
+commit 9ffd5f31dcb95189eeb5c1754291df7b477d5dda
+Author: Vladimir Kovpak <cn007b@gmail.com>
+Date:   Fri Nov 16 14:23:17 2018 +0000
 
-    runtime: correct the TLS base offset on Android
+    reflect: add comment for String method of Kind struct
     
-    CL 170955 set tlsg to the Android Q free TLS slot offset in the linker
-    data (16 on amd64, 8 on 386), offsetting all TLS relative access.
-    We need the 0'th slot (TLS_SLOT_SELF) at initialization, so
-    compensate with a corresponding negative offset.
+    On reflect documentation page only this function
+    doesn't have description, this commit add simple description.
     
-    Fixes the android/386 and android/amd64 builders broken by CL 170955.
-    
-    Change-Id: I9882088c0c8bc6a777d2aabc9404cb76f02b6cea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170956
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Idcda89ddd1f6fdd1938c4030e89ebdc186255ce6
+    GitHub-Last-Rev: 1553b834bb4f7a49efc7ff81763a255bc51bbf17
+    GitHub-Pull-Request: golang/go#28818
+    Reviewed-on: https://go-review.googlesource.com/c/149721
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm_386.s   | 6 ++++--
- src/runtime/asm_amd64.s | 4 +++-
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ src/reflect/type.go | 1 +
+ 1 file changed, 1 insertion(+)

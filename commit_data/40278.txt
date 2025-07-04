@@ -1,16 +1,21 @@
-commit 86235ec2bf15ff90c4c6602063c40c9bf0325428
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Oct 17 13:54:39 2019 +0100
+commit 70b890ce3b72fdab528ee1f93b1950173e9a0992
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 30 13:07:05 2019 -0400
 
-    cmd/asm/internal/arch: delete unused s390x functions
+    cmd/go/internal/modfetch/codehost: disable fetch of server-resolved commit hash
     
-    These functions are not necessary and are not called anywhere.
+    We cannot rely on the server to filter out the refs we don't want
+    (we only want refs/heads/* and refs/tags/*), so do not give it
+    the full hash.
     
-    Change-Id: I1c0d814ba3044c27e3626ac9e6052d8154140404
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201697
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Fixes #31191.
+    
+    Change-Id: If1208c35954228aa6e8734f8d5f1725d0ec79c87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174517
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/asm/internal/arch/s390x.go | 21 ---------------------
- 1 file changed, 21 deletions(-)
+ src/cmd/go/internal/modfetch/codehost/git.go | 12 +++++++++---
+ src/cmd/go/testdata/script/mod_get_hash.txt  | 19 +++++++++++++++++++
+ 2 files changed, 28 insertions(+), 3 deletions(-)

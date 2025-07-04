@@ -1,12 +1,25 @@
-commit b0838ca292f0c62ac9d45a92b520160ed052cb26
-Author: Justyn Temme <justyntemme@gmail.com>
-Date:   Sun Jun 19 20:39:58 2016 +0000
+commit 1f54410a61e2242285e366a5580943f78fbff741
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 7 17:19:29 2016 +0900
 
-    strconv: clarify doc for Atoi return type
+    net: make IP.{String,MarshalText} return helpful information on address error
     
-    Change-Id: I47bd98509663d75b0d4dedbdb778e803d90053cf
-    Reviewed-on: https://go-review.googlesource.com/24216
+    This change makes String and MarshalText methods of IP return a
+    hexadecial form of IP with no punctuation as part of error
+    notification. It doesn't affect the existing behavior of ParseIP.
+    
+    Also fixes bad shadowing in ipToSockaddr and makes use of reserved
+    IP address blocks for documnetation.
+    
+    Fixes #15052.
+    Updates #15228.
+    
+    Change-Id: I9e9ecce308952ed5683066c3d1bb6a7b36458c65
+    Reviewed-on: https://go-review.googlesource.com/21642
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strconv/atoi.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/error_test.go   |  49 +++++++++++++++++++
+ src/net/ip.go           |  24 +++++----
+ src/net/ip_test.go      | 126 +++++++++++++++++++++++++++++++++++++++++-------
+ src/net/ipsock_posix.go |  36 ++++++++------
+ 4 files changed, 192 insertions(+), 43 deletions(-)

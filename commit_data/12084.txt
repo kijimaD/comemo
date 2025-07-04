@@ -1,25 +1,16 @@
-commit 8998835543c0055b66c034fbca53d7c294f3956e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 20 13:41:44 2012 -0500
+commit f274551f962f982daafd681c0a8a2e6b29e88315
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 20 02:49:58 2012 -0800
 
-    5g, 6g, 8g: flush modified globals aggressively
+    build: remove old version*.go files from hgignore
     
-    The alternative is to record enough information that the
-    trap handler know which registers contain cached globals
-    and can flush the registers back to their original locations.
-    That's significantly more work.
+    This broke a build on a Linux box I hadn't updated
+    in awhile. The hgignore files were preventing hg status
+    from showing and hg purge from cleaning up junk.
     
-    This only affects globals that have been written to.
-    Code that reads from a global should continue to registerize
-    as well as before.
-    
-    Fixes #1304.
-    
-    R=ken2
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5687046
+    https://golang.org/cl/5687048
 
- src/cmd/5g/reg.c | 7 +++++++
- src/cmd/6g/reg.c | 7 +++++++
- src/cmd/8g/reg.c | 7 +++++++
- 3 files changed, 21 insertions(+)
+ .hgignore | 2 --
+ 1 file changed, 2 deletions(-)

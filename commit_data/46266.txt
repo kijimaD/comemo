@@ -1,20 +1,35 @@
-commit 88859f3cd80e03f695cba5462d959949ff9a5583
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 1 12:42:35 2021 -0700
+commit 520f3b72db7befab2028d9a47376267cf2d274a9
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Thu Nov 12 20:34:51 2020 +0000
 
-    cmd/compile: optimize unified IR handling of imported functions
+    crypto/tls: revert "add HandshakeContext method to Conn"
     
-    This CL skips reading of imported function bodies except from the
-    local package or for inlining. Previously, we wasted a bunch of CPU
-    and memory by reading in normal function bodies for all imported
-    functions and methods.
+    This reverts CL 246338.
     
-    Change-Id: I0b3df3f4a3e2819117dac11a1f9e4526288c14d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347030
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reason for revert: waiting for 1.17 release cycle
+    
+    Updates #32406
+    
+    Change-Id: I074379039041e086c62271d689b4b7f442281663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269697
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
 
- src/cmd/compile/internal/noder/reader.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/go1.16.html                          | 17 ---------
+ src/crypto/tls/common.go                 | 21 -----------
+ src/crypto/tls/conn.go                   | 62 +++-----------------------------
+ src/crypto/tls/handshake_client.go       | 11 ++----
+ src/crypto/tls/handshake_client_test.go  | 36 -------------------
+ src/crypto/tls/handshake_client_tls13.go |  3 --
+ src/crypto/tls/handshake_server.go       | 17 ++++-----
+ src/crypto/tls/handshake_server_test.go  | 50 ++------------------------
+ src/crypto/tls/handshake_server_tls13.go |  4 +--
+ src/crypto/tls/tls.go                    | 55 +++++++++++++++++++++++-----
+ src/net/http/server.go                   |  2 +-
+ src/net/http/transport.go                | 10 +++---
+ src/net/http/transport_test.go           |  2 +-
+ 13 files changed, 69 insertions(+), 221 deletions(-)

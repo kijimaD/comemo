@@ -1,21 +1,29 @@
-commit 512b3c63b7472d2baab881de4dbcbd0ab8e447ab
-Author: Mihai Moldovan <ionic@ionic.de>
-Date:   Tue Apr 9 10:25:49 2019 +0000
+commit 69010963aa233b7b2762762595ae230692b1c724
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 13 15:33:57 2018 -0800
 
-    cmd/dist: add BOOT_GO_LDFLAGS - counterpart of BOOT_GO_GCFLAGS
+    cmd/compile: provide updating mechanism for format test
     
-    This allows passing custom LDFLAGS while building the bootstrapping
-    tool.
+    The compiler's Format test verifies that the correct format
+    strings for the given arguments are used in the compiler
+    sources. The format strings are fairly specialized which is
+    why we cannot use go vet; and the mapping is based on a
+    hard-wired map.
     
-    Afterwards, GO_LDFLAGS will be used as usual.
+    In the past, if that map got out of sync with the compiler
+    sources, it was necessary to manually update the map. This
+    change introduces an update mechanism which simply requires
+    the test to be run with the -u flag.
     
-    Change-Id: I1e224e3ce8bf7b2ce1ef8fec1894720338f04396
-    GitHub-Last-Rev: 17d40dc2dd2f0815331cb2f8de3445f86687cc45
-    GitHub-Pull-Request: golang/go#31298
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171037
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    (Formerly, the -u flag was used to automatically rewrite
+    format strings; now we use -r for that.)
+    
+    Change-Id: I9259566a6120a13cf34b143875975ada62697890
+    Reviewed-on: https://go-review.googlesource.com/c/149460
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/dist/build.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/fmt_test.go    | 275 ++++++++++-------------------------------
+ src/cmd/compile/fmtmap_test.go | 203 ++++++++++++++++++++++++++++++
+ 2 files changed, 269 insertions(+), 209 deletions(-)

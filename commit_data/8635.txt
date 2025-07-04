@@ -1,15 +1,33 @@
-commit f35a3df80c9df2c5bf2651746b2df047d356c8a4
-Author: Graham Miller <graham.miller@gmail.com>
-Date:   Mon Jun 6 12:59:58 2011 -0700
+commit c281ddf1eb4e6cff20096322f73724d2b21b74de
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jun 6 10:35:46 2011 -0400
 
-    big: Rat always outputs the requested precision from FloatString
+    crypto: reorg, cleanup and add function for generating CRLs.
     
-    Fixes #1922.
+    This change moves a number of common PKIX structures into
+    crypto/x509/pkix, from where x509, and ocsp can reference
+    them, saving duplication. It also removes x509/crl and merges it into
+    x509 and x509/pkix.
     
-    R=golang-dev, gri
+    x509 is changed to take advantage of the big.Int support that now
+    exists in asn1. Because of this, the public/private key pair in
+    http/httptest/server.go had to be updated because it was serialised
+    with an old version of the code that didn't zero pad ASN.1 INTEGERs.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/4551098
+    https://golang.org/cl/4532115
 
- src/pkg/big/rat.go      | 6 +++++-
- src/pkg/big/rat_test.go | 5 +++--
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ src/pkg/Makefile                           |   3 +-
+ src/pkg/crypto/ocsp/ocsp.go                |  23 +-
+ src/pkg/crypto/rsa/rsa.go                  |   2 +-
+ src/pkg/crypto/tls/tls.go                  |   2 +-
+ src/pkg/crypto/x509/cert_pool.go           |   3 +-
+ src/pkg/crypto/x509/crl/crl.go             |  96 --------
+ src/pkg/crypto/x509/crl/crl_test.go        |  63 -----
+ src/pkg/crypto/x509/{crl => pkix}/Makefile |   4 +-
+ src/pkg/crypto/x509/pkix/pkix.go           | 167 +++++++++++++
+ src/pkg/crypto/x509/x509.go                | 361 ++++++++++++-----------------
+ src/pkg/crypto/x509/x509_test.go           | 102 +++++++-
+ src/pkg/http/httptest/server.go            |  33 ++-
+ 12 files changed, 438 insertions(+), 421 deletions(-)

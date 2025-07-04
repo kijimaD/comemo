@@ -1,16 +1,19 @@
-commit 8f7664123087d1800c214b7dc6fb8ea169208ad6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 17 14:03:05 2014 -0700
+commit 576318c7bd9c1deeb5877df65dc26aeb53999ee2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 17 16:25:38 2014 -0400
 
-    net/http/httputil: include Content-Length in DumpResponse output
+    cmd/pack: avoid ./ import in test (fix Windows build)
     
-    Fixes #5357
+    It is possible to use ./ imports on Windows but it
+    requires some extra command-line work
+    ('go build' does this automatically, but we can't use 'go build' here).
     
-    LGTM=nigeltao
-    R=nigeltao
+    Instead, use an ordinary import and -I/-L, which are easier to use.
+    
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/87910050
+    https://golang.org/cl/89040043
 
- src/pkg/net/http/httputil/dump.go      | 32 +++++++++++---
- src/pkg/net/http/httputil/dump_test.go | 80 ++++++++++++++++++++++++++++++++++
- 2 files changed, 106 insertions(+), 6 deletions(-)
+ src/cmd/pack/pack_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

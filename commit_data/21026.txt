@@ -1,12 +1,27 @@
-commit ddb24da850d5034d8f63dd3d900f7db7e569d2a1
-Author: Emil Hessman <emil@hessman.se>
-Date:   Fri Dec 19 08:37:52 2014 +0100
+commit 03c008bcb2ab64d5ca2adbd44e3369077cc46655
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Nov 8 17:12:23 2014 -0800
 
-    doc: fix typo in gccgo contribute
+    lib/codereview: fix with more recent hg revisions.
     
-    Change-Id: Ib9699fc9c45f61e9d75e9d9ae69167f039a66dfc
-    Reviewed-on: https://go-review.googlesource.com/1890
-    Reviewed-by: Minux Ma <minux@golang.org>
+    I've Mercurial version 3.2 and hg submit fails with:
+    
+      File "/home/agl/devel/go/lib/codereview/codereview.py", line 3567, in get_hg_status
+        ret = hg_commands.status(fui, self.repo, *[], **{'rev': [rev], 'copies': True})
+      File "/usr/lib/python2.7/site-packages/mercurial/commands.py", line 5714, in status
+        fm = ui.formatter('status', opts)
+      File "/home/agl/devel/go/lib/codereview/codereview.py", line 3464, in formatter
+        return plainformatter(self, topic, opts)
+      File "/usr/lib/python2.7/site-packages/mercurial/formatter.py", line 57, in __init__
+        if ui.debugflag:
+      AttributeError: 'FakeMercurialUI' object has no attribute 'debugflag'
+    
+    This change dumbly adds a boolean debugflag and that seems to work.
+    
+    LGTM=minux
+    R=rsc, minux
+    CC=golang-codereviews
+    https://golang.org/cl/167410043
 
- doc/gccgo_contribute.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/codereview/codereview.py | 1 +
+ 1 file changed, 1 insertion(+)

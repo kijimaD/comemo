@@ -1,19 +1,20 @@
-commit e33f7c42b084182a3a88ef79857e33c11627159a
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Nov 17 16:54:11 2024 -0500
+commit 774d001d178569283cb719bd062cf5d18de51f47
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Oct 4 03:23:54 2023 +0000
 
-    cmd/go/internal/modfetch: export new func Unzip
+    bufio: use max/min func
     
-    Add new func Unzip, which is Download (= download+unzip)
-    without the download. This will be used for unpacking the
-    FIPS module zips, which are part of the Go distribution,
-    not downloaded.
-    
-    Change-Id: Ia04f8c376db8cb1cf27acb5567dd256afb10f410
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629200
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I52875f8dd4bbdc9296ba8e4f801356047ee14e62
+    GitHub-Last-Rev: dfb2a343e60f0994a5741e1b4534e464a80ba2ef
+    GitHub-Pull-Request: golang/go#63344
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532216
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/go/internal/modfetch/fetch.go | 32 ++++++++++++++++++++++++++++++--
- 1 file changed, 30 insertions(+), 2 deletions(-)
+ src/bufio/bufio.go | 5 +----
+ src/bufio/scan.go  | 4 +---
+ 2 files changed, 2 insertions(+), 7 deletions(-)

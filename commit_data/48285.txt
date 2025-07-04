@@ -1,21 +1,130 @@
-commit 1e122e3894bd12407b0043ab25c2a5f665b3f6e5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 4 10:03:32 2022 -0800
+commit f34fe8e370f8bd910640fa49bb4d93e910145193
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Wed May 5 10:48:13 2021 -0400
 
-    syscall: remove TestRlimit
+    all: update vendored dependencies for Go 1.17
     
-    It's more trouble than it's worth. New code should be using x/sys/unix
-    anyhow.
+    The Go 1.17 freeze has begun. This is a time to update all
+    golang.org/x/...  module versions that contribute packages to the std
+    and cmd modules in the standard library to latest master versions.
     
-    Fixes #40564
-    Fixes #51479
+            updatestd --branch master --goroot=$HOME/development/goroot
+            > go version
+            go version devel go1.17-4c9791299d Wed May 5 09:00:06 2021 +0000 linux/amd64
+            > go env GOROOT
+            /home/rakoczy/development/goroot
+            > go version -m /home/rakoczy/go/bin/bundle
+            /home/rakoczy/go/bin/bundle: devel +c584f42dcf Tue Feb 23 18:39:53 2021 +0000
+                    path    golang.org/x/tools/cmd/bundle
+                    mod     golang.org/x/tools      v0.1.0  h1:po9/4sTYwZU9lPhi1tOrb4hCv3qrhiQ77LZfGa2OjwY=
+                    dep     golang.org/x/mod        v0.3.0  h1:RM4zey1++hCTbCVQfnWeKs9/IEsaBLA8vTkd0WVtmH4=
+                    dep     golang.org/x/sys        v0.0.0-20210119212857-b64e53b001e4      h1:myAQVi0cGEoqQVR5POX+8RR2mrocKqNN1hmeMqhX27k=
+                    dep     golang.org/x/xerrors    v0.0.0-20200804184101-5ec99f83aff1      h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
     
-    Change-Id: I1c0e13f494380c1565e98359f088af9f52790b79
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390020
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+            skipping github.com/chzyer/logex (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/chzyer/readline (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/chzyer/test (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/google/pprof (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/ianlancetaylor/demangle (out of scope, it's not a golang.org/x dependency)
+            skipping github.com/yuin/goldmark (out of scope, it's not a golang.org/x dependency)
+            skipping rsc.io/pdf (out of scope, it's not a golang.org/x dependency)
+            updating module cmd in /home/rakoczy/development/goroot/src/cmd
+            > go mod edit -go=1.17
+            > go get -d golang.org/x/arch@cbf565b21d1e6f86b3114f28f516032b201c97fa golang.org/x/crypto@e9a32991a82ef02a1e74f495dcc0785239782bfe golang.org/x/mod@67f1c1edc27ada9b0cffe84ccdd4db2d4ff56edf golang.org/x/net@0287a6fb4125c2b83c66560a2677a4ee69a13903 golang.org/x/sync@036812b2e83c0ddf193dd5a34e034151da389d09 golang.org/x/sys@0981d6026fa6241c75c6949829b5bd7a2574ad55 golang.org/x/term@a79de5458b56c188f4fc267a58014ac25fec956a golang.org/x/text@5c7c50ebbd4f5b0d53b9b2fcdbeb92ffb732a06e golang.org/x/tools@7cab0ef2e9a592f6a73e7a1969ba89d38515e143 golang.org/x/xerrors@5ec99f83aff198f5fbd629d6c8d8eb38a04218ca
+            go: downloading golang.org/x/mod v0.4.3-0.20210504181020-67f1c1edc27a
+            go: downloading golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
+            go: downloading golang.org/x/net v0.0.0-20210505024714-0287a6fb4125
+            go: downloading golang.org/x/sys v0.0.0-20210503173754-0981d6026fa6
+            go: downloading golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f
+            go: downloading golang.org/x/tools v0.1.1-0.20210505014545-7cab0ef2e9a5
+            go get: upgraded golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 => v0.0.0-20210505024714-0287a6fb4125
+            go get: upgraded golang.org/x/sys v0.0.0-20210423082822-04245dca01da => v0.0.0-20210503173754-0981d6026fa6
+            go get: upgraded golang.org/x/text v0.3.3 => v0.3.7-0.20210503195748-5c7c50ebbd4f
+            go get: upgraded golang.org/x/tools v0.1.1-0.20210503200558-19b1717ea5eb => v0.1.1-0.20210505014545-7cab0ef2e9a5
+            > go mod tidy
+            > go mod vendor
+    
+            updating module std in /home/rakoczy/development/goroot/src
+            > go mod edit -go=1.17
+            > go get -d golang.org/x/crypto@e9a32991a82ef02a1e74f495dcc0785239782bfe golang.org/x/net@0287a6fb4125c2b83c66560a2677a4ee69a13903 golang.org/x/sys@0981d6026fa6241c75c6949829b5bd7a2574ad55 golang.org/x/term@a79de5458b56c188f4fc267a58014ac25fec956a golang.org/x/text@5c7c50ebbd4f5b0d53b9b2fcdbeb92ffb732a06e golang.org/x/tools@7cab0ef2e9a592f6a73e7a1969ba89d38515e143
+            go get: upgraded golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420 => v0.0.0-20210505024714-0287a6fb4125
+            go get: upgraded golang.org/x/sys v0.0.0-20210423082822-04245dca01da => v0.0.0-20210503173754-0981d6026fa6
+            go get: upgraded golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 => v0.0.0-20210503060354-a79de5458b56
+            go get: upgraded golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e => v0.1.1-0.20210505014545-7cab0ef2e9a5
+            > go mod tidy
+            > go mod vendor
+    
+            updating bundles in /home/rakoczy/development/goroot/src
+            > go generate -run=bundle std cmd
+    
+    For #36905
+    
+    Change-Id: Ie145bba93125f0b4212df94216e05ec08c4fe534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315831
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/syscall/syscall_unix_test.go | 27 ---------------------------
- 1 file changed, 27 deletions(-)
+ src/cmd/go.mod                                     |   4 +-
+ src/cmd/go.sum                                     |   8 +-
+ .../vendor/golang.org/x/sys/unix/asm_aix_ppc64.s   |   1 +
+ .../vendor/golang.org/x/sys/unix/asm_linux_386.s   |   1 +
+ .../vendor/golang.org/x/sys/unix/asm_linux_amd64.s |   1 +
+ .../vendor/golang.org/x/sys/unix/asm_linux_arm.s   |   1 +
+ .../vendor/golang.org/x/sys/unix/asm_linux_arm64.s |   1 +
+ .../golang.org/x/sys/unix/asm_linux_mips64x.s      |   1 +
+ .../vendor/golang.org/x/sys/unix/asm_linux_mipsx.s |   1 +
+ .../golang.org/x/sys/unix/asm_linux_ppc64x.s       |   1 +
+ .../golang.org/x/sys/unix/asm_linux_riscv64.s      |   4 +-
+ .../vendor/golang.org/x/sys/unix/asm_linux_s390x.s |   3 +-
+ .../golang.org/x/sys/unix/asm_openbsd_mips64.s     |   1 +
+ .../golang.org/x/sys/unix/asm_solaris_amd64.s      |   1 +
+ src/cmd/vendor/golang.org/x/sys/unix/fdset.go      |   4 +-
+ .../golang.org/x/sys/unix/syscall_illumos.go       |  51 ++++++++-
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   6 +-
+ .../golang.org/x/sys/unix/syscall_zos_s390x.go     |  52 ++++++++-
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  23 +++-
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |   2 +
+ .../golang.org/x/sys/unix/zerrors_zos_s390x.go     |  22 ++++
+ .../x/sys/unix/zsyscall_darwin_386.1_13.s          |   1 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_386.s    |   1 +
+ .../x/sys/unix/zsyscall_darwin_amd64.1_13.s        |   1 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |   1 +
+ .../x/sys/unix/zsyscall_darwin_arm.1_13.s          |   1 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm.s    |   1 +
+ .../x/sys/unix/zsyscall_darwin_arm64.1_13.s        |   1 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |   1 +
+ .../golang.org/x/sys/unix/zsyscall_zos_s390x.go    |  42 +++++++-
+ .../golang.org/x/sys/unix/zsysnum_linux_386.go     |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |   1 +
+ .../x/sys/unix/zsysnum_linux_mips64le.go           |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc.go     |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |   1 +
+ .../golang.org/x/sys/unix/ztypes_illumos_amd64.go  |   4 +-
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  15 ++-
+ .../golang.org/x/sys/unix/ztypes_zos_s390x.go      |   4 +
+ src/cmd/vendor/modules.txt                         |   6 +-
+ src/go.mod                                         |   4 +-
+ src/go.sum                                         |   8 +-
+ src/net/http/h2_bundle.go                          | 119 +++++++++++++--------
+ src/vendor/golang.org/x/sys/cpu/asm_aix_ppc64.s    |   1 +
+ src/vendor/golang.org/x/sys/cpu/cpu_arm64.s        |   1 +
+ src/vendor/golang.org/x/sys/cpu/cpu_gc_x86.go      |   4 +
+ src/vendor/golang.org/x/sys/cpu/cpu_gccgo_x86.go   |   6 ++
+ src/vendor/golang.org/x/sys/cpu/cpu_s390x.s        |   1 +
+ src/vendor/golang.org/x/sys/cpu/cpu_x86.go         |  10 +-
+ src/vendor/golang.org/x/sys/cpu/cpu_x86.s          |  25 +++++
+ src/vendor/modules.txt                             |   6 +-
+ 59 files changed, 383 insertions(+), 84 deletions(-)

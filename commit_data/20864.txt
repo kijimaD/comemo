@@ -1,25 +1,16 @@
-commit 6bd0d0542ee15fda0da545c16af43fcfd34d6334
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 6 19:56:55 2014 -0500
+commit 9d06cfc810692911372b80b7ef0dc080ee1d34d4
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Oct 20 23:03:03 2014 +0200
 
-    cmd/objdump, cmd/pprof: factor disassembly into cmd/internal/objfile
+    runtime: handle non-nil-terminated environment strings on Plan 9
     
-    Moving so that new Go 1.4 pprof can use it.
+    Russ Cox pointed out that environment strings are not
+    required to be nil-terminated on Plan 9.
     
-    The old 'GNU objdump workalike' mode for 'go tool objdump'
-    is now gone, as are the tests for that mode. It was used only
-    by pre-Go 1.4 pprof. You can still specify an address range on
-    the command line; you just get the same output format as
-    you do when dumping the entire binary (without an address
-    limitation).
-    
-    LGTM=r
-    R=r
-    CC=golang-codereviews, iant
-    https://golang.org/cl/167320043
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/159130044
 
- src/cmd/internal/objfile/objfile.go |  14 ++-
- src/cmd/objdump/main.go             | 242 +++---------------------------------
- src/cmd/objdump/objdump_test.go     |  98 ---------------
- src/cmd/pprof/pprof.go              |  41 +++++-
- 4 files changed, 69 insertions(+), 326 deletions(-)
+ src/runtime/env_plan9.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

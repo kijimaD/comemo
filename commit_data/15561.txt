@@ -1,16 +1,20 @@
-commit ed01f4be591e6b8e1791164f5b1abb1a237a51ad
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Mar 3 15:59:53 2013 +0900
+commit 3d50aaf4832e1b1f8143f15cee9c425fd09e94e5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Mar 3 06:50:17 2013 +0800
 
-    net: add unixgram dial test
+    cmd/dist: support for NetBSD/ARM
+    1. when executing a unsupported VFP instruction, the NetBSD kernel somehow
+    doesn't report SIGILL, and instead just spin and spin, we add a alarm(2)
+    to detect this case (albeit this is a kernel bug).
+    2. NetBSD/ARM's VFP11 support is not complete, so temporarily disable it.
+    3. The default gcc shipped with NetBSD-current mis-optimizes our code
+    at -O2, so lower the optimization level to -O1 on NetBSD/ARM.
     
-    Also replaces testing.Errof with testing.Fatalf, make use of ICMP mock.
-    
-    R=golang-dev, dave
+    R=dave, rsc
     CC=golang-dev
-    https://golang.org/cl/7308058
+    https://golang.org/cl/7286044
 
- src/pkg/net/conn_test.go       |  34 ++++---
- src/pkg/net/packetconn_test.go |  84 +++++++++++-----
- src/pkg/net/protoconn_test.go  | 217 +++++++++++++++--------------------------
- 3 files changed, 151 insertions(+), 184 deletions(-)
+ src/cmd/dist/arm.c   | 12 ++++++++++++
+ src/cmd/dist/build.c |  6 ++++++
+ src/cmd/dist/unix.c  |  7 +++++++
+ 3 files changed, 25 insertions(+)

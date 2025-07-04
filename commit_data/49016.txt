@@ -1,27 +1,17 @@
-commit 037b209ae3e0453004a4d57e152aa522c56f79e4
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 4 09:20:56 2022 +0200
+commit 85267f402c3ba7ec91a3cf5e4e4a763fd1137deb
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Jul 7 14:42:26 2021 -0700
 
-    net/netip: use strconv.AppendUint in AddrPort.AppendTo
+    [dev.typeparams] cmd/compile: move def of comparable to end of predeclared slices
     
-    This is already used in AddrPort.String.
+    This avoids changing the export ABI.
     
-    name                               old time/op    new time/op    delta
-    AddrPortMarshalText/v4-4             67.9ns ± 3%    61.5ns ± 6%  -9.43%  (p=0.000 n=10+9)
-    AddrPortMarshalText/v6-4              168ns ± 4%     155ns ± 2%  -7.54%  (p=0.000 n=10+10)
-    AddrPortMarshalText/v6_ellipsis-4     169ns ± 3%     162ns ± 5%  -4.03%  (p=0.001 n=9+10)
-    AddrPortMarshalText/v6_v4-4          87.0ns ± 4%    85.8ns ± 4%    ~     (p=0.165 n=10+10)
-    AddrPortMarshalText/v6_zone-4         169ns ± 3%     166ns ± 3%    ~     (p=0.066 n=10+10)
-    
-    Change-Id: If16eda4bf48224029dcaf2069ae87f8d89865d99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404014
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I58950c1f4c21859d91d66d352b88e8c0972b5b8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333164
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/net/netip/netip.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/support.go  | 5 +++--
+ src/cmd/compile/internal/typecheck/bexport.go | 5 +++--
+ src/go/internal/gcimporter/support.go         | 5 +++--
+ 3 files changed, 9 insertions(+), 6 deletions(-)

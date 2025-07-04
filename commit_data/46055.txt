@@ -1,24 +1,27 @@
-commit 29ec74fb82328f4c005d556291ea687da7aad4b0
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 20:13:25 2021 -0400
+commit 33c89be3b72c1c3cae20a12b13da9ee6c723e31c
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Aug 27 18:36:42 2020 -0400
 
-    go/types: check if the interface is already complete in Complete
+    [dev.fuzz] testing: add basic go command support for fuzzing
     
-    Once Interfaces have been completed they must never be written again,
-    as they may be used concurrently.
+    This change adds support for a -fuzz flag in the go command, and sets up
+    the groundwork for native fuzzing support. These functions are no-ops
+    for now, but will be built out and tested in future PRs.
     
-    Avoid writing Interface.complete unnecessarily in Complete. Also, update
-    documentation to reflect that Complete must be called before the
-    Interface may be considered safe for concurrent use.
-    
-    For #47726
-    
-    Change-Id: Ic9fd1395ab0dd6d3499f7a698dadf315abcddab8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342749
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I58e78eceada5799bcb73acc4ae5a20372badbf40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251441
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/types/interface.go | 23 +++++++++++------------
- 1 file changed, 11 insertions(+), 12 deletions(-)
+ api/except.txt                       |   1 +
+ api/next.txt                         |  33 ++++++
+ src/cmd/go/internal/load/test.go     |  15 ++-
+ src/cmd/go/internal/test/flagdefs.go |   1 +
+ src/cmd/go/internal/test/test.go     |   2 +
+ src/cmd/go/internal/test/testflag.go |   1 +
+ src/go/doc/example.go                |  16 +--
+ src/go/doc/example_test.go           |   6 ++
+ src/testing/fuzz.go                  | 196 +++++++++++++++++++++++++++++++++++
+ src/testing/testing.go               |  47 ++++++---
+ 10 files changed, 295 insertions(+), 23 deletions(-)

@@ -1,19 +1,20 @@
-commit 1c590661e7d3b477662f76ead56f39567ea8345a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 19 11:48:22 2021 -0400
+commit 03eb7e20e4d4d0a9cc3d34787049f101c9f72761
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue Aug 25 06:43:27 2020 -0700
 
-    testing: allow parallel-subtest goroutines to exit when the subtest is complete
+    cmd/compile: apply strong typing to all remaining s390x rewrite rules
     
-    Fixes #45127
-    Updates #38768
+    This CL applies strong aux typing to the remaining s390x rewrite
+    rules in preparation for strong aux typing becoming the default.
     
-    Change-Id: I7f41901d5bcc07741ac9f5f2a24d2b07ef633cb1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303330
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check on s390x.
+    
+    Change-Id: Id585b0db492780737818024e1b22b4837435b525
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250558
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- .../script/test_finished_subtest_goroutines.txt    | 52 ++++++++++++++++++++++
- src/testing/testing.go                             | 13 +++---
- 2 files changed, 59 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  677 +++--
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 3723 +++++++++++++-------------
+ 2 files changed, 2189 insertions(+), 2211 deletions(-)

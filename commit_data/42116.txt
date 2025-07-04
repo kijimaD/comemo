@@ -1,18 +1,16 @@
-commit 47b5efad5dba1c275128cb74b18a3f059fafd2e2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 22:27:23 2020 -0700
+commit 0bbcce962a2ef0937b1f5a5e5d3b7033760d0d2f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 8 16:16:23 2019 -0500
 
-    cmd/compile: convert nilcheck elim rules to typed aux
+    cmd/go/internal/lockedfile: skip flaky TestTransform on plan9
     
-    Passes toolstash-check.
+    Updates #35471
     
-    Change-Id: Ic7efb0e4778844366f581c6310a1a2f3bfc1868a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229686
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ie06c442e405a267eb909621e1205444b6a00fda1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206197
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules | 14 +++++++-------
- src/cmd/compile/internal/ssa/rewrite.go        |  5 +++++
- src/cmd/compile/internal/ssa/rewritegeneric.go | 22 +++++++++++-----------
- 3 files changed, 23 insertions(+), 18 deletions(-)
+ src/cmd/go/internal/lockedfile/transform_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

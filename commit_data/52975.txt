@@ -1,41 +1,19 @@
-commit bc9e21351c2b9f0802304198860afbd4f1381e75
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Tue Apr 4 01:10:55 2023 +0200
+commit 2e773a3894fba7af744090d7d42968f4993018e2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 22 16:02:45 2022 -0700
 
-    runtime: rename getcallerfp to getfp
+    test: add test that causes gofrontend crash
     
-    The previous name was wrong due to the mistaken assumption that calling
-    f->g->getcallerpc and f->g->getcallersp would respectively return the
-    pc/sp at g. However, they are actually referring to their caller's
-    caller, i.e. f.
+    For #52846
     
-    Rename getcallerfp to getfp in order to stay consistent with this
-    naming convention.
-    
-    Also see discussion on CL 463835.
-    
-    For #16638
-    
-    Change-Id: I07990645da78819efd3db92f643326652ee516f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/481617
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I763f81def97b53277396c123c524f7b8193ea35e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413694
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/asm_amd64.s      | 2 +-
- src/runtime/asm_arm64.s      | 2 +-
- src/runtime/export_test.go   | 2 +-
- src/runtime/os_wasm.go       | 5 +++--
- src/runtime/stubs_386.go     | 5 +++--
- src/runtime/stubs_amd64.go   | 4 ++--
- src/runtime/stubs_arm.go     | 5 +++--
- src/runtime/stubs_arm64.go   | 4 ++--
- src/runtime/stubs_loong64.go | 5 +++--
- src/runtime/stubs_mips64x.go | 5 +++--
- src/runtime/stubs_mipsx.go   | 5 +++--
- src/runtime/stubs_ppc64x.go  | 5 +++--
- src/runtime/stubs_riscv64.go | 5 +++--
- src/runtime/stubs_s390x.go   | 5 +++--
- src/runtime/trace.go         | 2 +-
- 15 files changed, 35 insertions(+), 26 deletions(-)
+ test/fixedbugs/issue52846.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

@@ -1,21 +1,21 @@
-commit a0948493ac693b46b4124a4380fd044c6a05f1b3
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Jun 13 11:05:18 2022 -0500
+commit ce72766a02a4be127a26e95fbd62c4b4bb906e91
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Oct 5 10:22:47 2021 -0500
 
-    debug/elf: fix reloc number of R_PPC64_SECTOFF_LO_DS
+    cmd/compile: improve PPC64 rules for AtomicLoad{8,32}
     
-    R_PPC64_SECTOFF_LO_DS is defined as reloc 62 on all PPC64 ELF ABIs.
+    This adds a rule to avoid the zero extension after an AtomicLoad8
+    or AtomicLoad32 since the atomic load has already filled it with
+    zeros. This eliminates an instruction in a high use block in findObject
+    and the AtomicLoad8 appears many times within runtime.
     
-    Fixes #53356
-    
-    Change-Id: I5fabf6be32f3310c5aed47d4d654e05fb7bc9de0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411915
+    Change-Id: I7e684bf73d3812110bd371e05b1aa44fa235fc9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354029
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- api/except.txt       | 1 +
- api/next/53356.txt   | 1 +
- src/debug/elf/elf.go | 4 ++--
- 3 files changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

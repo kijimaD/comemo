@@ -1,15 +1,15 @@
-commit 60682c4f596803f102ae8694f790995d1e99c273
+commit 54340bf56fb4b29ea175d85cff4ba765a60961b6
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sat Apr 6 20:02:49 2013 -0700
+Date:   Sat Apr 6 20:01:28 2013 -0700
 
-    runtime: replace unions with structs
-    Unions can break precise GC.
+    runtime: reset dangling typed pointer
+    +untype it because it can point to different types
     Update #5193.
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/8456043
+    https://golang.org/cl/8454043
 
- src/pkg/runtime/atomic_arm.c | 4 ++--
- src/pkg/runtime/sema.goc     | 6 +++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/pkg/runtime/proc.c    | 1 +
+ src/pkg/runtime/runtime.h | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

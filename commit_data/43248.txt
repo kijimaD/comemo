@@ -1,22 +1,22 @@
-commit 39b527691495902279da7ac8405a070ded7dd4a2
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 7 09:07:16 2020 -0400
+commit 105053fa19eba7f9761e1fdf1007905051583d44
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 20 15:52:43 2020 -0400
 
-    net: remove dependency on math/rand
+    [dev.link] cmd/link: record per-phase memory profile
     
-    Like we did for sync, let the runtime give net random numbers,
-    to avoid forcing an import of math/rand for DNS.
+    We already have an option to record per-phase CPU profiles. If we're
+    in "mem" benchmark mode, then it also makes sense to collect a heap
+    profile of the live heap at the end of a phase. This CL adds that
+    profile and changes the extensions of the profiles to "cpuprof" and
+    "memprof" to make the distinction clear.
     
-    Change-Id: Iab3e64121d687d288a3961a8ccbcebe589047253
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241258
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ia05b7fa18bccad954a875f7a55d9cff5ad8dfaaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224617
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/go/build/deps_test.go |  5 ++---
- src/net/dnsclient.go      | 19 ++++++++++++++++---
- src/net/dnsclient_test.go |  5 +----
- src/net/dnsclient_unix.go |  3 +--
- src/runtime/stubs.go      |  3 +++
- 5 files changed, 23 insertions(+), 12 deletions(-)
+ src/cmd/link/internal/benchmark/bench.go      | 25 ++++++++++++++++++++++---
+ src/cmd/link/internal/benchmark/bench_test.go |  4 ++--
+ 2 files changed, 24 insertions(+), 5 deletions(-)

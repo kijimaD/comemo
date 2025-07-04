@@ -1,13 +1,15 @@
-commit 9d52fe22b48d611adc2935e76920b430db757fd3
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Dec 8 08:08:00 2011 +1100
+commit 5e98505ba7eda4f5ad6525444e19b4ada04677ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 7 15:48:55 2011 -0500
 
-    exp/sql: simplify some string conversions.
+    gc: fix spurious typecheck loop in &composite literal
     
-    R=bradfitz
+    Fixes #2538.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5451112
+    https://golang.org/cl/5449114
 
- src/pkg/exp/sql/convert.go      | 15 +++------------
- src/pkg/exp/sql/convert_test.go |  2 +-
- 2 files changed, 4 insertions(+), 13 deletions(-)
+ src/cmd/gc/typecheck.c   |  1 +
+ test/fixedbugs/bug380.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+)

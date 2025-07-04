@@ -1,21 +1,26 @@
-commit d25579293374bdc2d10864f7fa0ac9f89bb87fd9
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Mar 14 10:25:18 2024 -0700
+commit 6e096e2fd5d00164acce57cca80ba188096216fd
+Author: Jeff Hodges <jeff@somethingsimilar.com>
+Date:   Sat Mar 25 23:21:01 2023 +0000
 
-    cmd/compile: simplify algorithm kinds
+    cmd/go: change +build doc references to //go:build
     
-    Add a ANOALG kind which is "ANOEQ, plus has a part that is marked Noalg".
-    That way, AlgType can return just a kind.
-    The field we used to return was used only to get this bit of information.
+    This changes a few references to `+build` into the modern `//go:build`.
+    It was compiled by editing `cmd/go/internal/list/context.go`, running
+    `go test cmd/go -v -run=TestDocsUpToDate -fixdocs`, and then editing
+    list.go and build.go by hand.
     
-    Change-Id: Iaa409742825cc1f19ab414b1f5b74c1f112ed5f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572075
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I00fec55e098bf5100f5a186dd975a6628e15beb8
+    GitHub-Last-Rev: e0eb9be77e9e409479ef48a65f750546d2a9ddcc
+    GitHub-Pull-Request: golang/go#59245
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479417
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/compare/compare.go      |  3 +-
- src/cmd/compile/internal/reflectdata/alg.go      |  8 ++--
- src/cmd/compile/internal/types/alg.go            | 61 +++++++++++-------------
- src/cmd/compile/internal/types/algkind_string.go |  7 +--
- 4 files changed, 37 insertions(+), 42 deletions(-)
+ src/cmd/go/alldocs.go                 | 4 ++--
+ src/cmd/go/internal/list/context.go   | 2 +-
+ src/cmd/go/internal/list/list.go      | 4 ++--
+ src/cmd/go/internal/modindex/build.go | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

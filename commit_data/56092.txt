@@ -1,71 +1,43 @@
-commit 89f7805c2e1ec3a1f708957ca8f43b04f3f2834f
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Dec 28 14:26:34 2023 +0000
+commit a3dd95922913e51e7f0d4a20b8993fde710eb20e
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Sat Dec 3 21:16:49 2022 +0800
 
-    cmd/compile/internal: merge stack slots for selected local auto vars
+    cmd/internal/obj/loong64, cmd/link/internal: switch to LoongArch ELF psABI v2 relocs
     
-    Preliminary compiler support for merging/overlapping stack
-    slots of local variables whose access patterns are disjoint.
+    The LoongArch ELF psABI v2 [1] relocs are vastly simplified from the v1
+    which involved a stack machine for computing the reloc values, but the
+    details of PC-relative addressing are changed as well. Specifically, the
+    `pcaddu12i` instruction is substituted with the `pcalau12i`, which is
+    like arm64's `adrp` -- meaning the lower bits of a symbol's address now
+    have to be absolute and not PC-relative.
     
-    This patch includes changes in AllocFrame to do the actual
-    merging/overlapping based on information returned from a new
-    liveness.MergeLocals helper. The MergeLocals helper identifies
-    candidates by looking for sets of AUTO variables that either A) have
-    the same size and GC shape (if types contain pointers), or B) have the
-    same size (but potentially different types as long as those types have
-    no pointers). Variables must be greater than (3*types.PtrSize) in size
-    to be considered for merging.
+    However, apart from the little bit of added complexity, the obvious
+    advantage is that only 1 reloc needs to be emitted for every kind of
+    external reloc we care about. This can mean substantial space savings
+    (each RELA reloc occupies 24 bytes), and no open-coded stack ops has to
+    remain any more.
     
-    After forming candidates, MergeLocals collects variables into "can be
-    overlapped" equivalence classes or partitions; this process is driven
-    by an additional liveness analysis pass. Ideally it would be nice to
-    move the existing stackmap liveness pass up before AllocFrame
-    and "widen" it to include merge candidates so that we can do just a
-    single liveness as opposed to two passes, however this may be difficult
-    given that the merge-locals liveness has to take into account
-    writes corresponding to dead stores.
+    While at it, update the preset value for the output ELF's flags to
+    indicate the psABI update.
     
-    This patch also required a change to the way ssa.OpVarDef pseudo-ops
-    are generated; prior to this point they would only be created for
-    variables whose type included pointers; if stack slot merging is
-    enabled then the ssagen code creates OpVarDef ops for all auto vars
-    that are merge candidates.
+    Fixes #58784
     
-    Note that some temporaries created late in the compilation process
-    (e.g. during ssa backend) are difficult to reason about, especially in
-    cases where we take the address of a temp and pass it to the runtime.
-    For the time being we mark most of the vars created post-ssagen as
-    "not a merge candidate".
+    [1]: https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html
     
-    Stack slot merging for locals/autos is enabled by default if "-N" is
-    not in effect, and can be disabled via "-gcflags=-d=mergelocals=0".
-    
-    Fixmes/todos/restrictions:
-    - try lowering size restrictions
-    - re-evaluate the various skips that happen in SSA-created autotmps
-    
-    Fixes #62737.
-    Updates #65532.
-    Updates #65495.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Change-Id: Ibc22e8a76c87e47bc9fafe4959804d9ea923623d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/553055
+    Change-Id: I5c13bc710eaf58293a32e930dd33feff2ef14c28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455017
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/base/debug.go             |   4 +
- src/cmd/compile/internal/base/flag.go              |   4 +
- src/cmd/compile/internal/base/hashdebug.go         |   7 +-
- src/cmd/compile/internal/ir/name.go                |   3 +
- src/cmd/compile/internal/liveness/mergelocals.go   | 691 +++++++++++++++++++++
- src/cmd/compile/internal/liveness/plive.go         |  24 +-
- src/cmd/compile/internal/ssa/check.go              |   5 +-
- src/cmd/compile/internal/ssa/func.go               |  22 +-
- src/cmd/compile/internal/ssagen/pgen.go            |  69 +-
- src/cmd/compile/internal/ssagen/ssa.go             |   9 +-
- src/cmd/compile/internal/test/mergelocals_test.go  | 184 ++++++
- .../test/testdata/mergelocals/integration.go       |  83 +++
- src/cmd/compile/internal/walk/temp.go              |   4 +-
- test/fixedbugs/bug385_64.go                        | 625 ++++++++++++-------
- 14 files changed, 1512 insertions(+), 222 deletions(-)
+ src/cmd/asm/internal/asm/testdata/loong64enc2.s |  38 +++----
+ src/cmd/internal/obj/loong64/asm.go             |  10 +-
+ src/cmd/link/internal/ld/elf.go                 |   2 +-
+ src/cmd/link/internal/loong64/asm.go            | 135 ++++++++----------------
+ 4 files changed, 67 insertions(+), 118 deletions(-)

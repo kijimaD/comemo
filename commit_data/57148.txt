@@ -1,58 +1,65 @@
-commit b67443459a5bbe0e125e34538b4ce3c895de9efd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 8 21:03:13 2024 -0700
+commit 03cd8a7b0e47f2141a1dbdad9fdce175942d5515
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Fri Jun 2 13:13:29 2023 +0200
 
-    spec: clarify prose for embedded struct fields
+    internal/bytealg: fix alignment code in equal_riscv64.s
     
-    The spec says that an embedded field must be specified
-    as a type name (or a pointer to a type name). This is
-    explicit in the prose and the FieldDecl syntax.
+    The riscv64 implementation of equal has an optimization that is
+    applied when both pointers share the same alignment but that alignment
+    is not 8 bytes.  In this case it tries to align both pointers to an 8 byte boundaries,
+    by individually comparing the first few bytes of each buffer.  Unfortunately,
+    the existing code is incorrect.  It adjusts the pointers by the wrong number
+    of bytes resulting, in most cases, in pointers that are not 8 byte aligned.
     
-    However, the prose on promoted methods required a named
-    type (originally the term used for a "defined type").
-    Before the introduction of alias types, type names could
-    only refer to named/defined types, so the prose was ok.
+    This commit fixes the issue by individually comparing the first
+    (8 - (pointer & 7)) bytes of each buffer rather than the first
+    (pointer & 7) bytes.
     
-    With the introduction of alias types in Go 1.9, we
-    distinguished between defined types (i.e., types given
-    a name through a type declaration) and type aliases
-    (types given an alternative name), and retired the notion
-    of a named type since any type with a name (alias type
-    and defined type) could be considered a "named type".
+    This particular optimization is not covered by any of the existing
+    benchmarks so a new benchmark, BenchmarkEqualBothUnaligned,
+    is provided.  The benchmark tests the case where both pointers have
+    the same alignment but may not be 8 byte aligned.  Results of the
+    new benchmark along with some of the existing benchmarks generated on
+    a SiFive HiFive Unmatched A00 with 16GB of RAM running Ubuntu 23.04
+    are presented below.
     
-    To make things worse, with Go 1.18 we re-introduced the
-    notion of a named type which now includes predeclared
-    types, defined types, type parameters (and with that
-    type aliases denoting named types).
+    Equal/0-4                                 3.356n ± 0%    3.357n ± 0%        ~ (p=0.840 n=10)
+    Equal/1-4                                 63.91n ± 7%    65.97n ± 5%   +3.22% (p=0.029 n=10)
+    Equal/6-4                                 72.94n ± 5%    76.09n ± 4%        ~ (p=0.075 n=10)
+    Equal/9-4                                 84.61n ± 7%    85.83n ± 3%        ~ (p=0.315 n=10)
+    Equal/15-4                                103.7n ± 2%    102.9n ± 4%        ~ (p=0.739 n=10)
+    Equal/16-4                                89.14n ± 3%   100.40n ± 4%  +12.64% (p=0.000 n=10)
+    Equal/20-4                                107.8n ± 3%    106.8n ± 3%        ~ (p=0.725 n=10)
+    Equal/32-4                                63.95n ± 8%    67.79n ± 7%        ~ (p=0.089 n=10)
+    Equal/4K-4                                1.256µ ± 1%    1.254µ ± 0%        ~ (p=0.925 n=10)
+    Equal/4M-4                                1.231m ± 0%    1.230m ± 0%   -0.04% (p=0.011 n=10)
+    Equal/64M-4                               19.77m ± 0%    19.78m ± 0%        ~ (p=0.052 n=10)
+    EqualBothUnaligned/64_0-4                 43.70n ± 4%    44.40n ± 5%        ~ (p=0.529 n=10)
+    EqualBothUnaligned/64_1-4                6957.5n ± 0%    105.9n ± 1%  -98.48% (p=0.000 n=10)
+    EqualBothUnaligned/64_4-4                 100.1n ± 2%    101.5n ± 4%        ~ (p=0.149 n=10)
+    EqualBothUnaligned/64_7-4               6965.00n ± 0%    95.60n ± 4%  -98.63% (p=0.000 n=10)
+    EqualBothUnaligned/4096_0-4               1.233µ ± 1%    1.225µ ± 0%   -0.65% (p=0.015 n=10)
+    EqualBothUnaligned/4096_1-4             584.226µ ± 0%    1.277µ ± 0%  -99.78% (p=0.000 n=10)
+    EqualBothUnaligned/4096_4-4               1.270µ ± 1%    1.268µ ± 0%        ~ (p=0.105 n=10)
+    EqualBothUnaligned/4096_7-4             584.944µ ± 0%    1.266µ ± 1%  -99.78% (p=0.000 n=10)
+    EqualBothUnaligned/4194304_0-4            1.241m ± 0%    1.236m ± 0%   -0.38% (p=0.035 n=10)
+    EqualBothUnaligned/4194304_1-4          600.956m ± 0%    1.238m ± 0%  -99.79% (p=0.000 n=10)
+    EqualBothUnaligned/4194304_4-4            1.239m ± 0%    1.241m ± 0%   +0.22% (p=0.007 n=10)
+    EqualBothUnaligned/4194304_7-4          601.036m ± 0%    1.239m ± 0%  -99.79% (p=0.000 n=10)
+    EqualBothUnaligned/67108864_0-4           19.79m ± 0%    19.78m ± 0%        ~ (p=0.393 n=10)
+    EqualBothUnaligned/67108864_1-4         9616.61m ± 0%    19.82m ± 0%  -99.79% (p=0.000 n=10)
+    EqualBothUnaligned/67108864_4-4           19.82m ± 0%    19.82m ± 0%        ~ (p=0.971 n=10)
+    EqualBothUnaligned/67108864_7-4         9616.34m ± 0%    19.86m ± 0%  -99.79% (p=0.000 n=10)
+    geomean                                   38.38µ         7.194µ       -81.26%
     
-    In the process some of the wording on method promotion
-    didn't get updated correctly. At attempt to fix this
-    was made with CL 406054, but while that CL's description
-    correctly explained the intent, the CL changed the prose
-    from "defined type" to "named type" (which had the new
-    meaning after Go 1.18), and thus did not fix the issue.
-    
-    This CL fixes that fix by using the term "type name".
-    This makes the prose consistent for embedded types and
-    in turn clarifies that methods of embedded alias types
-    (defined or not) can be promoted, consistent with the
-    implementation.
-    
-    While at it, also document that the type of an embedded
-    field cannot be a type parameter. This restriction has
-    been in place since the introduction of type parameters
-    with Go 1.18 and is enforced by the compiler.
-    
-    Fixes #66540.
-    For #41687.
-    
-    Change-Id: If9e6a03d7b84d24a3e6a5ceda1d46bda99bdf1f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/603958
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Axel Wagner <axel.wagner.hh@googlemail.com>
+    Change-Id: I4caab6c3450bd7e2773426b08b70bbc37fbe4e5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500855
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/go_spec.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/bytes/bytes_test.go              | 32 ++++++++++++++++++++++++++++++++
+ src/internal/bytealg/equal_riscv64.s |  2 ++
+ 2 files changed, 34 insertions(+)

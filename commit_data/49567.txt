@@ -1,19 +1,19 @@
-commit 6a7c64fde5407e83f12475b9a0a1e6315d246ba8
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Fri Jun 10 19:53:27 2022 +0800
+commit 044550ab0ee28fe85b98600503c9f33642697d76
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 28 10:08:32 2021 +0700
 
-    debug/pe: add IMAGE_FILE_MACHINE_LOONGARCH{64,32}
+    runtime: add test case for checkptr alignment with nested expression
     
-    Related: https://github.com/MicrosoftDocs/win32/pull/1067
+    Discover while working on moving checkptr instrumentation from walk to
+    SSA generation.
     
-    Change-Id: I946253f217a5c616ae4a19be44634000cba5020e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/411616
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I3f4a41fe4ad308b86c7c57d14b6ccc7c613e7f98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345432
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- api/go1.19.txt     |  4 ++++
- src/debug/pe/pe.go | 46 ++++++++++++++++++++++++----------------------
- 2 files changed, 28 insertions(+), 22 deletions(-)
+ src/runtime/checkptr_test.go              | 37 +++++++++++++++++++++++++++++++
+ src/runtime/testdata/testprog/checkptr.go |  8 +++++++
+ 2 files changed, 45 insertions(+)

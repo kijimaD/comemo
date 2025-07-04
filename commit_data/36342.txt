@@ -1,14 +1,22 @@
-commit 0b30cf534a03618162d3015c8705dd2231e34703
-Author: Santhosh Kumar Tekuri <santhosh.tekuri@gmail.com>
-Date:   Fri Jun 22 16:50:31 2018 +0530
+commit dd71e3fef4a2845ae33c493e7fcdd7702812669d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 17 14:40:56 2018 -0700
 
-    archive/zip: makes receiver name consistent
+    cmd/compile: refactor how declarations are imported
     
-    Change-Id: I4d6f7440747d4f935acddc9a5c5928ed911a2fb0
-    Reviewed-on: https://go-review.googlesource.com/120515
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This CL moves all of the logic for wiring up imported declarations
+    into export.go, so that it can be reused by the indexed importer
+    code. While here, increase symmetry across routines.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I1ccec5c3999522b010e4d04ed56b632fd4d712d9
+    Reviewed-on: https://go-review.googlesource.com/107621
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/archive/zip/struct.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go |  39 +++-------
+ src/cmd/compile/internal/gc/export.go  | 125 +++++++++++++++++++--------------
+ src/cmd/compile/internal/gc/main.go    |   7 +-
+ 3 files changed, 84 insertions(+), 87 deletions(-)

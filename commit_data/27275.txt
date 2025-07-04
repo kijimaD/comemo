@@ -1,19 +1,12 @@
-commit 2e2481ed345347197d0a5685ef200ac761def2f2
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Apr 7 16:03:53 2016 -0400
+commit d3ce412fa5da20ad6fc9017460257ce57179bbb7
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 16:41:21 2016 +0100
 
-    cmd/dist: remove the use of debug/elf package
+    net/rpc: don't assume b.N > 0
     
-    debug/elf is only needed to determine the endianness of the host
-    machine, which is easy to do without debug/elf.
-    
-    Fixes #15180.
-    
-    Change-Id: I21035ed3884871270765a1ca3b812a5d4890a7ee
-    Reviewed-on: https://go-review.googlesource.com/21662
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I58c4a75168fd1f797a25735c4151f501f0475332
+    Reviewed-on: https://go-review.googlesource.com/20854
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/util.go | 37 ++++++++++++++++++++++++++++---------
- 1 file changed, 28 insertions(+), 9 deletions(-)
+ src/net/rpc/server_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

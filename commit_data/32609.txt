@@ -1,17 +1,33 @@
-commit 2d362f7a4917057d6790ddeba1742f009c13feeb
-Author: alexpantyukhin <apantykhin@gmail.com>
-Date:   Tue Sep 5 15:48:56 2017 +0400
+commit c08ac36761d3dc03d0a0b0ffb240c4a7c524536b
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Sun May 7 10:43:17 2017 +0200
 
-    flag: simplify arg logic in parseOne
+    bytes: optimize Buffer's Write, WriteString, WriteByte, and WriteRune
     
-    Fixes #21763.
+    In the common case, the grow method only needs to reslice the internal
+    buffer. Making another function call to grow can be expensive when Write
+    is called very often with small pieces of data (like a byte or rune).
+    Thus, we add a tryGrowByReslice method that is inlineable so that we can
+    avoid an extra call in most cases.
     
-    Change-Id: I59ee4f24c8064df64d9ede11aac02bc7ce4995b3
-    Reviewed-on: https://go-review.googlesource.com/61491
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    name                       old time/op    new time/op    delta
+    WriteByte-4                  35.5µs ± 0%    17.4µs ± 1%   -51.03%  (p=0.000 n=19+20)
+    WriteRune-4                  55.7µs ± 1%    38.7µs ± 1%   -30.56%  (p=0.000 n=18+19)
+    BufferNotEmptyWriteRead-4     304µs ± 5%     283µs ± 3%    -6.86%  (p=0.000 n=19+17)
+    BufferFullSmallReads-4       87.0µs ± 5%    66.8µs ± 2%   -23.26%  (p=0.000 n=17+17)
+    
+    name                       old speed      new speed      delta
+    WriteByte-4                 115MB/s ± 0%   235MB/s ± 1%  +104.19%  (p=0.000 n=19+20)
+    WriteRune-4                 221MB/s ± 1%   318MB/s ± 1%   +44.01%  (p=0.000 n=18+19)
+    
+    Fixes #17857
+    
+    Change-Id: I08dfb10a1c7e001817729dbfcc951bda12fe8814
+    Reviewed-on: https://go-review.googlesource.com/42813
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/flag/flag.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/bytes/buffer.go      | 73 +++++++++++++++++++++++++++++++++---------------
+ src/bytes/buffer_test.go | 29 +++++++++++++++++++
+ 2 files changed, 79 insertions(+), 23 deletions(-)

@@ -1,25 +1,20 @@
-commit c63db157bd669845a23255ab268596669a5ea5df
-Author: David du Colombier <0intro@gmail.com>
-Date:   Tue Oct 25 00:31:45 2016 +0200
+commit a1dc9465a1db83912a54927d13367404bfbef363
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Aug 18 13:49:10 2016 -0500
 
-    net: handle "dns failure" as errNoSuchHost on Plan 9
+    cmd/compile: PPC64.rules for load/store address folding
     
-    CL 31468 added TestLookupNonLDH, which was failing on Plan 9,
-    because LookupHost was expecting to return errNoSuchHost
-    on DNS resolution failure, while Plan 9 returned the
-    "dns failure" string.
+    This adds some additional rules to improve loads and
+    stores for ppc64x.
     
-    In the Plan 9 implementation of lookupHost, we now return
-    errNoSuchHost instead of the "dns failure" string, so
-    the behavior is more consistant with other operating systems.
-    
-    Fixes #17568.
-    
-    Change-Id: If64f580dc0626a4a4f19e5511ba2ca5daff5f789
-    Reviewed-on: https://go-review.googlesource.com/31873
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I96b99c3a0019e6ac5393910c086f58330a04fc5a
+    Reviewed-on: https://go-review.googlesource.com/27354
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/lookup_plan9.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  48 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  14 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 706 +++++++++++++++++++++++++++
+ 4 files changed, 764 insertions(+), 8 deletions(-)

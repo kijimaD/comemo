@@ -1,19 +1,17 @@
-commit 2cc27a7de9e7d14cb6702153688d02746c6a49ea
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 28 11:53:58 2016 -0500
+commit 70090654de737e465df6d9d4c8aaa531285e5c71
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 15 17:03:10 2016 +1100
 
-    os/exec: add Cmd.RunContext and Cmd.WaitContext
+    cmd/compile/internal/gc: tidy plive.go
     
-    Updates #14660
+    Make boolean looking things boolean.
     
-    Change-Id: Ifa5c97ba327ad7ceea0a9a252e3dbd9d079dae54
-    Reviewed-on: https://go-review.googlesource.com/22529
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8d1c0a32b471412b25a72908c7da6458d7bbe65b
+    Reviewed-on: https://go-review.googlesource.com/20723
+    Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/deps.go      |  5 +++--
- src/go/build/deps_test.go |  2 +-
- src/os/exec/exec.go       | 31 +++++++++++++++++++++++++++++++
- src/os/exec/exec_test.go  | 39 +++++++++++++++++++++++++++++++++++++++
- 4 files changed, 74 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/bv.go    |  6 +++---
+ src/cmd/compile/internal/gc/plive.go | 24 +++++++++++-------------
+ 2 files changed, 14 insertions(+), 16 deletions(-)

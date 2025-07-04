@@ -1,46 +1,36 @@
-commit 596120fdc6075c5789eae3a5caaf57639e7d18a3
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 7 16:16:30 2023 -0400
+commit 871a3a409ac55fdcaf329596023e56be279b1950
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Sep 26 15:26:05 2022 -0500
 
-    cmd/compile: redo IsRuntimePkg/IsReflectPkg predicate
+    cmd/compile: rework PPC64 Mul64uhilo lowering rules
     
-    Currently, the types package has IsRuntimePkg and IsReflectPkg
-    predicates for testing if a Pkg is the runtime or reflect packages.
-    IsRuntimePkg returns "true" for any "CompilingRuntime" package, which
-    includes all of the packages imported by the runtime. This isn't
-    inherently wrong, except that all but one use of it is of the form "is
-    this Sym a specific runtime.X symbol?" for which we clearly only want
-    the package "runtime" itself. IsRuntimePkg was introduced (as
-    isRuntime) in CL 37538 as part of separating the real runtime package
-    from the compiler built-in fake runtime package. As of that CL, the
-    "runtime" package couldn't import any other packages, so this was
-    adequate at the time.
+    Remove OpPPC64LoweredMuluhilo as this operation can be done
+    more efficiently with MULHDU and MULLD directly. This has the
+    benefit of not needing to use tuple select operations, and giving
+    the scheduler more freedom to place these operations.
     
-    We could fix this by just changing the implementation of IsRuntimePkg,
-    but the meaning of this API is clearly somewhat ambiguous. Instead, we
-    replace it with a new RuntimeSymName function that returns the name of
-    a symbol if it's in package "runtime", or "" if not. This is what
-    every call site (except one) actually wants, which lets us simplify
-    the callers, and also more clearly addresses the ambiguity between
-    package "runtime" and the general concept of a runtime package.
+    The primary reason to avoid using tuples here is to to avoid
+    suboptimal scheduling when carry ops (e.x ADDC/ADDE) are used in
+    the same block as 64->128b multiples. CL 432275 modifies the
+    scheduling priorities which may cause non-flag/non-carry generating
+    tuple ops to interfere with carry opcodes. Thus resulting in excess
+    saving and restoring of the XER register.
     
-    IsReflectPkg doesn't have the same issue of ambiguity, but it
-    parallels IsRuntimePkg and is used in the same way, so we replace it
-    with a new ReflectSymName for consistency.
+    This allows CL 432275 to adjust the scheduling priorities without
+    having to workaround odd tuple scheduling behavior.
     
-    Change-Id: If3a81d7d11732a9ab2cac9488d17508415cfb597
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521696
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id04ef009ec4b86416e5436f2b44ae1474e73720e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434855
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/inline/inl.go     | 31 +++++++++++++++---------------
- src/cmd/compile/internal/noder/unified.go  |  2 +-
- src/cmd/compile/internal/ssagen/nowb.go    |  2 +-
- src/cmd/compile/internal/typecheck/func.go |  2 +-
- src/cmd/compile/internal/types/type.go     | 21 ++++++++++++--------
- src/cmd/compile/internal/walk/builtin.go   |  2 +-
- src/cmd/compile/internal/walk/expr.go      |  2 +-
- test/nowritebarrier.go                     |  6 ++++--
- 8 files changed, 38 insertions(+), 30 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        | 18 ------------------
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 ++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 --
+ src/cmd/compile/internal/ssa/opGen.go        | 16 ----------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 27 ++++++++++++++++++++++++---
+ 5 files changed, 26 insertions(+), 40 deletions(-)

@@ -1,14 +1,17 @@
-commit 9a420b79d741b3343c96e56fbfabc528f4c231a1
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Oct 15 13:00:06 2013 +1100
+commit 21e6b90d36db8d10e93ca281aee404b5f7720f48
+Author: Michael Piatek <piatek@google.com>
+Date:   Tue Oct 15 08:22:04 2013 +1100
 
-    runtime/pprof: disable flaky TestGoroutineSwitch on windows
+    net/http: skip content-type sniffing if the header is explicitly unset.
     
-    Update #6417
+    Fixes #5953
     
-    R=golang-dev, rsc
+    R=dsymonds, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/14604043
+    https://golang.org/cl/14434044
 
- src/pkg/runtime/pprof/pprof_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/net/http/fs.go            | 10 +++++++---
+ src/pkg/net/http/fs_test.go       | 18 ++++++++++++------
+ src/pkg/net/http/response_test.go | 13 +++++++++++++
+ src/pkg/net/http/server.go        |  3 ++-
+ 4 files changed, 34 insertions(+), 10 deletions(-)

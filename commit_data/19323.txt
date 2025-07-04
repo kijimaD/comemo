@@ -1,24 +1,13 @@
-commit ee7bb07a53da1c400f4e1130517c362e302be212
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 12 10:55:33 2014 -0400
+commit 176041e4c6184358bd73d1535335f3cdf5f0852d
+Author: Péter Surányi <speter.go1@gmail.com>
+Date:   Sun May 11 22:06:00 2014 -0700
 
-    runtime: add copy of math.sqrt for use by arm softfloat
+    unicode: fix doc typo
     
-    If it's not used (such as on other systems or if softfloat
-    is disabled) the linker will discard it.
-    
-    The alternative is to teach cmd/go that every binary
-    depends on math implicitly on arm. I started down that
-    path but it's too scary. If we're going to get dependencies
-    right we should get dependencies right.
-    
-    Fixes #6994.
-    
-    LGTM=bradfitz, dave
-    R=golang-codereviews, bradfitz, dave
+    LGTM=robert.hencke, iant
+    R=golang-codereviews, robert.hencke, iant
     CC=golang-codereviews
-    https://golang.org/cl/95290043
+    https://golang.org/cl/96230043
 
- src/pkg/runtime/softfloat_arm.c |   4 +-
- src/pkg/runtime/sqrt.go         | 150 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 152 insertions(+), 2 deletions(-)
+ src/pkg/unicode/letter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

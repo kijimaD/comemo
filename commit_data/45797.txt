@@ -1,21 +1,23 @@
-commit 16b5d766d8af8bc348f93e6cb2b53a4e2d5d72ca
-Author: Jason A. Donenfeld <Jason@zx2c4.com>
-Date:   Fri Jun 11 17:36:50 2021 +0200
+commit ff2824d4b3391c644b264273f98a47302e2d4ab6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 17 22:13:35 2020 -0500
 
-    syscall: do not load native libraries on non-native powershell on arm
+    cmd/go/internal/modcmd: eliminate a call to modload.LoadedModules
     
-    The powershell that currently ships on ARM Windows isn't native, so it
-    won't load native DLLs. So just skip the tests for now, and reenable it
-    if this ever changes.
+    modload.LoadedModules reveals more information than necessary about
+    whether modules have been loaded lazily. The 'vendor' subcommand
+    doesn't actually need that much information: it has all of the
+    information that it needs from prior calls to LoadPackages and
+    ModFile.
     
-    Updates #46701.
+    For #36460
     
-    Change-Id: I2559fdf13cb65d3ecdc4c6f6df7dec1b490b9651
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/327210
+    Change-Id: If08733cca930b2b80616b037b63985ecfd6a320b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270979
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/syscall/syscall_windows_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/go/internal/modcmd/vendor.go | 48 ++++++++++++++++++++++--------------
+ 1 file changed, 29 insertions(+), 19 deletions(-)

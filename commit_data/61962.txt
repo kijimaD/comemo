@@ -1,0 +1,23 @@
+commit 3c4102bfd4dc87cba19152af834754170b863b39
+Author: willboland <hwilliam.boland@gmail.com>
+Date:   Mon Dec 30 20:00:43 2024 +0000
+
+    encoding/binary: add documentation for endian methods
+    
+    While the comments are on an unexported type, gopls correctly
+    shows them when using the exported vars LittleEndian and BigEndian.
+    
+    Fixes #68083
+    
+    Change-Id: I53668c3140ad00f7b58437be74e6df773e2916f1
+    GitHub-Last-Rev: cef717123cdc632b59683f4ce55aee6c286ca4c7
+    GitHub-Pull-Request: golang/go#71058
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638936
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+
+ src/encoding/binary/binary.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

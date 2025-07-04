@@ -1,27 +1,29 @@
-commit 50a1d89ab2b193e7583da32be551e6074e1e7f9a
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 8 18:47:32 2019 -0400
+commit 480373c7560cd64e4b6c624d84e9d0de6d72c076
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Dec 29 14:27:15 2018 +0200
 
-    fmt: rename buffer.WriteByte to writeByte
+    syscall: revert to pre-FreeBSD 10 / POSIX-2008 timespec field names in Stat_t on FreeBSD
     
-    Renaming the method makes clear, both to readers and to vet,
-    that this method is not the implementation of io.ByteWriter.
+    CL 138595 introduced the new names when the hardcoded stat8 definitions was replaced
+    with a cgo generated one.
     
-    Working toward making the tree vet-safe instead of having
-    so many exceptions in cmd/vet/all/whitelist.
+    Fixes #29393
+    Updates #22448
     
-    For #31916.
-    
-    Change-Id: I79da062ca6469b62a6b9e284c6cf2413c7425249
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176109
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I6309958306329ff301c17344b2e0ead0cc874224
+    Reviewed-on: https://go-review.googlesource.com/c/155958
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/vet/all/whitelist/all.txt |   3 +-
- src/fmt/errors.go                 |  14 +--
- src/fmt/format.go                 |  16 ++--
- src/fmt/print.go                  | 182 +++++++++++++++++++-------------------
- src/fmt/scan.go                   |  14 +--
- 5 files changed, 114 insertions(+), 115 deletions(-)
+ api/except.txt                      | 24 -----------
+ api/go1.12.txt                      | 24 -----------
+ src/archive/tar/stat_actime1.go     |  2 +-
+ src/archive/tar/stat_actime2.go     |  2 +-
+ src/os/stat_freebsd.go              |  4 +-
+ src/syscall/mkpost.go               |  8 +++-
+ src/syscall/syscall_freebsd.go      | 32 +++++++--------
+ src/syscall/ztypes_freebsd_386.go   | 82 ++++++++++++++++++-------------------
+ src/syscall/ztypes_freebsd_amd64.go | 72 ++++++++++++++++----------------
+ src/syscall/ztypes_freebsd_arm.go   | 72 ++++++++++++++++----------------
+ 10 files changed, 140 insertions(+), 182 deletions(-)

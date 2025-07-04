@@ -1,27 +1,15 @@
-commit daf70d6c1688a1ba1699c933b3c3f04d6f2f73d9
-Author: David Chase <drchase@google.com>
-Date:   Fri May 1 17:30:33 2020 -0400
+commit daaab44f3124aff61937fa7e118f02d4ff82166c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Dec 8 20:54:10 2019 +0000
 
-    cmd/go: remove GOAMD64 environment variable
+    go/ast: fix a few incorrect "an" articles
     
-    This removes the GOAMD64 environment variable and its documentation.
-    The value is instead supplied by a compiled-in constant.
+    slice, type, and select should all go with "a", not "an", since they all
+    start with consonant sounds.
     
-    Note that function alignment is also dependent on the value of
-    the (removed) flag; it is 32 for aligned jumps, 16 if not.
-    When the flag-dependent logic is removed, it will be 32.
-    
-    Updates #35881.
-    
-    Change-Id: Ic41c0b9833d2e8a31fa3ce8067d92aa2f165bf72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231600
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I57e96dcbdc571dc21e24096779f2f756ec81103e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210124
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/build.go               | 11 -----------
- src/cmd/dist/buildruntime.go        |  2 --
- src/cmd/go/alldocs.go               |  3 ---
- src/cmd/go/internal/cfg/cfg.go      |  3 ---
- src/cmd/go/internal/help/helpdoc.go |  3 ---
- src/cmd/internal/objabi/util.go     | 11 ++++-------
- src/internal/cfg/cfg.go             |  1 -
- 7 files changed, 4 insertions(+), 30 deletions(-)
+ src/go/ast/ast.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

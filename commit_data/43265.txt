@@ -1,26 +1,18 @@
-commit ca3c0df1f8e07337ba4048b191bf905118ebe251
-Author: Ignacio Hagopian <jsign.uy@gmail.com>
-Date:   Thu Oct 8 20:32:50 2020 +0000
+commit 5ffa696ade90f22da1615be65e412a84ce883de0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 20 17:02:47 2020 -0400
 
-    net/http/httputil: flush ReverseProxy immediately if Content-Length is -1
+    [dev.link] cmd/link: invoke oldlink if old object format is chosen
     
-    Finish up a prior TODO by making ReverseProxy flush immediately
-    if Content-Length is -1, which is a case that can occur if for
-    example we have a streamed response, or chunked encoding, or when
-    the body's length wasn't known.
+    Now we can choose the old object file format by setting
+    -gcflags=all=-go115newobj=false -asmflags=all=-go115newobj=false -ldflags=all=-go115newobj=false
     
-    Fixes #41642
+    Tested that setting all three to default false and it still works.
     
-    Change-Id: I30babaaf3e14837b99e3ecdc562a0a0e50c579bf
-    GitHub-Last-Rev: efc019a9fe361082d40bee77317018c3b80451a3
-    GitHub-Pull-Request: golang/go#41858
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260637
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I9514b62a676916cc383b8afa389489fe7b8fa2bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224625
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/http/httputil/reverseproxy.go      | 16 ++++++++++------
- src/net/http/httputil/reverseproxy_test.go | 19 +++++++++++++++++--
- 2 files changed, 27 insertions(+), 8 deletions(-)
+ src/cmd/link/internal/ld/main.go | 52 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/link_test.go        | 24 +++++++++++++++++++
+ 2 files changed, 76 insertions(+)

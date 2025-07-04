@@ -1,13 +1,13 @@
-commit c9eb6267dfdbda9e9704477322903688d72ae8dc
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Dec 22 02:39:54 2012 +0800
+commit 74dcfc957639078508aa3b9a0c396b9d4ef55fe2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Dec 21 19:11:10 2012 +0400
 
-    cmd/dist: make GOARM detection better compatible with thumb toolchain
-    Fixes #4557.
+    cmd/go: improve wording of race detector documentation
     
-    R=dave, rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6946078
+    https://golang.org/cl/7006043
 
- src/cmd/dist/arm.c | 28 +++++++++++++++++++++++++---
- 1 file changed, 25 insertions(+), 3 deletions(-)
+ src/cmd/go/build.go | 3 +--
+ src/cmd/go/doc.go   | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)

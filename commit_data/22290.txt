@@ -1,14 +1,31 @@
-commit 90c0fefe51b59f854f4eb7a8bc29348ae478b673
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 2 16:20:30 2015 -0400
+commit 5ef145c8099cc28ce4e41ecb7c6883041f68df04
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 3 00:33:02 2015 +0300
 
-    cmd/internal/obj/x86: remove NOP that crept into framepointer fix
+    runtime: bound sudog cache
     
-    Followup to CL 7728.
+    The unbounded list-based sudog cache can grow infinitely.
+    This can happen if a goroutine is routinely blocked on one P
+    and then unblocked and scheduled on another P.
+    The scenario was reported on golang-nuts list.
     
-    Change-Id: Ibb0fed7816aab459a94720b139a7737fad65bea2
-    Reviewed-on: https://go-review.googlesource.com/8425
-    Reviewed-by: Austin Clements <austin@google.com>
+    We've been here several times. Any unbounded local caches
+    are bad and grow to infinite size. This change introduces
+    central sudog cache; local caches become fixed-size
+    with the only purpose of amortizing accesses to the
+    central cache.
+    
+    The change required to move sudog cache from mcache to P,
+    because mcache is not scanned by GC.
+    
+    Change-Id: I3bb7b14710354c026dcba28b3d3c8936a8db4e90
+    Reviewed-on: https://go-review.googlesource.com/3742
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/internal/obj/x86/asm6.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/runtime/mcache.go   |  2 --
+ src/runtime/mgc.go      | 22 ++++++++++-------
+ src/runtime/proc.go     | 65 +++++++++++++++++++++++++++++++++++--------------
+ src/runtime/proc1.go    |  5 ++++
+ src/runtime/runtime2.go |  7 ++++++
+ 5 files changed, 72 insertions(+), 29 deletions(-)

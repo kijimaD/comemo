@@ -1,0 +1,44 @@
+commit 434de2f8e9d3837711e0f853a2873cbb83325019
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 30 15:11:19 2025 -0800
+
+    spec: remove notion of core types
+    
+    This CL removes the notion of core types from the spec.
+    
+    Instead of referring to core types, each section that did
+    so before is reverted to approx. the pre-generics (1.17)
+    prose, and additional paragraphs cover the type parameter
+    cases as needed.
+    
+    The hope is that this makes it easier to read the spec.
+    When type parameters are involved, the extra prose is
+    local to the language feature in question and thus more
+    readily available. When no type parameters are present,
+    readers do not have to concern themselves with core types.
+    
+    In contrast to CL 621919, this change is not intended to
+    loosen the spec in any way and therefore does not change
+    the language (if the new prose implies otherwise, we will
+    correct it).
+    
+    Except for adjustments to compiler error messages
+    (no mention of core types anymore), no other changes
+    to the compiler or tools are required.
+    
+    Future CLs may selectively relax requirements on a language
+    construct by language construct basis; each such change can
+    be discussed and proposed independently.
+    
+    For #70128.
+    
+    Change-Id: I6ed879a472c615d7c8dbdc7b6bd7eef3d12eff7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645716
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 300 +++++++++++++++++++++++++------------------------------
+ 1 file changed, 134 insertions(+), 166 deletions(-)

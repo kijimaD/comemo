@@ -1,14 +1,21 @@
-commit d152321cea4ebee18b7b819d29d0718dbc139212
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Jun 5 01:31:23 2012 +0800
+commit cc1890cbe3053953a5967474c8fad5005aba4165
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 4 09:48:27 2012 -0700
 
-    lib9: fix memory leak in p9getwd()
-            although the comment says it uses libc's getenv, without NOPLAN9DEFINES
-            it actually uses p9getenv which strdups.
+    math/big: improved karatsuba calibration code, better mul benchmark
     
-    R=golang-dev, dave, rsc
+    An attempt to profit from CL 6176043 (fix to superpolinomial
+    runtime of karatsuba multiplication) and determine a better
+    karatsuba threshold. The result indicates that 32 is still
+    a reasonable value. Left the threshold as is (== 32), but
+    made some minor changes to the calibrate code which are
+    worthwhile saving (use of existing benchmarking code for
+    better results, better use of package time).
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6285046
+    https://golang.org/cl/6260062
 
- src/lib9/getwd.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/math/big/calibrate_test.go | 42 +++++++++++++++++++-------------------
+ src/pkg/math/big/nat_test.go       | 23 +++++++++------------
+ 2 files changed, 31 insertions(+), 34 deletions(-)

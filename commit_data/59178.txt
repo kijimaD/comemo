@@ -1,24 +1,36 @@
-commit d37624881f60f79dfba4ef81661024bee9dfc2d3
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Feb 27 22:54:51 2025 +1100
+commit 638b9023e31b2e1d0d8ef24086722388afd76e41
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 31 14:10:56 2024 -0500
 
-    cmd/internal/obj/riscv: improve constant construction
+    runtime: be careful about crash FD changes during panic
     
-    Attempt to construct large constants that have a consecutive sequence
-    of ones from a small negative constant, with a logical right and/or
-    left shift. This allows for a large range of mask like constants to be
-    constructed with only two or three instructions, avoiding the need to
-    load from memory.
+    There are two separate cases here:
     
-    Change-Id: I35a77fecdd2df0ed3f33b772d518f85119d4ff66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652778
+    The base case is simple: a concurrent call to SetCrashOutput while
+    panicking will switch the crash FD, which could cause the first half of
+    writes to go to the old FD, and the second half to the new FD. This
+    isn't a correctness problem, but would be annoying to see in practice.
+    Since it is easy to check for, I simply drop any changes if panicking is
+    already in progress.
+    
+    The second case is more important: SetCrashOutput will close the old FD
+    after the new FD is swapped, but writeErrData has no locking around use
+    of the fd, so SetCrashOutput could close the FD out from under
+    writeErrData, causing lost writes. We handle this similarly, by not
+    allowing SetCrashOutput to close the old FD if a panic is in progress,
+    but we have to be more careful about synchronization between
+    writeErrData and setCrashFD to ensure that writeErrData can't observe
+    the old FD while setCrashFD allows close.
+    
+    For #42888.
+    
+    Change-Id: I7270b2cc5ea58a15ba40145b7a96d557acdfe842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559801
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s | 12 +++---
- src/cmd/internal/obj/riscv/obj.go           | 62 ++++++++++++++++++++++-------
- src/cmd/internal/obj/riscv/obj_test.go      | 48 ++++++++++++----------
- 3 files changed, 82 insertions(+), 40 deletions(-)
+ src/runtime/debug/stack.go |  2 ++
+ src/runtime/runtime.go     | 37 ++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 38 insertions(+), 1 deletion(-)

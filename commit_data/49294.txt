@@ -1,39 +1,32 @@
-commit ae3ee9a7ec4981779d9a5e20fbee1d5cb20c1e93
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit 57668b84ff43b15746a25e9653c278d174ea483f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 4 22:18:23 2021 -0700
 
-    syscall: add syscall support for linux/loong64
+    [dev.typeparams] cmd/compile: simplify interface conversions
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    Simplify the implementation of interface conversions in the compiler.
+    Don't pass fields that aren't needed (the data word, usually) to the runtime.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    For generics, we need to put a dynamic type in an interface. The new
+    dataWord function is exactly what we need (the type word will come
+    from a dictionary).
     
-    Updates #46229
-    
-    Change-Id: Ia676bd2875701639314cadbd39d97620afb3f0a2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342317
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iade5de5c174854b65ad248f35c7893c603f7be3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340029
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/syscall/asm_linux_loong64.s       |   44 +
- src/syscall/endian_little.go          |    2 +-
- src/syscall/mkall.sh                  |   10 +
- src/syscall/syscall_linux_loong64.go  |  180 +++
- src/syscall/types_linux.go            |    4 +-
- src/syscall/zerrors_linux_loong64.go  | 2001 +++++++++++++++++++++++++++++++++
- src/syscall/zsyscall_linux_loong64.go | 1564 ++++++++++++++++++++++++++
- src/syscall/zsysnum_linux_loong64.go  |  308 +++++
- src/syscall/ztypes_linux_loong64.go   |  599 ++++++++++
- 9 files changed, 4709 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/typecheck/builtin.go      | 423 ++++++++++-----------
+ .../compile/internal/typecheck/builtin/runtime.go  |  19 +-
+ src/cmd/compile/internal/walk/convert.go           | 296 +++++++-------
+ src/cmd/compile/internal/walk/expr.go              |   5 +-
+ src/cmd/compile/internal/walk/order.go             |   6 +-
+ src/runtime/iface.go                               |  91 ++---
+ test/devirt.go                                     |   3 +-
+ test/fixedbugs/issue20250.go                       |   2 +-
+ test/live.go                                       |   6 +-
+ test/live_regabi.go                                |   6 +-
+ 10 files changed, 395 insertions(+), 462 deletions(-)

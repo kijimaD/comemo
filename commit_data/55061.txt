@@ -1,32 +1,16 @@
-commit 82fc03f9c9a1e3539d60ce085500dde3af5ff0b7
-Author: Michael Knyszek <mknyszek@google.com>
-Date:   Mon Nov 20 18:02:20 2023 +0000
+commit 6f7a95d25e1873a9685360ed7c15505bfdcbd05d
+Author: Changkun Ou <hi@changkun.de>
+Date:   Fri Dec 9 18:19:52 2022 +0100
 
-    Revert "math/rand/v2: add ChaCha8"
+    sync: remove unused const
     
-    This reverts commit 6382893890b82bbc0439eade5b132d9d1b3fb3a7.
-    
-    Reason for revert: Causes failures on big endian platforms and riscv64.
-    Possibly a bug in the generic implementation.
-    
-    For #64284.
-    For #64285.
-    
-    Change-Id: Ic1bb8533d9641fae28d0337b36d434b9a575cd7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543895
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I4382b5317cf7f39a48005516ff6d437883c6fd07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456495
+    Reviewed-by: Dominik Honnef <dominik@honnef.co>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Changkun Ou <mail@changkun.de>
 
- api/next/61716.txt                          |   6 -
- src/go/build/deps_test.go                   |  13 +-
- src/internal/chacha8rand/chacha8.go         | 175 ---------
- src/internal/chacha8rand/chacha8_amd64.s    | 177 ----------
- src/internal/chacha8rand/chacha8_arm64.s    | 106 ------
- src/internal/chacha8rand/chacha8_generic.go | 222 ------------
- src/internal/chacha8rand/chacha8_stub.s     |  12 -
- src/internal/chacha8rand/export_test.go     |   8 -
- src/internal/chacha8rand/rand_test.go       | 186 ----------
- src/math/rand/v2/chacha8.go                 |  46 ---
- src/math/rand/v2/chacha8_test.go            | 531 ----------------------------
- 11 files changed, 3 insertions(+), 1479 deletions(-)
+ src/sync/map_bench_test.go | 1 -
+ 1 file changed, 1 deletion(-)

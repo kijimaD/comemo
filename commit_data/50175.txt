@@ -1,27 +1,21 @@
-commit f3a1f9220a8a5265842f5cb877c4dc6d08f75c68
-Author: byarbrough <bcynmelk+git@gmail.com>
-Date:   Sat Aug 27 23:02:31 2022 +0000
+commit 8238f82bf1ddadd906585e3f11600968d95ce98c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 13:44:51 2021 -0700
 
-    testing: explain using a _test package
+    runtime: streamline moduledata.textAddr
     
-    The existing documentation did not explain the difference between
-    placing a _test.go file in the same package as what is being
-    tested vs. adding it to a separate _test package. This explains the
-    distinction and adds an example.
+    Accept a uint32 instead of a uintptr to make call sites simpler.
     
-    Concept is explained well here:  https://stackoverflow.com/a/31443271
+    Do less work in the common case in which len(textsectmap) == 1.
     
-    Fixes #25223
-    
-    Change-Id: Iebaba15207d8aa24f0b370d8dd4062eadb504b5c
-    GitHub-Last-Rev: 7f49c5f4624b358af8052272da8ac3240751ada0
-    GitHub-Pull-Request: golang/go#54160
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420415
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Idd6cdc3fdad7a9356864c83790463b5d3000171b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354132
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/testing/testing.go | 36 ++++++++++++++++++++++++++++++++----
- 1 file changed, 32 insertions(+), 4 deletions(-)
+ src/runtime/plugin.go |  2 +-
+ src/runtime/symtab.go | 28 +++++++++++++---------------
+ src/runtime/type.go   |  2 +-
+ 3 files changed, 15 insertions(+), 17 deletions(-)

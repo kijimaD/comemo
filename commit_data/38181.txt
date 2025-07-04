@@ -1,19 +1,17 @@
-commit 412f659280607b06de9b25569cf668ea8f23dd57
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 1 07:12:24 2019 -0800
+commit 465d1c61685db9e249d77db7d4ceca578f400b27
+Author: Marten Seemann <martenseemann@gmail.com>
+Date:   Fri Aug 17 18:03:55 2018 +0700
 
-    net: return poll.SendFile error from sendFile
+    crypto/tls: fix ServerHello SCT test
     
-    We were accidentally ignoring any error returned by poll.SendFile.
-    Noticed by reading the code. It could only change behavior if the
-    sendfile system call both wrote some bytes and returned an error.
+    According to https://tools.ietf.org/html/rfc6962#section-3.3, the SCT
+    must be at least one byte long. The parsing code correctly checks for
+    this condition, but rarely the test does generate an empty SCT.
     
-    Change-Id: I0693d6ec0a30f5a86b78d38793899ca29fb9e156
-    Reviewed-on: https://go-review.googlesource.com/c/164760
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If36a34985b4470a5a9f96affc159195c04f6bfad
+    Reviewed-on: https://go-review.googlesource.com/c/129755
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/sendfile_linux.go    | 4 ++--
- src/net/sendfile_unix_alt.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/crypto/tls/handshake_messages_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

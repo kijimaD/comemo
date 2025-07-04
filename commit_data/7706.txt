@@ -1,16 +1,13 @@
-commit 8138654aa84a5a0e610ab93a0706e703b9b61e18
-Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 8 14:36:56 2011 -0800
+commit f3ed1ad50c7de8f909ea630a2da62d956a756f46
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Mar 8 17:15:20 2011 -0500
 
-    govet: handle '*' in print format strings.
-    While we're on govet, fix a couple of mistakes in a test.
-    
-    Fixes #1592.
+    5l, 8l: output missing section symbols
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4239071
+    https://golang.org/cl/4252067
 
- src/cmd/govet/govet.go   | 65 ++++++++++++++++++++++++++++++++++++++++--------
- src/pkg/fmt/scan_test.go |  4 +--
- 2 files changed, 57 insertions(+), 12 deletions(-)
+ src/cmd/5l/asm.c | 3 +++
+ src/cmd/8l/asm.c | 3 +++
+ 2 files changed, 6 insertions(+)

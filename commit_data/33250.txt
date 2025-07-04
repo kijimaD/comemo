@@ -1,22 +1,24 @@
-commit bd48d37e301395d60cc00ad335ccae63a12830e2
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Tue Oct 3 10:18:00 2017 +0200
+commit bef0055a0ae8c79c9a008b17356521afda1bce85
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jun 13 16:22:06 2017 +0100
 
-    math/big: add (*Float).Sqrt
+    cmd/vet: check that C receivers are cgo imports
     
-    This change adds a Square root method to the big.Float type, with
-    signature
+    Otherwise, vet might have false positives when "C" is a variable and
+    we're just using a method on it. Or when an import was renamed to "C".
     
-      (z *Float) Sqrt(x *Float) *Float
+    Add test files for both of these cases.
     
-    Fixes #20460
+    Fixes #20655.
     
-    Change-Id: I050aaed0615fe0894e11c800744600648343c223
-    Reviewed-on: https://go-review.googlesource.com/67830
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: I55fb93119444a67fcf7891ad92653678cbd4670e
+    Reviewed-on: https://go-review.googlesource.com/45551
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/sqrt.go      | 150 ++++++++++++++++++++++++++++++++++++++++++++++
- src/math/big/sqrt_test.go | 123 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 273 insertions(+)
+ src/cmd/vet/cgo.go               |  7 ++++++-
+ src/cmd/vet/testdata/cgo/cgo2.go |  3 +++
+ src/cmd/vet/testdata/cgo/cgo4.go | 15 +++++++++++++++
+ 3 files changed, 24 insertions(+), 1 deletion(-)

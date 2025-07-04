@@ -1,22 +1,13 @@
-commit e289a2b913d476cf8592728e6d50767d0e29afde
-Author: Michael Chaten <mchaten@gmail.com>
-Date:   Thu Sep 27 16:31:03 2012 +1000
+commit 063b074407185223ccdb2f5986243e027ff8cf8e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 27 15:47:18 2012 +1000
 
-    bufio: Implement io.WriterTo for (*Reader)
+    CLA: Josh Holland <jrh@joshh.co.uk> individual contributor
     
-    This is part 1 of 2 for issue 4028
-    
-    benchmark                       old ns/op    new ns/op    delta
-    BenchmarkReaderCopyOptimal          33495         9849  -70.60%
-    BenchmarkReaderCopyUnoptimal        70631        27041  -61.72%
-    BenchmarkReaderCopyOldImpl          51407        52970   +3.04%
-    
-    Update #4028
-    
-    R=dave, nigeltao, rsc, bradfitz, rogpeppe
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6548047
+    https://golang.org/cl/6568059
 
- src/pkg/bufio/bufio.go      |  35 +++++++++++++++
- src/pkg/bufio/bufio_test.go | 104 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 139 insertions(+)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

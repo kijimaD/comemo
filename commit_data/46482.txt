@@ -1,26 +1,24 @@
-commit 50e450826916c777a7d61edab52793ed77314f7a
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Sep 17 12:18:19 2021 -0700
+commit 290b4154b73b54045a147f463c6988b935d75d49
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 3 14:24:25 2021 -0800
 
-    cmd/compile: fix import/export of Init and Def fields.
+    [dev.regabi] cmd/compile: fix ICE due to large uint64 constants
     
-    Change so that the Init and Def fields of assignments and OSELREVC2
-    nodes are exported/imported properly.
+    It's an error to call Int64Val on constants that don't fit into
+    int64. CL 272654 made the compiler stricter about detecting misuse,
+    and revealed that we were using it improperly in detecting consecutive
+    integer-switch cases. That particular usage actually did work in
+    practice, but it's easy and best to just fix it.
     
-    A quirk of iimport.go is that it automatically converts an ODCL node to
-    an ODCL/OAS sequence (where the OAS is to just zero out the declared
-    variable). Given that the Inits are properly fixed, o.stmt needs
-    adjustment for the OSELRECV2 case to skip over the new OAS nodes that
-    are inserted only on re-import.
+    Fixes #43480.
     
-    Change-Id: Ic38017efca4b7ca9b3952ffbbfca067380902b7a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/350809
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Change-Id: I56f722d75e83091638ac43b80e45df0b0ad7d48d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281272
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/typecheck/iexport.go | 25 ++++++++++++++++++++++---
- src/cmd/compile/internal/typecheck/iimport.go | 21 ++++++++++++++++++---
- src/cmd/compile/internal/walk/order.go        |  6 ++++++
- 3 files changed, 46 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/walk/switch.go |  7 ++++++-
+ test/fixedbugs/issue43480.go            | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

@@ -1,23 +1,27 @@
-commit 93b3035dbbcd21c1d0538142cba4e7f79631e7a2
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Wed Mar 29 09:57:33 2023 -0400
+commit 037b209ae3e0453004a4d57e152aa522c56f79e4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 4 09:20:56 2022 +0200
 
-    src/log/slog: JSONHandler checks if error implements json.Marshaler
+    net/netip: use strconv.AppendUint in AddrPort.AppendTo
     
-    json.Marshal doesn't do what one might hope on many Go error values.
-    Errors created with errors.New marshal as "{}". So JSONHandler treats
-    errors specially, calling the Error method instead of json.Marshal.
+    This is already used in AddrPort.String.
     
-    However, if the error happens to implement json.Marshaler, then
-    JSONHandler should call json.Marshal after all. This CL makes
-    that change.
+    name                               old time/op    new time/op    delta
+    AddrPortMarshalText/v4-4             67.9ns ± 3%    61.5ns ± 6%  -9.43%  (p=0.000 n=10+9)
+    AddrPortMarshalText/v6-4              168ns ± 4%     155ns ± 2%  -7.54%  (p=0.000 n=10+10)
+    AddrPortMarshalText/v6_ellipsis-4     169ns ± 3%     162ns ± 5%  -4.03%  (p=0.001 n=9+10)
+    AddrPortMarshalText/v6_v4-4          87.0ns ± 4%    85.8ns ± 4%    ~     (p=0.165 n=10+10)
+    AddrPortMarshalText/v6_zone-4         169ns ± 3%     166ns ± 3%    ~     (p=0.066 n=10+10)
     
-    Change-Id: I2154246b2ca8fa13d4f6f1256f7a16aa98a8c24a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/480155
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Change-Id: If16eda4bf48224029dcaf2069ae87f8d89865d99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404014
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/log/slog/json_handler.go      | 3 ++-
- src/log/slog/json_handler_test.go | 7 +++++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/net/netip/netip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,22 @@
-commit e7ce1ba88c7c2a8c02c48ecb341540b30d9e9159
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 17:24:03 2016 -0500
+commit 1860a0fa571ff13ed2c4a23d50d55945720c86bb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 12 14:57:53 2015 -0800
 
-    misc/cgo/test: disable sigaltstack test on darwin/386
+    cmd/dist: check more GOOS/GOARCH combinations in mkdeps.bash
     
-    It doesn't work there ("out of memory") and doesn't really matter.
-    Fixes build (now that we enable cgo on the darwin/386 builder.)
+    The current mkdeps.bash just checks for dependencies for GOOS=windows
+    with the current GOARCH.  This is not always accurate as some package
+    imports only happen on specific GOOS/GOARCH combinations.  Check a
+    selected, easily changed, combination of GOOS/GOARCH values.
     
-    Change-Id: I1d91e51ecb88c54eae39ac9a76f2c0b4e45263b0
-    Reviewed-on: https://go-review.googlesource.com/19004
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This generates a deps.go identical to the one in the repository today.
+    
+    Fixes #13221.
+    
+    Change-Id: I96d67d49c8c63641d578acedbb28be807607db65
+    Reviewed-on: https://go-review.googlesource.com/16882
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/sigaltstack.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/dist/mkdeps.bash | 31 ++++++++++++++++++++++++++++---
+ 1 file changed, 28 insertions(+), 3 deletions(-)

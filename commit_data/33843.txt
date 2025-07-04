@@ -1,16 +1,17 @@
-commit 25363de2266a3b53204065637eb509a8cc4d72c3
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Dec 8 08:38:15 2017 -0800
+commit cf872fae78c48b89814379d7e4a53d1a92b7388f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 8 14:36:43 2017 -0400
 
-    doc: add doc about C types that we map to uintptr instead of ptr
+    expvar: make (*Map).Init clear existing keys
     
-    Update #22906
-    Update #21897
+    fixes #21619
     
-    Change-Id: I73709b2fdac6981d4bc2f7dab0767f2dd7be3be5
-    Reviewed-on: https://go-review.googlesource.com/82917
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5bb513dfc8cac875b06a262eec40b5863ae23a4c
+    Reviewed-on: https://go-review.googlesource.com/62370
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.10.html    | 27 +++++++++++++++++++++++++--
- src/cmd/cgo/doc.go | 23 +++++++++++++++++++++--
- 2 files changed, 46 insertions(+), 4 deletions(-)
+ src/expvar/expvar.go      | 12 +++++++++++-
+ src/expvar/expvar_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

@@ -1,33 +1,26 @@
-commit 00b773a4a94b16544a6d1b812e42c068a64efad6
+commit 97c4ad432743d74ee59648dee0db1b107c701834
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Sep 25 00:21:23 2019 -0700
+Date:   Tue Apr 2 10:40:12 2019 -0700
 
-    cmd/compile: simplify OPTRLIT handling
+    cmd/compile: add new escape analysis implementation
     
-    Previously, we would recognize &(T{...}) expressions during type
-    checking, rewrite them into (*T){...}, and then do a lot of extra work
-    to make sure the user doesn't write (*T){...} themselves and
-    resynthesizing the OPTRLIT later on.
+    This CL adds a new escape analysis implementation, which can be
+    enabled through the -newescape compiler flag.
     
-    This CL simply handles &T{...} directly in the straight forward
-    manner, by changing OADDR directly to OPTRLIT when appropriate.
+    This implementation focuses on simplicity, but in the process ends up
+    using less memory, speeding up some compile-times, fixing memory
+    corruption issues, and overall significantly improving escape analysis
+    results.
     
-    While here, match go/types's invalid composite literal type error
-    message.
+    Updates #23109.
     
-    Passes toolstash-check.
-    
-    Change-Id: I902b14c7e2cd9fa93e6915dd58272d2352ba38f8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197120
+    Change-Id: I6176d9a7ae9d80adb0208d4112b8a1e1f4c9143a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170322
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/closure.go   |  20 ++---
- src/cmd/compile/internal/gc/fmt.go       |   8 +-
- src/cmd/compile/internal/gc/iexport.go   |   4 +-
- src/cmd/compile/internal/gc/iimport.go   |  13 +---
- src/cmd/compile/internal/gc/noder.go     |   9 ---
- src/cmd/compile/internal/gc/typecheck.go | 122 +++++++++++++------------------
- test/complit1.go                         |   4 +-
- 7 files changed, 67 insertions(+), 113 deletions(-)
+ src/cmd/compile/internal/gc/esc.go    |   43 +-
+ src/cmd/compile/internal/gc/escape.go | 1386 +++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go   |    1 +
+ 3 files changed, 1415 insertions(+), 15 deletions(-)

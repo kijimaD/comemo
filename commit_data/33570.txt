@@ -1,17 +1,21 @@
-commit 9232a612fed58d2629073056f827db3fae0cd5f0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 14 12:38:11 2017 -0500
+commit f7aa454c58ed0d06823f509fc39474b6f52f7c3a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 20 11:47:50 2017 -0700
 
-    encoding/binary: make new example a bit more idiomatic
+    runtime: mask shifts in map implementation on x86
     
-    Mainly get rid of the weird zero-value struct literal,
-    but while we're here also group and order things a bit better:
-    first the reader, then the data, then the call (which takes reader then data).
+    This slightly improves the generated code on x86 architectures,
+    including on many hot paths.
     
-    Change-Id: I901b0661d85d8eaa0807e4482aac66500ca996c7
-    Reviewed-on: https://go-review.googlesource.com/78118
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    It is a no-op on other architectures.
+    
+    Change-Id: I86336fd846bc5805a27bbec572e8c73dcbd0d567
+    Reviewed-on: https://go-review.googlesource.com/57411
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/binary/example_test.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/runtime/hashmap.go      | 37 +++++++++++++++++++++++++------------
+ src/runtime/hashmap_fast.go | 24 ++++++++++++------------
+ src/runtime/runtime_test.go |  2 +-
+ 3 files changed, 38 insertions(+), 25 deletions(-)

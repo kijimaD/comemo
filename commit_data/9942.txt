@@ -1,24 +1,25 @@
-commit 3b5ff0fb147729f9590a00df8fb56b5d4bfeac7b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 12 13:07:55 2011 -0700
+commit 36036781d55c03e1120911e299ea6a48ed718524
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 12 11:48:25 2011 -0700
 
-    go/typechecker: delete per Go 1 plan
+    http: remove Request.RawURL
     
-    (go/types will be future replacement)
+    Its purpose is not only undocumented, it's also unknown (to me
+    and Russ, at least) and leads to complexity, bugs and
+    confusion.
     
-    R=r
+    R=golang-dev, adg, rsc
     CC=golang-dev
-    https://golang.org/cl/5232052
+    https://golang.org/cl/5213043
 
- src/pkg/Makefile                           |   1 -
- src/pkg/go/typechecker/Makefile            |  14 -
- src/pkg/go/typechecker/scope.go            |  69 -----
- src/pkg/go/typechecker/testdata/test0.src  |  94 ------
- src/pkg/go/typechecker/testdata/test1.src  |  13 -
- src/pkg/go/typechecker/testdata/test3.src  |  41 ---
- src/pkg/go/typechecker/testdata/test4.src  |  11 -
- src/pkg/go/typechecker/type.go             | 118 --------
- src/pkg/go/typechecker/typechecker.go      | 468 -----------------------------
- src/pkg/go/typechecker/typechecker_test.go | 163 ----------
- src/pkg/go/typechecker/universe.go         |  36 ---
- 11 files changed, 1028 deletions(-)
+ src/pkg/http/cgi/child.go         | 12 ++++++------
+ src/pkg/http/cgi/child_test.go    |  6 ------
+ src/pkg/http/cgi/host.go          |  1 -
+ src/pkg/http/readrequest_test.go  |  3 ---
+ src/pkg/http/request.go           | 37 ++++++++++++++++++------------------
+ src/pkg/http/requestwrite_test.go | 40 +++++++++++++++++++++------------------
+ src/pkg/http/transport.go         |  6 ++----
+ src/pkg/http/transport_test.go    | 32 +++----------------------------
+ src/pkg/websocket/hixie_test.go   |  6 +++---
+ src/pkg/websocket/hybi_test.go    | 12 ++++++------
+ 10 files changed, 61 insertions(+), 94 deletions(-)

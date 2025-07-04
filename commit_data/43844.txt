@@ -1,17 +1,24 @@
-commit 0dcc7d6ea868551e70323e2ca0b63a79ad2217fd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Nov 19 18:00:13 2020 -0800
+commit 1cf357981ee9ec838555585d52f86ca60097c6b1
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Apr 26 21:44:36 2020 +0100
 
-    go/types: use correct error position
+    cmd/compile: remove If type in rulegen
     
-    Follow-up on https://golang.org/cl/271706 .
+    We only generate if statements via CondBreak, which is nice as the
+    control flow is simple and easy to work with. It seems like the If type
+    was added but never used, so remove it to avoid confusion.
     
-    Change-Id: I90339987aed88b0de3ee7ebe7d413282055c260c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271789
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    We had a TODO about replacing CondBreak with If instead. I gave that a
+    try, but it doesn't seem worth the effort. The code gets more complex
+    and we don't really win anything in return.
+    
+    While at it, don't use op strings as format strings in exprf. This
+    doesn't cause any issue at the moment, but it's best to be explicit
+    about the operator not containing any formatting verbs.
+    
+    Change-Id: Ib59ad72d3628bf91594efc609e222232ad1e8748
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230257
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/expr.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 20 ++------------------
+ 1 file changed, 2 insertions(+), 18 deletions(-)

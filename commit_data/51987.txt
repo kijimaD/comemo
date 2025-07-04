@@ -1,21 +1,19 @@
-commit 505325cf3027f2f2c5be47426867183b935ac85e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 10 14:47:07 2023 -0800
+commit f5a42cd4b482a595a710129a25ffb5facc655569
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 30 09:10:06 2022 +0700
 
-    cmd/dist: use a copy of platform.BuildModeSupported
+    cmd/compile/internal/typecheck: simplify checkassign
     
-    The dist tool already includes a similar duplicate of BuildModeSupported.
-    Replace it with an exact copy, to make it easier to maintain going forward.
+    After CL 281543, checkassign do not have to check assignment in range
+    loop anymore, thus its first parameter is un-used.
     
-    Change-Id: Id14a6c5a48f92d843e02218d87cc62c6b001923b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467495
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Idbc46fcb81c3dd5edc87308d228c1a15ca5faf7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396615
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/test.go               | 161 +++++++++++++++++++++----------------
- src/internal/platform/supported.go |   1 +
- 2 files changed, 94 insertions(+), 68 deletions(-)
+ src/cmd/compile/internal/typecheck/stmt.go      | 4 ++--
+ src/cmd/compile/internal/typecheck/typecheck.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

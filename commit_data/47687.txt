@@ -1,15 +1,32 @@
-commit d921bb21df43a9bf1a6c22ab208d6a4bc9d05146
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 3 09:04:26 2021 -0500
+commit 55bac87bd690d5812b3e6640977a0568f14c0715
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 6 10:23:48 2021 -0400
 
-    doc/go1.18: reorganize runtime/compiler a little
+    runtime/pprof: deflake TestMorestack
     
-    For #47694.
+    In TestMorestack, on macOS, for some reason it got most of the
+    samples in synchronization (e.g. pthread_cond_signal and
+    pthread_cond_wait) and sometimes in other "syscalls" (usleep,
+    nanotime1), and very few samples in stack copying, sometimes 0,
+    which causes the test to fail. Maybe synchronization is slower on
+    macOS? (It doesn't seem so to me.) Or it is the OS's accounting
+    problem, where it is more likely to trigger a profiling signal
+    at a syscall (or certain kinds of syscalls)?
     
-    Change-Id: Iedf85f522f7c79ae0a61b4fc1f2f092cf7b613df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368696
-    Trust: Austin Clements <austin@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    As the test is really about whether it can connect stack copying
+    with the function that grows the stack, this CL makes it spend
+    more time in copying stack than synchronization. Now it's getting
+    ~100 samples for stack copying on a 5 second interval on my
+    machine, and the test passes reliably.
+    
+    Fixes #44418.
+    
+    Change-Id: I3a462c8c39766f2d67d697598f8641bbe64f16ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307730
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- doc/go1.18.html | 48 +++++++++++++++++++++++++-----------------------
- 1 file changed, 25 insertions(+), 23 deletions(-)
+ src/runtime/pprof/pprof_test.go | 24 +++++++-----------------
+ 1 file changed, 7 insertions(+), 17 deletions(-)

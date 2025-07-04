@@ -1,29 +1,33 @@
-commit de3bae1952ba058b96649bce0b35f1e5dbb73805
-Author: Daiki Ueno <dueno@redhat.com>
-Date:   Sat Sep 23 23:25:20 2023 +0000
+commit e8ec68edfac4f50f57dd7faf039bb5c0f8eaba88
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 26 11:44:34 2022 -0400
 
-    crypto/tls: pretty-print SignatureScheme in tests
+    internal/testenv: remove RunWithTimout
     
-    When running crypto/tls tests with GOEXPERIMENT=boringcrypto, some
-    tests are embedded with unreadable hexadecimal values:
+    For most tests, the test's deadline itself is more appropriate than an
+    arbitrary timeout layered atop of it (especially once #48157 is
+    implemented), and testenv.Command already adds cleaner timeout
+    behavior when a command would run too close to the test's deadline.
     
-      === RUN   TestBoringServerSignatureAndHash/5053...3536
+    That makes RunWithTimeout something of an attractive nuisance. For
+    now, migrate the two existing uses of it to testenv.CommandContext,
+    with a shorter timeout implemented using context.WithTimeout.
     
-    This corresponds to a string representation of SignatureScheme as it
-    implements fmt.Stringer.  With this change, the above will be printed
-    as:
+    As a followup, we may want to drop the extra timeouts from these
+    invocations entirely.
     
-      === RUN   TestBoringServerSignatureAndHash/PSSWithSHA256
+    Updates #50436.
+    Updates #37405.
     
-    Change-Id: I953c0bb35c68e77a7f01e7f1fceda203c272faf7
-    GitHub-Last-Rev: 19700d53a8578d335dc803ac94cc7c6c72e9920a
-    GitHub-Pull-Request: golang/go#63175
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530715
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I16840fd36c0137b6da87ec54012b3e44661f0d08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445597
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/tls/boring_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/testenv/testenv.go | 57 -----------------------------------------
+ src/runtime/crash_test.go       | 19 +++++++++++---
+ src/runtime/runtime-gdb_test.go |  6 ++++-
+ 3 files changed, 20 insertions(+), 62 deletions(-)

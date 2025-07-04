@@ -1,19 +1,17 @@
-commit 522eace4ca496626bcb3b65f9dcb6e8db2673fed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 18 19:20:28 2023 -0700
+commit 81a9a7f4c293794855ed640cdc53835f566b6414
+Author: Mostafa Solati <mostafa.solati@gmail.com>
+Date:   Thu May 19 02:55:03 2022 +0430
 
-    go/types, types2: be deliberate with Checker.use in Checker.assignVar
+    reflect: add example for FieldByName
     
-    Follow-up on comment in CL 486135. Cleanup.
-    
-    Change-Id: Ib0480d52e30687350f8328965c18fa83262df0a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486215
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I47e1cc261fdcd6f83a8593893b979d130150d0b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407174
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/types2/assignments.go | 3 ++-
- src/go/types/assignments.go                    | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ src/reflect/example_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

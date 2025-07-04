@@ -1,15 +1,23 @@
-commit 91baf5c65d50a1fd33097d2610e32d575d054e6f
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 11 16:33:01 2014 -0400
+commit 1a14b5bad8926941023ca310fa3b53c70717b1e2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 4 17:13:22 2014 -0700
 
-    runtime: make Gosched nosplit
+    cmd/api: don't depend on os/user or USER to check api
     
-    Replacing gosched with Gosched broke some builds because
-    some of the call sites are at times when the stack cannot be grown.
+    The -nocgo builder failed because it has cgo disabled
+    as well as no USER environment variable:
+    http://build.golang.org/log/2250abb82f5022b72a12997b8ff89fcdeff094c9
     
-    TBR=khr
+    # Checking API compatibility.
+    Error getting current user: user: Current not implemented on linux/amd64
+    exit status 1
+    
+    Don't require the environment variable here.
+    
+    LGTM=minux
+    R=dave, adg, minux
     CC=golang-codereviews
-    https://golang.org/cl/142000043
+    https://golang.org/cl/140290043
 
- src/runtime/proc.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/api/run.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,123 +1,15 @@
-commit fdceb2a11bb767ddaa334cb39315ae6982b676aa
-Author: Katie Hockman <katie@golang.org>
-Date:   Fri Sep 14 17:07:56 2018 -0400
+commit 685ecc7f027051f0380dc5c9575595c145eb625a
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue May 22 22:09:35 2018 +0200
 
-    compress: reduce copies of new text for compression testing
+    internal/cpu: fix test build on ppc64
     
-    The previous book was 387 KiB decompressed and 119 KiB compressed, the
-    new book is 567 KiB decompressed and 132 KiB compressed. Overall, this
-    change will reduce the release binary size by 196 KiB. The new book will
-    allow for slightly more extensive compression testing with a larger
-    text.
+    The runtime import is unused.
     
-    Command to run the benchmark tests used with benchstat:
-    `../bin/go test -run='^$' -count=4 -bench=. compress/bzip2 compress/flate`
-    
-    When running the benchmarks locally, changed "Newton" to "Twain" and
-    filtered the tests with the -bench flag to include only those which were
-    relevant to these changes.
-    
-    benchstat results below:
-    
-    name                            old time/op    new time/op     delta
-    DecodeTwain-8                     19.6ms ± 2%     24.1ms ± 1%  +23.04%  (p=0.029 n=4+4)
-    Decode/Twain/Huffman/1e4-8         140µs ± 3%      139µs ± 5%     ~     (p=0.886 n=4+4)
-    Decode/Twain/Huffman/1e5-8        1.27ms ± 3%     1.26ms ± 1%     ~     (p=1.000 n=4+4)
-    Decode/Twain/Huffman/1e6-8        12.4ms ± 0%     13.2ms ± 1%   +6.42%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e4-8           133µs ± 1%      123µs ± 1%   -7.35%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e5-8          1.20ms ± 0%     1.02ms ± 3%  -15.32%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e6-8          12.0ms ± 2%     10.1ms ± 3%  -15.89%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e4-8         131µs ± 6%      108µs ± 5%  -17.84%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e5-8        1.06ms ± 2%     0.80ms ± 1%  -24.97%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e6-8        10.0ms ± 3%      8.0ms ± 3%  -20.06%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e4-8     128µs ± 4%      115µs ± 4%   -9.70%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e5-8    1.04ms ± 2%     0.83ms ± 4%  -20.37%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e6-8    10.4ms ± 4%      8.1ms ± 5%  -22.25%  (p=0.029 n=4+4)
-    Encode/Twain/Huffman/1e4-8        55.7µs ± 2%     55.6µs ± 1%     ~     (p=1.000 n=4+4)
-    Encode/Twain/Huffman/1e5-8         441µs ± 0%      435µs ± 2%     ~     (p=0.343 n=4+4)
-    Encode/Twain/Huffman/1e6-8        4.31ms ± 4%     4.30ms ± 4%     ~     (p=0.886 n=4+4)
-    Encode/Twain/Speed/1e4-8           193µs ± 1%      166µs ± 2%  -14.09%  (p=0.029 n=4+4)
-    Encode/Twain/Speed/1e5-8          1.54ms ± 1%     1.22ms ± 1%  -20.53%  (p=0.029 n=4+4)
-    Encode/Twain/Speed/1e6-8          15.3ms ± 1%     12.2ms ± 3%  -20.62%  (p=0.029 n=4+4)
-    Encode/Twain/Default/1e4-8         393µs ± 1%      390µs ± 1%     ~     (p=0.114 n=4+4)
-    Encode/Twain/Default/1e5-8        6.12ms ± 4%     6.02ms ± 5%     ~     (p=0.486 n=4+4)
-    Encode/Twain/Default/1e6-8        69.4ms ± 5%     59.0ms ± 4%  -15.07%  (p=0.029 n=4+4)
-    Encode/Twain/Compression/1e4-8     423µs ± 2%      379µs ± 2%  -10.34%  (p=0.029 n=4+4)
-    Encode/Twain/Compression/1e5-8    7.00ms ± 1%     7.88ms ± 3%  +12.49%  (p=0.029 n=4+4)
-    Encode/Twain/Compression/1e6-8    76.6ms ± 5%     80.9ms ± 3%     ~     (p=0.114 n=4+4)
-    
-    name                            old speed      new speed       delta
-    DecodeTwain-8                   19.8MB/s ± 2%   23.6MB/s ± 1%  +18.84%  (p=0.029 n=4+4)
-    Decode/Twain/Huffman/1e4-8      71.7MB/s ± 3%   72.1MB/s ± 6%     ~     (p=0.943 n=4+4)
-    Decode/Twain/Huffman/1e5-8      78.8MB/s ± 3%   79.5MB/s ± 1%     ~     (p=1.000 n=4+4)
-    Decode/Twain/Huffman/1e6-8      80.5MB/s ± 0%   75.6MB/s ± 1%   -6.03%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e4-8        75.2MB/s ± 1%   81.2MB/s ± 1%   +7.93%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e5-8        83.4MB/s ± 0%   98.6MB/s ± 3%  +18.16%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e6-8        83.6MB/s ± 2%   99.5MB/s ± 3%  +18.91%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e4-8      76.3MB/s ± 6%   92.8MB/s ± 4%  +21.62%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e5-8      94.4MB/s ± 3%  125.7MB/s ± 1%  +33.24%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e6-8       100MB/s ± 3%    125MB/s ± 3%  +25.12%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e4-8  78.4MB/s ± 4%   86.8MB/s ± 4%  +10.73%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e5-8  95.7MB/s ± 2%  120.3MB/s ± 4%  +25.65%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e6-8  96.4MB/s ± 4%  124.0MB/s ± 5%  +28.64%  (p=0.029 n=4+4)
-    Encode/Twain/Huffman/1e4-8       179MB/s ± 2%    180MB/s ± 1%     ~     (p=1.000 n=4+4)
-    Encode/Twain/Huffman/1e5-8       227MB/s ± 0%    230MB/s ± 2%     ~     (p=0.343 n=4+4)
-    Encode/Twain/Huffman/1e6-8       232MB/s ± 4%    233MB/s ± 4%     ~     (p=0.886 n=4+4)
-    Encode/Twain/Speed/1e4-8        51.8MB/s ± 1%   60.4MB/s ± 2%  +16.43%  (p=0.029 n=4+4)
-    Encode/Twain/Speed/1e5-8        65.1MB/s ± 1%   81.9MB/s ± 1%  +25.83%  (p=0.029 n=4+4)
-    Encode/Twain/Speed/1e6-8        65.2MB/s ± 1%   82.2MB/s ± 3%  +26.00%  (p=0.029 n=4+4)
-    Encode/Twain/Default/1e4-8      25.4MB/s ± 1%   25.6MB/s ± 1%     ~     (p=0.114 n=4+4)
-    Encode/Twain/Default/1e5-8      16.4MB/s ± 4%   16.6MB/s ± 5%     ~     (p=0.486 n=4+4)
-    Encode/Twain/Default/1e6-8      14.4MB/s ± 6%   17.0MB/s ± 4%  +17.67%  (p=0.029 n=4+4)
-    Encode/Twain/Compression/1e4-8  23.6MB/s ± 2%   26.4MB/s ± 2%  +11.54%  (p=0.029 n=4+4)
-    Encode/Twain/Compression/1e5-8  14.3MB/s ± 1%   12.7MB/s ± 3%  -11.08%  (p=0.029 n=4+4)
-    Encode/Twain/Compression/1e6-8  13.1MB/s ± 4%   12.4MB/s ± 3%     ~     (p=0.114 n=4+4)
-    
-    name                            old alloc/op   new alloc/op    delta
-    DecodeTwain-8                     3.63MB ± 0%     3.63MB ± 0%   +0.15%  (p=0.029 n=4+4)
-    Decode/Twain/Huffman/1e4-8        42.0kB ± 0%     41.3kB ± 0%   -1.62%  (p=0.029 n=4+4)
-    Decode/Twain/Huffman/1e5-8        43.5kB ± 0%     45.1kB ± 0%   +3.74%  (p=0.029 n=4+4)
-    Decode/Twain/Huffman/1e6-8        71.7kB ± 0%     80.0kB ± 0%  +11.55%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e4-8          41.2kB ± 0%     41.3kB ± 0%     ~     (p=0.286 n=4+4)
-    Decode/Twain/Speed/1e5-8          45.1kB ± 0%     43.9kB ± 0%   -2.80%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e6-8          72.8kB ± 0%     81.3kB ± 0%  +11.72%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e4-8        41.2kB ± 0%     41.2kB ± 0%   -0.22%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e5-8        44.4kB ± 0%     43.0kB ± 0%   -3.02%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e6-8        71.0kB ± 0%     61.8kB ± 0%  -13.00%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e4-8    41.3kB ± 0%     41.2kB ± 0%   -0.29%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e5-8    43.3kB ± 0%     43.0kB ± 0%   -0.72%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e6-8    69.1kB ± 0%     63.7kB ± 0%   -7.90%  (p=0.029 n=4+4)
-    
-    name                            old allocs/op  new allocs/op   delta
-    DecodeTwain-8                       51.0 ± 0%       51.2 ± 1%     ~     (p=1.000 n=4+4)
-    Decode/Twain/Huffman/1e4-8          15.0 ± 0%       14.0 ± 0%   -6.67%  (p=0.029 n=4+4)
-    Decode/Twain/Huffman/1e5-8          20.0 ± 0%       23.0 ± 0%  +15.00%  (p=0.029 n=4+4)
-    Decode/Twain/Huffman/1e6-8           134 ± 0%        161 ± 0%  +20.15%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e4-8            17.0 ± 0%       18.0 ± 0%   +5.88%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e5-8            30.0 ± 0%       31.0 ± 0%   +3.33%  (p=0.029 n=4+4)
-    Decode/Twain/Speed/1e6-8             193 ± 0%        228 ± 0%  +18.13%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e4-8          17.0 ± 0%       15.0 ± 0%  -11.76%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e5-8          28.0 ± 0%       32.0 ± 0%  +14.29%  (p=0.029 n=4+4)
-    Decode/Twain/Default/1e6-8           199 ± 0%        158 ± 0%  -20.60%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e4-8      17.0 ± 0%       15.0 ± 0%  -11.76%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e5-8      28.0 ± 0%       32.0 ± 0%  +14.29%  (p=0.029 n=4+4)
-    Decode/Twain/Compression/1e6-8       196 ± 0%        150 ± 0%  -23.47%  (p=0.029 n=4+4)
-    
-    Updates #27151
-    
-    Change-Id: I6c439694ed16a33bb4c63fbfb8570c7de46b4f2d
-    Reviewed-on: https://go-review.googlesource.com/135495
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I37fe210256ddafa579d9e6d64f3f0db78581974e
+    Reviewed-on: https://go-review.googlesource.com/114175
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- misc/nacl/testzip.proto                            |    2 +
- src/compress/bzip2/bzip2_test.go                   |    4 +-
- .../bzip2/testdata/Isaac.Newton-Opticks.txt.bz2    |  Bin 0 -> 132469 bytes
- .../bzip2/testdata/Mark.Twain-Tom.Sawyer.txt.bz2   |  Bin 118509 -> 0 bytes
- src/compress/flate/deflate_test.go                 |    8 +-
- src/compress/flate/reader_test.go                  |    4 +-
- src/compress/testdata/Mark.Twain-Tom.Sawyer.txt    | 8465 ------------------
- src/net/sendfile_test.go                           |   22 +-
- src/net/testdata/Mark.Twain-Tom.Sawyer.txt         | 8465 ------------------
- src/testdata/Isaac.Newton-Opticks.txt              | 9286 ++++++++++++++++++++
- 10 files changed, 9307 insertions(+), 16949 deletions(-)
+ src/internal/cpu/cpu_ppc64x_test.go | 1 -
+ 1 file changed, 1 deletion(-)

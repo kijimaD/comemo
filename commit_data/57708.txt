@@ -1,23 +1,21 @@
-commit 67f662b29165a0fb27dd15e9370b6e411a653c95
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Oct 16 16:33:03 2024 +0200
+commit f0b05092fd9bbfc698cb3bd24c6ae042e9c54616
+Author: mstmdev <mstmdev@gmail.com>
+Date:   Mon Aug 21 09:04:07 2023 +0000
 
-    internal/syscall/windows: set write access when O_TRUNC is used
+    cmd/internal/goobj: fix the size of Header
     
-    Whenn O_TRUNC is set, Opentat ends up calling syscall.Ftruncate, which
-    needs write access. Make sure write access is not removed when O_TRUNC
-    and O_APPEND are both set.
+    Missed the length of the Fingerprint field.
     
-    Updates #67002.
-    
-    Change-Id: Iccc470b7be3c62144318d6a707057504f3b74c97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/620576
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I690955466895e73821dc1e30f8400efc30338ae6
+    GitHub-Last-Rev: 87bd06d8053c003a412a6ea11b3eafcc280b94d1
+    GitHub-Pull-Request: golang/go#62174
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521495
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/internal/syscall/windows/at_windows.go      |  6 ++-
- src/internal/syscall/windows/at_windows_test.go | 58 +++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 1 deletion(-)
+ src/cmd/internal/goobj/objfile.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

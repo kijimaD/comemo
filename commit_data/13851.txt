@@ -1,12 +1,14 @@
-commit e93891f348a8cd74272c1060458a2e64cc0543ab
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Tue Sep 18 08:50:24 2012 -0700
+commit 648c9eb0b5eb6ddfef70299fcf19a8c323913e44
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Sep 18 21:57:33 2012 +1000
 
-    doc/effective_go: Closed some tags; removed extra spaces.
+    image/jpeg: ignore an incorrect but harmless trailing restart marker.
     
-    R=golang-dev, adg
+    Fixes #4084.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6488122
+    https://golang.org/cl/6526043
 
- doc/effective_go.html | 20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ src/pkg/image/jpeg/reader.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

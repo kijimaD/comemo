@@ -1,18 +1,15 @@
-commit 77f00e5e5ae39443174351ea514bbdf02ad59edd
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 22 13:53:57 2012 -0400
+commit fbaf59bf1ede6d8f42ab0d8e0f238582de5f9888
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue May 22 13:53:38 2012 -0400
 
-    unicode: fix comment about variable types
+    cmd/gc: export constants in hexadecimal
     
-    In both the web and command line tool,
-    the comment is shown after the declaration.
-    But in the code the comment is obviously before.
-    Make the text not refer to a specific order.
-    
-    R=r, dsymonds
+    R=golang-dev, r, rsc, iant, remyoudompheng, dave
     CC=golang-dev
-    https://golang.org/cl/6206094
+    https://golang.org/cl/6206077
 
- src/pkg/unicode/maketables.go | 4 ++--
- src/pkg/unicode/tables.go     | 6 +++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/gc/fmt.c                |   2 +
+ src/cmd/gc/lex.c                |   2 +
+ src/cmd/gc/mparith1.c           | 170 ++++++++++++++++++++++++++++++++--------
+ src/pkg/exp/types/gcimporter.go |   2 +-
+ 4 files changed, 142 insertions(+), 34 deletions(-)

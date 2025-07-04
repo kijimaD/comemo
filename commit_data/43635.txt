@@ -1,65 +1,31 @@
-commit 733c4af41d2e89d18cfb039e0107336a4c1ec220
-Author: Rob Findley <rfindley@google.com>
-Date:   Mon Oct 19 11:51:17 2020 -0400
+commit 7fe3f30bbbcb89ced4fb2cd4cbb93c8a0986a973
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Apr 16 23:33:11 2020 +0000
 
-    go/types: add internal error codes
+    Revert "[dev.link] cmd/link: remove buffered file I/O from OutBuf"
     
-    Tools using go/types sometimes need to implement special handling for
-    certain errors produced by the type-checker. They can offer suggested
-    fixes, expand the error position to surrounding syntax, highlight
-    related syntax (for example in the case of a declaration cycle), link to
-    additional documentation, group errors by category, or correlate errors
-    with signals produced by other static analysis tools.
+    This reverts commit b2def42d9efcf4540656e26632b744f8e7436814.
     
-    All these require a notion of error identity. Tools need to be able to
-    reliably determine the nature of an error without re-implementing type
-    checking logic or parsing error messages. This CL is a first-pass at
-    adding such an identifier to types.Error: a (for the moment unexported)
-    field containing one of many declared errorCode constants.
+    Reason for revert: trybots failing
     
-    A wide variety of error code constants are defined, and assigned to type
-    checker errors according to their 'functional equivalence', meaning that
-    they should be ideally be stable under refactoring.
-    
-    With few exceptions, each error code is documented with an example that
-    produces it. This is enforced by tests.
-    
-    When error codes are exported they will represent quite a large API
-    surface. For this reason, as well as the likelihood that error codes
-    will change at the start, both the code field and the codes themselves
-    are initially unexported. gopls will read these fields using reflection
-    during this experimental phase. Others can obviously do the same,
-    provided they accept the lack of forward compatibility.
-    
-    For #42290
-    
-    Change-Id: I15e3c2bffd2046c20297b1857057d421f633098a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264179
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
+    Change-Id: I920be6d8de158b1e513154ac0eb0c8fa0cffa9f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228657
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/api.go              |   10 +-
- src/go/types/assignments.go      |   37 +-
- src/go/types/builtins.go         |   88 +--
- src/go/types/call.go             |   36 +-
- src/go/types/check.go            |    4 +-
- src/go/types/check_test.go       |   11 +
- src/go/types/conversions.go      |    4 +-
- src/go/types/decl.go             |   18 +-
- src/go/types/errorcodes.go       | 1361 ++++++++++++++++++++++++++++++++++++++
- src/go/types/errorcodes_test.go  |  197 ++++++
- src/go/types/errors.go           |   40 +-
- src/go/types/expr.go             |  127 ++--
- src/go/types/initorder.go        |    6 +-
- src/go/types/labels.go           |   14 +-
- src/go/types/operand.go          |   24 +-
- src/go/types/resolver.go         |   35 +-
- src/go/types/self_test.go        |    8 +-
- src/go/types/stmt.go             |   77 ++-
- src/go/types/testdata/cycles.src |    8 +-
- src/go/types/testdata/expr3.src  |   20 +-
- src/go/types/typexpr.go          |   58 +-
- 21 files changed, 1906 insertions(+), 277 deletions(-)
+ src/cmd/link/internal/amd64/asm.go      |  5 ++
+ src/cmd/link/internal/arm/asm.go        |  4 ++
+ src/cmd/link/internal/arm64/asm.go      |  4 ++
+ src/cmd/link/internal/ld/data.go        |  8 +--
+ src/cmd/link/internal/ld/main.go        | 34 +++++++-----
+ src/cmd/link/internal/ld/outbuf.go      | 95 ++++++++++++++++++++++++---------
+ src/cmd/link/internal/ld/outbuf_test.go |  1 -
+ src/cmd/link/internal/ld/xcoff.go       |  3 ++
+ src/cmd/link/internal/mips/asm.go       |  2 +
+ src/cmd/link/internal/mips64/asm.go     |  4 ++
+ src/cmd/link/internal/ppc64/asm.go      |  5 ++
+ src/cmd/link/internal/riscv64/asm.go    |  2 +
+ src/cmd/link/internal/s390x/asm.go      |  2 +
+ src/cmd/link/internal/wasm/asm.go       |  2 +
+ src/cmd/link/internal/x86/asm.go        |  5 ++
+ 15 files changed, 135 insertions(+), 41 deletions(-)

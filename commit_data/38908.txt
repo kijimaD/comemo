@@ -1,14 +1,24 @@
-commit bc48cc770f966e401873436413d31436e84df2d8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Apr 26 06:41:14 2019 -0700
+commit 578667f4b534974f28909dbc34bce7fe1686c5d3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Dec 6 21:51:51 2018 +0000
 
-    runtime: gofmt defs1_netbsd_arm64.go
+    runtime: enable preemption of mark termination goroutine
     
-    Updates #30824
+    A mark worker goroutine may attempt to preempt the mark termination
+    goroutine to scan its stack while the mark termination goroutine is
+    trying to preempt that worker to flush its work buffer, in rare
+    cases.
     
-    Change-Id: I3d9ad7896d528d8274ec78378a546b0356986b9d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174078
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This change makes it so that, like a worker goroutine, the mark
+    termination goroutine stack is preemptible while it is on the
+    system stack, attempting to preempt others.
+    
+    Fixes #28695.
+    
+    Change-Id: I23bbb191f4fdad293e8a70befd51c9175f8a1171
+    Reviewed-on: https://go-review.googlesource.com/c/153077
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/defs1_netbsd_arm64.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/mgc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

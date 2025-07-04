@@ -1,17 +1,19 @@
-commit 0d111a62e14ebdd5c3e2482620a3e9542d97d3c0
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon May 16 10:13:17 2011 -0700
+commit 4da5cd4cd6d2caaa42996f0e5dd91fee036aa4d4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 16 09:26:16 2011 -0700
 
-    image/jpeg: decode grayscale images, not just color images.
+    os: make Readdir & Readdirnames return os.EOF at end
     
-    Also add an image package test that DecodeConfig returns the same
-    ColorModel as what Decode would.
+    Fixes #678
     
-    R=r, r
+    R=rsc, r, alex.brainman, bsiegert, jdpoirier
     CC=golang-dev
-    https://golang.org/cl/4529065
+    https://golang.org/cl/4536058
 
- src/pkg/image/decode_test.go |  22 ++++-
- src/pkg/image/jpeg/reader.go | 212 ++++++++++++++++++++++++++-----------------
- src/pkg/image/jpeg/writer.go |   8 +-
- 3 files changed, 156 insertions(+), 86 deletions(-)
+ src/pkg/os/dir_unix.go     | 43 ++++++++++++++++++++++++++++---------------
+ src/pkg/os/dir_windows.go  | 12 +++++++-----
+ src/pkg/os/file_unix.go    | 27 ++++++++++++++++++++-------
+ src/pkg/os/file_windows.go | 33 +++++++++++++++++++++++++--------
+ src/pkg/os/os_test.go      |  7 +++++--
+ src/pkg/os/path.go         |  3 +++
+ 6 files changed, 88 insertions(+), 37 deletions(-)

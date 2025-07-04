@@ -1,27 +1,22 @@
-commit 0cd9064cd734501738e20a902f942523df0a5a5a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 1 15:02:54 2023 -0700
+commit d09c6ac41769cc782ec982ffc8f20fbd796791f8
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Tue Jun 14 09:24:32 2022 -0500
 
-    go/types, types2: report inference instead of assignment failure when types can't match
+    test/codegen: updated multiple tests to verify on ppc64,ppc64le
     
-    Interface inference must only be used if we don't require exact
-    unification, otherwise we may infer types (that are reasonable)
-    but then fail with an assignment error.
+    Updated multiple tests in test/codegen: math.go, mathbits.go, shift.go
+    and slices.go to verify on ppc64/ppc64le as well
     
-    Only checking if exact is set for defined (named) types is not
-    sufficient, we must also check outside. Oversight.
-    
-    Fixes #60562.
-    
-    Change-Id: I208a74bf7ed80bcb976ba9cc172715c83f9e3d0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499996
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: Id88dd41569b7097819fb4d451b615f69cf7f7a94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412115
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/unify.go           | 10 ++--
- src/go/types/unify.go                              | 10 ++--
- .../types/testdata/fixedbugs/issue60562.go         | 62 ++++++++++++++++++++++
- 3 files changed, 72 insertions(+), 10 deletions(-)
+ test/codegen/math.go     |  4 ++++
+ test/codegen/mathbits.go | 16 ++++++++++++++++
+ test/codegen/shift.go    | 18 ++++++++++++++++++
+ test/codegen/slices.go   | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 86 insertions(+)

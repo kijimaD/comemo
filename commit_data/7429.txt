@@ -1,13 +1,14 @@
-commit 876e9d1b89cf87f3791153fa9472142cd5294223
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Feb 10 14:36:22 2011 -0800
+commit 12bdb29bdf080af43ba7688ae5af4053eb4f7288
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 10 15:39:08 2011 -0500
 
-    http: add Server type supporting timeouts
+    runtime: complete windows SysReserve
     
-    R=rsc
+    Should fix windows/386 build.
+    
+    R=brainman
     CC=golang-dev
-    https://golang.org/cl/4172041
+    https://golang.org/cl/4170041
 
- src/pkg/http/serve_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/http/server.go     | 48 ++++++++++++++++++++++++++++-----
- 2 files changed, 107 insertions(+), 7 deletions(-)
+ src/pkg/runtime/windows/mem.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

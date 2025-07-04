@@ -1,15 +1,18 @@
-commit eb751fa40b8b9f8ce2f1fe70cc140ef99fb118a4
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jun 8 10:15:38 2017 -0400
+commit 1cdf4bf33f57ca7910ab4ee1121ea7f05a6adcd1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 9 14:45:37 2017 -0800
 
-    runtime: fix documentation error about runtime.GC()
+    cmd/compile/internal/ssa: add SymEffect attribute to SSA Ops
     
-    runtime.GC no longer triggers a STW GC. This fixes the description of
-    GODEBUG=gctrace=1 so it doesn't claim otherwise.
+    To replace the progeffects tables for liveness analysis.
     
-    Change-Id: Ibd34a55c5ae7b5eda5c2393b9a6674bdf1d51eb3
-    Reviewed-on: https://go-review.googlesource.com/45131
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Idc4b990665cb0a9aa300d62cdf8ad12e51c5b991
+    Reviewed-on: https://go-review.googlesource.com/38083
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/extern.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/main.go | 33 ++++++++++++++++++---------
+ src/cmd/compile/internal/ssa/op.go       | 39 ++++++++++++++++++++++----------
+ src/cmd/compile/internal/ssa/opGen.go    |  8 ++++---
+ 3 files changed, 54 insertions(+), 26 deletions(-)

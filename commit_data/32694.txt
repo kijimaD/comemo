@@ -1,17 +1,27 @@
-commit cf872fae78c48b89814379d7e4a53d1a92b7388f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Sep 8 14:36:43 2017 -0400
+commit c34add780b65d4c18978a9e490a2db9e4ff22d3a
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 17 14:27:28 2017 -0400
 
-    expvar: make (*Map).Init clear existing keys
+    runtime/pprof: don't produce 0 location in count profiles
     
-    fixes #21619
+    profileBuilder.locForPC returns 0 to mean "no location" because 0 is
+    an invalid location index. However, the code to build count profiles
+    doesn't check the result of locForPC, so this 0 location index ends up
+    in the profile's location list. This, in turn, causes problems later
+    when we decode the profile because it puts a nil *Location in the
+    sample's location slice, which can later lead to a nil pointer panic.
     
-    Change-Id: I5bb513dfc8cac875b06a262eec40b5863ae23a4c
-    Reviewed-on: https://go-review.googlesource.com/62370
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fix this by making printCountProfile correctly discard the result of
+    locForPC if it returns 0. This makes this call match the other two
+    calls of locForPC.
+    
+    Updates #15156.
+    
+    Change-Id: I4492b3652b513448bc56f4cfece4e37da5e42f94
+    Reviewed-on: https://go-review.googlesource.com/43630
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/expvar/expvar.go      | 12 +++++++++++-
- src/expvar/expvar_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ src/runtime/pprof/pprof.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

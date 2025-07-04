@@ -1,17 +1,13 @@
-commit 08dca4c649ba7f90f209376ba342bd46ef14ebe5
-Author: Todd Neal <todd@tneal.org>
-Date:   Mon Apr 24 11:20:09 2017 -0400
+commit d3d2a67c137939003eada835f28a62b26ab1f89f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 28 11:10:34 2017 -0800
 
-    cmd/compile: ignore types when considering tuple select for CSE
+    cmd/vet/all: temporarily ignore vendored pprof
     
-    Fixes #20097
-    
-    Change-Id: I3c9626ccc8cd0c46a7081ea8650b2ff07a5d4fcd
-    Reviewed-on: https://go-review.googlesource.com/41505
-    Run-TryBot: Todd Neal <todd@tneal.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I3d96b9803dbbd7184f96240bd7944af919ca1376
+    Reviewed-on: https://go-review.googlesource.com/37579
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/cse.go | 10 +++++++---
- test/fixedbugs/issue20097.go        | 18 ++++++++++++++++++
- 2 files changed, 25 insertions(+), 3 deletions(-)
+ src/cmd/vet/all/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

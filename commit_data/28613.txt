@@ -1,115 +1,21 @@
-commit 2d573eee8ae532a3720ef4efbff9c8f42b6e8217
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sat Jul 23 15:41:57 2016 -0700
+commit 84d8aff94cf48439047c7edc68ae2ea0aac6ddf5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 7 21:46:25 2016 -0700
 
-    cmd/compile: improve error message for wrong number of arguments to return
+    runtime: collect stack trace if SIGPROF arrives on non-Go thread
     
-    Fixes #4215.
-    Fixes #6750.
+    Fixes #15994.
     
-    Improves the error message for wrong number of arguments by comparing
-    the signature of the return call site arguments, versus the function's
-    expected return arguments.
-    
-    In this CL, the signature representation of:
-    + ideal numbers(TIDEAL) ie float*, complex*, rune, int is
-    "number" instead of "untyped number".
-    + idealstring is "string" instead of "untyped string".
-    + idealbool is "bool" instead of "untyped bool".
-    
-    However, the representation of other types remains as the compiler
-    would produce.
-    
-    * Example 1(in the error messages, if all lines were printed):
-    $ cat main.go && go run main.go
-    package main
-    
-    func foo() (int, int) {
-      return 2.3
-    }
-    
-    func foo2() {
-      return int(2), 2
-    }
-    
-    func foo3(v int) (a, b, c, d int) {
-      if v >= 5 {
-        return 1
-      }
-      return 2, 3
-    }
-    
-    func foo4(name string) (string, int) {
-      switch name {
-      case "cow":
-        return "moo"
-      case "dog":
-        return "dog", 10, true
-      case "fish":
-        return ""
-      default:
-        return "lizard", 10
-      }
-    }
-    
-    type S int
-    type T string
-    type U float64
-    
-    func foo5() (S, T, U) {
-      if false {
-        return ""
-      } else {
-        ptr := new(T)
-        return ptr
-      }
-      return new(S), 12.34, 1 + 0i, 'r', true
-    }
-    
-    func foo6() (T, string) {
-      return "T"
-    }
-    
-    ./issue4215.go:4: not enough arguments to return, got (number) want (int, int)
-    ./issue4215.go:8: too many arguments to return, got (int, number) want ()
-    ./issue4215.go:13: not enough arguments to return, got (number) want (int, int, int, int)
-    ./issue4215.go:15: not enough arguments to return, got (number, number) want (int, int, int, int)
-    ./issue4215.go:21: not enough arguments to return, got (string) want (string, int)
-    ./issue4215.go:23: too many arguments to return, got (string, number, bool) want (string, int)
-    ./issue4215.go:25: not enough arguments to return, got (string) want (string, int)
-    ./issue4215.go:37: not enough arguments to return, got (string) want (S, T, U)
-    ./issue4215.go:40: not enough arguments to return, got (*T) want (S, T, U)
-    ./issue4215.go:42: too many arguments to return, got (*S, number, number, number, bool) want (S, T, U)
-    ./issue4215.go:46: not enough arguments to return, got (string) want (T, string)
-    ./issue4215.go:46: too many errors
-    
-    * Example 2:
-    $ cat 6750.go && go run 6750.go
-    package main
-    
-    import "fmt"
-    
-    func printmany(nums ...int) {
-      for i, n := range nums {
-        fmt.Printf("%d: %d\n", i, n)
-      }
-      fmt.Printf("\n")
-    }
-    
-    func main() {
-      printmany(1, 2, 3)
-      printmany([]int{1, 2, 3}...)
-      printmany(1, "abc", []int{2, 3}...)
-    }
-    ./issue6750.go:15: too many arguments in call to printmany, got (number, string, []int) want (...int)
-    
-    Change-Id: I6fdce78553ae81770840070e2c975d3e3c83d5d8
-    Reviewed-on: https://go-review.googlesource.com/25156
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I5aca91ab53985ac7dcb07ce094ec15eb8ec341f8
+    Reviewed-on: https://go-review.googlesource.com/23891
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 46 ++++++++++++++++++++++++---
- test/fixedbugs/issue4215.go              | 53 ++++++++++++++++++++++++++++++++
- test/fixedbugs/issue6750.go              | 22 +++++++++++++
- 3 files changed, 116 insertions(+), 5 deletions(-)
+ src/runtime/cpuprof.go                          |  40 +++++++--
+ src/runtime/crash_cgo_test.go                   |  43 +++------
+ src/runtime/proc.go                             |  32 +++++++
+ src/runtime/signal_sigtramp.go                  |   8 ++
+ src/runtime/sys_linux_amd64.s                   |  30 ++++++-
+ src/runtime/testdata/testprogcgo/threadpprof.go | 112 ++++++++++++++++++++++++
+ 6 files changed, 224 insertions(+), 41 deletions(-)

@@ -1,16 +1,17 @@
-commit 723479bc30f998f29ecbba7caea118ac4e2c9afd
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Fri Aug 3 02:08:43 2018 +0200
+commit d5a52e704490264a5dabb9c2f944bb67cd879db0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 19 12:12:51 2018 +0200
 
-    cmd/go: add graphviz output to graph command
+    internal/syscall/windows: convert CRLF line endings
     
-    This allows to quickly visual inspect dependencies.
+    CL 99337 introduced a file with CRLF line endings. Convert them to LF
+    line endings as in all other Go files.
     
-    Change-Id: Ice326ec69d7d57720f608b04cdf3ece153b8c5f1
-    Reviewed-on: https://go-review.googlesource.com/127599
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I68b28fd443f05bebbbd9280d1821c4ccd33a4a8a
+    Reviewed-on: https://go-review.googlesource.com/108075
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/go/internal/modcmd/graph.go | 33 ++++++++++++++++++++++++++++++---
- 1 file changed, 30 insertions(+), 3 deletions(-)
+ src/internal/syscall/windows/symlink_windows.go | 28 ++++++++++++-------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

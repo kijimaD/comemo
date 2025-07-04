@@ -1,46 +1,12 @@
-commit 835f983da6866deec1c6550555c96de729c8848c
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 15:57:27 2018 +0200
+commit 43a3cdf8c7ce08b5351cd4e8823c00f1fb125188
+Author: Suriyaa Sundararuban <suriyaasundararuban@gmail.com>
+Date:   Tue Jun 12 12:11:58 2018 +0000
 
-    os: add AIX operating system
+    doc: use HTTPS for man.openbsd.org link in go1.7.html
     
-    This commit adds AIX operating system to os package for ppc64
-    architecture.
-    
-    Updates: #25893
-    
-    Change-Id: Ieb9a2b3ac5b9abd3b5ab68eb732c17b6256d624d
-    Reviewed-on: https://go-review.googlesource.com/c/138725
+    Change-Id: I88855dfa3166e90386c90bf6220be0596dab3c0d
+    Reviewed-on: https://go-review.googlesource.com/118175
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/os/dir_unix.go                |  2 +-
- src/os/env_unix_test.go           |  2 +-
- src/os/error_posix.go             |  2 +-
- src/os/error_unix.go              |  2 +-
- src/os/error_unix_test.go         |  2 +-
- src/os/exec/exec_posix_test.go    |  2 +-
- src/os/exec/lp_unix.go            |  2 +-
- src/os/exec/lp_unix_test.go       |  2 +-
- src/os/exec_posix.go              |  2 +-
- src/os/exec_unix.go               |  2 +-
- src/os/executable_path.go         |  2 +-
- src/os/file_posix.go              |  2 +-
- src/os/file_unix.go               |  2 +-
- src/os/os_unix_test.go            |  2 +-
- src/os/path_unix.go               |  2 +-
- src/os/pipe_bsd.go                |  2 +-
- src/os/signal/internal/pty/pty.go |  2 +-
- src/os/signal/signal_test.go      |  2 +-
- src/os/signal/signal_unix.go      |  2 +-
- src/os/stat_aix.go                | 51 +++++++++++++++++++++++++++++++++++++++
- src/os/stat_unix.go               |  2 +-
- src/os/sys_aix.go                 | 26 ++++++++++++++++++++
- src/os/sys_unix.go                |  2 +-
- src/os/user/cgo_lookup_unix.go    |  2 +-
- src/os/user/lookup_stubs.go       |  4 +--
- src/os/user/lookup_unix.go        |  2 +-
- src/os/user/lookup_unix_test.go   |  2 +-
- src/os/wait_unimp.go              |  2 +-
- 28 files changed, 104 insertions(+), 27 deletions(-)
+ doc/go1.7.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

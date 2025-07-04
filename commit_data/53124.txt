@@ -1,19 +1,28 @@
-commit cbd3305f8c7452963b7a1b4db001776b76370ae4
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 17 15:59:47 2023 -0400
+commit b9d5a25442ff4df9080250dd4b0d62c565466cec
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 14 14:44:21 2022 -0400
 
-    cmd/cgo/internal/testnocgo: always run in default configuration
+    cmd/go: save zip sums for downloaded modules in 'go mod download' in a workspace
     
-    This test is actually intended to test that we can build in -static
-    mode even without any cgo. That means it's quite harmless to run in
-    the default build configuration (in addition to running with various
-    other build configurations).
+    Within a single module we expect all needed checksums to have already
+    been recorded by a previous call to 'go get' or 'go mod tidy' in that
+    module. However, when we combine multiple modules in a workspace, they
+    may upgrade each other's dependencies, so a given module might be
+    upgraded above the highest version recorded in the individual go.sum
+    files for the workspace modules.
     
-    Change-Id: Ic6cb5c0eaab83f9bd5718aae57d0fdc69afcb8b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496178
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Since the checksums might not be present in individual go.sum files,
+    record them in go.work.sum.
+    
+    Fixes #51946.
+    
+    Change-Id: Icb4ea874b9e5c5b1950d42650974a24b5d6543d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417654
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modcmd/download.go             | 26 ++++++++++++++++------
+ .../go/testdata/script/work_why_download_graph.txt | 10 +++++++--
+ 2 files changed, 27 insertions(+), 9 deletions(-)

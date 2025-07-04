@@ -1,12 +1,16 @@
-commit 48ecfc979ffb209c2705f594c4edc6c8c8829486
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 27 15:26:57 2013 -0700
+commit 8d4f381f5cead4ad4e2009173b9c42879a25eed2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 27 15:00:11 2013 -0700
 
-    faq: update with some links and 1.1-specific details
+    cmd/ld, cmd/8l: Fix OpenBSD build.
     
-    R=golang-dev, remyoudompheng, iant
+    Don't generate TLS sections on OpenBSD.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8038048
+    https://golang.org/cl/8059043
 
- doc/go_faq.html | 49 ++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 34 insertions(+), 15 deletions(-)
+ src/cmd/8l/span.c | 2 +-
+ src/cmd/ld/data.c | 2 +-
+ src/cmd/ld/elf.c  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

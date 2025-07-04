@@ -1,25 +1,20 @@
-commit 643c6b3c74409871d7f96cbad145dabdefbbc8c1
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Mon Oct 24 08:52:04 2016 +0900
+commit cd5ab9798612a08fd39e29ccd6bc10112d1bef0a
+Author: Dhaivat Pandit <dhaivatpandit@gmail.com>
+Date:   Mon Aug 22 10:29:02 2016 -0700
 
-    path/filepath: make TestToNorm robust
+    net/http/httptest: updated example to use Result()
     
-    The old code leaves garbages in a temporary directory because it
-    cannot remove the current working directory on windows.
-    The new code changes the directory before calling os.Remove.
+    example for httptest.Recorder was inspecting Recoder directly.
+    Using Result() to convert Recorder into a http.Response yields a much
+    better user experience.
     
-    Furthermore, the old code assumes that ioutil.TempDir (os.TempDir)
-    doesn't return a relative path nor an UNC path.
-    If it isn't the case, the new code calls t.Fatal earlier for preventing
-    ambiguous errors.
+    Closes #16837
     
-    Finally, the old code reassigns the variable which is used by the defer
-    function. It could cause unexpected results, so avoid that.
-    
-    Change-Id: I5fc3902059ecaf18dc1341ecc4979d1206034cd7
-    Reviewed-on: https://go-review.googlesource.com/31790
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: Id0e636c12cd6adb1ba11f89953ff2b0f43758cf3
+    Reviewed-on: https://go-review.googlesource.com/27495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/path/filepath/path_windows_test.go | 29 +++++++++++++++++++----------
- 1 file changed, 19 insertions(+), 10 deletions(-)
+ src/net/http/httptest/example_test.go | 16 +++++++++++++---
+ src/net/http/httptest/recorder.go     |  3 +++
+ 2 files changed, 16 insertions(+), 3 deletions(-)

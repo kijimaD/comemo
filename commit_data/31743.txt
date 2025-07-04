@@ -1,26 +1,40 @@
-commit fcee1e3739c8b6a0199ed0e0ff4e2b9b8d28d5bc
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Jun 5 10:20:00 2017 +0200
+commit 118b3fe7bbf855196db727daefbb403b84a4f67d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 10 18:34:41 2017 -0800
 
-    time: vendor tzdata-2017b and update test
+    cmd/compile/internal/gc: refactor ACALL Prog creation
     
-    This change updates the vendored tzdata database to version 2017b
-    (released 2017-03-20).
+    This abstracts creation of ACALL Progs into package gc. The main
+    benefit of this today is we can refactor away a lot of common
+    boilerplate code.
     
-    The TestFirstZone test (which always uses the vendored database) is
-    updated to make it work with the new timezones database. (The Tokelau
-    abbreviation was changed from 'TKT' to the numeric abbreviation in
-    tzdata-2017a)
+    Later, once liveness analysis happens on the SSA graph, this will also
+    provide an easy insertion point for emitting the PCDATA Progs
+    immediately before call instructions.
     
-    Fixes #19376
+    Passes toolstash-check -all.
     
-    Change-Id: I0dea93e8703992de5c92c7840b8bacad9d02c50d
-    Reviewed-on: https://go-review.googlesource.com/44832
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia15108ace97201cd84314f1ca916dfeb4f09d61c
+    Reviewed-on: https://go-review.googlesource.com/38081
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- lib/time/update.bash      |   4 ++--
- lib/time/zoneinfo.zip     | Bin 366113 -> 366776 bytes
- src/time/zoneinfo_test.go |   4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/amd64/galign.go  |  1 +
+ src/cmd/compile/internal/amd64/ssa.go     | 35 ++---------------------
+ src/cmd/compile/internal/arm/galign.go    |  1 +
+ src/cmd/compile/internal/arm/ssa.go       | 37 ++----------------------
+ src/cmd/compile/internal/arm64/galign.go  |  1 +
+ src/cmd/compile/internal/arm64/ssa.go     | 37 ++----------------------
+ src/cmd/compile/internal/gc/go.go         |  3 +-
+ src/cmd/compile/internal/gc/ssa.go        | 36 +++++++++++++++++++++++
+ src/cmd/compile/internal/mips/galign.go   |  1 +
+ src/cmd/compile/internal/mips/ssa.go      | 37 ++----------------------
+ src/cmd/compile/internal/mips64/galign.go |  1 +
+ src/cmd/compile/internal/mips64/ssa.go    | 37 ++----------------------
+ src/cmd/compile/internal/ppc64/galign.go  |  1 +
+ src/cmd/compile/internal/ppc64/ggen.go    | 26 +++++++++++++++++
+ src/cmd/compile/internal/ppc64/ssa.go     | 47 ++-----------------------------
+ src/cmd/compile/internal/s390x/galign.go  |  1 +
+ src/cmd/compile/internal/s390x/ssa.go     | 35 ++---------------------
+ src/cmd/compile/internal/x86/galign.go    |  1 +
+ src/cmd/compile/internal/x86/ssa.go       | 35 ++---------------------
+ 19 files changed, 88 insertions(+), 285 deletions(-)

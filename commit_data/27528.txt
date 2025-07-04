@@ -1,19 +1,21 @@
-commit d9557523c2febc29ad3ecab8b1a4358abd709b30
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 25 20:01:25 2016 -0400
+commit 11d916b157415de568a619eb2970ff44a3910839
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 31 11:42:35 2016 -0700
 
-    runtime: make framepointer mode safe for Windows
+    cmd/compile: remove Node.Nointerface field
     
-    A few other architectures have already defined a NOFRAME flag.
-    Use it to disable frame pointer code on a few very low-level functions
-    that must behave like Windows code.
+    We already keep the entire pragma bitset in n.Func.Pragma, so there's
+    no need to track Nointerface separately.
     
-    Makes the failing os/signal test pass on a Windows gomote.
+    Passes toolstash -cmp.
     
-    Change-Id: I982365f2c59a0aa302b4428c970846c61027cf3e
-    Reviewed-on: https://go-review.googlesource.com/23456
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ic027ece477fcf63b0c1df128a08b89ef0f34fd58
+    Reviewed-on: https://go-review.googlesource.com/21381
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/x86/obj6.go |  3 +--
- src/runtime/sys_windows_amd64.s  | 26 +++++++++++++-------------
- 2 files changed, 14 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/parser.go    |  5 ++--
+ src/cmd/compile/internal/gc/syntax.go    | 47 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ 3 files changed, 26 insertions(+), 28 deletions(-)

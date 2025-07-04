@@ -1,95 +1,34 @@
-commit c307e1628c1569fcd589d7e1a9b3adbe367b98e6
-Merge: d47bcd157c 88c8b7c7f9
-Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
-Date:   Tue Aug 16 00:10:35 2016 +0000
+commit 4721ea6abcde318a2f5d61ec249cde5e9c57ebea
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 13 11:22:42 2016 -0400
 
-    Merge "Merge remote-tracking branch 'origin/dev.ssa' into merge"
+    runtime/internal/atomic: rename Storep1 to StorepNoWB
+    
+    Make it clear that the point of this function stores a pointer
+    *without* a write barrier.
+    
+    sed -i -e 's/Storep1/StorepNoWB/' $(git grep -l Storep1)
+    
+    Updates #15270.
+    
+    Change-Id: Ifad7e17815e51a738070655fe3b178afdadaecf6
+    Reviewed-on: https://go-review.googlesource.com/21994
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/asm/internal/asm/operand_test.go           |     1 +
- src/cmd/compile/internal/amd64/ssa.go              |   165 +-
- src/cmd/compile/internal/arm/prog.go               |     2 +
- src/cmd/compile/internal/arm/ssa.go                |   970 +-
- src/cmd/compile/internal/arm64/galign.go           |     6 +
- src/cmd/compile/internal/arm64/prog.go             |    19 +-
- src/cmd/compile/internal/arm64/ssa.go              |   865 +
- src/cmd/compile/internal/gc/builtin.go             |    17 +-
- src/cmd/compile/internal/gc/builtin/runtime.go     |     2 +
- src/cmd/compile/internal/gc/ssa.go                 |   226 +-
- src/cmd/compile/internal/gc/testdata/arith_ssa.go  |   440 +
- src/cmd/compile/internal/gc/testdata/string_ssa.go |    64 +
- src/cmd/compile/internal/gc/type.go                |     1 +
- src/cmd/compile/internal/gc/walk.go                |    48 +-
- src/cmd/compile/internal/ppc64/galign.go           |     5 +
- src/cmd/compile/internal/ppc64/prog.go             |    16 +
- src/cmd/compile/internal/ppc64/ssa.go              |  1021 +
- src/cmd/compile/internal/ssa/config.go             |    79 +-
- src/cmd/compile/internal/ssa/cse.go                |    23 +
- src/cmd/compile/internal/ssa/deadstore.go          |     2 +-
- src/cmd/compile/internal/ssa/decompose.go          |    47 +-
- src/cmd/compile/internal/ssa/export_test.go        |     6 +
- src/cmd/compile/internal/ssa/flagalloc.go          |    26 +-
- src/cmd/compile/internal/ssa/gen/386.rules         |  1265 +
- src/cmd/compile/internal/ssa/gen/386Ops.go         |   508 +
- src/cmd/compile/internal/ssa/gen/AMD64.rules       |   227 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |   305 +-
- src/cmd/compile/internal/ssa/gen/ARM.rules         |  1192 +-
- src/cmd/compile/internal/ssa/gen/ARM64.rules       |  1057 +
- src/cmd/compile/internal/ssa/gen/ARM64Ops.go       |   455 +
- src/cmd/compile/internal/ssa/gen/ARMOps.go         |   506 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules       |   573 +
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go       |   395 +
- src/cmd/compile/internal/ssa/gen/dec64.rules       |   407 +
- src/cmd/compile/internal/ssa/gen/dec64Ops.go       |    20 +
- src/cmd/compile/internal/ssa/gen/generic.rules     |    32 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go     |   181 +-
- src/cmd/compile/internal/ssa/gen/main.go           |    59 +-
- src/cmd/compile/internal/ssa/gen/rulegen.go        |   409 +-
- src/cmd/compile/internal/ssa/html.go               |     2 +-
- src/cmd/compile/internal/ssa/location.go           |    13 +
- src/cmd/compile/internal/ssa/lower.go              |     9 +-
- src/cmd/compile/internal/ssa/op.go                 |    38 +-
- src/cmd/compile/internal/ssa/opGen.go              | 12893 ++++++++--
- src/cmd/compile/internal/ssa/opt.go                |     3 +
- src/cmd/compile/internal/ssa/regalloc.go           |   233 +-
- src/cmd/compile/internal/ssa/rewrite.go            |    18 +
- src/cmd/compile/internal/ssa/rewrite386.go         | 14822 ++++++++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go       | 23497 ++++++++++---------
- src/cmd/compile/internal/ssa/rewriteARM.go         | 18270 +++++++++++++-
- src/cmd/compile/internal/ssa/rewriteARM64.go       | 15213 ++++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go       |  7277 ++++++
- src/cmd/compile/internal/ssa/rewritedec64.go       |  2534 ++
- src/cmd/compile/internal/ssa/rewritegeneric.go     |   456 +-
- src/cmd/compile/internal/ssa/schedule.go           |    39 +-
- src/cmd/compile/internal/ssa/tighten.go            |     8 +-
- src/cmd/compile/internal/ssa/type.go               |    57 +
- src/cmd/compile/internal/ssa/type_test.go          |     1 +
- src/cmd/compile/internal/x86/387.go                |   386 +
- src/cmd/compile/internal/x86/galign.go             |     5 +
- src/cmd/compile/internal/x86/ssa.go                |  1020 +
- src/cmd/internal/obj/arm/a.out.go                  |     2 +
- src/cmd/internal/obj/arm/anames.go                 |     2 +
- src/cmd/internal/obj/arm/asm5.go                   |     8 +-
- src/cmd/internal/obj/arm/obj5.go                   |     4 +-
- src/cmd/internal/obj/arm64/a.out.go                |     8 +
- src/cmd/internal/obj/arm64/anames7.go              |     1 +
- src/cmd/internal/obj/arm64/asm7.go                 |   358 +-
- src/cmd/internal/obj/arm64/obj7.go                 |    30 +-
- src/cmd/internal/obj/link.go                       |     6 +-
- src/cmd/internal/obj/ppc64/a.out.go                |    15 +-
- src/cmd/internal/obj/ppc64/anames.go               |     2 +
- src/cmd/internal/obj/ppc64/asm9.go                 |    18 +-
- src/cmd/internal/obj/util.go                       |    25 +-
- src/cmd/internal/obj/x86/asm6.go                   |    23 +-
- src/cmd/internal/obj/x86/obj6.go                   |    31 +-
- src/cmd/link/internal/x86/asm.go                   |    44 +-
- src/runtime/asm_386.s                              |    22 +-
- src/runtime/mgc.go                                 |     9 +-
- src/runtime/runtime1.go                            |     1 -
- src/runtime/softfloat_arm.go                       |    35 +
- src/runtime/vlrt.go                                |    14 +
- test/live.go                                       |     2 +-
- test/live_ssa.go                                   |     2 +-
- test/nilptr3.go                                    |     2 +-
- test/nilptr3_ssa.go                                |     4 +-
- test/sliceopt.go                                   |     2 +-
- 87 files changed, 95093 insertions(+), 14013 deletions(-)
+ src/runtime/atomic_pointer.go                 | 4 ++--
+ src/runtime/hashmap.go                        | 4 ++--
+ src/runtime/internal/atomic/asm_386.s         | 2 +-
+ src/runtime/internal/atomic/asm_amd64.s       | 2 +-
+ src/runtime/internal/atomic/asm_amd64p32.s    | 2 +-
+ src/runtime/internal/atomic/asm_mips64x.s     | 2 +-
+ src/runtime/internal/atomic/asm_ppc64x.s      | 2 +-
+ src/runtime/internal/atomic/atomic_386.go     | 2 +-
+ src/runtime/internal/atomic/atomic_amd64x.go  | 5 ++++-
+ src/runtime/internal/atomic/atomic_arm.go     | 2 +-
+ src/runtime/internal/atomic/atomic_arm64.go   | 2 +-
+ src/runtime/internal/atomic/atomic_arm64.s    | 2 +-
+ src/runtime/internal/atomic/atomic_mips64x.go | 2 +-
+ src/runtime/internal/atomic/atomic_ppc64x.go  | 2 +-
+ src/runtime/internal/atomic/atomic_s390x.go   | 2 +-
+ 15 files changed, 20 insertions(+), 17 deletions(-)

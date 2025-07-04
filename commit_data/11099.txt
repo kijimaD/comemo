@@ -1,12 +1,13 @@
-commit 091ef25a5e8e958dc31c11dd5f281cc9d91ccc66
+commit 4a6b07f2356644e0aa58925799771d79ec0541a0
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 10 20:13:02 2012 -0800
+Date:   Tue Jan 10 20:08:53 2012 -0800
 
-    go: rely on exit code to tell if test passed
+    gc: enable inlining by default
     
-    R=adg, dsymonds
+    R=lvd, r
     CC=golang-dev
-    https://golang.org/cl/5532066
+    https://golang.org/cl/5531058
 
- src/cmd/go/test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/gc/lex.c | 7 +++++++
+ test/escape2.go  | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

@@ -1,12 +1,22 @@
-commit bffadd6bd78465e4a9b2e736963fea0630bd9308
+commit 7e48cb5ffe8add9cab09155511bab063f6f1314c
 Author: Adam Langley <agl@golang.org>
-Date:   Sat Oct 8 10:11:38 2011 -0400
+Date:   Sat Oct 8 10:06:53 2011 -0400
 
-    crypto/tls: forgot this file in the last change.
+    crypto/tls: add server side SNI support.
     
-    R=bradfitz
+    With this in place, a TLS server is capable of selecting the correct
+    certificate based on the client's ServerNameIndication extension.
+    
+    The need to call Config.BuildNameToCertificate is unfortunate, but
+    adding a sync.Once to the Config structure made it uncopyable and I
+    felt that was too high a price to pay. Parsing the leaf certificates
+    in each handshake was too inefficient to consider.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5244042
+    https://golang.org/cl/5151048
 
- src/pkg/crypto/tls/conn.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/crypto/tls/common.go           | 66 ++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/tls/conn_test.go        | 54 ++++++++++++++++++++++++++++
+ src/pkg/crypto/tls/handshake_server.go |  7 +++-
+ 3 files changed, 126 insertions(+), 1 deletion(-)

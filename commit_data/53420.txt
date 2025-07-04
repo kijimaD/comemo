@@ -1,17 +1,22 @@
-commit 5f08963b2cbc90a287a4aef5cf8a3d6a3b221692
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 1 10:13:11 2023 -0400
+commit 7ec0ec3645a481155728020c07685992444a9e4f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 15 15:37:22 2022 -0700
 
-    cmd/go: fix TestScript/gotoolchain_net when $PATH contains golang.org/dl/go1.20.1
+    go/types, types2: skip comparison for operands with invalid types
     
-    For #57001.
+    Fixes #54405.
     
-    Change-Id: Idcc291c872864bcce7e6d411cdd208db3b331282
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499855
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Bypass: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ia7b2709b83966fa080e41e3d4818527d1e8b49f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424054
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/cmd/go/testdata/script/gotoolchain_net.txt | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/compile/internal/types2/expr.go                  |  6 ++++++
+ .../internal/types2/testdata/fixedbugs/issue54405.go     | 16 ++++++++++++++++
+ src/go/types/expr.go                                     |  6 ++++++
+ src/go/types/testdata/fixedbugs/issue54405.go            | 16 ++++++++++++++++
+ 4 files changed, 44 insertions(+)

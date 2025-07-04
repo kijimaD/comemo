@@ -1,26 +1,14 @@
-commit b91d82258fdab9568f2ccef9f80669c764d4c7ac
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Tue Nov 15 15:31:22 2011 +1100
+commit a619da9f4af538194a0b31e10e0f77340511fe1f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Nov 15 10:28:01 2011 +0900
 
-    html: auto-close <p> elements when starting <form> element.
+    xml: fix build
     
-    Pass tests2.dat, test 26:
-    <!doctypehtml><p><form>
+    empty is already not a nil.
     
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   <body>
-    |     <p>
-    |     <form>
-    
-    Also pass tests through test 32:
-    <!DOCTYPE html><!-- X
-    
-    R=nigeltao
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5369114
+    https://golang.org/cl/5376098
 
- src/pkg/html/parse.go      | 6 ++++++
- src/pkg/html/parse_test.go | 2 +-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/encoding/xml/xml_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

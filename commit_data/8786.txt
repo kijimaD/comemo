@@ -1,25 +1,14 @@
-commit c319fb07bcae09589f83f060a4fdfef93a521348
-Author: Julian Phillips <julian@quantumfyre.co.uk>
-Date:   Mon Jun 20 13:00:43 2011 +1000
+commit 5e77b9d33470cd1faf4450880b4ebc543122f74f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 20 12:36:14 2011 +1000
 
-    goinstall: Add support for arbitary code repositories
+    doc/GoCourseDay1: shrink the PDF by rewriting it using ps2pdf.
+    No difference in content or appearance.
+    Forgot to do this when I updated this file a few days ago.
     
-    Extend goinstall to support downloading from any hg/git/svn/bzr hosting
-    site, not just the standard ones.  The type of hosting is automatically
-    checked by trying all the tools, so the import statement looks like:
-    
-      import "example.com/mything"
-    
-    Which will work for Mercurial (http), Subversion (http, svn), Git (http,
-    git) and Bazaar (http, bzr) hosting.
-    
-    All the existing package imports will work through this new mechanism,
-    but the existing hard-coded host support is left in place to ensure
-    there is no change in behaviour.
-    
-    R=golang-dev, bradfitz, fvbommel, go.peter.90, n13m3y3r, adg, duperray.olivier
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4650043
+    https://golang.org/cl/4626056
 
- src/cmd/goinstall/download.go | 231 ++++++++++++++++++++++++++++++------------
- 1 file changed, 168 insertions(+), 63 deletions(-)
+ doc/GoCourseDay1.pdf | Bin 904237 -> 287552 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

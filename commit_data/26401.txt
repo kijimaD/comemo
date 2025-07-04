@@ -1,31 +1,16 @@
-commit 3eaa3046295b9a5bdff0428060c5ffd46347651a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Mar 19 17:51:17 2016 -0700
+commit 92ba69d216e6b840b02ae4ecdc7fb425a94473b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 15 14:52:06 2016 -0800
 
-    cmd/compile: ignore receiver name when checking duplicate methods
+    cmd/compile: set importpkg.Direct correctly when using binary imports
     
-    In golang.org/cl/20602, I changed the semantics of Eqtype to stop
-    checking the receiver parameters for type equality, and pushed this
-    responsibility to addmethod (the only Eqtype caller that cared).
-    However, I accidentally made the check stricter by making it start
-    requiring that receiver names were identical.
+    Fixes #13977.
     
-    In general, this is a non-problem because the receiver names in export
-    data will always match the original source. But running
-    GO_GCFLAGS=-newexport ./all.bash at one point tries to load both old
-    and new format export data for package sync, which reveals the
-    problem. (See golang.org/issue/14877 for details.)
-    
-    Easy fix: just check the receiver type for type equality in addmethod,
-    instead of the entire receiver parameter list.
-    
-    Fixes #14877.
-    
-    Change-Id: If10b79f66ba58a1b7774622b4fbad1916aba32f1
-    Reviewed-on: https://go-review.googlesource.com/20906
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Icf54b4d2d746d30da207d1e17c975d18188b1cf8
+    Reviewed-on: https://go-review.googlesource.com/18702
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/dcl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/lex.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

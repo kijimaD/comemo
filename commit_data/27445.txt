@@ -1,14 +1,26 @@
-commit 1249197936aef58cb2296a3cd57b519ba3243042
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed May 18 13:43:50 2016 -0700
+commit 62dddd47705be74869eabbb3296097b2e98a8baf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 28 09:40:53 2016 -0700
 
-    doc/go1.7: add runtime.KeepAlive
+    cmd/compile: rename Field's Width field to Offset
     
-    Update #13347.
+    gorename -from '"cmd/compile/internal/gc".Field.Width' -to Offset
     
-    Change-Id: I04bf317ed409478a859355f833d4a5e30db2b9c9
-    Reviewed-on: https://go-review.googlesource.com/23226
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: I310538a1f60bbab470a6375e813e9d5eb52c5bbf
+    Reviewed-on: https://go-review.googlesource.com/21230
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.7.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/alg.go       |  8 ++++----
+ src/cmd/compile/internal/gc/align.go     |  6 +++---
+ src/cmd/compile/internal/gc/cgen.go      |  8 ++++----
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go     |  8 ++++----
+ src/cmd/compile/internal/gc/plive.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   |  8 ++++----
+ src/cmd/compile/internal/gc/ssa.go       |  4 ++--
+ src/cmd/compile/internal/gc/type.go      | 14 +++++++++-----
+ src/cmd/compile/internal/gc/typecheck.go | 14 +++++++-------
+ 11 files changed, 40 insertions(+), 36 deletions(-)

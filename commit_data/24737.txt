@@ -1,20 +1,17 @@
-commit d986bf27414161f4a4fc41c4c564bad26ebc57e7
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 26 16:48:36 2015 -0400
+commit be33e203edac1afa4a3bf1087f3589a82a7e3a86
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 27 16:28:52 2015 +1000
 
-    runtime: account mark worker time before gcMarkDone
+    text/template: add ExecError type and return it from Execute on error
     
-    Currently gcMarkDone takes basically no time, so it's okay to account
-    the worker time after calling it. However, gcMarkDone is about to take
-    potentially *much* longer because it may perform all of mark
-    termination. Prepare for this by swapping the order so we account the
-    time before calling gcMarkDone.
+    Useful to discriminate evaluation errors from write errors.
     
-    Change-Id: I90c7df68192acfc4fd02a7254dae739dda4e2fcb
-    Reviewed-on: https://go-review.googlesource.com/16390
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #11898.
+    
+    Change-Id: I907d339a3820e887872d78e0e2d8fd011451fd19
+    Reviewed-on: https://go-review.googlesource.com/13957
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/runtime/mgc.go | 25 +++++++++++++------------
- 1 file changed, 13 insertions(+), 12 deletions(-)
+ src/text/template/exec.go      | 50 +++++++++++++++++++++++++++++++++++++-----
+ src/text/template/exec_test.go | 43 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+), 5 deletions(-)

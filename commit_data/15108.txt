@@ -1,17 +1,18 @@
-commit 848d10f06cf327212d1ce7041c0eeae5fda317f1
-Author: Shivakumar GN <shivakumar.gn@gmail.com>
-Date:   Sun Feb 3 11:21:07 2013 -0500
+commit d82dcadb57836bb9b1d66a3c9a5de77bf9f41f3f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 02:01:05 2013 -0500
 
-    xml: omit newline at beginning of MarshalIndent output
+    cmd/gc: clean up string index errors
     
-    (Still valid XML.)
+    Unify with array/slice errors, which were already good.
     
-    Fixes #3354.
+    Fixes #4232.
     
-    R=golang-dev, dave
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7288047
+    https://golang.org/cl/7271046
 
- src/pkg/encoding/xml/marshal.go      |  7 ++++++-
- src/pkg/encoding/xml/marshal_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 1 deletion(-)
+ src/cmd/gc/typecheck.c      | 34 +++++++++++++++++++---------------
+ test/fixedbugs/bug205.go    |  6 +++---
+ test/fixedbugs/issue4232.go | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 55 insertions(+), 18 deletions(-)

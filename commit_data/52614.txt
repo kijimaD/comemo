@@ -1,31 +1,19 @@
-commit 9a0c506a4e4d5be115265a33085626a82eb014c0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 11 12:01:43 2023 -0700
+commit 0f715f1ac9565a0e932acf69a69414e3964e38c8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 4 19:48:29 2022 +0000
 
-    all: re-run stringer
+    runtime/internal/atomic: align 64-bit types to 8 bytes everywhere
     
-    Re-run all go:generate stringer commands. This mostly adds checks
-    that the constant values did not change, but does add new strings
-    for the debug/dwarf and internal/pkgbits packages.
+    This change extends https://go.dev/cl/381317 to the
+    runtime/internal/atomic package in terms of aligning 64-bit types to 8
+    bytes, even on 32-bit platforms.
     
-    Change-Id: I5fc41f20da47338152c183d45d5ae65074e2fccf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483717
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id8c45577d07b256e3144d88b31f201264295cfcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404096
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/internal/obj/abi_string.go        |  9 +++++
- src/debug/dwarf/class_string.go           |  9 +++--
- src/debug/macho/reloctype_string.go       | 58 +++++++++++++++++++++++++++++++
- src/html/template/attr_string.go          | 12 +++++++
- src/html/template/delim_string.go         | 10 ++++++
- src/html/template/element_string.go       | 11 ++++++
- src/html/template/urlpart_string.go       | 10 ++++++
- src/internal/pkgbits/syncmarker_string.go |  7 ++--
- src/math/big/accuracy_string.go           |  9 +++++
- src/math/big/roundingmode_string.go       | 12 +++++++
- src/regexp/syntax/op_string.go            | 26 ++++++++++++++
- 11 files changed, 169 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types/size.go |  7 ++++---
+ src/runtime/internal/atomic/types.go   | 15 ++++++++++++++-
+ 2 files changed, 18 insertions(+), 4 deletions(-)

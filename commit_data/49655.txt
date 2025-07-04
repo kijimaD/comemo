@@ -1,23 +1,27 @@
-commit df38614bd7f233f36a3f5ac07f0ec9029043243f
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jul 19 15:35:51 2022 -0700
+commit 37d4532867b9c49f936cb8e394dec44d8985fe29
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Sep 2 00:06:42 2021 +0000
 
-    test: use go tool from tree, not path
+    cmd/internal/obj/riscv: simplify addition with constant
     
-    Some of our tests do exec.Command("go", "tool", "compile", ...) or
-    similar. That "go" is selected from PATH. When run.go is started
-    from the command line (but not from all.bash), the first "go" is whatever
-    happens to be first in the user's path (some random older version than
-    tip). We really want all these tests to use the "go" tool from the
-    source tree under test. Add GOROOT/bin to the front of the path to
-    ensure that the tools we use come from the source tree under test.
+    This CL simplifies riscv addition (add r, imm) to
+    (ADDI (ADDI r, imm/2), imm-imm/2) if imm is in specific ranges.
+    (-4096 <= imm <= -2049 or 2048 <= imm <= 4094)
     
-    Change-Id: I609261a4add8cd5cb228316752d52b5499aec963
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418474
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    There is little impact to the go1 benchmark, while the total
+    size of pkg/linux_riscv64 decreased by about 11KB.
+    
+    Change-Id: I236eb8af3b83bb35ce9c0b318fc1d235e8ab9a4e
+    GitHub-Last-Rev: a2f56a07635344a40d6b8a9571f236743122be34
+    GitHub-Pull-Request: golang/go#48110
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346689
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Michael Munday <mike.munday@lowrisc.org>
 
- test/run.go | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/riscv/obj.go | 21 +++++++++++++++++++++
+ test/codegen/arithmetic.go        |  8 ++++++++
+ 2 files changed, 29 insertions(+)

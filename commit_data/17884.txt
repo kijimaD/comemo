@@ -1,17 +1,12 @@
-commit a664b4945703f2b92a81e4aafc8c6dcaa796296d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 13 21:29:34 2013 -0500
+commit b6c7cc3241d898dd89c27cb82e0a3c827314e86c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Nov 14 09:20:29 2013 +1100
 
-    doc/asm: more about SP, ARM R11
+    encoding/gob: expose encode/decode example
     
-    Also rename URL to /doc/asm.
-    
-    R=golang-dev, minux.ma, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/26170043
+    https://golang.org/cl/26220045
 
- doc/asm.html      | 53 +++++++++++++++++++++++++++++++++++++++++++++--------
- src/cmd/5a/doc.go |  2 +-
- src/cmd/6a/doc.go |  4 ++--
- src/cmd/8a/doc.go |  2 +-
- 4 files changed, 49 insertions(+), 12 deletions(-)
+ src/pkg/encoding/gob/example_encdec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

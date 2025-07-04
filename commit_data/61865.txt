@@ -1,0 +1,28 @@
+commit 98534fd1a0dbb354a5e10d3de3a58ebdcfd2b5f6
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Dec 5 15:31:39 2024 -0500
+
+    cmd/go: consistently use DefaultExecName for executable name
+    
+    go tool, go run, and the executable caching logic have all used
+    path.Base of a package's import path to set the name of the executable
+    produced. But the base name for a package name that's the same as a
+    module name ending in a major version is just that major version, which
+    is not very useful. For go build and go install, we use
+    load.DefaultExecName as the name of the binary which will select the
+    second to last element of the import path as the name of the executable
+    produced. This change changes go tool, go run, and the executable
+    caching logic to all use DefaultExecName consistently to pick the name
+    of the executable.
+    
+    Change-Id: I8e615bbc6a4f9cc4549165c31954fab181d63318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634039
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Conrad Irwin <conrad.irwin@gmail.com>
+
+ src/cmd/go/internal/run/run.go              |  3 +-
+ src/cmd/go/internal/tool/tool.go            | 11 ++++++--
+ src/cmd/go/internal/work/buildid.go         |  3 +-
+ src/cmd/go/testdata/script/tool_exename.txt | 43 ++++++++++++++++++++++++++++-
+ 4 files changed, 52 insertions(+), 8 deletions(-)

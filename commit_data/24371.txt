@@ -1,35 +1,29 @@
-commit ec12754700c5635c916361c6cd95718f57a8f1c9
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 24 13:10:00 2015 -0700
+commit 0c2d3f7346d140542953240e75aa4dc99d67e8bd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 23 14:05:54 2015 -0700
 
-    bufio: fix scanning with a final empty token.
+    net/http: on Transport body write error, wait briefly for a response
     
-    The Scan function's interface to the split function was not sufficient
-    to handle an empty final token in a pure function; state was required.
-    This was ugly.
+    From https://github.com/golang/go/issues/11745#issuecomment-123555313 :
     
-    We introduce a special error value that a split function can return
-    that signals that this token is OK, but is the last one and scanning
-    should stop immediately _after_ this token.
+    The http.RoundTripper interface says you get either a *Response, or an
+    error.
     
-    The same effect could be achieved using the same trick (a special
-    error value) and checking for that error after Scan finishes, but it's
-    a little clumsy. Providing a published sentinel value in bufio is
-    cleaner and means everyone can use the same trick. The result
-    is an error-free scan.
+    But in the case of a client writing a large request and the server
+    replying prematurely (e.g. 403 Forbidden) and closing the connection
+    without reading the request body, what does the client want? The 403
+    response, or the error that the body couldn't be copied?
     
-    Rewrite the test (that was only barely working) to use the value
-    and be more robust.
+    This CL implements the aforementioned comment's option c), making the
+    Transport give an N millisecond advantage to responses over body write
+    errors.
     
-    Also write a new example showing how to do it.
+    Updates #11745
     
-    Fixes #11836
-    
-    Change-Id: Iaae77d0f95b4a2efa0175ced94d93c66353079e8
-    Reviewed-on: https://go-review.googlesource.com/14924
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I4485a782505d54de6189f6856a7a1f33ce4d5e5e
+    Reviewed-on: https://go-review.googlesource.com/12590
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/bufio/example_test.go | 29 +++++++++++++++++++++++++++++
- src/bufio/scan.go         | 19 +++++++++++++++++++
- src/bufio/scan_test.go    | 26 +++++++++++++++-----------
- 3 files changed, 63 insertions(+), 11 deletions(-)
+ src/net/http/transport.go      | 26 +++++++++++++++++
+ src/net/http/transport_test.go | 63 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 82 insertions(+), 7 deletions(-)

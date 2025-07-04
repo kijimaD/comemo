@@ -1,18 +1,14 @@
-commit 0b4f4e0153bbdb231eff3f3928f99eae3e48b363
-Author: Hana Kim <hakim@google.com>
-Date:   Fri Aug 25 12:56:29 2017 -0400
+commit 4fcceca192b0379d068cbda75e120d9bd51719fa
+Author: Tommy Schaefer <tommy.schaefer@teecom.com>
+Date:   Thu Apr 27 23:53:58 2017 -0500
 
-    cmd/trace: add -d that prints parsed traces
+    syscall: fix typo in documentation for StringToUTF16Ptr
     
-    This is useful when debugging the tool.
+    Fixes #20133
     
-    Some tweaks on logging: log the webserver address, log.Print instead
-    of log.Printf when possible.
-    
-    Change-Id: Iaf71b6523b40dc13795511784d48eacf0f5a396a
-    Reviewed-on: https://go-review.googlesource.com/59570
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ic1a6eb35de1f9ddac9527335eb49bf0b52963b6a
+    Reviewed-on: https://go-review.googlesource.com/41992
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/trace/main.go | 20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
+ src/syscall/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

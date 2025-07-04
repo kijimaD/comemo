@@ -1,23 +1,16 @@
-commit 3f86d7cc6762a5f6745cdcda4bd50031bfafc92f
-Author: Austin Clements <austin@google.com>
-Date:   Tue Sep 25 15:44:27 2018 -0400
+commit 1425412f38e8a0e7ea9f6d67a8cf2d97e567f6b4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jun 8 10:33:54 2018 +1000
 
-    runtime: tidy mheap.freeSpan
+    cmd/cover: fix test on Solaris
     
-    freeSpan currently takes a mysterious "acct int32" argument. This is
-    really just a boolean and actually just needs to match the "large"
-    argument to alloc in order to balance out accounting.
+    Solaris diff doesn't know about -d (a.k.a. --minimal).
     
-    To make this clearer, replace acct with a "large bool" argument that
-    must match the call to mheap.alloc.
-    
-    Change-Id: Ibc81faefdf9f0583114e1953fcfb362e9c3c76de
-    Reviewed-on: https://go-review.googlesource.com/c/138655
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I86146b4b93e3d0bdea52a0fde59afca20b5bab51
+    Reviewed-on: https://go-review.googlesource.com/117335
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mcentral.go | 2 +-
- src/runtime/mgcsweep.go | 2 +-
- src/runtime/mheap.go    | 8 ++++++--
- 3 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/cover/cover_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

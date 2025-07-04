@@ -1,18 +1,21 @@
-commit d53287d0c37de1e624648dc9a1b1be356a2acf13
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Mar 25 18:07:19 2016 -0700
+commit 2639498f9b5e43dfceb6aa7aafb31bc313216e24
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 1 15:58:34 2016 +0000
 
-    cmd/compile: simplify keydup
+    net/http/httputil: fix spelling of Trailer hop-by-hop header per errata
     
-    Use a type switch instead of calling Val.Ctype (which in turn just
-    uses a type switch anyway).
+    RFC Errata 4522 (http://www.rfc-editor.org/errata_search.php?eid=4522)
+    notes that RFC 2616 had a typo in a list of headers that the
+    httputil.ReverseProxy code copied. Fix the typo in our code.
     
-    Use continue statements to simplify the control flow.
+    Fixes #14174
     
-    Change-Id: I65c139d706d4d78e5b4ce09d1b1505a3e424496b
-    Reviewed-on: https://go-review.googlesource.com/21173
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifc8f18fd58a6508a02a23e54ff3c473f03e521d3
+    Reviewed-on: https://go-review.googlesource.com/19133
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/go.go        |  1 -
- src/cmd/compile/internal/gc/typecheck.go | 49 ++++++++++++++------------------
- 2 files changed, 21 insertions(+), 29 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 4 ++--
+ src/net/http/httputil/reverseproxy_test.go | 4 ++++
+ 2 files changed, 6 insertions(+), 2 deletions(-)

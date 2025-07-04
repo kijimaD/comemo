@@ -1,12 +1,15 @@
-commit 2f5a5be237d8e115188398c30545a0e593269928
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Tue Jan 4 16:23:29 2011 -0800
+commit 8184778abf3d60fd436541368077a08f3b4287b9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 4 13:16:50 2011 -0800
 
-    strings: fix description of FieldsFunc
+    fix occurrences of occur[^sr .,?!;\n]
     
-    R=r
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/3814041
+    https://golang.org/cl/3794043
 
- src/pkg/strings/strings.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/datafmt/datafmt.go                | 2 +-
+ src/pkg/go/parser/interface.go                | 2 +-
+ src/pkg/go/printer/printer.go                 | 4 ++--
+ src/pkg/index/suffixarray/suffixarray_test.go | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

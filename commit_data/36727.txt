@@ -1,30 +1,30 @@
-commit 01b7c2db156cc40e928bb95ec7f980f0ab22aa26
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 24 19:12:54 2018 +0000
+commit 51be90a251b2030da02079d28ce6dc50364a351e
+Author: Hana Kim <hakim@google.com>
+Date:   Tue May 22 13:41:04 2018 -0400
 
-    cmd/vendor: update golang.org/x/sys/windows for windows/arm support
+    cmd/vendor/README: temporary instruction for update
     
-    Updates to golang.org/x/sys git rev 90868a75f.
+    Until vgo sorts out and cleans up the vendoring process.
     
-    Updates golang/go#26148
+    Ran govendor to update packages the cmd/pprof depends on
+    which resulted in deletion of some of unnecessary files.
     
-    Change-Id: Ic687e7e0e171690e8d937c7bb29b0e55316f874a
-    Reviewed-on: https://go-review.googlesource.com/137015
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Idfba53e94414e90a5e280222750a6df77e979a16
+    Reviewed-on: https://go-review.googlesource.com/114079
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/cmd/vendor/golang.org/x/sys/windows/aliases.go |  13 ++
- .../golang.org/x/sys/windows/asm_windows_arm.s     |  11 ++
- .../x/sys/windows/registry/zsyscall_windows.go     |   2 +-
- .../golang.org/x/sys/windows/security_windows.go   |   4 +-
- src/cmd/vendor/golang.org/x/sys/windows/service.go |  18 +++
- .../golang.org/x/sys/windows/svc/mgr/config.go     |  38 +++--
- .../golang.org/x/sys/windows/svc/mgr/mgr_test.go   | 113 +++++++++++++
- .../golang.org/x/sys/windows/svc/mgr/recovery.go   | 135 ++++++++++++++++
- .../vendor/golang.org/x/sys/windows/svc/sys_arm.s  |  38 +++++
- .../golang.org/x/sys/windows/syscall_windows.go    |  60 ++++++-
- .../x/sys/windows/syscall_windows_test.go          |   6 +
- .../golang.org/x/sys/windows/types_windows.go      | 180 ++++++++++++++++++---
- .../golang.org/x/sys/windows/types_windows_arm.go  |  22 +++
- .../golang.org/x/sys/windows/zsyscall_windows.go   |   2 +-
- src/cmd/vendor/vendor.json                         |  32 ++--
- 15 files changed, 613 insertions(+), 61 deletions(-)
+ src/cmd/vendor/README                              |  21 ++
+ src/cmd/vendor/github.com/google/pprof/AUTHORS     |   7 -
+ .../vendor/github.com/google/pprof/CONTRIBUTING.md |  77 ------
+ .../vendor/github.com/google/pprof/CONTRIBUTORS    |  15 --
+ src/cmd/vendor/github.com/google/pprof/README.md   | 109 --------
+ .../vendor/github.com/google/pprof/doc/README.md   | 289 ---------------------
+ .../vendor/github.com/google/pprof/proto/README.md | 149 -----------
+ .../github.com/google/pprof/proto/profile.proto    | 203 ---------------
+ src/cmd/vendor/github.com/google/pprof/test.sh     |  26 --
+ .../pprof/third_party/update_d3flamegraph.sh       |  46 ----
+ .../github.com/ianlancetaylor/demangle/.gitignore  |  13 -
+ .../github.com/ianlancetaylor/demangle/c++filt.go  | 144 ----------
+ src/cmd/vendor/vendor.json                         | 125 +++++++--
+ 13 files changed, 125 insertions(+), 1099 deletions(-)

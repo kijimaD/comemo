@@ -1,28 +1,19 @@
-commit f1a9f1df5070f69685e269de940c6218f899d228
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Wed Oct 31 00:19:35 2018 +0200
+commit f7b05a08b8e7fb79e7b4ca75d530deb198ac1f5c
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 14 14:52:31 2018 +1000
 
-    go/doc: inspect function signature for building playground examples
+    doc: update Values, Writing Code, and Pointers and Allocation sections of the FAQ
     
-    This documentation example was broken:
-    https://golang.org/pkg/image/png/#example_Decode.
-    It did not have the "io" package imported,
-    The package was referenced in the result type of the function.
+    Significant surgery done to the Versioning section, bringing it closer to
+    modern thinking.
     
-    The "playExample" function did not inspect
-    the result types of declared functions.
+    Also add a question about constants.
     
-    This CL adds inspecting of parameters and result types of functions.
+    Update #26107.
     
-    Fixes #28492
-    Updates #9679
-    
-    Change-Id: I6d8b11bad2db8ea8ba69039cfaa914093bdd5132
-    Reviewed-on: https://go-review.googlesource.com/c/146118
-    Run-TryBot: Yury Smolsky <yury@smolsky.by>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Icf70b7228503c6baaeab0b95ee3e6bee921575aa
+    Reviewed-on: https://go-review.googlesource.com/123918
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/doc/example.go      | 12 +++++++++
- src/go/doc/example_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 74 insertions(+)
+ doc/go_faq.html | 126 ++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 86 insertions(+), 40 deletions(-)

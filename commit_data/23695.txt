@@ -1,14 +1,17 @@
-commit 3d3a0169bfe4a1cc515ca7a781d4930c6015c57c
+commit 14da5bef5f4d8f0aeda1697d5f46a554d04f1f11
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 15 00:04:27 2015 -0400
+Date:   Mon Apr 27 14:40:34 2015 -0400
 
-    reflect: wait longer before declaring select test stuck
+    cmd/pprof: use copy of svgpan library instead of link to remote site
     
-    Fixes #9427.
+    Fixes #10375.
     
-    Change-Id: If8094d4d4f6737c03d83e08e177c2a7f0ff9d89f
-    Reviewed-on: https://go-review.googlesource.com/12234
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I78dc3e12035d130c405bdb284b0cceea19f084f6
+    Reviewed-on: https://go-review.googlesource.com/10690
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/reflect/all_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/pprof/internal/commands/commands.go |  10 +-
+ src/cmd/pprof/internal/driver/driver.go     |   5 +-
+ src/cmd/pprof/internal/svg/svg.go           |  12 +-
+ src/cmd/pprof/internal/svg/svgpan.go        | 291 ++++++++++++++++++++++++++++
+ 4 files changed, 301 insertions(+), 17 deletions(-)

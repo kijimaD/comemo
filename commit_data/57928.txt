@@ -1,29 +1,20 @@
-commit 73ac82f99046a8b0b0b76f767f4b2e25ef6989ca
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Nov 8 23:10:41 2024 -0500
+commit e50bbae2de46f3baf377d4fe44b571e6d7f8e80c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 12 10:45:54 2023 +0700
 
-    runtime, syscall: use pointer types on wasmimport functions
+    cmd/compile: remove typecheck.Orig* functions
     
-    Now that we support pointer types on wasmimport functions, use
-    them, instead of unsafe.Pointer. This removes unsafe conversions.
-    There is still one unsafe.Pointer argument left. It is actually a
-    *Stat_t, which is an exported type with an int field, which is not
-    allowed as a wasmimport field type. We probably cannot change it
-    at this point.
+    Same as CL 526397, but for typecheck.
     
-    Updates #66984.
-    
-    Change-Id: I445c70b356c3877a5604bee67d19d99a538c682e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627059
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Change-Id: Ia8f19a54ffaa2ae3b86a4c66cbe6d973482796cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526236
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/build/deps_test.go              |   4 +-
- src/internal/syscall/unix/at_wasip1.go |  12 ++--
- src/runtime/netpoll_wasip1.go          |   2 +-
- src/runtime/os_wasip1.go               |  44 ++++++++------
- src/syscall/fs_wasip1.go               | 101 ++++++++++++++++-----------------
- src/syscall/net_wasip1.go              |   6 +-
- src/syscall/syscall_wasip1.go          |   4 +-
- 7 files changed, 89 insertions(+), 84 deletions(-)
+ src/cmd/compile/internal/loopvar/loopvar.go  | 19 ++++--------
+ src/cmd/compile/internal/staticinit/sched.go |  6 ++--
+ src/cmd/compile/internal/typecheck/const.go  | 45 ----------------------------
+ src/cmd/compile/internal/walk/builtin.go     |  2 +-
+ 4 files changed, 8 insertions(+), 64 deletions(-)

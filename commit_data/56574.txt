@@ -1,25 +1,46 @@
-commit ba1c5b2c4573e10f3b5f0e0f25a27f17fba67eb0
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Tue May 14 12:32:14 2024 -0700
+commit 099f5a985f9db17c9d1048e6afb6fd162f41256c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 9 12:38:40 2023 -0700
 
-    runtime: profile mutex contention during unlock
+    go/types, types2: permit partially instantiated functions as function arguments
     
-    When an M's use of a lock causes delays in other Ms, capture the stack
-    of the unlock call that caused the delay. This makes the meaning of the
-    mutex profile for runtime-internal mutexes match the behavior for
-    sync.Mutex: the profile points to the end of the critical section that
-    is responsible for delaying other work.
+    This CL changes Checker.genericExprList such that it collects partially
+    instantiated generic functions together with their (partial) type
+    argument (and corresponding) expression lists, instead of trying to
+    infer the missing type arguments in place or to report an error.
+    Special care is being taken to explictly record expression types where
+    needed (because we can't use one of the usual expr evaluators which
+    takes care of that), or to track the correct instance expression for
+    later recording with Checker.arguments.
     
-    Fixes #66999
+    The resulting generic expression list is passed to Checker.arguments
+    which is changed to accept explicit partial type argument (and
+    corresponding) expression lists. The provided type arguments are fed
+    into type inference, matching up with their respective type parameters
+    (which were collected already, before this CL). If type inference is
+    successful, the instantiated functions are recorded as needed.
     
-    Change-Id: I4abc4a1df00a48765d29c07776481a1cbd539ff8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585638
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    For now, the type argument expression lists are collected and passed
+    along but not yet used. We may use them eventually for better error
+    reporting.
+    
+    Fixes #59958.
+    For #59338.
+    
+    Change-Id: I26db47ef3546e64553da49d62b23cd3ef9e2b549
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494116
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/runtime/lock_futex.go |  15 ++--
- src/runtime/lock_sema.go  |  15 ++--
- src/runtime/mprof.go      | 178 ++++++++++++++++------------------------------
- 3 files changed, 80 insertions(+), 128 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go        |  35 ++++-
+ src/cmd/compile/internal/types2/builtins.go        |   2 +-
+ src/cmd/compile/internal/types2/call.go            | 162 +++++++++++++++------
+ src/go/types/api_test.go                           |  35 ++++-
+ src/go/types/builtins.go                           |   2 +-
+ src/go/types/call.go                               | 162 +++++++++++++++------
+ src/internal/types/testdata/examples/inference2.go |  10 ++
+ .../types/testdata/fixedbugs/issue59958.go         |  22 +++
+ 8 files changed, 328 insertions(+), 102 deletions(-)

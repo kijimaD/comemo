@@ -1,25 +1,25 @@
-commit 7e26a2d9a80b825d019c2cdaf6437d89001506a9
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 14 17:27:04 2015 -0400
+commit 571ebae6ef0f9edb09e516b75a757cfeeb51da35
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 12:08:47 2015 -0400
 
-    runtime: allocate map element zero values for reflect-created types on demand
+    runtime: track scan work performed during concurrent mark
     
-    Preallocating them in reflect means that
-    (1) if you say _ = PtrTo(ArrayOf(1000000000, reflect.TypeOf(byte(0)))), you just allocated 1GB of data
-    (2) if you say it again, that's *another* GB of data.
+    This tracks the amount of scan work in terms of scanned pointers
+    during the concurrent mark phase. We'll use this information to
+    estimate scan work for the next cycle.
     
-    The only use of t.zero in the runtime is for map elements.
-    Delay the allocation until the creation of a map with that element type,
-    and share the zeros.
+    Currently this aggregates the work counter in gcWork and dispose
+    atomically aggregates this into a global work counter. dispose happens
+    relatively infrequently, so the contention on the global counter
+    should be low. If this turns out to be an issue, we can reduce the
+    number of disposes, and if it's still a problem, we can switch to
+    per-P counters.
     
-    The one downside of the shared zero is that it's not garbage collected,
-    but it's also never written, so the OS should be able to handle it fairly
-    efficiently.
-    
-    Change-Id: I56b098a091abf3ac0945de28ebef9a6c08e76614
-    Reviewed-on: https://go-review.googlesource.com/10111
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iac0364c466ee35fab781dbbbe7970a5f3c4e1fc1
+    Reviewed-on: https://go-review.googlesource.com/8832
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/reflect/type.go    |  9 ---------
- src/runtime/hashmap.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+), 9 deletions(-)
+ src/runtime/mgc.go     | 27 +++++++++++++++++++++++++++
+ src/runtime/mgcmark.go | 18 ++++++++++++++++++
+ src/runtime/mgcwork.go | 12 ++++++++++++
+ 3 files changed, 57 insertions(+)

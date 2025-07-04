@@ -1,18 +1,13 @@
-commit c7dc5e92ddb7c6d4e71edd7f24f9314e81a8413b
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Sep 5 15:43:32 2019 -0400
+commit 98891386146413e902bef41a7feb7595b86e4c1d
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Fri Mar 22 15:30:30 2019 +0300
 
-    test: tweak test to avoid unpreemptible loop with gccgo
+    sort: replace Errorf+FailNow with Fatalf
     
-    This test contains a very tight loop with locking/unlocking that can
-    wind up as an unpreemptible when compiled with gccgo, depending on
-    inlining. Tweak the test slightly to avoid this problem.
-    
-    Change-Id: I155fd2b4bfea961244eb6c6594c24ab03d32d41c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193619
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4f8d0178e780b86d1f551b367e2ddac3789be5aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168880
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/test.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/sort/sort_test.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

@@ -1,12 +1,18 @@
-commit 5a4cc600b79075d8ad6304809c70a7d94da628cd
+commit 630930c35ef7b5e22e28a6424425b887bb12c9b6
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 15 01:16:47 2015 -0400
+Date:   Thu May 21 14:11:33 2015 -0400
 
-    cmd/go: fix nocgo builder
+    cmd/compile, cmd/link: add docs
     
-    Change-Id: I0f167d9769d9b6b9888c13fcb48e538fc87aa1b7
-    Reviewed-on: https://go-review.googlesource.com/12240
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    These are the Go 1.4 docs but refreshed for Go 1.5.
+    The most sigificant change is that all references to the Plan 9 toolchain are gone.
+    The tools no longer bear any meaningful resemblance.
+    
+    Change-Id: I44f5cadb832a982323d7fee0b77673e55d761b35
+    Reviewed-on: https://go-review.googlesource.com/10298
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/go_test.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/doc.go             | 124 +++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/lex.go |   6 +-
+ src/cmd/link/doc.go                |  93 ++++++++++++++++++++++++++++
+ 3 files changed, 222 insertions(+), 1 deletion(-)

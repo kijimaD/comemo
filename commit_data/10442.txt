@@ -1,12 +1,16 @@
-commit 0bbbb44e997b3a61576ed8fc4b1c021134c27c4c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Nov 18 15:22:48 2011 +1100
+commit 558d055352747b2a2b5329ece9fa8ddb3c4ed999
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Nov 18 01:12:57 2011 -0200
 
-    doc: link to Chinese translation of A Tour of Go
+    exp/terminal: fix build after os.Errno changes
     
-    R=golang-dev, dsymonds
+    Also include exp/terminal in linux build so such failures
+    are noticed.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5415046
+    https://golang.org/cl/5416044
 
- doc/docs.html | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/Makefile             |  1 +
+ src/pkg/exp/terminal/util.go | 31 +++++++++++++++----------------
+ 2 files changed, 16 insertions(+), 16 deletions(-)

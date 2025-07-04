@@ -1,28 +1,20 @@
-commit 3fb8b4f3db21396a69bfaa0bdbf1252214c93ecd
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Mar 11 15:09:46 2025 -0400
+commit 0b12e3d81cdba8a5676d6d61970d3dc5cb1462ac
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 1 04:47:22 2024 +0000
 
-    all: move //go:debug decoratemappings=0 test to cmd/go
+    runtime: model wakeableSleep.lock in the race detector
     
-    test/decoratemappingszero.go is intended to test that
-    //go:debug decoratemappings=0 disables annonations.
+    Currently the flight recorder tests are failing in race mode because the
+    race detector doesn't see s.lock, leading to false positives. This has
+    also appeared in the trace tests. Model the lock in the race detector.
     
-    Unfortunately, //go:debug processing is handled by cmd/go, but
-    cmd/internal/testdir (which runs tests from test/) generally invokes the
-    compiler directly, thus it does not set default GODEBUGs.
+    Fixes #65207.
+    Fixes #65283.
     
-    Move this test to the cmd/go script tests, alongside the similar test
-    for language version.
-    
-    Fixes #72772.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64le_power10
-    Change-Id: I6a6a636c9d380ef984f760be5689fdc7f5cb2aeb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/656795
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I1e9a5c9606536f55fdfc46b5f8443e9c7213c23d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560215
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- ...temappings.txt => godebug_decoratemappings_124.txt} |  0
- .../script/godebug_decoratemappings_comment.txt        | 18 +++++++++++-------
- 2 files changed, 11 insertions(+), 7 deletions(-)
+ src/runtime/trace2.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

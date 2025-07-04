@@ -1,22 +1,20 @@
-commit 55154cf0b27e3c48e7cf7654c890868a95e7eed6
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Wed Apr 13 13:34:41 2016 -0400
+commit ec158cebd9f0115235f0dc836f663e4b8c285ab7
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 10 15:31:11 2016 -0800
 
-    cmd/link: fix gdb backtrace on architectures using a link register
+    crypto/x509: correct OID for DSA-with-SHA-256.
     
-    Also adds TestGdbBacktrace to the runtime package.
+    I copied this down incorrectly. See
+    https://tools.ietf.org/html/rfc5758#section-3.1.
     
-    Dwarf modifications written by Bryan Chan (@bryanpkc) who is also
-    at IBM and covered by the same CLA.
+    Thankfully it's incredibly obscure.
     
-    Fixes #14628
+    Fixes #14663.
     
-    Change-Id: I106a1f704c3745a31f29cdadb0032e3905829850
-    Reviewed-on: https://go-review.googlesource.com/20193
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4792ee979916cc15aa2e300c8bc989bc4f9c63ac
+    Reviewed-on: https://go-review.googlesource.com/20549
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/cmd/link/internal/ld/dwarf.go |  58 ++++++++++++------
- src/runtime/runtime-gdb_test.go   | 122 +++++++++++++++++++++++++++++++++-----
- 2 files changed, 145 insertions(+), 35 deletions(-)
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

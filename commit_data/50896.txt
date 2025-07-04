@@ -1,15 +1,18 @@
-commit cba63ac03833c6eeaf4184ca2022d014b84db455
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 4 12:01:02 2022 -0400
+commit f041c7e3028545ba39c60d6e20ab9b74c01bbf33
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 23:29:25 2021 -0500
 
-    go/build: simplify coverage rules in deps_test
+    go/types: remove structuralString in favor of inlined code
     
-    Change-Id: Ic4b2b8ff5c7d7e4d9850e0b5a5b52b09b45816f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439417
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This is a clean port of CL 363154 from types2 to go/types.
+    
+    Change-Id: I26c18767041db096390e84ba9200ec69b66778d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364234
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/go/build/deps_test.go | 54 +++++++++++++++--------------------------------
- 1 file changed, 17 insertions(+), 37 deletions(-)
+ src/go/types/builtins.go | 21 ++++++++++++++++++++-
+ src/go/types/type.go     | 24 ------------------------
+ 2 files changed, 20 insertions(+), 25 deletions(-)

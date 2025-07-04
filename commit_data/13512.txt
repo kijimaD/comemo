@@ -1,17 +1,13 @@
-commit f7f91a0506df68f57906cfbe0e417a48c7a52495
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat Jul 28 10:40:51 2012 -0700
+commit 48ca3f288c112130d6ab4afabdb375f970652874
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 27 16:13:29 2012 -0700
 
-    misc/cgo/test: only run setgid test on GNU/Linux
+    flag: fix bug in handling of booleans on error
+    Fixes #3869.
     
-    Fixes #3874.
-    
-    R=golang-dev, nj, r, minux.ma
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/6446060
+    https://golang.org/cl/6448072
 
- misc/cgo/test/basic.go          | 16 ----------------
- misc/cgo/test/cgo_linux_test.go |  9 +++++++++
- misc/cgo/test/cgo_test.go       |  1 -
- misc/cgo/test/setgid_linux.go   | 32 ++++++++++++++++++++++++++++++++
- 4 files changed, 41 insertions(+), 17 deletions(-)
+ src/pkg/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

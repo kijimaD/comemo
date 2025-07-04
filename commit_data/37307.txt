@@ -1,14 +1,31 @@
-commit 5e9ad4a9b4a11e1e879ff061e09a10eef6bd605b
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Thu Nov 8 09:48:06 2018 +0530
+commit 203c16592bd20ec22ed407d445719b90585626b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 15 22:56:37 2018 -0400
 
-    time: handle negative offsets on js/wasm
+    cmd/go/internal/module: define fs-safe module path encoding
     
-    Fixes #28649
+    Module paths, like import paths, are case-sensitive, for better or worse.
+    But not all file systems distinguish file paths with different cases.
+    If we are going to use module paths to construct file system paths,
+    we must apply an encoding that distinguishes case without relying
+    upon the file system to do it.
     
-    Change-Id: I9f6807ee3c3007f670dd509780805c7b255a2bda
-    Reviewed-on: https://go-review.googlesource.com/c/148338
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This CL defines that encoding, the "safe module path encoding".
+    Module paths today are ASCII-only with limited punctuation,
+    so the safe module path encoding is to convert the whole path
+    to lower case and insert an ! before every formerly upper-case letter:
+    github.com/Sirupsen/logrus is stored as github.com/!sirupsen/logrus.
+    
+    Although this CL defines the encoding, it does not change the rest
+    of the go command to use the encoding. That will be done in
+    follow-up CLs.
+    
+    Change-Id: I06e6188dcfcbbc1d88674f7c95e1cb45cb476238
+    Reviewed-on: https://go-review.googlesource.com/124378
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/time/zoneinfo_js.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/module/module.go      | 277 ++++++++++++++++++++++++++----
+ src/cmd/go/internal/module/module_test.go | 277 +++++++++++++++++++++---------
+ 2 files changed, 439 insertions(+), 115 deletions(-)

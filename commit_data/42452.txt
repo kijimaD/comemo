@@ -1,19 +1,16 @@
-commit 9984ef824c635421c225f5bf3d5573a1fbd94dde
-Author: Keith Randall <khr@golang.org>
-Date:   Wed Jun 3 10:52:23 2020 -0700
+commit 4f757179543e06daec58df6af5884516f8bceb86
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 23 15:27:46 2019 -0800
 
-    cmd/compile: test that equality is evaluated in order
+    io: show ErrUnexpectedEOF in ExampleReadAtLeast
     
-    Make sure that we compare fields of structs and elements of arrays in order,
-    with proper short-circuiting.
+    Fixes #36245
     
-    Update #8606
-    
-    Change-Id: I0a66ad92ea0af7bcc56dfdb275dec2b8d7e8b4fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236147
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I10ce50b0cc28b15f4e7be85b8f12cf9d0e4fac96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212404
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- test/fixedbugs/issue8606.go | 46 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+ src/io/example_test.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

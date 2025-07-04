@@ -1,29 +1,25 @@
-commit 7b887158825720134181b6fe403066eee0cccee3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 23 15:17:50 2023 -0400
+commit 06338941ea0e3d654805b7323761f3c841cc8d58
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 2 11:12:25 2022 -0400
 
-    testing: quote -test.v=test2json output when logging it
+    net/http: fix for recent go.mod update
     
-    The -test.v=test2json flag causes the testing package to inject extra
-    control characters in the output to allow the JSON parser to more
-    gracefully handle extraneous writes to os.Stdout and/or os.Stderr in
-    the package under test (see CL 443596). However, it doesn't filter out
-    those control characters because almost no real-world tests will
-    output them.
+    cmd/internal/moddeps was failing.
+    Ran the commands it suggested:
     
-    It turns out that testing.TestFlag is one of the rare tests that does
-    output those control characters, because it tests the
-    -test.v=test2json flag itself.
+    % go mod tidy                               # to remove extraneous dependencies
+    % go mod vendor                             # to vendor dependencies
+    % go generate -run=bundle std               # to regenerate bundled packages
+    % go generate syscall internal/syscall/...  # to regenerate syscall packages
     
-    Fixes #59181.
+    cmd/internal/moddeps is happy now.
     
-    Change-Id: I35ca6748afcd3d4333563028817caac946f5e86a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479035
+    Change-Id: I4ee212cdc323f62a6cdcfdddb6813397b23d89e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403454
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/testing/flag_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/net/http/h2_bundle.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

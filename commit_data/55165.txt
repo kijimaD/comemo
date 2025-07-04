@@ -1,23 +1,30 @@
-commit b9a4eaa62b043fdb91f1f4a1e4b5ccfd3bdca36f
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Wed Nov 29 11:15:54 2023 +0100
+commit 627765a861c6762d15cfdfeb2f7e4872523edbe4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 5 23:39:49 2022 -0500
 
-    cmd/cgo/internal/test: only test specific frames in testCallbackCallersSEH
+    time/tzdata: generate zip constant during cmd/dist
     
-    testCallbackCallersSEH will break if anything in this call chain is
-    refactored to have a different number of function calls.
+    We have a make.bash-time generation capability,
+    so use it to generate the embedded zip file for time/tzdata.
+    This is one less file to try to review in CLs like CL 455356.
     
-    This change makes the test more robust by only testing the frames
-    that are actually relevant to the test.
+    For #22487.
+    Fixes #43350.
     
-    Change-Id: Idb51514d7079f55da6e6ddc52ad43b1ffe32c8c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545755
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I2fcd0665fa0b1c830baec5fb4cd714483fea25a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455357
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/cgo/internal/test/callback_windows.go | 38 +++++----------------------
- 1 file changed, 7 insertions(+), 31 deletions(-)
+ .gitignore                          |    1 +
+ lib/time/update.bash                |    3 +-
+ src/cmd/dist/build.go               |    7 +-
+ src/cmd/dist/buildgo.go             |   17 +
+ src/time/tzdata/generate_zipdata.go |   77 -
+ src/time/tzdata/tzdata.go           |    4 +-
+ src/time/tzdata/zipdata.go          | 6643 -----------------------------------
+ 7 files changed, 27 insertions(+), 6725 deletions(-)

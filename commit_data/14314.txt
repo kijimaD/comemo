@@ -1,23 +1,12 @@
-commit d6b9a03b7f6f158c470405e2e4d6a68dcd094a95
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Nov 6 12:09:40 2012 +0400
+commit c1c136d0c4c2057f33f2ce66c7f9ed60e3c2548d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 5 22:46:28 2012 +0100
 
-    runtime: disable parallel for tests under race detector.
-    The race detector does not understand ParFor synchronization, because it's implemented in C.
-    If run with -cpu=2 currently race detector says:
-     WARNING: DATA RACE
-     Read by goroutine 5:
-      runtime_test.TestParForParallel()
-          src/pkg/runtime/parfor_test.go:118 +0x2e0
-      testing.tRunner()
-          src/pkg/testing/testing.go:301 +0x8f
-     Previous write by goroutine 6:
-      runtime_test.func·024()
-          src/pkg/runtime/parfor_test.go:111 +0x52
+    cmd/godoc: use normal gofmt printer settings for playground fmt
     
-    R=golang-dev, bradfitz
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/6811082
+    https://golang.org/cl/6815081
 
- src/pkg/runtime/parfor_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/godoc/play.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,31 +1,27 @@
-commit aff222cd185d10400b9177fe26ec06eb647b092d
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Mar 14 11:25:02 2018 -0400
+commit 1ce7442ec898cb04f3cedda693816319c97aa24a
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Feb 8 23:25:40 2017 -0500
 
-    cmd/compile: improve PPC64.rules to reduce size of rewritePPC64.go
+    cmd/compile: add missing s390x load with index operations
     
-    Some rules in PPC64.rules cause an extremely large rewritePPC64.go
-    file to be generated, due to rules with commutative operations and
-    many operands. This happens with the existing
-    rules for combining byte loads in little endian order, and
-    also happens with the pending change to do the same for bytes
-    in big endian order.
+    Prior to this CL loads with sign extension could not be replaced with
+    indexed loads (only loads with zero extension).
     
-    The change improves the existing rules and reduces the size of
-    the rewrite file by more than 60%. Once this change is merged,
-    then the pending change for big endian ordered rules will be
-    updated to use rules that avoid generating an excessively large
-    rewrite file.
+    This CL also prevents large offsets (more than 20-bits) from being
+    merged into indexed loads. It is better to keep such offsets
+    separate.
     
-    This also includes a fix to a performance regression for
-    littleEndian.PutUint16 on ppc64le.
+    Gives a small improvement in binary size, ~1.5KB from .text in cmd/go.
     
-    Change-Id: I8d2ea42885fa2b84b30c63aa124b0a9b130564ff
-    Reviewed-on: https://go-review.googlesource.com/100675
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Ib848ffc2b05de6660c5ce2394ae1d1d144273e29
+    Reviewed-on: https://go-review.googlesource.com/36845
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |    98 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go | 29640 ++-----------------------
- 2 files changed, 1618 insertions(+), 28120 deletions(-)
+ src/cmd/compile/internal/s390x/ssa.go        |    3 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  114 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |   10 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   57 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 1501 +++++++++++++++++++++++---
+ 5 files changed, 1488 insertions(+), 197 deletions(-)

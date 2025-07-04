@@ -1,15 +1,13 @@
-commit 06a9bc683518552991820581cb8a4cf5e6978d47
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 12 13:56:56 2011 -0800
+commit 3dc278d3e2678ad7c7953fac5ae8ad641fe4bd6e
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Dec 12 19:45:40 2011 -0200
 
-    sql: fix missing mutex unlock in an error case
+    reflect: fix Slice cap
     
-    Fixes #2542
-    
-    R=golang-dev, r
+    R=golang-dev, dsymonds, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5483054
+    https://golang.org/cl/5483044
 
- src/pkg/exp/sql/sql.go      |  1 +
- src/pkg/exp/sql/sql_test.go | 13 +++++++++++++
- 2 files changed, 14 insertions(+)
+ src/pkg/reflect/all_test.go | 22 +++++++++++++++++-----
+ src/pkg/reflect/value.go    |  2 +-
+ 2 files changed, 18 insertions(+), 6 deletions(-)

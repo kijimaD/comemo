@@ -1,26 +1,16 @@
-commit d154ef60a0c88be98c70bbe1c5735fb7b1f45250
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sun Oct 21 14:57:58 2018 +1100
+commit f9800a94730eb6ead87017e6f829f58c4459870b
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sun Jul 8 10:02:47 2018 +0000
 
-    path/filepath: change IsAbs("NUL") to return true
+    test/codegen: add more test cases for arm64
     
-    This CL changes IsAbs to return true for "NUL" and other Windows
-    reserved filenames (search
-    https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
-    for NUL for details). os.Open("NUL") and os.Stat("NUL") work
-    regardless of what current directory is, and it is mistake to join
-    "NUL" with current directory when building full path. Changing
-    IsAbs("NUL") to return true fixes that mistake.
+    More test cases of combined load for arm64.
     
-    Fixes #28035
-    
-    Change-Id: Ife8f8aee48400702613ede8fc6834fd43e6e0f03
-    Reviewed-on: https://go-review.googlesource.com/c/145220
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I7a9f4dcec6930f161cbded1f47dbf7fcef1db4f1
+    Reviewed-on: https://go-review.googlesource.com/122582
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/testdata/script/test_devnull.txt | 13 +++++++++++++
- src/path/filepath/path_test.go              |  5 +++++
- src/path/filepath/path_windows.go           | 26 ++++++++++++++++++++++++++
- 3 files changed, 44 insertions(+)
+ test/codegen/memcombine.go | 70 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 70 insertions(+)

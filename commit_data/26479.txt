@@ -1,17 +1,16 @@
-commit 694eadcce755e9d8b02a9fed8b79448cc8bbcd5c
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Mar 23 16:25:27 2016 +1100
+commit d9fdbf48207e24c1d0d771250f2cc811ef97adff
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 23:00:41 2016 -0500
 
-    net/http/httptest: add NewRequest helper for ease of testing handlers
+    runtime: guard against array out of bounds in GoroutineProfile
     
-    Fixes #14199
+    The previous CL is the real fix. This one is just insurance.
     
-    Change-Id: Ic9284023b663de3db1ca7b7b1e96eeab82ec0944
-    Reviewed-on: https://go-review.googlesource.com/21016
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #14046 again.
+    
+    Change-Id: I553349504bb1789e4b66c888dbe4034568918ad6
+    Reviewed-on: https://go-review.googlesource.com/18977
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/http/httptest/httptest.go      |  88 ++++++++++++++++
- src/net/http/httptest/httptest_test.go | 177 +++++++++++++++++++++++++++++++++
- src/net/http/httptest/recorder.go      |   1 -
- 3 files changed, 265 insertions(+), 1 deletion(-)
+ src/runtime/mprof.go | 5 +++++
+ 1 file changed, 5 insertions(+)

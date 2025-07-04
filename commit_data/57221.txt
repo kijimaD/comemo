@@ -1,16 +1,24 @@
-commit f0f4e2d0af78618b89fdb13d557faee193cbaa4c
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Mon Aug 19 17:13:00 2024 -0700
+commit 89699847bf29c9891c95c8c55f8b6bff82c8f4e2
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Jul 11 15:34:09 2023 -0700
 
-    syscall: add O_DIRECTORY for js
+    net/url: document requirements for IPv6 addresses in URL.Host
     
-    Change-Id: I2022fa27b072f9b34413a04a794aeb6d3c02166c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606658
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    When the host subcomponent of a URL is an IPv6 address, it must be
+    surrounded by square brackets to prevent colons in the address
+    from being interpreted as the port: "[fe80::1]:80".
+    
+    Document this requirement.
+    
+    Fixes #61093
+    Fixes #61276
+    
+    Change-Id: Iaf411b9dc211fd876468d6e2e94ff672ba0d329d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508976
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/syscall/fs_js.go      | 16 ++++++++++------
- src/syscall/syscall_js.go | 13 +++++++------
- 2 files changed, 17 insertions(+), 12 deletions(-)
+ src/net/url/url.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

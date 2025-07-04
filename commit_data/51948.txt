@@ -1,20 +1,19 @@
-commit bb6952fa25da050d04c2df3787fa0d508adb9b1a
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Feb 8 18:48:17 2023 +0000
+commit 3bd8c78575a27ee9ac7b3c8d8c35db1feee31737
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Mar 26 10:36:10 2022 -0700
 
-    Revert "cmd/compile/internal/pgo: fix hard-coded PGO sample data position"
+    cmd/compile: upgrade prove pass to know results of math/bits ops are nonnegative
     
-    This reverts CL 465135.
+    Fixes #51963
     
-    Reason for revert: This broke cmd/go.TestScript/build_pgo on the linux-amd64-longtest builder: https://build.golang.org/log/8f8ed7bf576f891a06d295c4a5bca987c6e941d6
-    
-    Change-Id: Ie2f2cc2731099eb28eda6b94dded4dfc34e29441
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466439
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: Ib9e0521222e6fc41e787f3150b254e058a19addc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396036
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
 
- src/cmd/compile/internal/pgo/irgraph.go       | 18 +------
- src/cmd/compile/internal/test/pgo_inl_test.go | 68 ---------------------------
- 2 files changed, 1 insertion(+), 85 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

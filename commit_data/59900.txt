@@ -1,0 +1,54 @@
+commit 4ed358b57efdad9ed710be7f4fc51495a7620ce2
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Apr 19 14:51:18 2024 +0000
+
+    go/types, types: represent any using Alias
+    
+    When GODEBUG=gotypesalias=1 is set, use an actual Alias type to
+    represent any, rather than a legacy alias representation. This makes any
+    consistent with other interface aliases, and will eventually make
+    obsolete the various workarounds for formatting any as 'any' rather than
+    'interface{}'.
+    
+    Since any is a global in the Universe scope, we must hijack Scope.Lookup
+    to select the correct representation. Of course, this also means that we
+    can't support type checking concurrently while mutating gotypesalias
+    (or, in the case of types2, Config.EnableAlias). Some care is taken to
+    ensure that the type checker panics in the event of this type of misuse.
+    
+    For now, we must still support the legacy representation of any, and the
+    existing workarounds that look for a distinguished any pointer. This is
+    done by ensuring that both representations have the same underlying
+    pointer, and by updating workarounds to consider Underlying.
+    
+    Fixes golang/go#66921
+    
+    Change-Id: I81db7e8e15317b7a6ed3b406545db15a2fc42f57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580355
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/importer/iimport.go   |  3 ++
+ src/cmd/compile/internal/importer/support.go   |  3 +-
+ src/cmd/compile/internal/noder/writer.go       |  5 ++-
+ src/cmd/compile/internal/types2/api.go         | 10 ++++--
+ src/cmd/compile/internal/types2/api_test.go    | 27 +++++++++++++-
+ src/cmd/compile/internal/types2/check.go       | 38 ++++++++++++++++++++
+ src/cmd/compile/internal/types2/issues_test.go |  2 +-
+ src/cmd/compile/internal/types2/object.go      |  2 +-
+ src/cmd/compile/internal/types2/scope.go       | 14 +++++++-
+ src/cmd/compile/internal/types2/typestring.go  |  7 ++--
+ src/cmd/compile/internal/types2/typexpr.go     | 10 +++++-
+ src/cmd/compile/internal/types2/universe.go    | 42 +++++++++++++++++-----
+ src/go/internal/gcimporter/iimport.go          |  3 ++
+ src/go/internal/gcimporter/support.go          |  3 +-
+ src/go/types/api.go                            | 10 ++++--
+ src/go/types/api_test.go                       | 49 ++++++++++++++++++++++++--
+ src/go/types/check.go                          | 45 +++++++++++++++++++++++
+ src/go/types/issues_test.go                    |  2 +-
+ src/go/types/object.go                         |  2 +-
+ src/go/types/scope.go                          | 14 +++++++-
+ src/go/types/typestring.go                     |  7 ++--
+ src/go/types/typexpr.go                        |  9 ++++-
+ src/go/types/universe.go                       | 42 +++++++++++++++++-----
+ 23 files changed, 305 insertions(+), 44 deletions(-)

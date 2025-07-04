@@ -1,22 +1,26 @@
-commit c8861432b84157363c84220e6ed71180531bf2b4
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Dec 30 14:06:30 2021 +0100
+commit ef36e4fd0eec3283a43d03bc6bff7da4e5e03c06
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 13 23:41:45 2021 -0400
 
-    os: simplify ios checks in tests
+    reflect: keep pointer register results alive in callMethod
     
-    Go 1.16 renamed the iOS port from darwin/arm64 to ios/arm64 and
-    darwin/arm64 was repurposed for the macOS ARM64 port (see
-    https://golang.org/doc/go1.16#darwin).
+    When callMethod calls the underlying method, after reflectcall
+    it gets the result registers in "Ints" slots but not in "Ptrs"
+    slots. If the GC runs at this point, it may lose track of those
+    pointers and free the memory they point to.
     
-    Change tests to only use GOOS=ios to detect special cases for iOS and
-    stop treating darwin/arm64 as iOS.
+    To make sure the GC sees the pointer results, copy "Ints" to
+    "Ptrs", and keep them alive until we return to the caller.
     
-    Change-Id: I6a19f16fa9ec159ab1386aeb8fe912585e457171
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/374399
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This fixes test/fixedbugs/issue27695.go with register ABI.
+    
+    Change-Id: I4092c91bcbd6954683740a12d91d689900446875
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309909
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/os/os_test.go | 96 ++++++++++++++++++++++++-------------------------------
- 1 file changed, 41 insertions(+), 55 deletions(-)
+ src/reflect/abi.go   | 16 ++++++++++++++++
+ src/reflect/value.go |  8 ++++++++
+ 2 files changed, 24 insertions(+)

@@ -1,17 +1,15 @@
-commit b36d25f1972b9e4d5a8626ed32e3f72d9a58e1b0
+commit 1086dd7cfb70e382d6bb3242d26e7f673fffb808
 Author: Rob Pike <r@golang.org>
-Date:   Sat Feb 25 08:02:35 2012 +1100
+Date:   Sat Feb 25 08:00:55 2012 +1100
 
-    doc/go1: new introduction
-    This distills the motivational discussion and makes it the introduction to the release notes.
-    After this lands, I'll expand the discussion of the major changes to include more background.
+    cmd/go: in list, don't print blank lines for no output
+    Otherwise
+            go list -f "{{if .Stale}}{{.ImportPath}}{{end}}" all
+    and similar commands can print pages of empty lines.
     
-    Updates #3086.
-    
-    R=golang-dev, gri, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5698057
+    https://golang.org/cl/5696058
 
- doc/go1.html | 51 ++++++++++++++++++++++++++++++++++-----------------
- doc/go1.tmpl | 51 ++++++++++++++++++++++++++++++++++-----------------
- 2 files changed, 68 insertions(+), 34 deletions(-)
+ src/cmd/go/list.go | 41 ++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 38 insertions(+), 3 deletions(-)

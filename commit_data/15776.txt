@@ -1,14 +1,14 @@
-commit b7f29e259d2b0255ce22060ca7b8f8aaf2679487
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Mar 15 14:33:00 2013 +1100
+commit eb80431b6136663c7a1141a879c89b64fb8ba24f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 17:59:45 2013 -0400
 
-    misc/dashboard/codereview: add more people.
+    runtime: fix netbsd after reorg (again)
     
-    I picked everyone who has committed a CL on behalf of someone else in recent times.
-    
-    R=r, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/7836044
+    https://golang.org/cl/7719046
 
- misc/dashboard/codereview/dashboard/people.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ src/pkg/runtime/signal_netbsd_386.h   | 2 +-
+ src/pkg/runtime/signal_netbsd_amd64.h | 2 +-
+ src/pkg/runtime/signal_netbsd_arm.h   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

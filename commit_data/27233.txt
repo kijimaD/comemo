@@ -1,19 +1,19 @@
-commit 0ab78df9ea602d6bc9cf45dbd610c3d6f534cb58
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Apr 30 21:27:04 2016 -0500
+commit e6ed3e8a46c7a066c8ead6429274fa65ba1f42ba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 15 17:26:28 2016 -0700
 
-    net/http: fix a few crashes with a ClientTrace with nil funcs
+    cmd/internal/obj/x86: clean up asm buffer
     
-    And add a test.
+    c2go translated writing and advancing a pointer using slices.
+    Switch to something more idiomatic.
+    It is also more efficient, but not enough to matter.
     
-    Updates #12580
-    
-    Change-Id: Ia7eaba09b8e7fd0eddbcaefb948d01ab10af876e
-    Reviewed-on: https://go-review.googlesource.com/22659
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I67709632ac53253615a35365824ae97bbe5458d5
+    Reviewed-on: https://go-review.googlesource.com/20767
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/transport.go      |  6 +++---
- src/net/http/transport_test.go | 23 ++++++++++++++++++++---
- 2 files changed, 23 insertions(+), 6 deletions(-)
+ src/cmd/internal/obj/link.go     |  96 +++++-
+ src/cmd/internal/obj/x86/asm6.go | 694 +++++++++++----------------------------
+ 2 files changed, 294 insertions(+), 496 deletions(-)

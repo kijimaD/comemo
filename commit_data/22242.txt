@@ -1,17 +1,13 @@
-commit 8d267b9b592001da4c7a4d73996f92094fd23152
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Mar 24 16:36:16 2015 -0700
+commit 145b6fb9849d377e9c7c4077a9ff49e078b5639f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 12:41:23 2015 -0500
 
-    math/big: fixed Float.Float64, implemented Float.Float32
+    go/build: make interaction between file names and +build lines clearer
     
-    - fix bounds checks for exponent range of denormalized numbers
-    - use correct rounding precision for denormalized numbers
-    - added extra tests
-    
-    Change-Id: I6be56399afd0d9a603300a2e44b5539e08d6f592
-    Reviewed-on: https://go-review.googlesource.com/8096
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I2cae17d3f0d208c7ed1089bc5cb8f81022fcd36e
+    Reviewed-on: https://go-review.googlesource.com/6470
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/math/big/float.go      | 198 +++++++++++++++++++++++++++++++++++++--------
- src/math/big/float_test.go | 107 +++++++++++++++++++++---
- 2 files changed, 259 insertions(+), 46 deletions(-)
+ src/go/build/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,29 +1,63 @@
-commit 4106de901a8efe914cda6f6c4e8d45ff8c115da4
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Dec 14 22:13:29 2023 +0100
+commit 092671423cd95eaa6df93eb29442fef41504d097
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 8 15:23:32 2022 -0500
 
-    crypto/tls: align FIPS-only mode with BoringSSL policy
+    syscall: avoid making assumptions about syscall permissions
     
-    This enables TLS 1.3, disables P-521, and disables non-ECDHE suites.
+    We currently check for at least three different permission bits before
+    running tests that require root permissions: we look for UID 0, lack
+    of an LXC container, and lack of a Docker container, and probe a
+    number of distro-specific files in /proc and /sys.
     
-    Fixes #64717
-    Updates #62372
+    The sheer number of these checks suggests that we have probably missed
+    at least one. Per Alan J. Perlis, “If you have a procedure with ten
+    parameters, you probably missed some.” (And, indeed, we definitely
+    have: a Debian patch¹ adds one more environment check!)
     
-    Change-Id: I3a65b239ef0198bbdbe5e55e0810e7128f90a091
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/549975
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    CL 58170 added some of these container checks, but “decided to go this
+    way instead of just skipping os.IsPermission errors because many of
+    those tests were specifically written to check false positive
+    permission errors.” However, we can't in general distinguish between a
+    false-positive error and a real one caused by a container: if one is
+    making a change to the syscall package, they should run the tests with
+    -v and check for unexpected skips.
+    
+    Notably:
+    
+    - TestUnshare already skips itself if the command fails with an error
+      ending in the string "operation not permitted", which could be caused
+      by a variety of possible bugs.
+    
+    - The Unshare tests added in CL 38471 will fail with a permission
+      error if CLONE_NEWNS is not supported, but it seems to me that if
+      CLONE_NEWNS is supported — sufficient to start the process! — then
+      Unmount must also be supported, and the test can at least check that
+      the two are consistent.
+    
+    - The AmbientCaps tests should fail to start the subprocess with
+      EINVAL or similar (not produce bogus output) if the kernel does not
+      support ambient caps for any reason, which we can then detect.
+      (If the subprocess fails in the way the test is concerned about, it
+      will exit with status 2, not fail to start in the first place.)
+    
+    By executing the system calls and checking for permission errors,
+    this change exposed an existing bug for AmbientCaps (filed as #57208),
+    which was detected by the linux-arm-aws builder.
+    
+    For #57208.
+    Updates #21379.
+    Updates #14693.
+    
+    ¹https://sources.debian.org/patches/golang-1.19/1.19.3-1/0006-skip-userns-test-in-schroot-as-well.patch/
+    
+    Change-Id: I9b167661fa1bb823168c8b50d8bbbf9643e49f76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456375
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alexander Morozov <lk4d4math@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/crypto/internal/boring/aes.go        | 29 ++++++++++----
- src/crypto/internal/boring/notboring.go  |  1 +
- src/crypto/tls/boring.go                 | 26 +++++++-----
- src/crypto/tls/boring_test.go            | 69 +++++++++++++++++++++++---------
- src/crypto/tls/cipher_suites.go          |  8 +++-
- src/crypto/tls/handshake_client.go       |  4 +-
- src/crypto/tls/handshake_client_tls13.go |  4 --
- src/crypto/tls/handshake_server_test.go  | 28 ++++++++-----
- src/crypto/tls/handshake_server_tls13.go |  7 ++--
- src/crypto/tls/notboring.go              |  2 +
- src/crypto/x509/boring.go                |  4 +-
- 11 files changed, 125 insertions(+), 57 deletions(-)
+ src/syscall/exec_linux_test.go | 508 +++++++++++++++++------------------------
+ 1 file changed, 207 insertions(+), 301 deletions(-)

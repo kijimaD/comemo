@@ -1,30 +1,17 @@
-commit 2083b5d673736c065e98643c36dadde76f7593ab
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 24 13:53:35 2018 -0700
+commit 67295d6eb0b9ef8d40fcddf052d18ebaa03566e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 13 22:49:23 2017 -0800
 
-    cmd/compile/internal/types: replace Type.Val with Type.Elem
+    go/types: collect methods with parenthesized receiver types
     
-    This reduces the API surface of Type slightly (for #25056), but also
-    makes it more consistent with the reflect and go/types APIs.
+    The existing code simply dropped them on the floor. Don't do that.
     
-    Passes toolstash-check.
+    Fixes #23130.
     
-    Change-Id: Ief9a8eb461ae6e88895f347e2a1b7b8a62423222
-    Reviewed-on: https://go-review.googlesource.com/109138
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I10f20e41f2c466a76519983253f87af7cf6d5e70
+    Reviewed-on: https://go-review.googlesource.com/83918
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/align.go     |  2 +-
- src/cmd/compile/internal/gc/bexport.go   |  7 ++-----
- src/cmd/compile/internal/gc/bimport.go   |  2 +-
- src/cmd/compile/internal/gc/fmt.go       | 25 ++++++++++++-------------
- src/cmd/compile/internal/gc/iexport.go   |  2 +-
- src/cmd/compile/internal/gc/range.go     |  4 ++--
- src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
- src/cmd/compile/internal/gc/sinit.go     |  4 ++--
- src/cmd/compile/internal/gc/subr.go      |  1 -
- src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
- src/cmd/compile/internal/gc/walk.go      | 24 ++++++++++++------------
- src/cmd/compile/internal/types/type.go   | 24 ++++++++++--------------
- 12 files changed, 54 insertions(+), 63 deletions(-)
+ src/go/types/resolver.go          |  4 ++--
+ src/go/types/testdata/decls2b.src | 10 ++++++++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

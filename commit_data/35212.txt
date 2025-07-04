@@ -1,37 +1,16 @@
-commit 004260afdee7c2040f3b52e7517be4f172aa0d58
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Mar 7 14:26:27 2017 -0800
+commit 08e342d62c222b80c3a0480002eb71976218f589
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 10 17:14:20 2018 -0800
 
-    cmd/compile: open code select{send,recv,default}
+    cmd/compile/internal/syntax: don't record semi position if there's none
     
-    Registration now looks like:
+    Fixes #23406.
     
-            var cases [4]runtime.scases
-            var order [8]uint16
-            cases[0].kind = caseSend
-            cases[0].c = c1
-            cases[0].elem = &v1
-            if raceenabled || msanenabled {
-                    selectsetpc(&cases[0])
-            }
-            cases[1].kind = caseRecv
-            cases[1].c = c2
-            cases[1].elem = &v2
-            if raceenabled || msanenabled {
-                    selectsetpc(&cases[1])
-            }
-            ...
-    
-    Change-Id: Ib9bcf426a4797fe4bfd8152ca9e6e08e39a70b48
-    Reviewed-on: https://go-review.googlesource.com/37934
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ief04e20357c9ca03a5e496f1742428394c8ee658
+    Reviewed-on: https://go-review.googlesource.com/87317
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         | 110 ++++++++++++-------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
- src/cmd/compile/internal/gc/select.go          |  85 ++++++++++++++-----
- src/cmd/compile/internal/gc/ssa.go             |   2 +-
- src/runtime/select.go                          |  65 +++++----------
- test/live.go                                   |  20 ++---
- 6 files changed, 151 insertions(+), 135 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

@@ -1,21 +1,19 @@
-commit dd881027c3c556647d5d9f36eda4e9316680647b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Sep 20 11:50:17 2023 -0400
+commit 4c69d0eeb869cdc987e35d09a052a0e0320c0c96
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 28 12:33:49 2022 -0700
 
-    syscall: skip TestDeathSignalSetuid if exec fails with a permission error
+    testing: change Error to Errorf in comment
     
-    Also explicitly look up user "nobody" (or "gopher" on the Go builders)
-    if running as root, instead of hard-coding UID/GID 99.
+    Fixes #56479
     
-    Fixes #62719.
-    
-    Change-Id: I9fa8955f2c239804fa775f2478a5274af9330822
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529795
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: I1d97eb3ea97304e429e178ad05cb9f861b2bce84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446275
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/syscall/exec_pdeathsig_test.go | 103 ++++++++++++++++++++++++++-----------
- 1 file changed, 74 insertions(+), 29 deletions(-)
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

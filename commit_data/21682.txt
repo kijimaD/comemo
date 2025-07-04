@@ -1,12 +1,13 @@
-commit 4e408e0cc9ba09298aea4c18d800d54e78a3e553
-Author: Mark Bucciarelli <mkbucc@gmail.com>
-Date:   Sat Feb 21 21:14:45 2015 -0500
+commit 2059ffbc8db0dff3fd9780a817f76e95559193ba
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Dec 23 22:22:56 2014 +0300
 
-    Call --> CallSlice in two spots.  No logic change, docs only.
+    runtime/pprof: add tests for tracer
     
-    Change-Id: I6011e162214db2d65efc1ecdb5ec600ca8e5bfe9
-    Reviewed-on: https://go-review.googlesource.com/5542
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I832a433f0f2fc10b0a2fea0bfb003a988fc2c81b
+    Reviewed-on: https://go-review.googlesource.com/2039
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/reflect/value.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/pprof/trace_parser_test.go | 651 +++++++++++++++++++++++++++++++++
+ src/runtime/pprof/trace_test.go        | 223 +++++++++++
+ 2 files changed, 874 insertions(+)

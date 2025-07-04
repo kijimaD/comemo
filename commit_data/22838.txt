@@ -1,22 +1,16 @@
-commit 409420c08893dad4c112fc1a7fa2568cc0f8a98c
-Author: Rob Pike <r@golang.org>
-Date:   Fri May 1 15:33:08 2015 -0700
+commit 8bf0ed5147a95434a0204174b077fe71acc4b432
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Feb 18 14:58:13 2015 +1300
 
-    text/template/parse: huge integers are not floats
+    debug/gosym: skip tests when .gosymtab section not found
     
-    Ideal constants in the template package are a little different from Go.
-    This is a case that slipped through the cracks: A huge integer number
-    was accepted as a floating-point number, but this loses precision
-    and is confusing. Also, the code in the template package (as opposed
-    to the parse package) wasn't expecting it.
+    Skip the test when there is no .gosymtab section in the executable
+    rather than crashing.
     
-    Root this out at the source: If an integer doesn't fit an int64 or uint64,
-    complain right away.
-    
-    Change-Id: I375621e6f5333c4d53f053a3c84a9af051711b7a
-    Reviewed-on: https://go-review.googlesource.com/9651
+    Change-Id: Ieb3df07e307f50c33cdafab38f9b5d1ac0e55c04
+    Reviewed-on: https://go-review.googlesource.com/5110
     Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/text/template/parse/node.go       | 5 +++++
- src/text/template/parse/parse_test.go | 1 +
- 2 files changed, 6 insertions(+)
+ src/debug/gosym/pclntab_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,36 +1,22 @@
-commit b96d32bd92087470f85cfab99e289e609a593d03
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jul 1 00:45:34 2020 -0400
+commit 26aadfa0442249d4b55d7135134eb7ec0a43a850
+Author: Joshua Crowgey <jcrowgey@uw.edu>
+Date:   Thu Feb 13 06:02:10 2020 +0000
 
-    cmd/go/internal/modload: track which packages are in 'all' during loading
+    cmd/vendor: create modules.txt even for unused deps
     
-    If the user requests the 'all' pattern in addition to explicit roots
-    outside of 'all', we should not load the transitive dependencies of
-    those explicit roots as if they were *in* 'all'. Without the '-test'
-    flag, we should not load test dependencies of any package outside of
-    'all'. Even *with* the '-test' flag, we should only load test
-    dependencies of the requested roots, not test dependencies of other
-    packages that happen to be imported by those roots.
+    `go mod vendor`  should create vendor/modules.txt even when the only deps
+    in go.mod are unused.
     
-    More precise tracking of membership in 'all' will be important when we
-    implement lazy loading, because membership in 'all' determines which
-    module dependencies we will record in the main module's go.mod file.
+    Fixes: #36580
     
-    This change also reduces reliance on global state, factors out the
-    loading process into several smaller functions, and sets us up to
-    reuse the 'go mod vendor' version of the 'all' pattern for lazy
-    loading.
-    
-    For #36460
-    Fixes #40799
-    
-    Change-Id: I5ca21c86a860daee1316f732cea131a331d8ddf9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/240505
+    Change-Id: I92a746d3f013bc2bdc3d2cec6e14b16f606c2edd
+    GitHub-Last-Rev: ea39a1c62294f42e5e5aab049f466189de0fd42d
+    GitHub-Pull-Request: golang/go#36920
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217135
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/load.go       | 727 +++++++++++++++++++++---------
- src/cmd/go/testdata/script/mod_notall.txt |   4 +-
- 2 files changed, 525 insertions(+), 206 deletions(-)
+ src/cmd/go/internal/modcmd/vendor.go                  |  5 +++++
+ src/cmd/go/testdata/script/mod_vendor_unused_only.txt | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+)

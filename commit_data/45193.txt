@@ -1,38 +1,21 @@
-commit dba89283ad05e600defc41dbf94df91ce9027566
+commit 8994607f828e46272bae5e7959997dea8cb1a19a
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 15 23:07:41 2021 -0400
+Date:   Fri May 22 14:40:50 2020 -0400
 
-    cmd/go, go/build: add ToolTags to build.Default
+    go/build: clean up ctxt.shouldBuild, tests
     
-    The build.Default context really needs to accurately describe
-    the default build context. The goexperiment tags being a special
-    case in the go command violates that rule and is the root cause
-    of the various try-bot failures blocking the enabling of regabi.
+    Make ctxt.shouldBuild return multiple values
+    instead of modifying *sawBinaryOnly in place.
+    Also give it a table-driven test.
     
-    (The cleanups I made in golang.org/x/tools were long overdue
-    but are not strictly necessary for making regabi work; this CL is.)
+    Cleanup in preparation for boolean expressions,
+    but nice even if those don't end up happening.
     
-    Having moved the GOEXPERIMENT parsing into internal/buildcfg,
-    go/build can now use it to set up build.Default, in the new field
-    ToolTags, meant to hold toolchain-determined tags (for now,
-    just the experiments). And at the same time we can remove the
-    duplication of GOOS and GOARCH defaults.
-    
-    And then once build.Default is set up accurately, the special case
-    code in cmd/go itself can be removed, and the special case code
-    in test/run.go is at least a bit less special.
-    
-    Change-Id: Ib7394e10aa018e492cb9a83fb8fb9a5011a8c25b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310732
+    Change-Id: Ibb78b0080070deafac7299a6de87ab8bebeb702d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240598
     Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/alldocs.go               |  1 +
- src/cmd/go/internal/list/context.go |  2 ++
- src/cmd/go/internal/list/list.go    |  1 +
- src/cmd/go/internal/work/init.go    | 10 ----------
- src/go/build/build.go               | 34 ++++++++++++++++++++++++++--------
- test/run.go                         | 25 +++++--------------------
- 6 files changed, 35 insertions(+), 38 deletions(-)
+ src/go/build/build.go      |  21 ++++-----
+ src/go/build/build_test.go | 113 +++++++++++++++++++++++++++++----------------
+ 2 files changed, 81 insertions(+), 53 deletions(-)

@@ -1,14 +1,36 @@
-commit 8537ff8a397aae19dc16ab223a95153304894631
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Sep 4 08:31:03 2015 +1200
+commit 9f954db170dff18a33fbd333082cd8758851f936
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 18 10:26:28 2015 -0700
 
-    runtime/cgo: export _cgo_reginit on ppc64x
+    [dev.ssa] cmd/compile: add decompose pass
     
-    This is needed to make external linking work.
+    Decompose breaks compound objects up into pieces that can be
+    operated on by the target architecture.  The decompose pass only
+    does phi ops, the rest is done by the rewrite rules in generic.rules.
     
-    Change-Id: I4cf7edb4ea318849cab92a697952f8745eed40c4
-    Reviewed-on: https://go-review.googlesource.com/14237
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Compound objects include strings,slices,interfaces,structs,arrays.
+    
+    Arrays aren't decomposed because of indexing (we could support
+    constant indexes, but dynamic indexes can't be handled using SSA).
+    Structs will come in a subsequent CL.
+    
+    TODO: after this pass we have lost the association between, e.g.,
+    a string's pointer and its size.  It would be nice if we could keep
+    that information around for debugging info somehow.
+    
+    Change-Id: I6379ab962a7beef62297d0f68c421f22aa0a0901
+    Reviewed-on: https://go-review.googlesource.com/13683
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/runtime/cgo_ppc64x.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go                 |  56 ++-
+ .../compile/internal/gc/testdata/compound_ssa.go   |  91 ++++
+ src/cmd/compile/internal/gc/type.go                |   4 +
+ src/cmd/compile/internal/ssa/compile.go            |   3 +
+ src/cmd/compile/internal/ssa/decompose.go          |  93 +++++
+ src/cmd/compile/internal/ssa/gen/generic.rules     |  84 +++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   8 +-
+ src/cmd/compile/internal/ssa/opGen.go              |  20 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go     | 459 +++++++++++++++------
+ src/cmd/compile/internal/ssa/type.go               |  30 +-
+ src/cmd/compile/internal/ssa/type_test.go          |  30 +-
+ 11 files changed, 712 insertions(+), 166 deletions(-)

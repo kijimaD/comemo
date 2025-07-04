@@ -1,40 +1,13 @@
-commit 1c5bd3459b2dfca44e4d313b49b525a26e38c181
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Nov 21 22:37:12 2019 +0000
+commit a2f5d644d3a2903a82e527e3bca2c4bdff1d0750
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Aug 2 21:58:29 2019 +0530
 
-    runtime: increase TestPhysicalMemoryUtilization threshold
+    doc/go1.13: add release notes for GOWASM environment variable
     
-    TestPhysicalMemoryUtilization occasionally fails on some platforms by
-    only a small margin. The reason for this is that it assumes the
-    scavenger will always be able to scavenge all the memory that's released
-    by sweeping, but because of the page cache, there could be free and
-    unscavenged memory held onto by a P which the scavenger simply cannot
-    get to.
-    
-    As a result, if the page cache gets filled completely (512 KiB of free
-    and unscavenged memory) this could skew a test which expects to
-    scavenge roughly 8 MiB of memory. More specifically, this is 512 KiB of
-    memory per P, and if a system is more inclined to bounce around
-    between Ps (even if there's only one goroutine), this memory can get
-    "stuck".
-    
-    Through some experimentation, I found that failures correlated highly
-    with relatively large amounts of memory ending up in some page cache
-    (like 60 or 64 pages) on at least one P.
-    
-    This change changes the test's threshold such that it accounts for the
-    page cache, and scales up with GOMAXPROCS. Because the test constants
-    themselves don't change, however, the test must now also bound
-    GOMAXPROCS such that the threshold doesn't get too high (at which point
-    the test becomes meaningless).
-    
-    Fixes #35580.
-    
-    Change-Id: I6bdb70706de991966a9d28347da830be4a19d3a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/208377
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I103a21ae0be8feb9447fa277483b7c2a8b5807e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188540
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/runtime/testdata/testprog/gc.go | 33 ++++++++++++++++++++++++++++-----
- 1 file changed, 28 insertions(+), 5 deletions(-)
+ doc/go1.13.html | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,22 +1,17 @@
-commit a0955a2aa2a2fcd5352f7e517c3f965e24fd8584
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Feb 21 16:24:38 2013 +0400
+commit 4036d876eab44f83d71e668e666acc5cd3997373
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 21 13:11:58 2013 +1100
 
-    runtime: split minit() to mpreinit() and minit()
-    mpreinit() is called on the parent thread and with mcache (can allocate memory),
-    minit() is called on the child thread and can not allocate memory.
+    misc/dashboard/builder: various cleanups
     
-    R=golang-dev, rsc
+    * allow commit watcher to be disabled, useful for small slow builders who will never be the first to notice a commit.
+    * builders always update their local master working copy before cloning a specific revision.
+    * refactor hg repo operations into a new type, Repo.
+    
+    R=adg, shanemhansen, luitvd
     CC=golang-dev
-    https://golang.org/cl/7389043
+    https://golang.org/cl/7326053
 
- src/pkg/runtime/proc.c           |  2 ++
- src/pkg/runtime/runtime.h        |  1 +
- src/pkg/runtime/thread_darwin.c  | 11 +++++++++--
- src/pkg/runtime/thread_freebsd.c | 10 +++++++++-
- src/pkg/runtime/thread_linux.c   | 11 +++++++++--
- src/pkg/runtime/thread_netbsd.c  | 11 +++++++++--
- src/pkg/runtime/thread_openbsd.c | 11 +++++++++--
- src/pkg/runtime/thread_plan9.c   | 14 +++++++++++---
- src/pkg/runtime/thread_windows.c |  9 +++++++++
- 9 files changed, 68 insertions(+), 12 deletions(-)
+ misc/dashboard/builder/main.go | 253 ++++++++++-------------------------------
+ misc/dashboard/builder/vcs.go  | 148 ++++++++++++++++++++++++
+ 2 files changed, 211 insertions(+), 190 deletions(-)

@@ -1,22 +1,15 @@
-commit dd71e3fef4a2845ae33c493e7fcdd7702812669d
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 17 14:40:56 2018 -0700
+commit 05deefee5227947b2239a4e1772cf738a320b09e
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Dec 11 16:42:25 2017 -0500
 
-    cmd/compile: refactor how declarations are imported
+    doc: fix misuse of “substantive” in 1.10 release notes
     
-    This CL moves all of the logic for wiring up imported declarations
-    into export.go, so that it can be reused by the indexed importer
-    code. While here, increase symmetry across routines.
+    Use “substantial”, which is believed to be the correct word.
+    Additionally, this change strips trailing whitespace from the file.
     
-    Passes toolstash-check.
-    
-    Change-Id: I1ccec5c3999522b010e4d04ed56b632fd4d712d9
-    Reviewed-on: https://go-review.googlesource.com/107621
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I5b6b718fc09e4b8b911b95e8be0733abd58e165d
+    Reviewed-on: https://go-review.googlesource.com/83356
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go |  39 +++-------
- src/cmd/compile/internal/gc/export.go  | 125 +++++++++++++++++++--------------
- src/cmd/compile/internal/gc/main.go    |   7 +-
- 3 files changed, 84 insertions(+), 87 deletions(-)
+ doc/go1.10.html | 42 +++++++++++++++++++++---------------------
+ 1 file changed, 21 insertions(+), 21 deletions(-)

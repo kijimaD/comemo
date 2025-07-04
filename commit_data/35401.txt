@@ -1,19 +1,22 @@
-commit dbd66fd3d07433a03da5dc6c6def8c53951ada77
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Wed May 16 12:56:54 2018 +0000
+commit c0b248c234e0a5e26d7dff77adf9a9f2a92a7a9c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Jan 31 20:53:44 2018 +0000
 
-    runtime: use debugSelect flag to toggle debug code
+    cmd/vet: replace hasMethod with isFormatter
     
-    This block of code once was commented by the original author, but commenting
-    code looks a little annoying. However, the debugSelect flag is just for the
-    situation that debug code will be compiled when debuging, when release this
-    code will be eliminated by the compiler.
+    The former checks if a type has a method called "Format". The latter
+    checks if a type satisfies fmt.Formatter.
     
-    Change-Id: I7b94297e368b515116ef44a36058214ddddf9adb
-    Reviewed-on: https://go-review.googlesource.com/113395
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    isFormatter does exactly what we want, so it's both simpler and more
+    accurate. Remove the only use of hasMethod in its favor.
+    
+    Change-Id: Idc156a99081c3308f98512b87011a04aa8c6638d
+    Reviewed-on: https://go-review.googlesource.com/91215
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/select.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/vet/print.go |  3 +--
+ src/cmd/vet/types.go | 11 -----------
+ 2 files changed, 1 insertion(+), 13 deletions(-)

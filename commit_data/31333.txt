@@ -1,25 +1,19 @@
-commit b64e817853531cc73dd5fd13a5038434283d3e5b
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Apr 24 16:59:33 2017 +0200
+commit 76b4b8c72dc319454ff3ecb83bf49831e4e528c3
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Fri Feb 10 17:23:55 2017 -0800
 
-    runtime: simplify detection of preference to use AVX memmove
+    cmd/trace: document the final step to use pprof-like profiles
     
-    Reduces cmd/go by 4464 bytes on amd64.
+    The tutorial ends without mentioning how to use the generated
+    pprof-like profile with the pprof tool. This may be very trivial
+    for users who are already very familiar with the Go tools, but
+    for the newcomers, it saves a lot of time to finalize the tutorial
+    with an example of `go tool pprof` invocation.
     
-    Removes the duplicate detection of AVX support and
-    presence of Intel processors.
-    
-    Change-Id: I4670189951a63760fae217708f68d65e94a30dc5
-    Reviewed-on: https://go-review.googlesource.com/41570
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Idf034eb4bfb9672ef10190e66fcbf873e8f08f6a
+    Reviewed-on: https://go-review.googlesource.com/36803
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/runtime/asm_386.s         |  6 ++--
- src/runtime/asm_amd64.s       |  2 ++
- src/runtime/asm_amd64p32.s    | 11 +++++++
- src/runtime/cpuflags_amd64.go | 71 +++++--------------------------------------
- src/runtime/cpuidlow_amd64.s  | 22 --------------
- src/runtime/memmove_amd64.s   |  4 +--
- src/runtime/runtime2.go       |  6 ++--
- 7 files changed, 31 insertions(+), 91 deletions(-)
+ src/cmd/trace/doc.go  | 30 ++++++++++++++++++++++++++++++
+ src/cmd/trace/main.go | 22 ----------------------
+ 2 files changed, 30 insertions(+), 22 deletions(-)

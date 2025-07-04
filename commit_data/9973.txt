@@ -1,12 +1,19 @@
-commit ec10d677253a4308c7736bc513bde206ff11e695
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Fri Oct 14 12:26:38 2011 -0400
+commit bb282baa93bbb3158f6e52cb1436286a544000e3
+Author: David Anderson <danderson@google.com>
+Date:   Fri Oct 14 09:19:45 2011 -0700
 
-    crypto/tls: fix broken looping code in windows root CA fetcher
+    syscall: adjust Mount to accomodate stricter FS implementations.
     
-    R=alex.brainman, hectorchu, rsc
+    Notably, the "data" argument should be nil if no options are
+    given, or (at least) the cgroup filesystem will refuse to
+    mount.
+    
+    R=bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/5263045
+    https://golang.org/cl/5147047
 
- src/pkg/crypto/tls/root_windows.go | 30 +++++++++++++-----------------
- 1 file changed, 13 insertions(+), 17 deletions(-)
+ src/pkg/syscall/syscall_linux.go        | 11 ++++++++++-
+ src/pkg/syscall/zsyscall_linux_386.go   | 16 ++++++++--------
+ src/pkg/syscall/zsyscall_linux_amd64.go | 16 ++++++++--------
+ src/pkg/syscall/zsyscall_linux_arm.go   | 16 ++++++++--------
+ 4 files changed, 34 insertions(+), 25 deletions(-)

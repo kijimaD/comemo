@@ -1,20 +1,28 @@
-commit 96f71597056db8b90a445b03bbec229d9f5b4344
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue Jul 30 19:01:10 2024 +0000
+commit 82dc37c0d05c33c00b585664cba1c647bf8ac99e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 8 16:20:17 2023 -0400
 
-    go/printer: correct cindex meaning in commentInfo comments
+    cmd/go: don't assume ImportStack always set on PackageError
     
-    (*printer).nextComment increases cindex by one after each call
-    and it always points to the next element.
+    When determining DepsErrors for packages, we were trying to sort
+    errors by the top package on their ImportStack (which would likely be
+    the package the error was generated for) to get a deterministic
+    error order.
     
-    Change-Id: I65754ab6e30e10dc7473882e39737d2e0dc29070
-    GitHub-Last-Rev: f859283324af6ddf9fdc75ef08ee42ae26bc581b
-    GitHub-Pull-Request: golang/go#68032
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592557
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    The problem is that some PackageErrors don't have ImportStacks set on
+    them. Fall back to sorting the errors by the error text (instead of
+    making things more complicated by tracking the packages that produced
+    the errors more closely).
+    
+    Fixes #59905
+    
+    Change-Id: Id305e1e70801f8909fd6463383b8eda193559787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501978
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/go/printer/printer.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/go/internal/list/list.go                |  9 ++++
+ src/cmd/go/testdata/script/list_issue_59905.txt | 66 +++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+)

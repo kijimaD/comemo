@@ -1,14 +1,15 @@
-commit 1b46e4cd9ac75db790e75ee801a6e805b6f4ec20
-Author: Brian Ketelsen <bketelsen@gmail.com>
-Date:   Tue Dec 11 12:02:14 2012 -0500
+commit 07cc05864c958fcacf9b880263072c66c4040415
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 11 11:49:41 2012 -0500
 
-    regexp/syntax: export ErrUnexpectedParen
+    fmt: fix %v of complex slice
     
-    Fixes #3712
+    Fixes #4525.
     
-    R=golang-dev, dave, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6902069
+    https://golang.org/cl/6929049
 
- src/pkg/regexp/syntax/parse.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/pkg/fmt/fmt_test.go | 5 +++++
+ src/pkg/fmt/format.go   | 4 ++++
+ 2 files changed, 9 insertions(+)

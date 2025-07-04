@@ -1,22 +1,16 @@
-commit 053e4edd80f9d15a480585cfa82110ac8543dc97
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 21 14:10:16 2012 -0400
+commit d45f22e3c843c4c19fd547684e51f249d9fd53dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 21 11:07:27 2012 -0700
 
-    crypto/rsa: add SHA-224 hash prefix
+    net/http: fix duplicate status code in Response.Write
     
-    http://www.rsa.com/rsalabs/node.asp?id=2125:
+    Fixes #3636
     
-    NOTE: A new OID has been defined for the combination
-    of the v1.5 signature scheme and the SHA-224 hash function:
-            sha224WithRSAEncryption OBJECT IDENTIFIER ::=
-    Like the other sha*WithRSAEncryption OIDs in PKCS #1 v2.1,
-    this OID has NULL parameters.
-    The DigestInfo encoding for SHA-224 (see Section 9.2, Note 1) is:
-            (0x)30 2d 30 0d 06 09 60 86 48 01 65 03 04 02 04 05 00 04 1c || H
-    
-    R=golang-dev, agl
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/6208076
+    https://golang.org/cl/6203094
 
- src/pkg/crypto/rsa/pkcs1v15.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/net/http/response.go      |  9 ++++++---
+ src/pkg/net/http/response_test.go | 15 +++++++++++++++
+ src/pkg/net/http/transfer.go      |  6 ++++--
+ 3 files changed, 25 insertions(+), 5 deletions(-)

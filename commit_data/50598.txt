@@ -1,22 +1,18 @@
-commit 52f9c6fdb0e5748406134e093e9fb791af14d300
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Mon Sep 26 22:49:08 2022 +0800
+commit eb63cbd2950e703ff2a6bd04330e97dc76c7923d
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Nov 2 12:30:37 2021 -0700
 
-    syscall: check if to is nil to prevent panic from WSASendto
+    cmd/compile: remove TODO that is no longer relevant
     
-    to is an optional pointer to sockaddr, as written in the doc:
-    https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsasendto
+    types2 methods are now sorted in the same way as types1, so this TODO is
+    no longer needed.  (Comment change only).
     
-    For #55845
-    
-    Change-Id: Ia685cec8d9bc9ff313f598db9d2213a1f409757a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/434535
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: xie cui <523516579@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ic975ce001a5d54f15381a9cb7b6969dff795e3b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360856
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/syscall/syscall_windows.go | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/noder/expr.go | 6 ------
+ 1 file changed, 6 deletions(-)

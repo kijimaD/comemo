@@ -1,26 +1,16 @@
-commit 08304e886790cbf0ef4bca8158dcb7d99f3a67e7
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Apr 4 12:12:10 2018 -0400
+commit d48336b7982c641b7c0d323044b5e34167c69049
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 17 16:51:17 2017 -0800
 
-    cmd/link: put runtime.framepointer_enabled in DATA instead of RODATA
+    cmd/go: tweak support options test for old compilers
     
-    On darwin, only writable symbol is exported
-    (cmd/link/internal/ld/macho.go:/machoShouldExport).
-    For plugin to work correctly, global variables, including
-    runtime.framepointer_enabled which is set by the linker, need
-    to be exported when dynamic linking. Put it in DATA so it is
-    exported. Also in Go it is defined as a var, which is not
-    read-only.
+    Fixes #22787
     
-    While here, do the same for runtime.goarm.
-    
-    Fixes #24653.
-    
-    Change-Id: I9d1b7d5a648be17103d20b97be65a901cb69f5a2
-    Reviewed-on: https://go-review.googlesource.com/104715
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ie0f3995e4bb611ee5927345b17b0d5b381a5ed74
+    Reviewed-on: https://go-review.googlesource.com/78543
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/work/exec.go | 24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)

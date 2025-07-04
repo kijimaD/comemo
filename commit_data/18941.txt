@@ -1,21 +1,44 @@
-commit fff63c2448109cb5a889f99dc2ab330f31d53213
+commit 1b45cc45e37cfe67733ebff5eb5cabfef207eef6
 Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 25 15:09:49 2014 -0700
+Date:   Tue Mar 25 14:11:34 2014 -0700
 
-    runtime: WriteHeapDump dumps the heap to a file.
+    runtime: redo stack map entries to avoid false retention
     
-    See http://golang.org/s/go13heapdump for the file format.
+    Change two-bit stack map entries to encode:
+    0 = dead
+    1 = scalar
+    2 = pointer
+    3 = multiword
+    
+    If multiword, the two-bit entry for the following word encodes:
+    0 = string
+    1 = slice
+    2 = iface
+    3 = eface
+    
+    That way, during stack scanning we can check if a string
+    is zero length or a slice has zero capacity.  We can avoid
+    following the contained pointer in those cases.  It is safe
+    to do so because it can never be dereferenced, and it is
+    desirable to do so because it may cause false retention
+    of the following block in memory.
+    
+    Slice feature turned off until issue 7564 is fixed.
+    
+    Update #7549
     
     LGTM=rsc
-    R=rsc, bradfitz, dvyukov, khr
+    R=golang-codereviews, bradfitz, rsc
     CC=golang-codereviews
-    https://golang.org/cl/37540043
+    https://golang.org/cl/76380043
 
- src/pkg/runtime/debug/garbage.go |   5 +
- src/pkg/runtime/heapdump.c       | 890 +++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/iface.goc        |  14 +
- src/pkg/runtime/malloc.h         |   1 +
- src/pkg/runtime/mgc0.c           |  62 +--
- src/pkg/runtime/mgc0.h           |  41 ++
- src/pkg/runtime/runtime.h        |   2 +
- 7 files changed, 973 insertions(+), 42 deletions(-)
+ src/cmd/cc/pgen.c              | 10 ++++--
+ src/cmd/gc/plive.c             | 41 +++++++++++++++------
+ src/pkg/runtime/extern.go      |  3 ++
+ src/pkg/runtime/malloc.h       | 10 ++++--
+ src/pkg/runtime/mfinal_test.go | 81 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/mgc0.c         | 50 +++++++++++++++++++++++---
+ src/pkg/runtime/runtime.c      |  1 +
+ src/pkg/runtime/runtime.h      |  1 +
+ src/pkg/runtime/stack.c        | 58 +++++++++++++++++++++---------
+ 9 files changed, 218 insertions(+), 37 deletions(-)

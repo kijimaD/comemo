@@ -1,0 +1,16 @@
+commit 53af292aed21c3f6ea75d16e5b25f660b2c028fb
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Sun Jun 15 22:51:57 2025 -0700
+
+    encoding/json/jsontext: fix spelling error
+    
+    Change-Id: Ic1f385afbe35addba8b3c439ccb64c56b1d300c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681795
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/encoding/json/jsontext/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

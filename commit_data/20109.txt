@@ -1,20 +1,15 @@
-commit f6ceefa2bf9a36f60395662aa2122b50eb61f0ac
+commit c6fe53a230e70bbb7a5582afe96cacf174eb0335
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Aug 25 11:55:42 2014 +0400
+Date:   Sat Aug 16 09:07:55 2014 +0400
 
-    runtime: add fast paths to non-blocking channel operations
-    benchmark                      old ns/op     new ns/op     delta
-    BenchmarkChanNonblocking       27.8          7.80          -71.94%
-    BenchmarkChanNonblocking-2     79.1          3.94          -95.02%
-    BenchmarkChanNonblocking-4     71.2          2.04          -97.13%
+    runtime: mark with non-atomic operations when GOMAXPROCS=1
+    Perf builders show 3-5% GC pause increase with GOMAXPROCS=1 when marking with atomic ops:
+    http://goperfd.appspot.com/perfdetail?commit=a8a6e765d6a87f7ccb71fd85a60eb5a821151f85&commit0=3b864e02b987171e05e2e9d0840b85b5b6476386&kind=builder&builder=linux-amd64&benchmark=http
     
-    LGTM=rsc
-    R=golang-codereviews, rsc, dave
-    CC=golang-codereviews
-    https://golang.org/cl/110580043
+    LGTM=rlh
+    R=golang-codereviews, rlh
+    CC=dave, golang-codereviews, khr, rsc
+    https://golang.org/cl/128340043
 
- src/pkg/runtime/chan.go      | 30 +++++++++++++++++++++++++-----
- src/pkg/runtime/chan.goc     | 40 ++++++++++++++++++++++++++++++++++++++--
- src/pkg/runtime/chan.h       |  2 +-
- src/pkg/runtime/chan_test.go | 20 ++++++++++++++++++++
- 4 files changed, 84 insertions(+), 8 deletions(-)
+ src/pkg/runtime/mgc0.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

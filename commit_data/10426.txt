@@ -1,29 +1,17 @@
-commit 3276afd4d4ae45afee834c7455abbb9be1906540
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Thu Nov 17 10:25:33 2011 +1100
+commit 8c6461bcb166cf9234be2e61eeab882f5856521b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 16 18:13:50 2011 -0500
 
-    html: parse </optgroup> and </option>
+    exp/ssh: fix test?
     
-    Pass tests2.dat, test 35:
-    <!DOCTYPE html><select><optgroup><option></optgroup><option><select><option>
+    Fixes use of c after Dial failure (causes crash).
+    May fix Dial failure by listening to 127.0.0.1:0
+    instead of 0.0.0.0:0 (tests should only listen on
+    localhost).
     
-    | <!DOCTYPE html>
-    | <html>
-    |   <head>
-    |   <body>
-    |     <select>
-    |       <optgroup>
-    |         <option>
-    |       <option>
-    |     <option>
-    
-    Also pass tests through test 41:
-    <!DOCTYPE html><!-- XXX - XXX - XXX -->
-    
-    R=nigeltao, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5395045
+    https://golang.org/cl/5395052
 
- src/pkg/html/parse.go      | 12 ++++++++++--
- src/pkg/html/parse_test.go |  2 +-
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ src/pkg/exp/ssh/client_auth_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

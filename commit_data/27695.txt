@@ -1,21 +1,15 @@
-commit f3d54789f764f0f6dba1d2f12ad01986d66ea31c
+commit 9ada88aec271a2f08c998e9669331145803e7d5a
 Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Jun 16 18:12:48 2016 -0400
+Date:   Fri Apr 8 13:02:49 2016 -0400
 
-    cmd/compile: use power5 instructions for uint64 to float casts
+    cmd/cgo: increase s390x int type size to 8 bytes
     
-    Use the same technique as mips64 for these casts (CL 22835).
+    The size of the int type in Go on s390x is 8 bytes, not 4.
     
-    We could use the FCFIDU instruction for ppc64le however it seems
-    better to keep it the same as ppc64 for now.
-    
-    Updates #15539, updates #16004.
-    
-    Change-Id: I550680e485327568bf3238c4615a6cc8de6438d7
-    Reviewed-on: https://go-review.googlesource.com/24191
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I1a71ce8c9925f3499abb61c1aa4f6fa2d2ec0d7e
+    Reviewed-on: https://go-review.googlesource.com/21760
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ppc64/gsubr.go | 61 ++++++++++++++++++---------------
- 1 file changed, 34 insertions(+), 27 deletions(-)
+ src/cmd/cgo/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,12 @@
-commit b51e15780fbb57e4a5226420a007ae49abf2a16e
+commit 985893acffc811034b24c0462a8766fbf06b1d3d
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Jan 18 16:02:59 2014 +0900
+Date:   Sat Jan 18 11:22:32 2014 +0900
 
-    syscall: fix typo
+    syscall: fix build
     
-    R=r
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/54040043
+    https://golang.org/cl/54000043
 
- src/pkg/syscall/rlimit_unix_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/syscall/rlimit_unix_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

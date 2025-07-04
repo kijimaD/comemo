@@ -1,46 +1,19 @@
-commit fd82718e06a7b8a32becb1751592854d49904075
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sat Sep 17 16:55:57 2022 +1000
+commit 0ae4c7ff4a6d24ab33a0deebba74609159291b8c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Oct 31 17:27:12 2021 -0700
 
-    internal/bytealg: correct alignment checks for compare/memequal on riscv64
+    cmd/compile/internal/types2: fix TypeName.IsAlias for type parameter names
     
-    On riscv64 we need 8 byte alignment for 8 byte loads - the existing check
-    was only ensuring 4 byte alignment, which potentially results in unaligned
-    loads being performed. Unaligned loads incur a significant performance penality
-    due to the resulting kernel traps and fix ups.
+    This is a port of CL 359656 from go/types to types2.
     
-    Adjust BenchmarkCompareBytesBigUnaligned so that this issue would have been
-    more readily visible.
+    For #49213.
     
-    Updates #50615
-    
-    name                                 old time/op    new time/op      delta
-    CompareBytesBigUnaligned/offset=1-4    6.98ms _ 5%      6.84ms _ 3%       ~     (p=0.319 n=5+5)
-    CompareBytesBigUnaligned/offset=2-4    6.75ms _ 1%      6.99ms _ 4%       ~     (p=0.063 n=5+5)
-    CompareBytesBigUnaligned/offset=3-4    6.84ms _ 1%      6.74ms _ 1%     -1.48%  (p=0.003 n=5+5)
-    CompareBytesBigUnaligned/offset=4-4     146ms _ 1%         7ms _ 6%    -95.08%  (p=0.000 n=5+5)
-    CompareBytesBigUnaligned/offset=5-4    7.05ms _ 5%      6.75ms _ 1%       ~     (p=0.079 n=5+5)
-    CompareBytesBigUnaligned/offset=6-4    7.11ms _ 5%      6.89ms _ 5%       ~     (p=0.177 n=5+5)
-    CompareBytesBigUnaligned/offset=7-4    7.14ms _ 5%      6.91ms _ 6%       ~     (p=0.165 n=5+5)
-    
-    name                                 old speed      new speed        delta
-    CompareBytesBigUnaligned/offset=1-4   150MB/s _ 5%     153MB/s _ 3%       ~     (p=0.336 n=5+5)
-    CompareBytesBigUnaligned/offset=2-4   155MB/s _ 1%     150MB/s _ 4%       ~     (p=0.058 n=5+5)
-    CompareBytesBigUnaligned/offset=3-4   153MB/s _ 1%     156MB/s _ 1%     +1.51%  (p=0.004 n=5+5)
-    CompareBytesBigUnaligned/offset=4-4  7.16MB/s _ 1%  145.79MB/s _ 6%  +1936.23%  (p=0.000 n=5+5)
-    CompareBytesBigUnaligned/offset=5-4   149MB/s _ 5%     155MB/s _ 1%       ~     (p=0.078 n=5+5)
-    CompareBytesBigUnaligned/offset=6-4   148MB/s _ 5%     152MB/s _ 5%       ~     (p=0.175 n=5+5)
-    CompareBytesBigUnaligned/offset=7-4   147MB/s _ 5%     152MB/s _ 6%       ~     (p=0.160 n=5+5)
-    
-    Change-Id: I2c859e061919db482318ce63b85b808aa973a9ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431099
-    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Ib98f9a344c1397af92e061cafd519ea374fd60bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360294
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/bytes/compare_test.go              | 17 +++++++++++++----
- src/internal/bytealg/compare_riscv64.s |  4 ++--
- src/internal/bytealg/equal_riscv64.s   |  4 ++--
- 3 files changed, 17 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/types2/object.go                         | 2 ++
+ src/cmd/compile/internal/types2/object_test.go                    | 3 +++
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go2 | 2 +-
+ 3 files changed, 6 insertions(+), 1 deletion(-)

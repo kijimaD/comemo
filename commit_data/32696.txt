@@ -1,21 +1,24 @@
-commit 137e4a6c63e8688cba34df7dad81b45f0aaa500c
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Sep 3 08:20:57 2017 +0200
+commit b5e964cc1cfb9307285c7f18f51beca8124f1b22
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue May 2 16:03:45 2017 +1000
 
-    cmd/compile: improve single blank variable handling in walkrange
+    cmd/link: make sure that runtime.epclntab lives in .text section
     
-    Refactor walkrange to treat "for _ = range a" as "for range a".
+    Second attempt to fix #14710.
     
-    This avoids generating some later discarded nodes in the compiler.
+    CL 35272 already tried to fix this issue. But CL 35272 assumed
+    that runtime.epclntab type is STEXT, while it is actually SRODATA.
     
-    Passes toolstash -cmp.
+    This CL uses Symbol.Sect.Seg to determine if symbol is part
+    of Segtext or Segdata.
     
-    Change-Id: Ifb2e1ca3b8519cbb67e8ad5aad514af9d18f1ec4
-    Reviewed-on: https://go-review.googlesource.com/61017
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Fixes #14710
+    
+    Change-Id: Ic6b6f657555c87a64d2bc36cc4c07ab0591d00c4
+    Reviewed-on: https://go-review.googlesource.com/42390
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/range.go | 25 ++++++++++++------
- test/range.go                        | 49 +++++++++++++++++++++++++++++++++++-
- 2 files changed, 65 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/ld/pe.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

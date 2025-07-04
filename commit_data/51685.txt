@@ -1,24 +1,22 @@
-commit 045b33ecfe4db7af6344cb5227c3d31501eb8cba
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Jan 11 13:47:38 2023 -0800
+commit 87a345ca3849a68de13f29bdc7628f2943734946
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 3 15:07:15 2022 -0500
 
-    net/http: close Request.Body when pconn write loop exits early
+    cmd/go: make paths consistent between 'go work init' and 'go work use'
     
-    The pconn write loop closes a request's body after sending the
-    request, but in the case where the write loop exits with an
-    unsent request in writech the body is never closed.
+    Fixes #51448
     
-    Close the request body in this case.
-    
-    Fixes #49621
-    
-    Change-Id: Id94a92937bbfc0beb1396446f4dee32fd2059c7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461675
+    Change-Id: I86719b55037c377eb82154e169d8a9bbae20b77c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389854
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/net/http/transport.go      |  6 ++++++
- src/net/http/transport_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 45 insertions(+)
+ src/cmd/go/internal/modload/modfile.go          |  2 +-
+ src/cmd/go/internal/workcmd/use.go              |  2 +-
+ src/cmd/go/testdata/script/work_init_path.txt   | 17 +++++++++++++++++
+ src/cmd/go/testdata/script/work_use.txt         | 10 +++++-----
+ src/cmd/go/testdata/script/work_use_deleted.txt |  6 +++---
+ src/cmd/go/testdata/script/work_use_dot.txt     |  4 ++--
+ 6 files changed, 29 insertions(+), 12 deletions(-)

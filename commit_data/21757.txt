@@ -1,33 +1,18 @@
-commit 3c8a89daf3a05a1dd98075a733db7a20bef2dc5c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 25 14:41:21 2015 +0900
+commit 826fa06189f9cb86871aac66934b45a859e3b3a6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 2 21:09:23 2015 +0900
 
-    runtime: simplify CPU profiling code
+    net: case insensitivity of DNS labels in built-in stub resolver
     
-    This makes Go's CPU profiling code somewhat more idiomatic; e.g.,
-    using := instead of forward declaring variables, using "int" for
-    element counts instead of "uintptr", and slices instead of C-style
-    pointer+length.  This makes the code easier to read and eliminates a
-    lot of type conversion clutter.
+    This change adds support for case insensitivity of DNS labels to
+    built-in DNS stub resolver as described in RFC 4343.
     
-    Additionally, in sigprof we can collect just maxCPUProfStack stack
-    frames, as cpuprof won't use more than that anyway.
+    Fixes #9215.
     
-    Change-Id: I0235b5ae552191bcbb453b14add6d8c01381bd06
-    Reviewed-on: https://go-review.googlesource.com/6072
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ia752fe71866a3bfa3ea08371985b799d419ddea3
+    Reviewed-on: https://go-review.googlesource.com/3685
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/cpuprof.go       | 34 +++++++++++++++-------------------
- src/runtime/extern.go        |  4 ++--
- src/runtime/mprof.go         |  6 +++---
- src/runtime/os1_windows.go   |  2 +-
- src/runtime/proc1.go         | 32 ++++++++++++++------------------
- src/runtime/signal_386.go    |  2 +-
- src/runtime/signal_amd64x.go |  2 +-
- src/runtime/signal_arm.go    |  2 +-
- src/runtime/signal_ppc64x.go |  2 +-
- src/runtime/trace.go         |  4 ++--
- src/runtime/traceback.go     | 18 +++++++++---------
- 11 files changed, 50 insertions(+), 58 deletions(-)
+ src/net/dnsclient.go   | 22 +++++++++++++++++++++-
+ src/net/dnsmsg_test.go | 26 ++++++++++++++++----------
+ 2 files changed, 37 insertions(+), 11 deletions(-)

@@ -1,27 +1,30 @@
-commit 9d1540b77c3965f1cbaaab753d09974ad7330380
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Jul 7 19:07:14 2018 +0100
+commit 736390c2bd2d7f00d62ca62f18836f82eb1f51a3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 25 12:36:36 2018 -0700
 
-    encoding/json: simplify some pieces of the encoder
+    cmd/compile: allow SSA of multi-field structs while instrumenting
     
-    Some WriteByte('\\') calls can be deduplicated.
+    When we moved racewalk to buildssa, we disabled SSA of structs with
+    2-4 fields while instrumenting because it caused false dependencies
+    because for "x.f" we would emit
     
-    fillField is used in two occasions, but it is unnecessary when adding
-    fields to the "next" stack, as those aren't used for the final encoding.
-    Inline the func with its only remaining call.
+        (StructSelect (Load (Addr x)) "f")
     
-    Finally, unindent a default-if block.
+    Even though we later simplify this to
     
-    The performance of the encoder is unaffected:
+        (Load (OffPtr (Addr x) "f"))
     
-    name           old time/op    new time/op    delta
-    CodeEncoder-4    6.65ms ± 1%    6.65ms ± 0%   ~     (p=0.662 n=6+5)
+    the instrumentation saw a load of x in its entirety and would issue
+    appropriate race/msan calls.
     
-    Change-Id: Ie55baeab89abad9b9f13e9f6ca886a670c30dba9
-    Reviewed-on: https://go-review.googlesource.com/122461
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    The fix taken here is to directly emit the OffPtr form when x.f is
+    addressable and can't be represented in SSA form.
+    
+    Change-Id: I0caf37bced52e9c16937466b0ac8cab6d356e525
+    Reviewed-on: https://go-review.googlesource.com/109360
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/encoding/json/encode.go | 34 +++++++++++-----------------------
- 1 file changed, 11 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 25 ++++++++++---------------
+ 1 file changed, 10 insertions(+), 15 deletions(-)

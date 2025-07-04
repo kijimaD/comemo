@@ -1,14 +1,34 @@
-commit 0427c583a5877223447ec73b740b97fc39b12894
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 22 11:48:41 2012 -0800
+commit 8b7cdb7f25ff1e97150ee4648ff4f7764454ccd5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 22 11:27:45 2012 -0800
 
-    builder: update for os.Wait changes.
+    go/printer, gofmt: improved comma placement
     
-    This compiles again.
+    Not a Go 1 issue, but appeared to be fairly easy to fix.
     
-    R=golang-dev, minux.ma, rsc
+    - Note that a few existing test cases look slightly worse but
+      those cases were not representative for real code. All real
+      code looks better now.
+    
+    - Manual move of the comment in go/scanner/example_test.go
+      before applying gofmt.
+    
+    - gofmt -w $GOROOT/src $GOROOT/misc
+    
+    Fixes #3062.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5687078
+    https://golang.org/cl/5674093
 
- misc/dashboard/builder/exec.go | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ src/pkg/crypto/tls/handshake_client.go      |  4 +--
+ src/pkg/crypto/tls/handshake_server.go      |  4 +--
+ src/pkg/crypto/x509/x509.go                 |  2 +-
+ src/pkg/exp/proxy/socks5.go                 |  6 ++--
+ src/pkg/exp/terminal/terminal.go            |  4 +--
+ src/pkg/go/printer/nodes.go                 | 29 +++++++++++++++----
+ src/pkg/go/printer/printer.go               |  8 ++++--
+ src/pkg/go/printer/testdata/comments.golden | 43 +++++++++++++++++++++++++----
+ src/pkg/go/printer/testdata/comments.input  | 31 +++++++++++++++++++--
+ src/pkg/go/scanner/example_test.go          |  2 +-
+ 10 files changed, 106 insertions(+), 27 deletions(-)

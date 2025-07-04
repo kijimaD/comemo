@@ -1,20 +1,19 @@
-commit 0bc98b3e9b3b6b55489bb9ffed54377e678eba28
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Fri Nov 5 17:09:22 2021 +0100
+commit 98dfdc82c85c238a5ab6131d6f1e86e0da259851
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 5 21:09:40 2021 -0500
 
-    syscall: fix mkall.sh for openbsd/386
+    cmd/compile: fix broken type+offset calc for register args
     
-    CL 287654 converted the syscall package on openbsd/386 to use libc.
-    However, the mksyscall.pl invocation wasn't adjusted. Do so now to use
-    syscall_openbsd_libc.go like the other libc-based openbsd ports.
+    Includes more enhancements to debugging output.
     
-    Change-Id: I48a7bd6ce4c25eca5222f560ed584e412b466111
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361481
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Updates #44816.
+    
+    Change-Id: I5b21815cf37ed21e7dec6c06f538090f32260203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299409
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/mkall.sh | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/abi/abiutils.go     |  29 ++++---
+ src/cmd/compile/internal/ssa/expand_calls.go | 110 ++++++++++++++-------------
+ test/abi/bad_internal_offsets.go             |  74 ++++++++++++++++++
+ 3 files changed, 150 insertions(+), 63 deletions(-)

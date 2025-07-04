@@ -1,0 +1,25 @@
+commit 2e97c30d8d9f5740a503428c09efae7bedb68efb
+Author: benbaker76 <headkaze@gmail.com>
+Date:   Wed Nov 6 23:13:37 2024 +0000
+
+    debug/elf: add SHT_GNU_VERDEF section parsing
+    
+    Fixes #63952
+    
+    Change-Id: Icf93e57e62243d9c3306d4e1c5dadb3f62747710
+    GitHub-Last-Rev: 5c2952760063474f3aac338fe5bdb65bde238ab6
+    GitHub-Pull-Request: golang/go#69850
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619077
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/63952.txt                            |   33 +
+ doc/next/6-stdlib/99-minor/debug/elf/63952.md |   20 +
+ src/debug/elf/elf.go                          |    9 +
+ src/debug/elf/file.go                         |  241 ++-
+ src/debug/elf/file_test.go                    |  384 ++---
+ src/debug/elf/symbols_test.go                 | 2008 +++++++++++++++----------
+ src/debug/elf/testdata/libtiffxx.so_          |  Bin 0 -> 9064 bytes
+ 7 files changed, 1698 insertions(+), 997 deletions(-)

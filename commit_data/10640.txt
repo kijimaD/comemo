@@ -1,15 +1,23 @@
-commit 0c64972dd1175a32d11793e5b7b6d455194db3d4
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Dec 7 11:45:30 2011 -0500
+commit 50c24bf6ec4d05148012cbd010476f7151627424
+Author: Gustav Paul <gustav.paul@gmail.com>
+Date:   Wed Dec 7 09:58:22 2011 -0500
 
-    gc: more accurate description of -w and -W switches.
+    exp/ssh: Have Wait() return an *ExitError
     
-    The -w switch actually prints steps of the syntax tree walks
-    while -W prints a summary before and after the walk.
+    I added the clientChan's msg channel to the list of channels that are closed in mainloop when the server sends a channelCloseMsg.
     
-    R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5444049
+    I added an ExitError type that wraps a Waitmsg similar to that of os/exec. I fill ExitStatus with the data returned in the 'exit-status' channel message and Msg with the data returned in the 'exit-signal' channel message.
+    
+    Instead of having Wait() return on the first 'exit-status'/'exit-signal' I have it return an ExitError containing the status and signal when the clientChan's msg channel is closed.
+    
+    I added two tests cases to session_test.go that test for exit status 0 (in which case Wait() returns nil) and exit status 1 (in which case Wait() returns an ExitError with ExitStatus 1)
+    
+    R=dave, agl, rsc, golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5452051
 
- src/cmd/gc/lex.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/exp/ssh/client.go           |  38 ++++--
+ src/pkg/exp/ssh/client_func_test.go |   2 +-
+ src/pkg/exp/ssh/session.go          | 134 ++++++++++++++++--
+ src/pkg/exp/ssh/session_test.go     | 264 ++++++++++++++++++++++++++++++++----
+ 4 files changed, 383 insertions(+), 55 deletions(-)

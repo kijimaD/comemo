@@ -1,14 +1,38 @@
-commit 03a9f5a192149dc6f443eb0e1cee48cb4dd7e26f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Feb 1 06:22:00 2019 -0800
+commit 8dbd9afbb05c77ca8426256d172f9e05fe48a0f0
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Aug 15 17:34:06 2018 -0400
 
-    doc: go1.12: update notes on go directive
+    cmd/compile: improve rules for PPC64.rules
     
-    Fixes #30043
+    This adds some improvements to the rules for PPC64 to eliminate
+    unnecessary zero or sign extends, and fix some rule for truncates
+    which were not always using the correct sign instruction.
     
-    Change-Id: I4ecfff7d8a9432240c1927f7484786fe1182b773
-    Reviewed-on: https://go-review.googlesource.com/c/160797
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This reduces of size of many functions by 1 or 2 instructions and
+    can improve performance in cases where the execution time depends
+    on small loops where at least 1 instruction was removed and where that
+    loop contributes a significant amount of the total execution time.
+    
+    Included is a testcase for codegen to verify the sign/zero extend
+    instructions are omitted.
+    
+    An example of the improvement (strings):
+    IndexAnyASCII/256:1-16     392ns ± 0%   369ns ± 0%  -5.79%  (p=0.000 n=1+10)
+    IndexAnyASCII/256:2-16     397ns ± 0%   376ns ± 0%  -5.23%  (p=0.000 n=1+9)
+    IndexAnyASCII/256:4-16     405ns ± 0%   384ns ± 0%  -5.19%  (p=1.714 n=1+6)
+    IndexAnyASCII/256:8-16     427ns ± 0%   403ns ± 0%  -5.57%  (p=0.000 n=1+10)
+    IndexAnyASCII/256:16-16    441ns ± 0%   418ns ± 1%  -5.33%  (p=0.000 n=1+10)
+    IndexAnyASCII/4096:1-16   5.62µs ± 0%  5.27µs ± 1%  -6.31%  (p=0.000 n=1+10)
+    IndexAnyASCII/4096:2-16   5.67µs ± 0%  5.29µs ± 0%  -6.67%  (p=0.222 n=1+8)
+    IndexAnyASCII/4096:4-16   5.66µs ± 0%  5.28µs ± 1%  -6.66%  (p=0.000 n=1+10)
+    IndexAnyASCII/4096:8-16   5.66µs ± 0%  5.31µs ± 1%  -6.10%  (p=0.000 n=1+10)
+    IndexAnyASCII/4096:16-16  5.70µs ± 0%  5.33µs ± 1%  -6.43%  (p=0.182 n=1+10)
+    
+    Change-Id: I739a6132b505936d39001aada5a978ff2a5f0500
+    Reviewed-on: https://go-review.googlesource.com/129875
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.12.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   77 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 1219 ++++++++++++++++++++++++--
+ test/codegen/noextend.go                     |  213 +++++
+ 3 files changed, 1440 insertions(+), 69 deletions(-)

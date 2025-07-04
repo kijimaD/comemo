@@ -1,18 +1,15 @@
-commit ba1ef54c1ee0e5ed8fd572dbb4ec67548cd5a55e
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Sat Sep 3 18:18:30 2022 +0800
+commit 02a36668aa13c3182d29da678764c8f4f5a9499b
+Author: emahiro <ema.hiro@gmail.com>
+Date:   Fri Oct 22 00:34:33 2021 +0900
 
-    syscall: simplify code using unsafe.Slice
+    runtime: fix typo of pushBackAll
     
-    Updates #54854
-    
-    Change-Id: Ibaf4eea14a6259cdbca79e9e95db1602966f18e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/428176
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes: #49081
+    Change-Id: Ie6742f1e7a60c2d92ce1283bcfaa3eac521440a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357629
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/syscall/syscall_darwin.go | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

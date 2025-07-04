@@ -1,14 +1,28 @@
-commit dbee8ad0f9eff310e1d3c696b334e9a596cab42b
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Wed May 22 21:13:30 2013 +0200
+commit 34c67eb24e1b3cfe16a512ab2d4899c78032030b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 22 22:57:47 2013 +0400
 
-    cmd/cc: reject unions containing pointers
+    runtime: detect deadlocks in programs using cgo
+    When cgo is used, runtime creates an additional M to handle callbacks on threads not created by Go.
+    This effectively disabled deadlock detection, which is a right thing, because Go program can be blocked
+    and only serve callbacks on external threads.
+    This also disables deadlock detection under race detector, because it happens to use cgo.
+    With this change the additional M is created lazily on first cgo call. So deadlock detector
+    works for programs that import "C", "net" or "net/http/pprof" but do not use them in fact.
+    Also fixes deadlock detector under race detector.
+    It should be fine to create the M later, because C code can not call into Go before first cgo call,
+    because C code does not know when Go initialization has completed. So a Go program need to call into C
+    first either to create an external thread, or notify a thread created in global ctor that Go
+    initialization has completed.
+    Fixes #4973.
+    Fixes #5475.
     
-    If a union contains a pointer, it will mess up the garbage collector, causing memory corruption.
-    
-    R=golang-dev, dave, nightlyone, adg, dvyukov, bradfitz, minux.ma, r, iant
+    R=golang-dev, minux.ma, iant
     CC=golang-dev
-    https://golang.org/cl/8469043
+    https://golang.org/cl/9303046
 
- src/cmd/cc/dcl.c | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/pkg/runtime/cgo/iscgo.c |  1 +
+ src/pkg/runtime/cgocall.c   |  4 ++++
+ src/pkg/runtime/proc.c      | 14 ++++++++++----
+ src/pkg/runtime/runtime.h   |  1 +
+ 4 files changed, 16 insertions(+), 4 deletions(-)

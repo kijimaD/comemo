@@ -1,29 +1,16 @@
-commit af7ca8dce4991860263d5e0d0322461cfd00c599
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 16 18:34:55 2014 -0500
+commit 41c6b84342b27353ed40aa3942ef8647631a322b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 5 09:37:56 2014 +0900
 
-    cmd/cgo, runtime/cgo: support ppc64
+    cmd/go: fix build
+    The new semantics of split require the newline be present.
+    The test was stale.
     
-    This implements support for calls to and from C in the ppc64 C ABI, as
-    well as supporting functionality such as an entry point from the
-    dynamic linker.
-    
-    Change-Id: I68da6df50d5638cb1a3d3fef773fb412d7bf631a
-    Reviewed-on: https://go-review.googlesource.com/2009
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/182480043
 
- src/cmd/cgo/out.go                 |   1 +
- src/go/build/build.go              |   1 +
- src/run.bash                       |   1 +
- src/runtime/asm_ppc64x.s           | 244 +++++++++++++++++++++++++++++++++++--
- src/runtime/cgo/asm_ppc64x.s       | 124 +++++++++++++++++++
- src/runtime/cgo/gcc_linux_ppc64x.c |  70 +++++++++++
- src/runtime/cgo/gcc_ppc64x.S       | 140 +++++++++++++++++++++
- src/runtime/cgocall.go             |   7 ++
- src/runtime/crash_cgo_test.go      |   5 +
- src/runtime/rt0_linux_ppc64.s      |   6 +
- src/runtime/rt0_linux_ppc64le.s    |  24 +++-
- src/runtime/runtime1.go            |   3 +
- src/runtime/sys_linux_ppc64x.s     |   7 ++
- src/runtime/tls_ppc64x.s           |   4 +
- 14 files changed, 622 insertions(+), 15 deletions(-)
+ src/cmd/go/generate.go      | 2 +-
+ src/cmd/go/generate_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

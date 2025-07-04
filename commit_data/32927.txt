@@ -1,28 +1,16 @@
-commit 0b6b5641d7f30cc1cf6ec623793ec758861359dc
-Author: Heschi Kreinick <heschi@google.com>
-Date:   Fri Sep 29 14:14:03 2017 -0400
+commit cf7347a9731421e545c37e00d2b798bdc0f77b77
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Jun 14 13:53:40 2017 -0700
 
-    cmd/compile: use correct stack slots in location lists
+    api: promote next to go1.9
     
-    When variables need to be spilled to the stack, they usually get their
-    own stack slot. Local variables have a slot allocated if they need one,
-    and arguments start out on the stack. Before this CL, the debug
-    information made the assumption that this was always the case, and so
-    didn't bother storing an actual stack offset during SSA analysis.
-    
-    There's at least one case where this isn't true: variables that alias
-    arguments. Since the argument is the source of the variable, the
-    variable will begin its life on the stack in the argument's stack slot,
-    not its own. Therefore the debug info needs to track the actual stack
-    slot for each location entry.
-    
-    No detectable performance change, despite the O(N) loop in getHomeSlot.
-    
-    Change-Id: I2701adb7eddee17d4524336cb7aa6786e8f32b46
-    Reviewed-on: https://go-review.googlesource.com/67231
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I27aa87607aa82b400411a60c6bdb6f9a42ff97c1
+    Reviewed-on: https://go-review.googlesource.com/45776
+    Run-TryBot: Chris Broadfoot <cbro@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/pgen.go   | 41 ++++++++++++++++------
- src/cmd/compile/internal/ssa/debug.go | 65 ++++++++++++++++++++++++++---------
- 2 files changed, 80 insertions(+), 26 deletions(-)
+ api/go1.9.txt      | 163 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt       | 163 -----------------------------------------------------
+ src/cmd/api/run.go |   2 +-
+ 3 files changed, 164 insertions(+), 164 deletions(-)

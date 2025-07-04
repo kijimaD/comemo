@@ -1,27 +1,16 @@
-commit 4b41f7f8188ce8f711cacd3097a2cb02af5c333c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jun 25 17:13:21 2019 -0400
+commit d24c3124cab290f5f7e1c75be4c6cbe6dd05a85c
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Mar 1 01:03:20 2019 +0100
 
-    cmd/go/internal/modfetch: halt proxy fallback if the proxy returns a non-404/410 response for @latest
+    misc/android: evaluate symlinks before comparing GOROOT and GOPATH
     
-    The @latest proxy endpoint is optional. If a proxy returns a 404 for
-    it, and returns an @v/list with no matching versions, then we should
-    allow module lookup to try other module paths. However, if the proxy
-    returns some other error (say, a 403 or 505), then the result of the
-    lookup is ambiguous, and we should report the actual error rather than
-    "no matching versions for query".
+    Should fix Android builders on Darwin hosts.
     
-    (This fix was prompted by discussion with Dmitri on CL 183619.)
-    
-    Updates #32715
-    Updates #26334
-    
-    Change-Id: I6d510a5ac24d48d9bc5037c3c747ac50695c663f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/183845
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1554849bdf2ad2440529af7f93566fa6f11d5407
+    Reviewed-on: https://go-review.googlesource.com/c/164697
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/modfetch/proxy.go          |  4 +++-
- src/cmd/go/testdata/script/mod_query_empty.txt | 21 +++++++++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ misc/android/go_android_exec.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

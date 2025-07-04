@@ -1,46 +1,13 @@
-commit 48769bf546ba7ad830c2edc05656e217d15a20c8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 19 16:04:09 2013 -0400
+commit c38173bcbd2f51d7801d834d3a8a34f75fc1605c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 19 12:31:42 2013 -0700
 
-    runtime: use funcdata to supply garbage collection information
+    debug/gosym: put pclinetest file in temporary directory
+    where it belongs.
     
-    This CL introduces a FUNCDATA number for runtime-specific
-    garbage collection metadata, changes the C and Go compilers
-    to emit that metadata, and changes the runtime to expect it.
-    
-    The old pseudo-instructions that carried this information
-    are gone, as is the linker code to process them.
-    
-    R=golang-dev, dvyukov, cshapiro
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/11406044
+    https://golang.org/cl/11596043
 
- src/cmd/5c/reg.c                |  1 +
- src/cmd/5g/peep.c               |  7 +-----
- src/cmd/5g/reg.c                |  3 ---
- src/cmd/5l/5.out.h              |  5 ----
- src/cmd/5l/l.h                  |  3 ---
- src/cmd/5l/obj.c                | 40 -----------------------------
- src/cmd/5l/span.c               |  1 -
- src/cmd/6c/reg.c                |  2 ++
- src/cmd/6g/peep.c               |  3 ---
- src/cmd/6g/reg.c                |  3 ---
- src/cmd/6l/6.out.h              |  5 ----
- src/cmd/6l/l.h                  |  3 ---
- src/cmd/6l/obj.c                | 40 -----------------------------
- src/cmd/8c/reg.c                |  2 ++
- src/cmd/8g/peep.c               |  3 ---
- src/cmd/8g/reg.c                |  3 ---
- src/cmd/8l/8.out.h              |  5 ----
- src/cmd/8l/l.h                  |  3 ---
- src/cmd/8l/obj.c                | 40 -----------------------------
- src/cmd/cc/pgen.c               | 35 ++++++++++++++++++++++++--
- src/cmd/gc/pgen.c               | 56 +++++++++++++++++++++++++----------------
- src/cmd/ld/lib.c                | 31 ++++++-----------------
- src/pkg/runtime/funcdata.h      |  4 ++-
- src/pkg/runtime/mgc0.c          | 36 ++++++++++++++++++++------
- src/pkg/runtime/runtime.h       | 10 ++++----
- src/pkg/runtime/symtab.c        |  8 +++---
- src/pkg/runtime/traceback_arm.c | 27 +++-----------------
- src/pkg/runtime/traceback_x86.c | 22 ++--------------
- 28 files changed, 126 insertions(+), 275 deletions(-)
+ src/pkg/debug/gosym/pclntab_test.go | 1 -
+ 1 file changed, 1 deletion(-)

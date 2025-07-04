@@ -1,32 +1,28 @@
-commit bc047b62b2ec0c6eae3437a26410039c82365f60
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Aug 27 14:44:16 2024 -0500
+commit 52c3e8c7355f2bf8872bbfdd2a5986472d7a94ed
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 11 17:29:08 2023 -0700
 
-    crypto/internal/nistec: fix p256Select (PPC64) and p256SelectAffine (PPC64/s390x)
+    cmd/compile: desugar ORECOVER during typecheck
     
-    They are constant time, but some constants were incorrect. This
-    resulting in reading beyond the tables.
+    This never belonged in escape analysis, but the non-unified generics
+    frontend didn't use typecheck. That frontend is gone, so now we can
+    desugar it earlier.
     
-    I've added linux specific tests which verify these functions are not
-    reading beyond the limits of their table.
-    
-    Thank you Sun Yimin, @emmansun for catching this bug and suggesting
-    corrected constants.
-    
-    Fixes #69080
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power10,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9
-    
-    Change-Id: Id37e0e22b2278ea20adaa1c84cbb32c3f20d4cf7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608816
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Archana Ravindar <aravinda@redhat.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I70f34a851f27fce1133777c5eeca0f549fc60ede
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518958
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/internal/nistec/p256_asm_ppc64le.s |  4 +-
- src/crypto/internal/nistec/p256_asm_s390x.s   |  2 +-
- src/crypto/internal/nistec/p256_asm_test.go   | 53 +++++++++++++++++++++++++++
- 3 files changed, 56 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/escape/call.go         |  5 ++--
+ src/cmd/compile/internal/escape/desugar.go      | 37 -------------------------
+ src/cmd/compile/internal/escape/expr.go         |  2 +-
+ src/cmd/compile/internal/escape/stmt.go         |  2 +-
+ src/cmd/compile/internal/inline/inl.go          |  2 ++
+ src/cmd/compile/internal/typecheck/const.go     |  1 +
+ src/cmd/compile/internal/typecheck/func.go      | 21 ++++++--------
+ src/cmd/compile/internal/typecheck/stmt.go      |  3 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 ---
+ 9 files changed, 17 insertions(+), 60 deletions(-)

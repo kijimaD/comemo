@@ -1,20 +1,34 @@
-commit 6db28ee8e0e9d9a880f27cfcba409a1ac566a5c7
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Mon Jun 24 13:17:56 2013 -0700
+commit f21bc7920decb5b6f94d49a9e8eefcdb74960c24
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 24 14:49:35 2013 -0400
 
-    misc/{bbedit|IntelliJIDEA|kate}: add missing delete predeclared identifier
+    time: avoid garbage collector aliasing bug
     
-    In general the description should describe what is added or fixed,
-    not how it was done (the code does this), but in this case the cause
-    was delete was missing, so the fix is to add it.
+    Time is a tiny struct, so the compiler copies a Time by
+    copying each of the three fields.
     
-    Fixes  issue 5765.
+    The layout of a time on amd64 is [ptr int32 gap32 ptr].
+    Copying a Time onto a location that formerly held a pointer in the
+    second word changes only the low 32 bits, creating a different
+    but still plausible pointer. This confuses the garbage collector
+    when it appears in argument or result frames.
     
-    R=golang-dev, iant, r
+    To avoid this problem, declare nsec as uintptr, so that there is
+    no gap on amd64 anymore, and therefore no partial pointers.
+    
+    Note that rearranging the fields to put the int32 last still leaves
+    a gap - [ptr ptr int32 gap32] - because Time must have a total
+    size that is ptr-width aligned.
+    
+    Update #5749
+    
+    This CL is enough to fix the problem, but we should still do
+    the other actions listed in the initial report. We're not too far
+    from completely precise collection.
+    
+    R=golang-dev, dvyukov, r
     CC=golang-dev
-    https://golang.org/cl/10496043
+    https://golang.org/cl/10504043
 
- misc/IntelliJIDEA/Go.xml | 1 +
- misc/bbedit/Go.plist     | 5 +++--
- misc/kate/go.xml         | 1 +
- 3 files changed, 5 insertions(+), 2 deletions(-)
+ src/pkg/time/time.go | 45 +++++++++++++++++++++++++++------------------
+ 1 file changed, 27 insertions(+), 18 deletions(-)

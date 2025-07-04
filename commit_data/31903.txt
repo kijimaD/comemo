@@ -1,24 +1,30 @@
-commit 856fd8f50e0ccc7b43a0d4846f4c3de9f53a4e9a
-Author: Mark Ryan <mark.d.ryan@intel.com>
-Date:   Fri Jun 23 14:13:11 2017 +0100
+commit e74c6cd3c05fda74fc8cac7a24b22b8b55a2239d
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Mar 4 07:18:26 2017 +0100
 
-    encoding/ascii85: make bigtest big again
+    regexp: add ASCII fast path for context methods
     
-    ascii85_test.go contains a variable called bigtest that is used as
-    test data for TestDecoderBuffering and TestEncoderBuffering.  The
-    variable is initialised to a copy of the last element of the pairs
-    slice.  When the variable was first added the last element of this
-    slice contained a sizable test case, 342 encoded characters.  However,
-    https://golang.org/cl/5970078 added a new element to the end of the pairs
-    slice without updating bigtest.  As the new element contained only 1 byte
-    of encoded data bigtest became very small test.  This commit fixes the
-    problem by resetting bigtest to its original value and making its
-    initialisation independent of the layout of pairs.  All the unit tests
-    still pass.
+    The step method implementations check directly if the next rune
+    only needs one byte to be decoded and avoid calling utf8.DecodeRune
+    for such ASCII characters.
     
-    Change-Id: If7fb609ced9da93a2321dfd8372986b2fa772fd5
-    Reviewed-on: https://go-review.googlesource.com/46475
+    Introduce the same fast path optimization for rune decoding
+    for the context methods.
+    
+    Results for regexp benchmarks that use the context methods:
+    
+    name                            old time/op  new time/op  delta
+    AnchoredLiteralShortNonMatch-4  97.5ns ± 1%  94.8ns ± 2%  -2.80%  (p=0.000 n=45+43)
+    AnchoredShortMatch-4             163ns ± 1%   160ns ± 1%  -1.84%  (p=0.000 n=46+47)
+    NotOnePassShortA-4               742ns ± 2%   742ns ± 2%    ~     (p=0.440 n=49+50)
+    NotOnePassShortB-4               535ns ± 1%   533ns ± 2%  -0.37%  (p=0.005 n=46+48)
+    OnePassLongPrefix-4              169ns ± 2%   166ns ± 2%  -2.06%  (p=0.000 n=50+49)
+    
+    Change-Id: Ib302d9e8c63333f02695369fcf9963974362e335
+    Reviewed-on: https://go-review.googlesource.com/38256
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/ascii85/ascii85_test.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/regexp/regexp.go | 32 ++++++++++++++++++++++++--------
+ 1 file changed, 24 insertions(+), 8 deletions(-)

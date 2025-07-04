@@ -1,46 +1,20 @@
-commit 78561c4ae9b18e111ef0e25478f24e5e21dcff69
-Author: Austin Clements <austin@google.com>
-Date:   Mon Jun 25 18:00:43 2018 -0400
+commit cc155ebf243a900109613eae4c89a381aa545160
+Author: Ian Gudger <igudger@google.com>
+Date:   Sat Mar 17 11:10:10 2018 -0700
 
-    runtime: handle g0 stack overflows gracefully
+    vendor: update golang.org/x/net/dns/dnsmessage from upstream
     
-    Currently, if the runtime overflows the g0 stack on Windows, it leads
-    to an infinite recursion:
+    Updates to x/net git rev 24dd378 for CL 100055
     
-    1. Something overflows the g0 stack bounds and calls morestack.
+    Fixes #10622
+    Updates #16218
     
-    2. morestack determines it's on the g0 stack and hence cannot grow the
-    stack, so it calls badmorestackg0 (which prints "fatal: morestack on
-    g0") followed by abort.
-    
-    3. abort performs an INT $3, which turns into a Windows
-    _EXCEPTION_BREAKPOINT exception.
-    
-    4. This enters the Windows sigtramp, which ensures we're on the g0
-    stack and calls exceptionhandler.
-    
-    5. exceptionhandler has a stack check prologue, so it determines that
-    it's out of stack and calls morestack.
-    
-    6. goto 2
-    
-    Fix this by making the exception handler avoid stack checks until it
-    has ruled out an abort and by blowing away the stack bounds in
-    lastcontinuehandler before we print the final fatal traceback (which
-    itself involves a lot of stack bounds checks).
-    
-    Fixes #21382.
-    
-    Change-Id: Ie66e91f708e18d131d97f22b43f9ac26f3aece5a
-    Reviewed-on: https://go-review.googlesource.com/120857
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I99e26da7b908b36585a0379d9381030c01819b54
+    Reviewed-on: https://go-review.googlesource.com/101278
+    Run-TryBot: Ian Gudger <igudger@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/crash_test.go     | 29 +++++++++++++++++++++++++++++
- src/runtime/export_test.go    | 11 +++++++++++
- src/runtime/os_windows.go     |  5 +++--
- src/runtime/panic.go          |  5 +++++
- src/runtime/signal_windows.go | 30 ++++++++++++++++++++++++++++++
- 5 files changed, 78 insertions(+), 2 deletions(-)
+ .../golang_org/x/net/dns/dnsmessage/message.go     | 10 +++++++++-
+ .../x/net/dns/dnsmessage/message_test.go           | 22 ++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

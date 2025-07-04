@@ -1,16 +1,13 @@
-commit ff40deee6234dc8ad72af0dba1a28c1047f497f6
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Mar 7 12:08:52 2011 -0500
+commit 3e042ebb572038c7f680364613e6bbaf8d9c94c5
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Mon Mar 7 12:08:39 2011 -0500
 
-    goinstall: handle .s files with gc
+    http: adapt Cookie code to follow IETF draft
     
-    As a data point, with this change goinstall is able to
-    fully build package big out of the box.
-    
-    R=rsc
+    R=rsc, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4264049
+    https://golang.org/cl/4235055
 
- src/cmd/goinstall/make.go  | 34 +++++++++++++++++++++++++---------
- src/cmd/goinstall/parse.go | 19 +++++++++++++++----
- 2 files changed, 40 insertions(+), 13 deletions(-)
+ src/pkg/http/cookie.go      | 230 ++++++++++++++++----------------------------
+ src/pkg/http/cookie_test.go |   4 +-
+ 2 files changed, 85 insertions(+), 149 deletions(-)

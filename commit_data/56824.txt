@@ -1,21 +1,21 @@
-commit d67839f58af518bfa32e27962059291362186e1c
-Author: Clide Stefani <cstefani.sites@gmail.com>
-Date:   Thu Jun 13 14:57:12 2024 -0400
+commit 371ebe731bf6ebae3d6914835674e276d98254f5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun May 21 21:27:48 2023 +0200
 
-    crypto/tls: add support for -expect-version to bogo_shim_test
+    crypto/tls: add ClientSessionState.ResumptionState and NewResumptionState
     
-    The existing implementation of bogo_shim_test does not support tests
-    that use the expect-version flag.
-    This change adds support for this flag.
+    For #60105
+    Fixes #25351
     
-    Updates #51434.
-    
-    Change-Id: Ie23fdb06d15ec0593ca58f28144e83f93ef7f200
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/592635
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Iffd658f2663cfc47b48157824226ed6c0260a59e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496820
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
 
- src/crypto/tls/bogo_shim_test.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ api/next/60105.txt                      |  2 ++
+ src/crypto/tls/handshake_client_test.go | 41 +++++++++++++++++++++++++++++++++
+ src/crypto/tls/ticket.go                | 37 ++++++++++++++++++++++-------
+ 3 files changed, 72 insertions(+), 8 deletions(-)

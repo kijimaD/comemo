@@ -1,21 +1,29 @@
-commit a0506bdf7c9741974c54d9dac55517025ba2572d
-Author: sivchari <shibuuuu5@gmail.com>
-Date:   Fri Nov 26 07:45:44 2021 +0000
+commit 27d306281c54a89ff00e3dad6f4cea790a2f2f2d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 1 15:02:11 2021 +0000
 
-    test/fixedbugs: fix go directive of issue16008.go
+    reflect,runtime: assume register ABI with GOEXPERIMENT=regabiargs
     
-    This change modifies issue16008.go
-    I fixed // go:noinline to //go:noinline
+    This change causes finalizers, reflect calls, and Windows syscall
+    callbacks to assume the register ABI when GOEXPERIMENT=regabiargs is
+    set. That is, when all Go functions are using the new ABI by default,
+    these features should assume the new ABI too.
     
-    Change-Id: Ic133eec51f0a7c4acf8cb22d25473ca08f1e916c
-    GitHub-Last-Rev: dd1868f2ca1f9ca7e2d6d1bfc15c601649896fdd
-    GitHub-Pull-Request: golang/go#49801
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367174
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    For #40724.
+    
+    Change-Id: Ie4ee66b8085b692e1ff675f01134c9a4703ae1b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306571
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- test/fixedbugs/issue16008.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/reflect/abi.go            |  6 +++---
+ src/reflect/regabiargs_off.go | 10 ++++++++++
+ src/reflect/regabiargs_on.go  | 10 ++++++++++
+ src/runtime/regabiargs_off.go | 10 ++++++++++
+ src/runtime/regabiargs_on.go  | 10 ++++++++++
+ src/runtime/stubs.go          |  2 +-
+ 6 files changed, 44 insertions(+), 4 deletions(-)

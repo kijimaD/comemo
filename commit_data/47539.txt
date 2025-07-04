@@ -1,19 +1,18 @@
-commit f1cc5294290b33889d48a3185b3c3711531881e0
-Author: Robert Findley <rfindley@google.com>
-Date:   Wed Nov 17 19:45:49 2021 -0500
+commit 569c86d23b829726db1030d75dd49008c22a0ffd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 15:07:32 2021 -0700
 
-    go/types: better position for invalid slice indices error
+    cmd/compile/internal/types2: review of importer_test.go
     
-    This is a port of CL 363671 from types2 to go/types. Also adjust the
-    error message to match types2 ("invalid" vs "swapped").
+    This is a small helper file that provides a default importer
+    for the type checker tests. There is no go/types equivalent.
     
-    Change-Id: I662a73c915814fea14bfcb1ebde0fbf39589f022
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364902
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    The actual change is removing the "// UNREVIEWED" marker.
+    
+    Change-Id: Ic1f9858bdd9b818d9ddad754e072d9d14d8fb9b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304252
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/go/types/index.go                 | 10 +++++++---
- src/go/types/testdata/check/expr3.src | 20 ++++++++++----------
- 2 files changed, 17 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/types2/importer_test.go | 1 -
+ 1 file changed, 1 deletion(-)

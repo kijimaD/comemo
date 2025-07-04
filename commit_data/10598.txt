@@ -1,23 +1,12 @@
-commit 7dc9d8c72b5deb927028e9edfbc6015c5d0296be
+commit 5f49456465f53f96bee03ac8cbe0d564e31576c2
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 2 14:13:12 2011 -0500
+Date:   Fri Dec 2 14:12:53 2011 -0500
 
-    gc: composite literals as per Go 1
+    spec: additional composite literal shortenings per Go 1 plan
     
-    R=ken2
+    R=golang-dev, gri, r, r
     CC=golang-dev
-    https://golang.org/cl/5450067
+    https://golang.org/cl/5449067
 
- src/cmd/gc/doc.go      |   2 +
- src/cmd/gc/esc.c       |  10 ++++
- src/cmd/gc/fmt.c       |   7 ++-
- src/cmd/gc/gen.c       |   4 +-
- src/cmd/gc/go.h        |   4 +-
- src/cmd/gc/go.y        |   9 +++-
- src/cmd/gc/lex.c       |   2 +-
- src/cmd/gc/sinit.c     |  30 +++++++++++-
- src/cmd/gc/typecheck.c | 127 ++++++++++++++++++++++++++++++++-----------------
- src/cmd/gc/walk.c      |  43 ++---------------
- test/complit.go        |  16 +++++++
- test/complit1.go       |  27 ++++++++---
- 12 files changed, 186 insertions(+), 95 deletions(-)
+ doc/go_spec.html | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

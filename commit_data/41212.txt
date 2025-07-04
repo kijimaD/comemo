@@ -1,24 +1,26 @@
-commit 1b7fefc91f7779c886a307c809144b57d84ed35e
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Jan 28 14:37:58 2020 -0800
+commit 24781a1faf62ac5c9a553af6f46b787e972f5539
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Sep 13 11:10:36 2019 -0400
 
-    doc/go1.14: add crypto/tls release notes
+    cmd/go: fix link error for -coverpkg in GOPATH mode
     
-    A few minor changes that didn't feel worth mentioning:
+    If a generated test main package transitively depends on a main
+    package, the main package will now always be rebuilt as a library and
+    will not be compiled with '-p main'.
     
-    * CL 205059: support leaving Certificates/GetCertificate nil if
-      GetConfigForClient is set
-    * CL 205059: send the unrecognized_name alert when there are no
-      available certificates
-    * CL 205068: add correct names for CHACHA20_POLY1305 ciphersuite constants
-    * CL 204046: fix CreateCRL for Ed25519 CAs
-    * CL 205058: add CertificateRequestInfo.Version
+    This expands the fix for #30907, which only applied to packages with
+    the BuildInfo set (main packages built in module mode). Linking
+    multiple packages with BuildInfo caused link errors, but it appears
+    these errors apply to some symbols in GOPATH mode.
     
-    Change-Id: Ie820fb0c6842e669edde031132c7cda5b09e7682
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216759
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Fixes #34114
+    
+    Change-Id: Ic1e53437942269a950dd7e45d163707922c92edd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195279
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.14.html | 56 +++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 49 insertions(+), 7 deletions(-)
+ src/cmd/go/internal/load/test.go                    | 11 +++++++----
+ .../testdata/script/cover_pkgall_multiple_mains.txt | 21 ++++++++++++---------
+ 2 files changed, 19 insertions(+), 13 deletions(-)

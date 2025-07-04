@@ -1,24 +1,22 @@
-commit d4aed7e42cd187c3031350489dba814f29f215a5
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Sep 30 12:02:56 2021 -0400
+commit fd9a391cdd08385cead816b41bed381d694859f6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 20 14:46:38 2021 +0700
 
-    debug/gosym: run TestPCLine on Linux/AMD64 in short mode
+    [dev.regabi] cmd/compile: remove CallExpr.Rargs
     
-    Currently TestPCLine is skipped in short mode. The test builds a
-    Linux/AMD64 binary, so it makes sense to skip it if we're cross
-    compiling, as building the runtime takes a while. But if we are
-    on Linux/AMD64, it will only build a small amount of code, which
-    isn't really slow. The test runs in 0.14 second on my machine.
-    I think it is acceptable to run in short mode. Then we'll have
-    trybot coverage for this test.
+    Instead, push the temps assignments to init. This does not pass
+    toolstash, since when before this, the temps were evaluated after
+    function callee, now we evaluate them before.
     
-    Change-Id: If682f88c28050f7daafde35b4f9e59c03b764a35
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353330
-    Trust: Cherry Mui <cherryyz@google.com>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: Icb9cb10e036925b56c1ef3eec468416a11f4932f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284894
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/debug/gosym/pclntab_test.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ir/expr.go     |  1 -
+ src/cmd/compile/internal/ir/node_gen.go |  5 ----
+ src/cmd/compile/internal/ssagen/ssa.go  | 44 ++++-----------------------------
+ src/cmd/compile/internal/walk/expr.go   |  6 ++---
+ 4 files changed, 8 insertions(+), 48 deletions(-)

@@ -1,0 +1,16 @@
+commit f7204d76bc3af681c12e8ed9bfb18c20bf6f8bc1
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri May 19 20:11:19 2023 +0100
+
+    html/template: example for disallowed script type change
+    
+    Fixes #59112
+    
+    Change-Id: I617f8a4581a55a0f134f488462f415ec22eb4ee3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496145
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/html/template/error.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

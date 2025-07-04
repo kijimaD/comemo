@@ -1,21 +1,26 @@
-commit 33e63ebc20e38d20077c1f184f05a4a0656e189a
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Sun Sep 11 05:06:29 2016 -0700
+commit b30fcbc9f59ca4bf1723eb6743b47fa89b3847a3
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Apr 14 13:52:56 2016 -0700
 
-    os: add more examples
+    crypto/ecdsa: reject negative inputs.
     
-    Updates #16360.
+    The fact that crypto/ecdsa.Verify didn't reject negative inputs was a
+    mistake on my part: I had unsigned numbers on the brain. However, it
+    doesn't generally cause problems. (ModInverse results in zero, which
+    results in x being zero, which is rejected.)
     
-    Adds examples for:
-    + Chmod
-    + Chtimes
-    + FileMode
+    The amd64 P-256 code will crash when given a large, negative input.
     
-    Change-Id: I1b61ee0392fa3774593a7f36aaf0fa1e484c778b
-    Reviewed-on: https://go-review.googlesource.com/28963
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    This fixes both crypto/ecdsa to reject these values and also the P-256
+    code to ignore the sign of inputs.
+    
+    Change-Id: I6370ed7ca8125e53225866f55b616a4022b818f8
+    Reviewed-on: https://go-review.googlesource.com/22093
+    Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/example_test.go | 34 ++++++++++++++++++++++++++++++++++
- 1 file changed, 34 insertions(+)
+ src/crypto/ecdsa/ecdsa.go         |  2 +-
+ src/crypto/ecdsa/ecdsa_test.go    | 23 +++++++++++++++++++++++
+ src/crypto/elliptic/p256_amd64.go |  8 ++++++--
+ 3 files changed, 30 insertions(+), 3 deletions(-)

@@ -1,15 +1,14 @@
-commit 1050c4197ad1cf3ffd1beff111f19d75fc274b3d
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Dec 23 00:03:40 2014 -0500
+commit a9695a5d3894bd257f6a6ca7c042b71359a23410
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 23:28:26 2014 -0500
 
-    runtime: add comments for blank import of "unsafe"
+    [dev.cc] runtime/cgo: fix freebsd build?
     
-    Change-Id: Iaad548ea90d3b70341a723450d5e4d4c2b88856f
-    Reviewed-on: https://go-review.googlesource.com/2063
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Last try and then someone with a FreeBSD has to do it.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/171590043
 
- src/runtime/noasm.go            | 2 +-
- src/runtime/os_android_arm.go   | 2 +-
- src/runtime/os_windows.go       | 2 +-
- src/runtime/syscall2_solaris.go | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/cgo/freebsd.go | 3 +++
+ 1 file changed, 3 insertions(+)

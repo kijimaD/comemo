@@ -1,12 +1,17 @@
-commit 7e1ec1e9ccaaf52888799a10e1dfed2805ff4650
-Author: catatsuy <m.ddotx.f@gmail.com>
-Date:   Thu Dec 20 12:36:27 2018 +0900
+commit 4a4e3b0bc7e74aa45ac29bf1446e9af69ec13dcd
+Author: Keith Randall <khr@google.com>
+Date:   Mon Aug 6 10:42:28 2018 -0700
 
-    net/http: fix the old url about deflate
+    cmd/compile: remove vet-blocking hack
     
-    Change-Id: Iaa1468296fbc98389165a152cf8b591216c22489
-    Reviewed-on: https://go-review.googlesource.com/c/155217
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    ...and add the vet failures to the vet whitelist.
+    
+    Change-Id: Idcf4289f39dda561c85f3b0afe396e5299e6495f
+    Reviewed-on: https://go-review.googlesource.com/127995
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/transport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/testdata/novet.go |  9 ---------
+ src/cmd/vet/all/whitelist/all.txt             | 19 +++++++++++++++++++
+ 2 files changed, 19 insertions(+), 9 deletions(-)

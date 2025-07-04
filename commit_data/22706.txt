@@ -1,32 +1,26 @@
-commit d86b8d34d069c3895721ba47cac664f8bbf2b8ad
-Author: David Leon Gil <coruus@gmail.com>
-Date:   Tue Jan 6 21:07:24 2015 -0800
+commit a51d5f27e8a6fd97b27fb864cd284589c850836e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 16:34:48 2015 -0700
 
-    crypto/elliptic: don't unmarshal points that are off the curve
+    cmd/internal/gc: use 512 bits (rather than 464) for multi-precision arithmetic
     
-    At present, Unmarshal does not check that the point it unmarshals
-    is actually *on* the curve. (It may be on the curve's twist.)
+    The original implementation used 16 int "words" but only 29 bits per word
+    for a total of 16*29 = 464 bits, with a space consumption of 16*64 = 1024
+    bits on a 64 bit machine. Switching to 512 bits increases precision while
+    still using (in the worst case) half the amount of memory per mp value on
+    a 64 bit machine.
     
-    This can, as Daniel Bernstein has pointed out at great length,
-    lead to quite devastating attacks. And 3 out of the 4 curves
-    supported by crypto/elliptic have twists with cofactor != 1;
-    P-224, in particular, has a sufficiently large cofactor that it
-    is likely that conventional dlog attacks might be useful.
+    Also: Decreased permitted number of least-significant mantissa bits which
+    may be incorrect when considering if a precise floating-point constant is
+    an integer from 29 to 16 bits.
     
-    This closes #2445, filed by Watson Ladd.
-    
-    To explain why this was (partially) rejected before being accepted:
-    
-    In the general case, for curves with cofactor != 1, verifying subgroup
-    membership is required. (This is expensive and hard-to-implement.)
-    But, as recent discussion during the CFRG standardization process
-    has brought out, small-subgroup attacks are much less damaging than
-    a twist attack.
-    
-    Change-Id: I284042eb9954ff9b7cde80b8b693b1d468c7e1e8
-    Reviewed-on: https://go-review.googlesource.com/2421
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: Iee9287056f0e9aa4f06ceac0724ff4674f710c53
+    Reviewed-on: https://go-review.googlesource.com/8429
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/elliptic/elliptic.go      |  6 +++++-
- src/crypto/elliptic/elliptic_test.go | 13 +++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ src/cmd/internal/gc/go.go       |  9 +++++----
+ src/cmd/internal/gc/mparith2.go |  5 +----
+ src/cmd/internal/gc/mparith3.go | 20 ++++++++++----------
+ test/fixedbugs/issue6889.go     | 10 +++++++++-
+ test/fixedbugs/issue7740.go     |  2 +-
+ 5 files changed, 26 insertions(+), 20 deletions(-)

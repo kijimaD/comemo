@@ -1,22 +1,16 @@
-commit 137817378548b263f0322d8240a0c503b456f696
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed May 20 17:35:43 2015 -0700
+commit ada8cdb9f68f2e3441af1c514f8fbe28a2e07387
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Apr 23 16:28:15 2015 -0400
 
-    cmd/internal/obj: remove F3t field from Prog
+    runtime: Fix bug due to elided return.
     
-    F3t was effectively a local variable.
-    Remove it.
+    A previous change to mbitmap.go dropped a return on a
+    path the seems not to be excersized. This was a mistake that
+    this CL fixes.
     
-    This shrinks obj.Prog from 456 to 448 bytes,
-    which places it in a smaller malloc class.
-    
-    This reduces the memory usage of the compiler
-    while compiling the rotate tests by ~2.75%.
-    
-    Change-Id: I31cc9dd67269851a430b56bcc7d255c9349eb522
-    Reviewed-on: https://go-review.googlesource.com/10255
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I715ee4ef08f5bf8d9f53cee84e8fb31a237e2d43
+    Reviewed-on: https://go-review.googlesource.com/9295
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/internal/obj/link.go     | 1 -
- src/cmd/internal/obj/x86/asm6.go | 5 +----
- 2 files changed, 1 insertion(+), 5 deletions(-)
+ src/runtime/mbitmap.go | 1 +
+ 1 file changed, 1 insertion(+)

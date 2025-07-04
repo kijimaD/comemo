@@ -1,12 +1,18 @@
-commit 4c182045ff6af5657d5ef0f43ba1fd11a4d06be5
-Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
-Date:   Tue Oct 18 23:51:19 2016 +0200
+commit dc2a0d59a2b9b5dd87065e6227ca112839cd389b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 21:47:58 2016 -0700
 
-    cmd/objdump: skip tests for GOARCH=mips{,le}
+    cmd/compile: introduce printer for internal formatting; use in jconv
     
-    Change-Id: I8111ceb6960364166aa8a445f4d6d8b0581d371e
-    Reviewed-on: https://go-review.googlesource.com/31513
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Starting point for uniform use of printer in fmt.go.
+    It provides a hook to store additional state (and
+    remove global variables) and should also be more
+    efficient and cleaner than the mix of string concatenation
+    and bytes.Buffer use we have now.
+    
+    Change-Id: I72de14b01850cca32d407a1cb16c894179ea8848
+    Reviewed-on: https://go-review.googlesource.com/27916
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/objdump/objdump_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/fmt.go | 87 +++++++++++++++++++++++++-------------
+ 1 file changed, 58 insertions(+), 29 deletions(-)

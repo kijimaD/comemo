@@ -1,19 +1,14 @@
-commit 9c08d6508442a7491aeb615c52d69d38b1c477c6
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 21 22:04:30 2012 -0500
+commit 7b22e4628296518691a8ce6e4e4065ff4aeb69d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 21 18:12:37 2012 -0800
 
-    spec: make all comparison results untyped bool
+    godoc: fix absolute->relative mapping
     
-    Or, depending on your point of view, make the
-    comparisons satisfy any surrounding boolean type.
+    Fixes #3096.
     
-    Also, fix a few foo_bar -> fooBar in code fragments.
-    
-    Fixes #2561.
-    
-    R=golang-dev, r, bradfitz, gri, iant, kevlar
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5671096
+    https://golang.org/cl/5690063
 
- doc/go_spec.html | 57 ++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 37 insertions(+), 20 deletions(-)
+ src/cmd/godoc/mapping.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

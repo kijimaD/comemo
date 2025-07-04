@@ -1,12 +1,12 @@
-commit b40000423b7987bba17c5c3a5780908d788995a4
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Feb 20 13:57:14 2012 +0400
+commit 2557466ff9459bb3ddc5a7b1dab9060359778ff7
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Mon Feb 20 01:00:00 2012 -0600
 
-    cmd/6c: add line feed after an error message
+    misc/dist/windows: app engine gopher replaced with standard bw version
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5685051
+    https://golang.org/cl/5688048
 
- src/cmd/cc/lex.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/dist/windows/images/Banner.jpg | Bin 11219 -> 6643 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

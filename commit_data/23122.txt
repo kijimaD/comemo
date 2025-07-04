@@ -1,24 +1,24 @@
-commit db0594b633525e5b88e1b508019edaeb1b44ed2f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu May 21 18:13:44 2015 -0700
+commit cba882ea9ba9ccfc718d995a0d787280c4009668
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Apr 12 16:41:31 2015 -0700
 
-    cmd/compile/internal/big: update to latest version (run sh vendor.bash)
+    crypto/tls: call GetCertificate if Certificates is empty.
     
-    No manual code changes.
+    This change causes the GetCertificate callback to be called if
+    Certificates is empty. Previously this configuration would result in an
+    error.
     
-    This will permit addressing the compiler aspect of issue #10321 in a
-    subsequent change.
+    This allows people to have servers that depend entirely on dynamic
+    certificate selection, even when the client doesn't send SNI.
     
-    Change-Id: I3376dc38cafa0ec98bf54de33293015d0183cc82
-    Reviewed-on: https://go-review.googlesource.com/10354
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #9208.
+    
+    Change-Id: I2f5a5551215958b88b154c64a114590300dfc461
+    Reviewed-on: https://go-review.googlesource.com/8792
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/big/arith.go      |   1 -
- src/cmd/compile/internal/big/arith_test.go |   1 +
- src/cmd/compile/internal/big/float.go      | 155 +++++++++++++-----------
- src/cmd/compile/internal/big/float_test.go | 183 ++++++++++++++++++-----------
- src/cmd/compile/internal/big/int.go        | 118 +++++++++++++++++++
- src/cmd/compile/internal/big/int_test.go   | 138 ++++++++++++++++++++++
- src/cmd/compile/internal/big/nat.go        | 121 ++++++++++++++++++-
- src/cmd/compile/internal/big/nat_test.go   |  61 ++++++++++
- 8 files changed, 635 insertions(+), 143 deletions(-)
+ src/crypto/tls/common.go                | 18 +++++++++++++-----
+ src/crypto/tls/handshake_server.go      | 22 +++++++---------------
+ src/crypto/tls/handshake_server_test.go | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 20 deletions(-)

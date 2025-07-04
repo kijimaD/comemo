@@ -1,21 +1,20 @@
-commit ab0c9510a988027f305d213213ed2eaaabbffe77
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Mar 4 18:28:51 2019 -0800
+commit e19f5754640b0dd6a315edffcaef23c3cf2cefe6
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Wed Oct 10 23:32:36 2018 +0300
 
-    syscall: on ARM GNU/Linux let Pipe fall back to pipe
+    syscall: correctly pad with NUL in FreeBSD convertFromDirents11
     
-    Android O seems to require Pipe to call the pipe2 system call.
-    But kernel version 2.6.23 only supports pipe, not pipe2.
-    So try pipe2 first, then fall back to pipe.
+    We weren't writing a terminating NUL after dstDirent.Namlen bytes of dstDirent.Name.
+    And we weren't filling the possible additional bytes until dstDirent.Reclen.
     
-    Fixes #30549
+    Fixes #28131
     
-    Change-Id: I3c5d86e8e945a5ec8a0ecea7853302952c0476c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165217
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id691c25225795c0dbb0d7004bfca7bb7fc706de9
+    Reviewed-on: https://go-review.googlesource.com/c/141297
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall_linux_arm.go  |  6 ++++++
- src/syscall/zsyscall_linux_arm.go | 10 ++++++++++
- 2 files changed, 16 insertions(+)
+ src/syscall/dirent_bsd_test.go | 76 ++++++++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_freebsd.go | 38 ++++++++++-----------
+ 2 files changed, 94 insertions(+), 20 deletions(-)

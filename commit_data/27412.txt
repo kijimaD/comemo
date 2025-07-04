@@ -1,13 +1,23 @@
-commit 99ef42fe7b310749d83f9b76d814e78fe8139b42
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 16 15:45:18 2016 -0700
+commit 8cb74e1d1812caee1705eef94272c959911ee9b3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Mar 25 11:03:47 2016 -0400
 
-    A+C: add Andrew Werner (corporate CLA for Upthere, Inc)
+    reflect: name interface type that pins method info
     
-    Change-Id: I7627e480d5d2366cba223fd81635c4115649f752
-    Reviewed-on: https://go-review.googlesource.com/23154
+    I recently added TestUnexportedMethods which uses an interface type
+    to pin type information for an unexported method. But as written,
+    the interface type is not accessible to the reflect package.
+    
+    You can imagine a future compiler optimization realizing that and
+    removing the type information for f. In fact, cl/20901 happens to
+    do that.
+    
+    Change-Id: I1ddb67f50cb9b5737253b58f10545f3de652c29d
+    Reviewed-on: https://go-review.googlesource.com/21112
+    Reviewed-by: Michel Lespinasse <walken@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/reflect/all_test.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

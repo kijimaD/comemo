@@ -1,22 +1,19 @@
-commit 385d936fb287cfe3a491ced2d77d52d71b7705a8
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Tue Mar 13 00:21:57 2018 +0100
+commit a4c009f5ae65393f28129d6e40dd74a47c056360
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 6 18:51:12 2017 -0800
 
-    cmd/compile: in prove, fail fast when unsat is found
+    cmd/compile: don't put Noalg types in typelinks
     
-    When an unsatisfiable relation is recorded in the facts table,
-    there is no need to compute further relations or updates
-    additional data structures.
+    They could get picked up by reflect code, yielding the wrong type.
     
-    Since we're about to transitively propagate relations, make
-    sure to fail as fast as possible to avoid doing useless work
-    in dead branches.
+    Fixes #22605
     
-    Passes toolstash -cmp.
-    
-    Change-Id: I23eed376d62776824c33088163c7ac9620abce85
-    Reviewed-on: https://go-review.googlesource.com/100275
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: Ie11fb361ca7f3255e662037b3407565c8f0a2c4c
+    Reviewed-on: https://go-review.googlesource.com/76315
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ssa/prove.go | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 13 ++++++++++++-
+ test/fixedbugs/issue22605.go           | 26 ++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

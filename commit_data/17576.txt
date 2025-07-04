@@ -1,16 +1,18 @@
-commit caa462137a41f68bbb6d604ab6fa14c3d89fca5b
-Author: Rob Pike <r@golang.org>
-Date:   Thu Sep 12 13:22:56 2013 +1000
+commit 81737a9a512cc0a52857d7c9d8137faa6ba7e5c1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 12 11:10:25 2013 +0900
 
-    text/template: catch unmatched right delimiter
-    It was simply a missing error case: when scanning plain text
-    outside of an action, a right delimiter should be an error.
+    net: make TestDialFailPDLeak shorter
     
-    R=golang-dev, dsymonds
+    Reduces a number of trials but it still can detect memory leak
+    when we make blunders in runtime-integarted network poller work,
+    like just forgetting to call runtime_pollClose in code paths.
+    
+    Also disables the test on windows/386.
+    
+    R=alex.brainman, r
     CC=golang-dev
-    https://golang.org/cl/13468045
+    https://golang.org/cl/13022046
 
- src/pkg/text/template/parse/lex.go        | 4 ++++
- src/pkg/text/template/parse/lex_test.go   | 3 +++
- src/pkg/text/template/parse/parse_test.go | 2 +-
- 3 files changed, 8 insertions(+), 1 deletion(-)
+ src/pkg/net/dial_test.go | 27 ++++++++++++++++++++-------
+ 1 file changed, 20 insertions(+), 7 deletions(-)

@@ -1,27 +1,53 @@
-commit b89a1948893d2c6c04497030eb78addd6fd7daf3
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 5 17:22:17 2022 -0400
+commit a627fcd3c4fdacdc9bbcccdb926e4804ca6d6815
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 14 11:46:26 2021 -0400
 
-    cmd/internal/obj: add a flag to not write referenced symbol names in object file
+    [dev.cmdgo] cmd/go: replace Target with MainModules, allowing for multiple targets
     
-    The Go object file references (some of) symbols from other
-    packages by indices, not by names. The linker doesn't need the
-    symbol names to do the linking. The names are included in the
-    object file so it is self-contained and tools (objdump, nm) can
-    read the referenced symbol names. Including the names increases
-    object file size. Add a flag to disable it on demand (off by
-    default).
+    This change replaces the Target variable that represents the main module
+    and the pathPrefix and inGorootSrc which provide other information about
+    the main module with a single MainModules value that represents multiple
+    main modules and holds their path prefixes, module roots, and whether
+    they are in GOROOT/src. In cases where the code checks Target or its
+    previously associated variables, the code now checks or iterates over
+    MainModules. In some cases, the code still assumes a single main module
+    by calling MainModules.MustGetSingleMainModule. Some of those cases are
+    correct: for instance, there is always only one main module for
+    mod=vendor. Other cases are accompanied with TODOs and will have to be
+    fixed in future CLs to properly support multiple main modules.
     
-    Change-Id: I143a0eb656997497c750b8eb1541341b2aee8f30
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404297
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This CL (and other cls on top of it) are planned to be checked into a
+    branch to allow for those evaluating the workspaces proposal to try it
+    hands on.
+    
+    For #45713
+    
+    Change-Id: I3b699e1d5cad8c76d62dc567b8460de8c73a87ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334932
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/base/debug.go |  1 +
- src/cmd/compile/internal/base/flag.go  |  1 +
- src/cmd/internal/goobj/objfile.go      |  1 +
- src/cmd/internal/obj/link.go           |  1 +
- src/cmd/internal/obj/objfile.go        | 17 ++++++++++++-----
- src/cmd/internal/obj/objfile_test.go   | 22 ++++++++++++++++++++++
- 6 files changed, 38 insertions(+), 5 deletions(-)
+ src/cmd/go/internal/get/get.go           |   6 +-
+ src/cmd/go/internal/load/pkg.go          |   7 +-
+ src/cmd/go/internal/modcmd/download.go   |  14 +-
+ src/cmd/go/internal/modcmd/vendor.go     |   2 +-
+ src/cmd/go/internal/modget/get.go        |  50 +++---
+ src/cmd/go/internal/modget/query.go      |   6 +-
+ src/cmd/go/internal/modload/build.go     |  19 +-
+ src/cmd/go/internal/modload/buildlist.go |  77 ++++++---
+ src/cmd/go/internal/modload/edit.go      |  20 ++-
+ src/cmd/go/internal/modload/import.go    |  24 +--
+ src/cmd/go/internal/modload/init.go      | 286 ++++++++++++++++++++++---------
+ src/cmd/go/internal/modload/list.go      |   6 +-
+ src/cmd/go/internal/modload/load.go      | 148 ++++++++++------
+ src/cmd/go/internal/modload/modfile.go   |  12 +-
+ src/cmd/go/internal/modload/mvs.go       |   4 +-
+ src/cmd/go/internal/modload/query.go     | 111 +++++++-----
+ src/cmd/go/internal/modload/search.go    |  15 +-
+ src/cmd/go/internal/modload/vendor.go    |   1 +
+ src/cmd/go/internal/mvs/mvs.go           |  34 ++--
+ src/cmd/go/internal/mvs/mvs_test.go      |   2 +-
+ src/cmd/go/internal/search/search.go     |  33 ++--
+ 21 files changed, 563 insertions(+), 314 deletions(-)

@@ -1,24 +1,26 @@
-commit ff7994ac1030525be5229a9f665d01ed50cd945e
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Apr 19 20:38:10 2017 +0100
+commit a855da29dbd7a80c4d87a421c1f88a8603c020fa
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jan 5 17:37:54 2017 +1100
 
-    all: remove redundant returns
+    image: fix the overlap check in Rectangle.Intersect.
     
-    Returns at the end of func bodies where the funcs have no return values
-    are pointless.
+    The doc comment for Rectangle.Intersect clearly states, "If the two
+    rectangles do not overlap then the zero rectangle will be returned."
+    Prior to this fix, calling Intersect on adjacent but non-overlapping
+    rectangles would return an empty but non-zero rectangle.
     
-    Change-Id: I0da5ea78671503e41a9f56dd770df8c919310ce5
-    Reviewed-on: https://go-review.googlesource.com/41093
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The fix essentially changes
+    if r.Min.X > r.Max.X || r.Min.Y > r.Max.Y { etc }
+    to
+    if r.Min.X >= r.Max.X || r.Min.Y >= r.Max.Y { etc }
+    (note that the > signs have become >= signs), but changing that line to:
+    if r.Empty() { etc }
+    seems clearer (and equivalent).
+    
+    Change-Id: Ia654e4b9dc805978db3e94d7a9718b6366005360
+    Reviewed-on: https://go-review.googlesource.com/34853
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/bufio/scan_test.go           | 1 -
- src/encoding/gob/codec_test.go   | 1 -
- src/encoding/gob/error.go        | 1 -
- src/go/printer/nodes.go          | 4 ----
- src/net/http/pprof/pprof.go      | 1 -
- src/runtime/mgclarge.go          | 1 -
- src/runtime/runtime_test.go      | 1 -
- src/text/template/parse/parse.go | 1 -
- 8 files changed, 11 deletions(-)
+ src/image/geom.go      | 6 +++++-
+ src/image/geom_test.go | 7 ++++---
+ 2 files changed, 9 insertions(+), 4 deletions(-)

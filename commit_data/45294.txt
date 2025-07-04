@@ -1,20 +1,20 @@
-commit 1a5665533be3641511b72dac5b91f1c7500e40b5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 25 23:26:56 2021 -0400
+commit 6398b4725caa3867e5f02f344c82a0da53cb750a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 16 17:37:52 2020 -0400
 
-    cmd/go/internal/modload: migrate editBuildList to use a structured requirement graph
+    cmd/link: put C static symbols in the symbol table
     
-    For #36460
+    We don't put Go static symbols in the symbol table, as they are
+    always compiler-generated (there is no way to define a static
+    symbol in user code in Go). We retain static symbols in assembly
+    code, as it may be user-defined. Also retain static symbols in C.
     
-    Change-Id: Ic87d7e25402bb938d2872d33d26c4bf397776d1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308517
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie0425bb4df33f183857b1fd5ba4b2bdfdc497571
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263259
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/modload/buildlist.go         |  66 ----
- src/cmd/go/internal/modload/edit.go              | 446 ++++++++++++++++++-----
- src/cmd/go/testdata/script/mod_load_badchain.txt |   3 +-
- 3 files changed, 356 insertions(+), 159 deletions(-)
+ src/cmd/link/internal/ld/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

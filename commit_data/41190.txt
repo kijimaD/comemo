@@ -1,12 +1,24 @@
-commit 07957b794c7b99034f41976bbab560ff4615bbc4
-Author: Jean de Klerk <deklerk@google.com>
-Date:   Wed Jan 29 16:09:33 2020 -0700
+commit 0b739fd4df6be871edcc17dd7832142a50a6f80e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 10 20:06:51 2019 -0700
 
-    doc/go1.14: edit "Go command" section, adding note about go test -v streaming
+    cmd/compile: move duplicate type-case checking into typecheck
     
-    Change-Id: Ie88fe441521d60a4ba54ebb418860d0f71073387
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216917
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Part of the general trend of moving yyerror calls out of walk and into
+    typecheck.
+    
+    Notably, this requires splitting test/typeswitch2.go into two files,
+    because now some of the errors are reported during typecheck and
+    others are still reported during walk; and if there were any errors
+    during typecheck, then cmd/compile exits without invoking walk.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I05ee0c00b99af659ee1eef098d342d0d736cf31e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194659
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.14.html | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/compile/internal/gc/swt.go | 66 ++++++++++++++++++++------------------
+ test/typeswitch2.go                | 10 ------
+ test/typeswitch2b.go               | 20 ++++++++++++
+ 3 files changed, 54 insertions(+), 42 deletions(-)

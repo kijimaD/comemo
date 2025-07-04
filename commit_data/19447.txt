@@ -1,21 +1,15 @@
-commit 74ce581b06fc4f0de1c862604830ce312283a7db
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 27 21:38:19 2014 -0400
+commit bd401baef2349e41d99280557bd5d709be78c894
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 27 16:01:43 2014 -0700
 
-    cmd/gc: fix conversion of runtime constant
+    test: add test for fixed issue 7863
     
-    The code cannot have worked before, because it was
-    trying to use the old value in a range check for the new
-    type, which might have a different representation
-    (hence the 'internal compiler error').
+    Fixes #7863
     
-    Fixes #8073.
-    
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=rsc
+    R=rsc, ruiu
     CC=golang-codereviews
-    https://golang.org/cl/98630045
+    https://golang.org/cl/98610045
 
- src/cmd/gc/const.c          |  1 +
- test/fixedbugs/issue8073.go | 15 +++++++++++++++
- 2 files changed, 16 insertions(+)
+ test/fixedbugs/issue7863.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

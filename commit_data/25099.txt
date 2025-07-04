@@ -1,32 +1,28 @@
-commit 7823197e5d6a024a4fe2f4f9ca414cb5244eb10f
+commit d1b1487a64be2e3bcd882d03f909c4617403c43d
 Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Oct 1 01:35:15 2015 -0700
+Date:   Thu Sep 17 16:07:38 2015 -0700
 
-    archive/tar: fix issues with readGNUSparseMap1x0
+    archive/tar: remove dead code with USTAR path splitting
     
-    Motivations:
-    * Use of strconv.ParseInt does not properly treat integers as 64bit,
-    preventing this function from working properly on 32bit machines.
-    * Use of io.ReadFull does not properly detect truncated streams
-    when the file suddenly ends on a block boundary.
-    * The function blindly trusts user input for numEntries and allocates
-    memory accordingly.
-    * The function does not validate that numEntries is not negative,
-    allowing a malicious sparse file to cause a panic during make.
+    Convert splitUSTARPath to return a bool rather than an error since
+    the caller never ever uses the error other than to check if it is
+    nil. Thus, we can remove errNameTooLong as well.
     
-    In general, this function was overly complicated for what it was
-    accomplishing and it was hard to reason that it was free from
-    bounds errors. Instead, it has been rewritten and relies on
-    bytes.Buffer.ReadString to do the main work. So long as invariants
-    about the number of '\n' in the buffer are maintained, it is much
-    easier to see why this approach is correct.
+    Also, fold the checking of the length <= fileNameSize and whether
+    the string is ASCII into the split function itself.
     
-    Change-Id: Ibb12c4126c26e0ea460ea063cd17af68e3cf609e
-    Reviewed-on: https://go-review.googlesource.com/15174
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Lastly, remove logic to set the MAGIC since that's already done on
+    L200. Thus, setting the magic is redundant.
+    
+    There is no overall logic change.
+    
+    Updates #12638
+    
+    Change-Id: I26b6992578199abad723c2a2af7f4fc078af9c17
+    Reviewed-on: https://go-review.googlesource.com/14723
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Run-TryBot: David Symonds <dsymonds@golang.org>
 
- src/archive/tar/reader.go      | 110 +++++++++++++++++++----------------------
- src/archive/tar/reader_test.go |  99 +++++++++++++++++++++++++++----------
- 2 files changed, 124 insertions(+), 85 deletions(-)
+ src/archive/tar/writer.go      | 54 +++++++++++++++---------------------------
+ src/archive/tar/writer_test.go | 34 ++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 35 deletions(-)

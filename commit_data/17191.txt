@@ -1,15 +1,15 @@
-commit 0a3cb7ece36e4d41cd6bca558c7bff7925240435
-Author: Alex A Skinner <alex@lx.lc>
-Date:   Tue Aug 13 09:44:12 2013 -0700
+commit 469250fb772f4352f265c1d97a19f85b12024a05
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 13 12:35:37 2013 -0400
 
-    net: implement DNS TCP fallback query if UDP response is truncated
+    runtime/pprof: test netbsd and openbsd again
     
-    Fixes #5686.
+    Maybe these will work now.
     
-    R=golang-dev, bradfitz, mikioh.mikioh
+    R=golang-dev, dvyukov, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12458043
+    https://golang.org/cl/12787044
 
- src/pkg/net/dnsclient_unix.go      | 42 ++++++++++++++++++++++++++++++++++----
- src/pkg/net/dnsclient_unix_test.go | 29 ++++++++++++++++++++++++++
- 2 files changed, 67 insertions(+), 4 deletions(-)
+ src/pkg/runtime/pprof/pprof.go      | 2 +-
+ src/pkg/runtime/pprof/pprof_test.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

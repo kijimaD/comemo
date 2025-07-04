@@ -1,16 +1,26 @@
-commit 39ab8db914712dfc4898290f40b41dc8ea2c55a9
-Author: Sean Chen <40845434+two@users.noreply.github.com>
-Date:   Tue Sep 24 03:16:52 2019 +0000
+commit f18c31a49c1105be0341b32392a433cf65f227da
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Apr 8 17:57:53 2019 +0200
 
-    runtime: update runtime2.go itab comments about sync struct
+    runtime,runtime/cgo: set up TLS storage for Android Q without cgo
     
-    `cmd/compile/internal/gc/reflect.go:/^func.dumptypestructs` was modified many times, now is  `cmd/compile/internal/gc/reflect.go:/^func.dumptabs`
+    Android Q frees a static TLS slot for us to use. Use the offset of
+    that slot as the default for our TLS offset.
     
-    Change-Id: Ie949a5bee7878c998591468a04f67a8a70c61da7
-    GitHub-Last-Rev: 9ecc26985ef18c8e870649b46419db0a9c72054f
-    GitHub-Pull-Request: golang/go#34489
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197037
-    Reviewed-by: Keith Randall <khr@golang.org>
+    As a result, runtime/cgo is no more a requirement for Android Q and
+    newer.
+    
+    Updates #31343
+    Updates #29674
+    
+    Change-Id: I759049b2e2865bd3d4fdc05a8cfc6db8b0da1f5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170955
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/runtime2.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/asm_386.s         | 3 +++
+ src/runtime/asm_amd64.s       | 3 +++
+ src/runtime/cgo/gcc_android.c | 8 ++++++--
+ src/runtime/tls_arm.s         | 5 +++++
+ src/runtime/tls_arm64.s       | 5 +++++
+ 5 files changed, 22 insertions(+), 2 deletions(-)

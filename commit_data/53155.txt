@@ -1,17 +1,18 @@
-commit 1524bd1c781463be642a7c0c6012cbdf4e91fff2
-Author: David Chase <drchase@google.com>
-Date:   Fri May 19 14:55:56 2023 -0400
+commit c4a6d3048bb89f372662083695f957f22973e4a6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jul 21 15:11:13 2022 -0400
 
-    cmd/compile: tweaks to loopvar logging
+    cmd/dist: enable race detector test on S390X
     
-    This adds the loop type to the json/LSP logging, to help with
-    studies of how many loops of which kind were modified.
+    The support was added but the test was not enabled. Enable it.
     
-    Change-Id: I637a630cd275b413259601c0070b963f3c6d2185
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496515
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #53981.
+    
+    Change-Id: I81ea73ea4ebc1013c35cb70ae88b096e02497887
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418914
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/loopvar/loopvar.go | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

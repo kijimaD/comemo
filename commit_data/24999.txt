@@ -1,17 +1,30 @@
-commit cb859021d123b506541126ea0ddaed60e0f7ee32
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 20 14:02:33 2015 -0500
+commit 731bdc51157fd7f685fb73c298e97922318ac453
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 1 12:53:15 2015 -0700
 
-    runtime: fix new stack barrier check
+    runtime: fix aeshash of empty string
     
-    During a crash showing goroutine stacks of all threads
-    (with GOTRACEBACK=crash), it can be that f == nil.
+    Aeshash currently computes the hash of the empty string as
+    hash("", seed) = seed.  This is bad because the hash of a compound
+    object with empty strings in it doesn't include information about
+    where those empty strings were.  For instance [2]string{"", "foo"}
+    and [2]string{"foo", ""} might get the same hash.
     
-    Only happens on Solaris; not sure why.
+    Fix this by returning a scrambled seed instead of the seed itself.
+    With this fix, we can remove the scrambling done by the generated
+    array hash routines.
     
-    Change-Id: Iee2c394a0cf19fa0a24f6befbc70776b9e42d25a
-    Reviewed-on: https://go-review.googlesource.com/17110
-    Reviewed-by: Austin Clements <austin@google.com>
+    The test also rejects hash("", seed) = 0, if we ever thought
+    it would be a good idea to try that.
+    
+    The fallback hash is already OK in this regard.
+    
+    Change-Id: Iaedbaa5be8d6a246dc7e9383d795000e0f562037
+    Reviewed-on: https://go-review.googlesource.com/14129
+    Reviewed-by: jcd . <jcd@golang.org>
 
- src/runtime/traceback.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/subr.go | 15 ------
+ src/runtime/asm_386.s               |  7 +--
+ src/runtime/asm_amd64.s             |  7 +--
+ src/runtime/hash_test.go            | 97 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 105 insertions(+), 21 deletions(-)

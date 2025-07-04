@@ -1,22 +1,34 @@
-commit 9ec0a46a15d98db9241bca7606bb0a90a3c77b01
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Thu Sep 24 18:54:58 2020 +0200
+commit 8b4cbcc32098733832db0ba0cd8a8569315861c2
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 6 13:43:17 2020 -0400
 
-    cmd/compile: enforce strongly typed rules for ARM (read)
+    all: remove darwin/386 build-tags and files
     
-    Add type casting to offset.
-    L246-L247
-    L1473-L1475
+    This removes all files that are only used on darwin/386 and cleans up
+    build tags in files that are still used on other platforms.
     
-    toolstash-check successful.
+    Updates #37610.
     
-    Change-Id: I816c7556609ca6dd67bff8007c2d006cab89ee2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/257639
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: If246642476c12d15f59a474e2b91a29c0c02fe75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227581
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM.rules | 10 ++++-----
- src/cmd/compile/internal/ssa/rewriteARM.go | 36 +++++++++++++++---------------
- 2 files changed, 23 insertions(+), 23 deletions(-)
+ src/runtime/cgo/gcc_darwin_386.c   |   66 --
+ src/runtime/defs_darwin_386.go     |  367 -------
+ src/runtime/rt0_darwin_386.s       |   17 -
+ src/runtime/signal_386.go          |    2 +-
+ src/runtime/signal_darwin_386.go   |   64 --
+ src/runtime/sys_darwin_32.go       |   21 -
+ src/runtime/sys_darwin_386.s       |  951 ----------------
+ src/syscall/asm_darwin_386.s       |  140 ---
+ src/syscall/syscall_darwin_386.go  |   65 --
+ src/syscall/zerrors_darwin_386.go  | 1423 ------------------------
+ src/syscall/zsyscall_darwin_386.go | 2083 ------------------------------------
+ src/syscall/zsyscall_darwin_386.s  |  253 -----
+ src/syscall/zsysnum_darwin_386.go  |  362 -------
+ src/syscall/ztypes_darwin_386.go   |  452 --------
+ src/time/zoneinfo_unix.go          |    2 +-
+ 15 files changed, 2 insertions(+), 6266 deletions(-)

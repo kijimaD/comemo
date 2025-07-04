@@ -1,12 +1,34 @@
-commit 788eb99b76d0817d238c3ad0952eb1fe6349f735
-Author: Austin Clements <austin@google.com>
-Date:   Fri Oct 2 15:25:01 2015 -0400
+commit 0c22a74e8594ee88c54a7716e710e788bd960bd2
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Jul 28 20:50:00 2015 +0200
 
-    doc: update release tag in source directions to go1.5.1
+    runtime: fix out-of-bounds in stack debugging
     
-    Change-Id: I8da1c7a86adf6672e5e5c44cbab422706833c1da
-    Reviewed-on: https://go-review.googlesource.com/15350
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Currently stackDebug=4 crashes as:
+    
+    panic: runtime error: index out of range
+    fatal error: panic on system stack
+    runtime stack:
+    runtime.throw(0x607470, 0x15)
+            src/runtime/panic.go:527 +0x96
+    runtime.gopanic(0x5ada00, 0xc82000a1d0)
+            src/runtime/panic.go:354 +0xb9
+    runtime.panicindex()
+            src/runtime/panic.go:12 +0x49
+    runtime.adjustpointers(0xc820065ac8, 0x7ffe58b56100, 0x7ffe58b56318, 0x0)
+            src/runtime/stack1.go:428 +0x5fb
+    runtime.adjustframe(0x7ffe58b56200, 0x7ffe58b56318, 0x1)
+            src/runtime/stack1.go:542 +0x780
+    runtime.gentraceback(0x487760, 0xc820065ac0, 0x0, 0xc820001080, 0x0, 0x0, 0x7fffffff, 0x6341b8, 0x7ffe58b56318, 0x0, ...)
+            src/runtime/traceback.go:336 +0xa7e
+    runtime.copystack(0xc820001080, 0x1000)
+            src/runtime/stack1.go:616 +0x3b1
+    runtime.newstack()
+            src/runtime/stack1.go:801 +0xdde
+    
+    Change-Id: If2d60960231480a9dbe545d87385fe650d6db808
+    Reviewed-on: https://go-review.googlesource.com/12763
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/install-source.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/stack1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

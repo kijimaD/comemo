@@ -1,42 +1,26 @@
-commit ea434450c26431332c4cc376996e2b917fd09873
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Sep 3 21:35:59 2021 +0000
+commit a4f335f42033bc1ef9b948a9bff6f14aa6eb1aa8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Dec 26 17:51:16 2020 -0800
 
-    reflect: add hooks for dealing with narrow width floats
+    [dev.regabi] cmd/compile: always use a Field for ODOTPTR expressions
     
-    Currently on amd64 and arm64, float32 values just live in the bottom 32
-    bits of the register, so reflect simply places them there in a RegArgs
-    for reflectcall to load them. This works fine because both of these
-    platforms don't care what the upper 32 bits are, and have instructions
-    to operate on float32 values specifically that we use. In sum, the
-    representation of the float32 in memory is identical to that of the
-    representation in a register.
+    During walk, we create ODOTPTR expressions to access runtime struct
+    fields. But rather than using an actual Field for the selection, we
+    were just directly setting the ODOTPTR's Offset field.
     
-    On other platforms, however, the representation of FP values differ
-    depending on whether they're in memory or in a register. For instance,
-    on ppc64, all floating point values get promoted to a float64 when
-    loaded to a register (i.e. there's only one set of FP instructions). As
-    another example, on riscv64, narrow-width floats in registers need to be
-    NaN-boxed.
+    This CL changes walk to create proper struct fields (albeit without
+    the rest of their enclosing struct type) and use them for creating the
+    ODOTPTR expressions.
     
-    What all this means is that for supporting the register ABI on these
-    platforms, reflect needs to do a little extra work to ensure that the
-    representation of FP values in a RegArgs matches the representation it
-    takes on in a register. For this purpose, this change abstracts away the
-    action of storing values into a RegArgs a little bit and adds a
-    platform-specific hook which currently does nothing but copy the value.
+    Passes toolstash -cmp.
     
-    For #40724.
-    
-    Change-Id: I65dcc7d86d5602a584f86026ac204564617f4c5a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347566
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I08dbac3ed29141587feb0905d15adbcbcc4ca49e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280432
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/internal/abi/abi.go           | 28 ++++++++------------------
- src/reflect/abi.go                | 42 +++++++++++++++++++++++++++++++++++++++
- src/reflect/float32reg_generic.go | 21 ++++++++++++++++++++
- src/reflect/value.go              | 24 +++++++++++-----------
- 4 files changed, 83 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/walk/switch.go | 36 ++++++++++++++++++++++++---------
+ src/cmd/compile/internal/walk/walk.go   | 31 ++++++++++++++++++++++------
+ 2 files changed, 52 insertions(+), 15 deletions(-)

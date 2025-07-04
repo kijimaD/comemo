@@ -1,19 +1,19 @@
-commit 65f245af49995becc2d5321eb3e97a243d647e1f
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Sep 7 10:29:14 2023 +0100
+commit 49372957abb89df9616be4c5134febfa2aafd24c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 14:08:14 2022 -0700
 
-    encoding/xml: use reflect.Value.Bytes on addressable arrays
+    internal/types/errors: export error codes
     
-    Since #47066 was accepted and implemented,
-    reflect.Value.Bytes can be called directly on addressable arrays,
-    so there is no longer a need to go through a slice first.
+    Adjust self-test accordingly.
     
-    Change-Id: I04d50ddb1b38e7a37fee3dc8be1bd03b22a06a1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526357
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I69987a306760da9eaf832275af0e9a8b6131a349
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439561
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/encoding/xml/marshal.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/types/errors/codes.go      | 584 ++++++++++++++++----------------
+ src/internal/types/errors/codes_test.go |  11 +-
+ 2 files changed, 295 insertions(+), 300 deletions(-)

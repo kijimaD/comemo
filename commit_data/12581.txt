@@ -1,24 +1,14 @@
-commit bccafa72107a60c1443bd405849df94349d3302e
+commit 2d3cc97c9c7ced9d13d99611c3f3a69b4c81fbba
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 12 16:49:12 2012 -0400
+Date:   Mon Mar 12 16:48:16 2012 -0400
 
-    cmd/go: respect $GOBIN always
+    runtime: fix windows/amd64
     
-    Before, we only consulted $GOBIN for source code
-    found in $GOROOT, but that's confusing to explain
-    and less useful.  The new behavior lets users set
-    GOBIN=$HOME/bin and have all go-compiled binaries
-    installed there.
+    Maybe.
     
-    Fixes #3269.
-    
-    R=golang-dev, bradfitz
+    TBR=bradfitz
     CC=golang-dev
-    https://golang.org/cl/5754088
+    https://golang.org/cl/5754091
 
- doc/install-source.html |  5 +++--
- src/cmd/go/build.go     | 35 ++++++++++++++++++-----------------
- src/cmd/go/doc.go       |  4 +++-
- src/cmd/go/help.go      |  4 +++-
- src/cmd/go/pkg.go       |  4 +++-
- 5 files changed, 30 insertions(+), 22 deletions(-)
+ src/pkg/runtime/sys_windows_amd64.s | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

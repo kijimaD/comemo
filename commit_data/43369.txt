@@ -1,21 +1,42 @@
-commit 2754d911641c3a4569f48d61c541fc2ac395d23b
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Mon Oct 19 17:55:55 2020 +0000
+commit 3ee782b11da3fb0313603ad0e3be8ab6755802a9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 27 15:04:09 2020 -0400
 
-    runtime: add lock rank partial-order edge between fin and mheap
+    os/signal: rework test timeouts and concurrency
     
-    finlock may be held across a write barrier, which could then acquire the
-    mheap lock. Notably, this occurs in the mp.unlockf write in gopark where
-    finlock is held by the finalizer goroutines and is going to sleep.
+    Use a uniform function (named “quiesce”) to wait for possible signals
+    in a way that gives the kernel many opportunities to deliver them.
     
-    Fixes #42062.
+    Simplify channel usage and concurrency in stress tests.
     
-    Change-Id: Icf76637ae6fc12795436272633dca3d473780875
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/263678
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Use (*testing.T).Deadline instead of parsing the deadline in TestMain.
+    
+    In TestStop, sleep forever in a loop if we expect the test to die from
+    a signal. That should reduce the flakiness of TestNohup, since
+    TestStop will no longer spuriously pass when run as a subprocess of
+    TestNohup.
+    
+    Since independent signals should not interfere, run the different
+    signals in TestStop in parallel when testing in short mode.
+    
+    Since TestNohup runs TestStop as a subprocess, and TestStop needs to
+    wait many times for signals to quiesce, run its test subprocesses
+    concurrently and in short mode — reducing the latency of that test by
+    more than a factor of 2.
+    
+    The above two changes reduce the running time of TestNohup on my
+    workstation to ~345ms, making it possible to run much larger counts of
+    the test in the same amount of wall time. If the test remains flaky
+    after this CL, we can spend all or part of that latency improvement on
+    a longer settle time.
+    
+    Updates #33174
+    
+    Change-Id: I09206f213d8c1888b50bf974f965221a5d482419
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226138
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/lockrank.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/os/signal/signal_test.go | 359 +++++++++++++++++++++++++------------------
+ 1 file changed, 212 insertions(+), 147 deletions(-)

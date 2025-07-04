@@ -1,23 +1,21 @@
-commit 9b48ffa98af149408b8e4734676bcc2cf95278fd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 17 20:11:57 2022 -0700
+commit 8e34d779578736942c78f9857f5bb9b9025815c6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 21 09:45:34 2021 -0700
 
-    go/parser: disallow parenthesizing embedded types in structs
+    runtime, cmd/link: minor cleanup
     
-    This was never permitted in Go but the flexibility to do so
-    was introduced through the generics prototype code where we
-    experimented with parentheses to enclose type parameters.
-    Restore original (pre-generics) behavior.
+    Fix some comments.
+    Adjust capitalization for initialisms.
+    Use a println directly instead of emulating it.
     
-    Fixes #51655.
-    
-    Change-Id: Ia7a4b2e393e0214a70e840c8663cf4474c5c754b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424694
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I0d8fa0eb39547e2db8113fd0358136285b86f16a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351462
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/go/parser/parser.go     | 48 +++++++++++++++++++++++++++++++++++++++------
- src/go/parser/short_test.go | 12 +++++++++---
- 2 files changed, 51 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 14 +++++++-------
+ src/runtime/symtab.go            |  2 +-
+ 2 files changed, 8 insertions(+), 8 deletions(-)

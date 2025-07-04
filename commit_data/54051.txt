@@ -1,22 +1,26 @@
-commit 2fcfdb96860855be0c88e10e3fd5bb858420cfe2
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Wed Jun 15 17:39:59 2022 -0700
+commit d74bf73be052851e83fb59a40f47d49f4b890ca3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 19 17:21:20 2022 +0200
 
-    strconv: rely on utf8.AppendRune
+    os: use wait6 to avoid wait/kill race on netbsd
     
-    This is both simpler and more performant.
+    Resend of CL 315281 which was partially reverted by CL 354249 after the
+    original CL was suspected to cause test failures as reported in #48789.
+    It seems that both wait4 and wait6 lead to that particular deadlock, so
+    let's use wait6. That way we at least don't hit #13987 on netbsd.
     
-    Quote             268ns ± 5%   258ns ± 4%  -3.70%  (p=0.014 n=10+10)
-    QuoteRune        28.9ns ± 3%  28.4ns ± 4%    ~     (p=0.113 n=9+10)
-    AppendQuote       165ns ± 3%   165ns ± 3%    ~     (p=0.661 n=9+10)
-    AppendQuoteRune  8.05ns ± 5%  7.75ns ± 7%    ~     (p=0.065 n=10+9)
+    Updates #13987
+    For #48789
+    For #50138
     
-    Change-Id: Ib0ee332e970d4986026c05e5e0e368f41eff7977
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412338
+    Change-Id: Iadc4a771217b7e9e821502e89afa07036e0dcb6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431855
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/strconv/quote.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/os/wait_unimp.go | 2 +-
+ src/os/wait_wait6.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

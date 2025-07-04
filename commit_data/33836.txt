@@ -1,22 +1,17 @@
-commit 6af8c0d812f7bd20d81df986c3ed425f3251e8dc
-Author: Samuel Tan <samueltan@google.com>
-Date:   Fri Nov 17 15:47:33 2017 -0800
+commit 7159ab4871793b844da21538b3a8298d0646935b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Sep 8 14:45:59 2017 -0400
 
-    html/template: reset templates orphaned by (*Template).New
+    cmd/vet: print: permit '#' flag in %e, %f, and %g
     
-    If (*Template).New replaces an existing template, reset the
-    existing template that is going to be replaced so that any
-    later attempt to execute this orphaned template will fail.
+    + Test
     
-    Fixes #22780
-    
-    Change-Id: I0e058f42c1542c86d19dc5f6c4e1e859e670a4a2
-    Reviewed-on: https://go-review.googlesource.com/78542
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7b42ff70f26a58e1cf58cbbc53d02a65623456ae
+    Reviewed-on: https://go-review.googlesource.com/62371
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/html/template/escape_test.go | 22 ++++++++++++++++++++++
- src/html/template/template.go    |  8 ++++++++
- 2 files changed, 30 insertions(+)
+ src/cmd/vet/print.go          | 12 ++++++------
+ src/cmd/vet/testdata/print.go |  1 +
+ 2 files changed, 7 insertions(+), 6 deletions(-)

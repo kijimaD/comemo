@@ -1,20 +1,24 @@
-commit 324f41b748fd87ad4a1cafa458bac3014f2fb5f2
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun Nov 3 15:52:29 2024 +0700
+commit 1152615d208060afd4b6c492cc2abb8a989a8c9b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Feb 18 16:41:25 2023 +1100
 
-    cmd/compile: fix inlining name mangling for blank label
+    debug/elf,cmd/link: add additional MIPS64 relocation type
     
-    Fixes #70175
+    Add R_MIPS_PC32 which is a 32 bit PC relative relocation.
     
-    Change-Id: I13767d951455854b03ad6707ff9292cfe9097ee9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/624377
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    These are produced by LLVM on mips64.
+    
+    Fixes #61974
+    
+    Change-Id: I7b6c6848e40249e6d5ea474ea53c9d7e3ab23f88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469395
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Junxian Zhu <zhujunxian@oss.cipunited.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/reader.go |  2 +-
- test/fixedbugs/issue70175.go             | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ api/next/61974.txt                     | 2 ++
+ src/cmd/link/internal/loadelf/ldelf.go | 3 ++-
+ src/debug/elf/elf.go                   | 3 +++
+ 3 files changed, 7 insertions(+), 1 deletion(-)

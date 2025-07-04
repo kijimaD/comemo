@@ -1,18 +1,30 @@
-commit 596df2424d1304442dbb5f5aa4eab153013d4d50
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Sun Feb 28 01:11:23 2016 -0800
+commit 0478f7b9d6e9e0461e67716f003f4dbf26bf634d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 14 01:04:07 2015 +0000
 
-    cmd/go: set GOPATH in list's Context
+    net/http: fix race in TimeoutHandler
     
-    Fixes #14547.
+    New implementation of TimeoutHandler: buffer everything to memory.
     
-    Change-Id: Ic175ee8f7e65b9b99f1f47fbf267a2aba7c8fec7
-    Reviewed-on: https://go-review.googlesource.com/20010
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    All or nothing: either the handler finishes completely within the
+    timeout (in which case the wrapper writes it all), or it misses the
+    timeout and none of it gets written, in which case handler wrapper can
+    reliably print the error response without fear that some of the
+    wrapped Handler's code already wrote to the output.
+    
+    Now the goroutine running the wrapped Handler has its own write buffer
+    and Header copy.
+    
+    Document the limitations.
+    
+    Fixes #9162
+    
+    Change-Id: Ia058c1d62cefd11843e7a2fc1ae1609d75de2441
+    Reviewed-on: https://go-review.googlesource.com/17752
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/context.go |  1 +
- src/cmd/go/go_test.go | 31 +++++++++++++++++++++++++++----
- 2 files changed, 28 insertions(+), 4 deletions(-)
+ src/net/http/export_test.go |  7 +++--
+ src/net/http/serve_test.go  | 54 ++++++++++++++++++++++++++++++++++
+ src/net/http/server.go      | 72 +++++++++++++++++++++++++++++++++------------
+ 3 files changed, 111 insertions(+), 22 deletions(-)

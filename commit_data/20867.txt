@@ -1,17 +1,22 @@
-commit cf105e2fa04bb001a2331cabba2437a59760562b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Nov 8 15:13:28 2014 -0300
+commit cf9558c8ab9a09cffeea1020e62411338c790b2f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Oct 20 23:28:39 2014 +0000
 
-    net/http: fix benchmark goroutine leak
+    cmd/cgo: disable clang's integrated assembler
     
-    New detection because of net/http now using TestMain.
+    Fixes #8348.
     
-    Fixes #9033
+    Clang's internal assembler (introduced by default in clang 3.4) understands the .arch directive, but doesn't change the default value of -march. This causes the build to fail when we use BLX (armv5 and above) when clang is compiled for the default armv4t architecture (which appears to be the default on all the distros I've used).
+    
+    This is probably a clang bug, so work around it for the time being by disabling the integrated assembler when compiling the cgo assembly shim.
+    
+    This CL also includes a small change to ldelf.c which was required as clang 3.4 and above generate more weird symtab entries.
     
     LGTM=iant
     R=golang-codereviews, iant
-    CC=adg, golang-codereviews, rsc
-    https://golang.org/cl/170210043
+    CC=golang-codereviews
+    https://golang.org/cl/156430044
 
- src/net/http/serve_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/cgo/gcc.go | 8 +++++++-
+ src/cmd/ld/ldelf.c | 2 +-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

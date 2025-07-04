@@ -1,0 +1,21 @@
+commit 55a06f79208b24fc5f9c40a867f55f5fecc376b0
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue May 7 13:25:16 2024 +0000
+
+    reflect: remove redundent ifaceIndir
+    
+    Use abi.(*Type).IfaceIndir instead.
+    
+    Change-Id: I31197cbf0edaf53bbb0455fa76d2a4a2ab40b420
+    GitHub-Last-Rev: 2659b696ef3680e13e22bdf6a63e5d82b7b1ecdf
+    GitHub-Pull-Request: golang/go#67227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583755
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/reflect/abi.go   |  2 +-
+ src/reflect/type.go  |  9 ++-------
+ src/reflect/value.go | 14 +++++++-------
+ 3 files changed, 10 insertions(+), 15 deletions(-)

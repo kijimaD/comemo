@@ -1,26 +1,12 @@
-commit 8bf34e335686816f7fe7e28614b2c7a3e04e9e7c
+commit 9f2cb86fe2d4ffbaff4c9d9493e2098f757ab6ac
 Author: Russ Cox <rsc@golang.org>
-Date:   Fri Mar 11 14:47:26 2011 -0500
+Date:   Fri Mar 11 14:47:02 2011 -0500
 
-    gc, runtime: replace closed(c) with x, ok := <-c
+    spec: remove closed from language, replaced by x, ok = <-c
     
-    R=ken2, ken3
+    R=gri, r, r2
     CC=golang-dev
-    https://golang.org/cl/4259064
+    https://golang.org/cl/4249065
 
- src/cmd/gc/builtin.c.boot   |   4 +-
- src/cmd/gc/go.h             |   4 +-
- src/cmd/gc/go.y             |  17 ++-
- src/cmd/gc/lex.c            |   1 -
- src/cmd/gc/print.c          |   2 -
- src/cmd/gc/range.c          |   4 +-
- src/cmd/gc/runtime.go       |   4 +-
- src/cmd/gc/select.c         |  70 +++++++++++-
- src/cmd/gc/sinit.c          |   2 +-
- src/cmd/gc/subr.c           |   4 +-
- src/cmd/gc/typecheck.c      |  12 +--
- src/cmd/gc/walk.c           |  15 +--
- src/pkg/runtime/chan.c      | 257 ++++++++++++++++++++++++++------------------
- src/pkg/runtime/reflect.goc |  12 +--
- src/pkg/runtime/runtime.h   |   1 -
- 15 files changed, 260 insertions(+), 149 deletions(-)
+ doc/go_spec.html | 43 +++++++++++++++----------------------------
+ 1 file changed, 15 insertions(+), 28 deletions(-)

@@ -1,0 +1,17 @@
+commit 3013231f46908bf5908624385cc9717354c0deba
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Feb 19 14:14:54 2025 -0800
+
+    crypto/tls: fix incorrect EncryptedClientHelloKey comment
+    
+    Updates #71706
+    
+    Change-Id: Id689ec476eb3f76500dbf59d716a4376749de700
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650719
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/tls/common.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

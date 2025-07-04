@@ -1,26 +1,12 @@
-commit ebf19fb1713f5c046b6566825ad1d3edea5656ab
-Author: Fumitoshi Ukai <ukai@google.com>
-Date:   Fri Aug 26 13:12:08 2011 +1000
+commit 7a3095121e2e6b17f39e40ef6d9b3ffd4244e419
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Aug 26 12:36:46 2011 +1000
 
-    websocket: Implements new version of WebSocket protocol.
+    syscall: SOMAXCONN should be 0x7fffffff at winsock2.
     
-    This introduces new APIs.
-    - DialConfig can open client connection using Config, so user can specify protocol version, tls.Config if necessary.
-    
-    - Message can be used to send/receive text/binary data in a frame.
-    - JSON can be used to send/receive JSON data in a frame.
-    
-    R=golang-dev, adg, rsc, m, tarmigan, raul.san, yohcop
+    R=golang-dev, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/4635084
+    https://golang.org/cl/4955042
 
- src/pkg/websocket/Makefile          |   2 +
- src/pkg/websocket/client.go         | 309 ++++------------
- src/pkg/websocket/hixie.go          | 694 ++++++++++++++++++++++++++++++++++++
- src/pkg/websocket/hixie_test.go     | 201 +++++++++++
- src/pkg/websocket/hybi.go           | 515 ++++++++++++++++++++++++++
- src/pkg/websocket/hybi_test.go      | 371 +++++++++++++++++++
- src/pkg/websocket/server.go         | 203 ++---------
- src/pkg/websocket/websocket.go      | 444 ++++++++++++++++-------
- src/pkg/websocket/websocket_test.go | 171 ++++-----
- 9 files changed, 2282 insertions(+), 628 deletions(-)
+ src/pkg/syscall/ztypes_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

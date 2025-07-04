@@ -1,26 +1,15 @@
-commit 1d3fae461c6302d2d91085e03d50712177af74c0
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Sep 17 10:01:17 2016 -0400
+commit 2deb9209dec81792156c8e865a409a4ee5c331f6
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu May 26 11:29:53 2016 +0200
 
-    cmd/link: remove Cursym
+    math/big: using Run for some more benchmarks
     
-    Change-Id: I58253a6cd2d77a9319c0783afb0d92cd5a88a7f7
-    Reviewed-on: https://go-review.googlesource.com/29370
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I3ede8098f405de5d88e51c8370d3b68446d40744
+    Reviewed-on: https://go-review.googlesource.com/23428
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/amd64/asm.go  |  1 -
- src/cmd/link/internal/arm/asm.go    |  2 --
- src/cmd/link/internal/arm64/asm.go  |  1 -
- src/cmd/link/internal/ld/data.go    | 12 ++----------
- src/cmd/link/internal/ld/dwarf.go   |  6 ++----
- src/cmd/link/internal/ld/elf.go     |  2 --
- src/cmd/link/internal/ld/link.go    |  1 -
- src/cmd/link/internal/ld/pcln.go    | 24 ++++++++++++------------
- src/cmd/link/internal/ld/pe.go      |  2 --
- src/cmd/link/internal/mips64/asm.go |  1 -
- src/cmd/link/internal/ppc64/asm.go  |  2 --
- src/cmd/link/internal/s390x/asm.go  |  1 -
- src/cmd/link/internal/x86/asm.go    |  1 -
- 13 files changed, 16 insertions(+), 40 deletions(-)
+ src/math/big/nat_test.go     |  27 ++++-----
+ src/math/big/natconv_test.go | 133 +++++++++++++++----------------------------
+ 2 files changed, 57 insertions(+), 103 deletions(-)

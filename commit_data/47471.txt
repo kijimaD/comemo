@@ -1,25 +1,34 @@
-commit 560dc9712d4bc900b5ab32b518ba4de2a9bc588c
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Nov 15 10:01:43 2021 -0800
+commit e0fae78e1deeaae5bc3c6a8426ece37c62445bf4
+Author: Youfu Zhang <zhangyoufu@gmail.com>
+Date:   Tue Feb 23 03:52:43 2021 +0000
 
-    cmd/compile: error when using internal type declarations in generic functions
+    runtime: fix stack alignment for Windows amd64 lib entry
     
-    We hope to support this feature one day, but it doesn't work currently.
-    Issue a nice error message instead of having the compiler crash.
+    Windows amd64 calling convention requires 16-bytes aligned
+    stack pointer. Before this patch, the real frame size is
+    0x48 (frame size) + 0x10 (frame pointer & return address),
+    which does not satisfy the alignment requirement.
     
-    Update #47631
+    _cgo_sys_thread_create eventually calls NtCreateThread,
+    which receives a pointer to a ThreadContext structure
+    allocated from (mis-aligned) stack, and may fail with
+    STATUS_DATATYPE_MISALIGNMENT on some implementations.
     
-    Change-Id: I0359411410acbaf9a5b9dbb988cd933de1bb8438
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364054
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    BP is saved/restored by prolog/epilog.
+    AX, CX, DX are volatile, no need to save and restore.
+    
+    Fixes #41075
+    
+    Change-Id: I01c0a22b4bf3b4cfdebf4df587445aa46c667973
+    GitHub-Last-Rev: 15d2bd740e3e61c9753b3e1b574fdb5da538459c
+    GitHub-Pull-Request: golang/go#44524
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295329
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Christopher Nelson <nadiasvertex@gmail.com>
 
- src/cmd/compile/internal/noder/stmt.go |  4 ++++
- test/run.go                            |  1 +
- test/typeparam/builtins.go             | 13 +++++++------
- test/typeparam/issue47631.go           | 34 ++++++++++++++++++++++++++++++++++
- test/typeparam/typelist.go             |  3 ++-
- 5 files changed, 48 insertions(+), 7 deletions(-)
+ src/runtime/rt0_windows_amd64.s | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

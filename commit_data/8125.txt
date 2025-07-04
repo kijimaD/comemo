@@ -1,16 +1,18 @@
-commit 4787e70b7b112b067f2aede5d4c45f1928493292
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 15 12:53:32 2011 -0700
+commit 84c7e83b4c5b71f7634f16c719577fa71ff6232f
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Fri Apr 15 10:48:45 2011 -0700
 
-    http: handler timeout support
+    godoc: use "search" input type for search box.
     
-    Fixes #213
+    Uses placeholder attribute instead of changing the value of search
+    field on browsers that support it.  On other browsers, the fake
+    placeholder text is restored when the empty box loses focus.
     
-    R=r, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4432043
+    https://golang.org/cl/4441041
 
- src/pkg/http/export_test.go |  7 ++++
- src/pkg/http/serve_test.go  | 51 ++++++++++++++++++++++++++
- src/pkg/http/server.go      | 87 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 145 insertions(+)
+ doc/all.css          |  2 +-
+ doc/godocs.js        | 11 +++++++++++
+ lib/godoc/godoc.html |  2 +-
+ 3 files changed, 13 insertions(+), 2 deletions(-)

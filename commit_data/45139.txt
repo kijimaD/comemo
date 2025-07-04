@@ -1,30 +1,18 @@
-commit bcbde83c200a7abb2b23666b59992265f3cf3621
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed Apr 14 09:34:28 2021 -0400
+commit 930fa890c9b6a75700bda3dc4043de81350749ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 6 10:53:11 2020 -0700
 
-    go/ast: fix broken build with typeparams build constraint
+    net/http: add Transport.GetProxyConnectHeader
     
-    My rebase of https://golang.org/cl/300649 before submitting broke the
-    build (and tests) when using the typeparams build constraint. In a
-    subsequent CL I add test coverage back to cmd/dist.
+    Fixes golang/go#41048
     
-    This time, I've tested by running:
-     - go test -tags=typeparams go/...
-     - go test -tags=typeparams cmd/gofmt
-    
-    All tests pass except for the new TestResolution/typeparams.go2, which I
-    will fix in a follow-up CL.
-    
-    For #44933
-    
-    Change-Id: I439d387841604cf43a90e2ce41dbe6bbbdb0306d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310070
-    Trust: Robert Findley <rfindley@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I38e01605bffb6f85100c098051b0c416dd77f261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259917
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/go/ast/walk.go            |  6 +++++-
- src/go/ast/walk_typeparams.go | 10 ++++++++--
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/net/http/transport.go      | 23 ++++++++++++++++++-
+ src/net/http/transport_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 1 deletion(-)

@@ -1,29 +1,29 @@
-commit 1dafccaaf324547c92fbba40e343d9a142f106b4
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Feb 26 23:11:29 2025 +0000
+commit 8435659a43e46d4088cd5dcd09ee9fb87a5a0ae6
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jan 5 19:19:14 2024 -0500
 
-    runtime: increase timeout in TestSpuriousWakeupsNeverHangSemasleep
+    go/types, types2: typeparams.IndexExpr must not be an ast.Expr
     
-    This change tries increasing the timeout in
-    TestSpuriousWakeupsNeverHangSemasleep. I'm not entirely sure of the
-    mechanism, but GODEBUG=gcstoptheworld=2 and GODEBUG=gccheckmark=1 can
-    cause this test to fail at it's regular timeout. It does not seem to
-    indicate a deadlock, because bumping the timeout 10x make the problem
-    go away. I suspect the problem is due to the long STW times these two
-    modes can induce, plus the fact this test runs in parallel with others.
+    The typeparams.IndexExpr wrapper type was added as a compatibility layer
+    to make the go/types code symmetric with types2. However, this type
+    incidentally implemented the ast.Expr interface, leading to the
+    accidental misuse that led to golang/go#63933.
     
-    Let's just bump the timeout. The test is fundamentally sound, and it's
-    unclear to me how else to test for a deadlock here.
+    Fix this minimally for now, though leave a TODO that this old
+    compatibility shim really needs to be eliminated.
     
-    Fixes #71691.
-    Fixes #71548.
+    Also fix a case in types2 where operand.expr was set to a typed nil.
     
-    Change-Id: I649531eeec8a8408ba90823ce5223f3a17863124
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652756
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Fixes golang/go#63933
+    
+    Change-Id: I180d411e52f795a8322ecce6ed8649e88af1c63b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554395
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/semasleep_test.go | 61 +++++++++++++++++++++++++------------------
- 1 file changed, 36 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/types2/call.go  | 11 ++---------
+ src/go/internal/typeparams/typeparams.go | 30 +++++++++++++++++++++++++-----
+ src/go/types/call.go                     | 12 ++----------
+ src/go/types/index.go                    |  2 +-
+ 4 files changed, 30 insertions(+), 25 deletions(-)

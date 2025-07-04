@@ -1,30 +1,12 @@
-commit 6703addeee7dfe514329289c9150df14ab2ed452
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 4 21:49:49 2018 -0700
+commit 1a7ce9dd59f03d8ad44026d8b19c4466b6ffc420
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 21 08:21:11 2017 +0100
 
-    cmd/compile: drop legacy code for generating iface wrappers
+    net: fix typo in parsePort documentation
     
-    Originally, scalar values were directly stored within interface values
-    as long as they fit into a pointer-sized slot of memory. And since
-    interface method calls always pass the full pointer-sized value as the
-    receiver argument, value-narrowing wrappers were necessary to adapt to
-    the calling convention for methods with smaller receiver types.
-    
-    However, for precise garbage collection, we now only store actual
-    pointers within interface values, so these wrappers are no longer
-    necessary.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I5303bfeb8d0f11db619b5a5d06b37ac898588670
-    Reviewed-on: https://go-review.googlesource.com/104875
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ia302d9018690cd26890f874c70bd0c429a4b51f0
+    Reviewed-on: https://go-review.googlesource.com/78975
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/dcl.go       | 14 +++-----------
- src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
- src/cmd/compile/internal/gc/subr.go      | 18 +++---------------
- src/cmd/compile/internal/gc/typecheck.go |  6 +++---
- 4 files changed, 16 insertions(+), 36 deletions(-)
+ src/net/port.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

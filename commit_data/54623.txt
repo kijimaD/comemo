@@ -1,23 +1,21 @@
-commit 36ecff0893e8f30c2ff659acf8c62401f4dcebf7
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Sep 18 17:14:03 2023 -0500
+commit ada9385a5fd3908243dbb514040c07a41e4806bb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Nov 4 13:54:59 2022 -0400
 
-    cmd/internal/obj/ppc64: generate small, shifted constants in register
+    cmd/compile: fix PGO cross-package inlining
     
-    Check for shifted 16b constants, and transform them to avoid the load
-    penalty. This should be much faster than loading, and reduce binary
-    size by reducing the constant pool size.
+    With CL 447015, we identify hot callees from edge weights, but
+    the code only traverses edges for calls from the current package.
+    If the callee is in a different package, when compiling that
+    package, the edge was not visited, so the callee was not actually
+    marked inline candidate. This CL fixes it by traversing all hot
+    edges.
     
-    Change-Id: I6834e08be7ca88e3b77449d226d08d199db84299
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531119
+    Change-Id: If668c1a16ebe34e3474376b88ab3a84be76b8562
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448015
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s | 18 +++++++++++++-----
- src/cmd/internal/obj/ppc64/obj9.go        | 30 +++++++++++++++++++++++-------
- test/codegen/constants.go                 | 25 +++++++++++++++++++++++++
- 3 files changed, 61 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

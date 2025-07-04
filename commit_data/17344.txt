@@ -1,12 +1,17 @@
-commit b3424a78503dffde52dcd6bf830ed63ee316defa
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Aug 21 09:53:17 2013 +0900
+commit 8738dd3ccef1a58b9759c4be1a279b8abe8424f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 20 15:35:07 2013 -0700
 
-    doc/go1.2.txt: net: performance improvement on BSD
+    doc: remove a insignificant line from go1.2.txt
+    
+    Not a user-visible API change.  Just a minor garbage
+    win in contrived cases.
+    
+    Also, the package is io/ioutil.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12975044
+    https://golang.org/cl/12987044
 
- doc/go1.2.txt | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.2.txt | 1 -
+ 1 file changed, 1 deletion(-)

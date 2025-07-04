@@ -1,16 +1,42 @@
-commit c5434f2973a87acff76bac359236e690d632ce95
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Sep 29 13:59:10 2016 +0200
+commit 59e11d782717407fcdf288664a48beb52336d42a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue May 31 11:27:16 2016 -0400
 
-    time: update test for tzdata-2016g
+    [dev.ssa] cmd/compile: handle floating point on ARM
     
-    Fixes #17276
+    Machine supports (or the runtime simulates in soft float mode)
+    (u)int32<->float conversions. The frontend rewrites int64<->float
+    conversions to call to runtime function.
     
-    Change-Id: I0188cf9bc5fdb48c71ad929cc54206d03e0b96e4
-    Reviewed-on: https://go-review.googlesource.com/29995
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    For int64->float32 conversion, the frontend generates
+    
+    .   .   AS u(100) l(10) tc(1)
+    .   .   .   NAME-main.~r1 u(1) a(true) g(1) l(9) x(8+0) class(PPARAMOUT) f(1) float32
+    .   .   .   CALLFUNC u(100) l(10) tc(1) float32
+    .   .   .   .   NAME-runtime.int64tofloat64 u(1) a(true) x(0+0) class(PFUNC) tc(1) used(true) FUNC-func(int64) float64
+    
+    The CALLFUNC node has type float32, whereas runtime.int64tofloat64
+    returns float64. The legacy backend implicitly makes a float64->float32
+    conversion. The SSA backend does not do implicit conversion, so we
+    insert an explicit CONV here.
+    
+    All cmd/compile/internal/gc/testdata/*_ssa.go tests passed.
+    
+    Progress on SSA for ARM. Still not complete.
+    
+    Update #15365.
+    
+    Change-Id: I30937c8ff977271246b068f48224693776804339
+    Reviewed-on: https://go-review.googlesource.com/23652
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/time/time_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go            |  97 ++-
+ src/cmd/compile/internal/gc/ssa.go             |  14 +
+ src/cmd/compile/internal/gc/walk.go            |   4 +-
+ src/cmd/compile/internal/ssa/decompose.go      |   4 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  53 +-
+ src/cmd/compile/internal/ssa/gen/ARMOps.go     |  64 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   5 +
+ src/cmd/compile/internal/ssa/opGen.go          | 546 +++++++++++++++--
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 796 ++++++++++++++++++++++++-
+ 9 files changed, 1507 insertions(+), 76 deletions(-)

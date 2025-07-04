@@ -1,12 +1,18 @@
-commit 24de40a8461a48f814c1bd37a1a6b911c922366f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Jun 5 08:11:34 2015 -0700
+commit 5a828cfcde20c25b9b3a3387159a77eb084383b8
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 30 14:56:35 2015 -0700
 
-    cmd/dist: add more logging details when go list std cmd fails
+    runtime: let freezetheworld work even when gomaxprocs=1
     
-    Change-Id: I12e6990b46ea9c733a5718dc5ca67f1fcd2dec66
-    Reviewed-on: https://go-review.googlesource.com/10754
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Freezetheworld still has stuff to do when gomaxprocs=1.
+    In particular, signals can come in on other Ms (like the GC M, say)
+    and the single user M is still running.
+    
+    Fixes #10546
+    
+    Change-Id: I2f07f17d1c81e93cf905df2cb087112d436ca7e7
+    Reviewed-on: https://go-review.googlesource.com/9551
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 
- src/cmd/dist/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/proc1.go | 3 ---
+ 1 file changed, 3 deletions(-)

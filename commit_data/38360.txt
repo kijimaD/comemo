@@ -1,19 +1,62 @@
-commit ef891e1c8336243023abb1638a3225405d0e5d44
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Thu Jan 31 22:24:00 2019 -0700
+commit 5c472132bf88cc04c85ad5f848d8a2f77f21b228
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Mon Aug 6 15:36:16 2018 -0500
 
-    math/big: implement Int.TrailingZeroBits
+    cmd/compile, runtime: add new lightweight atomics for ppc64x
     
-    Implemented via the underlying nat.trailingZeroBits.
+    This change creates the infrastructure for new lightweight atomics
+    primitives in runtime/internal/atomic:
     
-    Fixes #29578
+    - LoadAcq, for load-acquire
+    - StoreRel, for store-release
+    - CasRel, for Compare-and-Swap-release
     
-    Change-Id: If9876c5a74b107cbabceb7547bef4e44501f6745
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/160681
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    and implements them for ppc64x. There is visible performance improvement
+    in producer-consumer scenarios, like BenchmarkChanProdCons*:
+    
+    benchmark                           old ns/op     new ns/op     delta
+    BenchmarkChanProdCons0-48           2034          2034          +0.00%
+    BenchmarkChanProdCons10-48          1798          1608          -10.57%
+    BenchmarkChanProdCons100-48         1596          1585          -0.69%
+    BenchmarkChanProdConsWork0-48       2084          2046          -1.82%
+    BenchmarkChanProdConsWork10-48      1829          1668          -8.80%
+    BenchmarkChanProdConsWork100-48     1650          1650          +0.00%
+    
+    Fixes #21348
+    
+    Change-Id: I1f6ce377e4a0fe4bd7f5f775e8036f50070ad8db
+    Reviewed-on: https://go-review.googlesource.com/c/142277
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/math/big/int.go      |  6 ++++++
- src/math/big/int_test.go | 25 +++++++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             | 27 +++++++++
+ src/cmd/compile/internal/ppc64/ssa.go          | 33 ++++++++---
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  9 ++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   | 14 ++---
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 31 +++++-----
+ src/cmd/compile/internal/ssa/opGen.go          | 27 +++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 78 +++++++++++++++++++++++---
+ src/runtime/internal/atomic/asm_386.s          |  6 ++
+ src/runtime/internal/atomic/asm_amd64.s        |  6 ++
+ src/runtime/internal/atomic/asm_amd64p32.s     |  6 ++
+ src/runtime/internal/atomic/asm_arm.s          |  9 +++
+ src/runtime/internal/atomic/asm_arm64.s        |  3 +
+ src/runtime/internal/atomic/asm_mips64x.s      |  6 ++
+ src/runtime/internal/atomic/asm_mipsx.s        |  6 ++
+ src/runtime/internal/atomic/asm_ppc64x.s       | 25 +++++++++
+ src/runtime/internal/atomic/asm_s390x.s        |  4 ++
+ src/runtime/internal/atomic/atomic_386.go      | 12 ++++
+ src/runtime/internal/atomic/atomic_amd64x.go   | 12 ++++
+ src/runtime/internal/atomic/atomic_arm.go      |  9 +++
+ src/runtime/internal/atomic/atomic_arm64.go    |  9 +++
+ src/runtime/internal/atomic/atomic_arm64.s     |  7 +++
+ src/runtime/internal/atomic/atomic_mips64x.go  |  9 +++
+ src/runtime/internal/atomic/atomic_mips64x.s   |  4 ++
+ src/runtime/internal/atomic/atomic_mipsx.go    |  9 +++
+ src/runtime/internal/atomic/atomic_ppc64x.go   |  9 +++
+ src/runtime/internal/atomic/atomic_ppc64x.s    |  9 +++
+ src/runtime/internal/atomic/atomic_s390x.go    | 15 +++++
+ src/runtime/internal/atomic/atomic_wasm.go     | 22 ++++++++
+ src/runtime/proc.go                            | 20 +++----
+ 29 files changed, 386 insertions(+), 50 deletions(-)

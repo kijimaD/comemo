@@ -1,19 +1,15 @@
-commit 5c15f8710cb570e27d1ccf04143d31c7bff52581
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jun 28 08:14:54 2011 -0400
+commit cf3eeb29841d671c63d4d308bf8f5a99906d33d8
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Jun 28 16:10:39 2011 +1000
 
-    sync: replace Mutex benchmarks
-    For both contended and uncontended case:
-     - support arbitrary number of cpus (not just 2)
-     - dynamic load balancing (improves stability)
-     - periodic execution of Gosched() to work around non-preemptiviness
-    For uncontended case eliminates possible false-sharing.
-    For contended case includes additional variation with some
-    amount of local work between mutex operations.
+    io.WriteString: if the object has a WriteString method, use it
     
-    R=r, rsc
+    This avoids allocation when writing to bytes.Buffers and bufio.Writers, for
+    example.
+    
+    R=golang-dev, rsc, r, consalus, r
     CC=golang-dev
-    https://golang.org/cl/4634093
+    https://golang.org/cl/4625068
 
- src/pkg/sync/mutex_test.go | 99 +++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 81 insertions(+), 18 deletions(-)
+ src/pkg/io/io.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,31 +1,36 @@
-commit 2a30b34e293b6308dd1304dfedc96e0a7858476f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Mar 13 17:36:36 2023 -0400
+commit 440c9312c821d1c116746d46cf05655cb2c1bc39
+Author: Bryan Mills <bcmills@google.com>
+Date:   Fri Apr 22 13:20:48 2022 +0000
 
-    net/http: avoid making a request to a closed server in TestServerShutdown
+    Revert "net: permit use of Resolver.PreferGo, netgo on Windows and Plan 9"
     
-    As soon as the test server closes its listener, its port may be reused
-    for another test server. On some platforms port reuse takes a long
-    time, because they cycle through the available ports before reusing an
-    old one. However, other platforms reuse ports much more aggressively.
-    net/http shouldn't know or care which kind of platform it is on —
-    dialing wild connections is risky and can interfere with other tests
-    no matter what platform we do it on.
+    This reverts CL 400654.
     
-    Instead of making the second request after the server has completely
-    shut down, we can start (and finish!) the entire request while we are
-    certain that the listener has been closed but the port is still open
-    serving an existing request. If everything synchronizes as we expect,
-    that should guarantee that the second request fails.
+    Reason for revert: broke net.TestGoLookupIP on the darwin-amd64-nocgo builder.
     
-    Fixes #56421.
+    Updates #33097.
     
-    Change-Id: I56add243bb9f76ee04ead8f643118f9448fd1280
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/476036
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Idaf94eda88c9d4401e667a4d31c00ce376d91909
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401754
     Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/http/serve_test.go | 77 ++++++++++++++++++++++++++++++----------------
- 1 file changed, 50 insertions(+), 27 deletions(-)
+ src/net/addrselect.go            |   2 +
+ src/net/cgo_stub.go              |   2 +
+ src/net/conf.go                  |  36 +----
+ src/net/dnsclient_unix.go        |  24 +--
+ src/net/dnsconfig.go             |  43 -----
+ src/net/dnsconfig_unix.go        |  36 ++++-
+ src/net/dnsconfig_windows.go     |  58 -------
+ src/net/lookup.go                | 226 ---------------------------
+ src/net/lookup_plan9.go          |  52 +------
+ src/net/lookup_unix.go           | 205 +++++++++++++++++++++++-
+ src/net/lookup_windows.go        |  93 ++++-------
+ src/net/net.go                   |   9 +-
+ src/net/net_fake.go              |   6 -
+ src/net/netgo.go                 |   9 --
+ src/net/nss.go                   |   2 +
+ src/net/resolverdialfunc_test.go | 328 ---------------------------------------
+ 16 files changed, 293 insertions(+), 838 deletions(-)

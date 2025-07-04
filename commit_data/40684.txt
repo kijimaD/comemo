@@ -1,35 +1,12 @@
-commit 47232f0d929bd7ca44aeea23ad3f1806dfa55c5e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Nov 7 22:40:50 2019 -0500
+commit f18aeb3a54bf4490af68047e31d6cca8cb845297
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jun 12 13:54:50 2019 -0400
 
-    cmd/internal/obj/arm64: make function epilogue async-signal safe
+    doc: release notes for syscall and syscall/js
     
-    When the frame size is large, we generate
-    
-    MOVD.P  0xf0(SP), LR
-    ADD     $(framesize-0xf0), SP
-    
-    This is problematic: after the first instruction, we have a
-    partial frame of size (framesize-0xf0). If we try to unwind the
-    stack at this point, we'll try to read the LR from the stack at
-    0(SP) (the new SP) as the frame size is not 0. But this slot does
-    not contain a valid LR.
-    
-    Fix this by not changing SP in two instructions. Instead,
-    generate
-    
-    MOVD    (SP), LR
-    ADD     $framesize, SP
-    
-    This affects not only async preemption but also profiling. So we
-    change the generated instructions, instead of marking unsafe
-    point.
-    
-    Change-Id: I4e78c62d50ffc4acff70ccfbfec16a5ccae17f24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206057
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0ee4b4f0211cd12803ab33976669350d9dd615f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181944
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
 
- src/cmd/internal/obj/arm64/obj7.go | 31 ++++++++++++++++++-------------
- 1 file changed, 18 insertions(+), 13 deletions(-)
+ doc/go1.13.html | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

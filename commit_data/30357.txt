@@ -1,26 +1,17 @@
-commit 094992e22aaa1d7091659b63b5cadfe947372277
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Feb 16 19:53:08 2017 -0500
+commit 3be166dc70bf3539539bc6762aff9660c3dbf229
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 1 15:33:40 2016 -0700
 
-    cmd/compile: zero extend when replacing load-hit-store on s390x
+    cmd/compile: get rid of unused Name.Method field
     
-    Keith pointed out that these rules should zero extend during the review
-    of CL 36845. In practice the generic rules are responsible for eliminating
-    most load-hit-stores and they do not have this problem. When the s390x
-    rules are triggered any cast following the elided load-hit-store is
-    kept because of the sequence the rules are applied in (i.e. the load is
-    removed before the zero extension gets a chance to be merged into the load).
-    It is therefore not clear that this issue results in any functional bugs.
+    It's never set anywhere, and even if it was, it would just Fatalf.
     
-    This CL includes a test, but it only tests the generic rules currently.
-    
-    Change-Id: Idbc43c782097a3fb159be293ec3138c5b36858ad
-    Reviewed-on: https://go-review.googlesource.com/37154
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Change-Id: I84ade6d2068c623a8c85f84d8cdce38984996ddd
+    Reviewed-on: https://go-review.googlesource.com/32489
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/testdata/loadstore.go | 108 ++++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/S390X.rules      |   6 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go      |  12 +--
- 3 files changed, 117 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go  | 3 ---
+ src/cmd/compile/internal/gc/syntax.go | 1 -
+ 2 files changed, 4 deletions(-)

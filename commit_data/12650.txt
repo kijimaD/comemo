@@ -1,14 +1,12 @@
-commit b7b36524143e64738997ce3dbcfe38437e070f3c
+commit 20760e43356472f7c596ab2632fc069231af3ba0
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 15 15:10:19 2012 -0400
+Date:   Thu Mar 15 15:08:57 2012 -0400
 
-    os: do not assume syscall.Write will write everything
+    go/build: do not report Target for local imports
     
-    Fixes #3323.
-    
-    R=golang-dev, remyoudompheng, gri
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5837047
+    https://golang.org/cl/5820064
 
- src/pkg/os/file_unix.go | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/pkg/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,15 +1,12 @@
-commit a8545355568ba49363cdc9c4d233075c2be8261d
-Author: Andriy Lytvynov <lytvynov.a.v@gmail.com>
-Date:   Thu Apr 4 11:11:54 2013 -0700
+commit 52700d24bc828945a30f3d95301133307f34096f
+Author: Duncan Holm <mail@frou.org>
+Date:   Thu Apr 4 16:36:10 2013 +1100
 
-    doc/code.html: fix typos
+    doc: use the already defined GOPATH in PATH
     
-    Fixed example program's output to match program's code.
-    Fixes #5204.
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/8365043
+    https://golang.org/cl/8248044
 
- doc/code.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/code.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

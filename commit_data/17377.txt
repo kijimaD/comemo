@@ -1,14 +1,19 @@
-commit 221eef6808654bd09de8d249b1dddb9c25f68347
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Fri Aug 23 16:53:32 2013 -0700
+commit 4186e9d31321128322e3eaaa27c66fb8e8b7df63
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 24 02:22:52 2013 +1000
 
-    os/exec: remove flaky TestExtraFilesFDShuffle test
+    all: dragonfly support
     
-    Update #5780
+    Enable remaining packages (crypto, mime, path, time) to build on dragonfly.
     
-    R=golang-dev, cshapiro, dave, bradfitz
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/12869049
+    https://golang.org/cl/13190043
 
- src/pkg/os/exec/exec_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/crypto/rand/rand_unix.go   | 2 +-
+ src/pkg/crypto/x509/root_unix.go   | 4 ++--
+ src/pkg/mime/type_unix.go          | 2 +-
+ src/pkg/path/filepath/path_unix.go | 2 +-
+ src/pkg/time/sys_unix.go           | 2 +-
+ src/pkg/time/zoneinfo_unix.go      | 2 +-
+ 6 files changed, 7 insertions(+), 7 deletions(-)

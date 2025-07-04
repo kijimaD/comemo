@@ -1,46 +1,55 @@
-commit be50b58d70704d21cc1be9b69a98491a5e977b64
-Author: aimuz <mr.imuz@gmail.com>
-Date:   Tue Mar 5 03:02:57 2024 +0000
+commit 7b1e0bb79cd5617823acfb551ea31904643a55d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 4 13:59:06 2023 -0700
 
-    internal/zstd: optimize window reset using make for buffer allocation
+    misc/cgo: gofmt
     
-    Optimize the zstd window's reset function to use `make` for buffer
-    allocation when needed. This ensures efficient memory usage by
-    conditionally reallocating the buffer based on its capacity, improving
-    performance in scenarios where the existing buffer is insufficient.
-    
-    ```
-    goos: darwin
-    goarch: amd64
-    pkg: internal/zstd
-    cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-             │   old.out   │            new.out            │
-             │   sec/op    │   sec/op     vs base          │
-    Large-12   7.299m ± 5%   7.235m ± 1%  ~ (p=0.353 n=10)
-    
-             │   old.out    │            new.out             │
-             │     B/s      │     B/s       vs base          │
-    Large-12   35.56Mi ± 4%   35.87Mi ± 1%  ~ (p=0.353 n=10)
-    
-             │   old.out    │               new.out                │
-             │     B/op     │     B/op      vs base                │
-    Large-12   68.86Ki ± 4%   15.87Ki ± 1%  -76.95% (p=0.000 n=10)
-    
-             │  old.out   │            new.out             │
-             │ allocs/op  │ allocs/op   vs base            │
-    Large-12   0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=10) ¹
-    ¹ all samples are equal
-    ```
-    
-    Change-Id: Icd9c278b42ea149107a9861d006f40129c59831b
-    GitHub-Last-Rev: c00344cca415342eb563c62e325f1c2f7f28327d
-    GitHub-Pull-Request: golang/go#64221
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543375
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I5d02279d0593a8368b2f249a6b53650b89aed7b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482275
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/zstd/window.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ misc/cgo/life/testdata/life.go                     |  3 +-
+ misc/cgo/test/issue24161arg/def.go                 |  1 +
+ misc/cgo/test/issue24161arg/use.go                 |  1 +
+ misc/cgo/test/issue24161e0/main.go                 |  1 +
+ misc/cgo/test/issue24161e1/main.go                 |  1 +
+ misc/cgo/test/issue24161e2/main.go                 |  1 +
+ misc/cgo/test/issue24161res/restype.go             |  1 +
+ misc/cgo/test/issue9400/gccgo.go                   |  1 +
+ misc/cgo/test/issue9400/stubs.go                   |  1 +
+ misc/cgo/testcarchive/testdata/libgo2/libgo2.go    |  5 ++
+ misc/cgo/testcarchive/testdata/libgo3/libgo3.go    |  4 ++
+ misc/cgo/testcarchive/testdata/libgo4/libgo4.go    |  3 ++
+ .../testcshared/testdata/issue36233/issue36233.go  | 59 +++++++++++-----------
+ misc/cgo/testcshared/testdata/libgo2/dup2.go       |  1 +
+ misc/cgo/testcshared/testdata/libgo2/dup3.go       |  1 +
+ misc/cgo/testcshared/testdata/libgo2/libgo2.go     |  1 +
+ misc/cgo/testcshared/testdata/libgo4/libgo4.go     |  2 +
+ misc/cgo/testcshared/testdata/libgo5/libgo5.go     |  3 ++
+ misc/cgo/testgodefs/testdata/anonunion.go          |  1 +
+ misc/cgo/testgodefs/testdata/bitfields.go          |  1 +
+ misc/cgo/testgodefs/testdata/fieldtypedef.go       |  1 +
+ misc/cgo/testgodefs/testdata/issue37479.go         |  1 +
+ misc/cgo/testgodefs/testdata/issue37621.go         |  1 +
+ misc/cgo/testgodefs/testdata/issue38649.go         |  1 +
+ misc/cgo/testgodefs/testdata/issue39534.go         |  1 +
+ misc/cgo/testgodefs/testdata/issue48396.go         |  1 +
+ misc/cgo/testgodefs/testdata/issue8478.go          |  1 +
+ misc/cgo/testplugin/testdata/issue18676/main.go    | 15 +++---
+ .../cgo/testplugin/testdata/issue22295.pkg/main.go |  1 +
+ .../testplugin/testdata/issue25756/plugin/life.go  |  3 +-
+ misc/cgo/testplugin/testdata/method3/p/p.go        |  2 +-
+ misc/cgo/testplugin/testdata/unnamed1/main.go      |  1 +
+ misc/cgo/testplugin/testdata/unnamed2/main.go      |  1 +
+ misc/cgo/testsanitizers/testdata/msan6.go          |  3 ++
+ misc/cgo/testshared/testdata/depBase/gccgo.go      |  1 +
+ misc/cgo/testshared/testdata/depBase/stubs.go      |  1 +
+ misc/cgo/testshared/testdata/issue25065/a.go       |  9 ++--
+ misc/cgo/testso/testdata/cgoso_unix.go             |  1 +
+ misc/cgo/testso/testdata/main.go                   |  1 +
+ misc/cgo/testsovar/testdata/main.go                |  1 +
+ 40 files changed, 96 insertions(+), 43 deletions(-)

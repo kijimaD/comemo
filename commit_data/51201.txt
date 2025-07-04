@@ -1,17 +1,23 @@
-commit 7717ac151ae1556541dddc6a817ac04733f1af44
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Nov 10 11:23:40 2022 -0500
+commit 8108444eaa7ee45a74b2f2da6d21dd1d2b0c0352
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Dec 14 12:48:31 2021 -0500
 
-    runtime: make Malloc benchmarks actually benchmark malloc
+    go/types: record types for union subexpressions
     
-    The compiler is too clever so the allocations are currently
-    avoided. Rewrite to make them actually allocate.
+    Prior to unions, unary and binary expressions always had a recorded
+    type. Preserve this by recording a type for all unary and binary
+    expressions encountered while parsing a union type.
     
-    Change-Id: I9542e1365120b2ace318360883b0b01ed5670da7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449476
+    Updates #50093
+    
+    Change-Id: I5ba20f37854760596350d91ea325dc98e67e115a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371757
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/malloc_test.go | 22 +++++-----------------
- 1 file changed, 5 insertions(+), 17 deletions(-)
+ src/go/types/api.go      |  6 ------
+ src/go/types/api_test.go | 13 ++++++++++++
+ src/go/types/union.go    | 55 +++++++++++++++++++++++++++++++++---------------
+ 3 files changed, 51 insertions(+), 23 deletions(-)

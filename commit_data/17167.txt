@@ -1,39 +1,47 @@
-commit b3b87143f2b5da57fb87e06bab5af188c77e6bb8
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 12 19:14:02 2013 -0400
+commit e838334beb38c20d2b4035b53ec4e3e3487844f9
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 12 13:47:18 2013 -0700
 
-    cmd/gc: support for "portable" optimization logic
+    runtime: change textflags from numbers to symbols
     
-    Code in gc/popt.c is compiled as part of 5g, 6g, and 8g,
-    meaning it can use arch-specific headers but there's
-    just one copy of the code.
-    
-    This is the same arrangement we use for the portable
-    code generation logic in gc/pgen.c.
-    
-    Move fixjmp and noreturn there to get the ball rolling.
-    
-    R=ken2
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12789043
+    https://golang.org/cl/12798043
 
- src/cmd/5g/gg.h      |   2 +-
- src/cmd/5g/opt.h     |  12 +++-
- src/cmd/5g/peep.c    |   2 +-
- src/cmd/5g/prog.c    |   2 +
- src/cmd/5g/reg.c     | 153 +-----------------------------------------
- src/cmd/6g/gg.h      |   2 +-
- src/cmd/6g/opt.h     |   5 +-
- src/cmd/6g/peep.c    |   2 +-
- src/cmd/6g/prog.c    |   7 +-
- src/cmd/6g/reg.c     | 152 +-----------------------------------------
- src/cmd/8g/gg.h      |   2 +-
- src/cmd/8g/opt.h     |   5 +-
- src/cmd/8g/peep.c    |   2 +-
- src/cmd/8g/prog.c    |   6 +-
- src/cmd/8g/reg.c     | 151 +-----------------------------------------
- src/cmd/dist/build.c |   7 ++
- src/cmd/gc/pgen.c    |   4 ++
- src/cmd/gc/popt.c    | 183 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/gc/popt.h    |   6 ++
- 19 files changed, 234 insertions(+), 471 deletions(-)
+ src/pkg/runtime/alg.c            |  3 ++-
+ src/pkg/runtime/atomic_386.c     |  9 +++++----
+ src/pkg/runtime/atomic_amd64.c   |  7 ++++---
+ src/pkg/runtime/atomic_arm.c     | 25 +++++++++++++------------
+ src/pkg/runtime/cgocall.c        |  3 ++-
+ src/pkg/runtime/chan.c           | 31 ++++++++++++++++---------------
+ src/pkg/runtime/hashmap.c        | 13 +++++++------
+ src/pkg/runtime/hashmap_fast.c   |  4 ++--
+ src/pkg/runtime/iface.c          | 15 ++++++++-------
+ src/pkg/runtime/lock_futex.c     |  3 ++-
+ src/pkg/runtime/lock_sema.c      |  3 ++-
+ src/pkg/runtime/malloc.goc       |  3 ++-
+ src/pkg/runtime/noasm_arm.goc    |  5 +++--
+ src/pkg/runtime/os_darwin.c      |  7 ++++---
+ src/pkg/runtime/os_freebsd.c     |  3 ++-
+ src/pkg/runtime/os_freebsd_arm.c |  3 ++-
+ src/pkg/runtime/os_linux.c       |  3 ++-
+ src/pkg/runtime/os_linux_386.c   |  3 ++-
+ src/pkg/runtime/os_linux_arm.c   |  5 +++--
+ src/pkg/runtime/os_netbsd.c      |  3 ++-
+ src/pkg/runtime/os_netbsd_arm.c  |  3 ++-
+ src/pkg/runtime/os_openbsd.c     |  3 ++-
+ src/pkg/runtime/os_plan9.c       |  9 +++++----
+ src/pkg/runtime/os_windows.c     | 11 ++++++-----
+ src/pkg/runtime/panic.c          |  7 ++++---
+ src/pkg/runtime/print.c          |  5 +++--
+ src/pkg/runtime/proc.c           | 21 +++++++++++----------
+ src/pkg/runtime/race.c           | 21 +++++++++++----------
+ src/pkg/runtime/runtime.c        |  3 ++-
+ src/pkg/runtime/sigqueue.goc     |  3 ++-
+ src/pkg/runtime/slice.c          |  9 +++++----
+ src/pkg/runtime/softfloat_arm.c  |  3 ++-
+ src/pkg/runtime/string.goc       |  5 +++--
+ src/pkg/runtime/time_plan9_386.c |  3 ++-
+ src/pkg/runtime/vlrt_386.c       |  4 +++-
+ src/pkg/runtime/vlrt_arm.c       | 14 ++++++++------
+ 36 files changed, 156 insertions(+), 119 deletions(-)

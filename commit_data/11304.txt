@@ -1,14 +1,14 @@
-commit 35ba05ee288c8760ab116a773b1055a93a419bc5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jan 20 15:39:14 2012 -0800
+commit 531ded922f4eeb8c4634924b935599165b9f407b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 20 15:38:03 2012 -0800
 
-    bytes: simplified logic
+    doc/go1: flag, runtime, testing
     
-    Also: Avoid potential crash due to reslicing of nil buffer.
-    
-    R=r
+    R=golang-dev, dsymonds, gri
     CC=golang-dev
-    https://golang.org/cl/5556075
+    https://golang.org/cl/5557076
 
- src/pkg/bytes/buffer.go | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ doc/go1.html     | 76 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ doc/go1.tmpl     | 62 ++++++++++++++++++++++++++++++++++++++++++---
+ doc/progs/go1.go | 19 ++++++++++++++
+ 3 files changed, 149 insertions(+), 8 deletions(-)

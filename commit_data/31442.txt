@@ -1,22 +1,17 @@
-commit c4335f81a29dd6d43db7337707a27908c5059b0c
+commit 84a855e547b8ef9a1a7aaaaedc3b1058ef7d1c09
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 27 17:18:02 2017 -0700
+Date:   Mon Feb 13 16:19:51 2017 -0800
 
-    cmd/compile: checkwidthj all expressions in walk
+    cmd/vet/all: add mips and mipsle
     
-    Instead of playing whack-a-mole finding all
-    the non-dowidth'd expressions that can sneak
-    out of the frontend and then deciding on
-    just the right place to handle them,
-    use a big hammer.
-    
-    Fixes #20152
-    
-    Change-Id: Id452d9e8c4e9585216bd8bf0e0004c85aba4f9f7
-    Reviewed-on: https://go-review.googlesource.com/42021
+    Change-Id: I689b2e8e214561350f88fa4e20c8f34cf69dc6a7
+    Reviewed-on: https://go-review.googlesource.com/37301
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/vet/all/main.go              |  2 ++
+ src/cmd/vet/all/whitelist/mips.txt   |  7 +++++++
+ src/cmd/vet/all/whitelist/mipsle.txt |  7 +++++++
+ src/cmd/vet/all/whitelist/mipsx.txt  | 11 +++++++++++
+ 4 files changed, 27 insertions(+)

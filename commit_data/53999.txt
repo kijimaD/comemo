@@ -1,25 +1,23 @@
-commit 41c71d48a126b1429babad2c1df23b773b1fc702
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Jun 27 11:30:29 2023 -0500
+commit e0822b55ac2076112507016bc08d52999c25d728
+Author: kurochan <kuro@kurochan.org>
+Date:   Thu Sep 15 00:02:32 2022 +0000
 
-    cmd/compile/internal: add RLDICR opcode for PPC64
+    text/template: fixed typo in a nested template definition
     
-    This is encoded similarly to RLDICL, but can clear the least
-    significant bits.
+    The text was mistakenly quoted with backquotes.
     
-    Likewise, update the auxint encoding of RLDICL to match those
-    used by the rotate and mask word ssa opcodes for easier usage
-    within lowering rules. The RLDICL ssa opcode is not used yet.
-    
-    Change-Id: I42486dd95714a3e8e2f19ab237a6cf3af520c905
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515575
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I77ed4adac8c78b719bea61c08f1c377ed4ac4c9d
+    GitHub-Last-Rev: 6f1430fe167ad34effd75e8f2ac441436a81a878
+    GitHub-Pull-Request: golang/go#55059
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430775
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go         | 30 +++++++++---------
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  3 +-
- src/cmd/compile/internal/ssa/opGen.go         | 45 ++++++++++++++++++---------
- 3 files changed, 48 insertions(+), 30 deletions(-)
+ src/text/template/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

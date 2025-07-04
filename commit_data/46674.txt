@@ -1,20 +1,47 @@
-commit 88ea8a5fe0526bc53e944420c42cf75fc7b11c4f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Sep 29 09:49:54 2021 -0700
+commit 1760d736f61265b3c78a6a48f2e1904341806643
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Dec 1 14:48:03 2020 -0800
 
-    runtime: extract text address calculation into a separate method
+    [dev.regabi] cmd/compile: exporting, importing, and inlining functions with OCLOSURE
     
-    Pure code movement.
+    I have exporting, importing, and inlining of functions with closures
+    working in all cases (issue #28727). all.bash runs successfully without
+    errors.
     
-    Change-Id: I7216e50fe14afa3d19c5047c92e515c90838f834
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353129
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Approach:
+      - Write out the Func type, Dcls, ClosureVars, and Body when exporting
+        an OCLOSURE.
+    
+      - When importing an OCLOSURE, read in the type, dcls, closure vars,
+        and body, and then do roughly equivalent code to (*noder).funcLit
+    
+      - During inlining of a closure within inlined function, create new
+        nodes for all params and local variables (including closure
+        variables), so they can have a new Curfn and some other field
+        values. Must substitute not only on the Nbody of the closure, but
+        also the Type, Cvars, and Dcl fields.
+    
+    Fixes #28727
+    
+    Change-Id: I4da1e2567c3fa31a5121afbe82dc4e5ee32b3170
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283112
+    Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/runtime/symtab.go | 36 ++++++++++++++++++++++++++++++++++++
- src/runtime/type.go   | 29 +----------------------------
- 2 files changed, 37 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/escape/escape.go     |   4 +
+ src/cmd/compile/internal/inline/inl.go        | 264 +++++++++++++++++++++++---
+ src/cmd/compile/internal/ir/fmt.go            |  21 ++
+ src/cmd/compile/internal/ir/node.go           |   4 +
+ src/cmd/compile/internal/noder/noder.go       |   8 +
+ src/cmd/compile/internal/typecheck/func.go    |  22 ++-
+ src/cmd/compile/internal/typecheck/iexport.go |  49 ++++-
+ src/cmd/compile/internal/typecheck/iimport.go |  85 +++++++--
+ test/closure3.dir/main.go                     |  44 ++---
+ test/closure5.dir/a.go                        |  11 ++
+ test/closure5.dir/main.go                     |  15 ++
+ test/closure5.go                              |  10 +
+ test/inline.go                                |  22 +--
+ 13 files changed, 472 insertions(+), 87 deletions(-)

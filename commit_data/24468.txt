@@ -1,42 +1,44 @@
-commit 91059de095703ebc4ce6b8bad7a0a40dedeef7dc
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Aug 31 16:26:12 2015 -0700
+commit b2dfacf35e162f7ddcc5b1ed4c1e8e87096e06a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 10:45:01 2015 -0400
 
-    runtime: make aeshash more DOS-proof
+    runtime: change arm software div/mod call sequence not to modify stack
     
-    Improve the aeshash implementation to make it harder to engineer collisions.
+    Instead of pushing the denominator argument on the stack,
+    the denominator is now passed in m.
     
-    1) Scramble the seed before xoring with the input string.  This
-       makes it harder to cancel known portions of the seed (like the size)
-       because it mixes the per-table seed into those other parts.
+    This fixes a variety of bugs related to trying to take stack traces
+    backwards from the middle of the software div/mod routines.
+    Some of those bugs have been kludged around in the past,
+    but others have not. Instead of trying to patch up after breaking
+    the stack, this CL stops breaking the stack.
     
-    2) Use table-dependent seeds for all stripes when hashing >16 byte strings.
+    This is an update of https://golang.org/cl/19810043,
+    which was rolled back in https://golang.org/cl/20350043.
     
-    For small strings this change uses 4 aesenc ops instead of 3, so it
-    is somewhat slower.  The first two can run in parallel, though, so
-    it isn't 33% slower.
+    The problem in the original CL was that there were divisions
+    at bad times, when m was not available. These were divisions
+    by constant denominators, either in C code or in assembly.
+    The Go compiler knows how to generate division by multiplication
+    for constant denominators, but the C compiler did not.
+    There is no longer any C code, so that's taken care of.
+    There was one problematic DIV in runtime.usleep (assembly)
+    but https://golang.org/cl/12898 took care of that one.
+    So now this approach is safe.
     
-    benchmark                            old ns/op     new ns/op     delta
-    BenchmarkHash64-12                   10.2          11.2          +9.80%
-    BenchmarkHash16-12                   5.71          6.13          +7.36%
-    BenchmarkHash5-12                    6.64          7.01          +5.57%
-    BenchmarkHashBytesSpeed-12           30.3          31.9          +5.28%
-    BenchmarkHash65536-12                2785          2882          +3.48%
-    BenchmarkHash1024-12                 53.6          55.4          +3.36%
-    BenchmarkHashStringArraySpeed-12     54.9          56.5          +2.91%
-    BenchmarkHashStringSpeed-12          18.7          19.2          +2.67%
-    BenchmarkHashInt32Speed-12           14.8          15.1          +2.03%
-    BenchmarkHashInt64Speed-12           14.5          14.5          +0.00%
+    Reject DIV/MOD in NOSPLIT functions to keep them from
+    coming back.
     
-    Change-Id: I59ea124b5cb92b1c7e8584008257347f9049996c
-    Reviewed-on: https://go-review.googlesource.com/14124
-    Reviewed-by: jcd . <jcd@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #6681.
+    Fixes #6699.
+    Fixes #10486.
+    
+    Change-Id: I09a13c76ad08ba75b3bd5d46a3eb78e66a84ab38
+    Reviewed-on: https://go-review.googlesource.com/12899
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/alg.go      |   5 +-
- src/runtime/asm_386.s   | 204 ++++++++++++++-----------
- src/runtime/asm_amd64.s | 396 ++++++++++++++++++++++++++++--------------------
- src/runtime/hash32.go   |   6 +-
- src/runtime/hash64.go   |   6 +-
- 5 files changed, 350 insertions(+), 267 deletions(-)
+ src/cmd/internal/obj/arm/obj5.go | 68 +++++++++++++---------------------------
+ src/runtime/runtime2.go          |  7 +++--
+ src/runtime/vlop_arm.s           | 54 +++++++++++++++++--------------
+ test/fixedbugs/issue10486.go     | 31 ++++++++++++++++++
+ 4 files changed, 87 insertions(+), 73 deletions(-)

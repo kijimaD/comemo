@@ -1,12 +1,16 @@
-commit c8abb02178315303ee20f4d32fea91f50a4ac74c
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Nov 18 12:04:32 2015 +1300
+commit 2f518071577d177c5ec5b4c0c9e9dcd14e9cd32a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 10 11:37:09 2015 -0700
 
-    cmd/go: enable -buildmode=pie on linux/386
+    [dev.ssa] cmd/compile/internal/ssa: fix real/imag ops
     
-    Change-Id: Ie4cdf50fdaf7b368a189a84f4e2aea4cedd5ca7d
-    Reviewed-on: https://go-review.googlesource.com/17013
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    They were using the result type to look up the op, not the arg type.
+    
+    Change-Id: I0641cba363fa6e7a66ad0860aa340106c10c2cea
+    Reviewed-on: https://go-review.googlesource.com/14469
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go             |  5 +++-
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go | 32 ++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)

@@ -1,16 +1,20 @@
-commit b4c9ec8be9f15d50e3b7f83b18f1ceaaaae6c9ba
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Mon Oct 26 16:09:48 2015 +0100
+commit 391cc54da8fa466870605742510d54dd2ddf3c40
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Sun Sep 6 22:38:49 2015 +0200
 
-    net/rpc: verify that embedding works with changed semantics
+    cmd/compile: make importlist a []*Node instead of *NodeList
     
-    Exported methods of unexported embedded structs get added
-    correctly to the pool. Behavior is unchanged before and after
-    https://golang.org/cl/14085.
+    Passes go build -a -toolexec 'toolstash -cmp' std.
     
-    Change-Id: I2b4053bab02ff045f0a4577b8114808a60aae27e
-    Reviewed-on: https://go-review.googlesource.com/16305
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ica62765d3c1ef052afed34da1b3ac3f80646cc55
+    Reviewed-on: https://go-review.googlesource.com/14318
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/rpc/server_test.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/cmd/compile/internal/gc/go.go  | 2 +-
+ src/cmd/compile/internal/gc/go.y   | 2 +-
+ src/cmd/compile/internal/gc/lex.go | 6 +++---
+ src/cmd/compile/internal/gc/y.go   | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

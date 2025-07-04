@@ -1,24 +1,18 @@
-commit 94eda9ae37d9f8a34c44c1ad1a030b4475f79faf
-Author: Andrew G. Morgan <agm@google.com>
-Date:   Fri Oct 23 16:33:38 2020 -0700
+commit 94d22d12fa4d35d4e6265222665fb566b92c2bda
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 8 15:52:01 2020 +0000
 
-    syscall: disable TestAllThreadsSyscall on linux-ppc64
+    Revert "runtime/pprof: try to use real stack in TestTryAdd"
     
-    For some reason, currently unknown, this test case fails exclusively
-    on the linux-ppc64 platform. Until such time as it can be made to
-    work, we'll disable this test case on that platform.
+    This reverts CL 227484.
     
-    The same issue causes TestSetuidEtc to fail too, so disable that
-    on this platform.
+    Reason for revert: failing on linux-amd64-noopt builder.
     
-    Updates #42178
-    
-    Change-Id: Idd3f6c2ee9f2fba2eb8ce4de69de7f316858bb15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264719
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id677de8cfb18fbccb7d9b04b0f8a21d3c1d2b060
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227580
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/syscall/syscall_linux_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/pprof/pprof_test.go | 91 +++++++++++------------------------------
+ 1 file changed, 25 insertions(+), 66 deletions(-)

@@ -1,43 +1,30 @@
-commit 4f881115d4067bda8a236aabcae8c41cdd13b4d0
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 16 15:58:36 2024 -0400
+commit b888ec4ac3715b3b8d153f697ce35f932b33cf67
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 29 15:37:26 2023 -0400
 
-    runtime: move getcallersp to internal/runtime/sys
+    cmd/compile/internal/inline: add framework to compute func "properties"
     
-    Moving these intrinsics to a base package enables other internal/runtime
-    packages to use them.
+    Add some machinery to support computing function "properties" for use
+    in driving inlining heuristics, and a unit testing framework to check
+    to see if the property computations are correct for a given set of
+    canned Go source files. This CL is mainly the analysis skeleton and a
+    testing framework; the code to compute the actual props will arrive in
+    a later patch.
     
-    For #54766.
+    Updates #61502.
     
-    Change-Id: I45a530422207dd94b5ad4eee51216c9410a84040
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613261
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I7970b64f713d17d7fdd7e8e9ccc7d9b0490571bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511557
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/inline/inl.go             | 14 +++-------
- src/cmd/compile/internal/ir/node.go                |  2 +-
- src/cmd/compile/internal/ssa/_gen/genericOps.go    |  2 +-
- src/cmd/compile/internal/ssagen/intrinsics.go      | 16 +++++------
- src/cmd/compile/internal/ssagen/intrinsics_test.go | 32 +++++++++++-----------
- src/cmd/internal/testdir/testdir_test.go           |  2 +-
- src/internal/runtime/sys/intrinsics.go             | 12 ++++----
- src/runtime/asan.go                                |  8 +++---
- src/runtime/debugcall.go                           |  2 +-
- src/runtime/export_test.go                         |  4 +--
- src/runtime/export_windows_test.go                 |  2 +-
- src/runtime/lock_js.go                             |  9 ++++--
- src/runtime/mprof.go                               |  8 +++---
- src/runtime/os2_aix.go                             | 14 +++++-----
- src/runtime/os_solaris.go                          | 14 +++++-----
- src/runtime/os_windows.go                          |  2 +-
- src/runtime/panic.go                               | 26 +++++++++---------
- src/runtime/proc.go                                | 16 +++++------
- src/runtime/signal_unix.go                         |  4 +--
- src/runtime/stubs.go                               | 26 ------------------
- src/runtime/stubs_wasm.go                          |  4 +--
- src/runtime/sys_libc.go                            |  2 +-
- src/runtime/traceback.go                           |  6 ++--
- test/internal/runtime/sys/inlinegcpc.go            | 11 +++++++-
- test/runtime/README                                |  7 -----
- test/runtime/inlinegcpc.go                         | 20 --------------
- 26 files changed, 110 insertions(+), 155 deletions(-)
+ src/cmd/compile/internal/base/debug.go             |   1 +
+ src/cmd/compile/internal/inline/inl.go             |   9 +
+ src/cmd/compile/internal/inline/inlheur/analyze.go | 168 ++++++++
+ .../internal/inline/inlheur/funcprops_test.go      | 462 +++++++++++++++++++++
+ .../inline/inlheur/testdata/props/README.txt       |  75 ++++
+ .../internal/inline/inlheur/testdata/props/stub.go | 107 +++++
+ .../compile/internal/inline/inlheur/trace_off.go   |  15 +
+ .../compile/internal/inline/inlheur/trace_on.go    |  17 +
+ 8 files changed, 854 insertions(+)

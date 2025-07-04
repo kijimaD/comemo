@@ -1,18 +1,15 @@
-commit 909f31872a0e5e5b8ec5cc49b22ae661777a2fbc
+commit f9f21aa1fb45aaa4eece55f192783bfa46df4909
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 12 01:23:58 2011 -0400
+Date:   Tue Jul 12 01:21:06 2011 -0400
 
-    runtime: eliminate false sharing on random number generators
-    Use machine-local random number generator instead of
-    racy global ones.
+    runtime: fix data race on runtime·maxstring
+    The data race can lead to erroneous output of
+    "[invalid string]" instead of a string.
     
-    R=golang-dev, rsc
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/4674049
+    https://golang.org/cl/4678049
 
- src/pkg/runtime/chan.c     | 15 ++-------------
- src/pkg/runtime/malloc.goc | 17 +----------------
- src/pkg/runtime/proc.c     |  2 ++
- src/pkg/runtime/runtime.c  | 13 +++++++++++++
- src/pkg/runtime/runtime.h  |  2 ++
- 5 files changed, 20 insertions(+), 29 deletions(-)
+ src/pkg/runtime/print.c    |  2 +-
+ src/pkg/runtime/string.goc | 10 +++++++---
+ 2 files changed, 8 insertions(+), 4 deletions(-)

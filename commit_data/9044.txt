@@ -1,24 +1,15 @@
-commit 7aa1a1a64d8f43a33b41f67a5c9366b3d8b67328
+commit 2e9388e32124bcc946d18388a2a18eb17a999148
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 13 15:58:31 2011 +1000
+Date:   Wed Jul 13 13:50:05 2011 +1000
 
-    exp/template: doc and API changes suggested by rsc.
-    - template invocation is by string constant only.
-    - NewSet is gone.
-    - no global Funcs
-    - writer is now first arg to Execute
+    exp/template: add Set.AddSet and Set.Union.
+    Document and test that Set.Parse can be called multiple times.
     
-    R=rsc, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4700043
+    https://golang.org/cl/4703044
 
- src/pkg/exp/template/doc.go        | 72 +++++++++++++++++---------------------
- src/pkg/exp/template/exec.go       | 27 ++++----------
- src/pkg/exp/template/exec_test.go  |  4 +--
- src/pkg/exp/template/funcs.go      |  9 +----
- src/pkg/exp/template/helper.go     | 22 ++++++------
- src/pkg/exp/template/parse.go      | 29 +++++----------
- src/pkg/exp/template/parse_test.go | 10 +++---
- src/pkg/exp/template/set.go        | 32 +++++++++--------
- src/pkg/exp/template/set_test.go   |  8 ++---
- 9 files changed, 85 insertions(+), 128 deletions(-)
+ src/pkg/exp/template/doc.go      |  4 ++++
+ src/pkg/exp/template/set.go      | 31 +++++++++++++++++++++++++++++--
+ src/pkg/exp/template/set_test.go | 11 +++++++++--
+ 3 files changed, 42 insertions(+), 4 deletions(-)

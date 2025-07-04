@@ -1,13 +1,24 @@
-commit 34bac8bcd464af1aca6fb032d912e7f2fd58d22e
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Mon Jul 11 20:02:32 2011 -0400
+commit b4f0e8ffd330f73da32d453b6de63034852673fc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 12 09:57:39 2011 +1000
 
-    doc: don't specify make target for working on windwos.
-    makehtml does not work on windows.
+    undo CL 4675045 / 0e11e08951f7
     
-    R=golang-dev, adg, rsc
+    Breaks Mercurial 1.8.3.
+    
+    ««« original CL description
+    codereview: fix for Mercurial 1.9
+    
+    Fixes #2038.
+    
+    R=rsc, bobbypowers
     CC=golang-dev
-    https://golang.org/cl/4675041
+    https://golang.org/cl/4675045
+    »»»
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4685055
 
- doc/makehtml | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/codereview/codereview.py | 26 +++++++-------------------
+ 1 file changed, 7 insertions(+), 19 deletions(-)

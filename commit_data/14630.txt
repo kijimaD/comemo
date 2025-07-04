@@ -1,15 +1,18 @@
-commit c8ce844d5a8680cc4f22639f7c2eda4ee57cfcdd
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 13 14:32:03 2012 +1100
+commit a9a49fe9625194395d9eb791de7c2674d7b6f8d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 12 13:08:35 2012 -0800
 
-    doc/play: sync playground.js with go-playground repo
+    spec: calling delete on a nil map is a no-op
     
-    Also add style for "Program exited." message.
+    This is language change. It is a backward-compatible
+    change but for code that relies on a run-time panic
+    when calling delete on a nil map (unlikely).
     
-    R=golang-dev, bradfitz
+    Fixes #4253.
+    
+    R=rsc, r, iant, ken, bradfitz, rogpeppe
     CC=golang-dev
-    https://golang.org/cl/6934047
+    https://golang.org/cl/6909060
 
- doc/play/playground.js | 85 +++++++++++++++++++++++++++++++++++++++-----------
- doc/style.css          |  3 ++
- 2 files changed, 70 insertions(+), 18 deletions(-)
+ doc/go_spec.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

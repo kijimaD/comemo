@@ -1,18 +1,14 @@
-commit 7b8b3f30edde4ec93b91e62d2d6442dff7360056
-Author: Ben Shi <powerman1st@163.com>
-Date:   Fri Oct 5 12:09:43 2018 +0000
+commit 9e4c344c72125f93a35b60e13c9c149eac27eb55
+Author: Eugene Kalinin <e.v.kalinin@gmail.com>
+Date:   Wed Jun 6 18:01:02 2018 +0300
 
-    cmd/compile: combine similar code in 386's assembly generator
+    database/sql: update doc related to per-connection state
     
-    The indexed MOVload and MOVstore have similar logic, and this CL
-    combine them together. The total size of pkg/linux_386/cmd/compile/
-    decreases about 4KB.
+    Fixes #25330
     
-    Change-Id: I06236a3542aaa3dfc113c49fe4c69d209e018dfe
-    Reviewed-on: https://go-review.googlesource.com/c/139958
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I41b5b3459ed7808d18112ec02d734e2268099a81
+    Reviewed-on: https://go-review.googlesource.com/116596
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/cmd/compile/internal/x86/ssa.go | 94 ++++++++++++-------------------------
- 1 file changed, 30 insertions(+), 64 deletions(-)
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

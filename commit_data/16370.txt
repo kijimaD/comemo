@@ -1,15 +1,18 @@
-commit 4c2df76b7dd9439566a71f8bb339295a5ef57be6
-Author: Rob Pike <r@golang.org>
-Date:   Wed May 22 11:03:10 2013 -0700
+commit c4cfef075edcbf9391933152ceede9948595d15a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 22 13:29:17 2013 +0400
 
-    log/syslog: report errors from Fprintf
-    Thanks to chiparus for identifying this.
+    runtime: simplify MCache
+    The nlistmin/size thresholds are copied from tcmalloc,
+    but are unnecesary for Go malloc. We do not do explicit
+    frees into MCache. For sparse cases when we do (mainly hashmap),
+    simpler logic will do.
     
-    Fixes #5541.
-    
-    R=golang-dev, iant
-    CC=golang-dev
-    https://golang.org/cl/9658043
+    R=rsc, dave, iant
+    CC=gobot, golang-dev, r, remyoudompheng
+    https://golang.org/cl/9373043
 
- src/pkg/log/syslog/syslog.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/runtime/malloc.h   |  6 +----
+ src/pkg/runtime/mcache.c   | 59 ++++++++++++----------------------------------
+ src/pkg/runtime/mcentral.c | 17 +++++--------
+ 3 files changed, 22 insertions(+), 60 deletions(-)

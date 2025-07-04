@@ -1,18 +1,32 @@
-commit 154fb4e1d45e503658542dee5296243a6146e7ca
-Author: Junyang Shao <shaojunyang@google.com>
-Date:   Thu Nov 21 07:36:25 2024 +0000
+commit 5ae9724d905ae3257e072ef7746234e2e3c034e4
+Author: Austin Clements <austin@google.com>
+Date:   Tue Sep 5 11:07:29 2023 -0400
 
-    testing: Update testing.B.Loop to save benchmark results.
+    cmd/go: consolidate showOutput, formatOutput, and processOutput into reportCmd
     
-    This is fixing some the missing logic of CL 627755.
+    Many uses of showOutput, formatOutput, and processOutput follow a very
+    similar (somewhat complex) pattern. Places that diverge from this
+    pattern are often minor bugs. Furthermore, the roles of formatOutput
+    and processOutput have somewhat blurred over time; e.g., formatOutput
+    performs directory shortening, while processOutput performs cgo
+    demangling.
     
-    Change-Id: I35acffef7299331fce21da4a80a26185b2e909f4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630455
-    Commit-Queue: Junyang Shao <shaojunyang@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This CL consolidates all of this logic into a single, new function:
+    Builder.reportCmd.
+    
+    In the following CL, we'll replace all calls of the three original
+    functions with reportCmd.
+    
+    In addition to being a nice cleanup, this puts us in a much better
+    position to change how build output is formatted in order to support
+    `go build -json`.
+    
+    For #62067.
+    
+    Change-Id: I733162825377d82d0015c8aae2820e56a1b32958
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529218
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/testing/benchmark.go      | 51 +++++++++++++++++++++++--------------------
- src/testing/benchmark_test.go | 17 +++++++++------
- src/testing/testing_test.go   |  5 +++++
- 3 files changed, 42 insertions(+), 31 deletions(-)
+ src/cmd/go/internal/work/exec.go | 185 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 185 insertions(+)

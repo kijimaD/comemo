@@ -1,18 +1,34 @@
-commit 77acf19a5929fcd2941a8ae1724584b4a184c93a
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Aug 29 07:39:57 2017 +0900
+commit 65119318100915eb99bc726693951a982a3f130a
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Wed Apr 26 19:07:15 2017 -0400
 
-    cmd/cgo: avoid using common names for sniffing
+    cmd/go/internal/get: allow go get on github.com/ import paths with Unicode letters
     
-    Current code uses names like "x" and "s" which can conflict with user's
-    code easily. Use cryptographic names.
+    More specifically, allow Unicode letters in the directories of GitHub
+    repositories, which can occur and don't have a valid reason to be
+    disallowed by go get.
     
-    Fixes #21668
+    Do so by using a predefined character class, the Unicode character
+    property class \p{L} that describes the Unicode characters that are
+    letters:
     
-    Change-Id: Ib6d3d6327aa5b92d95c71503d42e3a79d96c8e15
-    Reviewed-on: https://go-review.googlesource.com/59710
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+            http://www.regular-expressions.info/unicode.html#category
+    
+    Since it's not possible to create GitHub usernames or repositories
+    containing Unicode letters at this time, those parts of the import path
+    are still restricted to ASCII letters only.
+    
+    Fix name of tested func in t.Errorf messages.
+    
+    Fixes #18660.
+    
+    Change-Id: Ia0ef4742bfd8317d989ef1eb1d7065e382852fe2
+    Reviewed-on: https://go-review.googlesource.com/41822
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- misc/cgo/test/issue21668.go | 13 +++++++++++++
- src/cmd/cgo/gcc.go          | 20 ++++++++++----------
- 2 files changed, 23 insertions(+), 10 deletions(-)
+ src/cmd/go/internal/get/vcs.go      |  2 +-
+ src/cmd/go/internal/get/vcs_test.go | 14 +++++++++++---
+ 2 files changed, 12 insertions(+), 4 deletions(-)

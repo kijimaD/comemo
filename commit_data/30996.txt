@@ -1,20 +1,24 @@
-commit fc327a14c490db9d2e14c4c44ba8791dc54be02a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 4 15:26:04 2017 -0700
+commit a8871194f296383d313972da083e1b5f7513dfeb
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Jan 9 01:00:36 2017 -0800
 
-    cmd/compile: remove order canonicalization rules from mips
+    net/http: preserve original HTTP method when possible
     
-    CL 38801 introduced automatic commutative rule generation.
-    Manual order canonicalization rules thus lead to infinite loops.
+    In Go1.7, a 301, 302, or 303 redirect on a HEAD method, would still
+    cause the following redirects to still use a HEAD.
+    In CL/29852 this behavior was changed such that those codes always
+    caused a redirect with the GET method. Fix this such that both
+    GET and HEAD will preserve the method.
     
-    Fixes #19842
+    Fixes #18570
     
-    Change-Id: I877c476152f4d207fdc67bc6f3018265aa9bc5ac
-    Reviewed-on: https://go-review.googlesource.com/39533
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I4bfe69872a30799419e3fad9178f907fe439b449
+    Reviewed-on: https://go-review.googlesource.com/34981
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/gen/MIPS.rules |   3 -
- src/cmd/compile/internal/ssa/rewriteMIPS.go | 104 ----------------------------
- 2 files changed, 107 deletions(-)
+ src/net/http/client.go      | 22 ++++++++++++++--------
+ src/net/http/client_test.go |  6 +++---
+ 2 files changed, 17 insertions(+), 11 deletions(-)

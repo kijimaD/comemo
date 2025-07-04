@@ -1,35 +1,41 @@
-commit 7ad496b6f5300131d6f1fbafe44ac882897889e4
-Author: Austin Clements <austin@google.com>
-Date:   Tue Apr 13 23:30:19 2021 -0400
+commit f8df205e74d5122c43f41923280451641e566ee2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 7 18:29:51 2020 -0400
 
-    runtime: unify C->Go ABI transitions
+    all: enable more tests on macOS/ARM64
     
-    The previous CL introduced macros for transitions from the Windows ABI
-    to the Go ABI. This CL does the same for SysV and uses them in almost
-    all places where we transition from the C ABI to the Go ABI.
+    On macOS, we can do "go build", can exec, and have the source
+    tree available, so we can enable more tests.
     
-    Compared to Windows, this transition is much simpler and I didn't find
-    any places that were getting it wrong. But this does let us unify a
-    lot of code nicely and introduces some degree of abstraction around
-    these ABI transitions.
+    Skip ones that don't work. Most of them are due to that it
+    requires external linking (for now) and some tests don't work
+    with external linking (e.g. runtime deadlock detection). For
+    them, helper functions CanInternalLink/MustInternalLink are
+    introduced. I still want to have internal linking implemented,
+    but it is still a good idea to identify which tests don't work
+    with external linking.
     
-    Change-Id: Ib6bdecafce587ce18fca4c8300fcf401284a2bcd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309930
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Updates #38485.
+    
+    Change-Id: I6b14697573cf3f371daf54b9ddd792acf232f2f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260719
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/asm_amd64.s           | 21 +++++---------
- src/runtime/cgo/abi_amd64.h       | 32 +++++++++++++++++++-
- src/runtime/cgo/asm_amd64.s       | 30 ++++---------------
- src/runtime/os_linux.go           |  2 +-
- src/runtime/race_amd64.s          | 25 ++++------------
- src/runtime/sys_darwin_amd64.s    | 59 ++++++++++---------------------------
- src/runtime/sys_dragonfly_amd64.s | 38 ++++++++++--------------
- src/runtime/sys_freebsd_amd64.s   | 38 ++++++++++--------------
- src/runtime/sys_linux_386.s       |  7 +++--
- src/runtime/sys_linux_amd64.s     | 39 ++++++++++---------------
- src/runtime/sys_netbsd_amd64.s    | 38 ++++++++++--------------
- src/runtime/sys_openbsd_amd64.s   | 61 ++++++++++++---------------------------
- 12 files changed, 152 insertions(+), 238 deletions(-)
+ src/cmd/go/go_test.go                  |  9 ++++---
+ src/cmd/internal/sys/supported.go      |  1 +
+ src/cmd/internal/sys/supported_test.go | 18 ++++++++++++++
+ src/cmd/link/internal/ld/dwarf_test.go | 17 +++++++++++++
+ src/cmd/link/internal/ld/ld_test.go    |  7 +++++-
+ src/cmd/link/link_test.go              |  1 +
+ src/cmd/nm/nm_cgo_test.go              |  5 ++++
+ src/cmd/nm/nm_test.go                  |  3 +++
+ src/internal/cpu/cpu_test.go           |  9 +++++++
+ src/internal/testenv/testenv.go        | 44 +++++++++++++++++++++++-----------
+ src/os/exec/exec_test.go               |  4 ++++
+ src/runtime/crash_test.go              | 21 ++++++++++++++++
+ src/runtime/time_test.go               |  4 ++++
+ 13 files changed, 123 insertions(+), 20 deletions(-)

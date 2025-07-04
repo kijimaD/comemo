@@ -1,0 +1,16 @@
+commit 7299212a425d6c4a2df93ec4633ba1e1b7a5b9be
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Jul 12 20:14:23 2024 +0100
+
+    net/http: match os.File.Readdir behavior in DotFileHiding
+    
+    Fixes #67697
+    
+    Change-Id: I26b26262d885d0704851c08c79e7b2b4872b65ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598075
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/net/http/example_filesystem_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,19 +1,29 @@
-commit 538b4bab3dd9e34b3d30b6aeaef8db1d34275274
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Sep 11 17:19:24 2017 +1000
+commit 5548f7d5cfadf1319a99b2a17e72ff91fcdd09fc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 15 09:40:19 2017 -0700
 
-    misc/cgo/testcshared: actually run test executable on android
+    cmd/compile: eliminate some bounds checks from generated rewrite rules
     
-    CL 62593 broken TestExportedSymbols and TestUnexportedSymbols
-    because it started executing android test binary on host.
-    Make them run on android.
+    Noticed while looking at #20356.
     
-    Hopefully fixes android build.
+    Cuts 160k (1%) off of the cmd/compile binary.
     
-    Change-Id: Ic0bb9f0cbbefca23828574282caa33a03ef72431
-    Reviewed-on: https://go-review.googlesource.com/62830
+    Change-Id: If2397bc6971d6be9be6975048adecb0b5efa6d66
+    Reviewed-on: https://go-review.googlesource.com/43501
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/cgo/testcshared/cshared_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |    3 +
+ src/cmd/compile/internal/ssa/rewrite386.go     |  782 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 1960 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  833 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  656 ++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  344 +++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  345 +++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  406 +++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 1692 ++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritedec.go     |   24 +
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  119 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1415 +++++++++++++++++
+ 12 files changed, 8579 insertions(+)

@@ -1,21 +1,29 @@
-commit 4cce27a3fa0cc1f13afa6ffa358efa07144e00ec
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Jan 20 22:03:13 2017 -0500
+commit f36e1adaa2c72d74dc669b596ea1c4df5e938def
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Oct 9 22:45:17 2016 -0700
 
-    cmd/compile: fix constant propagation through s390x MOVDNE instructions
+    math/big: implement Float.Scan, type assert fmt interfaces to enforce docs
     
-    The constant propagation rules selected the wrong operand to
-    propagate. So MOVDNE (move if not equal) propagated operands as if
-    it were a MOVDEQ (move if equal).
+    Implements Float.Scan which satisfies fmt.Scanner interface.
+    Also enforces docs' interface implementation claims with compile time
+    type assertions, that is:
+    + Float always implements fmt.Formatter and fmt.Scanner
+    + Int always implements fmt.Formatter and fmt.Scanner
+    + Rat always implements fmt.Formatter
+    which will ensure that the API claims are strictly matched.
     
-    Fixes #18735.
+    Also note that Float.Scan doesn't handle ±Inf.
     
-    Change-Id: I87ac469172f9df7d5aabaf7106e2936ce54ae202
-    Reviewed-on: https://go-review.googlesource.com/35498
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #17391
+    
+    Change-Id: I3d3dfbe7f602066975c7a7794fe25b4c645440ce
+    Reviewed-on: https://go-review.googlesource.com/30723
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  6 +++---
- src/cmd/compile/internal/ssa/rewriteS390X.go | 12 ++++++------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+ src/math/big/example_test.go   | 13 +++++++++++
+ src/math/big/floatconv.go      | 15 ++++++++++++
+ src/math/big/floatconv_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/ftoa.go           |  2 ++
+ src/math/big/intconv.go        |  4 ++++
+ src/math/big/ratconv.go        |  3 +++
+ 6 files changed, 89 insertions(+)

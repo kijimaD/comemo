@@ -1,17 +1,26 @@
-commit 68ecdc2c70544c303aa923139a5f16caf107d955
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 26 17:48:01 2021 -0700
+commit 3a912f279fb6e3b6942a3a6c2449288a33351b69
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 21:16:02 2020 -0800
 
-    cmd/compile/internal/types: add Type.OrigSym getter/setters
+    [dev.typeparams] cmd/compile/internal/syntax: export NewName and use it
     
-    Will be used in the next CL, so that Type.OrigSym can be unexported.
+    Most syntax.Nodes are allocated in one place and there didn't
+    seem a need to provide factory methods - so as a matter of
+    API design, all nodes are "naked", without any constructors.
     
-    Change-Id: I085f2a886abd419343c7ec7e4ae18c19de1fbbd4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345484
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    However, Name nodes are frequently used/replaced and also
+    are created as helper nodes in clients (types2). Make an
+    exception and export NewName.
+    
+    Change-Id: I4b5c499d65bba74592dea68b0936c118b3edaca7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277572
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/types/type.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/compile/internal/syntax/nodes.go    |  7 +++++++
+ src/cmd/compile/internal/syntax/parser.go   | 23 ++++++-----------------
+ src/cmd/compile/internal/types2/resolver.go |  2 +-
+ src/cmd/compile/internal/types2/stmt.go     | 10 +---------
+ 4 files changed, 15 insertions(+), 27 deletions(-)

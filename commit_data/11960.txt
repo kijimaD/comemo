@@ -1,19 +1,13 @@
-commit 8342793e7bc9ea38629893763eeef9a3f4fdc836
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Feb 16 15:56:03 2012 +1100
+commit 34de45c435b7a59aade947148f666231aa5f3025
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 16 15:34:27 2012 +1100
 
-    net/url: Rename ParseWithReference to ParseWithFragment.
+    exp/winfsnotify: remove reference to _test
+    Updates #2573.
     
-    Updates #2946.
-    
-    R=golang-dev, r, r
+    R=golang-dev, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/5671061
+    https://golang.org/cl/5677063
 
- doc/go1.html                |  4 ++++
- doc/go1.tmpl                |  4 ++++
- src/cmd/fix/url2.go         | 46 +++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/fix/url2_test.go    | 31 ++++++++++++++++++++++++++++++
- src/pkg/net/url/url.go      | 10 +++++-----
- src/pkg/net/url/url_test.go | 14 +++++++-------
- 6 files changed, 97 insertions(+), 12 deletions(-)
+ src/pkg/exp/winfsnotify/winfsnotify_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

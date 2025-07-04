@@ -1,24 +1,36 @@
-commit 3550a84840c3922477dc78abc4677d485600f705
-Author: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
-Date:   Wed Sep 27 08:11:49 2023 -0500
+commit 5497300d9c9327005fa9ab14c6897d6c883139c5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 10 16:10:32 2022 -0500
 
-    cmd/compile: update to rules on PPC64 folding bit reversal to load
+    cmd/internal/obj: reduce allocations in object file writing
     
-    In the Power10 rule to fold bit reversal into load, the MOVWZreg or
-    MOVHZreg (Zeroing out the upper bits of a  word or halfword) becomes
-    redundant since byte reverse (BR) load clears the upper bits. Hence
-    removing for Power10. Similarly for < Power10  cases in the rule used to
-    fold bit reversal into load (Bswap), the above redundant operation is removed.
+    Some object file writer functions are structured like, having a
+    local variable, setting fields, then passing it to a Write method
+    which eventually calls io.Writer.Write. As the Write call is an
+    interface call it escapes the parameter, which in turn causes the
+    local variable to be heap allocated. To reduce allocation, use
+    pre-allocated scratch space instead.
     
-    Change-Id: Idb027e8b6e79b6acfb81d48a9a6cc06f8e9cd2db
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531377
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reduce number of allocations in the compiler:
+    name        old allocs/op     new allocs/op     delta
+    Template           679k ± 0%         644k ± 0%  -5.17%  (p=0.000 n=20+20)
+    Unicode            603k ± 0%         581k ± 0%  -3.67%  (p=0.000 n=20+20)
+    GoTypes           3.83M ± 0%        3.63M ± 0%  -5.30%  (p=0.000 n=20+20)
+    Compiler           353k ± 0%         342k ± 0%  -3.09%  (p=0.000 n=18+19)
+    SSA               31.4M ± 0%        30.4M ± 0%  -3.02%  (p=0.000 n=20+20)
+    Flate              397k ± 0%         373k ± 0%  -5.92%  (p=0.000 n=20+18)
+    GoParser           777k ± 0%         735k ± 0%  -5.37%  (p=0.000 n=20+20)
+    Reflect           2.07M ± 0%        1.90M ± 0%  -7.89%  (p=0.000 n=18+20)
+    Tar                605k ± 0%         568k ± 0%  -6.26%  (p=0.000 n=19+16)
+    XML                801k ± 0%         766k ± 0%  -4.36%  (p=0.000 n=20+20)
+    [Geo mean]        1.18M             1.12M       -5.02%
+    
+    Change-Id: I9d02a72e459e645527196ac54b6ee643a5ea6bd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449637
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/_gen/PPC64.rules |  4 ++--
- src/cmd/compile/internal/ssa/rewritePPC64.go  | 32 ++++++++++-----------------
- 2 files changed, 14 insertions(+), 22 deletions(-)
+ src/cmd/internal/goobj/objfile.go | 17 ++++++++---------
+ src/cmd/internal/obj/objfile.go   | 28 +++++++++++++++++++---------
+ 2 files changed, 27 insertions(+), 18 deletions(-)

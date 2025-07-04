@@ -1,15 +1,15 @@
-commit 614391860aedf7d9794439c39fa42de2637d8198
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 31 17:42:10 2011 -0500
+commit 6990bc124fdc7e129968855ab6b81fce94b0e26a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 31 14:41:36 2011 -0800
 
-    ebnflint: exit with non-zero status on error
+    doc/progs: make sure all programs compile and run
     
-    Tweak spec to avoid ebnflint complaints.
+    Fixes #1455.
     
-    R=gri
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/3973050
+    https://golang.org/cl/4079055
 
- doc/go_spec.html             | 4 ++--
- src/cmd/ebnflint/ebnflint.go | 3 +++
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ doc/progs/run        | 4 ++--
+ doc/progs/strings.go | 1 -
+ 2 files changed, 2 insertions(+), 3 deletions(-)

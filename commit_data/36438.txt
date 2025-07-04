@@ -1,21 +1,89 @@
-commit e34f660a52b810e7f4d4a186c7502324c67390ea
-Author: Yury Smolsky <yury@smolsky.by>
-Date:   Tue Jul 24 13:04:35 2018 +0300
+commit aaf73c6d1e4b9725110d3add7f383695ba8f1b18
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sun Apr 22 00:51:00 2018 +0000
 
-    cmd/compile: cache the value of environment variable GOSSAFUNC
+    cmd/compile: optimize ARM64 with shifted register indexed load/store
     
-    Store the value of GOSSAFUNC in a global variable to avoid
-    multiple calls to os.Getenv from gc.buildssa and gc.mkinlcall1.
-    The latter is implemented in the CL 126606.
+    ARM64 supports efficient instructions which combine shift, addition, load/store
+    together. Such as "MOVD (R0)(R1<<3), R2" and "MOVWU R6, (R4)(R1<<2)".
     
-    Updates #25942
+    This CL optimizes the compiler to emit such efficient instuctions. And below
+    is some test data.
     
-    Change-Id: I58caaef2fee23694d80dc5a561a2e809bf077fa4
-    Reviewed-on: https://go-review.googlesource.com/126604
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    1. binary size before/after
+    binary                 size change
+    pkg/linux_arm64        +80.1KB
+    pkg/tool/linux_arm64   +121.9KB
+    go                     -4.3KB
+    gofmt                  -64KB
+    
+    2. go1 benchmark
+    There is big improvement for the test case Fannkuch11, and slight
+    improvement for sme others, excluding noise.
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              43.9s ± 2%     44.0s ± 2%     ~     (p=0.820 n=30+30)
+    Fannkuch11-4                30.6s ± 2%     24.5s ± 3%  -19.93%  (p=0.000 n=25+30)
+    FmtFprintfEmpty-4           500ns ± 0%     499ns ± 0%   -0.11%  (p=0.000 n=23+25)
+    FmtFprintfString-4         1.03µs ± 0%    1.04µs ± 3%     ~     (p=0.065 n=29+30)
+    FmtFprintfInt-4            1.15µs ± 3%    1.15µs ± 4%   -0.56%  (p=0.000 n=30+30)
+    FmtFprintfIntInt-4         1.80µs ± 5%    1.82µs ± 0%     ~     (p=0.094 n=30+24)
+    FmtFprintfPrefixedInt-4    2.17µs ± 5%    2.20µs ± 0%     ~     (p=0.100 n=30+23)
+    FmtFprintfFloat-4          3.08µs ± 3%    3.09µs ± 4%     ~     (p=0.123 n=30+30)
+    FmtManyArgs-4              7.41µs ± 4%    7.17µs ± 1%   -3.26%  (p=0.000 n=30+23)
+    GobDecode-4                93.7ms ± 0%    94.7ms ± 4%     ~     (p=0.685 n=24+30)
+    GobEncode-4                78.7ms ± 7%    77.1ms ± 0%     ~     (p=0.729 n=30+23)
+    Gzip-4                      4.01s ± 0%     3.97s ± 5%   -1.11%  (p=0.037 n=24+30)
+    Gunzip-4                    389ms ± 4%     384ms ± 0%     ~     (p=0.155 n=30+23)
+    HTTPClientServer-4          536µs ± 1%     537µs ± 1%     ~     (p=0.236 n=30+30)
+    JSONEncode-4                179ms ± 1%     182ms ± 6%     ~     (p=0.763 n=24+30)
+    JSONDecode-4                843ms ± 0%     839ms ± 6%   -0.42%  (p=0.003 n=25+30)
+    Mandelbrot200-4            46.5ms ± 0%    46.5ms ± 0%   +0.02%  (p=0.000 n=26+26)
+    GoParse-4                  44.3ms ± 6%    43.3ms ± 0%     ~     (p=0.067 n=30+27)
+    RegexpMatchEasy0_32-4      1.07µs ± 7%    1.07µs ± 4%     ~     (p=0.835 n=30+30)
+    RegexpMatchEasy0_1K-4      5.51µs ± 0%    5.49µs ± 0%   -0.35%  (p=0.000 n=23+26)
+    RegexpMatchEasy1_32-4      1.01µs ± 0%    1.02µs ± 4%   +0.96%  (p=0.014 n=24+30)
+    RegexpMatchEasy1_1K-4      7.43µs ± 0%    7.18µs ± 0%   -3.41%  (p=0.000 n=23+24)
+    RegexpMatchMedium_32-4     1.78µs ± 0%    1.81µs ± 4%   +1.47%  (p=0.012 n=23+30)
+    RegexpMatchMedium_1K-4      547µs ± 1%     542µs ± 3%   -0.90%  (p=0.003 n=24+30)
+    RegexpMatchHard_32-4       30.4µs ± 0%    29.7µs ± 0%   -2.15%  (p=0.000 n=19+23)
+    RegexpMatchHard_1K-4        913µs ± 0%     915µs ± 6%   +0.25%  (p=0.012 n=24+30)
+    Revcomp-4                   6.32s ± 1%     6.42s ± 4%     ~     (p=0.342 n=25+30)
+    Template-4                  868ms ± 6%     878ms ± 6%   +1.15%  (p=0.000 n=30+30)
+    TimeParse-4                4.57µs ± 4%    4.59µs ± 3%   +0.65%  (p=0.010 n=29+30)
+    TimeFormat-4               4.51µs ± 0%    4.50µs ± 0%   -0.27%  (p=0.000 n=27+24)
+    [Geo mean]                  695µs          689µs        -0.92%
+    
+    name                     old speed      new speed      delta
+    GobDecode-4              8.19MB/s ± 0%  8.12MB/s ± 4%     ~     (p=0.680 n=24+30)
+    GobEncode-4              9.76MB/s ± 7%  9.96MB/s ± 0%     ~     (p=0.616 n=30+23)
+    Gzip-4                   4.84MB/s ± 0%  4.89MB/s ± 4%   +1.16%  (p=0.030 n=24+30)
+    Gunzip-4                 49.9MB/s ± 4%  50.6MB/s ± 0%     ~     (p=0.162 n=30+23)
+    JSONEncode-4             10.9MB/s ± 1%  10.7MB/s ± 6%     ~     (p=0.575 n=24+30)
+    JSONDecode-4             2.30MB/s ± 0%  2.32MB/s ± 5%   +0.72%  (p=0.003 n=22+30)
+    GoParse-4                1.31MB/s ± 6%  1.34MB/s ± 0%   +2.26%  (p=0.002 n=30+27)
+    RegexpMatchEasy0_32-4    30.0MB/s ± 6%  30.0MB/s ± 4%     ~     (p=1.000 n=30+30)
+    RegexpMatchEasy0_1K-4     186MB/s ± 0%   187MB/s ± 0%   +0.35%  (p=0.000 n=23+26)
+    RegexpMatchEasy1_32-4    31.8MB/s ± 0%  31.5MB/s ± 4%   -0.92%  (p=0.012 n=25+30)
+    RegexpMatchEasy1_1K-4     138MB/s ± 0%   143MB/s ± 0%   +3.53%  (p=0.000 n=23+24)
+    RegexpMatchMedium_32-4    560kB/s ± 0%   553kB/s ± 4%   -1.19%  (p=0.005 n=23+30)
+    RegexpMatchMedium_1K-4   1.87MB/s ± 0%  1.89MB/s ± 3%   +1.04%  (p=0.002 n=24+30)
+    RegexpMatchHard_32-4     1.05MB/s ± 0%  1.08MB/s ± 0%   +2.40%  (p=0.000 n=19+23)
+    RegexpMatchHard_1K-4     1.12MB/s ± 0%  1.12MB/s ± 5%   +0.12%  (p=0.006 n=25+30)
+    Revcomp-4                40.2MB/s ± 1%  39.6MB/s ± 4%     ~     (p=0.242 n=25+30)
+    Template-4               2.24MB/s ± 6%  2.21MB/s ± 6%   -1.15%  (p=0.000 n=30+30)
+    [Geo mean]               7.87MB/s       7.91MB/s        +0.44%
+    
+    Change-Id: If374cb7abf83537aa0a176f73c0f736f7800db03
+    Reviewed-on: https://go-review.googlesource.com/108735
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 2 ++
- src/cmd/compile/internal/gc/ssa.go  | 7 +++++--
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        |    49 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   360 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |    47 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   255 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 14446 +++++++++++++++++--------
+ test/codegen/memcombine.go                   |    41 +
+ 6 files changed, 10367 insertions(+), 4831 deletions(-)

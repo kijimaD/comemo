@@ -1,36 +1,17 @@
-commit 26ad27bb026a34149ad0b1d7d56723c8b5dee3d7
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Aug 27 23:34:32 2020 +0000
+commit 0f2a1574b02de3fec6937e65b1bdc21106bef15c
+Author: Masahiro Furudate <178inaba.git@gmail.com>
+Date:   Fri Feb 21 03:29:43 2020 +0900
 
-    Revert "cmd/compile,cmd/asm: simplify recording of branch targets"
+    testing: change benchmark example function
     
-    This reverts CL 243318.
+    Change to rand.Int, a function that the compiler cannot reliably eliminate.
+    Fix output to actual benchmark values.
     
-    Reason for revert: Seems to be crashing some builders.
+    Fixes #37341
     
-    Change-Id: I2ffc59bc5535be60b884b281c8d0eff4647dc756
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/251169
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ifb5bf49b826ae0bdb4bf9de5a472ad0eaa54569c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220397
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go |  4 ++--
- src/cmd/compile/internal/gc/gsubr.go  |  2 +-
- src/cmd/compile/internal/gc/ssa.go    |  2 +-
- src/cmd/compile/internal/s390x/ssa.go |  4 ++--
- src/cmd/compile/internal/x86/ssa.go   |  4 ++--
- src/cmd/internal/obj/arm/asm5.go      | 16 ++++++++--------
- src/cmd/internal/obj/arm/obj5.go      | 10 +++++-----
- src/cmd/internal/obj/arm64/asm7.go    | 30 +++++++++++++++---------------
- src/cmd/internal/obj/arm64/obj7.go    | 16 ++++++++--------
- src/cmd/internal/obj/link.go          | 17 ++---------------
- src/cmd/internal/obj/mips/asm0.go     | 24 ++++++++++++------------
- src/cmd/internal/obj/mips/obj0.go     | 14 +++++++-------
- src/cmd/internal/obj/pass.go          | 17 ++++++++++-------
- src/cmd/internal/obj/ppc64/asm9.go    | 18 +++++++++---------
- src/cmd/internal/obj/ppc64/obj9.go    | 12 ++++++------
- src/cmd/internal/obj/riscv/obj.go     | 28 ++++++++++++++--------------
- src/cmd/internal/obj/s390x/asmz.go    | 18 +++++++++---------
- src/cmd/internal/obj/s390x/objz.go    | 10 +++++-----
- src/cmd/internal/obj/util.go          |  6 ++++--
- src/cmd/internal/obj/x86/asm6.go      | 12 ++++++------
- src/cmd/internal/obj/x86/obj6.go      | 12 ++++++------
- 21 files changed, 134 insertions(+), 142 deletions(-)
+ src/testing/testing.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

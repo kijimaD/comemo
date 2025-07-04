@@ -1,12 +1,23 @@
-commit b5d94b7d41ad003cfcf7b8849d75fc09e0c206f3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Sep 21 15:25:52 2015 -0700
+commit 851ceebcebb2ae9352a2be958c86f63e70d344b1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 22 21:21:50 2015 -0700
 
-    math/big: add test cases for min/max exponent values
+    [dev.ssa] cmd/compile: don't alloc new CSE classes
     
-    Change-Id: I2e74e39628285e2fecaab712be6cff230619a6c2
-    Reviewed-on: https://go-review.googlesource.com/14778
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    This reduces the time to compile
+    test/slice3.go on my laptop from ~12s to ~3.8s.
+    It reduces the max memory use from ~4.8gb to
+    ~450mb.
+    
+    This is still considerably worse than tip,
+    at 1s and 300mb respectively, but it's
+    getting closer.
+    
+    Hopefully this will fix the build at long last.
+    
+    Change-Id: Iac26b52023f408438cba3ea1b81dcd82ca402b90
+    Reviewed-on: https://go-review.googlesource.com/12566
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/math/big/floatconv_test.go | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/compile/internal/ssa/cse.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

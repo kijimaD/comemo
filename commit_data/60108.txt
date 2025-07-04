@@ -1,0 +1,19 @@
+commit 33496c2dd310aad1d56bae9febcbd2f02b4985cb
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Wed May 22 01:30:42 2024 +0000
+
+    maps: clarify iteration order and insertion behavior
+    
+    Fixes #67537.
+    
+    Change-Id: Ic567f7d19d621a17d2a00aba5b9f927001195ea9
+    GitHub-Last-Rev: 9eec790ab6f1697f6328220e007fee8661f62c5c
+    GitHub-Pull-Request: golang/go#67539
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587015
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/maps/iter.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

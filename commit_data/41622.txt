@@ -1,17 +1,18 @@
-commit c95708462fb24f379f4bcdedd6ea664ee38ea562
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Mar 12 09:16:11 2020 -0400
+commit f6c624a22ab0e548d3c95db68b2303fda271838f
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Oct 16 13:57:08 2019 +0800
 
-    cmd/go: include the go language version in cache keys
+    cmd/internal/obj/arm: remove NaCl related DATABUNDLE
     
-    Fixes #37804
+    Updates golang/go#30439
     
-    Change-Id: I4381dc5c58cfd467506d3d73fbd19c2c7257338e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223139
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ieaf18b7cfd22a768eb1b7ac549ebc03637258876
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201377
+    Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/exec.go           | 3 +++
- src/cmd/go/testdata/script/mod_edit_go.txt | 7 +++++++
- 2 files changed, 10 insertions(+)
+ src/cmd/internal/obj/arm/a.out.go  |  3 ---
+ src/cmd/internal/obj/arm/anames.go |  2 --
+ src/cmd/internal/obj/arm/asm5.go   | 20 ++++----------------
+ 3 files changed, 4 insertions(+), 21 deletions(-)

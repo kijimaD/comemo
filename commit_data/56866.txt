@@ -1,23 +1,25 @@
-commit 7d19d508a994be9731e27b14b6ecc13ccf527138
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 3 11:20:54 2024 -0700
+commit 7756f825905d047a93abfb30f6da57881b7b9669
+Author: Chris O'Hara <cohara87@gmail.com>
+Date:   Thu May 25 12:07:07 2023 +1000
 
-    cmd/cgo: read CGO_LDFLAGS environment variable
+    syscall: implement wasip1 Fcntl
     
-    For #66456 we changed from the CGO_LDFLAGS environment variable to
-    the -ldflags option. This broke Bazel, which uses CGO_LDFLAGS.
-    So restore reading CGO_LDFLAGS for now.
+    CL 494915 broke non-blocking I/O on wasip1 for files
+    opened with os.NewFile. This is fixed by providing an
+    implementation of fcntl(F_GETFL) for wasip1.
     
-    For #66456
-    
-    Change-Id: Iebdd8bde1c7c18da09c6370e284c7ac7fa08fc54
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596615
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I78979076b95495fd4b94814552e5f5b043270cd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498195
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/cmd/cgo/main.go | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ .../syscall/unix/{fcntl_wasm.go => fcntl_js.go}    |   2 +
+ src/internal/syscall/unix/fcntl_wasip1.go          |  17 ++++
+ src/runtime/internal/wasitest/nonblock_test.go     | 108 +++++++++++----------
+ src/runtime/internal/wasitest/testdata/nonblock.go |  19 +++-
+ 4 files changed, 93 insertions(+), 53 deletions(-)

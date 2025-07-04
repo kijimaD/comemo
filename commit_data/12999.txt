@@ -1,17 +1,70 @@
-commit dae2992c98bff181b023f27889c513d89714f5ac
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue May 1 11:33:25 2012 +1000
+commit 4de15a5cdaf94b9e2269fb79008c8c862f355d2a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue May 1 10:51:34 2012 +1000
 
-    misc/dashboard/codereview: send mail immediately, and fill in time.Time fields.
+    compress/flate: optimize history-copy decoding.
     
-    If we delay the mail sending, we can't send as the current user.
-    If we don't fill in the time.Time fields, datastore.Put will fail
-    because the zero time.Time value is out of its range.
+    The forwardCopy function could be re-written in asm, and the copyHuff
+    method could probably be rolled into huffmanBlock and copyHist, but
+    I'm leaving those changes for future CLs.
     
-    R=golang-dev, r
-    CC=golang-dev
-    https://golang.org/cl/6136053
+    compress/flate benchmarks:
+    benchmark                                 old ns/op    new ns/op    delta
+    BenchmarkDecoderBestSpeed1K                  385327       435140  +12.93%
+    BenchmarkDecoderBestSpeed10K                1245190      1062112  -14.70%
+    BenchmarkDecoderBestSpeed100K               8512365      5833680  -31.47%
+    BenchmarkDecoderDefaultCompression1K         382225       421301  +10.22%
+    BenchmarkDecoderDefaultCompression10K        867950       613890  -29.27%
+    BenchmarkDecoderDefaultCompression100K      5658240      2466726  -56.40%
+    BenchmarkDecoderBestCompression1K            383760       421634   +9.87%
+    BenchmarkDecoderBestCompression10K           867743       614671  -29.16%
+    BenchmarkDecoderBestCompression100K         5660160      2464996  -56.45%
+    
+    image/png benchmarks:
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkDecodeGray               2540834      2389624   -5.95%
+    BenchmarkDecodeNRGBAGradient     10052700      9534565   -5.15%
+    BenchmarkDecodeNRGBAOpaque        8704710      8163430   -6.22%
+    BenchmarkDecodePaletted           1458779      1325017   -9.17%
+    BenchmarkDecodeRGB                7183606      6794668   -5.41%
+    
+    Wall time for Denis Cheremisov's PNG-decoding program given in
+    https://groups.google.com/group/golang-nuts/browse_thread/thread/22aa8a05040fdd49
+    Before: 3.07s
+    After:  2.32s
+    Delta:  -24%
+    
+    Before profile:
+    Total: 304 samples
+             159  52.3%  52.3%      251  82.6% compress/flate.(*decompressor).huffmanBlock
+              58  19.1%  71.4%       76  25.0% compress/flate.(*decompressor).huffSym
+              32  10.5%  81.9%       32  10.5% hash/adler32.update
+              16   5.3%  87.2%       22   7.2% bufio.(*Reader).ReadByte
+              16   5.3%  92.4%       37  12.2% compress/flate.(*decompressor).moreBits
+               7   2.3%  94.7%        7   2.3% hash/crc32.update
+               7   2.3%  97.0%        7   2.3% runtime.memmove
+               5   1.6%  98.7%        5   1.6% scanblock
+               2   0.7%  99.3%        9   3.0% runtime.copy
+               1   0.3%  99.7%        1   0.3% compress/flate.(*huffmanDecoder).init
+    
+    After profile:
+    Total: 230 samples
+              59  25.7%  25.7%       70  30.4% compress/flate.(*decompressor).huffSym
+              45  19.6%  45.2%       45  19.6% hash/adler32.update
+              35  15.2%  60.4%       35  15.2% compress/flate.forwardCopy
+              20   8.7%  69.1%      151  65.7% compress/flate.(*decompressor).huffmanBlock
+              16   7.0%  76.1%       24  10.4% compress/flate.(*decompressor).moreBits
+              15   6.5%  82.6%       15   6.5% runtime.memmove
+              11   4.8%  87.4%       50  21.7% compress/flate.(*decompressor).copyHist
+               7   3.0%  90.4%        7   3.0% hash/crc32.update
+               6   2.6%  93.0%        9   3.9% bufio.(*Reader).ReadByte
+               4   1.7%  94.8%        4   1.7% runtime.slicearray
+    
+    R=rsc, rogpeppe, dave
+    CC=golang-dev, krasin
+    https://golang.org/cl/6127064
 
- misc/dashboard/codereview/dashboard/cl.go   | 7 +++----
- misc/dashboard/codereview/dashboard/mail.go | 6 ++++++
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ src/pkg/compress/flate/copy.go      | 17 +++++++++++
+ src/pkg/compress/flate/copy_test.go | 42 ++++++++++++++++++++++++++
+ src/pkg/compress/flate/inflate.go   | 60 ++++++++++++++++++-------------------
+ 3 files changed, 88 insertions(+), 31 deletions(-)

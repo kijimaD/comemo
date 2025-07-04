@@ -1,13 +1,22 @@
-commit c9778ec302b2e0e0d6027e1e0fca892e428d9657
-Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
-Date:   Mon Jun 8 14:22:17 2015 -0700
+commit c94f1f791b513c232b2293b8acebe9a2fd962003
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 13:52:07 2015 +0200
 
-    cmd/link/internal/ld: include table of contents of c-archive output.
+    runtime: always load address of libcFunc on Solaris
     
-    Change-Id: If11621985c0a5a1f2133cdc974f37fd944b93e5e
-    Reviewed-on: https://go-review.googlesource.com/10808
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    The linker always uses .plt for externals, so libcFunc is now an actual
+    external symbol instead of a pointer to one.
+    
+    Fixes most of the breakage introduced in previous CL.
+    
+    Change-Id: I64b8c96f93127f2d13b5289b024677fd3ea7dbea
+    Reviewed-on: https://go-review.googlesource.com/8215
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/netpoll_solaris.go  | 10 +++----
+ src/runtime/os3_solaris.go      | 64 ++++++++++++++++++++---------------------
+ src/runtime/os_solaris.go       | 30 +++++++++----------
+ src/runtime/sys_solaris_amd64.s |  8 +++---
+ src/runtime/syscall_solaris.go  | 48 +++++++++++++++----------------
+ 5 files changed, 80 insertions(+), 80 deletions(-)

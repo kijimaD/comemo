@@ -1,12 +1,30 @@
-commit ce54a0c10a39e6735a44b50a9ccd58968700288b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Aug 28 13:52:11 2017 +1000
+commit 92363d52c038851f4a6773ab5744f6d577ac1d38
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 28 07:28:49 2017 -0700
 
-    cmd/link: introduce and use peFile.writeOptionalHeader
+    cmd/compile: check width of embedded interfaces in expandiface
     
-    Change-Id: I27b33f2425281bc1790528ae514d99a468ad7fce
-    Reviewed-on: https://go-review.googlesource.com/59429
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The code in #20162 contains an embedded interface.
+    
+    It didn't get dowidth'd by the frontend,
+    and during DWARF generation, ngotype asked
+    for a string description of it,
+    which triggered a request for the number of fields
+    in the interface, which triggered a dowidth,
+    which is disallowed in the backend.
+    
+    The other changes in this CL are to support the test.
+    
+    Fixes #20162
+    
+    Change-Id: I4d0be5bd949c361d4cdc89a8ed28b10977e40cf9
+    Reviewed-on: https://go-review.googlesource.com/42131
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 305 +++++++++++++++++------------------------
- 1 file changed, 124 insertions(+), 181 deletions(-)
+ src/cmd/compile/internal/gc/align.go |  1 +
+ src/cmd/compile/internal/gc/main.go  |  1 +
+ test/fixedbugs/issue20162.go         | 16 ++++++++++++++++
+ test/run.go                          |  5 +++--
+ 4 files changed, 21 insertions(+), 2 deletions(-)

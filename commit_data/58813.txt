@@ -1,22 +1,17 @@
-commit 3b25b3c195fd2aeb01ab23ba6e15a48199a218fb
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Sun Feb 16 16:31:22 2025 -0500
+commit 5e939b3a9ce7864551e86c04a05db887c25e2759
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Dec 11 11:44:23 2023 -0800
 
-    cmd/compile: remove residual register GC map code
+    doc: add crypto/tls and crypto/x509 release notes
     
-    We used to generate register GC maps as an experimental approach
-    for asynchronous preemption, which later we chose not to take.
-    Most of the register GC map code are already removed. One
-    exception is that the ssa.Register type still contains a field
-    for the register map index. Remove it.
+    Updates #61422
     
-    Change-Id: Ib177ebce9548aa5ffbcaedd4b507240ea7df8afe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/651076
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: If561f701882396f8e28e2fc3fa9c76c7169f752e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548975
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/compile/internal/ssa/_gen/main.go |   14 +-
- src/cmd/compile/internal/ssa/config.go    |   50 +-
- src/cmd/compile/internal/ssa/location.go  |    7 -
- src/cmd/compile/internal/ssa/opGen.go     | 1066 ++++++++++++++---------------
- 4 files changed, 551 insertions(+), 586 deletions(-)
+ doc/go1.22.html | 60 +++++++++++++++++++++++++--------------------------------
+ 1 file changed, 26 insertions(+), 34 deletions(-)

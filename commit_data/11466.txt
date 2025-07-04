@@ -1,16 +1,12 @@
-commit d59c88786dc3a27876c782e2639ade5feae520fc
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Jan 30 16:04:45 2012 -0200
+commit 74e8a1308a5b67b2482b46f32de05c87220793fc
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Mon Jan 30 09:58:25 2012 -0800
 
-    cmd/go: fix including of _cgo_export.h
+    pkg/go/scanner: Fix Typical use output
     
-    This will add the temporary object directory into the lookup
-    path so that cgo-exported function declarations may be
-    included from C files.
-    
-    R=golang-dev, rogpeppe, rsc
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5600043
+    https://golang.org/cl/5595045
 
- src/cmd/go/build.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/go/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

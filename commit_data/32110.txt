@@ -1,16 +1,15 @@
-commit b01db023b13f9debdcc101ab6836b89be8bfa7f3
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Aug 4 15:33:48 2017 -0700
+commit 52d8d7b93a54a3d7c7357ff8f52bed360c892c1e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 5 20:24:48 2017 -0700
 
-    misc/cgo/testsanitizers: also skip tsan11/tsan12 when using GCC
+    cmd/compile: remove InterMethod type - not used anywhere
     
-    Updates #21196
-    
-    Change-Id: I307cacc963448b90a23f633bec15498ba7bf1937
-    Reviewed-on: https://go-review.googlesource.com/53356
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I2c402d9491b373316775b515ce389555e58acb1a
+    Reviewed-on: https://go-review.googlesource.com/39636
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- misc/cgo/testsanitizers/test.bash | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/sizeof_test.go | 1 -
+ src/cmd/compile/internal/gc/type.go        | 6 ------
+ 2 files changed, 7 deletions(-)

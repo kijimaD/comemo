@@ -1,16 +1,17 @@
-commit 459cd35ec092fdb48e1825ccd01fb630a77474bf
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Oct 7 16:13:04 2023 +0800
+commit e38cb25b331f59a6a5e1ec8527aac9964a45f567
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 14:59:04 2023 -0800
 
-    doc/go1.22: mention new #vet analyzer
+    go/types: generate instantiate.go
     
-    Change-Id: Ib135101bc8adbdb158c5e98bcca14e13d7ac963b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533555
+    Change-Id: Iad8b78bbf52eb2b0de05471bfd5a5506dc45e055
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461693
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Tim King <taking@google.com>
-    Reviewed-by: Tim King <taking@google.com>
 
- doc/go1.22.html | 41 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 41 insertions(+)
+ src/go/types/generator.go   | 32 +++++++++++++++++++++++++++++---
+ src/go/types/instantiate.go |  2 ++
+ 2 files changed, 31 insertions(+), 3 deletions(-)

@@ -1,26 +1,13 @@
-commit da1c2b182a029a4f3b050442573cd47abfe93291
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jun 25 12:04:36 2014 +1000
+commit 92d58c7e466b332129c1fc39f30d1d8e2f9c58c3
+Author: Mihai Borobocea <MihaiBorobocea@gmail.com>
+Date:   Tue Jun 24 16:59:33 2014 -0700
 
-    undo CL 107320046 / 97cd07dcb9d8
+    fmt: fix typo in help doc
     
-    Breaks the build
-    
-    ««« original CL description
-    cmd/go: build test files containing non-runnable examples
-    
-    Even if we can't run them, we should at least check that they compile.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/107320046
-    »»»
-    
-    TBR=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/110140044
+    https://golang.org/cl/110110045
 
- src/cmd/go/test.go | 2 +-
+ src/pkg/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

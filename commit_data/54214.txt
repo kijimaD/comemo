@@ -1,24 +1,21 @@
-commit 611c3af30d5c7d17c8da3712cd23152c7f0f52ef
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 24 17:21:58 2023 -0700
+commit 545adcfe89458c5df714c27992064733b07491f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 29 11:18:09 2022 -0700
 
-    cmd/compile/internal/ir: mark Addrtaken in NewAddrExpr
+    go/types, types2: use "generic" rather than "parameterized" in error messages
     
-    This CL changes NewAddrExpr to require its operand to always be
-    typechecked, so it can return an appropriately typechecked node and
-    mark Addrtaken as appropriate in the process.
+    Fix a couple of places where we still use "parameterized".
     
-    Change-Id: I97c1f29305a9abfda35c42a43561c4c15fb5b52e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/522879
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2c70356d4e363ee709c5ef19ec8786956d5e9001
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436815
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/gc/main.go             | 11 -----
- src/cmd/compile/internal/ir/expr.go             | 19 ++++++++-
- src/cmd/compile/internal/typecheck/expr.go      | 32 --------------
- src/cmd/compile/internal/typecheck/subr.go      | 56 +------------------------
- src/cmd/compile/internal/typecheck/typecheck.go |  4 --
- 5 files changed, 19 insertions(+), 103 deletions(-)
+ src/cmd/compile/internal/types2/decl.go           | 2 +-
+ src/cmd/compile/internal/types2/operand.go        | 2 +-
+ src/go/types/decl.go                              | 2 +-
+ src/go/types/operand.go                           | 2 +-
+ src/internal/types/testdata/examples/functions.go | 4 ++--
+ 5 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,20 +1,21 @@
-commit 4fe46cee4ea4eb15e38675ff32222f07e6b15404
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sat Jan 21 02:36:45 2023 +0700
+commit b810a74da3c4de519433208163ea257ab33b2d24
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 18 18:23:44 2022 -0400
 
-    builtin: add documentation for clear
+    internal/abi, internal/buildcfg: always enable register ABI on PPC64
     
-    Updates #56351
+    In last cycle we developed register ABI for ARM64, enabled by
+    default as a GOEXPERIMENT. This cycle we turn it on all the time.
+    Later CLs will clean up fallback code.
     
-    Change-Id: I7b1dd29e60f71d804a6d9cba3377e28c3a5b964e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/462935
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: Idac4dcff634791cbc3d30988052ecd742b55ab8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394214
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/builtin/builtin.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/internal/abi/abi_generic.go | 2 +-
+ src/internal/abi/abi_ppc64x.go  | 2 +-
+ src/internal/buildcfg/exp.go    | 4 +---
+ 3 files changed, 3 insertions(+), 5 deletions(-)

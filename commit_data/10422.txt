@@ -1,12 +1,17 @@
-commit 8fdd6c05b1771a8e3a75f0fb073732c593472fcb
-Author: Christopher Wedgwood <cw@f00f.org>
-Date:   Wed Nov 16 17:34:18 2011 -0500
+commit 920df48fb1e1b30f5ea86f1a49b599098fa81793
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Nov 16 16:58:02 2011 -0500
 
-    exp/ssh: add to pkg Makefile
+    gc: support for building with Plan 9 yacc
     
-    R=rsc, dave
+    I've modified Plan 9's yacc to work with
+    the grammar in go.y.  These are the only
+    changes necessary on the Go side.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5399045
+    https://golang.org/cl/5375104
 
- src/pkg/Makefile | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/gc/bisonerrors | 29 +++++++++++++++++++++--------
+ src/cmd/gc/go.h        |  7 ++++++-
+ 2 files changed, 27 insertions(+), 9 deletions(-)

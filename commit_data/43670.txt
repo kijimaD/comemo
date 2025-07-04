@@ -1,23 +1,17 @@
-commit 333d2010ec98aaea244b65b7bc4d7d80c71e21b1
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Sun Nov 1 06:54:21 2020 +0000
+commit f8ff12d480dcfe0db17648939644d0eeec0ed0fb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 20 08:47:08 2020 -0700
 
-    cmd/go: revert "support cgo files in overlays"
+    cmd/compile: use dereference boundedness hint in ssa.addr
     
-    This reverts CL 262618 (commit 48be3ed1394d85af5a7e1a6313fa9cab4d1b7cf9).
+    Follow-up to (and similar to) CL 228885.
+    Triggers a handful of times in std+cmd.
     
-    Reason for revert: breaks longtest builders.
-    
-    Change-Id: Iec1e236ba793f24394442d04eb846f8a73ab2e68
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/267037
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Ie04057ca3974ef9eef669335e326a5ed4b7472cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228999
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/work/exec.go                  | 48 ++-----------
- src/cmd/go/internal/work/gc.go                    |  9 +--
- src/cmd/go/testdata/script/build_overlay.txt      | 83 +----------------------
- src/cmd/go/testdata/script/build_trimpath_cgo.txt | 28 --------
- 4 files changed, 12 insertions(+), 156 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

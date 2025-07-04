@@ -1,0 +1,24 @@
+commit 27ed85d4d1702e868730ab6ea2ad6326988c615c
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Thu Apr 18 21:01:06 2024 +0000
+
+    cmd/go: download 1.X.0 instead of 1.X during toolchain upgrade.
+    
+    This CL modifies the download behavior when downloading a toolchain for 1.21+. Previously, Go would attempt to download 1.X when upgrading the toolchain which would cause the download to fail for 1.21+ since 1.X is an invalid toolchain. We will attempt to download 1.X.0 since that's likely what the user intended.
+    
+    Additionally, we will also now provide a better error message when the
+    user provides a language version instead of a toolchain version for
+    1.21+.
+    
+    Fixes #66175
+    Fixes #62278
+    
+    Change-Id: I28f894290a19d8e3cd220e9d70aeca8f4447e5a1
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580217
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/toolchain/select.go            |  11 +++
+ .../go/testdata/script/gotoolchain_issue66175.txt  | 104 +++++++++++++++++++++
+ 2 files changed, 115 insertions(+)

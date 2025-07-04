@@ -1,17 +1,21 @@
-commit 828de09f8bfb64fc7d3eee728e7292055fd25364
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Apr 10 22:16:11 2015 -0400
+commit 9c0b145e4ca75df68da0fb11fb122bcc3b6eff27
+Author: Kato Kazuyoshi <kato.kazuyoshi@gmail.com>
+Date:   Mon Dec 22 21:05:07 2014 -0800
 
-    runtime/cgo: darwin/arm64 support
+    os: don't return Chmod's error from Mkdir and OpenFile
     
-    Fixes #10116.
+    Mkdir and OpenFile call Chmod internally on *BSD and Solaris,
+    because these OSes don't handle the sticky bit correctly.
     
-    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f05
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/8784
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    However Chmod's error should be ignored. It shouldn't hide
+    the fact that a file itself is created.
+    
+    Fixes #8383
+    
+    Change-Id: Ia2e0b2ba72712d73a0a48ba5a263432e0fff31a5
+    Reviewed-on: https://go-review.googlesource.com/2057
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/cgo/cgo.go             |   3 +-
- src/runtime/cgo/gcc_arm64.S        |   4 +
- src/runtime/cgo/gcc_darwin_arm64.c | 152 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 158 insertions(+), 1 deletion(-)
+ src/os/file.go      | 11 ++++++-----
+ src/os/file_unix.go |  4 ++--
+ 2 files changed, 8 insertions(+), 7 deletions(-)

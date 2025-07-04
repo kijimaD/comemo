@@ -1,22 +1,19 @@
-commit 82c1e22e13aeb60866031a8dc23bd78c60c1e782
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Aug 22 10:53:05 2016 +1200
+commit 9c4295b574a89bf02294111f811f90ab06b9951b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 21 14:53:19 2016 -0700
 
-    cmd/link: make listsort less generic
+    time: print zero duration as 0s, not 0
     
-    It's always called with the same arguments now.
+    There should be a unit, and s is the SI unit name, so use that.
+    The other obvious possibility is ns (nanosecond), but the fact
+    that durations are measured in nanoseconds is an internal detail.
     
-    Maybe the real fix is to make Symbol.Sub a slice but that requires a bit more
-    brain.
+    Fixes #14058.
     
-    Change-Id: I1326d34a0a327554be6d54f9bd402ea328224766
-    Reviewed-on: https://go-review.googlesource.com/27416
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Id1f8f3c77088224d9f7cd643778713d5cc3be5d9
+    Reviewed-on: https://go-review.googlesource.com/22357
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/link/internal/ld/data.go    | 55 +++++++++++++++++--------------------
- src/cmd/link/internal/ld/ldelf.go   | 12 +-------
- src/cmd/link/internal/ld/ldmacho.go |  2 +-
- src/cmd/link/internal/ld/ldpe.go    |  2 +-
- 4 files changed, 28 insertions(+), 43 deletions(-)
+ src/time/time.go      | 2 +-
+ src/time/time_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

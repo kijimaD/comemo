@@ -1,14 +1,28 @@
-commit 4d38d1260e40336008a491033146157bcaa5ef90
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Oct 15 21:35:52 2013 -0400
+commit 5feb15508e9cefa06f7d109da8233c91e69937fa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 15 15:00:48 2013 -0400
 
-    cmd/cgo: simpler fix for issue 6506.
-    Replaces CL 14682044.
-    Fixes #6506.
+    cmd/cgo: print the builtin prolog after the per-file preamble
     
-    R=rsc, iant, dave
+    The preamble may want to #define some special symbols
+    and then #include <sys/types.h> itself. The builtin prolog
+    also #includes <sys/types.h>, which would break such a
+    preamble (because the second #include will be a no-op).
+    
+    The use of sys/types.h in the builtin prolog is new since Go 1.1,
+    so this should preserve the semantics of more existing cgo
+    code than we would otherwise.
+    
+    It also fixes src/pkg/syscall/mkall.sh's use of go tool cgo -godefs
+    on some Linux systems.
+    
+    Thanks to fullung@ for identifying the problem.
+    
+    Fixes #6558.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/14717043
+    https://golang.org/cl/14684044
 
- src/cmd/cgo/gcc.go | 55 +++++++++---------------------------------------------
- 1 file changed, 9 insertions(+), 46 deletions(-)
+ src/cmd/cgo/gcc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

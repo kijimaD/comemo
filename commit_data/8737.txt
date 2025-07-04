@@ -1,26 +1,12 @@
-commit fb9ea79916f4aeadc5e1960659ea3f9f4be580a1
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jun 15 14:06:35 2011 -0700
+commit e3d2a29e992a38d7f78b2a1662560155d3f42edf
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 16 00:13:18 2011 +1000
 
-    godoc: replace direct OS file system accesses in favor
-           of accesses via a FileSystem interface.
+    doc/effective_go.html: replace tab with spaces.
     
-    Preparation for appengine version which gets its files
-    via a snapshot or zip file and uses a corresponding
-    FileSystem implementation.
-    
-    R=rsc, r
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/4572065
+    https://golang.org/cl/4609042
 
- src/cmd/godoc/Makefile      |  2 +
- src/cmd/godoc/codewalk.go   | 30 +++++++-------
- src/cmd/godoc/dirtrees.go   | 37 ++++++++---------
- src/cmd/godoc/filesystem.go | 96 +++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/godoc/godoc.go      | 47 ++++++++++------------
- src/cmd/godoc/index.go      | 11 +++---
- src/cmd/godoc/main.go       |  4 ++
- src/cmd/godoc/mapping.go    |  3 +-
- src/cmd/godoc/parser.go     | 69 ++++++++++++++++++++++++++++++++
- src/cmd/godoc/utils.go      |  7 +++-
- 10 files changed, 237 insertions(+), 69 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

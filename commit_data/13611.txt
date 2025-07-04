@@ -1,14 +1,12 @@
-commit f05a91e18b4a3e1e962e1013cbf6ab16e120d190
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 9 11:50:16 2012 -0700
+commit ef96d724e54a3f98d08f4ff2b731df8dbcb614db
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 9 17:00:31 2012 +1000
 
-    spec: clarify evaluation order
+    misc/cgo/life: explicitly specify library for assert function (fixes windows/amd64 build)
     
-    Fixes #3852.
-    
-    R=r, rsc, iant, ken
-    CC=golang-dev
-    https://golang.org/cl/6441102
+    R=golang-dev, dave
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6461065
 
- doc/go_spec.html | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ misc/cgo/life/life.go | 1 +
+ 1 file changed, 1 insertion(+)

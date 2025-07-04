@@ -1,26 +1,20 @@
-commit 5af2be8604168dd7d11c2e3ddc09b571809837e4
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 18 17:18:08 2015 +0000
+commit 7d48573d468fdbd4ff77c5b0aee5386a2f6967ad
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 12:14:54 2015 +0000
 
-    Revert "runtime: use a proper type, sigset, for m.sigmask"
+    cmd/internal/obj: map/slice literals janitoring
     
-    This reverts commit 7db77271e423604c3b58b4c4da60ddc3c3eecc0d.
+    Simplify slice/map literal expressions.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
+    Checked that the result can still be compiled with Go 1.4.
     
-    Change-Id: I6d8855eb05ca331025dc49a5533c6da4d1fa4e84
-    Reviewed-on: https://go-review.googlesource.com/17030
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I0a6773d12200a7b43491f25f914335069a1fa5e8
+    Reviewed-on: https://go-review.googlesource.com/13833
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/os1_darwin.go    | 24 +++++++++++++-----------
- src/runtime/os1_dragonfly.go | 11 ++++++++---
- src/runtime/os1_freebsd.go   | 11 ++++++++---
- src/runtime/os1_linux.go     |  9 ++++++---
- src/runtime/os1_nacl.go      |  2 --
- src/runtime/os1_netbsd.go    | 11 ++++++++---
- src/runtime/os1_openbsd.go   | 23 +++++++++++++----------
- src/runtime/os1_plan9.go     |  2 --
- src/runtime/os1_windows.go   |  2 --
- src/runtime/os3_solaris.go   | 11 ++++++++---
- src/runtime/os_darwin.go     |  2 +-
- src/runtime/os_openbsd.go    |  2 +-
- src/runtime/runtime2.go      |  2 +-
- 13 files changed, 67 insertions(+), 45 deletions(-)
+ src/cmd/internal/obj/arm/asm5.go   |  390 ++++-----
+ src/cmd/internal/obj/ppc64/asm9.go |  638 +++++++-------
+ src/cmd/internal/obj/x86/asm6.go   | 1632 ++++++++++++++++++------------------
+ 3 files changed, 1330 insertions(+), 1330 deletions(-)

@@ -1,19 +1,19 @@
-commit 083ad28622580195a97cbe83a877c7d49b1dadfa
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Aug 18 13:51:07 2017 -0700
+commit 29e88d513004749b6a84fc6ed32e026976ac1960
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 11 15:22:10 2017 -0400
 
-    crypto/x509: get hash information from signatureAlgorithmDetails and check that it matches
+    runtime: print debug info on "base out of range"
     
-    signatureAlgorithmDetails already knows the hash function for each
-    signature algorithm so there's no point in duplicating that. Also, check
-    that the public key type of the signature algorithm actually matches the
-    given public key.
+    This adds debugging information when we panic with "heapBitsForSpan:
+    base out of range".
     
-    Change-Id: I7aab4ea71691fb815d67ba790b721ce02de11b85
-    Reviewed-on: https://go-review.googlesource.com/57211
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #20259.
+    
+    Change-Id: I0dc1a106aa9e9531051c7d08867ace5ef230eb3f
+    Reviewed-on: https://go-review.googlesource.com/43310
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/crypto/x509/x509.go      | 37 +++++++++++++++++++++++++------------
- src/crypto/x509/x509_test.go | 21 +++++++++++++++++++++
- 2 files changed, 46 insertions(+), 12 deletions(-)
+ src/runtime/mbitmap.go | 1 +
+ 1 file changed, 1 insertion(+)

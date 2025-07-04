@@ -1,16 +1,26 @@
-commit 0409314db39db8f1d587fff31f79a24f1aa36ad2
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Nov 7 18:04:58 2022 -0500
+commit 61011de1af0bc6ab286c4722632719d3da2cf746
+Author: David Chase <drchase@google.com>
+Date:   Tue Nov 23 13:29:13 2021 -0500
 
-    cmd/compile: fix PGO line offset matching
+    cmd/compile: try to preserve IsStmt marks from OpConvert
     
-    Appears to be a typo in CL 447315.
+    Note when a statement mark was not consumed during Prog
+    generation, and try to use it on a subsequent opcode so
+    that the statement marker will not be lost.
     
-    Change-Id: I9f380a3c7521f5ac5a1d7e271eaa60bd4bbcfb29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448515
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    And a test.
+    
+    Fixes #49628.
+    
+    Change-Id: I03f7782a9809cc4a0a5870df92b3e182cf124554
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366694
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/inline/inl.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/debug_lines_test.go     | 19 +++++++++++++++++++
+ src/cmd/compile/internal/ssa/testdata/convertline.go | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go               | 17 +++++++++++++++++
+ 3 files changed, 52 insertions(+)

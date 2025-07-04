@@ -1,0 +1,43 @@
+commit 961818e0131aaa7468616a90ce9ebf00111ccdaa
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Tue May 27 13:32:36 2025 -0400
+
+    cmd/compile/internal/walk: use original type for composite literals in addrTemp
+    
+    When creating a new *ir.Name or *ir.LinksymOffsetExpr to represent
+    a composite literal stored in the read-only data section, we should
+    use the original type of the expression that was found via
+    ir.ReassignOracle.StaticValue. (This is needed because the StaticValue
+    method can traverse through OCONVNOP operations to find its final
+    result.)
+    
+    Otherwise, the compilation may succeed, but the linker might erroneously
+    conclude that a type is not used and prune an itab when it should not,
+    leading to a call at execution-time to runtime.unreachableMethod, which
+    throws "fatal error: unreachable method called. linker bug?".
+    
+    The tests exercise both the case of a zero value struct literal that
+    can be represented by the read-only runtime.zeroVal, which was the case
+    of the simplified example from #73888, and also modifies that example to
+    test the non zero value struct literal case.
+    
+    This CL makes two similar changes for those two cases. We can get either
+    of the tests we are adding to fail independently if we only make
+    a single corresponding change.
+    
+    Fixes #73888
+    Updates #71359
+    
+    Change-Id: Ifd91f445cc168ab895cc27f7964a6557d5cc32e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676517
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ir/expr.go    |  4 ++++
+ src/cmd/compile/internal/walk/order.go |  4 ++--
+ test/fixedbugs/issue73888.go           | 34 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue73888b.go          | 34 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 2 deletions(-)

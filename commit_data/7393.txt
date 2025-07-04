@@ -1,19 +1,13 @@
-commit 2a838d642474a600c2b4ba74fe6ede72f1033d30
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 8 13:31:01 2011 -0800
+commit bf3f7689554b62917f8ea16e33386a87e3717135
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Tue Feb 8 15:42:52 2011 -0500
 
-    go spec: clarification re: method sets of newly declared pointer types
+    windows: replace remaining __MINGW32__ instances with _WIN32
     
-    - added an example to Type declarations section clarifying the
-      situation brought up with issue 1324
-    - slightly re-ordered paragraphs in Types section
-    - added separate heading for method set section and refer to it
-      from elsewhere in the spec
-    - no language changes
-    
-    R=rsc, r, iant, ken2, r2
+    R=rsc, brainman
     CC=golang-dev
-    https://golang.org/cl/4145043
+    https://golang.org/cl/4146041
 
- doc/go_spec.html | 41 ++++++++++++++++++++++++-----------------
- 1 file changed, 24 insertions(+), 17 deletions(-)
+ include/libc.h | 2 +-
+ include/u.h    | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

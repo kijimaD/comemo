@@ -1,25 +1,40 @@
-commit 807ce2719c243f6d8640de774599e3335883eacb
+commit 437015bbed3c669dc58c5e93ee4a6f548f5ebc98
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon May 2 07:26:40 2011 -0700
+Date:   Mon May 2 07:25:53 2011 -0700
 
-    jpeg: speed up RGBA encoding ~%50
+    png: speed up opaque RGBA encoding
     
-    Avoids image.At(), color.RGBA(), opposing 8 bit shifts,
-    and min function calls in a loop.  Not as pretty as before,
-    but the pure version is still there to revert back to
-    later if/when the compiler gets better.
+    With Linux/8g on a 2006 Mac Mini (1.66 GHz Intel Core Duo,
+    2KB L1, 2MB L2, 2G main memory), GOMAXPROCS unset:
     
-    before (best of 5)
-    jpeg.BenchmarkEncodeRGBOpaque   50   64781360 ns/op   18.97 MB/s
+    start:
+    png.BenchmarkEncodePaletted           50          44772820 ns/op
+    png.BenchmarkEncodeRGBOpaque          10         208395900 ns/op
+    png.BenchmarkEncodeRGBA                5         331088000 ns/op
     
-    after (best of 5)
-    jpeg.BenchmarkEncodeRGBOpaque   50   42044300 ns/op   29.23 MB/s
+    remove interface method calls:
+    png.BenchmarkEncodePaletted           50          44722880 ns/op
+    png.BenchmarkEncodeRGBOpaque          10         139042600 ns/op
+    png.BenchmarkEncodeRGBA                5         334033600 ns/op
     
-    (benchmarked on an HP z600; 16 core Xeon E5520 @ 2.27Ghz)
+    flate inline min/max():
+    png.BenchmarkEncodePaletted           50          40631180 ns/op
+    png.BenchmarkEncodeRGBOpaque          10         124894900 ns/op
+    png.BenchmarkEncodeRGBA                5         312099000 ns/op
     
-    R=r, r2, nigeltao
+    after adler change:
+    png.BenchmarkEncodePaletted           50          40181760 ns/op
+    png.BenchmarkEncodeRGBOpaque          20         121781950 ns/op
+    png.BenchmarkEncodeRGBA                5         313890800 ns/op
+    
+    In comparison to 121 ms on this 2006 machine, on my
+    Core2 Duo 2.66 GHz laptop, the final BenchmarkEncodeRGBOpaque
+    runs in 27 ms. (these are all for 640x480 images)
+    
+    R=nigeltao, rsc, r
     CC=golang-dev
-    https://golang.org/cl/4433088
+    https://golang.org/cl/4432077
 
- src/pkg/image/jpeg/writer.go | 32 +++++++++++++++++++++++++++++++-
- 1 file changed, 31 insertions(+), 1 deletion(-)
+ src/pkg/compress/flate/deflate.go | 29 ++++++++++++++++++++++++-----
+ src/pkg/image/png/writer.go       | 29 +++++++++++++++++++++++------
+ 2 files changed, 47 insertions(+), 11 deletions(-)

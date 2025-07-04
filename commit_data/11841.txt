@@ -1,12 +1,36 @@
-commit 159ee8a42f2ad9216267a1da0217427346d1d331
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Feb 13 21:18:16 2012 +1100
+commit dbec42104f5a7b177ed04098ca4cfb7a1659b9b1
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sun Feb 12 23:07:31 2012 -0800
 
-    misc/dist: add binary distribution packaging script for linux
+    gc, 8g, 8l: fix a handful of warnings
     
-    R=golang-dev, bradfitz, iant
+    8g/cgen.c
+            print format type mismatch
+    
+    8l/asm.c
+            resoff set and not used
+    
+    gc/pgen.c
+            misleading comparison INT > 0x80000000
+    
+    gc/reflect.c
+            dalgsym must be static to match forward declaration
+    
+    gc/subr.c
+            assumed_equal set and not used
+            hashmem's second argument is not used
+    
+    gc/walk.c
+            duplicated (unreachable) code
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5639064
+    https://golang.org/cl/5651079
 
- misc/dist/linux/dist.bash | 55 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 55 insertions(+)
+ src/cmd/8g/cgen.c    | 2 +-
+ src/cmd/8l/asm.c     | 3 +++
+ src/cmd/gc/pgen.c    | 2 +-
+ src/cmd/gc/reflect.c | 2 +-
+ src/cmd/gc/subr.c    | 8 +++-----
+ src/cmd/gc/walk.c    | 4 ----
+ 6 files changed, 9 insertions(+), 12 deletions(-)

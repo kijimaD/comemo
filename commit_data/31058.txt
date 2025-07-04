@@ -1,20 +1,21 @@
-commit 7e1832d06c0dad102e18e8db0c45f5fcc979718e
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 7 18:06:12 2017 -0400
+commit 5802cfd900c238baeb835bff62bad61c4f4c9852
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 13 17:23:01 2017 -0800
 
-    runtime: say where the compiler knows about var writeBarrier
+    [dev.typealias] cmd/compile: export/import test cases for type aliases
     
-    The runtime.writeBarrier variable tries to be helpful by telling you
-    that the compiler also knows about this variable, which you could
-    probably guess, but doesn't say how the compiler knows about it. In
-    fact, the compiler has a complete copy in builtin/runtime.go that
-    needs to be kept in sync. Say so.
+    Plus a few minor changes.
     
-    Change-Id: Ia7fb0c591cb6f9b8230decce01008b417dfcec89
-    Reviewed-on: https://go-review.googlesource.com/40150
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    For #18130.
+    
+    Change-Id: Ica6503fe9c888cc05c15b46178423f620c087491
+    Reviewed-on: https://go-review.googlesource.com/35233
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/mgc.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/dcl.go |  9 ++++----
+ test/alias2.go                     | 11 +++++++---
+ test/alias3.dir/a.go               | 42 ++++++++++++++++++++++++++++++++++++++
+ test/alias3.dir/b.go               | 26 +++++++++++++++++++++++
+ test/alias3.dir/c.go               | 25 +++++++++++++++++++++++
+ test/alias3.go                     |  7 +++++++
+ 6 files changed, 112 insertions(+), 8 deletions(-)

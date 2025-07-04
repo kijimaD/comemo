@@ -1,30 +1,34 @@
-commit b74f2efc47bbfcc4aa301ebda1033948d8b6b63e
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Oct 1 09:14:10 2021 -0700
+commit 0fc370c5d26353a865a29a01f093942c949d530a
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Thu Feb 25 01:03:35 2021 +0100
 
-    crypto/x509: use the platform verifier on iOS
+    docs: clarify when APIs use context.Background.
     
-    Use the same certificate verification APIs on iOS as on macOS (they
-    share the same APIs, so we should be able to transparently use them
-    on both.)
+    The Go standard library retrofitted context support onto existing APIs
+    using context.Background and later offered variants that directly
+    supported user-defined context value specification. This commit makes
+    that behavior clear in documentation and suggests context-aware
+    alternatives if the user is looking for one.
     
-    Updates #46287
-    Fixes #38843
+    An example motivation is supporting code for use in systems that expect
+    APIs to be cancelable for lifecycle correctness or load
+    shedding/management reasons, as alluded to in
+    https://blog.golang.org/context-and-structs.
     
-    Change-Id: If70f99b0823dd5fa747c42ff4f20c3b625605327
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353403
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Updates #44143
+    
+    Change-Id: I2d7f954ddf9b48264d5ebc8d0007058ff9bddf14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296152
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jean de Klerk <deklerk@google.com>
+    Trust: Jean de Klerk <deklerk@google.com>
+    Run-TryBot: Jean de Klerk <deklerk@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/dist/test.go              |   11 -
- src/crypto/x509/cert_pool.go      |    2 +
- src/crypto/x509/root_darwin.go    |    2 -
- src/crypto/x509/root_ios.go       | 4872 -------------------------------------
- src/crypto/x509/root_ios_gen.go   |  180 --
- src/crypto/x509/root_omit.go      |   25 -
- src/crypto/x509/root_omit_test.go |   22 -
- src/crypto/x509/verify.go         |    2 +-
- src/crypto/x509/verify_test.go    |    2 +-
- src/crypto/x509/x509_test.go      |    2 +-
- 10 files changed, 5 insertions(+), 5115 deletions(-)
+ src/crypto/tls/tls.go        |  6 ++++++
+ src/database/sql/sql.go      | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/dial.go              |  9 +++++++++
+ src/net/http/request.go      |  2 +-
+ src/net/http/socks_bundle.go |  2 ++
+ src/net/lookup.go            | 21 +++++++++++++++++++++
+ 6 files changed, 81 insertions(+), 1 deletion(-)

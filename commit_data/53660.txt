@@ -1,21 +1,25 @@
-commit 158d11196f732e4c80b03240548bdd373e6a9eff
-Author: Michael Munday <mike.munday@lowrisc.org>
-Date:   Wed Jun 28 23:12:33 2023 +0100
+commit 4d13aabdf62a15d19a6f41a781aa7e85f02f3f26
+Author: Akshay Shah <akshay@akshayshah.org>
+Date:   Mon Aug 22 16:08:13 2022 -0700
 
-    math: add test that covers riscv64 fnm{add,sub} codegen
+    net/http: add errors.As support for x/net/http2.StreamError
     
-    Adds a test that triggers the RISC-V fused multiply-add code
-    generation bug fixed by CL 506575.
+    To make it easier to extract the HTTP/2 error code (if any) from
+    net/http errors, implement an As method on the vendored copy of
+    golang.org/x/net/http2.StreamError. The new As method lets users work
+    with the vendored error type as though it were the x/net/http2
+    StreamError.
     
-    Change-Id: Ia3a55a68b48c5cc6beac4e5235975dea31f3faf2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507035
-    Auto-Submit: M Zhuo <mzh@golangcn.org>
-    Reviewed-by: M Zhuo <mzh@golangcn.org>
-    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    Fixes #53896.
+    
+    Change-Id: Ib18eb428adc05a3c0e19a946ece936e2378e1c7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425104
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/math/all_test.go | 39 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ src/net/http/h2_error.go      | 38 +++++++++++++++++++++++++++++++++++++
+ src/net/http/h2_error_test.go | 44 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+)

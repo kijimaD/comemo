@@ -1,19 +1,23 @@
-commit 2acae8741688ec29fff74118ffa0d0347ae8fc4d
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Thu Jul 5 19:55:08 2018 +0200
+commit f45c07e84ad17dcc4d927fb6571f81fc9fd99cdf
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Mar 20 12:36:37 2018 -0400
 
-    syscall/js: improve panic messages
+    cmd/compile: fix regression in DWARF inlined routine variable tracking
     
-    This commit adds the actual type to the panic message when calling
-    a method of Value on a Value with a bad type. It also adds better
-    panic messages to Value.Invoke and Value.Call.
+    Fix a bug in the code that generates the pre-inlined variable
+    declaration table used as raw material for emitting DWARF inline
+    routine records. The fix for issue 23704 altered the recipe for
+    assigning file/line/col to variables in one part of the compiler, but
+    didn't update a similar recipe in the code for variable tracking.
+    Added a new test that should catch problems of a similar nature.
     
-    Change-Id: Ic4b3aa29d3bef8e357be40cd07664ad602ffab12
-    Reviewed-on: https://go-review.googlesource.com/122376
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #24460.
+    
+    Change-Id: I255c036637f4151aa579c0e21d123fd413724d61
+    Reviewed-on: https://go-review.googlesource.com/101676
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/syscall/js/js.go      | 35 ++++++++++++++++++++++++++++++-----
- src/syscall/js/js_test.go |  6 ++++++
- 2 files changed, 36 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/dwinl.go   |  8 +++++---
+ src/cmd/link/internal/ld/dwarf_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)

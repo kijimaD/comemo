@@ -1,15 +1,19 @@
-commit c9fe126c8bf25d14b233f1ccaff12c1bffbd4971
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Feb 19 18:13:52 2022 +0100
+commit 9c12f1b433e9dc8c2679a6dbabb98586b5d77742
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 29 21:10:05 2021 -0700
 
-    doc/go1.18: fix a few small typos, add a few commas
+    internal/buildcfg: enable regabi for Android
     
-    Updates #47694
+    This will permit us to write ABIInternal assembler code for linux-amd64.
     
-    Change-Id: I6c1c3698fdd55fe83c756f28776d1d26dba0a9df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386974
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    For #40724
+    
+    Change-Id: I681866651554eda4229d6faa7f0c1ba42d07e57d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315390
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ src/internal/buildcfg/exp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

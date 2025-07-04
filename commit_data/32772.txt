@@ -1,32 +1,27 @@
-commit 7582494e063e12dddc5c99a831d0c28cda2df635
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Sep 14 20:00:02 2017 +0100
+commit b8a4eb4bd8820ca50fee3aff4b8d5adb7a0a9b49
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue May 23 11:15:41 2017 +0000
 
-    cmd/compile: add s390x intrinsics for Ceil, Floor, Round and Trunc
+    cmd/internal/obj/arm: fix illegal forms of ARM VFP instruction
     
-    Ceil, Floor and Trunc are pre-existing intrinsics. Round is a new
-    function and has been added as an intrinsic in this CL. All of the
-    functions can be implemented as a single 'LOAD FP INTEGER'
-    instruction, FIDBR, on s390x.
+    "ADDF F0, R1, F2" is silently accepted by the arm assembler and
+    assembled to the same binary code of "ADDF F0, F1, F2". So does
+    "CMPF F0, R1".
     
-    name   old time/op  new time/op  delta
-    Ceil   2.34ns ± 0%  0.85ns ± 0%  -63.74%  (p=0.000 n=5+4)
-    Floor  2.33ns ± 0%  0.85ns ± 1%  -63.35%  (p=0.008 n=5+5)
-    Round  4.23ns ± 0%  0.85ns ± 0%  -79.89%  (p=0.000 n=5+4)
-    Trunc  2.35ns ± 0%  0.85ns ± 0%  -63.83%  (p=0.029 n=4+4)
+    "ABSF F0, F1, F2" is also silently accepted and assembled to a
+    different instruction.
     
-    Change-Id: Idee7ba24a2899d12bf9afee4eedd6b4aaad3c510
-    Reviewed-on: https://go-review.googlesource.com/63890
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    This patch reports those illegal forms and adds test cases.
+    
+    fix #20464
+    
+    Change-Id: I88b80dc29de24c6266ac7bf7bce1578c5adbc68c
+    Reviewed-on: https://go-review.googlesource.com/43931
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/asm_test.go        | 33 +++++++++++++++
- src/cmd/compile/internal/gc/ssa.go             | 11 +++--
- src/cmd/compile/internal/s390x/ssa.go          |  7 ++++
- src/cmd/compile/internal/ssa/gen/S390X.rules   |  7 +++-
- src/cmd/compile/internal/ssa/gen/S390XOps.go   | 11 +++++
- src/cmd/compile/internal/ssa/gen/genericOps.go | 21 ++++++++--
- src/cmd/compile/internal/ssa/opGen.go          | 21 ++++++++++
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 56 ++++++++++++++++++++++++++
- 8 files changed, 159 insertions(+), 8 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go    |  2 +-
+ src/cmd/asm/internal/asm/testdata/armerror.s | 13 +++++++++++
+ src/cmd/internal/obj/arm/asm5.go             | 35 +++++++++++++++++++---------
+ 3 files changed, 38 insertions(+), 12 deletions(-)

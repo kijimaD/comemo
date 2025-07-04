@@ -1,19 +1,23 @@
-commit 50b7171af05531df6744cf33dabfceaa98e986e0
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Oct 15 22:49:30 2020 +0700
+commit e14efb686564a778002b8fe1ab0c40e4f6c62da1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 20 08:31:38 2020 -0400
 
-    cmd/compile: simplify exprformat untyped condition checking
+    [dev.link] cmd/link: move setupdynexp before loadlibfull
     
-    L1337 in fmt.go can be checked just by using "!n.Type.IsUntyped".
+    Rewrite setupdynexp to work with loader.Sym, and move the call to it
+    before the body of loadlibfull. After loadlibfull is complete,
+    construct the old *sym.Symbol version of dynexp, since not all all
+    clients that access this list are converted to the loader APIs.
     
-    Passes toolstash-check.
-    
-    Change-Id: I5b0c81543bc929367f70713d0ca40b289f905b48
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262637
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I347d24958e2f3e2332fbe33f2eb6ec25cc126bdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224382
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go        | 42 ++++++++++++++++++--------
+ src/cmd/link/internal/ld/link.go       |  3 +-
+ src/cmd/link/internal/ld/main.go       |  1 +
+ src/cmd/link/internal/loader/loader.go | 54 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 87 insertions(+), 13 deletions(-)

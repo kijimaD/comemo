@@ -1,14 +1,16 @@
-commit 3cdf6100f1cac9b3ff30c790d145240d6f5a2f8a
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 17 12:16:42 2017 -0400
+commit 862e45d49d07ab1cdf79763763cc29ed6d311a20
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 21:39:28 2017 +0000
 
-    cmd/go: drop PackageInternal.Pkgdir (unused)
+    time: remove some redundant equality comparison documentation
     
-    Change-Id: Iab8f0d201780bd571541a6806f071e883a553d35
-    Reviewed-on: https://go-review.googlesource.com/56286
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Updates to CL 45698
+    
+    Updates #19510
+    
+    Change-Id: Iec7a455b6c4d5f96d0b674459bf1455c99102d62
+    Reviewed-on: https://go-review.googlesource.com/45779
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/load/pkg.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/time/time.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

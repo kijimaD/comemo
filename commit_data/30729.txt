@@ -1,19 +1,20 @@
-commit df6025bc0d7746fdf40a39398e5d8799ccf78a55
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 16 17:02:24 2017 -0400
+commit 406d2fa2f3034974e94620bacf6c09bcabaf85fd
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Nov 28 20:31:18 2016 -0500
 
-    runtime: disallow malloc or panic in scavenge
+    net/http: fix test TestServeMuxHandlerRedirects
     
-    Mallocs and panics in the scavenge path are particularly nasty because
-    they're likely to silently self-deadlock on the mheap.lock. Avoid
-    sinking lots of time into debugging these issues in the future by
-    turning these into immediate throws.
+    The code was intended to test that mux handler should redirect at
+    most once, but the added loop condition defeated that. Remove the
+    loop condition and document the intention better.
     
-    Change-Id: Ib36fdda33bc90b21c32432b03561630c1f3c69bc
-    Reviewed-on: https://go-review.googlesource.com/38293
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #18068.
+    
+    Change-Id: I2a4ea041eae27168b45a09aa46e740ac03921594
+    Reviewed-on: https://go-review.googlesource.com/33654
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mheap.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/net/http/serve_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

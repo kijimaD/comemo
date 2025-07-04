@@ -1,0 +1,16 @@
+commit 29782bd347a1c707b6804ea6ee7da3a70ba9fd4a
+Author: Roxy Light <roxy@zombiezen.com>
+Date:   Sat May 24 16:07:58 2025 -0700
+
+    os: add implementation of fs.ReadLinkFS to *rootFS
+    
+    Fixes #73887
+    
+    Change-Id: I43f3f4324d740b5381615bce864b7ec31415a635
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676135
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/os/root.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

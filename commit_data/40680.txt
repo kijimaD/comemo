@@ -1,22 +1,12 @@
-commit a782472dcd3937d8e49ab843dffc7568c6eb8edb
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Nov 8 10:52:10 2019 -0500
+commit 5c354e66d175094e5a3007d0133d82d3f21c9d03
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 13 18:47:33 2019 -0400
 
-    cmd/go: delete flaky TestQEMUUserMode
+    [dev.boringcrypto] misc/boring: add go1.12.6b4 and go1.11.11b4 releases
     
-    If QEMU user-mode is actually a supported configuration, then per
-    http://golang.org/wiki/PortingPolicy it needs to have a builder
-    running tests for all packages, not just a simple “hello world”
-    program.
-    
-    Updates #1508
-    Updates #13024
-    Fixes #35457
-    
-    Change-Id: Ib6122b06ad1d265550a0e92131506266495893cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206137
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I90b79a5519f92bb56370e11fd47c06dabaf845e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182338
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/go_test.go | 46 ----------------------------------------------
- 1 file changed, 46 deletions(-)
+ misc/boring/RELEASES | 4 ++++
+ 1 file changed, 4 insertions(+)

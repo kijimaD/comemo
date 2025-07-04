@@ -1,17 +1,12 @@
-commit 63e0ddc7bf0c7523d826331ff51a551c5040b50b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 16 15:35:03 2013 +0400
+commit 4949dcb211010040c343fdfee6ac67cafdedbb51
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Jul 16 17:41:31 2013 +1000
 
-    cmd/gc: do not race instrument syscall.forkAndExecInChild
-    Race instrumentation can allocate, switch stacks, preempt, etc.
-    All that is not allowed in between fork and exec.
-    Fixes #4840.
+    cmd/gc: complex types don't contain pointers
     
-    R=golang-dev, daniel.morsing, dave
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/11324044
+    https://golang.org/cl/11334043
 
- src/cmd/gc/racewalk.c         | 14 +++++++++++++-
- src/pkg/syscall/exec_bsd.go   |  1 +
- src/pkg/syscall/exec_linux.go |  1 +
- 3 files changed, 15 insertions(+), 1 deletion(-)
+ src/cmd/gc/reflect.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,30 +1,21 @@
-commit 1dd0163ce3993192171149c9ee7e4cd538b36b8a
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Jan 6 20:38:44 2015 -0800
+commit 6f755f2f8f4665d44745b4065cd54a90eba0bde9
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 25 16:00:25 2014 -0500
 
-    runtime: remove trailing empty arrays in structs
+    [dev.cc] 9l: make R_CALLPOWER like ELF's R_PPC64_REL24
     
-    The ones at the end of M and G are just used to compute
-    their size for use in assembly.  Generate the size explicitly.
-    The one at the end of itab is variable-sized, and at least one.
-    The ones at the end of interfacetype and uncommontype are not
-    needed, as the preceding slice references them (the slice was
-    originally added for use by reflect?).
-    The one at the end of stackmap is already accessed correctly,
-    and the runtime never allocates one.
+    These accomplished the same thing, but R_CALLPOWER expected
+    the whole instruction to be in the addend (and completely
+    overwrote what was in the text section), while R_PPC64_REL24
+    overwrites only bits 6 through 24 of whatever was in the text
+    section.  Make R_CALLPOWER work like R_PPC64_REL24 to ease the
+    implementation of dynamic linking.
     
-    Update #9401
-    
-    Change-Id: Ia75e3aaee38425f038c506868a17105bd64c712f
-    Reviewed-on: https://go-review.googlesource.com/2420
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews, minux
+    https://golang.org/cl/177430043
 
- src/cmd/gc/export.c             |  1 +
- src/runtime/iface.go            | 11 +++++------
- src/runtime/malloc2.go          |  2 +-
- src/runtime/runtime2.go         |  4 +---
- src/runtime/sys_windows_386.s   | 10 +++++-----
- src/runtime/sys_windows_amd64.s | 10 +++++-----
- src/runtime/type.go             |  2 --
- 7 files changed, 18 insertions(+), 22 deletions(-)
+ src/cmd/9l/asm.c   | 22 +++++++++++++---------
+ src/liblink/asm9.c |  2 +-
+ 2 files changed, 14 insertions(+), 10 deletions(-)

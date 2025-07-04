@@ -1,21 +1,31 @@
-commit 6f6a9445c93bfbfd05ea9b7880137c02618bedbd
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jan 17 14:48:45 2014 -0800
+commit 5c9585953f5bfb9b783d9b47eb17cea890664b76
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 17 16:58:14 2014 -0500
 
-    runtime, cmd/gc: Get rid of vararg channel calls.
+    undo CL 45930043 / c22889382a17
     
-    Vararg C calls present a problem for the GC because the
-    argument types are not derivable from the signature.  Remove
-    them by passing pointers to channel elements instead of the
-    channel elements directly.
+    The compiler change is an ugly hack.
+    We can do better.
     
-    R=golang-codereviews, gobot, rsc, dvyukov
-    CC=golang-codereviews
-    https://golang.org/cl/53430043
+    ««« original CL description
+    syscall: mark arguments to Syscall as noescape
+    Heap arguments to "async" syscalls will break when/if we have moving GC anyway.
+    With this change is must not break until moving GC, because a user must
+    reference the object in Go to preserve liveness. Otherwise the code is broken already.
+    Reduces number of leaked params from 125 to 36 on linux.
+    
+    R=golang-codereviews, mikioh.mikioh, bradfitz
+    CC=cshapiro, golang-codereviews, khr, rsc
+    https://golang.org/cl/45930043
+    »»»
+    
+    R=golang-codereviews, r
+    CC=bradfitz, dvyukov, golang-codereviews
+    https://golang.org/cl/53870043
 
- src/cmd/gc/builtin.c   |  8 ++++----
- src/cmd/gc/runtime.go  |  8 ++++----
- src/cmd/gc/select.c    | 14 +++++++++++++-
- src/cmd/gc/walk.c      | 50 +++++++++++++++++++++++++++++++++++++++---------
- src/pkg/runtime/chan.c | 52 +++++++++++++++++++-------------------------------
- 5 files changed, 82 insertions(+), 50 deletions(-)
+ src/cmd/gc/esc.c                     |  9 ++-------
+ src/pkg/syscall/dll_windows.go       | 20 --------------------
+ src/pkg/syscall/syscall_linux_386.go |  9 ---------
+ src/pkg/syscall/syscall_plan9.go     | 15 ---------------
+ src/pkg/syscall/syscall_unix.go      | 15 ---------------
+ 5 files changed, 2 insertions(+), 66 deletions(-)

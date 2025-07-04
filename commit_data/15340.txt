@@ -1,20 +1,17 @@
-commit f7a7716317dede4687a7fed38aea8d256f4d09e5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 20 15:35:27 2013 -0800
+commit 43da336b151993fa3b0d17dc443f5ba9d29d482f
+Author: Steven Elliot Harris <seharris@gmail.com>
+Date:   Wed Feb 20 14:42:37 2013 -0800
 
-    database/sql: refcounting and lifetime fixes
+    misc/emacs: Present "godoc" documentation buffers using view-mode.
     
-    Simplifies the contract for Driver.Stmt.Close in
-    the process of fixing issue 3865.
+    Mimic the Emacs convention of presenting read-only files meant
+    for browsing using view-mode, rather than Fundamental mode
+    which mistakenly allows editing of the "godoc" content.
+    Fixes #4322.
     
-    Fixes #3865
-    Update #4459 (maybe fixes it; uninvestigated)
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz, sameer
     CC=golang-dev
-    https://golang.org/cl/7363043
+    https://golang.org/cl/7231055
 
- src/pkg/database/sql/driver/driver.go |  19 +---
- src/pkg/database/sql/sql.go           | 196 +++++++++++++++++++++++++++++-----
- src/pkg/database/sql/sql_test.go      |  14 +--
- 3 files changed, 174 insertions(+), 55 deletions(-)
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

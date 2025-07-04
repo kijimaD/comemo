@@ -1,62 +1,46 @@
-commit 5168fcf63f5001b38f9ac64ce5c5e3c2d397363d
-Author: templexxx <lucas1x1x@gmail.com>
-Date:   Sat Jul 21 04:18:08 2018 +0800
+commit 78561c4ae9b18e111ef0e25478f24e5e21dcff69
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 25 18:00:43 2018 -0400
 
-    crypto/cipher: use SIMD for xor on amd64
+    runtime: handle g0 stack overflows gracefully
     
-    cpu: Intel(R) Core(TM) i7-7700HQ CPU @ 2.80GHz
+    Currently, if the runtime overflows the g0 stack on Windows, it leads
+    to an infinite recursion:
     
-    Benchmark: xor
+    1. Something overflows the g0 stack bounds and calls morestack.
     
-    name                   old time/op    new time/op     delta
-    XORBytes/8Bytes-8        8.21ns ± 1%     6.35ns ± 3%   -22.66%  (p=0.008 n=5+5)
-    XORBytes/128Bytes-8      17.9ns ± 1%     10.4ns ± 1%   -41.68%  (p=0.008 n=5+5)
-    XORBytes/2048Bytes-8      187ns ± 1%       78ns ± 0%   -58.44%  (p=0.008 n=5+5)
-    XORBytes/32768Bytes-8    2.87µs ± 1%     1.38µs ± 0%   -52.05%  (p=0.008 n=5+5)
+    2. morestack determines it's on the g0 stack and hence cannot grow the
+    stack, so it calls badmorestackg0 (which prints "fatal: morestack on
+    g0") followed by abort.
     
-    name                   old speed      new speed       delta
-    XORBytes/8Bytes-8       974MB/s ± 1%   1260MB/s ± 2%   +29.33%  (p=0.008 n=5+5)
-    XORBytes/128Bytes-8    7.15GB/s ± 0%  12.25GB/s ± 1%   +71.17%  (p=0.008 n=5+5)
-    XORBytes/2048Bytes-8   10.9GB/s ± 1%   26.4GB/s ± 0%  +140.99%  (p=0.008 n=5+5)
-    XORBytes/32768Bytes-8  11.4GB/s ± 1%   23.8GB/s ± 0%  +108.52%  (p=0.008 n=5+5)
+    3. abort performs an INT $3, which turns into a Windows
+    _EXCEPTION_BREAKPOINT exception.
     
-    Benchmark: cipher
+    4. This enters the Windows sigtramp, which ensures we're on the g0
+    stack and calls exceptionhandler.
     
-    name               old time/op    new time/op    delta
-    AESGCMSeal1K-8        269ns ± 6%     261ns ± 2%     ~     (p=0.246 n=5+5)
-    AESGCMOpen1K-8        242ns ± 1%     240ns ± 2%     ~     (p=0.190 n=5+5)
-    AESGCMSign8K-8        869ns ± 0%     870ns ± 1%     ~     (p=0.683 n=5+5)
-    AESGCMSeal8K-8       1.64µs ± 6%    1.59µs ± 7%     ~     (p=0.151 n=5+5)
-    AESGCMOpen8K-8       1.48µs ± 2%    1.46µs ± 0%   -1.39%  (p=0.008 n=5+5)
-    AESCFBEncrypt1K-8    1.88µs ± 5%    1.62µs ± 1%  -13.52%  (p=0.008 n=5+5)
-    AESCFBDecrypt1K-8    1.76µs ± 1%    1.58µs ± 1%  -10.24%  (p=0.016 n=4+5)
-    AESOFB1K-8           1.10µs ± 4%    1.03µs ± 2%   -6.36%  (p=0.008 n=5+5)
-    AESCTR1K-8           1.24µs ± 1%    1.17µs ± 0%   -5.96%  (p=0.008 n=5+5)
-    AESCBCEncrypt1K-8    1.74µs ± 0%    1.14µs ± 1%  -34.36%  (p=0.008 n=5+5)
-    AESCBCDecrypt1K-8    1.28µs ± 1%    1.10µs ± 1%  -14.04%  (p=0.008 n=5+5)
+    5. exceptionhandler has a stack check prologue, so it determines that
+    it's out of stack and calls morestack.
     
-    name               old speed      new speed      delta
-    AESGCMSeal1K-8     3.81GB/s ± 6%  3.91GB/s ± 2%     ~     (p=0.310 n=5+5)
-    AESGCMOpen1K-8     4.23GB/s ± 1%  4.27GB/s ± 2%     ~     (p=0.222 n=5+5)
-    AESGCMSign8K-8     9.43GB/s ± 0%  9.41GB/s ± 1%     ~     (p=0.841 n=5+5)
-    AESGCMSeal8K-8     5.01GB/s ± 6%  5.16GB/s ± 6%     ~     (p=0.151 n=5+5)
-    AESGCMOpen8K-8     5.54GB/s ± 2%  5.62GB/s ± 0%   +1.41%  (p=0.008 n=5+5)
-    AESCFBEncrypt1K-8   543MB/s ± 5%   627MB/s ± 1%  +15.55%  (p=0.008 n=5+5)
-    AESCFBDecrypt1K-8   580MB/s ± 1%   646MB/s ± 1%  +11.40%  (p=0.016 n=4+5)
-    AESOFB1K-8          925MB/s ± 4%   988MB/s ± 2%   +6.73%  (p=0.008 n=5+5)
-    AESCTR1K-8          821MB/s ± 1%   873MB/s ± 1%   +6.34%  (p=0.008 n=5+5)
-    AESCBCEncrypt1K-8   588MB/s ± 1%   897MB/s ± 1%  +52.36%  (p=0.008 n=5+5)
-    AESCBCDecrypt1K-8   799MB/s ± 1%   929MB/s ± 1%  +16.32%  (p=0.008 n=5+5)
+    6. goto 2
     
-    Change-Id: I42e6ba66c23dad853d33c924fca7b0ed805cefdd
-    Reviewed-on: https://go-review.googlesource.com/c/125316
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Fix this by making the exception handler avoid stack checks until it
+    has ruled out an abort and by blowing away the stack bounds in
+    lastcontinuehandler before we print the final fatal traceback (which
+    itself involves a lot of stack bounds checks).
+    
+    Fixes #21382.
+    
+    Change-Id: Ie66e91f708e18d131d97f22b43f9ac26f3aece5a
+    Reviewed-on: https://go-review.googlesource.com/120857
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/crypto/cipher/export_test.go             |  8 ++++
- src/crypto/cipher/xor_amd64.go               | 27 +++++++++++
- src/crypto/cipher/xor_amd64.s                | 54 ++++++++++++++++++++++
- src/crypto/cipher/{xor.go => xor_generic.go} | 62 +++++++++++++------------
- src/crypto/cipher/xor_test.go                | 68 +++++++++++++++++++++++-----
- 5 files changed, 177 insertions(+), 42 deletions(-)
+ src/runtime/crash_test.go     | 29 +++++++++++++++++++++++++++++
+ src/runtime/export_test.go    | 11 +++++++++++
+ src/runtime/os_windows.go     |  5 +++--
+ src/runtime/panic.go          |  5 +++++
+ src/runtime/signal_windows.go | 30 ++++++++++++++++++++++++++++++
+ 5 files changed, 78 insertions(+), 2 deletions(-)

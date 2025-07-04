@@ -1,27 +1,54 @@
-commit e1e466f80c96020ced38830d848f9f568e69ab1a
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Fri Feb 16 23:24:12 2024 +0000
+commit 72301a9863fb43ff26e9779a086e02cf02031ceb
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:22 2021 -0600
 
-    internal/msan: add new package
+    cmd/internal/obj: use prefix insn in MOV* opcodes for GOPPC64=power10
     
-    The internal/msan package contains helper functions for manually
-    instrumenting code for the memory sanitizer. It exports the private
-    msan routines in runtime unconditionally, making the functions a
-    no-op if the build flag "msan" is not present.
+    As background, Power10 adds prefixed load, store, and add immediate
+    instructions which encode 34b signed displacements. Likewise, they
+    also give the option to compute addresses against the PC. This enables
+    using simpler PC relative (PC-rel) relocations instead of maintaining a
+    dedicated pointer (the TOC) to the code/data blob on PPC64/linux.
     
-    For #64611
+    Similary, there are several Go opcodes where it can be advantageous to
+    use prefixed instructions instead of composite sequences like oris/ori/add
+    to implement "MOVD <big const>, Rx" or "ADD <big const>, Rx, Ry", or
+    large offset load/stores like "MOVD <big constant>(Rx), Ry" using the same
+    framework which dynamically configures optab.
     
-    Change-Id: If43f29e112ac79a47083c9dbdf2c61a0641e80b1
-    GitHub-Last-Rev: 0a644bd6f10a9052c33992f1c56b1f0037ca98c7
-    GitHub-Pull-Request: golang/go#64637
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548676
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    When selecting prefixed instruction forms, the assembler must also use
+    new relocations. These new relocations are always PC-rel by design, thus
+    code assembled as such has no implicit requirement to maintain a TOC
+    pointer when assembling shared objects. Thus, we can safely avoid
+    situations where some Go objects use a TOC pointer, and some do not. This
+    greatly simplifies linking Go objects. For more details about the
+    challenges of linking TOC and PC-rel compiled code, see the PPC64 ELFv2
+    ABI.
+    
+    The TOC pointer in R2 is still maintained in those build configurations
+    which previously required it (e.x buildmode=pie). However, Go code built
+    with PC-rel relocations does not require the TOC pointer. A future
+    change could remove the overhead of maintaining a TOC pointer in those
+    build configurations.
+    
+    This is enabled only for power10/ppc64le/linux.
+    
+    A final noteworthy difference between the prefixed and regular load/store
+    instruction forms is the removal of the DS/DQ form restrictions. That
+    is, the immediate operand does not need to be aligned.
+    
+    Updates #44549
+    
+    Change-Id: If59c216d203c3eed963bfa08855e21771e6ed669
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355150
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
 
- src/go/build/deps_test.go   |  1 +
- src/internal/msan/doc.go    |  9 +++++++++
- src/internal/msan/msan.go   | 28 ++++++++++++++++++++++++++++
- src/internal/msan/nomsan.go | 28 ++++++++++++++++++++++++++++
- src/runtime/msan.go         |  5 +++++
- 5 files changed, 71 insertions(+)
+ src/cmd/asm/internal/asm/endtoend_test.go |  12 +-
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  27 +--
+ src/cmd/internal/obj/ppc64/asm9.go        | 296 ++++++++++++++++++++++++------
+ src/cmd/internal/obj/ppc64/doc.go         |  29 +++
+ 4 files changed, 293 insertions(+), 71 deletions(-)

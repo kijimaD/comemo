@@ -1,0 +1,18 @@
+commit 252e9def65cd6230447fc11046d7f4b176ae2d4b
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Nov 4 11:45:05 2024 -0500
+
+    runtime: validate all calls to SetFinalizer
+    
+    This change moves the check for a change in the memory management
+    system to after the SetFinalizer parameters have been validated.
+    Moving the check ensures that invalid parameters will never pass the
+    validation checks.
+    
+    Change-Id: I9f1d3454f891f7b147c0d86b6720297172e08ef9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625035
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mfinal.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

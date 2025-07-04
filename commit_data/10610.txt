@@ -1,18 +1,20 @@
-commit abc7df9686839950f3a2ce108a5a683cce9001fe
-Author: Charles L. Dorian <cldorian@gmail.com>
-Date:   Mon Dec 5 14:01:24 2011 -0500
+commit 3538d40ab5f57db77b3a76822c555a76020588f0
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 5 13:30:25 2011 -0500
 
-    math: add special-cases comments to Sinh and Tanh.
+    crypto/aes: eliminate some bounds checking and manual truncation.
     
-    Also change "Special conditions" to "Special cases" as in other functions.
+    By converting array indices to uint8, they are automatically
+    constrained in the array range, and the binary AND with 0xff
+    is no longer needed anymore.
     
-    R=rsc, golang-dev
-    CC=golang-dev
-    https://golang.org/cl/5440078
+    Before:  aes.BenchmarkEncrypt    363 ns/op
+    After:   aes.BenchmarkEncrypt    273 ns/op
+    
+    R=golang-dev, gri, agl
+    CC=golang-dev, remy
+    https://golang.org/cl/5450084
 
- src/pkg/math/sin.go    |  2 +-
- src/pkg/math/sincos.go |  2 +-
- src/pkg/math/sinh.go   | 10 ++++++++++
- src/pkg/math/tan.go    |  2 +-
- src/pkg/math/tanh.go   |  5 +++++
- 5 files changed, 18 insertions(+), 3 deletions(-)
+ src/pkg/crypto/aes/aes_test.go | 14 ++++++++++++++
+ src/pkg/crypto/aes/block.go    | 16 ++++++++--------
+ 2 files changed, 22 insertions(+), 8 deletions(-)

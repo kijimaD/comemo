@@ -1,0 +1,50 @@
+commit 763963505e39b753d820ee9aea4791ad5bcc0274
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 21 11:43:35 2025 -0700
+
+    crypto/sha3: un-interleave EOR instructions
+    
+    Move two EOR instructions out of blocks of RAX and
+    BCAX instructions. This appears to get a teeny
+    performance improvement, and matches what the
+    Linux kernel implementation does.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/sha3
+    cpu: Apple M1 Pro
+                     │ sha3-non-interleaved │          sha3-interleaved           │
+                     │        sec/op        │    sec/op     vs base               │
+    Sha3_512_MTU-10            3.122µ ±  2%   3.107µ ±  1%       ~ (p=0.382 n=10)
+    Sha3_384_MTU-10            2.266µ ±  7%   2.287µ ± 11%       ~ (p=0.424 n=10)
+    Sha3_256_MTU-10            1.770µ ±  5%   1.793µ ±  4%       ~ (p=0.353 n=10)
+    Sha3_224_MTU-10            1.675µ ±  1%   1.664µ ±  2%       ~ (p=0.210 n=10)
+    Shake128_MTU-10            1.459µ ±  1%   1.446µ ±  1%  -0.89% (p=0.000 n=10)
+    Shake256_MTU-10            1.591µ ±  1%   1.597µ ±  1%       ~ (p=0.342 n=10)
+    Shake256_16x-10            27.46µ ± 13%   27.58µ ±  1%       ~ (p=0.247 n=10)
+    Shake256_1MiB-10           1.269m ± 10%   1.233m ±  1%  -2.89% (p=0.000 n=10)
+    Sha3_512_1MiB-10           2.283m ±  2%   2.275m ±  0%       ~ (p=0.247 n=10)
+    geomean                    11.62µ         11.59µ        -0.25%
+    
+                     │ sha3-non-interleaved │           sha3-interleaved           │
+                     │         B/s          │      B/s       vs base               │
+    Sha3_512_MTU-10           412.4Mi ±  2%   414.4Mi ±  1%       ~ (p=0.393 n=10)
+    Sha3_384_MTU-10           568.3Mi ±  6%   563.2Mi ± 10%       ~ (p=0.436 n=10)
+    Sha3_256_MTU-10           727.7Mi ±  4%   718.0Mi ±  4%       ~ (p=0.353 n=10)
+    Sha3_224_MTU-10           768.8Mi ±  1%   773.7Mi ±  1%       ~ (p=0.218 n=10)
+    Shake128_MTU-10           882.7Mi ±  1%   890.9Mi ±  1%  +0.92% (p=0.000 n=10)
+    Shake256_MTU-10           808.9Mi ±  1%   806.2Mi ±  1%       ~ (p=0.353 n=10)
+    Shake256_16x-10           569.0Mi ± 11%   566.6Mi ±  1%       ~ (p=0.247 n=10)
+    Shake256_1MiB-10          787.9Mi ±  9%   811.3Mi ±  1%  +2.97% (p=0.000 n=10)
+    Sha3_512_1MiB-10          438.0Mi ±  2%   439.6Mi ±  0%       ~ (p=0.247 n=10)
+    geomean                   641.4Mi         643.1Mi        +0.26%
+    
+    Change-Id: I5f358d954aeccb91928caa79be96c2902d9ac97e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675136
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Hongxiang Jiang <hxjiang@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ src/crypto/internal/fips140/sha3/sha3_arm64.s | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

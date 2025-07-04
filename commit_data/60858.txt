@@ -1,0 +1,30 @@
+commit c541aabfc3d104c71a139e4d3599c220a5c6d019
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 4 18:32:07 2024 +0700
+
+    cmd: remove notsha256 package
+    
+    All of its usages were removed in CL 610596.
+    
+    Updates #51940
+    Updates #64751
+    
+    Change-Id: I72a0ea4bd44a2f671e032bffa1facf84822a90f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610599
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/dist/buildtool.go                         |   4 +-
+ src/cmd/internal/notsha256/sha256.go              | 141 -------
+ src/cmd/internal/notsha256/sha256_test.go         | 175 ---------
+ src/cmd/internal/notsha256/sha256block.go         | 128 ------
+ src/cmd/internal/notsha256/sha256block_386.s      | 285 --------------
+ src/cmd/internal/notsha256/sha256block_amd64.go   |   9 -
+ src/cmd/internal/notsha256/sha256block_amd64.s    | 426 --------------------
+ src/cmd/internal/notsha256/sha256block_decl.go    |  10 -
+ src/cmd/internal/notsha256/sha256block_generic.go |  11 -
+ src/cmd/internal/notsha256/sha256block_ppc64x.s   | 459 ----------------------
+ 10 files changed, 1 insertion(+), 1647 deletions(-)

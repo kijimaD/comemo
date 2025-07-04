@@ -1,12 +1,16 @@
-commit 66905bd9ac26eeb26f358f6545a5cc06bc06c332
+commit efda876a94a61d3bc6654599e1f0be8fc3443d41
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Tue Jan 25 19:40:36 2011 +0100
+Date:   Tue Jan 25 19:00:14 2011 +0100
 
-    cc: fix -q and build break.
+    cc: mode to generate go-code for types and variables.
     
     R=rsc
-    CC=golang-dev, golang-dev
-    https://golang.org/cl/3992047
+    CC=golang-dev
+    https://golang.org/cl/3987045
 
- src/cmd/cc/godefs.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/cc/Makefile |   1 +
+ src/cmd/cc/cc.h     |   7 +
+ src/cmd/cc/dcl.c    |   4 +
+ src/cmd/cc/godefs.c | 388 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cc/lex.c    |  22 ++-
+ 5 files changed, 415 insertions(+), 7 deletions(-)

@@ -1,27 +1,115 @@
-commit 38db0316f4e45704cc891026ea28dd566387de95
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Oct 3 21:54:48 2023 +0700
+commit b079640404a1e83a23b95bd22ec67cedd38798a9
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 21 15:18:14 2022 -0400
 
-    cmd/compile: do not fatal when typechecking conversion expression
+    misc/cgo/test: simplify for module mode
     
-    The types2 typechecker already reported all invalid conversions required
-    by the Go language spec. However, the conversion involves go pragma is
-    not specified in the spec, so is not checked by types2.
+    When we were first introducing module mode, CL 163418 moved many of
+    the tests in misc/cgo/test into their own test binary under testdata
+    so misc/cgo/test continued to work in both GOPATH mode and module
+    mode. This introduce a somewhat complicated test driver into
+    misc/cgo/test. Since the misc/cgo/test test had to invoke "go test" as
+    a subprocess, this required care to thread any build flags down into
+    the subprocess. The output from any failures of the sub-process was
+    also less than ideal.
     
-    Fixing this by handling the error gracefully during typecheck, just like
-    how old typechecker did before CL 394575.
+    Now that we don't have to worry about running these in GOPATH mode any
+    more, this CL moves all of the tests back into misc/cgo/test and drops
+    the test driver.
     
-    Fixes #63333
+    There are two slight complications:
     
-    Change-Id: I04c4121971c62d96f75ded1794ab4bdf3a6cd0ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532515
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    - Test41761 was added after this split and has a C type "S" that's
+      also present in misc/cgo/test itself. We rename that to keep that
+      test working.
+    
+    - TestCgo in go/internal/srcimporter now fails to import misc/cgo/test
+      because misc/cgo/test now contains imports of other "misc" module
+      packages and the importer it sets up isn't configured to allow that.
+      We fix this by setting up a build context that's configured for
+      this.
+    
+    Preparation for #37486.
+    
+    Change-Id: I3c4f73540e0482bbd493823cca44b0ce7fac01f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447355
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/typecheck/expr.go |  6 +++++-
- test/fixedbugs/issue63333.go               | 15 +++++++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ misc/cgo/test/cgo_linux_test.go                    |  1 +
+ misc/cgo/test/cgo_test.go                          |  6 ++
+ misc/cgo/test/{testdata => }/gcc68255.go           |  2 +-
+ misc/cgo/test/{testdata => }/gcc68255/a.go         |  0
+ misc/cgo/test/{testdata => }/gcc68255/c.c          |  0
+ misc/cgo/test/{testdata => }/gcc68255/c.h          |  0
+ misc/cgo/test/{testdata => }/issue20266.go         |  0
+ .../test/{testdata => }/issue20266/issue20266.h    |  0
+ misc/cgo/test/{testdata => }/issue23555.go         |  6 +-
+ misc/cgo/test/{testdata => }/issue23555a/a.go      |  0
+ misc/cgo/test/{testdata => }/issue23555b/a.go      |  0
+ .../test/{testdata => }/issue24161_darwin_test.go  | 10 +--
+ misc/cgo/test/{testdata => }/issue24161arg/def.go  |  0
+ misc/cgo/test/{testdata => }/issue24161arg/use.go  |  0
+ misc/cgo/test/{testdata => }/issue24161e0/main.go  |  0
+ misc/cgo/test/{testdata => }/issue24161e1/main.go  |  0
+ misc/cgo/test/{testdata => }/issue24161e2/main.go  |  0
+ .../test/{testdata => }/issue24161res/restype.go   |  0
+ misc/cgo/test/{testdata => }/issue26213/jni.h      |  0
+ .../test/{testdata => }/issue26213/test26213.go    |  0
+ misc/cgo/test/{testdata => }/issue26430.go         |  2 +-
+ misc/cgo/test/{testdata => }/issue26430/a.go       |  0
+ misc/cgo/test/{testdata => }/issue26430/b.go       |  0
+ misc/cgo/test/{testdata => }/issue26743.go         |  2 +-
+ misc/cgo/test/{testdata => }/issue26743/a.go       |  0
+ misc/cgo/test/{testdata => }/issue26743/b.go       |  0
+ misc/cgo/test/{testdata => }/issue27054/egl.h      |  0
+ .../test/{testdata => }/issue27054/test27054.go    |  0
+ misc/cgo/test/{testdata => }/issue27340.go         |  2 +-
+ misc/cgo/test/{testdata => }/issue27340/a.go       |  0
+ misc/cgo/test/{testdata => }/issue29563.go         |  3 +-
+ misc/cgo/test/{testdata => }/issue29563/weak.go    |  0
+ misc/cgo/test/{testdata => }/issue29563/weak1.c    |  0
+ misc/cgo/test/{testdata => }/issue29563/weak2.c    |  0
+ misc/cgo/test/{testdata => }/issue30527.go         |  2 +-
+ misc/cgo/test/{testdata => }/issue30527/a.go       |  0
+ misc/cgo/test/{testdata => }/issue30527/b.go       |  0
+ misc/cgo/test/{testdata => }/issue41761.go         |  6 +-
+ misc/cgo/test/{testdata => }/issue41761a/a.go      |  4 +-
+ misc/cgo/test/{testdata => }/issue43639.go         |  4 +-
+ misc/cgo/test/{testdata => }/issue43639/a.go       |  0
+ misc/cgo/test/{testdata => }/issue52611.go         |  4 +-
+ misc/cgo/test/{testdata => }/issue52611a/a.go      |  0
+ misc/cgo/test/{testdata => }/issue52611a/b.go      |  0
+ misc/cgo/test/{testdata => }/issue52611b/a.go      |  0
+ misc/cgo/test/{testdata => }/issue52611b/b.go      |  0
+ misc/cgo/test/{testdata => }/issue8756.go          |  2 +-
+ .../cgo/test/{testdata => }/issue8756/issue8756.go |  0
+ misc/cgo/test/{testdata => }/issue8828.go          |  2 +-
+ misc/cgo/test/{testdata => }/issue8828/issue8828.c |  0
+ misc/cgo/test/{testdata => }/issue8828/trivial.go  |  0
+ misc/cgo/test/{testdata => }/issue9026.go          |  2 +-
+ .../cgo/test/{testdata => }/issue9026/issue9026.go |  0
+ misc/cgo/test/{testdata => }/issue9400/asm_386.s   |  0
+ .../cgo/test/{testdata => }/issue9400/asm_amd64x.s |  0
+ misc/cgo/test/{testdata => }/issue9400/asm_arm.s   |  0
+ misc/cgo/test/{testdata => }/issue9400/asm_arm64.s |  0
+ .../test/{testdata => }/issue9400/asm_loong64.s    |  0
+ .../test/{testdata => }/issue9400/asm_mips64x.s    |  0
+ misc/cgo/test/{testdata => }/issue9400/asm_mipsx.s |  0
+ .../cgo/test/{testdata => }/issue9400/asm_ppc64x.s |  0
+ .../test/{testdata => }/issue9400/asm_riscv64.s    |  0
+ misc/cgo/test/{testdata => }/issue9400/asm_s390x.s |  0
+ misc/cgo/test/{testdata => }/issue9400/gccgo.go    |  0
+ misc/cgo/test/{testdata => }/issue9400/stubs.go    |  0
+ misc/cgo/test/{testdata => }/issue9400_linux.go    |  2 +-
+ misc/cgo/test/{testdata => }/issue9510.go          |  4 +-
+ misc/cgo/test/{testdata => }/issue9510a/a.go       |  0
+ misc/cgo/test/{testdata => }/issue9510b/b.go       |  0
+ misc/cgo/test/overlaydir_test.go                   | 78 ----------------------
+ misc/cgo/test/pkg_test.go                          | 72 --------------------
+ misc/cgo/test/{testdata => }/test26213.go          |  2 +-
+ misc/cgo/test/testdata/cgo_linux_test.go           |  9 ---
+ misc/cgo/test/testdata/cgo_test.go                 | 18 -----
+ src/go/internal/srcimporter/srcimporter_test.go    |  6 +-
+ 75 files changed, 43 insertions(+), 208 deletions(-)

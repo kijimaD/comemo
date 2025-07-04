@@ -1,20 +1,15 @@
-commit fc8e77ca65ab7d4dfd6fd58ad67145f253aab829
-Author: Kyle Isom <kyle@gokyle.net>
-Date:   Thu Feb 13 12:54:04 2014 -0500
+commit e0dee49688c1c767e2f81a4dab824ba0be36dcbb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Feb 13 20:15:19 2014 +0400
 
-    crypto/x509: Add certificate signature request (CSR) support.
+    cmd/gc: fix windows build
+    c:\src\go\pkg\obj\windows_amd64\libgc.a(lex.o): In function `catcher':
+    c:/src/go/src/cmd/gc/lex.c:181: undefined reference to `noted'
     
-    This change adds support for parsing and serialisation of PKCS #10,
-    certificate signature requests.
-    
-    LGTM=agl
-    R=golang-codereviews, agl
-    CC=agl, golang-codereviews, nick
-    https://golang.org/cl/49830048
+    LGTM=0intro
+    R=0intro
+    CC=golang-codereviews
+    https://golang.org/cl/63270043
 
- src/pkg/crypto/x509/pkix/pkix.go   |   7 +
- src/pkg/crypto/x509/x509.go        | 567 +++++++++++++++++++++++++++++--------
- src/pkg/crypto/x509/x509_test.go   | 214 +++++++++++++-
- src/pkg/encoding/asn1/asn1.go      |  14 +
- src/pkg/encoding/asn1/asn1_test.go |   4 +
- 5 files changed, 691 insertions(+), 115 deletions(-)
+ src/cmd/gc/lex.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,24 +1,24 @@
-commit ac8127d7e6ead390bc44c89d47d16be587c3ac11
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Apr 14 13:47:58 2016 -0700
+commit 132ebeac3f865e14955b27caf12f641e80734577
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 20:48:00 2016 -0800
 
-    cmd/compile: fix register size for ODOTPTR result
+    cmd/compile: convert walk.go and friends to use nodeSeq
     
-    The result of ODOTPTR, as well as a bunch of other ops,
-    should be the type of the result, not always a pointer type.
+    Pases toolstash -cmp.
     
-    This fixes an amd64p32 bug where we were incorrectly truncating
-    a 64-bit slice index to 32 bits, and then barfing on a weird
-    load-64-bits-but-then-truncate-to-32-bits op that doesn't exist.
+    Update #14473.
     
-    Fixes #15252
-    
-    Change-Id: Ie62f4315fffd79f233e5449324ccc0879f5ac343
-    Reviewed-on: https://go-review.googlesource.com/22094
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I450d9f51fd280da91952008cd917b749d88960a3
+    Reviewed-on: https://go-review.googlesource.com/20210
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/cgen.go |  2 +-
- test/fixedbugs/issue15252.go        | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/closure.go |   4 +-
+ src/cmd/compile/internal/gc/select.go  |   2 +-
+ src/cmd/compile/internal/gc/sinit.go   |  60 ++---
+ src/cmd/compile/internal/gc/subr.go    |  18 +-
+ src/cmd/compile/internal/gc/swt.go     |   4 +-
+ src/cmd/compile/internal/gc/syntax.go  |   6 +-
+ src/cmd/compile/internal/gc/walk.go    | 402 ++++++++++++++++-----------------
+ 7 files changed, 247 insertions(+), 249 deletions(-)

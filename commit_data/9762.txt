@@ -1,41 +1,15 @@
-commit 1f27519988f98bb624c2ead73a9603db2c5a44f8
+commit 86d97aa981d3455704d1c5d31fbee5bc27eb5344
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 20 16:47:17 2011 -0700
+Date:   Tue Sep 20 14:47:48 2011 -0700
 
-    test: match gccgo error messages
+    test: match gccgo error messages for bug349.go
     
-    Added a return to bug357.go to avoid an error which gccgo
-    reports but 6g does not.
-    
-    bug353.go:16:14: error: reference to undefined identifer ‘io.ReadWriterCloser’
-    
-    bug357.go:18:2: error: value computed is not used
-    
-    bug358.go:14:11: error: imported and not used: ioutil
-    bug358.go:19:9: error: invalid use of type
-    
-    bug359.go:25:14: error: redefinition of ‘a’
-    bug359.go:25:6: note: previous definition of ‘a’ was here
-    bug359.go:19:6: error: incompatible type in initialization (implicit assignment of ‘list.List’ hidden field ‘front’)
-    
-    bug362.go:13:6: error: iota is only defined in const declarations
-    bug362.go:14:6: error: iota is only defined in const declarations
-    bug362.go:15:6: error: iota is only defined in const declarations
-    
-    bug363.go:13:12: error: shift of non-integer operand
-    bug363.go:16:12: error: shift of non-integer operand
-    
-    bug365.go:15:8: error: expected package
+    bug349.go:12:14: error: expected ‘;’ or ‘}’ or newline
+    bug349.go:12:2: error: not enough arguments to return
     
     R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5078046
+    https://golang.org/cl/5081047
 
- test/fixedbugs/bug353.go | 2 +-
- test/fixedbugs/bug357.go | 3 ++-
- test/fixedbugs/bug358.go | 4 ++--
- test/fixedbugs/bug359.go | 4 ++--
- test/fixedbugs/bug362.go | 6 +++---
- test/fixedbugs/bug363.go | 4 ++--
- test/fixedbugs/bug365.go | 2 +-
- 7 files changed, 13 insertions(+), 12 deletions(-)
+ test/fixedbugs/bug349.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

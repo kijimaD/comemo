@@ -1,17 +1,19 @@
-commit 318e75bb7c42640d4fbd5c253b84d1226021654d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Mon Nov 28 12:22:26 2022 -0500
+commit a6a7c7a1fd6a2450cfec11e54217e04dce843a54
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 28 16:18:22 2022 -0500
 
-    doc/go1.20: add release notes for PGO
+    cmd/go: add detail to test failures
     
-    For #54202.
-    For #55022.
+    For #50892
     
-    Change-Id: Ia3183e48536fa707c091094880d52fb75e7f6666
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453636
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I14ff1c43b39687a0ba5e668ee962cecfb49e4beb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381836
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
 
- doc/go1.20.html | 34 +++++++++++++++++++++++++++++++++-
- 1 file changed, 33 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go     | 2 +-
+ src/cmd/go/script_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

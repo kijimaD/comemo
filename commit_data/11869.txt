@@ -1,36 +1,22 @@
-commit 569ef7d49e36048aeca92e387e934d5a53276949
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 13 22:23:04 2012 -0500
+commit 07a2989d17d6a5ad9c46e3213f66d01761cf5cd3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 14 13:51:38 2012 +1100
 
-    net/http: disable buggy test
+    runtime, syscall, os/signal: fix windows build
     
-    Generates an infinite stream (at least >1GB) of:
-    
-    === RUN TestTransportPersistConnLeak
-    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
-    too many open files
-    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
-    too many open files
-    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
-    too many open files
-    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
-    too many open files
-    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
-    too many open files
-    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
-    too many open files
-    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
-    too many open files
-    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
-    too many open files
-    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
-    too many open files
-    2012/02/13 22:20:19 http: Accept error: accept tcp 127.0.0.1:63972:
-    too many open files
-    
-    R=bradfitz
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5661052
+    https://golang.org/cl/5656048
 
- src/pkg/net/http/transport_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/net/dial_test.go                 |  5 ++++
+ src/pkg/os/signal/signal_unix.go         |  2 +-
+ src/pkg/os/signal/signal_windows_test.go | 51 ++++++++++++++++++++++++++++++++
+ src/pkg/runtime/os_windows.h             |  3 ++
+ src/pkg/runtime/runtime.h                |  1 -
+ src/pkg/runtime/signal_windows_386.c     |  6 ----
+ src/pkg/runtime/signal_windows_amd64.c   | 12 --------
+ src/pkg/runtime/sigqueue.goc             |  2 +-
+ src/pkg/runtime/thread_windows.c         | 11 +++++++
+ src/pkg/syscall/syscall_windows.go       | 18 +++++++++--
+ src/pkg/syscall/ztypes_windows.go        | 44 +++++++++++++++++++--------
+ 11 files changed, 119 insertions(+), 36 deletions(-)

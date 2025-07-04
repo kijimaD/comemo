@@ -1,23 +1,22 @@
-commit 1d9d99b7ce279f2af928f79cbc5906d99f29bb67
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Jun 16 11:35:40 2022 -0400
+commit aeec6dbfe009f371021bddba13e2eb18e5d1a469
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 22 12:07:14 2021 +0700
 
-    cmd/link: consider alignment in carrier symbol size calculation
+    spec: add example for method value in case of embedded method
     
-    Currently, when we calculate the size of a carrier symbol, we use
-    the previous symbol's end address as the start. But the symbol
-    actually starts after applying the alignment. Do this in the
-    size calculation.
+    So it's clear to the reader that if "M" is a promoted method from
+    embedded field "T", then "x.M" will be expanded to "x.T.M" during the
+    evaluation of the method value.
     
-    Should fix AIX build.
+    Fixes #47863
     
-    Updates #53372.
-    
-    Change-Id: I17942b1fe8027dce12b78c8e8c80ea6cebcee240
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/412734
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: Id3b82127a2054584b6842c487f6e15c3102dc9fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344209
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/data.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/go_spec.html | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

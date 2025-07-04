@@ -1,46 +1,14 @@
-commit 3cf83c182af504bcffb82f3fc78a0c8b0ffb3aaa
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Jun 30 19:48:08 2014 -0700
+commit 54951023cb0a1743f7f3cb233ff424593bf1a131
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Mon Jun 30 19:10:41 2014 -0400
 
-    undo CL 104200047 / 318b04f28372
+    runtime: update arm comments now register m is gone
     
-    Breaks windows and race detector.
-    TBR=rsc
-    
-    ««« original CL description
-    runtime: stack allocator, separate from mallocgc
-    
-    In order to move malloc to Go, we need to have a
-    separate stack allocator.  If we run out of stack
-    during malloc, malloc will not be available
-    to allocate a new stack.
-    
-    Stacks are the last remaining FlagNoGC objects in the
-    GC heap.  Once they are out, we can get rid of the
-    distinction between the allocated/blockboundary bits.
-    (This will be in a separate change.)
-    
-    Fixes #7468
-    Fixes #7424
-    
-    LGTM=rsc, dvyukov
-    R=golang-codereviews, dvyukov, khr, dave, rsc
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/104200047
-    »»»
-    
-    TBR=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/101570044
+    https://golang.org/cl/109220046
 
- src/pkg/runtime/malloc.h      |  27 +---
- src/pkg/runtime/mcache.c      |   1 -
- src/pkg/runtime/mcentral.c    |   2 -
- src/pkg/runtime/mem.go        |   2 +-
- src/pkg/runtime/mgc0.c        |  16 +-
- src/pkg/runtime/mheap.c       | 323 ++++++++++++++++----------------------
- src/pkg/runtime/proc.c        |   3 +-
- src/pkg/runtime/runtime.h     |  15 +-
- src/pkg/runtime/stack.c       | 356 +++++++++++++++++-------------------------
- src/pkg/runtime/stack_test.go |  49 ------
- 10 files changed, 302 insertions(+), 492 deletions(-)
+ src/pkg/runtime/asm_arm.s     | 10 +++++-----
+ src/pkg/runtime/cgo/gcc_arm.S |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,43 +1,35 @@
-commit 168cc7ff9c09f2b19a354084ee5653c03d481e36
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Mon Jan 15 12:06:27 2018 +0100
+commit 38c725b14830bc1a95eb48cfb04d5f4c6d916a28
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 24 17:51:05 2017 -0400
 
-    math/big: add 0 shift fastpath to shl and shr
+    cmd/compile: repair name propagation into aggregate parts
     
-    One could expect calls like
+    For structs, slices, strings, interfaces, etc, propagation of
+    names to their components (e.g., complex.real, complex.imag)
+    is fragile (depends on phase ordering) and not done right
+    for the "dec" pass.
     
-      z.mant.shl(z.mant, shiftAmount)
+    The dec pass is subsumed into decomposeBuiltin,
+    and then names are pushed into the args of all
+    OpFooMake opcodes.
     
-    (or higher-level-functions calls that use lhs/rhs) to be almost free
-    when shiftAmount = 0; and expect calls like
+    compile/ssa/debug_test.go was fixed to pay attention to
+    variable values, and the reference files include checks
+    for the fixes in this CL (which make debugging better).
     
-      z.mant.shl(x.mant, 0)
-    
-    to have the same cost of a x.mant -> z.mant copy. Neither of this
-    things are currently true.
-    
-    For an 800 words nat, the first kind of calls cost ~800ns for rigth
-    shifts and ~3.5µs for left shift; while the second kind of calls are
-    doing more work than necessary by calling shlVU/shrVU.
-    
-    This change makes the first kind of calls ({Shl,Shr}Same) almost free,
-    and the second kind of calls ({Shl,Shr}) about 30% faster.
-    
-    name                  old time/op  new time/op  delta
-    ZeroShifts/Shl-4      3.64µs ± 3%  2.49µs ± 1%  -31.55%  (p=0.000 n=10+10)
-    ZeroShifts/ShlSame-4  3.65µs ± 1%  0.01µs ± 1%  -99.85%  (p=0.000 n=9+9)
-    ZeroShifts/Shr-4      3.65µs ± 1%  2.49µs ± 1%  -31.91%  (p=0.000 n=10+10)
-    ZeroShifts/ShrSame-4   825ns ± 0%     6ns ± 1%  -99.33%  (p=0.000 n=9+10)
-    
-    During go test math/big, the shl zeroshift fastpath is triggered 1380
-    times; while the shr fastpath is triggered 153334 times(!).
-    
-    Change-Id: I5f92b304a40638bd8453a86c87c58e54b337bcdf
-    Reviewed-on: https://go-review.googlesource.com/87660
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Ic2591ebb1698d78d07292b92c53667e6c37fa0cd
+    Reviewed-on: https://go-review.googlesource.com/73210
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/math/big/nat.go      | 22 ++++++++++++++++++++++
- src/math/big/nat_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+)
+ src/cmd/compile/internal/ssa/compile.go            |   1 -
+ src/cmd/compile/internal/ssa/debug_test.go         |  13 +++
+ src/cmd/compile/internal/ssa/decompose.go          | 100 +++++++++---------
+ src/cmd/compile/internal/ssa/opt.go                |   7 --
+ .../internal/ssa/testdata/hist.dbg-dlv.nexts       |  56 +++++-----
+ .../internal/ssa/testdata/hist.dbg-gdb.nexts       |  56 +++++-----
+ src/cmd/compile/internal/ssa/testdata/hist.go      |  10 +-
+ .../internal/ssa/testdata/hist.opt-dlv.nexts       |   4 +-
+ .../internal/ssa/testdata/hist.opt-gdb.nexts       | 116 ++++++++++++++++-----
+ 9 files changed, 212 insertions(+), 151 deletions(-)

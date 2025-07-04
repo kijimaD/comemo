@@ -1,16 +1,17 @@
-commit 722764b75a9f501e1e22509b0a3f611c28d41b22
+commit 76f1b901dba2aa68c1e9e9a7e073287d4f293a53
 Author: Keith Randall <khr@golang.org>
-Date:   Mon Jul 21 21:35:48 2014 -0700
+Date:   Mon Jul 21 20:52:11 2014 -0700
 
-    runtime: make go vet happy
+    runtime: keep build version around in binaries
     
-    CL 117950044 updates vet to fix LEA* issue.
+    So we can tell from a binary which version of
+    Go built it.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=minux, rsc
+    R=golang-codereviews, minux, khr, rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/112440043
+    https://golang.org/cl/117040043
 
- src/pkg/runtime/asm_amd64.s    | 2 +-
- src/pkg/runtime/asm_amd64p32.s | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/dist/buildruntime.c | 3 ++-
+ src/pkg/runtime/proc.c      | 9 +++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

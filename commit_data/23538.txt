@@ -1,22 +1,20 @@
-commit 85d4d46f3cefceb87924ad1b0acec9f753413736
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri May 22 10:58:57 2015 +1000
+commit 994b2d46455509f95d60f0abd0d37d3d789f89f2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 22 12:55:47 2015 +1000
 
-    runtime: store syscall parameters in m not on stack
+    net: fix panic in TestDialerDualStack
     
-    Stack can move during callback, so libcall struct cannot be stored on stack.
-    asmstdcall updates return values and errno in libcall struct parameter, but
-    these could be at different location when callback returns.
-    Store these in m, so they are not affected by GC.
+    This change ensures that the test does not try to close dual stack
+    listeners which have not yet been opened.
     
-    Fixes #10406
+    Spotted in crash here
+    http://build.golang.org/log/e5843777df400868ce708b7f00c50dc32c2ec478
     
-    Change-Id: Id01c9d2b4b44530494e6d9e9e1c875261ce477cd
-    Reviewed-on: https://go-review.googlesource.com/10370
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I79d513e166effb3e018e2b9dfc23751d92fcbe4b
+    Reviewed-on: https://go-review.googlesource.com/10371
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgocall.go              |  6 +++
- src/runtime/runtime2.go             |  1 +
- src/runtime/syscall_windows.go      | 42 +++++++++----------
- src/runtime/syscall_windows_test.go | 83 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 111 insertions(+), 21 deletions(-)
+ src/net/mockserver_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

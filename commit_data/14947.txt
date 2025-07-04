@@ -1,21 +1,13 @@
-commit 793cbd5b81619e19eaae289ec8071e2016f85db9
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Jan 22 10:10:38 2013 -0500
+commit a0b5b46ae47d2df1f8ed3d640b220c67e7ccc0d9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jan 22 03:18:20 2013 +0800
 
-    crypto/tls: allow the server to enforce its ciphersuite preferences.
+    doc/go_spec: cap doesn't apply to maps
+    Fixes #4682.
     
-    Previously, Go TLS servers always took the client's preferences into
-    account when selecting a ciphersuite. This change adds the option of
-    using the server's preferences, which can be expressed by setting
-    tls.Config.CipherSuites.
-    
-    This mirrors Apache's SSLHonorCipherOrder directive.
-    
-    R=golang-dev, nightlyone, bradfitz, ality
+    R=golang-dev, adg, dave
     CC=golang-dev
-    https://golang.org/cl/7163043
+    https://golang.org/cl/7094062
 
- src/pkg/crypto/tls/common.go                |  6 ++++
- src/pkg/crypto/tls/handshake_server.go      | 19 +++++++++----
- src/pkg/crypto/tls/handshake_server_test.go | 44 +++++++++++++++++++++++++++++
- 3 files changed, 64 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

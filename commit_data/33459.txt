@@ -1,35 +1,21 @@
-commit be943df58860e7dec008ebb8d68428d54e311b94
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Mon Aug 7 15:44:38 2017 -0300
+commit e0e2bbdd00966a5fdbae0fc2223651fae735e7e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 17 11:29:19 2017 -0400
 
-    runtime: improve IndexByte for ppc64x
+    [dev.boringcrypto] runtime/race: move TestRaceIssue5567 from sha1 to crc32
     
-    This change adds a better implementation of IndexByte in asm that uses the
-    vector registers/instructions on ppc64x.
+    If we substitute a SHA1 implementation where the entirety of the
+    reading of the buffer is done in assembly (or C called from cgo),
+    then the race detector cannot observe the race.
     
-    benchmark                            old ns/op     new ns/op     delta
-    BenchmarkIndexByte/10-8              9.70          9.37          -3.40%
-    BenchmarkIndexByte/32-8              10.9          10.9          +0.00%
-    BenchmarkIndexByte/4K-8              254           92.8          -63.46%
-    BenchmarkIndexByte/4M-8              249246        118435        -52.48%
-    BenchmarkIndexByte/64M-8             10737987      7383096       -31.24%
+    Change to crc32 with a fake polynomial, in the hope that it will
+    always be handled by Go code, not optimized assembly or cgo calls.
     
-    benchmark                            old MB/s     new MB/s     speedup
-    BenchmarkIndexByte/10-8              1030.63      1067.24      1.04x
-    BenchmarkIndexByte/32-8              2922.69      2928.53      1.00x
-    BenchmarkIndexByte/4K-8              16065.95     44156.45     2.75x
-    BenchmarkIndexByte/4M-8              16827.96     35414.21     2.10x
-    BenchmarkIndexByte/64M-8             6249.67      9089.53      1.45x
-    
-    Change-Id: I81dbdd620f7bb4e395ce4d1f2a14e8e91e39f9a1
-    Reviewed-on: https://go-review.googlesource.com/71710
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I34e90b14ede6bc220ef686f6aef16b8e464b5cde
+    Reviewed-on: https://go-review.googlesource.com/56510
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |   6 +
- src/cmd/internal/obj/ppc64/a.out.go       |   2 +
- src/cmd/internal/obj/ppc64/anames.go      |   2 +
- src/cmd/internal/obj/ppc64/asm9.go        |  11 ++
- src/runtime/asm_ppc64x.s                  | 258 ++++++++++++++++++++++--------
- 5 files changed, 212 insertions(+), 67 deletions(-)
+ src/runtime/race/testdata/mop_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

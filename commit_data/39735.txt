@@ -1,28 +1,21 @@
-commit 117400ec095335f24e5363f61d60f8baad6be3ce
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 28 21:56:47 2019 -0700
+commit 37e4a61d26d3b10aa11c5155b72c6bc882bd3122
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 15 09:10:09 2019 -0400
 
-    cmd/compile/internal/syntax: add BasicLit.Bad field for lexical errors
+    cmd/go/internal/cache: remove log.txt from the cache directory
     
-    The new (internal) field scanner.bad indicates whether a syntax error
-    occurred while scanning a literal; the corresponding scanner.lit
-    string may be syntactically incorrect in that case. Store the value
-    of scanner.bad together with the scanner.lit in BasicLit.
+    Also remove an existing log.txt in the cache directory during
+    'go clean -cache' if it exists.
     
-    Clean up error handling so that all syntactic errors use one of the
-    scanner's error reporting methods which also set scanner.bad. Make
-    use of the new field in a few places where we used to track a prior
-    error separately.
+    Fixes #25323
     
-    Preliminary step towards fixing #32133 in a comprehensive manner.
-    
-    Change-Id: I4d79ad6e3b50632dd5fb3fc32ca3df0598ee77b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192278
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1c6e20554db0edc6d850a7b4379d71ef5844eaea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167741
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/syntax/nodes.go        |  1 +
- src/cmd/compile/internal/syntax/parser.go       | 15 ++---
- src/cmd/compile/internal/syntax/scanner.go      | 77 ++++++++++++++-----------
- src/cmd/compile/internal/syntax/scanner_test.go |  6 +-
- src/cmd/compile/internal/syntax/tokens.go       |  2 +-
- 5 files changed, 57 insertions(+), 44 deletions(-)
+ src/cmd/go/internal/cache/cache.go      | 10 -------
+ src/cmd/go/internal/cache/cache_test.go | 49 ---------------------------------
+ src/cmd/go/internal/clean/clean.go      |  8 +++++-
+ 3 files changed, 7 insertions(+), 60 deletions(-)

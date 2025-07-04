@@ -1,29 +1,25 @@
-commit eebeca803d6df0d3434106d7f6ebb87229c54fd7
-Author: Richard Wang <richardwa@google.com>
-Date:   Thu Sep 14 05:13:40 2023 +0000
+commit f60c77026bb47db984c5da7e6f0590010e7e1a6f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 21 12:10:12 2022 -0800
 
-    runtime: clarify error when returning unpinned pointers
+    go/types, types2: report empty type sets in operand descriptions
     
-    With the introduction of runtime.Pinner, returning a pointer to a pinned
-    struct that then points to an unpinned Go pointer is correctly caught.
+    This leads to better error messages where operations are not
+    permitted because of empty type sets.
     
-    However, the error message remained as "cgo result has Go pointer",
-    which should be updated to acknowledge that Go pointers to pinned
-    memory are allowed.
+    Fixes #51525.
     
-    This also updates the comments for cgoCheckArg and cgoCheckResult
-    to similarly clarify.
-    
-    Updates #46787
-    
-    Change-Id: I147bb09e87dfb70a24d6d43e4cf84e8bcc2aff48
-    GitHub-Last-Rev: 706facb9f2bf28e1f6e575b7626f8feeca1187cf
-    GitHub-Pull-Request: golang/go#62606
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527702
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I8d15645e2aff5145e458bdf9aaa4d2bee28d37fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452535
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/runtime/cgocall.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/types2/operand.go          |  4 ++++
+ src/cmd/compile/internal/types2/predicates.go       | 12 ++++++++++++
+ src/go/types/operand.go                             |  4 ++++
+ src/go/types/predicates.go                          | 12 ++++++++++++
+ src/internal/types/testdata/fixedbugs/issue51525.go |  4 ++++
+ 5 files changed, 36 insertions(+)

@@ -1,21 +1,24 @@
-commit 7611d2e610c639de0ea10221a1387e882dfc6434
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Tue Jan 9 11:20:29 2024 +0000
+commit 331f0c69769fb856f00c75f29085665f60a7af7b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 2 10:14:58 2023 -0800
 
-    cmd/compile/internal/ssagen,runtime: merge trace consts into internal/abi
+    go/types, types2: simplify symmetric code
     
-    For #59670
+    Because unification is symmetric, in cases where we have symmetric
+    code for x and y depending on some property we can swap x and y as
+    needed and simplify the code.
     
-    Change-Id: Iec85ee7312bb566b3f1224424f7d27bf4e408b13
-    GitHub-Last-Rev: c620abf9673e166505821d75717e820776abc302
-    GitHub-Pull-Request: golang/go#64905
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/553295
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Also, change u.depth increment/decrement position for slightly
+    nicer tracing ooutput.
+    
+    Change-Id: I2e84570d463d1c32f6556108f3cb54062b57c718
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464896
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 56 +++++++---------------------------
- src/internal/abi/type.go               | 33 ++++++++++++++++++++
- src/runtime/traceback.go               | 30 ++++--------------
- 3 files changed, 50 insertions(+), 69 deletions(-)
+ src/cmd/compile/internal/types2/unify.go | 68 ++++++++++++++++----------------
+ src/go/types/unify.go                    | 68 ++++++++++++++++----------------
+ 2 files changed, 66 insertions(+), 70 deletions(-)

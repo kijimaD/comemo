@@ -1,43 +1,18 @@
-commit e1366f94ee0b3d40db69cdf42f72d68890cbd74d
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Mar 30 02:03:03 2015 +0000
+commit 550149fb0490cf77abe676f74b49b7199cb7323d
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Feb 16 02:28:39 2015 +1100
 
-    reflect, runtime: check equality, not identity, for method names
+    syscall: add support for openbsd/arm
     
-    When dynamically linking Go code, it is no longer safe to assume that
-    strings that end up in method names are identical if they are equal.
-    
-    The performance impact seems to be noise:
-    
-    benchmark                    old ns/op     new ns/op     delta
-    BenchmarkAssertI2E2          13.3          13.1          -1.50%
-    BenchmarkAssertE2I           23.5          23.2          -1.28%
-    BenchmarkAssertE2E2Blank     0.83          0.82          -1.20%
-    BenchmarkConvT2ISmall        60.7          60.1          -0.99%
-    BenchmarkAssertI2T           10.2          10.1          -0.98%
-    BenchmarkAssertE2T           10.2          10.3          +0.98%
-    BenchmarkConvT2ESmall        56.7          57.2          +0.88%
-    BenchmarkConvT2ILarge        59.4          58.9          -0.84%
-    BenchmarkConvI2E             13.0          12.9          -0.77%
-    BenchmarkAssertI2E           13.4          13.3          -0.75%
-    BenchmarkConvT2IUintptr      57.9          58.3          +0.69%
-    BenchmarkConvT2ELarge        55.9          55.6          -0.54%
-    BenchmarkAssertI2I           23.8          23.7          -0.42%
-    BenchmarkConvT2EUintptr      55.4          55.5          +0.18%
-    BenchmarkAssertE2E           6.12          6.11          -0.16%
-    BenchmarkAssertE2E2          14.4          14.4          +0.00%
-    BenchmarkAssertE2T2          10.0          10.0          +0.00%
-    BenchmarkAssertE2T2Blank     0.83          0.83          +0.00%
-    BenchmarkAssertE2TLarge      10.7          10.7          +0.00%
-    BenchmarkAssertI2E2Blank     0.83          0.83          +0.00%
-    BenchmarkConvI2I             23.4          23.4          +0.00%
-    
-    Change-Id: I0b3dfc314215a4d4e09eec6b42c1e3ebce33eb56
-    Reviewed-on: https://go-review.googlesource.com/8239
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I9fe15781f52e0d16707a9c021cf800319721a606
+    Reviewed-on: https://go-review.googlesource.com/4913
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/reflect/type.go  | 4 ++--
- src/runtime/iface.go | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ src/syscall/asm_openbsd_arm.s       |  132 +++
+ src/syscall/mkall.sh                |   12 +-
+ src/syscall/syscall_openbsd_arm.go  |   42 +
+ src/syscall/zerrors_openbsd_arm.go  | 1582 +++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_arm.go | 1291 ++++++++++++++++++++++++++++
+ src/syscall/zsysnum_openbsd_arm.go  |  211 +++++
+ src/syscall/ztypes_openbsd_arm.go   |  432 ++++++++++
+ 7 files changed, 3700 insertions(+), 2 deletions(-)

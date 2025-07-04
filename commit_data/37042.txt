@@ -1,172 +1,27 @@
-commit 2578ac54eb417488c70324e7f3fc25565ec3f03d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun May 6 12:58:53 2018 -0700
+commit feeff23556bc82778aab0ed80b576b953f064024
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 20 18:25:54 2018 +0000
 
-    cmd/compile: move argument stack construction to SSA generation
+    mime: change *.js mime type to application/javascript, not x-javascript
     
-    The goal of this change is to move work from walk to SSA,
-    and simplify things along the way.
+    We delayed doing this for 4 years for fear that it might break something,
+    but it was standardized (RFC 4329) 12 years ago, and the default in Debian
+    and other places is correct:
     
-    This is hard to accomplish cleanly with small incremental changes,
-    so this large commit message aims to provide a roadmap to the diff.
+       $ cat /etc/mime.types  | grep js$
+       application/javascript                          js
     
-    High level description:
+    Time for us to change too.
     
-    Prior to this change, walk was responsible for constructing (most of) the stack for function calls.
-    ascompatte gathered variadic arguments into a slice.
-    It also rewrote n.List from a list of arguments to a list of assignments to stack slots.
-    ascompatte was called multiple times to handle the receiver in a method call.
-    reorder1 then introduced temporaries into n.List as needed to avoid smashing the stack.
-    adjustargs then made extra stack space for go/defer args as needed.
+    I doubt there will be problems, but we'll see during the Go 1.11 beta.
     
-    Node to SSA construction evaluated all the statements in n.List,
-    and issued the function call, assuming that the stack was correctly constructed.
-    Intrinsic calls had to dig around inside n.List to extract the arguments,
-    since intrinsics don't use the stack to make function calls.
+    Fixes #7498
     
-    This change moves stack construction to the SSA construction phase.
-    ascompatte, now called walkParams, does all the work that ascompatte and reorder1 did.
-    It handles variadic arguments, inserts the method receiver if needed, and allocates temporaries.
-    It does not, however, make any assignments to stack slots.
-    Instead, it moves the function arguments to n.Rlist, leaving assignments to temporaries in n.List.
-    (It would be better to use Ninit instead of List; future work.)
-    During SSA construction, after doing all the temporary assignments in n.List,
-    the function arguments are assigned to stack slots by
-    constructing the appropriate SSA Value, using (*state).storeArg.
-    SSA construction also now handles adjustments for go/defer args.
-    This change also simplifies intrinsic calls, since we no longer need to undo walk's work.
-    
-    Along the way, we simplify nodarg by pushing the fp==1 case to its callers, where it fits nicely.
-    
-    Generated code differences:
-    
-    There were a few optimizations applied along the way, the old way.
-    f(g()) was rewritten to do a block copy of function results to function arguments.
-    And reorder1 avoided introducing the final "save the stack" temporary in n.List.
-    
-    The f(g()) block copy optimization never actually triggered; the order pass rewrote away g(), so that has been removed.
-    
-    SSA optimizations mostly obviated the need for reorder1's optimization of avoiding the final temporary.
-    The exception was when the temporary's type was not SSA-able;
-    in that case, we got a Move into an autotmp and then an immediate Move onto the stack,
-    with the autotmp never read or used again.
-    This change introduces a new rewrite rule to detect such pointless double Moves
-    and collapse them into a single Move.
-    This is actually more powerful than the original optimization,
-    since the original optimization relied on the imprecise Node.HasCall calculation.
-    
-    The other significant difference in the generated code is that the stack is now constructed
-    completely in SP-offset order. Prior to this change, the stack was constructed somewhat
-    haphazardly: first the final argument that Node.HasCall deemed to require a temporary,
-    then other arguments, then the method receiver, then the defer/go args.
-    SP-offset is probably a good default order. See future work.
-    
-    There are a few minor object file size changes as a result of this change.
-    I investigated some regressions in early versions of this change.
-    
-    One regression (in archive/tar) was the addition of a single CMPQ instruction,
-    which would be eliminated were this TODO from flagalloc to be done:
-            // TODO: Remove original instructions if they are never used.
-    
-    One regression (in text/template) was an ADDQconstmodify that is now
-    a regular MOVQLoad+ADDQconst+MOVQStore, due to an unlucky change
-    in the order in which arguments are written. The argument change
-    order can also now be luckier, so this appears to be a wash.
-    
-    All in all, though there will be minor winners and losers,
-    this change appears to be performance neutral.
-    
-    Future work:
-    
-    Move loading the result of function calls to SSA construction; eliminate OINDREGSP.
-    
-    Consider pushing stack construction deeper into SSA world, perhaps in an arch-specific pass.
-    Among other benefits, this would make it easier to transition to a new calling convention.
-    This would require rethinking the handling of stack conflicts and is non-trivial.
-    
-    Figure out some clean way to indicate that stack construction Stores/Moves
-    do not alias each other, so that subsequent passes may do things like
-    CSE+tighten shared stack setup, do DSE using non-first Stores, etc.
-    This would allow us to eliminate the minor text/template regression.
-    
-    Possibly make assignments to stack slots not treated as statements by DWARF.
-    
-    Compiler benchmarks:
-    
-    name        old time/op       new time/op       delta
-    Template          182ms ± 2%        179ms ± 2%  -1.69%  (p=0.000 n=47+48)
-    Unicode          86.3ms ± 5%       85.1ms ± 4%  -1.36%  (p=0.001 n=50+50)
-    GoTypes           646ms ± 1%        642ms ± 1%  -0.63%  (p=0.000 n=49+48)
-    Compiler          2.89s ± 1%        2.86s ± 2%  -1.36%  (p=0.000 n=48+50)
-    SSA               8.47s ± 1%        8.37s ± 2%  -1.22%  (p=0.000 n=47+50)
-    Flate             122ms ± 2%        121ms ± 2%  -0.66%  (p=0.000 n=47+45)
-    GoParser          147ms ± 2%        146ms ± 2%  -0.53%  (p=0.006 n=46+49)
-    Reflect           406ms ± 2%        403ms ± 2%  -0.76%  (p=0.000 n=48+43)
-    Tar               162ms ± 3%        162ms ± 4%    ~     (p=0.191 n=46+50)
-    XML               223ms ± 2%        222ms ± 2%  -0.37%  (p=0.031 n=45+49)
-    [Geo mean]        382ms             378ms       -0.89%
-    
-    name        old user-time/op  new user-time/op  delta
-    Template          219ms ± 3%        216ms ± 3%  -1.56%  (p=0.000 n=50+48)
-    Unicode           109ms ± 6%        109ms ± 5%    ~     (p=0.190 n=50+49)
-    GoTypes           836ms ± 2%        828ms ± 2%  -0.96%  (p=0.000 n=49+48)
-    Compiler          3.87s ± 2%        3.80s ± 1%  -1.81%  (p=0.000 n=49+46)
-    SSA               12.0s ± 1%        11.8s ± 1%  -2.01%  (p=0.000 n=48+50)
-    Flate             142ms ± 3%        141ms ± 3%  -0.85%  (p=0.003 n=50+48)
-    GoParser          178ms ± 4%        175ms ± 4%  -1.66%  (p=0.000 n=48+46)
-    Reflect           520ms ± 2%        512ms ± 2%  -1.44%  (p=0.000 n=45+48)
-    Tar               200ms ± 3%        198ms ± 4%  -0.61%  (p=0.037 n=47+50)
-    XML               277ms ± 3%        275ms ± 3%  -0.85%  (p=0.000 n=49+48)
-    [Geo mean]        482ms             476ms       -1.23%
-    
-    name        old alloc/op      new alloc/op      delta
-    Template         36.1MB ± 0%       35.3MB ± 0%  -2.18%  (p=0.008 n=5+5)
-    Unicode          29.8MB ± 0%       29.3MB ± 0%  -1.58%  (p=0.008 n=5+5)
-    GoTypes           125MB ± 0%        123MB ± 0%  -2.13%  (p=0.008 n=5+5)
-    Compiler          531MB ± 0%        513MB ± 0%  -3.40%  (p=0.008 n=5+5)
-    SSA              2.00GB ± 0%       1.93GB ± 0%  -3.34%  (p=0.008 n=5+5)
-    Flate            24.5MB ± 0%       24.3MB ± 0%  -1.18%  (p=0.008 n=5+5)
-    GoParser         29.4MB ± 0%       28.7MB ± 0%  -2.34%  (p=0.008 n=5+5)
-    Reflect          87.1MB ± 0%       86.0MB ± 0%  -1.33%  (p=0.008 n=5+5)
-    Tar              35.3MB ± 0%       34.8MB ± 0%  -1.44%  (p=0.008 n=5+5)
-    XML              47.9MB ± 0%       47.1MB ± 0%  -1.86%  (p=0.008 n=5+5)
-    [Geo mean]       82.8MB            81.1MB       -2.08%
-    
-    name        old allocs/op     new allocs/op     delta
-    Template           352k ± 0%         347k ± 0%  -1.32%  (p=0.008 n=5+5)
-    Unicode            342k ± 0%         339k ± 0%  -0.66%  (p=0.008 n=5+5)
-    GoTypes           1.29M ± 0%        1.27M ± 0%  -1.30%  (p=0.008 n=5+5)
-    Compiler          4.98M ± 0%        4.87M ± 0%  -2.14%  (p=0.008 n=5+5)
-    SSA               15.7M ± 0%        15.2M ± 0%  -2.86%  (p=0.008 n=5+5)
-    Flate              233k ± 0%         231k ± 0%  -0.83%  (p=0.008 n=5+5)
-    GoParser           296k ± 0%         291k ± 0%  -1.54%  (p=0.016 n=5+4)
-    Reflect           1.05M ± 0%        1.04M ± 0%  -0.65%  (p=0.008 n=5+5)
-    Tar                343k ± 0%         339k ± 0%  -0.97%  (p=0.008 n=5+5)
-    XML                432k ± 0%         426k ± 0%  -1.19%  (p=0.008 n=5+5)
-    [Geo mean]         815k              804k       -1.35%
-    
-    name        old object-bytes  new object-bytes  delta
-    Template          505kB ± 0%        505kB ± 0%  -0.01%  (p=0.008 n=5+5)
-    Unicode           224kB ± 0%        224kB ± 0%    ~     (all equal)
-    GoTypes          1.82MB ± 0%       1.83MB ± 0%  +0.06%  (p=0.008 n=5+5)
-    Flate             324kB ± 0%        324kB ± 0%  +0.00%  (p=0.008 n=5+5)
-    GoParser          402kB ± 0%        402kB ± 0%  +0.04%  (p=0.008 n=5+5)
-    Reflect          1.39MB ± 0%       1.39MB ± 0%  -0.01%  (p=0.008 n=5+5)
-    Tar               449kB ± 0%        449kB ± 0%  -0.02%  (p=0.008 n=5+5)
-    XML               598kB ± 0%        597kB ± 0%  -0.05%  (p=0.008 n=5+5)
-    
-    Change-Id: Ifc9d5c1bd01f90171414b8fb18ffe2290d271143
-    Reviewed-on: https://go-review.googlesource.com/c/114797
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Iba0bf8a6e707a64dd63317e1c0d6dd9a18634527
+    Reviewed-on: https://go-review.googlesource.com/120058
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/ssa.go             | 122 ++++-----
- src/cmd/compile/internal/gc/syntax.go          |  44 ++--
- src/cmd/compile/internal/gc/walk.go            | 350 ++++++-------------------
- src/cmd/compile/internal/ssa/config.go         |   1 +
- src/cmd/compile/internal/ssa/export_test.go    |   4 +
- src/cmd/compile/internal/ssa/gen/generic.rules |  14 +
- src/cmd/compile/internal/ssa/rewritegeneric.go |  45 ++++
- 7 files changed, 236 insertions(+), 344 deletions(-)
+ src/mime/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,35 +1,19 @@
-commit 59320c396e6448132a52cb5a5d96491eee1e0ad8
-Author: Quentin Renard <contact@asticode.com>
-Date:   Sun Mar 6 17:27:50 2016 +0100
+commit d28242724872c6ab82d53a71fc775095d1171ee7
+Author: qeed <qeed.quan@gmail.com>
+Date:   Mon Jun 20 21:11:53 2016 -0400
 
-    net/http: improve performance for parsePostForm
+    cmd/cgo: error, not panic, if not enough arguments to function
     
-    Remove the use of io.ReadAll in http.parsePostForm to avoid converting
-    the whole input from []byte to string and not performing well
-    space-allocated-wise.
+    Fixes #16116.
     
-    Instead a new function called parsePostFormURLEncoded is used and is
-    fed directly an io.Reader that is parsed using a bufio.Reader.
-    
-    Benchmark:
-    
-    name         old time/op    new time/op    delta
-    PostQuery-4    2.90µs ± 6%    2.82µs ± 4%     ~       (p=0.094 n=9+9)
-    
-    name         old alloc/op   new alloc/op   delta
-    PostQuery-4    1.05kB ± 0%    0.90kB ± 0%  -14.49%  (p=0.000 n=10+10)
-    
-    name         old allocs/op  new allocs/op  delta
-    PostQuery-4      6.00 ± 0%      7.00 ± 0%  +16.67%  (p=0.000 n=10+10)
-    
-    Fixes #14655
-    
-    Change-Id: I112c263d4221d959ed6153cfe88bc57a2aa8ea73
-    Reviewed-on: https://go-review.googlesource.com/20301
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic3cb0b95382bb683368743bda49b4eb5fdcc35c0
+    Reviewed-on: https://go-review.googlesource.com/24286
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/request.go      | 60 +++++++++++++++++++++++++++++++++++---------
- src/net/http/request_test.go | 26 ++++++++++++++++---
- 2 files changed, 70 insertions(+), 16 deletions(-)
+ misc/cgo/errors/issue16116.go | 12 ++++++++++++
+ misc/cgo/errors/test.bash     |  1 +
+ src/cmd/cgo/gcc.go            | 12 +++++++-----
+ 3 files changed, 20 insertions(+), 5 deletions(-)

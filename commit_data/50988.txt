@@ -1,18 +1,23 @@
-commit f9bd1d0f113db5a92e59592f0108dad45a9308ad
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Oct 18 10:22:17 2022 -0500
+commit 066620f0d8597116a62d9423669ca569646de5ff
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 23 14:30:56 2021 +0000
 
-    runtime/internal/syscall: convert PPC64 Syscall6 to ABIInternal
+    runtime: ensure no GC is running in TestParallelRWMutexReaders
     
-    This avoids a lot of stacking.
+    Currently this test makes it clear that it's unsafe for a GC to run,
+    otherwise a deadlock could occur, so it calls SetGCPercent(-1). However,
+    a GC may be actively in progress, and SetGCPercent is not going to end
+    any in-progress GC. Call runtime.GC to block until at least the current
+    GC is over.
     
-    Change-Id: If5c5cf33335ffdcb7eecbd3f2db7858a415d817d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443736
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Updates #49680.
+    
+    Change-Id: Ibdc7d378e8cf7e05270910e92effcad8c6874e59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366534
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/internal/syscall/asm_linux_ppc64x.s | 31 +++++++++++--------------
- 1 file changed, 13 insertions(+), 18 deletions(-)
+ src/runtime/rwmutex_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

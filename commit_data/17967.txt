@@ -1,14 +1,19 @@
-commit e5902fc70f1a50920ce0ac95ffbed3a9af2b80b5
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Thu Dec 12 11:24:27 2013 -0800
+commit b2a198ce39569687e277f794f189299c530a0021
+Author: Han-Wen Nienhuys <hanwen@google.com>
+Date:   Thu Dec 12 11:25:17 2013 -0500
 
-    image: add RGB and RGB48
+    crypto/cipher: speed up gcmInc32.
     
-    R=golang-dev, r, nigeltao
+    The counter is not secret, so the code does not need to be
+    constant time.
+    
+    benchmark                    old MB/s     new MB/s  speedup
+    BenchmarkAESGCMSeal1K           89.90        92.84    1.03x
+    BenchmarkAESGCMOpen1K           89.16        92.30    1.04x
+    
+    R=agl
     CC=golang-dev
-    https://golang.org/cl/13239051
+    https://golang.org/cl/40690046
 
- src/pkg/image/color/color.go |  45 ++++++++++++
- src/pkg/image/image.go       | 170 +++++++++++++++++++++++++++++++++++++++++++
- src/pkg/image/image_test.go  |   3 +
- 3 files changed, 218 insertions(+)
+ src/pkg/crypto/cipher/gcm.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,21 +1,24 @@
-commit 76650b60eb05e8b8215f2b1bb667b4a797ccdacc
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Thu Aug 22 12:29:18 2024 +0000
+commit 6e43407931ee4acc204620a9fae59c7903164901
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Aug 8 14:07:08 2023 -0700
 
-    go/ast: note that in BasicLit CHARs and STRINGs are quoted
+    path/filepath: don't drop .. elements when cleaning invalid Windows paths
     
-    This reapplies CL 244960, for some reason CL 264181 removed this comment.
+    Fix a bug where Clean could improperly drop .. elements from a
+    path on Windows, when the path contains elements containing a ':'.
     
-    Updates #39590
+    For example, Clean("a/../b:/../../c") now correctly returns "..\c"
+    rather than "c".
     
-    Change-Id: Ia37268812c6929020b0cd583d2c7fa48a098377c
-    GitHub-Last-Rev: 2acee37fedc7f2edfffec4f2e4c465708f210a97
-    GitHub-Pull-Request: golang/go#69019
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/607517
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #61866
+    
+    Change-Id: I97b0238953c183b2ce19ca89c14f26700008ea72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517216
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
 
- src/go/ast/ast.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/path/filepath/path.go      | 33 +++++++++++++++++++++------------
+ src/path/filepath/path_test.go |  4 ++++
+ 2 files changed, 25 insertions(+), 12 deletions(-)

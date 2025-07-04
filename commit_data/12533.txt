@@ -1,13 +1,17 @@
-commit 312ff5b58eea06f2dabb9ba3d28e50d12c64c7d1
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 8 11:31:52 2012 -0800
+commit 2c46569f57fd575e2acceabdbd40a187e66cd71e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 14:28:44 2012 -0500
 
-    cmd/go: document import path meta tag discovery in go help remote
+    cmd/go: add env command, use to fix misc/cgo/testso
     
-    R=golang-dev, rsc
+    Fixes 386 build on 64-bit machines.
+    
+    R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5787059
+    https://golang.org/cl/5785053
 
- src/cmd/go/doc.go  | 43 ++++++++++++++++++++++++++++++++++++++++++-
- src/cmd/go/help.go | 43 ++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 84 insertions(+), 2 deletions(-)
+ misc/cgo/testso/test.bash |  2 +-
+ src/cmd/go/doc.go         | 51 ++++++++++++++++++++++-------
+ src/cmd/go/env.go         | 83 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/main.go        |  1 +
+ 4 files changed, 125 insertions(+), 12 deletions(-)

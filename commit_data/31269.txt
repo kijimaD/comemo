@@ -1,31 +1,24 @@
-commit 1c4f3c5ea0267e8ebc990ee67c09efa01cb59746
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 3 15:47:11 2017 -0400
+commit 3c22e5ca271ca4ad17b34d965e6a9baf7b5cf94d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 8 17:56:41 2017 -0800
 
-    runtime: make gcSetTriggerRatio work at any time
+    cmd/compile/internal/parser: improved syntax error for incorrect if/for/switch header
     
-    This changes gcSetTriggerRatio so it can be called even during
-    concurrent mark or sweep. In this case, it will adjust the pacing of
-    the current phase, accounting for progress that has already been made.
+    Starting the error message with "expecting" rather than "missing"
+    causes the syntax error mechanism to add additional helpful info
+    (it recognizes "expecting" but not "missing").
     
-    To make this work for concurrent sweep, this introduces a "basis" for
-    the pagesSwept count, much like the basis we just introduced for
-    heap_live. This lets gcSetTriggerRatio shift the basis to the current
-    heap_live and pagesSwept and compute a slope from there to completion.
-    This avoids creating a discontinuity where, if the ratio has
-    increased, there has to be a flurry of sweep activity to catch up.
-    Instead, this creates a continuous, piece-wise linear function as
-    adjustments are made.
+    Fixes #17328.
     
-    For #19076.
-    
-    Change-Id: Ibcd76aeeb81ff4814b00be7cbd3530b73bbdbba9
-    Reviewed-on: https://go-review.googlesource.com/39833
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I8482ca5e5a6a6b22e0ed0d831b7328e264156334
+    Reviewed-on: https://go-review.googlesource.com/36637
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/mgc.go      | 44 +++++++++++++++++++++++++++-----------------
- src/runtime/mgcsweep.go |  9 ++++++++-
- src/runtime/mheap.go    | 18 ++++++++++++++++++
- 3 files changed, 53 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go |  2 +-
+ test/fixedbugs/issue17328.go              | 13 +++++++++++++
+ test/syntax/semi1.go                      |  2 +-
+ test/syntax/semi3.go                      |  2 +-
+ test/syntax/semi4.go                      |  4 ++--
+ 5 files changed, 18 insertions(+), 5 deletions(-)

@@ -1,12 +1,18 @@
-commit e8e89347cd44c67d97fc0973ec2f15bf137b2d77
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun Jan 11 12:23:52 2015 +1100
+commit b796cbc40657e0891a43bffab0ffb92ce656d8f1
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 8 20:04:56 2014 -0800
 
-    runtime: remove duplicate copyright notice
+    runtime: fix finalizer iterator
     
-    Change-Id: Ibe3ba6426cc6e683ff3712faf6119922d0f88b5a
-    Reviewed-on: https://go-review.googlesource.com/2680
-    Reviewed-by: Minux Ma <minux@golang.org>
+    It could only handle one finalizer before it raised an out-of-bounds error.
+    
+    Fixes issue #9172
+    
+    Change-Id: Ibb4d0c8aff2d78a1396e248c7129a631176ab427
+    Reviewed-on: https://go-review.googlesource.com/1201
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/os_linux_arm.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/runtime/debug/heapdump_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/runtime/malloc2.go             |  4 ++--
+ src/runtime/mgc.go                 |  5 ++---
+ 3 files changed, 41 insertions(+), 5 deletions(-)

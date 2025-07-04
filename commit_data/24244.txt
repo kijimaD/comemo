@@ -1,20 +1,26 @@
-commit 3f2baa3e60b54b5cfc45995d7d3616d4a9a509fb
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Sep 9 22:56:26 2015 -0400
+commit c4f18d537428aa61fdcf41498518cc3cc7885d38
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 16 16:25:44 2015 -0700
 
-    cmd/dist: re-enable GOARM auto-detection
+    cmd/go: ignore import of "C" when fetching dependencies
     
-    cmd/dist will re-exec itself to detect VFP support at run-time.
+    The change https://golang.org/cl/12192 changed the get code to use the
+    list of package imports, not the computed list of dependencies, as the
+    computed list could be out of date if the package changed when using
+    go get -u.  Computing the dependency list would skip an import of "C",
+    but that would still be on the package import list.  This changes the
+    code to skip "C" when walking the import list.
     
-    Fixes #9732, #12548.
+    No test--the best test would be to add an import of "C" to
+    github.com/rsc/go-get-issue-9224-cmd for TestGoGetUpdate.
     
-    Change-Id: I9ad0c5c7fa3e97bd79a32da372e1a962565bb3af
-    Reviewed-on: https://go-review.googlesource.com/3973
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #11738.
+    
+    Change-Id: Id89ddafeade2391d15688bfd142fafd67844a941
+    Reviewed-on: https://go-review.googlesource.com/12322
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/dist/util.go       | 51 ++++++++++++++++++----------------------------
- src/cmd/dist/util_gc.go    |  8 ++++++++
- src/cmd/dist/util_gccgo.go |  4 ++++
- src/cmd/dist/vfp_arm.s     | 17 ++++++++++++++++
- src/cmd/dist/vfp_default.s | 13 ++++++++++++
- 5 files changed, 62 insertions(+), 31 deletions(-)
+ src/cmd/go/get.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,19 @@
+commit 9e9b1f57c26a6d13fdaebef67136718b8042cdba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 5 16:53:17 2024 -0700
+
+    reflect: gofmt all_test.go
+    
+    CL 580779 accidentally committed an un-gofmt-ed all_test.go
+    
+    Change-Id: I071ad8d8d08cab12032ff8d3eebecb55e808f14a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610561
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/all_test.go | 104 ++++++++++++++++++++++++------------------------
+ 1 file changed, 52 insertions(+), 52 deletions(-)

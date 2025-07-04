@@ -1,18 +1,74 @@
-commit 998c8e034c98fccb52b0692b97d36a5a6d3bd31a
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 19 12:48:09 2016 -0700
+commit b1785a5065924a4b90d49d835e11b9dc0f18823a
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 4 14:19:49 2016 -0500
 
-    cmd/compile: convT2{I,E} don't handle direct interfaces
+    cmd/compile: Tinkering with schedule for debug and regalloc
     
-    We now inline type to interface conversions when the type
-    is pointer-shaped.  No need to keep code to handle that in
-    convT2{I,E}.
+    This adds a heap-based proper priority queue to the
+    scheduler which made a relatively easy to test quite a few
+    heuristics that "ought to work well".  For go tools
+    themselves (which may not be representative) the heuristic
+    that works best is (1) in line-number-order, then (2) from
+    more to fewer args, then (3) in variable ID order.  Trying
+    to improve this with information about use at end of
+    blocks turned out to be fruitless -- all of my naive
+    attempts at using that information turned out worse than
+    ignoring it.  I can confirm that the stores-early heuristic
+    tends to help; removing it makes the results slightly worse.
     
-    Change-Id: I3a6668259556077cbb2986a9e8fe42a625d506c9
-    Reviewed-on: https://go-review.googlesource.com/22249
-    Run-TryBot: Keith Randall <khr@golang.org>
+    My metric is code size reduction, which I take to mean fewer
+    spills from register allocation.  It's not uniform.
+    Here's the endpoints for "vet" from one set of pretty-good
+    heuristics (this is representative at least).
+    
+    -2208 time.parse 13472 15680 -14.081633%
+    -1514 runtime.pclntab 1002058 1003572 -0.150861%
+    -352 time.Time.AppendFormat 9952 10304 -3.416149%
+    -112 runtime.runGCProg 1984 2096 -5.343511%
+    -64 regexp/syntax.(*parser).factor 7264 7328 -0.873362%
+    -44 go.string.alldata 238630 238674 -0.018435%
+    
+    48 math/big.(*Float).round 1376 1328 3.614458%
+    48 text/tabwriter.(*Writer).writeLines 1232 1184 4.054054%
+    48 math/big.shr 832 784 6.122449%
+    88 go.func.* 75174 75086 0.117199%
+    96 time.Date 1968 1872 5.128205%
+    
+    Overall there appears to be an 0.1% decrease in text size.
+    No timings yet, and given the distribution of size reductions
+    it might make sense to wait on those.
+    
+    addr2line  text (code) = -4392 bytes (-0.156273%)
+    api  text (code) = -5502 bytes (-0.147644%)
+    asm  text (code) = -5254 bytes (-0.187810%)
+    cgo  text (code) = -4886 bytes (-0.148846%)
+    compile  text (code) = -1577 bytes (-0.019346%) * changed
+    cover  text (code) = -5236 bytes (-0.137992%)
+    dist  text (code) = -5015 bytes (-0.167829%)
+    doc  text (code) = -5180 bytes (-0.182121%)
+    fix  text (code) = -5000 bytes (-0.215148%)
+    link  text (code) = -5092 bytes (-0.152712%)
+    newlink  text (code) = -5204 bytes (-0.196986%)
+    nm  text (code) = -4398 bytes (-0.156018%)
+    objdump  text (code) = -4582 bytes (-0.155046%)
+    pack  text (code) = -4503 bytes (-0.294287%)
+    pprof  text (code) = -6314 bytes (-0.085177%)
+    trace  text (code) = -5856 bytes (-0.097818%)
+    vet  text (code) = -5696 bytes (-0.117334%)
+    yacc  text (code) = -4971 bytes (-0.213817%)
+    
+    This leaves me sorely tempted to look into a "real" scheduler
+    to try to do a better job, but I think it might make more
+    sense to look into getting loop information into the
+    register allocator instead.
+    
+    Fixes #14577.
+    
+    Change-Id: I5238b83284ce76dea1eb94084a8cd47277db6827
+    Reviewed-on: https://go-review.googlesource.com/20240
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michel Lespinasse <walken@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/iface.go | 32 ++++++++++++++------------------
- 1 file changed, 14 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go | 152 +++++++++++++++++++------------
+ 1 file changed, 93 insertions(+), 59 deletions(-)

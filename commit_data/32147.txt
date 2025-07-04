@@ -1,32 +1,22 @@
-commit 3e7abf82e3e0614f7d8163053d944dc59d8b9247
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Aug 8 13:45:41 2017 -0400
+commit 44a0681ae4e5d92fe86087a3d70aab2ad8df0f10
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 28 12:10:38 2017 -0700
 
-    cmd/go,cmd/link: support buildmode c-shared on ppc64le
+    cmd/compile: add a dowidth call to convas
     
-    This change enables buildmode c-shared on ppc64le.
+    This dowidth currently happens during AST to SSA conversion.
+    As such, it is a concurrency pinch point.
+    It's a bit silly, but do it here in walk instead.
+    This appears (fingers crossed) to be the last
+    unresolved dowidth concurrency problem.
     
-    A bug was fixed in runtime/rt0_linux_ppc64le.s that was necessary to
-    make this work.  In _rt0_ppc64le_linux_lib, there is code to store
-    the value of r2 onto the caller's stack.  However, if this file
-    is compiled using a build mode that maintains the TOC address in
-    r2, then instructions will be inserted at the beginning of this
-    function to generate the r2 value for the callee, not the caller.
-    That means the r2 value for the callee is stored onto the caller's
-    stack.  If caller and callee don't have the same r2 values, then
-    the caller will restore the wrong r2 value after it returns.  This
-    situation can happen when using dlopen since the caller of this
-    function will be in ld64.so and will definitely have a different
-    TOC.
+    Updates #15756
     
-    Updates #20756
-    
-    Change-Id: I6e165e0d0716e73721bbbcc520e8302e4856e3ba
-    Reviewed-on: https://go-review.googlesource.com/53890
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I87cbf718a14ad21aca74586003d79320cca75953
+    Reviewed-on: https://go-review.googlesource.com/39994
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go               | 2 +-
- src/cmd/go/internal/work/build.go  | 2 +-
- src/cmd/link/internal/ld/config.go | 2 +-
- src/runtime/rt0_linux_ppc64le.s    | 2 --
- 4 files changed, 3 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 1 +
+ 1 file changed, 1 insertion(+)

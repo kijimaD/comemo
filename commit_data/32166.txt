@@ -1,24 +1,23 @@
-commit d7ec89c19846d8c1d89d510cd7634ae9de640ac0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Aug 10 12:58:10 2017 +0200
+commit 26c2926f648cafdbd09954495242a67eedb631b4
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Apr 10 10:22:26 2017 -0700
 
-    test: add missing escape analysis test
+    crypto/tls: recommend P256 elliptic curve
     
-    https://golang.org/cl/37508 added an escape analysis test for #12397 to
-    escape2.go but missed to add it to escape2n.go. The comment at the top
-    of the former states that the latter should contain all the same tests
-    and the tests only differ in using -N to compile. Conform to this by
-    adding the function issue12397 to escape2n.go as well.
+    Users (like myself) may be tempted to think the higher-numbered curve
+    is somehow better or more secure, but P256 is currently the best
+    ECDSA implementation, due to its better support in TLS clients, and a
+    constant time implementation.
     
-    Also fix a whitespace difference in escape2.go, so the two files match
-    exactly (except for the comment at the top).
+    For example, sites that present a certificate signed with P521
+    currently fail to load in Chrome stable, and the error on the Go side
+    says simply "remote error: tls: illegal parameter".
     
-    Change-Id: I3a09cf95169bf2150a25d6b4ec9e147265d36760
-    Reviewed-on: https://go-review.googlesource.com/54610
-    Reviewed-by: Avelino <t@avelino.xxx>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes #19901.
+    
+    Change-Id: Ia5e689e7027ec423624627420e33029c56f0bd82
+    Reviewed-on: https://go-review.googlesource.com/40211
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/escape2.go  |  2 +-
- test/escape2n.go | 15 +++++++++++++++
- 2 files changed, 16 insertions(+), 1 deletion(-)
+ src/crypto/tls/generate_cert.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,24 @@
-commit 7186e565730d9b0789128319c9dde79dbf8488dc
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Mar 22 03:18:47 2012 +0800
+commit cfd8b84f072e1799456ad3dc350bc1a486a0e280
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 21 11:29:30 2012 -0700
 
-    go/build: clarify why we exclude files starting with '_' or '.'
+    godoc: use shorter titles for tabs
     
-    R=golang-dev, gri
+    In a browser with many open tabs, the tab titles become short
+    and uninformative because they all start with the same prefix
+    ("Package ", "Directory ", etc.).
+    
+    Permit use of shorter tab titles that start with the relevant
+    information first.
+    
+    Fixes #3365.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5864053
+    https://golang.org/cl/5865056
 
- src/pkg/go/build/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/godoc/godoc.html      |  2 +-
+ src/cmd/godoc/codewalk.go |  4 ++--
+ src/cmd/godoc/godoc.go    | 50 +++++++++++++++++++++++++++++++----------------
+ src/cmd/godoc/main.go     |  2 +-
+ 4 files changed, 37 insertions(+), 21 deletions(-)

@@ -1,15 +1,15 @@
-commit 762729b50edc462fc76cc0413dae64a3353d28eb
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 20 14:56:15 2011 -0400
+commit 9ddc2b5688163d6ad1f5e83a53e6151a69f9f700
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 20 11:28:00 2011 -0700
 
-    codereview: save CL messages in $(hg root)/last-change
+    gob: fix allocation for singletons.
+    Code was double-allocating in some cases.
+    Fixes #2267.
     
-    Fixes #2279.
-    
-    R=bradfitz, r, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5096042
+    https://golang.org/cl/5093042
 
- .hgignore                    |  1 +
- lib/codereview/codereview.py | 12 ++++++++++++
- 2 files changed, 13 insertions(+)
+ src/pkg/gob/decode.go         | 18 ++++++------------
+ src/pkg/gob/gobencdec_test.go | 39 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 44 insertions(+), 13 deletions(-)

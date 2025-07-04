@@ -1,14 +1,36 @@
-commit d199c34cf0b9c536ffd0167159fa50be2261935c
-Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 28 15:33:05 2012 -0700
+commit baf426f10fdcb3c11aa20d5034c05c5ba9b0c239
+Author: Christopher Swenson <cswenson@google.com>
+Date:   Tue Aug 28 09:29:45 2012 -0700
 
-    test/bench/shootout: pidigits is much faster
-    Also fix a bug in the script (s/runonly/run/)
+    math/big: Replace RCLQ + ANDQ with SETCS in unrolled arithmetic assembly.
     
-    R=golang-dev, bradfitz
+    benchmark             old ns/op    new ns/op    delta
+    BenchmarkAddVW_1              8            8   +0.60%
+    BenchmarkAddVW_2             10            9   -8.64%
+    BenchmarkAddVW_3             10           10   -4.63%
+    BenchmarkAddVW_4             10           11   +3.67%
+    BenchmarkAddVW_5             11           12   +5.98%
+    BenchmarkAddVW_1e1           18           20   +6.38%
+    BenchmarkAddVW_1e2          129          115  -10.85%
+    BenchmarkAddVW_1e3         1270         1089  -14.25%
+    BenchmarkAddVW_1e4        13376        12145   -9.20%
+    BenchmarkAddVW_1e5       130392       125260   -3.94%
+    
+    benchmark              old MB/s     new MB/s  speedup
+    BenchmarkAddVW_1        7709.10      7661.92    0.99x
+    BenchmarkAddVW_2       12451.10     13604.00    1.09x
+    BenchmarkAddVW_3       17727.81     18721.54    1.06x
+    BenchmarkAddVW_4       23552.64     22708.81    0.96x
+    BenchmarkAddVW_5       27411.40     25816.22    0.94x
+    BenchmarkAddVW_1e1     34063.19     32023.06    0.94x
+    BenchmarkAddVW_1e2     49529.97     55360.55    1.12x
+    BenchmarkAddVW_1e3     50380.44     58764.18    1.17x
+    BenchmarkAddVW_1e4     47843.59     52696.10    1.10x
+    BenchmarkAddVW_1e5     49082.60     51093.66    1.04x
+    
+    R=gri, rsc, r
     CC=golang-dev
-    https://golang.org/cl/6501051
+    https://golang.org/cl/6480063
 
- test/bench/shootout/timing.log | 6 ++++++
- test/bench/shootout/timing.sh  | 2 +-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/math/big/arith_amd64.s | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)

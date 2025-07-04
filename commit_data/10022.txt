@@ -1,23 +1,18 @@
-commit 1d687c742ddad0be83314019c03e17bad7235535
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 18 09:41:32 2011 -0400
+commit 1095305232b80fe23a14e0eb5d520bac91223572
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Tue Oct 18 15:51:45 2011 +1100
 
-    gc: add delete(m, x) but leave in m[x] = 0, false.
+    misc/windows: automated toolchain packager
     
-    The old m[x] = 0, false syntax will be deleted
-    in a month or so, once people have had time to
-    change their code (there is a gofix in a separate CL).
+    A first run at fully automating the process.
+    This CL supersedes https://golang.org/cl/4634114/
+    which I seemed to have lost.
     
-    R=ken2
+    R=golang-dev, alex.brainman, adg
     CC=golang-dev
-    https://golang.org/cl/5265048
+    https://golang.org/cl/5273041
 
- src/cmd/gc/builtin.c.boot |  1 +
- src/cmd/gc/go.h           |  4 +++-
- src/cmd/gc/lex.c          |  1 +
- src/cmd/gc/runtime.go     |  1 +
- src/cmd/gc/subr.c         |  1 +
- src/cmd/gc/typecheck.c    | 37 ++++++++++++++++++++++++++++++++++---
- src/cmd/gc/walk.c         | 31 +++++++++++++++++++++++++++++++
- src/pkg/runtime/hashmap.c | 22 ++++++++++++++++++++++
- 8 files changed, 94 insertions(+), 4 deletions(-)
+ misc/windows/README        | 22 +++++++++++
+ misc/windows/installer.iss | 98 ++++++++++++++++++++++++++++++++++++++++++++++
+ misc/windows/package.bash  | 44 +++++++++++++++++++++
+ 3 files changed, 164 insertions(+)

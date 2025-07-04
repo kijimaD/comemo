@@ -1,27 +1,12 @@
-commit 3188ffc93138ca18857575052f74100d64e31df5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Oct 3 13:46:37 2012 -0700
+commit 516306f67781279e175fe0697446ba087b8ac793
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 3 15:05:08 2012 +1000
 
-    go spec: conversion types starting with "func" must be parenthesized
+    godoc: move Examples above Index and make them both collapsable
     
-    Also: Be explicit what operator means with respect to conversion types.
-    
-    The parenthesis requirement is a language change. At the moment,
-    literal function types in conversions that cannot possibly be
-    followed by a '(' don't need parentheses. For instance:
-    
-            func(int)int(x)  ->  same as (func(int)int)(x)
-            func()()(x)      ->  same as (func())(x)
-    
-    but:
-    
-            func(int)(x)     ->  could be func(int)x {...}
-    
-    Fixes #4109.
-    
-    R=rsc, r, iant, ken, iant
+    R=golang-dev, dsymonds, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/6584065
+    https://golang.org/cl/6591066
 
- doc/go_spec.html | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ lib/godoc/package.html | 38 +++++++++++++++++++++++++++-----------
+ 1 file changed, 27 insertions(+), 11 deletions(-)

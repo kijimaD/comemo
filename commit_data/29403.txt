@@ -1,18 +1,24 @@
-commit 276c29ff6da13ef7089075d8cd2172fe3d3956fb
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Nov 5 00:21:59 2016 +0000
+commit ee3f3a60070ee9edeb3f10fa2e4b90404068cb3a
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Sep 11 17:14:51 2016 -0700
 
-    net/http: deflake TestClientRedirectTypes and maybe some similar ones
+    crypto/rsa: ensure that generating toy RSA keys doesn't loop.
     
-    A few tests were using the global DefaultTransport implicitly.
-    Be explicit instead. And then make some parallel while I'm there.
+    If there are too few primes of the given length then it can be
+    impossible to generate an RSA key with n distinct primes.
     
-    Change-Id: I3c617e75429ecc8f6d23567d1470f5e5d0cb7cfd
-    Reviewed-on: https://go-review.googlesource.com/32758
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This change approximates the expected number of candidate primes and
+    causes key generation to return an error if it's unlikely to succeed.
+    
+    Fixes #16596.
+    
+    Change-Id: I53b60d0cb90e2d0e6f0662befa64d13f24af51a7
+    Reviewed-on: https://go-review.googlesource.com/28969
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/client_test.go | 64 ++++++++++++++++++++++++++++++++-------------
- 1 file changed, 46 insertions(+), 18 deletions(-)
+ src/crypto/rsa/rsa.go      | 16 ++++++++++++++++
+ src/crypto/rsa/rsa_test.go | 11 +++++++++++
+ 2 files changed, 27 insertions(+)

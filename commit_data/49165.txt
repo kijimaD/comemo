@@ -1,22 +1,27 @@
-commit c4c9c80e4f20ca825e66eed254142b1623706b68
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Fri May 13 00:22:11 2022 +0900
+commit b27c7e30dc5d222766057e62c16cb765b636d244
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jul 24 14:11:27 2021 -0700
 
-    all.bat,clean.bat,race.bat,run.bat: call some.bat with .\some.bat
+    [dev.typeparams] cmd/compile: fix HasShape, add dottype test
     
-    When set NoDefaultCurrentDirectoryInExePath=1, call some.bat does not work.
+    HasShape needs a TINTER case.
     
-    Change-Id: Ifeab27ecf0d7ba1d504b755a22f73a0f13abbbb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/405874
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Add a test for x.(T) in various situations. Needs the fix above.
+    
+    Also remove ONEW unshapify case. It is ok for ONEW to have a shape
+    type, as it will just be passed to mallocgc, or possibly used as a
+    stack object type, both of which are ok.
+    
+    Change-Id: Ibddf8f5c8c254d32cb5ebcaca7dc94b4c00ab893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337231
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/all.bat   | 4 ++--
- src/clean.bat | 2 +-
- src/race.bat  | 6 +++---
- src/run.bat   | 2 +-
- 4 files changed, 7 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go |  6 ---
+ src/cmd/compile/internal/types/type.go    |  8 ++-
+ test/typeparam/dottype.go                 | 81 +++++++++++++++++++++++++++++++
+ test/typeparam/dottype.out                |  8 +++
+ 4 files changed, 96 insertions(+), 7 deletions(-)

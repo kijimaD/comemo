@@ -1,16 +1,18 @@
-commit 57ad6ef15d8e1cbfd06223c538c0f250ca8e4df1
-Author: ajz01 <ajzdenek@gmail.com>
-Date:   Tue Oct 22 02:51:33 2019 +0000
+commit 1ad2298c777382a129e6ffd325b029ff0d541ae3
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Fri May 3 01:28:52 2019 +0800
 
-    go/parser: remove superfluous case from switch statement
+    cmd/go/internal/modfile: make error message for module path more clear
     
-    Change-Id: I96a9b34bf8e42c21a3e0258cbc8b1416328834be
-    GitHub-Last-Rev: 32709619a690459dc29a32f12cfbd3908ce270e3
-    GitHub-Pull-Request: golang/go#35066
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202598
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #31775
+    
+    `
+    
+    Change-Id: I59c4e90f20d1b31161c259680b48b7be7218bf58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175017
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/go/parser/parser.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/go/internal/modfile/rule.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

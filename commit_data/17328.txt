@@ -1,16 +1,13 @@
-commit dccf651b24831a3f3f2657cf211129bb03c18ed4
-Author: Aaron France <aaron.l.france@gmail.com>
-Date:   Mon Aug 19 16:32:00 2013 -0400
+commit 6401e0f83f29b0f3b03b9d07ebcab56e5ddb461b
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 19 12:20:50 2013 -0700
 
-    misc/emacs: Detect stale coverage reports
+    runtime: don't run finalizers if we're still on the g0 stack.
     
-    When the coverage report file is older than the file we're
-    showing the coverage report for, then we show a simple message
-    to state this fact.
-    
-    R=adonovan, dominik.honnef, bradfitz
+    R=golang-dev, rsc, dvyukov, khr
     CC=golang-dev
-    https://golang.org/cl/12919044
+    https://golang.org/cl/11386044
 
- misc/emacs/go-mode.el | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/runtime/mgc0.c  | 7 ++++---
+ src/pkg/runtime/stack.c | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

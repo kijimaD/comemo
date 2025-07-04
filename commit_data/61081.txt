@@ -1,0 +1,21 @@
+commit 3637ebf1e0d833234c1025db1faceeae6fe6ecbb
+Author: Davis Goodin <dagood@microsoft.com>
+Date:   Fri Sep 27 11:04:33 2024 -0700
+
+    crypto/internal/cryptotest: fix typos in AEAD test comments
+    
+    Some comments that describe the behavior being tested don't match the
+    test logic.
+    
+    Fix the comments to match test logic and documented behavior.
+    
+    Change-Id: I065d9d9069fa00bb865209f48e112456384c2b9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616338
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/internal/cryptotest/aead.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

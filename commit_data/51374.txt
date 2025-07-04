@@ -1,21 +1,24 @@
-commit 6fc1f4f906d6d886f324250eebcb44fb4cc39f6c
-Author: Damien Neil <dneil@google.com>
-Date:   Fri Nov 18 10:57:46 2022 -0800
+commit efbecc7eff88a0d54f3ea9fca290e1808e197ae2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 18 19:58:14 2022 -0800
 
-    doc/go1.20: add release notes for net package
+    go/types, types2: explicitly check for non-nil type in LookupFieldOrMethod
     
-    For #50101
-    For #51152
-    For #53482
-    For #55301
-    For #56515
+    Document and enforce API expectation. Add a test so we don't
+    inadvertently change the function behavior with respect to nil
+    type arguments.
     
-    Change-Id: I11edeb4be0a7f80fb72fd7680a3407d081f83b8b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/451420
+    Fixes #50620.
+    
+    Change-Id: Ic000bff7504a03006bd248a319c7a2d49dcf09c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379374
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Run-TryBot: Damien Neil <dneil@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- doc/go1.20.html | 41 ++++++++++++++++++++++++-----------------
- 1 file changed, 24 insertions(+), 17 deletions(-)
+ src/cmd/compile/internal/types2/api_test.go | 12 ++++++++++++
+ src/cmd/compile/internal/types2/lookup.go   |  6 +++++-
+ src/go/types/api_test.go                    | 12 ++++++++++++
+ src/go/types/lookup.go                      |  6 +++++-
+ 4 files changed, 34 insertions(+), 2 deletions(-)

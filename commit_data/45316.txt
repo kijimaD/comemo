@@ -1,57 +1,24 @@
-commit 19470dc535513dc824fe5c1dbec700329e7692dc
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 20 13:30:50 2021 -0400
+commit bccdd31252c9771ef2e8dae0402251163a081b56
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 19 18:32:15 2020 +0700
 
-    misc/cgo/test: do not redeclare exported Go functions
+    cmd/compile: use type position for error message in align.go
     
-    An exported Go function like
+    This helps the compiler reports the right place where the type declared,
+    instead of relying on global lineno, which maybe set to wrong value at
+    the time the error is reported.
     
-            //export F
-            func F() {}
+    Fixes #42058
     
-    gets declared in _cgo_export.h as something like
-    
-            extern void F(void);
-    
-    The exact declaration varies by operating system.
-    In particular, Windows adds __declspec(dllimport).
-    
-    Clang on Windows/ARM64 rejects code that contains
-    conflicting declarations for F, like:
-    
-            extern void F(void);
-            extern void __declspec(dllimport) F(void);
-    
-    This means that F must not be declared separately from _cgo_export.h:
-    any code that wants to refer to F must use #include "_cgo_export.h".
-    
-    Unfortunately, the cgo prologue itself (the commented code before import "C")
-    cannot include "_cgo_export.h", because that file is itself produced from the
-    cgo Go sources and therefore cannot be a dependency of the cgo Go sources.
-    
-    This CL rewrites misc/cgo/test to avoid redeclaring exported functions.
-    Most of the time, this is not a significant problem: just move the code
-    that needs the header into a .c file, perhaps with a wrapper exposed
-    to the cgo Go sources.
-    
-    The one case that is potentially problematic is f7665, which is part of
-    the test for golang.org/issue/7665. That bug report explicitly identified
-    a bug in referring to the C name for an exported function in the same
-    Go source file as it was exported function. That is now impossible,
-    at least on Windows/ARM64, so the test is modified a bit and possibly
-    does not test what the original bug was. But the original bug should
-    be long gone: that part of the compiler has been rewritten.
-    
-    Change-Id: I0d14d9336632f0e5e3db4273d9d32ef2cca0298d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312029
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I06d34aa9b0236d122f4a0d72e66675ded022baac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263597
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- misc/cgo/test/issue8148.c  | 11 +++++++++++
- misc/cgo/test/issue8148.go | 11 ++---------
- misc/cgo/test/testx.c      | 24 ++++++++++++++++++++++++
- misc/cgo/test/testx.go     | 24 ++----------------------
- 4 files changed, 39 insertions(+), 31 deletions(-)
+ src/cmd/compile/internal/gc/align.go | 10 +++++-----
+ src/go/types/stdlib_test.go          |  2 ++
+ test/fixedbugs/issue42058a.go        | 13 +++++++++++++
+ test/fixedbugs/issue42058b.go        | 13 +++++++++++++
+ 4 files changed, 33 insertions(+), 5 deletions(-)

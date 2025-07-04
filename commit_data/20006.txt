@@ -1,13 +1,13 @@
-commit 0235f6854c0c327025f6e0321c64f04595c6ba36
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Aug 15 08:46:16 2014 +0900
+commit 6e692b35bb57720331c06da400ed99a159f31fa5
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 23:43:51 2014 -0400
 
-    doc: make it point to correct go1.3.1 change history
+    [dev.power64] cmd/cgo: add {ppc,power}64{,le} to pointer and int size maps
     
-    LGTM=minux, adg
-    R=golang-codereviews, minux, adg
+    LGTM=rsc
+    R=rsc, iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/129180043
+    https://golang.org/cl/119640043
 
- doc/devel/release.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/main.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

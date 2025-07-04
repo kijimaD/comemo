@@ -1,102 +1,21 @@
-commit 9d8273817ce8f615aeff9a580b39b73e2d177af4
-Author: Gopher Robot <gobot@golang.org>
-Date:   Thu Dec 5 21:25:20 2024 +0000
+commit e73e25b624c37a936bb42f50a11f56297a4cd637
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Oct 25 10:29:01 2023 +0000
 
-    doc/next: delete
+    internal/cpu: add comments to copied functions
     
-    The release note fragments have been merged and added
-    as _content/doc/go1.24.md in x/website in CL 634056.
+    Just as same as other copied functions,
+    like stringsTrimSuffix in "os/executable_procfs.go"
     
-    For #68545.
-    
-    Change-Id: I7b3840df01b8c3699681c0cd21a16af70f74d31d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/634057
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I9c9fbd75b009a5ae0e869cf1fddc77c0e08d9a67
+    GitHub-Last-Rev: 4c18865e15ede0f53121b6845a1879cdd70d1a38
+    GitHub-Pull-Request: golang/go#63704
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537056
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/next/1-intro.md                                | 14 ---
- doc/next/2-language.md                             |  8 --
- doc/next/3-tools.md                                | 99 ----------------------
- doc/next/4-runtime.md                              | 17 ----
- doc/next/5-toolchain.md                            | 25 ------
- doc/next/6-stdlib/0-heading.md                     |  2 -
- doc/next/6-stdlib/1-os-root.md                     | 16 ----
- doc/next/6-stdlib/2-pbkdf2.md                      |  2 -
- doc/next/6-stdlib/3-hkdf.md                        |  2 -
- doc/next/6-stdlib/4-mlkem.md                       |  3 -
- doc/next/6-stdlib/5-sha3.md                        |  7 --
- doc/next/6-stdlib/6-testing-bloop.md               |  5 --
- doc/next/6-stdlib/6-weak.md                        | 12 ---
- doc/next/6-stdlib/99-minor/0-heading.md            |  3 -
- doc/next/6-stdlib/99-minor/README                  |  1 -
- doc/next/6-stdlib/99-minor/archive/66831.md        |  2 -
- doc/next/6-stdlib/99-minor/bytes/61901.md          | 12 ---
- doc/next/6-stdlib/99-minor/crypto/cipher/69445.md  |  5 --
- doc/next/6-stdlib/99-minor/crypto/cipher/69981.md  |  3 -
- doc/next/6-stdlib/99-minor/crypto/fips140/70123.md |  1 -
- doc/next/6-stdlib/99-minor/crypto/hkdf/61477.md    |  1 -
- doc/next/6-stdlib/99-minor/crypto/md5/62384.md     |  1 -
- doc/next/6-stdlib/99-minor/crypto/mlkem/70122.md   |  1 -
- doc/next/6-stdlib/99-minor/crypto/pbkdf2/69488.md  |  1 -
- doc/next/6-stdlib/99-minor/crypto/rand/66821.md    |  7 --
- doc/next/6-stdlib/99-minor/crypto/rand/67057.md    |  1 -
- doc/next/6-stdlib/99-minor/crypto/rsa/68762.md     |  7 --
- doc/next/6-stdlib/99-minor/crypto/sha1/62384.md    |  1 -
- doc/next/6-stdlib/99-minor/crypto/sha256/62384.md  |  1 -
- doc/next/6-stdlib/99-minor/crypto/sha3/69982.md    |  1 -
- doc/next/6-stdlib/99-minor/crypto/sha512/62384.md  |  1 -
- doc/next/6-stdlib/99-minor/crypto/subtle/66450.md  |  6 --
- doc/next/6-stdlib/99-minor/crypto/tls/32936.md     |  1 -
- doc/next/6-stdlib/99-minor/crypto/tls/68500.md     |  2 -
- doc/next/6-stdlib/99-minor/crypto/tls/69985.md     |  2 -
- doc/next/6-stdlib/99-minor/crypto/x509/41682.md    |  2 -
- doc/next/6-stdlib/99-minor/crypto/x509/62384.md    |  2 -
- doc/next/6-stdlib/99-minor/crypto/x509/67620.md    |  6 --
- doc/next/6-stdlib/99-minor/crypto/x509/67675.md    |  3 -
- doc/next/6-stdlib/99-minor/crypto/x509/68484.md    |  5 --
- doc/next/6-stdlib/99-minor/crypto/x509/69799.md    |  7 --
- doc/next/6-stdlib/99-minor/debug/elf/63952.md      | 20 -----
- doc/next/6-stdlib/99-minor/encoding/62384.md       |  5 --
- doc/next/6-stdlib/99-minor/encoding/json/45669.md  |  7 --
- doc/next/6-stdlib/99-minor/encoding/json/68941.md  |  1 -
- doc/next/6-stdlib/99-minor/go/types/66626.md       | 32 -------
- doc/next/6-stdlib/99-minor/hash/adler32/62384.md   |  1 -
- doc/next/6-stdlib/99-minor/hash/crc32/62384.md     |  1 -
- doc/next/6-stdlib/99-minor/hash/crc64/62384.md     |  1 -
- doc/next/6-stdlib/99-minor/hash/fnv/62384.md       |  1 -
- doc/next/6-stdlib/99-minor/hash/maphash/54670.md   |  2 -
- doc/next/6-stdlib/99-minor/log/slog/62005.md       |  1 -
- doc/next/6-stdlib/99-minor/log/slog/62384.md       |  1 -
- doc/next/6-stdlib/99-minor/math/big/62384.md       |  1 -
- doc/next/6-stdlib/99-minor/math/rand/67273.md      |  3 -
- doc/next/6-stdlib/99-minor/math/rand/v2/62384.md   |  1 -
- doc/next/6-stdlib/99-minor/net/56539.md            |  2 -
- doc/next/6-stdlib/99-minor/net/62384.md            |  1 -
- doc/next/6-stdlib/99-minor/net/http/65035.md       | 11 ---
- doc/next/6-stdlib/99-minor/net/http/67813.md       |  2 -
- doc/next/6-stdlib/99-minor/net/http/67814.md       |  2 -
- doc/next/6-stdlib/99-minor/net/http/67816.md       | 15 ----
- doc/next/6-stdlib/99-minor/net/netip/62384.md      |  2 -
- doc/next/6-stdlib/99-minor/net/url/62384.md        |  1 -
- doc/next/6-stdlib/99-minor/os/67002.md             |  1 -
- doc/next/6-stdlib/99-minor/os/user/21867.md        |  3 -
- doc/next/6-stdlib/99-minor/os/user/49509.md        |  5 --
- doc/next/6-stdlib/99-minor/os/user/68312.md        |  6 --
- doc/next/6-stdlib/99-minor/os/user/68647.md        |  3 -
- doc/next/6-stdlib/99-minor/regexp/62384.md         |  1 -
- doc/next/6-stdlib/99-minor/runtime/51473.md        |  3 -
- doc/next/6-stdlib/99-minor/runtime/67535.md        |  6 --
- doc/next/6-stdlib/99-minor/strings/61901.md        | 12 ---
- doc/next/6-stdlib/99-minor/sync/70683.md           |  5 --
- doc/next/6-stdlib/99-minor/testing/36532.md        |  2 -
- doc/next/6-stdlib/99-minor/testing/61515.md        |  1 -
- doc/next/6-stdlib/99-minor/testing/62516.md        |  2 -
- doc/next/6-stdlib/99-minor/text/template/66107.md  |  1 -
- doc/next/6-stdlib/99-minor/time/62384.md           |  1 -
- doc/next/6-stdlib/99-minor/weak/67552.md           |  1 -
- doc/next/7-ports.md                                | 34 --------
- doc/next/9-todo.md                                 | 59 -------------
- 82 files changed, 558 deletions(-)
+ src/internal/cpu/cpu.go | 2 ++
+ 1 file changed, 2 insertions(+)

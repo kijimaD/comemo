@@ -1,15 +1,15 @@
-commit 3c638f2892471b55ded3982d2639e5c62f00d506
+commit 6a401339c113769be5339483bf134284292f03bc
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed Dec 14 08:22:36 2011 +0100
+Date:   Wed Dec 14 08:21:37 2011 +0100
 
-    gc: Use %#F in error messages instead of %F.
+    gc: suppress non-root cause message for bad receivers.
     
-    Fixes #2520
+    Fixed issue 2500
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5482056
+    https://golang.org/cl/5485053
 
- src/cmd/gc/fmt.c         | 10 +++++++---
- test/fixedbugs/bug383.go | 13 +++++++++++++
- 2 files changed, 20 insertions(+), 3 deletions(-)
+ src/cmd/gc/dcl.c         |  2 ++
+ test/fixedbugs/bug384.go | 12 ++++++++++++
+ 2 files changed, 14 insertions(+)

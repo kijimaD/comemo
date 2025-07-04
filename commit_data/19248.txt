@@ -1,20 +1,15 @@
-commit 29d1b211fdece82b3c4ccdb549ac394e71132643
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 28 12:47:09 2014 -0400
+commit 1bf690c180f8885144e94b7a58660d6fb2fd2ae7
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Apr 28 06:59:27 2014 -0700
 
-    runtime: clean up scanning of Gs
+    doc: fix link to Mercurial download
     
-    Use a real type for Gs instead of scanning them conservatively.
-    Zero the schedlink pointer when it is dead.
+    Oddly, 404s with the trailing slash.
     
-    Update #7820
-    
-    LGTM=rsc
-    R=rsc, dvyukov
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/89360043
+    https://golang.org/cl/90790045
 
- src/pkg/runtime/malloc.h |  1 +
- src/pkg/runtime/mgc0.go  |  5 +++++
- src/pkg/runtime/proc.c   | 17 ++++++++++++++++-
- 3 files changed, 22 insertions(+), 1 deletion(-)
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

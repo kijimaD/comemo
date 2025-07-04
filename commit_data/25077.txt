@@ -1,23 +1,12 @@
-commit e18cd34c76892cd62f4857e56ffbbe503acd508a
+commit b5d94b7d41ad003cfcf7b8849d75fc09e0c206f3
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 27 15:27:14 2015 -0800
+Date:   Mon Sep 21 15:25:52 2015 -0700
 
-    cmd/compile: use correct line number for := (LCOLAS)
+    math/big: add test cases for min/max exponent values
     
-    - use same local variable name (lno) for line number for LCOLAS everywhere
-    - remove now unneeded assignment of line number to yylval.i in lexer
-    
-    Fix per suggestion of mdempsky.
-    
-    Fixes #13415.
-    
-    Change-Id: Ie3c7f5681615042a12b81b26724b3a5d8a979c25
-    Reviewed-on: https://go-review.googlesource.com/17248
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2e74e39628285e2fecaab712be6cff230619a6c2
+    Reviewed-on: https://go-review.googlesource.com/14778
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/lex.go    |  1 -
- src/cmd/compile/internal/gc/parser.go |  7 ++++---
- test/fixedbugs/issue13415.go          | 19 +++++++++++++++++++
- 3 files changed, 23 insertions(+), 4 deletions(-)
+ src/math/big/floatconv_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

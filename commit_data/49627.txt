@@ -1,30 +1,23 @@
-commit 85486bcccb506514d67034e39f3ed588b5900f1c
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed May 25 11:09:56 2022 -0400
+commit 5670ff4ae593019c33b8095a6341deb657be34d7
+Author: korzhao <korzhao95@gmail.com>
+Date:   Mon Aug 16 22:25:47 2021 +0800
 
-    image/jpeg: increase TestLargeImageWithShortData timeout by an order of magnitude
+    cmd/compile: fix conversions from TypeParam to interface
     
-    Also dump goroutines on failure.
+    If the TypeParam has all the methods of an interface, allow conversions from TypeParam to interface
     
-    The original bug report in #10413 reported a hang of “several
-    minutes”. An apparently-spurious failure was observed in
-    https://build.golang.org/log/e5ac3ce3fb7d04ec13e5bbfadea8bb5869a4dd1e,
-    with a delay of only 3.64s.
+    Fixes #47708
     
-    Moreover, if the test does fail due to a regression, we will want a
-    goroutine dump to diagnose where it got stuck. The current call to
-    t.Fatalf does not produce such a dump, so is not nearly as useful if
-    the failure only occasionally reproduces.
-    
-    Updates #10413.
-    
-    Change-Id: I6ab9d112f14f438a0c54e02ec95934627acdc64b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408355
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I40a82a31f6ea9354130dbe3bcfc83537094bf12c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342509
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/image/jpeg/reader_test.go | 23 +++++++++++------------
- 1 file changed, 11 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/typecheck/subr.go | 13 +++++++---
+ test/typeparam/issue47708.go               | 40 ++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 3 deletions(-)

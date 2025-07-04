@@ -1,20 +1,14 @@
-commit dc6af19ff8b44e56abc1217af27fe098c78c932b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Feb 21 12:48:45 2017 -0800
+commit c57a443e8777de0f34444dd512fbcb099e7b3e29
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 1 16:44:18 2016 -0700
 
-    context: document that Err is unspecified before Done
+    doc: update go1.8.txt
     
-    It could have been defined the other way, but since the behavior has
-    been unspecified, this is the conservative approach for people writing
-    different implementations of the Context interface.
+    Automated update after manual classification using x/build/cmd/writenotes.
     
-    Change-Id: I7334a4c674bc2330cca6874f7cac1eb0eaea3cff
-    Reviewed-on: https://go-review.googlesource.com/37375
-    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Change-Id: Ie92f501d301c1e2245954439da197812c09c1684
+    Reviewed-on: https://go-review.googlesource.com/32570
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Sameer Ajmani <sameer@golang.org>
-    Run-TryBot: Sameer Ajmani <sameer@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/context/context.go | 1 +
- 1 file changed, 1 insertion(+)
+ doc/go1.8.txt | 150 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 149 insertions(+), 1 deletion(-)

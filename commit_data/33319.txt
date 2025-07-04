@@ -1,20 +1,26 @@
-commit 52cf91a5d5d074d8857f1b7be0fe1bc380ed4869
+commit 9065c3bf3464f6a94e2b60992a9cba76effc16bc
 Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 30 16:06:19 2017 -0400
+Date:   Tue Jun 13 08:52:53 2017 -0400
 
-    cmd/compile,runtime: update instrumentation comments
+    runtime: support DT_GNU_HASH in VDSO
     
-    The compiler's instrumentation pass has some out-of-date comments
-    about the write barrier and some confusing comments about
-    typedslicecopy. Update these comments and add a comment to
-    typedslicecopy explaining why it's manually instrumented while none of
-    the other operations are.
+    Currently we only support finding symbols in the VDSO using the old
+    DT_HASH. These days everything uses DT_GNU_HASH instead. To keep up
+    with the times and future-proof against DT_HASH disappearing from the
+    VDSO in the future, this commit adds support for DT_GNU_HASH and
+    prefers it over DT_HASH.
     
-    Change-Id: I024e5361d53f1c3c122db0c85155368a30cabd6b
-    Reviewed-on: https://go-review.googlesource.com/74430
+    Tested by making sure it found a DT_GNU_HASH section and all of the
+    expected symbols in it, and then disabling the DT_GNU_HASH path and
+    making sure the old DT_HASH path still found all of the symbols.
+    
+    Fixes #19649.
+    
+    Change-Id: I508c8b35a019330d2c32f04f3833b69cb2686f13
+    Reviewed-on: https://go-review.googlesource.com/45511
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/racewalk.go | 10 +++++++---
- src/runtime/mbarrier.go                 |  4 ++++
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ src/runtime/vdso_linux_amd64.go | 112 ++++++++++++++++++++++++++++------------
+ 1 file changed, 79 insertions(+), 33 deletions(-)

@@ -1,20 +1,20 @@
-commit f3b58edd036e082c210b11bb3aee8a40aa8fbcf2
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Oct 8 19:51:57 2020 +0700
+commit 93a9561b23b782244a7c5d77efe71f57dee8c4a5
+Author: Changkun Ou <hi@changkun.us>
+Date:   Fri Feb 28 21:53:38 2020 +0100
 
-    cmd/compile: use types.IdealFoo directly in predecl
+    testing: fix data race between parallel subtests
     
-    Instead of using untype(Ctype) to get corresponding untyped type.
+    This CL fixes a race condition if there are two subtests, and
+    one finishing but the other is panicking.
     
-    Passes toolstash-check.
+    Fixes #37551
     
-    Change-Id: I311fe6c94b1f8eb2e1615101a379cd06dcab835b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/260698
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ic33963eb338aec228964b95f7c34a0d207b91e00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221322
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go | 38 +++++++---------------------------
- src/cmd/compile/internal/gc/iexport.go |  4 ++--
- 2 files changed, 9 insertions(+), 33 deletions(-)
+ src/cmd/go/testdata/script/test_main_panic.txt | 30 ++++++++++++++++++++++++++
+ src/testing/testing.go                         | 11 +++++-----
+ 2 files changed, 35 insertions(+), 6 deletions(-)

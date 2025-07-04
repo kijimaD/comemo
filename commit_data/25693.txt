@@ -1,14 +1,18 @@
-commit a3c1a3f40120b4cf6a5e24025a0279a8c48ea22f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 27 16:21:33 2016 -0500
+commit f7c7ed7c41b28ba999f81ab1a3f66c2e35468fd0
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Sun Nov 8 23:30:43 2015 -0800
 
-    runtime: deflake TestNumGoroutine
+    cmd/go: set buildmode=pie default for android/arm64.
     
-    Fixes #14107.
+    Just like android/arm, android/arm64 refuses to execute non-PIE
+    binaries. In addition, starting from the M release (Marshmallow),
+    Android refuses to execute binaries with any text relocations
+    (this was just a warning in the L release). This makes "-shared"
+    necessary as well when building executables for Android.
     
-    Change-Id: Icd9463b1a77b139c7ebc2d8732482d704ea332d0
-    Reviewed-on: https://go-review.googlesource.com/19002
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id8802de5be98ff472fc370f8d22ffbde316aaf1e
+    Reviewed-on: https://go-review.googlesource.com/16744
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc_test.go | 23 +++++++++++++++++++----
- 1 file changed, 19 insertions(+), 4 deletions(-)
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

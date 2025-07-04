@@ -1,42 +1,19 @@
-commit d3253876f20ea39dbd7694ecaa5022e6cc147ccc
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Mar 20 13:55:42 2016 -0700
+commit f844b0be18ecab2406b2c1d20abb53e358d5574e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 12:18:19 2016 -0500
 
-    cmd/compile: change Mp{int,flt} functions into methods
+    cmd/internal/obj/x86: rename POPCNT to POPCNTQ
     
-    Also give them more idiomatic Go names. Adding godocs is outside the
-    scope of this CL. (Besides, the method names almost all directly
-    parallel an underlying math/big.Int or math/big.Float method.)
+    Ilya added POPCNT in a CL earlier this month but it's really only POPCNTQ.
+    The other forms still need to be added.
     
-    CL prepared mechanically with sed (for rewriting mpint.go/mpfloat.go)
-    and gofmt (for rewriting call sites).
+    For #4816.
     
-    Passes toolstash -cmp.
-    
-    Change-Id: Id76f4aee476ba740f48db33162463e7978c2083d
-    Reviewed-on: https://go-review.googlesource.com/20909
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I1186850d32ad6d5777475c7808e6fc9d9133e118
+    Reviewed-on: https://go-review.googlesource.com/18848
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go   |   6 +-
- src/cmd/compile/internal/gc/bimport.go   |   6 +-
- src/cmd/compile/internal/gc/cgen.go      |  42 +++---
- src/cmd/compile/internal/gc/const.go     | 238 +++++++++++++++----------------
- src/cmd/compile/internal/gc/fmt.go       |   8 +-
- src/cmd/compile/internal/gc/gen.go       |   8 +-
- src/cmd/compile/internal/gc/gsubr.go     |   4 +-
- src/cmd/compile/internal/gc/lex.go       |  16 +--
- src/cmd/compile/internal/gc/mpfloat.go   |  42 +++---
- src/cmd/compile/internal/gc/mpint.go     |  96 ++++++-------
- src/cmd/compile/internal/gc/obj.go       |   6 +-
- src/cmd/compile/internal/gc/parser.go    |  12 +-
- src/cmd/compile/internal/gc/sinit.go     |  14 +-
- src/cmd/compile/internal/gc/ssa.go       |  14 +-
- src/cmd/compile/internal/gc/subr.go      |  10 +-
- src/cmd/compile/internal/gc/swt.go       |   4 +-
- src/cmd/compile/internal/gc/typecheck.go |  30 ++--
- src/cmd/compile/internal/gc/universe.go  |  34 ++---
- src/cmd/compile/internal/gc/unsafe.go    |   2 +-
- src/cmd/compile/internal/gc/walk.go      |  40 +++---
- 20 files changed, 316 insertions(+), 316 deletions(-)
+ src/cmd/internal/obj/x86/a.out.go  | 4 +++-
+ src/cmd/internal/obj/x86/anames.go | 4 +++-
+ src/cmd/internal/obj/x86/asm6.go   | 2 +-
+ 3 files changed, 7 insertions(+), 3 deletions(-)

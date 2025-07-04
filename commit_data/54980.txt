@@ -1,24 +1,23 @@
-commit 67d555e089180aaa39993729b7f9693ea12d6ea6
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Fri Nov 10 10:42:42 2023 -0800
+commit 85ce1fd97f6d187e3e2af05440065b0561eff363
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 29 21:23:40 2022 +0000
 
-    crypto/tls: remove RSA KEX ciphers from the default list
+    doc/go1.20: add runtime, runtime/trace, and runtime/pprof release notes
     
-    Removes the RSA KEX based ciphers from the default list. This can be
-    reverted using the tlsrsakex GODEBUG.
+    This change adds release notes for the "Runtime" section and updated
+    some of the release notes for runtime/trace and runtime/pprof after I
+    looked at the full list of runtime-related changes.
     
-    Fixes #63413
+    For #54202.
     
-    Change-Id: Id221be3eb2f6c24b91039d380313f0c87d339f98
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541517
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Id1395f4e6e02d3fcc248855ca98ad0ee26cae574
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454075
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- doc/godebug.md                  |  4 ++++
- src/crypto/tls/cipher_suites.go | 30 ++++++++++++++++++++++++++++--
- src/crypto/tls/common.go        |  4 +++-
- src/crypto/tls/tls_test.go      |  6 +++++-
- src/internal/godebugs/table.go  |  1 +
- src/net/http/client_test.go     |  4 ++--
- src/runtime/metrics/doc.go      |  4 ++++
- 7 files changed, 47 insertions(+), 6 deletions(-)
+ doc/go1.20.html | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 51 insertions(+), 4 deletions(-)

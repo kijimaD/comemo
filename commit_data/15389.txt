@@ -1,14 +1,14 @@
-commit d31dd089e6aae3c4f8001c409657efa7701bca1c
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Feb 23 11:57:51 2013 +1100
+commit 66ba4a85e4f0fa31e5b033dcb70212d04dbee01d
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Feb 22 15:32:54 2013 -0800
 
-    testing: move Skip into *common
+    cmd/gc: mark LOCALS argument as a constant to print correctly
     
-    Move Skip and friends into *common so benchmarks can also be skipped.
+    Fixes #4875.
     
-    R=golang-dev, gustav.paul, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7379046
+    https://golang.org/cl/7376049
 
- src/pkg/testing/testing.go | 80 +++++++++++++++++++++++-----------------------
- 1 file changed, 40 insertions(+), 40 deletions(-)
+ src/cmd/gc/pgen.c | 1 +
+ 1 file changed, 1 insertion(+)

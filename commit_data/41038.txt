@@ -1,27 +1,25 @@
-commit 0bd3853512ea0dcb252ce02113d3929db03d6aa6
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Jan 2 17:23:24 2020 -0500
+commit 97bc039c9cf127bd1bee9442eb1bc23aa63bf4ff
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 30 00:42:38 2019 +0700
 
-    doc: remove root.html and conduct.html (moved to x/website)
+    cmd/compile: emit error message for broken type
     
-    root.html has been moved to the x/website repo in CL 180959
-    (commit golang/website@d83058ced3fadc3e8189107d2fb86c333c356b75).
+    The original report in #5172 was that cmd/compile was generating bogus
+    follow-on error messages when typechecking a struct failed. Instead of
+    fixing those follow-on error messages, golang.org/cl/9614044 suppress all
+    follow-on error messages after struct typecheck fails. We should
+    continue emitting error messages instead.
     
-    conduct.html has been moved to the x/website repo in CL 207437
-    (commit golang/website@99763cba2e5b53679a96f69725f917feb319b799).
+    While at it, also add the test case for original report.
     
-    There should be only one copy, otherwise it may lead to confusion,
-    or changes made in the wrong place. This CL removes the old copies
-    from this repo since they're no longer used.
+    Fixes #33947
     
-    Updates #29206
-    
-    Change-Id: I41adfb2c34ed3d870fb7a671f48ccc8f90863feb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213157
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I4a5c6878977128abccd704350a12df743631c7bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191944
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/conduct.html | 211 -------------------------------------------------------
- doc/root.html    | 164 ------------------------------------------
- 2 files changed, 375 deletions(-)
+ src/cmd/compile/internal/gc/typecheck.go |  7 +------
+ test/fixedbugs/issue5172.go              | 11 +++++++++--
+ 2 files changed, 10 insertions(+), 8 deletions(-)

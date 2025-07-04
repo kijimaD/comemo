@@ -1,16 +1,28 @@
-commit d4d77052b4d615d72a485fece53879c7c66f5a2a
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Feb 19 11:18:35 2014 -0500
+commit ae38b03f6cab6a25f9d8d34a39e33db9857dce2e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 19 10:01:15 2014 -0500
 
-    crypto/x509: add example of using a custom root list.
+    cmd/go: skip writing dwarf debug info for ephemeral binaries
     
-    Fixes #6267.
+    Update #6853
     
-    LGTM=r, josharian
-    R=golang-codereviews, josharian, r
+    For an ephemeral binary - one created, run, and then deleted -
+    there is no need to write dwarf debug information, since the
+    binary will not be used with gdb. In this case, instruct the linker
+    not to spend time and disk space generating the debug information
+    by passing the -w flag to the linker.
+    
+    Omitting dwarf information reduces the size of most binaries by 25%.
+    We may be more aggressive about this in the future.
+    
+    LGTM=bradfitz, r
+    R=r, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/61020043
+    https://golang.org/cl/65890043
 
- src/pkg/crypto/tls/example_test.go  | 57 +++++++++++++++++++++++
- src/pkg/crypto/x509/example_test.go | 91 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 148 insertions(+)
+ src/cmd/go/build.go | 4 ++++
+ src/cmd/go/pkg.go   | 1 +
+ src/cmd/go/run.go   | 1 +
+ src/cmd/go/test.go  | 1 +
+ test/run.go         | 2 +-
+ 5 files changed, 8 insertions(+), 1 deletion(-)

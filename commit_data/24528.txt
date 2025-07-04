@@ -1,12 +1,20 @@
-commit 4562784baed3b64e4ffdd3b2ea3c6d4b11391335
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Oct 16 16:21:26 2015 -0700
+commit a1d093d95dfb888e55f960943bd3ad3d181ec743
+Author: Vincent Batts <vbatts@hashbangbash.com>
+Date:   Mon Aug 3 12:26:38 2015 -0400
 
-    runtime: remove some unnecessary unsafe code in mfixalloc
+    archive/tar: don't treat multiple file system links as a tar hardlink
     
-    Change-Id: Ie9ea4af4315a4d0eb69d0569726bb3eca2b397af
-    Reviewed-on: https://go-review.googlesource.com/16005
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Do not assume that if stat shows multiple links that we should mark the
+    file as a hardlink in the tar format.  If the hardlink link was not
+    referenced, this caused a link to "/".  On an overlay file system, all
+    files have multiple links.
+    
+    The caller must keep the inode references and set TypeLink, Size = 0,
+    and LinkName themselves.
+    
+    Change-Id: I873b8a235bc8f8fbb271db74ee54232da36ca013
+    Reviewed-on: https://go-review.googlesource.com/13045
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mfixalloc.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/archive/tar/stat_unix.go | 5 -----
+ 1 file changed, 5 deletions(-)

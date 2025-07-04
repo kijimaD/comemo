@@ -1,13 +1,21 @@
-commit 2cc4a54dec14f32ffbc052556ac43f0df375243b
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 31 17:38:41 2011 -0400
+commit 3f1269ff1ea56cd4d1608a2b6285d12b5b1dc7d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 14:01:58 2011 -0700
 
-    flag: add Parsed, restore Usage
+    godoc: more index size reduction
     
-    R=r
+    - KindRuns don't need to repeat SpotKind,
+      it is stored in each Spot
+    - removed extra indirection from FileRuns
+      to KindRuns
+    - slight reduction of written index size
+      (~500KB)
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4973050
+    https://golang.org/cl/4969052
 
- src/pkg/flag/flag.go      | 19 ++++++++++++++++++-
- src/pkg/flag/flag_test.go |  6 ++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ lib/godoc/search.html  |  6 +++---
+ src/cmd/godoc/godoc.go |  4 ++--
+ src/cmd/godoc/index.go | 37 +++++++++++++++++--------------------
+ 3 files changed, 22 insertions(+), 25 deletions(-)

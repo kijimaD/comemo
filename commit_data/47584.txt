@@ -1,16 +1,21 @@
-commit 7456b948532e752c0ea0ac98e56e6898271f4dcd
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Nov 22 12:33:11 2021 -0800
+commit 43afb1a22016ec537915ed8ade0039ad8c6559ce
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Sun Mar 28 23:04:33 2021 +0700
 
-    doc/go1.18: document new overflow error for some untyped arguments to print/ln
+    cmd/go: fix documentation on how to create new go.mod file
     
-    Fixes #49216.
-    For #47694.
+    The correct command to create new go.mod file should be 'go mod init',
+    not 'go help init'.
     
-    Change-Id: Ib129d790c382ddcc9677d87db4ca827b7159856a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/366275
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1150621987d989997f8b75e6a13fe96423a11cf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305289
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- doc/go1.18.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/modload/help.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

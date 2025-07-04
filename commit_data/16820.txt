@@ -1,12 +1,15 @@
-commit e2425625067c633bae000a6210b7fb21d6f76d74
+commit 68572644576be5f1f7121428755e7d8af5b7044c
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Jul 19 17:48:19 2013 +0400
+Date:   Fri Jul 19 17:45:34 2013 +0400
 
-    test: fix error output in the test
+    runtime: prevent sysmon from polling network excessivly
+    If the network is not polled for 10ms, sysmon starts polling network
+    on every iteration (every 20us) until another thread blocks in netpoll.
+    Fixes #5922.
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/11432046
+    https://golang.org/cl/11569043
 
- test/fixedbugs/issue5493.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/proc.c | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,18 +1,18 @@
-commit b911771f129c599c4f5a6f9b866d300c4fa42159
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Aug 8 15:47:09 2022 -0700
+commit c3b217a0e5f032cadf4595884dad839e169c902c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Sep 13 09:16:39 2021 -0700
 
-    cmd/compile/internal/ir: better dump for OLINKSYMOFFSET
+    cmd/go: document 'go install cmd@version' ignores vendor directories
     
-    When debugging IR that uses OLINKSYMOFFSET, you really need to know
-    what linksym it actually refers to.
+    For #48332
     
-    Change-Id: I7f4775d040b50e36262f9f8b52d0fb112b7ed350
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/422194
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I708eb3e8f3f386f03210b7117d9ab8b0be2125bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349591
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ir/fmt.go | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ src/cmd/go/alldocs.go             | 7 +++++--
+ src/cmd/go/internal/work/build.go | 7 +++++--
+ 2 files changed, 10 insertions(+), 4 deletions(-)

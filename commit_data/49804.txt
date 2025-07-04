@@ -1,19 +1,22 @@
-commit 7d70779db5893a4ac1c4746f463b5aa0b4d7e527
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 5 20:17:28 2022 -0700
+commit f93a63addbbca69d7817c8993a88511ec31424cd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Sep 13 12:49:08 2021 -0700
 
-    cmd/compile/internal/noder: shuffle defined type handling code
+    reflect: add a floating point section to DeepEqual tests
     
-    Per TODO, this CL just moves code around without behavioral
-    change. Part of a cleanup process so that it's easier to access object
-    dictionaries where needed.
+    The floating point tests were all added into the Inequalities section,
+    instead of separated into Equalities vs Inequalities.
     
-    Change-Id: I95bb3cdd3cdb46cae47d76d5c1d5d8256661f222
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421816
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Rather than separate them, add a new floating point section.
+    
+    Change-Id: I3713a5aff5850dcc0caf68a754633d695a03ded9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349612
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/writer.go | 48 +++++++++++++++++++++-----------
- 1 file changed, 32 insertions(+), 16 deletions(-)
+ src/reflect/all_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

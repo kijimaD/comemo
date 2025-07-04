@@ -1,29 +1,15 @@
-commit e775b8df7a073824e445b64742f3bc4dc4fa6f3d
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 31 09:29:39 2016 -0700
+commit fe5eac63c4b8d8f9d541d40f9055c3e4d4454d67
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 4 14:16:58 2016 -0500
 
-    cmd/compile: add sliceBound
+    cmd/internal/obj: hoist fieldtrack code out of x86 back end
     
-    Add a constant for the magic -1 for slice bounds.
-    Use it.
-    Enforce more aggressively that bounds must be
-    slice, ddd, or non-negative.
-    Remove ad hoc check in plive.go.
-    Check bounds before constructing an array type
-    when typechecking.
-    
-    All changes are manual.
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: I9fd9cc789d7d4b4eea3b30b24037a254d3788add
-    Reviewed-on: https://go-review.googlesource.com/21348
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I38e59088c37426d914ce2b4dfc79f3d476e06f49
+    Reviewed-on: https://go-review.googlesource.com/19617
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/align.go     |  2 +-
- src/cmd/compile/internal/gc/bimport.go   |  4 ++--
- src/cmd/compile/internal/gc/plive.go     |  5 -----
- src/cmd/compile/internal/gc/type.go      | 21 +++++++++++++++++----
- src/cmd/compile/internal/gc/typecheck.go | 10 ++++++----
- 5 files changed, 26 insertions(+), 16 deletions(-)
+ src/cmd/internal/obj/obj.go      | 18 ++++++++++++++++++
+ src/cmd/internal/obj/objfile.go  |  1 +
+ src/cmd/internal/obj/x86/asm6.go |  9 ---------
+ 3 files changed, 19 insertions(+), 9 deletions(-)

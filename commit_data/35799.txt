@@ -1,21 +1,110 @@
-commit 37f05cc6367e16865b8018948eed7ab2136d9d86
-Author: Guilherme Goncalves <guilhermeaugustosg@gmail.com>
-Date:   Sat Jun 23 22:32:26 2018 +0000
+commit 669db2cef55321b0fe354b8bf9212245dc9c6aed
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 10 16:28:58 2018 -0500
 
-    net/http: document and test behavior of ServeMux with ports
+    cmd/compile: make prove pass use unsatisfiability
     
-    Beginning on Go 1.9, ServeMux has been dropping the port number from the Host
-    header and in the path pattern. This commit explicitly mentions the change in
-    behavior and adds a simple test case to ensure consistency.
+    Currently the prove pass uses implication queries. For each block, it
+    collects the set of branch conditions leading to that block, and
+    queries this fact table for whether any of these facts imply the
+    block's own branch condition (or its inverse). This works remarkably
+    well considering it doesn't do any deduction on these facts, but it
+    has various downsides:
     
-    Fixes #23351.
+    1. It requires an implementation both of adding facts to the table and
+       determining implications. These are very nearly duals of each
+       other, but require separate implementations. Likewise, the process
+       of asserting facts of dominating branch conditions is very nearly
+       the dual of the process of querying implied branch conditions.
     
-    Change-Id: I0270c8bd96cda92c13ac6437cdf66c2807b3042d
-    Reviewed-on: https://go-review.googlesource.com/120557
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    2. It leads to less effective use of derived facts. For example, the
+       prove pass currently derives facts about the relations between len
+       and cap, but can't make use of these unless a branch condition is
+       in the exact form of a derived fact. If one of these derived facts
+       contradicts another fact, it won't notice or make use of this.
+    
+    This CL changes the approach of the prove pass to instead use
+    *contradiction* instead of implication. Rather than ever querying a
+    branch condition, it simply adds branch conditions to the fact table.
+    If this leads to a contradiction (specifically, it makes the fact set
+    unsatisfiable), that branch is impossible and can be cut. As a result,
+    
+    1. We can eliminate the code for determining implications
+       (factsTable.get disappears entirely). Also, there is now a single
+       implementation of visiting and asserting branch conditions, since
+       we don't have to flip them around to treat them as facts in one
+       place and queries in another.
+    
+    2. Derived facts can be used effectively. It doesn't matter *why* the
+       fact table is unsatisfiable; a contradiction in any of the facts is
+       enough.
+    
+    3. As an added benefit, it's now quite easy to avoid traversing beyond
+       provably-unreachable blocks. In contrast, the current
+       implementation always visits all blocks.
+    
+    The prove pass already has nearly all of the mechanism necessary to
+    compute unsatisfiability, which means this both simplifies the code
+    and makes it more powerful.
+    
+    The only complication is that the current implication procedure has a
+    hack for dealing with the 0 <= Args[0] condition of OpIsInBounds and
+    OpIsSliceInBounds. We replace this with asserting the appropriate fact
+    when we process one of these conditions. This seems much cleaner
+    anyway, and works because we can now take advantage of derived facts.
+    
+    This has no measurable effect on compiler performance.
+    
+    Effectiveness:
+    
+    There is exactly one condition in all of std and cmd that this fails
+    to prove that the old implementation could: (int64(^uint(0)>>1) < x)
+    in encoding/gob. This can never be true because x is an int, and it's
+    basically coincidence that the old code gets this. (For example, it
+    fails to prove the similar (x < ^int64(^uint(0)>>1)) condition that
+    immediately precedes it, and even though the conditions are logically
+    unrelated, it wouldn't get the second one if it hadn't first processed
+    the first!)
+    
+    It does, however, prove a few dozen additional branches. These come
+    from facts that are added to the fact table about the relations
+    between len and cap. These were almost never queried directly before,
+    but could lead to contradictions, which the unsat-based approach is
+    able to use.
+    
+    There are exactly two branches in std and cmd that this implementation
+    proves in the *other* direction. This sounds scary, but is okay
+    because both occur in already-unreachable blocks, so it doesn't matter
+    what we chose. Because the fact table logic is sound but incomplete,
+    it fails to prove that the block isn't reachable, even though it is
+    able to prove that both outgoing branches are impossible. We could
+    turn these blocks into BlockExit blocks, but it doesn't seem worth the
+    trouble of the extra proof effort for something that happens twice in
+    all of std and cmd.
+    
+    Tests:
+    
+    This CL updates test/prove.go to change the expected messages because
+    it can no longer give a "reason" why it proved or disproved a
+    condition. It also adds a new test of a branch it couldn't prove
+    before.
+    
+    It mostly guts test/sliceopt.go, removing everything related to slice
+    bounds optimizations and moving a few relevant tests to test/prove.go.
+    Much of this test is actually unreachable. The new prove pass figures
+    this out and doesn't try to prove anything about the unreachable
+    parts. The output on the unreachable parts is already suspect because
+    anything can be proved at that point, so it's really just a regression
+    test for an algorithm the compiler no longer uses.
+    
+    This is a step toward fixing #23354. That issue is quite easy to fix
+    once we can use derived facts effectively.
+    
+    Change-Id: Ia48a1b9ee081310579fe474e4a61857424ff8ce8
+    Reviewed-on: https://go-review.googlesource.com/87478
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/serve_test.go | 22 ++++++++++++++++++++++
- src/net/http/server.go     |  6 +++---
- 2 files changed, 25 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/prove.go | 339 ++++++++++++++++------------------
+ test/prove.go                         |  80 +++++---
+ test/sliceopt.go                      |  45 +----
+ 3 files changed, 209 insertions(+), 255 deletions(-)

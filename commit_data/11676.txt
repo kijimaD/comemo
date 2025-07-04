@@ -1,29 +1,21 @@
-commit 3d6b368514f2b72538c23a27f248684dd9cca227
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 7 15:19:52 2012 -0800
+commit e3755434b8790288a1d48ae3ebf9f4e49c881849
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 7 16:46:33 2012 -0500
 
-    go/printer, gofmt: don't print incorrect programs
+    5l, 6l, 8l: implement -X flag
     
-    Be careful when printing line comments with incorrect
-    position information. Maintain additional state
-    impliedSemi: when set, a comment containing a newline
-    would imply a semicolon and thus placement must be
-    delayed.
-    
-    Precompute state information pertaining to the next
-    comment for faster checks (the printer is marginally
-    faster now despite additional checks for each comment).
-    
-    No effect on existing src, misc sources.
-    
-    Fixes #1505.
-    
-    R=rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5598054
+    https://golang.org/cl/5643050
 
- src/cmd/fix/timefileinfo_test.go   |  26 +++++++
- src/pkg/go/printer/nodes.go        |   1 +
- src/pkg/go/printer/printer.go      | 153 +++++++++++++++++++++++++++----------
- src/pkg/go/printer/printer_test.go |  75 ++++++++++++++++--
- 4 files changed, 209 insertions(+), 46 deletions(-)
+ src/cmd/5l/doc.go | 32 +++-----------------------------
+ src/cmd/5l/obj.c  | 10 +++++-----
+ src/cmd/6l/doc.go | 45 +++------------------------------------------
+ src/cmd/6l/obj.c  |  9 +++++----
+ src/cmd/8l/doc.go | 47 +++--------------------------------------------
+ src/cmd/8l/obj.c  |  9 +++++----
+ src/cmd/ld/data.c | 19 +++++++++++++++++++
+ src/cmd/ld/doc.go | 46 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/ld/lib.h  |  1 +
+ test/linkx.go     | 15 +++++++++++++++
+ 10 files changed, 103 insertions(+), 130 deletions(-)

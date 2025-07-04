@@ -1,27 +1,17 @@
-commit b9a365681f57c8705bccbd6d3744afb9dc42eebb
-Author: David Chase <drchase@google.com>
-Date:   Fri Mar 2 20:33:15 2018 -0500
+commit f91ab6c0256877841944c57a12bd779edb2a0f66
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Nov 19 13:40:05 2017 +0000
 
-    cmd/compile: adjust is-statement on Pos's to improve debugging
+    bytes: don't use an iota for the readOp constants
     
-    Stores to auto tmp variables can be hoisted to places
-    where the line numbers make debugging look "jumpy".
-    Turning those instructions into ones with is_stmt = 0 in
-    the DWARF (accomplished by marking ssa nodes with NotStmt)
-    makes debugging look better while still attributing the
-    instructions with the correct line number.
+    As per the comments in golang.org/cl/78617. Also leaving a comment here,
+    to make sure noone else thinks to re-introduce the iota like I did.
     
-    The same is true for certain register allocator spills and
-    reloads.
-    
-    Change-Id: I97a394eb522d4911cc40b4bf5bf76d3d7221f6c0
-    Reviewed-on: https://go-review.googlesource.com/98415
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I2a2275998b81896eaa0e9d5ee0197661ebe84acf
+    Reviewed-on: https://go-review.googlesource.com/78676
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go                 | 36 +++++++++++++++++-----
- src/cmd/compile/internal/ssa/regalloc.go           | 10 +++---
- .../internal/ssa/testdata/hist.gdb-opt.nexts       | 24 ---------------
- .../internal/ssa/testdata/scopes.gdb-opt.nexts     |  2 --
- 4 files changed, 34 insertions(+), 38 deletions(-)
+ src/bytes/buffer.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

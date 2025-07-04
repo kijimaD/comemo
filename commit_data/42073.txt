@@ -1,25 +1,19 @@
-commit 9f4dd09bf555632a39a01a4c171e713acb55fda9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 21 15:37:29 2020 -0700
+commit e6135c27682988a490166629f6a52f5102791bcb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 28 20:38:59 2019 +0000
 
-    cmd/compile: refactor variadac call desugaring
+    runtime: switch to new page allocator
     
-    In mid-Walk, we rewrite calls to variadic functions to use explicit
-    slice literals; e.g., rewriting f(a,b,c) into f([]T{a,b,c}...).
-    However, it would be useful to do that rewrite much earlier in the
-    compiler, so that other compiler passes can be simplified.
+    This change flips the oldPageAllocator constant enabling the new page
+    allocator in the Go runtime.
     
-    This CL refactors the rewrite logic into a new fixVariadicCall
-    function, which subsequent CLs can more easily move into earlier
-    compiler passes.
+    Updates #35112.
     
-    Passes toolstash-check -race.
-    
-    Change-Id: I408e655f2d3aa00446a2e6accf8765abc3b16a8a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229486
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I7fc8332af9fd0e43ce28dd5ebc1c1ce519ce6d0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201765
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/walk.go | 76 ++++++++++++++++++++-----------------
- 1 file changed, 41 insertions(+), 35 deletions(-)
+ src/runtime/malloc.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

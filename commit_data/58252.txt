@@ -1,23 +1,16 @@
-commit c4e6ab9750e9d673a29203a9f41a517bcdc7a64c
-Author: Youlin Feng <fengyoulin@live.com>
-Date:   Fri Nov 15 00:13:34 2024 +0800
+commit 166063510aeb3bf94f4530aa9ce92ef1a15bb8dd
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Oct 13 14:53:49 2023 +0800
 
-    cmd/compile: modify CSE to remove redundant OpLocalAddrs
+    embed: add available godoc link
     
-    Remove the OpLocalAddrs that are unnecessary in the CSE pass, so the
-    following passes like DSE and memcombine can do its work better.
-    
-    Fixes #70300
-    
-    Change-Id: I600025d49eeadb3ca4f092d614428399750f69bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628075
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Iefccc7aeb0f697c555ae8a6a6bb6cd5091882195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535079
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/cse.go |    70 +-
- test/codegen/memcombine.go          |    26 +
- test/fixedbugs/bug385_64.go         | 49446 ++++++++++++++++++++++------------
- 3 files changed, 33058 insertions(+), 16484 deletions(-)
+ src/embed/embed.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

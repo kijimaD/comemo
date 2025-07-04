@@ -1,15 +1,20 @@
-commit c3c4a2bf6589f8c1e046149356fb5456b34a0df1
-Author: Pedro Lopez Mareque <pedro.lopez.mareque@gmail.com>
-Date:   Fri Oct 8 07:01:35 2021 +0200
+commit 4313c2886160613ca62742d0f46665cf8954213c
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Sat Mar 13 00:21:18 2021 +0800
 
-    math/bits: add examples for Add, Sub, Mul and Div
+    cmd/cgo: check whether C compiler exists
     
-    Change-Id: I2f3619aa827e18f356871511c20cf2c712f496b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353189
+    Currently we print a cryptic message if a C compiler doesn't exist.
+    This patch adds more graceful handling.
+    
+    Fixes #44271
+    
+    Change-Id: I44f16ef6eb2853fee22fa1d996e41ec6c9ee82f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301249
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/math/bits/example_math_test.go | 202 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 202 insertions(+)
+ src/cmd/cgo/main.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,48 +1,28 @@
-commit c96939fbed3d60159dc81ee9ad591de8cfd41168
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Sun Nov 10 12:31:16 2024 -0800
+commit 9f5a2cf61cc0c2389c577a00b5914235236d6c7f
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 11 10:59:48 2023 -0400
 
-    cmd: update github.com/google/pprof dependencies
+    net/http: mapping data structure
     
-    Spun out of CL 626397, this change vendors in the latest
-    github.com/google/pprof and that also required updating
-    golang.org/x/sys to v0.27.
+    Our goal for the new ServeMux patterns is to match the routing
+    performance of the existing ServeMux patterns. To achieve that
+    we needed to optimize lookup for small maps.
     
-    Change-Id: I72ee514494a9e7c36a8943d78f15bdd0445c5cd5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626995
+    This CL introduces a simple data structure called a mapping that
+    optimizes lookup by using a slice for small collections of key-value
+    pairs, switching to a map when the collection gets large.
+    
+    Mappings are a core part of the routing algorithm, which uses a
+    decision tree to match path elements.   The children of a tree node are
+    held in a mapping.
+    
+    Change-Id: I923b3ad1376ace2c3e3421aa9b802ad12d47c871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526617
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/go.mod                                     |   6 +-
- src/cmd/go.sum                                     |  12 +--
- .../github.com/google/pprof/driver/driver.go       |   9 +-
- .../pprof/internal/binutils/addr2liner_llvm.go     | 119 ++++++++++-----------
- .../google/pprof/internal/driver/config.go         |   2 +-
- .../google/pprof/internal/driver/driver.go         |   2 +
- .../google/pprof/internal/driver/html/common.css   |   4 +
- .../google/pprof/internal/driver/html/header.html  |   6 ++
- .../google/pprof/internal/driver/html/stacks.css   |  22 +++-
- .../google/pprof/internal/driver/html/stacks.html  |   5 +-
- .../google/pprof/internal/driver/html/stacks.js    |  72 ++++++++-----
- .../google/pprof/internal/driver/interactive.go    |   3 +
- .../google/pprof/internal/driver/stacks.go         |   4 +-
- .../google/pprof/internal/driver/webui.go          |   2 +
- .../google/pprof/internal/elfexec/elfexec.go       |   2 +-
- .../google/pprof/internal/plugin/plugin.go         |   9 +-
- .../google/pprof/internal/report/report.go         |  22 +++-
- .../google/pprof/internal/report/shortnames.go     |  24 ++++-
- .../google/pprof/internal/report/stacks.go         |  80 +++++++++-----
- .../google/pprof/internal/symbolizer/symbolizer.go |   1 +
- .../google/pprof/internal/symbolz/symbolz.go       |  12 +--
- .../github.com/google/pprof/profile/encode.go      |   5 +
- .../github.com/google/pprof/profile/merge.go       |   5 +
- .../github.com/google/pprof/profile/profile.go     |   7 +-
- .../github.com/ianlancetaylor/demangle/demangle.go |  11 ++
- src/cmd/vendor/modules.txt                         |   8 +-
- src/go.mod                                         |   2 +-
- src/go.sum                                         |   4 +-
- src/vendor/modules.txt                             |   2 +-
- 29 files changed, 301 insertions(+), 161 deletions(-)
+ src/net/http/mapping.go      |  78 ++++++++++++++++++++++
+ src/net/http/mapping_test.go | 154 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 232 insertions(+)

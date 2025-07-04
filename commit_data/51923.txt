@@ -1,16 +1,21 @@
-commit af2952a73736f8625e7b158383fe49d7a9220a4f
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Dec 5 12:59:55 2022 +0100
+commit 60be4ec096a180d74208230207e839bd2c8a030a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 23 16:06:19 2022 -0700
 
-    math/big: add warning about using Int for cryptography
+    test: remove unused oldescape_linkname.dir directory
     
-    Change-Id: I31bec5d2b4a79a085942c7d380678379d99cf07b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455135
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    CL 187617 removed oldescape_linkname.go, but forgot to remove this
+    directory too.
+    
+    Change-Id: I6d208c4d96d636b3df93adec1ee22fe1d4f5f61d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395259
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/math/big/int.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ test/oldescape_linkname.dir/linkname1.go | 10 ----------
+ test/oldescape_linkname.dir/linkname2.go | 13 -------------
+ test/oldescape_linkname.dir/linkname3.go | 11 -----------
+ 3 files changed, 34 deletions(-)

@@ -1,15 +1,19 @@
-commit 733567a1860956e87daa1a2fa46d58fc44b896cc
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Jul 16 17:37:27 2017 -1000
+commit 1cf6d4748c9b4b7be38d6cdf0a1e419b33c306ac
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Thu Apr 13 14:06:43 2017 +0800
 
-    runtime: use integer math for hashmap overLoadFactor
+    cmd/dist: fix incorrect platform string shared by all tests
     
-    Change-Id: I92cf39a05e738a03d956779d7a1ab1ef8074b2ab
-    Reviewed-on: https://go-review.googlesource.com/54655
+    all tests currently share the same platform string and fail to
+    vet expected platforms
+    
+    Fixes #19958
+    
+    Change-Id: I2801e1e84958e31975769581e27ea5ca6a0edf5b
+    Reviewed-on: https://go-review.googlesource.com/40511
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/hashmap.go | 9 +++++----
- src/runtime/stubs.go   | 2 +-
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/dist/test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

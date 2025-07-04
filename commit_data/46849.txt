@@ -1,19 +1,38 @@
-commit d90f0b920054e5e3fba981eea67fe092732a4376
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Oct 11 09:59:40 2021 -0400
+commit 0fbde54ea646aa1363fc172610a75e5ba877d4ec
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Feb 8 10:23:05 2021 -0800
 
-    cmd/compile/internal/types2: avoid duplicate errors for invalid bounds
+    [dev.typeparams] cmd/compile: allow generic funcs to call other generic funcs for stenciling
     
-    Resolve a TODO from an earlier CL: we should only check type parameter
-    bounds once in collectTypeParams.
+     - Handle generic function calling itself or another generic function in
+       stenciling. This is easy - after it is created, just scan an
+       instantiated generic function for function instantiations (that may
+       needed to be stenciled), just like non-generic functions. The types
+       in the function instantiation will already have been set by the
+       stenciling.
     
-    Change-Id: Icf6053ec359f8ac8143cf68ee2defd504f8f86e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355069
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+     - Handle OTYPE nodes in subster.node() (allows for generic type
+       conversions).
+    
+     - Eliminated some duplicated work in subster.typ().
+    
+     - Added new test case fact.go that tests a generic function calling
+       itself, and simple generic type conversions.
+    
+     - Cause an error if a generic function is to be exported (which we
+       don't handle yet).
+    
+     - Fixed some suggested changes in the add.go test case that I missed in
+       the last review.
+    
+    Change-Id: I5d61704254c27962f358d5a3d2e0c62a5099f148
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290469
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/decl.go                   | 15 ++++++++++-----
- .../internal/types2/testdata/examples/typesets.go2        |  2 ++
- 2 files changed, 12 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/noder/object.go  |  3 +++
+ src/cmd/compile/internal/noder/stencil.go | 15 +++++++++----
+ test/typeparam/fact.go                    | 35 +++++++++++++++++++++++++++++++
+ test/typeparam/{add.go => sum.go}         | 20 +++++++++---------
+ 4 files changed, 59 insertions(+), 14 deletions(-)

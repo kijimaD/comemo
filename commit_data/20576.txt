@@ -1,32 +1,25 @@
-commit 1cfa5958f0ab841bd00fcc0d674bfec87e2055bd
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Sep 29 13:28:08 2014 -0700
+commit 2ed209eaf59c3b7372258419c5fa1f5b0abc507e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 19 11:38:48 2014 +1000
 
-    undo CL 141840043 / 65e21380cb2a
+    runtime: allow OutputDebugString to be sent to debugger
     
-    Unnecessary; covered by https://golang.org/cl/141690043
+    We mark DBG_PRINTEXCEPTION_C messages in VEH handler
+    as handled, thus preventing debugger from seeing them.
+    I don't see reason for doing that. The comment warns
+    of crashes, but I added test and don't see any crashes.
     
-    Verified by jonathan@titanous.com on golang-dev.
+    This is also simplify VEH handler before making
+    changes to fix issue 8006.
     
-    ««« original CL description
-    cmd/ld: close outfile before cleanup
+    Update #8006
     
-    This prevents the temporary directory from being leaked when
-    the linker is run on a FUSE filesystem.
-    
-    Fixes #8684.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, rsc, bradfitz
+    LGTM=rsc
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/141840043
-    
-    »»»
-    
-    LGTM=jonathan, iant
-    R=iant, jonathan
-    CC=golang-codereviews
-    https://golang.org/cl/150250045
+    https://golang.org/cl/146800043
 
- src/cmd/ld/lib.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/runtime/os_windows_386.c        | 15 ---------------
+ src/runtime/os_windows_amd64.c      | 15 ---------------
+ src/runtime/syscall_windows_test.go |  6 ++++++
+ 3 files changed, 6 insertions(+), 30 deletions(-)

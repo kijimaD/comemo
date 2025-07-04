@@ -1,12 +1,13 @@
-commit 3063ff5168d11c88b58e125124f84d8ae5d885db
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 17 14:48:44 2012 -0800
+commit 5c3de8ccb3ebb299968a88780f65b9f7cbdaf5d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 17 16:59:33 2012 -0500
 
-    crypto/dsa: add missing period in package comment
+    doc: fix tables
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5673087
+    https://golang.org/cl/5676084
 
- src/pkg/crypto/dsa/dsa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go1.html | 6 ++++++
+ doc/go1.tmpl | 6 ++++++
+ 2 files changed, 12 insertions(+)

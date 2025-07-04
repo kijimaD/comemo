@@ -1,22 +1,38 @@
-commit d891ebdce1ac2c72e1d923c24f5a65ec14ba7cf8
-Author: David Chase <drchase@google.com>
-Date:   Fri Feb 26 14:27:59 2021 -0500
+commit 4a9237129198d2082f8346d162a011a341b757a6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jul 29 13:26:50 2020 -0400
 
-    cmd/compile: return (and receive) medium-large results
+    [dev.link] cmd/link: remove "2", another round
     
-    includes three tests
+    Rename Reloc2 to Reloc, At2 to At, Aux2 to Aux.
     
-    Change-Id: I33ac0cfe35085d4b6ad2775abcaa3d7d6527b49f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/297031
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic98d83c080e8cd80fbe1837c8f0aa134033508ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245578
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/expand_calls.go | 80 ++++++++++++--------------
- src/cmd/compile/internal/ssa/op.go           |  9 ++-
- src/cmd/compile/internal/ssagen/ssa.go       | 85 ++++++++++++++++++----------
- test/abi/double_nested_addressed_struct.go   | 62 ++++++++++++++++++++
- test/abi/double_nested_struct.go             | 55 ++++++++++++++++++
- test/abi/too_big_to_ssa.go                   | 47 +++++++++++++++
- test/abi/too_big_to_ssa.out                  |  2 +
- 7 files changed, 264 insertions(+), 76 deletions(-)
+ src/cmd/link/internal/amd64/asm.go            |  8 ++---
+ src/cmd/link/internal/arm/asm.go              | 16 +++++-----
+ src/cmd/link/internal/arm64/asm.go            | 10 +++---
+ src/cmd/link/internal/ld/data.go              | 16 +++++-----
+ src/cmd/link/internal/ld/deadcode.go          | 14 ++++----
+ src/cmd/link/internal/ld/decodesym.go         |  6 ++--
+ src/cmd/link/internal/ld/dwarf.go             |  6 ++--
+ src/cmd/link/internal/ld/elf.go               |  2 +-
+ src/cmd/link/internal/ld/go.go                |  2 +-
+ src/cmd/link/internal/ld/lib.go               | 12 +++----
+ src/cmd/link/internal/ld/macho.go             |  2 +-
+ src/cmd/link/internal/ld/pcln.go              |  2 +-
+ src/cmd/link/internal/ld/pe.go                |  8 ++---
+ src/cmd/link/internal/ld/typelink.go          |  2 +-
+ src/cmd/link/internal/ld/xcoff.go             |  6 ++--
+ src/cmd/link/internal/loader/loader.go        | 46 +++++++++++++--------------
+ src/cmd/link/internal/loader/loader_test.go   | 18 +++++------
+ src/cmd/link/internal/loader/symbolbuilder.go |  4 +--
+ src/cmd/link/internal/mips/asm.go             |  6 ++--
+ src/cmd/link/internal/mips64/asm.go           |  6 ++--
+ src/cmd/link/internal/ppc64/asm.go            | 22 ++++++-------
+ src/cmd/link/internal/riscv64/asm.go          |  4 +--
+ src/cmd/link/internal/s390x/asm.go            |  6 ++--
+ src/cmd/link/internal/wasm/asm.go             |  4 +--
+ src/cmd/link/internal/x86/asm.go              |  8 ++---
+ 25 files changed, 118 insertions(+), 118 deletions(-)

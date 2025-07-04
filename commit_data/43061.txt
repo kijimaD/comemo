@@ -1,18 +1,30 @@
-commit 0d83fe68a843df2113d0adaac9ac6299a1c2cdad
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Sep 22 14:48:02 2020 +0200
+commit 68fea523fda227ca5fe7a1eadb7542be4b0a840c
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Tue Mar 3 23:05:32 2020 +0800
 
-    os: close fd if fd.Stat fails in Getwd
+    cmd/asm: add MIPS MSA LD/ST/LDI support for mips64x
     
-    Avoid leaking fd in case fd.Stat() fails in the fall back implementation
-    of Getwd.
+    This CL adding primitive asm support of MIPS MSA by introducing
+    new sets of register W0-W31 (C_WREG) and 12 new instructions:
     
-    Change-Id: I8656d42e8dbc8893b7159873f173d6bf0d4febe6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/256221
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    * VMOV{B,H,W,D} ADDCONST, WREG  (Vector load immediate)
+    * VMOV{B,H,W,D} SOREG, WREG     (Vector load)
+    * VMOV{B,H,W,D} WREG, SOREG     (Vector store)
+    
+    Ref: MIPS Architecture for Programmers Volume IV-j: The MIPS64 SIMD Architecture Module
+    
+    Change-Id: I3362c59a73c82c94769c18a19a0bee7e5029217d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215723
+    Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/os/getwd.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/asm/internal/arch/arch.go          |  4 ++
+ src/cmd/asm/internal/arch/mips.go          |  4 ++
+ src/cmd/asm/internal/asm/testdata/mips64.s | 33 +++++++++++++
+ src/cmd/internal/obj/mips/a.out.go         | 48 +++++++++++++++++++
+ src/cmd/internal/obj/mips/anames.go        |  4 ++
+ src/cmd/internal/obj/mips/anames0.go       |  1 +
+ src/cmd/internal/obj/mips/asm0.go          | 74 ++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/mips/list0.go         |  3 ++
+ 8 files changed, 171 insertions(+)

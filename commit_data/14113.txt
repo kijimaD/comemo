@@ -1,20 +1,26 @@
-commit be2b95fe3a296803cf8cecde14c4123e04f1aa2d
+commit 21b2ce724aa1310b3efb2f722d4a647be770e835
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Oct 10 20:49:18 2012 +0400
+Date:   Wed Oct 10 18:09:23 2012 +0400
 
-    runtime/debug: fix the test
-    If source are not available, then the stack looks like:
-    stack_test.go:40:       /tmp/gobuilder/linux-amd64-race-72b15c5d6f65/go/src/pkg/runtime/debug/bla-bla-bla/src/pkg/runtime/debug/stack_test.go:15 (0x43fb11)
-    stack_test.go:40:       /tmp/gobuilder/linux-amd64-race-72b15c5d6f65/go/src/pkg/runtime/debug/bla-bla-bla/src/pkg/runtime/debug/stack_test.go:18 (0x43fb7a)
-    stack_test.go:40:       /tmp/gobuilder/linux-amd64-race-72b15c5d6f65/go/src/pkg/runtime/debug/bla-bla-bla/src/pkg/runtime/debug/stack_test.go:37 (0x43fbf4)
-    stack_test.go:40:       /tmp/gobuilder/linux-amd64-race-72b15c5d6f65/go/src/pkg/testing/bla-bla-bla/src/pkg/testing/testing.go:301 (0x43b5ba)
-    stack_test.go:40:       /tmp/gobuilder/linux-amd64-race-72b15c5d6f65/go/src/pkg/runtime/bla-bla-bla/src/pkg/runtime/proc.c:276 (0x410670)
-    stack_test.go:40:
-    which is 6 lines.
+    cmd/gc: fix compiler crash during race instrumentation
+    The compiler is crashing on the following code:
     
-    R=golang-dev, minux.ma
+    type TypeID int
+    func (t *TypeID) encodeType(x int) (tt TypeID, err error) {
+            switch x {
+            case 0:
+                    return t.encodeType(x * x)
+            }
+            return 0, nil
+    }
+    The pass marks "return struct" {tt TypeID, err error} as used,
+    and this causes internal check failure.
+    I've added the test to:
+    https://golang.org/cl/6525052/diff/7020/src/pkg/runtime/race/regression_test.go
+    
+    R=golang-dev, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6637060
+    https://golang.org/cl/6611049
 
- src/pkg/runtime/debug/stack_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/racewalk.c | 34 +++++++++++++++++++++-------------
+ 1 file changed, 21 insertions(+), 13 deletions(-)

@@ -1,13 +1,22 @@
-commit ef0e2af7b0296c61c17877b84f09221335a962f7
-Author: Filippo Valsorda <hi@filippo.io>
-Date:   Sun Nov 5 14:33:21 2017 -0500
+commit 78984d3954a60f446d04c796f9c22e073f07cbd3
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Aug 16 20:50:26 2017 +0900
 
-    math/big: add security warning to (*Int).Rand
+    debug/macho: rearrange code
     
-    Change-Id: I22a67733aa2d07298e124077654c9b1473802100
-    Reviewed-on: https://go-review.googlesource.com/76012
-    Reviewed-by: Aliaksandr Valialkin <valyala@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    * group load command structs.
+    * use hex literal for LoadCommand.
+      Decimal number is not a proper representation for some commands.
+      (e.g. LC_RPATH = 0x8000001c)
+    * move Symbol struct from macho.go to file.go.
+      Symbol is a high level representation, not in Mach-O.
+    
+    Change-Id: I3c69923cb464fb1211f2e766c02e1b537e0b5de2
+    Reviewed-on: https://go-review.googlesource.com/56130
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/math/big/int.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/debug/macho/file.go  |   9 +++
+ src/debug/macho/macho.go | 191 +++++++++++++++++++++++------------------------
+ 2 files changed, 101 insertions(+), 99 deletions(-)

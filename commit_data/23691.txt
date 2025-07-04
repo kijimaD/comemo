@@ -1,16 +1,19 @@
-commit af96030150217fe711eac5ee994b44705bfb6832
+commit 16ebe9f72eee1ccba4e94fb2a79afa0785cb554a
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 14:52:04 2015 -0400
+Date:   Thu Jun 4 14:41:02 2015 -0400
 
-    cmd/go: fix go get -u handling of changing dependencies
+    cmd/go: use ELF note instead of binary stamp on ELF systems
     
-    Fixes #9224.
+    Other binary formats to follow.
     
-    Change-Id: Ie0f4f14407099e4fa7ebe361a95b6492012928a2
-    Reviewed-on: https://go-review.googlesource.com/12192
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    For #11048.
+    
+    Change-Id: Ia2d8b47c99c99d171c014b7cfd23c1c7ada5231c
+    Reviewed-on: https://go-review.googlesource.com/10707
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/get.go     |  4 ++--
- src/cmd/go/go_test.go | 29 +++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 2 deletions(-)
+ src/cmd/go/build.go     |  3 +++
+ src/cmd/go/note.go      | 50 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/note_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/pkg.go       | 33 +++++++++++++++++++++++++-------
+ 4 files changed, 124 insertions(+), 7 deletions(-)

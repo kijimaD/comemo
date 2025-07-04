@@ -1,27 +1,15 @@
-commit 424b0654f8e6c72f69e096f69009096de16e30fa
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Jan 8 17:16:46 2017 +0900
+commit 3b39f523e1181499827321cedd8b7370b14ee762
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Mar 22 12:38:09 2017 -0400
 
-    net: update documentation on Listen and ListenPacket
+    cmd/vet: -lostcancel: fix crash in ill-typed code
     
-    This change clarifies the documentation on Listen and ListenPacket to
-    avoid unnecessary confusion about how the arguments for the connection
-    setup functions are used to make connections.
+    Fixes golang/go#19656
     
-    Also replaces "name" or "hostname" with "host name" when the term
-    implies the use of DNS.
-    
-    Updates #17613.
-    Updates #17614.
-    Updates #17615.
-    Fixes #17616.
-    Updates #17738.
-    Updates #17956.
-    
-    Change-Id: I0bad2e143207666f2358d397fc076548ee6c3ae9
-    Reviewed-on: https://go-review.googlesource.com/34876
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ied20d3f25b6e147cc693a1dd1aeb9480adc6687e
+    Reviewed-on: https://go-review.googlesource.com/38405
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/dial.go         | 86 +++++++++++++++++++++++++++----------------------
- src/net/example_test.go |  3 +-
- 2 files changed, 49 insertions(+), 40 deletions(-)
+ src/cmd/vet/lostcancel.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

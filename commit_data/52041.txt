@@ -1,26 +1,19 @@
-commit 4a1829b65a5c6b62c3aadeccc0822882e1bc4e46
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Jun 7 06:08:51 2022 +1000
+commit 9a53b472b5ed41f9fe79a73f1236ed3f45f8871a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Mar 21 17:26:26 2022 -0700
 
-    cmd/link: add internal linking support for calling SDYNIMPORT on mips64
+    crypto/x509: properly handle issuerUniqueID and subjectUniqueID
     
-    Add internal linking support for calling SDYNIMPORT symbols on mips64. This adds
-    code to generate appropriate PLT and GOT entries, along with the various dynamic
-    entries needed for the dynamic loader.
+    Fixes #51754
     
-    Updates #36435, #46178
-    
-    Change-Id: I783e0d028510ca2bca82bcbc745f2375770813fe
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415815
-    Reviewed-by: Rong Zhang <rongrong@oss.cipunited.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I3bfa15db3497de9fb82d6391d87fca1ae9ba6543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394297
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/link/internal/ld/elf.go     |   1 +
- src/cmd/link/internal/mips64/asm.go | 177 +++++++++++++++++++++++++++++++++++-
- src/cmd/link/internal/mips64/obj.go |   9 +-
- 3 files changed, 179 insertions(+), 8 deletions(-)
+ src/crypto/x509/parser.go    |  4 ++--
+ src/crypto/x509/x509_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 2 deletions(-)

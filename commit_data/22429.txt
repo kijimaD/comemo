@@ -1,36 +1,14 @@
-commit 92eb9aea474742fb0509ade5041a8be703484106
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 10 16:45:10 2015 -0700
+commit d7e3d69e1cf4e50429956c89fba71399eea9d416
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Mar 14 18:26:39 2015 -0400
 
-    go/types: move go/types/internal/gcimport => go/internal/gcimporter
+    runtime: skip TestStdcallAndCDeclCallbacks when gcc is missing
     
-    This will make it possible to access the gcimporter (and gccgoimporter,
-    eventually) from the forthcoming gc/importer package, without exposing
-    compiler names in package names.
+    Fixes #10167.
     
-    This change was created by manually adjusting the gcimporter paths in
-    go/types.bash and then running sh go/types.bash (i.e., by revendoring
-    gcimporter). The only manual changes are in go/types.bash.
-    
-    Change-Id: Idc282439742288c09caa58b3a66d77aec0325faf
-    Reviewed-on: https://go-review.googlesource.com/8764
-    Reviewed-by: Rob Pike <r@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: Ib6c6b2b5dde47744b69f65482a21964fa3c12090
+    Reviewed-on: https://go-review.googlesource.com/7600
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/go/{types => }/internal/gcimporter/exportdata.go       | 0
- src/go/{types => }/internal/gcimporter/gcimporter.go       | 2 +-
- src/go/{types => }/internal/gcimporter/gcimporter_test.go  | 0
- src/go/{types => }/internal/gcimporter/testdata/exports.go | 0
- src/go/types.bash                                          | 8 ++++----
- src/go/types/api.go                                        | 2 +-
- src/go/types/api_test.go                                   | 2 +-
- src/go/types/builtins_test.go                              | 2 +-
- src/go/types/check_test.go                                 | 2 +-
- src/go/types/eval_test.go                                  | 2 +-
- src/go/types/issues_test.go                                | 2 +-
- src/go/types/resolver.go                                   | 2 +-
- src/go/types/resolver_test.go                              | 2 +-
- src/go/types/self_test.go                                  | 2 +-
- src/go/types/stdlib_test.go                                | 2 +-
- src/go/types/typestring_test.go                            | 2 +-
- 16 files changed, 16 insertions(+), 16 deletions(-)
+ src/runtime/syscall_windows_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

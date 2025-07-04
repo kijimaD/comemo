@@ -1,18 +1,22 @@
-commit 9b7f221a3af2ee8495129621a5012647ffe15eb1
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Feb 20 12:57:51 2018 +0900
+commit 56dec8dde2abca9b556719a66da908b1802f9956
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 12 10:25:25 2017 -0700
 
-    net: adjust the test for IPv4 loopback address block
+    test: add test case that gccgo miscompiled
     
-    We live in the era of virtualization and isolation.
-    There is no reason to hesitate to use IPv4 loopback address block for
-    umbrella-type customer accommodating services.
+    Error was
     
-    Fixes #23903
+    main.go:7:11: error: import error at 162: expected ‘<type ’
     
-    Change-Id: I990dd98e2651a993dac1b105c0bc771f8631cb93
-    Reviewed-on: https://go-review.googlesource.com/95336
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iacfe4bfa003d7708a21ebc89ad1ab2d4a3b041a8
+    Reviewed-on: https://go-review.googlesource.com/70290
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/net/interface_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug504.dir/a.go    |  7 +++++++
+ test/fixedbugs/bug504.dir/b.go    | 11 +++++++++++
+ test/fixedbugs/bug504.dir/c.go    |  9 +++++++++
+ test/fixedbugs/bug504.dir/main.go | 11 +++++++++++
+ test/fixedbugs/bug504.go          | 10 ++++++++++
+ 5 files changed, 48 insertions(+)

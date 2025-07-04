@@ -1,14 +1,26 @@
-commit 36cec789cd2c3631419cc2a46693590965952bf7
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Sat May 14 00:35:10 2011 +0200
+commit ba006e6b6afeb8a6718cfbfb04104cc8f4b28a1a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 13 15:31:09 2011 -0700
 
-    gc: generalize dst = append(src,...) inlining to arbitrary src and dst arguments.
+    go/types: type checker API + testing infrastructure
+    
+    At the moment types.Check() only deals with global
+    types and only partially so. But the framework is
+    there to compute them and check for cycles. An initial
+    type test is passing.
+    
+    First step of a series of CLs to come.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4517057
+    https://golang.org/cl/4425063
 
- src/cmd/gc/builtin.c.boot |   1 -
- src/cmd/gc/walk.c         | 100 ++++++++++++++--------------------------------
- src/pkg/runtime/slice.c   |  14 -------
- 3 files changed, 31 insertions(+), 84 deletions(-)
+ src/cmd/gotype/gotype.go             |   6 +-
+ src/pkg/go/types/Makefile            |   1 +
+ src/pkg/go/types/check.go            | 230 +++++++++++++++++++++++++++++++++++
+ src/pkg/go/types/check_test.go       | 224 ++++++++++++++++++++++++++++++++++
+ src/pkg/go/types/gcimporter.go       | 133 +++++++++++---------
+ src/pkg/go/types/testdata/exports.go |   2 +-
+ src/pkg/go/types/testdata/test0.src  | 154 +++++++++++++++++++++++
+ src/pkg/go/types/types.go            | 169 +++++++++++++++++++++++--
+ 8 files changed, 849 insertions(+), 70 deletions(-)

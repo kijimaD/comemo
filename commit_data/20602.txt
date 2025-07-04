@@ -1,18 +1,17 @@
-commit 74b8693c544abffbce69262b609410459d8796f8
-Author: Alan Donovan <adonovan@google.com>
-Date:   Tue Sep 30 16:08:04 2014 -0400
+commit 82ddcc05f44a510118a1fc8bb8e3552a92d8f441
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 23 14:26:20 2014 -0700
 
-    cmd/cgo: add missing ast.SliceExpr.Max case to AST traversal.
+    os: fix another case where RemoveAll should return nil
     
-    + static test
+    This hopefully fixes issue 8793.
     
-    NB: there's a preexisting (dynamic) failure of test issue7978.go.
+    Fixes #8793
     
     LGTM=iant
     R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/144650045
+    https://golang.org/cl/150860046
 
- misc/cgo/test/basic.go | 5 +++++
- src/cmd/cgo/ast.go     | 3 +++
- 2 files changed, 8 insertions(+)
+ src/os/path.go | 3 +++
+ 1 file changed, 3 insertions(+)

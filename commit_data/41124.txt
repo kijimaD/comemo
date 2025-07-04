@@ -1,18 +1,22 @@
-commit d2de9bd59c068c1bfcb4293de4286196dacf2e43
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 15 06:38:16 2020 -0800
+commit b1a20253fe8a1f099a23735c9a613b433df67261
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 4 11:25:06 2019 -0400
 
-    runtime: ignore power notification error seen on Windows Docker
+    cmd/link: memoize/cache whether plugin.Open symbol available
     
-    Fixes #36557
+    Perform a single lookup of "plugin.Open" at the point where we set the
+    loaded flag for the context, then cache whether the result is nil, so
+    that we can consult this cached value later on (instead of having to
+    look up the symbol each time). This helps speed up the DynLinkingGo()
+    context method, which is called from within some very hot loops in the
+    linker (when linking 'hyperkube' from kubernetes, reduces total calls
+    to "sym.(*Symbols).ROLookup" from 6.5M to 4.3M)
     
-    Change-Id: Ia8125f382d5e14e5612da811268a58971cc9ac08
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/214917
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I92a2ea2b21d24f67aec0a7afeef4acc77c095adf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193260
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/os_windows.go | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/lib.go  | 10 ++++++++--
+ src/cmd/link/internal/ld/link.go |  1 +
+ 2 files changed, 9 insertions(+), 2 deletions(-)

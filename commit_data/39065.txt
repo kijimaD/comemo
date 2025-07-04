@@ -1,22 +1,21 @@
-commit 503e6ccd740c48f21c1d159d904b51da2d9a8ca9
-Author: erifan01 <eric.fang@arm.com>
-Date:   Thu Mar 28 10:53:42 2019 +0000
+commit 8ff04a9966083f982ecaa57f7bcc786aa7316ec8
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Sep 25 09:22:09 2018 -0700
 
-    math/big: fix the bug in assembly implementation of shlVU on arm64
+    os: clearer doc for Interrupt
     
-    For the case where the addresses of parameter z and x of the function
-    shlVU overlap and the address of z is greater than x, x (input value)
-    can be polluted during the calculation when the high words of x are
-    overlapped with the low words of z (output value).
+    I was confused by the juxtaposition of os.Interrupt docs, which are
+    "guaranteed to exist on all platforms" in one sentence and then
+    "not implemented" in the next sentence. Reading the code reveals
+    "not implemented" refers specifically to the implementation of
+    os.Process.Signal on Windows, not to the os.Interrupt variable itself.
+    Reword the doc to make this distinction clearer.
     
-    Fixes #31084
+    Fixes #27854.
     
-    Change-Id: I9bb0266a1d7856b8faa9a9b1975d6f57dece0479
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169780
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I5fe7cddea61fa1954cef2006dc51b8fa8ece4d6e
+    Reviewed-on: https://go-review.googlesource.com/c/137336
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/math/big/arith_arm64.s | 106 +++++++++++++++++++++++++--------------------
- src/math/big/arith_test.go |  69 +++++++++++++++++++++++++++++
- 2 files changed, 128 insertions(+), 47 deletions(-)
+ src/os/exec_posix.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

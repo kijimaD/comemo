@@ -1,21 +1,14 @@
-commit 74db9d298b1b5aedd1d63f0a7257e4b51e21ca0c
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Sun Aug 5 22:32:35 2012 +1000
+commit 8be5e8a419d12185b410e881271875a2612dd2d5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Aug 4 16:11:53 2012 +0400
 
-    exp/html: don't treat SVG <title> like HTML <title>
+    cmd/cc: allow to call nested packages from within C code
+    E.g. sync/atomic.LoadInt32() can be called as sync»atomic·LoadInt32()
     
-    The content of an HTML <title> element is RCDATA, but the content of an SVG
-    <title> element is parsed as tags. Now the parser doesn't go into RCDATA
-    mode in foreign content.
-    
-    Pass 4 additional tests.
-    
-    R=nigeltao
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6448111
+    https://golang.org/cl/6448057
 
- src/pkg/exp/html/parse.go                  | 5 +++++
- src/pkg/exp/html/render.go                 | 2 +-
- src/pkg/exp/html/testlogs/tests10.dat.log  | 2 +-
- src/pkg/exp/html/testlogs/webkit01.dat.log | 6 +++---
- 4 files changed, 10 insertions(+), 5 deletions(-)
+ src/cmd/cc/lex.c   | 7 ++++++-
+ src/cmd/cc/lexbody | 7 ++++++-
+ 2 files changed, 12 insertions(+), 2 deletions(-)

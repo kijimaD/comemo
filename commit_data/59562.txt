@@ -1,69 +1,19 @@
-commit 24ea1aa25c954bbbe9968d735795a649833b0b1c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 13 20:09:57 2025 +0000
+commit 3fefec96adae7e0ea66e2b624d4bef54a3a8b7df
+Author: Andy Pan <i@andypan.me>
+Date:   Tue Mar 26 07:13:57 2024 +0800
 
-    runtime: only update freeIndexForScan outside of the mark phase
+    runtime: fix the failures from longtest builders
     
-    Currently, it's possible for asynchronous preemption to observe a
-    partially initialized object. The sequence of events goes like this:
-    - The GC is in the mark phase.
-    - Thread T1 is allocating object O1.
-    - Thread T1 zeroes the allocation, runs the publication barrier, and
-      updates freeIndexForScan. It has not yet updated the mark bit on O1.
-    - Thread T2 is conservatively scanning some stack frame.
-      That stack frame has a dead pointer with the same address as O1.
-    - T2 picks up the pointer, checks isFree (which checks
-      freeIndexForScan without an import barrier), and sees that O1 is
-      allocated. It marks and queues O1.
-    - T2 then goes to scan O1, and observes uninitialized memory.
+    Follow up CL 560155
     
-    Although a publication barrier was executed, T2 did not have an import
-    barrier. T2 may thus observe T1's writes to zero the object out-of-order
-    with the write to freeIndexForScan.
-    
-    Normally this would be impossible if T2 got a pointer to O1 from
-    somewhere written by T1. The publication barrier guarantees that if the
-    read side is data-dependent on the write side then we'd necessarily
-    observe all writes to O1 before T1 published it. However, T2 got the
-    pointer 'out of thin air' by scanning a stack frame with a dead pointer
-    on it.
-    
-    One fix to this problem would be to add the import barrier in the
-    conservative scanner. We would then also need to put freeIndexForScan
-    behind the publication barrier, or make the write to freeIndexForScan
-    exactly that barrier.
-    
-    However, there's a simpler way. We don't actually care if conservative
-    scanning observes a stale freeIndexForScan during the mark phase.
-    Newly-allocated memory is always marked at the point of allocation (the
-    allocate-black policy part of the GC's design). So it doesn't actually
-    matter that if the garbage collector scans that memory or not.
-    
-    This change modifies the allocator to only update freeIndexForScan
-    outside the mark phase. This means freeIndexForScan is essentially
-    a snapshot of freeindex at the point the mark phase started. Because
-    there's no more race between conservative scanning and newly-allocated
-    objects, the complicated scenario above is no longer a possibility.
-    
-    One thing we do have to be careful of is other callers of isFree.
-    Previously freeIndexForScan would always track freeindex, now it no
-    longer does. This change thus introduces isFreeOrNewlyAllocated which is
-    used by the conservative scanner, and uses freeIndexForScan. Meanwhile
-    isFree goes back to using freeindex like it used to. This change also
-    documents the requirement on isFree that the caller must have obtained
-    the pointer not 'out of thin air' but after the object was published.
-    isFree is not currently used anywhere particularly sensitive (heap dump
-    and checkmark mode, where the world is stopped in both cases) so using
-    freeindex is both conceptually simple and also safe.
-    
-    Change-Id: If66b8c536b775971203fb4358c17d711c2944723
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672340
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Id9230d79c296452f3741123c75b45c3d3b1be4f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574295
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/malloc.go  | 150 ++++++++++++++++++++++++-------------------------
- src/runtime/mbitmap.go |  25 +++++++++
- src/runtime/mgcmark.go |   7 ++-
- 3 files changed, 105 insertions(+), 77 deletions(-)
+ src/cmd/go/testdata/script/build_runtime_gcflags.txt    | 4 ++--
+ src/cmd/go/testdata/script/cover_sync_atomic_import.txt | 4 ++--
+ src/cmd/internal/objabi/pkgspecial.go                   | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

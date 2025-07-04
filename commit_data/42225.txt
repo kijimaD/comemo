@@ -1,18 +1,19 @@
-commit 1d9801223eb0693af64d2bc8c23c910ce7f18b16
-Author: Ruixin Bao <ruixin.bao@ibm.com>
-Date:   Wed Apr 29 16:09:12 2020 -0700
+commit dab1a10a98e376502e0ab5dfb6d2ab82394c19b6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 15 13:03:40 2019 -0800
 
-    cmd/compile: adopt strong aux typing for some s390x rules
+    time: only fail TestAfterStop if it fails five times in a row
     
-    Convert the remaining lowering rules to strongly-typed versions.
+    The test is inherently slightly flaky, so repeat to reduce flakiness.
     
-    Passes toolstash-check.
-    Change-Id: I583786806d55376f5463addab8fec32cb59fa7a6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230939
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Fixes #35537
+    
+    Change-Id: Id918d48d33c7d5e19c4f24df104adc7fbf3720f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/S390X.rules |  42 ++--
- src/cmd/compile/internal/ssa/rewriteS390X.go | 343 ++++++++++++++++++++++-----
- 2 files changed, 300 insertions(+), 85 deletions(-)
+ src/time/sleep_test.go | 71 ++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 51 insertions(+), 20 deletions(-)

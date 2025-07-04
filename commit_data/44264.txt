@@ -1,26 +1,32 @@
-commit 678568a5cfe1806c16bf478234d6dac283c3474d
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jan 30 16:18:51 2021 -0500
+commit b7717e46340b7ffe5fd53313f10dfa85a141f77a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 2 14:52:16 2020 -0400
 
-    runtime: delete windows setlasterror (unused)
+    Revert "cmd/internal/goobj: add index to symbol name for indexed symbols"
     
-    This is dead code and need not be ported to each architecture.
+    This reverts CL 229246.
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
+    For new indexed object files, in CL 229246 we added symbol index
+    to tools (nm, objdump) output. This affects external tools that
+    parse those outputs. And the added index doesn't look very nice.
+    In this release we take it out. For future releases we may
+    introduce a flag to tools (nm, objdump) and optionally dump the
+    symbol index.
     
-    Change-Id: I2d0072b377f73e49d7158ea304670c26f5486c59
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288794
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    For refererenced (not defined) indexed symbols, currently the
+    symbol is still referenced only by index, not by name. The next
+    CL will make the object file self-contained, so tools can dump
+    the symbol names properly (as before).
+    
+    For #38875.
+    
+    Change-Id: I07375e85a8e826e15c82fa452d11f0eaf8535a00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236167
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/runtime/os_windows.go       | 1 -
- src/runtime/sys_windows_386.s   | 5 -----
- src/runtime/sys_windows_amd64.s | 6 ------
- src/runtime/sys_windows_arm.s   | 5 -----
- 4 files changed, 17 deletions(-)
+ src/cmd/internal/goobj/goobj_test.go | 19 +++++--------------
+ src/cmd/internal/goobj/readnew.go    |  9 +--------
+ src/cmd/nm/nm_test.go                | 10 +---------
+ src/cmd/objdump/objdump_test.go      | 12 ++++--------
+ 4 files changed, 11 insertions(+), 39 deletions(-)

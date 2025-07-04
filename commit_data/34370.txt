@@ -1,70 +1,23 @@
-commit ecd9e8a2fe7a53a602cee6058b987c52a4bbb0e7
-Author: Chad Rosier <mrosier.qdt@qualcommdatacenter.com>
-Date:   Fri Feb 23 15:17:54 2018 -0500
+commit e769c9d6cfdc0e247f2498b10a6eb69054193e98
+Author: Hugues Bruant <hugues.bruant@gmail.com>
+Date:   Mon Aug 21 11:16:08 2017 -0700
 
-    cmd/compile/internal/ssa: combine zero stores into larger stores on arm64
+    runtime: more reliable mapdelete benchmark
     
-    This reduces the go tool binary on arm64 by 12k.
+    Increasing the map size with the benchmark iteration count
+    introduced non-linearities and made benchmark runs slow when
+    increasing benchtime.
     
-    go1 results on Amberwing:
-    name                   old time/op    new time/op    delta
-    RegexpMatchEasy0_32       249ns ± 0%     249ns ± 0%    ~     (p=0.087 n=10+10)
-    RegexpMatchEasy0_1K       584ns ± 0%     584ns ± 0%    ~     (all equal)
-    RegexpMatchEasy1_32       246ns ± 0%     246ns ± 0%    ~     (p=1.000 n=10+10)
-    RegexpMatchEasy1_1K       806ns ± 0%     806ns ± 0%    ~     (p=0.706 n=10+9)
-    RegexpMatchMedium_32      314ns ± 0%     314ns ± 0%    ~     (all equal)
-    RegexpMatchMedium_1K     52.1µs ± 0%    52.1µs ± 0%    ~     (p=0.245 n=10+8)
-    RegexpMatchHard_32       2.75µs ± 1%    2.75µs ± 1%    ~     (p=0.690 n=10+10)
-    RegexpMatchHard_1K       78.9µs ± 0%    78.9µs ± 1%    ~     (p=0.295 n=9+9)
-    FmtFprintfEmpty          58.5ns ± 0%    58.5ns ± 0%    ~     (all equal)
-    FmtFprintfString          112ns ± 0%     112ns ± 0%    ~     (all equal)
-    FmtFprintfInt             117ns ± 0%     116ns ± 0%  -0.85%  (p=0.000 n=10+10)
-    FmtFprintfIntInt          181ns ± 0%     181ns ± 0%    ~     (all equal)
-    FmtFprintfPrefixedInt     222ns ± 0%     224ns ± 0%  +0.90%  (p=0.000 n=9+10)
-    FmtFprintfFloat           318ns ± 1%     322ns ± 0%    ~     (p=0.059 n=10+8)
-    FmtManyArgs               736ns ± 1%     735ns ± 0%    ~     (p=0.206 n=9+9)
-    Gzip                      437ms ± 0%     436ms ± 0%  -0.25%  (p=0.000 n=10+10)
-    HTTPClientServer         89.8µs ± 1%    90.2µs ± 2%    ~     (p=0.393 n=10+10)
-    JSONEncode               20.1ms ± 1%    20.2ms ± 1%    ~     (p=0.065 n=9+10)
-    JSONDecode               94.2ms ± 1%    93.9ms ± 1%  -0.42%  (p=0.043 n=10+10)
-    GobDecode                12.7ms ± 1%    12.8ms ± 2%  +0.94%  (p=0.019 n=10+10)
-    GobEncode                12.1ms ± 0%    12.1ms ± 0%    ~     (p=0.052 n=10+10)
-    Mandelbrot200            5.06ms ± 0%    5.05ms ± 0%  -0.04%  (p=0.000 n=9+10)
-    TimeParse                 450ns ± 3%     446ns ± 0%    ~     (p=0.238 n=10+9)
-    TimeFormat                485ns ± 1%     483ns ± 1%    ~     (p=0.073 n=10+10)
-    Template                 90.4ms ± 0%    90.7ms ± 0%  +0.29%  (p=0.000 n=8+10)
-    GoParse                  6.01ms ± 0%    6.03ms ± 0%  +0.35%  (p=0.000 n=10+10)
-    BinaryTree17              11.7s ± 0%     11.7s ± 0%    ~     (p=0.481 n=10+10)
-    Revcomp                   669ms ± 0%     669ms ± 0%    ~     (p=0.315 n=10+10)
-    Fannkuch11                3.40s ± 0%     3.37s ± 0%  -0.92%  (p=0.000 n=10+10)
-    [Geo mean]               67.9µs         67.9µs       +0.02%
+    Rework the benchmark to use a map size independent of the
+    iteration count and instead re-fill it when it becomes empty.
     
-    name                   old speed      new speed      delta
-    RegexpMatchEasy0_32     128MB/s ± 0%   128MB/s ± 0%  -0.08%  (p=0.003 n=8+10)
-    RegexpMatchEasy0_1K    1.75GB/s ± 0%  1.75GB/s ± 0%    ~     (p=0.642 n=8+10)
-    RegexpMatchEasy1_32     130MB/s ± 0%   130MB/s ± 0%    ~     (p=0.690 n=10+9)
-    RegexpMatchEasy1_1K    1.27GB/s ± 0%  1.27GB/s ± 0%    ~     (p=0.661 n=10+9)
-    RegexpMatchMedium_32   3.18MB/s ± 0%  3.18MB/s ± 0%    ~     (all equal)
-    RegexpMatchMedium_1K   19.7MB/s ± 0%  19.6MB/s ± 0%    ~     (p=0.190 n=10+9)
-    RegexpMatchHard_32     11.6MB/s ± 0%  11.6MB/s ± 1%    ~     (p=0.669 n=10+10)
-    RegexpMatchHard_1K     13.0MB/s ± 0%  13.0MB/s ± 0%    ~     (p=0.718 n=9+9)
-    Gzip                   44.4MB/s ± 0%  44.5MB/s ± 0%  +0.24%  (p=0.000 n=10+10)
-    JSONEncode             96.5MB/s ± 1%  96.1MB/s ± 1%    ~     (p=0.065 n=9+10)
-    JSONDecode             20.6MB/s ± 1%  20.7MB/s ± 1%  +0.42%  (p=0.041 n=10+10)
-    GobDecode              60.6MB/s ± 1%  60.0MB/s ± 2%  -0.92%  (p=0.016 n=10+10)
-    GobEncode              63.4MB/s ± 0%  63.6MB/s ± 0%    ~     (p=0.055 n=10+10)
-    Template               21.5MB/s ± 0%  21.4MB/s ± 0%  -0.30%  (p=0.000 n=9+10)
-    GoParse                9.64MB/s ± 0%  9.61MB/s ± 0%  -0.36%  (p=0.000 n=10+10)
-    Revcomp                 380MB/s ± 0%   380MB/s ± 0%    ~     (p=0.323 n=10+10)
-    [Geo mean]             56.0MB/s       55.9MB/s       -0.07%
+    Fixes #21546
     
-    Change-Id: Ia732fa57fbcf4767d72382516d9f16705d177736
-    Reviewed-on: https://go-review.googlesource.com/96435
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Iafb6eb225e81830263f30b3aba0d449c361aec32
+    Reviewed-on: https://go-review.googlesource.com/57650
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go      | 226 +++++++++++++++++++++++++++
- src/cmd/compile/internal/ssa/gen/ARM64.rules |  30 ++++
- src/cmd/compile/internal/ssa/rewrite.go      |   4 +
- src/cmd/compile/internal/ssa/rewriteARM64.go | 116 ++++++++++++++
- 4 files changed, 376 insertions(+)
+ src/runtime/map_test.go | 58 ++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 36 insertions(+), 22 deletions(-)

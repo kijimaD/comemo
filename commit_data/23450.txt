@@ -1,19 +1,26 @@
-commit 13c44d27b7548f84430e798e61d9e4672c47f5c0
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jun 20 20:28:46 2015 +1000
+commit 335e44d265e7b7741b00237f4fcd97a1b80bfd9a
+Author: Patrick Mezard <patrick@mezard.eu>
+Date:   Sat May 9 15:51:45 2015 +0200
 
-    cmd/doc: add test for constructor, fix build
+    internal/syscall/windows/registry: fix read overrun in GetStringsValue
     
-    Most important: skip test on darwin/arm64 for unclear reasons.
+    According to MSDN RegQueryValueEx page:
     
-    First cut at the test missed this feature of go doc: when asking for
-    the docs for a type, include any function that looks like it constructs
-    a that type as a return value.
+      If the data has the REG_SZ, REG_MULTI_SZ or REG_EXPAND_SZ type, the
+      string may not have been stored with the proper terminating null
+      characters. Therefore, even if the function returns ERROR_SUCCESS, the
+      application should ensure that the string is properly terminated before
+      using it; otherwise, it may overwrite a buffer. (Note that REG_MULTI_SZ
+      strings should have two terminating null characters.)
     
-    Change-Id: I124e7695e5d365e2b12524b541a9a4e6e0300fbc
-    Reviewed-on: https://go-review.googlesource.com/11295
-    Reviewed-by: Rob Pike <r@golang.org>
+    Test written by Alex Brainman <alex.brainman@gmail.com>
+    
+    Change-Id: I8c0852e0527e27ceed949134ed5e6de944189986
+    Reviewed-on: https://go-review.googlesource.com/9806
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/doc/doc_test.go     | 5 +++++
- src/cmd/doc/testdata/pkg.go | 5 +++++
- 2 files changed, 10 insertions(+)
+ .../syscall/windows/registry/export_test.go        | 11 ++++
+ .../syscall/windows/registry/registry_test.go      | 65 ++++++++++++++++++++++
+ src/internal/syscall/windows/registry/value.go     | 12 +++-
+ 3 files changed, 86 insertions(+), 2 deletions(-)

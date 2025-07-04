@@ -1,22 +1,40 @@
-commit 4b58b3077801b83c7ebc8eca23c7f63913d0778f
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Sep 14 11:47:08 2022 +0700
+commit 4d7bf41bebc7ad4f71150b8b57fca12aff6da144
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 1 19:39:18 2021 +0000
 
-    spec: describe an edge case of slice-to-array conversions
+    syscall: remove GOMAXPROCS change in TestExecHelper
     
-    Converting from nil slice to zero element array is ok, so explicitly
-    describe the behavior in the spec.
+    TestExec and TestExecHelper check for a workaround of a particular OS
+    bug on darwin that's triggered more often via asynchronous preemption.
     
-    For #46505
+    As part of this, the test sets up 100 CPU-bound goroutines, and sets
+    GOMAXPROCS to 50, sleeping for a little bit before calling Exec. Thus
+    far, this is fine because the scheduler runs the Execing goroutine in a
+    timely manner. However, CL 309869 will reduce the minimum heap size,
+    causing a GC to happen during the test.
     
-    Change-Id: I68f432deb6c21a7549bf7e870185fc62504b37f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/430835
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    On a 16 CPU machine, with GOMAXPROCS at 50, and 100 CPU-bound
+    goroutines, both the OS scheduler and the Go scheduler are severly
+    oversaturated. As a result, the test often (not always, but often) runs
+    out for the full lifetime of those 100 goroutines, which run for about 1
+    second.
+    
+    The minimum heap size reduction is not necessary to trigger this; an
+    additional call to runtime.GC in the helper is also sufficient to
+    trigger this delay.
+    
+    The delay on its own isn't great, since it adds a whole second to
+    all.bash on its own. However, it also seems correlated with other
+    subprocess tests in the syscall package, namely TestPassFD and
+    TestFcntlFlock. These tests fail in a fairly superficial way: the file
+    descriptor for the temporary directories they make gets clobbered, is
+    closed, or becomes stale.
+    
+    Change-Id: I213dd5e38967d19a8b317e6d4c5024b57f9e3fed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360574
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go_spec.html | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/syscall/exec_unix_test.go | 2 --
+ 1 file changed, 2 deletions(-)

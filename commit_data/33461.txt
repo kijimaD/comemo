@@ -1,19 +1,16 @@
-commit 8ac93e669dd18a65dd8c1dce37a6492ca078ba7d
+commit 74e33c43e9e0e3549640c04fd77b2b0e4242b721
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Nov 6 10:16:34 2017 -0500
+Date:   Thu Aug 3 00:02:43 2017 -0400
 
-    cmd/go: include package source dir in build action for non-GOROOT packages
+    [dev.boringcrypto] crypto/hmac: use BoringCrypto
     
-    The package source dir is recorded in the archives,
-    so it must be recorded in the build action hash too.
-    
-    Fixes #22596.
-    
-    Change-Id: I1d3c2523181c302e9917e5fb79c26b00ea03077a
-    Reviewed-on: https://go-review.googlesource.com/76025
+    Change-Id: Id4019d601c615b4835b0337d82be3d508292810e
+    Reviewed-on: https://go-review.googlesource.com/55475
     Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/go/go_test.go            | 28 ++++++++++++++++++++++++++++
- src/cmd/go/internal/work/exec.go |  8 ++++++++
- 2 files changed, 36 insertions(+)
+ src/crypto/hmac/hmac.go                 |   8 ++
+ src/crypto/internal/boring/hmac.go      | 137 ++++++++++++++++++++++++++++++++
+ src/crypto/internal/boring/notboring.go |   2 +
+ 3 files changed, 147 insertions(+)

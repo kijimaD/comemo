@@ -1,13 +1,13 @@
-commit 7e8a369426e80801eb6fcdfce94f6fc35746ee79
+commit cc34f4b56530d688c07d9630c6ca86a7f5b99b82
 Author: Rob Pike <r@golang.org>
-Date:   Wed Feb 15 21:23:58 2012 -0800
+Date:   Thu Feb 16 16:07:26 2012 +1100
 
-    exp/inotify: remove use of _test
-    Fixes #2573.
+    windows: fix build
     
-    R=golang-dev, dsymonds
+    R=golang-dev
+    TBR=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5676063
+    https://golang.org/cl/5673064
 
- src/pkg/exp/inotify/inotify_linux_test.go | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ src/pkg/exp/winfsnotify/winfsnotify_test.go | 1 +
+ 1 file changed, 1 insertion(+)

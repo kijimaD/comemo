@@ -1,27 +1,19 @@
-commit b56d1bad29abc4e92491c8a66bdca310831b1d8e
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Apr 30 14:45:35 2019 -0400
+commit d4599629674251e9134ea8e0aa4039d9de3dd678
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Fri Dec 28 20:02:13 2018 +0000
 
-    cmd/compile: emit DWARF call_line attrs with data4 form on iOS
+    encoding/gob: mention that Encoder and Decoder are safe for concurrent use
     
-    When targeting iOS, change the format (DWARF "form") of the call line
-    attribute for inlined subroutine DIEs, to work around an apparent bug
-    in /usr/bin/symbols on Darwin.
+    Fixes #29416
     
-    [Just for posterity: there is nothing wrong with using DW_FORM_udata
-    for the call_line attribute form; this is perfectly legal DWARF (and
-    is in fact recommended by the standard relative to data4, which is
-    less descriptive and often takes more space). The form switch is there
-    just to make the Apple tools happy.]
+    Change-Id: I24364bfee77aceace53f85f1046ef4d73f8feebb
     
-    Updates #31459.
-    
-    Change-Id: Iaf362788a8c6684eea4cde8956c0661b694cecc1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174538
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I24364bfee77aceace53f85f1046ef4d73f8feebb
+    GitHub-Last-Rev: ad9f31145763dc16f53dd9f3154667b162759f69
+    GitHub-Pull-Request: golang/go#29417
+    Reviewed-on: https://go-review.googlesource.com/c/155742
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go      | 59 +++++++++++++++++++++++++++++++-----
- src/cmd/internal/dwarf/dwarf_defs.go |  2 ++
- 2 files changed, 54 insertions(+), 7 deletions(-)
+ src/encoding/gob/decoder.go | 3 ++-
+ src/encoding/gob/encoder.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

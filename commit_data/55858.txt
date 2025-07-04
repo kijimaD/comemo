@@ -1,18 +1,16 @@
-commit 80a91d34f4cb3134f6b88b075893077cc3ab47d8
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Mar 5 10:54:22 2024 +0100
+commit bf1814bc9e4bcda4706627f64391947147b37954
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 20 14:30:09 2023 -0700
 
-    os: use goarch.BigEndian
+    cmd/go: rewrite externalLinkingForced slightly for clarity
     
-    Change-Id: I83c23ae0933f6abe4c07144f69c3d9c18aece6e8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/569175
+    Change-Id: I8f8d38c48d4ffe70d15330ea0d4794f264c88f25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477918
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/os/dir_unix.go      | 3 ++-
- src/os/endian_big.go    | 9 ---------
- src/os/endian_little.go | 9 ---------
- 3 files changed, 2 insertions(+), 19 deletions(-)
+ src/cmd/go/internal/load/pkg.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

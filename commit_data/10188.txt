@@ -1,17 +1,28 @@
-commit 68050ac76b94b58d962cf8265a8d4eb31ff35658
-Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 1 21:50:21 2011 -0400
+commit 451a1fa46d0449dc6982b38ba51cf94ebc750eca
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 21:49:44 2011 -0400
 
-    tutorial,effective_go: prepare for error change
+    exec: introduce ExitError
     
-    R=adg, rsc
+    The existing code uses *os.Waitmsg as an os.Error,
+    but *os.Waitmsg is really just a stringer.
+    
+    Introduce an explicit error type for the real error.
+    
+    Not to be submitted until just before error goes in;
+    the gofix for error updates type assertions
+            err.(*os.Waitmsg)
+    to
+            err.(*exec.ExitError)
+    
+    The seemingly redundant String method will become
+    an Error method when error goes in, and will no longer
+    be redundant.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5316068
+    https://golang.org/cl/5331044
 
- doc/effective_go.html  | 66 +++++++++++++++++++++++++-------------------------
- doc/effective_go.tmpl  | 66 +++++++++++++++++++++++++-------------------------
- doc/go_tutorial.html   | 35 +++++++++++++++++++-------
- doc/go_tutorial.tmpl   | 27 +++++++++++++++++----
- doc/progs/cat.go       |  4 +--
- doc/progs/cat_rot13.go |  4 +--
- 6 files changed, 118 insertions(+), 84 deletions(-)
+ src/pkg/exec/exec.go      | 15 ++++++++++++---
+ src/pkg/exec/exec_test.go |  8 ++++----
+ 2 files changed, 16 insertions(+), 7 deletions(-)

@@ -1,27 +1,16 @@
-commit 178080740c1bc33f2c7f164504eedc24210bbf1e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Dec 20 15:25:17 2022 -0800
+commit 0d71234ee4cfcac4a6664d8fef4be575cca1d7c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 15 13:36:10 2022 -0400
 
-    cmd/compile/internal/noder: remove unused noding code
+    reflect: avoid panic in reflect.Kind.String for negative Kind
     
-    This CL simplifies and removes some old noding code, which isn't
-    necessary any more.
+    Kind(-1).String() used to panic; let's not.
     
-    Most notably, we no longer need separate posMaps for each noder,
-    because noders are only used for parsing now. Before we started using
-    types2, noders were also responsible for constructed (untyped) IR, so
-    posMaps were necessary to translate syntax.Pos into src.XPos.
-    
-    Change-Id: Ic761abcd727f5ecefc71b611635a0f5b088c941f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463738
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1dfc0e3298beb37d77713d8327579bbde90dd156
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393015
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/noder/irgen.go   |  6 +--
- src/cmd/compile/internal/noder/noder.go   | 81 +++----------------------------
- src/cmd/compile/internal/noder/posmap.go  | 12 -----
- src/cmd/compile/internal/noder/unified.go |  8 +--
- 4 files changed, 13 insertions(+), 94 deletions(-)
+ src/reflect/all_test.go | 9 +++++++++
+ src/reflect/type.go     | 4 ++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)

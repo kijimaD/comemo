@@ -1,29 +1,23 @@
-commit 6f8a66536b04885d5e5e8480e64bea9c0b417dce
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 29 15:13:58 2015 +0000
+commit f62b749ae2b323653085f78f896f660ee461bb41
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 11 15:29:40 2015 +1000
 
-    math: replace assembly implementations of Abs with pure Go version
+    all: fix some vet-caught formatting errors, mostly but not only in tests
     
-    The compiler can do a fine job, and can also inline it.
+    Could go in 1.5, although not critical.
+    See also #12107
     
-    From Jeremy Jackins's observation and rsc's recommendation in thread:
-    
-    "Pure Go math.Abs outperforms assembly version"
-    https://groups.google.com/forum/#!topic/golang-dev/nP5mWvwAXZo
-    
-    Updates #13095
-    
-    Change-Id: I3066f8eaa327bb403173b29791cc8661d7c0532c
-    Reviewed-on: https://go-review.googlesource.com/16444
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I7f1608b58581d21df4db58f0db654fef79e33a90
+    Reviewed-on: https://go-review.googlesource.com/13481
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/math/abs.go         |  7 ++++---
- src/math/abs_386.s      | 12 ------------
- src/math/abs_amd64.s    | 14 --------------
- src/math/abs_amd64p32.s |  5 -----
- src/math/abs_arm.s      | 13 -------------
- src/math/abs_arm64.s    | 11 -----------
- src/math/abs_ppc64x.s   | 14 --------------
- 7 files changed, 4 insertions(+), 72 deletions(-)
+ src/cmd/internal/rsc.io/arm/armasm/ext_test.go | 2 +-
+ src/cmd/internal/rsc.io/x86/x86asm/ext_test.go | 2 +-
+ src/crypto/ecdsa/ecdsa_test.go                 | 8 ++++----
+ src/crypto/rsa/pkcs1v15_test.go                | 2 +-
+ src/crypto/tls/handshake_server_test.go        | 2 +-
+ src/encoding/gob/codec_test.go                 | 2 +-
+ src/internal/trace/parser_test.go              | 2 +-
+ src/net/http/transport_test.go                 | 2 +-
+ src/path/filepath/path_test.go                 | 8 ++++----
+ 9 files changed, 15 insertions(+), 15 deletions(-)

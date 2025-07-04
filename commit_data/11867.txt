@@ -1,14 +1,15 @@
-commit adc1e0bcef9e7e4a7bf4fa6d5b83681d578b9e0f
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Feb 14 11:20:39 2012 +0900
+commit d0a7d01ff2f62d83cc7ebc1c593aae652e205d66
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 14 12:48:56 2012 +1100
 
-    syscall: update BSD variants to sync with new os/signal
+    net/http: fix client goroutine leak with persistent connections
     
-    R=golang-dev, adg
+    Thanks to Sascha Matzke & Florian Weimer for diagnosing.
+    
+    R=golang-dev, adg, bradfitz, kevlar
     CC=golang-dev
-    https://golang.org/cl/5661051
+    https://golang.org/cl/5656046
 
- src/pkg/syscall/syscall_freebsd.go | 2 +-
- src/pkg/syscall/syscall_netbsd.go  | 2 +-
- src/pkg/syscall/syscall_openbsd.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/http/transport.go      | 21 +++++++++----
+ src/pkg/net/http/transport_test.go | 61 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 6 deletions(-)

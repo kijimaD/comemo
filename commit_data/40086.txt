@@ -1,28 +1,32 @@
-commit e76b9e8908bdcdb4363d6bd23aa7ff3120237426
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 26 11:00:13 2019 -0700
+commit 644543dd6447b39800825f66411df06066baa84e
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 16 20:32:31 2019 +0700
 
-    cmd/compile: remove pointer temporaries in walkcompare
+    cmd/compile: fix const declaration group broken with closure
     
-    When comparing two T-typed values t1 and t2 using the T_eq function,
-    we used to generate:
+    In typecheckclosure, a xfunc node will be put to xtop. But that node can
+    be shared between multiple closures, like in a const declaration group:
     
-        pl := &t1
-        pr := &t2
-        return T_eq(pl, pr, unsafe.Sizeof(T{}))
+    const (
+            x = unsafe.Sizeof(func() {})
+            y
+    )
     
-    This CL changes it to simply generate:
+    It makes a xfunc node appears multiple times in xtop, causing duplicate
+    initLSym run.
     
-        return T_eq(&t1, &t2, unsafe.Sizeof(T{}))
+    To fix this issue, we only do typecheck for xfunc one time, and setup
+    closure node earlier in typecheckclosure process.
     
-    Surprisingly, this does not pass toolstash. For some reason, it seems
-    like SSA wasn't able to SSA-ify the pl and pr variables in all cases.
+    Fixes #30709
     
-    Change-Id: I111fbb068a1741fa169c9922cb8cdb6e21579aa4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197601
+    Change-Id: Ic924a157ee9f3e5d776214bef5390849ddc8aab9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172298
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/walk.go | 14 ++------------
- 1 file changed, 2 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/closure.go | 14 ++++++++++----
+ test/fixedbugs/issue30709.go           | 33 +++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue30709.out          |  4 ++++
+ 3 files changed, 47 insertions(+), 4 deletions(-)

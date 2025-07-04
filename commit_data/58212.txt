@@ -1,17 +1,58 @@
-commit a5c1b1c43389df3cb108e333a4198c81f15b1140
-Author: Conrad Irwin <conrad.irwin@gmail.com>
-Date:   Wed Nov 20 15:19:12 2024 -0700
+commit a0da9c00aeb51261b9845a46fbc9878870884ab6
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Oct 12 18:08:04 2023 +0800
 
-    cmd/go: cache executables for tools defined in go.mod
+    crypto: add available godoc link
     
-    This allows for executables created by `go tool` to be re-used from the
-    cache.
-    
-    Change-Id: I382672239244beb3cf6e227182f550c049de102b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630339
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Ifc669399dde7d6229c6ccdbe29611ed1f8698fb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534778
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/tool/tool.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/crypto/aes/aes_gcm.go        |  6 ++---
+ src/crypto/aes/cipher.go         |  2 +-
+ src/crypto/aes/ctr_s390x.go      |  2 +-
+ src/crypto/aes/gcm_ppc64x.go     |  6 ++---
+ src/crypto/aes/gcm_s390x.go      | 10 ++++----
+ src/crypto/cipher/cfb.go         |  8 +++---
+ src/crypto/cipher/ctr.go         |  4 +--
+ src/crypto/cipher/gcm.go         |  8 +++---
+ src/crypto/cipher/io.go          | 10 ++++----
+ src/crypto/cipher/ofb.go         |  2 +-
+ src/crypto/crypto.go             |  6 ++---
+ src/crypto/des/cipher.go         |  4 +--
+ src/crypto/dsa/dsa.go            |  4 +--
+ src/crypto/ecdh/ecdh.go          | 10 ++++----
+ src/crypto/ecdh/nist.go          |  6 ++---
+ src/crypto/ecdh/x25519.go        |  2 +-
+ src/crypto/ecdsa/ecdsa.go        |  8 +++---
+ src/crypto/ecdsa/ecdsa_legacy.go |  2 +-
+ src/crypto/elliptic/elliptic.go  | 28 ++++++++++-----------
+ src/crypto/elliptic/params.go    | 54 ++++++++++++++++++++--------------------
+ src/crypto/hmac/hmac.go          |  8 +++---
+ src/crypto/md5/md5.go            |  2 +-
+ src/crypto/rand/util.go          |  2 +-
+ src/crypto/rc4/rc4.go            |  4 +--
+ src/crypto/rsa/pkcs1v15.go       |  2 +-
+ src/crypto/rsa/pss.go            |  2 +-
+ src/crypto/rsa/rsa.go            | 14 +++++------
+ src/crypto/sha1/sha1.go          |  4 +--
+ src/crypto/sha256/sha256.go      |  4 +--
+ src/crypto/tls/cipher_suites.go  |  4 +--
+ src/crypto/tls/common.go         | 12 ++++-----
+ src/crypto/tls/conn.go           | 32 ++++++++++++------------
+ src/crypto/tls/quic.go           | 12 ++++-----
+ src/crypto/tls/ticket.go         |  2 +-
+ src/crypto/tls/tls.go            | 12 ++++-----
+ src/crypto/x509/cert_pool.go     |  2 +-
+ src/crypto/x509/parser.go        |  2 +-
+ src/crypto/x509/pem_decrypt.go   |  2 +-
+ src/crypto/x509/pkcs1.go         | 12 ++++-----
+ src/crypto/x509/pkcs8.go         |  8 +++---
+ src/crypto/x509/pkix/pkix.go     |  8 +++---
+ src/crypto/x509/sec1.go          |  2 +-
+ src/crypto/x509/x509.go          | 24 +++++++++---------
+ 43 files changed, 179 insertions(+), 179 deletions(-)

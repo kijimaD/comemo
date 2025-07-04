@@ -1,18 +1,35 @@
-commit b2249f2018155184abe10781633b8d66e566fa86
+commit f0a8b610e7a1839e3cec63b915f24874b294f7b1
 Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Thu Feb 28 07:18:02 2013 +0100
+Date:   Thu Feb 28 06:43:21 2013 +0100
 
-    net: pass tests on Plan 9
+    net, os, syscall: Plan 9: adjust error handling
     
-    Ignore problematic tests and un-ignore one
-    we can now pass.
+    syscall: Use NewError for all system errors and introduce
+            some new errors for compatibility with other packages
+            and proper error handling in net. Also introduce
+            Temporary and Timeout methods on ErrorString.
     
-    R=rsc, rminnich, ality, dave, bradfitz
+    net: Make errors from dial, accept, listen functions follow the
+            OpError standard and discern whether the underlying
+            error came from syscall. Since Plan 9 uses a correspondence
+            between file and network operations, all system error
+            reporting happens through the underlying file operation.
+            In Go code, we go through package os for file operations,
+            so there is another level of indirection in error types.
+            This change allows us to compare the errors with those in
+            package syscall, when appropriate.
+    
+    os: Just use the error string already present in package os,
+            instead of calling out to package syscall.
+    
+    R=rsc, ality, rminnich, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7396060
+    https://golang.org/cl/7398054
 
- src/pkg/net/file_test.go      |  2 +-
- src/pkg/net/net_test.go       |  4 ++++
- src/pkg/net/protoconn_test.go |  5 +++++
- src/pkg/net/timeout_test.go   | 15 +++++++++++++++
- 4 files changed, 25 insertions(+), 1 deletion(-)
+ src/pkg/net/ipsock_plan9.go            | 50 ++++++++++++++++++++--------------
+ src/pkg/net/tcpsock_plan9.go           |  6 ++--
+ src/pkg/os/exec/lp_plan9.go            |  3 +-
+ src/pkg/syscall/syscall_plan9.go       | 11 ++++++--
+ src/pkg/syscall/zerrors_plan9_386.go   | 29 +++++++++++++-------
+ src/pkg/syscall/zerrors_plan9_amd64.go | 29 +++++++++++++-------
+ 6 files changed, 80 insertions(+), 48 deletions(-)

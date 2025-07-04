@@ -1,17 +1,12 @@
-commit 3cf15b57f76400b22366ccd8ef5b211c72ab6a7f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 22 12:54:00 2015 -0400
+commit 965584ac07c87839cb28f28e40f2f9a74ebaff76
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 12 16:41:46 2015 -0700
 
-    crypto/tls: check cert chain during VerifyHostname
+    doc/go1.5.txt: mention GidMappingsEnableSetgroups in linux SysProcAttr
     
-    Fixes #9063.
-    
-    Change-Id: I536ef1f0b30c94c1ebf7922d84cb2f701b7d8a1a
-    Reviewed-on: https://go-review.googlesource.com/12526
-    Reviewed-by: Adam Langley <agl@golang.org>
-    Run-TryBot: Adam Langley <agl@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I412621497902fa36f4939df392b10ca7040fc36e
+    Reviewed-on: https://go-review.googlesource.com/11003
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/crypto/tls/conn.go     |  3 +++
- src/crypto/tls/tls_test.go | 27 +++++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

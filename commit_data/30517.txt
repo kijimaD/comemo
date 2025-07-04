@@ -1,20 +1,27 @@
-commit 0824ae6dc1e867c327bdcae54be51a8a179c0f7d
-Author: David Lazar <lazard@golang.org>
-Date:   Fri Feb 17 16:55:40 2017 -0500
+commit 76f12cdaa2be0b96d314762ff5b2e403d1359cd8
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 10 13:31:41 2016 -0500
 
-    cmd/compile: add flag for debugging PC-value tables
+    runtime/pprof: output CPU profiles in pprof protobuf format
     
-    For example, `-d pctab=pctoinline` prints the PC-inline table and
-    inlining tree for every function.
+    This change buffers the entire profile and converts in one shot
+    in the profile writer, and could use more memory than necessary
+    to output protocol buffer formatted profiles. It should be
+    possible to convert each chunk in a stream (maybe maintaining
+    some minimal state to output in the end) which could save on
+    memory usage.
     
-    Change-Id: Ia6b9ce4d83eed0b494318d40ffe06481ec5d58ab
-    Reviewed-on: https://go-review.googlesource.com/37235
-    Run-TryBot: David Lazar <lazard@golang.org>
+    Fixes #16093
+    
+    Change-Id: I946c6a2b044ae644c72c8bb2d3bd82c415b1a847
+    Reviewed-on: https://go-review.googlesource.com/33071
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/main.go |  5 +++++
- src/cmd/internal/obj/inl.go         |  7 +++++++
- src/cmd/internal/obj/link.go        |  2 +-
- src/cmd/internal/obj/pcln.go        | 31 +++++++++++++------------------
- 4 files changed, 26 insertions(+), 19 deletions(-)
+ src/go/build/deps_test.go                          |  2 +-
+ .../pprof/internal/protopprof/protopprof.go        |  1 -
+ .../pprof/internal/protopprof/protopprof_test.go   | 38 -------------
+ src/runtime/pprof/pprof.go                         | 55 +++++++------------
+ src/runtime/pprof/pprof_test.go                    | 63 +++++++++++-----------
+ 5 files changed, 49 insertions(+), 110 deletions(-)

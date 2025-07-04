@@ -1,25 +1,20 @@
-commit 02d56a1584f968b86b669b3b943dc2ffad30e087
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Sep 27 19:49:38 2021 -0400
+commit 4c835f9169e2b1f98a9755724d1f46bf50566003
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Jan 18 09:42:53 2021 +0700
 
-    go/types: add the Interface.IsMethodSet method
+    [dev.regabi] cmd/compile: use LinksymOffsetExpr in TypePtr/ItabAddr
     
-    As pointed out in #47916, the IsConstraint method becomes ambiguously
-    named if ever we allow interfaces with structural restrictions outside
-    of constraint position.
+    Passes toolstash -cmp.
     
-    Add instead an IsMethodSet method, which has the opposite sense and
-    avoids this ambiguity. In a subsequent CL the IsConstraint method will
-    be removed, once x/tools has been updated to use the IsMethodSet API.
+    Fixes #43737
     
-    Updates #47916
-    
-    Change-Id: I82ad16b111464b0cd2f354b8ecdd4b3f14796cd9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352616
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: I2d5228c0213b5f8742e3cea6fac9bc985b19d78c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284122
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/interface.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/compile/internal/reflectdata/reflect.go | 37 +++++++------------------
+ src/cmd/compile/internal/staticinit/sched.go    |  2 +-
+ 2 files changed, 11 insertions(+), 28 deletions(-)

@@ -1,12 +1,15 @@
-commit 92755f38ae86b7e2e476392a0d7be987f69f6b61
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 21 17:13:14 2012 +1100
+commit 152d806b169a54564a21fd91d5cd3fb3cee1a5dc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 21 16:48:05 2012 +1100
 
-    dashboard: rename buttons to satisfy pedantic souls
+    net: extend the workaround to DialTCP to try to get arm building again.
+    Awfulness by the bucket that we hope
+    Fixes #3057.
     
-    R=golang-dev, r
+    R=golang-dev, mikioh.mikioh, dsymonds, r, rsc
     CC=golang-dev
-    https://golang.org/cl/5686053
+    https://golang.org/cl/5687060
 
- misc/dashboard/app/build/ui.html | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/net/ipsock_posix.go  |  4 ----
+ src/pkg/net/tcpsock_posix.go | 22 ++++++++++++----------
+ 2 files changed, 12 insertions(+), 14 deletions(-)

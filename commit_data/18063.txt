@@ -1,24 +1,14 @@
-commit 17dc712c18fdba4bc88fe5adf56c3ace86c765ad
-Author: Jeff R. Allen <jra@nella.org>
-Date:   Wed Dec 18 15:38:53 2013 -0500
+commit ff6b9223616f673aaeddb791f9e0303591b128bc
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Dec 18 15:10:40 2013 -0500
 
-    math/rand: Float32/64 must only return values in [0,1)
+    image/gif: respect local color table transparency.
     
-    Float32 and Float64 are now both created by taking the ratio
-    of two integers which are chosen to fit entirely into the
-    precision of the desired float type. The previous code
-    could cast a Float64 with more than 23 bits of ".99999"
-    into a Float32 of 1.0, which is not in [0,1).
+    Fixes #6441.
     
-    Float32 went from 15 to 21 ns/op (but is now correct).
-    
-    Fixes #6721.
-    
-    R=golang-dev, iant, rsc
-    CC=golang-dev
-    https://golang.org/cl/22730043
+    R=r
+    CC=andybons, golang-dev
+    https://golang.org/cl/13829043
 
- src/pkg/math/rand/example_test.go |  4 ++--
- src/pkg/math/rand/rand.go         |  4 ++--
- src/pkg/math/rand/rand_test.go    | 18 ++++++++++++++++++
- 3 files changed, 22 insertions(+), 4 deletions(-)
+ src/pkg/image/gif/reader.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

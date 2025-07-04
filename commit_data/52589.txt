@@ -1,28 +1,31 @@
-commit a5c79283f79b5f03296fc2037f32d935aaec806f
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Apr 3 16:07:41 2023 -0400
+commit a2d12076b9268c11d300bddcbce04675ec2f42d3
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu Nov 25 11:41:03 2021 +0800
 
-    cmd/go: return and handle errors from loadImport for bad imports
+    cmd/compile/internal/ssa: add support on loong64 for schedule phase
     
-    And assign the error to the importing package. Before this change, for
-    some errors for bad imports, such as importing a vendored package with
-    the wrong path, we would make a dummy package for the imported package
-    with the error on it. Instead report the error on the importing
-    package where it belongs. Do so by returning an error from loadImport
-    and handling it on the importing package.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    For #59157
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
     
-    Change-Id: I952e1a82af3857efc5da4fd3f8bc6be473a60cf5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/482877
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Updates #46229
+    
+    Change-Id: Id533912c62d8c4e2aa3c124561772b543d685d7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367041
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/go/internal/get/get.go                 |   8 +-
- src/cmd/go/internal/load/pkg.go                | 144 +++++++++++++++----------
- src/cmd/go/internal/load/test.go               |  15 ++-
- src/cmd/go/internal/work/action.go             |  11 +-
- src/cmd/go/testdata/script/list_import_err.txt |  22 ++++
- 5 files changed, 133 insertions(+), 67 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

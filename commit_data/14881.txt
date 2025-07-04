@@ -1,12 +1,12 @@
-commit a0509d85104f8e4397a1d882524278c24221b58d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Jan 14 19:29:03 2013 +0900
+commit 06af0ea3f3f09aed0fe5cd945067611e9fb76ff3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jan 14 17:03:19 2013 +1100
 
-    syscall: simplify netlink sockets
+    encoding/gob: fix broken test (fix build)
     
-    R=dave, rsc
-    CC=golang-dev
-    https://golang.org/cl/7039044
+    R=golang-dev, kevlar
+    CC=adg, golang-dev
+    https://golang.org/cl/7093056
 
- src/pkg/syscall/netlink_linux.go | 170 +++++++++++++++------------------------
- 1 file changed, 66 insertions(+), 104 deletions(-)
+ src/pkg/encoding/gob/gobencdec_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,32 +1,46 @@
-commit acd1b6317d5495024a21233384037a965934046b
-Author: Chris Manghane <cmang@golang.org>
-Date:   Thu Aug 1 13:27:27 2013 +1000
+commit 4fa83edf0693099becc97df926ee05eb83d08a47
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 1 11:21:17 2013 +1000
 
-    misc/dashboard/app, misc/dashboard/builder: delete from main repo; part of move to go.tools
-    See also https://golang.org/cl/12180043/
+    cmd/godoc: delete from core repository
     
-    R=adg
+    The godoc command now lives at code.google.com/p/go.tools/cmd/godoc.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/12213043
+    https://golang.org/cl/12206044
 
- misc/dashboard/README                      |  26 --
- misc/dashboard/app/app.yaml                |  20 -
- misc/dashboard/app/build/build.go          | 330 ---------------
- misc/dashboard/app/build/handler.go        | 447 --------------------
- misc/dashboard/app/build/init.go           |  66 ---
- misc/dashboard/app/build/key.go            |  62 ---
- misc/dashboard/app/build/notify.go         | 166 --------
- misc/dashboard/app/build/notify.txt        |   9 -
- misc/dashboard/app/build/test.go           | 256 -----------
- misc/dashboard/app/build/ui.go             | 319 --------------
- misc/dashboard/app/build/ui.html           | 209 ---------
- misc/dashboard/app/cache/cache.go          |  82 ----
- misc/dashboard/app/static/status_alert.gif | Bin 570 -> 0 bytes
- misc/dashboard/app/static/status_good.gif  | Bin 328 -> 0 bytes
- misc/dashboard/builder/Makefile            |   9 -
- misc/dashboard/builder/doc.go              |  58 ---
- misc/dashboard/builder/exec.go             |  79 ----
- misc/dashboard/builder/http.go             | 167 --------
- misc/dashboard/builder/main.go             | 653 -----------------------------
- misc/dashboard/builder/vcs.go              | 148 -------
- 20 files changed, 3106 deletions(-)
+ lib/godoc/codewalk.html            |   56 --
+ lib/godoc/codewalkdir.html         |   16 -
+ lib/godoc/dirlist.html             |   31 -
+ lib/godoc/error.html               |    9 -
+ lib/godoc/example.html             |   28 -
+ lib/godoc/godoc.html               |   94 ---
+ lib/godoc/opensearch.xml           |   11 -
+ lib/godoc/package.html             |  226 -----
+ lib/godoc/package.txt              |   80 --
+ lib/godoc/search.html              |  109 ---
+ lib/godoc/search.txt               |   47 --
+ src/cmd/godoc/README.godoc-app     |   61 --
+ src/cmd/godoc/appinit.go           |   69 --
+ src/cmd/godoc/codewalk.go          |  494 -----------
+ src/cmd/godoc/dirtrees.go          |  320 --------
+ src/cmd/godoc/doc.go               |  135 ---
+ src/cmd/godoc/filesystem.go        |  562 -------------
+ src/cmd/godoc/format.go            |  372 ---------
+ src/cmd/godoc/godoc.go             | 1586 ------------------------------------
+ src/cmd/godoc/index.go             | 1079 ------------------------
+ src/cmd/godoc/linkify.go           |  234 ------
+ src/cmd/godoc/main.go              |  470 -----------
+ src/cmd/godoc/parser.go            |   37 -
+ src/cmd/godoc/play-appengine.go    |   35 -
+ src/cmd/godoc/play-local.go        |   41 -
+ src/cmd/godoc/play.go              |   52 --
+ src/cmd/godoc/setup-godoc-app.bash |  140 ----
+ src/cmd/godoc/snippet.go           |  112 ---
+ src/cmd/godoc/spec.go              |  179 ----
+ src/cmd/godoc/template.go          |  182 -----
+ src/cmd/godoc/throttle.go          |   88 --
+ src/cmd/godoc/utils.go             |   91 ---
+ src/cmd/godoc/zip.go               |  236 ------
+ 33 files changed, 7282 deletions(-)

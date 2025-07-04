@@ -1,21 +1,14 @@
-commit d3946f75d3061c6150e74d854e7345ecc1751785
-Author: Hana Kim <hakim@google.com>
-Date:   Fri Mar 2 15:52:30 2018 -0500
+commit 6222997047dda627e9b65c880e772ac5042d62d8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 26 13:39:41 2017 -0700
 
-    internal/trace: remove backlinks from span/task end to start
+    test: add type alias test that caused gccgo to crash
     
-    This is an updated version of golang.org/cl/96395, with the fix to
-    TestUserSpan.
-    
-    This reverts commit 7b6f6267e90a8e4eab37a3f2164ba882e6222adb.
-    
-    Change-Id: I31eec8ba0997f9178dffef8dac608e731ab70872
-    Reviewed-on: https://go-review.googlesource.com/98236
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Change-Id: I3b388e4ac05ace5b7768ade03df2bee5bcc26ba8
+    Reviewed-on: https://go-review.googlesource.com/73790
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/trace/annotations.go         | 103 ++++++++++++++++++++++++-----------
- src/internal/trace/parser.go         |  11 ++--
- src/runtime/trace/annotation_test.go |  17 ++++--
- 3 files changed, 89 insertions(+), 42 deletions(-)
+ test/fixedbugs/bug505.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

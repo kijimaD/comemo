@@ -1,20 +1,27 @@
-commit 980cb0caf258b468eca903df85c44224f3e7e5c5
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 21 14:18:13 2015 -0700
+commit 8c954d57801d8ea855003425fbbbf78de8733e6a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 15 14:38:19 2015 -0600
 
-    cmd/asm: fix crash triggered by nested #define
+    [dev.ssa] cmd/compile: speed up cse
     
-    A panic was in place for an impossible condition that turned
-    out to be possible if one used a macro to define a macro.
+    By walking only the current set of partitions
+    at any given point, the cse pass ended up doing
+    lots of extraneous, effectively O(n^2) work.
     
-    Another go-fuzz "win".
+    Using a regular for loop allows each cse pass to
+    make as much progress as possible by processing
+    each new class as it is introduced.
     
-    Fixes #12654.
+    This can and should be optimized further,
+    but it already reduces by 75% cse time on test/slice3.go.
     
-    Change-Id: I0a7bb0f0eabb260c986bf7a2288860c78d8db1af
-    Reviewed-on: https://go-review.googlesource.com/14777
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    The overall time to compile test/slice3.go is still
+    dominated by the O(n^2) work in the liveness pass.
+    However, Keith is rewriting regalloc anyway.
+    
+    Change-Id: I8be020b2f69352234587eeadeba923481bf43fcc
+    Reviewed-on: https://go-review.googlesource.com/12244
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/lex/lex_test.go | 29 +++++++++++++++++++++++++++++
- src/cmd/asm/internal/lex/slice.go    | 12 ++++++++++--
- 2 files changed, 39 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/cse.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

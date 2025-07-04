@@ -1,23 +1,24 @@
-commit 9de49ae01ad332d8cbb79a3094c3fc3d6b6931e6
-Author: Richard Pickering <richard.pickering@hotmail.co.uk>
-Date:   Mon Mar 15 18:16:05 2021 +0000
+commit fb5c3eabd16bbeea28ee8a11d29a31cf5ed124dd
+Author: Segflow <asselmeher@gmail.com>
+Date:   Mon Aug 24 13:42:45 2020 +0000
 
-    crypto/rsa: correct EncryptOAEP doc comment
+    net/http: set Content-Length:0 for empty PATCH requests as with POST, PATCH
     
-    Fixes #44777
+    Sets Content-Length:0 for nil bodies in PATCH requests, as we already do for  POST and PUT requests.
     
-    Corrected the documentation comment on the EncryptOAEP function from
-    'if a given public key is used to decrypt two types of messages' to
-    'if a given public key is used to encrypt two types of messages'.
+    RFC 2616 mentions that unless a method’s Content-Length is forbidden it can send one.
+    In the wild, we’ve found that Microsoft Azure’s DataLake Gen2 storage API https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update deliberately rejects PATCH requests without a Content-Length, yet there is no workaround for setting that header when trying to flush the content of a file which was uploaded in a previous request.
     
-    Change-Id: I02aff90d0414960eae72352c0e4d8ba2e8f8eca6
-    GitHub-Last-Rev: ea28663f8719e8fd0dcb10cf97ffbdcf4bd9674f
-    GitHub-Pull-Request: golang/go#45032
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301714
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Robert Findley <rfindley@google.com>
+    Fixes #40978
+    
+    Change-Id: Ib0a623b907d827a1c5ee431dca3c41024fa291c5
+    GitHub-Last-Rev: 12a3903f2bc22bcc4f5f8e2abcc3922b612b8871
+    GitHub-Pull-Request: golang/go#40991
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250039
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/crypto/rsa/rsa.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/requestwrite_test.go | 20 ++++++++++++++++++++
+ src/net/http/transfer.go          |  2 +-
+ 2 files changed, 21 insertions(+), 1 deletion(-)

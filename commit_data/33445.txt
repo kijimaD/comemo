@@ -1,17 +1,19 @@
-commit e49d074c3449736d283354957d7e5f55a465e67b
-Author: Radek Sohlich <sohlich@gmail.com>
-Date:   Fri Nov 3 20:36:12 2017 +0100
+commit 8e52a5eeb73638c74d135c5ac30eb9232a161240
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 15 16:58:51 2017 -0700
 
-    time: example in doc for time.AppendFormat func
+    cmd/dist: add test that deps.go is up to date
     
-    The simple example would contribute to better understanding
-    what function does.
+    Test is not run in short mode, except on builders.
     
-    Change-Id: I36a2952df8b0e1762ec0cd908a867c457f39366e
-    Reviewed-on: https://go-review.googlesource.com/75970
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I4456830770188951e05ac13669e834a25bf569ae
+    Reviewed-on: https://go-review.googlesource.com/55973
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <joetsai@google.com>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/example_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/dist/deps_test.go | 98 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/mkdeps.bash  |  7 +++-
+ 2 files changed, 104 insertions(+), 1 deletion(-)

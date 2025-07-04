@@ -1,18 +1,12 @@
-commit 1a6576db3468566ec89671c2c191e0b975833a7f
+commit 7f6a7e22a8e93364d6d853c5983f8c0624c21165
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 11 20:29:45 2013 -0400
+Date:   Wed Sep 11 20:28:14 2013 -0400
 
-    cmd/5l, cmd/6l, cmd/8l: refactor stack split code
+    net/http: explain the "1.1" in the default User-Agent
     
-    Pull the stack split generation into its own function.
-    This will make an upcoming change to fix recover
-    easier to digest.
-    
-    R=ken2
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/13611044
+    https://golang.org/cl/13263052
 
- src/cmd/5l/noop.c | 277 +++++++++++++++---------------
- src/cmd/6l/pass.c | 493 +++++++++++++++++++++++++++++-------------------------
- src/cmd/8l/pass.c | 455 ++++++++++++++++++++++++++-----------------------
- 3 files changed, 650 insertions(+), 575 deletions(-)
+ src/pkg/net/http/request.go | 5 +++++
+ 1 file changed, 5 insertions(+)

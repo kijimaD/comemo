@@ -1,23 +1,53 @@
-commit d13d62c49adca86f2101bc0b7d5a394197ece81b
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Sep 1 14:57:18 2021 +0200
+commit ffb0cb7044cb412ce8c2f88740d8c7ea2af05837
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 02:56:26 2020 -0500
 
-    os, syscall: remove fallback to pipe syscall on Linux
+    [dev.regabi] cmd/compile: remove uses of Name.Offset, Name.copy
     
-    The minimum required Linux kernel version for Go 1.18 will be changed to
-    2.6.32, see #45964. The pipe2 syscall was added in 2.6.27, so the
-    fallback to use the pipe syscall in os.Pipe and syscall.forkExecPipe on
-    Linux can be removed.
+    For globals, Name.Offset is used as a way to address a field within
+    a global during static initialization. This CL replaces that use with
+    a separate NameOffsetExpr (ONAMEOFFSET) node.
     
-    For #45964
+    For locals, Name.Offset is the stack frame offset. This CL calls it
+    that (FrameOffset, SetFrameOffset).
     
-    Change-Id: I033a534f2b39e9bafc9980c9ce980e92f1e3a136
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346789
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Now there is no longer any use of Name.Offset or Name.SetOffset.
+    
+    And now that copies of Names are not being made to change their
+    offsets, we can lock down use of ir.Copy on Names. The only
+    remaining uses are during inlining and in handling generic system
+    functions. At both those times you do want to create a new name
+    and that can be made explicit by calling the new CloneName method
+    instead. ir.Copy on a name now panics.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I0b0a25b9d93aeff7cf4e4025ac53faec7dc8603b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278914
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/pipe_linux.go      | 15 +--------------
- src/syscall/exec_linux.go | 14 +-------------
- 2 files changed, 2 insertions(+), 27 deletions(-)
+ src/cmd/compile/internal/gc/abiutilsaux_test.go |   2 +-
+ src/cmd/compile/internal/gc/alg.go              |   2 +-
+ src/cmd/compile/internal/gc/align.go            |   6 +-
+ src/cmd/compile/internal/gc/dcl.go              |   2 +-
+ src/cmd/compile/internal/gc/escape.go           |  13 ++-
+ src/cmd/compile/internal/gc/inl.go              |  14 ++-
+ src/cmd/compile/internal/gc/obj.go              |  52 +++++----
+ src/cmd/compile/internal/gc/order.go            |   2 +-
+ src/cmd/compile/internal/gc/pgen.go             |  16 +--
+ src/cmd/compile/internal/gc/pgen_test.go        |   4 +-
+ src/cmd/compile/internal/gc/plive.go            |   8 +-
+ src/cmd/compile/internal/gc/racewalk.go         |   4 +-
+ src/cmd/compile/internal/gc/sinit.go            | 136 ++++++++++++------------
+ src/cmd/compile/internal/gc/ssa.go              |  57 ++++++----
+ src/cmd/compile/internal/gc/subr.go             |   8 +-
+ src/cmd/compile/internal/gc/typecheck.go        |   7 ++
+ src/cmd/compile/internal/gc/walk.go             |   8 +-
+ src/cmd/compile/internal/ir/fmt.go              |   4 +
+ src/cmd/compile/internal/ir/mknode.go           |  29 ++---
+ src/cmd/compile/internal/ir/name.go             |  20 +++-
+ src/cmd/compile/internal/ir/node_gen.go         |   5 +-
+ 21 files changed, 223 insertions(+), 176 deletions(-)

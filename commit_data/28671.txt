@@ -1,20 +1,20 @@
-commit f69991c17d9dea88e927643e4b7fdc43ad789ac3
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 4 23:58:42 2016 -0400
+commit df43cf033f41d784a9f263b932eb8c859132eec4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 24 15:06:17 2016 -0400
 
-    context: make DeadlineExceeded implement net.Error
+    [dev.ssa] cmd/compile: optimize NilCheck in SSA for ARM
     
-    It already implemented the Timeout method,
-    but implementing the full net.Error is more convenient.
+    Like AMD64, don't issue NilCheck instruction if the subsequent block
+    has a load or store at the same address.
     
-    Fixes #14238 (again).
+    Pass test/nilptr3_ssa.go.
     
-    Change-Id: Ia87f897f0f35bcb49865e2355964049227951ca6
-    Reviewed-on: https://go-review.googlesource.com/30370
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #15365.
+    
+    Change-Id: Ic88780dab8c4893c57d1c95f663760cc185fe51e
+    Reviewed-on: https://go-review.googlesource.com/24451
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/context/context.go  |  6 +++---
- src/context/net_test.go | 21 +++++++++++++++++++++
- 2 files changed, 24 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go | 61 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

@@ -1,28 +1,15 @@
-commit bf0a1ffbe2218d70f5f2aa5a3d6c6e67fb23f4d4
-Author: Mikael Urankar <mikael@FreeBSD.org>
-Date:   Sun Sep 18 17:25:55 2022 +0200
+commit 3b7e376df87fa5255c7aa58d5719593b314338fd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Nov 5 15:34:20 2021 -0700
 
-    syscall: add support for freebsd/riscv64
+    net/netip: add tests for Addr.AsSlice
     
-    Updates #53466
-    
-    Change-Id: I3c156400a105e711d6da0980854c08bf2f7e415a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431655
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Mikaël Urankar <mikael.urankar@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ib88dd101b3bbdf4d2bfd79838994cfadef1b604d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361915
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/syscall/asm_freebsd_riscv64.s       |  125 +++
- src/syscall/mkall.sh                    |    7 +
- src/syscall/route_freebsd_64bit.go      |    2 +-
- src/syscall/syscall_freebsd_riscv64.go  |   47 +
- src/syscall/zerrors_freebsd_riscv64.go  | 1718 +++++++++++++++++++++++++++++++
- src/syscall/zsyscall_freebsd_riscv64.go | 1308 +++++++++++++++++++++++
- src/syscall/zsysnum_freebsd_riscv64.go  |  394 +++++++
- src/syscall/ztypes_freebsd_riscv64.go   |  519 ++++++++++
- 8 files changed, 4119 insertions(+), 1 deletion(-)
+ src/net/netip/netip_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

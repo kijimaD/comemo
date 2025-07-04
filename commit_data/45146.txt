@@ -1,19 +1,18 @@
-commit 1a8f0a79619bee4b0040888a5703e38f8117d682
-Author: Than McIntosh <thanm@google.com>
-Date:   Wed Apr 14 15:40:01 2021 -0400
+commit 67edc0ed81947a55adbcd0c9d2317abb93ac9510
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 6 22:07:15 2020 -0400
 
-    runtime: fix data race in abi finalizer test
+    runtime: restore SSE guard in asyncPreempt on 386
     
-    Fix a buglet in TestFinalizerRegisterABI that was causing problems
-    when run with GOEXPERIMENT=regabi.
+    So we don't use SSE instructions under GO386=softfloat.
     
-    Updates #40724.
-    
-    Change-Id: I950c4aa3df69eada23e600f01e6804eb136ce806
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/310077
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I8ecc92340ee567f84a22501df2543ec041d25ef2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260137
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/abi_test.go | 37 +++++++++++++++++++++++++++----------
- 1 file changed, 27 insertions(+), 10 deletions(-)
+ src/runtime/mkpreempt.go  | 28 ++++++++++++++++++----------
+ src/runtime/preempt_386.s |  6 ++++++
+ 2 files changed, 24 insertions(+), 10 deletions(-)

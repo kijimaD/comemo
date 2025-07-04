@@ -1,28 +1,45 @@
-commit 78200799a290da7d53ebbd50c04e432a4ab14eec
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Feb 14 11:01:04 2017 -0500
+commit 8f81dfe8b47e975b90bb4a2f8dd314d32c633176
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 22 16:02:54 2016 -0400
 
-    cmd/compile: undo special handling of zero-valued STRUCTLIT
+    runtime: perform write barrier before pointer write
     
-    CL 35261 introduces special handling of zero-valued STRUCTLIT for
-    efficient struct zeroing. But it didn't cover all use cases, for
-    example, CONVNOP STRUCTLIT is not handled.
+    Currently, we perform write barriers after performing pointer writes.
+    At the moment, it simply doesn't matter what order this happens in, as
+    long as they appear atomic to GC. But both the hybrid barrier and ROC
+    are going to require a pre-write write barrier.
     
-    On the other hand, CL 34566 handles zeroing earlier, so we don't
-    need the change in CL 35261 for efficient zeroing. Other uses of
-    zero-valued struct literals are very rare. So undo the change in
-    walk.go in CL 35261.
+    For the hybrid barrier, this is important because the barrier needs to
+    observe both the current value of the slot and the value that will be
+    written to it. (Alternatively, the caller could do the write and pass
+    in the old value, but it seems easier and more useful to just swap the
+    order of the barrier and the write.)
     
-    Add a test for efficient zeroing.
+    For ROC, this is necessary because, if the pointer write is going to
+    make the pointer reachable to some goroutine that it currently is not
+    visible to, the garbage collector must take some special action before
+    that pointer becomes more broadly visible.
     
-    Fixes #19084.
+    This commits swaps pointer writes around so the write barrier occurs
+    before the pointer write.
     
-    Change-Id: I0807f7423fb44d47bf325b3c1ce9611a14953853
-    Reviewed-on: https://go-review.googlesource.com/36955
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    The main subtlety here is bulk memory writes. Currently, these copy to
+    the destination first and then use the pointer bitmap of the
+    destination to find the copied pointers and invoke the write barrier.
+    This is necessary because the source may not have a pointer bitmap. To
+    handle these, we pass both the source and the destination to the bulk
+    memory barrier, which uses the pointer bitmap of the destination, but
+    reads the pointer values from the source.
+    
+    Updates #17503.
+    
+    Change-Id: I78ecc0c5c94ee81c29019c305b3d232069294a55
+    Reviewed-on: https://go-review.googlesource.com/31763
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go | 11 +++++++++++
- src/cmd/compile/internal/gc/walk.go     |  3 ---
- test/fixedbugs/issue19084.go            | 17 +++++++++++++++++
- 3 files changed, 28 insertions(+), 3 deletions(-)
+ src/runtime/atomic_pointer.go | 23 +++++-----
+ src/runtime/chan.go           |  4 +-
+ src/runtime/mbarrier.go       | 73 ++++++++++++++++++++-----------
+ src/runtime/mbitmap.go        | 99 +++++++++++++++++++++++--------------------
+ src/runtime/proc.go           |  6 ++-
+ 5 files changed, 116 insertions(+), 89 deletions(-)

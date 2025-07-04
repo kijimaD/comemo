@@ -1,15 +1,19 @@
-commit 79024cf33d0cea53a0c75f428d79a9f971f12b5b
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Nov 2 11:05:03 2021 -0700
+commit 593f5bbad7727f57ce452c4aa93604e8dabbba7d
+Author: eric fang <eric.fang@arm.com>
+Date:   Wed Nov 4 09:26:28 2020 +0000
 
-    errors: improve wording in As doc comment
+    cmd/compile: adjust stack slot alignment requirements on arm64
     
-    "so" didn't have an antecedent.
+    Currently any variable that is spilled onto the stack will occupy at least 8 bytes,
+    because the stack offset is required to be aligned with 8 bytes on linux/arm64.
+    This CL removes this constraint by aligning the stack slot with its actual size.
     
-    Change-Id: I27f7b334decea7bc34bfa3f3f2d3a79874c6fe90
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360797
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #42385
+    
+    Change-Id: Icbd63dc70cd19852802e43f134355f19ba7e1e29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267999
+    Trust: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/errors/wrap.go | 2 +-
+ src/cmd/compile/internal/ssagen/pgen.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

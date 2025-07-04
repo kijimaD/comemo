@@ -1,13 +1,14 @@
-commit 87ef6e91568507e53b902c558f0cc4d8447e5dd7
-Author: Rob Pike <r@golang.org>
-Date:   Tue May 20 11:57:21 2014 -0700
+commit 8aa8348b5161470b5b46477f547a40a2a393686e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue May 20 14:41:24 2014 -0400
 
-    doc/install.html: fix duplicate id= tag
+    runtime: revise the document of Version()
+    Fixes #7701. (again, differently)
     
-    LGTM=minux.ma
-    R=adg, minux.ma
+    LGTM=rsc
+    R=iant, rsc
     CC=golang-codereviews
-    https://golang.org/cl/95540045
+    https://golang.org/cl/94560043
 
- doc/install.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/extern.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

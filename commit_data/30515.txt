@@ -1,34 +1,28 @@
-commit 781fd3998e3c1031379cf5709043a9c0e2987287
-Author: David Lazar <lazard@golang.org>
-Date:   Fri Feb 17 16:08:36 2017 -0500
+commit 47bdae942242eca4be94989bab485bb1335f354d
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Nov 7 23:37:21 2016 -0800
 
-    runtime: use inlining tables to generate accurate tracebacks
+    cmd/vet: detect defer resp.Body.Close() before error check
     
-    The code in https://play.golang.org/p/aYQPrTtzoK now produces the
-    following stack trace:
+    This check detects the code
     
-    goroutine 1 [running]:
-    main.(*point).negate(...)
-            /tmp/go/main.go:8
-    main.main()
-            /tmp/go/main.go:14 +0x23
+            resp, err := http.Get("http://foo.com")
+            defer resp.Body.Close()
+            if err != nil {
+                    ...
+            }
     
-    Previously the stack trace missed the inlined call:
+    For every call to a function on the net/http package or any method
+    on http.Client that returns (*http.Response, error), it checks
+    whether the next line is a defer statement that calls on the response.
     
-    goroutine 1 [running]:
-    main.main()
-            /tmp/go/main.go:14 +0x23
+    Fixes #17780.
     
-    Fixes #10152.
-    Updates #19348.
-    
-    Change-Id: Ib43c67012f53da0ef1a1e69bcafb65b57d9cecb2
-    Reviewed-on: https://go-review.googlesource.com/37233
-    Run-TryBot: David Lazar <lazard@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I9d70edcbfa2bad205bf7f45281597d074c795977
+    Reviewed-on: https://go-review.googlesource.com/32911
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/crash_test.go | 28 ++++++++++++++++++++++++++++
- src/runtime/symtab.go     | 25 +++++++++++++++++++++++++
- src/runtime/traceback.go  | 17 ++++++++++++++++-
- 3 files changed, 69 insertions(+), 1 deletion(-)
+ src/cmd/vet/doc.go                   |  15 +++-
+ src/cmd/vet/httpresponse.go          | 153 +++++++++++++++++++++++++++++++++++
+ src/cmd/vet/testdata/httpresponse.go |  85 +++++++++++++++++++
+ 3 files changed, 249 insertions(+), 4 deletions(-)

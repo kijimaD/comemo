@@ -1,25 +1,32 @@
-commit 56131cbd1d61ec446e10dfe72a96f329ed3d952a
+commit 59be2261078ebf98907317d3a9a2507eba5d015c
 Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 11 16:47:41 2018 -0700
+Date:   Tue Jun 12 17:32:50 2018 -0700
 
-    go/types: remove a test case and update comment
+    go/importer: better error message when importer is out of date
     
-    The original need for the extra test case and issue was eliminated
-    by https://golang.org/cl/116815 which introduced systematic cycle
-    detection. Now that we correctly report the cycle, we can't say much
-    about the invalid cast anyway (the type is invalid due to the cycle).
+    Separated out panic handling for bimporter and importer so that
+    the handler can consider the current version and report a better
+    error.
     
-    A more sophisticated approach would be able to tell the size of
-    a function type independent of the details of that type, but the
-    type-checker is not set up for this kind of lazy type-checking.
+    Added new export data test for export data version 999 (created
+    by changing the compiler temporarily) and verifying expected
+    error message.
     
-    Fixes #23127.
+    Fixes #25856.
     
-    Change-Id: Ia8479e66baf630ce96f6f36770c8e1c810c59ddc
-    Reviewed-on: https://go-review.googlesource.com/c/141640
+    Change-Id: Iaafec07b79499154ef7c007341783fa07c57f24d
+    Reviewed-on: https://go-review.googlesource.com/118496
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/go/types/testdata/cycles2.src | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+ src/go/internal/gcimporter/bimport.go              |  27 +++++++++++----------
+ src/go/internal/gcimporter/gcimporter.go           |  21 ++++++++++++----
+ src/go/internal/gcimporter/gcimporter_test.go      |  12 +++++++++
+ src/go/internal/gcimporter/iimport.go              |  19 ++++++++++++---
+ .../internal/gcimporter/testdata/versions/test.go  |   5 +++-
+ .../gcimporter/testdata/versions/test_go1.11_0i.a  | Bin 0 -> 2420 bytes
+ .../gcimporter/testdata/versions/test_go1.11_6b.a  | Bin 0 -> 2426 bytes
+ .../testdata/versions/test_go1.11_999b.a           | Bin 0 -> 2600 bytes
+ .../testdata/versions/test_go1.11_999i.a           | Bin 0 -> 2420 bytes
+ 9 files changed, 62 insertions(+), 22 deletions(-)

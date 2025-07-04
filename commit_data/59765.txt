@@ -1,21 +1,33 @@
-commit f537061e1b7599e97bafc0c8f9cc0bf686eb813e
+commit dcb5de5cac5baee703b1fe215f28f22aebc93437
 Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Jun 3 20:30:43 2025 +0000
+Date:   Thu Apr 18 17:38:30 2024 +0000
 
-    cmd/trace: handle Sync event at the beginning of the trace
+    cmd/trace/v2: tolerate traces with broken tails
     
-    Currently the code assumes that there's no Sync event at the start of
-    the trace, but this hasn't been correct for some time. Count Syncs and
-    look for at least one instead of looking for zero.
+    This change modifies cmd/trace/v2 to tolerate traces with
+    incomplete/broken generations at the tail. These broken tails can be
+    created if a program crashes while a trace is being produced. Although
+    the runtime tries to flush the trace on some panics, it may still
+    produce some extra trace data that is incomplete.
     
-    Fixes #73962.
+    This change modifies cmd/trace/v2 to still work on any complete
+    generations, even if there are incomplete/broken generations at the tail
+    end of the trace. Basically, the tool now just tracks when the last good
+    generation ended (via Sync events) and truncates the trace to that point
+    when it encounters an error.
     
-    Change-Id: I2b4199a21c699c5b50b3d5add37dc46a515108c6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/678555
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This change also revamps the text output of the tool to emit regular
+    progress notifications as well as warnings as to how much of the trace
+    data was lost.
+    
+    Fixes #65316.
+    
+    Change-Id: I877d39993bc02a81eebe647db9c2be17635bcec8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580135
     Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/trace/gen.go | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ src/cmd/trace/v2/jsontrace_test.go |   2 +-
+ src/cmd/trace/v2/main.go           | 120 ++++++++++++++++++++++++++++++++++---
+ 2 files changed, 113 insertions(+), 9 deletions(-)

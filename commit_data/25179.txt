@@ -1,17 +1,22 @@
-commit b9fde8605e1bc93d1a38d1165eedd297c910a3b2
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Dec 4 23:19:02 2015 -0500
+commit 4a6326e7b5f326e6079073fb843b4ab096cbf652
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sun Sep 27 14:53:18 2015 +0100
 
-    runtime: fix integer comparison in signal handling
+    net/http: add response body to 413 and 400 errors
     
-    (sig is unsigned, so sig-1 >= 0 is always true.)
+    The existing serve() method returns a zero-length response body when
+    it encounters an error, which results in a blank page and no visible
+    error in browsers.
     
-    Fixes #11281.
+    This change sends a response body explaining the error for display in browsers.
     
-    Change-Id: I4b9d784da6e3cc80816f2d2f7228d5d8a237e2d5
-    Reviewed-on: https://go-review.googlesource.com/17457
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #12745
+    
+    Change-Id: I9dc3b95ad88cb92c18ced51f6b52bd3b2c1b974c
+    Reviewed-on: https://go-review.googlesource.com/15018
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/signal1_unix.go | 4 ++--
+ src/net/http/server.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

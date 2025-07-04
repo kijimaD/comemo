@@ -1,39 +1,41 @@
-commit 768a39975d8851f1c309b163a8eb4b7a5388aa24
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Apr 23 01:13:50 2021 -0400
+commit a4ede9f9a6254360d39d0f45aec133c355ac6b2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 9 11:49:59 2020 -0400
 
-    cmd/go/internal/modload: remove the addedModuleFor map
+    os: add File.ReadDir method and DirEntry type
     
-    At one point this map checked for infinite loops during package iteration.
-    The last write to the map was mistakenly removed in CL 251445.
+    ReadDir provides a portable, efficient way to read a directory
+    and discover the type of directory entries.
+    This enables a more efficient file system walk, yet to be added.
     
-    However, looking at the code before that change, the map-based
-    termination strategy was never quite right to begin with: it checked
-    whether we had ever added any module for the given package, not
-    whether we had already added the module being proposed right now. (For
-    packages within nested modules, we could try adding multiple different
-    modules for a given package without looping.)
+    See #41467 for the proposal review for the API.
     
-    Moreover, the "looping trying to add package" failure message was only
-    marginally helpful. Users are capable of noticing that an invocation
-    of the 'go' command is taking too long, and will report a bug for an
-    infinite loop just as readily as a "looping trying to add package"
-    error.
+    Fixes #41467.
     
-    We could try to add this tracking back in, but it's no substitute for
-    a proper proof of convergence, and the code is simpler without it.
-    Instead I'm going to add a proper proof of convergence — or, barring
-    that, a more accurate and useful check for failure to converge. In the
-    meantime, this invariantly-empty map isn't doing anybody any good.
-    
-    For #36460
-    
-    Change-Id: I2c111d4b4bf59159af0d7e62d1c0ef4ce0a43a71
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312929
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: I461a526793ae46df48821aa448b04f1705546739
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261540
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/modload/load.go | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ src/os/dir.go              |  62 ++++++++++++++++++++++-
+ src/os/dir_darwin.go       |  62 +++++++++++++++++++----
+ src/os/dir_plan9.go        |  42 ++++++++-------
+ src/os/dir_unix.go         | 122 ++++++++++++++++++++++++++++++++++++++++----
+ src/os/dir_windows.go      |  51 +++++++++----------
+ src/os/dirent_aix.go       |  30 +++++++++++
+ src/os/dirent_dragonfly.go |  55 ++++++++++++++++++++
+ src/os/dirent_freebsd.go   |  47 +++++++++++++++++
+ src/os/dirent_js.go        |  30 +++++++++++
+ src/os/dirent_linux.go     |  51 +++++++++++++++++++
+ src/os/dirent_netbsd.go    |  47 +++++++++++++++++
+ src/os/dirent_openbsd.go   |  47 +++++++++++++++++
+ src/os/dirent_solaris.go   |  30 +++++++++++
+ src/os/endian_big.go       |   9 ++++
+ src/os/endian_little.go    |   9 ++++
+ src/os/export_test.go      |   1 +
+ src/os/file_unix.go        |  66 ++++++++++++++----------
+ src/os/os_test.go          | 124 +++++++++++++++++++++++++++++++++++++++------
+ src/os/stat_plan9.go       |   2 +-
+ src/os/types.go            |   7 ++-
+ 20 files changed, 784 insertions(+), 110 deletions(-)

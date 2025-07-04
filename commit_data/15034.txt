@@ -1,15 +1,12 @@
-commit 779e9dfd4d48b853b1406736b21965dd25f1ead5
+commit e6861d8c34002b7f1b8a12b03672fda02f02d7ed
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 30 09:23:36 2013 -0800
+Date:   Wed Jan 30 09:10:06 2013 -0800
 
-    doc/go1.1.html: document division by zero change from CL 6710045
-    
-    I am still not convinced this is a change we should make, but at least
-    documenting it will keep us from forgetting it as we get closer to Go 1.1.
+    cmd/5l: reestablish uniform union field naming
     
     R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7226064
+    https://golang.org/cl/7226063
 
- doc/go1.1.html | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ src/cmd/5l/l.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,24 +1,54 @@
-commit bc40294d47f100b6da4b21823cf85d11ce931c1b
-Author: Austin Clements <austin@google.com>
-Date:   Wed Aug 21 15:05:26 2019 -0400
+commit 9da6530faab0a58c4c4e02b2f3f4a5c754dcbd4e
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Mar 20 10:47:17 2019 -0700
 
-    debug/dwarf: expose CU byte order
+    syscall: avoid _getdirentries64 on darwin
     
-    Currently, dwarf.Reader exposes the current compilation unit's address
-    size, but doesn't expose its byte order. Both are important for
-    decoding many attributes. For example, location descriptions include
-    addresses that are encoded in native form for the CU.
+    Getdirentries is implemented with the __getdirentries64 function
+    in libSystem.dylib. That function works, but it's on Apple's
+    can't-be-used-in-an-app-store-application list.
     
-    This CL exposes the byte order of the compilation unit in the same way
-    we already expose its address size, which makes it possible to decode
-    attributes containing native addresses.
+    Implement Getdirentries using the underlying fdopendir/readdir_r/closedir.
+    The simulation isn't faithful, and could be slow, but it should handle
+    common cases.
     
-    Change-Id: I92f156818fe92b049d1dfc1613816bb1689cfadf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/192698
-    Run-TryBot: Austin Clements <austin@google.com>
+    Don't use Getdirentries in the stdlib, use fdopendir/readdir_r/closedir
+    instead (via (*os.File).readdirnames).
+    
+    Fixes #30933
+    
+    Update #28984
+    
+    RELNOTE=yes
+    
+    Change-Id: Ia6b5d003e5bfe43ba54b1e1d9cfa792cc6511717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168479
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/dwarf/entry.go      |  6 ++++++
- src/debug/dwarf/entry_test.go | 20 +++++++++++++++++---
- 2 files changed, 23 insertions(+), 3 deletions(-)
+ .../{fd_opendir_ios.go => fd_opendir_darwin.go}    |  3 --
+ src/os/{dir_ios.go => dir_darwin.go}               | 13 ++---
+ src/os/dir_unix.go                                 |  2 +-
+ src/runtime/sys_darwin.go                          | 11 +++++
+ src/runtime/sys_darwin_32.go                       | 11 -----
+ src/runtime/sys_darwin_386.s                       | 37 +++++++++++++-
+ src/runtime/sys_darwin_64.go                       | 11 -----
+ src/runtime/sys_darwin_amd64.s                     | 37 ++++++++++++--
+ src/runtime/sys_darwin_arm.s                       |  2 +-
+ src/runtime/sys_darwin_arm64.s                     |  6 +--
+ src/syscall/dirent_bsd_test.go                     |  2 +-
+ src/syscall/mksyscall.pl                           |  4 ++
+ src/syscall/syscall_darwin.go                      | 55 +++++++++++++++++++++
+ src/syscall/syscall_darwin_386.go                  | 15 +++++-
+ src/syscall/syscall_darwin_amd64.go                | 15 +++++-
+ src/syscall/syscall_darwin_arm.go                  |  7 ---
+ src/syscall/syscall_darwin_arm64.go                |  9 +---
+ src/syscall/zsyscall_darwin_386.go                 | 50 ++++++++++---------
+ src/syscall/zsyscall_darwin_386.s                  |  8 +++-
+ src/syscall/zsyscall_darwin_amd64.go               | 50 ++++++++++---------
+ src/syscall/zsyscall_darwin_amd64.s                |  8 +++-
+ src/syscall/zsyscall_darwin_arm.go                 | 56 +++++++++++-----------
+ src/syscall/zsyscall_darwin_arm64.go               | 56 +++++++++++-----------
+ 23 files changed, 303 insertions(+), 165 deletions(-)

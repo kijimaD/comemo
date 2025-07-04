@@ -1,16 +1,27 @@
-commit 5ccaf2c6ade286ca30c345ae1cfa0560dc02fedd
-Author: Kai Dong <dokia2357@gmail.com>
-Date:   Fri Apr 19 03:23:23 2019 +0000
+commit a2b4ac6cf29d31f1c927720712a25cda7bfbc682
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 25 16:42:26 2018 -0400
 
-    sync: update comment
+    cmd/go/internal/modfetch/codehost: add lockfiles for repos
     
-    Comment update.
+    The lockfile guards calls that may change the repo's filesystem contents.
     
-    Change-Id: If0d054216f9953f42df04647b85c38008b85b026
-    GitHub-Last-Rev: 133b4670be6dd1c94d16361c3a7a4bbdf8a355ab
-    GitHub-Pull-Request: golang/go#31539
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172700
-    Reviewed-by: Austin Clements <austin@google.com>
+    We don't know how robust VCS implementations are to running
+    simultaneous commands, and this way we don't need to care: only one
+    'go' command at a time will modify any given repository.
+    
+    If we can guarantee that particular VCS implementations are robust
+    enough across all of the VCS tool versions we support, we may be able
+    to remove some of this locking to improve parallelism.
+    
+    Updates #26794
+    
+    Change-Id: I578524974f5015629239cef43d3793aee2b9075c
+    Reviewed-on: https://go-review.googlesource.com/c/146381
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/sync/pool.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 38 +++++++++----
+ src/cmd/go/internal/modfetch/codehost/git.go      | 58 +++++++++++++-------
+ src/cmd/go/internal/modfetch/codehost/vcs.go      | 66 +++++++++++++++++++++--
+ 3 files changed, 130 insertions(+), 32 deletions(-)

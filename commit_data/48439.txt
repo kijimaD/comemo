@@ -1,17 +1,20 @@
-commit a682a5c711097378a72e6cf3d498832e813a14e8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 17 17:55:59 2022 -0700
+commit 02117775d1550653bd4f58fdaa12b1e906409052
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 19 18:13:45 2021 -0400
 
-    sort: generate generic variants with E rather than Elem
+    [dev.typeparams] cmd/compile, runtime: do not zero X15 on Plan 9
     
-    For #51698
+    On Plan 9, we cannot use SSE registers in note handlers, so we
+    don't use X15 for zeroing (MOVOstorezero and DUFFZERO). Do not
+    zero X15 on Plan 9.
     
-    Change-Id: Ifc5bef2cc41b163644ac80ace7c1470c8a130467
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393700
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Eli Bendersky‎ <eliben@golang.org>
+    Change-Id: I2b083b01b27965611cb83d19afd66b383dc77846
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321329
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/sort/gen_sort_variants.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go | 12 +++++++++---
+ src/runtime/asm_amd64.s               |  2 ++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

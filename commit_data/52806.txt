@@ -1,23 +1,19 @@
-commit 71ad46cd2a4eb34befbb21c0a37b5a8092c2b7f5
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Mar 10 14:25:41 2023 -0500
+commit 73587b71a62f7c7a27664a207781dedae223774b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 2 21:10:26 2022 +0000
 
-    internal/testenv: allow 'go build' on android when supported
+    runtime: avoid string allocation in printDebuglog
     
-    As of CL 472096, it should work on android/arm64 always (because
-    internal linking is supported on that platform), and on other android
-    platforms when a C toolchain is present in the test environment.
+    Either due to a new nowritebarrierrec annotation or a change in escape
+    analysis, printDebuglog can't be called from sighandler anymore.
     
-    Updates #58775.
+    Fix this by avoiding a string allocation that's the primary culprit.
     
-    Change-Id: Ifa38dc69b258b38dcc341979dcbf8cd61265c787
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475456
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ic84873a453f45852b0443a46597ed3ab8c9443fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410121
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Changkun Ou <mail@changkun.de>
 
- src/internal/testenv/testenv.go | 63 +++++++++++++++++++++++++++++++++++++----
- 1 file changed, 58 insertions(+), 5 deletions(-)
+ src/runtime/debuglog.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

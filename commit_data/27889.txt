@@ -1,16 +1,24 @@
-commit c3f05d95932c0d3d2b8461099ce82fa917c7b8a3
-Author: Jess Frazelle <me@jessfraz.com>
-Date:   Wed Aug 17 13:27:17 2016 -0700
+commit 4140da7b57f944cc16324496adcc5a41d7a987ed
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 4 13:07:24 2016 -0400
 
-    text/template: remove unused Tree.parse return value
+    cmd/link, cmd/compile: typelink sorting in linker
     
-    Fixes #13993
+    Instead of writing out the type almost twice in the symbol name,
+    teach the linker how to sort typelink symbols by their contents.
     
-    Change-Id: Ic61b2bcd9f4f71457d3a8581574633d505d5750e
-    Reviewed-on: https://go-review.googlesource.com/27240
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    This ~halves the size of typelink symbol names, which helps very
+    large (6KB) names like those mentioned in #15104.
+    
+    This does not increase the total sorting work done by the linker,
+    and makes it possible to use shorter symbol names for types. See
+    the follow-on CL 21583.
+    
+    Change-Id: Ie5807565ed07d31bc477d20f60e4c0b47144f337
+    Reviewed-on: https://go-review.googlesource.com/21457
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/text/template/parse/parse.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 11 +----------
+ src/cmd/link/internal/ld/data.go       |  8 ++++++++
+ src/cmd/link/internal/ld/decodesym.go  | 12 ++++++++++++
+ 3 files changed, 21 insertions(+), 10 deletions(-)

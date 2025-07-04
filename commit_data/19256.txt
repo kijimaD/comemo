@@ -1,14 +1,35 @@
-commit 74dccea2f270d31d94e6cd27111d6b04c64db51c
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Apr 29 15:54:37 2014 -0400
+commit f999e14f025b69516dd3e126d04dd309adb2fce0
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Apr 29 12:44:40 2014 -0400
 
-    doc/go1.3.html: update for FreeBSD/ARM support.
-    FreeBSD 10 is fully supported.
+    all: spelling tweaks, A-G
     
-    LGTM=r
-    R=golang-codereviews, bradfitz, r
-    CC=dave, golang-codereviews
-    https://golang.org/cl/99810044
+    LGTM=ruiu, bradfitz
+    R=golang-codereviews, bradfitz, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/91840044
 
- doc/go1.3.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/cmd/cgo/out.go                    | 2 +-
+ src/pkg/archive/tar/reader_test.go    | 2 +-
+ src/pkg/bufio/bufio_test.go           | 2 +-
+ src/pkg/bufio/scan.go                 | 2 +-
+ src/pkg/bufio/scan_test.go            | 2 +-
+ src/pkg/compress/bzip2/bzip2_test.go  | 2 +-
+ src/pkg/compress/flate/inflate.go     | 2 +-
+ src/pkg/compress/flate/reader_test.go | 2 +-
+ src/pkg/compress/zlib/writer_test.go  | 2 +-
+ src/pkg/crypto/rsa/pkcs1v15.go        | 2 +-
+ src/pkg/crypto/rsa/pss.go             | 6 +++---
+ src/pkg/crypto/tls/conn.go            | 2 +-
+ src/pkg/database/sql/sql.go           | 4 ++--
+ src/pkg/database/sql/sql_test.go      | 2 +-
+ src/pkg/debug/elf/elf.go              | 2 +-
+ src/pkg/debug/goobj/read.go           | 2 +-
+ src/pkg/expvar/expvar.go              | 2 +-
+ src/pkg/fmt/doc.go                    | 2 +-
+ src/pkg/fmt/format.go                 | 2 +-
+ src/pkg/go/ast/commentmap.go          | 2 +-
+ src/pkg/go/doc/example.go             | 4 ++--
+ src/pkg/go/parser/parser.go           | 2 +-
+ src/pkg/go/printer/printer_test.go    | 6 +++---
+ 23 files changed, 29 insertions(+), 29 deletions(-)

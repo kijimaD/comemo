@@ -1,23 +1,26 @@
-commit 53840ad6f19b0c1b27a0731a37341d6159625355
-Author: Derek Buitenhuis <derek.buitenhuis@gmail.com>
-Date:   Fri Apr 10 15:13:04 2015 -0400
+commit 23fd374bf22aa2eea9c07076061ef8cfbc6cf3d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 13 17:24:30 2015 -0700
 
-    runtime: Fix GDB integration with Python 2
+    math/big: wrap Float.Cmp result in struct to prevent wrong use
     
-    A similar fix was applied in 545686857bc4c2e7a5306d97e5ef48f631d277bc
-    but another instance of 'pc' was missed.
+    Float.Cmp used to return a value < 0, 0, or > 0 depending on how
+    arguments x, y compared against each other. With the possibility
+    of NaNs, the result was changed into an Accuracy (to include Undef).
+    Consequently, Float.Cmp results could still be compared for (in-)
+    equality with 0, but comparing if < 0 or > 0 would provide the
+    wrong answer w/o any obvious notice by the compiler.
     
-    Also adds a test for the goroutine gdb command.
+    This change wraps Float.Cmp results into a struct and accessors
+    are used to access the desired result. This prevents incorrect
+    use.
     
-    It currently uses goroutine 2 for the test, since goroutine 1 has
-    its stack pointer set to 0 for some reason.
-    
-    Change-Id: I53ca22be6952f03a862edbdebd9b5c292e0853ae
-    Reviewed-on: https://go-review.googlesource.com/8729
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I34e6a6c1859251ec99b5cf953e82542025ace56f
+    Reviewed-on: https://go-review.googlesource.com/7526
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/runtime-gdb.py      | 2 +-
- src/runtime/runtime-gdb_test.go | 8 ++++++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/math/big/float.go             | 31 ++++++++++++++++++-------------
+ src/math/big/float_test.go        | 20 ++++++++++----------
+ src/math/big/floatconv_test.go    |  2 +-
+ src/math/big/floatexample_test.go |  2 +-
+ 4 files changed, 30 insertions(+), 25 deletions(-)

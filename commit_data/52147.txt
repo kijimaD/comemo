@@ -1,33 +1,33 @@
-commit b35ee3b0467e042621aec9af7f18a2d8c63029ad
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Thu Feb 9 14:14:07 2023 +0100
+commit ae3d890202b2356fc0936f84349bdf08083884ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 08:59:56 2022 -0400
 
-    runtime: remove unnecessary NOFRAME flags on windows
+    go/doc/comment: parse and print identifiers, automatic links
     
-    This CL removes some NOFRAME flags on Windows assembly files
-    for several reasons:
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
     
-    - windows/386 does not use a frame pointer
-    - Leaf frameless functions already skip the frame pointer
-    - Some non-leaf functions do not contain enough dragons to justify
-    not using the frame pointer
+    Implement parsing and printing of unmarked identifiers
+    and automatic URL links in plain text.
     
-    Updates #58378
+    For #51082.
     
-    Change-Id: I31e71bf7f769e1957a4adba91778da5af66ce1e4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/466835
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ib83ad482937501a6fc14fa788eab289533a68e3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397280
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/rt0_windows_amd64.s  |  4 ++--
- src/runtime/rt0_windows_arm64.s  |  2 +-
- src/runtime/sys_windows_386.s    |  6 +++---
- src/runtime/sys_windows_amd64.s  | 22 +++++++++++++---------
- src/runtime/sys_windows_arm.s    | 10 +++++-----
- src/runtime/sys_windows_arm64.s  | 12 +++++-------
- src/runtime/time_windows_arm.s   |  4 ++--
- src/runtime/time_windows_arm64.s |  4 ++--
- 8 files changed, 33 insertions(+), 31 deletions(-)
+ src/go/doc/comment/html.go            | 10 +++++
+ src/go/doc/comment/markdown.go        | 10 +++++
+ src/go/doc/comment/parse.go           | 75 ++++++++++++++++++++++++++++++++++-
+ src/go/doc/comment/print.go           |  4 ++
+ src/go/doc/comment/testdata/hello.txt |  6 +--
+ src/go/doc/comment/testdata/link.txt  | 17 ++++++++
+ src/go/doc/comment/testdata/para.txt  | 17 ++++++++
+ src/go/doc/comment/testdata/text2.txt | 14 +++++++
+ src/go/doc/comment/testdata/words.txt | 10 +++++
+ src/go/doc/comment/testdata_test.go   | 13 +++++-
+ src/go/doc/comment/text.go            | 16 +++++++-
+ 11 files changed, 185 insertions(+), 7 deletions(-)

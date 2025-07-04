@@ -1,28 +1,19 @@
-commit cfe5d79c5c2c9888a0e56e089dca99e405a225b9
-Author: Egon Elbre <egonelbre@gmail.com>
-Date:   Tue Apr 20 17:38:54 2021 +0300
+commit 9c017ff30dd21bbdcdb11f39458d3944db530d7e
+Author: Aofei Sheng <aofei@aofeisheng.com>
+Date:   Sat Sep 26 13:21:41 2020 +0800
 
-    os: depend on Readlink only when necessary
+    net/http/httputil: copy response header back to http.ResponseWriter in ReverseProxy.handleUpgradeResponse
     
-    Currently Readlink gets linked into the binary even when Executable is
-    not needed.
+    Fixes: #41634
     
-    This reduces a simple "os.Stdout.Write([]byte("hello"))" by ~10KiB.
-    
-    Previously the executable path was read during init time, because
-    deleting the executable would make "Readlink" return "(deleted)" suffix.
-    There's probably a slight chance that the init time reading would return
-    it anyways.
-    
-    Updates #6853
-    
-    Change-Id: Ic76190c5b64d9320ceb489cd6a553108614653d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311790
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ib78cc37a4d2ca0753d567eafb616238e4103484e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257777
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/os/executable_procfs.go | 21 +++++++++------
- src/os/executable_test.go   | 65 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 78 insertions(+), 8 deletions(-)
+ src/net/http/httputil/reverseproxy.go      | 6 ++++--
+ src/net/http/httputil/reverseproxy_test.go | 3 +++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

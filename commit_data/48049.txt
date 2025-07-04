@@ -1,33 +1,27 @@
-commit 902dc38212dfdc21911fc32035704ec50a7b9994
-Author: Dan Scales <danscales@google.com>
-Date:   Wed Jan 26 10:09:39 2022 -0800
+commit cef3a442eaa1f86b81bb67fb881c5bb9e446fb13
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 14:08:58 2021 -0400
 
-    go/types, types2: tweak missingMethodReason logic to improve message
+    cmd/asm, cmd/link: use full objabi header
     
-    This makes the error case pointed out in the issue like the current
-    message in Go 1.17 or -G=0 mode. The priority is to point out the
-    similar but wrong method name, rather than a difference in type.
+    The cmd/link check of the objabi header was a bit lax because
+    historically the assembler has not included the full version string.
+    And the assembler didn't do that because it didn't have access to it:
+    that was buried inside the compiler.
     
-    Made changes to both cmd/compile/internal/types2 and go/types.
-    Added in a missing tab in an error message in go/types.
+    But now that we have cmd/internal/objabi, all the tools have full
+    access to the expected string, and they can use it, which simplifies
+    the cmd/link consistency check.
     
-    At the same time, removed the extra "at info" on the have lines (and
-    pointer receiver lines) of error messages, as requested in #50907.
+    Do that.
     
-    Fixes #50816
-    Fixes #50907
-    
-    Change-Id: I04f8151955bdb6192246cbcb59adc1c4b8a2c4e5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381774
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I33bd2f9d36c373cc3c32ff02ec6368365088b011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312030
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/types2/lookup.go          | 20 ++++++++--------
- .../internal/types2/testdata/check/issues.src      |  2 +-
- .../types2/testdata/fixedbugs/issue50816.go2       | 23 ++++++++++++++++++
- src/go/types/lookup.go                             | 23 +++++++++---------
- src/go/types/testdata/fixedbugs/issue50816.go2     | 23 ++++++++++++++++++
- test/fixedbugs/issue48471.go                       | 27 +++++++++++++++++-----
- 6 files changed, 88 insertions(+), 30 deletions(-)
+ src/cmd/asm/main.go             |  3 ++-
+ src/cmd/link/internal/ld/lib.go | 22 ++++------------------
+ 2 files changed, 6 insertions(+), 19 deletions(-)

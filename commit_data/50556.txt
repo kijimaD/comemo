@@ -1,19 +1,59 @@
-commit 1e96f42c2a80ca99c202409683ba5bd755bf3d85
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Sep 19 10:52:27 2022 +0200
+commit 6f1e9a9c21aec8531db40dbf61ad10fe77d7bee5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 1 13:34:08 2021 -0700
 
-    syscall: drop compatibility for FreeBSD < 10.0
+    net: optimize WriteMsgUDPAddrPort
     
-    Change-Id: Idd8cee84215e61817a86915160c91242670798af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/431663
-    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
-    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    This is one step towards optimizing WriteMsgUDPAddrPort.
+    Further steps remain, namely to avoid the syscall.Sockaddr interface,
+    as we do for UDPConn.WriteToUDP and UDPConn.ReadFromUDP.
+    
+    A previous change optimized ReadMsgUDPAddrPort by having
+    ReadMsgUDP call ReadMsgUDPAddrPort rather than the other way around.
+    
+    This change does not implement WriteMsgUDP in terms of WriteMsgUDPAddrPort,
+    because a few layers deep, on posix platforms only
+    (in ipToSockaddrInet4 and ipToSockaddrInet6),
+    is special handling of zero-length IP addresses and IPv4zero.
+    It treats IP(nil) as equivalent to 0.0.0.0 or ::,
+    and 0.0.0.0 as equivalent to :: in an IPv6 context.
+    
+    Based on the comments, I suspect that this treatment was intended
+    for the Listen* API, not the Write* API, but it affects both,
+    and I am nervous about changing the behavior for Write*.
+    
+    The netip package doesn't have a way to represent a "zero-length IP address"
+    as distinct from an invalid IP address (which is a good thing),
+    so to implement WriteMsgUDP using WriteMsgUDPAddrPort,
+    we would have to duplicate this special handling at the start of WriteMsgUDP.
+    But this handling depends on whether the UDPConn is an IPv4 or an IPv6 conn,
+    which is also platform-specific information.
+    
+    As a result, every attempt I made to implement WriteMsgUDP using
+    WriteMsgUDPAddrPort while preserving behavior ended up
+    being considerably worse than copy/paste/modify.
+    
+    This does mean that WriteMsgUDP and WriteMsgUDPAddrPort will have
+    different behavior in these cases.
+    
+    name                       old time/op    new time/op    delta
+    ReadWriteMsgUDPAddrPort-8    5.29µs ± 6%    5.02µs ± 7%   -5.14%  (p=0.000 n=13+15)
+    
+    name                       old alloc/op   new alloc/op   delta
+    ReadWriteMsgUDPAddrPort-8      128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=15+15)
+    
+    name                       old allocs/op  new allocs/op  delta
+    ReadWriteMsgUDPAddrPort-8      4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=15+15)
+    
+    Change-Id: Ia78eb49734f4301d7772dfdbb5a87e4d303a9f7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360597
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/route_freebsd_32bit.go | 11 ++++-------
- src/syscall/syscall_freebsd.go     | 16 +---------------
- 2 files changed, 5 insertions(+), 22 deletions(-)
+ src/net/ipsock_posix.go  | 30 ++++++++++++++++++++++++++++++
+ src/net/udpsock.go       | 20 +++++++++++++++-----
+ src/net/udpsock_plan9.go |  4 ++++
+ src/net/udpsock_posix.go | 28 ++++++++++++++++++++++++++++
+ 4 files changed, 77 insertions(+), 5 deletions(-)

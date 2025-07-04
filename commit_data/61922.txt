@@ -1,0 +1,16 @@
+commit 9f806bb76c8eec08cad07a2e859c8dd35103432e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Dec 16 15:52:47 2024 +0100
+
+    go/build: streamline the crypto package graph in TestDependencies
+    
+    Change-Id: I975243b4897d5161b839f142afbd2a46bfa1fab0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636555
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/go/build/deps_test.go | 89 +++++++++++++++++++++++------------------------
+ 1 file changed, 43 insertions(+), 46 deletions(-)

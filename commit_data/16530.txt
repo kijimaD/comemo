@@ -1,13 +1,19 @@
-commit fd41926347c6f1cf1cc06079050912b9c48a1f09
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jun 10 22:59:39 2013 +0400
+commit 06f55f50097293027a4634ba88140c75702c6a5d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 11 02:55:16 2013 +0800
 
-    runtime: fix one-time memory leak on linux
-    Update #5641.
+    net: introduce netgo build tag to build a pure Go net package.
+    Fixes #4078.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, bradfitz, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/10144043
+    https://golang.org/cl/7100050
 
- src/pkg/runtime/mem_linux.c | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ doc/go1.2.txt              | 1 +
+ src/pkg/net/cgo_bsd.go     | 1 +
+ src/pkg/net/cgo_linux.go   | 2 ++
+ src/pkg/net/cgo_netbsd.go  | 2 ++
+ src/pkg/net/cgo_openbsd.go | 2 ++
+ src/pkg/net/cgo_stub.go    | 2 +-
+ src/pkg/net/cgo_unix.go    | 1 +
+ 7 files changed, 10 insertions(+), 1 deletion(-)

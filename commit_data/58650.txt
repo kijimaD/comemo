@@ -1,18 +1,21 @@
-commit a4ef655edee839d74567afa507e462a779439922
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Jan 24 18:10:31 2025 +0000
+commit 37971b31dfde1b9c40f6d42484e528c17450a9ae
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 21 14:44:41 2023 -0500
 
-    internal/trace: move SchedReqs out of events package
+    cmd/link/internal/ld: fix DWARF type DIE "go kind" bug for synthetic ptr types
     
-    It's only used by order.go; there's no reason for it to be in a shared
-    package.
+    The code path in linker DWARF type generation that synthesizes pointer
+    type DIEs needed for other synthesized types wasn't properly setting
+    the DW_AT_go_kind attribute for the new pointer types.
     
-    Change-Id: If99df075089e6f6e37a78b12e64a1b81a556331c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/644216
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Fixes #64231.
+    
+    Change-Id: I70c338d2b33ae3b93a4c6f201e5836d91d368086
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544315
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/internal/trace/event/requirements.go | 26 ----------
- src/internal/trace/order.go              | 87 ++++++++++++++++++++------------
- 2 files changed, 54 insertions(+), 59 deletions(-)
+ src/cmd/link/internal/dwtest/dwtest.go |  2 +-
+ src/cmd/link/internal/ld/dwarf.go      |  1 +
+ src/cmd/link/internal/ld/dwarf_test.go | 71 ++++++++++++++++++++++++++++------
+ 3 files changed, 61 insertions(+), 13 deletions(-)

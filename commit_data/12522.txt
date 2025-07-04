@@ -1,16 +1,15 @@
-commit 3133b14b307103b79117a033ddf1ac9d0f7a24d0
-Author: Mikkel Krautz <mikkel@krautz.dk>
-Date:   Thu Mar 8 11:28:04 2012 -0500
+commit dfb1af4b97ffed0c2acbbc52b0f85355d727974a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 8 23:56:26 2012 +0900
 
-    crypto/x509: allow server gated crypto in windows systemVerify
+    cmd/gofmt: fix race in long test
     
-    Also factors out some code into functions to make
-    systemVerify easier to read.
+    Fixes #3249.
     
-    R=rsc, agl
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5781054
+    https://golang.org/cl/5792043
 
- src/pkg/crypto/x509/root_windows.go | 165 ++++++++++++++++++++++--------------
- src/pkg/syscall/ztypes_windows.go   |   4 +-
- 2 files changed, 104 insertions(+), 65 deletions(-)
+ src/cmd/gofmt/gofmt.go     | 10 +++++-----
+ src/cmd/gofmt/long_test.go | 12 +++++++-----
+ 2 files changed, 12 insertions(+), 10 deletions(-)

@@ -1,25 +1,30 @@
-commit 7c72dc77a934cf5957e5667e204506a61457e66a
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sun Sep 22 15:00:36 2024 +0200
+commit 727ebce6ce4fab9aeb089f89d5c4b32bb69be403
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 10 21:09:33 2023 -0700
 
-    cmd/go: skip TestScript on Plan 9 in short mode
+    cmd/compile: separate out unsafe mark for end-of-block instructions
     
-    TestScript is very slow on Plan 9 because this test
-    is particularly i/o intensive.
+    Even if a block is empty, we need to keep track of whether the
+    end-of-block instructions are preemptible.
     
-    This is leading the plan9/386 and plan9/amd64 builders
-    to time out. This test was already skipped on plan9/arm
-    because arm is part of the "slow architectures" list.
+    This CL allows us to not mark the load+compare in instruction
+    sequences like
     
-    This change skips TestScript on Plan 9 on short mode.
+    CMPL $0, runtime·writeBarrier(SB)
+    JEQ  ...
     
-    Change-Id: I3e68046dac825cd14fa8daca601c492cf11c6fff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/614855
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: David du Colombier <0intro@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Before, we had to mark the CMPL as uninterruptible because there
+    was no way to mark just the JEQ. Now there is, so there is no need
+    to mark the CMPL itself.
+    
+    Change-Id: I4c27c0dc211c03b14637d420899cd2c2cccf3493
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518539
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
 
- src/cmd/go/script_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/liveness/plive.go | 99 ++++++++++++++++++++----------
+ src/cmd/compile/internal/objw/prog.go      | 46 +++++---------
+ src/cmd/compile/internal/ssagen/ssa.go     | 16 ++---
+ 3 files changed, 93 insertions(+), 68 deletions(-)

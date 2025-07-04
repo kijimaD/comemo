@@ -1,19 +1,25 @@
-commit 4c69e92f51645c291dc4c74aed5c56ecb0dcd57f
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Fri Mar 4 10:14:03 2016 -0500
+commit 22a204dd0fd9003ae51318f5f67f43937b59ee87
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 14 12:37:26 2015 -0800
 
-    cmd/link: align string data to Minalign when merging strings
+    cmd/compile: change dead code into assert
     
-    Minalign > 1 implies that relocations inserted by the linker cannot
-    target arbitrary bytes.
+    After fixing #13587, I noticed that the "OAS2FUNC in disguise" block
+    looked like it probably needed write barriers too.  However, testing
+    revealed the multi-value "return f()" case was already being handled
+    correctly.
     
-    Related to #14604
+    It turns out this block is dead code due to "return f()" already being
+    transformed into "t1, t2, ..., tN := f(); return t1, t2, ..., tN" by
+    orderstmt when f is a multi-valued function.
     
-    Change-Id: Ie68d14887bc4047d9b29b0cb1149a8d14b6c62e2
-    Reviewed-on: https://go-review.googlesource.com/20214
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Updates #13587.
+    
+    Change-Id: Icde46dccc55beda2ea5fd5fcafc9aae26cec1552
+    Reviewed-on: https://go-review.googlesource.com/17759
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/mergestrings.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/walk.go | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

@@ -1,0 +1,20 @@
+commit dacf253afa7e87cc913f8e25d6870b9e8d62a606
+Author: Markus <974709+Links2004@users.noreply.github.com>
+Date:   Mon Nov 4 19:17:55 2024 +0000
+
+    net/internal/cgotest: don't try to use cgo with netgo build tag
+    
+    When using bazel with hermetic_cc_toolchain resolv.h is not available.
+    
+    Change-Id: I2aed72e6c14535cb1400b30d285bf05aa2498fde
+    GitHub-Last-Rev: 818c72323d3c61576d61dbe7564d15cf866ed67e
+    GitHub-Pull-Request: golang/go#70141
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623816
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/net/internal/cgotest/resstate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

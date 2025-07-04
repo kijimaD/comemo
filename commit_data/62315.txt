@@ -1,0 +1,22 @@
+commit 07a121383c52fc2edb96d4d58d1dd600bc3e7dfd
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Feb 19 22:35:48 2025 +0000
+
+    go/*: use go/types.Func.Signature and go/ast.Preorder
+    
+    In the few obvious candidates that I found after a bit of grepping.
+    
+    Change-Id: I36af79c46d29e4422bce1f43bbbac9db7de2001a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650656
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/api/main_test.go                        |  4 ++--
+ src/go/doc/example.go                           | 11 ++++-------
+ src/go/internal/gcimporter/gcimporter_test.go   |  2 +-
+ src/go/internal/gcimporter/ureader.go           |  2 +-
+ src/go/internal/srcimporter/srcimporter_test.go |  2 +-
+ 5 files changed, 9 insertions(+), 12 deletions(-)

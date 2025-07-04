@@ -1,15 +1,16 @@
-commit 05e4e805e0367ef9688c95bcecad4b8d3efc0584
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Oct 9 08:56:34 2012 +1100
+commit c81293ada7184e5fed6aee632bbf9129a9a7f370
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon Oct 8 16:36:45 2012 +0200
 
-    encoding/base{32,64}: add examples.
+    test: Make run.go's errorcheck behave like testlib.
     
-    Fixes #4136.
+    testlib will complain about any unmatched errors left in errorchecks while run.go will not.
     
-    R=golang-dev, r
+    Fixes #4141.
+    
+    R=golang-dev, minux.ma, remyoudompheng, rsc
     CC=golang-dev
-    https://golang.org/cl/6615061
+    https://golang.org/cl/6614060
 
- src/pkg/encoding/base32/example_test.go | 30 ++++++++++++++++++++++++++++++
- src/pkg/encoding/base64/example_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 60 insertions(+)
+ test/run.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

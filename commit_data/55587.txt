@@ -1,27 +1,28 @@
-commit db99b9b17c124ccd18766999d3f1302e5e878f38
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Wed Feb 7 22:51:00 2024 +0000
+commit f76fc28c6b31f28783b94596d6328450202c903a
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 8 14:28:18 2023 +0100
 
-    internal/asan: add new package
+    runtime: use explicit NOFRAME on netbsd/amd64
     
-    The internal/asan package contains helper functions for manually
-    instrumenting code for the address sanitizer. It reexports the asan
-    routines in runtime unconditionally, making the functions a no-op if the
-    build flag "asan" is not present.
+    This CL marks some netbsd assembly functions as NOFRAME to avoid
+    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
     
-    For #64611
+    While here, and thanks to CL 466355, `asm_netbsd_amd64.s` can
+    be deleted in favor of `asm9_unix2_amd64.s`, which makes better
+    use of the frame pointer.
     
-    Change-Id: Ie79e698aea7a6d969afd2a5f008c084c9545b1a5
-    GitHub-Last-Rev: e658670c146adb5a5496afe4a2425dd5291fd7ac
-    GitHub-Pull-Request: golang/go#64635
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548695
-    Reviewed-by: Austin Clements <austin@google.com>
+    Updates #58378
+    
+    Change-Id: Iff554b664ec25f2bb6ec198c0f684590b359c383
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466396
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
 
- src/go/build/deps_test.go   |  1 +
- src/internal/asan/asan.go   | 19 +++++++++++++++++++
- src/internal/asan/doc.go    | 10 ++++++++++
- src/internal/asan/noasan.go | 19 +++++++++++++++++++
- src/runtime/asan.go         |  2 ++
- 5 files changed, 51 insertions(+)
+ src/cmd/internal/obj/x86/obj6.go |  2 +-
+ src/runtime/sys_netbsd_amd64.s   | 10 ++++------
+ src/syscall/asm9_unix2_amd64.s   |  4 ++--
+ src/syscall/asm_netbsd_amd64.s   | 43 ----------------------------------------
+ 4 files changed, 7 insertions(+), 52 deletions(-)

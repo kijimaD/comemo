@@ -1,19 +1,25 @@
-commit 3810f5bfed72d401b5b78b6b1e281d671c599606
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Fri Jan 19 22:47:23 2018 -0500
+commit 8e11cb3f3b5e383023736172bcbfd847ea529176
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Sep 24 18:13:26 2017 +0200
 
-    doc: change anchor URLs from golang.org/dl/ to /dl/
+    runtime: improve comments for nextSample
     
-    When running locally, it will redirect properly to golang.org/dl/
-    (see https://github.com/golang/tools/blob/master/cmd/godoc/dl.go).
+    The previous comment of nextSample didn't mention Poisson processes,
+    which is the reason why it needed to create an exponential
+    distribution, so it was hard to follow the reasoning for people
+    not highly familiar with statistics.
     
-    This is to support domains in prod other than golang.org.
+    Since we're at it, we also make it clear that we are just creating
+    a random number with exponential distribution by moving the
+    bulk of the function into a new fastexprand().
     
-    Change-Id: I6d3051fcd7e06a86442324a64d781d8ad95c624f
-    Reviewed-on: https://go-review.googlesource.com/88679
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    No functional changes.
+    
+    Change-Id: I9c275e87edb3418ee0974257af64c73465028ad7
+    Reviewed-on: https://go-review.googlesource.com/65657
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.html     |  8 ++++----
- doc/install.html | 14 +++++++-------
- doc/root.html    |  2 +-
- 3 files changed, 12 insertions(+), 12 deletions(-)
+ src/runtime/malloc.go | 46 ++++++++++++++++++++++++++--------------------
+ 1 file changed, 26 insertions(+), 20 deletions(-)

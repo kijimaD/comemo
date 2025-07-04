@@ -1,21 +1,41 @@
-commit 37020dd510cf7da36e9eb1827a20890234e4ea79
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Nov 12 05:58:52 2016 +0000
+commit 5a597e2d2995309c4cc02a4c367157908ad4add2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 17 09:39:33 2016 -0400
 
-    runtime/internal/atomic: add TestUnaligned64
+    cmd/link: replace ld.Link.Diag with ld.Errorf
     
-    Add a variant of sync/atomic's TestUnaligned64 to
-    runtime/internal/atomic.
+    Instead of using ctxt.Cursym, Errorf takes an explicit *Symbol
+    parameter. This removes most uses of Cursym and means the *Link
+    context object is needed in fewer parts of the linker.
     
-    Skips the test on arm for now where it's currently failing.
+    All transformations done manually, as wiring Cursym is tricky.
     
-    Updates #17786
-    
-    Change-Id: If63f9c1243e9db7b243a95205b2d27f7d1dc1e6e
-    Reviewed-on: https://go-review.googlesource.com/33159
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ief88b00b73904224675c0035684c3a84c19249d7
+    Reviewed-on: https://go-review.googlesource.com/29369
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/internal/atomic/atomic_test.go | 36 ++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
+ src/cmd/link/internal/amd64/asm.go  |  32 +++---
+ src/cmd/link/internal/arm/asm.go    |  42 ++++----
+ src/cmd/link/internal/arm64/asm.go  |  28 ++---
+ src/cmd/link/internal/ld/data.go    | 103 +++++++++---------
+ src/cmd/link/internal/ld/dwarf.go   |  13 ++-
+ src/cmd/link/internal/ld/elf.go     | 204 ++++++++++++++++++------------------
+ src/cmd/link/internal/ld/go.go      |   6 +-
+ src/cmd/link/internal/ld/ld.go      |   2 +-
+ src/cmd/link/internal/ld/ldelf.go   |  34 +++---
+ src/cmd/link/internal/ld/ldmacho.go |  12 +--
+ src/cmd/link/internal/ld/ldpe.go    |  10 +-
+ src/cmd/link/internal/ld/lib.go     | 105 +++++++------------
+ src/cmd/link/internal/ld/macho.go   |  19 ++--
+ src/cmd/link/internal/ld/pcln.go    |  10 +-
+ src/cmd/link/internal/ld/pe.go      |  24 ++---
+ src/cmd/link/internal/ld/symtab.go  |   6 +-
+ src/cmd/link/internal/ld/util.go    |  37 ++++++-
+ src/cmd/link/internal/mips64/asm.go |  16 +--
+ src/cmd/link/internal/ppc64/asm.go  |  40 +++----
+ src/cmd/link/internal/s390x/asm.go  |  41 ++++----
+ src/cmd/link/internal/x86/asm.go    |  30 +++---
+ 21 files changed, 410 insertions(+), 404 deletions(-)

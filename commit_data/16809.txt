@@ -1,17 +1,17 @@
-commit 8166b2da192919679cd4583c4edb34becbe36e8c
+commit ff52cadc01756d097e5f3e3fe5ff2634d8825ffb
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 18 12:23:38 2013 -0400
+Date:   Thu Jul 18 11:40:59 2013 -0400
 
-    runtime: record full frame size for arm _sfloat2
+    cmd/ld: refine test for history stack pop (fix Windows build)
     
-    With preemption, _sfloat2 can show up in stack traces.
-    Write the function prototype in a way that accurately
-    shows the frame size and the fact that it might contain
-    pointers.
+    This should fix the Windows build, or at least
+    what's breaking it at the moment.
     
-    R=golang-dev, dvyukov
+    Fixes #5904.
+    
+    TBR=golang-dev
     CC=golang-dev
-    https://golang.org/cl/11523043
+    https://golang.org/cl/11519044
 
- src/pkg/runtime/softfloat_arm.c | 33 +++++++++++++++++++++++++++------
- 1 file changed, 27 insertions(+), 6 deletions(-)
+ src/cmd/ld/lib.c | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

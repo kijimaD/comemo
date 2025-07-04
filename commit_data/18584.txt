@@ -1,16 +1,17 @@
-commit a8a7f18aeaf66e74f4f89b95d6cd43bab6cbf59d
-Author: Chris Manghane <cmang@golang.org>
-Date:   Thu Feb 20 11:32:55 2014 -0800
+commit 58a9268f265843e2720adbcbdaf0bc1d367046a1
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 20 07:59:38 2014 +0100
 
-    cmd/gc: make embedded, unexported fields read-only.
+    os: fix Rename on Plan 9
     
-    Fixes #7363.
+    Rename should fail when the directory doesn't match.
+    It will fix the newly introduced test from cmd/pack
+    on Plan 9.
     
-    LGTM=gri
-    R=gri, rsc, bradfitz
+    LGTM=r
+    R=golang-codereviews, r
     CC=golang-codereviews
-    https://golang.org/cl/66510044
+    https://golang.org/cl/65270044
 
- src/cmd/gc/reflect.c        |  3 ++-
- test/fixedbugs/issue7363.go | 26 ++++++++++++++++++++++++++
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ src/pkg/os/file_plan9.go | 2 ++
+ 1 file changed, 2 insertions(+)

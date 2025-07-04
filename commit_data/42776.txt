@@ -1,37 +1,22 @@
-commit e94544cf012535da6b3c9e735bc4026e2db1c99c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 19 21:39:12 2020 -0700
+commit 99c78b7fc1b892808c72379e7915529cc0e73b05
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 14:23:27 2020 -0500
 
-    cmd/compile: fix checkptr handling of &^
+    cmd/go: convert TestIssue6480 to the script framework
     
-    checkptr has code to recognize &^ expressions, but it didn't take into
-    account that "p &^ x" gets rewritten to "p & ^x" during walk, which
-    resulted in false positive diagnostics.
+    This one's a bit complex and required writing support go programs
+    within the test script.
     
-    This CL changes walkexpr to mark OANDNOT expressions with Implicit
-    when they're rewritten to OAND, so that walkCheckPtrArithmetic can
-    still recognize them later.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    It would be slightly more idiomatic to instead mark the OBITNOT
-    expression as Implicit (as it's a compiler-generated Node), but the
-    OBITNOT expression might get constant folded. It's not worth the extra
-    complexity/subtlety of relying on n.Right.Orig, so we set Implicit on
-    the OAND node instead.
+    Updates #36320
+    Updates #17751
     
-    To atone for this transgression, I add documentation for nodeImplicit.
-    
-    Fixes #40917.
-    
-    Change-Id: I386304171ad299c530e151e5924f179e9a5fd5b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249477
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I9e91225b20b1b043f032b77a55c5825cb9d9a4b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214292
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/syntax.go     |  4 ++--
- src/cmd/compile/internal/gc/walk.go       |  7 ++++++-
- src/runtime/checkptr_test.go              |  1 +
- src/runtime/testdata/testprog/checkptr.go |  8 ++++++++
- test/fixedbugs/issue40917.go              | 23 +++++++++++++++++++++++
- 5 files changed, 40 insertions(+), 3 deletions(-)
+ src/cmd/go/go_test.go                          |  61 ------------
+ src/cmd/go/testdata/script/build_issue6480.txt | 125 +++++++++++++++++++++++++
+ 2 files changed, 125 insertions(+), 61 deletions(-)

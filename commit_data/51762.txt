@@ -1,47 +1,22 @@
-commit 1d3088effdcb03612dd03eb24feee4aa92070a63
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Jan 24 09:05:36 2023 -0500
+commit 8cf11694abbfbdbd4fe0b2c08511f81b8bfe5017
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 10 09:02:34 2022 -0800
 
-    os: make Lstat for symlinks on Windows consistent with POSIX
+    cmd/compile: fix transform of OEQ/ONE when one arg is a type param
     
-    This also makes path/filepath.Walk more consistent between
-    Windows and POSIX platforms.
+    At this point in stenciling, we have shape types, not raw type parameters.
+    The code was correct in the other part of this function.
     
-    According to
-    https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12
-    symlinks in a path that includes a trailing slash must be resolved
-    before a function acts on that path.
+    Update #51522
     
-    POSIX defines an lstat function, whereas the Win32 API does not, so
-    Go's os.Lstat should follow the (defined) POSIX semantics instead of
-    doing something arbitrarily different.
-    
-    CL 134195 added a test for the correct POSIX behavior when os.Lstat is
-    called on a symlink. However, the test turned out to be broken on Windows,
-    and when it was fixed (in CL 143578) it was fixed with different Lstat
-    behavior on Windows than on all other platforms that support symlinks.
-    
-    In #50807 we are attempting to provide consistent symlink behavior for
-    cmd/go. This unnecessary platform difference, if left uncorrected,
-    will make that fix much more difficult.
-    
-    CL 460595 reworked the implementation of Stat and Lstat on Windows,
-    and with the new implementation this fix is straightforward.
-    
-    For #50807.
-    Updates #27225.
-    
-    Change-Id: Ia28821aa4aab6cefa021da2d9b803506cdb2621b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463177
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Change-Id: Ife495160a2be5f6af5400363c3efb68dda518b5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391475
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/testdata/script/list_goroot_symlink.txt |  6 +-
- src/os/stat_test.go                                |  7 +--
- src/os/stat_windows.go                             | 11 +++-
- src/path/filepath/path_test.go                     | 64 ++++++++++++++++++++++
- 4 files changed, 77 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/noder/transform.go |  2 +-
+ test/typeparam/issue51522a.go               | 42 +++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

@@ -1,19 +1,19 @@
-commit d4b2168b238a9e46886ddbf337de68cfacd62a11
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Feb 20 09:55:28 2018 +0000
+commit d06815ba3f0a196adeacfbf5cc963fe2b7d42f46
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Oct 12 13:38:45 2017 -0400
 
-    regexp/syntax: make Op an fmt.Stringer
+    cmd/link: split PE loader into its own package
     
-    Using stringer.
+    For #22095
     
-    Fixes #22684.
-    
-    Change-Id: I62fbde5dcb337cf269686615616bd39a27491ac1
-    Reviewed-on: https://go-review.googlesource.com/95355
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I8f48fce571b69a7e8edf2ad7733ffdfd38676e63
+    Reviewed-on: https://go-review.googlesource.com/70310
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/regexp/syntax/op_string.go | 26 ++++++++++++++++++++++++++
- src/regexp/syntax/regexp.go    |  2 ++
- 2 files changed, 28 insertions(+)
+ src/cmd/dist/buildtool.go                    |  3 +-
+ src/cmd/link/internal/ld/lib.go              | 12 ++++
+ src/cmd/link/internal/ld/pe.go               | 19 ++++++
+ src/cmd/link/internal/{ld => loadpe}/ldpe.go | 95 ++++++++++++++--------------
+ 4 files changed, 82 insertions(+), 47 deletions(-)

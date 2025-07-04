@@ -1,15 +1,26 @@
-commit 5639d2754b1c9e33bc4440e23d21726d2cc3454b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 24 15:52:48 2013 -0400
+commit b80ef1ab48b9829e8b974effadc0740d6645cc39
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 24 13:15:49 2013 +1000
 
-    cmd/cgo: retain Go pointer passed to C call for duration of call
+    net: re-enable raw socket tests on windows
     
-    Fixes #6397.
+    Since CL 38bf89161a72 raw socket tests are not executed
+    on windows builders. This change re-enable them again.
+    It will attempt to run raw socket tests only if user
+    is permitted to create raw socket by OS.
     
-    R=golang-dev, bradfitz, iant
-    CC=golang-dev
-    https://golang.org/cl/13858043
+    Fixes #6392
+    
+    R=golang-dev
+    CC=golang-dev, mikioh.mikioh, rsc
+    https://golang.org/cl/13422044
 
- src/cmd/cc/pgen.c  | 19 ++++++++++++++-----
- src/cmd/cgo/out.go | 12 +++++++++++-
- 2 files changed, 25 insertions(+), 6 deletions(-)
+ src/pkg/net/fd_plan9.go           |  4 ++++
+ src/pkg/net/fd_unix.go            |  7 +++++++
+ src/pkg/net/fd_windows.go         | 19 +++++++++++++++++++
+ src/pkg/net/ipraw_test.go         | 34 ++++++++++++----------------------
+ src/pkg/net/multicast_test.go     |  4 ----
+ src/pkg/net/packetconn_test.go    | 15 ++-------------
+ src/pkg/net/protoconn_test.go     | 13 ++-----------
+ src/pkg/syscall/ztypes_windows.go |  1 +
+ 8 files changed, 47 insertions(+), 50 deletions(-)

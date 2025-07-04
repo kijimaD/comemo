@@ -1,26 +1,18 @@
-commit f5973c2183d64f93816c0a28189cdd3f263036fb
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Thu Nov 21 00:01:36 2024 +0800
+commit dd491cfa544ff99e2530cd42750eaf318ec1e060
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 13 12:38:57 2023 -0700
 
-    cmd/go: fix -changed don`t print when GOFIPS140 is non-default
+    bufio: link "too large to fit" to Scanner.Buffer
     
-    See https://github.com/golang/go/issues/70200#issuecomment-2468562595,
-    GOFIPS140 value when building the toolchain (off when not set)
-    is the default value for GOFIPS140,
-    it is buildcfg.defaultGOFIPS140,
-    export as buildcfg.DefaultGOFIPS140 that can be used in the cmd/go.
-    
-    For #70200
-    
-    Change-Id: I5a4873a718eeefda8e65bfab51d9d3d5ad2c21b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/629996
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Change-Id: Id0a4f5716da98008eec10eee05b74fc2a155ba3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535216
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/cmd/dist/buildruntime.go               | 2 +-
- src/cmd/go/internal/cfg/cfg.go             | 2 +-
- src/cmd/go/testdata/script/env_changed.txt | 4 ++++
- src/internal/buildcfg/cfg.go               | 4 ++--
- 4 files changed, 8 insertions(+), 4 deletions(-)
+ src/bufio/scan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

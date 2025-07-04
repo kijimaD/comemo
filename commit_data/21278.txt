@@ -1,13 +1,13 @@
-commit fdb855420b5d8690d9ad0f5d4833375f085637c1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 14 21:25:26 2015 -0800
+commit 968f0df5d84956502e865ec04f529c3b921369b7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 12 13:53:29 2014 +1100
 
-    net: fix some typos in comments
+    doc: update source install instructions
     
-    Change-Id: I1bf1ab930a5c258f5fcc85ca3037692c71bf3cb2
-    Reviewed-on: https://go-review.googlesource.com/2870
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I794a5773ed47d470ff91fcdd82f9747a91424eb4
+    Reviewed-on: https://go-review.googlesource.com/1402
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/net/dnsclient_unix_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/contribute.html     | 13 ++---------
+ doc/install-source.html | 61 ++++++++++++++++++-------------------------------
+ 2 files changed, 24 insertions(+), 50 deletions(-)

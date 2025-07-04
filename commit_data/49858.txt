@@ -1,22 +1,18 @@
-commit bd302502d39b6172bf3db6abfa49fdcaa124ee50
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Jul 14 17:36:59 2022 -0400
+commit 6602c86a38ff0d8889257e908489162de38ebbd8
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Sep 14 02:21:22 2021 +1000
 
-    runtime: convert panicking to atomic type
+    cmd/internal/obj/riscv: improve instruction validation
     
-    For #53821.
+    Ensure that rs2 is none for various instruction encodings. Fix a couple of cases
+    where it should have been but is not.
     
-    Change-Id: I93409f377881a3c029b41b0f1fbcef5e21091f2f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419438
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I9f8211a0257e49643dbbc89e158e048050ebe6f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349649
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/mgc.go            | 2 +-
- src/runtime/panic.go          | 7 +++----
- src/runtime/print.go          | 3 +--
- src/runtime/proc.go           | 4 ++--
- src/runtime/signal_windows.go | 4 ++--
- src/runtime/symtab.go         | 4 ++--
- src/runtime/traceback.go      | 4 ++--
- 7 files changed, 13 insertions(+), 15 deletions(-)
+ src/cmd/internal/obj/riscv/obj.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

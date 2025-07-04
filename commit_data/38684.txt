@@ -1,20 +1,32 @@
-commit 23d4c6cdd6712ba45ea4ec784bcb99cb883ab0ea
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jan 31 16:57:29 2019 +0000
+commit 75798e8ada7fcb286f633618ac2f55ad5240ed97
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Nov 6 17:00:04 2018 +0100
 
-    runtime: merge codepaths in scavengeLargest
+    runtime: make processor capability variable naming platform specific
     
-    This change just makes the code in scavengeLargest easier to reason
-    about by reducing the number of exit points to the method. It should
-    still be correct either way because the condition checked at the end
-    (released > nbytes) will always be false if we return, but this just
-    makes the code a little easier to maintain.
+    The current support_XXX variables are specific for the
+    amd64 and 386 platforms.
     
-    Change-Id: If60da7696aca3fab3b5ddfc795d600d87c988238
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/160617
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Prefix processor capability variables by architecture to have a
+    consistent naming scheme and avoid reuse of the existing
+    variables for new platforms.
+    
+    This also aligns naming of runtime variables closer with internal/cpu
+    processor capability variable names.
+    
+    Change-Id: I3eabb29a03874678851376185d3a62e73c1aff1d
+    Reviewed-on: https://go-review.googlesource.com/c/91435
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mheap.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/builtin.go         |  5 +++--
+ src/cmd/compile/internal/gc/builtin/runtime.go |  5 +++--
+ src/cmd/compile/internal/gc/go.go              |  6 +++---
+ src/cmd/compile/internal/gc/ssa.go             | 12 ++++++------
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  4 ++--
+ src/runtime/cpuflags.go                        |  9 +++++++++
+ src/runtime/proc.go                            |  6 +++---
+ src/runtime/runtime2.go                        |  6 ------
+ test/codegen/mathbits.go                       |  8 ++++----
+ 9 files changed, 33 insertions(+), 28 deletions(-)

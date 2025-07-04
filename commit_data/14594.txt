@@ -1,15 +1,12 @@
-commit 575de93dd395481abeaf9427e04fc83b758dec0e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 10 16:30:42 2012 -0500
+commit 9b5358af2d805336e103a743697eb6fad1ecf1c4
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Dec 10 12:38:20 2012 -0500
 
-    mime/multipart: allow setting the Writer boundary
+    CONTRIBUTORS: add sledbetter (Google Corporate CLA).
     
-    Fixes #4490
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6924044
+    https://golang.org/cl/6912062
 
- src/pkg/mime/multipart/writer.go      | 29 ++++++++++++++++++++++++++++-
- src/pkg/mime/multipart/writer_test.go | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 1 deletion(-)
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

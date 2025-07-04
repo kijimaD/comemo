@@ -1,14 +1,20 @@
-commit 3fea5badc29200e0ea4e1fe790e1803a7d17ee2c
+commit 34f2f68354ee074744abb3313c506fd87dc93240
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Mar 3 16:41:03 2011 +1100
+Date:   Thu Mar 3 14:41:09 2011 +1100
 
-    doc: remove reference to bug count from install.html
+    gobuilder: add -package flag to build external packages
     
-    Fixes #1574.
+    Also add -v for verbose logging.
     
-    R=rsc, r2
+    R=rsc, gri, r, r2
     CC=golang-dev
-    https://golang.org/cl/4240066
+    https://golang.org/cl/4172056
 
- doc/install.html | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ misc/dashboard/builder/Makefile   |   1 +
+ misc/dashboard/builder/doc.go     |   9 +++
+ misc/dashboard/builder/exec.go    |  11 ++++
+ misc/dashboard/builder/hg.go      |  27 +++++++++
+ misc/dashboard/builder/http.go    |  46 ++++++++++++++++
+ misc/dashboard/builder/main.go    | 113 ++++++++++++++++++++++++++++++++------
+ misc/dashboard/builder/package.go |  66 ++++++++++++++++++++++
+ 7 files changed, 257 insertions(+), 16 deletions(-)

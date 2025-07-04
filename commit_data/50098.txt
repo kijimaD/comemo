@@ -1,19 +1,69 @@
-commit 1a8dfadbfe26978cba0d6ce57bf437a93f796da6
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sat Aug 20 19:21:39 2022 +0800
+commit 7bf7bbc2419795f11b2a4fd482ae67d6f66e2df8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jan 16 18:03:31 2021 +0000
 
-    encoding/json: move some misplaced benchmark tests to bench_test.go
+    cmd/go: remove double parallelism from "go fmt"
     
-    Change-Id: I5987eed00ee825421abe62699a06e9b66499f35f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425016
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Now that gofmt knows how to format many files in parallel,
+    there's no need for "go fmt" to have its own parallelism.
+    Instead of running "gofmt -l -w $file" in parallel with GOMAXPROCS,
+    simply collect a large list of files and hand it to "gofmt -l -w $files".
+    
+    The benchmark below was obtained via:
+    
+            benchcmd -n 10 FmtGorootCmd go fmt cmd
+    
+    We can see a drastic improvement in system time per call.
+    This makes sense, as we used to fork+exec one gofmt program per file,
+    and now we only do that for every thousand or so files.
+    
+    We also see an increase in peak memory usage and user CPU time.
+    This seems to be because each gofmt process was very short lived before.
+    This meant that there was a limit to the total amount of allocations
+    produced by go/parser and go/printer before the process stopped,
+    and thus the GC probably didn't kick in most of the time.
+    
+    Now that each gofmt process formats hundreds or thousands of files,
+    a lot of those allocations pile up in the same process,
+    making peak-RSS go higher and piling on garbage for the GC to clean up.
+    
+    Finally, note that time/op seems largely unchanged.
+    I did many benchmark runs; some ended up in noise like the one below,
+    and others gave small wall time speed-ups of 3-4%.
+    It seems like we get very little wall time benefit,
+    possibly due to the factors mentioned earlier cancelling each other out.
+    
+    Overall, it seems worthwhile to not let "go fmt" do its own parallelism,
+    to keep the tool simpler to understand and maintain going forward.
+    Plus, the sys-time savings do seem to be the biggest change here.
+    
+            name          old time/op         new time/op         delta
+            FmtGorootCmd          850ms ± 4%          842ms ± 6%      ~     (p=0.529 n=10+10)
+    
+            name          old user-time/op    new user-time/op    delta
+            FmtGorootCmd          7.30s ± 4%          7.67s ± 3%    +5.07%  (p=0.000 n=10+10)
+    
+            name          old sys-time/op     new sys-time/op     delta
+            FmtGorootCmd          1.66s ± 7%          0.43s ±24%   -74.08%  (p=0.000 n=10+10)
+    
+            name          old peak-RSS-bytes  new peak-RSS-bytes  delta
+            FmtGorootCmd         30.1MB ± 4%        199.4MB ±21%  +563.03%  (p=0.000 n=10+10)
+    
+    To make use of the already-present "maximum exec arg length limit"
+    constant in cmd/go/internal, move it to cmd/internal.
+    
+    Fixes #43566.
+    
+    Change-Id: If864151d0c851a40bf7138f9864640f15a066d48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353309
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/encoding/json/bench_test.go  | 31 +++++++++++++++++++++++++++++++
- src/encoding/json/number_test.go | 15 ---------------
- src/encoding/json/stream_test.go | 15 ---------------
- 3 files changed, 31 insertions(+), 30 deletions(-)
+ src/cmd/go/go_test.go                 |  3 +--
+ src/cmd/go/internal/fmtcmd/fmt.go     | 36 +++++++++++++++++------------------
+ src/cmd/go/internal/work/exec.go      |  9 ++-------
+ src/cmd/go/internal/work/exec_test.go |  5 +++--
+ src/cmd/internal/sys/args.go          | 13 +++++++++++++
+ 5 files changed, 37 insertions(+), 29 deletions(-)

@@ -1,24 +1,20 @@
-commit 167a7123997c42e91d69de2203fc4c156897f0a2
-Author: Nodir Turakulov <nodir@google.com>
-Date:   Tue Oct 13 19:09:32 2015 -0700
+commit 9b25da732b62d294bc0762d45c77d1a0095d81fa
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Fri Jul 31 12:32:22 2015 +0200
 
-    text/template: resolve non-empty interface
+    [dev.ssa] cmd/compile/internal/ssa/gen: add more simplifications rules
     
-    Read what a non-empty interface points to.
+    This is a follow up on https://go-review.googlesource.com/#/c/12420/
+    with some rules moved to AMD64 closer to the existing rules.
     
-    The deleted lines were added in https://codereview.appspot.com/4810060/,
-    which attempted to break an infinite loop. That was a long time ago.
-    If I just delete these lines with current codebase, the test "bug1"
-    (added in that CL) does not fail.
-    
-    All new tests fail without this fix.
-    
-    Fixes #12924
-    
-    Change-Id: I9370ca44facd6af3019850aa065b936e5a482d37
-    Reviewed-on: https://go-review.googlesource.com/15809
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: Id346bb0fc4459b3c49b826a59cc74308a590310e
+    Reviewed-on: https://go-review.googlesource.com/12906
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/text/template/exec.go      |  5 -----
- src/text/template/exec_test.go | 51 +++++++++++++++++++++++++++---------------
- 2 files changed, 33 insertions(+), 23 deletions(-)
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go |  36 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  35 ++
+ src/cmd/compile/internal/ssa/gen/generic.rules    |   8 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go       |   4 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 612 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go    | 154 +++++-
+ 6 files changed, 846 insertions(+), 3 deletions(-)

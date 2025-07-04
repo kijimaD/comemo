@@ -1,20 +1,29 @@
-commit d36cc9baf3c4127ef5c98bc8844b405d63064e48
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 4 11:23:18 2017 -0700
+commit bf0f69220255941196c684f235727fd6dc747b5c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 14 19:55:40 2017 -0700
 
-    cmd/compile: refactor dtypesym to return *obj.LSym
+    net: handle spurious netpoll wakeups in connect
     
-    All of the callers want a *obj.LSym instead of a *types.Sym, and the
-    runtime type descriptors don't need Go source symbols anyway.
+    In some cases the netpoll code can cause a spurious wakeup. This is
+    normally harmless, as the woken up code simply retries the operation.
+    However, for connect, the test we were using to see whether the
+    connect had succeeded (setsockopt(SO_ERROR)) was not reliable in the
+    case of a spurious wakeup.  Change to using a reliable test (getpeername).
+    On Darwin we used a different technique: a second call to connect;
+    change Darwin to use getpeername as well.
     
-    Passes toolstash-check.
+    Return the result of getpeername to avoid having to call it twice.
     
-    Change-Id: I8ae4b64380fbb547857f49b42465118f41884eed
-    Reviewed-on: https://go-review.googlesource.com/68251
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Fixes #19289.
+    
+    Change-Id: I119ec8e7a41f482f1e590d4c65a37f6103fa22d9
+    Reviewed-on: https://go-review.googlesource.com/45815
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 50 +++++++++++++++++-----------------
- 1 file changed, 25 insertions(+), 25 deletions(-)
+ src/net/fd_unix.go           | 40 +++++++++++++++++++---------------------
+ src/net/fd_windows.go        | 15 ++++++++-------
+ src/net/sock_posix.go        | 15 ++++++++++++---
+ src/net/tcpsock_unix_test.go | 39 ++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 77 insertions(+), 32 deletions(-)

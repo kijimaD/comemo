@@ -1,15 +1,17 @@
-commit 1da1030b5dd9d9610ccada4413a23e77b21c7f3b
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Aug 13 22:07:42 2013 +0400
+commit 4be93851c37281af977f1c1aaa2e2c65c8f40ce0
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Tue Aug 13 11:04:09 2013 -0700
 
-    runtime: fix false deadlock crash
-    Fixes #6070.
-    Update #6055.
+    io: prevent write to PipeWriter after Close
     
-    R=golang-dev, nightlyone, rsc
+    Return an ErrClosedPipe rather than allowing the write to proceed.
+    
+    Fixes #5330.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/12602043
+    https://golang.org/cl/12541053
 
- src/pkg/net/tcp_test.go | 75 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/proc.c  | 42 +++++++++++++++++----------
- 2 files changed, 102 insertions(+), 15 deletions(-)
+ src/pkg/io/pipe.go      |  4 ++++
+ src/pkg/io/pipe_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

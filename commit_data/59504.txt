@@ -1,45 +1,34 @@
-commit c31a5c571f32f350a0a1b30f2b0e85576096e14c
-Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-Date:   Wed May 14 14:35:41 2025 +0800
+commit d2eb72fcff90d1c01fb2336a4c6f0f7fd7e01cbc
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 12 15:00:08 2024 -0500
 
-    cmd/compile: fold negation into addition/subtraction on loong64
+    cmd/internal/obj/ppc64: don't modify runtime.elf_* symbols
     
-    This change also avoid double negation, and add loong64 codegen for arithmetic tests.
-    Reduce the number of go toolchain instructions on loong64 as follows.
+    The runtime.elf_* symbols are assembly functions which are used
+    to support the gcc/llvm -Os option when used with cgo.
     
-        file      before    after     Δ       %
-        addr2line 279972    279896  -76    -0.0271%
-        asm       556390    556310  -80    -0.0144%
-        buildid   272376    272300  -76    -0.0279%
-        cgo       481534    481550  +16    +0.0033%
-        compile   2457992   2457396 -596   -0.0242%
-        covdata   323488    323404  -84    -0.0260%
-        cover     518630    518490  -140   -0.0270%
-        dist      340894    340814  -80    -0.0235%
-        distpack  282568    282484  -84    -0.0297%
-        doc       790224    789984  -240   -0.0304%
-        fix       324408    324348  -60    -0.0185%
-        link      704910    704666  -244   -0.0346%
-        nm        277220    277144  -76    -0.0274%
-        objdump   508026    507878  -148   -0.0291%
-        pack      221810    221786  -24    -0.0108%
-        pprof     1470284   1469880 -404   -0.0275%
-        test2json 254896    254852  -44    -0.0173%
-        trace     1100390   1100074 -316   -0.0287%
-        vet       781398    781142  -256   -0.0328%
-        go        1529668   1529128 -540   -0.0353%
-        gofmt     318668    318568  -100   -0.0314%
-        total     13795746 13792094 -3652  -0.0265%
+    When compiling Go for shared code, we attempt to strip out the
+    TOC regenation code added by the go assembler for these symbols.
     
-    Change-Id: I88d1f12cfc4be0e92687c48e06a57213aa484aca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/672555
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This causes the symbol to no longer appear as an assembly
+    function which causes problems later on when handling other
+    implicit symbols.
+    
+    Avoid adding a TOC regeneration prologue to these functions
+    to avoid this issue.
+    
+    Fixes #66265
+    
+    Change-Id: Icbf8e4438d177082a57bb228e39b232e7a0d7ada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571835
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules | 10 +++
- src/cmd/compile/internal/ssa/rewrite.go         |  5 ++
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 83 +++++++++++++++++++++++++
- test/codegen/arithmetic.go                      | 10 +++
- 4 files changed, 108 insertions(+)
+ .../go/testdata/script/test_ppc64_linker_funcs.txt    |  4 ++++
+ src/cmd/internal/obj/ppc64/obj9.go                    | 19 ++++++++++++++++++-
+ src/cmd/link/internal/ppc64/asm.go                    | 17 +----------------
+ 3 files changed, 23 insertions(+), 17 deletions(-)

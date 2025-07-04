@@ -1,22 +1,52 @@
-commit a81bc8e8254d01cd442a5684801d8d2dbc553694
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Apr 28 16:28:46 2020 -0700
+commit 2d8c1995b9c4123ab7ac35a1ba1497b290755d4d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 15 10:05:13 2019 -0800
 
-    runtime:  add one extra lock ranking partial edge
+    runtime: release timersLock while running timer
     
-    This adds an assistQueue -> mheapSpecial edge, which can happen via
+    Dan Scales pointed out a theoretical deadlock in the runtime.
     
-    gcFlushBgCredit [gets assistQueue lock] -> ready() -> ... ->
-    allocm() -> newobject -> .. mProf_Malloc() ->
-    setprofilebucket() [gets mheap special lock]
+    The timer code runs timer functions while holding the timers lock for a P.
+    The scavenger queues up a timer function that calls wakeScavenger,
+    which acquires the scavenger lock.
     
-    From https://build.golang.org/log/6f8f253f6c3a747de411cfdf78c27980146618be
+    The scavengeSleep function acquires the scavenger lock,
+    then calls resetTimer which can call addInitializedTimer
+    which acquires the timers lock for the current P.
     
-    Change-Id: Icdfba41b49aa704e8f6f20d25271f938afaf52ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231463
-    Run-TryBot: Dan Scales <danscales@google.com>
+    So there is a potential deadlock, in that the scavenger lock and
+    the timers lock for some P may both be acquired in different order.
+    It's not clear to me whether this deadlock can ever actually occur.
+    
+    Issue 35532 describes another possible deadlock.
+    
+    The pollSetDeadline function acquires pd.lock for some poll descriptor,
+    and in some cases calls resettimer which can in some cases acquire
+    the timers lock for the current P.
+    
+    The timer code runs timer functions while holding the timers lock for a P.
+    The timer function for poll descriptors winds up in netpolldeadlineimpl
+    which acquires pd.lock.
+    
+    So again there is a potential deadlock, in that the pd lock for some
+    poll descriptor and the timers lock for some P may both be acquired in
+    different order. I think this can happen if we change the deadline
+    for a network connection exactly as the former deadline expires.
+    
+    Looking at the code, I don't see any reason why we have to hold
+    the timers lock while running a timer function.
+    This CL implements that change.
+    
+    Updates #6239
+    Updates #27707
+    Fixes #35532
+    
+    Change-Id: I17792f5a0120e01ea07cf1b2de8434d5c10704dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207348
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/lockrank.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/proc.go |  2 ++
+ src/runtime/time.go | 11 +++++++++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)

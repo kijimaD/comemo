@@ -1,12 +1,17 @@
-commit f842dc160bb48d2bd9c06f704f71cd10f4ea68c2
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sat Feb 11 13:23:44 2012 +0900
+commit 12fab9d122def141e76aa718d18d6b3be1de6a0d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 10 23:20:00 2012 -0500
 
-    cmd/dist: clear execute bit from source file
+    gc: add test case for issue 1743
     
-    R=golang-dev, r
+    Fixes #1743.
+    (Actually was fixed earlier, but now we have proof.)
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5651072
+    https://golang.org/cl/5649064
 
- src/cmd/dist/buf.c | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
+ test/fixedbugs/bug414.dir/main.go | 18 ++++++++++++++++++
+ test/fixedbugs/bug414.dir/p1.go   | 21 +++++++++++++++++++++
+ test/fixedbugs/bug414.go          |  7 +++++++
+ 3 files changed, 46 insertions(+)

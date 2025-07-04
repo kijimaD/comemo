@@ -1,35 +1,14 @@
-commit 9b73238daa6a5d08eb2265fc38577cb6003f0d23
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 8 12:12:40 2012 -0500
+commit 9b7b574edcff14d916215a72b7a9fc8bb82ab16e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 8 08:53:31 2012 -0800
 
-    cgo, runtime: diagnose callback on non-Go thread
+    go/parser: use test harness for short tests
     
-    Before:
-    $ go run x.go
-    signal 11 (core dumped)
-    $
-    
-    After:
-    $ go run x.go
-    runtime: cgo callback on thread not created by Go.
-    signal 11 (core dumped)
-    $
-    
-    For issue 3068.
-    Not a fix, but as much of a fix as we can do before Go 1.
-    
-    R=golang-dev, rogpeppe, gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5781047
+    https://golang.org/cl/5782044
 
- src/cmd/cgo/out.go               |  5 +++--
- src/pkg/runtime/asm_386.s        |  8 ++++++++
- src/pkg/runtime/asm_amd64.s      |  8 ++++++++
- src/pkg/runtime/thread_darwin.c  | 10 ++++++++++
- src/pkg/runtime/thread_freebsd.c | 10 ++++++++++
- src/pkg/runtime/thread_linux.c   | 10 ++++++++++
- src/pkg/runtime/thread_netbsd.c  | 10 ++++++++++
- src/pkg/runtime/thread_openbsd.c | 10 ++++++++++
- src/pkg/runtime/thread_plan9.c   | 10 ++++++++++
- src/pkg/runtime/thread_windows.c | 19 +++++++++++++++++++
- 10 files changed, 98 insertions(+), 2 deletions(-)
+ src/pkg/go/parser/error_test.go  | 11 ++++--
+ src/pkg/go/parser/parser_test.go | 83 +++-------------------------------------
+ src/pkg/go/parser/short_test.go  | 75 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+), 82 deletions(-)

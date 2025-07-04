@@ -1,28 +1,22 @@
-commit 96b243fa47d64e0e9538222e114efe53f86ba184
+commit df6072b41c76f2ac839d248b7c706fa554f483ed
 Author: Russ Cox <rsc@golang.org>
-Date:   Sun Mar 10 18:19:53 2013 -0400
+Date:   Sun Mar 10 16:24:01 2013 -0400
 
-    cmd/ld: replace dynimpname with extname
+    cmd/ld: include full symbol table in Mach-O output
     
-    Dynimpname was getting too confusing.
-    Replace flag-like checks with tests of s->type.
+    This makes binaries work with OS X nm.
     
     R=ken2
     CC=golang-dev
-    https://golang.org/cl/7594046
+    https://golang.org/cl/7558044
 
- src/cmd/5l/asm.c     | 25 +++++++++----------------
- src/cmd/5l/l.h       |  2 +-
- src/cmd/6l/asm.c     | 32 +++++++++++++-------------------
- src/cmd/6l/l.h       |  2 +-
- src/cmd/8l/asm.c     | 27 +++++++++++----------------
- src/cmd/8l/l.h       |  2 +-
- src/cmd/ld/data.c    |  2 +-
- src/cmd/ld/elf.c     |  4 +---
- src/cmd/ld/go.c      | 18 +++++++++---------
- src/cmd/ld/ldelf.c   |  4 +---
- src/cmd/ld/ldmacho.c |  4 +---
- src/cmd/ld/lib.c     |  1 +
- src/cmd/ld/macho.c   | 14 +++-----------
- src/cmd/ld/pe.c      | 14 +++++++-------
- 14 files changed, 60 insertions(+), 91 deletions(-)
+ src/cmd/6l/asm.c         |  58 +-----------
+ src/cmd/8l/asm.c         |  58 +-----------
+ src/cmd/ld/data.c        |  14 ++-
+ src/cmd/ld/go.c          |  28 +-----
+ src/cmd/ld/lib.c         |   1 -
+ src/cmd/ld/lib.h         |   8 +-
+ src/cmd/ld/macho.c       | 232 ++++++++++++++++++++++++++++++++++++++++-------
+ src/cmd/ld/macho.h       |   1 +
+ src/libmach/executable.c |   1 -
+ 9 files changed, 231 insertions(+), 170 deletions(-)

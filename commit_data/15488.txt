@@ -1,35 +1,20 @@
-commit f0a8b610e7a1839e3cec63b915f24874b294f7b1
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Thu Feb 28 06:43:21 2013 +0100
+commit 65983695fb8e3b0ba0859f964ad0a41e3e4ca2c3
+Author: Tyler Bunnell <tylerbunnell@gmail.com>
+Date:   Thu Feb 28 16:09:48 2013 +1100
 
-    net, os, syscall: Plan 9: adjust error handling
+    misc/dist: handle previous installation
     
-    syscall: Use NewError for all system errors and introduce
-            some new errors for compatibility with other packages
-            and proper error handling in net. Also introduce
-            Temporary and Timeout methods on ErrorString.
+    The installer package will now detect a previous installation and warn the user
+    that the previous installation will be deleted. If the user continues, the
+    installer will delete the previous installation and install the package as
+    usual.
     
-    net: Make errors from dial, accept, listen functions follow the
-            OpError standard and discern whether the underlying
-            error came from syscall. Since Plan 9 uses a correspondence
-            between file and network operations, all system error
-            reporting happens through the underlying file operation.
-            In Go code, we go through package os for file operations,
-            so there is another level of indirection in error types.
-            This change allows us to compare the errors with those in
-            package syscall, when appropriate.
+    Fixes #4293.
     
-    os: Just use the error string already present in package os,
-            instead of calling out to package syscall.
-    
-    R=rsc, ality, rminnich, bradfitz
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/7398054
+    https://golang.org/cl/7427044
 
- src/pkg/net/ipsock_plan9.go            | 50 ++++++++++++++++++++--------------
- src/pkg/net/tcpsock_plan9.go           |  6 ++--
- src/pkg/os/exec/lp_plan9.go            |  3 +-
- src/pkg/syscall/syscall_plan9.go       | 11 ++++++--
- src/pkg/syscall/zerrors_plan9_386.go   | 29 +++++++++++++-------
- src/pkg/syscall/zerrors_plan9_amd64.go | 29 +++++++++++++-------
- 6 files changed, 80 insertions(+), 48 deletions(-)
+ misc/dist/darwin/Distribution       | 8 +++++++-
+ misc/dist/darwin/scripts/preinstall | 8 ++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

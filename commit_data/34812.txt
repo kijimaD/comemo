@@ -1,55 +1,44 @@
-commit dcaf3fb134d5ca3b74a85b765c39aa5b632638cd
-Author: isharipo <iskander.sharipov@intel.com>
-Date:   Thu Feb 1 20:37:23 2018 +0300
+commit ba2835db6ce72dc941ee8a1492c49176ed3bf9f7
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Nov 15 11:27:10 2017 -0800
 
-    cmd/compile: make DCE remove nodes after terminating if
+    archive/tar: partially revert sparse file support
     
-    This change makes compiler frontend dead code elimination of const expr if
-    statements introduced in https://golang.org/cl/38773 treat both
-            if constCondTrue { ...; returnStmt } toBeRemoved...
-            if constCondFalse { ...; } else { returnStmt } toBeRemoved...
-    identically to:
-            if constCondTrue { ...; returnStmt } else { toBeRemoved... }
+    This CL removes the following APIs:
+            type SparseEntry struct{ ... }
+            type Header struct{ SparseHoles []SparseEntry; ... }
+            func (*Header) DetectSparseHoles(f *os.File) error
+            func (*Header) PunchSparseHoles(f *os.File) error
+            func (*Reader) WriteTo(io.Writer) (int, error)
+            func (*Writer) ReadFrom(io.Reader) (int, error)
     
-    Where "constCondTrue" is a an expression that can be evaluated
-    to "true" during compile time.
+    This API was added during the Go1.10 dev cycle, and are safe to remove.
     
-    The additional checks are only triggered for const expr
-    if conditions that evaluate to true.
+    The rationale for reverting is because Header.DetectSparseHoles and
+    Header.PunchSparseHoles are functionality that probably better belongs in
+    the os package itself.
     
-    name       old time/op       new time/op       delta
-    Template         431ms ± 2%        429ms ± 1%    ~     (p=0.491 n=8+6)
-    Unicode          198ms ± 4%        201ms ± 2%    ~     (p=0.234 n=7+6)
-    GoTypes          1.40s ± 1%        1.41s ± 2%    ~     (p=0.053 n=7+7)
-    Compiler         6.72s ± 2%        6.81s ± 1%  +1.35%  (p=0.011 n=7+7)
-    SSA              17.3s ± 1%        17.3s ± 2%    ~     (p=0.731 n=6+7)
-    Flate            275ms ± 2%        275ms ± 2%    ~     (p=0.902 n=7+7)
-    GoParser         340ms ± 2%        339ms ± 2%    ~     (p=0.902 n=7+7)
-    Reflect          910ms ± 2%        905ms ± 1%    ~     (p=0.310 n=6+6)
-    Tar              403ms ± 1%        403ms ± 2%    ~     (p=0.366 n=7+6)
-    XML              486ms ± 1%        490ms ± 1%    ~     (p=0.065 n=6+6)
-    StdCmd           56.2s ± 1%        56.6s ± 2%    ~     (p=0.620 n=7+7)
+    The other API like Header.SparseHoles, Reader.WriteTo, and Writer.ReadFrom
+    perform no OS specific logic and only perform the actual business logic of
+    reading and writing sparse archives. Since we do know know what the API added to
+    package os may look like, we preemptively revert these non-OS specific changes
+    as well by simply commenting them out.
     
-    name       old user-time/op  new user-time/op  delta
-    Template         559ms ± 8%        557ms ± 7%    ~     (p=0.713 n=8+7)
-    Unicode          266ms ±13%        277ms ± 9%    ~     (p=0.157 n=8+7)
-    GoTypes          1.83s ± 2%        1.84s ± 1%    ~     (p=0.522 n=8+7)
-    Compiler         8.67s ± 4%        8.89s ± 4%    ~     (p=0.077 n=7+7)
-    SSA              23.9s ± 1%        24.2s ± 1%  +1.31%  (p=0.005 n=7+7)
-    Flate            351ms ± 4%        342ms ± 5%    ~     (p=0.105 n=7+7)
-    GoParser         437ms ± 2%        423ms ± 5%  -3.14%  (p=0.016 n=7+7)
-    Reflect          1.16s ± 3%        1.15s ± 2%    ~     (p=0.362 n=7+7)
-    Tar              517ms ± 4%        511ms ± 3%    ~     (p=0.538 n=7+7)
-    XML              619ms ± 3%        617ms ± 4%    ~     (p=0.483 n=7+7)
+    Updates #13548
+    Updates #22735
     
-    Fixes #23521
-    
-    Change-Id: I165a7827d869aeb93ce6047d026ff873d039a4f3
-    Reviewed-on: https://go-review.googlesource.com/91056
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I77842acd39a43de63e5c754bfa1c26cc24687b70
+    Reviewed-on: https://go-review.googlesource.com/78030
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 23 ++++++++++++++++-
- test/fixedbugs/issue23521.go             | 43 ++++++++++++++++++++++++++++++++
- 2 files changed, 65 insertions(+), 1 deletion(-)
+ src/archive/tar/common.go         | 143 ++++++-----------------
+ src/archive/tar/example_test.go   | 179 -----------------------------
+ src/archive/tar/format.go         |   2 +
+ src/archive/tar/reader.go         |  16 +--
+ src/archive/tar/reader_test.go    | 141 ++++++-----------------
+ src/archive/tar/sparse_unix.go    |  77 -------------
+ src/archive/tar/sparse_windows.go | 129 ---------------------
+ src/archive/tar/tar_test.go       | 236 +++++++-------------------------------
+ src/archive/tar/writer.go         | 160 ++++++++++++++------------
+ src/archive/tar/writer_test.go    | 226 ++++++++++++++++++------------------
+ 10 files changed, 322 insertions(+), 987 deletions(-)

@@ -1,20 +1,18 @@
-commit 3c8f9256067bb3917d7cae05cffdb56dc29e4b3c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Apr 25 16:10:22 2024 -0700
+commit 446ad131f633296f1c2589fcfa33ce6d6c58a3bc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 10 17:40:01 2023 -0400
 
-    go/types, types2: factor out type parameter access into genericType
+    cmd/compile: remove "WORK IN PROGRESS" from package pgo
     
-    Also, remove types2.Signature.SetTypeParams as it is not used
-    and does not exist in go/types.
+    Work continues on PGO, but the existing support is certainly working.
     
-    Change-Id: I16c3ae988988d3735907e9c6c56e8626497ea405
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/581817
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: Ic6724b9b3f174f24662468000d771f7651bb18b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494435
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/instantiate.go | 22 +++++++++++++---------
- src/cmd/compile/internal/types2/signature.go   |  3 ---
- src/go/types/instantiate.go                    | 22 +++++++++++++---------
- 3 files changed, 26 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/pgo/irgraph.go | 2 --
+ 1 file changed, 2 deletions(-)

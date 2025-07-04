@@ -1,27 +1,19 @@
-commit d9fd38e68ba00a51c2c7363150688d0e7687ef84
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 25 10:01:56 2021 -0800
+commit 041d8850a15a4c4af23f8cb21cc47c0b4d85d7fa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 6 17:49:24 2020 -0400
 
-    time: correct unusual extension string cases
+    [dev.link] cmd/link: run more tests in parallel
     
-    This fixes two uncommon cases.
-    
-    First, the tzdata code permits timezone offsets up to 24 * 7, although
-    the POSIX TZ parsing does not. The tzdata code uses this to specify a
-    day of week in some cases.
-    
-    Second, we incorrectly rejected a negative time offset for when a time
-    zone change comes into effect.
-    
-    Fixes #44385
-    
-    Change-Id: I5f2efc1d385e9bfa974a0de3fa81e7a94b827602
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/296392
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: I4062fd89f234b4ca5386b74584e1363c05e82e84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241177
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/zoneinfo.go      |  6 +++--
- src/time/zoneinfo_test.go | 60 +++++++++++++++++++++++++++++++++++------------
- 2 files changed, 49 insertions(+), 17 deletions(-)
+ src/cmd/link/dwarf_test.go                  |  2 ++
+ src/cmd/link/elf_test.go                    |  2 ++
+ src/cmd/link/internal/ld/dwarf_test.go      |  4 ++++
+ src/cmd/link/internal/ld/issue33808_test.go |  1 +
+ src/cmd/link/link_test.go                   | 22 ++++++++++++++++++++++
+ 5 files changed, 31 insertions(+)

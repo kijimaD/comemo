@@ -1,25 +1,39 @@
-commit eb636f778a733ab4e5684d4dc451874922fc3df2
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Mar 18 21:22:27 2024 +0100
+commit b52f6d3721da6164687350fff8bd929e934d7725
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue Mar 14 18:25:31 2023 +0100
 
-    all: use "unix" build tag where appropriate
+    runtime: fix frame pointer loop on amd64
     
-    For #51572
+    This commit addresses a regression caused by commit
+    43f911b0b6c550e6c5b46219d8d0d1ca7ce3f97c (CL 472195) which led to frame
+    pointer cycles, causing frame pointer unwinders (refer to CL 463835) to
+    encounter repetitive stack frames.
     
-    Change-Id: I23bb25b8cf1ecb9be25eb6ab9e89cd397b58b3c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/572535
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    The issue occurs when mcall invokes fn on g0's stack. fn is expected not
+    to return but to continue g's execution through gogo(&g.sched). To
+    achieve this, g.sched must hold the sp, pc, and bp of mcall's caller. CL
+    472195 mistakenly altered g.sched.bp to store mcall's own bp, causing
+    gogo to resume execution with a bp value that points downwards into the
+    now non-existent mcall frame. This results in the next function call
+    executed by mcall's callee pushing a bp that points to itself on the
+    stack, creating a pointer loop.
+    
+    Fix this by dereferencing bp before storing it in g.sched.bp to
+    reinstate the correct behavior. Although this problem could potentially
+    be resolved by reverting the mcall-related changes from CL 472195, doing
+    so would hide mcall's caller frame from async frame pointer unwinders
+    like Linux perf when unwinding during fn's execution.
+    
+    Currently, there is no test coverage for frame pointers to validate
+    these changes. However, runtime/trace.TestTraceSymbolize at CL 463835
+    will add basic test coverage and can be used to validate this change.
+    
+    Change-Id: Iad3c42908eeb1b0009fcb839d7fcfffe53d13326
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476235
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
 
- src/cmd/compile/internal/base/mapfile_mmap.go | 2 +-
- src/cmd/compile/internal/base/mapfile_read.go | 2 +-
- src/cmd/internal/bio/buf_mmap.go              | 2 +-
- src/cmd/internal/bio/buf_nommap.go            | 2 +-
- src/cmd/link/internal/ld/outbuf_mmap.go       | 2 +-
- src/cmd/link/internal/ld/outbuf_nommap.go     | 2 +-
- src/runtime/pprof/pprof_norusage.go           | 2 +-
- 7 files changed, 7 insertions(+), 7 deletions(-)
+ src/runtime/asm_amd64.s | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

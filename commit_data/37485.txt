@@ -1,22 +1,18 @@
-commit 3f9efe750058308bc499c5eb22bc84193fedb6b3
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Nov 23 11:17:36 2018 +0100
+commit 07bcfe574593eea878e187c99e2d7aa17798eef5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 3 11:27:32 2018 -0700
 
-    cmd/link: fix XCOFF sections
+    cmd/go: don't crash in go fmt on invalid input when using modules
     
-    XCOFF files can't have multiples text or data sections. The name
-    of each type section must be .text, .data and .bss.
+    Fixes #26792
     
-    This commit also updates cmd/internal/objfile/xcoff.go to retrieve Go
-    sections using runtime symbols.
-    
-    Change-Id: Ib6315f19dad2d154a4531fc6508e7cbd8bc94743
-    Reviewed-on: https://go-review.googlesource.com/c/151037
+    Change-Id: I9a878180af28e3939b654fd88bed150010dffde0
+    Reviewed-on: https://go-review.googlesource.com/127856
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/objfile/xcoff.go  |  48 +++++--
- src/cmd/link/internal/ld/data.go   |   4 -
- src/cmd/link/internal/ld/xcoff.go  | 259 +++++++++++++++++--------------------
- src/cmd/link/internal/ppc64/asm.go |  22 +---
- 4 files changed, 162 insertions(+), 171 deletions(-)
+ src/cmd/go/internal/fmtcmd/fmt.go                |  2 +-
+ src/cmd/go/testdata/script/mod_gofmt_invalid.txt | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

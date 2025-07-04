@@ -1,0 +1,25 @@
+commit 5610e05936a87744e0ca2b244c92d24f789a8aed
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jul 26 23:34:12 2024 +0200
+
+    crypto/internal/nistec: use mixed addition in purego ScalarBaseMult
+    
+    The affine addition formula is significantly faster, and sets us up to
+    reuse the precomputed table from the assembly implementation.
+    
+    This is an incremental step towards converging the purego and assembly
+    implementations, with the goal of eventually merging them.
+    
+    Very proud of how the conditional AddAffine avoids the whole zero/sel
+    cmov dance, compared to the same logic in the assembly implementation.
+    
+    Change-Id: Iab008e81869cf8c1565b938e4dd392dd4d5787fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627938
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/internal/nistec/p256.go | 101 ++++++++++++++++++++++++++++++++-----
+ 1 file changed, 89 insertions(+), 12 deletions(-)

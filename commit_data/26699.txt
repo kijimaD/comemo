@@ -1,26 +1,14 @@
-commit 0c71e293b57b0b2fbfa63d0fbf364b1771b6ee6e
+commit e34295e64782d61725377e8d0979114bd790b47f
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Apr 4 15:41:56 2016 -0700
+Date:   Tue Feb 23 02:14:32 2016 -0800
 
-    cmd/compile: minor cleanup to import loading
+    cmd/compile: use path.Join in importfile
     
-    Briefly document what the importfoo functions do.
-    
-    Get rid of importsym's unused result parameter.
-    
-    Get rid of the redundant calls to importsym(s, OTYPE)
-    after we've already called pkgtype(s).
-    
-    Passes toolstash -cmp.
-    
-    Change-Id: I4c057358144044f5356e4dec68907ec85f1fe806
-    Reviewed-on: https://go-review.googlesource.com/21498
+    Change-Id: Ib413b0cb16405965455d7764a8c4a22bf431389b
+    Reviewed-on: https://go-review.googlesource.com/19850
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go |  1 -
- src/cmd/compile/internal/gc/export.go  | 13 ++++++-------
- src/cmd/compile/internal/gc/parser.go  |  7 +------
- 3 files changed, 7 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/lex.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

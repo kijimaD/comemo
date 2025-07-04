@@ -1,15 +1,14 @@
-commit 305d7ada2b94f4d61ed41727c82660795ac85698
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 28 16:03:34 2012 -0800
+commit 16a5934540864a687ed709b969ea32f1e6e8c238
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Nov 28 17:01:22 2012 +1100
 
-    go/parser: permit [...]T where array types are permitted
+    exp/winfsnotify: fix data race in TestNotifyClose
     
-    More lenient parsing with better error recovery.
-    It's easier for the type check to pick up the slack.
+    Fixes #4342.
     
-    R=iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6856108
+    https://golang.org/cl/6850080
 
- src/pkg/go/parser/parser.go | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ src/pkg/exp/winfsnotify/winfsnotify_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

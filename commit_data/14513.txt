@@ -1,16 +1,18 @@
-commit d244dd09f35b06909ef5590d3a2fde65bc1f0612
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Nov 28 10:08:59 2012 +1100
+commit f134742f24f950bd3b7c563fc36cccda8fd85e81
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Nov 27 21:37:38 2012 +0100
 
-    net: fix intermittent TestAddFDReturnsError failure
+    cmd/5g, cmd/8g: fix internal error on 64-bit indices statically bounded
     
-    A fix similar to CL 6859043 was effective in resolving the intermittent failure.
-    
-    Fixes #4423.
+    Fixes #4448.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6854102
+    https://golang.org/cl/6855100
 
- src/pkg/net/fd_unix_test.go | 19 +++++++++----------
- 1 file changed, 9 insertions(+), 10 deletions(-)
+ src/cmd/5g/cgen.c           | 12 +++++++-----
+ src/cmd/5g/gg.h             |  2 +-
+ src/cmd/5g/gsubr.c          |  2 +-
+ src/cmd/8g/cgen.c           | 14 ++++++++------
+ test/fixedbugs/issue4448.go | 37 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 54 insertions(+), 13 deletions(-)

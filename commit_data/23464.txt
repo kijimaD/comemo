@@ -1,15 +1,30 @@
-commit c8aea7b18f81b97653f1861ee3acf10b1c074747
-Author: Todd Neal <todd@tneal.org>
-Date:   Mon Jun 22 08:31:38 2015 -0500
+commit 82e1651a246db496fa9598f46a6c6af999b699ba
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 7 11:57:52 2015 -0700
 
-    net/http: Remove unused code
+    cmd/internal/gc, cmd/yacc: merge yaccerrors.go into cmd/yacc
     
-    This appears to be some legacy which is no longer used.
+    This extends cmd/yacc with support for
     
-    Change-Id: I469beb59a90853e8de910158f179b32f1aa14c7d
-    Reviewed-on: https://go-review.googlesource.com/11304
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Andrew Gerrand <adg@golang.org>
+            %error { tokens } : message
+    
+    syntax to specify custom error messages to use instead of the default
+    generic ones.  This allows merging go.errors into go.y and removing
+    the yaccerrors.go tool.
+    
+    Updates #9968.
+    
+    Change-Id: I781219c568b86472755f877f48401eaeab00ead5
+    Reviewed-on: https://go-review.googlesource.com/8563
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/net/http/transport.go | 12 ------------
- 1 file changed, 12 deletions(-)
+ src/cmd/internal/gc/go.errors     |  81 ----
+ src/cmd/internal/gc/go.y          |  63 ++-
+ src/cmd/internal/gc/lex.go        |   1 -
+ src/cmd/internal/gc/subr.go       |  15 -
+ src/cmd/internal/gc/y.go          | 584 ++++++++++++-----------
+ src/cmd/internal/gc/y.output      | 972 +++++++++++++++++++-------------------
+ src/cmd/internal/gc/yaccerrors.go | 194 --------
+ src/cmd/internal/gc/yymsg.go      |  83 ----
+ src/cmd/yacc/yacc.go              | 128 ++++-
+ 9 files changed, 981 insertions(+), 1140 deletions(-)

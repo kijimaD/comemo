@@ -1,27 +1,27 @@
-commit 91631bc7e0131367eb051b581cf34573399ac592
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Mar 16 13:07:57 2022 -0400
+commit 6d2ef2ef2a3ed375b5c782e6c8b0f8a59c3d3c8c
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 18 12:58:02 2021 -0400
 
-    cmd/link: mark unexported methods for plugins
+    cmd/compile: don't emit inltree for closure within body of inlined func
     
-    When plugin is used, we already mark all exported methods
-    reachable. However, when the plugin and the host program share
-    a common package, an unexported method could also be reachable
-    from both the plugin and the host via interfaces. We need to mark
-    them as well.
+    When inlining functions with closures, ensure that we don't mark the
+    body of the closure with a src.Pos marker that reflects the inline,
+    since this will result in the generation of an inltree table for the
+    closure itself (as opposed to the routine that the func-with-closure
+    was inlined into).
     
-    Fixes #51621.
+    Fixes #46234.
     
-    Change-Id: I1a70d3f96b66b803f2d0ab14d00ed0df276ea500
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393365
-    Trust: Cherry Mui <cherryyz@google.com>
+    Change-Id: I348296de6504fc4745d99adab436640f50be299a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320913
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
 
- misc/cgo/testplugin/plugin_test.go             |  6 +++++
- misc/cgo/testplugin/testdata/method3/main.go   | 32 ++++++++++++++++++++++++++
- misc/cgo/testplugin/testdata/method3/p/p.go    | 17 ++++++++++++++
- misc/cgo/testplugin/testdata/method3/plugin.go | 11 +++++++++
- src/cmd/link/internal/ld/deadcode.go           |  2 +-
- 5 files changed, 67 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go |  16 ++++-
+ test/closure3.dir/main.go              |   8 +--
+ test/fixedbugs/issue46234.go           | 103 +++++++++++++++++++++++++++++++++
+ test/inline.go                         |   4 +-
+ 4 files changed, 124 insertions(+), 7 deletions(-)

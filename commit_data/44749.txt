@@ -1,17 +1,25 @@
-commit 482903150dff1a4e9791330aed24ae607005fc18
-Author: Antonio Garcia <garcia.olais@gmail.com>
-Date:   Fri Mar 19 15:29:09 2021 +0000
+commit 758ac371ab930734053ed226ac62681e62ab8eea
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Aug 15 21:15:35 2020 +0200
 
-    syscall: fix typo in exec_windows_test.go
+    misc/wasm: make wasm_exec more robust against uncommon environments
     
-    nothign -> nothing
+    JavaScript environments are quite unpredictable because bundlers add
+    mocks for compatibility and libraries can polute the global namespace.
+    Detect more of such situations:
     
-    Change-Id: I3f5cf20cc094d280f6cafa179eaefd745874dec1
-    GitHub-Last-Rev: a4cf42f27574ab8567d0f45bcd4dfbe018587214
-    GitHub-Pull-Request: golang/go#45118
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/303269
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    - Add check that require("fs") returns an object.
+    - Fix check that require("fs") returns an non-empty object.
+    - Add check that "module" is defined.
+    
+    Fixes #40730
+    
+    Change-Id: I2ce65fc7db64bbbb0b60eec79a4cfe5c3fec99c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248758
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/syscall/exec_windows_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/wasm/wasm_exec.js | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

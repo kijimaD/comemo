@@ -1,0 +1,19 @@
+commit cdc95607940b2acb66cb184dec08d4cc8a469042
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Sep 12 20:15:56 2024 +0800
+
+    all: implement plugin build mode for riscv64
+    
+    Change-Id: I8d7bbeebbf4a46f2fd8d630b1edbaf79b8ffccc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420114
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    TryBot-Bypass: Joel Sing <joel@sing.id.au>
+
+ src/cmd/dist/test.go                 |   2 +-
+ src/cmd/internal/obj/riscv/obj.go    | 121 +++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/riscv64/asm.go |  21 +++++-
+ src/internal/platform/supported.go   |   2 +-
+ src/runtime/asm_riscv64.s            |   9 +++
+ 5 files changed, 152 insertions(+), 3 deletions(-)

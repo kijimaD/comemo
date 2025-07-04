@@ -1,32 +1,14 @@
-commit 24e4a128c9a038a221789fb8ff40530acde31501
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Sep 30 12:36:34 2017 +0000
+commit cbaae77184ea6615b45c141960b7de51daae026a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jun 16 14:40:34 2017 +0200
 
-    cmd/link: type symbol name mangling for plugins
+    doc: note that Time.String changed in go1.9
     
-    Moves type symbol name mangling out of the object reader
-    and into a separate pass. Requires some care, as changing
-    the name of a type may require dealing with duplicate
-    symbols for the first time.
+    Fixes #20702
     
-    Disables DWARF for both plugins and programs that use plugin.Open,
-    because type manging is currently incompatible with the go.info.*
-    symbol generator in cmd/link. (It relies on the symbol names to
-    find type information.) A future fix for this would be moving the
-    go.info.* generation into the compiler, with the logic we use
-    for generating the type.* symbols.
-    
-    Fixes #19529
-    
-    Change-Id: I75615f8bdda86ff9e767e536d9aa36e15c194098
-    Reviewed-on: https://go-review.googlesource.com/67312
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id90f08c33e3ccc37794b47fcd27f6c3f2f41c634
+    Reviewed-on: https://go-review.googlesource.com/46011
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/cgo/testplugin/src/issue19529/plugin.go | 15 +++++++
- misc/cgo/testplugin/test.bash                |  3 ++
- src/cmd/link/internal/ld/lib.go              | 62 +++++++++++++++++++++++++++-
- src/cmd/link/internal/ld/objfile.go          | 26 ------------
- src/cmd/link/internal/ld/symbols.go          | 22 ++++++++++
- 5 files changed, 101 insertions(+), 27 deletions(-)
+ doc/go1.9.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

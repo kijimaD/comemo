@@ -1,19 +1,18 @@
-commit b45b6fd1c73c7560740b5ff2700f9b07ed41914c
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Sep 11 08:45:23 2012 +0200
+commit b19c32acce20c9e7ef54111bfecae97f0906fa1a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Sep 11 14:40:08 2012 +1000
 
-    cmd/6g, cmd/8g: do not LEA[LQ] interfaces when calling methods.
+    strings: more thorough Replacer tests.
     
-    It is enough to load directly the data word and the itab word
-    from memory, so we save a LEA instruction for each method call,
-    and allow elimination of some extra temporaries.
+    This verifies existing behavior. Some replacements are arguably wrong
+    (these are marked with TODO) but changing behavior is left for a
+    follow-up CL.
     
-    Update #1914.
+    Also fix that BenchmarkGenericMatch wasn't actually matching anything.
     
-    R=daniel.morsing, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/6501110
+    R=rsc, eric.d.eisner
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/6488110
 
- src/cmd/6g/ggen.c | 38 ++++++++++++++++++++------------------
- src/cmd/8g/ggen.c | 26 ++++++++++++++------------
- 2 files changed, 34 insertions(+), 30 deletions(-)
+ src/pkg/strings/replace_test.go | 319 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 259 insertions(+), 60 deletions(-)

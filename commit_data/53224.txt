@@ -1,36 +1,28 @@
-commit ef23bd11a813176fe5fdd2c0fd19031ea3492b9b
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 23 13:22:45 2023 -0400
+commit 1e3c19f3fee12e5e2b7802a54908a4d4d03960da
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri May 27 18:55:35 2022 +0200
 
-    cmd/go: convert semver.Compare to gover.ModCompare
+    runtime: support riscv64 SV57 mode
     
-    This sets up for introducing the 'go' and 'toolchain' modules
-    but should be a no-op by itself.
+    riscv64 has SV57 mode when user-space VA is 56 bits.
+    Linux kernel recently got support for this mode and Go binaries started crashing as:
     
-    For #57001.
+    runtime: lfstack.push invalid packing: node=0xffffff5908a940 cnt=0x1
+    packed=0xffff5908a9400001 -> node=0xffff5908a940
     
-    Change-Id: I2e02b5d417f1edd4f4653b101e4975fe23093f66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497456
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Adjust lfstack code to use only 8 top bits of pointers on riscv64.
+    
+    For context see:
+    https://groups.google.com/g/syzkaller-bugs/c/lU0GQTZoNQQ/m/O_c3vmE3AAAJ
+    
+    Update #54104
+    
+    Change-Id: Ib5d3d6a79c0c6eddf11618d73fcc8bc1832a9c25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409055
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/load/pkg.go          |  3 ++-
- src/cmd/go/internal/modcmd/vendor.go     |  2 +-
- src/cmd/go/internal/modget/get.go        |  6 +++---
- src/cmd/go/internal/modload/build.go     |  4 ++--
- src/cmd/go/internal/modload/buildlist.go | 26 +++++++++++++-------------
- src/cmd/go/internal/modload/edit.go      | 15 ++++++++-------
- src/cmd/go/internal/modload/import.go    |  6 +++---
- src/cmd/go/internal/modload/init.go      |  7 +++----
- src/cmd/go/internal/modload/load.go      |  4 ++--
- src/cmd/go/internal/modload/modfile.go   |  2 +-
- src/cmd/go/internal/modload/mvs.go       | 14 +++++++-------
- src/cmd/go/internal/modload/mvs_test.go  |  2 +-
- src/cmd/go/internal/modload/query.go     | 24 +++++++++++++-----------
- src/cmd/go/internal/modload/vendor.go    |  2 +-
- src/cmd/go/internal/mvs/graph.go         | 11 ++++++-----
- src/cmd/go/internal/mvs/mvs.go           | 19 ++++++++++---------
- src/cmd/go/internal/mvs/mvs_test.go      |  4 ++--
- src/cmd/go/internal/workcmd/sync.go      |  3 ++-
- 18 files changed, 80 insertions(+), 74 deletions(-)
+ src/runtime/lfstack_64bit.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

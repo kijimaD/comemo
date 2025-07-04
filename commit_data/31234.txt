@@ -1,20 +1,18 @@
-commit 4646a330905d8195e2664e6142832ad118f7bb03
-Author: Samuel Tan <samueltan@google.com>
-Date:   Fri Apr 14 09:50:00 2017 -0700
+commit 67c3d4dab06530b4a444c3a076fceaa5573cf2b6
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Tue Feb 7 12:27:29 2017 -0500
 
-    html/template: ensure that MIME type handling is case insensitive
+    time: delete incorrect docs about day-of-month checks.
     
-    Handle MIME types found in the type attribute of the script element
-    in a case insensitive way, as per Section 5.1 of RFC 2045.
+    Documentation was introduced by CL https://golang.org/cl/14123
+    but that behavior was changed later by CL https://golang.org/cl/17710.
+    This CL deletes the stale paragraph.
     
-    Fixes #19968
+    Fixes #18980
     
-    Change-Id: Ie1416178c937dcf2c96bcec4191cebe7c3477af8
-    Reviewed-on: https://go-review.googlesource.com/40702
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib434f1eac6fc814fde1be112a8f52afe6e3e0fcc
+    Reviewed-on: https://go-review.googlesource.com/36532
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/template/escape_test.go | 5 +++++
- src/html/template/js.go          | 2 +-
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/time/format.go | 5 -----
+ 1 file changed, 5 deletions(-)

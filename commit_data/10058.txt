@@ -1,43 +1,12 @@
-commit c0523e1db9bffc6a799775aea891606b1235564d
+commit 35b2bfc8daa9ebeabfae8106e39b223c137f523a
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 19 15:08:33 2011 -0400
+Date:   Wed Oct 19 13:10:23 2011 -0400
 
-    codereview: show LGTMs in hg p
+    gotest: use $GCFLAGS like make does
     
-    Shows first line of any response that the codereview server
-    has identified as an LGTM.  Example output below.
-    
-    5305046:
-            big: update for fmt interface changes
-    
-            Nothing terribly interesting here.
-    
-            Reviewer: gri@golang.org
-                    gri: LGTM
-            CC: golang-dev@googlegroups.com
-            Files:
-                    src/pkg/big/int.go
-                    src/pkg/big/nat.go
-                    src/pkg/big/nat_test.go
-                    src/pkg/big/rat.go
-    
-    5307044:
-            exp/template/html: use rune
-    
-            Nothing terribly interesting here.
-    
-            Reviewer: mikesamuel@gmail.com, nigeltao@golang.org
-                    mikesamuel: I don't see a type def for rune.  Assuming that's a new intrinsic, LGTM.
-            CC: golang-dev@googlegroups.com
-            Files:
-                    src/pkg/exp/template/html/css.go
-                    src/pkg/exp/template/html/css_test.go
-                    src/pkg/exp/template/html/html.go
-                    src/pkg/exp/template/html/js.go
-    
-    R=golang-dev, r
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5297045
+    https://golang.org/cl/5297044
 
- lib/codereview/codereview.py | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/gotest/gotest.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

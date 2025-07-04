@@ -1,12 +1,14 @@
-commit 804e562a62bed963fe96571d442d468a608e7207
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jul 2 20:10:31 2012 +0400
+commit a732cbb593c832a72e87c0ab19b6b06369cb7073
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Jul 2 09:33:22 2012 +0800
 
-    net/http: fix comment
+    cmd/gc: add missing case for OCOM in defaultlit()
+            Fixes #3765.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6348062
+    https://golang.org/cl/6349064
 
- src/pkg/net/http/serve_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/const.c       |  3 ++-
+ test/fixedbugs/bug445.go | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

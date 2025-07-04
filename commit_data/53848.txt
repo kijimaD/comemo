@@ -1,21 +1,21 @@
-commit 8597d052b2467a9f9ea20673555d65f0149c4bb4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jul 31 21:46:31 2023 -0700
+commit 9363f356bd5a4fb7a45861ceac79033473f4c068
+Author: Alok Menghrajani <441307+alokmenghrajani@users.noreply.github.com>
+Date:   Sat Sep 3 21:16:49 2022 +0000
 
-    go/types, types2: remove internal constant enableInterfaceInference
+    math/big: replace dead link in a comment with link to an archive.org copy
     
-    We're not going to disable this functionality as it would
-    invalidate code that now type-checks with type inference
-    based on this mechanism.
+    Happy to use another service if web.archive.org isn't suitable.
     
-    Change-Id: Ib11059e2f70a5a209693b06f754cba862e3650ec
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/514715
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Note: the original page redirects and then links to some nsfw content.
+    
+    Change-Id: Ie93ca0c6aad871881f35b7e5609b96da5c14cfc0
+    GitHub-Last-Rev: ced5a97eb5c1d954a04d4bb61d36d955ca45a6ab
+    GitHub-Pull-Request: golang/go#54857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428236
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/types2/unify.go | 17 ++++++-----------
- src/go/types/unify.go                    | 17 ++++++-----------
- 2 files changed, 12 insertions(+), 22 deletions(-)
+ src/math/big/prime.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,19 @@
-commit 80864cf1f7804e23be215245a70d70efd1116bb4
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri May 29 14:29:57 2015 +1000
+commit 339cf9807debe2b20e8701ff3821079a8e925700
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 27 18:55:21 2015 -0700
 
-    io: minor improvements to doc comment on WriteString.
+    net/http: documentation updates
     
-    Change-Id: Iddcd0cfb8f2c2f1c4ad7a94b50a9f65b543862c4
-    Reviewed-on: https://go-review.googlesource.com/10473
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Fixes #10366 (how to set custom headers)
+    Fixes #9836 (PATCH in PostForm)
+    Fixes #9276 (generating a server-side Request for testing)
+    Update #8991 (clarify Response.Write for now; export ReverseProxy's copy later?)
+    
+    Change-Id: I95a11bf3bb3eeeeb72775b6ebfbc761641addc35
+    Reviewed-on: https://go-review.googlesource.com/9410
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/io/io.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/http/client.go   | 33 ++++++++++++++++++++++++++-------
+ src/net/http/request.go  | 14 +++++++++++---
+ src/net/http/response.go |  8 +++++---
+ 3 files changed, 42 insertions(+), 13 deletions(-)

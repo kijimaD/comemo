@@ -1,19 +1,45 @@
-commit a27b78141b85d3b9733647de3f3863977d2f9f81
+commit d553c29dc1f0057d1223af79d6054ce51afe2b7d
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Feb 1 12:35:53 2017 -0800
+Date:   Thu Oct 20 17:33:45 2016 -0700
 
-    cmd/compile/internal/gc: inline typedcl0 and typedcl1
+    cmd/compile: directly construct Fields instead of ODCLFIELD nodes
     
-    It's easier to understand what's happening after inlining these into
-    noder.typeDecl.
+    Avoids some garbage allocations while loading import data. Seems to
+    especially benefit html/template for some reason, but significant
+    allocation improvements for other packages too.
     
-    Change-Id: I7beed5a1e18047bf09f2d4ddf64b9646c324d8d6
-    Reviewed-on: https://go-review.googlesource.com/36111
+    name       old time/op     new time/op     delta
+    Template       345ms ± 6%      332ms ± 6%   -3.76%        (p=0.000 n=49+47)
+    Unicode        185ms ±10%      184ms ±12%     ~           (p=0.401 n=50+49)
+    GoTypes        1.04s ± 3%      1.04s ± 3%   -0.72%        (p=0.012 n=48+47)
+    Compiler       4.52s ± 7%      4.49s ± 9%     ~           (p=0.465 n=48+47)
+    
+    name       old user-ns/op  new user-ns/op  delta
+    Template        532M ±17%       471M ±23%  -11.48%        (p=0.000 n=50+50)
+    Unicode         298M ±29%       311M ±28%     ~           (p=0.065 n=50+50)
+    GoTypes        1.52G ± 7%      1.54G ± 9%     ~           (p=0.062 n=49+50)
+    Compiler       6.37G ± 7%      6.42G ± 8%     ~           (p=0.157 n=49+48)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      43.9MB ± 0%     42.3MB ± 0%   -3.51%        (p=0.000 n=48+48)
+    Unicode       34.3MB ± 0%     34.3MB ± 0%     ~           (p=0.945 n=50+50)
+    GoTypes        123MB ± 0%      122MB ± 0%   -0.82%        (p=0.000 n=50+50)
+    Compiler       522MB ± 0%      519MB ± 0%   -0.51%        (p=0.000 n=50+50)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        414k ± 0%       397k ± 0%   -4.14%        (p=0.000 n=50+49)
+    Unicode         320k ± 0%       320k ± 0%     ~           (p=0.988 n=48+49)
+    GoTypes        1.18M ± 0%      1.17M ± 0%   -0.97%        (p=0.000 n=50+50)
+    Compiler       4.44M ± 0%      4.41M ± 0%   -0.66%        (p=0.000 n=50+50)
+    
+    Passes toolstash.
+    
+    Change-Id: I0f54c0fa420d4f4ed3584c47cec0dde100c70c03
+    Reviewed-on: https://go-review.googlesource.com/31670
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go   | 28 ----------------------------
- src/cmd/compile/internal/gc/noder.go | 17 +++++++++++++++--
- test/notinheap.go                    |  8 ++++----
- 3 files changed, 19 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 95 +++++++++++++++++++---------------
+ src/cmd/compile/internal/gc/dcl.go     | 80 ++++++++++++++++++++++------
+ 2 files changed, 117 insertions(+), 58 deletions(-)

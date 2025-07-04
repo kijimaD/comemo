@@ -1,18 +1,13 @@
-commit 2b7505e28a50f49e85c3e0812a4c4f287b8dfa30
-Author: Shenghou Ma <minux@golang.org>
-Date:   Tue Apr 28 19:44:00 2015 -0400
+commit 0def13ac3f5a5e9f8e5540d3f5469cd469bddfad
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Mar 27 18:05:13 2015 +1100
 
-    cmd/internal/gc: fix write barrier fast path on RISC architectures
+    image/color: have CMYK.RGBA work in 16-bit color, per the Color interface.
     
-    They have to read the boolean into a register first and then do
-    the comparison.
-    
-    Fixes #10598.
-    
-    Change-Id: I2b808837a8c6393e1e0778296b6592aaab2b04bf
-    Signed-off-by: Shenghou Ma <minux@golang.org>
-    Reviewed-on: https://go-review.googlesource.com/9453
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I3621527c924a43724032f80a072505c60d929ab3
+    Reviewed-on: https://go-review.googlesource.com/8180
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/cgen.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/image/color/ycbcr.go      | 20 +++++++++------
+ src/image/color/ycbcr_test.go | 58 +++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 63 insertions(+), 15 deletions(-)

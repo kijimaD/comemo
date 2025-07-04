@@ -1,23 +1,18 @@
-commit fe3458550bfee0c842393e44e096fd64c666d909
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Mar 10 17:03:52 2017 -0800
+commit dadfd14babccc30757ddb3f3eb8fbb7cd3bf4b5a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Nov 10 13:00:35 2016 +1100
 
-    cmd/go: if we get a C compiler dwarf2 warning, try without -g
+    os: add more tests in TestReadStdin
     
-    This avoids a problem that occurs on FreeBSD 11, in which the clang
-    3.8 assembler issues a pointless warning when invoked with -g on a
-    file that contains an empty .note.GNU-stack section.
+    TestReadStdin always fill up buffer provided by ReadFile caller full.
+    But we do not know if real ReadFile does the same. Add tests where
+    buffer is only filled with limited data.
     
-    No test because there is no reasonable way to write one, but should
-    fix the build on FreeBSD 11.
-    
-    Fixes #14705.
-    
-    Change-Id: I8c49bbf79a2c715c0e75495da19045fc92280e81
-    Reviewed-on: https://go-review.googlesource.com/38072
+    Change-Id: I0fc776325c2b1fe60511126c439f4b0560e9d653
+    Reviewed-on: https://go-review.googlesource.com/33030
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/work/build.go | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/os/os_windows_test.go | 55 ++++++++++++++++++++++++++---------------------
+ 1 file changed, 30 insertions(+), 25 deletions(-)

@@ -1,18 +1,26 @@
-commit c46ba1f9efeb8efa6d8f513ec92f36ae1bfb8cd0
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Dec 4 19:33:26 2024 +0000
+commit b7a66be69c5857105c4b357d87bb76da87b1dbed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 30 17:00:07 2023 -0700
 
-    weak: massage package docs a little bit
+    cmd/compile/internal/syntax: set up dummy name and type if func name is missing
     
-    This is an attempt to clarify the "advice" section of the package docs a
-    little bit and encourage a specific style of use for weak structures.
-    It's not perfect, but it's something.
+    We do the same elsewhere (e.g. in parser.name when a name is missing).
+    This ensures functions have a (dummy) name and a non-nil type.
+    Avoids a crash in the type-checker (verified manually).
+    A test was added here (rather than the type checker) because type-
+    checker tests are shared between types2 and go/types and error
+    recovery in this case is different.
     
-    Change-Id: Id84b76d207619cc2e78439c5c903ec9575199734
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/633675
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Fixes #63835.
+    
+    Change-Id: I1460fc88d23d80b8d8c181c774d6b0a56ca06317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538059
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/weak/doc.go | 20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/syntax/parser.go              | 3 +++
+ src/cmd/compile/internal/syntax/testdata/issue63835.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

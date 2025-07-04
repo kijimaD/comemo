@@ -1,29 +1,30 @@
-commit c13e0e8ceed4395e9ec8176579346ca6a5db269f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 11 10:41:03 2018 -0800
+commit 6945c67e102da9a37725de590b7e825d880ac848
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Sep 24 17:55:19 2017 +0100
 
-    spec: remove example explaining that type B0 and B0 are identical
+    cmd/compile: merge bytes inline test with the rest
     
-    Every few months we get a new error report claiming that there
-    is a typo in the spec related to this specific example. Clearly,
-    the fact that two types with the same identifier are identical
-    seems exceedingly obvious to readers; thus the example seems not
-    worth the trouble. Removing it.
+    In golang.org/cl/42813, a test was added in the bytes package to check
+    if a Buffer method was being inlined, using 'go tool nm'.
     
-    For #9226.
-    For #22202.
-    For #22495.
-    For #23096.
-    For #23409.
+    Now that we have a compiler test that verifies that certain funcs are
+    inlineable, merge it there. Knowing whether the funcs are inlineable is
+    also more reliable than whether or not their symbol appears in the
+    binary, too. For example, under some circumstances, inlineable funcs
+    can't be inlined, such as if closures are used.
     
-    There may be more.
+    While at it, add a few more bytes.Buffer methods that are currently
+    inlined and should clearly stay that way.
     
-    Change-Id: I003ba79dc460ffb028a4ecb5f29efd60f2551912
-    Reviewed-on: https://go-review.googlesource.com/87417
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Updates #21851.
+    
+    Change-Id: I62066e32ef5542d37908bd64f90bda51276da4de
+    Reviewed-on: https://go-review.googlesource.com/65658
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/bytes/buffer_test.go                | 22 ----------------------
+ src/cmd/compile/internal/gc/inl_test.go | 12 ++++++++++++
+ 2 files changed, 12 insertions(+), 22 deletions(-)

@@ -1,20 +1,17 @@
-commit dc53ea77721e1d5c372c04ba3f20d45e5aec7103
+commit a46ea907053d6ad116e49f76f58b69633c6039d3
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Oct 26 22:23:32 2016 -0700
+Date:   Thu Jul 14 14:07:18 2016 -0700
 
-    cmd/compile: change Func.FCurfn to IsHiddenClosure
+    go/build: don't alter InstallSuffix for default compile options
     
-    IsHiddenClosure is more descriptive.
+    Fixes #16378.
     
-    Change-Id: I06651072925a958b148b64ab0db3a9bfc839af9b
-    Reviewed-on: https://go-review.googlesource.com/32224
+    Change-Id: I99a064f1afec78fb63cb3719061d20be0f21d45d
+    Reviewed-on: https://go-review.googlesource.com/24930
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/dcl.go         |  2 +-
- src/cmd/compile/internal/gc/esc.go         |  6 +++---
- src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
- src/cmd/compile/internal/gc/subr.go        |  2 +-
- src/cmd/compile/internal/gc/syntax.go      | 12 ++++++------
- 5 files changed, 12 insertions(+), 12 deletions(-)
+ misc/cgo/testshared/shared_test.go | 4 ++--
+ src/cmd/go/build.go                | 9 ++++++---
+ 2 files changed, 8 insertions(+), 5 deletions(-)

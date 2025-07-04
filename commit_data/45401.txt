@@ -1,35 +1,23 @@
-commit a54762586fd7b91cb1a8b8bb404db87e6b976d59
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Jan 15 23:10:48 2021 +0000
+commit cdb19b4dba58c0e3cabde8b728156dfe273707b3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 16 16:34:52 2020 -0400
 
-    cmd/gofmt: simplify arg handling
+    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on ARM64
     
-    First, we can use flag.Args instead of flag.NArg and flag.Arg.
+    These are identical to And8 and Or8, just using LDAXRW/STLXRW instead of
+    LDAXRB/STLXRB.
     
-    Second, just call filepath.WalkDir directly on each argument. We don't
-    need to check if each argument is a directory or not, since the function
-    will still work on regular files as expected.
-    
-    To continue giving an error in the "gofmt does-not-exist.go" case, we
-    now need to return and handle errors from filepath.WalkDir, too.
-    Arguably, that should have always been the case.
-    
-    While at it, I noticed that the printinf of the "diff" command did not
-    obey the "out" parameter. Fix that.
-    
-    Finally, remove the code to ignore IsNotExist errors. It was added in CL
-    19301, though it didn't include tests and its reasoning is dubious.
-    Using gofmt on a directory treewhile another program is concurrently
-    editing or removing files is inherently racy. Hiding errors can hide
-    valid problems from the user, and such racy usages aren't supported.
-    
-    Change-Id: I2e74cc04c53eeefb25231d804752b53562b97371
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284138
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I5308832ae165064550bee4bb245809ab952f4cc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263148
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/gofmt/gofmt.go | 29 ++++++++---------------------
- 1 file changed, 8 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/arm64/ssa.go        | 18 ++++++++----
+ src/cmd/compile/internal/gc/ssa.go           |  4 +--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  6 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 38 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 42 ++++++++++++++++++++++++++++
+ 6 files changed, 103 insertions(+), 11 deletions(-)

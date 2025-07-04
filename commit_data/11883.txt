@@ -1,17 +1,14 @@
-commit 82568c5cd5ae7efcf3f3bbdd4cab2eff9b1318a0
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 14 00:18:30 2012 -0500
+commit dcf5ca706b6faef942d49e7637aa926ba76139a3
+Author: Daniel Krech <eikeon@eikeon.com>
+Date:   Mon Feb 13 23:46:31 2012 -0500
 
-    cmd/dist: exclude cov and prof from releases
-    Also check for old and exp.
+    cmd/go: go get scheme detection
     
-    Fixes #2764.
-    Fixes #2765.
+    Fixes #2895.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5654068
+    https://golang.org/cl/5651055
 
- {src/cmd/prof => misc}/pprof |  0
- src/cmd/dist/build.c         | 40 ++++++++++++++++++++++++++++++++++++----
- 2 files changed, 36 insertions(+), 4 deletions(-)
+ src/cmd/go/vcs.go | 50 ++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 44 insertions(+), 6 deletions(-)

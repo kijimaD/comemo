@@ -1,31 +1,31 @@
-commit 841e63e480ca2626e0cd0bbf8df31f8c6d8ee597
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Nov 20 15:20:58 2023 -0500
+commit 5ba98b975638323acf733438a619e9190dfa8afa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 12 13:36:44 2022 -0800
 
-    cmd/go: don't warn about GOROOT equal to GOPATH when both are the empty string
+    go/types, types2: report type mismatch error when conversion is impossible
     
-    As of Go 1.19, runtime.GOROOT() reports the empty string if the binary
-    was built with -trimpath. cmd/go/internal/cfg uses the path of the go
-    command executable to reverse-engineer the correct GOROOT setting,
-    but that means that cmd/go's "GOPATH set to GOROOT" warning needs to
-    use cfg.GOROOT instead of runtime.GOROOT().
+    Rather than reporting an impossible conversion error when mixing an
+    untyped value with a pointer type in an operation, report a type
+    mismatch error. This fixes a regression in error quality compared
+    to pre-1.18.
     
-    In addition, if we fail to find the GOROOT then there is no point in
-    complaining about GOPATH also being empty: the missing GOROOT will stop
-    everything right away anyway, so there is no point confusing the user
-    with an additional warning about GOPATH.
+    For the fix, clean up the implementation of canMix, add documentation,
+    and give it a better name.
     
-    Updates #51461.
-    Updates #18678.
-    Updates #3207.
+    Adjust test case for corresponding error code bacause we now get a
+    better error message (and error code) for the old error code example.
     
-    Change-Id: Id7d0f4dc2f229c202dfda4e6e8af5dea909bb16f
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543955
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Fixes #57160.
+    
+    Change-Id: Ib96ce7cbc44db6905fa2f1c90a3769af609e101b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457055
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/cmd/go/main.go                                  | 21 ++++++++++-----------
- .../testdata/script/goroot_executable_trimpath.txt  | 10 ++++++++++
- 2 files changed, 20 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/types2/expr.go            | 36 ++++++++++++++++++----
+ src/go/types/expr.go                               | 36 ++++++++++++++++++----
+ src/internal/types/errors/codes.go                 |  2 +-
+ .../types/testdata/fixedbugs/issue57160.go         | 10 ++++++
+ 4 files changed, 71 insertions(+), 13 deletions(-)

@@ -1,17 +1,18 @@
-commit 115e4c9c14779f2561de4299b5748b98d7dd8cf0
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Sep 16 14:59:32 2019 -0700
+commit 46c3e217188043c7cea9e181f0d61825d2636ad7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 1 22:20:06 2019 +0000
 
-    test: add test coverage for type-switch hash collisions
+    runtime: skip broken TestLldbPython
     
-    This CL expands the test for #29612 to check that type switches also
-    work correctly when type hashes collide.
+    It's broken on our builders (once we enabled dev mode on our Macs,
+    see CL 170339)
     
-    Change-Id: Ia153743e6ea0736c1a33191acfe4d8ba890be527
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195782
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Updates #31188
+    
+    Change-Id: Iceea65dc79576057b401a461bfe39254fed1f7ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170281
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- test/fixedbugs/issue29612.dir/main.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/runtime/runtime-lldb_test.go | 1 +
+ 1 file changed, 1 insertion(+)

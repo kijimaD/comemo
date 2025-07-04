@@ -1,14 +1,33 @@
-commit c74712b3b2a38393157bad0550657fd06a5c5a8a
-Author: griesemer <gri@golang.org>
-Date:   Wed Oct 25 16:11:51 2017 -0700
+commit ca19f2fc78a5b6b97d842a4a9816a9d1eea12f05
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jul 26 10:59:08 2017 -0700
 
-    test: add test cases for method expressions with literal receiver types
+    math/rand: fix uniform distribution stddev in tests
     
-    For #9060.
+    The standard deviation of a uniform distribution is size / √12.
+    The size of the interval [0, 255] is 256, not 255.
+    While we're here, simplify the expression.
     
-    Change-Id: Ibd0f047083f3c98cec96c655a3e2024df8e1d2a0
-    Reviewed-on: https://go-review.googlesource.com/73554
+    The tests previously passed only because the error margin was large enough.
+    Sample observed standard deviations while running tests:
+    
+    73.7893634666819
+    73.9221651548294
+    73.8077961697150
+    73.9084236069471
+    73.8968446814785
+    73.8684209136244
+    73.9774618960282
+    73.9523483202549
+    
+    255 / √12 == 73.6121593216772
+    256 / √12 == 73.9008344562721
+    
+    Change-Id: I7bc6cdc11e5d098951f2f2133036f62489275979
+    Reviewed-on: https://go-review.googlesource.com/51310
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- test/method7.go | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 57 insertions(+)
+ src/math/rand/rand_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

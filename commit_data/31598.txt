@@ -1,18 +1,16 @@
-commit 2d1829b5398559f3ffe9123efeb08c2489f7e17d
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu May 4 11:25:01 2017 +0200
+commit 359ca5ccc8b801d6ca8f8e417135436ccde00212
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 1 17:15:43 2017 -0800
 
-    cmd/compile: don't panic in complex division
+    go/types: support type checking of external tests with gotype
     
-    Updates #20227
+    - renamed -a flag to -t
+    - added -x flag to specify external test files
+    - improved documentation and usage string
     
-    Change-Id: Idadc3137490181a5d380367660cee21e8313cf3b
-    Reviewed-on: https://go-review.googlesource.com/42650
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7c850bd28a10ceaa55d599c22db07774147aa3f7
+    Reviewed-on: https://go-review.googlesource.com/37656
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/const.go | 21 +++++++++++++++++----
- src/go/types/stdlib_test.go          |  1 +
- test/fixedbugs/issue20227.go         | 16 ++++++++++++++++
- 3 files changed, 34 insertions(+), 4 deletions(-)
+ src/go/types/gotype.go | 85 +++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 63 insertions(+), 22 deletions(-)

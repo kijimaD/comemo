@@ -1,22 +1,16 @@
-commit 5bddb52a0b6bc82ee6852eb0da18094396722460
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 17 15:05:32 2023 -0400
+commit 74b6a22057b393f198d2d86f4ea7504dacf390f5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 14 09:04:38 2022 -0800
 
-    cmd/go: add Shell.RemoveAll
+    database/sql: add a missing period to end of sentence in Rows.Scan docs
     
-    There are quite a few places that perform their own command logging
-    and then use os.RemoveAll. Unify (nearly) all of these into
-    (*Shell).RemoveAll, like many of the other internal implementations of
-    basic shell operations.
-    
-    Change-Id: I94a2cbd9dc150a4c94a4051c42ce8e86dcc736fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536099
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I331d4ff3e0f76a26c1c5ec41297117a5b1f16911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450295
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/cmd/go/internal/clean/clean.go | 43 ++++++++------------------------------
- src/cmd/go/internal/test/test.go   |  5 +----
- src/cmd/go/internal/work/exec.go   | 38 +++++++++++++++++++++++++++------
- src/cmd/go/internal/work/shell.go  |  2 --
- 4 files changed, 42 insertions(+), 46 deletions(-)
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

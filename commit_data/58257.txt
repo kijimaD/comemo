@@ -1,51 +1,24 @@
-commit ca14eaf77c86bd5492329d2be6f1a82afe7802f5
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Nov 21 19:54:12 2024 -0500
+commit f3a2459caa2bd360fee782de8cf8d4de724a7316
+Author: go101 <tapir.liu@gmail.com>
+Date:   Wed Oct 18 17:17:18 2023 +0000
 
-    all: update golang.org/x/net [generated]
+    slices: avoid an unnecessary check in Replace
     
-    A part of the keeping Go's vendored dependencies and generated code
-    up to date.
+    The current implementation of the builtin copy function will return early
+    when it is found that the addresses of the first elements of the two
+    slice arguments are identical, so it is unnecessarily to do this in user code.
     
-    This updates h2_bundle.go with unencrypted HTTP/2 support.
+    See #57759 for details.
     
-    For #36905.
-    For #67816.
-    
-    [git-generate]
-    cd src
-    go get golang.org/x/net@v0.31.0
-    go mod tidy
-    go mod vendor
-    cd cmd
-    go get golang.org/x/net@v0.31.0
-    go mod tidy
-    go mod vendor
-    go generate -run=bundle std
-    
-    Change-Id: I2b77f651b990f260fbe7d551c7a819518f1c983f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631035
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I7c101eee496923d7aa59f94720da6c84feb93af8
+    GitHub-Last-Rev: 4d6819fb25143f5ad3ff65eca7fe6094c37f2af2
+    GitHub-Pull-Request: golang/go#63617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536255
+    Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/go.mod                                     |     4 +-
- src/cmd/go.sum                                     |     8 +-
- src/cmd/vendor/golang.org/x/term/README.md         |    11 +-
- src/cmd/vendor/golang.org/x/term/term_windows.go   |     1 +
- src/cmd/vendor/modules.txt                         |     4 +-
- src/go.mod                                         |     6 +-
- src/go.sum                                         |    12 +-
- src/net/http/h2_bundle.go                          |   851 +-
- .../golang.org/x/crypto/chacha20/chacha_noasm.go   |     2 +-
- .../{chacha_ppc64le.go => chacha_ppc64x.go}        |     2 +-
- .../chacha20/{chacha_ppc64le.s => chacha_ppc64x.s} |   114 +-
- .../chacha20poly1305/chacha20poly1305_amd64.s      | 11503 +++++++++++++++----
- .../x/crypto/internal/poly1305/mac_noasm.go        |     2 +-
- .../x/crypto/internal/poly1305/sum_amd64.s         |   133 +-
- .../poly1305/{sum_ppc64le.go => sum_ppc64x.go}     |     2 +-
- .../poly1305/{sum_ppc64le.s => sum_ppc64x.s}       |    30 +-
- src/vendor/golang.org/x/net/route/address.go       |    27 +-
- src/vendor/modules.txt                             |     6 +-
- 18 files changed, 10124 insertions(+), 2594 deletions(-)
+ src/slices/slices.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

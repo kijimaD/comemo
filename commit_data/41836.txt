@@ -1,17 +1,35 @@
-commit 3103495fa9bb166c9d0c56fbf3cd2146f32aef57
-Author: Xiangdong Ji <xiangdong.ji@arm.com>
-Date:   Fri Mar 6 08:44:23 2020 +0000
+commit 503bccb5d91998e22e32c6f771262ed33b72ff8b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 25 16:43:08 2019 -0400
 
-    runtime: eliminate redundant load in Xchg and Xadd on arm64
+    cmd/compile: delete ZeroAuto
     
-    Loading arguments of Xchg(64) and Xadd(64) functions to registers
-    could be done only once.
+    ZeroAuto was used with the ambiguously live logic. The
+    ambiguously live logic is removed as we switched to stack
+    objects. It is now never called. Remove.
     
-    Change-Id: Iaf0a695ec9c6a221dfa755855edb68c476978a5b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227001
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: If4cdd7fed5297f8ab591cc392a76c80f57820856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203538
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/internal/atomic/atomic_arm64.s | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/amd64/galign.go  |  1 -
+ src/cmd/compile/internal/amd64/ggen.go    | 20 --------------------
+ src/cmd/compile/internal/arm/galign.go    |  1 -
+ src/cmd/compile/internal/arm/ggen.go      | 21 ---------------------
+ src/cmd/compile/internal/arm64/galign.go  |  1 -
+ src/cmd/compile/internal/arm64/ggen.go    | 16 ----------------
+ src/cmd/compile/internal/gc/go.go         |  5 -----
+ src/cmd/compile/internal/mips/galign.go   |  1 -
+ src/cmd/compile/internal/mips/ggen.go     | 16 ----------------
+ src/cmd/compile/internal/mips64/galign.go |  1 -
+ src/cmd/compile/internal/mips64/ggen.go   | 16 ----------------
+ src/cmd/compile/internal/ppc64/galign.go  |  1 -
+ src/cmd/compile/internal/ppc64/ggen.go    | 16 ----------------
+ src/cmd/compile/internal/s390x/galign.go  |  1 -
+ src/cmd/compile/internal/s390x/ggen.go    | 17 -----------------
+ src/cmd/compile/internal/wasm/ssa.go      | 16 ----------------
+ src/cmd/compile/internal/x86/galign.go    |  1 -
+ src/cmd/compile/internal/x86/ggen.go      | 16 ----------------
+ 18 files changed, 167 deletions(-)

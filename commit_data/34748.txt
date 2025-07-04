@@ -1,12 +1,16 @@
-commit bdbd8ed36b7714bbe33321a24bce2cab19579da7
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Wed Mar 28 17:51:05 2018 -0400
+commit 50ec831749fc40b30fd43cf0594d388500ea2887
+Author: Ryoichi KATO <ryo1kato@gmail.com>
+Date:   Sat Jun 24 23:39:29 2017 -0700
 
-    doc: document Go 1.10.1
+    bufio: Use maxConsecutiveEmptyReads instead of 100
     
-    Change-Id: Ibba5d4fd8124db9b1e4e50b8f37366f8dd23f47e
-    Reviewed-on: https://go-review.googlesource.com/103217
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Use maxConsecutiveEmptyReads const instead of hardcoded
+    100 in scan.go too.
+    
+    Change-Id: I993f353a3748f0d6bdefab38bf5cb224eea8a969
+    Reviewed-on: https://go-review.googlesource.com/46915
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/devel/release.html | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/bufio/scan.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

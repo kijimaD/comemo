@@ -1,12 +1,14 @@
-commit bcd747204d840e8368f42a0f7f7ef5fa10aed2bc
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Mar 16 15:20:46 2011 +1100
+commit 35c274a0dad8f123031e87104b18ed1890616825
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 16 13:58:09 2011 +1100
 
-    gofix: fix godoc doc
+    gofix: fix procattr registration, tests
     
-    R=golang-dev, adg
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/4290049
+    https://golang.org/cl/4275054
 
- src/cmd/gofix/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gofix/httpserver_test.go | 1 -
+ src/cmd/gofix/procattr.go        | 2 +-
+ src/cmd/gofix/procattr_test.go   | 1 -
+ 3 files changed, 1 insertion(+), 3 deletions(-)

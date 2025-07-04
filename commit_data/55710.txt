@@ -1,20 +1,21 @@
-commit ccbc725f2d678255df1bd326fa511a492aa3a0aa
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Feb 14 17:18:36 2024 -0800
+commit a42bb79dd41bb1fb2276bef2829d2413d0ae7805
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Mar 7 23:04:26 2023 +0800
 
-    html/template: escape additional tokens in MarshalJSON errors
+    cmd: fix mismatched symbols
     
-    Escape "</script" and "<!--" in errors returned from MarshalJSON errors
-    when attempting to marshal types in script blocks. This prevents any
-    user controlled content from prematurely terminating the script block.
-    
-    Fixes #65697
-    
-    Change-Id: Icf0e26c54ea7d9c1deed0bff11b6506c99ddef1b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564196
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ib2c4ddec9740f7c21c180c9f0980394dceeedfaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473975
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/html/template/js.go      | 22 +++++++++-
- src/html/template/js_test.go | 96 +++++++++++++++++++++++++-------------------
- 2 files changed, 74 insertions(+), 44 deletions(-)
+ src/cmd/compile/internal/abi/abiutils.go    | 2 +-
+ src/cmd/compile/internal/compare/compare.go | 2 +-
+ src/cmd/compile/internal/ssa/debug.go       | 2 +-
+ src/cmd/compile/internal/walk/order.go      | 2 +-
+ src/cmd/covdata/metamerge.go                | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

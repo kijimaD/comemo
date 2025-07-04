@@ -1,12 +1,14 @@
-commit 35599e281b1c07f0a1cd9f334a7939bd28ec537c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Apr 7 21:03:00 2015 -0700
+commit 1d0a9eb8ab223089f50bc2e3f9466edc96d2f3e1
+Author: Joël Stemmer <stemmertech@gmail.com>
+Date:   Fri Mar 6 14:59:12 2015 +0100
 
-    go/types: enable disabled test
+    crypto/tls: fix typo in tls handshake error
     
-    Change-Id: I58de76c49de6e43befb30b2bf677934e7952b5ab
-    Reviewed-on: https://go-review.googlesource.com/8610
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ia9f39250619ea6e94157efceddfb2e02d35f3ae2
+    Reviewed-on: https://go-review.googlesource.com/7041
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/stdlib_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/crypto/tls/handshake_server.go      | 2 +-
+ src/crypto/tls/handshake_server_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

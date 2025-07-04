@@ -1,22 +1,19 @@
-commit 5324cf2d45387b534068cf651e2d18e5df25d0b9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Mar 1 19:13:50 2015 -0800
+commit 3d1ccf8964367abbb5c7524d485b4df3e0531195
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:22:41 2014 -0500
 
-    runtime: change sigset_all and sigset_none into constants on OpenBSD
+    cmd/dist, make.bash: darwin/arm support
     
-    OpenBSD's sigprocmask system call passes the signal mask by value
-    rather than reference, so vars are unnecessary.  Additionally,
-    declaring "var sigset_all = ^sigset_none" means sigset_all won't be
-    initialized until runtime_init is called, but the first call to
-    newosproc happens before then.
+    cmd/dist: recognize darwin/arm as (host) goos/goarches. also hard
+              code GOARM=7 for darwin/arm.
+    make.bash: don't pass -mmacosx-version-min=10.6 when building for
+               darwin/arm.
     
-    I've witnessed Go processes on OpenBSD crash from receiving SIGWINCH
-    on the newly created OS thread before it finished initializing.
-    
-    Change-Id: I16995e7e466d5e7e50bcaa7d9490173789a0b4cc
-    Reviewed-on: https://go-review.googlesource.com/6440
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If0ecd84a5179cd9bb61b801ac1899adc45f12f75
+    Reviewed-on: https://go-review.googlesource.com/2126
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/os1_openbsd.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ src/cmd/dist/build.go |  2 +-
+ src/cmd/dist/util.go  | 12 +++++++++++-
+ 2 files changed, 12 insertions(+), 2 deletions(-)

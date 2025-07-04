@@ -1,13 +1,15 @@
-commit 0f0c25dcccee52c4fae3b54ca8b185984ceff1f9
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Wed Nov 23 20:20:14 2011 -0800
+commit da62104169c7b31f8b2917b24232dd349b769c8f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 23 20:17:41 2011 -0800
 
-    strings: Add ContainsAny and ContainsRune to correspond to IndexAny etc.
+    gofix: trivial rewrite for template.ParseFiles
+    Also warn about uses of Set.
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5430046
+    https://golang.org/cl/5436051
 
- src/pkg/strings/strings.go      | 16 ++++++++++---
- src/pkg/strings/strings_test.go | 50 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+), 3 deletions(-)
+ src/cmd/gofix/Makefile         |   1 +
+ src/cmd/gofix/template.go      | 111 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/template_test.go |  55 ++++++++++++++++++++
+ 3 files changed, 167 insertions(+)

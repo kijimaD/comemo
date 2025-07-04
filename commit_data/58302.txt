@@ -1,16 +1,16 @@
-commit 797141e94c4b6905dce90238cbc6b8748dfe1026
-Author: Tim King <taking@google.com>
-Date:   Wed Nov 27 13:57:06 2024 -0800
+commit a57c5736c5ceb0cb81764fe4b2ed8c86deafe4ba
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 25 10:20:29 2023 +0200
 
-    doc/next: document buildtag changes
+    cmd/go: remove unused (*testgoData).acquireNet test helper
     
-    Fixes #64127
+    It's unused since CL 518775.
     
-    Change-Id: I1562953caa3b1b2bc5dd3b7692671e0f3d5d2b9b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632355
-    Commit-Queue: Tim King <taking@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ic889f0cf1555a8503d0c2b3fb232854609d72764
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537597
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/next/3-tools.md | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/go/go_test.go | 23 -----------------------
+ 1 file changed, 23 deletions(-)

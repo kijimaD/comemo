@@ -1,31 +1,30 @@
-commit c5d424bfca065fe6c92e384df61d84cfade2bfed
-Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-Date:   Wed Oct 23 17:06:39 2024 +0000
+commit a8d45a72eb7a204ff9e8189eb54d7ea3da1ea7a7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 30 10:48:09 2023 -0400
 
-    internal/runtime/atomic: add arm native implementations of And8/Or8
+    net: skip TestDialTimeout subtests on Windows if Dial returns WSAECONNREFUSED
     
-    With LDREXB/STREXB now available for the arm assembler we can implement these operations natively. The instructions are armv6k+ but for simplicity I only use them on armv7.
+    Since we have only seen this failure mode on windows/arm64,
+    we do not skip on the Go project's windows/amd64 builders
+    so that we will be more likely to find out whether this failure mode
+    is specific to arm64.
     
-    Benchmark results for a raspberry Pi 3 model B+:
+    Also simplify the ECONNRESET check, since I've remembered that the
+    error_*_test.go files exist.
     
-            goos: linux
-            goarch: arm
-            pkg: internal/runtime/atomic
-            cpu: ARMv7 Processor rev 4 (v7l)
-                             │   old.txt    │               new.txt               │
-                             │    sec/op    │   sec/op     vs base                │
-            And8-4             127.65n ± 0%   68.74n ± 0%  -46.15% (p=0.000 n=10)
+    Fixes #62359.
+    Updates #56876.
     
-    Change-Id: Ic87f307c35f7d7f56010980302f253056f6d54dc
-    GitHub-Last-Rev: a7351802fd212704712b37d183435ab14e58f885
-    GitHub-Pull-Request: golang/go#70002
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/622075
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I17bd678486f3d3ec3363a45986a711f570b013d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/internal/runtime/atomic/atomic_arm.go | 10 ++++-
- src/internal/runtime/atomic/atomic_arm.s  | 64 +++++++++++++++++++++++++++++++
- 2 files changed, 72 insertions(+), 2 deletions(-)
+ src/net/error_plan9_test.go   |  8 ++++++++
+ src/net/error_unix_test.go    |  8 ++++++++
+ src/net/error_windows_test.go |  9 +++++++++
+ src/net/timeout_test.go       | 10 ++++++++--
+ 4 files changed, 33 insertions(+), 2 deletions(-)

@@ -1,22 +1,37 @@
-commit f8c51b1a6c3d6ebfdbeab3c81d4157aefe0e8b71
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed May 21 11:21:31 2025 -0400
+commit 330bc950933edad89abf6d1eedbfea378cf9fdf6
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Apr 15 16:13:57 2024 -0500
 
-    go/doc: NewFromFiles: fix panic on Files with SkipObjectResolution
+    math/big: improve use of addze in mulAddVWW on ppc64x
     
-    This CL fixes a panic in NewFromFiles when it is provided files
-    produced by the parser in SkipObjectResolution mode, which skips
-    the step of connecting ast.Idents to (deprecated) ast.Objects.
-    Instead of calling ast.NewPackage, which performs a number of
-    unnecessary steps, we just construct the ast.Package directly.
+    Improve the use of addze to avoid unnecessary register
+    moves on ppc64x.
     
-    Fixes #66290
+    goos: linux
+    goarch: ppc64le
+    pkg: math/big
+    cpu: POWER10
+                     │   old.out    │               new.out               │
+                     │    sec/op    │    sec/op     vs base               │
+    MulAddVWW/1         4.524n ± 3%   4.248n ±  0%   -6.10% (p=0.002 n=6)
+    MulAddVWW/2         5.634n ± 0%   5.283n ±  0%   -6.24% (p=0.002 n=6)
+    MulAddVWW/3         6.406n ± 0%   5.918n ±  0%   -7.63% (p=0.002 n=6)
+    MulAddVWW/4         6.484n ± 0%   5.859n ±  0%   -9.64% (p=0.002 n=6)
+    MulAddVWW/5         7.363n ± 0%   6.766n ±  0%   -8.11% (p=0.002 n=6)
+    MulAddVWW/10       10.920n ± 0%   9.856n ±  0%   -9.75% (p=0.002 n=6)
+    MulAddVWW/100       83.46n ± 0%   66.95n ±  0%  -19.78% (p=0.002 n=6)
+    MulAddVWW/1000      856.0n ± 0%   681.6n ±  0%  -20.38% (p=0.002 n=6)
+    MulAddVWW/10000     8.589µ ± 1%   6.774µ ±  0%  -21.14% (p=0.002 n=6)
+    MulAddVWW/100000    86.22µ ± 0%   67.71µ ± 43%  -21.48% (p=0.065 n=6)
+    geomean             73.34n        63.62n        -13.26%
     
-    Change-Id: Id55bd30d8afb9d396c3901070e7607c5a22030d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/675036
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    
+    Change-Id: I95d6ac49ff6b64aa678e6896f57af9d85c923aad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579235
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/go/doc/doc.go          | 44 +++++++++++++++++---------------------------
- src/go/doc/example_test.go |  2 +-
- 2 files changed, 18 insertions(+), 28 deletions(-)
+ src/math/big/arith_ppc64x.s | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)

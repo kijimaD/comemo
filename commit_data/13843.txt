@@ -1,18 +1,14 @@
-commit b29ed23ab55477dbdc02ee9fd4bf711e0b296f6a
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Mon Sep 17 17:25:26 2012 -0400
+commit 0f8f5d2140120d00fee53c633e82265d6d4e6784
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Sep 17 17:18:16 2012 -0400
 
-    build: fix various 'set and not used' for Plan 9
+    math: Faster Tanh
     
-    R=dave, minux.ma, rsc
+    From 159 to 47.6 ns/op; slightly more accurate.
+    
+    R=rsc, golang-dev, mtj, dave, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/6501134
+    https://golang.org/cl/6500121
 
- src/cmd/8g/reg.c               | 1 -
- src/cmd/gc/closure.c           | 1 +
- src/cmd/gc/esc.c               | 1 +
- src/cmd/gc/mparith1.c          | 2 +-
- src/cmd/gc/reflect.c           | 1 +
- src/cmd/ld/go.c                | 1 +
- src/pkg/runtime/thread_plan9.c | 1 +
- 7 files changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/math/tanh.go | 89 +++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 77 insertions(+), 12 deletions(-)

@@ -1,36 +1,28 @@
-commit 70da2d0a2a4292cf210f8f8d48129d35ad8c54fb
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Sun Oct 4 20:33:02 2015 +0000
+commit 3e6334e2e059505aa3ebd16185b03f7a9cc88d23
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Sep 23 15:46:00 2015 +1200
 
-    cmd/compile/internal/gc: fix internal compiler error on invalid declaration
+    cmd/link: set the ELF headers of ARM executables that use cgo correctly
     
-    Following an empty import, a declaration involving a ? symbol
-    generates an internal compiler error when the name of the
-    symbol (in newname function).
+    It is generally expected that the ELF flags of a dynamically linked executable
+    and the libraries it links against match. Go's linker currently always produces
+    executables with flags that do not declare a float abi (hard, soft) at all, but
+    when cgo is involved it is unlikely that this matches the system libraries
+    being linked against -- really the decision about ABI is made by the C compiler
+    during the invocation of cgo.
     
-    package a
-    import""
-    var?
+    This change is basically a port of the code from binutils that parses the
+    ".ARM.attributes" section to check for the tag that declares that the code is
+    built for the hard-float ABI.
     
-    go.go:2: import path is empty
-    go.go:3: internal compiler error: newname nil
+    Fixes #7094
     
-    Make sure dclname is not called when the symbol is nil.
-    The error message is now:
-    
-    go.go:2: import path is empty
-    go.go:3: invalid declaration
-    go.go:4: syntax error: unexpected EOF
-    
-    This CL was initially meant to be applied to the old parser,
-    and has been updated to apply to the new parser.
-    
-    Fixes #11610
-    
-    Change-Id: I75e07622fb3af1d104e3a38c89d9e128e3b94522
-    Reviewed-on: https://go-review.googlesource.com/15268
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I737c8f3b5ed4af545cfc3e86722d03eb83083402
+    Reviewed-on: https://go-review.googlesource.com/14860
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 16 ++++++++++++++--
- test/fixedbugs/issue11610.go          | 17 +++++++++++++++++
- 2 files changed, 31 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/ld/elf.go   |  11 ++-
+ src/cmd/link/internal/ld/ldelf.go | 136 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 146 insertions(+), 1 deletion(-)

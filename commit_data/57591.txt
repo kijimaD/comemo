@@ -1,30 +1,24 @@
-commit bb5339196f86057ffa6042d31f52a44bf7f13752
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed Oct 2 13:00:17 2024 +0200
+commit 639f6f7e789ffbafd3d6f4327dbc10586e8163db
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 14:18:06 2023 -0700
 
-    all: use slices.Sorted(maps.Keys(m))
+    cmd/compile/internal/ssagen: fix race added in CL 510539
     
-    Use slices.Sorted(maps.Keys(m)) to get a sorted slices of the keys in
-    a map.
+    The ssagen pass runs concurrently, so it's not safe to mutate global
+    variables like this.
     
-    Do not change packages built during bootstrap, as the bootstrap compiler
-    (currently 1.22.6) does not have the required maps and slices functions.
+    Instead, turn it into a constant and add an assertion that the
+    constant has the correct value.
     
-    Change-Id: Ie35565d241fa14aca56b730a69af010127b659ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/617356
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #62095.
+    
+    Change-Id: Ia7f07e33582564892d194153ac3d8759429fc9ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520598
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/archive/tar/writer.go                     | 11 +++--------
- src/database/sql/sql.go                       |  8 ++------
- src/internal/coverage/cformat/format.go       | 16 +++-------------
- src/internal/coverage/encodecounter/encode.go |  7 ++-----
- src/mime/mediatype.go                         |  9 ++-------
- src/mime/multipart/writer.go                  |  8 ++------
- src/net/http/cgi/cgi_main.go                  | 15 +++------------
- src/net/http/clientserver_test.go             |  8 ++------
- src/net/url/url.go                            |  8 ++------
- src/testing/fstest/testfs.go                  |  9 ++-------
- 10 files changed, 23 insertions(+), 76 deletions(-)
+ src/cmd/compile/internal/ssagen/ssa.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

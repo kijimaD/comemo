@@ -1,24 +1,18 @@
-commit a934e34e875d6402da79d52a859434b60b6f6131
-Author: David Chase <drchase@google.com>
-Date:   Mon Mar 26 13:37:00 2018 -0400
+commit 3e97c42f77288b06a125cecd199aee4c6a23bc10
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Sat Jul 1 19:12:59 2017 +0300
 
-    cmd/compile: invoke gdb more carefully in ssa/debug_test.go
+    text/template: remove unnecessary lexer field
     
-    Gdb can be sensitive to contents of .gdbinit, and to run
-    this test properly needs to have runtime/runtime-gdb.py
-    on the auto load safe path.  Therefore, turn off .gdbinit
-    loading and explicitly add $GOROOT/runtime to the safe
-    load path.
+    this change removes the state field from the lexer,
+    because it's only used by the run method and can be
+    replaced with a local variable
     
-    This should make ssa/debug_test.go run more consistently.
-    
-    Updates #24464.
-    
-    Change-Id: I63ed17c032cb3773048713ce51fca3a3f86e79b6
-    Reviewed-on: https://go-review.googlesource.com/102598
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ib7a90ab6e9a894716cba2c7d9ed71bf2ad1240c0
+    Reviewed-on: https://go-review.googlesource.com/47338
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/debug_test.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/text/template/parse/lex.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

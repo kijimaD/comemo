@@ -1,26 +1,29 @@
-commit 135770abea9170dd518c636b70bb58329f008af9
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 13 10:57:13 2022 -0400
+commit c7fa66179b51bc90612f564f2cb3afbc1b21d511
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Jan 10 10:57:16 2022 -0600
 
-    cmd/dist: make registerTest take a goTest
+    test: workaround SIGILL on issue11656 on aix
     
-    The overall goal is to make registerTest the primary entry point for
-    adding dist tests and to convert nearly all dist tests to be
-    represented by a goTest, registered via registerTest. This will
-    centralize the logic for creating dist tests corresponding to go tool
-    tests.
+    For some reason, aix sometimes executes the bogus function body. This
+    should never happen as it lives in a no-execute section. It might be
+    a transient permission blip as the heap grows.
     
-    I traced all exec calls from cmd/dist on linux/amd64 and this makes
-    only no-op changes (such as re-arranging the order of flags).
+    Add a small function to cleanup and synchronize the icache before
+    jumping to the bogus function to ensure it causes a panic, not SIGILL.
     
-    For #37486.
+    Fixes #44583
     
-    Change-Id: I4749e6f3666134d3259b54ee6055d76a4235c60c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/450016
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Iadca62d82bfb70fc62088705dac42a880a1208fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377314
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/dist/test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 53 insertions(+), 9 deletions(-)
+ test/fixedbugs/issue11656.dir/asm.go         | 10 ++++
+ test/fixedbugs/issue11656.dir/asm_generic.go | 11 ++++
+ test/fixedbugs/issue11656.dir/asm_ppc64.s    | 13 +++++
+ test/fixedbugs/issue11656.dir/asm_ppc64le.s  | 13 +++++
+ test/fixedbugs/issue11656.dir/issue11656.go  | 75 ++++++++++++++++++++++++++
+ test/fixedbugs/issue11656.go                 | 81 +++-------------------------
+ 6 files changed, 129 insertions(+), 74 deletions(-)

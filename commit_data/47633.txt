@@ -1,14 +1,21 @@
-commit 61ff5019687c125910c48c22d672a9b6985ee61e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Nov 28 15:25:09 2021 -0800
+commit 35a8bbc9eaf876ee625d33401081f74a7c4e08f8
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 2 15:51:45 2021 -0400
 
-    spec: adjust section on package unsafe for type parameters
+    runtime: make concatstring{2,3,4,5} consistent w/ compiler's use
     
-    Change-Id: I562d4648756e710020ee491f3801896563a89baa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367395
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Internally the compiler uses a0,a1,a3 string, not [3]string,
+    and this lead to different parameter passing (memory, versus registers)
+    which of course did not work.
+    
+    Updates #40724.
+    
+    Change-Id: I1dbf479b88134559ba54b4b00a042b9a0fd128b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306910
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go_spec.html | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ src/runtime/string.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

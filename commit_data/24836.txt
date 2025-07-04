@@ -1,12 +1,15 @@
-commit 2b5dbc1e2dcc2e2e6db135fcd4e186a6f4e8afd7
-Author: Shenghou Ma <minux@golang.org>
-Date:   Thu Nov 12 00:08:09 2015 -0500
+commit c788a8e05df9b75c53fac9d588d595329912c38b
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Sep 3 21:04:04 2015 +0000
 
-    doc: update go1.6.txt
+    Revert "cmd/link: only embed runtime.goarm in the module that contains the runtime package"
     
-    Change-Id: I9161c4a7e747d35ad7643b8cf0fe8b66eaea963b
-    Reviewed-on: https://go-review.googlesource.com/16842
-    Reviewed-by: Minux Ma <minux@golang.org>
+    This reverts commit bf99d8f843ae3dfa7a3a4cd5c17aec79e2b9997f.
+    
+    Change-Id: Id4374ed35802cfbfe11e015ccd9526d3497dc8cc
+    Reviewed-on: https://go-review.googlesource.com/14239
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- doc/go1.6.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/link/internal/arm/obj.go |  6 ++++++
+ src/cmd/link/internal/ld/lib.go  | 31 ++++++++++---------------------
+ 2 files changed, 16 insertions(+), 21 deletions(-)

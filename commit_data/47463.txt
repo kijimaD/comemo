@@ -1,15 +1,25 @@
-commit dfa62c79de4f6f6ee2eb8cde340c21afc739c38d
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Nov 12 15:48:01 2021 -0800
+commit e58fb90c753ce8ac1ccd6e26035e7ec0f4f108bc
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sun Mar 7 14:56:52 2021 -0800
 
-    doc: document GOAMD64 environment variable
+    net/http: make ExampleGet show StatusCode checks for non-1XX,2XX responses
     
-    Update #47694
+    Updates ExampleGet to show how to handle bad responses with non-1XX,2XX
+    status codes. Given that the canonical examples are copied, we need
+    to have them properly check against failures. This is a bug I've seen
+    often in the wild, that's exacerbated when for example unmarshalling
+    JSON or even protobufs, and no errors are returned by the decoders,
+    so code fails silently after making a request for example to a gateway
+    that they were unauthorized to access.
     
-    Change-Id: I9c90bd251616cd4d10434bd3b6e6c30c5c819e24
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363661
-    Trust: Keith Randall <khr@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #39778
+    
+    Change-Id: I1cd688f2fab47581c8cf228235d3662b4c8e4315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299609
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- doc/go1.18.html | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
+ src/net/http/example_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

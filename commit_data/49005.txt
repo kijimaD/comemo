@@ -1,27 +1,28 @@
-commit 8b389eb2be2d66563669c74f6515b5f537542ce9
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Mon Apr 18 10:05:24 2022 -0700
+commit b4844c9f54eb6a559d8dc9333cf5b1e66dab8167
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jul 6 10:53:00 2021 -0700
 
-    reflect: derive correct Value method in panic messages
+    [dev.typeparams] cmd/compile: handle the (*T).M method expression with dictionaries
     
-    methodName was brittle in that it assumed exactly where
-    in the call stack the exported Value method is.
-    This broke since recent inlining optimizations changed
-    exactly which frame the exported method was located.
-    Instead, iterate through a sufficient number of stack entries
-    and dynamically determined the exported Value method name.
+    The (*T).M method expression is where M is a value method, but the type
+    (*T) is a pointer to the main type. In this case, after following any
+    embedded fields, we need to add an extra star operator when using the
+    receiver arg in the closure call.
     
-    This is more maintainable, but slightly slower.
-    The slowdown is acceptable since panics are not the common case.
+    Thanks to Cuong for finding/pointing out an example for this case
+    (typeparam/mdempsky/14.go) This example also shows that we now need the
+    ability to export/import OEFACE and OIDATA, which I added.
     
-    Change-Id: I9fc939627007d7bae004b4969516ad44be09c270
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403494
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Ida0f81ce757fff78fec6276c60052ed71d207454
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333014
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
 
- src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
- src/reflect/value.go    | 48 +++++++++++++++++++++++-------------------------
- 2 files changed, 68 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/noder/stencil.go     | 30 ++++++++++++++++-----------
+ src/cmd/compile/internal/typecheck/iexport.go |  4 ++--
+ src/cmd/compile/internal/typecheck/iimport.go |  4 ++--
+ test/run.go                                   |  1 -
+ test/typeparam/dictionaryCapture.go           | 12 +++++++++++
+ 5 files changed, 34 insertions(+), 17 deletions(-)

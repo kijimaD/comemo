@@ -1,19 +1,17 @@
-commit 7a33f793e83ad2ee8a271769df66346865bae9fe
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Wed Feb 19 07:15:19 2025 +0000
+commit 7cac742f1769f92313eac2188088c36d4aae1b74
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Tue Dec 12 21:32:10 2023 +0000
 
-    cmd/compile/internal/ir: correct doc comment, miniNode in now 12 bytes
+    doc/go1.22: document reflect.TypeFor
     
-    Change-Id: I5887565077f598bc7e3edc4b78188956fb13cdaa
-    GitHub-Last-Rev: 479a04b42e9dc2ffc72cb599ebb12b8fc669fe20
-    GitHub-Pull-Request: golang/go#71822
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650415
-    Reviewed-by: Keith Randall <khr@google.com>
+    Change-Id: I122a3422f541f66d9f6e644a9f287f0e5a5729d2
+    GitHub-Last-Rev: 1d9fe39d0c1221d7179476383f3d503e45daa051
+    GitHub-Pull-Request: golang/go#64688
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549295
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/ir/mini.go        | 6 +++---
- src/cmd/compile/internal/ir/sizeof_test.go | 1 +
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ doc/go1.22.html | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

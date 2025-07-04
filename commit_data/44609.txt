@@ -1,23 +1,16 @@
-commit f009b5b2268a7fcdfe046057cbf2a75306dbfc5e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Oct 22 16:55:55 2020 +0000
+commit c810c6db101b53154b06f9ef1ff7455aaff16c36
+Author: Chirag Sukhala <cchirag77@gmail.com>
+Date:   Sun Aug 16 21:49:53 2020 +0000
 
-    runtime: support register ABI for finalizers
+     doc/articles/wiki: add missing log import to net/http tutorial
     
-    This change modifies runfinq to properly pass arguments to finalizers in
-    registers via reflectcall.
+    The log package is used with the net/http but was not in the import clause.
     
-    For #40724.
-    
-    Change-Id: I414c0eff466ef315a0eb10507994e598dd29ccb2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300112
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic45b987633adf0ee15defd4d136b5d37027e22b0
+    GitHub-Last-Rev: e74aff53370569864b7ec8c18617a5d992d34bf2
+    GitHub-Pull-Request: golang/go#36674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215618
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/runtime/abi_test.go    | 116 +++++++++++++++++++++++++++++++++++++++++++++
- src/runtime/export_test.go |  15 ++++++
- src/runtime/mfinal.go      |  46 ++++++++++++------
- src/runtime/stubs.go       |  28 +++++++++++
- 4 files changed, 191 insertions(+), 14 deletions(-)
+ doc/articles/wiki/index.html | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,38 +1,56 @@
-commit ace1494d9235be94f1325ab6e45105a446b3224c
-Author: eric fang <eric.fang@arm.com>
-Date:   Tue Sep 12 03:01:33 2023 +0000
+commit b726b0cadb5102bb718f879bede0e76d1e5f5c34
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Sep 21 15:51:27 2022 -0400
 
-    cmd/compile: optimize absorbing InvertFlags into Noov comparisons for arm64
+    cmd/go: don't install most GOROOT .a files in pkg
     
-    Previously (LessThanNoov (InvertFlags x)) is lowered as:
-    CSET
-    CSET
-    BIC
-    With this CL it's lowered as:
-    CSET
-    CSEL
-    This saves one instruction.
+    Packages in GOROOT that don't use cgo will not be installed in
+    GOROOT/pkg, and will instead be cached as usual like other Go
+    packages.
     
-    Similarly (GreaterEqualNoov (InvertFlags x)) is now lowered as:
-    CSET
-    CSINC
+    - add a internal/buildinternal package to hold the identities of the
+      five packages that use cgo
+    - update dist's test code to do a go build std cmd before checking
+      staleness on builders. Because most of those packages no longer have
+      install locations, and have dependencies that don't either, the
+      packages need to be cached to not be stale.
+    - fix index_test to import packages with the path "." when preparing
+      the "want" values to compare the indexed data to. (the module index
+      matches the behavior of build.ImportDir, which always passes in "."
+      as the path.
+    - In both the index and go/build Importers, don't set
+      PkgObj for GOROOT packages which will no longer have install
+      targets. PkgTargetRoot will still be set to compute target paths,
+      which will still be needed in buildmode=shared.
+    - "downgrade" all install actions that don't have a target to build
+      actions. (The target should already not be set for packages that
+      shouldn't be installed).
     
-    $ benchstat old.bench new.bench
-    goos: linux
-    goarch: arm64
-                           │  old.bench  │             new.bench              │
-                           │   sec/op    │   sec/op     vs base               │
-    InvertLessThanNoov-160   2.249n ± 2%   2.190n ± 1%  -2.62% (p=0.003 n=10)
+    For #47257
     
-    Change-Id: Idd8979b7f4fe466e74b1a201c4aba7f1b0cffb0b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/526237
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ia5aee6b3b20b58e028119cf0352a4c4a2f10f6b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432535
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/_gen/ARM64.rules |  4 ++--
- src/cmd/compile/internal/ssa/bench_test.go    | 18 ++++++++++++++++++
- src/cmd/compile/internal/ssa/rewriteARM64.go  | 20 ++++++++++----------
- test/codegen/comparisons.go                   | 13 +++++++++++++
- 4 files changed, 43 insertions(+), 12 deletions(-)
+ misc/cgo/testshared/shared_test.go                  | 10 +++++-----
+ src/cmd/compile/internal/importer/gcimporter.go     |  2 +-
+ src/cmd/dist/test.go                                |  4 ++++
+ src/cmd/go/go_test.go                               | 13 ++++++++++---
+ src/cmd/go/internal/load/pkg.go                     | 20 +++++++++++++++-----
+ src/cmd/go/internal/modindex/index_test.go          |  2 +-
+ src/cmd/go/internal/modindex/read.go                | 10 +++++++++-
+ src/cmd/go/internal/work/action.go                  |  9 +++++----
+ src/cmd/go/internal/work/build.go                   |  8 ++++++--
+ src/cmd/go/internal/work/exec.go                    |  3 +++
+ .../go/testdata/script/install_goroot_targets.txt   | 21 +++++++++++++++++++++
+ src/cmd/link/link_test.go                           | 15 +++++++++------
+ src/go/build/build.go                               | 11 ++++++++++-
+ src/go/build/build_test.go                          |  4 +++-
+ src/go/build/deps_test.go                           |  3 ++-
+ src/go/internal/gcimporter/gcimporter.go            |  2 +-
+ src/go/types/example_test.go                        |  2 +-
+ src/internal/buildinternal/needs_install.go         | 14 ++++++++++++++
+ 18 files changed, 120 insertions(+), 33 deletions(-)

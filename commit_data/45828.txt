@@ -1,13 +1,20 @@
-commit 881b6ea7baaa38f54a1dbd989fd21a638d0e118d
-Author: yangwenmai <yangwen.yw@gmail.com>
-Date:   Thu Jun 17 07:01:16 2021 +0800
+commit 9ea6364a5e9f776af36604c2c20501e6d07f8467
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 20 13:59:29 2020 -0800
 
-    doc/go1.17: fix redundant space
+    cmd/compile: add test for 42753
     
-    Change-Id: I6fccab7504f928452fbe490ae83e8d4b23a59f06
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/328849
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    This issue was already fixed at tip. Just adding the test that
+    failed on 1.14/1.15.
+    
+    Update #42753
+    
+    Change-Id: I00d13ade476b9c17190d762d7fdcb30cf6c83954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272029
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- doc/go1.17.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/issue42753.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

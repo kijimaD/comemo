@@ -1,32 +1,29 @@
-commit 9cf209f6b87f46795c3eadbeaceeeca7d429752b
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 16 10:46:11 2023 -0400
+commit fc1cddcfe916eff82b7c6a0e82765e9b9fe29980
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Sep 19 05:48:35 2022 +0000
 
-    runtime/testdata/testprog: use testenv.SyscallIsNotSupported to check syscall.Unshare
+    Revert "runtime: treat SI_TKILL like SI_USER on Linux"
     
-    syscall.Unshare is the sort of system call that may be blocked in a
-    container environment, and experience has shown that different
-    container implementations choose from a variety of different error
-    codes for blocked syscalls.
+    This reverts CL 431255.
     
-    In particular, the patch in
-    https://git.alpinelinux.org/aports/tree/community/go/tests-unshare-enosys.patch
-    seems to suggest that the container environment used to test the Go
-    distribution on Alpine Linux returns ENOSYS instead of EPERM.
+    Reason for revert: breaks darwin-arm and linux-noopt builders.
     
-    The existing testenv.SyscallIsNotSupported helper checks for
-    the kinds of error codes we have seen from containers in practice, so
-    let's use that here.
-    
-    For #62053.
-    Updates #29366.
-    
-    Change-Id: Ic6755f7224fcdc0cb8b25dde2d6047ceb5c3ffdf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520057
+    Change-Id: I29332b935cc1e35fa039af3d70465e496361fcc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431715
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/testdata/testprog/syscalls_linux.go | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ src/runtime/crash_cgo_test.go                  | 17 +--------
+ src/runtime/os_linux.go                        | 12 ------
+ src/runtime/os_linux_be64.go                   |  1 +
+ src/runtime/os_linux_generic.go                |  1 +
+ src/runtime/os_linux_mips64x.go                |  1 +
+ src/runtime/os_linux_mipsx.go                  |  1 +
+ src/runtime/os_unix_nonlinux.go                | 13 -------
+ src/runtime/signal_unix.go                     | 14 +++----
+ src/runtime/testdata/testprogcgo/segv.go       | 18 +++++----
+ src/runtime/testdata/testprogcgo/segv_linux.go | 51 --------------------------
+ 10 files changed, 22 insertions(+), 107 deletions(-)

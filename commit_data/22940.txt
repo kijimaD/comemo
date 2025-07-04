@@ -1,45 +1,12 @@
-commit 2d9a50b97f762637627436b6ed153242e43874fb
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Fri May 8 16:38:08 2015 +0000
+commit f22911f35e2d5bc4736c2869493e83f23c64d62e
+Author: Dave Day <djd@golang.org>
+Date:   Thu Apr 16 15:37:51 2015 +1000
 
-    html: simplify and optimize escape/unescape
+    Add reflect.FuncOf to docs/go1.5.text
     
-    The html package uses some specific code to escape special characters.
-    Actually, the strings.Replacer can be used instead, and is much more
-    efficient. The converse operation is more complex but can still be
-    slightly optimized.
-    
-    Credits to Ken Bloom (kabloom@google.com), who first submitted a
-    similar patch at https://codereview.appspot.com/141930043
-    
-    Added benchmarks and slightly optimized UnescapeString.
-    
-    benchmark                   old ns/op     new ns/op     delta
-    BenchmarkEscape-4           118713        19825         -83.30%
-    BenchmarkEscapeNone-4       87653         3784          -95.68%
-    BenchmarkUnescape-4         24888         23417         -5.91%
-    BenchmarkUnescapeNone-4     14423         157           -98.91%
-    
-    benchmark                   old allocs     new allocs     delta
-    BenchmarkEscape-4           9              2              -77.78%
-    BenchmarkEscapeNone-4       0              0              +0.00%
-    BenchmarkUnescape-4         2              2              +0.00%
-    BenchmarkUnescapeNone-4     0              0              +0.00%
-    
-    benchmark                   old bytes     new bytes     delta
-    BenchmarkEscape-4           24800         12288         -50.45%
-    BenchmarkEscapeNone-4       0             0             +0.00%
-    BenchmarkUnescape-4         10240         10240         +0.00%
-    BenchmarkUnescapeNone-4     0             0             +0.00%
-    
-    Fixes #8697
-    
-    Change-Id: I208261ed7cbe9b3dee6317851f8c0cf15528bce4
-    Reviewed-on: https://go-review.googlesource.com/9808
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6089cebf7de73ce9c4e53ad3e8ef2673d970bda2
+    Reviewed-on: https://go-review.googlesource.com/8908
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/html/escape.go      | 57 ++++++++++---------------------------------------
- src/html/escape_test.go | 40 +++++++++++++++++++++++++++++++++-
- 2 files changed, 50 insertions(+), 47 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

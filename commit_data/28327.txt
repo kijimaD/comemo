@@ -1,15 +1,20 @@
-commit 8458a387e3a0aa29449767f633514747a1ee7e72
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Sep 8 21:39:33 2016 -0700
+commit 6a6c1d9841a1957a2fd292df776ea920ae38ea00
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Mon May 16 15:30:28 2016 +0300
 
-    cmd/compile: make fmt_test work on entire compiler
+    net/http/httputil: don't add User-Agent header by proxy made with NewSingleHostReverseProxy
     
-    - process all directories recursively
+    If client does not provided User-Agent header, do not set default one
+    used by net/http package when doing request to backend.
     
-    Change-Id: I27a737013d17fd3c2cc8ae9de4722dcbe989e6e5
-    Reviewed-on: https://go-review.googlesource.com/28789
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #15524
+    
+    Change-Id: I9a46bb3b7ec106bc7c3071e235b872d279994d67
+    Reviewed-on: https://go-review.googlesource.com/23089
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/fmt_test.go             | 780 ++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/fmt_test.go | 600 ------------------------
- 2 files changed, 780 insertions(+), 600 deletions(-)
+ src/net/http/httputil/reverseproxy.go      |  4 +++
+ src/net/http/httputil/reverseproxy_test.go | 43 ++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)

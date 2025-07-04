@@ -1,24 +1,25 @@
-commit 14ae846f54c105f4d48f1afa5aa5446e4b9e7cdc
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 6 19:18:07 2020 +0000
+commit 6d5f8b11d57e1896caebd5cc551f6d0d4a05a2f1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 22 10:34:55 2019 -0500
 
-    runtime: avoid overflow in (*mheap).grow
+    misc/cgo/testshared: do not write to GOROOT
     
-    Currently when checking if we can grow the heap into the current arena,
-    we do an addition which may overflow. This is particularly likely on
-    32-bit systems.
+    Instead of installing shared libraries to GOROOT/pkg, clone the
+    necessary files into a new GOROOT and run there.
     
-    Avoid this situation by explicitly checking for overflow, and adding in
-    some comments about when overflow is possible, when it isn't, and why.
+    Given that we now have a build cache, ideally we should not need to
+    install into GOROOT/pkg at all, but we can't fix that during the 1.14
+    code freeze.
     
-    For #35954.
+    Updates #28387
+    Updates #28553
+    Updates #30316
     
-    Change-Id: I2d4ecbb1ccbd43da55979cc721f0cd8d1757add2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231337
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I83084a8ca29a5dffcd586c7fccc3f172cac57cc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208482
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/runtime/mheap.go | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ misc/cgo/testshared/shared_test.go | 176 ++++++++++++++++++++++++++-----------
+ 1 file changed, 127 insertions(+), 49 deletions(-)

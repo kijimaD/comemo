@@ -1,28 +1,14 @@
-commit 6e9fb11b3a314b78f9c2cdb35e3d71a5cce4e06b
-Author: Austin Clements <austin@google.com>
-Date:   Tue Sep 11 11:28:24 2018 -0400
+commit 7d704a97608292150263f34da9430ac70a8c4ffd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 30 12:52:49 2018 +0900
 
-    runtime: support disabling goroutine scheduling by class
+    net: fix ExampleUDPConn_WriteTo
     
-    This adds support for disabling the scheduling of user goroutines
-    while allowing system goroutines like the garbage collector to
-    continue running. User goroutines pass through the usual state
-    transitions, but if we attempt to actually schedule one, it will get
-    put on a deferred scheduling list.
-    
-    Updates #26903. This is preparation for unifying STW GC and concurrent
-    GC.
-    
-    Updates #25578. This same mechanism can form the basis for disabling
-    all but a single user goroutine for the purposes of debugger function
-    call injection.
-    
-    Change-Id: Ib72a808e00c25613fe6982f5528160d3de3dbbc6
-    Reviewed-on: https://go-review.googlesource.com/c/134779
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I174b17395509d4c9fb55332c2405890b2a350cbd
+    Reviewed-on: https://go-review.googlesource.com/115218
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go     | 62 ++++++++++++++++++++++++++++++++++++++++++++++++-
- src/runtime/runtime2.go | 12 ++++++++++
- 2 files changed, 73 insertions(+), 1 deletion(-)
+ src/net/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

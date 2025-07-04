@@ -1,12 +1,15 @@
-commit 04567299771d99206101e3273b1851518cad491a
-Author: Kamil Kisiel <kamil@kamilkisiel.net>
-Date:   Tue Feb 19 10:41:35 2013 -0800
+commit 1fe8fdf7085f52f4060a06e31ae3033163a20394
+Author: Andrew Wilkins <axwalk@gmail.com>
+Date:   Tue Feb 19 09:20:56 2013 -0800
 
-    path/filepath: add examples for SplitList and Rel.
+    go/types: Use left-hand side's type as hint for right-hand
+    side expression evaluation in assignment operations.
     
-    R=golang-dev, bradfitz, minux.ma
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/7291043
+    https://golang.org/cl/7349046
 
- src/pkg/path/filepath/example_unix_test.go | 39 ++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ src/pkg/exp/gotype/gotype_test.go   | 12 ++++++------
+ src/pkg/go/types/stmt.go            |  4 +++-
+ src/pkg/go/types/testdata/stmt0.src |  5 ++++-
+ 3 files changed, 13 insertions(+), 8 deletions(-)

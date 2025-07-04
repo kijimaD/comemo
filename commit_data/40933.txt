@@ -1,17 +1,16 @@
-commit cdf3db5df6bdb68f696fb15cc657207efcf778ef
-Author: Johan Jansson <johan.jansson@iki.fi>
-Date:   Wed Dec 4 22:39:44 2019 +0200
+commit 8b03a3992bc755eadbccc10d97adc21d0b229401
+Author: Kevin Gillette <extemporalgenome@gmail.com>
+Date:   Mon Aug 26 03:30:21 2019 +0000
 
-    runtime: remove comment about gcCopySpans()
+    net/http: make docs refer to Context.Value as a getter instead of context.WithValue
     
-    Remove documentation reference to gcCopySpans(), as that function was
-    removed in https://golang.org/cl/30537
+    The doc comments of both ServerContextKey and LocalAddrContextKey both suggest that context.WithValue can be used to access (get) properties of the server or connection. This PR fixes those comments to refer to Context.Value instead.
     
-    Fixes #35683
-    
-    Change-Id: I7fb7c6cc60bfb3a133a019a20eb3f9d4c7627b31
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/209917
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I4ed383ef97ba1951f90c555243007469cfc18d4d
+    GitHub-Last-Rev: 05bc3acf82322e3dc77abc7fa0412efe01a77eac
+    GitHub-Pull-Request: golang/go#33833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191838
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgcmark.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

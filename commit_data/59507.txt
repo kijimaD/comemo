@@ -1,19 +1,26 @@
-commit a197a471b9c67af4881e0d9c48e4bd3cff4992c2
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sat May 10 16:14:25 2025 +0000
+commit 81a32eff7161ad6c15ace141b8e9dba8f81feac2
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Mon Mar 18 23:05:12 2024 -0700
 
-    sync: use blockUntilCleanupQueueEmpty instead of busy-looping in tests
+    net/http: validate outgoing/client request trailers
     
-    testPool currently does the old-style busy loop to wait until cleanups
-    have executed. Clean this up by using the linkname'd
-    blockUntilCleanupQueueEmpty.
+    This change validates outbound client request trailers
+    just like we do for headers. This helps prevent header
+    injection or other sorts of smuggling from easily being
+    performed using the standard HTTP client.
     
-    For #73642.
+    Fixes #64766
     
-    Change-Id: Ie0c2614db858a984f25b33a805dc52948069eb52
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671675
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Idb34df876a0c308b1f57e9ae2695b118ac6bcc2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572615
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
 
- src/sync/pool_test.go | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+ src/net/http/transport.go      | 38 ++++++++++++++++++++++++++------------
+ src/net/http/transport_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 12 deletions(-)

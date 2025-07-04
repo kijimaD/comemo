@@ -1,40 +1,22 @@
-commit 2dda92ff6f9f07eeb110ecbf0fc2d7a0ddd27f9d
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Sep 7 09:44:29 2021 -0700
+commit 682a1d2176b02337460aeede0ff9e49429525195
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Jan 15 16:29:00 2021 +0100
 
-    runtime: make slice growth formula a bit smoother
+    runtime: detect errors in DuplicateHandle
     
-    Instead of growing 2x for < 1024 elements and 1.25x for >= 1024 elements,
-    use a somewhat smoother formula for the growth factor. Start reducing
-    the growth factor after 256 elements, but slowly.
+    These functions rely on DuplicateHandle succeeding, but they don't check
+    the return value, which might be masking subtle bugs that cause other
+    problems down the line.
     
-    starting cap    growth factor
-    256             2.0
-    512             1.63
-    1024            1.44
-    2048            1.35
-    4096            1.30
+    Updates #43720.
     
-    (Note that the real growth factor, both before and now, is somewhat
-    larger because we round up to the next size class.)
-    
-    This CL also makes the growth monotonic (larger initial capacities
-    make larger final capacities, which was not true before). See discussion
-    at https://groups.google.com/g/golang-nuts/c/UaVlMQ8Nz3o
-    
-    256 was chosen as the threshold to roughly match the total number of
-    reallocations when appending to eventually make a very large
-    slice. (We allocate smaller when appending to capacities [256,1024]
-    and larger with capacities [1024,...]).
-    
-    Change-Id: I876df09fdc9ae911bb94e41cb62675229cb10512
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/347917
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Martin Möhrmann <martin@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Change-Id: I77f0e6645affa534777ffc173144a52e4afa5f81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284135
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- src/reflect/value.go | 5 +++--
- src/runtime/slice.go | 8 ++++++--
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ src/runtime/os_windows.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

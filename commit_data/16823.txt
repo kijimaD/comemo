@@ -1,13 +1,14 @@
-commit c38173bcbd2f51d7801d834d3a8a34f75fc1605c
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Jul 19 12:31:42 2013 -0700
+commit eb04df75cd87722f396fb66583279afe5abfb1ca
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 19 18:01:33 2013 +0400
 
-    debug/gosym: put pclinetest file in temporary directory
-    where it belongs.
+    runtime: prevent GC from seeing the contents of a frame in runfinq
+    This holds the last finalized object and arguments to its finalizer.
+    Fixes #5348.
     
-    R=rsc
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/11596043
+    https://golang.org/cl/11454044
 
- src/pkg/debug/gosym/pclntab_test.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/pkg/runtime/mgc0.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

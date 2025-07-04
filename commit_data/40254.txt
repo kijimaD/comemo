@@ -1,18 +1,61 @@
-commit c2c2ba280c77e76115cf1918d91a509f6bf98390
+commit ee59c06acb1cd0a119667fce57988801d3fdde4f
 Author: Keith Randall <khr@google.com>
-Date:   Mon Oct 14 16:34:28 2019 -0700
+Date:   Mon Apr 29 12:19:30 2019 -0700
 
-    cmd/compile: fix fmt test
+    cmd/compile: evaluate map initializers incrementally
     
-    CL 196781 added map[int64]uint32 to the set of things printed with %v.
+    For the code:
     
-    Fixes #34907
+    m := map[int]int {
+      a(): b(),
+      c(): d(),
+      e(): f(),
+    }
     
-    Change-Id: If4a13e86cfb4b691988f5fb70449ae23760f5789
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201079
+    We used to do:
+    
+    t1 := a()
+    t2 := b()
+    t3 := c()
+    t4 := d()
+    t5 := e()
+    t6 := f()
+    m := map[int]int{}
+    m[t1] = t2
+    m[t3] = t4
+    m[t5] = t6
+    
+    After this CL we do:
+    
+    m := map[int]int{}
+    t1 := a()
+    t2 := b()
+    m[t1] = t2
+    t3 := c()
+    t4 := d()
+    m[t3] = t4
+    t5 := e()
+    t6 := f()
+    m[t5] = t6
+    
+    Ordering the initialization this way limits the lifetime of the
+    temporaries involved.  In particular, for large maps the number of
+    simultaneously live temporaries goes from ~2*len(m) to ~2. This change
+    makes the compiler (regalloc, mostly) a lot happier. The compiler runs
+    faster and uses a lot less memory.
+    
+    For #26546, changes compile time of a big map from 8 sec to 0.5 sec.
+    
+    Fixes #26552
+    
+    Update #26546
+    
+    Change-Id: Ib7d202dead3feaf493a464779fd9611c63fcc25f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174417
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/fmtmap_test.go | 65 +++++++++++++++++++++---------------------
- 1 file changed, 33 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/gc/order.go | 52 ++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/sinit.go |  5 ++++
+ 2 files changed, 57 insertions(+)

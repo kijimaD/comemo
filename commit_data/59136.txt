@@ -1,22 +1,23 @@
-commit c386ed107e65f495acb6aacb0efcaade27da6a15
-Author: Mark Ryan <markdryan@rivosinc.com>
-Date:   Wed Dec 11 18:09:32 2024 +0100
+commit aaf8e844edaa7cbd09d0fdeb9bd0b7458cbfb466
+Author: kkhaike <kkhaike@gmail.com>
+Date:   Sat Dec 16 18:08:16 2023 +0800
 
-    cmd/internal/obj/riscv: fix the encoding for REV8 and ORCB
+    net: prevent unintended retries upon receiving an empty answer response from the DNS server.
     
-    The instructions are currently encoded and validated using an
-    iIIEncoding which is incorrect as these instructions do not
-    take an immediate operand.  Encode them instead using an
-    rIIEncoding as is done for the other two register argument bitmanip
-    instructions.
+    CL https://golang.org/cl/37879 migrates DNS message parsing to the golang.org/x/net/dns/dnsmessage package. However, during the modification of the "lame referral" error check introduced by CL https://golang.org/cl/22428, a condition was overlooked. This omission results in unexpected retries when a DNS server returns an empty response (not an invalid response, but one that includes an additional section).
     
-    Change-Id: Ia4d9c6f6ebd2dfc381935ebc11afa8fc3664232b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/637317
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Fixes #57697
+    Fixes #64783
+    
+    Change-Id: I203896aa2902c305569005c1712fd2f9f13a9b6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550435
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dexter Ouyang <kkhaike@gmail.com>
 
- src/cmd/internal/obj/riscv/obj.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/net/dnsclient_unix.go      | 13 ++++++++-----
+ src/net/dnsclient_unix_test.go | 23 ++++++++++++++++++++++-
+ 2 files changed, 30 insertions(+), 6 deletions(-)

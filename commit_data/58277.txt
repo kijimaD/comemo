@@ -1,26 +1,27 @@
-commit 7f049eac1b9378ecc4dddd43ebedeae0916c0606
-Author: Carlos Amedee <carlos@golang.org>
-Date:   Wed Nov 20 17:20:41 2024 -0500
+commit 693def151adff1af707d82d28f55dba81ceb08e1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Oct 18 11:25:08 2023 -0400
 
-    runtime: properly search for cleanups in cleanup.stop
+    crypto/rand,runtime: switch RtlGenRandom for ProcessPrng
     
-    This change modifies the logic which searches for existing cleanups.
-    The existing search logic sets the next node to the current node
-    in certain conditions. This would cause future searches to loop
-    endlessly. The existing loop could convert non-cleanup specials into
-    cleanups and cause data corruption.
+    RtlGenRandom is a semi-undocumented API, also known as
+    SystemFunction036, which we use to generate random data on Windows.
+    It's definition, in cryptbase.dll, is an opaque wrapper for the
+    documented API ProcessPrng. Instead of using RtlGenRandom, switch to
+    using ProcessPrng, since the former is simply a wrapper for the latter,
+    there should be no practical change on the user side, other than a minor
+    change in the DLLs we load.
     
-    This also changes where we release the m while we are adding a
-    cleanup. We are currently holding onto an p-specific gcwork after
-    releasing the m.
-    
-    Change-Id: I0ac0b304f40910549c8df114e523c89d9f0d7a75
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630278
+    Change-Id: Ie6891bf97b1d47f5368cccbe92f374dba2c2672a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536235
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/runtime/mcleanup.go | 18 ++++++++++++++++--
- src/runtime/mheap.go    |  2 +-
- 2 files changed, 17 insertions(+), 3 deletions(-)
+ src/crypto/rand/rand.go                          |  2 +-
+ src/crypto/rand/rand_windows.go                  |  7 ++----
+ src/internal/syscall/windows/syscall_windows.go  |  2 +-
+ src/internal/syscall/windows/zsyscall_windows.go | 21 ++++++++--------
+ src/runtime/os_windows.go                        | 31 +++++++++---------------
+ 5 files changed, 27 insertions(+), 36 deletions(-)

@@ -1,17 +1,17 @@
-commit 15b4d187b8dceb3384dd3bf8ea9f368c517f082d
-Author: mike andrews <mra@xoba.com>
-Date:   Tue Sep 27 16:22:29 2016 -0400
+commit 7825ca6a63502e3b8decb0b569513dd6b5954aa7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 2 12:33:34 2016 -0700
 
-        encoding/json: fix a bug in the documentation
+    doc/go1.7.html: net/mail.ParseAddress is stricter
     
-        Documentation made reference to an unknown entity "DisableHTMLEscaping,"
-        but I think it actually meant the method "Encoder.SetEscapeHTML."
+    Fixes #15940.
     
-        Fixes #17255
-    
-    Change-Id: I18fda76f8066110caef85fd33698de83d632e646
-    Reviewed-on: https://go-review.googlesource.com/29931
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie6da6fef235c6a251caa96d45f606c05d118a0ac
+    Reviewed-on: https://go-review.googlesource.com/23710
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Travis Beatty <travisby@gmail.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/encoding/json/encode.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.7.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

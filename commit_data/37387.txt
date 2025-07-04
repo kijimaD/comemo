@@ -1,21 +1,25 @@
-commit df2bb9817b2184256886d9d9458753b2273c202d
-Author: Keith Randall <khr@google.com>
-Date:   Mon Oct 15 17:24:21 2018 -0700
+commit 416676f4d9bb2e14bce4e396c2ce67d091264751
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 23 23:42:10 2018 +0000
 
-    runtime: during map delete, update entries after new last element
+    net/http: deflake TestRetryRequestsOnError
     
-    When we delete an element, and it was the last element in the bucket,
-    update the slots between the new last element and the old last element
-    with the marker that says "no more elements beyond here".
+    There's a 50ms threshold in net/http.Transport that this test
+    sometimes hitting on slower devices. That was unrelated to what this
+    test was trying to test. So instead just t.Skip on RoundTrip errors
+    unless the failure was quick (under 25ms), in which case the error
+    must've been about something else. Our fast machines should catch
+    regressions there.
     
-    Change-Id: I8efeeddf4c9b9fc491c678f84220a5a5094c9c76
-    Reviewed-on: https://go-review.googlesource.com/c/142438
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Fixes #25366
+    
+    Change-Id: Ibe8e2716a5b68558b57d0b8b5c46f38e46a2cba2
+    Reviewed-on: https://go-review.googlesource.com/125555
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_test.go | 36 ++++++++++++++++++++++++++++++++++++
- src/runtime/map.go         | 34 +++++++++++++++++++++++++++++++++-
- src/runtime/map_fast32.go  | 32 +++++++++++++++++++++++++++++++-
- src/runtime/map_fast64.go  | 32 +++++++++++++++++++++++++++++++-
- src/runtime/map_faststr.go | 32 +++++++++++++++++++++++++++++++-
- src/runtime/map_test.go    | 25 +++++++++++++++++++++++++
- 6 files changed, 187 insertions(+), 4 deletions(-)
+ src/net/http/export_test.go    | 2 ++
+ src/net/http/transport.go      | 7 ++++++-
+ src/net/http/transport_test.go | 9 ++++++++-
+ 3 files changed, 16 insertions(+), 2 deletions(-)

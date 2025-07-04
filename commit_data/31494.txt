@@ -1,15 +1,20 @@
-commit 8d63408f4688ff577c25f07a1728fe131d0cae2a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu May 4 08:41:49 2017 -0700
+commit 349b7820eb8bd30d42afad945b22e4e9fe74eff1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 24 16:01:50 2017 -0500
 
-    go/constant: avoid generating rats for large negative exponents
+    test: deflake locklinear a little
     
-    Fixes #20228
+    This should help on the openbsd systems where the test mostly passes.
     
-    Change-Id: I1893ae3e192da01f9befe5469b2a32e534a691ba
-    Reviewed-on: https://go-review.googlesource.com/42592
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    I don't expect it to help on s390x where the test reliably fails.
+    But it should give more information when it does fail.
+    
+    For #19276.
+    
+    Change-Id: I496c291f2b4b0c747b8dd4315477d87d03010059
+    Reviewed-on: https://go-review.googlesource.com/37348
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/constant/value.go      | 7 +++++++
- src/go/constant/value_test.go | 3 ++-
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ test/locklinear.go | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)

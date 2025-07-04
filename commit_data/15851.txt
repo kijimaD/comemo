@@ -1,14 +1,14 @@
-commit 6e15683caee9085dfc953c39a49f13ccc9dc1c86
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Mar 20 16:54:07 2013 -0400
+commit 2001f0c28ef4f2b7b907d060901a6fad2f1e9eb0
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Mar 20 20:36:33 2013 +0100
 
-    spec: define method values
+    runtime: prevent garbage collection during hashmap insertion (fix 2)
     
-    Fixes #2280.
+    Fixes #5074 in multi-threaded scenarios.
     
-    R=golang-dev, r, bradfitz, iant, andybalholm, gri
-    CC=golang-dev
-    https://golang.org/cl/7816045
+    R=golang-dev, daniel.morsing, dave, dvyukov, bradfitz, rsc
+    CC=golang-dev, remyoudompheng
+    https://golang.org/cl/7916043
 
- doc/go_spec.html | 122 +++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 118 insertions(+), 4 deletions(-)
+ src/pkg/runtime/malloc.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

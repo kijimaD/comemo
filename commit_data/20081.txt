@@ -1,16 +1,13 @@
-commit f4485784f05908051e7ec1732a27f53241f48fc4
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Fri Aug 22 21:27:25 2014 +0400
+commit b3375771fcd67d2dc7c7eee2bcd093ab4c126ec4
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 14 12:01:27 2014 -0400
 
-    runtime: please vet
-    The current code is correct, but vet does not understand it:
-    asm_amd64.s:963: [amd64] invalid MOVL of ret+0(FP); int64 is 8-byte value
-    asm_amd64.s:964: [amd64] invalid offset ret+4(FP); expected ret+0(FP)
+    [dev.power64] runtime: don't fault on runtime.procyield, just return
     
-    LGTM=minux
-    R=golang-codereviews, minux
+    LGTM=dave, rsc
+    R=rsc, iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/125200044
+    https://golang.org/cl/128230044
 
- src/pkg/runtime/asm_amd64.s | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/runtime/asm_power64x.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,12 +1,15 @@
-commit 67e26fceb577241a5b017d97be27bbc3dd466106
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Apr 18 11:04:20 2013 +1000
+commit b95c48918c1b29750ac13bfb9a220f58724fdfcf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 17 13:25:12 2013 -0700
 
-    misc/dashboard/builder: include $USER in build environment.
+    archive/zip: add docs on type of slashes in paths
+    
+    Fixes #5307
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8821046
+    https://golang.org/cl/8676046
 
- misc/dashboard/builder/main.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/pkg/archive/zip/struct.go | 9 ++++++++-
+ src/pkg/archive/zip/writer.go | 3 +++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

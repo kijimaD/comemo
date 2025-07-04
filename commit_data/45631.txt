@@ -1,37 +1,21 @@
-commit cde2d857fe1f13ade269e3f7d58c6c2379a53c50
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 6 14:01:20 2021 -0400
+commit f2ee58b6bb3d8312dad2ed7826c1a0e67aea8483
+Author: David Chase <drchase@google.com>
+Date:   Thu Aug 13 20:43:39 2020 -0400
 
-    cmd/go: be less strict about go version syntax in dependency go.mod files
+    cmd/compile: using new calls, optimize runtime.memequal(x,constant,1)
     
-    It is unclear what the future holds for the go line in go.mod files.
-    Perhaps at some point we will switch to semver numbering.
-    Perhaps at some point we will allow specifying minor versions
-    or even betas and release candidates.
-    Those kinds of changes are difficult today because the go line
-    is parsed in dependency modules, meaning that older
-    versions of the Go toolchain need to understand newer go lines.
+    Proof of concept; also an actual optimization that fires 180 times
+    in the Go source base.
     
-    This CL makes that case - parsing a go line in a dependency's
-    go.mod file - a bit more lax about how to find the version.
-    It allows a leading v and any trailing non-digit-prefixed string
-    after the MAJOR.MINOR section.
-    
-    There are no concrete plans to make use of any of these changes,
-    but if in the future we want to make them, having a few Go releases
-    under out belt that will accept the syntax in dependencies will
-    make any changes significantly easier.
-    
-    Change-Id: I79bb84bba4b769048ac4b14d5c275eb9a3f270c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317690
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I5cb87474be764264cde6e4cbcb471ef109306f08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248404
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go.mod                                  |  2 +-
- src/cmd/go.sum                                  |  4 +-
- src/cmd/go/testdata/script/badgo.txt            | 50 +++++++++++++++++++++++++
- src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 14 ++++++-
- src/cmd/vendor/modules.txt                      |  2 +-
- 5 files changed, 66 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 14 +++++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  5 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  6 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 70 ++++++++++++++++++++++++++
+ 4 files changed, 92 insertions(+), 3 deletions(-)

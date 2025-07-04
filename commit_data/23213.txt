@@ -1,17 +1,13 @@
-commit cb2014609792a182a62a7565cf7923ffda8dcb49
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 3 12:21:06 2015 -0700
+commit cfb8b18e75faa1d0cec07268825db06679cd3946
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Apr 30 10:16:23 2015 +0300
 
-    strings: mention UTF-8 in the package comment.
+    strings: use LastIndexByte in LastIndex
     
-    Also add a reference to the strings blog post.
-    
-    Fixes #11045.
-    
-    Change-Id: Ic0a8908cbd7b51a36d104849fa0e8abfd54de2b9
-    Reviewed-on: https://go-review.googlesource.com/10662
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1add1b92f5c2688a99133d90bf9789d770fd9f05
+    Reviewed-on: https://go-review.googlesource.com/9503
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/strings/strings.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/os/file_plan9.go   | 2 +-
+ src/strings/strings.go | 9 +--------
+ 2 files changed, 2 insertions(+), 9 deletions(-)

@@ -1,25 +1,26 @@
-commit 5dd68a3ba780a6d3369c662cab15d73a0dc049a3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed May 31 15:17:14 2023 -0400
+commit a45bbeae339cd51b60fc59f13da02111f3fc8851
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Jun 2 09:54:12 2022 -0400
 
-    cmd/go: propagate gover.TooNewError from modload.LoadModGraph
+    go/token: add (*FileSet).RemoveFile(*File) method
     
-    For #57001.
+    The design of FileSet encourages it to be used as a global variable.
+    Each call to AddFile consumes about 3KB, that is never returned,
+    even after an application no longer cares about the File.
+    This change adds a RemoveFile method that a long-running application
+    can use to release a File that is no longer needed, saving memory.
     
-    Change-Id: I639190b5f035139ba42a93ca03dd8a4c747556ea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499678
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes golang/go#53200
+    
+    Change-Id: Ifd34d650fe0d18b1395f922a4cd02a535afbe560
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410114
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/modcmd/download.go             | 22 +++++++-
- src/cmd/go/internal/modcmd/graph.go                | 17 ++++++-
- src/cmd/go/internal/modcmd/verify.go               |  7 ++-
- src/cmd/go/internal/modget/get.go                  | 58 ++++++++++------------
- src/cmd/go/internal/modload/buildlist.go           | 22 ++++----
- src/cmd/go/internal/mvs/errors.go                  |  2 +
- src/cmd/go/internal/toolchain/toolchain.go         | 21 +++++++-
- src/cmd/go/internal/workcmd/sync.go                |  8 ++-
- src/cmd/go/testdata/script/gotoolchain_modcmds.txt | 54 ++++++++++++++++++++
- 9 files changed, 164 insertions(+), 47 deletions(-)
+ api/next/53200.txt            |  1 +
+ src/go/token/position.go      | 22 ++++++++++++++++++++++
+ src/go/token/position_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 64 insertions(+)

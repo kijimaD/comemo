@@ -1,12 +1,13 @@
-commit b2efedbf361d5d96ad0fd74e00cbc12801253087
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 28 10:27:33 2011 -0800
+commit dd51f3537f50d645f58b4a737d6dcef036cfea73
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 28 10:21:19 2011 -0500
 
-    template: document the delimiters better
+    syscall: regenerate zerrors_freebsd_amd64.go
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4248047
+    https://golang.org/cl/4248043
 
- src/pkg/template/template.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/pkg/syscall/zerrors_freebsd_amd64.go | 1 -
+ src/pkg/syscall/zsysnum_freebsd_amd64.go | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

@@ -1,12 +1,36 @@
-commit 5b79aa82ff136e789287cea43e3e49542a9be215
+commit 0bee99ab3b17caca812aa78a51485aadf0bc1788
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 14 13:48:19 2013 +0400
+Date:   Thu Mar 14 10:38:37 2013 +0400
 
-    runtime: revert UseSpanType back to 1
+    runtime: integrated network poller for darwin
+    vs tip:
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkTCP4Persistent                 67786        33175  -51.06%
+    BenchmarkTCP4Persistent-2               49085        31227  -36.38%
+    BenchmarkTCP4PersistentTimeout          69265        32565  -52.98%
+    BenchmarkTCP4PersistentTimeout-2        49217        32588  -33.79%
     
-    R=golang-dev
-    CC=golang-dev
-    https://golang.org/cl/7812043
+    vs old scheduler:
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkTCP4Persistent                 63517        33175  -47.77%
+    BenchmarkTCP4Persistent-2               54760        31227  -42.97%
+    BenchmarkTCP4PersistentTimeout          63234        32565  -48.50%
+    BenchmarkTCP4PersistentTimeout-2        56956        32588  -42.78%
+    
+    R=golang-dev, bradfitz, devon.odell, mikioh.mikioh, iant, rsc
+    CC=golang-dev, pabuhr
+    https://golang.org/cl/7569043
 
- src/pkg/runtime/runtime.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/fd_darwin.go            | 126 -------------
+ src/pkg/net/fd_poll_runtime.go      | 119 +++++++++++++
+ src/pkg/net/fd_poll_unix.go         |   2 +-
+ src/pkg/runtime/defs_darwin.go      |  20 ++-
+ src/pkg/runtime/defs_darwin_386.h   |  30 +++-
+ src/pkg/runtime/defs_darwin_amd64.h |  30 +++-
+ src/pkg/runtime/netpoll.goc         | 346 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/netpoll_kqueue.c    |  96 ++++++++++
+ src/pkg/runtime/netpoll_stub.c      |   2 +
+ src/pkg/runtime/runtime.h           |   4 +
+ src/pkg/runtime/sys_darwin_386.s    |  29 +++
+ src/pkg/runtime/sys_darwin_amd64.s  |  34 ++++
+ 12 files changed, 705 insertions(+), 133 deletions(-)

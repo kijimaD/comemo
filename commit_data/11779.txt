@@ -1,53 +1,35 @@
-commit f8cf82f6f2de1ea91b525ca70f92b51a3df4d9df
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 10 13:27:32 2012 -0800
+commit cc9ed447d0afd1f5ff32bf30e094624cb704549b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 10 18:49:19 2012 +1100
 
-    go/printer: implement SourcePos mode
+    compress: make flate, gzip and zlib's NewWriterXxx functions all return
+    (*Writer, error) if they take a compression level, and *Writer otherwise.
+    Rename gzip's Compressor and Decompressor to Writer and Reader, similar to
+    flate and zlib.
     
-    If a printer is configured with the SourcePos mode
-    set, it will emit //-line comments as necessary to
-    ensure that the result - if reparsed - reflects the
-    original source position information.
+    Clarify commentary when writing gzip metadata that is not representable
+    as Latin-1, and fix io.EOF comment bug.
     
-    This change required a bit of reworking of the
-    output section in printer.go. Specifically:
+    Also refactor gzip_test to be more straightforward.
     
-    - Introduced new Config mode 'SourcePos'.
+    Fixes #2839.
     
-    - Introduced new position 'out' which tracks the
-    position of the generated output if it were read
-    in again. If there is a discrepancy between out
-    and the current AST/source position, a //line
-    comment is emitted to correct for it.
-    
-    - Lazy emission of indentation so that //line
-    comments can be placed correctly. As a result,
-    the trimmer will have to do less work.
-    
-    - Merged writeItem into writeString.
-    
-    - Merged writeByteN into writeByte.
-    
-    - Use a []byte instead of a byte.Buffer both in the
-    printer and in the trimmer (eliminates dependency).
-    
-    Also: introduced explicit printer.Mode type (in
-    sync w/ parser.Mode, scanner.Mode, etc.)
-    
-    Runs all tests. Applied gofmt to src, misc w/o changes.
-    
-    Fixes #1047.
-    Fixes #2697.
-    
-    R=rsc, rsc
+    R=rsc, r, rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5643066
+    https://golang.org/cl/5639057
 
- doc/go1.html                       |  20 ++++
- doc/go1.tmpl                       |  20 ++++
- src/cmd/cgo/godefs.go              |   2 +-
- src/cmd/cgo/out.go                 |  17 +--
- src/cmd/gofmt/gofmt.go             |   2 +-
- src/pkg/go/printer/printer.go      | 234 +++++++++++++++++++++----------------
- src/pkg/go/printer/printer_test.go | 128 +++++++++++++++++++-
- 7 files changed, 309 insertions(+), 114 deletions(-)
+ doc/go1.html                           |  14 +++
+ doc/go1.tmpl                           |  14 +++
+ src/pkg/archive/zip/writer.go          |   6 +-
+ src/pkg/compress/flate/deflate.go      |  32 ++++--
+ src/pkg/compress/flate/deflate_test.go |  55 +++++----
+ src/pkg/compress/gzip/gunzip.go        |  39 +++----
+ src/pkg/compress/gzip/gzip.go          |  72 +++++++-----
+ src/pkg/compress/gzip/gzip_test.go     | 199 ++++++++++++++++++++-------------
+ src/pkg/compress/zlib/writer.go        |  98 ++++++++++------
+ src/pkg/compress/zlib/writer_test.go   |   6 +-
+ src/pkg/crypto/rand/rand_test.go       |   2 +-
+ src/pkg/image/png/writer.go            |   8 +-
+ src/pkg/net/http/response_test.go      |   6 +-
+ src/pkg/net/http/transport_test.go     |   8 +-
+ 14 files changed, 347 insertions(+), 212 deletions(-)

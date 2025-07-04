@@ -1,42 +1,24 @@
-commit 123fd4640ae27e7f179f84cd7efece07ab954b45
-Author: Michael Pratt <mpratt@google.com>
-Date:   Sat Jul 8 16:47:16 2017 -0700
+commit 24e94766c082338d83e5f3e1f8eccf4f070d8956
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 28 17:55:26 2017 -0400
 
-    cmd/link: skip R_ADDR relocs in .rela.plt for internal PIE
+    cmd/compile: added special case for reflect header fields to esc
     
-    ld.addpltsym adds an R_X86_64_JMP_SLOT dynamic relocation to .rela.plt
-    and uses Addaddrplus to reference the GOT in Elf64_Rela.r_offset.
+    The uintptr-typed Data field in reflect.SliceHeader and
+    reflect.StringHeader needs special treatment because it is
+    really a pointer.  Add the special treatment in walk for
+    bug #19168 to escape analysis.
     
-    Addaddrplus results in an R_ADDR relocation, which here we transform
-    into an R_X86_64_64 dynamic relocation. This is wrong for several
-    reasons:
+    Includes extra debugging that was helpful.
     
-    1. .rela.plt is not a writable, relro section. It is mapped read-only,
-       causing the dynamic linker to segfault when it tried to handle the
-       relocation. This was the immediate cause of internal PIE cgo
-       crashes.
+    Fixes #19743.
     
-    2. Relocations targetting other reloc sections are, as far as I can
-       tell, undefined behavior in the ELF spec and are unlikely to be a
-       good idea.
-    
-    3. Even if the relocation did work, it isn't what we want. The
-       relocation, if successfully handled, would have put an absolute
-       address as the JMP_SLOT offset, but it should be the offset from the
-       beginning of the binary, just like any other relocation. What we want
-       is a statically resolved R_ADDR relocation, just as is used below for
-       the R_X86_64_64 relocation.
-    
-    Skipping the .rela.plt allows reloc() to handle these R_ADDR
-    relocations.
-    
-    With this CL, internal PIE cgo binaries work.
-    
-    Updates #18968
-    
-    Change-Id: Ie74e6fe249e88150baa0e340b1cb128cf7f28673
-    Reviewed-on: https://go-review.googlesource.com/47837
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6dab5002f0d436c3b2a7cdc0156e4fc48a43d6fe
+    Reviewed-on: https://go-review.googlesource.com/38738
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/amd64/asm.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/esc.go |  9 ++++++++-
+ test/fixedbugs/issue19743.go       | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

@@ -1,28 +1,20 @@
-commit 0a842d55609f5deb25889f151e49744c4af3ec80
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Aug 18 00:05:46 2018 +0200
+commit 1670921a07bc25116d6fdcafb849e1ff8bd6e9bc
+Author: tengufromsky <nick27surgut@gmail.com>
+Date:   Sat Apr 14 10:50:52 2018 +0300
 
-    os: handle TMPDIR in TempDir on Plan 9
+    time: increase test coverage for Time.Sub
     
-    CL 129063 added a test in TestScript/mod_enabled,
-    which was failing on Plan 9.
+    Existing tests don't check overflow and underflow case for subtraction
+    monotonic time.
     
-    The test was failing because the Init function
-    of the cmd/go/internal/modload package was
-    expecting ModRoot to be part of os.TempDir.
+    Updates #17858
     
-    However, ModRoot was set to TMPDIR, while
-    os.TempDir is returning /tmp on Plan 9.
-    
-    This change fixes the implementation of
-    os.TempDir on Plan 9 to handle the TMPDIR
-    environment variable, similarly to Unix.
-    
-    Fixes #27065.
-    
-    Change-Id: Id6ff926c5c379f63cab2dfc378fa6c15293fd453
-    Reviewed-on: https://go-review.googlesource.com/129775
+    Change-Id: I95311440134c92eadd7d5e409a0fc7c689e9bf41
+    Reviewed-on: https://go-review.googlesource.com/107056
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/file_plan9.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/time/internal_test.go | 5 +++++
+ src/time/time_test.go     | 2 ++
+ 2 files changed, 7 insertions(+)

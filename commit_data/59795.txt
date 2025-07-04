@@ -1,15 +1,31 @@
-commit 96a6e147b2b02b1f070d559cb2c8e1c25c9b78c3
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Jun 13 11:45:23 2025 -0400
+commit fc6a5ea88c913cbeb9af432c1ec16b4c72f4b4ba
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Tue Apr 23 14:16:04 2024 -0700
 
-    runtime: comment that some linknames are used by runtime/trace
+    runtime: test mutex contention stacks and counts
     
-    Change-Id: I118d1ee09dfd6fd0075f9e5eeeb54441328bff4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/681495
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Fully testing the runtime's profiles and metrics for contention on its
+    internal mutex values involves comparing two separate clocks (cputicks
+    for the profile and nanotime for the metric), verifying its fractional
+    sampling (when MutexProfileRate is greater than 1), and observing a very
+    small critical section outside of the test's control (semrelease).
+    Flakiness (#64253) from those parts of the test have led to skipping it
+    entirely.
+    
+    But there are portions of the mutex profiling behavior that should have
+    more consistent behavior: for a mutex under the test's control, the test
+    and the runtime should be able to agree that the test successfully
+    induced contention, and should agree on the call stack that caused the
+    contention. Allow those more consistent parts to run.
+    
+    For #64253
+    
+    Change-Id: I7f368d3265a5c003da2765164276fab616eb9959
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581296
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
 
- src/runtime/trace.go     | 2 +-
- src/runtime/tracetime.go | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/metrics_test.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

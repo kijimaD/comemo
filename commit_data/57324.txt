@@ -1,21 +1,27 @@
-commit 2f3165973f9bf1e1a95d108c57e5257f4655ee59
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Wed Aug 14 22:28:00 2024 +0200
+commit f024e390bb0cb124487fd75f564ef8178ccba8f4
+Author: korzhao <korzhao95@gmail.com>
+Date:   Thu Jul 6 11:12:29 2023 +0800
 
-    cmd/compile: compute Complement's limits from argument's limits
+    reflect: optimize DeepEqual() for maps
     
-    I was not sure this was correct so I exhaustively checked all possibilities:
-    https://go.dev/play/p/hjmCLm4Iagz
-    https://go.dev/play/p/R9RuRGKwCbN
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkMapsDeepEqual-10     235           200           -15.05%
     
-    Change-Id: I85f053df825a4d77f978de42f8a1fcaf4b881def
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/605696
-    Reviewed-by: Keith Randall <khr@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    benchmark                     old allocs     new allocs     delta
+    BenchmarkMapsDeepEqual-10     7              6              -14.29%
+    
+    benchmark                     old bytes     new bytes     delta
+    BenchmarkMapsDeepEqual-10     96            48            -50.00%
+    
+    Change-Id: Ifa625ad25524cc9ee438711917606626b33a9597
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512576
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 39 +++++++++++++++++++++++++++++++++++
- test/prove.go                         | 21 +++++++++++++++++++
- 2 files changed, 60 insertions(+)
+ src/reflect/benchmark_test.go | 12 ++++++++++++
+ src/reflect/deepequal.go      |  7 ++++---
+ 2 files changed, 16 insertions(+), 3 deletions(-)

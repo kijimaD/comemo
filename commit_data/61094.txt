@@ -1,0 +1,28 @@
+commit e470a00cdff2c4c13162dc8887fedd6812393514
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 1 16:50:04 2024 +0700
+
+    test: fix test issue 69434 for riscv64
+    
+    CL 615915 simplified test for issue 69434, using gcflags maymorestack to
+    force stack moving, making program failed with invalid stack pointer.
+    
+    However, it seems that this maymorestack is broken on riscv64. At least
+    gotip-linux-riscv64 is currently broken.
+    
+    This CL fixes this problem by using the initial approach, growing stack
+    size big enough to force stack moving.
+    
+    Updates #69434
+    Fixes #69714
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
+    Change-Id: I95255fba884a200f75bcda34d58e9717e4a952ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616698
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/fixedbugs/issue69434.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

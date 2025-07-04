@@ -1,13 +1,13 @@
-commit fe71b387b32e59a3424b66bf7016c047f98ca1fd
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Wed Jul 9 14:54:11 2014 -0400
+commit 5512f6f3b333c97207a860cf89d78edf6bb38940
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Wed Jul 9 10:04:38 2014 -0700
 
-    androidtest.bash: missing !
+    cmd/go: use $CC to build _cgo_defun.c
     
-    LGTM=iant
-    R=bradfitz, iant
+    LGTM=dave, iant
+    R=iant, dave
     CC=golang-codereviews
-    https://golang.org/cl/112010045
+    https://golang.org/cl/112000043
 
- src/androidtest.bash | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/build.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,19 +1,15 @@
-commit 85e4cb2f10eb1bbc147b6b549f48eb243c3517e3
-Author: Daniel Morsing <daniel.morsing@gmail.com>
-Date:   Tue Feb 11 20:25:40 2014 +0000
+commit e5a4211b36ca776189730de6f1ab4403dde46f46
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Feb 11 13:41:46 2014 +0400
 
-    cmd/6g, cmd/8g, cmd/5g: make the undefined instruction have no successors
+    runtime: do not profile blocked netpoll on windows
+    There is frequently a thread hanging on GQCS,
+    currently it skews profiles towards netpoll,
+    but it is not bad and is not consuming any resources.
     
-    The UNDEF instruction was listed in the instruction data as having the next instruction in the stream as its successor. This confused the optimizer into adding a load where it wasn't needed, in turn confusing the liveness analysis pass for GC bitmaps into thinking that the variable was live.
-    
-    Fixes #7229.
-    
-    LGTM=iant, rsc
-    R=golang-codereviews, bradfitz, iant, dave, rsc
+    R=alex.brainman
     CC=golang-codereviews
-    https://golang.org/cl/56910045
+    https://golang.org/cl/61560043
 
- src/cmd/5g/prog.c | 2 +-
- src/cmd/6g/prog.c | 2 +-
- src/cmd/8g/prog.c | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/runtime/netpoll_windows.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

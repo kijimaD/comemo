@@ -1,28 +1,18 @@
-commit f8b0231639859de7b8f1bfe7df1be0132aec9ad6
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Mar 20 09:56:50 2017 -0700
+commit 01dda422520e05e26ed98629b735038d7f22678c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 30 19:15:01 2016 +0000
 
-    cmd/go, cmd/compile: always optimize when building runtime
+    doc: document default GOPATH in go1.8.html
     
-    When optimizations are disabled, the compiler
-    cannot eliminate enough write barriers to satisfy
-    the runtime's nowritebarrier and nowritebarrierrec
-    annotations.
+    And fix a bad link.
     
-    Enforce that requirement, and for convenience,
-    have cmd/go elide -N when compiling the runtime.
+    TBR=See https://golang.org/cl/33244
     
-    This came up in practice for me when running
-    toolstash -cmp. When toolstash -cmp detected
-    mismatches, it recompiled with -N, which caused
-    runtime compilation failures.
+    Updates #17929
     
-    Change-Id: Ifcdef22c725baf2c59a09470f00124361508a8f3
-    Reviewed-on: https://go-review.googlesource.com/38380
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib16cf55cdc4a5340f2f4f96ad5934a9fe7d49d75
+    Reviewed-on: https://go-review.googlesource.com/33716
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/main.go |  3 +++
- src/cmd/go/internal/work/build.go   | 20 ++++++++++++++++++--
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ doc/go1.8.html | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

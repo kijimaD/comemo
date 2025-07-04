@@ -1,15 +1,14 @@
-commit 02bd0fd39cb6ffd840901ea751a61047ccad47cb
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 19 07:08:37 2019 +1000
+commit 68f496949b9524c610cd25bffd109f27b78536dc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 23 14:48:59 2018 -0400
 
-    testing/quick: simplify explanation of -quickchecks flag
+    cmd/go/internal/cache: write shared mutable files atomically
     
-    CL 172698 documented this flag but the description was missing
-    punctuation and could be clearer.
+    Updates #26794
     
-    Change-Id: I310d91ae8c6b947ce7d1ae7559882f49778f770a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/172817
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I2a50e3b756ff6a2bbaee4737ca7ed053b01c8d0e
+    Reviewed-on: https://go-review.googlesource.com/c/146378
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/testing/quick/quick.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/cache/cache.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

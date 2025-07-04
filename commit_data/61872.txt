@@ -1,0 +1,32 @@
+commit 312f7c1bd300d374f7078c4449c5ad142e0c3a5e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Dec 6 15:37:34 2024 -0500
+
+    runtime: add note that Callers never returns an entry PC
+    
+    The presence of a pc > entry check in CallersFrame implies we might
+    actually see pc == entry, when in reality Callers will never return such
+    a PC. This check is actually just a safety check for avoid reporting
+    completely nonsensical from bad input.
+    
+    all.bash reports two violations to this invariant:
+    
+    TestCallersFromWrapper, which explicitly constructs a CallersFrame input
+    with an entry PC.
+    
+    runtime/pprof.printStackRecord, which passes pprof stacks to
+    CallersFrame (technically not a valid use of CallersFrames!).
+    runtime/pprof.(*Profile).Add can add the entry PC of
+    runtime/pprof.lostProfileEvent to samples.
+    
+    (CPU profiles do lostProfileEvent + 1. I will send a second CL to fix
+    Add.)
+    
+    Change-Id: Iac2a2f0c15117d4a383bd84cddf0413b2d7dd3ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634315
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/symtab.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

@@ -1,16 +1,12 @@
-commit 2c0072217ae83a3fbb91a0acd51dc998d2b71d8e
+commit b9bd0c758a0c654d62fb26268ba87232b8184731
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Dec 5 16:22:14 2011 +1100
+Date:   Mon Dec 5 13:44:22 2011 +1100
 
-    misc/dashboard: init handler for bootstrapping
-    misc/dashboard: support unauthenticated GETs
-    misc/dashboard: add ?nukeonly=1 option to /buildtest
+    misc/dashboard/app: revert gofix of app engine file
     
-    R=golang-dev, dsymonds
+    R=dsymonds
     CC=golang-dev
-    https://golang.org/cl/5450091
+    https://golang.org/cl/5451092
 
- misc/dashboard/app/app.yaml       |  4 +--
- misc/dashboard/app/build/build.go | 51 +++++++++++++++++++++++++++++++++------
- misc/dashboard/app/build/test.go  |  6 ++++-
- 3 files changed, 51 insertions(+), 10 deletions(-)
+ misc/dashboard/app/build/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,24 +1,25 @@
-commit 9c88db5f1eba68999184bb043a0b339349b81db4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Mar 24 03:08:33 2025 -0400
+commit d4112310a4d3b1981d77226a3d52a8b566b0c0bc
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Feb 20 16:17:06 2024 +0800
 
-    runtime: always show runfinq in traceback
+    net: harmonize the time units used for TCP keep-alive on DragonFly and other UNIX's by seconds
     
-    Today, runtime.runfinq is hidden whenever runtime frames are hidden.
+    Follows up CL 542275
     
-    However this frame serves as a hint that this goroutine is running
-    finalizers, which is otherwise unclear, but can be useful when debugging
-    issues with finalizers.
+    Fixes #65809
     
-    Fixes #73011.
-    
-    Change-Id: I6a6a636cb63951fbe1fefc3554fe9cea5d0a0fb6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660295
+    Change-Id: Iba01efb4ff0fbb7a67840875322f0338337ebb78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565315
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/crash_test.go                          | 75 ++++++++++++++++++++++
- .../testdata/testprog/finalizer_deadlock.go        | 74 +++++++++++++++++++++
- src/runtime/traceback.go                           | 15 +++++
- 3 files changed, 164 insertions(+)
+ src/net/tcpconn_keepalive_dragonfly_test.go | 92 -----------------------------
+ src/net/tcpconn_keepalive_unix_test.go      |  2 +-
+ src/net/tcpsockopt_dragonfly.go             | 53 -----------------
+ src/net/tcpsockopt_unix.go                  |  2 +-
+ 4 files changed, 2 insertions(+), 147 deletions(-)

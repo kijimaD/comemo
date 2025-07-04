@@ -1,26 +1,14 @@
-commit 631a575fd92b711854930f3b03b40a2bf66bbd29
-Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Sun Nov 13 12:39:41 2011 +1100
+commit 13dc53055f7fb6e15b640cdb24284c481bd4402c
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Nov 13 03:58:24 2011 +1100
 
-    html: store the current insertion mode in the parser
+    runtime: remove no longer used enums for openbsd
     
-    Currently, the state transition functions in the HTML parser
-    return the next insertion mode and whether the token is consumed.
-    This works well except for when one insertion mode needs to use
-    the rules for another insertion mode. Then the useTheRulesFor
-    function needs to patch things up. This requires comparing functions
-    for equality, which is going to stop working.
+    The code that used these has been moved to lock_sema.c.
     
-    Adding a field to the parser structure to store the current
-    insertion mode eliminates the need for useTheRulesFor;
-    one insertion mode function can now just call the other
-    directly. The insertion mode will be changed only if it needs to be.
-    
-    This CL is an alternative to CL 5372078.
-    
-    R=nigeltao, rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5372079
+    https://golang.org/cl/5376062
 
- src/pkg/html/parse.go | 323 +++++++++++++++++++++++++++-----------------------
- 1 file changed, 174 insertions(+), 149 deletions(-)
+ src/pkg/runtime/openbsd/thread.c | 8 --------
+ 1 file changed, 8 deletions(-)

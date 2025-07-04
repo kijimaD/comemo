@@ -1,14 +1,15 @@
-commit fc5889d4ffbd3b1252db4eee5cae16edb4692c54
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 19 11:50:41 2011 -0400
+commit 003bfa0e26356a61cab6bc20536ca3f233091f8b
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Mon Sep 19 11:50:31 2011 -0400
 
-    json: skip nil in UnmarshalJSON and (for symmetry) MarshalJSON
+    net: use /etc/hosts first when looking up IP addresses using native Go's dns resolver
     
-    R=dsymonds, r
+    Previously /etc/hosts would be ignored altogether, this change returns matching results
+    from that file without talking to a DNS server.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5050049
+    https://golang.org/cl/5061042
 
- src/pkg/json/decode.go      | 21 +++++++++++----------
- src/pkg/json/encode.go      |  9 ++++++---
- src/pkg/json/stream_test.go | 25 +++++++++++++++++++++++++
- 3 files changed, 42 insertions(+), 13 deletions(-)
+ src/pkg/net/dnsclient_unix.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

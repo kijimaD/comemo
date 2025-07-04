@@ -1,24 +1,52 @@
-commit 80b31c05e6ae37c09162406590b9e3b99f0fff9b
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Mon Jun 27 21:38:04 2016 +0200
+commit 934c3599648ae841668ec753881134347fc28c29
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Apr 23 22:59:01 2016 -0700
 
-    time: load time zones from the system tzdata file on Android
+    cmd/compile: reorder how slicelit initializes a slice
     
-    Android timezones are in a packed format, different from the separate
-    files of a regular Unix system. This CL contain the necessary code to
-    parse the packed tzdata file and extract time zones from it. It also
-    adds a basic test to ensure the new parser works.
+      func f(x, y, z *int) {
+        a := []*int{x,y,z}
+        ...
+      }
     
-    Fixes #13581
+    We used to use:
+      var tmp [3]*int
+      a := tmp[:]
+      a[0] = x
+      a[1] = y
+      a[2] = z
     
-    Change-Id: Idebe73726c3d4c2de89dd6ae1d7d19f975207500
-    Reviewed-on: https://go-review.googlesource.com/24494
-    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Now we do:
+      var tmp [3]*int
+      tmp[0] = x
+      tmp[1] = y
+      tmp[2] = z
+      a := tmp[:]
+    
+    Doesn't sound like a big deal, but the compiler has trouble
+    eliminating write barriers when using the former method because it
+    doesn't know that the slice points to the stack.  In the latter
+    method, the compiler knows the array is on the stack and as a result
+    doesn't emit any write barriers.
+    
+    This turns out to be extremely common when building ... args, like
+    for calls fmt.Printf.
+    
+    Makes go binaries ~1% smaller.
+    
+    Doesn't have a measurable effect on the go1 fmt benchmarks,
+    unfortunately.
+    
+    Fixes #14263
+    Update #6853
+    
+    Change-Id: I9074a2788ec9e561a75f3b71c119b69f304d6ba2
+    Reviewed-on: https://go-review.googlesource.com/22395
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/time/export_android_test.go   |  12 ++++
- src/time/zoneinfo_android.go      | 119 ++++++++++++++++++++++++++++++++++++++
- src/time/zoneinfo_android_test.go |  18 ++++++
- src/time/zoneinfo_unix.go         |   2 +-
- 4 files changed, 150 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/sinit.go | 33 +++++++++++++++++----------------
+ src/cmd/compile/internal/gc/walk.go  |  3 +--
+ test/writebarrier.go                 | 14 ++++++++++++++
+ 3 files changed, 32 insertions(+), 18 deletions(-)

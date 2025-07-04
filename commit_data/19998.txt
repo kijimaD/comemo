@@ -1,13 +1,19 @@
-commit 392bc8985e6b4b33603bfb9b546d301d3857a3cb
+commit f46f3432a60edafdcd6ec9925550859167812cd6
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Aug 13 23:20:39 2014 +1000
+Date:   Tue Aug 12 09:27:39 2014 +1000
 
-    doc: remove the "the" in "the the" in the release notes
+    compress/{gzip,zlib}: mention that Close flushes
     
-    LGTM=r
-    R=r
+    Our other CloseFlushers (archive/tar, compress/flate) do mention this.
+    
+    The original change was accidentally submitted to the release branch:
+            https://golang.org/cl/117430043/
+    
+    TBR=rsc
+    R=r, rsc
     CC=golang-codereviews
-    https://golang.org/cl/128170043
+    https://golang.org/cl/124130043
 
- doc/devel/release.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/compress/gzip/gzip.go   | 3 ++-
+ src/pkg/compress/zlib/writer.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,30 +1,20 @@
-commit d83168eb385f7ae38710028fff5c84252267adbc
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Oct 13 17:07:34 2020 +0200
+commit f95ff37cb06652b5b4dd244e72b939a36258c273
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Mar 24 13:33:46 2020 -0400
 
-    lib/time, time, time/tzdata: use slim tz data format
+    cmd/go: clarify behavior with no arguments in 'go help mod download'
     
-    Follow-up for CL 261363 which had to retain the fat tz data format due
-    to failing test.
+    'go mod download' is equivalent to 'go mod download all'.
     
-    The reason for the failed tests was that when caching location data, the
-    extended time format past the end of zone transitions was not
-    considered. The respective change was introduced in (*Location).lookup
-    by CL 215539.
+    Fixes #38031
     
-    This slims down zoneinfo.zip (and thus also the embedded copy in
-    time/tzdata) by ~350KB.
-    
-    Change-Id: I412f79de98ba45358b8696aca784999b3479135e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261877
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I7aec7e5a1370a3e248eba6daad9a75ec21f33a83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225201
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- lib/time/update.bash       |     2 +-
- lib/time/zoneinfo.zip      |   Bin 783364 -> 422355 bytes
- src/time/tzdata/tzdata.go  |     2 +-
- src/time/tzdata/zipdata.go | 19763 +++++++++++++++----------------------------
- src/time/zoneinfo_read.go  |     8 +
- 5 files changed, 6883 insertions(+), 12892 deletions(-)
+ src/cmd/go/alldocs.go                  | 3 ++-
+ src/cmd/go/internal/modcmd/download.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

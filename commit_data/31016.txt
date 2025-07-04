@@ -1,54 +1,22 @@
-commit c311488283fc9d9ad22e20a9b6551681af8586ef
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 6 09:54:14 2017 -0700
+commit ac05542985ab2fac15f2a2c7b62afe29bdb15e5c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 10 23:42:06 2017 +0000
 
-    cmd/internal/obj: remove Linklookup
+    net/http: deflake TestRetryIdempotentRequestsOnError
     
-    It was simply a wrapper around Link.Lookup.
-    Unwrap everything.
+    The test was previously an integration test, relying on luck and many
+    goroutines and lots of time to hit the path to be tested.
     
-    CL prepared using eg with template:
+    Instead, rewrite the test to exactly hit the path to be tested, in one
+    try, in one goroutine.
     
-    package p
+    Fixes #18205
     
-    import "cmd/internal/obj"
-    
-    func before(ctxt *obj.Link, name string, version int) *obj.LSym {
-            return obj.Linklookup(ctxt, name, version)
-    }
-    
-    func after(ctxt *obj.Link, name string, version int) *obj.LSym {
-            return ctxt.Lookup(name, version)
-    }
-    
-    Then one comment in cmd/asm/internal/asm/parse.go
-    was manually updated (and gofmt'ed!),
-    and func Linklookup deleted.
-    
-    Passes toolstash-check (as a sanity measure).
-    
-    Change-Id: Icc4d56b0b2b5c8888d3184c1898c48359ea1e638
-    Reviewed-on: https://go-review.googlesource.com/39715
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I63cd513316344bfd7375dcc452c1c396dec0e49f
+    Reviewed-on: https://go-review.googlesource.com/35107
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/parse.go           |  8 ++++----
- src/cmd/compile/internal/gc/obj.go          |  4 ++--
- src/cmd/compile/internal/gc/pgen.go         |  4 ++--
- src/cmd/compile/internal/gc/reflect.go      | 12 ++++++------
- src/cmd/compile/internal/ssa/export_test.go |  2 +-
- src/cmd/compile/internal/x86/ssa.go         |  2 +-
- src/cmd/internal/obj/arm/asm5.go            |  2 +-
- src/cmd/internal/obj/arm/obj5.go            | 22 +++++++++++-----------
- src/cmd/internal/obj/arm64/obj7.go          | 10 +++++-----
- src/cmd/internal/obj/mips/obj0.go           | 12 ++++++------
- src/cmd/internal/obj/objfile.go             | 10 +++++-----
- src/cmd/internal/obj/plist.go               |  4 ++--
- src/cmd/internal/obj/ppc64/asm9.go          |  4 ++--
- src/cmd/internal/obj/ppc64/obj9.go          | 18 +++++++++---------
- src/cmd/internal/obj/s390x/objz.go          | 12 ++++++------
- src/cmd/internal/obj/sym.go                 |  4 ----
- src/cmd/internal/obj/x86/asm6.go            |  8 ++++----
- src/cmd/internal/obj/x86/obj6.go            | 16 ++++++++--------
- 18 files changed, 75 insertions(+), 79 deletions(-)
+ src/net/http/transport_test.go | 114 ++++++++++++++++++++++++-----------------
+ 1 file changed, 67 insertions(+), 47 deletions(-)

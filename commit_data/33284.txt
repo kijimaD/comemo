@@ -1,27 +1,25 @@
-commit 58de9f358375e87f07605852530383fee0a4b671
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Fri Oct 27 10:06:40 2017 -0400
+commit b8519cd73961a15bcacbb22873739b79b0dff85c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 29 16:28:42 2016 -0700
 
-    runtime: use -buildmode=pie in testCgoPprofPIE  instead of -extldflags=-pie
+    archive/tar: simplify Flush
     
-    Errors occur in runtime test testCgoPprofPIE when the test
-    is built by passing -pie to the external linker with code
-    that was not built as PIC. This occurs on ppc64le because
-    non-PIC is the default, and fails only on newer distros
-    where the address range used for programs is high enough
-    to cause relocation overflow. This test should be built
-    with -buildmode=pie since that correctly generates PIC
-    with -pie.
+    In Go1.0, Writer.Flush used to finish off the current file with zeros
+    (if it was not already finished) and then write the padding.
     
-    Related issues are #21954 and #22126.
+    Since Go1.1, a regression was made (https://golang.org/cl/5777064) where it was
+    an error to call Flush if the current file was incomplete. Thus, Flush now only
+    writes out the final padding bytes, which arguably isn't very useful to anyone.
+    Since this has been the behavior of Flush for 9 releases of Go (1.1 to 1.9),
+    we should keep this behavior and just simplify the logic.
     
-    Updates #22459
+    We also mark the method as deprecated since it serves no purpose.
     
-    Change-Id: Ib641440bc9f94ad2b97efcda14a4b482647be8f7
-    Reviewed-on: https://go-review.googlesource.com/73970
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: I94610d942cb75cad495efd8cf799c1a275a21751
+    Reviewed-on: https://go-review.googlesource.com/54434
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/crash_cgo_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/archive/tar/writer.go | 29 +++++++++++++----------------
+ 1 file changed, 13 insertions(+), 16 deletions(-)

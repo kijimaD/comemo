@@ -1,21 +1,14 @@
-commit 8e90b9026b64a47d68c80a079564b8c17611db0d
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Aug 22 10:27:20 2016 +1200
+commit f8fc3710fd4c596adac57048f705a994f199df8c
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 21 10:02:36 2016 -0700
 
-    cmd/link: remove references to LSym (now Symbol)
+    cmd/compile: handle mem copies in amd64 backend
     
-    Mostly comments but some derived names too.
+    Fixes noopt builder.
     
-    Change-Id: I1e01dccca98de6688e1426c7a9309f6fd6a1e368
-    Reviewed-on: https://go-review.googlesource.com/27415
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If13373b2597f0fcc9b1b2f9c860f2bd043e43c6c
+    Reviewed-on: https://go-review.googlesource.com/22338
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/link/internal/ld/data.go    | 12 ++++++------
- src/cmd/link/internal/ld/elf.go     |  2 +-
- src/cmd/link/internal/ld/link.go    | 12 ++++++------
- src/cmd/link/internal/ld/objfile.go |  4 ++--
- src/cmd/link/internal/ld/sym.go     |  4 ++--
- src/cmd/link/internal/ld/symtab.go  |  4 ++--
- 6 files changed, 19 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go | 3 +++
+ 1 file changed, 3 insertions(+)

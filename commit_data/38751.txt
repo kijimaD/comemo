@@ -1,29 +1,46 @@
-commit 827044e7a629128d967e79e6b92fc17f3bc4870b
-Author: Udalov Max <re.udalov@gmail.com>
-Date:   Sat Apr 13 18:54:03 2019 +0300
+commit 3068fcfa0d6535d081a6fe3fb3dc8dd30bff370f
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Tue Oct 16 13:03:35 2018 +0300
 
-    crypto/sha512: use math/bits.RotateLeft64 instead of ad-hoc implementation
+    cmd/compile: add control flow graphs to ssa.html
     
-    This makes code more readable and idiomatic and slightly increase performance.
+    This CL adds CFGs to ssa.html.
+    It execs dot to generate SVG,
+    which then gets inlined into the html.
+    Some standard naming and javascript hacks
+    enable integration with the rest of ssa.html.
+    Clicking on blocks highlights the relevant
+    part of the CFG, and vice versa.
     
-    Updates #31456
+    Sample output and screenshots can be seen in #28177.
     
-    Benchstat:
-    name          old time/op    new time/op    delta
-    Hash8Bytes-8     281ns ± 4%     280ns ± 3%    ~     (p=0.640 n=10+10)
-    Hash1K-8        2.01µs ± 6%    2.02µs ± 3%    ~     (p=0.481 n=10+10)
-    Hash8K-8        14.2µs ± 6%    13.5µs ± 1%  -4.90%  (p=0.001 n=10+10)
+    CFGs can be turned on with the suffix mask:
+    :*            - dump CFG for every phase
+    :lower        - just the lower phase
+    :lower-layout - lower through layout
+    :w,x-y        - phases w and x through y
     
-    name          old speed      new speed      delta
-    Hash8Bytes-8  28.5MB/s ± 4%  28.5MB/s ± 3%    ~     (p=0.516 n=10+10)
-    Hash1K-8       510MB/s ± 6%   507MB/s ± 4%    ~     (p=0.481 n=10+10)
-    Hash8K-8       576MB/s ± 6%   605MB/s ± 1%  +5.02%  (p=0.001 n=10+10)
+    Calling dot after every pass is noticeably slow,
+    instead use the range of phases.
     
-    Tested on macbook pro 2018 Intel(R) Core(TM) i5-8259U CPU @ 2.30GHz
+    Dead blocks are not displayed on CFG.
     
-    Change-Id: I1f5b78096dd49d14ffcb9129142c4a4e05b81ff9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/171736
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    User can zoom and pan individual CFG
+    when the automatic adjustment has failed.
+    
+    Dot-related errors are reported
+    without bringing down the process.
+    
+    Fixes #28177
+    
+    Change-Id: Id52c42d86c4559ca737288aa10561b67a119c63d
+    Reviewed-on: https://go-review.googlesource.com/c/142517
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/crypto/sha512/sha512block.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/main.go    |  13 +-
+ src/cmd/compile/internal/gc/ssa.go     |   3 +-
+ src/cmd/compile/internal/ssa/func.go   |   1 +
+ src/cmd/compile/internal/ssa/html.go   | 344 +++++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/layout.go |   2 +
+ 5 files changed, 348 insertions(+), 15 deletions(-)

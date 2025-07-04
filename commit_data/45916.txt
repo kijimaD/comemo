@@ -1,28 +1,24 @@
-commit a98589711da5e9d935e8d690cfca92892e86d557
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Wed Jun 9 11:31:27 2021 -0700
+commit be3d8b40b5447f787174015260e85b5198e8f7e6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 28 00:43:50 2020 -0500
 
-    crypto/tls: test key type when casting
+    [dev.regabi] cmd/compile: ir.BranchStmt, add ir.EmptyStmt, ir.LabelStmt
     
-    When casting the certificate public key in generateClientKeyExchange,
-    check the type is appropriate. This prevents a panic when a server
-    agrees to a RSA based key exchange, but then sends an ECDSA (or
-    other) certificate.
+    These are the first three specific implementations of Node.
+    They are both a bit of a warmup and also working toward
+    removing references to Name from Node types other than
+    the proper named things - ONAME, ONONAME, OTYPE, OLITERAL.
+    (In this case, BranchStmt and LabelStmt.)
     
-    Fixes #47143
-    Fixes CVE-2021-34558
+    Passes buildall w/ toolstash -cmp.
     
-    Thanks to Imre Rad for reporting this issue.
-    
-    Change-Id: Iabccacca6052769a605cccefa1216a9f7b7f6aea
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1116723
-    Reviewed-by: Filippo Valsorda <valsorda@google.com>
-    Reviewed-by: Katie Hockman <katiehockman@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334031
-    Trust: Filippo Valsorda <filippo@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Ide816b162025ee4c858dd061d7c29ed633fb7baf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274091
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/tls/key_agreement.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ir/mini.go |  4 +-
+ src/cmd/compile/internal/ir/node.go | 13 +++---
+ src/cmd/compile/internal/ir/stmt.go | 83 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 92 insertions(+), 8 deletions(-)

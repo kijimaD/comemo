@@ -1,12 +1,87 @@
-commit 100bf440b9a69c6dce8daeebed038d607c963b8f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 12 17:31:11 2019 +0000
+commit 07f04607370bf46c6f3a12ac3e182068da403b86
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Jun 22 13:07:57 2019 +0530
 
-    net/http: fix some awkward wording in Request.WithContext docs
+    runtime,syscall/js: reuse wasm memory DataView
     
-    Change-Id: Ib37db42c7f1fd6aa55f70fd2d65d56bb2ae6d26a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/211098
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Currently, every call to mem() incurs a new DataView object. This was necessary
+    because the wasm linear memory could grow at any time.
+    
+    Now, whenever the memory grows, we make a call to the front-end. This allows us to
+    reuse the existing DataView object and create a new one only when the memory actually grows.
+    
+    This gives us a boost in performance during DOM operations, while incurring an extra
+    trip to front-end when memory grows. However, since the GrowMemory calls are meant to decrease
+    over the runtime of an application, this is a good tradeoff in the long run.
+    
+    The benchmarks have been tested inside a browser (Google Chrome 75.0.3770.90 (Official Build) (64-bit)).
+    It is hard to get stable nos. for DOM operations since the jumps make the timing very unreliable.
+    But overall, it shows a clear gain.
+    
+    name  old time/op  new time/op  delta
+    DOM    135µs ±26%    84µs ±10%  -37.22%  (p=0.000 n=10+9)
+    
+    Go1 benchmarks do not show any noticeable degradation:
+    name                   old time/op    new time/op    delta
+    BinaryTree17              22.5s ± 0%     22.5s ± 0%     ~     (p=0.743 n=8+9)
+    Fannkuch11                15.1s ± 0%     15.1s ± 0%   +0.17%  (p=0.000 n=9+9)
+    FmtFprintfEmpty           324ns ± 1%     303ns ± 0%   -6.64%  (p=0.000 n=9+10)
+    FmtFprintfString          535ns ± 1%     515ns ± 0%   -3.85%  (p=0.000 n=10+10)
+    FmtFprintfInt             609ns ± 0%     589ns ± 0%   -3.28%  (p=0.000 n=10+10)
+    FmtFprintfIntInt          938ns ± 0%     920ns ± 0%   -1.92%  (p=0.000 n=9+10)
+    FmtFprintfPrefixedInt     950ns ± 0%     924ns ± 0%   -2.72%  (p=0.000 n=10+9)
+    FmtFprintfFloat          1.41µs ± 1%    1.43µs ± 0%   +1.01%  (p=0.000 n=10+10)
+    FmtManyArgs              3.66µs ± 1%    3.46µs ± 0%   -5.43%  (p=0.000 n=9+10)
+    GobDecode                38.8ms ± 1%    37.8ms ± 0%   -2.50%  (p=0.000 n=10+8)
+    GobEncode                26.3ms ± 1%    26.3ms ± 0%     ~     (p=0.853 n=10+10)
+    Gzip                      1.16s ± 1%     1.16s ± 0%   -0.37%  (p=0.008 n=10+9)
+    Gunzip                    210ms ± 0%     208ms ± 1%   -1.01%  (p=0.000 n=10+10)
+    JSONEncode               48.0ms ± 0%    48.1ms ± 1%   +0.29%  (p=0.019 n=9+9)
+    JSONDecode                348ms ± 1%     326ms ± 1%   -6.34%  (p=0.000 n=10+10)
+    Mandelbrot200            6.62ms ± 0%    6.64ms ± 0%   +0.37%  (p=0.000 n=7+9)
+    GoParse                  23.9ms ± 1%    24.7ms ± 1%   +2.98%  (p=0.000 n=9+9)
+    RegexpMatchEasy0_32       555ns ± 0%     561ns ± 0%   +1.10%  (p=0.000 n=8+10)
+    RegexpMatchEasy0_1K      3.94µs ± 1%    3.94µs ± 0%     ~     (p=0.906 n=9+8)
+    RegexpMatchEasy1_32       516ns ± 0%     524ns ± 0%   +1.51%  (p=0.000 n=9+10)
+    RegexpMatchEasy1_1K      4.39µs ± 1%    4.40µs ± 1%     ~     (p=0.171 n=10+10)
+    RegexpMatchMedium_32     25.1ns ± 0%    25.5ns ± 0%   +1.51%  (p=0.000 n=9+8)
+    RegexpMatchMedium_1K      196µs ± 0%     203µs ± 1%   +3.23%  (p=0.000 n=9+10)
+    RegexpMatchHard_32       11.2µs ± 1%    11.6µs ± 1%   +3.62%  (p=0.000 n=10+10)
+    RegexpMatchHard_1K        334µs ± 1%     348µs ± 1%   +4.21%  (p=0.000 n=9+10)
+    Revcomp                   2.39s ± 0%     2.41s ± 0%   +0.78%  (p=0.000 n=8+9)
+    Template                  385ms ± 1%     336ms ± 0%  -12.61%  (p=0.000 n=10+9)
+    TimeParse                2.18µs ± 1%    2.18µs ± 1%     ~     (p=0.424 n=10+10)
+    TimeFormat               2.28µs ± 1%    2.22µs ± 1%   -2.30%  (p=0.000 n=10+10)
+    
+    name                   old speed      new speed      delta
+    GobDecode              19.8MB/s ± 1%  20.3MB/s ± 0%   +2.56%  (p=0.000 n=10+8)
+    GobEncode              29.1MB/s ± 1%  29.2MB/s ± 0%     ~     (p=0.810 n=10+10)
+    Gzip                   16.7MB/s ± 1%  16.8MB/s ± 0%   +0.37%  (p=0.007 n=10+9)
+    Gunzip                 92.2MB/s ± 0%  93.2MB/s ± 1%   +1.03%  (p=0.000 n=10+10)
+    JSONEncode             40.4MB/s ± 0%  40.3MB/s ± 1%   -0.28%  (p=0.025 n=9+9)
+    JSONDecode             5.58MB/s ± 1%  5.96MB/s ± 1%   +6.80%  (p=0.000 n=10+10)
+    GoParse                2.42MB/s ± 0%  2.35MB/s ± 1%   -2.83%  (p=0.000 n=8+9)
+    RegexpMatchEasy0_32    57.7MB/s ± 0%  57.0MB/s ± 0%   -1.09%  (p=0.000 n=8+10)
+    RegexpMatchEasy0_1K     260MB/s ± 1%   260MB/s ± 0%     ~     (p=0.963 n=9+8)
+    RegexpMatchEasy1_32    62.1MB/s ± 0%  61.1MB/s ± 0%   -1.53%  (p=0.000 n=10+10)
+    RegexpMatchEasy1_1K     233MB/s ± 1%   233MB/s ± 1%     ~     (p=0.190 n=10+10)
+    RegexpMatchMedium_32   39.8MB/s ± 0%  39.1MB/s ± 1%   -1.74%  (p=0.000 n=9+10)
+    RegexpMatchMedium_1K   5.21MB/s ± 0%  5.05MB/s ± 1%   -3.09%  (p=0.000 n=9+10)
+    RegexpMatchHard_32     2.86MB/s ± 1%  2.76MB/s ± 1%   -3.43%  (p=0.000 n=10+10)
+    RegexpMatchHard_1K     3.06MB/s ± 1%  2.94MB/s ± 1%   -4.06%  (p=0.000 n=9+10)
+    Revcomp                 106MB/s ± 0%   105MB/s ± 0%   -0.77%  (p=0.000 n=8+9)
+    Template               5.04MB/s ± 1%  5.77MB/s ± 0%  +14.48%  (p=0.000 n=10+9)
+    
+    Updates #32591
+    
+    Change-Id: Id567e14a788e359248b2129ef1cf0adc8cc4ab7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183457
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/net/http/request.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/wasm/wasm_exec.js    | 91 +++++++++++++++++++++++------------------------
+ src/runtime/mem_js.go     |  5 +++
+ src/runtime/sys_wasm.s    |  4 +++
+ src/syscall/js/js_test.go | 23 ++++++++++++
+ 4 files changed, 77 insertions(+), 46 deletions(-)

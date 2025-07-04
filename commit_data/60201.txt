@@ -1,0 +1,33 @@
+commit 22a80e78ea6d65cd0b0726b2907f31b884aeda93
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu May 23 13:32:50 2024 -0700
+
+    syscall: Setrlimit: always clean rlimitNofileCache
+    
+    Since the introduction of origRlimitNofileCache in CL 476097 the only way to
+    disable restoring RLIMIT_NOFILE before calling execve syscall
+    (os.StartProcess etc) is this:
+    
+            var r syscall.Rlimit
+            syscall.Getrlimit(syscall.RLIMIT_NOFILE, &r)
+            syscall.Setrlimit(syscall.RLIMIT_NOFILE, &r)
+    
+    The problem is, this only works when setrlimit syscall succeeds, which
+    is not possible in some scenarios.
+    
+    Let's assume that if a user calls syscall.Setrlimit, they
+    unconditionally want to disable restoring the original rlimit.
+    
+    For #66797.
+    
+    Change-Id: I20d0365df4bd6a5c3cc8c22b0c0db87a25b52746
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588076
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/rlimit.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

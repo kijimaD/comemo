@@ -1,13 +1,22 @@
-commit 9c767b64ee46ccdf6d483946ad5bffe967574989
-Author: David du Colombier <0intro@gmail.com>
-Date:   Thu Feb 13 16:35:51 2014 +0100
+commit 87d58f44a1e53a61c7bd4b11a7f7aa616f6e373d
+Author: Alexander Larsson <alexander.larsson@gmail.com>
+Date:   Thu Feb 13 20:08:30 2014 +1100
 
-    cmd/gc: catch notes on Plan 9
+    archive/tar: support extended attributes
     
-    LGTM=rsc
-    R=rsc, jas, gobot
-    CC=ality, golang-codereviews
-    https://golang.org/cl/51650051
+    This adds support for archives with the SCHILY.xattr field in the
+    pax header. This is what gnu tar and star generate.
+    Fixes #7154.
+    
+    LGTM=dsymonds
+    R=golang-codereviews, gobot, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/54570043
 
- src/cmd/gc/lex.c | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/pkg/archive/tar/common.go           |   2 ++
+ src/pkg/archive/tar/reader.go           |   8 +++++-
+ src/pkg/archive/tar/reader_test.go      |  44 ++++++++++++++++++++++++++++++--
+ src/pkg/archive/tar/testdata/xattrs.tar | Bin 0 -> 5120 bytes
+ src/pkg/archive/tar/writer.go           |   6 +++++
+ src/pkg/archive/tar/writer_test.go      |  40 +++++++++++++++++++++++++++++
+ 6 files changed, 97 insertions(+), 3 deletions(-)

@@ -1,14 +1,15 @@
-commit 76ea456e450c4d49266cdab16cbaca09aa1e8af0
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Wed Sep 28 12:00:17 2011 -0400
+commit 394842e2a56e49cb4e81f1d3cc875195cfe507a1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 28 08:12:38 2011 -0700
 
-    hgpatch: do not use hg exit status
+    net: add shutdown: TCPConn.CloseWrite and CloseRead
     
-    Fixes #2243.
-    
-    R=rsc
+    R=golang-dev, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/5146041
+    https://golang.org/cl/5136052
 
- src/cmd/hgpatch/main.go | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ src/pkg/net/fd.go            | 16 ++++++++++++++++
+ src/pkg/net/fd_windows.go    | 16 ++++++++++++++++
+ src/pkg/net/net_test.go      | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/tcpsock_posix.go | 18 ++++++++++++++++++
+ 4 files changed, 94 insertions(+)

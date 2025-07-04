@@ -1,18 +1,13 @@
-commit 1e233ad0759ad4e824a6bbb4bf2347d33cceba38
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Tue Nov 6 22:53:57 2012 +0100
+commit 882eb608b1987e6a7b27256bd13d1c533798381d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Nov 7 05:07:46 2012 +0800
 
-    cmd/6g: fix use of large integers as indexes or array sizes.
+    sort: fix comment for various Search routines
+    Fixes #4205 (again).
     
-    A check for smallintconst was missing before generating the
-    comparisons.
-    
-    Fixes #4348.
-    
-    R=golang-dev, rsc
+    R=r, 0xjnml
     CC=golang-dev
-    https://golang.org/cl/6815088
+    https://golang.org/cl/6819082
 
- src/cmd/6g/cgen.c           | 21 +++++++++++++++++++--
- test/fixedbugs/issue4348.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 47 insertions(+), 2 deletions(-)
+ src/pkg/sort/search.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

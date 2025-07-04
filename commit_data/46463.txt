@@ -1,23 +1,22 @@
-commit d09e09bc615a50e9f2f1144991ebeba08a7c6f05
-Author: wdvxdr <wdvxdr1123@gmail.com>
-Date:   Tue Sep 14 13:37:21 2021 +0800
+commit 7d55669847389b8d2e490400226f272023da8605
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 1 02:23:48 2021 -0800
 
-    cmd/compile: fixing writebarrier.go for -G=3
+    [dev.regabi] cmd/compile: simplify dwarfgen.declPos
     
-    This is caused by some nodes didn't carry the real line number.
-    Noder1 wraps these node with ir.ParenExpr. To fix this issue,
-    wraps this node like what noder1 does.
+    The previous code was way overcomplicating things. To find out if a
+    variable is a closure pseudo-variable, one only needs to check
+    IsClosureVar. Checking Captured and Byval are only meant to be used by
+    closure conversion.
     
-    Change-Id: I212cad09b93b8bf1a7adfad416d229d15711918a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349769
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Passes toolstash -cmp.
+    
+    Change-Id: I22622cba36ba7f60b3275d17999a8b6bb7c6719a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280995
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/noder/expr.go      | 5 +++--
- src/cmd/compile/internal/noder/noder.go     | 8 ++++++--
- src/cmd/compile/internal/noder/stmt.go      | 2 +-
- src/cmd/compile/internal/noder/transform.go | 4 ++++
- test/run.go                                 | 2 --
- 5 files changed, 14 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go | 18 ++----------------
+ 1 file changed, 2 insertions(+), 16 deletions(-)

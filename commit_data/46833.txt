@@ -1,25 +1,21 @@
-commit 59b2f516e8ec66b76789142fbba4787a0e80d09a
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Mar 29 16:15:50 2021 -0500
+commit 946351d5a27d7dc5550f579ddfec926790903fc5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 2 18:25:39 2021 -0500
 
-    cmd/internal/obj/ppc64: remove unused REG_DCR types
+    [dev.regabi] runtime: zero X15 in racecall
     
-    The assembler does not support parsing DCRx registers,
-    nor does the compiler generate opcodes with these.
+    racecall can be called in ABIInternal context (e.g. raceread
+    calling racecalladdr calling racecall) without wrapper. racecall
+    calls C code, which doesn't preserve our special registers. Set
+    them explicitly in racecall upon returning from C.
     
-    Likewise, these registers are only available on ISA
-    2.07 embedded processors which are not supported in
-    golang.
-    
-    Change-Id: Iea258e5958a2022bda0eee8348de1b06437148df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352790
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Ic990479c1fca6bb8a3b151325c7a89be8331a530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289709
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/internal/obj/ppc64/a.out.go |  1 -
- src/cmd/internal/obj/ppc64/asm9.go  | 18 +++---------------
- src/cmd/internal/obj/ppc64/list9.go |  5 +----
- 3 files changed, 4 insertions(+), 20 deletions(-)
+ src/runtime/race_amd64.s | 3 +++
+ 1 file changed, 3 insertions(+)

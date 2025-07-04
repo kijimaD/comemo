@@ -1,23 +1,22 @@
-commit 29162ec9a7d4ee08a558729236cd9bf50febee09
+commit ac53c9673d77dd37f7dd46b397fa64370129dc8c
 Author: Giovanni Bajo <rasky@develer.com>
-Date:   Tue Apr 3 18:59:44 2018 +0200
+Date:   Mon Nov 13 01:54:08 2017 +0100
 
-    cmd/compile: in prove, infer unsigned relations while branching
+    crypto/x509: update iOS root certs.
     
-    When a branch is followed, we apply the relation as described
-    in the domain relation table. In case the relation is in the
-    positive domain, we can also infer an unsigned relation if,
-    by that point, we know that both operands are non-negative.
+    Apple changed the format of its support page, so we need to
+    restructure the HTML parser. The HTML table is now parsed using
+    regular expressions, and certificates are then found in macOS
+    trust store by their fingerprint.
     
-    Fixes #20393
+    Fixes #22181
     
-    Change-Id: Ieaf0c81558b36d96616abae3eb834c788dd278d5
-    Reviewed-on: https://go-review.googlesource.com/100278
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I29e7a40d37770bb005d728f1832299c528691f7e
+    Reviewed-on: https://go-review.googlesource.com/77252
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Giovanni Bajo <rasky@develer.com>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 3 +++
- test/prove.go                         | 9 +++++++++
- 2 files changed, 12 insertions(+)
+ src/crypto/x509/root_darwin_arm_gen.go |   90 +-
+ src/crypto/x509/root_darwin_armx.go    | 8131 +++++++++++++++-----------------
+ 2 files changed, 3810 insertions(+), 4411 deletions(-)

@@ -1,22 +1,18 @@
-commit f28fa952b5f81a63afd96c9c58dceb99cc7d1dbf
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 26 14:21:03 2022 -0400
+commit b606739be6758615658188c8a6453256eaeccf35
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 7 15:13:51 2021 -0700
 
-    make.bat, make.rc: show bootstrap toolchain version
+    reflect: add test for passing float32 signaling NaNs
     
-    Print the bootstrap toolchain version on Plan 9 and Windows,
-    same as on all Unix systems since CL 204757 (Nov 2019).
-    This makes it easier to see what is going on in a build.
+    Update #40724
     
-    For #44505.
-    
-    Change-Id: I50cdd5e15a7c8b908e33e92780f8a3bca65c91ef
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419452
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: I110cdb7c4a2c5db6b85ca951143430555261abf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348017
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/make.bat | 10 ++++++----
- src/make.rc  |  6 +++++-
- 2 files changed, 11 insertions(+), 5 deletions(-)
+ src/reflect/abi_test.go | 25 +++++++++++++++++++++++++
+ src/reflect/all_test.go |  3 ++-
+ 2 files changed, 27 insertions(+), 1 deletion(-)

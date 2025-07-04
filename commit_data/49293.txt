@@ -1,31 +1,23 @@
-commit ed7c487178fb0abdf7cecc9d3368c65ab96ca584
-Author: Xiaodong Liu <liuxiaodong@loongson.cn>
-Date:   Thu May 19 20:01:10 2022 +0800
+commit 7aeaad5c86174f61b084d72d89fb02d7fc64391c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 4 20:55:28 2021 -0700
 
-    runtime: add loong64 to architectures known to TestGCInfo
+    runtime/cgo: when using msan explicitly unpoison cgoCallers
     
-    Contributors to the loong64 port are:
-      Weining Lu <luweining@loongson.cn>
-      Lei Wang <wanglei@loongson.cn>
-      Lingqin Gong <gonglingqin@loongson.cn>
-      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-      Meidan Li <limeidan@loongson.cn>
-      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
-      Qiyuan Pu <puqiyuan@loongson.cn>
-      Guoqi Chen <chenguoqi@loongson.cn>
+    This avoids an incorrect msan uninitialized memory report when using
+    runtime.SetCgoTraceback when a signal occurs while the fifth argument
+    register is undefined. See the issue for more details.
     
-    This port has been updated to Go 1.15.6:
-      https://github.com/loongson/go
+    Fixes #47543
     
-    Updates #46229
-    
-    Change-Id: I61bef32b38ab07543a147cf172b169eae21b26cf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368082
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: I3d1b673e2c93471ccdae0171a99b88b5a6062840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339902
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/gcinfo_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/testsanitizers/msan_test.go      |   1 +
+ misc/cgo/testsanitizers/testdata/msan8.go | 109 ++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_traceback.c           |  20 ++++++
+ 3 files changed, 130 insertions(+)

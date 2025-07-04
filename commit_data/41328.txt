@@ -1,62 +1,19 @@
-commit bd6d78ef37b5a607abfb530f3e353cfa653492f1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jan 6 22:24:02 2020 -0800
+commit 3e428363c4b793c552925703f206b9382fdfcb51
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 25 00:14:58 2019 -0700
 
-    cmd/compile: use loops to handle commutative ops in rules
+    cmd/compile: remove -s flag
     
-    Prior to this change, we generated additional rules at rulegen time
-    for all possible combinations of args to commutative ops.
-    This is simple and works well, but leads to lots of generated rules.
-    This in turn has increased the size of the compiler,
-    made it hard to compile package ssa on small machines,
-    and provided a disincentive to mark some ops as commutative.
+    This is better handled by tools like cmd/gofmt, which can
+    automatically rewrite the source code and already supports a syntactic
+    version of this simplification. (go/types can be used if
+    type-sensitive simplification is actually necessary.)
     
-    This change reworks how we handle commutative ops.
-    Instead of generating a rule per argument permutation,
-    we generate a series of nested loops, one for each commutative op.
-    Each loop tries both possible argument orderings.
-    
-    I also considered attempting to canonicalize the inputs to the
-    rewrite rules. However, because either or both arguments might be
-    nothing more than an identifier, and because there can be arbitrary
-    conditions to evaluate during matching, I did not see how to proceed.
-    
-    The duplicate rule detection now sorts arguments to commutative ops,
-    so that it can detect commutative-only duplicates.
-    
-    There may be further optimizations to the new generated code.
-    In particular, we may not be removing as many bounds checks as before;
-    I have not investigated deeply. If more work here is needed,
-    we could do it with more hints or with improvements to the prove pass.
-    
-    This change has almost no impact on the generated code.
-    It does not pass toolstash-check, however. In a handful of functions,
-    for reasons I do not understand, there are minor position changes.
-    
-    For the entire series ending at this change,
-    there is negligible compiler performance impact.
-    
-    The compiler binary shrinks by about 15%,
-    and package ssa shrinks by about 25%.
-    Package ssa also compiles ~25% faster with ~25% less memory.
-    
-    Change-Id: Ia2ee9ceae7be08a17342319d4e31b0bb238a2ee4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213703
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I51332a8f3ff4ab3087bc6b43a491c6d92b717228
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197118
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go        |   245 +-
- src/cmd/compile/internal/ssa/rewrite386.go         | 17838 +++---
- src/cmd/compile/internal/ssa/rewriteAMD64.go       | 33112 +++--------
- src/cmd/compile/internal/ssa/rewriteARM.go         |  4657 +-
- src/cmd/compile/internal/ssa/rewriteARM64.go       | 37078 +++++-------
- src/cmd/compile/internal/ssa/rewriteMIPS.go        |   952 +-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go      |   463 +-
- src/cmd/compile/internal/ssa/rewritePPC64.go       | 13619 +----
- src/cmd/compile/internal/ssa/rewriteRISCV64.go     |    45 +-
- src/cmd/compile/internal/ssa/rewriteS390X.go       | 26117 ++------
- src/cmd/compile/internal/ssa/rewrite_rule_idea.txt |    17 +
- src/cmd/compile/internal/ssa/rewritedec.go         |     6 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go     | 59114 ++++++-------------
- 13 files changed, 59508 insertions(+), 133755 deletions(-)
+ src/cmd/compile/internal/gc/main.go      | 1 -
+ src/cmd/compile/internal/gc/typecheck.go | 5 -----
+ 2 files changed, 6 deletions(-)

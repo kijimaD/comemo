@@ -1,26 +1,17 @@
-commit e9445547b6d04edc358ae60e2eb29db88fd67654
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Feb 27 14:20:15 2014 -0800
+commit dc6bf295b95f3b1141e81fea3e128d22e4282962
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 27 13:32:40 2014 -0800
 
-    runtime: move stack shrinking until after sweepgen is incremented.
+    net/http: make Transport.CancelRequest work for requests blocked in a dial
     
-    Before GC, we flush all the per-P allocation caches.  Doing
-    stack shrinking mid-GC causes these caches to fill up.  At the
-    end of gc, the sweepgen is incremented which causes all of the
-    data in these caches to be in a bad state (cached but not yet
-    swept).
+    Fixes #6951
     
-    Move the stack shrinking until after sweepgen is incremented,
-    so any caching that happens as part of shrinking is done with
-    already-swept data.
-    
-    Reenable stack copying.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=josharian
+    R=golang-codereviews, josharian
     CC=golang-codereviews
-    https://golang.org/cl/69620043
+    https://golang.org/cl/69280043
 
- src/pkg/runtime/mgc0.c | 8 +++++---
- src/pkg/runtime/proc.c | 1 -
- 2 files changed, 5 insertions(+), 4 deletions(-)
+ src/pkg/net/http/export_test.go    |  2 +-
+ src/pkg/net/http/transport.go      | 66 +++++++++++++++++++++++---------------
+ src/pkg/net/http/transport_test.go | 57 ++++++++++++++++++++++++++++++++
+ 3 files changed, 98 insertions(+), 27 deletions(-)

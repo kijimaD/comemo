@@ -1,15 +1,40 @@
-commit 24ea0330fe8bc7970a3fc5c5377d54bf0cbe8660
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Dec 23 12:09:38 2014 +1100
+commit aac17fd4e1cb83915b39632c9d351ef7e304bf63
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 23:00:29 2014 -0500
 
-    build: give freebsd longer to run tests
+    [dev.cc] runtime: convert freebsd to Go
     
-    The freebsd-386 and freebsd-amd64 builders are timing out sometimes.
-    This will give them some more breathing room.
+    It builds.
+    Don't know if it works, but it's a lot closer than having everything in C.
     
-    Change-Id: Ib65bd172cca046a52861759a4232d7b4b6514fa8
-    Reviewed-on: https://go-review.googlesource.com/1994
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/168590043
 
- src/run.bash | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/runtime/{os_linux_amd64.go => cputicks.go}     |   2 +
+ src/runtime/defs_freebsd_386.go                    |  88 +++---
+ src/runtime/defs_freebsd_amd64.go                  |  92 +++---
+ src/runtime/defs_freebsd_arm.go                    |  28 +-
+ src/runtime/mem_bsd.go                             |  88 ++++++
+ src/runtime/mem_dragonfly.c                        | 105 -------
+ src/runtime/mem_freebsd.c                          | 100 -------
+ src/runtime/mem_netbsd.c                           | 100 -------
+ src/runtime/mem_openbsd.c                          | 100 -------
+ src/runtime/os1_freebsd.go                         | 221 ++++++++++++++
+ src/runtime/os2_freebsd.go                         |  12 +
+ src/runtime/os_darwin.go                           |   4 -
+ src/runtime/os_freebsd.c                           | 320 ---------------------
+ src/runtime/os_freebsd.go                          |  29 +-
+ src/runtime/os_freebsd.h                           |  29 --
+ .../{os_freebsd_arm.c => os_freebsd_arm.go}        |  17 +-
+ src/runtime/os_linux_386.go                        |   4 -
+ src/runtime/signal_freebsd.go                      |  46 +++
+ src/runtime/signal_freebsd_386.go                  |  34 +++
+ src/runtime/signal_freebsd_386.h                   |  23 --
+ src/runtime/signal_freebsd_amd64.go                |  44 +++
+ src/runtime/signal_freebsd_amd64.h                 |  31 --
+ src/runtime/signal_freebsd_arm.go                  |  48 ++++
+ src/runtime/signal_freebsd_arm.h                   |  28 --
+ src/runtime/signals_freebsd.h                      |  54 ----
+ 25 files changed, 639 insertions(+), 1008 deletions(-)

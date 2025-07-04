@@ -1,19 +1,20 @@
-commit 54a2f4b6763b6e9c37ac86329af1b8d8f2e51b58
-Author: Michael Pratt <mpratt@google.com>
-Date:   Thu Jun 2 16:56:41 2022 -0400
+commit c92f5ee170e6f9c639f1ca684061a0cedde54108
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 12 12:30:34 2021 -0400
 
-    doc/go1.19: add release notes for runtime packages
+    cmd/link: start at address 0 when external linking
     
-    This documents most of the changes in runtime packages, which the major
-    exception of GC changes, which will be documented in a future CL.
+    When external linking, we are creating an object file, instead of
+    a executable. The absolute address is irrelevant. The external
+    linker will set it up. Start at address 0.
     
-    For #51400
-    
-    Change-Id: Ibcf501e1b4f7caa3397db6b9136daec07aac5a65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410117
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I3a2e0b8087b328d5c3144f29ca8ba6311aa39cba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319830
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go1.19.html | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 75 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 4 +++-
+ src/cmd/link/internal/ld/pe.go  | 2 ++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

@@ -1,24 +1,18 @@
-commit 0031fa80a3c6685e44e84533edbae0dad0eb0395
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu May 7 00:35:28 2020 +0700
+commit e6ebbe0d20fe877b111cf4ccf8349cba129d6d3a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 4 18:07:23 2020 +0000
 
-    cmd/compile: another fix initializing blank fields in struct literal
+    syscall: Revert "release a js.Func object in fsCall"
     
-    CL 230121 fixed the bug that struct literal blank fields type array/struct
-    can not be initialized. But it still misses some cases when an expression
-    causes "candiscard(value)" return false. When these happen, we recursively
-    call fixedlit with "var_" set to "_", and hit the bug again.
+    This reverts CL 217417 (commit 753d56d3642eb83848aa39e65982a9fc77e722d7).
     
-    To fix it, just making splitnode return "nblank" whenever "var_" is "nblank".
+    This change was unintentionally submitted to master during the
+    Go 1.14 code freeze; it should be sent again for Go 1.15.
     
-    Fixes #38905
-    
-    Change-Id: I281941b388acbd551a4d8ca1a235477f8d26fb6e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/232617
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie790342f227ae3adfc5f9a90ce3abdc2c9be619b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217721
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go |  6 +++++-
- test/fixedbugs/issue38905.go         | 18 ++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/syscall/fs_js.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

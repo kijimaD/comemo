@@ -1,14 +1,19 @@
-commit 52b95970ca62033d579d2490470dcfdca986fc3d
-Author: Rob Pike <r@golang.org>
-Date:   Thu Mar 17 15:29:52 2011 -0700
+commit 42bc7fc8caf7c5e367cdfc7b8a2b952281ed89ae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 17 13:42:40 2011 -0700
 
-    flag: fix example in doc comment.
+    net: Don't force epoll/kqueue to wake up in order to add new events.
     
-    Fixes #1615.
+    In conjunction with the non-blocking system call CL, this
+    gives about an 8% performance improvement on a client/server
+    test running on my local machine.
     
-    R=dsymonds
+    R=rsc, iant2
     CC=golang-dev
-    https://golang.org/cl/4277058
+    https://golang.org/cl/4272057
 
- src/pkg/flag/flag.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/fd.go         | 62 +++++++++++++++++++++++------------------------
+ src/pkg/net/fd_darwin.go  |  6 ++++-
+ src/pkg/net/fd_freebsd.go |  6 ++++-
+ src/pkg/net/fd_linux.go   | 14 ++++++++++-
+ 4 files changed, 53 insertions(+), 35 deletions(-)

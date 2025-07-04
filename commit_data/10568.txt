@@ -1,19 +1,67 @@
-commit d5f37122d2235630aad5a67ec45f7d6976c4f2ed
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Dec 1 12:38:00 2011 -0500
+commit bac7bc55a6a8776f45144452a7236e34cdb09de6
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 1 12:35:37 2011 -0500
 
-    crypto/tls: cleanup certificate load on windows
+    Add a []byte argument to hash.Hash to allow an allocation to be saved.
     
-    - correct syscall.CertEnumCertificatesInStore so it returns error
-    - remove "reflect" dependency
+    This is the result of running `gofix -r hashsum` over the tree, changing
+    the hash function implementations by hand and then fixing a couple of
+    instances where gofix didn't catch something.
     
-    R=hectorchu, agl, rsc
-    CC=golang-dev, krautz
-    https://golang.org/cl/5441052
+    The changed implementations are as simple as possible while still
+    working: I'm not trying to optimise in this CL.
+    
+    R=rsc, cw, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/5448065
 
- src/pkg/crypto/tls/root_windows.go        | 27 ++++++++++-----------------
- src/pkg/syscall/syscall_windows.go        |  2 +-
- src/pkg/syscall/zsyscall_windows_386.go   | 11 +++++++++--
- src/pkg/syscall/zsyscall_windows_amd64.go | 11 +++++++++--
- src/pkg/syscall/ztypes_windows.go         |  2 +-
- 5 files changed, 30 insertions(+), 23 deletions(-)
+ src/cmd/cgo/main.go                                |  2 +-
+ src/cmd/gofix/typecheck.go                         |  2 +-
+ src/pkg/archive/tar/reader_test.go                 |  2 +-
+ src/pkg/crypto/ecdsa/ecdsa_test.go                 |  2 +-
+ src/pkg/crypto/hmac/hmac.go                        |  8 ++--
+ src/pkg/crypto/hmac/hmac_test.go                   |  2 +-
+ src/pkg/crypto/md4/md4.go                          | 15 +++---
+ src/pkg/crypto/md4/md4_test.go                     |  4 +-
+ src/pkg/crypto/md5/md5.go                          | 15 +++---
+ src/pkg/crypto/md5/md5_test.go                     |  4 +-
+ src/pkg/crypto/ocsp/ocsp.go                        |  2 +-
+ src/pkg/crypto/openpgp/canonical_text.go           |  4 +-
+ src/pkg/crypto/openpgp/canonical_text_test.go      |  6 +--
+ src/pkg/crypto/openpgp/packet/private_key.go       |  2 +-
+ src/pkg/crypto/openpgp/packet/public_key.go        |  4 +-
+ src/pkg/crypto/openpgp/packet/signature.go         |  2 +-
+ .../openpgp/packet/symmetrically_encrypted.go      |  4 +-
+ src/pkg/crypto/openpgp/s2k/s2k.go                  |  4 +-
+ src/pkg/crypto/ripemd160/ripemd160.go              | 12 ++---
+ src/pkg/crypto/ripemd160/ripemd160_test.go         |  6 +--
+ src/pkg/crypto/rsa/pkcs1v15_test.go                |  4 +-
+ src/pkg/crypto/rsa/rsa.go                          |  6 +--
+ src/pkg/crypto/sha1/sha1.go                        | 15 +++---
+ src/pkg/crypto/sha1/sha1_test.go                   |  4 +-
+ src/pkg/crypto/sha256/sha256.go                    | 22 ++++-----
+ src/pkg/crypto/sha256/sha256_test.go               |  8 ++--
+ src/pkg/crypto/sha512/sha512.go                    | 30 ++++++------
+ src/pkg/crypto/sha512/sha512_test.go               |  8 ++--
+ src/pkg/crypto/tls/cipher_suites.go                |  6 +--
+ src/pkg/crypto/tls/handshake_client.go             |  4 +-
+ src/pkg/crypto/tls/handshake_server.go             |  4 +-
+ src/pkg/crypto/tls/key_agreement.go                |  4 +-
+ src/pkg/crypto/tls/prf.go                          | 26 +++++------
+ src/pkg/crypto/x509/x509.go                        |  6 +--
+ src/pkg/exp/ssh/client.go                          |  2 +-
+ src/pkg/exp/ssh/client_auth_test.go                |  2 +-
+ src/pkg/exp/ssh/server.go                          |  6 +--
+ src/pkg/exp/ssh/transport.go                       | 12 ++---
+ src/pkg/hash/adler32/adler32.go                    | 13 +++---
+ src/pkg/hash/crc32/crc32.go                        | 13 +++---
+ src/pkg/hash/crc64/crc64.go                        | 21 ++++-----
+ src/pkg/hash/fnv/fnv.go                            | 53 +++++++++++++++-------
+ src/pkg/hash/fnv/fnv_test.go                       | 12 ++---
+ src/pkg/hash/hash.go                               |  6 +--
+ src/pkg/io/multi_test.go                           |  2 +-
+ src/pkg/patch/git.go                               |  2 +-
+ src/pkg/websocket/hixie.go                         |  2 +-
+ src/pkg/websocket/hybi.go                          |  2 +-
+ test/fixedbugs/bug257.go                           |  5 +-
+ 49 files changed, 202 insertions(+), 200 deletions(-)

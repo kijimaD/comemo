@@ -1,19 +1,14 @@
-commit 4378746a4b4160d5851d1daa68383a514aadad6f
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Dec 16 21:09:03 2015 -0500
+commit 2dc88eead8d28c6d84f60e30746d90a76f920be6
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 19 16:13:58 2015 -0700
 
-    cmd/dist: show output from failed compiler execution
+    [dev.ssa] cmd/compile: Don't rematerialize getg
     
-    Maybe it will say something that helps the user understand the problem.
+    It isn't safe in functions that also call setg.
     
-    Note that we can't use os/exec.ExitError's new Stderr field because
-    cmd/dist is compiled with Go 1.4.
-    
-    Fixes #13099.
-    
-    Change-Id: I4b5910434bf324d1b85107002a64684d8ba14dc8
-    Reviewed-on: https://go-review.googlesource.com/17940
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I76a7bf0401b4b6c8a129c245b15a2d6f06080e94
+    Reviewed-on: https://go-review.googlesource.com/16095
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/cmd/dist/build.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

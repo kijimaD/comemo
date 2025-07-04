@@ -1,20 +1,21 @@
-commit c7227bc72c5ceaf9f957473cdde4753edc6155cd
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jul 23 23:09:07 2024 -0400
+commit 6801c27837b44b40aef0878a8a611413ef46e3eb
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 7 21:36:19 2023 +0200
 
-    runtime: make TestDebugLogInterleaving much more robust
+    crypto/tls: make SessionState.Extra a slice of byte slices
     
-    The current test often doesn't actually generate enough interleaving
-    to result in multiple log shards. This CL rewrites this test to
-    forcibly create at least 10 log shards with interleaved log messages.
-    It also tests dlog's robustness to being held across M and P switches.
+    Fixes #60539
+    Updates #60105
     
-    Change-Id: Ia913b17c0392384ff679832047f359945669bb15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/600699
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Change-Id: I7b567cc1d0901891ed97d29591db935cd487cc71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501675
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/runtime/debuglog_test.go        | 70 +++++++++++++++++++++++++++----------
- src/runtime/export_debuglog_test.go | 10 ++++++
- 2 files changed, 62 insertions(+), 18 deletions(-)
+ api/go1.21.txt                            |  2 +-
+ src/crypto/tls/handshake_messages_test.go |  4 +++-
+ src/crypto/tls/ticket.go                  | 31 +++++++++++++++++++++++--------
+ 3 files changed, 27 insertions(+), 10 deletions(-)

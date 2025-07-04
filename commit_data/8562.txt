@@ -1,15 +1,12 @@
-commit f4349f7368ae46cf7aa34119a6c930ae7be113a2
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue May 31 13:16:51 2011 -0700
+commit 4706ce309f9176f7726f824fe88ebae79ccda6e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 31 16:15:23 2011 -0400
 
-    gophertool: also permit typing "go [whatever]" in omnibox
+    net: stop Mac popups
     
-    R=rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4560056
+    https://golang.org/cl/4559059
 
- misc/chrome/gophertool/background.html | 24 +++++++++++++++++++
- misc/chrome/gophertool/gopher.js       | 34 +++++++++++++++++++++++++++
- misc/chrome/gophertool/manifest.json   |  5 ++++
- misc/chrome/gophertool/popup.html      | 42 +++++++++++-----------------------
- 4 files changed, 76 insertions(+), 29 deletions(-)
+ src/pkg/net/server_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

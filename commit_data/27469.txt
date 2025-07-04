@@ -1,25 +1,23 @@
-commit 16f846a9cbe747b13498761f1dd1a298478ec43e
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 19 17:35:23 2016 +0000
+commit d0fb649713e6435cb854fcb202c6979c8a137c0b
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Tue Mar 29 14:09:22 2016 +0200
 
-    net/http: update bundled http2
+    all: use &^ operator if possible
     
-    Updates x/net/http2 to git rev 202ff482 for https://golang.org/cl/23235 (Expect:
-    100-continue support for HTTP/2)
+    This is a change improving consistency in the source tree.
+    The pattern foo &= ^bar, was only used six times in src/ directory.
+    The usage of the supported &^ (bit clear / AND NOT) operator is way more
+    common, about factor 10x.
     
-    Fixes a flaky test too, and changes the automatic HTTP/2 behavior to
-    no longer special-case the DefaultTransport, because
-    ExpectContinueTimeout is no longer unsupported by the HTTP/2
-    transport.
-    
-    Fixes #13851
-    Fixes #15744
-    
-    Change-Id: I3522aace14179a1ca070fd7063368a831167a0f7
-    Reviewed-on: https://go-review.googlesource.com/23254
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: If26a2994fd81d23d42189bee00245eb84e672cf3
+    Reviewed-on: https://go-review.googlesource.com/21224
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/h2_bundle.go      | 168 ++++++++++++++++++++++++++++++++++-------
- src/net/http/transport.go      |  15 +---
- src/net/http/transport_test.go |  17 +++--
- 3 files changed, 153 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/gc/gsubr.go | 2 +-
+ src/cmd/link/internal/ld/link.go     | 2 +-
+ src/crypto/elliptic/p256.go          | 4 ++--
+ src/syscall/exec_unix.go             | 2 +-
+ src/syscall/lsf_linux.go             | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,19 +1,21 @@
-commit c4650640675629f52f985217050fd68fa9043b23
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 4 15:29:09 2018 -0700
+commit c5f3a8b10797258cf527601a44bfdfa63d5ef1a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 11 15:09:38 2018 -0800
 
-    cmd/go: for gccgo, don't edit cgo header when using -o
+    go/parser: more robust error handling for 'if' headers
     
-    This change was made to the gccgo sources as part of CL 47037.
-    It is required to make the testcarchive and testcshared tests work.
-    Otherwise using `go build -mode=c-archive -o libgo.a` will cause the
-    header file to be named go.h rather than libgo.h.
+    R=go1.11
     
-    Change-Id: I2db1d7b0f575368b31273cc01097447a0471efd6
-    Reviewed-on: https://go-review.googlesource.com/111615
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    To fix this, this CL borrows code from the new syntax
+    package which has a better tuned parser at this point.
+    
+    Fixes #11377.
+    
+    Change-Id: Ib9212c945903d6f62abcc59ef5a5767d4ef36981
+    Reviewed-on: https://go-review.googlesource.com/87495
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/work/action.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/parser/parser.go               | 90 +++++++++++++++++++++++++----------
+ src/go/parser/short_test.go           | 10 ++--
+ src/go/parser/testdata/issue11377.src | 27 +++++++++++
+ 3 files changed, 98 insertions(+), 29 deletions(-)

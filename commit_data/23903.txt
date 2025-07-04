@@ -1,22 +1,25 @@
-commit c4092ac3981413959eb62f7515c263531fd832da
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jul 30 00:46:42 2015 -0400
+commit d0652e7f82da12e84fb143c4ad6c19e39f238f05
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 19 12:39:02 2015 +1000
 
-    cmd/compile: fix uninitialized memory during type switch assertE2I2
+    cmd/doc: add test
     
-    Fixes arm64 builder crash.
+    Refactor main a bit to make it possible to run tests without an exec every time.
+    (Makes a huge difference in run time.)
     
-    The bug is possible on all architectures; you just have to get lucky
-    and hit a preemption or a stack growth on entry to assertE2I2.
-    The test stacks the deck.
+    Add a silver test. Not quite golden, since it looks for pieces rather than the
+    full output, and also includes tests for what should not appear.
     
-    Change-Id: I8419da909b06249b1ad15830cbb64e386b6aa5f6
-    Reviewed-on: https://go-review.googlesource.com/12890
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #10920.
+    
+    Change-Id: I6a4951cc14e61763379754a10b0cc3484d30c267
+    Reviewed-on: https://go-review.googlesource.com/11272
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/swt.go |  3 ++
- src/runtime/export_test.go         |  2 ++
- src/runtime/gc_test.go             | 57 ++++++++++++++++++++++++++++++++++++++
- src/runtime/iface.go               |  9 ++++--
- 4 files changed, 68 insertions(+), 3 deletions(-)
+ misc/nacl/testzip.proto     |   6 +
+ src/cmd/doc/doc_test.go     | 343 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/doc/main.go         |  53 +++++--
+ src/cmd/doc/pkg.go          |  49 +++++--
+ src/cmd/doc/testdata/pkg.go |  91 ++++++++++++
+ 5 files changed, 514 insertions(+), 28 deletions(-)

@@ -1,18 +1,30 @@
-commit af9009a989d69d3f5560dc7bd8ccf1574ea6a519
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Aug 27 15:08:02 2021 -0400
+commit 6b18081d01f6f87b9af9e5b3910f1379d52a13eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 14 17:23:00 2020 -0800
 
-    cmd/go/internal/modload: remove go117LazyTODO
+    [dev.typeparams] cmd/compile/internal/types2: don't crash if import path is missing
     
-    Replace the last remaining use with a reference to #48024.
+    In package syntax:
+    - fix parser appendGroup to not add nil entries
+    - non-string paths are syntax errors per the spec; report in parser
+    - document ImportDecl.Path invariants
     
-    Change-Id: I699711b4e42abe9c6d3512c28d2ee81a84e3263a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345392
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    In package types2:
+    - guard against absent paths
+    
+    In package gc:
+    - guard against absent paths
+    
+    Fixes #43190.
+    
+    Change-Id: Ic6a06f6a96b7f519feaa1ceaf4376fc5ab0f0129
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278114
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/modload/edit.go    | 10 ++++------
- src/cmd/go/internal/modload/modfile.go |  7 -------
- 2 files changed, 4 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/noder.go               |  2 +-
+ src/cmd/compile/internal/syntax/nodes.go           |  4 ++--
+ src/cmd/compile/internal/syntax/parser.go          | 22 +++++++++++-----------
+ .../internal/types2/fixedbugs/issue43190.src       | 19 +++++++++++++++++++
+ src/cmd/compile/internal/types2/resolver.go        |  2 +-
+ 5 files changed, 34 insertions(+), 15 deletions(-)

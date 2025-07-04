@@ -1,24 +1,18 @@
-commit b8ddcc0a03415786bb6278849530c88bfa5b97e6
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Sat Mar 12 13:53:19 2016 +0100
+commit 0b3807a2a370a55e06040cafa85a76b90d06eb6f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 8 14:27:02 2016 -0800
 
-    fmt: cleanup %p and %T code paths
+    go/types, go/importer: importing package unsafe is responsibility of importer
     
-    Remove check for %p and %T in printValue.
-    These verbs are not recursive and are handled already in
-    printArg which is called on any argument before printValue.
+    TBR adonovan
     
-    Format the type string for %T directly instead of invoking
-    the more complex printArg with %s on the type string.
+    Fixes #13882.
     
-    Decouple the %T tests from variables declared in scan_test.go.
-    
-    Change-Id: Ibd51566bd4cc1a260ce6d052f36382ed05020b48
-    Reviewed-on: https://go-review.googlesource.com/20622
-    Run-TryBot: Rob Pike <r@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8664669f5d6adfec6f16e154263b1f0ea8988175
+    Reviewed-on: https://go-review.googlesource.com/18445
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/fmt/fmt_test.go |  6 ++++--
- src/fmt/print.go    | 20 +++++---------------
- 2 files changed, 9 insertions(+), 17 deletions(-)
+ src/go/internal/gcimporter/gcimporter.go | 8 +++-----
+ src/go/types/api.go                      | 9 +++++----
+ src/go/types/resolver.go                 | 3 ---
+ 3 files changed, 8 insertions(+), 12 deletions(-)

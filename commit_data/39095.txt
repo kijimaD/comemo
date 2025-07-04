@@ -1,22 +1,15 @@
-commit c514071988ac08249c8675dfa501ad242c4c0cec
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 8 18:50:52 2019 -0400
+commit ed78c90a784f9703857c3303d871b973ee2f0102
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Dec 30 08:22:27 2018 -1000
 
-    encoding/gob: rename encBuffer.WriteByte to writeByte
+    strconv: make docs for Itoa and Atoi slightly higher level
     
-    Renaming the method makes clear, both to readers and to vet,
-    that this method is not the implementation of io.ByteWriter.
+    Fixes #29461
     
-    Working toward making the tree vet-safe instead of having
-    so many exceptions in cmd/vet/all/whitelist.
-    
-    For #31916.
-    
-    Change-Id: I5b509eb7f0118d5f2d3c6e352ff2849cd5a3071e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/176110
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I5db8bc80e5bd0778dced8471581c67e66853aada
+    Reviewed-on: https://go-review.googlesource.com/c/155924
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/all/whitelist/all.txt | 4 ----
- src/encoding/gob/encode.go        | 4 ++--
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ src/strconv/atoi.go | 2 +-
+ src/strconv/itoa.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

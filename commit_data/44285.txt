@@ -1,26 +1,29 @@
-commit b19e7b518e564cd309d3eb68dfd2da8839a7433b
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 28 09:23:35 2021 -0500
+commit 60cbff6f1906ec1bbc939acfb7cc97b18e639ce9
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Mon May 11 16:21:54 2020 -0700
 
-    runtime: clean up windows a bit
+    crypto/x509: match cgo and Apple behavior in domain fallback of macOS roots
     
-    Document the various hard-coded architecture checks
-    or remove them in favor of more general checks.
-    This should be a no-op now but will make the arm64 port
-    have fewer diffs.
+    This change makes the direct call darwin loadSystemRoots implementation
+    match the existing cgo implementation, which in turn _mostly_ matches
+    the Apple implementation. The main change here is that when
+    SecTrustSettingsCopyTrustSettings the error is ignored, and can either
+    cause a fallback to check admin trust settings, or cause the
+    certificate to be marked kSecTrustSettingsResultUnspecified.
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
-    This CL is, however, not windows/arm64-specific.
-    It is cleanup meant to make the port (and future ports) easier.
+    As well as updating the implementation to match the cgo one, this
+    change also updates the documentation of how the fallbacks work and
+    how they match the Apple implementations. References are made to the
+    Apple source where appropriate. This change does not update the
+    existing comments in the cgo implementation, since the goal is to
+    delete that code once the direct call implementation is matured.
     
-    Change-Id: Ifd6b19e44e8c9ca4a0d2590f314928ce235821b3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288813
-    Trust: Russ Cox <rsc@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Updates #38888
+    
+    Change-Id: Id0344ea9d2eede3b715f341e9cbd3c1c661b7a90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233360
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- src/runtime/os_windows.go      | 12 ++++++++----
- src/runtime/signal_windows.go  | 13 ++++++-------
- src/runtime/syscall_windows.go |  3 ++-
- 3 files changed, 16 insertions(+), 12 deletions(-)
+ src/crypto/x509/root_darwin_amd64.go | 41 ++++++++++++++++++++++++++----------
+ 1 file changed, 30 insertions(+), 11 deletions(-)

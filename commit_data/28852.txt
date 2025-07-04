@@ -1,33 +1,12 @@
-commit 237d7e34bc7579ec499a029191c33106dc5476a1
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 13 15:27:04 2016 -0400
+commit 1003b3e1f06935070a0000a41011898325b100ce
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 15 12:01:23 2016 -0700
 
-    cmd/dist: use debug/pe directly for cmd/link
+    doc: update version tag in source install instructions
     
-    Delete vendored copy.
-    
-    Change-Id: I06e9d3b709553a1a8d06275e99bd8f617aac5788
-    Reviewed-on: https://go-review.googlesource.com/31011
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id83e0371b7232b01be83640ef1e47f9026cf2a23
+    Reviewed-on: https://go-review.googlesource.com/27055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/nacl/testzip.proto                            |   5 -
- src/cmd/dist/buildtool.go                          |   2 +-
- src/cmd/link/internal/ld/ldpe.go                   |   2 +-
- src/cmd/link/internal/pe/file.go                   | 343 -----------------
- src/cmd/link/internal/pe/file_test.go              | 417 ---------------------
- src/cmd/link/internal/pe/pe.go                     | 110 ------
- src/cmd/link/internal/pe/section.go                | 112 ------
- src/cmd/link/internal/pe/string.go                 |  67 ----
- src/cmd/link/internal/pe/symbol.go                 |  96 -----
- .../link/internal/pe/testdata/gcc-386-mingw-exec   | Bin 29941 -> 0 bytes
- .../pe/testdata/gcc-386-mingw-no-symbols-exec      | Bin 8704 -> 0 bytes
- .../link/internal/pe/testdata/gcc-386-mingw-obj    | Bin 2372 -> 0 bytes
- .../link/internal/pe/testdata/gcc-amd64-mingw-exec | Bin 273083 -> 0 bytes
- .../link/internal/pe/testdata/gcc-amd64-mingw-obj  | Bin 736 -> 0 bytes
- src/cmd/link/internal/pe/testdata/hello.c          |   8 -
- src/cmd/link/internal/pe/vendor.bash               |  31 --
- src/debug/pe/file.go                               |   7 +-
- src/debug/pe/section.go                            |   2 +-
- src/debug/pe/string.go                             |   2 +-
- src/debug/pe/symbol.go                             |   2 +-
- 20 files changed, 10 insertions(+), 1196 deletions(-)
+ doc/install-source.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

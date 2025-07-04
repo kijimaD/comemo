@@ -1,18 +1,21 @@
-commit 9ddb8ea73724d717a9bbf44be7d585ba5587504f
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Oct 14 14:24:30 2022 -0400
+commit 01b6cf09fc9f272d9db3d30b4c93982f4911d120
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 15 15:56:39 2021 -0800
 
-    os/signal: add missing newlines to TestTerminalSignal
+    runtime: check GOAMD64 compatibility after setting up TLS
     
-    For #37329.
-    For #56233.
+    We need TLS set up to be able to print an error without crashing.
     
-    Change-Id: Iafcddaddafd2d27fa5d535b57aaefec387f0b3f0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/443066
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #49586
+    Update #45453
+    
+    Change-Id: I97f0efcd716a8dca614e82ab73f2d855b7277599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364174
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
+    Trust: Keith Randall <khr@golang.org>
 
- src/os/signal/signal_cgo_test.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/runtime/asm_amd64.s | 136 +++++++++++++++++++++++-------------------------
+ 1 file changed, 64 insertions(+), 72 deletions(-)

@@ -1,14 +1,12 @@
-commit 6383896feeafde38c50aa04fc87afc7faf8225c6
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Aug 23 13:13:43 2013 +0900
+commit e541c861a3e2d012e8acee84185f32c6fecac9f5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 22 12:34:05 2013 +1000
 
-    net: update doc on socket
+    net: fix misspelled variable name (fixes windows build)
     
-    Also makes variable names a bit cleaner.
-    
-    R=golang-dev, dave, r
-    CC=golang-dev
-    https://golang.org/cl/12808047
+    R=golang-dev, adg
+    CC=golang-dev, mikioh.mikioh
+    https://golang.org/cl/12848047
 
- src/pkg/net/sock_posix.go | 45 ++++++++++++++++++++++++++-------------------
- 1 file changed, 26 insertions(+), 19 deletions(-)
+ src/pkg/net/lookup_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

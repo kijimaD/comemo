@@ -1,48 +1,50 @@
-commit 28f8dbd7b941648aea311bb0cf331f88c02441b6
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Dec 2 09:25:26 2022 +0100
+commit 3c42ebf3e2dccbe228b78ca2e157010a7d3c5b9d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jan 21 18:34:03 2022 +1100
 
-    runtime,cmd/internal/obj/x86: use TEB TLS slots on windows/i386
+    internal/bytealg: optimise memequal on riscv64
     
-    This CL redesign how we get the TLS pointer on windows/i386.
-    It applies the same changes as done in CL 431775 for windows/amd64.
+    Implement memequal using loops that process 32 bytes, 16 bytes, 4 bytes
+    or 1 byte depending on size and alignment. For comparisons that are less
+    than 32 bytes the overhead of checking and adjusting alignment usually
+    exceeds the overhead of reading and processing 4 bytes at a time.
     
-    We were previously reading it from the [TEB] arbitrary data slot,
-    located at 0x14(FS), which can only hold 1 TLS pointer.
+    Updates #50615
     
-    With this CL, we will read the TLS pointer from the TEB TLS slot array,
-    located at 0xE10(GS). The TLS slot array can hold multiple
-    TLS pointers, up to 64, so multiple Go runtimes running on the
-    same thread can coexists with different TLS.
+    name                 old time/op    new time/op     delta
+    Equal/0-4              38.3ns _ 0%     43.1ns _ 0%    +12.54%  (p=0.000 n=3+3)
+    Equal/1-4              77.7ns _ 0%     90.3ns _ 0%    +16.27%  (p=0.000 n=3+3)
+    Equal/6-4               116ns _ 0%      121ns _ 0%     +3.85%  (p=0.002 n=3+3)
+    Equal/9-4               137ns _ 0%      126ns _ 0%     -7.98%  (p=0.000 n=3+3)
+    Equal/15-4              179ns _ 0%      170ns _ 0%     -4.77%  (p=0.001 n=3+3)
+    Equal/16-4              186ns _ 0%      159ns _ 0%    -14.65%  (p=0.000 n=3+3)
+    Equal/20-4              215ns _ 0%      178ns _ 0%    -17.18%  (p=0.000 n=3+3)
+    Equal/32-4              298ns _ 0%      101ns _ 0%    -66.22%  (p=0.000 n=3+3)
+    Equal/4K-4             28.9_s _ 0%      2.2_s _ 0%    -92.56%  (p=0.000 n=3+3)
+    Equal/4M-4             29.6ms _ 0%      2.2ms _ 0%    -92.72%  (p=0.000 n=3+3)
+    Equal/64M-4             758ms _75%       35ms _ 0%       ~     (p=0.127 n=3+3)
+    CompareBytesEqual-4     226ns _ 0%      131ns _ 0%    -41.76%  (p=0.000 n=3+3)
     
-    Each new TLS slot has to be allocated via [TlsAlloc],
-    which returns the slot index. This index can then be used to get the
-    slot offset from GS with the following formula: 0xE10 + index*4.
+    name                 old speed      new speed       delta
+    Equal/1-4            12.9MB/s _ 0%   11.1MB/s _ 0%    -13.98%  (p=0.000 n=3+3)
+    Equal/6-4            51.7MB/s _ 0%   49.8MB/s _ 0%     -3.72%  (p=0.002 n=3+3)
+    Equal/9-4            65.7MB/s _ 0%   71.4MB/s _ 0%     +8.67%  (p=0.000 n=3+3)
+    Equal/15-4           83.8MB/s _ 0%   88.0MB/s _ 0%     +5.02%  (p=0.001 n=3+3)
+    Equal/16-4           85.9MB/s _ 0%  100.6MB/s _ 0%    +17.19%  (p=0.000 n=3+3)
+    Equal/20-4           93.2MB/s _ 0%  112.6MB/s _ 0%    +20.74%  (p=0.000 n=3+3)
+    Equal/32-4            107MB/s _ 0%    317MB/s _ 0%   +195.97%  (p=0.000 n=3+3)
+    Equal/4K-4            142MB/s _ 0%   1902MB/s _ 0%  +1243.76%  (p=0.000 n=3+3)
+    Equal/4M-4            142MB/s _ 0%   1946MB/s _ 0%  +1274.22%  (p=0.000 n=3+3)
+    Equal/64M-4           111MB/s _55%   1941MB/s _ 0%  +1641.21%  (p=0.000 n=3+3)
     
-    The slot index is fixed per Go runtime, so we can store it
-    in runtime.tls_g and use it latter on to read/update the TLS pointer.
-    
-    Loading the TLS pointer requires the following asm instructions:
-    
-      MOVQ runtime.tls_g, AX
-      MOVQ AX(FS), AX
-    
-    Notice that this approach will now be implemented in all the supported
-    windows arches.
-    
-    [TEB]: https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
-    [TlsAlloc]: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-tlsalloc
-    
-    Change-Id: If4550b0d44694ee6480d4093b851f4991a088b32
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454675
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I9af7e82de3c4c5af8813772ed139230900c03b92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380075
+    Trust: Joel Sing <joel@sing.id.au>
+    Trust: mzh <mzh@golangcn.org>
+    Reviewed-by: mzh <mzh@golangcn.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/obj/x86/asm6.go  | 46 ++++++++++-----------------------------
- src/cmd/internal/obj/x86/obj6.go  | 18 ++++++++++-----
- src/runtime/asm_386.s             | 19 ++++++++++++----
- src/runtime/cgo/gcc_windows_386.c | 12 +++++-----
- src/runtime/sys_windows_386.s     | 46 ++++++++++++++++++++++++++++++++-------
- 5 files changed, 84 insertions(+), 57 deletions(-)
+ src/internal/bytealg/equal_riscv64.s | 144 +++++++++++++++++++++++++++--------
+ 1 file changed, 111 insertions(+), 33 deletions(-)

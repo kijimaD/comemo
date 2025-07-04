@@ -1,28 +1,18 @@
-commit e5c1f3870b1f0c23b851eaa0a9ffc38e8d8cac6b
-Author: Olivier Duperray <duperray.olivier@gmail.com>
-Date:   Thu Jan 19 10:14:56 2012 -0800
+commit bc0139b4b3d642b7ffbb55d7fbc88b4dcb1db4ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 19 09:27:45 2012 -0800
 
-    pkg: Add & fix Copyright of "hand generated" files
+    exp/sql: rename NullableString to NullString and allow its use as a parameter
     
-    R=golang-dev, r
+    Prep for Issue 2699
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5554064
+    https://golang.org/cl/5536045
 
- src/pkg/crypto/ocsp/ocsp_test.go       | 4 ++++
- src/pkg/encoding/gob/debug.go          | 4 ++++
- src/pkg/encoding/gob/dump.go           | 4 ++++
- src/pkg/exp/gotype/testdata/test1.go   | 4 ++++
- src/pkg/exp/norm/trie_test.go          | 4 ++++
- src/pkg/go/build/pkgtest/sqrt_test.go  | 4 ++++
- src/pkg/go/build/pkgtest/xsqrt_test.go | 4 ++++
- src/pkg/old/regexp/regexp.go           | 1 +
- src/pkg/patch/textdiff.go              | 4 ++++
- src/pkg/regexp/exec.go                 | 4 ++++
- src/pkg/regexp/regexp.go               | 1 +
- src/pkg/regexp/syntax/compile.go       | 4 ++++
- src/pkg/regexp/syntax/prog.go          | 4 ++++
- src/pkg/regexp/syntax/prog_test.go     | 4 ++++
- src/pkg/runtime/gc_test.go             | 4 ++++
- src/pkg/syscall/zsysnum_linux_arm.go   | 4 ++++
- src/pkg/time/format.go                 | 4 ++++
- 17 files changed, 62 insertions(+)
+ src/pkg/exp/sql/convert_test.go | 37 ++++++++++++++++++++++--
+ src/pkg/exp/sql/driver/types.go | 48 ++++++++++++++++++++++++++++++-
+ src/pkg/exp/sql/fakedb_test.go  |  4 ++-
+ src/pkg/exp/sql/sql.go          | 45 ++++++++++++++++++++++++------
+ src/pkg/exp/sql/sql_test.go     | 62 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 184 insertions(+), 12 deletions(-)

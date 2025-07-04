@@ -1,20 +1,40 @@
-commit 262d6f58c78d53d2e85957075de0f817861cc23c
+commit 6a76bca362083a2794b5c7d4ccc61d5c9bec7111
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Aug 7 00:25:23 2013 +0900
+Date:   Tue Aug 6 23:42:33 2013 +0900
 
-    syscall: fix IPv6 wrong network mask on latest FreeBSD
+    net: separate pollster initialization from network file descriptor allocation
     
-    Looks like latest FreeBSD doesn't set address family identifer
-    for RTAX_NETMASK stuff; probably RTAX_GENMASK too, not confirmed.
-    This CL tries to identify address families by using the length of
-    each socket address if possible.
+    Unlike the existing net package own pollster, runtime-integrated
+    network pollster on BSD variants, actually kqueue, requires a socket
+    that has beed passed to syscall.Listen previously for a stream
+    listener.
     
-    The issue is confirmed on FreeBSD 9.1.
+    This CL separates pollDesc.Init (actually runtime_pollOpen) from newFD
+    to allow control of each state of sockets and adds init method to netFD
+    instead. Upcoming CLs will rearrange the call order of runtime-integrated
+    pollster and syscall functions like the following;
     
-    R=golang-dev, bradfitz
+    - For dialers that open active connections, runtime_pollOpen will be
+      called in between syscall.Bind and syscall.Connect.
+    
+    - For stream listeners that open passive stream connections,
+      runtime_pollOpen will be called just after syscall.Listen.
+    
+    - For datagram listeners that open datagram connections,
+      runtime_pollOpen will be called just after syscall.Bind.
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=dvyukov, alex.brainman, minux.ma
     CC=golang-dev
-    https://golang.org/cl/12332043
+    https://golang.org/cl/8608044
 
- src/pkg/net/interface_test.go | 13 ++++++++++++-
- src/pkg/syscall/route_bsd.go  |  9 ++++++++-
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ src/pkg/net/fd_poll_runtime.go |  7 +++++++
+ src/pkg/net/fd_unix.go         | 22 ++++++++++++----------
+ src/pkg/net/fd_windows.go      | 18 ++++++++++--------
+ src/pkg/net/file_unix.go       |  4 ++++
+ src/pkg/net/sock_posix.go      |  4 ++++
+ 5 files changed, 37 insertions(+), 18 deletions(-)

@@ -1,19 +1,24 @@
-commit fa603aaa4e7ac460aee2e2de509842b89152a418
-Author: Russ Cox <rsc@swtch.com>
-Date:   Thu May 5 10:16:30 2022 -0400
+commit 2b10d7ff0be9ee5ebe1856349714f78936bf059d
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jul 14 14:19:36 2021 -0400
 
-    crypto/internal/boring: avoid false positive in cgo pointer check in SHA calls
+    [dev.typeparams] go/types: export the Config.GoVersion field
     
-    Discovered running recent changes against Google internal tests.
+    Export the types.Config.GoVersion field, so that users can specify a
+    language compatibility version for go/types to enforce.
     
-    Change-Id: Ief51eae82c9f27d2a2a70c4fb2b1086fa8b3f9d8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404295
-    Auto-Submit: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Updates #46648
+    
+    Change-Id: I9e00122925faf0006cfb08c3f2d022619d5d54d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334533
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/internal/boring/boring.go | 14 ++++++++++++++
- src/crypto/internal/boring/sha.go    | 35 +++++++++++++++++++----------------
- src/crypto/sha256/sha256_test.go     | 15 +++++++++++++++
- 3 files changed, 48 insertions(+), 16 deletions(-)
+ src/go/types/api.go         | 4 ++--
+ src/go/types/check.go       | 4 ++--
+ src/go/types/check_test.go  | 2 +-
+ src/go/types/stdlib_test.go | 3 +--
+ src/go/types/types_test.go  | 6 ------
+ 5 files changed, 6 insertions(+), 13 deletions(-)

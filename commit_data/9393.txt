@@ -1,28 +1,12 @@
-commit b40bd5efb719f88a46f0ecf87090470252e32d30
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Aug 17 18:12:39 2011 +1000
+commit 6b5962c2744f65d61dfadb4a1dc8308cb43324b7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 17 16:51:04 2011 +1000
 
-    exp/norm: implementation of decomposition and composing functionality.
-    forminfo.go:
-    - Wrappers for table data.
-    - Per Form dispatch table.
-    composition.go:
-    - reorderBuffer type.  Implements decomposition, reordering, and composition.
-    - Note: decompose and decomposeString fields in formInfo could be replaced by
-      a pointer to the trie for the respective form.  The proposed design makes
-      testing easier, though.
-    normalization.go:
-    - Temporarily added panic("not implemented") methods to make the tests run.
-      These will be removed again with the next CL, which will introduce the
-      implementation.
+    test/chan/select5.go: update to new templates
     
-    R=r, rogpeppe, mpvl, rsc
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/4875043
+    https://golang.org/cl/4911041
 
- src/pkg/exp/norm/Makefile            |   3 +
- src/pkg/exp/norm/composition.go      | 344 +++++++++++++++++++++++++++++++++++
- src/pkg/exp/norm/composition_test.go | 138 ++++++++++++++
- src/pkg/exp/norm/forminfo.go         | 188 +++++++++++++++++++
- src/pkg/exp/norm/normalize.go        |  48 +++--
- 5 files changed, 709 insertions(+), 12 deletions(-)
+ test/chan/select5.go | 283 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 141 insertions(+), 142 deletions(-)

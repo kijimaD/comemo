@@ -1,19 +1,22 @@
-commit a2ffe3e625b05217e8d44dcda43138fc61390666
-Author: weeellz <weeellz12@gmail.com>
-Date:   Sat Apr 14 18:55:48 2018 +0300
+commit ffd79b310736d768593b207946744e94d918749a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 21:26:07 2017 -0500
 
-    math/rand: refactor rng.go
+    crypto/x509: add test for asn1.Marshal of rsa.PublicKey
     
-    Made constant names more idiomatic,
-    moved some constants to function seedrand,
-    and found better name for _M.
+    Go 1.10 is adding new API MarshalPKCS1PublicKey and
+    ParsePKCS1PublicKey for converting rsa.PublicKeys.
     
-    Change-Id: I192172f398378bef486a5bbceb6ba86af48ebcc9
-    Reviewed-on: https://go-review.googlesource.com/107135
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Even though we'd prefer that users did not, check that
+    if users call asn1.Marshal and asn1.Unmarshal directly instead,
+    they get the same results. We know that code exists in the
+    wild that depends on this.
+    
+    Change-Id: Ia385d6954fda2eba7da228dc42f229b6839ef11e
+    Reviewed-on: https://go-review.googlesource.com/82080
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/rand/rng.go | 53 +++++++++++++++++++++++++++-------------------------
- 1 file changed, 28 insertions(+), 25 deletions(-)
+ src/crypto/x509/x509_test.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

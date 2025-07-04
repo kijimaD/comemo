@@ -1,26 +1,19 @@
-commit c292a74c389aed9cab01d435a8f8cb4bfb087544
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Jun 1 23:42:48 2023 -0400
+commit b11b4b4de3e54372dfdf867003b544cadd189931
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 17:33:39 2022 +0700
 
-    cmd/go: adjust conditions in which toolchain lines are written
+    runtime: convert m.signalPending to atomic type
     
-    'go mod tidy -go=1.20' should tidy as Go 1.20 did, without writing a
-    toolchain line implicitly. (We don't need it to stabilize toolchain
-    version switching anyway: because Go 1.20 predates toolchain
-    switching, any toolchain that supports switching toolchains also
-    supports Go 1.20 modules directly.)
+    Updates #53821
     
-    For #57001.
-    
-    Change-Id: I415abac75d8d6de9f8ed470aab0d1ed4c225b08d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/499987
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Ib455be9ca7120ded7c77d34556eff977aa61faa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423886
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/modload/init.go             | 22 ++++++++++----
- src/cmd/go/internal/modload/load.go             |  4 ++-
- src/cmd/go/testdata/script/mod_tidy_version.txt | 40 ++++++++++++++++++++++++-
- src/cmd/go/testdata/script/mod_toolchain.txt    |  6 ++--
- 4 files changed, 62 insertions(+), 10 deletions(-)
+ src/runtime/proc.go        | 2 +-
+ src/runtime/runtime2.go    | 3 +--
+ src/runtime/signal_unix.go | 4 ++--
+ 3 files changed, 4 insertions(+), 5 deletions(-)

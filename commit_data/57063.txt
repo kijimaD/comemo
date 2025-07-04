@@ -1,17 +1,28 @@
-commit 4c05a23bb63efee928f3c3cbe712ae7d562ba588
-Author: Xin Hao <haoxinst@gmail.com>
-Date:   Thu Aug 1 02:47:35 2024 +0000
+commit dac75b66754978a89eeb143e2b7cabb830409fd8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 13 13:43:21 2023 -0700
 
-    go/types: fix typo in comment
+    go/types, types2: fix Hilbert test for stand-alone run
     
-    Change-Id: Ic0ea0f0de3f94e2d89bf76176c51f42e87b1bad7
-    GitHub-Last-Rev: 29517a07f9af17d3dfea9a1d242d734040bc575e
-    GitHub-Pull-Request: golang/go#68695
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602177
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    When run as a stand-alone test (without other tests running before),
+    the builtin function 'assert' (only available for testing) is missing.
+    Make sure it's declared.
+    
+    This change only affects this test, when run stand-alone, as in:
+    
+    go test -run Hilbert
+    
+    Fixes #60774.
+    
+    Change-Id: Ib07d97ba2670b839e8ad11ef50d0e6581bb3d79d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502996
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/go/types/iter.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/types2/hilbert_test.go | 3 +++
+ src/go/types/generate_test.go                   | 2 +-
+ src/go/types/hilbert_test.go                    | 3 +++
+ 3 files changed, 7 insertions(+), 1 deletion(-)

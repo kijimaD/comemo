@@ -1,21 +1,84 @@
-commit 9e914f55dded9f779aae86cfb2e989bc9a1d3ea4
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Thu Oct 24 14:36:57 2019 +0300
+commit 0b3a57b5374bba3fdf88258e2be4c8be65e6a5de
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 13 18:33:33 2019 -0400
 
-    cmd/go/internal/modload: fail if no package was found in local module
+    crypto/tls: disable RSA-PSS in TLS 1.2 again
     
-    Changing the Import function to return a PackageNotInModuleError if no
-    package was found in a local module. This replacing the vague message
-    "missing dot in first path element" you get today with much more friendly
-    one - "module was found, but does not contain package".
+    Signing with RSA-PSS can uncover faulty crypto.Signer implementations,
+    and it can fail for (broken) small keys. We'll have to take that
+    breakage eventually, but it would be nice for it to be opt-out at first.
     
-    Fixes #35273
+    TLS 1.3 requires RSA-PSS and is opt-out in Go 1.13. Instead of making a
+    TLS 1.3 opt-out influence a TLS 1.2 behavior, let's wait to add RSA-PSS
+    to TLS 1.2 until TLS 1.3 is on without opt-out.
     
-    Change-Id: I6d726c17e6412258274b10f58f76621617d26e0a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/203118
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Note that since the Client Hello is sent before a protocol version is
+    selected, we have to advertise RSA-PSS there to support TLS 1.3.
+    That means that we still support RSA-PSS on the client in TLS 1.2 for
+    verifying server certificates, which is fine, as all issues arise on the
+    signing side. We have to be careful not to pick (or consider available)
+    RSA-PSS on the client for client certificates, though.
+    
+    We'd expect tests to change only in TLS 1.2:
+    
+        * the server won't pick PSS to sign the key exchange
+          (Server-TLSv12-* w/ RSA, TestHandshakeServerRSAPSS);
+        * the server won't advertise PSS in CertificateRequest
+          (Server-TLSv12-ClientAuthRequested*, TestClientAuth);
+        * and the client won't pick PSS for its CertificateVerify
+          (Client-TLSv12-ClientCert-RSA-*, TestHandshakeClientCertRSAPSS,
+          Client-TLSv12-Renegotiate* because "R" requests a client cert).
+    
+    Client-TLSv13-ClientCert-RSA-RSAPSS was updated because of a fix in the test.
+    
+    This effectively reverts 88343530720a52c96b21f2bd5488c8fb607605d7.
+    
+    Testing was made more complex by the undocumented semantics of OpenSSL's
+    -[client_]sigalgs (see openssl/openssl#9172).
+    
+    Updates #32425
+    
+    Change-Id: Iaddeb2df1f5c75cd090cc8321df2ac8e8e7db349
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182339
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/go/internal/modload/import.go             | 11 +++++++++++
- src/cmd/go/testdata/script/mod_replace_import.txt | 20 ++++++++++++++++++++
- 2 files changed, 31 insertions(+)
+ src/crypto/tls/auth.go                             |  12 +-
+ src/crypto/tls/common.go                           |  15 +
+ src/crypto/tls/handshake_client.go                 |   6 +-
+ src/crypto/tls/handshake_client_test.go            |  46 +-
+ src/crypto/tls/handshake_server.go                 |   7 +-
+ src/crypto/tls/handshake_server_test.go            |  62 ++-
+ src/crypto/tls/handshake_test.go                   |   1 +
+ src/crypto/tls/key_agreement.go                    |   2 +-
+ .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 |  74 +--
+ .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    |  92 ++--
+ .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  |  74 +--
+ .../Client-TLSv12-ClientCert-RSA-RSAPKCS1v15       |  74 +--
+ .../testdata/Client-TLSv12-ClientCert-RSA-RSAPSS   | 153 +++---
+ .../tls/testdata/Client-TLSv12-RenegotiateOnce     | 348 ++++++-------
+ .../tls/testdata/Client-TLSv12-RenegotiateTwice    | 538 ++++++++++-----------
+ .../Client-TLSv12-RenegotiateTwiceRejected         | 354 +++++++-------
+ .../testdata/Client-TLSv13-ClientCert-RSA-RSAPSS   | 237 ++++-----
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  64 +--
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  64 +--
+ .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   |  66 +--
+ .../Server-TLSv12-CipherSuiteCertPreferenceRSA     |  60 +--
+ .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  79 ++-
+ ...erver-TLSv12-ClientAuthRequestedAndEd25519Given |  65 ++-
+ .../Server-TLSv12-ClientAuthRequestedAndGiven      | 110 ++---
+ ...rver-TLSv12-ClientAuthRequestedAndPKCS1v15Given |  86 ++--
+ .../Server-TLSv12-ClientAuthRequestedNotGiven      |  61 ++-
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  64 +--
+ src/crypto/tls/testdata/Server-TLSv12-P256         |  54 +--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-3DES     |  50 +-
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES      |  54 +--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  |  50 +-
+ .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   |  50 +-
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RC4      |  44 +-
+ .../tls/testdata/Server-TLSv12-RSA-RSAPKCS1v15     |  50 +-
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   |  35 +-
+ src/crypto/tls/testdata/Server-TLSv12-SNI          |  54 +--
+ .../tls/testdata/Server-TLSv12-SNI-GetCertificate  |  54 +--
+ .../Server-TLSv12-SNI-GetCertificateNotFound       |  54 +--
+ src/crypto/tls/testdata/Server-TLSv12-X25519       |  50 +-
+ 39 files changed, 1714 insertions(+), 1699 deletions(-)

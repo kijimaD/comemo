@@ -1,17 +1,18 @@
-commit a850dbdef2f1875d81ad09024480f648ce3eac32
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Oct 25 15:49:00 2016 -0400
+commit 03723c909ee7b75c0c88ddb3f547642b9f48b009
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Aug 23 22:59:27 2016 +0900
 
-    cmd/vet: accept space-separated tag lists for compatibility with cmd/go
+    path/filepath: use testenv.MustHaveSymlink to simplify symlink tests
     
-    Fixes #17148.
+    Cleanup test code for symbolic links.
     
-    Change-Id: I4c66aa0733c249ee6019d1c4e802a7e30457d4b6
-    Reviewed-on: https://go-review.googlesource.com/32030
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I25f561cd34dc4d120a4143f933619d233a6cffc5
+    Reviewed-on: https://go-review.googlesource.com/27573
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/vet/main.go     |  7 +++++--
- src/cmd/vet/vet_test.go | 35 +++++++++++++++++++----------------
- 2 files changed, 24 insertions(+), 18 deletions(-)
+ src/path/filepath/match_test.go        | 11 ++---------
+ src/path/filepath/path_test.go         | 19 +++----------------
+ src/path/filepath/path_windows_test.go | 20 --------------------
+ 3 files changed, 5 insertions(+), 45 deletions(-)

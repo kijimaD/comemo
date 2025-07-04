@@ -1,86 +1,14 @@
-commit ef5037398385ff52b17af325a0ad82017bd65820
-Author: Keith Randall <khr@google.com>
-Date:   Tue Sep 25 15:54:11 2018 -0700
+commit 002c764533bd15414ce26b99570815bd5e48b16e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 28 15:29:01 2018 -0700
 
-    reflect: ensure correct scanning of return values
+    test: gofmt bounds.go
     
-    During a call to a reflect-generated function or method (via
-    makeFuncStub or methodValueCall), when should we scan the return
-    values?
-    
-    When we're starting a reflect call, the space on the stack for the
-    return values is not initialized yet, as it contains whatever junk was
-    on the stack of the caller at the time. The return space must not be
-    scanned during a GC.
-    
-    When we're finishing a reflect call, the return values are
-    initialized, and must be scanned during a GC to make sure that any
-    pointers in the return values are found and their referents retained.
-    
-    When the GC stack walk comes across a reflect call in progress on the
-    stack, it needs to know whether to scan the results or not. It doesn't
-    know the progress of the reflect call, so it can't decide by
-    itself. The reflect package needs to tell it.
-    
-    This CL adds another slot in the frame of makeFuncStub and
-    methodValueCall so we can put a boolean in there which tells the
-    runtime whether to scan the results or not.
-    
-    This CL also adds the args length to reflectMethodValue so the
-    runtime can restrict its scanning to only the args section (not the
-    results) if the reflect package says the results aren't ready yet.
-    
-    Do a delicate dance in the reflect package to set the "results are
-    valid" bit. We need to make sure we set the bit only after we've
-    copied the results back to the stack. But we must set the bit before
-    we drop reflect's copy of the results. Otherwise, we might have a
-    state where (temporarily) no one has a live copy of the results.
-    That's the state we were observing in issue #27695 before this CL.
-    
-    The bitmap used by the runtime currently contains only the args.
-    (Actually, it contains all the bits, but the size is set so we use
-    only the args portion.) This is safe for early in a reflect call, but
-    unsafe late in a reflect call. The test issue27695.go demonstrates
-    this unsafety. We change the bitmap to always include both args
-    and results, and decide at runtime which portion to use.
-    
-    issue27695.go only has a test for method calls. Function calls were ok
-    because there wasn't a safepoint between when reflect dropped its copy
-    of the return values and when the caller is resumed. This may change
-    when we introduce safepoints everywhere.
-    
-    This truncate-to-only-the-args was part of CL 9888 (in 2015). That
-    part of the CL fixed the problem demonstrated in issue27695b.go but
-    introduced the problem demonstrated in issue27695.go.
-    
-    TODO, in another CL: simplify FuncLayout and its test. stack return
-    value is now identical to frametype.ptrdata + frametype.gcdata.
-    
-    Fixes #27695
-    
-    Change-Id: I2d49b34e34a82c6328b34f02610587a291b25c5f
-    Reviewed-on: https://go-review.googlesource.com/137440
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I8b462e20064658120afc8eb1cbac926254d1e24e
+    Reviewed-on: https://go-review.googlesource.com/114937
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/types/type.go |  2 +-
- src/reflect/all_test.go                |  4 +--
- src/reflect/asm_386.s                  | 10 ++++--
- src/reflect/asm_amd64.s                | 10 ++++--
- src/reflect/asm_amd64p32.s             | 10 ++++--
- src/reflect/asm_arm.s                  | 12 +++++--
- src/reflect/asm_arm64.s                | 10 ++++--
- src/reflect/asm_mips64x.s              | 10 ++++--
- src/reflect/asm_mipsx.s                | 10 ++++--
- src/reflect/asm_ppc64x.s               | 10 ++++--
- src/reflect/asm_s390x.s                | 10 ++++--
- src/reflect/asm_wasm.s                 | 10 ++++--
- src/reflect/export_test.go             |  4 +--
- src/reflect/makefunc.go                | 27 +++++++-------
- src/reflect/type.go                    | 14 +++-----
- src/reflect/value.go                   | 61 +++++++++++++++++++++++---------
- src/runtime/traceback.go               | 13 +++++--
- test/fixedbugs/issue27695.go           | 62 ++++++++++++++++++++++++++++++++
- test/fixedbugs/issue27695b.go          | 64 ++++++++++++++++++++++++++++++++++
- 19 files changed, 288 insertions(+), 65 deletions(-)
+ test/bounds.go | 92 +++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 46 insertions(+), 46 deletions(-)

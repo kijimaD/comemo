@@ -1,0 +1,20 @@
+commit fc5e8f2f6ba07f999a780848aa66da7d73083c1e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 6 13:53:02 2024 -0800
+
+    runtime/race: treat map concurrent access detection as a race detector hit
+    
+    Sometimes the runtime realizes there is a race before the race detector does.
+    Maybe that's a bug in the race detector? But we should probably handle it.
+    
+    Update #70164
+    (Fixes? I'm not sure.)
+    
+    Change-Id: Ie7e8bf2b06701368e0551b4a1aa40f6746bbddd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626036
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/race/race_test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

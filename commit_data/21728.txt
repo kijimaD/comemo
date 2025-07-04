@@ -1,17 +1,20 @@
-commit 4241b758af286be67cb510a68164b8f95c99ff06
-Author: Rob Pike <r@golang.org>
-Date:   Mon Feb 23 15:45:40 2015 -0800
+commit 3c3848ad92bac9edce2ec1e510c01f9bf2317ea3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Jan 30 14:36:12 2015 +0300
 
-    cmd/asm: add a couple of operand parses discovered by end-to-end test
+    runtime: fix system memory allocator on plan9
     
-    Missing cases for JMP $4 and foo+4(SB):AX. Both are odd but 8a accepts them
-    and they seem valid.
+    The following line in sysFree:
+    n += (n + memRound) &^ memRound
+    doubles value of n (n += n).
+    Which is wrong and can lead to memory corruption.
     
-    Change-Id: Ic739f626fcc79ace1eaf646c5dfdd96da59df165
-    Reviewed-on: https://go-review.googlesource.com/5693
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #9712
+    
+    Change-Id: I3c141b71da11e38837c09408cf4f1d22e8f7f36e
+    Reviewed-on: https://go-review.googlesource.com/3602
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/cmd/asm/internal/asm/asm.go          |  3 +++
- src/cmd/asm/internal/asm/operand_test.go | 16 ++++++++++++++++
- src/cmd/asm/internal/asm/parse.go        | 18 ++++++++++++++----
- 3 files changed, 33 insertions(+), 4 deletions(-)
+ src/runtime/mem_plan9.go        | 13 ++++++++-----
+ src/runtime/pprof/trace_test.go |  4 +---
+ 2 files changed, 9 insertions(+), 8 deletions(-)

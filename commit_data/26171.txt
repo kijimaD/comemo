@@ -1,33 +1,28 @@
-commit cd6619d2e69162295b42a5952b4316bb80ec2049
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 9 12:39:36 2016 -0800
+commit c7c7c7031d7876f6821dd1be6e8e2a24e5ff97b8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 21 11:26:33 2015 -0800
 
-    cmd/compile: remove remaining nodeSeqIterate calls
+    runtime: fix, simplify, and improve scan state in goroutine header
     
-    Mix in several other minor cleanups, including adding some new methods
-    to Nodes: Index, Addr, SetIndex, SetNodes.
+    Currently goroutineheader goes through some convolutions to *almost*
+    print the scan state of a G. However, the code path that would print
+    the scan state of the G refers to gStatusStrings where it almost
+    certainly meant to refer to gScanStatusStrings (which is unused), so
+    it winds up printing the regular status string without the scan state
+    either way. Furthermore, if the G is in _Gwaiting, we override the
+    status string and lose where this would indicate the scan state if it
+    worked.
     
-    Passes toolstash -cmp.
+    This commit fixes this so the runtime prints the scan state. However,
+    rather than using a parallel list of status strings, this simply adds
+    a conditional print if the scan bit is set. This lets us remove the
+    string list, prints the scan state even in _Gwaiting, and lets us
+    strip off the scan bit at the beginning of the function, which
+    simplifies the rest of it.
     
-    Update #14473.
-    
-    Change-Id: I8bd4ae3fde7c5e20ba66e7dd1654fbc70c3ddeb8
-    Reviewed-on: https://go-review.googlesource.com/20491
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic0adbe5c05abf4adda93da59f93b578172b28e3d
+    Reviewed-on: https://go-review.googlesource.com/18092
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/bexport.go   |   9 +-
- src/cmd/compile/internal/gc/cgen.go      |   8 +-
- src/cmd/compile/internal/gc/dcl.go       |  17 +--
- src/cmd/compile/internal/gc/esc.go       |  91 ++++++++-------
- src/cmd/compile/internal/gc/fmt.go       |  12 +-
- src/cmd/compile/internal/gc/inl.go       |  37 +++---
- src/cmd/compile/internal/gc/order.go     |  60 +++++-----
- src/cmd/compile/internal/gc/racewalk.go  |  26 +++--
- src/cmd/compile/internal/gc/range.go     |  17 +--
- src/cmd/compile/internal/gc/select.go    |  14 +--
- src/cmd/compile/internal/gc/ssa.go       |  10 +-
- src/cmd/compile/internal/gc/swt.go       |  52 ++++-----
- src/cmd/compile/internal/gc/syntax.go    | 134 +++++-----------------
- src/cmd/compile/internal/gc/typecheck.go | 186 +++++++++++++++----------------
- src/cmd/compile/internal/gc/walk.go      |  62 +++++------
- 15 files changed, 327 insertions(+), 408 deletions(-)
+ src/runtime/traceback.go | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)

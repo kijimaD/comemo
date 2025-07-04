@@ -1,21 +1,27 @@
-commit 4063605e0d0ce2ee2603c70a70c3a918adb7369a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Apr 28 12:57:55 2021 -0400
+commit ad863ba32a2ede207d708fa15897e9de1d14dd87
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 3 19:23:30 2020 +0000
 
-    cmd/go/internal/modload: avoid loading the full module graph for imports satisfied by lazy roots
+    runtime: break down memstats.gc_sys
     
-    For #36460
+    This change breaks apart gc_sys into three distinct pieces. Two of those
+    pieces are pieces which come from heap_sys since they're allocated from
+    the page heap. The rest comes from memory mapped from e.g.
+    persistentalloc which better fits the purpose of a sysMemStat. Also,
+    rename gc_sys to gcMiscSys.
     
-    Change-Id: Ibdbaa893ded772617e22f12db7a0463604db5195
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/308516
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I098789170052511e7b31edbcdc9a53e5c24573f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246973
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/internal/modload/import.go              | 176 +++++++++++----------
- src/cmd/go/internal/modload/init.go                |  16 ++
- src/cmd/go/internal/modload/load.go                |  23 ++-
- .../go/testdata/script/mod_install_pkg_version.txt |   4 +-
- src/cmd/go/testdata/script/mod_run_pkg_version.txt |   4 +-
- 5 files changed, 136 insertions(+), 87 deletions(-)
+ src/runtime/heapdump.go   |  5 ++++-
+ src/runtime/malloc.go     |  6 +++---
+ src/runtime/mcheckmark.go |  2 +-
+ src/runtime/mfinal.go     |  2 +-
+ src/runtime/mheap.go      | 16 ++++++++++------
+ src/runtime/mspanset.go   |  4 ++--
+ src/runtime/mstats.go     | 31 ++++++++++++++++++-------------
+ 7 files changed, 39 insertions(+), 27 deletions(-)

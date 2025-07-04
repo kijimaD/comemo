@@ -1,23 +1,16 @@
-commit d704b5c956f431e618904d15643e9fee97840253
-Author: Wil Selwood <wselwood@gmail.com>
-Date:   Mon Nov 26 15:11:45 2018 +0000
+commit 884eea6f0a673e29491afaee661b4d71f93b7287
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Aug 7 23:11:56 2018 -0400
 
-    unicode: improve generated comments for categories
+    A+C: update Dmitri Shuralyov's emails
     
-    The comments on the category range tables in the unicode package are fairly
-    redundent and require an external source to translate into human readable
-    category names.
+    Add my current personal email in both A+C, but keep old one too.
+    Add my @golang.org email to CONTRIBUTORS.
     
-    This adds a look up table with the category descriptions and uses it if
-    available when generating the comments for the range tables.
-    
-    Fixes #28954
-    
-    Change-Id: I853e2d270def6492c2c1dd2ad0ec761a74c04e5d
-    Reviewed-on: https://go-review.googlesource.com/c/151297
+    Change-Id: Idba258e465a8d657372dbeb6cb734744d493e5d4
+    Reviewed-on: https://go-review.googlesource.com/128416
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/unicode/maketables.go | 46 ++++++++++++++++++++++++++++++++++---
- src/unicode/tables.go     | 58 +++++++++++++++++++++++------------------------
- 2 files changed, 72 insertions(+), 32 deletions(-)
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

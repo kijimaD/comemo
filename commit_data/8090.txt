@@ -1,14 +1,14 @@
-commit bd77eedacf67a220dc69afa42ba9abab29aec362
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Apr 14 09:33:53 2011 -0400
+commit dd93df35b95c8db2227d2f27a6abfb2fe81d1958
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Apr 14 15:32:20 2011 +0200
 
-    gc: fix use of typekind array in error messages
+    runtime: fix gdb support for channels.
     
-    Fixes #1697.
-    
-    R=ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4395045
+    https://golang.org/cl/4418043
 
- src/cmd/gc/typecheck.c | 18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ src/cmd/ld/dwarf.c             | 10 ++++------
+ src/pkg/runtime/chan.c         |  7 -------
+ src/pkg/runtime/runtime-gdb.py | 11 +++++++----
+ 3 files changed, 11 insertions(+), 17 deletions(-)

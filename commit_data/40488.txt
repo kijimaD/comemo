@@ -1,17 +1,19 @@
-commit ca70ada28d567ec257362c052619fa79181e5d4a
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Oct 29 17:03:56 2019 +0000
+commit 37133b5d63a451e083d78187a252ed2ea3bf96fc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed May 15 04:19:26 2019 +1000
 
-    cmd/dist: don't run cmd tests on js/wasm
+    runtime: fix netbsd/arm64 assembly
     
-    Updates #25911
-    Fixes #35220
+    Fix various bugs in the netbsd/arm64 runtime assembly.
     
-    Change-Id: Id063722d181a12d926801d2e5bb1a9becb463a90
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/204040
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #30824.
+    
+    Change-Id: I5ca10926ab663a8ff4df9973530e645e2469c1aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177120
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/dist/test.go | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ src/runtime/sys_netbsd_arm64.s | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

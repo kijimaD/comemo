@@ -1,24 +1,46 @@
-commit 2b22fc10459dff0fb4b3e5b08bc14ffb349aa4dd
-Author: Than McIntosh <thanm@google.com>
-Date:   Mon Mar 4 15:52:56 2024 +0000
+commit f594a3ec85a3bdeaa3d22bf0deb5f9d6d70d3af1
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 15 15:37:26 2023 -0700
 
-    cmd/go: respect -coverpkg for unselected no-test packages
+    cmd/go/testdata/script: consistently set GOCACHE in fuzz tests
     
-    This patch fixes a bug in the code that reports coverage percentages
-    and/or profiles for packages without tests. Specifically, the code
-    added as part of the fix for issue 24570 (in CL 495447) didn't
-    properly consider the -coverpkg selection and would look for the build
-    action meta-data file for a package that wasn't actually selected for
-    coverage.
+    The fuzzing cache for interesting inputs is shared across all
+    invocations of scripts by default. When 'go clean -fuzzcache' is called,
+    or fuzz targets in different scripts have the same names, we can get
+    race-y unexpected behavior.
     
-    Fixes #65653.
+    Since there isn't a easy way to set just the fuzz cache directory (test
+    has the flag -test.fuzzcachedir, but it requires setting it on each call
+    to 'go test'), instead we just consistently set GOCACHE to point to a
+    directory in the WORK dir. As a byproduct this also prevents usage of a
+    shared build cache, so we see an increase in build time for these tests.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Change-Id: I66ffac11783c00a8cbd855fd05b9a90e4e0ed402
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/568835
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #59062
+    
+    Change-Id: Ie78f2943b94f3302c5bdf1f8a1e93b207853666a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476755
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/test/test.go                      | 2 +-
- src/cmd/go/testdata/script/cover_coverpkg_partial.txt | 8 ++++++++
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz.txt                  | 2 ++
+ src/cmd/go/testdata/script/test_fuzz_chatty.txt           | 1 +
+ src/cmd/go/testdata/script/test_fuzz_cleanup.txt          | 1 +
+ src/cmd/go/testdata/script/test_fuzz_cov.txt              | 2 +-
+ src/cmd/go/testdata/script/test_fuzz_deadline.txt         | 1 +
+ src/cmd/go/testdata/script/test_fuzz_dup_cache.txt        | 1 +
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt         | 3 +--
+ src/cmd/go/testdata/script/test_fuzz_io_error.txt         | 1 +
+ src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt  | 2 +-
+ src/cmd/go/testdata/script/test_fuzz_match.txt            | 2 ++
+ src/cmd/go/testdata/script/test_fuzz_multiple.txt         | 1 +
+ src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt     | 1 +
+ src/cmd/go/testdata/script/test_fuzz_mutate_fail.txt      | 1 +
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt          | 1 +
+ src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt   | 1 +
+ src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt | 1 +
+ src/cmd/go/testdata/script/test_fuzz_parallel.txt         | 1 +
+ src/cmd/go/testdata/script/test_fuzz_setenv.txt           | 1 +
+ src/cmd/go/testdata/script/test_fuzz_test_race.txt        | 1 +
+ 19 files changed, 21 insertions(+), 4 deletions(-)

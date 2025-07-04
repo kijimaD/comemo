@@ -1,24 +1,52 @@
-commit 0cf48b4d919e5137ec03f1bf230fbd8720873151
-Author: Peter Waldschmidt <peter@waldschmidt.com>
-Date:   Sat Apr 18 03:23:32 2015 -0400
+commit 7387121ddb43e20c3d4c01cea548ddbcdc1d3945
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 4 17:28:02 2015 -0400
 
-    encoding/json: add JSON streaming parse API
+    runtime: account for stack guard when shrinking the stack
     
-    This change adds new methods to Decoder.
+    Currently, when shrinkstack computes whether the halved stack
+    allocation will have enough room for the stack, it accounts for the
+    stack space that's actively in use but fails to leave extra room for
+    the stack guard space. As a result, *if* the minimum stack size is
+    small enough or the guard large enough, it may shrink the stack and
+    leave less than enough room to run nosplit functions. If the next
+    function called after the stack shrink is a nosplit function, it may
+    overflow the stack without noticing and overwrite non-stack memory.
     
-     * Decoder.Token steps through a JSON document, returning a value for each token.
-     * Decoder.Decode unmarshals the entire value at the token stream's current
-       position (in addition to its existing function in a stream of JSON values)
+    We don't think this is happening under normal conditions right now.
+    The minimum stack allocation is 2K and the guard is 640 bytes. The
+    "worst case" stack shrink is from 4K (4048 bytes after stack barrier
+    array reservation) to 2K (2016 bytes after stack barrier array
+    reservation), which means the largest "used" size that will qualify
+    for shrinking is 4048/4 - 8 = 1004 bytes. After copying, that leaves
+    2016 - 1004 = 1012 bytes of available stack, which is significantly
+    more than the guard space.
     
-    Fixes #6050.
-    Fixes #6499.
+    If we were to reduce the minimum stack size to 1K or raise the guard
+    space above 1012 bytes, the logic in shrinkstack would no longer leave
+    enough space.
     
-    Change-Id: Iff283e0e7b537221ae256392aca6529f06ebe211
-    Reviewed-on: https://go-review.googlesource.com/9073
+    It's also possible to trigger this problem by setting
+    firstStackBarrierOffset to 0, which puts stack barriers in a debug
+    mode that steals away *half* of the stack for the stack barrier array
+    reservation. Then, the largest "used" size that qualifies for
+    shrinking is (4096/2)/4 - 8 = 504 bytes. After copying, that leaves
+    (2096/2) - 504 = 8 bytes of available stack; much less than the
+    required guard space. This causes failures like those in issue #11027
+    because func gc() shrinks its own stack and then immediately calls
+    casgstatus (a nosplit function), which overflows the stack and
+    overwrites a free list pointer in the neighboring span. However, since
+    this seems to require the special debug mode, we don't think it's
+    responsible for issue #11027.
+    
+    To forestall all of these subtle issues, this commit modifies
+    shrinkstack to correctly account for the guard space when considering
+    whether to halve the stack allocation.
+    
+    Change-Id: I7312584addc63b5bfe55cc384a1012f6181f1b9d
+    Reviewed-on: https://go-review.googlesource.com/10714
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/encoding/json/bench_test.go   |  23 +++
- src/encoding/json/example_test.go |  91 +++++++++++
- src/encoding/json/stream.go       | 316 +++++++++++++++++++++++++++++++++++---
- src/encoding/json/stream_test.go  | 111 +++++++++++++
- 4 files changed, 518 insertions(+), 23 deletions(-)
+ src/runtime/stack1.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

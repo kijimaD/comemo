@@ -1,20 +1,16 @@
-commit 8fcf318123e15abf6ce35e33831bdb64a4e071ff
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Dec 17 15:17:14 2020 -0500
+commit 430cee7cd2c2cd4b458fbf2b2dcc4604a3ed8c05
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue May 5 16:20:56 2020 -0400
 
-    api/go1.16: remove crypto/tls APIs that are moved to Go 1.17
+    cmd/link: fix loop variable capturing in TestDeadcode
     
-    CL 269697 was created before CL 276454 and submitted after,
-    so the api/go1.16.txt file needs to be updated accordingly
-    to fix the build.
+    Fixes #38884.
     
-    Updates #32406.
-    
-    Change-Id: I6bf79cc981be504e0baefa82982814aaee4434dc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/278992
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: Id5ab9977b6404d0dbf71f13e3e4fefb6868ac802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232377
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/go1.16.txt | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/link/internal/ld/deadcode_test.go | 1 +
+ 1 file changed, 1 insertion(+)

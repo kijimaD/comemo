@@ -1,25 +1,21 @@
-commit 4de3c7d30b82deb1824d5caf3d1542d6b0cc990b
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Nov 14 16:17:47 2019 -0500
+commit ddc8439b2f2d5ca85ccc02aa317d81351c62a62d
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 3 14:42:32 2019 -0400
 
-    cmd/go: include module path and version in cache key with -trimpath
+    test: add new test case for gccgo compiler bug
     
-    When -trimpath is used, packages built from the module cache still
-    have debug into that contains the module path and version. Only the
-    module cache directory is stripped.
+    Test case that causes incorrect compiler error from gccgo.
     
-    With this CL, we now include the module path and version in the cache
-    key for build actions.
+    Updates #32922
     
-    Fixes #35412
-    
-    Change-Id: I1956592d0d86fcea2cca7c5fc8957e83543d6aa2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207317
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I59432a8e8770cf03eda293f6d110c081c18fa88b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184918
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/work/exec.go                   |  4 ++++
- .../go/testdata/mod/example.com_stack_v1.0.0.txt   | 18 +++++++++++++++
- .../go/testdata/mod/example.com_stack_v1.0.1.txt   | 18 +++++++++++++++
- .../go/testdata/script/build_cache_trimpath.txt    | 27 ++++++++++++++++++++++
- 4 files changed, 67 insertions(+)
+ test/fixedbugs/issue32922.dir/a.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue32922.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue32922.go       | 11 +++++++++++
+ 3 files changed, 40 insertions(+)

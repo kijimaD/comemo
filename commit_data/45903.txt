@@ -1,17 +1,21 @@
-commit c96833e5badedb025761de6a74ed5f9c848059de
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed Jul 7 14:58:36 2021 +0000
+commit 0252cfd84d6268985199f96239e65a0b0d32363c
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Nov 27 22:07:23 2020 +0100
 
-    doc: remove stale comment about arm64 port
+    runtime: adjust address calculation in identifying abort on windows/arm
     
-    Fixes #47079.
+    Apparently we're being called on arm 1 byte off, just like on 386 and
+    amd64, so unify the handler for isAbortPC.
     
-    Change-Id: I8a671e3fdc13083e44e8d89064a5e7621e53bc4c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/333075
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #42859.
+    Updates #29050.
+    
+    Change-Id: I97fffeb4a33d93ca3397ce1c9ba2b05137f391ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273727
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
 
- doc/asm.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/runtime/signal_windows.go | 13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)

@@ -1,19 +1,15 @@
-commit f197988ca596e87f1e971d5873bc3cee5c650b98
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Sep 15 10:56:37 2014 -0700
+commit 2034dae94fe8d627c3f746b8a14b4b4c83aecaee
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 07:31:53 2014 -0400
 
-    test: make maplinear iterdelete test less flaky
+    build: fix windows make.bat
     
-    iterdelete's run time varies; occasionally we get unlucky. To reduce spurious failures, average away some of the variation.
+    The Unix make.bash builds cmd/dist from *.c.
+    make.bat apparently does not.
     
-    On my machine, 8 of 5000 runs (0.15%) failed before this CL. After this CL, there were no failures after 35,000 runs.
-    
-    I confirmed that this adjusted test still fails before CL 141270043.
-    
-    LGTM=khr
-    R=khr
-    CC=bradfitz, golang-codereviews
-    https://golang.org/cl/140610043
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/137280043
 
- test/maplinear.go | 22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

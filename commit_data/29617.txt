@@ -1,25 +1,29 @@
-commit e9ffda45c8b7d409a5b951d6a74b8241c026fad5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Nov 15 14:48:54 2016 -0800
+commit ba94dd34385af3352660fb4bfa2a2d97fb937088
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Sep 26 13:21:21 2016 -0400
 
-    cmd/go: don't clobber `go env GOGCCFLAGS`
+    math: add some assembly implementations on ARM64
     
-    When CC is set in the environment, the mkEnv function sets its version
-    of CC to the first word $CC and sets GOGCCFLAGS to the remainder. That
-    worked since Go 1 but was broken accidentally by
-    https://golang.org/cl/6409, which changed the code such that `go env`
-    calls mkEnv twice. The second call to mkEnv would clobber GOGCCFLAGS
-    based on the value of CC set by the first call. Go back to the old
-    handling by only calling mkEnv once.
+    Also add GP<->FP move addressing mode to FMOVS, FMOVD
+    instructions.
     
-    Fixes #15457.
+    Ceil-8                 37.1ns ± 0%   7.9ns ± 0%  -78.64%          (p=0.000 n=4+5)
+    Dim-8                  20.9ns ± 1%  11.3ns ± 0%  -45.93%          (p=0.008 n=5+5)
+    Floor-8                22.9ns ± 0%   7.9ns ± 0%  -65.41%          (p=0.029 n=4+4)
+    Gamma-8                 117ns ± 0%    94ns ± 1%  -19.50%          (p=0.016 n=4+5)
+    PowInt-8                121ns ± 0%   108ns ± 1%  -11.07%          (p=0.008 n=5+5)
+    PowFrac-8               331ns ± 0%   318ns ± 0%   -3.93%          (p=0.000 n=5+4)
+    Trunc-8                18.8ns ± 0%   7.9ns ± 0%  -57.83%          (p=0.016 n=4+5)
     
-    Change-Id: I000a1ebcc48684667e48f2b9b24605867b9e06cd
-    Reviewed-on: https://go-review.googlesource.com/33293
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I709b7f1a914b28adc27414522db551e2630cfb92
+    Reviewed-on: https://go-review.googlesource.com/29734
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/bug.go     | 2 +-
- src/cmd/go/env.go     | 2 +-
- src/cmd/go/go_test.go | 6 ++++++
- src/cmd/go/main.go    | 4 +++-
- 4 files changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/internal/obj/arm64/asm7.go | 18 ++++++++-
+ src/math/dim_arm64.s               | 78 ++++++++++++++++++++++++++++++++++++++
+ src/math/floor_arm64.s             | 26 +++++++++++++
+ src/math/modf_arm64.s              | 18 +++++++++
+ src/math/stubs_arm64.s             | 21 ----------
+ 5 files changed, 138 insertions(+), 23 deletions(-)

@@ -1,20 +1,23 @@
-commit 8e6cf5f70c77daadf1b2c798f227031be156a904
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Wed Jan 28 23:07:05 2015 +0100
+commit d0eab030913e067012714d72811d959ce849e7a2
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Mar 5 17:33:08 2015 -0500
 
-    encoding/gob: clean up decoderMap after errBadType
+    runtime: Adjust when write barriers are active
     
-    When decoding an invalid typeId the associated *decEngine was not
-    removed from decoderMap. If the decoder was run again on the same input
-    a nil *decEngine was found in the map and assumed to be initialized,
-    resulting in a panic.
+    Even though the world is stopped the GC may do pointer
+    writes that need to be protected by write barriers.
+    This means that the write barrier must be on
+    continuously from the time the mark phase starts and
+    the mark termination phase ends. Checks were added to
+    ensure that no allocation happens during a GC.
     
-    Fixes #9649
+    Hoist the logic that clears pools the start of the GC
+    so that the memory can be reclaimed during this GC cycle.
     
-    Change-Id: I5bb51808362a21c09228c2705a658f073e5b59b3
-    Reviewed-on: https://go-review.googlesource.com/3509
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I9d1551ac5db9bac7bac0cb5370d5b2b19a9e6a52
+    Reviewed-on: https://go-review.googlesource.com/6990
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/encoding/gob/codec_test.go | 19 +++++++++++++++++++
- src/encoding/gob/decode.go     |  4 +++-
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/runtime/malloc.go |  3 +++
+ src/runtime/mgc.go    | 38 ++++++++++++++++++++++++++++++--------
+ 2 files changed, 33 insertions(+), 8 deletions(-)

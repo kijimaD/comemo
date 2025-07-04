@@ -1,31 +1,29 @@
-commit f6b42a53e5ac1f1c3f3b1c9ed2407e68e0b637a0
-Author: grant <grantseltzer@gmail.com>
-Date:   Wed Apr 3 14:21:21 2019 +0000
+commit 5d39260079b5170e6b4263adb4022cc4b54153c4
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu Nov 8 22:08:35 2018 -0800
 
-    net: use libSystem bindings for DNS resolution on macos if cgo is unavailable
+    net: preserve unexpired context values for LookupIPAddr
     
-    This change adds directives to link the res_search function in libSystem.
-    The corresponding Go function is then used in `lookup_darwin.go` for
-    resolution when cgo is disabled. This makes DNS resolution logic more
-    reliable as macOS has some unique quirks such as the `/etc/resolver/`
-    directory for specifying nameservers.
+    To avoid any cancelation of the parent context from affecting
+    lookupGroup operations, Resolver.LookupIPAddr previously used
+    an entirely new context created from context.Background().
+    However, this meant that all the values in the parent context
+    with which LookupIPAddr was invoked were dropped.
     
-    Fixes #12524
+    This change provides a custom context implementation
+    that only preserves values of the parent context by composing
+    context.Background() and the parent context. It only falls back
+    to the parent context to perform value lookups if the parent
+    context has not yet expired.
+    This context is never canceled, and has no deadlines.
     
-    Change-Id: I367263c4951383965b3ef6491196152f78e614b1
-    GitHub-Last-Rev: 3c3ff6bfa7e4811f206f3b119a867c841a016e10
-    GitHub-Pull-Request: golang/go#30686
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/166297
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #28600
+    
+    Change-Id: If2f570caa26c65bad638b7102c35c79d5e429fea
+    Reviewed-on: https://go-review.googlesource.com/c/148698
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/cgo_darwin_stub.go        | 209 ++++++++++++++++++++++++++++++++++++++
- src/net/cgo_stub.go               |   1 +
- src/net/conf.go                   |   5 +
- src/runtime/lookup_darwin.go      |  35 +++++++
- src/runtime/lookup_darwin_386.s   |  50 +++++++++
- src/runtime/lookup_darwin_amd64.s |  40 ++++++++
- src/runtime/lookup_darwin_arm.s   |  25 +++++
- src/runtime/lookup_darwin_arm64.s |  21 ++++
- 8 files changed, 386 insertions(+)
+ src/net/lookup.go      | 32 +++++++++++++++++++--
+ src/net/lookup_test.go | 75 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 105 insertions(+), 2 deletions(-)

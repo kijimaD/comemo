@@ -1,20 +1,31 @@
-commit fdaf88ea5b7a3bc937e68875d55b5741ecb2f092
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 11 09:01:47 2013 -0700
+commit fa4984d535b23c0d2b14650a8842d63083893af3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 11:59:19 2013 -0400
 
-    cmd/yacc: replace units example with simpler expr example
+    runtime: show runtime.panic frame in traceback
     
-    The units example is nice but is covered by the Lucent
-    license, which may be a concern for some people making a
-    commercial source code distribution of Go.
+    Otherwise, if panic starts running deferred functions,
+    the code that panicked appears to be calling those
+    functions directly, which is not the case and can be
+    confusing.
     
-    R=golang-dev, r
+    For example:
+    
+    main.Two()
+            /Users/rsc/x.go:12 +0x2a
+    runtime.panic(0x20dc0, 0x2100cc010)
+            /Users/rsc/g/go/src/pkg/runtime/panic.c:248 +0x106
+    main.One()
+            /Users/rsc/x.go:8 +0x55
+    
+    This makes clear(er) that main.Two is being called during
+    a panic, not as a direct call from main.One.
+    
+    Fixes #5832.
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/13283045
+    https://golang.org/cl/13302051
 
- src/cmd/yacc/Makefile  |   8 +-
- src/cmd/yacc/doc.go    |   6 +-
- src/cmd/yacc/expr.y    | 205 +++++++++++++
- src/cmd/yacc/units.txt | 576 -------------------------------------
- src/cmd/yacc/units.y   | 768 -------------------------------------------------
- 5 files changed, 211 insertions(+), 1352 deletions(-)
+ src/pkg/runtime/symtab.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

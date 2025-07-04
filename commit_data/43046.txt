@@ -1,17 +1,28 @@
-commit ccf581f126e03590993454b62d2676b759120adf
-Author: Clément Chigot <chigot.c@gmail.com>
-Date:   Wed Sep 16 13:55:38 2020 +0200
+commit b9642cbb8d261cd87d99a77f9cd2305de156f72e
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Mon Feb 24 21:04:50 2020 -0500
 
-    go/internal/gccgoimporter: recognize aixbigafMagic archives
+    [dev.link] cmd/link: add Target to relocation functions
     
-    Change-Id: I61a13f7d6410e4931efaa20307bdf1cc0037afc0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255200
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Trust: Ian Lance Taylor <iant@golang.org>
+    We need to propogate Target through the relocation functions.
+    
+    Change-Id: I1192d54a20a34569fd13c1511d2b21ebf2d1272e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220839
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/internal/gccgoimporter/importer.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/amd64/asm.go   |  4 ++--
+ src/cmd/link/internal/arm/asm.go     |  8 +++----
+ src/cmd/link/internal/arm64/asm.go   | 41 ++++++++++++++++++------------------
+ src/cmd/link/internal/ld/data.go     |  4 ++--
+ src/cmd/link/internal/ld/lib.go      |  4 ++--
+ src/cmd/link/internal/ld/target.go   | 17 +++++++++++++++
+ src/cmd/link/internal/mips/asm.go    | 16 +++++++-------
+ src/cmd/link/internal/mips64/asm.go  | 12 +++++------
+ src/cmd/link/internal/ppc64/asm.go   | 22 +++++++++----------
+ src/cmd/link/internal/riscv64/asm.go |  4 ++--
+ src/cmd/link/internal/s390x/asm.go   |  6 +++---
+ src/cmd/link/internal/x86/asm.go     |  6 +++---
+ 12 files changed, 80 insertions(+), 64 deletions(-)

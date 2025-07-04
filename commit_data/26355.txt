@@ -1,19 +1,34 @@
-commit ac74e5debc884ea4545e23c3248385f0d683524a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Mar 17 04:58:34 2016 -0700
+commit 756088549f764b7b75d4605d69cc1a187749fc6a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 12 17:02:32 2016 -0800
 
-    cmd/compile: stop constructing sudog type
+    go/importer: associate exported field and interface methods with correct package
     
-    The compiler doesn't care about the runtime's sudog type. Stop
-    constructing it.
+    In gc export data, exported struct field and interface method names appear
+    in unqualified form (i.e., w/o package name). The (gc)importer assumed that
+    unqualified exported names automatically belong to the package being imported.
+    This is not the case if the field or method belongs to a struct or interface
+    that was declared in another package and re-exported.
     
-    Change-Id: If1885fe30b2e215a08d17662eab5ea6d81fe58ab
-    Reviewed-on: https://go-review.googlesource.com/20797
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    The issue becomes visible if a type T (say an interface with a method M)
+    is declared in a package A, indirectly re-exported by a package B (which
+    imports A), and then imported in C. If C imports both A and B, if A is
+    imported before B, T.M gets associated with the correct package A. If B
+    is imported before A, T.M appears to be exported by B (even though T itself
+    is correctly marked as coming from A). If T.M is imported again via the
+    import of A if gets dropped (as it should) because it was imported already.
+    
+    The fix is to pass down the parent package when we parse imported types
+    so that the importer can use the correct package when creating fields
+    and methods.
+    
+    Fixes #13898.
+    
+    Change-Id: I7ec2ee2dda15859c582b65db221c3841899776e1
+    Reviewed-on: https://go-review.googlesource.com/18549
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/select.go | 18 ++----------------
- src/runtime/runtime2.go               |  3 ---
- 2 files changed, 2 insertions(+), 19 deletions(-)
+ src/go/internal/gcimporter/gcimporter.go      | 85 +++++++++++++++-----------
+ src/go/internal/gcimporter/gcimporter_test.go | 50 +++++++++++++++
+ src/go/types/issues_test.go                   | 88 +++++++++++++++++++++++++++
+ 3 files changed, 186 insertions(+), 37 deletions(-)

@@ -1,15 +1,19 @@
-commit 063125dfcf20593f3fe8f5eb3ed74b14cc47f79d
+commit f80d002438016bf622c961a724ae05f306e6b721
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 17 17:14:50 2011 -0500
+Date:   Thu Feb 17 17:14:19 2011 -0500
 
-    http: send full URL in proxy requests
+    json: only use alphanumeric tags
     
-    Fixes #53.  (again)
+    Almost the same definition as Go identifier names.
+    (Leading digits are allowed.)
     
-    R=agl1
+    Fixes #1520.
+    
+    R=r, r2
     CC=golang-dev
-    https://golang.org/cl/4167054
+    https://golang.org/cl/4173061
 
- src/pkg/http/client.go  | 20 +++++++++++++-------
- src/pkg/http/request.go | 22 +++++++++++++++++++++-
- 2 files changed, 34 insertions(+), 8 deletions(-)
+ src/pkg/json/decode.go      | 14 ++++++++------
+ src/pkg/json/decode_test.go |  8 ++++++++
+ src/pkg/json/encode.go      | 20 +++++++++++++++++---
+ 3 files changed, 33 insertions(+), 9 deletions(-)

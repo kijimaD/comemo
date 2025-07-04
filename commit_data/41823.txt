@@ -1,50 +1,16 @@
-commit 1dbcbcfca4692f67db7de2c1ff6a5ee59511cfa4
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu Dec 19 08:15:06 2019 +0000
+commit 5d000a8b6268c09697c64c76bade1daa86f43a9e
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Oct 26 09:24:29 2019 +0200
 
-    cmd/asm: align an instruction or a function's address
+    test: add test for fixed internal compiler error
     
-    Recently, the gVisor project needs an instruction's address
-    with 128 bytes alignment to fit the architecture requirement
-    for interrupt table.
+    Updates #35157 (the bug there was fixed by CL200861)
     
-    This patch allows aligning an instruction's address to be
-    aligned to a specific value (2^n and in the range [8, 2048])
-    
-    The main changes include:
-    
-    1. Adds a new element in the FuncInfo structure defined in
-    cmd/internal/obj/link.go file to record the alignment
-    information.
-    
-    2. Adds a new element in the Func structure defined in
-    cmd/internal/goobj/read.go file to read the alignment
-    information.
-    
-    3. Adds the assembler support to align an intruction's offset
-    with a specific value (2^n and in the range [8, 2048]).
-    e.g. "PCALIGN $256" indicates that the next instruction should
-    be aligned to 256 bytes.
-    
-    4. An instruction's alignment is relative to the start of the
-    function where this instruction is located, so the function's
-    address must be aligned to the same or coarser boundary.
-    
-    This CL also adds a test.
-    
-    Change-Id: I9b365c111b3a12f767728f1b45aa0c00f073c37d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226997
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I67069207b4cdc2ad4a475dd0bbc8555ecc5f534f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203598
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/internal/goobj/read.go           |  2 +
- src/cmd/internal/obj/arm64/asm7.go       | 33 +++++----------
- src/cmd/internal/obj/arm64/asm_test.go   | 27 ++++++++++--
- src/cmd/internal/obj/link.go             |  1 +
- src/cmd/internal/obj/objfile.go          |  1 +
- src/cmd/link/internal/ld/data.go         |  4 ++
- src/cmd/link/internal/objfile/objfile.go |  1 +
- src/cmd/link/link_test.go                | 70 ++++++++++++++++++++++++++++++++
- 8 files changed, 114 insertions(+), 25 deletions(-)
+ test/fixedbugs/issue35157.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

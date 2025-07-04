@@ -1,22 +1,22 @@
-commit 52fea4b3d97f741162a38e007aa7cdb5aaf52722
-Author: Adin Scannell <ascannell@google.com>
-Date:   Thu Feb 23 22:22:29 2023 +0000
+commit 73a81d84b644da13bb11ce2e63d7f61041f7ebac
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Apr 1 09:41:57 2022 +0200
 
-    runtime: fix linkname signature for godebug
+    cmd/cgo: retain original file paths in godefs generated comment
     
-    This signature uses the wrong type for the passed function, which
-    will be saved in the internal runtime map. Since the functions are
-    likely compatible (uint64 return versus int64), this may work but
-    should generally be fixed.
+    Don't rewrite relative file paths to absolute file paths in the
+    godefs generated code comment.
     
-    This is other instance of #58440.
+    Fixes #52063
     
-    Change-Id: Ied82e554745ef72eefeb5be540605809ffa06533
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/470915
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: Ie9c5bd021b8f3954e827838930861622c7aa90b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396936
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/internal/godebug/godebug.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testgodefs/testgodefs_test.go | 26 +++++++++++++++++++++++++-
+ src/cmd/cgo/godefs.go                  |  4 ++--
+ src/cmd/cgo/main.go                    |  6 +++++-
+ 3 files changed, 32 insertions(+), 4 deletions(-)

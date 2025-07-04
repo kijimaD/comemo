@@ -1,39 +1,25 @@
-commit d0edd9acc80a16ca1dd9c6f9045fdd34efabcd42
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Sat May 18 20:15:38 2024 +0200
+commit f777726ff073f8066c017649b572bd8c40940a42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 15 21:50:51 2023 -0700
 
-    crypto/tls: implement X25519Kyber768Draft00
+    os: if descriptor is non-blocking, retain that in Fd method
     
-    Forced the testConfig CurvePreferences to exclude X25519Kyber768Draft00
-    to avoid bloating the transcripts, but I manually tested it and the
-    tests all update and pass successfully, causing 7436 insertions(+), 3251
-    deletions(-).
+    For #58408
+    Fixes #60211
     
-    Fixes #67061
-    
-    Change-Id: If6f13bca561835777ab0889a490487b7c2366c3c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586656
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I30f5678b46e15121865b19d1c0f82698493fad4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495079
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- doc/godebug.md                           |   4 +
- src/crypto/tls/bogo_config.json          |  12 ++-
- src/crypto/tls/bogo_shim_test.go         |  60 +++++++++++++-
- src/crypto/tls/boring_test.go            |   4 +
- src/crypto/tls/common.go                 |  42 +++++++---
- src/crypto/tls/common_string.go          |   6 +-
- src/crypto/tls/conn.go                   |   3 +
- src/crypto/tls/handshake_client.go       | 104 ++++++++++++++----------
- src/crypto/tls/handshake_client_tls13.go |  67 +++++++++++-----
- src/crypto/tls/handshake_server.go       |  10 ++-
- src/crypto/tls/handshake_server_test.go  |   1 +
- src/crypto/tls/handshake_server_tls13.go |  66 ++++++++++-----
- src/crypto/tls/handshake_test.go         |   1 +
- src/crypto/tls/key_agreement.go          |   8 +-
- src/crypto/tls/key_schedule.go           |  41 ++++++++++
- src/crypto/tls/key_schedule_test.go      |  37 +++++++++
- src/crypto/tls/tls_test.go               | 133 +++++++++++++++++++++++++++++++
- src/internal/godebugs/table.go           |   1 +
- 18 files changed, 498 insertions(+), 102 deletions(-)
+ src/internal/syscall/unix/nonblocking.go        |  4 ++
+ src/internal/syscall/unix/nonblocking_js.go     |  4 ++
+ src/internal/syscall/unix/nonblocking_libc.go   |  4 ++
+ src/internal/syscall/unix/nonblocking_wasip1.go |  4 ++
+ src/os/fifo_test.go                             | 50 +++++++++++++++++++++++++
+ src/os/file_unix.go                             | 17 ++++++---
+ 6 files changed, 78 insertions(+), 5 deletions(-)

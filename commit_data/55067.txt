@@ -1,23 +1,30 @@
-commit 195c88b202695e90b2ff41b3f1a03bc19685baa6
-Author: Jorropo <jorropo.pgm@gmail.com>
-Date:   Wed Nov 8 16:08:26 2023 +0100
+commit ffefcd360b64e197131d6dc37a7ed015a2643c1b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 12 16:30:42 2022 -0800
 
-    net/http: use pointers to array for copyBufPool
+    spec: introduce notion of strict comparability
     
-    This is inspired by CL 539915, I'm only submitting now that
-    CL 456435 has been merged.
+    - Rephrase the notion of "comparability" from a property
+      of values (operands) to a property of types and adjust
+      dependent prose.
+    - Introduce the notion of "strict comparability".
+    - Fix the definitions of comparability for type interfaces
+      and type parameters.
+    - Define the predeclared identifier "comparable" as stricly
+      comparable.
     
-    This divide the number of objects kept alive by the heap by two
-    and remove the slice header allocation in New and in the put back.
+    These changes address existing problems in the spec as outlined
+    in the section on "Related spec issues" in issue #56548.
     
-    Change-Id: Ibcd5166bac5a37f365a533e09a28f3b79f81ad58
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/543515
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Damien Neil <dneil@google.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    For #56548.
+    
+    Change-Id: Ibc8c2f36d92857a5134eadc18358624803d3dd21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457095
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/net/http/server.go   | 22 ++++++++++++++--------
- src/net/http/transfer.go |  5 ++---
- 2 files changed, 16 insertions(+), 11 deletions(-)
+ doc/go_spec.html | 84 ++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 57 insertions(+), 27 deletions(-)

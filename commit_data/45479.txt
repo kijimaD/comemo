@@ -1,26 +1,20 @@
-commit 0bbfc5c31eb4cb77f12e10c73d5462377e66b06c
-Author: David Chase <drchase@google.com>
-Date:   Tue Nov 17 19:54:31 2020 -0500
+commit 80c6b92ecb911409f57d06793a1213395b75ebe2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Aug 7 16:37:29 2020 +0000
 
-    runtime: break up large calls to memclrNoHeapPointers to allow preemption
+    runtime,runtime/metrics: export goroutine count as a metric
     
-    If something "huge" is allocated, and the zeroing is trivial (no pointers
-    involved) then zero it by chunks in a loop so that preemption can occur,
-    not all in a single non-preemptible call.
+    For #37112.
     
-    Benchmarking suggests that 256K is the best chunk size.
-    
-    Updates #42642.
-    
-    Change-Id: I94015e467eaa098c59870e479d6d83bc88efbfb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270943
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I994dfe848605b95ef6aec24f53869e929247e987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247049
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/malloc.go   | 40 +++++++++++++++++++++++++++++++++++++++-
- src/runtime/mcache.go   |  9 ++++++---
- src/runtime/mcentral.go |  2 +-
- src/runtime/mheap.go    |  7 +++++--
- 4 files changed, 51 insertions(+), 7 deletions(-)
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 5 +++++
+ src/runtime/metrics/doc.go         | 3 +++
+ src/runtime/metrics_test.go        | 4 ++++
+ 4 files changed, 18 insertions(+)

@@ -1,12 +1,19 @@
-commit c1c136d0c4c2057f33f2ce66c7f9ed60e3c2548d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Nov 5 22:46:28 2012 +0100
+commit d8008a9eef07e235358f0f7ca94a729aad4aa3b1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 4 20:06:37 2012 +1100
 
-    cmd/godoc: use normal gofmt printer settings for playground fmt
+    cmd/5g: improve shift code generation
     
-    R=gri
+    This CL is a backport of 6012049 which improves code
+    generation for shift operations.
+    
+    benchmark       old ns/op    new ns/op    delta
+    BenchmarkLSL            9            5  -49.67%
+    BenchmarkLSR            9            4  -50.00%
+    
+    R=golang-dev, minux.ma, r, rsc
     CC=golang-dev
-    https://golang.org/cl/6815081
+    https://golang.org/cl/6813045
 
- src/cmd/godoc/play.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/5g/ggen.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

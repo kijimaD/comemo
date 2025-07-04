@@ -1,24 +1,21 @@
-commit 6109185cf9641ea401812c63ba3538742b872952
-Author: Julian Zhu <jz531210@gmail.com>
-Date:   Fri Apr 25 20:59:13 2025 +0800
+commit 40cc3eb27869b2cbad5bf139191d02a1bc7b84b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 7 21:17:04 2024 -0500
 
-    math/big: fix incorrect register allocation for mipsx/mips64x
+    runtime: fix mishandling of timer zombie count
     
-    According to the MIPS ABI, R26/R27 are reserved for OS kernel, and may be clobbered by it. They must not be used by user mode.
+    The timer zombie count was fundamentally racy and worked around
+    in CL 569995. We worked around that by ignoring underflow.
+    The fundamnental race was because t.ts was set before t was
+    inserted into ts. CL 564997 corrected that fundamental problem,
+    so now we can account for zombies completely accurately,
+    never seeing values less than zero. Do that.
     
-    See Figure 3-18 of MIPS ELF ABI specification: https://refspecs.linuxfoundation.org/elf/mipsabi.pdf
-    
-    Fixes #73472
-    
-    Change-Id: Ifda692a803176bfaab2c70d6623636c5d135f42e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/667816
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Idfbccc6662af5935f29f2a06a35e8ea93929bed7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569996
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/math/big/arith_mips64x.s           | 178 ++++++++++++++++-----------------
- src/math/big/arith_mipsx.s             | 178 ++++++++++++++++-----------------
- src/math/big/internal/asmgen/mips.go   |   8 +-
- src/math/big/internal/asmgen/mips64.go |   8 +-
- 4 files changed, 186 insertions(+), 186 deletions(-)
+ src/runtime/time.go | 151 +++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 101 insertions(+), 50 deletions(-)

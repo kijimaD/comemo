@@ -1,35 +1,17 @@
-commit b58d29741650c7bf10b17f455666e2727e1cdd2e
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Aug 17 19:06:19 2020 -0400
+commit 9d673bf1db091db5660e941c1c7d2fd40e268d44
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Feb 13 10:38:33 2020 -0500
 
-    cmd/compile, runtime: mark R12 clobbered for write barrier call on PPC64
+    [dev.link] cmd/link: use RO memory (when avail) in elf loader
     
-    When external linking, for large binaries, the external linker
-    may insert a trampoline for the write barrier call, which looks
+    Recreation of CL 206139 in the new symbol hierarchy.
     
-    0000000005a98cc8 <__long_branch_runtime.gcWriteBarrier>:
-     5a98cc8:       86 01 82 3d     addis   r12,r2,390
-     5a98ccc:       d8 bd 8c e9     ld      r12,-16936(r12)
-     5a98cd0:       a6 03 89 7d     mtctr   r12
-     5a98cd4:       20 04 80 4e     bctr
-    
-    It clobbers R12 (and CTR, which is never live across a call).
-    
-    As at compile time we don't know whether the binary is big and
-    what link mode will be used, I think we need to mark R12 as
-    clobbered for write barrier call. For extra safety (future-proof)
-    we mark caller-saved register that cannot be used for function
-    arguments, which includes R11, as potentially clobbered as well.
-    
-    Fixes #40851.
-    
-    Change-Id: Iedd901c5072f1127cc59b0a48cfeb4aaec81b519
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248917
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic20c5c1b5db8f7eadf4c6ee4638e3c1a4e10ef3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219317
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  4 +--
- src/cmd/compile/internal/ssa/opGen.go        |  2 +-
- src/runtime/asm_ppc64x.s                     | 41 ++++++++++++++--------------
- 3 files changed, 24 insertions(+), 23 deletions(-)
+ src/cmd/link/internal/amd64/asm.go     |  1 +
+ src/cmd/link/internal/loadelf/ldelf.go | 33 +++++++++++++++++----------------
+ 2 files changed, 18 insertions(+), 16 deletions(-)

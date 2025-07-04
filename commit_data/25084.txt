@@ -1,12 +1,12 @@
-commit 11b3dfd286872b0dd8225659f59884b78f80e47d
-Author: Carlos C <uldericofilho@gmail.com>
-Date:   Mon Jul 27 10:11:43 2015 +0200
+commit c604f48d243b235ec741c117b32bcf6c89ff6c66
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Tue Sep 22 20:45:16 2015 -0700
 
-    io: add examples to functions
+    doc: document go1.4.3
     
-    Change-Id: Id72cf4daceb7669cf9c7247df8e3ba086ccfe96e
-    Reviewed-on: https://go-review.googlesource.com/12730
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib1bfe4038e2b125a31acd9ff7772e462b0a6358f
+    Reviewed-on: https://go-review.googlesource.com/14852
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/io/example_test.go | 223 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 223 insertions(+)
+ doc/devel/release.html | 5 +++++
+ 1 file changed, 5 insertions(+)

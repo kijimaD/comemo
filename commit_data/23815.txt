@@ -1,19 +1,46 @@
-commit d23973d23ca19f5c2992467c01e02df1780b576c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 23 18:57:29 2015 -0700
+commit d63c42df255f4abdb58d611eca109a7ffdcb8104
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 15 11:06:59 2015 -0700
 
-    cmd/go: document environment variables
+    go/types: port recent x/tools/go/types fixes
     
-    This adds documentation for all the environment variables I could
-    locate in the go tool and the commands that it invokes.
+    The main change is:
     
-    Fixes #9672.
+    golang.org/cl/10800  add pos parameter to Eval; remove New, EvalNode
     
-    Change-Id: Id5f09160a3a8a938af4a3fcb8757eb3eced05416
-    Reviewed-on: https://go-review.googlesource.com/12620
-    Reviewed-by: Rob Pike <r@golang.org>
+    followed by several cleanups/follow-up fixes:
+    
+    golang.org/cl/10992  remove global vars in test
+    golang.org/cl/10994  remove unused scope parameter from NewSignature
+    golang.org/cl/10995  provide full source file extent to file scope
+    golang.org/cl/10996  comment fix in resolver.go
+    golang.org/cl/11004  updated cmd/vet
+    golang.org/cl/11042  be robust in the presence of incorrect/missing position info
+    
+    Fixes #9980.
+    
+    Change-Id: Id4aff688f6a399f76bf92b84c7e793b8da8baa48
+    Reviewed-on: https://go-review.googlesource.com/11122
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/go/alldocs.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/help.go    | 75 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/main.go    |  1 +
- 3 files changed, 148 insertions(+)
+ src/cmd/vet/shadow.go                    |   2 +-
+ src/cmd/vet/unused.go                    |   2 +-
+ src/go/internal/gcimporter/gcimporter.go |   2 +-
+ src/go/types/assignments.go              |   9 +-
+ src/go/types/call.go                     |   2 +-
+ src/go/types/check.go                    |   1 +
+ src/go/types/decl.go                     |  20 +++-
+ src/go/types/eval.go                     | 102 ++++++++++----------
+ src/go/types/eval_test.go                | 154 +++++++++++++++++++------------
+ src/go/types/labels.go                   |   2 +-
+ src/go/types/object.go                   |  59 +++++++-----
+ src/go/types/package.go                  |   7 +-
+ src/go/types/resolver.go                 |  17 +++-
+ src/go/types/resolver_test.go            | 144 ++++++++++++++---------------
+ src/go/types/return.go                   |   2 +-
+ src/go/types/scope.go                    |  46 +++++++--
+ src/go/types/stmt.go                     |  21 ++++-
+ src/go/types/type.go                     |  12 ++-
+ src/go/types/typexpr.go                  |   6 +-
+ src/go/types/universe.go                 |   2 +-
+ 20 files changed, 363 insertions(+), 249 deletions(-)

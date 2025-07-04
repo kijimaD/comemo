@@ -1,13 +1,13 @@
-commit 801f6e6367e923ce320276adb279b5f0b1ec9bef
+commit d151fb9e20a808e91cd0c2fbfbe59a1515070705
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Sep 20 23:29:29 2012 +0400
+Date:   Thu Sep 20 22:46:24 2012 +0400
 
-    sync: add Once test with panic
-    Tests behavior of Once when initialization function panics.
+    runtime: reset parfor stats
+    Otherwise they sum up between GCs.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6554047
+    https://golang.org/cl/6535048
 
- src/pkg/sync/once_test.go | 29 ++++++++++++++++++++++++++---
- 1 file changed, 26 insertions(+), 3 deletions(-)
+ src/pkg/runtime/parfor.c | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,43 +1,27 @@
-commit 623e2c4603053c8e2ecf4cd7ed5f8242a7a02226
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 28 17:44:09 2017 -0400
+commit 094498c9a13cd711ed45a65b153393eb8ae1566b
+Author: Eric Lagergren <ericscottlagergren@gmail.com>
+Date:   Mon Apr 3 15:54:20 2017 -0700
 
-    runtime: map bitmap and spans during heap initialization
+    all: fix minor misspellings
     
-    We lazily map the bitmap and spans areas as the heap grows. However,
-    right now we're very slightly too lazy. Specifically, the following
-    can happen on 32-bit:
-    
-    1. mallocinit fails to allocate any heap arena, so
-       arena_used == arena_alloc == arena_end == bitmap.
-    
-    2. There's less than 256MB between the end of the bitmap mapping and
-       the next mapping.
-    
-    3. On the first allocation, mheap.sysAlloc sees that there's not
-       enough room in [arena_alloc, arena_end) because there's no room at
-       all. It gets a 256MB mapping from somewhere *lower* in the address
-       space than arena_used and sets arena_alloc and arena_end to this
-       hole.
-    
-    4. Since the new arena_alloc is lower than arena_used, mheap.sysAlloc
-       doesn't bother to call mheap.setArenaUsed, so we still don't have a
-       bitmap mapping or a spans array mapping.
-    
-    5. mheap.grow, which called mheap.sysAlloc, attempts to fill in the
-       spans array and crashes.
-    
-    Fix this by mapping the metadata regions for the initial arena_used
-    when the heap is initialized, rather than trying to wait for an
-    allocation. This maintains the intended invariant that the structures
-    are always mapped for [arena_start, arena_used).
-    
-    Fixes #21044.
-    
-    Change-Id: I4422375a6e234b9f979d22135fc63ae3395946b0
-    Reviewed-on: https://go-review.googlesource.com/51714
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1f1cfb161640eb8756fb1a283892d06b30b7a8fa
+    Reviewed-on: https://go-review.googlesource.com/39356
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mheap.go | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/bytes/bytes.go                            | 2 +-
+ src/bytes/bytes_amd64.s                       | 2 +-
+ src/cmd/compile/internal/syntax/nodes_test.go | 2 +-
+ src/context/context_test.go                   | 2 +-
+ src/go/types/object.go                        | 2 +-
+ src/hash/crc32/crc32_ppc64le.s                | 2 +-
+ src/hash/crc32/crc32_s390x.s                  | 2 +-
+ src/math/big/int_test.go                      | 2 +-
+ src/net/http/request.go                       | 2 +-
+ src/os/os_windows_test.go                     | 2 +-
+ src/runtime/memmove_amd64.s                   | 2 +-
+ src/runtime/pprof/label_test.go               | 2 +-
+ src/runtime/rt0_linux_mips64x.s               | 2 +-
+ src/runtime/syscall_windows_test.go           | 2 +-
+ 14 files changed, 14 insertions(+), 14 deletions(-)

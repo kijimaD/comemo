@@ -1,12 +1,13 @@
-commit ee5a794fbbde0bc608f91e974a9b12f887b8266c
+commit 1b6b1bc66e306447cecf2ebae56565c93fcab958
 Author: Rob Pike <r@golang.org>
-Date:   Tue Mar 19 16:40:19 2013 -0700
+Date:   Tue Mar 19 15:04:18 2013 -0700
 
-    doc/go1.1.html: add links to the text, write some new sections
+    bytes,strings: remove user name from BUG in comment
     
-    R=golang-dev, rsc, dave
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/7914043
+    https://golang.org/cl/7856048
 
- doc/go1.1.html | 204 +++++++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 156 insertions(+), 48 deletions(-)
+ src/pkg/bytes/bytes.go     | 2 +-
+ src/pkg/strings/strings.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

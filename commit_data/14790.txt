@@ -1,22 +1,15 @@
-commit c09649890fd48f9854120999a109ba968596a021
-Author: John Graham-Cumming <jgc@jgc.org>
-Date:   Fri Jan 4 10:21:43 2013 -0500
+commit 98edf09e674b0f02cb32c48de22dcb21ca50df2d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 3 10:06:04 2013 -0800
 
-    log/syslog: remove RFC5424 version number for greater compatibility
+    net/http: Sync TimeoutHandler godoc with code.
     
-    RFC5424 specifies a version number (currently 1) after the facility and
-    severity in a syslog message (e.g. <7>1 TIMESTAMP ...).  This causes
-    rsyslog to fail to parse syslog message because the rest of the message
-    is not fully compliant with RFC5424.
+    TimeoutHandler was changed from "ns int64" to "dt time.Duration" on
+    Nov 30, 2011, but the godoc still refers to "ns".
     
-    For the widest compatibility, drop the version (messages are in the
-    RFC3164 BSD syslog format (e.g. <7>TIMESTAMP ...). Have tested this with
-    syslog-ng, rsyslog and syslogd.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7036050
+    https://golang.org/cl/7031050
 
- src/pkg/log/syslog/syslog.go      |  4 ++--
- src/pkg/log/syslog/syslog_test.go | 16 ++++++++--------
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ src/pkg/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

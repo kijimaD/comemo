@@ -1,33 +1,34 @@
-commit 2be7b1a4ace278a76ea9d34f8caa9290a249f28a
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Sat Sep 9 04:14:42 2023 -0700
+commit 1e9a7550a846366eda7aaf0b3ebf870791875c17
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 14 09:51:52 2022 -0400
 
-    os: fix TestRenameCaseDifference
+    misc/cgo/fortran: convert to Go test
     
-    Saw this failing on windows like this:
+    Currently, the entry-point to this test is a Bash script that smoke
+    tests the FORTRAN compiler and then runs a FORTRAN-containing Go test.
+    This CL rearranges things so a pure Go Go test smoke tests the FORTRAN
+    compiler and then runs a non-test FORTRAN-containing Go binary.
     
-            --- FAIL: TestRenameCaseDifference (2.96s)
-            --- FAIL: TestRenameCaseDifference/dir (1.64s)
-                testing.go:1226: TempDir RemoveAll cleanup: remove C:\Users\gopher\AppData\Local\Temp\1\TestRenameCaseDifferencedir1375918868\001: The process cannot access the file because it is being used by another process.
-            --- FAIL: TestRenameCaseDifference/file (1.32s)
-                testing.go:1226: TempDir RemoveAll cleanup: remove C:\Users\gopher\AppData\Local\Temp\1\TestRenameCaseDifferencefile3272269402\001: The process cannot access the file because it is being used by another process.
-            FAIL
+    While we're here, we fix a discrepancy when the host is GOARCH=amd64,
+    but the target is GOARCH=386. Previously, we would pick the wrong
+    libgfortran path because we didn't account for the cross-compilation,
+    causing the link to fail. Except for some reason this was ignored and
+    the test nevertheless "passed". In the new test we're a little more
+    strict, so this build failure will cause the test to fail, so we add a
+    little logic to account for cross-compilation with the host toolchain.
     
-    The reason might be the directory fd is not closed. This may be
-    mitigated by retries in removeAll function from testing package,
-    but apparently it does not succeed all the time.
+    For #37486.
     
-    A link to the failed run which made me look into this: https://ci.chromium.org/ui/p/golang/builders/try/gotip-windows-386/b8770439049015378129/overview
-    
-    Change-Id: Ibebe94958d1aef8d1d0eca8a969675708cd27a7e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527175
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Rob Pike <r@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: Ie6f70066885d6fbb4e1b5a2b1e13b85dee5b359b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443069
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/os/os_test.go | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/fortran/fortran_test.go                   | 76 ++++++++++++++++++++--
+ misc/cgo/fortran/test.bash                         | 44 -------------
+ .../cgo/fortran/{ => testdata/testprog}/answer.f90 |  0
+ .../cgo/fortran/{ => testdata/testprog}/fortran.go | 11 +++-
+ src/cmd/dist/test.go                               | 15 +----
+ 5 files changed, 84 insertions(+), 62 deletions(-)

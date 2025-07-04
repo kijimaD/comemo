@@ -1,33 +1,21 @@
-commit 33484a6ad23d3e4d4da6c80edbae4b2a0a75e84f
-Author: Thomas Wanielista <tomwans@gmail.com>
-Date:   Thu Aug 10 18:39:18 2017 -0400
+commit 06e5749f0175275cdf0c76836d82a2efd3096386
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 21 19:05:38 2017 -0700
 
-    go/doc: classify function returning slice of T as constructor
+    cmd/link: cleanup after IntSize->PtrSize conversion
     
-    Previously, go/doc would only consider functions that return types of
-    T or any number of pointers to T: *T, **T, etc. This change expands
-    the definition of a constructor to also include functions that return
-    slices of a type (or pointer to that type) in its first return.
+    Passes toolstash-check -all.
     
-    With this change, the following return types classify a function
-    as a constructor of type T:
+    Updates #19954.
     
-    T
-    *T
-    **T (and so on)
-    []T
-    []*T
-    []**T (and so on)
-    
-    Fixes #18063.
-    
-    Change-Id: I9a1a689933e13c6b8eb80b74ceec85bd4cab236d
-    Reviewed-on: https://go-review.googlesource.com/54971
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ic162306eed105912491bf1df47e32c32653f824c
+    Reviewed-on: https://go-review.googlesource.com/41490
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/doc/reader.go                    |  8 +++++-
- src/go/doc/testdata/issue18063.0.golden | 45 +++++++++++++++++++++++++++++++++
- src/go/doc/testdata/issue18063.1.golden | 45 +++++++++++++++++++++++++++++++++
- src/go/doc/testdata/issue18063.2.golden | 45 +++++++++++++++++++++++++++++++++
- src/go/doc/testdata/issue18063.go       | 33 ++++++++++++++++++++++++
- 5 files changed, 175 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go      | 4 ++++
+ src/cmd/link/internal/ld/decodesym.go | 6 +++---
+ src/cmd/link/internal/ld/pcln.go      | 6 +++---
+ src/cmd/link/internal/ld/symtab.go    | 6 +++---
+ 4 files changed, 13 insertions(+), 9 deletions(-)

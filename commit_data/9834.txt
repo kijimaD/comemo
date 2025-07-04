@@ -1,22 +1,15 @@
-commit 357f2cb1a385f4d1418e48856f9abe0cced3bcd1
+commit 51b09190ac65069b0248bdbc61d50c8026a42efd
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Sep 29 16:12:21 2011 -0700
+Date:   Thu Sep 29 15:35:01 2011 -0700
 
-    exp/sql{,/driver}: new database packages
+    io/ioutil: add a comment on why devNull is a ReaderFrom
     
-    R=gustavo, rsc, borman, dave, kevlar, nigeltao, dvyukov, kardianos, fw, r, r, david.crawshaw
+    ... protects this optimization from future well-meaning
+    Gophers looking to delete unused code. :)
+    
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4973055
+    https://golang.org/cl/5165041
 
- src/pkg/Makefile                 |   3 +
- src/pkg/exp/sql/Makefile         |  12 +
- src/pkg/exp/sql/convert.go       | 106 +++++++
- src/pkg/exp/sql/convert_test.go  | 108 ++++++++
- src/pkg/exp/sql/doc.txt          |  46 ++++
- src/pkg/exp/sql/driver/Makefile  |  12 +
- src/pkg/exp/sql/driver/driver.go | 169 ++++++++++++
- src/pkg/exp/sql/driver/types.go  | 161 +++++++++++
- src/pkg/exp/sql/fakedb_test.go   | 497 +++++++++++++++++++++++++++++++++
- src/pkg/exp/sql/sql.go           | 578 +++++++++++++++++++++++++++++++++++++++
- src/pkg/exp/sql/sql_test.go      | 145 ++++++++++
- 11 files changed, 1837 insertions(+)
+ src/pkg/io/ioutil/ioutil.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,19 +1,22 @@
-commit d8e052667f6bb93eb444cc372d03a866973d4c1b
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Jan 23 03:38:31 2020 +1100
+commit 51be44bfafb43e034fae09f259b53b48c395f89b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 4 12:43:50 2019 -0400
 
-    cmd/internal/obj/riscv: use signed immediates for U-instructions
+    cmd/go/internal/web: log complete URLs
     
-    On RISCV64, the U-instructions (AUIPC and LUI) take 20 bits, append 12 bits
-    of zeros and sign extend to 64-bits. As such, the 20 bit immediate value is
-    signed not unsigned.
+    Incoming URLs may omit the scheme to indicate “either HTTP or HTTPS”.
+    For such URLs, log the scheme actually used instead of leaving it out.
     
-    Updates #27532
+    (This issue was noticed while triaging #34075.)
     
-    Change-Id: I725215a1dc500106dbfdc0a4425f3c0b2a6f411e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/216257
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Updates #34075
+    
+    Change-Id: I39e5ca83543dd780258d41d5c2c4ba907cd20e5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193262
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/asm/internal/asm/testdata/riscvenc.s | 22 ++++++++++--------
- src/cmd/internal/obj/riscv/obj.go            | 34 +++-------------------------
- 2 files changed, 15 insertions(+), 41 deletions(-)
+ src/cmd/go/internal/web/http.go         |  8 ++++----
+ src/cmd/go/testdata/script/mod_getx.txt | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 4 deletions(-)

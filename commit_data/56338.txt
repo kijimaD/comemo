@@ -1,15 +1,21 @@
-commit b64e5e38ab66320bbd7886836d192772d21c4d9a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu May 2 20:29:29 2024 +0200
+commit 5901ab80b9c9ac2daa7c30f0c0ede3b7adfc7007
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Apr 30 11:38:00 2023 +0200
 
-    net: use stringslite.HasPrefix
+    runtime/cgo: use atomic.Uintptr instead of atomic.AddUintptr.
     
-    Change-Id: Ib14c70f580d0891b3fbedf9e4cde93077409d4e6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582915
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    cgo.NewHandle atomically increments a global uintptr index using
+    atomic.AddUintptr. Use atomic.Uintptr instead, which is
+    cleaner and clearer.
+    
+    Change-Id: I845b3e4cb8c461e787a9b9bb2a9ceaaef1d21d8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490775
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/net/dnsconfig_unix.go | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ src/runtime/cgo/handle.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

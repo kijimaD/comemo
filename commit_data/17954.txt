@@ -1,12 +1,12 @@
-commit b349477eabbc76fd038f20c69420e70e220397d7
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Wed Dec 11 09:49:28 2013 +1100
+commit c69402d82b5860df253b77ad07b6aa572c9f87cd
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue Dec 10 11:17:43 2013 -0800
 
-    doc/effective_go.html: close some tags.
+    runtime: remove outdated comment and related indentation
     
-    R=golang-dev, minux.ma
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/37700043
+    https://golang.org/cl/39810043
 
- doc/effective_go.html | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/mgc0.c | 212 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 103 insertions(+), 109 deletions(-)

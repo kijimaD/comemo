@@ -1,18 +1,25 @@
-commit dcb1363a1fc3e02085f17533052dfab35e426143
-Author: Michael Ellis <micellis@justin.tv>
-Date:   Wed Nov 7 15:14:20 2018 -0800
+commit 6bea321ba27a4c0c9424c11c6424697deee7cce2
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Jul 30 17:05:49 2018 +0300
 
-    cmd/go: parse dot-separated identifiers in build metadata
+    cmd/cgo: add column number to line directives
     
-    Per https://semver.org/#spec-item-10, build metadata may include
-    a series of dot separated identifiers.
+    Due to a new specification of //line: directives, missing
+    column info is now treated as column 0, aka "unknown column"
+    (see https://github.com/golang/go/issues/24183 for details).
     
-    Fixes #28647
+    As cgo does not add column number to generated //line: directive,
+    resulting files parsed do not have column info.
     
-    Change-Id: I98655c62584a822953df71fba32b4a2cafe7a04b
-    Reviewed-on: https://go-review.googlesource.com/c/148835
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Fix by adding column of 1 to generated line directives.
+    
+    Fixes #26692
+    
+    Change-Id: Ie9263c0cf666b92d19c34240e745e8f32ffe7174
+    Reviewed-on: https://go-review.googlesource.com/126675
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/semver/semver.go      | 2 +-
- src/cmd/go/internal/semver/semver_test.go | 1 +
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

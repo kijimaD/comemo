@@ -1,27 +1,19 @@
-commit 2e455ec2eb447a65f10b3dc929833f6aa19d526e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 30 19:35:12 2020 +0000
+commit 7adafc985aa6bf5f66de1b6e9ff9d553d8dd183b
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Nov 25 19:23:44 2019 +0100
 
-    runtime: avoid overflow from linearAlloc
+    cmd/go: prefix calls to Windows rmdir with cmd.exe
     
-    Currently linearAlloc manages an exclusive "end" address for the top of
-    its reserved space. While unlikely for a linearAlloc to be allocated
-    with an "end" address hitting the top of the address space, it is
-    possible and could lead to overflow.
+    rmdir is a built-in of cmd.exe. It's also an alias in powershell.exe. We
+    want always the cmd.exe on, so specify it explicitly.
     
-    Avoid overflow by chopping off the last byte from the linearAlloc if
-    it's bumping up against the top of the address space defensively. In
-    practice, this means that if 32-bit platforms map the top of the address
-    space and use the linearAlloc to acquire arenas, the top arena will not
-    be usable.
+    Fixes #35813
     
-    Fixes #35954.
-    
-    Change-Id: I512cddcd34fd1ab15cb6ca92bbf899fc1ef22ff6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/231338
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I89723e993ee26a20b42d03b8a725ff10ccf30505
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208639
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/malloc.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/mod_cache_rw.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

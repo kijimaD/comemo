@@ -1,19 +1,18 @@
-commit 92d7169a36709a689736c893994b42938d3270e7
-Author: Austin Clements <austin@google.com>
-Date:   Wed Jan 17 14:24:06 2024 -0500
+commit 3e1478ef0d4e98e5655afdee6efec2fc886d66fc
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 1 02:04:29 2023 +0700
 
-    runtime: skip test if strace crashes
+    cmd/compile: cleanup atomic.Pointer[T] inline test
     
-    Very occasionally, at least on linux/386, strace itself will crash in
-    TestUsingVDSO. Detect these crashes and just skip the test.
+    Updates #57410
     
-    Fixes #63734.
-    
-    Change-Id: I050494459d47dd96c0b8dc0b16353cb532fba93e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556357
-    Auto-Submit: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I9be38e20c6b83d14f7785049a66de77ac7ecdf15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463997
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/vdso_test.go | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ src/cmd/compile/internal/test/inl_test.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

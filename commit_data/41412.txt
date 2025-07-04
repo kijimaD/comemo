@@ -1,22 +1,19 @@
-commit 917c7a6fc9c6843e40da7f8e1a1fcf8605d1383e
-Author: Andrew Bonventre <andybons@google.com>
-Date:   Mon Feb 24 22:47:00 2020 +0000
+commit cd75cf4bc02a741f7b59e30dd1170364000fd134
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 11 16:11:31 2019 -0400
 
-    Revert "cmd/go/internal/modload: record the replacement for the module containing package main in BuildInfo"
+    [dev.link] cmd/compile, cmd/asm: use bio.Writer for object file writing
     
-    This reverts CL 220645 (commit e092fc352ad393a4d2f1f7fa641df2d23572ccff).
+    It is convenient to have a seekable writer. A later CL will make
+    use of Seek.
     
-    Reason for revert: Seems to have broken windows/amd64 longtest
-    
-    Change-Id: Iffa8c882524250e5845514bc827fcd8927645a44
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220722
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Iba0107ce2975d9a451d97f16aa91a318dd4c90e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196028
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/modload/build.go               | 30 ++++++-------
- .../mod/example.com_printversion_v0.1.0.txt        |  6 ---
- .../mod/example.com_printversion_v1.0.0.txt        |  6 ---
- src/cmd/go/testdata/script/version_replace.txt     | 33 --------------
- src/runtime/debug/mod.go                           | 51 +++++++++-------------
- 5 files changed, 36 insertions(+), 90 deletions(-)
+ src/cmd/asm/main.go                | 8 +++-----
+ src/cmd/compile/internal/gc/obj.go | 2 +-
+ src/cmd/internal/obj/objfile.go    | 4 +++-
+ 3 files changed, 7 insertions(+), 7 deletions(-)

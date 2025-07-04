@@ -1,14 +1,19 @@
-commit 2e7831a1d192ef0cbcb0caf9331b6cf3fa05e3d3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jun 18 11:55:19 2015 -0700
+commit 645e77ef10ef2367ab07669dc4e8be5b54d36fe7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 13 14:06:43 2015 +0900
 
-    go/parser: document that parser accepts a wider language than specified
+    net/internal/socktest: fix data race
     
-    See also issue #11271.
+    Fixes #10796.
     
-    Change-Id: I34175f46ce137b14ca483500f673b0f8ee1f2108
-    Reviewed-on: https://go-review.googlesource.com/11262
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Ifcd2e771c64114e210fbfc5efaaceb53c534f745
+    Reviewed-on: https://go-review.googlesource.com/10007
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/parser/parser.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/net/internal/socktest/main_test.go      | 16 ++++++++++++++++
+ src/net/internal/socktest/switch.go         | 14 +++++++-------
+ src/net/internal/socktest/switch_unix.go    |  2 +-
+ src/net/internal/socktest/switch_windows.go |  2 +-
+ src/net/internal/socktest/sys_unix.go       |  2 ++
+ src/net/internal/socktest/sys_windows.go    |  2 ++
+ 6 files changed, 29 insertions(+), 9 deletions(-)

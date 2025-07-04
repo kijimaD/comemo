@@ -1,14 +1,12 @@
-commit 8c530becaf55ce3285121d0bf640085520ac3a4b
+commit 8eb508dd08bdebe3c37fc16e7d13b4fc7c078b73
 Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Wed Dec 18 16:24:11 2013 +1100
+Date:   Tue Dec 17 23:18:12 2013 -0500
 
-    log: add example
+    flag: remove unused FlagSet.exitOnError field
     
-    Fixes #6028.
-    
-    R=golang-dev, bradfitz, adg, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/43320043
+    https://golang.org/cl/14279043
 
- src/pkg/log/example_test.go | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/pkg/flag/flag.go | 1 -
+ 1 file changed, 1 deletion(-)

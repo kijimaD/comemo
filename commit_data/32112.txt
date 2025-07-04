@@ -1,14 +1,17 @@
-commit 3e3da5463302ff6f73a78e60fa7027d554095520
-Author: Francesc Campoy Flores <campoy@golang.org>
-Date:   Fri Aug 4 17:03:33 2017 -0700
+commit 4e7724b2db4163f88a542fa0ff0dc72dfc5698de
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 6 13:18:45 2017 +0100
 
-    math/bits: fix example for OnesCount64
+    runtime: remove unused parameter from bestFitTreap
     
-    Erroneously called OnesCount instead of OnesCount64
+    This code was added recently, and it doesn't seem like the parameter
+    will be useful in the near future.
     
-    Change-Id: Ie877e43f213253e45d31f64931c4a15915849586
-    Reviewed-on: https://go-review.googlesource.com/53410
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: I5d64dadb6820c159b588262ab90df2461b5fdf04
+    Reviewed-on: https://go-review.googlesource.com/39692
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/math/bits/example_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mheap.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

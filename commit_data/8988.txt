@@ -1,13 +1,24 @@
-commit c17347eea971701057a30ef97ff2ef72f684760f
-Author: Rob Pike <r@golang.org>
-Date:   Sat Jul 9 23:17:38 2011 +1000
+commit ab3365d34e34b7d16ae1e4cf4a39240c2212d8f6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jul 9 20:16:45 2011 +1000
 
-    tutorial: remove all line numbers and references to them.
+    doc/progs: gofmt -w
     
-    R=golang-dev, mikioh.mikioh, dsymonds
+    R=r, gri, r
     CC=golang-dev
-    https://golang.org/cl/4675070
+    https://golang.org/cl/4662085
 
- doc/go_tutorial.html | 82 ++++++++++++++++++++++++++--------------------------
- doc/go_tutorial.txt  | 20 ++++++-------
- 2 files changed, 50 insertions(+), 52 deletions(-)
+ doc/progs/echo.go         |  6 +++---
+ doc/progs/file_windows.go |  4 ++--
+ doc/progs/helloworld.go   |  2 +-
+ doc/progs/helloworld3.go  |  2 +-
+ doc/progs/print.go        |  2 +-
+ doc/progs/server.go       | 10 +++++-----
+ doc/progs/server1.go      | 10 +++++-----
+ doc/progs/sieve.go        | 12 ++++++------
+ doc/progs/sieve1.go       |  4 ++--
+ doc/progs/sort.go         | 36 ++++++++++++++++--------------------
+ doc/progs/sortmain.go     | 24 ++++++++++++------------
+ doc/progs/strings.go      |  4 +++-
+ doc/progs/sum.go          |  1 -
+ 13 files changed, 57 insertions(+), 60 deletions(-)

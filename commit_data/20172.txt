@@ -1,13 +1,23 @@
-commit 2c1fde07ac2a5993a8c758abb3967950afde8406
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Thu Aug 28 11:47:54 2014 -0400
+commit 9368d6ccbfe57bc54b433b22b2008d3c4faf086d
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Fri Aug 22 10:18:00 2014 -0700
 
-    runtime: fix arm build
+    cmd/gofmt: fix error on partial Go code ending with line comment.
     
-    LGTM=rsc
-    R=rsc
+    Fix issue by always appending newline after user input, before
+    the closing curly bracket. The adjust func is modified to remove
+    this new newline.
+    
+    Add test case (it fails before CL, passes after).
+    
+    Fixes #8411.
+    
+    LGTM=gri
+    R=golang-codereviews, bradfitz, josharian, gri
     CC=golang-codereviews
-    https://golang.org/cl/134030043
+    https://golang.org/cl/124700043
 
- src/pkg/runtime/stubs.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/gofmt/gofmt.go               | 4 ++--
+ src/cmd/gofmt/testdata/stdin5.golden | 3 +++
+ src/cmd/gofmt/testdata/stdin5.input  | 3 +++
+ 3 files changed, 8 insertions(+), 2 deletions(-)

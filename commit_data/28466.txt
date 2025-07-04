@@ -1,31 +1,14 @@
-commit d41a7f77c5ed5114fe81b65ee28013227d20d637
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Sep 20 14:59:39 2016 +1200
+commit 02bf6b5ef93cdb981949e8164e4364a9d8424dc9
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 26 14:31:35 2016 -0700
 
-    cmd/link: do not directly embed Symbols in Link
+    cmd/compile: add tests for logical simplification rewrite rules
     
-    Mostly done with sed.
+    Increases coverage of generic.rules from 72% to 84%.
     
-    Change-Id: Ic8c534a3fdd332b5420d062ee85bb77a30ad1efb
-    Reviewed-on: https://go-review.googlesource.com/29346
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I1b139aeeb6410d025d49cbe4e4601f6f935ce1e5
+    Reviewed-on: https://go-review.googlesource.com/23490
+    Reviewed-by: Todd Neal <todd@tneal.org>
 
- src/cmd/link/internal/ld/ar.go       | 2 +-
- src/cmd/link/internal/ld/data.go     | 4 ++--
- src/cmd/link/internal/ld/deadcode.go | 4 ++--
- src/cmd/link/internal/ld/elf.go      | 2 +-
- src/cmd/link/internal/ld/go.go       | 2 +-
- src/cmd/link/internal/ld/ldelf.go    | 8 ++++----
- src/cmd/link/internal/ld/ldmacho.go  | 6 +++---
- src/cmd/link/internal/ld/ldpe.go     | 6 +++---
- src/cmd/link/internal/ld/lib.go      | 6 +++---
- src/cmd/link/internal/ld/link.go     | 2 +-
- src/cmd/link/internal/ld/macho.go    | 2 +-
- src/cmd/link/internal/ld/main.go     | 2 +-
- src/cmd/link/internal/ld/objfile.go  | 4 ++--
- src/cmd/link/internal/ld/pe.go       | 4 ++--
- src/cmd/link/internal/ld/sym.go      | 8 ++++----
- src/cmd/link/internal/ld/symtab.go   | 2 +-
- 16 files changed, 32 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/gc/logic_test.go | 289 ++++++++++++++++++++++++++++++
+ 1 file changed, 289 insertions(+)

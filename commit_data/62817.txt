@@ -1,0 +1,25 @@
+commit 64371adcf4f431adc1f6afab4d7e61bb9b5eff72
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Apr 15 11:17:03 2025 -0700
+
+    cmd/go/internal/imports: remove test dependency on json internals
+    
+    TestScan loads encoding/json and verifies that various imports
+    match expectations. The new v2 encoding/json violates these
+    expectations. Since this test is testing the ScanDir function,
+    not encoding/json, change it to use a test package with defined
+    imports instead.
+    
+    Change-Id: I68a0813ccf37daadbd6ea52872a8ac132141e82a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665795
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Bypass: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/cmd/go/internal/imports/scan_test.go           | 22 +++++++++++-----------
+ .../internal/imports/testdata/test/child/child.go  |  5 +++++
+ src/cmd/go/internal/imports/testdata/test/tags.txt |  0
+ src/cmd/go/internal/imports/testdata/test/test.go  | 10 ++++++++++
+ .../go/internal/imports/testdata/test/test_test.go |  9 +++++++++
+ src/cmd/go/internal/imports/testdata/test/want.txt |  2 ++
+ 6 files changed, 37 insertions(+), 11 deletions(-)

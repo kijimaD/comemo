@@ -1,20 +1,20 @@
-commit 8f06e217eac10bae4993ca371ade35fecd26270e
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 12 11:58:09 2017 -0700
+commit 32bb13abbeeeeb91dd4deea746bcb85cc2634682
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Mar 1 18:39:01 2017 +0100
 
-    text/scanner: use correct token position in example
+    cmd/vendor/github.com/google/pprof: refresh from upstream
     
-    While at it, unindent source text so column values are easier
-    to read, remove unnecessary text in output, and simplify the
-    loop.
+    Updating to commit b1c91b9f8fa7647e4c43c96c50f245df551f7013
+    from github.com/google/pprof
     
-    Fixes #20346.
+    Fixes #19342.
     
-    Change-Id: I0fde02b9e4242383da427f4cf4c6c13dd0ab3b47
-    Reviewed-on: https://go-review.googlesource.com/43450
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Iaaa283cdce3f9bf3e5fe713be7d23c477b579092
+    Reviewed-on: https://go-review.googlesource.com/37634
+    Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/text/scanner/example_test.go | 35 ++++++++++++++++-------------------
- 1 file changed, 16 insertions(+), 19 deletions(-)
+ .../vendor/github.com/google/pprof/internal/driver/fetch_test.go    | 6 +++---
+ src/cmd/vendor/vendor.json                                          | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

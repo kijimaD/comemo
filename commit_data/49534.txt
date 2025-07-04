@@ -1,22 +1,18 @@
-commit 6b309be7ab7c17beb77c6e40b258278e7454d919
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 24 15:55:30 2022 -0700
+commit 5e6a7e9b860d7c8f589eec3c123469ea8071689f
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Mon Aug 23 19:13:35 2021 +0930
 
-    cmd/compile/internal/syntax: check fallthrough in CheckBranches mode
+    embed: remove reference to global variables in docs
     
-    The parser CheckBranches mode checked correct use of break, continue,
-    and labels, but not of fallthrough statements.
+    Refering to variable is both redundant since package scope is used, and
+    incorrect since global variables are not described in the spec.
     
-    This CL adds checking of fallthrough statements as well.
-    
-    For #51456.
-    
-    Change-Id: I5000388011973724f80c59a6aaf015e3bb70faea
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/414134
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib08a9f072fc800ee36549f758b68167d8f044878
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344214
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/syntax/branches.go        | 54 ++++++++++++++++-----
- src/cmd/compile/internal/syntax/error_test.go      |  2 +-
- .../internal/syntax/testdata/fallthrough.go        | 55 ++++++++++++++++++++++
- 3 files changed, 97 insertions(+), 14 deletions(-)
+ src/embed/embed.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

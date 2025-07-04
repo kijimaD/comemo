@@ -1,12 +1,15 @@
-commit 256df10eae78fd0cbb4f41960a3a8ad9f7cc63ae
-Author: Quan Yong Zhai <qyzhai@gmail.com>
-Date:   Thu Apr 21 12:09:29 2011 -0400
+commit 29d78f124348d897a505e28fb28058d9a13163d0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Apr 21 12:09:25 2011 -0400
 
-    gc: fix copy([]int, string) error message
+    runtime: fix GOMAXPROCS vs garbage collection bug
     
-    R=rsc
+    Fixes #1715.
+    
+    R=golang-dev, rsc1, rsc
     CC=golang-dev
-    https://golang.org/cl/4433064
+    https://golang.org/cl/4434053
 
- src/cmd/gc/typecheck.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/pkg/runtime/proc.c       |  6 ++++++
+ src/pkg/runtime/proc_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

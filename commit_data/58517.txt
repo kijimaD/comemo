@@ -1,22 +1,39 @@
-commit bd80d8956f3062d2b2bff2d7da6b879dfa909f12
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 13 23:00:14 2025 -0500
+commit 6b43a172d8e42804c174aa362aa346238fc62550
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 16 10:23:23 2023 -0500
 
-    cmd/go/internal/modfetch: do not trust server to send all tags in shallow fetch
+    runtime/race: update race syso files to support atomic And, Or
     
-    Newer git versions (at least git 2.47.1) do not send all the matching tags
-    for a shallow fetch of a specific hash anymore. The go command assumes
-    that git servers do this. Since that assumption is broken, use the local
-    copy of the remote refs list to augment the tags sent by the server.
-    This makes the cmd/go/internal/modfetch tests pass again with newer git.
+    TSAN recently got support for Go's new atomic And and Or
+    operations (#61395). This CL updates the race syso files to
+    include the change. Also regenerate cgo dynamic imports on darwin.
     
-    Fixes #71261.
+    OpenBSD/AMD64 is not updated, as TSAN no longer supports OpenBSD
+    (#52090).
     
-    Change-Id: I9fd4f3fd7beeb68a522938599f8f3acd887d0b26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/642437
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Linux/PPC64 is not updated, as I'm running into some builder
+    issues. Still working on it.
+    
+    For #61395.
+    For #62624.
+    
+    Change-Id: Ifc90ea79284f29a356f9e8a5f144f6c690881395
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543035
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
 
- src/cmd/go/internal/modfetch/codehost/git.go | 16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ src/runtime/race/README                            |  20 ++++++++++----------
+ src/runtime/race/internal/amd64v1/race_darwin.syso | Bin 541464 -> 551776 bytes
+ .../race/internal/amd64v1/race_freebsd.syso        | Bin 712464 -> 722120 bytes
+ src/runtime/race/internal/amd64v1/race_linux.syso  | Bin 563848 -> 571888 bytes
+ src/runtime/race/internal/amd64v1/race_netbsd.syso | Bin 714520 -> 736752 bytes
+ .../race/internal/amd64v1/race_windows.syso        | Bin 550036 -> 562886 bytes
+ src/runtime/race/internal/amd64v3/race_linux.syso  | Bin 563664 -> 571728 bytes
+ src/runtime/race/race_darwin_amd64.go              |   7 +++++++
+ src/runtime/race/race_darwin_arm64.go              |  13 +++++++++++++
+ src/runtime/race/race_darwin_arm64.syso            | Bin 484988 -> 499112 bytes
+ src/runtime/race/race_linux_arm64.syso             | Bin 530736 -> 580032 bytes
+ src/runtime/race/race_linux_s390x.syso             | Bin 565472 -> 582872 bytes
+ 12 files changed, 30 insertions(+), 10 deletions(-)

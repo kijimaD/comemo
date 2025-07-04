@@ -1,28 +1,19 @@
-commit 268dd2e5a7a8919bd26f0a59c847f8268a2437d1
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Mon Aug 10 08:01:21 2020 -0700
+commit b44008fec7b55d474f454f67e196e8dec830b973
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 13:43:21 2020 -0500
 
-    cmd/internal/obj: fix inline marker issue on s390x
+    cmd/go: convert TestCoverageRuns to the script framework
     
-    The optimization that replaces inline markers with pre-existing
-    instructions assumes that 'Prog' values produced by the compiler are
-    still reachable after the assembler has run. This was not true on
-    s390x where the assembler was removing NOP instructions from the
-    linked list of 'Prog' values. This led to broken inlining data
-    which in turn caused an infinite loop in the runtime traceback code.
+    Part of converting all tests to script framework to improve
+    test parallelism.
     
-    Fix this by stopping the s390x assembler backend removing NOP
-    values. It does not make any difference to the output of the
-    assembler because NOP instructions are 0 bytes long anyway.
+    Updates #36320
+    Updates #17751
     
-    Fixes #40473.
-    
-    Change-Id: I9b97c494afaae2d5ed6bca4cd428b4132b5f8133
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/249448
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ie46118eddbd7c3ed0bb9ecee4bdc1cb6fdaf06a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214291
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/internal/obj/pcln.go       | 15 +++++++++++++++
- src/cmd/internal/obj/s390x/objz.go | 11 -----------
- 2 files changed, 15 insertions(+), 11 deletions(-)
+ src/cmd/go/go_test.go                     | 21 ---------------------
+ src/cmd/go/testdata/script/cover_runs.txt | 13 +++++++++++++
+ 2 files changed, 13 insertions(+), 21 deletions(-)

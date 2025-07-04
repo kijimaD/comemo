@@ -1,55 +1,19 @@
-commit 6e703ae7093b8921ce8e64a08e600d94ea1f9f28
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Thu Sep 1 21:04:08 2016 +0300
+commit 8650c2303449a1cccf3a05609a63193e34d6bae8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 5 09:39:50 2016 -0700
 
-    math: fix sqrt regression on AMD64
+    cmd/compile: verify imported types after they are fully imported
     
-    1.7 introduced a significant regression compared to 1.6:
+    Fixes #15548.
     
-    SqrtIndirect-4  2.32ns ± 0%  7.86ns ± 0%  +238.79%        (p=0.000 n=20+18)
-    
-    This is caused by sqrtsd preserving upper part of destination register.
-    Which introduces dependency on previous  value of X0.
-    In 1.6 benchmark loop didn't use X0 immediately after call:
-    
-    callq  *%rbx
-    movsd  0x8(%rsp),%xmm2
-    movsd  0x20(%rsp),%xmm1
-    addsd  %xmm2,%xmm1
-    mov    0x18(%rsp),%rax
-    inc    %rax
-    jmp    loop
-    
-    In 1.7 however xmm0 is used just after call:
-    
-    callq  *%rbx
-    mov    0x10(%rsp),%rcx
-    lea    0x1(%rcx),%rax
-    movsd  0x8(%rsp),%xmm0
-    movsd  0x18(%rsp),%xmm1
-    
-    I've  verified that this is caused by dependency, by inserting
-    XORPS X0,X0 in the beginning of math.Sqrt, which puts performance back on 1.6 level.
-    
-    Splitting SQRTSD mem,reg into:
-    MOVSD mem,reg
-    SQRTSD reg,reg
-    
-    Removes dependency, because MOVSD (load version)
-    doesn't need to preserve upper part of a register.
-    And reg,reg operation is solved by renamer in CPU.
-    
-    As a result of this change regression is gone:
-    SqrtIndirect-4  7.86ns ± 0%  2.33ns ± 0%  -70.36%  (p=0.000 n=18+17)
-    
-    This also removes old Sqrt benchmarks, in favor of benchmarks measuring latency.
-    Only SqrtIndirect is kept, to show impact of this patch.
-    
-    Change-Id: Ic7eebe8866445adff5bc38192fa8d64c9a6b8872
-    Reviewed-on: https://go-review.googlesource.com/28392
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I1dfa9c8739a4b6d5e4c737c1a1e09e80e045b7aa
+    Reviewed-on: https://go-review.googlesource.com/22803
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/math/all_test.go  | 25 +++++++++++++++++--------
- src/math/sqrt_amd64.s |  7 ++++---
- 2 files changed, 21 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go | 52 +++++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/export.go  |  1 +
+ test/fixedbugs/issue15548.dir/a.go     | 17 +++++++++++
+ test/fixedbugs/issue15548.dir/b.go     |  9 ++++++
+ test/fixedbugs/issue15548.dir/c.go     | 10 +++++++
+ test/fixedbugs/issue15548.go           |  7 +++++
+ 6 files changed, 95 insertions(+), 1 deletion(-)

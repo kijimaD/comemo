@@ -1,20 +1,24 @@
-commit b0799674677921ba87cd71f42ba6467478a66c63
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri Jan 26 11:19:22 2024 -0500
+commit c3d3be10665f1037360600a79c0354f6580e6290
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Feb 9 11:37:13 2023 -0500
 
-    doc/README: clarify instructions
+    cmd/link: try libssp_nonshared.a when looking for "__stack_chk_fail_local"
     
-    - State that new markdown files belong in doc/next.
-    - Give hints on correct markdown syntax.
+    Update the code that tries to satisfy unresolved references to
+    "__stack_chk_fail_local" to look for "libssp_nonshared.a" in addition
+    to "libc_nonshared.a" (the former archive is the correct place on
+    Alpine).
     
-    For #64169
+    Updates #52919.
+    Updates #54313.
+    Updates #57261.
+    Fixes #58385.
     
-    Change-Id: Ied70e7ac443530c910eea2992ca6e303bbc10499
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/558855
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Change-Id: Id6cd3ebb4d5388df50a838e6efa5e5b683545b01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466936
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/README.md | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 42 +++++++++++++++++++++++------------------
+ 1 file changed, 24 insertions(+), 18 deletions(-)

@@ -1,32 +1,22 @@
-commit 4598c23c6c7a0062a21da1bad9fe73d149733da5
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 19 17:50:37 2019 -0400
+commit ec0077c54d6261ba5cbab2c5dc2e80345068233f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 6 20:58:26 2018 +0100
 
-    runtime: switch to P 0 before destroying current P
+    crypto/x509: explicitly cast printf format argument
     
-    Ps are strictly numbered from 0 to GOMAXPROCS-1, so if procresize
-    happens to be running on a P that's being destroyed, it moves itself
-    to P 0.
+    After CL 128056 the build fails on darwin/386 with
     
-    However, currently procresize destroys the unused Ps *before* moving
-    itself to P 0. This means it may briefly run on a destroyed P. This is
-    basically harmless, but has at least one very confusing consequence:
-    since destroying a P has write barriers, it may enqueue pointers to a
-    destroyed write barrier buffer. As far as I can tell, there are no
-    negative consequences of this, but this seems really fragile.
+      src/crypto/x509/root_cgo_darwin.go:218:55: warning: values of type 'SInt32' should not be used as format arguments; add an explicit cast to 'int' instead [-Wformat]
+      go build crypto/x509: C compiler warning promoted to error on Go builders
     
-    This CL swaps the order of things, so now procresize moves itself to P
-    0 if necessary before destroying Ps. This ensures it always has a
-    valid P.
+    Fix the warning by explicitly casting the argument to an int as
+    suggested by the warning.
     
-    This is part of refactoring for #10958 and #24543, but is a good
-    cleanup regardless.
-    
-    Change-Id: I91a23dd6ed27e372f8d6291feec9bc991bcf9812
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173941
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Icb6bd622a543e9bc5f669fd3d7abd418b4a8e579
+    Reviewed-on: https://go-review.googlesource.com/c/152958
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go | 48 +++++++++++++++++++++++++++---------------------
- 1 file changed, 27 insertions(+), 21 deletions(-)
+ src/crypto/x509/root_cgo_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

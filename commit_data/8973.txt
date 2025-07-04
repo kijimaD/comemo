@@ -1,18 +1,16 @@
-commit 3236097ab02943068c7d29c5fd43e97962363b7d
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 7 17:45:28 2011 -0700
+commit b39afde805f632bfbe5c4be7a68d01db03de2ce8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jul 8 09:54:21 2011 +1000
 
-    cgi: don't depend on CGI.pm for tests
+    image/draw: add draw tests where the destination image doesn't start
+    at (0, 0).
     
-    CGI.pm used to be part of the Perl core,
-    but some distros now bundle perl-core
-    and perl-modules separately.
+    Also refactor the test to use the SubImage method rather than monkeying
+    with an image's Pix and Rect fields.
     
-    It's not worth depending on.
-    
-    R=golang-dev, mattn.jp
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4675063
+    https://golang.org/cl/4678045
 
- src/pkg/http/cgi/testdata/test.cgi | 37 +++++++++++++++++++++++++++++++++++--
- 1 file changed, 35 insertions(+), 2 deletions(-)
+ src/pkg/image/draw/draw_test.go | 112 +++++++++++++++++++++++-----------------
+ 1 file changed, 64 insertions(+), 48 deletions(-)

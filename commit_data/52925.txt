@@ -1,100 +1,24 @@
-commit e5e61a03d9f448977c233a2b023e56535fcd705e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon May 8 13:38:04 2023 -0400
+commit 937fa5000a7bb07ed62d35a1aea9ea0819659084
+Author: subham sarkar <sarkar.subhams2@gmail.com>
+Date:   Wed Jun 8 15:08:33 2022 +0530
 
-    cmd: go get golang.org/x/tools@8f7fb01dd429 and revendor
+    net/netip: add missing ) in ParsePrefix errors
     
-    go get golang.org/x/tools@8f7fb01dd429 # CL 493619
-    go mod tidy
-    go mod vendor
+    The existing error messages didn't add right parenthesis ')' properly
+    leading to improper formation of error messages.
     
-    The goal is to set up for importing the bisect command,
-    for use in tests, in a follow-up CL.
+    Fixes #53283
     
-    This also updates x/sys and x/net, including in std,
-    because x/tools now depends on newer versions of those.
-    
-    Change-Id: I24c283cc165464d9c873ba7a9a4e75a9d02919b2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493596
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: Iadf9b8059403efa07e39716a81fab68cd10b7f87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411015
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
 
- src/cmd/go.mod                                     |   8 +-
- src/cmd/go.sum                                     |  16 +-
- src/cmd/go/testdata/script/vet_flags.txt           |   4 +-
- src/cmd/go/testdata/script/work_vet.txt            |   2 +-
- src/cmd/vendor/golang.org/x/mod/zip/zip.go         |   2 +-
- src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   3 +-
- .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  14 +
- .../vendor/golang.org/x/sys/windows/env_windows.go |   6 +-
- .../golang.org/x/sys/windows/exec_windows.go       |   7 +-
- src/cmd/vendor/golang.org/x/sys/windows/service.go |   7 +
- .../golang.org/x/sys/windows/types_windows.go      |   6 +-
- .../golang.org/x/sys/windows/zsyscall_windows.go   |   9 +
- .../golang.org/x/tools/go/analysis/analysis.go     |   8 +-
- .../golang.org/x/tools/go/analysis/diagnostic.go   |  11 +
- .../go/analysis/internal/analysisflags/url.go      |  33 ++
- .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |   1 +
- .../x/tools/go/analysis/passes/assign/assign.go    |  12 +-
- .../x/tools/go/analysis/passes/assign/doc.go       |  14 +
- .../x/tools/go/analysis/passes/atomic/atomic.go    |  19 +-
- .../x/tools/go/analysis/passes/atomic/doc.go       |  17 +
- .../x/tools/go/analysis/passes/bools/bools.go      |   1 +
- .../tools/go/analysis/passes/buildtag/buildtag.go  |   1 +
- .../x/tools/go/analysis/passes/cgocall/cgocall.go  |   1 +
- .../go/analysis/passes/composite/composite.go      |   1 +
- .../tools/go/analysis/passes/copylock/copylock.go  |   1 +
- .../tools/go/analysis/passes/ctrlflow/ctrlflow.go  |   1 +
- .../go/analysis/passes/directive/directive.go      |   1 +
- .../tools/go/analysis/passes/errorsas/errorsas.go  |   6 +
- .../analysis/passes/framepointer/framepointer.go   |   1 +
- .../analysis/passes/httpresponse/httpresponse.go   |   1 +
- .../x/tools/go/analysis/passes/ifaceassert/doc.go  |  24 ++
- .../go/analysis/passes/ifaceassert/ifaceassert.go  |  24 +-
- .../analysis/passes/ifaceassert/parameterized.go   |   2 +-
- .../x/tools/go/analysis/passes/inspect/inspect.go  |   1 +
- .../passes/internal/analysisutil/extractdoc.go     | 113 ++++++
- .../analysis/passes/internal/analysisutil/util.go  |   9 +
- .../x/tools/go/analysis/passes/loopclosure/doc.go  |  68 ++++
- .../go/analysis/passes/loopclosure/loopclosure.go  |  67 +---
- .../x/tools/go/analysis/passes/lostcancel/doc.go   |  16 +
- .../go/analysis/passes/lostcancel/lostcancel.go    |  26 +-
- .../x/tools/go/analysis/passes/nilfunc/doc.go      |  13 +
- .../x/tools/go/analysis/passes/nilfunc/nilfunc.go  |  10 +-
- .../x/tools/go/analysis/passes/printf/doc.go       |  47 +++
- .../x/tools/go/analysis/passes/printf/printf.go    |  46 +--
- .../x/tools/go/analysis/passes/shift/shift.go      |   1 +
- .../x/tools/go/analysis/passes/sigchanyzer/doc.go  |  17 +
- .../go/analysis/passes/sigchanyzer/sigchanyzer.go  |  15 +-
- .../x/tools/go/analysis/passes/stdmethods/doc.go   |  30 ++
- .../go/analysis/passes/stdmethods/stdmethods.go    |  29 +-
- .../tools/go/analysis/passes/stringintconv/doc.go  |  21 ++
- .../go/analysis/passes/stringintconv/string.go     |  21 +-
- .../go/analysis/passes/structtag/structtag.go      |   1 +
- .../go/analysis/passes/testinggoroutine/doc.go     |  22 ++
- .../passes/testinggoroutine/testinggoroutine.go    |  19 +-
- .../x/tools/go/analysis/passes/tests/doc.go        |  18 +
- .../x/tools/go/analysis/passes/tests/tests.go      |  22 +-
- .../x/tools/go/analysis/passes/timeformat/doc.go   |  15 +
- .../go/analysis/passes/timeformat/timeformat.go    |  18 +-
- .../x/tools/go/analysis/passes/unmarshal/doc.go    |  14 +
- .../go/analysis/passes/unmarshal/unmarshal.go      |  20 +-
- .../x/tools/go/analysis/passes/unreachable/doc.go  |  14 +
- .../go/analysis/passes/unreachable/unreachable.go  |  13 +-
- .../x/tools/go/analysis/passes/unsafeptr/doc.go    |  17 +
- .../go/analysis/passes/unsafeptr/unsafeptr.go      |  13 +-
- .../x/tools/go/analysis/passes/unusedresult/doc.go |  19 +
- .../analysis/passes/unusedresult/unusedresult.go   |  90 ++---
- .../x/tools/go/analysis/unitchecker/unitchecker.go |  17 +-
- .../go/analysis/unitchecker/unitchecker112.go      |  14 -
- .../x/tools/go/types/objectpath/objectpath.go      | 108 ++++--
- .../x/tools/internal/analysisinternal/analysis.go  | 390 ---------------------
- .../x/tools/internal/typeparams/common.go          |   1 -
- src/cmd/vendor/modules.txt                         |   9 +-
- src/cmd/vet/testdata/print/print.go                |  42 +--
- src/go.mod                                         |   4 +-
- src/go.sum                                         |   8 +-
- src/vendor/golang.org/x/net/nettest/nettest.go     |   8 +-
- src/vendor/modules.txt                             |   4 +-
- 77 files changed, 926 insertions(+), 808 deletions(-)
+ src/net/netip/netip.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

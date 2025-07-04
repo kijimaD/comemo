@@ -1,34 +1,45 @@
-commit 9dc3b8b722ec93a3cd16742764a29cb3f908edbe
-Author: Keith Randall <khr@google.com>
-Date:   Wed Mar 6 14:45:47 2019 -0800
+commit 0b63086f64ad7da114b003b98f1c78a6beb6ef26
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Jul 17 19:02:53 2018 -0700
 
-    reflect: fix more issues with StructOf GC programs
+    cmd/compile: fix label redefinition error column numbers
     
-    First the insidious bug:
+    Ensure that label redefinition error column numbers
+    print the actual start of the label instead of the
+    position of the label's delimiting token ":".
     
-      var n uintptr
-      for n := elemPtrs; n > 120; n -= 120 {
-        prog = append(prog, 120)
-        prog = append(prog, mask[:15]...)
-        mask = mask[15:]
-      }
-      prog = append(prog, byte(n))
-      prog = append(prog, mask[:(n+7)/8]...)
+    For example, given this program:
     
-    The := breaks this code, because the n after the loop is always 0!
+    package main
     
-    We also do need to handle field padding correctly. In particular
-    the old padding code doesn't correctly handle fields that are not
-    a multiple of a pointer in size.
+    func main() {
     
-    Fixes #30606.
+                foo:
+       foo:
+    foo:
+    foo            :
+    }
     
-    Change-Id: Ifcab9494dc25c20116753c5d7e0145d6c2053ed8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/165860
-    Run-TryBot: Keith Randall <khr@golang.org>
+    * Before:
+    main.go:5:13: label foo defined and not used
+    main.go:6:7: label foo already defined at main.go:5:13
+    main.go:7:4: label foo already defined at main.go:5:13
+    main.go:8:16: label foo already defined at main.go:5:13
+    
+    * After:
+    main.go:5:13: label foo defined and not used
+    main.go:6:4: label foo already defined at main.go:5:13
+    main.go:7:1: label foo already defined at main.go:5:13
+    main.go:8:1: label foo already defined at main.go:5:13
+    
+    Fixes #26411
+    
+    Change-Id: I8eb874b97fdc8862547176d57ac2fa0f075f2367
+    Reviewed-on: https://go-review.googlesource.com/c/124595
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/reflect/type.go           | 35 ++++++++++++++++-------------
- test/fixedbugs/issue30606b.go | 51 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 71 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/syntax/branches.go |  2 +-
+ test/fixedbugs/issue26411.go                | 94 +++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 1 deletion(-)

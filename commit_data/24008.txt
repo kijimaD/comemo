@@ -1,14 +1,15 @@
-commit 8ce80ce87ded2c02a3b7c2f15cbd19e8c2cc062d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Aug 11 10:59:24 2015 -0400
+commit 0bafe0e5b284d41052be418052f61ab03504d7f7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 29 11:19:33 2015 +1000
 
-    cmd/link: make -a output not crash
+    syscall: return error instead of panicking in windows StartProcess
     
-    Fixes #12107.
+    Fixes #11417
     
-    Change-Id: I62f1b6ac9fb6f2cfa3472253dc1c6f7b7d2a6faf
-    Reviewed-on: https://go-review.googlesource.com/13448
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Iacea829a48b39df0a4f751b06b19e918fbb713d0
+    Reviewed-on: https://go-review.googlesource.com/11604
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/link/internal/ld/data.go | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ src/os/os_windows_test.go   | 9 +++++++++
+ src/syscall/exec_windows.go | 3 +++
+ 2 files changed, 12 insertions(+)

@@ -1,32 +1,19 @@
-commit 8f3c8a33fad917abb45ef98b3a1cd34fe9715370
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Aug 25 21:06:10 2016 -0400
+commit 1354b32cd70f2702381764fd595dd2faa996840c
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Mar 14 12:17:48 2016 -0400
 
-    cmd/link: make DynlinkingGo a method
+    [dev.garbage] runtime: add gc work buffer tryGet and put fast paths
     
-    This will allow it to depend on whether plugin.Open is a symbol to be
-    linked in.
+    The complexity of the GC work buffers put and tryGet
+    prevented them from being inlined. This CL simplifies
+    the fast path thus enabling inlining. If the fast
+    path does not succeed the previous put and tryGet
+    functions are called.
     
-    Change-Id: Ie9aa4216f2510fe8b10bc4665c8b19622b7122ea
-    Reviewed-on: https://go-review.googlesource.com/27819
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6da6495d0dadf42bd0377c110b502274cc01acf5
+    Reviewed-on: https://go-review.googlesource.com/20704
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/amd64/asm.go   |  4 ++--
- src/cmd/link/internal/amd64/obj.go   |  2 +-
- src/cmd/link/internal/arm/asm.go     |  2 +-
- src/cmd/link/internal/arm/obj.go     |  2 +-
- src/cmd/link/internal/arm64/asm.go   |  4 ++--
- src/cmd/link/internal/arm64/obj.go   |  2 +-
- src/cmd/link/internal/ld/data.go     |  2 +-
- src/cmd/link/internal/ld/deadcode.go |  2 +-
- src/cmd/link/internal/ld/lib.go      | 10 +++++-----
- src/cmd/link/internal/ld/objfile.go  |  2 +-
- src/cmd/link/internal/ld/symtab.go   | 30 +++++++++++++++---------------
- src/cmd/link/internal/ppc64/asm.go   |  2 +-
- src/cmd/link/internal/s390x/asm.go   |  2 +-
- src/cmd/link/internal/s390x/obj.go   |  2 +-
- src/cmd/link/internal/x86/asm.go     |  2 +-
- src/cmd/link/internal/x86/obj.go     |  2 +-
- 16 files changed, 36 insertions(+), 36 deletions(-)
+ src/runtime/mgcmark.go | 16 ++++++++++++----
+ src/runtime/mgcwork.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 4 deletions(-)

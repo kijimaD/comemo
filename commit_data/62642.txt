@@ -1,0 +1,17 @@
+commit b613d21ffd17c1dda480b205f0cce5031bdbd5dd
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Tue Mar 18 21:13:23 2025 +0000
+
+    testing: allow manual timer control in testing.B.Loop
+    
+    Fixes #72922
+    
+    Change-Id: I56610d2d11d151a8f95b6434bbedbfcd5c11c317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/testing/benchmark.go |  6 +++---
+ src/testing/loop_test.go | 10 ++++++----
+ 2 files changed, 9 insertions(+), 7 deletions(-)

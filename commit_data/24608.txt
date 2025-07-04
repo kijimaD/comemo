@@ -1,21 +1,27 @@
-commit 46630ecd655bf6f88a8edad751ce5c5243b022f8
-Author: Joel Sing <jsing@google.com>
-Date:   Fri Oct 23 02:57:01 2015 +1100
+commit 2af06480140dd48a4dc54257c2da46a73ca3ebb5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 11 14:23:08 2015 -0700
 
-    net/http/httptest: fix comment regarding certificate expiry
+    [dev.ssa] cmd/compile: fix function call memory accounting
     
-    In earlier versions of Go, times were only encoded as an ASN.1 UTCTIME and
-    crypto/tls/generate_cert.go limited times to the maximum UTCTIME value.
-    Revision 050b60a3 added support for ASN.1 GENERALIZEDTIME, allowing larger
-    time values to be represented (per RFC 5280).
+    We were not recording function calls as
+    changing the state of memory.
     
-    As a result, when the httptest certificate was regenerated in revision
-    9b2d84ef, the Not After date changed to Jan 29 16:00:00 2084 GMT. Update
-    the comment to reflect this.
+    As a result, the scheduler was not aware that
+    storing values to the stack in order to make a
+    function call must happen *after* retrieving
+    results from the stack from a just-completed
+    function call.
     
-    Change-Id: I1bd66e011f2749f9372b5c7506f52ea34e264ce9
-    Reviewed-on: https://go-review.googlesource.com/16193
-    Reviewed-by: Adam Langley <agl@golang.org>
+    This fixes the container/ring tests.
+    
+    This was my first experience debugging an issue
+    using the HTML output. I'm feeling quite
+    pleased with it.
+    
+    Change-Id: I9e8276846be9fd7a60422911b11816c5175e3d0a
+    Reviewed-on: https://go-review.googlesource.com/13560
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/httptest/server.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 1 +
+ 1 file changed, 1 insertion(+)

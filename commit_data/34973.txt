@@ -1,37 +1,24 @@
-commit c0547476f342665514904cf2581a62135d2366c3
-Author: Jeremy Jackins <jeremyjackins@gmail.com>
-Date:   Tue Dec 19 15:43:30 2017 -0800
+commit 3716ba033774489553300086b126bd10c2b29f57
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 1 10:29:10 2017 -0500
 
-    encoding/json: make use of encodeStatePool in Marshal
+    cmd/go: fix -outputdir -coverprofile interaction
     
-    On my system, this seems to be a significant win, with a major
-    reduction in allocations and minor speed improvement.
+    The CL introducing merged handling of cover profiles
+    did not correctly account for the fact that the file name argument
+    to -coverprofile is required to be interpreted relative to
+    the -outputdir argument.
     
-    name           old time/op    new time/op    delta
-    CodeMarshal      9.75ms ± 3%    9.24ms ± 1%   -5.21%  (p=0.001 n=5+10)
-    CodeMarshal-4    4.98ms ± 1%    4.71ms ± 1%   -5.44%  (p=0.001 n=5+10)
-    CodeMarshal-8    4.80ms ± 0%    4.77ms ± 1%   -0.70%  (p=0.012 n=5+9)
+    Fixes #22804.
     
-    name           old speed      new speed      delta
-    CodeMarshal     199MB/s ± 3%   210MB/s ± 1%   +5.46%  (p=0.001 n=5+10)
-    CodeMarshal-4   390MB/s ± 1%   412MB/s ± 1%   +5.76%  (p=0.001 n=5+10)
-    CodeMarshal-8   404MB/s ± 0%   407MB/s ± 1%   +0.70%  (p=0.012 n=5+9)
-    
-    name           old alloc/op   new alloc/op   delta
-    CodeMarshal      4.59MB ± 0%    1.96MB ± 0%  -57.22%  (p=0.000 n=5+9)
-    CodeMarshal-4    4.59MB ± 0%    2.00MB ± 0%  -56.39%  (p=0.000 n=5+8)
-    CodeMarshal-8    4.59MB ± 0%    2.06MB ± 0%  -55.05%  (p=0.001 n=5+9)
-    
-    name           old allocs/op  new allocs/op  delta
-    CodeMarshal        16.0 ± 0%       1.0 ± 0%  -93.75%  (p=0.000 n=5+10)
-    CodeMarshal-4      16.0 ± 0%       1.0 ± 0%  -93.75%  (p=0.000 n=5+10)
-    CodeMarshal-8      16.0 ± 0%       1.0 ± 0%  -93.75%  (p=0.000 n=5+10)
-    
-    Change-Id: I9d09850d8227f523f861ae1b4ca248c4a4b16aaf
-    Reviewed-on: https://go-review.googlesource.com/84897
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I804774013c12187313b8fd2044302978bdbb6697
+    Reviewed-on: https://go-review.googlesource.com/81455
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/encode.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/cmd/go/go_test.go                | 2 +-
+ src/cmd/go/internal/test/cover.go    | 4 ++++
+ src/cmd/go/internal/test/test.go     | 1 +
+ src/cmd/go/internal/test/testflag.go | 5 ++---
+ 4 files changed, 8 insertions(+), 4 deletions(-)

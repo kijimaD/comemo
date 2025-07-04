@@ -1,42 +1,29 @@
-commit ab31e2749f89a65a6381348baa008a7f5010b8b5
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 13 16:48:23 2020 -0700
+commit d3660e8ef8adf91462d0be382a1ed8e696f0ee37
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 3 17:04:28 2019 -0500
 
-    time/tzdata: new package
+    cmd/link: enable PIE on darwin/arm
     
-    Importing the time/tzdata package will embed a copy of the IANA
-    timezone database into the program. This will let the program work
-    correctly when the timezone database is not available on the system.
-    It will increase the size of the binary by about 800K.
+    We used to pass -no_pie to external linker on darwin/arm, which
+    is incompatible with -fembed-bitcode. CL 201358 attempted to
+    remove the -no_pie flag, but it resulted the darwin linker to
+    complain about absolute addressing in TEXT segment.
     
-    You can also build a program with -tags timetzdata to embed the
-    timezone database in the program being built.
+    On darwin/arm, we already get away from absolute addressing in
+    the TEXT section. The complained absolute addressing is in
+    RODATA, which was embedded in the TEXT segment. This CL moves
+    RODATA to the DATA segment, like what we already did on ARM64
+    and on AMD64 in c-archive/c-shared buildmodes for the same reason.
+    So there is no absolute addressing in the TEXT segment, which
+    allows us to remove -no_pie flag.
     
-    This is a roll forward of CL 224588 which was rolled back due to
-    test failures. In this version, the test is in the time package,
-    not the time/tzdata package. That lets us compare the zip file
-    to the time/tzdata package, ensuring that we are looking at similar
-    versions of tzdata information.
+    Fixes #35252.
+    Updates #32963.
     
-    Fixes #21881
-    Fixes #38013
-    Fixes #38017
-    
-    Change-Id: I916d9d8473abe201b897cdc2bbd9168df4ad671c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228101
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Change-Id: Id6e3a594cb066d257d4f58fadb4a3ee4672529f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205060
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
 
- doc/go1.15.html                     |    14 +
- lib/time/update.bash                |     2 +
- src/go/build/deps_test.go           |     2 +
- src/time/embed.go                   |    12 +
- src/time/export_test.go             |     4 +
- src/time/tzdata/generate_zipdata.go |    78 +
- src/time/tzdata/tzdata.go           |   109 +
- src/time/tzdata/zipdata.go          | 13048 ++++++++++++++++++++++++++++++++++
- src/time/tzdata_test.go             |    99 +
- src/time/zoneinfo_read.go           |    23 +
- 10 files changed, 13391 insertions(+)
+ src/cmd/link/internal/ld/lib.go   | 4 +---
+ src/cmd/link/internal/ld/macho.go | 6 +++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)

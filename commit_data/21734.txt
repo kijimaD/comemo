@@ -1,15 +1,24 @@
-commit 28c6648416362f8542adea03f70fccf77fc9b08e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 23 20:29:08 2015 -0500
+commit d6eb21e331ba73d235b9014ce5b710d5e7bde545
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 29 16:33:36 2015 -0800
 
-    cmd/internal/obj: fix index panic on invalid instruction
+    [dev.cc] cmd/asm: rewrite the macro processor
     
-    Also introduce actual data structure for table.
+    The previous one was too broken, so just rewrite the code that invokes
+    a macro. Basically it was evaluating things too early, and mishandling
+    nested invocations. It's also easier to understand now.
     
-    Change-Id: I6bbe9aff8a872ae254f3739ae4ca17f7b5c4507a
-    Reviewed-on: https://go-review.googlesource.com/5701
-    Reviewed-by: Rob Pike <r@golang.org>
+    Keep backslash-newline around in macro definitions. They get
+    processed when the body is evaluated.
+    
+    Write some golden tests.
+    
+    Change-Id: I27435f77f258a0873f80932bdc8d13ad39821ac1
+    Reviewed-on: https://go-review.googlesource.com/3550
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/i386/asm8.go | 1105 ++++++++----------------------
- src/cmd/internal/obj/x86/asm6.go  | 1335 +++++++++----------------------------
- 2 files changed, 601 insertions(+), 1839 deletions(-)
+ src/cmd/asm/internal/asm/parse.go    |   2 +-
+ src/cmd/asm/internal/lex/input.go    |  67 ++++++++++--------
+ src/cmd/asm/internal/lex/lex_test.go | 130 +++++++++++++++++++++++++++++++++++
+ src/cmd/asm/internal/lex/stack.go    |   2 +-
+ 4 files changed, 171 insertions(+), 30 deletions(-)

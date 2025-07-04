@@ -1,0 +1,50 @@
+commit debfcb5ad87b276318bd6b725797e6808adeeae0
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed Jun 19 15:09:21 2024 +0800
+
+    crypto/internal/bigmod: provide assembly addMulVVW* for loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/internal/bigmod
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                   │  bench.old   │              bench.new              │
+                   │    sec/op    │   sec/op     vs base                │
+    ModAdd            159.5n ± 0%   159.8n ± 0%   +0.19% (p=0.000 n=20)
+    ModSub            161.5n ± 0%   161.7n ± 0%   +0.12% (p=0.038 n=20)
+    MontgomeryRepr    4.126µ ± 0%   2.932µ ± 0%  -28.94% (p=0.000 n=20)
+    MontgomeryMul     4.144µ ± 0%   2.930µ ± 0%  -29.30% (p=0.000 n=20)
+    ModMul            8.331µ ± 0%   5.956µ ± 0%  -28.51% (p=0.000 n=20)
+    ExpBig            11.65m ± 0%   11.64m ± 0%   -0.04% (p=0.000 n=20)
+    Exp              11.015m ± 0%   7.860m ± 0%  -28.65% (p=0.000 n=20)
+    geomean           17.34µ        14.28µ       -17.64%
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/internal/bigmod
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                   │  bench.old   │              bench.new              │
+                   │    sec/op    │   sec/op     vs base                │
+    ModAdd            211.3n ± 0%   213.9n ± 0%   +1.23% (p=0.000 n=20)
+    ModSub            210.6n ± 0%   207.2n ± 0%   -1.61% (p=0.000 n=20)
+    MontgomeryRepr    5.442µ ± 0%   3.825µ ± 0%  -29.71% (p=0.000 n=20)
+    MontgomeryMul     5.379µ ± 0%   4.011µ ± 0%  -25.43% (p=0.000 n=20)
+    ModMul           10.868µ ± 0%   7.859µ ± 0%  -27.69% (p=0.000 n=20)
+    ExpBig            14.64m ± 0%   14.63m ± 0%   -0.06% (p=0.035 n=20)
+    Exp               14.39m ± 0%   10.38m ± 0%  -27.86% (p=0.000 n=20)
+    geomean           22.57µ        18.74µ       -16.96%
+    
+    Change-Id: Id6ddc9552494e2a26e1a123f38e22d18bb78fdad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593595
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/internal/bigmod/nat_asm.go    |  2 +-
+ src/crypto/internal/bigmod/nat_loong64.s | 93 ++++++++++++++++++++++++++++++++
+ src/crypto/internal/bigmod/nat_noasm.go  |  2 +-
+ 3 files changed, 95 insertions(+), 2 deletions(-)

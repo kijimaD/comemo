@@ -1,27 +1,39 @@
-commit 112f28defcbd8f48de83f4502093ac97149b4da6
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Wed Oct 3 21:01:14 2018 +0100
+commit 57d40f1b27c0e0a4ca491895a68efc40c7c7d435
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Thu May 31 18:51:00 2018 +0300
 
-    io: export StringWriter
+    test: remove rundircmpout and cmpout actions
     
-    And start using it elsewhere in the standard library, removing the
-    copies in the process.
+    This CL removes the rundircmpout action completely
+    because it is not used anywhere.
     
-    While at it, rewrite the io.WriteString godoc to be more clear, since it
-    can now make reference to the defined interface.
+    The run case already looks for output files. Rename the cmpout action
+    mentioned in tests to the run action and remove "cmpout" from run.go.
     
-    Fixes #27946.
-    
-    Change-Id: Id5ba223c09c19e5fb49815bd3b1bd3254fc786f3
-    Reviewed-on: https://go-review.googlesource.com/c/139457
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I835ceb70082927f8e9360e0ea0ba74f296363ab3
+    Reviewed-on: https://go-review.googlesource.com/115575
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/fmt_test.go        | 7 +------
- src/io/io.go               | 8 ++++----
- src/io/multi.go            | 4 ++--
- src/net/http/header.go     | 6 +-----
- src/net/http/serve_test.go | 9 +++------
- src/strings/replace.go     | 8 ++------
- 6 files changed, 13 insertions(+), 29 deletions(-)
+ misc/cgo/life/main.go        | 2 +-
+ misc/cgo/stdio/chain.go      | 2 +-
+ misc/cgo/stdio/fib.go        | 2 +-
+ misc/cgo/stdio/hello.go      | 2 +-
+ test/deferprint.go           | 2 +-
+ test/fixedbugs/bug206.go     | 2 +-
+ test/fixedbugs/bug328.go     | 2 +-
+ test/fixedbugs/bug409.go     | 2 +-
+ test/fixedbugs/issue21887.go | 2 +-
+ test/fixedbugs/issue22683.go | 2 +-
+ test/fixedbugs/issue25322.go | 2 +-
+ test/fixedbugs/issue6899.go  | 2 +-
+ test/goprint.go              | 2 +-
+ test/helloworld.go           | 2 +-
+ test/ken/cplx0.go            | 2 +-
+ test/ken/string.go           | 2 +-
+ test/print.go                | 2 +-
+ test/printbig.go             | 2 +-
+ test/run.go                  | 4 ----
+ test/sigchld.go              | 2 +-
+ 20 files changed, 19 insertions(+), 23 deletions(-)

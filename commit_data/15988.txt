@@ -1,17 +1,24 @@
-commit 731dcb7680303792315625a86ec0390ca41c03b9
+commit a891484a4edb241ae1b11f3b336f63fe08b10cb7
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Mar 28 13:43:34 2013 -0700
+Date:   Thu Mar 28 13:13:28 2013 -0700
 
-    net/url: use strings.Index instead of a loop
+    net/http: inline chunkWriter in response
     
-    We already depend on strings in this file, so use it.
+    A chunkWriter and a response are 1:1. Make them contiguous in
+    memory and save an allocation.
     
-    Plus strings.Index will be faster than a manual loop
-    once issue 3751 is finished.
+    benchmark                                   old ns/op    new ns/op    delta
+    BenchmarkServerFakeConnWithKeepAliveLite        10715        10539   -1.64%
     
-    R=golang-dev, khr
+    benchmark                                  old allocs   new allocs    delta
+    BenchmarkServerFakeConnWithKeepAliveLite           21           20   -4.76%
+    
+    benchmark                                   old bytes    new bytes    delta
+    BenchmarkServerFakeConnWithKeepAliveLite         1626         1609   -1.05%
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/8116043
+    https://golang.org/cl/8114043
 
- src/pkg/net/url/url.go | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ src/pkg/net/http/server.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

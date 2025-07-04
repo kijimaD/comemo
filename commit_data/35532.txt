@@ -1,21 +1,20 @@
-commit b28e33d371cf96f6f34bbc576b6fd95468ea25bc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 29 13:13:24 2018 -0700
+commit a156fc08b7fd289bfc9979c77445f9e4741a7dfd
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Mon Feb 19 12:34:53 2018 +0000
 
-    go/types: add struct field with invalid type if field has errors
+    syscall: ensure Mkdir(path) on Plan 9 fails if path exists
     
-    This ensures that all struct fields are present and thus the struct
-    has the original number of fields even if some fields have type
-    errors. (This only applies as long as the field names themselves
-    don't conflict.)
+    On Plan 9, the underlying create() syscall with DMDIR flag, which is
+    used to implement Mkdir, will fail silently if the path exists and
+    is not a directory.  Work around this by checking for existence
+    first and rejecting Mkdir with error EEXIST if the path is found.
     
-    Fixes #25627.
+    Fixes #23918
     
-    Change-Id: I2414b1f432ce139b3cd2776ff0d46d8dcf38b650
-    Reviewed-on: https://go-review.googlesource.com/115115
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I439115662307923c9f498d3e7b1f32c6d205e1ad
+    Reviewed-on: https://go-review.googlesource.com/94777
+    Reviewed-by: David du Colombier <0intro@gmail.com>
 
- src/go/types/issues_test.go      | 41 ++++++++++++++++++++++++++++++++++++++++
- src/go/types/testdata/decls3.src |  4 ++--
- src/go/types/typexpr.go          | 17 +++++++++++++++++
- 3 files changed, 60 insertions(+), 2 deletions(-)
+ src/os/stat_plan9.go         |  6 +++---
+ src/syscall/syscall_plan9.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)

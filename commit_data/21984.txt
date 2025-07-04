@@ -1,18 +1,14 @@
-commit eb96bb19927f2dea87a3c98bbe82f4984ebe30b4
-Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
-Date:   Tue Mar 10 12:31:33 2015 -0400
+commit d866cd6817e5b139fe70b79f125318a4d2a15a96
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Feb 17 11:04:07 2015 +0900
 
-    path/filepath: clarify the package doc about '/' in returned results.
+    all: fix typo in doc
     
-    The slash is replaced with os.PathSeparator before returning.
-    Split, SplitList are the exceptions; comments for them mention this.
-    
-    Fixes golang/go#10122.
-    
-    Change-Id: I66dbee8d09f378582e046be8df309a3930151820
-    Reviewed-on: https://go-review.googlesource.com/7310
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I89fdda2914030dfea3183a8b4681dd4b33489729
+    Reviewed-on: https://go-review.googlesource.com/4996
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/path/filepath/path.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/net/ip.go        | 2 +-
+ src/os/env.go        | 2 +-
+ src/runtime/race1.go | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

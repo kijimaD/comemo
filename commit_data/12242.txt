@@ -1,12 +1,14 @@
-commit 2f4e5f79a67c7efffc7b85c16774f251a1a07e5c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Feb 28 11:21:56 2012 +1100
+commit fa33fdbc7dc29f5c24c9a82868cbaf076ba59214
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 28 10:15:23 2012 +1100
 
-    gobuilder: send commit time in RFC3339 format
+    encoding/binary: better example
     
-    R=golang-dev, gri
+    leave that joke to Java.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5701063
+    https://golang.org/cl/5695080
 
- misc/dashboard/builder/http.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/binary/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

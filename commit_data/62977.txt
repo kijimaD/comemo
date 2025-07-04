@@ -1,0 +1,27 @@
+commit f49ca5f525334e98a8f0f1bd2b2f121bc003573e
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue May 6 11:14:31 2025 +0800
+
+    cmd/internal/obj/loong64: add [X]VFCLASS.{S/D} instructions
+    
+    Go asm syntax:
+             VFCLASS{F/D}   VJ, VD
+            XVFCLASS{F/D}   XJ, XD
+    
+    Equivalent platform assembler syntax:
+             vfclass.{s/d}  vd, vj
+            xvfclass.{s/d}  xd, xj
+    
+    Change-Id: Iec373f393be315696d1fefc747a4a5882f993195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670256
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dustin Turner <dustin.turner44@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  6 ++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  5 +++++
+ src/cmd/internal/obj/loong64/anames.go          |  4 ++++
+ src/cmd/internal/obj/loong64/asm.go             | 12 ++++++++++++
+ 4 files changed, 27 insertions(+)

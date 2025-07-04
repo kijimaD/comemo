@@ -1,41 +1,17 @@
-commit 55751a38f072b9ead5498a5d4cc6a73e87326b93
-Author: Chris Farmiloe <chrisfarms@gmail.com>
-Date:   Fri Oct 14 17:29:54 2011 -0400
+commit b9ad2787dd6ada95c0712072079146cd2f586d7c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 14 14:16:43 2011 -0700
 
-    xml: match Marshal's XMLName behavior in Unmarshal
+    http: RoundTrippers shouldn't mutate Request
     
-    When xml.Marshal is called on a struct it will happily
-    reflect the information in the "tag" of an XMLName member
-    regardless of the type to give the struct a tag-name in
-    it's XML form. This is backed up by the documentation which
-    says:
-    
-    However xml.Unmarshal *does* care about the XMLName field
-    being of type xml.Name, and currently returns the error
-    "field XMLName does not have type xml.Name" if you have it
-    set to something else.
-    
-    This is firstly inconsistant with xml.Marshal but it also
-    makes it impossible to use xml.Marshal alongside other
-    Marshallers (like json/bson) without poluting the state's
-    namespace with XMLName fields. Inorder to exclude fields
-    from other Marshallers the convention has been started to
-    tag fields as "omitempty"; which will cause the field not
-    to display if it is at it's "zero" state, XMLName cannot
-    have such as zero-state since it is a struct, so it is nicer
-    to use a pointer/bool value for XMLName so it can be easily
-    excluded when I want to Marshal my struct by some other
-    wire format.
-    
-    Attached is the proposed minor change, that simply stops
-    erring if it can't set the name on the XMLName field, which
-    is just optional metadata anyway.
-    Fixes #2265.
+    Fixes #2146
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5067044
+    https://golang.org/cl/5284041
 
- src/pkg/xml/read.go      |  5 ++---
- src/pkg/xml/read_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 3 deletions(-)
+ src/pkg/http/client.go         | 13 ++++--
+ src/pkg/http/request.go        | 14 ++++--
+ src/pkg/http/transport.go      | 99 ++++++++++++++++++++++--------------------
+ src/pkg/http/transport_test.go | 32 ++++++++------
+ 4 files changed, 90 insertions(+), 68 deletions(-)

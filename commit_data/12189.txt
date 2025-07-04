@@ -1,25 +1,14 @@
-commit 9984a5bca403ec14340a05c6fd57fcbefd96f4df
+commit 91bdbf591fe08c394f5ea3924774968202cde07b
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 23 22:45:55 2012 -0500
+Date:   Thu Feb 23 22:45:44 2012 -0500
 
-    cmd/cc: grow some global arrays
+    net/rpc: silence read error on closing connection
     
-    Avoids global array buffer overflows if they are
-    indexed using some of the values between NTYPE
-    and NALLTYPE.  It is entirely likely that not all of these
-    are necessary, but this is the C compiler and not worth
-    worrying much about.  This change takes up only a
-    few more bytes of memory and makes the behavior
-    deterministic.
+    Fixes #3113.
     
-    Fixes #3078.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5693052
+    https://golang.org/cl/5698056
 
- src/cmd/cc/cc.h    |  4 ++--
- src/cmd/cc/com64.c |  2 +-
- src/cmd/cc/funct.c |  4 ++--
- src/cmd/cc/sub.c   | 48 ++++++++++++++++++++++++------------------------
- 4 files changed, 29 insertions(+), 29 deletions(-)
+ src/pkg/net/rpc/client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

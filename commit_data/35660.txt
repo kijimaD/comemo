@@ -1,14 +1,17 @@
-commit 1352de3829df049f669d5a889832f4e06d4dab5b
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Jun 12 01:24:00 2018 +0000
+commit b5bd5bfbc731c033955a0d4777ca34a9ac71020c
+Author: Hana Kim <hakim@google.com>
+Date:   Mon Feb 26 16:40:25 2018 -0500
 
-    cmd/go/internal/cfg: note the copy of this code in x/tools/cmd/godoc
+    cmd/trace: fix overlappingDuration
     
-    Updates #23445
+    Update #24081
     
-    Change-Id: I4b09073e53b1cf04de698b711fb5fb0d08bc02df
-    Reviewed-on: https://go-review.googlesource.com/118077
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ieccfb03c51e86f35d4629a42959c80570bd93c33
+    Reviewed-on: https://go-review.googlesource.com/97555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/cfg/cfg.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/cmd/trace/annotations.go      |  4 ++--
+ src/cmd/trace/annotations_test.go | 39 +++++++++++++++++++++++++++++++++++----
+ 2 files changed, 37 insertions(+), 6 deletions(-)

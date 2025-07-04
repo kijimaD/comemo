@@ -1,19 +1,21 @@
-commit e3ed4cace07150cd766dd81d3dfbadffd2cde7b3
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 25 13:27:15 2013 -0800
+commit a656f82071c1631ed0aae5c403cf948fc06b52ce
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Feb 25 15:58:23 2013 -0500
 
-    net/http/cgi: make tests compile on plan9
+    runtime: precise garbage collection of channels
     
-    Don't reference the non-portable syscall.Signal(0).
+    This changeset adds a mostly-precise garbage collection of channels.
+    The garbage collection support code in the linker isn't recognizing
+    channel types yet.
     
-    Maybe they'll pass too. Untested. plan9 bit from
-    Akshat Kumar.
+    Fixes issue http://stackoverflow.com/questions/14712586/memory-consumption-skyrocket
     
-    R=golang-dev, akumar
-    CC=golang-dev
-    https://golang.org/cl/7370049
+    R=dvyukov, rsc, bradfitz
+    CC=dave, golang-dev, minux.ma, remyoudompheng
+    https://golang.org/cl/7307086
 
- src/pkg/net/http/cgi/host_test.go  |  7 +------
- src/pkg/net/http/cgi/plan9_test.go | 18 ++++++++++++++++++
- src/pkg/net/http/cgi/posix_test.go | 21 +++++++++++++++++++++
- 3 files changed, 40 insertions(+), 6 deletions(-)
+ src/pkg/runtime/chan.c    |  5 +++++
+ src/pkg/runtime/malloc.h  |  1 +
+ src/pkg/runtime/mgc0.c    | 33 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h |  1 +
+ 4 files changed, 40 insertions(+)

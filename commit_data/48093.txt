@@ -1,22 +1,25 @@
-commit 1d6051380c1faa3e515db73c4cfe14f807e2c686
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Sat Feb 5 17:23:26 2022 +0100
+commit 39844971fb92992305babb4b64d50faa7fea40a0
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Apr 26 22:25:56 2021 -0400
 
-    cmd/dist: skip internal linking tests on arm64
+    go/types: don't panic when checking a ListExpr in exprInternal
     
-    The previous workaround for issue #39466 only disabled this test for
-    Linux. However, the issue manifests for all arm64 systems with gcc 9.4
-    and above. The new netbsd-arm64 builder uses NetBSD-current with gcc
-    10.3, so it fails in the same way.
+    As an alternative to CL 312149, add a catch-all error message in
+    exprInternal when encountering a ListExpr, rather than panicking.
     
-    Updates #39466
+    We still might want something like CL 312149 to improve the error
+    message or recovery from bad indexing.
     
-    Change-Id: I276a99a5e60914e5c22f74a680e461bea17cfe92
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/383554
-    Trust: Benny Siegert <bsiegert@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I865f7cc4eefa4a3b7bd8f3100df96d0144e1712f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313909
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/dist/test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/go/internal/typeparams/notypeparams.go |  4 ++++
+ src/go/internal/typeparams/typeparams.go   |  5 +++++
+ src/go/types/expr.go                       |  6 +++++-
+ src/go/types/fixedbugs/issue45635.go2      | 23 +++++++++++++++++++++++
+ 4 files changed, 37 insertions(+), 1 deletion(-)

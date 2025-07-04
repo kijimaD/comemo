@@ -1,12 +1,16 @@
-commit 592037f38188a7357f2103c8ddf1bd62206c778f
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Wed Mar 29 15:18:54 2017 -0700
+commit ecc4474341504f5893c8333dbb68c520dbe93ca5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 15 17:42:53 2016 -0800
 
-    runtime: fix for implementation notes appearing in godoc
+    runtime/pprof: deflake tests for heavily loaded systems
     
-    Change-Id: I31cfae1e98313b68e3bc8f49079491d2725a662b
-    Reviewed-on: https://go-review.googlesource.com/38850
+    In the sampling tests, let the test pass if we get at least 10 samples.
+    
+    Fixes #18332.
+    
+    Change-Id: I8aad083d1a0ba179ad6663ff43f6b6b3ce1e18cd
+    Reviewed-on: https://go-review.googlesource.com/34507
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgclarge.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/pprof/pprof_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

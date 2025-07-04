@@ -1,0 +1,21 @@
+commit c1f2542c8bef27872a95efd7904afeeee36fe976
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 12 21:17:04 2024 -0500
+
+    testing: improve B.Loop test
+    
+    This moves the B.Loop test from package testing_test to package
+    testing, where it can check on more of the internals of the benchmark
+    state.
+    
+    Updates #61515.
+    
+    Change-Id: Ia32d7104526125c5e8a1e35dab7660008afcbf80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635897
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+
+ src/testing/benchmark_test.go | 22 -------------------
+ src/testing/loop_test.go      | 51 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 22 deletions(-)

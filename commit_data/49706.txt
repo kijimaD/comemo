@@ -1,14 +1,62 @@
-commit 4509e951ecc4bb81b8463829a639c051c2b967f4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 13:31:10 2022 -0400
+commit 23f4f0db682fad0c8d61a5b5cdbdbad4cf1cd41f
+Author: Ruslan Andreev <kels9009@gmail.com>
+Date:   Tue Jun 15 14:04:30 2021 +0000
 
-    runtime: tricky replacements of g in proc.go
+    cmd/compile: add prefetch intrinsic support
     
-    Change-Id: I36cd167ed77e123b3ba7dd4a1a8577cbc51a84d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418588
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This CL provide new intrinsics to emit prefetch instructions for AMD64
+    and ARM64 platforms:
+    Prefetch - prefetches data from memory address to cache;
+    PrefetchStreamed - prefetches data from memory address, with a hint
+    that this data is being streamed.
+    
+    This patch also provides prefetch calls pointed by RSC inside scanobject
+    and greyobject of GC mark logic.
+    
+    Performance results provided by Michael:
+    https://perf.golang.org/search?q=upload:20210901.9
+    
+    Benchmark parameters:
+    tree2 -heapsize=1000000000 -cpus=8
+    tree -n=18
+    parser
+    peano
+    
+    Benchmarks AMD64 (Xeon - Cascade Lake):
+    name        old time/op  new time/op  delta
+    Tree2-8     36.1ms ± 6%  33.4ms ± 5%  -7.65%  (p=0.000 n=9+9)
+    Tree-8       326ms ± 1%   324ms ± 1%  -0.44%  (p=0.006 n=9+10)
+    Parser-8     2.75s ± 1%   2.71s ± 1%  -1.47%  (p=0.008 n=5+5)
+    Peano-8     63.1ms ± 1%  63.0ms ± 1%    ~     (p=0.730 n=9+9)
+    [Geo mean]   213ms        207ms       -2.45%
+    
+    Benchmarks ARM64 (Kunpeng 920):
+    name        old time/op  new time/op  delta
+    Tree2-8     50.3ms ± 8%  44.1ms ± 5%  -12.24%  (p=0.000 n=10+9)
+    Tree-8       494ms ± 1%   493ms ± 1%     ~     (p=0.684 n=10+10)
+    Parser-8     3.99s ± 1%   3.93s ± 1%   -1.37%  (p=0.016 n=5+5)
+    Peano-8     84.4ms ± 0%  84.1ms ± 1%     ~     (p=0.068 n=8+10)
+    [Geo mean]   302ms        291ms        -3.67%
+    
+    Change-Id: I43e10bc2f9512dc49d7631dd8843a79036fa43d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328289
     Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/proc.go | 35 +++++++++++++++++------------------
- 1 file changed, 17 insertions(+), 18 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  4 ++
+ src/cmd/compile/internal/arm64/ssa.go          |  6 +++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  4 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  7 ++++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  4 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  5 +++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  4 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 51 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  6 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 32 ++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go         | 15 ++++++++
+ src/cmd/internal/obj/arm64/obj7.go             |  8 +++-
+ src/runtime/internal/sys/intrinsics_common.go  | 15 ++++++++
+ src/runtime/mgcmark.go                         | 25 +++++++------
+ 14 files changed, 174 insertions(+), 12 deletions(-)

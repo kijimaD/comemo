@@ -1,13 +1,21 @@
-commit 2a37efbe1e25d30a4a998fc7ddad6d10c7df74da
+commit 6e02e1cfc2a75380477a5a1f6f1e55a76b72f412
 Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Aug 11 16:56:36 2014 -0400
+Date:   Thu Aug 7 18:36:42 2014 -0400
 
-    misc/nacl/testzip.proto: add fewer files to the zip
+    [dev.power64] cmd/ld: update for power64
     
-    LGTM=bradfitz, rsc
-    R=rsc, iant, bradfitz
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/126940043
+    https://golang.org/cl/121380043
 
- misc/nacl/testzip.proto | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/ld/data.c   |  4 +++-
+ src/cmd/ld/doc.go   |  6 +++---
+ src/cmd/ld/dwarf.c  |  4 ++--
+ src/cmd/ld/elf.c    | 29 ++++++++++++++++++-----------
+ src/cmd/ld/ldelf.c  |  6 ++++++
+ src/cmd/ld/lib.c    |  4 +++-
+ src/cmd/ld/lib.h    |  4 ----
+ src/cmd/ld/macho.c  |  1 +
+ src/cmd/ld/symtab.c |  1 +
+ 9 files changed, 37 insertions(+), 22 deletions(-)

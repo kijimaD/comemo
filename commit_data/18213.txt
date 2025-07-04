@@ -1,12 +1,24 @@
-commit bb7cd9659b24388c53f9ff5311c67096f341c219
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Jan 9 19:46:46 2014 -0800
+commit d155f6a309feea100207cdf707b4bb349851b9e0
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Jan 9 19:01:08 2014 -0800
 
-    liblink: fix comments.  Someone was overzealous with search & replace.
+    liblink: adjust format verbs to avoid collisions
     
-    R=golang-codereviews, bradfitz
+    The %S and %N format verbs are used by cmd/gc to
+    represent Sym and Node structures, respectively.
+    
+    In liblink, these two verbs are used only by the %D
+    format routine and never referenced externally.
+    
+    This change will allow us to delete the duplicated
+    code for the %A, %D, %P, and %R format routines in
+    both the compiler and linker.
+    
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/49160045
+    https://golang.org/cl/49720043
 
- src/liblink/asm6.c | 48 ++++++++++++++++++++++++------------------------
- 1 file changed, 24 insertions(+), 24 deletions(-)
+ src/liblink/list5.c | 30 +++++++++++++++---------------
+ src/liblink/list6.c | 21 +++++++++++++++++----
+ src/liblink/list8.c |  8 ++++----
+ 3 files changed, 36 insertions(+), 23 deletions(-)

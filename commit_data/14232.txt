@@ -1,14 +1,26 @@
-commit 184e7a2bf2d091a48029f9953693a2b9f3ba3cc1
-Author: Adam Langley <agl@golang.org>
-Date:   Mon Oct 29 11:16:58 2012 -0400
+commit 530147e870eee380a1533f5f83ef7efe73b7139b
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Oct 29 13:55:27 2012 +0100
 
-    crypto/x509: always write validity times in UTC.
+    cmd/gc: inlining functions with local variables
     
-    RFC 5280 section 4.1.2.5.1 says so.
+    - make sure dclcontext == PAUTO only in function bodies
+    - introduce PDISCARD to discard declarations in bodies of repeated imports
+    - skip printing initializing OAS'es in export mode, assuming they only occur after ODCL's
+    - remove ODCL and the initializing OAS from inl.c:ishairy
+    - fix confused use of ->typecheck in typecheckinl: it's about the ->inl, not about the fn.
+    - debuging aids: print ntype on ONAMEs too and -Emm instead of -Ell.
     
-    R=golang-dev, bradfitz
+    fixes #2812
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6775068
+    https://golang.org/cl/6800043
 
- src/pkg/crypto/x509/x509.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/dcl.c   |   5 +-
+ src/cmd/gc/fmt.c   |  10 ++
+ src/cmd/gc/go.h    |   2 +
+ src/cmd/gc/go.y    |  10 +-
+ src/cmd/gc/inl.c   |  29 ++----
+ src/cmd/gc/y.tab.c | 268 +++++++++++++++++++++++++++--------------------------
+ 6 files changed, 169 insertions(+), 155 deletions(-)

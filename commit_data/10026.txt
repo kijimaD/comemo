@@ -1,14 +1,20 @@
-commit 1db31f8933ca3d3b2ce6d8decd01fe8acfcdecb6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 18 09:45:38 2011 -0700
+commit 4e7aac54137bb77a0b821b1cf24dcc3f42588a7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 10:03:37 2011 -0400
 
-    big: more explicit documentation for div/mod/quo/rem
+    reflect: make unsafe use of SliceHeader gc-friendly
     
-    Fixes #2380.
+    Revert workaround in compiler and
+    revert test for compiler workaround.
     
-    R=rsc, rogpeppe
+    Tested that the 386 build continues to fail if
+    the gc change is made without the reflect change.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5313041
+    https://golang.org/cl/5312041
 
- src/pkg/big/int.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/gc/reflect.c       |  2 +-
+ src/pkg/reflect/value.go   | 29 +++++++++++++------
+ src/pkg/runtime/gc_test.go | 71 ----------------------------------------------
+ 3 files changed, 21 insertions(+), 81 deletions(-)

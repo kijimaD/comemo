@@ -1,24 +1,32 @@
-commit 71a671839f95fb43091316c72cae87c049c81bce
-Author: Rebecca Stambler <rstambler@golang.org>
-Date:   Wed Apr 15 18:31:29 2020 -0400
+commit 383b447e0da5bd1fcdc2439230b5a1d3e3402117
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 28 16:44:07 2019 +0000
 
-    go/types: add detail to missing method error messages
+    runtime: clean up power-of-two rounding code with align functions
     
-    When a concrete type doesn't exactly implement an interface, the error
-    messages produced by go/types are often unhelpful. The compiler shows
-    the expected signature versus the one found, which is useful, so add
-    this behavior here.
+    This change renames the "round" function to the more appropriately named
+    "alignUp" which rounds an integer up to the next multiple of a power of
+    two.
     
-    Fixes golang/go#38475
+    This change also adds the alignDown function, which is almost like
+    alignUp but rounds down to the previous multiple of a power of two.
     
-    Change-Id: I8b780b7e1f1f433a0efe670de3b1437053f42fba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228457
-    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    With these two functions, we also go and replace manual rounding code
+    with it where we can.
+    
+    Change-Id: Ie1487366280484dcb2662972b01b4f7135f72fec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190618
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/go/types/expr.go             |  8 ++++----
- src/go/types/lookup.go           | 17 ++++++++++-------
- src/go/types/operand.go          |  5 +++--
- src/go/types/testdata/issues.src |  5 ++++-
- 4 files changed, 21 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/inl_test.go |  3 ++-
+ src/runtime/malloc.go                   | 22 +++++++++++-----------
+ src/runtime/mem_linux.go                |  8 ++++----
+ src/runtime/mfinal.go                   |  4 ++--
+ src/runtime/mheap.go                    | 20 ++++++++++----------
+ src/runtime/msize.go                    |  2 +-
+ src/runtime/race.go                     |  2 +-
+ src/runtime/stack.go                    |  2 +-
+ src/runtime/stubs.go                    |  9 +++++++--
+ src/runtime/trace.go                    |  2 +-
+ 10 files changed, 40 insertions(+), 34 deletions(-)

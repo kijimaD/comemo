@@ -1,16 +1,16 @@
-commit b2353174db1349f15113416b4df2a833db6058a6
-Author: Andrew <andybons@golang.org>
-Date:   Wed Aug 12 17:45:48 2020 -0400
+commit af98efc545476cea052881e0a6e623f7219d5e97
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jan 28 16:38:38 2020 -0500
 
-    doc/go1.15: include behavior updates to the context package
+    [dev.link] cmd/link: correct overwrite logic
     
-    Fixes #40737
+    This was mistakenly changed during the refactor in  CL 201728.
+    Restore the old behavior.
     
-    Change-Id: I8e2c1e1653d427af1ded6d61df1aa450e3c4d35c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/248329
-    Run-TryBot: Andrew Bonventre <andybons@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9991859e7587f5f567bbe86ae19dede904b3a399
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217062
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- doc/go1.15.html | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/cmd/link/internal/loader/loader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

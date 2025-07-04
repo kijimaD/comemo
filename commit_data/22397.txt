@@ -1,17 +1,21 @@
-commit d64617fc0a537d9783f03ef5c97eaee7d0e7de17
-Author: Rob Pike <r@golang.org>
-Date:   Wed Apr 8 13:17:57 2015 -0700
+commit 14fbec49dce3b655fe667be98e8d3186f786eec1
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 9 13:21:51 2015 +1300
 
-    encoding/gob: more checks for corrupted data
+    cmd/internal/obj/x86: implement -shared computation of TLS base
     
-    Also unify the tests where possible to make it easy to add more.
+    Somehow, terribly embarrassingly, I lost part of the "re-enable
+    -shared on amd64" patch when rebasing before it got submitted.
+    This restores it and also fixes the addend to be the necessary -4.
     
-    Fixes #10273.
+    Now updated so that Git will not put the new case into the wrong
+    switch.
     
-    Change-Id: Idfa4f4a5dcaa05974066bafe17bed6cdd2ebedb7
-    Reviewed-on: https://go-review.googlesource.com/8662
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I1d628232771a6d6ce6d085adf379f94a377822c5
+    Reviewed-on: https://go-review.googlesource.com/7126
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/gob/decode.go       | 22 +++++++++---
- src/encoding/gob/encoder_test.go | 76 ++++++++++++++++++----------------------
- 2 files changed, 51 insertions(+), 47 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

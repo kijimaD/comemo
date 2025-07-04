@@ -1,23 +1,29 @@
-commit ec5e5dba6fbc4549f167c6db509a800e163296c8
-Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
-Date:   Sun Mar 20 00:07:37 2022 +0800
+commit f1b1c2f67fae0598db5c20f324334c23d4cd3038
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jun 12 07:33:18 2021 -0700
 
-    runtime: fix name of type parameter
+    [dev.typeparams] cmd/compile: simplify NewClosureFunc
     
-    CL 372774 is for reflect, this CL is for _type in runtime.
-    Add a test case to ensure the name method of _type can be exercised.
+    I initially made NewClosureFunc take an "outerfn *Func" parameter
+    because I was planning on having it handle closure naming, until
+    remembering that naming needs to wait until typecheck for noder.
     
-    Updates #50208
+    We don't actually need the *Func yet, just to know whether it's
+    non-nil. So change the parameter to a bool, which simplifies callers a
+    little.
     
-    Change-Id: I26ccf8c5c574dd9e78510cf29eb40ae7c8d449ab
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/393917
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Keith Randall <khr@google.com>
-    Auto-Submit: Keith Randall <khr@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ie83ee4a1ed0571ac6d3879ffd8474c6c3c1a9ff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327450
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/debug/heapdump_test.go | 26 ++++++++++++++++++++++++++
- src/runtime/type.go                |  9 ++++++++-
- 2 files changed, 34 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go        |  7 +------
+ src/cmd/compile/internal/ir/func.go           | 17 ++++++++++++-----
+ src/cmd/compile/internal/noder/expr.go        |  2 +-
+ src/cmd/compile/internal/noder/noder.go       |  2 +-
+ src/cmd/compile/internal/noder/stencil.go     |  4 ++--
+ src/cmd/compile/internal/typecheck/iimport.go |  2 +-
+ src/cmd/compile/internal/walk/order.go        |  6 ++----
+ 7 files changed, 20 insertions(+), 20 deletions(-)

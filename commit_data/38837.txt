@@ -1,23 +1,19 @@
-commit 9f9e17a82fd7afa622424f51e458bb383cb952ce
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Apr 19 12:20:56 2019 -0700
+commit 950100a95c700fb60cafc51276786dd93f85d6c9
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Thu Nov 29 02:30:26 2018 -0500
 
-    cmd/compile: fix ICE from go/defer call to variadic function
+    crypto/tls: improve error message for unsupported certificates in TLS 1.3
     
-    The special case logic for go/defer arguments in Escape.call was
-    scattered around a bit and was somewhat inconsistently handled across
-    different types of function calls and parameters. This CL pulls the
-    logic out into a separate callStmt method that's used uniformly for
-    all kinds of function calls and arguments.
+    Fixes #28960
     
-    Fixes #31573.
-    
-    Change-Id: Icdcdf611754dc3fcf1af7cb52879fb4b73a7a31f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/173019
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I0d049d4776dc42ef165a1da15f63de08677fbb85
+    Reviewed-on: https://go-review.googlesource.com/c/151661
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/compile/internal/gc/escape.go | 94 +++++++++++++++++------------------
- test/fixedbugs/issue31573.go          | 49 ++++++++++++++++++
- 2 files changed, 96 insertions(+), 47 deletions(-)
+ src/crypto/tls/auth.go                   | 36 ++++++++++++++++++++++++++++++--
+ src/crypto/tls/handshake_client_tls13.go |  3 +--
+ src/crypto/tls/handshake_server_tls13.go |  3 +--
+ 3 files changed, 36 insertions(+), 6 deletions(-)

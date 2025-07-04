@@ -1,17 +1,30 @@
-commit 17e503f76ff528c227035407529d14a702273129
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 4 19:34:52 2017 +0000
+commit 44e65f2c94bbae463314382fd77ce690c81b413e
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Mar 13 16:14:52 2018 -0400
 
-    net/http: prevent Server reuse after a Shutdown
+    cmd/compile/internal/ssa: track stack-only vars
     
-    Fixes #20239
+    User variables that cannot be SSA'd, either because their addresses are
+    taken or because they are too large for the decomposition heuristic, do
+    not explicitly appear as operands of SSA values. Instead they are written
+    to directly via the stack pointer.
     
-    Change-Id: Icb021daad82e6905f536e4ef09ab219500b08167
-    Reviewed-on: https://go-review.googlesource.com/81778
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    This hid them from the location list generation, which is only
+    interested in the named value table. Fortunately, the lifetime of
+    stack-only variables is delineated by VarDef/VarKill ops, and it's easy
+    enough to turn those into location list bounds.
+    
+    One wrinkle: stack frame information is not explicitly available in the
+    SSA phases, because it's owned by the frontend in AllocFrame. It would
+    be easier if the set of live LocalSlots were returned by that, but this
+    is the minimal change to fix missing variables. Or VarDef/VarKills
+    could appear in NamedValues, which would make this change even easier.
+    
+    Change-Id: Ice6654dad6f9babb0286e95c7ec28594561dc91f
+    Reviewed-on: https://go-review.googlesource.com/100458
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/serve_test.go | 15 +++++++++++++++
- src/net/http/server.go     | 37 +++++++++++++++++++++++++++++--------
- 2 files changed, 44 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 42 ++++++++++++++++++++++++++++++++++-
+ 1 file changed, 41 insertions(+), 1 deletion(-)

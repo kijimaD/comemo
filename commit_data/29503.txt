@@ -1,25 +1,15 @@
-commit 10d2efd0b0e3f4f92f9470435f63211cbeb82008
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 11 20:35:26 2016 +0000
+commit 2679282da4e437ee086ec791ab73181c39ae3463
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 16 12:08:05 2016 -0700
 
-    net/smtp: make Client.Auth trim final space if Auth.Start toServer is empty
+    cmd/compile: fold ADDconsts together for PPC
     
-    Users can implement the smtp.Auth interface and return zero bytes in
-    the "toServer []byte" return value from the Auth.Start method. People
-    apparently do this to implement the SMTP "LOGIN" method.
-    
-    But we were then sending "AUTH LOGIN \r\n" to the server, which some
-    servers apparently choke on. So, trim it when the toServer value is
-    empty.
-    
-    Fixes #17794
-    
-    Change-Id: I83662dba9e0f61b1c5000396c096cf7110f78361
-    Reviewed-on: https://go-review.googlesource.com/33143
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I571f03af6f791e78e7e18addcc310eb25747cdcf
+    Reviewed-on: https://go-review.googlesource.com/29351
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/smtp/smtp.go      |  3 ++-
- src/net/smtp/smtp_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 42 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  5 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 34 ++++++++++++++++++++++++----
+ 2 files changed, 33 insertions(+), 6 deletions(-)

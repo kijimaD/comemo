@@ -1,23 +1,22 @@
-commit f96d9a643202b9f28fad3756d0de8ac6b5c159dd
-Author: Jun10ng <zeonll@outlook.com>
-Date:   Sat Jan 27 11:53:43 2024 +0000
+commit a64919945bdb65202783c5f9e078c3e735efc58f
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Jan 27 22:53:25 2023 -0800
 
-    runtime: reduce one STW when obtaining goroutine configuration file
+    net/http: improve js fetch errors
     
-    Fixes #54014
+    The Error type used in failed fetch invocations contain more
+    information than we're currently extracting. Optimistically
+    look for the cause field for extra context for errors.
     
-    Change-Id: If4ee2752008729e1ed4b767cfda52effdcec4959
-    GitHub-Last-Rev: 5ce300bf5128f842604d85d5f8749027c8e091c2
-    GitHub-Pull-Request: golang/go#58239
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/464349
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Change-Id: I6c8e4b230a21ec684af2107707aa605fc2148fcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463978
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Evan Phoenix <evan@phx.io>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
 
- src/runtime/mprof.go       |  5 +++++
- src/runtime/pprof/pprof.go | 11 ++++++++++-
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ src/net/http/roundtrip_js.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

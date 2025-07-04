@@ -1,40 +1,26 @@
-commit b25b5f3ff4e671aa4f5897c788137fe91f62cf57
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue Aug 27 21:02:02 2024 +0000
+commit 0709f1bb00287371da61a1fc94f6e2a086aa0f29
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Nov 19 20:18:50 2023 -0800
 
-    runtime: fix GODEBUG=gccheckmark=1 and add smoke test
+    cmd/compile/internal/ir: add CallExpr.GoDefer
     
-    This change fixes GODEBUG=gccheckmark=1 which seems to have bit-rotted.
-    Because the root jobs weren't being reset, it wasn't doing anything.
-    Then, it turned out that checkmark mode would queue up noscan objects in
-    workbufs, which caused it to fail. Then it turned out checkmark mode was
-    broken with user arenas, since their heap arenas are not registered
-    anywhere. Then, it turned out that checkmark mode could just not run
-    properly if the goroutine's preemption flag was set (since
-    sched.gcwaiting is true during the STW). And lastly, it turned out that
-    async preemption could cause erroneous checkmark failures.
+    The devirtualizer and inliner both want to recognize call expressions
+    that are part of a go or defer statement. This CL refactors them to
+    use a single CallExpr.GoDefer flag, which gets set during
+    normalization of go/defer statements during typecheck.
     
-    This change fixes all these issues and adds a simple smoke test to dist
-    to run the runtime tests under gccheckmark, which exercises all of these
-    issues.
+    While here, drop some OCALLMETH assertions. Typecheck has been
+    responsible for desugaring them into OCALLFUNC for a while now, and
+    ssagen will check this again for us later anyway.
     
-    Fixes #69074.
-    Fixes #69377.
-    Fixes #69376.
-    
-    Change-Id: Iaa0bb7b9e63ed4ba34d222b47510d6292ce168bc
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/608915
+    Change-Id: I3fc370f4417431aae97239313da6fe523f512a2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543657
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/dist/test.go      | 12 ++++++++++--
- src/runtime/arena.go      |  2 +-
- src/runtime/malloc.go     | 45 +++++++++++++++++++++------------------------
- src/runtime/mcheckmark.go | 18 +++++++++++++++---
- src/runtime/mgc.go        | 13 +++++++++++--
- src/runtime/mgcmark.go    | 16 ++++++++--------
- src/runtime/mheap.go      | 27 ++++++++++++++++++---------
- src/runtime/runtime1.go   | 17 +++++++++++++++++
- 8 files changed, 101 insertions(+), 49 deletions(-)
+ .../compile/internal/devirtualize/devirtualize.go  | 30 +++++++++---------
+ src/cmd/compile/internal/inline/inl.go             | 16 +---------
+ src/cmd/compile/internal/ir/expr.go                |  3 +-
+ src/cmd/compile/internal/typecheck/stmt.go         | 36 ++++++++++++----------
+ 4 files changed, 38 insertions(+), 47 deletions(-)

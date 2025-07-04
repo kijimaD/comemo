@@ -1,79 +1,21 @@
-commit c4772d30bfbed6cfbfdf92066990b5c6dc4065bb
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue May 14 00:01:49 2024 -0400
+commit aff2f4a7248a35cd16e24894d125faa2730247bd
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Wed Apr 26 08:18:10 2023 -0700
 
-    cmd/link: disallow pull-only linknames
+    cmd/compile: remove go:wasmimport restriction
     
-    As mentioned in CL 584598, linkname is a mechanism that, when
-    abused, can break API integrity and even safety of Go programs.
-    CL 584598 is a first step to restrict the use of linknames, by
-    implementing a blocklist. This CL takes a step further, tightening
-    up the restriction by allowing linkname references ("pull") only
-    when the definition side explicitly opts into it, by having a
-    linkname on the definition (possibly to itself). This way, it is at
-    least clear on the definition side that the symbol, despite being
-    unexported, is accessed outside of the package. Unexported symbols
-    without linkname can now be actually private. This is similar to
-    the symbol visibility rule used by gccgo for years (which defines
-    unexported non-linknamed symbols as C static symbols).
+    Removes the package restriction on go:wasmimport, allowing the
+    use of it globally and in user code.
     
-    As there can be pull-only linknames in the wild that may be broken
-    by this change, we currently only enforce this rule for symbols
-    defined in the standard library. Push linknames are added in the
-    standard library to allow things build.
+    Fixes #59149
     
-    Linkname references to external (non-Go) symbols are still allowed,
-    as their visibility is controlled by the C symbol visibility rules
-    and enforced by the C (static or dynamic) linker.
-    
-    Assembly symbols are treated similar to linknamed symbols.
-    
-    This is controlled by -checklinkname linker flag, currently not
-    enabled by default. A follow-up CL will enable it by default.
-    
-    Change-Id: I07344f5c7a02124dbbef0fbc8fec3b666a4b2b0e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/585358
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib26f628dc8dafb31388005b50449e91b47dab447
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489255
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/base/flag.go      |  2 +
- src/cmd/compile/internal/liveness/plive.go |  1 +
- src/cmd/compile/internal/ssagen/abi.go     |  5 ++
- src/cmd/go/go_test.go                      |  2 +-
- src/cmd/internal/goobj/objfile.go          |  4 ++
- src/cmd/internal/obj/link.go               |  1 +
- src/cmd/internal/obj/objfile.go            | 13 ++++-
- src/cmd/link/internal/ld/lib.go            |  3 ++
- src/cmd/link/internal/ld/main.go           |  1 +
- src/cmd/link/internal/loader/loader.go     | 85 ++++++++++++++++++++----------
- src/cmd/link/link_test.go                  |  9 ++--
- src/cmd/link/testdata/linkname/coro2.go    | 17 ++++++
- src/cmd/link/testdata/linkname/fastrand.go | 18 +++++++
- src/cmd/link/testdata/linkname/weak.go     | 22 --------
- src/go/build/deps_test.go                  |  4 +-
- src/go/types/api.go                        |  4 ++
- src/internal/cpu/cpu.go                    | 10 ++++
- src/internal/runtime/atomic/atomic_386.go  |  1 +
- src/internal/runtime/atomic/atomic_arm.go  |  1 +
- src/internal/runtime/atomic/atomic_wasm.go |  2 +
- src/net/textproto/reader.go                |  4 ++
- src/os/executable_darwin.go                |  6 ++-
- src/os/executable_solaris.go               |  6 ++-
- src/runtime/coro.go                        |  2 -
- src/runtime/coverage/emit.go               |  3 ++
- src/runtime/coverage/testsupport.go        |  6 +++
- src/runtime/linkname.go                    | 49 +++++++++++++++++
- src/runtime/linkname_unix.go               | 12 +++++
- src/runtime/netpoll.go                     |  3 ++
- src/runtime/string.go                      |  2 +-
- src/runtime/vdso_linux_amd64.go            |  5 ++
- src/syscall/fs_wasip1.go                   |  6 +++
- src/syscall/linkname_bsd.go                | 15 ++++++
- src/syscall/linkname_darwin.go             | 23 ++++++++
- src/syscall/linkname_libc.go               | 12 +++++
- src/syscall/linkname_openbsd.go            | 15 ++++++
- src/syscall/syscall_linux.go               |  3 ++
- src/testing/newcover.go                    |  7 +++
- src/time/zoneinfo_read.go                  |  3 ++
- 39 files changed, 324 insertions(+), 63 deletions(-)
+ src/cmd/compile/internal/noder/noder.go | 4 ----
+ 1 file changed, 4 deletions(-)

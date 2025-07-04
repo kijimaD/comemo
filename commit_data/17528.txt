@@ -1,15 +1,12 @@
-commit c971f95c10b9ee79ab4c5aab2cff4e2cb642fb72
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 10 12:47:43 2013 -0400
+commit 44870547517e84cfd6ddb0b744823069ce83bf10
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 10 09:02:22 2013 -0700
 
-    go/build: allow $ in cgo LDFLAGS
+    runtime: clean up / align comment tabbing
     
-    Fixes #6038.
-    
-    R=iant
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13649043
+    https://golang.org/cl/13336046
 
- src/cmd/go/test.bash      | 19 +++++++++++++++++++
- src/pkg/go/build/build.go |  9 ++++++---
- 2 files changed, 25 insertions(+), 3 deletions(-)
+ src/pkg/runtime/runtime.h | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

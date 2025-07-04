@@ -1,18 +1,13 @@
-commit 94849d5a78009dcaafbde2847cc0a27f53aa3723
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 28 08:43:47 2014 -0700
+commit 9665ce19af0451fba4c9da31e625f9f337faf8c3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 27 22:10:57 2014 -0700
 
-    spec: clarify that break/continue do not work across function boundaries
+    api: update next.txt
     
-    Also made it extra clear for goto statements (even though label scopes
-    are already limited to the function defining a label).
-    
-    Fixes #8040.
-    
-    LGTM=r, rsc
-    R=r, rsc, iant, ken
-    CC=golang-codereviews
-    https://golang.org/cl/99550043
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=adg, golang-codereviews
+    https://golang.org/cl/99530044
 
- doc/go_spec.html | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ api/next.txt | 33 ++++++++++++---------------------
+ 1 file changed, 12 insertions(+), 21 deletions(-)

@@ -1,32 +1,25 @@
-commit b7717e46340b7ffe5fd53313f10dfa85a141f77a
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Tue Jun 2 14:52:16 2020 -0400
+commit dcd3b2c173b77d93be1c391e3b5f932e0779fb1f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Dec 26 19:49:39 2019 +0000
 
-    Revert "cmd/internal/goobj: add index to symbol name for indexed symbols"
+    runtime: check whether scavAddr is in inUse on scavengeOne fast path
     
-    This reverts CL 229246.
+    This change makes it so that we check whether scavAddr is actually
+    mapped before trying to look at the summary for the fast path, since we
+    may segfault if that that part of the summary is not mapped in.
+    Previously this wasn't a problem because we would conservatively map
+    all memory for the summaries between the lowest mapped heap address and
+    the highest one.
     
-    For new indexed object files, in CL 229246 we added symbol index
-    to tools (nm, objdump) output. This affects external tools that
-    parse those outputs. And the added index doesn't look very nice.
-    In this release we take it out. For future releases we may
-    introduce a flag to tools (nm, objdump) and optionally dump the
-    symbol index.
+    This change also adds a test for this case.
     
-    For refererenced (not defined) indexed symbols, currently the
-    symbol is still referenced only by index, not by name. The next
-    CL will make the object file self-contained, so tools can dump
-    the symbol names properly (as before).
-    
-    For #38875.
-    
-    Change-Id: I07375e85a8e826e15c82fa452d11f0eaf8535a00
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236167
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Change-Id: I2b1d89b5e044dce81745964dfaba829f4becdc57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212637
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/goobj/goobj_test.go | 19 +++++--------------
- src/cmd/internal/goobj/readnew.go    |  9 +--------
- src/cmd/nm/nm_test.go                | 10 +---------
- src/cmd/objdump/objdump_test.go      | 12 ++++--------
- 4 files changed, 11 insertions(+), 39 deletions(-)
+ src/runtime/mgcscavenge.go      |  5 ++++-
+ src/runtime/mgcscavenge_test.go | 25 +++++++++++++++++++++++--
+ src/runtime/mranges.go          | 14 ++++++++++++++
+ 3 files changed, 41 insertions(+), 3 deletions(-)

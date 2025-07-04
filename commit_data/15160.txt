@@ -1,12 +1,16 @@
-commit 3c1dfb2b9a3fb169545bfb40f3febad22063831f
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Feb 8 12:00:35 2013 +1100
+commit 7594440ef134ddebc2864d207815eb325adda13f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 7 17:55:25 2013 -0500
 
-    cmd/godoc: fix format strings.
+    cmd/8g: add a few missing splitclean
     
-    R=golang-dev, bradfitz
+    Fixes #887.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/7309061
+    https://golang.org/cl/7303061
 
- src/cmd/godoc/play-appengine.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/8g/ggen.c          |  2 ++
+ src/cmd/8g/gsubr.c         |  2 +-
+ test/fixedbugs/issue887.go | 36 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)

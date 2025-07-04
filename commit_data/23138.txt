@@ -1,16 +1,24 @@
-commit 310fb9e8087471f6ab65d8c464df10572c0d38ed
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 26 11:44:18 2015 -0700
+commit 23ce80efebbdebd202314717ee7372d4f0f25051
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 27 16:31:16 2015 -0400
 
-    spec: removed TODOs (invisible html comment) in favor of issues
+    runtime/race: fix benchmark deadlock
     
-    - no "visible" change to spec but for updated date
-    - retired several outdated TODO items
-    - filed non-urgent issues 10953, 10954, 10955 for current TODOs
+    Currently TestRaceCrawl fails to wg.Done for every wg.Adds if the
+    depth ever reaches 0. This causes the test to deadlock. Under the race
+    detector, this deadlock is not detected, so the test eventually times
+    out.
     
-    Change-Id: If87ad0fb546c6955a6d4b5801e06e5c7d5695ea2
-    Reviewed-on: https://go-review.googlesource.com/10382
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This only recently became a problem. Prior to commit e870f06 the depth
+    would never reach 0 because the strict round-robin goroutine schedule
+    ensured that all of the URLs were already "seen" by depth 2. Now that
+    the runtime prefers scheduling the most recently started goroutine,
+    the test is able to reach depth 0 and trigger this deadlock.
+    
+    Change-Id: I5176302a89614a344c84d587073b364833af6590
+    Reviewed-on: https://go-review.googlesource.com/9344
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go_spec.html | 17 +----------------
- 1 file changed, 1 insertion(+), 16 deletions(-)
+ src/runtime/race/testdata/mop_test.go | 1 +
+ 1 file changed, 1 insertion(+)

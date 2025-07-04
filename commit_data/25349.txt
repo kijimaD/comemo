@@ -1,12 +1,27 @@
-commit 41af93f6a345f4ba38ba53bf333e2844a0e532c6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 17 13:34:41 2015 -0800
+commit e7ee268292a814fed6ebe7c81c808581f80d3416
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 21 12:33:56 2015 -0700
 
-    doc: change go1.6 http heading
+    cmd/go: add -msan option
     
-    Change-Id: Iae05082530891175e9c86da244e610bc92759561
-    Reviewed-on: https://go-review.googlesource.com/17918
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    The -msan option compiles Go code to use the memory sanitizer.  This is
+    intended for use when linking with C/C++ code compiled with
+    -fsanitize=memory.  When memory blocks are passed back and forth between
+    C/C++ and Go, code in both languages will agree as to whether the memory
+    is correctly initialized or not, and will report errors for any use of
+    uninitialized memory.
+    
+    Change-Id: I2dbdbd26951eacb7d84063cfc7297f88ffadd70c
+    Reviewed-on: https://go-review.googlesource.com/16169
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- doc/go1.6.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/cgo/testsanitizers/msan.go      |  3 ---
+ misc/cgo/testsanitizers/msan2.go     | 31 ++++++++++++++++++++++++
+ misc/cgo/testsanitizers/msan_fail.go | 31 ++++++++++++++++++++++++
+ misc/cgo/testsanitizers/test.bash    | 19 ++++++++++++++-
+ src/cmd/go/alldocs.go                |  8 ++++--
+ src/cmd/go/build.go                  | 47 ++++++++++++++++++++++++++----------
+ src/cmd/go/pkg.go                    |  6 +++++
+ src/cmd/go/run.go                    |  2 +-
+ src/cmd/go/test.go                   |  7 ++++--
+ 9 files changed, 132 insertions(+), 22 deletions(-)

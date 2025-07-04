@@ -1,45 +1,25 @@
-commit 6ae3afa7e784aadea23793b0527bd8880e002d2f
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Mon Oct 4 04:16:50 2021 -0500
+commit deaf29a8a8ab76613bf0d5d97c4e31bfbdc4c4e9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 21 19:27:12 2021 -0800
 
-    cmd/compile: add prefetch intrinsic support on PPC64
+    cmd/compile: fix order-of-assignment issue w/ defers
     
-    This CL enables intrinsic support to emit the following prefetch
-    instructions for PPC64 platform that are already emitted on other
-    platforms
-    1. Prefetch - prefetches data from memory address to cache;
-    2. PrefetchStreamed - prefetches data from memory address, with a
-    hint that this data is being streamed.
+    CL 261677 fixed a logic issue in walk's alias detection, where it was
+    checking the RHS expression instead of the LHS expression when trying
+    to determine the kind of assignment. However, correcting this exposed
+    a latent issue with assigning to result parameters in functions with
+    defers, where an assignment could become visible earlier than intended
+    if a later expression could panic.
     
-    Benchmarks picked from go/test/bench/garbage
-    Parameters tested with:
-    GOMAXPROCS=8
-    tree2 -heapsize=1000000000 -cpus=8
-    tree -n=18
-    parser
-    peano
+    Fixes #43835.
     
-    Performance results with this change on POWER9
-    
-    name                 old time/op  new time/op  delta
-    Tree2-8              75.3ms ± 2%  65.0ms ± 6%  -13.61%  (p=0.003 n=5+7)
-    Tree-8               576ms ± 2%   576ms ± 1%   ~     (p=0.756 n=11+10)
-    Parser-8             3.60s ± 2%   3.59s ± 1%   ~     (p=0.818 n=6+6)
-    Peano-8              84.8ms ± 1%  84.6ms ± 1%   ~     (p=0.180 n=6+6)
-    
-    Results on POWER8 and POWER10 are similar
-    
-    Change-Id: If4ac95a85aaa7b2266014e1f8fb7cd7440cbf906
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353730
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Trust: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I061ced125e3896e26d65f45b28c99db2c8a74a8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285633
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go        |  7 ++++++
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  4 ++++
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  5 +++++
- src/cmd/compile/internal/ssa/opGen.go        | 13 +++++++++++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 32 ++++++++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/ssa.go       |  4 ++--
- 6 files changed, 63 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 12 ++++++++++--
+ test/fixedbugs/issue43835.go        | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 2 deletions(-)

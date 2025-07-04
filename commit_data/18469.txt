@@ -1,20 +1,22 @@
-commit 5e72fae9b2c4fddc67a5d8ea0aecf3f73234d83e
+commit 2ea859a7797472d6c7e401057d313c1d468a7a09
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Feb 12 22:31:36 2014 +0400
+Date:   Wed Feb 12 22:24:29 2014 +0400
 
-    runtime: improve cpu profiles for GC/syscalls/cgo
-    Current "System->etext" is not very informative.
-    Add parent "GC" frame.
-    Replace un-unwindable syscall/cgo frames with Go stack that leads to the call.
+    runtime: refactor level-triggered IO support
+    Remove GOOS_solaris ifdef from netpoll code,
+    instead introduce runtime edge/level triggered IO flag.
+    Replace armread/armwrite with a single arm(mode) function,
+    that's how all other interfaces look like and these functions
+    will need to do roughly the same thing anyway.
     
     LGTM=rsc
-    R=rsc, alex.brainman, ality
+    R=golang-codereviews, dave, rsc
     CC=golang-codereviews
-    https://golang.org/cl/61270043
+    https://golang.org/cl/55500044
 
- src/pkg/runtime/os_windows.c        |  7 +++++++
- src/pkg/runtime/proc.c              | 40 ++++++++++++++++++++++++++++++-------
- src/pkg/runtime/runtime.h           |  3 +++
- src/pkg/runtime/sys_windows_386.s   | 19 ++++++++++++++++--
- src/pkg/runtime/sys_windows_amd64.s | 21 +++++++++++++++----
- 5 files changed, 77 insertions(+), 13 deletions(-)
+ src/pkg/runtime/netpoll.goc       | 18 +++++-------------
+ src/pkg/runtime/netpoll_epoll.c   |  7 +++++++
+ src/pkg/runtime/netpoll_kqueue.c  |  7 +++++++
+ src/pkg/runtime/netpoll_windows.c |  7 +++++++
+ src/pkg/runtime/runtime.h         |  3 +--
+ 5 files changed, 27 insertions(+), 15 deletions(-)

@@ -1,27 +1,44 @@
-commit 467a2cb73ca867ccdb1dd22be220fa51b6d52491
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Aug 15 15:25:46 2015 +1000
+commit 840965f8d7ccad5ac1782e208865e8120f5c080a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 24 17:13:24 2015 -0400
 
-    cmd/compile/internal/arm64: remove Reginuse check in clearfat
+    runtime: always clear stack barriers on G exit
     
-    Fixes golang/go#12133
+    Currently the runtime fails to clear a G's stack barriers in gfput if
+    the G's stack allocation is _FixedStack bytes. This causes the runtime
+    to panic if the following sequence of events happens:
     
-    CL 13630 fixed the use of a stale reg[] array in the various arch
-    backends which was causing the check in clearfat to pass
-    unconditionally on arm64.
+    1) The runtime installs stack barriers on a G.
     
-    With this check fixed, arm64 now considers REGRT1 to always be in use
-    as it is part of the reserved register set, see arm64/gsubr.go.
+    2) The G exits by calling runtime.Goexit. Since this does not
+       necessarily return through the stack barriers installed on the G,
+       there may still be untriggered stack barriers left on the G's stack
+       in recorded in g.stkbar.
     
-    However, ppc64 does not consider REGRT1 and REGRT2 to be part of its
-    reserved set, so its identical clearfat check passes.
+    3) The runtime calls gfput to add the exiting G to the free pool. If
+       the G's stack allocation is _FixedStack bytes, we fail to clear
+       g.stkbar.
     
-    This CL removes the Reginuse check inside clearfat as REGRT1 is
-    guarenteed always be free on arm64.
+    4) A new G starts and allocates the G that was just added to the free
+       pool.
     
-    Change-Id: I4719150d3c3378fae155b863c474529df18d4c17
-    Reviewed-on: https://go-review.googlesource.com/13650
+    5) The new G begins to execute and overwrites the stack slots that had
+       stack barriers in them.
+    
+    6) The garbage collector enters mark termination, attempts to remove
+       stack barriers from the new G, and finds that they've been
+       overwritten.
+    
+    Fix this by clearing the stack barriers in gfput in the case where it
+    reuses the stack.
+    
+    Fixes #11256.
+    
+    Change-Id: I377c44258900e6bcc2d4b3451845814a8eeb2bcf
+    Reviewed-on: https://go-review.googlesource.com/11461
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/arm64/ggen.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/runtime/proc1.go         |  4 ++++
+ test/fixedbugs/issue11256.go | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)

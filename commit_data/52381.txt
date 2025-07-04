@@ -1,27 +1,35 @@
-commit 11c40e349760792d0a2016633dc809025ee24b2f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Mar 20 16:19:45 2023 -0400
+commit edab07d09f1dcee58395602054ffb1cd03490dd8
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Sun Aug 15 15:53:05 2021 +0800
 
-    net/http: in the IdleConnStrsForTesting_h2 helper, omit conns that cannot be reused
+    cmd/dist: support dist tool for loong64
     
-    In #59155, we observed that the IdleConnStrsForTesting_h2 helper
-    function sometimes reported extra connections after a
-    "client conn not usable" failure and retry. It turns out that that
-    state corresponds exactly to the
-    http2clientConnIdleState.canTakeNewRequest field, so (with a bit of
-    extra nethttpomithttp2 plumbing) we can use that field in the helper
-    to filter out the unusable connections.
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
     
-    Fixes #59155.
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
     
-    Change-Id: Ief6283c9c8c5ec47dd9f378beb0ddf720832484e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/477856
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Updates #46229
+    
+    Change-Id: I61dca43680d8e5bd3198a38577450a53f405a987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342307
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
 
- src/net/http/export_test.go    |  8 +++++---
- src/net/http/omithttp2.go      | 10 +++++++++-
- src/net/http/transport_test.go |  4 ++--
- 3 files changed, 16 insertions(+), 6 deletions(-)
+ src/cmd/dist/build.go     | 3 +++
+ src/cmd/dist/buildtool.go | 2 ++
+ src/cmd/dist/main.go      | 2 ++
+ src/cmd/dist/test.go      | 4 ++--
+ 4 files changed, 9 insertions(+), 2 deletions(-)

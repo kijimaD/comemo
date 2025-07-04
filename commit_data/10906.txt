@@ -1,12 +1,17 @@
-commit 8720105776d9c1f2f7ff8bde070b70853afecb6d
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Dec 21 08:28:54 2011 +1100
+commit 82a6a4f39ed3fb78e49122a93c32998a5bcd0624
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 20 16:25:57 2011 -0500
 
-    builder: use go-build.appspot.com instead of godashboard by default
+    gc: allow use of unsafe.Pointer in generated code
     
-    R=golang-dev, rsc
+    The functions we generate to implement == on structs
+    or arrays may need to refer to unsafe.Pointer even in
+    safe mode, in order to handle unexported fields contained
+    in other packages' structs.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5489097
+    https://golang.org/cl/5505046
 
- misc/dashboard/builder/main.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/subr.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

@@ -1,0 +1,14 @@
+commit dd4fee7ec63a30783fac7bfdc9a26b1e06a4b376
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Thu Oct 24 14:11:30 2024 +0300
+
+    net/http/pprof: fix typo in the symbol profile description
+    
+    Change-Id: I55e1c559bc73537c8cd42c213c56e2ddaf33aa44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622097
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/net/http/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit a197a471b9c67af4881e0d9c48e4bd3cff4992c2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat May 10 16:14:25 2025 +0000
+
+    sync: use blockUntilCleanupQueueEmpty instead of busy-looping in tests
+    
+    testPool currently does the old-style busy loop to wait until cleanups
+    have executed. Clean this up by using the linkname'd
+    blockUntilCleanupQueueEmpty.
+    
+    For #73642.
+    
+    Change-Id: Ie0c2614db858a984f25b33a805dc52948069eb52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671675
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/sync/pool_test.go | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)

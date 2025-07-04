@@ -1,24 +1,17 @@
-commit 03d641b990bf83b0553d723a2b8764af48de4e11
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Oct 20 17:14:47 2016 -0400
+commit 59877bfaaf0778d4cc2cbaf06cf5030144271349
+Author: Gleb Stepanov <glebstepanov1992@gmail.com>
+Date:   Mon Jul 25 16:25:44 2016 +0300
 
-    net: break up >1GB reads and writes on stream connections
+    runtime: rename variable
     
-    Also fix behavior of Buffers.WriteTo when writev returns an error.
+    Rename variable to bitScan according to
+    TODO comment.
     
-    Fixes #16266.
-    
-    Change-Id: Idc9503408ce2cb460663768fab86035cbab11aef
-    Reviewed-on: https://go-review.googlesource.com/31584
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I81dd8cc1ca28c0dc9308a654ad65cdf5b2fd2ce3
+    Reviewed-on: https://go-review.googlesource.com/25175
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/net/fd_plan9.go     |  1 +
- src/net/fd_unix.go      | 12 +++++++++--
- src/net/fd_windows.go   |  3 ++-
- src/net/tcpsock_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/net/writev_test.go  | 41 ++++++++++++++++++++++++++++++++++++
- src/net/writev_unix.go  |  6 +++++-
- 6 files changed, 115 insertions(+), 4 deletions(-)
+ src/runtime/mbitmap.go | 54 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 27 deletions(-)

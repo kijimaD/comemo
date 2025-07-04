@@ -1,16 +1,22 @@
-commit f8b28e28f8e41d988ff1c08721e6f7d33f3fa7ff
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Tue Mar 27 15:21:49 2018 -0500
+commit 3abf1177042e9015bcaba96860513c282263126f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 13 10:52:35 2017 -0800
 
-    internal/bytealg: remove dependency on runtime·support_avx2
+    cmd/compile: add test for array decomposition
     
-    Use internal/cpu instead.
+    This test fails on 1.9.2, but is ok on tip.
+    CL 77331 has both the 1.9.2 fix and this test, and is on the 1.9 release branch.
+    This CL is just the test, and is on HEAD.  The buggy code doesn't exist on tip.
     
-    Change-Id: I8670440389cbd88951fee61e352c4a10ac7eee6e
-    Reviewed-on: https://go-review.googlesource.com/102737
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Update #22683
+    
+    Change-Id: I04a24bd6c2d3068e18ca81da3347e2c1366f4447
+    Reviewed-on: https://go-review.googlesource.com/77332
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/bytealg/count_amd64.s | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/issue22683.go  | 30 ++++++++++++++++++++++++++++++
+ test/fixedbugs/issue22683.out |  1 +
+ 2 files changed, 31 insertions(+)

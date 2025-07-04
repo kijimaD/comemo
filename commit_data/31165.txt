@@ -1,12 +1,13 @@
-commit 73f283f4c8ded504ca4839bd73b701e812cbeb3f
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sun Apr 16 15:20:34 2017 +0000
+commit ef2593905de3bcdd760bab020667a8aa972a951e
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Feb 2 16:43:24 2017 -0800
 
-    doc: dissuade people from using PGP for security reports
+    readme: add attribution for the Gopher image
     
-    Change-Id: I7e4f22a2b6c80dd0787c011703f3f8586ff55a50
-    Reviewed-on: https://go-review.googlesource.com/40860
-    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Change-Id: I3b1317f0ab46e03d8c5a0af74c83183710a75055
+    Reviewed-on: https://go-review.googlesource.com/36214
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- doc/security.html | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ README.md | 4 ++++
+ 1 file changed, 4 insertions(+)

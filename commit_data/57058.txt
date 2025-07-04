@@ -1,23 +1,42 @@
-commit 864513dda9d96dfd0fbdbe4c2b68ebbfa3d34bc7
-Author: limeidan <limeidan@loongson.cn>
-Date:   Tue Jan 16 17:42:48 2024 +0800
+commit ccf75b36ff884c5a6839be143dd4366824c85aca
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 12 22:56:23 2023 -0400
 
-    cmd/internal/obj/loong64: merge two branch classes into one
+    cmd/internal/obj: make aix/ppc64 builds reproducible
     
-    When the kind of the operand is TYPE_BRANCH, we cannot determine
-    whether it is a long branch or a short branch, so we merge these
-    two classes into one.
+    sort.Slice was being used to sort some newly added entries by name
+    to make the ctxt.Data slice reproducible, but some existing entries
+    have the same name, and the effect was to take the non-determinism
+    of the tail entries and scatter it into the earlier, deterministic section
+    when multiple entries had the same name.
     
-    Change-Id: I7d7fa8f62ff02791ec3de4e3e3f7610bc9cb1743
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565626
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    The specific entries with the same name are type SDWARFVAR, which
+    all have an empty name but different relocations. If they are shuffled,
+    then the relocation symbols are visited in a different order, which
+    enters them into the string table in a different order, which results in
+    different object files, different object file hashes, and different build IDs
+    for the final executables.
+    
+    Use sort.SliceStable to avoid reordering entries we don't mean to reorder.
+    
+    Also add a simple test for scheduling-related non-determinism.
+    I debugged this originally using 'go install -race cmd/compile',
+    but that was slow and turned out not to be terribly reliable.
+    Using a few different GOMAXPROCS settings turns out to be a much more
+    effective (and faster) way to scramble scheduling decisions.
+    
+    Fixes #60759.
+    
+    Change-Id: Ia966b02b9fdaefa971f998a09319ca375bdf8604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502755
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/internal/obj/loong64/a.out.go  |  3 +--
- src/cmd/internal/obj/loong64/asm.go    | 23 +++++++++--------------
- src/cmd/internal/obj/loong64/cnames.go |  3 +--
- 3 files changed, 11 insertions(+), 18 deletions(-)
+ src/cmd/go/testdata/script/repro_build.txt | 22 ++++++++++++++++++++++
+ src/cmd/internal/obj/sym.go                | 14 +++++++++-----
+ 2 files changed, 31 insertions(+), 5 deletions(-)

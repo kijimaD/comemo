@@ -1,38 +1,33 @@
-commit 4b0bc7c3a14ac446bc13d22098de8db382205401
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jan 4 20:38:20 2016 +0000
+commit c24681ae2e1c96bd67c149cffa8f5ed394e68453
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 22 14:22:38 2015 -0700
 
-    net/http: relax recently-updated rules and behavior of CloseNotifier
+    [dev.ssa] cmd/compile: remember names of values
     
-    The CloseNotifier implementation and documentation was
-    substantially changed in https://golang.org/cl/17750 but it was a bit
-    too aggressive.
+    For debugging, spill values to named variables instead of autotmp_
+    variables if possible.  We do this by keeping a name -> value map
+    for each function, keep it up-to-date during deadcode elim, and use
+    it to override spill decisions in stackalloc.
     
-    Issue #13666 highlighted that in addition to breaking external
-    projects, even the standard library (httputil.ReverseProxy) didn't
-    obey the new rules about not using CloseNotifier until the
-    Request.Body is fully consumed.
+    It might even make stack frames a bit smaller, as it makes it easy
+    to identify a set of spills which are likely not to interfere.
     
-    So, instead of fixing httputil.ReverseProxy, dial back the rules a
-    bit. It's now okay to call CloseNotify before consuming the request
-    body. The docs now say CloseNotifier may wait to fire before the
-    request body is fully consumed, but doesn't say that the behavior is
-    undefined anymore. Instead, we just wait until the request body is
-    consumed and start watching for EOF from the client then.
+    This just works for one-word variables for now.  Strings/slices
+    will be a separate CL.
     
-    This CL also adds a test to ReverseProxy (using a POST request) that
-    would've caught this earlier.
-    
-    Fixes #13666
-    
-    Change-Id: Ib4e8c29c4bfbe7511f591cf9ffcda23a0f0b1269
-    Reviewed-on: https://go-review.googlesource.com/18144
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie89eba8cab16bcd41b311c479ec46dd7e64cdb67
+    Reviewed-on: https://go-review.googlesource.com/16336
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/net/http/httputil/reverseproxy_test.go | 42 +++++++++++++++++++-
- src/net/http/request.go                    |  8 +++-
- src/net/http/serve_test.go                 | 53 +++++++++++++++++++++++++
- src/net/http/server.go                     | 63 +++++++++++++++++++++++++-----
- src/net/http/transfer.go                   | 23 ++++++++++-
- 5 files changed, 176 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/gc/closure.go      |  1 +
+ src/cmd/compile/internal/gc/ssa.go          | 73 +++++++++++++++++++++--------
+ src/cmd/compile/internal/ssa/config.go      | 16 ++++---
+ src/cmd/compile/internal/ssa/deadcode.go    | 19 ++++++++
+ src/cmd/compile/internal/ssa/decompose.go   |  4 +-
+ src/cmd/compile/internal/ssa/export_test.go |  3 +-
+ src/cmd/compile/internal/ssa/func.go        |  7 +++
+ src/cmd/compile/internal/ssa/location.go    |  6 +--
+ src/cmd/compile/internal/ssa/stackalloc.go  | 63 +++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/value.go       |  8 ++--
+ 10 files changed, 156 insertions(+), 44 deletions(-)

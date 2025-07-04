@@ -1,23 +1,17 @@
-commit 650a1ef66fa67654e51d0aeaef4247f49525acdc
-Author: Rob Pike <r@golang.org>
-Date:   Fri May 24 11:06:06 2013 -0700
+commit af48543c5458086435c92f63677723217900c1b5
+Author: Gerasimos Dimitriadis <gedimitr@gmail.com>
+Date:   Fri May 24 12:37:42 2013 -0400
 
-    cmd/cov: delete
-    It doesn't work, it's not portable, it's not part of the released
-    binaries, and a better tool is due.
+    asn1: Stricter checks for DER encoded booleans
     
-    Fixes #1319.
-    Fixes #4621.
+    According to X.690, only 0 and 255 are allowed as values
+    for encoded booleans. Also added some test for parsing
+    booleans
     
-    R=golang-dev, bradfitz, dave, rsc
+    R=golang-dev, agl, r
     CC=golang-dev
-    https://golang.org/cl/9681044
+    https://golang.org/cl/9692043
 
- src/cmd/cov/Makefile |   5 -
- src/cmd/cov/doc.go   |  36 ----
- src/cmd/cov/main.c   | 484 ---------------------------------------------------
- src/cmd/cov/tree.c   | 245 --------------------------
- src/cmd/cov/tree.h   |  47 -----
- src/cmd/dist/build.c |   9 +-
- src/sudo.bash        |   4 +-
- 7 files changed, 5 insertions(+), 825 deletions(-)
+ src/pkg/encoding/asn1/asn1.go      | 16 ++++++++++++++--
+ src/pkg/encoding/asn1/asn1_test.go | 28 +++++++++++++++++++++++++++-
+ 2 files changed, 41 insertions(+), 3 deletions(-)

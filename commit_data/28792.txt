@@ -1,21 +1,23 @@
-commit 55ef67f2f85c51d415a030ae144a0b3301a097bd
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 12 13:11:02 2016 -0400
+commit 7bca2c599d593544d449bafc2fe1978c93b94a2f
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 6 13:32:52 2016 -0700
 
-    unicode: change SimpleFold to handle invalid runes
+    [dev.ssa] cmd/compile: some improvements to PPC codegen
     
-    Functions like ToLower and ToUpper return the invalid rune back,
-    so we might as well do the same here.
+    Runs fibonacci for all integer types.
+    Fold addressing arithmetic into stores.
     
-    I changed my mind about panicking when I tried to document the behavior.
+    Updates #16010.
     
-    Fixes #16690 (again).
-    
-    Change-Id: If1c68bfcd66daea160fd19948e7672b0e1add106
-    Reviewed-on: https://go-review.googlesource.com/30935
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I257982c82c00c80b00679757c3da345045968022
+    Reviewed-on: https://go-review.googlesource.com/25103
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/unicode/letter.go      |  7 +++++--
- src/unicode/letter_test.go | 14 ++------------
- 2 files changed, 7 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/ppc64/ssa.go        | 121 +++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  13 ++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  22 +++--
+ src/cmd/compile/internal/ssa/opGen.go        | 134 ++++++++++++++------------
+ src/cmd/compile/internal/ssa/rewrite.go      |   5 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 136 ++++++++++++++++++++++++++-
+ 6 files changed, 341 insertions(+), 90 deletions(-)

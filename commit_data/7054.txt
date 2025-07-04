@@ -1,12 +1,13 @@
-commit 2c037b3616fca3e5a36f2ddea71a9bf3f48f095d
+commit 41170c91e5f7854b2cdf980f314ae33907305018
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jan 7 15:33:00 2011 +1100
+Date:   Fri Jan 7 15:28:25 2011 +1100
 
-    tag release.2011-01-06
+    release.2011-01-06
     
     R=nigeltao, nigeltao_gnome
     CC=golang-dev
-    https://golang.org/cl/3892041
+    https://golang.org/cl/3829043
 
- .hgtags | 2 ++
- 1 file changed, 2 insertions(+)
+ .hgtags                |  1 -
+ doc/devel/release.html | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)

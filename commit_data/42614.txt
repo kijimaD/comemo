@@ -1,31 +1,18 @@
-commit efbe47b1625422f21bb2f130f916ce040756dbe3
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 6 12:27:01 2020 -0400
+commit 73d213708e3186b48d5147b8eb939fdfd51f1f8d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 25 02:55:01 2020 +1100
 
-    html/template: add tests from text/template
+    cmd/vendor: provide riscv64 support in tools/go/analysis/passes/asmdecl
     
-    Copy and adapt tests from text/template, to exercise more of html/template's copy.
+    Manually add riscv64 support.
     
-    Various differences in behavior are flagged with NOTE comments or t.Skip
-    and documented in #40075. Many of them are probably bugs.
-    One clarifying test case added to both text/template and html/template.
+    Currently being added via https://go-review.googlesource.com/c/tools/+/216337.
     
-    No changes to the package itself.
+    Updates #27532
     
-    Change-Id: Ifefad83d647db846040d24c2741a0244b00ade82
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/241084
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I0e1f7c0eeca4e85ae588f427eff818bb7946a851
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216262
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/html/template/clone_test.go       |    2 +-
- src/html/template/content_test.go     |    6 +-
- src/html/template/escape_test.go      |    2 +-
- src/html/template/exec_test.go        | 1708 +++++++++++++++++++++++++++++++++
- src/html/template/multi_test.go       |  246 +++++
- src/html/template/testdata/file1.tmpl |    2 +
- src/html/template/testdata/file2.tmpl |    2 +
- src/html/template/testdata/tmpl1.tmpl |    3 +
- src/html/template/testdata/tmpl2.tmpl |    3 +
- src/text/template/multi_test.go       |    1 +
- 10 files changed, 1970 insertions(+), 5 deletions(-)
+ src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go | 2 ++
+ 1 file changed, 2 insertions(+)

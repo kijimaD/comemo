@@ -1,32 +1,37 @@
-commit 26999cfd84dfa11f8e87153dc91a9f67070f6916
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Feb 24 23:31:53 2022 -0500
+commit 162d4f9c92cb618e8b434e445a842351160fb84d
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 27 12:40:43 2021 -0400
 
-    runtime/internal/atomic: set SP delta correctly for 64-bit atomic functions on ARM
+    cmd/compile: regabi support for DWARF location expressions
     
-    64-bit atomic functions on ARM have the following structure:
-    - check if the address is 64-bit aligned, if not, prepare a frame
-      and call panicUnaligned
-    - tail call armXXX or goXXX depending on GOARM
+    Revise the code that generates DWARF location expressions for input
+    parameters to get it to work properly with the new register ABI when
+    optimization is turned off.
     
-    The alignment check calls panicUnaligned after preparing a frame,
-    so the stack can be unwound. The call never returns, so the SP is
-    not set back. However, the assembler assigns SP delta following
-    the instruction stream order, not the control flow. So it leaves
-    a nonzero SP delta after the check, to the tail call instructions,
-    which is wrong because when they are executed the SP is not
-    decremented. This CL fixes this by adding the SP back (the
-    instruction never executes, just tells the assembler to set the
-    SP delta back).
+    The previously implementation assumed stack locations for all
+    input+output parameters when -N (disable optimization) was in effect.
+    In the new implementation, a register-resident input parameter is
+    given a 2-element location list, the first list element pointing to
+    the ABI register(s) containing the param, and the second element
+    pointing to the stack home once it has been spilled.
     
-    Should fix #51353.
+    NB, this change fixes a bunch of the Delve pkg/proc unit tests (maybe
+    about half of the outstanding failures). Still a good number that need
+    to be investigated, however.
     
-    Change-Id: I976cb1cfb0e9008b13538765cbc7eea0c19c7130
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388014
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Updates #40724.
+    Updates #45720.
+    
+    Change-Id: I743bbb9af187bcdebeb8e690fdd6db58094ca415
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314431
+    Trust: Than McIntosh <thanm@google.com>
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/runtime/internal/atomic/atomic_arm.s | 42 ++++++++++++--------------------
- 1 file changed, 16 insertions(+), 26 deletions(-)
+ src/cmd/compile/internal/dwarfgen/dwarf.go |  34 ++++
+ src/cmd/compile/internal/ssa/debug.go      | 244 ++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssagen/ssa.go     |   7 +-
+ 3 files changed, 282 insertions(+), 3 deletions(-)

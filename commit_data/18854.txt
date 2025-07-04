@@ -1,15 +1,22 @@
-commit 5daffee17fdd8c10ead83a87861d99c39f05561d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 13 13:16:02 2014 +0400
+commit fcc10bc0f1bed00e951f26bd32aaeea5d6d691b3
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Mar 13 08:14:05 2014 +0100
 
-    runtime: fix stack size check
-    When we copy stack, we check only new size of the top segment.
-    This is incorrect, because we can have other segments below it.
+    cmd/gc: fix spurious type errors in walkselect.
     
-    LGTM=khr
-    R=golang-codereviews, khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/73980045
+    The lowering to runtime calls introduces hidden pointers to the
+    arguments of select clauses. When implicit conversions were
+    involved it could end up with incompatible pointers. Since the
+    pointed-to types have the same representation, we can introduce a
+    forced conversion.
+    
+    Fixes #6847.
+    
+    LGTM=rsc
+    R=rsc, iant, khr
+    CC=golang-codereviews
+    https://golang.org/cl/72380043
 
- src/pkg/runtime/stack.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/gc/select.c         | 12 +++++++
+ test/fixedbugs/issue6847.go | 85 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 97 insertions(+)

@@ -1,21 +1,17 @@
-commit 6f4a4585f2080c74e7e6a409d275cbcd5e0136a5
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Mar 23 10:56:58 2017 +1100
+commit ac9962fb236569d25e9cc7f2859ac5a23eea1534
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Dec 1 08:37:48 2016 -0800
 
-    cmd/internal/obj/mips: standardize on sys.MIPS and sys.MIPS64 constants
+    doc: mention concurrent map write/iterate detector
     
-    CL 38446 introduced the use of the sys.ArchFamily type into the
-    cmd/internal/obj/mips package and redefined the mips.Mips32 and
-    mips.Mips64 constants in terms of their sys.ArchFamily counterparts.
-    This CL removes these local declarations and consolidates on sys.MIPS
-    and sys.MIPS64 respectively.
+    Mention that the best-effort race detector on maps
+    was upgraded to detect write/iterate races.
     
-    Change-Id: Id7aab6c7fd0de42ff43dde605df6bd4c85a3d895
-    Reviewed-on: https://go-review.googlesource.com/38287
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #18137
+    
+    Change-Id: Ib6e0adde47e965126771ea712386031a2a55eba3
+    Reviewed-on: https://go-review.googlesource.com/33768
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/mips/a.out.go |   6 -
- src/cmd/internal/obj/mips/asm0.go  | 284 ++++++++++++++++++-------------------
- 2 files changed, 142 insertions(+), 148 deletions(-)
+ doc/go1.8.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

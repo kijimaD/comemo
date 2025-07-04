@@ -1,18 +1,16 @@
-commit 467a6d28be15cfef05870262345201b133dc1a89
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Sep 3 20:47:30 2014 +0400
+commit 558bd8e1d90e474c97115dd9d9cd089d19a3650f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 28 11:07:29 2014 -0700
 
-    runtime: adopt race detector for runtime written in Go
-    Ignore memory access on g0/gsignal.
-    See the issue for context and explanation.
-    Fixes #8627.
+    database/sql: use a value type instead of a pointer
     
-    LGTM=khr
-    R=golang-codereviews, mdempsky, khr
-    CC=golang-codereviews, rsc
-    https://golang.org/cl/137070043
+    Follow-up to https://golang.org/cl/107020044/
+    Also add a little comment.
+    
+    LGTM=ruiu, josharian
+    R=josharian, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/139760043
 
- src/pkg/runtime/cpuprof.go | 10 +++-------
- src/pkg/runtime/proc.c     |  8 +++++---
- src/pkg/runtime/race.c     | 10 ++++++++++
- 3 files changed, 18 insertions(+), 10 deletions(-)
+ src/pkg/database/sql/sql.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

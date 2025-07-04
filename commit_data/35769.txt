@@ -1,27 +1,16 @@
-commit feeff23556bc82778aab0ed80b576b953f064024
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 20 18:25:54 2018 +0000
+commit aa00d9744785f5215ec8e47a9bb00a4289cea3d2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 7 09:46:47 2018 +0100
 
-    mime: change *.js mime type to application/javascript, not x-javascript
+    debug/pe: use bytes.IndexByte instead of a loop
     
-    We delayed doing this for 4 years for fear that it might break something,
-    but it was standardized (RFC 4329) 12 years ago, and the default in Debian
-    and other places is correct:
+    Follow CL 98759
     
-       $ cat /etc/mime.types  | grep js$
-       application/javascript                          js
-    
-    Time for us to change too.
-    
-    I doubt there will be problems, but we'll see during the Go 1.11 beta.
-    
-    Fixes #7498
-    
-    Change-Id: Iba0bf8a6e707a64dd63317e1c0d6dd9a18634527
-    Reviewed-on: https://go-review.googlesource.com/120058
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I58c8b769741b395e5bf4e723505b149d063d492a
+    Reviewed-on: https://go-review.googlesource.com/99095
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/mime/type.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/debug/pe/string.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

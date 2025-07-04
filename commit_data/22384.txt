@@ -1,20 +1,14 @@
-commit c844bf4cfc6bd05448b0c60aa01c07034d635384
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Apr 8 19:44:14 2015 -0400
+commit b2843becab6f4571be1c117da870393198edf01f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 10 19:47:13 2015 -0700
 
-    runtime: fix darwin/386, darwin/arm builds
+    cmd/yacc/testdata/expr: fix handling of negative numbers
     
-    In cl/8652 I broke darwin/arm and darwin/386 because I removed the *g
-    parameter, which they both expect and use. This CL adjusts both ports
-    to look for g0 in m, just as darwin/amd64 does.
+    Fixes #10129.
     
-    Tested on darwin{386,arm,amd64}.
-    
-    Change-Id: Ia56f3d97e126b40d8bbd2e8f677b008e4a1badad
-    Reviewed-on: https://go-review.googlesource.com/8666
+    Change-Id: I9f56c483726f14b6c1909740549de236d5bf9cfb
+    Reviewed-on: https://go-review.googlesource.com/7340
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_darwin_386.s   | 16 ++++++++--------
- src/runtime/sys_darwin_amd64.s | 12 ++++++------
- src/runtime/sys_darwin_arm.s   | 15 +++++++--------
- 3 files changed, 21 insertions(+), 22 deletions(-)
+ src/cmd/yacc/testdata/expr/expr.y | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

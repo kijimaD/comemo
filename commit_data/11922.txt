@@ -1,12 +1,12 @@
-commit dabf3db7153faac5e2b59429990f9f1bf6e39399
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Feb 15 14:24:24 2012 +1100
+commit eccc22e542bf5161a789b9956caa4d500208ea1e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 15 14:20:21 2012 +1100
 
-    os/exec: add some examples
+    doc: fix snapshot notes
     
-    R=golang-dev, adg, r, bradfitz
+    R=bradfitz, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5675054
+    https://golang.org/cl/5675056
 
- src/pkg/os/exec/example_test.go | 75 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 75 insertions(+)
+ doc/devel/weekly.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

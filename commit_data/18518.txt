@@ -1,26 +1,19 @@
-commit 02ae91f3424d45820a5b98ddc2595680666a97e0
+commit 7addda685d9f624479cd2248a86a16b5a810f225
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 13 23:33:20 2014 -0500
+Date:   Thu Feb 13 22:30:35 2014 -0500
 
-    cmd/gc: correct liveness for wrappers containing tail jumps
+    cmd/5g, cmd/8g: fix build
     
-    A normal RET is treated as using the return values,
-    but a tail jump RET does not - it is jumping to the
-    function that is going to fill in the return values.
-    If a tail jump RET is recorded as using the return values,
-    since nothing initializes them they will be marked as
-    live on entry to the function, which is clearly wrong.
+    The test added in CL 63630043 fails on 5g and 8g because they
+    were not emitting the VARDEF instruction when clearing a fat
+    value by clearing the components. 6g had the call in the right place.
     
-    Found and tested by the new code in plive.c that looks
-    for variables that are incorrectly live on entry.
-    That code is disabled for now because there are other
-    cases remaining to be fixed. But once it is enabled,
-    test/live1.go becomes a real test of this CL.
+    Hooray tests.
     
     TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/63570045
+    https://golang.org/cl/63660043
 
- src/cmd/gc/plive.c | 26 +++++++++++++++++++++++++-
- test/live1.go      | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+), 1 deletion(-)
+ src/cmd/5g/ggen.c | 3 +--
+ src/cmd/8g/ggen.c | 4 ++--
+ 2 files changed, 3 insertions(+), 4 deletions(-)

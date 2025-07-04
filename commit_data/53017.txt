@@ -1,25 +1,25 @@
-commit 9eceffdf12dc4497ee162c005d5e14bb509797b9
-Author: Jabar Asadi <jasadi@d2iq.com>
-Date:   Wed May 10 21:44:14 2023 +0000
+commit 398d46d538e70852c6e8c50dc4fb9e1ef3c3a97c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Jun 6 10:52:12 2022 +0700
 
-    strings: correct NewReader documentation
+    [dev.unified] cmd/compile/internal/types2: remove package height
     
-    The provided description for `NewReader` says that the underlying string is read-only. but the following example shows that this is not the case.
-    <br />
+    Same as CL 410342, but for types2.
     
-    rd := strings.NewReader("this is a text")
+    Updates #51734
     
-    rd.Reset("new text") <--- underlying string gets updated here
-    
-    Change-Id: I95c7099c2e63670c84307d4317b702bf13a4025a
-    GitHub-Last-Rev: a16a60b0f1e25d19e05e664c5b41ca57c4fcd9b2
-    GitHub-Pull-Request: golang/go#60074
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/493817
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I6d6cb8fbb7567d3acf0b8cec0fa74f1344b56a1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410347
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/strings/reader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/importer/iimport.go   |  7 ++-----
+ src/cmd/compile/internal/importer/ureader.go   |  4 ++--
+ src/cmd/compile/internal/types2/object.go      |  5 +----
+ src/cmd/compile/internal/types2/package.go     | 12 +-----------
+ src/cmd/compile/internal/types2/resolver.go    | 10 ----------
+ src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
+ 6 files changed, 7 insertions(+), 33 deletions(-)

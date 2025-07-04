@@ -1,29 +1,27 @@
-commit 6140829edf611243a41393823217f604ca6d33a2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jul 18 09:08:45 2018 -0400
+commit c0841ecd87a5a91cdd5e2c376d46230988a37ada
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 27 15:35:51 2018 -0700
 
-    cmd/go: convert still more module tests to scripts
+    cmd/compile: disable instrumentation for no-race packages earlier
     
-    Change-Id: I249bb848c9911948dbd84cd88ad043a61ed6ea6b
-    Reviewed-on: https://go-review.googlesource.com/124699
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Rather than checking for each function whether the package supports
+    instrumentation, check once up front.
+    
+    Relatedly, tweak the logic for preventing inlining calls to runtime
+    functions from instrumented packages. Previously, we simply disallowed
+    inlining runtime functions altogether when instrumenting. With this
+    CL, it's only disallowed from packages that are actually being
+    instrumented. That is, now intra-runtime calls can be inlined.
+    
+    Updates #19054.
+    
+    Change-Id: I88c97b48bf70193a8a3ee18d952dcb26b0369d55
+    Reviewed-on: https://go-review.googlesource.com/102815
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/mod_test.go                            | 265 ----------------------
- src/cmd/go/script_test.go                         |  15 +-
- src/cmd/go/testdata/rsc.io_quote_0d003b9.txt      | 166 --------------
- src/cmd/go/testdata/rsc.io_quote_5d9f230.txt      | 151 ------------
- src/cmd/go/testdata/rsc.io_quote_a91498b.txt      | 148 ------------
- src/cmd/go/testdata/rsc.io_quote_b44a0b1.txt      | 169 --------------
- src/cmd/go/testdata/rsc.io_quote_fe488b8.txt      | 151 ------------
- src/cmd/go/testdata/script/mod_file_proxy.txt     |  16 +-
- src/cmd/go/testdata/script/mod_get_commit.txt     |  44 ++++
- src/cmd/go/testdata/script/mod_get_downgrade.txt  |  11 +
- src/cmd/go/testdata/script/mod_get_indirect.txt   |  42 ++++
- src/cmd/go/testdata/script/mod_get_upgrade.txt    |  41 ++++
- src/cmd/go/testdata/script/mod_getmode_vendor.txt |  23 ++
- src/cmd/go/testdata/script/mod_import.txt         |  18 ++
- src/cmd/go/testdata/script/mod_list_upgrade.txt   |   8 +
- src/cmd/go/testdata/script/mod_multirepo.txt      |  40 ++++
- src/cmd/go/testdata/script/mod_query.txt          |  24 ++
- src/cmd/go/testdata/script/mod_upgrade_patch.txt  |  29 +++
- 18 files changed, 301 insertions(+), 1060 deletions(-)
+ src/cmd/compile/internal/gc/inl.go      | 21 ++++++++++-----------
+ src/cmd/compile/internal/gc/main.go     | 12 +++++++++---
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ 3 files changed, 20 insertions(+), 15 deletions(-)

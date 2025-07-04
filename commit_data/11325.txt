@@ -1,13 +1,13 @@
-commit 5fde5cd5cb4e62b6c3d5188b2bfd5e25a02317d2
+commit fd9c99511e9ed3b86c7df4d4dfe95e31db6f52e0
 Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Jan 23 01:34:35 2012 -0200
+Date:   Mon Jan 23 01:32:07 2012 -0200
 
-    encoding/xml: support ignoring fields with "-"
+    encoding/xml: minor doc fixup
     
     R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5564045
+    https://golang.org/cl/5564046
 
- src/pkg/encoding/xml/marshal_test.go | 20 ++++++++++++++++++++
- src/pkg/encoding/xml/typeinfo.go     |  3 +--
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ src/pkg/encoding/xml/marshal.go | 9 ++++-----
+ src/pkg/encoding/xml/read.go    | 5 +++--
+ 2 files changed, 7 insertions(+), 7 deletions(-)

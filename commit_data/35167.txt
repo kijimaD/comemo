@@ -1,12 +1,19 @@
-commit 1f56499d4d69b74015e6ed23c5f12e8601f1aadf
-Author: Zhou Peng <p@ctriple.cn>
-Date:   Fri Apr 27 13:26:21 2018 +0000
+commit 3639929d7b08eabb36c380444c80f54c9f7a4cee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 4 23:06:31 2018 +0000
 
-    testing: fix typo mistake
+    net/http: soften wording around when the Transport reuses connections
     
-    Change-Id: I561640768c43491288e7f5bd1a34247787793dab
-    Reviewed-on: https://go-review.googlesource.com/109935
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The docs were too specific. Make it vaguer. There are conditions for
+    which the Transport will try to reuse a connection anyway, even if the
+    Response Body isn't read to EOF or closed, but we don't need to get
+    into all the details in the docs.
+    
+    Fixes #22954
+    
+    Change-Id: I3b8ae32aeb1a61b396d0026e129552afbfecceec
+    Reviewed-on: https://go-review.googlesource.com/86276
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/testing/match.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/response.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

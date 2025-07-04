@@ -1,25 +1,17 @@
-commit acc7161320038ee6377d589890526cd11912b4e8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jan 7 23:43:52 2016 +0000
+commit 8c827c045a0de36a7945cf33f3373f4b6a8a07cc
+Author: unknown <nonamezeil@gmail.com>
+Date:   Wed Nov 4 15:55:21 2015 +0300
 
-    net/http: document GODEBUG settings, update bundled http2
+    crypto/md5: uniform Write func
     
-    Document the three GODEBUG environment variables in the package doc.
+    Unification of implementation of existing md5.Write function
+    with other implementations (sha1, sha256, sha512).
     
-    Updates the bundled http2 to x/net git rev 415f1917
-    for https://golang.org/cl/18372.
-    
-    Fixes #13611
-    
-    Change-Id: I3116c5d7de70d3d15242d7198f3758b1fb7d94b9
-    Reviewed-on: https://go-review.googlesource.com/18373
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I58ae02d165b17fc221953a5b4b986048b46c0508
+    Reviewed-on: https://go-review.googlesource.com/16621
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/http/doc.go                              |  15 ++
- src/net/http/h2_bundle.go                        | 323 ++++++++++++++++++-----
- src/net/http/server.go                           |   3 +
- src/net/http/transport.go                        |   2 +-
- src/vendor/golang.org/x/net/http2/hpack/hpack.go |   8 +
- 5 files changed, 283 insertions(+), 68 deletions(-)
+ src/crypto/md5/md5.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

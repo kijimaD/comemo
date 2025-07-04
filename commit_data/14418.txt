@@ -1,12 +1,15 @@
-commit aa3d05acc9d0e9fba63a3f5375682ae9c5d696b0
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Fri Nov 16 23:09:37 2012 +1100
+commit 9b4aaa418fe415bae73a65f9be2dcbc642bb8edf
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Nov 16 12:06:48 2012 +0400
 
-    runtime: remove extra parentheses.
+    syscall: fix data races in LazyDLL/LazyProc
+    Reincarnation of https://golang.org/cl/6817086 (sent from another account).
+    It is ugly because sync.Once will cause allocation of a closure.
+    Fixes #4343.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
-    https://golang.org/cl/6843069
+    https://golang.org/cl/6856046
 
- src/pkg/runtime/debug.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/syscall/dll_windows.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

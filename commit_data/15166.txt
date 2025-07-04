@@ -1,15 +1,12 @@
-commit f42fa807a6b6293da5d8e8e3cdd36f690ca56e57
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Fri Feb 8 08:19:47 2013 +0100
+commit c94eddd1afcd5c63744745605e5a4246273fe3d9
+Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
+Date:   Thu Feb 7 20:26:12 2013 -0800
 
-    cmd/5g: add missing splitclean.
+    io: Simplify CopyN implementation by delegating to Copy.
     
-    See issue 887 for the 8g analogue.
-    
-    R=golang-dev, minux.ma
+    R=golang-dev, dave, minux.ma, bradfitz, rsc
     CC=golang-dev
-    https://golang.org/cl/7306069
+    https://golang.org/cl/7312055
 
- src/cmd/5g/ggen.c  | 1 +
- src/cmd/5g/gsubr.c | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ src/pkg/io/io.go | 41 +++++------------------------------------
+ 1 file changed, 5 insertions(+), 36 deletions(-)

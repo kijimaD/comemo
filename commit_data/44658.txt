@@ -1,19 +1,18 @@
-commit 7bfe32f39c59056c49f5776b104beaf09b010088
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Mar 9 16:54:59 2021 -0600
+commit 4149493443f09c14d9f0fad7030704ed57149b55
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 17 16:32:33 2020 +0200
 
-    cmd/internal/obj: reorder ppc64 MOV* optab entries
+    runtime: move startupRandomData declaration to os_linux.go
     
-    These are always sorted and grouped during initialization of the
-    actual opcode -> optab map generation. Thus, their initial location
-    in optab is mostly aimed at readability. This cleanup is intends to
-    ease reviewing of future patches which simplify, combine, or remove
-    MOV* optab entries.
+    startupRandomData is only used in sysauxv and getRandomData on linux,
+    thus move it closer to where it is used. Also adjust its godoc comment.
     
-    Change-Id: I87583ed34fab79e0f625880f419d499939e2a9e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/300612
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: Ice51d579ec33436adbfdf247caf4ba00bae865e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248761
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/ppc64/asm9.go | 304 ++++++++++++++++++-------------------
- 1 file changed, 148 insertions(+), 156 deletions(-)
+ src/runtime/os_linux.go | 4 ++++
+ src/runtime/runtime2.go | 4 ----
+ 2 files changed, 4 insertions(+), 4 deletions(-)

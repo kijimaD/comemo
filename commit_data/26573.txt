@@ -1,19 +1,21 @@
-commit d733cef728e452eb50cc6bcb343cf0f753df57bb
-Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
-Date:   Sun Mar 20 17:29:56 2016 +0100
+commit 97572d5552699fbc7cce215f83d7b02265e7f1de
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 8 22:50:17 2016 -0500
 
-    mime: fix maximum length of encoded-words
+    cmd/go: silence standard imports non-standard error for non-existent import target
     
-    RFC 2047 recommends a maximum length of 75 characters for
-    encoded-words. Due to a bug, encoded-words were limited to 77
-    characters instead of 75.
+    This error only affects the compilation of the standard library,
+    but I discovered that if you import "notexist" from the standard
+    library then you get both an error about notexist not existing
+    and an error about notexist being a non-standard package
+    (because the non-existant package is in fact not a standard package).
+    Silence the second error.
     
-    Change-Id: I2ff9d013ab922df6fd542464ace70b1c46dc7ae7
-    Reviewed-on: https://go-review.googlesource.com/20918
+    Change-Id: Ib4c1523e89844260fde90de3459ec1e752df8f25
+    Reviewed-on: https://go-review.googlesource.com/19383
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/mime/encodedword.go      |  2 +-
- src/mime/encodedword_test.go | 35 ++++++++++++++++++++++++++++++++---
- 2 files changed, 33 insertions(+), 4 deletions(-)
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

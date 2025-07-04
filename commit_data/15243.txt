@@ -1,12 +1,17 @@
-commit 208c83096a19154cb5012f8121c1f6bde0772c40
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 14 11:25:33 2013 -0800
+commit 357a18a2c625d06f0f9202142b3432458368484f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 14 14:21:44 2013 -0500
 
-    C: add Michael Matloob (Google CLA)
+    cmd/go: set $PWD when running commands
     
-    R=golang-dev, bradfitz
+    This makes os.Getwd inside those commands much faster.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7343043
+    https://golang.org/cl/7324055
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/go/build.go |  2 +-
+ src/cmd/go/main.go  | 19 +++++++++++++++++++
+ src/cmd/go/test.go  |  3 ++-
+ src/cmd/go/vcs.go   |  1 +
+ 4 files changed, 23 insertions(+), 2 deletions(-)

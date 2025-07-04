@@ -1,29 +1,14 @@
-commit 7178267b59b238a40fcf839a31264b2e65fa6f70
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Mar 4 22:10:04 2018 -0800
+commit 186872f3dacd017aed86fd57bb0bbbdaca35cd66
+Author: Christopher Koch <chrisko@google.com>
+Date:   Thu Oct 26 05:14:50 2017 +0000
 
-    runtime: rename vdso symbols to use camel case
+    syscall: remove unnecessary use of unsafe.Pointer.
     
-    This was originally C code using names with underscores, which were
-    retained when the code was rewritten into Go. Change the code to use
-    Go-like camel case names.
-    
-    The names that come from the ELF ABI are left unchanged.
-    
-    Change-Id: I181bc5dd81284c07bc67b7df4635f4734b41d646
-    Reviewed-on: https://go-review.googlesource.com/98520
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I43b32fbca8761d33927e7d0541bba123df0e0122
+    Reviewed-on: https://go-review.googlesource.com/73556
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/sys_linux_386.s     |  4 +--
- src/runtime/sys_linux_amd64.s   |  8 ++---
- src/runtime/sys_linux_arm.s     |  4 +--
- src/runtime/vdso_linux.go       | 74 ++++++++++++++++++++---------------------
- src/runtime/vdso_linux_386.go   |  6 ++--
- src/runtime/vdso_linux_amd64.go | 10 +++---
- src/runtime/vdso_linux_arm.go   |  6 ++--
- src/runtime/vdso_linux_test.go  | 20 +++++------
- src/syscall/asm_linux_amd64.s   |  2 +-
- 9 files changed, 67 insertions(+), 67 deletions(-)
+ src/syscall/syscall_linux.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

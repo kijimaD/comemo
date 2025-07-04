@@ -1,15 +1,18 @@
-commit 2ec293123f5769ea679ed547455e6f2b41838196
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 26 15:13:05 2015 -0500
+commit 1f282385579fc404f1246fd7ffa8b4e517401d19
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Dec 31 20:55:47 2014 -0500
 
-    liblink: make Prog, Addr more portable and document
+    runtime: provide a dummy value of _SIGPROF on plan9 and windows
     
-    Change-Id: Idda476b71ae23f7b73fe63f062cf3531c1268eb3
-    Reviewed-on: https://go-review.googlesource.com/3514
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Fixes build on plan9 and windows.
+    
+    Change-Id: Ic9b02c641ab84e4f6d8149de71b9eb495e3343b2
+    Reviewed-on: https://go-review.googlesource.com/2233
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- include/link.h | 199 ++++++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 156 insertions(+), 43 deletions(-)
+ src/runtime/defs_windows.go       | 1 +
+ src/runtime/defs_windows_386.go   | 1 +
+ src/runtime/defs_windows_amd64.go | 1 +
+ src/runtime/os2_plan9.go          | 2 ++
+ src/runtime/sigqueue.go           | 9 +++++++--
+ 5 files changed, 12 insertions(+), 2 deletions(-)

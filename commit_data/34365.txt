@@ -1,24 +1,17 @@
-commit f4d9c309018f6bbb85c7076a9fbe0387fb7b0b1c
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Fri Feb 23 13:46:44 2018 -0600
+commit 6fd1f825c1310e2a586a9ae0fc128a0b3c115b12
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 20 14:26:28 2017 -0400
 
-    cmd/compile/internal/amd64: use appropriate NEG for div
+    runtime: support cgo traceback on PPC64LE
     
-    Currently we generate NEGQ for DIV{Q,L,W}. By generating NEGL and NEGW,
-    we will reduce code size, because NEGL doesn't require rex prefix.
-    This also guarantees that upper 32 bits are zeroed, so we can revert CL 85736,
-    and remove zero-extensions of DIVL results.
-    Also adds test for redundant zero extend elimination.
+    Code essentially mirrors AMD64 implementation.
     
-    Fixes #23310
-    
-    Change-Id: Ic58c3104c255a71371a06e09d10a975bbe5df587
-    Reviewed-on: https://go-review.googlesource.com/96815
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: I39f7f099ce11fdc3772df039998cc11947bb22a2
+    Reviewed-on: https://go-review.googlesource.com/72270
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/amd64/ssa.go              | 10 ++++++-
- src/cmd/compile/internal/ssa/rewrite.go            |  6 +---
- src/cmd/compile/internal/ssa/zeroextension_test.go | 34 ++++++++++++++++++++++
- 3 files changed, 44 insertions(+), 6 deletions(-)
+ src/runtime/crash_cgo_test.go  |   4 +-
+ src/runtime/sys_linux_ppc64x.s | 101 +++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 99 insertions(+), 6 deletions(-)

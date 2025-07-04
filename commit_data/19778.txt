@@ -1,15 +1,13 @@
-commit 01a7d39df1d6ba5e3ba8a5b8e928b906556c6772
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Jul 19 10:29:57 2014 -0700
+commit e315fac7af2ee89cffb9da13749a3d159487b8d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 19 01:12:42 2014 -0700
 
-    runtime: fix stacks_sys accounting
-    
-    subtract freed count before span gets merged during free.
+    test: add some tests for mismatches between call results and uses
     
     LGTM=dvyukov
-    R=dmitry, dvyukov
+    R=golang-codereviews, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/112450045
+    https://golang.org/cl/111360045
 
- src/pkg/runtime/mheap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/bug487.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

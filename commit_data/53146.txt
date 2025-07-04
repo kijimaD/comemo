@@ -1,23 +1,21 @@
-commit b60db8f7d92fb2c87b6f416ebb38a6924978aa8c
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 12 21:13:06 2023 +0000
+commit e971b6a9be7e10df28a9e9bbc6e3f6cf46201957
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 18 13:02:02 2022 -0700
 
-    runtime: formalize the trace clock
+    [dev.unified] test: add switch test case for tricky nil handling
     
-    Currently the trace clock is cputicks() with comments sprinkled in
-    different places as to which clock to use. Since the execution tracer
-    redesign will use a different clock, it seems like a good time to clean
-    that up.
+    The next CL will change Unified IR's switch statement handling to
+    convert values to empty interface in some tricky cases. My initial
+    attempt at this accidentally mishandled `case nil:` in some cases, and
+    this wasn't caught by any existing tests. So this CL adds one.
     
-    Also, rename the start/end timestamps to be more readable (i.e.
-    startTime vs. timeStart).
-    
-    Change-Id: If43533eddd0e5f68885bb75cdbadb38da42e7584
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494775
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Idcfaf0e869dca91be46d665e65d4623dc52bb60f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418099
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/proc.go  |   2 +-
- src/runtime/trace.go | 103 +++++++++++++++++++++++++++------------------------
- 2 files changed, 56 insertions(+), 49 deletions(-)
+ test/switch.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

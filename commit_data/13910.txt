@@ -1,18 +1,62 @@
-commit 659d1df1bcd44ec6bb92f9592a8c92670d862d3c
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Mon Sep 24 08:30:28 2012 +1000
+commit cd22afa07b83d56e0563d0ca4343e5c1a20c3e82
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 23 13:16:14 2012 -0400
 
-    pkg/go/ast: Avoid doing zero-length writes to the fd.
+    test: expand run.go's errorcheck, make clear which bugs run
     
-    After each line, ast.Print would do a zero-length write,
-    which would hit the boundary condition on Plan 9 when
-    reading over pipes (since message boundaries are
-    preserved). This change makes sure we only do positive-
-    length writes.
+    Today, if run.go doesn't understand a test header line it just ignores
+    the test, making it too easy to write or edit tests that are not actually
+    being run.
     
-    R=rsc, rminnich, dave, r
+    - expand errorcheck to accept flags, so that bounds.go and escape*.go can run.
+    - create a whitelist of skippable tests in run.go; skipping others is an error.
+    - mark all skipped tests at top of file.
+    
+    Update #4139.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6558046
+    https://golang.org/cl/6549054
 
- src/pkg/go/ast/print.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ test/args.go                 |   3 ++
+ test/bounds.go               |   2 +-
+ test/bugs/bug395.go          |   3 ++
+ test/bugs/bug434.go          |   3 ++
+ test/ddd3.go                 |   3 ++
+ test/dwarf/main.go           |   3 ++
+ test/escape2.go              |   2 +-
+ test/escape4.go              |   2 +-
+ test/fixedbugs/bug083.go     |   3 ++
+ test/fixedbugs/bug133.go     |   3 ++
+ test/fixedbugs/bug160.go     |   3 ++
+ test/fixedbugs/bug191.go     |   3 ++
+ test/fixedbugs/bug248.go     |   3 ++
+ test/fixedbugs/bug302.go     |   3 ++
+ test/fixedbugs/bug313.go     |   3 ++
+ test/fixedbugs/bug322.go     |   3 ++
+ test/fixedbugs/bug324.go     |   3 ++
+ test/fixedbugs/bug345.go     |   3 ++
+ test/fixedbugs/bug367.go     |   3 ++
+ test/fixedbugs/bug369.go     |   3 ++
+ test/fixedbugs/bug382.go     |   3 ++
+ test/fixedbugs/bug385_32.go  |   3 ++
+ test/fixedbugs/bug385_64.go  |   3 ++
+ test/fixedbugs/bug414.go     |   3 ++
+ test/fixedbugs/bug424.go     |   3 ++
+ test/fixedbugs/bug429.go     |   3 ++
+ test/fixedbugs/bug437.go     |   3 ++
+ test/import3.go              |   3 ++
+ test/import4.go              |   3 ++
+ test/index.go                |   3 ++
+ test/interface/embed1.go     |   3 ++
+ test/interface/private.go    |   3 ++
+ test/interface/recursive2.go |   3 ++
+ test/linkx.go                |   3 ++
+ test/method4.go              |   3 ++
+ test/nul1.go                 |   3 ++
+ test/rotate.go               |   3 ++
+ test/run.go                  | 102 ++++++++++++++++++++++++++++++++++++++++---
+ test/sigchld.go              |   3 ++
+ test/sinit.go                |   3 ++
+ test/testlib                 |   7 ++-
+ 41 files changed, 212 insertions(+), 11 deletions(-)

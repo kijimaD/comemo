@@ -1,20 +1,16 @@
-commit 8266570ba71fd6af9c07d8fac945b3710010dfc7
-Author: Carlos Alexandro Becker <caarlos0@gmail.com>
-Date:   Sun Sep 13 14:40:51 2020 +0000
+commit 9f74f0afa6270e6735c1b6f59519cc88ff2ed1e4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 10 03:27:44 2020 +1100
 
-    encoding/json: added docs to UnsupportedValueError
+    cmd/compile: remove special handling for OpRISCV64SUBW in markUnsafePoints
     
-    Added godoc to UnsupportedValueError.
+    Due to improved optimisation, we no longer emit SUBW for the write barrier
+    checks on riscv64, hence remove special handling in markUnsafePoints.
     
-    Change-Id: I5fc13bac0b6e14b3a6eba27c9d3331ff5c5269aa
-    GitHub-Last-Rev: 516cd7a92903e1048caa4d560abf5d66339e5a8f
-    GitHub-Pull-Request: golang/go#41364
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254540
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Heschi Kreinick <heschi@google.com>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ia1150c3e11f25e183735e58f8716a511d9e90fb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222638
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/encoding/json/encode.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/gc/plive.go | 6 ------
+ 1 file changed, 6 deletions(-)

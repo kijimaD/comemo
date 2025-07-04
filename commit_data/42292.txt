@@ -1,28 +1,31 @@
-commit 641918ee09cb44d282a30ee8b66f99a0b63eaef9
-Author: Michael Matloob <matloob@golang.org>
-Date:   Fri Apr 17 13:01:38 2020 -0400
+commit 05511a5c0ae238325c10b0e4e44c3f66f928e4cf
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 22 16:34:16 2019 +0000
 
-    cmd/go: add positions for load errors in call to load
+    runtime: release worldsema before Gosched in STW GC mode
     
-    This CL sets positions for errors from cals to load within the load
-    call itself, similar to how the rest of the code in pkg.go sets
-    positions right after the error is set on the package.
+    After CL 182657 we no longer hold worldsema across the GC, we hold
+    gcsema instead.
     
-    This allows the code to ensure that we only add positions either for
-    ImportPathErrors, or if an error was passed into load, and was set
-    using setLoadPackageDataError. (Though I'm wondering if the call
-    to setLoadPackageDataError should be done before the call to load).
+    However in STW GC mode we don't release worldsema before calling Gosched
+    on the user goroutine (note that user goroutines are disabled during STW
+    GC) so that user goroutine holds onto it. When the GC is done and the
+    runtime inevitably wants to "stop the world" again (though there isn't
+    much to stop) it'll sit there waiting for worldsema which won't be
+    released until the aforementioned goroutine is scheduled, which it won't
+    be until the GC is done!
     
-    Fixes #38034
+    So, we have a deadlock.
     
-    Change-Id: I0748866933b4c1a329954b4b96640bef702a4644
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228784
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    The fix is easy: just release worldsema before calling Gosched.
+    
+    Fixes #34736.
+    
+    Change-Id: Ia50db22ebed3176114e7e60a7edaf82f8535c1b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208379
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/load/pkg.go                    | 83 ++++++++++++++--------
- src/cmd/go/internal/load/test.go                   |  2 +-
- src/cmd/go/internal/modload/load.go                | 17 +++--
- src/cmd/go/testdata/script/list_case_collision.txt | 10 ++-
- 4 files changed, 73 insertions(+), 39 deletions(-)
+ src/runtime/mgc.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

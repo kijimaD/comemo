@@ -1,16 +1,19 @@
-commit adbb6ec903fc135dac2c7a141fa13273d414acaf
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Thu Apr 26 18:48:19 2018 +0100
+commit 74d8340cf6d8fc958992ded4ffb6c4a53327dfa1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 3 10:57:36 2018 -0800
 
-    cmd/compile/internal/ssa: regenerate rewrite rules
+    net: ignore TestDialerLocalAddr timeout failures on Darwin
     
-    Running 'go run *.go' in the gen directory resulted in this diff.
+    I don't know why these errors occur. Ignore them to avoid breaking the
+    build.
     
-    Change-Id: Iee398a720f54d3f2c3c122fc6fc45a708a39e45e
-    Reviewed-on: https://go-review.googlesource.com/109575
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Updates #22019
+    
+    Change-Id: Ia048e6d9b928e8e237b311ff3a364e7a23af4aa4
+    Reviewed-on: https://go-review.googlesource.com/86000
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/rewritePPC64.go | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ src/net/dial_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

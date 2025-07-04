@@ -1,23 +1,23 @@
-commit eee2697c38b73b731604d5584abd97bf674857ed
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Feb 17 11:57:30 2023 +0700
+commit 3a19102de3435a3823126e74cf42c67037ff1890
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 8 14:13:46 2022 -0400
 
-    cmd/compile: use ONAME node directly from generated hash func
+    cmd/vendor: revert vendored code mistakenly modified in CL 398734
     
-    This reverts CL 468879
+    CL 398734 mistakenly modified
+    cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go, which causes
+    the cmd/internal/moddeps to (correctly) fail due to modified vendored
+    code. This reverts the edit by re-running 'go mod vendor'.
     
-    CL 469017 marked type eq/hash functions as non-inlineable, so this
-    change won't cause ICE anymore.
+    Fixes #52231.
     
-    Updates #58572
-    
-    Change-Id: I3e6ec9ba2217102693acd1848a0eba0886dc9fda
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/469018
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I1def3efe5d408464561e775feb0f9d34ff5fd0b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399154
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/reflectdata/alg.go | 31 ++++++++++-------------------
- 1 file changed, 11 insertions(+), 20 deletions(-)
+ src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

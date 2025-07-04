@@ -1,19 +1,28 @@
-commit 41ca2637d4df8b8edf63436c6caab56821d2af38
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Sun Sep 15 15:21:43 2024 -0700
+commit 03d457a2214366f209f5855afc0a93e6c36c6e1f
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jun 29 13:43:50 2023 -0400
 
-    os: TestPipeThreads: remove openbsd special case
+    cmd/compile: function "property" defs for inl heuristics
     
-    Since CL 393354 this should no longer be necessary.
+    Add definitions for a set of Go function "properties" intended to be
+    useful for driving inlining decisions. This CL just defines a set of
+    flags and a container to hold them; a subsequent CL will add code to
+    compute the properties for a function given its IR/AST representation.
     
-    Change-Id: Ifec4ef483f9c06d9b49827327dd6708db146d886
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613157
-    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Updates #61502.
+    
+    Change-Id: Ifa26c1ad055c02ca0ce9cf37078cee7b3385e18a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511556
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/os/os_test.go | 5 -----
- 1 file changed, 5 deletions(-)
+ .../internal/inline/inlheur/funcprop_string.go     | 44 ++++++++++
+ .../internal/inline/inlheur/funcpropbits_string.go | 58 +++++++++++++
+ .../internal/inline/inlheur/function_properties.go | 98 ++++++++++++++++++++++
+ .../inline/inlheur/parampropbits_string.go         | 70 ++++++++++++++++
+ .../inline/inlheur/resultpropbits_string.go        | 68 +++++++++++++++
+ .../compile/internal/inline/inlheur/serialize.go   | 80 ++++++++++++++++++
+ .../internal/inline/inlheur/tserial_test.go        | 65 ++++++++++++++
+ 7 files changed, 483 insertions(+)

@@ -1,19 +1,19 @@
-commit 402d784b8fc0a7914955eb168ea288338e2025ff
-Author: Aman Gupta <aman@tmm1.net>
-Date:   Fri Sep 4 16:07:12 2020 -0700
+commit 6fc329bb7fbb78315e2f53895a9fc6cbed63c1d7
+Author: Marco <gazerro@open2b.com>
+Date:   Sun May 24 14:58:51 2020 +0200
 
-    path/filepath: make Rel handle Windows UNC share
+    net/http/cgi: don't pass nil Body to the child handler
     
-    Fixes #41230
+    For server requests, the http.Request Body should not be nil.
     
-    Change-Id: Iea15e4ae6d56328333fd22de5d78dfcad78ef1bc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/253197
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Alex Brainman <alex.brainman@gmail.com>
-    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Fixes #39190
+    
+    Change-Id: I32de7b6c0f6ca55008fea9fd86089cda0a2dea62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235137
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/path/filepath/path.go      | 4 ++++
- src/path/filepath/path_test.go | 1 +
- 2 files changed, 5 insertions(+)
+ src/net/http/cgi/child.go            |  3 +++
+ src/net/http/cgi/integration_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

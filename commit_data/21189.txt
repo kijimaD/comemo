@@ -1,31 +1,13 @@
-commit ac5a1ac318efb7890b25cf614a0cd5b3e52c74e3
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 22 14:42:37 2014 -0500
+commit 583b29cb18e5dd93d71b79622e23d44833ab1715
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Dec 4 09:29:29 2014 +1100
 
-    cmd/ld: support for relocation variants
+    spec: add comment marker for consistency.
     
-    Most ppc64 relocations come in six or more variants where the basic
-    relocation formula is the same, but which bits of the computed value
-    are installed where changes.  Introduce the concept of "variants" for
-    internal relocations to support this.  Since this applies to
-    architecture-independent relocation types like R_PCREL, we do this in
-    relocsym.
-    
-    Currently there is only an identity variant.  A later CL that adds
-    support for ppc64 ELF relocations will introduce more.
-    
-    Change-Id: I0c5f0e7dbe5beece79cd24fe36267d37c52f1a0c
-    Reviewed-on: https://go-review.googlesource.com/2005
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    LGTM=r
+    R=gri, r
+    CC=golang-codereviews
+    https://golang.org/cl/185830043
 
- include/link.h    | 7 +++++++
- src/cmd/5l/asm.c  | 9 +++++++++
- src/cmd/5l/l.h    | 1 +
- src/cmd/6l/asm.c  | 9 +++++++++
- src/cmd/6l/l.h    | 1 +
- src/cmd/8l/asm.c  | 9 +++++++++
- src/cmd/8l/l.h    | 1 +
- src/cmd/9l/asm.c  | 9 +++++++++
- src/cmd/9l/l.h    | 1 +
- src/cmd/ld/data.c | 2 ++
- 10 files changed, 49 insertions(+)
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

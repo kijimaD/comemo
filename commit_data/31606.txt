@@ -1,28 +1,21 @@
-commit 1ea796ee69a495e51abba01711f4aca0beeb6bed
-Author: Mark Ryan <mark.d.ryan@intel.com>
-Date:   Sat Apr 29 06:19:18 2017 +0100
+commit b50b72858714f29f7147c0d58444398345ac8188
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 22 18:00:18 2016 -0700
 
-    encoding/base32: ensure base32 decoder propagates errors correctly
+    runtime: simplify sweep allocation counting
     
-    A number of issues in decoder.Read and newlineFilteringReader.Read were
-    preventing errors from the reader supplying the encoded data from being
-    propagated to the caller.  Fixing these issues revealed some additional
-    problems in which valid decoded data was not always returned to the user
-    when errors were actually propagated.
+    Currently sweep counts the number of allocated objects, computes the
+    number of free objects from that, then re-computes the number of
+    allocated objects from that. Simplify and clean this up by skipping
+    these intermediate steps.
     
-    This commit fixes both the error propagation and the lost decoded data
-    problems.  It also adds some new unit tests to ensure errors are handled
-    correctly by decoder.Read.  The new unit tests increase the test coverage
-    of this package from 96.2% to 97.9%.
-    
-    Fixes #20044
-    
-    Change-Id: I1a8632da20135906e2d191c2a8825b10e7ecc4c5
-    Reviewed-on: https://go-review.googlesource.com/42094
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I3ed98e371eb54bbcab7c8530466c4ab5fde35f0a
+    Reviewed-on: https://go-review.googlesource.com/34935
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/encoding/base32/base32.go      |  41 ++++++++--
- src/encoding/base32/base32_test.go | 155 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 188 insertions(+), 8 deletions(-)
+ src/runtime/mbitmap.go  | 8 ++++----
+ src/runtime/mgcsweep.go | 8 +++-----
+ 2 files changed, 7 insertions(+), 9 deletions(-)

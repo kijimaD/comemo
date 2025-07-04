@@ -1,34 +1,22 @@
-commit 41a6165c030c41cc7e44b28c251b22c49fb9618b
+commit fd1c1b9679a2ed9c96bc3ccd74336ba5b23a5049
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 20 16:50:13 2011 -0500
+Date:   Tue Dec 20 16:42:44 2011 -0500
 
-    build: use go command during build
+    cmd/go: work toward build script
     
-    If something goes wrong, it should suffice to set
-    USE_GO_TOOL=false in env.bash to fall back to the
-    makefiles.  I will delete the makefiles in January.
+    The commands in the standard tree are now named
+    by the pseudo-import paths cmd/gofmt etc.
+    This avoids ambiguity between cmd/go's directory
+    and go/token's parent directory.
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5502047
+    https://golang.org/cl/5503050
 
- src/buildscript.sh               |  30 +++
- src/buildscript_darwin_386.sh    | 546 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_darwin_amd64.sh  | 545 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_freebsd_386.sh   | 546 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_freebsd_amd64.sh | 545 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_linux_386.sh     | 546 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_linux_amd64.sh   | 545 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_linux_arm.sh     | 549 +++++++++++++++++++++++++++++++++++++++
- src/buildscript_netbsd_386.sh    | 546 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_netbsd_amd64.sh  | 545 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_openbsd_386.sh   | 546 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_openbsd_amd64.sh | 545 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_plan9_386.sh     | 547 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_windows_386.sh   | 548 ++++++++++++++++++++++++++++++++++++++
- src/buildscript_windows_amd64.sh | 547 ++++++++++++++++++++++++++++++++++++++
- src/env.bash                     |   4 +
- src/make.bash                    |  20 +-
- src/pkg/runtime/autogen.sh       |  33 +--
- src/run.bash                     |  52 +++-
- 19 files changed, 7739 insertions(+), 46 deletions(-)
+ src/cmd/gc/runtime.go |   2 +
+ src/cmd/gc/unsafe.go  |   2 +
+ src/cmd/go/build.go   | 216 ++++++++++++++++++++++++++++++++++++++------------
+ src/cmd/go/list.go    |   6 +-
+ src/cmd/go/main.go    |  42 ++++++++--
+ src/cmd/go/pkg.go     |  19 ++++-
+ 6 files changed, 223 insertions(+), 64 deletions(-)

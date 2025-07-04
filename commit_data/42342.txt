@@ -1,18 +1,15 @@
-commit 57e32c4fbd4f20d567d1767dfc2d94bec828a8dc
-Author: Joel Sing <joel@sing.id.au>
-Date:   Tue Mar 31 02:04:45 2020 +1100
+commit 98e7270a3d03c2741fc790ea619e5754c49e05ed
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Dec 4 14:14:10 2019 -0500
 
-    cmd/compile: optimise branchs on riscv64
+    doc: fix typo in Go 1.12.14 document
     
-    Make use of multi-control values and branch pseudo-instructions to optimise
-    compiler generated branches.
-    
-    Change-Id: I7a8bf754db3c2082a390bf6a662ccf18cbcbee39
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/226400
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I3641a086f167a1337aaaacd2d758b6a42b84a7fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209845
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  32 ++++---
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 125 +++++++++++++++++++++++++
- 2 files changed, 146 insertions(+), 11 deletions(-)
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

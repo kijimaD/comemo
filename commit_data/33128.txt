@@ -1,23 +1,14 @@
-commit 47f4e7a9768a613371ccd4a94a6b325fd603727e
-Author: Tom Bergan <tombergan@google.com>
-Date:   Fri Oct 13 15:56:37 2017 -0700
+commit 41af3fa33ed54c1cb2095385f723ba1636485a11
+Author: Martynas Budriūnas <mabu@google.com>
+Date:   Sat Jul 15 12:58:19 2017 -0600
 
-    net/http: preserve Host header following a relative redirect
+    math: add a Sqrt example
     
-    If the client sends a request with a custom Host header and receives
-    a relative redirect in response, the second request should use the
-    same Host header as the first request. However, if the response is
-    an abolute redirect, the Host header should not be preserved. See
-    further discussion on the issue tracker.
-    
-    Fixes #22233
-    
-    Change-Id: I8796e2fbc1c89b3445e651f739d5d0c82e727c14
-    Reviewed-on: https://go-review.googlesource.com/70792
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I259e25b9d0b069912053a250e9739e04fafca54d
+    Reviewed-on: https://go-review.googlesource.com/48892
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/client.go      | 10 +++++++
- src/net/http/client_test.go | 72 ++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 81 insertions(+), 1 deletion(-)
+ src/math/example_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

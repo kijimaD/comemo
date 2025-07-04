@@ -1,38 +1,18 @@
-commit c4874aa2a207e8c9a3c79a9411a54cce4808aa9e
-Author: Hana Kim <hakim@google.com>
-Date:   Thu Mar 29 17:58:07 2018 -0400
+commit da360f30e90fe1a2766f8748b65c17fbffa25392
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 24 07:22:26 2017 -0700
 
-    cmd/trace: implement /trace?focustask=<taskid> mode
+    cmd/go: always copy files on Windows
     
-    This mode is similar to the default traceview mode where the execution
-    trace is presented in P-oriented way. Each row represents a P, and each
-    slice represents the time interval of a goroutine's execution on the P.
+    Copying ensures that we respect the NTFS permissions of the parent folder.
+    I don't know if there is a way to tell when it is safe to simply rename.
     
-    The difference is that, in this mode, only the execution of goroutines
-    involved in the specified task is highlighted, and other goroutine
-    execution or events are greyed out. So, users can focus on how a task is
-    executed while considering other affecting conditions such as other
-    goroutines, network events, or process scheduling.
+    Fixes #22343
     
-    Example: https://user-images.githubusercontent.com/4999471/38116793-a6f995f0-337f-11e8-8de9-88eec2f2c497.png
-    
-    Here, for a while the program remained idle after the first burst of
-    activity related to the task because all other goroutines were also
-    being blocked or waiting for events, or no incoming network traffic
-    (indicated by the lack of any network activity). This is a bit hard to
-    discover when the usual task-oriented view (/trace?taskid=<taskid>)
-    mode.
-    
-    Also, it simplifies the traceview generation mode logic.
-      /trace ---> 0
-      /trace?goid ---> modeGoroutineOriented
-      /trace?taskid ---> modeGoroutineOriented|modeTaskOriented
-      /trace?focustask ---> modeTaskOriented
-    
-    Change-Id: Idcc0ae31b708ddfd19766f4e26ee7efdafecd3a5
-    Reviewed-on: https://go-review.googlesource.com/103555
-    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Change-Id: I424bfe655b53b0e0fe425ce92bbc15450d52d851
+    Reviewed-on: https://go-review.googlesource.com/72910
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/cmd/trace/trace.go | 108 ++++++++++++++++++++++++++++++-------------------
- 1 file changed, 66 insertions(+), 42 deletions(-)
+ src/cmd/go/internal/work/exec.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

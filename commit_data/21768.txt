@@ -1,58 +1,64 @@
-commit 26438d4d80c8c517f1d287d065ad7a967160281e
+commit 77a415e5a698e8f897aed8aa64db6855b8f952fc
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 24 21:40:57 2015 -0500
+Date:   Thu Jan 29 14:58:54 2015 -0500
 
-    liblink: delete unused code
+    liblink: place TEXT/GLOBL flags in p->from3 always
     
-    Liblink is still needed for the linker (for a bit longer) but mostly not.
-    Delete the unused parts.
+    Before, amd64 and 386 stored the flags in p->from.scale
+    and arm and ppc64 stored the flags in p->reg.
+    Both caused special cases in printing and in handling of the
+    addresses.
     
-    Change-Id: Ie63a7c1520dee52b17425b384943cd16262d36e3
-    Reviewed-on: https://go-review.googlesource.com/6110
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    To avoid possible conflicts with the real meaning of p->from
+    and to avoid storing a non-register value in a reg field,
+    use from3 to hold a TYPE_CONST value giving the flags.
+    
+    There is still a special case for printing, because the flags
+    are specified without a $, and normally a TYPE_CONST prints
+    with a $. But that's much less special than what came before.
+    
+    This allows us to remove the textflag and settextflag methods
+    from LinkArch. They are no longer architecture-specific.
+    
+    Change-Id: I931da8e1ecd92e127cd9aa44ef5a73c42e730110
+    Reviewed-on: https://go-review.googlesource.com/3572
+    Reviewed-by: Austin Clements <austin@google.com>
 
- include/link.h          |  428 +-----
- src/cmd/5l/5.out.h      |  336 -----
- src/cmd/5l/l.h          |    1 -
- src/cmd/5l/list.c       |   40 -
- src/cmd/5l/obj.c        |    1 -
- src/cmd/6l/6.out.h      |  855 -----------
- src/cmd/6l/l.h          |    1 -
- src/cmd/6l/list.c       |   40 -
- src/cmd/6l/obj.c        |    1 -
- src/cmd/8l/8.out.h      |  643 ---------
- src/cmd/8l/l.h          |    1 -
- src/cmd/8l/list.c       |   40 -
- src/cmd/8l/obj.c        |    1 -
- src/cmd/9l/9.out.h      |  611 --------
- src/cmd/9l/l.h          |    2 -
- src/cmd/9l/list.c       |   40 -
- src/cmd/9l/obj.c        |    1 -
- src/cmd/dist/build.go   |   13 +-
- src/cmd/dist/buildgc.go |  117 --
- src/cmd/ld/lib.h        |    1 -
- src/cmd/ld/pobj.c       |   10 -
- src/liblink/arch.c      |   68 +
- src/liblink/asm5.c      | 2689 ----------------------------------
- src/liblink/asm6.c      | 3640 -----------------------------------------------
- src/liblink/asm8.c      | 2822 ------------------------------------
- src/liblink/asm9.c      | 2836 ------------------------------------
- src/liblink/data.c      |   89 --
- src/liblink/go.c        |   84 --
- src/liblink/ld.c        |   58 -
- src/liblink/list5.c     |  386 -----
- src/liblink/list6.c     |  418 ------
- src/liblink/list8.c     |  359 -----
- src/liblink/list9.c     |  370 -----
- src/liblink/obj.c       |  296 ----
- src/liblink/obj5.c      |  998 -------------
- src/liblink/obj6.c      | 1046 --------------
- src/liblink/obj8.c      |  842 -----------
- src/liblink/obj9.c      |  944 ------------
- src/liblink/objfile.c   |  428 ------
- src/liblink/objfilego.c |  340 -----
- src/liblink/pass.c      |  201 ---
- src/liblink/pcln.c      |  265 ----
- src/liblink/sym.c       |   16 -
- 43 files changed, 88 insertions(+), 22290 deletions(-)
+ include/link.h        |   8 +-
+ src/cmd/5a/a.h        |   1 +
+ src/cmd/5a/a.y        |  12 +-
+ src/cmd/5a/lex.c      |   2 -
+ src/cmd/5a/y.tab.c    | 194 +++++++-------
+ src/cmd/5g/gg.h       |   2 -
+ src/cmd/5g/gsubr.c    |   6 +-
+ src/cmd/6a/a.h        |   1 +
+ src/cmd/6a/a.y        |  68 +++--
+ src/cmd/6a/lex.c      |   2 -
+ src/cmd/6a/y.tab.c    | 721 +++++++++++++++++++++++++-------------------------
+ src/cmd/6g/gg.h       |   2 -
+ src/cmd/6g/gsubr.c    |   6 +-
+ src/cmd/8a/a.h        |   1 +
+ src/cmd/8a/a.y        |  66 +++--
+ src/cmd/8a/lex.c      |   2 -
+ src/cmd/8a/y.tab.c    | 704 ++++++++++++++++++++++++------------------------
+ src/cmd/8g/gg.h       |   2 -
+ src/cmd/8g/gsubr.c    |   6 +-
+ src/cmd/9a/a.h        |   1 +
+ src/cmd/9a/a.y        |  12 +-
+ src/cmd/9a/lex.c      |   2 -
+ src/cmd/9a/y.tab.c    | 142 +++++-----
+ src/cmd/9g/gg.h       |   2 -
+ src/cmd/9g/gsubr.c    |   6 +-
+ src/cmd/gc/pgen.c     |  10 +-
+ src/liblink/asm5.c    |   1 -
+ src/liblink/asm9.c    |   4 -
+ src/liblink/list5.c   |   2 +-
+ src/liblink/list6.c   |   6 +-
+ src/liblink/list8.c   |   6 +-
+ src/liblink/list9.c   |  11 +-
+ src/liblink/obj5.c    |  22 +-
+ src/liblink/obj6.c    |  30 +--
+ src/liblink/obj8.c    |  24 +-
+ src/liblink/obj9.c    |  22 +-
+ src/liblink/objfile.c |   4 +-
+ 37 files changed, 1052 insertions(+), 1061 deletions(-)

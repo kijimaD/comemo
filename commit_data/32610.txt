@@ -1,22 +1,16 @@
-commit bb31217579974587871a6b7d278ec186f93df126
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Sep 2 17:32:58 2017 +0200
+commit 9058b9ae49dc3fb0ddbb169a520dc2d09777bd03
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun May 7 11:04:24 2017 -0700
 
-    runtime: move map ismapkey check to the compiler
+    os, cmd/link: fix typos
     
-    Remove the runtime ismapkey check from makemap and
-    add a check that the map key type supports comparison
-    to the hmap construction in the compiler.
+    Also switch "stating" to "statting" to describe applying os.Stat to
+    a resource; the former is more confusable than the latter.
     
-    Move the ismapkey check for the reflect code path
-    into reflect_makemap.
-    
-    Change-Id: I718f79b0670c05b63ef31721e72408f59ec4ae86
-    Reviewed-on: https://go-review.googlesource.com/61035
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I9d8e3506bd383f8f1479c05948c03b8c633dc4af
+    Reviewed-on: https://go-review.googlesource.com/42855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 3 +++
- src/runtime/hashmap.go                 | 7 +++----
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go | 4 ++--
+ src/os/stat_windows.go            | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

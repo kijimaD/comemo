@@ -1,16 +1,15 @@
-commit 9815515df11c5a115dc2f457bb3699e3089531b8
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu May 17 02:00:40 2012 -0400
+commit fdc45367f97b9cea81b3f8c045b426d6e4a11766
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu May 17 00:04:00 2012 -0300
 
-    cmd/go: fix typo
+    encoding/xml: fix decoding of unknown entities in non-strict mode
     
-    Fixes #3619.
+    Fixes #3447.
     
-    R=golang-dev, bradfitz, r
+    R=rsc, gustavo
     CC=golang-dev
-    https://golang.org/cl/6211055
+    https://golang.org/cl/6039045
 
- src/cmd/go/doc.go  | 2 +-
- src/cmd/go/help.go | 2 +-
- src/cmd/go/main.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/encoding/xml/xml.go      | 20 ++++++++++++++--
+ src/pkg/encoding/xml/xml_test.go | 51 +++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 66 insertions(+), 5 deletions(-)

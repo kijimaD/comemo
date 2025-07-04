@@ -1,14 +1,16 @@
-commit ca0be6f849f227c409b06819d9b2d349a8045098
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Feb 25 11:53:33 2015 -0800
+commit f95becaddb539a45cc9bedbbbc9ee4a2433c1ab5
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 28 11:51:04 2015 -0500
 
-    math/big: clean up Float.SetPrec, use shorter internal representation
+    runtime: update a few "onM"s in comments to say "systemstack"
     
-    Change-Id: I9b78085adc12cbd240d0b8b48db6810ddb2aeadd
-    Reviewed-on: https://go-review.googlesource.com/5991
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Commit 656be31 replaced onM with systemstack, but missed updating a
+    few comments that still referred to onM.  Update these.
+    
+    Change-Id: I0efb017e9a66ea0adebb6e1da6e518ee11263f69
+    Reviewed-on: https://go-review.googlesource.com/3664
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/math/big/float.go      | 58 ++++++++++++++++++++++++++++++++--------------
- src/math/big/float_test.go | 52 +++++++++++++++++++++++++++++++++++++++++
- src/math/big/floatconv.go  |  6 ++---
- 3 files changed, 95 insertions(+), 21 deletions(-)
+ src/runtime/mgc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

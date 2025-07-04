@@ -1,28 +1,25 @@
-commit 6da8bdd2cc7a10f037a2025ffed57627d97a990c
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Oct 12 07:50:30 2016 -0500
+commit ae9570a5b95b0b321f91f504661e9c36dc1caa0e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jul 21 12:42:49 2016 -0400
 
-    cmd/asm: recognize CR1-CR7 on ppc64x branch instructions
+    [dev.ssa] cmd/compile: initial ARM64 SSA port
     
-    Some of the branch instructions (BEQ, BNE, BLT, etc.) accept
-    all the valid CR values as operands, but the CR register value is
-    not parsed and not put into the instruction, so that CR0 is always
-    used regardless of what was specified on the instruction.  For example
-    BEQ CR2,label becomes beq cr0,label.
+    Mostly copied from ARM port, with instruction names and Prog fields
+    adjusted, and 64-bit int ops added. Not complete.
     
-    This adds the change to the PPC64 assembler to recognize the CR value
-    and set the approppriate field in the instruction so the correct
-    CR is used.  This also adds some general comments on the branch
-    instruction BC and its operand values.
+    Fib compiles and runs correctly.
     
-    Fixes #17408
-    
-    Change-Id: I8e956372a42846a4c09a7259e9172eaa29118e71
-    Reviewed-on: https://go-review.googlesource.com/30930
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Id3ecb0d4b571200a035344b3e8e4408769f76221
+    Reviewed-on: https://go-review.googlesource.com/25130
     Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/ppc64/a.out.go | 37 +++++++++++++++++++++++++++++++++++++
- src/cmd/internal/obj/ppc64/asm9.go  | 31 +++++++++++++++++++++++++++----
- 2 files changed, 64 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/arm64/galign.go     |    6 +
+ src/cmd/compile/internal/arm64/ssa.go        |  628 ++++
+ src/cmd/compile/internal/ssa/config.go       |   11 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  323 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  347 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 1925 ++++++++++-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 4607 ++++++++++++++++++++++++++
+ 7 files changed, 7699 insertions(+), 148 deletions(-)

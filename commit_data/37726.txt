@@ -1,21 +1,35 @@
-commit ccbca561ef1fc7990ca697102f0e9d3b2150d8f5
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 17 14:39:05 2018 -0500
+commit c35069d6428d29b12088731aab35cbff1e504a28
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Tue Jul 24 10:39:00 2018 +0300
 
-    runtime: capture pause stack for late gcWork put debugging
+    cmd/compile: clean the output of GOSSAFUNC
     
-    This captures the stack trace where mark completion observed that each
-    P had no work, and then dumps this if that P later discovers more
-    work. Hopefully this will help bound where the work was created.
+    Since we print almost everything to ssa.html in the GOSSAFUNC mode,
+    there is a need to stop spamming stdout when user just wants to see
+    ssa.html.
     
-    For #27993.
+    This changes cleans output of the GOSSAFUNC debug mode.
+    To enable the dump of the debug data to stdout, one must
+    put suffix + after the function name like that:
     
-    Change-Id: I4f29202880d22c433482dc1463fb50ab693b6de6
-    Reviewed-on: https://go-review.googlesource.com/c/154599
-    Run-TryBot: Austin Clements <austin@google.com>
+    GOSSAFUNC=Foo+
+    
+    Otherwise gc will not print the IR and ASM to stdout after each phase.
+    AST IR is still sent to stdout because it is not included
+    into ssa.html. It will be fixed in a separate change.
+    
+    The change adds printing out the full path to the ssa.html file.
+    
+    Updates #25942
+    
+    Change-Id: I711e145e05f0443c7df5459ca528dced273a62ee
+    Reviewed-on: https://go-review.googlesource.com/126603
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/mgc.go     |  5 +++++
- src/runtime/mgcwork.go | 21 +++++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ src/cmd/compile/internal/gc/main.go     |  4 ++
+ src/cmd/compile/internal/gc/ssa.go      | 70 ++++++++++++++++-----------------
+ src/cmd/compile/internal/ssa/compile.go | 10 +++--
+ src/cmd/compile/internal/ssa/html.go    | 11 +++++-
+ 4 files changed, 53 insertions(+), 42 deletions(-)

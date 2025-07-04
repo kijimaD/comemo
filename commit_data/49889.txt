@@ -1,21 +1,18 @@
-commit 03fb5d7574eaceb26e99586dec20691663fe6b82
-Author: Mike Faraponov <mikefaraponov@gmail.com>
-Date:   Wed Apr 13 12:58:29 2022 +0000
+commit 5e9c1fedb69b405b75a0c499e2f32d35f294fd5c
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Sep 16 10:34:46 2021 -0400
 
-    crypto/tls: remove unused hashForClientCertificate param
+    [dev.fuzz] internal/fuzz: warn if fuzzing begins with empty corpus
     
-    Change-Id: I86af2508a31ea1e79d362c22ff4fac8900536761
-    GitHub-Last-Rev: d2a1ddccbd32499d7c379941daff528e7f2017c3
-    GitHub-Pull-Request: golang/go#52328
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399829
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Fixes golang/go#46219
+    
+    Change-Id: I7b32707d490c046d15324a3d297ec8d9f45b6e36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350269
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Julie Qiu <julie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/tls/handshake_client.go | 2 +-
- src/crypto/tls/handshake_server.go | 2 +-
- src/crypto/tls/prf.go              | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/internal/fuzz/fuzz.go | 1 +
+ 1 file changed, 1 insertion(+)

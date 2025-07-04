@@ -1,26 +1,18 @@
-commit e4665da9bcdd4e9136c7ed97ab4253def130b89d
-Author: Elias Naur <mail@eliasnaur.com>
-Date:   Sun Apr 7 15:02:31 2019 +0200
+commit a18638c0f2ce487e08bbe67674a95faef5b43651
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Nov 15 12:15:18 2018 -0500
 
-    cmd/go/internal/work: make toolchain builds reproducible when buildmode=pie
+    cmd/vendor: update to golang.org/x/tools@f62bfb54
     
-    When buildmode=pie, external linking is forced, and our toolchain build id
-    will be included in the external build id, resulting in the building of
-    a toolchain tool will never reach a fixed point id.
-    
-    More importantly, this change will make make.bash converge on self-hosted
-    Android builds (Android refuses to run non-PIE executables).
-    
-    Fixes #31320
-    Updates #18968
-    
-    Change-Id: Icb5db9f4b1b688afe37f4dafe261ffda580fa4e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170942
-    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Change-Id: I3b3035784ce89ba2ac5ab8f6448c45a3d38fa97d
+    Reviewed-on: https://go-review.googlesource.com/c/149778
+    Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/gc.go     | 9 ++++++++-
- src/cmd/internal/sys/supported.go  | 8 ++++++++
- src/cmd/link/internal/ld/config.go | 4 ++--
- 3 files changed, 18 insertions(+), 3 deletions(-)
+ .../x/tools/go/analysis/cmd/vet-lite/main.go       | 133 +++-----
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   |  18 +-
+ .../go/analysis/internal/analysisflags/help.go     |  23 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |  25 +-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go | 356 +++++++++++++++++++++
+ 5 files changed, 446 insertions(+), 109 deletions(-)

@@ -1,16 +1,38 @@
-commit 5edb175b40a87f3dba90aed14390de9affee77f2
-Author: Leon Klingele <git@leonklingele.de>
-Date:   Mon Feb 4 12:44:00 2019 +0000
+commit 8f9902da269c08ad9a741d828d7f6781f56a7a42
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:29:58 2018 +0200
 
-    cmd/compile/internal/ssa: ignore error from second call to MatchString in test
+    syscall: add AIX operating system
     
-    Change-Id: I714612b41facc8d1ec22974e8aaf2a5a3592e8f5
-    GitHub-Last-Rev: a0b3917e45bc1d24590e9c9cb3550da4c4008c49
-    GitHub-Pull-Request: golang/go#29998
-    Reviewed-on: https://go-review.googlesource.com/c/160422
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    This commit adds AIX operating system to syscall package for ppc64
+    architecture.
+    It also adds the file syscall_aix.go in the runtime package for
+    syscalls needed during fork and exec.
+    
+    Updates: #25893
+    
+    Change-Id: I301b1051b178a3efb7bbc39cdbd8e00b594d65ef
+    Reviewed-on: https://go-review.googlesource.com/c/138720
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/debug_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/runtime/syscall_aix.go        |  212 +++++++
+ src/syscall/dirent.go             |    2 +-
+ src/syscall/env_unix.go           |    2 +-
+ src/syscall/exec_aix_test.go      |   37 ++
+ src/syscall/exec_unix_test.go     |    2 +-
+ src/syscall/flock_aix.go          |   41 ++
+ src/syscall/forkpipe.go           |    2 +-
+ src/syscall/mkerrors.sh           |   10 +
+ src/syscall/mmap_unix_test.go     |    2 +-
+ src/syscall/sockcmsg_unix.go      |    2 +-
+ src/syscall/syscall_aix.go        |  651 +++++++++++++++++++
+ src/syscall/syscall_aix_ppc64.go  |   17 +
+ src/syscall/syscall_unix.go       |    2 +-
+ src/syscall/timestruct.go         |    2 +-
+ src/syscall/types_aix.go          |  172 +++++
+ src/syscall/zerrors_aix_ppc64.go  | 1248 +++++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_aix_ppc64.go | 1167 ++++++++++++++++++++++++++++++++++
+ src/syscall/ztypes_aix_ppc64.go   |  272 ++++++++
+ 18 files changed, 3835 insertions(+), 8 deletions(-)

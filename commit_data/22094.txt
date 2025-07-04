@@ -1,22 +1,186 @@
-commit cadd4f81a8a637bda2ea22176e11604ceea14a0d
-Author: Austin Clements <austin@google.com>
-Date:   Thu Mar 12 13:09:30 2015 -0400
+commit 3af0d791bed25e6cb4689fed9cc8379554971cb8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 14:20:01 2015 -0500
 
-    runtime: combine gcWorkProducer into gcWork
+    [dev.cc] cmd/6a, cmd/6g etc: replace C implementations with Go implementations
     
-    The distinction between gcWorkProducer and gcWork (producer and
-    consumer) is not serving us as originally intended, so merge these
-    into just gcWork.
-    
-    The original intent was to replace the currentwbuf cache with a
-    gcWorkProducer. However, with gchelpwork (aka mutator assists),
-    mutators can both produce and consume work, so it will make more sense
-    to cache a whole gcWork.
-    
-    Change-Id: I6e633e96db7cb23a64fbadbfc4607e3ad32bcfb3
-    Reviewed-on: https://go-review.googlesource.com/7733
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: I58e00a39cf63df07813d21453f91e68eef6a413c
+    Reviewed-on: https://go-review.googlesource.com/5635
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mgcmark.go | 18 ++++++------
- src/runtime/mgcwork.go | 74 +++++++++++++++++---------------------------------
- 2 files changed, 34 insertions(+), 58 deletions(-)
+ src/cmd/5a/Makefile             |   10 -
+ src/cmd/5a/a.h                  |  173 --
+ src/cmd/5a/a.y                  |  385 +--
+ src/cmd/5a/doc.go               |   20 -
+ src/cmd/5a/lex.c                |  538 ----
+ src/cmd/{new5a => 5a}/lex.go    |    0
+ src/cmd/{new5a => 5a}/y.go      |    0
+ src/cmd/5a/y.tab.c              | 2855 ----------------------
+ src/cmd/5a/y.tab.h              |  166 --
+ src/cmd/5g/Makefile             |    5 -
+ src/cmd/5g/cgen.c               | 1840 --------------
+ src/cmd/{new5g => 5g}/cgen.go   |    0
+ src/cmd/5g/cgen64.c             |  760 ------
+ src/cmd/{new5g => 5g}/cgen64.go |    0
+ src/cmd/5g/doc.go               |   15 -
+ src/cmd/5g/galign.c             |   87 -
+ src/cmd/{new5g => 5g}/galign.go |    0
+ src/cmd/{new5g => 5g}/gg.go     |    0
+ src/cmd/5g/gg.h                 |  177 --
+ src/cmd/5g/ggen.c               |  751 ------
+ src/cmd/{new5g => 5g}/ggen.go   |    0
+ src/cmd/5g/gsubr.c              | 1527 ------------
+ src/cmd/{new5g => 5g}/gsubr.go  |    0
+ src/cmd/5g/peep.c               | 1619 ------------
+ src/cmd/{new5g => 5g}/peep.go   |    0
+ src/cmd/5g/prog.c               |  160 --
+ src/cmd/{new5g => 5g}/prog.go   |    0
+ src/cmd/5g/reg.c                |  146 --
+ src/cmd/{new5g => 5g}/reg.go    |    0
+ src/cmd/{new5g => 5g}/util.go   |    0
+ src/cmd/6a/Makefile             |   10 -
+ src/cmd/6a/a.h                  |  188 --
+ src/cmd/6a/a.y                  |  383 +--
+ src/cmd/6a/doc.go               |   20 -
+ src/cmd/6a/lex.c                | 1137 ---------
+ src/cmd/{new6a => 6a}/lex.go    |    0
+ src/cmd/{new6a => 6a}/y.go      |    0
+ src/cmd/6a/y.tab.c              | 2800 ---------------------
+ src/cmd/6a/y.tab.h              |  139 --
+ src/cmd/6g/Makefile             |    5 -
+ src/cmd/6g/cgen.c               | 1745 -------------
+ src/cmd/{new6g => 6g}/cgen.go   |    0
+ src/cmd/6g/doc.go               |   15 -
+ src/cmd/6g/galign.c             |  110 -
+ src/cmd/{new6g => 6g}/galign.go |    0
+ src/cmd/{new6g => 6g}/gg.go     |    0
+ src/cmd/6g/gg.h                 |  176 --
+ src/cmd/6g/ggen.c               | 1046 --------
+ src/cmd/{new6g => 6g}/ggen.go   |    0
+ src/cmd/6g/gsubr.c              | 1737 -------------
+ src/cmd/{new6g => 6g}/gsubr.go  |    0
+ src/cmd/6g/peep.c               |  988 --------
+ src/cmd/{new6g => 6g}/peep.go   |    0
+ src/cmd/6g/prog.c               |  318 ---
+ src/cmd/{new6g => 6g}/prog.go   |    0
+ src/cmd/6g/reg.c                |  153 --
+ src/cmd/{new6g => 6g}/reg.go    |    0
+ src/cmd/{new6g => 6g}/util.go   |    0
+ src/cmd/8a/Makefile             |   10 -
+ src/cmd/8a/a.h                  |  186 --
+ src/cmd/8a/a.y                  |  381 +--
+ src/cmd/8a/doc.go               |   21 -
+ src/cmd/8a/lex.c                |  914 -------
+ src/cmd/{new8a => 8a}/lex.go    |    0
+ src/cmd/{new8a => 8a}/y.go      |    0
+ src/cmd/8a/y.tab.c              | 2778 ---------------------
+ src/cmd/8a/y.tab.h              |  135 -
+ src/cmd/8g/Makefile             |    5 -
+ src/cmd/8g/cgen.c               | 1590 ------------
+ src/cmd/{new8g => 8g}/cgen.go   |    0
+ src/cmd/8g/cgen64.c             |  549 -----
+ src/cmd/{new8g => 8g}/cgen64.go |    0
+ src/cmd/8g/doc.go               |   15 -
+ src/cmd/8g/galign.c             |   87 -
+ src/cmd/{new8g => 8g}/galign.go |    0
+ src/cmd/{new8g => 8g}/gg.go     |    0
+ src/cmd/8g/gg.h                 |  189 --
+ src/cmd/8g/ggen.c               | 1165 ---------
+ src/cmd/{new8g => 8g}/ggen.go   |    0
+ src/cmd/8g/gsubr.c              | 1874 --------------
+ src/cmd/{new8g => 8g}/gsubr.go  |    0
+ src/cmd/8g/peep.c               |  773 ------
+ src/cmd/{new8g => 8g}/peep.go   |    0
+ src/cmd/8g/prog.c               |  349 ---
+ src/cmd/{new8g => 8g}/prog.go   |    0
+ src/cmd/8g/reg.c                |  112 -
+ src/cmd/{new8g => 8g}/reg.go    |    0
+ src/cmd/{new8g => 8g}/util.go   |    0
+ src/cmd/9a/Makefile             |   10 -
+ src/cmd/9a/a.h                  |  172 --
+ src/cmd/9a/a.y                  |  544 +++--
+ src/cmd/9a/doc.go               |   21 -
+ src/cmd/9a/lex.c                |  726 ------
+ src/cmd/{new9a => 9a}/lex.go    |    0
+ src/cmd/{new9a => 9a}/y.go      |    0
+ src/cmd/9a/y.tab.c              | 3466 --------------------------
+ src/cmd/9a/y.tab.h              |  190 --
+ src/cmd/9g/cgen.c               | 1758 --------------
+ src/cmd/{new9g => 9g}/cgen.go   |    0
+ src/cmd/9g/doc.go               |   16 -
+ src/cmd/9g/galign.c             |   94 -
+ src/cmd/{new9g => 9g}/galign.go |    0
+ src/cmd/{new9g => 9g}/gg.go     |    0
+ src/cmd/9g/gg.h                 |  169 --
+ src/cmd/9g/ggen.c               |  965 --------
+ src/cmd/{new9g => 9g}/ggen.go   |    0
+ src/cmd/9g/gsubr.c              | 1158 ---------
+ src/cmd/{new9g => 9g}/gsubr.go  |    0
+ src/cmd/{new9g => 9g}/opt.go    |    0
+ src/cmd/9g/opt.h                |   13 -
+ src/cmd/9g/peep.c               |  959 --------
+ src/cmd/{new9g => 9g}/peep.go   |    0
+ src/cmd/9g/prog.c               |  308 ---
+ src/cmd/{new9g => 9g}/prog.go   |    0
+ src/cmd/9g/reg.c                |  172 --
+ src/cmd/{new9g => 9g}/reg.go    |    0
+ src/cmd/{new9g => 9g}/util.go   |    0
+ src/cmd/gc/Makefile             |   17 -
+ src/cmd/gc/align.c              |  689 ------
+ src/cmd/gc/array.c              |  107 -
+ src/cmd/gc/bisonerrors          |  156 --
+ src/cmd/gc/bits.c               |  173 --
+ src/cmd/gc/builtin.c            |  165 --
+ src/cmd/gc/bv.c                 |  213 --
+ src/cmd/gc/closure.c            |  659 -----
+ src/cmd/gc/const.c              | 1678 -------------
+ src/cmd/gc/cplx.c               |  494 ----
+ src/cmd/gc/dcl.c                | 1479 -----------
+ src/cmd/gc/doc.go               |   95 -
+ src/cmd/gc/esc.c                | 1342 ----------
+ src/cmd/gc/export.c             |  563 -----
+ src/cmd/gc/fmt.c                | 1697 -------------
+ src/cmd/gc/gen.c                |  987 --------
+ src/cmd/gc/go.errors            |   79 -
+ src/cmd/gc/go.h                 | 1757 --------------
+ src/cmd/gc/go.y                 | 2225 -----------------
+ src/cmd/gc/gsubr.c              |  654 -----
+ src/cmd/gc/init.c               |  194 --
+ src/cmd/gc/inl.c                |  986 --------
+ src/cmd/gc/lex.c                | 2590 --------------------
+ src/cmd/gc/md5.c                |  302 ---
+ src/cmd/gc/md5.h                |   16 -
+ src/cmd/gc/mkbuiltin            |   36 -
+ src/cmd/gc/mkbuiltin1.c         |  102 -
+ src/cmd/gc/mkopnames            |   24 -
+ src/cmd/gc/mparith1.c           |  655 -----
+ src/cmd/gc/mparith2.c           |  689 ------
+ src/cmd/gc/mparith3.c           |  346 ---
+ src/cmd/gc/obj.c                |  498 ----
+ src/cmd/gc/order.c              | 1164 ---------
+ src/cmd/gc/pgen.c               |  547 -----
+ src/cmd/gc/plive.c              | 2005 ---------------
+ src/cmd/gc/popt.c               | 1022 --------
+ src/cmd/gc/popt.h               |  152 --
+ src/cmd/gc/racewalk.c           |  653 -----
+ src/cmd/gc/range.c              |  378 ---
+ src/cmd/gc/reflect.c            | 1609 ------------
+ src/cmd/gc/reg.c                | 1233 ----------
+ src/cmd/gc/runtime.go           |  191 --
+ src/cmd/gc/select.c             |  375 ---
+ src/cmd/gc/sinit.c              | 1502 ------------
+ src/cmd/gc/subr.c               | 3856 -----------------------------
+ src/cmd/gc/swt.c                |  944 -------
+ src/cmd/gc/typecheck.c          | 3649 ----------------------------
+ src/cmd/gc/unsafe.c             |  150 --
+ src/cmd/gc/unsafe.go            |   18 -
+ src/cmd/gc/walk.c               | 4189 --------------------------------
+ src/cmd/gc/y.tab.c              | 5134 ---------------------------------------
+ src/cmd/gc/y.tab.h              |  167 --
+ src/cmd/gc/yerr.h               |   79 -
+ src/cmd/new5a/a.y               |  795 ------
+ src/cmd/new6a/a.y               |  723 ------
+ src/cmd/new8a/a.y               |  713 ------
+ src/cmd/new9a/a.y               | 1055 --------
+ src/cmd/objwriter/main.go       |  411 ----
+ 175 files changed, 856 insertions(+), 97603 deletions(-)

@@ -1,13 +1,18 @@
-commit 1d88f9dd4ddc99c557593007ac4118492d559d05
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Sep 8 15:42:48 2014 -0700
+commit 467a6d28be15cfef05870262345201b133dc1a89
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Sep 3 20:47:30 2014 +0400
 
-    runtime: note the double-releasem isn't an error.
+    runtime: adopt race detector for runtime written in Go
+    Ignore memory access on g0/gsignal.
+    See the issue for context and explanation.
+    Fixes #8627.
     
-    LGTM=bradfitz
-    R=dave, bradfitz
-    CC=golang-codereviews
-    https://golang.org/cl/136390043
+    LGTM=khr
+    R=golang-codereviews, mdempsky, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/137070043
 
- src/runtime/malloc.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/cpuprof.go | 10 +++-------
+ src/pkg/runtime/proc.c     |  8 +++++---
+ src/pkg/runtime/race.c     | 10 ++++++++++
+ 3 files changed, 18 insertions(+), 10 deletions(-)

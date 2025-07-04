@@ -1,19 +1,15 @@
-commit 239273d963395676484693328b17961f2f862b08
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Tue Nov 24 09:15:36 2015 +1300
+commit e7e27398498b1d91458ed24cbffcb19111fe5941
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Thu Sep 17 16:28:15 2015 +1000
 
-    runtime: mark {g,m,p}uintptr methods as nosplit
+    os: touch up the EINTR retry loop in OpenFile
     
-    These are methods that are "obviously" going to get inlined -- until you build
-    with -l, when they can trigger a stack split at a bad time.
+    In particular, don't use goto and do restrict the behavior to darwin.
+    This addresses comments from http://golang.org/cl/14484.
     
-    Fixes #11482
-    
-    Change-Id: Ia065c385978a2e7fe9f587811991d088c4d68325
-    Reviewed-on: https://go-review.googlesource.com/17165
-    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I5b99e1762d1c5b27fdd12b72a5c6d981f6a92f0f
+    Reviewed-on: https://go-review.googlesource.com/14673
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/runtime2.go | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ src/os/file_unix.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

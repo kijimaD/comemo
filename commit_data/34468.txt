@@ -1,20 +1,16 @@
-commit 26708439ecb4dc923149b17eb522df46dcc2fb23
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Mar 4 17:17:55 2018 -0800
+commit dc97f4103cbeac291ec6685d9f0d4e621fe4e133
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 26 10:10:25 2017 +0200
 
-    cmd/compile: refactor order.go into methods
+    syscall: simplify return in Futimesat and Mount
     
-    No functional changes, just changing all the orderfoo functions
-    into (*Order).foo methods.
+    Directly return error instead of assigning to err and then returning.
     
-    Passes toolstash-check.
-    
-    Change-Id: Ib9833daa98aff3c645ce56794a414f8472689152
-    Reviewed-on: https://go-review.googlesource.com/98617
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ie5c466cac70cc6d52ee72ebba3e497e0da8a5797
+    Reviewed-on: https://go-review.googlesource.com/73531
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 636 +++++++++++++++++------------------
- src/cmd/compile/internal/gc/sinit.go |   6 +-
- 2 files changed, 311 insertions(+), 331 deletions(-)
+ src/syscall/syscall_linux.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

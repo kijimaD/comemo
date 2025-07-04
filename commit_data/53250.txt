@@ -1,27 +1,15 @@
-commit 6b7aab7750a8b41b15bac4d598470883c245a0d7
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue May 23 14:32:41 2023 -0700
+commit 5405df09afff46d065da1d73d56347f7c859ab6f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 3 10:36:35 2022 +0700
 
-    go/types, types2: enable interface inference
+    reflect: use doc links to refer to package "unsafe"
     
-    This CL sets enableInterfaceInference to true.
-    If problems arise due to this during the freeze, revert this CL.
-    
-    Fixes #41176.
-    Fixes #57192.
-    
-    Change-Id: I881ea6842e9c1101b24d9780323c6af365a40d3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497657
+    Change-Id: Ide465c4276424f2c437691d440dd100c4db2f091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420974
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/unify.go            | 2 +-
- src/go/types/unify.go                               | 2 +-
- src/internal/types/testdata/fixedbugs/issue39976.go | 2 +-
- src/internal/types/testdata/fixedbugs/issue41176.go | 2 +-
- src/internal/types/testdata/fixedbugs/issue53692.go | 2 +-
- src/internal/types/testdata/fixedbugs/issue57192.go | 2 +-
- 6 files changed, 6 insertions(+), 6 deletions(-)
+ src/reflect/value.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

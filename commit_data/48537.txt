@@ -1,19 +1,19 @@
-commit 3bd8c78575a27ee9ac7b3c8d8c35db1feee31737
-Author: Keith Randall <khr@golang.org>
-Date:   Sat Mar 26 10:36:10 2022 -0700
+commit c2c1b53b39fd54b915b2a4bbae36d1c9793fac8a
+Author: Dan Scales <danscales@google.com>
+Date:   Thu May 27 11:18:13 2021 -0700
 
-    cmd/compile: upgrade prove pass to know results of math/bits ops are nonnegative
+    [dev.typeparams] cmd/compile: use old export format if not compiling with generics
     
-    Fixes #51963
+    Write out export data with the old export format (iexportVersionPosCol)
+    if not compiling with generics (-G=0, the default value). This helps
+    ensure we don't break tests involving x/tools/go/gcexportdata (since we
+    can't modify that tool yet to use the new format).
     
-    Change-Id: Ib9e0521222e6fc41e787f3150b254e058a19addc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396036
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Change-Id: I5f9bce44ed1e0696fc65fead6bab9e30de88461d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323189
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/prove.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/iexport.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

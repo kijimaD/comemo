@@ -1,16 +1,20 @@
-commit d46438c3dadc5ce4903a2a2244b5bde84e4357cc
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Mar 12 15:57:38 2012 -0700
+commit bb6e685b7b7cc2a9ba7f81b98fa29bfdbf5cff7b
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Tue Mar 13 09:08:04 2012 +1100
 
-    cmd/godoc: remove sync code
+    godoc: fix codewalk handler
     
-    Fixes #3273
+    For URLs ending with /, the handler did not work, trying to append
+    ".xml" to the path.
     
-    R=gri
+    For instance, the "Share Memory by Communicating" returned the
+    following error:
+    
+            open /Users/francisco.souza/lib/go/doc/codewalk/sharemem/.xml: no such file or directory
+    
+    R=adg, minux.ma
     CC=golang-dev
-    https://golang.org/cl/5795065
+    https://golang.org/cl/5797065
 
- src/cmd/godoc/doc.go   | 16 +--------
- src/cmd/godoc/godoc.go |  2 +-
- src/cmd/godoc/main.go  | 94 --------------------------------------------------
- 3 files changed, 2 insertions(+), 110 deletions(-)
+ src/cmd/godoc/codewalk.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

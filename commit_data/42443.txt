@@ -1,36 +1,25 @@
-commit 58f017bcea3d2f3dbb898ba175fe09beb32b4eb6
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri May 29 16:01:08 2020 -0400
+commit 372efbbf3170ccf260186118cd3acf7f617055ae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 20 13:05:24 2019 -0800
 
-    cmd/{compile,link}: fix problem with DWARF end_sequence ops
+    internal/syscall/unix: use fcntl64 on 32-bit GNU/Linux systems
     
-    During DWARF line table emission in the linker, prior to issuing a
-    DW_LNE_end_sequence op to mark the end of the line table for a
-    compilation unit, advance the PC to produce an address beyond the last
-    text address in the unit (this is required by the DWARF standard).
-    Because of the way that GDB interprets end-sequence ops, we were
-    effectively losing the last row in the line table for each unit, which
-    degraded the debugging experience.
+    Patch up runtime testing to use the libc fcntl function on Darwin,
+    which is what we should be doing anyhow. This is similar to how
+    we handle fcntl on AIX and Solaris.
     
-    This problem has been around for a while, but has surfaced recently
-    due to changes in line table generation. Prior to Go 1.14, the DWARF
-    line table was emitted entirely in the linker, and a single monolithic
-    line table was created for each Go package (including functions from
-    assembly). In 1.14 we moved to having the compiler emit line table
-    fragments for each function, and having the linker stitch together the
-    fragments. As part of this change we moved to a model in which each
-    "go tool compile/asm" output has its own DWARF line table instance,
-    meaning that there are many more "end sequence" ops, which made the
-    problem more visible.
+    Fixes #36211
     
-    Fixes #38192.
-    
-    Change-Id: Ic29e2f6e0ac952360c81fcba5268ad70b2b44184
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235739
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I47ad87e11df043ce21496a0d59523dad28960f76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212299
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/link/internal/ld/dwarf.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/internal/syscall/unix/fcntl_linux_32bit.go | 16 ++++++++++++++++
+ src/internal/syscall/unix/nonblocking.go       |  6 +++++-
+ src/runtime/export_darwin_test.go              | 13 +++++++++++++
+ src/runtime/nbpipe_fcntl_libc_test.go          |  2 +-
+ src/runtime/nbpipe_fcntl_unix_test.go          |  9 ++++++---
+ src/syscall/flock_linux_32bit.go               |  7 +++++--
+ 6 files changed, 46 insertions(+), 7 deletions(-)

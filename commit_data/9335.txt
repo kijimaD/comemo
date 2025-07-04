@@ -1,12 +1,15 @@
-commit c8ee9c60d2d7ca379e13fe799989aead35eac4d3
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Aug 11 12:23:55 2011 +1000
+commit d118905c2c1887a943a9e5e15707f45468a101ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 10 21:36:59 2011 -0400
 
-    runtime: better checks for syscall.NewCallback parameter
+    codereview: set status while committing CL
     
-    R=golang-dev, rsc
+    Not sure how to detect read-only but at least
+    this pins the blame on the hg server.
+    
+    R=r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4859042
+    https://golang.org/cl/4847053
 
- src/pkg/runtime/windows/thread.c | 24 +++++++++++++++++-------
- 1 file changed, 17 insertions(+), 7 deletions(-)
+ lib/codereview/codereview.py | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,32 +1,18 @@
-commit 1efe38750a1f29c946fde694738c4ba2ed48ff98
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Sat May 7 13:58:24 2022 +0800
+commit 43ad1ffa990358e60130ca9395210315e59e059a
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Jul 16 14:30:15 2021 -0400
 
-    cmd/compile: teach prove about and operation
+    [dev.typeparams] go/types: recursive substitution must terminate (bug fix)
     
-    For this code:
-    z &= 63
-    _ = x<<z | x>>(64-z)
-    Now can prove 'x<<z' in bound. In ppc64 lowering pass, it will not
-    produce an extra '(ANDconst <typ.Int64> [63] z)' causing
-    codegen/rotate.go failed. Just remove the type check in rewrite rules
-    as the workaround.
+    This is a port of CL 333383 to go/types.
     
-    Removes 32 bounds checks during make.bat.
-    
-    Fixes #52563.
-    
-    Change-Id: I14ed2c093ff5638dfea7de9bc7649c0f756dd71a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404315
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    Auto-Submit: Keith Randall <khr@golang.org>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I7ff68116cbe63337dbcc834c473a2a5588274e36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335115
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules | 28 ++++++++--------
- src/cmd/compile/internal/ssa/prove.go        |  3 ++
- src/cmd/compile/internal/ssa/rewritePPC64.go | 48 ++++++++++++++--------------
- test/prove.go                                |  8 +++++
- 4 files changed, 49 insertions(+), 38 deletions(-)
+ src/go/types/api_test.go | 23 +++++++++++++++++++++++
+ src/go/types/subst.go    | 38 ++++++++++++++++++++++----------------
+ 2 files changed, 45 insertions(+), 16 deletions(-)

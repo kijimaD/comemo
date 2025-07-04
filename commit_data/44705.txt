@@ -1,59 +1,26 @@
-commit 70d54df4f6bd63b0057d718c6fc3fffc0d94bbc1
-Author: Dan Scales <danscales@google.com>
-Date:   Fri Mar 12 11:36:02 2021 -0800
+commit ea51acbabc687a2270438b05bf765ada2968b69a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Jun 28 16:28:52 2020 +1000
 
-    cmd/compile:  getting more built-ins to work with generics
+    cmd/internal/objfile: use pe.FileHeader.Machine to reliably determine GOARCH
     
-    For Builtin ops, we currently stay with using the old
-    typechecker to transform the call to a more specific expression
-    and possibly use more specific ops. However, for a bunch of the
-    ops, we delay calling the old typechecker if any of the args have
-    type params, for a variety of reasons.
+    Current peFile.goarch looks for symbols like "_rt0_386_windows" to
+    determine GOARCH. But "_rt0_386_windows" is not present in executables
+    built with cgo.
     
-    In the near future, we will start creating separate functions that do
-    the same transformations as the old typechecker for calls, builtins,
-    indexing, comparisons, etc. These functions can then be called at noder
-    time for nodes with no type params, and at stenciling time for nodes
-    with type params.
+    Use pe.FileHeader.Machine instead. This should work with any Windows
+    executable, not just with Go built executable.
     
-    Remove unnecessary calls to types1 typechecker for most kinds of
-    statements (still need it for SendStmt, AssignStmt, ReturnStmt, and
-    SelectStmt). In particular, we don't need it for RangeStmt, and this
-    avoids some complaints by the types1 typechecker on generic code.
+    Fixes #39682
     
-    Other small changes:
-     - Fix check on whether to delay calling types1-typechecker on type
-       conversions. Should check if HasTParam is true, rather than if the
-       type is directly a TYPEPARAM.
-    
-     - Don't call types1-typechecker on an indexing operation if the left
-       operand has a typeparam in its type and is not obviously a TMAP,
-       TSLICE, or TARRAY. As above, we will eventually have to create a new
-       function that can do the required transformations (for complicated
-       cases) at noder time or stenciling time.
-    
-     - Copy n.BuiltinOp in subster.node()
-    
-     - The complex arithmetic example in absdiff.go now works.
-    
-     - Added new tests double.go and append.go
-    
-     - Added new example with a new() call in settable.go
-    
-    Change-Id: I8f377afb6126cab1826bd3c2732aa8cdf1f7e0b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/301951
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Ie0ffce664f4b8b8fed69b2ecc482425b042a38d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240957
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/noder/expr.go    |   2 +-
- src/cmd/compile/internal/noder/helpers.go |  56 +++++++++++----
- src/cmd/compile/internal/noder/stencil.go |  23 +++++-
- src/cmd/compile/internal/noder/stmt.go    |  29 +++++---
- test/typeparam/absdiff.go                 |  35 +++++----
- test/typeparam/append.go                  |  31 ++++++++
- test/typeparam/double.go                  |  50 +++++++++++++
- test/typeparam/settable.go                | 116 +++++++++++++++++-------------
- 8 files changed, 252 insertions(+), 90 deletions(-)
+ src/cmd/internal/objfile/pe.go          | 14 ++++++--------
+ src/cmd/objdump/objdump_test.go         | 31 ++++++++++++++++++++-----------
+ src/cmd/objdump/testdata/fmthellocgo.go | 21 +++++++++++++++++++++
+ 3 files changed, 47 insertions(+), 19 deletions(-)

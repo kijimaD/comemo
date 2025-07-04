@@ -1,14 +1,13 @@
-commit 0558f12123d8838575acb64fc7d9d58c59511b89
-Author: Dmitry Vyukov <dvyukov@google.com>
-Date:   Thu Feb 19 18:30:08 2015 +0300
+commit 41f5bafc514dc97f4de72e413cb451a0d83bf711
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 27 22:56:12 2015 -0500
 
-    test: add tests for escape analysis of slices
+    cmd/dist: build linkers written in Go
     
-    False positives (var incorrectly escapes) are marked with BAD.
-    
-    Change-Id: I9e9a3f71b060520103bcf289829a2efdf6f2b517
-    Reviewed-on: https://go-review.googlesource.com/5298
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ia36fa5e617ceacbbca9f30f4e109d94e515b38ef
+    Reviewed-on: https://go-review.googlesource.com/6336
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- test/escape_slice.go | 90 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 90 insertions(+)
+ src/cmd/dist/buildtool.go | 5 +++++
+ 1 file changed, 5 insertions(+)

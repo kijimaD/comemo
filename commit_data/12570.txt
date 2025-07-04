@@ -1,14 +1,15 @@
-commit d13b24598f3f63db601ac2e0caf3d66fc7431380
-Author: Ingo Oeser <nightlyone@googlemail.com>
-Date:   Mon Mar 12 14:41:01 2012 -0400
+commit bd71072eee41cdf7966805a33e509831bfccc7d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 14:39:44 2012 -0400
 
-    cmd/go: allow ssh tunnelled bzr, git and svn
+    codereview: fix for Mercurial 2.1
     
-    This is often used in private hosting and collaborating environments.
+    Mercurial: the Python of version control systems.
+    Python: the Mercurial of programming languages.
     
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5753063
+    https://golang.org/cl/5777066
 
- src/cmd/go/vcs.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ lib/codereview/codereview.py | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

@@ -1,21 +1,27 @@
-commit 1471978bacf91bd9de273e6f265ed31def83711a
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 31 20:10:09 2024 +0000
+commit 6b7aab7750a8b41b15bac4d598470883c245a0d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 23 14:32:41 2023 -0700
 
-    iter: propagate panics from the iterator passed to Pull
+    go/types, types2: enable interface inference
     
-    This change propagates panics from the iterator passed to Pull through
-    next and stop. Once the panic occurs, next and stop become no-ops (the
-    iterator is invalidated).
+    This CL sets enableInterfaceInference to true.
+    If problems arise due to this during the freeze, revert this CL.
     
-    For #67712.
+    Fixes #41176.
+    Fixes #57192.
     
-    Change-Id: I05e45601d4d10acdf51b53e3164bd891c1b324ac
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/589136
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I881ea6842e9c1101b24d9780323c6af365a40d3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497657
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/iter/iter.go      | 66 +++++++++++++++++++++++++++++++++---------
- src/iter/pull_test.go | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 132 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/types2/unify.go            | 2 +-
+ src/go/types/unify.go                               | 2 +-
+ src/internal/types/testdata/fixedbugs/issue39976.go | 2 +-
+ src/internal/types/testdata/fixedbugs/issue41176.go | 2 +-
+ src/internal/types/testdata/fixedbugs/issue53692.go | 2 +-
+ src/internal/types/testdata/fixedbugs/issue57192.go | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

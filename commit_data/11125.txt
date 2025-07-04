@@ -1,22 +1,15 @@
-commit 725f084b1165f910e32cb40006c9d530d95ca938
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 12 10:18:03 2012 -0800
+commit a03c519a8cf38014220385099460061b045ffae0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 12 22:06:50 2012 +0400
 
-    cmd/go: fix linker arguments
+    effective_go: provide reference to runtime.NumCPU()
     
-    Especially affects tests, but not test-specific.
-    The linker was only being told where to find the
-    direct dependencies of package main.  Sometimes that
-    was sufficient to find the rest; sometimes not.
-    
-    Fixes #2657.
-    Fixes #2666.
-    Fixes #2680.
-    
-    R=golang-dev, adg, rogpeppe
+    R=golang-dev, robert.hencke, r
     CC=golang-dev
-    https://golang.org/cl/5528079
+    https://golang.org/cl/5538050
 
- src/cmd/go/build.go | 88 +++++++++++++++++++++++++++++------------------------
- src/cmd/go/pkg.go   |  4 +++
- 2 files changed, 53 insertions(+), 39 deletions(-)
+ doc/effective_go.html     | 4 +++-
+ doc/effective_go.tmpl     | 4 +++-
+ src/pkg/runtime/debug.go  | 1 +
+ src/pkg/runtime/extern.go | 2 +-
+ 4 files changed, 8 insertions(+), 3 deletions(-)

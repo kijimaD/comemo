@@ -1,25 +1,16 @@
-commit aa1538799601bdbc881f2ad3133184377b7e7aca
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Feb 10 14:46:22 2017 -0500
+commit f595848e9a1e1d0f64a7018d847167d85f6e83a4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 28 11:51:22 2016 +1100
 
-    expvar: make BenchmarkAdd{Same,Different} comparable to 1.8
+    runtime/cgo: do not link threads lib by default on windows
     
-    bradfitz noted in change 36717 that the new behavior was no longer
-    comparable with the old.  This change restores comparable behavior
-    for -cpu=1.
+    I do not know why it is included. All tests pass without it.
     
-    BenchmarkMapAddSame                 909           909           +0.00%
-    BenchmarkMapAddSame-6               1309          262           -79.98%
-    BenchmarkMapAddDifferent            2856          3030          +6.09%
-    BenchmarkMapAddDifferent-6          3803          581           -84.72%
-    
-    updates #18177
-    
-    Change-Id: Ifaff5a1f48be92002d86c296220313b7efdc81d6
-    Reviewed-on: https://go-review.googlesource.com/36723
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I839076ee131816dfd177570a902c69fe8fba5022
+    Reviewed-on: https://go-review.googlesource.com/32144
+    Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/expvar/expvar_test.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/runtime/cgo/cgo.go | 1 -
+ 1 file changed, 1 deletion(-)

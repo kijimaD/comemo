@@ -1,18 +1,24 @@
-commit 7c1a4134b4191e87ae05d07343329e83aada6132
-Author: cuishuang <imcusg@gmail.com>
-Date:   Fri Feb 7 17:11:36 2025 +0800
+commit bda1ef13f8f9954d20b712ece649776c272f8526
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Nov 30 10:04:16 2023 -0800
 
-    strings: add examples for Lines, SplitSeq, SplitAfterSeq, FieldsSeq and FieldsFuncSeq
+    cmd/compile: fix memcombine pass for big endian, > 1 byte elements
     
-    Change-Id: I1e5085ff2ed7f3d75ac3dc34ab72be6b55729fb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/647575
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    The shift amounts were wrong in this case, leading to miscompilation
+    of load combining.
+    
+    Also the store combining was not triggering when it should.
+    
+    Fixes #64468
+    
+    Change-Id: Iaeb08972c5fc1d6f628800334789c6af7216e87b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546355
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/strings/example_test.go | 90 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 90 insertions(+)
+ src/cmd/compile/internal/ssa/memcombine.go       |  12 +--
+ src/cmd/compile/internal/test/memcombine_test.go | 126 +++++++++++++++++++++++
+ test/codegen/memcombine.go                       |  37 +++++++
+ 3 files changed, 169 insertions(+), 6 deletions(-)

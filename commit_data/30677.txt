@@ -1,39 +1,99 @@
-commit d60166d5eea5084e0957e9028237cc87ecadbf7d
-Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-Date:   Mon Feb 27 21:32:29 2017 -0300
+commit f9feaffdf51967bc5cf3c9363db9ddee98c9b3a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 12 23:01:37 2016 -0500
 
-    runtime: improve IndexByte for ppc64x
+    runtime: do not print runtime panic frame at top of user stack
     
-    This change adds a better implementation of IndexByte for ppc64x.
+    The expected default behavior (no explicit GOTRACEBACK setting)
+    is for the stack trace to start in user code, eliding unnecessary runtime
+    frames that led up to the actual trace printing code. The idea was that
+    the first line number printed was the one that crashed.
     
-    Improvement for bytes·IndexByte:
+    For #5832 we added code to show 'panic' frames so that if code panics
+    and then starts running defers and then we trace from there, the panic
+    frame can help explain why the code seems to have made a call not
+    present in the code. But that's only needed for panics between two different
+    call frames, not the panic at the very top of the stack trace.
+    Fix the fix to again elide the runtime code at the very top of the stack trace.
     
-    benchmark                             old ns/op     new ns/op     delta
-    BenchmarkIndexByte/10-16              12.5          8.48          -32.16%
-    BenchmarkIndexByte/32-16              34.4          9.85          -71.37%
-    BenchmarkIndexByte/4K-16              3089          217           -92.98%
-    BenchmarkIndexByte/4M-16              3154810       207051        -93.44%
-    BenchmarkIndexByte/64M-16             50564811      5579093       -88.97%
+    Simple panic:
     
-    benchmark                             old MB/s     new MB/s     speedup
-    BenchmarkIndexByte/10-16              800.41       1179.64      1.47x
-    BenchmarkIndexByte/32-16              930.60       3249.10      3.49x
-    BenchmarkIndexByte/4K-16              1325.71      18832.53     14.21x
-    BenchmarkIndexByte/4M-16              1329.49      20257.29     15.24x
-    BenchmarkIndexByte/64M-16             1327.19      12028.63     9.06x
+            package main
     
-    Improvement for strings·IndexByte:
+            func main() {
+                    var x []int
+                    println(x[1])
+            }
     
-    benchmark                             old ns/op     new ns/op     delta
-    BenchmarkIndexByte-16                 25.9          7.69          -70.31%
+    Before this CL:
     
-    Fixes #19030
+            panic: runtime error: index out of range
     
-    Change-Id: Ifb82bbb3d643ec44b98eaa2d08a07f47e5c2fd11
-    Reviewed-on: https://go-review.googlesource.com/37670
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+            goroutine 1 [running]:
+            panic(0x1056980, 0x1091bf0)
+                    /Users/rsc/go/src/runtime/panic.go:531 +0x1cf
+            main.main()
+                    /tmp/x.go:5 +0x5
+    
+    After this CL:
+    
+            panic: runtime error: index out of range
+    
+            goroutine 1 [running]:
+            main.main()
+                    /tmp/x.go:5 +0x5
+    
+    Panic inside defer triggered by panic:
+    
+            package main
+    
+            func main() {
+                    var x []int
+                    defer func() {
+                            println(x[1])
+                    }()
+                    println(x[2])
+            }
+    
+    Before this CL:
+    
+            panic: runtime error: index out of range
+                    panic: runtime error: index out of range
+    
+            goroutine 1 [running]:
+            panic(0x1056aa0, 0x1091bf0)
+                    /Users/rsc/go/src/runtime/panic.go:531 +0x1cf
+            main.main.func1(0x0, 0x0, 0x0)
+                    /tmp/y.go:6 +0x62
+            panic(0x1056aa0, 0x1091bf0)
+                    /Users/rsc/go/src/runtime/panic.go:489 +0x2cf
+            main.main()
+                    /tmp/y.go:8 +0x59
+    
+    The middle panic is important: it explains why main.main ended up calling main.main.func1 on a line that looks like a call to println. The top panic is noise.
+    
+    After this CL:
+    
+            panic: runtime error: index out of range
+                    panic: runtime error: index out of range
+    
+            goroutine 1 [running]:
+            main.main.func1(0x0, 0x0, 0x0)
+                    /tmp/y.go:6 +0x62
+            panic(0x1056ac0, 0x1091bf0)
+                    /Users/rsc/go/src/runtime/panic.go:489 +0x2cf
+            main.main()
+                    /tmp/y.go:8 +0x59
+    
+    Fixes #17901.
+    
+    Change-Id: Id6d7c76373f7a658a537a39ca32b7dc23e1e76aa
+    Reviewed-on: https://go-review.googlesource.com/33165
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/asm_ppc64x.s | 200 ++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 165 insertions(+), 35 deletions(-)
+ src/runtime/crash_test.go |  2 +-
+ src/runtime/traceback.go  | 14 ++++++++------
+ 2 files changed, 9 insertions(+), 7 deletions(-)

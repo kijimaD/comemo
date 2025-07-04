@@ -1,33 +1,21 @@
-commit 0eacf8cbdfaec174f29fd8c734ac2f02442af79a
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 7 16:21:47 2018 -0500
+commit 4fe42799a8a3170715dcbfa3d904ca8173131d79
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 11:16:09 2017 -0400
 
-    cmd/compile: add DWARF reg defs & fix 32-bit location list bug
+    cmd/vet: accept package config from go command
     
-    Before DWARF location lists can be turned on, 3 bugs need
-    fixing.
+    This CL adds support for accepting package config from
+    the go command. Paired with CL 74356 this lets us make
+    sure vet has complete information about package sources.
+    This fixes many issues (see CL 74356 for the list), including
+    mishandling of cgo and vendoring.
     
-    This CL addresses two -- lack of register definitions for
-    various architectures, and bugs on 32-bit platforms.
-    The third bug comes later.
-    
-    Passes
-    GO_GCFLAGS=-dwarflocationlists ./run.bash -no-rebuild
-    (-no-rebuild because the map dependence causes trouble)
-    
-    Change-Id: I4223b48ade84763e4b048e4aeb81149f082c7bc7
-    Reviewed-on: https://go-review.googlesource.com/99255
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: Ia4a1dce6f9b1b0a8ef5fdf9005a20a8b294969f1
+    Reviewed-on: https://go-review.googlesource.com/74355
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/ssa/debug.go |  2 +-
- src/cmd/internal/obj/arm/a.out.go     | 14 +++++++++++
- src/cmd/internal/obj/arm/obj5.go      | 13 ++++++-----
- src/cmd/internal/obj/mips/a.out.go    | 18 ++++++++++++++
- src/cmd/internal/obj/mips/obj0.go     | 44 +++++++++++++++++++----------------
- src/cmd/internal/obj/ppc64/a.out.go   | 23 ++++++++++++++++++
- src/cmd/internal/obj/ppc64/obj9.go    | 22 ++++++++++--------
- src/cmd/internal/obj/s390x/a.out.go   | 26 +++++++++++++++++++++
- src/cmd/internal/obj/s390x/objz.go    | 13 ++++++-----
- 9 files changed, 132 insertions(+), 43 deletions(-)
+ src/cmd/vet/main.go | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)

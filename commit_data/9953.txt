@@ -1,14 +1,14 @@
-commit 3ac7cae6e8c8626a48aeb1a1919b7af03a330a5c
-Author: Evan Martin <evan.martin@gmail.com>
-Date:   Thu Oct 13 09:07:42 2011 -0700
+commit 145c18365e09434d1571625b1edea5b770cb17cf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 13 09:03:24 2011 -0700
 
-    emacs: add a "godoc" command, like M-x man
+    doc: minor homepage tweak
     
-    This runs godoc and displays its output in a new buffer.
+    Don't imply that the tour isn't browser-based.
     
-    R=golang-dev, rsc
+    R=adg
     CC=golang-dev
-    https://golang.org/cl/5268041
+    https://golang.org/cl/5265041
 
- misc/emacs/go-mode.el | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 45 insertions(+)
+ doc/root.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

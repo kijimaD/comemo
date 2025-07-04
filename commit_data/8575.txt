@@ -1,60 +1,33 @@
-commit 16dbf2182cf1f091c22df07d215586dd38fdbb64
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 1 15:49:57 2011 -0400
+commit e0cca45fcb52825e2e21325bc7e5230bafcce088
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jun 1 15:23:22 2011 -0400
 
-    undo CL 4557058 / b4c2ffae7034
+    crypto/openpgp: add support for symmetrically encrypting files.
     
-    Using the getaddrinfo order is only okay if we
-    are smart enough to try multiple addresses in Dial.
-    Since the code does not do that, we must make
-    the right first choice, regardless of what getaddrinfo
-    does, and more often that not that means using the
-    IPv4 address, even on IPv6 systems.  With the CL
-    applied, gotest fails in package net on OS X.
+    This mostly adds the infrastructure for writing various forms of
+    packets as well as reading them. Adding symmetric encryption support
+    was simply an easy motivation.
     
-    helix.cam=; gotest
-    ...
-    --- FAIL: net.TestDialGoogleIPv4 (1.05 seconds)
-            -- 74.125.226.179:80 --
-            -- www.google.com:80 --
-            Dial("tcp", "", "www.google.com:80") = _, dial tcp [2001:4860:800f::69]:80: address family not supported by protocol family
-            -- 74.125.226.179:http --
-            -- www.google.com:http --
-            Dial("tcp", "", "www.google.com:http") = _, dial tcp [2001:4860:800f::69]:80: address family not supported by protocol family
-            -- 074.125.226.179:0080 --
-            -- [::ffff:74.125.226.179]:80 --
-            -- [::ffff:4a7d:e2b3]:80 --
-            -- [0:0:0:0:0000:ffff:74.125.226.179]:80 --
-            -- [0:0:0:0:000000:ffff:74.125.226.179]:80 --
-            -- [0:0:0:0:0:ffff::74.125.226.179]:80 --
-    FAIL
-    gotest: "./6.out" failed: exit status 1
+    There's also one brown-paper-bag fix in here. Previously I had the
+    conditional for the MDC hash check backwards: the code was checking
+    that the hash was *incorrect*. This was neatly counteracted by another
+    bug: it was hashing the ciphertext of the OCFB prefix, not the
+    plaintext.
     
-    ««« original CL description
-    net: name-based destination address selection
-    
-    getaddrinfo() orders the addresses according to RFC 3484.
-    
-    This means when IPv6 is working on a host we get results like:
-        []string = {"2001:4810::110", "66.117.47.214"}
-    
-    and when it's not working we get:
-        []string = {"66.117.47.214", "2001:4810::110"}
-    
-    thus can drop firstFavoriteAddr.
-    
-    This also means /etc/gai.conf works on relevant systems.
-    
-    R=rsc, mikioh.mikioh
+    R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4557058
-    
-    »»»
-    
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/4532101
+    https://golang.org/cl/4564046
 
- src/pkg/net/iprawsock.go |  2 +-
- src/pkg/net/ipsock.go    | 19 ++++++++++++++++++-
- 2 files changed, 19 insertions(+), 2 deletions(-)
+ src/pkg/crypto/cipher/ocfb.go                      |  8 +-
+ src/pkg/crypto/openpgp/packet/literal.go           | 37 +++++++++
+ src/pkg/crypto/openpgp/packet/packet.go            | 62 ++++++++++++++-
+ src/pkg/crypto/openpgp/packet/packet_test.go       | 44 ++++++++++
+ .../openpgp/packet/symmetric_key_encrypted.go      | 62 ++++++++++++++-
+ .../openpgp/packet/symmetric_key_encrypted_test.go | 39 +++++++++
+ .../openpgp/packet/symmetrically_encrypted.go      | 93 +++++++++++++++++++++-
+ .../openpgp/packet/symmetrically_encrypted_test.go | 46 +++++++++++
+ src/pkg/crypto/openpgp/s2k/s2k.go                  | 20 +++++
+ src/pkg/crypto/openpgp/s2k/s2k_test.go             | 24 ++++++
+ src/pkg/crypto/openpgp/write.go                    | 34 ++++++++
+ src/pkg/crypto/openpgp/write_test.go               | 35 ++++++++
+ 12 files changed, 492 insertions(+), 12 deletions(-)

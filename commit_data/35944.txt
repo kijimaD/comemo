@@ -1,15 +1,31 @@
-commit e86bbc2e27bc584c23acee7f26d6d5b8d27f143a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jul 10 06:47:44 2018 -0700
+commit 58734039bdddbdfd3c7cd4f9fc232a75f5cef32a
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Fri Mar 23 15:00:34 2018 +0000
 
-    os: clarify that Close cancels pending I/O
+    Revert "cmd/vendor/.../pprof: refresh from upstream@a74ae6f"
     
-    Change-Id: I6be6818d951a999f916c2266a6753a5ce5144ee7
-    Reviewed-on: https://go-review.googlesource.com/122955
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    This reverts commit c6e69ec7f930191022f1369761a680eecc2e89f1.
+    
+    Reason for revert: Broke builders. #24508
+    
+    Change-Id: I66abff0dd14ec6e1f8d8d982ccfb0438633b639d
+    Reviewed-on: https://go-review.googlesource.com/102316
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/os/file_plan9.go   | 3 ++-
- src/os/file_unix.go    | 3 ++-
- src/os/file_windows.go | 3 ++-
- 3 files changed, 6 insertions(+), 3 deletions(-)
+ .../google/pprof/internal/binutils/addr2liner.go   |  25 ++++++-----------
+ .../google/pprof/internal/binutils/binutils.go     |  11 ++------
+ .../pprof/internal/binutils/binutils_test.go       |   4 ++-
+ .../pprof/internal/binutils/testdata/build_mac.sh  |  31 ---------------------
+ .../pprof/internal/binutils/testdata/exe_mac_64    | Bin 8648 -> 0 bytes
+ .../testdata/exe_mac_64.dSYM/Contents/Info.plist   |  20 -------------
+ .../Contents/Resources/DWARF/exe_mac_64            | Bin 8840 -> 0 bytes
+ .../pprof/internal/binutils/testdata/lib_mac_64    | Bin 4496 -> 0 bytes
+ .../testdata/lib_mac_64.dSYM/Contents/Info.plist   |  20 -------------
+ .../Contents/Resources/DWARF/lib_mac_64            | Bin 8934 -> 0 bytes
+ .../google/pprof/internal/driver/driver.go         |   2 +-
+ .../google/pprof/internal/driver/fetch.go          |   3 +-
+ .../google/pprof/internal/driver/interactive.go    |   9 ++----
+ .../google/pprof/internal/elfexec/elfexec.go       |   2 +-
+ .../google/pprof/third_party/svgpan/svgpan.go      |   2 +-
+ src/cmd/vendor/vendor.json                         |   4 +--
+ 16 files changed, 23 insertions(+), 110 deletions(-)

@@ -1,19 +1,24 @@
-commit 9c3bf097c8acae50f4ff3659083fc0c84e81bf00
-Author: Rob Pike <r@golang.org>
-Date:   Fri Apr 17 11:21:02 2015 -0700
+commit 8fc73a39efe152f45cdc377351547279d9e11a5b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 24 22:16:48 2015 +1100
 
-    cmd/go: add $GOLINE to generate
+    cmd/8g, cmd/internal/gc: fix GO386=387 build
     
-    Also use os.Expand for variable substitution so ${x}y works.
+    Adjust Thearch.FREG_MIN/MAX when using non sse2 mode in 8g.
     
-    Fixes #9960.
+    Also, gc.Use_sse is treated as a bool, so make it a bool.
     
-    Change-Id: Ic8239b2e737d1f41910dde8ee9524ac48907cb03
-    Reviewed-on: https://go-review.googlesource.com/9007
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I840411605344bb31c32f492b3e6729166c084f0c
+    Reviewed-on: https://go-review.googlesource.com/7993
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
 
- src/cmd/go/doc.go                     |  2 ++
- src/cmd/go/generate.go                | 58 +++++++++++++----------------------
- src/cmd/go/test.bash                  |  8 ++---
- src/cmd/go/testdata/generate/test3.go |  2 +-
- 4 files changed, 29 insertions(+), 41 deletions(-)
+ src/cmd/8g/galign.go         | 12 ++++++++++--
+ src/cmd/8g/ggen.go           |  4 ++--
+ src/cmd/8g/gsubr.go          |  4 ++--
+ src/cmd/internal/gc/go.go    |  2 +-
+ src/cmd/internal/gc/gsubr.go |  4 ++++
+ src/cmd/internal/gc/lex.go   | 14 +++++++-------
+ 6 files changed, 26 insertions(+), 14 deletions(-)

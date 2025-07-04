@@ -1,15 +1,17 @@
-commit ae7a003cf9be6822419d108d6ca1cefa86bef488
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 9 12:35:45 2011 -0500
+commit 924ea515cf1d1a6f5e447c212e00e3e88c785c41
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Nov 9 18:30:54 2011 +0100
 
-    gc: add GOEXPERIMENT=reorg
+    gc: better error for non-calling use of unsafe builtins.
     
-    This won't last long but may ease conversions.
+    Fixes #1951
     
-    R=ken2
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/5375043
+    https://golang.org/cl/5372041
 
- src/cmd/gc/go.h  |  1 +
- src/cmd/gc/lex.c | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+)
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/typecheck.c   |  4 ++++
+ src/cmd/gc/unsafe.c      | 19 +++++++++++++++++--
+ test/fixedbugs/bug376.go | 11 +++++++++++
+ 4 files changed, 33 insertions(+), 2 deletions(-)

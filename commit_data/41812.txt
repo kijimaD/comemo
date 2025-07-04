@@ -1,17 +1,25 @@
-commit e9850462aa1e35d92ff428915df7bb0c9e79df81
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Wed Mar 11 12:51:44 2020 +0700
+commit 06bdd52f7540eca9e3ade6e78234d00703f3ee23
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 25 15:37:00 2019 -0400
 
-    cmd/compile: don't inline reflect.Value.UnsafeAddr/Pointer if enable checkptr
+    os: use an actual RemoveAll failure in TestRemoveAllWithMoreErrorThanReqSize
     
-    Fixes #35073
+    Previously we injected an error, and the injection points were
+    (empirically) not realistic on some platforms.
     
-    Change-Id: I4b555bbc33d39a97544e6dd9c61d95ae212f472b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222878
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Instead, we now make the directory read-only, which (on most
+    platforms) suffices to prevent the removal of its files.
+    
+    Fixes #35117
+    Updates #29921
+    
+    Change-Id: Ica4e2818566f8c14df3eed7c3b8de5c0abeb6963
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203502
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/inl.go |  6 ++++++
- test/fixedbugs/issue35073.go       | 23 +++++++++++++++++++++++
- 2 files changed, 29 insertions(+)
+ src/os/export_test.go    |  1 -
+ src/os/removeall_at.go   |  1 -
+ src/os/removeall_noat.go |  1 -
+ src/os/removeall_test.go | 50 ++++++++++++++++++++++++++++++++----------------
+ 4 files changed, 34 insertions(+), 19 deletions(-)

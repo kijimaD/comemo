@@ -1,15 +1,16 @@
-commit 5abf4bdc2775e4514f9cf8e2bf842f685eba2fd8
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Oct 19 10:55:41 2012 +1100
+commit 2abaaefa729502740002fc9a87c012ea7d1a3e64
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Oct 18 21:28:04 2012 +0200
 
-    image/draw: fast-path for 4:4:0 chroma subsampled sources.
+    image/jpeg: make TestDCT faster.
     
-    R=r
+    The value of cosines are cached in a global array
+    instead of being recomputed each time.
+    The test was terribly slow on arm.
+    
+    R=golang-dev, dave, nigeltao
     CC=golang-dev
-    https://golang.org/cl/6699049
+    https://golang.org/cl/6733046
 
- src/pkg/image/draw/draw.go                         |  33 ++++++++++++++++-----
- src/pkg/image/jpeg/reader_test.go                  |   1 +
- src/pkg/image/testdata/video-001.q50.440.jpeg      | Bin 0 -> 3662 bytes
- .../testdata/video-001.q50.440.progressive.jpeg    | Bin 0 -> 3529 bytes
- 4 files changed, 26 insertions(+), 8 deletions(-)
+ src/pkg/image/jpeg/dct_test.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

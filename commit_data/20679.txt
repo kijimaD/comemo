@@ -1,23 +1,62 @@
-commit 17a108ba079cd3e94fa4d847d651d3a813569a9b
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Thu Oct 9 16:52:28 2014 +1100
+commit 912ec1990bd09f8fc128c3fa6b59105085aabc03
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Mon Sep 29 17:04:48 2014 -0700
 
-    runtime: handle all windows exception
+    go/format, cmd/gofmt: fix issues with partial Go code with indent
     
-    Fixes #8006.
+    Fixes #5551.
+    Fixes #4449.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    Adds tests for both issues.
+    
+    Note that the two issues occur only when formatting partial Go code
+    with indent.
+    
+    The best way to understand the change is as follows: I took the code
+    of cmd/gofmt and go/format, combined it into one unified code that
+    does not suffer from either 4449 nor 5551, and then applied that code
+    to both cmd/gofmt and go/format.
+    
+    As a result, there is now much more identical code between the two
+    packages, making future code deduplication easier (it was not possible
+    to do that now without adding public APIs, which I was advised not to
+    do at this time).
+    
+    More specifically, I took the parse() of cmd/gofmt which correctly
+    preserves comments (issue 5551) and modified it to fix issue where
+    it would sometimes modify literal values (issue 4449).
+    
+    I ended up removing the matchSpace() function because it no longer
+    needed to do some of its work (insert indent), and a part of its work
+    had to be done in advance (determining the indentation of first code
+    line), because that calculation is required for cfg.Fprint() to run.
+    
+    adjustIndent is used to adjust the indent of cfg.Fprint() to compensate
+    for the body of wrapper func being indented by one level. This allows
+    to get rid of the bytes.Replace text manipulation of inner content,
+    which was problematic and sometimes altered raw string literals (issue
+    4449). This means that sometimes the value of cfg.Indent is negative,
+    but that works as expected.
+    
+    So now the algorithm for formatting partial Go code is:
+    
+    1. Determine and prepend leading space of original source.
+    2. Determine and prepend indentation of first code line.
+    3. Format and write partial Go code (with all of its leading &
+       trailing space trimmed).
+    4. Determine and append trailing space of original source.
+    
+    LGTM=gri
+    R=golang-codereviews, bradfitz, gri
     CC=golang-codereviews
-    https://golang.org/cl/145150043
+    https://golang.org/cl/142360043
 
- src/runtime/defs_windows.go         |  3 ++
- src/runtime/defs_windows_386.h      |  3 ++
- src/runtime/defs_windows_amd64.h    |  3 ++
- src/runtime/os_windows.c            | 35 ++++++++++---
- src/runtime/os_windows_386.c        | 84 +++++++++++++++++++-------------
- src/runtime/os_windows_amd64.c      | 97 ++++++++++++++++++++++++-------------
- src/runtime/sys_windows_386.s       | 18 ++++++-
- src/runtime/sys_windows_amd64.s     | 18 ++++++-
- src/runtime/syscall_windows_test.go | 39 +++++++++++++++
- 9 files changed, 224 insertions(+), 76 deletions(-)
+ src/cmd/gofmt/gofmt.go               | 163 +++++++++++++++------------
+ src/cmd/gofmt/long_test.go           |   4 +-
+ src/cmd/gofmt/testdata/stdin6.golden |  19 ++++
+ src/cmd/gofmt/testdata/stdin6.input  |  21 ++++
+ src/cmd/gofmt/testdata/stdin7.golden |  19 ++++
+ src/cmd/gofmt/testdata/stdin7.input  |  21 ++++
+ src/go/format/format.go              | 207 +++++++++++++++++++++--------------
+ src/go/format/format_test.go         |   6 +-
+ 8 files changed, 305 insertions(+), 155 deletions(-)

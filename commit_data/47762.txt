@@ -1,26 +1,20 @@
-commit c473ca087733236a6524900d037d92f32d5f6b70
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Dec 3 14:02:58 2021 -0500
+commit 2f3bc725fe80e1ba3ef726e412c212d533a43684
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Apr 7 16:28:13 2021 -0400
 
-    net: ignore EADDRINUSE errors when dialing to IPv4 from IPv6 on FreeBSD
+    [dev.fuzz] internal/fuzz: add mutator for int types
     
-    The failure mode in #34264 appears to match
-    https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=210726.
+    Assuming this works, will follow up with another CL
+    that mutates other types.
     
-    That bug was supposed to have been fixed in FreeBSD 12, but we're
-    still observing failures specifically for the 6-to-4 case on FreeBSD
-    12.2. It is not clear to me whether FreeBSD 13.0 is also affected.
-    
-    For #34264
-    
-    Change-Id: Iba7c7fc57676ae628b13c0b8fe43ddf2251c3637
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369157
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Id61acaacd56ca41e3be52e400f8f768672313bbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308169
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/net/dial_test.go      | 17 +++++++++++++++--
- src/net/dial_unix_test.go |  7 +++++++
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  | 14 +++++++
+ src/internal/fuzz/mutator.go                       | 48 ++++++++++++++++++++++
+ 2 files changed, 62 insertions(+)

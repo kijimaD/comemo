@@ -1,22 +1,38 @@
-commit e7495d873703b0f1602d796b147e56b5c432b1d5
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Fri Dec 2 13:33:04 2022 -0500
+commit 8893175c3b5267f1eb70c518b5de6f03037c4d03
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 6 11:26:11 2022 +0000
 
-    cmd/dist: remove GOTESTONLY environment variable
+    flag: make tests silent
     
-    This hook was added for the Go build system (x/build) to be able to set
-    the run flag value, but it's no longer used anywhere. Remove it for now.
+    A few of the tests were printing garbage to stderr,
+    since FlagSet's default Output is os.Stderr:
     
-    Updates #46054.
+            $ go test
+            flag provided but not defined: -x
+            invalid value "1" for flag -v: test error
+            Usage of test:
+            flag needs an argument: -b
+            Usage of test:
+              -b    usage
+            PASS
+            ok      flag    0.008s
     
-    Change-Id: I64e7d68d2b270303f3bd54f73079600f209e350a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/455519
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Add the remaining SetOutput(io.Discard) method calls.
+    
+    Note that TestUserDefinedFunc was a tricky one.
+    Even with the added SetOutput calls,
+    the last part of the test would still print usage text to stderr.
+    It took me a while to figure out the problem was copying FlagSet.
+    I've filed go.dev/issue/51507 to record this particular sharp edge,
+    and the test code now avoids making FlagSet copies to avoid the bug.
+    
+    Change-Id: I323f24091b98386312aa72df3eb890af6625628d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390234
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/flag/export_test.go | 6 +++++-
+ src/flag/flag_test.go   | 9 ++++++---
+ 2 files changed, 11 insertions(+), 4 deletions(-)

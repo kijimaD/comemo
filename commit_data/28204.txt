@@ -1,20 +1,66 @@
-commit 29272b1e611bf20b706e26757e5d0d872e61adff
-Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
-Date:   Mon Sep 5 15:14:55 2016 -0300
+commit 4fa050024fbdfff9eb43c930c5b1f73b1a16fafa
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 28 16:52:47 2016 -0700
 
-    cmd/go: use httpGET helper in bug command
+    cmd/compile: enable constant-time CFG editing
     
-    Use existing helper function instead of importing "net/http". This
-    allows the go_bootstrap build to not depend on "net/http" package.
-    See cmd/go/http.go for details.
+    Provide indexes along with block pointers for Preds
+    and Succs arrays.  This allows us to splice edges in
+    and out of those arrays in constant time.
     
-    Fixes build bootstrap build with all.bash.
+    Fixes worst-case O(n^2) behavior in deadcode and fuse.
     
-    Change-Id: I2fd0fb01af7774f1690a353af22137680ec78170
-    Reviewed-on: https://go-review.googlesource.com/28531
+    benchmark                     old ns/op      new ns/op     delta
+    BenchmarkFuse1-8              2065           2057          -0.39%
+    BenchmarkFuse10-8             9408           9073          -3.56%
+    BenchmarkFuse100-8            105238         76277         -27.52%
+    BenchmarkFuse1000-8           3982562        1026750       -74.22%
+    BenchmarkFuse10000-8          301220329      12824005      -95.74%
+    BenchmarkDeadCode1-8          1588           1566          -1.39%
+    BenchmarkDeadCode10-8         4333           4250          -1.92%
+    BenchmarkDeadCode100-8        32031          32574         +1.70%
+    BenchmarkDeadCode1000-8       590407         468275        -20.69%
+    BenchmarkDeadCode10000-8      17822890       5000818       -71.94%
+    BenchmarkDeadCode100000-8     1388706640     78021127      -94.38%
+    BenchmarkDeadCode200000-8     5372518479     168598762     -96.86%
+    
+    Change-Id: Iccabdbb9343fd1c921ba07bbf673330a1c36ee17
+    Reviewed-on: https://go-review.googlesource.com/22589
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/bug.go | 13 ++-----------
- 1 file changed, 2 insertions(+), 11 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  24 +-
+ src/cmd/compile/internal/arm/ssa.go            |   8 +-
+ src/cmd/compile/internal/gc/ssa.go             |  11 +-
+ src/cmd/compile/internal/ssa/block.go          | 119 ++++++--
+ src/cmd/compile/internal/ssa/check.go          |  42 +--
+ src/cmd/compile/internal/ssa/critical.go       |  88 +++---
+ src/cmd/compile/internal/ssa/deadcode.go       |  64 ++--
+ src/cmd/compile/internal/ssa/deadcode_test.go  |  29 +-
+ src/cmd/compile/internal/ssa/dom.go            |  18 +-
+ src/cmd/compile/internal/ssa/flagalloc.go      |   8 +-
+ src/cmd/compile/internal/ssa/func.go           |   8 +-
+ src/cmd/compile/internal/ssa/func_test.go      |   4 +-
+ src/cmd/compile/internal/ssa/fuse.go           |  72 ++---
+ src/cmd/compile/internal/ssa/fuse_test.go      |  40 +++
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  37 +--
+ src/cmd/compile/internal/ssa/html.go           |   6 +-
+ src/cmd/compile/internal/ssa/layout.go         |  10 +-
+ src/cmd/compile/internal/ssa/likelyadjust.go   |  19 +-
+ src/cmd/compile/internal/ssa/loopbce.go        |   6 +-
+ src/cmd/compile/internal/ssa/nilcheck.go       |   4 +-
+ src/cmd/compile/internal/ssa/phielim.go        |   1 +
+ src/cmd/compile/internal/ssa/phiopt.go         |  12 +-
+ src/cmd/compile/internal/ssa/print.go          |   3 +-
+ src/cmd/compile/internal/ssa/prove.go          |   6 +-
+ src/cmd/compile/internal/ssa/regalloc.go       |  32 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |   4 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 406 ++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewriteARM.go     |   4 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  19 +-
+ src/cmd/compile/internal/ssa/shortcircuit.go   |  58 ++--
+ src/cmd/compile/internal/ssa/sizeof_test.go    |   2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go     |   3 +-
+ src/cmd/compile/internal/ssa/trim.go           |  31 +-
+ 33 files changed, 637 insertions(+), 561 deletions(-)

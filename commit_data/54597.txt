@@ -1,28 +1,21 @@
-commit 352c8835e7609ad72872b5a63bffeb6142b29d98
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Sat Sep 30 09:57:36 2023 +0100
+commit e81263c79153e98c553c17f7c0417364bea827f5
+Author: liu-xuewen <liiuxuewen@gmail.com>
+Date:   Wed Nov 2 02:07:12 2022 +0000
 
-    make.bash: use [[ rather than [
+    cmd/compile: remove issueSpill
     
-    [[ is a compound command part of the language with structure,
-    whereas [ is simply a standard program with string arguments.
-    The former has a few significant advantages over the latter:
+    Remove the useless issueSpill and continue directly.
     
-    * Better syntax, e.g. && and || rather than -a and -o,
-      as well as == rather than = for comparisons
-    * No need for fork+exec to evaluate each conditional
-    * Forgetting the closing token is an early parse error
-    
-    The only advantage of [ over [[ is that [[ is Bash syntax,
-    whereas [ and "test" are portable POSIX Shell utilities.
-    However, this is a Bash script, so that is not a concern.
-    
-    Change-Id: I8a4bdd16845bd67bf67a348d7d96d45d5b131d85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531875
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I085e566be6f7200235e1bfe1f56a8e959316386a
+    GitHub-Last-Rev: 84db90cf34b135f9830d03effc3faa685fd8626e
+    GitHub-Pull-Request: golang/go#56520
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447195
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/make.bash | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

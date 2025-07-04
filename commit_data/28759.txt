@@ -1,22 +1,41 @@
-commit 6597bcbe53cad07b0ac4070b4f428f5db3331383
-Author: Dmitri Shuralyov <shurcooL@gmail.com>
-Date:   Tue Jul 26 13:01:18 2016 -0400
+commit 7bd88a651d0d9f8b314989475b337a0edf225bd1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Jul 10 23:34:46 2016 -0600
 
-    path/filepath: remove unneeded doc statement for SplitList
+    [dev.ssa] cmd/compile: don't sink spills that satisfy merge edges in SSA
     
-    This is a followup to CL 24747, where the package doc phrase
-    "Functions in this package replace occurrences of slash unless otherwise specified."
-    was removed. The phrase was originally added in CL 7310 together
-    with this explicit opt out statement for SplitList.
+    If a spill is used to satisfy a merge edge (in shuffle), don't sink
+    it out of loop.
     
-    Remove it since it's no longer neccessary. This helps consistency.
+    This is found in the following code (on ARM) where there is a stack
+    Phi (v268) inside a loop (b36 -> ... -> b47 -> b38 -> b36).
     
-    Updates #16111.
-    Updates #10122.
+    (before shuffle)
+      b36: <- b34 b38
+        ...
+        v268 = Phi <int> v410 v360 : autotmp_198[int]
+        ...
+        ... -> b47
+      b47: <- b44
+        ...
+        v360 = ... : R6
+        v230 = StoreReg <int> v360 : autotmp_198[int]
+        v261 = CMPconst <flags> [0] v360
+        EQ v261 -> b49 b38 (unlikely)
+      b38: <- b47
+        ...
+        Plain -> b36
     
-    Change-Id: Iba86de57c24100adecac9cb5892ce180126c0ea6
-    Reviewed-on: https://go-review.googlesource.com/25250
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    During shuffle, v230 (as spill of v360) is found to satisfy v268, but
+    it didn't record its use in shuffle, and v230 is sunk out of the loop
+    (to b49), which leads to bad value in v268.
+    
+    This seems never happened on AMD64 (in make.bash), until 4 registers
+    are removed.
+    
+    Change-Id: I01dfc28ae461e853b36977c58bcfc0669e556660
+    Reviewed-on: https://go-review.googlesource.com/24858
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/path/filepath/path.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/regalloc.go | 3 +++
+ 1 file changed, 3 insertions(+)

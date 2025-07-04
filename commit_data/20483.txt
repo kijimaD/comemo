@@ -1,25 +1,15 @@
-commit 2ed209eaf59c3b7372258419c5fa1f5b0abc507e
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Sep 19 11:38:48 2014 +1000
+commit 91baf5c65d50a1fd33097d2610e32d575d054e6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 11 16:33:01 2014 -0400
 
-    runtime: allow OutputDebugString to be sent to debugger
+    runtime: make Gosched nosplit
     
-    We mark DBG_PRINTEXCEPTION_C messages in VEH handler
-    as handled, thus preventing debugger from seeing them.
-    I don't see reason for doing that. The comment warns
-    of crashes, but I added test and don't see any crashes.
+    Replacing gosched with Gosched broke some builds because
+    some of the call sites are at times when the stack cannot be grown.
     
-    This is also simplify VEH handler before making
-    changes to fix issue 8006.
-    
-    Update #8006
-    
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    TBR=khr
     CC=golang-codereviews
-    https://golang.org/cl/146800043
+    https://golang.org/cl/142000043
 
- src/runtime/os_windows_386.c        | 15 ---------------
- src/runtime/os_windows_amd64.c      | 15 ---------------
- src/runtime/syscall_windows_test.go |  6 ++++++
- 3 files changed, 6 insertions(+), 30 deletions(-)
+ src/runtime/proc.go | 2 ++
+ 1 file changed, 2 insertions(+)

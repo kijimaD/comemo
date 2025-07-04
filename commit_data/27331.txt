@@ -1,19 +1,16 @@
-commit 55546efeee9fb6104d3dfd76351e7765df0bdd71
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun May 8 12:54:31 2016 -0700
+commit b07a214d39814545bbcd1d30f1850a95752dac65
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 21 10:47:24 2016 -0700
 
-    Revert "cmd/compile: properly handle map assignments for OAS2DOTTYPE"
+    cmd/internal/obj: change linkgetline from C to Go func style
     
-    This reverts commit 9d7c9b4384db01afd2acb27d3a4636b60e957f08.
+    Passes toolstash -cmp.
     
-    For #15602.
-    
-    Change-Id: I464184b05babe4cb8dedab6161efa730cea6ee2d
-    Reviewed-on: https://go-review.googlesource.com/22930
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8725dee490778be9c1fd31990a6b27df9713c3c9
+    Reviewed-on: https://go-review.googlesource.com/20957
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 26 ++++++++++----------------
- test/fixedbugs/issue14678.go         | 27 ---------------------------
- 2 files changed, 10 insertions(+), 43 deletions(-)
+ src/cmd/internal/obj/line_test.go | 4 +---
+ src/cmd/internal/obj/obj.go       | 9 +++------
+ src/cmd/internal/obj/pcln.go      | 4 +---
+ 3 files changed, 5 insertions(+), 12 deletions(-)

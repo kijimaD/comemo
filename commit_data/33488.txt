@@ -1,27 +1,16 @@
-commit 183616048a7fe6af4853515ed8ea5bd87d8908b7
+commit 4a52038c03d13025d074dcdea54d7a21139bb3b7
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 8 13:34:31 2017 -0500
+Date:   Fri Jun 9 10:45:49 2017 -0400
 
-    cmd/go: always update mtime during go install / go build -o / go test -c
+    cmd/go: use objdir as consistent variable name for per-package work dir
     
-    Even if the go command can see that the target is up-to-date
-    an mtime-based build system invoking the go command may not
-    be able to tell. Update the mtime to make clear that the target is
-    up-to-date, and also to hide exactly how smart the go command
-    is or is not. This keeps users (and programs) from depending on
-    the exact details of the go command's staleness determination.
+    Before it was obj, but if you don't have everything paged in
+    that sounds a bit like an object file. Use objdir, which is more
+    clearly a directory and also matches the Action.Objdir struct field.
     
-    Without this I believe we will get a stream of (completely reasonable)
-    bug reports that "go install (or go test -c) did not update the binary
-    after I trivially changed the source code or touched a source file".
-    
-    Change-Id: I920e4aaed2a57319e3c0c37717f872bc059e484e
-    Reviewed-on: https://go-review.googlesource.com/76590
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I268042800f9ca05721814d7f18c728acb4831232
+    Reviewed-on: https://go-review.googlesource.com/56277
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/go/go_test.go              | 39 ++++++++++++++++++++++++++++++++++++++
- src/cmd/go/internal/work/action.go | 28 ++++++++++++++++++---------
- src/cmd/go/internal/work/exec.go   | 23 ++++++++++++++++++++++
- 3 files changed, 81 insertions(+), 9 deletions(-)
+ src/cmd/go/internal/work/build.go | 156 +++++++++++++++++++-------------------
+ 1 file changed, 78 insertions(+), 78 deletions(-)

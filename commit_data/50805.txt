@@ -1,29 +1,46 @@
-commit 881a16542e357fd85ac492424021ff380175675a
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed Oct 5 12:54:00 2022 -0400
+commit e9ef931e0649563e800f0a284ad3606564a88b35
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 8 13:53:55 2021 -0500
 
-    cmd/go/internal/modindex: ignore non-source files for index
+    cmd/compile/internal/ssa: fix debug location gen issue with zero width ops
     
-    We were saving non-go file information in the module index files,
-    leading in an unnecessary increase in memory usage in modules
-    containing many non-go files. This was a bug because this information
-    is never used. Don't save that information.
+    Revamp the way that buildLocationLists() handles zero-width
+    operations, to fix a couple of problems that result in bad debug
+    locations.
     
-    For #54226
+    The problematic scenario in this specific bug is where you have a
+    parameter arriving in a register X, then a spill of register X to
+    memory as the first non-zero-width instruction in the function.
+    Example:
     
-    Change-Id: I0644064f83f96e3a9f43b7e66ca94d69d9603376
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/439118
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+        v68 = ArgIntReg <unsafe.Pointer> {ctx+0} [1] : BX (ctx[unsafe.Pointer])
+        v67 = ArgIntReg <unsafe.Pointer> {ctx+8} [2] : CX (ctx+8[unsafe.Pointer])
+        ...
+        v281 = StoreReg <unsafe.Pointer> v67 : ctx+8[unsafe.Pointer]
+    
+    The existing buildLocationLists implementation effectively buffers or
+    bundles changes from zero-width instructions until it it sees a
+    non-zero-width instruction, but doing that in this case winds up
+    making it look as though the parameter is live into the function in
+    memory, not in a register.
+    
+    The fix for this to separate out zero-width ops into two distinct
+    categories: those that whose lifetimes begin at block start (ex:
+    OpArg, Phi) and those whose effects are taking place at the nearest
+    non-zero-width instruction (ex: OpSelect0). In this patch we now
+    handle the first category of ops in an initial pre-pass for each
+    block, and leave the second category for the main pass through the
+    block. See the notes on the issue below for a more detailed
+    explanation of the failure mode.
+    
+    Fixes #46845.
+    
+    Change-Id: I27488d4c041019d5a0b897b7cf53000f63aab1cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362244
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/modindex/build.go                   |  7 ++++++-
- src/cmd/go/internal/modindex/index_test.go              | 17 +++++++++++++++++
- src/cmd/go/internal/modindex/scan.go                    |  5 ++++-
- .../internal/modindex/testdata/ignore_non_source/a.syso |  1 +
- .../internal/modindex/testdata/ignore_non_source/b.go   |  0
- .../modindex/testdata/ignore_non_source/bar.json        |  0
- .../modindex/testdata/ignore_non_source/baz.log         |  0
- .../go/internal/modindex/testdata/ignore_non_source/c.c |  0
- 8 files changed, 28 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 89 +++++++++++++++++++++++++----------
+ 1 file changed, 64 insertions(+), 25 deletions(-)

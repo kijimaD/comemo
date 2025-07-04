@@ -1,81 +1,23 @@
-commit 0adcc5ace8c01d8bf587827e672120d74fbaca36
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri May 19 19:12:35 2023 +0000
+commit c3833a55433f4b2981253f64444fe5c3d1bc910a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 6 18:40:17 2022 -0700
 
-    runtime: cache inner pinner on P
+    runtime: process ptr bitmaps one word at a time
     
-    This change caches the *pinner on the P to pool it and reduce the chance
-    that a new allocation is made. It also makes the *pinner no longer drop
-    its refs array on unpin, also to avoid reallocating.
+    Read the bitmaps one uintptr at a time instead of one byte at a time.
     
-    The Pinner benchmark results before and after this CL are attached at
-    the bottom of the commit message.
+    Performance so far:
+     Allocation heavy, no retention: ~30% faster in heapBitsSetType
+     Scan heavy, ~no allocation: ~even in scanobject
     
-    Note that these results are biased toward the current change because of
-    the last two benchmark changes. Reusing the pinner in the benchmark
-    itself achieves similar performance before this change. The benchmark
-    results thus basically just confirm that this change does cache the
-    inner pinner in a useful way. Using the previous benchmarks there's
-    actually a slight regression from the extra check in the cache, however
-    the long pole is still setPinned itself.
-    
-    name                                old time/op    new time/op    delta
-    PinnerPinUnpinBatch-8                 42.2µs ± 2%    41.5µs ± 1%      ~     (p=0.056 n=5+5)
-    PinnerPinUnpinBatchDouble-8            367µs ± 1%     350µs ± 1%    -4.67%  (p=0.008 n=5+5)
-    PinnerPinUnpinBatchTiny-8              108µs ± 0%     102µs ± 1%    -6.22%  (p=0.008 n=5+5)
-    PinnerPinUnpin-8                       592ns ± 8%      40ns ± 1%   -93.29%  (p=0.008 n=5+5)
-    PinnerPinUnpinTiny-8                   693ns ± 9%      39ns ± 1%   -94.31%  (p=0.008 n=5+5)
-    PinnerPinUnpinDouble-8                 843ns ± 5%     124ns ± 3%   -85.24%  (p=0.008 n=5+5)
-    PinnerPinUnpinParallel-8              1.11µs ± 5%    0.00µs ± 0%   -99.55%  (p=0.008 n=5+5)
-    PinnerPinUnpinParallelTiny-8          1.12µs ± 8%    0.00µs ± 1%   -99.55%  (p=0.008 n=5+5)
-    PinnerPinUnpinParallelDouble-8        1.79µs ± 4%    0.58µs ± 6%   -67.36%  (p=0.008 n=5+5)
-    PinnerIsPinnedOnPinned-8              5.78ns ± 0%    5.80ns ± 1%      ~     (p=0.548 n=5+5)
-    PinnerIsPinnedOnUnpinned-8            4.99ns ± 1%    4.98ns ± 0%      ~     (p=0.841 n=5+5)
-    PinnerIsPinnedOnPinnedParallel-8      0.71ns ± 0%    0.71ns ± 0%      ~     (p=0.175 n=5+5)
-    PinnerIsPinnedOnUnpinnedParallel-8    0.67ns ± 1%    0.66ns ± 0%      ~     (p=0.167 n=5+5)
-    
-    name                                old alloc/op   new alloc/op   delta
-    PinnerPinUnpinBatch-8                 20.1kB ± 0%    20.0kB ± 0%    -0.32%  (p=0.008 n=5+5)
-    PinnerPinUnpinBatchDouble-8           52.7kB ± 0%    52.7kB ± 0%    -0.12%  (p=0.008 n=5+5)
-    PinnerPinUnpinBatchTiny-8             20.1kB ± 0%    20.0kB ± 0%    -0.32%  (p=0.008 n=5+5)
-    PinnerPinUnpin-8                       64.0B ± 0%      0.0B       -100.00%  (p=0.008 n=5+5)
-    PinnerPinUnpinTiny-8                   64.0B ± 0%      0.0B       -100.00%  (p=0.008 n=5+5)
-    PinnerPinUnpinDouble-8                 64.0B ± 0%      0.0B       -100.00%  (p=0.008 n=5+5)
-    PinnerPinUnpinParallel-8               64.0B ± 0%      0.0B       -100.00%  (p=0.008 n=5+5)
-    PinnerPinUnpinParallelTiny-8           64.0B ± 0%      0.0B       -100.00%  (p=0.008 n=5+5)
-    PinnerPinUnpinParallelDouble-8         64.0B ± 0%      0.0B       -100.00%  (p=0.008 n=5+5)
-    PinnerIsPinnedOnPinned-8               0.00B          0.00B           ~     (all equal)
-    PinnerIsPinnedOnUnpinned-8             0.00B          0.00B           ~     (all equal)
-    PinnerIsPinnedOnPinnedParallel-8       0.00B          0.00B           ~     (all equal)
-    PinnerIsPinnedOnUnpinnedParallel-8     0.00B          0.00B           ~     (all equal)
-    
-    name                                old allocs/op  new allocs/op  delta
-    PinnerPinUnpinBatch-8                   9.00 ± 0%      8.00 ± 0%   -11.11%  (p=0.008 n=5+5)
-    PinnerPinUnpinBatchDouble-8             11.0 ± 0%      10.0 ± 0%    -9.09%  (p=0.008 n=5+5)
-    PinnerPinUnpinBatchTiny-8               9.00 ± 0%      8.00 ± 0%   -11.11%  (p=0.008 n=5+5)
-    PinnerPinUnpin-8                        1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
-    PinnerPinUnpinTiny-8                    1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
-    PinnerPinUnpinDouble-8                  1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
-    PinnerPinUnpinParallel-8                1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
-    PinnerPinUnpinParallelTiny-8            1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
-    PinnerPinUnpinParallelDouble-8          1.00 ± 0%      0.00       -100.00%  (p=0.008 n=5+5)
-    PinnerIsPinnedOnPinned-8                0.00           0.00           ~     (all equal)
-    PinnerIsPinnedOnUnpinned-8              0.00           0.00           ~     (all equal)
-    PinnerIsPinnedOnPinnedParallel-8        0.00           0.00           ~     (all equal)
-    PinnerIsPinnedOnUnpinnedParallel-8      0.00           0.00           ~     (all equal)
-    
-    For #46787.
-    
-    Change-Id: I0cdfad77b189c425868944a4faeff3d5b97417b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497615
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Ansiwen <ansiwen@gmail.com>
+    Change-Id: I40d492b50d7f89d1b4261c2de58f6d255fa5e93e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407036
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/mgc.go      |  4 ++++
- src/runtime/pinner.go   | 50 +++++++++++++++++++++++++++++++++++++++----------
- src/runtime/proc.go     |  1 +
- src/runtime/runtime2.go |  4 ++++
- 4 files changed, 49 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  6 +-
+ src/reflect/type.go                             | 19 ++++--
+ src/runtime/mbitmap.go                          | 83 +++++++++++++++++++++----
+ 3 files changed, 91 insertions(+), 17 deletions(-)

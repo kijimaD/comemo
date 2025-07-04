@@ -1,15 +1,20 @@
-commit f84d28b7755f256efda7830a3b78b46464497527
-Author: Fangming.Fang <fangming.fang@arm.com>
-Date:   Sat Feb 2 10:27:37 2019 +0000
+commit 09f541173e6901a5fc86917561a2eb7c43572edf
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Dec 5 20:59:42 2018 +0100
 
-    cmd/dist: skip race detector test failure for unsupported VMA
+    net: skip TestVariousDeadlines on Plan 9
     
-    Fixes #29948
+    This test is regularly failing on the plan9/386
+    builder running on GCE, but we haven't figured
+    out the issue yet.
     
-    Change-Id: I01d041655d34a5de32701dec8b360e347593a45d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/160919
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #26945.
+    
+    Change-Id: I8cbe0df43c0757e7bc68e370311f4a28cd7b049b
+    Reviewed-on: https://go-review.googlesource.com/c/152721
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/dist/test.go              | 20 ++++++++++++++++++++
- src/cmd/internal/sys/supported.go |  3 +++
- 2 files changed, 23 insertions(+)
+ src/net/timeout_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

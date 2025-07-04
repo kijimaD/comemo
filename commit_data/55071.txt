@@ -1,25 +1,18 @@
-commit 78d037b0e016260819f2ff1dac745eda71070a18
-Author: qiulaidongfeng <2645477756@qq.com>
-Date:   Mon Nov 20 23:08:53 2023 +0000
+commit 0b8add46ce9e763ce8c60c71b3d647f6af02e07a
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Dec 14 14:55:30 2022 -0500
 
-    os: avoid TestFileChdir fail when GOROOT is a symbolic link
+    doc/go1.20.html: pre-announce dropping Windows 7, 8, and friends
     
-    If GOROOT is a symbolic link,
-    the paths obtained from the
-    first and second Getwd of TestFileChdir are different,
-    and this CL fixes the test failure in this situation.
+    For #57003, #57004.
     
-    Fixes #64281
-    
-    Change-Id: I53026b6c54a54be08833396e2c7081ca3ab8c282
-    GitHub-Last-Rev: 5cc418e6255f6fa530e5a43e3b4d96759e604571
-    GitHub-Pull-Request: golang/go#64001
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/540521
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic1386a0ce83897411fbc68c83a9125af1cc11b54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457695
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/os/os_test.go | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ doc/go1.20.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

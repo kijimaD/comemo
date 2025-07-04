@@ -1,14 +1,12 @@
-commit e54ad64ff346281b707c75c72566b63080864dcf
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 7 08:24:10 2012 -0800
+commit 08854b022fec37e16d35e3e4e029e703f1911463
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 10:21:56 2012 -0500
 
-    test: add inherited interface test to ddd.go
+    test: fix typo
     
-    The gccgo compiler incorrectly gave an error for this code.
-    
-    R=golang-dev, rsc
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5767043
+    https://golang.org/cl/5752073
 
- test/ddd.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ test/fixedbugs/bug424.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

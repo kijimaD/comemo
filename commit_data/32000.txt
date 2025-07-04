@@ -1,15 +1,12 @@
-commit 58ae050055ef00b97f1119e042fe7b459b20e839
-Author: Costin Chirvasuta <ctin@google.com>
-Date:   Fri Jul 7 21:26:45 2017 +0100
+commit 8295dbda03ef2bfaccb6e2c139f1981d0c69964d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 28 14:59:13 2017 -0400
 
-    runtime: simplify description of FuncForPC behavior in case of inlining
+    cmd/go: make pattern matching tests less repetitive
     
-    The current description refers to the outermost "frame" which can be
-    misleading. A user reading it can think it means a stack frame.
-    
-    Change-Id: Ie2c7cb4b4db8f41572df206478ce3b46a0245a5d
-    Reviewed-on: https://go-review.googlesource.com/47850
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I25db1d637dd461cec67ba70659d523b46895c113
+    Reviewed-on: https://go-review.googlesource.com/38744
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/symtab.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/load/match_test.go | 135 ++++++++++++++++++++++-----------
+ 1 file changed, 89 insertions(+), 46 deletions(-)

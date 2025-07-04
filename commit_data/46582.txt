@@ -1,20 +1,19 @@
-commit 9ce601df6a8292f763b07994680013facd7b4a63
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Thu Sep 23 23:40:58 2021 +0700
+commit 2abd24f3b78f8f605840e5a0dd3b4f76734f6c13
+Author: David Chase <drchase@google.com>
+Date:   Mon Jan 4 14:05:17 2021 -0500
 
-    cmd/go: move gc concurrency level computation near gcflags
+    [dev.regabi] test: make run.go error messages slightly more informative
     
-    So after constructing "args" variable, "gcflags" is not used anywhere.
-    It makes the code easier to maintain, and prevent subtle bug like #48490.
+    This is intended to make it easier to write/change a test
+    without referring to the source code to figure out what the
+    error messages actually mean, or how to correct them.
     
-    Change-Id: I41653536480880a8a6f9fbf6cfa8a461b6fb3208
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351849
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ie79ff7cd9f2d1fa605257fe97eace68adc8a6716
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281452
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/work/gc.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ test/run.go | 44 ++++++++++++++++++++++----------------------
+ 1 file changed, 22 insertions(+), 22 deletions(-)

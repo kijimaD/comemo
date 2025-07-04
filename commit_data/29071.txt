@@ -1,20 +1,17 @@
-commit 66e849b168eef36a4159a4b038fe89eecd2f22e3
-Author: Austin Clements <austin@google.com>
-Date:   Tue Oct 4 15:56:19 2016 -0400
+commit e14e67fff63b364f531667c1a2390feb4b3c1c64
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 6 09:24:16 2016 -0700
 
-    runtime: eliminate mheap.nspan and use range loops
+    cmd/compile: clean up one Node.Etype usage
     
-    This was necessary in the C days when allspans was an mspan**, but now
-    that allspans is a Go slice, this is redundant with len(allspans) and
-    we can use range loops over allspans.
+    Whoever Marvin is, we're one step closer to realizing his dream.
     
-    Change-Id: Ie1dc39611e574e29a896e01690582933f4c5be7e
-    Reviewed-on: https://go-review.googlesource.com/30531
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I8dece4417d0f9ec234be158d0ee7bc6735342d93
+    Reviewed-on: https://go-review.googlesource.com/27465
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/heapdump.go | 14 ++++----------
- src/runtime/mheap.go    |  4 ----
- src/runtime/mstats.go   |  3 +--
- 3 files changed, 5 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/inl.go    |  6 ++----
+ src/cmd/compile/internal/gc/syntax.go | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 4 deletions(-)

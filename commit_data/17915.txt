@@ -1,12 +1,12 @@
-commit d4f68f2892f4ebcdec57f07e32178b15612f8a73
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Fri Dec 6 15:36:54 2013 -0800
+commit a5cc5bab5a8ead995d5eb51ee0991635eeab15ed
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Fri Dec 6 13:33:10 2013 -0800
 
-    cmd/gc: clarify a TODO regarding variables used in liveness analysis
+    doc: update list of gccgo import search paths
     
-    R=golang-dev, iant
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/38640043
+    https://golang.org/cl/38560043
 
- src/cmd/gc/plive.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/gccgo_install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,16 @@
-commit 960016eca27f2e727886c51ed98dd5ae47c150dc
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Sat Sep 3 18:29:43 2016 -0700
+commit 24744f6561f3ff7bc58046ba62abbc1c07e9fd4e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 4 11:43:42 2016 -0700
 
-    compress/flate: clarify the behavior of Writer.Flush
+    cmd/compile: check that SSA memory args are in the right place
     
-    Fixes #16068
+    Fixes #15510
     
-    Change-Id: I04e80a181c0b7356996f7a1158ea4895ff9e1e39
-    Reviewed-on: https://go-review.googlesource.com/28477
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I2e0568778ef90cf29712753b8c42109ef84a0256
+    Reviewed-on: https://go-review.googlesource.com/22784
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/compress/flate/deflate.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/check.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

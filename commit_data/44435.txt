@@ -1,46 +1,53 @@
-commit e25040d16288563c89cead5e8da8d3b9c74ab655
-Author: David Chase <drchase@google.com>
-Date:   Thu Feb 4 16:42:35 2021 -0500
+commit 987ce938245566f8a8568cb3b7f43ff8442c2353
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 26 16:35:49 2020 -0400
 
-    cmd/compile: change StaticCall to return a "Results"
+    [dev.link] cmd/link: emit ELF relocations in mmap
     
-    StaticLECall (multiple value in +mem, multiple value result +mem) ->
-    StaticCall (multiple ergister value in +mem,
-       multiple register-sized-value result +mem) ->
-    ARCH CallStatic (multiple ergister value in +mem,
-       multiple register-sized-value result +mem)
+    Currently, ELF relocations are generated sequentially in the heap
+    and flushed to output file periodically. In fact, in some cases,
+    the output size of the relocation records can be easily computed,
+    as a relocation entry has fixed size. We only need to count the
+    number of relocation records to compute the size.
     
-    But the architecture-dependent stuff is indifferent to whether
-    it is mem->mem or (mem)->(mem) until Prog generation.
+    Once the size is computed, we can mmap the output with the proper
+    size, and directly write relocation records in the mapped memory.
+    It also opens the possibility of writing relocations in parallel
+    (not done in this CL).
     
-    Deal with OpSelectN -> Prog in ssagen/ssa.go, others, as they
-    appear.
+    Note: on some architectures, a Go relocation may turn into
+    multiple ELF relocations, which makes size calculation harder.
+    This CL does not handle those cases, and it still writes
+    sequentially in the heap there.
     
-    For #40724.
+    Linking cmd/compile with external linking,
     
-    Change-Id: I1d0436f6371054f1881862641d8e7e418e4a6a16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/293391
-    Trust: David Chase <drchase@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    name          old time/op    new time/op    delta
+    Asmb2            190ms ± 2%     141ms ± 4%  -25.74%  (p=0.000 n=10+10)
+    
+    name          old alloc/op   new alloc/op   delta
+    Asmb2_GC        66.8MB ± 0%     8.2MB ± 0%  -87.79%  (p=0.008 n=5+5)
+    
+    name          old live-B     new live-B     delta
+    Asmb2_GC         66.9M ± 0%     55.2M ± 0%  -17.58%  (p=0.008 n=5+5)
+    
+    Change-Id: If7056bbe909dc90033eef6b9c4891fcca310602c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240399
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/abi/abiutils.go       |  83 ++++-
- src/cmd/compile/internal/ssa/cse.go            |   2 +-
- src/cmd/compile/internal/ssa/expand_calls.go   |  38 ++-
- src/cmd/compile/internal/ssa/gen/generic.rules |  54 +---
- src/cmd/compile/internal/ssa/gen/genericOps.go |   2 +-
- src/cmd/compile/internal/ssa/location.go       |  14 +
- src/cmd/compile/internal/ssa/lower.go          |   2 +-
- src/cmd/compile/internal/ssa/op.go             |  10 +
- src/cmd/compile/internal/ssa/opGen.go          |   2 +-
- src/cmd/compile/internal/ssa/regalloc.go       |  20 +-
- src/cmd/compile/internal/ssa/rewrite.go        |  14 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 411 ++++++++-----------------
- src/cmd/compile/internal/ssa/schedule.go       |  16 +-
- src/cmd/compile/internal/ssa/tighten.go        |   3 +-
- src/cmd/compile/internal/ssa/tuple.go          |  40 ++-
- src/cmd/compile/internal/ssa/writebarrier.go   |  17 +-
- src/cmd/compile/internal/ssagen/ssa.go         |  18 +-
- src/cmd/compile/internal/types/type.go         |  23 +-
- 18 files changed, 387 insertions(+), 382 deletions(-)
+ src/cmd/link/internal/amd64/obj.go         |  1 +
+ src/cmd/link/internal/arm/obj.go           |  1 +
+ src/cmd/link/internal/ld/data.go           |  2 ++
+ src/cmd/link/internal/ld/elf.go            | 25 ++++++++++++++++++++++++-
+ src/cmd/link/internal/ld/lib.go            | 15 +++++++++------
+ src/cmd/link/internal/ld/outbuf.go         |  5 +----
+ src/cmd/link/internal/ld/outbuf_mmap.go    | 20 +++++++++++++++++++-
+ src/cmd/link/internal/ld/outbuf_nommap.go  |  7 +++++++
+ src/cmd/link/internal/ld/outbuf_windows.go | 15 +++++++++++++++
+ src/cmd/link/internal/mips/obj.go          |  1 +
+ src/cmd/link/internal/mips64/obj.go        |  1 +
+ src/cmd/link/internal/s390x/obj.go         |  1 +
+ src/cmd/link/internal/sym/segment.go       | 10 ++++++++--
+ 13 files changed, 90 insertions(+), 14 deletions(-)

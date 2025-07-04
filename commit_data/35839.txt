@@ -1,28 +1,33 @@
-commit 1d1e25fba88b5c61cd25889d005875848a993ea3
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Thu Jun 28 17:18:01 2018 +0100
+commit 85a8d25d535a9b70f6c908e44f8558c207366ff1
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Fri Mar 9 23:09:46 2018 +0300
 
-    cmd/vet: don't run buildtag check when in vetxonly mode
+    cmd/compile/internal/ssa: emit IMUL3{L/Q} for MUL{L/Q}const on x86
     
-    The check was running in the loop that read source files in, much before
-    any of the other checks ran. Vetxonly makes vet exit early, but after
-    all the source files have been read.
+    cmd/asm now supports three-operand form of IMUL,
+    so instead of using IMUL with resultInArg0, emit IMUL3 instruction.
     
-    To fix this, simply run the buildtag check along with all the other
-    checks that get run on specific syntax tree nodes.
+    This results in less redundant MOVs where SSA assigns
+    different registers to input[0] and dst arguments.
     
-    Add a cmd/go test with go test -a, to ensure that the issue as reported
-    is fixed.
+    Note: these have exactly the same encoding when reg0=reg1:
+          IMUL3x $const, reg0, reg1
+          IMULx $const, reg
+    Two-operand IMULx is like a crippled IMUL3x, with dst fixed to input[0].
+    This is why we don't bother to generate IMULx for the case where
+    dst is the same as input[0].
     
-    Fixes #26102.
-    
-    Change-Id: If6e3b9418ffa8166c0f982668b0d10872283776a
-    Reviewed-on: https://go-review.googlesource.com/121395
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I4becda475b3dffdd07b6fdf1c75bacc82af654e4
+    Reviewed-on: https://go-review.googlesource.com/99656
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/go_test.go                    | 5 +++++
- src/cmd/go/testdata/src/vetfail/p1/p1.go | 2 ++
- src/cmd/vet/main.go                      | 2 +-
- 3 files changed, 8 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/amd64/ssa.go        |  9 +--------
+ src/cmd/compile/internal/ssa/gen/386Ops.go   |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
+ src/cmd/compile/internal/ssa/opGen.go        |  9 +++------
+ src/cmd/compile/internal/x86/ssa.go          |  9 +--------
+ test/codegen/arithmetic.go                   | 12 ++++++------
+ 6 files changed, 14 insertions(+), 31 deletions(-)

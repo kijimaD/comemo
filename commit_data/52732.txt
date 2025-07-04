@@ -1,22 +1,22 @@
-commit d11ff3f08155b7614485d9b555e97f7a9555ede5
-Author: Austin Clements <austin@google.com>
-Date:   Thu Apr 20 16:09:48 2023 +0000
+commit 69b412b7d6e9cbd9908b7a9641d1c6af3ff6bc63
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 16 12:02:54 2022 -0700
 
-    Revert "runtime, cmd: rationalize StackLimit and StackGuard"
+    internal/pkgbits: better documentation
     
-    This reverts commit CL 486380.
-    
-    Submitted out of order and breaks bootstrap.
-    
-    Change-Id: I67bd225094b5c9713b97f70feba04d2c99b7da76
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486916
+    Change-Id: I3f96a6e8a43faa5c8111b9d979aa37822c1dce06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407434
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-    TryBot-Bypass: Austin Clements <austin@google.com>
 
- src/cmd/internal/objabi/stack.go       | 15 ++++++++++++---
- src/cmd/link/internal/ld/stackcheck.go |  2 +-
- src/internal/abi/stack.go              |  8 --------
- src/runtime/preempt.go                 |  2 +-
- src/runtime/stack.go                   | 19 ++++++++++---------
- test/nosplit.go                        | 13 ++++++++++---
- 6 files changed, 34 insertions(+), 25 deletions(-)
+ src/cmd/compile/internal/importer/support.go |  2 ++
+ src/cmd/compile/internal/noder/writer.go     |  9 +++++++
+ src/go/internal/gcimporter/support.go        |  2 ++
+ src/internal/pkgbits/decoder.go              | 37 ++++++++++++++++++++++++++--
+ src/internal/pkgbits/doc.go                  | 30 ++++++++++++++++++++++
+ src/internal/pkgbits/encoder.go              | 16 ++++++++++--
+ src/internal/pkgbits/reloc.go                |  2 +-
+ 7 files changed, 93 insertions(+), 5 deletions(-)

@@ -1,24 +1,32 @@
-commit 2ba3fd484bb048be86c2bd804900151a1ec5affd
-Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
-Date:   Mon Jan 1 17:17:14 2018 -0800
+commit 3844e707f699198ba44eaf911cbaf673aed8f286
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Aug 31 12:50:57 2017 +0200
 
-    net/http: relax the matching of strace output in test
+    cmd/dist: simplify code segments
     
-    Modify the regex in TestLinuxSendfile to not match the parameters of
-    the syscall, just its name and the opening parenthesis. This is enough
-    to recognize that the syscall was invoked.
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (7).
     
-    This fixes the TestLinuxSendfile test when running in Clear Linux,
-    where strace always execute with -yy implied, having output with extra
-    information in the parameters:
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
     
-        [pid  5336] sendfile(6<TCP:[127.0.0.1:35007->127.0.0.1:55170]>, 8</home/c/src/go/src/net/http/testdata/index.html>, NULL, 22) = 22
-    
-    Change-Id: If7639b785d5fdf65fae8e6149a97a57b06ea981c
-    Reviewed-on: https://go-review.googlesource.com/85657
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia3c33ef060b4baaef354b729ba82ed0b28e52857
+    Reviewed-on: https://go-review.googlesource.com/61013
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/fs_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/dist/build.go     | 34 +++++++++++-----------
+ src/cmd/dist/buildgo.go   | 10 ++++---
+ src/cmd/dist/buildtool.go | 11 ++++---
+ src/cmd/dist/main.go      | 73 ++++++++++++++++++++++-------------------------
+ 4 files changed, 61 insertions(+), 67 deletions(-)

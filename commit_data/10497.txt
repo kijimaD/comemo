@@ -1,15 +1,43 @@
-commit da62104169c7b31f8b2917b24232dd349b769c8f
+commit f56db6f534759b211666f2218da1d44d7abbdd54
 Author: Rob Pike <r@golang.org>
-Date:   Wed Nov 23 20:17:41 2011 -0800
+Date:   Wed Nov 23 20:17:22 2011 -0800
 
-    gofix: trivial rewrite for template.ParseFiles
-    Also warn about uses of Set.
+    text/template: new, simpler API
     
-    R=rsc
+    The Set type is gone. Instead, templates are automatically associated by
+    being parsed together; nested definitions implicitly create associations.
+    Only associated templates can invoke one another.
+    
+    This approach dramatically reduces the breadth of the construction API.
+    
+    For now, html/template is deleted from src/pkg/Makefile, so this can
+    be checked in. Nothing in the tree depends on it. It will be updated next.
+    
+    R=dsymonds, adg, rsc, r, gri, mikesamuel, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5436051
+    https://golang.org/cl/5415060
 
- src/cmd/gofix/Makefile         |   1 +
- src/cmd/gofix/template.go      | 111 +++++++++++++++++++++++++++++++++++++++++
- src/cmd/gofix/template_test.go |  55 ++++++++++++++++++++
- 3 files changed, 167 insertions(+)
+ doc/codelab/wiki/final-noclosure.go       |   2 +-
+ doc/codelab/wiki/final-noerror.go         |   4 +-
+ doc/codelab/wiki/final-parsetemplate.go   |   2 +-
+ doc/codelab/wiki/final-template.go        |   2 +-
+ doc/codelab/wiki/final.go                 |   2 +-
+ doc/codelab/wiki/index.html               |  10 +-
+ doc/tmpltohtml.go                         |   2 +-
+ src/pkg/Makefile                          |   1 -
+ src/pkg/text/template/Makefile            |   3 +-
+ src/pkg/text/template/doc.go              |  80 ++++++----
+ src/pkg/text/template/exec.go             |  35 ++---
+ src/pkg/text/template/exec_test.go        |  37 +++--
+ src/pkg/text/template/funcs.go            |  17 +-
+ src/pkg/text/template/helper.go           | 245 +++++++----------------------
+ src/pkg/text/template/multi_test.go       | 251 ++++++++++++++++++++++++++++++
+ src/pkg/text/template/parse.go            |  83 ----------
+ src/pkg/text/template/parse/parse.go      |  30 ++--
+ src/pkg/text/template/parse/parse_test.go |   2 +-
+ src/pkg/text/template/set.go              | 122 ---------------
+ src/pkg/text/template/set_test.go         | 239 ----------------------------
+ src/pkg/text/template/template.go         | 217 ++++++++++++++++++++++++++
+ src/pkg/text/template/testdata/tmpl1.tmpl |   2 +
+ src/pkg/text/template/testdata/tmpl2.tmpl |   2 +
+ 23 files changed, 654 insertions(+), 736 deletions(-)

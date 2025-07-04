@@ -1,20 +1,30 @@
-commit 26d6dc6bf8a7e5487844a63aa26a4de3afdd688e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 14 14:38:22 2016 -0700
+commit 8f2edf11998a30b497586ac0e9f75036a318280a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 8 19:14:03 2016 +1000
 
-    runtime: if the test program hangs, try to get a stack trace
+    cmd: replace bio.Buf with bio.Reader and bio.Writer
     
-    This is an attempt to get more information for #14809, which seems to
-    occur rarely.
+    Replace the bidirectional bio.Buf type with a pair of unidirectional
+    buffered seekable Reader and Writers.
     
-    Updates #14809.
-    
-    Change-Id: Idbeb136ceb57993644e03266622eb699d2685d02
-    Reviewed-on: https://go-review.googlesource.com/24110
-    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I86664a06f93c94595dc67c2cbd21356feb6680ef
+    Reviewed-on: https://go-review.googlesource.com/21720
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/crash_nonunix_test.go | 13 ++++++++++++
- src/runtime/crash_test.go         | 44 +++++++++++++++++++++++++++++++++++++--
- src/runtime/crash_unix_test.go    |  4 ++++
- 3 files changed, 59 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/bexport.go |   4 +-
+ src/cmd/compile/internal/gc/go.go      |   4 +-
+ src/cmd/compile/internal/gc/obj.go     |  16 ++--
+ src/cmd/internal/bio/buf.go            | 137 +++++++++++++++++++--------------
+ src/cmd/internal/obj/link.go           |   2 +-
+ src/cmd/internal/obj/objfile.go        |   6 +-
+ src/cmd/link/internal/ld/ar.go         |   6 +-
+ src/cmd/link/internal/ld/go.go         |   2 +-
+ src/cmd/link/internal/ld/ldelf.go      |  10 +--
+ src/cmd/link/internal/ld/ldmacho.go    |  16 ++--
+ src/cmd/link/internal/ld/ldpe.go       |  18 ++---
+ src/cmd/link/internal/ld/lib.go        |  49 ++++++------
+ src/cmd/link/internal/ld/link.go       |   7 +-
+ src/cmd/link/internal/ld/objfile.go    |   8 +-
+ 14 files changed, 154 insertions(+), 131 deletions(-)

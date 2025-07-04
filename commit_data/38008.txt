@@ -1,21 +1,18 @@
-commit 2ef8abb41f2565e38e520c18773308b3cf005af6
-Author: fanzha02 <fannie.zhang@arm.com>
-Date:   Thu Feb 21 07:53:15 2019 +0000
+commit c5a8d1d2f92678b3e17781dd1315f15e24da00f3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 21 10:48:05 2018 +1000
 
-    cmd/internal/obj/arm64: fix the bug assembling TSTW
+    fmt: add a package-level example illustrating basic formats
     
-    Current assembler reports error when it assembles
-    "TSTW $1689262177517664, R3", but go1.11 was building
-    fine.
+    There is much left out here—the space of possibilities is very
+    large—but this example shows all that most programmers will need
+    to know for most printing problems.
     
-    Fixes #30334
+    Update #27554.
     
-    Change-Id: I9c16d36717cd05df2134e8eb5b17edc385aff0a9
-    Reviewed-on: https://go-review.googlesource.com/c/163259
-    Run-TryBot: Ben Shi <powerman1st@163.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Change-Id: Ib6ae651d5c3720cf7fe1a05ffd0859a5b56a9157
+    Reviewed-on: https://go-review.googlesource.com/136616
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/asm/internal/asm/testdata/arm64.s | 12 ++++++++++++
- src/cmd/internal/obj/arm64/asm7.go        |  4 ++--
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ src/fmt/example_test.go | 149 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 149 insertions(+)

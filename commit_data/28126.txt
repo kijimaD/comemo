@@ -1,15 +1,26 @@
-commit 2340f4713dff4ecd4ed082f80b1d38150e0b5348
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Aug 30 11:19:07 2016 -0700
+commit cd956576ae618a1de829e42f9ec557e6cee338d1
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 29 09:02:27 2016 -0700
 
-    cmd/compile: remove unused FmtBody flag and associated code
+    cmd/compile: make vet happy with ssa code
     
-    For #15323.
+    Fixes #15488
     
-    Change-Id: I23192a05ce57012aa2f96909d90d6a33b913766b
-    Reviewed-on: https://go-review.googlesource.com/28151
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I054eb1e1c859de315e3cdbdef5428682bce693fd
+    Reviewed-on: https://go-review.googlesource.com/22609
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/fmt.go | 41 ++++++++------------------------------
- 1 file changed, 8 insertions(+), 33 deletions(-)
+ src/cmd/compile/internal/amd64/ssa.go          |  23 +--
+ src/cmd/compile/internal/arm/ssa.go            |   6 +-
+ src/cmd/compile/internal/gc/plive.go           |   2 +-
+ src/cmd/compile/internal/gc/ssa.go             |  44 ++--
+ src/cmd/compile/internal/ssa/check.go          |   6 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 -
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |  38 +++-
+ src/cmd/compile/internal/ssa/rewrite.go        |   1 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 267 -------------------------
+ src/cmd/compile/internal/ssa/rewriteARM.go     |   6 -
+ src/cmd/compile/internal/ssa/rewritegeneric.go |   5 -
+ 11 files changed, 71 insertions(+), 329 deletions(-)

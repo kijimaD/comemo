@@ -1,17 +1,19 @@
-commit 70247126415246c7716ec4d28d6bc1f4077aee1f
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 10 01:06:21 2023 +0000
+commit 82a958a661660fed6f126e41884a8c75fb983902
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 11:49:27 2022 -0700
 
-    runtime: remove unused traceFutileWakeup
+    [dev.unified] cmd/compile/internal/noder: refactor stmtAssign generation
     
-    Also, document traceEvFutileWakeup as not currently used.
+    Eliminate some code duplication between assignment statements and
+    variable declarations, so they're easier to extend with implicit
+    conversions.
     
-    Change-Id: I75831a43d39b6c6ceb5a9b6320c3ae9455681572
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/494184
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I605cf7817e3cb230f2c4612b777d8023c926e8b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413515
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/trace.go | 14 ++------------
- 1 file changed, 2 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/noder/writer.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

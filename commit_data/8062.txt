@@ -1,16 +1,12 @@
-commit 7c270aef08fa22935265540614532258d58fccb4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 13 09:37:13 2011 -0700
+commit dcf32a24a000651dc60dfbc6adc35482d5cdcfec
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 13 14:49:56 2011 +1000
 
-    go/ast: fixed bug in NotNilFilter, added test
-    
-    - fixed a couple of comments
-    - cleanups after reflect change
+    builder: fix documentation s/\.gobuilder/.gobuildkey/
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4389041
+    https://golang.org/cl/4312051
 
- src/pkg/go/ast/print.go      | 54 +++++++++++++++++++-----------
- src/pkg/go/ast/print_test.go | 80 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 114 insertions(+), 20 deletions(-)
+ misc/dashboard/builder/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

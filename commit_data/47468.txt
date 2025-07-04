@@ -1,36 +1,22 @@
-commit 0e654100382f345ea555cfc1e1dd50853316b368
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Nov 14 20:34:58 2021 -0500
+commit 3b0d28808df261747d7561badf91498bbb5d3e3e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 18 21:01:37 2021 -0400
 
-    go/types: assign error codes to new errors for Go 1.18
+    cmd/go: assume Go 1.16 instead of Go 1.11 for dependencies that lack explicit 'go' directives
     
-    During development, we used placeholder _Todo error codes for new
-    errors related to generics. Add real error codes in these places.
+    Fixes #45109
+    Updates #44976
+    Updates #36876
     
-    As a result, 9 new error codes are added for ~50 call sites.
-    
-    Change-Id: Ib57b4cd9f0a2e160971a3aeea18f9fe26fc0f835
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/363874
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Change-Id: Icb00f8b6e0d4e076d82da1697e7058b9e7603916
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303229
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/types/assignments.go     |  2 +-
- src/go/types/builtins.go        |  2 +-
- src/go/types/call.go            | 14 +++----
- src/go/types/decl.go            | 10 ++---
- src/go/types/errorcodes.go      | 84 +++++++++++++++++++++++++++++++++++++++++
- src/go/types/errorcodes_test.go |  6 ++-
- src/go/types/expr.go            |  8 ++--
- src/go/types/infer.go           | 14 ++++---
- src/go/types/instantiate.go     |  2 +-
- src/go/types/interface.go       |  2 +-
- src/go/types/resolver.go        |  6 +--
- src/go/types/signature.go       |  4 +-
- src/go/types/stmt.go            |  2 +-
- src/go/types/struct.go          |  9 +++--
- src/go/types/typeset.go         |  6 +--
- src/go/types/typexpr.go         | 10 ++---
- src/go/types/union.go           | 12 +++---
- 17 files changed, 142 insertions(+), 51 deletions(-)
+ doc/go1.17.html                                    | 12 +++++++
+ src/cmd/go/internal/modload/init.go                | 42 ++++++++++++++++++----
+ src/cmd/go/internal/work/gc.go                     | 10 +++++-
+ .../go/testdata/script/mod_go_version_vendor.txt   | 36 +++++++++++++++++++
+ 4 files changed, 92 insertions(+), 8 deletions(-)

@@ -1,29 +1,18 @@
-commit 8892a51745accb2f8d18be1628d9b5bb9ecd78a5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 17 20:45:08 2022 -0700
+commit 788731387932e70d4dd951770c046c7eec9f9d96
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Sep 27 14:37:13 2021 -0400
 
-    cmd/compile/internal/types2: use go/types/testdata/examples tests
+    runtime/pprof: skip TestTimeVDSO on Android
     
-    Since the examples tests are now identical between the two type checkers,
-    remove the local copy of the examples tests and (for now) use the tests
-    in go/types/testdata/examples instead. Eventually we may decide to move
-    all tests out of the type checker directories and place them in a
-    shared space (e.g. internal/types/testdata).
+    The test is flaky on Android. VDSO may not be enabled so it may
+    not have the original problem anyway.
     
-    For #54511.
-    
-    Change-Id: Ibd8599d09e781b2219a23114b4b2049757971181
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424695
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I73c2902c682a44d893e0d4e34f006c2377ef8816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352509
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/check_test.go      |   2 +-
- .../types2/testdata/examples/constraints.go        |  80 ------
- .../internal/types2/testdata/examples/functions.go | 219 --------------
- .../internal/types2/testdata/examples/inference.go | 116 --------
- .../internal/types2/testdata/examples/methods.go   | 112 --------
- .../types2/testdata/examples/operations.go         |  29 --
- .../internal/types2/testdata/examples/types.go     | 315 ---------------------
- .../internal/types2/testdata/examples/typesets.go  |  59 ----
- 8 files changed, 1 insertion(+), 931 deletions(-)
+ src/runtime/pprof/pprof_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,21 +1,22 @@
-commit b9fd510cd00b6aa26e2ea7001a07b90ebf97d2ed
-Author: Jirka Daněk <dnk@mail.muni.cz>
-Date:   Mon Jan 18 16:26:05 2016 +0100
+commit db5802104797cadcb4f44c5198a0fc39e13f9bc3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 21 07:00:41 2016 -0700
 
-    encoding/json: add struct and field name to UnmarshalTypeError message
+    crypto/tls: don't copy Mutex or Once values
     
-    The UnmarshalTypeError has two new fields Struct and Field,
-    used when constructing the error message.
+    This fixes some 40 warnings from go vet.
     
-    Fixes #6716.
+    Fixes #16134.
     
-    Change-Id: I67da171480a9491960b3ae81893770644180f848
-    Reviewed-on: https://go-review.googlesource.com/18692
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ib9fcba275fe692f027a2a07b581c8cf503b11087
+    Reviewed-on: https://go-review.googlesource.com/24287
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/json/decode.go      | 82 +++++++++++++++++++++++++++-------------
- src/encoding/json/decode_test.go | 42 ++++++++++++++++----
- 2 files changed, 90 insertions(+), 34 deletions(-)
+ src/crypto/tls/common.go                | 27 +++++++++
+ src/crypto/tls/conn_test.go             | 16 +++---
+ src/crypto/tls/handshake_client_test.go | 42 +++++++-------
+ src/crypto/tls/handshake_server_test.go | 76 ++++++++++++-------------
+ src/crypto/tls/tls.go                   |  4 +-
+ src/crypto/tls/tls_test.go              | 99 ++++++++++++++++++++++++++-------
+ 6 files changed, 174 insertions(+), 90 deletions(-)

@@ -1,23 +1,17 @@
-commit 810c27e9be647ce4da8930ff3625a856041ae5b2
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue May 12 10:07:38 2020 -0400
+commit cdf3db5df6bdb68f696fb15cc657207efcf778ef
+Author: Johan Jansson <johan.jansson@iki.fi>
+Date:   Wed Dec 4 22:39:44 2019 +0200
 
-    cmd/vendor: update vendored x/arch/ppc64
+    runtime: remove comment about gcCopySpans()
     
-    This updates vendored x/arch/ppc64 to pick up new instructions
-    and fixes for objdump on ppc64/ppc64le.
+    Remove documentation reference to gcCopySpans(), as that function was
+    removed in https://golang.org/cl/30537
     
-    Change-Id: I8262e8a2af09057bbd21b39c9fcf37230029cfe8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/233364
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Fixes #35683
+    
+    Change-Id: I7fb7c6cc60bfb3a133a019a20eb3f9d4c7627b31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209917
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- .../vendor/golang.org/x/arch/ppc64/ppc64asm/gnu.go |  15 ++
- .../golang.org/x/arch/ppc64/ppc64asm/plan9.go      | 165 ++++++++++++++++++---
- .../golang.org/x/arch/ppc64/ppc64asm/tables.go     | 105 +++++++++++++
- src/cmd/vendor/modules.txt                         |   2 +-
- 6 files changed, 266 insertions(+), 27 deletions(-)
+ src/runtime/mgcmark.go | 2 --
+ 1 file changed, 2 deletions(-)

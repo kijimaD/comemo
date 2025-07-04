@@ -1,25 +1,13 @@
-commit 0285d2b96b4b4d96281a23b9f938aed4de9146c3
+commit ceb346685d58f2ddd0694f55cfbfb95d82abfd29
 Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Mar 20 22:22:37 2014 +0100
+Date:   Thu Mar 20 22:21:10 2014 +0100
 
-    cmd/6g, cmd/8g: skip CONVNOP nodes in bgen.
+    cmd/6g: make comment more consistent.
     
-    Revision 3ae4607a43ff introduced CONVNOP layers
-    to fix type checking issues arising from comparisons.
-    The added complexity made 8g run out of registers
-    when compiling an equality function in go.net/ipv6.
-    
-    A similar issue occurred in test/sizeof.go on
-    amd64p32 with 6g.
-    
-    Fixes #7405.
-    
-    LGTM=khr
-    R=rsc, dave, iant, khr
+    LGTM=dave, iant
+    R=iant, khr, rsc, dave
     CC=golang-codereviews
-    https://golang.org/cl/78100044
+    https://golang.org/cl/77960044
 
- src/cmd/6g/cgen.c           |  6 ++++++
- src/cmd/8g/cgen.c           |  7 +++++++
- test/fixedbugs/issue7405.go | 51 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 64 insertions(+)
+ src/cmd/6g/ggen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,19 @@
-commit 2bd1e5e50b677790a2f48127bf443b32ca8193db
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 14 15:38:46 2015 -0400
+commit e00d60901a225b2b08bb52126704cb3422a569f4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 2 09:16:22 2015 -0700
 
-    cmd/pprof: run $BROWSER and system browser before Chrome
+    [dev.ssa] cmd/compile/internal/ssa: minor fixes
     
-    Fixes #10259.
+    * Improve some docs and logging.
+    * Set correct type and len for indexing into strings.
     
-    Change-Id: Ica6b8301cc8291785a3c496fb513050813b2d8df
-    Reviewed-on: https://go-review.googlesource.com/12201
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Fixes #11029.
+    
+    Change-Id: Ib22c45908e41ba3752010d2f5759e37e3921a48e
+    Reviewed-on: https://go-review.googlesource.com/10635
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/pprof/internal/commands/commands.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/ssa.go       | 19 ++++++++++++++-----
+ src/cmd/compile/internal/ssa/deadcode.go |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go  |  4 ++--
+ 3 files changed, 17 insertions(+), 8 deletions(-)

@@ -1,17 +1,18 @@
-commit 76ec47eeec0e61bd5c679412ec847cdfaf1a95bb
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 23 18:08:57 2022 -0500
+commit f1e7dcb49cba50203d656f931c3fb90b29727629
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 1 09:56:41 2022 -0500
 
-    doc/go1.20: complete, add more library TODOs
+    cmd/go/internal/workcmd: fix typo in help string
     
-    Finish all standard library TODOs, including additions
-    flagged by another run of relnote.
+    Fixes #50945
     
-    Change-Id: Ib9d22672b13b9775a98262d645aaf1d54e7494df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/453295
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ib6251a5be09f4c6ba428ef4c97fe23ebffca3506
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382118
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.20.html | 267 ++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 171 insertions(+), 96 deletions(-)
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/workcmd/work.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

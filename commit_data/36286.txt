@@ -1,29 +1,25 @@
-commit cc880de4bebf9b9242a8f5d1d7e9cf01863bb701
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 17 22:32:22 2018 -0400
+commit 155aefe0c182f3788e44596db5f09cf94d2c6a3e
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Fri Jan 26 22:29:55 2018 -0400
 
-    cmd/go: allow 'go run x.go' to use nearby internal imports in module mode
+    os/exec: remove "binary" when talking about executables
     
-    In GOPATH mode the rule has always been that 'go run x.go' can
-    import whatever the package in x.go's directory would be able to
-    import. Apply the same rule here.
+    The use of binary was incorrect as executable files can also be scripts.
     
-    The bad import path was triggering other mysterious errors
-    during 'go run' in other circumstances. Setting it correctly fixes
-    those too.
+    The docs for Error are also reworded. The old docs implied that Error was
+    returned when attempting to start an executable, which is not correct: it
+    was returned by LookPath when the file was not found or did not have the
+    attributes of an executable.
     
-    Fixes #26046.
-    Fixes #27022.
-    
-    Change-Id: I0a9b0a154a20f48add5a199da85572e7ffe0cde4
-    Reviewed-on: https://go-review.googlesource.com/129798
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I757a44b16612936df4498b43c45c12e4c14956d2
+    Reviewed-on: https://go-review.googlesource.com/90315
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/go/internal/load/pkg.go                 | 56 +++++++++++++------------
- src/cmd/go/internal/modload/init.go             |  1 +
- src/cmd/go/internal/modload/load.go             | 22 ++++++++++
- src/cmd/go/testdata/script/mod_run_internal.txt | 46 ++++++++++++++++++++
- src/cmd/go/testdata/script/mod_run_path.txt     | 15 +++++++
- 5 files changed, 114 insertions(+), 26 deletions(-)
+ src/os/exec/exec.go       |  8 +++++---
+ src/os/exec/exec_test.go  | 10 +++++-----
+ src/os/exec/lp_plan9.go   |  4 ++--
+ src/os/exec/lp_unix.go    |  4 ++--
+ src/os/exec/lp_windows.go |  4 ++--
+ 5 files changed, 16 insertions(+), 14 deletions(-)

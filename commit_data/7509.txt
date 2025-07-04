@@ -1,13 +1,12 @@
-commit 06a923ada04606943d07cb8bd0cb387eb696272c
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Sat Feb 19 05:46:20 2011 +1100
+commit 3173821a8cf20096532e9457213aef99bb307998
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Sat Feb 19 05:44:53 2011 +1100
 
-    godoc: serve robots.txt raw
+    .hgignore: add doc/codelab/wiki/*.bin
     
-    R=gri, niemeyer, rsc, r2, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/4188063
+    https://golang.org/cl/4173063
 
- robots.txt             | 2 ++
- src/cmd/godoc/godoc.go | 1 +
- 2 files changed, 3 insertions(+)
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,20 +1,15 @@
-commit 419c53af30c1898a75ac0ef5ba49533ea91ddcfc
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Feb 6 12:19:59 2012 +0100
+commit fb86bbe2397453aaf793ec00a7233b858f17bd2c
+Author: Patrick Mylund Nielsen <patrick@patrickmn.com>
+Date:   Mon Feb 6 17:55:47 2012 +1100
 
-    gc: don't print implicit type on struct literal in export
+    net/http: Don't set Content-Type header for HEAD requests by default
+    since the real type is not inferred.
+    Fixes #2885.
     
-    As pointed out in the discussion around 2678.
-    
-    R=rsc
+    R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5534077
+    https://golang.org/cl/5633045
 
- src/cmd/gc/fmt.c                 |  9 +++++++--
- src/cmd/gc/go.h                  |  9 ++++++++-
- src/cmd/gc/go.y                  |  2 +-
- src/cmd/gc/typecheck.c           |  7 +++----
- src/cmd/gc/y.tab.c               |  2 +-
- test/fixedbugs/bug392.dir/one.go | 19 +++++++++++++++++++
- test/fixedbugs/bug392.dir/two.go |  1 +
- 7 files changed, 40 insertions(+), 9 deletions(-)
+ src/pkg/net/http/serve_test.go | 9 +++++++--
+ src/pkg/net/http/server.go     | 2 +-
+ 2 files changed, 8 insertions(+), 3 deletions(-)

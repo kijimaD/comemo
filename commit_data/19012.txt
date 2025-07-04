@@ -1,20 +1,15 @@
-commit 7d299d031d383c5279b4ed58c99e4cf96eb6b9b8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Apr 2 17:06:51 2014 -0700
+commit 84db9e09d9e3ff7db8aa8c49282487beacecea07
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 2 14:31:57 2014 -0700
 
-    net: don't export netFD readFrom, writeTo, readMsg, writeMsg methods
+    crypto/tls: deflake TestConnReadNonzeroAndEOF
     
-    There is no way to call them from outside the net package.
-    They are used to implement UCPConn.ReadMsgUDP and similar.
+    Fixes #7683
     
-    LGTM=mikioh.mikioh
-    R=golang-codereviews, mikioh.mikioh
+    LGTM=rsc
+    R=rsc
     CC=golang-codereviews
-    https://golang.org/cl/83730044
+    https://golang.org/cl/83080048
 
- src/pkg/net/fd_unix.go         |  8 ++++----
- src/pkg/net/fd_windows.go      |  8 ++++----
- src/pkg/net/iprawsock_posix.go |  8 ++++----
- src/pkg/net/udpsock_posix.go   |  8 ++++----
- src/pkg/net/unixsock_posix.go  | 10 +++++-----
- 5 files changed, 21 insertions(+), 21 deletions(-)
+ src/pkg/crypto/tls/tls_test.go | 35 +++++++++++++++++++++++++++++------
+ 1 file changed, 29 insertions(+), 6 deletions(-)

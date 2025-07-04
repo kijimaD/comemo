@@ -1,28 +1,30 @@
-commit d33ad2d8f357d83dfdc14c3358e3956aac76a9b0
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Nov 15 13:08:23 2023 +0000
+commit 888047c31007c0ad96764254fa8afb1417ddfd40
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 9 19:49:53 2022 -0800
 
-    syscall: support O_SYNC flag for os.OpenFile on windows
+    cmd/compile: fix conditional move rule on PPC64
     
-    os.OpenFile on windows did not use the O_SYNC flag. This meant
-    that even if the user set O_SYNC, os.OpenFile would ignore it.
+    Similar to CL 456556 but for ppc64 instead of arm64.
     
-    This change adds a new flag FILE_FLAG_WRITE_THROUGH, which is
-    the equivalent of O_SYNC flag on Linux and is documented in
-    https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
+    Change docs about how booleans are stored in registers for ppc64.
+    We now don't promise to keep the upper bits zeroed; they might be junk.
     
-    Fixes #35358
+    To test, I changed the boolean generation instructions (MOVBZload* and ISEL*
+    with boolean type) to OR in 0x100 to the result. all.bash still passed,
+    so I think nothing else is depending on the upper bits of booleans.
     
-    Change-Id: Ib338caed5bb2f215723bfe30a2551a83998d92c9
-    GitHub-Last-Rev: 82c6275cb49602d7903b2bff7d60b7c772a5d91a
-    GitHub-Pull-Request: golang/go#64027
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541015
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    Update #57184
+    
+    Change-Id: Ie66f8934a0dafa34d0a8c2a37324868d959a852c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456437
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: KAMPANAT THUMWONG (KONG PC) <1992kongpc.kth@gmail.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
 
- src/syscall/syscall_windows.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  4 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 25 ++++++++++++++++---------
+ 3 files changed, 20 insertions(+), 13 deletions(-)

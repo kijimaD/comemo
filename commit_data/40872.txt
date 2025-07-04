@@ -1,14 +1,19 @@
-commit 95be9b7559e5df1b2cb6b18b517f4f20de5b99a4
-Author: two <oohcode@gmail.com>
-Date:   Thu Nov 21 06:05:37 2019 +0000
+commit 316ac4f33061653871c0dff7f282d1c4de9388de
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Aug 2 10:36:03 2019 -0700
 
-    reflect: remove obsolete comment about gobitVector
+    cmd/compile: fix crash on write barrier insertion
     
-    Change-Id: Ie3495a51ac2021a55e7c1ee43a66d07a5bf2757a
-    GitHub-Last-Rev: b6a6bab3ab840b361021b25cac37eb6891c0fe4b
-    GitHub-Pull-Request: golang/go#35709
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207853
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The compiler can crash if the compiled code tries to
+    unconditionally read from a nil pointer. This should cause
+    the generated binary to panic, not the compiler.
+    
+    Fixes #33438
+    
+    Change-Id: Ic8fa89646d6968e2cc4e27da0ad9286662f8bc49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188760
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/reflect/type.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/ssa/writebarrier.go |  4 ++++
+ test/fixedbugs/issue33438.go                 | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+)

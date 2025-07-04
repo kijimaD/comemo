@@ -1,12 +1,12 @@
-commit 6cf5a733d54dfbef47e908f91bf50d7180317325
-Author: Shenghou Ma <minux@golang.org>
-Date:   Mon Jan 19 12:34:56 2015 -0500
+commit 466118c5c7d97681a1a2ef5f6027ac7f344575b0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Dec 22 09:32:34 2014 -0800
 
-    internal/syscall: add getrandom syscall number for ppc64/ppc64le
+    doc: note encoding/base64 unpadded encodings in go1.5.txt
     
-    Change-Id: I04c1b8f2a9ac4efba227d6c0a20459420cd3dc05
-    Reviewed-on: https://go-review.googlesource.com/3014
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I04d2e83f86f021464190f0b0fe0e450cb4662ad9
+    Reviewed-on: https://go-review.googlesource.com/1971
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/internal/syscall/getrandom_linux.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,12 +1,12 @@
-commit d7434816c1a2407030f59837496a8dc86e6d1968
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Tue Mar 26 17:39:46 2013 +1100
+commit 1e0e65ea59205ef0b891b8672d66a7b92776ac88
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Mar 26 13:01:24 2013 +1100
 
-    misc/vim: make Godoc command work with "log.Print".
+    doc/articles: update reference to obsolete "package documentation".
     
-    R=dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/7757043
+    https://golang.org/cl/7475048
 
- misc/vim/plugin/godoc.vim | 17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
+ doc/articles/godoc_documenting_go_code.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

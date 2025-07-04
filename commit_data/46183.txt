@@ -1,17 +1,26 @@
-commit c92759978372ffc354f83e08b1dd6fa496e9b545
-Author: wangyuntao <ytcoode@gmail.com>
-Date:   Fri Jul 16 10:29:05 2021 +0000
+commit c81343ce3aa1b8f1b2539a3d391f628f69a0a490
+Author: Anmol Sethi <hi@nhooyr.io>
+Date:   Fri Dec 11 23:01:12 2020 +0000
 
-    cmd/compile: eliminate repetitive code
+    net/http: attempt deadlock fix in TestDisableKeepAliveUpgrade
     
-    Change-Id: I02c8b65f7c1c1606c9964ab6c54d5ab5f1b444a5
-    GitHub-Last-Rev: 3d740b9ac129d38981ee295456d2d7f803a79b77
-    GitHub-Pull-Request: golang/go#47242
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/334990
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    1. The test now checks the response status code.
+    2. The transport has been changed to not set "Connection: Close" if
+       DisableKeepAlive is set and the request is a HTTP/1.1 protocol
+       upgrade.
+    
+    Updates #43073
+    
+    Change-Id: I9977a18b33b8747ef847a8d11bb7b4f2d8053b8c
+    GitHub-Last-Rev: f809cebb139df4f5560a8456973351c95a3dfa97
+    GitHub-Pull-Request: golang/go#43086
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276375
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/ir/scc.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/net/http/response.go   | 9 +++++++--
+ src/net/http/serve_test.go | 4 ++++
+ src/net/http/transport.go  | 4 +++-
+ 3 files changed, 14 insertions(+), 3 deletions(-)

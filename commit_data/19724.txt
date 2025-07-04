@@ -1,28 +1,15 @@
-commit 20ae6d9bc58f98355fcab6501e0fcb2c5b34f44c
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Jul 14 15:08:09 2014 -0700
+commit 369a3ff3fd7cce8c11b472891fb63a1806443dbc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jul 12 15:18:36 2014 +1000
 
-    spec: permit "for range x" (no index variables)
+    make.bat: return exit code to dashboard builder
     
-    This is a fully backward-compatible language change.
+    Fixes #7806.
     
-    There are not a lot of cases in the std library, but
-    there are some. Arguably this makes the syntax a bit
-    more regular - any trailing index variable that is _
-    can be left away, and there's some analogy to type
-    switches where the temporary can be left away.
-    
-    Implementation-wise the change should be trivial as
-    it can be done completely syntactically. For instance,
-    the respective change in go/parser is a dozen lines
-    (see https://golang.org/cl/112970044 ).
-    
-    Fixes #6102.
-    
-    LGTM=iant, r, rsc
-    R=r, rsc, iant, ken
+    LGTM=minux
+    R=golang-codereviews, minux
     CC=golang-codereviews
-    https://golang.org/cl/104680043
+    https://golang.org/cl/104690043
 
- doc/go_spec.html | 34 +++++++++++++++++++---------------
- 1 file changed, 19 insertions(+), 15 deletions(-)
+ src/make.bat | 1 +
+ 1 file changed, 1 insertion(+)

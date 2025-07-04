@@ -1,58 +1,21 @@
-commit a0da9c00aeb51261b9845a46fbc9878870884ab6
-Author: cui fliter <imcusg@gmail.com>
-Date:   Thu Oct 12 18:08:04 2023 +0800
+commit bef5eca118fab6b7dd56c31fd1957c5edc214021
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Mon Aug 20 20:29:30 2018 +0200
 
-    crypto: add available godoc link
+    encoding/xml: disallow empty namespace when prefix is set
     
-    Change-Id: Ifc669399dde7d6229c6ccdbe29611ed1f8698fb1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/534778
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Non-regression tests are added.
+    
+    Fixes #8068
+    
+    Change-Id: Icb36c910bbf4955743b7aa8382002b2d9246fadc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/105636
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/crypto/aes/aes_gcm.go        |  6 ++---
- src/crypto/aes/cipher.go         |  2 +-
- src/crypto/aes/ctr_s390x.go      |  2 +-
- src/crypto/aes/gcm_ppc64x.go     |  6 ++---
- src/crypto/aes/gcm_s390x.go      | 10 ++++----
- src/crypto/cipher/cfb.go         |  8 +++---
- src/crypto/cipher/ctr.go         |  4 +--
- src/crypto/cipher/gcm.go         |  8 +++---
- src/crypto/cipher/io.go          | 10 ++++----
- src/crypto/cipher/ofb.go         |  2 +-
- src/crypto/crypto.go             |  6 ++---
- src/crypto/des/cipher.go         |  4 +--
- src/crypto/dsa/dsa.go            |  4 +--
- src/crypto/ecdh/ecdh.go          | 10 ++++----
- src/crypto/ecdh/nist.go          |  6 ++---
- src/crypto/ecdh/x25519.go        |  2 +-
- src/crypto/ecdsa/ecdsa.go        |  8 +++---
- src/crypto/ecdsa/ecdsa_legacy.go |  2 +-
- src/crypto/elliptic/elliptic.go  | 28 ++++++++++-----------
- src/crypto/elliptic/params.go    | 54 ++++++++++++++++++++--------------------
- src/crypto/hmac/hmac.go          |  8 +++---
- src/crypto/md5/md5.go            |  2 +-
- src/crypto/rand/util.go          |  2 +-
- src/crypto/rc4/rc4.go            |  4 +--
- src/crypto/rsa/pkcs1v15.go       |  2 +-
- src/crypto/rsa/pss.go            |  2 +-
- src/crypto/rsa/rsa.go            | 14 +++++------
- src/crypto/sha1/sha1.go          |  4 +--
- src/crypto/sha256/sha256.go      |  4 +--
- src/crypto/tls/cipher_suites.go  |  4 +--
- src/crypto/tls/common.go         | 12 ++++-----
- src/crypto/tls/conn.go           | 32 ++++++++++++------------
- src/crypto/tls/quic.go           | 12 ++++-----
- src/crypto/tls/ticket.go         |  2 +-
- src/crypto/tls/tls.go            | 12 ++++-----
- src/crypto/x509/cert_pool.go     |  2 +-
- src/crypto/x509/parser.go        |  2 +-
- src/crypto/x509/pem_decrypt.go   |  2 +-
- src/crypto/x509/pkcs1.go         | 12 ++++-----
- src/crypto/x509/pkcs8.go         |  8 +++---
- src/crypto/x509/pkix/pkix.go     |  8 +++---
- src/crypto/x509/sec1.go          |  2 +-
- src/crypto/x509/x509.go          | 24 +++++++++---------
- 43 files changed, 179 insertions(+), 179 deletions(-)
+ src/encoding/xml/xml.go      |  4 ++++
+ src/encoding/xml/xml_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

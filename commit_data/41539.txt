@@ -1,32 +1,23 @@
-commit 37fc092be1ffe4906f67eae1c4c7be40f00f89ed
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Feb 6 10:36:29 2020 -0800
+commit f7659d49be1839314ddc3a8606f8d6b3ce211b6b
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 9 09:04:16 2019 -0400
 
-    cmd/compile: remove duplicate ppc64 rules
+    [dev.link] cmd/link/internal/objfile: new 'Sym' type for global symbol index
     
-    Const64 gets lowered to MOVDconst.
-    Change rules using interior Const64 to use MOVDconst instead,
-    to be less dependent on rule application order.
+    First change of several to update the loader API to reflect the final
+    consensus version of the loader API as described in Cherry's doc.
     
-    As a result of doing this, some of the rules end up being
-    exact duplicates; remove those.
+    This piece:
     
-    We had those exact duplicates because of the order dependency;
-    ppc64 had no way to optimize away shifts by a constant
-    if the initial lowering didn't catch it.
+     - define new loader.Sym type to encapsulate a global symbol
+       index (as opposed to just using 'int')
     
-    Add those optimizations as well.
-    The outcome is the same, but this makes the overall rules more robust.
-    
-    Change-Id: Iadd97a9fe73d52358d571d022ace145e506d160b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/220877
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: I6f6483e269f80abfc7d373b2856b2c0d61b9ac24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200417
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go        |   2 +-
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  64 +--
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  11 +-
- src/cmd/compile/internal/ssa/opGen.go        |  12 +
- src/cmd/compile/internal/ssa/rewritePPC64.go | 786 ++++++++++-----------------
- 5 files changed, 341 insertions(+), 534 deletions(-)
+ src/cmd/link/internal/objfile/objfile2.go | 50 +++++++++++++++++--------------
+ 1 file changed, 27 insertions(+), 23 deletions(-)

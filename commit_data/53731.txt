@@ -1,40 +1,17 @@
-commit dd5db4df560341cb2f9f15b98de596bfcb3ed7b2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jun 7 11:38:26 2023 -0400
+commit 52d9e7f543f68a46d7a69443a1ad51283d2f0d4f
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Aug 26 11:24:39 2022 +0800
 
-    runtime: check global runq during "delicate dance"
+    runtime: convert consistentHeapStats.gen to atomic type
     
-    When a thread transitions to spinning to non-spinning it must recheck
-    all sources of work because other threads may submit new work but skip
-    wakep because they see a spinning thread.
+    For #53821
     
-    However, since the beginning of time (CL 7314062) we do not check the
-    global run queue, only the local per-P run queues.
-    
-    The global run queue is checked just above the spinning checks while
-    dropping the P. I am unsure what the purpose of this check is. It
-    appears to simply be opportunistic since sched.lock is already held
-    there in order to drop the P. It is not sufficient to synchronize with
-    threads adding work because it occurs before decrementing
-    sched.nmspinning, which is what threads us to decide to wake a thread.
-    
-    Resolve this by adding an explicit global run queue check alongside the
-    local per-P run queue checks.
-    
-    Almost nothing happens between dropped sched.lock after dropping the P
-    and relocking sched.lock: just clearing mp.spinning and decrementing
-    sched.nmspinning. Thus it may be better to just hold sched.lock for this
-    entire period, but this is a larger change that I would prefer to avoid
-    in the freeze and backports.
-    
-    For #55160.
-    
-    Change-Id: Ifd88b5a4c561c063cedcfcfe1dd8ae04202d9666
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/501975
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I9f57b84f6a2c29d750fb20420daef903a9311a83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425781
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/proc.go | 23 ++++++++++++++++++++---
- 1 file changed, 20 insertions(+), 3 deletions(-)
+ src/runtime/mstats.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

@@ -1,41 +1,19 @@
-commit 34d6aaae29023b9edfef2d3360d89e48c8dd118f
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu Mar 2 19:16:34 2023 -0500
+commit d65a41329ee87f46f35719129d1d4b03d4a07cc8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Apr 13 08:58:01 2022 -0700
 
-    cmd/go: distinguish packages built for different main packages in printing
+    crypto/x509: support nil pools in CertPool.Equal
     
-    In -pgo=auto mode, a package may be built multiple times. E.g. for
+    Otherwise we panic if either pool is nil.
     
-    go build -pgo=auto cmd/a cmd/b
-    
-    and both cmd/a and cmd/b imports package p, p may be built twice,
-    one using a's profile, one using b's. If we need to print p, e.g.
-    in "go list -deps" or when there is a build failure, p will be
-    printed twice, and currently we don't distinguish them.
-    
-    We have a precedence for a similar case: for testing, there is the
-    original package, and the (internal) test version of the package
-    (which includes _test.go files). Packages that import the package
-    under testing may also have two versions (one imports the original,
-    one imports the testing version). In printing, the go command
-    distinguishes them by adding a "[p.test]" suffix for the latter,
-    as they are specifically built for the p.test binary.
-    
-    We do the similar. When a package needs to be compiled multiple
-    times for different main packages, we attach the main package's
-    import path, like "p [cmd/a]" for package p built specifically
-    for cmd/a.
-    
-    For #58099.
-    
-    Change-Id: I4a040cf17e1dceb5ca1810c217f16e734c858ab6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/473275
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I8598e3c0f3a5294135f1c330e319128d552ebb67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399161
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/go/internal/list/list.go                    | 9 +++++----
- src/cmd/go/internal/load/pkg.go                     | 5 +++++
- src/cmd/go/testdata/script/build_pgo_auto_multi.txt | 6 ++++++
- 3 files changed, 16 insertions(+), 4 deletions(-)
+ src/crypto/x509/cert_pool.go      |   3 +
+ src/crypto/x509/cert_pool_test.go | 124 ++++++++++++++++++++++++++------------
+ 2 files changed, 90 insertions(+), 37 deletions(-)

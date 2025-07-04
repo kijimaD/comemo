@@ -1,0 +1,22 @@
+commit 86a1a994ff522a7236e6744e40dfbc33d0d6bd88
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Oct 10 09:57:50 2024 -0700
+
+    internal/syscall/windows: add Openat, Mkdirat
+    
+    Windows versions of openat and mkdirat,
+    implemented using NtCreateFile.
+    
+    For #67002
+    
+    Change-Id: If43b1c1069733e5c45f7d45a69699fec30187308
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619435
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/syscall/windows/at_windows.go      | 168 ++++++++++++++++++++++++
+ src/internal/syscall/windows/syscall_windows.go |  10 ++
+ src/internal/syscall/windows/types_windows.go   |  22 +++-
+ src/syscall/types_windows.go                    |  26 ++--
+ 4 files changed, 213 insertions(+), 13 deletions(-)

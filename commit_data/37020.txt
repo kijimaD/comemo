@@ -1,17 +1,28 @@
-commit 361cf4a8805051ac3b8829fbcd9d64a0d2f50a71
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Sep 19 20:09:02 2018 -0700
+commit 88b442f5c08a2984e6800e83a483a6c7f4b24cd1
+Author: Hana Kim <hakim@google.com>
+Date:   Mon Jun 18 12:03:53 2018 -0400
 
-    os: ignore SIGTTIN during TestTTYClose
+    runtime/pprof: fix incorrect assumption in TestMapping
     
-    Otherwise, if the test is run in the background, it will stop waiting
-    for access to the terminal.
+    TestMapping assumed that there was only one mapping entry corresponding
+    to /exe/main, but that is not always true.
+    This CL changes the test logic to examine whether all referenced mappings
+    are symbolized. Based on the result, the test determines whether the
+    corresponding mapping entries' HasFunctions fields to be true or false.
     
-    Change-Id: Ib5224c6cb9060281e05c3b00cd2964445421e774
-    Reviewed-on: https://go-review.googlesource.com/c/136415
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    I initially attempted to create two mappings for referenced locations
+    (one for symbolized and another for unsymbolized) as described in the
+    TODO in proto.go as part of fixing this bug. But that change requires
+    non-trivial modification in the upstream profile package so I decided
+    to just fix the test for now.
+    
+    Fixes #25891
+    
+    Change-Id: Id27a5b07bb5b59e133755a0f863bf56c0a4f7f2b
+    Reviewed-on: https://go-review.googlesource.com/119455
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/os/timeout_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/runtime/pprof/proto_test.go | 46 +++++++++++++++++++++++------------------
+ 1 file changed, 26 insertions(+), 20 deletions(-)

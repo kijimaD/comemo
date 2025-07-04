@@ -1,27 +1,31 @@
-commit 3311275ce8eef87a64b78589e0da0bf115f9be07
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Sep 22 14:54:45 2016 -0500
+commit 7cd6cae6a63f09caa88bbcc394053b40cdeeccd1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun May 29 00:47:45 2016 -0700
 
-    math, cmd/internal/obj/ppc64: improve floor, ceil, trunc with asm
+    compress/flate: use seperate const block for exported constants
     
-    This adds the instructions frim, frip, and friz to the ppc64x
-    assembler for use in implementing the math.Floor, math.Ceil, and
-    math.Trunc functions to improve performance.
+    As rendered on https://tip.golang.org/pkg/compress/flate/, there is an
+    extra new-line because of the unexported constants in the same block.
     
-    Fixes #17185
+    <<<
+    const (
+        NoCompression      = 0
+        BestSpeed          = 1
+        BestCompression    = 9
+        DefaultCompression = -1
+        HuffmanOnly        = -2 // Disables match search and only does Huffman entropy reduction.
     
-    BenchmarkCeil-128                    21.4          6.99          -67.34%
-    BenchmarkFloor-128                   13.9          6.37          -54.17%
-    BenchmarkTrunc-128                   12.7          6.33          -50.16%
+    )
+    >>>
     
-    Change-Id: I96131bd4e8c9c8dbafb25bfeb544cf9d2dbb4282
-    Reviewed-on: https://go-review.googlesource.com/29654
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Instead, seperate the exported compression level constants into its own
+    const block. This is both more readable and also fixes the issue.
+    
+    Change-Id: I60b7966c83fb53356c02e4640d05f55a3bee35b7
+    Reviewed-on: https://go-review.googlesource.com/23557
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/obj/ppc64/a.out.go  |  6 ++++++
- src/cmd/internal/obj/ppc64/anames.go |  6 ++++++
- src/cmd/internal/obj/ppc64/asm9.go   | 18 ++++++++++++++++++
- src/math/floor_ppc64x.s              | 25 +++++++++++++++++++++++++
- src/math/stubs_ppc64x.s              |  9 ---------
- 5 files changed, 55 insertions(+), 9 deletions(-)
+ src/compress/flate/deflate.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

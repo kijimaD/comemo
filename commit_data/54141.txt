@@ -1,16 +1,19 @@
-commit 26d4ce70d41fa65ae8e5d7437610aa2ee146803a
-Author: Joel Sing <joel@sing.id.au>
-Date:   Thu Aug 3 00:42:54 2023 +1000
+commit ff34676cdd5f2c318fa58e78c84a90b3e5a21b04
+Author: Marko Kungla <marko.kungla@gmail.com>
+Date:   Fri May 13 01:34:02 2022 +0300
 
-    cmd/internal/obj/arm64: add test coverage for VMOVS and VMOVD
+    misc/wasm: update deprecated substr usage
     
-    Change-Id: I31ba6696e124dccf37d674d090fdf04ba0a049a3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515616
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    String.prototype.substr is deprecated and usage is no longer
+    recommended so using String.prototype.substring instead.
+    
+    Change-Id: I9eb49a8c065890df73301e3a04af59f550bc3ae1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406094
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/internal/obj/arm64/asm_arm64_test.go | 24 ++++++++++++++++++------
- src/cmd/internal/obj/arm64/asm_arm64_test.s  | 18 ++++++++++++++++++
- 2 files changed, 36 insertions(+), 6 deletions(-)
+ misc/wasm/wasm_exec.js | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

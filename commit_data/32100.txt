@@ -1,14 +1,54 @@
-commit 0173631d53df98b17d282b3d71e8f515388915cc
-Author: Axel Wagner <axel.wagner.hh@googlemail.com>
-Date:   Sat Jul 15 11:43:22 2017 -0600
+commit 476f55fd8aec65cb1bd3417dd1c8c583c9e385d8
+Author: Lorenzo Masini <rugginoso@develer.com>
+Date:   Wed Mar 8 16:45:23 2017 +0100
 
-    encoding/binary: add examples for varint functions
+    cmd/objdump: print Go code alongside assembly
     
-    Change-Id: I191f6e46b452fadde9f641140445d843b0c7d534
-    Reviewed-on: https://go-review.googlesource.com/48604
+    Added -S flag to print go source file line above corresponding disassembly:
+    
+    $ go tool objdump -S -s main.main fmthello
+    TEXT main.main(SB) /home/rugginoso/Documents/src/go/src/cmd/objdump/testdata/fmthello.go
+    func main() {
+      0x47d450              64488b0c25f8ffffff      FS MOVQ FS:0xfffffff8, CX
+      0x47d459              483b6110                CMPQ 0x10(CX), SP
+      0x47d45d              7631                    JBE 0x47d490
+      0x47d45f              4883ec18                SUBQ $0x18, SP
+      0x47d463              48896c2410              MOVQ BP, 0x10(SP)
+      0x47d468              488d6c2410              LEAQ 0x10(SP), BP
+            Println("hello, world")
+      0x47d46d              488d0563b00200          LEAQ 0x2b063(IP), AX
+      0x47d474              48890424                MOVQ AX, 0(SP)
+      0x47d478              48c74424080c000000      MOVQ $0xc, 0x8(SP)
+      0x47d481              e81a000000              CALL main.Println(SB)
+    }
+      0x47d486              488b6c2410              MOVQ 0x10(SP), BP
+      0x47d48b              4883c418                ADDQ $0x18, SP
+      0x47d48f              c3                      RET
+    func main() {
+      0x47d490              e8ebf1fcff              CALL runtime.morestack_noctxt(SB)
+      0x47d495              ebb9                    JMP main.main(SB)
+    
+    Execution time:
+    
+    $ time go tool objdump testdata/fmthello > /dev/null
+    real    0m0.430s
+    user    0m0.440s
+    sys     0m0.000s
+    
+    $ time go tool objdump -S testdata/fmthello > /dev/null
+    real    0m0.471s
+    user    0m0.476s
+    sys     0m0.012s
+    
+    Fixes #18245
+    
+    Change-Id: I9b2f8338f9ee443c1352efd270d3ba85e3dd9b78
+    Reviewed-on: https://go-review.googlesource.com/37953
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/binary/example_test.go | 91 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 91 insertions(+)
+ src/cmd/internal/objfile/disasm.go | 108 +++++++++++++++++++++++++++++++++++--
+ src/cmd/objdump/main.go            |   7 +--
+ src/cmd/objdump/objdump_test.go    |  43 +++++++++++----
+ 3 files changed, 141 insertions(+), 17 deletions(-)

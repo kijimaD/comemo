@@ -1,13 +1,12 @@
-commit 6ec551887a8d4bad243cf462c3cfc6aa4fa727a5
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Feb 22 12:21:42 2013 +1100
+commit 6138e368f81f67f79d7b9039bf40009e28cd3e09
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 22 10:28:03 2013 +1100
 
-    runtime: windows callback code to match new func value representation
+    cmd/gc: fix FreeBSD build
     
-    R=golang-dev, bradfitz
+    R=jsing, mikioh.mikioh, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7393048
+    https://golang.org/cl/7390048
 
- src/pkg/runtime/callback_windows_386.c   | 2 +-
- src/pkg/runtime/callback_windows_amd64.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/gc/dcl.c | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,129 +1,14 @@
-commit 6bf84214c117bd1ea081b93437dbf8463e0dabe8
+commit 61655bc513cc3180504e8a847b45a65496c459b1
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Dec 13 13:33:40 2011 -0500
+Date:   Tue Dec 13 13:25:48 2011 -0500
 
-    godoc: text wrapping
+    gc: delete DUPOK definition
     
-    Example:
+    The relevant header is already included.
     
-    PACKAGE
-    
-    package utf8
-        import "unicode/utf8"
-    
-        Package utf8 implements functions and constants to support text
-        encoded in UTF-8.  This package calls a Unicode character a rune for
-        brevity.
-    
-    CONSTANTS
-    
-    const (
-        RuneError = unicode.ReplacementChar // the "error" Rune or "replacement character".
-        RuneSelf  = 0x80                    // characters below Runeself are represented as themselves in a single byte.
-        UTFMax    = 4                       // maximum number of bytes of a UTF-8 encoded Unicode character.
-    )
-        Numbers fundamental to the encoding.
-    
-    FUNCTIONS
-    
-    func DecodeLastRune(p []byte) (r rune, size int)
-        DecodeLastRune unpacks the last UTF-8 encoding in p and returns the
-        rune and its width in bytes.
-    
-    func DecodeLastRuneInString(s string) (r rune, size int)
-        DecodeLastRuneInString is like DecodeLastRune but its input is a
-        string.
-    
-    func DecodeRune(p []byte) (r rune, size int)
-        DecodeRune unpacks the first UTF-8 encoding in p and returns the rune
-        and its width in bytes.
-    
-    func DecodeRuneInString(s string) (r rune, size int)
-        DecodeRuneInString is like DecodeRune but its input is a string.
-    
-    func EncodeRune(p []byte, r rune) int
-        EncodeRune writes into p (which must be large enough) the UTF-8
-        encoding of the rune.  It returns the number of bytes written.
-    
-    func FullRune(p []byte) bool
-        FullRune reports whether the bytes in p begin with a full UTF-8
-        encoding of a rune.  An invalid encoding is considered a full Rune
-        since it will convert as a width-1 error rune.
-    
-    func FullRuneInString(s string) bool
-        FullRuneInString is like FullRune but its input is a string.
-    
-    func RuneCount(p []byte) int
-        RuneCount returns the number of runes in p.  Erroneous and short
-        encodings are treated as single runes of width 1 byte.
-    
-    func RuneCountInString(s string) (n int)
-        RuneCountInString is like RuneCount but its input is a string.
-    
-    func RuneLen(r rune) int
-        RuneLen returns the number of bytes required to encode the rune.
-    
-    func RuneStart(b byte) bool
-        RuneStart reports whether the byte could be the first byte of an
-        encoded rune.  Second and subsequent bytes always have the top two
-        bits set to 10.
-    
-    func Valid(p []byte) bool
-        Valid reports whether p consists entirely of valid UTF-8-encoded
-        runes.
-    
-    func ValidString(s string) bool
-        ValidString reports whether s consists entirely of valid UTF-8-encoded
-        runes.
-    
-    TYPES
-    
-    type String struct {
-        // contains filtered or unexported fields
-    }
-        String wraps a regular string with a small structure that provides
-        more efficient indexing by code point index, as opposed to byte index.
-        Scanning incrementally forwards or backwards is O(1) per index
-        operation (although not as fast a range clause going forwards).
-        Random access is O(N) in the length of the string, but the overhead is
-        less than always scanning from the beginning.  If the string is ASCII,
-        random access is O(1).  Unlike the built-in string type, String has
-        internal mutable state and is not thread-safe.
-    
-    func NewString(contents string) *String
-        NewString returns a new UTF-8 string with the provided contents.
-    
-    func (s *String) At(i int) rune
-        At returns the rune with index i in the String.  The sequence of runes
-        is the same as iterating over the contents with a "for range" clause.
-    
-    func (s *String) Init(contents string) *String
-        Init initializes an existing String to hold the provided contents.
-        It returns a pointer to the initialized String.
-    
-    func (s *String) IsASCII() bool
-        IsASCII returns a boolean indicating whether the String contains only
-        ASCII bytes.
-    
-    func (s *String) RuneCount() int
-        RuneCount returns the number of runes (Unicode code points) in the
-        String.
-    
-    func (s *String) Slice(i, j int) string
-        Slice returns the string sliced at rune positions [i:j].
-    
-    func (s *String) String() string
-        String returns the contents of the String.  This method also means the
-        String is directly printable by fmt.Print.
-    
-    Fixes #2479.
-    
-    R=golang-dev, dsymonds, mattn.jp, r, gri, r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/5472051
+    https://golang.org/cl/5487062
 
- lib/godoc/package.txt          |  22 +++---
- src/cmd/godoc/godoc.go         |  22 ++++++
- src/pkg/go/doc/comment.go      | 162 +++++++++++++++++++++++++++++++++++------
- src/pkg/go/doc/comment_test.go |  43 +++++++++++
- 4 files changed, 214 insertions(+), 35 deletions(-)
+ src/cmd/gc/pgen.c | 2 --
+ 1 file changed, 2 deletions(-)

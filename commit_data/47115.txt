@@ -1,23 +1,23 @@
-commit 8e112a7c2a814de9156f68dc8b167e4ef8c98c52
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Sun Apr 11 18:29:03 2021 +0000
+commit 8027343b6395536aa8bef8158bad8f4c290dd650
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Feb 24 13:03:17 2021 -0800
 
-    runtime: move heapLive and heapScan updates into a method
+    cmd/compile: disable inlining functions with closures for now
     
-    This change moves heapLive and heapScan updates on gcController into a
-    method for better testability. It's also less error-prone because code
-    that updates these fields needs to remember to emit traces and/or call
-    gcController.revise; this method now handles those cases.
+    Added a flag '-d=inlfuncswithclosures=1' to allow inlining functions with
+    closures, and change the default to off for now, until #44370 is fixed.
     
-    For #44167.
+    Updates #44370.
     
-    Change-Id: I3d6f2e7abb22def27c93feacff50162b0b074da2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309275
-    Trust: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ic17723aa5c091d91f5f5004d8b63ec7125257acf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296049
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/runtime/mcache.go   | 39 ++++++++++-----------------------------
- src/runtime/mgcpacer.go | 17 +++++++++++++++++
- 2 files changed, 27 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/base/debug.go | 45 +++++++++++++++++-----------------
+ src/cmd/compile/internal/inline/inl.go | 12 ++++-----
+ test/closure3.go                       |  2 +-
+ test/inline.go                         |  2 +-
+ 4 files changed, 31 insertions(+), 30 deletions(-)

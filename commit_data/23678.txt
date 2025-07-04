@@ -1,17 +1,17 @@
-commit 3585f215c898c977a8393a7a8885ce6ad7688446
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 13 23:31:14 2015 -0400
+commit ebcc7ec148f4c224a2b026b6484ad0fa135dcf78
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Jun 4 15:03:38 2015 -0400
 
-    cmd/go: fix error for go run with files in different directories
+    cmd/dist: use -tags=lldb for iOS tests
     
-    Fixes #9853.
+    As of golang.org/cl/9154, running go test will override a previous
+    go install -a -tags=lldb std with the tag-less version of stdlib. So
+    we pass -tags=lldb into the relevant go test commands.
     
-    Change-Id: Ic4803aa499ca20215085a87bad649014984d84c8
-    Reviewed-on: https://go-review.googlesource.com/12149
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I1c718289d7212373a9383eff53a643f06598f5ed
+    Reviewed-on: https://go-review.googlesource.com/10701
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/go/build.go                   |  3 +++
- src/cmd/go/go_test.go                 | 10 ++++++++++
- src/cmd/go/testdata/rundir/sub/sub.go |  1 +
- src/cmd/go/testdata/rundir/x.go       |  1 +
- 4 files changed, 15 insertions(+)
+ src/cmd/dist/test.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

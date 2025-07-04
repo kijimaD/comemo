@@ -1,20 +1,26 @@
-commit 7026a8a1a9aba58285b3cae215df04140245b6db
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jan 17 17:25:14 2023 -0800
+commit 5a03cbd12a2fcaf85482f1f4d9570c064510da9b
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Nov 2 12:01:24 2021 -0700
 
-    go/types: factor out type parameter renaming (cleanup)
+    encoding/json: use reflect.Value.UnsafePointer over Pointer
     
-    Follow-up on CL 461687 which missed the go/types change.
+    The latter returns a uintptr, while the former returns a unsafe.Pointer.
+    A uintptr is unsafe if Go ever switches to a moving GC,
+    while a unsafe.Pointer will be properly tracked by the GC.
     
-    (As an aside, we cannot yet generate this change because
-    go/types uses a positioner and types2 just uses a syntax.Pos.)
+    We do not use unsafe.Pointer for any unsafe type conversions,
+    and only use it for comparability purposes, which is relatively safe.
     
-    Change-Id: I28113a2efdc3ddd30cb9a80d2cb2c802ff035ec2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/461688
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Updates #40592
+    
+    Change-Id: I813e218668704b63a3043acda4331205a3835a66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360855
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/go/types/infer.go | 95 +++++++++++++++++++++++++++------------------------
- 1 file changed, 50 insertions(+), 45 deletions(-)
+ src/encoding/json/encode.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

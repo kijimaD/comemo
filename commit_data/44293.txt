@@ -1,19 +1,153 @@
-commit 95a44d2409dc9b37cb4722d74a1de9b671f67128
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jan 22 09:23:49 2021 -0500
+commit 6bf51c340666b2552b9c73c34ff1e1757d8d8489
+Merge: 78b96db04e d282b0f112
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jun 5 16:55:43 2020 -0400
 
-    cmd/internal/objfile: recognize Windows ARM64 executables
+    [dev.link] all: merge branch 'master' into dev.link
     
-    This CL is part of a stack adding windows/arm64
-    support (#36439), intended to land in the Go 1.17 cycle.
+    Merge conflicts are mostly recently changed nm/objdump output
+    format and its tests. Resolved easily (mostly just using the
+    format on master branch).
     
-    Change-Id: I5ec459063d394b9f434d1b8b5030960b45061038
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288821
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I99d8410a9a02947ecf027d9cae5762861562baf5
 
- src/cmd/internal/objfile/pe.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/contribute.html                                | 140 ++++++++---
+ doc/editors.html                                   |   2 +-
+ doc/go1.15.html                                    | 256 +++++++++++++++++++--
+ misc/cgo/test/testdata/issue27054/egl.h            |   1 +
+ misc/cgo/test/testdata/issue27054/test27054.go     |   6 +-
+ misc/cgo/testplugin/plugin_test.go                 |   2 +-
+ src/cmd/asm/doc.go                                 |   7 +-
+ src/cmd/cgo/doc.go                                 |   9 +-
+ src/cmd/cgo/gcc.go                                 |   8 +-
+ src/cmd/compile/doc.go                             |   2 +
+ src/cmd/compile/internal/arm64/ssa.go              |  44 ++--
+ src/cmd/compile/internal/gc/alg.go                 |  26 ---
+ src/cmd/compile/internal/gc/gsubr.go               |   2 +-
+ .../compile/internal/gc/reproduciblebuilds_test.go |  50 ++++
+ .../gc/testdata/reproducible/issue38068.go         |  70 ++++++
+ src/cmd/compile/internal/ssa/rewriteCond_test.go   |   2 +-
+ src/cmd/fix/egltype.go                             |  28 ++-
+ src/cmd/fix/egltype_test.go                        | 141 ++++++------
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/alldocs.go                              | 103 ++++++---
+ src/cmd/go/internal/help/helpdoc.go                | 103 ++++++---
+ src/cmd/go/internal/modload/mvs.go                 |   6 +
+ src/cmd/go/internal/mvs/mvs.go                     |  23 +-
+ src/cmd/go/internal/work/security.go               |   1 +
+ .../script/test_chatty_parallel_success_sleepy.txt |  39 ++++
+ src/cmd/internal/goobj/goobj_test.go               |  16 +-
+ src/cmd/internal/goobj/readnew.go                  |  19 +-
+ src/cmd/internal/goobj2/objfile.go                 |  53 +++++
+ src/cmd/internal/obj/arm/a.out.go                  |   2 +-
+ src/cmd/internal/obj/arm/asm5.go                   |   2 +-
+ src/cmd/internal/obj/arm/list5.go                  |   2 +-
+ src/cmd/internal/obj/arm/obj5.go                   |   2 +-
+ src/cmd/internal/obj/arm64/doc.go                  |   3 +-
+ src/cmd/internal/obj/data.go                       |   4 +-
+ src/cmd/internal/obj/ld.go                         |   4 +-
+ src/cmd/internal/obj/link.go                       |   2 +-
+ src/cmd/internal/obj/objfile2.go                   |  39 ++++
+ src/cmd/internal/obj/pass.go                       |   2 +-
+ src/cmd/internal/obj/sym.go                        |   4 +-
+ src/cmd/internal/obj/x86/a.out.go                  |   2 +-
+ src/cmd/internal/obj/x86/asm6.go                   |   2 +-
+ src/cmd/internal/obj/x86/list6.go                  |   2 +-
+ src/cmd/internal/obj/x86/obj6.go                   |   2 +-
+ src/cmd/internal/objabi/autotype.go                |   2 +-
+ src/cmd/internal/objabi/head.go                    |   2 +-
+ src/cmd/internal/objabi/reloctype.go               |   2 +-
+ src/cmd/internal/objabi/symkind.go                 |   2 +-
+ src/cmd/internal/test2json/test2json.go            |  12 +-
+ .../internal/test2json/testdata/issue29755.json    |  38 +++
+ .../internal/test2json/testdata/issue29755.test    |  27 +++
+ src/cmd/internal/test2json/testdata/smiley.json    |  22 +-
+ src/cmd/internal/test2json/testdata/smiley.test    |  22 +-
+ src/cmd/internal/test2json/testdata/vet.json       |  22 +-
+ src/cmd/internal/test2json/testdata/vet.test       |  22 +-
+ src/cmd/link/internal/amd64/asm.go                 |   2 +-
+ src/cmd/link/internal/amd64/l.go                   |   2 +-
+ src/cmd/link/internal/amd64/obj.go                 |   2 +-
+ src/cmd/link/internal/arm/asm.go                   |   2 +-
+ src/cmd/link/internal/arm/l.go                     |   4 +-
+ src/cmd/link/internal/arm/obj.go                   |   2 +-
+ src/cmd/link/internal/arm64/asm.go                 |   2 +-
+ src/cmd/link/internal/arm64/l.go                   |   2 +-
+ src/cmd/link/internal/arm64/obj.go                 |   2 +-
+ src/cmd/link/internal/ld/ar.go                     |   2 +-
+ src/cmd/link/internal/ld/data.go                   |   4 +-
+ src/cmd/link/internal/ld/dwarf.go                  |  12 +
+ src/cmd/link/internal/ld/dwarf_test.go             | 111 +++++++++
+ src/cmd/link/internal/ld/ld.go                     |   4 +-
+ src/cmd/link/internal/ld/lib.go                    |   4 +-
+ src/cmd/link/internal/ld/link.go                   |   2 +-
+ src/cmd/link/internal/ld/main.go                   |   2 +-
+ src/cmd/link/internal/ld/outbuf_windows.go         |   8 +-
+ src/cmd/link/internal/ld/sym.go                    |   4 +-
+ src/cmd/link/internal/ld/symtab.go                 |   2 +-
+ .../link/internal/ld/testdata/issue38192/main.go   |  11 +
+ .../link/internal/ld/testdata/issue38192/oneline.s |   8 +
+ src/cmd/link/internal/loader/loader.go             |   2 +-
+ src/cmd/link/internal/mips/asm.go                  |   2 +-
+ src/cmd/link/internal/mips/l.go                    |   2 +-
+ src/cmd/link/internal/mips/obj.go                  |   2 +-
+ src/cmd/link/internal/mips64/asm.go                |   2 +-
+ src/cmd/link/internal/mips64/l.go                  |   2 +-
+ src/cmd/link/internal/mips64/obj.go                |   2 +-
+ src/cmd/link/internal/ppc64/asm.go                 |   2 +-
+ src/cmd/link/internal/ppc64/l.go                   |   2 +-
+ src/cmd/link/internal/ppc64/obj.go                 |   2 +-
+ src/cmd/link/internal/s390x/asm.go                 |   2 +-
+ src/cmd/link/internal/s390x/l.go                   |   2 +-
+ src/cmd/link/internal/s390x/obj.go                 |   2 +-
+ src/cmd/link/internal/sym/segment.go               |   2 +-
+ src/cmd/link/internal/sym/symkind.go               |   2 +-
+ src/cmd/link/internal/x86/asm.go                   |   2 +-
+ src/cmd/link/internal/x86/l.go                     |   2 +-
+ src/cmd/link/internal/x86/obj.go                   |   2 +-
+ src/cmd/nm/nm_test.go                              |  10 +-
+ src/cmd/objdump/objdump_test.go                    |  11 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |   1 +
+ .../x/tools/go/types/objectpath/objectpath.go      |   5 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/container/list/list.go                         |   4 +-
+ src/crypto/tls/handshake_client_test.go            | 222 ++++++++++++++++++
+ src/crypto/tls/handshake_server.go                 |  30 ++-
+ src/crypto/tls/handshake_server_tls13.go           |   7 +
+ src/crypto/tls/tls_test.go                         |  15 +-
+ src/crypto/x509/root_darwin_amd64.go               |  41 +++-
+ src/crypto/x509/verify.go                          |   6 +
+ src/database/sql/driver/driver.go                  |   2 +-
+ src/go/build/doc.go                                |  98 +-------
+ src/internal/poll/fd_plan9.go                      |  29 ++-
+ src/io/ioutil/ioutil.go                            |   2 +-
+ src/net/http/httptest/recorder.go                  |   4 +-
+ src/net/http/httptest/recorder_test.go             |  36 +++
+ src/net/http/transfer.go                           |   6 +-
+ src/net/http/transfer_test.go                      |  36 +++
+ src/net/http/transport_test.go                     |  19 ++
+ src/runtime/extern.go                              |   2 +-
+ src/runtime/lock_futex.go                          |   4 +-
+ src/runtime/lock_js.go                             |  11 +-
+ src/runtime/lock_sema.go                           |   4 +-
+ src/runtime/lockrank.go                            |   4 +-
+ src/runtime/memclr_arm.s                           |   2 +-
+ src/runtime/memmove_386.s                          |   2 +-
+ src/runtime/memmove_amd64.s                        |   2 +-
+ src/runtime/memmove_arm.s                          |   2 +-
+ src/runtime/memmove_plan9_386.s                    |   2 +-
+ src/runtime/memmove_plan9_amd64.s                  |   2 +-
+ src/runtime/proc.go                                |  27 ++-
+ src/runtime/runtime-gdb.py                         |  18 +-
+ src/runtime/runtime-gdb_test.go                    |  42 ++++
+ src/runtime/testdata/testprogcgo/eintr.go          |   3 +-
+ src/runtime/vlop_386.s                             |   2 +-
+ src/runtime/vlop_arm.s                             |   2 +-
+ src/runtime/vlrt.go                                |   2 +-
+ src/syscall/dll_windows.go                         |  11 +-
+ src/testing/testing.go                             |  11 +-
+ src/time/format.go                                 |   2 +-
+ test/fixedbugs/issue38093.go                       |  49 ++++
+ test/fixedbugs/issue8606.go                        |  50 ++++
+ 139 files changed, 1893 insertions(+), 591 deletions(-)

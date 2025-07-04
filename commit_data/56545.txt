@@ -1,19 +1,22 @@
-commit 7ffa8d0a5b286add7b618b8177c8ce39414cb60a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sat May 18 15:33:57 2024 -0700
+commit db22489012aabdd853d09d33e7525788d0acf2c4
+Author: James Bartlett <jamesbartlett@newrelic.com>
+Date:   Wed May 3 18:27:05 2023 +0000
 
-    cmd/go: accept -mcmodel and -mlarge-data-threshold compiler flags
+    cmd/link: fix checks for supported linker flags with relative paths.
     
-    For #67475
+    The existing way of checking for supported linker flags causes false negatives
+    when there are relative paths passed to go tool link. This fixes the issue by
+    calling the external linker in the current working directory, instead of
+    in a temporary directory.
     
-    Change-Id: Ia90952eb7c19764306205928ead50bff22857378
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586675
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Fixes #59952
+    
+    Change-Id: I173bb8b44902f30dacefde1c202586f87667ab70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491796
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/work/security.go      | 2 ++
- src/cmd/go/internal/work/security_test.go | 4 ++++
- 2 files changed, 6 insertions(+)
+ src/cmd/link/internal/ld/lib.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

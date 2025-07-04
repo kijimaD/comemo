@@ -1,14 +1,18 @@
-commit 57d37b55b8646b16ccdee6662933964f26176add
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 2 11:46:44 2013 +1000
+commit fcee50c46eebf742afd3b90150a4b5e6c730715d
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Oct 2 08:52:51 2013 +1000
 
-    doc: rename @go_nuts to @golang
+    misc/vim: Separate package and package members.
+    This change allow to godoc:
+        :Godoc github.com/mattn/go-gtk/gtk
+        :Godoc github.com/mattn/go-gtk/gtk NewWindow
+        :Godoc encoding/json
+        :Godoc encoding/json Marshal
     
-    Yay!
-    
-    R=golang-dev, dave
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/14256043
+    https://golang.org/cl/14171043
 
- doc/help.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/vim/autoload/go/complete.vim |  6 ++++++
+ misc/vim/plugin/godoc.vim         | 36 ++++++++++++++++++++----------------
+ 2 files changed, 26 insertions(+), 16 deletions(-)

@@ -1,15 +1,14 @@
-commit 5b2f62615970532374c9bd1b48dfe7f7ffef217a
+commit cd61565ffc003506c9544eb670eed195825bf4da
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 11 16:17:45 2013 -0700
+Date:   Fri Oct 11 11:24:54 2013 -0700
 
-    go/build: add GOOS and GOARCH to name of gccgo pkg directory
-    
-    This matches the behaviour of builder.includeArgs in
-    cmd/go/build.go.
+    misc/cgo/test: fix C panic test to work with gccgo
     
     R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/14535048
+    https://golang.org/cl/14611043
 
- src/pkg/go/build/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ misc/cgo/test/callback_c.c       | 14 --------------
+ misc/cgo/test/callback_c_gc.c    | 21 +++++++++++++++++++++
+ misc/cgo/test/callback_c_gccgo.c | 17 +++++++++++++++++
+ 3 files changed, 38 insertions(+), 14 deletions(-)

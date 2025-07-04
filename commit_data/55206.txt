@@ -1,17 +1,29 @@
-commit 53393062ba95299e82ecaa3a0af69315e414e624
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 4 11:13:32 2023 -0800
+commit fc814056aae191f61f46bef5be6e29ee3dc09b89
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Nov 30 09:45:29 2022 +0100
 
-    doc: add release note for go/types.Info.FileVersions
+    cmd/compile: rewrite empty makeslice to zerobase pointer
     
-    For #62605.
+    make\(\[\][a-zA-Z0-9]+, 0\) is seen 52 times in the go source.
+    And at least 391 times on internet:
+    https://grep.app/search?q=make%5C%28%5C%5B%5C%5D%5Ba-zA-Z0-9%5D%2B%2C%200%5C%29&regexp=true
+    This used to compile to calling runtime.makeslice.
+    However we can copy what we do for []T{}, just use a zerobase pointer.
     
-    Change-Id: I3c06b835c874c1be5aa5293e3906bdd06c021d87
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546836
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    On my machine this is 10x faster (from 3ns to 0.3ns).
+    Note that an empty loop also runs in 0.3ns,
+    so this really is free when you count superscallar execution.
+    
+    Change-Id: I1cfe7e69f5a7a4dabbc71912ce6a4f8a2d4a7f3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454036
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
 
- doc/go1.22.html | 58 ++++++++++++++++++++++++++-------------------------------
- 1 file changed, 26 insertions(+), 32 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  11 +++
+ src/cmd/compile/internal/ssa/_gen/rulegen.go    |   1 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 100 ++++++++++++++++++++++++
+ test/codegen/slices.go                          |   6 ++
+ 4 files changed, 118 insertions(+)

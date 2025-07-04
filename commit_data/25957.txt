@@ -1,24 +1,16 @@
-commit ff274210674e407ab7c44585a097259cd029dced
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Tue Dec 8 18:26:22 2015 -0800
+commit 35e84546d7c3cc599dd5bf31ad86bf8d3d841d04
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Oct 17 17:46:25 2015 -0400
 
-    compress/bzip2: fix benchmark to actually measure decompression rate
+    runtime: check and fail early with a message if MMX is not available on 386
     
-    Motivation:
-    * Previously, the size of the compressed data was used for metrics,
-    rather than the uncompressed size. This causes the library to appear
-    to perform poorly relative to C or other implementation. Switch it
-    to use the uncompressed size so that it matches how decompression
-    benchmarks are usually done (like in compress/flate). This also makes
-    it easier to compare bzip2 rates to other algorithms since they measure
-    performance in this way.
-    * Also, reset the timer after doing initialization work.
+    Fixes #12970.
     
-    Change-Id: I32112c2ee8e7391e658c9cf31039f70a689d9b9d
-    Reviewed-on: https://go-review.googlesource.com/17611
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id0026e8274e071d65d47df63d65a93110abbec5d
+    Reviewed-on: https://go-review.googlesource.com/15998
+    Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/compress/bzip2/bzip2_test.go | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ src/runtime/asm_386.s | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

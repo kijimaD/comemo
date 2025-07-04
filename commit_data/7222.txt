@@ -1,12 +1,16 @@
-commit 4871d0d19ae5cde1b81d1817e4144ee63f1e40c5
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 24 10:19:23 2011 -0800
+commit c4513d3b6fc67d1e0525b008c6b34fe536ee74b6
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Mon Jan 24 18:10:50 2011 +1000
 
-    encoding/line: fix up a few typos and infelicities in the doc comments
+    json: handle capital floating point exponent (1E100).
     
-    R=anschelsc, agl1
-    CC=golang-dev
-    https://golang.org/cl/3988045
+    When parsing numbers with an exponent (like "12e-1"), the JSON scanner
+    would only allow a lowercase 'e', while the RFC also allows the
+    uppercase 'E'.
+    
+    R=adg
+    CC=golang-dev, rsc
+    https://golang.org/cl/3986042
 
- src/pkg/encoding/line/line.go | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ src/pkg/json/scanner.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,18 +1,21 @@
-commit 06a6b3a4134f1c7b93308a4f45eed6aeaa9a5f00
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 2 09:24:42 2017 -0500
+commit 9a5bddd7ed57596a259f3896dd31ea30e331027d
+Author: Richard Gibson <richard.gibson@gmail.com>
+Date:   Sat Oct 22 00:21:18 2016 -0400
 
-    test/locklinear: deflake again
+    net: bring domain name length checks into RFC compliance
     
-    On overloaded machines once we get to big N, the machine slowness dominates.
-    But we only retry once we get to a big N.
-    Instead, retry for small N too, and die on the first big N that fails.
+    The 255-octet limit applies to wire format, not presentation format.
     
-    Change-Id: I3ab9cfb88832ad86e2ba1389a926045091268aeb
-    Reviewed-on: https://go-review.googlesource.com/37543
+    Fixes #17549
+    
+    Change-Id: I2b5181c53fba32fea60178e0d8df9114aa992b55
+    Reviewed-on: https://go-review.googlesource.com/31722
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- test/locklinear.go | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+ src/net/dnsclient.go           | 16 +++++++++----
+ src/net/dnsclient_unix.go      | 15 +++++++++---
+ src/net/dnsconfig_unix_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/dnsname_test.go        | 27 +++++++++++----------
+ 4 files changed, 90 insertions(+), 21 deletions(-)

@@ -1,33 +1,18 @@
-commit a2cef9b544708ecae983ed8836ee2425a28aab68
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Jan 22 14:27:24 2021 -0500
+commit 8e4ab9cb4c28649be36f82a02d04eb1cb31d02c9
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed May 20 13:58:03 2020 -0400
 
-    cmd/go: don't lookup the path for CC when invoking cgo
+    [dev.link] cmd/link: remove some x86/Darwin code
     
-    Previously, if CC was a path without separators (like gcc or clang),
-    we'd look it up in PATH in cmd/go using internal/execabs.LookPath,
-    then pass the resolved path to cgo in CC.
+    Found while looking at common code between architectures.
     
-    This caused a regression: if the directory in PATH containing CC has a
-    space, cgo splits it and interprets it as multiple arguments.
+    Recreation of CL 234680 which was accidentally on master.
     
-    With this change, cmd/go no longer resolves CC before invoking
-    cgo. cgo does the path lookup on each invocation. This reverts the
-    security fix CL 284780, but that was redundant with the addition of
-    internal/execabs (CL 955304), which still protects us.
-    
-    Fixes #43808
-    Updates #41400
-    
-    Change-Id: I65d91a1e303856df8653881eb6e2e75a3bf95c49
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/285873
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: Ib8fac3168916e8e64b2bc65fd3830c5856d77c5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234682
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/work/action.go            |  3 --
- src/cmd/go/internal/work/exec.go              | 27 +++----------
- src/cmd/go/testdata/script/cgo_path.txt       |  5 ++-
- src/cmd/go/testdata/script/cgo_path_space.txt | 55 +++++++++++++++++++++++++++
- 4 files changed, 64 insertions(+), 26 deletions(-)
+ src/cmd/link/internal/x86/asm.go | 45 ----------------------------------------
+ 1 file changed, 45 deletions(-)

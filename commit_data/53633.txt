@@ -1,19 +1,22 @@
-commit a3093eca64f9efc830c153c835291d751ea167f9
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Jun 24 11:00:37 2023 -0400
+commit b9bf82465569397191a62c4e4fb9a7d1013a2e64
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 19 19:01:05 2022 -0700
 
-    cmd/go: enable slog vet check during 'go test'
+    go/parser: match go/defer error message of syntax package
     
-    The slog check is new and no existing code uses slog (it's new too),
-    so there are no concerns about false positives in existing code.
-    Enable it by default.
+    Adjust corresponding type checker tests accordingly.
     
-    Change-Id: I4fc1480eeb5a3acc9e5e095e9d5428f5ce04b121
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/505915
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    For #54511.
+    
+    Change-Id: Ieaf29f26c0877973fc0acbde35292cd69a4b709c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425007
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/internal/test/test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/go/parser/parser.go              | 2 +-
+ src/go/parser/short_test.go          | 4 ++--
+ src/go/types/testdata/check/stmt0.go | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

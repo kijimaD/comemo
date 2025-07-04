@@ -1,15 +1,25 @@
-commit c2b4fb5a3bfc13618a683f1265555f89f37de550
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 21 14:51:37 2017 -0700
+commit 9ef65dbe0683634a2e8a557d12267d0309ae1570
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 9 15:18:47 2017 +1100
 
-    cmd/compile: eliminate some Linksym calls in obj.go
+    image/gif: fix frame-inside-image bounds checking.
     
-    Passes toolstash-check.
+    The semantics of the Go image.Rectangle type is that the In and
+    Intersects methods treat empty rectangles specially. There are multiple
+    valid representations of an empty image.Rectangle. One of them is the
+    zero image.Rectangle but there are others. They're obviously not all
+    equal in the == sense, so we shouldn't use != to check GIF's semantics.
     
-    Change-Id: I0cb2ea9ca7ec2449999af28457270ff7b3324e92
-    Reviewed-on: https://go-review.googlesource.com/41410
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    This change will allow us to re-roll
+    a855da29dbd7a80c4d87a421c1f88a8603c020fa "image: fix the overlap check
+    in Rectangle.Intersect" which was rolled back in
+    14347ee480968c712ea885a4ea62779fd8a0dc44.
+    
+    Change-Id: Ie1a0d092510a7bb6170e61adbf334b21361ff9e6
+    Reviewed-on: https://go-review.googlesource.com/36639
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/compile/internal/gc/obj.go | 18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+ src/image/gif/reader.go | 27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)

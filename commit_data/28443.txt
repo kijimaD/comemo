@@ -1,15 +1,16 @@
-commit 2e2db7a1704773082db547cbde70d8c0ce36a10c
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 16 16:56:29 2016 -0700
+commit 23cb8864b52e5f2f60618a551ca564574e0575b0
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 25 19:34:01 2016 +0200
 
-    cmd/compile: fix format verbs in ssa package
+    runtime: use Run for more benchmarks
     
-    %s is no longer valid.  Use %v instead.
+    Names for Append?Bytes are slightly changed in addition to adding a slash.
     
-    Change-Id: I5ec4fa6a9280082c1a0c75fd1cf94b4bb8096f5c
-    Reviewed-on: https://go-review.googlesource.com/29365
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I0291aa29c693f9040fd01368eaad9766259677df
+    Reviewed-on: https://go-review.googlesource.com/23426
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/location.go | 4 ++--
- src/cmd/compile/internal/ssa/value.go    | 8 ++++----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ src/runtime/append_test.go | 149 +++++++++++++++------------------------------
+ 1 file changed, 48 insertions(+), 101 deletions(-)

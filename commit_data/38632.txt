@@ -1,22 +1,38 @@
-commit e014184c438699b1637b1d623492f33669105002
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Apr 3 13:58:57 2019 +0200
+commit d669cc47ad8bfde5c0a525563803b3cc444fe897
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 4 18:41:37 2018 -0500
 
-    syscall: on AIX use nsendmsg and nrecvmsg, define SockaddrDatalink
+    crypto/tls: implement TLS 1.3 PSK authentication (client side)
     
-    This commit changes sendmsg, recvmsg to use nsendmsg, nrecvmsg on AIX.
-    These syscalls support the new msghdr structure (with Control
-    and Controllen) which is needed for golang.org/x/net.
-    Also define SockaddrDataLink.
+    Also check original certificate validity when resuming TLS 1.0–1.2. Will
+    refuse to resume a session if the certificate is expired or if the
+    original connection had InsecureSkipVerify and the resumed one doesn't.
     
-    Change-Id: I233fbd24f9eb86648e0d4d50c2b56da3626292d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170537
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Support only PSK+DHE to protect forward secrecy even with lack of a
+    strong session ticket rotation story.
+    
+    Tested with NSS because s_server does not provide any way of getting the
+    same session ticket key across invocations. Will self-test like TLS
+    1.0–1.2 once server side is implemented.
+    
+    Incorporates CL 128477 by @santoshankr.
+    
+    Fixes #24919
+    Updates #9671
+    
+    Change-Id: Id3eaa5b6c77544a1357668bf9ff255f3420ecc34
+    Reviewed-on: https://go-review.googlesource.com/c/147420
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/syscall/syscall_aix.go        | 19 +++++++++++++++++--
- src/syscall/types_aix.go          | 24 ++++++++++++++----------
- src/syscall/zsyscall_aix_ppc64.go | 16 ++++++++--------
- src/syscall/ztypes_aix_ppc64.go   | 32 ++++++++++++++++++++++----------
- 4 files changed, 61 insertions(+), 30 deletions(-)
+ src/crypto/tls/cipher_suites.go          |  32 +++---
+ src/crypto/tls/common.go                 |  44 +++++---
+ src/crypto/tls/conn.go                   |  26 ++---
+ src/crypto/tls/handshake_client.go       | 164 +++++++++++++++++++++--------
+ src/crypto/tls/handshake_client_test.go  |  67 +++++++++---
+ src/crypto/tls/handshake_client_tls13.go | 172 ++++++++++++++++++++++++++-----
+ src/crypto/tls/handshake_messages.go     |  44 ++++++++
+ src/crypto/tls/handshake_server.go       |   9 +-
+ src/crypto/tls/handshake_server_tls13.go |  12 +--
+ src/crypto/tls/key_schedule.go           |  11 ++
+ src/crypto/tls/prf_test.go               |  17 +--
+ 11 files changed, 442 insertions(+), 156 deletions(-)

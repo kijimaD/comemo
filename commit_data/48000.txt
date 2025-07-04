@@ -1,18 +1,25 @@
-commit fef14fdd1dc9106f872e75aae4fcd814abc47080
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Jan 20 17:23:07 2022 -0800
+commit 255056395e5da17c0f660bba289725bd12c1f024
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 21 10:54:13 2021 -0700
 
-    go/types, types2: slightly better tracing output (debugging support)
+    test: add a field tracking test
     
-    Change-Id: I48804eba94ec455c4764d52af148f4210faf7d94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/379836
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Now that we can set experiments at build time instead of make.bash time,
+    we can actually write a test for field tracking!
+    
+    Update #20014
+    
+    This CL contains a test for the functionality fixed in CL 312069.
+    
+    Change-Id: I7569a7057bbc7c88ae25ae7bf974b0c8a4e35be8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312217
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/types2/decl.go    | 4 +++-
- src/cmd/compile/internal/types2/typexpr.go | 2 +-
- src/go/types/decl.go                       | 4 +++-
- src/go/types/typexpr.go                    | 2 +-
- 4 files changed, 8 insertions(+), 4 deletions(-)
+ test/fixedbugs/issue20014.dir/a/a.go  | 21 ++++++++++++++
+ test/fixedbugs/issue20014.dir/main.go | 54 +++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue20014.go          |  7 +++++
+ test/fixedbugs/issue20014.out         |  6 ++++
+ 4 files changed, 88 insertions(+)

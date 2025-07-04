@@ -1,36 +1,41 @@
-commit c016133c50512e9a83e7442bd7ac614fe7ca62de
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Feb 16 12:33:17 2022 -0500
+commit 3498027329a32c77315754054d1591e06349db59
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 29 15:01:29 2021 -0700
 
-    cmd/go/internal/modload: set errors for packages with invalid import paths
+    math: increase precision of math.SmallestNonzeroFloat64
     
-    Prior to CL 339170, relative errors in module mode resulted in a
-    base.Fatalf from the module loader, which caused unrecoverable errors
-    from 'go list -e' but successfully rejected relative imports (which
-    were never intended to work in module mode in the first place).
+    The original value was rounded too early, which lead to the
+    surprising behavior that float64(math.SmallestNonzeroFloat64 / 2)
+    wasn't 0. That is, the exact compile-time computation of
+    math.SmallestNonzeroFloat64 / 2 resulted in a value that was
+    rounded up when converting to float64. To address this, added 3
+    more digits to the mantissa, ending in a 0.
     
-    After that CL, the base.Fatalf is no longer present, but some errors
-    that had triggered that base.Fatalf were no longer diagnosed at all:
-    the module loader left them for the package loader to report, and the
-    package loader assumed that the module loader would report them.
+    While at it, also slightly increased the precision of MaxFloat64
+    to end in a 0.
     
-    Since the module loader already knows that the paths are invalid,
-    it now reports those errors itself.
+    Computed exact values via https://play.golang.org/p/yt4KTpIx_wP.
     
-    Fixes #51125
+    Added a test to verify expected behavior.
     
-    Change-Id: I70e5818cfcfeea0ac70e17274427b08a74fd7c13
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386176
-    Trust: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    In contrast to the other (irrational) constants, expanding these
+    extreme values to more digits is unlikely to be important as they
+    are not going to appear in numeric computations except for tests
+    verifying their correctness (as is the case here).
+    
+    Re-enabled a disabled test in go/types and types2.
+    
+    Updates #44057.
+    Fixes #44058.
+    
+    Change-Id: I8f363155e02331354e929beabe993c8d8de75646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315170
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/test/testdata/ptrsort.go  |  2 +-
- src/cmd/go/internal/load/pkg.go                    |  7 +--
- src/cmd/go/internal/modload/import.go              | 18 +++++++-
- src/cmd/go/internal/modload/load.go                | 18 --------
- src/cmd/go/testdata/script/build_internal.txt      |  2 +
- src/cmd/go/testdata/script/run_issue51125.txt      | 54 ++++++++++++++++++++++
- .../go/testdata/script/test_relative_cmdline.txt   |  4 +-
- 7 files changed, 80 insertions(+), 25 deletions(-)
+ api/except.txt                                            |  2 ++
+ src/cmd/compile/internal/types2/testdata/check/const1.src | 10 +++++-----
+ src/go/types/testdata/check/const1.src                    | 10 +++++-----
+ src/math/all_test.go                                      |  9 +++++++++
+ src/math/const.go                                         |  4 ++--
+ 5 files changed, 23 insertions(+), 12 deletions(-)

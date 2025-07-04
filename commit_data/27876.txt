@@ -1,25 +1,16 @@
-commit 2f73fe7a0db269dcbe51e372809032fa52b8c68c
-Author: Dan Peterson <dpiddy@gmail.com>
-Date:   Wed Jul 13 10:35:35 2016 -0600
+commit 04535459caf349bc5a731133f5e9eef5e1ab9af9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Apr 17 15:13:46 2016 -0700
 
-    net: use libresolv rules for ndots range and validation
+    .gitignore: don't ignore y.output
     
-    BIND libresolv allows values from 0 to 15.
+    We no longer use yacc, and we shouldn't have any y.output files.
     
-    For invalid values and negative numbers, 0 is used.
-    For numbers greater than 15, 15 is used.
-    
-    Fixes #15419
-    
-    Change-Id: I1009bc119c3e87919bcb55a80a35532e9fc3ba52
-    Reviewed-on: https://go-review.googlesource.com/24901
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I045671b6aef3f53c3cfe068b0c14a4871689c13e
+    Reviewed-on: https://go-review.googlesource.com/22161
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dnsconfig_unix.go                   |  6 ++++--
- src/net/dnsconfig_unix_test.go              | 30 +++++++++++++++++++++++++++++
- src/net/testdata/invalid-ndots-resolv.conf  |  1 +
- src/net/testdata/large-ndots-resolv.conf    |  1 +
- src/net/testdata/negative-ndots-resolv.conf |  1 +
- 5 files changed, 37 insertions(+), 2 deletions(-)
+ .gitignore | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,26 +1,16 @@
-commit 0b8d9d425a66a3c7e1c76fe10cb9eab1acd316cc
-Author: Alan Donovan <adonovan@google.com>
-Date:   Fri May 25 15:58:37 2018 -0400
+commit 9c854d65a340c6c0bd5957b0ea6880dc954fbaf9
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Jan 31 16:30:16 2018 -0500
 
-    go/types: fix typo causing loss of embedded interfaces
+    cmd/compile/internal/ssa: only store relevant slots in pendingEntries
     
-    Simplified the code per prior suggestion to avoid that
-    kind of error in the first place.
+    For functions with many local variables, keeping track of every
+    LocalSlot for every variable is very expensive. Only track the slots
+    that are actually used by a given variable.
     
-    Also: Fix subtle error in Interface.Complete where an
-    interface may have ended up incomplete if both the list
-    of methods and the list of embedded interfaces was nil.
-    
-    Expanded existing test to cover all these cases.
-    
-    Fixes golang/go#25577
-    
-    Change-Id: If8723a8b0c4570f02b3dadfa390f96dd98ce11c8
-    Reviewed-on: https://go-review.googlesource.com/114504
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: Iaafbce030a782b8b8c4a0eb7cf025e59af899ea4
+    Reviewed-on: https://go-review.googlesource.com/92400
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/go/types/type.go            | 46 ++++++++++++++++++-----------------------
- src/go/types/typestring_test.go | 36 ++++++++++++++++++++++++++++++--
- 2 files changed, 54 insertions(+), 28 deletions(-)
+ src/cmd/compile/internal/ssa/debug.go | 37 +++++++++++++++++++++--------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

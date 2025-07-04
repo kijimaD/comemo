@@ -1,22 +1,33 @@
-commit 8598396d81035ed170581bfec894f6827b5db506
-Author: Minaev Mike <minaev.mike@gmail.com>
-Date:   Mon Aug 7 08:22:21 2017 +0000
+commit 703a9baf5c210ac3955ddaa9df1efcdb2786ab1d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 6 22:17:50 2017 +0000
 
-    net/mail: skip trailing comment while parsing email
+    builtin: use type aliases for rune and byte
     
-    The existing implementation doesn't handle
-    comment constructions in email address.
-    So addresses that are consistent with RFC 5322
-    don't parse at all.
+    As motivated by https://golang.org/design/18130-type-alias which says:
     
-    Fixes #21257
+    https://github.com/golang/proposal/blob/master/design/18130-type-alias.md#relationship-to-byte-and-rune
     
-    Change-Id: Iae3ba951dfb26b7cf0e1885a680bbceb9123d6d5
-    Reviewed-on: https://go-review.googlesource.com/53550
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    > The language specification already defines byte as an alias for
+    > uint8 and similarly rune as an alias for int32, using the word alias
+    > as an informal term. It is a goal that the new type declaration
+    > semantics not introduce a different meaning for alias. That is, it
+    > should be possible to describe the existing meanings of byte and
+    > uint8 by saying that they behave as if predefined by:
+    >
+    >     type byte = uint8
+    >     type rune = int32
+    
+    So, do that. Seems to work.
+    
+    Updates #18130
+    
+    Change-Id: I0740bab3f8fb23e946f3542fdbe819007a99465a
+    Reviewed-on: https://go-review.googlesource.com/45017
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/net/mail/message.go      | 49 ++++++++++++++++++++++++++++++++++++++++++--
- src/net/mail/message_test.go | 44 ++++++++++++++++++++++++++++++---------
- 2 files changed, 81 insertions(+), 12 deletions(-)
+ src/builtin/builtin.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

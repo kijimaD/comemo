@@ -1,21 +1,32 @@
-commit daa121167b6ce630aba00195f1c3872cda39a50c
-Author: Allan Simon <allan.simon@supinfo.com>
-Date:   Sun Oct 11 04:16:58 2015 +0800
+commit ea2376fcea0be75c856ebd199c0ad0f98192d406
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 22 22:51:05 2016 +0000
 
-    encoding/xml: prevent omitempty from omitting non-nil pointers to empty values
+    net/http: make Transport.RoundTrip return raw Conn.Read error on peek failure
     
-    There was an inconsistency between the (json encoding + documentation)
-    and the xml encoding implementation. Pointer to an empty value was
-    not being serialized (i.e simply ignored). Which had the effect of making
-    impossible to have a struct with a string field for which we wanted to
-    serialize the value ""
+    From at least Go 1.4 to Go 1.6, Transport.RoundTrip would return the
+    error value from net.Conn.Read directly when the initial Read (1 byte
+    Peek) failed while reading the HTTP response, if a request was
+    outstanding. While never a documented or tested promise, Go 1.7 changed the
+    behavior (starting at https://golang.org/cl/23160).
     
-    Fixes #5452
+    This restores the old behavior and adds a test (but no documentation
+    promises yet) while keeping the fix for spammy logging reported in #15446.
     
-    Change-Id: Id858701801158409be01e962d2cda843424bd22a
-    Reviewed-on: https://go-review.googlesource.com/15684
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    This looks larger than it is: it just changes errServerClosedConn from
+    a variable to a type, where the type preserves the underlying
+    net.Conn.Read error, for unwrapping later in Transport.RoundTrip.
+    
+    Fixes #16465
+    
+    Change-Id: I6fa018991221e93c0cfe3e4129cb168fbd98bd27
+    Reviewed-on: https://go-review.googlesource.com/25153
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/xml/marshal.go      | 18 ++++++++++--------
- src/encoding/xml/marshal_test.go |  8 +++++++-
- 2 files changed, 17 insertions(+), 9 deletions(-)
+ src/net/http/transport.go               | 47 ++++++++++++++++++++++++++++-----
+ src/net/http/transport_internal_test.go |  9 +++++--
+ src/net/http/transport_test.go          | 39 +++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+), 8 deletions(-)

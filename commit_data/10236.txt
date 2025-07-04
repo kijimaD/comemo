@@ -1,21 +1,30 @@
-commit a7f1141dee05bf889b64401c787f08e1c8643e88
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Nov 3 14:44:29 2011 -0700
+commit f437331f80b05944e8f15b2f81429729101a9455
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 17:35:28 2011 -0400
 
-    net/http/httputil: new package; move ClientConn and ServerConn
+    time: faster Nanoseconds call
     
-    Part of http diet plan.
+    runtime knows how to get the time of day
+    without allocating memory.
     
-    More of the lesser-used and newcomer-misleading parts of http will
-    move here.
-    
-    R=r, rsc
+    R=golang-dev, dsymonds, dave, hectorchu, r, cw
     CC=golang-dev
-    https://golang.org/cl/5336049
+    https://golang.org/cl/5297078
 
- src/pkg/Makefile                           |  4 ++-
- src/pkg/net/http/Makefile                  |  1 -
- src/pkg/net/http/httputil/Makefile         | 11 ++++++++
- src/pkg/net/http/{ => httputil}/persist.go | 43 ++++++++++++++----------------
- src/pkg/net/http/serve_test.go             |  3 ++-
- 5 files changed, 36 insertions(+), 26 deletions(-)
+ src/pkg/runtime/Makefile            |  1 +
+ src/pkg/runtime/darwin/386/sys.s    | 25 ++++++++++++++++---------
+ src/pkg/runtime/darwin/amd64/sys.s  | 14 ++++++++------
+ src/pkg/runtime/freebsd/386/sys.s   | 26 +++++++++++++++++---------
+ src/pkg/runtime/freebsd/amd64/sys.s | 18 +++++++++---------
+ src/pkg/runtime/linux/386/sys.s     | 25 ++++++++++++++++---------
+ src/pkg/runtime/linux/amd64/sys.s   | 18 +++++++++---------
+ src/pkg/runtime/linux/arm/sys.s     |  6 +++---
+ src/pkg/runtime/openbsd/386/sys.s   | 25 ++++++++++++++++---------
+ src/pkg/runtime/openbsd/amd64/sys.s | 16 ++++++++--------
+ src/pkg/runtime/plan9/386/signal.c  |  5 +++--
+ src/pkg/runtime/runtime.c           | 12 ------------
+ src/pkg/runtime/runtime.h           |  1 -
+ src/pkg/runtime/time.goc            | 13 +++++++++++++
+ src/pkg/runtime/windows/thread.c    | 24 ++++++++++--------------
+ src/pkg/time/sys.go                 | 18 ++++--------------
+ 16 files changed, 133 insertions(+), 114 deletions(-)

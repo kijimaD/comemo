@@ -1,14 +1,12 @@
-commit d41d47306af792707835b0ada5430b6f4ae0fb0a
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Dec 4 10:58:13 2015 +0900
+commit 59bacb285c9dd6626b3fa6c620eb38dd7ea095b3
+Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
+Date:   Thu Oct 1 07:55:51 2015 +0000
 
-    net/mail: gofmt
+    runtime: update comment to match function name
     
-    Change-Id: Ic704a2614e310bc7aa3bdee89a020c27f4292efa
-    Reviewed-on: https://go-review.googlesource.com/17410
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I8f22434ade576cc7e3e6d9f357bba12c1296e3d1
+    Reviewed-on: https://go-review.googlesource.com/15250
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/mail/message_test.go | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ src/runtime/signal1_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

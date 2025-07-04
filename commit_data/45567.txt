@@ -1,28 +1,19 @@
-commit 54e20b505d370210f05ab567c0d19e9bb51db8a3
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed May 5 19:27:51 2021 -0400
+commit ecb79e8afa7811fd23b2e550a2bc5b22ea0aa82d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 29 12:12:19 2020 +0100
 
-    doc/go1.17: document fixes for negative rune handling
+    cmd/compile: run rulegen to include missing condition
     
-    CL 317273 accidentally grouped a fix for bufio, bytes, strings
-    packages into a single entry, but they should be separate ones.
+    Rulegen was not run again between patchsets 2 and 3 of CL 264683, so
+    the rewritegeneric.go file is out of sync. Run rulegen.
     
-    Fix that, and document these negative rune handling fixes.
-    
-    The list of fixed functions in package unicode was computed by
-    taking the functions covered by the new TestNegativeRunes test,
-    and including those that fail when tested with Go 1.16.3.
-    
-    For #44513.
-    Updates #43254.
-    
-    Change-Id: I6f387327f83ae52543526dbdcdd0bb5775c678bd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317469
-    Reviewed-by: David Benjamin <davidben@google.com>
-    Reviewed-by: Alexander Rakoczy <alex@golang.org>
-    Trust: Alexander Rakoczy <alex@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Change-Id: I67d8d267c4f666943ed9bf8c33aac2ac6013336a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266080
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rémy Oudompheng <remyoudompheng@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- doc/go1.17.html | 41 +++++++++++++++++++++++++++++++++++++----
- 1 file changed, 37 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

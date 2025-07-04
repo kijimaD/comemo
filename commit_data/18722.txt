@@ -1,22 +1,18 @@
-commit 1a936ebcfa4fadc0662feade965ea99d96aede77
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 3 20:43:23 2014 -0500
+commit 1d086e39b09e6fa3b5e87da5dd6ed8154319f1db
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 4 09:28:09 2014 +0900
 
-    math/rand: speed up Float32, Float64
+    net: enable fast socket creation with close-on-exec flag on freebsd
     
-    Actually, speed up Int31n and Int63n by avoiding retry loop.
+    Also makes variable names explicit.
     
-    benchmark           old ns/op    new ns/op    delta
-    BenchmarkFloat32           32           26  -19.45%
-    BenchmarkFloat64           46           23  -49.47%
+    Fixes #7186.
     
-    Fixes #7267.
-    
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant
+    R=golang-codereviews, gobot, iant, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/69980047
+    https://golang.org/cl/69100043
 
- src/pkg/math/rand/rand.go      | 6 ++++++
- src/pkg/math/rand/rand_test.go | 7 +++++++
- 2 files changed, 13 insertions(+)
+ src/pkg/net/sock_cloexec.go | 40 ++++++++++++++++++++++------------------
+ src/pkg/net/sys_cloexec.go  | 18 +++++++++---------
+ 2 files changed, 31 insertions(+), 27 deletions(-)

@@ -1,29 +1,12 @@
-commit ca1d6c4b449caaada97a8024430ec572724b3ae9
-Author: Didier Spezia <didier.06@gmail.com>
-Date:   Wed Jul 15 20:09:24 2015 +0000
+commit a3b9797baa487224c5d5e1878057ec31e1f0df88
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 15 13:35:56 2015 -0400
 
-    encoding/xml: EncodeToken silently eats tokens with invalid type
+    runtime: gofmt
     
-    EncodeToken takes a Token (i.e. an interface{}) as a parameter,
-    and expects a value of type StartElement, EndElement, CharData,
-    Comment, ProcInst, or Directive.
-    
-    If a pointer is passed instead, or any type which does not match
-    this list, the token is silently ignored.
-    
-    Added a default case in the type switch to issue a proper error
-    when the type is invalid.
-    
-    The behavior could be later improved by allowing pointers to
-    token to be accepted as well, but not for go1.5.
-    
-    Fixes #11719
-    
-    Change-Id: Ifd13c1563450b474acf66d57669fdccba76c1949
-    Reviewed-on: https://go-review.googlesource.com/12252
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I539bdc438f694610a7cd373f7e1451171737cfb3
+    Reviewed-on: https://go-review.googlesource.com/11084
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/encoding/xml/marshal.go      |  4 ++++
- src/encoding/xml/marshal_test.go | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+)
+ src/runtime/malloc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

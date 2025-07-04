@@ -1,14 +1,17 @@
-commit 83d90bbc824e5874022a41bbbbe4f34c65876480
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Mar 22 12:52:54 2019 +0100
+commit 745ec8b922d236016dac99ae270084447dd4758f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 07:34:52 2018 -0700
 
-    syscall: fix returned values of Dup2 on aix/ppc64
+    cmd/go: don't let "go test -c -o /dev/null" overwrite /dev/null
     
-    Change-Id: Ia78ea589cc6d58ff22f7d519399c06c5308419dd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168878
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #28549
+    
+    Change-Id: Iba71bb2edd0759004e0c7df92b2b8f1197bd62d3
+    Reviewed-on: https://go-review.googlesource.com/c/146901
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/syscall/syscall_aix.go        | 2 +-
- src/syscall/zsyscall_aix_ppc64.go | 5 ++---
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go            | 30 ++++++++++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go | 20 ++++++++++++--------
+ 2 files changed, 42 insertions(+), 8 deletions(-)

@@ -1,26 +1,22 @@
-commit 9f5336d8d055e5768b5316bf6d32b1a5a705702e
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 9 16:36:48 2018 -0400
+commit 11309ba0e651bbbec0ff9d7200bb51b56a5c0f49
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 14 14:14:28 2018 +1000
 
-    cmd/go: fix install target name for versioned binaries
+    cmd/internal/obj/arm64: do not clear environment in TestLarge and TestNoRet
     
-    For a package in the module root, using the containing directory name
-    might mean the directory in the module cache, in which case the
-    executable has a final @v1.2.3 in it, which is no good. Fix that.
+    Windows process cannot run properly, if it only has
+    GOOS and GOARCH environment variables set. It needs
+    other environment variables. So adjust TestLarge and
+    TestNoRet to add GOOS and GOARCH to the existing
+    variables set instead of clearing environment.
     
-    While we're here, change go install example.com/cmd/foo/v2 to
-    install foo instead of the less useful "v2".
+    Fixes #24855
     
-    Fixes #24667.
-    Fixes #26869.
-    
-    Change-Id: Ie40ca1bc9e27955441f1cdb7abd3a1f69034c9f5
-    Reviewed-on: https://go-review.googlesource.com/128900
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I9fd9430d89031c3bacdbc6283450efaa4819e616
+    Reviewed-on: https://go-review.googlesource.com/107035
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/internal/load/pkg.go                    | 31 ++++++++++++++++++++++
- src/cmd/go/testdata/mod/rsc.io_fortune_v1.0.0.txt  | 15 +++++++++++
- .../go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt   | 15 +++++++++++
- src/cmd/go/testdata/script/mod_install.txt         | 16 -----------
- .../go/testdata/script/mod_install_versioned.txt   | 12 +++++++++
- 5 files changed, 73 insertions(+), 16 deletions(-)
+ src/cmd/internal/obj/arm64/asm_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

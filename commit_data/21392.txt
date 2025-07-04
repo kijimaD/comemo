@@ -1,31 +1,16 @@
-commit 7a71726b1f0b54b9241730e4bf7a5073676f17fa
-Author: Austin Clements <austin@google.com>
-Date:   Thu Jan 29 11:54:45 2015 -0500
+commit 3d032d765318cea13b4aaae882135381cde0c11a
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Dec 18 05:05:44 2014 -0800
 
-    runtime: check alignment of 8-byte atomic loads and stores on 386
+    runtime: consolidate arch-specific signal handlers on Plan 9
     
-    Currently, if we do an atomic{load,store}64 of an unaligned address on
-    386, we'll simply get a non-atomic load/store.  This has been the
-    source of myriad bugs, so add alignment checks to these two
-    operations.  These checks parallel the equivalent checks in
-    sync/atomic.
-    
-    The alignment check is not necessary in cas64 because it uses a locked
-    instruction.  The CPU will either execute this atomically or raise an
-    alignment fault (#AC)---depending on the alignment check flag---either
-    of which is fine.
-    
-    This also fixes the two places in the runtime that trip the new
-    checks.  One is in the runtime self-test and shouldn't have caused
-    real problems.  The other is in tickspersecond and could, in
-    principle, have caused a misread of the ticks per second during
-    initialization.
-    
-    Change-Id: If1796667012a6154f64f5e71d043c7f5fb3dd050
-    Reviewed-on: https://go-review.googlesource.com/3521
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I4379418853c523fc9aaeb5d6f37bc96117841418
+    Reviewed-on: https://go-review.googlesource.com/1786
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
 
- src/runtime/asm_386.s   |  6 ++++++
- src/runtime/runtime.go  |  1 +
- src/runtime/runtime1.go | 42 ++++++++++++++++++++++--------------------
- 3 files changed, 29 insertions(+), 20 deletions(-)
+ src/runtime/defs_plan9_386.go                 |  26 +++++
+ src/runtime/defs_plan9_amd64.go               |  34 +++++++
+ src/runtime/{os_plan9_386.go => os3_plan9.go} |  36 ++-----
+ src/runtime/os_plan9_amd64.go                 | 139 --------------------------
+ 4 files changed, 71 insertions(+), 164 deletions(-)

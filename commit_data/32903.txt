@@ -1,20 +1,15 @@
-commit 9735fcfce78360eeaaa62fb44bd597f7b85ff429
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Sun Oct 1 12:51:54 2017 +0200
+commit 297c1881071eb2da788e2e20467ff2a436ec6f99
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 13 14:17:00 2017 -0700
 
-    sync/atomic: add memory barriers to Load/StoreInt32 on darwin/arm
+    cmd/go: fix TestIssue7573 for absolute paths in -L options
     
-    After switching to an iPhone 5 for the darwin/arm builds,
-    TestStoreLoadRelAcq32 started to timeout on every builder run.
-    Adding the same memory barriers as armLoadUint64 and armStoreUint64
-    makes the test complete successfully.
+    Updates #20266.
+    Fixes #20664.
     
-    Fixes sync/atomic tests on the darwin/arm builder.
-    
-    Change-Id: Id73de31679304e259bdbd7f2f94383ae7fd70ee4
-    Reviewed-on: https://go-review.googlesource.com/67390
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: Ifca30409fc7971497efb6d84f3f98760157c2233
+    Reviewed-on: https://go-review.googlesource.com/45650
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/sync/atomic/asm_darwin_arm.s | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

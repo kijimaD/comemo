@@ -1,20 +1,35 @@
-commit a5339da341b8f37c87b77c2fc1318d6ecd2331ff
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Wed May 22 17:44:04 2024 -0400
+commit 7c91e1e568fff5667419257d2654d5362dd89536
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 17 14:22:55 2023 +0000
 
-    doc/next: document go mod tidy -diff flag
+    runtime: replace raw traceEv with traceBlockReason in gopark
     
-    Add a release note for the flag that CL 585401 added.
+    This change adds traceBlockReason which leaks fewer implementation
+    details of the tracer to the runtime. Currently, gopark is called with
+    an explicit trace event, but this leaks details about trace internals
+    throughout the runtime.
     
-    For #27005.
-    For #65614.
+    This change will make it easier to change out the trace implementation.
     
-    Change-Id: Ib26eb1b85c511d3cb41a29a8d9354577dd9a0e14
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587695
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Change-Id: Id633e1704d2c8838c6abd1214d9695537c4ac7db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494185
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- doc/next/3-tools.md | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/runtime/chan.go        |  8 ++++----
+ src/runtime/debugcall.go   |  2 +-
+ src/runtime/lock_js.go     |  6 +++---
+ src/runtime/mfinal.go      |  2 +-
+ src/runtime/mgc.go         |  4 ++--
+ src/runtime/mgcmark.go     |  2 +-
+ src/runtime/mgcscavenge.go |  4 ++--
+ src/runtime/mgcsweep.go    |  4 ++--
+ src/runtime/netpoll.go     |  2 +-
+ src/runtime/proc.go        | 18 +++++++++---------
+ src/runtime/runtime2.go    |  8 ++++----
+ src/runtime/select.go      |  4 ++--
+ src/runtime/sema.go        |  4 ++--
+ src/runtime/time.go        |  2 +-
+ src/runtime/trace.go       | 37 ++++++++++++++++++++++++++++++++++---
+ 15 files changed, 69 insertions(+), 38 deletions(-)

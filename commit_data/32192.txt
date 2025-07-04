@@ -1,22 +1,20 @@
-commit 51ba2bb81923298f08b8ec6d50d0c579b4b63ef3
-Author: Hiroshi Ioka <hirochachacha@gmail.com>
-Date:   Tue Jul 11 18:57:54 2017 +0900
+commit 758d078fd5ab423d00f5a46028139c1d13983120
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Apr 11 18:52:05 2017 -0500
 
-    runtime/cgo: make code robust
+    plugin: resolve random crash when calling exported functions
     
-    According to http://pubs.opengroup.org/onlinepubs/009695399/functions/pthread_key_create.html,
-    pthread_key_create return an error number which is greater than or equal
-    to 0. I don't know the scenario that pthread_setspecific would fail, but
-    also don't know the future. Add some error handlings just in case.
+    open modified the plugin symbols map while ranging over it. This is
+    normally harmless, except that the operations performed were not
+    idempotent leading to function pointers being corrupted.
     
-    Change-Id: I0774b79ef658d67e300f4a9aab1f2e3879acc7ee
-    Reviewed-on: https://go-review.googlesource.com/54811
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #19269
+    
+    Change-Id: I4b6eb1d45567161412e4a34b41f1ebf647bcc942
+    Reviewed-on: https://go-review.googlesource.com/40431
+    Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/cgo/gcc_android_386.c   | 7 +++++--
- src/runtime/cgo/gcc_android_amd64.c | 7 +++++--
- src/runtime/cgo/gcc_darwin_386.c    | 7 +++++--
- src/runtime/cgo/gcc_darwin_amd64.c  | 7 +++++--
- 4 files changed, 20 insertions(+), 8 deletions(-)
+ src/plugin/plugin_dlopen.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

@@ -1,18 +1,18 @@
-commit b464708b463b104849a951af54352c8a894bfbc4
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Jul 19 13:34:29 2022 -0400
+commit 6d02ce85840fb7a1a9239d02e02710a008b1657a
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Fri Sep 17 13:48:39 2021 +0200
 
-    runtime: convert schedt.goidgen to atomic type
+    runtime: fix prettyprinting of parametric types in gdb
     
-    For #53821.
+    golang.org/cl/344929 broke the minimal functionality that the python
+    pretty printer for GDB had, this change restores it to its status prior
+    to that CL.
     
-    Change-Id: I84c96ade5982b8e68d1d1787bf1bfa16a17a4fb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/419439
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I4c7141d4ff726d224a074ecc533d0f896fc0052c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350529
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Than McIntosh <thanm@google.com>
 
- src/runtime/align_runtime_test.go | 1 -
- src/runtime/proc.go               | 4 ++--
- src/runtime/runtime2.go           | 2 +-
- 3 files changed, 3 insertions(+), 4 deletions(-)
+ src/runtime/runtime-gdb.py | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

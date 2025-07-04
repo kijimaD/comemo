@@ -1,19 +1,21 @@
-commit c3ecded729214abf8a146902741cd6f9d257f68c
-Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Feb 24 12:34:56 2016 -0500
+commit 17360accab554328f61bf7c057e05e0aea585140
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 19 17:03:01 2015 -0800
 
-    cmd/dist: introduce list subcommand to list all supported platforms
+    cmd/cgo: make the char * pointer in GoString const
     
-    Fixes #12270.
+    This makes it more convenient for C code to use GoString with string
+    constants.  Since Go string values are immutable, the const qualifier is
+    appropriate in C.
     
-    Change-Id: Ie3dcbd0403d270b4b7f5c39049e12315eee159ed
-    Reviewed-on: https://go-review.googlesource.com/19837
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Change-Id: I5fb3cdce2ce5079f1f0467a1544bb3a1eb27b811
+    Reviewed-on: https://go-review.googlesource.com/17067
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- doc/go1.7.txt           |  1 +
- src/cmd/dist/build.go   | 58 +++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/dist/buildgo.go |  6 +++--
- src/cmd/dist/main.go    |  1 +
- 4 files changed, 64 insertions(+), 2 deletions(-)
+ misc/cgo/test/callback.go  | 17 +++++++++++++++++
+ misc/cgo/test/callback_c.c |  8 ++++++++
+ misc/cgo/test/cgo_test.go  |  1 +
+ src/cmd/cgo/out.go         |  2 +-
+ 4 files changed, 27 insertions(+), 1 deletion(-)

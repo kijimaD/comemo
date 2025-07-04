@@ -1,23 +1,21 @@
-commit 0c9be48a90bfafac68cde05c4d7db8eee17492f6
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 19 16:53:18 2018 -0700
+commit aa00ca12fe5f342f97fe7335e107848f1b7880bd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 6 16:20:10 2018 -0800
 
-    go/internal/gccgoimporter: read export data from archives
+    cmd/compile: cleanup funccompile and compile
     
-    When used with the go tool, gccgo will normally generate archive files.
-    This change teaches the gccgoimporter package how to read the export
-    data from an archive.
+    Bring these functions next to each other, and clean them up a little
+    bit. Also, change emitptrargsmap to take Curfn as a parameter instead
+    of a global.
     
-    This is needed by, for example, cmd/vet, when typechecking packages.
+    Passes toolstash-check.
     
-    Change-Id: I21267949a7808cd81c0042af425c774a4ff7d82f
-    Reviewed-on: https://go-review.googlesource.com/119895
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib9c94fda3b2cb6f0dcec1585622b33b4f311b5e9
+    Reviewed-on: https://go-review.googlesource.com/99075
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/internal/gccgoimporter/ar.go                | 148 +++++++++++++++++++++
- src/go/internal/gccgoimporter/importer.go          |  50 ++++---
- src/go/internal/gccgoimporter/importer_test.go     |   1 +
- .../internal/gccgoimporter/testdata/libimportsar.a | Bin 0 -> 9302 bytes
- 4 files changed, 178 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/gc/dcl.go  | 23 -----------------
+ src/cmd/compile/internal/gc/pgen.go | 51 +++++++++++++++++++++++++++----------
+ 2 files changed, 37 insertions(+), 37 deletions(-)

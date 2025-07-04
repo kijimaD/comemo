@@ -1,22 +1,23 @@
-commit b9747e0e6b82c6de1ebe020841087e8fb1eabccc
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 7 13:27:22 2022 -0800
+commit ea3c546e9e2b507d497f8093f8414cb31c112062
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Thu Jan 27 15:29:04 2022 +0000
 
-    os/user: on AIX getpwuid_r seems to return -1 on overflow
+    syscall: use RLIMIT_CPU instead of RLIMIT_NOFILE
     
-    The getpwuid_r function is expected to return ERANGE on overflow.
-    Accept -1 on AIX as we see that in practice.
+    The latter is subject to kern.maxfilelimit restrictions on darwin which
+    are not reflected in the return value. This makes it difficult to
+    reliably restore the default after the test is complete. RLIMIT_CPU
+    should hopefully sidestep this problem.
     
-    This problem was uncovered by, but not caused by, CL 455815,
-    which introduced a test that forced a buffer overflow.
+    Updates #40564.
     
-    Change-Id: I3ae94faf1257d2c73299b1478e49769bb807fc4d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/456075
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: Ifb33c7d46f2708130cef366dc245c643a2d5e465
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383234
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Bryan Mills <bcmills@google.com>
 
- src/os/user/cgo_lookup_unix.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/syscall/syscall_unix_test.go | 21 ++++-----------------
+ 1 file changed, 4 insertions(+), 17 deletions(-)

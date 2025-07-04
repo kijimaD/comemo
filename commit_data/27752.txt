@@ -1,23 +1,55 @@
-commit c7ae41e5770b2258074eee68a6a3c4d0d71a251f
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 28 17:06:59 2016 -0700
+commit b6cd6d7d3211bd9030dec4115b6202d93fe570a3
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Thu Mar 31 02:01:48 2016 -0700
 
-    runtime: better error message for newosproc failure
+    cmd/go: fix vcsFromDir returning bad root on Windows
     
-    If creating a new thread fails with EAGAIN, point the user at ulimit.
+    Apply golang/tools@5804fef4c0556d3e5e7d2440740a3d7aced7d58b.
     
-    Fixes #15476.
+    In the context of cmd/go build tool, import path is a '/'-separated path.
+    This can be inferred from `go help importpath` and `go help packages`.
+    vcsFromDir documentation says on return, root is the import path
+    corresponding to the root of the repository. On Windows and other
+    OSes where os.PathSeparator is not '/', that wasn't true since root
+    would contain characters other than '/', and therefore it wasn't a
+    valid import path corresponding to the root of the repository.
+    Fix that by using filepath.ToSlash.
     
-    Change-Id: Ib36519614b5c72776ea7f218a0c62df1dd91a8ea
-    Reviewed-on: https://go-review.googlesource.com/24570
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Add test coverage for vcsFromDir, it was previously not tested.
+    It's taken from golang.org/x/tools/go/vcs tests, and modified to
+    improve style.
+    
+    Additionally, remove an unneccessary statement from the documentation
+    "(thus root is a prefix of importPath)". There is no variable
+    importPath that is being referred to (it's possible p.ImportPath
+    was being referred to). Without it, the description of root value
+    matches the documentation of repoRoot.root struct field:
+    
+            // root is the import path corresponding to the root of the
+            // repository
+            root string
+    
+    Rename and change signature of vcsForDir(p *Package) to
+    vcsFromDir(dir, srcRoot string). This is more in sync with the x/tools
+    version. It's also simpler, since vcsFromDir only needs those two
+    values from Package, and nothing more. Change "for" to "from" in name
+    because it's more consistent and clear.
+    
+    Update usage of vcsFromDir to match the new signature, and respect
+    that returned root is a '/'-separated path rather than a os.PathSeparator
+    separated path.
+    
+    Fixes #15040.
+    Updates #7723.
+    Helps #11490.
+    
+    Change-Id: Idf51b9239f57248739daaa200aa1c6e633cb5f7f
+    Reviewed-on: https://go-review.googlesource.com/21345
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/os3_solaris.go  | 3 +++
- src/runtime/os_dragonfly.go | 1 +
- src/runtime/os_freebsd.go   | 1 +
- src/runtime/os_linux.go     | 3 +++
- src/runtime/os_netbsd.go    | 5 +++++
- src/runtime/os_openbsd.go   | 3 +++
- 6 files changed, 16 insertions(+)
+ src/cmd/go/get.go      |  8 ++++----
+ src/cmd/go/vcs.go      | 13 ++++++-------
+ src/cmd/go/vcs_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+), 11 deletions(-)

@@ -1,15 +1,12 @@
-commit 846a368b8813d6ce1e26a3754ce2a66f73903df1
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Apr 8 10:59:25 2011 -0400
+commit d9763147764400c6fb7a0701a5c9cbdd6682062d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 8 23:53:57 2011 +1000
 
-    gofix: be more conservative about rewrite to os.Create
+    gotest: handle \r\n returned by gomake on Windows (fixes build)
     
-    Rewrite only if we understood all the flags we saw.
-    
-    R=r
-    CC=golang-dev
-    https://golang.org/cl/4376046
+    R=golang-dev, peterGo, rsc1
+    CC=Joe Poirier, golang-dev
+    https://golang.org/cl/4370048
 
- src/cmd/gofix/osopen.go      | 23 +++++++++++++----------
- src/cmd/gofix/osopen_test.go |  4 ++++
- 2 files changed, 17 insertions(+), 10 deletions(-)
+ src/cmd/gotest/gotest.go | 3 +++
+ 1 file changed, 3 insertions(+)

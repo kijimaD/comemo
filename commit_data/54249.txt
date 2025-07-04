@@ -1,21 +1,17 @@
-commit 111ab754324e5d5646f84354bc1a134907baaa49
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Fri Aug 25 16:42:42 2023 +0000
+commit 2cbcf36ede1092074b73924d2f4f12ddcf0fcc0a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 10:44:12 2022 +0800
 
-    log/slog: use atomic.Pointer instead of atomic.Value
+    cmd/internal: use fmt.Fprintf
     
-    There is no need to use atomic.Value, atomic.Pointer should also
-    be more performant here.
-    
-    Change-Id: I04cc1befbe1112665a9d9e16197ea3caef5e5fa3
-    GitHub-Last-Rev: 577902519ff744c936c5e707802f66aeae32c760
-    GitHub-Pull-Request: golang/go#62288
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/523035
+    Change-Id: Ifa78c98bf919ea62136f19b2bad0a8ee33afc646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435695
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
 
- src/log/slog/logger.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/test2json/test2json.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

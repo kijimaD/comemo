@@ -1,43 +1,15 @@
-commit 4dc11ae26b3a092bbcd1b4d0ae8cdaeb1cf1cef9
-Author: Huan Du <i@huandu.me>
-Date:   Thu Aug 29 17:18:53 2019 +0800
+commit f0e0be6e9020caff0b44e0dcb44c8b2e707710f0
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Mar 26 11:24:40 2019 +0700
 
-    reflect: fix panic in DeepEqual when checking a cycle
+    os: document exit status range value
     
-    Before this change, when DeepEqual checks values with cycle, it may
-    panic due to stack overflow.
+    Fixes #30959
     
-    Here is a sample to reproduce the issue.
-    
-        makeCycleMap := func() interface{} {
-            cycleMap := map[string]interface{}{}
-            cycleMap["foo"] = cycleMap
-            return cycleMap
-        }
-    
-        m1 := makeCycleMap()
-        m2 := makeCycleMap()
-        reflect.DeepEqual(m1, m2) // stack overflow
-    
-    The root cause is that DeepEqual fails to cache interface values
-    in visited map, which is used to detect cycle. DeepEqual calls
-    CanAddr to check whether a value should be cached or not. However,
-    all values referenced by interface don't have flagAddr thus all these
-    values are not cached.
-    
-    THe fix is to remove CanAddr calls and use underlying ptr in value
-    directly. As ptr is only read-only in DeepEqual for caching, it's
-    safe to do so. We don't use UnsafeAddr this time, because this method
-    panics when CanAddr returns false.
-    
-    Fixes #33907
-    
-    Change-Id: I2aa88cc060a2c2192b1d34c129c0aad4bd5597e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191940
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I9d30d79e2dbb3f8c8d6555f8c64862b133638d5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/reflect/all_test.go  | 12 +++++++++++-
- src/reflect/deepequal.go | 16 +++++++++-------
- 2 files changed, 20 insertions(+), 8 deletions(-)
+ src/os/proc.go | 2 ++
+ 1 file changed, 2 insertions(+)

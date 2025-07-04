@@ -1,19 +1,24 @@
-commit bccd686f9dac534d50ad420f7cfad22c4f43e352
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Nov 6 21:13:44 2024 -0500
+commit ea8c05508b582f7ab20850e336d5ae4abf4e448d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 11 12:18:51 2023 -0400
 
-    runtime/cgo: use pthread_getattr_np on Android
+    Revert "runtime: allow update of system stack bounds on callback from C thread"
     
-    It is defined in bionic libc since at least API level 3. Use it.
+    This reverts CL 525455. The test fails to build on darwin, alpine, and
+    android.
     
-    Updates #68285.
+    For #62440.
     
-    Change-Id: I215c2d61d5612e7c0298b2cb69875690f8fbea66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/626275
+    Change-Id: I39c6b1e16499bd61e0f166de6c6efe7a07961e62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527317
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/cgo/gcc_stack_unix.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/cgocall.go                          | 70 ---------------------
+ src/runtime/crash_cgo_test.go                   | 13 ----
+ src/runtime/proc.go                             | 33 +++++++---
+ src/runtime/testdata/testprogcgo/stackswitch.c  | 81 -------------------------
+ src/runtime/testdata/testprogcgo/stackswitch.go | 43 -------------
+ 5 files changed, 24 insertions(+), 216 deletions(-)

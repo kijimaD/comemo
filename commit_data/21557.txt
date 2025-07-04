@@ -1,23 +1,18 @@
-commit a15818fed3032d43e57c395c3fe8b46b37a5f1ea
-Author: Rick Hudson <rlh@golang.org>
-Date:   Thu Feb 5 19:58:18 2015 -0500
+commit a25af2e99e21fe9011d4057cfab1e0cb0ffb3cdb
+Author: Paul Nasrat <pnasrat@google.com>
+Date:   Wed Jan 14 14:32:01 2015 -0500
 
-    runtime: cache workbufs on Ms and add consistency checks
+    runtime: fix runtime-gdb script loading
     
-    Add local workbufs to the m struct in order to reduce contention.
-    Add consistency checks for workbuf ownership.
-    Chain workbufs through call change to avoid swapping them
-    to and from the m struct.
-    Adjust the size of the workbuf so that the mutators can
-    more frequently pass modifications to the GC thus shifting
-    some work from the STW mark termination phase to the concurrent
-    mark phase.
+    runtime.rtype was a copy of reflect.rtype - update script to use that directly.
+    Introduces a basic test which will skip on systems without appropriate GDB.
     
-    Change-Id: I557b53af34ad9972265e0ed9f5996e52d548563d
-    Reviewed-on: https://go-review.googlesource.com/3972
-    Reviewed-by: Austin Clements <austin@google.com>
+    Fixes #9326
+    
+    Change-Id: I6ec74e947bd2e1295492ca34b3a8c1b49315a8cb
+    Reviewed-on: https://go-review.googlesource.com/2821
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/malloc.go   |   2 +
- src/runtime/mgc.go      | 454 ++++++++++++++++++++++++++++++++++++------------
- src/runtime/runtime2.go |   1 +
- 3 files changed, 348 insertions(+), 109 deletions(-)
+ src/runtime/runtime-gdb.py      |  2 +-
+ src/runtime/runtime-gdb_test.go | 59 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 1 deletion(-)

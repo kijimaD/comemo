@@ -1,17 +1,18 @@
-commit d30949693c62bc81046d558681292a4254d4d7c0
-Author: Brendan Daniel Tracey <tracey.brendan@gmail.com>
-Date:   Mon Feb 10 20:27:31 2014 -0500
+commit ae5bed04c3b2d2bd752485794557021b6ce954b3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 11 09:26:34 2014 +1100
 
-    cmd/gc: change compile error to "use of package %S without selector"
+    doc: restore race detector manual
     
-    At present, when a package identifier is used outside of a selector expression, gc gives the error "use of package %S outside selector". However, in the selector expression x.f, the spec defines f as the selector. This change makes the error clearer.
+    This got deleted mistakenly during the content re-org.
     
-    Fixes #7133.
+    Fixes #7275.
     
-    LGTM=rsc
-    R=golang-codereviews, rsc
+    LGTM=dvyukov
+    R=golang-codereviews, minux.ma, dvyukov
     CC=golang-codereviews
-    https://golang.org/cl/50060047
+    https://golang.org/cl/60850043
 
- src/cmd/gc/typecheck.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/articles/race_detector.html | 388 ++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                   |   3 +-
+ 2 files changed, 390 insertions(+), 1 deletion(-)

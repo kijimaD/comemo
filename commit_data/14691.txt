@@ -1,16 +1,28 @@
-commit ff5d47ebbaad42862e97e93d46fc89c768c098a3
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 20 10:48:33 2012 +1100
+commit 07e706f8ce98e3701998afdc18bb62dac324fb2a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Dec 20 08:26:24 2012 +1100
 
-    testing: only capture stdout when running examples
+    go/token: fix data race on FileSet.last
     
-    Fixes #4550.
+    Fixes #4345.
     
-    R=golang-dev, bradfitz
+    Benchmarks are promising,
+    
+    benchmark         old ns/op    new ns/op    delta
+    BenchmarkPrint     14716391     14747131   +0.21%
+    
+    benchmark         old ns/op    new ns/op    delta
+    BenchmarkParse      8846219      8809343   -0.42%
+    
+    benchmark          old MB/s     new MB/s  speedup
+    BenchmarkParse         6.61         6.64    1.00x
+    
+    Also includes additional tests to improve token.FileSet coverage.
+    
+    R=dvyukov, gri
     CC=golang-dev
-    https://golang.org/cl/6973048
+    https://golang.org/cl/6968044
 
- src/cmd/go/doc.go          | 30 ++++++++++++++++++++++++++----
- src/cmd/go/test.go         |  4 ++--
- src/pkg/testing/example.go | 12 ++++++------
- 3 files changed, 34 insertions(+), 12 deletions(-)
+ src/pkg/go/token/position.go      | 18 ++++++++++--------
+ src/pkg/go/token/position_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 8 deletions(-)

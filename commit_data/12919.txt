@@ -1,15 +1,19 @@
-commit 6791057296ce6ff545f7a435aaebb371cb4191b9
+commit 7d63ff09a5ce65c91021acaf79b1d281cba55f07
 Author: Andrew Balholm <andybalholm@gmail.com>
-Date:   Fri Apr 20 14:25:42 2012 +1000
+Date:   Fri Apr 20 10:48:10 2012 +1000
 
-    exp/html: ignore null bytes in text
+    exp/html: improve afterHeadIM
     
-    pass one additional test
+    Clean up the flow of control.
+    Fix the TODO for handling <html> tags.
+    Add a case to ignore doctype declarations.
     
-    R=golang-dev, nigeltao
+    Pass one additional test.
+    
+    R=nigeltao
     CC=golang-dev
-    https://golang.org/cl/6048051
+    https://golang.org/cl/6072047
 
- src/pkg/exp/html/parse.go                                    | 12 ++++++------
- .../testlogs/pending-spec-changes-plain-text-unsafe.dat.log  |  2 +-
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ src/pkg/exp/html/parse.go                 | 39 +++++++++++--------------------
+ src/pkg/exp/html/testlogs/tests19.dat.log |  2 +-
+ 2 files changed, 14 insertions(+), 27 deletions(-)

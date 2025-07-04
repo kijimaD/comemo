@@ -1,0 +1,23 @@
+commit d8997c8c1fd2b666b1f145b8006e6a7871e48f45
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 3 18:18:11 2024 +0000
+
+    runtime: use wb flag instead of gcphase for allocate-black check
+    
+    This is an allocator microoptimization. There's no reason to check
+    gcphase in general, since it's mostly for debugging anyway.
+    writeBarrier.enabled is set in all the same cases here, and we force one
+    fewer cache line (probably) to be touched during malloc.
+    
+    Conceptually, it also makes a bit more sense. The allocate-black policy
+    is partly informed by the write barrier design.
+    
+    Change-Id: Ia5ff593d64c29cf7f4d1bced3204056566444a98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617875
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

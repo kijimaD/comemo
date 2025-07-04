@@ -1,21 +1,20 @@
-commit 2db587c0297224b9c525da0ed452502a4d2e0345
-Author: Hajime Hoshi <hajimehoshi@gmail.com>
-Date:   Sun May 10 04:22:11 2015 +0900
+commit c723230e4a1ddb30b4822de8f795c16fd9aa90ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 30 15:00:51 2015 -0700
 
-    encoding/xml: Reset the parent stack before printing a chardata or comment field in a struct
+    net/http: fix scheduling race resulting in flaky test
     
-    This CL resets the parent stack when printing a character or comment field struct.
-    In the case of XML elements, the previous parents stack must be considered. However,
-    charadata or comment fields can't be printed in other fields so it seems required to reset
-    the parent stack each time a chardata or comment field is printed.
+    The test was measuring something, assuming other goroutines had
+    already scheduled.
     
-    Fixes #5072
+    Fixes #10427
     
-    Change-Id: I84f61c9bfce94133cd0c076c11211b9be5b4b1ac
-    Reviewed-on: https://go-review.googlesource.com/9910
-    Reviewed-by: Nigel Tao <nigeltao@golang.org>
-    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Change-Id: I2a4d3906f9d4b5ea44b57d972e303bbe2b0b1cde
+    Reviewed-on: https://go-review.googlesource.com/9561
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/encoding/xml/marshal.go      |  6 ++++++
- src/encoding/xml/marshal_test.go | 18 ++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ src/net/http/export_test.go    | 14 ++++++++++++++
+ src/net/http/transport.go      | 19 +++++++++++++++++++
+ src/net/http/transport_test.go | 23 ++++++++++++++++++++++-
+ 3 files changed, 55 insertions(+), 1 deletion(-)

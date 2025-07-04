@@ -1,17 +1,25 @@
-commit d9d55724bd8ff10d8de5c13fd77122a37ac73719
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu Mar 3 15:41:57 2022 -0600
+commit d2b03111c44db5808ef5248470bf95fe7ea35ebc
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 6 20:36:10 2021 -0400
 
-    internal/cpu: set PPC64.IsPOWER8
+    go/types,cmd/compile/internal/types2: unskip std and cmd in TestStdlib
     
-    This should always be true, but use the HWCAP2 bit anyways.
+    CL 276272 accidentally skipped everything in TestStdlib while trying to
+    skip nested submodules of std and cmd.
     
-    Change-Id: Ib164cf05b4c9f0c509f41b7eb339ef32fb63e384
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/389894
-    Trust: Paul Murphy <murp@ibm.com>
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    For now, narrow the skip to just the problematic submodule rather than
+    trying to generalize. We can re-evaluate if it becomes a pattern to
+    vendor submodules in this way.
+    
+    Fixes #46027
+    
+    Change-Id: Ib355ff80dfbf17c3cf37d128a2f48d4216305267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317869
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/internal/cpu/cpu_ppc64x_linux.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/compile/internal/types2/stdlib_test.go | 10 +++-------
+ src/go/types/stdlib_test.go                    | 10 +++-------
+ 2 files changed, 6 insertions(+), 14 deletions(-)

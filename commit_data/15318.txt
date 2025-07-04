@@ -1,13 +1,25 @@
-commit 7f9c02a10d736d8d4c39717c82b69ec50e9677f1
-Author: Carl Shapiro <cshapiro@google.com>
-Date:   Tue Feb 19 18:05:44 2013 -0800
+commit 40c2fbf4f2d56bc180a579d63dcfaf537984d9e5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 20 08:18:04 2013 +0900
 
-    runtime: add conversion specifier to printf for char values
+    net: set up IPv6 scoped addressing zone for network facilities
     
-    R=r, golang-dev
+    This CL changes nothing to existing API behavior, just sets up
+    Zone in IPNet and IPAddr structures if possible.
+    
+    Also does small simplification.
+    
+    Update #4234.
+    
+    R=rsc, dave
     CC=golang-dev
-    https://golang.org/cl/7327053
+    https://golang.org/cl/7300081
 
- src/pkg/runtime/print.c   | 10 ++++++++++
- src/pkg/runtime/runtime.h |  1 +
- 2 files changed, 11 insertions(+)
+ src/pkg/net/interface_bsd.go     | 50 ++++++++++++++++++----------------------
+ src/pkg/net/interface_darwin.go  | 22 ++++++++----------
+ src/pkg/net/interface_freebsd.go | 22 ++++++++----------
+ src/pkg/net/interface_linux.go   | 20 ++++++++--------
+ src/pkg/net/interface_netbsd.go  |  1 +
+ src/pkg/net/interface_openbsd.go |  1 +
+ src/pkg/net/interface_windows.go |  4 ++++
+ 7 files changed, 56 insertions(+), 64 deletions(-)

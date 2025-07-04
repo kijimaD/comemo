@@ -1,22 +1,18 @@
-commit e4ba40030f9ba4b61bb28dbf78bb41a7b14e6788
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Mar 18 16:10:07 2019 -0700
+commit b251d7fbe6d69e1ce81baf7959062ae489858f31
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 17 18:11:01 2017 -0400
 
-    math/big: accept non-decimal floats with Rat.SetString
+    cmd/trace: display p99.9, p99 and p95 MUT
     
-    This fixes an old oversight. Rat.SetString already permitted
-    fractions a/b where both a and b could independently specify
-    a base prefix. With this CL, it now also accepts non-decimal
-    floating-point numbers.
+    This uses the mutator utilization distribution to compute the p99.9,
+    p99, and p95 mutator utilization topograph lines and display them
+    along with the MMU.
     
-    Fixes #29799.
-    
-    Change-Id: I9cc65666a5cebb00f0202da2e4fc5654a02e3234
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168237
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I8c7e0ec326aa4bc00619ec7562854253f01cc802
+    Reviewed-on: https://go-review.googlesource.com/c/60800
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
 
- src/math/big/floatconv.go    |  14 ++---
- src/math/big/nat.go          |   7 +--
- src/math/big/ratconv.go      | 124 ++++++++++++++++++++++++++++++++++---------
- src/math/big/ratconv_test.go |  26 +++++++--
- 4 files changed, 133 insertions(+), 38 deletions(-)
+ src/cmd/trace/mmu.go | 41 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 37 insertions(+), 4 deletions(-)

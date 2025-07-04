@@ -1,22 +1,18 @@
-commit bb0fae603bd19e096e38c3321d95bf114f40dcff
-Author: Bill Zissimopoulos <billziss@navimatics.com>
-Date:   Sun Jun 3 17:25:29 2018 +0000
+commit f6c67813025305c1dfab61b43e416474ca56a45b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Feb 22 14:32:57 2018 +0100
 
-    runtime: handle windows callback on non-go thread
+    cmd/compile: use | in the last repetitive generic rules
     
-    Adds an extra M in mstartm0 and accounts for it in checkdead. This allows Windows callbacks created with syscall.NewCallback and syscall.NewCallbackCDecl to be called on a non-Go thread.
+    This change or-ifies the last low-hanging rules in generic. Again,
+    this is limited at short and repetitive rules, where the use or ors
+    does not impact readability.
     
-    Fixes #6751
+    Ran rulegen, no change in the actual compiler code.
     
-    Change-Id: I57626bc009a6370b9ca0827ab64b14b01dec39d4
-    GitHub-Last-Rev: d429e3eed923640edab580bdb47fcb81e75dbfe8
-    GitHub-Pull-Request: golang/go#25575
-    Reviewed-on: https://go-review.googlesource.com/114802
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I972b523bc08532f173a3645b47d6936b6e1218c8
+    Reviewed-on: https://go-review.googlesource.com/96335
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
 
- src/runtime/proc.go                 | 21 ++++++++++++++++++---
- src/runtime/syscall_windows_test.go |  2 --
- 2 files changed, 18 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 62 +++++++++-----------------
+ 1 file changed, 20 insertions(+), 42 deletions(-)

@@ -1,20 +1,22 @@
-commit 71d08324ed0f842228ee8aa966736a157b4a2422
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Sep 26 10:50:57 2017 -0700
+commit 760636d55a87fe7348e9e14ef1474df2a58439de
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 8 22:38:15 2017 +0000
 
-    time: unify three readFile implementations into one
+    cmd/go: ignore dot and underscore files in fmt, fix, and get -fix
     
-    Undoes this part of https://golang.org/cl/5447061 by using the
-    OS-specific open and close functions, and adding a read function.
+    No test because as far as I can tell, there aren't existing tests for
+    these.
     
-    Change-Id: If37ef43eb5df8554fc03f3922bbc2f785129bb9c
-    Reviewed-on: https://go-review.googlesource.com/66271
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Fixes #18383
+    
+    Change-Id: I06eaef05777a1474886167e3797c5bcd93189d1b
+    Reviewed-on: https://go-review.googlesource.com/45156
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/time/sys_plan9.go     | 34 ++++------------------------------
- src/time/sys_unix.go      | 34 ++++------------------------------
- src/time/sys_windows.go   | 34 ++++------------------------------
- src/time/zoneinfo_read.go | 30 ++++++++++++++++++++++++++++++
- 4 files changed, 42 insertions(+), 90 deletions(-)
+ src/cmd/go/internal/base/path.go  | 22 ++++++++++++++++++++++
+ src/cmd/go/internal/fix/fix.go    |  3 ++-
+ src/cmd/go/internal/fmtcmd/fmt.go |  3 ++-
+ src/cmd/go/internal/get/get.go    |  3 ++-
+ 4 files changed, 28 insertions(+), 3 deletions(-)

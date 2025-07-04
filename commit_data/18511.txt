@@ -1,17 +1,25 @@
-commit 656a40254566bb1fae3bfa30448d103d911e04c4
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Feb 13 21:01:33 2014 -0500
+commit e5d742fcadf9677a40336d6cecd3ff464a94730f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 19:59:09 2014 -0500
 
-    cmd/gc: rephrase the invalid indexing operation error message
-    Old:
-    prog.go:9: invalid operation: this[i] (index of type int)
-    New:
-    prog.go:9: invalid operation: this[i] (type int does not support indexing)
+    cmd/gc: relax address-of escape analysis
     
-    LGTM=r
-    R=golang-codereviews, r
+    Make the loop nesting depth of &x depend on where x is declared,
+    not on where the &x appears. The latter is only a conservative
+    estimate of the former. Being more careful can avoid some
+    variables escaping, and it is easier to reason about.
+    
+    It would have avoided issue 7313, although that was still a bug
+    worth fixing.
+    
+    Not much effect in the tree: one variable in the whole tree
+    is saved from a heap allocation (something in x509 parsing).
+    
+    LGTM=daniel.morsing
+    R=daniel.morsing
     CC=golang-codereviews
-    https://golang.org/cl/52540043
+    https://golang.org/cl/62380043
 
- src/cmd/gc/typecheck.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/gc/esc.c | 21 +++++++++++++++++++--
+ test/escape2.go  | 10 ++++++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

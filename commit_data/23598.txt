@@ -1,20 +1,24 @@
-commit 40a1516a098b9843e2d3e5ee2b9471a57d6f2470
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Fri Jul 3 11:34:18 2015 +1000
+commit 2286e452bd2038a1c894d84b350bc646d12de4de
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 29 09:51:04 2015 -0700
 
-    image/draw: fix double-draw when the dst is paletted.
+    cmd/internal/obj: shrink Prog, remove two unused fields
     
-    The second (fallback) draw is a no-op, but it's a non-trivial amount of work.
+    Printed and Width were unused.
     
-    Fixes #11550.
+    Despite only removing two bytes, due to alignment, 8 bytes are saved
+    on 64-bit:
     
-    benchmark               old ns/op     new ns/op     delta
-    BenchmarkPaletted-4     16301219      7309568       -55.16%
+    Before: unsafe.Sizeof(obj.Prog{}) == 304
+     After: unsafe.Sizeof(obj.Prog{}) == 296
     
-    Change-Id: Ic88c537b2b0c710cf517888f3dd15cb702dd142f
-    Reviewed-on: https://go-review.googlesource.com/11858
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    The next size class below 320 (304=>19(320)) is 288. Still 8 bytes
+    away from that.
+    
+    Change-Id: I8d1632dd40d387f7036c03c65ea4d64e9b6218c3
+    Reviewed-on: https://go-review.googlesource.com/10511
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/image/draw/bench_test.go | 24 +++++++++++++++++++++++-
- src/image/draw/draw.go       |  1 +
- 2 files changed, 24 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/link.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,15 +1,14 @@
-commit f7be77e5b61706b6264367c43b78a9a4a93f8f3a
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Wed Apr 15 15:18:00 2015 +0200
+commit 64469fc1da8a3a354d9dd5417b13b68ad973edc2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Mar 19 15:36:54 2015 -0400
 
-    cmd/dist: fix bootstrapping with gccgo on 386
+    cmd/dist: re-disable android test
     
-    We forgot to add the !gccgo tag to cpuid_386.s.
+    Accidentally turned on in golang.org/cl/7734.
     
-    Change-Id: I2de2ed92ac9686c9365cb37cd29121fa98c2bf37
-    Reviewed-on: https://go-review.googlesource.com/8960
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8d72c279150a0b93732a2ac41b82fbb3cd7bf9d3
+    Reviewed-on: https://go-review.googlesource.com/7737
+    Reviewed-by: Burcu Dogan <jbd@google.com>
 
- src/cmd/dist/cpuid_386.s | 2 ++
- 1 file changed, 2 insertions(+)
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,16 +1,39 @@
-commit 543e0983204d401c012ed4693f0e69956d357886
-Author: Rob Findley <rfindley@google.com>
-Date:   Wed May 5 15:01:37 2021 -0400
+commit 15f01d6ae9853fd51ee8842d9af93d04ce25458c
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 13 19:24:04 2020 -0400
 
-    go/types: fix potential bugs in santitizer pass
+    cmd/compile: delay expansion of OpArg until expand_calls
     
-    This is a port of CL 317329 to go/types.
+    As it says, delay expanpsion of OpArg to the expand_calls phase,
+    to enable (eventually) interprocedural SSA optimizations, and
+    (sooner) change to a register ABI.
     
-    Change-Id: I1ba65284c91044f0ceed536da4149ef25e1f9502
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317291
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Includes a round of cleanup to function names and comments,
+    largely to match the expanded scope of the functions.
+    
+    This CL removes the per-function dependence on GOSSAHASH,
+    but the go116lateCallExpansion kill switch remains (and was
+    tested locally to ensure it worked).
+    
+    Two functions in expand_calls.go that performed overlapping
+    things were combined into a single function that is called
+    twice.
+    
+    Fixes #42236.
+    For #40724.
+    
+    Change-Id: Icbb78947eaa39f17f2c1210d5c2caef20abd6571
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262117
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/go/types/sanitize.go | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ src/cmd/compile/fmtmap_test.go               |   1 -
+ src/cmd/compile/internal/gc/ssa.go           |  12 +-
+ src/cmd/compile/internal/ssa/compile.go      |   2 +-
+ src/cmd/compile/internal/ssa/config.go       |   4 +-
+ src/cmd/compile/internal/ssa/expand_calls.go | 406 ++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/gen/dec64.rules |   9 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go |  16 +-
+ src/cmd/compile/internal/ssa/stackalloc.go   |   3 +
+ 8 files changed, 329 insertions(+), 124 deletions(-)

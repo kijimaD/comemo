@@ -1,17 +1,19 @@
-commit 49f10f37975f0a08ac5ae320d3a29f936b56d0a9
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 24 16:26:50 2020 -0700
+commit 9eb9c7ba1c047c2463a524ea109c08b2dfbbb574
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Nov 10 14:14:47 2019 +0530
 
-    cmd/compile: convert another tranch of generic rules to typed aux
+    time: change variable name to next
     
-    Passes toolstash-check.
+    The variable now implies that the next tick always
+    returns the current time which is not always the case.
+    Change it to next to clarify that it returns
+    the time of the next tick which is more appropriate.
     
-    Change-Id: I27c01f03c5303876bbf6878a81ffdc4e95de3e3e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230031
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #30271
+    
+    Change-Id: Ie7719cb8c7180bc6345b436f9b3e950ee349d6e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206123
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  534 +++++-----
- src/cmd/compile/internal/ssa/rewritegeneric.go | 1250 ++++++++++++------------
- 2 files changed, 892 insertions(+), 892 deletions(-)
+ src/time/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

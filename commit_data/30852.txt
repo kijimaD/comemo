@@ -1,26 +1,18 @@
-commit d1f5e5f48249c120c9eed301ed07d546c5c65698
+commit 2d429f01bd917c42e66e1991eab9c2e33d813d16
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 24 16:23:21 2017 -0700
+Date:   Fri Dec 9 15:38:23 2016 -0800
 
-    cmd/compile/internal/syntax: always construct a correct syntax tree
+    [dev.inline] cmd/compile/internal/syntax: add predicates to syntax.Pos
     
-    - parser creates sensible nodes in case of syntax errors instead of nil
-    - a new BadExpr node is used in places where we can't do better
-    - fixed error message for incorrect type switch guard
-    - minor cleanups
+    This moves syntax.Pos closer to cmd/internal/src.Pos so that
+    we can more easily replace src.Pos with syntax.Pos going forward.
     
-    Fixes #19663.
-    
-    Change-Id: I028394c6db9cba7371f0e417ebf93f594659786a
-    Reviewed-on: https://go-review.googlesource.com/38653
+    Change-Id: I9f93a65fecb4c22591edca4b9d6cda39cf0e872e
+    Reviewed-on: https://go-review.googlesource.com/34270
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/fmt_test.go                |   1 -
- src/cmd/compile/internal/gc/noder.go       |   2 +-
- src/cmd/compile/internal/syntax/nodes.go   |   6 +
- src/cmd/compile/internal/syntax/parser.go  | 199 +++++++++++++++++------------
- src/cmd/compile/internal/syntax/printer.go |   3 +
- src/cmd/compile/internal/syntax/syntax.go  |   2 +-
- 6 files changed, 130 insertions(+), 83 deletions(-)
+ src/cmd/compile/internal/syntax/pos.go      | 30 ++++++++++++++++++---
+ src/cmd/compile/internal/syntax/pos_test.go | 42 +++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+), 4 deletions(-)

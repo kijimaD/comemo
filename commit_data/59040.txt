@@ -1,49 +1,26 @@
-commit 955cf0873f7a1c3d54cff34164f81d2b44127c30
-Author: Than McIntosh <thanm@golang.org>
-Date:   Wed Mar 12 12:05:11 2025 -0400
+commit 39ec246e739a787375b00acd92c10311863575a2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 1 10:24:25 2024 -0500
 
-    cmd/internal/dwarf: fix bug in inlined func DIE range DWARF 5 info
+    cmd/go: avoid copying a binary to be exec'd in TestScript/gotoolchain_path
     
-    This patch changes the strategy we use in the compiler for handling
-    range information for inlined subroutine bodies, fixing a bug in how
-    this was handled for DWARF 5.  The high and lo PC values being emitted
-    for DW_TAG_inlined_subroutine DIEs were incorrect, pointing to the
-    start of functions instead of the proper location. The fix in this
-    patch is to move to unconditionally using DW_AT_ranges for inlined
-    subroutines, even those with only a single range.
+    Runinng 'go build' writes the binary in a separate process, so avoids
+    the race described in #22315. However, the script engine's 'cp'
+    command currently executes in-process, so it does not avoid that bug
+    and may retain stale file descriptors when running tests in parallel.
     
-    Background: prior to this point, if a given inlined function body had
-    a single contiguous range, we'd pick an abbrev entry for it with
-    explicit DW_AT_low_pc and DW_AT_high_pc attributes. If the extent of
-    the code for the inlined body was not contiguous (which can happen),
-    we'd select an abbrev that used a DW_AT_ranges attribute instead. This
-    strategy (preferring explicit hi/lo PC attrs for a single-range func)
-    made sense for DWARF 4, since in DWARF 4 the representation used in
-    the .debug_ranges section was especially heavyweight (lots of space,
-    lots of relocations), so having explicit hi/lo PC attrs was less
-    expensive.
+    Avoid the race in this particular test by giving the final binary
+    location in the '-o' argument instead of copying it there after the
+    fact.
     
-    With DWARF 5 range info is written to the .debug_rnglists section, and
-    the representation here is much more compact. Specifically, a single
-    hi/lo range can be represented using a base address in addrx format
-    (max of 4 bytes, but more likely 2 or 3) followed by start and
-    endpoints of the range in ULEB128 format. This combination is more
-    compact spacewise than the explicit hi/lo values, and has fewer
-    relocations (0 as opposed to 2).
+    Fixes #64019.
     
-    Note: we should at some point consider applying this same strategy to
-    lexical scopes, since we can probably reap some of the same benefits
-    there as well.
-    
-    Updates #26379.
-    Fixes #72821.
-    
-    Change-Id: Ifb65ecc6221601bad2ca3939f9b69964c1fafc7c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/657175
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I96d276f33c09e39f465e9877356f1d8f2ae55062
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560415
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/go/testdata/script/gotoolchain_path.txt | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

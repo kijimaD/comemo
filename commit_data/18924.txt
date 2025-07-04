@@ -1,15 +1,16 @@
-commit de1ea5de8637876c81a6c05e5a9cc9e572a5c62f
+commit 446d90d727b1820f8f4ef2f4e22d6ce1cd88df4d
 Author: Rui Ueyama <ruiu@google.com>
-Date:   Sun Mar 23 18:58:35 2014 -0700
+Date:   Sun Mar 23 15:44:29 2014 -0700
 
-    strings: minor cleanup
+    unicode/utf8: minor code simplification
     
-    bi is a slice and not an array, so bi[:] does not make much sense.
+    It's a little bit waste to check if r is not a surrogate
+    code point because RuneError is not a surrogate code point.
     
-    LGTM=bradfitz
-    R=golang-codereviews, bradfitz
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/79280043
+    https://golang.org/cl/79230043
 
- src/pkg/strings/replace.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/unicode/utf8/utf8.go | 32 ++++++++++++--------------------
+ 1 file changed, 12 insertions(+), 20 deletions(-)

@@ -1,19 +1,24 @@
-commit d1e8dc25ff36694b5fdc8045325502e186b702f2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 14 11:57:03 2024 -0500
+commit 3e360b035f4c3014e9564f4994c68ccc296ef629
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 14 12:25:11 2023 -0500
 
-    runtime: use timer.lock in runtimer
+    runtime: new API for filling PC traceback buffers
     
-    Continue using timer.lock to simplify timer operations.
+    Currently, filling PC traceback buffers is one of the jobs of
+    gentraceback. This moves it into a new function, tracebackPCs, with a
+    simple API built around unwinder, and changes all callers to use this
+    new API.
     
-    [This is one CL in a refactoring stack making very small changes
-    in each step, so that any subtle bugs that we miss can be more
-    easily pinpointed to a small change.]
+    Updates #54466.
     
-    Change-Id: I504335a010d6eb4d7d627145b64a896582158406
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/564129
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: Id2038bded81bf533a5a4e71178a7c014904d938c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468300
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
 
- src/runtime/time.go | 99 +++++++++++++++++++++++------------------------------
- 1 file changed, 43 insertions(+), 56 deletions(-)
+ src/runtime/export_test.go |  4 +-
+ src/runtime/mprof.go       |  4 +-
+ src/runtime/proc.go        | 15 ++++----
+ src/runtime/traceback.go   | 92 ++++++++++++++++++++++++++--------------------
+ 4 files changed, 66 insertions(+), 49 deletions(-)

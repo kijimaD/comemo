@@ -1,18 +1,17 @@
-commit b59467e0365776761c3787a4d541b5e74fe24b24
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Oct 14 08:45:16 2021 -0700
+commit 17587801815071875da2e9251abc322979b5fa86
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 10 17:48:27 2021 -0800
 
-    net/http: also use Server.ReadHeaderTimeout for TLS handshake deadline
+    [dev.typeparams] cmd/compile/internal/types: review of sizes.go
     
-    Fixes #48120
+    The changes between (equivalent, and reviewed) go/types/sizes.go
+    and sizes.go can be seen by comparing patchset 1 and 2. The actual
+    change is just removing the "// UNREVIEWED" marker.
     
-    Change-Id: I72e89af8aaf3310e348d8ab639925ce0bf84204d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355870
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Iacdcffe56023ec53bfaaac8fb112f813a7de0a95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291176
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
 
- src/net/http/server.go      | 37 ++++++++++++++++++++++++++-----
- src/net/http/server_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 85 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/types2/sizes.go | 1 -
+ 1 file changed, 1 deletion(-)

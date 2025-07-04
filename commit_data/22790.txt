@@ -1,12 +1,12 @@
-commit 433af05a7284c017921e71c6efd08f81f0242364
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Thu Apr 30 07:53:07 2015 +0900
+commit 47746f10fe26503984a99be0b081c642e1557d4e
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 8 15:11:04 2015 -0400
 
-    doc: mention net.OpError in go1.5.txt
+    cmd/internal/ld: emit macho .init_array section
     
-    Change-Id: I6cebaf42f2596c7f8fef3a67afb1e5ccb428d09c
-    Reviewed-on: https://go-review.googlesource.com/9521
+    Change-Id: Ie75a01e899e68f4f9643410f5e161152a81b8ba0
+    Reviewed-on: https://go-review.googlesource.com/8655
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.5.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/internal/ld/macho.go | 5 +++++
+ 1 file changed, 5 insertions(+)

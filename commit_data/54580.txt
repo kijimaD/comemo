@@ -1,25 +1,19 @@
-commit 9bfaaa15fd38f10ba7f11eb6cc67c6dfb21454e6
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Tue Sep 12 15:39:56 2023 -0500
+commit 30b240b102652a7cf6b7df0748b4bc69f496e0bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 14:29:37 2022 -0400
 
-    cmd/internal/obj/ppc64: fix rebuilding of optab for asm tests
+    testing: implement -cpu and -count for fuzz tests
     
-    The end-to-end asm tests reinitialize the assembler using different
-    GOPPC64 values. This caused duplicate entries to amass from the
-    prefix and generated optab entries. This bug only affects the
-    asm end-to-end tests.
+    Fuzz tests are meant to be run just like ordinary tests,
+    so copy the same loop cpu and count loops used in testing.go
+    (and benchmark.go) into fuzz.go.
     
-    On reinitialization, optab contains the previous prefixedOptab
-    and optabGen entries, not just the initial values. Rework the
-    initialization to avoid the stale optab entries.
-    
-    Change-Id: I310499915a5272ed0174ed8135d60788e6b4b716
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/528316
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: Ic585df8ccc577869c877b1055e0493803dbeb828
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443377
+    Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
 
- src/cmd/internal/obj/ppc64/asm9.go     | 22 +++++++++++++---------
- src/cmd/internal/obj/ppc64/asm_test.go | 16 ++++++++++++++++
- 2 files changed, 29 insertions(+), 9 deletions(-)
+ src/testing/fuzz.go | 102 ++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 60 insertions(+), 42 deletions(-)

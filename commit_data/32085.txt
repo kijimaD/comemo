@@ -1,14 +1,16 @@
-commit e157fac02d4700e9fa8e1c30265a2d90a51be6f3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Jul 24 10:17:15 2017 -0700
+commit 1d6a499cc02012275b3c172dc98a143e49fb8ddc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 3 14:34:51 2017 -0400
 
-    test: add README
+    encoding/pem: yet another fuzz fake failure
     
-    Updates #21034
+    Fixes #19829.
     
-    Change-Id: I951fb48ab3b9ed54d225c11879db8f09048a36a3
-    Reviewed-on: https://go-review.googlesource.com/50950
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I8500fd73c37b504d6ea25f5aff7017fbc0718570
+    Reviewed-on: https://go-review.googlesource.com/39314
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/README.md | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ src/encoding/pem/pem_test.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

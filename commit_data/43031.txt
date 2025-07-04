@@ -1,28 +1,25 @@
-commit ddd35f8d71120b0d0508dd0d8f3a727ba681dfb3
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Sep 17 21:38:42 2020 -0700
+commit ca3dd1d36b5aa2dd810d31ec425a32902ae50ba9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 7 15:26:19 2020 -0800
 
-    cmd/compile: more comprehensive tests for #24991
+    go/types: fix method set computation
     
-    The revised test now checks that unsafe-uintptr correctly works for
-    variadic uintptr parameters too, and the CL corrects the code so this
-    code compiles again.
+    When computing method sets, any struct field that "shadows" a
+    method at a lower embedding level eliminates that method from
+    the method set. Treat any field at a given level as a "collision"
+    for any methods at lower embedding level.
     
-    The pointers are still not kept alive properly. That will be fixed by
-    a followup CL. But this CL at least allows programs not affected by
-    that to build again.
+    Method sets are not directly used by go/types (except for self-
+    verification in debug mode); they are a functionality provided
+    by go/types. Thus, the method sets that go/types is using were
+    not affected by this bug.
     
-    Updates #24991.
-    Updates #41460.
+    Fixes #37081.
     
-    Change-Id: If4c39167b6055e602213fb7522c4f527c43ebda9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255877
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: Ic1937e01891b3614a6f7965d4384aeb485f3fe3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218617
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/compile/internal/gc/syntax.go |  2 +-
- src/cmd/compile/internal/gc/walk.go   |  1 +
- test/fixedbugs/issue24491a.go         | 26 ++++++++++++++++++++------
- 3 files changed, 22 insertions(+), 7 deletions(-)
+ src/go/types/example_test.go | 11 +++++++++++
+ src/go/types/methodset.go    | 20 +++++++++-----------
+ 2 files changed, 20 insertions(+), 11 deletions(-)

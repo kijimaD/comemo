@@ -1,17 +1,21 @@
-commit 6b5ab20b6587b02da1091d2ca9e6c9dbef70f6cb
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 23 22:46:11 2020 -0700
+commit bde1968e4c1d0d43d1d558a364eb427ef2143c42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 8 15:28:51 2019 -0800
 
-    cmd/compile: convert devirtualization rule to typed aux
+    os/signal: use a larger channel buffer for all signals in TestSignal
     
-    Passes toolstash-check.
+    Now that the runtime can send preemption signals, it is possible that
+    a channel that asks for all signals can see both SIGURG and SIGHUP
+    before reading either, in which case one of the signals will be dropped.
+    We have to use a larger buffer so that the test see the signal it expects.
     
-    Change-Id: Iebcdc35f1a2112d5384c70eb3fdbd92ebb3d248e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/229689
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #35466
+    
+    Change-Id: I36271eae0661c421780c72292a5bcbd443ada987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/ssa/gen/generic.rules |  4 ++--
- src/cmd/compile/internal/ssa/gen/genericOps.go |  2 ++
- src/cmd/compile/internal/ssa/rewrite.go        |  2 +-
- src/cmd/compile/internal/ssa/rewritegeneric.go | 12 ++++++------
- 4 files changed, 11 insertions(+), 9 deletions(-)
+ src/os/signal/signal_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

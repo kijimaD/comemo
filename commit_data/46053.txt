@@ -1,19 +1,24 @@
-commit a8d39f151d10209bca94c7533786dcc9c55c9517
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Sun May 16 00:08:42 2021 +0700
+commit 5dbd2e8e44d823bfbc3df883c544e23f4a872de1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 00:30:53 2020 -0500
 
-    src: simplify race.bash checking condition
+    [dev.regabi] cmd/compile: remove DeepCopyNode interface
     
-    By using "uname -s -m" to get the OS name and hardware name,
-    then using it to match supported platform in case command.
+    The only reason for the DeepCopyNode interface was to
+    allow the type syntaxes to avoid being constrained by
+    Left, Right etc. methods. Now those are gone, so the
+    general traversal methods they implement (doChildren, editChildren)
+    do the right thing for DeepCopy.
     
-    Change-Id: I5161a29c6f3fe34dcda9e7bd477fa3b772b9e041
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/320250
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I54672c011114a95efabff32dbcf02e6071f91b9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275379
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/race.bash | 39 ++++++++++-----------------------------
- 1 file changed, 10 insertions(+), 29 deletions(-)
+ src/cmd/compile/internal/ir/copy.go | 21 -------------
+ src/cmd/compile/internal/ir/expr.go | 11 -------
+ src/cmd/compile/internal/ir/type.go | 59 -------------------------------------
+ 3 files changed, 91 deletions(-)

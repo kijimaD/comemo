@@ -1,26 +1,44 @@
-commit 55a33d8877d1bdb8f1b7fb62efe3e38e969f40b1
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jan 30 15:30:23 2023 -0800
+commit 9465878114232d4a9cd755fee9241fff1d63bbea
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 00:19:05 2022 -0500
 
-    cmd/dist, internal/platform: test agreement on supported build modes
+    time: fix zoneinfo.zip locating logic when built with -trimpath
     
-    This synchronizes the supported build modes between cmd/dist and
-    internal/platform, and adds a test to keep them in synch.
+    When the test binary is built with the -trimpath flag,
+    runtime.GOROOT() is invalid, and must not be used to locate
+    GOROOT/lib/time/zoneinfo.zip. (We can use other sources instead.)
     
-    In order to do that, this has several changes to cmd/dist, and one
-    change to internal/platform.
+    However, the test for the package expects zoneinfo.zip to definitely
+    exist. 'go test' runs the test binary in the directory containing its
+    source code — in this case GOROOT/src/time — so we can use that
+    information to find the zoneinfo.zip file when runtime.GOROOT isn't
+    available.
     
-    If the build dashboard is green after this is submitted, we can
-    probably make the functions identical.
+    For #51483
     
-    Change-Id: Ia78ce76b193399058fde79e38dd9f23818e566a1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463992
+    Change-Id: I9de35252a988d146b5d746794323214d400e64e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391814
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/dist/supported_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++
- src/cmd/dist/test.go           | 31 ++++++++++++---------------
- 2 files changed, 62 insertions(+), 17 deletions(-)
+ src/time/export_android_test.go   | 12 ++++++++----
+ src/time/export_test.go           |  3 ++-
+ src/time/format_test.go           |  4 ++--
+ src/time/internal_test.go         | 21 +++++++++++++--------
+ src/time/time_test.go             |  8 ++++----
+ src/time/tzdata_test.go           |  4 ++--
+ src/time/zoneinfo.go              |  2 +-
+ src/time/zoneinfo_android.go      | 13 ++++++++++---
+ src/time/zoneinfo_android_test.go |  4 ++--
+ src/time/zoneinfo_goroot.go       | 14 ++++++++++++++
+ src/time/zoneinfo_ios.go          | 16 ++++++++--------
+ src/time/zoneinfo_js.go           |  4 +---
+ src/time/zoneinfo_plan9.go        |  5 +----
+ src/time/zoneinfo_read.go         | 17 ++++++++++++++---
+ src/time/zoneinfo_test.go         | 22 +++++++++++++---------
+ src/time/zoneinfo_unix.go         |  6 ++----
+ src/time/zoneinfo_windows.go      |  5 +----
+ 17 files changed, 98 insertions(+), 62 deletions(-)

@@ -1,26 +1,20 @@
-commit 3981b446ddba60108572606a74bc27bff1936d9e
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Nov 22 15:24:54 2024 -0800
+commit 7b26cb954050291b593b36170d25214e948ceba5
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 19:38:33 2023 +0800
 
-    cmd/internal/sys: allow unaligned loads on big-endian ppc64
+    internal/abi: define loong64 regABI constants
     
-    According to https://go.dev/wiki/MinimumRequirements, we've required
-    power8 since Go 1.9.
+    Update #40724
     
-    Before that, we supported power5 which couldn't do unaligned loads.
-    But power8 should be able to (it does for ppc64le).
-    
-    In fact, I think we already support unaligned loads in some cases,
-    for instance cmd/compile/internal/ssa/config.go lists big-endian ppc64
-    as having unaligned loads.
-    
-    Change-Id: I4a75f09d4b5199a889e0e8db0b3b7a1fa23145f3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/631318
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: Id580d9e22a562adee2ae02a467ac38a54949e737
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521778
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
 
- src/cmd/internal/sys/arch.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/internal/abi/abi_loong64.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

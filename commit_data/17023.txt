@@ -1,14 +1,14 @@
-commit c43cca7d92a0188b956584bc76ceef94af543bc3
+commit 38a77ff03fb521eb086eaeb4082682b74a2fa44c
 Author: Rob Pike <r@golang.org>
-Date:   Mon Aug 5 13:35:42 2013 +1000
+Date:   Mon Aug 5 11:24:27 2013 +1000
 
-    doc/progs/slices.go: fix typo in comment
+    doc/effective_go.html: remove spurious word
     
-    Fixes #6025.
+    Fixes #6003.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12387046
+    https://golang.org/cl/12387045
 
- doc/progs/slices.go | 2 +-
+ doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,22 +1,29 @@
-commit 8841f50d98b224ecf5ee27d9b7e6f18ad2c98e46
-Author: Joel Sing <joel@sing.id.au>
-Date:   Sun Nov 12 22:56:49 2023 +1100
+commit 630ef2edc2a7f6138c9eb0ed8eb8216a32ed0339
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 1 12:54:27 2023 -0400
 
-    syscall: reroute SYS_IOCTL and SYS_SYSCTL on openbsd
+    cmd/link: remove allocation in decoding type name
     
-    OpenBSD 7.5 no longer supports indirect syscalls. A number of Go
-    packages make use of syscall.Syscall with SYS_IOCTL or SYS_SYSCTL,
-    since neither is well supported by golang.org/x/sys/unix. Reroute
-    calls with either of these system call numbers to the respective
-    libc stub so that they continue to work.
+    The type name symbol is always from a Go object file and we never
+    change it. Convert the data to string using unsafe conversion
+    without allocation.
     
-    Updates #63900
+    Linking cmd/go (on macOS/amd64),
     
-    Change-Id: I3323a3fa311ee9227e6220417834253763866881
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/582256
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    name           old alloc/op   new alloc/op   delta
+    Deadcode_GC      1.25MB ± 0%    1.17MB ± 0%   -6.29%  (p=0.000 n=20+20)
+    
+    name           old allocs/op  new allocs/op  delta
+    Deadcode_GC       8.98k ± 0%     0.10k ± 3%  -98.91%  (p=0.000 n=20+20)
+    
+    Change-Id: I33117ad1f991e4f14ce0b38cceec50b041e3c0a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/syscall/syscall_openbsd_libc.go | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ src/cmd/internal/goobj/objfile.go      |  9 +++++++++
+ src/cmd/link/internal/ld/deadcode.go   |  2 +-
+ src/cmd/link/internal/ld/decodesym.go  | 10 +++++++---
+ src/cmd/link/internal/loader/loader.go | 10 ++++++++++
+ 4 files changed, 27 insertions(+), 4 deletions(-)

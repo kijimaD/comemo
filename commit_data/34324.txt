@@ -1,20 +1,17 @@
-commit 6450c591c7c1a67ee90bbc0df53c0997f1f683c0
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Feb 22 13:51:24 2018 +0100
+commit 5f740d6875ab6961381f2f4614b21ff6ddf448a4
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Tue Oct 17 19:57:01 2017 +0200
 
-    syscall: remove list of unimplemented syscalls
+    flag: simplify switch-case in isZeroValue
     
-    The syscall package is frozen and we don't want to encourage anyone to
-    implement these syscalls.
+    Simplifies the switch statement in the isZeroValue function by merging
+    the case branches.
     
-    Change-Id: I6b6e33e32a4b097da6012226aa15300735e50e9f
-    Reviewed-on: https://go-review.googlesource.com/96315
+    Change-Id: I5b27939b62808dadac0cef632567b17e0e2b9a1d
+    Reviewed-on: https://go-review.googlesource.com/71390
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/syscall_darwin.go    | 205 -----------------------------
- src/syscall/syscall_dragonfly.go | 205 -----------------------------
- src/syscall/syscall_freebsd.go   | 204 -----------------------------
- src/syscall/syscall_linux.go     | 137 --------------------
- src/syscall/syscall_netbsd.go    | 269 ---------------------------------------
- src/syscall/syscall_openbsd.go   |  97 --------------
- 6 files changed, 1117 deletions(-)
+ src/flag/flag.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

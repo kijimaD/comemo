@@ -1,16 +1,16 @@
-commit 81d9621534ac726ff613e54e98844ee43398250c
-Author: Luuk van Dijk <lvd@golang.org>
-Date:   Wed May 2 16:56:26 2012 +0200
+commit c1c851bbe806d8fb3f483a32e8dfac48522dfe21
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 2 18:01:11 2012 +0400
 
-    cmd/gc: test for issue 3552
+    runtime: avoid unnecessary zeroization of huge memory blocks
+    +move zeroization out of the heap mutex
     
-    R=rsc
+    R=golang-dev, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/6128051
+    https://golang.org/cl/6094050
 
- test/bugs/bug434.dir/one.go      | 28 ++++++++++++++++++++++++++++
- test/bugs/bug434.dir/two.go      | 22 ++++++++++++++++++++++
- test/bugs/bug434.go              |  7 +++++++
- test/fixedbugs/bug396.dir/one.go |  1 +
- test/golden.out                  |  4 ++++
- 5 files changed, 62 insertions(+)
+ src/pkg/runtime/malloc.goc | 2 +-
+ src/pkg/runtime/malloc.h   | 2 +-
+ src/pkg/runtime/mcentral.c | 2 +-
+ src/pkg/runtime/mheap.c    | 7 +++----
+ 4 files changed, 6 insertions(+), 7 deletions(-)

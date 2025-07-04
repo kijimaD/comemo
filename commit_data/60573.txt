@@ -1,0 +1,24 @@
+commit bd85a3b1535928bcdc9bb4512f3dd9048de14617
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Jan 4 20:39:57 2024 +0800
+
+    cmd/internal/obj/loong64: remove Class C_LEXT and C_SEXT
+    
+    There is no need to check whether the symbol is empty, since we have already
+    checked it before. In addition, it is enough to use C_ADDR to represent memory
+    access, C_LEXT and C_SEXT are not needed.
+    
+    Change-Id: I7158d6b549482b35cd9ac5fba781648fb3f21922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+
+ src/cmd/internal/obj/loong64/a.out.go  | 16 +++++------
+ src/cmd/internal/obj/loong64/asm.go    | 52 ++++------------------------------
+ src/cmd/internal/obj/loong64/cnames.go |  2 --
+ 3 files changed, 13 insertions(+), 57 deletions(-)

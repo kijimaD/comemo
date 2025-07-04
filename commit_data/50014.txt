@@ -1,27 +1,40 @@
-commit 108021c195c6f43b07c437242bf39614e06b3df4
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Aug 16 10:59:05 2022 +0700
+commit 2dda92ff6f9f07eeb110ecbf0fc2d7a0ddd27f9d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 7 09:44:29 2021 -0700
 
-    strings: reduce allocation for byteReplacer
+    runtime: make slice growth formula a bit smoother
     
-    Though it increases the execution time, the function is already quite
-    fast for most users, the allocation is much more important.
+    Instead of growing 2x for < 1024 elements and 1.25x for >= 1024 elements,
+    use a somewhat smoother formula for the growth factor. Start reducing
+    the growth factor after 256 elements, but slowly.
     
-    name                       old time/op    new time/op    delta
-    ByteReplacerWriteString-8    1.23µs ± 0%    2.16µs ± 1%   +75.31%  (p=0.000 n=10+10)
+    starting cap    growth factor
+    256             2.0
+    512             1.63
+    1024            1.44
+    2048            1.35
+    4096            1.30
     
-    name                       old alloc/op   new alloc/op   delta
-    ByteReplacerWriteString-8    2.69kB ± 0%    0.00kB       -100.00%  (p=0.000 n=10+10)
+    (Note that the real growth factor, both before and now, is somewhat
+    larger because we round up to the next size class.)
     
-    name                       old allocs/op  new allocs/op  delta
-    ByteReplacerWriteString-8      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+    This CL also makes the growth monotonic (larger initial capacities
+    make larger final capacities, which was not true before). See discussion
+    at https://groups.google.com/g/golang-nuts/c/UaVlMQ8Nz3o
     
-    Change-Id: I6a36df5fcb8e11ef27e6c7b252aa88e869592f3c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424136
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    256 was chosen as the threshold to roughly match the total number of
+    reallocations when appending to eventually make a very large
+    slice. (We allocate smaller when appending to capacities [256,1024]
+    and larger with capacities [1024,...]).
+    
+    Change-Id: I876df09fdc9ae911bb94e41cb62675229cb10512
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347917
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
 
- src/strings/replace.go | 37 +++++++++++++++++++++++--------------
- 1 file changed, 23 insertions(+), 14 deletions(-)
+ src/reflect/value.go | 5 +++--
+ src/runtime/slice.go | 8 ++++++--
+ 2 files changed, 9 insertions(+), 4 deletions(-)

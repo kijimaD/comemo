@@ -1,24 +1,22 @@
-commit 26ed0528c76d10883e0d24ca8b7bb87e62dc4487
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 22 15:52:59 2024 -0700
+commit 3943fc14d35c117f2256fb789743d9f075c9aba5
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 8 16:31:23 2023 -0400
 
-    go/types, types2: report error for floating-point iteration variable
+    misc/reboot: move to cmd/internal/bootstrap_test
     
-    While at it, slightly improve documentation and code.
-    Also, add additional test cases for #66561.
+    This is the last test run from misc by dist.
     
-    Updates #66561.
-    Fixes #67027.
+    For #37486.
     
-    Change-Id: I682b0e9227e065d6bbd199871c2e1ecff13edc66
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580937
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I1a70ded29ba0de548c9a16611ba987a258121e80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493606
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/stmt.go       | 38 ++++++++++-------
- src/go/types/stmt.go                          | 39 +++++++++++-------
- src/internal/types/testdata/check/stmt0.go    |  4 +-
- src/internal/types/testdata/spec/range_int.go | 59 +++++++++++++++++++++++++++
- 4 files changed, 110 insertions(+), 30 deletions(-)
+ src/cmd/dist/test.go                                       |  7 -------
+ .../cmd/internal/bootstrap_test}/experiment_toolid_test.go |  5 +++--
+ .../cmd/internal/bootstrap_test}/overlaydir_test.go        |  2 +-
+ .../cmd/internal/bootstrap_test}/reboot_test.go            | 14 ++++++++------
+ 4 files changed, 12 insertions(+), 16 deletions(-)

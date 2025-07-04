@@ -1,43 +1,26 @@
-commit 15cec430d75741960829e7e227c1b7c3e1f79114
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 15 14:10:40 2024 -0700
+commit 6b165577fee2e9313bfd1ae2a07c89e41c86426e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 17 15:51:29 2023 -0700
 
-    types2: flip the default value of GODEBUG=gotypesalias=1
+    cmd/compile: remove memequal call from string compares in more cases
     
-    This CL changes the interpretation of the unset value
-    of gotypesalias to not equal "0".
+    Add more rules to ensure that order doesn't matter.
     
-    This is a port of CL 577715 from go/types to types2,
-    with adjustments to go/types to keep the source code
-    in sync. Specifically:
+    Add memequal 0 rule.
     
-    - Re-introduce testing of both modes (gotypesalias=0,
-      gotypesalias=1) in go/types.
-    - Re-introduce setting of gotypesalias in some of the
-      tests for explicit documentation in go/types.
+    Try to use a constant argument to memequal when one is available.
     
-    The compiler still uses the (now) non-default setting
-    due to a panic with the default setting that needs to
-    be debugged.
+    Fixes #59684
     
-    Also, the type checkers still don't call IncNonDefault
-    when the non-default setting of gotypesalias is used.
-    
-    Change-Id: I1feed3eb334c202950ac5aadf49a74adcce0d8c3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/579076
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Change-Id: I36e85ffbd949396ed700ed6e8ec2bc3ae013f5d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485535
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/irgen.go       |  5 +++++
- src/cmd/compile/internal/types2/check.go      |  7 +++++--
- src/cmd/compile/internal/types2/check_test.go |  4 ++--
- src/cmd/compile/internal/types2/decl.go       |  2 +-
- src/cmd/compile/internal/types2/named_test.go |  2 +-
- src/go/types/api_test.go                      |  1 +
- src/go/types/check.go                         | 13 ++++---------
- src/go/types/check_test.go                    | 11 +++++++++++
- src/go/types/issues_test.go                   |  2 +-
- 9 files changed, 31 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/compare/compare.go     |  33 ++++-
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  27 ++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 161 ++++++++++++++++++++++--
+ test/codegen/comparisons.go                     |  41 ++++++
+ 4 files changed, 251 insertions(+), 11 deletions(-)

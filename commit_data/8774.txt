@@ -1,13 +1,12 @@
-commit 3c065184059f77308953d7e4a340891fa4406b0d
-Author: Scott Lawrence <bytbox@gmail.com>
-Date:   Sat Jun 18 21:53:18 2011 +1000
+commit 17805ddb6f0cb503173731165721f0ee93bab284
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Jun 18 20:31:38 2011 +1000
 
-    http: fix documentation typo
-    (Variable is referred to alternately as 'r' and 'req')
+    doc/faq: add question about converting from []T to []interface{}
     
     R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/4648042
+    https://golang.org/cl/4639046
 
- src/pkg/http/server.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_faq.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

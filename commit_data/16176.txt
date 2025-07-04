@@ -1,12 +1,12 @@
-commit 804ef381db6bef62a44ccbbb6a417728ad3bf01d
-Author: Joel Sing <jsing@google.com>
-Date:   Mon Apr 15 10:20:24 2013 -0700
+commit 0009210b2e76de9a873bb85474b6a9ab0cf0fb65
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Sun Apr 14 09:22:57 2013 +1000
 
-    runtime: fix build on openbsd/386
+    doc: fix typo
     
-    R=golang-dev, minux.ma, r
+    R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/8569043
+    https://golang.org/cl/8729045
 
- src/pkg/runtime/signal_openbsd_386.h | 2 +-
+ doc/go1.1.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,23 +1,27 @@
-commit a17356cd23163997031b648def23d56cbb76ae9a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 4 17:15:57 2024 -0700
+commit 865760373194e358fefa4d1e45ebdf2141b77b59
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Aug 1 18:02:54 2023 +0000
 
-    go/types, types2: factor type checking of func literals and generate go/types code
+    net: use the extended RCode from EDNS(0) OPT resources
     
-    Move the code for type checking of function literals into
-    literals.go.
+    For a while now we support EDNS, but the current
+    implementation only sends the OPT resource and doesn't
+    do anything with the response OPT resource.
     
-    In go/types, the respective code is now generated from the types2 source.
+    For reference the miekg/dns updates the RCode in the
+    header when there is a OPT resource:
+    https://github.com/miekg/dns/blob/48f38ebef989eedc6b57f1869ae849ccc8f5fe29/msg.go#L868-L872
     
-    Change-Id: Ic81ab3c0d3c66d99bc0f2e21d66bf9a896ef9375
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/610996
-    Reviewed-by: Tim King <taking@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I0a7146aed3e50654f340a3925f48612561cb85f4
+    GitHub-Last-Rev: adc304167e0540cb1f066f07a249d67fad89182e
+    GitHub-Pull-Request: golang/go#61695
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514835
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/expr.go     | 25 ++-----------------------
- src/cmd/compile/internal/types2/literals.go | 28 ++++++++++++++++++++++++++++
- src/go/types/expr.go                        | 25 ++-----------------------
- src/go/types/literals.go                    | 28 ++++++++++++++++++++++++++++
- 4 files changed, 60 insertions(+), 46 deletions(-)
+ src/net/dnsclient_unix.go      | 27 +++++++++++++++++++++++----
+ src/net/dnsclient_unix_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 4 deletions(-)

@@ -1,24 +1,22 @@
-commit 96428e160de755d6b3b3b7dc1b9c81196957d679
-Author: Wayne Zuo <wdvxdr@golangcn.org>
-Date:   Thu Mar 2 15:55:03 2023 +0800
+commit c4c9c80e4f20ca825e66eed254142b1623706b68
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri May 13 00:22:11 2022 +0900
 
-    cmd/compile: split DIVV/DIVVU op on loong64
+    all.bat,clean.bat,race.bat,run.bat: call some.bat with .\some.bat
     
-    Previously, we need calculate both quotient and remainder together.
-    However, in most cases, only one result is needed. By separating these
-    instructions, we can save one instruction in most cases.
+    When set NoDefaultCurrentDirectoryInExePath=1, call some.bat does not work.
     
-    Change-Id: I0a2d4167cda68ab606783ba1aa2720ede19d6b53
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475315
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Change-Id: Ifeab27ecf0d7ba1d504b755a22f73a0f13abbbb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405874
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/compile/internal/loong64/ssa.go         |  29 +-
- src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  48 +-
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   8 +-
- src/cmd/compile/internal/ssa/opGen.go           |  52 ++-
- src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 560 ++++++++++--------------
- 5 files changed, 310 insertions(+), 387 deletions(-)
+ src/all.bat   | 4 ++--
+ src/clean.bat | 2 +-
+ src/race.bat  | 6 +++---
+ src/run.bat   | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

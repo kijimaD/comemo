@@ -1,19 +1,26 @@
-commit e3ec1ca17e339e21ca50fbdb375b4294783bc385
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Tue Apr 2 00:10:47 2024 +0200
+commit 313d9653933ad0dc00ca0e4c066e33f01adcd316
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 6 19:36:01 2023 -0700
 
-    os: define wrapSyscallError only on linux
+    cmd/doc: format field doc comments when printing entire struct
     
-    wrapSyscallError by now is only used on linux in the methods defined in
-    os/zero_copy_linux.go. Move the definition there.
+    cmd/doc passes structs to go/format, but that means that comments
+    on fields within those structs don't look like what cmd/doc prints
+    when asked for a struct field directly. Tweak the field comments
+    so that they look the same either way.
     
-    Change-Id: I0ca5749adaac44e8d095b8452458b647f595d3c8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/575595
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Fixes #56592
+    
+    Change-Id: I198cb7a58e3d8558406c386072c630332f91c6b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483055
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
 
- src/os/error_posix.go     | 18 ------------------
- src/os/zero_copy_linux.go |  9 +++++++++
- 2 files changed, 9 insertions(+), 18 deletions(-)
+ src/cmd/doc/doc_test.go     | 41 ++++++++++++++++++++++++++++++++++--
+ src/cmd/doc/pkg.go          | 51 +++++++++++++++++++++++++++++++++++++++------
+ src/cmd/doc/testdata/pkg.go |  1 +
+ 3 files changed, 85 insertions(+), 8 deletions(-)

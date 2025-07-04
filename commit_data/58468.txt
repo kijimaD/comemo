@@ -1,25 +1,26 @@
-commit eb0c2b2f96d9590631c0fd502a6c570635399f0a
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Fri Dec 27 11:13:42 2024 +0100
+commit e323e7d973cbc0fb979bee35baa606b72f38b408
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Nov 3 16:00:40 2023 -0400
 
-    crypto/internal/fips140: add Supported
+    cmd/compile: move FuncPC intrinsic handling to common helper
     
-    Move the logic duplicated in multiple places to a central function.
+    CL 539699 will need to do the equivalent of
+    internal/abi.FuncPCABIInternal to get the PC of a function value for the
+    runtime devirtualization check.
     
-    Change-Id: I6a6a4656469c91dd62b0be716ec8367358f4a3e1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/639336
+    Move the FuncPC expression creation from the depths of walk to a
+    typecheck helper so it can be reused in both places.
+    
+    For #61577.
+    
+    Change-Id: I76f333157cf0e5fd867b41bfffcdaf6f45254707
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539698
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/cmd/dist/test.go                               |  2 ++
- src/crypto/internal/fips140/{check => }/asan.go    |  2 +-
- src/crypto/internal/fips140/boring.go              | 10 +++++++
- src/crypto/internal/fips140/check/check.go         | 29 ++----------------
- src/crypto/internal/fips140/fips140.go             | 35 +++++++++++++++++++++-
- .../fips140/{check/noasan.go => notasan.go}        |  2 +-
- src/crypto/internal/fips140/notboring.go           |  9 ++++++
- src/crypto/internal/fips140test/check_test.go      | 20 ++++---------
- 8 files changed, 64 insertions(+), 45 deletions(-)
+ src/cmd/compile/internal/ir/func.go    | 55 ++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/walk/expr.go  | 27 +++--------------
+ src/cmd/compile/internal/walk/order.go |  7 +----
+ 3 files changed, 60 insertions(+), 29 deletions(-)

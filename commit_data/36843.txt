@@ -1,19 +1,14 @@
-commit 86e251c938af90b1f80b41d7ca3713fb46430071
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Fri Sep 28 15:21:58 2018 +0200
+commit a7e0a920ad45482183783c56e4dd39c9457ff4cc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 31 15:07:02 2018 -0700
 
-    internal/syscall: add AIX operating system
+    archive/zip: remove unnecessary words in (*Writer).Close docs
     
-    This commit adds AIX operating system to internal/syscall package for ppc64
-    architecture.
+    Fixes #25599
     
-    Updates: #25893
-    
-    Change-Id: I5c3a9d4403ca170a7e894e06e68b83387d09b816
-    Reviewed-on: https://go-review.googlesource.com/c/138718
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I19ac3463682f662515feaf4c6132f55c12ba5386
+    Reviewed-on: https://go-review.googlesource.com/115618
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/internal/syscall/unix/nonblocking.go | 2 +-
+ src/archive/zip/writer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

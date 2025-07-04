@@ -1,21 +1,20 @@
-commit 0da4b2dbc20e6d8a01bb44516257fda56e713523
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Aug 5 18:16:56 2014 -0700
+commit 48e75337839d21079c9763d3447ade409ee2c32a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 6 09:58:47 2014 +0900
 
-    cmd/cgo: fix recursive type mapping
+    net: separate DNS transport from DNS query-response interaction
     
-    Instead of immediately completing pointer type mappings, add them to
-    a queue to allow them to be completed later.  This fixes issues caused
-    by Type() returning arbitrary in-progress type mappings.
+    Before fixing issue 6579 this CL separates DNS transport from
+    DNS message interaction to make it easier to add builtin DNS
+    resolver control logic.
     
-    Fixes #8368.
-    Fixes #8441.
+    Update #6579
     
-    LGTM=iant
-    R=golang-codereviews, iant
+    LGTM=alex, kevlar
+    R=golang-codereviews, alex, gobot, iant, minux, kevlar
     CC=golang-codereviews
-    https://golang.org/cl/122850043
+    https://golang.org/cl/101220044
 
- misc/cgo/test/issue8441.go | 27 ++++++++++++++++++++++
- src/cmd/cgo/gcc.go         | 57 +++++++++++++++++++++++++++++++++++-----------
- 2 files changed, 71 insertions(+), 13 deletions(-)
+ src/pkg/net/dnsclient_unix.go      | 236 ++++++++++++++++++++++++-------------
+ src/pkg/net/dnsclient_unix_test.go |  78 ++++++++++--
+ 2 files changed, 222 insertions(+), 92 deletions(-)

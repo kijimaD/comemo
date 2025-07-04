@@ -1,18 +1,28 @@
-commit 540632841e678573885e296db0cb73b15f48f96c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Feb 3 12:13:00 2022 -0800
+commit f432d3fc41b8f6b01131023aabcf935ebea172cb
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 26 14:13:19 2021 -0700
 
-    bytes, strings: mention Cut in docs for Split and SplitN
+    cmd/compile: fix nongeneric closures in generic functions
     
-    For #46336
+    Ensure that formal parameter Names are correctly copied and marked
+    with the correct Curfn. We need to ensure this even when the underlying
+    closure has no type parameters.
     
-    Change-Id: Idc23302085e14e24d571f5995d6d33ca964a0021
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/382954
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    (Aside: it is strange that the types of things contain formal
+    parameter names that need to be copied. Maybe that's an underlying
+    larger problem that needs to be fixed.)
+    
+    Fixes #45738
+    
+    Change-Id: Ia13d69eea992ff7080bd44065115bc52eb624e73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313652
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/bytes/bytes.go     | 4 ++++
- src/strings/strings.go | 4 ++++
- 2 files changed, 8 insertions(+)
+ src/cmd/compile/internal/escape/escape.go |  5 ++++-
+ src/cmd/compile/internal/noder/stencil.go |  5 ++++-
+ test/typeparam/issue45738.go              | 18 ++++++++++++++++++
+ 3 files changed, 26 insertions(+), 2 deletions(-)

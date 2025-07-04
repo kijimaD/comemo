@@ -1,13 +1,15 @@
-commit 561561fc2d64d088892778463a266120a6c2f716
-Author: Adam Langley <agl@golang.org>
-Date:   Wed Oct 17 14:21:58 2012 -0400
+commit a2659aa6a105e6ae4fd3debcf4f4d8c79a6b4f4d
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Oct 17 17:23:47 2012 +0200
 
-    A+C: add Shane Hansen (Individual CLA)
+    cmd/go: Dedup package arguments before building.
     
-    R=golang-dev, iant
+    Fixes #4104.
+    
+    R=golang-dev, dave, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6714053
+    https://golang.org/cl/6639051
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/go/pkg.go    | 5 +++++
+ src/cmd/go/test.bash | 6 ++++++
+ 2 files changed, 11 insertions(+)

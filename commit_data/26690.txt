@@ -1,40 +1,14 @@
-commit 61f56e925ea97b82090d30f05cde3cd7a2668ed0
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 29 12:28:24 2016 -0400
+commit 756ea30eb05357b02af1ac512920ed647d4ee350
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 22 11:27:32 2016 -0800
 
-    runtime: fix pagesInUse accounting
+    runtime: simplify stack copying in ThreadCreateProfile
     
-    When we grow the heap, we create a temporary "in use" span for the
-    memory acquired from the OS and then free that span to link it into
-    the heap. Hence, we (1) increase pagesInUse when we make the temporary
-    span so that (2) freeing the span will correctly decrease it.
-    
-    However, currently step (1) increases pagesInUse by the number of
-    pages requested from the heap, while step (2) decreases it by the
-    number of pages requested from the OS (the size of the temporary
-    span). These aren't necessarily the same, since we round up the number
-    of pages we request from the OS, so steps 1 and 2 don't necessarily
-    cancel out like they're supposed to. Over time, this can add up and
-    cause pagesInUse to underflow and wrap around to 2^64. The garbage
-    collector computes the sweep ratio from this, so if this happens, the
-    sweep ratio becomes effectively infinite, causing the first allocation
-    on each P in a sweep cycle to sweep the entire heap. This makes
-    sweeping effectively STW.
-    
-    Fix this by increasing pagesInUse in step 1 by the number of pages
-    requested from the OS, so that the two steps correctly cancel out. We
-    add a test that checks that the running total matches the actual state
-    of the heap.
-    
-    Fixes #15022. For 1.6.x.
-    
-    Change-Id: Iefd9d6abe37d0d447cbdbdf9941662e4f18eeffc
-    Reviewed-on: https://go-review.googlesource.com/21280
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I7414d2fab18ae6e7e7c50f8697ec64d38290f409
+    Reviewed-on: https://go-review.googlesource.com/19817
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/export_test.go | 16 ++++++++++++++++
- src/runtime/gc_test.go     | 17 +++++++++++++++++
- src/runtime/mheap.go       |  2 +-
- 3 files changed, 34 insertions(+), 1 deletion(-)
+ src/runtime/mprof.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

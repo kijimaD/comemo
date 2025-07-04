@@ -1,20 +1,15 @@
-commit 318309a51f40d31568bd2c9131d1cd25c2ca0214
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 15 14:27:16 2013 -0500
+commit f87b7f67b232db252a527dbc000533a27ccb8cd2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 15 22:22:13 2013 +0400
 
-    runtime/pprof: adjust reported line numbers to show call sites
+    runtime: ensure forward progress of runtime.Gosched() for locked goroutines
+    The removed code leads to the situation when M executes the same locked G again and again.
+    Fixes #4820.
     
-    This is the same logic used in the standard tracebacks.
-    The caller pc is the pc after the call, so except in the
-    fake "call" caused by a panic, back up the pc enough
-    that the lookup will use the previous instruction.
-    
-    Fixes #4150.
-    Fixes #4151.
-    
-    R=golang-dev, iant
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7317047
+    https://golang.org/cl/7310096
 
- src/pkg/runtime/pprof/pprof.go | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ src/pkg/runtime/proc.c       |  8 --------
+ src/pkg/runtime/proc_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 8 deletions(-)

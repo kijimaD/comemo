@@ -1,45 +1,28 @@
-commit fd2e1e743a86a53a30427cf3606543ecc9bd60bd
-Author: Alan Donovan <alan@alandonovan.net>
-Date:   Wed Jan 5 09:20:15 2022 -0500
+commit 496d7c691481966fd6ea806205aa025698a172af
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 3 16:32:52 2021 -0700
 
-    unicode/utf8: optimize Valid to parity with ValidString
+    text/template: add lock for Template.tmpl to fix data race
     
-    The benchmarks added in this change revealed that ValidString
-    runs ~17% faster than Valid([]byte) on the ASCII prefix
-    of the input. Inspection of the assembly revealed that the
-    code generated for p[8:] required recomputing the slice capacity
-    to handle the cap=0 special case, which added an ADD -8 instruction.
-    By making len=cap, the capacity becomes a common subexpression
-    with the length, saving the ADD instruction.
-    (Thanks to khr for the tip.)
+    This adds a new lock protecting "tmpl".
     
-    Incidentally, I tried a number of other optimizations but was
-    unable to make consistent gains across all benchmarks. The most
-    promising was to retain the bitmask of non-ASCII bytes from the
-    fast loop; the slow loop would shift it, and when it becomes zero,
-    return to the fast loop. This made the MostlyASCII benchmark 4x
-    faster, but made the other cases slower by up to 10%.
+    This is a copy of https://golang.org/cl/257817 by Andreas Fleig,
+    updated for current tip, and updated to start running the
+    html/template TestEscapeRace test.
     
-    cpu: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
-    benchmark                                   old ns/op     new ns/op     delta
-    BenchmarkValidTenASCIIChars-16              4.09          4.06          -0.85%
-    BenchmarkValid100KASCIIChars-16             9325          7747          -16.92%
-    BenchmarkValidTenJapaneseChars-16           27.0          27.2          +0.85%
-    BenchmarkValidLongMostlyASCII-16            57277         58361         +1.89%
-    BenchmarkValidLongJapanese-16               94002         93131         -0.93%
-    BenchmarkValidStringTenASCIIChars-16        4.15          4.07          -1.74%
-    BenchmarkValidString100KASCIIChars-16       7980          8019          +0.49%
-    BenchmarkValidStringTenJapaneseChars-16     26.0          25.9          -0.38%
-    BenchmarkValidStringLongMostlyASCII-16      58550         58006         -0.93%
-    BenchmarkValidStringLongJapanese-16         97964         100038        +2.12%
+    Thanks to @bep for providing the test case.
     
-    Change-Id: Ic9d585dedd9af83c27dd791ecd805150ac949f15
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375594
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Alex Rakoczy <alex@golang.org>
+    Fixes #39807
+    
+    Change-Id: Ic8874484290283a49116812eeaffb8608346dc70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316669
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/unicode/utf8/utf8.go      |  5 ++++
- src/unicode/utf8/utf8_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 63 insertions(+)
+ src/html/template/exec_test.go |  2 --
+ src/text/template/exec.go      |  9 ++++-----
+ src/text/template/exec_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/text/template/template.go  |  9 +++++++++
+ 4 files changed, 51 insertions(+), 7 deletions(-)

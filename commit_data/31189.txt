@@ -1,18 +1,22 @@
-commit 7821be59519b65182e4399425b6e6d908252c11b
-Author: David Lazar <lazard@golang.org>
-Date:   Tue Apr 18 10:47:27 2017 -0400
+commit ad784caa746515c28033435318c8b82c187fa583
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Oct 28 11:42:40 2016 -0700
 
-    runtime: make example independent of inlining
+    cmd/compile: move Heapaddr field from Name to Param
     
-    Otherwise, with -l=4, runtime.Callers gets inlined and the example
-    prints too many frames. Now the example passes with -l=4.
+    No performance impact, just cleanup.
     
-    Change-Id: I9e420af9371724ac3ec89efafd76a658cf82bb4a
-    Reviewed-on: https://go-review.googlesource.com/40876
-    Run-TryBot: David Lazar <lazard@golang.org>
+    Passes toolstash -cmp.
+    
+    Change-Id: Ic7957d2686de53a9680c2bdefe926cccccd73a5c
+    Reviewed-on: https://go-review.googlesource.com/36316
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/example_test.go | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/closure.go     | 4 ++--
+ src/cmd/compile/internal/gc/gen.go         | 6 +++---
+ src/cmd/compile/internal/gc/sizeof_test.go | 4 ++--
+ src/cmd/compile/internal/gc/syntax.go      | 4 ++--
+ src/cmd/compile/internal/gc/walk.go        | 6 +++---
+ 5 files changed, 12 insertions(+), 12 deletions(-)

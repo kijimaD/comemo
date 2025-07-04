@@ -1,21 +1,20 @@
-commit 73e14a302682df64bffae789802bafc0dec85a2e
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Sep 30 09:19:02 2022 +0000
+commit 5344dcae4139de85b9e3d8cea81f9b65fc2bd25f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Nov 8 15:51:05 2021 +0700
 
-    internal: fix a few function names on comments
+    cmd/compile: remove unneeded "==" method in pre-defined "comparable" interface
     
-    Change-Id: I53169e386b8c789b092de348fa891fe50e11c2ef
-    GitHub-Last-Rev: 75232393b4ba415bddc731f15550d7094ccfd953
-    GitHub-Pull-Request: golang/go#55965
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436883
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #49421
+    
+    Change-Id: Iecf3952346ecd278198c1000014a321e230f7fa7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361962
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/internal/coverage/pkid.go      | 2 +-
- src/internal/fuzz/coverage.go      | 2 +-
- src/internal/fuzz/encoding.go      | 2 +-
- src/internal/poll/errno_windows.go | 2 +-
- src/internal/profile/filter.go     | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  6 ------
+ src/cmd/compile/internal/types/universe.go      |  6 +++---
+ test/typeparam/issue49421.go                    | 27 +++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 9 deletions(-)

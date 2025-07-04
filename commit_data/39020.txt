@@ -1,31 +1,21 @@
-commit 004fb5cb8dd74b9ac46a9990e9a028673b88e838
-Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
-Date:   Thu May 2 03:57:29 2019 +0700
+commit ccbca561ef1fc7990ca697102f0e9d3b2150d8f5
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 17 14:39:05 2018 -0500
 
-    cmd/compile: fix isStaticCompositeLiteral reports wrong for struct field
+    runtime: capture pause stack for late gcWork put debugging
     
-    golang.org/cl/174498 add ONAME case to isStaticCompositeLiteral, to
-    detect global variable as compile-time constant.
+    This captures the stack trace where mark completion observed that each
+    P had no work, and then dumps this if that P later discovers more
+    work. Hopefully this will help bound where the work was created.
     
-    It does report wrong for struct field, e.g:
+    For #27993.
     
-            o := one{i: two{i: 42}.i}
-    
-    field i in two{i: 42} was reported as static composite literal, while it
-    should not.
-    
-    In general, adding ONAME case for isStaticCompositeLiteral is probably
-    wrong.
-    
-    Fixes #31782
-    
-    Change-Id: Icde7d43bbb002b75df5c52b948b7126a4265e07b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174837
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I4f29202880d22c433482dc1463fb50ab693b6de6
+    Reviewed-on: https://go-review.googlesource.com/c/154599
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/compile/internal/gc/sinit.go |  2 --
- test/fixedbugs/issue31782.go         | 24 ++++++++++++++++++++++++
- test/fixedbugs/issue31782.out        |  1 +
- 3 files changed, 25 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go     |  5 +++++
+ src/runtime/mgcwork.go | 21 +++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

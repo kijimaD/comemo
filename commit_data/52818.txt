@@ -1,28 +1,22 @@
-commit 0fd6ae548f550bdbee4a434285ff052fb9dc7417
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Apr 28 15:52:16 2023 -0400
+commit 66cbf67345b1631adbee2109f5bb78fb4e321144
+Author: Stephen Eckels <stevemk14ebr@gmail.com>
+Date:   Sat Jun 4 20:39:36 2022 +0000
 
-    cmd/compile: escape package path for PGO symbol matching
+    cmd/buildid: reject rewriting legacy buildids
     
-    Symbol names in the final executable apply escaping to the final
-    component of a package path (main in example.com becomes
-    example%2ecom.main).
+    This resolves legacy go binaries crashing the buildid tool when the -w flag is specified.
     
-    ir.PkgFuncName does not perform this escaping, meaning we'd fail to
-    match functions that are escaped in the profile.
+    Fixes #50809
     
-    Add ir.LinkFuncName which does perform escaping and use it for PGO.
-    
-    Fixes #59887.
-    
-    Change-Id: I10634d63d99d0a6fd2f72b929ab35ea227e1336f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490555
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I55a866f285a3c2cebcf2cdbb9cc30e5078e1d18f
+    GitHub-Last-Rev: 7169a58fd7ba17fdeb8037cef3f50080169dc137
+    GitHub-Pull-Request: golang/go#53163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409535
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/compile/internal/inline/inl.go  |  4 ++--
- src/cmd/compile/internal/ir/func.go     | 25 ++++++++++++++++++++-----
- src/cmd/compile/internal/pgo/irgraph.go | 26 +++++++++++++-------------
- 3 files changed, 35 insertions(+), 20 deletions(-)
+ src/cmd/buildid/buildid.go | 5 +++++
+ 1 file changed, 5 insertions(+)

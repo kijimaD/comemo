@@ -1,15 +1,23 @@
-commit adcb50835974cb7c9ad7cdc9bbf6eea64475e567
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Mar 14 13:19:39 2012 +1100
+commit 5659826e43349426d86ccc8816fbf02babe19065
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Wed Mar 14 13:03:11 2012 +1100
 
-    godoc: fix vet warnings for untagged struct literals
+    doc: add Go Concurrency Patterns: Timing out, moving on article
     
-    src/cmd/godoc/filesystem.go:337:10: os.PathError struct literal uses untagged fields
-    src/cmd/godoc/filesystem.go:355:10: os.PathError struct literal uses untagged fields
+    Originally published on The Go Programming Language Blog, September 23, 2010.
     
-    R=golang-dev, dsymonds
+    http://blog.golang.org/2010/09/go-concurrency-patterns-timing-out-and.html
+    
+    Update #2547.
+    
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/5820046
+    https://golang.org/cl/5815044
 
- src/cmd/godoc/filesystem.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/Makefile                                       |  4 +-
+ ..._concurrency_patterns_timing_out_moving_on.html | 79 ++++++++++++++++++++++
+ doc/docs.html                                      |  2 +-
+ doc/progs/run                                      |  7 +-
+ doc/progs/timeout1.go                              | 28 ++++++++
+ doc/progs/timeout2.go                              | 27 ++++++++
+ 6 files changed, 144 insertions(+), 3 deletions(-)

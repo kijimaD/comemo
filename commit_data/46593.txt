@@ -1,31 +1,20 @@
-commit cfd0868fc3252e349b11066ed300c389d4495587
+commit 9734fd482d32528c5ec0e516f79af253871beb77
 Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 24 23:11:18 2021 +0700
+Date:   Thu Jan 14 13:41:35 2021 +0700
 
-    cmd/compile: fix delayTransform condition
+    [dev.regabi] cmd/compile: use node walked flag to prevent double walk for walkSwitch
     
-    The delayTransform only checks whether ir.CurFunc is generic function or
-    not. but when compiling a non-generic closure inside a generic function,
-    we also want to delay the transformation, which delayTransform fails to
-    detect, since when ir.CurFunc is the closure, not the top level function.
+    CL 283672 added a flag to prevent double walking, use that flag instead
+    of checking SwitchStmt.Compiled field.
     
-    Instead, we must rely on irgen.topFuncIsGeneric field to decide whether
-    to delay the transformation, the same logic with what is being done for
-    not adding closure inside a generic function to g.target.Decls list.
+    Passes toolstash -cmp.
     
-    Fixes #48609
-    
-    Change-Id: I5bf5592027d112fe8b19c92eb906add424c46507
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351855
+    Change-Id: Idb8f9078412fb789f51ed4fc4206638011e38a93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283733
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/noder/expr.go    |  8 ++++----
- src/cmd/compile/internal/noder/helpers.go |  6 ------
- src/cmd/compile/internal/noder/irgen.go   |  6 ++++++
- src/cmd/compile/internal/noder/stmt.go    | 12 ++++++------
- test/typeparam/issue48609.go              | 18 ++++++++++++++++++
- 5 files changed, 34 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/walk/switch.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

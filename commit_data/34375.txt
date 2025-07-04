@@ -1,25 +1,22 @@
-commit f399af3114400d791332cf77234f7b9d42cbfb50
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Fri Feb 16 15:35:35 2018 -0800
+commit 87f83eac7ffd54cc4fe56e4d4f22680ffdb071a1
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 23 11:41:47 2017 -0400
 
-    go/doc: replace unexported values with underscore if necessary
+    cmd/compile: include non-decomposed vars for -dwarflocationlists
     
-    When a var or const declaration contains a mixture of exported and unexported
-    identifiers, replace the unexported identifiers with underscore.
-    Otherwise, the LHS and the RHS may mismatch or the declaration may mismatch
-    with an iota from above.
+    When enhanced DWARF location list generation is enabled (via internal
+    option -dwarflocationlists), variable entries were missing for "large"
+    (non-decomposable) locals and formals. From the debugging perspective,
+    this makes it appear that the variable doesn't exist, which is
+    probably not what we want. This change insures that a formal/local DIE
+    is created for these vars (with correct type, line, etc) but with a
+    conservative ("no info") location.
     
-    Fixes #22426
-    
-    Change-Id: Icd5fb81b4ece647232a9f7d05cb140227091e9cb
-    Reviewed-on: https://go-review.googlesource.com/94877
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I10b2e9a51a60c7b4c748e987cdec5f2d8b2837d5
+    Reviewed-on: https://go-review.googlesource.com/72630
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
 
- src/go/doc/exports.go          | 36 ++++++++++++++++++++++++++++++++----
- src/go/doc/testdata/g.0.golden | 32 ++++++++++++++++++++++++++++++++
- src/go/doc/testdata/g.1.golden | 34 ++++++++++++++++++++++++++++++++++
- src/go/doc/testdata/g.2.golden | 32 ++++++++++++++++++++++++++++++++
- src/go/doc/testdata/g.go       | 25 +++++++++++++++++++++++++
- 5 files changed, 155 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/gc/pgen.go | 39 +++++++++++++++++++++++++++++++++++--
+ 1 file changed, 37 insertions(+), 2 deletions(-)

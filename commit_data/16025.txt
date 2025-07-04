@@ -1,30 +1,19 @@
-commit b80ce2034bd04b23cb9b4330aea3d390b2f0df3a
+commit ad7aa8302011f08c2cac5291697704b352c2b735
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Sat Mar 30 22:59:08 2013 -0700
+Date:   Sat Mar 30 11:18:56 2013 -0700
 
-    net/http: Transport: be paranoid about any non-100 1xx response
+    net/http: fix incredibly racy TestTransportReading100Continue
     
-    Since we can't properly handle anything except 100, treat all
-    1xx informational responses as sketchy and don't reuse the
-    connection for future requests.
+    Whoops. I'm surprised it even worked before. (Need two pipes,
+    not one.)
     
-    The only other 1xx response code currently in use in the wild
-    is WebSockets' use of "101 Switching Protocols", but our
-    code.google.com/p/go.net/websockets doesn't use Client or
-    Transport: it uses ReadResponse directly, so is unaffected by
-    this CL.  (and its tests still pass)
+    Also, remove the whole pipe registration business, since it
+    wasn't even required in the previous version. (I'd later fixed
+    it at the end of send100Response, but forgot to delete it)
     
-    So this CL is entirely just future-proofing paranoia.
-    Also: the Internet is weird.
-    
-    Update #2184
-    Update #3665
-    
-    R=golang-dev, dsymonds
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8208043
+    https://golang.org/cl/8191044
 
- src/pkg/net/http/serve_test.go     |  7 ++++-
- src/pkg/net/http/transport.go      |  5 +++-
- src/pkg/net/http/transport_test.go | 54 ++++++++++++++++++++++++++++++--------
- 3 files changed, 53 insertions(+), 13 deletions(-)
+ src/pkg/net/http/transport_test.go | 27 +++++----------------------
+ 1 file changed, 5 insertions(+), 22 deletions(-)

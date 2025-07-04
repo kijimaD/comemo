@@ -1,12 +1,16 @@
-commit be629bf79ee8edd0c52caa8a46cb63eb38e55d79
+commit 3cc9d16792367310f0cdb03272ed1ec3d3e43eca
 Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Jul 30 11:45:17 2012 +1000
+Date:   Mon Jul 30 10:54:50 2012 +1000
 
-    misc/dashboard/codereview: make all active CL tables hold up to 50 CLs.
+    misc/dashboard/codereview: recognize "NOT LGTM".
     
-    R=golang-dev, bradfitz
+    A "NOT LGTM" overrules a previous "LGTM" by the same person, and vice versa.
+    "NOT LGTM"s are shown in the same location as LGTMs, colored red.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6449060
+    https://golang.org/cl/6453062
 
- misc/dashboard/codereview/dashboard/front.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/dashboard/codereview/dashboard/cl.go    | 25 ++++++++++++++++++++++---
+ misc/dashboard/codereview/dashboard/front.go |  1 +
+ 2 files changed, 23 insertions(+), 3 deletions(-)

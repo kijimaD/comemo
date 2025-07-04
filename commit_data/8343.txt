@@ -1,12 +1,38 @@
-commit 69a91663d25df694ec3a85d32b77c37444f1dac6
-Author: Albert Strasheim <fullung@gmail.com>
-Date:   Tue May 10 13:47:56 2011 -0400
+commit 4c1e1b815b6a1b295914cea0936118b77e7776b1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 9 17:25:32 2011 -0700
 
-    runtime: add newline to "finalizer already set" error
+    image/jpeg: speed up decoding by inlining the clip function and
+    writing the idct result directly to the image buffer instead of
+    storing it in an intermediate d.blocks field.
     
-    R=rsc, bradfitz
+    Writing to d.blocks was necessary when decoding to an image.RGBA image,
+    but now that we decode to a ycbcr.YCbCr we can write each component
+    directly to the image buffer.
+    
+    Crude "time ./6.out" scores to decode a specific 2592x1944 JPEG 20
+    times show a 16% speed-up:
+    
+    BEFORE
+    
+    user    0m10.410s
+    user    0m10.400s
+    user    0m10.480s
+    user    0m10.480s
+    user    0m10.460s
+    
+    AFTER
+    
+    user    0m9.050s
+    user    0m9.050s
+    user    0m9.050s
+    user    0m9.070s
+    user    0m9.020s
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/4523047
+    https://golang.org/cl/4523052
 
- src/pkg/runtime/malloc.goc | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/image/jpeg/idct.go   | 124 ++++++++++++++++++++++++-------------------
+ src/pkg/image/jpeg/reader.go |  67 +++++++----------------
+ 2 files changed, 89 insertions(+), 102 deletions(-)

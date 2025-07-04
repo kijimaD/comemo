@@ -1,20 +1,12 @@
-commit b6ea905ed9cb1f0db828c0d58609c853eb82b89d
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Aug 1 00:45:26 2012 +0200
+commit 4e7f765b12e6501450f44fb3b6529f52bb3a3256
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 31 20:58:35 2012 +0900
 
-    cmd/gc: fix inlining bug with receive operator.
-    
-    The receive operator was given incorrect precedence
-    resulting in incorrect deletion of parentheses.
-    
-    Fixes #3843.
+    net: disable IPv6 multicast tests unless external IPv6 connection is present
     
     R=rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/6442049
+    CC=golang-dev
+    https://golang.org/cl/6398052
 
- src/cmd/gc/fmt.c                  |  2 +-
- test/fixedbugs/bug448.dir/pkg1.go | 11 +++++++++++
- test/fixedbugs/bug448.dir/pkg2.go | 14 ++++++++++++++
- test/fixedbugs/bug448.go          |  7 +++++++
- 4 files changed, 33 insertions(+), 1 deletion(-)
+ src/pkg/net/multicast_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

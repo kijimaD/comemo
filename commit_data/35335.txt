@@ -1,47 +1,19 @@
-commit aee71dd70b3779c66950ce6a952deca13d48e55e
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Apr 27 21:58:59 2018 +0200
+commit e940358fc938bb6f3882358347409c5882968777
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 24 17:17:38 2018 -0500
 
-    cmd/compile: optimize map-clearing range idiom
+    cmd/internal/obj/mips: support NOFRAME
     
-    replace map clears of the form:
+    This passes toolstash -cmp with one exception: assembly functions that
+    were declared with a frame size of -4 (or -8) used to record
+    locals=0xfffffffffffffffc in the object file and now record
+    locals=0x0. This doesn't affect anything.
     
-            for k := range m {
-                    delete(m, k)
-            }
-    
-    (where m is map with key type that is reflexive for ==)
-    with a new runtime function that clears the maps backing
-    array with a memclr and reinitializes the hmap struct.
-    
-    Map key types that for example contain floats are not
-    replaced by this optimization since NaN keys cannot
-    be deleted from maps using delete.
-    
-    name                           old time/op  new time/op  delta
-    GoMapClear/Reflexive/1         92.2ns ± 1%  47.1ns ± 2%  -48.89%  (p=0.000 n=9+9)
-    GoMapClear/Reflexive/10         108ns ± 1%    48ns ± 2%  -55.68%  (p=0.000 n=10+10)
-    GoMapClear/Reflexive/100        303ns ± 2%   110ns ± 3%  -63.56%  (p=0.000 n=10+10)
-    GoMapClear/Reflexive/1000      3.58µs ± 3%  1.23µs ± 2%  -65.49%  (p=0.000 n=9+10)
-    GoMapClear/Reflexive/10000     28.2µs ± 3%  10.3µs ± 2%  -63.55%  (p=0.000 n=9+10)
-    GoMapClear/NonReflexive/1       121ns ± 2%   124ns ± 7%     ~     (p=0.097 n=10+10)
-    GoMapClear/NonReflexive/10      137ns ± 2%   139ns ± 3%   +1.53%  (p=0.033 n=10+10)
-    GoMapClear/NonReflexive/100     331ns ± 3%   334ns ± 2%     ~     (p=0.342 n=10+10)
-    GoMapClear/NonReflexive/1000   3.64µs ± 3%  3.64µs ± 2%     ~     (p=0.887 n=9+10)
-    GoMapClear/NonReflexive/10000  28.1µs ± 2%  28.4µs ± 3%     ~     (p=0.247 n=10+10)
-    
-    Fixes #20138
-    
-    Change-Id: I181332a8ef434a4f0d89659f492d8711db3f3213
-    Reviewed-on: https://go-review.googlesource.com/110055
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I0d15e81770e54222ae329ce4496da06016736771
+    Reviewed-on: https://go-review.googlesource.com/92041
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/builtin.go         | 164 +++++++++++++------------
- src/cmd/compile/internal/gc/builtin/runtime.go |   1 +
- src/cmd/compile/internal/gc/order.go           |  14 ++-
- src/cmd/compile/internal/gc/range.go           |  71 +++++++++++
- src/runtime/map.go                             | 122 +++++++++++++-----
- src/runtime/map_benchmark_test.go              |  29 +++++
- test/codegen/maps.go                           |  57 +++++++++
- test/mapclear.go                               |  89 ++++++++++++++
- 8 files changed, 437 insertions(+), 110 deletions(-)
+ src/cmd/internal/obj/mips/obj0.go | 71 ++++++++++++++++++++++++++-------------
+ 1 file changed, 48 insertions(+), 23 deletions(-)

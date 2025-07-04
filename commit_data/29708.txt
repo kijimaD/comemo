@@ -1,16 +1,22 @@
-commit 9fbfe7cca00a456541e9aa2b2cc1251d777f325b
-Author: David Lazar <lazard@golang.org>
-Date:   Wed Nov 30 17:09:07 2016 -0500
+commit 57ae83307fc4cb90338b39dcc6fe3c61ee8ce0b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 13:28:25 2016 -0700
 
-    cmd/compile: do not inline functions marked cgo_unsafe_args
+    go/ast, go/parser: parse alias declarations
     
-    Now the net tests pass with -gcflags '-l=4'.
+    For now, we also accept "type p = p.T" (using = instead of =>, for
+    type aliases only), so we can experiment with an approach that only
+    uses type aliases. This concession is implemened in the parser.
     
-    Fixes #18125.
+    For #16339
     
-    Change-Id: I4e3a46eb0cb3a93b203e74f5bc99c5822331f535
-    Reviewed-on: https://go-review.googlesource.com/33722
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I88b5522a8b6cfc2e97ca146ede8b32af340220f8
+    Reviewed-on: https://go-review.googlesource.com/30211
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/gc/inl.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/go/ast/ast.go           | 28 ++++++++++-----
+ src/go/ast/filter.go        |  4 +++
+ src/go/ast/walk.go          | 10 ++++++
+ src/go/parser/parser.go     | 85 ++++++++++++++++++++++++++++++++-------------
+ src/go/parser/short_test.go |  2 ++
+ 5 files changed, 97 insertions(+), 32 deletions(-)

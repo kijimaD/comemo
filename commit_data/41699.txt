@@ -1,18 +1,22 @@
-commit c5058652fd724cb1ed8ea91a4e76b202d6910482
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri Mar 20 19:13:07 2020 +0100
+commit d24cf6d53e854d0f7cda6912575c7054637ed53c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Oct 21 15:04:54 2019 -0400
 
-    math/big: document that Sqrt doesn't set Accuracy
+    database/sql: remove forced log import from test
     
-    Document that the Float.Sqrt method does not set the receiver's
-    Accuracy field.
+    This var _ = log.Printf line was added 8 years ago, in CL 4973055,
+    which created the database/sql package and its tests. There was no
+    goimports back then, so this was likely added to make it easier to
+    use log package during development of tests.
     
-    Updates #37915
+    It's no longer needed, so remove it. It can always be conveniently
+    re-added via goimports whenever needed.
     
-    Change-Id: Ief1dcac07eacc0ef02f86bfac9044501477bca1c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224497
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I7c32ae3e593c194d970920084139dfa5a42386dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202481
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/math/big/float.go | 4 +++-
- src/math/big/sqrt.go  | 3 ++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ src/database/sql/fakedb_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,23 +1,24 @@
-commit de1ab89f03a9a22a919fe051bb7251178c80279c
-Author: David du Colombier <0intro@gmail.com>
-Date:   Wed Aug 6 06:11:41 2014 -0700
+commit 6503d400519c7c03cc2f65d68bf72c83ac69dae2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 6 02:07:31 2014 -0400
 
-    dist: fix Plan 9 build
+    undo CL 114420043 / b613f2acdf69
     
-    Since CL 115060044, mkanames declares an empty
-    array in anames8.c and anames6.c, which is not
-    valid for the Plan 9 compiler.
+    Broke freebsd/amd64 due to exposure of a latent bug.
     
-    char* cnames8[] = {
-    };
+    ««« original CL description
+    cmd/ld: fix operator precedence
     
-    This change makes mkanames not declaring the
-    cnames array when no C_ constants are found.
-    
-    LGTM=iant
-    R=minux, iant
+    LGTM=rsc
+    R=rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/117680043
+    https://golang.org/cl/114420043
+    »»»
+    
+    TBR=dfc
+    R=dave
+    CC=golang-codereviews
+    https://golang.org/cl/120630043
 
- src/cmd/dist/buildgc.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

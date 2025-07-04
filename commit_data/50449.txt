@@ -1,17 +1,17 @@
-commit e509452727b469d89a3fc4a7d1cbf9d3f110efee
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Sep 9 20:53:13 2022 +0700
+commit c0ac39c70eeeaadbebe13efb407a1a272a926d30
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Oct 25 13:26:54 2021 -0400
 
-    sync: convert RWMutex.{readerCount,readerWait} to atomic type
+    go/types: remove a stale comment
     
-    Change-Id: I7fd9c0636cd00891f5cdf36c0f68f897772042f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/429767
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Clean up a comment that was deleted in types2 in CL 353135.
+    
+    Change-Id: If339efa133e2a3d1eaa3b1e69458471677018261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358517
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/sync/rwmutex.go | 28 ++++++++++++++--------------
- test/inline_sync.go | 20 ++++++++++----------
- 2 files changed, 24 insertions(+), 24 deletions(-)
+ src/go/types/typestring.go | 3 ---
+ 1 file changed, 3 deletions(-)

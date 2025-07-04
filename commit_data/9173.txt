@@ -1,23 +1,16 @@
-commit 226fb099d9c1f81296ba4395c839c52875c0b7be
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Jul 22 00:55:01 2011 -0400
+commit 222450addb95c1b9264be28d77cc9da8a73b5647
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 22 13:55:45 2011 +1000
 
-    runtime: add UpdateMemStats, use in tests
+    exp/template: add globbing helpers to load groups of files into sets.
+    Also make the Set.Parse methods variadic so you can parse static lists of files without loops.
     
-    Drops mallocrep1.go back to a reasonable
-    amount of time.  (154 -> 0.8 seconds on my Mac)
-    
-    Fixes #2085.
-    
-    R=golang-dev, dvyukov, r
+    R=rsc, dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/4811045
+    https://golang.org/cl/4802051
 
- src/pkg/runtime/mem.go |  7 ++++++-
- src/pkg/runtime/mgc0.c | 16 ++++++++++++++++
- test/gc2.go            |  3 ++-
- test/malloc1.go        |  1 +
- test/mallocrand.go     |  1 +
- test/mallocrep.go      |  6 ++++--
- test/mallocrep1.go     |  9 ++++++---
- 7 files changed, 36 insertions(+), 7 deletions(-)
+ src/pkg/exp/template/helper.go           | 96 ++++++++++++++++++++++++++------
+ src/pkg/exp/template/set_test.go         | 42 ++++++++++++++
+ src/pkg/exp/template/testdata/file1.tmpl |  2 +
+ src/pkg/exp/template/testdata/file2.tmpl |  2 +
+ 4 files changed, 126 insertions(+), 16 deletions(-)

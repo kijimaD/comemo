@@ -1,19 +1,15 @@
-commit 2277e8d3c9c3f14aa9536f4aaeea6bfa6c316f3f
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Fri Feb 14 12:20:21 2014 +0900
+commit 824e918ca4f799c4105ef1b96d81894a137a1b29
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 13 21:11:50 2014 -0500
 
-    net: disable TestDNSThreadLimit even in non-short mode by default
+    cmd/gc: fix liveness for addressed results
     
-    TestDNSThreadLimit creates tons of DNS queries and it occasionally
-    causes an unintentional traffic jam and/or crash of some virtual
-    machine software, especially its builtin networking stuff.
+    Was spuriously marking results live on entry to function.
     
-    We can run TestDNSThreadLimit with -dnsflood flag instead.
-    
-    LGTM=dave, rsc
-    R=rsc, dave
+    TBR=iant
     CC=golang-codereviews
-    https://golang.org/cl/63600043
+    https://golang.org/cl/63640043
 
- src/pkg/net/z_last_test.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/gc/plive.c | 9 ++++++++-
+ test/live.go       | 9 +++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

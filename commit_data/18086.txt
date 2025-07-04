@@ -1,15 +1,12 @@
-commit cbf6ff3b90f5b70e9e7f6aafc1744efbb4761377
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 19 13:24:42 2013 -0800
+commit 16dcef80d46d78cc198bfc680e9cf05cea9095cc
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Dec 19 21:20:03 2013 +0100
 
-    net/http: add Hihack benchmark
+    os: rename only works as part of the same directory on Plan 9
     
-    Notably, to show allocs. Currently: 11766 B/op, 21 allocs/op,
-    at least one alloc of which is in the benchmark loop itself.
-    
-    R=golang-dev, jnewlin
+    R=golang-dev, lucio.dere, rsc
     CC=golang-dev
-    https://golang.org/cl/40370057
+    https://golang.org/cl/44080046
 
- src/pkg/net/http/serve_test.go | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ src/pkg/os/file_plan9.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

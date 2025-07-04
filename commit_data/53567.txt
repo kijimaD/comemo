@@ -1,18 +1,18 @@
-commit f6e0dcc4742ed413c1dacba28a60b919186e636d
-Author: Eli Bendersky <eliben@golang.org>
-Date:   Thu Jun 15 09:34:22 2023 -0700
+commit 48da729e8468b630ee003ac51cbaac595d53bec8
+Author: Abirdcfly <fp544037857@gmail.com>
+Date:   Wed Aug 17 09:54:14 2022 +0000
 
-    slices: add sort benchmark for sorted strings
+    net/http/cookiejar: remove duplicate words from comments
     
-    For #60777
-    
-    Change-Id: I424535ce6454156c61af2f299228630ee304d165
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/503815
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Eli Bendersky <eliben@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Change-Id: Id44f587199683fd8018865af1c2442f9f74e0dad
+    GitHub-Last-Rev: 35b1ab88677586c79918d363f22e05bc0c3c6479
+    GitHub-Pull-Request: golang/go#54495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424434
+    Reviewed-by: hopehook <hopehook@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
 
- src/slices/sort_benchmark_test.go | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ src/net/http/cookiejar/jar.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

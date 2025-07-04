@@ -1,25 +1,19 @@
-commit 6e8eec7328d8526f377c69076d3c84ffb7bf89be
-Author: Daniel Frederick Crisman <daniel@crisman.org>
-Date:   Mon Apr 10 23:14:56 2023 +0000
+commit 6365efb7dcfd6ab90ffe5541ca26bd8d875167a3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 11 19:26:14 2022 -0700
 
-    doc: add missing oxford comma in Constants
+    test: add test case that caused a gofrontend crash
     
-    In the language specification under "Constants" the lists matching default
-    types to untyped contstant types is missing an Oxford comma in the first
-    list. I found a number of other places in the spec and #23442 that use the
-    Oxford comma to support its use.
+    For #52841
     
-    Add missing Oxford comma in Constants default type list.
-    
-    Change-Id: I4562d692610334bc82452db076145d2414617a04
-    GitHub-Last-Rev: 8acdb60d6e255f73fdeb908d2540d4ee35db3fd7
-    GitHub-Pull-Request: golang/go#59528
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/483555
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Change-Id: If4723a70fba0dbedb5d1e70dab58f0b4612bf8b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405759
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/go_spec.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/issue52841.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

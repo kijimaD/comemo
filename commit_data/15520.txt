@@ -1,14 +1,22 @@
-commit df60c0a3b8128db948ee3bac6e7e69bb8832faea
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 1 14:57:59 2013 +1100
+commit e72d1a9575e7b70b611c1f92319cb5a84d9e9267
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 1 14:49:23 2013 +1100
 
-    html/template: fix doc typo
+    libmach: many pe handling fixes
     
-    Fixes #4950.
+    - implement windows pread;
+    - set correct Fhdr.type;
+    - add ImageBase to all pe "virtual" addresses;
+    - correct settext parameter order;
+    - use pclntab/epclntab to find line numbers.
     
-    R=golang-dev, peter
+    Fixes #4841.
+    Fixes #4926.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7415046
+    https://golang.org/cl/7405050
 
- src/pkg/html/template/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/libmach/executable.c | 33 +++++++++++++++++++++++++--------
+ src/libmach/windows.c    |  8 ++++++--
+ 2 files changed, 31 insertions(+), 10 deletions(-)

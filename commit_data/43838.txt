@@ -1,24 +1,26 @@
-commit 498d8d537153a210e45d356d779aee74de5acda1
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Nov 18 13:44:39 2020 -0500
+commit 2a874562bf7e1831bca5bb2c89dd1a9d0beac6d2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 24 20:22:39 2020 -0400
 
-    cmd/go/internal/work: avoid modload.Selected in 'go install pkg@version'
+    [dev.link] cmd/link: stop setting ReadOnly attribute in late stage
     
-    At this point in installOutsideModule the build list is empty, so
-    Selected trivially returns "none" for all modules.
+    The ReadOnly attribute was used to do copy on write when applying
+    relocations to symbols with read-only backing stores. Now that we
+    always apply relocations in the output buffer (mmap or heap), it
+    is always writeable. No need to tamper with the ReadOnly
+    attribute anymore.
     
-    (This change could have been made in CL 266657, but it was a bit
-    simpler to update the QueryPattern call sites mechanically to ensure
-    that there would be no unintentional semantic drift.)
+    Wasm is an exception, where we don't copy symbol contents to the
+    output buffer first. Do copy-on-write there.
     
-    For #36460
+    This is in preparation of converting reloc to using the loader.
     
-    Change-Id: I44fb73794985bfeebb1dde0c092313f319c2945a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/271419
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I15e53b7c162b9124e6689dfd8eb45cbe2ffd7153
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229991
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/go/internal/work/build.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/ld/data.go   | 16 +++++++++-------
+ src/cmd/link/internal/ld/outbuf.go |  1 -
+ 2 files changed, 9 insertions(+), 8 deletions(-)

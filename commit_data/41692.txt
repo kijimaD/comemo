@@ -1,23 +1,22 @@
-commit d55e0c10ad5e2fde97697e01c46c12a2b2406a10
+commit 06ac26279cb93140bb2b03bcef9a3300c166cade
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 19 14:29:23 2020 -0700
+Date:   Fri Apr 5 16:24:14 2019 -0700
 
-    net: merge common Unix/Windows methods
+    runtime: initial scheduler changes for timers on P's
     
-    When we added the internal/poll package, the Unix and Windows implementations
-    of several netFD methods became exactly the same, except for using a
-    different name for the string passed to wrapSyscallError.
+    Add support to the main scheduler loop for handling timers on P's.
+    This is not used yet, as timers are not yet put on P's.
     
-    One case is not an exact duplicate: we slightly tweak the implementation
-    of (*netFD).shutdown on Windows to wrap the error.
+    Updates #6239
+    Updates #27707
     
-    Change-Id: I3d87a317d5468ff8f1958d86f6189ea1ba697e9a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/224140
+    Change-Id: I6a359df408629f333a9232142ce19e8be8496dae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171826
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/net/fd_posix.go   | 100 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/net/fd_unix.go    |  94 ++++-------------------------------------------
- src/net/fd_windows.go |  96 +++++-------------------------------------------
- 3 files changed, 117 insertions(+), 173 deletions(-)
+ src/runtime/proc.go     | 166 ++++++++++++++++++++++++++++++++++++++++++++----
+ src/runtime/runtime2.go |  14 +++-
+ src/runtime/time.go     |  21 ++++++
+ 3 files changed, 186 insertions(+), 15 deletions(-)

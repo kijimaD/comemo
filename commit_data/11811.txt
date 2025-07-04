@@ -1,12 +1,15 @@
-commit 5b663057b79fdc3354dd5aa210bb6a729b2610ec
-Author: Bjorn Tipling <bjorn.tipling@gmail.com>
-Date:   Sun Feb 12 12:18:00 2012 +1100
+commit 46dc76f5daa5e1186a5c4f2299bd4b4ff82e60d0
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 12 09:17:57 2012 +1100
 
-    html/template: Added more explicit wording about examples and documentation.
+    go1: update recipe for recovering Stat_t
     
-    R=golang-dev, r, r
+    Fixes #2983.
+    
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5654062
+    https://golang.org/cl/5654063
 
- src/pkg/html/template/doc.go | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
+ doc/go1.html | 12 ++++--------
+ doc/go1.tmpl | 12 ++++--------
+ 2 files changed, 8 insertions(+), 16 deletions(-)

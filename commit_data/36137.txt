@@ -1,19 +1,26 @@
-commit 0cb6b55f43dabdfac8c5afab6d00c9cd65eaadb4
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jul 24 15:01:22 2018 -0400
+commit eda22a06fb507d3ce6a2684bb5e6dbb3cbb57e15
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 5 11:11:39 2018 -0400
 
-    cmd/go: add go list -m -f {{.GoMod}} to show path to go.mod file
+    cmd/compile: ensure first instruction of function is stmt
     
-    "go env GOMOD" gives this for the main module already
-    but it's useful to be able to query other modules.
-    Using {{.Dir}} does not work if the go.mod was auto-synthesized.
+    In gdb, "b f" gets confused if the first instruction of "f"
+    is not marked as a statement in the DWARF line table.
     
-    Change-Id: If4844571e9e429b541de0d40c36ff4c5743b2031
-    Reviewed-on: https://go-review.googlesource.com/125656
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    To ensure gdb is not confused, move the first statement
+    marker in "f" to its first instruction.
+    
+    The screwy-looking conditional for "what's the first
+    instruction with a statement marker" will become simpler in
+    the future.
+    
+    Fixes #24695.
+    
+    Change-Id: I2eef81676b64d1bd9bff5da03b89b9dc0c18f44f
+    Reviewed-on: https://go-review.googlesource.com/104955
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/internal/list/list.go           |  1 +
- src/cmd/go/internal/modinfo/info.go        |  1 +
- src/cmd/go/testdata/script/mod_enabled.txt |  4 ++++
- src/cmd/go/testdata/script/mod_list.txt    | 18 +++++++++---------
- 4 files changed, 15 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

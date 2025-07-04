@@ -1,16 +1,19 @@
-commit 5d0a277fac610d55f73a970334987bfb686f9d80
-Author: cui fliter <imcusg@gmail.com>
-Date:   Fri Oct 13 15:20:55 2023 +0800
+commit 73f987c88b348772ca2efa8d5b3d0ac61cbdb563
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 11 13:02:44 2022 +0700
 
-    flag: add available godoc link
+    test: add regression test for issue 53439
     
-    Change-Id: I00d49ded65801ab12322f711d1ac6131d69aea34
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/535081
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Fixes #53439
+    
+    Change-Id: I425af0f78153511034e4a4648f32ef8c9378a325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449756
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/flag/flag.go | 72 ++++++++++++++++++++++++++++----------------------------
- 1 file changed, 36 insertions(+), 36 deletions(-)
+ test/fixedbugs/issue53439.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

@@ -1,20 +1,15 @@
-commit ff9da9bcd579a08cf9ca62620c5956676ac28586
-Author: khr@golang.org <khr@golang.org>
-Date:   Tue May 20 08:42:24 2025 -0700
+commit 340f73ce34546609f44543abc7f4b124a839b423
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Mar 25 13:03:37 2024 -0700
 
-    cmd/dist: pass GO_GCFLAGS to cpuN runtime tests
+    net/http: fix typo in log message
     
-    We want gcflags, which control builder type (e.g. noopt) to be used
-    for these tests also.
-    
-    Should fix noopt and maybe other builders.
-    
-    Change-Id: Iad34beab51714f0c38989ec0fc8778cf79087f72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674455
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I399c65b44706cf5407099e867de27b3acdaf4825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574235
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/dist/test.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

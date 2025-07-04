@@ -1,13 +1,22 @@
-commit 078bcffcb83e5aafd5e368c587bc8cb159a39020
-Author: David Symonds <dsymonds@golang.org>
-Date:   Thu Oct 17 11:48:27 2013 +1100
+commit 15da997c7eab0ce461e6daa8cdb8e8a495dde074
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 16 16:16:54 2013 -0700
 
-    A+C: add Jamie Turner (Dropbox corporate CLA).
+    spec: clarify re-use of underlying arrays in slice operations
     
-    R=golang-dev, iant
+    Please note the slight rewording for append: The spec now
+    requires that append reuses the underlying array if it is
+    sufficiently large. Per majority sentiment.
+    
+    This is technically a language change but the current
+    implementation always worked this way.
+    
+    Fixes #5818.
+    Fixes #5180.
+    
+    R=rsc, iant, r, ken, minux.ma, dan.kortschak, rogpeppe, go.peter.90
     CC=golang-dev
-    https://golang.org/cl/14765043
+    https://golang.org/cl/14419054
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ doc/go_spec.html | 35 ++++++++++++++---------------------
+ 1 file changed, 14 insertions(+), 21 deletions(-)

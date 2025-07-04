@@ -1,17 +1,22 @@
-commit 20c300bc70e10071bb15091f37a8bb3464cf13e3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Feb 8 18:40:28 2022 -0800
+commit 11052d77a307a417a4de94991303949bf697b8ee
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 27 17:05:36 2021 -0400
 
-    spec: the type of a constant cannot be a type parameter
+    cmd/link: use R12 as trampoline scratch register on ARM
     
-    Add corresponding rules and a couple of examples.
+    The external linker uses R12. Do the same. We previously use R11,
+    the temp register in Go ABI. This does not really matter if the
+    caller is Go code, because all registers are clobbered at call.
+    But it the caller is C code, it may assume R11 live across a call.
+    Using R11 may clobber live value. On the callee side, R12 is not
+    an argument register in both Go and C calling convention.
     
-    Fixes #50202.
-    
-    Change-Id: I4287b5e2d0fd29a0c871795e07f1bb529c9c6004
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/384240
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I958c5dad52aa51bb282a7ad420f5423863e69c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314454
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go_spec.html | 31 ++++++++++++++++++++++++++++---
- 1 file changed, 28 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/arm/asm.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

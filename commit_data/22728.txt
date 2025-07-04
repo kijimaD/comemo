@@ -1,15 +1,35 @@
-commit f774e6a1f85aa7e2bbdd20b7ef475ed8adbe7bfe
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Apr 27 16:18:35 2015 -0400
+commit 6d12b1780e4ce82cb52ea7328f6ce410ce3211a2
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 31 11:44:11 2015 -0400
 
-    runtime/race: stop listening to external network addresses
+    runtime: make next_gc be heap size to trigger GC at
     
-    This makes the OS X firewall box pop up.
-    Not run during all.bash so hasn't been noticed before.
+    In the STW collector, next_gc was both the heap size to trigger GC at
+    as well as the goal heap size.
     
-    Change-Id: I78feb4fd3e1d3c983ae3419085048831c04de3da
-    Reviewed-on: https://go-review.googlesource.com/9401
-    Reviewed-by: Austin Clements <austin@google.com>
+    Early in the concurrent collector's development, next_gc was the goal
+    heap size, but was also used as the heap size to trigger GC at. This
+    meant we always overshot the goal because of allocation during
+    concurrent GC.
+    
+    Currently, next_gc is still the goal heap size, but we trigger
+    concurrent GC at 7/8*GOGC heap growth. This complicates
+    shouldtriggergc, but was necessary because of the incremental
+    maintenance of next_gc.
+    
+    Now we simply compute next_gc for the next cycle during mark
+    termination. Hence, it's now easy to take the simpler route and
+    redefine next_gc as the heap size at which the next GC triggers. We
+    can directly compute this with the 7/8 backoff during mark termination
+    and shouldtriggergc can simply test if the live heap size has grown
+    over the next_gc trigger.
+    
+    This will also simplify later changes once we start setting next_gc in
+    more sophisticated ways.
+    
+    Change-Id: I872be4ae06b4f7a0d7f7967360a054bd36b90eea
+    Reviewed-on: https://go-review.googlesource.com/8420
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/runtime/race/testdata/io_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgc.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

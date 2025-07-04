@@ -1,23 +1,14 @@
-commit 7c03cd32b6612f153cf6362ead27e86af6e65336
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 22 11:28:21 2012 -0700
+commit 3dbbb6eb4c5b063e3ab863c2a7d1d607945aa29d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 23 00:59:53 2012 +0800
 
-    exp/type/staging: implemented recent spec changes
+    cmd/5l, cmd/6l, cmd/8l: put floating point numbers in .rodata section
     
-    Also:
-    - type-checking receivers
-    - get rid of some multiple errors at the same position
-    
-    R=rsc, minux.ma
-    CC=golang-dev
-    https://golang.org/cl/6709061
+    R=golang-dev, rsc
+    CC=0xe2.0x9a.0x9b, golang-dev
+    https://golang.org/cl/6742063
 
- src/pkg/exp/types/staging/builtins.go           |  16 ++-
- src/pkg/exp/types/staging/check.go              |   3 +-
- src/pkg/exp/types/staging/expr.go               |  58 +++++-----
- src/pkg/exp/types/staging/testdata/builtins.src | 141 ++++++++++++------------
- src/pkg/exp/types/staging/testdata/decls0.src   |   4 +-
- src/pkg/exp/types/staging/testdata/decls1.src   |   6 +-
- src/pkg/exp/types/staging/testdata/decls2a.src  |   7 +-
- src/pkg/exp/types/staging/testdata/expr3.src    |   5 +
- 8 files changed, 134 insertions(+), 106 deletions(-)
+ src/cmd/5l/obj.c | 4 ++--
+ src/cmd/6l/obj.c | 4 ++--
+ src/cmd/8l/obj.c | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

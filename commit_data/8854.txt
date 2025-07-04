@@ -1,18 +1,18 @@
-commit 9843ca5e2bb1a3b5ab76348cde006705c1a695d9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jun 27 13:31:40 2011 -0400
+commit 9dd354c63f2a7b46c399d45b1d4c0bdbbe8d7518
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 12:03:19 2011 -0400
 
-    gotest: add -test.benchtime and -test.cpu flags.
-    -test.benchtime allows to specify benchmark execution time.
-    -test.cpu allows to execute tests/benchmarks for several
-    values of GOMAXPROCS.
+    5l, 6l, 8l: drop use of ed during build
     
-    R=r, r, rsc
+    build runs with chmod 0 /bin/ed now
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4662046
+    https://golang.org/cl/4635071
 
- src/cmd/gotest/doc.go        | 11 ++++++-
- src/cmd/gotest/flag.go       |  4 +++
- src/pkg/testing/benchmark.go | 28 ++++++++++-------
- src/pkg/testing/testing.go   | 72 ++++++++++++++++++++++++++++++--------------
- 4 files changed, 80 insertions(+), 35 deletions(-)
+ doc/install.html  |  4 ++--
+ src/cmd/5l/mkenam | 30 +++++++++++++++---------------
+ src/cmd/6l/mkenam | 30 +++++++++++++++---------------
+ src/cmd/8l/mkenam | 30 +++++++++++++++---------------
+ src/env.bash      |  1 -
+ 5 files changed, 47 insertions(+), 48 deletions(-)

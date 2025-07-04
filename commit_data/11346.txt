@@ -1,13 +1,65 @@
-commit 1cfae8bcbf283b3c6837ca5b8db9ddae05f311c0
+commit ed936a3f22bcc8165390545471633141088eca26
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jan 23 15:24:20 2012 -0500
+Date:   Mon Jan 23 15:16:51 2012 -0500
 
-    cmd/go: add missing files (fix build)
+    cmd/go: implement go get + bug fixes
     
-    TBR=r
+    Move error information into Package struct, so that
+    a package can be returned even if a dependency failed
+    to load or did not exist.  This makes it possible to run
+    'go fix' or 'go fmt' on packages with broken dependencies
+    or missing imports.  It also enables go get -fix.
+    The new go list -e flag lets go list process those package
+    errors as normal data.
+    
+    Change p.Doc to be first sentence of package doc, not
+    entire package doc.  Makes go list -json or
+    go list -f '{{.ImportPath}} {{.Doc}}' much more reasonable.
+    
+    The go tool now depends on http, which means also
+    net and crypto/tls, both of which use cgo.  Trying to
+    make the build scripts that build the go tool understand
+    and handle cgo is too much work.  Instead, we build
+    a stripped down version of the go tool, compiled as go_bootstrap,
+    that substitutes an error stub for the usual HTTP code.
+    The buildscript builds go_bootstrap, go_bootstrap builds
+    the standard packages and commands, including the full
+    including-HTTP-support go tool, and then go_bootstrap
+    gets deleted.
+    
+    Also handle the case where the buildscript needs updating
+    during all.bash: if it fails but a go command can be found on
+    the current $PATH, try to regenerate it.  This gracefully
+    handles situations like adding a new file to a package
+    used by the go tool.
+    
+    R=r, adg
     CC=golang-dev
-    https://golang.org/cl/5571050
+    https://golang.org/cl/5553059
 
- src/cmd/go/bootstrap.go | 17 +++++++++++++++++
- src/cmd/go/http.go      | 35 +++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+)
+ src/buildscript.sh               |   9 +-
+ src/buildscript/darwin_386.sh    |  46 ++---
+ src/buildscript/darwin_amd64.sh  |  46 ++---
+ src/buildscript/freebsd_386.sh   |  46 ++---
+ src/buildscript/freebsd_amd64.sh |  46 ++---
+ src/buildscript/linux_386.sh     |  46 ++---
+ src/buildscript/linux_amd64.sh   |  46 ++---
+ src/buildscript/linux_arm.sh     |  46 ++---
+ src/buildscript/netbsd_386.sh    |  46 ++---
+ src/buildscript/netbsd_amd64.sh  |  46 ++---
+ src/buildscript/openbsd_386.sh   |  46 ++---
+ src/buildscript/openbsd_amd64.sh |  46 ++---
+ src/buildscript/plan9_386.sh     |  46 ++---
+ src/buildscript/windows_386.sh   |  46 ++---
+ src/buildscript/windows_amd64.sh |  46 ++---
+ src/cmd/go/Makefile              |   2 +
+ src/cmd/go/build.go              |  54 ++++--
+ src/cmd/go/get.go                | 254 ++++++++++++++++++++++--
+ src/cmd/go/list.go               |  33 +++-
+ src/cmd/go/main.go               |   8 +-
+ src/cmd/go/pkg.go                | 294 +++++++++++++++++++++-------
+ src/cmd/go/run.go                |  30 +--
+ src/cmd/go/test.go               |  40 ++--
+ src/cmd/go/vcs.go                | 404 +++++++++++++++++++++++++++++++++++++++
+ src/make.bash                    |  16 +-
+ 25 files changed, 1309 insertions(+), 479 deletions(-)

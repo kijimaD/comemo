@@ -1,26 +1,20 @@
-commit 985d97e602cb39c7739c072250e09ba61e440318
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Dec 7 12:01:04 2021 -0500
+commit 109d7580a5c507b1e4f460445a5c4cd7313e4aa6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 20 11:59:40 2021 -0400
 
-    runtime/pprof: assert that labels never appear on unexpected samples
+    cmd/compile: disable name preservation on copies in expand_calls
     
-    This makes TestLabelSystemstack much more strict, enabling it to detect
-    any misplacement of labels.
+    Apparently CL 309330 caused the compiler OOMing on some large
+    input (giant generated switch statement). I don't quite understand
+    it for now. Disable it for now.
     
-    Unfortunately, there are several edge cases where we may not have an
-    obviously correct stack trace, so we generally except the runtime
-    package, with the exception of background goroutines that we know should
-    not be labeled.
-    
-    For #50007
-    For #50032
-    
-    Change-Id: I8dce7e7da04f278ce297422227901efe52782ca0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/369984
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I19c84f3f5e158897bff0b32d6217fcff3c66874d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311829
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/pprof/pprof_test.go | 107 +++++++++++++++++++++++++++++++---------
- 1 file changed, 83 insertions(+), 24 deletions(-)
+ src/cmd/compile/internal/ssa/expand_calls.go | 18 ++++++++++--------
+ test/live_regabi.go                          |  5 ++++-
+ 2 files changed, 14 insertions(+), 9 deletions(-)

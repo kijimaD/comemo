@@ -1,24 +1,14 @@
-commit 24e94766c082338d83e5f3e1f8eccf4f070d8956
-Author: David Chase <drchase@google.com>
-Date:   Tue Mar 28 17:55:26 2017 -0400
+commit 92fb0a00c2c0bbc2efda09fb65918d108e3ed8cb
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Thu Dec 15 17:22:30 2016 +0100
 
-    cmd/compile: added special case for reflect header fields to esc
+    misc/cgo/test: add mipsx test case for #9400
     
-    The uintptr-typed Data field in reflect.SliceHeader and
-    reflect.StringHeader needs special treatment because it is
-    really a pointer.  Add the special treatment in walk for
-    bug #19168 to escape analysis.
-    
-    Includes extra debugging that was helpful.
-    
-    Fixes #19743.
-    
-    Change-Id: I6dab5002f0d436c3b2a7cdc0156e4fc48a43d6fe
-    Reviewed-on: https://go-review.googlesource.com/38738
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I7d0bc5093943b0744d865e91517ff6292f3b2f89
+    Reviewed-on: https://go-review.googlesource.com/34510
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/esc.go |  9 ++++++++-
- test/fixedbugs/issue19743.go       | 31 +++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+), 1 deletion(-)
+ misc/cgo/test/issue9400/asm_mipsx.s | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

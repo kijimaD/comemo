@@ -1,18 +1,24 @@
-commit a19e72cb89fd33e5bf1474887e267806f65b7a40
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Dec 7 09:50:44 2021 -0800
+commit d474b6c824249dcdd6cddfb6bf43366e092df022
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 8 13:09:21 2021 -0400
 
-    doc/go1.18: move fuzzing to tools section
+    test/abi: clean up test to fix builders
     
-    For #47694
+    go.mod file was not tidy, made builders sad.
     
-    Change-Id: Idab1a5822a096447c71776ee4339c4262183ceb7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/370034
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
-    Trust: Katie Hockman <katie@golang.org>
+    Updates #40724.
+    
+    Change-Id: I28371a1093108f9ec473eb20bb4d185e35dee67d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308590
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- doc/go1.18.html | 42 +++++++++++++++++++++---------------------
- 1 file changed, 21 insertions(+), 21 deletions(-)
+ .../genCaller42/genCaller42.go                     |  71 ------
+ .../genChecker42/genChecker42.go                   | 135 ----------
+ test/abi/bad_select_crash.dir/genMain.go           |  17 --
+ test/abi/bad_select_crash.dir/genUtils/genUtils.go |  61 -----
+ test/abi/bad_select_crash.dir/go.mod               |   2 -
+ test/abi/bad_select_crash.go                       | 272 ++++++++++++++++++++-
+ 6 files changed, 271 insertions(+), 287 deletions(-)

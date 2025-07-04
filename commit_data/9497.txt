@@ -1,21 +1,19 @@
-commit 3a1f29beec0435cc84921de207933a3c56e1bc9b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Aug 25 17:46:43 2011 -0700
+commit 77db5ff50122b560c889024d41f54c3b722325c1
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Aug 25 21:00:20 2011 -0300
 
-    godoc: added systematic throttling to indexing goroutine
+    go/build: separate test imports out when scanning
     
-    - implemented stand-alone Throttle mechanism
-    - added new flag -index_throttle to godoc
-    - index throttling enables index creation when running
-      godoc on app engine as it keeps godoc responsive
+    This fixes goinstall so it doesn't try to install unneeded
+    packages or get confused with non-existent loops.
     
-    R=rsc, dsymonds, adg
+    R=golang-dev, adg, gustavo
     CC=golang-dev
-    https://golang.org/cl/4963043
+    https://golang.org/cl/4958046
 
- src/cmd/godoc/Makefile    |  1 +
- src/cmd/godoc/doc.go      |  5 +++
- src/cmd/godoc/godoc.go    |  7 ++--
- src/cmd/godoc/index.go    |  5 ++-
- src/cmd/godoc/throttle.go | 88 +++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 102 insertions(+), 4 deletions(-)
+ src/pkg/go/build/build_test.go         |  2 ++
+ src/pkg/go/build/dir.go                | 17 +++++++++++++++--
+ src/pkg/go/build/pkgtest/pkgtest.go    |  6 +++++-
+ src/pkg/go/build/pkgtest/sqrt_test.go  |  4 ++++
+ src/pkg/go/build/pkgtest/xsqrt_test.go |  4 ++++
+ 5 files changed, 30 insertions(+), 3 deletions(-)

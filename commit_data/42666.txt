@@ -1,28 +1,16 @@
-commit 5ae198087bd07e88009885ac96c864381f8d8272
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Thu Jun 4 11:41:43 2020 -0400
+commit 8390c478600b852392cb116741b3cb239c94d123
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 15 18:08:10 2020 +0000
 
-    cmd/go: don't initialize Builder in envcmd.MkEnv
+    net/http/cgi: rename a test file to be less cute
     
-    The Builder isn't needed by MkEnv, and Builder.Init doesn't have side
-    effects that change the environment. Builder.Init does currently call
-    CheckGOOSARCHPair, but that's being moved out in CL 234658.
+    My fault (from CL 4245070), sorry.
     
-    Builder.Init creates the temporary work directory used by the
-    builder. For the builder created in MkEnv, this directory is never
-    used. Creating this directory can cause unnecessary errors for
-    commands that don't use a builder like 'go clean' and 'go list'.
-    
-    Fixes #38395
-    Updates #24398
-    
-    Change-Id: Ib93ae55afdf958000470657f4c4ff5bd92700e46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236563
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: Ib95d3170dc326e74aa74c22421c4e44a8b00f577
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214920
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/cmd/go/internal/envcmd/env.go             |  3 --
- src/cmd/go/testdata/script/build_GOTMPDIR.txt | 49 +++++++++++++++++++++++----
- 2 files changed, 42 insertions(+), 10 deletions(-)
+ src/net/http/cgi/{matryoshka_test.go => integration_test.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

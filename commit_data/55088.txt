@@ -1,23 +1,29 @@
-commit 6b77d1b73694b50f2eccc1a2e1e09cc951393cce
-Author: Guoqi Chen <chenguoqi@loongson.cn>
-Date:   Tue Aug 15 20:23:46 2023 +0800
+commit 18baca6765f75c0973b9d90cb6123f1eb339ad4c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 20 17:19:09 2022 -0500
 
-    cmd/compile: update loong64 CALL* ops
+    runtime/race: add build tag to internal amd64vN packages
     
-    allow the loong64 CALL* ops to take variable number of args
+    Only one of the runtime/race/internal/amd64vN packages should be
+    included in a build. Generally this is true because the
+    runtime/race package would import only one of them depending on
+    the build configuration. But for "go install -buildmode=shared std"
+    it includes all Go packages in std, which includes both, which
+    then causes link-time failure due to duplicated symbols. To avoid
+    this, we add build tags to the internal packages, so, depending on
+    the build configuation, only one package would contain buildable
+    go files therefore be included in the build.
     
-    Update #40724
+    For #57334.
     
-    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
-    Change-Id: I4706d9651fcbf9a0f201af6820c97b1a924f14e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521781
-    Auto-Submit: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I52ddc3a40e16c7d04b4dd861e9689918d27e8509
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458695
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Meidan Li <limeidan@loongson.cn>
-    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 8 ++++----
- src/cmd/compile/internal/ssa/opGen.go           | 8 ++++----
- 2 files changed, 8 insertions(+), 8 deletions(-)
+ src/runtime/race/internal/amd64v1/doc.go | 2 ++
+ src/runtime/race/internal/amd64v3/doc.go | 2 ++
+ src/runtime/race/race_v1_amd64.go        | 1 -
+ src/runtime/race/race_v3_amd64.go        | 1 -
+ 4 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,17 +1,21 @@
-commit 76b2d6afed1e22556bd6c52e74b546eb8bf9a225
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 21 12:50:52 2021 -0700
+commit 4a3339223c82b6d184d2fd990b996ed0b365653c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 30 21:47:32 2020 -0400
 
-    os: document that StartProcess puts files into blocking mode
+    cmd/go/internal/mvs: test a downgrade where the target explicitly requires itself
     
-    Fixes #43894
+    Also clean up the test assertions, and add a check for assertions
+    missing function invocations (there was one).
     
-    Change-Id: I2add7b8a4f6ae69a5ef1c48703fde21a4b74307c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/321852
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    For #37438
+    
+    Change-Id: Iafbfeae2c25217eac894181e01480b25b7cffbd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266859
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/os/exec.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/internal/mvs/mvs.go      |  3 ++-
+ src/cmd/go/internal/mvs/mvs_test.go | 36 +++++++++++++++++++++---------------
+ 2 files changed, 23 insertions(+), 16 deletions(-)

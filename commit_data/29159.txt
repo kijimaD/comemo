@@ -1,16 +1,17 @@
-commit f595848e9a1e1d0f64a7018d847167d85f6e83a4
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Fri Oct 28 11:51:22 2016 +1100
+commit c9fbe0f29321602ce791834f600dcc453580c22b
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Thu Jun 23 14:59:26 2016 +0300
 
-    runtime/cgo: do not link threads lib by default on windows
+    cmd/vet: properly handle indexed arguments in printf
     
-    I do not know why it is included. All tests pass without it.
+    Fixes #15884
     
-    Change-Id: I839076ee131816dfd177570a902c69fe8fba5022
-    Reviewed-on: https://go-review.googlesource.com/32144
-    Run-TryBot: Minux Ma <minux@golang.org>
+    Change-Id: I33d98db861d74e3c37a546efaf83ce6f2f76d335
+    Reviewed-on: https://go-review.googlesource.com/24391
+    Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/cgo/cgo.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/vet/print.go          | 33 +++++++++++++++++----------------
+ src/cmd/vet/testdata/print.go | 13 +++++++++++--
+ 2 files changed, 28 insertions(+), 18 deletions(-)

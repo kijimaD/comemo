@@ -1,19 +1,19 @@
-commit 3c31998f4f20d79bf2b42f7a43df1867b8c08259
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 4 13:31:23 2023 -0800
+commit 1bef0707a537d19bbbfda09dde05e5874a2fb199
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jan 9 12:46:20 2023 +0000
 
-    doc: re-arrange release notes for go/types
+    cmd/link: use strings.LastIndexByte to fix a TODO
     
-    Better order in description of changes to go/types.
-    Move go/types section up so it's in alphabetical order again.
-    No changes to actual content.
+    Go 1.20 will require Go 1.17 to bootstrap, so we can stop worrying about
+    older Go bootstrap versions. https://go.dev/issues/44505 fixed most of
+    those TODOs, but this one was presumably forgotten about.
     
-    Change-Id: If2f085b665b412489e5dfdba79b7f93598ff2785
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/546359
-    Reviewed-by: Alan Donovan <adonovan@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Change-Id: I0c19ec4eec65cd807e7db9a57c5969845d915c07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461155
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- doc/go1.22.html | 96 ++++++++++++++++++++++++++++-----------------------------
- 1 file changed, 48 insertions(+), 48 deletions(-)
+ src/cmd/link/internal/ld/pcln.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

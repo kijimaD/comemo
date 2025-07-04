@@ -1,16 +1,33 @@
-commit d3134b6450d08bba13e904f572a34d411614533e
-Author: Kevin Burke <kev@inburke.com>
-Date:   Thu Aug 18 09:14:22 2016 -0700
+commit 2fb75ea6c65d03c3fda89c8e954712a2fa97b052
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Mar 31 10:45:36 2016 -0400
 
-    cmd/compile: document more Node fields
+    [dev.garbage] runtime: use sys.Ctz64 intrinsic
     
-    Change-Id: Ic8d37e5612b68bc73c4b50b59db54d8966b69838
-    Reviewed-on: https://go-review.googlesource.com/27326
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Our compilers now provides instrinsics including
+    sys.Ctz64 that support CTZ (count trailing zero)
+    instructions. This CL replaces the Go versions
+    of CTZ with the compiler intrinsic.
+    
+    Count trailing zeros CTZ finds the least
+    significant 1 in a word and returns the number
+    of less significant 0s in the word.
+    
+    Allocation uses the bitmap created by the garbage
+    collector to locate an unmarked object. The logic
+    takes a word of the bitmap, complements, and then
+    caches it. It then uses CTZ to locate an available
+    unmarked object. It then shifts marked bits out of
+    the bitmap word preparing it for the next search.
+    Once all the unmarked objects are used in the
+    cached work the bitmap gets another word and
+    repeats the process.
+    
+    Change-Id: Id2fc42d1d4b9893efaa2e1bd01896985b7e42f82
+    Reviewed-on: https://go-review.googlesource.com/21366
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/gc/go.go     | 2 +-
- src/cmd/compile/internal/gc/syntax.go | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/malloc.go  | 11 ++++-----
+ src/runtime/mbitmap.go | 65 +++++---------------------------------------------
+ src/runtime/mheap.go   |  2 +-
+ 3 files changed, 12 insertions(+), 66 deletions(-)

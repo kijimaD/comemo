@@ -1,15 +1,30 @@
-commit 178c8578d5794aee6b111c6831e9a04e8a9d51ae
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Mon Nov 26 16:02:08 2012 -0800
+commit 4cc9de914764679defbffd77b30e80a325e4ebd0
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Nov 26 23:45:22 2012 +0100
 
-    os/user: update stub documentation
+    cmd/gc: add division rewrite to walk pass.
     
-    R=golang-dev, minux.ma, bradfitz
+    This allows 5g and 8g to benefit from the rewrite as shifts
+    or magic multiplies. The 64-bit arithmetic is not handled there,
+    and left in 6g.
+    
+    Update #2230.
+    
+    R=golang-dev, dave, mtj, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/6844088
+    https://golang.org/cl/6819123
 
- src/pkg/os/user/lookup.go         | 22 ++++++++++++++++++++++
- src/pkg/os/user/lookup_stubs.go   |  6 +++---
- src/pkg/os/user/lookup_unix.go    | 19 +++++++------------
- src/pkg/os/user/lookup_windows.go |  9 +++------
- 4 files changed, 35 insertions(+), 21 deletions(-)
+ src/cmd/5g/cgen.c  |   4 +
+ src/cmd/5g/gg.h    |   1 +
+ src/cmd/5g/ggen.c  |  56 ++++++++++
+ src/cmd/5g/peep.c  |   1 +
+ src/cmd/6g/cgen.c  |   6 +-
+ src/cmd/6g/gg.h    |   2 +
+ src/cmd/6g/ggen.c  | 225 +++++++++++-----------------------------
+ src/cmd/6g/peep.c  |   6 +-
+ src/cmd/8g/cgen.c  |   4 +
+ src/cmd/8g/gg.h    |   1 +
+ src/cmd/8g/ggen.c  |  36 +++++++
+ src/cmd/8g/gsubr.c |  16 +++
+ src/cmd/gc/walk.c  | 296 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 13 files changed, 466 insertions(+), 188 deletions(-)

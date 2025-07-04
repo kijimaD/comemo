@@ -1,14 +1,27 @@
-commit 4edb40d441b0def61507e65141535de4d86b9edc
-Author: Damien Neil <dneil@google.com>
-Date:   Wed Apr 27 11:08:58 2016 -0700
+commit a0232ea0dddfcc0827fd4094cbf261d85f0ae8f2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 10 11:14:22 2016 -0800
 
-    syscall: fix uint64->int cast of control message header
+    cmd/compile: allow deduplication of long strings
     
-    Change-Id: I28980b307d10730b122a4f833809bc400d6aff24
-    Reviewed-on: https://go-review.googlesource.com/22525
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    String symbols' names used to appear in the final binary.
+    Using a string's contents as it's symbol's name
+    was a thus a bad idea if the string's name was long.
+    Recent improvements by crawshaw have changed that.
+    
+    Instead of placing long strings behind opaque names
+    in local packages, place them in the global string
+    package and make them content-addressable.
+    Symbol names still occur in the object files,
+    so use a hash to avoid needless length there.
+    
+    Reduces the size of cmd/go by 30k.
+    
+    Change-Id: Ifdbbaf47bf44352418c90ddd903d5106e48db4f1
+    Reviewed-on: https://go-review.googlesource.com/20524
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/syscall/sockcmsg_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/obj.go | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

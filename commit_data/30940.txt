@@ -1,29 +1,26 @@
-commit 640cd3b3220f7a06820365e53f8fc6cb0acd1b20
+commit f24384f686745f95086e7f400e884a218f4456d3
 Author: Austin Clements <austin@google.com>
-Date:   Thu Feb 23 11:04:37 2017 -0500
+Date:   Tue Dec 20 15:37:56 2016 -0500
 
-    runtime: check transition condition before triggering periodic GC
+    runtime: avoid CreateThread panic when exiting process
     
-    Currently sysmon triggers periodic GC if GC is not currently running
-    and it's been long enough since the last GC. This misses some
-    important conditions; for example, whether GC is enabled at all by
-    GOGC. As a result, if GOGC is off, once we pass the timeout for
-    periodic GC, sysmon will attempt to trigger a GC every 10ms. This GC
-    will be a no-op because gcStart will check all of the appropriate
-    conditions and do nothing, but it still goes through the motions of
-    waking the forcegc goroutine and printing a gctrace line.
+    On Windows, CreateThread occasionally fails with ERROR_ACCESS_DENIED.
+    We're not sure why this is, but the Wine source code suggests that
+    this can happen when there's a concurrent CreateThread and ExitProcess
+    in the same process.
     
-    Fix this by making sysmon call gcShouldStart to check *all* of the
-    appropriate transition conditions before attempting to trigger a
-    periodic GC.
+    Fix this by setting a flag right before calling ExitProcess and
+    halting if CreateThread fails and this flag is set.
     
-    Fixes #19247.
+    Updates #18253 (might fix it, but we're not sure this is the issue and
+    can't reproduce it on demand).
     
-    Change-Id: Icee5521ce175e8419f934723849853d53773af31
-    Reviewed-on: https://go-review.googlesource.com/37515
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: I1945b989e73a16cf28a35bf2613ffab07577ed4e
+    Reviewed-on: https://go-review.googlesource.com/34616
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/os_windows.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

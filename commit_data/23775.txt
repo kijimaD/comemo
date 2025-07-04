@@ -1,28 +1,12 @@
-commit 1421bc10a4f61f92f3a3790a599fd7a02e7909d7
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Jul 22 09:44:05 2015 +1000
+commit b9bd57e7152f93d788f62a8cc09d0e0f89b60066
+Author: Brandon Gilmore <varz@google.com>
+Date:   Fri Jun 12 11:32:22 2015 -0700
 
-    misc/makerelease: delete
+    doc/effective_go: fix grammatical error
     
-    This is now superseded by golang.org/x/build/cmd/release.
-    
-    Fixes #8472
-    
-    Change-Id: I59664d84996a0fbb5c90582a4702714b3b3cf302
-    Reviewed-on: https://go-review.googlesource.com/12500
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ib52854169f3dd18f54d3ae9263c897d3f45ea869
+    Reviewed-on: https://go-review.googlesource.com/10982
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- misc/makerelease/darwin/Distribution           |   32 -
- misc/makerelease/darwin/Resources/bg.png       |  Bin 11466 -> 0 bytes
- misc/makerelease/darwin/etc/paths.d/go         |    1 -
- misc/makerelease/darwin/scripts/postinstall    |   10 -
- misc/makerelease/darwin/scripts/preinstall     |    8 -
- misc/makerelease/makerelease.go                | 1089 ------------------------
- misc/makerelease/windows/LICENSE.rtf           |  Bin 1687 -> 0 bytes
- misc/makerelease/windows/README.txt            |   25 -
- misc/makerelease/windows/images/Banner.jpg     |  Bin 6643 -> 0 bytes
- misc/makerelease/windows/images/Dialog.jpg     |  Bin 16428 -> 0 bytes
- misc/makerelease/windows/images/DialogLeft.jpg |  Bin 12961 -> 0 bytes
- misc/makerelease/windows/images/gopher.ico     |  Bin 30166 -> 0 bytes
- misc/makerelease/windows/installer.wxs         |  163 ----
- 13 files changed, 1328 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

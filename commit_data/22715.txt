@@ -1,35 +1,12 @@
-commit a9e50a6b358df2e725157128c140684264c8ed38
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Apr 24 17:06:52 2015 -0700
+commit ea2c94e81e1a80677b604cb503e729ca413cd6fe
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 3 16:51:08 2015 -0700
 
-    cmd/dist: consolidate runtime CPU tests
+    doc/go1.5.txt: bytes.Buffer.Cap, template.Option
     
-    Instead of running:
-    
-    go test -short runtime -cpu=1
-    go test -short runtime -cpu=2
-    go test -short runtime -cpu=4
-    
-    Run just:
-    
-    go test -short runtime -cpu=1,2,4
-    
-    This is a return to the Go 1.4.2 behavior.
-    
-    We lose incremental display of progress and
-    per-cpu timing information, but we don't have
-    to recompile and relink the runtime test,
-    which is slow.
-    
-    This cuts about 10s off all.bash.
-    
-    Updates #10571.
-    
-    Change-Id: I6e8c7149780d47439f8bcfa888e6efc84290c60a
-    Reviewed-on: https://go-review.googlesource.com/9350
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Change-Id: I8e2177ffdb4b75e7f3687109311306fc02fcc8e3
+    Reviewed-on: https://go-review.googlesource.com/8468
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/test.go | 27 ++++++++++++---------------
- 1 file changed, 12 insertions(+), 15 deletions(-)
+ doc/go1.5.txt | 2 ++
+ 1 file changed, 2 insertions(+)

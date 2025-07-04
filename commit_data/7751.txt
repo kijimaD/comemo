@@ -1,12 +1,12 @@
-commit a7528f1b810cd5824fb91b5cc3ff12801f333e89
-Author: Rob Pike <r@golang.org>
-Date:   Fri Mar 11 18:18:59 2011 -0800
+commit 5e963a826c4406963048a42ce7ea28f7487b0a36
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 11 18:14:45 2011 -0800
 
-    runtime/proc.c: which to that
+    runtime: reduce lock contention via wakeup on scheduler unlock.
     
-    R=iant, dho
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4286044
+    https://golang.org/cl/4275043
 
- src/pkg/runtime/proc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/runtime/proc.c | 79 ++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 54 insertions(+), 25 deletions(-)

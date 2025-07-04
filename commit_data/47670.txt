@@ -1,17 +1,17 @@
-commit d3bf627bc1e1a4959ecff797754e4a636aa6be1c
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Dec 1 13:41:10 2021 -0500
+commit a1a45afd4a0586cea2d238bfa9dd8e584645a562
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:06 2021 -0600
 
-    doc/go1.18: add constraints package documentation
+    cmd/internal/obj: remove duplicate ppc64 spr MOV* optab entries
     
-    Updates #47694
+    The matching rules will match C_SPR for the commonly used SPR
+    entries (xer, lr, ctr).
     
-    Change-Id: I3239023dad194c317e271e6093eff2cfbed1a4b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/368314
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I93759c1ce2891f6825661b99c5cbb89250b64ab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304429
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
 
- doc/go1.18.html | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/ppc64/asm9.go | 12 ------------
+ 1 file changed, 12 deletions(-)

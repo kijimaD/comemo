@@ -1,19 +1,21 @@
-commit e5489cfc12a99f25331831055a79750bfa227943
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Tue Oct 2 19:11:14 2018 +0200
+commit ef53de8ba4d774e4eedb04192a9f03f28a9652e8
+Author: Keith Randall <khr@golang.org>
+Date:   Sat May 26 11:29:55 2018 -0700
 
-    misc/wasm: add mention of polyfill for Edge support
+    runtime: wrap darwin libc calls to keep profiler happy
     
-    Edge supports WebAssembly but not TextEncoder or TextDecoder.
-    This change adds a comment pointing to a polyfill that could
-    be used. The polyfill is not added by default, because we want to
-    let the user decide if/how to include the polyfill.
+    The profiler reports "ExternalCode" when a profiler interrupt happens
+    while in libc code. Instead, keep track of the most recent Go frame
+    for the profiler to use.
     
-    Fixes #27295
+    There is a test for this using time.Now (runtime.TestTimePprof),
+    which will work once time.Now is moved to using libc (my next CL).
     
-    Change-Id: I375f58f2168665f549997b368428c398dfbbca1c
-    Reviewed-on: https://go-review.googlesource.com/139037
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I940ea83edada482a482e2ab103d3a65589979464
+    Reviewed-on: https://go-review.googlesource.com/114798
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/wasm/wasm_exec.html | 5 +++++
- 1 file changed, 5 insertions(+)
+ src/runtime/sys_darwin.go | 58 ++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 42 insertions(+), 16 deletions(-)

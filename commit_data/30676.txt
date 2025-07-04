@@ -1,41 +1,17 @@
-commit d5dc4905191c3f7cfeb52e93331d10ebd33301f5
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Mar 14 13:25:12 2017 -0700
+commit ac1dbe6392f2d392f9554127f96597a9aaa721fd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 22 08:24:13 2016 -0700
 
-    cmd/compile: intrinsics for math/bits.TrailingZerosX
+    doc: more go1.8.html content
     
-    Implement math/bits.TrailingZerosX using intrinsics.
+    TBR=See https://golang.org/cl/33244 and review there.
     
-    Generally reorganize the intrinsic spec a bit.
-    The instrinsics data structure is now built at init time.
-    This will make doing the other functions in math/bits easier.
+    Updates #17929
     
-    Update sys.CtzX to return int instead of uint{64,32} so it
-    matches math/bits.TrailingZerosX.
-    
-    Improve the intrinsics a bit for amd64.  We don't need the CMOV
-    for <64 bit versions.
-    
-    Update #18616
-    
-    Change-Id: Ic1c5339c943f961d830ae56f12674d7b29d4ff39
-    Reviewed-on: https://go-review.googlesource.com/38155
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I37b49318a9203b16c0c788926039288b99a36ce5
+    Reviewed-on: https://go-review.googlesource.com/33450
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go        |  70 +++-
- src/cmd/compile/internal/gc/ssa.go             | 466 ++++++++++++++-----------
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |   8 +-
- src/cmd/compile/internal/ssa/gen/dec64.rules   |  12 +-
- src/cmd/compile/internal/ssa/gen/genericOps.go |   2 +-
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 110 +++++-
- src/cmd/compile/internal/ssa/rewritedec64.go   |  40 +--
- src/runtime/internal/sys/intrinsics.go         |  16 +-
- src/runtime/internal/sys/intrinsics_386.s      |  10 +-
- src/runtime/internal/sys/intrinsics_stubs.go   |   4 +-
- src/runtime/internal/sys/intrinsics_test.go    |  12 +-
- src/runtime/malloc.go                          |   2 +-
- src/runtime/mbitmap.go                         |   2 +-
- test/intrinsic.dir/main.go                     |  10 +-
- 14 files changed, 484 insertions(+), 280 deletions(-)
+ doc/go1.8.html | 353 +++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ doc/go1.8.txt  | 218 +++++++++++++++++++----------------
+ 2 files changed, 453 insertions(+), 118 deletions(-)

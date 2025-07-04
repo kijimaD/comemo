@@ -1,16 +1,33 @@
-commit 45f39fb46747d0c46bc25e6ef605c00e96e2dc07
+commit 956e9e6c831e9018c2b82fedb9726c1299d421a9
 Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon May 2 13:58:48 2016 +1200
+Date:   Thu Mar 17 12:38:51 2016 +1300
 
-    cmd/link: pass -Wl,-z,relro to host linker in -buildmode=PIE
+    cmd/link: do not add duplicate symbols to Allsym
     
-    Fixes #15485
+    When building shared libraries, all symbols on Allsym are marked reachable.
+    What I didn't realize was that this includes the ".dup" symbols created when
+    "dupok" symbols are read from multiple package files. This breaks now because
+    deadcode makes some assumptions that fail for these ".dup" symbols, but in any
+    case was a bad idea -- I suspect this change makes libstd.so a bunch smaller,
+    but creating it was broken before this CL so I can't be sure.
     
-    Change-Id: I8e9314be91db89873130b232b589a284822e6643
-    Reviewed-on: https://go-review.googlesource.com/22687
+    This change simply stops adding these symbols to Allsym, which might make some
+    of the many iterations over Allsym the linker does a touch quicker, although
+    that's not the motivation here.
+    
+    Add a test that no symbols called ".dup" makes it into the runtime shared
+    library.
+    
+    Fixes #14841
+    
+    Change-Id: I65dd6e88d150a770db2d01b75cfe5db5fd4f8d25
+    Reviewed-on: https://go-review.googlesource.com/20780
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/lib.go | 3 +++
- 1 file changed, 3 insertions(+)
+ misc/cgo/testshared/shared_test.go    | 20 ++++++++++++++++++++
+ src/cmd/link/internal/ld/decodesym.go |  2 +-
+ src/cmd/link/internal/ld/objfile.go   |  5 +----
+ src/cmd/link/internal/ld/sym.go       |  6 +++++-
+ 4 files changed, 27 insertions(+), 6 deletions(-)

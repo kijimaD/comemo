@@ -1,73 +1,105 @@
-commit c4afec232cec72ce030139ae2772450fad89f188
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri May 19 08:28:24 2023 -0700
+commit 27f1246b85426ead27f7a695b97d4e042840014b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Aug 4 21:39:53 2022 -0400
 
-    go/types, types2: consider shared methods when unifying against interfaces
+    all: update vendored golang.org/x/{net,tools} for Go 1.20 development
     
-    When unifying two types A and B where one or both of them are
-    interfaces, consider the shared method signatures in unification.
+    CL 421334 updated most of golang.org/x dependencies at the start of
+    the Go 1.20 development cycle. This CL updates x/net and x/tools as
+    well, now that go.dev/issue/54259 is resolved.
     
-    1) If a defined interface (an interface with a type name) is unified
-       with another (defined) interface, currently they must originate
-       in the same type declaration (same origin) for unification to
-       succeed. This is more restrictive than necessary for assignments:
-       when interfaces are assigned to each other, corresponding methods
-       must match, but the interfaces don't have to be identical.
-       In unification, we don't know which direction the assignment is
-       happening (or if we have an assignment in the first place), but
-       in any case one interface must implement the other. Thus, we
-       check that one interface has a subset of the methods of the other
-       and that corresponding method signatures unify.
-       The assignment or instantiation may still not be possible but that
-       will be checked when instantiation and parameter passing is checked.
-       If two interfaces are compared as part of another type during
-       unification, the types must be equal. If they are not, unifying
-       a method subset may still succeed (and possibly produce more type
-       arguments), but that is ok: again, subsequent instantiation and
-       assignment will fail if the types are indeed not identical.
+    For #36905.
+    Updates #54259.
     
-    2) In a non-interface type is unified with an interface, currently
-       unification fails. If this unification is a consequence of an
-       assignment (parameter passing), this is again too restrictive:
-       the non-interface type must only implement the interface (possibly
-       among other type set requirements). In any case, all methods of the
-       interface type must be present in the non-interface type and unify
-       with the corresponding interface methods. If they don't, unification
-       will fail either way. If they do, we may infer additional type
-       arguments. Again, the resulting types may still not be correct but
-       that will be determined by the instantiation and parameter passing
-       or assignment checks. If the non-interface type and the interface
-       type appear as component of another type, unification may now
-       produce additional type arguments. But that is again ok because the
-       respective types won't pass instantiation or assignment checks since
-       they are different types.
-    
-    This CL introduces a new Config flag, EnableInterfaceInference, to
-    enable this new behavior. If not set, unification remains unchanged.
-    To be able to test the flag durign unification, a *Checker is passed
-    and stored with the unifier.
-    
-    For #60353.
-    Fixes #41176.
-    Fixes #57192.
-    
-    Change-Id: I6b167a9afa378d0682e9b101d9d86f5777308af7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497015
+    Change-Id: Ie422b71cba060a4774076eebf3b499cda1150367
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421461
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/types2/api.go             |   5 +
- src/cmd/compile/internal/types2/check_test.go      |   1 +
- src/cmd/compile/internal/types2/infer.go           |   2 +-
- src/cmd/compile/internal/types2/unify.go           | 154 ++++++++++++++++++++-
- src/go/types/api.go                                |   5 +
- src/go/types/check_test.go                         |   1 +
- src/go/types/generate_test.go                      |  11 +-
- src/go/types/infer.go                              |   2 +-
- src/go/types/unify.go                              | 154 ++++++++++++++++++++-
- .../types/testdata/fixedbugs/issue41176.go         |  23 +++
- .../types/testdata/fixedbugs/issue57192.go         |  24 ++++
- 11 files changed, 364 insertions(+), 18 deletions(-)
+ src/cmd/go.mod                                     |   4 +-
+ src/cmd/go.sum                                     |   8 +-
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_loong64.go |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |   4 +-
+ .../x/sys/unix/zerrors_linux_mips64le.go           |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |   4 +-
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |   4 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_386.go     |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_loong64.go |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |   2 +-
+ .../x/sys/unix/zsysnum_linux_mips64le.go           |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc.go     |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |   2 +-
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |   5 +
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_loong64.go  |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_ppc.go      |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |   2 +-
+ .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |   2 +-
+ src/cmd/vendor/modules.txt                         |   4 +-
+ src/go.mod                                         |   4 +-
+ src/go.sum                                         |   8 +-
+ src/net/http/h2_bundle.go                          | 110 ++++++++++++++++-----
+ src/vendor/golang.org/x/net/AUTHORS                |   3 -
+ src/vendor/golang.org/x/net/CONTRIBUTORS           |   3 -
+ src/vendor/golang.org/x/net/http2/hpack/encode.go  |   2 +-
+ src/vendor/golang.org/x/net/http2/hpack/hpack.go   |  16 +--
+ src/vendor/golang.org/x/net/http2/hpack/huffman.go |  87 ++++++++--------
+ src/vendor/golang.org/x/net/lif/address.go         |  11 ++-
+ src/vendor/golang.org/x/net/lif/lif.go             |  10 +-
+ src/vendor/golang.org/x/net/lif/link.go            |  19 ++--
+ .../golang.org/x/net/lif/zsys_solaris_amd64.go     |  45 ---------
+ src/vendor/golang.org/x/net/nettest/conntest.go    |   6 +-
+ src/vendor/golang.org/x/net/route/address.go       |  37 +++----
+ .../golang.org/x/net/route/interface_classic.go    |  11 ++-
+ .../golang.org/x/net/route/interface_freebsd.go    |  12 ++-
+ .../golang.org/x/net/route/interface_openbsd.go    |   8 +-
+ src/vendor/golang.org/x/net/route/route.go         |   2 +-
+ src/vendor/golang.org/x/net/route/route_openbsd.go |   6 +-
+ src/vendor/golang.org/x/net/route/sys.go           |   7 +-
+ src/vendor/golang.org/x/net/route/sys_darwin.go    |  38 +++----
+ src/vendor/golang.org/x/net/route/sys_dragonfly.go |  30 +++---
+ src/vendor/golang.org/x/net/route/sys_freebsd.go   |  30 +++---
+ src/vendor/golang.org/x/net/route/sys_netbsd.go    |  28 +++---
+ src/vendor/golang.org/x/net/route/sys_openbsd.go   |  34 ++++---
+ src/vendor/golang.org/x/net/route/zsys_darwin.go   |  77 ---------------
+ .../golang.org/x/net/route/zsys_dragonfly.go       |  78 ---------------
+ .../golang.org/x/net/route/zsys_freebsd_386.go     |  71 -------------
+ .../golang.org/x/net/route/zsys_freebsd_amd64.go   |  71 -------------
+ .../golang.org/x/net/route/zsys_freebsd_arm.go     |  71 -------------
+ .../golang.org/x/net/route/zsys_freebsd_arm64.go   |  71 -------------
+ src/vendor/golang.org/x/net/route/zsys_netbsd.go   |  80 ---------------
+ src/vendor/golang.org/x/net/route/zsys_openbsd.go  |  89 -----------------
+ src/vendor/modules.txt                             |   4 +-
+ 83 files changed, 374 insertions(+), 946 deletions(-)

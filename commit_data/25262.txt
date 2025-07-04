@@ -1,13 +1,22 @@
-commit 4280ed84fd7a8de329074f57bbfb3af6fc7f93d5
-Author: Burcu Dogan <jbd@google.com>
-Date:   Mon Dec 14 16:39:09 2015 -0800
+commit 4c2465d47d8c706832bbc57668680a3ffc4d800f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 15 14:33:50 2015 -0700
 
-    net/http: skip TestClientTimeout_Headers in HTTP/2 mode
+    runtime: use unsafe.Pointer(x) instead of (unsafe.Pointer)(x)
     
-    Change-Id: I3533b557cd6c7127ab4efbe8766184b51ce260c9
-    Reviewed-on: https://go-review.googlesource.com/17768
+    This isn't C anymore.  No binary change to pkg/linux_amd64/runtime.a.
+    
+    Change-Id: I24d66b0f5ac888f432b874aac684b1395e7c8345
+    Reviewed-on: https://go-review.googlesource.com/15903
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/client_test.go | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ src/runtime/heapdump.go   |  4 ++--
+ src/runtime/lock_sema.go  |  2 +-
+ src/runtime/malloc.go     | 16 ++++++++--------
+ src/runtime/mem_darwin.go |  6 +++---
+ src/runtime/mfixalloc.go  |  2 +-
+ src/runtime/mheap.go      | 16 ++++++++--------
+ src/runtime/os1_plan9.go  |  2 +-
+ src/runtime/panic.go      |  2 +-
+ src/runtime/stack1.go     | 28 ++++++++++++++--------------
+ 9 files changed, 39 insertions(+), 39 deletions(-)

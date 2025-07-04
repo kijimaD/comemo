@@ -1,23 +1,14 @@
-commit 9d6427d8992b05445029f95c9555820675dd2e3e
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Jan 24 01:33:16 2016 -0500
+commit bd329d47d9f4ebf6f627372ed28315030d05f7b7
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 20:48:56 2015 +1300
 
-    cmd/asm: reject foo(SB)(AX) instead of silently treating as foo(SB)
+    cmd/internal/obj, cmd/link: generate position independent loads of static data
     
-    Add test for assembly errors, to verify fix.
-    Make sure invalid instruction errors are printed just once
-    (was printing them once per span iteration, so typically twice).
-    
-    Fixes #13282.
-    
-    Change-Id: Id5f66f80a80b3bc4832e00084b0a91f1afec7f8f
-    Reviewed-on: https://go-review.googlesource.com/18858
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I0a8448c2b69f5cfa6f099d772f5eb3412f853045
+    Reviewed-on: https://go-review.googlesource.com/15969
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/asm/internal/asm/endtoend_test.go      | 114 ++++++++++++++++++++++++-
- src/cmd/asm/internal/asm/testdata/amd64error.s |   7 ++
- src/cmd/asm/main.go                            |   2 +-
- src/cmd/compile/internal/gc/lex.go             |   2 +-
- src/cmd/internal/obj/link.go                   |   8 +-
- src/cmd/internal/obj/x86/asm6.go               |   9 ++
- 6 files changed, 135 insertions(+), 7 deletions(-)
+ src/cmd/internal/obj/link.go       | 10 ++++++++++
+ src/cmd/internal/obj/ppc64/asm9.go | 28 ++++++++++++++++++++++------
+ src/cmd/link/internal/ppc64/asm.go | 14 ++++++++++++++
+ 3 files changed, 46 insertions(+), 6 deletions(-)

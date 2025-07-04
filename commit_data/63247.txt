@@ -1,0 +1,23 @@
+commit f14f3aae1c3dc382c15d9c3174a037b7d3595009
+Author: Mark Freeman <mark@golang.org>
+Date:   Thu May 22 11:06:23 2025 -0400
+
+    internal/pkgbits: explain the rationale for reference tables
+    
+    The primary benefit of reference tables is to the linker, though they
+    are also reasonably compact as compared to absolute element indices. It
+    is worth also checking if reference table structure is similarly
+    exploited past the IR linking stage.
+    
+    Ideally, the reference table definition would live in / near the linker.
+    As it stands, it's a bit hard to infer the purpose of the reference
+    tables when looking at pkgbits in isolation.
+    
+    Change-Id: I496aca5a4edcf28e66fa7863ddfa4d825e1b2e89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675596
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/pkgbits/reloc.go | 63 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 62 insertions(+), 1 deletion(-)

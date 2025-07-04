@@ -1,18 +1,23 @@
-commit d21655b89cd962df068dbca1e0caa6b96232508a
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu May 17 13:24:03 2018 +0000
+commit 8693b4f095b2efdbd11967655579606bc3192c59
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 29 12:22:32 2018 -0500
 
-    Revert "net: skip socket hungry test on iOS"
+    runtime: remove unused memlimit function
     
-    This reverts commit 3027932ac3d8d943a404e0b6f9d9ea390c8e6840.
-    
-    Reason for revert: It didn't work well enough; a replacement CL that skips external net tests altogether on iOS is coming.
-    
-    Change-Id: Ib2c5656cee92bcae744f9c99fbcb9f9f2baa0694
-    Reviewed-on: https://go-review.googlesource.com/113555
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id057dcc85d64e5c670710fbab6cacd4b906cf594
+    Reviewed-on: https://go-review.googlesource.com/93655
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/tcpsock_unix_test.go | 5 -----
- 1 file changed, 5 deletions(-)
+ src/runtime/os3_solaris.go  | 31 -------------------------------
+ src/runtime/os_darwin.go    |  8 --------
+ src/runtime/os_dragonfly.go | 31 -------------------------------
+ src/runtime/os_freebsd.go   | 31 -------------------------------
+ src/runtime/os_linux.go     | 32 --------------------------------
+ src/runtime/os_nacl.go      |  4 ----
+ src/runtime/os_netbsd.go    |  4 ----
+ src/runtime/os_openbsd.go   |  4 ----
+ src/runtime/os_plan9.go     |  4 ----
+ src/runtime/os_windows.go   |  4 ----
+ 10 files changed, 153 deletions(-)

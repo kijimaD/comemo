@@ -1,34 +1,22 @@
-commit 441502154fa5f78e93c9c7985fbea78a02c21f4f
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Thu Sep 29 20:21:52 2016 -0400
+commit e2a30b8ffba065ea45bb1e18d1bb584898e3bf11
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sat May 21 17:19:22 2016 +0100
 
-    runtime: remove defer from standard cgo call
+    time: genzabbrs.go skips Feb when checking months
     
-    The endcgo function call is currently deferred in case a cgo
-    callback into Go panics and unwinds through cgocall. Typical cgo
-    calls do not have callbacks into Go, and even fewer panic, so we
-    pay the cost of this defer for no typical benefit.
+    getAbbrs looks like it is checking each month looking for a change
+    in the time zone abbreviation, but starts in Dec of the previous year
+    and skips the month of February because of the overflow rules for
+    AddDate. Changing the day to 1 starts at Jan 1 and tries all months
+    in the current year. This isn't very important or likely to change
+    output as zones usually span several months. Discovered when
+    looking into time.AddDate behavior when adding months.
     
-    Amazingly, there is another defer on the cgocallback path also used
-    to cleanup in case the Go code called by cgo panics. This CL folds
-    the first defer into the second, to reduce the cost of typical cgo
-    calls.
-    
-    This reduces the overhead for a no-op cgo call significantly:
-    
-            name       old time/op  new time/op  delta
-            CgoNoop-8  93.5ns ± 0%  51.1ns ± 1%  -45.34%  (p=0.016 n=4+5)
-    
-    The total effect between Go 1.7 and 1.8 is even greater, as CL 29656
-    reduced the cost of defer recently. Hopefully a future Go release
-    will drop the cost of defer to nothing, making this optimization
-    unnecessary. But until then, this is nice.
-    
-    Change-Id: Id1a5648f687a87001d95bec6842e4054bd20ee4f
-    Reviewed-on: https://go-review.googlesource.com/30080
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I685254c8d21c402ba82cc4176e9a86b64ce8f7f7
+    Reviewed-on: https://go-review.googlesource.com/23322
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/cgocall.go | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/time/genzabbrs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

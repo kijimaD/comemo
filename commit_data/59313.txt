@@ -1,23 +1,20 @@
-commit 2cb9e7f68f90ea9119fd4172fc61630279d79d67
-Author: najeira <najeira@gmail.com>
-Date:   Tue Sep 14 04:47:41 2021 +0000
+commit e39480f4fb5e7314daef012b58cf05e3c9ceea1a
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Feb 29 16:50:23 2024 +0800
 
-    crypto/cipher: use AEAD.NonceSize to make nonce in the example
+    doc: close HTML tags
     
-    The existing example uses hard-coded constant to make nonce buffer.
-    Using AEAD.NonceSize makes it a more portable and appropriate example.
+    Add unclosed HTML tags and remove redundant </a> tags.
     
-    Fixes: #48372
-    
-    Change-Id: I7c7a38ed48aff46ca11ef4f5654c778eac13dde6
-    GitHub-Last-Rev: 03ccbb16df4ca9cbd4a014836aee0f54b2ff3002
-    GitHub-Pull-Request: golang/go#48373
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/349603
+    Change-Id: I3fffbcfd640001c9cc4f6085150344daa0c4369b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568155
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
 
- src/crypto/cipher/example_test.go | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ doc/go_mem.html  | 16 ++++++++--------
+ doc/go_spec.html |  3 ++-
+ 2 files changed, 10 insertions(+), 9 deletions(-)

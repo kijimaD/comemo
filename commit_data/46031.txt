@@ -1,30 +1,33 @@
-commit ff36d11470b3b545ca953ba5e478fe8405860468
-Author: Robert Findley <rfindley@google.com>
-Date:   Mon Aug 16 12:42:27 2021 -0400
+commit b78b427be5e4c8a51a2b01b39c1ce6c4f39a93dc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Dec 2 12:19:13 2020 -0500
 
-    go/types: merge Instantiate and InstantiateLazy
+    runtime, time: strictly enforce when, period constraints
     
-    This is a straightforward port of CL 341855 to go/types.
+    timer.when must always be positive. addtimer and modtimer already check
+    that it is non-negative; we expand it to include zero. Also upgrade from
+    pinning bad values to throwing, as these values shouldn't be possible to
+    pass (except as below).
     
-    Change-Id: I42a74df7a54f5d03aab31ad75dfeb3d1ba775354
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342477
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    timeSleep may overflow timer.nextwhen. This would previously have been
+    pinned by resetForSleep, now we fix it manually.
+    
+    runOneTimer may overflow timer.when when adding timer.period. Detect
+    this and pin to maxWhen.
+    
+    addtimer is now too strict to allow TestOverflowRuntimeTimer to test an
+    overflowed timer. Such a timer should not be possible; to help guard
+    against accidental inclusion siftup / siftdown will check timers as it
+    goes. This has been replaced with tests for period and sleep overflows.
+    
+    Change-Id: I17f9739e27ebcb20d87945c635050316fb8e9226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274853
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/go/types/api_test.go    |  4 ++--
- src/go/types/call.go        |  4 ++--
- src/go/types/decl.go        |  5 +++--
- src/go/types/expr.go        |  2 +-
- src/go/types/infer.go       |  6 +++---
- src/go/types/instantiate.go | 28 ++++++++++------------------
- src/go/types/lookup.go      |  4 ++--
- src/go/types/named.go       | 41 ++++++++++++++++++++++++++++++++---------
- src/go/types/predicates.go  |  4 ++--
- src/go/types/signature.go   |  4 ++--
- src/go/types/subst.go       | 22 +++++++++++++++-------
- src/go/types/type.go        |  2 +-
- src/go/types/typexpr.go     | 14 +++++++++-----
- src/go/types/unify.go       |  4 ++--
- 14 files changed, 86 insertions(+), 58 deletions(-)
+ src/runtime/time.go       | 31 +++++++++++++++++++++++++------
+ src/time/internal_test.go | 42 +++++++++++++++++-------------------------
+ src/time/sleep.go         |  2 ++
+ src/time/sleep_test.go    | 23 ++++++++++++++++-------
+ 4 files changed, 60 insertions(+), 38 deletions(-)

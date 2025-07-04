@@ -1,33 +1,49 @@
-commit 66b8107a26e515bbe19855d358bdf12bd6326347
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 29 14:23:59 2023 -0700
+commit c3a0854e31155de9baad65da70e8ffb653f3b721
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 2 14:27:28 2022 -0400
 
-    runtime: on arm32, detect whether we have sync instructions
+    cmd/dist: introduce "go test" abstraction
     
-    Make the choice of using these instructions dynamic (triggered by cpu
-    feature detection) rather than static (trigered by GOARM setting).
+    This introduces an abstraction for constructing and running "go test"
+    commands. Currently, dist test is basically a shell script written in
+    Go syntax: it mostly just invokes lots of subprocesses, almost all of
+    which are "go test" invocations, and it constructs those command lines
+    directly from strings all over the place.
     
-    if GOARM>=7, we know we have them.
-    For GOARM=5/6, dynamically dispatch based on auxv information.
+    This CL raises the level of abstraction of invoking go test. The
+    current level of abstraction is not serving us very well: it's
+    conveniently terse, but the actual logic for constructing a command
+    line is typically so spread out that it's difficult to predict what
+    command will actually run. For example, the `gotest` function
+    constructs the basic command, but many tests want to override at least
+    some of these flags, so flattenCmdLine has logic specific to `go test`
+    for eliminating duplicate flags that `go test` itself would reject. At
+    the same time, the logic for constructing many common flags is
+    conditional, leading to a bevy of helpers for constructing flags like
+    `-short` and `-timeout` and `-run` that are scattered throughout
+    test.go and very easy to forget to call.
     
-    Update #17082
-    Update #61588
+    This CL centralizes and flattens all of this knowledge into a new
+    `goTest` type. This type gives dist a single, unified point where we
+    can change anything about how it invokes "go test".
     
-    Change-Id: I8a50481d942f62cf36348998a99225d0d242f8af
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/525637
+    There's currently some "unnecessary" abstraction in the implementation
+    of the goTest type to separate "build" and "run" flags. This will
+    become important later when we convert host tests and to do separate
+    build and run steps.
+    
+    The following CLs will convert dist test to use this type rather than
+    directly constructing "go test" command lines. Finally, we'll strip
+    out the scattered helper logic for building command lines.
+    
+    For #37486.
+    
+    Change-Id: I9f1633fe6c0921696419ce8127ed2ca7b7a4e01b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448802
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Run-TryBot: Keith Randall <khr@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/internal/work/gc.go            | 14 ++++++++
- src/internal/cpu/cpu.go                   |  9 ++---
- src/internal/cpu/cpu_arm.go               | 14 ++++++++
- src/runtime/internal/atomic/atomic_arm.go |  4 +++
- src/runtime/internal/atomic/atomic_arm.s  | 59 +++++++++++++++++++------------
- src/runtime/os_freebsd.go                 |  1 +
- src/runtime/os_freebsd_arm.go             |  7 +++-
- src/runtime/os_linux.go                   | 13 +++----
- src/runtime/os_linux_arm.go               |  7 +++-
- 9 files changed, 93 insertions(+), 35 deletions(-)
+ src/cmd/dist/test.go | 184 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 178 insertions(+), 6 deletions(-)

@@ -1,13 +1,15 @@
-commit d6b9dd8b81a4a2969a02ddab9e39532bfb33fafb
+commit 4340b57d88bec1e5dd99919475027ebb760739d7
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Jun 17 11:31:40 2011 +1000
+Date:   Fri Jun 17 11:15:54 2011 +1000
 
-    weekly.2011-06-16
+    goinstall, go/build: support building cgo packages
     
-    R=golang-dev, dsymonds
+    Fixes #1962.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/4643044
+    https://golang.org/cl/4636044
 
- .hgtags               |  1 -
- doc/devel/weekly.html | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 53 insertions(+), 1 deletion(-)
+ src/cmd/goinstall/main.go |  2 +-
+ src/pkg/go/build/build.go | 20 +++++++++++++++-----
+ 2 files changed, 16 insertions(+), 6 deletions(-)

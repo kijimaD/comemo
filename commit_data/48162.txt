@@ -1,27 +1,21 @@
-commit 2d1dd4372211f6f9bcdc6a3e4623b5fd10cebdbf
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Feb 14 13:23:30 2022 -0800
+commit f12dfeac89637dd509cb3eaa81d3116fc49a4daf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 26 22:25:20 2021 -0400
 
-    cmd/go: enable file shortening for lines starting with \t
+    cmd/link: support trampoline insertion on ARM64
     
-    Compiler errors now (as of 1.18) might start with a tab character,
-    for errors which take multiple lines to report. e.g.:
+    Compared to ARM32 or PPC64, ARM64 has larger range for direct jumps.
+    But for very large programs it can still go over the limit. Add
+    trampoline insertion for ARM64.
     
-    /Users/khr/gowork/tmp1.go:3:15: x redeclared in this block
-            /Users/khr/gowork/tmp1.go:3:8: other declaration of x
+    Updates #40492.
     
-    This CL makes error lines starting with a tab character
-    eligible for replacing absolute paths with relative ones.
-    
-    Fixes #51177
-    
-    Change-Id: Ic9e9c610a1aa1e21e9f19e6a9bd05c73b5a14e4a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/385755
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Id97301dbc35fb577ba3f8d5f3316a8424d4f53c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314451
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/go/internal/work/exec.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/link/internal/arm64/asm.go | 132 +++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/arm64/obj.go |   2 +
+ src/cmd/link/link_test.go          |   2 +-
+ 3 files changed, 135 insertions(+), 1 deletion(-)

@@ -1,18 +1,15 @@
-commit 3a56aa0d3eb14aed7829c41df47b653a2f5c16f7
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Apr 21 15:47:58 2015 -0700
+commit 6262192cd0fb98d6bb80752de70ae33fc10dc33e
+Author: John Potocny <johnp@vividcortex.com>
+Date:   Wed Mar 25 21:08:04 2015 -0400
 
-    runtime: check error codes for arm64 system calls
+    strings: Add benchmark test for trim function
     
-    Unlike linux arm32, linux arm64 does not set the condition codes to indicate
-    whether a system call failed or not.  We must check if the return value
-    is in the error code range (the same as amd64 does).
+    The strings.Trim function and variants allocate memory on the heap when creating a function to pass into TrimFunc.
+    Add a benchmark to document the behavior; an issue will be submitted to address this behavior in the compiler if possible.
     
-    Fixes runtime.TestBadOpen test.
-    
-    Change-Id: I97a8b0a17b5f002a3215c535efa91d199cee3309
-    Reviewed-on: https://go-review.googlesource.com/9220
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I8b66721f077951f7e7b8cf3cf346fac27a9b68c0
+    Reviewed-on: https://go-review.googlesource.com/8200
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/sys_linux_arm64.s | 3 +++
- 1 file changed, 3 insertions(+)
+ src/strings/strings_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

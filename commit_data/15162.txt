@@ -1,14 +1,12 @@
-commit 8035cbd97cad506943e3dae652021970f02ad2d5
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Feb 7 23:15:08 2013 -0500
+commit 3c1dfb2b9a3fb169545bfb40f3febad22063831f
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 8 12:00:35 2013 +1100
 
-    codereview: use hgapplydiff instead of hgpatch
-    
-    Depends on https://golang.org/cl/7308067
+    cmd/godoc: fix format strings.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7312064
+    https://golang.org/cl/7309061
 
- lib/codereview/codereview.py | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ src/cmd/godoc/play-appengine.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

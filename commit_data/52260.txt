@@ -1,18 +1,22 @@
-commit 50ba90bce575f94ccf9a64357e9b0ababa3c9d2f
-Author: cui fliter <imcusg@gmail.com>
-Date:   Sat Mar 11 10:33:57 2023 +0800
+commit b34838913da606087b0f3141891f7d0fb2254eef
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 20 17:07:14 2022 -0400
 
-    all: fix some problematic comments
+    os/exec: set PWD implicitly if Dir is non-empty and Env is nil
     
-    Change-Id: Ia110d19fe5ff3adc8bbf86dd2112f9702164d495
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/475515
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Fixes #50599.
+    
+    Change-Id: I4e5dbb3972cdf21ede049567bfb98f2c992c5849
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401340
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/crypto/hmac/hmac.go  | 2 +-
- src/runtime/mfixalloc.go | 2 +-
- src/runtime/mspanset.go  | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ api/next/50599.txt             |   1 +
+ doc/go1.19.html                |  15 +++++
+ src/os/exec/example_test.go    |  15 +++++
+ src/os/exec/exec.go            |  59 +++++++++++++---
+ src/os/exec/exec_posix_test.go | 149 +++++++++++++++++++++++++++++++++++++++++
+ src/os/exec/exec_test.go       |  20 +++++-
+ 6 files changed, 248 insertions(+), 11 deletions(-)

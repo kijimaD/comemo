@@ -1,16 +1,19 @@
-commit 974def803ee9fd03a755014dcb62d55105c846f1
-Author: Heisenberg <lziqiang1@gmail.com>
-Date:   Fri Sep 4 16:56:54 2020 +0800
+commit 12665b9a067789004ca45cedcd3ebbbdc143f1d7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 20 14:36:40 2020 -0700
 
-    go/ast: add test for Filter
+    cmd/compile: convert two generic rules to be typed
     
-    Change-Id: Ia14659a9c44f9e1504eb88b5693932b9dd4bb286
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/252939
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Prelude to changing the rules.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I22fead7f74d2cf97bb3fbeb22741125b42914c43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229123
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/ast/commentmap_test.go | 29 ++++++++++++++++++++++++++++-
- 1 file changed, 28 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules | 20 +++++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 80 +++++++++++++-------------
+ 2 files changed, 56 insertions(+), 44 deletions(-)

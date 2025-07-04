@@ -1,17 +1,17 @@
-commit 3acce59b93305eac1348d8ed8034310b6b01d2a3
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Oct 11 18:25:23 2012 -0400
+commit f1b1753627d1f895baa53e41c6fb4301282a3760
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Oct 12 08:32:56 2012 +1100
 
-    crypto/rsa: fix decryption benchmark.
+    net/http: fix race on bodyEOFSignal.isClosed
     
-    I was an idiot and was thinking that a small base didn't matter
-    because the exponentiation would quickly make the number the same size
-    as the modulus. But, of course, the small base continues to make
-    multiplications unrealistically cheap throughout the computation.
+    Update #4191.
     
-    R=golang-dev, r
+    Fixes unreported race failure at
+    http://build.golang.org/log/61e43a328fb220801d3d5c88cd91916cfc5dc43c
+    
+    R=dvyukov, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6649048
+    https://golang.org/cl/6640057
 
- src/pkg/crypto/rsa/rsa_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/net/http/transport.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

@@ -1,23 +1,28 @@
-commit 29b36a88ab0b179c140612e7c907042b2a388587
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 11 13:36:42 2020 -0400
+commit 943df4f629560f5c33474dd82e2b534ea5f8653f
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Oct 16 21:49:09 2019 +0100
 
-    cmd/objdump: guard against out-of-range lines from directives.
+    crypto/ecdsa: remove s390x assembly
     
-    //line bogo.go:9999999 will cause 'go tool objdump' to crash
-    unless bogo.go has that many lines.  Guard the array index
-    and return innocuous values (nil, nil) from the file cache.
+    This a revert of CL 174437 and follow up fix CL 201317.
     
-    Fixes #36683
+    The s390x assembly in this package makes use of an instruction
+    (specifically KDSA) which is not supported by the current build
+    machine. Remove this assembly for now, we can revisit this
+    functionality once we have a newer build machine and can ensure
+    that this assembly is well tested.
     
-    Change-Id: I4a9f8444dc611654d270cc876e8848dfd2f84770
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223081
-    Run-TryBot: David Chase <drchase@google.com>
+    Updates #34927.
+    
+    Change-Id: I779286fa7d9530a254b53a515ee76b1218821f2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201360
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/objfile/disasm.go   |  5 +++++
- src/cmd/objdump/objdump_test.go      | 13 ++++++++++---
- src/cmd/objdump/testdata/fmthello.go |  2 ++
- test/run.go                          |  2 +-
- 4 files changed, 18 insertions(+), 4 deletions(-)
+ src/crypto/ecdsa/ecdsa.go            |  16 +---
+ src/crypto/ecdsa/ecdsa_noasm.go      |  22 -----
+ src/crypto/ecdsa/ecdsa_s390x.go      | 153 -----------------------------------
+ src/crypto/ecdsa/ecdsa_s390x.s       |  31 -------
+ src/crypto/ecdsa/ecdsa_s390x_test.go |  33 --------
+ 5 files changed, 4 insertions(+), 251 deletions(-)

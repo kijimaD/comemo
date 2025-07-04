@@ -1,66 +1,17 @@
-commit 9d29be468eb9092f9dea3e10d32e1f7848a55458
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Feb 27 05:41:50 2017 +0000
+commit f4c997578ad962074b8e3aaf28dcfaa2f48a8593
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:44 2016 +0200
 
-    net/http: clean up Transport.RoundTrip error handling
+    cmd/compile: add support for GOARCH=mips{,le}
     
-    If I put a 10 millisecond sleep at testHookWaitResLoop, before the big
-    select in (*persistConn).roundTrip, two flakes immediately started
-    happening, TestTransportBodyReadError (#19231) and
-    TestTransportPersistConnReadLoopEOF.
-    
-    The problem was that there are many ways for a RoundTrip call to fail
-    (errors reading from Request.Body while writing the response, errors
-    writing the response, errors reading the response due to server
-    closes, errors due to servers sending malformed responses,
-    cancelations, timeouts, etc.), and many of those failures then tear
-    down the TCP connection, causing more failures, since there are always
-    at least three goroutines involved (reading, writing, RoundTripping).
-    
-    Because the errors were communicated over buffered channels to a giant
-    select, the error returned to the caller was a function of which
-    random select case was called, which was why a 10ms delay before the
-    select brought out so many bugs. (several fixed in my previous CLs the past
-    few days).
-    
-    Instead, track the error explicitly in the transportRequest, guarded
-    by a mutex.
-    
-    In addition, this CL now:
-    
-    * differentiates between the two ways writing a request can fail: the
-      io.Copy reading from the Request.Body or the io.Copy writing to the
-      network. A new io.Reader type notes read errors from the
-      Request.Body. The read-from-body vs write-to-network errors are now
-      prioritized differently.
-    
-    * unifies the two mapRoundTripErrorFromXXX methods into one
-      mapRoundTripError method since their logic is now the same.
-    
-    * adds a (*Request).WithT(*testing.T) method in export_test.go, usable
-      by tests, to call t.Logf at points during RoundTrip. This is disabled
-      behind a constant except when debugging.
-    
-    * documents and deflakes TestClientRedirectContext
-    
-    I've tested this CL with high -count values, with/without -race,
-    with/without delays before the select, etc. So far it seems robust.
-    
-    Fixes #19231 (TestTransportBodyReadError flake)
-    Updates #14203 (source of errors unclear; they're now tracked more)
-    Updates #15935 (document Transport errors more; at least understood more now)
-    
-    Change-Id: I3cccc3607f369724b5344763e35ad2b7ea415738
-    Reviewed-on: https://go-review.googlesource.com/37495
+    Change-Id: Ib489dc847787aaab7ba1be96792f885469e346ae
+    Reviewed-on: https://go-review.googlesource.com/31479
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/net/http/client_test.go             |  10 ++-
- src/net/http/export_test.go             |   6 ++
- src/net/http/request.go                 |   8 ++
- src/net/http/transfer.go                |  23 ++++-
- src/net/http/transport.go               | 147 ++++++++++++++++++++------------
- src/net/http/transport_internal_test.go |   5 +-
- src/net/http/transport_test.go          |   4 +-
- 7 files changed, 137 insertions(+), 66 deletions(-)
+ src/cmd/compile/internal/mips/galign.go |  26 +
+ src/cmd/compile/internal/mips/ggen.go   | 101 ++++
+ src/cmd/compile/internal/mips/prog.go   | 157 ++++++
+ src/cmd/compile/internal/mips/ssa.go    | 907 ++++++++++++++++++++++++++++++++
+ 4 files changed, 1191 insertions(+)

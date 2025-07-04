@@ -1,20 +1,35 @@
-commit 40b74558771ba9db493728dcaabe43318daf9b97
-Author: Austin Clements <austin@google.com>
-Date:   Sun Oct 13 11:27:47 2019 -0400
+commit c468ad04177c422534ad1ed4547295935f84743d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu May 16 01:03:10 2019 +0200
 
-    runtime: add GODEBUG=asyncpreemptoff=1
+    syscall/js: replace TypedArrayOf with CopyBytesToGo/CopyBytesToJS
     
-    This doesn't do anything yet, but it will provide a way to disable
-    non-cooperative preemption.
+    The typed arrays returned by TypedArrayOf were backed by WebAssembly
+    memory. They became invalid each time we grow the WebAssembly memory.
+    This made them very error prone and hard to use correctly.
     
-    For #10958, #24543.
+    This change removes TypedArrayOf completely and instead introduces
+    CopyBytesToGo and CopyBytesToJS for copying bytes between a byte
+    slice and an Uint8Array. This breaking change is still allowed for
+    the syscall/js package.
     
-    Change-Id: Ifdef303f103eabd0922ced8d9bebbd5f0aa2cda4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201757
-    Run-TryBot: Austin Clements <austin@google.com>
+    Fixes #31980.
+    Fixes #31812.
+    
+    Change-Id: I14c76fdd60b48dd517c1593972a56d04965cb272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177537
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/extern.go   | 7 +++++++
- src/runtime/runtime1.go | 2 ++
- 2 files changed, 9 insertions(+)
+ misc/wasm/wasm_exec.js        |  29 ++++++++++-
+ src/crypto/cipher/xor_test.go |   5 --
+ src/crypto/rand/rand_js.go    |   5 +-
+ src/net/http/roundtrip_js.go  |  18 ++++---
+ src/syscall/fs_js.go          |  22 ++-------
+ src/syscall/js/js.go          |  29 ++++++++++-
+ src/syscall/js/js_js.s        |   8 ++++
+ src/syscall/js/js_test.go     |  74 +++++++++++++++++++---------
+ src/syscall/js/typedarray.go  | 109 ------------------------------------------
+ 9 files changed, 131 insertions(+), 168 deletions(-)

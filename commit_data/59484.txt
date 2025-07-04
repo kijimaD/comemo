@@ -1,56 +1,22 @@
-commit 698f86139bf72bcf7cbf08accc1c34394cb57acb
-Author: Radu Berinde <radu@cockroachlabs.com>
-Date:   Tue May 13 00:45:25 2025 +0000
+commit b40dc30d24afe877f4b7d80c69b827765531cdc7
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 15 14:30:34 2024 -0700
 
-    crypto: limit md5 or sha256 blocks processed at once in assembly
+    cmd/compile: compute ptrBytes during CalcSize instead of on demand
     
-    This change limits the amount of data that can be hashed at once - the
-    assembly routines are not preemptible and can result in large latency
-    outliers when part of a larger system.
+    Compute ptrBytes while computing the size of a type.
+    Requires an extra field on the type, but means that we don't
+    have potentially exponential behavior in the PtrDataSize computation.
     
-    Benchmarks for sha256 (on an arm64 M1):
+    For #65540.
     
-    name                  old speed      new speed      delta
-    Hash8Bytes/New-10      178MB/s ± 0%   178MB/s ± 0%  +0.16%  (p=0.002 n=9+8)
-    Hash8Bytes/Sum224-10   154MB/s ± 0%   154MB/s ± 0%    ~     (p=0.287 n=9+10)
-    Hash8Bytes/Sum256-10   156MB/s ± 0%   157MB/s ± 0%  +0.13%  (p=0.004 n=9+8)
-    Hash1K/New-10         2.28GB/s ± 0%  2.28GB/s ± 0%    ~     (p=0.968 n=10+9)
-    Hash1K/Sum224-10      2.20GB/s ± 0%  2.21GB/s ± 0%  +0.30%  (p=0.001 n=9+9)
-    Hash1K/Sum256-10      2.21GB/s ± 0%  2.21GB/s ± 0%  +0.26%  (p=0.000 n=9+8)
-    Hash8K/New-10         2.37GB/s ± 2%  2.40GB/s ± 0%    ~     (p=0.289 n=10+10)
-    Hash8K/Sum224-10      2.39GB/s ± 0%  2.39GB/s ± 0%    ~     (p=0.983 n=8+9)
-    Hash8K/Sum256-10      2.39GB/s ± 0%  2.39GB/s ± 0%    ~     (p=0.905 n=9+10)
-    Hash256K/New-10       2.42GB/s ± 0%  2.42GB/s ± 0%    ~     (p=0.250 n=9+10)
-    Hash256K/Sum224-10    2.42GB/s ± 0%  2.42GB/s ± 0%    ~     (p=0.093 n=8+9)
-    Hash256K/Sum256-10    2.42GB/s ± 0%  2.42GB/s ± 0%    ~     (p=0.211 n=10+9)
-    Hash1M/New-10         2.42GB/s ± 0%  2.42GB/s ± 0%    ~     (p=0.963 n=8+9)
-    Hash1M/Sum224-10      2.42GB/s ± 0%  2.42GB/s ± 0%    ~     (p=0.173 n=10+8)
-    Hash1M/Sum256-10      2.42GB/s ± 0%  2.42GB/s ± 0%    ~     (p=0.743 n=9+8)
-    
-    Note that `Hash8K` shows that a 8K block size is sufficient to achieve
-    peak bandwidth, so the 64KB maxAsmSize should be plenty.
-    
-    Benchmarks for md5:
-    
-    name       old speed     new speed     delta
-    Hash1M-10  669MB/s ± 0%  669MB/s ± 0%   ~     (p=0.965 n=8+10)
-    Hash8M-10  667MB/s ± 0%  666MB/s ± 0%   ~     (p=0.356 n=10+9)
-    
-    Fixes #64417
-    
-    Change-Id: If7f5e7587b33c65148f49859c9d46ae6f6948db4
-    GitHub-Last-Rev: 2f83f4255412b533469e953db6c1ef16fa3eb7c2
-    GitHub-Pull-Request: golang/go#73638
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671098
-    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Change-Id: Ia23c72bbd996730baddd32d9ed46cfc00c3472ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571543
+    Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Ian Stapleton Cordasco <graffatcolmingov@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/internal/fips140/sha256/sha256.go | 10 +++++
- src/crypto/md5/md5.go                        | 10 +++++
- src/crypto/md5/md5_test.go                   | 30 ++++++++++++-
- src/crypto/sha256/sha256_test.go             | 66 ++++++++++++++++++++++++++--
- 4 files changed, 110 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/types/size.go        | 102 +++++++++-----------------
+ src/cmd/compile/internal/types/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/types/type.go        |  29 +++++++-
+ 3 files changed, 65 insertions(+), 68 deletions(-)

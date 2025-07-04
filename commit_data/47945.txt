@@ -1,20 +1,31 @@
-commit 9c6ecc49ca02c83f3081c30171ab40dd62557342
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri Jan 14 09:23:25 2022 -0500
+commit a72622d028077643169dc48c90271a82021f0534
+Author: Cuong Manh Le <cuong@orijtech.com>
+Date:   Mon Apr 19 02:39:50 2021 +0700
 
-    runtime: skip known TestSegv failure mode on linux-mips64le-mengzhuo
+    cmd/compile: skip "_" function in reflectdata.MarkUsedIfaceMethod
     
-    Also adjust other skips to actually call t.Skip, so that the test
-    correctly shows as skipped instead of passing.
+    CL 256798 added compiler ability to retain only used interface methods,
+    by generating a mark relocation whenever an interface method is used. To
+    do that, the compiler needs the current function linker object.
     
-    For #50605
+    However, for unnamed function "func _()", its linker object is nil,
+    causes the compiler crashes for code in #45258.
     
-    Change-Id: Ied482f231a879224c5a92e2c47a6b21c1593a7da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/378554
-    Trust: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    CL 283313 fixed the code in #45258 unintentionally, since when the
+    compiler now does not walk unnamed functions anymore.
+    
+    This CL fixes the root issue, by making reflectdata.MarkUsedIfaceMethod
+    skips unnamed functions, and also adding regression test.
+    
+    Fixes #45258
+    
+    Change-Id: I4cbefb0a89d9928f70c00dc8a271cb61cd20a49c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311130
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/crash_cgo_test.go | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/reflectdata/reflect.go |  4 ++++
+ test/fixedbugs/issue45258.go                    | 28 +++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

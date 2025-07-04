@@ -1,39 +1,15 @@
-commit ac8dbe7747971007d58eb39e2e7e615cf9f04493
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Tue Jun 4 19:17:41 2019 +0100
+commit 2f9728aacdf90d21a530f68c6887cfe545954935
+Author: Andrew <andybons@golang.org>
+Date:   Mon Feb 25 19:13:57 2019 +0000
 
-    cmd/compile, runtime: make atomic loads/stores sequentially consistent on s390x
+    doc/go1.12: change go install to go get
     
-    The z/Architecture does not guarantee that a load following a store
-    will not be reordered with that store, unless they access the same
-    address. Therefore if we want to ensure the sequential consistency
-    of atomic loads and stores we need to perform serialization
-    operations after atomic stores.
+    Using go get prevents the failure case of when the
+    user doesn't have the repo on their machine.
     
-    We do not need to serialize in the runtime when using StoreRel[ease]
-    and LoadAcq[uire]. The z/Architecture already provides sufficient
-    ordering guarantees for these operations.
-    
-    name              old time/op  new time/op  delta
-    AtomicLoad64-16   0.51ns ± 0%  0.51ns ± 0%     ~     (all equal)
-    AtomicStore64-16  0.51ns ± 0%  0.60ns ± 9%  +16.47%  (p=0.000 n=17+20)
-    AtomicLoad-16     0.51ns ± 0%  0.51ns ± 0%     ~     (all equal)
-    AtomicStore-16    0.51ns ± 0%  0.60ns ± 9%  +16.50%  (p=0.000 n=18+20)
-    
-    Fixes #32428.
-    
-    Change-Id: I88d19a4010c46070e4fff4b41587efe4c628d4d9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/180439
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I9c1174087728b5b06b578b0d52df6eeb7e8c7a3c
+    Reviewed-on: https://go-review.googlesource.com/c/163718
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go           |  4 +-
- src/cmd/compile/internal/s390x/ssa.go        |  2 +
- src/cmd/compile/internal/ssa/gen/S390X.rules | 19 ++++----
- src/cmd/compile/internal/ssa/gen/S390XOps.go |  5 +++
- src/cmd/compile/internal/ssa/opGen.go        |  7 +++
- src/cmd/compile/internal/ssa/rewriteS390X.go | 65 +++++++++++++++++++++++-----
- src/runtime/internal/atomic/asm_s390x.s      | 24 ++++++++++
- src/runtime/internal/atomic/atomic_s390x.go  | 25 +++--------
- 8 files changed, 108 insertions(+), 43 deletions(-)
+ doc/go1.12.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

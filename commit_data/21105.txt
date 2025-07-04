@@ -1,15 +1,19 @@
-commit 26d5573949843e5504c79b1d32440918ee5e9181
-Author: Brad Fitzpatrick <brad@danga.com>
-Date:   Sun Dec 28 11:18:59 2014 -0800
+commit a11f256436a386c81e3a34378b37bc51fb2d5f61
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 14 12:08:46 2014 -0500
 
-    net/smtp: add TLSConnectionState accessor
+    [dev.power64] liblink: generate dnames[5689] for D_* constants
     
-    Fixes #9451
+    This is more complicated than the other enums because the D_*
+    enums are full of explicit initializers and repeated values.
+    This tries its best.  (This will get much cleaner once we
+    tease these constants apart better.)
     
-    Change-Id: I0540e398b30c10779ac9d5a67a01d44bb6054a92
-    Reviewed-on: https://go-review.googlesource.com/2151
-    Reviewed-by: David Symonds <dsymonds@golang.org>
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166700043
 
- src/net/smtp/smtp.go      | 11 +++++++++++
- src/net/smtp/smtp_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+)
+ include/link.h         |  5 +++
+ src/cmd/dist/buildgc.c | 85 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 87 insertions(+), 3 deletions(-)

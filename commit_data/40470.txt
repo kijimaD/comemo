@@ -1,25 +1,72 @@
-commit bf670bd83c849b56426c63b49f28121210a627ca
-Author: Agniva De Sarker <agnivade@yahoo.co.in>
-Date:   Wed Feb 13 08:49:52 2019 +0530
+commit dccd5da08eb45923df9fb9ee2a05a9fbbe8c185c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 12:56:45 2019 -0400
 
-    go/ast: fix SortImports to handle block comments (take 2)
+    cmd/go: cut 'go test -short cmd/go' time by about half
     
-    This is a 2nd attempt at fixing CL 162337 which had an off-by-one error.
-    We were unconditionally getting the position of the start of the next line
-    from the last import without checking whether it is the end of the file or not.
+    Was 50 seconds on unloaded Mac laptop; now 27.
+    Still longer than I would like, but every little bit helps.
     
-    Fix the code to check for that and move the testcase added in CL 190523
-    to the end of the file for it to trigger the issue properly.
+    For #26473.
     
-    Fixes #18929
-    
-    Change-Id: I59e77256e256570b160fea6a17bce9ef49e810df
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/190480
-    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Change-Id: Id4be016ee1555cbc3512eca0ae10236d7f06bd02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177398
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/gofmt/testdata/import.golden | 73 ++++++++++++++++++++++++++++--
- src/cmd/gofmt/testdata/import.input  | 71 +++++++++++++++++++++++++++--
- src/go/ast/import.go                 | 88 ++++++++++++++++++++++++++----------
- 3 files changed, 201 insertions(+), 31 deletions(-)
+ src/cmd/go/go_test.go                              | 12 +++
+ src/cmd/go/testdata/script/build_GOTMPDIR.txt      |  1 +
+ src/cmd/go/testdata/script/build_cache_compile.txt |  1 +
+ src/cmd/go/testdata/script/build_cache_gomips.txt  |  1 +
+ src/cmd/go/testdata/script/build_cache_link.txt    |  1 +
+ src/cmd/go/testdata/script/build_cache_output.txt  |  1 +
+ .../go/testdata/script/build_runtime_gcflags.txt   |  1 +
+ src/cmd/go/testdata/script/build_trimpath.txt      |  2 +
+ src/cmd/go/testdata/script/cgo_syso_issue29253.txt |  1 +
+ src/cmd/go/testdata/script/clean_testcache.txt     |  1 +
+ src/cmd/go/testdata/script/gcflags_patterns.txt    |  1 +
+ src/cmd/go/testdata/script/get_dotfiles.txt        |  1 +
+ src/cmd/go/testdata/script/get_tilde.txt           |  1 +
+ src/cmd/go/testdata/script/get_unicode.txt         |  1 +
+ .../go/testdata/script/install_cleans_build.txt    |  1 +
+ src/cmd/go/testdata/script/install_cross_gobin.txt |  1 +
+ src/cmd/go/testdata/script/list_bad_import.txt     |  1 +
+ src/cmd/go/testdata/script/list_find.txt           |  1 +
+ src/cmd/go/testdata/script/list_std.txt            |  2 +-
+ src/cmd/go/testdata/script/mod_build_versioned.txt |  1 +
+ src/cmd/go/testdata/script/mod_doc.txt             |  1 +
+ src/cmd/go/testdata/script/mod_download.txt        |  1 +
+ src/cmd/go/testdata/script/mod_file_proxy.txt      |  2 +
+ src/cmd/go/testdata/script/mod_get_commit.txt      |  6 +-
+ src/cmd/go/testdata/script/mod_get_downgrade.txt   |  1 +
+ src/cmd/go/testdata/script/mod_get_indirect.txt    |  1 +
+ src/cmd/go/testdata/script/mod_get_local.txt       |  1 +
+ src/cmd/go/testdata/script/mod_get_main.txt        |  1 +
+ src/cmd/go/testdata/script/mod_get_moved.txt       |  1 +
+ src/cmd/go/testdata/script/mod_get_patterns.txt    |  1 +
+ src/cmd/go/testdata/script/mod_get_upgrade.txt     | 12 +--
+ src/cmd/go/testdata/script/mod_gobuild_import.txt  |  2 +
+ src/cmd/go/testdata/script/mod_internal.txt        |  1 +
+ src/cmd/go/testdata/script/mod_list.txt            |  1 +
+ src/cmd/go/testdata/script/mod_list_dir.txt        |  2 +
+ src/cmd/go/testdata/script/mod_list_std.txt        |  1 +
+ src/cmd/go/testdata/script/mod_outside.txt         |  1 +
+ src/cmd/go/testdata/script/mod_patterns.txt        | 11 ++-
+ src/cmd/go/testdata/script/mod_readonly.txt        |  1 +
+ src/cmd/go/testdata/script/mod_replace.txt         |  1 +
+ src/cmd/go/testdata/script/mod_test.txt            | 25 +++---
+ src/cmd/go/testdata/script/mod_tidy_replace.txt    |  1 +
+ src/cmd/go/testdata/script/mod_tidy_sum.txt        |  4 +-
+ .../go/testdata/script/mod_upgrade_patch_mod.txt   |  1 +
+ .../go/testdata/script/mod_upgrade_patch_pkg.txt   | 17 ++--
+ src/cmd/go/testdata/script/mod_vendor_build.txt    |  1 +
+ src/cmd/go/testdata/script/mod_verify.txt          |  1 +
+ src/cmd/go/testdata/script/mod_why.txt             |  1 +
+ .../go/testdata/script/run_set_executable_name.txt |  2 +
+ src/cmd/go/testdata/script/sum_readonly.txt        |  6 +-
+ src/cmd/go/testdata/script/test_init.txt           | 92 ++++++++++------------
+ src/cmd/go/testdata/script/test_timeout.txt        |  1 +
+ src/cmd/go/testdata/script/version.txt             |  2 +
+ src/cmd/go/testdata/script/vet_asm.txt             |  3 +-
+ 54 files changed, 147 insertions(+), 92 deletions(-)

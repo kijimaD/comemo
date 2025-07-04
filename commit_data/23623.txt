@@ -1,28 +1,36 @@
-commit a625b919163e76c391f2865d1f956c0f16d90f83
-Author: Rob Pike <r@golang.org>
-Date:   Fri Jul 10 11:52:39 2015 +1000
+commit cc6a7fce533d7214c9cda0fc57af9ac948e61b7c
+Author: Austin Clements <austin@google.com>
+Date:   Sat May 30 21:47:00 2015 -0400
 
-    cmd/doc: submit to the punched card tyranny
+    runtime: increase precision of gctrace times
     
-    People use 80-column terminals because their grandparents used
-    punched cards. When I last used a punched card, in 1978, it seemed
-    antiquated even then. But today, people still set their terminal
-    widths to 80 to honor the struggles their fallen ancestors made to
-    endure this painful technology.
+    Currently we truncate gctrace clock and CPU times to millisecond
+    precision. As a result, many phases are typically printed as 0, which
+    is fine for user consumption, but makes gathering statistics and
+    reports over GC traces difficult.
     
-    We must all stand and salute the 80 column flag, or risk the opprobium
-    of our peers.
+    In 1.4, the gctrace line printed times in microseconds. This was
+    better for statistics, but not as easy for users to read or interpret,
+    and it generally made the trace lines longer.
     
-    For Pete's sake, I don't even use a fixed-width font. I don't even
-    believe in columns.
+    This change strikes a balance between these extremes by printing
+    milliseconds, but including the decimal part to two significant
+    figures down to microsecond precision. This remains easy to read and
+    interpret, but includes more precision when it's useful.
     
-    Fixes #11639 with extreme reluctance.
+    For example, where the code currently prints,
     
-    P.S. To avoid the horror of an automatically folded line of text, this commit message has been formatted to fit on an 80-column line, except for this postscript.
+    gc #29 @1.629s 0%: 0+2+0+12+0 ms clock, 0+2+0+0/12/0+0 ms cpu, 4->4->2 MB, 4 MB goal, 1 P
     
-    Change-Id: Ia2eb2dcf293dabe804c22ee5abb4bbb703f45c33
-    Reviewed-on: https://go-review.googlesource.com/12011
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    this prints,
+    
+    gc #29 @1.629s 0%: 0.005+2.1+0+12+0.29 ms clock, 0.005+2.1+0+0/12/0+0.29 ms cpu, 4->4->2 MB, 4 MB goal, 1 P
+    
+    Fixes #10970.
+    
+    Change-Id: I249624779433927cd8b0947b986df9060c289075
+    Reviewed-on: https://go-review.googlesource.com/10554
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/doc/pkg.go | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ src/runtime/mgc.go | 53 ++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 40 insertions(+), 13 deletions(-)

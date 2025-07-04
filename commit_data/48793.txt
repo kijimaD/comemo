@@ -1,26 +1,41 @@
-commit 082cfabf126d63e952e1ac29d47c2a47f1c64bee
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Thu Apr 14 17:57:22 2022 -0700
+commit e7451f661665e406889094b9d1471c7991dfefaa
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Jun 8 10:21:51 2021 -0400
 
-    crypto/x509: don't create certs with negative serials
+    [dev.typeparams] go/types: accept embedded interface elements
     
-    Refuse to create certificates with negative serial numbers, as they
-    are explicitly disallowed by RFC 5280.
+    This is a port of CL 321689 to go/types. It differs from that CL in the
+    uses of the position, AST and error APIs, and in not factoring out an
+    unimplemented() helper (this helper didn't already exist in go/types, so
+    it seemed cleaner to defer adding it).
     
-    We still allow parsing certificates with negative serial numbers,
-    because in the past there were buggy CA implementations which would
-    produce them (although there are currently *no* trusted certificates
-    that have this issue). We may want to revisit this decision if we can
-    find metrics about the prevalence of this issue in enterprise settings.
-    
-    Change-Id: I131262008db99b6354f542f335abc68775a2d6d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/400494
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I577a57297caf35eb7a23f63f3f52037a7bb528ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326069
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/x509/x509.go      |  6 +++++-
- src/crypto/x509/x509_test.go | 43 ++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 43 insertions(+), 6 deletions(-)
+ src/go/types/builtins.go                       |   2 +-
+ src/go/types/errorcodes.go                     |  11 +-
+ src/go/types/infer.go                          |   5 +-
+ src/go/types/interface.go                      | 212 ++++++++++++-------------
+ src/go/types/predicates.go                     |   3 +
+ src/go/types/sanitize.go                       |   6 +-
+ src/go/types/sizeof_test.go                    |   3 +-
+ src/go/types/sizes.go                          |   2 +
+ src/go/types/subst.go                          |  16 +-
+ src/go/types/testdata/check/decls0.src         |   2 +-
+ src/go/types/testdata/check/issues.src         |   2 +-
+ src/go/types/testdata/check/typeinst2.go2      |   6 +-
+ src/go/types/testdata/examples/constraints.go2 |  25 +++
+ src/go/types/testdata/fixedbugs/issue39634.go2 |   2 +-
+ src/go/types/testdata/fixedbugs/issue39693.go2 |  17 +-
+ src/go/types/testdata/fixedbugs/issue39711.go2 |   4 +-
+ src/go/types/testdata/fixedbugs/issue39723.go2 |   2 +-
+ src/go/types/testdata/fixedbugs/issue39948.go2 |   8 +-
+ src/go/types/type.go                           |   1 -
+ src/go/types/typestring.go                     |  21 ++-
+ src/go/types/typestring_test.go                |   3 +
+ src/go/types/unify.go                          |   4 +
+ src/go/types/union.go                          | 108 +++++++++++++
+ 23 files changed, 310 insertions(+), 155 deletions(-)

@@ -1,15 +1,17 @@
-commit 0f2659a3235d388153e8d0d259800318f5fa7476
+commit faa1bf04fdea86d89583ea0063561c2cdc959b2d
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Jan 30 14:53:48 2012 +1100
+Date:   Mon Jan 30 14:50:36 2012 +1100
 
-    builder: drop recover blocks
+    dashboard: ask builders to re-build Go tip to freshen subrepos
     
-    The one time they recovered from anything they obscured a useful stack
-    trace. We're better off just crashing hard.
+    This ensures we always have results for subrepo-tip at go-tip.
     
     R=golang-dev, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5577073
+    https://golang.org/cl/5569091
 
- misc/dashboard/builder/main.go | 58 ++++++++++--------------------------------
- 1 file changed, 14 insertions(+), 44 deletions(-)
+ misc/dashboard/app/build/build.go   |  7 +++++++
+ misc/dashboard/app/build/handler.go | 37 ++++++++++++++++++++++++++++++++-----
+ misc/dashboard/app/build/test.go    |  8 ++++++--
+ misc/dashboard/app/build/ui.go      |  2 +-
+ 4 files changed, 46 insertions(+), 8 deletions(-)

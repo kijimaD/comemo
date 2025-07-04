@@ -1,24 +1,18 @@
-commit 84d7a85089009332756c18e876ec91f96b362ebf
-Author: Cherry Zhang <cherryyz@google.com>
-Date:   Wed Oct 21 20:15:48 2020 -0400
+commit 04040ec9f9c763aee549d6afa3d4f0c34adf9cc1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 17 16:20:53 2020 -0400
 
-    cmd/compile: delete register maps, completely
+    debug/pe: improve testpoint error message
     
-    Remove go115ReduceLiveness feature gating flag, along with code
-    that only needed when go115ReduceLiveness is false.
+    A DWARF testpoint was calling t.Fatal() but should have been calling
+    t.Fatalf(); switch it to the correct method.
     
-    Change-Id: I7571913cc74cbd17b330a0ee0160fefc9eeee66e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264338
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I996a1041adea4299cda85c147a35b513a219b970
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228790
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/fmtmap_test.go       |   2 -
- src/cmd/compile/internal/gc/gsubr.go |  40 +---
- src/cmd/compile/internal/gc/obj.go   |   2 +-
- src/cmd/compile/internal/gc/plive.go | 421 ++++++-----------------------------
- src/cmd/compile/internal/gc/ssa.go   |   2 +-
- src/cmd/internal/obj/link.go         |   1 -
- src/cmd/internal/obj/plist.go        |  22 +-
- src/cmd/internal/objabi/funcdata.go  |   9 +-
- 8 files changed, 87 insertions(+), 412 deletions(-)
+ src/debug/pe/file_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

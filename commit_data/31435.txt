@@ -1,16 +1,29 @@
-commit 390fdead0be0087d10e2e4faff7cb0a12b6a3ec8
-Author: Austin Clements <austin@google.com>
-Date:   Mon Apr 24 10:47:03 2017 -0700
+commit b660a4b04d0a88e86d15c1235a4d3bdf1efcd12c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 13:59:19 2017 +1100
 
-    runtime: document runtime.Frames better
+    cmd/link: add all pe section names to pe symbol table
     
-    In particular, this says that Frames.Function uniquely identifies a
-    function within a program. We depend on this in various places that
-    use runtime.Frames in std, but it wasn't actually written down.
+    dwarf relocations refer to dwarf section symbols, so dwarf
+    section symbols must be present in pe symbol table before we
+    write dwarf relocations.
     
-    Change-Id: Ie7ede348c17673e11ae513a094862b60c506abc5
-    Reviewed-on: https://go-review.googlesource.com/41610
+    .ctors pe section already refer to .text symbol.
+    
+    Write all pe section name symbols into symbol table, so we
+    can use them whenever we need them.
+    
+    This CL also simplified some code.
+    
+    For #10776.
+    
+    Change-Id: I9b8c680ea75904af90c797a06bbb1f4df19e34b6
+    Reviewed-on: https://go-review.googlesource.com/36978
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/symtab.go | 31 +++++++++++++++++++++----------
- 1 file changed, 21 insertions(+), 10 deletions(-)
+ src/cmd/link/internal/ld/data.go |  6 ----
+ src/cmd/link/internal/ld/ldpe.go |  1 +
+ src/cmd/link/internal/ld/pe.go   | 62 +++++++++++++++++++++-------------------
+ 3 files changed, 33 insertions(+), 36 deletions(-)

@@ -1,39 +1,25 @@
-commit 5a9b6432ec8b9199ce9fce9387e94195138b313f
-Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
-Date:   Mon Oct 19 19:19:17 2020 +0200
+commit 3d432b6c4b86a5fcd1ccce0f914193b8e0e9e79e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 21 02:29:49 2022 -0700
 
-    os: make Chtimes accept empty time values to skip file time modification
+    [dev.unified] cmd/compile: plumb rtype through for OMAPLIT
     
-    Empty time value time.Time{} leaves the corresponding time of the file
-    unchanged.
+    OMAPLIT gets lowered into a bunch of OINDEXMAP operations, which in
+    general may require a *runtime._type argument. This CL adds
+    CompLitExpr.RType, updates the GOEXPERIMENT=unified frontend to start
+    setting it, and updates walk to propagate it through to any generated
+    OINDEXMAP operations.
     
-    Fixes #32558
-    
-    Change-Id: I1aff42f30668ff505ecec2e9509d8f2b8e4b1b6a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/219638
+    Change-Id: I278e7e8e615ea6d01f65a5eba6d6fc8e00045735
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413360
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/internal/syscall/unix/at_aix.go              |   1 +
- src/internal/syscall/unix/at_js.go               |  13 +++
- src/internal/syscall/unix/at_solaris.go          |   2 +
- src/internal/syscall/unix/at_sysnum_darwin.go    |   2 +
- src/internal/syscall/unix/at_sysnum_dragonfly.go |   2 +
- src/internal/syscall/unix/at_sysnum_freebsd.go   |   2 +
- src/internal/syscall/unix/at_sysnum_linux.go     |   2 +
- src/internal/syscall/unix/at_sysnum_netbsd.go    |   2 +
- src/internal/syscall/unix/at_sysnum_openbsd.go   |   2 +
- src/internal/syscall/unix/at_wasip1.go           |  13 +++
- src/os/file_plan9.go                             |   7 ++
- src/os/file_posix.go                             |  12 ++-
- src/os/file_unix.go                              |   2 +
- src/os/file_windows.go                           |   2 +
- src/os/os_test.go                                | 122 +++++++++++++++++++++++
- src/syscall/fs_js.go                             |  14 +++
- src/syscall/fs_wasip1.go                         |  20 +++-
- src/syscall/syscall_windows.go                   |  20 +++-
- 18 files changed, 232 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ir/expr.go             | 1 +
+ src/cmd/compile/internal/noder/reader.go        | 5 +++++
+ src/cmd/compile/internal/reflectdata/helpers.go | 8 ++------
+ src/cmd/compile/internal/walk/complit.go        | 3 +++
+ src/cmd/compile/internal/walk/order.go          | 1 +
+ 5 files changed, 12 insertions(+), 6 deletions(-)

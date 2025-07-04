@@ -1,18 +1,31 @@
-commit 2cb9e116d39176bd8a93609c63b175ac09eacea9
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Feb 28 10:19:43 2022 -0800
+commit 0816511d3b861a802fd6c04292ad6debd3db1831
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 3 16:06:07 2021 -0400
 
-    doc/go1.18: warn about possible breakage of 1.18 generic code
+    all: update x/crypto to pull in CL 316109
     
-    The Go 1 compatibility guarantee permits us to break code if there is
-    a specification error or a bug. Emphasize that for generics.
+    Because x/crypto is now lazy, this removes the remaining checksums for
+    older-than-selected dependencies from src/go.sum.
     
-    Change-Id: I8379a14cdab9f63bb747e961ca12d1adecfc2eb4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/388454
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    It also removes a significant fraction of the irrelevant checksums
+    from src/cmd/go.sum.
+    
+    For #36460
+    Updates #36905
+    
+    Change-Id: I33af5fc638aa1d1c66df3a1d86542912e95a7f50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316451
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
 
- doc/go1.18.html | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  6 +--
+ src/cmd/vendor/modules.txt                         |  4 +-
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         | 10 +----
+ src/vendor/golang.org/x/crypto/cryptobyte/asn1.go  | 52 ++++++++++++++++++++++
+ .../golang.org/x/crypto/poly1305/sum_ppc64le.s     | 18 ++++----
+ src/vendor/modules.txt                             |  4 +-
+ 8 files changed, 71 insertions(+), 27 deletions(-)

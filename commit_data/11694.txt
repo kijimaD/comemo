@@ -1,16 +1,15 @@
-commit 3ee208533e4da4e2f642c51d3aa753be49c6180b
+commit 00134fe8ef917f17fc87076badbc54c086f74589
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 7 23:37:15 2012 -0500
+Date:   Tue Feb 7 23:37:05 2012 -0500
 
-    strconv: handle very large inputs
+    fmt: diagnose invalid verb applied to pointer
     
-    Fixes #2642.
+    Fixes #2851.
     
-    R=remyoudompheng, r, r
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5639052
+    https://golang.org/cl/5644048
 
- src/pkg/strconv/atof.go      | 10 +++++++---
- src/pkg/strconv/atof_test.go | 15 +++++++++++++++
- src/pkg/strconv/decimal.go   | 41 ++++++++++++++++++++++++++++-------------
- 3 files changed, 50 insertions(+), 16 deletions(-)
+ src/pkg/fmt/fmt_test.go |  9 +++++++++
+ src/pkg/fmt/print.go    | 30 ++++++++++++------------------
+ 2 files changed, 21 insertions(+), 18 deletions(-)

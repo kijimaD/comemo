@@ -1,20 +1,23 @@
-commit 9a3f22be7a3a28bd8f33a86925e2b05f2314ead2
-Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
-Date:   Mon Apr 27 15:23:37 2020 -0400
+commit 5b17b6575036e1e4f4c6a2cf75e34f7ada806624
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 3 21:04:48 2019 -0500
 
-    hash/crc32: simplify hasVX checking on s390x
+    crypto/tls: implement Certificate.SupportedSignatureAlgorithms
     
-    Originally, we use an assembly function that returns a boolean result to
-    tell whether the machine has vector facility or not. It is now no longer
-    needed when we can directly use cpu.S390X.HasVX variable. This CL
-    also removes the last occurence of hasVectorFacility function on s390x.
+    This will let applications stop crypto/tls from using a certificate key
+    with an algorithm that is not supported by its crypto.Signer, like
+    hardware backed keys that can't do RSA-PSS.
     
-    Change-Id: Id20cb746c21eacac5e13344b362e2d87adfe4317
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230337
-    Reviewed-by: Michael Munday <mike.munday@ibm.com>
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Fixes #28660
+    
+    Change-Id: I294cc06bddf813fff35c5107540c4a1788e1dace
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205062
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/hash/crc32/crc32_s390x.go |  8 ++++----
- src/hash/crc32/crc32_s390x.s  | 22 ----------------------
- 2 files changed, 4 insertions(+), 26 deletions(-)
+ src/crypto/tls/auth.go      | 37 ++++++++++++++++++++++++++++---------
+ src/crypto/tls/auth_test.go | 15 +++++++++++++++
+ src/crypto/tls/common.go    |  3 +++
+ src/crypto/tls/tls_test.go  | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 91 insertions(+), 9 deletions(-)

@@ -1,21 +1,32 @@
-commit e581ec07eed006e7a54306457ff8d9931b2aae7c
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Sep 7 10:51:14 2021 -0700
+commit b0b0d9828308368e9fbd59ec5de55801f568f720
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Thu Nov 12 21:19:52 2020 -0800
 
-    cmd/compile: fix lazy loading in reader2
+    runtime: linux iscgo support for not blocking nptl signals
     
-    Calling reader2.obj fully loads the referenced object, which is
-    necessary in general; but for reading the package index, we just need
-    to setup the name->index mapping. This CL adds this, so that lazy
-    loading works as intended.
+    Under linux+cgo, OS threads are launched via pthread_create().
+    This abstraction, under linux, requires we avoid blocking
+    signals 32,33 and 34 indefinitely because they are needed to
+    reliably execute POSIX-semantics threading in glibc and/or musl.
     
-    Change-Id: Ie51d59e2247d99b46f9dc69fba7ce89e2584b7c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348011
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    When blocking signals the go runtime generally re-enables them
+    quickly. However, when a thread exits (under cgo, this is
+    via a return from mstart()), we avoid a deadlock in C-code by
+    not blocking these three signals.
+    
+    Fixes #42494
+    
+    Change-Id: I02dfb2480a1f97d11679e0c4b132b51bddbe4c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269799
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/cmd/compile/internal/noder/reader2.go | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ src/runtime/os_js.go              |  2 +-
+ src/runtime/os_linux.go           | 18 ++++++++++++++++++
+ src/runtime/os_plan9.go           |  2 +-
+ src/runtime/os_windows.go         |  2 +-
+ src/runtime/proc.go               |  8 ++++----
+ src/runtime/signal_unix.go        | 19 +++++++++++++++----
+ src/syscall/syscall_linux_test.go | 13 +++++++++++++
+ 7 files changed, 53 insertions(+), 11 deletions(-)

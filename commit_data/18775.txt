@@ -1,16 +1,13 @@
-commit 130458470a11d1f16908d7db7fe683b621541a36
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Mar 6 13:16:14 2014 +0400
+commit d957169cf841dcf120b1095abfdb9a8a3a7f55e1
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 6 01:19:16 2014 -0500
 
-    run.bash: explain why we set GOMAXPROCS for runtime test
-    Fixes #7459.
+    api: add NetBSD/ARM EABI exceptions.
     
-    LGTM=rsc
-    R=rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/71060044
+    https://golang.org/cl/71940043
 
- src/run.bash |  2 ++
- src/run.bat  | 10 +++++++++-
- src/run.rc   |  2 ++
- 3 files changed, 13 insertions(+), 1 deletion(-)
+ api/except.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

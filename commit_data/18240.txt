@@ -1,14 +1,12 @@
-commit 3ec60c253d9d419eb7a35a40e01315e3d1497465
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Jan 14 10:39:50 2014 -0500
+commit fa6ffc6c9b8bf0945921c8710f3c0d74d1af0126
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 14 16:56:22 2014 +1100
 
-    runtime: emit collection stacks in GODEBUG=allocfreetrace mode
+    cmd/api: ensure GOPATH always points to the correct go.tools
     
-    R=khr, dvyukov
+    R=golang-codereviews, dave, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/51830043
+    https://golang.org/cl/51000043
 
- src/pkg/runtime/malloc.h  |  1 +
- src/pkg/runtime/mgc0.c    |  3 +++
- src/pkg/runtime/mprof.goc | 20 ++++++++++++++++----
- 3 files changed, 20 insertions(+), 4 deletions(-)
+ src/cmd/api/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

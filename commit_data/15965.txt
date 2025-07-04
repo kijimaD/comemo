@@ -1,19 +1,16 @@
-commit 7c79910cb9abbac2f525c2b2ecad188ff27eb8af
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Mar 27 20:33:17 2013 +0100
+commit 40cd845eea345d7ae84324c8d37cd0680b243773
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 27 10:07:22 2013 -0700
 
-    cmd/gc: fix race instrumentation of append and type switches.
+    net/http: improve test leak checker flakiness
     
-    The remaining issues are about runtime and sync package
-    instrumentation.
+    And make it have more useful output on failure.
     
-    Update #4228
+    Update #5005
     
-    R=dvyukov, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8041043
+    https://golang.org/cl/8016046
 
- src/cmd/gc/racewalk.c                       | 25 ++++++++--------
- src/pkg/runtime/race/testdata/mop_test.go   | 46 +++++++++++++++++++++++++++++
- src/pkg/runtime/race/testdata/slice_test.go |  3 +-
- 3 files changed, 59 insertions(+), 15 deletions(-)
+ src/pkg/net/http/z_last_test.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

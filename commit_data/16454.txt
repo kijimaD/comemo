@@ -1,14 +1,17 @@
-commit 7f0ee023baf8dca4b328c0a1c1fecfa45b555923
+commit 71f061043df89b1c1150b4ed2bf2d70a78b2af0d
 Author: Keith Randall <khr@golang.org>
-Date:   Fri May 31 21:44:32 2013 -0700
+Date:   Fri May 31 20:43:33 2013 -0700
 
-    runtime: revert of CL 8852047: do hashmap grow work during reads.
-    seems to break freebsd-386.
+    runtime/gc: Run garbage collector on g0 stack
+    instead of regular g stack. We do this so that the g stack
+    we're currently running on is no longer changing.  Cuts
+    the root set down a bit (g0 stacks are not scanned, and
+    we don't need to scan gc's internal state).  Also an
+    enabler for copyable stacks.
     
-    R=golang-dev, dave
+    R=golang-dev, cshapiro, khr, 0xe2.0x9a.0x9b, dvyukov, rsc, iant
     CC=golang-dev
-    https://golang.org/cl/9915047
+    https://golang.org/cl/9754044
 
- src/pkg/runtime/hashmap.c      | 273 +++++++++++++++++++----------------------
- src/pkg/runtime/hashmap_fast.c |  34 +++--
- 2 files changed, 143 insertions(+), 164 deletions(-)
+ src/pkg/runtime/mgc0.c | 122 +++++++++++++++++++++++++++++--------------------
+ 1 file changed, 72 insertions(+), 50 deletions(-)

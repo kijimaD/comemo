@@ -1,20 +1,16 @@
-commit ba2c9fef035da3ef93e0eb0dbf4d583663829139
-Author: Jake Ciolek <jakub@ciolek.dev>
-Date:   Sat Oct 9 17:57:06 2021 +0200
+commit 7cc6de59f25911ff786a4d54420f2ddbf21c00f2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 3 11:53:35 2021 -0500
 
-    cmd/compile: mark NOT as an op that doesn't clobber flags on i386/AMD64
+    [dev.regabi] runtime: don't mark rt0_go ABIInternal
     
-    NOT does not affect any FLAGS register values on i386/AMD64 so we do not
-    need to mark it as an Op that clobbers them.
+    rt0_go is not actually ABIInternal, and it actually has callers
+    (e.g. _rt0_amd64).
     
-    Change-Id: I6d99cad49cfa2568b01e58190256582b18fb3b7b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354831
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Id730176e620ad9f443e6bfca6ded81a1367531ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289193
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go   | 2 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
- src/cmd/compile/internal/ssa/opGen.go        | 3 ---
- 3 files changed, 3 insertions(+), 6 deletions(-)
+ src/runtime/asm_amd64.s | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

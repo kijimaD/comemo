@@ -1,17 +1,32 @@
-commit 8f6884393d3d9026f3398d1e96c480a0368cc139
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 4 10:16:44 2022 -0400
+commit a1a6540bf1c38c2c8ad7fced983d2e3206ab1d2b
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Sep 2 18:39:58 2021 -0400
 
-    sync/atomic: remove test64err in test
+    go/types: implement deduplication of instances using the Environment
     
-    This check was for very old QEMU, added in 2011 in
-    https://codereview.appspot.com/4313051/.
-    It may be safe to delete now. Let's find out.
-    In a separate CL for easy rollback.
+    Implement deduplication of type instances via the Environment by
+    recording a map of unique IDs for *Named types. This avoids an issue
+    with the existing type hash, where qualified names alone were not
+    sufficient to differentiate two *Named types that have the same fully
+    qualified name but which are distinct pointers. It also allows us to
+    drop the scope accounting for local types.
     
-    Change-Id: Ic99f8cf27ee348b8ffb1ef0ee36cc1c537dde722
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/403978
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    A subtle bug is also fixed in subst.go, where the instance t was passed
+    to typeHash rather than t.orig.
+    
+    Change-Id: I85639ccc1c9bfee470babd2fc85375484c8ed0b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344390
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/sync/atomic/atomic_test.go | 87 ++----------------------------------------
- 1 file changed, 4 insertions(+), 83 deletions(-)
+ src/go/types/check.go            |  4 +--
+ src/go/types/decl.go             |  2 +-
+ src/go/types/environment.go      | 56 +++++++++++++++++++++++++++++++
+ src/go/types/instantiate.go      | 38 ++++++++-------------
+ src/go/types/instantiate_test.go | 72 ++++++++++++++++++++++++++++++++++++++++
+ src/go/types/named.go            | 22 +++++++-----
+ src/go/types/subst.go            | 44 ++++++++++++------------
+ src/go/types/typestring.go       | 55 ++++++++++++------------------
+ 8 files changed, 203 insertions(+), 90 deletions(-)

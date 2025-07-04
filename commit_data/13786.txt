@@ -1,21 +1,20 @@
-commit aecf5033dfc972f9989b6681ab0f00e346c60e60
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Sep 11 08:47:30 2012 +1000
+commit b29d641b3a379b2fb0f88ceed066f043acab7c33
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 10 14:54:52 2012 -0700
 
-    doc: Don't imply incorrect guarantees about data races.
+    exp/types/staging: typechecker API
     
-    A race between
-            a = "hello, world"
-    and
-            print(a)
-    is not guaranteed to print either "hello, world" or "".
-    Its behaviour is undefined.
+    First set of type checker files for review.
+    The primary concern here is the typechecker
+    API (types.go).
     
-    Fixes #4039.
-    
-    R=rsc
-    CC=dvyukov, gobot, golang-dev, r
-    https://golang.org/cl/6489075
+    R=rsc, adonovan, r, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/6490089
 
- doc/go_mem.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/exp/types/staging/exprstring.go |  98 +++++++++++++
+ src/pkg/exp/types/staging/predicates.go | 210 ++++++++++++++++++++++++++++
+ src/pkg/exp/types/staging/types.go      | 239 ++++++++++++++++++++++++++++++++
+ src/pkg/exp/types/staging/typestring.go | 148 ++++++++++++++++++++
+ src/pkg/exp/types/staging/universe.go   | 159 +++++++++++++++++++++
+ 5 files changed, 854 insertions(+)

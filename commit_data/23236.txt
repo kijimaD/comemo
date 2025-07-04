@@ -1,34 +1,18 @@
-commit 03410f675808ad51fa1e1fd153fd3d182ebcb217
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Jun 3 16:16:32 2015 -0700
+commit 7bebccb9725977e7730f0ff11db8c6641902d0b3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 1 15:10:24 2015 +0000
 
-    runtime: fix TestFixedGOROOT to properly restore the GOROOT env var after test
+    Revert "runtime/pprof: write heap statistics to heap profile always"
     
-    Otherwise subsequent tests won't see any modified GOROOT.
+    This reverts commit c26fc88d56ee4f93c98fc8923fe256121e6199cf.
     
-    With this CL I can move my GOROOT, set GOROOT to the new location, and
-    the runtime tests pass. Previously the crash_tests would instead look
-    for the GOROOT baked into the binary, instead of the env var:
+    This broke pprof. See the comments at 9491.
     
-    --- FAIL: TestGcSys (0.01s)
-            crash_test.go:92: building source: exit status 2
-                    go: cannot find GOROOT directory: /home/bradfitz/go
-    --- FAIL: TestGCFairness (0.01s)
-            crash_test.go:92: building source: exit status 2
-                    go: cannot find GOROOT directory: /home/bradfitz/go
-    --- FAIL: TestGdbPython (0.07s)
-            runtime-gdb_test.go:64: building source exit status 2
-                    go: cannot find GOROOT directory: /home/bradfitz/go
-    --- FAIL: TestLargeStringConcat (0.01s)
-            crash_test.go:92: building source: exit status 2
-                    go: cannot find GOROOT directory: /home/bradfitz/go
-    
-    Update #10029
-    
-    Change-Id: If91be0f04d3acdcf39a9e773a4e7905a446bc477
-    Reviewed-on: https://go-review.googlesource.com/10685
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ic99ce026e86040c050a9bf0ea3024a1a42274ad1
+    Reviewed-on: https://go-review.googlesource.com/9565
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/env_test.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ doc/go1.5.txt              |  1 -
+ src/runtime/pprof/pprof.go | 56 ++++++++++++++++++++++++----------------------
+ 2 files changed, 29 insertions(+), 28 deletions(-)

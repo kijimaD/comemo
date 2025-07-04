@@ -1,78 +1,21 @@
-commit 6e97c71cb7ef2fe139abb9cd07a1aceec16711f4
+commit 46085c4b3620fb3be29ea6ecc6206ffdb963f8bf
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Apr 17 13:52:01 2017 -0700
+Date:   Tue Feb 7 09:31:58 2017 -0800
 
-    cmd/internal/obj: split Link.hash into version 0 and 1
+    cmd/compile: cmd/internal/obj: cull dead code
     
-    Though LSym.Version is an int, it can only have the value 0 or 1.
-    Using that, split Link.hash into two maps, one for version 0
-    (which is far more common) and one for version 1.
-    This lets use just the name for lookups,
-    which is both faster and more compact.
-    This matters because Link.hash map lookups are frequent,
-    and will be contended once the backend is concurrent.
+    This code is dead as a result of
     
-    name        old time/op       new time/op       delta
-    Template          194ms ± 3%        192ms ± 5%  -1.46%  (p=0.000 n=47+49)
-    Unicode          84.5ms ± 3%       83.8ms ± 3%  -0.81%  (p=0.011 n=50+49)
-    GoTypes           543ms ± 2%        545ms ± 4%    ~     (p=0.566 n=46+49)
-    Compiler          2.48s ± 2%        2.48s ± 3%    ~     (p=0.706 n=47+50)
-    SSA               5.94s ± 3%        5.98s ± 2%  +0.55%  (p=0.040 n=49+50)
-    Flate             119ms ± 6%        119ms ± 4%    ~     (p=0.681 n=48+47)
-    GoParser          145ms ± 4%        145ms ± 3%    ~     (p=0.662 n=47+49)
-    Reflect           348ms ± 3%        344ms ± 3%  -1.17%  (p=0.000 n=47+47)
-    Tar               105ms ± 4%        104ms ± 3%    ~     (p=0.155 n=50+47)
-    XML               197ms ± 2%        197ms ± 3%    ~     (p=0.666 n=49+49)
-    [Geo mean]        332ms             331ms       -0.37%
+    * removing the Follow pass
+    * moving rotation detection from walk to ssa
     
-    name        old user-time/op  new user-time/op  delta
-    Template          230ms ±10%        226ms ±10%  -1.85%  (p=0.041 n=50+50)
-    Unicode           104ms ± 6%        103ms ± 5%    ~     (p=0.076 n=49+49)
-    GoTypes           707ms ± 4%        705ms ± 5%    ~     (p=0.521 n=50+50)
-    Compiler          3.30s ± 3%        3.33s ± 4%  +0.76%  (p=0.003 n=50+49)
-    SSA               8.17s ± 4%        8.23s ± 3%  +0.66%  (p=0.030 n=50+49)
-    Flate             139ms ± 6%        138ms ± 8%    ~     (p=0.184 n=49+48)
-    GoParser          174ms ± 5%        172ms ± 6%    ~     (p=0.107 n=48+49)
-    Reflect           431ms ± 8%        420ms ± 5%  -2.57%  (p=0.000 n=50+46)
-    Tar               119ms ± 6%        118ms ± 7%  -0.95%  (p=0.033 n=50+49)
-    XML               236ms ± 4%        236ms ± 4%    ~     (p=0.935 n=50+48)
-    [Geo mean]        410ms             407ms       -0.67%
-    
-    name        old alloc/op      new alloc/op      delta
-    Template         38.7MB ± 0%       38.6MB ± 0%  -0.29%  (p=0.008 n=5+5)
-    Unicode          29.8MB ± 0%       29.7MB ± 0%  -0.24%  (p=0.008 n=5+5)
-    GoTypes           113MB ± 0%        113MB ± 0%  -0.29%  (p=0.008 n=5+5)
-    Compiler          462MB ± 0%        462MB ± 0%  -0.12%  (p=0.008 n=5+5)
-    SSA              1.27GB ± 0%       1.27GB ± 0%  -0.05%  (p=0.008 n=5+5)
-    Flate            25.2MB ± 0%       25.1MB ± 0%  -0.37%  (p=0.008 n=5+5)
-    GoParser         31.7MB ± 0%       31.6MB ± 0%    ~     (p=0.056 n=5+5)
-    Reflect          77.5MB ± 0%       77.2MB ± 0%  -0.38%  (p=0.008 n=5+5)
-    Tar              26.4MB ± 0%       26.3MB ± 0%    ~     (p=0.151 n=5+5)
-    XML              41.9MB ± 0%       41.9MB ± 0%  -0.20%  (p=0.032 n=5+5)
-    [Geo mean]       74.5MB            74.3MB       -0.23%
-    
-    name        old allocs/op     new allocs/op     delta
-    Template           378k ± 1%         377k ± 1%    ~     (p=0.690 n=5+5)
-    Unicode            321k ± 0%         322k ± 0%    ~     (p=0.595 n=5+5)
-    GoTypes           1.14M ± 0%        1.14M ± 0%    ~     (p=0.310 n=5+5)
-    Compiler          4.25M ± 0%        4.25M ± 0%    ~     (p=0.151 n=5+5)
-    SSA               9.84M ± 0%        9.84M ± 0%    ~     (p=0.841 n=5+5)
-    Flate              232k ± 1%         232k ± 0%    ~     (p=0.690 n=5+5)
-    GoParser           315k ± 1%         315k ± 1%    ~     (p=0.841 n=5+5)
-    Reflect            970k ± 0%         970k ± 0%    ~     (p=0.841 n=5+5)
-    Tar                248k ± 0%         248k ± 1%    ~     (p=0.841 n=5+5)
-    XML                389k ± 0%         389k ± 0%    ~     (p=1.000 n=5+5)
-    [Geo mean]         724k              724k       +0.01%
-    
-    Updates #15756
-    
-    Change-Id: I2646332e89f0444ca9d5a41d7172537d904ed636
-    Reviewed-on: https://go-review.googlesource.com/41050
+    Change-Id: I14599c85bedb4e3148347b547e724187920182c4
+    Reviewed-on: https://go-review.googlesource.com/36484
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/internal/obj/line_test.go |  3 ++-
- src/cmd/internal/obj/link.go      |  8 ++------
- src/cmd/internal/obj/sym.go       | 19 ++++++++++++++-----
- 3 files changed, 18 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go  |  9 ---------
+ src/cmd/compile/internal/gc/walk.go | 31 -------------------------------
+ src/cmd/internal/obj/pass.go        | 11 -----------
+ 3 files changed, 51 deletions(-)

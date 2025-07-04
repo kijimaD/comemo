@@ -1,18 +1,41 @@
-commit bced369a50acf50358f52e5c9c0a30d8bdb707ef
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Jul 1 09:27:46 2021 -0400
+commit 4629f6a51da5afabbebe9616f65fbfe0675d6039
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 28 16:14:11 2020 -0800
 
-    cmd/link: minor code cleanup in dwarf gen
+    [dev.regabi] cmd/compile: merge {Selector,CallPart,Method}Expr
     
-    Minor code cleanup to get rid of a few unused parameters and return
-    values in the linker's dwarf generation code. No functional changes.
+    These three expression nodes all represent the same syntax, and so
+    they're represented the same within types2. And also they're not
+    handled that meaningfully differently throughout the rest of the
+    compiler to merit unique representations.
     
-    Change-Id: I1a68ebe0f08d8d32ca7adfdd2fb9db573a4fd5f5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/332070
-    Trust: Than McIntosh <thanm@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Method expressions are somewhat unique today that they're very
+    frequently turned into plain function names. But eventually that can
+    be handled by a post-typecheck desugaring phase that reduces the
+    number of redundant AST forms.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I20df91bbd0d885c1f18ec67feb61ae1558670719
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280636
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/link/internal/ld/dwarf.go | 133 ++++++++++++++++++--------------------
- 1 file changed, 62 insertions(+), 71 deletions(-)
+ src/cmd/compile/internal/escape/escape.go       |  8 ++--
+ src/cmd/compile/internal/inline/inl.go          | 11 +++--
+ src/cmd/compile/internal/ir/expr.go             | 60 ++++++-------------------
+ src/cmd/compile/internal/ir/fmt.go              | 21 +--------
+ src/cmd/compile/internal/ir/node_gen.go         | 32 -------------
+ src/cmd/compile/internal/staticinit/sched.go    |  8 ++--
+ src/cmd/compile/internal/typecheck/expr.go      |  6 +--
+ src/cmd/compile/internal/typecheck/func.go      | 16 +++++--
+ src/cmd/compile/internal/typecheck/iexport.go   | 21 +--------
+ src/cmd/compile/internal/typecheck/typecheck.go | 15 +++----
+ src/cmd/compile/internal/walk/closure.go        |  4 +-
+ src/cmd/compile/internal/walk/complit.go        |  4 +-
+ src/cmd/compile/internal/walk/expr.go           |  4 +-
+ src/cmd/compile/internal/walk/order.go          |  2 +-
+ 14 files changed, 58 insertions(+), 154 deletions(-)

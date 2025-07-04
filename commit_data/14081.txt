@@ -1,12 +1,29 @@
-commit d5b570cdb105d8ea3c6a86c603949d3a9de647f3
+commit 5224875055d5738f18f194b4d5dbfb5babd33a21
 Author: Robert Griesemer <gri@golang.org>
-Date:   Sun Oct 7 18:16:04 2012 -0700
+Date:   Sun Oct 7 18:01:43 2012 -0700
 
-    fix build: use temporary variable to avoid compiler error
+    /exp/types/staging: expression and statement type checking
     
-    R=r
+    Still lots of pieces missing, but basic framework working.
+    Lots of tests.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6612066
+    https://golang.org/cl/6594054
 
- src/pkg/exp/types/staging/types_test.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/exp/types/staging/conversions.go           |  39 +
+ src/pkg/exp/types/staging/expr.go                  | 793 +++++++++++++++++++++
+ src/pkg/exp/types/staging/stmt.go                  | 465 ++++++++++++
+ src/pkg/exp/types/staging/stubs.go                 |  55 --
+ src/pkg/exp/types/staging/testdata/const0.src      | 209 ++++++
+ src/pkg/exp/types/staging/testdata/conversions.src |  18 +
+ src/pkg/exp/types/staging/testdata/decls0.src      | 168 +++++
+ src/pkg/exp/types/staging/testdata/decls1.src      | 123 ++++
+ src/pkg/exp/types/staging/testdata/decls2a.src     |  66 ++
+ src/pkg/exp/types/staging/testdata/decls2b.src     |  15 +
+ src/pkg/exp/types/staging/testdata/expr0.src       | 135 ++++
+ src/pkg/exp/types/staging/testdata/expr1.src       |   7 +
+ src/pkg/exp/types/staging/testdata/expr2.src       |   7 +
+ src/pkg/exp/types/staging/testdata/expr3.src       |  43 ++
+ src/pkg/exp/types/staging/testdata/stmt0.src       |  42 ++
+ 15 files changed, 2130 insertions(+), 55 deletions(-)

@@ -1,15 +1,12 @@
-commit efc806e92e9f7d591b31cdd0db4df4e626323d01
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Dec 9 17:07:44 2015 +0000
+commit b43773192c6a9b4f7ce781028d42ed3efa4097cb
+Author: Brian Gitonga Marete <bgm@google.com>
+Date:   Fri Oct 9 13:54:35 2015 +0100
 
-    net/http: clarify some RoundTripper behaviors
+    C: Add Brian Gitonga Marete's Google email address (Google CLA).
     
-    Fixes #12796
-    Updates #13444
-    
-    Change-Id: I56840c0baf9b32a683086a80f5db1c5ea0a7aedf
-    Reviewed-on: https://go-review.googlesource.com/17680
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I51edc77ad4621ad8f3908e69dcb7b4eab086b5fe
+    Reviewed-on: https://go-review.googlesource.com/15680
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/client.go | 27 +++++++++++++++++----------
- 1 file changed, 17 insertions(+), 10 deletions(-)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

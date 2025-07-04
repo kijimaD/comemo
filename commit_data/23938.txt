@@ -1,17 +1,13 @@
-commit 384789e82be30c0fe8ba3c73721b658512423fcd
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jul 31 10:49:01 2015 -0700
+commit d779b20cd2f435709cfbbbfa8af88f5e556866d8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 23 16:44:06 2015 -0700
 
-    cmd/objdump: don't run TestDisasmExtld if cgo is not enabled
+    [dev.ssa] cmd/compile/ssa: improve comments, logging, and debug output
     
-    The test uses external linking mode, which is probably not available
-    if cgo does not work.
-    
-    Fixes #11969.
-    
-    Change-Id: Id1c2828cd2540391e16b422bf51674ba6ff084b0
-    Reviewed-on: https://go-review.googlesource.com/13005
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Id949db82ddaf802c1aa245a337081d4d46fd914f
+    Reviewed-on: https://go-review.googlesource.com/11380
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/cmd/objdump/objdump_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/ssa/cse.go   | 3 ++-
+ src/cmd/compile/internal/ssa/value.go | 6 +++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

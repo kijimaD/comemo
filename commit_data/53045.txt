@@ -1,40 +1,19 @@
-commit e0ceba8139c81d612ab6226e057fb3b01555b7f9
-Author: eric fang <eric.fang@arm.com>
-Date:   Fri May 5 01:07:25 2023 +0000
+commit e3cdc981c802350780a3eec109980acf28fc8746
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 29 17:22:15 2022 -0700
 
-    cmd/compile: enhance tighten pass for memory values
+    [dev.unified] cmd/compile/internal/walk: fix typo in debug print
     
-    [This is a roll-forward of CL 458755, which was reverted due to make.bash
-    being broken on GOAMD64=v3. But it turned out that the problem was caused
-    by wrong bswap/load rewrite rules, and it was fixed in CL 492616.]
+    We want to print `init` here. We called `ir.TakeInit(r)` earlier, so
+    `r.Init()` always evaluates to nil at this point.
     
-    This CL enhances the tighten pass. Previously if a value has memory arg,
-    then the tighten pass won't move it, actually if the memory state is
-    consistent among definition and use block, we can move the value. This
-    CL optimizes this case. This is useful for the following situation:
-    b1:
-      x = load(...mem)
-      if(...) goto b2 else b3
-    b2:
-      use(x)
-    b3:
-      some_op_not_use_x
-    
-    For the micro-benchmark mentioned in #56620, the performance improvement
-    is about 15%.
-    There's no noticeable performance change in the go1 benchmark.
-    
-    Fixes #56620
-    
-    Change-Id: I36ea68bed384986cd3ae81cb9e6efe84bb213adc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492895
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I196fdcfbf5e63c80b7bff0cce1881c9e58302501
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415239
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ssa/regalloc.go |   7 ++-
- src/cmd/compile/internal/ssa/tighten.go  | 105 +++++++++++++++++++++++++++++--
- test/tighten.go                          |  22 +++++++
- 3 files changed, 127 insertions(+), 7 deletions(-)
+ src/cmd/compile/internal/walk/order.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

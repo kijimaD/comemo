@@ -1,28 +1,17 @@
-commit a6141ebd3f33c1f4330a0ce3507f686b7fd64489
-Author: Mohit Agarwal <mohit@sdf.org>
-Date:   Mon Oct 24 22:39:04 2016 +0530
+commit 863ca99415915b19218a36e7c4bf836c135ca00c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 21 11:59:40 2016 -0700
 
-    math/big: fix alignment in Float.Parse docs
+    cmd/vet: fix mips64le arch name in asmdecl check
     
-    Leading spaces in a couple of lines instead of tabs cause those to be
-    misaligned (as seen on <https://golang.org/pkg/math/big/#Float.Parse>):
+    Updates #11041
     
-    <<<
-            number   = [ sign ] [ prefix ] mantissa [ exponent ] | infinity .
-            sign     = "+" | "-" .
-         prefix   = "0" ( "x" | "X" | "b" | "B" ) .
-            mantissa = digits | digits "." [ digits ] | "." digits .
-            exponent = ( "E" | "e" | "p" ) [ sign ] digits .
-            digits   = digit { digit } .
-            digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
-         infinity = [ sign ] ( "inf" | "Inf" ) .
-    >>>
-    
-    Replace the leading spaces with tabs so that those align well.
-    
-    Change-Id: Ibba6cd53f340001bbd929067dc587feb071dc3bd
-    Reviewed-on: https://go-review.googlesource.com/31830
+    Change-Id: Ic6df8ef25b7cf280db523950cd3640b060ad1a9b
+    Reviewed-on: https://go-review.googlesource.com/27157
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/math/big/floatconv.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/vet/asmdecl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,52 +1,17 @@
-commit 5f1efe738be296cdbc586348af92eab621d068f5
+commit 35d3987dbc49d0e2cae4e0cf70dabb62e62cbc50
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Feb 11 22:27:49 2015 -0500
+Date:   Mon Jan 19 14:41:34 2015 -0500
 
-    cmd/ld: make cmd/ld a real library
+    [dev.cc] cmd/objwriter: implement using cmd/internal/obj
     
-    Make cmd/ld a real library invoked by the individual linkers.
-    There are no reverse symbol references anymore
-    (symbols referred to in cmd/ld but defined in cmd/5l etc).
+    New code but nothing interesting.
+    It's nearly all parsing code for the format written by liblink.
+    The interesting part is the call to obj.Writeobjdirect, which
+    is the Go translation of the C liblink writeobjdirect function.
     
-    This means that in principle we could do an automatic
-    conversion of these to Go, as a stopgap until cmd/link is done
-    or as a replacement for cmd/link.
-    
-    Change-Id: I4a94570257a3a7acc31601bfe0fad9dea0aea054
-    Reviewed-on: https://go-review.googlesource.com/4649
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I2e9e755e7a3c999302e2ef2c7475c0af9c5acdd2
+    Reviewed-on: https://go-review.googlesource.com/3047
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/5l/asm.c       |  68 +++++----------
- src/cmd/5l/l.h         |  41 +--------
- src/cmd/5l/list.c      |  30 -------
- src/cmd/5l/obj.c       |  43 ++++++++-
- src/cmd/6l/asm.c       |  50 +++--------
- src/cmd/6l/l.h         |  42 ---------
- src/cmd/6l/list.c      |  27 ------
- src/cmd/6l/obj.c       |  45 ++++++++--
- src/cmd/8l/asm.c       |  51 ++---------
- src/cmd/8l/l.h         |  31 +------
- src/cmd/8l/list.c      |  27 ------
- src/cmd/8l/obj.c       |  42 ++++++++-
- src/cmd/9l/asm.c       |  44 ++--------
- src/cmd/9l/l.h         |  46 ++--------
- src/cmd/9l/obj.c       |  47 +++++++++-
- src/cmd/dist/build.go  |  11 +--
- src/cmd/ld/Makefile    |   5 ++
- src/cmd/ld/data.c      | 101 ++++++++++-----------
- src/cmd/ld/decodesym.c |  47 +++++-----
- src/cmd/ld/dwarf.c     | 177 ++++++++++++++++++-------------------
- src/cmd/ld/elf.c       | 232 +++++++++++++++++++++++++------------------------
- src/cmd/ld/elf.h       |   6 --
- src/cmd/ld/go.c        |  23 ++---
- src/cmd/ld/ldelf.c     |  23 ++---
- src/cmd/ld/ldmacho.c   |  27 +++---
- src/cmd/ld/ldpe.c      |  15 ++--
- src/cmd/ld/lib.c       |  95 ++++++++++++--------
- src/cmd/ld/lib.h       |  65 +++++++++++++-
- src/cmd/ld/macho.c     | 127 ++++++++++++++-------------
- src/cmd/ld/pcln.c      |  51 ++++++-----
- src/cmd/ld/pe.c        |  23 ++---
- src/cmd/ld/pobj.c      |  48 +++++-----
- src/cmd/ld/symtab.c    |  41 +++++----
- 33 files changed, 843 insertions(+), 908 deletions(-)
+ src/cmd/objwriter/main.go | 399 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 394 insertions(+), 5 deletions(-)

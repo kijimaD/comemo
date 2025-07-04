@@ -1,16 +1,29 @@
-commit 3283d1a2f29496d882b6edc57543446967dc8233
-Author: Tamir Duberstein <tamird@google.com>
-Date:   Tue Oct 12 16:00:23 2021 -0400
+commit 168d6a49a5ecbdd6a1eb039b2398c2821b3d3865
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Feb 8 22:37:48 2021 -0500
 
-    os: Simplify size using io.Discard.
+    [dev.regabi] go/types: use 512 bits as max. integer precision
     
-    Change-Id: Ib7cc86643a3dcae788a94472e54de171e0d655fc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/355449
-    Trust: Michael Pratt <mpratt@google.com>
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    This is a port of CL 288633 to go/types. It differs from that CL
+    in the implementation of opName, which now uses ast Exprs.
+    
+    Additionally, a couple tests had to be updated:
+     + TestEvalArith is updated to not overflow.
+     + stmt0.src is updated to have an error positioned on the '<<'
+       operator.
+    
+    Change-Id: I628357c33a1e7b0bb5bb7de5736f1fb10ce404e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290630
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/os/os_test.go | 20 ++++++++------------
- 1 file changed, 8 insertions(+), 12 deletions(-)
+ src/go/types/eval_test.go          |  2 +-
+ src/go/types/expr.go               | 46 +++++++++++++++++++++++++++++---------
+ src/go/types/stdlib_test.go        |  1 -
+ src/go/types/testdata/builtins.src | 10 ++++-----
+ src/go/types/testdata/const0.src   | 16 ++++++++-----
+ src/go/types/testdata/const1.src   | 18 ++++++++++++---
+ src/go/types/testdata/stmt0.src    |  2 +-
+ 7 files changed, 69 insertions(+), 26 deletions(-)

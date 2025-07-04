@@ -1,28 +1,22 @@
-commit 5b9207ff67bd3df43a95fd403b2e06e2aa4c33bf
-Author: Dan Scales <danscales@google.com>
-Date:   Mon Dec 13 12:42:38 2021 -0800
+commit a6d95b4508cb65070fd8471ae8018b897da7fc83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 7 18:27:08 2021 -0700
 
-    cmd/compile: avoid re-instantiating method that is already imported
+    cmd/compile/internal/types2: split out function instantiation from index expr
     
-    We can import an shape-instantiated function/method for inlining
-    purposes. If we are instantiating the methods of a instantiated type
-    that we have seen, and it happens to need a shape instantiation that we
-    have imported, then don't re-create the instantiation, since we will end
-    up with conflicting/duplicate definitions for the instantiation symbol.
-    Instead, we can just use the existing imported instantation, and enter
-    it in the instInfoMap[].
+    Also, factor out recording of type/value information after
+    evaluating an expression into an operand, so that we can
+    use it when handling instantiation expressions manually.
     
-    Fixes #50121
-    
-    Change-Id: I6eeb8786faad71106e261e113048b579afad04fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/371414
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Dan Scales <danscales@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6776e6cc243558079d6a203f2fe0a6ae0ecc33de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308371
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/stencil.go | 19 +++++++++++++++++--
- test/typeparam/issue50121.dir/a.go        | 22 ++++++++++++++++++++++
- test/typeparam/issue50121.dir/main.go     | 18 ++++++++++++++++++
- test/typeparam/issue50121.go              |  7 +++++++
- 4 files changed, 64 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/call.go  | 83 +++++++++++++++++---------------
+ src/cmd/compile/internal/types2/check.go | 27 +++++++++++
+ src/cmd/compile/internal/types2/expr.go  | 32 ++----------
+ src/cmd/compile/internal/types2/index.go | 19 +++++---
+ 4 files changed, 88 insertions(+), 73 deletions(-)

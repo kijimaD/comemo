@@ -1,25 +1,180 @@
-commit ef57834360cf69f2e8b52b32c7a05d96bf6bbba7
-Author: Johan Brandhorst <johan.brandhorst@gmail.com>
-Date:   Sun Mar 28 16:39:47 2021 +0100
+commit 986cad14e2ebf671b39623de438d13b0b5d99be6
+Merge: 04c7e32517 8994607f82
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Oct 12 15:41:05 2020 -0400
 
-    crypto/tls: fix flaky handshake cancellation tests
+    [dev.typeparams] merge master into dev.typeparams
     
-    Simplified both tests significantly by removing logic for writing
-    the client/server side messages. The flake was likely because of a
-    race between the closing of the local pipe from inside the test
-    and closing of the pipe from within the handshakeContext goroutine.
-    Wait to close the local pipe in the test until after the test
-    has finished running.
-    
-    Fixes #45106
-    Fixes #45299
-    
-    Change-Id: If7ca75aeff7df70cda03c934fa9d8513276d465d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/305250
-    Trust: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Ib2a0f85e00a7366b784e3615366ca3bde4ec8c49
 
- src/crypto/tls/handshake_client_test.go | 34 +++++++++++++++++++++++++++++++++
- src/crypto/tls/handshake_server_test.go | 26 +++++++++----------------
- 2 files changed, 43 insertions(+), 17 deletions(-)
+ doc/go1.16.html                                    |  34 ++
+ doc/install-source.html                            |  11 +-
+ misc/cgo/test/sigaltstack.go                       |   2 +-
+ misc/cgo/testcarchive/carchive_test.go             |   2 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s          |   4 +
+ src/cmd/cgo/main.go                                |  16 +
+ src/cmd/compile/internal/gc/bexport.go             |  38 +--
+ src/cmd/compile/internal/gc/const.go               |  36 +-
+ src/cmd/compile/internal/gc/export.go              |   2 +-
+ src/cmd/compile/internal/gc/fmt.go                 |  14 +-
+ src/cmd/compile/internal/gc/iexport.go             |  10 +-
+ src/cmd/compile/internal/gc/iimport.go             |   2 +-
+ src/cmd/compile/internal/gc/reflect.go             |   3 +-
+ src/cmd/compile/internal/gc/ssa.go                 | 131 ++++++--
+ src/cmd/compile/internal/gc/subr.go                |   2 +-
+ src/cmd/compile/internal/gc/swt.go                 |   2 +-
+ src/cmd/compile/internal/gc/typecheck.go           |  16 +-
+ src/cmd/compile/internal/gc/universe.go            |  10 +-
+ src/cmd/compile/internal/ssa/expand_calls.go       |  19 +-
+ src/cmd/compile/internal/ssa/func.go               |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   4 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   8 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |   8 +-
+ src/cmd/compile/internal/syntax/parser.go          |  10 +-
+ src/cmd/compile/internal/types/type.go             |  14 +-
+ src/cmd/compile/internal/x86/galign.go             |  15 +
+ src/cmd/dist/build.go                              |  11 +
+ src/cmd/dist/buildruntime.go                       |   2 +
+ src/cmd/dist/test.go                               |   8 +-
+ src/cmd/doc/doc_test.go                            |   2 +-
+ src/cmd/fix/gotypes.go                             |   6 +-
+ src/cmd/fix/main.go                                |  17 +-
+ src/cmd/fix/typecheck.go                           |   2 +-
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/alldocs.go                              |   3 +
+ src/cmd/go/go_test.go                              |   9 +-
+ src/cmd/go/internal/cfg/cfg.go                     |   3 +
+ src/cmd/go/internal/envcmd/env.go                  |  24 +-
+ src/cmd/go/internal/help/helpdoc.go                |   3 +
+ src/cmd/go/internal/load/pkg.go                    |  48 +--
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |   5 +-
+ src/cmd/go/internal/modfetch/codehost/git.go       |   7 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       |   2 +-
+ src/cmd/go/internal/modfetch/coderepo.go           |  78 ++++-
+ src/cmd/go/internal/work/build_test.go             |   6 +-
+ src/cmd/go/internal/work/exec.go                   |  55 +--
+ src/cmd/go/testdata/script/env_write.txt           |  26 ++
+ .../go/testdata/script/mod_retract_pseudo_base.txt |  62 ++++
+ src/cmd/go/testdata/script/vet_flags.txt           |  16 +-
+ src/cmd/internal/obj/arm64/a.out.go                |   4 +
+ src/cmd/internal/obj/arm64/anames.go               |   4 +
+ src/cmd/internal/obj/arm64/asm7.go                 |  84 ++++-
+ src/cmd/internal/obj/arm64/obj7.go                 |   2 +-
+ src/cmd/internal/objabi/util.go                    |   9 +-
+ src/cmd/internal/sys/supported.go                  |   7 +-
+ src/cmd/internal/sys/supported_test.go             |  18 +
+ src/cmd/link/internal/arm64/asm.go                 |  20 +-
+ src/cmd/link/internal/ld/config.go                 |  16 +-
+ src/cmd/link/internal/ld/dwarf_test.go             |  17 +
+ src/cmd/link/internal/ld/ld_test.go                |   7 +-
+ src/cmd/link/internal/ld/lib.go                    |   7 +-
+ src/cmd/link/internal/ld/macho.go                  | 102 +++---
+ src/cmd/link/internal/ld/pcln.go                   |  17 -
+ src/cmd/link/link_test.go                          |   1 +
+ src/cmd/nm/nm_cgo_test.go                          |   5 +
+ src/cmd/nm/nm_test.go                              |   3 +
+ src/cmd/pprof/pprof.go                             |   5 +-
+ .../github.com/google/pprof/driver/driver.go       |   6 +-
+ .../google/pprof/internal/binutils/binutils.go     | 132 +++++++-
+ .../google/pprof/internal/binutils/disasm.go       |  14 +-
+ .../github.com/google/pprof/internal/driver/cli.go | 129 ++++----
+ .../google/pprof/internal/driver/commands.go       | 281 +++++-----------
+ .../google/pprof/internal/driver/config.go         | 367 +++++++++++++++++++++
+ .../google/pprof/internal/driver/driver.go         | 110 +++---
+ .../google/pprof/internal/driver/driver_focus.go   |  22 +-
+ .../google/pprof/internal/driver/flamegraph.go     |   7 +-
+ .../google/pprof/internal/driver/interactive.go    | 177 ++++------
+ .../google/pprof/internal/driver/settings.go       | 157 +++++++++
+ .../google/pprof/internal/driver/webhtml.go        | 238 +++++++++++++
+ .../google/pprof/internal/driver/webui.go          | 143 ++++----
+ .../google/pprof/internal/plugin/plugin.go         |   2 +-
+ .../google/pprof/internal/report/report.go         |  11 +-
+ .../google/pprof/internal/report/source.go         |   6 +-
+ .../github.com/google/pprof/profile/profile.go     |  10 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/crypto/x509/internal/macos/corefoundation.go   |   2 +-
+ src/crypto/x509/internal/macos/corefoundation.s    |   2 +-
+ src/crypto/x509/internal/macos/security.go         |   2 +-
+ src/crypto/x509/internal/macos/security.s          |   2 +-
+ src/crypto/x509/root.go                            |   2 +-
+ ...root_cgo_darwin_amd64.go => root_cgo_darwin.go} |   0
+ .../x509/{root_darwin_amd64.go => root_darwin.go}  |   0
+ .../x509/{root_darwin_iosx.go => root_ios.go}      |   4 +-
+ .../{root_darwin_ios_gen.go => root_ios_gen.go}    |  11 +-
+ src/go/build/build.go                              | 132 ++++----
+ src/go/build/build_test.go                         | 117 ++++---
+ src/go/build/deps_test.go                          |   7 +-
+ src/hash/maphash/maphash.go                        |   5 +-
+ src/html/template/exec_test.go                     |   2 +-
+ src/internal/cfg/cfg.go                            |   1 +
+ src/internal/cpu/cpu_test.go                       |   9 +
+ src/internal/reflectlite/type.go                   |  73 +++-
+ src/internal/reflectlite/value.go                  |   9 +-
+ src/internal/testenv/testenv.go                    |  44 ++-
+ src/log/syslog/syslog_test.go                      |   7 +-
+ src/net/dial_test.go                               |   2 +-
+ src/net/dnsclient.go                               |  19 +-
+ src/net/dnsclient_test.go                          |   5 +-
+ src/net/dnsclient_unix.go                          |   3 +-
+ src/net/http/cookie.go                             |   2 +-
+ src/net/http/cookie_test.go                        |  11 +-
+ src/net/http/pprof/pprof.go                        |  72 ++--
+ src/net/http/request.go                            |   2 +-
+ src/net/http/request_test.go                       |  21 ++
+ src/net/http/transport.go                          |  23 +-
+ src/net/http/transport_test.go                     |  62 +++-
+ src/net/platform_test.go                           |   2 +-
+ src/os/exec/exec_test.go                           |   4 +
+ src/os/os_test.go                                  |   2 +-
+ src/path/filepath/path_test.go                     |   4 +-
+ src/reflect/all_test.go                            |  18 +-
+ src/reflect/type.go                                |  55 +--
+ src/reflect/value.go                               |  21 +-
+ src/runtime/alg.go                                 |   2 +-
+ ...nal2_darwin_arm64.c => gcc_signal2_ios_arm64.c} |   0
+ ...al_darwin_lldb.c => gcc_signal_darwin_nolldb.c} |   2 +-
+ ...ignal_darwin_arm64.c => gcc_signal_ios_arm64.c} |   0
+ ...{signal_darwin_arm64.go => signal_ios_arm64.go} |   0
+ .../{signal_darwin_arm64.s => signal_ios_arm64.s}  |   0
+ src/runtime/crash_test.go                          |  21 ++
+ src/runtime/debug/panic_test.go                    |   4 +-
+ src/runtime/iface.go                               |  12 +-
+ src/runtime/malloc.go                              |   8 +-
+ src/runtime/mfinal.go                              |   4 +-
+ src/runtime/mkpreempt.go                           |  35 +-
+ src/runtime/mpagealloc_32bit.go                    |   4 +-
+ src/runtime/mpagealloc_64bit.go                    |   4 +-
+ src/runtime/os_darwin.go                           |   8 +-
+ src/runtime/preempt_386.s                          |   6 +
+ src/runtime/preempt_arm64.s                        |   3 -
+ src/runtime/stack.go                               |   2 +-
+ src/runtime/stubs.go                               |   3 +
+ src/runtime/sys_darwin_arm64.s                     |  42 ++-
+ src/runtime/time_test.go                           |   4 +
+ src/runtime/type.go                                |  26 +-
+ src/syscall/exec_windows.go                        |  76 +++--
+ src/syscall/exec_windows_test.go                   |  43 +++
+ src/syscall/syscall_darwin_arm64.go                |  14 +-
+ src/syscall/syscall_unix_test.go                   |   2 +-
+ src/syscall/zsyscall_darwin_arm64.go               |  16 +
+ src/syscall/zsyscall_darwin_arm64.s                |   2 +
+ src/text/template/doc.go                           |  21 +-
+ src/text/template/exec_test.go                     |   2 +-
+ src/text/template/parse/lex.go                     |  84 ++---
+ src/text/template/parse/lex_test.go                |   2 +-
+ src/text/template/parse/parse.go                   |  59 ++--
+ src/text/template/parse/parse_test.go              |  36 +-
+ .../{zoneinfo_darwin_arm64.go => zoneinfo_ios.go}  |   0
+ src/time/zoneinfo_unix.go                          |   2 +-
+ src/time/zoneinfo_unix_test.go                     |   2 +-
+ test/codegen/arithmetic.go                         |   6 +-
+ test/codegen/floats.go                             |   8 +-
+ test/codegen/math.go                               |   2 +-
+ test/codegen/memops.go                             |  32 +-
+ test/fixedbugs/bug429_run.go                       |   7 +-
+ test/fixedbugs/issue21576.go                       |   7 +-
+ test/fixedbugs/issue41872.go                       |  26 ++
+ test/nilptr.go                                     |   3 +-
+ test/run.go                                        |  12 +-
+ 170 files changed, 3048 insertions(+), 1323 deletions(-)

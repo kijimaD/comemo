@@ -1,13 +1,12 @@
-commit c3e33975aa8d256984ba897ab88d1ca7cad4940a
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Jan 13 12:04:43 2011 +1100
+commit d88f717da66f0349fbbcaff9dc9de09244476e37
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 12 16:17:14 2011 -0800
 
-    release.2011-01-12
+    disable arm registifier for the moment
     
-    R=r
+    R=ken2, ken3
     CC=golang-dev
-    https://golang.org/cl/3972041
+    https://golang.org/cl/3970041
 
- .hgtags                |  1 -
- doc/devel/release.html | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 1 deletion(-)
+ src/cmd/5g/reg.c | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,27 +1,19 @@
-commit 64c39a3093db3976201697bb817d5705afc66bed
-Author: Rob Pike <r@golang.org>
-Date:   Mon May 4 13:09:31 2015 -0700
+commit ae740a459ef40f63d3a2864b70c89e316efd0c8b
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Apr 12 19:36:23 2015 +0200
 
-    text/template: shut down lexing goroutine on error
+    os: add TestProgWideChdir
     
-    When a parse error occurred, the lexing goroutine would lay idle.
-    It's not likely a problem but if the program is for some reason
-    accepting badly formed data repeatedly, it's wasteful.
+    This test checks the working directory is
+    always consistent after Chdir in a Go program.
     
-    The solution is easy: Just drain the input on error. We know this
-    will succeed because the input is always a string and is therefore
-    guaranteed finite.
+    Fixes #10035.
     
-    With debugging prints in the package tests I've shown this is effective,
-    shutting down 79 goroutines that would otherwise linger, out of 123 total.
-    
-    Fixes #10574.
-    
-    Change-Id: I8aa536e327b219189a7e7f604a116fa562ae1c39
-    Reviewed-on: https://go-review.googlesource.com/9658
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I6abf0e4fcd40680ee572c6b40fc52ab17ef38d54
+    Reviewed-on: https://go-review.googlesource.com/6382
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/text/template/parse/lex.go      | 12 ++++++++++++
- src/text/template/parse/lex_test.go | 28 ++++++++++++++++++++++++++++
- src/text/template/parse/parse.go    |  1 +
- 3 files changed, 41 insertions(+)
+ src/os/os_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

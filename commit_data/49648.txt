@@ -1,21 +1,19 @@
-commit de8101d21bcf5f1097bcfaf3a1b55820ba70dce9
-Author: Jun10ng <zeonll@outlook.com>
-Date:   Sat Jul 16 14:31:14 2022 +0000
+commit 08e2519ded32a1a7d4e6056406c356b4496ca24a
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Sun Aug 29 00:53:00 2021 +0800
 
-    runtime: fix typos
+    cmd/compile: workaround inlining of closures with range statements
     
-    "finializer" =>  "finalizer"
+    ORANGE is still not inlineable now. This CL is correct only when the range statement is statically dead, and thus not counted during the inline budget check.
+    If we support range statements in inlining closures in the future, may require additional processing.
     
-    Change-Id: Ia3c12bff8556b6a8d33b700c59357f47502757b1
-    GitHub-Last-Rev: c64cf47974020c8480039ba61d0890bdc07a3b0f
-    GitHub-Pull-Request: golang/go#53917
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/417915
+    Fixes #48033.
+    
+    Change-Id: I28f5755c28cfa27e41daef9eff2ae332059909bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345436
+    Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/runtime/mprof.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go |  2 ++
+ test/fixedbugs/issue48033.go           | 40 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)

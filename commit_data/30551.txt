@@ -1,19 +1,37 @@
-commit 6533cc1ce899fa3c7fac1a85ad724e333fb9710f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 6 10:14:15 2017 -0800
+commit 39e3cbfff623d7941b519f9d35883ef3b74cbcd6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 11:54:18 2016 -0500
 
-    cmd/internal/goobj: update to support go19ld
+    text/template: reintroduce implicit indirect of interface values in builtin funcs
     
-    Updates the disassembler to support the same object file version used
-    by the assembler and linker.
+    CL 31462 made it possible to operate directly on reflect.Values
+    instead of always forcing a round trip to interface{} and back.
+    The round trip was losing addressability, which hurt users.
     
-    Related #14782.
+    The round trip was also losing "interface-ness", which helped users.
+    That is, using reflect.ValueOf(v.Interface()) instead of v was doing
+    an implicit indirect any time v was itself an interface{} value: the result
+    was the reflect.Value for the underlying concrete value contained in the
+    interface, not the interface itself.
     
-    Change-Id: I4cd7560c4e4e1350cfb27ca9cbe0fde25fe693cc
-    Reviewed-on: https://go-review.googlesource.com/37797
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    CL 31462 eliminated some "unnecessary" reflect.Value round trips
+    in order to preserve addressability, but in doing so it lost this implicit
+    indirection. This CL adds the indirection back.
+    
+    It may help to compare the changes in this CL against funcs.go from CL 31462:
+    https://go-review.googlesource.com/#/c/31462/4/src/text/template/funcs.go
+    
+    Everywhere CL 31462 changed 'v := reflect.ValueOf(x)' to 'v := x',
+    this CL changes 'v := x' to 'v := indirectInterface(x)'.
+    
+    Fixes #17714.
+    
+    Change-Id: I67cec4eb41fed1d56e1c19f12b0abbd0e59d35a2
+    Reviewed-on: https://go-review.googlesource.com/33139
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/goobj/read.go | 23 +++++++++++++++++++++--
- 1 file changed, 21 insertions(+), 2 deletions(-)
+ src/text/template/exec.go      | 14 ++++++++
+ src/text/template/exec_test.go | 75 +++++++++++++++++++++++++++++++++++++++++-
+ src/text/template/funcs.go     | 21 +++++++-----
+ 3 files changed, 101 insertions(+), 9 deletions(-)

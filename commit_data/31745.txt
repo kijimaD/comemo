@@ -1,21 +1,22 @@
-commit 766e1ae3623f7a30b308200ebdf42901ced6676c
-Author: Joonas Kuorilehto <joneskoo@derbian.fi>
-Date:   Wed May 24 20:37:53 2017 +0300
+commit cc71aa9ac4f2f1dc62f395a6f13ada8709d58213
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 10 22:09:43 2017 -0800
 
-    sync: remove note about creating with structures
+    cmd/compile/internal/ssa: make ARM's udiv like other calls
     
-    Remove note that sync.Cond, sync.Mutex, sync.RWMutex and atomic.Value
-    can be created as part of other data structures. Structs can be embedded
-    by default, and default should not be repeated.
+    Passes toolstash-check -all.
     
-    Fixes #20471.
-    
-    Change-Id: If3f5703d3f60abd96482b58ca43450d02a9e645a
-    Reviewed-on: https://go-review.googlesource.com/44071
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Id389f8158cf33a3c0fcef373615b5351e7c74b5b
+    Reviewed-on: https://go-review.googlesource.com/38082
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/sync/atomic/value.go | 1 -
- src/sync/cond.go         | 1 -
- src/sync/mutex.go        | 3 +--
- src/sync/rwmutex.go      | 3 +--
- 4 files changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/arm/ssa.go        |  7 +----
+ src/cmd/compile/internal/ssa/config.go     |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 20 +++++++-------
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |  5 +++-
+ src/cmd/compile/internal/ssa/opGen.go      |  5 ++--
+ src/cmd/compile/internal/ssa/rewriteARM.go | 44 ++++++++++++++++--------------
+ src/cmd/internal/obj/sym.go                |  6 +++-
+ 7 files changed, 48 insertions(+), 41 deletions(-)

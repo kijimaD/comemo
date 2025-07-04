@@ -1,18 +1,14 @@
-commit ebd67ba588eabd5bf968b5bd14dff21a1a1b1be4
-Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
-Date:   Fri Mar 18 13:00:26 2016 +0900
+commit 158f19b259da623c1afcfaa1812a71601aa2d2a8
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 27 11:27:50 2016 +0000
 
-    os: fix Stdin.Stat() on windows
+    cmd/go: recognise plan9_arm object files
     
-    If name is /dev/{stdin,stdout,stderr}, return fileInfo.
+    Add magic word for Plan 9 ARM object header to objectMagic table.
     
-    Fixes #14853.
-    
-    Change-Id: Ibf7d1ae7b9f3dc43f6ed7c905ea2c5102e1971cc
-    Reviewed-on: https://go-review.googlesource.com/20845
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Change-Id: I21eb8845a2ee2e8cdddc0849eedf43481aee9cde
+    Reviewed-on: https://go-review.googlesource.com/18963
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/os/os_test.go       | 35 +++++++++++++++++++++++++++++++++++
- src/os/stat_windows.go  | 16 +++++++++++++---
- src/os/types_windows.go |  4 ++++
- 3 files changed, 52 insertions(+), 3 deletions(-)
+ src/cmd/go/build.go | 1 +
+ 1 file changed, 1 insertion(+)

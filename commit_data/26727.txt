@@ -1,29 +1,34 @@
-commit 5ba797bd189b460854a0aea877381abcaef8105b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 5 14:20:04 2016 -0700
+commit 50c38d46e870435c17ac86957e2eb469ce41dd6d
+Author: kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Thu Feb 18 21:19:03 2016 +1030
 
-    cmd/compile: move a lot of declarations outside of go.go
+    cmd/go, go/build: add support for Fortran
     
-    go.go is currently a grab bag of various unrelated type and variable
-    declarations. Move a bunch of them into other more relevant source
-    files.
+    This change adds support for Fortran files (.f, .F, .for, .f90) to the
+    go tool, in a similar fashion to Objective-C/C++. Only gfortran is
+    supported out of the box so far but leaves other Fortran compiler
+    toolchains the ability to pass the correct link options via CGO_LDFLAGS.
+    A simple test (misc/cgo/fortran) has been added and plugged into the
+    general test infrastructure. This test is only enabled when the $FC
+    environment variable is defined (or if 'gfortran' was found in $PATH.)
     
-    There are still more that can be moved, but these were the low hanging
-    fruit with obvious homes.
+    Derived from CL 4114.
     
-    No code/comment changes. Just shuffling stuff around.
-    
-    Change-Id: I43dbe1a5b8b707709c1a3a034c693d38b8465063
-    Reviewed-on: https://go-review.googlesource.com/21561
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifc855091942f95c6e9b17d91c17ceb4eee376408
+    Reviewed-on: https://go-review.googlesource.com/19670
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/const.go     |  53 ++++++++++++
- src/cmd/compile/internal/gc/dcl.go       |   6 ++
- src/cmd/compile/internal/gc/go.go        | 137 -------------------------------
- src/cmd/compile/internal/gc/lex.go       |  12 +++
- src/cmd/compile/internal/gc/popt.go      |  28 +++++++
- src/cmd/compile/internal/gc/reflect.go   |  10 +++
- src/cmd/compile/internal/gc/type.go      |  14 ++++
- src/cmd/compile/internal/gc/typecheck.go |  14 ++++
- 8 files changed, 137 insertions(+), 137 deletions(-)
+ misc/cgo/fortran/answer.f90      |  9 +++++
+ misc/cgo/fortran/fortran.go      | 12 +++++++
+ misc/cgo/fortran/fortran_test.go | 13 ++++++++
+ src/cmd/cgo/doc.go               | 20 ++++++-----
+ src/cmd/dist/test.go             | 14 ++++++++
+ src/cmd/go/build.go              | 71 +++++++++++++++++++++++++++++++++++-----
+ src/cmd/go/list.go               |  2 ++
+ src/cmd/go/pkg.go                |  6 +++-
+ src/go/build/build.go            |  9 ++++-
+ src/make.bash                    |  3 ++
+ src/make.bat                     |  3 ++
+ 11 files changed, 143 insertions(+), 19 deletions(-)

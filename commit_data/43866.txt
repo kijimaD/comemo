@@ -1,20 +1,19 @@
-commit 65dcd15c720585958908668fb17c47bc620a9923
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Tue Nov 24 13:23:10 2020 -0500
+commit d2f5e4e38c8f3d847a1925344dadbf8fb8cdb180
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Mon Apr 27 12:02:52 2020 -0700
 
-    doc/go1.16: fill in Go 1.16 release note TODOs using relnote
+    math: simplify hasVX checking on s390x
     
-    The additions were generated using golang.org/x/build/cmd/relnote
-    at CL 272907. It was modified to find previously-missed entries
-    by querying the Gerrit API in addition to the maintner corpus.
+    Originally, we use an assembly function that returns a boolean result to
+    tell whether the machine has vector facility or not. It is now no longer
+    needed when we can directly use cpu.S390X.HasVX variable.
     
-    For #40700.
-    Updates #41849.
-    
-    Change-Id: If575984fe40e0133ad5e8fc5411ea5063457250d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/272871
-    Trust: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: Ic3ffeb9e63238ef41406d97cdc42502145ddb454
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230319
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.16.html | 191 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 188 insertions(+), 3 deletions(-)
+ src/math/arith_s390x.go |  8 ++++----
+ src/math/stubs_s390x.s  | 23 -----------------------
+ 2 files changed, 4 insertions(+), 27 deletions(-)

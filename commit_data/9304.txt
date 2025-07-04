@@ -1,14 +1,12 @@
-commit a09ba8b6387d938df871d545baa5cbf792459aec
+commit ec010fddb54d03f30895907da3353628548a0744
 Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Aug 8 16:29:57 2011 +1000
+Date:   Mon Aug 8 15:38:37 2011 +1000
 
-    exp/template: url filter.
+    exp/template: fix Must example.
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/4837063
+    https://golang.org/cl/4839052
 
- src/pkg/exp/template/doc.go       |  3 +++
- src/pkg/exp/template/exec_test.go |  3 +++
- src/pkg/exp/template/funcs.go     | 15 +++++++++++++++
- 3 files changed, 21 insertions(+)
+ src/pkg/exp/template/helper.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,20 +1,36 @@
-commit b8f928b05264cbd75a0d0dbd02d979847ac237f9
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Oct 27 20:21:07 2021 -0400
+commit 621a81aba0fd5fc7ceb297ede3627819fc59728c
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Feb 18 15:42:05 2021 -0500
 
-    go/build: update for //go:build lines
+    [dev.fuzz] testing,internal/fuzz: support structured inputs
     
-    Look for //go:build ignore, not // +build ignore, in deps_test.go.
+    This change makes several refactors to start supporting
+    structured fuzzing. The mutator can still only mutate
+    byte slices, and future changes will be made to support
+    mutating other types. However, it does now support
+    fuzzing more than one []byte.
     
-    For #41184.
+    This change also makes it so that corpus entries are
+    encoded in the new file format when being written to
+    testdata or GOCACHE. Any existing GOCACHE data should
+    be deleted from your local workstation to allow tests
+    to pass locally.
     
-    Change-Id: Iba8617230aa620223e2bc170f18d0c54557318c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359315
-    Trust: Russ Cox <rsc@golang.org>
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: Iab8fe01a5dc870f0c53010b9d5b0b479bbdb310d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293810
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/go/build/deps_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/testdata/script/test_fuzz.txt           |  57 +++++++++-
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  |  14 +++
+ src/cmd/go/testdata/script/test_fuzz_mutator.txt   |   2 +-
+ src/internal/fuzz/encoding.go                      |   6 +-
+ src/internal/fuzz/fuzz.go                          | 126 +++++++++++++++++----
+ src/internal/fuzz/mutator.go                       |  41 ++++++-
+ src/internal/fuzz/worker.go                        |  11 +-
+ src/testing/fuzz.go                                |  91 +++++++++++----
+ src/testing/internal/testdeps/deps.go              |   9 +-
+ src/testing/testing.go                             |  11 +-
+ 10 files changed, 297 insertions(+), 71 deletions(-)

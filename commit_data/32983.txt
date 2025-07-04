@@ -1,28 +1,24 @@
-commit 03614562ca5a16102be948c1b6808f5bc423de66
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Thu Oct 5 16:05:03 2017 +0200
+commit 0b6fbaae6ec4218fc35d8a6f4415ae8f88198301
+Author: David Chase <drchase@google.com>
+Date:   Wed Jun 21 17:19:24 2017 -0400
 
-    cmd/compile: remove x86 arch-specific rules for +2ⁿ multiplication
+    cmd/compile: make loop guard+rotate conditional on GOEXPERIMENT
     
-    amd64 and 386 have rules to reduce multiplication by a positive power
-    of two, but a more general reduction (both for positive and negative
-    powers of two) is already performed by generic rules that were added
-    in CL 36323 to replace walkmul (see lines 166:173 in generic.rules).
+    Loops of the form "for i,e := range" needed to have their
+    condition rotated to the "bottom" for the preemptible loops
+    GOEXPERIMENT, but this caused a performance regression
+    because it degraded bounds check removal.  For now, make
+    the loop rotation/guarding conditional on the experiment.
     
-    The x86 and amd64 rules are never triggered during all.bash and can be
-    removed, reducing rules duplication.
+    Fixes #20711.
+    Updates #10958.
     
-    The change also adds a few code generation tests for amd64 and 386.
-    
-    Change-Id: I566d48186643bd722a4c0137fe94e513b8b20e36
-    Reviewed-on: https://go-review.googlesource.com/68450
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Change-Id: Icfba14cb3b13a910c349df8f84838cf4d9d20cf6
+    Reviewed-on: https://go-review.googlesource.com/46410
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go      | 38 +++++++++++++++++++++++++---
- src/cmd/compile/internal/ssa/gen/386.rules   |  1 -
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 -
- src/cmd/compile/internal/ssa/rewrite386.go   | 24 ++++--------------
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 24 ++++--------------
- 5 files changed, 45 insertions(+), 43 deletions(-)
+ src/cmd/compile/internal/gc/range.go | 11 ++++++++---
+ test/loopbce.go                      |  2 +-
+ 2 files changed, 9 insertions(+), 4 deletions(-)

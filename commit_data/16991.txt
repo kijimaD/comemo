@@ -1,38 +1,20 @@
-commit e03dd0798163b267d8db6b4d2c95dc281be5a064
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Aug 1 20:07:01 2013 -0400
+commit 39679ca88f8f37f6797daa9e866f8ba65ee18c9e
+Author: Scott Ferguson <scottwferg@gmail.com>
+Date:   Thu Aug 1 15:52:56 2013 -0700
 
-    runtime: disable preemption during software fp routines
+    net/url: prepend slash to path in String()
     
-    It's okay to preempt at ordinary function calls because
-    compilers arrange that there are no live registers to save
-    on entry to the function call.
+    Previously if a path was set manually without a leading /, String()
+    would not insert the slash when writing its output. This would lead
+    to situations where a URL that should be http://www.google.com/search
+    is output as http://www.google.comsearch
     
-    The software floating point routines are function calls
-    masquerading as individual machine instructions. They are
-    expected to keep all the registers intact. In particular,
-    they are expected not to clobber all the floating point
-    registers.
+    Fixes #5927.
     
-    The floating point registers are kept per-M, because they
-    are not live at non-preemptive goroutine scheduling events,
-    and so keeping them per-M reduces the number of 132-byte
-    register blocks we are keeping in memory.
-    
-    Because they are per-M, allowing the goroutine to be
-    rescheduled during software floating point simulation
-    would mean some other goroutine could overwrite the registers
-    or perhaps the goroutine would continue running on a different
-    M entirely.
-    
-    Disallow preemption during the software floating point
-    routines to make sure that a function full of floating point
-    instructions has the same floating point registers throughout
-    its execution.
-    
-    R=golang-dev, dave
+    R=golang-dev, bradfitz, rsc, 0xjnml
     CC=golang-dev
-    https://golang.org/cl/12298043
+    https://golang.org/cl/11698045
 
- src/pkg/runtime/vlop_arm.s | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ src/pkg/net/url/url.go      |  3 +++
+ src/pkg/net/url/url_test.go | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+)

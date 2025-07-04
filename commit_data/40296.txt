@@ -1,22 +1,29 @@
-commit 8d2ea2936b337f6276054dd4ac40999dd0f22dbc
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Oct 17 16:28:38 2019 -0700
+commit e56c73f17b49793f9c57c0706344afafbec726d1
+Author: David Chase <drchase@google.com>
+Date:   Thu Nov 1 17:31:20 2018 -0400
 
-    go/types: don't update the underlying type of an imported type
+    runtime: look for idle p to run current goroutine when switching to GC or traceReader
     
-    Updating the underlying type of an imported type (even though
-    is was set to the same type again) leads to a race condition
-    if the imported package is imported by separate, concurrently
-    type-checked packages.
+    This repairs one of the several causes of pauses uncovered
+    by a GC microbenchmark.  A pause can occur when a goroutine's
+    quantum expires "at the same time" a GC is needed.  The
+    current M switches to running a GC worker, which means that
+    the amount of available work has expanded by one.  The GC
+    worker, however, does not call ready, and does not itself
+    conditionally wake a P (a "normal" thread would do this).
     
-    Fixes #31749.
+    This is also true if M switches to a traceReader.
     
-    Change-Id: Iabb8e8593eb067eb4816c1df81e545ff52d32c6c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201838
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    This is problem 4 in this list:
+    https://github.com/golang/go/issues/27732#issuecomment-423301252
+    
+    Updates #27732.
+    
+    Change-Id: I6905365cac8504cde6faab2420f4421536551f0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/146817
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/go/types/decl.go        | 21 ++++++++++++++-------
- src/go/types/issues_test.go | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 7 deletions(-)
+ src/runtime/proc.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

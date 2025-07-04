@@ -1,17 +1,16 @@
-commit 0b9f0908610bc1d3938a0cb6d33dbfb4c1e9c954
+commit 5efd5624cc5b22f50d2739b0f1dbce32402206cb
 Author: Luuk van Dijk <lvd@golang.org>
-Date:   Mon Feb 6 16:38:59 2012 +0100
+Date:   Mon Feb 6 15:41:01 2012 +0100
 
-    cmd/gc: another special (%hhS) case for method names.
+    cmd/gc: fix codegen reordering for expressions involving && and ||
     
-    Fixes #2877
+    Fixes #2821.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/5637047
+    https://golang.org/cl/5606061
 
- src/cmd/gc/fmt.c                 | 10 ++++++++++
- test/fixedbugs/bug407.dir/one.go | 20 ++++++++++++++++++++
- test/fixedbugs/bug407.dir/two.go | 15 +++++++++++++++
- test/fixedbugs/bug407.go         |  7 +++++++
- 4 files changed, 52 insertions(+)
+ src/cmd/gc/subr.c        |  6 ++++++
+ src/cmd/gc/walk.c        |  3 ++-
+ test/fixedbugs/bug406.go | 25 +++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 1 deletion(-)

@@ -1,17 +1,27 @@
-commit a8f07310e3a08910dde2b7e9550848ec400753ad
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Mon Dec 19 00:06:46 2016 +0100
+commit 58e3bf11fb8af887a97a7329edfffb1126ba5fee
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:51:03 2016 +0200
 
-    cmd/compile: fix assignment order in string range loop
+    syscall: add support for GOARCH=mips{,le}
     
-    Fixes #18376.
-    
-    Change-Id: I4fe24f479311cd4cd1bdad9a966b681e50e3d500
-    Reviewed-on: https://go-review.googlesource.com/35955
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I39a46b2a9412981db1780b688a86fec791f68b6f
+    Reviewed-on: https://go-review.googlesource.com/31488
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/range.go | 31 ++++++++++++++++++++++---------
- test/range.go                        | 20 ++++++++++++++++++++
- 2 files changed, 42 insertions(+), 9 deletions(-)
+ src/syscall/asm_linux_mipsx.s        |  142 +++
+ src/syscall/endian_big.go            |    2 +-
+ src/syscall/endian_little.go         |    2 +-
+ src/syscall/flock_linux_32bit.go     |    2 +-
+ src/syscall/mksysnum_linux.pl        |   14 +-
+ src/syscall/syscall_linux_mipsx.go   |  222 ++++
+ src/syscall/types_linux.go           |    2 +-
+ src/syscall/zerrors_linux_mips.go    | 1834 ++++++++++++++++++++++++++++++++++
+ src/syscall/zerrors_linux_mipsle.go  | 1834 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_mips.go   | 1759 ++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_mipsle.go | 1759 ++++++++++++++++++++++++++++++++
+ src/syscall/zsysnum_linux_mips.go    |  357 +++++++
+ src/syscall/zsysnum_linux_mipsle.go  |  357 +++++++
+ src/syscall/ztypes_linux_mips.go     |  592 +++++++++++
+ src/syscall/ztypes_linux_mipsle.go   |  592 +++++++++++
+ 15 files changed, 9464 insertions(+), 6 deletions(-)

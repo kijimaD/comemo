@@ -1,14 +1,17 @@
-commit b3a8beb9d1eb7bd28b22e3a26f65c6025017d7a3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Mar 17 17:09:07 2017 -0700
+commit 3a067cc812ff20327a80748c2e72bce420e837d6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 9 06:43:24 2016 +0000
 
-    cmd/compile: minor cleanup in debug code
+    api: remove testing Context accessors from go1.8.txt
     
-    Change-Id: I9885606801b9c8fcb62c16d0856025c4e83e658b
-    Reviewed-on: https://go-review.googlesource.com/38650
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Fixes the build.
+    
+    Updates #18199
+    
+    Change-Id: Ibf029ba9f9293d1f3d49c1c8773fc262159a5d5b
+    Reviewed-on: https://go-review.googlesource.com/34242
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/func.go | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ api/go1.8.txt | 3 ---
+ 1 file changed, 3 deletions(-)

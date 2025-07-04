@@ -1,28 +1,35 @@
-commit 8ad0a7e7853ffea6140e942ea5f553061d3423c2
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Nov 3 16:28:47 2021 -0700
+commit fee3cd4250843a0a7c056fed3d3e6e1a423f3120
+Author: Cuong Manh Le <cuong@orijtech.com>
+Date:   Tue Mar 9 01:52:10 2021 +0700
 
-    net: pass around pointers to SockaddrInetN
+    cmd/compile: fix width not calculated for imported type
     
-    ...instead of the structs themselves.
-    Escape analysis can handle this,
-    and it'll avoid a bunch of large struct copies.
+    The compiler currently has problem that some imported type is missing
+    size calculation. The problem is not triggered until CL 283313 merged,
+    due to the compiler can compile the functions immediately when it sees
+    them, so during SSA generation, size calculation is still ok.
     
-    Change-Id: Ia9c6064ed32a4c26d5a96dae2ed7d7ece6d38704
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/361264
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    CL 283313 makes the compiler always push functions to compile queue,
+    then drain from it for compiling function. During this process, the
+    types calculation size is disabled, so calculating size during SSA now
+    make the compiler crashes.
+    
+    To fix this, we can just always calculate type size during typechecking,
+    when importing type from other packages.
+    
+    Fixes #44732
+    
+    Change-Id: I8d00ea0b5aadd432154908280e55d85c75f3ce92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299689
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/internal/poll/fd_unix.go                |  8 ++++----
- src/internal/poll/fd_windows.go             | 30 ++++++++++++-----------------
- src/internal/syscall/unix/net.go            |  8 ++++----
- src/internal/syscall/unix/net_js.go         |  8 ++++----
- src/internal/syscall/windows/net_windows.go |  4 ++--
- src/net/fd_posix.go                         |  8 ++++----
- src/net/net_fake.go                         |  8 ++++----
- src/net/udpsock_posix.go                    | 12 ++++++------
- src/syscall/syscall_unix.go                 |  8 ++++----
- src/syscall/syscall_windows.go              |  4 ++--
- 10 files changed, 46 insertions(+), 52 deletions(-)
+ src/cmd/compile/internal/typecheck/iimport.go |  6 ++++++
+ test/fixedbugs/issue44732.dir/bar/bar.go      | 11 +++++++++++
+ test/fixedbugs/issue44732.dir/foo/foo.go      | 13 +++++++++++++
+ test/fixedbugs/issue44732.dir/main.go         | 15 +++++++++++++++
+ test/fixedbugs/issue44732.go                  |  7 +++++++
+ 5 files changed, 52 insertions(+)

@@ -1,13 +1,15 @@
-commit 5dab2da9544422d8953b2d3e4a41acaf84a2d2c4
+commit 9333fe8e92971654d0f96d137d46a019cde836e3
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jul 29 14:45:07 2014 +0400
+Date:   Tue Jul 29 11:22:57 2014 +0400
 
-    runtime: mark global var as NOPTR
+    cmd/ld: better diagnostics on unaligned symbols
+    Want to see why builders are failing.
+    Then decide whether to rollback or fix.
     
-    LGTM=dave
-    R=golang-codereviews, dave
+    TBR=khr
+    R=khr
     CC=golang-codereviews
-    https://golang.org/cl/119300043
+    https://golang.org/cl/114510043
 
- src/pkg/runtime/sigqueue.goc | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ src/cmd/ld/data.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

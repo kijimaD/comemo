@@ -1,12 +1,13 @@
-commit 3577398f82980a1c47689b932e728497839abf84
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed May 22 22:45:38 2013 +0200
+commit cb8782e8b3857978118b159e905b9715eb8ce403
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu May 23 04:38:32 2013 +0800
 
-    test: add test for issue 3888.
+    bufio: fix SplitFunc docs
+    Fixes #5532.
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/9676043
+    https://golang.org/cl/9672044
 
- test/escape2.go | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ src/pkg/bufio/scan.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

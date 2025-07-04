@@ -1,19 +1,15 @@
-commit 429d2c548d8fcceff95c29ea5074aab9498fa0c3
-Author: David Chase <drchase@google.com>
-Date:   Wed Jun 3 14:21:18 2020 -0400
+commit 026b98a2a230ef378e8f802f8671f421c127e258
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 20 11:06:39 2019 -0500
 
-    runtime: make runtime-gdb.py tolerant of creatively-named gdb versions
+    [dev.link] cmd/link: add Errorf method on context taking new sym
     
-    "Fedora" and "Red Hat" are not numbers, it turns out.
-    Don't rely on version numbers, instead use a regexp to
-    handle variation across the 2 patterns thus far observed
-    for gdb-generated Go type names.
+    Add a Link method that takes a loader sym index instead
+    of a sym.Symbol.
     
-    Change-Id: I18c81aa2848265a47daf1180d8f6678566ae3f19
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/236280
-    Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: If59e246cb1adc9066080f019be135387fc1b2fcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208228
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/runtime-gdb.py | 29 +++++++----------------------
- 1 file changed, 7 insertions(+), 22 deletions(-)
+ src/cmd/link/internal/ld/util.go | 37 +++++++++++++++++++++++++++++++------
+ 1 file changed, 31 insertions(+), 6 deletions(-)

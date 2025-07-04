@@ -1,15 +1,17 @@
-commit 990f3af72b36ac8d9a78b8b8621d248af490f8be
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Apr 24 21:36:42 2012 -0700
+commit 52f122d72ee3fab46603ccd76259d1f9db50be7b
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Wed Apr 25 14:33:33 2012 +1000
 
-    crypto/rand: use io.ReadFull in test
+    encoding/json: allow punctuation in tag names
     
-    On Solaris versions before Solaris 11, the kernel will not
-    return more than 1040 on a single read from /dev/urandom.
+    everything except backslash and the quote chars is fair game.
     
-    R=golang-dev, agl, bradfitz, rsc, iant, dchest
+    Fixes #3546.
+    
+    R=rsc, r
     CC=golang-dev
-    https://golang.org/cl/6113046
+    https://golang.org/cl/6048047
 
- src/pkg/crypto/rand/rand_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/encoding/json/encode.go      | 9 ++++++---
+ src/pkg/encoding/json/tagkey_test.go | 5 +++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

@@ -1,18 +1,14 @@
-commit 817d6ea2b3dd08d3594341ca5ab7932c102694ad
-Author: eric fang <eric.fang@arm.com>
-Date:   Fri Dec 17 08:26:06 2021 +0000
+commit 1608577e0503be1739631d60576a07bdf1bbb49e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 20 21:24:36 2021 -0700
 
-    runtime: delete useless TPIDR macro on arm64
+    [dev.typeparams] cmd/compile/internal/types2: re-use existing code for Interface.Complete
     
-    The TPIDR macro in tls_arm64.h is not used anywhere, so remove it
-    to reduce confusion.
-    
-    Change-Id: I04aa5e64ee30753f28f43bc67b44559d81d093c1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/373357
-    Trust: Eric Fang <eric.fang@arm.com>
-    Run-TryBot: Eric Fang <eric.fang@arm.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: I0fa07e49651aa086c2edbd1162332608c400250f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321751
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/tls_arm64.h | 5 -----
- 1 file changed, 5 deletions(-)
+ src/cmd/compile/internal/types2/interface.go | 47 +++++++++++++++++++---
+ src/cmd/compile/internal/types2/type.go      | 60 +---------------------------
+ 2 files changed, 44 insertions(+), 63 deletions(-)

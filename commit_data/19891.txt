@@ -1,18 +1,28 @@
-commit 24db88168997d650e8274dd2e84e8a56bf8d95b9
-Author: Rui Ueyama <ruiu@google.com>
-Date:   Tue Aug 5 21:10:07 2014 -0700
+commit f7a8adbd511e921111fc0682d380a6f7a33e0c93
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 5 18:12:32 2014 -0700
 
-    liblink: shorter encoding for zeroing register
+    cmd/cgo: fix handling of defs_linux.go
     
-    Encode MOV $0, %ax as XOR %eax, %eax instead of
-    XOR %rax, %rax. If an operand register does not
-    need REX.w bit (i.e. not one of R8-R15), it is
-    encoded in 2 bytes instead of 3 bytes.
+    Instead of including <sys/types.h> to get size_t, instead include
+    the ISO C standard <stddef.h> header, which defines fewer additional
+    types at risk of colliding with the user code.  In particular, this
+    prevents collisions between <sys/types.h>'s userspace definitions with
+    the kernel definitions needed by defs_linux.go.
     
-    LGTM=rsc
-    R=golang-codereviews, gobot, rsc
+    Also, -cdefs mode uses #pragma pack, so we can keep misaligned fields.
+    
+    Fixes #8477.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
     CC=golang-codereviews
-    https://golang.org/cl/115580044
+    https://golang.org/cl/120610043
 
- src/liblink/asm6.c | 1 +
- 1 file changed, 1 insertion(+)
+ misc/cgo/testcdefs/cdefstest.c  |  1 +
+ misc/cgo/testcdefs/cdefstest.go | 18 ++++++++++++++++++
+ misc/cgo/testcdefs/main.c       | 23 +++++++++++++++++++++++
+ src/cmd/cgo/gcc.go              |  4 +++-
+ src/cmd/cgo/out.go              | 10 ++--------
+ src/pkg/runtime/defs_linux.go   |  1 +
+ 6 files changed, 48 insertions(+), 9 deletions(-)

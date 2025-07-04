@@ -1,14 +1,22 @@
-commit 96f57186ba79b6a649fa0bb901ee5b222877f0d3
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 22 13:02:00 2013 -0800
+commit b1b67a36ace635744cd261ee6f3441d1044c66b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 22 15:23:57 2013 -0500
 
-    exp/ssa: silence go vet
+    reflect: stop using run-time code generation
     
-    R=adonovan
+    Step 3 of http://golang.org/s/go11func.
+    
+    Fixes #3736.
+    Fixes #3738.
+    Fixes #4081.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/7386052
+    https://golang.org/cl/7393050
 
- src/pkg/exp/ssa/interp/interp.go  | 2 +-
- src/pkg/exp/ssa/interp/reflect.go | 2 +-
- src/pkg/exp/ssa/literal.go        | 5 ++++-
- 3 files changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/reflect/asm_386.s   |  15 ++----
+ src/pkg/reflect/asm_amd64.s |  15 ++----
+ src/pkg/reflect/asm_arm.s   |  10 ++--
+ src/pkg/reflect/makefunc.go | 122 ++++++--------------------------------------
+ src/pkg/reflect/value.go    |   5 +-
+ 5 files changed, 32 insertions(+), 135 deletions(-)

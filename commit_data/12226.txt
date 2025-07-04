@@ -1,12 +1,15 @@
-commit 2d6a6ed9fc45853d8764a57658a768096e20de4d
+commit 8421390cb9ba9583af6369c7cc4786149058b131
 Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Feb 27 16:18:58 2012 +1100
+Date:   Mon Feb 27 15:25:41 2012 +1100
 
-    misc/dashboard: fix bug in UI template
+    misc/dashboard: record install counts for external packages
     
-    R=golang-dev, dsymonds
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5700078
+    https://golang.org/cl/5699082
 
- misc/dashboard/app/build/ui.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ misc/dashboard/app/app.yaml       |   4 +-
+ misc/dashboard/app/build/build.go |  52 ++++++++++
+ misc/dashboard/app/build/pkg.go   | 201 ++++++++++++++++++++++++++++++++++++++
+ misc/dashboard/app/cron.yaml      |   4 +
+ 4 files changed, 259 insertions(+), 2 deletions(-)

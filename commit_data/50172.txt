@@ -1,17 +1,25 @@
-commit dbd0ce84d7c1da2e788c516c72fef44d5b760337
-Author: Dan Kortschak <dan@kortschak.io>
-Date:   Sat Aug 27 12:55:43 2022 +0930
+commit 058fa255bcbe414011f5b9f469f44ec64a168224
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 11:26:25 2021 -0700
 
-    debug/elf: validate offset and file size ranges
+    cmd/link,runtime: make textsectmap fields more convenient for runtime
     
-    Change-Id: Iebe31b91c6e81438120f50a8089a8efca3d5339d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426115
-    Run-TryBot: Dan Kortschak <dan@kortschak.io>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    They're only used in a single place.
+    Instead of calculating the end every time,
+    calculate it in the linker.
+    
+    It'd be nice to recalculate baseaddr-vaddr,
+    but that generates relocations that are too large.
+    
+    While we're here, remove some pointless uintptr -> uintptr conversions.
+    
+    Change-Id: I91758f9bff11b365bc3a63fee172dbdc3d90b966
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354089
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/debug/elf/file.go | 6 ++++++
- 1 file changed, 6 insertions(+)
+ src/cmd/link/internal/ld/symtab.go | 29 ++++++++++++++---------------
+ src/runtime/symtab.go              | 14 ++++++--------
+ 2 files changed, 20 insertions(+), 23 deletions(-)

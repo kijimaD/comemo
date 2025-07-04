@@ -1,0 +1,22 @@
+commit 6eb40d158a80985460afc3924c4239dc97a34ae0
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue Aug 27 21:07:57 2024 +0200
+
+    cmd/trace,internal/trace,runtime: refactor to access frames via range over func
+    
+    Change-Id: Id0be0eb35ae8560bd5338ec296a086aaf4617db0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608856
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/trace/gstate.go                    | 12 +++++-------
+ src/cmd/trace/pprof.go                     | 20 ++++++++++----------
+ src/cmd/trace/regions.go                   |  5 ++---
+ src/cmd/trace/viewer.go                    |  5 ++---
+ src/internal/trace/event.go                | 10 ++++------
+ src/internal/trace/summary.go              | 26 ++++++++------------------
+ src/internal/trace/testtrace/validation.go |  9 +++------
+ src/internal/trace/trace_test.go           | 18 ++++++------------
+ src/runtime/trace_cgo_test.go              |  5 ++---
+ 9 files changed, 42 insertions(+), 68 deletions(-)

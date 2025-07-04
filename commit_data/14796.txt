@@ -1,12 +1,17 @@
-commit b006cd9bb097c6b3a8cf7cebdb8067eef34957b1
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sat Jan 5 21:15:51 2013 +1100
+commit f1e4ee3f49fd19d72fa3bbcbce4aab5c2fbef2ed
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Fri Jan 4 17:07:21 2013 +0100
 
-    cmd/go: avoid leaking timer if test process failed to start
+    cmd/5g, cmd/6g, cmd/8g: flush return parameters in case of panic.
     
-    R=rsc
+    Fixes #4066.
+    
+    R=rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7034047
+    https://golang.org/cl/7040044
 
- src/cmd/go/test.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/cmd/5g/reg.c            |  6 +++++-
+ src/cmd/6g/reg.c            |  6 +++++-
+ src/cmd/8g/reg.c            |  6 +++++-
+ test/fixedbugs/issue4066.go | 37 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 52 insertions(+), 3 deletions(-)

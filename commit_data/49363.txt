@@ -1,16 +1,19 @@
-commit 3b6b9a7ef0b4849d87e7d30fbf1ef3255ea99f69
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Fri May 27 16:39:54 2022 -0400
+commit 11a1f37b076122ce6b669f1a5c7563a339087b17
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 20:38:37 2021 -0400
 
-    doc/go1.19: add release note for CL 398058
+    go/types: remove TestIncompleteInterfaces (cleanup)
     
-    Change-Id: I483de9a6a2016432df13e030c675d42470db9ed1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409175
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This is a straightforward port of CL 339832 to go/types.
+    
+    Change-Id: Ibcb1b130ea474bbbfe9cb5138170e27b466313cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342430
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.19.html | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ src/go/types/api_test.go        |  7 ++++++
+ src/go/types/typestring.go      | 26 ++++++-------------
+ src/go/types/typestring_test.go | 56 -----------------------------------------
+ 3 files changed, 14 insertions(+), 75 deletions(-)

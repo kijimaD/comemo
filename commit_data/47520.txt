@@ -1,23 +1,41 @@
-commit 54b9cb80372f45b5e86c5246717c766fac6f1fe6
-Author: Patrik Nyblom <pnyb@google.com>
-Date:   Tue Nov 16 14:35:59 2021 -0800
+commit a95e2ae2804becdda6c265c6d589ae8184a34160
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 24 21:51:44 2021 -0400
 
-    runtime: make sure to properly park before going to sleep in Windows ConsoleControlHandler
+    test: skip fixedbugs/issue36705 on Windows
     
-    This change avoids the program intermittently hanging on windows/arm64 after getting
-    a signal for which the ConsoleControlHandler can not return.
+    This test is verifying that setting or unsetting an environment
+    variable in Go via the "os" package makes that change visible to the C
+    getenv function. The test has been failing on Windows since CL 304569;
+    it isn't clear to me whether it was running at all before that point.
     
-    Fixes #49458
+    On Windows the getenv and _putenv C functions are not thread-safe,
+    so Go's os.Setenv and os.Getenv use the SetEnvironmentVariable and
+    GetEnvironmentVariable system calls instead. That seems to work fine
+    in practice; however, changes via SetEnvironmentVariable are
+    empirically not visible to the C getenv function on certain versions
+    of Windows.
     
-    Change-Id: Ie28f0f437c7e0f9634b6b3e29dc6cdebd5d996f6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364556
-    Trust: Patrik Nyblom <pnyb@google.com>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Patrik Nyblom <pnyb@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    The MSDN getenv documentation¹ states that ‘getenv operates only on
+    the data structures accessible to the run-time library and not on the
+    environment “segment” created for the process by the operating system.
+    Therefore, programs that use the envp argument to main or wmain may
+    retrieve invalid information.’ That may be related to what we're
+    seeing here.
+    
+    (https://github.com/curl/curl/issues/4774 describes this same behavior
+    observed in the curl project.)
+    
+    ¹https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/getenv-wgetenv?view=msvc-160#remarks
+    
+    Updates #36705
+    
+    Change-Id: I222792f75c650f32c5025b0fa3edab232ff66353
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304669
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/os_windows.go | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ test/fixedbugs/issue36705.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,18 +1,14 @@
-commit fabd261fe2fe0adf5f79b9bb1069df0a93575ae9
+commit 52a73239bbf848ee65053a37e6382639bb3bf238
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 31 17:22:10 2014 -0800
+Date:   Fri Jan 31 14:40:13 2014 -0800
 
-    time: use names for beginning and end of zone transition times
-    
-    No functional changes, just more readable code.
+    time: correctly handle timezone before first transition time
     
     LGTM=r
-    R=golang-codereviews, gobot, r
+    R=golang-codereviews, r, arnehormann, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/59240043
+    https://golang.org/cl/58450043
 
- src/pkg/time/zoneinfo.go         | 23 +++++++++++++++--------
- src/pkg/time/zoneinfo_plan9.go   |  2 +-
- src/pkg/time/zoneinfo_read.go    |  4 ++--
- src/pkg/time/zoneinfo_windows.go |  4 ++--
- 4 files changed, 20 insertions(+), 13 deletions(-)
+ src/pkg/time/zoneinfo.go      | 68 ++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/time/zoneinfo_test.go | 54 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 121 insertions(+), 1 deletion(-)

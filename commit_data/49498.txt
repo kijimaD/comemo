@@ -1,22 +1,25 @@
-commit ec58e3f3271de385cf976a805e611d3da09c3a0e
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Jun 17 15:19:59 2022 -0700
+commit bba460499c689de85e895fb2fac8ad3d09d4cd2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 23 16:25:37 2021 -0700
 
-    test: add regress test for #53419
+    cmd/compile/internal/types2: don't export TypeSet
     
-    This currently works with GOEXPERIMENT=unified. Add a regress test to
-    make sure it stays that way.
+    For now don't export TypeSet in the interest of
+    keeping the types2 API surface small(er).
     
-    Updates #53419.
+    This is a clean port of CL 341289 from go/types.
     
-    Change-Id: I2ea1f9039c59807fbd497d69a0420771f8d6d035
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413014
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I50c747629f25472f2ec5ba59d7f543ee3c1c423b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344610
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/go/internal/gcimporter/gcimporter_test.go |  1 +
- test/run.go                                   |  1 +
- test/typeparam/issue53419.go                  | 28 +++++++++++++++++++++++++++
- 3 files changed, 30 insertions(+)
+ src/cmd/compile/internal/types2/interface.go   |  4 +--
+ src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types2/typeset.go     | 46 +++++++++++++-------------
+ src/cmd/compile/internal/types2/union.go       |  4 +--
+ src/cmd/compile/internal/types2/universe.go    |  2 +-
+ 5 files changed, 29 insertions(+), 29 deletions(-)

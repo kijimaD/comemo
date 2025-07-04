@@ -1,15 +1,15 @@
-commit 3c1ece2cb4caeb1a7ed6954e456dbe5bd6fd4c24
+commit bc2c3388f4ead47c1344a061d305cc9f535af987
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Sep 23 16:29:53 2013 -0400
+Date:   Mon Sep 23 16:05:23 2013 -0400
 
-    cmd/cgo: update #cgo docs to reflect reality
+    crypto/tls: document that the package supports TLS 1.2
     
-    The syntax accepted is full build constraints, not just
-    GOOS, GOARCH, and GOOS/GOARCH.
+    Fixes #6456.
     
-    R=golang-dev, iant
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13504048
+    https://golang.org/cl/13740047
 
- src/cmd/cgo/doc.go | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ src/pkg/crypto/tls/common.go | 2 +-
+ src/pkg/crypto/tls/tls.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

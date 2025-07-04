@@ -1,17 +1,15 @@
-commit bbb5f1bffbcb03b442ea953dfbe41169530e450f
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Aug 3 10:37:30 2012 -0400
+commit b9b29ce2ba9e45de8372d81292b52f8623237220
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 3 14:25:35 2012 +1000
 
-    crypto/x509: support ECDSA keys when generating certificates.
+    os: test that IsExist and IsNotExist handle PathError and LinkError
     
-    We already support reading ECDSA certificates and this change adds
-    write support.
-    
-    R=golang-dev, bradfitz, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6422046
+    https://golang.org/cl/6442080
 
- src/pkg/crypto/x509/pkcs8.go     |   2 +-
- src/pkg/crypto/x509/x509.go      | 123 +++++++++++++++++++++++++++++----------
- src/pkg/crypto/x509/x509_test.go | 117 +++++++++++++++++++++----------------
- 3 files changed, 161 insertions(+), 81 deletions(-)
+ src/pkg/os/error_plan9.go   | 24 +++++++++++++++---------
+ src/pkg/os/error_posix.go   | 21 ++++++++++++++++++---
+ src/pkg/os/error_test.go    | 27 +++++++++++++++++++++++++++
+ src/pkg/os/error_windows.go | 22 +++++++++++++++++-----
+ 4 files changed, 77 insertions(+), 17 deletions(-)

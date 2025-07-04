@@ -1,59 +1,37 @@
-commit 43ec1b12f50b9ec6edefb39a9e11226ea68d7757
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Nov 11 20:37:50 2019 -0500
+commit c485e8b55918b3b37e6eab47036ab6f16fec226d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 28 11:20:15 2019 -0700
 
-    src/vendor,crypto/tls: update to latest x/crypto and use new X25519 API
+    runtime: use a pipe to wake up signal_recv on Darwin
     
-    Change-Id: Icd5006e37861d892a5f3d4397c3826179c1b12ad
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/206657
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    The implementation of semaphores, and therefore notes, used on Darwin
+    is not async-signal-safe. The runtime has one case where a note needs
+    to be woken up from a signal handler: the call to notewakeup in sigsend.
+    That notewakeup call is only called on a single note, and it doesn't
+    need the full functionality of notes: nothing ever does a timed wait on it.
+    So change that one note to use a different implementation on Darwin,
+    based on a pipe. This lets the wakeup code use the write call, which is
+    async-signal-safe.
+    
+    Fixes #31264
+    
+    Change-Id: If705072d7a961dd908ea9d639c8d12b222c64806
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184169
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/crypto/tls/key_schedule.go                     |  39 +-
- src/go.mod                                         |   2 +-
- src/go.sum                                         |   4 +-
- .../golang.org/x/crypto/chacha20/chacha_arm64.go   |  17 +
- .../asm_arm64.s => chacha20/chacha_arm64.s}        |   0
- .../golang.org/x/crypto/chacha20/chacha_generic.go | 364 +++++++++
- .../golang.org/x/crypto/chacha20/chacha_noasm.go   |  13 +
- .../golang.org/x/crypto/chacha20/chacha_ppc64le.go |  16 +
- .../golang.org/x/crypto/chacha20/chacha_ppc64le.s  | 449 +++++++++++
- .../golang.org/x/crypto/chacha20/chacha_s390x.go   |  26 +
- .../crypto/{internal => }/chacha20/chacha_s390x.s  |  40 +-
- .../x/crypto/{internal => }/chacha20/xor.go        |   4 +-
- .../x/crypto/chacha20poly1305/chacha20poly1305.go  |  17 +-
- .../chacha20poly1305/chacha20poly1305_amd64.go     |  20 +-
- .../chacha20poly1305/chacha20poly1305_generic.go   |  22 +-
- .../x/crypto/chacha20poly1305/xchacha20poly1305.go |  40 +-
- .../golang.org/x/crypto/curve25519/const_amd64.h   |   8 -
- .../golang.org/x/crypto/curve25519/const_amd64.s   |  20 -
- .../golang.org/x/crypto/curve25519/cswap_amd64.s   |  65 --
- .../golang.org/x/crypto/curve25519/curve25519.go   | 881 ++-------------------
- .../{mont25519_amd64.go => curve25519_amd64.go}    |   2 +-
- .../{ladderstep_amd64.s => curve25519_amd64.s}     | 420 +++++++++-
- .../x/crypto/curve25519/curve25519_generic.go      | 828 +++++++++++++++++++
- .../x/crypto/curve25519/curve25519_noasm.go        |  11 +
- src/vendor/golang.org/x/crypto/curve25519/doc.go   |  23 -
- .../golang.org/x/crypto/curve25519/freeze_amd64.s  |  73 --
- .../golang.org/x/crypto/curve25519/mul_amd64.s     | 169 ----
- .../golang.org/x/crypto/curve25519/square_amd64.s  | 132 ---
- .../x/crypto/internal/chacha20/asm_ppc64le.s       | 668 ----------------
- .../x/crypto/internal/chacha20/chacha_arm64.go     |  31 -
- .../x/crypto/internal/chacha20/chacha_generic.go   | 264 ------
- .../x/crypto/internal/chacha20/chacha_noasm.go     |  16 -
- .../x/crypto/internal/chacha20/chacha_ppc64le.go   |  52 --
- .../x/crypto/internal/chacha20/chacha_s390x.go     |  29 -
- .../golang.org/x/crypto/poly1305/bits_compat.go    |  39 +
- .../golang.org/x/crypto/poly1305/bits_go1.13.go    |  21 +
- .../golang.org/x/crypto/poly1305/poly1305.go       |  10 +-
- .../golang.org/x/crypto/poly1305/sum_amd64.go      |  56 +-
- .../golang.org/x/crypto/poly1305/sum_amd64.s       |  40 -
- src/vendor/golang.org/x/crypto/poly1305/sum_arm.go |   7 +-
- .../golang.org/x/crypto/poly1305/sum_generic.go    | 391 ++++++---
- .../golang.org/x/crypto/poly1305/sum_noasm.go      |   5 +-
- .../golang.org/x/crypto/poly1305/sum_ppc64le.go    |  56 +-
- .../golang.org/x/crypto/poly1305/sum_ppc64le.s     |  66 --
- .../golang.org/x/crypto/poly1305/sum_s390x.go      |   5 +-
- src/vendor/modules.txt                             |   4 +-
- 46 files changed, 2652 insertions(+), 2813 deletions(-)
+ src/runtime/defs_darwin.go       |  4 ++++
+ src/runtime/defs_darwin_386.go   |  4 ++++
+ src/runtime/defs_darwin_amd64.go |  4 ++++
+ src/runtime/defs_darwin_arm.go   |  4 ++++
+ src/runtime/defs_darwin_arm64.go |  4 ++++
+ src/runtime/os_darwin.go         | 46 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sigqueue.go          | 12 +++++++++++
+ src/runtime/sigqueue_note.go     | 25 ++++++++++++++++++++++
+ src/runtime/sys_darwin.go        | 14 ++++++++++++
+ src/runtime/sys_darwin_386.s     | 15 +++++++++++++
+ src/runtime/sys_darwin_amd64.s   | 11 ++++++++++
+ src/runtime/sys_darwin_arm.s     |  8 +++++++
+ src/runtime/sys_darwin_arm64.s   |  8 +++++++
+ 13 files changed, 159 insertions(+)

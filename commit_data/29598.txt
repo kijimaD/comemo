@@ -1,20 +1,17 @@
-commit f42929ce9fcf8b32656900764881cfb84fdbe46b
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Nov 18 14:47:51 2016 -0800
+commit 9ed0715bb66dbbd0f597f93d0bc70a3d769b1b10
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Tue Sep 20 22:56:57 2016 +0100
 
-    go/internal/gccgoimporter: handle conversions in exported const values
+    math/big: support negative numbers in ModInverse
     
-    Also: handle version "v2" of export data format.
+    Fixes #16984
     
-    Fixes #17981.
-    
-    Change-Id: I8042ce18c4a27c70cc1ede675daca019b047bcf3
-    Reviewed-on: https://go-review.googlesource.com/33412
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I3a330e82941a068ca6097985af4ab221275fd336
+    Reviewed-on: https://go-review.googlesource.com/29299
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/go/internal/gccgoimporter/importer.go          |  5 +--
- src/go/internal/gccgoimporter/importer_test.go     |  1 +
- src/go/internal/gccgoimporter/parser.go            | 40 ++++++++++++++++++----
- .../internal/gccgoimporter/testdata/conversions.go |  5 +++
- .../gccgoimporter/testdata/conversions.gox         |  6 ++++
- 5 files changed, 48 insertions(+), 9 deletions(-)
+ src/math/big/int.go      | 5 +++++
+ src/math/big/int_test.go | 1 +
+ 2 files changed, 6 insertions(+)

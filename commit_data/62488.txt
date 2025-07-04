@@ -1,0 +1,19 @@
+commit e0b110b926c47227aa0669b630f5292152945bba
+Author: linmaolin <linlin152@foxmail.com>
+Date:   Thu Mar 6 00:41:02 2025 +0000
+
+    text/template: add an if func example
+    
+    Updates #13880
+    
+    Change-Id: I0fd3b1a32e485bc8f15238c86a8bbdc161f20fa5
+    GitHub-Last-Rev: d1e92b31243c86435add422ee46aaff768453cad
+    GitHub-Pull-Request: golang/go#71922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651916
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/text/template/examplefunc_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

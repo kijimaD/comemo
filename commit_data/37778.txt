@@ -1,17 +1,22 @@
-commit 08477a38ab21c5d4c196af6d16f817aae8c125da
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Dec 21 13:14:09 2018 -0800
+commit 7334904e43005f930a776c793d54e03d13e62b30
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Mon Aug 27 13:16:38 2018 +0000
 
-    cmd/cgo: don't let inserted /*line*/ become a // comment
+    cmd/dist: do not run race detector tests on netbsd
     
-    Fixes #29383
+    The race detector is not fully functional on NetBSD yet. Without
+    this change, all.bash fails in TestOutput.
     
-    Change-Id: I0fb2929863e153b96d32d851e25e536231e4ae65
-    Reviewed-on: https://go-review.googlesource.com/c/155638
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    This unbreaks the netbsd-amd64 builder.
+    
+    Update #26403
+    Fixes #27268
+    
+    Change-Id: I2c7015692d3632aa1037f40155d4fc5c7bb1d8c3
+    Reviewed-on: https://go-review.googlesource.com/131555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- misc/cgo/test/issue29383.go | 19 +++++++++++++++++++
- src/cmd/cgo/gcc.go          |  6 ++++--
- 2 files changed, 23 insertions(+), 2 deletions(-)
+ src/cmd/dist/test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

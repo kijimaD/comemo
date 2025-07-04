@@ -1,31 +1,83 @@
-commit c9af2bd21e86a218622b9c753cddfb5bba46d780
-Author: Katie Hockman <katie@golang.org>
-Date:   Mon Sep 27 16:12:05 2021 -0400
+commit fa01ade41e1632dbb8e1b06ff1e6565e8900fb38
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Jan 12 09:20:22 2021 -0500
 
-    cmd/go: prevent necessary GCFlag from being removed
+    [dev.typeparams] go/types: add tests from dev.go2go
     
-    There are special flags that must be passed to the
-    compiler at build time in order to instrument the
-    testing binary for fuzzing.
-    One potential option would be to add these flags to
-    p.Internal.Gcflags inside cmd/go/internal/test. However,
-    future calls to setToolFlags can cause these flags to
-    get cleared about before the build starts, removing
-    virtually all coverage guidance. This change moves the
-    logic to add the flag deeper down the call stack,
-    preventing it from being cleared.
+    Add tests from the dev.go2go branch, modified to eliminate support for
+    parenthesized type embedding and method type parameters. For the most
+    part these tests were made to pass via the fixes from preceding CLs in
+    this stack.
     
-    Change-Id: I40eadb0cacc18f29cee75379cd9380f9e73bb8da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352511
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    While integrating support for type parameters with the changes to
+    go/types in master, a decision was made to temporarily use an error code
+    of 0 for new error messages. Now that these messages are actually
+    emitted during checking of test packages, it is a test failure for them
+    to have an error code of 0. To satisfy the test, create a new temporary
+    error code '_Todo', which represents an error code that has not yet been
+    assigned. _Todo is added only where it was necessary to make tests pass:
+    many error codes were left as 0, meaning we don't have any tests that
+    produce them. This marker may help us produce more comprehensive tests
+    in the future.
+    
+    Finally, each package checked by testDir was made into a subtest, for
+    the ease of running individual packages while debugging test failures.
+    This seemed worth keeping.
+    
+    Change-Id: Iba421b797e9fb11af664a73902f67d6c4f30ecad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283854
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/cmd/go/internal/load/pkg.go  |  1 +
- src/cmd/go/internal/test/test.go | 10 ++++------
- src/cmd/go/internal/work/exec.go |  5 +++++
- src/cmd/go/internal/work/gc.go   |  3 +++
- src/cmd/go/internal/work/init.go | 15 ++++++++-------
- 5 files changed, 21 insertions(+), 13 deletions(-)
+ src/go/types/assignments.go           |   2 +-
+ src/go/types/builtins.go              |   4 +-
+ src/go/types/call.go                  |   8 +-
+ src/go/types/check_test.go            |  44 ++--
+ src/go/types/decl.go                  |   2 +-
+ src/go/types/errorcodes.go            |   4 +
+ src/go/types/examples/functions.go2   | 214 ++++++++++++++++
+ src/go/types/examples/methods.go2     |  96 +++++++
+ src/go/types/examples/types.go2       | 266 ++++++++++++++++++++
+ src/go/types/fixedbugs/issue39634.go2 |  91 +++++++
+ src/go/types/fixedbugs/issue39664.go2 |  15 ++
+ src/go/types/fixedbugs/issue39680.go2 |  27 ++
+ src/go/types/fixedbugs/issue39693.go2 |  14 ++
+ src/go/types/fixedbugs/issue39699.go2 |  29 +++
+ src/go/types/fixedbugs/issue39711.go2 |  11 +
+ src/go/types/fixedbugs/issue39723.go2 |   9 +
+ src/go/types/fixedbugs/issue39725.go2 |  16 ++
+ src/go/types/fixedbugs/issue39754.go2 |  20 ++
+ src/go/types/fixedbugs/issue39755.go2 |  23 ++
+ src/go/types/fixedbugs/issue39768.go2 |  20 ++
+ src/go/types/fixedbugs/issue39938.go2 |  50 ++++
+ src/go/types/fixedbugs/issue39948.go2 |   9 +
+ src/go/types/fixedbugs/issue39976.go2 |  16 ++
+ src/go/types/fixedbugs/issue39982.go2 |  36 +++
+ src/go/types/fixedbugs/issue40038.go2 |  15 ++
+ src/go/types/fixedbugs/issue40056.go2 |  15 ++
+ src/go/types/fixedbugs/issue40057.go2 |  17 ++
+ src/go/types/fixedbugs/issue40301.go2 |  12 +
+ src/go/types/fixedbugs/issue40684.go2 |  15 ++
+ src/go/types/fixedbugs/issue41124.go2 |  91 +++++++
+ src/go/types/fixedbugs/issue42758.go2 |  33 +++
+ src/go/types/infer.go                 |   4 +-
+ src/go/types/resolver.go              |  11 +-
+ src/go/types/subst.go                 |   9 +-
+ src/go/types/testdata/builtins.go2    |  53 ++++
+ src/go/types/testdata/chans.go2       |  62 +++++
+ src/go/types/testdata/issues.go2      | 255 +++++++++++++++++++
+ src/go/types/testdata/linalg.go2      |  83 ++++++
+ src/go/types/testdata/map.go2         | 113 +++++++++
+ src/go/types/testdata/map2.go2        | 146 +++++++++++
+ src/go/types/testdata/slices.go2      |  68 +++++
+ src/go/types/testdata/tinference.go2  | 108 ++++++++
+ src/go/types/testdata/tmp.go2         |  17 ++
+ src/go/types/testdata/todos.go2       |  22 ++
+ src/go/types/testdata/typeinst.go2    |  59 +++++
+ src/go/types/testdata/typeinst2.go2   | 256 +++++++++++++++++++
+ src/go/types/testdata/typeparams.go2  | 458 ++++++++++++++++++++++++++++++++++
+ src/go/types/typexpr.go               |  20 +-
+ 48 files changed, 2919 insertions(+), 49 deletions(-)

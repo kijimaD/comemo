@@ -1,33 +1,25 @@
-commit b39fb9ec85c95cd760b8916eb85c92a185ca7a48
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Jul 27 11:24:00 2018 +0100
+commit 2e7e57770c71109cc036478c656309c41ddee143
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 4 09:24:13 2018 -0700
 
-    cmd/go/internal/par: fix TestWorkParallel retries
+    runtime: avoid calling adjustpointers unnecessarily
     
-    When the test retried multiple times, it reused the same Work variable,
-    causing in the builders being flaky due to panics. I was able to
-    immediately reproduce the failure with stress and -race:
+    adjustpointers loops over a bitmap.
+    If the length of that bitmap is zero,
+    we can skip making the call entirely.
+    This speeds up stack copying when there are
+    no pointers present in either args or locals.
     
-            $ go test -race -c && stress -p 32 ./par.test -test.run=TestWorkParallel$
+    name                old time/op  new time/op  delta
+    StackCopyPtr-8       101ms ± 4%    90ms ± 4%  -10.95%  (p=0.000 n=87+93)
+    StackCopy-8         80.1ms ± 4%  72.6ms ± 4%   -9.41%  (p=0.000 n=98+100)
+    StackCopyNoCache-8   121ms ± 3%   113ms ± 3%   -6.57%  (p=0.000 n=98+97)
     
-            /tmp/go-stress909062277
-            --- FAIL: TestWorkParallel (0.07s)
-            panic: par.Work.Do: already called Do [recovered]
-                    panic: par.Work.Do: already called Do
-    
-    Instead, use a new Work variable at each retry. Now, the line above
-    seems to never fail. Of course, much higher 'stress -p' values will
-    still result in "does not seem to be parallel" test failures since the
-    machine lacks resources. But those are test failures, not panics.
-    
-    Fixes #26642.
-    
-    Change-Id: I5e962eca7602cf413d911ff5669f56d4f52da5a7
-    Reviewed-on: https://go-review.googlesource.com/126355
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I7a272e19bc9a14fa3e3318771ebd082dc6247d25
+    Reviewed-on: https://go-review.googlesource.com/104737
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/go/internal/par/work_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/runtime/stack.go | 32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)

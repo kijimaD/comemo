@@ -1,12 +1,14 @@
-commit 27087022cea3b9fec19c9fae206abd57bf880bd3
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Nov 15 21:30:24 2012 +0400
+commit fa21df31440d6fb64eebffdc9a1c5c958af8c118
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Nov 15 13:59:46 2012 +1100
 
-    sync/atomic: fix race instrumentation
+    run.bash: fix linux/arm build
+    
+    Revert to the shell builtin to avoid hosts that do not have /usr/bin/time.
     
     R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/6782075
+    https://golang.org/cl/6848054
 
- src/pkg/sync/atomic/race.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/run.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,16 +1,12 @@
-commit 2799e0ecb9a4cc748dbfc8ddbfae9c2e02158818
-Author: Ken Thompson <ken@golang.org>
-Date:   Mon Feb 7 15:00:30 2011 -0800
+commit 223459891e9a6d6e00137a9a4cb4f27441a93ff5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 7 17:49:45 2011 -0500
 
-    peep: fix bug in peep optimizer.
-    reg: enable peep optimizer.
-    cgen64: better int64 code.
+    syscall: fix arm build
     
     R=r
     CC=golang-dev
-    https://golang.org/cl/3989065
+    https://golang.org/cl/4105057
 
- src/cmd/5g/cgen64.c | 42 +++++++++++++++++++++---------------------
- src/cmd/5g/peep.c   |  6 ++++--
- src/cmd/5g/reg.c    |  4 ++--
- 3 files changed, 27 insertions(+), 25 deletions(-)
+ src/pkg/syscall/ztypes_linux_arm.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

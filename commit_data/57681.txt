@@ -1,22 +1,22 @@
-commit 488e2d18d9d8ac8f51a5e1ea297adaa50c9f4870
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jun 28 17:15:48 2024 +0000
+commit 21293b6b87c67bc98c56b33509ae390a3352da71
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 18:15:43 2023 -0700
 
-    runtime: more thorough map benchmarks
+    cmd/compile/internal/typecheck: use types.IsMethodApplicable
     
-    Based on the benchmarks in github.com/cockroachlabs/swiss.
+    In checking whether a type implements an interface, there's this
+    complex predicate spanning multiple lines, which is very obtuse.
     
-    For #54766.
+    So let's just use the helper function we already have in package types
+    instead.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
-    Change-Id: I9ad925d3272c671e21ec04eb2da5ebd8f0fc6a28
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/596295
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Change-Id: I80f69d41c2bee8d6807601cf913840fa4f042b5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521435
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/map_benchmark_test.go | 641 ++++++++++++++++++++++++++++++++++----
- src/runtime/map_test.go           | 213 -------------
- 2 files changed, 587 insertions(+), 267 deletions(-)
+ src/cmd/compile/internal/typecheck/subr.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

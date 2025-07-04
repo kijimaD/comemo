@@ -1,37 +1,15 @@
-commit 80a9783f842ff5d14fd5e2e5d5a129635a081031
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 24 11:48:19 2012 +1100
+commit c05c3a9d1180e6d449049d9ed96c46b65837bb29
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Fri Feb 24 11:32:33 2012 +1100
 
-    test/[n-z]*.go: add documentation
+    html/template: make doctype check case-insensitive
     
-    R=golang-dev, bradfitz, r
+    Fixes #3094.
+    
+    R=golang-dev, rsc, nigeltao
     CC=golang-dev
-    https://golang.org/cl/5700056
+    https://golang.org/cl/5687065
 
- test/named1.go      |  1 +
- test/shift1.go      |  2 ++
- test/shift2.go      |  2 ++
- test/sieve.go       |  5 +--
- test/sigchld.go     |  2 ++
- test/simassign.go   |  2 ++
- test/sinit.go       |  3 ++
- test/sizeof.go      |  2 ++
- test/solitaire.go   |  6 ++--
- test/stack.go       |  1 +
- test/string_lit.go  |  2 ++
- test/stringrange.go |  2 ++
- test/struct0.go     |  6 ++--
- test/switch.go      | 13 ++++++++
- test/switch1.go     | 20 ------------
- test/switch3.go     |  3 ++
- test/test0.go       | 92 -----------------------------------------------------
- test/turing.go      |  2 ++
- test/typeswitch.go  |  2 ++
- test/typeswitch1.go |  2 ++
- test/typeswitch2.go |  3 ++
- test/typeswitch3.go |  4 +++
- test/undef.go       |  3 +-
- test/utf.go         |  2 ++
- test/varerr.go      |  3 ++
- test/varinit.go     |  2 ++
- 26 files changed, 67 insertions(+), 120 deletions(-)
+ src/pkg/html/template/escape.go      | 2 +-
+ src/pkg/html/template/escape_test.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

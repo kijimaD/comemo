@@ -1,20 +1,33 @@
-commit c73df92be6dd24603fe51f90db668980a7a9ef19
-Author: Håvard Haugen <havard.haugen@gmail.com>
-Date:   Wed Sep 23 23:31:17 2015 +0200
+commit 500c88d40db6798dddf181f39b6148415544ef94
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 23 17:55:01 2015 -0400
 
-    cmd/compile/internal/gc: remove stringsCompare
+    runtime: yield to GC coordinator after assist completion
     
-    Inlined the last occurrence of stringsCompare into exprcmp.
+    Currently it's possible for the GC assist to signal completion of the
+    mark phase, which puts the GC coordinator goroutine on the current P's
+    run queue, and then return to mutator code that delays until the next
+    forced preemption before actually yielding control to the GC
+    coordinator, dragging out completion of the mark phase. This delay can
+    be further exacerbated if the mutator makes other goroutines runnable
+    before yielding control, since this will push the GC coordinator on
+    the back of the P's run queue.
     
-    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
+    To fix this, this adds a Gosched to the assist if it completed the
+    mark phase. This immediately and directly yields control to the GC
+    coordinator. This already happens implicitly in the background mark
+    workers because they park immediately after completing the mark.
     
-    Change-Id: I8fd99e3fbffc84283cc269368595cba950533066
-    Reviewed-on: https://go-review.googlesource.com/14872
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    This is one of the reasons completion of the mark phase is being
+    dragged out and allowing the mutator to allocate without assisting,
+    leading to the large heap goal overshoot in issue #11677. This is also
+    a prerequisite to making the assist block when it can't pay off its
+    debt.
+    
+    Change-Id: I586adfbecb3ca042a37966752c1dc757f5c7fc78
+    Reviewed-on: https://go-review.googlesource.com/12670
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/swt.go      |   8 +-
- src/cmd/compile/internal/gc/swt_test.go | 144 ++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/util.go     |  11 ---
- 3 files changed, 151 insertions(+), 12 deletions(-)
+ src/runtime/mgc.go     | 4 ++++
+ src/runtime/mgcmark.go | 8 ++++++++
+ 2 files changed, 12 insertions(+)

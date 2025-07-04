@@ -1,62 +1,18 @@
-commit d889f0cb1090a043786157f059c29269065626f4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Fri Feb 28 17:04:16 2020 -0800
+commit 0b204f958e0960fab34e09812eb5a3396ed3f1c9
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Oct 9 11:13:42 2019 +0200
 
-    cmd/compile: use correct types in phiopt
+    go/build: allow ~ and ^ in #cgo directives for sr.ht import paths
     
-    We try to preserve type correctness of generic ops.
-    phiopt modified a bool to be an int without a conversion.
-    Add a conversion. There are a few random fluctations in the
-    generated code as a result, but nothing noteworthy or systematic.
+    Fixes #32260
     
-    no binary size changes
-    
-    file                        before   after    Δ       %
-    math.s                      35966    35961    -5      -0.014%
-    debug/dwarf.s               108141   108147   +6      +0.006%
-    crypto/dsa.s                6047     6044     -3      -0.050%
-    image/png.s                 42882    42885    +3      +0.007%
-    go/parser.s                 80281    80278    -3      -0.004%
-    cmd/internal/obj.s          115116   115113   -3      -0.003%
-    go/types.s                  322130   322118   -12     -0.004%
-    cmd/internal/obj/arm64.s    151679   151685   +6      +0.004%
-    go/internal/gccgoimporter.s 56487    56493    +6      +0.011%
-    cmd/test2json.s             1650     1647     -3      -0.182%
-    cmd/link/internal/loadelf.s 35442    35443    +1      +0.003%
-    cmd/go/internal/work.s      305039   305035   -4      -0.001%
-    cmd/link/internal/ld.s      544835   544834   -1      -0.000%
-    net/http.s                  558777   558774   -3      -0.001%
-    cmd/compile/internal/ssa.s  3926551  3926994  +443    +0.011%
-    cmd/compile/internal/gc.s   1552320  1552321  +1      +0.000%
-    total                       18862241 18862670 +429    +0.002%
-    
-    
-    Change-Id: I4289e773be6be534ea3f907d68f614441b8f9b46
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/221607
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: Ib44ee33b8143d523875cf5a2bc5e36bf082801a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199918
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/gen/386.rules     |  2 ++
- src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 ++
- src/cmd/compile/internal/ssa/gen/ARM.rules     |  2 ++
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  2 ++
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |  2 ++
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  2 ++
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  2 ++
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  2 ++
- src/cmd/compile/internal/ssa/gen/S390X.rules   |  2 ++
- src/cmd/compile/internal/ssa/gen/Wasm.rules    |  2 ++
- src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
- src/cmd/compile/internal/ssa/opGen.go          |  6 ++++++
- src/cmd/compile/internal/ssa/phiopt.go         | 14 ++++++++------
- src/cmd/compile/internal/ssa/rewrite386.go     |  3 +++
- src/cmd/compile/internal/ssa/rewriteAMD64.go   |  3 +++
- src/cmd/compile/internal/ssa/rewriteARM.go     |  3 +++
- src/cmd/compile/internal/ssa/rewriteARM64.go   |  3 +++
- src/cmd/compile/internal/ssa/rewriteMIPS.go    |  3 +++
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  3 +++
- src/cmd/compile/internal/ssa/rewritePPC64.go   |  3 +++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go |  3 +++
- src/cmd/compile/internal/ssa/rewriteS390X.go   |  3 +++
- src/cmd/compile/internal/ssa/rewriteWasm.go    |  3 +++
- 23 files changed, 65 insertions(+), 6 deletions(-)
+ src/go/build/build.go      | 3 ++-
+ src/go/build/build_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

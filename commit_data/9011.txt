@@ -1,14 +1,25 @@
-commit 762ea79057e294944c90c59f0d288efde586bc30
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jul 12 09:36:46 2011 +1000
+commit 1722ec22cd6a34dcef717cc242e3e1ac24366069
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 11 15:59:27 2011 -0700
 
-    codereview: fix for Mercurial 1.9
+    cgi: close stdout reader pipe when finished
     
-    Fixes #2038.
+    This causes the child, if still writing, to get an error or
+    SIGPIPE and most likely exit so our subsequent wait can
+    finish.
     
-    R=rsc, bobbypowers
+    A more guaranteed fix would be putting a time limit on the
+    child's overall execution, but this fixes the problem
+    I was having.
+    
+    Fixes #2059
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4675045
+    https://golang.org/cl/4675081
 
- lib/codereview/codereview.py | 26 +++++++++++++++++++-------
- 1 file changed, 19 insertions(+), 7 deletions(-)
+ src/pkg/exec/exec.go               |  6 ++-
+ src/pkg/http/cgi/host.go           |  1 +
+ src/pkg/http/cgi/host_test.go      | 76 +++++++++++++++++++++++++++++++++++++-
+ src/pkg/http/cgi/testdata/test.cgi |  8 ++++
+ 4 files changed, 87 insertions(+), 4 deletions(-)

@@ -1,22 +1,22 @@
-commit 5a8b652c6e93311fb6f336e7075aee46ef560213
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jul 9 10:46:28 2018 -0400
+commit 2e84dc2596f5ca655fd5716e1c277a801c868566
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 9 11:44:59 2018 +0100
 
-    cmd/go: add test for tests with no tests
+    runtime: parse auxv on freebsd
     
-    CL 122518 rolled back an earlier CL that made "go test"
-    start running test binaries for packages with no *_test.go files.
-    Add a test as another roadblock to reintroducing that behavior
-    in the future.
+    Decode AT_PAGESZ to determine physPageSize on freebsd/{386,amd64,arm}
+    and AT_HWCAP for hwcap and hardDiv on freebsd/arm. Also use hwcap to
+    perform the FP checks in checkgoarm akin to the linux/arm
+    implementation.
     
-    For #26462.
-    
-    Change-Id: I898103064efee8d6ae65bcf74f4dffc830eae7e9
-    Reviewed-on: https://go-review.googlesource.com/122595
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: I532810a1581efe66277e4305cb234acdc79ee91e
+    Reviewed-on: https://go-review.googlesource.com/99780
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/go_test.go                  | 10 ++++++++++
- src/cmd/go/testdata/src/testnorun/p.go |  5 +++++
- 2 files changed, 15 insertions(+)
+ src/runtime/os_freebsd.go        | 39 ++++++++++++++++++++++++++++++++++++++-
+ src/runtime/os_freebsd_arm.go    | 28 ++++++++++++++++++++++++++--
+ src/runtime/os_freebsd_noauxv.go | 11 +++++++++++
+ src/runtime/vdso_none.go         |  1 +
+ 4 files changed, 76 insertions(+), 3 deletions(-)

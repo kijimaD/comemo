@@ -1,23 +1,18 @@
-commit c45d78013f92a29285cd81488eb7a16819f01e18
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Oct 28 10:52:02 2020 -0400
+commit c144a94b267121a41da3fc0b5ce381641f41253e
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 15 13:46:25 2020 -0400
 
-    cmd/link: ignore "operation not permitted" fallocate errors.
+    [dev.link] cmd/link/internal/loader: remove some unused types
     
-    Ignore an additional class of errors form fallocate, falling back to
-    heap allocated buffers for output.
+    The types funcAllocInfo and funcInfoSym are no longer referenced.
     
-    Fixes #41356
+    Fixes #38456.
     
-    Change-Id: Iaaa91620cec644c78978e0b258f166bc204a3f85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254777
-    Trust: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Icd32445f6027429f4a2781554d2086790ebe5daf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228318
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/outbuf.go             | 9 ++++-----
- src/cmd/link/internal/ld/outbuf_mmap.go        | 2 +-
- src/cmd/link/internal/ld/outbuf_nofallocate.go | 4 +---
- 3 files changed, 6 insertions(+), 9 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 19 -------------------
+ 1 file changed, 19 deletions(-)

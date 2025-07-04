@@ -1,15 +1,33 @@
-commit 071e44e4e417adb9782410acfb89f0fb1cb85fb4
+commit 56ce83f7ba0b18fd0914439ee75e1164ba82733f
 Author: Russ Cox <rsc@golang.org>
-Date:   Wed Aug 14 00:34:00 2013 -0400
+Date:   Wed Aug 14 00:20:55 2013 -0400
 
-    time: make Time implement encoding interfaces
+    undo CL 12603044 / 2ca230b93195
     
-    See golang.org/s/go12encoding for design.
+    fat fingers - did not intend to submit.
+    depends on the Unmarshaler CL anyway.
     
-    R=golang-dev, bradfitz
+    ««« original CL description
+    encoding/xml: add, support Marshaler interface
+    
+    See golang.org/s/go12xml for design.
+    
+    Fixes #2771.
+    Fixes #4169.
+    Fixes #5975.
+    Fixes #6125.
+    
+    R=golang-dev, iant, dan.kortschak
     CC=golang-dev
-    https://golang.org/cl/12706043
+    https://golang.org/cl/12603044
+    »»»
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/12918043
 
- src/pkg/time/time.go      | 60 ++++++++++++++++++++++++++++++++++++-----------
- src/pkg/time/time_test.go | 22 +++++++++++------
- 2 files changed, 61 insertions(+), 21 deletions(-)
+ api/go1.1.txt                        |   1 +
+ api/go1.txt                          |   7 +
+ src/pkg/encoding/xml/marshal.go      | 459 +++++++----------------------------
+ src/pkg/encoding/xml/marshal_test.go |  34 ---
+ 4 files changed, 97 insertions(+), 404 deletions(-)

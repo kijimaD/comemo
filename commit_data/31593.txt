@@ -1,27 +1,16 @@
-commit c34add780b65d4c18978a9e490a2db9e4ff22d3a
-Author: Austin Clements <austin@google.com>
-Date:   Wed May 17 14:27:28 2017 -0400
+commit 2f5aea7c1305158a6d87ea356f0ed2a8186bc73d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 2 18:46:00 2017 +0000
 
-    runtime/pprof: don't produce 0 location in count profiles
+    Revert "Revert "cmd/vet/all: remove pprof from the whitelist""
     
-    profileBuilder.locForPC returns 0 to mean "no location" because 0 is
-    an invalid location index. However, the code to build count profiles
-    doesn't check the result of locForPC, so this 0 location index ends up
-    in the profile's location list. This, in turn, causes problems later
-    when we decode the profile because it puts a nil *Location in the
-    sample's location slice, which can later lead to a nil pointer panic.
+    This reverts commit 9bd1cc3fa1145182e9ce041d0e96bd2051cd7fcf.
     
-    Fix this by making printCountProfile correctly discard the result of
-    locForPC if it returns 0. This makes this call match the other two
-    calls of locForPC.
+    Reason for revert: New fixes in from upstream. Try this again.
     
-    Updates #15156.
-    
-    Change-Id: I4492b3652b513448bc56f4cfece4e37da5e42f94
-    Reviewed-on: https://go-review.googlesource.com/43630
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iea46f32857e8467f8d5a49b31e20a52fda8bce60
+    Reviewed-on: https://go-review.googlesource.com/37693
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/pprof/pprof.go | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ src/cmd/vet/all/main.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,12 +1,21 @@
-commit c11361e2536fad07bbeb78e19d4283a07fbc02da
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Mon Feb 13 11:50:06 2012 -0800
+commit 9126c6570ce293761a4e5eefd61427902f291263
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 13 11:25:56 2012 -0800
 
-    exp/norm: fix typo
+    spec: clarify implementation restrictions on untyped floats
     
-    R=golang-dev, gri
-    CC=golang-dev
-    https://golang.org/cl/5649086
+    Drop reference to "machine type."  Specify that integer
+    overflow must be an error.  Drop requirement that exponent
+    must be 128 bits--that's a lot.  Clarify that floating point
+    expressions may be rounded, including intermediate values.
+    
+    This is a reworking of https://golang.org/cl/5577068/ .
+    
+    Fixes #2789.
+    
+    R=r, rsc, r, gri, ken, ken, iant
+    CC=golang-dev, remyoudompheng
+    https://golang.org/cl/5655049
 
- src/pkg/exp/norm/maketables.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ doc/go_spec.html | 38 +++++++++++++++++++++++++++++++++++---
+ 1 file changed, 35 insertions(+), 3 deletions(-)

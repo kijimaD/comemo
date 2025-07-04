@@ -1,0 +1,22 @@
+commit d9de8ba83ce6408a21a836a460d63a391f50e9e6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 17 16:52:25 2024 -0500
+
+    cmd/go: make vet work with -overlay
+    
+    It never worked before, an apparent oversight.
+    This will also make tests work, since tests run vet.
+    
+    The new FIPS mode will use overlays, so this was
+    keeping go test from working in that mode.
+    
+    Fixes #44957.
+    
+    Change-Id: I3a77846b3b3f9a3a53118aaece93ee93214a36a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629199
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/work/exec.go             | 17 +++++++++++++----
+ src/cmd/go/testdata/script/build_overlay.txt |  2 ++
+ 2 files changed, 15 insertions(+), 4 deletions(-)

@@ -1,19 +1,17 @@
-commit 1d18f66dc82088a3a3d39410866157e3e1e44554
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 16 21:36:34 2018 -0700
+commit b459e0045404d30dc14ea82d3b735f12b43df7d4
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat Jun 16 16:02:48 2018 +0300
 
-    cmd/cgo: write a string rather than building an AST
+    cmd/compile: add more color choices to ssa.html
     
-    This generates the same code as before, but does so directly rather
-    than building an AST and printing that. This is in preparation for
-    later changes.
+    It is possible to highlight up to 12 SSA values
+    and outlinte up to 11 SSA blocks.
     
-    Change-Id: Ifec141120bcc74847f0bff8d3d47306bfe69b454
-    Reviewed-on: https://go-review.googlesource.com/c/142883
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ifefb813ba07ee8856681552b77199f409e03d74d
+    Reviewed-on: https://go-review.googlesource.com/119318
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/cgo/gcc.go    | 246 +++++++++++++++++++++++++-------------------------
- src/cmd/cgo/godefs.go |   6 ++
- 2 files changed, 130 insertions(+), 122 deletions(-)
+ src/cmd/compile/internal/ssa/html.go | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)

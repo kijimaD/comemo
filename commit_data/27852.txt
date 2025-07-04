@@ -1,23 +1,20 @@
-commit 1faea596e4f94e0a4170eda3d1a217b4936d8aa6
-Author: Keith Randall <khr@golang.org>
-Date:   Sun May 29 11:16:13 2016 -0700
+commit 89a1f02834f1472cf307b222e14884ebd41086d3
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Apr 12 18:14:45 2016 +0300
 
-    cmd/compile: add size hint to map literal allocations
+    hash/adler32: Unroll loop for extra performance.
     
-    Might as well tell the runtime how large the map is going to be.
-    This avoids grow work and allocations while the map is being built.
+    name         old time/op    new time/op    delta
+    Adler32KB-4     592ns ± 0%     447ns ± 0%  -24.49%  (p=0.000 n=19+20)
     
-    Will wait for 1.8.
+    name         old speed      new speed      delta
+    Adler32KB-4  1.73GB/s ± 0%  2.29GB/s ± 0%  +32.41%  (p=0.000 n=20+20)
     
-    Fixes #15880
-    Fixes #16279
-    
-    Change-Id: I377e3e5ec1e2e76ea2a50cc00810adda20ad0e79
-    Reviewed-on: https://go-review.googlesource.com/23558
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I38990aa66ca4452a886200018a57c0bc3af30717
+    Reviewed-on: https://go-review.googlesource.com/21880
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/cmd/compile/internal/gc/sinit.go  | 2 +-
- src/cmd/compile/internal/gc/syntax.go | 5 +++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ src/hash/adler32/adler32.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

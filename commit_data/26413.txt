@@ -1,22 +1,12 @@
-commit 39af1eb96f37edc96e2bde24fdd877e49223f751
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Mar 21 14:37:57 2016 +1100
+commit 7730880f7ceda51c025a3c6bd296e1fa2de52318
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 20 14:06:17 2016 -0800
 
-    cmd/internal/obj: remove Link.Windows field
+    [dev.ssa] cmd/compile: update SSA TODOs
     
-    This CL addresses a long standing CL by rsc by pushing the use of
-    Link.Windows down to its two users.
-    
-    Link.Window was always initalised with the value of runtime.GOOS so
-    this does not affect cross compilation.
-    
-    Change-Id: Ibbae068f8b5aad06336909691f094384caf12352
-    Reviewed-on: https://go-review.googlesource.com/20869
-    Run-TryBot: Dave Cheney <dave@cheney.net>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I78743987dcb45d821212caf95a00ae15b7a6cfd8
+    Reviewed-on: https://go-review.googlesource.com/18773
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 5 +++--
- src/cmd/internal/obj/link.go        | 1 -
- src/cmd/internal/obj/sym.go         | 5 -----
- 3 files changed, 3 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/ssa/TODO | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

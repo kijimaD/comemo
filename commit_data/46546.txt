@@ -1,27 +1,26 @@
-commit 91c2318e67da2e5948cd8ed0420863af69142c3d
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Wed Sep 22 10:16:06 2021 -0400
+commit 6ee9b118a2a70371e038fb6bec4fe7989a3a2b2d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 8 14:04:50 2021 -0800
 
-    runtime: call cgocallbackg indirectly on PPC64
+    [dev.regabi] cmd/compile: remove fmt_test code; it has outlived its usefulness
     
-    This is CL 312669, for PPC64.
+    With the recent compiler rewrites and cleanups to gc/fmt.go, the
+    "safety net" provided by fmt_test has become less important and
+    the test itself has become a burden (often breaks because of small
+    format changes elsewhere).
     
-    cgocallback calls cgocallbackg after switching the stack. Call it
-    indirectly to bypass the linker's nosplit check. The nosplit check
-    fails after CL 351271, which removes ABI aliases. It would have
-    been failing before but the linker's nosplit check didn't resolve
-    ABI alias (it should) so it didn't catch that. Removing the ABI
-    aliases exposes it. For this partuclar case it is benign as there
-    is actually a stack switch in between.
+    Eventually, the syntax and types2 packages will provide most error
+    and diagnostic compiler output at which point fmt.go can be further
+    simplified as well.
     
-    Should fix PPC64 build.
-    
-    Change-Id: I49617aea55270663a9ee4692c54c070c5ab85470
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/351469
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ie93eefd3e1166f3548fed0199b732dbd6c81948a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282560
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
 
- src/runtime/asm_ppc64x.s | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/fmt_test.go    | 615 -----------------------------------------
+ src/cmd/compile/fmtmap_test.go |  75 -----
+ 2 files changed, 690 deletions(-)

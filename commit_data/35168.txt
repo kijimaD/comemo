@@ -1,17 +1,15 @@
-commit 62adf6fc2d70d9270b4213218e622c15504966be
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 26 22:34:38 2018 -0700
+commit 301714d804a38e900b8758a79c76b214ac8f3ed2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 4 23:36:16 2018 +0000
 
-    cmd/internal/obj: convert unicode C to ASCII C
+    net/http: document CONNECT more
     
-    Hex before: d0 a1
-    Hex after: 43
+    Fixes #22554
     
-    Not sure where that came from.
-    
-    Change-Id: I189e7e21f8faf480ba72846b956a149976f720f8
-    Reviewed-on: https://go-review.googlesource.com/109777
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I624f2883489a46d7162c11f489c2f0a0ec5a836f
+    Reviewed-on: https://go-review.googlesource.com/86277
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/x86/asm6.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/request.go   | 4 ++++
+ src/net/http/transport.go | 9 +++++++++
+ 2 files changed, 13 insertions(+)

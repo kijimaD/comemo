@@ -1,17 +1,23 @@
-commit 52d9e7f543f68a46d7a69443a1ad51283d2f0d4f
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Fri Aug 26 11:24:39 2022 +0800
+commit b9e1e1ba3d44069ce0b0564abab1b130ed120539
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 8 11:23:38 2021 -0700
 
-    runtime: convert consistentHeapStats.gen to atomic type
+    cmd/cgo: use "!compiler_bootstrap" tag instead of "go1.18"
     
-    For #53821
+    The illumos builder is using a Go 1.18 prerelease toolchain for
+    bootstrapping, which doesn't have ast.IndexListExpr. But we can
+    instead check for the "compiler_bootstrap" build tag that's already
+    used for distinguishing binaries built for toolchain1.
     
-    Change-Id: I9f57b84f6a2c29d750fb20420daef903a9311a83
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/425781
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Fixes #48863.
+    
+    Change-Id: I87b672322eee22a60ab8d0bb3be5f76cffc97545
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354695
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/mstats.go | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ src/cmd/cgo/ast_go1.go   | 4 ++--
+ src/cmd/cgo/ast_go118.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

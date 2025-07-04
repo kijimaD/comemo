@@ -1,26 +1,91 @@
-commit f2e51f00158c2dcdff37c573c24f798d1e63db31
-Author: Felix Bünemann <Felix.Buenemann@gmail.com>
-Date:   Mon Mar 25 23:12:21 2019 +0000
+commit 5848b6c9b854546473814c8752ee117a71bb8b54
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 29 13:54:24 2018 -0700
 
-    crypto/x509: look for CAs at /etc/ssl/cert.pem for Alpine Linux
+    cmd/compile: shrink specialized convT2x call sites
     
-    Alpine Linux uses /etc/ssl/cert.pem as default ca-bundle which
-    is preinstalled since 3.7 and was installed as part of the libressl
-    package in 3.5 and 3.6.
+    convT2E16 and other specialized type-to-interface routines
+    accept a type/itab argument and return a complete interface value.
+    However, we know enough in the routine to do without the type.
+    And the caller can construct the interface value using the type.
     
-    The path /etc/ssl/certs/ca-certificates.crt is only valid if the full
-    ca-certificates package is installed by hand, which contains all
-    single CA certs and uses update-ca-certificates to bundle them.
+    Doing so shrinks the call sites of ten of the specialized convT2x routines.
+    It also lets us unify the empty and non-empty interface routines.
     
-    The priority for /etc/ssl/certs/ca-certificates.crt should be kept
-    higher than /etc/ssl/cert.pem in case the user installed custom
-    CA certs.
+    Cuts 12k off cmd/go.
     
-    Change-Id: I1c86a6ad84d8ee1163560655743a5ce9f2408af1
-    GitHub-Last-Rev: 0ba4d599e412640248d4e688537aaea4c43ecbcc
-    GitHub-Pull-Request: golang/go#31042
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169238
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    name                         old time/op  new time/op  delta
+    ConvT2ESmall-8               2.96ns ± 2%  2.34ns ± 4%  -21.01%  (p=0.000 n=175+189)
+    ConvT2EUintptr-8             3.00ns ± 3%  2.34ns ± 4%  -22.02%  (p=0.000 n=189+187)
+    ConvT2ELarge-8               21.3ns ± 7%  21.5ns ± 5%   +1.02%  (p=0.000 n=200+197)
+    ConvT2ISmall-8               2.99ns ± 4%  2.33ns ± 3%  -21.95%  (p=0.000 n=193+184)
+    ConvT2IUintptr-8             3.02ns ± 3%  2.33ns ± 3%  -22.82%  (p=0.000 n=198+190)
+    ConvT2ILarge-8               21.7ns ± 5%  22.2ns ± 4%   +2.31%  (p=0.000 n=199+198)
+    ConvT2Ezero/zero/16-8        2.96ns ± 2%  2.33ns ± 3%  -21.11%  (p=0.000 n=174+187)
+    ConvT2Ezero/zero/32-8        2.96ns ± 1%  2.35ns ± 4%  -20.62%  (p=0.000 n=163+193)
+    ConvT2Ezero/zero/64-8        2.99ns ± 2%  2.34ns ± 4%  -21.78%  (p=0.000 n=183+188)
+    ConvT2Ezero/zero/str-8       3.27ns ± 3%  2.54ns ± 3%  -22.32%  (p=0.000 n=195+192)
+    ConvT2Ezero/zero/slice-8     3.46ns ± 4%  2.81ns ± 3%  -18.96%  (p=0.000 n=197+164)
+    ConvT2Ezero/zero/big-8       88.4ns ±20%  90.0ns ±20%   +1.84%  (p=0.000 n=196+198)
+    ConvT2Ezero/nonzero/16-8     12.6ns ± 3%  12.3ns ± 3%   -2.34%  (p=0.000 n=167+196)
+    ConvT2Ezero/nonzero/32-8     12.3ns ± 4%  11.9ns ± 3%   -2.95%  (p=0.000 n=187+193)
+    ConvT2Ezero/nonzero/64-8     14.2ns ± 6%  13.8ns ± 5%   -2.94%  (p=0.000 n=198+199)
+    ConvT2Ezero/nonzero/str-8    27.2ns ± 5%  26.8ns ± 5%   -1.33%  (p=0.000 n=200+198)
+    ConvT2Ezero/nonzero/slice-8  33.3ns ± 8%  33.1ns ± 6%   -0.82%  (p=0.000 n=199+200)
+    ConvT2Ezero/nonzero/big-8    88.8ns ±22%  90.2ns ±18%   +1.58%  (p=0.000 n=200+199)
+    
+    
+    Neligible toolspeed impact.
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         35.4MB ± 0%       35.3MB ± 0%  -0.06%  (p=0.008 n=5+5)
+    Unicode          29.1MB ± 0%       29.1MB ± 0%    ~     (p=0.310 n=5+5)
+    GoTypes           122MB ± 0%        122MB ± 0%  -0.08%  (p=0.008 n=5+5)
+    Compiler          514MB ± 0%        513MB ± 0%  -0.02%  (p=0.008 n=5+5)
+    SSA              1.94GB ± 0%       1.94GB ± 0%  -0.01%  (p=0.008 n=5+5)
+    Flate            24.2MB ± 0%       24.2MB ± 0%    ~     (p=0.548 n=5+5)
+    GoParser         28.5MB ± 0%       28.5MB ± 0%  -0.05%  (p=0.016 n=5+5)
+    Reflect          86.3MB ± 0%       86.2MB ± 0%  -0.02%  (p=0.008 n=5+5)
+    Tar              34.9MB ± 0%       34.9MB ± 0%    ~     (p=0.095 n=5+5)
+    XML              47.1MB ± 0%       47.1MB ± 0%  -0.05%  (p=0.008 n=5+5)
+    [Geo mean]       81.0MB            81.0MB       -0.03%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           349k ± 0%         349k ± 0%  -0.08%  (p=0.008 n=5+5)
+    Unicode            340k ± 0%         340k ± 0%    ~     (p=0.111 n=5+5)
+    GoTypes           1.28M ± 0%        1.28M ± 0%  -0.09%  (p=0.008 n=5+5)
+    Compiler          4.92M ± 0%        4.92M ± 0%  -0.08%  (p=0.008 n=5+5)
+    SSA               15.3M ± 0%        15.3M ± 0%  -0.03%  (p=0.008 n=5+5)
+    Flate              233k ± 0%         233k ± 0%    ~     (p=0.500 n=5+5)
+    GoParser           292k ± 0%         292k ± 0%  -0.06%  (p=0.008 n=5+5)
+    Reflect           1.05M ± 0%        1.05M ± 0%  -0.02%  (p=0.008 n=5+5)
+    Tar                344k ± 0%         343k ± 0%  -0.06%  (p=0.008 n=5+5)
+    XML                430k ± 0%         429k ± 0%  -0.08%  (p=0.008 n=5+5)
+    [Geo mean]         809k              809k       -0.05%
+    
+    name        old object-bytes  new object-bytes  delta
+    Template          507kB ± 0%        507kB ± 0%  -0.04%  (p=0.008 n=5+5)
+    Unicode           225kB ± 0%        225kB ± 0%    ~     (all equal)
+    GoTypes          1.85MB ± 0%       1.85MB ± 0%  -0.08%  (p=0.008 n=5+5)
+    Compiler         6.75MB ± 0%       6.75MB ± 0%  +0.01%  (p=0.008 n=5+5)
+    SSA              21.4MB ± 0%       21.4MB ± 0%  -0.02%  (p=0.008 n=5+5)
+    Flate             328kB ± 0%        328kB ± 0%  -0.03%  (p=0.008 n=5+5)
+    GoParser          403kB ± 0%        402kB ± 0%  -0.06%  (p=0.008 n=5+5)
+    Reflect          1.41MB ± 0%       1.41MB ± 0%  -0.03%  (p=0.008 n=5+5)
+    Tar               457kB ± 0%        457kB ± 0%  -0.05%  (p=0.008 n=5+5)
+    XML               601kB ± 0%        600kB ± 0%  -0.16%  (p=0.008 n=5+5)
+    [Geo mean]       1.05MB            1.04MB       -0.05%
+    
+    
+    Change-Id: I677a4108c0ecd32617549294036aa84f9214c4fe
+    Reviewed-on: https://go-review.googlesource.com/c/147360
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
 
- src/crypto/x509/root_linux.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/builtin.go         | 302 ++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |  22 +-
+ src/cmd/compile/internal/gc/walk.go            |  71 +++---
+ src/runtime/iface.go                           | 134 ++++-------
+ 4 files changed, 242 insertions(+), 287 deletions(-)

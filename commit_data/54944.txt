@@ -1,53 +1,32 @@
-commit f119abb65dbe42f6cb40db698b54be3668357934
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Jul 27 19:04:04 2023 +0000
+commit 753ad5e1d59db9073abba07627723fa3267a52fd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 21 16:02:20 2022 -0800
 
-    runtime: refactor runtime->tracer API to appear more like a lock
+    spec: document that trailing comma is valid after index in index expressions
     
-    Currently the execution tracer synchronizes with itself using very
-    heavyweight operations. As a result, it's totally fine for most of the
-    tracer code to look like:
+    At parse time we don't know if a[i] is an index expression or a
+    type (or function) instantiation. Because instantiations accept
+    a list of type arguments, and argument lists permit a trailing
+    comma, a[i,] is either an instantiation or index expression.
     
-        if traceEnabled() {
-            traceXXX(...)
-        }
+    Document that a trailing comma is permitted in the syntax for
+    index expressions.
     
-    However, if we want to make that synchronization more lightweight (as
-    issue #60773 proposes), then this is insufficient. In particular, we
-    need to make sure the tracer can't observe an inconsistency between g
-    atomicstatus and the event that would be emitted for a particular
-    g transition. This means making the g status change appear to happen
-    atomically with the corresponding trace event being written out from the
-    perspective of the tracer.
+    For comparison, the same problem arises with conversions which
+    cannot be distinguished from function calls at parse time. The
+    spec also permits a trailing comma for conversions T(x,). The
+    grammar adjustment is the same (see line 5239).
     
-    This requires a change in API to something more like a lock. While we're
-    here, we might as well make sure that trace events can *only* be emitted
-    while this lock is held. This change introduces such an API:
-    traceAcquire, which returns a value that can emit events, and
-    traceRelease, which requires the value that was returned by
-    traceAcquire. In practice, this won't be a real lock, it'll be more like
-    a seqlock.
+    Fixes #55007.
     
-    For the current tracer, this API is completely overkill and the value
-    returned by traceAcquire basically just checks trace.enabled. But it's
-    necessary for the tracer described in #60773 and we can implement that
-    more cleanly if we do this refactoring now instead of later.
-    
-    For #60773.
-    
-    Change-Id: Ibb9ff5958376339fafc2b5180aef65cf2ba18646
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515635
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ib9101efe52031589eb95a428cc6dff940d939f9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452618
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
 
- src/runtime/debugcall.go |  24 ++--
- src/runtime/mcentral.go  |  20 +++-
- src/runtime/mgc.go       |  12 +-
- src/runtime/mgcmark.go   |  27 ++++-
- src/runtime/mgcpacer.go  |  24 ++--
- src/runtime/mgcsweep.go  |  18 ++-
- src/runtime/mheap.go     |  18 ++-
- src/runtime/proc.go      | 302 +++++++++++++++++++++++++++++++----------------
- src/runtime/trace.go     | 120 ++++++++++++++-----
- 9 files changed, 388 insertions(+), 177 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

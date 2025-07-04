@@ -1,20 +1,21 @@
-commit 01351209225d609f8012e2406550211137716727
-Author: Lin Lin <linlin152@foxmail.com>
-Date:   Thu Feb 27 00:43:12 2025 +0000
+commit 7cb98c1da1d38447a272c50b2a33634ebb845aa4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 19 19:25:04 2024 +0000
 
-    cmd/go: update c document
+    cmd/trace/v2: emit user log annotations in all views
     
-    Fixes: #11875
+    This was an oversight in porting over cmd/trace to the new trace format
+    and API.
     
-    Change-Id: I0ea2c3e94d7d1647c2aaa3d488ac3c1f5fb6cb18
-    GitHub-Last-Rev: 7512b33f055aa225d365d6c949a53778834e8dcd
-    GitHub-Pull-Request: golang/go#71966
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/652675
+    Fixes #65153.
+    
+    Change-Id: I883d302f95956fcc9abb60aa53165acb6d099d67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557175
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/cmd/go/alldocs.go               | 4 +++-
- src/cmd/go/internal/help/helpdoc.go | 4 +++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/trace/v2/gen.go          | 35 +++++++++++++++++++++++++++++++++++
+ src/cmd/trace/v2/goroutinegen.go |  5 ++++-
+ src/cmd/trace/v2/procgen.go      |  5 ++++-
+ src/cmd/trace/v2/threadgen.go    |  5 ++++-
+ 4 files changed, 47 insertions(+), 3 deletions(-)

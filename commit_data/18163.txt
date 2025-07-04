@@ -1,12 +1,15 @@
-commit 48334e3e916b04f2754a3bdd704049e4eec19756
-Author: Shawn Smith <shawn.p.smith@gmail.com>
-Date:   Sun Jan 5 07:48:32 2014 +1100
+commit 82e2db70f6a08f55dc7c9d216af9642336390eff
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 4 10:52:59 2014 -0800
 
-    container/list: improve test coverage
+    spec: s/and/or/ for correctness and parallelism
+    No change to the meaning, just bad writing found by
+    Doug McIlroy.
+    Let's start the new year off with a bang.
     
-    R=golang-codereviews, dave, gobot, bradfitz, gri
+    R=golang-codereviews, bradfitz, dave
     CC=golang-codereviews
-    https://golang.org/cl/46640043
+    https://golang.org/cl/47110044
 
- src/pkg/container/list/list_test.go | 39 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 39 insertions(+)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,37 +1,22 @@
-commit e900e275e8667fde18973cdebe94861353162b87
-Author: Austin Clements <austin@google.com>
-Date:   Tue Jun 13 12:01:56 2017 -0400
+commit 504b8d15d656e1085dd0a741e294113dcc2bde9a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 9 02:49:07 2017 +0000
 
-    runtime: clean up loops over allp
+    net/http: regenerate http2 bundle with bundle fixes to include comments
     
-    allp now has length gomaxprocs, which means none of allp[i] are nil or
-    in state _Pdead. This lets replace several different styles of loops
-    over allp with normal range loops.
+    The golang.org/x/tools/cmd/bundle tool previously had a bug where it
+    dropped some comments.
     
-    for i := 0; i < gomaxprocs; i++ { ... } loops can simply range over
-    allp. Likewise, range loops over allp[:gomaxprocs] can just range over
-    allp.
+    This regenerates it with the fixed version (https://golang.org/cl/45117).
     
-    Loops that check for p == nil || p.state == _Pdead don't need to check
-    this any more.
+    (Upstream is still git rev 3470a06c1, from https://golang.org/cl/44331)
     
-    Loops that check for p == nil don't have to check this *if* dead Ps
-    don't affect them. I checked that all such loops are, in fact,
-    unaffected by dead Ps. One loop was potentially affected, which this
-    fixes by zeroing p.gcAssistTime in procresize.
+    Updates #20548
     
-    Updates #15131.
-    
-    Change-Id: Ifa1c2a86ed59892eca0610360a75bb613bc6dcee
-    Reviewed-on: https://go-review.googlesource.com/45575
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Change-Id: Ic5d9208a0c8f7facdb7b315c6acab66ace34c0a9
+    Reviewed-on: https://go-review.googlesource.com/45158
+    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/mgc.go     | 10 ++--------
- src/runtime/mgcmark.go |  3 ---
- src/runtime/mstats.go  |  6 ------
- src/runtime/proc.go    | 41 +++++++++++++++++------------------------
- src/runtime/trace.go   |  6 ------
- 5 files changed, 19 insertions(+), 47 deletions(-)
+ src/net/http/h2_bundle.go | 949 ++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 711 insertions(+), 238 deletions(-)

@@ -1,14 +1,14 @@
-commit 922a412822e4f103334634e7350d02a7f8d07069
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sat Apr 11 19:43:27 2015 -0400
+commit 3ab794c8c622e3216953020e5d06b45187534b2c
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:17:46 2015 +0100
 
-    cmd/addr2line: skip fork test on darwin/arm64
+    cmd/cgo: add support for GOARCH=arm64
     
-    Just like darwin/arm.
-    
-    Change-Id: Ia84662f58f6b1bb168cce8a9837945b1cbd175e1
-    Reviewed-on: https://go-review.googlesource.com/8828
+    Change-Id: Ia6c3d5e7a32b20e3c45d9485e66b48cd02644280
+    Reviewed-on: https://go-review.googlesource.com/7140
     Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/addr2line/addr2line_test.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/cgo/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

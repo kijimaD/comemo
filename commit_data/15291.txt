@@ -1,26 +1,29 @@
-commit 6bbd12f1767b2b606c2a25981a1e74c21d8c67ef
-Author: Volker Dobler <dr.volker.dobler@gmail.com>
-Date:   Mon Feb 18 11:27:41 2013 +1100
+commit 23093f86eebbefb0cf11298c45513da360d2b48d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Feb 17 13:07:17 2013 +0100
 
-    exp/cookiejar: make cookie sorting deterministic.
+    strings: better mean complexity for Count and Index.
     
-    Re-enable TestUpdateAndDelete, TestExpiration, TestChromiumDomain and
-    TestChromiumDeletion on Windows.
+    The O(n+m) complexity is obtained probabilistically
+    by using Rabin-Karp algorithm, which provides the needed complexity
+    unless exceptional collisions occur, without memory allocation.
     
-    Sorting of cookies with same path length and same creation
-    time is done by an additional seqNum field.
-    This makes the order in which cookies are returned in Cookies
-    deterministic, even if the system clock is manipulated or on
-    systems with a low-resolution clock.
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkIndexHard1         6532331      4045886  -38.06%
+    BenchmarkIndexHard2         8178173      4038975  -50.61%
+    BenchmarkIndexHard3         6973687      4042591  -42.03%
+    BenchmarkCountHard1         6270864      4071090  -35.08%
+    BenchmarkCountHard2         7838039      4072853  -48.04%
+    BenchmarkCountHard3         6697828      4071964  -39.20%
+    BenchmarkIndexTorture       2730546        28934  -98.94%
+    BenchmarkCountTorture       2729622        29064  -98.94%
     
-    The tests now use a synthetic time: This makes cookie testing
-    reliable in case of bogus system clocks and speeds up the
-    expiration tests.
+    Fixes #4600.
     
-    R=nigeltao, alex.brainman, dave
+    R=rsc, donovanhide, remyoudompheng
     CC=golang-dev
-    https://golang.org/cl/7323063
+    https://golang.org/cl/7314095
 
- src/pkg/exp/cookiejar/jar.go      | 42 +++++++++++++++++++++++--------
- src/pkg/exp/cookiejar/jar_test.go | 53 +++++++++++++++++++++------------------
- 2 files changed, 59 insertions(+), 36 deletions(-)
+ src/pkg/strings/strings.go      | 66 ++++++++++++++++++++++++++++++++++++-----
+ src/pkg/strings/strings_test.go | 51 +++++++++++++++++++++++++++++++
+ 2 files changed, 109 insertions(+), 8 deletions(-)

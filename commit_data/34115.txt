@@ -1,39 +1,32 @@
-commit e4bde0510465eecd4c8a8293418b1cbed1e0e623
-Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
-Date:   Mon Jan 1 16:16:43 2018 -0800
+commit aa00c607e1c2e873ef0314eb3d029a4ab3bd7252
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 21 18:48:12 2017 +0200
 
-    archive/tar: automatically promote TypeRegA
+    math/big: remove []byte/string conversions
     
-    Change Reader to promote TypeRegA to TypeReg in headers, unless their
-    name have a trailing slash which is already promoted to TypeDir. This
-    will allow client code to handle just TypeReg instead both TypeReg and
-    TypeRegA.
+    This removes some of the []byte/string conversions currently
+    existing in the (un)marshaling methods of Int and Rat.
     
-    Change Writer to promote TypeRegA to TypeReg or TypeDir in the headers
-    depending on whether the name has a trailing slash. This normalization
-    is motivated by the specification (in pax(1)):
+    For Int we introduce a new function (*Int).setFromScanner() essentially
+    implementing the SetString method being given an io.ByteScanner instead
+    of a string. So we can handle the string case in (*Int).SetString with
+    a *strings.Reader and the []byte case in (*Int).UnmarshalText() with a
+    *bytes.Reader now avoiding the []byte/string conversion here.
     
-       0 represents a regular file. For backwards-compatibility, a
-       typeflag value of binary zero ( '\0' ) should be recognized as
-       meaning a regular file when extracting files from the
-       archive. Archives written with this version of the archive file
-       format create regular files with a typeflag value of the
-       ISO/IEC 646:1991 standard IRV '0'.
+    For Rat we introduce a new function (*Rat).marshal() essentially
+    implementing the String method outputting []byte instead of string.
+    Using this new function and the same formatting rules as in
+    (*Rat).RatString we can implement (*Rat).MarshalText() without
+    the []byte/string conversion it used to have.
     
-    Fixes #22768.
-    
-    Change-Id: I149ec55824580d446cdde5a0d7a0457ad7b03466
-    Reviewed-on: https://go-review.googlesource.com/85656
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: Ic5ef246c1582c428a40f214b95a16671ef0a06d9
+    Reviewed-on: https://go-review.googlesource.com/65950
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/archive/tar/common.go                   |   7 +++++--
- src/archive/tar/reader.go                   |   8 ++++++--
- src/archive/tar/reader_test.go              |  11 ++++++-----
- src/archive/tar/tar_test.go                 |   1 +
- src/archive/tar/testdata/file-and-dir.tar   | Bin 0 -> 2560 bytes
- src/archive/tar/testdata/trailing-slash.tar | Bin 2560 -> 2560 bytes
- src/archive/tar/writer.go                   |  10 ++++++++++
- src/archive/tar/writer_test.go              |  13 +++++++++++--
- 8 files changed, 39 insertions(+), 11 deletions(-)
+ src/math/big/int.go      | 11 ++++++++---
+ src/math/big/intmarsh.go |  8 +++++---
+ src/math/big/ratconv.go  |  7 ++++++-
+ src/math/big/ratmarsh.go |  6 ++++--
+ 4 files changed, 23 insertions(+), 9 deletions(-)

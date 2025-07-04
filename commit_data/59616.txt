@@ -1,30 +1,26 @@
-commit 8b45a3f78b178ce66f419038a664cbd6a82ada54
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Tue May 20 20:26:56 2025 +0000
+commit 061181621641856a90bf555e702a70cac59cb584
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Tue Jan 16 00:16:25 2024 +0100
 
-    runtime: guarantee checkfinalizers test allocates in a shared tiny block
+    regexp/syntax: cleanup code generation in perl_groups.go
     
-    Currently the checkfinalizers test (TestDetectCleanupOrFinalizerLeak)
-    only *tries* to ensure the tiny alloc with a cleanup attached shares a
-    block with other objects. However, what it does is insufficient, because
-    it could get unlucky and have the last object allocated be the first
-    object of a new block.
+    Cleanup code generation of perl_groups.go:
+    * Fix the generated code header to follow the standard https://go.dev/s/generatedcode
+    * Apply gofmt as last step of code generation
+    * Add //go:generate lines in parse.go to trigger code generation
+    * Adapt make_perl_groups.pl to handle writing directly to the output
+      file (as we can't use shell redirection in go:generate lines)
+    * use strict; use warnings;
     
-    This change changes the test to guarantee that a tiny object is not at
-    the start of a fresh block by looking at the alignment of the object's
-    pointer. If the object's pointer is odd, then that's good enough to know
-    that it shares a block with something else, since the blocks themselves
-    are aligned to a much higher power of two.
-    
-    This fixes a failure I've seen on the builders.
-    
-    Fixes #73810.
-    
-    Change-Id: Ieafdbb9cccb0d2dc3659a9a5d9d9233718461635
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674655
+    Change-Id: I675241da03dd3f6facc9eb9de00999bd9203ad70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555995
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/runtime/malloc.go                            |  5 ++++-
- src/runtime/testdata/testprog/checkfinalizers.go | 11 +++++++++--
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ src/regexp/syntax/make_perl_groups.pl | 27 +++++++++++++++++++++------
+ src/regexp/syntax/parse.go            |  2 ++
+ src/regexp/syntax/perl_groups.go      |  3 +--
+ 3 files changed, 24 insertions(+), 8 deletions(-)

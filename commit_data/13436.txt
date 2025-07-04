@@ -1,18 +1,20 @@
-commit 7b6541a5932d72781e215b2e8e77928ec7ef6839
-Author: David G. Andersen <dave.andersen@gmail.com>
-Date:   Tue Jul 3 08:16:43 2012 -0700
+commit 8b7d39e7b633a2257f38ee77f7b558dbacf92f65
+Author: Han-Wen Nienhuys <hanwen@google.com>
+Date:   Mon Jul 2 22:57:32 2012 -0700
 
-    syscall: fix FreeBSD 386 sendfile
-    The previous version was not handling an off_t (64 bit)
-    parameter on 32 bit i386 systems.  This patch splits sendfile
-    into two implementations in their respective arch-specific files.
-    Tested on FreeBSD amd64 and i386.
+    syscall: use 32 bits structure for Getrlimit/Setrlimit on 386/ARM.
     
-    R=bradfitz
+    Fixes #2492
+    
+    R=rsc, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6356048
+    https://golang.org/cl/6295073
 
- src/pkg/syscall/syscall_freebsd.go       | 12 ------------
- src/pkg/syscall/syscall_freebsd_386.go   | 14 ++++++++++++++
- src/pkg/syscall/syscall_freebsd_amd64.go | 14 ++++++++++++++
- 3 files changed, 28 insertions(+), 12 deletions(-)
+ src/pkg/syscall/syscall_linux.go        |  3 +-
+ src/pkg/syscall/syscall_linux_386.go    | 63 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_linux_amd64.go  |  2 ++
+ src/pkg/syscall/syscall_linux_arm.go    | 63 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_386.go   | 50 +++++++++++++++-----------
+ src/pkg/syscall/zsyscall_linux_amd64.go | 50 +++++++++++++++-----------
+ src/pkg/syscall/zsyscall_linux_arm.go   | 50 +++++++++++++++-----------
+ 7 files changed, 219 insertions(+), 62 deletions(-)

@@ -1,33 +1,29 @@
-commit 3648d2d4cd5dfe20fc25ebcf391176e65c056110
-Author: Shahar Kohanim <skohanim@gmail.com>
-Date:   Mon Mar 14 22:57:58 2016 +0200
+commit 9a2d717fa9ca58263ec3840460f0023c78a0714d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 7 12:25:09 2016 -0800
 
-    cmd/link, cmd/compile: Add symbol references to object file.
+    A+C: manual updates
     
-    Symbols in the object file currently refer to each other using symbol name
-    and version. Referring to the same symbol many times in an object file takes
-    up space and causes redundant map lookups. Instead write out a list of unique
-    symbol references and have symbols refer to each other using indexes into this
-    list.
+    Add Colin Cross (Google CLA)
+    Add Quentin Perez (Individual CLA)
+    Add Andy Balholm (Individual CLA)
+    Add Dirk Gadsden (Individual CLA)
+    Add Derek Che (Yahoo CLA)
     
-    Credit to Michael Hudson-Doyle for kicking this off.
+    And:
     
-    Reduces pkg/linux_amd64 size by 30% from 61MB to 43MB
+    Add CL Sung (Individual CLA), but where gerrit is using personal email
+    address with CLA signed, but the git commit itself is using an
+    unverified htc.com address. The commit is:
+        https://github.com/golang/oauth2/commit/099e4f0
+    For github user https://github.com/clsung which says "Self-Employed"
+    and "clsung@gmail.com". Perhaps the self-employed part is new
+    since Sep 10, 2014.
     
-    name       old s/op   new s/op   delta
-    LinkCmdGo  0.74 ± 3%  0.63 ± 4%  -15.22%  (p=0.000 n=20+20)
-    LinkJuju   6.38 ± 6%  5.73 ± 6%  -10.16%  (p=0.000 n=20+19)
-    
-    Change-Id: I7e101a0c80b8e673a3ba688295e6f80ea04e1cfb
-    Reviewed-on: https://go-review.googlesource.com/20099
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic1130fb79d167259a9bb76e3be56b9c8ad6b95ca
+    Reviewed-on: https://go-review.googlesource.com/18369
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/goobj/read.go      |  21 ++++++-
- src/cmd/internal/obj/link.go        |   2 +
- src/cmd/internal/obj/objfile.go     | 110 +++++++++++++++++++++++-------------
- src/cmd/internal/obj/sizeof_test.go |   2 +-
- src/cmd/link/internal/ld/link.go    |   1 +
- src/cmd/link/internal/ld/objfile.go |  83 +++++++++++++++++----------
- 6 files changed, 146 insertions(+), 73 deletions(-)
+ AUTHORS      | 5 +++++
+ CONTRIBUTORS | 6 ++++++
+ 2 files changed, 11 insertions(+)

@@ -1,23 +1,15 @@
-commit 3d400db5de91ede0fb36c2c045a0572f731a1dc4
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun Jan 29 19:11:05 2012 +0900
+commit 21f1769519eb8eb50ed9600395073a2ed2f41971
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jan 29 10:35:11 2012 +0100
 
-    net: update comments to remove redundant "net" prefix
+    gc: use original constant expression in error messages.
     
-    R=rsc, r
-    CC=golang-dev
-    https://golang.org/cl/5569087
+    Fixes #2768.
+    
+    R=golang-dev, lvd, iant
+    CC=golang-dev, remy
+    https://golang.org/cl/5572081
 
- src/pkg/net/dnsmsg.go          |  2 +-
- src/pkg/net/fd.go              |  2 +-
- src/pkg/net/fd_windows.go      |  2 +-
- src/pkg/net/iprawsock_plan9.go |  6 +++---
- src/pkg/net/ipsock_plan9.go    | 10 +++++-----
- src/pkg/net/net.go             |  4 ++--
- src/pkg/net/tcpsock_plan9.go   |  6 +++---
- src/pkg/net/tcpsock_posix.go   | 10 +++++-----
- src/pkg/net/udpsock_plan9.go   | 10 +++++-----
- src/pkg/net/udpsock_posix.go   | 14 +++++++-------
- src/pkg/net/unixsock_plan9.go  | 14 +++++++-------
- src/pkg/net/unixsock_posix.go  | 14 +++++++-------
- 12 files changed, 47 insertions(+), 47 deletions(-)
+ src/cmd/gc/export.c      |  1 +
+ test/fixedbugs/bug381.go | 17 ++++++++++++++---
+ 2 files changed, 15 insertions(+), 3 deletions(-)

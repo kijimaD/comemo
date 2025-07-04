@@ -1,18 +1,22 @@
-commit ae8da3a28c4182acec1f74f22a615a68fc5c195d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Feb 11 22:39:55 2013 -0800
+commit 1c1096ea31ed50f3553382ebb81a6a16396e56ec
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Feb 11 18:20:52 2013 -0500
 
-    go/types: len(((*T)(nil)).X) is const if X is an array
+    test: a number of fixes.
     
-    Fixes #4744.
+    Details:
+    - reorder.go: delete p8.
+      (Once expectation is changed per b/4627 it is identical to p1.)
+    - switch.go: added some more (degenerate) switches.
+    - range.go: improved error messages in a few cases.
+    - method.go: added tests of calls to promoted methods.
     
-    R=adonovan
+    R=iant
     CC=golang-dev
-    https://golang.org/cl/7305080
+    https://golang.org/cl/7306087
 
- src/pkg/exp/gotype/gotype_test.go      |  2 +-
- src/pkg/go/types/builtins.go           | 32 ++++++++++++++++++--------------
- src/pkg/go/types/check.go              | 34 ++++++++++++++++++----------------
- src/pkg/go/types/conversions.go        |  1 +
- src/pkg/go/types/testdata/builtins.src |  8 ++++++++
- 5 files changed, 46 insertions(+), 31 deletions(-)
+ test/method.go  | 71 +++++++++++++++++++++++++++++++++++++++++++++++++++------
+ test/range.go   | 22 +++++++++---------
+ test/reorder.go | 28 +++++------------------
+ test/switch.go  | 59 +++++++++++++++++++++++++++++++++++++++++------
+ 4 files changed, 133 insertions(+), 47 deletions(-)

@@ -1,18 +1,31 @@
-commit b5c42111590e1b06d27a0a1e507eee29de39e01a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Aug 17 18:01:05 2017 -0700
+commit 1c4f3c5ea0267e8ebc990ee67c09efa01cb59746
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 3 15:47:11 2017 -0400
 
-    runtime: don't cache t.key.alg in evacuate
+    runtime: make gcSetTriggerRatio work at any time
     
-    The number of times that alg has to be spilled
-    and restored makes it better to just reload it.
+    This changes gcSetTriggerRatio so it can be called even during
+    concurrent mark or sweep. In this case, it will adjust the pacing of
+    the current phase, accounting for progress that has already been made.
     
-    Change-Id: I2674752a889ecad59dab54da1d68fad03db1ca85
-    Reviewed-on: https://go-review.googlesource.com/56931
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    To make this work for concurrent sweep, this introduces a "basis" for
+    the pagesSwept count, much like the basis we just introduced for
+    heap_live. This lets gcSetTriggerRatio shift the basis to the current
+    heap_live and pagesSwept and compute a slope from there to completion.
+    This avoids creating a discontinuity where, if the ratio has
+    increased, there has to be a flurry of sweep activity to catch up.
+    Instead, this creates a continuous, piece-wise linear function as
+    adjustments are made.
+    
+    For #19076.
+    
+    Change-Id: Ibcd76aeeb81ff4814b00be7cbd3530b73bbdbba9
+    Reviewed-on: https://go-review.googlesource.com/39833
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/hashmap.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/runtime/mgc.go      | 44 +++++++++++++++++++++++++++-----------------
+ src/runtime/mgcsweep.go |  9 ++++++++-
+ src/runtime/mheap.go    | 18 ++++++++++++++++++
+ 3 files changed, 53 insertions(+), 18 deletions(-)

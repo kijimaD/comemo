@@ -1,19 +1,12 @@
-commit 249894ab6c4d8439e7fd47ca55ba618d636ab239
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Mon Jul 27 16:40:40 2015 -0400
+commit bc7a3a62cff96c14dc7d97d03a410151fe4ba807
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 17:28:01 2015 -0700
 
-    runtime/cgo: remove TMPDIR logic for iOS
+    go/importer: implement support for gccgo
     
-    Seems like the simplest solution for 1.5. All the parts of the test
-    suite I can run on my current device (for which my exception handler
-    fix no longer works, apparently) pass without this code. I'll move it
-    into x/mobile/app.
-    
-    Fixes #11884
-    
-    Change-Id: I2da40c8c7b48a4c6970c4d709dd7c148a22e8727
-    Reviewed-on: https://go-review.googlesource.com/12721
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I0e1aab2fe2340a1fbb7f377dbd7a72ea6f0477d8
+    Reviewed-on: https://go-review.googlesource.com/11153
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/runtime/cgo/tmpdir_darwin.go | 40 ----------------------------------------
- 1 file changed, 40 deletions(-)
+ src/go/importer/importer.go | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)

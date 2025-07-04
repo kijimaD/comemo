@@ -1,15 +1,33 @@
-commit d0d8466aca634e30be22d4f1d809ab4c73b4a81e
+commit 893d6866213ca539195076f0e3338da99f321c9c
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 28 21:00:29 2016 +0000
+Date:   Thu Sep 29 18:05:06 2016 -0700
 
-    net/http, net/http/httptest: cross-reference the two NewRequest funcs
+    net/http: update bundled http2, add h2 Transport.IdleConnTimeout tests
     
-    Updates #18082
+    Updates bundled http2 to x/net git rev a333c53 for:
     
-    Change-Id: I2e65b115b809c1e1bf813f538989d1a1f96b2876
-    Reviewed-on: https://go-review.googlesource.com/33636
+       http2: add Transport support for IdleConnTimeout
+       https://golang.org/cl/30075
+    
+    And add tests.
+    
+    The bundled http2 also includes a change adding a Ping method to
+    http2.ClientConn, but that type isn't exposed in the standard
+    library. Nevertheless, the code gets compiled and adds a dependency on
+    "crypto/rand", requiring an update to go/build's dependency
+    test. Because net/http already depends on crypto/tls, which uses
+    crypto/rand, it's not really a new dependency.
+    
+    Fixes #16808
+    
+    Change-Id: I1ec8666ea74762f27c70a6f30a366a6647f923f7
+    Reviewed-on: https://go-review.googlesource.com/30078
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/http/httptest/httptest.go |  3 +++
- src/net/http/request.go           | 10 +++++-----
- 2 files changed, 8 insertions(+), 5 deletions(-)
+ src/go/build/deps_test.go      | 11 +++--
+ src/net/http/export_test.go    | 18 ++++++++
+ src/net/http/h2_bundle.go      | 93 +++++++++++++++++++++++++++++++++++++++++-
+ src/net/http/transport_test.go | 31 +++++++++-----
+ 4 files changed, 137 insertions(+), 16 deletions(-)

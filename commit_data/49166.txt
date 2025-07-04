@@ -1,25 +1,17 @@
-commit e3f7816f0eae375d261e35d0b541a61c463c9111
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri May 6 13:52:23 2022 -0400
+commit 849b7911293c3cb11d76ff2778ed560100f987d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 24 16:53:02 2021 -0700
 
-    cmd/link: remove name expansion logic
+    spec: use consistent capitalization for rune literal hex constants
     
-    Now both the compiler and the assembler require the -p flag and
-    emit full package path in symbol names, we no longer need to do
-    the name expansion in the linker. Delete it.
+    Fixes #47368
     
-    Change-Id: I771d4d97987a0a17414881b52806d600ef4cc351
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404300
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I2f65c0008658532123f04d08e99e5d083f33461a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337234
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/internal/goobj/objfile.go           |  7 +++---
- src/cmd/link/internal/ld/go.go              |  7 ------
- src/cmd/link/internal/ld/macho.go           |  4 +--
- src/cmd/link/internal/ld/pe.go              |  2 +-
- src/cmd/link/internal/ld/symtab.go          |  2 +-
- src/cmd/link/internal/loader/loader.go      | 38 ++++-------------------------
- src/cmd/link/internal/loader/loader_test.go |  2 +-
- src/cmd/link/internal/loadmacho/ldmacho.go  |  2 +-
- 8 files changed, 14 insertions(+), 50 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

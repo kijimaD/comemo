@@ -1,18 +1,14 @@
-commit 5340510203c321545f20d5b456e3a8254ac8f077
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Feb 10 22:32:02 2012 -0500
+commit b027a0f11857636314e3e149fc785feb79420e9e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 11 14:21:16 2012 +1100
 
-    8g: fix opt bug
+    text/template/parse: deep Copy method for nodes
+    This will help html/template copy templates.
     
-    Was trying to optimize a duplicate float64 move
-    by registerizing an int64.
-    
-    Fixes #2588.
-    
-    R=ken2
+    R=golang-dev, gri, nigeltao, r
     CC=golang-dev
-    https://golang.org/cl/5645086
+    https://golang.org/cl/5653062
 
- src/cmd/8g/reg.c         |  5 ++++-
- test/fixedbugs/bug411.go | 19 +++++++++++++++++++
- 2 files changed, 23 insertions(+), 1 deletion(-)
+ src/pkg/text/template/parse/node.go       | 112 ++++++++++++++++++++++++++++++
+ src/pkg/text/template/parse/parse_test.go |  18 ++++-
+ 2 files changed, 128 insertions(+), 2 deletions(-)

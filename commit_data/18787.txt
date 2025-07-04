@@ -1,19 +1,15 @@
-commit 9abcd53eda0629d009941027ffa2dc680b5f1d00
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 6 18:36:32 2014 -0500
+commit 1d2b7171d500bbd549d6915b3d65340c117807fc
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 7 10:13:00 2014 +1100
 
-    cmd/go: add test case for cgo coverage
+    cmd/5c: fix arm build
     
-    This is a test case for CL 34680044.
-    
-    Fixes #6333.
+    cmd/5c/txt.c was missing from CL 72010043.
     
     LGTM=bradfitz
-    R=golang-codereviews, bradfitz, minux.ma
+    R=rsc, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/71230049
+    https://golang.org/cl/72220043
 
- src/cmd/go/test.bash                   | 10 ++++++++++
- src/cmd/go/testdata/cgocover/p.go      | 19 +++++++++++++++++++
- src/cmd/go/testdata/cgocover/p_test.go |  7 +++++++
- 3 files changed, 36 insertions(+)
+ src/cmd/5c/txt.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

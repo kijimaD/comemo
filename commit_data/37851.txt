@@ -1,39 +1,21 @@
-commit 232c9793092115870a430ef3c9ef9ae04f9e25c9
-Author: Keith Randall <khr@google.com>
-Date:   Mon Jan 7 12:24:01 2019 -0800
+commit 67ac554d7978eb93f3dfe7a819c67948dd291d88
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Tue Aug 14 19:22:16 2018 +0300
 
-    runtime: store incremented PC in result of runtime.Callers
+    cmd/compile/internal/gc: fix invalid positions for sink nodes in esc.go
     
-    In 1.11 we stored "return addresses" in the result of runtime.Callers.
-    I changed that behavior in CL 152537 to store an address in the call
-    instruction itself. This CL reverts that part of 152537.
+    Make OAS2 and OAS2FUNC sink locations point to the assignment position,
+    not the nth LHS position.
     
-    The change in 152537 was made because we now store pcs of inline marks
-    in the result of runtime.Callers as well. This CL will now store the
-    address of the inline mark + 1 in the results of runtime.Callers, so
-    that the subsequent -1 done in CallersFrames will pick out the correct
-    inline mark instruction.
+    Fixes #26987
     
-    This CL means that the results of runtime.Callers can be passed to
-    runtime.FuncForPC as they were before. There are a bunch of packages
-    in the wild that take the results of runtime.Callers, subtract 1, and
-    then call FuncForPC. This CL keeps that pattern working as it did in
-    1.11.
-    
-    The changes to runtime/pprof in this CL are exactly a revert of the
-    changes to that package in 152537 (except the locForPC comment).
-    
-    Update #29582
-    
-    Change-Id: I04d232000fb482f0f0ff6277f8d7b9c72e97eb48
-    Reviewed-on: https://go-review.googlesource.com/c/156657
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ibeb9df2da754da8b6638fe1e49e813f37515c13c
+    Reviewed-on: https://go-review.googlesource.com/129315
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/pprof/proto.go         | 15 ++++++++++++---
- src/runtime/pprof/proto_test.go    |  4 ++--
- src/runtime/pprof/protomem_test.go |  6 +++++-
- src/runtime/symtab.go              |  7 +++++++
- src/runtime/traceback.go           |  8 +++++---
- 5 files changed, 31 insertions(+), 9 deletions(-)
+ src/cmd/compile/internal/gc/esc.go |  6 ++++--
+ test/escape_because.go             | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

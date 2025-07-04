@@ -1,16 +1,21 @@
-commit abc56fd1a0505d4fc27943cbcda81ac783fb2d2f
-Author: cuishuang <imcusg@gmail.com>
-Date:   Tue Jun 15 10:11:06 2021 +0000
+commit cb3f84ad25abaea28dad905ceddd81a5a334e806
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 19 13:58:52 2020 -0500
 
-    internal/bytealg: remove duplicate go:build line
+    cmd/go/internal/modload: eliminate LoadedModules
     
-    Change-Id: I6b71bf468b9544820829f02e320673f5edd785fa
-    GitHub-Last-Rev: 8082ac5fba18e630dd2a21771837e6f0b1f9853f
-    GitHub-Pull-Request: golang/go#46683
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/326730
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    As of CL 271646, all external callers have been eliminated. Replace
+    the remaining internal caller with a direct reference to the buildList
+    variable and remove the exported function to prevent backsliding.
+    
+    For #36460
+    
+    Change-Id: Iea82df1e3e604ada602dda3e830c06d441eee2a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271647
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/internal/bytealg/index_generic.go | 1 -
- src/internal/bytealg/index_native.go  | 1 -
- 2 files changed, 2 deletions(-)
+ src/cmd/go/internal/modload/build.go     | 2 +-
+ src/cmd/go/internal/modload/buildlist.go | 9 ---------
+ 2 files changed, 1 insertion(+), 10 deletions(-)

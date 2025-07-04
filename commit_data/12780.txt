@@ -1,16 +1,16 @@
-commit d98507f1c4a4dfdd77400138ff38865813d4327f
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Mar 27 16:07:46 2012 +1100
+commit 7a3965417426e4405a6ec81ce486668fa5c36e36
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 27 15:53:08 2012 +1100
 
-    doc: update wiki tutorial templates, and template discussion
+    path/filepath: use windows GetShortPathName api to force GetLongPathName to do its work
     
-    Fixes #3384.
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5915044
+    https://golang.org/cl/5928043
 
- doc/articles/wiki/final.go   |  11 +-
- doc/articles/wiki/index.html | 393 ++++------------------
- doc/articles/wiki/wiki.html  | 779 -------------------------------------------
- 3 files changed, 58 insertions(+), 1125 deletions(-)
+ api/go1.txt                               |  2 ++
+ src/pkg/path/filepath/symlink_windows.go  | 38 +++++++++++++++++++++++++++----
+ src/pkg/syscall/syscall_windows.go        |  1 +
+ src/pkg/syscall/zsyscall_windows_386.go   | 14 ++++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 14 ++++++++++++
+ 5 files changed, 64 insertions(+), 5 deletions(-)

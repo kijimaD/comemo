@@ -1,19 +1,44 @@
-commit d40ae949934344ccea67d52a6bf5c1cce8a35143
-Author: Roger Peppe <rogpeppe@gmail.com>
-Date:   Wed Feb 9 10:57:59 2011 -0800
+commit d916cca327ce6df869746a6e3ed5f574a8e308bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 09:52:32 2011 -0800
 
-    rpc: make more tolerant of errors.
-    Add Error type to enable clients to distinguish
-    between local and remote errors.
-    Also return "connection shut down error" after
-    the first error return rather than returning the
-    same error each time.
+    go/printer: remove notion of "Styler", remove HTML mode
     
-    R=r
+    Neither gofmt nor godoc are making use of a Styler (for
+    token-specific formatting) anymore. Stylers interacted in complicated
+    ways with HTML-escaping which was why the printer needed an HTML mode
+    in the first place.
+    
+    godoc now uses a more powerful and general text formatting
+    function that does HTML escaping, text selection, and can
+    handle token-specific formatting if so desired (currently
+    used only for comments).
+    
+    As a consequence, cleaned up uses of go/printer in godoc;
+    simplified the various write utility functions, and also
+    removed the need for the "html" template format (in favor of
+    html-esc which now does the same and is used more pervasively).
+    
+    Applied gofmt -w src misc to verify no changes occured,
+    and tested godoc manually.
+    
+    There should be no visible changes except that (type) code
+    snippets presented for godoc package documentation now
+    uses the same formatting as for general source code and
+    thus comments get the comment-specific color here as well
+    (not the case at the moment).
+    
+    (TODO: godoc needs a good automatic test suite).
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4080058
+    https://golang.org/cl/4152042
 
- src/pkg/rpc/client.go      |  55 ++++++++++++++++--------
- src/pkg/rpc/server.go      |  85 +++++++++++++++++++++++--------------
- src/pkg/rpc/server_test.go | 103 ++++++++++++++++-----------------------------
- 3 files changed, 127 insertions(+), 116 deletions(-)
+ lib/godoc/package.html        |  21 +++---
+ src/cmd/godoc/format.go       |  21 ++----
+ src/cmd/godoc/godoc.go        |  75 ++++++++++-----------
+ src/cmd/godoc/main.go         |   6 +-
+ src/cmd/godoc/snippet.go      |  11 +++-
+ src/cmd/gofmt/gofmt.go        |   2 +-
+ src/pkg/go/printer/printer.go | 147 +++++-------------------------------------
+ 7 files changed, 83 insertions(+), 200 deletions(-)

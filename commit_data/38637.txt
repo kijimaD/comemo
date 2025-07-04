@@ -1,18 +1,223 @@
-commit b0bcd7aeb0060361fc8ff04cc4b6764aa146b086
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Apr 3 14:58:05 2019 +0200
+commit 30cc9780856b5a88ca2a8f05312758077ca48ba1
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 5 22:52:51 2018 -0500
 
-    cmd/go: add a note in help buildmode for c-archive on AIX
+    crypto/tls: enable TLS 1.3 and update tests
     
-    As ld on AIX doesn't keep the same layout in .text section,
-    -Wl,-bnoobjreoder must be passed to gcc when building a C program with a
-    Go archive.
+    To disable TLS 1.3, simply remove VersionTLS13 from supportedVersions,
+    as tested by TestEscapeRoute, and amend documentation. To make it
+    opt-in, revert the change to (*Config).supportedVersions from this CL.
     
-    Change-Id: I89b584cce43ab5792f315192b073923c10d5690e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170538
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    I did not have the heart to implement the early data skipping feature
+    when I realized that it did not offer a choice between two
+    abstraction-breaking options, but demanded them both (look for handshake
+    type in case of HelloRetryRequest, trial decryption otherwise). It's a
+    lot of complexity for an apparently small gain, but if anyone has strong
+    opinions about it let me know.
+    
+    Note that in TLS 1.3 alerts are encrypted, so the close_notify peeking
+    to return (n > 0, io.EOF) from Read doesn't work. If we are lucky, those
+    servers that unexpectedly close connections after serving a single
+    request will have stopped (maybe thanks to H/2) before they got updated
+    to TLS 1.3.
+    
+    Relatedly, session tickets are now provisioned on the client first Read
+    instead of at Handshake time, because they are, well, post-handshake
+    messages. If this proves to be a problem we might try to peek at them.
+    
+    Doubled the tests that cover logic that's different in TLS 1.3.
+    
+    The benchmarks for TLS 1.2 compared to be0f3c286b5 (before TLS 1.3 and
+    its refactors, after CL 142817 changed them to use real connections)
+    show little movement.
+    
+    name                                       old time/op   new time/op   delta
+    HandshakeServer/RSA-8                        795µs ± 1%    798µs ± 1%    ~     (p=0.057 n=10+18)
+    HandshakeServer/ECDHE-P256-RSA-8             903µs ± 0%    909µs ± 1%  +0.68%  (p=0.000 n=8+17)
+    HandshakeServer/ECDHE-P256-ECDSA-P256-8      198µs ± 0%    204µs ± 1%  +3.24%  (p=0.000 n=9+18)
+    HandshakeServer/ECDHE-X25519-ECDSA-P256-8    202µs ± 3%    208µs ± 1%  +2.98%  (p=0.000 n=9+20)
+    HandshakeServer/ECDHE-P521-ECDSA-P521-8     15.5ms ± 1%   15.9ms ± 2%  +2.49%  (p=0.000 n=10+20)
+    Throughput/MaxPacket/1MB-8                  5.81ms ±23%   6.14ms ±44%    ~     (p=0.605 n=8+18)
+    Throughput/MaxPacket/2MB-8                  8.91ms ±22%   8.74ms ±33%    ~     (p=0.498 n=9+19)
+    Throughput/MaxPacket/4MB-8                  12.8ms ± 3%   14.0ms ±10%  +9.74%  (p=0.000 n=10+17)
+    Throughput/MaxPacket/8MB-8                  25.1ms ± 7%   24.6ms ±16%    ~     (p=0.129 n=9+19)
+    Throughput/MaxPacket/16MB-8                 46.3ms ± 4%   45.9ms ±12%    ~     (p=0.340 n=9+20)
+    Throughput/MaxPacket/32MB-8                 88.5ms ± 4%   86.0ms ± 4%  -2.82%  (p=0.004 n=10+20)
+    Throughput/MaxPacket/64MB-8                  173ms ± 2%    167ms ± 7%  -3.42%  (p=0.001 n=10+19)
+    Throughput/DynamicPacket/1MB-8              5.88ms ± 4%   6.59ms ±64%    ~     (p=0.232 n=9+18)
+    Throughput/DynamicPacket/2MB-8              9.08ms ±12%   8.73ms ±21%    ~     (p=0.408 n=10+18)
+    Throughput/DynamicPacket/4MB-8              14.2ms ± 5%   14.0ms ±11%    ~     (p=0.188 n=9+19)
+    Throughput/DynamicPacket/8MB-8              25.1ms ± 6%   24.0ms ± 7%  -4.39%  (p=0.000 n=10+18)
+    Throughput/DynamicPacket/16MB-8             45.6ms ± 3%   43.3ms ± 1%  -5.22%  (p=0.000 n=10+8)
+    Throughput/DynamicPacket/32MB-8             88.4ms ± 3%   84.8ms ± 2%  -4.06%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/64MB-8              175ms ± 3%    167ms ± 2%  -4.63%  (p=0.000 n=10+10)
+    Latency/MaxPacket/200kbps-8                  694ms ± 0%    694ms ± 0%  -0.02%  (p=0.000 n=9+9)
+    Latency/MaxPacket/500kbps-8                  279ms ± 0%    279ms ± 0%  -0.09%  (p=0.000 n=10+10)
+    Latency/MaxPacket/1000kbps-8                 140ms ± 0%    140ms ± 0%  -0.15%  (p=0.000 n=10+9)
+    Latency/MaxPacket/2000kbps-8                71.1ms ± 0%   71.0ms ± 0%  -0.09%  (p=0.001 n=8+9)
+    Latency/MaxPacket/5000kbps-8                30.5ms ± 6%   30.1ms ± 6%    ~     (p=0.905 n=10+9)
+    Latency/DynamicPacket/200kbps-8              134ms ± 0%    134ms ± 0%    ~     (p=0.796 n=9+9)
+    Latency/DynamicPacket/500kbps-8             54.8ms ± 0%   54.7ms ± 0%  -0.18%  (p=0.000 n=8+10)
+    Latency/DynamicPacket/1000kbps-8            28.5ms ± 0%   29.1ms ± 8%    ~     (p=0.173 n=8+10)
+    Latency/DynamicPacket/2000kbps-8            15.3ms ± 6%   15.9ms ±10%    ~     (p=0.905 n=9+10)
+    Latency/DynamicPacket/5000kbps-8            9.14ms ±21%   9.65ms ±82%    ~     (p=0.529 n=10+10)
+    
+    name                                       old speed     new speed     delta
+    Throughput/MaxPacket/1MB-8                 175MB/s ±13%  167MB/s ±64%    ~     (p=0.646 n=7+20)
+    Throughput/MaxPacket/2MB-8                 241MB/s ±25%  241MB/s ±40%    ~     (p=0.660 n=9+20)
+    Throughput/MaxPacket/4MB-8                 328MB/s ± 3%  300MB/s ± 9%  -8.70%  (p=0.000 n=10+17)
+    Throughput/MaxPacket/8MB-8                 335MB/s ± 7%  340MB/s ±17%    ~     (p=0.212 n=9+20)
+    Throughput/MaxPacket/16MB-8                363MB/s ± 4%  367MB/s ±11%    ~     (p=0.340 n=9+20)
+    Throughput/MaxPacket/32MB-8                379MB/s ± 4%  390MB/s ± 4%  +2.93%  (p=0.004 n=10+20)
+    Throughput/MaxPacket/64MB-8                388MB/s ± 2%  401MB/s ± 7%  +3.25%  (p=0.004 n=10+20)
+    Throughput/DynamicPacket/1MB-8             178MB/s ± 4%  157MB/s ±73%    ~     (p=0.127 n=9+20)
+    Throughput/DynamicPacket/2MB-8             232MB/s ±11%  243MB/s ±18%    ~     (p=0.415 n=10+18)
+    Throughput/DynamicPacket/4MB-8             296MB/s ± 5%  299MB/s ±15%    ~     (p=0.295 n=9+20)
+    Throughput/DynamicPacket/8MB-8             334MB/s ± 6%  350MB/s ± 7%  +4.58%  (p=0.000 n=10+18)
+    Throughput/DynamicPacket/16MB-8            368MB/s ± 3%  388MB/s ± 1%  +5.48%  (p=0.000 n=10+8)
+    Throughput/DynamicPacket/32MB-8            380MB/s ± 3%  396MB/s ± 2%  +4.20%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/64MB-8            384MB/s ± 3%  403MB/s ± 2%  +4.83%  (p=0.000 n=10+10)
+    
+    Comparing TLS 1.2 and TLS 1.3 at tip shows a slight (~5-10%) slowdown of
+    handshakes, which might be worth looking at next cycle, but the latency
+    improvements are expected to overshadow that.
+    
+    name                                       old time/op   new time/op   delta
+    HandshakeServer/ECDHE-P256-RSA-8             909µs ± 1%    963µs ± 0%   +5.87%  (p=0.000 n=17+18)
+    HandshakeServer/ECDHE-P256-ECDSA-P256-8      204µs ± 1%    225µs ± 2%  +10.20%  (p=0.000 n=18+20)
+    HandshakeServer/ECDHE-X25519-ECDSA-P256-8    208µs ± 1%    230µs ± 2%  +10.35%  (p=0.000 n=20+18)
+    HandshakeServer/ECDHE-P521-ECDSA-P521-8     15.9ms ± 2%   15.9ms ± 1%     ~     (p=0.444 n=20+19)
+    Throughput/MaxPacket/1MB-8                  6.14ms ±44%   7.07ms ±46%     ~     (p=0.057 n=18+19)
+    Throughput/MaxPacket/2MB-8                  8.74ms ±33%   8.61ms ± 9%     ~     (p=0.552 n=19+17)
+    Throughput/MaxPacket/4MB-8                  14.0ms ±10%   14.1ms ±12%     ~     (p=0.707 n=17+20)
+    Throughput/MaxPacket/8MB-8                  24.6ms ±16%   25.6ms ±14%     ~     (p=0.107 n=19+20)
+    Throughput/MaxPacket/16MB-8                 45.9ms ±12%   44.7ms ± 6%     ~     (p=0.607 n=20+19)
+    Throughput/MaxPacket/32MB-8                 86.0ms ± 4%   87.9ms ± 8%     ~     (p=0.113 n=20+19)
+    Throughput/MaxPacket/64MB-8                  167ms ± 7%    169ms ± 2%   +1.26%  (p=0.011 n=19+19)
+    Throughput/DynamicPacket/1MB-8              6.59ms ±64%   6.79ms ±43%     ~     (p=0.480 n=18+19)
+    Throughput/DynamicPacket/2MB-8              8.73ms ±21%   9.58ms ±13%   +9.71%  (p=0.006 n=18+20)
+    Throughput/DynamicPacket/4MB-8              14.0ms ±11%   13.9ms ±10%     ~     (p=0.687 n=19+20)
+    Throughput/DynamicPacket/8MB-8              24.0ms ± 7%   24.6ms ± 8%   +2.36%  (p=0.045 n=18+17)
+    Throughput/DynamicPacket/16MB-8             43.3ms ± 1%   44.3ms ± 2%   +2.48%  (p=0.001 n=8+9)
+    Throughput/DynamicPacket/32MB-8             84.8ms ± 2%   86.7ms ± 2%   +2.27%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/64MB-8              167ms ± 2%    170ms ± 3%   +1.89%  (p=0.005 n=10+10)
+    Latency/MaxPacket/200kbps-8                  694ms ± 0%    699ms ± 0%   +0.65%  (p=0.000 n=9+10)
+    Latency/MaxPacket/500kbps-8                  279ms ± 0%    280ms ± 0%   +0.68%  (p=0.000 n=10+10)
+    Latency/MaxPacket/1000kbps-8                 140ms ± 0%    141ms ± 0%   +0.59%  (p=0.000 n=9+9)
+    Latency/MaxPacket/2000kbps-8                71.0ms ± 0%   71.3ms ± 0%   +0.42%  (p=0.000 n=9+9)
+    Latency/MaxPacket/5000kbps-8                30.1ms ± 6%   30.7ms ±10%   +1.93%  (p=0.019 n=9+9)
+    Latency/DynamicPacket/200kbps-8              134ms ± 0%    138ms ± 0%   +3.22%  (p=0.000 n=9+10)
+    Latency/DynamicPacket/500kbps-8             54.7ms ± 0%   56.3ms ± 0%   +3.03%  (p=0.000 n=10+8)
+    Latency/DynamicPacket/1000kbps-8            29.1ms ± 8%   29.1ms ± 0%     ~     (p=0.173 n=10+8)
+    Latency/DynamicPacket/2000kbps-8            15.9ms ±10%   16.4ms ±36%     ~     (p=0.633 n=10+8)
+    Latency/DynamicPacket/5000kbps-8            9.65ms ±82%   8.32ms ± 8%     ~     (p=0.573 n=10+8)
+    
+    name                                       old speed     new speed     delta
+    Throughput/MaxPacket/1MB-8                 167MB/s ±64%  155MB/s ±55%     ~     (p=0.224 n=20+19)
+    Throughput/MaxPacket/2MB-8                 241MB/s ±40%  244MB/s ± 9%     ~     (p=0.407 n=20+17)
+    Throughput/MaxPacket/4MB-8                 300MB/s ± 9%  298MB/s ±11%     ~     (p=0.707 n=17+20)
+    Throughput/MaxPacket/8MB-8                 340MB/s ±17%  330MB/s ±13%     ~     (p=0.201 n=20+20)
+    Throughput/MaxPacket/16MB-8                367MB/s ±11%  375MB/s ± 5%     ~     (p=0.607 n=20+19)
+    Throughput/MaxPacket/32MB-8                390MB/s ± 4%  382MB/s ± 8%     ~     (p=0.113 n=20+19)
+    Throughput/MaxPacket/64MB-8                401MB/s ± 7%  397MB/s ± 2%   -0.96%  (p=0.030 n=20+19)
+    Throughput/DynamicPacket/1MB-8             157MB/s ±73%  156MB/s ±39%     ~     (p=0.738 n=20+20)
+    Throughput/DynamicPacket/2MB-8             243MB/s ±18%  220MB/s ±14%   -9.65%  (p=0.006 n=18+20)
+    Throughput/DynamicPacket/4MB-8             299MB/s ±15%  303MB/s ± 9%     ~     (p=0.512 n=20+20)
+    Throughput/DynamicPacket/8MB-8             350MB/s ± 7%  342MB/s ± 8%   -2.27%  (p=0.045 n=18+17)
+    Throughput/DynamicPacket/16MB-8            388MB/s ± 1%  378MB/s ± 2%   -2.41%  (p=0.001 n=8+9)
+    Throughput/DynamicPacket/32MB-8            396MB/s ± 2%  387MB/s ± 2%   -2.21%  (p=0.000 n=10+10)
+    Throughput/DynamicPacket/64MB-8            403MB/s ± 2%  396MB/s ± 3%   -1.84%  (p=0.005 n=10+10)
+    
+    Fixes #9671
+    
+    Change-Id: Ieb57c5140eb2c083b8be0d42b240cd2eeec0dcf6
+    Reviewed-on: https://go-review.googlesource.com/c/147638
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
 
- src/cmd/go/alldocs.go               | 3 +++
- src/cmd/go/internal/help/helpdoc.go | 3 +++
- 2 files changed, 6 insertions(+)
+ src/crypto/tls/common.go                           |   9 +-
+ src/crypto/tls/conn_test.go                        |  19 +-
+ src/crypto/tls/example_test.go                     |   3 -
+ src/crypto/tls/handshake_client_test.go            |  52 +--
+ src/crypto/tls/handshake_server_test.go            |  73 ++-
+ src/crypto/tls/handshake_server_tls13.go           |   9 +-
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  | 108 ++---
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    | 104 +++--
+ .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 140 +++---
+ .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  | 134 +++---
+ .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     |  90 ++--
+ .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       |  86 ++--
+ .../testdata/Client-TLSv10-ExportKeyingMaterial    |  86 ++--
+ src/crypto/tls/testdata/Client-TLSv10-RSA-RC4      |  54 ++-
+ .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     |  90 ++--
+ .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       |  86 ++--
+ src/crypto/tls/testdata/Client-TLSv11-RSA-RC4      |  54 ++-
+ .../tls/testdata/Client-TLSv12-AES128-GCM-SHA256   |  58 +--
+ .../tls/testdata/Client-TLSv12-AES128-SHA256       |  72 +--
+ .../tls/testdata/Client-TLSv12-AES256-GCM-SHA384   |  58 +--
+ src/crypto/tls/testdata/Client-TLSv12-ALPN         |  80 ++--
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 119 ++---
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    | 109 ++---
+ .../Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 | 107 ++---
+ .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 115 ++---
+ .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  | 107 ++---
+ .../Client-TLSv12-ClientCert-RSA-RSAPKCS1v15       | 129 ++----
+ .../testdata/Client-TLSv12-ClientCert-RSA-RSAPSS   |  99 ++--
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     |  90 ++--
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM |  82 ++--
+ .../Client-TLSv12-ECDHE-ECDSA-AES128-SHA256        |  96 ++--
+ .../Client-TLSv12-ECDHE-ECDSA-AES256-GCM-SHA384    |  84 ++--
+ .../Client-TLSv12-ECDHE-ECDSA-CHACHA20-POLY1305    |  75 ++--
+ .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       |  86 ++--
+ .../testdata/Client-TLSv12-ECDHE-RSA-AES128-SHA256 |  94 ++--
+ .../Client-TLSv12-ECDHE-RSA-CHACHA20-POLY1305      |  71 +--
+ .../testdata/Client-TLSv12-ExportKeyingMaterial    |  76 ++--
+ src/crypto/tls/testdata/Client-TLSv12-P256-ECDHE   |  81 ++--
+ src/crypto/tls/testdata/Client-TLSv12-RSA-RC4      |  54 ++-
+ .../tls/testdata/Client-TLSv12-RenegotiateOnce     | 313 ++++++++-----
+ .../tls/testdata/Client-TLSv12-RenegotiateTwice    | 497 ++++++++++++---------
+ .../Client-TLSv12-RenegotiateTwiceRejected         | 319 +++++++------
+ .../testdata/Client-TLSv12-RenegotiationRejected   |  82 ++--
+ src/crypto/tls/testdata/Client-TLSv12-SCT          | 124 ++---
+ src/crypto/tls/testdata/Client-TLSv12-X25519-ECDHE |  80 ++--
+ src/crypto/tls/testdata/Server-SSLv3-RSA-3DES      |  60 +--
+ src/crypto/tls/testdata/Server-SSLv3-RSA-AES       |  62 +--
+ src/crypto/tls/testdata/Server-SSLv3-RSA-RC4       |  52 +--
+ .../tls/testdata/Server-TLSv10-ECDHE-ECDSA-AES     |  77 ++--
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    |  83 ++--
+ src/crypto/tls/testdata/Server-TLSv10-RSA-3DES     |  57 +--
+ src/crypto/tls/testdata/Server-TLSv10-RSA-AES      |  63 +--
+ src/crypto/tls/testdata/Server-TLSv10-RSA-RC4      |  51 ++-
+ src/crypto/tls/testdata/Server-TLSv11-FallbackSCSV |  13 +-
+ src/crypto/tls/testdata/Server-TLSv11-RSA-RC4      |  51 ++-
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  82 ++--
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  82 ++--
+ .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   |  80 ++--
+ .../Server-TLSv12-CipherSuiteCertPreferenceRSA     |  74 +--
+ .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven |  74 +--
+ .../Server-TLSv12-ClientAuthRequestedAndGiven      |  74 +--
+ ...rver-TLSv12-ClientAuthRequestedAndPKCS1v15Given |  74 +--
+ .../Server-TLSv12-ClientAuthRequestedNotGiven      |  56 +--
+ .../tls/testdata/Server-TLSv12-ECDHE-ECDSA-AES     |  76 ++--
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  79 ++--
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  81 ++--
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   |  81 ++--
+ src/crypto/tls/testdata/Server-TLSv12-P256         |  56 +--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-3DES     |  63 +--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES      |  67 +--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  |  64 +--
+ .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   |  64 +--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RC4      |  57 +--
+ .../tls/testdata/Server-TLSv12-RSA-RSAPKCS1v15     |  52 +--
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   |  52 +--
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  71 +--
+ .../tls/testdata/Server-TLSv12-ResumeDisabled      |  86 ++--
+ src/crypto/tls/testdata/Server-TLSv12-SNI          |  68 +--
+ .../tls/testdata/Server-TLSv12-SNI-GetCertificate  |  68 +--
+ .../Server-TLSv12-SNI-GetCertificateNotFound       |  68 +--
+ src/crypto/tls/testdata/Server-TLSv12-X25519       |  64 +--
+ src/crypto/tls/tls.go                              |   3 +-
+ src/crypto/tls/tls_test.go                         |  75 +++-
+ src/net/http/client_test.go                        |   1 +
+ 84 files changed, 3734 insertions(+), 3281 deletions(-)

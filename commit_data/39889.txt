@@ -1,20 +1,16 @@
-commit 77aea691762f46daeb56c2e1fe764fd3898fff6b
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat Sep 7 16:31:36 2019 +0200
+commit 5ee1d5d39f0c802be0de31533042ddc3871a0b1e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 25 16:06:16 2019 -0700
 
-    doc/gccgo: update gcc status, remove double spaces
+    cmd/compile: minor cleanup
     
-    This change updates the status of gccgo 8 and gccgo 9, which are now
-    released.
+    Use constants that are easier to read.
     
-    It also replaces every instance of two-spaces with one space in text
-    paragraphs, which is the preferred style in Go documentation.
-    
-    Fixes #34167
-    
-    Change-Id: I94a4d85c06281f2623d39a68db7b6c95b5867999
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/193842
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I11fd6363b3bd283a4cc7c9908c2327123c64dcf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169723
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/gccgo_install.html | 98 ++++++++++++++++++++++++++------------------------
- 1 file changed, 51 insertions(+), 47 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

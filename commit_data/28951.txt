@@ -1,22 +1,29 @@
-commit 5ce715fdfea635c2cb429166294fb005cefde896
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Wed Oct 19 20:35:04 2016 +0300
+commit 795ad07b3be3cb51e07d502409f815f7d1f97305
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jul 28 13:04:41 2016 -0400
 
-    cmd/internal/obj/x86: add some missing AMD64 instructions
+    cmd: generate DWARF for functions in compile instead of link.
     
-    Add VBROADCASTSD, BROADCASTSS, MOVDDUP, MOVSHDUP, MOVSLDUP,
-    VMOVDDUP, VMOVSHDUP, VMOVSLDUP.
+    This is a copy of golang.org/cl/22092 by Ryan Brown.
     
-    Fixes #16007
+    Here's his original comment:
+    On my machine this increases the average time for 'go build cmd/go' from
+    2.25s to 2.36s. I tried to measure compile and link separately but saw
+    no significant change.
     
-    Change-Id: I9614e58eed6c1b6f299d9b4f0b1a7750aa7c1725
-    Reviewed-on: https://go-review.googlesource.com/31491
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Change-Id: If0d2b756d52a0d30d4eda526929c82794d89dd7b
+    Reviewed-on: https://go-review.googlesource.com/25311
+    Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/asm/internal/asm/testdata/amd64enc.s | 192 +++++++++++++--------------
- src/cmd/internal/obj/x86/a.out.go            |   8 ++
- src/cmd/internal/obj/x86/anames.go           |   8 ++
- src/cmd/internal/obj/x86/asm6.go             |  15 ++-
- 4 files changed, 126 insertions(+), 97 deletions(-)
+ src/cmd/dist/buildtool.go                          |    1 +
+ src/cmd/internal/dwarf/dwarf.go                    |  609 +++++++++
+ .../internal/ld => internal/dwarf}/dwarf_defs.go   |   35 +-
+ src/cmd/internal/obj/objfile.go                    |   92 ++
+ src/cmd/internal/obj/plist.go                      |    1 +
+ src/cmd/link/internal/ld/data.go                   |   10 +-
+ src/cmd/link/internal/ld/dwarf.go                  | 1438 ++++++--------------
+ src/cmd/link/internal/ld/objfile.go                |   32 +
+ src/cmd/link/internal/ld/symtab.go                 |    2 +
+ 9 files changed, 1195 insertions(+), 1025 deletions(-)

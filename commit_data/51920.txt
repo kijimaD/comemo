@@ -1,33 +1,18 @@
-commit a432d89137ae09c76717695064d8b1b13344b32b
-Author: Archana R <aravind5@in.ibm.com>
-Date:   Fri Nov 11 06:10:59 2022 -0600
+commit 849e42f028d20821aa68d7d37aa2e1fc3abbebe3
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sun Oct 31 21:16:15 2021 +0800
 
-    cmd/compile: add rules to emit SETBC/R instructions on power10
+    cmd/compile: update riscv64 CALL* ops
     
-    This CL adds rules that replaces instances of ISEL that produce
-    a boolean result based on a condition register by SETBC/SETBCR
-    operations. On Power10 these are convereted to SETBC/SETBCR
-    instructions that use one register instead of 3 registers
-    conventionally used by ISEL and hence reduces register pressure.
-    On loops written specifically to exercise such instances of ISEL
-    extensively, a performance improvement of 2.5% is seen on Power10.
-    Also added verification tests to verify correct generation of
-    SETBC/SETBCR instructions on Power10.
+    This CL allow the CALL ops to take variable number of arguments.
     
-    Change-Id: Ib719897f09d893de40324440a43052dca026e8fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/449795
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Change-Id: If84bb306c2f23a0a934e31dfeabbca7bed0c1796
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360216
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/cmd/compile/internal/ppc64/ssa.go              |    7 +
- src/cmd/compile/internal/ssa/_gen/PPC64.rules      |  105 +-
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |    5 +
- .../compile/internal/ssa/_gen/PPC64latelower.rules |    9 +
- src/cmd/compile/internal/ssa/opGen.go              |   24 +
- src/cmd/compile/internal/ssa/rewritePPC64.go       | 3652 ++++++++++----------
- .../compile/internal/ssa/rewritePPC64latelower.go  |  126 +
- test/codegen/bool.go                               |  156 +
- 8 files changed, 2242 insertions(+), 1842 deletions(-)
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 8 ++++----
+ src/cmd/compile/internal/ssa/opGen.go          | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

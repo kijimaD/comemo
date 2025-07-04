@@ -1,14 +1,20 @@
-commit 62bc2e4c2d9e289c1bdfd2415813d1776eb5c71b
-Author: Shenghou Ma <minux@golang.org>
-Date:   Sat May 2 22:44:49 2015 -0400
+commit efb9bd5bb12a7c848dc4af708dd216e5cd3c2b0e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 10 13:33:03 2015 -0700
 
-    syscall: fix little-endian assumptions
+    log: add flag LUTC, to use UTC time zone for time stamp
     
-    Change-Id: Ia38256998e544d620a342dabedd9289d61fb0551
-    Reviewed-on: https://go-review.googlesource.com/9672
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Run-TryBot: Minux Ma <minux@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Issue 9483 suggests several approaches to correlating logs from
+    machines in different time zones. This approach is the simplest and
+    really should be sufficient: provide a way to clamp the time stamps
+    to UTC.
+    
+    Fixes #9483.
+    
+    Change-Id: If540b991d758c4d845a719779f8255ece7c452e7
+    Reviewed-on: https://go-review.googlesource.com/8761
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/syscall/exec_linux.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/log/log.go      |  8 ++++++--
+ src/log/log_test.go | 28 +++++++++++++++++++++++++++-
+ 2 files changed, 33 insertions(+), 3 deletions(-)

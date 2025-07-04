@@ -1,13 +1,24 @@
-commit cf35f5b7429896ae91c4644740f73423ea0dbb27
-Author: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
-Date:   Thu Jul 24 18:18:41 2014 -0400
+commit 748e5db96d8412d2142afb15c9a3da62f410d45a
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jul 24 23:18:54 2014 +0200
 
-    time: minor typo in doc
+    test/run: always set goos and goarch
     
-    LGTM=minux
-    R=golang-codereviews, minux
-    CC=golang-codereviews
-    https://golang.org/cl/120150043
+    Following CL 68150047, the goos and goarch
+    variables are not currently set when the GOOS
+    and GOARCH environment variables are not set.
+    
+    This made the content of the build tag to be
+    ignored in this case.
+    
+    This CL sets goos and goarch to runtime.GOOS
+    and runtime.GOARCH when the GOOS and GOARCH
+    environments variables are not set.
+    
+    LGTM=aram, bradfitz
+    R=golang-codereviews, aram, gobot, rsc, dave, bradfitz
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/112490043
 
- src/pkg/time/format.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/run.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

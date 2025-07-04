@@ -1,20 +1,23 @@
-commit 6362fead876daa44ca7b9696da72a3d4db888ad0
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jul 5 09:55:33 2017 +0900
+commit 0020b8a2572a953b8521ce75367779255c5a1436
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 8 14:27:33 2017 -0400
 
-    net, internal/poll: enable ListenMulticastUDP on solaris
+    runtime: prevent TLS fetching instructions from being assembled on NaCl/ARM
     
-    Fixes #20898.
+    They are dead code already, but the verifier is still not happy.
+    Don't assemble them at all.
     
-    Change-Id: Ib3a8da34851d8b3681a6802e509fe712d6982df2
-    Reviewed-on: https://go-review.googlesource.com/47450
-    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Looks like it has been like that for long. I don't know why it
+    was ok. Maybe the verifier is now more picky?
+    
+    Fixes #19884.
+    
+    Change-Id: Ib806fb73ca469789dec56f52d484cf8baf7a245c
+    Reviewed-on: https://go-review.googlesource.com/40111
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
 
- src/internal/poll/sockoptip.go                    | 2 +-
- src/net/{sockoptip_bsd.go => sockoptip_bsdvar.go} | 2 +-
- src/net/sockoptip_posix.go                        | 2 +-
- src/net/sockoptip_stub.go                         | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/runtime/tls_arm.s | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

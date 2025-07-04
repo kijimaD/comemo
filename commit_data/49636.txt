@@ -1,20 +1,28 @@
-commit 1355ea3045cd1327740ecfb7387918db45bf4f89
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Jun 29 13:03:51 2022 -0700
+commit f0668e7c8cc2f26e16afa31dd43be774b1db65a5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Aug 24 15:58:03 2021 -0700
 
-    cmd/compile: remove -importmap flag
+    [dev.fuzz] cmd/go: stream output when fuzzing
     
-    Obsoleted by -importcfg, and no longer used by anything.
+    Previously, 'go test' streamed output when there were no package
+    arguments or when benchmarking. This CL expands that to include
+    fuzzing to ensure that coordinator progress messages are printed.
     
-    Updates #51225.
+    This change tweaks tests and output a little bit: the output is
+    slightly different depending on whether it was streamed or buffered in
+    'go test'.
     
-    Change-Id: I49e646d2728347f862f90805051bb03dd4f4bed2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/415235
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Fixes golang/go#47603
+    
+    Change-Id: I387470062cf0620f5c7f214b6f54039c921912c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344831
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/doc.go                |  3 ---
- src/cmd/compile/internal/base/flag.go | 19 +------------------
- 2 files changed, 1 insertion(+), 21 deletions(-)
+ src/cmd/go/internal/test/test.go               |  4 +-
+ src/cmd/go/testdata/script/test_fuzz_match.txt | 14 +++----
+ src/testing/fuzz.go                            | 56 +++++++++++++-------------
+ src/testing/testing.go                         |  8 +++-
+ 4 files changed, 42 insertions(+), 40 deletions(-)

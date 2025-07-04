@@ -1,32 +1,30 @@
-commit 5fb177163bccb66a39516542e4b9e127ec771c1f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Aug 27 17:04:42 2021 -0700
+commit c8e73489c32d5a45beca3f4810b6be64a2553ddb
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Dec 8 14:28:21 2020 -0500
 
-    go/types, types2: types in type switch cases must be instantiated
+    go/types: import instance.expand and subst.go from dev.go2go
     
-    We already have a function that does all the right checks and it's called
-    varType. The only reason it wasn't used for type switch cases was that we
-    also have to accept the nil value. That was handled with typeOrNil. But
-    that function (typeOrNil) was only used for this specific purpose and I long
-    wished to get rid of it. It turns out that there's only one way to write the
-    untyped value nil, which is to actually write "nil" (maybe with parentheses).
-    So looking for that turned out to be simpler than using typeOrNil.
+    Changes from dev.go2go:
+     + A potentially latent bug is fixed when nilling out tparams in an
+       instantiated signature (the resulting type could be Typ[Invalid])
+     + Support for pointer designation is removed
+     + instantiatedHash is updated to use '[]' rather than '()'
+     + Several TODOs were added for me to follow-up on, rather than address
+       in this CL
+     + Error callsites are updated. Deciding on error codes and better error
+       messages is punted to a later CL
     
-    The new code does exactly that, and now we can just use varType and delete
-    typeOrNil. With this, there is now less code (excluding the test) and the code
-    is simpler and more correct.
+    These changes can be reviewed by comparing with Patchset #1 of this CL.
     
-    Fixes #48008.
-    
-    Change-Id: I8f2d80e61ae663c886924909f22bbfa634e7779c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/345790
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: Ib5869586b8395419013010e2085cab877727d2ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276253
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/compile/internal/types2/stmt.go            | 26 +++++++---
- .../types2/testdata/fixedbugs/issue48008.go2       | 60 ++++++++++++++++++++++
- src/cmd/compile/internal/types2/typexpr.go         | 24 ---------
- src/go/types/stmt.go                               | 26 +++++++---
- src/go/types/testdata/fixedbugs/issue48008.go2     | 60 ++++++++++++++++++++++
- src/go/types/typexpr.go                            | 27 ----------
- 6 files changed, 160 insertions(+), 63 deletions(-)
+ src/go/types/check.go      |   2 +
+ src/go/types/subst.go      | 542 +++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/type.go       |  29 ++-
+ src/go/types/typestring.go |   3 -
+ 4 files changed, 567 insertions(+), 9 deletions(-)

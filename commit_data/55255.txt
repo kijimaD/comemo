@@ -1,28 +1,23 @@
-commit 052d402985816c1fc0f07424e53eaace3fa5e408
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Dec 8 13:50:22 2023 -0800
+commit 733ba921875ea11088f1f447cbca418f651aae5c
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jan 3 13:11:10 2023 -0500
 
-    runtime: clear mspan.largeType more carefully in the case of arenas
+    cmd/compile: flag 'large' functions when -m=2+ in effect
     
-    The pointer stored in mspan.largeType is an invalid pointer when
-    the span is an arena. We need to make sure that pointer isn't seen
-    by the garbage collector, as it might barf on it. Make sure we
-    zero the pointer using a uintptr write so the old value isn't picked
-    up by the write barrier.
+    When -m=N (where N > 1) is in effect, include a note in the trace
+    output if a given function is considered "big" during inlining
+    analysis, since this causes the inliner to be less aggressive. If a
+    small change to a large function happens to nudge it over the large
+    function threshold, it can be confusing for developers, thus it's
+    probably worth including this info in the remark output.
     
-    The mspan.largeType field itself is in a NotInHeap struct, so a heap
-    scan won't find it. The only way we find it is when writing it, or
-    when reading it and putting it in a GC-reachable location. I think we
-    might need to audit the runtime to make sure these pointers aren't
-    being passed in places where the GC might (non-conservatively) scan a
-    stack frame it lives in. (It might be ok, many such places are either
-    systemstack or nosplit.)
-    
-    Change-Id: Ie059d054e0da4d48a4c4b3be88b8e1e46ffa7d10
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/548535
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Id31a1b76371ab1ef9265ba28a377f97b0247d0a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460317
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/mgcsweep.go | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/inline/inl.go | 3 +++
+ test/inline_big.go                     | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

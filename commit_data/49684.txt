@@ -1,19 +1,17 @@
-commit e95fd4c2380b0adaa10be40812739156198037b7
-Author: WANG Xuerui <git@xen0n.name>
-Date:   Mon Aug 1 21:19:29 2022 +0800
+commit 5c224ec92102d7803c03ed2b482a68fad91b954b
+Author: korzhao <korzhao95@gmail.com>
+Date:   Mon Aug 2 16:53:25 2021 +0000
 
-    doc/go1.19: fix typo: EM_LONGARCH -> EM_LOONGARCH
+    database/sql: improve the documentation of Conn.Raw
     
-    Another last-minute fix. The whole repo is checked case-insensitively
-    against "longarch" and this is the only occurrence.
+    Fixes #47500
     
-    Change-Id: If13c123c1e44001a346f1df1df9d839c699703b0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/420494
-    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: Ibd44e4db15ea45bb53a6651a6567edfe6104d3d6
+    GitHub-Last-Rev: 61b8abbc28908fc807af7188e19089ac454b4817
+    GitHub-Pull-Request: golang/go#47503
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338970
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- doc/go1.19.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

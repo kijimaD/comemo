@@ -1,14 +1,14 @@
-commit 9bcfc57660e23bb79894dfcd9253bc2b6d601ba4
-Author: Rob Pike <r@golang.org>
-Date:   Fri Feb 10 15:09:09 2012 +1100
+commit 5d198bf8661be6ad0659793eebaec0ab587eb876
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 10 14:52:08 2012 +1100
 
-    reflect: documentation tweaks
+    os/exec: add Cmd.Waitmsg, fix a misleading comment
     
-    Fixes #2952.
+    Fixes #2948
     
-    R=golang-dev, rsc
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5651054
+    https://golang.org/cl/5655048
 
- src/pkg/reflect/value.go | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ src/pkg/os/exec/exec.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

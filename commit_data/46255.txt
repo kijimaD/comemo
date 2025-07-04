@@ -1,18 +1,28 @@
-commit faf9c7d8fe9885a8d96de389f16bc4fdadb067a2
-Author: Keith Randall <khr@golang.org>
-Date:   Tue Aug 31 14:53:53 2021 -0700
+commit 42fec2ded44a1bedf739dbc2b33f1b144616ec4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 18:46:56 2020 -0500
 
-    cmd/compile: assign results of transformAssign back to source location
+    [dev.regabi] cmd/compile: cleanup for concrete types - const
     
-    Otherwise the modifications of transformAssign are dropped on the floor.
+    An automated rewrite will add concrete type assertions after
+    a test of n.Op(), when n can be safely type-asserted
+    (meaning, n is not reassigned a different type, n is not reassigned
+    and then used outside the scope of the type assertion,
+    and so on).
     
-    Change-Id: Id40782564952ed53f9ade1dba4e85290c8522abc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346590
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    This sequence of CLs handles the code that the automated
+    rewrite does not: adding specific types to function arguments,
+    adjusting code not to call n.Left() etc when n may have multiple
+    representations, and so on.
+    
+    This CL focuses on const.go.
+    
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I824f18fa0344ddde56df0522f9fa5e237114bbe2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277927
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/noder/stencil.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/gc/const.go | 74 ++++++++++++++++++++++++------------
+ 1 file changed, 50 insertions(+), 24 deletions(-)

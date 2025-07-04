@@ -1,13 +1,16 @@
-commit a733f0bcd11e33e9dde58034dd8bcc0461f68d56
+commit 22484e226290c45bb4ff3d85ac5ac9f9818ae5b3
 Author: Rob Pike <r@golang.org>
-Date:   Wed Jun 29 13:44:13 2011 +1000
+Date:   Wed Jun 29 13:11:49 2011 +1000
 
-    exp/template: use MethodByName, add to build.
+    reflect: MethodByName
+    It's more common to ask for methods by name than by index, so might
+    as well make it easy to do so.
     
-    R=rsc, adg, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4641081
+    https://golang.org/cl/4639083
 
- src/pkg/Makefile             |  1 +
- src/pkg/exp/template/exec.go | 16 ++++------------
- 2 files changed, 5 insertions(+), 12 deletions(-)
+ src/pkg/reflect/all_test.go | 46 ++++++++++++++++++++++++++++++++++++-----
+ src/pkg/reflect/type.go     | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/reflect/value.go    | 17 +++++++++++++++
+ 3 files changed, 108 insertions(+), 5 deletions(-)

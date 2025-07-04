@@ -1,12 +1,13 @@
-commit 07a34495cf07b903b3f173ad57582d560b912841
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Oct 18 11:35:58 2011 +1100
+commit 0a4ec755e08d62535fd10cc4b81fc354a10cd774
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Oct 17 16:47:52 2011 -0700
 
-    tag release.r60.3
+    misc/swig: delete binaries
     
-    R=golang-dev, dsymonds
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/5298041
+    https://golang.org/cl/5273045
 
- .hgtags | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ misc/swig/callback/run | Bin 1179384 -> 0 bytes
+ misc/swig/stdio/hello  | Bin 231270 -> 0 bytes
+ 2 files changed, 0 insertions(+), 0 deletions(-)

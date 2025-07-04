@@ -1,13 +1,16 @@
-commit 2ae3581639ec2e481b1d1168d7db50b97d7bffb6
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Jul 30 15:25:29 2015 +0200
+commit f2662f2c938f2f9fd21067169b2aaec89f8d0e9f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 23 13:05:25 2015 +1000
 
-    A+C: automated update
+    text/template: explain better the semantics of ParseFiles
     
-    Change-Id: Ie4431e74f095b85b4b5c07d087c3d29acf46d138
-    Reviewed-on: https://go-review.googlesource.com/12902
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Documentation change only.
+    
+    Fixes #11247.
+    
+    Change-Id: Ib412de2d643292dbe42b56dee955bdb877aee81b
+    Reviewed-on: https://go-review.googlesource.com/11329
+    Reviewed-by: David Symonds <dsymonds@golang.org>
 
- AUTHORS      | 11 +++++++++++
- CONTRIBUTORS | 13 +++++++++++++
- 2 files changed, 24 insertions(+)
+ src/text/template/helper.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

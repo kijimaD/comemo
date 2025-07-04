@@ -1,23 +1,16 @@
-commit 5b1885c241172fc1f89221b1a83789032c13cf5a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Feb 14 13:36:40 2013 -0800
+commit 38244018ce0d99d0364e408f3d77484a10d39dc6
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Feb 14 21:11:47 2013 +0100
 
-    go/parser: cleanups following CL 7307085
+    cmd/gc: remove node printing in redeclare errors
     
-    - use the new AllErrors flag where appropriate
-    - unless AllErrors is set, eliminate spurious
-      errors before they are added to the errors list
-      (it turns out that reporting spurious errors always
-      leads to too many uninformative errors after all)
+    I suspect this is some debugging which got through the submission process.
     
-    R=golang-dev, bradfitz
+    Fixes #4789.
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/7323065
+    https://golang.org/cl/7310079
 
- src/cmd/gofmt/gofmt.go          |  4 ++--
- src/pkg/exp/gotype/gotype.go    |  4 ++--
- src/pkg/go/parser/error_test.go |  2 +-
- src/pkg/go/parser/interface.go  |  6 +++---
- src/pkg/go/parser/parser.go     | 18 +++++++++++++++---
- src/pkg/go/types/check_test.go  |  2 +-
- 6 files changed, 24 insertions(+), 12 deletions(-)
+ src/cmd/gc/dcl.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,28 +1,37 @@
-commit a4a0f9b1481e9be4361eb9c4998eca08e2eedb0a
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Mon Jun 7 14:11:20 2021 -0500
+commit 24e9707cbfa6b1ed6abdd4b11f9ddaf3aac5ad88
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 25 16:31:41 2021 -0700
 
-    cmd/compile: make XER allocatable register on PPC64
+    cmd/link, cmd/cgo: support -flto in CFLAGS
     
-    This is the first step towards decomposing aggregate operations
-    which create or consume the CA bit of the XER.
+    The linker now accepts unrecognized object files in external linking mode.
+    These objects will simply be passed to the external linker.
+    This permits using -flto which can generate pure byte code objects,
+    whose symbol table the linker does not know how to read.
     
-    This helps optimize the canned sequence of Add64Carry (and
-    Sub64Borrow if it were implemented similarly) by minimizing
-    extraneous operations related to loading the CA bit,
-    reloading CA in chained operations, or extracting it when
-    unused.
+    The cgo tool now passes -fno-lto when generating objects whose symbols
+    it needs to read. The cgo tool now emits matching types in different
+    objects, so that the lto linker does not report a mismatch.
     
-    Likewise, mark the operations which clobber CA.
+    This is based on https://golang.org/cl/293290 by Derek Parker.
     
-    Change-Id: I33e6dd2654a8cc39fcdbb9690a495f03558cdc97
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/346869
-    Trust: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    For #43505
+    Fixes #43830
+    Fixes #46295
+    
+    Change-Id: I6787de213417466784ddef5af8899e453b4ae1ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322614
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/compile/internal/ssa/config.go       |  1 +
- src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 57 +++++++++++++++-------------
- src/cmd/compile/internal/ssa/opGen.go        | 17 ++++++---
- 3 files changed, 42 insertions(+), 33 deletions(-)
+ src/cmd/cgo/gcc.go                                 |  2 ++
+ src/cmd/cgo/out.go                                 | 16 +++++++--
+ src/cmd/dist/test.go                               | 29 ++++++++++++----
+ src/cmd/go/testdata/script/cgo_lto2_issue43830.txt | 33 ++++++++++++++++++
+ src/cmd/go/testdata/script/cgo_lto_issue43830.txt  | 39 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/ar.go                     |  4 +++
+ src/cmd/link/internal/ld/config.go                 |  6 +++-
+ src/cmd/link/internal/ld/lib.go                    | 26 ++++++++++++---
+ 8 files changed, 140 insertions(+), 15 deletions(-)

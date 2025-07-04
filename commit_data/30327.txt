@@ -1,17 +1,28 @@
-commit d9a19f86fb5297aee62242ad14b6a69d2c990a79
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Feb 19 10:42:34 2017 +0100
+commit 53fc330e2d154443acf3d01e0d68bae22b2b7804
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 30 03:28:05 2016 +0000
 
-    fmt: remove unused global variable byteType
+    net/http: add Server.Close & Server.Shutdown for forced & graceful shutdown
     
-    Change list https://golang.org/cl/20686/ removed the last use
-    of the variable byteType.
+    Also updates x/net/http2 to git rev 541150 for:
     
-    Change-Id: I4ea79095136a49a9d22767b37f48f3404da05056
-    Reviewed-on: https://go-review.googlesource.com/37197
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+       http2: add support for graceful shutdown of Server
+       https://golang.org/cl/32412
+    
+       http2: make http2.Server access http1's Server via an interface check
+       https://golang.org/cl/32417
+    
+    Fixes #4674
+    Fixes #9478
+    
+    Change-Id: I8021a18dee0ef2fe3946ac1776d2b10d3d429052
+    Reviewed-on: https://go-review.googlesource.com/32329
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/fmt/print.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/net/http/export_test.go |   6 ++
+ src/net/http/h2_bundle.go   |  62 +++++++++++---
+ src/net/http/http_test.go   |   5 ++
+ src/net/http/serve_test.go  |  93 ++++++++++++++++++++
+ src/net/http/server.go      | 201 ++++++++++++++++++++++++++++++++++++++++++--
+ 5 files changed, 352 insertions(+), 15 deletions(-)

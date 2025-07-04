@@ -1,69 +1,12 @@
-commit 9916feeddf30f8e4d159e92f49a090e01f4fa353
-Author: Ilya Tocar <ilya.tocar@intel.com>
-Date:   Mon Dec 4 14:24:16 2017 -0600
+commit dd4988fd995e54a19781f7caeb49e020602697f6
+Author: Laurent Voisin <lpvoisin@gmail.com>
+Date:   Sun Oct 8 18:01:18 2017 +0200
 
-    cmd/compile/internal/ssa: don't spill register offsets on amd64
+    encoding/gob: fix a typo in the package documentation
     
-    Transform (ADDQconst SP) into (LEA SP), because lea is rematerializeable,
-    so this avoids register spill. We can't mark ADDQconst as rematerializeable,
-    because it clobbers flags. This makes go binary ~2kb smaller.
-    
-    For reference here is generated code for function from bug report.
-    Before:
-            CALL    "".g(SB)
-            MOVBLZX (SP), AX
-            LEAQ    8(SP), DI
-            TESTB   AX, AX
-            JEQ     15
-            MOVQ    "".p(SP), SI
-            DUFFCOPY        $196
-            MOVQ    $0, (SP)
-            PCDATA  $0, $1
-            CALL    "".h(SB)
-            RET
-            MOVQ    DI, ""..autotmp_2-8(SP) // extra spill
-            PCDATA  $0, $2
-            CALL    "".g(SB)
-            MOVQ    ""..autotmp_2-8(SP), DI // extra register fill
-            MOVQ    "".p(SP), SI
-            DUFFCOPY        $196
-            MOVQ    $1, (SP)
-            PCDATA  $0, $1
-            CALL    "".h(SB)
-            JMP     14
-            END
-    
-    After:
-            CALL    "".g(SB)
-            MOVBLZX (SP), AX
-            TESTB   AX, AX
-            JEQ     15
-            LEAQ    8(SP), DI
-            MOVQ    "".p(SP), SI
-            DUFFCOPY        $196
-            MOVQ    $0, (SP)
-            PCDATA  $0, $1
-            CALL    "".h(SB)
-            RET
-            PCDATA  $0, $0  // no spill
-            CALL    "".g(SB)
-            LEAQ    8(SP), DI // rematerialized instead
-            MOVQ    "".p(SP), SI
-            DUFFCOPY        $196
-            MOVQ    $1, (SP)
-            PCDATA  $0, $1
-            CALL    "".h(SB)
-            JMP     14
-            END
-    
-    Fixes #22947
-    
-    Change-Id: I8f33b860dc6c8828373477171b172ca2ce30074f
-    Reviewed-on: https://go-review.googlesource.com/81815
-    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I6aee75a6ae1470dfc658d72a5b6508fb93503057
+    Reviewed-on: https://go-review.googlesource.com/69115
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 14 ++++++++++++++
- 2 files changed, 18 insertions(+)
+ src/encoding/gob/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

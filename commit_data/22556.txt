@@ -1,23 +1,32 @@
-commit 6a2b0c0b6d527d45860ec6c0d860b6aebfedea2e
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Apr 15 15:00:42 2015 -0400
+commit 717cb74907f3597850398a48a52f1a19a3beb447
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 5 17:45:11 2015 -0800
 
-    runtime: delete cgo_allocate
+    cmd/internal/ld: edit into more idiomatic Go code
     
-    This memory is untyped and can't be used anymore.
-    The next version of SWIG won't need it.
+    Instead of reimplementing chained hash tables, just use maps.
     
-    Change-Id: I592b287c5f5186975ee09a9b28d8efe3b57134e7
-    Reviewed-on: https://go-review.googlesource.com/8956
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Use bool instead of uint8 for variables only set to 0 or 1.
+    
+    Fix parsing of `import foo "foo" // indirect` lines.  Previously, this
+    was treated as an import of package path `"foo" // indirect`, which
+    could result in the cycle-detection code failing to detect a cycle
+    because it would be treated as a separate package from `"foo"`.
+    
+    Also, since there are theoretically multiple quoted forms for a
+    package path, use strconv.Unquote to normalize them.  Side benefit:
+    Unquote will complain if any trailing comments sneak back in.
+    
+    Aside: For most Go archives, Go package data is only present in the
+    __.PKGDEF member, but unless -u is used, ldpkg is only called on the
+    _go_.6 member.  Consequently, importcycles is a no-op when -u isn't
+    used as it has no package data to inspect.
+    
+    Change-Id: I7076cf91a66726a8d9c5676adfea13c5532001fa
+    Reviewed-on: https://go-review.googlesource.com/7002
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- misc/cgo/test/callback.go        | 19 --------------
- misc/cgo/test/callback_c_gc.c    | 55 ----------------------------------------
- misc/cgo/test/callback_c_gccgo.c | 49 -----------------------------------
- misc/cgo/test/cgo_test.go        |  1 -
- src/runtime/cgo/callbacks.go     | 26 -------------------
- src/runtime/cgocall.go           |  6 -----
- src/runtime/cgocallback.go       | 27 --------------------
- src/runtime/mgc.go               |  9 -------
- src/runtime/runtime2.go          |  8 ------
- 9 files changed, 200 deletions(-)
+ src/cmd/internal/ld/go.go | 134 +++++++++++++++++++---------------------------
+ 1 file changed, 56 insertions(+), 78 deletions(-)

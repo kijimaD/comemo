@@ -1,24 +1,14 @@
-commit 7b7dac5e235145b08644e2fe4864b3d1fb8e2d5a
-Author: Joel Sing <jsing@google.com>
-Date:   Wed Jul 17 12:33:16 2013 -0400
+commit deee03f17eee3bf8c8d6a607d413b8141c0f0714
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jul 17 18:48:55 2013 +1000
 
-    crypto/tls: Add support for ECDHE-ECDSA
+    doc/effective_go: stamp out stray GOROOT reference
     
-    Add support for ECDHE-ECDSA (RFC4492), which uses an ephemeral server
-    key pair to perform ECDH with ECDSA signatures. Like ECDHE-RSA,
-    ECDHE-ECDSA also provides PFS.
+    Replaced with something more appropriate.
     
-    R=agl
+    R=adg, r, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7006047
+    https://golang.org/cl/11421043
 
- src/pkg/crypto/crypto.go                    |    3 +
- src/pkg/crypto/tls/cipher_suites.go         |   32 +-
- src/pkg/crypto/tls/common.go                |   19 +-
- src/pkg/crypto/tls/handshake_client.go      |   39 +-
- src/pkg/crypto/tls/handshake_client_test.go |  598 +++++---
- src/pkg/crypto/tls/handshake_server.go      |   42 +-
- src/pkg/crypto/tls/handshake_server_test.go | 2085 ++++++++++++++++++---------
- src/pkg/crypto/tls/key_agreement.go         |   99 +-
- src/pkg/crypto/tls/prf.go                   |    6 +-
- 9 files changed, 1939 insertions(+), 984 deletions(-)
+ doc/effective_go.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

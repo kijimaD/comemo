@@ -1,28 +1,18 @@
-commit 4c3b4dfd798fa24ef33cd0f5c80e4b9857d9849e
-Author: Dmitri Shuralyov <dmitshur@golang.org>
-Date:   Thu Jan 3 19:44:55 2019 -0500
+commit 8a2b5f1f39152e45e6cfe6264612f00891d0327e
+Author: Dina Garmash <dgrmsh@gmail.com>
+Date:   Thu Aug 30 16:59:29 2018 -0400
 
-    CONTRIBUTORS: first round of automated updates for Go 1.12
+    doc: fix os.Pipe() call in the example.
     
-    These updates have been automatically generated using a modified
-    version of the updateac command with the following changes:
+    Short variable declarations example passes an fd argument to os.Pipe call.
+    However, os.Pipe() takes no arguments and returns 2 Files and an error:
+    https://golang.org/src/os/pipe_linux.go?s=319:360#L1
     
-    -       code to automatically update the AUTHORS file has been removed,
-            since we're not updating that file automatically after Go 1.11
-            (see CL 128877)
-    -       CLA checking code has been removed, since it was primarily needed
-            for updating the AUTHORS file
-    -       instead of executing the misc/sortac binary, its code was embedded
-            into the updateac command itself
+    Fixes: #27384
     
-    The modified updateac command will be added to x/build repository soon,
-    and the misc/sortac command can be removed afterwards.
-    
-    Updates #12042
-    
-    Change-Id: Ibf73068698b14b1aad4df4490747b488508ff5fd
-    Reviewed-on: https://go-review.googlesource.com/c/156278
-    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I0a709f51e0878c57185d901b899d209f001dfcce
+    Reviewed-on: https://go-review.googlesource.com/132284
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- CONTRIBUTORS | 159 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 159 insertions(+)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

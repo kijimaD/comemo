@@ -1,16 +1,20 @@
-commit cb5bca8e8af619a5a6548e5d1a2b2aa0c9accc25
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Jul 9 15:42:02 2015 -0700
+commit d9c72d739c87538b0854e26e6d73470784f6ea3e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 10 11:25:48 2015 -0600
 
-    crypto/tls: reject ServerHellos with empty ALPN protocols.
+    [dev.ssa] cmd/compile: implement ONOT
     
-    https://tools.ietf.org/html/rfc7301#section-3.1 specifies that a
-    ProtocolName may not be empty. This change enforces this for ServerHello
-    messages—it's already enforced for ClientHello messages.
+    Co-hacking with josharian at Gophercon.
     
-    Change-Id: Ic5a5be6bebf07fba90a3cabd10b07ab7b4337f53
-    Reviewed-on: https://go-review.googlesource.com/12003
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia59dfab676c6ed598c2c25483439cd1395a4ea87
+    Reviewed-on: https://go-review.googlesource.com/12029
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/crypto/tls/handshake_messages.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go             | 11 ++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  3 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  3 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  3 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 39 ++++++++++++++++++++++++++
+ 6 files changed, 82 insertions(+), 1 deletion(-)

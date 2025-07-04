@@ -1,27 +1,23 @@
-commit 25a59decd58d67edb1f0d15c899ecb27c7ebb3d3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Oct 30 13:51:04 2023 -0700
+commit 8c17505da792755ea59711fc8349547a4f24b5c5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 16 10:17:17 2022 -0500
 
-    go/types, types2: more concise error if conversion fails due to integer overflow
+    testing: in TestRacyOutput, ensure that the Run calls complete before cleanup
     
-    This change brings the error message for this case back in line
-    with the pre-Go1.18 error message.
+    Also tweak the failure message added in CL 352349.
     
-    Fixes #63563.
+    Updates #18741.
+    Updates #48515.
     
-    Change-Id: I3c6587d420907b34ee8a5f295ecb231e9f008380
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538058
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I46ed84c6f498d7a68414cc3dab3c1cd55da69aa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451215
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Changkun Ou <mail@changkun.de>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/conversions.go     | 15 +++++++-
- src/go/types/conversions.go                        | 15 +++++++-
- src/internal/types/testdata/check/const1.go        | 44 +++++++++++-----------
- src/internal/types/testdata/check/constdecl.go     |  2 +-
- src/internal/types/testdata/check/expr0.go         |  2 +-
- .../types/testdata/fixedbugs/issue63563.go         | 37 ++++++++++++++++++
- 6 files changed, 89 insertions(+), 26 deletions(-)
+ src/testing/panic_test.go | 2 +-
+ src/testing/sub_test.go   | 4 ++--
+ src/testing/testing.go    | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,23 +1,20 @@
-commit e8298c09b1154e3eb3560352ebbea6d11d87772e
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Fri Nov 10 18:48:41 2023 +0000
+commit 0fd7be7ee5f36215b5d6b8f23f35d60bf749805a
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 23 06:47:14 2022 -0500
 
-    internal/trace/v2: don't enforce batch order on Ms
+    testing: remove stale builder names from windows tests
     
-    Currently the trace parser enforces that the timestamps for a series of
-    a batches on the same M come in order. We cannot actually assume this in
-    general because we don't trust timestamps. The source of truth on the
-    batch order is the order in which they were emitted. If that's wrong, it
-    should quickly become evident in the trace.
+    A couple of the windows runtime tests were being gated by "if
+    testenv.Builder() == ..." guards that referred to builders that have
+    long since been obsoleted (e.g. "windows-amd64-gce"). Use a more
+    generic guard instead, checking for windows-<goarch> prefix.
     
-    For #60773.
-    For #64061.
-    
-    Change-Id: I7d5a407c9568dd1ce0b79d51b2b538ed6072b26d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541695
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ibdb9ce2b0cfe10bba986bd210a5b8ce5c1b1d675
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453035
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/trace/v2/generation.go | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
+ src/runtime/syscall_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 48040: 360e1b8197b78685cf08ab5914aa629fb739b2c3
+# Index 48040: bedfeed54a7a80123c07f83c325a0bcfe5c43398
 
 echo "🚀 Generating explanation for commit 48040..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 48040
-- **コミットハッシュ**: 360e1b8197b78685cf08ab5914aa629fb739b2c3
-- **GitHub URL**: https://github.com/golang/go/commit/360e1b8197b78685cf08ab5914aa629fb739b2c3
+- **コミットハッシュ**: bedfeed54a7a80123c07f83c325a0bcfe5c43398
+- **GitHub URL**: https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398
 
 ### 章構成
 

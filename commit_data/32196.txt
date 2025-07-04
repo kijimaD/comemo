@@ -1,23 +1,35 @@
-commit 0d1a8f6e12770db8982ed23bc67228237671085d
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Aug 10 22:34:51 2017 -0700
+commit 2923b14a7be6b9d6daa2e140c2e444aa3eade398
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 11 20:31:41 2017 +0100
 
-    archive/tar: implement specialized logic for USTAR format
+    cmd/compile/internal/gc: don't panic on continue in switch
     
-    Rather than going through the complicated logic of writeHeader,
-    implement a writeUSTARHeader that only knows about the USTAR format.
-    This makes the logic much easier to reason about since you only
-    need to be concerned about USTAR and not all the subtle
-    differences between USTAR, PAX, and GNU.
+    Continues outside of a loop are not allowed. Most of these possibilities
+    were tested in label1.go, but one was missing - a plain continue in a
+    switch/select but no enclosing loop.
     
-    We seperate out the logic in writeUSTARHeader into templateV7Plus
-    and writeRawHeader since the planned implementations of
-    writePAXHeader and writeGNUHeader will use them.
+    This used to error with a "continue not in loop" in 1.8, but recently
+    was broken by c03e75e5. In particular, innerloop does not only account
+    for loops, but also for switches and selects. Swap it by bools that
+    track whether breaks and continues should be allowed.
     
-    Change-Id: Ie75a54ac998420ece82686159ae6fa39f8b128e9
-    Reviewed-on: https://go-review.googlesource.com/54970
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    While at it, improve the wording of errors for breaks that are not where
+    they should be. Change "loop" by "loop, switch, or select" since they
+    can be used in any of those.
+    
+    And add tests to make sure this isn't broken again. Use a separate func
+    since I couldn't get the compiler to crash on f() itself, possibly due
+    to the recursive call on itself.
+    
+    Fixes #19934.
+    
+    Change-Id: I8f09c6c2107fd95cac50efc2a8cb03cbc128c35e
+    Reviewed-on: https://go-review.googlesource.com/40357
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/archive/tar/format.go |  5 ++++
- src/archive/tar/writer.go | 73 +++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 73 insertions(+), 5 deletions(-)
+ src/cmd/compile/internal/gc/checkcfg.go | 22 ++++++++++++++++------
+ test/label1.go                          | 28 ++++++++++++++++++++--------
+ 2 files changed, 36 insertions(+), 14 deletions(-)

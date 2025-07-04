@@ -1,29 +1,23 @@
-commit 49e542aa85b7c2d9f6cf50de00843b455bc1e635
-Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-Date:   Fri Aug 30 08:17:19 2024 +0200
+commit 1e245d21b8ec0a4afb459b6f146cbc0c47f5cb24
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Aug 15 10:24:41 2023 -0400
 
-    runtime: fix GoroutineProfile stacks not getting null terminated
+    cmd/internal/archive: skip sentinel archive entries created by Go cmd
     
-    Fix a regression introduced in CL 572396 causing goroutine stacks not
-    getting null terminated.
+    When reading an archive, check for the presence of sentinel entries
+    created by the Go command. These zero-sized marker entries don't contain
+    any useful symbols, but rather are there to communicate info to the
+    linker; ignore them during symbol dumping.
     
-    This bug impacts callers that reuse the []StackRecord slice for multiple
-    calls to GoroutineProfile. See https://github.com/felixge/fgprof/issues/33
-    for an example of the problem.
+    Fixes #62036.
     
-    Add a test case to prevent similar regressions in the future. Use null
-    padding instead of null termination to be consistent with other profile
-    types and because it's less code to implement. Also fix the
-    ThreadCreateProfile code path.
-    
-    Fixes #69243
-    
-    Change-Id: I0b9414f6c694c304bc03a5682586f619e9bf0588
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609815
-    Reviewed-by: Tim King <taking@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Change-Id: Ied017b0c5b92a3cf6fd13bb9c9f3a9664e4f20f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519635
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/mprof.go            |  6 ++-
- src/runtime/pprof/pprof_test.go | 92 ++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 86 insertions(+), 12 deletions(-)
+ .../script/cgo_suspect_flag_force_external.txt       | 20 ++++++++++++++++++++
+ src/cmd/internal/archive/archive.go                  | 18 ++++++++++++++++++
+ src/cmd/internal/objfile/goobj.go                    |  2 +-
+ 3 files changed, 39 insertions(+), 1 deletion(-)

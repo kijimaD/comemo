@@ -1,19 +1,17 @@
-commit 0b37bd9b3f7556d31061c6007afca59ffe2642d3
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Mon Nov 1 14:07:30 2021 -0700
+commit c4e3f6c4c78f52060d409a549b83b72644069137
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Mar 2 06:10:58 2021 +0000
 
-    net: add BenchmarkWriteToReadFromUDPAddrPort
+    cmd/compile: remove 8-byte alignment requirement of stack slot on s390x
     
-    The main item of interest is the allocs.
+    This CL applies CL 267999 to s390x.
     
-    BenchmarkWriteToReadFromUDPAddrPort-8             237735              5152 ns/op              68 B/op          3 allocs/op
+    Updates #42385
     
-    Change-Id: I5cb3f2e1ebbb02acc51039c2266e99b90d388a99
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360598
-    Trust: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie8e69ad1b3f7ddc2c8f05125f4af617aeac035ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297769
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: eric fang <eric.fang@arm.com>
 
- src/net/udpsock_test.go | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ src/cmd/compile/internal/ssagen/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,15 +1,44 @@
-commit c167635a6e08cdb1223a6d7b70cffd73c165562e
+commit e08f10b8b5fbb82ff1e2c263ad57e19d2de1e323
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Thu Nov 12 08:44:29 2020 -0500
+Date:   Wed Apr 22 19:21:30 2020 -0400
 
-    cmd/compile: gofmt
+    [dev.link] cmd/internal/goobj2: add index fingerprint to object file
     
-    Change-Id: I2aa44b9976bdac577db44ef76e18fdf5748df8ca
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/269477
-    Trust: Cherry Zhang <cherryyz@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    The new object files use indices for symbol references, instead
+    of names. Fundamental to the design, it requires that the
+    importing and imported packages have consistent view of symbol
+    indices. The Go command should already ensure this, when using
+    "go build". But in case it goes wrong, it could lead to obscure
+    errors like run-time crashes. It would be better to check the
+    index consistency at build time.
+    
+    To do that, we add a fingerprint to each object file, which is
+    a hash of symbol indices. In the object file it records the
+    fingerprints of all imported packages, as well as its own
+    fingerprint. At link time, the linker checks that a package's
+    fingerprint matches the fingerprint recorded in the importing
+    packages, and issue an error if they don't match.
+    
+    This CL does the first part: introducing the fingerprint in the
+    object file, and propagating fingerprints through
+    importing/exporting by the compiler. It is not yet used by the
+    linker. Next CL will do.
+    
+    Change-Id: I0aa372da652e4afb11f2867cb71689a3e3f9966e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229617
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/ssa/gen/genericOps.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/iexport.go |  6 ++++
+ src/cmd/compile/internal/gc/iimport.go | 11 ++++++-
+ src/cmd/compile/internal/gc/main.go    | 22 +++++++------
+ src/cmd/internal/goobj/readnew.go      |  6 +++-
+ src/cmd/internal/goobj2/objfile.go     | 58 ++++++++++++++++++++++++++--------
+ src/cmd/internal/obj/line.go           |  5 +--
+ src/cmd/internal/obj/link.go           |  5 ++-
+ src/cmd/internal/obj/objfile.go        |  5 +--
+ src/cmd/internal/obj/objfile2.go       | 14 +++++---
+ src/cmd/internal/obj/sym.go            | 10 ++++++
+ src/cmd/link/internal/loader/loader.go |  6 +++-
+ 11 files changed, 111 insertions(+), 37 deletions(-)

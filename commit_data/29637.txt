@@ -1,17 +1,26 @@
-commit c2bb52b8304a814b8e2b447953c3341ac31bbee8
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 23 16:41:15 2016 +0000
+commit f5516559e65175887f2fadb73cd8e5fdfc44bcd6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 11:38:47 2016 -0700
 
-    test: remove amd64 build tag from test
+    cmd/compile/internal/x86: fix zero-range merging logic
     
-    It was supposed to be testing SSA, not amd64.
+    All other architectures merge stack-zeroing ranges if there are at
+    most two pointers/registers of memory between them, but x86 is
+    erroneously coded to require *exactly* two.
     
-    For #18024
+    Shaves a tiny amount of text size off cmd/go when building for
+    GOARCH=386 and eliminates an unnecessary inconsistency between x86's
+    defframe and the other GOARCHes'.
     
-    Change-Id: Ibe65d7eb6bed9bc4b3eda68e1eaec5fa39fe8f76
-    Reviewed-on: https://go-review.googlesource.com/33491
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+       text    data     bss     dec     hex filename
+    5241015  191051   93336 5525402  544f9a go.before
+    5240224  191051   93336 5524611  544c83 go.after
+    
+    Change-Id: Ib15ec8c07bca11e824640f0ab32abfc4bb160496
+    Reviewed-on: https://go-review.googlesource.com/30050
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- test/fixedbugs/issue8613.go | 1 -
- 1 file changed, 1 deletion(-)
+ src/cmd/compile/internal/x86/ggen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

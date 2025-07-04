@@ -1,28 +1,64 @@
-commit b5481dd0a635780e8ff35cb274a9b3d85fc7f608
-Author: Austin Clements <austin@google.com>
-Date:   Tue Mar 1 21:30:26 2016 -0500
+commit 24a83d35453e29087c4d63954bb8c78a982fc207
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 14 22:21:48 2015 +0000
 
-    runtime: disable gcMarkRootCheck debugging check during STW
+    net: add Dialer.Cancel to cancel pending dials
     
-    gcMarkRootCheck takes ~10ns per goroutine. This is just a debugging
-    check, so disable it (plus, if something is going to go wrong, it's
-    more likely to go wrong during concurrent mark).
+    Dialer.Cancel is a new optional <-chan struct{} channel whose closure
+    indicates that the dial should be canceled. It is compatible with the
+    x/net/context and http.Request.Cancel types.
     
-    We may be able to re-enable this later, or move it to after we've
-    started the world again. (But not for 1.6.x.)
+    Tested by hand with:
     
-    For 1.6.x.
+    package main
     
-    Fixes #14419.
+        import (
+                "log"
+                "net"
+                "time"
+        )
     
-    name / 95%ile-time/markTerm          old          new  delta
-    500kIdleGs-12                24.0ms ± 0%  18.9ms ± 6%  -21.46%  (p=0.000 n=15+20)
+        func main() {
+                log.Printf("start.")
+                var d net.Dialer
+                cancel := make(chan struct{})
+                time.AfterFunc(2*time.Second, func() {
+                        log.Printf("timeout firing")
+                        close(cancel)
+                })
+                d.Cancel = cancel
+                c, err := d.Dial("tcp", "192.168.0.1:22")
+                if err != nil {
+                        log.Print(err)
+                        return
+                }
+                log.Fatalf("unexpected connect: %v", c)
+        }
     
-    Change-Id: Idb2a2b1771449de772c159ef95920d6df1090666
-    Reviewed-on: https://go-review.googlesource.com/20148
-    Reviewed-by: Rick Hudson <rlh@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
+    Which says:
+    
+        2015/12/14 22:24:58 start.
+        2015/12/14 22:25:00 timeout firing
+        2015/12/14 22:25:00 dial tcp 192.168.0.1:22: operation was canceled
+    
+    Fixes #11225
+    
+    Change-Id: I2ef39e3a540e29fe6bfec03ab7a629a6b187fcb3
+    Reviewed-on: https://go-review.googlesource.com/17821
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/mgc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/net/dial.go            |  7 ++++-
+ src/net/dial_test.go       | 66 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/net/fd_unix.go         | 20 +++++++++++++-
+ src/net/fd_windows.go      | 32 +++++++++++++++++++---
+ src/net/iprawsock_posix.go |  4 +--
+ src/net/ipsock_posix.go    |  4 +--
+ src/net/net.go             | 11 +++++++-
+ src/net/sock_posix.go      |  8 +++---
+ src/net/tcpsock_plan9.go   |  5 ++--
+ src/net/tcpsock_posix.go   | 10 +++----
+ src/net/udpsock_posix.go   |  6 ++---
+ src/net/unixsock_posix.go  |  2 +-
+ 12 files changed, 147 insertions(+), 28 deletions(-)

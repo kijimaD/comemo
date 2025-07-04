@@ -1,19 +1,26 @@
-commit 042f4cbb6fbd7f9e6a6587fb3bee2d1716184f9a
-Author: Austin Clements <austin@google.com>
-Date:   Fri Apr 2 17:20:15 2021 -0400
+commit 0f7ac9b4f5f6bc20344feb8a2c32b8126df80baa
+Author: Alex Opie <amtopie@gmail.com>
+Date:   Thu Sep 17 04:31:50 2020 +0000
 
-    cmd/internal/obj/riscv: simplify huge frame prologue
+    cmd/go: use the correct linker config in the buildID hash
     
-    CL 307010 for riscv64.
+    The linker config is hashed into the buildID; however,
+    the GOROOT_FINAL environment variable that is
+    actually used when -trimpath is specified was not
+    reflected in that hash. This change fixes that.
     
-    Some of the comments on the other prologue paths were wrong, so this
-    CL also fixes them up.
+    Fixes #38989
     
-    Change-Id: Icdca1ade3a47ae6e2467af832690d40689dbe1b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307150
-    Trust: Austin Clements <austin@google.com>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: I418a21a9f6293ca63c101d22b501dfdba8e91ac6
+    GitHub-Last-Rev: 4cf82920e4a76173c5cb5359b059e87ee7fc7f51
+    GitHub-Pull-Request: golang/go#40296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243557
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/internal/obj/riscv/obj.go | 99 ++++++++++++++-------------------------
- 1 file changed, 34 insertions(+), 65 deletions(-)
+ src/cmd/go/internal/work/exec.go                   |  9 +++--
+ src/cmd/go/internal/work/gc.go                     |  5 ++-
+ .../go/testdata/script/link_matching_actionid.txt  | 38 ++++++++++++++++++++++
+ 3 files changed, 49 insertions(+), 3 deletions(-)

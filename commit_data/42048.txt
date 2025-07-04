@@ -1,36 +1,25 @@
-commit 300ff5d8ac12a5515234e68aa8a03637ba181937
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Apr 17 15:36:13 2020 -0400
+commit cec01395c5df103f8e359027fd80c8070ce41506
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 25 15:55:29 2019 +0000
 
-    runtime: allow proflock and mheap.speciallock above globalAlloc.mutex
+    runtime: add packed bitmap summaries
     
-    During schedinit, these may occur in:
+    This change adds the concept of summaries and of summarizing a set of
+    pallocBits, a core concept in the new page allocator. These summaries
+    are really just three integers packed into a uint64. This change also
+    adds tests and a benchmark for generating these summaries.
     
-    mProf_Malloc
-      stkbucket
-        newBucket
-          persistentalloc
-            persistentalloc1
+    Updates #35112.
     
-    mProf_Malloc
-      setprofilebucket
-        fixalloc.alloc
-          persistentalloc
-            persistentalloc1
-    
-    These seem to be legitimate lock orderings.
-    
-    Additionally, mheap.speciallock had a defined rank, but it was never
-    actually used. That is fixed now.
-    
-    Updates #38474
-    
-    Change-Id: I0f6e981852eac66dafb72159f426476509620a65
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/228786
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: I69686316086c820c792b7a54235859c2105e5fee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190621
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/runtime/lockrank.go | 12 ++++++------
- src/runtime/mheap.go    |  1 +
- 2 files changed, 7 insertions(+), 6 deletions(-)
+ src/runtime/export_test.go      |  35 +++++++++++
+ src/runtime/mpagealloc.go       |  58 ++++++++++++++++++
+ src/runtime/mpallocbits.go      |  74 +++++++++++++++++++++++
+ src/runtime/mpallocbits_test.go | 126 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 293 insertions(+)

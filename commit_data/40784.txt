@@ -1,16 +1,21 @@
-commit 759c5d8ba6a5da7ce2896a44ba27887532ee0a46
-Author: ZYunH <zyunhjob@163.com>
-Date:   Wed Nov 13 10:05:37 2019 +0000
+commit e62c3d35033a42dac3ea38a5f86cf0b8f6f74a42
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 25 20:24:15 2019 -0400
 
-    runtime: fix typo in deferprocStack's comments
+    test: add testcase for gccgo compile failure
     
-    change "fp" to "fd".
+    Test case that caused a compiler crash in gofrontend, related to
+    exporting inlinable function bodies.
     
-    Change-Id: I00e5fafcb68891356d508c49aa89969bfed7ed10
-    GitHub-Last-Rev: b06f976a3bacc6fc6f1fd0e4fc8c50da9764f736
-    GitHub-Pull-Request: golang/go#35557
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/207038
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Updates #32778
+    
+    Change-Id: Iacf1753825d5359da43e5e281189876d4c3dd3c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183851
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/panic.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ test/fixedbugs/issue32778.dir/a.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue32778.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue32778.go       | 11 +++++++++++
+ 3 files changed, 40 insertions(+)

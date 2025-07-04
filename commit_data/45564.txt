@@ -1,17 +1,24 @@
-commit ba0f8ce50fd982fe6e51f77c515660fffdebe40c
-Author: sivchari <shibuuuu5@gmail.com>
-Date:   Thu May 6 07:40:22 2021 +0000
+commit d9725f549f48ae6e4eaf70311f6827173453935b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 18:18:59 2020 +1000
 
-    runtime: gofmt proc_test.go
+    syscall: add support for openbsd/mips64
     
-    Change-Id: I09a2be64e96fe85d84560728814af74b234d7210
-    GitHub-Last-Rev: bc881ea0022326fcc35e0356a79634fde00efd2a
-    GitHub-Pull-Request: golang/go#45929
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316409
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Michael Pratt <mpratt@google.com>
+    Update #40995
+    
+    Change-Id: I7afa520ab5ddd6d1b8c7960f400b7b3a1b67d976
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250581
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/runtime/proc_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/asm_openbsd_mips64.s       |  129 +++
+ src/syscall/mkall.sh                   |   11 +
+ src/syscall/mksysnum_openbsd.pl        |    2 +-
+ src/syscall/syscall_openbsd_mips64.go  |   38 +
+ src/syscall/zerrors_openbsd_mips64.go  | 1682 ++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_mips64.go | 1300 ++++++++++++++++++++++++
+ src/syscall/zsysnum_openbsd_mips64.go  |  218 +++++
+ src/syscall/ztypes_openbsd_mips64.go   |  443 +++++++++
+ 8 files changed, 3822 insertions(+), 1 deletion(-)

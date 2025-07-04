@@ -1,15 +1,15 @@
-commit 56f948470ee6512f48111922f832e4829e71d2ff
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Aug 25 08:44:12 2011 +1000
+commit de20cec9c94ae1c29830cbb288f19bdf5fd961df
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Aug 24 14:55:03 2011 -0700
 
-    bufio: handle a "\r\n" that straddles the buffer.
+    big: fix nat.scan bug
     
-    Fixes #2164.
+    Scanning "0" with detected base did not actually set the nat to 0.
     
-    R=r, rsc
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/4927043
+    https://golang.org/cl/4923050
 
- src/pkg/bufio/bufio.go      | 24 ++++++++++++----
- src/pkg/bufio/bufio_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 87 insertions(+), 7 deletions(-)
+ src/pkg/big/int_test.go | 3 +++
+ src/pkg/big/nat.go      | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

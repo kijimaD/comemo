@@ -1,13 +1,20 @@
-commit 5f9fe47deaceaa3688fcd549c888e8cfdaa1dc1a
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Thu May 6 12:21:04 2021 -0400
+commit 68e30af111da6fdfa0c4f0b71b9fabe37bbfe2df
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Oct 26 13:39:56 2020 +0000
 
-    CONTRIBUTORS: change my name
+    Revert "crypto/x509: fix duplicate import"
     
-    Change-Id: I4fd1cf673f5dddb8a2cedd575ad6fcc070c70e86
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317590
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    This reverts CL 250497. It also moves all blank identifier imports below the rest of the imports for clarity.
+    
+    Reason for revert: The blank identifier import was intentional to show that it's needed for its registration side effect. The duplicate import should stay since it communicates that the side-effect is important to tools and to future developers updating this file.
+    
+    Change-Id: I626e6329db50f47453aa71085a05d21bf6efe0ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265078
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- CONTRIBUTORS | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/crypto/x509/x509.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

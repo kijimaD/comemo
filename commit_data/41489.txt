@@ -1,54 +1,23 @@
-commit c6d281e5acbaa658b01c9dc03fd51d7228fe7360
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Jan 6 15:33:38 2020 -0500
+commit 05a805a6de9c1b49ee1d5d55589a119cae5ab556
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 26 15:55:58 2019 -0700
 
-    cmd/go: convert some tests in vendor_test to the script framework
+    cmd/compile: introduce EscLeaks abstraction
     
-    Part of converting all tests to script framework to improve
-    test parallelism.
+    This CL better abstracts away the parameter leak info that was
+    directly encoded into the uint16 value. Followup CL will rewrite the
+    implementation.
     
-    Updates #36320
-    Updates #17751
+    Passes toolstash-check.
     
-    Change-Id: I601e0fcee32b8c5bf2107b520d1dfbe12a19ad3f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/213223
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #33981.
+    
+    Change-Id: I27f81d26f5dd2d85f5b0e5250ca529819a1f11c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197679
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/go/testdata/script/build_vendor.txt        |  41 +++
- src/cmd/go/testdata/script/get_vendor.txt          |  94 ++++++
- src/cmd/go/testdata/script/run_vendor.txt          |  33 ++
- src/cmd/go/testdata/script/test_vendor.txt         |  47 +++
- .../testdata/script/vendor_gopath_issue11409.txt   |  51 +++
- src/cmd/go/testdata/script/vendor_import.txt       | 103 +++++++
- .../go/testdata/script/vendor_import_missing.txt   |   7 +
- src/cmd/go/testdata/script/vendor_import_wrong.txt |   9 +
- src/cmd/go/testdata/script/vendor_issue12156.txt   |  15 +
- .../go/testdata/script/vendor_list_issue11977.txt  |  16 +
- src/cmd/go/testdata/script/vendor_resolve.txt      |  20 ++
- .../go/testdata/script/vendor_test_issue11864.txt  |  19 ++
- .../go/testdata/script/vendor_test_issue14613.txt  |  21 ++
- src/cmd/go/testdata/src/vend/bad.go                |   3 -
- src/cmd/go/testdata/src/vend/dir1/dir1.go          |   1 -
- src/cmd/go/testdata/src/vend/good.go               |   3 -
- src/cmd/go/testdata/src/vend/hello/hello.go        |  10 -
- src/cmd/go/testdata/src/vend/hello/hello_test.go   |  12 -
- src/cmd/go/testdata/src/vend/hello/hellox_test.go  |  12 -
- src/cmd/go/testdata/src/vend/subdir/bad.go         |   3 -
- src/cmd/go/testdata/src/vend/subdir/good.go        |   3 -
- src/cmd/go/testdata/src/vend/vendor/p/p.go         |   1 -
- src/cmd/go/testdata/src/vend/vendor/q/q.go         |   1 -
- src/cmd/go/testdata/src/vend/vendor/strings/msg.go |   3 -
- .../src/vend/vendor/vend/dir1/dir2/dir2.go         |   1 -
- src/cmd/go/testdata/src/vend/x/invalid/invalid.go  |   3 -
- src/cmd/go/testdata/src/vend/x/vendor/p/p.go       |   1 -
- src/cmd/go/testdata/src/vend/x/vendor/p/p/p.go     |   3 -
- src/cmd/go/testdata/src/vend/x/vendor/r/r.go       |   1 -
- src/cmd/go/testdata/src/vend/x/x.go                |   7 -
- src/cmd/go/testdata/testvendor/src/p/p.go          |   6 -
- src/cmd/go/testdata/testvendor/src/q/vendor/x/x.go |   1 -
- src/cmd/go/testdata/testvendor/src/q/y/y.go        |   3 -
- src/cmd/go/testdata/testvendor/src/q/z/z.go        |   3 -
- src/cmd/go/testdata/testvendor2/src/p/p.go         |   3 -
- src/cmd/go/testdata/testvendor2/vendor/x/x.go      |   1 -
- src/cmd/go/vendor_test.go                          | 343 ---------------------
- 37 files changed, 476 insertions(+), 428 deletions(-)
+ src/cmd/compile/internal/gc/esc.go    |  64 ++++++++------
+ src/cmd/compile/internal/gc/escape.go | 159 ++++++++++++++++++++--------------
+ 2 files changed, 130 insertions(+), 93 deletions(-)

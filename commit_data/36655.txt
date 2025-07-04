@@ -1,22 +1,51 @@
-commit 0ef42f4dd6b12821641fe415f16e425bb094137b
-Author: erifan01 <eric.fang@arm.com>
-Date:   Wed Sep 12 10:31:04 2018 +0000
+commit 05ca34093bc2d4a367743101ac2a17b697809e75
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed May 2 09:45:40 2018 +0200
 
-    runtime: skip TestGcSys on arm64
+    testing: only compute b.N once when passed -count > 1
     
-    This failure occurs randomly on arm64.
+    When running a benchmark multiple times, instead of re-computing the
+    value of b.N each time, use the value found by the first run.
     
-    13:10:32 --- FAIL: TestGcSys (0.06s)
-    13:10:32 gc_test.go:30: expected "OK\n", but got "using too much memory: 71401472 bytes\n"
-    13:10:32 FAIL
+    For
     
-    Updates #27636
+      go test -bench=. -benchtime 3s -count 2 p_test.go
     
-    Change-Id: Ifd4cfce167d8054dc6f037bd34368d63c7f68ed4
-    Reviewed-on: https://go-review.googlesource.com/135155
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    on the benchmark in the linked issue; before:
+    
+      BenchmarkBenchmark-4               500          10180593 ns/op
+      --- BENCH: BenchmarkBenchmark-4
+              p_test.go:13: single call took 10.111079ms
+              p_test.go:13: single call took 1.017298685s
+              p_test.go:13: single call took 5.090096124s
+      BenchmarkBenchmark-4               500          10182164 ns/op
+      --- BENCH: BenchmarkBenchmark-4
+              p_test.go:13: single call took 10.098169ms
+              p_test.go:13: single call took 1.017712905s
+              p_test.go:13: single call took 5.090898517s
+      PASS
+      ok    command-line-arguments  12.244s
+    
+    and after:
+    
+      BenchmarkBenchmark-4               500          10177076 ns/op
+      --- BENCH: BenchmarkBenchmark-4
+              p_test.go:13: single call took 10.091301ms
+              p_test.go:13: single call took 1.016943125s
+              p_test.go:13: single call took 5.088376028s
+      BenchmarkBenchmark-4               500          10171497 ns/op
+      --- BENCH: BenchmarkBenchmark-4
+              p_test.go:13: single call took 10.140245ms
+              p_test.go:13: single call took 5.085605921s
+      PASS
+      ok    command-line-arguments  11.218s
+    
+    Fixes #23423
+    
+    Change-Id: Ie66a8c5ac43881eb8741e14105db28745b4d56d3
+    Reviewed-on: https://go-review.googlesource.com/110775
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/gc_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/cmd/go/go_test.go    |  4 ----
+ src/testing/benchmark.go | 47 ++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 32 insertions(+), 19 deletions(-)

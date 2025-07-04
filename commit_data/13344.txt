@@ -1,12 +1,17 @@
-commit 1c4e20744a48ee0d7cdb74ed1cab5196345cf6a2
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jun 13 16:44:19 2012 -0400
+commit f5f23e075e179ddbb518683e0762f27cd59018dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 13 13:32:29 2012 -0700
 
-    syscall: fix windows copyFindData
+    go/ast: comment map implementation
     
-    R=golang-dev, bradfitz
+    A comment map associates comments with AST nodes
+    and permits correct updating of the AST's comment
+    list when the AST is manipulated.
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6301076
+    https://golang.org/cl/6281044
 
- src/pkg/syscall/ztypes_windows.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/pkg/go/ast/commentmap.go      | 268 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/ast/commentmap_test.go | 143 ++++++++++++++++++++
+ 2 files changed, 411 insertions(+)

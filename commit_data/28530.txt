@@ -1,41 +1,16 @@
-commit 375092bdcbc5b095e1591558952ce537b9fa5fa3
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Sat May 7 21:34:04 2016 +0200
+commit bc4fdfdbfe6b971fcceaf4d75514a882917df10d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 1 09:31:31 2016 -0700
 
-    cmd/compile: fix bogus "fallthrough statement out of place"
+    os/signal: deflake TestReset/TestIgnore
     
-    When processing a fallthrough, the casebody function in swt.go
-    checks that the last statement has indeed Op == OXFALL (not-processed
-    fallthrough) before setting it to OFALL (processed fallthrough).
+    Fixes #15661.
     
-    Unfortunately, sometimes the fallthrough statement won't be in the
-    last node. For example, in
-    
-    case 0:
-             return func() int {return 1}()
-             fallthrough
-    
-    the compiler generates
-    
-    autotmp_0 = (func literal)(); return autotmp_0; fallthrough; <node VARKILL>
-    
-    with an OVARKILL node in the last position. casebody will find that
-    last.Op != OXFALL, won't mark the fallthrough as processed, and the
-    fallthrough line will cause a "fallthrough statement out of place" error.
-    
-    To fix this, we change casebody so that it searches for the fallthrough
-    statement backwards in the statements list, without assuming that it'll
-    be in the last position.
-    
-    Fixes #13262
-    
-    Change-Id: I366c6caa7fd7442d365bd7a08cc66a552212d9b2
-    Reviewed-on: https://go-review.googlesource.com/22921
-    Run-TryBot: Quentin Smith <quentin@golang.org>
+    Change-Id: Ic3a8296fc7107f491880900ef52563e52caca1a3
+    Reviewed-on: https://go-review.googlesource.com/23615
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Quentin Smith <quentin@golang.org>
 
- src/cmd/compile/internal/gc/swt.go  | 12 +++++++++++-
- src/cmd/compile/internal/gc/walk.go |  2 +-
- test/fixedbugs/issue13262.go        | 21 +++++++++++++++++++++
- 3 files changed, 33 insertions(+), 2 deletions(-)
+ src/os/signal/signal_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,25 +1,69 @@
-commit 92e6cf4c0f9bf2e1ecd57f22a430d96020cbdd69
-Author: David Chase <drchase@google.com>
-Date:   Wed Mar 27 16:15:04 2019 -0400
+commit a3b01440fef3d2833909f6651455924a1c86d192
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 24 07:13:36 2018 -0700
 
-    cmd/compile: repair ssa/debug_test regression
+    syscall: implement syscalls on Darwin using libSystem
     
-    Code introduced in
+    There are still some references to the bare Syscall functions
+    in the stdlib. I will root those out in a following CL.
+    (This CL is big enough as it is.)
+    Most are in vendor directories:
     
-    [2034fbab5b1d11bc59cb476bc3f49ee1b344839d]
-    cmd/compile: use existing instructions instead of nops for inline marks
+    cmd/vendor/golang.org/x/sys/unix/
+    vendor/golang_org/x/net/route/syscall.go
+    syscall/bpf_bsd.go
+    syscall/exec_unix.go
+    syscall/flock.go
     
-    to change a src.Pos's column to 1 accidentally reset
-    the is_stmt and prologue/epilogue bits, and that
-    turned out to cause a regression in ssa/debug_test.
+    Update #17490
     
-    Preserving that information fixed the regression.
-    
-    Change-Id: I7c6859c8b68d9c6f7c0cbc8805c1f41dc5c1d5fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169739
-    Run-TryBot: David Chase <drchase@google.com>
+    Change-Id: I69ab707811530c26b652b291cadee92f5bf5c1a4
+    Reviewed-on: https://go-review.googlesource.com/c/141639
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/src/pos.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/internal/obj/x86/asm6.go                |   4 +-
+ src/internal/poll/fd_fsync_darwin.go            |  16 +-
+ src/internal/poll/fd_fsync_posix.go             |  10 +-
+ src/internal/poll/fd_fsync_windows.go           |  16 +
+ src/internal/poll/fd_unix.go                    |   9 +-
+ src/internal/poll/fd_writev_darwin.go           |  16 +
+ src/internal/poll/fd_writev_unix.go             |  20 +
+ src/internal/poll/writev.go                     |  19 +-
+ src/internal/syscall/unix/empty.s               |   5 +
+ src/internal/syscall/unix/nonblocking.go        |   2 +-
+ src/internal/syscall/unix/nonblocking_darwin.go |  24 +
+ src/runtime/sys_darwin.go                       |  55 ++
+ src/runtime/sys_darwin_32.go                    |  21 +
+ src/runtime/sys_darwin_386.s                    | 234 +++++++
+ src/runtime/sys_darwin_64.go                    |  21 +
+ src/runtime/sys_darwin_amd64.s                  | 196 ++++++
+ src/runtime/sys_darwin_arm.s                    | 174 ++++++
+ src/runtime/sys_darwin_arm64.s                  | 184 +++++-
+ src/syscall/exec_bsd.go                         |  17 +-
+ src/syscall/exec_darwin.go                      | 248 ++++++++
+ src/syscall/mkall.sh                            |  16 +-
+ src/syscall/mkasm_darwin.go                     |  53 ++
+ src/syscall/mksyscall.pl                        |  41 ++
+ src/syscall/syscall_bsd.go                      |   2 -
+ src/syscall/syscall_darwin.go                   |  86 ++-
+ src/syscall/syscall_darwin_386.go               |  28 +-
+ src/syscall/syscall_darwin_amd64.go             |  28 +-
+ src/syscall/syscall_darwin_arm.go               |  26 +-
+ src/syscall/syscall_darwin_arm64.go             |  26 +-
+ src/syscall/syscall_dragonfly.go                |   1 +
+ src/syscall/syscall_freebsd.go                  |   1 +
+ src/syscall/syscall_netbsd.go                   |   2 +-
+ src/syscall/syscall_openbsd.go                  |   2 +-
+ src/syscall/syscall_unix_test.go                |  18 +-
+ src/syscall/zsyscall_darwin_386.go              | 773 +++++++++++++++++++-----
+ src/syscall/zsyscall_darwin_386.s               | 243 ++++++++
+ src/syscall/zsyscall_darwin_amd64.go            | 773 +++++++++++++++++++-----
+ src/syscall/zsyscall_darwin_amd64.s             | 243 ++++++++
+ src/syscall/zsyscall_darwin_arm.go              | 773 +++++++++++++++++++-----
+ src/syscall/zsyscall_darwin_arm.s               | 243 ++++++++
+ src/syscall/zsyscall_darwin_arm64.go            | 773 +++++++++++++++++++-----
+ src/syscall/zsyscall_darwin_arm64.s             | 243 ++++++++
+ 42 files changed, 4996 insertions(+), 689 deletions(-)

@@ -1,33 +1,21 @@
-commit 4223294eab3dee0f6c03fd57fc24be3dc3e2d53a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri May 27 16:03:44 2016 -0700
+commit 386c0e6598eadab18e01d3fa60f8e21872cbe70c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 3 22:58:10 2016 +0000
 
-    runtime/pprof, cmd/pprof: fix profiling for PIE
+    cmd/compile: give ChanDir a type
     
-    In order to support pprof for position independent executables, pprof
-    needs to adjust the PC addresses stored in the profile by the address at
-    which the program is loaded. The legacy profiling support which we use
-    already supports recording the GNU/Linux /proc/self/maps data
-    immediately after the CPU samples, so do that. Also change the pprof
-    symbolizer to use the information, if available, when looking up
-    addresses in the Go pcline data.
-    
-    Fixes #15714.
-    
-    Change-Id: I4bf679210ef7c51d85cf873c968ce82db8898e3e
-    Reviewed-on: https://go-review.googlesource.com/23525
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Change-Id: I03621db79637b04982e1f0e7b4268c4ed2db6d22
+    Reviewed-on: https://go-review.googlesource.com/21484
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/objfile/elf.go      |  9 +++++++++
- src/cmd/internal/objfile/goobj.go    |  4 ++++
- src/cmd/internal/objfile/macho.go    |  4 ++++
- src/cmd/internal/objfile/objfile.go  |  8 ++++++++
- src/cmd/internal/objfile/pe.go       |  4 ++++
- src/cmd/internal/objfile/plan9obj.go |  4 ++++
- src/cmd/pprof/pprof.go               | 13 +++++++++----
- src/go/build/deps_test.go            |  2 +-
- src/runtime/crash_cgo_test.go        | 30 +++++++++++++++++++++++++++++
- src/runtime/crash_test.go            | 18 +++++++++++-------
- src/runtime/pprof/pprof.go           | 37 ++++++++++++++++++++++++++++++++++++
- src/runtime/pprof/pprof_test.go      | 10 +++++++---
- 12 files changed, 128 insertions(+), 15 deletions(-)
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  4 ++--
+ src/cmd/compile/internal/gc/go.go        | 12 +++++++++---
+ src/cmd/compile/internal/gc/parser.go    | 12 ++++++------
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/syntax.go    |  2 +-
+ src/cmd/compile/internal/gc/type.go      |  6 +++---
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
+ 8 files changed, 27 insertions(+), 21 deletions(-)

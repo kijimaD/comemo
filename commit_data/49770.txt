@@ -1,27 +1,27 @@
-commit d02d5fda653f9e7ca2bb6036ccddc61a869abad5
+commit fb84e99eb76615f63fc2d6bc93c244a84d6e9c22
 Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sat Aug 6 12:02:03 2022 -0700
+Date:   Thu Sep 9 11:17:39 2021 -0700
 
-    test: add test case for type parameter method indexing
+    test: add compiler regress tests for #46461
     
-    When types2 type checks a method expression or method value that
-    selects a type parameter method, the Selection.Index is indexed based
-    on the method's index within the type parameter's constraint
-    interface.
+    gri@ reports that types2 now correctly handles when type parameters
+    recursively refer back to the parameterized type, so we might as well
+    add tests to exercise that. Unified IR also correctly handles
+    importing and exporting these types, but -G=3 currently does not.
     
-    However, with a fully-stenciled implementation, naively using the
-    index would result in picking a method from the corresponding type
-    argument's full method set, which could select a different method.
+    Updates #46461.
     
-    Unified IR currently avoids this because it selects methods based on
-    name, not index; but experimenting with index-based selection revealed
-    that there are no test cases that would have caught this failure case.
-    
-    Change-Id: Idbc39e1ee741714203d4749e47f5bc015af25020
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/421815
+    Change-Id: I272102aa08c40c980b9aeeca9f834291dfbbcc3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348738
+    Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- test/typeparam/mdempsky/19.go | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ src/go/internal/gcimporter/gcimporter_test.go |  2 ++
+ test/run.go                                   |  2 ++
+ test/typeparam/issue46461.go                  | 13 +++++++++++++
+ test/typeparam/issue46461b.dir/a.go           |  7 +++++++
+ test/typeparam/issue46461b.dir/b.go           | 11 +++++++++++
+ test/typeparam/issue46461b.go                 |  7 +++++++
+ 6 files changed, 42 insertions(+)

@@ -1,24 +1,18 @@
-commit bf101662642c2585afb957c418b33c0499cf87dd
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 17 14:56:29 2018 -0700
+commit 8156e76e44ac0bfffcff331198e904be45808341
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 10:29:27 2017 -0500
 
-    cmd/compile: use empty package name for runtime/{race,msan}
+    cmd/go: implement time-based trimming of build cache
     
-    These fake imports are just so we can emit build dependencies for the
-    linker, so the package name isn't really necessary. Also, the package
-    import logic assumes that if we have the name for a package, then
-    we've already read some package data for it.
+    Fixes #22642.
     
-    Using the empty string allows the importers to correctly populate it
-    the first time these packages are seen in package export data.
-    
-    Passes toolstash-check.
-    
-    Change-Id: I047bde297600e9dc07478fccc3f57ccc75ce8ae4
-    Reviewed-on: https://go-review.googlesource.com/107619
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I2ed6305555a0cf753b9cdce061463b1749d5e53e
+    Reviewed-on: https://go-review.googlesource.com/81975
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/main.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/internal/cache/cache.go      |  95 +++++++++++++++++++++++--
+ src/cmd/go/internal/cache/cache_test.go | 121 ++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go        |   5 ++
+ 3 files changed, 215 insertions(+), 6 deletions(-)

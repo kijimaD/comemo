@@ -1,0 +1,25 @@
+commit 580a383103f2bc67955a146a2d45b7c0c98dae8a
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 6 10:55:59 2025 +0100
+
+    {all,clean,make,race,run}.bat: use || instead of "if errorlevel 1"
+    
+    "if errorlevel 1" is and old construct that returns true if the
+    errorlevel is greater than or equal to 1. There are better alternatives
+    since Windows NT. For example, the || operator runs the RHS operand if
+    the preceding command failed, determined by checking that the errorlevel
+    is different from 0. This approach is more robust -it also works with
+    negative errorlevels- and is less verbose.
+    
+    Change-Id: I2070d654d8f9dd41a6cd586ba5ad5f4fea0638ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647136
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/all.bat   |  6 ++----
+ src/clean.bat |  3 +--
+ src/make.bat  |  9 +++------
+ src/race.bat  | 16 +++++-----------
+ src/run.bat   |  6 ++----
+ 5 files changed, 13 insertions(+), 27 deletions(-)

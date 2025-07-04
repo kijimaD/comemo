@@ -1,13 +1,14 @@
-commit f3e6b2060679a6f430c9e711cf797d76d4226a15
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Nov 16 13:25:01 2012 -0800
+commit a42e8a80864281807384a6e5a45bebf3327a53fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 16 11:53:26 2012 -0800
 
-    net/http: reduce allocations in chunk reading & writing
+    go/ast: FuncType.Params may be nil (per AST documentation)
     
-    R=golang-dev, r
+    ast.Walk needs to check for it or it will crash.
+    
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6847063
+    https://golang.org/cl/6852062
 
- src/pkg/net/http/chunked.go          | 11 +++++------
- src/pkg/net/http/httputil/chunked.go | 11 +++++------
- 2 files changed, 10 insertions(+), 12 deletions(-)
+ src/pkg/go/ast/walk.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

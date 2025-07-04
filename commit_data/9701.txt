@@ -1,16 +1,15 @@
-commit 1505cae05de98bcd399698d6461d15d88dc33d71
+commit bb0c8b3b6638be30c534445a7bf3c3e6a07ee44a
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Sep 15 17:04:51 2011 -0400
+Date:   Thu Sep 15 16:49:06 2011 -0400
 
-    flag: make zero FlagSet useful
+    godoc: use go/build to find files in a package
     
-    This makes it possible to use a FlagSet as a
-    field in a larger struct.
+    Fixes #1156.
+    Fixes #2172.
     
-    R=golang-dev, r
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5036041
+    https://golang.org/cl/5015044
 
- src/pkg/flag/flag.go      | 22 +++++++++++++++++++---
- src/pkg/flag/flag_test.go |  3 ++-
- 2 files changed, 21 insertions(+), 4 deletions(-)
+ src/cmd/godoc/godoc.go | 67 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 66 insertions(+), 1 deletion(-)

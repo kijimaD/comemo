@@ -1,12 +1,14 @@
-commit 51c0d7c0a7bee8256c298e022021e4bfb3ff915b
-Author: David Symonds <dsymonds@golang.org>
-Date:   Tue Oct 15 08:21:30 2013 +1100
+commit 89ebc28b587228c6ce90b78db33925e19aeba7d5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 14 00:18:46 2013 -0400
 
-    C: add Michael Piatek (Google CLA).
+    cmd/api: make it work even when cgo is disabled
+    make use of $USER or %USERNAME% to determine the current user.
+    Fixes #6578.
     
-    R=golang-dev, r
-    CC=golang-dev, piatek
-    https://golang.org/cl/14681043
+    R=golang-dev, bradfitz, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/14649043
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/api/run.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

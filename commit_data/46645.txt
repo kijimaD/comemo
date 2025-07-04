@@ -1,34 +1,24 @@
-commit 1c6e50a15200673eb90c817cb6709be5d06cd3f4
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Fri Sep 24 13:26:35 2021 -0700
+commit a2f825c542bc62b9d4341080302ed309cd3daa97
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 17 02:53:18 2021 -0800
 
-    cmd/go: make 'go get' fail with an error when outside a module
+    [dev.regabi] cmd/compile: directly create go.map and go.track symbols
     
-    There's no go.mod file for 'go get' to update, so it has no effect,
-    other than checking arguments and filling the module cache. That might
-    be useul in some cases, but it seems better to fail loudly in case the
-    user hasn't seen the deprecation warning, for example, inside a
-    script.
+    These symbols are implementation details and don't correspond to Go
+    source symbols, so directly create them as linker symbols and get rid
+    of their pseudo packages.
     
-    For #43684
+    Passes toolstash -cmp w/ -gcflags=all=-abiwrap.
     
-    Change-Id: I6e67c782e3a1cb7046eac5c9df17eda7a31c7bce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/352149
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Change-Id: I2e97374c21f3e909f6d350f15e7a5ed3574cadf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284372
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/modget/get.go                  | 20 +++++++++---
- src/cmd/go/testdata/script/get_404_meta.txt        |  6 ++++
- src/cmd/go/testdata/script/mod_cache_dir.txt       |  4 +--
- ...rect.txt => mod_download_insecure_redirect.txt} | 10 +++---
- ...rivate_vcs.txt => mod_download_private_vcs.txt} |  6 ++--
- ...cts.txt => mod_download_too_many_redirects.txt} |  4 +--
- .../testdata/script/mod_get_deprecate_install.txt  |  5 ++-
- src/cmd/go/testdata/script/mod_get_fallback.txt    |  5 +++
- src/cmd/go/testdata/script/mod_get_go_file.txt     |  5 +++
- src/cmd/go/testdata/script/mod_getx.txt            |  5 +++
- src/cmd/go/testdata/script/mod_missing_repo.txt    |  4 +--
- src/cmd/go/testdata/script/mod_outside.txt         | 38 +++++++++++-----------
- 12 files changed, 74 insertions(+), 38 deletions(-)
+ src/cmd/compile/internal/gc/main.go             |  7 -------
+ src/cmd/compile/internal/gc/obj.go              |  2 +-
+ src/cmd/compile/internal/ir/symtab.go           |  2 --
+ src/cmd/compile/internal/reflectdata/reflect.go | 17 ++++-------------
+ 4 files changed, 5 insertions(+), 23 deletions(-)

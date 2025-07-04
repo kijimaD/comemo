@@ -1,36 +1,33 @@
-commit 26de581a709428d55ffc38cc0dbc7ddfc96b9443
-Author: Emmanuel T Odeke <emmanuel@orijtech.com>
-Date:   Wed Apr 29 20:55:22 2020 -0700
+commit e4c01f088bec6cc504a1e9dc85c97741c06b3868
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 25 14:07:59 2019 -0500
 
-    cmd/compile: omit file:pos for non-existent errors
+    cmd/link: additional fixes for -newobj and "ld -r" ELF host objects
     
-    Omits printing the file:line:column when trying to
-    open non-existent files
+    The previous fix for this issue (CL 208479) was not general enough;
+    this patch revises it to handle more cases.
     
-    Given:
-        go tool compile x.go
+    The problem with the original fix was that once a sym.Symbol is
+    created for a given static symbol and given a bogus anonymous version
+    of -1, we hit problems if some other non-anonymous symbol (created by
+    host object loading) had relocations targeting the static symbol.
     
-    * Before:
-        x.go:0: open x.go: no such file or directory
+    In this patch instead of assigning a fixed anonymous version of -1 to
+    such symbols, each time loader.Create is invoked we create a new
+    (unique) anonymous version for the sym.Symbol, then enter the result
+    into the loader's extStaticSyms map, permitting it to be found in
+    lookups when processing relocation targets.
     
-    * After:
-        open x.go: no such file or directory
+    NB: this code will hopefully get a lot simpler once we can move host
+    object loading away from early sym.Symbol creation.
     
-    Reverts the revert in CL 231043 by only fixing the case
-    of non-existent errors which is what the original bug
-    was about. The fix for "permission errors" will come later
-    on when I have bandwidth to investigate the differences
-    between running with root and why os.Open works for some
-    builders and not others.
+    Updates #35779.
     
-    Fixes #36437
-    
-    Change-Id: I9c8a0981ad708b504bb43990a4105b42266fa41f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/230941
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I450ff577e17549025565d355d6707a2d28a5a617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208778
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/noder.go |  2 +-
- src/cmd/compile/internal/gc/subr.go  |  8 +++++-
- test/fixedbugs/issue36437.go         | 49 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 57 insertions(+), 2 deletions(-)
+ src/cmd/link/internal/loader/loader.go | 51 ++++++++++++++++++++++------------
+ 1 file changed, 33 insertions(+), 18 deletions(-)

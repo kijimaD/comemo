@@ -1,24 +1,33 @@
-commit dc8902f4eb00c66ba4f300c640dcea723abdf146
-Author: Rhys Hiltner <rhys.hiltner@gmail.com>
-Date:   Mon Aug 19 13:58:42 2024 -0700
+commit 925d2fb36c8e4c9c0e6e240a1621db36c34e5d31
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 14:15:04 2023 -0700
 
-    cmd/compile/internal/ssa: intrinsify atomic.Xchg8 on amd64
+    cmd/compile: restore zero-copy string->[]byte optimization
     
-    For #68578
+    This CL implements the remainder of the zero-copy string->[]byte
+    conversion optimization initially attempted in go.dev/cl/520395, but
+    fixes the tracking of mutations due to ODEREF/ODOTPTR assignments, and
+    adds more comprehensive tests that I should have included originally.
     
-    Change-Id: Ia9580579bfc4709945bfcf6ec3803d5d11812187
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/606901
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    However, this CL also keeps it behind the -d=zerocopy flag. The next
+    CL will enable it by default (for easier rollback).
+    
+    Updates #2205.
+    
+    Change-Id: Ic330260099ead27fc00e2680a59c6ff23cb63c2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520599
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ssa/_gen/AMD64.rules      |  1 +
- src/cmd/compile/internal/ssa/_gen/genericOps.go    |  1 +
- src/cmd/compile/internal/ssa/opGen.go              |  7 +++++++
- src/cmd/compile/internal/ssa/rewriteAMD64.go       | 17 +++++++++++++++++
- src/cmd/compile/internal/ssagen/intrinsics.go      |  7 +++++++
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  1 +
- 6 files changed, 34 insertions(+)
+ src/cmd/compile/internal/base/debug.go    |  2 +
+ src/cmd/compile/internal/escape/assign.go |  8 +++-
+ src/cmd/compile/internal/escape/escape.go | 74 +++++++++++++++--------------
+ src/cmd/compile/internal/ssagen/ssa.go    |  8 ++++
+ src/cmd/compile/internal/walk/order.go    | 10 +++-
+ src/cmd/compile/internal/walk/switch.go   |  1 +
+ test/escape_mutations.go                  | 77 +++++++++++++++++++++++++++++++
+ test/inline_big.go                        |  6 +--
+ 8 files changed, 145 insertions(+), 41 deletions(-)

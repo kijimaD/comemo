@@ -1,16 +1,12 @@
-commit 871177df6ac09ebccb793138dc0b9ccd8fca8cec
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Mar 29 00:34:03 2013 -0700
+commit 66b797a4f93903d00862298f9f4b80f2d1f20f41
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 29 15:07:10 2013 +0900
 
-    8a/8l: add PCMPEQB and PMOVMSKB to 386.
+    net: close TCPListener in example
     
-    Used by CL 8056043 for fast string equals.
-    
-    R=bradfitz
+    R=golang-dev, dave
     CC=golang-dev
-    https://golang.org/cl/8102044
+    https://golang.org/cl/8073044
 
- src/cmd/8a/lex.c   | 2 ++
- src/cmd/8l/8.out.h | 2 ++
- src/cmd/8l/optab.c | 8 ++++++++
- 3 files changed, 12 insertions(+)
+ src/pkg/net/example_test.go | 1 +
+ 1 file changed, 1 insertion(+)

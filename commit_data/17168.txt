@@ -1,15 +1,23 @@
-commit 9a0a59f171d0ae1defff35440c93e1a119289c29
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Aug 12 21:02:55 2013 -0400
+commit 4f86a96ac9020f756fe4eda004ab16f2141f9746
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Aug 12 15:14:34 2013 -0700
 
-    cmd/6g, cmd/8g: proginfo carry fixes
+    net/http: do not send malformed cookie domain attribute
     
-    Bugs pointed out by cshapiro in CL 12637051.
+    Malformed domain attributes are not sent in a Set-Cookie header.
+    Instead the domain attribute is dropped which turns the cookie
+    into a host-only cookie. This is much safer than dropping characters
+    from domain attribute.
     
-    R=cshapiro
+    Domain attributes with a leading dot '.' are still allowed, even
+    if discouraged by RFC 6265 section 4.1.1.
+    
+    Fixes #6013
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12815043
+    https://golang.org/cl/12745043
 
- src/cmd/6g/prog.c | 24 ++++++++++++------------
- src/cmd/8g/prog.c | 18 +++++++++---------
- 2 files changed, 21 insertions(+), 21 deletions(-)
+ src/pkg/net/http/cookie.go      | 89 ++++++++++++++++++++++++++++++++++-------
+ src/pkg/net/http/cookie_test.go | 16 ++++++++
+ 2 files changed, 91 insertions(+), 14 deletions(-)

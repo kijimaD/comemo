@@ -1,44 +1,23 @@
-commit 6e36811c37399d60cbce587b7c48e611009c5aec
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Dec 1 21:45:59 2016 +0000
+commit 6347367be36df608cce84beb097378f8654dd208
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Sep 7 16:35:32 2016 +0300
 
-    net/http: restore Transport's Request.Body byte sniff in limited cases
+    strings: use Index in Count
     
-    In Go 1.8, we'd removed the Transport's Request.Body
-    one-byte-Read-sniffing to disambiguate between non-nil Request.Body
-    with a ContentLength of 0 or -1. Previously, we tried to see whether a
-    ContentLength of 0 meant actually zero, or just an unset by reading a
-    single byte of the Request.Body and then stitching any read byte back
-    together with the original Request.Body.
+    This simplifies code and provides performance iprovments:
+    Similar to https://go-review.googlesource.com/#/c/28577
     
-    That historically has caused many problems due to either data races,
-    blocking forever (#17480), or losing bytes (#17071). Thus, we removed
-    it in both HTTP/1 and HTTP/2 in Go 1.8. Unfortunately, during the Go
-    1.8 beta, we've found that a few people have gotten bitten by the
-    behavior change on requests with methods typically not containing
-    request bodies (e.g. GET, HEAD, DELETE). The most popular example is
-    the aws-go SDK, which always set http.Request.Body to a non-nil value,
-    even on such request methods. That was causing Go 1.8 to send such
-    requests with Transfer-Encoding chunked bodies, with zero bytes,
-    confusing popular servers (including but limited to AWS).
+    CountHard1-48               1.74ms ±14%  0.17ms ±14%  -90.16%  (p=0.000 n=19+19)
+    CountHard2-48               1.78ms ±15%  0.25ms ±13%  -86.10%  (p=0.000 n=19+20)
+    CountHard3-48               1.78ms ±12%  0.80ms ±11%  -55.19%  (p=0.000 n=17+20)
+    CountTorture-48             13.5µs ±14%  13.6µs ±11%     ~     (p=0.625 n=18+19)
+    CountTortureOverlapping-48  6.92ms ±13%  8.42ms ±11%  +21.72%  (p=0.000 n=19+17)
     
-    This CL partially reverts the no-byte-sniffing behavior and restores
-    it only for GET/HEAD/DELETE/etc requests, and only when there's no
-    Transfer-Encoding set, and the Content-Length is 0 or -1.
-    
-    Updates #18257 (aws-go) bug
-    And also private bug reports about non-AWS issues.
-    
-    Updates #18407 also, but haven't yet audited things enough to declare
-    it fixed.
-    
-    Change-Id: Ie5284d3e067c181839b31faf637eee56e5738a6a
-    Reviewed-on: https://go-review.googlesource.com/34668
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ief120aee918a66487c76be56e0796871c8502f89
+    Reviewed-on: https://go-review.googlesource.com/28586
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/http/request.go           |  33 ++++++
- src/net/http/requestwrite_test.go | 208 ++++++++++++++++++++++++++++++++++++++
- src/net/http/transfer.go          | 153 ++++++++++++++++++++++++++--
- 3 files changed, 383 insertions(+), 11 deletions(-)
+ src/strings/strings.go | 46 ++++++++--------------------------------------
+ 1 file changed, 8 insertions(+), 38 deletions(-)

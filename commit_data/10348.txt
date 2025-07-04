@@ -1,13 +1,15 @@
-commit 6d9c02aea3e902633ca62b220686580705bdcaf8
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Nov 11 14:56:49 2011 -0500
+commit 351daf878843dd782b8e42276f568d6130cf7c62
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Fri Nov 11 14:56:18 2011 -0500
 
-    6a, 8a: allow $(-1) for consistency with $1, $(1), $-1.
+    env.bash: Check for presence of make/gmake
     
-    R=ken2
+    Without this, a missing gmake will result in bogus error "Did not find
+    Go environment variables".
+    
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5373074
+    https://golang.org/cl/5369066
 
- src/cmd/6a/a.y | 6 ++++++
- src/cmd/8a/a.y | 6 ++++++
- 2 files changed, 12 insertions(+)
+ src/env.bash | 1 +
+ 1 file changed, 1 insertion(+)

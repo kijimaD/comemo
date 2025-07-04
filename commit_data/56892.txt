@@ -1,23 +1,25 @@
-commit 959b3fd4265d7e4efb18af454cd18799ed70b8fe
-Author: Miki Tebeka <miki@353solutions.com>
-Date:   Wed Dec 6 13:33:02 2023 +0000
+commit 8c5d1a41ad53d9a24885c760cca9002275807d48
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 24 19:53:14 2023 +0000
 
-    flag: add FlagSet example
+    cmd/cgo: rewrite pointer passing rules in terms of pinning
     
-    Add an example for using FlagSet.
+    With the introduction of runtime.Pinner, we need to update the cgo
+    pointer passing rules to accomodate the new functionality. These rule
+    changes are easier to describe if the rest of the pointer passing rules
+    are described in terms of pinning as well (Go memory is implicitly
+    pinned when a pointer to it is passed to a C function, and implicitly
+    unpinned when that function returns).
     
-    Fixes #36307
+    For #46787.
     
-    Change-Id: I0bf5805bd836a4f2e9632aafe22dc3eeb1164dcd
-    GitHub-Last-Rev: 79e53040cbc2658a71385b644107f8ea54132c99
-    GitHub-Pull-Request: golang/go#64443
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/545736
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Christopher Taylor <ccmtaylor@gmail.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I263f03412bc9165f19c9ada72fb005ed0483a8ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498116
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
 
- src/flag/example_flagset_test.go | 57 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 57 insertions(+)
+ src/cmd/cgo/doc.go | 71 +++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 46 insertions(+), 25 deletions(-)

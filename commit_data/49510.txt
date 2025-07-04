@@ -1,27 +1,24 @@
-commit 92c9b81447649d5a8ed38ca79b71640c099e0243
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Jun 21 15:17:22 2022 -0700
+commit 41b99dab0f263bd3fe5c2592f1c40735dcaa016a
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Jun 22 20:26:31 2021 -0700
 
-    net: don't set netGo = true on Windows with no cgo
+    os/user: don't skip TestLookupGroup if supported
     
-    Windows can call the C DNS lookup routines even without cgo,
-    so don't force it to use the Go routines in that scenario.
+    CL 37664 implemented this functionality, yet the tests were skipped.
     
-    No test because the test requires building the tools with CGO_ENABLED=0.
+    Introduce and use additional variable groupListImplemented to
+    distinguish between these cases and enable TestLookupGroup for
+    supported configurations (which looks like all but plan9).
     
-    For #33097
-    Fixes #53490
-    
-    Change-Id: I3595a68e788be0d3bbd1bbd431836aca20a7d757
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/413458
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Iabaa7f08b4551dc67e67bdb6e715f15bb20d6218
+    Signed-off-by: Kir Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330751
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/net/cgo_stub.go | 2 --
- src/net/netgo.go    | 6 +++++-
- 2 files changed, 5 insertions(+), 3 deletions(-)
+ src/os/user/lookup_plan9.go | 1 +
+ src/os/user/lookup_stubs.go | 2 +-
+ src/os/user/lookup_unix.go  | 8 +++++---
+ src/os/user/user.go         | 7 +++++--
+ src/os/user/user_test.go    | 9 ++++++++-
+ 5 files changed, 20 insertions(+), 7 deletions(-)

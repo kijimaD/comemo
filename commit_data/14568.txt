@@ -1,16 +1,14 @@
-commit 9d2b0e86c8338d8e8f285926752ecca642ce23da
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Dec 6 00:00:20 2012 -0500
+commit 5416e6e916b56160b9b3b4f4d25118cd739dc0dc
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Wed Dec 5 23:31:35 2012 -0500
 
-    cmd/ld: skip 0-length write in cwrite
+    net: document that File reverts connection to blocking mode.
     
-    The 0-length part is fine, but some callers that write 0 bytes
-    also pass nil as the data pointer, and the Plan 9 kernel kills the
-    process with 'invalid address in sys call' in that case.
+    Fixes #2458.
     
-    R=ken2
+    R=mikioh.mikioh, rsc
     CC=golang-dev
-    https://golang.org/cl/6862051
+    https://golang.org/cl/6869054
 
- src/cmd/ld/lib.c | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/net/net.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

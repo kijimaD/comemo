@@ -1,0 +1,15 @@
+commit 7ba8a23b675098128da686b4384526208e51d128
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 14 13:48:21 2024 +0200
+
+    syscall: use internal/byteorder
+    
+    Change-Id: I798729a6095494e9d0bd18d6b7d4372910056218
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585117
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/dirent.go | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)

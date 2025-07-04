@@ -1,18 +1,12 @@
-commit b1c0d8a54b6f7b12c10f47adfadfccdff1b5c9ca
+commit 11c1227493f2661e34ad35f5dce0fd798a7e5927
 Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sat Feb 28 20:34:53 2015 +0000
+Date:   Wed Feb 4 09:32:44 2015 -0800
 
-    net: disable TestTCPReadWriteAllocs on darwin
+    go1.5.txt: array generation support in testing/quick
     
-    Having this test fail, as it does reliably for me,
-    makes working frustrating. Disable it for now,
-    until we can diagnose the issue.
-    
-    Update issue #8859.
-    
-    Change-Id: I9dda30d60793e7a51f48f445c78ccb158068cc25
-    Reviewed-on: https://go-review.googlesource.com/6381
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I00f18a8c62a8d63822d7e07fee1ac5f088cc9587
+    Reviewed-on: https://go-review.googlesource.com/3866
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/net/tcp_test.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

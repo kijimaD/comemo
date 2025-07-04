@@ -1,25 +1,20 @@
-commit c6dd97e533d480d9a972682c9357a07fc87b51ab
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Sun Aug 20 15:37:34 2023 -0700
+commit a48fc816e703989b54845c5ce557c54a45cbfe9c
+Author: Mikael Urankar <mikael@FreeBSD.org>
+Date:   Sun Sep 18 17:46:54 2022 +0200
 
-    cmd/compile: simplify various signature type handling code
+    cmd/dist: enable cgo tests on freebsd/riscv64
     
-    Make more use of RecvParams and RecvParamsResults helper methods.
+    Updates #53466
     
-    Also, correct misuse of Go spec terminology ("return" is a statement;
-    "result" is the class of parameters that appear in a function type).
-    
-    Change-Id: I94807a747c494c9daa5441da7d9e3aea77aae33b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521395
+    Change-Id: I17a41adb93c22fa84a7bdcec9d8c65001c5a8ba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431657
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/abi/abiutils.go          | 105 +++++++++-------------
- src/cmd/compile/internal/reflectdata/reflect.go   |  20 +----
- src/cmd/compile/internal/ssa/loopreschedchecks.go |   2 +-
- src/cmd/compile/internal/ssa/writebarrier.go      |   2 +-
- src/cmd/compile/internal/ssagen/ssa.go            |  14 +--
- 5 files changed, 53 insertions(+), 90 deletions(-)
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

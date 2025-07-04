@@ -1,42 +1,20 @@
-commit c310c688ffa46e2f91e40284c16d71f3921feed9
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Mar 1 15:50:57 2017 -0800
+commit b83350a2e05d63eaae8da9ff4f957ab44e4cb9d9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 14 22:23:10 2016 +0000
 
-    cmd/compile, runtime: simplify multiway select implementation
+    Revert "text/template: efficient reporting of line numbers"
     
-    This commit reworks multiway select statements to use normal control
-    flow primitives instead of the previous setjmp/longjmp-like behavior.
-    This simplifies liveness analysis and should prevent issues around
-    "returns twice" function calls within SSA passes.
+    This reverts commit 794fb71d9c1018c4beae1657baca5229e6a02ad0.
     
-    test/live.go is updated because liveness analysis's CFG is more
-    representative of actual control flow. The case bodies are the only
-    real successors of the selectgo call, but previously the selectsend,
-    selectrecv, etc. calls were included in the successors list too.
+    Reason for revert: submitted without TryBots and it broke all three race builders.
     
-    Updates #19331.
-    
-    Change-Id: I7f879b103a4b85e62fc36a270d812f54c0aa3e83
-    Reviewed-on: https://go-review.googlesource.com/37661
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I80a1e566616f0ee8fa3529d4eeee04268f8a713b
+    Reviewed-on: https://go-review.googlesource.com/33232
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/builtin.go         |  13 ++-
- src/cmd/compile/internal/gc/builtin/runtime.go |   9 +-
- src/cmd/compile/internal/gc/plive.go           | 109 -------------------
- src/cmd/compile/internal/gc/select.go          |  77 ++++++++------
- src/cmd/compile/internal/gc/ssa.go             |  15 +--
- src/runtime/asm_386.s                          |   6 --
- src/runtime/asm_amd64.s                        |   6 --
- src/runtime/asm_amd64p32.s                     |   6 --
- src/runtime/asm_arm.s                          |   5 -
- src/runtime/asm_arm64.s                        |   5 -
- src/runtime/asm_mips64x.s                      |   5 -
- src/runtime/asm_mipsx.s                        |   5 -
- src/runtime/asm_ppc64x.s                       |   5 -
- src/runtime/asm_s390x.s                        |   5 -
- src/runtime/select.go                          | 142 ++++++++++---------------
- src/runtime/stubs.go                           |   3 -
- test/live.go                                   |  10 +-
- 17 files changed, 124 insertions(+), 302 deletions(-)
+ src/text/template/exec_test.go        |   2 +-
+ src/text/template/parse/lex.go        |  36 ++---
+ src/text/template/parse/lex_test.go   | 259 +++++++++++++++++-----------------
+ src/text/template/parse/parse.go      |  22 ++-
+ src/text/template/parse/parse_test.go |  34 -----
+ 5 files changed, 149 insertions(+), 204 deletions(-)

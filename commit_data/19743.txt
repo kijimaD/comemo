@@ -1,17 +1,14 @@
-commit 74c9cc8394049f68f711e25df413a813dc21f174
-Author: Rob Pike <r@golang.org>
-Date:   Wed Jul 16 18:26:50 2014 +0000
+commit aa76377423ac77d025284a6c11f0c874740202e8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 16 12:19:33 2014 +0400
 
-    cmd/ld: use count, not upper bound, in type of array
-    DWARF says only one is necessary.
-    The count is preferable because it admits 0-length arrays.
-    Update debug/dwarf to handle either form.
+    runtime: start goroutine ids at 1
     
     LGTM=rsc
-    R=rsc
-    CC=golang-codereviews
-    https://golang.org/cl/111230044
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/117810043
 
- src/cmd/ld/dwarf.c          |  9 +++++----
- src/pkg/debug/dwarf/type.go | 14 ++++++++++----
- 2 files changed, 15 insertions(+), 8 deletions(-)
+ src/pkg/runtime/crash_test.go | 15 +++++++++++++++
+ src/pkg/runtime/proc.c        |  4 ++++
+ 2 files changed, 19 insertions(+)

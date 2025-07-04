@@ -1,31 +1,17 @@
-commit 9149aa10cc2f7d3061303754ab45c55eff42ac89
-Author: Martin Möhrmann <martisch@uos.de>
-Date:   Tue Mar 15 17:14:03 2016 +0100
+commit fd24e6d561d672362ebe4a8231aa43f1c54b164a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 3 18:56:24 2016 -0800
 
-    fmt: unify array and slice formatting for bytes and other types
+    doc: correct old function names in strconv comments in go1.6 doc
     
-    Make verbs b,c,o and U work for any array and slice of integer
-    type including byte and uint8.
+    Fixes #14219.
     
-    Fix a bug that triggers badverb for []uint8 and []byte type
-    on the slice/array level instead of on each element like for
-    any other slice or array type.
-    
-    Add tests that make sure we do not accidentally alter the
-    behavior of printing []byte for []byte and []uint8 type
-    if they are used at the top level when formatting with %#v.
-    
-    name               old time/op  new time/op  delta
-    SprintfHexBytes-2   177ns ± 2%   176ns ± 2%   ~     (p=0.066 n=48+49)
-    SprintfBytes-2      330ns ± 1%   329ns ± 1%   ~     (p=0.118 n=45+47)
-    
-    Fixes #13478
-    
-    Change-Id: I99328a184973ae219bcc0f69c3978cb1ff462888
-    Reviewed-on: https://go-review.googlesource.com/20686
-    Run-TryBot: Rob Pike <r@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Id398dcfe6e9978d7eefddcdaaaa2256c16237cf3
+    Reviewed-on: https://go-review.googlesource.com/19207
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/fmt/fmt_test.go | 59 ++++++++++++++++++-------------------------
- src/fmt/print.go    | 73 +++++++++++++++++++++++++----------------------------
- 2 files changed, 60 insertions(+), 72 deletions(-)
+ doc/go1.6.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

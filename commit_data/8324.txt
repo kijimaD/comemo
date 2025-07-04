@@ -1,15 +1,15 @@
-commit ffd550455cb02fb61331fe3d6dbe5058731c0a67
+commit e1bf165b28f204ede84b46821a04ed14785dd5ea
 Author: Adam Langley <agl@golang.org>
-Date:   Thu May 5 13:44:36 2011 -0400
+Date:   Thu May 5 13:37:42 2011 -0400
 
-    crypto/tls: export the verified chains.
+    crypto/x509: export raw SubjectPublicKeyInfo.
     
-    The verified chains are the chains that were actually verified.
+    The SPKI will probably be used for identifying public keys in future
+    HSTS specs.
     
     R=bradfitz
     CC=golang-dev
-    https://golang.org/cl/4462046
+    https://golang.org/cl/4485044
 
- src/pkg/crypto/tls/common.go | 2 ++
- src/pkg/crypto/tls/conn.go   | 1 +
- 2 files changed, 3 insertions(+)
+ src/pkg/crypto/x509/x509.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

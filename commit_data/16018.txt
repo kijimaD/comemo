@@ -1,20 +1,16 @@
-commit 3a14b42edfc5626ef805578e462df838359e7130
+commit ad95b7d23cf776022b0fafebb707d2948cdb80f4
 Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Mar 30 09:31:49 2013 -0700
+Date:   Sat Mar 30 19:05:00 2013 +0800
 
-    cmd/6g: fix warnings on Plan 9
+    include/plan9/libc.h: fix Plan 9 build
     
-    src/cmd/6g/peep.c:471 set and not used: r
-    src/cmd/6g/peep.c:560 overspecified class: regconsttyp GLOBL STATIC
-    src/cmd/6g/peep.c:761 more arguments than format IND STRUCT Prog
-    src/cmd/6g/reg.c:185 set and not used: r1
-    src/cmd/6g/reg.c:786 format mismatch d VLONG, arg 3
-    src/cmd/6g/reg.c:1064 format mismatch d VLONG, arg 5
+    Add missing getgoextlinkenabled(void) declaration
+    in Plan 9 libc.h. This function was added as part
+    of CL #8183043.
     
-    R=golang-dev, bradfitz
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/8197044
+    https://golang.org/cl/8191043
 
- src/cmd/6g/peep.c | 5 +++--
- src/cmd/6g/reg.c  | 5 ++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ include/plan9/libc.h | 1 +
+ 1 file changed, 1 insertion(+)

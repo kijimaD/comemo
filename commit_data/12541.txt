@@ -1,13 +1,13 @@
-commit 1e374502f4dac4ed8248b892a39edf65a8fe0183
-Author: Jeremy Jackins <jeremyjackins@gmail.com>
-Date:   Fri Mar 9 11:21:01 2012 -0800
+commit 0d92614c73b9aaa392a174d218342dce1af183a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 9 11:19:10 2012 -0800
 
-    cmd/vet: fix typo in documentation
-    familiy -> family
+    C+A: added Jeremy Jackins (Individual CLA)
     
-    R=golang-dev, gri
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5783061
+    https://golang.org/cl/5783063
 
- src/cmd/vet/doc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

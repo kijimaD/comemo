@@ -1,13 +1,18 @@
-commit 5a5a7b5163112d74bd8700b1ba39808e802f67b8
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 16 01:25:49 2011 -0400
+commit 333167ff356a929ba1b62f8958bd811a5753486b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 15 21:47:29 2011 -0700
 
-    6g, 8g: fix goto fix
+    go/printer, gofmt: print "select {}" on one line
     
-    R=ken2
+    No impact on existing sources under src, misc.
+    
+    Fixes #1959.
+    
+    R=r, rsc, r
     CC=golang-dev
-    https://golang.org/cl/4632041
+    https://golang.org/cl/4589056
 
- src/cmd/6g/gsubr.c | 5 ++++-
- src/cmd/8g/gsubr.c | 5 ++++-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/pkg/go/printer/nodes.go                   | 10 ++++++++--
+ src/pkg/go/printer/testdata/statements.golden | 15 +++++++++++++++
+ src/pkg/go/printer/testdata/statements.input  | 13 +++++++++++++
+ 3 files changed, 36 insertions(+), 2 deletions(-)

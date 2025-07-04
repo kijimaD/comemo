@@ -1,18 +1,29 @@
-commit 6e9506a7b45958665c3f48deecc8555f3ee2c42b
+commit 1e95429c3fbfb9a30bd8a68e95bce4f882b40aec
 Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Tue Aug 7 09:57:14 2012 +0800
+Date:   Tue Aug 7 09:38:35 2012 +0800
 
-    math, runtime: use a NaN that matches gcc's
-            our old choice is not working properly at least on VFPv2 in
-    ARM1136JF-S (it's not preserved across float64->float32 conversions).
+    misc/cgo/{life,stdio}, test/run.go: use test/run.go to do the cgo tests
+       Enhances test/run.go to support testing other directories
+       Will enable stdio tests on Windows in a follow-up CL.
     
-            Fixes #3745.
-    
-    R=dave, rsc
+    R=golang-dev, alex.brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/6344078
+    https://golang.org/cl/6220049
 
- src/pkg/math/all_test.go | 11 +++++++++++
- src/pkg/math/bits.go     |  2 +-
- src/pkg/runtime/float.c  |  2 +-
- 3 files changed, 13 insertions(+), 2 deletions(-)
+ misc/cgo/life/life.go                  |  2 +
+ misc/cgo/life/main.go                  |  2 +
+ misc/cgo/life/{golden.out => main.out} |  1 -
+ misc/cgo/life/test.bash                | 14 ------
+ misc/cgo/stdio/chain.go                |  2 +
+ misc/cgo/stdio/chain.out               | 55 ++++++++++++++++++++
+ misc/cgo/stdio/fib.go                  |  2 +
+ misc/cgo/stdio/fib.out                 | 91 ++++++++++++++++++++++++++++++++++
+ misc/cgo/stdio/file.go                 |  2 +
+ misc/cgo/stdio/hello.go                |  2 +
+ misc/cgo/stdio/hello.out               |  1 +
+ misc/cgo/stdio/{golden.out => run.out} |  0
+ misc/cgo/stdio/test.bash               | 20 --------
+ src/run.bash                           |  4 +-
+ src/run.bat                            | 16 ++++++
+ test/run.go                            | 17 +++++--
+ 16 files changed, 189 insertions(+), 42 deletions(-)

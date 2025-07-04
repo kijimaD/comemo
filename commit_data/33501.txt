@@ -1,25 +1,18 @@
-commit e49bc465a3acb2dd72e9afa5d40e541205c7d460
-Author: Aman Gupta <aman@tmm1.net>
-Date:   Tue Nov 7 10:19:10 2017 -0800
+commit 776c33ee5ed67a00bd05912bd15a7c8062daab88
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 17 18:25:54 2017 -0700
 
-    net: implement ReadMsg/WriteMsg on windows
+    runtime: make evacDst a top level type
     
-    This means {Read,Write}Msg{UDP,IP} now work on windows.
+    This will reduce duplication when evacuate is specialized.
     
-    Fixes #9252
-    
-    Change-Id: Ifb105f9ad18d61289b22d7358a95faabe73d2d02
-    Reviewed-on: https://go-review.googlesource.com/76393
+    Change-Id: I34cdfb7103442d3e0ea908c970fb46334b86d5c4
+    Reviewed-on: https://go-review.googlesource.com/56934
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/go/build/deps_test.go                       |   2 +-
- src/internal/poll/fd_windows.go                 |  92 +++++++++++++++++++++
- src/internal/syscall/windows/syscall_windows.go | 105 +++++++++++++++++++++++-
- src/net/fd_windows.go                           |  20 +++--
- src/net/iprawsock.go                            |   2 +-
- src/net/platform_test.go                        |  20 +++--
- src/net/protoconn_test.go                       |  10 +--
- src/net/udpsock.go                              |   2 +-
- src/net/udpsock_test.go                         |   4 +-
- 9 files changed, 231 insertions(+), 26 deletions(-)
+ src/runtime/hashmap.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

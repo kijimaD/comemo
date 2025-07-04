@@ -1,18 +1,19 @@
-commit b1894bb5cc781f1c59af727cea07ba4e84181830
-Author: Quentin Smith <quentin@golang.org>
-Date:   Thu May 26 17:53:21 2016 -0400
+commit 1bf779a44a924650885111c6161c0c5a22968dbf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 04:03:57 2016 -0700
 
-    encoding/json: improve Decode example
+    net/http/httputil: make ReverseProxy return 502 Bad Gateway instead of 500
     
-    Decoding a JSON message does not touch unspecified or null fields;
-    always use a new underlying struct to prevent old field values from
-    sticking around.
+    ... when the backend can't be reached.
     
-    Fixes: #14640
+    Fixes #9864
     
-    Change-Id: Ica78c208ce104e2cdee1d4e92bf58596ea5587c8
-    Reviewed-on: https://go-review.googlesource.com/23483
+    Change-Id: I9e4814824943060e0101b6236d6dfd8d7822b4c7
+    Reviewed-on: https://go-review.googlesource.com/21363
     Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/encoding/json/example_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/net/http/httputil/reverseproxy.go      |  2 +-
+ src/net/http/httputil/reverseproxy_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

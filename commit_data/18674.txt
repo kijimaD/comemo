@@ -1,13 +1,13 @@
-commit 7e0dac08c7f8948423135d05c085f076cce9ec6d
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Thu Feb 27 20:27:55 2014 +0400
+commit f50a87058b6773f277d139b9c85ad421b92620d2
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 27 01:45:22 2014 -0800
 
-    runtime: fix and improve comments
+    runtime: disable stack copying
+    TBR=dvyukov
     
-    LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews, iant, khr, rsc
-    https://golang.org/cl/67460043
+    TBR=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/69080045
 
- src/pkg/runtime/panic.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/pkg/runtime/proc.c | 1 +
+ 1 file changed, 1 insertion(+)

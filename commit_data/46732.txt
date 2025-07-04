@@ -1,21 +1,35 @@
-commit d55009c59458c5fe8520f8cd10e8b61696ebab7a
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Mon Oct 4 23:55:52 2021 +0200
+commit 063c72f06d8673f3a2a03fd549c61935ca3e5cc5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 24 10:52:00 2021 -0800
 
-    crypto/rand: document additional getrandom/getentropy support in Reader
+    [dev.regabi] cmd/compile: backport changes from dev.typeparams (9456804)
     
-    CL 269999 added support for getrandom on Dragonfly.
-    CL 299134 added support for getrandom on Solaris.
-    CL 302489 added support for getentropy on macOS.
+    This CL backports a bunch of changes that landed on dev.typeparams,
+    but are not dependent on types2 or generics. By backporting, we reduce
+    the divergence between development branches, hopefully improving test
+    coverage and reducing risk of merge conflicts.
     
-    Update the godoc for Reader accordingly.
+    Updates #43866.
     
-    Change-Id: Ice39e5e62f052f21b664db6abbfd97f03944586e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353190
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I382510855c9b5fac52b17066e44a00bd07fe86f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286172
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/crypto/rand/rand.go | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/dwarfgen/marker.go     |  94 +++++++++
+ src/cmd/compile/internal/noder/import.go        | 239 ++++++++++-----------
+ src/cmd/compile/internal/noder/noder.go         | 268 ++++++++----------------
+ src/cmd/compile/internal/noder/posmap.go        |  83 ++++++++
+ src/cmd/compile/internal/reflectdata/reflect.go |   2 +-
+ src/cmd/compile/internal/typecheck/dcl.go       |   5 +-
+ src/cmd/compile/internal/typecheck/func.go      |   4 +-
+ src/cmd/compile/internal/typecheck/subr.go      |   7 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |   8 +-
+ src/cmd/compile/internal/types/pkg.go           |   3 +-
+ src/cmd/compile/internal/types/scope.go         |   2 +-
+ src/cmd/compile/internal/walk/walk.go           |   5 +
+ src/cmd/internal/obj/link.go                    |   6 +-
+ test/fixedbugs/issue11362.go                    |   2 +-
+ 14 files changed, 398 insertions(+), 330 deletions(-)

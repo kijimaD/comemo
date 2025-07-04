@@ -1,12 +1,22 @@
-commit e88478f1e0690878838bacf5159148ad872ec557
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jun 28 12:16:33 2013 -0700
+commit 4b536a550f1a9edd7be5c777dfb5eb906320eb89
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jun 28 18:37:06 2013 +0400
 
-    include/plan9: define size_t to fix build breakage
+    runtime: introduce GODEBUG env var
+    Currently it replaces GOGCTRACE env var (GODEBUG=gctrace=1).
+    The plan is to extend it with other type of debug tracing,
+    e.g. GODEBUG=gctrace=1,schedtrace=100.
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/10760043
+    R=rsc
+    CC=bradfitz, daniel.morsing, gobot, golang-dev
+    https://golang.org/cl/10026045
 
- include/plan9/libc.h | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/runtime/crash_test.go     |  4 ++--
+ src/pkg/runtime/extern.go         |  7 ++++---
+ src/pkg/runtime/mgc0.c            | 13 +++----------
+ src/pkg/runtime/mheap.c           | 11 ++---------
+ src/pkg/runtime/proc.c            |  1 +
+ src/pkg/runtime/race/race_test.go |  2 +-
+ src/pkg/runtime/runtime.c         | 31 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h         |  9 +++++++++
+ 8 files changed, 53 insertions(+), 25 deletions(-)

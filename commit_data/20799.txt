@@ -1,14 +1,13 @@
-commit cd69218bdffc08e3c17023ac604bbb1a995b8602
-Author: Rob Pike <r@golang.org>
-Date:   Mon Oct 27 22:47:50 2014 -0700
+commit d83e43ccc6bd453cb1c85b83e37560c7bc420963
+Author: Chris Manghane <cmang@golang.org>
+Date:   Mon Oct 13 12:33:45 2014 -0700
 
-    doc/go1.4.html: much of the go command's changes
-    still need to do internal and import comments
+    test: add test for gccgo-specific issue 8079
     
-    LGTM=adg
-    R=golang-codereviews, adg
-    CC=golang-codereviews
-    https://golang.org/cl/160600043
+    LGTM=gri
+    R=gri
+    CC=golang-codereviews, iant
+    https://golang.org/cl/159850044
 
- doc/go1.4.html | 152 ++++++++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 114 insertions(+), 38 deletions(-)
+ test/fixedbugs/issue8079.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

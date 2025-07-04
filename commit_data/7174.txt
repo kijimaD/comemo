@@ -1,17 +1,29 @@
-commit 4e3f38947650dcaf5a764e49c11bad3b1070de73
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Jan 19 12:48:10 2011 -0800
+commit c52ad23461953a8017199fe0a6fa78ba486ec2ef
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jan 19 15:43:58 2011 -0500
 
-    godoc: enable qualified identifiers ("math.Sin") as query strings again
+    xml: handle tag paths through the same element
     
-    A query string of the form ident.ident will be used both as a qualified
-    identifier for identifier search and as a regular expression.
-    Qualified identifier lookup got broken accidentally when introducing
-    regexp full text search. Cleaned up surrounding logic a bit.
+    With the current implementation, xml unmarshalling
+    will silently fail to unmarshal any paths passing
+    through the same element, such as:
+    
+    type T struct {
+            A string "dummy>a"
+            B string "dummy>b"
+    }
+    
+    This change tweaks the algorithm so that this works
+    correctly.
+    
+    Also, using paths that would cause the same element to
+    unmarshal twice will error out ahead of time explaining
+    the problem, rather than silently misbehaving.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/3984042
+    https://golang.org/cl/4082041
 
- src/cmd/godoc/godoc.go | 41 +++++++++++++++++++----------------------
- 1 file changed, 19 insertions(+), 22 deletions(-)
+ src/pkg/xml/read.go      | 93 ++++++++++++++++++++++++++++++++++++------------
+ src/pkg/xml/read_test.go | 53 ++++++++++++++++++++-------
+ 2 files changed, 111 insertions(+), 35 deletions(-)

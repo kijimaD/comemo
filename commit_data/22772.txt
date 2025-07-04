@@ -1,26 +1,15 @@
-commit 4d1ab2d8d10283925e486ad75237ae694f3b6cce
+commit 7a96ecde4dd2cd1cb85695952ad9abc2e8894296
 Author: Shenghou Ma <minux@golang.org>
-Date:   Wed Apr 29 02:42:43 2015 -0400
+Date:   Fri Apr 3 04:37:25 2015 -0400
 
-    runtime: re-enable TestNewProc0 on android/arm and fix heap corruption
+    cmd/internal/ld: force external linking on linux/arm64 with cgo
     
-    The problem is not actually specific to android/arm. Linux/ARM's
-    runtime.clone set the stack pointer to child_stk-4 before calling
-    the fn. And then when fn returns, it tries to write to 4(R13) to
-    provide argument for runtime.exit, which is just beyond the allocated
-    child stack, and thus it will corrupt the heap randomly or trigger
-    segfault if that memory happens to be unmapped.
+    Update #10373.
     
-    While we're at here, shorten the test polling interval to 0.1s to
-    speed up the test (it was only checking at 1s interval, which means
-    the test takes at least 1s).
-    
-    Fixes #10548.
-    
-    Change-Id: I57cd63232022b113b6cd61e987b0684ebcce930a
-    Reviewed-on: https://go-review.googlesource.com/9457
+    Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f5
+    Reviewed-on: https://go-review.googlesource.com/8452
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/runtime/norace_linux_test.go | 7 +------
- src/runtime/sys_linux_arm.s      | 1 +
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ src/cmd/internal/ld/lib.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

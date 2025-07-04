@@ -1,78 +1,49 @@
-commit 4d10d4ad849467f12a1a16a5ade26cc03d8f1a1f
-Author: Joel Sing <joel@sing.id.au>
-Date:   Wed Mar 19 23:57:23 2025 +1100
+commit 3c39b2ed116fa9edba6fde3be566310c7b76114c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 16:52:58 2024 -0500
 
-    cmd/compile,internal/cpu,runtime: intrinsify math/bits.OnesCount on riscv64
+    runtime: avoid pp.timers.lock in updateTimerPMask
     
-    For riscv64/rva22u64 and above, we can intrinsify math/bits.OnesCount
-    using the CPOP/CPOPW machine instructions. Since the native Go
-    implementation of OnesCount is relatively expensive, it is also
-    worth emitting a check for Zbb support when compiled for rva20u64.
+    The comment in updateTimerPMask is wrong. It says:
     
-    On a Banana Pi F3, with GORISCV64=rva22u64:
+            // Looks like there are no timers, however another P
+            // may be adding one at this very moment.
+            // Take the lock to synchronize.
     
-                  │     oc.1     │                oc.2                 │
-                  │    sec/op    │   sec/op     vs base                │
-    OnesCount-8     16.930n ± 0%   4.389n ± 0%  -74.08% (p=0.000 n=10)
-    OnesCount8-8     5.642n ± 0%   5.016n ± 0%  -11.10% (p=0.000 n=10)
-    OnesCount16-8    9.404n ± 0%   5.015n ± 0%  -46.67% (p=0.000 n=10)
-    OnesCount32-8   13.165n ± 0%   4.388n ± 0%  -66.67% (p=0.000 n=10)
-    OnesCount64-8   16.300n ± 0%   4.388n ± 0%  -73.08% (p=0.000 n=10)
-    geomean          11.40n        4.629n       -59.40%
+    This was my incorrect simplification of the original comment
+    from CL 264477 when I was renaming all the things it mentioned:
     
-    On a Banana Pi F3, compiled with GORISCV64=rva20u64 and with Zbb
-    detection enabled:
+            // Looks like there are no timers, however another P may transiently
+            // decrement numTimers when handling a timerModified timer in
+            // checkTimers. We must take timersLock to serialize with these changes.
     
-                  │     oc.3     │                oc.4                 │
-                  │    sec/op    │   sec/op     vs base                │
-    OnesCount-8     16.930n ± 0%   5.643n ± 0%  -66.67% (p=0.000 n=10)
-    OnesCount8-8     5.642n ± 0%   5.642n ± 0%        ~ (p=0.447 n=10)
-    OnesCount16-8   10.030n ± 0%   6.896n ± 0%  -31.25% (p=0.000 n=10)
-    OnesCount32-8   13.170n ± 0%   5.642n ± 0%  -57.16% (p=0.000 n=10)
-    OnesCount64-8   16.300n ± 0%   5.642n ± 0%  -65.39% (p=0.000 n=10)
-    geomean          11.55n        5.873n       -49.16%
+    updateTimerPMask is being called by pidleput, so the P in question
+    is not in use. And other P's cannot add to this P.
+    As the original comment more precisely noted, the problem was
+    that other P's might be calling timers.check, which updates ts.len
+    occasionally while ts is locked, and one of those updates might
+    "leak" an ephemeral len==0 even when the heap is not going to
+    be empty when the P is finally unlocked. The lock/unlock in
+    updateTimerPMask synchronizes to avoid that. But this defeats
+    most of the purpose of using ts.len in the first place.
     
-    On a Banana Pi F3, compiled with GORISCV64=rva20u64 but with Zbb
-    detection disabled:
+    Instead of requiring that synchronization, we can arrange that
+    ts.len only ever shows a "publishable" length, meaning the len(ts.heap)
+    we leave behind during ts.unlock.
     
-                  │    oc.3     │                oc.5                 │
-                  │   sec/op    │   sec/op     vs base                │
-    OnesCount-8     16.93n ± 0%   29.47n ± 0%  +74.07% (p=0.000 n=10)
-    OnesCount8-8    5.642n ± 0%   5.643n ± 0%        ~ (p=0.191 n=10)
-    OnesCount16-8   10.03n ± 0%   15.05n ± 0%  +50.05% (p=0.000 n=10)
-    OnesCount32-8   13.17n ± 0%   18.18n ± 0%  +38.04% (p=0.000 n=10)
-    OnesCount64-8   16.30n ± 0%   21.94n ± 0%  +34.60% (p=0.000 n=10)
-    geomean         11.55n        15.84n       +37.16%
+    Having done that, updateTimerPMask can be inlined into pidleput.
     
-    For hardware without Zbb, this adds ~5ns overhead, while for hardware
-    with Zbb we achieve a performance gain up of up to 11ns. It is worth
-    noting that OnesCount8 is cheap enough that it is preferable to stick
-    with the generic version in this case.
+    The big comment on updateTimerPMask explaining how timerpMask
+    works is better placed as the doc comment for timerpMask itself,
+    so move it there.
     
-    Change-Id: Id657e40e0dd1b1ab8cc0fe0f8a68df4c9f2d7da5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/660856
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I5442c9bb7f1473b5fd37c43165429d087012e73f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568336
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ir/symtab.go              |  1 +
- src/cmd/compile/internal/riscv64/ssa.go            |  2 +-
- src/cmd/compile/internal/ssa/_gen/RISCV64.rules    |  6 +++
- src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go    |  2 +
- src/cmd/compile/internal/ssa/opGen.go              | 28 ++++++++++++
- src/cmd/compile/internal/ssa/rewriteRISCV64.go     | 40 +++++++++++++++++
- src/cmd/compile/internal/ssagen/intrinsics.go      | 50 ++++++++++++++++++++++
- src/cmd/compile/internal/ssagen/intrinsics_test.go |  6 +++
- src/cmd/compile/internal/ssagen/ssa.go             |  1 +
- .../compile/internal/typecheck/_builtin/runtime.go |  1 +
- src/cmd/compile/internal/typecheck/builtin.go      |  1 +
- src/cmd/internal/goobj/builtinlist.go              |  1 +
- src/internal/cpu/cpu.go                            |  1 +
- src/internal/cpu/cpu_riscv64.go                    |  1 +
- src/internal/cpu/cpu_riscv64_linux.go              |  2 +
- src/runtime/cpuflags.go                            |  2 +
- src/runtime/proc.go                                |  3 ++
- test/codegen/mathbits.go                           | 15 ++++---
- 18 files changed, 157 insertions(+), 6 deletions(-)
+ src/runtime/proc.go     |  4 +++-
+ src/runtime/runtime2.go | 31 +++++++++++++++++++++++++++++
+ src/runtime/time.go     | 52 +++++++++----------------------------------------
+ 3 files changed, 43 insertions(+), 44 deletions(-)

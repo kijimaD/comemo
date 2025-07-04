@@ -1,32 +1,12 @@
-commit b4b2ddb86771753aebd4383847e708cb61e94c73
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Feb 16 12:24:12 2016 -0600
+commit e35901fd65a9c0f475de260a79b7b628d9d07ebf
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Dec 30 13:23:11 2015 +1300
 
-    math: improve sqrt for ppc64le,ppc64
+    database/sql: fix doc typos
     
-    The existing implementation uses code written in Go to
-    implement Sqrt; this adds the assembler to use the sqrt
-    instruction for Power and makes the necessary changes to
-    allow it to be inlined.
-    
-    The following tests showed this relative improvement:
-    
-    benchmark                 delta
-    BenchmarkSqrt             -97.91%
-    BenchmarkSqrtIndirect     -96.65%
-    BenchmarkSqrtGo           -35.93%
-    BenchmarkSqrtPrime        -96.94%
-    
-    Fixes #14349
-    
-    Change-Id: I8074f4dc63486e756587564ceb320aca300bf5fa
-    Reviewed-on: https://go-review.googlesource.com/19515
-    Reviewed-by: Minux Ma <minux@golang.org>
+    Change-Id: I374dabed6bf9783839d637e9d7fd6f4e61c7eecf
+    Reviewed-on: https://go-review.googlesource.com/18183
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/walk.go     |  2 +-
- src/cmd/compile/internal/ppc64/gsubr.go |  4 ++++
- src/cmd/compile/internal/ppc64/peep.go  |  3 ++-
- src/cmd/compile/internal/ppc64/prog.go  |  1 +
- src/math/sqrt_ppc64x.s                  | 14 ++++++++++++++
- src/math/stubs_ppc64x.s                 |  3 ---
- 6 files changed, 22 insertions(+), 5 deletions(-)
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

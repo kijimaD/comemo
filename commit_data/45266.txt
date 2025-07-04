@@ -1,20 +1,26 @@
-commit b8a359d984b9b16a405fa66011078a477c6e2da4
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Apr 21 09:04:00 2021 -0700
+commit 606d4a38b9ae76df30cc1bcaeee79923a5792e59
+Author: Ross Light <ross@zombiezen.com>
+Date:   Sat Sep 26 08:49:56 2020 -0700
 
-    cmd/compile/internal/types2: fix incorrect result type of Checker.index
+    net/http: ensure Request.Body.Close is called once and only once
     
-    While at it, add missing "invalid argument: " prefix
-    to a couple of local error messages, for consistency.
+    Makes *Request.write always close the body, so that callers no longer
+    have to close the body on returned errors, which was the trigger for
+    double-close behavior.
     
-    For #45667.
+    Fixes #40382
     
-    Change-Id: I814800b2f3f3750583e335c98a3f8e27030a9daa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312309
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Change-Id: I128f7ec70415f240d82154cfca134b3f692191e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257819
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/cmd/compile/internal/types2/index.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/net/http/client_test.go | 57 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/request.go     | 19 ++++++++++++---
+ src/net/http/transfer.go    | 14 +++++++++--
+ src/net/http/transport.go   | 17 ++++++++++----
+ 4 files changed, 97 insertions(+), 10 deletions(-)

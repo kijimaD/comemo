@@ -1,20 +1,16 @@
-commit 0f53453b32054b681dac6e8b025c85a785396102
-Author: dqu123 <davidqu12345@gmail.com>
-Date:   Sat Oct 10 16:25:07 2020 -0400
+commit 7055f01e125eb4ad40b84a757a8748c0b88854f4
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 20 10:34:58 2020 -0400
 
-    net/http: deep copy Request.TransferEncoding
+    [dev.link] cmd/link: minor perf tweak for PropagateLoaderChangesToSymbols
     
-    The existing implementation in Request.Clone() assigns the wrong
-    pointer to r2.TransferEncoding.
+    When fixing up relocations in PropagateLoaderChangesToSymbols, don't
+    reallocate the target sym.Symbol relocation slice if it already has
+    the desired size (this gets rid of some unneeded allocations).
     
-    Fixes #41907
-    
-    Change-Id: I7f220a41b1b46a55d1a1005e47c6dd69478cb025
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261258
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: I05287772c18cab861c2df805fa9497103fb00dcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224420
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/net/http/request.go      |  2 +-
- src/net/http/request_test.go | 21 +++++++++++++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/cmd/link/internal/loader/loader.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

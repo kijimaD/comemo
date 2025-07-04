@@ -1,29 +1,26 @@
-commit 48297f1fb15206cd13e0f31647e909292fb21975
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri May 27 15:44:55 2022 +0200
+commit e54843f2f4c3b11b52b691eaa187871fb4355d4c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 21 12:18:38 2021 -0700
 
-    unicode/utf16: add AppendRune
+    runtime: look up funcInfo by func pointer
     
-    AppendRune appends the UTF-16 encoding of a rune to a []uint16.
+    runtime.Func.{Name,FileLine} need to be able to
+    go from a *_func to a funcInfo. The missing bit of
+    information is what module contains that *_func.
     
-        BenchmarkEncodeValidASCII-12                24.61ns 16B 1allocs
-        BenchmarkEncodeValidJapaneseChars-12        18.79ns 8B  1allocs
-        BenchmarkAppendRuneValidASCII-12            6.826ns 0B  0allocs
-        BenchmarkAppendRuneValidJapaneseChars-12    3.547ns 0B  0allocs
+    The existing implementation looked up the module
+    using the *_func's entry PC. A subsequent change will
+    store *_func's entry PC relative to the containing module.
+    Change the module lookup to instead for the module
+    whose pclntable contains the *_func,
+    cutting all dependencies on the contents of the *_func.
     
-    The ASCII case is written to be inlineable.
-    
-    Fixes #51896
-    
-    Change-Id: I593b1029f603297ef6e80e036f2fee2a0938d38d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/409054
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Change-Id: I2dbbfec043ebc2e9a6ef19bbdec623ac84353b10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351458
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- api/next/51896.txt              |  1 +
- src/unicode/utf16/utf16.go      | 17 +++++++++++++++++
- src/unicode/utf16/utf16_test.go | 34 ++++++++++++++++++++++++++++++++++
- 3 files changed, 52 insertions(+)
+ src/runtime/symtab.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

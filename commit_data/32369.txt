@@ -1,18 +1,47 @@
-commit 8a9d4184e6e175194e262bde5fe321838b5d40c4
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Aug 17 17:41:44 2017 -0700
+commit a5eb3dceaf8d4e3fafac0d947decae62d3028df1
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 3 15:22:06 2017 -0400
 
-    runtime: simplify evacuate's handling of NaNs
+    runtime: drive proportional sweep directly off heap_live
     
-    The new code is not quite equivalent to the old,
-    in that if newbit was very large it might have altered the new tophash.
-    The old behavior is unnecessary and probably undesirable.
+    Currently, proportional sweep maintains its own count of how many
+    bytes have been allocated since the beginning of the sweep cycle so it
+    can compute how many pages need to be swept for a given allocation.
     
-    Change-Id: I7fb3222520cb61081a857adcddfbb9078ead7122
-    Reviewed-on: https://go-review.googlesource.com/56930
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    However, this requires a somewhat complex reimbursement scheme since
+    proportional sweep must be done before a span is allocated, but we
+    don't know how many bytes to charge until we've allocated a span. This
+    means that the allocated byte count used by proportional sweep can go
+    up and down, which has led to underflow bugs in the past (#18043) and
+    is going to interfere with adjusting sweep pacing on-the-fly (for #19076).
+    
+    This approach also means we're maintaining a statistic that is very
+    closely related to heap_live, but has a different 0 value. This is
+    particularly confusing because the sweep ratio is computed based on
+    heap_live, so you have to understand that these two statistics are
+    very closely related.
+    
+    Replace all of this and compute the sweep debt directly from the
+    current value of heap_live. To make this work, we simply save the
+    value of heap_live when the sweep ratio is computed to use as a
+    "basis" for later computing the sweep debt.
+    
+    This eliminates the need for reimbursement as well as the code for
+    maintaining the sweeper's version of the live heap size.
+    
+    For #19076.
+    
+    Coincidentally fixes #18043, since this eliminates sweep reimbursement
+    entirely.
+    
+    Change-Id: I1f931ddd6e90c901a3972c7506874c899251dc2a
+    Reviewed-on: https://go-review.googlesource.com/39832
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/runtime/hashmap.go | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ src/runtime/mcentral.go |  3 ---
+ src/runtime/mgc.go      |  5 +++--
+ src/runtime/mgcsweep.go | 29 +++++------------------------
+ src/runtime/mheap.go    |  8 ++++----
+ 4 files changed, 12 insertions(+), 33 deletions(-)

@@ -1,15 +1,21 @@
-commit b17b95301a549d168d96e38310d06216f595e53b
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Apr 6 20:06:41 2016 -0700
+commit 1e91e2a25a0058cc25b3836b59a0954c6c75a62c
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 15 16:50:12 2016 -0500
 
-    cmd/internal/sys: change ArchFamily constants to iotas
+    runtime: document non-obvious requirement on sudog.elem
     
-    RIP architecture characters.
+    The channel code must not allow stack splits between when it assigns a
+    potential stack pointer to sudog.elem (or sudog.selectdone) and when
+    it makes the sudog visible to copystack by putting it on the g.waiting
+    list. We do get this right everywhere, but add a comment about this
+    subtlety for future eyes.
     
-    Change-Id: I36f53afdc311b14b9459ff3821bd6df54a057ded
-    Reviewed-on: https://go-review.googlesource.com/21628
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Change-Id: I941da150437167acff37b0e56983c793f40fcf79
+    Reviewed-on: https://go-review.googlesource.com/19632
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/internal/sys/arch.go | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ src/runtime/chan.go   | 4 ++++
+ src/runtime/select.go | 2 ++
+ 2 files changed, 6 insertions(+)

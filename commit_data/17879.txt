@@ -1,14 +1,16 @@
-commit 2fbcb0819206775b919ca62eca961f94df06d0f4
-Author: Rob Pike <r@golang.org>
-Date:   Tue Nov 12 20:04:22 2013 -0800
+commit c72bce901eb0e6be6bc544ace561a1ce88209cb8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Nov 13 11:53:01 2013 +1100
 
-    doc/asm.html: new document, a brief guide to the assembler
+    doc: use the same wording for OS X as the other OSes
     
-    Fixes #6060
+    I used "and above" when I should have said "or later".
     
-    R=golang-dev, iant, bradfitz, josharian, minux.ma, aram, rsc
+    Sorry for the churn.
+    
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/20930043
+    https://golang.org/cl/25670043
 
- doc/asm.html | 402 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 402 insertions(+)
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,23 @@
-commit 68add46af776369dbaade9eb1eb9de9bb0c7fec8
-Author: Rob Pike <r@golang.org>
-Date:   Wed Mar 2 19:39:08 2011 -0800
+commit daffc2d2ef1b68eae0a7e79d015fe33339f19534
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Mar 2 16:18:17 2011 -0500
 
-    unsafe: fix the documentation
-    Reflection is about Pointer, not uintptr.
-    Also clarify that Reflect and Unreflect are indirect.
+    gc: fix init of packages named main
+    
+    This change removes the special case which existed
+    for handling the initalization of the main package,
+    so that other modules named 'main' get properly
+    initialized when imported.
+    
+    Note that gotest of main packages will break in most
+    cases without this.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4254052
+    https://golang.org/cl/4190050
 
- src/pkg/unsafe/unsafe.go | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ src/cmd/gc/export.c | 12 +++++++++---
+ src/cmd/gc/init.c   | 27 +++++++++++----------------
+ src/cmd/gc/subr.c   |  2 +-
+ test/init.go        | 18 ++++++++++++++++++
+ 4 files changed, 39 insertions(+), 20 deletions(-)

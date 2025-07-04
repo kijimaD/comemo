@@ -1,14 +1,23 @@
-commit eeb319a5a5c9f1ef7e31c551b03ec841ee9f0b61
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Thu Dec 5 22:46:12 2019 +0100
+commit cded9f43f8d504159d9b71ddca7fe8abd8ba78b0
+Author: obei <obei.sideg@gmail.com>
+Date:   Wed Aug 21 23:25:20 2019 +0530
 
-    doc/go1.14: document freebsd/arm64 port
+    doc: align documents link
     
-    Updates #24715
+    Updates #33738
     
-    Change-Id: Ie6421cf2d599740bbb0576bcc37bd8ddf5af3961
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210119
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: If0856d7c57ecfde08341c1aecb5e92361fd64f2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191217
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go1.14.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ doc/go1.10.html | 2 +-
+ doc/go1.11.html | 2 +-
+ doc/go1.12.html | 2 +-
+ doc/go1.13.html | 2 +-
+ doc/go1.6.html  | 2 +-
+ doc/go1.7.html  | 2 +-
+ doc/go1.8.html  | 2 +-
+ doc/go1.9.html  | 2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)

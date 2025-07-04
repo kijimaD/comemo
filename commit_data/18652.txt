@@ -1,20 +1,13 @@
-commit 36013e4a2252c15d84e8c9dbfb58e8f5273aa41d
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Feb 26 10:19:51 2014 +0900
+commit e6863e7d5b22c7711d0f950981fa3673e9e160f5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 25 14:15:49 2014 -0800
 
-    runtime: use monotonic clock for timers on freebsd/amd64,386,arm
+    spec: libraries and implementation are now at Unicode 6.3
     
-    For now we don't use CLOCK_MONOTONIC_FAST instead because
-    it's not supported on prior to 9-STABLE.
-    
-    Update #6007
-    
-    LGTM=minux.ma
-    R=golang-codereviews, minux.ma, bradfitz
+    LGTM=gri
+    R=gri
     CC=golang-codereviews
-    https://golang.org/cl/68690043
+    https://golang.org/cl/68760043
 
- src/pkg/runtime/sys_freebsd_386.s   | 6 ++++--
- src/pkg/runtime/sys_freebsd_amd64.s | 6 ++++--
- src/pkg/runtime/sys_freebsd_arm.s   | 4 +++-
- 3 files changed, 11 insertions(+), 5 deletions(-)
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

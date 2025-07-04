@@ -1,23 +1,81 @@
-commit cb37cfa01c24a554568fcc7bbe5dced325c3c50f
-Author: Jan Kratochvil <jan.kratochvil@redhat.com>
-Date:   Sat Feb 28 19:43:50 2015 +0100
+commit 1fc330d8fe0ce6cbc6fd1f47c1cf035119566fc7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 03:57:44 2015 -0500
 
-    runtime: TestGdbPython 'print mapvar' should not need unwinding
+    [dev.cc] cmd/internal/obj: reconvert from liblink
     
-    issue #10017: TestGdbPython 'print mapvar' is reported to fail on ppc64.
-    issue #10002: TestGdbPython 'print mapvar' is reported to fail on arm hardfloat.
+    cmd/internal/obj reconverted using rsc.io/c2go rev 2a95256.
     
-    The testcase now uses plain line number in main.  Unwinding issues are
-    unrelated to the GDB map prettyprinter feature.
+    - Brings in new, more regular Prog, Addr definitions
     
-    Remove arch-specific t.Skip()s from those two issues.
+    - Add Prog* argument to oclass in liblink/asm[68].c, for c2go conversion.
+    - Update objwriter for change in TEXT size encoding.
+    - Merge 5a, 6a, 8a, 9a changes into new5a, new6a, new8a, new9a (by hand).
     
-    Fixes #10017
-    Fixes #10002
+    - Add +build ignore to cmd/asm/internal/{addr,arch,asm}, cmd/asm.
+      They need to be updated for the changes.
     
-    Change-Id: I9d50ffe2f3eb7bf65dd17c8c76a2677571de68ba
-    Reviewed-on: https://go-review.googlesource.com/6267
-    Reviewed-by: Minux Ma <minux@golang.org>
+    - Reenable verifyAsm in cmd/go.
+    - Reenable GOOBJ=2 mode by default in liblink.
+    
+    All architectures build successfully again.
+    
+    Change-Id: I2c845c5d365aa484b570476898171bee657b626d
+    Reviewed-on: https://go-review.googlesource.com/3963
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/runtime-gdb_test.go | 16 ++--------------
- 1 file changed, 2 insertions(+), 14 deletions(-)
+ src/cmd/asm/internal/addr/addr.go     |    2 +
+ src/cmd/asm/internal/arch/arch.go     |    2 +
+ src/cmd/asm/internal/asm/asm.go       |    2 +
+ src/cmd/asm/internal/asm/expr_test.go |    2 +
+ src/cmd/asm/internal/asm/parse.go     |    2 +
+ src/cmd/asm/main.go                   |    2 +
+ src/cmd/go/build.go                   |    8 +-
+ src/cmd/internal/obj/arm/5.out.go     |  157 ++---
+ src/cmd/internal/obj/arm/anames5.go   |   85 ++-
+ src/cmd/internal/obj/arm/asm5.go      |  661 ++++++++----------
+ src/cmd/internal/obj/arm/list5.go     |  139 ++--
+ src/cmd/internal/obj/arm/obj5.go      |  432 +++++-------
+ src/cmd/internal/obj/data.go          |   23 +-
+ src/cmd/internal/obj/funcdata.go      |    9 +-
+ src/cmd/internal/obj/go.go            |   63 ++
+ src/cmd/internal/obj/i386/8.out.go    |  134 ++--
+ src/cmd/internal/obj/i386/anames8.go  |  100 +--
+ src/cmd/internal/obj/i386/asm8.go     |  909 ++++++++++++------------
+ src/cmd/internal/obj/i386/list8.go    |  196 +++---
+ src/cmd/internal/obj/i386/obj8.go     |  409 +++++------
+ src/cmd/internal/obj/ld.go            |    1 -
+ src/cmd/internal/obj/link.go          |  257 +++++--
+ src/cmd/internal/obj/obj.go           |    6 +-
+ src/cmd/internal/obj/objfile.go       |   61 +-
+ src/cmd/internal/obj/pass.go          |  102 ++-
+ src/cmd/internal/obj/pcln.go          |   26 +-
+ src/cmd/internal/obj/ppc64/9.out.go   |  192 +++---
+ src/cmd/internal/obj/ppc64/anames9.go |   75 +-
+ src/cmd/internal/obj/ppc64/asm9.go    |  344 ++++------
+ src/cmd/internal/obj/ppc64/list9.go   |  239 +++----
+ src/cmd/internal/obj/ppc64/obj9.go    |  465 +++++--------
+ src/cmd/internal/obj/sym.go           |   15 +-
+ src/cmd/internal/obj/util.go          |   26 +-
+ src/cmd/internal/obj/x86/6.out.go     |  197 +++---
+ src/cmd/internal/obj/x86/anames6.go   |  129 +---
+ src/cmd/internal/obj/x86/asm6.go      | 1024 ++++++++++++++--------------
+ src/cmd/internal/obj/x86/list6.go     |  162 ++---
+ src/cmd/internal/obj/x86/obj6.go      |  574 +++++++---------
+ src/cmd/new5a/a.y                     |  236 ++++---
+ src/cmd/new5a/lex.go                  |  151 ++--
+ src/cmd/new5a/y.go                    |  997 ++++++++++++++-------------
+ src/cmd/new6a/a.y                     |  212 +++---
+ src/cmd/new6a/lex.go                  |  263 ++++---
+ src/cmd/new6a/y.go                    |  809 +++++++++++-----------
+ src/cmd/new8a/a.y                     |  212 +++---
+ src/cmd/new8a/lex.go                  |  176 ++---
+ src/cmd/new8a/y.go                    |  830 +++++++++++-----------
+ src/cmd/new9a/a.y                     |  373 +++++-----
+ src/cmd/new9a/lex.go                  |  210 +++---
+ src/cmd/new9a/y.go                    | 1213 +++++++++++++++++----------------
+ src/cmd/objwriter/main.go             |    8 +-
+ src/liblink/asm6.c                    |   10 +-
+ src/liblink/asm8.c                    |    8 +-
+ src/liblink/objfile.c                 |    2 +-
+ 54 files changed, 6343 insertions(+), 6599 deletions(-)

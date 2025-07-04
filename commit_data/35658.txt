@@ -1,16 +1,16 @@
-commit f861f66d1db9f1abcdf91fc54d0d84bd3f9e9310
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Jun 11 16:46:23 2018 -0700
+commit 21343e07d68b8763f15ad8c9f193ba42e15d4aaa
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Feb 25 17:54:44 2018 +0900
 
-    cmd/link: treat cgo exported symbols as C symbols
+    cmd/compile: remove duplicates by using finishcompare
     
-    Fixes #25827
+    Updates #23834
     
-    Change-Id: I6736c3ac061ca32aac2eb68b01ba53a179d68cf4
-    Reviewed-on: https://go-review.googlesource.com/118076
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: If05001f9fd6b97d72069f440102eec6e371908dd
+    Reviewed-on: https://go-review.googlesource.com/97016
+    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/pcln.go | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ src/cmd/compile/internal/gc/walk.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

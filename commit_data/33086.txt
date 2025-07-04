@@ -1,45 +1,21 @@
-commit d4dda76b5fc320a94430c62a31e1481986104488
-Author: Austin Clements <austin@google.com>
-Date:   Mon Oct 9 16:19:56 2017 -0400
+commit 9d2de778052ecbaf042d0b01c39e41db55ca6eaa
+Author: Gustav Westling <zegl@westling.xyz>
+Date:   Sun Jul 2 13:27:47 2017 +0200
 
-    cmd/link: one DWARF compilation unit per package
+    encoding/base32: support custom and disabled padding when decoding
     
-    Currently, the linker generates one huge DWARF compilation unit for
-    the entire Go binary. This commit creates a separate compilation unit
-    and line table per Go package.
+    CL 38634 added support for custom (and disabled) padding characters
+    when encoding, but didn't update the decoding paths. This adds
+    decoding support.
     
-    We temporarily lose compilation unit PC range information, since it's
-    now discontiguous, so harder to emit. We'll bring it back in the next
-    commit.
+    Fixes #20854
     
-    Beyond being "more traditional", this has various technical
-    advantages:
-    
-    * It should speed up line table lookup, since that requires a
-      sequential scan of the line table. With this change, a debugger can
-      first locate the per-package line table and then scan only that line
-      table.
-    
-    * Once we emit compilation unit PC ranges again, this should also
-      speed up various other debugger reverse PC lookups.
-    
-    * It puts us in a good position to move more DWARF generation into the
-      compiler, which could produce at least the CU header, per-function
-      line table fragments, and per-function frame unwinding info that the
-      linker could simply paste together.
-    
-    * It will let us record a per-package compiler command-line flags
-      (#22168).
-    
-    Change-Id: Ibac642890984636b3ef1d4b37fe97f4453c2cc84
-    Reviewed-on: https://go-review.googlesource.com/69973
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I9fb1a0aaebb27f1204c9f726a780d5784eb71024
+    Reviewed-on: https://go-review.googlesource.com/47341
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/dwarf/dwarf.go          |   2 -
- src/cmd/link/internal/ld/dwarf.go        | 170 ++++++++++++++++++++-----------
- src/cmd/link/internal/objfile/objfile.go |   1 +
- src/cmd/link/internal/sym/symbol.go      |   1 +
- 4 files changed, 110 insertions(+), 64 deletions(-)
+ src/encoding/base32/base32.go      | 24 +++++++++--
+ src/encoding/base32/base32_test.go | 88 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 108 insertions(+), 4 deletions(-)

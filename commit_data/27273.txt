@@ -1,17 +1,12 @@
-commit 0f84afe24bd7954ed2408008c17b1930881d89d5
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed May 4 09:08:27 2016 -0700
+commit 705be76b6fde0f490d089338f06e27569b5abc28
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 14:27:29 2016 +0100
 
-    cmd/dist: add flag to build tests only, but not run them
+    encoding/binary: improve error messages for benchmarks
     
-    To speed up the ssacheck check builder and make it on by default as a
-    trybot.
-    
-    Change-Id: I91a3347491507c84f4878dff744ca426ba3e2e9f
-    Reviewed-on: https://go-review.googlesource.com/22755
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I0f4b6752ecc8b4945ecfde627cdec13fc4bb6a69
+    Reviewed-on: https://go-review.googlesource.com/20850
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/dist/test.go | 68 ++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 45 insertions(+), 23 deletions(-)
+ src/encoding/binary/binary_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

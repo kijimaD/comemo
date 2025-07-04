@@ -1,15 +1,15 @@
-commit 212cb0375a6954121add281f355386740ed6fa27
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Mon Apr 8 16:03:19 2013 +1000
+commit 091970c5514567f8d44c76761f14310ae305ee86
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Mon Apr 8 14:42:06 2013 +1000
 
-    cmd/go: clarify what "pkg.test" means wrt the -c flag
+    cmd/go: document usage of external test packages
     
-    Fixes #5230.
+    Fixes #5144
     
-    R=golang-dev, bradfitz
+    R=golang-dev, r, dave, adg
     CC=golang-dev
-    https://golang.org/cl/8507043
+    https://golang.org/cl/8171044
 
- src/cmd/go/doc.go  | 1 +
- src/cmd/go/test.go | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/go/doc.go  | 3 +++
+ src/cmd/go/test.go | 3 +++
+ 2 files changed, 6 insertions(+)

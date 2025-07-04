@@ -1,33 +1,22 @@
-commit e71e1fe87e144ec10287a10b6a41a543762dabff
+commit 9629f55fbbfb4052ea24c247cbd5db49ba2f389e
 Author: Cherry Zhang <cherryyz@google.com>
-Date:   Mon Aug 22 12:25:23 2016 -0400
+Date:   Tue Apr 26 15:17:56 2016 -0400
 
-    cmd/compile: get MIPS64 SSA working
+    cmd/link: remove absolute address for c-archive on darwin/arm
     
-    - implement *, /, %, shifts, Zero, Move.
-    - fix mistakes in comparison.
-    - fix floating point rounding.
-    - handle RetJmp in assembler (which was not handled, as a consequence
-      Duff's device was disabled in the old backend.)
+    Now it is possible to build a c-archive as PIC on darwin/arm (this is
+    now the default). Then the system linker can link the binary using
+    the archive as PIE.
     
-    all.bash now passes with SSA on.
+    Fixes #12896.
     
-    Updates #16359.
-    
-    Change-Id: Ia14eed0ed1176b5d800592080c8f53dded7fe73f
-    Reviewed-on: https://go-review.googlesource.com/27592
-    Reviewed-by: David Chase <drchase@google.com>
-    Run-TryBot: Cherry Zhang <cherryyz@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iad84131572422190f5fa036e7d71910dc155f155
+    Reviewed-on: https://go-review.googlesource.com/22461
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/mips64/ssa.go        |  192 +-
- src/cmd/compile/internal/ssa/config.go        |    2 +
- src/cmd/compile/internal/ssa/gen/MIPS64.rules |  255 +-
- src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |   98 +-
- src/cmd/compile/internal/ssa/gen/main.go      |    2 +
- src/cmd/compile/internal/ssa/opGen.go         |   71 +-
- src/cmd/compile/internal/ssa/regalloc.go      |    4 +-
- src/cmd/compile/internal/ssa/rewriteMIPS64.go | 3655 +++++++++++++++++++++++--
- src/cmd/compile/internal/ssa/schedule.go      |    2 +-
- src/cmd/internal/obj/mips/obj0.go             |   50 +-
- 10 files changed, 4003 insertions(+), 328 deletions(-)
+ src/cmd/go/build.go                   |  5 +++++
+ src/cmd/link/internal/arm/asm.go      | 30 ++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go      |  3 +++
+ src/cmd/link/internal/ld/macho.go     |  7 +++++--
+ src/runtime/cgo/signal_darwin_armx.go |  6 +++++-
+ 5 files changed, 48 insertions(+), 3 deletions(-)

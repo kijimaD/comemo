@@ -1,33 +1,18 @@
-commit b1e83c0513cc009192ebb6fcf5e232adf23552d4
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Mar 29 12:59:12 2022 -0400
+commit 10d6b36ca3f8d48a667742eee791dacbcfc888cd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 2 17:05:37 2021 -0700
 
-    cmd/compile: simplify func value symbol generation
+    [dev.typeparams] cmd/compile/internal/types2: disallow ~T where T is a defined type or an interface
     
-    Currently, in most cases the compiler generates a func value
-    symbol when it is referenced, except when building a shared object
-    it generates the func value symbol when the function is declared.
-    
-    The comment says this was necessary because we cannot deduplicate
-    DUPOK symbols across DSO boundaries. But the dynamic linker is
-    just fine to resolve symbols with the same name across DSO
-    boundaries.
-    
-    Another problem may be that the address of the PLT stub may be
-    used. When such a func value is deferred, when the runtime needs
-    to scan its arguments, it cannot look up the PC to find the
-    function and therefore cannot find its stack map. This is not a
-    problem now as deferred functions always have no arguments.
-    
-    Remove the special case for shared linkage.
-    
-    Change-Id: Id7df0b0ada6d3d7f85741a9ab09581975509516c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/396534
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I35f6f43db00d56847da48320308f2fcfff924738
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324570
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssagen/abi.go      | 12 -------
- src/cmd/compile/internal/staticdata/data.go | 51 +----------------------------
- 2 files changed, 1 insertion(+), 62 deletions(-)
+ src/cmd/compile/internal/types2/testdata/check/typeinst2.go2  |  4 ++--
+ .../compile/internal/types2/testdata/examples/constraints.go2 |  9 +++++++++
+ .../compile/internal/types2/testdata/fixedbugs/issue39634.go2 |  4 ++--
+ src/cmd/compile/internal/types2/union.go                      | 11 ++++++-----
+ 4 files changed, 19 insertions(+), 9 deletions(-)

@@ -1,12 +1,17 @@
-commit 34e0725dec7eb94b909050ba1182f64f2803800c
-Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 14 11:49:33 2011 +1000
+commit 2769356ddac0e102dfcad47e9856c3d52314b0a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 13 16:47:33 2011 -0700
 
-    os: be explicit in the package comment that this package is for portable features only.
+    go spec: specify constant conversions
     
-    R=golang-dev, rsc
+    This is not a language change.
+    
+    Added paragraphs specifying which conversions
+    yield results that are constants.
+    
+    R=r, rsc, iant, ken
     CC=golang-dev
-    https://golang.org/cl/4602058
+    https://golang.org/cl/4515176
 
- src/pkg/os/file.go | 2 ++
- 1 file changed, 2 insertions(+)
+ doc/go_spec.html | 70 ++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 55 insertions(+), 15 deletions(-)

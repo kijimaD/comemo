@@ -1,18 +1,19 @@
-commit aac285c2df754f61b49baf2a35bffae0ae5bf95b
-Author: Clément Chigot <clement.chigot@atos.net>
-Date:   Wed Dec 5 14:15:37 2018 +0100
+commit 21ac81192483e6b8135cec4c47e6f9fce890fb05
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Jul 30 22:57:25 2018 +0200
 
-    cmd/go/internal/lockedfile: fix filelock.Unlock() called twice
+    internal/cpu: make all constants for s390x feature detection typed
     
-    filelock.Unlock() was called twice for fcntl implementation if an error
-    occurs during file.{,R}Lock(): once in the error handler, once in
-    filelock.lock().
+    Only the first constant in the function and facility
+    constant declaration blocks were typed constants.
+    Make all other constants used for function codes and
+    named facilities also typed.
     
-    Change-Id: I5ad84e8ef6b5e51d79e0a7a0c51f465276cd0c57
-    Reviewed-on: https://go-review.googlesource.com/c/152717
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I1814121de3733094da699c78b7311f99ba4772e1
+    Reviewed-on: https://go-review.googlesource.com/126776
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- .../go/internal/lockedfile/lockedfile_filelock.go   | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
+ src/internal/cpu/cpu_s390x.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

@@ -1,14 +1,15 @@
-commit ae9529a261966d98d7eba59de009e4553a86c94e
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Dec 14 23:16:21 2015 -0500
+commit e538e1b627d16778134704310f39a1fec997184d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 15 09:50:40 2015 -0700
 
-    doc: first draft of Go 1.6 release notes
+    go/types: check that typed constant shift expressions are representable
     
-    Change-Id: I5aa54e96729b3261f491f51b37e04e59c91b0830
-    Reviewed-on: https://go-review.googlesource.com/17840
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Fixes #12945.
+    
+    Change-Id: I08b44795fcd7ec59371aea8111f7febead54720b
+    Reviewed-on: https://go-review.googlesource.com/15900
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.6.html | 838 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/go1.6.txt  |  96 -------
- 2 files changed, 838 insertions(+), 96 deletions(-)
+ src/go/types/expr.go             | 12 ++++++++++--
+ src/go/types/testdata/const1.src |  8 ++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

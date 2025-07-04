@@ -1,25 +1,20 @@
-commit 5e82cba9bdf45d81da549477d172f6b5e23106d4
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Nov 18 11:07:07 2024 +0100
+commit 9f8f1ca5ad78efedd1fae685ff7151d866d552e7
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Sep 22 14:24:33 2023 +0000
 
-    os/user: skip tests that create users when running on dev machines
+    cmd/link/internal/ld: use strings.Cut
     
-    Creating and deleting users is tricky to get right, and it's not
-    something we want to do on a developer machine. This change skips the
-    tests that create users when not running on a Go builder.
-    
-    This will fix #70396, although I still don't understand why the test
-    user couldn't be recreated.
-    
-    Fixes #70396
-    
-    Change-Id: Ie7004dc209f94e72152c7d6bd8ec95cc12c79757
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/627877
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I724fe76983ea259f12f073376d591c2f4b3c3d72
+    GitHub-Last-Rev: e61e865ba97a52d24d3aee7642f5804916e94544
+    GitHub-Pull-Request: golang/go#55910
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435738
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/os/user/user_windows_test.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/link/internal/ld/go.go | 10 +++-------
+ src/cmd/link/internal/ld/ld.go | 14 ++++++--------
+ 2 files changed, 9 insertions(+), 15 deletions(-)

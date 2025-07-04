@@ -1,15 +1,25 @@
-commit b7e9c7a3919195f718249aba0e09d03f9e1fdf9d
-Author: Andrew <andybons@golang.org>
-Date:   Wed Sep 18 21:34:24 2019 -0400
+commit cebc4e514ae209dc00e171d70e10ef5bc17ba10d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jan 9 16:40:01 2019 -0500
 
-    doc/go1.13: add id tag to note about removal of NaCl port in Go 1.14
+    cmd/go: parallelize package loading
     
-    This was in response to a post-merge review comment in
-    golang.org/cl/185537
+    load.PackageAndErrors now preloads data used to build load.Package
+    structures. Multiple packages may be preloaded in parallel, so this
+    parallelizes most of the package loading work.
     
-    Change-Id: I866b3882c8e83bf1fef60115cff5d1c6a9863f09
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/186319
-    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    The actual package construction and error-checking process is still
+    sequential, since this process needs to detect and report cycles.
+    
+    Fixes #29758
+    
+    Change-Id: Icf37e6669836ce8aad076e34fd895f97f4f3f9e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161397
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- doc/go1.13.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/load/pkg.go  | 545 ++++++++++++++++++++++++++-------------
+ src/cmd/go/internal/load/test.go |  12 +-
+ src/cmd/go/internal/par/work.go  |  41 +++
+ 3 files changed, 416 insertions(+), 182 deletions(-)

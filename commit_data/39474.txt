@@ -1,27 +1,21 @@
-commit 623d653db7cd2287305347196f7f4742b6b1fb38
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 27 20:54:14 2019 -0400
+commit b45f5b5e16c8176c909b441ebfa731cd6ff0cd63
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 1 10:09:02 2019 -0500
 
-    crypto/tls: deflake localPipe in tests
+    cmd/go: quote expanded shell variables used within regular expressions
     
-    The localPipe implementation assumes that every successful net.Dial
-    results in exactly one successful listener.Accept. I don't believe this
-    is guaranteed by essentially any operating system. For this test, we're
-    seeing flakes on dragonfly (#29583).
+    We mostly use shell variables for paths, and we don't want file paths
+    like "C:\work\go1.4" to turn into regular expressions.
     
-    But see also #19519, flakes due to the same assumption on FreeBSD
-    and macOS in package net's own tests.
+    Updates #30228
+    Updates #30241
     
-    This CL rewrites localPipe to try a few times to get a matching pair
-    of connections on the dial and accept side.
-    
-    Fixes #29583.
-    
-    Change-Id: Idb045b18c404eae457f091df20456c5ae879a291
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/184157
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Change-Id: If18b775b2f8b2821eaf197c4be4a322066af839f
+    Reviewed-on: https://go-review.googlesource.com/c/164626
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/crypto/tls/handshake_test.go | 75 ++++++++++++++++++++++++++++++----------
- 1 file changed, 57 insertions(+), 18 deletions(-)
+ src/cmd/go/script_test.go | 166 +++++++++++++++++++++++++++++++---------------
+ 1 file changed, 111 insertions(+), 55 deletions(-)

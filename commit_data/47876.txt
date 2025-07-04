@@ -1,20 +1,19 @@
-commit f300fc2d2c620feac4e7f9b6cf0125b92943d3c4
-Author: Benny Siegert <bsiegert@gmail.com>
-Date:   Thu Jan 6 11:27:57 2022 +0000
+commit 1a8f0a79619bee4b0040888a5703e38f8117d682
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Apr 14 15:40:01 2021 -0400
 
-    runtime: crash on netbsd-arm64 when setcontext fails
+    runtime: fix data race in abi finalizer test
     
-    Instead of exiting with status 16962 when we fail to call SYS_setcontext
-    in sigreturn, reference a null pointer and crash. Hopefully, this will
-    enable grabbing a core dump to debug.
+    Fix a buglet in TestFinalizerRegisterABI that was causing problems
+    when run with GOEXPERIMENT=regabi.
     
-    Updates #42422
+    Updates #40724.
     
-    Change-Id: If02c14a0a37084351f3f00db3dc9766cb68ae4b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/375834
-    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
-    Trust: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: I950c4aa3df69eada23e600f01e6804eb136ce806
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310077
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/sys_netbsd_arm64.s | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/runtime/abi_test.go | 37 +++++++++++++++++++++++++++----------
+ 1 file changed, 27 insertions(+), 10 deletions(-)

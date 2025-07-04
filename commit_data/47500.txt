@@ -1,20 +1,16 @@
-commit 29ec902efc0ae53c4435097efdb738667466756c
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Nov 16 11:46:42 2021 -0500
+commit 87a3ac5f5328ea0a6169cfc44bdb081014fcd3ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 23 15:24:27 2021 -0700
 
-    runtime: get tracking time only when needed
+    cmd/compile: don't let -race override explicit -d=checkptr=0
     
-    casgstatus currently calls nanotime on every casgstatus when tracking,
-    even though the time is only used in some cases. For goroutines making
-    lots of transitions that aren't covered here, this can add a small
-    overhead. Switch to calling nanotime only when necessary.
-    
-    Change-Id: I2617869332e8289ef33dd674d786e44dea09aaba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/364375
-    Trust: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Icfa204761045b72a8ea173fd55eddf1f0e58d819
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304253
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/proc.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/base/flag.go | 10 +++++++++-
+ test/fixedbugs/bug513.go              | 20 ++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

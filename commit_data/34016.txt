@@ -1,21 +1,25 @@
-commit 67fdf587dc5c3ac9f6891c9502d5cfdd1234a37e
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Wed Jan 17 12:13:45 2018 -0800
+commit 8e2d90dca8b5da00bf29cc6076b6b5a80aac7106
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 25 18:54:14 2017 +1000
 
-    cmd/compile: don't combine 64-bit loads/stores on amd64
+    internal/poll: be explicit when using runtime netpoller
     
-    This causes a performance regression for some calls.
+    internal/poll package assumes that only net sockets use runtime
+    netpoller on windows. We get memory corruption if other file
+    handles are passed into runtime poller. Make FD.Init receive
+    and use useNetpoller argument, so FD.Init caller is explicit
+    about using runtime netpoller.
     
-    Fixes #23424.
-    Updates #6853.
+    Fixes #21172
     
-    Change-Id: Id1db652d5aca0ce631a3417c0c056d6637fefa9e
-    Reviewed-on: https://go-review.googlesource.com/88135
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    Change-Id: I60e2bfedf9dda9b341eb7a3e5221035db29f5739
+    Reviewed-on: https://go-review.googlesource.com/65810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/asm_test.go      |  8 ---
- src/cmd/compile/internal/ssa/gen/AMD64.rules | 16 ------
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 76 +---------------------------
- 3 files changed, 1 insertion(+), 99 deletions(-)
+ src/internal/poll/fd_unix.go    | 1 +
+ src/internal/poll/fd_windows.go | 5 +++--
+ src/net/fd_windows.go           | 2 +-
+ src/os/file_windows.go          | 2 +-
+ 4 files changed, 6 insertions(+), 4 deletions(-)

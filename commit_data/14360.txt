@@ -1,24 +1,14 @@
-commit 761830f48196aa1170b5224c1da34f4e20053ebd
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Nov 8 16:07:05 2012 -0500
+commit 6694f14b6787b5e24699beb6bc7bebf01273e152
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 8 09:04:27 2012 -0800
 
-    cmd/gc: fix export of inlined function body with type guard
+    test: run some more tests by default
     
-    When exporting a body containing
-            x, ok := v.(Type)
-    
-    the definition for Type was not being included, so when the body
-    was actually used, it would cause an "unknown type" compiler error.
-    
-    Fixes #4370.
-    
-    R=ken2
+    R=golang-dev, remyoudompheng, iant, rsc
     CC=golang-dev
-    https://golang.org/cl/6827064
+    https://golang.org/cl/6833043
 
- src/cmd/gc/export.c                |  1 +
- test/fixedbugs/issue4370.dir/p1.go | 20 ++++++++++++++++++++
- test/fixedbugs/issue4370.dir/p2.go | 16 ++++++++++++++++
- test/fixedbugs/issue4370.dir/p3.go | 13 +++++++++++++
- test/fixedbugs/issue4370.go        |  9 +++++++++
- 5 files changed, 59 insertions(+)
+ test/args.go | 5 +----
+ test/nul1.go | 8 +-------
+ test/run.go  | 3 ---
+ 3 files changed, 2 insertions(+), 14 deletions(-)

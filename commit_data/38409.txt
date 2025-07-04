@@ -1,27 +1,20 @@
-commit 5402854c3557f87fa2741a52ffc15dfb1ef333cc
-Author: Marcel van Lohuizen <mpvl@golang.org>
-Date:   Wed Mar 13 12:24:54 2019 +0100
+commit 18b84cbd42f4b86cb551b0ccd70154a8bbe30a8a
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Oct 26 10:07:36 2018 +0200
 
-    errors: record only single frame
+    runtime: remove instruction linked with AIX new stack layout
     
-    See Issue #29382 and Issue #30468.
+    This instruction was linked with a new stack layout which might be
+    needed for AIX. This change might not be taken finally. So, this
+    instruction must be removed.
     
-    3 frames are no longer needed as of
-    https://go-review.googlesource.com/c/go/+/152537/
+    See https://go-review.googlesource.com/c/go/+/138733
     
-    name                     old time/op  new time/op  delta
-    New-8                     475ns ± 3%   352ns ± 2%  -25.87%  (p=0.008 n=5+5)
-    Errorf/no_format-8        661ns ± 4%   558ns ± 2%  -15.63%  (p=0.008 n=5+5)
-    Errorf/with_format-8      729ns ± 6%   626ns ± 2%  -14.23%  (p=0.008 n=5+5)
-    Errorf/method:_mytype-8  1.00µs ± 9%  0.84µs ± 2%  -15.94%  (p=0.008 n=5+5)
-    Errorf/method:_number-8  1.25µs ± 7%  1.04µs ± 2%  -16.38%  (p=0.008 n=5+5)
-    
-    Change-Id: I30377e769b3b3be623f63ecbe365f8950ca08dda
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167400
-    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Change-Id: Ic4a2566e2882696b437eb817d980b7c4bfc03b18
+    Reviewed-on: https://go-review.googlesource.com/c/144957
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/errors/frame.go      | 15 +++------------
- src/errors/frame_test.go | 31 +++++++++++++++++++++++++++----
- 2 files changed, 30 insertions(+), 16 deletions(-)
+ src/runtime/asm_ppc64x.s | 3 ---
+ 1 file changed, 3 deletions(-)

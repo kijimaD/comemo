@@ -1,28 +1,18 @@
-commit 14bdcc76fd9aa3edda64ef07a526fbeeed8b4326
-Author: Keith Randall <khr@google.com>
-Date:   Fri Dec 28 12:43:48 2018 -0800
+commit 225981f8e78b6755bbe34c2e5d035a534ed1b25d
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Aug 29 03:24:13 2018 +0000
 
-    cmd/compile: fix racewalk{enter,exit} removal
+    syscall: skip an unsupported test case on android
     
-    We can't remove race instrumentation unless there are no calls,
-    not just no static calls. Closure and interface calls also count.
+    Lookup is not supported on android, and the test
+    syscall/exec_linux_test.go which relies on it will fail on
+    android/arm64.
     
-    The problem in issue 29329 is that there was a racefuncenter, an
-    InterCall, and a racefuncexit.  The racefuncenter was removed, then
-    the InterCall was rewritten to a StaticCall. That prevented the
-    racefuncexit from being removed. That caused an imbalance in
-    racefuncenter/racefuncexit calls, which made the race detector barf.
+    Fixes #27327
     
-    Bug introduced at CL 121235
-    
-    Fixes #29329
-    
-    Change-Id: I2c94ac6cf918dd910b74b2a0de5dc2480d236f16
-    Reviewed-on: https://go-review.googlesource.com/c/155917
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I6fdb8992d4634ac7e3689360ff114e9431b5e90c
+    Reviewed-on: https://go-review.googlesource.com/131995
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go |   6 +-
- test/fixedbugs/issue29329.go            | 106 ++++++++++++++++++++++++++++++++
- 2 files changed, 111 insertions(+), 1 deletion(-)
+ src/syscall/exec_linux_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

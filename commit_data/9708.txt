@@ -1,25 +1,16 @@
-commit 96f9e8837ef884393b994ad8762073a828c5ee15
-Author: Mike Samuel <mikesamuel@gmail.com>
-Date:   Thu Sep 15 19:05:33 2011 -0700
+commit 642d272c3cdaea58decce1a9cf6e9668b1b16f67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 15 16:47:01 2011 -0700
 
-    exp/template/html: moved error docs out of package docs onto error codes
+    godoc: remove dependency of syscall
     
-    This replaces the errStr & errLine members of context with a single err
-    *Error, and introduces a number of const error codes, one per
-    escape-time failure mode, that can be separately documented.
+    On app-engine, we cannot import syscall.
+    The respective constants are already defined
+    elsewhere for the same reason.
     
-    The changes to the error documentation moved from doc.go to error.go
-    are cosmetic.
-    
-    R=r, nigeltao
+    R=r, dsymonds
     CC=golang-dev
-    https://golang.org/cl/5026041
+    https://golang.org/cl/5036042
 
- src/pkg/exp/template/html/Makefile       |   1 +
- src/pkg/exp/template/html/context.go     |   6 +-
- src/pkg/exp/template/html/doc.go         | 174 +--------------------------
- src/pkg/exp/template/html/error.go       | 194 +++++++++++++++++++++++++++++++
- src/pkg/exp/template/html/escape.go      |  35 +++---
- src/pkg/exp/template/html/escape_test.go |  10 +-
- src/pkg/exp/template/html/transition.go  |  33 +++---
- 7 files changed, 235 insertions(+), 218 deletions(-)
+ src/cmd/godoc/godoc.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

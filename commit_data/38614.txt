@@ -1,85 +1,37 @@
-commit 4091cf972a37418c847426bd15709cd0128fad81
-Author: Segev Finer <segev208@gmail.com>
-Date:   Fri Mar 29 09:35:06 2019 +0000
+commit 6dd70fc5e391eb7a47be5eb6353107f38b73f161
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Oct 11 12:46:14 2018 +0200
 
-    cmd/doc: correctly indent pre-formatted blocks
+    all: add support for synchronous callbacks to js/wasm
     
-    They were previously indented at the same level as the normal text when
-    printing a single symbol or the description of a field.
+    With this change, callbacks returned by syscall/js.NewCallback
+    get executed synchronously. This is necessary for the APIs of
+    many JavaScript libraries.
     
-    Running "go doc text/template Must":
-    Before:
-        func Must(t *Template, err error) *Template
-            Must is a helper that wraps a call to a function returning (*Template,
-            error) and panics if the error is non-nil. It is intended for use in
-            variable initializations such as
+    A callback triggered during a call from Go to JavaScript gets executed
+    on the same goroutine. A callback triggered by JavaScript's event loop
+    gets executed on an extra goroutine.
     
-            var t = template.Must(template.New("name").Parse("text"))
+    Fixes #26045
+    Fixes #27441
     
-    After:
-        func Must(t *Template, err error) *Template
-            Must is a helper that wraps a call to a function returning (*Template,
-            error) and panics if the error is non-nil. It is intended for use in
-            variable initializations such as
-    
-                var t = template.Must(template.New("name").Parse("text"))
-    
-    Running "go doc http Request.Header":
-    Before:
-        type Request struct {
-            // Header contains the request header fields either received
-            // by the server or to be sent by the client.
-            //
-            // If a server received a request with header lines,
-            //
-            // Host: example.com
-            // accept-encoding: gzip, deflate
-            // Accept-Language: en-us
-            // fOO: Bar
-            // foo: two
-            //
-            // then
-            //
-            // Header = map[string][]string{
-            // "Accept-Encoding": {"gzip, deflate"},
-            // "Accept-Language": {"en-us"},
-            // "Foo": {"Bar", "two"},
-            // }
-            ...
-    
-    After:
-        type Request struct {
-            // Header contains the request header fields either received by the server or
-            // to be sent by the client.
-            //
-            // If a server received a request with header lines,
-            //
-            //     Host: example.com
-            //     accept-encoding: gzip, deflate
-            //     Accept-Language: en-us
-            //     fOO: Bar
-            //     foo: two
-            //
-            // then
-            //
-            //     Header = map[string][]string{
-            //          "Accept-Encoding": {"gzip, deflate"},
-            //          "Accept-Language": {"en-us"},
-            //          "Foo": {"Bar", "two"},
-            //     }
-            ...
-    
-    Fixes #29708
-    
-    Change-Id: Ibe1a6a7a76d6b19c5737ba6e8210e3ad0b88ce16
-    GitHub-Last-Rev: 439c0fe70a01490cbd9c3613eba3fe45a3ffd9be
-    GitHub-Pull-Request: golang/go#31120
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/169957
-    Run-TryBot: Rob Pike <r@golang.org>
+    Change-Id: I591b9e85ab851cef0c746c18eba95fb02ea9e85b
+    Reviewed-on: https://go-review.googlesource.com/c/142004
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/doc/doc_test.go     | 31 +++++++++++++++++++++++++++++++
- src/cmd/doc/pkg.go          | 12 +++++++++---
- src/cmd/doc/testdata/pkg.go | 22 ++++++++++++++++++++++
- 3 files changed, 62 insertions(+), 3 deletions(-)
+ misc/wasm/wasm_exec.js               |  82 ++++++++++++-----------
+ src/cmd/internal/obj/wasm/a.out.go   |   2 +-
+ src/cmd/internal/obj/wasm/wasmobj.go |  24 +++----
+ src/cmd/link/internal/wasm/asm.go    |  28 ++++----
+ src/net/http/roundtrip_js.go         |  21 ++++--
+ src/runtime/lock_futex.go            |   2 +-
+ src/runtime/lock_js.go               |  67 ++++++++++++-------
+ src/runtime/lock_sema.go             |   2 +-
+ src/runtime/proc.go                  |   8 +--
+ src/runtime/rt0_js_wasm.s            | 122 ++++++++++++++++++++---------------
+ src/syscall/fs_js.go                 |   5 +-
+ src/syscall/js/callback.go           | 116 ++++++++++++---------------------
+ src/syscall/js/js_test.go            |  44 ++++++-------
+ 13 files changed, 270 insertions(+), 253 deletions(-)

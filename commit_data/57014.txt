@@ -1,17 +1,26 @@
-commit 950fcf129ecc75e6311d3aaf555e7b8add3248cb
-Author: limeidan <limeidan@loongson.cn>
-Date:   Thu Jan 18 10:41:09 2024 +0800
+commit fd13444b2b4bf1ce6b05980b1b139402048f0363
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 6 13:34:39 2023 -0700
 
-    cmd/internal/obj: add stmt prologueEnd to DWARF for loong64
+    go/types: fix method set computation if receiver is a named pointer
     
-    Change-Id: Ib477b2402e32ebb3c7623caf4e9d62f3afdee92f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/556615
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Per the spec, methods cannot be associated with a named pointer type.
+    Exit early with an empty method set in this case.
+    
+    This matches the corresponding check in LookupFieldOrMethod;
+    the check is not present in (lowercase) lookupFieldOrMethod
+    because it (the check) doesn't apply to struct fields.
+    
+    Fixes #60634.
+    
+    Change-Id: Ica6ca8be6b850ea0da6f0b441fbf5b99cb0b6b17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501299
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/cmd/internal/obj/loong64/obj.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/go/types/methodset.go      |  8 ++++++++
+ src/go/types/methodset_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)

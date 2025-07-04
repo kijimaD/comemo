@@ -1,21 +1,21 @@
-commit 4b17b36b3f0ea85728d8690c93a6483764804441
-Author: Michael Pratt <mpratt@google.com>
-Date:   Tue Sep 12 14:23:15 2023 -0400
+commit 44563340cc6b6e3b8b1bf8f510dad9ee3f075633
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Oct 7 12:19:32 2022 +0800
 
-    cmd/compile/internal/devirtualize: sort equal weight CallStat.Hottest by name
+    cmd/compile: move {SHL,SHR,SAR}X rules to late lower pass
     
-    When two callees have equal weight, we need to sort by another criteria
-    to ensure that we get stable output.
+    This can reduce a bunch of rules.
     
-    Note that this is only for the CallStat debug JSON output. The actual
-    callee selection already does this secondary sort in
-    findHotConcreteCallee.
-    
-    Change-Id: I0de105623c5ccc793ca6f5799ea25e57bc286722
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527796
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: Id7d644307c295a0ed16eb837b3755d1117a4fbf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440036
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/devirtualize/pgo.go | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules      |   68 +-
+ .../compile/internal/ssa/_gen/AMD64latelower.rules |    5 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 2052 ++------------------
+ .../compile/internal/ssa/rewriteAMD64latelower.go  |  122 ++
+ 4 files changed, 281 insertions(+), 1966 deletions(-)

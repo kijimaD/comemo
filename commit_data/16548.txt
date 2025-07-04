@@ -1,14 +1,14 @@
-commit da634dd703a10bde7a923075241fcd43048d529b
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed Jun 12 19:40:58 2013 +0800
+commit bc7e26621e12796ca9284e3fc3b4d91761c221c6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 11 20:47:35 2013 -0700
 
-    cmd/go: clarify test filenames in help messages
-    Fixes #5655.
+    cmd/go: use -o option of cover tool
+    Separates correct from erroneous output so errors running the tool will appear
+    in the log.
     
-    R=golang-dev, r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/9944044
+    https://golang.org/cl/10191043
 
- src/cmd/go/doc.go  | 4 ++--
- src/cmd/go/test.go | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/go/build.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

@@ -1,17 +1,19 @@
-commit f78cd569f52d5c44792f932ebbd01a71231f38b2
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Sun Jan 1 21:51:41 2017 -0800
+commit ca28620db9392d5aa1002256e41bd066f0cc6377
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 16 11:13:37 2016 -0700
 
-    cmd/link: don't suggest using nm to find -X name
+    cmd/go: use normal code 2 for 'no such tool'
     
-    It doesn't work if the package name includes a '.' or a non-ASCII
-    character (or '%', '"', or a control character).  See #16710 and CL 31970.
+    Exit code 3 is unprecedented and inconsistent with other failures here,
+    such as having no tool directory.
     
-    Update #18246.
+    Fixes #17145
     
-    Change-Id: I1487f462a3dc7b0016fce3aa1ea6239b226e6e39
-    Reviewed-on: https://go-review.googlesource.com/34791
+    Change-Id: Ie7ed56494d4511a600214666ce3a726d63a8fd8e
+    Reviewed-on: https://go-review.googlesource.com/31253
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/doc.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/go/tool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

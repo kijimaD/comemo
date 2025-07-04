@@ -1,18 +1,35 @@
-commit 1d96895ccbea79daa9d6538bf9da6a4dd197336b
-Author: apocelipes <seve3r@outlook.com>
-Date:   Thu Mar 14 10:41:08 2024 +0000
+commit abf9b112fd12e05da2d064554d51d140c2871741
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 22 11:59:39 2023 -0700
 
-    net/netip: use built-in clear to simplify code
+    go/types, types2: more systematic use of Checker.use und useLHS
     
-    Change-Id: Ic7b390935df107c5b7f53f9347a52031eac8a897
-    GitHub-Last-Rev: a7194571e1c2f90537f1caa8a3b5bcd60cea60be
-    GitHub-Pull-Request: golang/go#66310
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/571635
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This CL re-introduces useLHS because we don't want to suppress
+    correct "declared but not used" errors for variables that only
+    appear on the LHS of an assignment (using Checker.use would mark
+    them as used).
+    
+    This CL also adjusts a couple of places where types2 differed
+    from go/types (and suppressed valid "declared and not used"
+    errors). Now those errors are surfaced. Adjusted a handful of
+    tests accordingly.
+    
+    Change-Id: Ia555139a05049887aeeec9e5221b1f41432c1a57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478635
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
 
- src/net/netip/netip.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/assignments.go | 30 ++----------
+ src/cmd/compile/internal/types2/call.go        | 68 +++++++++++++++++++-------
+ src/go/types/assignments.go                    |  6 +--
+ src/go/types/call.go                           | 60 +++++++++++++++++------
+ test/fixedbugs/bug062.go                       |  2 +-
+ test/fixedbugs/bug131.go                       |  2 +-
+ test/fixedbugs/bug289.go                       |  2 +
+ test/fixedbugs/issue48471.go                   |  2 +-
+ test/fixedbugs/issue9083.go                    |  1 +
+ test/interface/pointer.go                      |  4 +-
+ 10 files changed, 111 insertions(+), 66 deletions(-)

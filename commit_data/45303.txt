@@ -1,28 +1,26 @@
-commit cfac62a1cc021cae55c9c5e373ebe9c408b75a5d
-Author: Than McIntosh <thanm@google.com>
-Date:   Thu Apr 22 18:34:57 2021 -0400
+commit 06839e3c9a014da580c2cdcd11263e2b08991b74
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 17 14:00:35 2020 -0400
 
-    cmd/compile: fix bug in defer wrapping
+    cmd/link: run generator functions along with symbol writing
     
-    The defer wrapping feature added to the compiler's "order" phase
-    creates temporaries into which it copies defer arguments. If one of
-    these temps is large enough that we place it into the defer closure by
-    address (as opposed to by value), then the temp in question can't be
-    reused later on in the order phase, nor do we want a VARKILL
-    annotation for it at the end of the current block scope.
+    Like we do for applying relocations, for generator symbols, run
+    the generator function along with symbol writing. This will
+    probably have better locality and parallelism.
     
-    Test written by Cherry.
+    Linking cmd/compile,
     
-    Updates #40724.
+    Asmb          29.9ms ± 5%    19.1ms ±12%  -36.18%  (p=0.000 n=10+9)
+    TotalTime      351ms ± 3%     339ms ± 2%   -3.51%  (p=0.000 n=11+10)
     
-    Change-Id: Iec7efd87ec5a3e3d7de41cdcc7f39c093ed1e815
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312869
-    Trust: Than McIntosh <thanm@google.com>
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: I9cda6718bf70b3bcf1b7a501a845d6136234d2ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263640
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/walk/order.go | 20 +++++++++++++++---
- test/abi/wrapdefer_largetmp.go         | 37 ++++++++++++++++++++++++++++++++++
- test/abi/wrapdefer_largetmp.out        |  1 +
- 3 files changed, 55 insertions(+), 3 deletions(-)
+ src/cmd/link/internal/ld/data.go |  3 +++
+ src/cmd/link/internal/ld/main.go | 12 ------------
+ 2 files changed, 3 insertions(+), 12 deletions(-)

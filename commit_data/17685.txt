@@ -1,14 +1,13 @@
-commit 2d2ae53119f9920bb50066e04c241c59ac776747
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Sep 24 10:49:54 2013 +1000
+commit 39361170d40a8d846d5065a614bd5a722a6aceb4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Sep 23 14:15:20 2013 -0700
 
-    reflect: update docs; Interface can return a method value
+    misc/pprof: support block profile
+    Fixes #6347.
     
-    Fixes #6460.
-    
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/13761046
+    https://golang.org/cl/13845044
 
- src/pkg/reflect/value.go | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ misc/pprof | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

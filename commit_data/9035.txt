@@ -1,12 +1,15 @@
-commit f340b3de5a19c310aa38abc6f474c366a7b7d89b
-Author: Wei Guangjing <vcc.163@gmail.com>
-Date:   Tue Jul 12 11:29:38 2011 -0700
+commit 67edf9cb87847c88224c43206d7eccf65ac18acd
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Jul 12 11:12:06 2011 -0700
 
-    debug/pe: fixes ImportedSymbols for Win64.
+    gc: make size of struct{} and [0]byte 0 bytes
     
-    R=golang-dev, alex.brainman
+    Fixes #1949.
+    
+    R=iant, rsc
     CC=golang-dev
-    https://golang.org/cl/4639086
+    https://golang.org/cl/4634124
 
- src/pkg/debug/pe/file.go | 37 ++++++++++++++++++++++++++-----------
- 1 file changed, 26 insertions(+), 11 deletions(-)
+ src/cmd/gc/align.c | 27 ++++++++-------------------
+ src/cmd/gc/pgen.c  |  2 +-
+ 2 files changed, 9 insertions(+), 20 deletions(-)

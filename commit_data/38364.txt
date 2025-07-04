@@ -1,20 +1,24 @@
-commit d6891bd480b664afe4e2f4a0a0a72324943859f3
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Tue Mar 12 09:25:46 2019 -0400
+commit 9a7e70e34f98a8eea5d18083634b6e908b23e619
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 18 14:43:51 2018 -0400
 
-    cmd/go: search the target for patterns when -mod=vendor is set
+    cmd/compile: schedule OpArg earlier in blocks for better debugging
     
-    This fixes the root cause of the bootstrap failure reported in
-    https://groups.google.com/d/msg/golang-dev/xcVJDj5GJ84/U0pVnUOnBwAJ.
+    The location list for OpArg starts where the OpArg appears;
+    this is not necessarily as soon as the OpArg coulde be
+    observed, and it is reasonable for a user to expect that
+    if a breakpoint is set "on f" then the arguments to f will
+    be observable where that breakpoint happens to be set (this
+    may also require setting the breakpoint after the prologue,
+    but that is another issue).
     
-    Updates #30228
-    
-    Change-Id: I9ce0898922a5aac1f61ceff30319cf88031676c4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/167079
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I0a1b848e50f475e5d8a5fad781241126872a0400
+    Reviewed-on: https://go-review.googlesource.com/c/142819
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/internal/modload/search.go           | 9 ++++++++-
- src/cmd/go/testdata/script/mod_vendor_build.txt | 4 ++++
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/ssa/schedule.go | 4 ++++
+ 1 file changed, 4 insertions(+)

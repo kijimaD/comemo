@@ -1,17 +1,18 @@
-commit 98b6410f1368567b9177d168c823296fd7b648b0
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Jun 2 11:45:00 2014 +0900
+commit 9f2dfb856e89a8847ff2b1fc6ad95917093f3e28
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 1 18:53:59 2014 -0400
 
-    api: add go1.3.txt
+    cmd/objdump: add arm disassembler
     
-    Update #8112
+    Fixes #7452.
     
-    LGTM=adg
-    R=adg
+    LGTM=minux, iant
+    R=minux, iant
     CC=golang-codereviews
-    https://golang.org/cl/104790045
+    https://golang.org/cl/104770046
 
- api/go1.3.txt      | 2053 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- api/next.txt       | 2053 ----------------------------------------------------
- src/cmd/api/run.go |    2 +-
- 3 files changed, 2054 insertions(+), 2054 deletions(-)
+ src/cmd/objdump/Makefile        |     5 +
+ src/cmd/objdump/armasm.go       | 10821 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/objdump/main.go         |    56 +-
+ src/cmd/objdump/objdump_test.go |     3 +-
+ 4 files changed, 10868 insertions(+), 17 deletions(-)

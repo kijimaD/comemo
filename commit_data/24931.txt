@@ -1,20 +1,15 @@
-commit babdb3832072b6ca55e2dfe071bac25d865f8911
-Author: Caleb Spare <cespare@gmail.com>
-Date:   Tue Oct 20 00:35:42 2015 -0700
+commit adba6c4fdf8c9d2078a88a016924e80fd23cb39c
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Sep 8 07:50:25 2015 -0400
 
-    net/http: detect when an HTTPS client contacts an HTTP server
+    [dev.ssa] cmd/compile/internal/ssa: treat -0.0 literal as 0.0
     
-    Inspect the crypto/tls error to recognize this case and give a more
-    helpful error.
+    This matches existing behavior, see issue #2196
     
-    Fixes #11111.
-    
-    Change-Id: I63f6af8c375aa892326ccccbd29655d54d68df0b
-    Reviewed-on: https://go-review.googlesource.com/16079
-    Run-TryBot: Caleb Spare <cespare@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ifa9359b7c821115389f337a57de355c5ec23be8f
+    Reviewed-on: https://go-review.googlesource.com/14261
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/net/http/client.go      |  9 +++++++++
- src/net/http/client_test.go | 14 ++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/cmd/compile/internal/gc/ssa.go | 16 ++++++++++------
+ test/run.go                        |  8 +-------
+ 2 files changed, 11 insertions(+), 13 deletions(-)

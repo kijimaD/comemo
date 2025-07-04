@@ -1,22 +1,21 @@
-commit d5a8c58170410071462f5af01c4979757b3b63d4
+commit 6c4645cffe6659580ddda68ee1fa032ff0c44886
 Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Tue Sep 11 08:56:28 2012 +0900
+Date:   Tue Sep 11 07:37:43 2012 +0900
 
-    net: delete unused IP-level socket option helpers
+    net: rename files to clarify platform dependency
     
-    R=rsc, dave
-    CC=bradfitz, gobot, golang-dev
-    https://golang.org/cl/6497044
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6489056
 
- src/pkg/net/multicast_posix_test.go |  65 ---------------
- src/pkg/net/sockoptip_bsd.go        |  36 ++-------
- src/pkg/net/sockoptip_darwin.go     |  90 ---------------------
- src/pkg/net/sockoptip_freebsd.go    |  92 ---------------------
- src/pkg/net/sockoptip_linux.go      | 101 -----------------------
- src/pkg/net/sockoptip_netbsd.go     |  90 ---------------------
- src/pkg/net/sockoptip_openbsd.go    |  90 ---------------------
- src/pkg/net/sockoptip_posix.go      | 156 ++----------------------------------
- src/pkg/net/sockoptip_windows.go    |  61 ++------------
- src/pkg/net/udpsock_posix.go        |  16 ----
- src/pkg/net/unicast_posix_test.go   |  52 ------------
- 11 files changed, 19 insertions(+), 830 deletions(-)
+ src/pkg/net/{dnsconfig.go => dnsconfig_unix.go}            | 0
+ src/pkg/net/{fd.go => fd_unix.go}                          | 0
+ src/pkg/net/{file.go => file_unix.go}                      | 0
+ src/pkg/net/{doc.go => lookup.go}                          | 0
+ src/pkg/net/{multicast_test.go => multicast_posix_test.go} | 0
+ src/pkg/net/{newpollserver.go => newpollserver_unix.go}    | 0
+ src/pkg/net/{sock.go => sock_posix.go}                     | 0
+ src/pkg/net/{sockopt.go => sockopt_posix.go}               | 0
+ src/pkg/net/{sockoptip.go => sockoptip_posix.go}           | 0
+ src/pkg/net/{unicast_test.go => unicast_posix_test.go}     | 0
+ 10 files changed, 0 insertions(+), 0 deletions(-)

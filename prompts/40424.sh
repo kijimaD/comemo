@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40424: dcad830621abe2856e4540e4b9afbb7873f939ee
+# Index 40424: 2fd97ee25e8a623e460aff26b4c422dec9532654
 
 echo "🚀 Generating explanation for commit 40424..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 40424
-- **コミットハッシュ**: dcad830621abe2856e4540e4b9afbb7873f939ee
-- **GitHub URL**: https://github.com/golang/go/commit/dcad830621abe2856e4540e4b9afbb7873f939ee
+- **コミットハッシュ**: 2fd97ee25e8a623e460aff26b4c422dec9532654
+- **GitHub URL**: https://github.com/golang/go/commit/2fd97ee25e8a623e460aff26b4c422dec9532654
 
 ### 章構成
 

@@ -1,17 +1,12 @@
-commit 1fe4c81282f22b5ac9ba25e7972109255e173b04
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Sep 11 12:16:11 2016 -0700
+commit 8f48efb31c7cdddeec7d4221174254466b0891dd
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Fri May 13 02:05:48 2016 +0530
 
-    cmd/compile: don't crash on complex(0())
+    fmt: remove extra space in too few arguments example
     
-    Fixes #17038.
-    
-    Change-Id: Iaf6294361050040830af1d60cd48f263223d9356
-    Reviewed-on: https://go-review.googlesource.com/28966
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Iae4855c52c4da9755277251d22121226507ea26a
+    Reviewed-on: https://go-review.googlesource.com/23074
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go | 4 ++++
- test/fixedbugs/issue17038.go             | 9 +++++++++
- 2 files changed, 13 insertions(+)
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

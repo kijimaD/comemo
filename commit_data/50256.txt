@@ -1,21 +1,27 @@
-commit 4e32472e79e393675ba8489968539db5dc0ab650
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 31 14:23:07 2022 -0700
+commit 3d051ba8d40a8c2e2b02c0a96cf0c47b1a9c469b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 17 21:29:54 2020 -0400
 
-    go/parser: match syntax parser error for unnamed type parameters
+    cmd/dist: run a checkNotStale on the builders before running tests
     
-    For #54511.
+    This should be a no-op, but if the sharded builders are for some
+    reason distributing stale snapshots — or testing them with mismatched
+    environments — this should catch them out at a relatively low cost
+    (#24300 notwithstanding).
     
-    Change-Id: I1ae391b5f157bf688f9f31b1577c90e681b6df26
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/426655
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Given the frequently at which (*tester).runPending already checks for
+    staleness, we do not expect the impact of this extra check to be
+    significant for most builders.
+    
+    For #33598
+    Updates #24300
+    
+    Change-Id: I197d6a69c72e2eec9e4563b459206de76c89e8a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223755
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/go/parser/parser.go               | 4 ++--
- src/go/parser/short_test.go           | 5 ++---
- src/go/parser/testdata/issue49175.go2 | 2 +-
- src/go/parser/testdata/tparams.go2    | 8 ++++----
- 4 files changed, 9 insertions(+), 10 deletions(-)
+ src/cmd/dist/test.go | 50 +++++++++++++++++++++++++++++---------------------
+ 1 file changed, 29 insertions(+), 21 deletions(-)

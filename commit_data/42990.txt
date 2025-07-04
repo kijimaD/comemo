@@ -1,21 +1,16 @@
-commit 8248b5791cd825f80c55e972c1e96c6fadf5885e
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Mon Sep 14 15:56:59 2020 -0400
+commit 964fac3ee74fe4df5423dad18f78322d88aae84a
+Author: Felix Cornelius <9767036+fcornelius@users.noreply.github.com>
+Date:   Fri Feb 28 20:15:02 2020 +0000
 
-    cmd/go/internal/modget: factor out functions for argument resolution
+    doc: update Effective Go with 1.14 language changes
     
-    For #37438
-    For #41315
-    For #36460
+    Fixes #37560
     
-    Change-Id: I17041c35ec91ff6ffb547e0f32572673d191b1ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/254820
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Jay Conrod <jayconrod@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: Iccb8e53254c45d203c1b42ea9b4d8509b93dd7a9
+    GitHub-Last-Rev: 5972b67e5d7b3b36ce1854ee9365197e78f654cd
+    GitHub-Pull-Request: golang/go#37563
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221429
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/go/internal/modget/get.go | 340 +++++++++++++++++++++-----------------
- 1 file changed, 184 insertions(+), 156 deletions(-)
+ doc/effective_go.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

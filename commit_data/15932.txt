@@ -1,15 +1,23 @@
-commit cb807e7b4a3c6291f16507ee9a31a303f411ddba
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Mar 25 17:46:11 2013 -0400
+commit 4cb921bbf1f5d7d161e45e362be1cce35b73fc8b
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Mar 25 14:10:28 2013 -0700
 
-    runtime: delete mkasmh.sh
+    runtime: store asmcgocall return PC where the ARM unwind expects it
     
-    This functionality moved into cmd/dist for Go 1.0.
-    Changes to this script have no effect.
+    The ARM implementation of runtime.cgocallback_gofunc diverged
+    from the calling convention by leaving a word of garbage at
+    the top of the stack and storing the return PC above the
+    locals.  This change stores the return PC at the top of the
+    stack and removes the save area above the locals.
     
-    R=golang-dev, r
+    Update #5124
+    This CL fixes first part of the ARM issues and added the unwind test.
+    
+    R=golang-dev, bradfitz, minux.ma, cshapiro, rsc
     CC=golang-dev
-    https://golang.org/cl/8020043
+    https://golang.org/cl/7728045
 
- src/pkg/runtime/mkasmh.sh | 138 ----------------------------------------------
- 1 file changed, 138 deletions(-)
+ misc/cgo/test/callback.go | 50 +++++++++++++++++++++++++++++++++++++++++++++++
+ misc/cgo/test/cgo_test.go |  1 +
+ src/pkg/runtime/asm_arm.s | 26 +++++++++++-------------
+ 3 files changed, 62 insertions(+), 15 deletions(-)

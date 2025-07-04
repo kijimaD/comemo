@@ -1,16 +1,17 @@
-commit 7ac20853fc3437647c4abfc3236e5c380bf5e68d
-Author: Anthony Martin <ality@pbrane.org>
-Date:   Wed Apr 10 18:47:58 2013 -0700
+commit d06313e8cebb5d956f2b5e8c74f8c495808b2275
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 10 13:39:20 2013 -0700
 
-    cmd/ld: fix scope of static objects in symbol table
+    go/ast: distinguish between methods and functions in filtering
     
-    All symbols are currently marked with global scope.
-    The correct behavior was lost when the symbol table
-    format was changed.
+    Go1.1 harmless, but not critical.
     
-    R=golang-dev, iant, r
+    Fixes #5249.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/8625043
+    https://golang.org/cl/8609043
 
- src/cmd/ld/symtab.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/go/ast/filter.go      | 25 ++++++++++++-
+ src/pkg/go/ast/filter_test.go | 86 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 109 insertions(+), 2 deletions(-)

@@ -1,14 +1,14 @@
-commit 99922aba8bca811f28f0d8e7beed4a0801a82c1c
+commit 5290e551641842151e3c86d65f42a97af2d95f9d
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Jun 10 09:16:06 2013 +0400
+Date:   Sun Jun 9 21:39:47 2013 +0400
 
-    runtime: use persistentalloc instead of SysAlloc in GC
+    runtime: use persistentalloc instead of SysAlloc in netpoll
     Especially important for Windows because it reserves VM
     only in multiple of 64k.
     
-    R=golang-dev, alex.brainman
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10082048
+    https://golang.org/cl/10138043
 
- src/pkg/runtime/mgc0.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/pkg/runtime/netpoll.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

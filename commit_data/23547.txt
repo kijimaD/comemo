@@ -1,15 +1,18 @@
-commit fac7b86a9bda829147da72ad61c7b66b58781ed8
-Author: Dmitry Savintsev <dsavints@gmail.com>
-Date:   Mon Jun 29 13:09:06 2015 +0200
+commit 1893d3b320887daeb0a088dc3067c45dd87d9d5b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 22 15:21:56 2015 -0700
 
-    encoding/binary: update protobuf documentation link
+    cmd/compile/internal/big: update and apply vendor.bash
     
-    Updated the protobuf documentation URL (code.google.com deprecated)
-    to avoid a redirect.
+    Package-external tests must use the vendored math/big package, not
+    the original one, otherwise tests may fail if there are discrepancies
+    in the implementation.
     
-    Change-Id: I134f6e4a2bf2bba699942883bf6347bc61700bcb
-    Reviewed-on: https://go-review.googlesource.com/11634
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic5f0489aa6420ffea1f488633453f871ce1f0f66
+    Reviewed-on: https://go-review.googlesource.com/10380
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/encoding/binary/binary.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/big/example_test.go      | 2 +-
+ src/cmd/compile/internal/big/floatexample_test.go | 2 +-
+ src/cmd/compile/internal/big/vendor.bash          | 8 +++++++-
+ 3 files changed, 9 insertions(+), 3 deletions(-)

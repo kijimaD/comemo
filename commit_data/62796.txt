@@ -1,0 +1,18 @@
+commit 56fad21c22ece03a3f1f059fa67d7593278eb5f4
+Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
+Date:   Fri Apr 11 20:14:04 2025 +0000
+
+    cmd/compile/internal/ssa: small cleanups
+    
+    Change-Id: I0420fb3956577c56fa24a31929331d526d480556
+    GitHub-Last-Rev: d74b0d4d75d4e432aaf84d02964da4a2e12d0e1b
+    GitHub-Pull-Request: golang/go#73339
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664975
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

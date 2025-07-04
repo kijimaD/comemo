@@ -1,32 +1,19 @@
-commit 326a7925179ea669aa9f947dda82e425673cb220
-Author: Joel Sing <joel@sing.id.au>
-Date:   Mon May 10 03:16:28 2021 +1000
+commit 8414b1a5a40e5ef19508e4895b4c12a91fa498e7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 21 20:43:16 2020 -0400
 
-    runtime,syscall: simplify openbsd related build tags
+    runtime: remove go115ReduceLiveness and go115RestartSeq
     
-    openbsd/mips64 is now the only openbsd port that uses non-libc syscall - revise
-    build tags to reflect this.
+    Make them always true. Delete code that are only executed when
+    they are false.
     
-    Update #36435
-    
-    Change-Id: I357b2dd2926d058e25e618fcca42c388587598a8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/317919
-    Trust: Joel Sing <joel@sing.id.au>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I6194fa00de23486c2b0a0c9075fe3a09d9c52762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264339
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/os_openbsd_libc.go      | 4 ++--
- src/runtime/os_openbsd_syscall.go   | 4 ++--
- src/runtime/os_openbsd_syscall1.go  | 4 ++--
- src/runtime/os_openbsd_syscall2.go  | 4 ++--
- src/runtime/sys_libc.go             | 4 ++--
- src/runtime/sys_openbsd.go          | 4 ++--
- src/runtime/sys_openbsd1.go         | 4 ++--
- src/runtime/sys_openbsd2.go         | 4 ++--
- src/runtime/sys_openbsd3.go         | 4 ++--
- src/syscall/exec_bsd.go             | 4 ++--
- src/syscall/exec_libc2.go           | 4 ++--
- src/syscall/syscall_openbsd1.go     | 4 ++--
- src/syscall/syscall_openbsd_libc.go | 4 ++--
- 13 files changed, 26 insertions(+), 26 deletions(-)
+ src/runtime/debugcall.go | 34 +++++++----------------------
+ src/runtime/funcdata.h   |  3 +--
+ src/runtime/preempt.go   | 57 ++++++++++++++----------------------------------
+ src/runtime/symtab.go    |  7 +-----
+ 4 files changed, 26 insertions(+), 75 deletions(-)

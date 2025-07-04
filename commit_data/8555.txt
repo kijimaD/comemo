@@ -1,12 +1,26 @@
-commit 6216307e25d00bfd5ca18b8dacbb6ac85f2b9d6a
+commit 2261021be1b7ecc0c0fbd4a62250e2dfe5b81eb5
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 31 14:41:24 2011 -0400
+Date:   Tue May 31 14:24:21 2011 -0400
 
-    misc/cgo: remove reference to 'destroy' function
+    undo CL 4515163 / 42c3cfa4d64f
     
-    R=golang-dev, gri
+    breaks Mac build
+    
+    ««« original CL description
+    runtime: use HOST_CC to compile mkversion
+    
+    HOST_CC is set in Make.inc, so use that rather
+    than hardcoding quietgcc
+    
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/4558042
+    https://golang.org/cl/4515163
+    
+    »»»
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/4515168
 
- misc/cgo/gmp/gmp.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/runtime/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,14 +1,16 @@
-commit 9bbf1e1b725e12e207e6791da9d84f1f647df1d6
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Aug 14 21:20:11 2013 +0400
+commit 308a3e6c522928a5787a54b122bfba18856a3347
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 12:57:05 2013 -0400
 
-    net: make TestDeadlineRace shorter
-    1. Do less iterations in short mode
-    2. Bound number of times SetDeadline is executed
+    cmd/dist: fix darwin build
     
-    R=golang-dev, rsc
+    The TLS block on Darwin is not the same as on ELF.
+    
+    TBR=elias.naur
     CC=golang-dev
-    https://golang.org/cl/12937043
+    https://golang.org/cl/12741044
 
- src/pkg/net/timeout_test.go | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/cmd/dist/buildruntime.c | 13 ++++++-------
+ src/cmd/ld/data.c           |  2 +-
+ src/cmd/ld/lib.c            |  7 ++++---
+ 3 files changed, 11 insertions(+), 11 deletions(-)

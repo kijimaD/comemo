@@ -1,26 +1,19 @@
-commit 59037ac93a49889eb6a7d6b3b8fbc70321615f1f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 9 04:05:35 2023 -0700
+commit a813be86df74bf2a9c5b272c0b0934d196ac665d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 9 18:43:08 2022 -0400
 
-    cmd/compile: move early deadcode into unified writer
+    cmd/compile: don't use R25 as input for LoweredMove on ARM64
     
-    This CL moves the early deadcode elimination pass into the unified
-    writer. This allows shrinking the export data, by simplifying
-    expressions and removing unreachable statements. It also means we
-    don't need to repeatedly apply deadcode elimination on inlined calls
-    or instantiated generics.
+    The rule uses R25 as a scratch register. If the input is R25 it
+    will be clobbered on the way, causing wrong result.
     
-    Change-Id: I19bdb04861e50815fccdab39790f4aaa076121fd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/517775
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I464eadbdef0f3a5e90f9ef8c818393baa4335b87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430015
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
 
- src/cmd/compile/internal/deadcode/deadcode.go | 247 --------------------------
- src/cmd/compile/internal/gc/main.go           |  14 --
- src/cmd/compile/internal/noder/reader.go      |  42 ++---
- src/cmd/compile/internal/noder/writer.go      | 188 +++++++++++++++++++-
- 4 files changed, 204 insertions(+), 287 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 2 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

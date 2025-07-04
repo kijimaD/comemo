@@ -1,18 +1,21 @@
-commit 9c3f2685589e05c21563c583b683d00703eb0090
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sat Sep 2 14:31:13 2017 +0200
+commit 45d42fdceaa60a51c0057222df5dace810ed13de
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun May 7 19:42:11 2017 +0200
 
-    cmd/compile: set hiter type for map iterator in order pass
+    cmd/link/internal/ld: don't link with -no_pie on darwin/arm64
     
-    Previously the type was first set to uint8 and then corrected
-    later in walkrange.
+    Ever since CL 33301 linking darwin/arm64 excutables has resulted in
+    warnings like:
     
-    Change-Id: I9e4b597710e8a5fad39dde035df85676bc8d2874
-    Reviewed-on: https://go-review.googlesource.com/61032
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    ld: warning: -no_pie ignored for arm64
+    
+    Remove -no_pie on darwin/arm64.
+    
+    Change-Id: I9f7685351fa8cce29795283e1a24fc7a6753d698
+    Reviewed-on: https://go-review.googlesource.com/42815
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/order.go | 5 +++--
- src/cmd/compile/internal/gc/range.go | 3 +--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

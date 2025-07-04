@@ -1,16 +1,22 @@
-commit 9709d92bfaab7a9fb5350c102f46c8c9758e615d
-Author: hopehook <hopehook.com@gmail.com>
-Date:   Wed Aug 17 17:11:13 2022 +0800
+commit 24c2ee7b6578c683a608c3d8c41fe626d50e6b61
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Sep 22 09:37:12 2021 -0500
 
-    runtime: gofmt -w -s
+    cmd/compile: enable reg args and add duffcopy support on ppc64x
     
-    Change-Id: I1226ff66fd0c64984939793eb8ef96c08d030fa1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/424399
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    Run-TryBot: hopehook <hopehook@qq.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    This adds support for duffcopy on ppc64x and updates the
+    ssa/config.go file to enable register args and recognize
+    the duffDevice is available on ppc64x.
+    
+    Change-Id: Ifc472cc9cc19c9a80e468fb52078c75f7dd44d36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351490
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/runtime/mbitmap.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/ssa/config.go |   5 +-
+ src/cmd/internal/obj/ppc64/a.out.go    |   4 +-
+ src/runtime/duff_ppc64x.s              | 518 ++++++++++++++++++++++++---------
+ src/runtime/mkduff.go                  |  12 +-
+ 4 files changed, 399 insertions(+), 140 deletions(-)

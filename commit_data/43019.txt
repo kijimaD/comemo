@@ -1,37 +1,23 @@
-commit 22053790fa2c0944df53ea95df476ad2f855424f
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Sep 17 09:55:23 2020 -0700
+commit b7d534688994ce4f544223f8a43be6958a9d1838
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Feb 21 11:00:13 2020 -0500
 
-    cmd/compile: propagate go:notinheap implicitly
+    [dev.link] cmd/link: remove -newdw flag for phase 1 DWARF gen
     
-    //go:notinheap
-    type T int
+    Remove the "-newdw" command line option, a temporary placeholder/gate
+    for the first phase of new DWARF gen, along with some portions of the
+    sym.Symbol based DWARF type gen code. The remainder of the old code
+    will be removed in a subsequent patch.
     
-    type U T
-    
-    We already correctly propagate the notinheap-ness of T to U.  But we
-    have an assertion in the typechecker that if there's no explicit
-    //go:notinheap associated with U, then report an error. Get rid of
-    that error so that implicit propagation is allowed.
-    
-    Adjust the tests so that we make sure that uses of types like U
-    do correctly report an error when U is used in a context that might
-    cause a Go heap allocation.
-    
-    Fixes #41451
-    
-    Update #40954
-    Update #41432
-    
-    Change-Id: I1692bc7cceff21ebb3f557f3748812a40887118d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/255637
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I7870539f020fbf05d0345d3af2acf383fae94892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220984
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/cmd/compile/internal/gc/typecheck.go |  6 ------
- test/notinheap.go                        | 20 --------------------
- test/notinheap2.go                       | 26 ++++++++++++++++++++++++++
- 3 files changed, 26 insertions(+), 26 deletions(-)
+ src/cmd/link/internal/ld/dwarf.go  |  15 +-
+ src/cmd/link/internal/ld/dwarf2.go | 649 -------------------------------------
+ src/cmd/link/internal/ld/lib.go    |   8 +-
+ src/cmd/link/internal/ld/main.go   |  26 +-
+ 4 files changed, 19 insertions(+), 679 deletions(-)

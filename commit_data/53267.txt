@@ -1,25 +1,25 @@
-commit 220c396ea885158638689fec6db9677d20d568ea
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 24 13:51:33 2023 +0000
+commit adac8acf881ac48c558a4873b4cc7551c7e592b1
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Wed Aug 3 13:48:15 2022 -0700
 
-    runtime: skip TestCPUMetricsSleep as flaky
+    net/http: change conn.curReq type to atomic.Pointer[response]
     
-    This test is fundamentally flaky because of a mismatch between how
-    internal idle time is calculated and how the test expects it to be
-    calculated. It's unclear how to resolve this mismatch, given that it's
-    perfectly valid for a goroutine to remain asleep while background
-    goroutines (e.g. the scavenger) run. In practice, we might be able to
-    set some generous lower-bound, but until we can confirm that on the
-    affected platforms, skip the test as flaky unconditionally.
+    Use the newly added atomic.Pointer[T] type for atomically
+    loading and storing type *T pointers. This has the advantage of
+    avoiding runtime type assertions required by its predecessor,
+    atomic.Value.
     
-    For #60276.
-    For #60376.
+    To fix build failures uncovered by TryBots (caused by "panic:
+    unaligned 64-bit atomic operation"), also change conn.curState to
+    type atomic.Uint64 so that it is 64-bit aligned.
     
-    Change-Id: Iffd5c4be10cf8ae8a6c285b61fcc9173235fbb2a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497876
-    Run-TryBot: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I6024d12cd581adfdccc01be7eb0faa7482036614
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420901
+    Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/metrics_test.go | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ src/net/http/server.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,18 +1,19 @@
-commit f0a9b6df4551cb9559e2012d154972981df9fd4b
-Author: Jakub Ciolek <jakub@ciolek.dev>
-Date:   Fri Jan 3 17:23:05 2025 +0100
+commit 505dff4fe260cc0b92482cfcf6d4dce233d2b10d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 10 17:25:58 2023 +0000
 
-    internal/fuzz: remove the exp2 method
+    internal/trace/v2: disable TestTrace* tests on Windows for now
     
-    It's not being used anywhere, remove it.
+    There are a couple known issues here. Disable the tests for now so it's
+    not blocking anyone.
     
-    Change-Id: I9c3eecacd4e5d44b18243bdec24ad88bc38c82bf
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/639957
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    For #64061.
+    
+    Change-Id: Iaaa9007b93ea78739cb7d2b59b2a1715de29d72b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541197
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/internal/fuzz/mutators_byteslice_test.go | 6 ------
- src/internal/fuzz/pcg.go                     | 6 ------
- 2 files changed, 12 deletions(-)
+ src/internal/trace/v2/trace_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

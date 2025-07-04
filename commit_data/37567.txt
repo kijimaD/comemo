@@ -1,29 +1,12 @@
-commit 13e40c76dfdc87071d9a609906d3a842ae636d6f
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Dec 3 13:46:14 2018 -0800
+commit edf81050a8cfdcdaff47664f51c52441b754480e
+Author: Austin Clements <austin@google.com>
+Date:   Sat Aug 18 14:50:50 2018 -0400
 
-    go/types: fix interface receiver type for incremental type-checking
+    doc/go1.11: Delve 1.1.0 added support for method calls
     
-    The type checker may be called incrementally (by repeatedly calling
-    Checker.Files), for instance when adding _test.go files to a set of
-    already checked files.
-    
-    The existing code reset a cache of (already computed) interface
-    information with each Checker.Files call, causing interfaces to be
-    recomputed in some cases, albeit with different receiver information
-    (see comments in this CL for details).
-    
-    Don't reset the interface cache to avoid this problem.
-    
-    While adding a test case, also factor out some common testing logic.
-    
-    Fixes #29029.
-    
-    Change-Id: I2e2d6d6bb839b3a76522fbc4ba7355c71d3bb80b
-    Reviewed-on: https://go-review.googlesource.com/c/152259
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I5f887f9831378cf76f5a9f447f481ea24c63f390
+    Reviewed-on: https://go-review.googlesource.com/129803
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/go/types/check.go       |  15 ++++--
- src/go/types/interfaces.go  |   8 ++++
- src/go/types/issues_test.go | 111 ++++++++++++++++++++++++++------------------
- 3 files changed, 86 insertions(+), 48 deletions(-)
+ doc/go1.11.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

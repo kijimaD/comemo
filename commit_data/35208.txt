@@ -1,23 +1,23 @@
-commit 21656d09b710799806aee182856b2a02068609bd
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 30 07:50:10 2018 -0700
+commit 1b89dada1ae7e2378a06f0ffeebb31f925fb08e9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 5 16:52:53 2018 -0800
 
-    runtime: convert exit to use pthread library on Darwin
+    cmd/cgo: support niladic macros for gccgo
     
-    Now we no longer need to mess with TLS on Darwin 386/amd64, we always
-    rely on the pthread library to set it up. We now just use one entry
-    in the TLS for the G.
-    Return from mstart to let the pthread library clean up the OS thread.
+    https://golang.org/cl/43970 changed writeOutputFunc to support niladic
+    function-like macros; apply the corresponding change to
+    writeGccgoOutputFunc.
     
-    Change-Id: Iccf58049d545515d9b1d090b161f420e40ffd244
-    Reviewed-on: https://go-review.googlesource.com/110215
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Updates #10715
+    Updates #18720
+    
+    Change-Id: I5decb1d37ec71507466ade2eeda4b89c8785eaef
+    Reviewed-on: https://go-review.googlesource.com/86475
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/runtime/asm_386.s          |  4 ++
- src/runtime/asm_amd64.s        |  4 ++
- src/runtime/os_darwin.go       | 16 +++----
- src/runtime/proc.go            |  8 ++--
- src/runtime/sys_darwin.go      |  9 ++--
- src/runtime/sys_darwin_386.s   | 97 +++++++++---------------------------------
- src/runtime/sys_darwin_amd64.s | 56 ++++++++----------------
- 7 files changed, 62 insertions(+), 132 deletions(-)
+ src/cmd/cgo/out.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

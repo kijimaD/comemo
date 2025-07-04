@@ -1,16 +1,20 @@
-commit 3fa9ee49a077a0bcb7419110da02ca54a019f2cc
-Author: Alexander Melentyev <alexander@melentyev.org>
-Date:   Sun Oct 31 17:50:22 2021 +0000
+commit 5f15af111cb40c3ac154be88288abd381e6f61e2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 15 09:48:39 2021 -0500
 
-    bytes: remove redundant type conversion
+    syscall: comment on fields omitted from the win32finddata1 struct
     
-    Change-Id: Icafb2d9fd11b23d3acaf9df07e7f90d8bcd829fa
-    GitHub-Last-Rev: 2b766460554860510f3fec03a4b9fe2e65fad268
-    GitHub-Pull-Request: golang/go#49243
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/360096
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Brad Fitzpatrick <bradfitz@golang.org>
-    Trust: Martin Möhrmann <martin@golang.org>
+    Updates #42637
+    
+    Change-Id: I4c7d38034b60c2c04efdeb530a97d96deddfd6fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284152
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
 
- src/bytes/bytes.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/syscall/types_windows.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,29 +1,20 @@
-commit 64fb6ae95f1c322486cbfb758552bb8439a8e6e8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Oct 14 16:03:48 2020 -0700
+commit b1a19f3cc73878ab312d103de87f87d71790190f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 24 12:08:36 2020 -0400
 
-    runtime: stop preemption during syscall.Exec on Darwin
+    [dev.link] cmd/link: convert doxcoff to new style
     
-    On current macOS versions a program that receives a signal during an
-    execve can fail with a SIGILL signal. This appears to be a macOS
-    kernel bug. It has been reported to Apple.
-    
-    This CL partially works around the problem by using execLock to not
-    send preemption signals during execve. Of course some other stray
-    signal could occur, but at least we can avoid exacerbating the problem.
-    We can't simply disable signals, as that would mean that the exec'ed
-    process would start with all signals blocked, which it likely does not
-    expect.
-    
-    Fixes #41702
-    
-    Change-Id: I91b0add967b315671ddcf73269c4d30136e579b4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/262438
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ic1e4ed6c14e049b1ba2f7c00f986433ab7ebe932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225202
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/signal_unix.go    | 11 +++++++++++
- src/syscall/exec_unix_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 56 insertions(+)
+ src/cmd/link/internal/ld/dwarf.go             |   2 +-
+ src/cmd/link/internal/ld/main.go              |   6 +-
+ src/cmd/link/internal/ld/xcoff.go             | 165 ++++++++++++++------------
+ src/cmd/link/internal/loadelf/ldelf.go        |   2 +-
+ src/cmd/link/internal/loader/loader.go        |  16 ++-
+ src/cmd/link/internal/loader/loader_test.go   |   4 +-
+ src/cmd/link/internal/loader/symbolbuilder.go |  10 +-
+ 7 files changed, 121 insertions(+), 84 deletions(-)

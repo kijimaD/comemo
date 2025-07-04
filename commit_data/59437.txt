@@ -1,33 +1,20 @@
-commit ad7a6f81597fae99f2d94dda308bdc19ff8c1362
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Wed May 7 22:28:23 2025 +0000
+commit 9159d71a37a7d2adfc172f6851876fc36d1f0f38
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 14 02:03:29 2024 +0000
 
-    runtime: fix condition to emit gcpacertrace end-of-sweep line
+    Revert "cmd/compile/internal/inline: refactor fixpoint algorithm"
     
-    It's the job of the last sweeper to emit the GC pacer trace. The last
-    sweeper can identify themselves by reducing the count of sweepers, and
-    also seeing that there's no more sweep work.
+    This reverts commit 28e0052ee7f3623c28aa08afc41416b29cbddebc.
     
-    Currently this identification is broken, however, because the last
-    sweeper doesn't check the state they just transitioned sweeping into,
-    but rather the state they transitioned from (one sweeper, no sweep work
-    left). By design, it's impossible to transition *out* of this state,
-    except for another GC to start, but that doesn't take this codepath.
+    Reason for revert: #66261
     
-    This means lines like
-    
-        pacer: sweep done at heap size ...
-    
-    were missing from the gcpacertrace output for a long time.
-    
-    This change fixes this problem by having the last sweeper check the
-    state they just transitioned sweeping to, instead of the state they
-    transitioned from.
-    
-    Change-Id: I44bcd32fe2c8ae6ac6c21ba6feb2e7b9e17f60cc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/670735
+    Change-Id: I9dfc8946c41e504c97ecad752971d760ae7a7416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571555
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/mgcsweep.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ .../internal/inline/interleaved/interleaved.go     | 117 +++++----------------
+ src/cmd/compile/internal/ir/expr.go                |  20 ++--
+ 2 files changed, 31 insertions(+), 106 deletions(-)

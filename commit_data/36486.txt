@@ -1,12 +1,19 @@
-commit aacc891df29f742a6a128069256436fa369696c2
-Author: Shenghou Ma <minux@golang.org>
-Date:   Fri Aug 24 18:44:17 2018 -0400
+commit dda4591c8cc0b57e76339f1f18a6f5670cee2aaa
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 6 17:44:26 2018 -0700
 
-    doc/go1.11: fix typo
+    runtime: add BenchmarkScanStack
     
-    Change-Id: I097bd90f62add7838f8c7baf3b777ad167635354
-    Reviewed-on: https://go-review.googlesource.com/131357
-    Reviewed-by: Keith Randall <khr@golang.org>
+    There are many possible stack scanning benchmarks,
+    but this one is at least a start.
+    
+    cpuprofiling shows about 75% of CPU in func scanstack.
+    
+    Change-Id: I906b0493966f2165c1920636c4e057d16d6447e0
+    Reviewed-on: https://go-review.googlesource.com/105535
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- doc/go1.11.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/gc_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

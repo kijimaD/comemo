@@ -1,15 +1,13 @@
-commit c15afa887a038a3f4c70f1e38aac31084ee9f846
+commit a90b3a5528bd366995eb76acc8811a7a3caf45aa
 Author: Rob Pike <r@golang.org>
-Date:   Wed Oct 31 10:52:59 2012 -0700
+Date:   Wed Oct 31 10:11:04 2012 -0700
 
-    src/lib9/utf: update to Unicode 6.2.0
-    Fixes #2874.
+    strconv: update to unicode 6.2.0
+    Fixes build, too.
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6820068
+    https://golang.org/cl/6775088
 
- src/lib9/utf/Makefile                              |   4 +-
- src/lib9/utf/runetype.c                            |   2 +-
- .../{runetypebody-6.0.0.h => runetypebody-6.2.0.h} | 122 +++++++++++++++++----
- 3 files changed, 101 insertions(+), 27 deletions(-)
+ src/pkg/strconv/isprint.go | 125 +++++++++++++++++++++++++++++----------------
+ 1 file changed, 81 insertions(+), 44 deletions(-)

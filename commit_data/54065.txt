@@ -1,29 +1,85 @@
-commit d63652b7c69d106a6bab787fbdf7726d39e42406
-Author: Joe Tsai <joetsai@digital-static.net>
-Date:   Thu Mar 23 01:01:46 2023 -0700
+commit f8c659b62ff43e8455ebc675e577b9adc67b3f9f
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Aug 28 03:38:00 2022 +0800
 
-    log/slog: simplify and optimize RFC3339 handling
+    all: replace package ioutil with os and io in src
     
-    In CL 421877 and CL 444278, time.Time.AppendFormat has been
-    specially optimized for the time.RFC3339Nano representation.
-    Relying on that optimization and modify the output to obtain the
-    fixed-width millisecond resolution that slog uses.
+    For #45557
     
-    This both removes a lot of code and also improves performance:
-    
-            name       old time/op  new time/op  delta
-            WriteTime  93.0ns ± 1%  80.8ns ± 0%  -13.17%  (p=0.000 n=8+9)
-    
-    Change-Id: I61e8f4476c111443e3e2098a45b2c21a76137345
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/478757
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I56824135d86452603dd4ed4bab0e24c201bb0683
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426257
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Jonathan Amsterdam <jba@google.com>
-    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/log/slog/handler.go                     | 46 ++++++++---------------------
- src/log/slog/handler_test.go                | 12 ++------
- src/log/slog/internal/buffer/buffer.go      | 29 ------------------
- src/log/slog/internal/buffer/buffer_test.go |  3 +-
- 4 files changed, 16 insertions(+), 74 deletions(-)
+ src/cmd/asm/internal/asm/endtoend_test.go          |  5 +--
+ src/cmd/cgo/main.go                                |  3 +-
+ src/cmd/cgo/util.go                                |  5 +--
+ src/cmd/compile/internal/base/flag.go              |  5 +--
+ src/cmd/compile/internal/dwarfgen/scope_test.go    |  5 +--
+ src/cmd/compile/internal/importer/gcimporter.go    |  6 +--
+ src/cmd/compile/internal/ir/mknode.go              |  3 +-
+ src/cmd/compile/internal/logopt/logopt_test.go     | 11 +++--
+ src/cmd/compile/internal/ssa/debug_lines_test.go   | 12 +++---
+ src/cmd/compile/internal/ssa/debug_test.go         |  5 +--
+ src/cmd/compile/internal/ssa/gen/main.go           |  5 +--
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |  3 +-
+ src/cmd/compile/internal/ssagen/abi.go             |  3 +-
+ src/cmd/compile/internal/staticdata/data.go        |  3 +-
+ src/cmd/compile/internal/syntax/error_test.go      |  3 +-
+ src/cmd/compile/internal/syntax/parser_test.go     | 16 ++++----
+ src/cmd/compile/internal/syntax/printer_test.go    |  3 +-
+ src/cmd/compile/internal/test/clobberdead_test.go  |  4 +-
+ src/cmd/compile/internal/test/fixedbugs_test.go    |  5 +--
+ src/cmd/compile/internal/test/global_test.go       |  5 +--
+ src/cmd/compile/internal/test/inst_test.go         |  5 +--
+ src/cmd/compile/internal/test/lang_test.go         |  5 +--
+ .../internal/test/reproduciblebuilds_test.go       |  9 ++--
+ src/cmd/compile/internal/test/ssa_test.go          | 11 +++--
+ .../internal/test/testdata/gen/arithBoundaryGen.go |  3 +-
+ .../internal/test/testdata/gen/arithConstGen.go    |  3 +-
+ .../internal/test/testdata/gen/cmpConstGen.go      |  3 +-
+ .../internal/test/testdata/gen/constFoldGen.go     |  4 +-
+ .../compile/internal/test/testdata/gen/copyGen.go  |  4 +-
+ .../compile/internal/test/testdata/gen/zeroGen.go  |  4 +-
+ src/cmd/compile/internal/typecheck/builtin_test.go |  4 +-
+ src/cmd/compile/internal/typecheck/mkbuiltin.go    |  3 +-
+ src/cmd/compile/internal/types2/hilbert_test.go    |  6 +--
+ src/cmd/dist/build.go                              |  7 ++--
+ src/cmd/dist/test.go                               |  7 ++--
+ src/cmd/dist/util.go                               |  9 ++--
+ src/cmd/go/internal/fsys/fsys.go                   | 29 ++++++++-----
+ src/cmd/go/internal/modload/init.go                |  5 +--
+ src/cmd/internal/archive/archive_test.go           | 11 +++--
+ src/cmd/internal/buildid/buildid_test.go           |  7 ++--
+ src/cmd/internal/goobj/mkbuiltin.go                |  3 +-
+ src/cmd/internal/goobj/objfile_test.go             | 12 +++---
+ src/cmd/internal/moddeps/moddeps_test.go           |  3 +-
+ src/cmd/internal/obj/arm64/asm_arm64_test.go       | 13 +++---
+ src/cmd/internal/obj/objfile_test.go               | 12 +++---
+ src/cmd/internal/obj/ppc64/asm_test.go             | 20 ++++-----
+ src/cmd/internal/obj/riscv/asm_test.go             | 21 +++++-----
+ src/cmd/internal/obj/x86/obj6_test.go              |  3 +-
+ src/cmd/internal/obj/x86/pcrelative_test.go        |  5 +--
+ src/cmd/internal/objabi/flag.go                    |  3 +-
+ src/cmd/internal/objfile/disasm.go                 |  6 +--
+ src/cmd/internal/pkgpath/pkgpath.go                |  7 ++--
+ src/cmd/internal/test2json/test2json_test.go       |  8 ++--
+ src/cmd/link/elf_test.go                           | 18 ++++----
+ src/cmd/link/internal/ld/dwarf_test.go             | 12 +++---
+ src/cmd/link/internal/ld/elf_test.go               |  3 +-
+ src/cmd/link/internal/ld/go_test.go                |  7 ++--
+ src/cmd/link/internal/ld/ld.go                     | 12 +++---
+ src/cmd/link/internal/ld/ld_test.go                |  8 ++--
+ src/cmd/link/internal/ld/lib.go                    | 30 +++++++-------
+ src/cmd/link/internal/ld/xcoff.go                  | 11 ++---
+ src/cmd/link/link_test.go                          | 48 +++++++++++-----------
+ src/cmd/link/linkbig_test.go                       |  8 ++--
+ src/internal/fuzz/fuzz.go                          |  7 ++--
+ src/internal/fuzz/mem.go                           |  3 +-
+ src/internal/fuzz/worker.go                        |  3 +-
+ src/internal/txtar/archive.go                      |  4 +-
+ 67 files changed, 252 insertions(+), 287 deletions(-)

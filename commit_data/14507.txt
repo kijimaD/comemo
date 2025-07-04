@@ -1,21 +1,14 @@
-commit 94b3f6d728cf2e02c002c8f0a1b5296bb601322e
-Author: Rick Arnold <rickarnoldjr@gmail.com>
-Date:   Tue Nov 27 12:58:27 2012 -0500
+commit b46de714578277cc93de05c806a34c72be606b74
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Tue Nov 27 10:33:15 2012 -0500
 
-    regexp: add Split
+    regexp: add examples
     
-    As discussed in issue 2672 and on golang-nuts, this CL adds a Split() method
-    to regexp. It is based on returning the "opposite" of FindAllString() so that
-    the returned substrings are everything not matched by the expression.
+    Update #4125
     
-    See: https://groups.google.com/forum/?fromgroups=#!topic/golang-nuts/xodBZh9Lh2E
-    
-    Fixes #2762.
-    
-    R=remyoudompheng, r, rsc
+    R=minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/6846048
+    https://golang.org/cl/6847107
 
- src/pkg/regexp/all_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/regexp/regexp.go   | 49 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 103 insertions(+)
+ src/pkg/regexp/example_test.go | 122 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 122 insertions(+)

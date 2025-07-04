@@ -1,204 +1,35 @@
-commit 4f7b774822445ce9b6882c7cf93210d7ed2692c5
-Author: Travis Bischel <travis.bischel@gmail.com>
-Date:   Tue Mar 13 20:19:52 2018 -0700
+commit be943df58860e7dec008ebb8d68428d54e311b94
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Mon Aug 7 15:44:38 2017 -0300
 
-    cmd/compile: specialize Move up to 79B on amd64
+    runtime: improve IndexByte for ppc64x
     
-    Move currently uses mov instructions directly up to 31 bytes and then
-    switches to duffcopy. Moving 31 bytes is 4 instructions corresponding to
-    two loads and two stores, (or 6 if !useSSE) depending on the usage,
-    duffcopy is five (one or two mov, two or three lea, one call).
+    This change adds a better implementation of IndexByte in asm that uses the
+    vector registers/instructions on ppc64x.
     
-    This adds direct mov instructions for Move's of size 32, 48, and 64 with
-    sse and for only size 32 without.
-    With useSSE:
-    - 32 is 4 instructions (byte +/- comparison below)
-    - 33 thru 48 is 6
-    - 49 thru 64 is 8
+    benchmark                            old ns/op     new ns/op     delta
+    BenchmarkIndexByte/10-8              9.70          9.37          -3.40%
+    BenchmarkIndexByte/32-8              10.9          10.9          +0.00%
+    BenchmarkIndexByte/4K-8              254           92.8          -63.46%
+    BenchmarkIndexByte/4M-8              249246        118435        -52.48%
+    BenchmarkIndexByte/64M-8             10737987      7383096       -31.24%
     
-    Without:
-    - 32 is 8
+    benchmark                            old MB/s     new MB/s     speedup
+    BenchmarkIndexByte/10-8              1030.63      1067.24      1.04x
+    BenchmarkIndexByte/32-8              2922.69      2928.53      1.00x
+    BenchmarkIndexByte/4K-8              16065.95     44156.45     2.75x
+    BenchmarkIndexByte/4M-8              16827.96     35414.21     2.10x
+    BenchmarkIndexByte/64M-8             6249.67      9089.53      1.45x
     
-    Note that the only platform with useSSE set to false is plan 9. I have
-    built three projects based off tip and tip with this patch and the
-    project's byte size is equal to or less than they were prior.
-    
-    The basis of this change is that copying data with instructions directly
-    is nearly free, whereas calling into duffcopy adds a bit of overhead.
-    This is most noticeable in range statements where elements are 32+
-    bytes. For code with the following pattern:
-    
-    func Benchmark32Range(b *testing.B) {
-            var f s32
-            for _, count := range []int{10, 100, 1000, 10000} {
-                    name := strconv.Itoa(count)
-                    b.Run(name, func(b *testing.B) {
-                            base := make([]s32, count)
-                            for i := 0; i < b.N; i++ {
-                                    for _, v := range base {
-                                            f = v
-                                    }
-                            }
-                    })
-            }
-            _ = f
-    }
-    
-    These are the resulting benchmarks:
-    Benchmark16Range/10-4        19.1          19.1          +0.00%
-    Benchmark16Range/100-4       169           170           +0.59%
-    Benchmark16Range/1000-4      1684          1691          +0.42%
-    Benchmark16Range/10000-4     18147         18124         -0.13%
-    Benchmark31Range/10-4        141           142           +0.71%
-    Benchmark31Range/100-4       1407          1410          +0.21%
-    Benchmark31Range/1000-4      14070         14074         +0.03%
-    Benchmark31Range/10000-4     141781        141759        -0.02%
-    Benchmark32Range/10-4        71.4          32.2          -54.90%
-    Benchmark32Range/100-4       695           326           -53.09%
-    Benchmark32Range/1000-4      7166          3313          -53.77%
-    Benchmark32Range/10000-4     72571         35425         -51.19%
-    Benchmark64Range/10-4        87.8          64.9          -26.08%
-    Benchmark64Range/100-4       868           629           -27.53%
-    Benchmark64Range/1000-4      9355          6907          -26.17%
-    Benchmark64Range/10000-4     94463         70385         -25.49%
-    Benchmark79Range/10-4        177           152           -14.12%
-    Benchmark79Range/100-4       1769          1531          -13.45%
-    Benchmark79Range/1000-4      17893         15532         -13.20%
-    Benchmark79Range/10000-4     178947        155551        -13.07%
-    Benchmark80Range/10-4        99.6          99.7          +0.10%
-    Benchmark80Range/100-4       987           985           -0.20%
-    Benchmark80Range/1000-4      10573         10560         -0.12%
-    Benchmark80Range/10000-4     106792        106639        -0.14%
-    
-    For runtime's BenchCopyFat* benchmarks:
-    CopyFat8-4     0.40ns ± 0%  0.40ns ± 0%      ~     (all equal)
-    CopyFat12-4    0.40ns ± 0%  0.80ns ± 0%  +100.00%  (p=0.000 n=9+9)
-    CopyFat16-4    0.40ns ± 0%  0.80ns ± 0%  +100.00%  (p=0.000 n=10+8)
-    CopyFat24-4    0.80ns ± 0%  0.40ns ± 0%   -50.00%  (p=0.001 n=8+9)
-    CopyFat32-4    2.01ns ± 0%  0.40ns ± 0%   -80.10%  (p=0.000 n=8+8)
-    CopyFat64-4    2.87ns ± 0%  0.40ns ± 0%   -86.07%  (p=0.000 n=8+10)
-    CopyFat128-4   4.82ns ± 0%  4.82ns ± 0%      ~     (p=1.000 n=8+8)
-    CopyFat256-4   8.83ns ± 0%  8.83ns ± 0%      ~     (p=1.000 n=8+8)
-    CopyFat512-4   16.9ns ± 0%  16.9ns ± 0%      ~     (all equal)
-    CopyFat520-4   14.6ns ± 0%  14.6ns ± 1%      ~     (p=0.529 n=8+9)
-    CopyFat1024-4  32.9ns ± 0%  33.0ns ± 0%    +0.20%  (p=0.041 n=8+9)
-    
-    Function calls are not benefitted as much due how they are compiled, but
-    other benchmarks I ran show that calling function with 64 byte elements
-    is marginally improved.
-    
-    The main downside with this change is that it may increase binary sizes
-    depending on the size of the copy, but this change also decreases
-    binaries for moves of 48 bytes or less.
-    
-    For the following code:
-    package main
-    
-    type size [32]byte
-    
-    //go:noinline
-    func use(t size) {
-    }
-    
-    //go:noinline
-    func get() size {
-            var z size
-            return z
-    }
-    
-    func main() {
-            var a size
-            use(a)
-    }
-    
-    Changing size around gives the following assembly leading up to the call
-    (the initialization and actual call are removed):
-    
-    tip func call with 32B arg: 27B
-        48 89 e7                 mov    %rsp,%rdi
-        48 8d 74 24 20           lea    0x20(%rsp),%rsi
-        48 89 6c 24 f0           mov    %rbp,-0x10(%rsp)
-        48 8d 6c 24 f0           lea    -0x10(%rsp),%rbp
-        e8 53 ab ff ff           callq  448964 <runtime.duffcopy+0x364>
-        48 8b 6d 00              mov    0x0(%rbp),%rbp
-    
-    modified: 19B (-8B)
-        0f 10 44 24 20           movups 0x20(%rsp),%xmm0
-        0f 11 04 24              movups %xmm0,(%rsp)
-        0f 10 44 24 30           movups 0x30(%rsp),%xmm0
-        0f 11 44 24 10           movups %xmm0,0x10(%rsp)
-    -
-    tip with 47B arg: 29B
-        48 8d 7c 24 0f           lea    0xf(%rsp),%rdi
-        48 8d 74 24 40           lea    0x40(%rsp),%rsi
-        48 89 6c 24 f0           mov    %rbp,-0x10(%rsp)
-        48 8d 6c 24 f0           lea    -0x10(%rsp),%rbp
-        e8 43 ab ff ff           callq  448964 <runtime.duffcopy+0x364>
-        48 8b 6d 00              mov    0x0(%rbp),%rbp
-    
-    modified: 20B (-9B)
-        0f 10 44 24 40           movups 0x40(%rsp),%xmm0
-        0f 11 44 24 0f           movups %xmm0,0xf(%rsp)
-        0f 10 44 24 50           movups 0x50(%rsp),%xmm0
-        0f 11 44 24 1f           movups %xmm0,0x1f(%rsp)
-    -
-    tip with 64B arg: 27B
-        48 89 e7                 mov    %rsp,%rdi
-        48 8d 74 24 40           lea    0x40(%rsp),%rsi
-        48 89 6c 24 f0           mov    %rbp,-0x10(%rsp)
-        48 8d 6c 24 f0           lea    -0x10(%rsp),%rbp
-        e8 1f ab ff ff           callq  448948 <runtime.duffcopy+0x348>
-        48 8b 6d 00              mov    0x0(%rbp),%rbp
-    
-    modified: 39B [+12B]
-        0f 10 44 24 40           movups 0x40(%rsp),%xmm0
-        0f 11 04 24              movups %xmm0,(%rsp)
-        0f 10 44 24 50           movups 0x50(%rsp),%xmm0
-        0f 11 44 24 10           movups %xmm0,0x10(%rsp)
-        0f 10 44 24 60           movups 0x60(%rsp),%xmm0
-        0f 11 44 24 20           movups %xmm0,0x20(%rsp)
-        0f 10 44 24 70           movups 0x70(%rsp),%xmm0
-        0f 11 44 24 30           movups %xmm0,0x30(%rsp)
-    -
-    tip with 79B arg: 29B
-        48 8d 7c 24 0f           lea    0xf(%rsp),%rdi
-        48 8d 74 24 60           lea    0x60(%rsp),%rsi
-        48 89 6c 24 f0           mov    %rbp,-0x10(%rsp)
-        48 8d 6c 24 f0           lea    -0x10(%rsp),%rbp
-        e8 09 ab ff ff           callq  448948 <runtime.duffcopy+0x348>
-        48 8b 6d 00              mov    0x0(%rbp),%rbp
-    
-    modified: 46B [+17B]
-        0f 10 44 24 60           movups 0x60(%rsp),%xmm0
-        0f 11 44 24 0f           movups %xmm0,0xf(%rsp)
-        0f 10 44 24 70           movups 0x70(%rsp),%xmm0
-        0f 11 44 24 1f           movups %xmm0,0x1f(%rsp)
-        0f 10 84 24 80 00 00     movups 0x80(%rsp),%xmm0
-        00
-        0f 11 44 24 2f           movups %xmm0,0x2f(%rsp)
-        0f 10 84 24 90 00 00     movups 0x90(%rsp),%xmm0
-        00
-        0f 11 44 24 3f           movups %xmm0,0x3f(%rsp)
-    
-    So, at best we save 9B, at worst we gain 17. I do not think that copying
-    around 65+B sized types is common enough to bloat program sizes. Using
-    bincmp on the go binary itself shows a zero byte difference; there are
-    gains and losses all over. One of the largest gains in binary size comes
-    from cmd/go/internal/cache.(*Cache).Get, which passes around a 64 byte
-    sized type -- this is one of the cases I would expect to be benefitted
-    by this change.
-    
-    I think that this marginal improvement in struct copying for 64 byte
-    structs is worth it: most data structs / work items I use in my programs
-    are small, but few are smaller than 32 bytes: with one slice, the budget
-    is up. The 32 rule alone would allow another 16 bytes, the 48 and 64
-    rules allow another 32 and 48.
-    
-    Change-Id: I19a8f9190d5d41825091f17f268f4763bfc12a62
-    Reviewed-on: https://go-review.googlesource.com/100718
-    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I81dbdd620f7bb4e395ce4d1f2a14e8e91e39f9a1
+    Reviewed-on: https://go-review.googlesource.com/71710
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/cmd/compile/internal/ssa/gen/AMD64.rules |  21 ++++-
- src/cmd/compile/internal/ssa/rewriteAMD64.go | 115 ++++++++++++++++++++++++---
- 2 files changed, 124 insertions(+), 12 deletions(-)
+ src/cmd/asm/internal/asm/testdata/ppc64.s |   6 +
+ src/cmd/internal/obj/ppc64/a.out.go       |   2 +
+ src/cmd/internal/obj/ppc64/anames.go      |   2 +
+ src/cmd/internal/obj/ppc64/asm9.go        |  11 ++
+ src/runtime/asm_ppc64x.s                  | 258 ++++++++++++++++++++++--------
+ 5 files changed, 212 insertions(+), 67 deletions(-)

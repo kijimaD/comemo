@@ -1,15 +1,12 @@
-commit 6990bc124fdc7e129968855ab6b81fce94b0e26a
-Author: Rob Pike <r@golang.org>
-Date:   Mon Jan 31 14:41:36 2011 -0800
+commit 31d7efd4d25ff555871b9cc6463f94c6f59f9ecf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 31 13:21:44 2011 -0800
 
-    doc/progs: make sure all programs compile and run
-    
-    Fixes #1455.
+    .hgignore: Add some more files created by all.bash.
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4079055
+    https://golang.org/cl/4105044
 
- doc/progs/run        | 4 ++--
- doc/progs/strings.go | 1 -
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ .hgignore | 5 +++++
+ 1 file changed, 5 insertions(+)

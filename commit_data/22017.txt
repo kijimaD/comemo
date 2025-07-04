@@ -1,27 +1,30 @@
-commit 8c3cc58d0c829fdccec0fd858b95836e75baca40
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Sat Mar 7 16:28:07 2015 +1300
+commit 84c7a6583aac493fec25e87c60be7b98508c5b43
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 17 16:28:10 2015 +1100
 
-    cmd/internal/ld: remove some dead code
+    image: change Rectangle.Eq to return true for all empty rectangles, even
+    if their nominal Min and Max points differ.
     
-    Just little bits and pieces I noticed were unused in passing, and
-    some more found with https://github.com/opennota/check.
+    This is a behavior change, but arguably a bug fix, as Eq wasn't
+    previously consistent with In, and the concept of a rectangle being a
+    set of points. This is demonstrated by the new geom_test.go test.
     
-    Change-Id: I199fecdbf8dc2ff9076cf4ea81395275c7f171c3
-    Reviewed-on: https://go-review.googlesource.com/7033
-    Reviewed-by: Minux Ma <minux@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    It does mean that r.Eq(s) no longer implies that Inset'ting both r and s
+    with a negative inset results in two rectangles that are still Eq, but
+    that seems acceptable to me.
+    
+    The previous behavior is still available as "r == s".
+    
+    Also clarify the image.Rect doc comment when the inputs are
+    non-canonical.
+    
+    Also simplify the Point and Rectangle Eq implementations dating from
+    before Go 1.0, when you couldn't compare structs via the == operator.
+    
+    Change-Id: Ic39e628db31dc5fe5220f4b444e6d5000eeace5b
+    Reviewed-on: https://go-review.googlesource.com/5006
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/ld/elf.go    |   6 --
- src/cmd/internal/ld/ld.go     |  10 --
- src/cmd/internal/ld/lib.go    | 217 +++++++++++++-----------------------------
- src/cmd/internal/ld/link.go   |   2 -
- src/cmd/internal/ld/macho.go  |   6 --
- src/cmd/internal/ld/pobj.go   |   5 -
- src/cmd/internal/ld/sym.go    |   1 -
- src/cmd/internal/ld/symtab.go |   2 -
- src/cmd/internal/obj/link.go  |   1 -
- src/cmd/internal/obj/sym.go   |   1 -
- 10 files changed, 65 insertions(+), 186 deletions(-)
+ src/image/geom.go      | 12 +++++++-----
+ src/image/geom_test.go | 12 ++++++++++++
+ 2 files changed, 19 insertions(+), 5 deletions(-)

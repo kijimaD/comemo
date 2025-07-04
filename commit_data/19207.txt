@@ -1,17 +1,13 @@
-commit 6e8c7f5bb241852f052a9b4a2f20f3e33d0ec7b2
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Apr 19 14:47:20 2014 +1000
+commit 75b74ea8ff0ee62828c04e9567ccc5238cec5d49
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Apr 18 21:40:55 2014 +0200
 
-    cmd/nm: print symbol sizes for windows pe executables
+    doc/go1.3.html: Plan 9 support
     
-    Fixes #6973
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews
-    https://golang.org/cl/88820043
+    LGTM=aram, r
+    R=r, aram, bradfitz
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/89130045
 
- src/cmd/nm/pe.go                | 14 ++++++++++++++
- src/pkg/runtime/arch_amd64.h    |  6 +++++-
- src/pkg/runtime/runtime_test.go |  4 ----
- 3 files changed, 19 insertions(+), 5 deletions(-)
+ doc/go1.3.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

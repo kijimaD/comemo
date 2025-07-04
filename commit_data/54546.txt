@@ -1,15 +1,19 @@
-commit bcfaf2f00f4183e33cb995153a19f4fb030e387c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Sep 22 13:24:37 2023 -0700
+commit 4b993bffb83394105d13b426dae12afe0ab05804
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Oct 28 16:16:56 2022 -0400
 
-    slices: use strings.EqualFold in ExampleCompactFunc
+    go/types: avoid formatting unneeded causes
     
-    Change-Id: Ie7d495b2a53520ce89b16bc8a66b81a3955bf32f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/530635
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    This one slipped through a previous cleanup
+    and showed up in an allocation profile.
+    
+    Change-Id: Ife447fe32797f1685c20806718193b0985b4a412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446295
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/slices/example_test.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ src/cmd/compile/internal/types2/instantiate.go | 12 ++++++------
+ src/go/types/instantiate.go                    | 12 ++++++------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

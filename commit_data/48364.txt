@@ -1,36 +1,16 @@
-commit baf61e4a67789e20f019507287a324cca06bed42
-Author: eh-steve <eh.steve.99@gmail.com>
-Date:   Fri Mar 11 21:14:27 2022 +0000
+commit f93b951f33add708d9e745e95a29ebe98f3e1255
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 12 13:08:16 2021 -0400
 
-    encoding/hex: implement Decode with a lookup table
+    cmd/compile/abi-internal.md: fix table format
     
-    Implement hex decode using a 256 byte lookup table instead of branching logic.
+    The table was not rendered correctly because one line missed a
+    column.
     
-    In happy flow, uses 3x 64 byte (or 5x 32 byte) cache lines.
-    
-            name             old time/op    new time/op    delta
-            Decode/256-64       223ns ± 3%     135ns ± 2%  -39.64%  (p=0.000 n=8+8)
-            Decode/1024-64      872ns ± 2%     512ns ± 2%  -41.25%  (p=0.000 n=8+8)
-            Decode/4096-64     3.43µs ± 1%    2.01µs ± 2%  -41.31%  (p=0.001 n=7+7)
-            Decode/16384-64    13.9µs ± 1%     8.0µs ± 1%  -42.69%  (p=0.000 n=8+7)
-    
-            name             old speed      new speed      delta
-            Decode/256-64    1.15GB/s ± 3%  1.90GB/s ± 2%  +65.66%  (p=0.000 n=8+8)
-            Decode/1024-64   1.17GB/s ± 2%  2.00GB/s ± 2%  +70.22%  (p=0.000 n=8+8)
-            Decode/4096-64   1.20GB/s ± 1%  2.04GB/s ± 2%  +70.39%  (p=0.001 n=7+7)
-            Decode/16384-64  1.18GB/s ± 1%  2.06GB/s ± 1%  +74.49%  (p=0.000 n=8+7)
-    
-    Also reduces amd64 object size by 766 bytes, despite the extra RODATA due to removal of `fromHexChar()` and duplicated inlined versions of it and simplification of `Decode()`.
-    
-    Change-Id: I0988c7a30562ec154eff11db6e27954e0ce2b611
-    GitHub-Last-Rev: 64818018afc83ab07ec128a46aaea6a16f11400e
-    GitHub-Pull-Request: golang/go#51432
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390037
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: I1373e4e9fb8b8f2dcd9fd0db339083362cce9b71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319291
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/encoding/hex/hex.go | 55 ++++++++++++++++++++++++++++---------------------
- 1 file changed, 32 insertions(+), 23 deletions(-)
+ src/cmd/compile/abi-internal.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

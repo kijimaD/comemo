@@ -1,25 +1,21 @@
-commit 7a840664fe9d8d4c11b943dba77c513dba5207a1
-Author: Roi Martin <jroi.martin@gmail.com>
-Date:   Tue Nov 30 19:35:47 2021 +0100
+commit 7d5c54eee4718ccc1790fa9ab92bf091e9d56ef7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 1 18:39:39 2021 -0700
 
-    cmd/go: update "go help doc" docs
+    cmd/compile/internal/types2: remove Config.InferFromConstraints flag
     
-    This CL updates "go help doc" docs so they reflect the following
-    changes:
+    Constraint type inference is part of the proposed language.
+    Use an internal flag to control the feayure for debugging.
     
-    - CL 59413 modified "go doc", so the behavior of the two-args case is
-      consistent with the one-arg one.
-    - CL 141397 removed godoc's command-line interface in favor of "go doc".
-    
-    Fixes #49830.
-    
-    Change-Id: I0923634291d34ae663fe2944d69757462b814919
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367497
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Trust: Russ Cox <rsc@golang.org>
+    Change-Id: I7a9eaee92b5ffc23c25d9e68a729acc0d705e879
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306770
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/go/alldocs.go          | 5 ++---
- src/cmd/go/internal/doc/doc.go | 5 ++---
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/irgen.go       | 1 -
+ src/cmd/compile/internal/types2/api.go        | 4 ----
+ src/cmd/compile/internal/types2/api_test.go   | 1 -
+ src/cmd/compile/internal/types2/call.go       | 2 +-
+ src/cmd/compile/internal/types2/check_test.go | 1 -
+ src/cmd/compile/internal/types2/infer.go      | 8 +++++---
+ 6 files changed, 6 insertions(+), 11 deletions(-)

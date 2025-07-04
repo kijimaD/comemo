@@ -1,17 +1,14 @@
-commit f8e41f6f5907ce832cc263bdce749117d4d0b342
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Dec 2 11:30:34 2015 -0800
+commit 54bd5a71d37f1c69d070af5daa0949092ad59c8b
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Sat Nov 21 15:24:34 2015 +0530
 
-    cmd/compile: eliminate Io.infile and Io.cp
+    misc/cgo/testshared: add format specifier in Errorf calls
     
-    infile is never read and cp is never written.  Both are unneeded.
+    Found by cmd/vet
     
-    Change-Id: I0a90bb772a53a580ea4be8e5f0f770da7c1acf3a
-    Reviewed-on: https://go-review.googlesource.com/19651
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Dave Cheney <dave@cheney.net>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Change-Id: I29dd207ecd40fe703054e8ad4e81b3267ca89da2
+    Reviewed-on: https://go-review.googlesource.com/17160
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- src/cmd/compile/internal/gc/go.go  |  2 --
- src/cmd/compile/internal/gc/lex.go | 48 ++++++++++++++------------------------
- 2 files changed, 17 insertions(+), 33 deletions(-)
+ misc/cgo/testshared/shared_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

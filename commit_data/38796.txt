@@ -1,29 +1,14 @@
-commit dbc17037815bdce5df3f355f2171c57804f7870e
-Author: jfbus <jf@bustarret.com>
-Date:   Tue Mar 26 18:21:53 2019 +0000
+commit 5966c2f4ec35c0f1ad53331c552a35f5f6cb3eea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 28 07:17:40 2018 -0800
 
-    net: support single-request resolv.conf option in pure Go resolver
+    doc: fix formatting for Darwin entry
     
-    There is a DNS resolution issue in Kubernetes (UDP response packets get dropped due to a race in conntrack between the parallel A and AAAA queries, causing timeouts in DNS queries).
+    Updates #23011
     
-    A workaround is to enable single-request / single-request-reopen in resolv.conf in order to use sequential A and AAAA queries instead of parallel queries.
-    
-    With this PR, the pure Go resolver searches for "single-request" and "single-request-reopen" in resolv.conf and send A and AAAA queries sequentially when found.
-    
-    Fixes #29644
-    
-    Change-Id: I906b3484008c1b9adf2e3e9241ea23767e29df59
-    GitHub-Last-Rev: d481acfb4c49d82fd474078b31a1a4697b57dadf
-    GitHub-Pull-Request: golang/go#29661
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/157377
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I38360501c772ddf7cc4bd1b5d7b0225387ead535
+    Reviewed-on: https://go-review.googlesource.com/c/151361
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/net/dnsclient_unix.go                          | 58 +++++++++++------
- src/net/dnsclient_unix_test.go                     | 74 ++++++++++++++++++++++
- src/net/dnsconfig_unix.go                          | 30 +++++----
- src/net/dnsconfig_unix_test.go                     | 22 +++++++
- src/net/testdata/single-request-reopen-resolv.conf |  1 +
- src/net/testdata/single-request-resolv.conf        |  1 +
- 6 files changed, 155 insertions(+), 31 deletions(-)
+ doc/go1.12.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

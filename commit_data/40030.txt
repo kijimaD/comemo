@@ -1,16 +1,22 @@
-commit f73d80809b99fba1066515c2848ce316d6976db8
-Author: Tardis Xu <xiaoxubeii@gmail.com>
-Date:   Fri Aug 31 07:16:37 2018 +0000
+commit 77fa11dffb59334eb32502c53faf9946a7caa1fc
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Apr 11 16:26:38 2019 +0200
 
-    runtime: detail the method comment
+    net: retrieve if unix network is available only once for AIX
     
-    Change the comment to make more conformable to the function implementation.
+    The previous version was executing "oslevel -s" everytime testableNetwork
+    was called with unix/unixgram network. The current version retrieves if
+    the network is possible only once at the beginning of the tests.
     
-    Change-Id: I8461e2f09824c50e16223a27d0f61070f04bd21b
-    GitHub-Last-Rev: c25a8493d3938b38e2c318f7a7b94c9f2eb11bb4
-    GitHub-Pull-Request: golang/go#27404
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/132477
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    This is clearly faster:
+    ok      net     74.045s
+    ok      net     5.098s
+    
+    Change-Id: I12549da27721f85c007cf17cab5cfdbfeb839cf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171717
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/proc.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/platform_test.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

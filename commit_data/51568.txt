@@ -1,21 +1,16 @@
-commit a5a47442502e8e42b390f458f8f91dea3de872eb
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Dec 19 14:41:09 2022 +0100
+commit 9b773003fb3bf909bfc897787e4d1e54fdb80eca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 14 13:02:39 2022 -0500
 
-    os: reenable TestReaddirSmallSeek on windows
+    cmd/gofmt: limit to 200 concurrent file descriptors
     
-    TestReaddirSmallSeek should have been reenabled as part of
-    CL 405275, but didn't. Do it now.
+    Fixes #51164
     
-    Updates #36019
-    
-    Change-Id: I5676eee4e63675d30e9d48ac708e72bd036b6aee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/458336
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: Ia62723df7dc2af5ace3f2430385fff6c0d35cdb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385656
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
 
- src/os/os_test.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/gofmt/gofmt.go | 128 +++++++++++++++++++++++++++++++------------------
+ 1 file changed, 82 insertions(+), 46 deletions(-)

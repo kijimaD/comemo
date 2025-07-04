@@ -1,17 +1,24 @@
-commit 93a79bbcc0de229679ddeb2ad662ec8cea5b3de6
-Author: Ariel Mashraki <ariel@mashraki.co.il>
-Date:   Tue Oct 1 21:12:59 2019 +0300
+commit 52d9ce89ef71d95a4ce5f1a92155bb0c0b811957
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 16 16:32:26 2019 -0700
 
-    text/template/parse: remove duplication in peekNonSpace
+    test: add escape regress tests for runtime and sync atomics
     
-    nextNonSpace has an identical code except the call to
-    backup at the end.
+    There weren't any tests to make sure these work correctly, and this
+    led to escape analysis regressions in both linux/s390x and js/wasm.
     
-    Change-Id: Iefa5b13950007da38323a800fb6b0ce3d436254b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/198277
-    Run-TryBot: Rob Pike <r@golang.org>
+    The underlying issue that cmd/compile is only getting some of these
+    correct because escape analysis doesn't understand //go:linkname is
+    still present, but at least this addresses the fragility aspect.
+    
+    Updates #15283.
+    
+    Change-Id: I546aee1899d098b2e3de45e9b33c3ca22de485f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172420
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/text/template/parse/parse.go | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ test/escape_runtime_atomic.go | 33 +++++++++++++++++++++++++++++++++
+ test/escape_sync_atomic.go    | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+)

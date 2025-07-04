@@ -1,12 +1,15 @@
-commit 9b321faae7a598c6576a97e9363e9ea52d429c59
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Oct 23 10:34:14 2013 +0400
+commit c8ddfd9ad179b03e565ad33bda13a75aa9be3ed0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 22 18:33:23 2013 -0400
 
-    misc/dist: use go.tools release branch
+    cmd/cgo: use __typeof__, -w instead of typeof, -Wno-all
     
-    R=golang-dev, dsymonds
+    Suggested by iant in earlier CL.
+    
+    R=golang-dev, bradfitz, iant
     CC=golang-dev
-    https://golang.org/cl/15450047
+    https://golang.org/cl/14920052
 
- misc/dist/bindist.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/doc.go | 16 ++++++++--------
+ src/cmd/cgo/gcc.go | 14 +++++++-------
+ 2 files changed, 15 insertions(+), 15 deletions(-)

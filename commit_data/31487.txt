@@ -1,20 +1,20 @@
-commit ec0ee7d35737ef137175e92d563c8c4315820204
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu May 4 02:49:23 2017 +0000
+commit 2818cb5c9e183aed539d6a539a821e229671fe56
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Feb 22 15:50:24 2017 -0800
 
-    crypto: revise wording about cryptographically broken algorithms
+    cmd/internal/browser: wait 3 seconds for non-zero exit codes
     
-    Updates text from https://golang.org/cl/42511
+    Wait a short period between trying commands. Many commands
+    will return a non-zero exit code if the browser couldn't be launched.
     
-    Updates #14395
+    For example, google-chrome returns quickly with a non-zero
+    exit code in a headless environment.
     
-    Change-Id: I711100525e074ab360e577520280c37645db1c95
-    Reviewed-on: https://go-review.googlesource.com/42614
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Rob Pike <r@golang.org>
+    Updates #19131.
+    
+    Change-Id: I0ae5356dd4447969d9e216615449cead7a8fd5c9
+    Reviewed-on: https://go-review.googlesource.com/37391
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/crypto/des/const.go | 3 ++-
- src/crypto/md5/md5.go   | 3 ++-
- src/crypto/rc4/rc4.go   | 3 ++-
- src/crypto/sha1/sha1.go | 3 ++-
- 4 files changed, 8 insertions(+), 4 deletions(-)
+ src/cmd/internal/browser/browser.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

@@ -1,17 +1,31 @@
-commit cccd3ba912ae903498e7fdc60fb47f5cb64c3570
-Author: Manlio Perillo <manlio.perillo@gmail.com>
-Date:   Mon Apr 12 21:46:14 2021 +0200
+commit 97b46b4adeff2a6937247a5228a74030a638ad7f
+Merge: 7347907164 91e4d2d57b
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Oct 1 10:24:31 2020 -0400
 
-    internal/execabs: replace ioutil.WriteFile with os.WriteFile
+    cmd/link: merge branch 'dev.link' into master
     
-    Fixes #45532.
+    no conflicts.
     
-    Change-Id: I844acd50d6fa1ce918969bbb52f79dd7412d289f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/309350
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Change-Id: Ic40ad81f1e491d6ceb72fbb66ad7919ad2b34a3e
 
- src/internal/execabs/execabs_test.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/internal/goobj/funcinfo.go            |  82 +--
+ src/cmd/internal/goobj/objfile.go             |  12 +-
+ src/cmd/internal/obj/link.go                  |  15 +-
+ src/cmd/internal/obj/objfile.go               |  85 ++-
+ src/cmd/internal/obj/pcln.go                  |  55 +-
+ src/cmd/internal/objfile/goobj.go             |  16 +-
+ src/cmd/link/internal/ld/data.go              |  10 +-
+ src/cmd/link/internal/ld/dwarf.go             |   2 +-
+ src/cmd/link/internal/ld/lib.go               |   4 +-
+ src/cmd/link/internal/ld/link.go              |   1 -
+ src/cmd/link/internal/ld/main.go              |  10 +-
+ src/cmd/link/internal/ld/pcln.go              | 932 +++++++++++++++-----------
+ src/cmd/link/internal/ld/symtab.go            |  16 +-
+ src/cmd/link/internal/loader/loader.go        |  82 +--
+ src/cmd/link/internal/loader/symbolbuilder.go |   9 +
+ src/cmd/link/internal/sym/symbol.go           |   4 -
+ src/debug/gosym/pclntab.go                    |  95 ++-
+ src/runtime/runtime2.go                       |  15 +-
+ src/runtime/symtab.go                         |  47 +-
+ 19 files changed, 907 insertions(+), 585 deletions(-)

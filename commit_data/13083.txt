@@ -1,20 +1,18 @@
-commit f5752848fde774c5c16c5e58f15558a253a03119
-Author: Akshat Kumar <seed@mail.nanosouffle.net>
-Date:   Wed May 16 15:09:28 2012 -0700
+commit 6dfe0162a659d75bf83379dd03c040ae8666b9a5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu May 17 04:22:44 2012 +0800
 
-    pkg/runtime: Fix semasleep on Plan 9
+    misc/chrome/gophertool: lower CL number's lower bound and fix input focus on Mac
+    As our CL number could be as small as 152046, changed CL number's lower bound
+    to 150000. Hopefully our issue count won't reach 150000 any time soon.
+    Chrome on Mac OS X has very strange behavior regarding the focus, although we
+    force the focus to the input box on load, the page still come up with focus on
+    "issue". Set the tabindex of the input box as a workaround.
     
-    With the timed semacquire patch
-    (kernel-tsemacquire) for Plan 9,
-    we can now properly do a timed
-    wait for the semaphore, in
-    semasleep.
-    
-    R=golang-dev, rsc, rminnich, ality, r
-    CC=0intro, golang-dev, john, mirtchovski
-    https://golang.org/cl/6197046
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6212055
 
- src/pkg/runtime/os_plan9.h      |  1 +
- src/pkg/runtime/sys_plan9_386.s |  5 +++++
- src/pkg/runtime/thread_plan9.c  | 28 +++++-----------------------
- 3 files changed, 11 insertions(+), 23 deletions(-)
+ misc/chrome/gophertool/gopher.js  | 2 +-
+ misc/chrome/gophertool/popup.html | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

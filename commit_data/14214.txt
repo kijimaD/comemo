@@ -1,12 +1,13 @@
-commit 7c412e962c1cf5de4e128c0ca2caed14f9b87003
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Thu Oct 25 13:41:04 2012 +0800
+commit 6653d76ef6c243b2061325c09e9628735218378c
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Oct 24 11:41:05 2012 +0200
 
-    syscall: implement (*PtraceRegs).PC() and SetPC()
+    exp/locale/collate/build: fixed problem where blocks for first byte need
+    different indexes for values and index blocks. Fixes many regressions.
     
-    R=golang-dev, rsc
+    R=r
     CC=golang-dev
-    https://golang.org/cl/6763043
+    https://golang.org/cl/6737057
 
- src/pkg/syscall/syscall_linux_arm.go | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ src/pkg/exp/locale/collate/build/trie.go | 35 ++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 13 deletions(-)

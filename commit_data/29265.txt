@@ -1,34 +1,19 @@
-commit 741445068f7f582824f1c5625159e0b728090265
-Author: Keith Randall <khr@golang.org>
-Date:   Sun Oct 30 21:10:03 2016 -0700
+commit 5923df1af9f058a4f1bf095dfb1d2722cd4120a1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Aug 25 20:29:15 2016 -0400
 
-    cmd/compile: make [0]T and [1]T SSAable types
+    cmd/compile: generate table of main symbol types
     
-    We used to have to keep on-stack copies of these types.
-    Now they can be registerized.
+    For each exported symbol in package main, add its name and type to
+    go.plugin.tabs symbol. This is used by the runtime when loading a
+    plugin to return a typed interface{} value.
     
-    [0]T is kind of trivial but might as well handle it.
-    
-    This change enables another change I'm working on to improve how x.(T)
-    expressions are handled (#17405).  This CL helps because now all
-    types that are direct interface types are registerizeable (e.g. [1]*byte).
-    
-    No higher-degree arrays for now because non-constant indexes are hard.
-    
-    Update #17405
-    
-    Change-Id: I2399940965d17b3969ae66f6fe447a8cefdd6edd
-    Reviewed-on: https://go-review.googlesource.com/32416
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I23c39583e57180acb8f7a74d218dae4368614f46
+    Reviewed-on: https://go-review.googlesource.com/27818
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go             | 114 ++++++++++++-----
- src/cmd/compile/internal/ssa/config.go         |   1 +
- src/cmd/compile/internal/ssa/decompose.go      |  46 ++++++-
- src/cmd/compile/internal/ssa/export_test.go    |   3 +
- src/cmd/compile/internal/ssa/gen/generic.rules |  24 +++-
- src/cmd/compile/internal/ssa/gen/genericOps.go |  10 +-
- src/cmd/compile/internal/ssa/opGen.go          |  26 ++--
- src/cmd/compile/internal/ssa/rewritegeneric.go | 168 ++++++++++++++++++++++---
- 8 files changed, 329 insertions(+), 63 deletions(-)
+ src/cmd/compile/internal/gc/obj.go     | 30 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/reflect.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+)

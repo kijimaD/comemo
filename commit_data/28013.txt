@@ -1,31 +1,21 @@
-commit 24158644dddc414243fc3c033f85f0565b7ebd3e
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Aug 22 10:33:13 2016 -0400
+commit 9cb79e9536a2f7977f9139a808f912d216094ecc
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 25 14:12:26 2016 -0700
 
-    cmd/link/internal/ld: camelCase a buch of snake_case names
+    runtime: arm5, fix large-offset floating-point stores
     
-    I've also unexported a few symbols that weren't used outside the
-    package.
+    The code sequence for large-offset floating-point stores
+    includes adding the base pointer to r11.  Make sure we
+    can interpret that instruction correctly.
     
-    Updates #16818
+    Fixes build.
     
-    Change-Id: I39d9d87b3eec30b88b4a17c1333cfbbfa6b3518f
-    Reviewed-on: https://go-review.googlesource.com/27468
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Fixes #15440
+    
+    Change-Id: I7fe5a4a57e08682967052bf77c54e0ec47fcb53e
+    Reviewed-on: https://go-review.googlesource.com/22440
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
 
- src/cmd/link/internal/ld/data.go      |  26 +++---
- src/cmd/link/internal/ld/deadcode.go  |   6 +-
- src/cmd/link/internal/ld/decodesym.go | 168 +++++++++++++++++-----------------
- src/cmd/link/internal/ld/dwarf.go     |  90 +++++++++---------
- src/cmd/link/internal/ld/elf.go       |   8 +-
- src/cmd/link/internal/ld/ldelf.go     |  22 ++---
- src/cmd/link/internal/ld/ldmacho.go   |  74 +++++++--------
- src/cmd/link/internal/ld/lib.go       |  28 +++---
- src/cmd/link/internal/ld/link.go      |  10 +-
- src/cmd/link/internal/ld/macho.go     |   8 +-
- src/cmd/link/internal/ld/pcln.go      |  12 +--
- src/cmd/link/internal/ld/pe.go        |  12 +--
- src/cmd/link/internal/ld/symtab.go    |   2 +-
- 13 files changed, 233 insertions(+), 233 deletions(-)
+ src/runtime/softfloat_arm.go | 11 ++++++-----
+ src/runtime/vlop_arm_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 5 deletions(-)

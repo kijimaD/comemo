@@ -1,37 +1,24 @@
-commit d16ec137568fb20e674a99c265e7c340c065dd69
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 10 14:38:15 2019 -0400
+commit db3255536cdbdba9d6f38da9c3bb1faf55f63277
+Author: Martin Sucha <anty.sk+git@gmail.com>
+Date:   Thu May 23 20:34:17 2019 +0200
 
-    runtime: scan stacks conservatively at async safe points
+    strings: clarify example of ContainsAny
     
-    This adds support for scanning the stack when a goroutine is stopped
-    at an async safe point. This is not yet lit up because asyncPreempt is
-    not yet injected, but prepares us for that.
+    I have seen code that literally copied the example like this:
     
-    This works by conservatively scanning the registers dumped in the
-    frame of asyncPreempt and its parent frame, which was stopped at an
-    asynchronous safe point.
+        if strings.ContainsAny(s, "1 & 2 & 3") {
     
-    Conservative scanning works by only marking words that are pointers to
-    valid, allocated heap objects. One complication is pointers to stack
-    objects. In this case, we can't determine if the stack object is still
-    "allocated" or if it was freed by an earlier GC. Hence, we need to
-    propagate the conservative-ness of scanning stack objects: if all
-    pointers found to a stack object were found via conservative scanning,
-    then the stack object itself needs to be scanned conservatively, since
-    its pointers may point to dead objects.
+    The developer apparently thought that this is the way to
+    specify multiple characters and I noticed this pattern
+    being used in the example. Let's update the example so
+    that it's clear how multiple Unicode code points should
+    be specified.
     
-    For #10958, #24543.
-    
-    Change-Id: I7ff84b058c37cde3de8a982da07002eaba126fd6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/201761
-    Run-TryBot: Austin Clements <austin@google.com>
+    Change-Id: Id4d780555e521af62fb787a7950be1e60848cd95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178737
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/internal/objabi/funcid.go |   3 +
- src/runtime/mgc.go                |   4 +
- src/runtime/mgcmark.go            | 165 ++++++++++++++++++++++++++++++++++++--
- src/runtime/mgcstack.go           |  76 ++++++++++++------
- src/runtime/symtab.go             |   1 +
- 5 files changed, 217 insertions(+), 32 deletions(-)
+ src/strings/example_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

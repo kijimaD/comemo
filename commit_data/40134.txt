@@ -1,26 +1,24 @@
-commit 3ce29b44bb8eaecbd5000202564ad4f52ad1cf69
-Author: Jordi Martin <jordimartin@gmail.com>
-Date:   Fri Oct 4 11:56:26 2019 +0000
+commit dc193dee15294e451ceaae2e50e539255f4a37b6
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 18 09:45:40 2019 -0400
 
-    cmd/go: set expected filename when building a local package with -o is pointing to a folder
+    go/internal/gccgoimporter: improve alias handling for anonymous fields
     
-    In the local package build process, when -o is pointing to an existing folder, the object
-    the filename is generated from files listed on the command line like when the -o is
-    not pointing to a folder instead of using the `importPath` that is going to be `command-line-arguments`
+    The code in the parser that deals with anonymous structure fields
+    records the fact that a field is anonymous, then tries to install a proxy
+    name for the field based on the name of the type used to declare
+    the field. If that type was an alias, the current recipe for determining
+    the proxy name was not working properly; enhance the code to recover
+    and report the alias name used.
     
-    Fixes #34535
+    Fixes #31540.
     
-    Change-Id: I09a7609c17a2ccdd83da32f01247c0ef473dea1e
-    GitHub-Last-Rev: b3224226a3914aa2573e47a6daff9fd5a48ca225
-    GitHub-Pull-Request: golang/go#34562
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/197544
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Change-Id: I9b7369ed558a288b56d85170c6f1144daf5228eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172603
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/load/pkg.go                 | 48 ++++++++++++++++++-------
- src/cmd/go/internal/load/pkg_test.go            | 44 ++++++++++++++---------
- src/cmd/go/internal/test/test.go                |  2 +-
- src/cmd/go/internal/work/build.go               |  7 ++--
- src/cmd/go/testdata/script/build_multi_main.txt | 10 ++++++
- 5 files changed, 77 insertions(+), 34 deletions(-)
+ src/go/internal/gccgoimporter/importer_test.go     |  1 +
+ src/go/internal/gccgoimporter/parser.go            | 46 ++++++++++++++++------
+ .../internal/gccgoimporter/testdata/issue31540.go  | 26 ++++++++++++
+ .../internal/gccgoimporter/testdata/issue31540.gox | 16 ++++++++
+ 4 files changed, 76 insertions(+), 13 deletions(-)

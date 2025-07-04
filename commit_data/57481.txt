@@ -1,16 +1,23 @@
-commit b049837d97d340f0693871c64bc957eabc71d017
-Author: Michael Matloob <matloob@golang.org>
-Date:   Mon Sep 16 14:04:24 2024 -0400
+commit 162469b3cfbaac12b74100e80ccd3c6dd0126233
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Aug 8 18:25:59 2023 -0700
 
-    cmd/go: update go help packages doc on all pattern to focus on modules
+    crypto/tls: add GODEBUG to control max RSA key size
     
-    Reword the paragraph to focus on modules rather than GOPATH mode.
+    Add a new GODEBUG setting, tlsmaxrsasize, which allows controlling the
+    maximum RSA key size we will accept during TLS handshakes.
     
-    Change-Id: Ide33d502311b3539018f167386a92a94ff955f1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613555
-    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I52f060be132014d219f4cd438f59990011a35c96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517495
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/go/alldocs.go               | 8 +++-----
- src/cmd/go/internal/help/helpdoc.go | 8 +++-----
- 2 files changed, 6 insertions(+), 10 deletions(-)
+ doc/godebug.md                     |  8 ++++++++
+ src/crypto/tls/conn.go             |  5 +++++
+ src/crypto/tls/handshake_client.go | 29 ++++++++++++++++++++++++-----
+ src/crypto/tls/handshake_server.go |  9 ++++++---
+ src/internal/godebugs/table.go     |  1 +
+ src/runtime/metrics/doc.go         |  4 ++++
+ 6 files changed, 48 insertions(+), 8 deletions(-)

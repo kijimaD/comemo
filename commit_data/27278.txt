@@ -1,12 +1,12 @@
-commit 3747c00923b140847f5d8f7978e672fa79e3ec37
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 4 15:13:36 2016 -0700
+commit f39d6d961383ab0325ad1ca32372b82e0e667863
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 16:43:43 2016 +0100
 
-    cmd/compile: fix debugFormat for new export format
+    testing: always ignore RunParallel in probe phase
     
-    Change-Id: Ic3415f3ee643636eab4ff7d2351b8ad0dae62895
-    Reviewed-on: https://go-review.googlesource.com/22792
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If45410a2d7e48d1c9e6800cd98f81dd89024832c
+    Reviewed-on: https://go-review.googlesource.com/20852
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/gc/bimport.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/testing/benchmark.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

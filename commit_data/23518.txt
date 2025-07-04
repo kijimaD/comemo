@@ -1,29 +1,18 @@
-commit e6ad56c711f00ee15d2c42ff64849542e19eca8a
-Author: Matt T. Proud <matt.proud@gmail.com>
-Date:   Sat Jun 20 06:29:18 2015 +0200
+commit 197aa9e64ddcd1cdcb5f4843413da935a954d9f3
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed May 20 11:40:17 2015 -0400
 
-    testing/quick: improve function signature error.
+    runtime: remove unused quiesce code
     
-    This commit fixes a cosmetic defect whereby quick.Check reports that
-    the provided function returns too many values when it may, in fact,
-    return too few:
+    This is dead code. If you want to quiesce the system the
+    preferred way is to use forEachP(func(*p){}).
     
-      func f() {}
-    
-      func TestFoo(t *testing.T) {
-        if err := quick.Check(f, nil); err != nil {
-          t.Fatal(err)
-        }
-      }
-      // yields
-      // $ go test -v foo_test.go
-      // === RUN TestFoo
-      // --- FAIL: TestFoo (0.00s)
-      //    foo_test.go:76: function returns more than one value.
-    
-    Change-Id: Ia209ff5b57375b30f8db425454e80798908e8ff4
-    Reviewed-on: https://go-review.googlesource.com/11281
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ic7677a5dd55e3639b99e78ddeb2c71dd1dd091fa
+    Reviewed-on: https://go-review.googlesource.com/10267
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/testing/quick/quick.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mbarrier.go |  2 +-
+ src/runtime/mgc.go      |  1 -
+ src/runtime/mgcmark.go  |  2 +-
+ src/runtime/proc1.go    | 63 -------------------------------------------------
+ 4 files changed, 2 insertions(+), 66 deletions(-)

@@ -1,47 +1,24 @@
-commit 1581bb9843815b3393779b28f7c501e2052486ce
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Tue Aug 27 22:47:37 2019 +0200
+commit c196d38d5e1d35c5b1eb1b19648532ea91442979
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Mar 29 01:26:45 2019 +1100
 
-    cmd/compile: stop using go/types in rulegen
+    cmd/dist: pass cgotest linkmode via GOFLAGS
     
-    Using go/types to get rid of all unused variables in CL 189798 was a
-    neat idea, but it was pretty expensive. go/types is a full typechecker,
-    which does a lot more work than we actually need. Moreover, we had to
-    run it multiple times, to catch variables that became unused after
-    removing existing unused variables.
+    cgotest attempts to exercise various linkmodes, however with recent refactoring
+    TestCrossPackageTests is no longer running tests with these linkmodes. Specifying
+    the linkmode via GOFLAGS restores previous behaviour.
     
-    Instead, write our own little detector for unused imports and variables.
-    It doesn't use ast.Walk, as we need to know what fields we're
-    inspecting. For example, in "foo := bar", "foo" is declared, and "bar"
-    is used, yet they both appear as simple *ast.Ident cases under ast.Walk.
+    Note that the -ldflags="-linkmode=external -s" case cannot be passed through
+    as GOFLAGS does not permit spaces in values and -ldflags can only be specified
+    once.
     
-    The code is documented to explain how unused variables are detected in a
-    single syntax tree pass. Since this happens after we've generated a
-    complete go/ast.File, we don't need to worry about our own simplified
-    node types.
+    Fixes #31083.
     
-    The generated code is the same, but rulegen is much faster and uses less
-    memory at its peak, so it should scale better with time.
-    
-    With 'benchcmd Rulegen go run *.go' on perflock, we get:
-    
-            name     old time/op         new time/op         delta
-            Rulegen          4.00s ± 0%          3.41s ± 1%  -14.70%  (p=0.008 n=5+5)
-    
-            name     old user-time/op    new user-time/op    delta
-            Rulegen          14.1s ± 1%          10.6s ± 1%  -24.62%  (p=0.008 n=5+5)
-    
-            name     old sys-time/op     new sys-time/op     delta
-            Rulegen          318ms ±26%          263ms ± 9%     ~     (p=0.056 n=5+5)
-    
-            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
-            Rulegen          231MB ± 4%          181MB ± 3%  -21.69%  (p=0.008 n=5+5)
-    
-    Change-Id: I8387d52818f6131357868ad348dac8c96d926191
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191782
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I2ce6c60da3f3d60495af283ea9122fb68a7a4f41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169779
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/ssa/gen/rulegen.go | 285 +++++++++++++++++++++++++---
- 1 file changed, 257 insertions(+), 28 deletions(-)
+ src/cmd/dist/test.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

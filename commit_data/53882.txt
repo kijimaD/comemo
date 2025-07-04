@@ -1,15 +1,18 @@
-commit 976a84b1ff14ca3bcd6b31001c25d0c552dd50d0
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Aug 2 17:03:55 2023 -0700
+commit 502504f433fa03fc8400b23c3fd10d5eb6e2b620
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Sep 5 15:05:27 2022 +0800
 
-    spec: remove unnecessary sentence
+    cmd/compile/internal/ssagen: use strings.Builder
     
-    Change-Id: I06345199ff16c80be83c345d734caef1714ec089
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/515338
-    TryBot-Bypass: Robert Griesemer <gri@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Change-Id: I840262eefff1073a452a243b9e31f61b53362fcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428360
+    Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- doc/go_spec.html | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ src/cmd/compile/internal/ssagen/nowb.go | 4 ++--
+ src/cmd/compile/internal/ssagen/ssa.go  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

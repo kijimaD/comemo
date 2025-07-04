@@ -1,52 +1,13 @@
-commit 7ba41e99728d9a4545361ddfd834a473b424bbb6
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Sep 3 11:11:16 2014 -0400
+commit 2c1fde07ac2a5993a8c758abb3967950afde8406
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Thu Aug 28 11:47:54 2014 -0400
 
-    runtime: convert a few traceback-related functions from proc.c to traceback.go
+    runtime: fix arm build
     
-    They were in proc.c mainly because there was no portable
-    traceback source file. As part of converting them to Go,
-    move to traceback.go.
-    
-    In order to get access to the PC of _rt0_go,
-    rename to runtime.rt0_go.
-    
-    LGTM=r
-    R=golang-codereviews, r
-    CC=dvyukov, golang-codereviews, iant, khr
-    https://golang.org/cl/139110043
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/134030043
 
- src/cmd/api/goapi.go                  |  12 +++-
- src/pkg/runtime/asm_386.s             |   2 +-
- src/pkg/runtime/asm_amd64.s           |   2 +-
- src/pkg/runtime/asm_amd64p32.s        |   2 +-
- src/pkg/runtime/asm_arm.s             |   2 +-
- src/pkg/runtime/proc.c                | 128 +---------------------------------
- src/pkg/runtime/rt0_darwin_386.s      |   2 +-
- src/pkg/runtime/rt0_darwin_amd64.s    |   2 +-
- src/pkg/runtime/rt0_dragonfly_386.s   |   2 +-
- src/pkg/runtime/rt0_dragonfly_amd64.s |   2 +-
- src/pkg/runtime/rt0_freebsd_386.s     |   2 +-
- src/pkg/runtime/rt0_freebsd_amd64.s   |   2 +-
- src/pkg/runtime/rt0_freebsd_arm.s     |   4 +-
- src/pkg/runtime/rt0_linux_386.s       |   2 +-
- src/pkg/runtime/rt0_linux_amd64.s     |   2 +-
- src/pkg/runtime/rt0_linux_arm.s       |   2 +-
- src/pkg/runtime/rt0_nacl_386.s        |   2 +-
- src/pkg/runtime/rt0_nacl_amd64p32.s   |   2 +-
- src/pkg/runtime/rt0_nacl_arm.s        |   2 +-
- src/pkg/runtime/rt0_netbsd_386.s      |   2 +-
- src/pkg/runtime/rt0_netbsd_amd64.s    |   2 +-
- src/pkg/runtime/rt0_netbsd_arm.s      |   2 +-
- src/pkg/runtime/rt0_openbsd_386.s     |   2 +-
- src/pkg/runtime/rt0_openbsd_amd64.s   |   2 +-
- src/pkg/runtime/rt0_plan9_386.s       |   2 +-
- src/pkg/runtime/rt0_plan9_amd64.s     |   2 +-
- src/pkg/runtime/rt0_solaris_amd64.s   |   2 +-
- src/pkg/runtime/rt0_windows_386.s     |   2 +-
- src/pkg/runtime/rt0_windows_amd64.s   |   2 +-
- src/pkg/runtime/runtime.h             |   1 -
- src/pkg/runtime/stubs.go              |   4 --
- src/pkg/runtime/traceback.go          | 121 ++++++++++++++++++++++++++++++--
- src/pkg/runtime/traceback_windows.go  |   3 +-
- 33 files changed, 158 insertions(+), 167 deletions(-)
+ src/pkg/runtime/stubs.go | 1 -
+ 1 file changed, 1 deletion(-)

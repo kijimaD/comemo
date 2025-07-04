@@ -1,16 +1,18 @@
-commit b6cc37d8df8003fdfc334292e698a72c5cae35b7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 30 05:20:25 2016 +0000
+commit bf776a988bf6fe82cbef5cfc954f33d127c5172c
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 26 13:10:41 2016 -0400
 
-    doc: update go1.8.html to remove mention of logging of bad requests
+    runtime: document bmap.tophash
     
-    TBR=See https://golang.org/cl/33244
+    In particular, it wasn't obvious that some values are special (unless
+    you also found those special values), so document that it isn't
+    necessarily a hash value.
     
-    Updates #18095
-    
-    Change-Id: I80f3a0462e6cc431b03927fa919cda4f6eee8d97
-    Reviewed-on: https://go-review.googlesource.com/33687
+    Change-Id: Iff292822b44408239e26cd882dc07be6df2c1d38
+    Reviewed-on: https://go-review.googlesource.com/30143
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.8.html | 4 ----
- 1 file changed, 4 deletions(-)
+ src/runtime/hashmap.go | 5 +++++
+ 1 file changed, 5 insertions(+)

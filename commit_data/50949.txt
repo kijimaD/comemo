@@ -1,17 +1,23 @@
-commit 3e6ca3a506fc89f19277b3c19b751847b3864185
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 20 10:22:10 2022 -0400
+commit 2375b6edf376f97d0d8e3978fa3211788bc9b4dd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 18 12:14:24 2021 -0800
 
-    cmd/go/internal/modload: update TestQueryImport to pass with tagged versions of x/net
+    cmd/go/internal/test: add dep from test pkg build to real pkg build
     
-    For #48523.
+    If we have to build a test package, and if the full set of packages
+    being tested imports the regular package somewhere, then make building
+    the test package depend on building the regular package.  That way if
+    the regular package fails to build we only report the error once.
     
-    Change-Id: Ied35d15462cbae1002e1db1e6e119a6c9f8323da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/444156
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Fixes #44624
+    
+    Change-Id: Ic7d66d8fec9c4688d369153a4b21194989f8def3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365215
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modload/import_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/test/test.go                  | 25 +++++++++++++++++++++--
+ src/cmd/go/testdata/script/build_single_error.txt | 18 ++++++++++++++++
+ 2 files changed, 41 insertions(+), 2 deletions(-)

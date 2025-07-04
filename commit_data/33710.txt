@@ -1,17 +1,20 @@
-commit 4a483ce2ab493aaffc37bfb414de93d0622662fd
-Author: Jess Frazelle <me@jessfraz.com>
-Date:   Mon Jul 17 23:41:40 2017 -0400
+commit 2ac43d5be2e6b48b9806f9456d932d2884705e10
+Author: griesemer <gri@golang.org>
+Date:   Tue Aug 29 15:48:07 2017 +0200
 
-    cmd/cgo: fix for function taking pointer typedef
+    doc: minor clarification regarding the sharing of underlying arrays
     
-    Fixes #19832
+    The last sentence in the section on slice expressions could be read
+    as if it might apply to strings. Changed the sentence a bit to
+    emphasize its applicability to slices only. See also the issue for
+    more background.
     
-    Change-Id: I7ce39c2c435d4716d8a42ac6784b4c87874c0e13
-    Reviewed-on: https://go-review.googlesource.com/49490
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Fixes #19220.
+    
+    Change-Id: I8551f34230e4ed93f951e7b871cc81f54a5874a9
+    Reviewed-on: https://go-review.googlesource.com/59890
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/cgo/test/issue19832.go | 16 ++++++++++++++++
- src/cmd/cgo/gcc.go          |  6 ++++++
- 2 files changed, 22 insertions(+)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

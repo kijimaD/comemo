@@ -1,17 +1,15 @@
-commit 29330c118d33c8d7c8b1e7f1caf51b421bd4ee04
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Oct 21 17:19:49 2015 -0700
+commit 1d75b40de8ecfaa947e1d61311d3a725fe4ec575
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Aug 11 15:05:12 2015 +1000
 
-    runtime: change fixalloc's chunk field to unsafe.Pointer
+    net/mail: avoid panic in (*Address).String for malformed addresses.
     
-    It's never used as a *byte anyway, so might as well just make it an
-    unsafe.Pointer instead.
+    Fixes #12098.
     
-    Change-Id: I68ee418781ab2fc574eeac0498f2515b5561b7a8
-    Reviewed-on: https://go-review.googlesource.com/16175
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I190586484cd34856dccfafaba60eff0197c7dc20
+    Reviewed-on: https://go-review.googlesource.com/13500
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/runtime/mfixalloc.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/net/mail/message.go      | 9 ++++++++-
+ src/net/mail/message_test.go | 8 ++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

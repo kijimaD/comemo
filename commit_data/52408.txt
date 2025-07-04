@@ -1,23 +1,22 @@
-commit c994067e5bf8c9fde09cabfc29d56fdcf98bbee8
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Mar 23 17:38:05 2023 -0700
+commit 986a31053d1cdb866153b44b6defa9f0400c4d4b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 2 20:49:36 2022 +0000
 
-    encoding/gob: update decgen to generate current dec_helpers
+    runtime: add a non-functional memory limit to the pacer
     
-    I edited dec_helpers.go without realizing that it is a generated file.
-    Fix the generator to generate the current version (which generates
-    a small comment change).
+    Nothing much to see here, just some plumbing to make latter CLs smaller
+    and clearer.
     
-    Change-Id: I70e3bc78eb0728d23c08972611218f288dc1d29c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/479117
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    For #48409.
+    
+    Change-Id: Ide23812d5553e0b6eea5616c277d1a760afb4ed0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393401
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Andrew Ekstedt <andrew.ekstedt@gmail.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
 
- src/encoding/gob/dec_helpers.go |  1 +
- src/encoding/gob/decgen.go      | 22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+)
+ src/runtime/debug/stubs.go |  1 +
+ src/runtime/export_test.go |  2 +-
+ src/runtime/mgc.go         |  3 +-
+ src/runtime/mgcpacer.go    | 73 +++++++++++++++++++++++++++++++++++++++++-----
+ 4 files changed, 69 insertions(+), 10 deletions(-)

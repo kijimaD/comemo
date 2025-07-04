@@ -1,21 +1,21 @@
-commit c09945980a80a3b92362bd2e99a883051d2dd4d7
-Author: woodsaj <awoods@raintank.io>
-Date:   Thu Nov 17 20:14:32 2016 +0800
+commit 3390294308462d5ddab95feaf42acc8fde767c98
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 26 10:06:10 2016 -0700
 
-    crypto/tls: reject CT extension with no SCTs included
+    cmd/compile: PPC64, find compare-with-immediate
     
-    When the CT extension is enabled but no SCTs are present, the existing
-    code calls "continue" which causes resizing the data byte slice to be
-    skipped. In fact, such extensions should be rejected.
+    Added rules for compare double and word immediate,
+    including those that use invertflags to cope with
+    flipped operands.
     
-    Fixes #17958
-    
-    Change-Id: Iad12da10d1ea72d04ae2e1012c28bb2636f06bcd
-    Reviewed-on: https://go-review.googlesource.com/33265
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I594430a210e076e52299a2cc6ab074dbb04a02bd
+    Reviewed-on: https://go-review.googlesource.com/29763
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- src/crypto/tls/handshake_messages.go      |  5 +---
- src/crypto/tls/handshake_messages_test.go | 45 +++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   9 ++
+ src/cmd/compile/internal/ssa/rewrite.go      |   5 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 180 +++++++++++++++++++++++++++
+ 3 files changed, 194 insertions(+)

@@ -1,21 +1,38 @@
-commit f08c552dabf4a75739e0f198804ae14368d31105
-Author: Joshua Harshman <joshgreyhat@gmail.com>
-Date:   Wed May 27 09:54:41 2020 -0600
+commit 3036b76df0ae748856e3e0008b67241cc580e263
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat Jun 13 00:06:49 2020 +0800
 
-    net/http: add to deadlines only when positive
+    cmd/asm: Add SHA3 hardware instructions for ARM64
     
-    The existing implementation allows read / write deadlines to exist
-    in the past. This updates conditionals to only add to the deadline
-    when the value is positive.
+    Armv8.2-SHA introduced four SHA3-related instructions
     
-    Fixes: #39177
-    Change-Id: I841c30ba2849a337e7bc98c8aa136c4527c314ed
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/235437
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    EOR3 <Vd>.16B, <Vn>.16B, <Vm>.16B, <Va>.16B
+    RAX1 <Vd>.2D, <Vn>.2D, <Vm>.2D
+    XAR <Vd>.2D, <Vn>.2D, <Vm>.2D, #<imm6>
+    BCAX <Vd>.16B, <Vn>.16B, <Vm>.16B, <Va>.16B
+    
+    We convert them into Go asm style as:
+    
+    VEOR3 <Va>.B16, <Vm>.B16, <Vn>.B16, <Vd>.B16
+    VRAX1 <Vm>.D2, <Vn>.D2, <Vd>.D2
+    VXAR $imm6, <Vm>.D2, <Vn>.D2, <Vd>.D2
+    VBCAX <Va>.B16, <Vm>.B16, <Vn>.B16, <Vd>.B16
+    
+    Armv8 Reference Manual:
+    * EOR3 (Three-way Exclusive OR) on C7.2.42
+    * RAX1 (Rotate and Exclusive OR) on C7.2.217
+    * XAR (Exclusive OR and Rotate) on C7.2.401
+    * BCAX (Bit Clear and Exclusive OR) on C7.2.12
+    
+    Change-Id: I9a5d1b5ad508ed8fd5289d535906c54d9a63ca5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180757
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
 
- src/net/http/server.go | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ src/cmd/asm/internal/asm/testdata/arm64.s |  4 ++
+ src/cmd/internal/obj/arm64/a.out.go       |  4 ++
+ src/cmd/internal/obj/arm64/anames.go      |  4 ++
+ src/cmd/internal/obj/arm64/asm7.go        | 73 ++++++++++++++++++++++++++++++-
+ 4 files changed, 83 insertions(+), 2 deletions(-)

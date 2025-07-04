@@ -1,12 +1,12 @@
-commit 6e7d5d0326a50b06fd47553cb2d96ede28b1680c
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Mar 27 15:55:15 2017 +1100
+commit 1716add3dc50d4ef38183d01ac5c1a16c83a8ac9
+Author: Kevin Burke <kev@inburke.com>
+Date:   Fri Dec 16 07:50:08 2016 -0800
 
-    debug/pe: add TestBuildingWindowsGUI
+    runtime/pprof: fix spelling in test
     
-    Change-Id: I6b6a6dc57e48e02ff0d452755b8dcf5543b3caed
-    Reviewed-on: https://go-review.googlesource.com/38759
+    Change-Id: Id10e41fe396156106f63a4b29d673b31bea5358f
+    Reviewed-on: https://go-review.googlesource.com/34551
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/debug/pe/file_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+ src/runtime/pprof/pprof_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

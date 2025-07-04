@@ -1,15 +1,12 @@
-commit ee154f5df534479d1ef0d956280399bf6a7ad492
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Thu Apr 21 10:45:49 2011 -0700
+commit 256df10eae78fd0cbb4f41960a3a8ad9f7cc63ae
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Thu Apr 21 12:09:29 2011 -0400
 
-    mime/multipart: limit line length to prevent abuse
-    
-    Fixes #1528
+    gc: fix copy([]int, string) error message
     
     R=rsc
     CC=golang-dev
-    https://golang.org/cl/4425060
+    https://golang.org/cl/4433064
 
- src/pkg/mime/multipart/multipart.go      |  6 ++++--
- src/pkg/mime/multipart/multipart_test.go | 32 ++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 2 deletions(-)
+ src/cmd/gc/typecheck.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

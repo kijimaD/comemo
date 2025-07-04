@@ -1,18 +1,17 @@
-commit 35806efda21242df2c56ca276a842481acf6fea0
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Mon Apr 19 16:05:01 2021 -0700
+commit e7259c07d4e479d9f83899a4c8b2f58b7b4ff63e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 16 12:11:02 2020 -0400
 
-    io/fs: document that caller can modify slice returned by ReadFile
+    cmd/objdump: skip tests on unsupported platforms
     
-    Also add a test to testing/fstest.
+    Should fix mips(64)(le) and s390x builds.
     
-    Fixes #45186
-    
-    Change-Id: I00e5f46ccd5269dbc266a8f2ebc9a62ebb1297b8
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/311649
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I2c80339ce22b0ce5dceb595e504740e74bc840cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263137
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
 
- src/io/fs/readfile.go        |  3 +++
- src/testing/fstest/testfs.go | 12 ++++++++++++
- 2 files changed, 15 insertions(+)
+ src/cmd/objdump/objdump_test.go | 54 ++++++++++++-----------------------------
+ 1 file changed, 16 insertions(+), 38 deletions(-)

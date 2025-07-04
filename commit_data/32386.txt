@@ -1,13 +1,15 @@
-commit 1d53fc512379224024569a4e2bb34f5a76fb1575
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Mon Jun 5 14:52:31 2017 +1000
+commit 08db34927d134ead36a57a8595faaf639f69a741
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:25:25 2017 -0700
 
-    cmd/link: introduce and use peFile.addDWARFSection
+    cmd/compile: convert GCProg generation to use obj.LSym
     
-    Change-Id: I8b23bfb85da9ece47e337f262bafd97f303dd1d1
-    Reviewed-on: https://go-review.googlesource.com/56313
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Passes toolstash-check.
+    
+    Change-Id: I0cc4fe608a50681845a92053cb3888ea127b521a
+    Reviewed-on: https://go-review.googlesource.com/41402
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/link/internal/ld/dwarf.go |  2 +-
- src/cmd/link/internal/ld/pe.go    | 40 +++++++++++++++++++--------------------
- 2 files changed, 21 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/gc/reflect.go | 41 +++++++++++++++++-----------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

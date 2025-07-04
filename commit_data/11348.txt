@@ -1,58 +1,15 @@
-commit 1dc37bbf46bbef5fd561bad48b8946068b925b70
-Author: David G. Andersen <dave.andersen@gmail.com>
-Date:   Mon Jan 23 13:46:28 2012 -0800
+commit 4417bc3742a11b48a0ae07b883c9a0ed5d064e4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 23 16:35:25 2012 -0500
 
-    math/big: slight improvement to algorithm used for internal bitLen function
+    exp/ebnflint: test spec during 'go test'
     
-    The bitLen function currently shifts out blocks of 8 bits at a time.
-    This change replaces this sorta-linear algorithm with a log(N)
-    one (shift out 16 bits, then 8, then 4, then 2, then 1).
-    I left the start of it linear at 16 bits at a time so that
-    the function continues to work with 32 or 64 bit values
-    without any funkiness.
-    The algorithm is similar to several of the nlz ("number of
-    leading zeros") algorithms from "Hacker's Delight" or the
-    "bit twiddling hacks" pages.
+    This avoids the need for a custom Makefile.
     
-    Doesn't make a big difference to the existing benchmarks, but
-    I'm using the code in a different context that calls bitLen
-    much more often, so it seemed worthwhile making the existing
-    codebase faster so that it's a better building block.
-    
-    Microbenchmark results on a 64-bit Macbook Pro using 6g from weekly.2012-01-20:
-    
-    benchmark                old ns/op    new ns/op    delta
-    big.BenchmarkBitLen0             4            6  +50.12%
-    big.BenchmarkBitLen1             4            6  +33.91%
-    big.BenchmarkBitLen2             6            6   +3.05%
-    big.BenchmarkBitLen3             7            6  -19.05%
-    big.BenchmarkBitLen4             9            6  -30.19%
-    big.BenchmarkBitLen5            11            6  -42.23%
-    big.BenchmarkBitLen8            16            6  -61.78%
-    big.BenchmarkBitLen9             5            6  +18.29%
-    big.BenchmarkBitLen16           18            7  -60.99%
-    big.BenchmarkBitLen17            7            6   -4.64%
-    big.BenchmarkBitLen31           19            7  -62.49%
-    
-    On an ARM machine (with the previous weekly):
-    
-    benchmark                old ns/op    new ns/op    delta
-    big.BenchmarkBitLen0            37           50  +36.56%
-    big.BenchmarkBitLen1            59           51  -13.69%
-    big.BenchmarkBitLen2            74           59  -20.40%
-    big.BenchmarkBitLen3            92           60  -34.89%
-    big.BenchmarkBitLen4           110           59  -46.09%
-    big.BenchmarkBitLen5           127           60  -52.68%
-    big.BenchmarkBitLen8           181           59  -67.24%
-    big.BenchmarkBitLen9            78           60  -23.05%
-    big.BenchmarkBitLen16          199           69  -65.13%
-    big.BenchmarkBitLen17           91           70  -23.17%
-    big.BenchmarkBitLen31          210           95  -54.43%
-    
-    R=golang-dev, dave, edsrzf, gri
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/5570044
+    https://golang.org/cl/5575045
 
- src/pkg/math/big/arith.go      | 16 ++++++++++++++--
- src/pkg/math/big/arith_test.go | 22 ++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 2 deletions(-)
+ src/pkg/exp/ebnflint/ebnflint.go      | 41 +++++++++++++++++++++++------------
+ src/pkg/exp/ebnflint/ebnflint_test.go | 16 ++++++++++++++
+ 2 files changed, 43 insertions(+), 14 deletions(-)

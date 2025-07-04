@@ -1,21 +1,26 @@
-commit 7a92395ddd8354e49d2a928c99027a1a321ea716
-Author: Todd Neal <todd@tneal.org>
-Date:   Tue Apr 25 19:32:48 2017 -0400
+commit a610957f2e48c5b917126b1d0b5f930f05ca8841
+Author: Nathan Caza <mastercactapus@gmail.com>
+Date:   Fri Feb 10 21:09:21 2017 -0600
 
-    plugin: resolve plugin import path issue
+    net/http: handle absolute paths in mapDirOpenError
     
-    Resolve import paths to get plugin symbol prefixes.
+    The current implementation does not account for Dir being
+    initialized with an absolute path on systems that start
+    paths with filepath.Separator. In this scenario, the
+    original error is returned, and not checked for file
+    segments.
     
-    Fixes #19534
+    This change adds a test for this case, and corrects the
+    behavior by ignoring blank path segments in the loop.
     
-    Change-Id: Ic25d83e72465ba8f6be0337218a1627b5dc702dc
-    Reviewed-on: https://go-review.googlesource.com/40994
-    Run-TryBot: Todd Neal <todd@tneal.org>
+    Refs #18984
+    
+    Change-Id: I9b79fd0a73a46976c8e2feda0283ef0bb2b62ea1
+    Reviewed-on: https://go-review.googlesource.com/36804
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
 
- misc/cgo/testplugin/src/issue19534/main.go   | 23 +++++++++++++++
- misc/cgo/testplugin/src/issue19534/plugin.go |  9 ++++++
- misc/cgo/testplugin/test.bash                |  8 +++++-
- src/plugin/plugin_dlopen.go                  | 43 +++++++++++++++++++++++++++-
- 4 files changed, 81 insertions(+), 2 deletions(-)
+ src/net/http/fs.go      |  3 +++
+ src/net/http/fs_test.go | 37 ++++++++++++++++++++++++-------------
+ 2 files changed, 27 insertions(+), 13 deletions(-)

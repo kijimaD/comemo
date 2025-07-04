@@ -1,25 +1,15 @@
-commit 1fba73de45884012f9f632160b8985029ab0e5a8
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 16 10:26:23 2013 +1000
+commit aa53b37fa6aeb4ea378b5fc833f0aea5d6f9711e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 15 11:29:47 2013 -0400
 
-    encoding/gob: ignore chan and func fields of structures
+    go/build: add ctxt.MatchFile
     
-    Previously, fields of type chan or func caused an error.
-    Now we just treat them like unexported fields and ignore them.
-    This makes it easier to guarantee long-term compatibilty since
-    a substructure from another package cannot break gob
-    encoding by adding a func or chan field.
+    Fixes #6369.
     
-    Fixes #6071
-    
-    R=golang-dev, rsc
+    R=dsymonds, r
     CC=golang-dev
-    https://golang.org/cl/13693043
+    https://golang.org/cl/13708043
 
- src/pkg/encoding/gob/codec_test.go   | 18 ----------------
- src/pkg/encoding/gob/doc.go          |  5 +++--
- src/pkg/encoding/gob/encode.go       |  5 ++---
- src/pkg/encoding/gob/encoder.go      |  8 +------
- src/pkg/encoding/gob/encoder_test.go | 42 +++++++++++++++++++++++++-----------
- src/pkg/encoding/gob/type.go         | 21 +++++++++++++++++-
- 6 files changed, 55 insertions(+), 44 deletions(-)
+ src/pkg/go/build/build.go      | 152 +++++++++++++++++++++++++++--------------
+ src/pkg/go/build/build_test.go |  42 ++++++++++++
+ 2 files changed, 143 insertions(+), 51 deletions(-)

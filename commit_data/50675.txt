@@ -1,25 +1,22 @@
-commit 435652b468f0b71266f760490896ac3e9cf46eba
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 28 13:20:40 2022 -0700
+commit c58417b97f2b8d16176ddd294ae4471f834ab4d6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 4 16:53:30 2021 -0400
 
-    go/types, types2: use "assignment mismatch: x variables but y values" error message
+    runtime: mark TestTracebackArgs test functions nosplit
     
-    This matches current compiler behavior.
+    The argument liveness tests expect outputs where a dead stack slot
+    has a poisoned value. If the test function is preempted at the
+    prologue, it will go with the morestack code path which will spill
+    all the argument registers. Mark them nosplit to avoid that.
     
-    For #55326.
+    Should fix #49354.
     
-    Change-Id: I7197cf4ce21e614291a1a2e1048dd78d0a232b64
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/436175
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
+    Change-Id: I3b13e72e925748687a53c494bfaa70f07d9496fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361211
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/compile/internal/types2/assignments.go | 12 ++----------
- src/go/types/assignments.go                    | 12 ++----------
- src/internal/types/testdata/check/decls1.go    |  2 +-
- src/internal/types/testdata/check/issues0.go   |  4 ++--
- src/internal/types/testdata/check/stmt0.go     | 20 ++++++++++----------
- src/internal/types/testdata/check/vardecl.go   | 18 +++++++++---------
- 6 files changed, 26 insertions(+), 42 deletions(-)
+ src/runtime/traceback_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

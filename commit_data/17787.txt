@@ -1,13 +1,15 @@
-commit 26f43a089e9d77cdb8c7c7f2c600631283de91f2
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Sat Oct 12 18:40:41 2013 -0400
+commit 5b2f62615970532374c9bd1b48dfe7f7ffef217a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 11 16:17:45 2013 -0700
 
-    doc: fix small HTML problems
+    go/build: add GOOS and GOARCH to name of gccgo pkg directory
     
-    R=golang-dev, dave
+    This matches the behaviour of builder.includeArgs in
+    cmd/go/build.go.
+    
+    R=golang-dev, minux.ma
     CC=golang-dev
-    https://golang.org/cl/14629043
+    https://golang.org/cl/14535048
 
- doc/code.html             | 2 +-
- doc/codewalk/codewalk.xml | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/pkg/go/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

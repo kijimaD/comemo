@@ -1,20 +1,17 @@
-commit 5b72f45dd17314af39627c2fcac0fbc099b67603
-Author: Michael Pratt <mpratt@google.com>
-Date:   Fri Jun 30 14:32:39 2023 -0400
+commit 7a1ae605ebc0a30c1ec83f967d9a0a20a0bbb02b
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Aug 26 11:57:46 2022 +0800
 
-    runtime: check GOFLAGS not GCFLAGS
+    runtime: convert notifyList.wait to atomic type
     
-    GCFLAGS doesn't have any defined meaning. cmd/dist enables
-    mayMoreStackPreempt with GOFLAGS.
+    For #53821
     
-    For #55160.
-    
-    Change-Id: I7ac71e4a1a983a56bd228ab5d24294db5cc595f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507359
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Change-Id: Ib096332fe6111bbcd2f5c4cbb29c2fef7a808e7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425784
+    Run-TryBot: hopehook <hopehook@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/runtime/crash_unix_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/sema.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

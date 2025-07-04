@@ -1,39 +1,65 @@
-commit 68327e1aa11457cd570bc7eaf03a0260950f27d9
-Author: Alberto Donizetti <alb.donizetti@gmail.com>
-Date:   Fri May 7 19:10:28 2021 +0200
+commit 733c4af41d2e89d18cfb039e0107336a4c1ec220
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Oct 19 11:51:17 2020 -0400
 
-    cmd/vendor: upgrade pprof to latest
+    go/types: add internal error codes
     
-    This change upgrades the vendored pprof to pick up the fix for a
-    serious issue that made the source view in browser mode blank
-    (tracked upstream as google/pprof#621).
+    Tools using go/types sometimes need to implement special handling for
+    certain errors produced by the type-checker. They can offer suggested
+    fixes, expand the error position to surrounding syntax, highlight
+    related syntax (for example in the case of a declaration cycle), link to
+    additional documentation, group errors by category, or correlate errors
+    with signals produced by other static analysis tools.
     
-    I also had to patch pprof.go, since one of the upstream commit we
-    included introduced a breaking change in the file interface (the Base
-    method is now called ObjAddr and has a different signature).
+    All these require a notion of error identity. Tools need to be able to
+    reliably determine the nature of an error without re-implementing type
+    checking logic or parsing error messages. This CL is a first-pass at
+    adding such an identifier to types.Error: a (for the moment unexported)
+    field containing one of many declared errorCode constants.
     
-    I've manually verified that the upgrade fixes the aforementioned
-    issues with the source view.
+    A wide variety of error code constants are defined, and assigned to type
+    checker errors according to their 'functional equivalence', meaning that
+    they should be ideally be stable under refactoring.
     
-    Fixes #45786
+    With few exceptions, each error code is documented with an example that
+    produces it. This is enforced by tests.
     
-    Change-Id: I00659ae539a2ad603758e1f06572374d483b9ddc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/318049
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    When error codes are exported they will represent quite a large API
+    surface. For this reason, as well as the likelihood that error codes
+    will change at the start, both the code field and the codes themselves
+    are initially unexported. gopls will read these fields using reflection
+    during this experimental phase. Others can obviously do the same,
+    provided they accept the lack of forward compatibility.
+    
+    For #42290
+    
+    Change-Id: I15e3c2bffd2046c20297b1857057d421f633098a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264179
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
 
- src/cmd/go.mod                                     |   2 +-
- src/cmd/go.sum                                     |   4 +-
- src/cmd/pprof/pprof.go                             |   4 +-
- .../github.com/google/pprof/driver/driver.go       |   4 +-
- .../google/pprof/internal/binutils/binutils.go     | 188 +++++++++++++----
- .../google/pprof/internal/elfexec/elfexec.go       |  96 ++++-----
- .../google/pprof/internal/plugin/plugin.go         |   5 +-
- .../google/pprof/internal/report/report.go         |  15 +-
- .../google/pprof/internal/report/source.go         | 235 ++++++++++++++-------
- .../google/pprof/internal/report/source_html.go    |   7 -
- .../google/pprof/internal/report/synth.go          |  39 ++++
- .../github.com/google/pprof/profile/encode.go      |   2 +-
- .../github.com/google/pprof/profile/merge.go       |   1 -
- src/cmd/vendor/modules.txt                         |   2 +-
- 14 files changed, 412 insertions(+), 192 deletions(-)
+ src/go/types/api.go              |   10 +-
+ src/go/types/assignments.go      |   37 +-
+ src/go/types/builtins.go         |   88 +--
+ src/go/types/call.go             |   36 +-
+ src/go/types/check.go            |    4 +-
+ src/go/types/check_test.go       |   11 +
+ src/go/types/conversions.go      |    4 +-
+ src/go/types/decl.go             |   18 +-
+ src/go/types/errorcodes.go       | 1361 ++++++++++++++++++++++++++++++++++++++
+ src/go/types/errorcodes_test.go  |  197 ++++++
+ src/go/types/errors.go           |   40 +-
+ src/go/types/expr.go             |  127 ++--
+ src/go/types/initorder.go        |    6 +-
+ src/go/types/labels.go           |   14 +-
+ src/go/types/operand.go          |   24 +-
+ src/go/types/resolver.go         |   35 +-
+ src/go/types/self_test.go        |    8 +-
+ src/go/types/stmt.go             |   77 ++-
+ src/go/types/testdata/cycles.src |    8 +-
+ src/go/types/testdata/expr3.src  |   20 +-
+ src/go/types/typexpr.go          |   58 +-
+ 21 files changed, 1906 insertions(+), 277 deletions(-)

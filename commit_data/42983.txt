@@ -1,18 +1,27 @@
-commit ea33523877e4c7a136f2db94a8b5bc4e40220be2
-Author: Xiangdong Ji <xiangdong.ji@arm.com>
-Date:   Tue Sep 8 09:55:20 2020 +0000
+commit 2cf3ebaf3db5b23a56e2ee62ecd76748dfbb5b8e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 17 17:47:34 2020 -0800
 
-    cmd/compile: rewrite some ARM64 rules to use typed aux
+    cmd/compile: add dedicated ARM64BitField aux type
     
-    Passes toolstash-check -all.
+    The goal here is improved AuxInt printing in ssa.html.
+    Instead of displaying an inscrutable encoded integer,
+    it displays something like
     
-    Change-Id: I7ec36bc048f3031c8201107e6fc5d1257271dbf1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/234379
-    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    v25 (28) = UBFX <int> [lsb=4,width=8] v52
+    
+    which is much nicer for debugging.
+    
+    Change-Id: I40713ff7f4a857c4557486cdf73c2dff137511ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221420
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/ssa/gen/ARM64.rules | 496 +++++++--------
- src/cmd/compile/internal/ssa/rewriteARM64.go | 912 +++++++++++++--------------
- 2 files changed, 704 insertions(+), 704 deletions(-)
+ src/cmd/compile/internal/ssa/check.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 12 +++++-----
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |  2 +-
+ src/cmd/compile/internal/ssa/op.go           | 35 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/opGen.go        | 12 +++++-----
+ src/cmd/compile/internal/ssa/value.go        |  4 ++++
+ 6 files changed, 36 insertions(+), 31 deletions(-)

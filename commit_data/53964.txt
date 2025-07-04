@@ -1,21 +1,20 @@
-commit 7c2b69080a0b9e35174cc9c93497b6e7176f8275
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Aug 9 17:22:20 2023 -0400
+commit 54182ff54a687272dd7632c3a963e036ce03cb7c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 10 01:34:35 2022 +0700
 
-    cmd/go/internal/web: remove a redundant return value
+    internal/syscall/windows: simplify unsafe.Slice usage
     
-    The URL return value from the fetch helper in web.get was always
-    either the passed in URL (on success) or nil (on failure).
-    Remove it to reduce code complexity.
+    CL 428780 used unsafe.Slice instead of unsafeheader for simplifiying the
+    code. However, it can be even simpler, since "p" is already a *uin16,
+    the unsafe cast is not necessary.
     
-    For #61877.
-    
-    Change-Id: I0ce4602b921d1c996aa988e7d3f83996511ccd72
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/518016
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Change-Id: Idc492b73518637997e85c0b33f8591bd19b7929f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429915
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- src/cmd/go/internal/web/http.go | 22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
+ src/internal/syscall/windows/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

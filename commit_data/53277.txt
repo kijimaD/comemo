@@ -1,23 +1,24 @@
-commit bfdd3bf3a5bce39fefe388a19f75dfd9a484ea21
-Author: Bryan Mills <bcmills@google.com>
-Date:   Wed May 24 17:16:33 2023 +0000
+commit 9903ab546938639c93a616c00b80cd94683e2779
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Aug 8 16:48:55 2022 +0000
 
-    Revert "testing: only report subtest races once"
+    encoding/binary: ReadUvarint return io.ErrUnexpectedEOF when read at least 1 byte
     
-    This reverts CL 494057.
+    Fixes #54139
     
-    Reason for revert: test is failing on -race builders.
-    
-    Fixes #60393.
-    
-    Change-Id: If98238a12673aec597cf69aeead7bdf4782b4524
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/497996
+    Change-Id: Ifc73bd7f181b13970ee6a08968f9d8f6e55d7ff3
+    GitHub-Last-Rev: 1e0a79bd3eb3e4dfcbfd7e9f94e849b3248ffac1
+    GitHub-Pull-Request: golang/go#54143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420274
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/testing/benchmark.go    |   5 +-
- src/testing/testing.go      |  64 ++++----------------------
- src/testing/testing_test.go | 108 --------------------------------------------
- 3 files changed, 13 insertions(+), 164 deletions(-)
+ src/encoding/binary/varint.go      | 9 +++++++++
+ src/encoding/binary/varint_test.go | 6 +++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

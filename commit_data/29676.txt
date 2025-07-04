@@ -1,19 +1,12 @@
-commit a745dc930e00a026aea6449ec0e790152eb4bcd4
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Wed Nov 30 02:04:09 2016 +0000
+commit fe77c5b36994d907a6c0f4cd8ffb0a2ad6cfde5e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 3 11:25:25 2016 -0700
 
-    doc: add tool sections to go1.8.html
+    doc: add PKG_CONFIG and GIT_ALLOW_PROTOCOL env vars to go1.8.txt
     
-    Some still in TODO form.
-    
-    TBR=See https://golang.org/cl/33244
-    
-    Updates #17929
-    
-    Change-Id: I63547bed3c6ce34b706821a3c150ae03d7d82cf8
-    Reviewed-on: https://go-review.googlesource.com/33682
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I592b87f49fc636b89807d911132f69257d718afd
+    Reviewed-on: https://go-review.googlesource.com/30168
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/go1.8.html | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
- doc/go1.8.txt  | 33 ---------------------------------
- 2 files changed, 50 insertions(+), 33 deletions(-)
+ doc/go1.8.txt | 2 ++
+ 1 file changed, 2 insertions(+)

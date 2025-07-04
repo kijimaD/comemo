@@ -1,27 +1,29 @@
-commit 067bb443af6b44cb026ab182a26d157dbd1b2dd6
-Author: Katie Hockman <katie@golang.org>
-Date:   Fri Sep 28 13:50:57 2018 -0400
+commit c1d9d1f305df19c66e28a619e17f9f1d7563d977
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 25 14:27:29 2018 -0700
 
-    compress: move benchmark text from src/testdata to src/compress/testdata
+    cmd/go: don't generate output for "go build -o /dev/null x.go"
     
-    This text is used mainly for benchmark compression testing, and in one
-    net test. The text was prevoiusly in a src/testdata directory, but since
-    that directory would only include one file, the text is moved to the
-    existing src/compression/testdata directory.
+    We look for "-o /dev/null", and, if found, pretend that there was no
+    "-o" option and don't generate an action to create the final executable.
     
-    This does not cause any change to the benchmark results.
+    We look for "go build x.go", and, if found, and if -o was not used,
+    pretend that the user specified "-o x".
     
-    Updates #27151
+    Unfortunately, we were doing those in the wrong order, so that "go
+    build -o /dev/null x.go" would first clear the "-o" option and then
+    set it to "-o x".
     
-    Change-Id: I38ab5089dfe744189a970947d15be50ef1d48517
-    Reviewed-on: https://go-review.googlesource.com/138495
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    This CL flips the order so that the right thing happens.
+    
+    Fixes #25579
+    
+    Change-Id: Ic9556ac0a57f7b45b685951bc96ba5ea4633b860
+    Reviewed-on: https://go-review.googlesource.com/114715
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- misc/nacl/testzip.proto                              | 2 --
- src/compress/flate/deflate_test.go                   | 4 ++--
- src/compress/flate/reader_test.go                    | 2 +-
- src/{ => compress}/testdata/Isaac.Newton-Opticks.txt | 0
- src/net/sendfile_test.go                             | 2 +-
- 5 files changed, 4 insertions(+), 6 deletions(-)
+ src/cmd/go/go_test.go             | 11 +++++++++++
+ src/cmd/go/internal/work/build.go | 10 +++++-----
+ 2 files changed, 16 insertions(+), 5 deletions(-)

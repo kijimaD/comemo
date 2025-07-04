@@ -1,27 +1,33 @@
-commit a2b4ac6cf29d31f1c927720712a25cda7bfbc682
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Oct 25 16:42:26 2018 -0400
+commit ccf04c60298783a1cb75965d97c0e2b6876e0afb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 9 21:08:24 2018 -0400
 
-    cmd/go/internal/modfetch/codehost: add lockfiles for repos
+    cmd/go: display cached compiler output more often
     
-    The lockfile guards calls that may change the repo's filesystem contents.
+    CL 77110 arranged for caching and redisplaying compiler output
+    when reusing a compile artifact from the build cache.
     
-    We don't know how robust VCS implementations are to running
-    simultaneous commands, and this way we don't need to care: only one
-    'go' command at a time will modify any given repository.
+    It neglected to redisplay compiler and linker output when avoiding
+    the compile and link steps by reusing the target output binary
+    as a cached result. It also neglected to redisplay compiler and linker
+    output when avoiding the compile and link (and test) steps by reusing
+    cached test output.
     
-    If we can guarantee that particular VCS implementations are robust
-    enough across all of the VCS tool versions we support, we may be able
-    to remove some of this locking to improve parallelism.
+    This CL brings back the compiler and linker output in those two cases,
+    provided it can be found in the build cache. If it can't be found in the
+    build cache, then the go command still reuses the binaries and avoids
+    the compile/link/test steps. (It's not worth doing all that work again
+    just to repeat diagnostic output.)
     
-    Updates #26794
+    Fixes #23877.
     
-    Change-Id: I578524974f5015629239cef43d3793aee2b9075c
-    Reviewed-on: https://go-review.googlesource.com/c/146381
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I25bc054d93a88c039bcb8c5683fe4ac5cb1ee544
+    Reviewed-on: https://go-review.googlesource.com/128903
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/go/internal/modfetch/codehost/codehost.go | 38 +++++++++----
- src/cmd/go/internal/modfetch/codehost/git.go      | 58 +++++++++++++-------
- src/cmd/go/internal/modfetch/codehost/vcs.go      | 66 +++++++++++++++++++++--
- 3 files changed, 130 insertions(+), 32 deletions(-)
+ src/cmd/go/internal/work/buildid.go               | 65 +++++++++++++++++++----
+ src/cmd/go/internal/work/exec.go                  |  6 +--
+ src/cmd/go/testdata/script/build_cache_output.txt | 48 ++++++++++++++++-
+ 3 files changed, 104 insertions(+), 15 deletions(-)

@@ -1,54 +1,22 @@
-commit 59bc93535b3c5a3792df6837d8b28029e2952b84
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 2 14:11:09 2022 -0700
+commit d3a80c795e9368e9dfac4efb49e3ee041513d24a
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Nov 2 20:44:32 2021 +0100
 
-    cmd/compile: keep typecheck results in syntax tree
+    net/netip: add Addr.AsSlice() method
     
-    Saves on both space and cost of map operations. Saves about 3% in compile time.
+    We have AddrFrom4, AddrFrom6, AddrFromSlice and As4, As6, but we are
+    missing AsSlice, so this commit adds the missing function. It also gets
+    rid of the less ergonomic and inconsistently named IPAddrParts.
     
-    name                      old time/op       new time/op       delta
-    Template                        251ms ± 2%        244ms ± 1%   -2.78%  (p=0.000 n=8+8)
-    Unicode                         149ms ± 5%        135ms ± 2%   -9.03%  (p=0.000 n=10+10)
-    GoTypes                         1.38s ± 1%        1.35s ± 1%   -2.29%  (p=0.000 n=10+10)
-    Compiler                        115ms ± 2%        112ms ± 2%   -2.50%  (p=0.001 n=10+9)
-    SSA                             11.9s ± 0%        11.4s ± 0%   -4.04%  (p=0.000 n=9+10)
-    Flate                           153ms ± 1%        148ms ± 1%   -3.32%  (p=0.000 n=10+9)
-    GoParser                        284ms ± 2%        280ms ± 1%   -1.70%  (p=0.002 n=10+10)
-    Tar                             209ms ± 2%        205ms ± 2%   -1.98%  (p=0.004 n=9+10)
-    XML                             287ms ± 2%        281ms ± 1%   -2.06%  (p=0.000 n=10+10)
-    LinkCompiler                    508ms ± 2%        501ms ± 2%   -1.31%  (p=0.024 n=9+9)
-    ExternalLinkCompiler            2.66s ± 3%        2.63s ± 4%     ~     (p=0.280 n=10+10)
-    LinkWithoutDebugCompiler        338ms ± 3%        330ms ± 3%   -2.21%  (p=0.009 n=10+10)
-    StdCmd                          21.5s ± 1%        20.8s ± 1%   -3.27%  (p=0.000 n=9+9)
-    [Geo mean]                      615ms             597ms        -2.91%
+    Updates #49298.
     
-    name                      old user-time/op  new user-time/op  delta
-    Template                        344ms ± 2%        324ms ± 3%   -6.01%  (p=0.000 n=9+9)
-    Unicode                         215ms ±11%        192ms ± 2%  -10.84%  (p=0.000 n=10+9)
-    GoTypes                         1.99s ± 2%        1.93s ± 2%   -2.73%  (p=0.000 n=10+10)
-    Compiler                        142ms ± 4%        140ms ± 3%   -1.89%  (p=0.031 n=9+9)
-    SSA                             17.4s ± 1%        17.0s ± 5%     ~     (p=0.113 n=9+10)
-    Flate                           200ms ± 4%        196ms ± 6%     ~     (p=0.190 n=10+10)
-    GoParser                        388ms ± 3%        378ms ± 4%   -2.59%  (p=0.004 n=9+10)
-    Tar                             278ms ± 8%        277ms ± 2%     ~     (p=0.315 n=10+10)
-    XML                             387ms ± 2%        381ms ± 2%   -1.63%  (p=0.005 n=8+8)
-    LinkCompiler                    784ms ± 4%        778ms ± 2%     ~     (p=0.436 n=10+10)
-    ExternalLinkCompiler            2.45s ± 1%        2.42s ± 1%   -1.11%  (p=0.001 n=10+9)
-    LinkWithoutDebugCompiler        374ms ± 3%        366ms ± 2%   -2.15%  (p=0.010 n=10+9)
-    [Geo mean]                      600ms             583ms        -2.91%
-    
-    Change-Id: I9552a70d6a2ad500e9acd8815762b761be3c2ff9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432897
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Change-Id: I1c6a2c32fc6c69b244ab49765412ffe3bbe7e5c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360874
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/noder/helpers.go   |  3 +-
- src/cmd/compile/internal/noder/irgen.go     | 26 +++++-----
- src/cmd/compile/internal/noder/writer.go    | 12 ++---
- src/cmd/compile/internal/syntax/nodes.go    |  6 ++-
- src/cmd/compile/internal/syntax/type.go     | 73 +++++++++++++++++++++++++++++
- src/cmd/compile/internal/types2/api.go      | 24 ++++++++--
- src/cmd/compile/internal/types2/builtins.go | 42 ++++++++---------
- src/cmd/compile/internal/types2/check.go    | 51 +++++++++++++++++++-
- src/cmd/compile/internal/types2/type.go     | 10 ++--
- 9 files changed, 193 insertions(+), 54 deletions(-)
+ src/net/netip/netip.go | 42 +++++++++++++++++-------------------------
+ 1 file changed, 17 insertions(+), 25 deletions(-)

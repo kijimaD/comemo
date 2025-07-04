@@ -1,16 +1,19 @@
-commit 643865856c535a5a644201c602b18bd87b121c93
-Author: Andrey Bokhanko <andreybokhanko@gmail.com>
-Date:   Tue May 7 23:09:14 2024 +0300
+commit c890d40d0db00a6a91fd48acee024f0478f10ce4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 10 03:14:22 2023 +0000
 
-    cmd/compile: Fix SSA building bug for CAS atomics on ARM64
+    runtime: factor our oneNewExtraM trace code
     
-    Fixes #67229
+    In the interest of further cleaning up the trace.go API, move the trace
+    logic in oneNewExtraM into its own function.
     
-    Change-Id: I39f1255d38d2b2083753e17f0f5acf520e6167d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583995
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Shu-Chun Weng <scw@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I5cf478cb8cd0d301ee3b068347ed48ce768b8882
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494186
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ssagen/ssa.go | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ src/runtime/proc.go  |  7 +------
+ src/runtime/trace.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 6 deletions(-)

@@ -1,61 +1,75 @@
-commit d58d90152ba172dfa52d3135f5fea9b57927e230
-Author: David Chase <drchase@google.com>
-Date:   Fri Oct 27 17:02:11 2017 -0400
+commit a0453a180fc3555843185385e9d4ad9d57f1d36a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Aug 14 11:44:09 2017 +0200
 
-    cmd/compile: adjust locationlist lifetimes
+    cmd/compile: combine x*n + y*n into (x+y)*n
     
-    A statement like
+    There are a few cases where this can be useful. Apart from the obvious
+    (and silly)
     
-      foo = bar + qux
+      100*n + 200*n
     
-    might compile to
+    where we generate one IMUL instead of two, consider:
     
-      AX := AX + BX
+      15*n + 31*n
     
-    resulting in a regkill for AX before this instruction.
-    The buggy behavior is to kill AX "at" this instruction,
-    before it has executed.  (Code generation of no-instruction
-    values like RegKills applies their effects at the
-    next actual instruction emitted).
+    Currently, the compiler strength-reduces both imuls, generating:
     
-    However, bar is still associated with AX until after the
-    instruction executes, so the effect of the regkill must
-    occur at the boundary between this instruction and the
-    next.  Similarly, the new value bound to AX is not visible
-    until this instruction executes (and in the case of values
-    that require multiple instructions in code generation, until
-    all of them have executed).
+        0x0000 00000        MOVQ    "".n+8(SP), AX
+            0x0005 00005    MOVQ    AX, CX
+            0x0008 00008    SHLQ    $4, AX
+            0x000c 00012    SUBQ    CX, AX
+            0x000f 00015    MOVQ    CX, DX
+            0x0012 00018    SHLQ    $5, CX
+            0x0016 00022    SUBQ    DX, CX
+            0x0019 00025    ADDQ    CX, AX
+            0x001c 00028    MOVQ    AX, "".~r1+16(SP)
+            0x0021 00033    RET
     
-    The ranges are adjusted so that a value's start occurs
-    at the next following instruction after its evaluation,
-    and the end occurs after (execution of) the first
-    instruction following the end of the lifetime as a value.
+    But combining the imuls is both faster and shorter:
     
-    (Notice the asymmetry; the entire value must be finished
-    before it is visible, but execution of a single instruction
-    invalidates.  However, the value *is* visible before that
-    next instruction executes).
+            0x0000 00000    MOVQ    "".n+8(SP), AX
+            0x0005 00005    IMULQ   $46, AX
+            0x0009 00009    MOVQ    AX, "".~r1+16(SP)
+            0x000e 00014    RET
     
-    The test was adjusted to make it insensitive to the result
-    numbering for variables printed by gdb, since that is not
-    relevant to the test and makes the differences introduced
-    by small changes larger than necessary/useful.
+    even without strength-reduction.
     
-    The test was also improved to present variable probes
-    more intuitively, and also to allow explicit indication
-    of "this variable was optimized out"
+    Moreover, consider:
     
-    Change-Id: I39453eead8399e6bb05ebd957289b112d1100c0e
-    Reviewed-on: https://go-review.googlesource.com/74090
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+      5*n + 7*(n+1) + 11*(n+2)
+    
+    We already have a rule that rewrites 7(n+1) into 7n+7, so the
+    generated code (without imuls merging) looks like this:
+    
+            0x0000 00000    MOVQ    "".n+8(SP), AX
+            0x0005 00005    LEAQ    (AX)(AX*4), CX
+            0x0009 00009    MOVQ    AX, DX
+            0x000c 00012    NEGQ    AX
+            0x000f 00015    LEAQ    (AX)(DX*8), AX
+            0x0013 00019    ADDQ    CX, AX
+            0x0016 00022    LEAQ    (DX)(CX*2), CX
+            0x001a 00026    LEAQ    29(AX)(CX*1), AX
+            0x001f 00031    MOVQ    AX, "".~r1+16(SP)
+    
+    But with imuls merging, the 5n, 7n and 11n factors get merged, and the
+    generated code looks like this:
+    
+            0x0000 00000    MOVQ    "".n+8(SP), AX
+            0x0005 00005    IMULQ   $23, AX
+            0x0009 00009    ADDQ    $29, AX
+            0x000d 00013    MOVQ    AX, "".~r1+16(SP)
+            0x0012 00018    RET
+    
+    Which is both faster and shorter; that's also the exact same code that
+    clang and the intel c compiler generate for the above expression.
+    
+    Change-Id: Ib4d5503f05d2f2efe31a1be14e2fe6cac33730a9
+    Reviewed-on: https://go-review.googlesource.com/55143
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/ssa.go                 |  16 ++-
- src/cmd/compile/internal/ssa/debug.go              |   7 +-
- src/cmd/compile/internal/ssa/debug_test.go         |  23 ++--
- .../internal/ssa/testdata/hist.dbg-dlv.nexts       |   8 +-
- .../internal/ssa/testdata/hist.dbg-gdb.nexts       |  58 ++++-----
- src/cmd/compile/internal/ssa/testdata/hist.go      |   8 +-
- .../internal/ssa/testdata/hist.opt-dlv.nexts       |   8 +-
- .../internal/ssa/testdata/hist.opt-gdb.nexts       | 136 +++++++++++----------
- 8 files changed, 143 insertions(+), 121 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go        |   38 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |    6 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1072 +++++++++++++++++++++++-
+ test/mergemul.go                               |   81 ++
+ 4 files changed, 1151 insertions(+), 46 deletions(-)

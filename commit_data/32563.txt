@@ -1,18 +1,25 @@
-commit dcef97e08838ff65cbfef4f1f9ee35dc1e99f215
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue Aug 29 21:10:17 2017 +0200
+commit b666f2860b2735eb61fe5a03dd90c3af8eed1ec3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 1 07:36:43 2017 -0700
 
-    cmd/compile: rename mapbucket to bmap
+    runtime: use 64 bit calculation in overLoadFactor
     
-    This makes the name of the function to construct the map bucket type
-    consistent with runtimes naming and the existing hmap function.
+    overLoadFactor used a uintptr for its calculations.
+    When the number of potential buckets was large,
+    perhaps due to a coding error or corrupt/malicious user input
+    leading to a very large map size hint,
+    this led to overflow on 32 bit systems.
+    This overflow resulted in an infinite loop.
     
-    Change-Id: If4d8b4a54c92ab914d4adcb96022b48d8b5db631
-    Reviewed-on: https://go-review.googlesource.com/59915
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Prevent it by always using a 64 bit calculation.
+    
+    Updates #20195
+    
+    Change-Id: Iaabc710773cd5da6754f43b913478cc5562d89a2
+    Reviewed-on: https://go-review.googlesource.com/42185
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 17 +++++++++--------
- src/cmd/compile/internal/gc/walk.go    |  2 +-
- 2 files changed, 10 insertions(+), 9 deletions(-)
+ src/runtime/hashmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

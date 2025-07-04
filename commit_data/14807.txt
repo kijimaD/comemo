@@ -1,20 +1,14 @@
-commit 47e5266a225476961dfc3e0b26a2e3e620d89114
-Author: Dave Cheney <dave@cheney.net>
-Date:   Mon Jan 7 11:24:01 2013 +1100
+commit c75340488616b2744cbd7029d4b5a8e7003eaf87
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Jan 7 10:48:06 2013 +1100
 
-    misc/dashboard/builder: set GOPATH before building subrepos
+    bytes: fix docs: s/array/slice/.
     
-    This proposal updates the dashboard builder to avoid relying on the (soon to be removed) support for using go get to download to $GOROOT. The result is
-    
-    WORKSPACE=$(the value of the -buildRoot flag / $BUILDER_NAME + hg revision)
-    GOROOT=$WORKSPACE/go
-    GOPATH=$WORKSPACE
-    
-    Required for CL 6941058.
-    
-    R=minux.ma, adg
+    R=rsc, mdempsky, dave
     CC=golang-dev
-    https://golang.org/cl/7034049
+    https://golang.org/cl/7028051
 
- misc/dashboard/builder/main.go | 34 +++++++++++++++-------------------
- 1 file changed, 15 insertions(+), 19 deletions(-)
+ src/pkg/bytes/buffer_test.go |  2 +-
+ src/pkg/bytes/bytes.go       | 60 ++++++++++++++++++++++----------------------
+ src/pkg/bytes/bytes_test.go  | 26 +++++++++----------
+ 3 files changed, 44 insertions(+), 44 deletions(-)

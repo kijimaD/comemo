@@ -1,18 +1,38 @@
-commit 0d898353989308cd50c3a1eb5d180dbba9fa4393
-Author: Keith Randall <khr@google.com>
-Date:   Mon Oct 15 13:40:00 2018 -0700
+commit 500293d8dce663dafea7482f06a6c828faf4e88b
+Author: Dmitri Shuralyov <dmitri@shuralyov.com>
+Date:   Tue Jun 19 16:14:00 2018 -0400
 
-    cmd/compile: fix gdb stepping test, take 2
+    doc: update "Mac OS X", "OS X" to macOS; bump up to 10.10
     
-    The fix in CL 141649 is not right, the line in question got moved,
-    not added. Not sure why the -u option didn't do the right thing
-    when preparing the diff.
+    The name was "Mac OS X" during versions 10.0 to 10.7.
+    It was renamed to "OS X" starting from 10.8 until 10.11.
+    The current name is "macOS" starting with 10.12. [1]
     
-    Fixes #28198
+    Previous changes (e.g., CL 47252) updated "Mac OS X" to macOS
+    in some places, but not everywhere. This CL updates remaining
+    instances for consistency.
     
-    Change-Id: I6d45fdbbd5a9487cc70da07ab84e090b689a57f5
-    Reviewed-on: https://go-review.googlesource.com/c/142298
-    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Only the pages that display current information were updated;
+    historical pages such as release notes for older Go releases,
+    past articles, blog posts, etc., were left in original form.
+    
+    Rename the "#osx" anchor to "#macos" on /doc/install page,
+    along with the single reference to it on the same page.
+    Add an empty div with id="osx" to not break old links.
+    
+    Update minimum macOS version from 10.8 to 10.10 per #23122.
+    
+    [1]: https://en.wikipedia.org/wiki/macOS#History
+    
+    Updates #23122.
+    
+    Change-Id: I69fe4b85e83265b9d99f447e3cc5230dde094869
+    Reviewed-on: https://go-review.googlesource.com/119855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts | 4 ----
- 1 file changed, 4 deletions(-)
+ doc/debugging_with_gdb.html |  2 +-
+ doc/go_faq.html             |  2 +-
+ doc/install-source.html     |  4 ++--
+ doc/install.html            | 12 ++++++------
+ doc/root.html               |  2 +-
+ 5 files changed, 11 insertions(+), 11 deletions(-)

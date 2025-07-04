@@ -1,12 +1,36 @@
-commit 2ccd4e9f87662bb3bda4c8f23e3a0317fc189006
+commit e515d80d5dfd5621a16f6fc9f08cc3c0958a8414
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Feb 1 09:08:25 2013 -0800
+Date:   Fri Feb 1 08:41:25 2013 -0800
 
-    sort: delete now-duplicate example, fix build
+    bytes, strings: add TrimPrefix and TrimSuffix
     
-    R=golang-dev, minux.ma
+    Everybody either gets confused and thinks this is
+    TrimLeft/TrimRight or does this by hand which gets
+    repetitive looking.
+    
+    R=rsc, kevlar
     CC=golang-dev
-    https://golang.org/cl/7220075
+    https://golang.org/cl/7239044
 
- src/pkg/sort/example_reverse_test.go | 30 ------------------------------
- 1 file changed, 30 deletions(-)
+ src/cmd/api/goapi.go            |  3 +--
+ src/cmd/cgo/gcc.go              |  4 ++--
+ src/cmd/cgo/godefs.go           |  2 +-
+ src/cmd/fix/typecheck.go        |  4 +---
+ src/cmd/go/testflag.go          |  4 +---
+ src/cmd/godoc/dirtrees.go       | 13 +++----------
+ src/cmd/godoc/filesystem.go     |  4 +---
+ src/cmd/godoc/godoc.go          |  4 +---
+ src/cmd/godoc/main.go           |  2 +-
+ src/cmd/vet/method.go           |  4 +---
+ src/pkg/bytes/bytes.go          | 18 ++++++++++++++++++
+ src/pkg/bytes/bytes_test.go     | 22 ++++++++++++++++++----
+ src/pkg/bytes/example_test.go   | 17 +++++++++++++++++
+ src/pkg/exp/html/parse_test.go  |  5 +----
+ src/pkg/go/printer/printer.go   |  4 +---
+ src/pkg/go/types/gcimporter.go  |  5 +----
+ src/pkg/net/http/pprof/pprof.go |  2 +-
+ src/pkg/net/http/response.go    |  4 +---
+ src/pkg/strings/example_test.go | 16 ++++++++++++++++
+ src/pkg/strings/strings.go      | 18 ++++++++++++++++++
+ src/pkg/strings/strings_test.go | 16 ++++++++++++----
+ 21 files changed, 117 insertions(+), 54 deletions(-)

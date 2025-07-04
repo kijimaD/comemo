@@ -1,33 +1,25 @@
-commit da7cf0ba5d5aed78f07c82508f0fa88e6dd69ea7
-Author: Keith Randall <khr@golang.org>
-Date:   Thu Feb 6 17:43:22 2014 -0800
+commit 546081fd01aad2446b9cd50444662c6438e7fb2e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 7 10:23:53 2014 +0900
 
-    runtime: faster memclr on x86.
+    syscall: make use of signed char explicit in generating z-files on freebsd/arm
     
-    Use explicit SSE writes instead of REP STOSQ.
+    This CL is in preparation to make cgo work on freebsd/arm.
     
-    benchmark               old ns/op    new ns/op    delta
-    BenchmarkMemclr5               22            5  -73.62%
-    BenchmarkMemclr16              27            5  -78.49%
-    BenchmarkMemclr64              28            6  -76.43%
-    BenchmarkMemclr256             34            8  -74.94%
-    BenchmarkMemclr4096           112           84  -24.73%
-    BenchmarkMemclr65536         1902         1920   +0.95%
+    The signedness of C char might be a problem when we make bare syscall
+    APIs, Go structures, using built-in bootstrap scripts with cgo because
+    they do translate C stuff to Go stuff internally. For now almost all
+    the C compilers assume that the type of char will be unsigned on arm
+    by default but it makes a different view from amd64, 386.
     
-    LGTM=dvyukov
-    R=golang-codereviews, dvyukov
+    This CL just passes -fsigned-char, let the type of char be signed,
+    option which is supported on both gcc and clang to the underlying C
+    compilers through cgo for avoiding such inconsistency on syscall API.
+    
+    LGTM=iant
+    R=iant
     CC=golang-codereviews
-    https://golang.org/cl/60090044
+    https://golang.org/cl/59740051
 
- src/cmd/8a/lex.c                |   1 +
- src/cmd/8l/8.out.h              |   1 +
- src/liblink/asm8.c              |   1 +
- src/pkg/runtime/alg.c           |   5 ++
- src/pkg/runtime/asm_386.s       |  15 -----
- src/pkg/runtime/asm_amd64.s     |  15 -----
- src/pkg/runtime/export_test.go  |   4 ++
- src/pkg/runtime/memclr_386.s    | 125 ++++++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/memclr_amd64.s  | 114 ++++++++++++++++++++++++++++++++++++
- src/pkg/runtime/memclr_arm.s    |   6 --
- src/pkg/runtime/memmove_test.go |  99 ++++++++++++++++++++++---------
- 11 files changed, 324 insertions(+), 62 deletions(-)
+ src/pkg/syscall/mkall.sh | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

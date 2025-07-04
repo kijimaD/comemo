@@ -1,17 +1,24 @@
-commit be11889ab1584a5c6dfd1422ba163d893753b1ad
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Sep 20 12:30:56 2012 -0400
+commit 9536480edc5f29368d2b7a05e30c199630b8074e
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Sep 20 13:20:33 2012 +1000
 
-    crypto/x509: ignore non-critical email constraints
+    cgo: process DWARF info even when debug data is used for value
     
-    Previously we tried to parse email constraints as the maximum base
-    distance (which is unused and must be omitted according to RFC 5280)
-    because they share the same tag number. Rather than complicate the
-    code further, this CL just ignores the unused values.
+    Always process the DWARF info, even when the const value is determined
+    using the debug data block. This ensures that the injected enum is
+    removed and future loads of the same constant do not trigger
+    inconsistent definitions.
     
-    R=golang-dev, bradfitz
+    Add tests for issues 2470 and 4054.
+    Fixes #4054.
+    
+    R=golang-dev, fullung, dave, rsc, minux.ma
     CC=golang-dev
-    https://golang.org/cl/6552044
+    https://golang.org/cl/6501101
 
- src/pkg/crypto/x509/x509.go | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ misc/cgo/test/basic.go      | 10 ++++++++++
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue4054a.go | 23 +++++++++++++++++++++++
+ misc/cgo/test/issue4054b.go | 23 +++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          |  9 +++++----
+ 5 files changed, 62 insertions(+), 4 deletions(-)

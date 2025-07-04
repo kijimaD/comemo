@@ -1,12 +1,12 @@
-commit 306c29e963c6d236f0fcfa4fb82cdb85837add26
-Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 13 13:39:45 2013 +1000
+commit 4984e6e9fdde23a75b0a8c52d56c7a4b5f5d5736
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 12 22:04:24 2013 -0400
 
-    doc/go1.2.txt: bufio.{Writer,Reader}.Reset
+    cmd/6l: fix printing of frame size in TEXT instruction
     
-    R=golang-dev, bradfitz
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/12830043
+    https://golang.org/cl/12827043
 
- doc/go1.2.txt | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/6l/list.c | 3 +++
+ 1 file changed, 3 insertions(+)

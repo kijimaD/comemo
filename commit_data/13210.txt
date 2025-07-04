@@ -1,12 +1,27 @@
-commit cb9759d067289fef850251c9425b56446086e24c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed May 30 10:26:59 2012 -0400
+commit dbcdce5866502aadc9b3e70e06c92d2afb22e1e1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed May 30 21:38:46 2012 +1000
 
-    test/bench/go1: add mandelbrot for floating point
+    image/png: optimize paeth some more.
     
-    R=golang-dev, bradfitz
+    filterPaeth takes []byte arguments instead of byte arguments,
+    which avoids some redudant computation of the previous pixel
+    in the inner loop.
+    
+    Also eliminate a bounds check in decoding the up filter.
+    
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkDecodeGray               3139636      2812531  -10.42%
+    BenchmarkDecodeNRGBAGradient     12341520     10971680  -11.10%
+    BenchmarkDecodeNRGBAOpaque       10740780      9612455  -10.51%
+    BenchmarkDecodePaletted           1819535      1818913   -0.03%
+    BenchmarkDecodeRGB                8974695      8178070   -8.88%
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6244063
+    https://golang.org/cl/6243061
 
- test/bench/go1/mandel_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 41 insertions(+)
+ src/pkg/image/png/paeth.go      | 70 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/png/paeth_test.go | 40 +++++++++++++++++++++++
+ src/pkg/image/png/reader.go     | 41 ++----------------------
+ 3 files changed, 113 insertions(+), 38 deletions(-)

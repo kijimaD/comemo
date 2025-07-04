@@ -1,37 +1,19 @@
-commit eb5bf55496b7378fb8831521c1b943dc940a5b98
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Tue Oct 3 13:05:22 2017 +0200
+commit 03a4a5c98885245a99d67b684acacff4f7b2326e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 14 10:17:29 2017 -0700
 
-    misc/ios: always kill lldb process when it hangs
+    runtime: don't run TestCgoNumGoroutine on Windows or Plan 9
     
-    The lldb child process is killed if a test runs too long. Also
-    kill it when the setup times out (and is retried).
+    The test requires pthreads.
     
-    Might help with builder flakes where all 5 attempts to start up
-    lldb fail even though the tests before and after the timeouts
-    succeed. For example:
+    Fixes #20666.
     
-    ...
-    ok      vendor/golang_org/x/net/route   37.797s
-    lldb setup error: command timeout (lldb start for 17s)
-    start timeout, trying again
-    lldb setup error: command timeout (lldb start for 17s)
-    start timeout, trying again
-    lldb setup error: command timeout (lldb start for 17s)
-    start timeout, trying again
-    lldb setup error: command timeout (lldb start for 17s)
-    start timeout, trying again
-    lldb setup error: command timeout (lldb start for 17s)
-    go_darwin_arm_exec: failed to start test harness (retry attempted)
-    FAIL    vendor/golang_org/x/text/transform      115.185s
-    ok      vendor/golang_org/x/text/unicode/norm   122.773s
-    ...
-    
-    Change-Id: I6638860522896491dccfa12f1e520c0f23df6d66
-    Reviewed-on: https://go-review.googlesource.com/67791
-    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Change-Id: Icb2400250a80cdad6680cd1ef6c18ef7343d5e29
+    Reviewed-on: https://go-review.googlesource.com/45701
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- misc/ios/go_darwin_arm_exec.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/crash_cgo_test.go                    | 4 ++++
+ src/runtime/testdata/testprogcgo/numgoroutine.go | 2 ++
+ 2 files changed, 6 insertions(+)

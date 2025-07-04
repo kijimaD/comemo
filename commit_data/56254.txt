@@ -1,39 +1,17 @@
-commit 2b82a4f488179a62a69dd318ea62f0624641ae63
-Author: Michael Anthony Knyszek <mknyszek@google.com>
-Date:   Thu Apr 18 20:54:55 2024 +0000
+commit ed832ed353f6386c4f1ce061d8048e31873e0439
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 21 10:31:34 2023 -0400
 
-    runtime: track frame pointer while in syscall
+    go/types: add test case for CL 486398
     
-    Currently the runtime only tracks the PC and SP upon entering a syscall,
-    but not the FP (BP). This is mainly for historical reasons, and because
-    the tracer (which uses the frame pointer unwinder) does not need it.
+    Forgot to 'git add' this test case in the CL.
     
-    Until it did, of course, in CL 567076, where the tracer tries to take a
-    stack trace of a goroutine that's in a syscall from afar. It tries to
-    use gp.sched.bp and lots of things go wrong. It *really* should be using
-    the equivalent of gp.syscallbp, which doesn't exist before this CL.
-    
-    This change introduces gp.syscallbp and tracks it. It also introduces
-    getcallerfp which is nice for simplifying some code. Because we now have
-    gp.syscallbp, we can also delete the frame skip count computation in
-    traceLocker.GoSysCall, because it's now the same regardless of whether
-    frame pointer unwinding is used.
-    
-    Fixes #66889.
-    
-    Change-Id: Ib6d761c9566055e0a037134138cb0f81be73ecf7
-    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-nocgo
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/580255
-    Auto-Submit: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: Idde1d3d4525a99bdab0d3d69ac635a96a7cd5d73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487335
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/runtime/cgocall.go             |  3 ++-
- src/runtime/export_windows_test.go |  7 +------
- src/runtime/proc.go                | 30 +++++++++++++++++++-----------
- src/runtime/runtime2.go            | 15 +++++++++++++++
- src/runtime/sizeof_test.go         |  2 +-
- src/runtime/traceruntime.go        | 17 +----------------
- src/runtime/tracestack.go          | 20 +++++++++++++++-----
- 7 files changed, 54 insertions(+), 40 deletions(-)
+ src/internal/types/testdata/check/go1_xx_19.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

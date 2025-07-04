@@ -1,85 +1,15 @@
-commit 997c00f9919794d878aee4a87187dfaaebef6cd9
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Tue Jun 28 15:09:53 2011 -0400
+commit 39acba55eeedb50d927ce2ed8cf2662eeaa59447
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 28 11:00:31 2011 -0700
 
-    runtime: replace Semacquire/Semrelease implementation
-    1. The implementation uses distributed hash table of waitlists instead of a centralized one.
-      It significantly improves scalability for uncontended semaphores.
-    2. The implementation provides wait-free fast-path for signalers.
-    3. The implementation uses less locks (1 lock/unlock instead of 5 for Semacquire).
-    4. runtime·ready() call is moved out of critical section.
-    5. Semacquire() does not call semwake().
-    Benchmark results on HP Z600 (2 x Xeon E5620, 8 HT cores, 2.40GHz)
-    are as follows:
-    benchmark                                        old ns/op    new ns/op    delta
-    runtime_test.BenchmarkSemaUncontended                58.20        36.30  -37.63%
-    runtime_test.BenchmarkSemaUncontended-2             199.00        18.30  -90.80%
-    runtime_test.BenchmarkSemaUncontended-4             327.00         9.20  -97.19%
-    runtime_test.BenchmarkSemaUncontended-8             491.00         5.32  -98.92%
-    runtime_test.BenchmarkSemaUncontended-16            946.00         4.18  -99.56%
+    fmt: rename errno and error to err for doc consistency
     
-    runtime_test.BenchmarkSemaSyntNonblock               59.00        36.80  -37.63%
-    runtime_test.BenchmarkSemaSyntNonblock-2            167.00       138.00  -17.37%
-    runtime_test.BenchmarkSemaSyntNonblock-4            333.00       129.00  -61.26%
-    runtime_test.BenchmarkSemaSyntNonblock-8            464.00       130.00  -71.98%
-    runtime_test.BenchmarkSemaSyntNonblock-16          1015.00       136.00  -86.60%
+    The public godoc looked confused. I imagine these were
+    written before current conventions were established.
     
-    runtime_test.BenchmarkSemaSyntBlock                  58.80        36.70  -37.59%
-    runtime_test.BenchmarkSemaSyntBlock-2               294.00       149.00  -49.32%
-    runtime_test.BenchmarkSemaSyntBlock-4               333.00       177.00  -46.85%
-    runtime_test.BenchmarkSemaSyntBlock-8               471.00       221.00  -53.08%
-    runtime_test.BenchmarkSemaSyntBlock-16              990.00       227.00  -77.07%
-    
-    runtime_test.BenchmarkSemaWorkNonblock              829.00       832.00   +0.36%
-    runtime_test.BenchmarkSemaWorkNonblock-2            425.00       419.00   -1.41%
-    runtime_test.BenchmarkSemaWorkNonblock-4            308.00       220.00  -28.57%
-    runtime_test.BenchmarkSemaWorkNonblock-8            394.00       147.00  -62.69%
-    runtime_test.BenchmarkSemaWorkNonblock-16          1510.00       149.00  -90.13%
-    
-    runtime_test.BenchmarkSemaWorkBlock                 828.00       813.00   -1.81%
-    runtime_test.BenchmarkSemaWorkBlock-2               428.00       436.00   +1.87%
-    runtime_test.BenchmarkSemaWorkBlock-4               232.00       219.00   -5.60%
-    runtime_test.BenchmarkSemaWorkBlock-8               392.00       251.00  -35.97%
-    runtime_test.BenchmarkSemaWorkBlock-16             1524.00       298.00  -80.45%
-    
-    sync_test.BenchmarkMutexUncontended                  24.10        24.00   -0.41%
-    sync_test.BenchmarkMutexUncontended-2                12.00        12.00   +0.00%
-    sync_test.BenchmarkMutexUncontended-4                 6.25         6.17   -1.28%
-    sync_test.BenchmarkMutexUncontended-8                 3.43         3.34   -2.62%
-    sync_test.BenchmarkMutexUncontended-16                2.34         2.32   -0.85%
-    
-    sync_test.BenchmarkMutex                             24.70        24.70   +0.00%
-    sync_test.BenchmarkMutex-2                          208.00        99.50  -52.16%
-    sync_test.BenchmarkMutex-4                         2744.00       256.00  -90.67%
-    sync_test.BenchmarkMutex-8                         5137.00       556.00  -89.18%
-    sync_test.BenchmarkMutex-16                        5368.00      1284.00  -76.08%
-    
-    sync_test.BenchmarkMutexSlack                        24.70        25.00   +1.21%
-    sync_test.BenchmarkMutexSlack-2                    1094.00       186.00  -83.00%
-    sync_test.BenchmarkMutexSlack-4                    3430.00       402.00  -88.28%
-    sync_test.BenchmarkMutexSlack-8                    5051.00      1066.00  -78.90%
-    sync_test.BenchmarkMutexSlack-16                   6806.00      1363.00  -79.97%
-    
-    sync_test.BenchmarkMutexWork                        793.00       792.00   -0.13%
-    sync_test.BenchmarkMutexWork-2                      398.00       398.00   +0.00%
-    sync_test.BenchmarkMutexWork-4                     1441.00       308.00  -78.63%
-    sync_test.BenchmarkMutexWork-8                     8532.00       847.00  -90.07%
-    sync_test.BenchmarkMutexWork-16                    8225.00      2760.00  -66.44%
-    
-    sync_test.BenchmarkMutexWorkSlack                   793.00       793.00   +0.00%
-    sync_test.BenchmarkMutexWorkSlack-2                 418.00       414.00   -0.96%
-    sync_test.BenchmarkMutexWorkSlack-4                4481.00       480.00  -89.29%
-    sync_test.BenchmarkMutexWorkSlack-8                6317.00      1598.00  -74.70%
-    sync_test.BenchmarkMutexWorkSlack-16               9111.00      3038.00  -66.66%
-    
-    R=rsc
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/4631059
+    https://golang.org/cl/4662060
 
- src/pkg/runtime/386/atomic.c   |  12 +++
- src/pkg/runtime/Makefile       |   1 +
- src/pkg/runtime/amd64/atomic.c |  12 +++
- src/pkg/runtime/arm/atomic.c   |  12 +++
- src/pkg/runtime/runtime.h      |   3 +
- src/pkg/runtime/sema.goc       | 187 ++++++++++++++++++++---------------------
- 6 files changed, 131 insertions(+), 96 deletions(-)
+ src/pkg/fmt/print.go | 33 +++++++++++++++------------------
+ 1 file changed, 15 insertions(+), 18 deletions(-)

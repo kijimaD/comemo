@@ -1,20 +1,27 @@
-commit f7d8098a7b6148811824bf50ec32c8f8d0a35d12
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jan 10 06:28:59 2018 -0800
+commit 6936671ed1c3a1dd25e0eea635ee2bdc86acd463
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 23 12:22:10 2017 +0100
 
-    cmd/go: check for another GCC error message
+    cmd/compile: clarify adjustctxt inlining comment
     
-    GCC always recognizes the -fsplit-stack option, but then tests whether
-    it is supported by the selected target. If not, it reports
-        cc1: error: ‘-fsplit-stack’ is not supported by this compiler configuration
-    Check for that error message when deciding whether a compiler option works.
+    The reason why adjustctxt wasn't being inlined was reported as:
     
-    Change-Id: I2eef8d550bbecba3a087869df2c7351280c77290
-    Reviewed-on: https://go-review.googlesource.com/87136
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+            function too complex: cost 92 exceeds budget 80
+    
+    However, after tweaking the code to be under the budget limit, we see
+    the real blocker:
+    
+            non-leaf function
+    
+    There is little we can do about this one in particular at the moment.
+    Create a section with funcs that will need mid-stack inlining to be
+    inlineable, since this will likely come up again in other cases.
+    
+    Change-Id: I3a8eb1546b289a060ac896506a007b0496946e84
+    Reviewed-on: https://go-review.googlesource.com/65650
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/go/internal/work/exec.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/inl_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

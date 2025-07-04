@@ -1,21 +1,17 @@
-commit 7930d39f5802fd93a651a51f905efe58d3bc9caf
-Author: imxyb <xyb4638@gmail.com>
-Date:   Sun Oct 25 03:42:20 2020 +0000
+commit a59465b545cd66e0796b5c7649a87a6f1b657cb4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 7 21:47:13 2020 -0700
 
-    log/syslog: set local to true if network is any of "unix", or "unixgram"
+    runtime: add a couple of writeBarrier.needed checks
     
-    Fixes #41960
+    Make typedmemmove, typedmemclr, typedmemclrpartial look more like other
+    callers of bulkBarrierPreWrite.
     
-    Change-Id: I0e0f0e11610dd2658a8f6b7e345a4aae2c19c85d
-    GitHub-Last-Rev: 8cac718e4854773ca411116043b4b832e0468f09
-    GitHub-Pull-Request: golang/go#42135
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/264297
-    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Change-Id: Ic47030d88bf07d290f91198b7810ffc16d9769e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227541
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/log/syslog/syslog.go      |  5 ++++-
- src/log/syslog/syslog_test.go | 33 ++++++++++++++++++++++++---------
- 2 files changed, 28 insertions(+), 10 deletions(-)
+ src/runtime/mbarrier.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

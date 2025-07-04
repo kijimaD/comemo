@@ -1,19 +1,29 @@
-commit eab3c1e697189ddded55a5ac14d8b29d35145419
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Thu Feb 13 16:02:20 2025 +0000
+commit a9c9cc07ac0d3dc73865a57e6ce45c22ada3b5c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 20 11:22:48 2023 +1100
 
-    os: explicitly return nil for {rootChmod,rootMkdir,rootRemove} in root_openat.go
+    iter, runtime: add coroutine support
     
-    It is consistent with same functions in root_noopenat.go.
+    The exported API is only available with GOEXPERIMENT=rangefunc.
+    This will let Go 1.22 users who want to experiment with rangefuncs
+    access an efficient implementation of iter.Pull and iter.Pull2.
     
-    Change-Id: I81415fd3922101499fcbbdec97e315add0671acb
-    GitHub-Last-Rev: 3444e8546ee1877feb644202ad2b05379b4b7e74
-    GitHub-Pull-Request: golang/go#71715
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/649235
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    For #61897.
+    
+    Change-Id: I6ef5fa8f117567efe4029b7b8b0f4d9b85697fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543319
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/os/root_openat.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/dist/test.go              |  11 +++
+ src/cmd/internal/objabi/funcid.go |   1 +
+ src/go/build/deps_test.go         |   3 +
+ src/internal/abi/symtab.go        |   1 +
+ src/iter/iter.go                  | 161 +++++++++++++++++++++++++++++++++++++
+ src/iter/pull_test.go             | 118 +++++++++++++++++++++++++++
+ src/runtime/coro.go               | 165 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc.go               |   8 +-
+ src/runtime/runtime2.go           |   5 ++
+ src/runtime/sizeof_test.go        |   6 +-
+ src/runtime/traceback.go          |   2 +-
+ 11 files changed, 475 insertions(+), 6 deletions(-)

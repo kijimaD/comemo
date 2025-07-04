@@ -1,17 +1,12 @@
-commit ea92f42cc8b36511501644ff0512934619e16cf1
+commit c573a9cb47d69b4ffb3309216141c50da33d1dfa
 Author: Rob Pike <r@golang.org>
-Date:   Tue Jun 2 14:43:38 2015 -0700
+Date:   Sat May 2 17:51:58 2015 -0700
 
-    cmd/doc: do not show unexported constants
+    doc/go1.5.txt: huge integers are parse errors in text/template
     
-    The go/doc package doesn't remove unexported entries from const
-    and var blocks, so we must trim them ourselves.
-    
-    Fixes #11008
-    
-    Change-Id: Ibd60d87e09333964e2588340a2ca2b8804bbaa28
-    Reviewed-on: https://go-review.googlesource.com/10643
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: Ie9331d102224290833c96a1535cdb96102a7fe9e
+    Reviewed-on: https://go-review.googlesource.com/9633
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/doc/pkg.go | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

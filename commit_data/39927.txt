@@ -1,21 +1,34 @@
-commit 06e5529eceae35bb26b51f2430c2c9425149ede2
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Mon Sep 16 11:32:35 2019 -0400
+commit 814c97b3133d0e5a8aa884e2ef752aaf7e7bd500
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 2 14:14:51 2019 -0700
 
-    cmd/link: prefix syms with "_" on darwin links
+    runtime/internal/atomic: fix wasm's StorepNoWB implementation
     
-    RELNOTE=This change adds an underscore to all Go symbols in darwin, and
-    the behavior might be confusing to users of tools like "nm", etc.
+    Package unsafe's safety rules require that pointers converted to
+    uintptr must be converted back to pointer-type before being stored
+    into memory. In particular, storing a pointer into a non-pointer-typed
+    expression does not guarantee the pointer stays valid, even if the
+    expression refers to a pointer-typed variable.
     
-    Fixes #33808
+    wasm's StorepNoWB implementation violates these rules by storing a
+    pointer through a uintptr-typed expression.
     
-    Change-Id: I19ad626026ccae1e87b3bb97b6bb9fd55e95e121
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/195619
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    This happens to work today because esc.go is lenient in its
+    implementation of package unsafe's rules, but my escape analysis
+    rewrite follows them more rigorously, which causes val to be treated
+    as a non-leaking parameter.
+    
+    This CL fixes the issue by using a *T-typed expression, where T is
+    marked //go:notinheap so that the compiler still omits the write
+    barrier as appropriate.
+    
+    Updates #23109.
+    
+    Change-Id: I49bc5474dbaa95729e5c93201493afe692591bc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170323
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/link/internal/ld/issue33808_test.go | 53 +++++++++++++++++++++++++++++
- src/cmd/link/internal/ld/macho.go           |  5 +--
- src/debug/macho/file.go                     |  7 +++-
- 3 files changed, 62 insertions(+), 3 deletions(-)
+ src/runtime/internal/atomic/atomic_wasm.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,17 +1,31 @@
-commit e2560ace3cbd3b6816d414bd6011c8111ca5aa1f
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Tue Apr 25 17:55:12 2017 -0700
+commit c5ebcd2c8ac6c5bdf85ec0a346974efd4b0cbe49
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 9 11:50:26 2017 -0500
 
-    cmd/compile: move Node.Initorder to flags
+    runtime: remove rescan list
     
-    Grand savings: 6 bits.
+    With the hybrid barrier, rescanning stacks is no longer necessary so
+    the rescan list is no longer necessary. Remove it.
     
-    Change-Id: I364be54cc41534689e01672ed0fe2c10a560d3d4
-    Reviewed-on: https://go-review.googlesource.com/41794
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This leaves the gcrescanstacks GODEBUG variable, since it's useful for
+    debugging, but changes it to simply walk all of the Gs to rescan
+    stacks rather than using the rescan list.
+    
+    We could also remove g.gcscanvalid, which is effectively a distributed
+    rescan list. However, it's still useful for gcrescanstacks mode and it
+    adds little complexity, so we'll leave it in.
+    
+    Fixes #17099.
+    Updates #17503.
+    
+    Change-Id: I776d43f0729567335ef1bfd145b75c74de2cc7a9
+    Reviewed-on: https://go-review.googlesource.com/36619
+    Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
 
- src/cmd/compile/internal/gc/sinit.go  | 18 +++++++++---------
- src/cmd/compile/internal/gc/syntax.go | 13 ++++++++-----
- 2 files changed, 17 insertions(+), 14 deletions(-)
+ src/runtime/mgc.go      |  42 ++++++--------------
+ src/runtime/mgcmark.go  | 102 ++++++------------------------------------------
+ src/runtime/proc.go     |  34 +++-------------
+ src/runtime/runtime2.go |   9 +----
+ 4 files changed, 28 insertions(+), 159 deletions(-)

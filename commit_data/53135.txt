@@ -1,19 +1,31 @@
-commit 9ed2b115fb405bf730772d0e825876d85deb7340
-Author: Tobias Klauser <tklauser@distanz.ch>
-Date:   Wed May 17 09:38:20 2023 +0200
+commit 85a482fc244f6f118b1d063063a51eb8b0feadd8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 14 21:19:37 2022 +0000
 
-    runtime: report correct fcntl syscall error in checkCloseonexec
+    runtime: revert to using the precomputed trigger for pacer calculations
     
-    runtime.fcntl returns the error value as a negative value, so it needs
-    to be inverted before being converted to syscall.Errno.
+    Issue #53738 describes in detail how switching to using the actual
+    trigger point over the precomputed trigger causes a memory regression,
+    that arises from the fact that the PI controller in front of the
+    cons/mark ratio has a long time constant (for overdamping), so it
+    retains a long history of inputs.
     
-    Change-Id: I43cd0b035150424ac59e623b17a9396c7d62c186
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495675
+    This change, for the Go 1.19 cycle, just reverts to using the
+    precomputed trigger because it's safer, but in the future we should
+    consider moving away from such a history-sensitive smoothing function.
+    
+    See the big comment in the diff and #53738 for more details.
+    
+    Performance difference vs. 1.18 after this change:
+    https://perf.golang.org/search?q=upload:20220714.15
+    
+    Fixes #53738.
+    
+    Change-Id: I636993a730a3eaed25da2a2719860431b296c6f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417557
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/nbpipe_test.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/mgcpacer.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

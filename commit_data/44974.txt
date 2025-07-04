@@ -1,19 +1,20 @@
-commit 1271e9a9ccfdb0906ecf69d2047ad3b470eeca02
-Author: Ahmet Aktürk <aakturk000@gmail.com>
-Date:   Mon Apr 5 22:05:05 2021 +0300
+commit a3868028ac8470d1ab7782614707bb90925e7fe3
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Fri Sep 18 21:01:34 2020 +0300
 
-    time: properly quote strings containing quotes and backslashes
+    unicode/utf8: document the handling of runes out of range in EncodeRune
     
-    Fixes #45391
+    Document the way EncodeRune currently handles runes which are
+    out of range.  Also add an example showing that behaviour.
     
-    Change-Id: I43ea597f6a9596a621ae7b63eb05440d5b9e2d8f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/307192
-    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Change-Id: I0f8e7645ae053474ec319085a2bb6d7f73bc137c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255998
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Trust: Giovanni Bajo <rasky@develer.com>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Go Bot <gobot@golang.org>
 
- src/time/export_test.go |  2 ++
- src/time/format.go      | 11 ++++++++++-
- src/time/format_test.go | 22 ++++++++++++++++++++++
- 3 files changed, 34 insertions(+), 1 deletion(-)
+ src/unicode/utf8/example_test.go | 20 ++++++++++++++++++++
+ src/unicode/utf8/utf8.go         |  1 +
+ 2 files changed, 21 insertions(+)

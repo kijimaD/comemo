@@ -1,13 +1,23 @@
-commit ce2a20af467c8dfa10874abc4b45af413e2b1954
-Author: Robert Griesemer <gri@golang.org>
-Date:   Sat Nov 20 13:17:27 2021 -0800
+commit c847932804467f511b0e123cf29b72dd0d509306
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 30 17:55:22 2021 -0400
 
-    spec: adjust conversion rules for type parameters
+    runtime: replace reflectcall of defers with direct call
     
-    Change-Id: I7bfddf4be0d1d95419f312bb349ae2e16b74b795
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/365915
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    With GOEXPERIMENT=regabidefer, all deferred functions take no
+    arguments and have no results (their signature is always func()).
+    Since the signature is fixed, we can replace all of the reflectcalls
+    in the defer code with direct closure calls.
+    
+    For #40724.
+    
+    Change-Id: I3acd6742fe665610608a004c675f473b9d0e65ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306010
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- doc/go_spec.html | 28 ++++++++++++++++++++++++++--
- 1 file changed, 26 insertions(+), 2 deletions(-)
+ src/cmd/internal/objabi/funcid.go |  1 +
+ src/runtime/panic.go              | 83 ++++++++++++++++++++++++++++++++-------
+ 2 files changed, 70 insertions(+), 14 deletions(-)

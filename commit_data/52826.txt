@@ -1,21 +1,20 @@
-commit 5901ab80b9c9ac2daa7c30f0c0ede3b7adfc7007
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Sun Apr 30 11:38:00 2023 +0200
+commit 770146d5a857e8606222276040c6712b48e27e0e
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Jun 6 11:48:29 2022 -0400
 
-    runtime/cgo: use atomic.Uintptr instead of atomic.AddUintptr.
+    doc/go1.19: add TODOs for changes to go/types
     
-    cgo.NewHandle atomically increments a global uintptr index using
-    atomic.AddUintptr. Use atomic.Uintptr instead, which is
-    cleaner and clearer.
+    Add TODO items for significant changes to go/types: the inclusion of
+    Origin methods for Var and Func, and a re-working of Named types to
+    ensure finiteness of reachable types via their API.
     
-    Change-Id: I845b3e4cb8c461e787a9b9bb2a9ceaaef1d21d8e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/490775
-    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Updates #51400
+    
+    Change-Id: I0f2a972023a5d5f995de3c33e9e2b0a4213e900a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410614
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/cgo/handle.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ doc/go1.19.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

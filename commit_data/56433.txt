@@ -1,18 +1,21 @@
-commit cf6124f807e5138cd533bab687d2e233f8fefde8
-Author: guoguangwu <guoguangwug@gmail.com>
-Date:   Fri May 10 05:20:09 2024 +0000
+commit 0a9875c5c809fa70ae6662b8a38f5f86f648badd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 8 13:01:21 2023 -0700
 
-    cmd/trace: pkg import only once
+    go/types, types2: remove genericMultiExpr (inline it in genericExprList)
     
-    Change-Id: Iaaf2e9dbcffb4b1944817b0a4aaecd3554ebfec1
-    GitHub-Last-Rev: f4ec85a05e54c2f403cabc4c6458cd2f396e183d
-    GitHub-Pull-Request: golang/go#67280
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584695
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Commit-Queue: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Also, remove named return values for exprList, genericExprList.
+    
+    Change-Id: I099abff4572530dd0c3b39c92d6b9a4662d95c2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493557
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/internal/trace/gc_test.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/cmd/compile/internal/types2/call.go | 40 ++++++++++++++++++++++++---------
+ src/cmd/compile/internal/types2/expr.go | 21 -----------------
+ src/go/types/call.go                    | 40 ++++++++++++++++++++++++---------
+ src/go/types/expr.go                    | 21 -----------------
+ 4 files changed, 60 insertions(+), 62 deletions(-)

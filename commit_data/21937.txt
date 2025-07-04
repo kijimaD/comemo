@@ -1,16 +1,12 @@
-commit 4a174ee4be7a487a731ff4fe0337f92d0a84ab1d
-Author: Dave Cheney <dave@cheney.net>
-Date:   Thu Mar 5 17:44:02 2015 +1100
+commit bed481d683f89d9902d893b61181264d7b9c9353
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 10 23:49:26 2015 -0500
 
-    cmd/internal/gc: make Node.Readonly a bool
+    cmd/gc: correct errors in constant parsing
     
-    Convert Node.Readonly to a bool.
-    
-    Change-Id: Ide9f6f657f498d70d7b9544a38046325d7c82dc8
-    Reviewed-on: https://go-review.googlesource.com/6809
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I36f77e7ac7f727d8f3b51133f4b3ef93c35b09f6
+    Reviewed-on: https://go-review.googlesource.com/4640
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/internal/gc/gsubr.go  | 2 +-
- src/cmd/internal/gc/sinit.go  | 2 +-
- src/cmd/internal/gc/syntax.go | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ src/cmd/gc/mparith1.c | 26 +++++++++++++++++++-------
+ 1 file changed, 19 insertions(+), 7 deletions(-)

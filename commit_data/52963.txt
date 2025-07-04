@@ -1,21 +1,36 @@
-commit acba24ff8c66d3c9d70bf0b087ae005c5a408e8d
-Author: David Chase <drchase@google.com>
-Date:   Fri Apr 14 14:11:45 2023 -0400
+commit b004c739b525d354ea62f5caadd962de4569d96e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 21 15:56:16 2022 -0700
 
-    reflect: move more types, constants, functions into internal/abi
+    go/types, types2: fix parameter order dependence in type inference
     
-    Change-Id: Ib9cd15576896225e7c5e6fda11f1a77f6993a91a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/484857
-    Run-TryBot: David Chase <drchase@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    If we have more than two function arguments to a generic function,
+    we may have arguments with named and unnamed types. If that is the
+    case, permutate params and args such that the arguments with named
+    types are first in the list. This way, independent of parameter
+    ordering, the type inference will produce the same result.
+    
+    This extra step is not explicitly outlined in the spec yet but we
+    all agree that (parameter) order independence is an invariant that
+    we should uphold for type inference. As we move towards less
+    operational and more descriptive rules for type inference, we will
+    incorporate this property as well.
+    
+    The actual fix for this bug existed before 1.18 but was not enabled.
+    This CL merely enables the fix (switches a flag) and adjusts some
+    tests.
+    
+    Fixes #43056.
+    
+    Change-Id: Ie4e40cf8438dfd82fa94b78068e4f6f6f53f83e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413459
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
 
- src/reflect/abi.go            |  18 +--
- src/reflect/benchmark_test.go |   3 +-
- src/reflect/deepequal.go      |   2 +-
- src/reflect/export_test.go    |  10 +-
- src/reflect/swapper.go        |   2 +-
- src/reflect/type.go           | 315 ++++++++++++++++++------------------------
- src/reflect/value.go          |  52 +++----
- 7 files changed, 178 insertions(+), 224 deletions(-)
+ src/cmd/compile/internal/types2/infer.go                         | 7 ++-----
+ src/cmd/compile/internal/types2/testdata/examples/functions.go   | 2 +-
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue43056.go | 4 ++--
+ src/go/types/infer.go                                            | 7 ++-----
+ src/go/types/testdata/examples/functions.go                      | 2 +-
+ src/go/types/testdata/fixedbugs/issue43056.go                    | 4 ++--
+ 6 files changed, 10 insertions(+), 16 deletions(-)

@@ -1,24 +1,35 @@
-commit 686181edfed0f738fe6aafe76fafded9d0be155b
+commit 5ddf6255a13c5a23663ca49db2d038c6530cb7a1
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Sep 6 12:24:24 2011 -0400
+Date:   Tue Sep 6 10:24:21 2011 -0400
 
-    url: handle ; in ParseQuery
+    gc: unify stack frame layout
     
-    Most web frameworks allow ; as a synonym for &,
-    following a recommendation in some versions of
-    the HTML specification.  Do the same.
+    allocparams + tempname + compactframe
+    all knew about how to place stack variables.
     
-    Remove overuse of Split.
+    Now only compactframe, renamed to allocauto,
+    does the work.  Until the last minute, each PAUTO
+    variable is in its own space and has xoffset == 0.
     
-    Move ParseQuery tests from package http to package url.
+    This might break 5g.  I get failures in concurrent
+    code running under qemu and I can't tell whether
+    it's 5g's fault or qemu's.  We'll see what the real
+    ARM builders say.
     
-    Fixes #2210.
-    
-    R=golang-dev, r
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/4973062
+    https://golang.org/cl/4973057
 
- src/pkg/http/request_test.go | 51 ------------------------------------
- src/pkg/url/url.go           | 30 +++++++++++++--------
- src/pkg/url/url_test.go      | 62 ++++++++++++++++++++++++++++++++++++++++----
- 3 files changed, 76 insertions(+), 67 deletions(-)
+ src/cmd/5g/gsubr.c |  1 -
+ src/cmd/5g/reg.c   | 28 ++++++++++----------
+ src/cmd/6g/gsubr.c |  1 -
+ src/cmd/6g/reg.c   | 35 +++++++++++-------------
+ src/cmd/8g/gsubr.c |  1 -
+ src/cmd/8g/reg.c   | 30 ++++++++++-----------
+ src/cmd/gc/bits.c  |  4 +--
+ src/cmd/gc/dcl.c   |  2 +-
+ src/cmd/gc/gen.c   | 78 +++++++-----------------------------------------------
+ src/cmd/gc/go.h    |  3 ---
+ src/cmd/gc/pgen.c  | 13 +++++----
+ src/cmd/gc/subr.c  |  3 ---
+ 12 files changed, 62 insertions(+), 137 deletions(-)

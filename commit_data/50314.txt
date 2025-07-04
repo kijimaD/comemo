@@ -1,17 +1,23 @@
-commit 02700e55a57647c837618d713102c8f8214657d8
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Fri Sep 2 10:37:16 2022 +0800
+commit 74acbaf94ab3c7aaa7e22fda4f90920e90f11ead
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Wed Oct 13 19:44:38 2021 +0800
 
-    runtime: convert local var cunlock at doTestParallelReaders to atomic type
+    cmd/compile: allow inlining labeled for-statement and switch-statement
     
-    For #53821
+    After CL 349012 and CL 350911, we can fully handle these
+    labeled statements, so we can allow them when inlining.
     
-    Change-Id: I17440ea30827976a8d3755851a2496f26aea13b1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/427137
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Updates #14768
+    
+    Change-Id: I0ab3fd3f8d7436b49b1aedd946516b33c63f5747
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355497
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Dan Scales <danscales@google.com>
 
- src/runtime/rwmutex_test.go | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/cmd/compile/internal/inline/inl.go | 21 ---------------------
+ test/inline.go                         |  6 ++----
+ 2 files changed, 2 insertions(+), 25 deletions(-)

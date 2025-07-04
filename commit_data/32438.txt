@@ -1,23 +1,29 @@
-commit 18b48afec9be0a1da4b23bebace0dc9f081dcee1
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Wed Aug 23 16:46:00 2017 -0700
+commit 11c7b4491bd2cd1deb7b50433f431be9ced330db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 24 21:49:26 2017 -0700
 
-    cmd/compile: mark MOVQconvert as resultInArg0 on x86 architectures
+    os: fix race between file I/O and Close
     
-    This prevents unnecessary reg-reg moves during pointer arithmetic.
+    Now that the os package uses internal/poll on Unix and Windows systems,
+    it can rely on internal/poll reference counting to ensure that the
+    file descriptor is not closed until all I/O is complete.
     
-    This change reduces the size of the full hello world binary by 0.4%.
+    That was already working. This CL completes the job by not trying to
+    modify the Sysfd field when it might still be used by the I/O routines.
     
-    Updates #21572
+    Fixes #7970
     
-    Change-Id: Ia0427021e5c94545a0dbd83a6801815806e5b12d
-    Reviewed-on: https://go-review.googlesource.com/58371
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I7a3daa1a6b07b7345bdce6f0cd7164bd4eaee952
+    Reviewed-on: https://go-review.googlesource.com/41674
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/386Ops.go   |  2 +-
- src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
- src/cmd/compile/internal/ssa/gen/main.go     |  4 ++--
- src/cmd/compile/internal/ssa/opGen.go        | 21 ++++++++++++---------
- 4 files changed, 17 insertions(+), 14 deletions(-)
+ src/cmd/dist/test.go   |  4 ++--
+ src/os/dir_windows.go  |  3 ---
+ src/os/file.go         |  4 ++++
+ src/os/file_posix.go   |  3 ---
+ src/os/file_unix.go    |  3 +--
+ src/os/file_windows.go |  5 +----
+ src/os/pipe_test.go    | 37 +++++++++++++++++++++++++++++++++++++
+ src/os/stat_windows.go |  2 +-
+ src/os/types_unix.go   |  2 --
+ 9 files changed, 46 insertions(+), 17 deletions(-)

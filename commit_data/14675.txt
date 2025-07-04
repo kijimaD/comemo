@@ -1,15 +1,30 @@
-commit 7c3577e48f629120604d232c7a3994cf40ae4cda
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 17 12:01:00 2012 -0800
+commit b7603cfc2cf8ffa261aca63dd59fb1e7d58180ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 17 14:32:26 2012 -0500
 
-    net/http: fix goroutine leak in error case
+    cmd/gc: add GOEXPERIMENT=zerostack to clear stack on function entry
     
-    Fixes #4531
+    This is expensive but it might be useful in cases where
+    people are suffering from false positives during garbage
+    collection and are willing to trade the CPU time for getting
+    rid of the false positives.
     
-    R=golang-dev, rsc
+    On the other hand it only eliminates false positives caused
+    by other function calls, not false positives caused by dead
+    temporaries stored in the current function call.
+    
+    The 5g/6g/8g changes were pulled out of the history, from
+    the last time we needed to do this (to work around a goto bug).
+    The code in go.h, lex.c, pgen.c is new but tiny.
+    
+    R=ken2
     CC=golang-dev
-    https://golang.org/cl/6937069
+    https://golang.org/cl/6938073
 
- src/pkg/net/http/transport.go      |  1 +
- src/pkg/net/http/transport_test.go | 39 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+)
+ src/cmd/5g/gsubr.c | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6g/gsubr.c | 38 +++++++++++++++++++++++++++++++++++
+ src/cmd/8g/gsubr.c | 38 +++++++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h    |  2 ++
+ src/cmd/gc/lex.c   |  1 +
+ src/cmd/gc/pgen.c  |  3 +++
+ 6 files changed, 140 insertions(+)

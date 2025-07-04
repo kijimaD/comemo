@@ -1,29 +1,21 @@
-commit e89d08e02180b72b541bcda0def3caf754704e25
-Author: Hana Kim <hakim@google.com>
-Date:   Tue Jan 23 15:02:45 2018 -0500
+commit a714470cce03b28321a9dbcdbf34a99ab59deb75
+Author: Austin Clements <austin@google.com>
+Date:   Tue Sep 26 11:18:37 2017 -0400
 
-    runtime/pprof: scale mutex profile with sampling rate
+    runtime: allow more CPUs on FreeBSD
     
-    pprof expects the samples are scaled and reflects unsampled numbers.
-    The legacy profile parser uses the sampling period in the output
-    and multiplies all values with the period.
+    Currently the FreeBSD CPU affinity code assumes that the maximum
+    GOMAXPROCS is 256, but we just removed that limit.
     
-    https://github.com/google/pprof/blob/0138a3cd6dad6f94495ba0b5c3a5c124f04ae011/profile/legacy_profile.go#L815
+    This commit rewrites the FreeBSD CPU affinity code to raise the CPU
+    count limit to 65,536, like the Linux CPU affinity code, and to
+    degrade more gracefully if we do somehow go over that.
     
-    Apply the same scaling when we output the mutex profile
-    in the pprof proto format.
-    
-    Block profile shares the same code, but how to infer unsampled
-    values is unclear. Legacy profile parser doesn't do anything special
-    so we do nothing for block profile here.
-    
-    Tested by checking the profiles reported with debug=0 (proto format)
-    are similar to the profiles computed from legacy format profile
-    when the profile rate is a non-trivial number (e.g. 2) manually.
-    
-    Change-Id: Iaa33f92051deed67d8be43ddffc7c1016db566ca
-    Reviewed-on: https://go-review.googlesource.com/89295
-    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Change-Id: Ic4ca7f88bd8b9448aae4dbd43ef21a6c1b8fea63
+    Reviewed-on: https://go-review.googlesource.com/66291
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/pprof/pprof.go | 25 ++++++++++++++++++++-----
- 1 file changed, 20 insertions(+), 5 deletions(-)
+ src/runtime/os_freebsd.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

@@ -1,19 +1,26 @@
-commit ce5292a1f2740c0dc51ae62390de9f0e9360a90b
-Author: Austin Clements <austin@google.com>
-Date:   Fri Dec 1 16:21:03 2017 -0500
+commit 9b8964bf2df0626530a0ca493e3e95d8dc3844dd
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 6 11:57:16 2017 +0200
 
-    runtime: use MAP_ANON in sigstack check
+    text/template: fix pos info when trimming newlines
     
-    MAP_ANON is the deprecated but more portable spelling of
-    MAP_ANONYMOUS. Use MAP_ANON to un-break the Darwin 10.10 builder.
+    The lexer keeps the byte offset and the line for the rune it's currently
+    on. This was simple enough up until whitespace trimming was introduced.
     
-    Updates #22930.
+    With whitespace trimming, we might skip over newlines. In that case, the
+    lexer wasn't properly updating the line counter. Fix it.
     
-    Change-Id: Iedd6232b94390b3b2a7423c45cdcb25c1a5b3323
-    Reviewed-on: https://go-review.googlesource.com/81615
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Also, TestPos now checks that the line is correct too, which it was
+    ignoring before. This was necessary to test this scenario in the lexer.
+    
+    Fixes #21778.
+    
+    Change-Id: I3880f3adf02662eac8f818d5caa6935cca9cb33b
+    Reviewed-on: https://go-review.googlesource.com/61870
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/testdata/testprogcgo/sigstack.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/text/template/parse/lex.go      |  1 +
+ src/text/template/parse/lex_test.go | 26 ++++++++++++++++++++++++--
+ 2 files changed, 25 insertions(+), 2 deletions(-)

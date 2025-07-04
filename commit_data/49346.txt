@@ -1,17 +1,24 @@
-commit 42f1b37b7b46714455a3a54e506bff982aa50fa2
-Author: Keith Randall <khr@golang.org>
-Date:   Thu May 26 09:58:18 2022 -0700
+commit 49c688e45c9bb8782b3db4df9dcaf163a4965f6d
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Aug 13 11:16:50 2021 -0400
 
-    doc: fix up race detector release note
+    cmd/compile/internal/types2: rename TypeParams to TParamList
     
-    It's already mentioned under runtime/race, we don't need it
-    also mentioned under runtime.
+    The 'TypeParams' name is too easily confused with the singular
+    'TypeParam', and does not say anything about what type of collection it
+    is. We decided that TTuple was not great. TParamList seems OK for now,
+    though perhaps a better name will emerge.
     
-    Change-Id: I538322b32d75b9642f3ead03539fccb95988ef8c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/408875
-    Reviewed-by: Keith Randall <khr@google.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Change-Id: I5eabdc91b1f666bb4c7ea8acdbebf7c372d19227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341861
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- doc/go1.19.html | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ src/cmd/compile/internal/noder/writer.go     |  4 ++--
+ src/cmd/compile/internal/types2/decl.go      |  2 +-
+ src/cmd/compile/internal/types2/named.go     |  6 +++---
+ src/cmd/compile/internal/types2/signature.go |  8 ++++----
+ src/cmd/compile/internal/types2/typeparam.go | 14 +++++++-------
+ 5 files changed, 17 insertions(+), 17 deletions(-)

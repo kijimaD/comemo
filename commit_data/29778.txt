@@ -1,17 +1,19 @@
-commit 3a067cc812ff20327a80748c2e72bce420e837d6
+commit d5a8b9f57157e64b894ef9a1f48418f45ff7984c
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Dec 9 06:43:24 2016 +0000
+Date:   Sun Oct 9 10:20:39 2016 -0700
 
-    api: remove testing Context accessors from go1.8.txt
+    doc: update go1.8.txt using new tool
     
-    Fixes the build.
+    With help of a new interactive commit classifier tool (tool location
+    TBD, likely x/build/cmd/writenotes), classify all commits from go1.7
+    up to 56d35d4.
     
-    Updates #18199
+    We can selectively cull this list later. When in doubt, I erred on the
+    side of inclusion for now.
     
-    Change-Id: Ibf029ba9f9293d1f3d49c1c8773fc262159a5d5b
-    Reviewed-on: https://go-review.googlesource.com/34242
+    Change-Id: I458945004e1b1a148fb2f294b454a390ef4f92c2
+    Reviewed-on: https://go-review.googlesource.com/30696
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
 
- api/go1.8.txt | 3 ---
- 1 file changed, 3 deletions(-)
+ doc/go1.8.txt | 210 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 206 insertions(+), 4 deletions(-)

@@ -1,13 +1,16 @@
-commit 8cf7044983077a5d739d54c8deeb952a4b6b152c
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Sun Jun 9 21:38:37 2013 +0400
+commit 949228a322e4ccac49abb620a9e33fe3dfde66e6
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 9 22:06:29 2013 +0800
 
-    runtime: use persistentalloc instead of custom malloc in memory profiler
-    Removes code duplication.
+    cmd/cgo: use gcc_struct attribute for packed structs to work around GCC PR52991.
+    Fixes #5603.
     
-    R=golang-dev, bradfitz
-    CC=golang-dev
-    https://golang.org/cl/9874055
+    R=iant, dave
+    CC=gobot, golang-dev
+    https://golang.org/cl/9895043
 
- src/pkg/runtime/mprof.goc | 45 +++++----------------------------------------
- 1 file changed, 5 insertions(+), 40 deletions(-)
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue5603.go | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/cgo/doc.go         |  2 +-
+ src/cmd/cgo/out.go         |  8 +++++++-
+ 4 files changed, 41 insertions(+), 2 deletions(-)

@@ -1,13 +1,36 @@
-commit fb3a1b6821d35e13ec9631ecbff0d013022f2374
-Author: Shenghou Ma <minux.ma@gmail.com>
-Date:   Wed May 23 02:00:40 2012 +0800
+commit 3d03ec88963e93d15a9dec53b4ba61fda75c603b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 22 13:56:40 2012 -0400
 
-    runtime: support conditional execution in ARM softfloat
-            Fixes #3638.
+    undo CL 6112054 / 2eec2501961c
     
-    R=golang-dev, dave, rsc
+    Now that we've fixed the Expect: test, this CL should be okay.
+    
+    ««« original CL description
+    net/http: revert 97d027b3aa68
+    
+    Revert the following change set:
+    
+            changeset:   13018:97d027b3aa68
+            user:        Gustavo Niemeyer <gustavo@niemeyer.net>
+            date:        Mon Apr 23 22:00:16 2012 -0300
+            summary:     net/http: allow clients to disable keep-alive
+    
+    This broke a test on Windows 64 and somebody else
+    will have to check.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/6213057
+    https://golang.org/cl/6112054
+    »»»
+    
+    Fixes #3540.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6228046
 
- src/pkg/runtime/softfloat_arm.c | 65 +++++++++++++++++++++++++++++++++++++----
- 1 file changed, 59 insertions(+), 6 deletions(-)
+ src/pkg/net/http/request.go    | 16 ++++++++++++++--
+ src/pkg/net/http/serve_test.go | 15 +++++++++++----
+ src/pkg/net/http/server.go     |  3 +--
+ 3 files changed, 26 insertions(+), 8 deletions(-)

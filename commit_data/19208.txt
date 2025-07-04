@@ -1,17 +1,17 @@
-commit 09aeca5c04a6a6775e91857459e05888721d6999
-Author: David du Colombier <0intro@gmail.com>
-Date:   Sat Apr 19 09:55:09 2014 +0200
+commit 7c7aaa4156a280960749467dfd3651b8798d420e
+Author: Mike Andrews <mra@xoba.com>
+Date:   Fri Apr 18 15:37:55 2014 -0700
 
-    include/plan9: make mklibc.rc compatible with 9atom
+    cmd/ld: don't delete output binary if not "ordinary" file (redux).
     
-    Since there is no Runemask constant in UTF-8 enum in
-    9atom, removing the other constants leads to an empty
-    enum, which is illegal. Thus, we remove enum entirely.
+    following on CL https://golang.org/cl/76810045 and
+    issue 7563, i now see there's another "remove(outfile)" a few
+    dozen lines down that also needs fixing.
     
-    LGTM=r
-    R=golang-codereviews, r
-    CC=golang-codereviews
-    https://golang.org/cl/82660044
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=0intro, golang-codereviews, r
+    https://golang.org/cl/89030043
 
- include/plan9/mklibc.rc | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ src/cmd/ld/lib.c | 31 +++++++++++++++++++------------
+ 1 file changed, 19 insertions(+), 12 deletions(-)

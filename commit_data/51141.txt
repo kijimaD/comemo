@@ -1,19 +1,22 @@
-commit 6bead8f77afd2f7317eb011ca019b61ac3d90c17
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Mon Nov 7 14:54:52 2022 +0000
+commit 2c85fcd47d6804d94a1fa4da65f756200ecf57a8
+Author: Bryan Mills <bcmills@google.com>
+Date:   Tue Dec 7 20:34:46 2021 +0000
 
-    sync/atomic: disallow type conversions of atomic.Pointer[T]
+    Revert "net: in (*netFD).dial, use the passed in local address if getsockname fails"
     
-    Fixes #56603
+    This reverts CL 366536
     
-    Change-Id: I6af9d80201025ae4028bfaa4a62e5de9ac0c501d
-    GitHub-Last-Rev: e6ed5e14512e1221a3c6cb181406cf00eec07e99
-    GitHub-Pull-Request: golang/go#56604
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448275
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reason for revert: may have caused #50033 due to an invalid or partially-populated *TCPAddr
+    
+    Fixes #50033
+    
+    Change-Id: Ia29ca4116503dba65d56e89caa46ba1c848d421a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369982
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sync/atomic/type.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/net/server_test.go | 10 +---------
+ src/net/sock_posix.go  | 16 +++++-----------
+ 2 files changed, 6 insertions(+), 20 deletions(-)

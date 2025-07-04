@@ -1,0 +1,27 @@
+commit 1be701a344d1f1819dc08d78259684de1da6f923
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Wed May 29 16:36:36 2024 +0000
+
+    Revert "runtime: split mutex profile clocks"
+    
+    This reverts commit 8ab131fb1256a4a795c610e145c022e22e2d1567 (CL 586796)
+    
+    Reason for revert: This is part of a patch series that changed the
+    handling of contended lock2/unlock2 calls, reducing the maximum
+    throughput of contended runtime.mutex values, and causing a performance
+    regression on applications where that is (or became) the bottleneck.
+    
+    Updates #66999
+    Updates #67585
+    
+    Change-Id: I54711691e86e072081482102019d168292b5150a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589095
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/runtime/lock_futex.go | 28 ++++++-----------------
+ src/runtime/lock_sema.go  | 29 ++++++------------------
+ src/runtime/mprof.go      | 58 ++++++++++++++++++++++++++++-------------------
+ 3 files changed, 49 insertions(+), 66 deletions(-)

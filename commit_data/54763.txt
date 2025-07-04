@@ -1,19 +1,34 @@
-commit c75a617af02fcfa53effed30803f2a96388680d5
-Author: Quan Tong <quantonganh@gmail.com>
-Date:   Thu Oct 19 11:44:32 2023 +0700
+commit 0f0aa5d8a6a0253627d58b3aa083b24a1091933f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue May 10 09:52:20 2022 +0200
 
-    cmd/go/internal/work: set Incomplete to true if there is an error
+    os,syscall: File.Stat to use file handle for directories on Windows
     
-    Fixes #57724
+    Updates syscall.Open to support opening directories via CreateFileW.
     
-    Change-Id: I3d419985ff41d5ee93bb56d8c7ca5cd1d7231920
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/536418
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    CreateFileW handles are more versatile than FindFirstFile handles.
+    They can be used in Win32 APIs like GetFileInformationByHandle and
+    SetFilePointerEx, which are needed by some Go APIs.
+    
+    Fixes #52747
+    Fixes #36019
+    
+    Change-Id: I26a00cef9844fb4abeeb18d2f9d854162a146651
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405275
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Patrik Nyblom <pnyb@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/cmd/go/internal/work/exec.go             | 1 +
- src/cmd/go/testdata/script/list_export_e.txt | 4 ++++
- 2 files changed, 5 insertions(+)
+ src/internal/poll/fd_windows.go     | 16 +------
+ src/os/dir_windows.go               | 17 +++++--
+ src/os/file.go                      |  4 --
+ src/os/file_windows.go              | 91 ++++++++++++++++++++-----------------
+ src/os/os_test.go                   |  3 --
+ src/os/os_windows_test.go           | 25 ++++++++++
+ src/os/stat_windows.go              |  4 --
+ src/syscall/syscall_windows.go      |  7 ++-
+ src/syscall/syscall_windows_test.go | 22 +++++++++
+ 9 files changed, 115 insertions(+), 74 deletions(-)

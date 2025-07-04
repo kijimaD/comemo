@@ -1,14 +1,16 @@
-commit b2b3187f5edd3f73ba3a7899a264f9151ebb0d4f
+commit a5d0b7ee3e39f83b6077b4c9d5fe20234bb02775
 Author: Nigel Tao <nigeltao@golang.org>
-Date:   Mon Sep 12 11:57:34 2011 +1000
+Date:   Sat Sep 10 09:51:13 2011 +1000
 
-    exp/template/html: fix JS regexp escape of an empty string.
+    image/png: don't use a goroutine to decode. This was preventing
+    decoding during an init function.
     
-    R=dsymonds
-    CC=golang-dev, mikesamuel
-    https://golang.org/cl/4972063
+    Fixes #2224.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4964070
 
- src/pkg/exp/template/html/escape_test.go | 9 +++++++--
- src/pkg/exp/template/html/js.go          | 7 ++++++-
- src/pkg/exp/template/html/js_test.go     | 2 +-
- 3 files changed, 14 insertions(+), 4 deletions(-)
+ src/pkg/image/png/reader.go | 270 ++++++++++++++++++++------------------------
+ src/pkg/image/png/writer.go |   4 -
+ 2 files changed, 125 insertions(+), 149 deletions(-)

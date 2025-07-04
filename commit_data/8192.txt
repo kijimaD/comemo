@@ -1,16 +1,20 @@
-commit c94db30ec917ff3db4e21be23e20a5ce030dc462
+commit 4335bee42e5c45b3d6cb9919af9867d94c251486
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Fri Apr 22 11:02:33 2011 -0700
+Date:   Fri Apr 22 09:30:30 2011 -0700
 
-    http/cgi: pass some default environment variables
+    os/user: new package to look up users
     
-    This isn't really part of RFC 3875 but matches
-    the behavior of Apache, et al.
+    Only for Unix presently. Other operating systems
+    are stubbed out, as well as arm (lacks cgo).
     
-    R=iant, iant2
+    R=rsc, r, bradfitzwork
     CC=golang-dev
-    https://golang.org/cl/4435065
+    https://golang.org/cl/4440057
 
- src/pkg/http/cgi/host.go            | 21 +++++++++++++++++++++
- src/pkg/http/cgi/matryoshka_test.go |  8 --------
- 2 files changed, 21 insertions(+), 8 deletions(-)
+ src/pkg/Makefile                |   1 +
+ src/pkg/os/user/Makefile        |  26 ++++++++++
+ src/pkg/os/user/lookup_stubs.go |  19 ++++++++
+ src/pkg/os/user/lookup_unix.go  | 104 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/user/user.go         |  35 ++++++++++++++
+ src/pkg/os/user/user_test.go    |  61 +++++++++++++++++++++++
+ 6 files changed, 246 insertions(+)

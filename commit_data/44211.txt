@@ -1,21 +1,25 @@
-commit 44361140c02556a0a71bc52299149bb8de26024b
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Jan 29 10:25:34 2021 -0800
+commit 748533e3a1a8e64b3910b9cac1e767d95ee38f84
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue May 26 15:55:54 2020 -0400
 
-    embed: update docs for proposal tweaks
+    runtime: check gdb exit status and log output
     
-    //go:embed variables can be type aliases.
+    All GDB tests currently ignore non-zero exit statuses. When tests
+    flakes, we don't even know if GDB exited successfully or not.
     
-    //go:embed variables can't be local to a function.
+    Add checks for non-zero exits, which are not expected.
     
-    For #43216
-    For #43602
-    Fixes #43978
+    Furthermore, always log the output from GDB. The tests are currently
+    inconsistent about whether they always log, or only on error.
     
-    Change-Id: Ib1d104dfa32b97c91d8bfc5ed5d461ca14da188f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/288072
-    Trust: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Updates #39021
+    
+    Change-Id: I7af1d795fc2fdf58093cb2731d616d4aa44e9996
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235282
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/embed/embed.go | 22 ++++++++++++++++------
- 1 file changed, 16 insertions(+), 6 deletions(-)
+ src/runtime/runtime-gdb_test.go | 51 +++++++++++++++++++++++++++--------------
+ 1 file changed, 34 insertions(+), 17 deletions(-)

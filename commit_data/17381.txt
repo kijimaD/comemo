@@ -1,23 +1,18 @@
-commit de8de8912efea014ceda6819ddf8da09b2a0d056
-Author: Nicolas Owens <mischief@offblast.org>
-Date:   Fri Aug 23 21:05:49 2013 -0500
+commit d0dd420a245763494ec564d8163724a2a6d374f4
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 23 17:28:47 2013 -0700
 
-    os/user: Current support on Plan 9
+    runtime: rename FlagNoPointers to FlagNoScan.  Better represents
+    the use of the flag, especially for objects which actually do have
+    pointers but we don't want the GC to scan them.
     
-    Current for Plan 9 is implemented with /dev/user for
-    Uid/Gid/Username/Name, and $home environment variable for
-    HomeDir.
-    
-    Implementing Lookup/LookupId is not done, which would
-    require parsing /adm/users. It is unclear of how much benefit
-    this would be.
-    
-    R=golang-dev
-    CC=bradfitz, golang-dev, r
-    https://golang.org/cl/13203043
+    R=golang-dev, cshapiro
+    CC=golang-dev
+    https://golang.org/cl/13181045
 
- src/pkg/os/user/lookup_plan9.go | 46 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/os/user/lookup_stubs.go |  2 +-
- src/pkg/os/user/user.go         |  2 ++
- src/pkg/os/user/user_test.go    | 10 ++++++++-
- 4 files changed, 58 insertions(+), 2 deletions(-)
+ src/pkg/runtime/malloc.goc | 16 +++++++++-------
+ src/pkg/runtime/malloc.h   |  2 +-
+ src/pkg/runtime/mfinal.c   |  2 +-
+ src/pkg/runtime/mgc0.c     | 20 ++++++++++----------
+ src/pkg/runtime/string.goc |  8 ++++----
+ 5 files changed, 25 insertions(+), 23 deletions(-)

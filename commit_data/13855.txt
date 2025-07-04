@@ -1,13 +1,22 @@
-commit e8de8b58caf52115be0d5d11282c504da8642238
-Author: Anthony Eufemio <anthony.eufemio@gmail.com>
-Date:   Tue Sep 18 11:01:10 2012 -0700
+commit f20fd87384d152ed91439e824333fbb78688e741
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Sep 18 21:15:46 2012 +0400
 
-    builtin: Changed documentation for rune type.
-    Fixes #4093.
+    runtime: refactor goroutine blocking
+    The change is a preparation for the new scheduler.
+    It introduces runtime.park() function,
+    that will atomically unlock the mutex and park the goroutine.
+    It will allow to remove the racy readyonstop flag
+    that is difficult to implement w/o the global scheduler mutex.
     
-    R=golang-dev, bradfitz, r
+    R=rsc, remyoudompheng, dave
     CC=golang-dev
-    https://golang.org/cl/6536047
+    https://golang.org/cl/6501077
 
- src/pkg/builtin/builtin.go | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/pkg/runtime/chan.c    | 37 ++++++++-----------------------------
+ src/pkg/runtime/mgc0.c    |  4 +---
+ src/pkg/runtime/proc.c    | 12 ++++++++++++
+ src/pkg/runtime/runtime.h |  3 ++-
+ src/pkg/runtime/sema.goc  |  5 +----
+ src/pkg/runtime/time.goc  | 24 ++++++++----------------
+ 6 files changed, 32 insertions(+), 53 deletions(-)

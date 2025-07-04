@@ -1,36 +1,63 @@
-commit 631a6c2abfb2cf7a877ea80f98c504fc4e0077be
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Mon Nov 13 08:57:14 2023 +0000
+commit e57e673e7ff4f5b61180a07a1a73bd5bd524981a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Dec 6 11:55:54 2022 -0500
 
-    all: add missing copyright header
+    api: promote next to go1.20
     
-    Change-Id: Ic61fb181923159e80a86a41582e83ec466ab9bc4
-    GitHub-Last-Rev: 92469845665fa1f864d257c8bc175201a43b4d43
-    GitHub-Pull-Request: golang/go#64080
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/541741
+    Change-Id: I180f262837b164095f9ac9459d900ec1ac0585a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455697
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
 
- src/cmd/cgo/internal/test/issue4339.c             | 4 ++++
- src/cmd/cgo/internal/test/issue4339.h             | 4 ++++
- src/cmd/cgo/internal/test/issue8756.go            | 4 ++++
- src/cmd/cgo/internal/test/issue8756/issue8756.go  | 4 ++++
- src/cmd/cgo/internal/test/issue8828/trivial.go    | 4 ++++
- src/cmd/cgo/internal/test/issue9026/issue9026.go  | 4 ++++
- src/cmd/cgo/internal/test/issue9510a/a.go         | 4 ++++
- src/cmd/cgo/internal/test/issue9510b/b.go         | 4 ++++
- src/cmd/compile/internal/ssa/_gen/allocators.go   | 4 ++++
- src/cmd/compile/internal/ssa/nilcheck_test.go     | 4 ++++
- src/cmd/compile/internal/test/logic_test.go       | 4 ++++
- src/cmd/compile/internal/test/math_test.go        | 4 ++++
- src/cmd/compile/internal/test/test.go             | 4 ++++
- src/internal/trace/v2/version/version.go          | 4 ++++
- src/log/slog/internal/benchmarks/handlers_test.go | 4 ++++
- src/net/http/responsecontroller_test.go           | 4 ++++
- src/runtime/internal/sys/intrinsics_test.go       | 4 ++++
- src/runtime/netpoll_os_test.go                    | 4 ++++
- src/runtime/pprof/label_test.go                   | 4 ++++
- src/runtime/test_amd64.s                          | 4 ++++
- 20 files changed, 80 insertions(+)
+ api/go1.20.txt     | 428 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next/19974.txt |   1 -
+ api/next/20661.txt |   1 -
+ api/next/31804.txt |   5 -
+ api/next/41773.txt |   1 -
+ api/next/42537.txt |   4 -
+ api/next/43620.txt |   1 -
+ api/next/43958.txt |   1 -
+ api/next/45038.txt |   1 -
+ api/next/45899.txt |   5 -
+ api/next/46731.txt |  14 --
+ api/next/46746.txt |   2 -
+ api/next/47209.txt |   2 -
+ api/next/48000.txt |   1 -
+ api/next/48152.txt |   5 -
+ api/next/50429.txt |   1 -
+ api/next/50436.txt |   3 -
+ api/next/50770.txt |   1 -
+ api/next/51246.txt |  72 ---------
+ api/next/51365.txt |   3 -
+ api/next/51430.txt |   5 -
+ api/next/51668.txt |   1 -
+ api/next/51766.txt |   1 -
+ api/next/51777.txt |   1 -
+ api/next/51896.txt |   1 -
+ api/next/51972.txt |   3 -
+ api/next/52221.txt |  19 ---
+ api/next/52376.txt |   1 -
+ api/next/52746.txt |   6 -
+ api/next/53002.txt |   6 -
+ api/next/53021.txt |   1 -
+ api/next/53200.txt |   1 -
+ api/next/53202.txt |   2 -
+ api/next/53280.txt |  42 ------
+ api/next/53346.txt |   1 -
+ api/next/53356.txt |   1 -
+ api/next/53435.txt |   1 -
+ api/next/53482.txt |   2 -
+ api/next/54136.txt |   6 -
+ api/next/54222.txt |  78 ----------
+ api/next/54251.txt |   6 -
+ api/next/54299.txt |   1 -
+ api/next/54345.txt | 108 --------------
+ api/next/55301.txt |   1 -
+ api/next/55356.txt |   2 -
+ api/next/56041.txt |   2 -
+ api/next/56088.txt |   2 -
+ api/next/56219.txt |   1 -
+ api/next/56319.txt |   1 -
+ api/next/56548.txt |   1 -
+ 50 files changed, 428 insertions(+), 428 deletions(-)

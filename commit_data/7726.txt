@@ -1,17 +1,13 @@
-commit ee23ab16da704b427d3c592752cd1122921f49c3
-Author: Adam Langley <agl@golang.org>
-Date:   Thu Mar 10 10:36:04 2011 -0500
+commit dc06ad5ad7bf53ac33d96751bab9e4a715e7d121
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 10 07:22:53 2011 -0800
 
-    crypto/openpgp: s/serialise/serialize/
+    tls: move PeerCertificates to ConnectionState
     
-    (No code changes, Americanization only.)
-    
-    R=rsc, bradfitzwork
-    CC=golang-dev
-    https://golang.org/cl/4250075
+    R=agl, agl1
+    CC=golang-dev, rsc
+    https://golang.org/cl/4248078
 
- src/pkg/crypto/openpgp/packet/packet.go      |  8 ++++----
- src/pkg/crypto/openpgp/packet/packet_test.go |  4 ++--
- src/pkg/crypto/openpgp/packet/public_key.go  |  2 +-
- src/pkg/crypto/openpgp/packet/signature.go   | 18 +++++++++---------
- 4 files changed, 16 insertions(+), 16 deletions(-)
+ src/pkg/crypto/tls/common.go |  4 ++++
+ src/pkg/crypto/tls/conn.go   | 10 +---------
+ 2 files changed, 5 insertions(+), 9 deletions(-)

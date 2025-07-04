@@ -1,15 +1,25 @@
-commit 281d41cb400fdc3f5581bb0e479f2e9ff02fe833
-Author: Andy Pan <panjf2000@gmail.com>
-Date:   Sun Apr 5 16:51:10 2020 +0800
+commit bf670bd83c849b56426c63b49f28121210a627ca
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Feb 13 08:49:52 2019 +0530
 
-    A+C: add Andy Pan (individual CLA)
+    go/ast: fix SortImports to handle block comments (take 2)
     
-    https://go-review.googlesource.com/q/author:panjf2000%2540gmail.com
+    This is a 2nd attempt at fixing CL 162337 which had an off-by-one error.
+    We were unconditionally getting the position of the start of the next line
+    from the last import without checking whether it is the end of the file or not.
     
-    Change-Id: I05c73d848b8f40dc864a18c733ca3f47b1eab54d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/227004
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fix the code to check for that and move the testcase added in CL 190523
+    to the end of the file for it to trigger the issue properly.
+    
+    Fixes #18929
+    
+    Change-Id: I59e77256e256570b160fea6a17bce9ef49e810df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190480
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- AUTHORS      | 1 +
- CONTRIBUTORS | 1 +
- 2 files changed, 2 insertions(+)
+ src/cmd/gofmt/testdata/import.golden | 73 ++++++++++++++++++++++++++++--
+ src/cmd/gofmt/testdata/import.input  | 71 +++++++++++++++++++++++++++--
+ src/go/ast/import.go                 | 88 ++++++++++++++++++++++++++----------
+ 3 files changed, 201 insertions(+), 31 deletions(-)

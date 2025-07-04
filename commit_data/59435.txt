@@ -1,38 +1,54 @@
-commit d000963d045bb279d347dbd3551e9468422c17af
-Author: Mark Ryan <markdryan@rivosinc.com>
-Date:   Thu May 1 10:43:32 2025 +0200
+commit 6133c1e4e202af2b2a6d4873d5a28ea3438e5554
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sat Jan 20 17:37:50 2024 +0100
 
-    cmd/internal/obj/riscv: reject invalid vadc/vsbc encodings
+    internal/trace/v2: support old trace format
     
-    The RISC-V Instruction Set Manual Volume states that "for vadc and
-    vsbc, the instruction encoding is reserved if the destination vector
-    register is v0". The assembler currently allows instructions like
+    Add support for traces from Go 1.11–1.19 by converting old traces to the
+    Go 1.22 format on the fly.
     
-    VADCVVM V1, V2, V0, V0
+    We import Gotraceui's trace parser, which is an optimized parser based
+    on Go 1.19's internal/trace package, and further modify it for the needs
+    of the conversion process.
     
-    to be assembled. It's not clear what the behaviour of such
-    instructions will be on target hardware so it's best to disallow
-    them.
+    With the optimized parser, loading old traces using the new API is twice
+    as fast and uses less total memory than 'go tool trace' did in older
+    versions.
     
-    For reference, binutils (2.44-3.fc42) allows the instruction
+    The new parser does not, however, support traces from versions older
+    than 1.11.
     
-    vadc.vvm v0, v4, v8, v0
+    This commit does not update cmd/trace to use the new API for old traces.
     
-    to be assembled and the instruction actually executes on a Banana PI
-    F3 without crashing. However, clang (20.1.2) refuses to assemble the
-    instruction, producing the following error.
-    
-    error: the destination vector register group cannot be V0
-            vadc.vvm v0, v4, v8, v0
-                     ^
-    Change-Id: Ia913cbd864ae8dbcf9227f69b963c93a99481cff
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/669315
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: If9380aa515e29445ff624274d1760ee945ca4816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557356
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Joel Sing <joel@sing.id.au>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/cmd/asm/internal/asm/testdata/riscv64.s      | 10 ++++++++++
- src/cmd/asm/internal/asm/testdata/riscv64error.s |  5 +++++
- src/cmd/internal/obj/riscv/obj.go                |  9 +++++++--
- 3 files changed, 22 insertions(+), 2 deletions(-)
+ src/go/build/deps_test.go                          |    5 +-
+ src/internal/trace/v2/event/go122/event.go         |    6 +-
+ src/internal/trace/v2/generation.go                |    2 +-
+ src/internal/trace/v2/internal/oldtrace/order.go   |  186 +++
+ src/internal/trace/v2/internal/oldtrace/parser.go  | 1540 ++++++++++++++++++++
+ .../trace/v2/internal/oldtrace/parser_test.go      |  151 ++
+ .../internal/oldtrace/testdata/fmt_1_21_pprof_good |  Bin 0 -> 25772 bytes
+ .../v2/internal/oldtrace/testdata/http_1_19_good   |  Bin 0 -> 28172 bytes
+ .../v2/internal/oldtrace/testdata/http_1_21_good   |  Bin 0 -> 6744 bytes
+ .../v2/internal/oldtrace/testdata/stress_1_11_good |  Bin 0 -> 370129 bytes
+ .../v2/internal/oldtrace/testdata/stress_1_19_good |  Bin 0 -> 322338 bytes
+ .../v2/internal/oldtrace/testdata/stress_1_21_good |  Bin 0 -> 353725 bytes
+ .../oldtrace/testdata/stress_start_stop_1_11_good  |  Bin 0 -> 4882 bytes
+ .../oldtrace/testdata/stress_start_stop_1_19_good  |  Bin 0 -> 7448 bytes
+ .../oldtrace/testdata/stress_start_stop_1_21_good  |  Bin 0 -> 5002 bytes
+ .../oldtrace/testdata/user_task_region_1_11_good   |  Bin 0 -> 2000 bytes
+ .../oldtrace/testdata/user_task_region_1_19_good   |  Bin 0 -> 1922 bytes
+ .../oldtrace/testdata/user_task_region_1_21_good   |  Bin 0 -> 2404 bytes
+ src/internal/trace/v2/oldtrace.go                  |  567 +++++++
+ src/internal/trace/v2/oldtrace_test.go             |   89 ++
+ src/internal/trace/v2/reader.go                    |   46 +-
+ .../v2/testdata/fuzz/FuzzReader/4055b17cae1a3443   |    2 +
+ src/internal/trace/v2/testtrace/validation.go      |   26 +-
+ src/internal/trace/v2/version/version.go           |    9 +
+ 24 files changed, 2608 insertions(+), 21 deletions(-)

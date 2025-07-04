@@ -1,0 +1,16 @@
+commit 2b3d98f2ba839d4e1007652c4c92a4610092f55e
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu May 16 22:47:59 2024 +0800
+
+    doc: make symbol links simpler for relnotes
+    
+    Change-Id: Ie8ff3d1d1398618b9a229aa3cb1ef2deaa58c3d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586056
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/next/6-stdlib/99-minor/crypto/x509/66249.md | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

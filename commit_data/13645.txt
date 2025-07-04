@@ -1,17 +1,12 @@
-commit 3ba0f6daf534721e4e671d00c9d3144296eb9a1a
-Author: Rob Pike <r@golang.org>
-Date:   Fri Aug 17 16:12:25 2012 -0700
+commit 95a00cae2eabf726634695ee1e079e28b9bde743
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 17 11:36:21 2012 -0700
 
-    fmt: honor integer radix formats (%d etc.) for pointers
-    Before, pointers always appeared as 0x1234ABCD. This CL
-    keeps that as the default for %p and %v, but lets explicit
-    numeric verbs override the default.
-    Fixes #3936.
+    go_spec: unary + and - are also defined for complex types
     
-    R=golang-dev, iant
+    R=r, rsc, iant, ken, iant
     CC=golang-dev
-    https://golang.org/cl/6441152
+    https://golang.org/cl/6450150
 
- src/pkg/fmt/fmt_test.go | 21 +++++++++++++++++++--
- src/pkg/fmt/print.go    | 12 ++++++++++--
- 2 files changed, 29 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,21 +1,32 @@
-commit a25d1d45d968253f0b257cca9d57619a5af248c9
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Apr 20 14:05:49 2021 -0400
+commit 05f5ae74bc95b0d77a512029bc1a6739c5d0f181
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Oct 20 12:57:14 2020 +0000
 
-    runtime: fix windows/arm64 callbackasm1 for frame pointer hack
+    runtime: fix scavenging tests for pallocChunkBytes huge pages and larger
     
-    Fixes the previously failing TestStdcallAndCDeclCallbacks
-    for the 9+ argument case.
+    Currently the scavenging tests implicitly assume that the system huge
+    page size is always strictly less than 4 MiB, or pallocChunkBytes. This
+    leads to failures on systems with huge pages of this size, and larger.
     
-    The last time this code passed, the invisible frame pointer
-    below SP was apparently not enabled on windows/arm64.
+    Filter out those tests on such platforms and add a test for the 4 MiB
+    case. The scavenger is already equipped to handle this case.
     
-    Change-Id: Ifc3064e894b2f39d6410f3be51c17309ebab08a4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/312042
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Huge page sizes > 4 MiB are effectively ignored, so also add a test case
+    to ensure that happens.
+    
+    Unfortunately we can't actually run these tests in our CI because they
+    require the platform to provide the right huge page size, but we really
+    should just parameterize this value so we can test it (there's a TODO
+    about this already).
+    
+    Fixes #42053.
+    
+    Change-Id: Ia576cbf67e178a14a178a893967efbed27d6eb17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263837
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
 
- src/runtime/sys_windows_arm64.s | 23 ++++++++++++++---------
- 1 file changed, 14 insertions(+), 9 deletions(-)
+ src/runtime/mgcscavenge_test.go | 53 +++++++++++++++++++++++++++--------------
+ 1 file changed, 35 insertions(+), 18 deletions(-)

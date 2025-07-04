@@ -1,25 +1,60 @@
-commit 86b2f29676c52774d91dda96e0ba5d4d7bcd3b47
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Thu Oct 6 11:06:21 2016 -0700
+commit 6a1153acb4aff2d481be1611862be0f9f5203e62
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jul 1 11:05:29 2016 -0700
 
-    database/sql: add support for multiple result sets
+    [dev.ssa] cmd/compile: refactor out rulegen value parsing
     
-    Many database systems allow returning multiple result sets
-    in a single query. This can be useful when dealing with many
-    intermediate results on the server and there is a need
-    to return more then one arity of data to the client.
+    Previously, genMatch0 and genResult0 contained
+    lots of duplication: locating the op, parsing
+    the value, validation, etc.
+    Parsing and validation was mixed in with code gen.
     
-    Fixes #12382
+    Extract a helper, parseValue. It is responsible
+    for parsing the value, locating the op, and doing
+    shared validation.
     
-    Change-Id: I480a9ac6dadfc8743e0ba8b6d868ccf8442a9ca1
-    Reviewed-on: https://go-review.googlesource.com/30592
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    As a bonus (and possibly as my original motivation),
+    make op selection pay attention to the number
+    of args present.
+    This allows arch-specific ops to share a name
+    with generic ops as long as there is no ambiguity.
+    It also detects and reports unresolved ambiguity,
+    unlike before, where it would simply always
+    pick the generic op, with no warning.
+    
+    Also use parseValue when generating the top-level
+    op dispatch, to ensure its opinion about ops
+    matches genMatch0 and genResult0.
+    
+    The order of statements in the generated code used
+    to depend on the exact rule. It is now somewhat
+    independent of the rule. That is the source
+    of some of the generated code changes in this CL.
+    See rewritedec64 and rewritegeneric for examples.
+    It is a one-time change.
+    
+    The op dispatch switch and functions used to be
+    sorted by opname without architecture. The sort
+    now includes the architecture, leading to further
+    generated code changes.
+    See rewriteARM and rewriteAMD64 for examples.
+    Again, it is a one-time change.
+    
+    There are no functional changes.
+    
+    Change-Id: I22c989183ad5651741ebdc0566349c5fd6c6b23c
+    Reviewed-on: https://go-review.googlesource.com/24649
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/database/sql/driver/driver.go |  16 +++
- src/database/sql/example_test.go  |  62 +++++++++++
- src/database/sql/fakedb_test.go   | 223 +++++++++++++++++++++++---------------
- src/database/sql/sql.go           |  44 +++++++-
- src/database/sql/sql_test.go      |  76 +++++++++++++
- 5 files changed, 334 insertions(+), 87 deletions(-)
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   402 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     | 15042 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 21862 +++++++++++------------
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 16988 +++++++++---------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  4026 ++---
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  1258 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go   |    18 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go |    70 +-
+ 8 files changed, 29830 insertions(+), 29836 deletions(-)

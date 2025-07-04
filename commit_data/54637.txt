@@ -1,35 +1,28 @@
-commit 67fb851bd5daec80a68287358b078035e48ce84e
-Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
-Date:   Thu Oct 5 21:55:06 2023 +0000
+commit 1c05968c9a5d6432fc6f30196528f8f37287dd3d
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sat Nov 5 16:14:08 2022 +1030
 
-    encoding/json: fix appendCompact escaping
+    all: fix comment typos
     
-    CL 469555 changed Compact to use append instead of bytes.Buffer.
-    
-    appendCompact iterates over input src slice and performs escaping
-    of certain characters.
-    To optimize copying it does not copy characters one by one
-    but keeps track of the start offset of the data to copy when
-    it reaches next character to escape or the end of the input.
-    
-    This start offset may become greater than input character offset
-    so copying of preceding data should check this condition.
-    
-    CL 469555 removed boundary checks for copying data preceding
-    escaped characters and this change restores them.
-    
-    Fixes https://github.com/golang/go/issues/63379
-    
-    Change-Id: I5b7856239f256c67faf58834705675c0aea08cc2
-    GitHub-Last-Rev: 661576fb54951a05a8399beb3f9ac2a2f9a340b4
-    GitHub-Pull-Request: golang/go#63400
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/533275
-    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Change-Id: Ic16824482142d4de4d0b949459e36505ee944ff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448175
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Dan Kortschak <dan@kortschak.io>
+    Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dan Kortschak <dan@kortschak.io>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/encoding/json/encode_test.go | 26 ++++++++++++++++++++++++++
- src/encoding/json/indent.go      | 18 +++++++++++++-----
- 2 files changed, 39 insertions(+), 5 deletions(-)
+ src/crypto/internal/edwards25519/tables.go    | 4 ++--
+ src/crypto/rsa/pkcs1v15.go                    | 2 +-
+ src/crypto/x509/sec1.go                       | 2 +-
+ src/debug/dwarf/entry.go                      | 2 +-
+ src/encoding/xml/read.go                      | 2 +-
+ src/go/internal/gcimporter/iimport.go         | 2 +-
+ src/go/types/infer.go                         | 6 +++---
+ src/go/types/validtype.go                     | 2 +-
+ src/internal/coverage/encodecounter/encode.go | 2 +-
+ src/internal/fuzz/queue.go                    | 2 +-
+ 10 files changed, 13 insertions(+), 13 deletions(-)

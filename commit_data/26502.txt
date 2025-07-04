@@ -1,17 +1,17 @@
-commit ba333a3061726b75a8e18fb542f4a43abd1d9999
-Author: Elias Naur <elias.naur@gmail.com>
-Date:   Thu Mar 24 20:45:54 2016 +0100
+commit 4c5459da2b5d0c80d48f3bb61e194ded5d413c31
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 28 16:11:56 2016 -0800
 
-    cmd/go: remove limits on parallel tasks in the Go command for iOS
+    [dev.ssa] cmd/compile: fix build
     
-    Ther darwin/arm{,64} exec wrapper now limits the number of concurrent
-    executions to 1, so remove the higher level parallel task limit from
-    the Go command.
+    Some tests make multiple Funcs per Config at once.
+    With value & block caching, we can't do that any more.
     
-    Change-Id: Id84f65c3908305bde0452b3c8db6df8c5a8881bb
-    Reviewed-on: https://go-review.googlesource.com/21100
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: Ibdb60aa2fcf478f1726b3be0fcaa06b04433eb67
+    Reviewed-on: https://go-review.googlesource.com/19081
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/go/alldocs.go |  8 +++++---
- src/cmd/go/build.go   | 14 +-------------
- 2 files changed, 6 insertions(+), 16 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go         |  1 +
+ src/cmd/compile/internal/ssa/func_test.go  | 32 ++++++++++++++----------------
+ src/cmd/compile/internal/ssa/shift_test.go |  6 ++++++
+ 3 files changed, 22 insertions(+), 17 deletions(-)

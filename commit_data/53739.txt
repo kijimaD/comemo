@@ -1,19 +1,31 @@
-commit 1d04c42045df980fdcda87bb7a7a583b74d0fc63
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Jun 27 09:50:57 2023 +0700
+commit 91ef076562dfcf783074dbd84ad7c6db60fdd481
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Aug 23 19:10:45 2022 -0700
 
-    cmd/compile/internal/noder: remove un-used funcs/vars
+    reflect: fix Value.SetIterXXX to check for the read-only bit
     
-    Change-Id: I755406e6c5b6a8cdaeeed8cd12d756e3847c8d4f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506475
+    v.SetIterXXX(i) is semantically identical to v.Set(i.XXX()).
+    If the latter panics for unexported values, so should the former.
+    
+    This change may breaking some programs, but the change is justified
+    under the "Go 1 and the Future of Go Programs" document because
+    the "library has a bug that violates the specification".
+    In this case, the "reflect" package does not accurately match
+    the behavior of the Go language specification.
+    Also, this API was recently released, so the number of users
+    who could be depending on this behavior is hopefully lower.
+    
+    Fixes #54628
+    
+    Change-Id: If86ede51f286e38093f6697944c089f616525115
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425184
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/noder/helpers.go | 103 ------------------------------
- src/cmd/compile/internal/noder/stmt.go    |  30 ---------
- src/cmd/compile/internal/noder/types.go   |   2 -
- 3 files changed, 135 deletions(-)
+ src/reflect/all_test.go | 11 +++++++++++
+ src/reflect/value.go    | 11 ++++++++---
+ 2 files changed, 19 insertions(+), 3 deletions(-)

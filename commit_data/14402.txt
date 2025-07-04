@@ -1,16 +1,13 @@
-commit 51e89f59b24d91829184ed0f48a82471c7ebb366
+commit 96833d3a25078aae1b5e279775bebb09a054b4c8
 Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Nov 14 16:51:23 2012 +0400
+Date:   Wed Nov 14 16:26:00 2012 +0400
 
-    runtime: add RaceRead/RaceWrite functions
-    It allows to catch e.g. a data race between atomic write and non-atomic write,
-    or Mutex.Lock() and mutex overwrite (e.g. mu = Mutex{}).
+    cmd/gc: racewalk: fix instrumentation of structs
+    + do not instrument go.itab.*
     
     R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/6817103
+    https://golang.org/cl/6819106
 
- src/pkg/runtime/race.c      | 16 ++++++++++++++++
- src/pkg/runtime/race.go     |  3 +++
- src/pkg/sync/atomic/race.go | 22 ++++++++++++++++++++++
- 3 files changed, 41 insertions(+)
+ src/cmd/gc/racewalk.c | 48 +++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 33 insertions(+), 15 deletions(-)

@@ -1,21 +1,25 @@
-commit f7aa454c58ed0d06823f509fc39474b6f52f7c3a
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Sun Aug 20 11:47:50 2017 -0700
+commit b64e817853531cc73dd5fd13a5038434283d3e5b
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Apr 24 16:59:33 2017 +0200
 
-    runtime: mask shifts in map implementation on x86
+    runtime: simplify detection of preference to use AVX memmove
     
-    This slightly improves the generated code on x86 architectures,
-    including on many hot paths.
+    Reduces cmd/go by 4464 bytes on amd64.
     
-    It is a no-op on other architectures.
+    Removes the duplicate detection of AVX support and
+    presence of Intel processors.
     
-    Change-Id: I86336fd846bc5805a27bbec572e8c73dcbd0d567
-    Reviewed-on: https://go-review.googlesource.com/57411
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I4670189951a63760fae217708f68d65e94a30dc5
+    Reviewed-on: https://go-review.googlesource.com/41570
     Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/hashmap.go      | 37 +++++++++++++++++++++++++------------
- src/runtime/hashmap_fast.go | 24 ++++++++++++------------
- src/runtime/runtime_test.go |  2 +-
- 3 files changed, 38 insertions(+), 25 deletions(-)
+ src/runtime/asm_386.s         |  6 ++--
+ src/runtime/asm_amd64.s       |  2 ++
+ src/runtime/asm_amd64p32.s    | 11 +++++++
+ src/runtime/cpuflags_amd64.go | 71 +++++--------------------------------------
+ src/runtime/cpuidlow_amd64.s  | 22 --------------
+ src/runtime/memmove_amd64.s   |  4 +--
+ src/runtime/runtime2.go       |  6 ++--
+ 7 files changed, 31 insertions(+), 91 deletions(-)

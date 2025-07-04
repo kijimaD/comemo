@@ -1,12 +1,18 @@
-commit 179acf4083bedecad5f9700b86f6b58052b7526e
-Author: Austin Clements <austin@google.com>
-Date:   Mon Dec 17 15:26:36 2018 -0500
+commit ca8ba0675a5a73b4e0ad8ba1c50e244b793934ee
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Tue Jul 10 09:27:39 2018 +0300
 
-    doc/go1.12: updates for runtime and compiler
+    cmd/link/internal/sym: uncomment code for ELF cases in RelocName
     
-    Change-Id: Ifb16fd28105efd05cebbd615b52e45330b77cede
-    Reviewed-on: https://go-review.googlesource.com/c/154600
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    When this code was introduced, there were no R_MIPS, R_PPC64 and
+    R_390 and build would fail with this code uncommented.
+    Now we have those.
+    
+    Change-Id: I18a54eaa250db12e293f8e4d1f080f1dd2e66a4f
+    Reviewed-on: https://go-review.googlesource.com/122896
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/go1.12.html | 58 ++++++++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 47 insertions(+), 11 deletions(-)
+ src/cmd/link/internal/sym/reloc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

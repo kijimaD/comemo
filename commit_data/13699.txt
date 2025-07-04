@@ -1,21 +1,12 @@
-commit f8d4bb884fdb7dc98ee9fb12a9847cb1f322ecbc
-Author: Dave Cheney <dave@cheney.net>
-Date:   Wed Aug 29 09:05:30 2012 +1000
+commit ddbc85ce48faef8c92e159e90978f706cb6910e3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 29 06:54:00 2012 +0900
 
-    net/http/httputil: fix race in DumpRequestOut
+    net: delete unused socket-level option helpers
     
-    Fixes #3892.
-    
-    Swapping the order of the writers inside the MultiWriter ensures
-    the request will be written to buf before http.ReadRequest completes.
-    
-    The fencedBuffer is not required to make the test pass on
-    any machine that I have access too, but as the buf is shared
-    across goroutines, I think it is necessary for correctness.
-    
-    R=bradfitz, fullung, franciscossouza
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/6483061
+    https://golang.org/cl/6499043
 
- src/pkg/net/http/httputil/dump.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/net/sockopt.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

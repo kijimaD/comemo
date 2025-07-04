@@ -1,14 +1,17 @@
-commit 6fa2296e839d7cea090fd9bddc9831ea6186c30e
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Mon Feb 13 12:45:59 2012 +0900
+commit 8040f9bb86d013c8d21a5e8d05cd2657fe2b16de
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 13 14:38:31 2012 +1100
 
-    net: disable wild use of SO_REUSEPORT on BSD variants
+    spec: typographical adjustment for ellipsis
+    The paragraph describing the ellipses presents the horizontal ellipsis
+    in two different fonts and at least on my screen they look too different.
+    Switch to a consistent rendering.
     
-    Fixes #2830 (again).
+    Of small steps are great journeys undertaken.
     
-    R=rsc
+    R=golang-dev, rsc, dsymonds, gri
     CC=golang-dev
-    https://golang.org/cl/5651083
+    https://golang.org/cl/5650055
 
- src/pkg/net/sockopt_bsd.go | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

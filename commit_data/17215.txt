@@ -1,14 +1,15 @@
-commit 844bc6c0acdb053936321739083cab80c4a913d4
-Author: ChaiShushan <chaishushan@gmail.com>
-Date:   Wed Aug 14 13:41:36 2013 +1000
+commit 1a09d70e230a7a9468ded587c7a1e3bee53c402b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 13 19:37:54 2013 -0400
 
-    misc/notepadplus: support Calltips
+    runtime: fix build on arm
     
-    Fixes #5789.
+    Do not use ? :
+    I cannot say this enough.
     
-    R=golang-dev, r
+    TBR=dvyukov
     CC=golang-dev
-    https://golang.org/cl/10601043
+    https://golang.org/cl/12903043
 
- misc/notepadplus/go.xml | 178 ++++++++++++++++++++++++++++++++----------------
- 1 file changed, 121 insertions(+), 57 deletions(-)
+ src/pkg/runtime/proc.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

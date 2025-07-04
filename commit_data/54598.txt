@@ -1,23 +1,21 @@
-commit 36b14a78b58924a8aea22c8949c3b8a4b7045d8b
-Author: cui fliter <imcusg@gmail.com>
-Date:   Mon Oct 2 15:09:26 2023 +0800
+commit 3e3a8fe5bed87845e7c93da50378403564ad9e69
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Nov 3 15:30:42 2022 +0100
 
-    cmd: fix mismatched symbols
+    cmd/go/internal/script: Cmp() should not perform environment substitutions
     
-    Change-Id: I6365cdf22ad5e669908519d0ee8b78d76ae8f1b9
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/532075
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    This is an oversight from https://go-review.googlesource.com/c/go/+/419875,
+    where script commands were refactored and factored out to a new package.
+    
+    For #27494.
+    
+    Change-Id: Ie606cab39f60859ee1da5165dcc94c8470c94325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447575
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: shuang cui <imcusg@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/cmd/covdata/doc.go                   | 2 +-
- src/cmd/cover/doc.go                     | 2 +-
- src/cmd/go/internal/load/pkg.go          | 2 +-
- src/cmd/go/internal/modload/buildlist.go | 2 +-
- src/cmd/internal/obj/loong64/asm.go      | 2 +-
- src/cmd/internal/obj/mips/asm0.go        | 2 +-
- src/cmd/internal/obj/s390x/asmz.go       | 2 +-
- src/cmd/link/internal/ld/pe.go           | 2 +-
- 8 files changed, 8 insertions(+), 8 deletions(-)
+ src/cmd/go/internal/script/cmds.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

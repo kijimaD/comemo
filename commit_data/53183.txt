@@ -1,19 +1,34 @@
-commit 2f1e643229d19f40a5f80dc3784daaff83d5cc02
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri May 19 07:31:44 2023 -0400
+commit f9959460940140b280be1f5591ae38b9ab74182e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jul 26 21:52:42 2022 -0700
 
-    log/slog: fix check for nil prefix
+    [dev.unified] cmd/compile: implement simple inline body pruning heuristic
     
-    Previously, handleState.prefix was nil if and only if the length of
-    the prefix was zero. Now, prefix is never nil.
+    An important optimization in the existing export data format is the
+    pruning of unreachable inline bodies. That is, when re-exporting
+    transitively imported types, omitting the inline bodies for methods
+    that can't actually be needed due to importing that package.
     
-    Fix the nil check in the code by also checking if the length is non-zero.
+    The existing logic (implemented in typecheck/crawler.go) is fairly
+    sophisticated, but also relies on actually expanding inline bodies in
+    the process, which is undesirable. However, including all inline
+    bodies is also prohibitive for testing GOEXPERIMENT=unified against
+    very large Go code bases that impose size limits on build action
+    inputs.
     
-    Change-Id: I9f69c0029cb1c73fe6c2919c78fee7d4085bfd85
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495977
+    As a short-term solution, this CL implements a simple heuristic for
+    GOEXPERIMENT=unified: include the inline bodies for all
+    locally-declared functions/methods, and for any imported
+    functions/methods that were inlined into this package.
+    
+    Change-Id: I686964a0cd9262b77d3d5587f89cfbcfe8b2e521
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419675
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/log/slog/handler.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/noder/import.go  |  2 +-
+ src/cmd/compile/internal/noder/linker.go  | 83 +++++++++++++++++++++-------
+ src/cmd/compile/internal/noder/reader.go  | 35 ++++++++----
+ src/cmd/compile/internal/noder/unified.go | 92 ++++++++++++++++++++++++-------
+ 4 files changed, 161 insertions(+), 51 deletions(-)

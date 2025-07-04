@@ -1,18 +1,42 @@
-commit 00e7fdc07792abdd1cf323c62c5c9bede368ecc0
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Tue Jan 31 08:34:13 2023 +0000
+commit 58631ba54f45506f2f178bb01d22273e7dfba674
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 9 17:19:23 2022 -0500
 
-    net: move context cancellation logic of blocking calls to a common function.
+    internal/testenv: add GOROOT and use it to fix tests broken with -trimpath
     
-    Change-Id: I5f7219a111436e3d6a4685df9461f5a8f8bcb000
-    GitHub-Last-Rev: e420129bade2681d2b6ce92087ed94444f424810
-    GitHub-Pull-Request: golang/go#58108
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/463231
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    This fixes many (but not all) of the tests that currently fail
+    (due to a bogus path reported by runtime.GOROOT) when run with
+    'go test -trimpath std cmd'.
+    
+    Updates #51461
+    
+    Change-Id: Ia2cc05705529c4859e7928f32eeceed647f2e986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391806
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/net/cgo_unix.go | 128 +++++++++++++++++-----------------------------------
- 1 file changed, 41 insertions(+), 87 deletions(-)
+ src/cmd/api/goapi.go                               |  12 ++-
+ src/cmd/api/goapi_test.go                          |   2 +
+ .../compile/internal/importer/gcimporter_test.go   |   8 +-
+ src/cmd/compile/internal/syntax/parser_test.go     |   7 +-
+ src/cmd/compile/internal/types2/main_test.go       |  17 ++++
+ src/cmd/compile/internal/types2/stdlib_test.go     |  26 +++---
+ src/cmd/doc/doc_test.go                            |   8 ++
+ src/cmd/go/internal/imports/scan_test.go           |   3 +-
+ src/cmd/gofmt/long_test.go                         |   7 +-
+ src/cmd/internal/moddeps/moddeps_test.go           |  23 +++--
+ src/cmd/link/internal/ld/nooptcgolink_test.go      |   3 +-
+ src/cmd/nm/nm_test.go                              |   2 +-
+ src/go/importer/importer_test.go                   |   9 +-
+ src/go/internal/gcimporter/gcimporter_test.go      |  10 +-
+ src/go/internal/srcimporter/srcimporter_test.go    |   9 +-
+ src/go/types/main_test.go                          |  17 ++++
+ src/go/types/stdlib_test.go                        |  31 +++----
+ src/internal/testenv/testenv.go                    | 101 ++++++++++++++++++++-
+ src/net/netip/inlining_test.go                     |   7 +-
+ src/path/filepath/path_test.go                     |   2 +-
+ src/runtime/runtime-gdb_test.go                    |  18 ++--
+ src/time/zoneinfo_test.go                          |   3 +-
+ 22 files changed, 242 insertions(+), 83 deletions(-)

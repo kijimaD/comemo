@@ -1,22 +1,18 @@
-commit d0925228d7171eb074902a53249bccfbda51abea
-Author: fraenkel <michael.fraenkel@gmail.com>
-Date:   Thu Mar 15 22:37:01 2018 -0400
+commit b36b12b292d7cfc8330702fb27865e5ef04e6c9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 22:12:52 2017 -0500
 
-    testing: failfast fails fast when Fatal called
+    database/sql/driver: explain Driver vs DriverContext vs Connector
     
-    When a test calls t.Fatal()/t.Fatalf(), only deferred code will execute.
-    Increment the failure count as part of a deferred call.
+    The docs make it seem like they are all things a single object
+    would implement. That's true of Driver and DriverContext,
+    but Connector is really something else. Attempt to clarify.
     
-    Fixes #24412
-    
-    Change-Id: Ibb154015fcd3d0fb7739718fdda8c9ad22f9e896
-    Reviewed-on: https://go-review.googlesource.com/101035
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I8fdf1cff855a0fbe37ea22720c082045c719a267
+    Reviewed-on: https://go-review.googlesource.com/82082
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
 
- src/cmd/go/go_test.go                    | 3 +++
- src/cmd/go/testdata/src/failfast_test.go | 8 ++++++++
- src/testing/testing.go                   | 8 +++++---
- 3 files changed, 16 insertions(+), 3 deletions(-)
+ src/database/sql/driver/driver.go | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 44213: 26e29aa15a189b26d3b2400a594d329368e78e79
+# Index 44213: 0d20a492823211cd816ded24c98cfcd58b198faa
 
 echo "🚀 Generating explanation for commit 44213..."
 
@@ -15,8 +15,8 @@ gemini -p <<'EOF'
 
 ### メタデータ
 - **コミットインデックス**: 44213
-- **コミットハッシュ**: 26e29aa15a189b26d3b2400a594d329368e78e79
-- **GitHub URL**: https://github.com/golang/go/commit/26e29aa15a189b26d3b2400a594d329368e78e79
+- **コミットハッシュ**: 0d20a492823211cd816ded24c98cfcd58b198faa
+- **GitHub URL**: https://github.com/golang/go/commit/0d20a492823211cd816ded24c98cfcd58b198faa
 
 ### 章構成
 

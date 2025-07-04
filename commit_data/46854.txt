@@ -1,33 +1,20 @@
-commit 36a265a625a8320fea93aad62da4003b2cc54f72
-Author: Katie Hockman <katie@golang.org>
-Date:   Thu Oct 7 16:26:36 2021 -0400
+commit c9d6f45fec19a9cb66ddd89d61bfa982f5bf4afe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 7 15:25:39 2021 -0800
 
-    testing: fix -run behavior with fuzz tests
+    runtime/metrics: fix a couple of documentation typpos
     
-    This change fixes some issues with -run, and
-    the subsequent command line output when running
-    in verbose mode. It replaces CorpusEntry.Name
-    with CorpusEntry.Path, and refactors the code
-    accordingly.
+    Fixes #44150
     
-    This change also adds a lot of additional tests
-    which check explicit command line output when
-    fuzz targets are run without fuzzing. This will
-    be important to avoid regressions.
-    
-    Updates #48149
-    
-    Change-Id: If34b1f51db646317b7b51c3c38ae53231d01f568
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/354632
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
+    Change-Id: Ibe5bfba01491dd8c2f0696fab40a1673230d76e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290349
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
 
- .../go/testdata/script/test_fuzz_mutate_crash.txt  |   2 +-
- src/cmd/go/testdata/script/test_fuzz_run.txt       | 145 +++++++++++++++++++++
- .../go/testdata/script/test_fuzz_seed_corpus.txt   |   1 +
- src/internal/fuzz/fuzz.go                          |  78 +++++------
- src/internal/fuzz/worker.go                        |   6 +-
- src/testing/fuzz.go                                |  38 +++---
- 6 files changed, 212 insertions(+), 58 deletions(-)
+ src/runtime/metrics/doc.go    | 7 ++++---
+ src/runtime/metrics/sample.go | 6 +++---
+ src/runtime/metrics/value.go  | 2 +-
+ 3 files changed, 8 insertions(+), 7 deletions(-)

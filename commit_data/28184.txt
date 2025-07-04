@@ -1,15 +1,14 @@
-commit 549ca046ffeb1f76833c15059d3a5da301cf1eb3
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Sep 2 14:21:57 2016 -0700
+commit dcd613862bc51db8455ccd22c03336111afe6883
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:33 2016 -0400
 
-    cmd/compile: fix argument for given format verb
+    cmd/link/internal/ld: force external linking for mips64x with cgo
     
-    Follow-up to https://go-review.googlesource.com/28394.
+    cgo internal linking is not supported yet (issue #14449).
     
-    Change-Id: Ic4147e9ae786a4de0a3454131fac03e940ae2e76
-    Reviewed-on: https://go-review.googlesource.com/28417
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Change-Id: Ic968916383d77b7f449db8f230c928a1e81939e0
+    Reviewed-on: https://go-review.googlesource.com/19807
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/compile/internal/gc/fmt.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/link/internal/ld/lib.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

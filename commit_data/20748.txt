@@ -1,51 +1,24 @@
-commit 193d09a659c8d0a894fa682a879adb8fac1a4d82
-Author: James Robinson <jamesr@google.com>
-Date:   Mon Oct 20 12:58:02 2014 +1100
+commit d396b9df10bcdb14f06c14b82c293a07ebdee77b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 6 14:50:58 2014 -0700
 
-    compress/flate: add Reset() to allow reusing large buffers to compress multiple buffers
+    go/build: do not consider "android.go" to be android-specific
+    A file name must have a non-empty underscore-separated
+    prefix before its suffix matches GOOS. This is what the
+    documentation already said but is not what the code did.
     
-    This adds a Reset() to compress/flate's decompressor and plumbs that through
-    to compress/zlib and compress/gzip's Readers so callers can avoid large
-    allocations when performing many inflate operations. In particular this
-    preserves the allocation of the decompressor.hist buffer, which is 32kb and
-    overwritten as needed while inflating.
+    Fixes #8838.
     
-    On the benchmark described in issue 6317, produces the following speedup on
-    my 2.3ghz Intel Core i7 MBP with go version devel +6b696a34e0af Sun Aug 03
-    15:14:59 2014 -0700 darwin/amd64:
+    This needs to be called out in the release notes.
+    The he single affected file
+            code.google.com/p/go.text/collate/tools/colcmp/darwin.go
+    could use a renaming but works because it has a build tag inside.
     
-    blocked.text w/out patch vs blocked.text w/ patch:
-    benchmark           old ns/op      new ns/op      delta
-    BenchmarkGunzip     8371577533     7927917687     -5.30%
-    
-    benchmark           old allocs     new allocs     delta
-    BenchmarkGunzip     176818         148519         -16.00%
-    
-    benchmark           old bytes     new bytes     delta
-    BenchmarkGunzip     292184936     12739528      -95.64%
-    
-    flat.text vs blocked.text w/patch:
-    benchmark           old ns/op      new ns/op      delta
-    BenchmarkGunzip     7939447827     7927917687     -0.15%
-    
-    benchmark           old allocs     new allocs     delta
-    BenchmarkGunzip     90702          148519         +63.74%
-    
-    benchmark           old bytes     new bytes     delta
-    BenchmarkGunzip     9959528       12739528      +27.91%
-    
-    Similar speedups to those bradfitz saw in  https://golang.org/cl/13416045.
-    
-    Fixes #6317.
-    Fixes #7950.
-    
-    LGTM=nigeltao
-    R=golang-codereviews, bradfitz, dan.kortschak, adg, nigeltao, jamesr
+    LGTM=adg, rsc
+    R=golang-codereviews, adg, rsc
     CC=golang-codereviews
-    https://golang.org/cl/97140043
+    https://golang.org/cl/147690043
 
- src/compress/flate/inflate.go      | 27 +++++++++++++
- src/compress/flate/inflate_test.go | 39 +++++++++++++++++++
- src/compress/gzip/gunzip.go        |  6 ++-
- src/compress/zlib/reader.go        | 80 +++++++++++++++++++++++++-------------
- 4 files changed, 125 insertions(+), 27 deletions(-)
+ src/go/build/build.go      | 12 ++++++++++++
+ src/go/build/build_test.go |  4 ++++
+ 2 files changed, 16 insertions(+)

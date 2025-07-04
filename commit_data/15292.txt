@@ -1,14 +1,21 @@
-commit 8ecc4cb41eaf48581ca1bef3cbb9edf9e477e2ab
-Author: David Symonds <dsymonds@golang.org>
-Date:   Mon Feb 18 14:03:47 2013 +1100
+commit 556dd0bfbd52876933ef0454ca86f492c618f342
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Feb 18 03:23:29 2013 +1100
 
-    misc/vim: update installation instructions to work better with some Linux distributions.
+    runtime: fix sigaction struct on freebsd
     
-    Fixes #3308.
+    Fix the sa_mask member of the sigaction struct - on FreeBSD this is
+    declared as a sigset_t, which is an array of four unsigned ints.
+    Replace the current int64 with Sigset from defs_freebsd_GOARCH, which
+    has the correct definition.
     
-    R=golang-dev, minux.ma
+    Unbreaks the FreeBSD builds.
+    
+    R=golang-dev, dave, minux.ma
     CC=golang-dev
-    https://golang.org/cl/7301086
+    https://golang.org/cl/7333047
 
- misc/vim/readme.txt | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ src/pkg/runtime/signal_freebsd_386.c   | 7 +++++--
+ src/pkg/runtime/signal_freebsd_amd64.c | 7 +++++--
+ src/pkg/runtime/signal_freebsd_arm.c   | 7 +++++--
+ 3 files changed, 15 insertions(+), 6 deletions(-)

@@ -1,39 +1,38 @@
-commit cbd421f75b0770c3534d1b641e7770bf1878004f
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Thu Mar 12 10:26:01 2020 -0400
+commit 6917b3c839af615e22ef479b23983d186e578bd6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 21 14:02:18 2019 +0200
 
-    runtime: improve memmove for short moves on ppc64
+    vendor: re-vendor golang.org/x/net to fix Dragonfly build
     
-    This improves the performance of memmove for almost all moves <= 16 bytes
-    for the ppc64 assembler, improving linux/ppc64le, linux/ppc64, aix/ppc64.
+    This picks up CL 202317 which fixes golang.org/x/net for Dragonfly
+    master (upcoming 5.8 release). Also re-enable the interface tests
+    disabled in CL 201482.
     
-    Only the forward moves were changed, the backward moves were left as is.
-    Additional macro defines were added to improve the readability of the asm.
+    Vendored using:
     
-    Results from power8:
-    name                      old time/op    new time/op    delta
-    Memmove/0                   5.70ns ± 0%    5.69ns ± 0%    -0.18%  (p=0.029 n=4+4)
-    Memmove/1                   5.54ns ± 0%    5.39ns ± 0%    -2.71%  (p=0.029 n=4+4)
-    Memmove/2                   6.31ns ± 0%    5.55ns ± 0%   -12.08%  (p=0.029 n=4+4)
-    Memmove/3                   7.41ns ± 0%    5.54ns ± 0%   -25.24%  (p=0.029 n=4+4)
-    Memmove/4                   8.41ns ± 0%    5.56ns ± 0%   -33.87%  (p=0.029 n=4+4)
-    Memmove/5                   10.1ns ± 5%     5.5ns ± 0%   -45.30%  (p=0.029 n=4+4)
-    Memmove/6                   10.3ns ± 0%     5.6ns ± 0%   -45.92%  (p=0.029 n=4+4)
-    Memmove/7                   11.4ns ± 0%     5.7ns ± 0%   -50.33%  (p=0.029 n=4+4)
-    Memmove/8                   5.66ns ± 0%    5.54ns ± 0%    -2.12%  (p=0.029 n=4+4)
-    Memmove/9                   5.66ns ± 0%    6.47ns ± 0%   +14.31%  (p=0.029 n=4+4)
-    Memmove/10                  6.67ns ± 0%    6.22ns ± 0%    -6.82%  (p=0.029 n=4+4)
-    Memmove/11                  7.83ns ± 0%    6.45ns ± 0%   -17.60%  (p=0.029 n=4+4)
-    Memmove/12                  8.91ns ± 0%    6.25ns ± 0%   -29.85%  (p=0.029 n=4+4)
-    Memmove/13                  9.81ns ± 0%    6.48ns ± 0%   -33.94%  (p=0.029 n=4+4)
-    Memmove/14                  10.7ns ± 1%     6.4ns ± 0%   -40.00%  (p=0.029 n=4+4)
-    Memmove/15                  11.8ns ± 0%     6.7ns ± 0%   -42.84%  (p=0.029 n=4+4)
-    Memmove/16                  5.63ns ± 0%    5.56ns ± 0%    -1.20%  (p=0.029 n=4+4)
+        $ go get golang.org/x/net@24d2ffbea1e8
+        $ go mod tidy
+        $ go mod vendor
     
-    Change-Id: I2de434f543c5a017395e0850fb9b9f7219583bbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223317
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Fixes #34368
+    
+    Change-Id: Iac152b7ffaa607bfedbb4024b4e1ffc9b649d689
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202438
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/runtime/memmove_ppc64x.s | 184 +++++++++++++++++++++++++------------------
- 1 file changed, 109 insertions(+), 75 deletions(-)
+ src/go.mod                                            |  2 +-
+ src/go.sum                                            |  4 ++--
+ src/net/interface_test.go                             |  3 ---
+ src/vendor/golang.org/x/net/dns/dnsmessage/message.go |  2 +-
+ src/vendor/golang.org/x/net/http2/hpack/encode.go     |  2 +-
+ src/vendor/golang.org/x/net/route/address.go          |  2 +-
+ src/vendor/golang.org/x/net/route/message.go          |  2 +-
+ src/vendor/golang.org/x/net/route/route.go            |  2 +-
+ src/vendor/golang.org/x/net/route/route_classic.go    |  2 +-
+ src/vendor/golang.org/x/net/route/sys.go              |  3 +++
+ src/vendor/golang.org/x/net/route/sys_dragonfly.go    | 14 +++++++++++++-
+ src/vendor/golang.org/x/net/route/zsys_dragonfly.go   |  4 ++--
+ src/vendor/modules.txt                                |  2 +-
+ 13 files changed, 28 insertions(+), 16 deletions(-)

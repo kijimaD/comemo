@@ -1,20 +1,32 @@
-commit 643be70045e413943cae9d73687beaa4db47f909
-Author: David Chase <drchase@google.com>
-Date:   Wed May 10 13:50:19 2017 -0400
+commit ac4a86523c2521555b9ea104157fcc8cf5ce79f5
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Tue Feb 28 16:07:36 2017 -0800
 
-    cmd/compile: repair copy-pasted method comment
+    cmd/vendor/github.com/google/pprof: refresh from upstream
     
-    Inadvertent copy-pasta in CL
-    https://go-review.googlesource.com/c/36207/
+    Updating to commit e41fb7133e7ebb84ba6af2f6443032c728db26d3
+    from github.com/google/pprof
     
-    Is this allowed for 1.9 post-freeze?
+    This fixes #19322
     
-    Change-Id: I00dd27f9f53babeded3695346986a7a491f8a771
-    Reviewed-on: https://go-review.googlesource.com/43092
-    Run-TryBot: David Chase <drchase@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Change-Id: Ia1c008a09f46ed19ef176046e38868eacb715682
+    Reviewed-on: https://go-review.googlesource.com/37617
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/ssa/value.go | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ .../vendor/github.com/google/pprof/doc/pprof.md    |  9 ++++----
+ .../github.com/google/pprof/driver/driver.go       | 12 +++++------
+ .../google/pprof/internal/binutils/addr2liner.go   |  5 ++++-
+ .../pprof/internal/binutils/addr2liner_llvm.go     |  4 ++--
+ .../pprof/internal/binutils/binutils_test.go       |  2 +-
+ .../google/pprof/internal/binutils/disasm.go       |  2 +-
+ .../google/pprof/internal/binutils/disasm_test.go  | 12 +++++------
+ .../github.com/google/pprof/internal/driver/cli.go |  3 ++-
+ .../google/pprof/internal/driver/fetch.go          | 25 ++++++++++++++++++----
+ .../google/pprof/internal/driver/fetch_test.go     |  3 ++-
+ .../google/pprof/internal/driver/options.go        |  2 +-
+ .../google/pprof/internal/report/report_test.go    |  2 +-
+ .../pprof/internal/symbolizer/symbolizer_test.go   | 17 ++++++++++-----
+ src/cmd/vendor/vendor.json                         |  4 ++--
+ 14 files changed, 66 insertions(+), 36 deletions(-)

@@ -1,27 +1,30 @@
-commit f78cc1324a95b964f932b965a82f3c786cb1d932
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue Jul 17 15:36:30 2018 -0400
+commit 14f929af91c6096e25b5cfe0549110ccc0e3db7b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 3 14:22:05 2018 -0400
 
-    cmd/link: move Plt, Got fields in sym.Symbol to cold section
+    runtime/internal/atomic: improve ARM atomics
     
-    The sym.Symbol 'Plt' and 'Got' field are used only with cgo and/or
-    external linking and are not needed for most symbols. Relocate them to
-    sym.AuxSymbol so as to shrink the main Symbol struct.
+    This is a follow-up of CL 93637. There, when we redirect sync/atomic
+    to runtime/internal/atomic, a few good implementations of ARM atomics
+    were lost. This CL brings most of them back, with some improvements.
     
-    Updates #26186
+    - Change atomic Store to a plain store with memory barrier, as we
+      already changed atomic Load to plain load with memory barrier.
     
-    Change-Id: I170d628a760be300a0c1f738f0998970e91ce3d6
-    Reviewed-on: https://go-review.googlesource.com/125478
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    - Use native 64-bit atomics on ARMv7, jump to Go implementations
+      on older machines. But drop the kernel helper. In particular,
+      for Load64, just do loads, not using Cas on the address being
+      load from, so it works also for read-only memory (since we have
+      already fixed 32-bit Load).
+    
+    Change-Id: I725cd65cf945ae5200db81a35be3f251c9f7af14
+    Reviewed-on: https://go-review.googlesource.com/111315
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/link/internal/amd64/asm.go       | 28 +++++++++++-----------
- src/cmd/link/internal/arm/asm.go         | 32 ++++++++++++-------------
- src/cmd/link/internal/ld/data.go         | 10 ++++----
- src/cmd/link/internal/loadpe/ldpe.go     |  4 ++--
- src/cmd/link/internal/ppc64/asm.go       | 10 ++++----
- src/cmd/link/internal/s390x/asm.go       | 16 ++++++-------
- src/cmd/link/internal/sym/sizeof_test.go |  2 +-
- src/cmd/link/internal/sym/symbol.go      | 40 +++++++++++++++++++++++++++++---
- src/cmd/link/internal/sym/symbols.go     |  2 --
- src/cmd/link/internal/x86/asm.go         | 24 +++++++++----------
- 10 files changed, 100 insertions(+), 68 deletions(-)
+ src/runtime/internal/atomic/asm_arm.s          | 174 ++++++++++++++++++++++++-
+ src/runtime/internal/atomic/atomic_arm.go      |  47 +++----
+ src/runtime/internal/atomic/sys_linux_arm.s    |  33 ++++-
+ src/runtime/internal/atomic/sys_nonlinux_arm.s |  23 +++-
+ 4 files changed, 240 insertions(+), 37 deletions(-)

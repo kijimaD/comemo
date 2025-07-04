@@ -1,21 +1,19 @@
-commit 85a5fce7adfcd45dafd7303a174608ba0a97a1c7
-Author: Paul Marks <pmarks@google.com>
-Date:   Mon Jul 27 14:39:32 2015 -0700
+commit 1b269463a58c2537bfa7b08ede4134001860254f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jun 18 16:19:18 2015 +0200
 
-    net: Set finalDeadline from TestDialParallel to avoid leaked sockets.
+    cmd/trace: gracefully handle empty profiles
     
-    I've also changed TestDialSerialAsyncSpuriousConnection for consistency,
-    although it always computes a finalDeadline of zero.
+    Return a meaningful message when a profile is empty.
+    Also rename "IO blocking" to "Network blocking",
+    currently only network blocking is captured.
     
-    Note that #11225 is the root cause of the socket leak; this just hides
-    it from the unit test by restoring the shorter timeout.
+    Fixes #11098
     
-    Fixes #11878
-    
-    Change-Id: Ie0037dd3bce6cc81d196765375489f8c61be74c2
-    Reviewed-on: https://go-review.googlesource.com/12712
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Paul Marks <pmarks@google.com>
+    Change-Id: Ib6f1292b8ade4805756fcb6696ba1fca8f9f39a9
+    Reviewed-on: https://go-review.googlesource.com/11243
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/net/dial_test.go | 21 +++++++++++++--------
- 1 file changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/trace/main.go  | 2 +-
+ src/cmd/trace/pprof.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

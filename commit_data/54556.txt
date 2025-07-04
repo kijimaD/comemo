@@ -1,33 +1,28 @@
-commit bc9da01e9d7de25f04173f7122e09fe0996aaa05
-Author: Holger Hans Peter Freyther <freythergo@gmail.com>
-Date:   Sun Sep 24 12:05:37 2023 +0000
+commit 9ce27feaeb91b2f30ff8cbe3be1ece3071f3f6b2
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 28 14:14:24 2022 -0700
 
-     cmd/go: permit additional cflags when compiling
+    cmd/compile: add rule for post-decomposed growslice optimization
     
-    In CL 475375 the Go command started to generate the "preferlinkext"
-    token file for "strange/dangerous" compiler flags. This serves as a hint
-    to the Go linker whether to call the external linker or not.
+    The recently added rule only works before decomposing slices.
+    Add a rule that works after decomposing slices.
     
-    Permit compiler flags used by bazel and bazelbuild/rules_go during
-    compilation of cgo code to not prefer external linking. This restores
-    the behavior of previous versions of Go.
+    The reason we need the latter is because although the length may
+    be a constant, it can be hidden inside a slice that is not constant
+    (its pointer or capacity might be changing). By applying this
+    optimization after decomposing slices, we can find more cases
+    where it applies.
     
-    As a side effect, it also allows these flags to appear
-    in #cgo directives in source code. We don't know of any cases
-    where that is actually useful, but it appears to be harmless
-    and simplifies the implementation of the internal linking change.
+    Fixes #56440
     
-    Fixes #60865
-    
-    Change-Id: I176a6a2a2cf36293dd9aed24be928f98fa2fb6d9
-    GitHub-Last-Rev: 071e915b8e4e6b466e1accbfd2b9b45fc9982a34
-    GitHub-Pull-Request: golang/go#60868
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/504335
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I0094e59eee3065ab4d210defdda8227a6e897420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446277
+    Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/go/internal/work/security.go               |  4 ++++
- .../script/cgo_suspect_flag_force_external.txt     | 26 ++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 32 +++++++++++++++++++++++++
+ test/codegen/issue56440.go                      | 16 +++++++++++++
+ 3 files changed, 51 insertions(+)

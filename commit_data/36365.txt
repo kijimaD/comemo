@@ -1,20 +1,27 @@
-commit e8e074d1ba286c3e06847a96fe6aa90e294dfcd9
+commit 665b9b3476ad0a6dc4e578e42e6c63012e23aaa0
 Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jul 19 14:03:09 2018 -0700
+Date:   Fri Apr 20 15:30:52 2018 -0700
 
-    cmd/vet: implement old TODO from testdata/print.go
+    runtime: change GNU/Linux usleep to use nanosleep
     
-    The code was fixed in CL 108559 but the testing TODO was not implemented.
+    Ever since we added sleep to the runtime back in 2008, we've
+    implemented it on GNU/Linux with the select (or pselect or pselect6)
+    system call. But the Linux kernel has a nanosleep system call,
+    which should be a tiny bit more efficient since it doesn't have to
+    check to see whether there are any file descriptors. So use it.
     
-    Updates #22936
-    
-    Change-Id: I20a703260a181bbcf5f87609d6fb8221a182be1a
-    Reviewed-on: https://go-review.googlesource.com/125038
+    Change-Id: Icc3430baca46b082a4d33f97c6c47e25fa91cb9a
+    Reviewed-on: https://go-review.googlesource.com/108538
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Rob Pike <r@golang.org>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/vet/testdata/print.go | 42 +++++++++++-------------------------------
- src/cmd/vet/vet_test.go       |  3 +--
- 2 files changed, 12 insertions(+), 33 deletions(-)
+ src/runtime/sys_linux_386.s     | 12 ++++--------
+ src/runtime/sys_linux_amd64.s   | 12 ++++--------
+ src/runtime/sys_linux_arm.s     | 10 +++-------
+ src/runtime/sys_linux_arm64.s   | 14 +++++---------
+ src/runtime/sys_linux_mips64x.s | 12 +++++-------
+ src/runtime/sys_linux_mipsx.s   | 13 +++++--------
+ src/runtime/sys_linux_ppc64x.s  | 12 +++++-------
+ src/runtime/sys_linux_s390x.s   | 12 +++++-------
+ 8 files changed, 36 insertions(+), 61 deletions(-)

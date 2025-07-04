@@ -1,12 +1,22 @@
-commit 722f7d280b8c6829fbacd049c339b9c0edf75f12
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Thu Dec 18 11:42:25 2014 +1100
+commit 0584312e7d9dcfe336afa58079609f721b31b366
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 5 13:37:34 2014 -0500
 
-    doc: use 'git-codereview' in contributor docs
+    [dev.garbage] runtime: fix a few checkmark bugs
     
-    Change-Id: I63d5c81fdaf9aca2fc3da3defcc6e9c4094c690b
-    Reviewed-on: https://go-review.googlesource.com/1742
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    - Some sequencing issues with stopping the first gc_m round
+    at the right place to set up correctly for the second round.
+    
+    - atomicxor8 is not idempotent; avoid xor.
+    
+    - Maintain BitsDead type bits correctly; see long comment added.
+    
+    - Enable checkmark phase by default for now.
+    
+    LGTM=rlh
+    R=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/171090043
 
- doc/contribute.html | 47 ++++++++++++++++++++++++-----------------------
- 1 file changed, 24 insertions(+), 23 deletions(-)
+ src/runtime/mgc0.c | 146 ++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 111 insertions(+), 35 deletions(-)

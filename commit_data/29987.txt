@@ -1,17 +1,21 @@
-commit 96ea0918e6708d3548215ade59dc4f89bc814e6b
-Author: Michael Munday <munday@ca.ibm.com>
-Date:   Thu Jan 26 23:31:28 2017 -0500
+commit 04262986a0b112de5f6f0b287447319c31ef15f9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 13 17:14:24 2016 -0700
 
-    cmd/compile: use CMPWU for 32-bit or smaller unsigned Geq on ppc64{,le}
+    archive/tar: compact slices in tests
     
-    Fixes #18808.
+    Took this opportunity to also embed tables in the functions
+    that they are actually used in and other stylistic cleanups.
     
-    Change-Id: I49b266380b9d6804c9f6563ebac9c7c0e05f37f6
-    Reviewed-on: https://go-review.googlesource.com/35890
-    Run-TryBot: Michael Munday <munday@ca.ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    There was no logical changes to the tests.
+    
+    Change-Id: Ifa724060532175f6f4407d6cedc841891efd8f7b
+    Reviewed-on: https://go-review.googlesource.com/31436
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/ssa/gen/PPC64.rules |  6 +--
- src/cmd/compile/internal/ssa/rewritePPC64.go | 12 +++---
- test/fixedbugs/issue18808.go                 | 63 ++++++++++++++++++++++++++++
- 3 files changed, 72 insertions(+), 9 deletions(-)
+ src/archive/tar/reader_test.go | 494 ++++++++++++++++++-----------------------
+ src/archive/tar/tar_test.go    | 236 ++++++++++----------
+ src/archive/tar/writer_test.go | 329 +++++++++++++--------------
+ 3 files changed, 486 insertions(+), 573 deletions(-)

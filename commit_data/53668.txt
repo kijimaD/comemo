@@ -1,54 +1,21 @@
-commit 6a063b01b0b0effa787c5aed90b585b409fe4688
-Author: Matthieu Baerts <matthieu.baerts@tessares.net>
-Date:   Fri Jun 30 17:24:57 2023 +0200
+commit a0948493ac693b46b4124a4380fd044c6a05f1b3
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Jun 13 11:05:18 2022 -0500
 
-    net: mptcp: force using MPTCP with GODEBUG
+    debug/elf: fix reloc number of R_PPC64_SECTOFF_LO_DS
     
-    When adding MPTCP support to address the proposal #56539, I missed the
-    GODEBUG setting from Russ Cox's plan:
+    R_PPC64_SECTOFF_LO_DS is defined as reloc 62 on all PPC64 ELF ABIs.
     
-      I am inclined to say that we add MPTCP as an opt-in for a release or
-      two, and then make it opt-out. There should be a GODEBUG setting (...)
+    Fixes #53356
     
-    See: https://github.com/golang/go/issues/56539#issuecomment-1309294637
-    
-    Thanks to andrius4669 for having reported this issue to me.
-    
-    It makes sense to have this GODEBUG setting not to have to modify
-    applications to use MPTCP (if available). It can then be useful to
-    estimate the impact in case we want to switch from opt-in to opt-out
-    later.
-    
-    The MPTCP E2E test has been modified to make sure we can enable MPTCP
-    either via the source code like it was already the case before or with
-    this environment variable:
-    
-      GODEBUG=multipathtcp=1
-    
-    The documentation has been adapted accordingly.
-    
-    I don't know if it is too late for Go 1.21 but I had to put a version in
-    the documentation. The modification is small, the risk seems low and
-    this was supposed to be there from the beginning according to Russ Cox's
-    specifications. It can also be backported or only be present in the
-    future v1.22 if it is easier.
-    
-    Note: I didn't re-open #56539 or open a new one. It is not clear to me
-    what I should do in this case.
-    
-    Fixes #56539
-    
-    Change-Id: I9201f4dc0b99e3643075a34c7032a95528c48fa0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/507375
+    Change-Id: I5fabf6be32f3310c5aed47d4d654e05fb7bc9de0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411915
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Damien Neil <dneil@google.com>
 
- doc/godebug.md                  |  4 +++
- src/internal/godebugs/table.go  |  1 +
- src/net/dial.go                 | 14 +++++++--
- src/net/mptcpsock_linux_test.go | 66 +++++++++++++++++++++++++++++------------
- src/runtime/metrics/doc.go      |  4 +++
- 5 files changed, 68 insertions(+), 21 deletions(-)
+ api/except.txt       | 1 +
+ api/next/53356.txt   | 1 +
+ src/debug/elf/elf.go | 4 ++--
+ 3 files changed, 4 insertions(+), 2 deletions(-)

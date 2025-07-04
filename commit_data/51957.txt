@@ -1,29 +1,29 @@
-commit b7736cbceb46d00fb1c8435e5c512635896985b6
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Fri Feb 10 02:13:05 2023 +0700
+commit a208aa7f339db75f4b79a61be12616b846477a18
+Author: Jeff Widman <jeff@jeffwidman.com>
+Date:   Mon Mar 28 04:13:24 2022 +0000
 
-    cmd/compile: disable inline static init optimization
+    io/ioutil: add deprecation markers to ioutil
     
-    There are a plenty of regression in 1.20 with this optimization. This CL
-    disable inline static init, so it's safer to backport to 1.20 branch.
+    All the code in ioutil just forwards functionality to code
+    in either the io or os packages, per issue 42026.
     
-    The optimization will be enabled again during 1.21 cycle.
+    This change adds the "Deprecated" marker to all the
+    functions in this package.
     
-    Updates #58293
-    Updates #58339
-    For #58293
+    For #42026
     
-    Change-Id: If5916008597b46146b4dc7108c6b389d53f35e95
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/467015
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Fixes #51927
+    
+    Change-Id: Ia807bc5c0edb06cc80ec7e35917dcfe2ad50f0ea
+    GitHub-Last-Rev: 3c3603f368e2be517cdd946ae6a666d4e1eda67a
+    GitHub-Pull-Request: golang/go#51961
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395918
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/compile/internal/base/flag.go | 2 +-
- test/fixedbugs/issue56778.go          | 2 +-
- test/inline.go                        | 2 +-
- test/noinit.go                        | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ src/io/ioutil/ioutil.go   | 14 +++++++-------
+ src/io/ioutil/tempfile.go |  4 ++--
+ 2 files changed, 9 insertions(+), 9 deletions(-)

@@ -1,44 +1,18 @@
-commit a73d68e75eece80f8514bb1b368420843c1f58ad
-Author: Austin Clements <austin@google.com>
-Date:   Thu Oct 20 22:27:39 2016 -0400
+commit 4e79c152b1625857f9b8cdcde59fcf44dc11e95a
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Aug 17 17:38:06 2016 -0700
 
-    runtime: fix call* signatures and deferArgs with siz=0
+    crypto/tls: don't generate random ticket keys if already set.
     
-    This commit fixes two bizarrely related bugs:
+    If SetSessionTicketKeys was called on a fresh tls.Config, the configured
+    keys would be overridden with a random key by serverInit.
     
-    1. The signatures for the call* functions were wrong, indicating that
-    they had only two pointer arguments instead of three. We didn't notice
-    because the call* functions are defined by a macro expansion, which go
-    vet doesn't see.
+    Fixes #15421.
     
-    2. deferArgs on a defer object with a zero-sized frame returned a
-    pointer just past the end of the allocated object, which is illegal in
-    Go (and can cause the "sweep increased allocation count" crashes).
-    
-    In a fascinating twist, these two bugs canceled each other out, which
-    is why I'm fixing them together. The pointer returned by deferArgs is
-    used in only two ways: as an argument to memmove and as an argument to
-    reflectcall. memmove is NOSPLIT, so the argument was unobservable.
-    reflectcall immediately tail calls one of the call* functions, which
-    are not NOSPLIT, but the deferArgs pointer just happened to be the
-    third argument that was accidentally marked as a scalar. Hence, when
-    the garbage collector scanned the stack, it didn't see the bad
-    pointer as a pointer.
-    
-    I believe this was all ultimately benign. In principle, stack growth
-    during the reflectcall could fail to update the args pointer, but it
-    never points to the stack, so it never needs to be updated. Also in
-    principle, the garbage collector could fail to mark the args object
-    because of the incorrect call* signatures, but in all calls to
-    reflectcall (including the ones spelled "call" in the reflect package)
-    the args object is kept live by the calling stack.
-    
-    Change-Id: Ic932c79d5f4382be23118fdd9dba9688e9169e28
-    Reviewed-on: https://go-review.googlesource.com/31654
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I5d6cc81fc3e5de4dfa15eb614d102fb886150d1b
+    Reviewed-on: https://go-review.googlesource.com/27317
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/runtime/panic.go |  4 ++++
- src/runtime/stubs.go | 52 ++++++++++++++++++++++++++--------------------------
- 2 files changed, 30 insertions(+), 26 deletions(-)
+ src/crypto/tls/common.go                |  2 +-
+ src/crypto/tls/handshake_client_test.go | 17 ++++++++++++++---
+ 2 files changed, 15 insertions(+), 4 deletions(-)

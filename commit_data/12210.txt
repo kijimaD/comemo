@@ -1,12 +1,13 @@
-commit 5c7799f108c2ea6686aea0f4d5086f11ced7fd00
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Feb 24 15:42:25 2012 -0800
+commit e303eeb75bc983f9e909668ee2068b439f73322a
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 25 08:47:04 2012 +1100
 
-    go: fix help text documenting example functions
+    go/test/chan1.go: fix typo
+    Found by Lucio De Re
     
-    R=adg, r
+    R=golang-dev, gri
     CC=golang-dev
-    https://golang.org/cl/5695062
+    https://golang.org/cl/5694071
 
- src/cmd/go/test.go | 17 ++++++++++-------
- 1 file changed, 10 insertions(+), 7 deletions(-)
+ test/ken/chan1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

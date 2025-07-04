@@ -1,21 +1,38 @@
-commit 3820191839a5b87acab5106b5fb43113d4f18b08
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Fri Jun 9 18:45:46 2017 +0000
+commit 9ebf3d5100a52b2c0ebcbf9754c02d1edf7a035f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Feb 5 23:43:31 2017 -0500
 
-    Revert "database/sql: Use Tx.ctx in Tx non-context methods"
+    cmd/compile: move write barrier insertion to SSA
     
-    This reverts commit ef0f7fb92b9458d7d35ee3c10ae853e3dc3077eb.
+    When the compiler insert write barriers, the frontend makes
+    conservative decisions at an early stage. This sometimes have
+    false positives because of the lack of information, for example,
+    writes on stack. SSA's writebarrier pass identifies writes on
+    stack and eliminates write barriers for them.
     
-    Reason for revert: Altered behavior of Queries prior to Tx commit. See #20631.
+    This CL moves write barrier insertion into SSA. The frontend no
+    longer makes decisions about write barriers, and simply does
+    normal assignments and emits normal Store ops when building SSA.
+    SSA writebarrier pass inserts write barrier for Stores when needed.
+    There, it has better information about the store because Phi and
+    Copy propagation are done at that time.
     
-    Change-Id: I2548507c2935a7c60b92aae377dcc8e9aca66331
-    Reviewed-on: https://go-review.googlesource.com/45231
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Bulat Gaifullin <gaifullinbf@gmail.com>
-    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    This CL only changes StoreWB to Store in gc/ssa.go. A followup CL
+    simplifies SSA building code.
+    
+    Updates #17583.
+    
+    Change-Id: I4592d9bc0067503befc169c50b4e6f4765673bec
+    Reviewed-on: https://go-review.googlesource.com/36839
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/database/sql/sql.go      | 10 +++++-----
- src/database/sql/sql_test.go | 29 -----------------------------
- 2 files changed, 5 insertions(+), 34 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                | 24 +++++++---
+ src/cmd/compile/internal/ssa/config.go            |  3 ++
+ src/cmd/compile/internal/ssa/export_test.go       |  3 ++
+ src/cmd/compile/internal/ssa/loop_test.go         |  2 +-
+ src/cmd/compile/internal/ssa/shift_test.go        |  4 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      | 53 +++++++++++++++--------
+ src/cmd/compile/internal/ssa/writebarrier_test.go |  4 +-
+ 7 files changed, 63 insertions(+), 30 deletions(-)

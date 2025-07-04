@@ -1,14 +1,28 @@
-commit 4330866385c2edfd56a0a3c6136db1d034e4712a
-Author: OlgaVlPetrova <OVPpetrova@gmail.com>
-Date:   Sat Oct 13 14:06:30 2018 +0300
+commit 72c29fc8cde7a02c760915e7b3e63de5502496bb
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 13 08:20:23 2018 -0700
 
-    debug/plan9obj: simplify s[:] to s where
+    runtime: move darwin kevent calls to libc
     
-    Change-Id: Ib2eee1215ba046e4541af8afa3a921c680d2b37e
-    Reviewed-on: https://go-review.googlesource.com/c/142037
-    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
+    kqueue, kevent, closeonexec, setitimer, with sysctl and fcntl helpers.
+    
+    TODO:arm,arm64
+    
+    Change-Id: I9386f377186d6ac7cb99064c524a67e0c8282eba
+    Reviewed-on: https://go-review.googlesource.com/118561
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
 
- src/debug/plan9obj/file.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/runtime/defs_darwin.go       |   4 ++
+ src/runtime/defs_darwin_386.go   |   3 +
+ src/runtime/defs_darwin_amd64.go |   3 +
+ src/runtime/netpoll_kqueue.go    |   6 --
+ src/runtime/os_darwin.go         |   6 --
+ src/runtime/os_dragonfly.go      |   6 ++
+ src/runtime/os_freebsd.go        |   6 ++
+ src/runtime/os_netbsd.go         |   6 ++
+ src/runtime/os_openbsd.go        |   6 ++
+ src/runtime/sys_darwin.go        |  46 +++++++++++++++
+ src/runtime/sys_darwin_386.s     | 120 ++++++++++++++++++++++++++-------------
+ src/runtime/sys_darwin_amd64.s   | 100 ++++++++++++++++----------------
+ 12 files changed, 211 insertions(+), 101 deletions(-)

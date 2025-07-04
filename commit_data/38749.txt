@@ -1,26 +1,19 @@
-commit 97c4ad432743d74ee59648dee0db1b107c701834
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Tue Apr 2 10:40:12 2019 -0700
+commit aff2f6ece896e0fe76a2c8853abf868f689006f0
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Nov 20 21:49:41 2018 +0100
 
-    cmd/compile: add new escape analysis implementation
+    misc/wasm: add stub for fs.read on browsers
     
-    This CL adds a new escape analysis implementation, which can be
-    enabled through the -newescape compiler flag.
+    Using fmt.Scanln in a browser environment caused a panic, since there
+    was no stub for fs.read. This commit adds a stub that returns ENOSYS.
     
-    This implementation focuses on simplicity, but in the process ends up
-    using less memory, speeding up some compile-times, fixing memory
-    corruption issues, and overall significantly improving escape analysis
-    results.
+    Fixes #27773.
     
-    Updates #23109.
-    
-    Change-Id: I6176d9a7ae9d80adb0208d4112b8a1e1f4c9143a
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/170322
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: I79b019039e4bc90da51d71a4edddf3bd7809ff45
+    Reviewed-on: https://go-review.googlesource.com/c/150617
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/compile/internal/gc/esc.go    |   43 +-
- src/cmd/compile/internal/gc/escape.go | 1386 +++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/main.go   |    1 +
- 3 files changed, 1415 insertions(+), 15 deletions(-)
+ misc/wasm/wasm_exec.js | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,19 +1,31 @@
-commit e7a1eb066bf6b2e349eeb875ec46561c6928a284
-Author: Austin Clements <austin@google.com>
-Date:   Fri Jul 7 17:06:23 2023 -0400
+commit 072c7d4969862c84430cc2daef20a8f7f3ba78a2
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 19 19:41:40 2022 -0400
 
-    cmd/compile: move racewalk comment to walk/race.go
+    cmd/compile,cmd/link: hooks for identifying coverage counters
     
-    This comment got left behind in some refactoring and now refers to
-    code "below" that is no longer below. Move it to be with the code it's
-    referring to.
+    Add a new "coverage counter" classification for variables to be used
+    for storing code coverage counter values (somewhat in the same way
+    that we identify fuzzer counters). Tagging such variables allows us to
+    aggregate them in the linker, and to treat updates specially.
     
-    Change-Id: I7f7bf0cf8b22c1f6e05ff12b8be71d18fb3359d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/521177
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Austin Clements <austin@google.com>
-    TryBot-Bypass: Austin Clements <austin@google.com>
+    Updates #51430.
+    
+    Change-Id: Ib49fb05736ffece98bcc2f7a7c37e991b7f67bbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401235
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/base/base.go | 20 --------------------
- src/cmd/compile/internal/walk/race.go | 20 ++++++++++++++++++++
- 2 files changed, 20 insertions(+), 20 deletions(-)
+ src/cmd/compile/internal/gc/obj.go           |  6 ++++
+ src/cmd/compile/internal/inline/inl.go       | 23 ++++++++++++++
+ src/cmd/compile/internal/ir/name.go          |  6 ++++
+ src/cmd/compile/internal/ssa/writebarrier.go |  3 +-
+ src/cmd/internal/objabi/symkind.go           |  5 ++-
+ src/cmd/internal/objabi/symkind_string.go    |  6 ++--
+ src/cmd/link/internal/ld/data.go             | 13 ++++++++
+ src/cmd/link/internal/ld/symtab.go           |  6 +++-
+ src/cmd/link/internal/sym/symkind.go         |  4 +++
+ src/cmd/link/internal/sym/symkind_string.go  | 46 +++++++++++++++-------------
+ src/runtime/symtab.go                        |  1 +
+ 11 files changed, 92 insertions(+), 27 deletions(-)

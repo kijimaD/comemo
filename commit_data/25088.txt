@@ -1,14 +1,15 @@
-commit 8ae423ef84af732858c49012a947cb1570fd59d9
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Nov 24 15:36:35 2015 -0800
+commit d02a4c1d60a875e5d4dd5300860e63d7e6ad8151
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jul 23 11:42:51 2015 +1000
 
-    cmd/compile: document parsing decision for imported interfaces
+    runtime: test that timeBeginPeriod succeeds
     
-    Fixes #13245.
-    
-    Change-Id: I87be63cc7b27f70ca2f9fb6bc9908b9061fe3d9d
-    Reviewed-on: https://go-review.googlesource.com/17203
-    Reviewed-by: Chris Manghane <cmang@golang.org>
+    Change-Id: I5183f767dadb6d24a34d2460d02e97ddbaab129a
+    Reviewed-on: https://go-review.googlesource.com/12546
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/parser.go | 40 +++++++++++++++++++++--------------
- 1 file changed, 24 insertions(+), 16 deletions(-)
+ src/runtime/export_windows_test.go  | 5 ++++-
+ src/runtime/os1_windows.go          | 4 +++-
+ src/runtime/syscall_windows_test.go | 7 +++++++
+ 3 files changed, 14 insertions(+), 2 deletions(-)

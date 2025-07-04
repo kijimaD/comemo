@@ -1,16 +1,14 @@
-commit e9d5a641d7c6c5d446c158f90249167133d5ccee
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Mar 6 00:36:12 2012 -0500
+commit 9ff00c8fc99b203138747a622f7014dff317c013
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 5 21:33:44 2012 -0800
 
-    strconv: add table-based isPrint
+    go/build: fix windows and plan9 builds
     
-    Not used yet for simpler merge.
+    Bit of a band-aid fix.
     
-    R=golang-dev, r
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5756048
+    https://golang.org/cl/5757045
 
- src/pkg/strconv/isprint.go     | 521 +++++++++++++++++++++++++++++++++++++++++
- src/pkg/strconv/makeisprint.go | 157 +++++++++++++
- src/pkg/strconv/quote.go       |  56 +++++
- 3 files changed, 734 insertions(+)
+ src/pkg/go/build/deps_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

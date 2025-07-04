@@ -1,26 +1,41 @@
-commit b1a53ece68d46e4fb59c74d2bc529060861f5dbf
-Author: Andre Marianiello <andremarianiello@users.noreply.github.com>
-Date:   Tue Dec 14 22:50:28 2021 +0000
+commit 49e933fc57c2f858e19c26f4a2e56ba94fc54989
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 9 14:40:28 2021 -0400
 
-    cmd/go/internal/vcs: prevent Git signatures from breaking commit time parsing
+    cmd/compile: make interface conversion function selection ABI insensitive
     
-    When a user has showSignature=true set in their Git config and the
-    commit in question has a signature, the git-show command will output
-    information about that signature. When this happens, the logic that
-    tries to parsing a timestamp from the git-show output chokes on this
-    signature information and the build stamping fails. This change prevents
-    commit signature information from being displayed even if
-    showSignature=true, preventing this issue.
+    Before register ABI, we always pass argument in memory, and the
+    compiler chooses interface conversion functions solely based on
+    the memory layout. As long as the two types have identical memory
+    layout, it is fine to mix and match, e.g. convT64 takes a uint64
+    argument, but it can be used for things like float64 or
+    struct { x [4]struct{}; y int64 }.
     
-    Change-Id: I98d0a6fdd1e90dd1b91e0394713b6eb286a69d1a
-    GitHub-Last-Rev: 610706e23e33a037b9abede2ba0a926c0f336814
-    GitHub-Pull-Request: golang/go#49790
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/367034
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    With register ABI, those types may be passed differently, e.g.
+    uint64 is passed in an integer register, float64 is passed in a
+    floating point register, the struct above is passed in memory.
+    I made a few attempts in the previous CLs to try to choose the
+    right function based on the argument type, but none of them is
+    really correct.
+    
+    Instead, this CL changes it to always pass the argument in the
+    same type the runtime expects, and do conversion before the call
+    in the compiler. The conversion can be no-op (e.g. a named type
+    to its underlying type), direct (e.g. int64 to uint64), or
+    through memory (e.g. *(*uint64)(unsafe.Pointer(&arg))). This way,
+    the front end does not need to know the ABI. (It only needs to
+    know how to convert types, and it already does.)
+    
+    TODO: do something similar for map functions.
+    
+    Change-Id: I33fc780a47c3f332b765e09b5e527f52ea1d6b5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309029
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/go/internal/vcs/vcs.go                     |   2 +-
- .../testdata/script/version_buildvcs_git_gpg.txt   | 105 +++++++++++++++++++++
- 2 files changed, 106 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/typecheck/builtin.go      | 393 +++++++++++----------
+ .../compile/internal/typecheck/builtin/runtime.go  |  17 +-
+ src/cmd/compile/internal/walk/convert.go           |  90 ++---
+ src/cmd/compile/internal/walk/order.go             |   2 +-
+ src/runtime/iface.go                               |   8 -
+ 5 files changed, 247 insertions(+), 263 deletions(-)

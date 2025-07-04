@@ -1,25 +1,21 @@
-commit ddfcc02352feb9e15ff9aa423bb49bfb37d689a3
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Tue Aug 17 17:21:03 2021 -0400
+commit c3a4e8dd8224d6ac46513fe4a7c909908a22395b
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Oct 19 13:48:28 2020 -0400
 
-    cmd/link: do not use GO_LDSO when cross compile
+    [dev.fuzz] internal/fuzz: implement basic mutator and use in worker
     
-    GO_LDSO is a setting that is set when the toolchain is build. It
-    only makes sense to use it on the host platform. Do not use it
-    when targetting a different platform.
+    Note that this is an extremely basic mutator, and only
+    meant to act as a placeholder for future development.
     
-    In the past it was not a problem as GO_LDSO was almost always
-    unset. Now, with CL 301989 it is almost always set (maybe we want
-    to revisit it).
-    
-    Fixes #47760.
-    
-    Change-Id: I2704b9968781f46e2d2f8624090db19689b1a32f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343010
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Change-Id: I650691db44f30953345702aac93cbd1cadc21427
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263657
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/link/internal/ld/elf.go | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ src/go/build/deps_test.go    |  2 +-
+ src/internal/fuzz/mutator.go | 18 ++++++++++++++++++
+ src/internal/fuzz/worker.go  | 28 +++++++++++++++++++++-------
+ 3 files changed, 40 insertions(+), 8 deletions(-)

@@ -1,12 +1,16 @@
-commit 86a6995a7e4cc7242b010642dc12f61488b5cddf
+commit a6106eef379ef560016d0dcdbdd9c9c86b7cd39c
 Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 15 14:05:18 2011 -0500
+Date:   Tue Nov 15 13:59:59 2011 -0500
 
-    os: fix windows build
+    encoding/json: make BenchmarkSkipValue more consistent
     
-    TBR=brainman
+    Move scanner allocation out of loop.
+    It's the only allocation in the test so it dominates
+    when it triggers a garbage collection.
+    
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/5373105
+    https://golang.org/cl/5369117
 
- src/pkg/os/file_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/pkg/encoding/json/scanner_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

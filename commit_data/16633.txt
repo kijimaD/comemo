@@ -1,25 +1,13 @@
-commit 8486d96a2720d6ce36b8125f636306f9f224fcf3
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Tue Jun 25 12:29:00 2013 +1000
+commit 793bb6cce763c8181a25190e41206b1786e849bd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 24 17:48:31 2013 -0700
 
-    runtime: change netpoll in preparation for windows implementation
+    crypto/sha1: mark block as non-escaping
+    The compiler still gets the escape analysis wrong, but the annotation here is correct.
     
-    - change runtime_pollWait so it does not return
-      closed or timeout if IO is ready - windows must
-      know if IO has completed or not even after
-      interruption;
-    - add (*pollDesc).Prepare(mode int) that can be
-      used for both read and write, same for Wait;
-    - introduce runtime_pollWaitCanceled and expose
-      it in net as (*pollDesc).WaitCanceled(mode int);
-    
-    Full windows netpoll changes are
-    here https://golang.org/cl/8670044/.
-    
-    R=golang-dev, dvyukov
+    R=golang-dev, dave, bradfitz
     CC=golang-dev
-    https://golang.org/cl/10485043
+    https://golang.org/cl/10514046
 
- src/pkg/net/fd_poll_runtime.go | 34 +++++++++++++++++++++------
- src/pkg/runtime/netpoll.goc    | 53 ++++++++++++++++++++++++++++--------------
- 2 files changed, 63 insertions(+), 24 deletions(-)
+ src/pkg/crypto/sha1/sha1block_decl.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,15 +1,14 @@
-commit 8c6dc5fea5de0bac57b088e0aa6b8f419079c338
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Sun May 22 09:48:04 2011 -0700
+commit d4a9bce70ae8eae016aa5cb8d60bb4566bf349fb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun May 22 14:59:25 2011 +1000
 
-    net: re-enable wildcard listening
+    runtime: fix function args not checked warning on arm
     
-    Fixes #1854.
+    This tiny nit was driving me nuts
     
-    R=bradfitz, golang-dev
+    R=rsc, ken, r
     CC=golang-dev
-    https://golang.org/cl/4550062
+    https://golang.org/cl/4550069
 
- src/pkg/net/ipsock.go      | 49 +++++++++++++++++++++++++++++++---------------
- src/pkg/net/server_test.go | 31 ++++++++++++++++++++++++++---
- 2 files changed, 61 insertions(+), 19 deletions(-)
+ src/pkg/runtime/arm/closure.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

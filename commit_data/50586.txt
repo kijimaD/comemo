@@ -1,24 +1,22 @@
-commit 336ce966e439a269fe5088cc7564181c5b866b61
-Author: cuiweixie <cuiweixie@gmail.com>
-Date:   Thu Sep 22 12:11:49 2022 +0800
+commit 1011e26b9cec8b5e7b0b827805b2fe079904521a
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 2 11:52:36 2021 -0700
 
-    cmd/compile: use "missing method m" instead of "missing m method"
+    net/http: deflake TestServerKeepAlivesEnabled_h{1,2}
     
-    For #55326
+    This test assumes that two successive TCP connections will use different
+    source ports. This does not appear to be a universally safe assumption.
     
-    Change-Id: I3d0ff7f820f7b2009d1b226abf701b2337fe8cbc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/432635
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Auto-Submit: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
-    Run-TryBot: xie cui <523516579@qq.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Rewrite the test to use httptrace to detect connection reuse instead.
+    
+    Fixes #46707
+    
+    Change-Id: Iebfbdfdeb77a1e6663a0c654dc847cc270c5d54d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360854
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/lookup.go |  7 +------
- src/go/types/lookup.go                    |  7 +------
- test/fixedbugs/issue48471.go              | 20 ++++++++++----------
- test/fixedbugs/issue49005b.go             |  2 +-
- test/interface/explicit.go                |  6 +++---
- test/switch6.go                           |  4 ++--
- 6 files changed, 18 insertions(+), 28 deletions(-)
+ src/net/http/serve_test.go | 42 +++++++++++++++++++++++++++++-------------
+ 1 file changed, 29 insertions(+), 13 deletions(-)

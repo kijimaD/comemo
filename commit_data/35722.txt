@@ -1,47 +1,23 @@
-commit e083dc6307b6593bdd44b219ffd21699d6f17fd7
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Sun May 20 00:56:36 2018 +0200
+commit fad31e513d721a36f2d881d99de54def805a8648
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 3 16:00:43 2018 +0100
 
-    runtime, sycall/js: add support for callbacks from JavaScript
+    test: move load/store combines into asmcheck
     
-    This commit adds support for JavaScript callbacks back into
-    WebAssembly. This is experimental API, just like the rest of the
-    syscall/js package. The time package now also uses this mechanism
-    to properly support timers without resorting to a busy loop.
+    This CL moves the load/store combining tests into asmcheck.
+    In addition at being more compact, it's also now easier to
+    spot what it is missing in each architecture.
     
-    JavaScript code can call into the same entry point multiple times.
-    The new RUN register is used to keep track of the program's
-    run state. Possible values are: starting, running, paused and exited.
-    If no goroutine is ready any more, the scheduler can put the
-    program into the "paused" state and the WebAssembly code will
-    stop running. When a callback occurs, the JavaScript code puts
-    the callback data into a queue and then calls into WebAssembly
-    to allow the Go code to continue running.
+    While doing so, I think I uncovered a bug in ppc64le and arm64
+    rules, because they fail to load/store combine in non-trivial
+    functions. Not sure why, I'll open an issue.
     
-    Updates #18892
-    Updates #25506
-    
-    Change-Id: Ib8701cfa0536d10d69bd541c85b0e2a754eb54fb
-    Reviewed-on: https://go-review.googlesource.com/114197
-    Reviewed-by: Austin Clements <austin@google.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ia1572d53c0553d9104f3e52b95e4d1768a8440a3
+    Reviewed-on: https://go-review.googlesource.com/98441
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- misc/wasm/wasm_exec.js               |  53 ++++++++++++-
- src/cmd/internal/obj/wasm/a.out.go   |   3 +
- src/cmd/internal/obj/wasm/anames.go  |   1 +
- src/cmd/internal/obj/wasm/wasmobj.go |  16 +++-
- src/cmd/link/internal/wasm/asm.go    |   1 +
- src/cmd/trace/annotations.go         |   4 +
- src/cmd/trace/annotations_test.go    |   6 ++
- src/cmd/trace/trace_test.go          |   2 +
- src/go/build/deps_test.go            |   2 +-
- src/runtime/lock_futex.go            |   6 ++
- src/runtime/lock_js.go               | 125 ++++++++++++++++++++++++++----
- src/runtime/lock_sema.go             |   6 ++
- src/runtime/proc.go                  |  12 +++
- src/runtime/rt0_js_wasm.s            |  78 ++++++++++++++-----
- src/runtime/sys_wasm.s               |  15 ++--
- src/syscall/js/callback.go           | 145 +++++++++++++++++++++++++++++++++++
- src/syscall/js/js.go                 |   6 ++
- src/syscall/js/js_test.go            |  50 ++++++++++++
- 18 files changed, 482 insertions(+), 49 deletions(-)
+ src/cmd/compile/internal/gc/asm_test.go | 442 +-------------------------------
+ test/codegen/memcombine.go              | 173 +++++++++++++
+ 2 files changed, 178 insertions(+), 437 deletions(-)

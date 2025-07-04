@@ -1,24 +1,19 @@
-commit 8789b5d72fe5a3f6c341d6f1b1f0097b5514657f
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Fri Aug 18 00:54:28 2023 -0700
+commit 5036ed26bd241cb8eadf4d0f00de6b9d3449bf87
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Sep 25 13:14:24 2022 +0800
 
-    cmd/compile: construct more IR nodes as typed
+    syscall: check if to is nil to prevent panic from Sendto
     
-    As of this CL, all OLITERAL, OLINKSYMOFFSET, ONIL, and OTYPE nodes are
-    constructed as typed and typechecked.
+    Fixes #55845
     
-    Change-Id: I39b2ad772a9b0419c701890a505a0949f9ea456e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520795
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Change-Id: If30263b7d34829c40e6606846115ec520f351f2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433504
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/cmd/compile/internal/ir/expr.go             | 17 +++++++++++-----
- src/cmd/compile/internal/noder/helpers.go       |  2 +-
- src/cmd/compile/internal/typecheck/func.go      | 15 ++++++--------
- src/cmd/compile/internal/typecheck/subr.go      |  4 +---
- src/cmd/compile/internal/typecheck/typecheck.go | 26 +------------------------
- src/cmd/compile/internal/typecheck/universe.go  |  1 +
- 6 files changed, 22 insertions(+), 43 deletions(-)
+ src/syscall/syscall_unix.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

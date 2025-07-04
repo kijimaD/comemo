@@ -1,44 +1,75 @@
-commit f028b9f9e2433662502283850d06e9e07e72a6bb
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Sun Mar 27 10:21:48 2016 -0400
+commit 6b3462c784df961f22eea0c39490b38093086b83
+Author: David Chase <drchase@google.com>
+Date:   Sat Feb 27 11:54:52 2016 -0500
 
-    cmd/link, etc: store typelinks as offsets
+    [dev.ssa] cmd/compile: adjust branch likeliness for calls/loops
     
-    This is the first in a series of CLs to replace the use of pointers
-    in binary read-only data with offsets.
+    Static branch predictions (which guide block ordering) are
+    adjusted based on:
     
-    In standard Go binaries these CLs have a small effect, shrinking
-    8-byte pointers to 4-bytes. In position-independent code, it also
-    saves the dynamic relocation for the pointer. This has a significant
-    effect on the binary size when building as PIE, c-archive, or
-    c-shared.
+    loop/not-loop     (favor looping)
+    abnormal-exit/not (avoid panic)
+    call/not-call     (avoid call)
+    ret/default       (treat returns as rare)
     
-    darwin/amd64:
-            cmd/go: -12KB (0.1%)
-            jujud:  -82KB (0.1%)
+    This appears to make no difference in performance of real
+    code, meaning the compiler itself.  The earlier version of
+    this has been stripped down to help make the cost of this
+    only-aesthetic-on-Intel phase be as cheap as possible (we
+    probably want information about inner loops for improving
+    register allocation, but because register allocation follows
+    close behind this pass, conceivably the information could be
+    reused -- so we might do this anyway just to normalize
+    output).
     
-    linux/amd64 PIE:
-            cmd/go:  -86KB (0.7%)
-            jujud:  -569KB (0.7%)
+    For a ./make.bash that takes 200 user seconds, about .75
+    second is reported in likelyadjust (summing nanoseconds
+    reported with -d=ssa/likelyadjust/time ).
     
-    For #6853.
+    Upstream predictions are respected.
+    Includes test, limited to build on amd64 only.
+    Did several iterations on the debugging output to allow
+    some rough checks on behavior.
+    Debug=1 logging notes agree/disagree with earlier passes,
+    allowing analysis like the following:
     
-    Change-Id: Iad5625bbeba58dabfd4d334dbee3fcbfe04b2dcf
-    Reviewed-on: https://go-review.googlesource.com/21284
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run on make.bash:
+    GO_GCFLAGS=-d=ssa/likelyadjust/debug \
+       ./make.bash >& lkly5.log
+    
+    grep 'ranch prediction' lkly5.log | wc -l
+       78242 // 78k predictions
+    
+    grep 'ranch predi' lkly5.log | egrep -v 'agrees with' | wc -l
+       29633 // 29k NEW predictions
+    
+    grep 'disagrees' lkly5.log | wc -l
+         444 // contradicted 444 times
+    
+    grep '< exit' lkly5.log | wc -l
+       10212 // 10k exit predictions
+    
+    grep '< exit' lkly5.log | egrep 'disagrees' | wc -l
+           5 // 5 contradicted by previous prediction
+    
+    grep '< exit' lkly5.log | egrep -v 'agrees' | wc -l
+         702 // 702-5 redundant with previous prediction
+    
+    grep '< call' lkly5.log | egrep -v 'agrees' | wc -l
+       16699 // 16k new call predictions
+    
+    grep 'stay in loop' lkly5.log | egrep -v 'agrees' | wc -l
+        3951 // 4k new "remain in loop" predictions
+    
+    Fixes #11451.
+    
+    Change-Id: Iafb0504f7030d304ef4b6dc1aba9a5789151a593
+    Reviewed-on: https://go-review.googlesource.com/19995
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/gc/go.go      |  2 --
- src/cmd/compile/internal/gc/main.go    |  4 ---
- src/cmd/compile/internal/gc/obj.go     |  6 +++++
- src/cmd/compile/internal/gc/reflect.go | 17 +++++-------
- src/cmd/internal/obj/data.go           | 21 ++++++++++++++-
- src/cmd/internal/obj/link.go           |  3 +++
- src/cmd/link/internal/ld/data.go       | 18 +++++++++++++
- src/cmd/link/internal/ld/symtab.go     |  4 +++
- src/reflect/export_test.go             |  8 +++---
- src/reflect/type.go                    | 47 ++++++++++++++++++++++------------
- src/runtime/runtime1.go                |  8 +++---
- src/runtime/symtab.go                  |  3 ++-
- 12 files changed, 99 insertions(+), 42 deletions(-)
+ src/cmd/compile/internal/ssa/TODO            |   3 +-
+ src/cmd/compile/internal/ssa/compile.go      |   3 +-
+ src/cmd/compile/internal/ssa/likelyadjust.go | 300 +++++++++++++++++++++++++++
+ test/opt_branchlikely.go                     |  85 ++++++++
+ 4 files changed, 388 insertions(+), 3 deletions(-)

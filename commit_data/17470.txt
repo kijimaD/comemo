@@ -1,20 +1,14 @@
-commit 780f5b714dfe9ede57e85cbb804d015981878df4
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Thu Sep 5 21:37:07 2013 +0200
+commit fca660892db526f86b9d113e58e292c27583b6a7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 4 15:31:46 2013 -0700
 
-    reflect: do not cache trivial values in DeepEqual.
+    compress/flate: use bytes.NewReader instead of NewBuffer in test
     
-    DeepEqual caches addresses of compared values
-    each time it visits addressable values. This is
-    more expensive than actually comparing them in
-    the common case of large slices of bytes or integers.
+    Also, report allocations in benchmark.
     
-    Also add a fast path for slices with identical
-    underlying array.
-    
-    R=golang-dev, bradfitz
+    R=golang-dev, r
     CC=golang-dev
-    https://golang.org/cl/13000044
+    https://golang.org/cl/13410044
 
- src/pkg/reflect/deepequal.go | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ src/pkg/compress/flate/reader_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

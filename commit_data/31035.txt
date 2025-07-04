@@ -1,16 +1,20 @@
-commit ff3a4ef7ecabc651400e7b195c46739f6ad4b5e7
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Fri Apr 7 09:09:17 2017 +0200
+commit e48919bcde90d283e01e903eae8f92da4a3c1103
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 11 15:20:38 2017 -0800
 
-    cmd/compile: reduce reliance on implementation details of Mpint
+    [dev.inline] cmd/compile: split mkpackage into separate functions
     
-    Change-Id: Ifdc41f6c77c83d22b9ad8811280f1e1db051c781
-    Reviewed-on: https://go-review.googlesource.com/39951
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Previously, mkpackage jumbled together three unrelated tasks: handling
+    package declarations, clearing imports from processing previous source
+    files, and assigning a default value to outfile.
+    
+    Change-Id: I1e124335768aeabfd1a6d9cc2499fbb980d951cf
+    Reviewed-on: https://go-review.googlesource.com/35124
     Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/compile/internal/gc/const.go    |  9 +++++----
- src/cmd/compile/internal/gc/mpfloat.go  |  2 +-
- src/cmd/compile/internal/gc/swt_test.go | 10 +++++++---
- 3 files changed, 13 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/go.go    |  2 -
+ src/cmd/compile/internal/gc/main.go  | 92 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/noder.go |  2 +
+ 3 files changed, 49 insertions(+), 47 deletions(-)

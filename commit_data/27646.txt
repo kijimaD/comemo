@@ -1,18 +1,22 @@
-commit a71af25401d68645ca23b2303ac6ae426739aa8b
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue May 31 15:30:52 2016 +1000
+commit ec3c5b9d178ee373a41e46f6074c8729cfd11084
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 5 23:01:10 2016 -0700
 
-    time: warn about correct use of a Timer's Stop/Reset methods
+    cmd/link: eliminate a bunch of open coded elf64/rela switches
     
-    Updates #14038
-    Fixes #14383
+    We already have variables to track whether the target platform is
+    64-bit vs 32-bit or RELA vs REL, so no point in repeating the list of
+    obscure architecture characters everywhere.
     
-    Change-Id: Icf6acb7c5d13ff1d3145084544c030a778482a38
-    Reviewed-on: https://go-review.googlesource.com/23575
-    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Passes toolstash/buildall.
+    
+    Change-Id: I6a07f74188ac592ef229a7c65848a9ba93013cdb
+    Reviewed-on: https://go-review.googlesource.com/21569
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/time/sleep.go | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ src/cmd/link/internal/ld/dwarf.go  | 21 ++++++---------------
+ src/cmd/link/internal/ld/elf.go    | 10 ++++------
+ src/cmd/link/internal/ld/symtab.go |  6 ++----
+ 3 files changed, 12 insertions(+), 25 deletions(-)

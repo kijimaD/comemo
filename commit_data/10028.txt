@@ -1,24 +1,34 @@
-commit 7bc4f8de0fc91b209265f797fd20820914f5baaa
-Author: Adam Langley <agl@golang.org>
-Date:   Tue Oct 18 12:58:57 2011 -0400
+commit ec158f77bd2963d78990b84ceaa12f2e3993c9f3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Oct 18 12:54:48 2011 -0400
 
-    exp/terminal: split terminal handling from exp/ssh
+    exp/ssh: general cleanups for client support
     
-    This change splits terminal handling from exp/ssh, as suggested
-    several times in the ssh code review.
+    common.go:
+    * simplify findAgreedAlgorithms.
+    * add channelExtendedData support.
     
-    shell.go and shell_test.go are copies from exp/ssh with minimal
-    changes, so don't need another full review. A future CL will remove
-    that code from exp/ssh.
+    messages.go:
+    * add clientExtendedData.
     
-    R=bradfitz, r, dave, rsc
+    server.go:
+    *  use simplified findAgreedAlgorithms.
+    
+    server_shell.go:
+    * fix shadowed err return value.
+    
+    transport.go:
+    * introduce separate cipher, mac and compression for each direction.
+    * added filteredConn and packetWriter interfaces.
+    * newTransport requires a source of randomness.
+    
+    R=golang-dev, agl, rsc
     CC=golang-dev
-    https://golang.org/cl/5278049
+    https://golang.org/cl/5285044
 
- src/pkg/exp/terminal/Makefile         |  15 ++
- src/pkg/exp/terminal/shell.go         | 359 ++++++++++++++++++++++++++++++++++
- src/pkg/exp/terminal/shell_test.go    | 110 +++++++++++
- src/pkg/exp/terminal/terminal.go      | 103 ++++++++++
- src/pkg/syscall/types_linux.c         | 107 ++++++++++
- src/pkg/syscall/ztypes_linux_amd64.go | 111 +++++++++++
- 6 files changed, 805 insertions(+)
+ src/pkg/exp/ssh/common.go       | 14 ++++++-------
+ src/pkg/exp/ssh/messages.go     |  9 +++++++++
+ src/pkg/exp/ssh/server.go       |  4 ++--
+ src/pkg/exp/ssh/server_shell.go |  3 ++-
+ src/pkg/exp/ssh/transport.go    | 44 +++++++++++++++++++++++++++--------------
+ 5 files changed, 49 insertions(+), 25 deletions(-)

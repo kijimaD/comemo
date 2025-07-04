@@ -1,16 +1,16 @@
-commit ff9af906f6a45fb97119a3a53b7df6d1638cc1c6
+commit 36207a91d3c97a9c64984572af89727495310469
 Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 12 16:35:12 2014 -0400
+Date:   Thu Jun 12 16:34:36 2014 -0400
 
-    codereview: no LGTM needed for doc/go1.x.txt
+    runtime: fix defer of nil func
     
-    Rob asked for this change to make maintaining go1.4.txt easier.
-    If you are not sure of a change, it is still okay to send for review.
+    Fixes #8047.
     
-    LGTM=r
-    R=r
-    CC=golang-codereviews
-    https://golang.org/cl/109880044
+    LGTM=r, iant
+    R=golang-codereviews, r, iant
+    CC=dvyukov, golang-codereviews, khr
+    https://golang.org/cl/105140044
 
- lib/codereview/codereview.py | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ src/pkg/runtime/stack.c      |  7 ++++++-
+ test/fixedbugs/issue8047b.go | 22 ++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

@@ -1,15 +1,33 @@
-commit a431bdc712c7a404307f38228271d970d9d2c023
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Oct 17 23:19:10 2016 -0400
+commit e6e26eeb299f9829ac70bd400d011bfdd266f1c1
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jul 18 21:59:14 2016 -0700
 
-    testing: document that Skip cannot undo Error
+    cmd/internal/obj: convert Aconv to a stringer
     
-    Fixes #16502.
+    Now that assembler opcodes have their own type, they can have a true
+    stringer, rather than explicit calls to Aconv, which makes for nicer
+    format strings.
     
-    Change-Id: Id8e117a724d73cd51844c06d47bbeba61f8dc827
-    Reviewed-on: https://go-review.googlesource.com/31324
+    Change-Id: Ic77f5f8ac38b4e519dcaa08c93e7b732226f7bfe
+    Reviewed-on: https://go-review.googlesource.com/25045
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
 
- src/testing/testing.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/asm/internal/asm/asm.go         | 28 +++++++++++++--------------
+ src/cmd/compile/internal/arm/peep.go    |  4 ++--
+ src/cmd/compile/internal/arm64/peep.go  |  4 ++--
+ src/cmd/compile/internal/mips64/peep.go |  2 +-
+ src/cmd/compile/internal/ppc64/peep.go  |  2 +-
+ src/cmd/compile/internal/ppc64/prog.go  |  2 +-
+ src/cmd/compile/internal/s390x/peep.go  |  2 +-
+ src/cmd/internal/obj/arm/asm5.go        |  8 ++++----
+ src/cmd/internal/obj/arm64/asm7.go      | 34 ++++++++++++++++-----------------
+ src/cmd/internal/obj/mips/asm0.go       | 12 ++++++------
+ src/cmd/internal/obj/ppc64/asm9.go      | 18 ++++++++---------
+ src/cmd/internal/obj/s390x/asmz.go      | 12 ++++++------
+ src/cmd/internal/obj/util.go            |  4 ++--
+ src/cmd/internal/obj/x86/asm6.go        |  2 +-
+ src/cmd/internal/obj/x86/obj6.go        |  2 +-
+ 15 files changed, 68 insertions(+), 68 deletions(-)

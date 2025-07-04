@@ -1,12 +1,12 @@
-commit 6fbedc1afead2de1fd554e72f6df47a4b7948b5a
-Author: Kevin Burke <kev@inburke.com>
-Date:   Wed Mar 8 10:22:00 2017 -0800
+commit 59dc9d7a89829127883dd5e2d8b042f1e5b40336
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 14 15:51:30 2016 -0800
 
-    database/sql: fix spelling mistake in tests
+    cmd/cgo: add missing period in comment
     
-    Change-Id: I04e150d4e4123aad2f277e5c6e9f2abd15628a28
-    Reviewed-on: https://go-review.googlesource.com/37941
+    Change-Id: I05f31938f3736100bd8b20a150c9fe3a6ffcdeae
+    Reviewed-on: https://go-review.googlesource.com/33245
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/database/sql/sql_test.go | 2 +-
+ src/cmd/cgo/gcc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

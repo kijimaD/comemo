@@ -1,20 +1,13 @@
-commit e568a0180a8d7c296e254d84dc5cf485695cf570
+commit d3ae2d2749d2e26dcfc84ed1ea6a0cfb513ab863
 Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Dec 14 18:45:34 2015 +0000
+Date:   Wed Oct 14 15:12:40 2015 +0000
 
-    net/http: add Transport tests for using Request.Cancel mid-body
+    net/http/cgi: optimize internal function removeLeadingDuplicates a bit
     
-    This CL also updates the bundled http2 package with the h2 fix from
-    https://golang.org/cl/17757
-    
-    Fixes #13159
-    
-    Change-Id: If0e3b4bd04d0dceed67d1b416ed838c9f1961576
-    Reviewed-on: https://go-review.googlesource.com/17758
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I0255f24f5c5925ea4daa28a28d23606df35d4373
+    Reviewed-on: https://go-review.googlesource.com/15824
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/http/clientserver_test.go | 40 ++++++++++++++++++++++++++++++++
- src/net/http/h2_bundle.go         | 48 +++++++++++++++++++++++++++++++++++----
- 2 files changed, 84 insertions(+), 4 deletions(-)
+ src/net/http/cgi/host.go      | 16 ++++++++--------
+ src/net/http/cgi/host_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 8 deletions(-)

@@ -1,38 +1,15 @@
-commit 707cadd7fa1c8653a7b3409be4dc79823c45306c
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 18 13:49:50 2017 -0500
+commit 6e78f7697405e8c24af796322e4c3c325ed97d95
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 24 23:24:11 2016 +0000
 
-    cmd/go: split out cmd/go/internal/clean,doc,fix,generate,list,run,tool,version,vet
+    testing/quick, text/tabwriter: freeze packages
     
-    This is one CL in a long sequence of changes to break up the
-    go command from one package into a plausible group of packages.
+    Fixes #15557
     
-    This sequence is concerned only with moving code, not changing
-    or cleaning up code. There will still be more cleanup after this sequence.
-    
-    The entire sequence will be submitted together: it is not a goal
-    for the tree to build at every step.
-    
-    For #18653.
-    
-    Change-Id: Ib22fc435827d4a05a77a5200ac437ce00e2a4da3
-    Reviewed-on: https://go-review.googlesource.com/36204
-    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I02ad98068894e75d4e08e271fdd16cb420519460
+    Reviewed-on: https://go-review.googlesource.com/31910
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/dist/deps.go                               | 17 +++++++++++-
- src/cmd/go/{ => internal/clean}/clean.go           | 12 ++++-----
- src/cmd/go/{ => internal/doc}/doc.go               |  6 ++---
- src/cmd/go/{ => internal/fix}/fix.go               |  4 +--
- src/cmd/go/{ => internal/generate}/generate.go     | 17 ++++++------
- .../go/{ => internal/generate}/generate_test.go    |  2 +-
- src/cmd/go/{ => internal/get}/pkg_test.go          |  2 +-
- src/cmd/go/{ => internal/get}/tag_test.go          |  2 +-
- src/cmd/go/{ => internal/get}/vcs_test.go          |  2 +-
- src/cmd/go/{ => internal/list}/context.go          |  2 +-
- src/cmd/go/{ => internal/list}/list.go             | 14 +++++-----
- src/cmd/go/{ => internal/run}/run.go               | 10 +++----
- src/cmd/go/{ => internal/tool}/tool.go             |  6 ++---
- src/cmd/go/{ => internal/version}/version.go       |  4 +--
- src/cmd/go/{ => internal/vet}/vet.go               |  6 ++---
- src/cmd/go/main.go                                 | 31 ++++++++++++++--------
- 16 files changed, 80 insertions(+), 57 deletions(-)
+ src/testing/quick/quick.go      | 2 ++
+ src/text/tabwriter/tabwriter.go | 1 +
+ 2 files changed, 3 insertions(+)

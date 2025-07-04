@@ -1,19 +1,18 @@
-commit 15d294991fe31d962a09f4ab4d4778168c04ceb6
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Sat Feb 15 16:39:04 2014 +0100
+commit 881e23d36f0f814b1d5e5421987ccdf3d3a0b0cd
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Feb 14 15:56:58 2014 -0800
 
-    cmd/gc: do not lower copy to a value node in go/defer.
+    codereview: fix for Mercurial 2.9
     
-    The existing tests issue4463.go and issue4654.go had failures at
-    typechecking and did not test walking the AST.
+    The branchtags method was removed but we should've
+    been using branchmap all along.
     
-    Fixes #7272.
+    http://selenic.com/hg/rev/4274eda143cb
     
-    LGTM=khr
-    R=khr, rsc, iant
+    LGTM=franciscossouza, r
+    R=golang-codereviews, franciscossouza, r
     CC=golang-codereviews
-    https://golang.org/cl/60550044
+    https://golang.org/cl/57500045
 
- src/cmd/gc/walk.c           | 37 +++++++++++++++++++---------------
- test/fixedbugs/issue7272.go | 48 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+), 16 deletions(-)
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

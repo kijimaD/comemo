@@ -1,21 +1,13 @@
-commit 0eb4df0bc8e32fe68d7954055ee36e24e33dc15e
-Author: Ugorji Nwoke <ugorji@gmail.com>
-Date:   Mon Mar 5 15:36:33 2012 -0500
+commit bdf71e463badeec08d9cab7ae0cd0febae897bea
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 15:36:20 2012 -0500
 
-    cmd/godoc: remove extra / in paths
+    A+C: Ugorji Nwoke (individual CLA)
     
-    If I click on links which should send you to source code (e.g. type, function, etc),
-    the link is to //src/... (instead of /src/...).
-    This causes a DNS resolution failure on the browser.
-    
-    Quick fix is to remove the leading / from package.html
-    (since godoc.go src links automatically add a leading / as necessary).
-    
-    Fixes #3193.
-    
-    R=golang-dev, rsc
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5730059
+    https://golang.org/cl/5746043
 
- lib/godoc/package.html | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

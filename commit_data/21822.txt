@@ -1,38 +1,23 @@
-commit 621d75999f37a5f358c94d6e467b4fe93a377b46
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 28 14:24:28 2015 -0500
+commit 8581d48c150a5f0197a591bf8ef8b1ece7218585
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Tue Feb 3 10:52:18 2015 -0800
 
-    all: mv 5a old5a and so on
+    test: check for build constraints only upto the first blank line
     
-    This CL will break any uses of 'go tool 5a' etc.
-    That is intentional.
-    Code that invokes an assembler directly should be updated to use go tool asm.
+    The main issue is that the misc/cgo/{stdio,life} tests are silently
+    getting skipped when invoked from run.bash.
     
-    We plan to keep the old5a around for bit-for-bit verification during
-    the release testing phase, but we plan to remove those tools for the
-    actual release. Renaming the directory now makes sure that lingering
-    references to 'go tool 5a' will be caught, changed to use asm, and
-    tested during the release evaluation.
+    run.go should ignore any build tags after the first blank line in
+    source file. It already checks for test actions only upto the first
+    blank line. Build tags must be specified in the same block.
     
-    Change-Id: I98748a7ddb34cc7f1b151c2ef421d3656821f5c2
-    Reviewed-on: https://go-review.googlesource.com/6366
-    Reviewed-by: Rob Pike <r@golang.org>
+    See http://golang.org/cl/3675 for background.
+    
+    Change-Id: Id8abf000119e3335f7250d8ef34aac7811fc9dff
+    Reviewed-on: https://go-review.googlesource.com/3812
+    Reviewed-by: Minux Ma <minux@golang.org>
 
- src/cmd/dist/build.go           | 10 +++++-----
- src/cmd/dist/buildtool.go       |  8 ++++----
- src/cmd/go/build.go             |  2 +-
- src/cmd/go/pkg.go               |  8 ++++----
- src/cmd/{5a => old5a}/a.y       |  0
- src/cmd/{5a => old5a}/lex.go    |  0
- src/cmd/{5a => old5a}/y.go      |  0
- src/cmd/{6a => old6a}/a.y       |  0
- src/cmd/{6a => old6a}/lex.go    |  0
- src/cmd/{6a => old6a}/y.go      |  0
- src/cmd/{8a => old8a}/a.y       |  0
- src/cmd/{8a => old8a}/lex.go    |  0
- src/cmd/{8a => old8a}/y.go      |  0
- src/cmd/{9a => old9a}/a.y       |  0
- src/cmd/{9a => old9a}/lex.go    |  0
- src/cmd/{9a => old9a}/y.go      |  0
- src/debug/gosym/pclntab_test.go |  2 +-
- 17 files changed, 15 insertions(+), 15 deletions(-)
+ test/gc2.go     | 3 +--
+ test/nosplit.go | 3 +--
+ test/run.go     | 6 ++----
+ 3 files changed, 4 insertions(+), 8 deletions(-)

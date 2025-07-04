@@ -1,22 +1,49 @@
-commit ea7e3e3c0f561d1115d647e3e24ca61d0382e1ac
-Author: Keith Randall <khr@golang.org>
-Date:   Mon Apr 11 14:56:11 2022 -0700
+commit 0132b91127c3cf6e19e0e1db014a04219427171e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 11 03:09:26 2021 -0700
 
-    runtime: align m.procid to 8 bytes on 32-bit systems
+    [dev.typeparams] cmd/compile: refactor closure construction
     
-    https://go-review.googlesource.com/c/go/+/383434 started using
-    atomic Load64 on this field, which breaks 32 bit platforms which
-    require 64-bit alignment of uint64s that are passed to atomic operations.
+    typecheck.tcClosure is complicated with many code flows because all of
+    its callers setup the closure funcs in slightly different ways. E.g.,
+    it's non-obvious who's responsible for setting the underlying func's
+    Sym or adding it to target.Decls, or how to write new code that
+    constructs a closure without interfering with existing code.
     
-    Not sure why this doesn't break everywhere, but I saw it break on
-    my laptop during all.bash.
+    This CL refactors everything to use three common functions in package
+    ir: NewClosureFunc (which handle creating the Func, Name, and
+    ClosureExpr and wiring them together), NameClosure (which generates
+    and assigns its unique Sym), and UseClosure (which handles adding the
+    Func to target.Decls).
     
-    Change-Id: Ida27b23068b3cc7208fce3c97b69a464ccf68209
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/399754
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Most IR builders can actually name the closure right away, but the
+    legacy noder+typecheck path may not yet know the name of the enclosing
+    function. In particular, for methods declared with aliased receiver
+    parameters, we need to wait until after typechecking top-level
+    declarations to know the method's true name. So they're left anonymous
+    until typecheck.
+    
+    UseClosure does relatively little work today, but it serves as a
+    useful spot to check that the code setting up closures got it right.
+    It may also eventually serve as an optimization point for early
+    lifting of trivial closures, which may or may not ultimately be
+    beneficial.
+    
+    Change-Id: I7da1e93c70d268f575b12d6aaeb2336eb910a6f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327051
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/runtime2.go | 1 +
- 1 file changed, 1 insertion(+)
+ src/cmd/compile/internal/inline/inl.go          |  32 +++-----
+ src/cmd/compile/internal/ir/expr.go             |   1 +
+ src/cmd/compile/internal/ir/func.go             | 100 ++++++++++++++++++++++++
+ src/cmd/compile/internal/noder/expr.go          |  16 +---
+ src/cmd/compile/internal/noder/noder.go         |  69 ++++++++--------
+ src/cmd/compile/internal/noder/stencil.go       |  47 ++++-------
+ src/cmd/compile/internal/typecheck/func.go      |  80 ++++++-------------
+ src/cmd/compile/internal/typecheck/iimport.go   |  17 +---
+ src/cmd/compile/internal/typecheck/typecheck.go |   6 +-
+ src/cmd/compile/internal/walk/order.go          |  28 ++-----
+ 10 files changed, 200 insertions(+), 196 deletions(-)

@@ -1,14 +1,23 @@
-commit 73fb3c38a685158591503a3d760ae6e1d1a2a565
-Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-Date:   Mon Jan 7 09:48:39 2019 +0100
+commit c9cc20bd3ad7ab68f620cb650376f1c01dc1167e
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Sat Sep 1 15:43:20 2018 +0000
 
-    doc: remove incorrect space in %T and %v output examples
+    crypto/x509: revert change of article in SystemCertPool docs
     
-    Change-Id: I321890237f703b945711e59c15233ccf59c4f190
-    Reviewed-on: https://go-review.googlesource.com/c/156477
-    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    The words 'the returned' were changed to 'a returned' in
+    8201b92aae7ba51ed2e2645c1f7815bfe845db72 when referring to the value
+    returned by SystemCertPool. Brad Fitz pointed out after that commit was
+    merged that it makes the wording of this function doc inconsistent with
+    rest of the stdlib since 'a returned' is not used anywhere, but 'the
+    returned' is frequently used.
+    
+    Fixes #27385
+    
+    Change-Id: I289b533a5a0b5c63eaf0abb6dec0085388ecf76b
+    GitHub-Last-Rev: 6c83b8025704e291ebe5b15dd2ac3fa65b1b48ff
+    GitHub-Pull-Request: golang/go#27438
+    Reviewed-on: https://go-review.googlesource.com/132776
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- doc/effective_go.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/x509/cert_pool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

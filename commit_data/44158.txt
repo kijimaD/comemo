@@ -1,21 +1,15 @@
-commit 3c2f11ba5b76cda35a5bedc9299833c649216b83
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Jan 19 09:59:24 2021 -0800
+commit c88f6989e1137be217260fde888e85b4610b5292
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 18 17:55:50 2020 -0700
 
-    cmd/go: overwrite program name with full path
+    doc: require macOS 10.12 or later
     
-    If the program path is resolved, replace the first argument of the
-    exec.Cmd, which is the bare program name with the resolved path.
+    For #23011
     
-    Change-Id: I92cf5e6f4bb7c8fef9b59f5eab963f4e75b90d07
-    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/957908
-    Reviewed-by: Katie Hockman <katiehockman@google.com>
-    Reviewed-by: Russ Cox <rsc@google.com>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/284784
-    Trust: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Change-Id: I3137820af975301e251b0a23a9349c544b42c70b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234521
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/work/exec.go | 3 +++
- 1 file changed, 3 insertions(+)
+ doc/go1.15.html         | 6 ++++++
+ doc/install-source.html | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

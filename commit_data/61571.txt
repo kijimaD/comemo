@@ -1,0 +1,19 @@
+commit b8fe88393b122a06e00163dc464bf8cd14187f4b
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 18 14:39:20 2024 -0800
+
+    os: correctly handle errno==0 in (*Process).blockUntilWaitable
+    
+    CL 627478 inadvertently returns a non-nil error
+    containing a syscall.Errno(0).
+    
+    Change-Id: I1d6a9d0575d3ed651ddc02f30505437d0d266bb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629515
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/os/wait_wait6.go  | 5 ++++-
+ src/os/wait_waitid.go | 5 ++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

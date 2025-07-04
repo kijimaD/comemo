@@ -1,16 +1,15 @@
-commit fcdffb3f334ae4bfa5fda2c01b3cc51c3c4e5715
-Author: Austin Clements <austin@google.com>
-Date:   Tue Dec 16 14:12:01 2014 -0500
+commit 9f04a62a39133439e20ea32a658cc35c21d33729
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 3 14:14:00 2014 -0500
 
-    cmd/ld: support 2 byte relocations
+    cmd/pprof: fix symbol resolution for remote profiles
     
-    ppc64 has a bunch of these.
+    Fixes #9199.
     
-    Change-Id: I3b93ed2bae378322a8dec036b1681e520b56ff53
-    Reviewed-on: https://go-review.googlesource.com/2003
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Minux Ma <minux@golang.org>
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=austin, golang-codereviews, minux
+    https://golang.org/cl/183080043
 
- src/cmd/ld/data.c  | 9 +++++++++
- src/cmd/ld/ldelf.c | 2 ++
- 2 files changed, 11 insertions(+)
+ src/cmd/pprof/internal/symbolizer/symbolizer.go | 4 ++++
+ 1 file changed, 4 insertions(+)

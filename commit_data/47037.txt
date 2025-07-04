@@ -1,58 +1,18 @@
-commit 283d8a3d53ac1c7e1d7e297497480bf0071b6300
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Mon Oct 25 23:00:56 2021 +0700
+commit 094048b93845c08e0f2db8639764f9564e64835b
+Author: cui <cuiweixie@gmail.com>
+Date:   Thu Feb 18 17:51:24 2021 +0000
 
-    all: use reflect.{Pointer,PointerTo}
+    cmd/compile/internal: loop opt
     
-    Updates #47651
-    Updates #48665
-    
-    Change-Id: I69a87b45a5cad7a07fbd855040cd9935cf874554
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/358454
-    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Change-Id: I5fe767237b8046934e9b0f33bd3dafabdb727dd6
+    GitHub-Last-Rev: 94fea3d57279e8b2d62f7f6be4301698dc8841e3
+    GitHub-Pull-Request: golang/go#44384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293809
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/fix/cftype.go                     |  2 +-
- src/cmd/fix/typecheck.go                  |  2 +-
- src/cmd/gofmt/rewrite.go                  |  2 +-
- src/database/sql/convert.go               |  6 ++---
- src/database/sql/driver/types.go          |  4 +--
- src/encoding/asn1/asn1.go                 |  4 +--
- src/encoding/binary/binary.go             |  2 +-
- src/encoding/gob/decode.go                | 14 +++++-----
- src/encoding/gob/decoder.go               |  4 +--
- src/encoding/gob/encode.go                |  8 +++---
- src/encoding/gob/encoder.go               |  2 +-
- src/encoding/gob/type.go                  | 12 ++++-----
- src/encoding/gob/type_test.go             |  2 +-
- src/encoding/json/decode.go               | 18 ++++++-------
- src/encoding/json/decode_test.go          |  2 +-
- src/encoding/json/encode.go               | 24 ++++++++---------
- src/encoding/xml/marshal.go               | 10 +++----
- src/encoding/xml/read.go                  | 10 +++----
- src/encoding/xml/typeinfo.go              |  6 ++---
- src/flag/flag.go                          |  2 +-
- src/fmt/print.go                          |  6 ++---
- src/fmt/scan.go                           |  2 +-
- src/fmt/scan_test.go                      |  4 +--
- src/go/ast/print.go                       |  4 +--
- src/html/template/content.go              |  6 ++---
- src/html/template/js.go                   |  2 +-
- src/internal/fmtsort/sort.go              |  2 +-
- src/internal/reflectlite/tostring_test.go |  2 +-
- src/net/rpc/server.go                     |  8 +++---
- src/reflect/abi.go                        |  2 +-
- src/reflect/all_test.go                   | 32 +++++++++++-----------
- src/reflect/deepequal.go                  |  8 +++---
- src/reflect/tostring_test.go              |  2 +-
- src/reflect/type.go                       |  2 +-
- src/reflect/value.go                      | 44 +++++++++++++++----------------
- src/reflect/visiblefields.go              |  2 +-
- src/runtime/gc_test.go                    |  2 +-
- src/testing/quick/quick.go                |  2 +-
- src/text/template/exec.go                 | 18 ++++++-------
- test/fixedbugs/issue32901.dir/main.go     |  9 ++++---
- test/reflectmethod7.go                    |  2 +-
- 41 files changed, 150 insertions(+), 147 deletions(-)
+ src/cmd/compile/internal/types/size.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,16 +1,12 @@
-commit 1fcf183a874950f9d42b0b9cede492e565d5b5f6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Jun 12 23:18:33 2018 -0700
+commit b77aad089176ecab971d3a72f0357ed0abc81f4a
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Fri Mar 2 11:51:22 2018 +0000
 
-    go/internal/gccgoimporter: remove dead code
+    runtime: fix typo, func comments should start with function name
     
-    The function parseInitData appears to be unused. Deleted.
-    
-    Change-Id: I7d4efed9d2519cfbd0ba03d89b45add8b314ea84
-    Reviewed-on: https://go-review.googlesource.com/118556
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I289af4884583537639800e37928c22814d38cba9
+    Reviewed-on: https://go-review.googlesource.com/98115
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
 
- src/go/internal/gccgoimporter/parser.go | 7 -------
- 1 file changed, 7 deletions(-)
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,13 @@
-commit 29b4de25b31c1b539017da43683012d986547bc1
-Author: Rob Pike <r@golang.org>
-Date:   Mon Sep 16 22:53:12 2013 +1000
+commit 765479ccb01fdfef10bdec2e651fcf7a4af50336
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 16 16:26:07 2013 +1000
 
-    cmd/go: document that "main" is a reserved import path
-    Fixes #6312.
+    doc/go1.2.html: add a "New packages" section similar to
+    http://golang.org/doc/go1.1#new_packages
     
-    R=golang-dev, dave
+    R=r
     CC=golang-dev
-    https://golang.org/cl/13391049
+    https://golang.org/cl/13368053
 
- src/cmd/go/doc.go  | 15 ++++++++++-----
- src/cmd/go/help.go | 15 ++++++++++-----
- 2 files changed, 20 insertions(+), 10 deletions(-)
+ doc/go1.2.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

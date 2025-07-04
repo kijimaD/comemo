@@ -1,28 +1,18 @@
-commit d1b8871f13203cd99d5e7d686170f0e266760084
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Mar 16 14:15:54 2016 -0700
+commit 99fa8c38393419fab1452ba5b157787b98f4497e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jan 24 22:59:45 2016 +0000
 
-    debug/dwarf: add Reader.SeekPC and Data.Ranges
+    net/http: don't retain *http.Request in Transport's HTTP/2 path
     
-    These new methods help find the compilation unit to pass to the
-    LineReader method in order to find the line information for a PC.
-    The Ranges method also helps identify the specific function for a PC,
-    needed to determine the function name.
+    Fixes #14084
     
-    This uses the .debug.ranges section if necessary, and changes the object
-    file format packages to pass in the section contents if available.
-    
-    Change-Id: I5ebc3d27faaf1a126ffb17a1e6027efdf64af836
-    Reviewed-on: https://go-review.googlesource.com/20769
+    Change-Id: Icbef5678ab3c4fd7eed2693006c47aca6d831d90
+    Reviewed-on: https://go-review.googlesource.com/18873
+    Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/debug/dwarf/entry.go            | 120 ++++++++++++++++++++++++++++++++++++
- src/debug/dwarf/entry_test.go       | 101 ++++++++++++++++++++++++++++++
- src/debug/dwarf/testdata/ranges.c   |  25 ++++++++
- src/debug/dwarf/testdata/ranges.elf | Bin 0 -> 10348 bytes
- src/debug/elf/file.go               |   4 +-
- src/debug/macho/file.go             |   6 +-
- src/debug/pe/file.go                |   6 +-
- 7 files changed, 254 insertions(+), 8 deletions(-)
+ src/net/http/clientserver_test.go | 42 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/transport.go         |  4 +++-
+ 2 files changed, 45 insertions(+), 1 deletion(-)

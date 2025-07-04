@@ -1,21 +1,37 @@
-commit c637d4b93912e072aa98bc8546e82b814065d02d
-Author: apocelipes <seve3r@outlook.com>
-Date:   Tue May 7 13:32:42 2024 +0000
+commit 82629da828d43f2ce2a57dc1e1534d8235974ad0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 3 21:00:58 2023 +0000
 
-    internal/reflectlite: remove redundent ifaceIndir
+    Revert "crypto/sha256: add WriteString and WriteByte method"
     
-    Use abi.(*Type).IfaceIndir instead.
+    This reverts CL 481478
     
-    Change-Id: I55a1a593d76601fb615d131abcf1b32012741e8c
-    GitHub-Last-Rev: 14de2a9d673dcd305a850e7b9217949160433488
-    GitHub-Pull-Request: golang/go#67228
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/583756
+    Reason for revert: can cause cgo errors when using boringcrypto.
+    See #59954.
+    
+    For #38776
+    For #59954
+    
+    Change-Id: Ic520f9fede152d22ab69996ad84c44f3e0d783bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492356
     Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Keith Randall <khr@google.com>
 
- src/internal/reflectlite/export_test.go | 2 +-
- src/internal/reflectlite/type.go        | 5 -----
- src/internal/reflectlite/value.go       | 4 ++--
- 3 files changed, 3 insertions(+), 8 deletions(-)
+ src/crypto/internal/boring/sha.go        | 14 --------
+ src/crypto/sha256/sha256.go              | 59 +++++---------------------------
+ src/crypto/sha256/sha256_test.go         | 33 +-----------------
+ src/crypto/sha256/sha256block.go         |  2 +-
+ src/crypto/sha256/sha256block_386.s      |  6 ++--
+ src/crypto/sha256/sha256block_amd64.s    | 14 ++++----
+ src/crypto/sha256/sha256block_arm64.go   | 18 ++--------
+ src/crypto/sha256/sha256block_arm64.s    |  8 ++---
+ src/crypto/sha256/sha256block_decl.go    | 12 +------
+ src/crypto/sha256/sha256block_generic.go |  4 ---
+ src/crypto/sha256/sha256block_ppc64x.s   |  8 ++---
+ src/crypto/sha256/sha256block_s390x.go   |  9 +----
+ src/crypto/sha256/sha256block_s390x.s    |  8 ++---
+ 13 files changed, 38 insertions(+), 157 deletions(-)

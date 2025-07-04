@@ -1,25 +1,38 @@
-commit 53e4b8fc02bb9440a35b20f383c0bc86eece80a6
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jun 22 15:49:42 2017 -0400
+commit 1295b745d13fe1402d5b645c9c20cc3adf85d563
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sun Mar 12 10:02:47 2017 +0000
 
-    cmd/go: require -buildmode=c-shared to take one main package
+    net/http: improve speed of default mux
     
-    The current behavior is to filter out the non-main packages silently,
-    which is confusing if there are only non-main packages.
-    Instead, report an error unless it's used with a single main package.
+    The DefaultServeMux included in net/http uses a map to store routes,
+    but iterates all keys for every request to allow longer paths.
     
-    To be clear, I don't really know what I'm doing.
-    It might be that multiple main packages are allowed, or even
-    that we do want the filtering, but all.bash passes with this change,
-    so I am taking that as a sign that we don't need that extra flexibility.
+    This change checks the map for an exact match first.
     
-    Fixes #15082.
+    To check performance was better, BenchmarkServeMux has been added -
+    this adds >100 routes and checks the matches.
     
-    Change-Id: I984d0f444a01c0ee0c3cd6646a75527ea99a9ebe
-    Reviewed-on: https://go-review.googlesource.com/46421
-    Run-TryBot: Russ Cox <rsc@golang.org>
+    Exact matches are faster and more predictable on this benchmark
+    and on most existing package benchmarks.
+    
+    https://perf.golang.org/search?q=upload:20170312.1
+    
+    ServeMux-4  2.02ms ± 2% 0.04ms ± 2%  −98.08%  (p=0.004 n=5+6)
+    
+    https://perf.golang.org/search?q=upload:20170312.2
+    
+    ReadRequestChrome-4     184MB/s  ± 8%   186MB/s  ± 1%   ~
+    ReadRequestCurl-4       45.0MB/s ± 1%   46.2MB/s ± 1%   +2.71%
+    Read...Apachebench-4    45.8MB/s ±13%   48.7MB/s ± 1%   ~
+    ReadRequestSiege-4      63.6MB/s ± 5%   69.2MB/s ± 1%   +8.75%
+    ReadRequestWrk-4        30.9MB/s ± 9%   34.4MB/s ± 2%   +11.25%
+    
+    Change-Id: I8afafcb956f07197419d545a9f1c03ecaa307384
+    Reviewed-on: https://go-review.googlesource.com/38057
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/go/internal/work/build.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/net/http/serve_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 11 +++++++++--
+ 2 files changed, 50 insertions(+), 2 deletions(-)

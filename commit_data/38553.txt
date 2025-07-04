@@ -1,18 +1,28 @@
-commit cd5309355e25dda4a33bcf5c931aae5a15f9de94
-Author: Richard Musiol <mail@richard-musiol.de>
-Date:   Mon Mar 25 00:31:41 2019 +0100
+commit f1a9f1df5070f69685e269de940c6218f899d228
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Wed Oct 31 00:19:35 2018 +0200
 
-    syscall/js: improve type checks of js.Value's methods
+    go/doc: inspect function signature for building playground examples
     
-    Add more explicit checks if the given js.Value is of the correct type
-    instead of erroring on the JavaScript layer.
+    This documentation example was broken:
+    https://golang.org/pkg/image/png/#example_Decode.
+    It did not have the "io" package imported,
+    The package was referenced in the result type of the function.
     
-    Change-Id: I30b18a76820fb68f6ac279bb88a57456f5bab467
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/168886
-    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    The "playExample" function did not inspect
+    the result types of declared functions.
+    
+    This CL adds inspecting of parameters and result types of functions.
+    
+    Fixes #28492
+    Updates #9679
+    
+    Change-Id: I6d8b11bad2db8ea8ba69039cfaa914093bdd5132
+    Reviewed-on: https://go-review.googlesource.com/c/146118
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/syscall/js/js.go      | 42 ++++++++++++++++++++++++++++-----
- src/syscall/js/js_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 95 insertions(+), 6 deletions(-)
+ src/go/doc/example.go      | 12 +++++++++
+ src/go/doc/example_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+)

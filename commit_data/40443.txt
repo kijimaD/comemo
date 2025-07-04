@@ -1,21 +1,23 @@
-commit 7e68f81dd8759ce7cc8a1ff596503f66d6a0eeae
-Author: Giovanni Bajo <rasky@develer.com>
-Date:   Sat Sep 28 00:08:45 2019 +0200
+commit 5b4ea626e00e998eb9c72b9d80f1c167e72da569
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 10 11:21:51 2019 -0400
 
-    cmd/compile: in poset, refactor aliasnode
+    cmd/go: default to GO111MODULE=auto and make it trigger in GOPATH/src
     
-    In preparation for allowing to make multiple nodes as aliases
-    in a single pass, refactor aliasnode splitting out the case
-    in which one of the nodes is not in the post into a new
-    funciton (aliasnewnode).
+    Fixes #31857
     
-    No functional changes, passes toolstash -cmp
-    
-    Change-Id: I19ca6ef8426f8aec9f2622b6151c5c617dbb25b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/200859
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Giovanni Bajo <rasky@develer.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ib0b791376acb7ee1cdc163f808b8ecf77dbdaf06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176580
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/ssa/poset.go | 88 +++++++++++++++++++----------------
- 1 file changed, 48 insertions(+), 40 deletions(-)
+ src/cmd/go/internal/cfg/cfg.go                     |  5 ----
+ src/cmd/go/internal/get/get.go                     |  5 ----
+ src/cmd/go/internal/modload/init.go                | 33 ++--------------------
+ .../go/testdata/script/get_insecure_redirect.txt   |  1 +
+ src/cmd/go/testdata/script/mod_enabled.txt         | 21 ++++++++++----
+ src/cmd/go/testdata/script/mod_find.txt            | 10 ++-----
+ src/cmd/go/testdata/script/mod_get_warning.txt     | 10 -------
+ src/cmd/go/testdata/script/mod_gobuild_import.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_off_init.txt        |  6 ++--
+ 9 files changed, 25 insertions(+), 68 deletions(-)

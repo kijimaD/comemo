@@ -1,14 +1,18 @@
-commit d61707f49053d13afb7c9bfdb7981aeff94a9c62
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue May 29 18:02:40 2012 -0400
+commit 2d1fa08967a6bcb064f7690719ea9638866c7715
+Author: Peter Kleiweg <pkleiweg@xs4all.nl>
+Date:   Tue May 29 16:30:06 2012 -0400
 
-    encoding/json: add round trip test in Unmarshal
+    Emacs go-mode: don't indent the inside of strings.
     
-    Also convert table to use tagged literal.
+    Two fixes for indentation problems:
     
-    R=golang-dev, bradfitz
+    1. Properly recognize multi-line strings. These start with `, not ".
+    
+    2. Don't indent a line if the beginning of the line is the end of a multi-line string. This happened for instance when inserting a closing bracket after a multi-line string.
+    
+    R=sameer
     CC=golang-dev
-    https://golang.org/cl/6258061
+    https://golang.org/cl/6157044
 
- src/pkg/encoding/json/decode_test.go | 84 ++++++++++++++++++++++--------------
- 1 file changed, 51 insertions(+), 33 deletions(-)
+ misc/emacs/go-mode.el | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

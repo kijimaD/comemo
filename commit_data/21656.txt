@@ -1,17 +1,12 @@
-commit 9df81f822128b4057f6713bff1421b8ee3fec555
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Thu Feb 19 09:35:28 2015 +1100
+commit 891d344cd0b9c43b6dc89a0920c57442b93326cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 23 11:08:32 2015 -0500
 
-    encoding/json: Fixed the comment specifying Marshal behavior for maps.
+    cmd/go: on arm, all binaries depend on math
     
-    The comment previously was reversed in sense (it appeared to be
-    describing unmarshaling). I've fixed that, and added the caveat that map
-    keys are subject to UTF-8 coercion like other strings.
-    
-    Change-Id: Id08082aa71401a6e7530a42f979fbb50bd1f4e6a
-    Reviewed-on: https://go-review.googlesource.com/5221
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Change-Id: I10b781927245a3e9822f9cffe254f226a5b93213
+    Reviewed-on: https://go-review.googlesource.com/3279
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/encoding/json/encode.go | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/pkg.go | 4 ++++
+ 1 file changed, 4 insertions(+)

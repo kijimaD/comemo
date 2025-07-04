@@ -1,17 +1,30 @@
-commit c035d829e9fbd150148a1738020fe9c155cda61f
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Sep 30 15:15:45 2021 -0400
+commit 671dba6c89bc0183982553e0359e0a3b2c00963f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jan 20 17:09:59 2021 -0500
 
-    cmd/dist: consistently set PWD when executing a command in a different directory
+    [dev.fuzz] internal/fuzz: guard concurrent access to shared memory
     
-    For #33598
+    This change moves the worker's *sharedMem into a buffered chan that
+    acts as a mutex. The mutex can be locked by receiving from the chan;
+    it can be unlocked by sending *sharedMem back to the chan. Multiple
+    objects (like worker, workerClient, workerServer) may have references
+    to the chan and may hold the lock across several operations.
     
-    Change-Id: If0de906ffa2fcc83bb2a90f9e80a5b29d7667398
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/353449
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    This is intended to fix a segfault that occurred when
+    workerClient.fuzz accessed shared memory after it was already closed
+    and unmapped by the worker's goroutine. workerClient.fuzz is executed
+    in a separate goroutine so the worker can still receive messages from
+    the coordinator (like being told to stop and clean up).
+    
+    Change-Id: I4eb9079ba9e5bfcfacfecd0fc8ad9bed17b33bba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285054
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
 
- src/cmd/dist/exec.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/cmd/dist/test.go | 54 +++++++++++++++++++++++++---------------------------
- src/cmd/dist/util.go |  2 +-
- 3 files changed, 80 insertions(+), 29 deletions(-)
+ src/internal/fuzz/fuzz.go        |  4 +++-
+ src/internal/fuzz/sys_posix.go   |  9 +++++--
+ src/internal/fuzz/sys_windows.go | 11 ++++++---
+ src/internal/fuzz/worker.go      | 52 ++++++++++++++++++++++++++++++----------
+ 4 files changed, 57 insertions(+), 19 deletions(-)

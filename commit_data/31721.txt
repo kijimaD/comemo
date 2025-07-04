@@ -1,17 +1,14 @@
-commit e5646b23dee5eb6f896a3eef45959aa130857988
-Author: Russ Cox <rsc@golang.org>
-Date:   Mon Jun 5 11:00:34 2017 -0400
+commit 7e036521d505708a3e0d0b3d9bbe1e4853111211
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 9 16:45:14 2017 -0500
 
-    time: strip monotonic clock reading in t.UTC, t.Local, t.In
+    expvar: add benchmark for (*Map).Set with per-goroutine keys
     
-    Fixes #18991.
-    
-    Change-Id: I46ded007b0c6a6e1173a55f3938007ab3a928dd9
-    Reviewed-on: https://go-review.googlesource.com/44858
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Change-Id: I0fa68ca9812fe5e82ffb9d0b9598e95b47183eb8
+    Reviewed-on: https://go-review.googlesource.com/38011
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/time/mono_test.go | 6 +++---
- src/time/time.go      | 8 +++++---
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ src/expvar/expvar_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

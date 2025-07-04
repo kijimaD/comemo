@@ -1,16 +1,12 @@
-commit 4af3dda41bcd3ede5e351afe522c0ff79020a25b
-Author: Mike Rosset <mike.rosset@gmail.com>
-Date:   Fri Feb 24 22:17:21 2012 -0800
+commit 5c7799f108c2ea6686aea0f4d5086f11ced7fd00
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 24 15:42:25 2012 -0800
 
-    doc: update Go1 release notes to use correct WalkFunc error signature.
+    go: fix help text documenting example functions
     
-    filepath's WalkFunc handler now uses errors package, and not
-    os.Error
-    
-    R=golang-dev, gri
+    R=adg, r
     CC=golang-dev
-    https://golang.org/cl/5696067
+    https://golang.org/cl/5695062
 
- doc/go1.html | 2 +-
- doc/go1.tmpl | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ src/cmd/go/test.go | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)

@@ -1,20 +1,15 @@
-commit eca90561c39d4d8cc587fbcc70baa9d90f3f0707
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Mar 30 07:38:46 2017 -0700
+commit 0919fd70682ee07e58eed6f95ff1f55541d3fecb
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Dec 16 09:58:06 2016 +0100
 
-    cmd/compile: minor init handling cleanup
+    cmd/go: fix doc about examples with empty Output
     
-    Place comments correctly.
-    Simplify control flow.
-    Reduce variable scope.
+    Fixes #18191
     
-    Passes toolstash-check.
-    
-    Change-Id: Iea47ed3502c15491c2ca6db8149fe0949b8849aa
-    Reviewed-on: https://go-review.googlesource.com/38914
-    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: Ic2bac9d2a6f42d14e780c74d9c842ee344ab030a
+    Reviewed-on: https://go-review.googlesource.com/34512
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/init.go | 48 +++++++++++++++++--------------------
- 1 file changed, 22 insertions(+), 26 deletions(-)
+ src/cmd/go/alldocs.go | 3 ++-
+ src/cmd/go/test.go    | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

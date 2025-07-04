@@ -1,35 +1,26 @@
-commit dca577d882f989e41a753537e9607f0c22e4a798
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Thu May 2 15:08:30 2024 -0500
+commit 308ca75edbe152d515d8aeab439c995bfeed5534
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 19 15:59:19 2023 -0400
 
-    cmd/compile/internal/ssa: reintroduce ANDconst opcode on PPC64
+    cmd/go: make TestScript/gotoolchain more realistic
     
-    This allows more effective conversion of rotate and mask opcodes
-    into their CC equivalents, while simplifying the first lowering
-    pass.
+    - Build the fake go1.999testpath binary from Go source instead of
+      special-casing a fake command on Windows.
     
-    This was removed before the latelower pass was introduced to fold
-    more cases of compare against zero. Add ANDconst to push the
-    conversion of ANDconst to ANDCCconst into latelower with the other
-    CC opcodes.
+    - Skip the part of the test that uses shell scripts served from the
+      test GOPROXY if /bin/sh is not present.
     
-    This also requires introducing RLDICLCC to prevent regressions
-    when ANDconst is converted to RLDICL then to RLDICLCC and back
-    to ANDCCconst when possible.
+    This makes the test more expensive, but also more realistic: notably,
+    it does not require test hooks to determine whether to run a real or
+    fake binary.
     
-    Change-Id: I9e5f9c99fbefa334db18c6c152c5f967f3ff2590
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586160
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Change-Id: If14fec52186631d7833eba653c91ec5198dede58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486400
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/ppc64/ssa.go              |    9 +-
- src/cmd/compile/internal/ssa/_gen/PPC64.rules      |  124 +-
- src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |   18 +-
- .../compile/internal/ssa/_gen/PPC64latelower.rules |   17 +-
- src/cmd/compile/internal/ssa/opGen.go              |   31 +
- src/cmd/compile/internal/ssa/rewrite.go            |   11 +
- src/cmd/compile/internal/ssa/rewritePPC64.go       | 1376 ++++++++------------
- .../compile/internal/ssa/rewritePPC64latelower.go  |  148 ++-
- 8 files changed, 752 insertions(+), 982 deletions(-)
+ src/cmd/go/gotoolchain.go                  |  4 ---
+ src/cmd/go/testdata/script/gotoolchain.txt | 46 ++++++++++++------------------
+ 2 files changed, 18 insertions(+), 32 deletions(-)

@@ -1,45 +1,25 @@
-commit bfd569fcb07440b85c503a399d78bcd6581824a3
-Author: Michael Munday <mike.munday@ibm.com>
-Date:   Fri Mar 6 22:20:45 2020 +0000
+commit e7ce8627b0adb0dfa8657c5186a1a53e1baad404
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Oct 10 12:11:06 2019 -0400
 
-    cmd/compile: delete the floating point Greater and Geq ops
+    cmd/compile: fix spurious R_TLE_LE reloc on android/386
     
-    Extend CL 220417 (which removed the integer Greater and Geq ops) to
-    floating point comparisons. Greater and Geq can always be
-    implemented using Less and Leq.
+    When compiling for GOARCH=386 GOOS=android, the compiler was attaching
+    R_TLS_LE relocations inappropriately -- as of Go 1.13 the TLS access
+    recipe for Android refers to a runtime symbol and no longer needs this
+    type of relocation (which was causing a crash when the linker tried to
+    process it).
     
-    Fixes #37316.
+    Updates #29674.
+    Fixes #34788.
     
-    Change-Id: Ieaddb4877dd0ff9037a1dd11d0a9a9e45ced71e7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/222397
-    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Change-Id: Ida01875011b524586597b1f7e273aa14e11815d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200337
+    Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
 
- src/cmd/compile/internal/gc/ssa.go             | 36 ++++------
- src/cmd/compile/internal/ssa/gen/386.rules     | 10 ---
- src/cmd/compile/internal/ssa/gen/AMD64.rules   | 40 ++++-------
- src/cmd/compile/internal/ssa/gen/ARM.rules     |  4 --
- src/cmd/compile/internal/ssa/gen/ARM64.rules   |  6 --
- src/cmd/compile/internal/ssa/gen/MIPS.rules    |  3 -
- src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  3 -
- src/cmd/compile/internal/ssa/gen/PPC64.rules   |  4 --
- src/cmd/compile/internal/ssa/gen/RISCV64.rules |  8 ---
- src/cmd/compile/internal/ssa/gen/S390X.rules   |  6 --
- src/cmd/compile/internal/ssa/gen/Wasm.rules    |  3 -
- src/cmd/compile/internal/ssa/gen/generic.rules |  4 --
- src/cmd/compile/internal/ssa/gen/genericOps.go |  6 --
- src/cmd/compile/internal/ssa/opGen.go          | 24 -------
- src/cmd/compile/internal/ssa/rewrite386.go     | 72 -------------------
- src/cmd/compile/internal/ssa/rewriteAMD64.go   | 72 -------------------
- src/cmd/compile/internal/ssa/rewriteARM.go     | 72 -------------------
- src/cmd/compile/internal/ssa/rewriteARM64.go   | 72 -------------------
- src/cmd/compile/internal/ssa/rewriteMIPS.go    | 72 -------------------
- src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 72 -------------------
- src/cmd/compile/internal/ssa/rewritePPC64.go   | 72 -------------------
- src/cmd/compile/internal/ssa/rewriteRISCV64.go | 60 ----------------
- src/cmd/compile/internal/ssa/rewriteS390X.go   | 96 --------------------------
- src/cmd/compile/internal/ssa/rewriteWasm.go    | 12 ----
- src/cmd/compile/internal/ssa/rewritegeneric.go | 88 -----------------------
- test/codegen/floats.go                         |  2 +-
- 26 files changed, 30 insertions(+), 889 deletions(-)
+ src/cmd/internal/obj/x86/asm6.go |  2 +-
+ src/cmd/link/link_test.go        | 61 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 1 deletion(-)

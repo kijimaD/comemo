@@ -1,21 +1,22 @@
-commit 3a55b92ccffc9211d2aac68802433712f126ec75
-Author: limeidan <limeidan@loongson.cn>
-Date:   Tue May 21 19:23:44 2024 +0800
+commit da94586aa3767c38ccb625ac653e038bb842444a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 14 14:26:59 2023 -0700
 
-    runtime: add debug call injection support on loong64
+    cmd/go: check for errors reading gccgo package list
     
-    Change-Id: Iaf2bd9da0b35c20c5b57db2eb9b2eea2b662140c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/587055
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Previously if there was something invalid about the package list
+    cmd/go would crash rather than reporting a useful error.
+    
+    For #60798
+    
+    Change-Id: I502facf41442ab49217405b5b1874fff52a6d416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503496
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/runtime/asm_loong64.s                | 227 +++++++++++++++++++++++++++++++
- src/runtime/debug_test.go                |   2 +-
- src/runtime/debugcall.go                 |   2 +-
- src/runtime/export_debug_loong64_test.go | 227 +++++++++++++++++++++++++++++++
- src/runtime/export_debug_test.go         |   2 +-
- src/runtime/signal_loong64.go            |   7 +-
- 6 files changed, 461 insertions(+), 6 deletions(-)
+ src/cmd/go/internal/work/action.go | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)

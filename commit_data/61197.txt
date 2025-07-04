@@ -1,0 +1,27 @@
+commit c0a126b8dce5c7ed8f16d8687331159763d1b19d
+Author: Shuo Wang <wangshuo@kylinos.cn>
+Date:   Fri Oct 18 02:51:35 2024 +0000
+
+    runtime: revise the documentation comments for netpoll
+    
+    Supplement to CL 511455.
+    
+    Updates #61454
+    
+    Change-Id: I111cbf297dd9159cffba333d610a7a4542915c55
+    GitHub-Last-Rev: fe8fa184868d665a4d08d534d3bfb5ea446d12c0
+    GitHub-Pull-Request: golang/go#69900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620495
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/netpoll.go         | 2 +-
+ src/runtime/netpoll_aix.go     | 5 ++++-
+ src/runtime/netpoll_epoll.go   | 5 ++++-
+ src/runtime/netpoll_kqueue.go  | 5 ++++-
+ src/runtime/netpoll_solaris.go | 5 ++++-
+ src/runtime/netpoll_stub.go    | 4 +++-
+ src/runtime/netpoll_windows.go | 5 ++++-
+ 7 files changed, 24 insertions(+), 7 deletions(-)

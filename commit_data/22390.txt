@@ -1,19 +1,18 @@
-commit a513088396d28794c2b2e1bb5e5f2a827e922b4a
-Author: Matthew Brennan <matty.brennan@gmail.com>
-Date:   Fri Apr 3 20:09:53 2015 -0400
+commit eb96bb19927f2dea87a3c98bbe82f4984ebe30b4
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Tue Mar 10 12:31:33 2015 -0400
 
-    regexp: skip backtracker for long programs
+    path/filepath: clarify the package doc about '/' in returned results.
     
-    This update makes maxBacktrackLen return 0 if
-    len(prog.Inst) > maxBacktrackProg. This prevents an attempt to
-    backtrack against a nil bitstate.
+    The slash is replaced with os.PathSeparator before returning.
+    Split, SplitList are the exceptions; comments for them mention this.
     
-    Fixes #10319
+    Fixes golang/go#10122.
     
-    Change-Id: Icdbeb2392782ccf66f9d0a70ea57af22fb93f01b
-    Reviewed-on: https://go-review.googlesource.com/8473
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I66dbee8d09f378582e046be8df309a3930151820
+    Reviewed-on: https://go-review.googlesource.com/7310
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/regexp/backtrack.go | 11 ++++++++++-
- src/regexp/exec_test.go | 12 ++++++++++++
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ src/path/filepath/path.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

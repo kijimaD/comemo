@@ -1,19 +1,18 @@
-commit 8506b7d42fa696a8a7ca7cea747e1509286fdfba
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Tue Aug 27 13:16:40 2019 -0400
+commit 8c7564deadedda87097e0eedd3e8f85bcd895ff0
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Apr 12 14:23:13 2019 +0200
 
-    cmd/link: switch linker over to new debug lines from compiler
+    runtime: add //go:cgo_unsafe_args to AIX syscallX functions
     
-    This switches the linker over to using the new debug_lines data
-    generated in the compiler.
+    On AIX, syscallX functions are using the first argument to retrieve the
+    next arguments when calling asmcgocall. Therefore,//go:cgo_unsafe_args
+    is needed.
     
-    Change-Id: If8362d6fcea7db60aaebab670ed6f702ab1c4908
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/191968
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    Run-TryBot: Austin Clements <austin@google.com>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I7fe0fbf0c961250a6573c66a8b0eb897dff94bfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171723
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/cmd/internal/obj/dwarf.go     |   6 +-
- src/cmd/link/internal/ld/dwarf.go | 246 ++++++++------------------------------
- 2 files changed, 52 insertions(+), 200 deletions(-)
+ src/runtime/os2_aix.go | 5 +++++
+ 1 file changed, 5 insertions(+)

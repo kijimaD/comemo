@@ -1,22 +1,24 @@
-commit 061d77cb7008cf9e4d8b3b6382828b483bff032f
-Author: Paul E. Murphy <murp@ibm.com>
-Date:   Fri Sep 15 15:20:56 2023 -0500
+commit 1b03568ae18715ad081cc57197b61388c8e6caa4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 10 11:33:00 2022 -0500
 
-    cmd/compile/internal/ssa: on PPC64, generate large constant paddi
+    cmd/compile: adjust PGO inlining default parameters
     
-    This is only supported power10/linux/PPC64. This generates smaller,
-    faster code by merging a pli + add into paddi.
+    Adjust PGO inlining default parameters to 99% CDF threshold and
+    2000 budget. Benchmark results (mostly from Sweet) show that this
+    set of parameters performs reasonably well, with a few percent
+    speedup at the cost of a few percent binary size increase.
     
-    Change-Id: I1f4d522fce53aea4c072713cc119a9e0d7065acc
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/531717
-    Run-TryBot: Paul Murphy <murp@ibm.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Also rename the debug flags to start with "pgo", to make it clear
+    that they are related to PGO.
+    
+    Change-Id: I0749249b1298d1dc55a28993c37b3185f9d7639d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449477
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
 
- .../compile/internal/ssa/_gen/PPC64latelower.rules |  3 +++
- .../compile/internal/ssa/rewritePPC64latelower.go  | 27 ++++++++++++++++++++++
- test/codegen/arithmetic.go                         | 15 ++++++++++++
- 3 files changed, 45 insertions(+)
+ src/cmd/compile/internal/base/debug.go        | 70 +++++++++++++--------------
+ src/cmd/compile/internal/inline/inl.go        | 10 ++--
+ src/cmd/compile/internal/test/pgo_inl_test.go |  5 +-
+ 3 files changed, 43 insertions(+), 42 deletions(-)

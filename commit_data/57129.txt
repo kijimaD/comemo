@@ -1,30 +1,22 @@
-commit 760b722c344d312ab62a5c2f94865a869ce0bab9
-Author: Russ Cox <rsc@golang.org>
-Date:   Fri Aug 9 10:28:39 2024 -0400
+commit 3619255777ca544a08e1051ee641a1c1e2d0a903
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jun 23 12:07:19 2023 -0700
 
-    LICENSE: update per Google Legal
+    crypto/x509: rename duplicated test
     
-    Very minor tweaks:
-     - Remove (c) pseudosymbol.
-     - Remove "All Rights Reserved."
-     - Change "Google Inc." (no longer exists) to "Google LLC".
+    Rename the old TestPlatformVerifier to TestPlatformVerifierLegacy, and
+    add TODO about removing it once the synthetic root is widely deployed on
+    builders.
     
-    [git-generate]
-    echo '
-    ,s/\(c\) //
-    ,s/ All rights reserved.//
-    ,s/Google Inc./Google LLC/
-    w
-    q
-    ' | sam -d LICENSE
+    Updates #52108
     
-    Change-Id: I243c86499bdaf8f8e73d8833e1ed8ccab4083c63
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/604475
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Change-Id: I6cdba268e4738804c7f76ea18c354470b3e0318c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505755
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
 
- LICENSE | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/crypto/x509/root_darwin_test.go  | 4 +++-
+ src/crypto/x509/root_windows_test.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

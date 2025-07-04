@@ -1,19 +1,31 @@
-commit 7fd9564fcd3715a2aaf2bf4df1096f71ff40ef15
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Feb 22 14:43:41 2022 -0500
+commit 510e711dd36999f1800678909bb7fdb448aa074f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Sat May 1 18:46:22 2021 -0700
 
-    cmd/compile: allow fieldtrack of unexported fields
+    [dev.fuzz] testing,internal/fuzz: prevent unbounded memory growth
     
-    The fieldtrack support is experimental and used mainly inside Google,
-    where we have included this change for years. No reason not to make
-    it in the public copy.
+    Usage of f.testContext.match.fullName to generate the test name causes
+    unbounded memory growth, eventually causing the fuzzer to slow down
+    as memory pressure increases.
     
-    Change-Id: I5233e4e775ccce60a17098c007aed8c82a0425d7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/387355
-    Trust: Russ Cox <rsc@golang.org>
-    Run-TryBot: Russ Cox <rsc@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Each time fuzzFn is invoked it generates a unique string and stores it
+    in a map. With the fuzzer running at around 100k executions per second
+    this consumed around ~30GB of memory in a handful of minutes.
+    
+    Instead just use the base name of the test for mutated inputs, a special
+    name for seeded inputs, and the filename for inputs from the input
+    corpus.
+    
+    Change-Id: I083f47df7e82f0c6b0bda244f158233784a13029
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316030
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
 
- src/cmd/compile/internal/walk/expr.go | 3 ---
- 1 file changed, 3 deletions(-)
+ src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt |  2 ++
+ src/go/build/deps_test.go                             |  2 +-
+ src/internal/fuzz/fuzz.go                             |  2 +-
+ src/testing/fuzz.go                                   | 14 ++++++--------
+ 4 files changed, 10 insertions(+), 10 deletions(-)

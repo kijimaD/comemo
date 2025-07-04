@@ -1,26 +1,22 @@
-commit d1c3f255fda8b9bf86990b55353ca14fbfe5b257
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 16 16:07:25 2024 -0400
+commit 7087b8ac4c2eeab4fe52e498fa55a0c95ea89933
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jun 30 16:06:10 2023 -0400
 
-    runtime: move getclosureptr to internal/runtime/sys
+    cmd/compile/internal/ir: export 'reassigned', handle OASOP
     
-    Moving these intrinsics to a base package enables other internal/runtime
-    packages to use them.
+    Rename the ir-local function "reassigned" to "Reassigned" so that it
+    can be used as part of inline heuristic analysis. Fix up the header
+    comment along that way, which had some stale material. Add support for
+    detecting reassignments via OASOP (as opposed to just simple
+    assignments).
     
-    There is no immediate need for getclosureptr outside of runtime, but it
-    is moved for consistency with the other intrinsics.
+    Updates #61502.
     
-    For #54766.
-    
-    Change-Id: Ia68b16a938c8cb84cb222469db28e3a83861be5d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/613262
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Change-Id: I50f40f81263c0d7f61f30fcf0258f0b0f93acdca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511560
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/devirtualize/pgo.go       |  5 ++--
- src/cmd/compile/internal/ssagen/intrinsics.go      | 15 ++++++------
- src/cmd/compile/internal/ssagen/intrinsics_test.go | 28 +++++++++++-----------
- src/internal/runtime/sys/intrinsics.go             | 21 ++++++++++++++++
- src/runtime/alg.go                                 |  3 ++-
- src/runtime/stubs.go                               | 21 ----------------
- 6 files changed, 47 insertions(+), 46 deletions(-)
+ src/cmd/compile/internal/ir/expr.go | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

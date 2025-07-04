@@ -1,29 +1,25 @@
-commit f7475a0af3169d3d91f6071646defcf103393cc0
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Thu Nov 28 10:20:58 2024 +0100
+commit 555af99bcc6b7515ebad5a3c947f3e4ab147fd29
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed Oct 25 10:51:58 2023 +0000
 
-    crypto/internal/fips140/bigmod: add Nat.InverseVarTime
+    runtime/internal/atomic: add riscv64 operators for And/Or
     
-    Will be needed for RSA key generation.
+    These primitives will be used by the new And/Or sync/atomic apis.
     
-    We now require Modulus to be > 1 because we don't want to worry about 1
-    being out of range. There is no use for a Modulus of 1 anyway, and we
-    already return an error from NewModulus.
+    For #61395
     
-    Ported from https://cs.opensource.google/boringssl/boringssl/+/master:crypto/fipsmodule/bn/gcd_extra.cc.inc;drc=5813c2c10c73d800f1b0d890a7d74ff973abbffc.
-    
-    Updates #69799
-    For #69536
-    
-    Change-Id: I9850bcc461565b23fa7186a09c65355f7da3e5ba
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/632415
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I4062d6317e01afd94d3588f5425237723ab15ade
+    GitHub-Last-Rev: c0a8d8f34dc355997fa697d4d8da7d45a00bb3c7
+    GitHub-Pull-Request: golang/go#63272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531575
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
 
- src/crypto/internal/fips140/bigmod/nat.go          | 133 ++++++++++++++++++++-
- src/crypto/internal/fips140/bigmod/nat_test.go     |  81 ++++++++++++-
- .../fips140/bigmod/testdata/mod_inv_tests.txt      | 115 ++++++++++++++++++
- 3 files changed, 325 insertions(+), 4 deletions(-)
+ src/runtime/internal/atomic/atomic_andor_test.go |  2 +-
+ src/runtime/internal/atomic/atomic_riscv64.go    | 18 +++++++++++
+ src/runtime/internal/atomic/atomic_riscv64.s     | 40 ++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 1 deletion(-)

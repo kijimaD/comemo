@@ -1,18 +1,16 @@
-commit b32170abdfe6979af249fccba513609fc52cfb15
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Wed Feb 8 12:04:11 2017 +1100
+commit 719b493312154b43e9ace5743f3d74efb155b9d7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Oct 31 08:59:05 2016 -0400
 
-    cmd/link: simplify peemitreloc
+    plugin: do not leak cRelName on error path
     
-    No functional changes.
+    Fixes #17683
     
-    For #10776.
-    
-    Change-Id: If9a5ef832af116c5802b06a38e0c050d7363f2d5
-    Reviewed-on: https://go-review.googlesource.com/36981
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I46f45c63796b58e8a8f14e37592231cbe7cd6934
+    Reviewed-on: https://go-review.googlesource.com/32438
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/pe.go | 94 ++++++++++++++++++++----------------------
- 1 file changed, 45 insertions(+), 49 deletions(-)
+ src/plugin/plugin_dlopen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

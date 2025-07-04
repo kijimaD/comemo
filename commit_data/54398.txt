@@ -1,24 +1,21 @@
-commit ea8c05508b582f7ab20850e336d5ae4abf4e448d
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon Sep 11 12:18:51 2023 -0400
+commit 005c78d8bbf6389d482a0bbb4e6c46719d77f59f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Oct 5 19:06:23 2022 -0400
 
-    Revert "runtime: allow update of system stack bounds on callback from C thread"
+    cmd/go: avoid setting mod=vendor in workspace mode
     
-    This reverts CL 525455. The test fails to build on darwin, alpine, and
-    android.
+    Workspaces with a single module would enter mod=vendor mode even when
+    in workspace mode. Fix that by explicitly checking that we're not in
+    workspace mode when deciding whether to enter vendor mode.
     
-    For #62440.
+    Fixes #54130
     
-    Change-Id: I39c6b1e16499bd61e0f166de6c6efe7a07961e62
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/527317
-    Auto-Submit: Michael Pratt <mpratt@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Change-Id: I03fcd9db4160c9872aa2b7957a80f24d49f787d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
 
- src/runtime/cgocall.go                          | 70 ---------------------
- src/runtime/crash_cgo_test.go                   | 13 ----
- src/runtime/proc.go                             | 33 +++++++---
- src/runtime/testdata/testprogcgo/stackswitch.c  | 81 -------------------------
- src/runtime/testdata/testprogcgo/stackswitch.go | 43 -------------
- 5 files changed, 24 insertions(+), 216 deletions(-)
+ src/cmd/go/internal/modload/init.go               |  2 +-
+ src/cmd/go/testdata/script/work_disablevendor.txt | 56 +++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 1 deletion(-)

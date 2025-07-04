@@ -1,15 +1,18 @@
-commit 6b66b59328f3178cceae624a6100cfe8e7944746
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Tue Oct 13 08:32:41 2020 +0200
+commit f0e8b81aa34120e21642c569912bde00ccd33393
+Author: Aurélio A. Heckert <aurium@gmail.com>
+Date:   Sun Mar 22 20:38:42 2020 -0300
 
-    internal/cpu: remove unused arm64 capabilities
+    syscall/js: allow copyBytesTo(Go|JS) to use Uint8ClampedArray
     
-    Change-Id: I038b0fe165931b8ec3ef59f08dc73c8128d56572
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/261365
-    Trust: Martin Möhrmann <moehrmann@google.com>
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    closes #38011
+    
+    Change-Id: Ic50f2f27456dccdc3fca1bda076871af1eb81705
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224638
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/internal/cpu/cpu_arm64.go | 68 ++++---------------------------------------
- 1 file changed, 6 insertions(+), 62 deletions(-)
+ misc/wasm/wasm_exec.js |  4 ++--
+ src/syscall/js/js.go   | 12 ++++++------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

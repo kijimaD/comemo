@@ -1,24 +1,20 @@
-commit fd7ddad160bfcfd861db00e5d4df01ceaf0a66e9
-Author: Lucio De Re <lucio.dere@gmail.com>
-Date:   Fri Sep 6 16:15:44 2013 +1000
+commit 1116f74e08a8ccd551830c239c3ee20668ad2c5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 5 23:06:34 2013 -0400
 
-    cmd/dist: Plan 9 build needs an additional include path
-    cmd/cc: bv.c imports libc.h twice
+    test/nilptr: add more tests
     
-    When using the Plan 9 compiler, the invocation
+    These tests were suggested in golang.org/issue/6080.
+    They were fixed as part of the new nil pointer checks
+    that I added a few weeks ago.
     
-            #include <../ld/textflag.h>
+    Recording the tests as part of marking the issue closed.
     
-    works for the toolchain, but not for the MACH library.
+    Fixes #6080.
     
-    Module cmd/cc/bv.c includes libc.h and "cc.h", which in
-    turn also includes libc.h.  In the Plan 9 context, this
-    causes a number of duplicate definitions.
-    
-    R=golang-dev, rsc, r
+    R=golang-dev, r, bradfitz
     CC=golang-dev
-    https://golang.org/cl/13303047
+    https://golang.org/cl/13255049
 
- src/cmd/cc/bv.c      | 1 -
- src/cmd/dist/build.c | 2 ++
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ test/nilptr.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

@@ -1,13 +1,14 @@
-commit 2c0a46d6046cfd4895a30dbcb3d60d0ad9744166
-Author: Rob Pike <r@golang.org>
-Date:   Mon Mar 5 11:52:31 2012 +1100
+commit 4d7017dcd02a4fb35b2cd3b31b852d858bd5fbb3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 5 11:12:58 2012 +1100
 
-    cmd/go: fix grammar error in help messages
+    doc/effective_go: minor fix
+            We have 'gofmt' and 'go fmt', but not 'go tool fmt'.
     
-    R=golang-dev, dsymonds
+    R=golang-dev, kyle, r
     CC=golang-dev
-    https://golang.org/cl/5729061
+    https://golang.org/cl/5739043
 
- src/cmd/go/build.go | 2 +-
- src/cmd/go/doc.go   | 2 +-
+ doc/effective_go.html | 2 +-
+ doc/effective_go.tmpl | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)

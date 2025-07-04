@@ -1,14 +1,13 @@
-commit 94b42fb14a0ceda1763f842e52c55020e96705ad
+commit a3695fb2273d458974a02bc19f1606f10e6ff388
 Author: Rob Pike <r@golang.org>
-Date:   Tue Aug 20 14:45:46 2013 +1000
+Date:   Tue Aug 20 11:14:45 2013 +1000
 
-    os: fix windows build
-    The os windows source uses file as the receiver, not f.
-    TBR=golang-dev@googlegroups.com
+    api: update next.txt, except.txt
     
-    R=adg
+    R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/12922044
+    https://golang.org/cl/12926046
 
- src/pkg/os/file_windows.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ api/except.txt |  1 +
+ api/next.txt   | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)

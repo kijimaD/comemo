@@ -1,16 +1,32 @@
-commit ccc927b8f6550cb638e78fd63eebf422fc3c3d8a
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Sep 8 13:37:34 2021 -0700
+commit 98a73030b01cc23a292934d09f137a2befa439bf
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Dec 16 16:37:56 2020 -0500
 
-    cmd/compile/internal/types2: move typeHash to environment.go
+    cmd/go: in 'go get', promote named implicit dependencies to explicit
     
-    This is a clean port of CL 347560.
+    'go get pkg@vers' will now add an explicit requirement for the module
+    providing pkg if that version was already indirectly required.
     
-    Change-Id: I0d56f5a818df1a66e603415d5198d909b0aef228
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/348573
-    Trust: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    'go get mod@vers' will do the same if mod is a module path but not a
+    package.
+    
+    Requirements promoted this way will be marked "// indirect" because
+    'go get' doesn't know whether they're needed to build packages in the
+    main module. So users should prefer to run 'go get ./pkg' (where ./pkg
+    is a package in the main module) to promote requirements.
+    
+    Fixes #43131
+    
+    Change-Id: Ifbb65b71274b3cc752a7a593d6ddd875f7de23b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278812
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/environment.go | 37 ++++++++++++++++++++++++--
- src/cmd/compile/internal/types2/subst.go       | 36 +------------------------
- 2 files changed, 36 insertions(+), 37 deletions(-)
+ src/cmd/go/internal/modload/buildlist.go                | 11 +++++++++++
+ src/cmd/go/internal/modload/init.go                     |  6 +++++-
+ src/cmd/go/internal/modload/query.go                    | 10 +++-------
+ src/cmd/go/internal/str/str.go                          | 14 ++++++++++++++
+ src/cmd/go/testdata/script/mod_get_promote_implicit.txt |  6 ++++++
+ 5 files changed, 39 insertions(+), 8 deletions(-)

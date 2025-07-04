@@ -1,17 +1,18 @@
-commit fa861f882205516624ad123346ff3e6f0c44ac9c
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Jul 31 13:16:23 2024 -0700
+commit ee5af6103da43c44104b1d06eaf5a23cd9b87085
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 7 16:56:28 2023 -0700
 
-    cmd/cgo: document workaround for C struct_stat function
+    spec: document new program initialization process
     
-    For #68682
+    For #57411.
     
-    Change-Id: I13b61f915925a9ee510e0a42e95da7a83678b3b5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/602215
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: I94982d939d16ad17174f801cc167cc10ddc8da30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501696
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/cgo/doc.go | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ doc/go_spec.html | 39 +++++++++++++++++++++++++--------------
+ 1 file changed, 25 insertions(+), 14 deletions(-)

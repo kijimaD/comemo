@@ -1,23 +1,29 @@
-commit 2aac5a5cbacdaaefb518be7ea8ddc2a455ae35f2
-Author: Michael Pratt <mpratt@google.com>
-Date:   Mon May 19 17:28:45 2025 -0400
+commit 2860e01853174e278900ef6907b1941b16fb1645
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 25 16:37:05 2024 +0100
 
-    runtime: skip testprogcgo tests in race mode on freebsd
+    os: make readdir more robust on Windows
     
-    These were just enabled by https://go.dev/cl/643897, but freebsd
-    unfortunately doesn't seem to support cgo + race mode by default.
+    On Windows, File.readdir currently fails if the volume information
+    can't be retrieved via GetVolumeInformationByHandle and if the
+    directory path is relative and can't be converted to an absolute
+    path.
     
-    For #73788.
+    This change makes readdir more robust by not failing in these cases,
+    as these steps are just necessary to support a potential call to
+    os.SameFile, but not for the actual readdir operation. os.SameFile
+    will still fail in these cases, but that's a separate issue tracked
+    in #62042.
     
-    Cq-Include-Trybots: luci.golang.try:gotip-freebsd-amd64-race
-    Change-Id: I6a6a636c06176ca746548d0588283b1429d7c6d5
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/674160
+    Change-Id: I8d98d8379bdac4b2832fa433432a5f027756abaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574155
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
-    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
 
- src/runtime/coro_test.go      |   4 ++
- src/runtime/crash_cgo_test.go | 124 ++++++++++++++++++++++++++++++++++++++++++
- src/runtime/crash_test.go     |   3 +
- src/runtime/trace_cgo_test.go |   4 ++
- 4 files changed, 135 insertions(+)
+ src/internal/syscall/windows/symlink_windows.go |  1 +
+ src/internal/syscall/windows/syscall_windows.go | 15 +++++
+ src/os/dir_windows.go                           | 81 ++++++++++++++-----------
+ 3 files changed, 60 insertions(+), 37 deletions(-)

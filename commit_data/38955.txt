@@ -1,61 +1,19 @@
-commit ee59c06acb1cd0a119667fce57988801d3fdde4f
-Author: Keith Randall <khr@google.com>
-Date:   Mon Apr 29 12:19:30 2019 -0700
+commit c4a8a684dacbe07f5524eae07d5e9f048034bcb6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 11 22:14:37 2018 -0500
 
-    cmd/compile: evaluate map initializers incrementally
+    cmd/go: reproduce #28680
     
-    For the code:
+    This change encodes the current behavior in mod_clean_cache.txt.
+    A fix for that behavior will probably have to wait for 1.13.
     
-    m := map[int]int {
-      a(): b(),
-      c(): d(),
-      e(): f(),
-    }
+    Updates #28680
     
-    We used to do:
-    
-    t1 := a()
-    t2 := b()
-    t3 := c()
-    t4 := d()
-    t5 := e()
-    t6 := f()
-    m := map[int]int{}
-    m[t1] = t2
-    m[t3] = t4
-    m[t5] = t6
-    
-    After this CL we do:
-    
-    m := map[int]int{}
-    t1 := a()
-    t2 := b()
-    m[t1] = t2
-    t3 := c()
-    t4 := d()
-    m[t3] = t4
-    t5 := e()
-    t6 := f()
-    m[t5] = t6
-    
-    Ordering the initialization this way limits the lifetime of the
-    temporaries involved.  In particular, for large maps the number of
-    simultaneously live temporaries goes from ~2*len(m) to ~2. This change
-    makes the compiler (regalloc, mostly) a lot happier. The compiler runs
-    faster and uses a lot less memory.
-    
-    For #26546, changes compile time of a big map from 8 sec to 0.5 sec.
-    
-    Fixes #26552
-    
-    Update #26546
-    
-    Change-Id: Ib7d202dead3feaf493a464779fd9611c63fcc25f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/174417
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Change-Id: I216b5a783971309cc75187502bddccc58c3a9c35
+    Reviewed-on: https://go-review.googlesource.com/c/153818
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
 
- src/cmd/compile/internal/gc/order.go | 52 ++++++++++++++++++++++++++++++++++++
- src/cmd/compile/internal/gc/sinit.go |  5 ++++
- 2 files changed, 57 insertions(+)
+ src/cmd/go/testdata/script/mod_clean_cache.txt | 40 ++++++++++++++++++++++++--
+ 1 file changed, 38 insertions(+), 2 deletions(-)

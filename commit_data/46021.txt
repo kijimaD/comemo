@@ -1,23 +1,63 @@
-commit 5a401001417151649363a4b2fbd658f3f1957cba
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Aug 13 09:30:19 2021 -0700
+commit beb5e0540406e2281a7502a2009db752668219da
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 2 23:55:42 2020 -0800
 
-    cmd/compile: fix dictionaries for nested closures
+    [dev.regabi] cmd/compile: refactoring prep for ConstExpr
     
-    Capturing dictionary closure variables is ok.
+    The next CL adds ConstExpr, which is a more memory efficient
+    representation for constant expressions than Name. However, currently
+    a bunch of Val helper methods are defined on Name. This CL changes
+    them into standalone functions that work with any Node.Val
+    implementation.
     
-    Fixes #47684
+    There's also an existing standalone function named Int64Val, which
+    takes a Type argument to specify what type of integer is expected. So
+    to avoid collisions, this CL renames it to IntVal.
     
-    Change-Id: I049c87117915e0c5a172b9665bfac2f91064b2d4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342050
-    Trust: Keith Randall <khr@golang.org>
-    Trust: Dan Scales <danscales@google.com>
-    Run-TryBot: Keith Randall <khr@golang.org>
+    Passes buildall w/ toolstash -cmp.
+    
+    [git-generate]
+    cd src/cmd/compile/internal/ir
+    rf 'mv Int64Val IntVal'
+    sed -i -E -e 's/\(n \*Name\) (CanInt64|((I|Ui)nt64|Bool|String)Val)\(/\1(n Node/' name.go
+    
+    cd ../gc
+    rf '
+    ex {
+      import "cmd/compile/internal/ir"
+      var n ir.Node
+      n.CanInt64() -> ir.CanInt64(n)
+      n.Int64Val() -> ir.Int64Val(n)
+      n.Uint64Val() -> ir.Uint64Val(n)
+      n.BoolVal() -> ir.BoolVal(n)
+      n.StringVal() -> ir.StringVal(n)
+    }
+    '
+    
+    cd ../ir
+    rf '
+    mv CanInt64 Int64Val Uint64Val BoolVal StringVal val.go
+    rm Node.CanInt64 Node.Int64Val Node.Uint64Val Node.BoolVal Node.StringVal
+    '
+    
+    Change-Id: I003140bda1690d770fd608bdd087e6d4ff00fb1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275032
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/cmd/compile/internal/ir/name.go |  4 +++-
- test/typeparam/issue47684.go        | 19 +++++++++++++++++++
- test/typeparam/issue47684b.go       | 23 +++++++++++++++++++++++
- test/typeparam/issue47684c.go       | 19 +++++++++++++++++++
- 4 files changed, 64 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/const.go     |  8 ++---
+ src/cmd/compile/internal/gc/escape.go    |  2 +-
+ src/cmd/compile/internal/gc/noder.go     |  6 ++--
+ src/cmd/compile/internal/gc/obj.go       |  4 +--
+ src/cmd/compile/internal/gc/order.go     |  4 +--
+ src/cmd/compile/internal/gc/sinit.go     | 14 ++++----
+ src/cmd/compile/internal/gc/ssa.go       | 10 +++---
+ src/cmd/compile/internal/gc/swt.go       | 10 +++---
+ src/cmd/compile/internal/gc/typecheck.go | 22 ++++++------
+ src/cmd/compile/internal/gc/walk.go      | 30 ++++++++--------
+ src/cmd/compile/internal/ir/name.go      | 56 -----------------------------
+ src/cmd/compile/internal/ir/node.go      |  5 ---
+ src/cmd/compile/internal/ir/val.go       | 60 ++++++++++++++++++++++++++++++--
+ 13 files changed, 113 insertions(+), 118 deletions(-)

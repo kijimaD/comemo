@@ -1,25 +1,28 @@
-commit 656b5b3abe25d026725edff49edbdaa9862c9d77
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Mar 28 10:39:49 2025 +0100
+commit c4e4afc90eb6fd31710edb062bacfae0643d170f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 23 13:07:11 2024 -0500
 
-    internal/poll: don't skip empty writes on Windows
+    Revert "os: make FindProcess use pidfd on Linux"
     
-    Empty writes might be important for some protocols. Let Windows decide
-    what do with them rather than skipping them on our side. This is inline
-    with the behavior of other platforms.
+    This reverts CL 542699.
     
-    While here, refactor the Read/Write/Pwrite methods to reduce one
-    indentation level and make the code easier to read.
+    Reason for revert: Some applications assume FindProcess does not return
+    errors.
     
-    Fixes #73084.
+    For #62654.
+    Fixes #65866.
     
-    Change-Id: Ic5393358e237d53b8be6097cd7359ac0ff205309
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/661435
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: Ic185a6253c8e508b08150b618c39a9905f6cdd60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566476
+    Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
 
- src/internal/poll/fd_windows.go                 | 133 ++++++++++++------------
- src/internal/poll/fd_windows_test.go            |  38 +++++--
- src/internal/syscall/windows/syscall_windows.go |   3 +-
- 3 files changed, 99 insertions(+), 75 deletions(-)
+ doc/godebug.md                 |  5 -----
+ src/internal/godebugs/table.go |  1 -
+ src/os/exec.go                 |  9 +--------
+ src/os/exec_unix.go            | 10 ++--------
+ src/os/pidfd_linux.go          | 20 --------------------
+ src/os/pidfd_other.go          |  4 ----
+ src/runtime/metrics/doc.go     |  4 ----
+ 7 files changed, 3 insertions(+), 50 deletions(-)

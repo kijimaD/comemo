@@ -1,134 +1,22 @@
-commit 1fb7d5472e8f46faaa034fe6e16ca66a1e7c766f
-Author: Jay Conrod <jayconrod@google.com>
-Date:   Wed Oct 16 15:26:15 2019 -0400
+commit 3f7c5608299b56283a2c885b6146823d5b83b2f7
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun May 12 19:21:33 2019 -0400
 
-    cmd/go: delete internal packages moved to x/mod
+    net/http/httputil: remove os.Stderr claim in ReverseProxy.ErrorLog docs
     
-    This change deletes several internal packages, replaces imports to
-    them with the equivalent golang.org/x/mod packages, updates x/mod, and
-    re-runs 'go mod vendor'.
+    The motivation for doing so is to avoid making inaccurate claims.
+    Logging may not go to os.Stderr if anyone overrides the log package's
+    default output via https://godoc.org/log#SetOutput. Saying that
+    the standard logger is used should be sufficient to explain the
+    behavior, and users can infer that os.Stderr is used by default,
+    unless it's changed.
     
-    Packages are replaced as follows:
+    This change is the same as what was applied to http.Server.ErrorLog
+    documentation in CL 53950.
     
-    cmd/go/internal/modfile → golang.org/x/mod/modfile
-    cmd/go/internal/module → golang.org/x/mod/module
-    cmd/go/internal/semver → golang.org/x/mod/semver
-    cmd/go/internal/sumdb → golang.org/x/mod/sumdb
-    cmd/go/internal/dirhash → golang.org/x/mod/sumdb/dirhash
-    cmd/go/internal/note → golang.org/x/mod/sumdb/note
-    cmd/go/internal/tlog → golang.org/x/mod/sumdb/tlog
-    
-    Updates #31761
-    Fixes #34924
-    
-    Change-Id: Ie3bf677bb0be49af969f654a0214243a6547eb57
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/202698
-    Run-TryBot: Jay Conrod <jayconrod@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Change-Id: I32873fc548ceee573f8616b4d49b8a8b98881803
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176817
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go.mod                                     |    3 +-
- src/cmd/go.sum                                     |   10 +-
- src/cmd/go/internal/dirhash/hash_test.go           |  135 --
- src/cmd/go/internal/get/path.go                    |    2 +-
- src/cmd/go/internal/modcmd/download.go             |    5 +-
- src/cmd/go/internal/modcmd/edit.go                 |    5 +-
- src/cmd/go/internal/modcmd/graph.go                |    5 +-
- src/cmd/go/internal/modcmd/tidy.go                 |    3 +-
- src/cmd/go/internal/modcmd/vendor.go               |    5 +-
- src/cmd/go/internal/modcmd/verify.go               |    7 +-
- src/cmd/go/internal/modcmd/why.go                  |    8 +-
- src/cmd/go/internal/modconv/convert.go             |    7 +-
- src/cmd/go/internal/modconv/convert_test.go        |    5 +-
- src/cmd/go/internal/modconv/dep.go                 |    6 +-
- src/cmd/go/internal/modconv/glide.go               |    4 +-
- src/cmd/go/internal/modconv/glock.go               |    4 +-
- src/cmd/go/internal/modconv/godeps.go              |    4 +-
- src/cmd/go/internal/modconv/modconv.go             |    2 +-
- src/cmd/go/internal/modconv/tsv.go                 |    4 +-
- src/cmd/go/internal/modconv/vconf.go               |    4 +-
- src/cmd/go/internal/modconv/vjson.go               |    4 +-
- src/cmd/go/internal/modconv/vmanifest.go           |    4 +-
- src/cmd/go/internal/modconv/vyml.go                |    4 +-
- src/cmd/go/internal/modfetch/bootstrap.go          |    2 +-
- src/cmd/go/internal/modfetch/cache.go              |    5 +-
- src/cmd/go/internal/modfetch/codehost/git.go       |    3 +-
- src/cmd/go/internal/modfetch/coderepo.go           |    7 +-
- src/cmd/go/internal/modfetch/fetch.go              |    5 +-
- src/cmd/go/internal/modfetch/proxy.go              |    5 +-
- src/cmd/go/internal/modfetch/pseudo.go             |    5 +-
- src/cmd/go/internal/modfetch/repo.go               |    3 +-
- src/cmd/go/internal/modfetch/sumdb.go              |    6 +-
- src/cmd/go/internal/modfetch/unzip.go              |    2 +-
- src/cmd/go/internal/modfile/read_test.go           |  388 -----
- src/cmd/go/internal/modfile/rule_test.go           |  163 --
- src/cmd/go/internal/modfile/testdata/block.golden  |   29 -
- src/cmd/go/internal/modfile/testdata/block.in      |   29 -
- .../go/internal/modfile/testdata/comment.golden    |   10 -
- src/cmd/go/internal/modfile/testdata/comment.in    |    8 -
- src/cmd/go/internal/modfile/testdata/empty.golden  |    0
- src/cmd/go/internal/modfile/testdata/empty.in      |    0
- .../go/internal/modfile/testdata/gopkg.in.golden   |    6 -
- src/cmd/go/internal/modfile/testdata/module.golden |    1 -
- src/cmd/go/internal/modfile/testdata/module.in     |    1 -
- .../go/internal/modfile/testdata/replace.golden    |    5 -
- src/cmd/go/internal/modfile/testdata/replace.in    |    5 -
- .../go/internal/modfile/testdata/replace2.golden   |   10 -
- src/cmd/go/internal/modfile/testdata/replace2.in   |   10 -
- src/cmd/go/internal/modfile/testdata/rule1.golden  |    7 -
- src/cmd/go/internal/modget/get.go                  |   20 +-
- src/cmd/go/internal/modload/build.go               |   16 +-
- src/cmd/go/internal/modload/import.go              |    5 +-
- src/cmd/go/internal/modload/init.go                |    7 +-
- src/cmd/go/internal/modload/list.go                |    3 +-
- src/cmd/go/internal/modload/load.go                |    7 +-
- src/cmd/go/internal/modload/query.go               |    5 +-
- src/cmd/go/internal/modload/query_test.go          |    3 +-
- src/cmd/go/internal/modload/search.go              |    3 +-
- src/cmd/go/internal/module/module_test.go          |  343 ----
- src/cmd/go/internal/mvs/mvs.go                     |    3 +-
- src/cmd/go/internal/mvs/mvs_test.go                |    2 +-
- src/cmd/go/internal/note/example_test.go           |  128 --
- src/cmd/go/internal/note/note_test.go              |  472 ------
- src/cmd/go/internal/semver/semver_test.go          |  183 --
- src/cmd/go/internal/sumdb/client_test.go           |  460 -----
- src/cmd/go/internal/tlog/ct_test.go                |   96 --
- src/cmd/go/internal/tlog/note_test.go              |  117 --
- src/cmd/go/internal/tlog/tlog_test.go              |  269 ---
- src/cmd/go/proxy_test.go                           |    9 +-
- .../vendor/golang.org/x/crypto/ed25519/ed25519.go  |  222 +++
- .../golang.org/x/crypto/ed25519/ed25519_go113.go   |   73 +
- .../crypto/ed25519/internal/edwards25519/const.go  | 1422 ++++++++++++++++
- .../ed25519/internal/edwards25519/edwards25519.go  | 1793 ++++++++++++++++++++
- src/cmd/vendor/golang.org/x/mod/LICENSE            |   27 +
- src/cmd/vendor/golang.org/x/mod/PATENTS            |   22 +
- .../golang.org/x/mod/internal/lazyregexp/lazyre.go |   78 +
- .../golang.org/x/mod}/modfile/print.go             |    0
- .../golang.org/x/mod}/modfile/read.go              |    0
- .../golang.org/x/mod}/modfile/rule.go              |    4 +-
- .../golang.org/x/mod}/module/module.go             |    4 +-
- .../golang.org/x/mod}/semver/semver.go             |    0
- .../golang.org/x/mod}/sumdb/cache.go               |    0
- .../golang.org/x/mod}/sumdb/client.go              |    6 +-
- .../golang.org/x/mod/sumdb}/dirhash/hash.go        |    0
- .../golang.org/x/mod/sumdb}/note/note.go           |    3 +-
- .../golang.org/x/mod}/sumdb/server.go              |    6 +-
- .../golang.org/x/mod}/sumdb/test.go                |    6 +-
- .../golang.org/x/mod/sumdb}/tlog/note.go           |    0
- .../golang.org/x/mod/sumdb}/tlog/tile.go           |    0
- .../golang.org/x/mod/sumdb}/tlog/tlog.go           |    0
- src/cmd/vendor/golang.org/x/xerrors/LICENSE        |   27 +
- src/cmd/vendor/golang.org/x/xerrors/PATENTS        |   22 +
- src/cmd/vendor/golang.org/x/xerrors/README         |    2 +
- src/cmd/vendor/golang.org/x/xerrors/adaptor.go     |  193 +++
- src/cmd/vendor/golang.org/x/xerrors/codereview.cfg |    1 +
- src/cmd/vendor/golang.org/x/xerrors/doc.go         |   22 +
- src/cmd/vendor/golang.org/x/xerrors/errors.go      |   33 +
- src/cmd/vendor/golang.org/x/xerrors/fmt.go         |  109 ++
- src/cmd/vendor/golang.org/x/xerrors/format.go      |   34 +
- src/cmd/vendor/golang.org/x/xerrors/frame.go       |   56 +
- src/cmd/vendor/golang.org/x/xerrors/go.mod         |    3 +
- .../golang.org/x/xerrors/internal/internal.go      |    8 +
- src/cmd/vendor/golang.org/x/xerrors/wrap.go        |  106 ++
- src/cmd/vendor/modules.txt                         |   17 +-
- 104 files changed, 4418 insertions(+), 2987 deletions(-)
+ src/net/http/httputil/reverseproxy.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

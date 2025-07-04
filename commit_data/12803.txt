@@ -1,12 +1,15 @@
-commit d3a7e5f82d6892c76cf367debc56689273e9325f
+commit 5b5b42ea841a9aa20848fab4407e486c8eecd0aa
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Mar 30 17:51:07 2012 -0700
+Date:   Fri Mar 30 10:42:56 2012 -0700
 
-    A+C: added Aaron Kemp (Corporate CLA)
+    godoc: replace servePage's positional argument list
     
-    R=golang-dev, dsymonds
+    R=golang-dev, adg, bradfitz
     CC=golang-dev
-    https://golang.org/cl/5966054
+    https://golang.org/cl/5869050
 
- CONTRIBUTORS | 1 +
- 1 file changed, 1 insertion(+)
+ lib/godoc/godoc.html      |  4 +--
+ src/cmd/godoc/codewalk.go | 13 ++++---
+ src/cmd/godoc/godoc.go    | 86 +++++++++++++++++++++++++++--------------------
+ src/cmd/godoc/main.go     |  7 ++--
+ 4 files changed, 65 insertions(+), 45 deletions(-)

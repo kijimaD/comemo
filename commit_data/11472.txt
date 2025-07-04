@@ -1,13 +1,34 @@
-commit 9c497443ae0aca6ae5b66dfa6d3127c8605bd3a8
-Author: Gustavo Niemeyer <gustavo@niemeyer.net>
-Date:   Mon Jan 30 16:32:48 2012 -0200
+commit ff8133d42e19d22fc0f1a4dc05f587e135f51ce7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 30 10:30:46 2012 -0800
 
-    encoding/xml: fix decoding of xml.Name with sub-elements
+    gopack: rename pack, move to go-tool directory
     
-    R=golang-dev, adg
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5569090
+    https://golang.org/cl/5598045
 
- src/pkg/encoding/xml/marshal_test.go | 5 +++++
- src/pkg/encoding/xml/read.go         | 5 +++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ src/Make.cmd                      |  2 +-
+ src/Make.pkg                      |  4 +-
+ src/Make.tool                     |  2 +-
+ src/buildscript/darwin_386.sh     | 80 +++++++++++++++++++--------------------
+ src/buildscript/darwin_amd64.sh   | 80 +++++++++++++++++++--------------------
+ src/buildscript/freebsd_386.sh    | 80 +++++++++++++++++++--------------------
+ src/buildscript/freebsd_amd64.sh  | 80 +++++++++++++++++++--------------------
+ src/buildscript/linux_386.sh      | 80 +++++++++++++++++++--------------------
+ src/buildscript/linux_amd64.sh    | 80 +++++++++++++++++++--------------------
+ src/buildscript/linux_arm.sh      | 80 +++++++++++++++++++--------------------
+ src/buildscript/netbsd_386.sh     | 80 +++++++++++++++++++--------------------
+ src/buildscript/netbsd_amd64.sh   | 80 +++++++++++++++++++--------------------
+ src/buildscript/openbsd_386.sh    | 80 +++++++++++++++++++--------------------
+ src/buildscript/openbsd_amd64.sh  | 80 +++++++++++++++++++--------------------
+ src/buildscript/plan9_386.sh      | 80 +++++++++++++++++++--------------------
+ src/buildscript/windows_386.sh    | 80 +++++++++++++++++++--------------------
+ src/buildscript/windows_amd64.sh  | 80 +++++++++++++++++++--------------------
+ src/cmd/Makefile                  |  2 +-
+ src/cmd/go/build.go               |  5 +--
+ src/cmd/{gopack => pack}/Makefile |  4 +-
+ src/cmd/{gopack => pack}/ar.c     |  0
+ src/cmd/{gopack => pack}/doc.go   | 10 ++---
+ test/fixedbugs/bug302.go          |  2 +-
+ 23 files changed, 574 insertions(+), 577 deletions(-)

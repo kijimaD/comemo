@@ -1,19 +1,28 @@
-commit 74f1fa6ecbf79c778fc18d2a6b563fbb94f4b740
-Author: Michael Matloob <matloob@golang.org>
-Date:   Wed May 4 17:11:35 2022 -0400
+commit 8486ced8b09f4425bfd85e09b021dc78f93aea08
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 20 10:19:28 2021 -0700
 
-    cmd/go: parallelize matchPackages work in each module
+    cmd/compile: copy captured dictionary var to local var
     
-    In each module matchPackages looks in, when doing the walk, do the
-    scanDir call in a par.Queue so all the read work can be done in
-    parallel.
+    When starting a closure that needs a dictionary, copy the closure
+    variable to a local variable. This lets child closures capture that
+    dictionary variable correctly.
     
-    Change-Id: I27153dbb3a2ed417ca24972f47134e9e914a55d1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/404097
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Run-TryBot: Michael Matloob <matloob@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    This is a better fix for #47684, which does not cause problems
+    like #47723.
+    
+    Fixes #47723
+    Update #47684
+    
+    Change-Id: Ib5d9ffc68a5142e28daa7d0d75683e7a35508540
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343871
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
 
- src/cmd/go/internal/modload/search.go | 38 ++++++++++++++++++++++++-----------
- 1 file changed, 26 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ir/name.go       |  4 +---
+ src/cmd/compile/internal/noder/stencil.go | 16 ++++++++++++++--
+ test/typeparam/issue47723.go              | 23 +++++++++++++++++++++++
+ 3 files changed, 38 insertions(+), 5 deletions(-)

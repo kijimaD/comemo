@@ -1,62 +1,21 @@
-commit 451cf3e2cd8950571f436896a3987343f8c2d7f6
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed May 8 13:21:02 2019 -0700
+commit 902b1f605908cc412e418ede6821fd8122979297
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Dec 30 23:53:27 2018 -0500
 
-    spec: clarify language on package-level variable initialization
+    runtime/pprof: add a test for gccgo bug #29448
     
-    The very first paragraph on "Package initialization" stated that
-    "variables are initialized in declaration order, but after any
-    variables they might depend on". This phrasing was easily
-    misread as "declaration order is the first sorting criteria"
-    and then contradicted what the subsequent paragraphs spelled
-    out in precise detail.
+    With gccgo, if a profiling signal arrives in certain time during
+    traceback, it may crash or hang. The fix is CL 156037 and
+    CL 156038.  This CL adds a test.
     
-    Instead, variable initialization proceeds by repeatedly determining
-    a set of ready to initialize variables, and then selecting from that
-    set the variable declared earliest. That is, declaration order is the
-    second sorting criteria.
+    Updates #29448.
     
-    Also, for the purpose of variable initialization, declarations
-    introducing blank (_) variables are considered like any other
-    variables (their initialization expressions may have side-effects
-    and affect initialization order), even though blank identifiers
-    are not "declared".
-    
-    This CL adds clarifying language regarding these two issues
-    and the supporting example.
-    
-    Both gccgo and go/types implement this behavior. cmd/compile
-    has a long-standing issue (#22326).
-    
-    The spec also did not state in which order multiple variables
-    initialized by a single (multi-value) initialization expression are
-    handled. This CL adds a clarifying paragraph: If any such variable
-    is initialized, all that declaration's variables are initialized at
-    the same time.
-    
-    This behavior matches user expectation: We are not expecting to
-    observe partially initialized sets of variables in declarations
-    such as "var a, b, c = f()".
-    
-    It also matches existing cmd/compile and go/types (but not gccgo)
-    behavior.
-    
-    Finally, cmd/compile, gccgo, and go/types produce different
-    initialization orders in (esoteric) cases where hidden (not
-    detected with existing rules) dependencies exist. Added a
-    sentence and example clarifying how much leeway compilers have
-    in those situations. The goal is to preserve the ability to
-    use static initialization while at the same time maintain
-    the relative initialization order of variables with detected
-    dependencies.
-    
-    Fixes   #31292.
-    Updates #22326.
-    
-    Change-Id: I0a369abff8cfce27afc975998db875f5c580caa2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/175980
+    Change-Id: Idb36af176b4865b8fb31a85cad185ed4c07ade0c
+    Reviewed-on: https://go-review.googlesource.com/c/156018
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- doc/go_spec.html | 74 ++++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 59 insertions(+), 15 deletions(-)
+ src/runtime/pprof/pprof_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

@@ -1,12 +1,14 @@
-commit 950c284b110edf7ccd53d6254c9b1640e325a6f8
-Author: Dominik Honnef <dominik.honnef@gmail.com>
-Date:   Thu Oct 10 16:49:19 2013 -0400
+commit 649fc255a9c7b6e05249dbde1176aecd17135cc3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 9 13:52:29 2013 -0700
 
-    misc/emacs: send correct content-length to the playground
+    net: fix TestDialFailPDLeak to work when GOMAXPROCS is large
     
-    R=adonovan
+    Fixes #6553.
+    
+    R=golang-dev, mikioh.mikioh
     CC=golang-dev
-    https://golang.org/cl/14548049
+    https://golang.org/cl/14526048
 
- misc/emacs/go-mode.el | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ src/pkg/net/dial_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

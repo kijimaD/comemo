@@ -1,31 +1,25 @@
-commit c9912780ab3ecea3c685bfc8bec229c0d2b09317
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu Aug 19 15:53:13 2021 -0700
+commit 70155cca81d061686d4f23b7ad59fe8213e87f9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 6 13:17:03 2020 -0500
 
-    cmd/compile: enable -G=3 by default
+    [dev.regabi] cmd/compile: untangle FmtFlag, FmtMode
     
-    This CL changes cmd/compile's -G flag's default from 0 to 3, which
-    enables use of the new types2 type checker and support for type
-    parameters. The old type checker is still available with
-    -gcflags=all=-G=0.
+    It turns out that the FmtFlag is really only tracking the FmtLong and FmtShort bits,
+    and the others simply mirror the state of the FmtMode and are copied out and
+    back in repeatedly.
     
-    The CL also updates the regress test harness to account for the change
-    in default behavior (e.g., to expect known types2 changes/failures).
-    However, the -G=0 mode is still being tested for now.
+    Simplify to FmtFlag being the verb itself ('S', 'L', or 'v').
     
-    Copy of CL 340914 by danscales@, minus the cmd/internal/objabi.AbsFile
-    change (handled instead by CL 343731) and rebased to master branch.
+    Now there is only one formatting enumeration, making it a bit
+    easier to understand what's going on.
     
-    Updates #43651.
+    Passes buildall w/ toolstash -cmp.
     
-    Change-Id: I1f62d6c0a3ff245e15c5c0e8f3d922129fdd4f29
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/343732
-    Trust: Matthew Dempsky <mdempsky@google.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Change-Id: I85bde2183eb22228fcf46d19d003401d588d9825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275778
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/cmd/compile/internal/base/flag.go |  1 +
- test/run.go                           | 29 ++++++++++++++++-------------
- test/typeparam/smoketest.go           |  2 +-
- 3 files changed, 18 insertions(+), 14 deletions(-)
+ src/cmd/compile/internal/gc/const.go |   2 +-
+ src/cmd/compile/internal/ir/fmt.go   | 181 ++++++++++-------------------------
+ 2 files changed, 53 insertions(+), 130 deletions(-)

@@ -1,23 +1,16 @@
-commit 0b5218cf4e3e5c17344ea113af346e8e0836f6c4
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Tue Mar 8 05:11:17 2022 -0500
+commit 180c338c6893c2e8b7f4692ed62f92a1ed0cd1e8
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jun 26 14:34:56 2021 +0700
 
-    crypto/elliptic: split up P-256 field and group ops
+    [dev.typeparams] cmd/compile: restore check for OCALLMETH in walkCall
     
-    This makes Gerrit recognize the rename of the field implementation and
-    facilitates the review. No code changes.
+    Since when walkCall1 still need to handle OCALLMETH.
     
-    For #52182
-    
-    Change-Id: I827004e175db1ae2fcdf17d0f586ff21503d27e3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/390754
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Reviewed-by: Roland Shoemaker <roland@golang.org>
-    Run-TryBot: Filippo Valsorda <filippo@golang.org>
-    Auto-Submit: Filippo Valsorda <filippo@golang.org>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Change-Id: Iadb12a0965169c63f97978c96412012ef4fa02df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330833
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/crypto/elliptic/p256_generic.go       | 696 -----------------------------
- src/crypto/elliptic/p256_generic_field.go | 705 ++++++++++++++++++++++++++++++
- 2 files changed, 705 insertions(+), 696 deletions(-)
+ src/cmd/compile/internal/walk/expr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

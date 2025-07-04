@@ -1,12 +1,20 @@
-commit f652bc4acf623e5b68792b47ed1e1e3509c45e15
-Author: Andrew Bonventre <andybons@chromium.org>
-Date:   Wed Jul 24 12:41:52 2013 +1000
+commit 6a801539c5f4702b1a7e9e7bbb117ddf889145c7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 24 10:27:58 2013 +1000
 
-    doc/go1.2.txt: document new functions/types added to image/gif and image/draw.
+    unicode: add "In" function to test membership of a rune
+    The existing function, IsOneOf, is hard to use. Since the slice comes
+    before the rune, in parallelism with the other Is functions, the slice
+    is clumsy to build. This CL adds a nicer-signatured In function of
+    equivalent functionality (its implementation is identical) that's much
+    easier to use. Compare:
+            unicode.IsOneOf([]*unicode.RangeTable{unicode.Letter, unicode.Number}, r)
+            unicode.In(r, unicode.Letter, unicode.Number)
     
-    R=golang-dev, r
+    R=golang-dev, adg
     CC=golang-dev
-    https://golang.org/cl/11492045
+    https://golang.org/cl/11672044
 
- doc/go1.2.txt | 3 +++
- 1 file changed, 3 insertions(+)
+ src/pkg/unicode/graphic.go      | 19 +++++++++++++++----
+ src/pkg/unicode/graphic_test.go |  4 ++--
+ 2 files changed, 17 insertions(+), 6 deletions(-)

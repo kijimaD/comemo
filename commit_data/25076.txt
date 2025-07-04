@@ -1,23 +1,28 @@
-commit a0ea93dea5f5741addc8c96b7ed037d0e359e33f
-Author: Adam Langley <agl@golang.org>
-Date:   Fri Nov 27 13:50:36 2015 -0800
+commit 16b3675bc808095b81ee14dc4f89fb346ff1a0b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Sep 19 18:24:16 2015 -0700
 
-    crypto/x509: permit serial numbers to be negative.
+    math/big: optimize Float.Parse by reducing powers of 10 to powers of 2 and 5
     
-    Some software that produces certificates doesn't encode integers
-    correctly and, about half the time, ends up producing certificates with
-    serial numbers that are actually negative.
+    Instead of computing the final adjustment factor as a power of 10,
+    it's more efficient to split 10**e into 2**e * 5**e . Powers of 2
+    are trivially added to the Float exponent, and powers of 5 are
+    smaller and thus faster to compute.
     
-    This buggy software, sadly, appears to be common enough that we should
-    let these errors pass. This change allows a Certificate.SerialNumber to
-    be negative.
+    Also, use a table of uint64 values rather than float64 values for
+    initial power value. uint64 values appear to be faster to convert
+    to Floats (useful for small exponents).
     
-    Fixes #8265.
+    Added two small benchmarks to confirm that there's no regresssion.
     
-    Change-Id: Ief35dae23988fb6d5e2873e3c521366fb03c6af4
-    Reviewed-on: https://go-review.googlesource.com/17247
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkParseFloatSmallExp-8     17543         16220         -7.54%
+    BenchmarkParseFloatLargeExp-8     60865         59996         -1.43%
+    
+    Change-Id: I3efd7556b023316f86f334137a67fe0c6d52f8ef
+    Reviewed-on: https://go-review.googlesource.com/14782
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/crypto/x509/x509.go      | 4 ----
- src/crypto/x509/x509_test.go | 6 +++++-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ src/math/big/floatconv.go      | 110 +++++++++++++++++++++++++++--------------
+ src/math/big/floatconv_test.go |  64 ++++++++++++++++++++++++
+ 2 files changed, 137 insertions(+), 37 deletions(-)

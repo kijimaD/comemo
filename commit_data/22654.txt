@@ -1,43 +1,18 @@
-commit 677839353e013b13e0fb3d28e01a01a5ccf0c7a1
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Apr 22 11:25:29 2015 -0400
+commit 149671dfc30889b72254a7a43ba515783b4c5bf7
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 27 13:41:30 2015 -0700
 
-    go/constants: rename go/exact to go/constants
+    [dev.ssa] cmd/internal/ssa: add CSE pass
     
-    since the "precision" parameter means constant arithmetic is not
-    necessarily exact.
+    Implement a simple common-subexpression elimination.
+    It uses value numbering & a dominator tree to detect redundant computation.
     
-    As requested by gri, within go/types, the local import name 'exact'
-    has been kept, to reduce the diff with the x/tools branch.  This may
-    be changed later.
-    
-    Since the go/types.bash script was already obsolete, I added a comment
-    to this effect.
-    
-    Tested with all.bash.
-    
-    Change-Id: I45153688d9d8afa8384fb15229b0124c686059b4
-    Reviewed-on: https://go-review.googlesource.com/9242
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Id0ff775e439c22f4d41bdd5976176017dd2a2086
+    Reviewed-on: https://go-review.googlesource.com/8172
+    Reviewed-by: Alan Donovan <adonovan@google.com>
 
- src/go/build/deps_test.go                               | 6 +++---
- src/go/{exact => constants}/go13.go                     | 2 +-
- src/go/{exact => constants}/go14.go                     | 2 +-
- src/go/{exact/exact.go => constants/value.go}           | 6 +++---
- src/go/{exact/exact_test.go => constants/value_test.go} | 2 +-
- src/go/internal/gcimporter/gcimporter.go                | 2 +-
- src/go/types.bash                                       | 4 ++++
- src/go/types/api.go                                     | 2 +-
- src/go/types/builtins.go                                | 2 +-
- src/go/types/check.go                                   | 2 +-
- src/go/types/conversions.go                             | 2 +-
- src/go/types/decl.go                                    | 2 +-
- src/go/types/expr.go                                    | 2 +-
- src/go/types/object.go                                  | 2 +-
- src/go/types/operand.go                                 | 2 +-
- src/go/types/resolver.go                                | 2 +-
- src/go/types/self_test.go                               | 2 +-
- src/go/types/stmt.go                                    | 2 +-
- src/go/types/typexpr.go                                 | 2 +-
- src/go/types/universe.go                                | 2 +-
- 20 files changed, 27 insertions(+), 23 deletions(-)
+ src/cmd/internal/ssa/compile.go |   7 +-
+ src/cmd/internal/ssa/cse.go     | 163 ++++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/ssa/dom.go     | 121 +++++++++++++++++++++++++++++
+ src/cmd/internal/ssa/lower.go   |   1 -
+ 4 files changed, 288 insertions(+), 4 deletions(-)

@@ -1,23 +1,21 @@
-commit 5e4f9b077f27c79a69677b7c15dbfd157b1698a4
-Author: Keith Randall <khr@golang.org>
-Date:   Mon May 3 08:55:57 2021 -0700
+commit 9392b82919632d832eff2d86fbe15defd57fcb2a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 27 11:46:54 2020 -0700
 
-    cmd/compile: when compiling with -N, avoid entry block
+    [dev.typeparams] cmd/compile/internal/types: review of objset.go
     
-    Lots of constant SSA values we put in the entry block so that
-    CSE can easily combine them. With -N, however, we don't run CSE, so
-    putting values in the entry block only serves to extend their lifetime
-    for no benefit.
+    Except for the package name, this file is unchanged from the go/types version.
     
-    Fixes #45897. The number of live SSA values per block goes from >5K to 22.
-    Memory use goes from ~3GB to ~400MB.
+    f=objset.go; diff $f ../../../../go/types/$f
+    11c11
+    < package types2
+    ---
+    > package types
     
-    Change-Id: I620b423611790a900e0d4cd270eac5dbdddf2a2b
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/316369
-    Trust: Keith Randall <khr@golang.org>
-    Run-TryBot: Keith Randall <khr@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
+    Change-Id: I5a03b08ec006d87cb31139f708d844fcfddbbb56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265699
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/ssagen/ssa.go | 32 ++++++++++++++++++++++----------
- 1 file changed, 22 insertions(+), 10 deletions(-)
+ src/cmd/compile/internal/types2/objset.go | 1 -
+ 1 file changed, 1 deletion(-)

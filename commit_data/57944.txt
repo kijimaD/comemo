@@ -1,48 +1,20 @@
-commit 239dbd7dbac883d6f9b6522774a0dfd519f77fa8
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 5 13:51:32 2024 -0500
+commit a843991fdd079c931d4e98c0a17c9ac6dc254fe8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 12 15:33:29 2023 -0400
 
-    cmd/compile, cmd/link: add FIPS verification support
+    runtime: set _XOPEN_SORUCE_EXTENDED to 1 for aix
     
-    For FIPS init-time code+data verification, we need to arrange to
-    put the FIPS symbols into contiguous regions of the executable
-    and then record those sections along with the expected checksum.
+    aix requires that _XOPEN_SOURCE_EXTENDED is set to a number, not simply
+    defined.
     
-    The cmd/internal/obj changes identify the FIPS symbols and give
-    them distinguished types, which the linker then places in contiguous
-    regions. The linker also writes out information to use at run time
-    to find the FIPS sections, along with the expected hash.
+    For #62440.
     
-    See cmd/internal/obj/fips.go and cmd/link/internal/ld/fips.go
-    for more details.
-    
-    The code is disabled in this commit.
-    CL 625998 and 625999 adds tests.
-    CL 626000 enables the code.
-    
-    For #69536.
-    
-    Change-Id: I48da6db94bc0bea7428c43d4abcf999527bccfcd
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/625997
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Iee221d558b5ad5b8dcb874d4d9fdf94593f7d0a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527797
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/cmd/compile/internal/base/debug.go       |   1 +
- src/cmd/compile/internal/base/flag.go        |   1 +
- src/cmd/compile/internal/staticinit/sched.go |  44 +-
- src/cmd/compile/internal/walk/complit.go     |   5 +-
- src/cmd/compile/internal/walk/order.go       |   7 +-
- src/cmd/internal/obj/data.go                 |   5 +
- src/cmd/internal/obj/fips.go                 | 383 +++++++++++++++++
- src/cmd/internal/obj/plist.go                |   2 +
- src/cmd/internal/obj/sym.go                  |   4 +-
- src/cmd/internal/objfile/goobj.go            |   7 +-
- src/cmd/link/internal/ld/data.go             |  36 +-
- src/cmd/link/internal/ld/elf.go              |   2 +
- src/cmd/link/internal/ld/fips.go             | 599 +++++++++++++++++++++++++++
- src/cmd/link/internal/ld/lib.go              |   3 +
- src/cmd/link/internal/ld/main.go             |   4 +-
- src/cmd/link/internal/ld/symtab.go           |  11 +-
- src/cmd/link/internal/loader/loader.go       |   2 +
- 17 files changed, 1097 insertions(+), 19 deletions(-)
+ src/runtime/testdata/testprogcgo/stackswitch.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

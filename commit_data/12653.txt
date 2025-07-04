@@ -1,27 +1,12 @@
-commit e9f82e6b688abd4840f761c7c61910fecc9f2915
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Fri Mar 16 08:20:02 2012 +1100
+commit 2ed7087c8d2739d8a79779333c245e5b50526d38
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 15 17:15:57 2012 -0400
 
-    misc/dashboard: remove old python package dashboard
+    reflect: document PkgPath, Method, StructField
     
-    This leaves only the project page, which now resides at the web root.
-    
-    R=golang-dev, bsiegert, rsc
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5833044
+    https://golang.org/cl/5824053
 
- misc/dashboard/godashboard/_multiprocessing.py |   5 -
- misc/dashboard/godashboard/app.yaml            |  15 +-
- misc/dashboard/godashboard/auth.py             |  13 -
- misc/dashboard/godashboard/const.py            |   6 -
- misc/dashboard/godashboard/cron.yaml           |   4 -
- misc/dashboard/godashboard/fail-notify.txt     |   9 -
- misc/dashboard/godashboard/key.py.dummy        |  10 -
- misc/dashboard/godashboard/main.html           |  23 --
- misc/dashboard/godashboard/package.html        |  79 -----
- misc/dashboard/godashboard/package.py          | 429 -------------------------
- misc/dashboard/godashboard/project-edit.html   |   2 -
- misc/dashboard/godashboard/project.html        |  16 +-
- misc/dashboard/godashboard/project.py          | 157 +++++++++
- misc/dashboard/godashboard/static/style.css    |   7 +
- 14 files changed, 168 insertions(+), 607 deletions(-)
+ src/pkg/reflect/type.go | 42 ++++++++++++++++++++++++++++--------------
+ 1 file changed, 28 insertions(+), 14 deletions(-)

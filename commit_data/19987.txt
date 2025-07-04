@@ -1,13 +1,13 @@
-commit f497885c6343808b47811981ae42c2e816005163
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Wed Aug 13 07:39:52 2014 +1000
+commit f69f45c5383044c503add49d12659e14c1496491
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 8 10:43:44 2014 -0700
 
-    doc: document go1.3.1
+    test: add another test case that gccgo crashed on
     
-    LGTM=r
-    R=r, rsc
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/126060043
+    https://golang.org/cl/124020044
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ test/fixedbugs/bug490.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

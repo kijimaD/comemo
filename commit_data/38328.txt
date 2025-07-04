@@ -1,33 +1,23 @@
-commit ca8354843ef9f30207efd0a40bb6c53e7ba86892
-Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
-Date:   Tue Nov 13 15:34:22 2018 +0900
+commit 7c2718b12a33180b3f6099e321c25af35c67f6fd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 22 14:04:18 2018 +1100
 
-    sync: allow inlining the Once.Do fast path
+    doc: tweak example in Effective Go
     
-    Using Once.Do is now extremely cheap because the fast path is just an inlined
-    atomic load of a variable that is written only once and a conditional jump.
-    This is very beneficial for Once.Do because, due to its nature, the fast path
-    will be used for every call after the first one.
+    A prior attempt at addressing the issue got bogged down in an
+    endless conversation around the subtleties of Read semantics.
+    Let's not go there.
     
-    In a attempt to mimize code size increase, reorder the fields so that the
-    pointer to Once is also the pointer to Once.done, that is the only field used
-    in the hot path. This allows to use more compact instruction encodings or less
-    instructions in the hot path (that is inlined at every callsite).
+    Instead, we put the issue to bed, perhaps not in perfect comfort
+    but well enough, by moving a line of the example so that even
+    if there is a "benign" error as the issue suggests, the loop
+    terminates with n and err correctly set.
     
-    name     old time/op  new time/op  delta
-    Once     4.54ns ± 0%  2.06ns ± 0%  -54.59%  (p=0.000 n=19+16)
-    Once-4   1.18ns ± 0%  0.55ns ± 0%  -53.39%  (p=0.000 n=15+16)
-    Once-16  0.53ns ± 0%  0.17ns ± 0%  -67.92%  (p=0.000 n=18+17)
+    Fixes #27818
     
-    linux/amd64 bin/go 14675861 (previous commit 14663387, +12474/+0.09%)
-    
-    Change-Id: Ie2708103ab473787875d66746d2f20f1d90a6916
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/152697
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I4a32d56c9e782f17578565d90b22ce531e3d8667
+    Reviewed-on: https://go-review.googlesource.com/c/143677
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/sync/once.go    | 16 ++++++++++++----
- test/inline_sync.go |  7 +++++++
- 2 files changed, 19 insertions(+), 4 deletions(-)
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

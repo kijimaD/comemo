@@ -1,42 +1,17 @@
-commit 4435fcfd6c3e9751b470809307b4afc7c1769098
-Author: Than McIntosh <thanm@google.com>
-Date:   Fri Oct 6 11:32:28 2017 -0400
+commit bf90da97c1aaec78d2f8ad8b74a506d3b6f0ee75
+Author: Sam Whited <sam@samwhited.com>
+Date:   Thu Aug 24 12:39:34 2017 -0500
 
-    compiler,linker: support for DWARF inlined instances
+    cmd/fix: rewrite x/net/context by default
     
-    Compiler and linker changes to support DWARF inlined instances,
-    see https://go.googlesource.com/proposal/+/HEAD/design/22080-dwarf-inlining.md
-    for design details.
+    Since these are type aliases in Go 1.9 make rewriting
+    golang.org/x/net/context imports to context the default.
     
-    This functionality is gated via the cmd/compile option -gendwarfinl=N,
-    where N={0,1,2}, where a value of 0 disables dwarf inline generation,
-    a value of 1 turns on dwarf generation without tracking of formal/local
-    vars from inlined routines, and a value of 2 enables inlines with
-    variable tracking.
-    
-    Updates #22080
-    
-    Change-Id: I69309b3b815d9fed04aebddc0b8d33d0dbbfad6e
-    Reviewed-on: https://go-review.googlesource.com/75550
-    Run-TryBot: Than McIntosh <thanm@google.com>
+    Change-Id: Ib7ee58b59ea5463b92e1590c8b8f5c0ef87d310b
+    Reviewed-on: https://go-review.googlesource.com/58590
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Run-TryBot: Sam Whited <sam@samwhited.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: David Chase <drchase@google.com>
 
- src/cmd/asm/internal/asm/endtoend_test.go |   4 +-
- src/cmd/asm/main.go                       |   2 +-
- src/cmd/compile/internal/gc/dwinl.go      | 317 ++++++++++++++
- src/cmd/compile/internal/gc/go.go         |   5 +
- src/cmd/compile/internal/gc/gsubr.go      |   2 +-
- src/cmd/compile/internal/gc/inl.go        |  68 +++
- src/cmd/compile/internal/gc/main.go       |  20 +
- src/cmd/compile/internal/gc/pgen.go       | 168 ++++++--
- src/cmd/compile/internal/gc/syntax.go     |  30 +-
- src/cmd/internal/dwarf/dwarf.go           | 671 ++++++++++++++++++++++++++++--
- src/cmd/internal/obj/inl.go               |  14 +-
- src/cmd/internal/obj/link.go              |  12 +-
- src/cmd/internal/obj/objfile.go           | 359 +++++++++++++++-
- src/cmd/internal/obj/plist.go             |   6 +-
- src/cmd/link/internal/ld/dwarf.go         | 117 +++++-
- src/cmd/link/internal/ld/dwarf_test.go    | 295 +++++++++++--
- src/runtime/runtime-gdb_test.go           |   2 +-
- 17 files changed, 1945 insertions(+), 147 deletions(-)
+ src/cmd/fix/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,14 +1,12 @@
-commit 6c8a141a6d53285acc876aacfa0a9c4edb563b6c
-Author: Aaron Jacobs <jacobsa@google.com>
-Date:   Mon Dec 21 13:01:00 2015 +1100
+commit 4038901b0f971f554f1a22db6e3e32c57637005b
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Tue Oct 13 21:34:47 2015 -0700
 
-    cmd/go: update out of date help text about vendoring
+    text/template: remove redundant indirect
     
-    Change-Id: I2b61f3b3ecf28d8f6a8dff94d194b6d3d450ea22
-    Reviewed-on: https://go-review.googlesource.com/17996
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Russ Cox <rsc@golang.org>
+    Change-Id: I8cc9783fd044bed48347824dcf973c61c78275a5
+    Reviewed-on: https://go-review.googlesource.com/15833
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/cmd/go/alldocs.go | 13 +++++--------
- src/cmd/go/help.go    | 13 +++++--------
- 2 files changed, 10 insertions(+), 16 deletions(-)
+ src/text/template/exec.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

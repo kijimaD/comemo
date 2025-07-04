@@ -1,26 +1,29 @@
-commit 6ec291f4952090dfcaa4406b85efb3a8e6a42feb
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 17 15:32:13 2024 -0400
+commit 4b6a542048be59fae3b01950ff0359de913d1201
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri May 12 10:33:14 2023 -0400
 
-    internal/runtime/atomic: fix missing linknames
+    cmd/compile/internal/pgo: remove node weights from IRNode
     
-    CL 544455, which added atomic And/Or APIs, raced with CL 585556, which
-    enabled stricter linkname checking. This caused linkname-related
-    failures on ARM and MIPS. Fix this by adding the necessary linknames.
+    Actual PGO operation doesn't use these weights at all. They are
+    theoretically used when printing a dot graph for debugging, but that
+    doesn't actually work because these weights are always zero.
     
-    We fix one other linkname that got overlooked in CL 585556.
+    These fields are initialized by looking for a NodeMap entry with key
+    {CallerName: sym, CalleeName: "", CallSiteOffset: 0}. These entries will
+    never exist, as we never put entries in NodeMap without CalleeName.
     
-    Updates #61395.
+    Since they aren't really used and don't work, just remove them entirely,
+    which offers nice simplification.
     
-    Change-Id: I454f0767ce28188e550a61bc39b7e398239bc10e
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/586516
-    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    This leaves IRNode with just a single field. I keep the type around as a
+    future CL will make the *ir.Func optional, allowing nodes with a name
+    but no IR.
+    
+    Change-Id: I1646654cad1d0779ce071042768ffad2a7e6ff49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494616
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: David Chase <drchase@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Auto-Submit: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
 
- src/internal/runtime/atomic/atomic_andor_generic.go | 11 +++++++++++
- src/internal/runtime/atomic/atomic_mipsx.go         |  2 ++
- src/runtime/runtime2.go                             |  4 ++++
- 3 files changed, 17 insertions(+)
+ src/cmd/compile/internal/pgo/irgraph.go | 98 +++++++++++----------------------
+ 1 file changed, 32 insertions(+), 66 deletions(-)

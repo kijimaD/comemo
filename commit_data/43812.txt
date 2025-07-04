@@ -1,33 +1,56 @@
-commit 0ae3b7cb742c586df9b68d9eac042b32148abf9c
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Mon Nov 16 09:40:45 2020 -0500
+commit 4a7e363288a055f97d2db4d96d7776e506aebcd5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 13:28:14 2020 -0700
 
-    cmd/compile: fix rules regression with shifts on PPC64
+    cmd/compile: optimize Move with all-zero ro sym src to Zero
     
-    Some rules for PPC64 were checking for a case
-    where a shift followed by an 'and' of a mask could
-    be lowered, depending on the format of the mask. The
-    function to verify if the mask was valid for this purpose
-    was not checking if the mask was 0 which we don't want to
-    allow. This case can happen if previous optimizations
-    resulted in that mask value.
+    We set up static symbols during walk that
+    we later make copies of to initialize local variables.
+    It is difficult to ascertain at that time exactly
+    when copying a symbol is profitable vs locally
+    initializing an autotmp.
     
-    This fixes isPPC64ValidShiftMask to check for a mask of 0 and return
-    false.
+    During SSA, we are much better placed to optimize.
+    This change recognizes when we are copying from a
+    global readonly all-zero symbol and replaces it with
+    direct zeroing.
     
-    This also adds a codegen testcase to verify it doesn't try to
-    match the rules in the future.
+    This often allows the all-zero symbol to be
+    deadcode eliminated at link time.
+    This is not ideal--it makes for large object files,
+    and longer link times--but it is the cleanest fix I could find.
     
-    Fixes #42610
+    This makes the final binary for the program in #38554
+    shrink from >500mb to ~2.2mb.
     
-    Change-Id: I565d94e88495f51321ab365d6388c01e791b4dbb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/270358
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Paul Murphy <murp@ibm.com>
-    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
-    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    It also shrinks the standard binaries:
+    
+    file      before    after     Δ       %
+    addr2line 4412496   4404304   -8192   -0.186%
+    buildid   2893816   2889720   -4096   -0.142%
+    cgo       4841048   4832856   -8192   -0.169%
+    compile   19926480  19922432  -4048   -0.020%
+    cover     5281816   5277720   -4096   -0.078%
+    link      6734648   6730552   -4096   -0.061%
+    nm        4366240   4358048   -8192   -0.188%
+    objdump   4755968   4747776   -8192   -0.172%
+    pprof     14653060  14612100  -40960  -0.280%
+    trace     11805940  11777268  -28672  -0.243%
+    vet       7185560   7181416   -4144   -0.058%
+    total     113588440 113465560 -122880 -0.108%
+    
+    And not just by removing unnecessary symbols;
+    the program text shrinks a bit as well.
+    
+    Fixes #38554
+    
+    Change-Id: I8381ae6084ae145a5e0cd9410c451e52c0dc51c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229704
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/compile/internal/ssa/rewrite.go |  7 ++++---
- test/codegen/issue42610.go              | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/rewrite.go        | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 25 +++++++++++++++++++++++++
+ test/codegen/issue38554.go                     | 15 +++++++++++++++
+ 4 files changed, 55 insertions(+)

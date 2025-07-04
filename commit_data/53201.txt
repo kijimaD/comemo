@@ -1,23 +1,14 @@
-commit 380529d5c371ac036c757a155453f618465ee8d3
-Author: Than McIntosh <thanm@google.com>
-Date:   Tue May 16 13:06:22 2023 -0400
+commit 9dbc0f3556b3401b0f3339d4c33cd32ea16d5241
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 13:20:48 2022 -0400
 
-    internal/coverage/cformat: add aggregation option to EmitPercent
+    runtime: fix outdated g.m comment in traceback.go
     
-    Add a flag to EmitPercent indicating to emit a single line percent
-    summary across all packages as opposed to a line per package. We need
-    to set this flag when reporting as part of a "go test -cover" run, but
-    false when reporting as part of a "go tool covdata percent" run.
-    
-    Change-Id: Iba6a81b9ae27e3a5aaf9d0e46c0023c0e7ceae16
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/495448
+    Change-Id: Idfd02781a9ee550da240ef53898943e8cd37dd64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418574
+    Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Than McIntosh <thanm@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
 
- src/cmd/covdata/dump.go                   |  2 +-
- src/internal/coverage/cformat/fmt_test.go | 89 ++++++++++++++++++++++++++-----
- src/internal/coverage/cformat/format.go   | 40 +++++++++-----
- src/runtime/coverage/testsupport.go       |  2 +-
- src/runtime/coverage/ts_test.go           |  9 ++--
- 5 files changed, 107 insertions(+), 35 deletions(-)
+ src/runtime/traceback.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

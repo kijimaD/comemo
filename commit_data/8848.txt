@@ -1,17 +1,22 @@
-commit f70e8ed0f3e9eec7d67c16b93e53919b21942ee5
-Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Jun 24 17:29:19 2011 -0700
+commit d94e350f480fe72692148f07f959286435790704
+Author: Michael T. Jones <mtj@google.com>
+Date:   Fri Jun 24 17:26:45 2011 -0700
 
-    ebnflint: better handling of stdin
+    fmt: Added SkipSpace() function to fmt's ScanState interface.
     
-    - don't rely on /dev/stdin as the name for standard input
-    - employ EBNF extraction if the source contains tags
+    Users of the Scan() infrastructure that employ ReadRune() rather than
+    Token() need a way to skip leading spaces and newlines as set by the
+    the parent, Fscan(), Fscanln, or Fscanf(). As the internal methods and
+    boolean flags are not exported, this new function was added here and
+    in the Int and Nat Scan() functions of the big package. (fmt.Rat did
+    not need change since it uses Token()) Also added Printf style format
+    code support to int types and tests for same to int_test.go
     
-    "cat source.html | ebnflint" works now
-    
-    R=r
+    R=r, r, gri, mtj
     CC=golang-dev
-    https://golang.org/cl/4641075
+    https://golang.org/cl/4634074
 
- src/cmd/ebnflint/ebnflint.go | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+ src/pkg/big/int.go      | 58 +++++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/big/int_test.go | 31 +++++++++++++++++++++++++-
+ src/pkg/fmt/scan.go     | 12 ++++++++++
+ 3 files changed, 96 insertions(+), 5 deletions(-)

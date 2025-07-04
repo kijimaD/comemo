@@ -1,17 +1,15 @@
-commit 8a2fb87b996a3c4198aa8d9505fd77e560df0bbc
-Author: Dave Cheney <dave@cheney.net>
-Date:   Sun May 25 08:38:59 2014 +1000
+commit 05cc78d8d32f6af6fc4373e10da0b4a12f0a1ad4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 23 12:29:29 2014 +1000
 
-    runtime: skip stack growth test on 32bit platforms
+    os: document that Interrupt might not work on every os
     
-    Update #8083
+    Fixes #6720.
     
-    See discussion in https://groups.google.com/forum/#!topic/golang-dev/dh6Ra_xJomc
-    
-    LGTM=khr
-    R=golang-codereviews, gobot, khr
+    LGTM=bradfitz
+    R=golang-codereviews, iant, bradfitz
     CC=golang-codereviews
-    https://golang.org/cl/99440048
+    https://golang.org/cl/92340043
 
- src/pkg/runtime/stack_test.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ src/pkg/os/doc.go | 1 +
+ 1 file changed, 1 insertion(+)

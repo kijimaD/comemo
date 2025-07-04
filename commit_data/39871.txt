@@ -1,19 +1,48 @@
-commit cc39d8087b20fce14e60b7e5f287593da2c72749
-Author: William Poussier <william.poussier@gmail.com>
-Date:   Wed Sep 11 15:33:25 2019 +0000
+commit 591193b01fbf0ae6ad4ad6fee610d7807b8bdf7c
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 20 14:29:28 2019 -0400
 
-    encoding/json: encode nil encoding.TextMarshaler instance as "null"
+    cmd/compile: enhance debug_test for infinite loops
     
-    Fixes #34235.
+    ssa/debug_test.go already had a step limit; this exposes
+    it to individual tests, and it is then set low for the
+    infinite loop tests.
     
-    Change-Id: Ia3795fd18860530fa6a4b171545f525e784ffdcb
-    GitHub-Last-Rev: 1a319c452857818f7aaf22ef46823b43ca9b2276
-    GitHub-Pull-Request: golang/go#34238
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/194642
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    That however is not enough; in an infinite loop debuggers
+    see an unchanging line number, and therefore keep trying
+    until they see a different one.  To do this, the concept
+    of a "bogus" line number is introduced, and on output
+    single-instruction infinite loops are detected and a
+    hardware nop with correct line number is inserted into
+    the loop; the branch itself receives a bogus line number.
+    
+    This breaks up the endless stream of same line number and
+    causes both gdb and delve to not hang; Delve complains
+    about the incorrect line number while gdb does
+    a sort of odd step-to-nowhere that then steps back
+    to the loop.  Since repeats are suppressed in the reference
+    file, a single line is shown there.
+    
+    (The wrong line number mentioned in previous message
+    was an artifact of debug_test.go, not Delve, and is now
+    fixed.)
+    
+    The bogus line number exposed in Delve is less than
+    wonderful, but compared to hanging, it is better.
+    
+    Fixes #30664.
+    
+    Change-Id: I30c927cf8869a84c6c9b84033ee44d7044aab552
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168477
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/encoding/json/encode.go      |  6 +++++-
- src/encoding/json/encode_test.go | 31 ++++++++++++++++++++++++-------
- 2 files changed, 29 insertions(+), 8 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go                 |  6 +++++
+ src/cmd/compile/internal/ssa/debug_test.go         | 29 +++++++++++++++-------
+ .../internal/ssa/testdata/infloop.dlv-opt.nexts    | 12 +++++++++
+ .../internal/ssa/testdata/infloop.gdb-opt.nexts    |  4 +++
+ src/cmd/compile/internal/ssa/testdata/infloop.go   | 16 ++++++++++++
+ src/cmd/internal/src/pos.go                        | 15 +++++++++--
+ src/cmd/internal/src/xpos.go                       | 10 ++++++++
+ 7 files changed, 81 insertions(+), 11 deletions(-)

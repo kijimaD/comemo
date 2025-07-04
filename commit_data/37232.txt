@@ -1,12 +1,14 @@
-commit 2764d5ee7b23ae1caf2a4cd4506116a1b9efbf66
-Author: Andrew Bonventre <andybons@golang.org>
-Date:   Fri Nov 2 15:31:37 2018 -0400
+commit 40bc0a77096be97fb7cf55e767b22d7babcc000b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 11 21:30:09 2018 +0000
 
-    doc: document Go 1.10.5
+    doc: mention that *_js.go files are now ignored and treated like a GOOS
     
-    Change-Id: I11adca150ab795607b832fb354a3e065655e1020
-    Reviewed-on: https://go-review.googlesource.com/c/147179
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Fixes #26329
+    
+    Change-Id: Id87fd106e69d3d9682653eb753b1de616adeed2b
+    Reviewed-on: https://go-review.googlesource.com/123416
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- doc/devel/release.html | 7 +++++++
- 1 file changed, 7 insertions(+)
+ doc/go1.11.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,26 +1,42 @@
-commit 5c2b43a761544a7b172971a91f2e3ceb40190f28
-Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-Date:   Tue Jun 27 10:03:55 2023 +0700
+commit 5bc8fa74f5186dc7898126487c31283d0766a5b4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 31 14:25:11 2022 +0100
 
-    cmd/compile/internal/typecheck: cleanup code
+    cmd/go: support long commands in asm and cgo
     
-    Removing a lot of functions/variables/constants which are un-unsed
-    anymore in Unified IR frontend.
+    We have supported passing lists of arguments to the compiler and linker
+    for some time, since https://go.dev/issue/18468 was fixed.
+    The reason behind it is that some systems like Windows have relatively
+    small limits for commands, and some Go packages contain many source files.
     
-    Change-Id: Iccf73754196bf4fa40fe701a6468f4c8a1a0c655
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/506477
+    This wasn't done for other Go toolchain programs like cgo and asm,
+    as there wasn't an initial need for it. A TODO was left for them.
+    The need has now arisen in the form of a bug report for a build of a
+    large Go package involving cgo.
+    
+    Do asm as well, which could be triggered by lots of asm files.
+    
+    I rebuilt Go itself with some basic logging to tell if any other
+    commands were being run with moderately large command lengths.
+    I only found one other: gcc being invoked with 300-500 bytes.
+    
+    I didn't spot any length close to 1KiB, and we can't safely assume that
+    a user's CC compiler supports these "response files", so leave that as
+    another TODO for the future. Just like cgo and asm, we can revisit this
+    if any user reports a bug on the issue tracker.
+    
+    Fixes #47235.
+    
+    Change-Id: Ifcc099d7c0dfac3ed2c4e9e7a2d6e3d69b0ccb63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427015
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Keith Randall <khr@golang.org>
-    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/typecheck/const.go    |  29 ------
- src/cmd/compile/internal/typecheck/dcl.go      |  21 ----
- src/cmd/compile/internal/typecheck/export.go   |  25 -----
- src/cmd/compile/internal/typecheck/func.go     |  20 ----
- src/cmd/compile/internal/typecheck/iexport.go  | 136 -------------------------
- src/cmd/compile/internal/typecheck/subr.go     |   4 -
- src/cmd/compile/internal/typecheck/universe.go |  20 ----
- 7 files changed, 255 deletions(-)
+ src/cmd/asm/internal/flags/flags.go | 3 +--
+ src/cmd/cgo/main.go                 | 3 +--
+ src/cmd/go/internal/work/exec.go    | 4 ++--
+ 3 files changed, 4 insertions(+), 6 deletions(-)

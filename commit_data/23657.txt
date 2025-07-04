@@ -1,69 +1,15 @@
-commit 60b7d27c8282f191a89895e9a925b12d78d33411
-Author: Nigel Tao <nigeltao@golang.org>
-Date:   Tue Jul 14 15:46:18 2015 +1000
+commit 85069e9e9bf72d9152533434bc7f5aa7be8175dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 19 23:55:47 2015 -0400
 
-    image/jpeg: don't unread a byte if we've already taken bits from it.
+    cmd/dist: fix build tag parser
     
-    This rolls back most of golang.org/cl/8841, aka 2f98bac310, and makes a
-    different fix. It keeps the TestTruncatedSOSDataDoesntPanic test
-    introduced by that other CL, which obviously still passes after this CL.
+    It was mishandling conjunctions containing negations.
     
-    Fixes #11650, a regression (introduced by cl/8841) from Go 1.4.
-    
-    The original cl/8841 changed the image/jpeg not to panic on an input
-    given in #10387. We still do not panic on that input, after this CL.
-    
-    I have a corpus of over 160,000 JPEG images, a sample of a web crawl.
-    The image/jpeg code ran happily over that whole corpus both before and
-    after this CL, although that corpus clearly didn't catch the regression
-    in the first place.
-    
-    This code was otherwise tested manually. I don't think that it's trivial
-    to synthesize a JPEG input that happens to run out of Huffman data at
-    just the right place. The test image attached to #11650 obviously has
-    that property, but I don't think we can simply add that test image to
-    the repository: it's 227KiB, and I don't know its copyright status.
-    
-    I also looked back over the issue tracker for problematic JPEGs that
-    people have filed. The Go code, after this CL, is still happy on these
-    files in my directory:
-    issue2362a.jpeg
-    issue3916.jpeg
-    issue3976.jpeg
-    issue4084.jpeg
-    issue4259.jpeg
-    issue4291.jpeg
-    issue4337.jpeg
-    issue4500.jpeg
-    issue4705.jpeg
-    issue4975.jpeg
-    issue5112.jpeg
-    issue6767.jpeg
-    issue9888.jpeg
-    issue10133.jpeg
-    issue10357.jpeg
-    issue10447.jpeg
-    issue11648.jpeg
-    issue11650.jpeg
-    
-    There were other images attached in the issue tracker that aren't
-    actually valid JPEGs. They failed both before and after this CL:
-    broken-issue2362b.jpeg
-    broken-issue6450.jpeg
-    broken-issue8693.jpeg
-    broken-issue10154.jpeg
-    broken-issue10387.jpeg
-    broken-issue10388.jpeg
-    broken-issue10389.jpeg
-    broken-issue10413.jpeg
-    
-    In summary, this CL fixes #11650 and, after some automated and manual
-    testing, I don't think introduces new regressions.
-    
-    Change-Id: I30b67036e9b087f3051d57dac7ea05fb4fa36f66
-    Reviewed-on: https://go-review.googlesource.com/12163
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: Ife571b28416870ba2ceadbdac5ecb4670432bba1
+    Reviewed-on: https://go-review.googlesource.com/9151
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/image/jpeg/huffman.go |  4 +++-
- src/image/jpeg/reader.go  | 17 ++++++++++++-----
- 2 files changed, 15 insertions(+), 6 deletions(-)
+ src/cmd/dist/build.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

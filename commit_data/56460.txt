@@ -1,19 +1,35 @@
-commit 8623c0ba95f01387c2d705349722b5fcb2b3e77d
-Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-Date:   Sun May 12 06:32:11 2024 +0000
+commit 8e8303e1d04d3368db568aada24b3ccd7f1b4fc4
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat May 6 17:34:41 2023 +0800
 
-    internal/chacha8rand: use internal/byteorder
+    cmd/internal/obj/riscv: regenerate instruction encoding table
     
-    Change-Id: Ia5bcaba47da949583a720ca3506d6bd9e3794824
-    GitHub-Last-Rev: 1ed3dad2bf43df5526572f7fdc4c3b02ab977a01
-    GitHub-Pull-Request: golang/go#67320
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/584996
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    This CL updates riscv instructions by
+    https://github.com/riscv/riscv-opcodes
+    
+    which adds instruction:
+            APAUSE
+    
+    And removes the following unused instructions:
+            AFENCEI
+            AFMVQX
+            AFMVXQ
+            AHFENCEGVMA
+            AHFENCEVVMA
+            ASLLIRV32
+            ASRAIRV32
+            ASRLIRV32
+            AURET
+    
+    Change-Id: I314570c643af3e6bbc9d2cd471b6b39985bcbdff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409415
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
 
- src/cmd/internal/objabi/pkgspecial.go |  1 +
- src/go/build/deps_test.go             | 10 +++---
- src/internal/chacha8rand/chacha8.go   | 60 +++++++----------------------------
- 3 files changed, 17 insertions(+), 54 deletions(-)
+ src/cmd/internal/obj/riscv/anames.go |  10 +-
+ src/cmd/internal/obj/riscv/cpu.go    |  15 +-
+ src/cmd/internal/obj/riscv/inst.go   | 727 +++++++++++++++++------------------
+ 3 files changed, 357 insertions(+), 395 deletions(-)

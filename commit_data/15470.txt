@@ -1,48 +1,46 @@
-commit 1c5e079600a820bdb9a61d1813ab2a342cc70ce9
-Author: Alan Donovan <adonovan@google.com>
-Date:   Wed Feb 27 16:43:16 2013 -0500
+commit 752fec22bb1934decb73195ef049e88c625242f5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 27 11:59:36 2013 -0800
 
-    exp/ssa: a number of bug fixes.
+    net: add DialOpt, the extensible Dial w/ options dialer
     
-    ssadump:
-    - permit naming a package (not just *.go files) on command line.
-    - set BuildSerially flag when setting Log* flags
-      (Q. should instead the logging functions take a lock?)
+    Add DialOpt. So we have:
     
-    Builder:
-    - fixed bug when calling variadic function with zero '...'-params.
-      Added regression test.
+    func Dial(net, addr string) (Conn, error)
+    func DialTimeout(net, addr string, timeout time.Duration) (Conn, error)
+    func DialOpt(addr string, opts ...DialOption) (Conn, error)
     
-    interp:
-    - more external functions:
-       the 'error' interface
-       bytes.{Equal,IndexByte}
-       reflect.(Value).{Bool,NumOut,Out}
-       syscall.{Close,Fstat,Read,Open,Stat,Lstat,Fstat,
-         Getdents,ParseDirents,Getwd}
-    - permit comparisons between *Function and *closure.
+    DialTimeout (and Dial) are regrettable in retrospect. Maybe
+    in a future Go we'll be back down to one Dial, with DialOpt
+    becoming Dial.
     
-    With this CL, ssadump can now interpret ssadump itself (!),
-    loading, parsing, typing, SSA-building, and running
-    println("Hello, World!").  While a fmt-based equivalent still
-    lacks some external routines, e.g. math/big, I think there are
-    diminishing returns in expanding the interpreter (and
-    debugging it is starting to feel like "Inception").
+    DialOpt looks like:
     
-    I'm pretty confident this package is now good enough for wider use.
+    c, err := net.DialOpt("google.com:80")  // tcp is default
+    c, err := net.DialOpt("google.com:80", net.Timeout(30 * time.Second))
+    c, err := net.DialOpt("google.com:80", net.TCPFastOpen())
+    c, err := net.DialOpt("google.com:80", net.LocalAddr(..))
+    c, err := net.DialOpt("google.com:53", net.Network("udp6"))
     
-    R=gri
+    And then: (clustered in godoc)
+    
+    type DialOption interface { /* private only */ }
+      func Deadline(time.Time) DialOption
+      func LocalAddr(Addr) DialOption
+      func Network(string) DialOption
+      func TCPFastOpen() DialOption
+      func Timeout(time.Duration) DialOption
+    
+    I'm pretty confident we could add Happy Eyeballs to this too.
+    
+    Fixes #3097
+    Update #3610
+    Update #4842
+    
+    R=golang-dev, r, dave, minux.ma, rsc
     CC=golang-dev
-    https://golang.org/cl/7392053
+    https://golang.org/cl/7365049
 
- src/pkg/exp/ssa/builder.go                  |   4 +-
- src/pkg/exp/ssa/interp/external.go          |  62 +++++++++++--
- src/pkg/exp/ssa/interp/external_plan9.go    |  30 ++++++-
- src/pkg/exp/ssa/interp/external_unix.go     | 129 +++++++++++++++++++++++++---
- src/pkg/exp/ssa/interp/external_windows.go  |  25 +++++-
- src/pkg/exp/ssa/interp/interp.go            |   9 +-
- src/pkg/exp/ssa/interp/reflect.go           |  33 +++++++
- src/pkg/exp/ssa/interp/testdata/coverage.go |   7 ++
- src/pkg/exp/ssa/interp/value.go             |   6 +-
- src/pkg/exp/ssa/ssadump.go                  |  63 ++++++++------
- 10 files changed, 312 insertions(+), 56 deletions(-)
+ src/pkg/net/dial.go    | 143 +++++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/net/fd_unix.go |   2 +-
+ 2 files changed, 134 insertions(+), 11 deletions(-)

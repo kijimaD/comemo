@@ -1,17 +1,14 @@
-commit a2bcd3814d60545dab1a5e6f88005d89a9c38615
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Apr 4 08:10:26 2011 -0700
+commit 0f46aaf8b3e43ea5add91c73aec5773f0d028b35
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 4 10:06:09 2011 +1000
 
-    http: make triv.go example compile again
+    version.bash: strip changeset hash from 'hg tags' output
     
-    Ideally we'd compile all example files during
-    the build, though.
+    Fixes #1651.
     
-    Fixes #1660
-    
-    R=r
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/4358049
+    https://golang.org/cl/4300054
 
- src/pkg/http/triv.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/version.bash | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,14 +1,13 @@
-commit 01295d79124c05e14329e67ae61d976c1beed573
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Wed Jan 14 14:39:41 2015 -0500
+commit 47c7cf435705860dc143e8741616b8d6157de671
+Author: Peter Armitage <peter.armitage@gmail.com>
+Date:   Tue Dec 16 14:12:48 2014 +0000
 
-    syscall: use name+(NN)FP on linux/386
+    syscall: fs_nacl: Unlock() should be deferred.
     
-    Generated from go vet.
-    
-    Change-Id: I8fee4095e43034b868bfd2b07e21ac13d5beabbb
-    Reviewed-on: https://go-review.googlesource.com/2816
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Iea08b8f4e74a8cd4b4d317273046457c8db956a1
+    Reviewed-on: https://go-review.googlesource.com/1640
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/syscall/asm_linux_386.s | 143 ++++++++++++++++++++++----------------------
- 1 file changed, 70 insertions(+), 73 deletions(-)
+ src/syscall/fs_nacl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

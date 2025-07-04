@@ -1,14 +1,13 @@
-commit cd61565ffc003506c9544eb670eed195825bf4da
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Fri Oct 11 11:24:54 2013 -0700
+commit 7dba510c7b4110ddda93ce9829636e33411267e5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 10 22:43:34 2013 -0400
 
-    misc/cgo/test: fix C panic test to work with gccgo
+    cmd/gc: re-word some error messages
+    Fixes #6557.
     
-    R=golang-dev, minux.ma
+    R=golang-dev, rsc, tracey.brendan
     CC=golang-dev
-    https://golang.org/cl/14611043
+    https://golang.org/cl/14432053
 
- misc/cgo/test/callback_c.c       | 14 --------------
- misc/cgo/test/callback_c_gc.c    | 21 +++++++++++++++++++++
- misc/cgo/test/callback_c_gccgo.c | 17 +++++++++++++++++
- 3 files changed, 38 insertions(+), 14 deletions(-)
+ src/cmd/gc/dcl.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,20 +1,22 @@
-commit 11677d983e873459b1cdded7be534a9edf3b6eac
-Author: Robert Griesemer <gri@golang.org>
-Date:   Tue Oct 31 16:13:21 2023 -0700
+commit 3f5b02d09f0d345c2d6bef83eddbd518e9327276
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 16 20:24:03 2022 -0500
 
-    go/types, types2: enable range over int w/o need for goexperiment
+    cmd/fix: allow cgo commands in tests to fail if 'go build' is not supported
     
-    For #61405.
+    testenv.HasCgo reports whether the test binary may have been built
+    with cgo enabled, but having been built with cgo does not necessarily
+    imply that the test can invoke the cgo tool itself.
     
-    Change-Id: I047ec31bc36b1707799ffef25506070613477d1f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/538718
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Auto-Submit: Robert Griesemer <gri@google.com>
+    This should fix a test failure on the android builders introduced in
+    CL 450714.
+    
+    Change-Id: I2eed4098736e1cb285ca20bc248b0ab3515f0dea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451221
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
 
- src/cmd/compile/internal/types2/stmt.go       |  2 +-
- src/go/types/stmt.go                          |  2 +-
- src/internal/types/testdata/spec/range_int.go | 65 +++++++++++++++++++++++++++
- 3 files changed, 67 insertions(+), 2 deletions(-)
+ src/cmd/fix/main_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

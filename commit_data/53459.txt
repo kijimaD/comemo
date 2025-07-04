@@ -1,33 +1,19 @@
-commit 6dd3bfbed6f17e7789f092e96408c00c227a8b68
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Jun 2 17:54:57 2023 -0400
+commit 5e20f2e4dfdfea7deb9ad9e2a9909a32588334a0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 17:25:33 2022 +0700
 
-    runtime: move Segv and TgkillSegv to testprog
+    runtime/trace: convert tracing.enabled to atomic type
     
-    The non-cgo test points Segv and TgkillSegv are currently in
-    testprogcgo. Although the test points don't explicitly use cgo,
-    being a cgo program, there is still some C code that runs when
-    the test point is invoked, such as thread creation code.
+    Updates #53821
     
-    For the cgo test points, sometimes we fail to unwind the stack if
-    C code is involved. For the non-cgo ones, we want to always be
-    able to unwind the stack, so we check for stack unwinding failures.
-    But if a signal is landed in the small piece of C code mentioned
-    above, we may still fail to unwind. Move the non-cgo test points
-    to a pure-Go program to avoid this problem.
-    
-    May fix #52963.
-    Updates #59029, #59443, #59492.
-    
-    Change-Id: I35d99a0dd4c7cdb627e2083d2414887a24a2822d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500535
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I8a063ae94568cd2ea65c2e891618069a96139891
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423884
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
 
- src/runtime/crash_cgo_test.go                  |  6 ++++-
- src/runtime/testdata/testprog/segv.go          | 32 ++++++++++++++++++++++++++
- src/runtime/testdata/testprog/segv_linux.go    | 29 +++++++++++++++++++++++
- src/runtime/testdata/testprogcgo/segv.go       | 21 -----------------
- src/runtime/testdata/testprogcgo/segv_linux.go | 19 ---------------
- 5 files changed, 66 insertions(+), 41 deletions(-)
+ src/runtime/trace/annotation.go | 3 +--
+ src/runtime/trace/trace.go      | 8 ++++----
+ 2 files changed, 5 insertions(+), 6 deletions(-)

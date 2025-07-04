@@ -1,49 +1,20 @@
-commit d713e8e8069ee052ef4d9eac49a0c74a3b5c2c92
-Author: Josh Bleecher Snyder <josharian@gmail.com>
-Date:   Thu Apr 28 15:01:41 2016 -0700
+commit c1a4fe8d57d7b9bc85f8dc521bfb0ec039c322fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 16 14:02:56 2016 -0700
 
-    archive/zip: improve BenchmarkCompressedZipGarbage
+    cmd/compile: remove dead code handling '~' operator
     
-    Before this CL:
+    The parser code was not reachable ever since some of the lexer cleanups.
+    We could recognize '~' in the lexer, complain, and return a '^' instead,
+    but it's been a few years since Go was new and this may have been a use-
+    ful error. The lexer complains with "illegal character U+007E '~'" which
+    is good enough.
     
-    $ go test -bench=CompressedZipGarbage -count=5 -run=NONE archive/zip
-    BenchmarkCompressedZipGarbage-8        50  20677087 ns/op   42973 B/op      47 allocs/op
-    BenchmarkCompressedZipGarbage-8       100  20584764 ns/op   24294 B/op      47 allocs/op
-    BenchmarkCompressedZipGarbage-8        50  20859221 ns/op   42973 B/op      47 allocs/op
-    BenchmarkCompressedZipGarbage-8       100  20901176 ns/op   24294 B/op      47 allocs/op
-    BenchmarkCompressedZipGarbage-8        50  21282409 ns/op   42973 B/op      47 allocs/op
+    For #13244.
     
-    The B/op number is effectively meaningless. There
-    is a surprisingly large one-time cost that gets
-    divided by the number of iterations that your
-    machine can get through in a second.
-    
-    This CL discards the first run, which helps.
-    It is not a panacea. Running with -benchtime=10s
-    will allow the sync.Pool to be emptied,
-    which brings the problem back.
-    However, since there are more iterations to divide
-    the cost through, it’s not quite as bad,
-    and running with a high benchtime is rare.
-    
-    This CL changes the meaning of the B/op number,
-    which is unfortunate, since it won’t have the
-    same order of magnitude as previous Go versions.
-    But it wasn’t really comparable before anyway,
-    since it didn’t have any reliable meaning at all.
-    
-    After this CL:
-    
-    $ go test -bench=CompressedZipGarbage -count=5 -run=NONE archive/zip
-    BenchmarkCompressedZipGarbage-8              100          20881890 ns/op            5616 B/op         47 allocs/op
-    BenchmarkCompressedZipGarbage-8               50          20622757 ns/op            5616 B/op         47 allocs/op
-    BenchmarkCompressedZipGarbage-8               50          20628193 ns/op            5616 B/op         47 allocs/op
-    BenchmarkCompressedZipGarbage-8              100          20756612 ns/op            5616 B/op         47 allocs/op
-    BenchmarkCompressedZipGarbage-8              100          20639774 ns/op            5616 B/op         47 allocs/op
-    
-    Change-Id: Iedee04f39328974c7fa272a6113d423e7ffce50f
-    Reviewed-on: https://go-review.googlesource.com/22585
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Ie3283738486eb6f8462d594f2728ac98333c0520
+    Reviewed-on: https://go-review.googlesource.com/20768
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/archive/zip/writer_test.go | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/parser.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

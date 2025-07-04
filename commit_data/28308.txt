@@ -1,18 +1,14 @@
-commit d9d1399eeac037f4e2057d32831e574c0f1e6fc8
-Author: David Crawshaw <crawshaw@golang.org>
-Date:   Tue Sep 6 08:02:30 2016 -0400
+commit 4cffe44e361deb39e3274774a7984ab78a5b3931
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 12 15:04:05 2016 +1000
 
-    cmd/link: mark rel.ro segment as PT_GNU_RELRO
+    syscall: separate stdlib imports from others in mksyscall_windows.go
     
-    Details: http://www.airs.com/blog/archives/189
-    
-    Part of adding PIE internal linking on linux/amd64.
-    
-    Change-Id: I8843a97f22f6f120346cccd694c7fff32f09f60b
-    Reviewed-on: https://go-review.googlesource.com/28541
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Change-Id: I6610b872578d161e535565258039d9f064f01456
+    Reviewed-on: https://go-review.googlesource.com/23070
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/cmd/link/internal/ld/elf.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/syscall/mksyscall_windows.go | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

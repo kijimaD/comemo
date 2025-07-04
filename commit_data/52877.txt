@@ -1,22 +1,23 @@
-commit 60c724c55a5cc9925e63c5b8383f6d24ae06a658
-Author: Frediano Ziglio <freddy77@gmail.com>
-Date:   Thu May 4 11:25:29 2023 +0100
+commit 4afb0b9e533767f788252816c4b79ee29a1952a7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 8 11:33:53 2022 -0400
 
-    syscall: reduce memory allocated by UTF16FromString
+    doc/go1.19: delete remaining TODOs
     
-    The function allocated a buffer larger than needed.
-    Fixes #59967.
+    The crypto ones were done in a separate CL and didn't merge well.
+    Same for runtime/debug.
     
-    Signed-off-by: Frediano Ziglio <frediano.ziglio@nextdlp.com>
-    Change-Id: I5f30a135acf5f27d6c2ef4bc4abef5144da4dc94
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/492575
-    Auto-Submit: Bryan Mills <bcmills@google.com>
+    The others are stale.
+    
+    For #51400.
+    
+    Change-Id: Iadb4de94d21cd6a20f52277a1c3d7800a729b81e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411115
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/syscall/syscall_windows.go      | 10 +++++++---
- src/syscall/syscall_windows_test.go | 28 ++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+), 3 deletions(-)
+ doc/go1.19.html | 36 +++---------------------------------
+ 1 file changed, 3 insertions(+), 33 deletions(-)

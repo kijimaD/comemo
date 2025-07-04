@@ -1,33 +1,21 @@
-commit 2c51ea11b0f96ece871f84f83fb393ff80ec8f4a
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Wed Aug 16 22:37:42 2023 -0700
+commit fec83c8a7d1a3bb5f63366acd55f83ed8782bff0
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 20 20:08:35 2022 +0000
 
-    cmd/compile/internal/typecheck: push ONEW into go/defer wrappers
+    Revert "cmd/compile: enable carry chain scheduling for arm64"
     
-    Currently, we rewrite:
+    This reverts commit 4c414c7673af6b2aedee276d2e62cb2910eb19f3.
     
-            go f(new(T))
+    Reason for revert: breaks ppc64 build (see issue 55254)
     
-    into:
-    
-            tmp := new(T)
-            go func() { f(tmp) }()
-    
-    However, we can both shrink the closure and improve escape analysis by
-    instead rewriting it into:
-    
-            go func() { f(new(T)) }()
-    
-    This CL does that.
-    
-    Change-Id: Iae16a476368da35123052ca9ff41c49159980458
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/520340
+    Change-Id: I096ffa0e6535d31d9dd4079b48bb201b20220d76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432196
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/cmd/compile/internal/typecheck/stmt.go |  2 +-
- test/fixedbugs/issue31573.go               | 24 ++++++++++++------------
- 2 files changed, 13 insertions(+), 13 deletions(-)
+ src/cmd/compile/internal/ssa/schedule.go      | 70 +++++++++------------------
+ src/cmd/compile/internal/ssa/schedule_test.go | 59 ----------------------
+ 2 files changed, 22 insertions(+), 107 deletions(-)

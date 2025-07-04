@@ -1,15 +1,42 @@
-commit 4711bf30e5fec4cf290964785871deba5955c29a
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Jun 30 11:54:46 2021 -0400
+commit c26aead50c3c8226c51fb97a94852f2134b881aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 00:30:58 2020 -0500
 
-    doc/go1.17: linkify "language changes" in the runtime section
+    [dev.regabi] cmd/compile: convert types.Node (a pointer) to types.IRNode (an interface)
     
-    Change-Id: I82bd3954bfc5da59c7952eba2a28ff0e3b41427f
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/331969
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    The pointer hack was nice and saved a word, but it's untenable
+    in a world where nodes are themselves interfaces with different
+    underlying types. Bite the bullet and use an interface to hold the
+    Node when in types.Sym and types.Type.
+    
+    This has the nice benefit of removing AsTypesNode entirely.
+    AsNode is still useful because of its nil handling.
+    
+    Change-Id: I298cba9ff788b956ee287283bec78010e8b601e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272933
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- doc/go1.17.html | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/compile/internal/gc/closure.go        |  4 ++--
+ src/cmd/compile/internal/gc/dcl.go            | 10 +++++-----
+ src/cmd/compile/internal/gc/embed.go          |  2 +-
+ src/cmd/compile/internal/gc/escape.go         |  6 +++---
+ src/cmd/compile/internal/gc/export.go         |  4 ++--
+ src/cmd/compile/internal/gc/gen.go            |  2 +-
+ src/cmd/compile/internal/gc/iimport.go        |  6 +++---
+ src/cmd/compile/internal/gc/init.go           |  2 +-
+ src/cmd/compile/internal/gc/noder.go          |  2 +-
+ src/cmd/compile/internal/gc/obj.go            |  2 +-
+ src/cmd/compile/internal/gc/reflect.go        |  6 +++---
+ src/cmd/compile/internal/gc/ssa.go            |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go      |  8 ++++----
+ src/cmd/compile/internal/gc/universe.go       | 28 +++++++++++++--------------
+ src/cmd/compile/internal/ir/dump.go           |  3 ---
+ src/cmd/compile/internal/ir/node.go           | 10 ++++++----
+ src/cmd/compile/internal/types/scope.go       |  8 ++++----
+ src/cmd/compile/internal/types/sizeof_test.go |  4 ++--
+ src/cmd/compile/internal/types/sym.go         |  4 ++--
+ src/cmd/compile/internal/types/type.go        | 14 +++++++-------
+ 20 files changed, 63 insertions(+), 64 deletions(-)

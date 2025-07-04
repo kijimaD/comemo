@@ -1,22 +1,17 @@
-commit baeab452d1a00c139a5096b796d7b1780ad80f1d
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Nov 20 11:01:27 2024 -0500
+commit 0ff2b33ea0cdd6358010bd484ba3159f740a45df
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 6 12:47:32 2023 -0500
 
-    testing: panic in AllocsPerRun if parallel tests are running
+    cmd/go: avoid hard-coding runtime dependencies in TestNewReleaseRebuildsStalePackagesInGOPATH
     
-    If other tests are running, AllocsPerRun's result will be inherently flaky.
-    Saw this with CL 630136 and #70327.
+    Fixes #64583.
     
-    Proposed in #70464.
-    
-    Fixes #70464.
-    
-    Change-Id: I190afdf26bc31299f6e5e8665b4fb420ffd554ee
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/630137
-    Auto-Submit: Russ Cox <rsc@golang.org>
+    Change-Id: Idbe50fe77f6030f2402ac436abe6710cb1183730
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547995
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/testing/allocs.go  |  3 +++
- src/testing/testing.go | 12 +++++++++++-
- 2 files changed, 14 insertions(+), 1 deletion(-)
+ src/cmd/go/go_test.go | 26 ++++++++++++--------------
+ 1 file changed, 12 insertions(+), 14 deletions(-)

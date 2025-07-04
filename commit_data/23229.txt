@@ -1,15 +1,16 @@
-commit 85069e9e9bf72d9152533434bc7f5aa7be8175dd
-Author: Russ Cox <rsc@golang.org>
-Date:   Sun Apr 19 23:55:47 2015 -0400
+commit e0820ac8d1cc383f9003ff8f3245cc4b246b0c32
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 30 19:10:59 2015 -0700
 
-    cmd/dist: fix build tag parser
+    cmd/cover: fix build
     
-    It was mishandling conjunctions containing negations.
+    TBR=rsc
     
-    Change-Id: Ife571b28416870ba2ceadbdac5ecb4670432bba1
-    Reviewed-on: https://go-review.googlesource.com/9151
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: I6ec69013027213c5e7adedd2edb89dea6af876d9
+    Reviewed-on: https://go-review.googlesource.com/9563
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/dist/build.go | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
+ src/cmd/cover/doc.go  | 2 +-
+ src/cmd/cover/func.go | 2 --
+ src/cmd/cover/html.go | 2 --
+ 3 files changed, 1 insertion(+), 5 deletions(-)

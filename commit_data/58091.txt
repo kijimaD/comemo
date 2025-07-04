@@ -1,32 +1,23 @@
-commit 44cea1234dc18352fec89285e94f92693034323d
-Author: Russ Cox <rsc@golang.org>
-Date:   Tue Nov 19 08:34:07 2024 -0500
+commit 20944cf0665a5aec6abab802875a9700592b5391
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Thu Sep 28 22:26:57 2023 +0000
 
-    cmd/go/internal/fsys: replace file tree with sorted list
+    internal/zstd: reset reader buffer
     
-    Replace the tree of nodes with a sorted list of file replacements.
-    The most important property of this representation is that it
-    allows replacing directories: a replacement x -> y where y is
-    a directory could not be implemented before, because it would
-    require making a node for every file in the tree rooted at y,
-    or else it would require unsuccessful lookups for files like
-    x/a/b/c/d/e/f/g/h/i/j/k to try every possible parent in order
-    to discover the x -> y mapping.
+    Reset r.buffer on Reset to avoid subsequent Read calls
+    observing previously decoded data.
     
-    The sorted list makes it easy to find the x -> y mapping:
-    when you do the binary search for x/a/b/c/d/e/f/g/h/i/j/k,
-    you end up immediately after the x -> y mapping, so stepping
-    backward one entry provides the mapping we need, if it exists.
+    For #62513
     
-    This CL does not allow overlay files to include directories,
-    but now it is possible. This is at least useful for other kinds
-    of experiments (like FIPS).
-    
-    Change-Id: Ief0afaee82e644dab8ae4eafeec20440afee2e36
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/628701
+    Change-Id: Icb65e76b5c5c0af32b36ec3a5999dca86407cbc8
+    GitHub-Last-Rev: 99c0a6fa72ad67cba5d29593fd3b28d14ddce4a4
+    GitHub-Pull-Request: golang/go#63288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531735
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
 
- src/cmd/go/internal/fsys/fsys.go      | 201 ++++++++++++++++++++--------------
- src/cmd/go/internal/fsys/fsys_test.go |  97 ++++++++++++++++
- 2 files changed, 213 insertions(+), 85 deletions(-)
+ src/internal/zstd/zstd.go      |  2 +-
+ src/internal/zstd/zstd_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

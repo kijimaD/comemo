@@ -1,20 +1,31 @@
-commit 7117819fdc1f9c365e4ec02d7e2f17eccf081a4d
-Author: Jes Cok <xigua67damn@gmail.com>
-Date:   Wed Sep 20 23:37:59 2023 +0000
+commit 3c17053bba406545a87af265f5e4fc8bbdecdcfe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 28 12:13:37 2022 -0700
 
-    runtime: no need to convert 'c.fault()' to uintptr in sighandler
+    cmd/go, cmd/cgo: support older versions of gccgo that lack cgo.Incomplete
     
-    After CL 528817, *sigctxt.fault of all arches return uintptr, so
-    there is no need to convert 'c.fault()' to uintptr anymore.
+    Test whether gccgo/GoLLVM supports cgo.Incomplete. If it doesn't, use a
+    local definition rather than importing it.
     
-    Change-Id: I062283b578adaaee69d8f439b109a573eeb15110
-    GitHub-Last-Rev: 3ce3a75a66557d1a8ff089fd532ac694bfa0104f
-    GitHub-Pull-Request: golang/go#63133
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/529995
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Roll back 426496, which skipped a gccgo test, as it now works.
+    
+    For #46731
+    Fixes #54761
+    
+    Change-Id: I8bb2ad84c317094495405e178bf5c9694f82af56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446260
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/runtime/signal_unix.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/cgo/doc.go                           |  3 ++
+ src/cmd/cgo/gcc.go                           | 12 +++---
+ src/cmd/cgo/main.go                          |  9 +++++
+ src/cmd/cgo/out.go                           |  9 ++++-
+ src/cmd/go/internal/work/exec.go             |  3 ++
+ src/cmd/go/internal/work/gccgo.go            | 60 ++++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/build_overlay.txt |  9 ++---
+ 7 files changed, 93 insertions(+), 12 deletions(-)

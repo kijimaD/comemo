@@ -1,38 +1,23 @@
-commit 2a56b023af36d8cbe3f4d096cb46f1009f206157
-Author: Martin Möhrmann <moehrmann@google.com>
-Date:   Sun Aug 27 14:05:11 2017 +0200
+commit c51559813f615aa33ca42c0ad963d7712f561433
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 16:37:25 2017 -0700
 
-    runtime: specialize memhash32 and memhash64
+    cmd/compile: add sizeCalculationDisabled flag
     
-    AMD64 with AES support disabled:
-    name                old time/op    new time/op    delta
-    MapPopulate/1         78.0ns ± 1%    75.5ns ± 1%   -3.17%  (p=0.000 n=10+9)
-    MapPopulate/10         764ns ± 2%     673ns ± 2%  -11.91%  (p=0.000 n=10+10)
-    MapPopulate/100       9.52µs ± 1%    8.54µs ± 1%  -10.37%  (p=0.000 n=8+10)
-    MapPopulate/1000       116µs ± 2%     103µs ± 1%  -10.40%  (p=0.000 n=10+8)
-    MapPopulate/10000     1.01ms ± 1%    0.90ms ± 1%  -10.70%  (p=0.000 n=10+10)
-    MapPopulate/100000    9.81ms ± 1%    8.67ms ± 2%  -11.54%  (p=0.000 n=10+10)
+    Use it to ensure that dowidth is not called
+    from the backend on a type whose size
+    has not yet been calculated.
     
-    386 with AES support disabled:
-    name                old time/op    new time/op    delta
-    MapPopulate/1         95.3ns ± 1%    90.6ns ± 1%  -4.95%  (p=0.000 n=10+9)
-    MapPopulate/10         983ns ± 2%     912ns ± 1%  -7.18%  (p=0.000 n=10+10)
-    MapPopulate/100       11.9µs ± 2%    11.2µs ± 1%  -6.01%  (p=0.000 n=10+10)
-    MapPopulate/1000       140µs ± 1%     131µs ± 1%  -6.19%  (p=0.000 n=10+10)
-    MapPopulate/10000     1.26ms ± 2%    1.18ms ± 1%  -5.93%  (p=0.000 n=9+10)
-    MapPopulate/100000    12.1ms ± 2%    11.4ms ± 1%  -5.48%  (p=0.000 n=10+10)
+    This is an alternative to CL 42016.
     
-    Fixes #21539
-    
-    Change-Id: Ice128c947c9a6a294800d6a5250d82045eb70b55
-    Reviewed-on: https://go-review.googlesource.com/59352
-    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Change-Id: I8c7b4410ee4c2a68573102f6b9b635f4fdcf392e
+    Reviewed-on: https://go-review.googlesource.com/42018
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
 
- src/runtime/alg.go         |  9 +++------
- src/runtime/export_test.go | 19 +++++++++++++------
- src/runtime/hash32.go      | 26 ++++++++++++++++++++++++++
- src/runtime/hash64.go      | 22 ++++++++++++++++++++++
- src/runtime/hash_test.go   | 34 ++++++++++++++++++++++++++++++++++
- 5 files changed, 98 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/gc/align.go   | 12 ++++++++++++
+ src/cmd/compile/internal/gc/pgen.go    |  2 ++
+ src/cmd/compile/internal/gc/ssa.go     | 12 ++++++------
+ src/cmd/compile/internal/types/type.go | 11 ++---------
+ 4 files changed, 22 insertions(+), 15 deletions(-)

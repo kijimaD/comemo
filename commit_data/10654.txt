@@ -1,19 +1,13 @@
-commit 4349effb15b5de82bfa8435c562a01c3d5c116e4
-Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
-Date:   Wed Dec 7 16:18:50 2011 -0500
+commit 9d52fe22b48d611adc2935e76920b430db757fd3
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Dec 8 08:08:00 2011 +1100
 
-    gc: keep pointer to original node in constant rewrites.
+    exp/sql: simplify some string conversions.
     
-    This allows printing meaningful expressions in error messages
-    instead of evaluated constants.
-    Fixes #2276.
-    
-    R=golang-dev, rsc
-    CC=golang-dev, remy
-    https://golang.org/cl/5432082
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5451112
 
- src/cmd/gc/const.c       |  8 ++++++--
- src/cmd/gc/unsafe.c      |  2 ++
- test/fixedbugs/bug379.go |  4 ++--
- test/fixedbugs/bug381.go | 20 ++++++++++++++++++++
- 4 files changed, 30 insertions(+), 4 deletions(-)
+ src/pkg/exp/sql/convert.go      | 15 +++------------
+ src/pkg/exp/sql/convert_test.go |  2 +-
+ 2 files changed, 4 insertions(+), 13 deletions(-)

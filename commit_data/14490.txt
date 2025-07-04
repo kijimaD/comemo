@@ -1,15 +1,26 @@
-commit a5e10edc34ecfc8173509fabda0998b0cd518da7
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Mon Nov 26 13:05:18 2012 -0800
+commit d7b0271065b043487c98e42617ff2ab53cfbdbed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 26 12:49:04 2012 -0800
 
-    doc/play: don't use println in examples
+    exp/types: fixed field/method lookup
     
-    R=golang-dev, rsc
+    also:
+    
+    - composite literal checking close to complete
+    - cleaned up parameter, method, field checking
+    - don't let panics escape type checker
+    - more TODOs eliminated
+    
+    R=rsc
     CC=golang-dev
-    https://golang.org/cl/6849105
+    https://golang.org/cl/6816083
 
- doc/play/fib.go       |  4 +++-
- doc/play/sieve.go     |  4 +++-
- doc/play/solitaire.go | 14 +++++++-------
- doc/play/tree.go      |  4 ++--
- 4 files changed, 15 insertions(+), 11 deletions(-)
+ src/pkg/exp/types/check.go            |  23 +--
+ src/pkg/exp/types/check_test.go       |   1 +
+ src/pkg/exp/types/expr.go             | 310 +++++++++++++++++++++++++---------
+ src/pkg/exp/types/operand.go          | 136 +++++++++++----
+ src/pkg/exp/types/testdata/decls0.src |   4 +-
+ src/pkg/exp/types/testdata/decls3.src | 231 +++++++++++++++++++++++++
+ src/pkg/exp/types/testdata/expr3.src  |  52 +++++-
+ src/pkg/exp/types/types.go            |   9 +
+ 8 files changed, 644 insertions(+), 122 deletions(-)

@@ -1,55 +1,21 @@
-commit 8fd2875c3e9455df722dd3c930332591eebbb3c2
-Author: Robert Griesemer <gri@golang.org>
-Date:   Thu Dec 1 09:39:45 2022 -0800
+commit 248ad855b7d0e49839b7b4281d9e60e222368583
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 3 12:43:48 2022 -0800
 
-    go/types, types2: make the new comparable semantics the default
+    misc/cgo/test: disable unhelpful GCC warning
     
-    Ordinary interface types now satisfy comparable constraints. This
-    is a fully backward-compatible change: it simply permits additional
-    code to be valid that wasn't valid before.
+    GCC 9 warns about a change in the ABI of passing structs with bitfields,
+    but we don't care.
     
-    This change makes the new comparable semantics the default behavior,
-    depending on the Go -lang version.
+    Fixes #50987
     
-    It also renames the flag types2.Config.AltComparableSemantics to
-    types2.Config.OldComparableSemantics and inverts its meaning
-    (or types.Config.oldComparableSemantics respectively).
-    
-    Add new predicate Satisfies (matching the predicate Implements but
-    for constraint satisfaction), per the proposal description.
-    
-    Adjust some existing tests by setting -oldComparableSemantics
-    and add some new tests that verify version-dependent behavior.
-    
-    The compiler flag -oldcomparable may be used to temporarily
-    switch back to the Go 1.18/1.19 behavior should this change
-    cause problems, or to identify that a problem is unrelated
-    to this change. The flag will be removed for Go 1.21.
-    
-    For #52509.
-    For #56548.
-    For #57011.
-    
-    Change-Id: I8b3b3d9d492fc24b0693567055f0053ccb5aeb42
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/454575
+    Change-Id: Ica658d04172a42a7be788f94d31a714bb8c4766f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382956
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Run-TryBot: Robert Griesemer <gri@google.com>
-    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
 
- api/next/56548.txt                                 |  1 +
- src/cmd/compile/internal/base/flag.go              |  4 +--
- src/cmd/compile/internal/noder/irgen.go            |  2 +-
- src/cmd/compile/internal/types2/api.go             | 15 ++++++++--
- src/cmd/compile/internal/types2/check_test.go      |  2 +-
- src/cmd/compile/internal/types2/instantiate.go     | 33 ++++++++++++++++++----
- src/go/types/api.go                                | 15 ++++++++--
- src/go/types/check_test.go                         |  8 +++---
- src/go/types/instantiate.go                        | 33 ++++++++++++++++++----
- src/internal/types/testdata/check/issues1.go       |  2 ++
- .../types/testdata/fixedbugs/issue50646.go         |  2 ++
- .../types/testdata/fixedbugs/issue51257.go         |  2 ++
- src/internal/types/testdata/spec/comparable.go     |  2 --
- src/internal/types/testdata/spec/comparable1.19.go | 28 ++++++++++++++++++
- src/internal/types/testdata/spec/oldcomparable.go  | 28 ++++++++++++++++++
- 15 files changed, 149 insertions(+), 28 deletions(-)
+ misc/cgo/test/test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

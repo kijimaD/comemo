@@ -1,26 +1,21 @@
-commit 6406e09f69c70b10cab58702f10456a3e9a83bef
-Author: Robert Griesemer <gri@golang.org>
-Date:   Wed Nov 10 08:33:26 2021 -0800
+commit d7cc2f1d7c60b51c600c7d0c808610985dcd9b0c
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Fri Jan 15 17:40:20 2021 +0200
 
-    cmd/compile/internal/types2: move some functions into different files (cleanup)
+    reflect: panic if ArrayOf is called with negative length
     
-    - move structuralType/structuralString into type.go
-    - move functions exported for the compiler into compilersupport.go
-    - updated/added comments
-    - removed AsNamed and AsInterface - not needed by compiler
+    Since we cannot change the signature of reflect.ArrayOf to return an
+    error, we panic instead of producing a wrong result.
     
-    No semantic changes.
+    Fixes #43603
     
-    Change-Id: Ia454a49edafd627c2a25b0b71db4aa93ddd7f1f2
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/362995
-    Trust: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Change-Id: I23915df8d190f35af4d00ab86768868cd621e839
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284136
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Findley <rfindley@google.com>
 
- src/cmd/compile/internal/noder/decl.go             |  2 +-
- src/cmd/compile/internal/noder/expr.go             |  4 +-
- src/cmd/compile/internal/types2/builtins.go        | 50 ---------------
- src/cmd/compile/internal/types2/compilersupport.go | 34 ++++++++++
- src/cmd/compile/internal/types2/type.go            | 74 ++++++++++++----------
- 5 files changed, 78 insertions(+), 86 deletions(-)
+ src/reflect/all_test.go |  8 ++++++++
+ src/reflect/type.go     | 40 ++++++++++++++++++++++------------------
+ 2 files changed, 30 insertions(+), 18 deletions(-)

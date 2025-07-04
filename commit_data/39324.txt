@@ -1,41 +1,36 @@
-commit f5e5bc1a4281b22c9ca2c75431647638de515ba0
-Author: Austin Clements <austin@google.com>
-Date:   Fri May 31 16:38:56 2019 -0400
+commit dd4e7f9722ab22d9da2dca03c559eca3ef3fe1c7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 22 10:50:47 2019 -0500
 
-    runtime: mark all Go symbols called from assembly in other packages
+    misc/cgo/testso{,var}: fix tests in module mode
     
-    This marks all Go symbols called from assembly in other packages with
-    "go:linkname" directives to ensure they get ABI wrappers.
+    Add _test.go files in the individal directories to invoke 'go build'
+    with appropriate arguments.
     
-    Now that we have this go:linkname convention, this also removes the
-    abi0Syms definition in the runtime, which was used to give morestackc
-    an ABI0 wrapper. Instead, we now just mark morestackc with a
-    go:linkname directive.
+    Move the test driver out of cmd/dist so that it's easier to invoke the
+    test separately (using 'go test .').
     
-    This was tested with buildall.bash in the default configuration, with
-    -race, and with -gcflags=all=-d=ssa/intrinsics/off. Since I couldn't
-    test cgo on non-Linux configurations, I manually grepped for runtime
-    symbols in runtime/cgo.
+    Updates #30228
+    Updates #28387
     
-    Updates #31230.
-    
-    Change-Id: I6c8aa56be2ca6802dfa2bf159e49c411b9071bf1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/179862
-    Run-TryBot: Austin Clements <austin@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ibc4a024a52c12a274058298b41cc90709f7f56c8
+    Reviewed-on: https://go-review.googlesource.com/c/163420
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/runtime/asm.s                            |  8 --------
- src/runtime/internal/atomic/atomic_386.go    |  4 ++++
- src/runtime/internal/atomic/atomic_amd64x.go |  5 +++++
- src/runtime/internal/atomic/atomic_mipsx.go  |  7 +++++++
- src/runtime/internal/atomic/atomic_s390x.go  |  7 +++++++
- src/runtime/internal/atomic/atomic_wasm.go   | 18 +++++++++++++++++
- src/runtime/proc.go                          |  7 +++++++
- src/runtime/signal_unix.go                   |  7 +++++++
- src/runtime/stack.go                         |  3 +++
- src/runtime/string.go                        |  2 ++
- src/runtime/sys_darwin.go                    |  3 +++
- src/runtime/syscall_aix.go                   | 14 ++++++++++++++
- src/runtime/syscall_solaris.go               | 29 ++++++++++++++++++++++++++++
- 13 files changed, 106 insertions(+), 8 deletions(-)
+ misc/cgo/testso/noso_test.go                 |   9 ++
+ misc/cgo/testso/overlaydir_test.go           |  81 +++++++++++++++++
+ misc/cgo/testso/so_test.go                   | 126 +++++++++++++++++++++++++++
+ misc/cgo/testso/{ => testdata}/cgoso.c       |   0
+ misc/cgo/testso/{ => testdata}/cgoso.go      |   0
+ misc/cgo/testso/{ => testdata}/cgoso_c.c     |   0
+ misc/cgo/testso/{ => testdata}/cgoso_unix.go |   0
+ misc/cgo/testso/{ => testdata}/main.go       |   2 +-
+ misc/cgo/testsovar/noso_test.go              |   9 ++
+ misc/cgo/testsovar/overlaydir_test.go        |  81 +++++++++++++++++
+ misc/cgo/testsovar/so_test.go                | 126 +++++++++++++++++++++++++++
+ misc/cgo/testsovar/{ => testdata}/cgoso.go   |   0
+ misc/cgo/testsovar/{ => testdata}/cgoso_c.c  |   0
+ misc/cgo/testsovar/{ => testdata}/cgoso_c.h  |   0
+ misc/cgo/testsovar/{ => testdata}/main.go    |   2 +-
+ src/cmd/dist/test.go                         |  98 +--------------------
+ 16 files changed, 436 insertions(+), 98 deletions(-)

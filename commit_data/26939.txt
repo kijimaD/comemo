@@ -1,21 +1,20 @@
-commit 12e3b184f0fe15787be7f0837d2b168a4fbe60be
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Fri Apr 8 15:06:04 2016 +1200
+commit 14bf9c8c07f82c4eac22a3e0f15da5cfbc30fe61
+Author: djherbis <djherbis@gmail.com>
+Date:   Fri Jan 29 00:32:00 2016 -0800
 
-    cmd/go: deduplicate gccgo afiles by package path, not *Package
+    bufio: Reader.Peek returns partial results on ErrBufferFull
     
-    This code was fixed a while ago to ensure that xtest and fake packages came
-    first on the link line, but golang.org/cl/16775 added --whole-archive ...
-    --no-whole-archive around all the .a files and rendered this fix useless.
+    The existing implementation returns nil, ErrBufferFull when n > len(b.buf),
+    now it will return any data in the buffer and ErrBufferFull.
     
-    So, take a different approach and only put one .a file on the linker command
-    line for each ImportPath we see while traversing the action graph, not for each
-    *Package we see. The way we walk the graph ensures that we'll see the .a files
-    that need to be first first.
+    Fixes #14121
     
-    Change-Id: I137f00f129ccc9fc99f40eee885cc04cc358a62e
-    Reviewed-on: https://go-review.googlesource.com/21692
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ie52d32ccd80e4078ebfae6e75393c89675959ead
+    Reviewed-on: https://go-review.googlesource.com/19091
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/cmd/go/build.go | 22 +++++-----------------
- 1 file changed, 5 insertions(+), 17 deletions(-)
+ src/bufio/bufio.go      | 12 +++++++-----
+ src/bufio/bufio_test.go |  4 ++--
+ 2 files changed, 9 insertions(+), 7 deletions(-)

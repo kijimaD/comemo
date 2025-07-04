@@ -1,16 +1,13 @@
-commit 399a36a634d58f14f1945b83a84b884c9dfb72da
-Author: Andrew Gerrand <adg@golang.org>
-Date:   Tue Jan 15 19:25:16 2013 +1100
+commit c241f696f87a1d0aaf1cc28eb6383e73184ef837
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 15 08:52:22 2013 +0900
 
-    doc: fix various fragment links
+    syscall: simplify socket control messages
     
-    R=dsymonds
+    R=golang-dev, iant
     CC=golang-dev
-    https://golang.org/cl/7094058
+    https://golang.org/cl/7016044
 
- doc/articles/c_go_cgo.html           | 4 ++--
- doc/articles/go_command.html         | 2 +-
- doc/articles/laws_of_reflection.html | 2 +-
- doc/code.html                        | 4 ++--
- doc/go_faq.html                      | 4 ++--
- 5 files changed, 8 insertions(+), 8 deletions(-)
+ src/pkg/syscall/sockcmsg_linux.go | 26 +++++++-------
+ src/pkg/syscall/sockcmsg_unix.go  | 76 +++++++++++++++++----------------------
+ 2 files changed, 45 insertions(+), 57 deletions(-)

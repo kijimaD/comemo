@@ -1,21 +1,18 @@
-commit aff2f4a7248a35cd16e24894d125faa2730247bd
-Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-Date:   Wed Apr 26 08:18:10 2023 -0700
+commit 15605ca827723d568f780402d03b29842fd20eec
+Author: tulip <mrliuxiansen8023@gmail.com>
+Date:   Wed Jun 22 00:42:29 2022 +0800
 
-    cmd/compile: remove go:wasmimport restriction
+    embed: document additional file name restrictions
     
-    Removes the package restriction on go:wasmimport, allowing the
-    use of it globally and in user code.
+    For #44486
     
-    Fixes #59149
-    
-    Change-Id: Ib26f628dc8dafb31388005b50449e91b47dab447
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/489255
+    Change-Id: I66af9f7a9f95489a41fd6710e50bdd7878f78b85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413494
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Eli Bendersky <eliben@google.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
 
- src/cmd/compile/internal/noder/noder.go | 4 ----
- 1 file changed, 4 deletions(-)
+ src/embed/embed.go | 1 +
+ 1 file changed, 1 insertion(+)

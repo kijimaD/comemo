@@ -1,20 +1,13 @@
-commit 18178fd1381615919e6a76da57b5a745cf7db7bf
-Author: Russ Cox <rsc@golang.org>
-Date:   Sat Feb 2 16:26:12 2013 -0500
+commit dcf16bd83d3c36430771f36df53044be3dda67fa
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 3 01:42:17 2013 +0800
 
-    cmd/go: run examples in source order, not name order
+    syscall: (*Proc).Call should return nil error when no error occurs
+    Fixes #4686.
     
-    Add Order field to doc.Example and write doc comments there.
-    
-    Fixes #4662.
-    
-    R=golang-dev, iant
+    R=alex.brainman, rsc
     CC=golang-dev
-    https://golang.org/cl/7229071
+    https://golang.org/cl/7174047
 
- src/cmd/go/test.bash                 |  3 +++
- src/cmd/go/test.go                   | 10 +++++++++-
- src/cmd/go/testdata/example1_test.go | 23 +++++++++++++++++++++++
- src/cmd/go/testdata/example2_test.go | 21 +++++++++++++++++++++
- src/pkg/go/doc/example.go            |  5 +++++
- 5 files changed, 61 insertions(+), 1 deletion(-)
+ src/pkg/syscall/dll_windows.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

@@ -1,15 +1,14 @@
-commit 5b7827ec07d4deaf0d57f2fabf9ca91df22c8fd9
-Author: Brad Fitzpatrick <bradfitz@golang.org>
-Date:   Tue Nov 15 14:29:45 2011 -0800
+commit 471e43cf00ebafa5f9763a7093bb20a9ceea35ae
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Nov 16 06:59:08 2011 +0900
 
-    sql: document that for drivers, io.EOF means no more rows
+    net, syscall: add missing copyright notices
     
-    This was used in the sql package + tests, but never
-    documented.
-    
-    R=golang-dev, gri
+    R=golang-dev, rsc
     CC=golang-dev
-    https://golang.org/cl/5372107
+    https://golang.org/cl/5375099
 
- src/pkg/exp/sql/driver/driver.go | 2 ++
- 1 file changed, 2 insertions(+)
+ src/pkg/net/pipe.go                  | 4 ++++
+ src/pkg/syscall/zerrors_plan9_386.go | 4 ++++
+ src/pkg/syscall/ztypes_windows.go    | 4 ++++
+ 3 files changed, 12 insertions(+)

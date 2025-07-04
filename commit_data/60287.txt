@@ -1,0 +1,19 @@
+commit 6165bb11d7256cf55dde8bf5fb23bdf96c932197
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 11 10:25:33 2024 -0400
+
+    doc/next: resolve a TODO for openbsd/riscv64 port
+    
+    I think we want to keep the "experimental" as we did before. Also
+    added "64-bit" to be more specific.
+    
+    For #65614.
+    
+    Change-Id: I928d0ba6f1b53efa1f882f81f68bfb2446c7ab42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591896
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/7-ports.md | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

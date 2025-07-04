@@ -1,12 +1,12 @@
-commit c2f9be10d4cf9b82b6fdeb23849a909a9923f6aa
-Author: Oling Cat <olingcat@gmail.com>
-Date:   Tue Dec 4 17:40:38 2012 +1100
+commit dfe29798012e5b064d21263dad5faba5b04a94e4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 18:49:47 2012 -0800
 
-    doc/articles/godoc_documenting_go_code: fix some format issues.
+    test: add test for unused calls to builtin functions
     
-    R=golang-dev, adg
+    R=gri
     CC=golang-dev
-    https://golang.org/cl/6874056
+    https://golang.org/cl/6871054
 
- doc/articles/godoc_documenting_go_code.html | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ test/fixedbugs/issue4463.go | 87 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)

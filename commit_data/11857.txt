@@ -1,16 +1,16 @@
-commit 422826270de705ddb1c4982f4d544f46f7bdd55b
+commit d3f9f21fdfbb8d1c7784a16825bd504bf7f04eee
 Author: Russ Cox <rsc@golang.org>
-Date:   Mon Feb 13 16:02:13 2012 -0500
+Date:   Mon Feb 13 16:01:34 2012 -0500
 
-    cmd/cgo: omit //line in -godefs, -cdefs output
+    fix: add fix for crypto type change
     
-    Makes files like src/pkg/syscall/ztypes_linux_amd64.go easier to read.
-    (The copy that is checked in predates the //line output mode,
-    so this also preserves the status quo.)
+    Fixes #2905.
     
-    R=golang-dev, iant, gri
+    R=golang-dev, bradfitz, r
     CC=golang-dev
-    https://golang.org/cl/5655068
+    https://golang.org/cl/5645088
 
- src/cmd/cgo/main.go | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ src/cmd/fix/cryptotype.go      |  36 ++++++++++++++
+ src/cmd/fix/cryptotype_test.go |  43 ++++++++++++++++
+ src/cmd/fix/fix.go             | 109 ++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 180 insertions(+), 8 deletions(-)

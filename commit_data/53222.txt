@@ -1,35 +1,19 @@
-commit b0f15b4ac07e5d552475fefcf61bdeda90e66642
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Thu May 18 17:16:03 2023 -0700
+commit 87384801dce4ddb70a43aaf4b2f4eea549a7e047
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Aug 3 14:59:58 2022 -0400
 
-    cmd/compile: implement min/max builtins
+    cmd/asm: update package doc to describe "-p" option
     
-    Updates #59488.
+    Include a description of the assembler's "-p" command line option
+    in the package doc.
     
-    Change-Id: I254da7cca071eeb5af2f8aecdcd9461703fe8677
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/496257
-    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@golang.org>
+    Fixes #54215.
+    
+    Change-Id: I641abad573c37aa9447af6e8b84716093c2a2b70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420900
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
 
- src/cmd/compile/internal/escape/call.go         |   2 +-
- src/cmd/compile/internal/escape/expr.go         |   2 +-
- src/cmd/compile/internal/ir/expr.go             |   2 +-
- src/cmd/compile/internal/ir/fmt.go              |   6 ++
- src/cmd/compile/internal/ir/node.go             |   2 +
- src/cmd/compile/internal/ir/op_string.go        | 104 +++++++++----------
- src/cmd/compile/internal/ssagen/ssa.go          |  89 ++++++++++++++++
- src/cmd/compile/internal/typecheck/const.go     |   2 +
- src/cmd/compile/internal/typecheck/func.go      |  15 ++-
- src/cmd/compile/internal/typecheck/stmt.go      |   2 +
- src/cmd/compile/internal/typecheck/typecheck.go |   8 +-
- src/cmd/compile/internal/typecheck/universe.go  |   2 +
- src/cmd/compile/internal/walk/builtin.go        |   6 ++
- src/cmd/compile/internal/walk/expr.go           |   4 +
- src/cmd/compile/internal/walk/order.go          |   2 +-
- src/runtime/minmax.go                           |  72 +++++++++++++
- src/runtime/minmax_test.go                      | 129 ++++++++++++++++++++++++
- 17 files changed, 391 insertions(+), 58 deletions(-)
+ src/cmd/asm/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

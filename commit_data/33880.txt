@@ -1,19 +1,26 @@
-commit 0f3ab149ec41cd35a9f61f49ce17bbc5af02537e
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Wed Dec 13 06:32:06 2017 -0800
+commit 33cb1481f26c6f1acca445fafa18e7ad1d49efed
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Sep 14 17:16:58 2017 -0600
 
-    net, os: don't wait for Close in blocking mode
+    cmd/go: correctly report that -msan needs CGO_ENABLED=1
     
-    Updates #7970
-    Updates #21856
-    Updates #23111
+    Previously, if CGO_ENABLED=0 was set when building
+    with -msan, the error message printed was:
     
-    Change-Id: I0cd0151fcca740c40c3c976f941b04e98e67b0bf
-    Reviewed-on: https://go-review.googlesource.com/83715
+      -race requires cgo; enable cgo by setting CGO_ENABLED=1
+    
+    yet the instrumentation flag passed in was -msan. This CL
+    fixes that message to correctly report that -msan needed
+    CGO_ENABLED=1, and likewise if -race, report -race needed it.
+    
+    Fixes #21895
+    
+    Change-Id: If423d520daae7847fb38cc97c3192ada5d960f9d
+    Reviewed-on: https://go-review.googlesource.com/63930
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
 
- src/internal/poll/fd_unix.go | 25 ++++++++++++++--
- src/net/fd_unix.go           |  2 +-
- src/os/file_unix.go          |  2 +-
- src/os/pipe_test.go          | 68 ++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 93 insertions(+), 4 deletions(-)
+ src/cmd/go/go_test.go             | 28 +++++++++++++++++++++++++++-
+ src/cmd/go/internal/work/build.go |  6 +++++-
+ 2 files changed, 32 insertions(+), 2 deletions(-)

@@ -1,18 +1,21 @@
-commit af799d94f9a913b1c6411cbd100ccbb544a70655
-Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
-Date:   Mon Aug 3 14:08:17 2015 +1200
+commit 7e4c06dad065d1440fe8fcfa8e97702c88e1374e
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jul 12 11:52:09 2015 -0700
 
-    cmd/link: pass value being relocated to archreloc
+    [dev.ssa] cmd/compile/internal/gc: handle _ label correctly
     
-    And clean up the mess on arm64 (the mess on arm is too confusing).
+    An empty label statement can just be ignored, as it cannot
+    be the target of any gotos.
     
-    See issue #10050
+    Tests are already in test/fixedbugs/issue7538*.go
     
-    Change-Id: I2ce813fe8646d4e818eb660612a7e4b2bb04de4c
-    Reviewed-on: https://go-review.googlesource.com/13884
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Fixes #11589
+    Fixes #11593
+    
+    Change-Id: Iadcd639e7200ce16aa40fd7fa3eaf82522513e82
+    Reviewed-on: https://go-review.googlesource.com/12093
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/internal/obj/arm64/asm7.go |  2 +-
- src/cmd/link/internal/arm64/asm.go | 49 +++++++++++++++++++++++---------------
- src/cmd/link/internal/ld/data.go   | 13 +++++++++-
- 3 files changed, 43 insertions(+), 21 deletions(-)
+ src/cmd/compile/internal/gc/ssa.go | 5 +++++
+ 1 file changed, 5 insertions(+)

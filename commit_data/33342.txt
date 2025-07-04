@@ -1,16 +1,21 @@
-commit fb1fd6aee6af655a54193d961d5f11ff16580e6a
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Tue Oct 31 16:38:17 2017 -0700
+commit f9cf8e5ab11c7ea3f1b9fde302c0a325df020b1a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 10 11:31:11 2017 +0900
 
-    time: improve comments about valid layouts being invalid Parse values
+    net/http: various small cleanups
     
-    Updates #9346
-    Updates #22135
+    * Remove an unnecessary type conversion
+    * Make golint happier about consistent receiver names
+    * Make golint happier about a foo_bar var name
     
-    Change-Id: I7039c9f7d49600e877e35b7255c341fea35890e2
-    Reviewed-on: https://go-review.googlesource.com/74890
-    Reviewed-by: Rob Pike <r@golang.org>
+    Change-Id: I5223808109f6f8b69ed4be76de82faf2478c6a2e
+    Reviewed-on: https://go-review.googlesource.com/54530
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
 
- src/time/example_test.go | 4 ++--
- src/time/format.go       | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ src/net/http/fs.go        |  2 +-
+ src/net/http/request.go   | 30 +++++++++++++++---------------
+ src/net/http/transfer.go  |  3 +--
+ src/net/http/transport.go | 10 +++++-----
+ 4 files changed, 22 insertions(+), 23 deletions(-)

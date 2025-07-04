@@ -1,12 +1,18 @@
-commit ddf67af01b49789974201c930a7b13993219c164
-Author: David Symonds <dsymonds@golang.org>
-Date:   Fri Dec 23 08:48:21 2011 +1100
+commit 7ea92ddd6620cb57c90e7add369ec2b3e6c17444
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 22 13:11:40 2011 -0800
 
-    doc: fix misspelt CSS properties.
+    go/doc, godoc: show methods of anonymous fields
     
-    R=golang-dev, rsc
+    Missing: Handling of embedded interfaces.
+    
+    Also, for reasons outlined in the previous CL (5500055), embedded
+    types have to be exported for its "inherited" methods to be visible.
+    This will be addressed w/ a subsequent CL.
+    
+    R=r, rsc
     CC=golang-dev
-    https://golang.org/cl/5498071
+    https://golang.org/cl/5502059
 
- doc/all.css | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ src/pkg/go/doc/doc.go | 216 ++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 166 insertions(+), 50 deletions(-)

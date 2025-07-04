@@ -1,12 +1,13 @@
-commit 72d99aec8836e3a44aff06dd787c051e9cf9eff2
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Wed Apr 3 17:03:42 2013 -0700
+commit 02fa4a7e3eb3c74166ab4a886331786449c2933b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 3 16:41:53 2013 -0700
 
-    doc: fix typos in go1.1
+    A+C: added Alexei Sholik (individual CLA)
     
     R=golang-dev, bradfitz
     CC=golang-dev
-    https://golang.org/cl/8342044
+    https://golang.org/cl/8351043
 
- doc/go1.1.html | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

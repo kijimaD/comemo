@@ -1,24 +1,23 @@
-commit 7e952962dff6aafb9ed888a86a7208f01fbe9508
-Author: Michael Pratt <mpratt@google.com>
-Date:   Wed Jul 20 11:09:14 2022 -0400
+commit 7b69ddc171938b8321a535dd79b8ca2ba56ac72d
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Sep 6 11:15:30 2021 +0800
 
-    runtime: clean up canpanic
+    cmd/compile: merge sign extension and shift into SBFIZ
     
-    * The gp argument to canpanic is always equivalent to getg(), so no need
-    to pass it at all.
-    * gp must not be nil or _g_.m would have crashed, so no need to check
-    for nil.
-    * Use acquirem to better reason about preemption.
+    This patch adds some rules to rewrite "(LeftShift (SignExtend x) lc)"
+    expression as "SBFIZ".
     
-    Change-Id: Ic7dc8dc1e56ab4c1644965f6aeba16807cdb2df4
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/418575
-    Reviewed-by: Austin Clements <austin@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Add the test cases.
+    
+    Change-Id: I294c4ba09712eeb02c7a952447bb006780f1e60d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267602
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/runtime/os_js.go          |  2 +-
- src/runtime/os_plan9.go       |  2 +-
- src/runtime/panic.go          | 19 +++++++++++--------
- src/runtime/signal_unix.go    |  2 +-
- src/runtime/signal_windows.go |  2 +-
- 5 files changed, 15 insertions(+), 12 deletions(-)
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 39 ++++++++++++++++++++++++++++
+ test/codegen/bitfield.go                     | 12 +++++++++
+ 3 files changed, 55 insertions(+)

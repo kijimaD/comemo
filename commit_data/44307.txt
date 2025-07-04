@@ -1,24 +1,24 @@
-commit 4da0188c6c1ec83db2a3659af8e4eaace155ab80
+commit 8891b82332de4afa23f935b58263d08a3a5c6d95
 Author: Bryan C. Mills <bcmills@google.com>
-Date:   Thu Feb 4 09:42:48 2021 -0500
+Date:   Fri Jun 5 22:35:18 2020 -0400
 
-    cmd/go/internal/modget: split resolveCandidates into two methods
+    cmd/go: remove a bogus assertion in mod_convert_dep
     
-    It turns out that the existing call sites of the resolveCandidates
-    method pass only *either* a slice of queries or a slice of upgrades
-    (never both), and the behaviors triggered by the two parameters don't
-    overlap much at all. To clarify the two different operations, split
-    them into two separate methods.
+    The removed line assumed that the script's WORK directory is not a
+    child of any directory containing version-control metadata.
+    While that assumption does hold in most cases, it does not hold when,
+    for example, $TMPDIR is $HOME/tmp and $HOME/.git/config exists.
     
-    For #36460
+    A similar situation may or may not arise when using
+    golang.org/x/build/cmd/release. Either way, the assertion is incorrect
+    and was interfering with local testing for #39385.
     
-    Change-Id: I64651637734fd44fea68740a3cdfbacfb73c19b6
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/289697
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
-    TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Michael Matloob <matloob@golang.org>
-    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Updates #39385
+    Fixes #39431
+    
+    Change-Id: I67813d7ce455aa9b56a6eace6eddebf48d0f7fa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236818
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/go/internal/modget/get.go | 106 +++++++++++++++++++++-----------------
- 1 file changed, 60 insertions(+), 46 deletions(-)
+ src/cmd/go/testdata/script/mod_convert_dep.txt | 1 -
+ 1 file changed, 1 deletion(-)

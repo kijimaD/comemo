@@ -1,0 +1,15 @@
+commit 62711d61e5ba3a6c42bc57a28c2402dd8669261f
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue May 21 01:11:18 2024 +0800
+
+    maps: slightly improve iter tests
+    
+    Change-Id: I330a06539e36f442470690187df9c3988c12bd50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586855
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/maps/iter_test.go | 56 ++++++++++++++++++++++++---------------------------
+ 1 file changed, 26 insertions(+), 30 deletions(-)

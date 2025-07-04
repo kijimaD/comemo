@@ -1,19 +1,23 @@
-commit 60074b0fd35e438b06ba8e42c0e90b1a8a2945b7
-Author: Keith Randall <khr@golang.org>
-Date:   Fri Sep 23 19:57:16 2016 -0700
+commit 3d037cfaf8c70b8af87cb5d57553a7e3e9dc2117
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 27 10:05:52 2016 -0700
 
-    runtime: remove TestCollisions from -short
+    runtime: pass signal context to cgo traceback function
     
-    Takes a bit too long to run it all the time.
+    When doing a backtrace from a signal that occurs in C code compiled
+    without using -fasynchronous-unwind-tables, we have to rely on frame
+    pointers. In order to do that, the traceback function needs the signal
+    context to reliably pick up the frame pointer.
     
-    Fixes #17217
-    Update #17104
-    
-    Change-Id: I4802190ea16ee0f436a7f95b093ea0f995f5b11d
-    Reviewed-on: https://go-review.googlesource.com/29751
-    Run-TryBot: Keith Randall <khr@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I7b45930fced01685c337d108e0f146057928f876
+    Reviewed-on: https://go-review.googlesource.com/23494
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- src/runtime/hash_test.go | 3 +++
- 1 file changed, 3 insertions(+)
+ src/runtime/cgo/gcc_traceback.c                    |  2 ++
+ src/runtime/testdata/testprogcgo/pprof.go          |  1 +
+ src/runtime/testdata/testprogcgo/traceback.go      |  1 +
+ src/runtime/testdata/testprogcgo/tracebackctxt_c.c |  1 +
+ src/runtime/traceback.go                           | 22 ++++++++++++++++------
+ 5 files changed, 21 insertions(+), 6 deletions(-)

@@ -1,19 +1,17 @@
-commit 6673d5d701d224919d910e88a73b6f69472c9ed1
-Author: Jero Bado <programmer@jerobado.com>
-Date:   Tue Feb 1 23:22:31 2022 +0000
+commit 5fee772c872fcbf35c059b241d0b60c0aecd0f20
+Author: Aaron Sheah <aaronsheah@gmail.com>
+Date:   Tue May 18 14:54:02 2021 +0000
 
-    README.md: update links to go.dev
+    doc/go1.17: document archive/zip changes for Go 1.17
     
-    Fixes #50916.
+    For #44513. Fixes #46000
     
-    Change-Id: I51f3269b7a0793a3002eef83de1d871111fc3cdc
-    GitHub-Last-Rev: fc8c183ac7fa84d6caefdf49ed1d8cac19d7744f
-    GitHub-Pull-Request: golang/go#50919
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/381962
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Trust: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Change-Id: I299d0b5657f1f96174d6e35d60daac8b36e59d29
+    GitHub-Last-Rev: e63461bff042a8abe79e0ec3515eefbf56ba1d82
+    GitHub-Pull-Request: golang/go#46235
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320809
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Trust: Robert Findley <rfindley@google.com>
 
- README.md | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

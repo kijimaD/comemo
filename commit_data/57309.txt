@@ -1,21 +1,28 @@
-commit b4d4744059c0c9632c034af145deb161995f2f32
-Author: Kir Kolyshkin <kolyshkin@gmail.com>
-Date:   Thu Aug 29 18:51:10 2024 -0700
+commit 93ec88160ecd6da1d2bf5b9c029abf0e256484e9
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Jul 26 05:59:50 2023 +0000
 
-    internal/testenv: add Executable
+    reflect: deprecate PtrTo
     
-    Tests commonly use code to get os.Executable value, and some cache the
-    resulting value.
+    Replace reflect.PtrTo with reflect.PointerTo.
     
-    To reduce code duplication, add a helper that does just that.
+    Fixes #59599
     
-    Change-Id: I9dd7eb24e24a3abd92be2b87227e823f0fca5cb3
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/609301
-    Reviewed-by: Cherry Mui <cherryyz@google.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Change-Id: I49407193e2050543ef983cd637703acc682d9f51
+    
+    Change-Id: I49407193e2050543ef983cd637703acc682d9f51
+    GitHub-Last-Rev: 7bc9ccf1dcb4b444406430b451ad4c47c6ec1be2
+    GitHub-Pull-Request: golang/go#61440
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511035
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/internal/testenv/exec.go | 20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ api/next/59599.txt                              | 1 +
+ src/cmd/compile/internal/reflectdata/reflect.go | 2 +-
+ src/encoding/gob/decode.go                      | 2 +-
+ src/reflect/type.go                             | 2 ++
+ 4 files changed, 5 insertions(+), 2 deletions(-)

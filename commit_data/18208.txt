@@ -1,27 +1,40 @@
-commit 146897b031c00021fe78c0a9d76861cf5e27c5ec
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Jan 9 19:29:10 2014 -0500
+commit 8da8b37674732ca4532dabcabe7f495b3d6455e9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 9 15:00:00 2014 -0800
 
-    cmd/link: intial skeleton of linker written in Go
+    runtime: fix 32-bit malloc for pointers >= 0x80000000
     
-    R=iant
+    The spans array is allocated in runtime·mallocinit.  On a
+    32-bit system the number of entries in the spans array is
+    MaxArena32 / PageSize, which (2U << 30) / (1 << 12) == (1 << 19).
+    So we are allocating an array that can hold 19 bits for an
+    index that can hold 20 bits.  According to the comment in the
+    function, this is intentional: we only allocate enough spans
+    (and bitmaps) for a 2G arena, because allocating more would
+    probably be wasteful.
+    
+    But since the span index is simply the upper 20 bits of the
+    memory address, this scheme only works if memory addresses are
+    limited to the low 2G of memory.  That would be OK if we were
+    careful to enforce it, but we're not.  What we are careful to
+    enforce, in functions like runtime·MHeap_SysAlloc, is that we
+    always return addresses between the heap's arena_start and
+    arena_start + MaxArena32.
+    
+    We generally get away with it because we start allocating just
+    after the program end, so we only run into trouble with
+    programs that allocate a lot of memory, enough to get past
+    address 0x80000000.
+    
+    This changes the code that computes a span index to subtract
+    arena_start on 32-bit systems just as we currently do on
+    64-bit systems.
+    
+    R=golang-codereviews, rsc
     CC=golang-codereviews
-    https://golang.org/cl/48870044
+    https://golang.org/cl/49460043
 
- src/cmd/go/pkg.go                             |   1 +
- src/cmd/link/dead.go                          |  11 ++
- src/cmd/link/debug.go                         |  11 ++
- src/cmd/link/layout.go                        | 158 ++++++++++++++++++++++
- src/cmd/link/link_test.go                     |  32 +++++
- src/cmd/link/load.go                          |  98 ++++++++++++++
- src/cmd/link/main.go                          |   9 ++
- src/cmd/link/prog.go                          | 182 ++++++++++++++++++++++++++
- src/cmd/link/prog_test.go                     | 161 +++++++++++++++++++++++
- src/cmd/link/runtime.go                       |  11 ++
- src/cmd/link/scan.go                          | 119 +++++++++++++++++
- src/cmd/link/testdata/hello.6                 | Bin 0 -> 269 bytes
- src/cmd/link/testdata/hello.s                 |  15 +++
- src/cmd/link/testdata/link.hello.darwin.amd64 | Bin 0 -> 4140 bytes
- src/cmd/link/util.go                          |  11 ++
- src/cmd/link/write.go                         |  14 ++
- 16 files changed, 833 insertions(+)
+ src/pkg/runtime/malloc.goc |  3 +--
+ src/pkg/runtime/mgc0.c     | 12 ++++--------
+ src/pkg/runtime/mheap.c    | 21 +++++++--------------
+ 3 files changed, 12 insertions(+), 24 deletions(-)

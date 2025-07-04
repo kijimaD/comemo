@@ -1,21 +1,18 @@
-commit fcecf3e1fa318d4c3e8f2142d17bb2e481e94f9d
-Author: ianwoolf <btw515wolf2@gmail.com>
-Date:   Wed Nov 9 16:52:41 2022 +0800
+commit 1d3a5b4aeac319acd51b32e1d47a9c316d9ce2aa
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Thu Dec 16 22:18:26 2021 +0800
 
-    cmd/go: enable -x in go mod graph
+    reflect: fix name of type parameter
     
-    Updates #35849
+    Fixes #50208
     
-    Change-Id: Ifa18e448c0d436c18d7204ac755cd36bc28cd612
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/448935
-    Reviewed-by: Bryan Mills <bcmills@google.com>
-    Run-TryBot: Bryan Mills <bcmills@google.com>
-    Auto-Submit: Bryan Mills <bcmills@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: Ib0aff56341adb98ff6831c5badd1603ebf002b79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372774
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
 
- src/cmd/go/alldocs.go                            | 4 +++-
- src/cmd/go/internal/modcmd/graph.go              | 6 +++++-
- src/cmd/go/testdata/script/mod_graph.txt         | 5 +++++
- src/cmd/go/testdata/script/mod_graph_version.txt | 2 +-
- 4 files changed, 14 insertions(+), 3 deletions(-)
+ src/reflect/all_test.go | 14 ++++++++++++++
+ src/reflect/type.go     |  9 ++++++++-
+ 2 files changed, 22 insertions(+), 1 deletion(-)

@@ -1,13 +1,26 @@
-commit 0d1f76ded2f84513d3321db1962912792aacf3a8
+commit c134718611c424ead65eb8753855dd5487c52630
 Author: Robert Griesemer <gri@golang.org>
-Date:   Fri Apr 29 13:06:03 2011 -0700
+Date:   Fri Apr 29 12:20:31 2011 -0700
 
-    go/parser: accept parenthesized receive operations in select statements
+    undo CL 4428057 / 19e540fc7d7d
     
-    R=rsc
+    The CL introduces inconsistencies with respect to
+    the use of parentheses/grouping of receive operations.
+    
+    ««« original CL description
+    spec: narrow syntax for expression and select statements
+    
+    This is not a language change, it simply expresses the
+    accepted cases explicitly in the respective productions.
+    
+    R=rsc, r, iant
     CC=golang-dev
-    https://golang.org/cl/4439082
+    https://golang.org/cl/4428057
+    »»»
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4444080
 
- src/pkg/go/parser/parser.go      | 4 ----
- src/pkg/go/parser/parser_test.go | 1 +
- 2 files changed, 1 insertion(+), 4 deletions(-)
+ doc/go_spec.html | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

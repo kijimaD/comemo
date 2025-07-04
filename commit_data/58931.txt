@@ -1,22 +1,25 @@
-commit fd8938c799969ad8caec2aaec5a4966e48a17895
-Author: Julien Cretel <jub0bsinthecloud@gmail.com>
-Date:   Mon Feb 17 18:39:58 2025 +0000
+commit 1a07550962a9f0123284a0efbe11c486fb1a452e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 11 16:45:04 2023 -0500
 
-    net/http: speed up cookie and method validation
+    net: unskip and attempt to deflake TestAcceptTimeout
     
-    Fixes #67031
+    This test has been unconditionally skipped for over five years.
+    It may be that whatever was causing it to flake has been fixed.
+    And if it hasn't been fixed, it isn't providing any value.
+    Let's unskip it for the Go 1.23 development cycle and see what happens.
     
-    Change-Id: I1d764afdc7e50d61007f5f71a674eb6872ce507a
-    GitHub-Last-Rev: 869535e843d2133fa5279297b002dd96725384e0
-    GitHub-Pull-Request: golang/go#71798
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/650195
-    Auto-Submit: Sean Liao <sean@liao.dev>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Sean Liao <sean@liao.dev>
+    Let's also use a separate listener for each test case, so that a
+    leaked Dial goroutine from one case won't interfere with the other.
+    
+    Fixes #17948 (maybe).
+    
+    Change-Id: I239f22ca5d5a44388b9aa0ed4d81e451c6342617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548940
+    Commit-Queue: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/net/http/cookie.go  | 17 +++++------------
- src/net/http/http.go    |  6 ++++++
- src/net/http/request.go |  2 +-
- 3 files changed, 12 insertions(+), 13 deletions(-)
+ src/net/timeout_test.go | 100 ++++++++++++++++++++++++------------------------
+ 1 file changed, 50 insertions(+), 50 deletions(-)

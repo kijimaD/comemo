@@ -1,0 +1,23 @@
+commit 5ab8f90745efee77cae39f4ba9547298977fcc65
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 21 15:48:06 2024 -0700
+
+    go/types, types2: operand.convertibleTo must consider Alias types
+    
+    Fixes regression from Go 1.22.
+    
+    Fixes #67540.
+    For #67547.
+    
+    Change-Id: I61f642970c6a9bd8567654bb5ecf645ae77b3bcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587159
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go     | 11 +++---
+ src/go/types/conversions.go                        | 11 +++---
+ .../types/testdata/fixedbugs/issue67547.go         | 40 ++++++++++++++++++++++
+ 3 files changed, 54 insertions(+), 8 deletions(-)

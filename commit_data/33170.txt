@@ -1,15 +1,19 @@
-commit 5313d3f23694fdc051ed095960345df01670107e
-Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
-Date:   Thu Oct 19 15:49:43 2017 +0300
+commit 9e859d5e9c7c093937c79f87c4b3328383320843
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 18 13:15:05 2017 -0700
 
-    testing/iotest: fix NewReadLogger documentation typo
+    cmd/go, cmd/link: if -no-pie doesn't work, try -nopie
     
-    Change-Id: I094af156e7b8c31af3162d943a8c61268803ab89
-    Reviewed-on: https://go-review.googlesource.com/71830
-    Reviewed-by: Gabriel Aszalos <gabriel.aszalos@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
-    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    GCC says -no-pie, clang says -nopie.
+    
+    Fixes #21042
+    
+    Change-Id: Iadc83ea7a48ea0debc5064c1ee8da4ebff752044
+    Reviewed-on: https://go-review.googlesource.com/49710
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/testing/iotest/logger.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/cmd/go/internal/work/build.go | 25 ++++++++++++++++---------
+ src/cmd/link/internal/ld/lib.go   | 21 ++++++++++++++-------
+ 2 files changed, 30 insertions(+), 16 deletions(-)

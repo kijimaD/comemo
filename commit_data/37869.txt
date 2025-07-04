@@ -1,28 +1,23 @@
-commit 44cf595a7efcd3d7048c745d1d1531696bcb5941
-Author: Alex Brainman <alex.brainman@gmail.com>
-Date:   Sat Jan 5 18:35:27 2019 +1100
+commit 3fd364988ce5dcf3aa1d4eb945d233455db30af6
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Wed Sep 5 07:07:56 2018 +0200
 
-    path/filepath: return special error from EvalSymlinks
+    misc/cgo/testplugin: disable DWARF tests on darwin
     
-    CL 155597 attempted to fix #29372. But it failed to make all new
-    test cases pass. Also CL 155597 broke some existing code
-    (see #29449 for details).
+    For some reason on darwin the linker still can't add debug sections to
+    plugins. Executables importing "plugin" do have them, however.
     
-    Make small adjustment to CL 155597 that fixes both #29372 and #29449.
+    Because of issue 25841, plugins on darwin would likely have bad debug
+    info anyway so, for now, this isn't a great loss.
     
-    Suggested by Ian.
+    This disables the check for debug sections in plugins for darwin only.
     
-    Updates #29372
-    Fixes #29449
+    Updates #27502
     
-    Change-Id: I9777a615514d3f152af5acb65fb1239e696607b6
-    Reviewed-on: https://go-review.googlesource.com/c/156398
-    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Change-Id: Ib8f62dac1e485006b0c2b3ba04f86d733db5ee9a
+    Reviewed-on: https://go-review.googlesource.com/133435
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/path/filepath/path_test.go         | 25 ++++++++-----------------
- src/path/filepath/path_windows_test.go | 32 +++++++++++++++++++++++++++-----
- src/path/filepath/symlink.go           |  3 +--
- src/path/filepath/symlink_unix.go      |  9 +++++++++
- src/path/filepath/symlink_windows.go   | 26 +++++++++-----------------
- 5 files changed, 54 insertions(+), 41 deletions(-)
+ misc/cgo/testplugin/src/checkdwarf/main.go | 8 ++++----
+ misc/cgo/testplugin/test.bash              | 6 +++++-
+ 2 files changed, 9 insertions(+), 5 deletions(-)

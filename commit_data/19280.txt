@@ -1,18 +1,15 @@
-commit bb5a827a4b76ff22fdf34a66b1e8c8d4786438cc
-Author: David Crawshaw <david.crawshaw@zentus.com>
-Date:   Tue May 6 09:12:15 2014 -0400
+commit cf78f96244ec8e3a69f10069fb43dd720f1556b0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue May 6 11:40:43 2014 +1000
 
-    cmd/go: add go build -i
+    cmd/ld: correct pe section number in symbol table
     
-    Fixes #7071.
+    Update #7899
     
     LGTM=iant
-    R=golang-codereviews, iant
+    R=golang-codereviews, rsc, iant
     CC=golang-codereviews
-    https://golang.org/cl/93770044
+    https://golang.org/cl/97920044
 
- src/cmd/go/build.go    | 13 +++++++++++--
- src/cmd/go/test.bash   | 40 ++++++++++++++++++++++++++++++++++++++++
- src/cmd/go/test.go     |  3 +--
- src/cmd/go/testflag.go |  2 +-
- 4 files changed, 53 insertions(+), 5 deletions(-)
+ src/cmd/ld/pe.c | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)

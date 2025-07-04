@@ -1,26 +1,16 @@
-commit 49319ed5c7aa6de6dd4313887dc1494ae73439e2
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Fri Feb 23 14:01:34 2024 +0100
+commit 73ca5c0dace9e43330d92b751547759075d3b828
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 7 15:56:20 2023 -0500
 
-    os: avoid GetFileInformationByHandleEx call when stat'ing files on Windows
+    cmd/go: simplify cgo and buildmode checks in tests
     
-    os.Stat and os.Lstat on Windows use GetFileInformationByHandleEx to
-    retrieve file information for reparse points and files that
-    GetFileAttributesEx does not handle.
-    
-    However, GetFileInformationByHandleEx is only necessary for
-    reparse points, so we can avoid the call for regular files.
-    
-    With this change we can drop the FAT hack that was added in CL 154377,
-    as files won't have the FILE_ATTRIBUTE_REPARSE_POINT attribute set
-    on that file system.
-    
-    Change-Id: Id18639067a6c3fa1bb2c6706d5b79358c224fe37
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/566397
-    Reviewed-by: Carlos Amedee <carlos@golang.org>
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Change-Id: I0d6e49226a8708cc5f6ed3bea7658bec202a7ae7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474138
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
 
- src/os/types_windows.go | 18 +++++++-----------
- 1 file changed, 7 insertions(+), 11 deletions(-)
+ src/cmd/go/go_test.go          | 114 ++++++++++++++++-------------------------
+ src/cmd/go/scriptconds_test.go |   4 +-
+ 2 files changed, 45 insertions(+), 73 deletions(-)

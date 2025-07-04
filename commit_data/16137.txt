@@ -1,17 +1,15 @@
-commit bd1cd1ddeac67807bb84170bc79579f157898b91
-Author: Dmitriy Vyukov <dvyukov@google.com>
-Date:   Mon Apr 8 13:36:35 2013 -0700
+commit 20e05303febf53d959926a05c6f019db352bb963
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Apr 8 08:59:33 2013 +0200
 
-    runtime: poor man's heap type info checker
-    It's not trivial to make a comprehensive check
-    due to inferior pointers, reflect, gob, etc.
-    But this is essentially what I've used to debug
-    the GC issues.
-    Update #5193.
+    cmd/gc: properly set variadic flag on method values.
     
-    R=golang-dev, iant, 0xe2.0x9a.0x9b, r
+    Fixes #5231.
+    
+    R=golang-dev, daniel.morsing, adg
     CC=golang-dev
-    https://golang.org/cl/8455043
+    https://golang.org/cl/8275044
 
- src/pkg/runtime/mgc0.c | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
+ src/cmd/gc/closure.c        | 17 ++++++++++++-----
+ test/fixedbugs/issue5231.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 5 deletions(-)

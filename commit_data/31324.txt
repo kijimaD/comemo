@@ -1,15 +1,15 @@
-commit cdeda796c7be35f84e8fafd55aa5960901d56a6d
-Author: Robert Griesemer <gri@golang.org>
-Date:   Mon Apr 24 15:55:41 2017 -0700
+commit 5030bfdf81ba3bf4d66cf6e9ddfd80ef194f07b6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 10 14:56:05 2017 -0800
 
-    cmd/compile: move typepkg back to gc package (cleanup)
+    cmd/internal/obj/x86: add comments to wrapper prologue insertion
     
-    Change-Id: I4d5c54d2dceabf4630e5e642835b20c8c6890524
-    Reviewed-on: https://go-review.googlesource.com/41616
-    Run-TryBot: Robert Griesemer <gri@golang.org>
-    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Make the comments a bit clearer and more accurate,
+    in anticipation of updating the code.
+    
+    Change-Id: I1111e6c3405a8688fcd29b809a48a762ff41edaa
+    Reviewed-on: https://go-review.googlesource.com/36833
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/compile/internal/gc/reflect.go | 20 +++++++++++++++-----
- src/cmd/compile/internal/types/pkg.go  |  7 -------
- 2 files changed, 15 insertions(+), 12 deletions(-)
+ src/cmd/internal/obj/x86/obj6.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

@@ -1,22 +1,32 @@
-commit fda8ee8b077dd8a5819cac7c52c3af1499a0674e
-Author: Robert Findley <rfindley@google.com>
-Date:   Sun Aug 15 21:50:42 2021 -0400
+commit 351bc2f38c4291c01299c2add16f1f5a96e54bb4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 2 21:38:20 2020 -0800
 
-    go/types: make Interface.Complete a no-op
+    [dev.regabi] cmd/compile: store types.Field on {Selector,CallPart}Expr
     
-    This is a partial port of CL 340255 to go/types. Of course we can't
-    delete Interface.Complete, but make it a no-op.
+    It's useful to have quick access to the types.Field that a given
+    selector or method value expression refer to. Previously we abused Opt
+    for this, but couldn't do that for OCALLPART because escape analysis
+    uses Opt.
     
-    Completing interfaces is no longer necessary.
+    Now that we have more flexibility, we can simply add additional
+    pointer fields for this. This also allows getting rid of an unneeded
+    ONAME node for OCALLPART.
     
-    Change-Id: Ida3c84cc94713f14a646c7682f5d4ae5339a0faa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/342489
-    Trust: Robert Findley <rfindley@google.com>
-    Run-TryBot: Robert Findley <rfindley@google.com>
+    Passes buildall w/ toolstash -cmp.
+    
+    Change-Id: I980d7bdb19abfd0b6f58a232876861b88dee1e47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275034
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
 
- src/go/internal/gcimporter/iimport.go |  4 ----
- src/go/types/interface.go             | 18 ++++--------------
- src/go/types/issues_test.go           |  3 ++-
- 3 files changed, 6 insertions(+), 19 deletions(-)
+ src/cmd/compile/internal/gc/closure.go   | 15 ++-------------
+ src/cmd/compile/internal/gc/iexport.go   |  3 +--
+ src/cmd/compile/internal/gc/inl.go       |  3 +++
+ src/cmd/compile/internal/gc/typecheck.go | 14 +++++++-------
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ src/cmd/compile/internal/ir/expr.go      | 15 ++++++++-------
+ src/cmd/compile/internal/ir/fmt.go       |  4 ++--
+ 7 files changed, 24 insertions(+), 32 deletions(-)

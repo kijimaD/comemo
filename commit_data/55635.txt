@@ -1,20 +1,32 @@
-commit 027853627d08ca41c8e4758a11d622e9f43d2562
-Author: Roland Shoemaker <roland@golang.org>
-Date:   Tue Feb 20 08:53:57 2024 -0800
+commit 4d180f71dca041a39b50b9dec8a0ebec5cc02b90
+Author: ruinan <ruinan.sun@arm.com>
+Date:   Thu Aug 18 01:31:57 2022 +0000
 
-    crypto/x509: remove bad generate statement
+    cmd/compile: omit redundant sign/unsign extension on arm64
     
-    CL488855 added a broken go:generate statement, which referenced a
-    file which didn't exist. Remove the statement.
+    On Arm64, all 32-bit instructions will ignore the upper 32 bits and
+    clear them to zero for the result. No need to do an unsign extend before
+    a 32 bit op.
     
-    The generator is in the commit message for CL488855, if it is ever
-    actually needed.
+    This CL removes the redundant unsign extension only for the existing
+    32-bit opcodes, and also omits the sign extension when the upper bit of
+    the result can be predicted.
     
-    Change-Id: I6b18d5b4f38f82b27681b9b758e9642543aa6e43
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/565435
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Damien Neil <dneil@google.com>
-    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Fixes #42162
+    
+    Change-Id: I61e6670bfb8982572430e67a4fa61134a3ea240a
+    CustomizedGitHooks: yes
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427454
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/crypto/x509/platform_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules | 10 +++
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go |  1 +
+ src/cmd/compile/internal/ssa/rewrite.go       |  4 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 68 +++++++++++++++++++
+ test/codegen/noextend.go                      | 94 +++++++++++++++++++++++++++
+ 5 files changed, 177 insertions(+)

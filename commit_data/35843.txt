@@ -1,24 +1,12 @@
-commit 62d270e0a424dddd54571a6a119fc4e3d4b1b901
-Author: Daniel Martí <mvdan@mvdan.cc>
-Date:   Fri Jun 29 17:46:17 2018 +0100
+commit 2086f3503e40305da650ac200913a8535c0317ab
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Mar 12 18:19:06 2018 -0400
 
-    strings: add note for new Go developers to TrimLeft and TrimRight
+    C: add Filippo Valsorda's @golang.org email
     
-    If one quickly looks at the strings package godoc, reading the name
-    TrimLeft, one might think it removes a prefix from the string.
-    
-    The function's godoc does explain its purpose, but it's apparent that it
-    is not clear enough, as there have been numerous raised issues about
-    this confusion: #12771 #14657 #18160 #19371 #20085 #25328 #26119. These
-    questions are also frequent elsewhere on the internet.
-    
-    Add a very short paragraph to the godoc, to hopefully point new Go
-    developers in the right direction faster. Do the same thing for
-    TrimRight and TrimSuffix.
-    
-    Change-Id: I4dee5ed8dd9fba565b4755bad12ae1ee6d277959
-    Reviewed-on: https://go-review.googlesource.com/121637
+    Change-Id: I3758a4350b600af304b2cff7ad59c7368a01ab5c
+    Reviewed-on: https://go-review.googlesource.com/100215
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/strings/strings.go | 4 ++++
- 1 file changed, 4 insertions(+)
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,21 +1,16 @@
-commit c9b9cd73bb7a7828d34f4a7844f16c3fbc0674dd
+commit 141b11d5a12f8bdf4825227db70e2a4309906ae9
 Author: Katie Hockman <katie@golang.org>
-Date:   Wed Oct 28 15:13:33 2020 -0400
+Date:   Fri Apr 17 10:23:07 2020 -0400
 
-    crypto/tls: set Deadline before sending close notify alert
+    crypto/x509: disallow setting MaxPathLen without IsCA
     
-    This change also documents the need to set a Deadline before
-    calling Read or Write.
+    Fixes #38216
     
-    Fixes #31224
-    
-    Change-Id: I89d6fe3ecb0a0076b4c61765f61c88056f951406
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/266037
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Katie Hockman <katie@golang.org>
-    TryBot-Result: Go Bot <gobot@golang.org>
+    Change-Id: I3222abe2153abb4cbfa65a4825c153ce128f56a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228777
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
 
- doc/go1.16.html        | 10 ++++++++--
- src/crypto/tls/conn.go | 22 ++++++++++++++++++----
- 2 files changed, 26 insertions(+), 6 deletions(-)
+ src/crypto/x509/x509.go      |  4 ++++
+ src/crypto/x509/x509_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

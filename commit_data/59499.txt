@@ -1,77 +1,23 @@
-commit a24f4db2a2bd3e897d466a11d269ac7e618a6f8a
-Author: Mark Freeman <mark@golang.org>
-Date:   Mon May 12 13:59:27 2025 -0400
+commit b750841906c84e894dfa3ee43e0f65d94f989b01
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Mar 13 10:15:19 2024 +0800
 
-    internal/pkgbits, cmd/compile/internal/noder: document string section
+    os: kick FIFOs with O_NONBLOCK out of the kqueue on Darwin/iOS
     
-    To understand this change, we begin with a short description of the UIR
-    file format.
+    Fixes #66239
     
-    Every file is a header followed by a series of sections. Each section
-    has a kind, which determines the type of elements it contains. An
-    element is just a collection of one or more primitives, as defined by
-    package pkgbits.
-    
-    Strings have their own section. Elements in the string section contain
-    only string primitives. To use a string, elements in other sections
-    encode a reference to the string section.
-    
-    To illustrate, consider a simple file which exports nothing at all.
-    
-      package p
-    
-    In the meta section, there is an element representing a package stub.
-    In that package stub, a string ("p") represents both the path and name
-    of the package. Again, these are encoded as references.
-    
-    To manage references, every element begins with a reference table.
-    Instead of writing the bytes for "p" directly, the package stub encodes
-    an index in this reference table. At that index, a pair of numbers is
-    stored, indicating:
-    
-      1. which section
-      2. which element index within the section
-    
-    Effectively, elements always use *2* layers of indirection; first to the
-    reference table, then to the bytes themselves.
-    
-    With some minor hand-waving, an encoding for the above package is given
-    below, with (S)ections, (E)lements and (P)rimitives denoted.
-    
-    + Header
-    | + Section Ends                           // each section has 1 element
-    | | + 1                                    // String is elements [0, 1)
-    | | + 2                                    // Meta   is elements [1, 2)
-    | + Element Ends
-    | | + 1                                    // "p"    is bytes    [0, 1)
-    | | + 6                                    // stub   is bytes    [1, 6)
-    + Payload
-    | + (S) String
-    | | + (E) String
-    | | | + (P) String           { byte } 0x70 // "p"
-    | + (S) Meta
-    | | + (E) Package Stub
-    | | | + Reference Table
-    | | | | + (P) Entry Count    uvarint  1    // there is a single entry
-    | | | | + (P) 0th Section    uvarint  0    // to String, 0th section
-    | | | | + (P) 0th Index      uvarint  0    // to 0th element in String
-    | | | + Internals
-    | | | | + (P) Path           uvarint  0    // 0th entry in table
-    | | | | + (P) Name           uvarint  0    // 0th entry in table
-    
-    Note that string elements do not have reference tables like other
-    elements. They behave more like a primitive.
-    
-    As this is a bit complicated and getting into details of the UIR file
-    format, we omit some details in the documentation here. The structure
-    will become clearer as we continue documenting.
-    
-    Change-Id: I12a5ce9a34251c5358a20f2f2c4d0f9bd497f4d0
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/671997
-    Reviewed-by: Robert Griesemer <gri@google.com>
-    Auto-Submit: Mark Freeman <mark@golang.org>
-    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Change-Id: I8210682c0cf4285b950e9fabe687b7ad2369835c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570397
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
 
- src/cmd/compile/internal/noder/doc.go |  8 +++++-
- src/internal/pkgbits/doc.go           | 53 +++++++++++++++++++++--------------
- 2 files changed, 39 insertions(+), 22 deletions(-)
+ src/os/fifo_test.go    | 55 ++++++++++++++++++++++++++++++++++++++++++++
+ src/os/file_unix.go    | 62 ++++++++++++++++++++++++--------------------------
+ src/os/pipe2_unix.go   |  2 +-
+ src/os/pipe_unix.go    |  2 +-
+ src/os/removeall_at.go |  2 +-
+ 5 files changed, 88 insertions(+), 35 deletions(-)

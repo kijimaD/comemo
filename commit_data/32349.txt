@@ -1,21 +1,48 @@
-commit fe08ebaebb09cb0c45e3728a96d494f7f9f5c1b3
-Author: Brian Kessler <brian.m.kessler@gmail.com>
-Date:   Thu Aug 17 23:44:34 2017 -0700
+commit 38dee12dea062337a9591b49a9525d85afedc09c
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 19 11:19:53 2017 -0700
 
-    math/big: use internal square for Rat
+    cmd/compile: zero ambiguously live variables at VARKILLs
     
-    updates #13745
+    At VARKILLs, zero a variable if it is ambiguously live.
+    After the VARKILL anything this variable references
+    might be collected. If it were to become live again later,
+    the GC will see references to already-collected objects.
     
-    A squared rational is always positive and can not
-    be reduced since the numerator and denominator had
-    no previous common factors.  The nat multiplication
-    can be performed using the internal sqr method.
+    We don't know a variable is ambiguously live until very
+    late in compilation (after lowering, register allocation, ...),
+    so it is hard to generate the code in an arch-independent way.
+    We also have to be careful not to clobber any registers.
+    Fortunately, this almost never happens so performance is ~irrelevant.
     
-    Change-Id: I558f5b38e379bfd26ff163c9489006d7e5a9cfaa
-    Reviewed-on: https://go-review.googlesource.com/56776
-    Reviewed-by: Robert Griesemer <gri@golang.org>
-    Run-TryBot: Robert Griesemer <gri@golang.org>
+    There are only 2 instances where this triggers in the stdlib.
+    
+    Fixes #20029
+    
+    Change-Id: Ia9585a91d7b823fad4a9d141d954464cc7af31f4
+    Reviewed-on: https://go-review.googlesource.com/41076
+    Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
 
- src/math/big/rat.go | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/cmd/compile/internal/amd64/galign.go  |  1 +
+ src/cmd/compile/internal/amd64/ggen.go    | 20 +++++++++++++++++++
+ src/cmd/compile/internal/arm/galign.go    |  1 +
+ src/cmd/compile/internal/arm/ggen.go      | 21 ++++++++++++++++++++
+ src/cmd/compile/internal/arm64/galign.go  |  1 +
+ src/cmd/compile/internal/arm64/ggen.go    | 16 ++++++++++++++++
+ src/cmd/compile/internal/gc/go.go         |  5 +++++
+ src/cmd/compile/internal/gc/plive.go      |  2 +-
+ src/cmd/compile/internal/gc/ssa.go        | 18 ++++++++++++++++-
+ src/cmd/compile/internal/mips/galign.go   |  1 +
+ src/cmd/compile/internal/mips/ggen.go     | 16 ++++++++++++++++
+ src/cmd/compile/internal/mips64/galign.go |  1 +
+ src/cmd/compile/internal/mips64/ggen.go   | 16 ++++++++++++++++
+ src/cmd/compile/internal/ppc64/galign.go  |  1 +
+ src/cmd/compile/internal/ppc64/ggen.go    | 16 ++++++++++++++++
+ src/cmd/compile/internal/s390x/galign.go  |  1 +
+ src/cmd/compile/internal/s390x/ggen.go    | 12 ++++++++++++
+ src/cmd/compile/internal/x86/galign.go    |  1 +
+ src/cmd/compile/internal/x86/ggen.go      | 16 ++++++++++++++++
+ test/fixedbugs/issue20029.go              | 32 +++++++++++++++++++++++++++++++
+ 20 files changed, 196 insertions(+), 2 deletions(-)

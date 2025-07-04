@@ -1,27 +1,27 @@
-commit 22d28a24c8b0d99f2ad6da5fe680fa3cfa216651
-Author: Dan Scales <danscales@google.com>
-Date:   Tue Dec 10 17:27:26 2019 -0800
+commit 7be97af2ff6d4bdc8a52cb72677bbd68703489fd
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Jul 10 00:00:13 2019 +0530
 
-    runtime: force segv for nil defer function to be in deferreturn()
+    cmd/compile: apply optimization for readonly globals on wasm
     
-    If the defer function pointer is nil, force the seg fault to happen in deferreturn
-    rather than in jmpdefer. jmpdefer is used fairly infrequently now because most
-    functions have open-coded defers.
+    Extend the optimization introduced in CL 141118 to the wasm architecture.
     
-    The open-coded defer implementation calls gentraceback() with a callback when
-    looking for the first open-coded defer frame. gentraceback() throws an error if it
-    is called with a callback on an LR architecture and jmpdefer is on the stack,
-    because the stack trace can be incorrect in that case - see issue #8153. So, we
-    want to make sure that we don't have a seg fault in jmpdefer.
+    And for reference, the rules trigger 212 times while building std and cmd
     
-    Fixes #36050
+    $GOOS=js GOARCH=wasm gotip build std cmd
+    $grep -E "Wasm.rules:44(1|2|3|4)" rulelog | wc -l
+    212
     
-    Change-Id: Ie25e6f015d8eb170b40248dedeb26a37b7f9b38d
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/210978
-    Reviewed-by: Keith Randall <khr@golang.org>
-    Run-TryBot: Dan Scales <danscales@google.com>
+    Updates #26498
+    
+    Change-Id: I153684a2b98589ae812b42268da08b65679e09d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185477
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
 
- src/runtime/callers_test.go | 34 +++++++++++++++++++++++++++++++---
- src/runtime/panic.go        |  6 ++++++
- 2 files changed, 37 insertions(+), 3 deletions(-)
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  6 ++
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 98 +++++++++++++++++++++++++++++
+ test/codegen/strings.go                     |  3 +
+ 3 files changed, 107 insertions(+)

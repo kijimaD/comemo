@@ -1,31 +1,32 @@
-commit 398bf9d5a09fdcc14088dc42f953d6e3142fd343
-Author: Matthew Dempsky <mdempsky@google.com>
-Date:   Mon Mar 9 17:40:23 2015 -0700
+commit d0b59deb71b69c1a07b3e734b6f5ff66b3a4e2c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 16:21:15 2015 -0500
 
-    cmd/internal/gc, cmd/yacc: restore custom syntax error messages
+    cmd/internal/gc: replace hash tables with Go maps
     
-    This restores go.errors from before 3af0d79 along with a fixed up
-    version of the bisonerrors AWK script, translated to Go.
+    The C version of the compiler had just one hash table,
+    indexed by a (name string, pkg *Pkg) pair.
+    Because we always know the pkg during a lookup,
+    replace the one table with a per-Pkg map[string]*Sym.
+    This also lets us do non-allocating []byte key lookups.
     
-    However, this means Yyerror needs access to the yacc parser's state,
-    which is currently private.  To workaround that, add a "state"
-    accessor method like the Lookahead method added in c7fa3c6.
+    This CL *does* change the generated object files.
+    In the old code, export data and init calls were emitted
+    in "hash table order". Now they are emitted in the order
+    in which they were added to the table.
     
-    Update issue #9968.
-    
-    Change-Id: Ib868789e92fdb7d135442120a392457923e50121
-    Reviewed-on: https://go-review.googlesource.com/7270
-    Reviewed-by: Russ Cox <rsc@golang.org>
-    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Change-Id: I5a48d5c9add996dc43ad04a905641d901522de0b
+    Reviewed-on: https://go-review.googlesource.com/6600
+    Reviewed-by: Rob Pike <r@golang.org>
 
- src/cmd/internal/gc/go.errors     |  81 ++++++++++++++++
- src/cmd/internal/gc/lex.go        |   6 +-
- src/cmd/internal/gc/subr.go       |  13 ++-
- src/cmd/internal/gc/y.go          |   4 +
- src/cmd/internal/gc/yaccerrors.go | 194 ++++++++++++++++++++++++++++++++++++++
- src/cmd/internal/gc/yymsg.go      |  83 ++++++++++++++++
- src/cmd/yacc/yacc.go              |   4 +
- test/fixedbugs/bug121.go          |   4 -
- test/fixedbugs/issue4468.go       |   3 -
- 9 files changed, 373 insertions(+), 19 deletions(-)
+ src/cmd/internal/gc/export.go    |  13 ++--
+ src/cmd/internal/gc/fmt.go       |   2 +-
+ src/cmd/internal/gc/go.go        |   7 +-
+ src/cmd/internal/gc/go.y         |   2 +-
+ src/cmd/internal/gc/init.go      |  28 ++------
+ src/cmd/internal/gc/lex.go       |  53 ++++++++--------
+ src/cmd/internal/gc/reflect.go   |   9 +--
+ src/cmd/internal/gc/subr.go      | 134 +++++++++++++++++++--------------------
+ src/cmd/internal/gc/typecheck.go |  20 ++----
+ src/cmd/internal/gc/y.go         |   2 +-
+ 10 files changed, 114 insertions(+), 156 deletions(-)

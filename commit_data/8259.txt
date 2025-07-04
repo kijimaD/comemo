@@ -1,18 +1,12 @@
-commit f319e1df37f233956211dc5663f7289ccb6b12f4
-Author: Evan Shaw <chickencha@gmail.com>
-Date:   Thu Apr 28 00:16:15 2011 -0700
+commit d2d50f85baa900686d5189a1655206ad2c747c3d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 28 16:38:01 2011 +1000
 
-    http: add Header.Write method
+    tag weekly.2011-04-27
     
-    R=golang-dev, bradfitz, dsymonds
+    R=golang-dev
     CC=golang-dev
-    https://golang.org/cl/4426069
+    https://golang.org/cl/4439081
 
- src/pkg/http/cgi/child.go   | 13 ++-------
- src/pkg/http/fcgi/child.go  | 10 +------
- src/pkg/http/header.go      | 40 ++++++++++++++++++++++++-
- src/pkg/http/header_test.go | 71 +++++++++++++++++++++++++++++++++++++++++++++
- src/pkg/http/request.go     |  2 +-
- src/pkg/http/response.go    | 28 +-----------------
- src/pkg/http/server.go      |  2 +-
- 7 files changed, 116 insertions(+), 50 deletions(-)
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,33 +1,20 @@
-commit 57e3809884dd695d484acaefba8ded720c5a02c1
-Author: Cherry Mui <cherryyz@google.com>
-Date:   Fri Feb 18 13:09:54 2022 -0500
+commit 879db69ce2de814bc3203c39b45617ba51cc5366
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Apr 30 15:38:11 2021 -0400
 
-    runtime: avoid cgo_unsafe_args for syscall.syscall functions on darwin/arm64
+    go/types: list errors by default in TestManual
     
-    Currently, syscall.syscall-like functions are defined as
-    cgo_unsafe_args, which makes them ABI0, as it takes the address of
-    the argument area based on ABI0 layout. Those functions are
-    linkname'd to the syscall package. When compiling the syscall
-    package, the compiler doesn't know they are ABI0 therefore
-    generate an ABIInternal call, which will use the wrapper. As some
-    of the functions (e.g. syscall6) has many arguments, the wrapper
-    would take a good amount of stack space. And those functions must
-    be nosplit. This causes nosplit overflow when building with -N -l
-    and -race.
+    This is a port of CL 315729 to go/types, adjusted for the slightly
+    different test set-up in go/types.
     
-    Avoid that by rewriting the functions to not use cgo_unsafe_args.
-    Instead, make a struct locally and pass the address of that
-    struct. This way the functions are ABIInternal and the call will
-    not use the wrapper.
+    Added a TODO to reconcile these differences.
     
-    Fixes #51247.
-    
-    Change-Id: I76c1ab86b9d28664fa7d5b9c7928fbb2fd8d1417
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/386719
-    Trust: Cherry Mui <cherryyz@google.com>
-    Run-TryBot: Cherry Mui <cherryyz@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I71cae712d8fc23b7311ce35e09168b258e07fa35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315850
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/runtime/sys_darwin.go | 52 +++++++++++++++++++++++++----------------------
- 1 file changed, 28 insertions(+), 24 deletions(-)
+ src/go/types/check_test.go | 32 +++++++++++++++++---------------
+ 1 file changed, 17 insertions(+), 15 deletions(-)

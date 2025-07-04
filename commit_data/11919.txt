@@ -1,14 +1,12 @@
-commit cc8e12bb52bf5fee147de785ab18c8efda683370
-Author: Lai Jiangshan <eag0628@gmail.com>
-Date:   Wed Feb 15 13:51:49 2012 +1100
+commit d6a3650ad71d8b071cf038ff8fe1c724b1ab74d0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 15 13:38:28 2012 +1100
 
-    reflect: fix panic strings
+    strings: add Bernardo O'Higgins example
     
-    use ':' instead of ';' to keep consistency with the other panic strings
-    
-    R=golang-dev, dsymonds, r
-    CC=golang-dev
-    https://golang.org/cl/5666048
+    R=r, bradfitz
+    CC=golang-dev, rogpeppe
+    https://golang.org/cl/5673049
 
- src/pkg/reflect/type.go | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ src/pkg/strings/example_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

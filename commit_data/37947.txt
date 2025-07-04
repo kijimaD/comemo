@@ -1,24 +1,22 @@
-commit 95e5b07cf5fdf3352f04f5557df38f22c55ce8e8
-Author: Filippo Valsorda <filippo@golang.org>
-Date:   Mon Feb 4 18:08:43 2019 -0500
+commit 1bf5796cae9e8f7b55402f199a1eec82a092abb7
+Author: Ben Burkert <ben@benburkert.com>
+Date:   Wed Sep 5 10:20:26 2018 -0700
 
-    crypto/x509: consider parents by Subject if AKID has no match
+    internal/poll: fall back on unsupported splice from unix socket
     
-    If a certificate somehow has an AKID, it should still chain successfully
-    to a parent without a SKID, even if the latter is invalid according to
-    RFC 5280, because only the Subject is authoritative.
+    Gracefully fallback to a userspace copy when the kernel does not support
+    splice(2) on a unix domain socket. EINVAL is returned by the splice
+    syscall if it does not support unix domain sockets. Keeping the handled
+    return value as false when the first splice call fails with EINVAL will
+    cause the caller to fall back to a userspace copy.
     
-    This reverts to the behavior before #29233 was fixed in 770130659. Roots
-    with the right subject will still be shadowed by roots with the right
-    SKID and the wrong subject, but that's been the case for a long time, and
-    is left for a more complete fix in Go 1.13.
+    Fixes #27513
     
-    Updates #30079
-    
-    Change-Id: If8ab0179aca86cb74caa926d1ef93fb5e416b4bb
-    Reviewed-on: https://go-review.googlesource.com/c/161097
-    Reviewed-by: Adam Langley <agl@golang.org>
+    Change-Id: I4b10c1900ba3c096cb32edb7c8a6044f468efb52
+    Reviewed-on: https://go-review.googlesource.com/133575
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
 
- src/crypto/x509/cert_pool.go   |   9 +++-
- src/crypto/x509/verify_test.go | 116 +++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 123 insertions(+), 2 deletions(-)
+ src/internal/poll/splice_linux.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

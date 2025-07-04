@@ -1,21 +1,38 @@
-commit b4e207d71858bfd491f2baaf66777e31b6eb9ca2
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Wed Oct 25 15:34:08 2017 -0400
+commit 7045e6f6c458908e1d5082381b3506a65059eac3
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon May 22 07:42:42 2017 +0200
 
-    cmd/go: enable TestNoteReading on ppc64le
+    runtime: remove unused prefetch functions
     
-    This test was previously disabled when external linking was
-    unsupported on ppc64le. It should still be disabled on ppc64
-    since there is no cgo or external linking there, but I removed
-    the if test for GOARCH=ppc64 since the initial test for cgo
-    enabled will cause it to be skipped on ppc64.
+    The only non test user of the assembler prefetch functions is the
+    heapBits.prefetch function which is itself unused.
     
-    Fixes #22360
+    The runtime prefetch functions have no functionality on most platforms
+    and are not inlineable since they are written in assembler. The function
+    call overhead eliminates the performance gains that could be achieved with
+    prefetching and would degrade performance for platforms where the functions
+    are no-ops.
     
-    Change-Id: I5a0e3e4a1bd71ac7bf0ed0c792f7b78fb4a5e100
-    Reviewed-on: https://go-review.googlesource.com/73510
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    If prefetch functions are needed back again later they can be improved
+    by avoiding the function call overhead and implementing them as intrinsics.
+    
+    Change-Id: I52c553cf3607ffe09f0441c6e7a0a818cb21117d
+    Reviewed-on: https://go-review.googlesource.com/44370
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
 
- src/cmd/go/note_test.go | 2 --
- 1 file changed, 2 deletions(-)
+ src/runtime/asm_386.s      | 13 -------------
+ src/runtime/asm_amd64.s    | 20 --------------------
+ src/runtime/asm_amd64p32.s | 21 ---------------------
+ src/runtime/asm_arm.s      | 12 ------------
+ src/runtime/asm_arm64.s    | 13 -------------
+ src/runtime/asm_mips64x.s  | 12 ------------
+ src/runtime/asm_mipsx.s    | 12 ------------
+ src/runtime/asm_ppc64x.s   | 12 ------------
+ src/runtime/asm_s390x.s    | 12 ------------
+ src/runtime/mbitmap.go     |  5 -----
+ src/runtime/runtime1.go    |  4 ----
+ src/runtime/stubs.go       |  5 -----
+ 12 files changed, 141 deletions(-)

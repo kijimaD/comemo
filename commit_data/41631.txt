@@ -1,42 +1,41 @@
-commit 9d67a94217c0a46a2b02a1fc67bb3e436dac0c97
-Author: Lynn Boger <laboger@linux.vnet.ibm.com>
-Date:   Tue Mar 10 10:08:02 2020 -0400
+commit 80a6fedea05dbdab2e55b2ba922faeaf4155a981
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 12 19:40:42 2019 -0800
 
-    cmd/internal/obj/ppc64: clean up some opcodes
+    cmd/compile: add -d=checkptr to validate unsafe.Pointer rules
     
-    This does some clean up of the ppc64 opcodes to remove names
-    from the opcode list that don't actually assemble. At one time
-    names were added to this list to represent opcode "classes" to
-    organize other opcodes that have the same set of operand
-    combinations. Since this is not documented, it is confusing as
-    to which opcodes can be used in an asm file and which can't, and
-    which opcodes should be supported in the disassembler. It is
-    clearer for the user if the list of Go opcodes are all opcodes
-    that can be assembled with names that match the ppc64 opcode
-    where possible.
+    This CL adds -d=checkptr as a compile-time option for adding
+    instrumentation to check that Go code is following unsafe.Pointer
+    safety rules dynamically. In particular, it currently checks two
+    things:
     
-    I found this when trying to use Go opcode XXLAND in an asm file
-    which seems like it should map to ppc64 xxland but when used it
-    gets this error:
+    1. When converting unsafe.Pointer to *T, make sure the resulting
+    pointer is aligned appropriately for T.
     
-    go tool asm test_xxland.s
-    asm: bad r/r, r/r/r or r/r/r/r opcode XXLAND
-    asm: assembly failed
+    2. When performing pointer arithmetic, if the result points to a Go
+    heap object, make sure we can find an unsafe.Pointer-typed operand
+    that pointed into the same object.
     
-    This change removes the opcodes that are only used for opcode
-    "classes" and fixes the case statement where they are referenced.
-    This also fixes XXLAND and XXPERM which are opcodes that should
-    assemble to their corresponding ppc64 opcode but do not.
+    These checks are currently disabled for the runtime, and can also be
+    disabled through a new //go:nocheckptr annotation. The latter is
+    necessary for functions like strings.noescape, which intentionally
+    violate safety rules to workaround escape analysis limitations.
     
-    Change-Id: I52300db6b22f7f8b3dd3491c3f35a384b943352c
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/223138
-    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Fixes #22218.
+    
+    Change-Id: If5a51273881d93048f74bcff10a3275c9c91da6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/162237
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
 
- src/cmd/asm/internal/asm/testdata/ppc64.s |   7 +-
- src/cmd/internal/obj/ppc64/a.out.go       |  15 -----
- src/cmd/internal/obj/ppc64/anames.go      |  15 -----
- src/cmd/internal/obj/ppc64/asm9.go        | 103 ++++++++++++++----------------
- 4 files changed, 53 insertions(+), 87 deletions(-)
+ src/cmd/compile/internal/gc/builtin.go         |  7 ++-
+ src/cmd/compile/internal/gc/builtin/runtime.go |  3 ++
+ src/cmd/compile/internal/gc/inl.go             |  6 +++
+ src/cmd/compile/internal/gc/lex.go             |  3 ++
+ src/cmd/compile/internal/gc/main.go            |  7 +++
+ src/cmd/compile/internal/gc/walk.go            | 73 ++++++++++++++++++++++++++
+ src/reflect/value.go                           | 10 ++++
+ src/runtime/checkptr.go                        | 50 ++++++++++++++++++
+ src/strings/builder.go                         |  1 +
+ 9 files changed, 159 insertions(+), 1 deletion(-)

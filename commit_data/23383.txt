@@ -1,25 +1,26 @@
-commit 99f5f796d9e689befdd27f5563e28cd49dcc1567
-Author: Mikio Hara <mikioh.mikioh@gmail.com>
-Date:   Wed Jan 28 20:08:41 2015 +0900
+commit 7c0db1b7e23e14f7a9cc0c424f57a57a613846d3
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat May 9 17:21:42 2015 +0000
 
-    net: allow LookupAddr to use getnameinfo when cgo is enabled
+    cmd/gc: do not display ~b identifiers in error messages
     
-    This change allows LookupAddr to use getnameinfo through cgo for working
-    together with various name services other than DNS.
+    Instead of errors like:
     
-    Fixes #7855.
+    ./blank2.go:15: cannot use ~b1 (type []int) as type int in assignment
     
-    Change-Id: I5b3b4aefe3d1b904541c3350865734d8cbb1c1c4
-    Reviewed-on: https://go-review.googlesource.com/3420
+    we now have:
+    
+    ./blank2.go:15: cannot use _ (type []int) as type int in assignment
+    
+    Less confusing for users.
+    
+    Fixes #9521
+    
+    Change-Id: Ieab9859040e8e0df95deeaee7eeb408d3be61c0f
+    Reviewed-on: https://go-review.googlesource.com/9902
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
 
- src/net/cgo_resnew.go     | 23 +++++++++++++++++
- src/net/cgo_resold.go     | 23 +++++++++++++++++
- src/net/cgo_socknew.go    | 33 ++++++++++++++++++++++++
- src/net/cgo_sockold.go    | 33 ++++++++++++++++++++++++
- src/net/cgo_stub.go       |  4 +++
- src/net/cgo_unix.go       | 66 +++++++++++++++++++++++++++++++++++++++++++++++
- src/net/dnsclient_unix.go | 25 ++++++++++++++++++
- src/net/lookup_test.go    |  4 +--
- src/net/lookup_unix.go    | 20 +++-----------
- 9 files changed, 213 insertions(+), 18 deletions(-)
+ src/cmd/internal/gc/fmt.go  |  2 +-
+ test/fixedbugs/issue9521.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

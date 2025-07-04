@@ -1,37 +1,40 @@
-commit b9540246ba591e0ec5cd7cc1d6d62ab911ff9328
-Author: Bryan C. Mills <bcmills@google.com>
-Date:   Wed Oct 27 16:31:18 2021 -0400
+commit b97b1456aed5915f7633f16e573b4912140ee8e9
+Author: YunQiang Su <wzssyqa@gmail.com>
+Date:   Tue Jun 9 04:09:58 2020 +0000
 
-    cmd/go: disallow the -fuzz flag for tests outside the main module
+    cmd/go, cmd/cgo: pass -mfp32 and -mhard/soft-float to MIPS GCC
     
-    Normally, when fuzzing identifies a failure it saves the failing input
-    to the package's testdata directory. However, the testdata directory
-    for packages outside the main module is normally not writable — and
-    when it is, writing to a testdata directory inside the module cache
-    would corrupt the checksum for that module (and permanently alter the
-    behavior of that version of the module globally).
+    For mips32 currently, we are using FP32, while the gcc may be FPXX,
+    which may generate .MIPS.abiflags and .gnu.attributes section with
+    value as FPXX. So the kernel will treat the exe as FPXX, and may
+    choose to use FR=1 FPU mode for it.
+    Currently, in Go, we use 2 lwc1 to load both half of a double value
+    to a pair of even-odd FPR. This behavior can only work with FR=0 mode.
     
-    In the future we could consider a flag to allow failures to be saved
-    to an alternate location, or perhaps in the build cache; or, we could
-    suppress writes entirely and rely on the user to identify and copy the
-    failing input from the test log. However, it's a bit late in the cycle
-    for that big a design decision right now. For Go 1.18, we will just
-    enforce that the package to be fuzzed resides in the main module,
-    which is typically a writable VCS checkout.
+    In FR=1 mode, all of 32 FPR are 64bit. If we lwc1 the high-half of a double
+    value to an odd FPR, and try to use the previous even FPR to compute, the
+    real high-half of even FPR will be unpredicatable.
+    We set -mfp32 to force the gcc generate FP32 code and section value.
     
-    Fixes #48495
+    More details about FP32/FPXX/FP64 are explained in:
+    https://web.archive.org/web/20180828210612/https://dmz-portal.mips.com/wiki/MIPS_O32_ABI_-_FR0_and_FR1_Interlinking
     
-    Change-Id: I8d3d56372394b1aaa94fa920399c659363fa17fa
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/359414
-    Trust: Bryan C. Mills <bcmills@google.com>
-    Trust: Katie Hockman <katie@golang.org>
-    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    When GOMIPS/GOMIPS64 is set as softfloat, we should also pass
+     -msoft-float to gcc.
+    
+    Here we also add -mno-odd-spreg option, since Loongson's CPU cannot use
+    odd-number FR in FR=0 mode.
+    
+    Fixes #39435
+    
+    Change-Id: I54026ad416a815fe43a9261ebf6d02e5519c3930
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237058
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
 
- src/cmd/go/alldocs.go                              | 11 ++--
- src/cmd/go/internal/test/test.go                   | 45 +++++++++++++++--
- .../testdata/mod/example.com_fuzzfail_v0.1.0.txt   | 20 ++++++++
- .../testdata/mod/example.com_fuzzfail_v0.2.0.txt   | 23 +++++++++
- src/cmd/go/testdata/script/test_fuzz_modcache.txt  | 58 ++++++++++++++++++++++
- 5 files changed, 147 insertions(+), 10 deletions(-)
+ src/cmd/cgo/gcc.go               | 12 ++++++++++--
+ src/cmd/cgo/main.go              |  4 +++-
+ src/cmd/go/internal/work/exec.go | 14 ++++++++++++--
+ 3 files changed, 25 insertions(+), 5 deletions(-)

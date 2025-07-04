@@ -1,22 +1,18 @@
-commit 66b76403547b9e517d532619c4a31063eb7ef93c
-Author: Olivier Mengué <olivier.mengue@gmail.com>
-Date:   Wed Mar 5 17:44:53 2025 +0100
+commit 3dcdc09c85bb07be0bbef6d6acc9e0e2534205be
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 23 14:42:42 2024 -0500
 
-    compress/lzw,compress/gzip,compress/flate,compress/zlib,compress/bzip2: go doc links
+    maps: correct use of linkname
     
-    Add godoc links to compress/* package doc.
+    Linkname should have uses at both ends,
+    and then no fake assembly file is needed.
     
-    Change-Id: I768ca250a39b0bb70eca35ac5b3b77ead73ca5f7
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/655057
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Change-Id: Ia2066be7b1e08d71a6db622d2a167f1b09cb7d9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558297
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
 
- src/compress/bzip2/bzip2.go   |  2 +-
- src/compress/flate/inflate.go |  6 +++---
- src/compress/gzip/gunzip.go   |  4 ++--
- src/compress/gzip/gzip.go     |  8 ++++----
- src/compress/lzw/reader.go    |  4 ++--
- src/compress/zlib/writer.go   | 30 +++++++++++++++---------------
- 6 files changed, 27 insertions(+), 27 deletions(-)
+ src/maps/maps.go | 5 +++++
+ src/maps/maps.s  | 5 -----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

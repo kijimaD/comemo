@@ -1,20 +1,20 @@
-commit aae0bef72f97f74318bb57da24efef49b1096a67
-Author: Ian Lance Taylor <iant@golang.org>
-Date:   Thu Jun 2 09:58:42 2022 -0700
+commit 0b61dc4577c6958c852e99abf2c2a2cad2b186a2
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 20:32:29 2021 -0400
 
-    archive/zip: use bufio.Reset rather than NewReader
+    go/types: remove unused gcCompatibilityMode flag (cleanup)
     
-    A clean up for CL 408734, suggested by Joe Tsai.
+    This is a port of CL 339831 to go/types.
     
-    Change-Id: Ida9db0b8d31785d5640938c286c9c6c82c27f457
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/410154
-    Auto-Submit: Ian Lance Taylor <iant@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@golang.org>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    gcCompatibilityMode is unused, and x/tools/go/types no longer exists, so
+    delete it.
+    
+    Change-Id: I886d8c24b7aa6511934ac78549f07a88a18e950b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342429
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
 
- src/archive/zip/reader.go | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ src/go/types/typestring.go | 98 +++++++---------------------------------------
+ 1 file changed, 14 insertions(+), 84 deletions(-)

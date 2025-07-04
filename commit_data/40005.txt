@@ -1,36 +1,14 @@
-commit ee3dded36d69264998c39af0ec851371850d842b
-Author: Jeremy Faller <jeremy@golang.org>
-Date:   Wed Jul 31 10:33:11 2019 -0400
+commit 9a0a150c9f50f920f35cc4d50ac3005503f44f2d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Apr 7 13:50:06 2019 +1000
 
-    cmd/compile: generate debug_lines in compiler
+    all: spell "Deprecated: Use etc" consistently
     
-    This is mostly a copy-paste jobs from the linker to generate the debug
-    information in the compiler instead of the linker. The new data is
-    inserted into the debug line numbers symbol defined in CL 188238.
-    
-    Generating the debug information BEFORE deadcode results in one subtle
-    difference, and that is that the state machine needs to be reset at the
-    end of every function's debug line table. The reasoning is that
-    generating the table AFTER dead code allows the producer and consumer of
-    the table to agree on the state of the state machine, and since these
-    blocks will (eventually) be concatenated in the linker, we don't KNOW
-    the state of the state machine unless we reset it. So,
-    generateDebugLinesSymbol resets the state machine at the end of every
-    function.
-    
-    Right now, we don't do anything with this line information, or the file
-    table -- we just populate the symbols.
-    
-    Change-Id: If9103eda6cc5f1f7a11e7e1a97184a060a4ad7fb
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/188317
-    Run-TryBot: Jeremy Faller <jeremy@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Austin Clements <austin@google.com>
+    Change-Id: I209b75dc8dc4da881b68e5c5d98cbf08c1032dfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171098
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
 
- src/cmd/internal/obj/dwarf.go            | 249 +++++++++++++++++++++++++++++++
- src/cmd/internal/obj/objfile.go          |  28 +++-
- src/cmd/internal/obj/plist.go            |   5 +-
- src/cmd/internal/objabi/symkind.go       |   2 +-
- src/cmd/internal/src/xpos.go             |  25 ++++
- src/cmd/link/internal/objfile/objfile.go |   3 +-
- 6 files changed, 308 insertions(+), 4 deletions(-)
+ src/crypto/x509/x509.go     | 2 +-
+ src/go/importer/importer.go | 2 +-
+ src/runtime/cpuprof.go      | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

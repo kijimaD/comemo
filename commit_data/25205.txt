@@ -1,14 +1,12 @@
-commit 5d7dc23ec5fe47eb0520a2542c05383c8854c0af
-Author: Emmanuel Odeke <emm.odeke@gmail.com>
-Date:   Tue Dec 8 02:18:57 2015 -0700
+commit 46b97e7579d750b6f1f13414b47754f4344a1602
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Wed Oct 7 09:10:15 2015 -0700
 
-    net/http: clientHeadContentLength test now in http2 mode
+    text/template: fix formatting calls in tests
     
-    Change-Id: If6cc1298ad550790ee981c1b5dc618a14947dc4a
-    Reviewed-on: https://go-review.googlesource.com/17526
-    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-    TryBot-Result: Gobot Gobot <gobot@golang.org>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I8e94fa57482149f6ea8f13d02ddcc82d6764ddb8
+    Reviewed-on: https://go-review.googlesource.com/15496
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
 
- src/net/http/client_test.go | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ src/text/template/multi_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

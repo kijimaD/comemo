@@ -1,31 +1,29 @@
-commit 7663ffcae641dbf06b9d5321c9afbad4fc73e336
-Author: Russ Cox <rsc@golang.org>
-Date:   Thu Mar 7 19:57:25 2013 -0800
+commit b6e0d39a343128759988c12e7560d21cd35472ca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 7 17:56:00 2013 -0800
 
-    cmd/ld: steps toward 386 host linking
+    net/http: Transport socket late binding
     
-    - Introduce MaxAlign constant and use in data layout
-    and ELF section header.
+    Implement what Chrome calls socket "late binding". See:
+    https://insouciant.org/tech/connection-management-in-chromium/
     
-    - Allow up to 16-byte alignment for large objects
-    (will help Keith's hash changes).
+    In a nutshell, if our HTTP client needs a TCP connection to a
+    remote host and there's not an idle one available, rather than
+    kick off a dial and wait for that specific dial, we instead
+    kick off a dial and wait for either our own dial to finish, or
+    any other TCP connection to that same host to become
+    available.
     
-    - Emit ELF symbol for .rathole (global /dev/null used by 8c).
+    The implementation looks like a classic "Learning Go
+    Concurrency" slide.
     
-    - Invoke gcc with -m32/-m64 as appropriate.
+    Chrome's commit and numbers:
+    http://src.chromium.org/viewvc/chrome?view=rev&revision=36230
     
-    - Don't invoke gcc if writing the .o file failed.
-    
-    R=golang-dev, iant
+    R=golang-dev, daniel.morsing, adg
     CC=golang-dev
-    https://golang.org/cl/7563045
+    https://golang.org/cl/7587043
 
- src/cmd/5l/l.h    |   1 +
- src/cmd/6l/l.h    |   1 +
- src/cmd/8l/l.h    |   1 +
- src/cmd/8l/obj.c  |   4 ++
- src/cmd/ld/data.c | 139 +++++++++++++++++++++++++++++-------------------------
- src/cmd/ld/elf.c  |   2 +-
- src/cmd/ld/lib.c  |  13 ++++-
- src/cmd/ld/lib.h  |   1 +
- 8 files changed, 95 insertions(+), 67 deletions(-)
+ src/pkg/net/http/transport.go      | 78 ++++++++++++++++++++++++++++++++++----
+ src/pkg/net/http/transport_test.go | 58 ++++++++++++++++++++++++++++
+ 2 files changed, 128 insertions(+), 8 deletions(-)

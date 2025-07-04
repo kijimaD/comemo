@@ -1,37 +1,22 @@
-commit 1f354a60ff7e8e047e4dfecb1033a20ee8c266dc
-Author: qmuntal <quimmuntal@gmail.com>
-Date:   Mon Mar 11 10:49:44 2024 +0100
+commit f9cf2c4d0424e352f30d50b89d50eafbfb6fc019
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 5 15:49:07 2023 -0400
 
-    runtime: don't call lockOSThread for every syscall call on Windows
+    cmd/compile: use correct type in amd64 late-lower rules
     
-    Windows syscall.SyscallN currently calls lockOSThread for every syscall.
-    This can be expensive and produce unnecessary context switches,
-    especially when the syscall is called frequently under high contention.
+    The wrong type causes the wrong width spill, which corrupts
+    the value.  I tried to write a test for this and did not
+    succeed, but was able (using gossahash and ssa.html) to
+    isolate to exact change and spill.
     
-    The lockOSThread was necessary to ensure that cgocall wouldn't
-    reschedule the goroutine to a different M, as the syscall return values
-    are reported back in the M struct.
+    Fixes #59432.
     
-    This CL instructs cgocall to copy the syscall return values into the
-    the M that will see the caller on return, so the caller no longer needs
-    to call lockOSThread.
-    
-    Updates #58336.
-    
-    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64,gotip-windows-amd64-longtest
-    Change-Id: If6644fd111dbacab74e7dcee2afa18ca146735da
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/562915
-    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-    Reviewed-by: Than McIntosh <thanm@google.com>
+    Change-Id: I85ad82c9f8fed7674c69d6a2b0a62e111f690454
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482536
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Reviewed-by: Michael Pratt <mpratt@google.com>
-    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
-    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
 
- src/runtime/cgocall.go         | 12 +++++++++---
- src/runtime/nonwindows_stub.go |  5 +++++
- src/runtime/os_windows.go      |  2 ++
- src/runtime/runtime2.go        | 10 +++++-----
- src/runtime/syscall_windows.go | 10 ++++++----
- 5 files changed, 27 insertions(+), 12 deletions(-)
+ .../compile/internal/ssa/_gen/AMD64latelower.rules | 10 ++--
+ .../compile/internal/ssa/rewriteAMD64latelower.go  | 66 ++++++++++++----------
+ 2 files changed, 41 insertions(+), 35 deletions(-)

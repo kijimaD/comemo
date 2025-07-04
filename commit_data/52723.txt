@@ -1,27 +1,26 @@
-commit 547e8e22fe565d65d1fd4d6e71436a5a855447b0
-Author: Jonathan Amsterdam <jba@google.com>
-Date:   Fri Apr 14 06:31:02 2023 -0400
+commit 5370494577bb0844d3fdfa6bebd27bf9285bb764
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Tue Dec 21 22:45:01 2021 +0300
 
-    log/slog: remove calls to Value.Resolve from core
+    runtime: add BenchmarkMemclrRange
     
-    Remove calls to Value.Resolve from Record.AddAttrs, Record.Add and Logger.With.
-    Handlers must resolve values themselves; document that in Handler.
+    This benchmark is added to test improvements in memclr_amd64.
+    As it is stated in Intel Optimization Manual 15.16.3.3, AVX2-implemented
+    memclr can produce a skewed result with the branch predictor being
+    trained by the large loop iteration count.
     
-    Call Value.Resolve in the built-in handlers.
+    This benchmark generates sizes between some specified range. This should
+    help to measure how memclr works when branch predictors may be incorrectly
+    trained.
     
-    Updates #59292.
-    
-    Change-Id: I00ba2131be0b16e3b1a22741249fd6f81c3efde1
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/486375
+    Change-Id: I14d173cafe43ca47198ed920e655547a66b3909f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373362
+    Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-    Run-TryBot: Jonathan Amsterdam <jba@google.com>
-    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
 
- src/log/slog/handler.go      |  8 ++++----
- src/log/slog/handler_test.go | 10 ++++++++++
- src/log/slog/json_handler.go |  2 +-
- src/log/slog/logger.go       |  2 +-
- src/log/slog/record.go       | 11 ++---------
- src/log/slog/value.go        | 21 +++------------------
- src/log/slog/value_test.go   | 12 ++++--------
- 7 files changed, 25 insertions(+), 41 deletions(-)
+ src/runtime/memmove_test.go | 57 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

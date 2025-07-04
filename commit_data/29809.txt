@@ -1,24 +1,18 @@
-commit d0501f1da9c54a8053940feeb86e1644ffaae522
-Author: Daniel Theophanes <kardianos@gmail.com>
-Date:   Tue Dec 13 07:55:12 2016 -0800
+commit 8728df645c70e6420eb59e5886bc839022998322
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Apr 24 17:36:41 2016 -0400
 
-    database/sql: do not store Tx options in Context
+    runtime: remove canBackTrace variable from TestGdbPython
     
-    Drivers which previously supported tip will need to update to this
-    revision before release.
+    The canBackTrace variable is true for all of the architectures
+    Go supports and this is likely to remain the case as new
+    architectures are added.
     
-    Fixes #18284
-    
-    Change-Id: I70b8e7afff1558a8b5348885ce9f50e067c72ee9
-    Reviewed-on: https://go-review.googlesource.com/34330
-    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
-    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: I73900c018eb4b2e5c02fccd8d3e89853b2ba9d90
+    Reviewed-on: https://go-review.googlesource.com/22423
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
 
- api/go1.8.txt                      | 16 +++++++------
- src/database/sql/ctxutil.go        | 31 ++++++++++++++----------
- src/database/sql/driver/driver.go  | 41 ++++++++++++++------------------
- src/database/sql/internal/types.go | 11 ---------
- src/database/sql/sql.go            | 48 +++++++++++++++-----------------------
- src/database/sql/sql_test.go       |  2 +-
- 6 files changed, 65 insertions(+), 84 deletions(-)
+ src/runtime/runtime-gdb_test.go | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

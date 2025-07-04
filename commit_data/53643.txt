@@ -1,20 +1,19 @@
-commit 1e97c515367103da5278fe7047df8d5ffd8a3267
-Author: Chris O'Hara <cohara87@gmail.com>
-Date:   Sat Jun 3 11:49:48 2023 +1000
+commit 2883af63c28d1a4398cd60745d3c0cb7f7fbdacf
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Aug 25 10:13:03 2022 +0800
 
-    syscall: stub Getrlimit on wasip1
+    runtime: convert p.statsSeq to internal atomic type
     
-    This is a prerequisite to enabling the pure Go resolver for
-    wasip1.
+    For #53821.
     
-    Change-Id: Iecd8a18ce4c9eb69a697d29930bedb7175b4f0ce
-    Reviewed-on: https://go-review.googlesource.com/c/go/+/500577
-    Run-TryBot: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-    Reviewed-by: Ian Lance Taylor <iant@google.com>
-    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Change-Id: I1cab3671a29c218b8a927aba9064e63b65900173
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425416
     TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
 
- src/syscall/syscall_wasip1.go | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ src/runtime/mstats.go   | 6 +++---
+ src/runtime/runtime2.go | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

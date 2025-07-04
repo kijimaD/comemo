@@ -1,15 +1,14 @@
-commit f626696d214f33fab4c6a6609a01b75cd191df15
-Author: Russ Cox <rsc@golang.org>
-Date:   Wed Jan 26 15:46:15 2011 -0500
+commit 0e1d941e5c185042a7195ad394d95aadf59d2377
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 26 11:21:23 2011 -0800
 
-    net: fix build on old Linux kernels
-    Thanks to Mike Beller for identifying the problem.
+    go spec: clarify address operators.
     
-    Fixes #1442.
+    Fixes #1445.
     
-    R=bradfitz, bradfitzgo
+    R=r, rsc, iant, ken2
     CC=golang-dev
-    https://golang.org/cl/4102042
+    https://golang.org/cl/4109041
 
- src/pkg/net/server_test.go | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ doc/go_spec.html | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)
